@@ -47,6 +47,13 @@
 // Set rather to use BinnedMalloc2 for binned malloc, can be overridden below
 #define USE_MALLOC_BINNED2 (1)
 
+// Set to 1 if we should try to use /proc/self/smaps_rollup in FUnixPlatformMemory::GetExtendedStats().
+// There is a potential tradeoff in that smaps_rollup appears to be quite a bit faster in
+//   straight testing, but it also looks like it blocks mmap() calls on other threads until it finishes.
+#ifndef USE_PROC_SELF_SMAPS_ROLLUP
+#define USE_PROC_SELF_SMAPS_ROLLUP 0
+#endif
+
 // Used in UnixPlatformStackwalk to skip the crash handling callstack frames.
 bool CORE_API GFullCrashCallstack = false;
 
@@ -653,46 +660,88 @@ struct FProcField
 {
 	const ANSICHAR* Name = nullptr;
 	uint64* Addr = nullptr;
+	uint32 NameLen = 0;
+
+	FProcField(const ANSICHAR *NameIn, uint64* AddrIn)
+		: Name(NameIn), Addr(AddrIn)
+	{
+		NameLen = FCStringAnsi::Strlen(Name);
+	}
 };
+
+static uint64 ParseProcFieldsChunk(ANSICHAR *Buffer, uint64 BufferSize, FProcField *ProcFields, uint32 NumFields, uint32 &NumFieldsFound)
+{
+	uint64 ParsePos = 0;
+
+	for (uint64 Idx = 0; Idx < BufferSize; Idx++)
+	{
+		if (Buffer[Idx] == '\n')
+		{
+			const ANSICHAR *Line = Buffer + ParsePos;
+
+			Buffer[Idx] = 0;
+
+			for (uint32 IdxField = 0; IdxField < NumFields; IdxField++)
+			{
+				uint32 NameLen = ProcFields[IdxField].NameLen;
+
+				if (!FCStringAnsi::Strncmp(Line, ProcFields[IdxField].Name, NameLen))
+				{
+					*ProcFields[IdxField].Addr = atoll(Line + NameLen) * 1024ULL;
+					NumFieldsFound++;
+					break;
+				}
+			}
+
+			ParsePos = Idx + 1;
+		}
+	}
+
+	// If we didn't find any linefeeds, skip the entire chunk
+	return ParsePos ? ParsePos : BufferSize;
+}
 
 static uint32 ReadProcFields(const char *FileName, FProcField *ProcFields, uint32 NumFields)
 {
 	uint32 NumFieldsFound = 0;
-	// 12k should be enough for the proc files we're reading for stats, with room for growth.
-	// smaps_rollup is 642 bytes, meminfo is 1428 bytes, and proc/self/status is 1503 bytes.
-	// If we run out of space and fail to find a field we should also see the warning below.
-	ANSICHAR Buffer[12 * 1024];
 
 	int Fd = open(FileName, O_RDONLY);
 	if (Fd >= 0)
 	{
-		ssize_t Bytes;
+		const uint32 ChunkSize = 512;
+		ANSICHAR Buffer[ChunkSize];
+		uint64 BytesAvailableInChunk = 0;
 
-		do
+		for (;;)
 		{
-			Bytes = read(Fd, Buffer, sizeof(Buffer) - 1);
-		} while (Bytes < 0 && errno == EINTR);
+			ssize_t BytesRead;
+			uint64 BytesToRead = ChunkSize - BytesAvailableInChunk;
+
+			do
+			{
+				BytesRead = read(Fd, Buffer + BytesAvailableInChunk, BytesToRead);
+			} while (BytesRead < 0 && errno == EINTR);
+
+			if (BytesRead <= 0)
+			{
+				break;
+			}
+
+			BytesAvailableInChunk += BytesRead;
+
+			uint64 BytesParsed = ParseProcFieldsChunk(Buffer, BytesAvailableInChunk, ProcFields, NumFields, NumFieldsFound);
+			checkf(BytesParsed <= BytesAvailableInChunk, TEXT("BytesParsed more than BytesAvailableInChunk %u %u"), BytesParsed, BytesAvailableInChunk);
+
+			if (BytesRead < BytesToRead || NumFieldsFound == NumFields)
+			{
+				break;
+			}
+
+			BytesAvailableInChunk -= BytesParsed;
+			memmove(Buffer, Buffer + BytesParsed, BytesAvailableInChunk);
+		}
 
 		close(Fd);
-		Fd = -1;
-
-		if ((Bytes > 0) && (Bytes < UE_ARRAY_COUNT(Buffer)))
-		{
-			Buffer[Bytes] = 0;
-
-			for (uint32 Idx = 0; Idx < NumFields; Idx++)
-			{
-				const ANSICHAR* Field = FCStringAnsi::Strstr(Buffer, ProcFields[Idx].Name);
-
-				if (Field)
-				{
-					uint32 NameLen = FCStringAnsi::Strlen(ProcFields[Idx].Name);
-
-					*ProcFields[Idx].Addr = atoll(Field + NameLen) * 1024ULL;
-					NumFieldsFound++;
-				}
-			}
-		}
 
 		if (NumFieldsFound != NumFields)
 		{
@@ -703,7 +752,7 @@ static uint32 ReadProcFields(const char *FileName, FProcField *ProcFields, uint3
 				// allocate memory. This function could get called via FMemory::GCreateMalloc or signal handlers
 				// and we will potentiall crash in these cases calling UE_LOG or TCHAR_TO_UTF8.
 				fprintf(stderr, "Warning: ReadProcFields: %u of %u fields found in %s.\n",
-					NumFieldsFound, NumFields, FileName);
+						NumFieldsFound, NumFields, FileName);
 				fflush(stderr);
 				bLogOnceMissing = true;
 			}
@@ -771,6 +820,37 @@ FPlatformMemoryStats FUnixPlatformMemory::GetStats()
 	return MemoryStats;
 }
 
+static uint64 ParseSMapsFileChunk(ANSICHAR *Buffer, uint64 BufferSize, FProcField *ProcFields, uint32 NumFields)
+{
+	uint64 ParsePos = 0;
+
+	for (uint64 Idx = 0; Idx < BufferSize; Idx++)
+	{
+		if (Buffer[Idx] == '\n')
+		{
+			const ANSICHAR *Line = Buffer + ParsePos;
+
+			Buffer[Idx] = 0;
+
+			for (uint32 IdxField = 0; IdxField < NumFields; IdxField++)
+			{
+				uint32 NameLen = ProcFields[IdxField].NameLen;
+
+				if (!FCStringAnsi::Strncmp(Line, ProcFields[IdxField].Name, NameLen))
+				{
+					*ProcFields[IdxField].Addr += atoll(Line + NameLen) * 1024ULL;
+					break;
+				}
+			}
+
+			ParsePos = Idx + 1;
+		}
+	}
+
+	// If we didn't find any linefeeds, skip the entire chunk
+	return ParsePos ? ParsePos : BufferSize;
+}
+
 FExtendedPlatformMemoryStats FUnixPlatformMemory::GetExtendedStats()
 {
 	const ANSICHAR Shared_CleanStr[]  = "Shared_Clean:";
@@ -788,48 +868,51 @@ FExtendedPlatformMemoryStats FUnixPlatformMemory::GetExtendedStats()
 		{ Private_DirtyStr, (uint64 *)&MemoryStats.Private_Dirty },
 	};
 
+#if USE_PROC_SELF_SMAPS_ROLLUP
 	// ~ 1.06ms per call on my Threadripper 3990X w/ Debian Testing 5.15.0-2-amd64
+	// Note that testing shows us opening smaps_rollup on a thread while another thread is
+	//  calling mmap() can cause large spikes (30+ms) in the mmap.
 	if (!ReadProcFields("/proc/self/smaps_rollup", SMapsFields, UE_ARRAY_COUNT(SMapsFields)))
+#endif
 	{
-		// ~ 6.8ms per call on my Threadripper 3990X w/ Debian Testing 5.15.0-2-amd64 in TestPAL.
-		// Potentially far higher though, like 100s of ms.
-		if (FILE* ProcSMaps = fopen("/proc/self/smaps", "r"))
+		int Fd = open("/proc/self/smaps", O_RDONLY);
+
+		if (Fd >= 0)
 		{
-			const uint32 Shared_CleanStrLen = FCStringAnsi::Strlen(Shared_CleanStr);
-			const uint32 Shared_DirtyStrLen = FCStringAnsi::Strlen(Shared_DirtyStr);
-			const uint32 Private_CleanStrLen = FCStringAnsi::Strlen(Private_CleanStr);
-			const uint32 Private_DirtyStrLen = FCStringAnsi::Strlen(Private_DirtyStr);
+			const uint32 ChunkSize = 512;
+			ANSICHAR Buffer[ChunkSize];
+			uint64 BytesAvailableInChunk = 0;
 
 			for (;;)
 			{
-				ANSICHAR LineBuffer[256];
-				ANSICHAR *Line = fgets(LineBuffer, UE_ARRAY_COUNT(LineBuffer), ProcSMaps);
+				ssize_t BytesRead;
+				uint64 BytesToRead = ChunkSize - BytesAvailableInChunk;
 
-				if (Line == nullptr)
+				do
 				{
-					// eof or error
+					BytesRead = read(Fd, Buffer + BytesAvailableInChunk, BytesToRead);
+				} while (BytesRead < 0 && errno == EINTR);
+
+				if (BytesRead <= 0)
+				{
 					break;
 				}
 
-				if (!FCStringAnsi::Strncmp(Line, Shared_CleanStr, Shared_CleanStrLen))
+				BytesAvailableInChunk += BytesRead;
+
+				uint64 BytesParsed = ParseSMapsFileChunk(Buffer, BytesAvailableInChunk, SMapsFields, UE_ARRAY_COUNT(SMapsFields));
+				checkf(BytesParsed <= BytesAvailableInChunk, TEXT("BytesParsed more than BytesAvailableInChunk %u %u"), BytesParsed, BytesAvailableInChunk);
+
+				if (BytesRead < BytesToRead)
 				{
-					MemoryStats.Shared_Clean += atoll(Line + Shared_CleanStrLen) * 1024ULL;
+					break;
 				}
-				else if (!FCStringAnsi::Strncmp(Line, Shared_DirtyStr, Shared_DirtyStrLen))
-				{
-					MemoryStats.Shared_Dirty += atoll(Line + Shared_DirtyStrLen) * 1024ULL;
-				}
-				else if (!FCStringAnsi::Strncmp(Line, Private_CleanStr, Private_CleanStrLen))
-				{
-					MemoryStats.Private_Clean += atoll(Line + Private_CleanStrLen) * 1024ULL;
-				}
-				else if (!FCStringAnsi::Strncmp(Line, Private_DirtyStr, Private_DirtyStrLen))
-				{
-					MemoryStats.Private_Dirty += atoll(Line + Private_DirtyStrLen) * 1024ULL;
-				}
+
+				BytesAvailableInChunk -= BytesParsed;
+				memmove(Buffer, Buffer + BytesParsed, BytesAvailableInChunk);
 			}
 
-			fclose(ProcSMaps);
+			close(Fd);
 		}
 	}
 

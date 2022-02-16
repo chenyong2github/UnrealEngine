@@ -6,6 +6,7 @@
 #include "Misc/Guid.h"
 #include "Stats/StatsMisc.h"
 #include "HAL/RunnableThread.h"
+#include "HAL/PlatformMemory.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "GenericPlatform/GenericApplication.h"
 
@@ -263,6 +264,15 @@ int32 ThreadSingletonTest(const TCHAR* CommandLine)
 	return 0;
 }
 
+#if PLATFORM_LINUX
+
+static float ToMB(uint64 Value)
+{
+	return Value * (1.0 / (1024.0 * 1024.0));
+}
+
+#endif // PLATFORM_LINUX
+
 /**
  * Sysinfo test
  */
@@ -301,6 +311,15 @@ int32 SysInfoTest(const TCHAR* CommandLine)
 	UE_LOG(LogTestPAL, Display, TEXT("  FPlatformProcess::GetCurrentWorkingDirectory() = '%s'"), *ApplicationCurrentWorkingDir);
 
 	FPlatformMemory::DumpStats(*GLog);
+
+#if PLATFORM_LINUX
+	FExtendedPlatformMemoryStats StatsEx = FUnixPlatformMemory::GetExtendedStats();
+
+	UE_LOG(LogTestPAL, Display, TEXT("Shared_Clean:%.2f MB, Shared_Dirty:%.2f MB"),
+		ToMB(StatsEx.Shared_Clean), ToMB(StatsEx.Shared_Dirty));
+	UE_LOG(LogTestPAL, Display, TEXT("Private_Clean:%.2fMB Private_Dirty:%.2fMB"),
+		ToMB(StatsEx.Private_Clean), ToMB(StatsEx.Private_Dirty));
+#endif // PLATFORM_LINUX
 
 	FEngineLoop::AppPreExit();
 	FEngineLoop::AppExit();
