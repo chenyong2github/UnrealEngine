@@ -85,7 +85,7 @@ namespace Horde.Storage
         /// <summary>
         /// Do not read in old history using a snapshot, instead just start replicating the new incremental state. Means we will only have partial state but we will also get going quicker on relatively useful blobs.
         /// </summary>
-        public bool SkipSnapshot { get; set; } = true;
+        public bool SkipSnapshot { get; set; } = false;
     }
 
     public enum ReplicatorVersion
