@@ -29,7 +29,7 @@ public class ImageWrapper : ModuleRules
 		// Note that currently this module is included at runtime, so consider the increase in exe size before
 		// enabling for any of the console/phone platforms!
 
-		if (Target.Platform == UnrealTargetPlatform.Win64
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows)
 			|| Target.Platform == UnrealTargetPlatform.Mac
 			|| Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
@@ -43,7 +43,7 @@ public class ImageWrapper : ModuleRules
 		}
 
 		// Add openEXR lib for windows builds.
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
+		if ((Target.Platform.IsInGroup(UnrealPlatformGroup.Windows)) ||
 			(Target.Platform == UnrealTargetPlatform.Mac) ||
 			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")))
 		{

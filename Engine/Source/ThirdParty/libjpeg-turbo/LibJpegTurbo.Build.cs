@@ -13,11 +13,11 @@ public class LibJpegTurbo : ModuleRules
 		string IncPath = Path.Combine(ModuleDirectory, "include");
 		PublicSystemIncludePaths.Add(IncPath);
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			string LibPath = Path.Combine(ModuleDirectory, "lib/Win64");
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "turbojpeg-static.lib"));
-			PublicSystemIncludePaths.Add(Path.Combine(IncPath, Target.Platform.ToString()));
+			PublicSystemIncludePaths.Add(Path.Combine(IncPath, "Win64"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
