@@ -262,7 +262,6 @@ namespace UE::PixelStreaming
 			}
 
 			SendAnswer(NewSession, TUniquePtr<webrtc::SessionDescriptionInterface>(SessionDesc.release()));
-			ForceKeyFrame();
 		}
 		else
 			UE_LOG(LogPixelStreaming, Error, TEXT("Failed to create player session, peer connection was nullptr."));
