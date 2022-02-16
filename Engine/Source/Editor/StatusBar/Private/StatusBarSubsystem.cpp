@@ -22,6 +22,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Misc/ConfigCacheIni.h"
 #include "OutputLogModule.h"
+#include "WidgetDrawerConfig.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Classes/EditorStyleSettings.h"
 
@@ -433,7 +434,7 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 	TSharedRef<SStatusBar> StatusBar =
 		SNew(SStatusBar, StatusBarName, InParentTab);
 
-	FStatusBarDrawer ContentBrowserDrawer(StatusBarDrawerIds::ContentBrowser);
+	FWidgetDrawerConfig ContentBrowserDrawer(StatusBarDrawerIds::ContentBrowser);
 	ContentBrowserDrawer.GetDrawerContentDelegate.BindUObject(this, &UStatusBarSubsystem::OnGetContentBrowser);
 	ContentBrowserDrawer.OnDrawerOpenedDelegate.BindUObject(this, &UStatusBarSubsystem::OnContentBrowserOpened);
 	ContentBrowserDrawer.OnDrawerDismissedDelegate.BindUObject(this, &UStatusBarSubsystem::OnContentBrowserDismissed);
@@ -465,7 +466,7 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 			];
 	
 
-	FStatusBarDrawer OutputLogDrawer(StatusBarDrawerIds::OutputLog);
+	FWidgetDrawerConfig OutputLogDrawer(StatusBarDrawerIds::OutputLog);
 
 	OutputLogDrawer.GetDrawerContentDelegate.BindUObject(this, &UStatusBarSubsystem::OnGetOutputLog);
 	OutputLogDrawer.OnDrawerOpenedDelegate.BindUObject(this, &UStatusBarSubsystem::OnOutputLogOpened);
@@ -517,7 +518,7 @@ bool UStatusBarSubsystem::ActiveWindowHasStatusBar() const
 	return false;
 }
 
-void UStatusBarSubsystem::RegisterDrawer(FName StatusBarName, FStatusBarDrawer&& Drawer, int32 SlotIndex)
+void UStatusBarSubsystem::RegisterDrawer(FName StatusBarName, FWidgetDrawerConfig&& Drawer, int32 SlotIndex)
 {
 	if (TSharedPtr<SStatusBar> StatusBar = GetStatusBar(StatusBarName))
 	{

@@ -97,7 +97,7 @@ public:
 	/**
 	 * Registers a drawer for the asset editor status bar
 	 */
-	void RegisterDrawer(struct FStatusBarDrawer&& Drawer, int32 SlotIndex = INDEX_NONE);
+	void RegisterDrawer(struct FWidgetDrawerConfig&& Drawer, int32 SlotIndex = INDEX_NONE);
 
 	virtual FEditorModeTools& GetEditorModeManager() const override;
 

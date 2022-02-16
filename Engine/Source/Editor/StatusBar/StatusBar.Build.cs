@@ -13,24 +13,24 @@ public class StatusBar : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
+				"EditorStyle",
+				"EditorSubsystem",
 				"Engine",
+				"InputCore",
+				"OutputLog",
 				"Slate",
 				"SlateCore",
-				"InputCore",
-				"EditorStyle",
-				"EditorFramework",
-				"UnrealEd",
-				"ToolMenus",
-				"OutputLog",
 				"SourceControlWindows",
-				"EditorSubsystem",
+				"ToolMenus",
+				"ToolWidgets",
+				"UnrealEd",
 			});
 
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"MainFrame",
 			});
-
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {

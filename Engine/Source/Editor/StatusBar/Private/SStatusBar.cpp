@@ -22,6 +22,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "InputCoreTypes.h"
+#include "SWidgetDrawer.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -571,21 +572,12 @@ SStatusBar::~SStatusBar()
 
 void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, const TSharedRef<SDockTab> InParentTab)
 {
-	StatusBarName = InStatusBarName;
-	StatusBarToolBarName = FName(*(GetStatusBarSerializableName() + ".ToolBar"));
-	
 	ParentTab = InParentTab;
 
 	UpArrow = FAppStyle::Get().GetBrush("StatusBar.ContentBrowserUp");
 	DownArrow = FAppStyle::Get().GetBrush("StatusBar.ContentBrowserDown");
 
 	const FSlateBrush* StatusBarBackground = FAppStyle::Get().GetBrush("Brushes.Panel");
-
-
-	FSlateApplication::Get().OnFocusChanging().AddSP(this, &SStatusBar::OnGlobalFocusChanging);
-	FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SStatusBar::OnActiveTabChanged));
-	FGlobalTabmanager::Get()->OnTabForegrounded_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SStatusBar::OnActiveTabChanged));
-	
 	ChildSlot
 	[
 		SNew(SBox)
@@ -595,7 +587,7 @@ void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, cons
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				SAssignNew(DrawerBox, SHorizontalBox)
+				SAssignNew(WidgetDrawer, SWidgetDrawer, InStatusBarName)
 			]
 			+SHorizontalBox::Slot()
 			[
@@ -684,10 +676,6 @@ void SStatusBar::StartProgressNotification(FProgressNotificationHandle InHandle,
 			}
 			UpdateProgressStatus();
 		}
-		else
-		{
-			//UE_LOG(LogUnrealEdEngine, Log, TEXT("Progress notification \"%s\" has no work to do so it will not be displayed"), *DisplayText.ToString()))
-		}
 	}
 }
 
@@ -748,82 +736,6 @@ TSharedPtr<SDockTab> SStatusBar::GetParentTab() const
 	return ParentTab.Pin();
 }
 
-void SStatusBar::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget)
-{
-	// Sometimes when dismissing focus can change which will trigger this again
-	static bool bIsRentrant = false;
-
-	if(!bIsRentrant)
-	{
-		TGuardValue<bool> RentrancyGuard(bIsRentrant, true);
-
-		TSharedRef<SWidget> ThisWidget = AsShared();
-
-		TSharedPtr<SWidget> ActiveDrawerOverlayContent;
-		if (OpenedDrawer.IsValid())
-		{
-			ActiveDrawerOverlayContent = OpenedDrawer.DrawerOverlay;
-		}
-
-		bool bShouldDismiss = false;
-
-		// If we aren't focusing any new widgets, act as if the drawer is in the path 
-		bool bDrawerInPath = NewFocusedWidgetPath.ContainsWidget(ActiveDrawerOverlayContent.Get()) 
-			|| NewFocusedWidgetPath.ContainsWidget(this) 
-			|| NewFocusedWidgetPath.Widgets.Num() == 0;
-
-		// Do not close due to slow tasks as those opening send window activation events
-		if (!GIsSlowTask && !bDrawerInPath && !FSlateApplication::Get().GetActiveModalWindow().IsValid() && ActiveDrawerOverlayContent.IsValid())
-		{
-			if (TSharedPtr<SWidget> MenuHost = FSlateApplication::Get().GetMenuHostWidget())
-			{
-				FWidgetPath MenuHostPath;
-
-				// See if the menu being opened is part of the content browser path and if so the menu should not be dismissed
-				FSlateApplication::Get().GeneratePathToWidgetUnchecked(MenuHost.ToSharedRef(), MenuHostPath, EVisibility::All);
-				if (!MenuHostPath.ContainsWidget(ActiveDrawerOverlayContent.Get()))
-				{
-					bShouldDismiss = true;
-				}
-			}
-			else
-			{
-				bShouldDismiss = true;
-			}
-		}
-
-		if (bShouldDismiss)
-		{
-			DismissDrawer(NewFocusedWidget);
-		}
-	}
-}
-
-void SStatusBar::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)
-{
-	bool bShouldRemoveDrawer = false;
-	if (!PreviouslyActive || !NewlyActivated)
-	{
-		// Remove the content browser if there is some invalid state with the tabs
-		bShouldRemoveDrawer = true;
-	}
-	else if(NewlyActivated->GetTabRole() == ETabRole::MajorTab)
-	{
-		// Remove the content browser if a newly activated tab is a major tab
-		bShouldRemoveDrawer = true;
-	}
-	else if (PreviouslyActive->GetTabManagerPtr() != NewlyActivated->GetTabManagerPtr())
-	{
-		// Remove the content browser if we're switching tab managers (indicates a new status bar is becoming active)
-		bShouldRemoveDrawer = true;
-	}
-
-	if (bShouldRemoveDrawer)
-	{
-		CloseDrawerImmediately();
-	}
-}
-
 FText SStatusBar::GetStatusBarMessage() const
 {
 	FText FullMessage;
@@ -840,78 +752,6 @@ FText SStatusBar::GetStatusBarMessage() const
 	return FullMessage;
 }
 
-TSharedRef<SWidget> SStatusBar::MakeStatusBarDrawerButton(const FStatusBarDrawer& Drawer)
-{
-	const FName DrawerId = Drawer.UniqueId;
-
-	const FSlateBrush* StatusBarBackground = FAppStyle::Get().GetBrush("Brushes.Panel");
-
-	TSharedRef<SWidget> DrawerButton = 
-
-		SNew(SBorder)
-		.Padding(FMargin(2.0f, 0.0f))
-		.BorderImage(StatusBarBackground)
-		.Visibility(EVisibility::SelfHitTestInvisible)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SButton)
-			.IsFocusable(false)
-			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("StatusBar.StatusBarButton"))
-			.OnClicked(this, &SStatusBar::OnDrawerButtonClicked, DrawerId)
-			.ToolTipText(Drawer.ToolTipText)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.Padding(2.0f)
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					SNew(SImage)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(Drawer.Icon)
-				]
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(2.0f)
-				[
-					SNew(STextBlock)
-					.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
-					.Text(Drawer.ButtonText)
-				]
-			]
-		];
-
-
-	if (Drawer.CustomWidget)
-	{
-		return
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(0.0f, 0.0f, 2.0f, 0.0f)
-			.AutoWidth()
-			[
-				DrawerButton
-			]
-			+ SHorizontalBox::Slot()
-			[
-				SNew(SBorder)
-				.Padding(FMargin(2.0f, 0.0f))
-				.BorderImage(StatusBarBackground)
-				.Visibility(EVisibility::SelfHitTestInvisible)
-				.VAlign(VAlign_Center)
-				[
-					Drawer.CustomWidget.ToSharedRef()
-				]
-			];
-	
-	}
-	else
-	{
-		return DrawerButton;
-	}
-}
-
 TSharedRef<SWidget> SStatusBar::MakeStatusBarToolBarWidget()
 {
 	RegisterStatusBarMenu();
@@ -919,7 +759,7 @@ TSharedRef<SWidget> SStatusBar::MakeStatusBarToolBarWidget()
 	FToolMenuContext MenuContext;
 	RegisterSourceControlStatus();
 
-	return UToolMenus::Get()->GenerateWidget(StatusBarToolBarName, MenuContext);
+	return UToolMenus::Get()->GenerateWidget(GetToolbarName(), MenuContext);
 }
 
 TSharedRef<SWidget> SStatusBar::MakeStatusMessageWidget()
@@ -955,19 +795,39 @@ TSharedRef<SWidget> SStatusBar::MakeProgressBar()
 		.OnGetProgressMenuContent(this, &SStatusBar::OnGetProgressBarMenuContent);
 }
 
+void SStatusBar::RegisterDrawer(FWidgetDrawerConfig&& Drawer, int32 SlotIndex)
+{
+	WidgetDrawer->RegisterDrawer(MoveTemp(Drawer), SlotIndex);
+}
+
+void SStatusBar::OpenDrawer(const FName DrawerId)
+{
+	WidgetDrawer->OpenDrawer(DrawerId);
+}
+
+bool SStatusBar::DismissDrawer(const TSharedPtr<SWidget>& NewlyFocusedWidget)
+{
+	return WidgetDrawer->DismissDrawer(NewlyFocusedWidget);
+}
+
+void SStatusBar::CloseDrawerImmediately(FName DrawerId)
+{
+	WidgetDrawer->CloseDrawerImmediately(DrawerId);
+}
+
 bool SStatusBar::IsDrawerOpened(const FName DrawerId) const
 {
-	return OpenedDrawer == DrawerId ? true : false;
+	return WidgetDrawer->IsDrawerOpened(DrawerId);
 }
 
 bool SStatusBar::IsAnyOtherDrawerOpened(const FName DrawerId) const
 {
-	return OpenedDrawer.IsValid() && OpenedDrawer.DrawerId != DrawerId ? true : false;
+	return WidgetDrawer->IsAnyOtherDrawerOpened(DrawerId);
 }
 
 FName SStatusBar::GetStatusBarName() const
 {
-	return StatusBarName;
+	return WidgetDrawer->GetDrawerName();
 }
 
 FReply SStatusBar::OnDrawerButtonClicked(const FName DrawerId)
@@ -984,27 +844,15 @@ FReply SStatusBar::OnDrawerButtonClicked(const FName DrawerId)
 	return FReply::Handled();
 }
 
-
-
-void SStatusBar::OnDrawerHeightChanged(float TargetHeight)
-{
-	TSharedPtr<SWindow> MyWindow = OpenedDrawer.WindowWithOverlayContent.Pin();
-
-	// Save the height has a percentage of the screen
-	const float TargetDrawerHeightPct = TargetHeight / (MyWindow->GetSizeInScreen().Y / MyWindow->GetDPIScaleFactor());
-
-	GConfig->SetFloat(TEXT("DrawerSizes"), *(GetStatusBarSerializableName() + TEXT(".") + OpenedDrawer.DrawerId.ToString()), TargetDrawerHeightPct, GEditorSettingsIni);
-}
-
 void SStatusBar::RegisterStatusBarMenu()
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
-	if (ToolMenus->IsMenuRegistered(StatusBarToolBarName))
+	if (ToolMenus->IsMenuRegistered(GetToolbarName()))
 	{
 		return;
 	}
 
-	UToolMenu* ToolBar = ToolMenus->RegisterMenu(StatusBarToolBarName, NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	UToolMenu* ToolBar = ToolMenus->RegisterMenu(GetToolbarName(), NAME_None, EMultiBoxType::SlimHorizontalToolBar);
 	ToolBar->StyleName = "StatusBarToolBar";
 }
 
@@ -1013,7 +861,7 @@ void SStatusBar::RegisterSourceControlStatus()
 	// Source Control preferences
 	FSourceControlMenuHelpers::CheckSourceControlStatus();
 	{
-		UToolMenu* SourceControlMenu = UToolMenus::Get()->ExtendMenu(StatusBarToolBarName);
+		UToolMenu* SourceControlMenu = UToolMenus::Get()->ExtendMenu(GetToolbarName());
 		FToolMenuSection& Section = SourceControlMenu->FindOrAddSection("SourceControl");
 
 		Section.AddEntry(
@@ -1178,146 +1026,9 @@ TSharedRef<SWidget> SStatusBar::OnGetProgressBarMenuContent()
 		];
 }
 
-void SStatusBar::CloseDrawerImmediatelyInternal(const FOpenDrawerData& Data)
+FName SStatusBar::GetToolbarName() const
 {
-	if (Data.IsValid())
-	{
-		TSharedRef<SWidget> DrawerOverlayContent = Data.DrawerOverlay.ToSharedRef();
-
-		// Remove the content browser from the window
-		if (TSharedPtr<SWindow> Window = Data.WindowWithOverlayContent.Pin())
-		{
-			Window->RemoveOverlaySlot(DrawerOverlayContent);
-		}
-	}
-}
-
-FString SStatusBar::GetStatusBarSerializableName() const
-{
-	return StatusBarName.GetPlainNameString();
-}
-
-void SStatusBar::RegisterDrawer(FStatusBarDrawer&& Drawer, int32 SlotIndex)
-{
-	const int32 NumDrawers = RegisteredDrawers.Num();
-	RegisteredDrawers.AddUnique(Drawer);
-
-	if (RegisteredDrawers.Num() > NumDrawers)
-	{
-		DrawerBox->InsertSlot(SlotIndex)
-		.Padding(1.0f, 0.0f)
-		.AutoWidth()
-		[
-			MakeStatusBarDrawerButton(Drawer)
-		];
-	}
-}
-
-void SStatusBar::OpenDrawer(const FName DrawerId)
-{
-	// Close any other open drawer
-	if (OpenedDrawer.DrawerId != DrawerId && DismissingDrawers.IndexOfByKey(DrawerId) == INDEX_NONE)
-	{
-		DismissDrawer(nullptr);
-
-		FStatusBarDrawer* DrawerData = RegisteredDrawers.FindByKey(DrawerId);
-
-		if(DrawerData)
-		{
-			TSharedRef<SStatusBar> ThisStatusBar = SharedThis(this);
-
-			TSharedPtr<SWindow> MyWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
-
-			const float MaxDrawerHeight = MyWindow->GetSizeInScreen().Y * 0.90f;
-
-			float TargetDrawerHeightPct = .33f;
-			GConfig->GetFloat(TEXT("DrawerSizes"), *(GetStatusBarSerializableName()+TEXT(".")+DrawerData->UniqueId.ToString()), TargetDrawerHeightPct, GEditorSettingsIni);
-
-			float TargetDrawerHeight = (MyWindow->GetSizeInScreen().Y * TargetDrawerHeightPct) / MyWindow->GetDPIScaleFactor();
-
-			const float MinDrawerHeight = GetTickSpaceGeometry().GetLocalSize().Y + MyWindow->GetWindowBorderSize().Bottom;
-	
-			FOpenDrawerData NewlyOpenedDrawer;
-
-			MyWindow->AddOverlaySlot()
-				.VAlign(VAlign_Bottom)
-				.Padding(FMargin(10.0f, 20.0f, 10.0f, MinDrawerHeight))
-				[
-					SAssignNew(NewlyOpenedDrawer.DrawerOverlay, SDrawerOverlay)
-					.MinDrawerHeight(MinDrawerHeight)
-					.TargetDrawerHeight(TargetDrawerHeight)
-					.MaxDrawerHeight(MaxDrawerHeight)
-					.OnDismissComplete_Lambda(
-						[DrawerId, this]()
-						{
-							CloseDrawerImmediately(DrawerId);
-						})
-					.OnTargetHeightChanged(this, &SStatusBar::OnDrawerHeightChanged)
-					[
-						DrawerData->GetDrawerContentDelegate.Execute()
-					]
-				];
-
-			NewlyOpenedDrawer.WindowWithOverlayContent = MyWindow;
-			NewlyOpenedDrawer.DrawerId = DrawerId;
-			NewlyOpenedDrawer.DrawerOverlay->Open();
-
-			OpenedDrawer = MoveTemp(NewlyOpenedDrawer);
-
-			DrawerData->OnDrawerOpenedDelegate.ExecuteIfBound(ThisStatusBar->StatusBarName);
-		}
-	}
-}
-
-bool SStatusBar::DismissDrawer(const TSharedPtr<SWidget>& NewlyFocusedWidget)
-{
-	bool bWasDismissed = false;
-	if (OpenedDrawer.IsValid())
-	{
-		FStatusBarDrawer* Drawer = RegisteredDrawers.FindByKey(OpenedDrawer.DrawerId);
-
-		OpenedDrawer.DrawerOverlay->Dismiss();
-		DismissingDrawers.Add(MoveTemp(OpenedDrawer));
-
-		OpenedDrawer = FOpenDrawerData();
-
-		Drawer->OnDrawerDismissedDelegate.ExecuteIfBound(NewlyFocusedWidget);
-		bWasDismissed = true;
-	}
-
-	return bWasDismissed;
-}
-
-void SStatusBar::CloseDrawerImmediately(FName DrawerId)
-{
-	// If no ID is specified remove all drawers
-	if (DrawerId.IsNone())
-	{
-		for (const FOpenDrawerData& Data : DismissingDrawers)
-		{
-			CloseDrawerImmediatelyInternal(Data);
-		}
-
-		DismissingDrawers.Empty();
-
-		CloseDrawerImmediatelyInternal(OpenedDrawer);
-
-		OpenedDrawer = FOpenDrawerData();
-	}
-	else
-	{
-		int32 Index = DismissingDrawers.IndexOfByKey(DrawerId);
-		if (Index != INDEX_NONE)
-		{
-			CloseDrawerImmediatelyInternal(DismissingDrawers[Index]);
-			DismissingDrawers.RemoveAtSwap(Index);
-		}
-		else if (OpenedDrawer == DrawerId)
-		{
-			CloseDrawerImmediatelyInternal(OpenedDrawer);
-			OpenedDrawer = FOpenDrawerData();
-		}
-	}
+	return FName(*(WidgetDrawer->GetSerializableName() + ".ToolBar"));
 }
 
 #undef LOCTEXT_NAMESPACE

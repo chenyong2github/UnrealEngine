@@ -16,6 +16,7 @@
 #include "ToolMenus.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
+#include "WidgetDrawerConfig.h"
 
 #define LOCTEXT_NAMESPACE "StandaloneAssetEditorToolkit"
 
@@ -242,7 +243,7 @@ void SStandaloneAssetEditorToolkitHost::SetToolbar(TSharedPtr<SWidget> Toolbar)
 	}
 }
 
-void SStandaloneAssetEditorToolkitHost::RegisterDrawer(FStatusBarDrawer&& Drawer, int32 SlotIndex)
+void SStandaloneAssetEditorToolkitHost::RegisterDrawer(FWidgetDrawerConfig&& Drawer, int32 SlotIndex)
 {
 	if (StatusBarWidget.IsValid())
 	{

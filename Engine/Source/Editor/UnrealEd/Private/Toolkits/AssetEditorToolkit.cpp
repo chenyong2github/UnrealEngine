@@ -33,6 +33,7 @@
 #include "AssetEditorModeManager.h"
 #include "Misc/Attribute.h"
 #include "Textures/SlateIcon.h"
+#include "WidgetDrawerConfig.h"
 
 #define LOCTEXT_NAMESPACE "AssetEditorToolkit"
 
@@ -1159,7 +1160,7 @@ void FAssetEditorToolkit::RegenerateMenusAndToolbars()
 }
 
 
-void FAssetEditorToolkit::RegisterDrawer(FStatusBarDrawer&& Drawer, int32 SlotIndex)
+void FAssetEditorToolkit::RegisterDrawer(FWidgetDrawerConfig&& Drawer, int32 SlotIndex)
 {
 	TSharedPtr< class SStandaloneAssetEditorToolkitHost > HostWidget = StandaloneHost.Pin();
 	if (HostWidget.IsValid())
