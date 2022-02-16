@@ -11,6 +11,11 @@ bool FPCGTaggedData::operator==(const FPCGTaggedData& Other) const
 		Tags.Includes(Other.Tags);
 }
 
+bool FPCGTaggedData::operator!=(const FPCGTaggedData& Other) const
+{
+	return !operator==(Other);
+}
+
 TArray<FPCGTaggedData> FPCGDataCollection::GetInputs() const
 {
 	return TaggedData.FilterByPredicate([](const FPCGTaggedData& Data) {
@@ -54,6 +59,39 @@ const UPCGSettings* FPCGDataCollection::GetSettings(const UPCGSettings* InDefaul
 			});
 
 		return MatchingData ? Cast<const UPCGSettings>(MatchingData->Data) : InDefaultSettings;
+	}
+}
+
+bool FPCGDataCollection::operator==(const FPCGDataCollection& Other) const
+{
+	if (bCancelExecution != Other.bCancelExecution || TaggedData.Num() != Other.TaggedData.Num())
+	{
+		return false;
+	}
+
+	// TODO: Once we make the arguments order irrelevant, then this should be updated
+	for (int32 DataIndex = 0; DataIndex < TaggedData.Num(); ++DataIndex)
+	{
+		if (TaggedData[DataIndex] != Other.TaggedData[DataIndex])
+		{
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+void FPCGDataCollection::RootUnrootedData(TSet<UObject*>& OutRootedData) const
+{
+	for (const FPCGTaggedData& Data : TaggedData)
+	{
+		if (Data.Data && !Data.Data->IsRooted())
+		{
+			// This is technically a const_cast
+			UObject* DataToRoot = Cast<UObject>(Data.Data);
+			DataToRoot->AddToRoot();
+			OutRootedData.Add(DataToRoot);
+		}
 	}
 }
 

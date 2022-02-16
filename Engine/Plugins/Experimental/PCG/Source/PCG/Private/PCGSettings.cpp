@@ -2,6 +2,22 @@
 
 #include "PCGSettings.h"
 #include "PCGNode.h"
+#include "Serialization/ArchiveObjectCrc32.h"
+
+bool UPCGSettings::operator==(const UPCGSettings& Other) const
+{
+	if (this == &Other)
+	{
+		return true;
+	}
+	else
+	{
+		FArchiveObjectCrc32 Ar;
+		uint32 ThisCrc = Ar.Crc32(const_cast<UPCGSettings*>(this));
+		uint32 OtherCrc = Ar.Crc32(const_cast<UPCGSettings*>(&Other));
+		return ThisCrc == OtherCrc;
+	}
+}
 
 FPCGElementPtr UPCGSettings::GetElement() const
 {

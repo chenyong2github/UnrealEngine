@@ -45,4 +45,5 @@ class FPCGStaticMeshSpawnerElement : public FSimpleTypedPCGElement<UPCGStaticMes
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 };

@@ -4,6 +4,7 @@
 #include "PCGContext.h"
 #include "PCGSettings.h"
 #include "Elements/PCGDebugElement.h"
+#include "Graph/PCGGraphCache.h"
 
 bool IPCGElement::Execute(FPCGContextPtr Context) const
 {
@@ -57,7 +58,21 @@ bool IPCGElement::Execute(FPCGContextPtr Context) const
 			Context->InputData.TaggedData = FilteredTaggedData;
 		}
 
-		bool bDone = ExecuteInternal(Context);
+		bool bDone = false;
+
+		if (IsCacheable(Settings) && Context->Cache && Context->Cache->GetFromCache(this, Context->InputData, Settings, Context->OutputData))
+		{
+			bDone = true;
+		}
+		else
+		{
+			bDone = ExecuteInternal(Context);
+
+			if (bDone && IsCacheable(Settings) && Context->Cache)
+			{
+				Context->Cache->StoreInCache(this, Context->InputData, Settings, Context->OutputData);
+			}
+		}
 
 		/** TODO - Placeholder feature */
 		if (bDone && Settings && !Settings->TagsAppliedOnOutput.IsEmpty())

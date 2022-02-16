@@ -45,6 +45,7 @@ struct FPCGTaggedData
 	TSet<FString> Tags;
 
 	bool operator==(const FPCGTaggedData& Other) const;
+	bool operator!=(const FPCGTaggedData& Other) const;
 };
 
 USTRUCT(BlueprintType)
@@ -61,6 +62,9 @@ struct FPCGDataCollection
 	const SettingsType* GetSettings() const;
 
 	const UPCGSettings* GetSettings(const UPCGSettings* InDefaultSettings) const;
+
+	bool operator==(const FPCGDataCollection& Other) const;
+	void RootUnrootedData(TSet<UObject*>& OutRootedData) const;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	TArray<FPCGTaggedData> TaggedData;

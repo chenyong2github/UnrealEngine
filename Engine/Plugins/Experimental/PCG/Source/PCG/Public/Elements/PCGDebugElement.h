@@ -32,4 +32,5 @@ class FPCGDebugElement : public FSimpleTypedPCGElement<UPCGDebugSettings>
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContextPtr Contexxt) const override;
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 };

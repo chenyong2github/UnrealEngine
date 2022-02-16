@@ -35,6 +35,8 @@ public:
 	// TODO: check if we need this to be virtual, we don't really need if we're always caching
 	/*virtual*/ FPCGElementPtr GetElement() const;
 	virtual UPCGNode* CreateNode() const;
+	
+	bool operator==(const UPCGSettings& Other) const;
 
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const { return NAME_None; }
@@ -96,4 +98,5 @@ class FPCGTrivialElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 };

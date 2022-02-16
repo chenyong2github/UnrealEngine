@@ -34,7 +34,7 @@ void UPCGSubsystem::PostInitialize()
 
 	// Initialize graph executor
 	check(!GraphExecutor);
-	GraphExecutor = new FPCGGraphExecutor();
+	GraphExecutor = new FPCGGraphExecutor(this);
 	// gather things.. ?
 	// TODO	
 }
@@ -485,6 +485,14 @@ void UPCGSubsystem::NotifyGraphChanged(UPCGGraph* InGraph)
 	if (GraphExecutor)
 	{
 		GraphExecutor->NotifyGraphChanged(InGraph);
+	}
+}
+
+void UPCGSubsystem::CleanFromCache(AActor* InActor)
+{
+	if (GraphExecutor)
+	{
+		GraphExecutor->GetCache().CleanFromCache(InActor);
 	}
 }
 

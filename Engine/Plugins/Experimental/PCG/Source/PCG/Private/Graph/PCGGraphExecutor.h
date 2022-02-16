@@ -7,6 +7,7 @@
 #include "PCGContext.h"
 #include "PCGElement.h"
 #include "PCGSubsystem.h"
+#include "PCGGraphCache.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionHandle.h" // Needed for FWorldPartitonReference
@@ -42,7 +43,7 @@ struct FPCGGraphActiveTask
 class FPCGGraphExecutor
 {
 public:
-	FPCGGraphExecutor();
+	FPCGGraphExecutor(UObject* InOwner);
 	~FPCGGraphExecutor();
 
 	/** Compile (and cache) a graph for later use. This call is threadsafe */
@@ -69,11 +70,16 @@ public:
 	/** "Tick" of the graph executor. This call is NOT THREADSAFE */
 	void Execute();
 
+	/** Expose cache so it can be dirtied */
+	FPCGGraphCache& GetCache() { return GraphCache; }
+
 private:
 	void QueueReadyTasks(FPCGTaskId FinishedTaskHint = InvalidTaskId);
 	void BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollection& TaskInput);
 	void StoreResults(FPCGTaskId InTaskId, const FPCGDataCollection& InTaskOutput);
 	void ClearResults();
+
+	FPCGElementPtr GetFetchInputElement();
 
 #if WITH_EDITOR
 	void SaveDirtyActors();
@@ -83,13 +89,19 @@ private:
 	/** Graph compiler that turns a graph into tasks */
 	TUniquePtr<FPCGGraphCompiler> GraphCompiler;
 
+	/** Graph results cache */
+	FPCGGraphCache GraphCache;
+
+	/** Input fetch element, stored here so we have only one */
+	FPCGElementPtr FetchInputElement;
+
 	FCriticalSection ScheduleLock;
 	TArray<FPCGGraphScheduleTask> ScheduledTasks;
 
 	TArray<FPCGGraphTask> Tasks;
 	TArray<FPCGGraphTask> ReadyTasks;
 	TArray<FPCGGraphActiveTask> ActiveTasks;
-	TArray<UObject*> RootedData;
+	TSet<UObject*> RootedData;
 	/** Map of node instances to their output, could be cleared once execution is done */
 	/** Note: this should at some point unload based on loaded/unloaded proxies, otherwise memory cost will be unbounded */
 	TMap<FPCGTaskId, FPCGDataCollection> OutputData;
@@ -105,14 +117,9 @@ private:
 
 class FPCGFetchInputElement : public FSimplePCGElement
 {
-public:
-	FPCGFetchInputElement(UPCGComponent* InComponent);
-
 protected:
 	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
-
-private:
-	UPCGComponent* Component = nullptr;
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 };
 
 class FPCGGenericElement : public FSimplePCGElement
@@ -125,6 +132,7 @@ protected:
 	// as most of these will impact the editor in some way (loading, unloading, saving)
 	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
 	virtual bool IsCancellable() const { return false; }
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 
 private:
 	TFunction<bool()> Operation;

@@ -13,8 +13,9 @@
 #include "FileHelpers.h"
 #endif
 
-FPCGGraphExecutor::FPCGGraphExecutor()
+FPCGGraphExecutor::FPCGGraphExecutor(UObject* InOwner)
 	: GraphCompiler(MakeUnique<FPCGGraphCompiler>())
+	, GraphCache(InOwner)
 {
 }
 
@@ -30,7 +31,7 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGComponent* Component, const TArray<FP
 	check(Component);
 	UPCGGraph* Graph = Component->GetGraph();
 
-	return Schedule(Graph, Component, MakeShared<FPCGFetchInputElement>(Component), ExternalDependencies);
+	return Schedule(Graph, Component, GetFetchInputElement(), ExternalDependencies);
 }
 
 FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& ExternalDependencies)
@@ -188,6 +189,7 @@ void FPCGGraphExecutor::Execute()
 				FPCGContextPtr Context = Element->Initialize(TaskInput, Task.SourceComponent);
 				Context->Node = Task.Node; // still needed?
 				Context->TaskId = Task.NodeId;
+				Context->Cache = &GraphCache;
 
 				FPCGGraphActiveTask& ActiveTask = ActiveTasks.Emplace_GetRef();
 				ActiveTask.Element = Element;
@@ -270,16 +272,7 @@ void FPCGGraphExecutor::StoreResults(FPCGTaskId InTaskId, const FPCGDataCollecti
 	OutputData.Add(InTaskId, InTaskOutput);
 
 	// Root any non-rooted results, otherwise they'll get garbage-collected
-	for (const FPCGTaggedData& TaggedData : InTaskOutput.TaggedData)
-	{
-		if (TaggedData.Data != nullptr && !TaggedData.Data->IsRooted())
-		{
-			// This is technically a const_cast
-			UObject* DataToRoot = Cast<UObject>(TaggedData.Data);
-			DataToRoot->AddToRoot();
-			RootedData.Add(DataToRoot);
-		}
-	}
+	InTaskOutput.RootUnrootedData(RootedData);
 }
 
 void FPCGGraphExecutor::ClearResults()
@@ -296,6 +289,16 @@ void FPCGGraphExecutor::ClearResults()
 	RootedData.Reset();
 
 	ScheduleLock.Unlock();
+}
+
+FPCGElementPtr FPCGGraphExecutor::GetFetchInputElement()
+{
+	if (!FetchInputElement)
+	{
+		FetchInputElement = MakeShared<FPCGFetchInputElement>();
+	}
+
+	return FetchInputElement;
 }
 
 #if WITH_EDITOR
@@ -355,17 +358,13 @@ void FPCGGraphExecutor::NotifyGraphChanged(UPCGGraph* InGraph)
 }
 #endif
 
-FPCGFetchInputElement::FPCGFetchInputElement(UPCGComponent* InComponent)
-	: Component(InComponent)
-{
-}
-
 bool FPCGFetchInputElement::ExecuteInternal(FPCGContextPtr Context) const
 {
 	// First: any input can be passed through to the output trivially
 	Context->OutputData = Context->InputData;
 
 	// Second: fetch the inputs provided by the component
+	UPCGComponent* Component = Context->SourceComponent;
 	check(Component);
 	if(UPCGData* PCGData = Component->GetPCGData())
 	{

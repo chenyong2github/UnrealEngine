@@ -90,6 +90,9 @@ protected:
 	TArray<FName> TrackedActorTags;
 #endif
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bCreatesArtifacts = false;
+
 protected:
 #if WITH_EDITOR
 	void OnBlueprintChanged(UBlueprint* InBlueprint);
@@ -112,4 +115,5 @@ class FPCGExecuteBlueprintElement : public FSimpleTypedPCGElement<UPCGBlueprintS
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const override;
 };

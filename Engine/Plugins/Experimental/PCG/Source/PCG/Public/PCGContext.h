@@ -9,6 +9,7 @@
 
 struct FPCGContext;
 class UPCGComponent;
+struct FPCGGraphCache;
 
 typedef TSharedPtr<FPCGContext, ESPMode::ThreadSafe> FPCGContextPtr;
 
@@ -19,6 +20,7 @@ struct FPCGContext
 	FPCGDataCollection InputData;
 	FPCGDataCollection OutputData;
 	UPCGComponent* SourceComponent = nullptr;
+	FPCGGraphCache* Cache = nullptr;
 	// TODO: add RNG source
 	// TODO: replace this by a better identification mechanism
 	const UPCGNode* Node = nullptr;

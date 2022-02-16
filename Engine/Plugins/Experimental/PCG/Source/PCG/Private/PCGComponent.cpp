@@ -712,6 +712,7 @@ void UPCGComponent::OnActorDeleted(AActor* InActor)
 	if (bIsTracked)
 	{
 		CachedTrackedActors.Remove(InActor);
+		GetSubsystem()->CleanFromCache(InActor);
 	}
 
 	if (bHasExcludedTag || bIsTracked)
@@ -735,9 +736,20 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 	}
 	else
 	{
-		if (ActorHasExcludedTag(InActor) || ActorIsTracked(InActor))
+		const bool bHasExcludedTag = ActorHasExcludedTag(InActor);
+		const bool bActorIsTracked = ActorIsTracked(InActor);
+		if (bHasExcludedTag || bActorIsTracked)
 		{
-			DirtyExclusionData(InActor);
+			if (bHasExcludedTag)
+			{
+				DirtyExclusionData(InActor);
+			}
+
+			if (bActorIsTracked)
+			{
+				GetSubsystem()->CleanFromCache(InActor);
+			}
+
 			DirtyGenerated();
 			Refresh();
 		}
@@ -780,9 +792,21 @@ void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedE
 	}
 	else
 	{
-		if (ActorHasExcludedTag(Actor) || ActorIsTracked(Actor))
+		const bool bActorHasExcludedTag = ActorHasExcludedTag(Actor);
+		const bool bActorIsTracked = ActorIsTracked(Actor);
+
+		if(bActorHasExcludedTag || bActorIsTracked)
 		{
-			DirtyExclusionData(Actor);
+			if (bActorHasExcludedTag)
+			{
+				DirtyExclusionData(Actor);
+			}
+
+			if (bActorIsTracked)
+			{
+				GetSubsystem()->CleanFromCache(Actor);
+			}
+			
 			DirtyGenerated();
 			Refresh();
 		}
@@ -796,6 +820,7 @@ void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedE
 
 			if (CachedTrackedActors.Remove(Actor))
 			{
+				GetSubsystem()->CleanFromCache(Actor);
 				bDirtyAndRefresh = true;
 			}
 

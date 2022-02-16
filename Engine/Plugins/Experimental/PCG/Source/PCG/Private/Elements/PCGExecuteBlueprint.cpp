@@ -321,3 +321,15 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContextPtr Context) const
 	
 	return true;
 }
+
+bool FPCGExecuteBlueprintElement::IsCacheable(const UPCGSettings* InSettings) const
+{
+	if (const UPCGBlueprintSettings* BPSettings = Cast<const UPCGBlueprintSettings>(InSettings))
+	{
+		return !BPSettings->bCreatesArtifacts;
+	}
+	else
+	{
+		return false;
+	}
+}
