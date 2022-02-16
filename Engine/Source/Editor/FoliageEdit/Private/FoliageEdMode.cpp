@@ -1688,10 +1688,14 @@ void RefreshSceneOutliner()
 	TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
 	if (LevelEditor.IsValid())
 	{
-		TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
-		if (SceneOutlinerPtr)
+		TArray<TWeakPtr<class ISceneOutliner>> SceneOutlinerPtrs = LevelEditor.Pin()->GetAllSceneOutliners();
+
+		for (TWeakPtr<class ISceneOutliner> SceneOutlinerPtr : SceneOutlinerPtrs)
 		{
-			SceneOutlinerPtr->FullRefresh();
+			if (TSharedPtr<class ISceneOutliner> SceneOutlinerPin = SceneOutlinerPtr.Pin())
+			{
+				SceneOutlinerPin->FullRefresh();
+			}
 		}
 	}
 }

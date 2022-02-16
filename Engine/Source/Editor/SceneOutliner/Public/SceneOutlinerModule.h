@@ -132,7 +132,7 @@ private:
 	FOnColumnPermissionListChanged ColumnPermissionListChanged;
 
 	// Function to recreate what originally was FActorInfoColumn as separate columns using FTextInfoColumn
-	void CreateActorInfoColumns(FSceneOutlinerInitializationOptions& InInitOptions) const;
+	void CreateActorInfoColumns(FSceneOutlinerInitializationOptions& InInitOptions, TWeakObjectPtr<UWorld> SpecifiedWorld) const;
 
 public:
 

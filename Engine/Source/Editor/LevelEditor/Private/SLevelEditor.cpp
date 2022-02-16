@@ -645,6 +645,13 @@ void SLevelEditor::AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TShared
 	}
 }
 
+TArray<TWeakPtr<ISceneOutliner>> SLevelEditor::GetAllSceneOutliners() const
+{
+	TArray<TWeakPtr<ISceneOutliner>> OutValueArray;
+	SceneOutliners.GenerateValueArray(OutValueArray);
+	return OutValueArray;
+}
+
 TSharedRef<SDockTab> SLevelEditor::SummonDetailsPanel( FName TabIdentifier )
 {
 	TSharedRef<SActorDetails> ActorDetails = StaticCastSharedRef<SActorDetails>( CreateActorDetails( TabIdentifier ) );
@@ -678,6 +685,57 @@ TSharedRef<SDockTab> SLevelEditor::SummonDetailsPanel( FName TabIdentifier )
 
 	return DocTab;
 }
+
+TSharedRef<ISceneOutliner> SLevelEditor::CreateSceneOutliner(FName TabIdentifier)
+{
+	FSceneOutlinerInitializationOptions InitOptions;
+	InitOptions.bShowTransient = true;
+	{
+		UToolMenus* ToolMenus = UToolMenus::Get();
+		static const FName MenuName = "LevelEditor.LevelEditorSceneOutliner.ContextMenu";
+		if (!ToolMenus->IsMenuRegistered(MenuName))
+		{
+			UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName, "SceneOutliner.DefaultContextMenuBase");
+			FToolMenuSection& Section = Menu->AddDynamicSection("LevelEditorContextMenu", FNewToolMenuDelegate::CreateLambda([SelectionSet = TWeakObjectPtr<const UTypedElementSelectionSet>(GetElementSelectionSet())](UToolMenu* InMenu)
+			{
+				FName LevelContextMenuName = FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext::SceneOutliner, SelectionSet.Get());
+				if (LevelContextMenuName != NAME_None)
+				{
+					// Extend the menu even if no actors selected, as Edit menu should always exist for scene outliner
+					UToolMenu* OtherMenu = UToolMenus::Get()->GenerateMenu(LevelContextMenuName, InMenu->Context);
+					InMenu->Sections.Append(OtherMenu->Sections);
+				}
+			}));
+			Section.InsertPosition = FToolMenuInsert("MainSection", EToolMenuInsertType::Before);
+		}
+
+		TWeakPtr<SLevelEditor> WeakLevelEditor = SharedThis(this);
+		InitOptions.ModifyContextMenu.BindLambda([=](FName& OutMenuName, FToolMenuContext& MenuContext)
+			{
+				OutMenuName = MenuName;
+
+				if (WeakLevelEditor.IsValid())
+				{
+					FLevelEditorContextMenu::InitMenuContext(MenuContext, WeakLevelEditor, ELevelEditorMenuContext::SceneOutliner);
+				}
+			});
+	}
+
+	InitOptions.OutlinerIdentifier = TabIdentifier;
+
+	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+	TSharedRef<ISceneOutliner> SceneOutlinerRef = SceneOutlinerModule.CreateActorBrowser(
+		InitOptions, GetWorld());
+
+	// Update the most recently created outliner
+	SceneOutlinerPtr = SceneOutlinerRef;
+
+	// Add this to the map of all outliners
+	SceneOutliners.Add(TabIdentifier, SceneOutlinerRef);
+
+	return SceneOutlinerRef;
+}
+
 /** Method to call when a tab needs to be spawned by the FLayoutService */
 TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Args, FName TabIdentifier, FString InitializationPayload )
 {
@@ -729,49 +787,11 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	}
 	else if (TabIdentifier == LevelEditorTabIds::LevelEditorSceneOutliner || TabIdentifier == LevelEditorTabIds::LevelEditorSceneOutliner2 || TabIdentifier == LevelEditorTabIds::LevelEditorSceneOutliner3 || TabIdentifier == LevelEditorTabIds::LevelEditorSceneOutliner4)
 	{
-		FSceneOutlinerInitializationOptions InitOptions;
-		InitOptions.bShowTransient = true;
-		{
-			UToolMenus* ToolMenus = UToolMenus::Get();
-			static const FName MenuName = "LevelEditor.LevelEditorSceneOutliner.ContextMenu";
-			if (!ToolMenus->IsMenuRegistered(MenuName))
-			{
-				UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName, "SceneOutliner.DefaultContextMenuBase");
-				FToolMenuSection& Section = Menu->AddDynamicSection("LevelEditorContextMenu", FNewToolMenuDelegate::CreateLambda([SelectionSet = TWeakObjectPtr<const UTypedElementSelectionSet>(GetElementSelectionSet())](UToolMenu* InMenu)
-				{
-					FName LevelContextMenuName = FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext::SceneOutliner, SelectionSet.Get());
-					if (LevelContextMenuName != NAME_None)
-					{
-						// Extend the menu even if no actors selected, as Edit menu should always exist for scene outliner
-						UToolMenu* OtherMenu = UToolMenus::Get()->GenerateMenu(LevelContextMenuName, InMenu->Context);
-						InMenu->Sections.Append(OtherMenu->Sections);
-					}
-				}));
-				Section.InsertPosition = FToolMenuInsert("MainSection", EToolMenuInsertType::Before);
-			}
+		TSharedRef<ISceneOutliner> SceneOutlinerRef = CreateSceneOutliner(TabIdentifier);
 
-			TWeakPtr<SLevelEditor> WeakLevelEditor = SharedThis(this);
-			InitOptions.ModifyContextMenu.BindLambda([=](FName& OutMenuName, FToolMenuContext& MenuContext)
-			{
-				OutMenuName = MenuName;
+		FText Label = NSLOCTEXT("LevelEditor", "SceneOutlinerTabTitle", "Outliner");
 
-				if (WeakLevelEditor.IsValid())
-				{
-					FLevelEditorContextMenu::InitMenuContext(MenuContext, WeakLevelEditor, ELevelEditorMenuContext::SceneOutliner);
-				}
-			});
-		}
-
-
-		FText Label = NSLOCTEXT( "LevelEditor", "SceneOutlinerTabTitle", "Outliner" );
-		InitOptions.OutlinerIdentifier = "LevelEditorOutliner";
-
-		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
-		TSharedRef<ISceneOutliner> SceneOutlinerRef = SceneOutlinerModule.CreateActorBrowser(
-			InitOptions);
-		SceneOutlinerPtr = SceneOutlinerRef;
-
-		return SNew( SDockTab )
+		TSharedRef<SDockTab> SceneOutlinerTab = SNew( SDockTab )
 			.Label( Label )
 			.ToolTip( IDocumentation::Get()->CreateToolTip( Label, nullptr, "Shared/LevelEditor", "SceneOutlinerTab" ) )
 			[
@@ -783,6 +803,11 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 					SceneOutlinerRef
 				]
 			];
+
+		// Add it to the map of all the outliner tabs
+		SceneOutlinerTabs.Add(TabIdentifier, SceneOutlinerTab);
+
+		return SceneOutlinerTab;
 	}
 	else if(TabIdentifier == LevelEditorTabIds::LevelEditorLayerBrowser)
 	{
@@ -1703,6 +1728,25 @@ void SLevelEditor::HandleEditorMapChange( uint32 MapChangeFlags )
 	if (WorldSettingsView.IsValid())
 	{
 		WorldSettingsView->SetObject(GetWorld()->GetWorldSettings(), true);
+	}
+
+	// We want to recreate all the Scene Outliners on loading a new map
+	if (MapChangeFlags == MapChangeEventFlags::NewMap)
+	{
+		for (TPair<FName, TWeakPtr<SDockTab>> OutlinerTabIdentifier : SceneOutlinerTabs)
+		{
+			if (TSharedPtr<SDockTab> SceneOutlinerTabPin = OutlinerTabIdentifier.Value.Pin())
+			{
+				// Create the new outliner
+				TSharedRef<ISceneOutliner> SceneOutlinerRef = CreateSceneOutliner(OutlinerTabIdentifier.Key);
+
+				// Add it to the list of outliners
+				SceneOutliners.Add(OutlinerTabIdentifier.Key, SceneOutlinerRef);
+
+				// Set the tabs content to the newly created outliner
+				SceneOutlinerTabPin->SetContent(SceneOutlinerRef);
+			}
+		}
 	}
 }
 

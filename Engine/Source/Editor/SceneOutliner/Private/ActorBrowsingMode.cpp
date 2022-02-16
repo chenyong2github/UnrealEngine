@@ -431,28 +431,32 @@ void FActorBrowsingMode::RegisterContextMenu()
 
 					if (Context->bShowParentTree && Context->NumSelectedItems > 0 && Context->SceneOutliner.IsValid())
 					{
-						// If selection contains some unpinned items, show the pin option
-						// If the selection contains folders, always show the pin option
-						if (Context->NumPinnedItems != Context->NumSelectedItems || Context->NumSelectedFolders > 0)
+						// Only add the menu option to wp levels
+						if (Context->bRepresentingPartitionedWorld)
 						{
-							Section.AddMenuEntry(
-								"PinItems",
-								LOCTEXT("Pin", "Pin"),
-								FText(),
-								FSlateIcon(),
-								FUIAction(FExecuteAction::CreateSP(Context->SceneOutliner.Pin().Get(), &SSceneOutliner::PinSelectedItems)));
-						}
+							// If selection contains some unpinned items, show the pin option
+							// If the selection contains folders, always show the pin option
+							if (Context->NumPinnedItems != Context->NumSelectedItems || Context->NumSelectedFolders > 0)
+							{
+								Section.AddMenuEntry(
+									"PinItems",
+									LOCTEXT("Pin", "Pin"),
+									FText(),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateSP(Context->SceneOutliner.Pin().Get(), &SSceneOutliner::PinSelectedItems)));
+							}
 
-						// If the selection contains some pinned items, show the unpin option
-						// If the selection contains folders, always show the unpin option
-						if (Context->NumPinnedItems != 0 || Context->NumSelectedFolders > 0)
-						{
-							Section.AddMenuEntry(
-								"UnpinItems",
-								LOCTEXT("Unpin", "Unpin"),
-								FText(),
-								FSlateIcon(),
-								FUIAction(FExecuteAction::CreateSP(Context->SceneOutliner.Pin().Get(), &SSceneOutliner::UnpinSelectedItems)));
+							// If the selection contains some pinned items, show the unpin option
+							// If the selection contains folders, always show the unpin option
+							if (Context->NumPinnedItems != 0 || Context->NumSelectedFolders > 0)
+							{
+								Section.AddMenuEntry(
+									"UnpinItems",
+									LOCTEXT("Unpin", "Unpin"),
+									FText(),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateSP(Context->SceneOutliner.Pin().Get(), &SSceneOutliner::UnpinSelectedItems)));
+							}
 						}
 					}
 				}
@@ -477,6 +481,7 @@ TSharedPtr<SWidget> FActorBrowsingMode::BuildContextMenu()
 	ContextObject->NumSelectedItems = ItemSelection.Num();
 	ContextObject->NumSelectedFolders = ItemSelection.Num<FFolderTreeItem>();
 	ContextObject->NumWorldsSelected = ItemSelection.Num<FWorldTreeItem>();
+	ContextObject->bRepresentingPartitionedWorld = bRepresentingWorldPartitionedWorld;
 
 	int32 NumPinnedItems = 0;
 	if (const UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())

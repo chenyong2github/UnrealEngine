@@ -89,6 +89,8 @@ public:
 	virtual void SetActorDetailsSCSEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization) = 0;
 
 	virtual TSharedPtr<ISceneOutliner> GetSceneOutliner() const = 0;
+
+	virtual TArray<TWeakPtr<ISceneOutliner>> GetAllSceneOutliners() const = 0;
 };
 
 

@@ -150,8 +150,13 @@ public:
 	/** Attaches a sequencer asset editor used to animate objects in the level to this level editor */
 	void AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TSharedPtr<IAssetEditorInstance> NewSequencerAssetEditor );
 
-	/** Returns current scene outliner associated with level editor's scene outliner tab, if it exists */
+	/** Returns the most recently created scene outliner. Use GetAllSceneOutliners() to get all potentially active outliners
+	 *  TODO: Add a way to identify the most recently interacted with outliner, and change/deprecate this function to return it
+	 */
 	virtual TSharedPtr<ISceneOutliner> GetSceneOutliner() const override { return SceneOutlinerPtr.Pin();  }
+
+	/** Get an array containing weak pointers to all 4 Scene Outliners which could be potentially active */
+	virtual TArray<TWeakPtr<ISceneOutliner>> GetAllSceneOutliners() const override;
 
 	TSharedRef<SWidget> GetTitleBarMessageWidget() const { return TtileBarMessageBox.ToSharedRef(); }
 private:
@@ -258,6 +263,9 @@ private:
 	/** @return All valid actor details panels */
 	TArray<TSharedRef<SActorDetails>> GetAllActorDetails() const;
 
+	/** Create a Scene Outliner for the Level Editor */
+	TSharedRef<ISceneOutliner> CreateSceneOutliner(FName TabIdentifier);
+
 private:
 
 	// Tracking the active viewports in this level editor.
@@ -308,8 +316,14 @@ private:
 	/** Weak pointer to the level editor's Sequencer widget */
 	TWeakPtr<SWidget> SequencerWidgetPtr;
 
-	/** Weak pointer to the level editor's scene outliner */
+	/** Weak pointer to the level editor's most recently created scene outliner */
 	TWeakPtr<ISceneOutliner> SceneOutlinerPtr;
+
+	/** Map containing Weak pointers to all the Outliners in the level editor */
+	TMap<FName, TWeakPtr<ISceneOutliner>> SceneOutliners;
+
+	/** Map containing Weak pointers to all the Scene Outliner Tabs in the level editor */
+	TMap<FName, TWeakPtr<SDockTab>> SceneOutlinerTabs;
 
 	/** Handle to the registered OnPreviewFeatureLevelChanged delegate. */
 	FDelegateHandle PreviewFeatureLevelChangedHandle;
