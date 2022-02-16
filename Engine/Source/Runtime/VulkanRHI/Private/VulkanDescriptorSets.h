@@ -1155,11 +1155,10 @@ protected:
 		if (UseVulkanDescriptorCache())
 		{
 			FVulkanHashableDescriptorInfo& HashableInfo = HashableDescriptorInfos[DescriptorIndex];
-			int32 HandleId = Allocation.HandleId;
-			check(HandleId > 0);
-			if (HashableInfo.Buffer.Id != HandleId)
+			check(Allocation.HandleId > 0);
+			if (HashableInfo.Buffer.Id != Allocation.HandleId)
 			{
-				HashableInfo.Buffer.Id = HandleId;
+				HashableInfo.Buffer.Id = Allocation.HandleId;
 				BufferInfo->buffer = (VkBuffer)Allocation.VulkanHandle;
 				bChanged = true;
 			}
