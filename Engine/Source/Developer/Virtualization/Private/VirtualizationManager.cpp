@@ -53,6 +53,22 @@ private:
 	FCriticalSection* SyncObject;
 };
 
+bool LexTryParseString(EPackageFilterMode& OutValue, FStringView Buffer)
+{
+	if (Buffer == TEXT("OptOut"))
+	{
+		OutValue = EPackageFilterMode::OptOut;
+		return true;
+	}
+	else if (Buffer == TEXT("OptIn"))
+	{
+		OutValue = EPackageFilterMode::OptIn;
+		return true;
+	}
+
+	return false;
+}
+
 /* Utility function for building up a lookup table of all available IBackendFactory interfaces*/
 FVirtualizationManager::FRegistedFactories FindBackendFactories()
 {
@@ -246,6 +262,8 @@ FVirtualizationManager::FVirtualizationManager()
 	, bForceSingleThreaded(false)
 	, bValidateAfterPushOperation(false)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::FVirtualizationManager);
+
 	UE_LOG(LogVirtualization, Log, TEXT("Virtualization manager created"));
 
 	// Allows us to log the profiling data on process exit. 
@@ -253,11 +271,11 @@ FVirtualizationManager::FVirtualizationManager()
 	// we need to fix the startup/shutdown ordering of Mirage first.
 	COOK_STAT(FCoreDelegates::OnExit.AddStatic(Profiling::LogStats));
 
-	FConfigFile PlatformEngineIni;
-	if (FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true))
+	FConfigFile* ConfigFile = GConfig->Find(GEngineIni);
+	if (ConfigFile != nullptr)
 	{
-		ApplySettingsFromConfigFiles(PlatformEngineIni);
-		ApplyDebugSettingsFromConfigFiles(PlatformEngineIni);
+		ApplySettingsFromConfigFiles(*ConfigFile);
+		ApplyDebugSettingsFromConfigFiles(*ConfigFile);
 	}
 	else
 	{
@@ -266,7 +284,7 @@ FVirtualizationManager::FVirtualizationManager()
 
 	ApplySettingsFromCmdline();
 	ApplyDebugSettingsFromFromCmdline();
-
+	
 	MountBackends();
 }
 
@@ -356,9 +374,9 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 			continue;
 		}
 
-		if (!ShouldVirtualizePackage(Request.Context))
+		if (!ShouldVirtualize(Request.Context))
 		{
-			UE_LOG(	LogVirtualization, Verbose, TEXT("Attempting to push a payload (id: %s) from a package path ('%s') that is excluded by filtering"),
+			UE_LOG(	LogVirtualization, Verbose, TEXT("Pushing payload (id: %s) with context ('%s') was prevented by filtering"),
 					*LexToString(Request.Identifier), 
 					*Request.Context);
 			
@@ -368,6 +386,12 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 
 		OriginalToValidatedRequest[Index] = ValidatedRequests.Num();
 		ValidatedRequests.Add(Request);
+	}
+
+	// Early out if none of the requests require pushing after validation
+	if (ValidatedRequests.IsEmpty())
+	{
+		return true;
 	}
 
 	FConditionalScopeLock _(&ForceSingleThreadedCS, bForceSingleThreaded);
@@ -651,7 +675,7 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Pla
 	}
 	else
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.ContentVirtualization].MinPayloadLength from config file!"));;
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.ContentVirtualization].MinPayloadLength from config file!"));
 	}
 
 	FString BackendGraphNameFromIni;
@@ -662,7 +686,24 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Pla
 	}
 	else
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.ContentVirtualization].BackendGraph from config file!"));;
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.ContentVirtualization].BackendGraph from config file!"));
+	}
+
+	FString FilterModeFromIni;
+	if (PlatformEngineIni.GetString(TEXT("Core.ContentVirtualization"), TEXT("FilterMode"), FilterModeFromIni))
+	{
+		if(LexTryParseString(FilteringMode, FilterModeFromIni))
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("\tFilterMode : %s"), *FilterModeFromIni);
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("[Core.ContentVirtualization].FilterMode was an invalid value! Allowed: 'OptIn'|'OptOut' Found '%s'"), *FilterModeFromIni);
+		}
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.ContentVirtualization]FilterMode from config file!"));
 	}
 
 	bool bFilterEngineContentFromIni = true;
@@ -746,6 +787,8 @@ void FVirtualizationManager::ApplyDebugSettingsFromFromCmdline()
 
 void FVirtualizationManager::MountBackends()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::MountBackends);
+
 	UE_LOG(LogVirtualization, Log, TEXT("Mounting virtualization backends..."));
 
 	const FRegistedFactories FactoryLookupTable = FindBackendFactories();
@@ -1007,34 +1050,53 @@ bool FVirtualizationManager::ShouldVirtualizePackage(const FPackagePath& Package
 	const UVirtualizationFilterSettings* Settings = GetDefault<UVirtualizationFilterSettings>();
 	if (Settings != nullptr)
 	{
-		const FStringView PackageNameView = PackageName.ToView();
-
-		for (const FString& Exclusion : Settings->ExcludePackagePaths)
+		auto DoesMatch = [](const TArray<FString>& Paths, const FStringView& PackagePath) -> bool
 		{
-			if (Exclusion.EndsWith(TEXT("/")))
+			for (const FString& PathToMatch : Paths)
 			{
-				// Directory path, exclude everything under it
-				if (PackageNameView.StartsWith(Exclusion))
+				if (PathToMatch.EndsWith(TEXT("/")))
 				{
-					return false;
+					// Directory path, exclude everything under it
+					if (PackagePath.StartsWith(PathToMatch))
+					{
+						return true;
+					}
+				}
+				else
+				{
+					// Path to an asset, exclude if it matches exactly
+					if (PackagePath == PathToMatch)
+					{
+						return true;
+					}
 				}
 			}
-			else
-			{
-				// Path to an asset, exclude if it matches exactly
-				if (PackageNameView == Exclusion)
-				{
-					return false;
-				}
-			}			
+
+			return false;
+		};
+
+		const FStringView PackageNameView = PackageName.ToView();
+
+		if (DoesMatch(Settings->ExcludePackagePaths, PackageNameView))
+		{
+			return false;
+		}
+
+		if (DoesMatch(Settings->IncludePackagePaths, PackageNameView))
+		{
+			return true;
 		}
 	}
 	
-	return true;
+	// The package is not in any of the include/exclude paths so we use the default behavior
+	return ShouldVirtualizeAsDefault();
 }
 
-bool FVirtualizationManager::ShouldVirtualizePackage(const FString& Context) const
+bool FVirtualizationManager::ShouldVirtualize(const FString& Context) const
 {
+	// First see if we can convert the context from a raw string to a valid package path.
+	// If we can extract a package path then we should use the package filtering code
+	// path instead.
 	FPackagePath PackagePath;
 	if (FPackagePath::TryFromPackageName(Context, PackagePath))
 	{
@@ -1046,8 +1108,22 @@ bool FVirtualizationManager::ShouldVirtualizePackage(const FString& Context) con
 		return ShouldVirtualizePackage(PackagePath);
 	}
 
-	// Context was not a valid package path so go ahead and virtualize it
-	return true;
+	// The package is not in any of the include/exclude paths so we use the default behavior
+	return ShouldVirtualizeAsDefault();
+}
+
+bool FVirtualizationManager::ShouldVirtualizeAsDefault() const
+{
+	switch (FilteringMode)
+	{
+		case EPackageFilterMode::OptOut:
+			return true;
+		case EPackageFilterMode::OptIn:
+			return false;
+		default:
+			checkNoEntry();
+			return false;
+	}
 }
 
 } // namespace UE::Virtualization

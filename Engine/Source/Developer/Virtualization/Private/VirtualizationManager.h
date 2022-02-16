@@ -49,32 +49,47 @@
  * Note that this only affects pushing a payload, if the filtering for a project is changed to exclude a package that
  * is already virtualized it will still be able to pull it's payloads as needed but will store them locally in the 
  * package the next time that it is saved.
- * @see ShouldVirtualizePackage for implementation details.
+ * @see ShouldVirtualizePackage or ShouldVirtualize for implementation details.
  * 
  * Basic Setup:
  * 
  * [Core.ContentVirtualization]
+ * FilterMode=OptIn/OptOut					When 'OptIn' payloads will be virtualized by default, when 'OptOut' they will not be virtualized by default
  * FilterEngineContent=True/False			When true any payload from a package under Engine/Content/.. will be excluded from virtualization
  * FilterEnginePluginContent=True/False		When true any payload from a package under Engine/Plugins/../Content/.. will be excluded from virtualization
  * 
  * PackagePath Setup:
  * 
- * The path given can either be to a directory or a specific package. It can be added to the config files for
- * a GameFeature (commonly used to exclude all content in that game feature from being virtualized) in addition 
- * to the project's config files.
+ * In addition to the default filtering mode set above, payloads stored in packages can be filtered based on the
+ * package path. This allows a package to be including in the virtualization process or excluded from it.
+ * 
  * Note that these paths will be stored in the ini files under the Saved directory. To remove a path make sure to 
  * use the - syntax to remove the entry from the array, rather than removing the line itself. Otherwise it will
  * persist until the saved config file has been reset.
  *
  * [/Script/Virtualization.VirtualizationFilterSettings]
- * +ExcludePackagePaths="/MountPoint/PathToExclude/"				Excludes any package found under '/MountPoint/PathToExclude/'
- * +ExcludePackagePaths="/MountPoint/PathTo/ThePackageToExclude"	Excludes the specific package '/MountPoint/PathTo/ThePackageToExclude'
+ * +ExcludePackagePaths="/MountPoint/PathToExclude/"				Excludes any package found under '/MountPoint/PathToExclude/' from the virtualization process
+ * +ExcludePackagePaths="/MountPoint/PathTo/ThePackageToExclude"	Excludes the specific package '/MountPoint/PathTo/ThePackageToExclude' from the virtualization process
+ * +IncludePackagePaths="/MountPoint/PathToInclude/"				Includes any package found under '/MountPoint/PathToInclude/' in the virtualization process
+ * +IncludePackagePaths="/MountPoint/PathTo/ThePackageToInclude"	Includes the specific package '/MountPoint/PathTo/ThePackageToInclude' in the virtualization process
  */
 
 namespace UE::Virtualization
 {
 class IVirtualizationBackend;
 class IVirtualizationBackendFactory;
+
+/** The default mode of filtering to use with package paths that do not match entries in UVirtualizationFilterSettings */
+enum class EPackageFilterMode : uint8
+{
+	/** Packages will be virtualized by default and must be opted out by the use of UVirtualizationFilterSettings::ExcludePackagePaths */
+	OptOut,
+	/** Packages will not be virtualized by default and must be opted in by the user of UVirtualizationFilterSettings::IncludePackagePaths */
+	OptIn
+};
+
+/** Attempt to convert a string buffer to EPackageFilterMode */
+bool LexTryParseString(EPackageFilterMode& OutValue, FStringView Buffer);
 
 /** This is used as a wrapper around the various potential back end implementations. 
 	The calling code shouldn't need to care about which back ends are actually in use. */
@@ -131,8 +146,10 @@ private:
 	FCompressedBuffer PullDataFromBackend(IVirtualizationBackend& Backend, const FIoHash& Id);
 
 	/** 
-	 * Determines if a package should be virtualized or not based on it's package path and the current 
-	 * filtering set up for the project.
+	 * Determines if a package path should be virtualized or not based on any exclusion/inclusion patterns
+	 * that might have been set in UVirtualizationFilterSettings.
+	 * If the path does not match any pattern set in UVirtualizationFilterSettings then use the default 
+	 * FilterMode to determine if the payload should be virtualized or not.
 	 * 
 	 * @param PackagePath	The path of the package to check. This can be empty which would indicate that
 	 *						a payload is not owned by a specific package.
@@ -140,7 +157,20 @@ private:
 	 *						excluded by the projects current filter set up.
 	 */
 	bool ShouldVirtualizePackage(const FPackagePath& PackagePath) const;
-	bool ShouldVirtualizePackage(const FString& Context) const;
+
+	/**
+	 * Determines if a package should be virtualized or not based on the given content.
+	 * If the context can be turned into a package path then ::ShouldVirtualizePackage 
+	 * will be used instead.
+	 * If the context is not a package path then we use the default FilterMode to determine
+	 * if the payload should be virtualized or not.
+	 * 
+	 * @return True if the context should be virtualized and false if not.
+	 */
+	bool ShouldVirtualize(const FString& Context) const;
+
+	/** Determines if the default filtering behavior is to virtualize a payload or not */
+	bool ShouldVirtualizeAsDefault() const;
 	
 	/** Are payloads allowed to be virtualized. Defaults to true. */
 	bool bEnablePayloadPushing;
@@ -153,6 +183,9 @@ private:
 
 	/** The name of the backend graph to load from the config ini file that will describe the backend hierarchy */
 	FString BackendGraphName;
+
+	/** The default filtering mode to apply if a payload is not matched with an option in UVirtualizationFilterSettings */
+	EPackageFilterMode FilteringMode = EPackageFilterMode::OptOut;
 
 	/** Should payloads in engine content packages before filtered out and never virtualized */
 	bool bFilterEngineContent;
