@@ -109,6 +109,8 @@ public:
 public:
 	/** Reset the Pivot*/
 	TSharedPtr<FUICommandInfo> ResetPivot;
+	/** Toggle Free/Pivot Mode*/
+	TSharedPtr<FUICommandInfo> ToggleFreePivot;
 
 	TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> Commands;
 };
@@ -143,6 +145,12 @@ public:
 
 	// End interfaces
 
+	//If In Pivot Mode, if not then in Free Mode
+	bool IsInPivotMode() const { return bInPivotMode; }
+	//Toggle Pivot Mode
+	void TogglePivotMode() { bInPivotMode = !bInPivotMode; }
+	//Set Pivot Mode
+	void SetPivotMode(bool bVal) { bInPivotMode = bVal; }
 protected:
 
 	UPROPERTY()
@@ -155,9 +163,9 @@ protected:
 	TObjectPtr<UCombinedTransformGizmo> TransformGizmo = nullptr;
 
 protected:
+	bool bInPivotMode = false; //pivot may be in 'free' mode or 'pivot' mode
 	bool bShiftPressedWhenStarted = false;
 	bool bCtrlPressedWhenStarted = false;
-	int32 CtrlModifierId = 1;
 	UWorld* TargetWorld = nullptr;		// target World we will raycast into
 	UInteractiveGizmoManager* GizmoManager = nullptr; //gizmo man
 
@@ -198,6 +206,19 @@ protected:
 	void HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected);
 	void OnEditorSelectionChanged(UObject* NewSelection);
 	FDelegateHandle OnEditorSelectionChangedHandle;
+
+	// Functions and variables for handling the overlay for switching between free and pivot mode
+	void CreateAndShowPivotOverlay();
+	void RemoveAndDestroyPivotOverlay();
+
+	FMargin GetPivotOverlayPadding() const;
+	
+	static FVector2D LastPivotOverlayLocation;
+	TSharedPtr<SWidget> PivotWidget;
+public:
+	void TryRemovePivotOverlay();
+	void TryShowPivotOverlay();
+	void UpdatePivotOverlayLocation(const FVector2D InLocation, TSharedPtr<IAssetViewport> ActiveLevelViewport);
 
 private:
 	TSharedPtr<FUICommandList> CommandBindings;
