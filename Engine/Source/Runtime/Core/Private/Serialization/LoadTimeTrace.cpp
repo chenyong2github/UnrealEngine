@@ -9,6 +9,7 @@
 #include "HAL/PlatformTLS.h"
 
 UE_TRACE_CHANNEL_DEFINE(LoadTimeChannel)
+UE_TRACE_CHANNEL_DEFINE(AssetLoadTimeChannel)
 
 UE_TRACE_EVENT_BEGIN(LoadTime, BeginRequestGroup)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Format)
