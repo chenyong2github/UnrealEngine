@@ -3455,13 +3455,13 @@ public:
 			if ( NewTime - StartTime >= Timeout )
 			{
 				TimeoutCallback();
-				return false;
+				return true;
 			}
 
-			return true;
+			return false;
 		}
 
-		return false;
+		return true;
 	}
 
 private:
