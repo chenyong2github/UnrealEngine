@@ -36,6 +36,14 @@ namespace Horde.Build.Fleet.Autoscale
 		private readonly TimeSpan SamplePeriod = TimeSpan.FromHours(2.0);
 		
 		/// <summary>
+		/// Time spent in ready state before considered truly waiting for an agent
+		///
+		/// A job batch can be in ready state before getting picked up and executed.
+		/// This threshold will help ensure only batches that have been waiting longer than this value will be considered.
+		/// </summary>
+		internal readonly TimeSpan ReadyTimeThreshold = TimeSpan.FromSeconds(45.0);
+		
+		/// <summary>
 		/// Minimum number of jobs in queue for scale-out logic to activate
 		///
 		/// Useful to avoid a very small queue size triggering any scaling. 
@@ -89,7 +97,11 @@ namespace Horde.Build.Fleet.Autoscale
 			List<(IJob Job, IJobStepBatch Batch, PoolId PoolId)> JobBatches = new();
 			foreach (IJobStepBatch Batch in Job.Batches)
 			{
-				if (Batch.State != JobStepBatchState.Waiting) continue;
+				if (Batch.State != JobStepBatchState.Ready) continue;
+				
+				TimeSpan? WaitTime = Clock.UtcNow - Batch.ReadyTimeUtc;
+				if (WaitTime == null) continue;
+				if (WaitTime.Value < ReadyTimeThreshold) continue;
 
 				if (!Streams.TryGetValue(Job.StreamId, out IStream? Stream))
 				{

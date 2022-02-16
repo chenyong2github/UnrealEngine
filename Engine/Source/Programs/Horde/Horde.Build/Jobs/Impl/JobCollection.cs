@@ -365,6 +365,11 @@ namespace HordeServer.Collections.Impl
 		/// The user collection
 		/// </summary>
 		IUserCollection UserCollection;
+		
+		/// <summary>
+		/// Clock representing wall-clock time
+		/// </summary>
+		IClock Clock;
 
 		/// <summary>
 		/// Logger for output
@@ -381,10 +386,12 @@ namespace HordeServer.Collections.Impl
 		/// </summary>
 		/// <param name="DatabaseService">The database service singleton</param>
 		/// <param name="UserCollection"></param>
+		/// <param name="Clock"></param>
 		/// <param name="Logger">The logger instance</param>
-		public JobCollection(DatabaseService DatabaseService, IUserCollection UserCollection, ILogger<JobCollection> Logger)
+		public JobCollection(DatabaseService DatabaseService, IUserCollection UserCollection, IClock Clock, ILogger<JobCollection> Logger)
 		{
 			this.UserCollection = UserCollection;
+			this.Clock = Clock;
 			this.Logger = Logger;
 
 			Jobs = DatabaseService.GetCollection<JobDocument>("Jobs");
@@ -772,12 +779,12 @@ namespace HordeServer.Collections.Impl
 
 				if (Batch.StartTime == null && NewState >= JobStepBatchState.Starting)
 				{
-					Batch.StartTime = DateTimeOffset.Now;
+					Batch.StartTime = Clock.UtcNow;
 					Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].StartTime, Batch.StartTime));
 				}
 				if (NewState == JobStepBatchState.Complete)
 				{
-					Batch.FinishTime = DateTimeOffset.Now;
+					Batch.FinishTime = Clock.UtcNow;
 					Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].FinishTime, Batch.FinishTime));
 				}
 			}
@@ -858,12 +865,12 @@ namespace HordeServer.Collections.Impl
 
 								if (Step.State == JobStepState.Running)
 								{
-									Step.StartTime = DateTimeOffset.Now;
+									Step.StartTime = Clock.UtcNow;
 									Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].Steps[StepIdx].StartTime, Step.StartTime));
 								}
 								else if (Step.State == JobStepState.Completed || Step.State == JobStepState.Aborted)
 								{
-									Step.FinishTime = DateTimeOffset.Now;
+									Step.FinishTime = Clock.UtcNow;
 									Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].Steps[StepIdx].FinishTime, Step.FinishTime));
 								}
 
@@ -1268,7 +1275,7 @@ namespace HordeServer.Collections.Impl
 					Step.Outcome = JobStepOutcome.Failure;
 					Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].Steps[StepIdxCopy].Outcome, Step.Outcome));
 
-					Step.FinishTime = DateTimeOffset.Now;
+					Step.FinishTime = Clock.UtcNow;
 					Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].Steps[StepIdxCopy].FinishTime, Step.FinishTime));
 				}
 				else if (Step.State == JobStepState.Ready)
