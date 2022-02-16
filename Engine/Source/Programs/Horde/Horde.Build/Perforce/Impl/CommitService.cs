@@ -149,8 +149,44 @@ namespace HordeServer.Commits.Impl
 		/// <returns></returns>
 		async Task UpdateCommitsForClusterAsync(string ClusterName, IEnumerable<IStream> Streams)
 		{
+			// Find the minimum changelist number to query
+			Dictionary<IStream, int> StreamToFirstChange = new Dictionary<IStream, int>();
+			foreach (IStream Stream in Streams)
+			{
+				RedisList<int> Changes = RedisStreamChanges(Stream.Id);
+
+				int FirstChange = await Changes.GetByIndexAsync(-1);
+				if (FirstChange != 0)
+				{
+					FirstChange++;
+				}
+
+				StreamToFirstChange[Stream] = FirstChange;
+			}
+
+			// Update the database with all the commits
+			await foreach (NewCommit NewCommit in FindCommitsForClusterAsync(ClusterName, StreamToFirstChange))
+			{
+				ICommit Commit = await CommitCollection.AddOrReplaceAsync(NewCommit);
+
+				RedisList<int> StreamCommitsKey = RedisStreamChanges(Commit.StreamId);
+				await StreamCommitsKey.RightPushAsync(Commit.Change);
+
+				await RedisDirtyStreams.AddAsync(Commit.StreamId);
+				await Redis.PublishAsync(RedisUpdateChannel, Commit.StreamId);
+			}
+		}
+
+		/// <summary>
+		/// Enumerate new commits to the given streams, using a stream view to deduplicate changes which affect multiple branches.
+		/// </summary>
+		/// <param name="ClusterName"></param>
+		/// <param name="StreamToFirstChange"></param>
+		/// <returns>List of new commits</returns>
+		public async IAsyncEnumerable<NewCommit> FindCommitsForClusterAsync(string ClusterName, Dictionary<IStream, int> StreamToFirstChange)
+		{
 			// Create a connection to the server
-			IPerforceConnection? Connection = await PerforceService.GetServiceUserConnection(ClusterName);
+			using IPerforceConnection? Connection = await PerforceService.GetServiceUserConnection(ClusterName);
 			if (Connection == null)
 			{
 				throw new PerforceException($"Unable to create cluster connection for {ClusterName}");
@@ -161,7 +197,7 @@ namespace HordeServer.Commits.Impl
 
 			// Get the view for each stream
 			List<StreamInfo> StreamInfoList = new List<StreamInfo>();
-			foreach (IStream Stream in Streams)
+			foreach (IStream Stream in StreamToFirstChange.Keys)
 			{
 				ViewMap View = await GetStreamViewAsync(Connection, Stream.Name);
 				StreamInfoList.Add(new StreamInfo(Stream, View));
@@ -198,18 +234,11 @@ namespace HordeServer.Commits.Impl
 			int MinChange = int.MaxValue;
 			foreach (StreamInfo StreamInfo in StreamInfoList)
 			{
-				RedisList<int> Changes = RedisStreamChanges(StreamInfo.Stream.Id);
-
-				int FirstChange = await Changes.GetByIndexAsync(-1);
+				int FirstChange = StreamToFirstChange[StreamInfo.Stream];
 				if (FirstChange == 0)
 				{
 					FirstChange = await GetFirstCommitToReplicateAsync(Connection, StreamInfo.View, ServerInfo.Utf8PathComparer);
 				}
-				else
-				{
-					FirstChange++;
-				}
-
 				if (FirstChange != 0)
 				{
 					MinChange = Math.Min(MinChange, FirstChange);
@@ -236,13 +265,12 @@ namespace HordeServer.Commits.Impl
 					Utf8String BasePath = GetBasePath(DescribeRecord, StreamInfo.View, ServerInfo.Utf8PathComparer);
 					if (!BasePath.IsEmpty)
 					{
-						await AddCommitAsync(Stream, DescribeRecord, BasePath.ToString());
+						IUser Author = await UserCollection.FindOrAddUserByLoginAsync(DescribeRecord.User);
+						IUser Owner = (await ParseRobomergeOwnerAsync(DescribeRecord.Description)) ?? Author;
 
-						RedisList<int> StreamCommitsKey = RedisStreamChanges(Stream.Id);
-						await StreamCommitsKey.RightPushAsync(DescribeRecord.Number);
+						int OriginalChange = ParseRobomergeSource(DescribeRecord.Description) ?? DescribeRecord.Number;
 
-						await RedisDirtyStreams.AddAsync(Stream.Id);
-						await Redis.PublishAsync(RedisUpdateChannel, Stream.Id);
+						yield return new NewCommit(Stream.Id, DescribeRecord.Number, OriginalChange, Author.Id, Owner.Id, DescribeRecord.Description, BasePath.ToString(), DescribeRecord.Time);
 					}
 				}
 			}
@@ -311,24 +339,6 @@ namespace HordeServer.Commits.Impl
 				Index++;
 			}
 			return A.Substring(0, Index);
-		}
-
-		/// <summary>
-		/// Adds metadata for a particular commit
-		/// </summary>
-		/// <param name="Stream"></param>
-		/// <param name="Changelist"></param>
-		/// <param name="BasePath"></param>
-		/// <returns></returns>
-		async Task<ICommit> AddCommitAsync(IStream Stream, DescribeRecord Changelist, string BasePath)
-		{
-			IUser Author = await UserCollection.FindOrAddUserByLoginAsync(Changelist.User);
-			IUser Owner = (await ParseRobomergeOwnerAsync(Changelist.Description)) ?? Author;
-
-			int OriginalChange = ParseRobomergeSource(Changelist.Description) ?? Changelist.Number;
-
-			NewCommit NewCommit = new NewCommit(Stream.Id, Changelist.Number, OriginalChange, Author.Id, Owner.Id, Changelist.Description, BasePath, Changelist.Time);
-			return await CommitCollection.AddOrReplaceAsync(NewCommit);
 		}
 
 		/// <inheritdoc/>
