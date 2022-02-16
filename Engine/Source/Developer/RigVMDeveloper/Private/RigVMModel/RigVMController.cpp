@@ -11949,26 +11949,37 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 					}
 				}
 			}
-			
-			if(Variable.TypeName != CurrentExternalVariable.TypeName ||
-				Variable.TypeObject != CurrentExternalVariable.TypeObject ||
-				Variable.bIsArray != CurrentExternalVariable.bIsArray)
+
+			if (Variable.IsValid(true))
 			{
-				FString CPPType;
-				UObject* CPPTypeObject;
+				if(Variable.TypeName != CurrentExternalVariable.TypeName ||
+				   Variable.TypeObject != CurrentExternalVariable.TypeObject ||
+				   Variable.bIsArray != CurrentExternalVariable.bIsArray)
+				{
+					FString CPPType;
+					UObject* CPPTypeObject;
 				
-				if(RigVMTypeUtils::CPPTypeFromExternalVariable(Variable, CPPType, &CPPTypeObject))
-				{
-					RefreshVariableNode(VariableNode->GetFName(), Variable.Name, CPPType, Variable.TypeObject, false, bSetupOrphanedPins);
+					if(RigVMTypeUtils::CPPTypeFromExternalVariable(Variable, CPPType, &CPPTypeObject))
+					{
+						RefreshVariableNode(VariableNode->GetFName(), Variable.Name, CPPType, Variable.TypeObject, false, bSetupOrphanedPins);
+					}
+					else
+					{
+						ReportErrorf(
+							TEXT("Control Rig '%s', Type of Variable '%s' cannot be resolved."),
+							*InNode->GetOutermost()->GetPathName(),
+							*Variable.Name.ToString()
+						);
+					}
 				}
-				else
-				{
-					ReportErrorf(
-						TEXT("Control Rig '%s', Type of Variable '%s' cannot be resolved."),
-						*InNode->GetOutermost()->GetPathName(),
-						*Variable.Name.ToString()
-					);
-				}
+			}
+			else
+			{
+				ReportErrorf(
+					TEXT("Control Rig '%s', Variable '%s' not found."),
+					*InNode->GetOutermost()->GetPathName(),
+					*CurrentExternalVariable.Name.ToString()
+				);
 			}
 		}
 		
