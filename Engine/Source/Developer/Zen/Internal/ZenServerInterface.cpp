@@ -34,6 +34,7 @@
 #endif
 
 #if PLATFORM_UNIX || PLATFORM_MAC
+#	include <sys/file.h>
 #	include <sys/sem.h>
 #endif
 
