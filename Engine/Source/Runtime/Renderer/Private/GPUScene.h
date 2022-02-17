@@ -21,6 +21,15 @@ extern RENDERER_API void AddPrimitiveToUpdateGPU(FScene& Scene, int32 PrimitiveI
 class FGPUScene;
 class FGPUSceneDynamicContext;
 
+BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneResourceParameters, )
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+	SHADER_PARAMETER(uint32, InstanceDataSOAStride)
+	SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
+	SHADER_PARAMETER(int32, NumInstances)
+	SHADER_PARAMETER(int32, NumScenePrimitives)
+END_SHADER_PARAMETER_STRUCT()
 
 /**
  * Used to manage dynamic primitives for a given view, during InitViews the data is collected and then can be committed to the GPU-Scene. 
@@ -292,6 +301,11 @@ public:
 	int32 GetNumLightmapDataItems() const { return LightmapDataAllocator.GetMaxSize(); }
 
 	const FGrowOnlySpanAllocator& GetInstanceSceneDataAllocator() const { return InstanceSceneDataAllocator; }
+
+	/**
+	 * Return the GPU scene resource
+	 */
+	FGPUSceneResourceParameters SetParameters(FRDGBuilder& GraphBuilder) const;
 
 	/**
 	 * Draw GPU-Scene debug info, such as bounding boxes. Call once per view at some point in the frame after GPU scene has been updated fully.

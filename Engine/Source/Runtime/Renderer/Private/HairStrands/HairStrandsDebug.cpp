@@ -330,12 +330,15 @@ class FHairDebugPrintCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, HairMacroGroupCount)
 		SHADER_PARAMETER(uint32, HairVisibilityNodeGroupSize)
 		SHADER_PARAMETER(uint32, AllocatedSampleCount)
+		SHADER_PARAMETER(uint32, HairInstanceCount)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairInstanceIDs)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCountTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCountUintTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairVisibilityIndirectArgsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairMacroGroupAABBBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, StencilTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneResourceParameters, GPUSceneResource)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawUniformBuffer)
@@ -350,6 +353,8 @@ public:
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
 		OutEnvironment.SetDefine(TEXT("SHADER_PRINT"), 1);
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 	}
 };
 
@@ -357,18 +362,40 @@ IMPLEMENT_GLOBAL_SHADER(FHairDebugPrintCS, "/Engine/Private/HairStrands/HairStra
 
 static void AddDebugHairPrintPass(
 	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
 	const FViewInfo* View,
 	const EHairDebugMode InDebugMode,
 	const FHairStrandsVisibilityData& VisibilityData,
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FHairStrandsMacroGroupResources& MacroGroupResources,
 	FRDGTextureSRVRef InStencilTexture)
 {
-	if (!View || !View->HairStrandsViewData.UniformBuffer || !InStencilTexture) return;
+	if (!Scene || !View || !View->HairStrandsViewData.UniformBuffer || !InStencilTexture) return;
 
 	if (!TryEnableShaderDrawAndShaderPrint(*View, MacroGroupResources.MacroGroupCount * 32u, 2000u))
 	{
 		return;
 	}
+
+	// Build mapping Instance -> PrimitiveID to fetch primitive data (i.e., transform & co)
+	const uint32 MacroGroupCount = MacroGroupDatas.Num();
+	TArray<uint32> InstanceIDs;
+	InstanceIDs.Reserve(MacroGroupCount * 4u);
+	for (uint32 MacroGroupIndex = 0; MacroGroupIndex < MacroGroupCount; ++MacroGroupIndex)
+	{
+		const FHairStrandsMacroGroupData& MacroGroup = MacroGroupDatas[MacroGroupIndex];
+		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroup.PrimitivesInfos)
+		{
+			uint32 PrimitiveID = ~0u;
+			if (const FPrimitiveSceneInfo* SceneInfo = PrimitiveInfo.PrimitiveSceneProxy->GetPrimitiveSceneInfo())
+			{
+				PrimitiveID = SceneInfo->GetIndex();
+			}
+			InstanceIDs.Add(PrimitiveID);
+		}
+	}
+	FRDGBufferRef InstancesIDBuffer = CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.InstanceIDs"), FRDGBufferDesc::CreateBufferDesc(4, InstanceIDs.Num()), InstanceIDs.GetData(), 4u * InstanceIDs.Num());
+
 
 	FRDGTextureRef ViewHairCountTexture = VisibilityData.ViewHairCountTexture ? VisibilityData.ViewHairCountTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
 	FRDGTextureRef ViewHairCountUintTexture = VisibilityData.ViewHairCountUintTexture ? VisibilityData.ViewHairCountUintTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
@@ -377,6 +404,9 @@ static void AddDebugHairPrintPass(
 	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
 
 	FHairDebugPrintCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPrintCS::FParameters>();
+	Parameters->GPUSceneResource = Scene->GPUScene.SetParameters(GraphBuilder);
+	Parameters->HairInstanceCount = InstanceIDs.Num();
+	Parameters->HairInstanceIDs = GraphBuilder.CreateSRV(InstancesIDBuffer, PF_R32_UINT);
 	Parameters->GroupSize = GetVendorOptimalGroupSize2D();
 	Parameters->ViewUniformBuffer = View->ViewUniformBuffer;
 	Parameters->MaxResolution = VisibilityData.CoverageTexture ? VisibilityData.CoverageTexture->Desc.Extent : FIntPoint(0,0);
@@ -1288,7 +1318,7 @@ static void InternalRenderHairStrandsDebugInfo(
 
 	if (HairDebugMode == EHairDebugMode::MacroGroups)
 	{
-		AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, HairData.VisibilityData, HairData.MacroGroupResources, SceneTextures.Stencil);
+		AddDebugHairPrintPass(GraphBuilder, Scene, &View, HairDebugMode, HairData.VisibilityData, HairData.MacroGroupDatas, HairData.MacroGroupResources, SceneTextures.Stencil);
 	}
 
 	if (HairDebugMode == EHairDebugMode::DeepOpacityMaps)
@@ -1349,7 +1379,7 @@ static void InternalRenderHairStrandsDebugInfo(
 	if (bRunDebugPass)
 	{
 		AddDebugHairPass(GraphBuilder, &View, HairDebugMode, HairData.VisibilityData, SceneTextures.Stencil, SceneColorTexture);
-		AddDebugHairPrintPass(GraphBuilder, &View, HairDebugMode, HairData.VisibilityData, HairData.MacroGroupResources, SceneTextures.Stencil);
+		AddDebugHairPrintPass(GraphBuilder, Scene, &View, HairDebugMode, HairData.VisibilityData, HairData.MacroGroupDatas, HairData.MacroGroupResources, SceneTextures.Stencil);
 	}
 	else if (HairDebugMode == EHairDebugMode::Tile && HairData.VisibilityData.TileData.IsValid())
 	{

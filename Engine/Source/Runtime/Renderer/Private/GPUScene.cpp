@@ -1905,15 +1905,9 @@ class FGPUSceneDebugRenderCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FGPUSceneDebugRenderCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneResourceParameters, GPUSceneResource)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
-		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
-		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
-		SHADER_PARAMETER(int32, NumInstances)
-		SHADER_PARAMETER(int32, NumScenePrimitives)
 		SHADER_PARAMETER(int32, bDrawAll)
 		SHADER_PARAMETER(int32, bDrawUpdatedOnly)
 		SHADER_PARAMETER(int32, SelectedNameInfoCount)
@@ -1950,6 +1944,19 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FGPUSceneDebugRenderCS, "/Engine/Private/GPUSceneDebugRender.usf", "GPUSceneDebugRenderCS", SF_Compute);
 
+
+FGPUSceneResourceParameters FGPUScene::SetParameters(FRDGBuilder& GraphBuilder) const
+{
+	FGPUSceneResourceParameters Out;
+	Out.GPUSceneInstanceSceneData = InstanceSceneDataBuffer.SRV;
+	Out.GPUSceneInstancePayloadData = InstancePayloadDataBuffer.SRV;
+	Out.GPUScenePrimitiveSceneData = PrimitiveBuffer.SRV;
+	Out.InstanceDataSOAStride = InstanceSceneDataSOAStride;
+	Out.NumScenePrimitives = NumScenePrimitives;
+	Out.NumInstances = InstanceSceneDataAllocator.GetMaxSize();
+	Out.GPUSceneFrameNumber = GetSceneFrameNumber();
+	return Out;
+}
 
 void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo& View)
 {
@@ -2027,20 +2034,14 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 			FGPUSceneDebugRenderCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGPUSceneDebugRenderCS::FParameters>();
 			ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawUniformBuffer);
 			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintUniformBuffer);
-			PassParameters->GPUSceneInstanceSceneData = InstanceSceneDataBuffer.SRV;
-			PassParameters->GPUSceneInstancePayloadData = InstancePayloadDataBuffer.SRV;
-			PassParameters->GPUScenePrimitiveSceneData = PrimitiveBuffer.SRV;
-			PassParameters->InstanceDataSOAStride = InstanceSceneDataSOAStride;
-			PassParameters->GPUSceneFrameNumber = GetSceneFrameNumber();
+			PassParameters->GPUSceneResource = SetParameters(GraphBuilder);
 			PassParameters->bDrawUpdatedOnly = DebugMode == 3;
 			PassParameters->bDrawAll = DebugMode != 2;
-			PassParameters->NumInstances = NumInstances;
 			PassParameters->SelectedNameInfoCount = SelectedCount;
 			PassParameters->SelectedNameCharacterCount = SelectedCount > 0 ? SelectedNames.Num() : 0;
 			PassParameters->SelectedPrimitiveFlags = GraphBuilder.CreateSRV(SelectedPrimitiveFlagsRDG);
 			PassParameters->SelectedPrimitiveNameInfos = GraphBuilder.CreateSRV(SelectedPrimitiveNameInfos);
 			PassParameters->SelectedPrimitiveNames = GraphBuilder.CreateSRV(SelectedPrimitiveNames, PF_R8_UINT);
-			PassParameters->NumScenePrimitives = NumScenePrimitives;
 			PassParameters->DrawRange = CVarGPUSceneDebugDrawRange.GetValueOnRenderThread();
 			PassParameters->RWDrawCounter = DrawCounterUAV;
 

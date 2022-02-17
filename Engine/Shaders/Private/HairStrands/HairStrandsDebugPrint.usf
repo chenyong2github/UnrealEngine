@@ -10,7 +10,6 @@
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsAABBCommon.ush" 
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 void AddNewLine(float2 OriginalPos, inout float2 Pos)
@@ -22,6 +21,8 @@ void AddNewLine(float2 OriginalPos, inout float2 Pos)
 
 #if SHADER_PRINT
 
+#include "../SceneData.ush"
+
 int2 PixelCoord;
 int2 MaxResolution;
 uint FastResolveMask;
@@ -29,7 +30,12 @@ uint HairMacroGroupCount;
 uint2 GroupSize; 
 uint HairVisibilityNodeGroupSize;
 uint AllocatedSampleCount;
+uint HairInstanceCount;
 
+uint NumInstances;
+uint InstanceDataSOAStride;
+
+Buffer<uint> HairInstanceIDs;
 Texture2D<float> HairCountTexture;
 Texture2D<uint> HairCountUintTexture;
 
@@ -48,6 +54,31 @@ FFontColor GetOccupancyColor(float In)
 	return InitFontColor(Color);
 }
 
+void DrawInstanceAABB(uint PrimitiveId)
+{
+	// Since we don't have the actual instance ID (they are transient instance vs. persistent instance), 
+	// we find the primitive with the matching PrimitiveID
+	uint InstanceID = ~0;
+	const uint TotalInstanceCount = min(8192u, NumInstances);
+	for (uint LocalInstanceID = 0; LocalInstanceID < TotalInstanceCount; ++LocalInstanceID)
+	{
+		FInstanceSceneData InstanceData = GetInstanceSceneData(LocalInstanceID, InstanceDataSOAStride);
+		if (InstanceData.PrimitiveId == PrimitiveId)
+		{
+			InstanceID = LocalInstanceID;
+			break;
+		}
+	}
+
+	if (InstanceID != ~0)
+	{
+		FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceID, InstanceDataSOAStride);
+		const float4 InstanceBoundColor = ColorLightGreen;
+		AddOBBWS(InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent, InstanceBoundColor, LWCHackToFloat(InstanceData.LocalToWorld));
+		AddReferentialWS(LWCHackToFloat(InstanceData.LocalToWorld), 50.f);
+	}
+}
+
 [numthreads(1, 1, 1)]
 void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
 {	
@@ -60,6 +91,16 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			const float4 InstanceBoundColor = float4(1.f, 0.5f, 0.5f, 1.0f);
 			FHairAABB Bound = ReadHairAABB(GroupIndex, HairMacroGroupAABBBuffer);
 			AddAABBTWS(Bound.Min, Bound.Max, InstanceBoundColor);
+		}
+
+		// Hair instance bounds
+		for (uint HairInstanceIndex = 0; HairInstanceIndex < HairInstanceCount; HairInstanceIndex++)
+		{
+			const uint InstanceID = HairInstanceIDs[HairInstanceIndex];
+			if (InstanceID != ~0)
+			{
+				DrawInstanceAABB(InstanceID);
+			}
 		}
 
 		const uint DispatchX = HairVisibilityIndirectArgsBuffer[0];
