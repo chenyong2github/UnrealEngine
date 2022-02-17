@@ -385,10 +385,10 @@ struct FDriverDenyListEntry
 		ensure(!DriverVersionString.IsEmpty() || !DriverDateString.IsEmpty());
 
 		FParse::Value(In, TEXT("RHI="), RHIName);
-		
+
+
 		// later:
 //		FParse::Value(In, TEXT("DeviceId="), DeviceId);
-//		FParse::Value(In, TEXT("OS="), OS);
 //		FParse::Value(In, TEXT("API="), API);
 //		ensure(API == TEXT("DX11"));
 
@@ -567,14 +567,14 @@ struct FGPUHardware
 	// @return a driver version intended to be shown to the user e.g. "15.30.1025.1001 12/17/2015 (Crimson Edition 15.12)"
 	FString GetSuggestedDriverVersion(const FString& InRHIName) const
 	{
-		const TCHAR* Section = GetVendorSectionName();
+		const FString Section = GetVendorSectionName();
 
 		FString Ret;
 
-		if(Section)
+		if(!Section.IsEmpty())
 		{
 			TArray<FString> SuggestedDriverVersions;
-			GConfig->GetArray(Section, TEXT("SuggestedDriverVersion"), SuggestedDriverVersions, GHardwareIni);
+			GConfig->GetArray(*Section, TEXT("SuggestedDriverVersion"), SuggestedDriverVersions, GHardwareIni);
 
 			// Find specific RHI version first
 			if (InRHIName.Len() > 0)
@@ -607,12 +607,12 @@ struct FGPUHardware
 	// @return 0 if there is none
 	FDriverDenyListEntry FindDriverDenyListEntry() const
 	{
-		const TCHAR* Section = GetVendorSectionName();
+		const FString Section = GetVendorSectionName();
 
-		if(Section)
+		if(!Section.IsEmpty())
 		{
 			TArray<FString> DenyListStrings;
-			GConfig->GetArray(GetVendorSectionName(), TEXT("DriverDenyList"), DenyListStrings, GHardwareIni);
+			GConfig->GetArray(*Section, TEXT("DriverDenyList"), DenyListStrings, GHardwareIni);
 
 			for(int32 i = 0; i < DenyListStrings.Num(); ++i)
 			{
@@ -640,12 +640,12 @@ struct FGPUHardware
 	bool IsLatestDenied() const
 	{
 		bool bLatestDenied = false;
-		const TCHAR* Section = GetVendorSectionName();
+		const FString Section = GetVendorSectionName();
 
-		if(Section)
+		if(!Section.IsEmpty())
 		{
 			TArray<FString> DenyListStrings;
-			GConfig->GetArray(GetVendorSectionName(), TEXT("DriverDenyList"), DenyListStrings, GHardwareIni);
+			GConfig->GetArray(*Section, TEXT("DriverDenyList"), DenyListStrings, GHardwareIni);
 
 			for(int32 i = 0; !bLatestDenied && i < DenyListStrings.Num(); ++i)
 			{
@@ -665,22 +665,29 @@ struct FGPUHardware
 
 	// to get a section name in the Hardware.ini file
 	// @return 0 if not found
-	const TCHAR* GetVendorSectionName() const
+	FString GetVendorSectionName() const
 	{
+		const TCHAR* Section = nullptr;
+
 		if(DriverInfo.IsNVIDIA())
 		{
-			return TEXT("GPU_NVIDIA");
+			Section = TEXT("GPU_NVIDIA");
 		}
 		if(DriverInfo.IsAMD())
 		{
-			return TEXT("GPU_AMD");
+			Section = TEXT("GPU_AMD");
 		}
 		else if(DriverInfo.IsIntel())
 		{
-			return TEXT("GPU_Intel");
-		}
+			Section = TEXT("GPU_Intel");
+		}	
 		// more GPU vendors can be added on demand
-		return 0;
+		if (!Section)
+		{
+			return TEXT("");
+		}
+
+		return FString::Printf(TEXT("%s %s"), Section, ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
 	}
 };
 
