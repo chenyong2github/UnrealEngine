@@ -211,7 +211,7 @@ struct FGenericPlatformMath
 	}
 
 	static CONSTEXPR FORCEINLINE int32 TruncToInt(float F) { return TruncToInt32(F); }
-	static CONSTEXPR FORCEINLINE int64 TruncToInt(double F) { return TruncToInt64(F); }
+	static CONSTEXPR FORCEINLINE int32 TruncToInt(double F) { return TruncToInt32(F); }
 
 	/**
 	 * Converts a float to an integer value with truncation towards zero.
@@ -265,7 +265,7 @@ struct FGenericPlatformMath
 	}
 
 	static FORCEINLINE int32 FloorToInt(float F) { return FloorToInt32(F); }
-	static FORCEINLINE int64 FloorToInt(double F) { return FloorToInt64(F); }
+	static FORCEINLINE int32 FloorToInt(double F) { return FloorToInt32(F); }
 	
 	
 	/**
@@ -314,7 +314,7 @@ struct FGenericPlatformMath
 	}
 	
 	static FORCEINLINE int32 RoundToInt(float F) { return RoundToInt32(F); }
-	static FORCEINLINE int64 RoundToInt(double F) { return RoundToInt64(F); }
+	static FORCEINLINE int32 RoundToInt(double F) { return RoundToInt32(F); }
 
 	/**
 	* Converts a float to the nearest integer. Rounds up when the fraction is .5
@@ -368,7 +368,7 @@ struct FGenericPlatformMath
 	}
 
 	static FORCEINLINE int32 CeilToInt(float F) { return CeilToInt32(F); }
-	static FORCEINLINE int64 CeilToInt(double F) { return CeilToInt64(F); }
+	static FORCEINLINE int32 CeilToInt(double F) { return CeilToInt32(F); }
 
 	/**
 	* Converts a float to the nearest greater or equal integer.
@@ -934,9 +934,11 @@ struct FGenericPlatformMath
 		return (A<=B) ? A : B;
 	}
 
-	// Allow mixing of types to promote to highest precision type
-	MIX_TYPES_2_ARGS_CONSTEXPR(Max);
-	MIX_TYPES_2_ARGS_CONSTEXPR(Min);
+	// Allow mixing of float types to promote to highest precision type
+	static CONSTEXPR FORCEINLINE double Max(const double A, const float B) { return Max<double>(A, B); }
+	static CONSTEXPR FORCEINLINE double Max(const float A, const double B) { return Max<double>(A, B); }
+	static CONSTEXPR FORCEINLINE double Min(const double A, const float B) { return Min<double>(A, B); }
+	static CONSTEXPR FORCEINLINE double Min(const float A, const double B) { return Min<double>(A, B); }
 
 	/**
 	* Min of Array
