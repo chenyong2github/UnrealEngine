@@ -975,6 +975,35 @@ namespace HordeAgentTests
 			CheckEventGroup(Events.Slice(7, 1), 8, 1, LogLevel.Error, KnownLogEvents.Systemic_Xge_BuildFailed);
 		}
 
+		[TestMethod]
+		public void LogChannelMatcher()
+		{
+			string[] Lines =
+			{   @"Execution of commandlet took:  749.68 seconds",
+				@"LogFort: Error: Serialized Class /Script/Engine.AnimSequence for a property of Class /Script/Engine.BlendSpace. Reference will be nullptred.",
+				@"    Property = ObjectProperty /Game/Animation/Game/Enemies/HuskHusky/HuskyHusk_AnimBlueprint.HuskyHusk_AnimBlueprint_C:AnimBlueprintGeneratedConstantData:ObjectProperty_358",
+				@"    Item = AnimSequence /Game/Animation/Game/Enemies/HuskyHusk_Riot/Locomotion/Idle/Idle_Shield.Idle_Shield",
+				@"LogDataAssetDirectoryExporter: Display: 'PlatformBlacklist' property is of type: string",
+				@"Took 0.17187880000000003s to run p4.exe, ExitCode=0"
+			};
+
+			{
+				List<LogEvent> Events = Parse(Lines);
+				Assert.AreEqual(4, Events.Count);
+				CheckEventGroup(Events.Slice(0, 3), 1, 3, LogLevel.Error, KnownLogEvents.Engine_LogChannel);
+				CheckEventGroup(Events.Slice(3, 1), 4, 1, LogLevel.Information, KnownLogEvents.Engine_LogChannel);
+			}
+
+			{
+				List<LogEvent> Events = Parse(String.Join("\n", Lines).Replace("Error:", "Warning:"));
+				Assert.AreEqual(4, Events.Count);
+				CheckEventGroup(Events.Slice(0, 3), 1, 3, LogLevel.Warning, KnownLogEvents.Engine_LogChannel);
+				CheckEventGroup(Events.Slice(3, 1), 4, 1, LogLevel.Information, KnownLogEvents.Engine_LogChannel);
+			}
+		}
+			
+
+
 		string GetSubProperty(LogEvent Event, string SpanName, string Name)
 		{
 			LogEventSpan Span = (LogEventSpan)Event.Properties![SpanName];

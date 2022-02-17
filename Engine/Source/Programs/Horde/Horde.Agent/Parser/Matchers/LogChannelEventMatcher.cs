@@ -25,15 +25,16 @@ namespace HordeAgent.Parser.Matchers
 			Match? Match;
 			if(Input.TryMatch(@"^(\s*)(?<channel>[a-zA-Z_][a-zA-Z0-9_]*):\s*(?<severity>Error|Warning|Display): ", out Match))
 			{
-				string Indent = Match.Groups[1].Value;
-
 				LogEventBuilder Builder = new LogEventBuilder(Input);
 				Builder.Annotate(Match.Groups["channel"], LogEventMarkup.Channel);
 				Builder.Annotate(Match.Groups["severity"], LogEventMarkup.Severity);
-
-				while (Builder.Next.IsMatch(1, $"^({Indent} | *$)"))
-				{
-					Builder.MoveNext();
+				
+				if (Builder.Next.TryMatch(@"^\s+", out Match? Indent))
+				{						
+					while (Builder.Next.IsMatch($"^{Indent.Value}"))
+					{
+						Builder.MoveNext();
+					}					
 				}
 
 				LogLevel Level;
@@ -51,8 +52,10 @@ namespace HordeAgent.Parser.Matchers
 				}
 
 				return Builder.ToMatch(LogEventPriority.Low, Level, KnownLogEvents.Engine_LogChannel);
+				
 			}
 			return null;
 		}
+
 	}
 }
