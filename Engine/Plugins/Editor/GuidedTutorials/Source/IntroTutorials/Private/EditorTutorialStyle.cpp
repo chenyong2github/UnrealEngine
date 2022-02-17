@@ -340,6 +340,9 @@ FEditorTutorialStyle::FEditorTutorialStyle()
 	Set("TutorialLaunch.Circle", new IMAGE_BRUSH("Tutorials/Circle_128x", Icon128x128, FLinearColor::White));
 	Set("TutorialLaunch.Circle.Color", FLinearColor::Green);
 
+	Set("ClassIcon.EditorTutorial", new IMAGE_BRUSH_SVG("AssetIcons/EditorTutorial_16", Icon16x16));
+	Set("ClassThumbnail.EditorTutorial", new IMAGE_BRUSH_SVG("AssetIcons/EditorTutorial_64", Icon16x16));
+
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }
 
