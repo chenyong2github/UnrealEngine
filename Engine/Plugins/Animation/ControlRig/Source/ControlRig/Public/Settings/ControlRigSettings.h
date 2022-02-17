@@ -111,14 +111,28 @@ public:
 	FLinearColor BackwardsAndForwardsBorderColor;
 
 	/**
-	* The border color of the hierarchy tree in dynamic hierarchy mode
-	*/
-	UPROPERTY(EditAnywhere, config, Category = Viewport)
+	 * The border color of the hierarchy tree in dynamic hierarchy mode
+	 */
+	UPROPERTY(EditAnywhere, config, Category = Hierarchy)
 	FLinearColor DynamicHierarchyBorderColor;
 
 	/**
-	* The default node snippet to create when pressing 1 + Left Mouse Button
-	*/
+	 * Option to toggle displaying the stacked hierarchy items.
+	 * Note that changing this option potentially requires to re-open the editors in question. 
+	 */
+	UPROPERTY(EditAnywhere, config, Category = Hierarchy)
+	bool bShowStackedHierarchy;
+
+	/**
+ 	 * The maximum number of stacked items in the view 
+ 	 * Note that changing this option potentially requires to re-open the editors in question. 
+ 	 */
+	UPROPERTY(EditAnywhere, config, Category = Hierarchy, meta = (EditCondition = "bShowStackedHierarchy"))
+	int32 MaxStackSize;
+
+	/**
+	 * The default node snippet to create when pressing 1 + Left Mouse Button
+	 */
 	UPROPERTY(EditAnywhere, config, Category = Snippets, meta = (DisplayName = "1"))
 	FString NodeSnippet_1;
 
