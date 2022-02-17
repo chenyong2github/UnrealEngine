@@ -2342,7 +2342,9 @@ void UEngine::SetSimulationLatencyMarkerEnd(uint64 FrameNumber)
 
 void UEngine::SetPresentLatencyMarkerStart(uint64 FrameNumber)
 {
+	IModularFeatures::Get().LockModularFeatureList();
 	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+	IModularFeatures::Get().UnlockModularFeatureList();
 
 	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
 	{
@@ -2352,7 +2354,9 @@ void UEngine::SetPresentLatencyMarkerStart(uint64 FrameNumber)
 
 void UEngine::SetPresentLatencyMarkerEnd(uint64 FrameNumber)
 {
+	IModularFeatures::Get().LockModularFeatureList();
 	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+	IModularFeatures::Get().UnlockModularFeatureList();
 
 	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
 	{
@@ -2363,7 +2367,9 @@ void UEngine::SetPresentLatencyMarkerEnd(uint64 FrameNumber)
 
 void UEngine::SetRenderSubmitLatencyMarkerStart(uint64 FrameNumber)
 {
+	IModularFeatures::Get().LockModularFeatureList();
 	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+	IModularFeatures::Get().UnlockModularFeatureList();
 
 	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
 	{
@@ -2373,7 +2379,9 @@ void UEngine::SetRenderSubmitLatencyMarkerStart(uint64 FrameNumber)
 
 void UEngine::SetRenderSubmitLatencyMarkerEnd(uint64 FrameNumber)
 {
+	IModularFeatures::Get().LockModularFeatureList();
 	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+	IModularFeatures::Get().UnlockModularFeatureList();
 
 	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
 	{

@@ -79,6 +79,12 @@ public:
 
 public:
 
+	/** Lock modular features for access from another thread */
+	virtual void LockModularFeatureList() = 0;
+
+	/** Unlock modular features when finished accessing from another thread */
+	virtual void UnlockModularFeatureList() = 0;
+
 	/**
 	 * Returns the number of registered implementations of the specified feature type.
 	 *

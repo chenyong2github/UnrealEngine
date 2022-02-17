@@ -10,15 +10,29 @@ IModularFeatures& IModularFeatures::Get()
 	return ModularFeatures;
 }
 
+void FModularFeatures::LockModularFeatureList()
+{
+	ModularFeaturesMapCriticalSection.Lock();
+	bModularFeatureListLocked = true;
+}
+
+void FModularFeatures::UnlockModularFeatureList()
+{
+	ModularFeaturesMapCriticalSection.Unlock();
+	bModularFeatureListLocked = false;
+}
 
 int32 FModularFeatures::GetModularFeatureImplementationCount( const FName Type )
 {
+	ensureMsgf(IsInGameThread() || bModularFeatureListLocked, TEXT("IModularFeature counting is not thread-safe unless wrapped with LockModularFeatureList/UnlockModularFeatureList"));
+
 	return ModularFeaturesMap.Num( Type );
 }
 
-
 IModularFeature* FModularFeatures::GetModularFeatureImplementation( const FName Type, const int32 Index )
 {
+	ensureMsgf(IsInGameThread() || bModularFeatureListLocked, TEXT("IModularFeature fetching is not thread-safe unless wrapped with LockModularFeatureList/UnlockModularFeatureList"));
+
 	IModularFeature* ModularFeature = nullptr;
 
 	int32 CurrentIndex = 0;
@@ -40,6 +54,8 @@ IModularFeature* FModularFeatures::GetModularFeatureImplementation( const FName 
 
 void FModularFeatures::RegisterModularFeature( const FName Type, IModularFeature* ModularFeature )
 {
+	FScopeLock ScopeLock(&ModularFeaturesMapCriticalSection);
+
 	ModularFeaturesMap.AddUnique( Type, ModularFeature );
 	ModularFeatureRegisteredEvent.Broadcast( Type, ModularFeature );
 }
@@ -47,6 +63,8 @@ void FModularFeatures::RegisterModularFeature( const FName Type, IModularFeature
 
 void FModularFeatures::UnregisterModularFeature( const FName Type, IModularFeature* ModularFeature )
 {
+	FScopeLock ScopeLock(&ModularFeaturesMapCriticalSection);
+
 	ModularFeaturesMap.RemoveSingle( Type, ModularFeature );
 	ModularFeatureUnregisteredEvent.Broadcast( Type, ModularFeature );
 }

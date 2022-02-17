@@ -13,7 +13,9 @@ namespace Audio
 	{
 
 		// Get all IFFTAlgorithm factories. 
+		IModularFeatures::Get().LockModularFeatureList();
 		TArray<IFFTAlgorithmFactory*> Factories = IModularFeatures::Get().GetModularFeatureImplementations<IFFTAlgorithmFactory>(IFFTAlgorithmFactory::GetModularFeatureName());
+		IModularFeatures::Get().UnlockModularFeatureList();
 
 		// Remove null factories
 		Factories = Factories.FilterByPredicate([InAlgorithmFactoryName](const IFFTAlgorithmFactory* Factory) 

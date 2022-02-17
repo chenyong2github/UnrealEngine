@@ -33,8 +33,10 @@ TSubclassOf<class UClothingSimulationFactory> UClothingSimulationFactory::GetDef
 	TSubclassOf<UClothingSimulationFactory> DefaultClothingSimulationFactoryClass = nullptr;
 
 	const FString DefaultClothingSimulationFactoryClassName = ClothingSimulationFactoryConsoleVariables::CVarDefaultClothingSimulationFactoryClass.GetValueOnAnyThread();
-
+	
+	IModularFeatures::Get().LockModularFeatureList();
 	const TArray<IClothingSimulationFactoryClassProvider*> ClassProviders = IModularFeatures::Get().GetModularFeatureImplementations<IClothingSimulationFactoryClassProvider>(IClothingSimulationFactoryClassProvider::FeatureName);
+	IModularFeatures::Get().UnlockModularFeatureList();
 	for (const auto& ClassProvider : ClassProviders)
 	{
 		if (ClassProvider)
@@ -53,5 +55,6 @@ TSubclassOf<class UClothingSimulationFactory> UClothingSimulationFactory::GetDef
 			}
 		}
 	}
+
 	return DefaultClothingSimulationFactoryClass;
 }
