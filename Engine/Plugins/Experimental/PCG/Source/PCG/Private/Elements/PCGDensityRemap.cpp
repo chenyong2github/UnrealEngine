@@ -27,7 +27,7 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContextPtr Context) cons
 	const float RemapMin = FMath::Min(Settings->RemapMin, Settings->RemapMax);
 	const float RemapMax = FMath::Max(Settings->RemapMin, Settings->RemapMax);
 
-	const bool bTrivialRemapping = (RemapMin == 0 && RemapMax == 1 && Settings->bMultiplyDensity);
+	const bool bTrivialRemapping = (RemapMin == 0.0f && RemapMax == 1.0f && Settings->bMultiplyDensity);
 
 	// TODO: embarassingly parallel loop
 	for (const FPCGTaggedData& Input : Inputs)

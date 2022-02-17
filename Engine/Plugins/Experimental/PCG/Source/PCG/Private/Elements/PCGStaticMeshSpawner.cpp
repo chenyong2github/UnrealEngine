@@ -85,7 +85,7 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 			for (const FPCGPoint& Point : Points)
 			{
-				if (Point.Density <= 0)
+				if (Point.Density <= 0.0f)
 				{
 					continue;
 				}

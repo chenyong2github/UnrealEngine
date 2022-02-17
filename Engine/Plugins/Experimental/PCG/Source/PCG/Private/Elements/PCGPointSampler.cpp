@@ -24,8 +24,8 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 	Outputs.Append(Context->InputData.GetExclusions());
 	Outputs.Append(Context->InputData.GetAllSettings());
 
-	const bool bNoSampling = (Settings->Ratio <= 0);
-	const bool bTrivialSampling = (Settings->Ratio >= 1);
+	const bool bNoSampling = (Settings->Ratio <= 0.0f);
+	const bool bTrivialSampling = (Settings->Ratio >= 1.0f);
 
 	// Early exit when nothing will be generated out of this sampler
 #if WITH_EDITORONLY_DATA

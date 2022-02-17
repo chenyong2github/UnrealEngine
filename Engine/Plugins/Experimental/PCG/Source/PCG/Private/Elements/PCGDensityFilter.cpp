@@ -25,8 +25,8 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContextPtr Context) const
 	const float MinBound = FMath::Min(Settings->LowerBound, Settings->UpperBound);
 	const float MaxBound = FMath::Max(Settings->LowerBound, Settings->UpperBound);
 
-	const bool bNoResults = (MaxBound <= 0 && !Settings->bInvertFilter) || (MinBound == 0 && MaxBound >= 1 && Settings->bInvertFilter);
-	const bool bTrivialFilter = (MinBound <= 0 && MaxBound >= 1.0 && !Settings->bInvertFilter) || (MinBound == 0 && MaxBound == 0 && Settings->bInvertFilter);
+	const bool bNoResults = (MaxBound <= 0.0f && !Settings->bInvertFilter) || (MinBound == 0.0f && MaxBound >= 1.0f && Settings->bInvertFilter);
+	const bool bTrivialFilter = (MinBound <= 0.0f && MaxBound >= 1.0f && !Settings->bInvertFilter) || (MinBound == 0.0f && MaxBound == 0.0f && Settings->bInvertFilter);
 
 #if WITH_EDITORONLY_DATA
 	if(bNoResults && !Settings->bKeepZeroDensityPoints)
