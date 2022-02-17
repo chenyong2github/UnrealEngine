@@ -19,12 +19,22 @@ public:
 		FConcertServerInfo ServerInfo;
 		FConcertSessionInfo SessionInfo;
 		TArray<FConcertSessionClientInfo> Clients;
+
+		FActiveSessionInfo(FConcertServerInfo ServerInfo, FConcertSessionInfo SessionInfo)
+			: ServerInfo(MoveTemp(ServerInfo))
+			, SessionInfo(MoveTemp(SessionInfo))
+		{}
 	};
 
 	struct FArchivedSessionInfo
 	{
 		FConcertServerInfo ServerInfo;
 		FConcertSessionInfo SessionInfo;
+
+		FArchivedSessionInfo(FConcertServerInfo ServerInfo, FConcertSessionInfo SessionInfo)
+			: ServerInfo(MoveTemp(ServerInfo))
+			, SessionInfo(MoveTemp(SessionInfo))
+		{}
 	};
 
 public:
