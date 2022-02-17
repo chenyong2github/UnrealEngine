@@ -1409,18 +1409,18 @@ bool FHLSLMaterialTranslator::Translate()
 									{
 									case STRATA_OPERATOR_VERTICAL:
 									{
-										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/); // VERTICAL\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
+										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterVerticalOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
 										break;
 									}
 									case STRATA_OPERATOR_HORIZONTAL:
 									{
-										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/); // HORIZONTAL\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
+										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterHorizontalOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
 										break;
 									}
 
 									case STRATA_OPERATOR_WEIGHT:
 									{
-										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/); // WEIGHT\n"), BSDFIndex, CurrentOperator.Index, 1);
+										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterWeightOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, 1);
 										break;
 									}
 
