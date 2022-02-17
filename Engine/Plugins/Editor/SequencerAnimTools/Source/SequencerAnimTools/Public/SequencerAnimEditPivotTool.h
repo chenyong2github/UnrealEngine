@@ -24,6 +24,7 @@ class UControlRig;
 struct FRigControlElement;
 class ISequencer;
 class FUICommandList;
+class IAssetViewport;
 
 /*
 *  The way this sequencer pivot tool works is that
