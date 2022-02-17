@@ -240,6 +240,15 @@ void UBorder::SetBrushFromMaterial(UMaterialInterface* Material)
 	}
 }
 
+void UBorder::SetShowEffectWhenDisabled(bool bInShowEffectWhenDisabled)
+{
+	bShowEffectWhenDisabled = bInShowEffectWhenDisabled;
+	if(MyBorder)
+	{
+		MyBorder->SetShowEffectWhenDisabled(bShowEffectWhenDisabled != 0);
+	}
+}
+
 UMaterialInstanceDynamic* UBorder::GetDynamicMaterial()
 {
 	UMaterialInterface* Material = nullptr;

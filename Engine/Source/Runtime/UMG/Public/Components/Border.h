@@ -136,6 +136,10 @@ public:
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
+	void SetShowEffectWhenDisabled(bool bInShowEffectWhenDisabled);
+
+	/**  */
+	UFUNCTION(BlueprintCallable, Category="Appearance")
 	UMaterialInstanceDynamic* GetDynamicMaterial();
 
 public:
