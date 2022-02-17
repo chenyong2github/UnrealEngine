@@ -585,6 +585,12 @@ bool StaticMeshImportUtils::AddConvexGeomFromVertices( const TArray<FVector3f>& 
 	return true;
 }
 
+TSharedPtr<FExistingStaticMeshData> StaticMeshImportUtils::SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, bool bImportMaterials, int32 LodIndex)
+{
+	UnFbx::FBXImportOptions ImportOptions;
+	ImportOptions.bImportMaterials = bImportMaterials;
+	return SaveExistingStaticMeshData(ExistingMesh, &ImportOptions, LodIndex);
+}
 
 TSharedPtr<FExistingStaticMeshData> StaticMeshImportUtils::SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, UnFbx::FBXImportOptions* ImportOptions, int32 LodIndex)
 {
@@ -736,6 +742,13 @@ TSharedPtr<FExistingStaticMeshData> StaticMeshImportUtils::SaveExistingStaticMes
 	ExistingMeshDataPtr->ExistingAllowCpuAccess = ExistingMesh->bAllowCPUAccess;
 	ExistingMeshDataPtr->ExistingPositiveBoundsExtension = (FVector3f)ExistingMesh->GetPositiveBoundsExtension();
 	ExistingMeshDataPtr->ExistingNegativeBoundsExtension = (FVector3f)ExistingMesh->GetNegativeBoundsExtension();
+
+	ExistingMeshDataPtr->ExistingSupportPhysicalMaterialMasks = ExistingMesh->bSupportPhysicalMaterialMasks;
+	ExistingMeshDataPtr->ExistingSupportGpuUniformlyDistributedSampling = ExistingMesh->bSupportGpuUniformlyDistributedSampling;
+	ExistingMeshDataPtr->ExistingSupportRayTracing = ExistingMesh->bSupportRayTracing;
+	ExistingMeshDataPtr->ExistingForceMiplevelsToBeResident = ExistingMesh->bGlobalForceMipLevelsToBeResident;
+	ExistingMeshDataPtr->ExistingNeverStream = ExistingMesh->NeverStream;
+	ExistingMeshDataPtr->ExistingNumCinematicMipLevels = ExistingMesh->NumCinematicMipLevels;
 
 	UFbxStaticMeshImportData* ImportData = Cast<UFbxStaticMeshImportData>(ExistingMesh->AssetImportData);
 	if (ImportData && ExistingMeshDataPtr->UseMaterialNameSlotWorkflow)
@@ -1266,6 +1279,13 @@ void StaticMeshImportUtils::RestoreExistingMeshData(const TSharedPtr<const FExis
 	NewMesh->SetNegativeBoundsExtension((FVector)ExistingMeshDataPtr->ExistingNegativeBoundsExtension);
 
 	NewMesh->ComplexCollisionMesh = ExistingMeshDataPtr->ExistingComplexCollisionMesh;
+
+	NewMesh->bSupportPhysicalMaterialMasks = ExistingMeshDataPtr->ExistingSupportPhysicalMaterialMasks;
+	NewMesh->bSupportGpuUniformlyDistributedSampling = ExistingMeshDataPtr->ExistingSupportGpuUniformlyDistributedSampling;
+	NewMesh->bSupportRayTracing = ExistingMeshDataPtr->ExistingSupportRayTracing;
+	NewMesh->bGlobalForceMipLevelsToBeResident = ExistingMeshDataPtr->ExistingForceMiplevelsToBeResident;
+	NewMesh->NeverStream = ExistingMeshDataPtr->ExistingNeverStream;
+	NewMesh->NumCinematicMipLevels = ExistingMeshDataPtr->ExistingNumCinematicMipLevels;
 }
 
 #undef LOCTEXT_NAMESPACE

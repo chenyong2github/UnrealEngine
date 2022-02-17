@@ -22,6 +22,10 @@
 #include "GeometryCache.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
+#include "AI/Navigation/NavCollisionBase.h"
+#include "Editor/EditorPerProjectUserSettings.h"
+#include "ImportUtils/StaticMeshImportUtils.h"
+
 #define LOCTEXT_NAMESPACE "AlembicImportFactory"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAlembic, Log, All);
@@ -70,6 +74,48 @@ bool UAlembicImportFactory::FactoryCanImport(const FString& Filename)
 
 UObject* UAlembicImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
+	const bool bIsUnattended = (IsAutomatedImport()
+		|| FApp::IsUnattended()
+		|| IsRunningCommandlet()
+		|| GIsRunningUnattendedScript);
+	if (bIsUnattended)
+	{
+		bShowOption = false;
+	}
+
+	// Check if it's a re-import
+	if (InParent != nullptr)
+	{
+		UObject* ExistingObject =
+			StaticFindObject(UObject::StaticClass(), InParent, *InName.ToString());
+		if (ExistingObject)
+		{
+			// Use this class as no other re-import handler exist for Alembics, yet
+			FReimportHandler* ReimportHandler = this;
+			TArray<FString> Filenames;
+			Filenames.Add(UFactory::CurrentFilename);
+			// Set the new source path before starting the re-import
+			FReimportManager::Instance()->UpdateReimportPaths(ExistingObject, Filenames);
+			// Do the re-import and exit
+			const bool bIsAutomated = bIsUnattended;
+			const bool bShowNotification = !bIsAutomated;
+			const bool bAskForNewFileIfMissing = true;
+			const FString PreferredReimportFile;
+			const int32 SourceFileIndex = INDEX_NONE;
+			const bool bForceNewFile = false;
+			FReimportManager::Instance()->Reimport(
+				ExistingObject,
+				bAskForNewFileIfMissing,
+				bShowNotification,
+				PreferredReimportFile,
+				ReimportHandler,
+				SourceFileIndex,
+				bForceNewFile,
+				bIsAutomated);
+			return ExistingObject;
+		}
+	}
+
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, InClass, InParent, InName, TEXT("ABC"));
 
 	// Use (and show) the settings from the script if provided
@@ -114,7 +160,7 @@ UObject* UAlembicImportFactory::FactoryCreateFile(UClass* InClass, UObject* InPa
 
 	bOutOperationCanceled = false;
 
-	if (!GIsRunningUnattendedScript && bShowOption)
+	if (bShowOption)
 	{
 		TSharedPtr<SAlembicImportOptions> Options;
 		ShowImportOptionsWindow(Options, UFactory::CurrentFilename, Importer);
@@ -395,6 +441,14 @@ EReimportResult::Type UAlembicImportFactory::Reimport(UObject* Obj)
 {
 	ImportSettings->bReimport = true;
 
+	const bool bIsUnattended = (IsAutomatedImport()
+		|| FApp::IsUnattended()
+		|| IsRunningCommandlet()
+		|| GIsRunningUnattendedScript);
+	const bool bShowDialogAtReimport =
+		GetDefault<UEditorPerProjectUserSettings>()->bShowImportDialogAtReimport;
+	bShowOption = bShowDialogAtReimport && !bIsUnattended;
+
 	FText ReimportingText = FText::Format(LOCTEXT("AbcFactoryReimporting", "Reimporting {0}.abc"), FText::FromString(Obj->GetName()));
 	const FString& PageName = ReimportingText.ToString();
 	if (Obj->GetClass() == UStaticMesh::StaticClass())
@@ -582,6 +636,16 @@ EReimportResult::Type UAlembicImportFactory::ReimportGeometryCache(UGeometryCach
 			return EReimportResult::Cancelled;
 		}
 	}
+	else
+	{
+		UAbcImportSettings* ScriptedSettings = AssetImportTask
+			? Cast<UAbcImportSettings>(AssetImportTask->Options)
+			: nullptr;
+		if (ScriptedSettings)
+		{
+			ImportSettings = ScriptedSettings;
+		}
+	}
 
 	int32 NumThreads = 1;
 	if (FPlatformProcess::SupportsMultithreading())
@@ -659,6 +723,16 @@ EReimportResult::Type UAlembicImportFactory::ReimportSkeletalMesh(USkeletalMesh*
 		if (!Options->ShouldImport())
 		{
 			return EReimportResult::Cancelled;
+		}
+	}
+	else
+	{
+		UAbcImportSettings* ScriptedSettings = AssetImportTask
+			? Cast<UAbcImportSettings>(AssetImportTask->Options)
+			: nullptr;
+		if (ScriptedSettings)
+		{
+			ImportSettings = ScriptedSettings;
 		}
 	}
 
@@ -781,6 +855,16 @@ EReimportResult::Type UAlembicImportFactory::ReimportStaticMesh(UStaticMesh* Mes
 			return EReimportResult::Cancelled;
 		}
 	}
+	else
+	{
+		UAbcImportSettings* ScriptedSettings = AssetImportTask
+			? Cast<UAbcImportSettings>(AssetImportTask->Options)
+			: nullptr;
+		if (ScriptedSettings)
+		{
+			ImportSettings = ScriptedSettings;
+		}
+	}
 
 	int32 NumThreads = 1;
 	if (FPlatformProcess::SupportsMultithreading())
@@ -797,6 +881,53 @@ EReimportResult::Type UAlembicImportFactory::ReimportStaticMesh(UStaticMesh* Mes
 	}
 	else
 	{
+		// Preserve settings on the existing mesh (same as on a FBX re-import)
+		const bool bOverrideExistingMaterials = false;
+		TSharedPtr<FExistingStaticMeshData> ExistingMeshData =
+			StaticMeshImportUtils::SaveExistingStaticMeshData(Mesh, bOverrideExistingMaterials, INDEX_NONE);
+
+		// Preserve the user data
+		const TArray<UAssetUserData*>* UserData = Mesh->GetAssetUserDataArray();
+		TMap<UAssetUserData*, bool> UserDataCopy;
+		if (UserData)
+		{
+			for (int32 Idx = 0; Idx < UserData->Num(); Idx++)
+			{
+				if ((*UserData)[Idx] != nullptr)
+				{
+					// This is slightly different from the equivalent in the FBX
+					// reimporter as it is using the deprecated version of the same
+					// method (StaticDuplicateObject).
+					FObjectDuplicationParameters DupParams(
+						(*UserData)[Idx], GetTransientPackage());
+					UAssetUserData* DupObject =
+						Cast<UAssetUserData>(StaticDuplicateObjectEx(DupParams));
+					bool bAddDupToRoot = !DupObject->IsRooted();
+					if (bAddDupToRoot)
+					{
+						DupObject->AddToRoot();
+					}
+					UserDataCopy.Add(DupObject, bAddDupToRoot);
+				}
+			}
+		}
+
+		// Preserve settings in navcollision subobject
+		UNavCollisionBase* NavCollision = nullptr;
+		if (Mesh->GetNavCollision())
+		{
+			FObjectDuplicationParameters DupParams(
+				Mesh->GetNavCollision(), GetTransientPackage());
+			NavCollision = Cast<UNavCollisionBase>(StaticDuplicateObjectEx(DupParams));
+		}
+
+		bool bAddedNavCollisionDupToRoot = false;
+		if (NavCollision && !NavCollision->IsRooted())
+		{
+			bAddedNavCollisionDupToRoot = true;
+			NavCollision->AddToRoot();
+		}
+
 		const TArray<UStaticMesh*>& StaticMeshes = Importer.ReimportAsStaticMesh(Mesh);
 		for (UStaticMesh* StaticMesh : StaticMeshes)
 		{
@@ -813,6 +944,43 @@ EReimportResult::Type UAlembicImportFactory::ReimportStaticMesh(UStaticMesh* Mes
 				{
 					Importer.UpdateAssetImportData(AssetImportData);
 				}
+
+				// Restore preserved user data
+				for (TPair<UAssetUserData*, bool> Kvp : UserDataCopy)
+				{
+					UAssetUserData* UserDataObject = Kvp.Key;
+					if (Kvp.Value)
+					{
+						// If the duplicated temporary UObject was added to root,
+						// we must remove it from the root
+						UserDataObject->RemoveFromRoot();
+					}
+					UserDataObject->Rename(nullptr, Mesh,
+						REN_DontCreateRedirectors | REN_DoNotDirty);
+					StaticMesh->AddAssetUserData(UserDataObject);
+				}
+
+				// Restore navcollision subobject
+				if (NavCollision)
+				{
+					if (bAddedNavCollisionDupToRoot)
+					{
+						// If the duplicated temporary UObject was added to root,
+						// we must remove it from the root
+						NavCollision->RemoveFromRoot();
+					}
+					StaticMesh->SetNavCollision(NavCollision);
+					NavCollision->Rename(NULL, Mesh,
+						REN_DontCreateRedirectors | REN_DoNotDirty);
+				}
+
+				// Restore additional mesh data settings
+				StaticMeshImportUtils::RestoreExistingMeshData(
+					ExistingMeshData,
+					StaticMesh,
+					INDEX_NONE,
+					false,
+					false);
 			}
 		}
 
