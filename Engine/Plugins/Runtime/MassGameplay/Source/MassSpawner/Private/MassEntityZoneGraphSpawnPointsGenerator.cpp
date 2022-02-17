@@ -15,7 +15,7 @@ void UMassEntityZoneGraphSpawnPointsGenerator::Generate(UObject& QueryOwner, TCo
 	const UZoneGraphSubsystem* ZoneGraph = UWorld::GetSubsystem<UZoneGraphSubsystem>(QueryOwner.GetWorld());
 	if (ZoneGraph == nullptr)
 	{
-		UE_VLOG_UELOG(&QueryOwner, LogMassSpawner, Error, TEXT("No zone graph found in world"));
+		UE_VLOG_UELOG(&QueryOwner, LogMassSpawner, Error, TEXT("No zone graph subsystem found in world"));
 		return;
 	}
 
@@ -23,12 +23,24 @@ void UMassEntityZoneGraphSpawnPointsGenerator::Generate(UObject& QueryOwner, TCo
 	
 	const FRandomStream RandomStream(GFrameNumber);
 	const TConstArrayView<FRegisteredZoneGraphData> RegisteredZoneGraphs = ZoneGraph->GetRegisteredZoneGraphData();
+	if (RegisteredZoneGraphs.IsEmpty())
+	{
+		UE_VLOG_UELOG(&QueryOwner, LogMassSpawner, Error, TEXT("No zone graphs found"));
+		return;
+	}
+
 	for (const FRegisteredZoneGraphData& Registered : RegisteredZoneGraphs)
 	{
 		if (Registered.bInUse && Registered.ZoneGraphData)
 		{
 			GeneratePointsForZoneGraphData(*Registered.ZoneGraphData, Locations, RandomStream);
 		}
+	}
+
+	if (Locations.IsEmpty())
+	{
+		UE_VLOG_UELOG(&QueryOwner, LogMassSpawner, Error, TEXT("No locations found on zone graphs"));
+		return;
 	}
 
 	// Randomize them
