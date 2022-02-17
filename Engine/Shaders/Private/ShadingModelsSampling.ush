@@ -51,9 +51,19 @@ struct FBxDFSample
 	uint Term;
 };
 
+FBxDFSample SampleDiffuseBxDF(float N, float4 E)
+{
+	float2 DiskE = UniformSampleDiskConcentric(E.xy);
+	float3x3 TangentBasis = GetTangentBasis(N);
+	FBxDFSample BxDFSample = (FBxDFSample)0;
+	const float TangentZ = sqrt(1 - length2(DiskE));
 
-
-
+	BxDFSample.L = mul(float3(DiskE, TangentZ), TangentBasis);
+	BxDFSample.PDF = TangentZ * rcp(PI);
+	BxDFSample.Weight = 1.0;
+	BxDFSample.Term = SHADING_TERM_DIFFUSE;
+	return BxDFSample;
+}
 
 FBxDFSample SampleDefaultLitBxDF(uint TermMask, FGBufferData GBuffer, float3 V, float4 E)
 {
