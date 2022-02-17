@@ -874,9 +874,11 @@ namespace Gauntlet
 
 				// if we are unattended but still may need access to Vulkan passing renderoffscreen to allow not depending on
 				// the X11/Wayland display server to be around and use a dummy/offscreen rendering mode
+				//
+				// As well as disable sound as there are no audio devices when running through horde
 				if (AppConfig.Platform == UnrealTargetPlatform.Linux)
 				{
-					AppConfig.CommandLine += " -renderoffscreen";
+					AppConfig.CommandLine += " -renderoffscreen -nosound";
 				}
 			}
 

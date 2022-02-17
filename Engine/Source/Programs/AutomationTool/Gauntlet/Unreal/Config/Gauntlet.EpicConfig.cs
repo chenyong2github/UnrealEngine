@@ -25,6 +25,10 @@ namespace EpicConfig
 				{
 					ConfigFilePath = @"\\epicgames.net\root\Builds\Automation\UE5\Config\ue-automation-telemetry-mysql-config.txt";
 				}
+				else if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Linux)
+				{
+					ConfigFilePath = "/mnt/Builds/Automation/UE5/Config/ue-automation-telemetry-mysql-config.txt";
+				}
 				else
 				{
 					ConfigFilePath = "/Volumes/Root/Builds/Automation/UE5/Config/ue-automation-telemetry-mysql-config.txt";

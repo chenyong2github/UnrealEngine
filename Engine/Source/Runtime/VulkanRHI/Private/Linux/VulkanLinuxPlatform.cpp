@@ -179,7 +179,8 @@ void FVulkanLinuxPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutExt
 	{
 		OutExtensions.Add("VK_KHR_wayland_surface");
 	}
-	else
+	// dummy is when we render offscreen, so ignore warning here
+	else if (strcmp(SDLDriver, "dummy") != 0)
 	{
 		UE_LOG(LogRHI, Warning, TEXT("Could not detect SDL video driver!"));
 	}

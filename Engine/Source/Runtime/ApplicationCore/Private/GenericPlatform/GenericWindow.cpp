@@ -21,8 +21,11 @@ void FGenericWindow::ReshapeWindow( int32 X, int32 Y, int32 Width, int32 Height 
 
 bool FGenericWindow::GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Height ) const
 {
-	// this function cannot return valid results, and should not be needed on consoles, etc
-	UE_LOG(LogGenericPlatformWindow, Fatal, TEXT("GetFullScreenInfo is not expected to be called on this platform"));
+	if (!FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen")))
+	{
+		// this function cannot return valid results, and should not be needed on consoles, etc
+		UE_LOG(LogGenericPlatformWindow, Fatal, TEXT("GetFullScreenInfo is not expected to be called on this platform"));
+	}
 	return false;
 }
 
@@ -102,8 +105,11 @@ bool FGenericWindow::IsVisible() const
 
 bool FGenericWindow::GetRestoredDimensions(int32& X, int32& Y, int32& Width, int32& Height)
 {
-	// this function cannot return valid results, and should not be needed on consoles, etc
-	UE_LOG(LogGenericPlatformWindow, Fatal, TEXT("GetRestoredDimensions is not expected to be called on this platform"));
+	if (!FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen")))
+	{
+		// this function cannot return valid results, and should not be needed on consoles, etc
+		UE_LOG(LogGenericPlatformWindow, Fatal, TEXT("GetRestoredDimensions is not expected to be called on this platform"));
+	}
 	return false;
 }
 
