@@ -54,6 +54,11 @@ public:
 
 	IOSTOREUTILITIES_API virtual void GetEntries(TFunction<void(TArrayView<const FPackageStoreEntryResource>, TArrayView<const FOplogCookInfo>)>&& Callback) override;
 
+	DECLARE_DERIVED_EVENT(FZenStoreWriter, IPackageStoreWriter::FEntryCreatedEvent, FEntryCreatedEvent);
+	IOSTOREUTILITIES_API virtual FEntryCreatedEvent& OnEntryCreated() override
+	{
+		return EntryCreatedEvent;
+	}
 	DECLARE_DERIVED_EVENT(FZenStoreWriter, IPackageStoreWriter::FCommitEvent, FCommitEvent);
 	IOSTOREUTILITIES_API virtual FCommitEvent& OnCommit() override
 	{
@@ -143,6 +148,7 @@ private:
 	TUniquePtr<UE::FZenStoreHttpClient>	HttpClient;
 
 	const ITargetPlatform&				TargetPlatform;
+	const FName							TargetPlatformFName;
 	FString								OutputPath;
 	FString								MetadataDirectoryPath;
 	FIoContainerId						ContainerId = FIoContainerId::FromName(TEXT("global"));
@@ -157,6 +163,7 @@ private:
 
 	TUniquePtr<FZenFileSystemManifest>	ZenFileSystemManifest;
 	
+	FEntryCreatedEvent					EntryCreatedEvent;
 	FCriticalSection					CommitEventCriticalSection;
 	FCommitEvent						CommitEvent;
 	FMarkUpToDateEvent					MarkUpToDateEvent;

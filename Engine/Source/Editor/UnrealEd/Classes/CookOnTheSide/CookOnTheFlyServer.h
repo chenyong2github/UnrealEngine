@@ -678,6 +678,8 @@ public:
 
 private:
 
+	bool IsUsingLegacyCookOnTheFlyScheduling() const;
+
 	//////////////////////////////////////////////////////////////////////////
 	// cook by the book specific functions
 	/**

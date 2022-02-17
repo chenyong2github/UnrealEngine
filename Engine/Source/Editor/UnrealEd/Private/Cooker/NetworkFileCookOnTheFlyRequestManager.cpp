@@ -51,6 +51,11 @@ public:
 	{
 	}
 
+	virtual bool ShouldUseLegacyScheduling() override
+	{
+		return true;
+	}
+
 private:
 	bool OnNewConnection(const FString& VersionInfo, const FString& PlatformName)
 	{

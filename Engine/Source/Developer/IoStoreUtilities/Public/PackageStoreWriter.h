@@ -32,6 +32,15 @@ public:
 	 */
 	virtual void GetEntries(TFunction<void(TArrayView<const FPackageStoreEntryResource>, TArrayView<const FOplogCookInfo>)>&&) = 0;
 
+	struct FEntryCreatedEventArgs
+	{
+		FName PlatformName;
+		const FPackageStoreEntryResource& Entry;
+	};
+
+	DECLARE_EVENT_OneParam(IPackageStoreWriter, FEntryCreatedEvent, const FEntryCreatedEventArgs&);
+	virtual FEntryCreatedEvent& OnEntryCreated() = 0;
+
 	/**
 	 * Package commit event arguments
 	 */

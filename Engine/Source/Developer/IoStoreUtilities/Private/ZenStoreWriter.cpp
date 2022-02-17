@@ -158,6 +158,7 @@ FZenStoreWriter::FZenStoreWriter(
 	const ITargetPlatform* InTargetPlatform
 )
 	: TargetPlatform(*InTargetPlatform)
+	, TargetPlatformFName(*InTargetPlatform->PlatformName())
 	, OutputPath(InOutputPath)
 	, MetadataDirectoryPath(InMetadataDirectoryPath)
 	, PackageStoreManifest(InOutputPath)
@@ -259,6 +260,16 @@ void FZenStoreWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWri
 	Entry.ChunkId			= ChunkOid;
 	Entry.PackageStoreEntry = PackageStoreOptimizer->CreatePackageStoreEntry(Package.Get());
 	Entry.IsValid			= true;
+
+	if (EntryCreatedEvent.IsBound())
+	{
+		IPackageStoreWriter::FEntryCreatedEventArgs EntryCreatedEventArgs
+		{
+			TargetPlatformFName,
+			Entry.PackageStoreEntry
+		};
+		EntryCreatedEvent.Broadcast(EntryCreatedEventArgs);
+	}
 }
 
 void FZenStoreWriter::WriteIoStorePackageData(const FPackageInfo& Info, const FIoBuffer& PackageData, const FPackageStoreEntryResource& PackageStoreEntry, const TArray<FFileRegion>& FileRegions)
@@ -600,7 +611,7 @@ void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
 
 	IPackageStoreWriter::FCommitEventArgs CommitEventArgs;
 
-	CommitEventArgs.PlatformName	= FName(*TargetPlatform.PlatformName());
+	CommitEventArgs.PlatformName	= TargetPlatformFName;
 	CommitEventArgs.PackageName		= CommitInfo.PackageName;
 	CommitEventArgs.EntryIndex		= INDEX_NONE;
 	
@@ -1089,7 +1100,7 @@ void FZenStoreWriter::BroadcastMarkUpToDate(IPackageStoreWriter::FMarkUpToDateEv
 	if (MarkUpToDateEvent.IsBound())
 	{
 		FReadScopeLock _(EntriesLock);
-		EventArgs.PlatformName = FName(*TargetPlatform.PlatformName());
+		EventArgs.PlatformName = TargetPlatformFName;
 		EventArgs.Entries = PackageStoreEntries;
 		EventArgs.CookInfos = CookedPackagesInfo;
 		MarkUpToDateEvent.Broadcast(EventArgs);

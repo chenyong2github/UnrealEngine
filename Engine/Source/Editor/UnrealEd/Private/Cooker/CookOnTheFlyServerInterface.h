@@ -122,6 +122,9 @@ public:
 
 	/** Called when a new package is generated */
 	virtual void OnPackageGenerated(const FName& PackageName) = 0;
+
+	/** Returns true if the cooker should use package discovery and urgency to schedule requests */
+	virtual bool ShouldUseLegacyScheduling() = 0;
 };
 
 }} // namespace UE::Cook

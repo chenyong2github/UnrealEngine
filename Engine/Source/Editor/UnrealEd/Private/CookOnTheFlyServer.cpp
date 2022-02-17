@@ -1004,6 +1004,11 @@ bool UCookOnTheFlyServer::IsCookOnTheFlyMode() const
 	return CurrentCookMode == ECookMode::CookOnTheFly || CurrentCookMode == ECookMode::CookOnTheFlyFromTheEditor; 
 }
 
+bool UCookOnTheFlyServer::IsUsingLegacyCookOnTheFlyScheduling() const
+{
+	return CookOnTheFlyRequestManager && CookOnTheFlyRequestManager->ShouldUseLegacyScheduling();
+}
+
 bool UCookOnTheFlyServer::IsCreatingReleaseVersion()
 {
 	if (CookByTheBookOptions)
@@ -1605,22 +1610,44 @@ UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::C
 		return ECookAction::Load;
 	}
 
-	if (bSaveBusy & (NumSaves > 0))
+	if (IsCookOnTheFlyMode() && !IsRealtimeMode())
 	{
-		const float CurrentTime = FPlatformTime::Seconds();
-		if (CurrentTime - SaveBusyTimeLastRetry > GCookProgressRetryBusyTime)
+		if (NumSaves > 0 && bLoadBusy)
 		{
-			SaveBusyTimeLastRetry = CurrentTime;
 			return ECookAction::Save;
 		}
-	}
-	if (bLoadBusy & (NumLoads > 0))
-	{
-		const float CurrentTime = FPlatformTime::Seconds();
-		if (CurrentTime - LoadBusyTimeLastRetry > GCookProgressRetryBusyTime)
+		if (NumLoads > 0 && bSaveBusy)
 		{
-			LoadBusyTimeLastRetry = CurrentTime;
 			return ECookAction::Load;
+		}
+		if (NumSaves > 0)
+		{
+			return ECookAction::Save;
+		}
+		if (NumLoads > 0)
+		{
+			return ECookAction::Load;
+		}
+	}
+	else
+	{
+		if (bSaveBusy & (NumSaves > 0))
+		{
+			const float CurrentTime = FPlatformTime::Seconds();
+			if (CurrentTime - SaveBusyTimeLastRetry > GCookProgressRetryBusyTime)
+			{
+				SaveBusyTimeLastRetry = CurrentTime;
+				return ECookAction::Save;
+			}
+		}
+		if (bLoadBusy & (NumLoads > 0))
+		{
+			const float CurrentTime = FPlatformTime::Seconds();
+			if (CurrentTime - LoadBusyTimeLastRetry > GCookProgressRetryBusyTime)
+			{
+				LoadBusyTimeLastRetry = CurrentTime;
+				return ECookAction::Load;
+			}
 		}
 	}
 
@@ -1670,7 +1697,7 @@ void UCookOnTheFlyServer::PumpExternalRequests(const UE::Cook::FCookerTimer& Coo
 				NetworkRequestEvent->Trigger();
 			}
 #endif
-			bool bRequestsAreUrgent = IsCookOnTheFlyMode();
+			bool bRequestsAreUrgent = IsCookOnTheFlyMode() && IsUsingLegacyCookOnTheFlyScheduling();
 			TRingBuffer<UE::Cook::FRequestCluster>& RequestClusters = PackageDatas->GetRequestQueue().GetRequestClusters();
 			UE::Cook::FRequestCluster::AddClusters(*this, MoveTemp(BuildRequests), bRequestsAreUrgent, RequestClusters);
 		}
@@ -2045,9 +2072,16 @@ void UCookOnTheFlyServer::QueueDiscoveredPackageData(UE::Cook::FPackageData& Pac
 		return;
 	}
 
-	if (CookOnTheFlyRequestManager && PackageData.IsGenerated())
+	if (CookOnTheFlyRequestManager)
 	{
-		CookOnTheFlyRequestManager->OnPackageGenerated(PackageData.GetPackageName());
+		if (PackageData.IsGenerated())
+		{
+			CookOnTheFlyRequestManager->OnPackageGenerated(PackageData.GetPackageName());
+		}
+		if (!CookOnTheFlyRequestManager->ShouldUseLegacyScheduling())
+		{
+			return;
+		}
 	}
 	
 	if (!PackageData.IsInProgress() &&
@@ -2730,7 +2764,7 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 
 void UCookOnTheFlyServer::TickCancels()
 {
-	PackageDatas->PollPendingCookedPlatformDatas();
+	PackageDatas->PollPendingCookedPlatformDatas(false);
 }
 
 bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageData, UPackage*& OutPackage, FString* LoadFromFilename,
@@ -2983,7 +3017,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 		bool bShouldFinishTick = false;
 		if (IsCookOnTheFlyMode())
 		{
-			if (!PackageData.GetIsUrgent())
+			if (IsUsingLegacyCookOnTheFlyScheduling() && !PackageData.GetIsUrgent())
 			{
 				if (ExternalRequests->HasRequests() || PackageDatas->GetMonitor().GetNumUrgent() > 0)
 				{
@@ -3028,7 +3062,8 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 		}
 
 		// Release any completed pending CookedPlatformDatas, so that slots in the per-class limits on calls to BeginCacheForCookedPlatformData are freed up for new objects to use
-		PackageDatas->PollPendingCookedPlatformDatas();
+		bool bForce = IsCookOnTheFlyMode() && !IsRealtimeMode();
+		PackageDatas->PollPendingCookedPlatformDatas(bForce);
 
 		// Always wait for FinishPrepareSave before attempting to save the package
 		bool AllObjectsCookedDataCached = FinishPrepareSave(PackageData, StackData.Timer);
@@ -3075,7 +3110,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 					// sleep for a bit
 					FPlatformProcess::Sleep(0.0f);
 					// Poll the results again and check whether we are now done
-					PackageDatas->PollPendingCookedPlatformDatas();
+					PackageDatas->PollPendingCookedPlatformDatas(true);
 					AllObjectsCookedDataCached = FinishPrepareSave(PackageData, StackData.Timer);
 				} while (!StackData.Timer.IsTimeUp() && !AllObjectsCookedDataCached);
 			}

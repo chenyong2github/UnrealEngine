@@ -736,6 +736,11 @@ private:
 		TickRecookPackages();
 	}
 
+	virtual bool ShouldUseLegacyScheduling() override
+	{
+		return false;
+	}
+
 private:
 	bool HandleClientConnection(const FName& PlatformName, FIoStoreCookOnTheFlyNetworkServer::EConnectionStatus ConnectionStatus)
 	{
@@ -763,6 +768,7 @@ private:
 						Context->AddExistingPackages(Entries, CookInfos);
 					});
 
+					PackageWriter->OnEntryCreated().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageStoreEntryCreated);
 					PackageWriter->OnCommit().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageCooked);
 					PackageWriter->OnMarkUpToDate().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackagesMarkedUpToDate);
 				}
@@ -896,6 +902,23 @@ private:
 		Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Ok);
 
 		return true;
+	}
+
+	void OnPackageStoreEntryCreated(const IPackageStoreWriter::FEntryCreatedEventArgs& EventArgs)
+	{
+		FPlatformContext& Context = GetContext(EventArgs.PlatformName);
+
+		FScopeLock _(&Context.GetLock());
+		for (const FPackageId& ImportedPackageId : EventArgs.Entry.ImportedPackageIds)
+		{
+			FPackageStoreEntryResource DummyEntry;
+			auto GetPackageNameFunc = [this, &ImportedPackageId]()
+			{
+				FScopeLock _(&AllKnownPackagesCriticalSection);
+				return AllKnownPackagesMap.FindRef(ImportedPackageId);
+			};
+			EPackageStoreEntryStatus PackageStatus = Context.RequestCook(CookOnTheFlyServer, ImportedPackageId, GetPackageNameFunc, DummyEntry);
+		}
 	}
 
 	void OnPackageCooked(const IPackageStoreWriter::FCommitEventArgs& EventArgs)

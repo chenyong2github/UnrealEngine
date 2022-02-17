@@ -2110,21 +2110,24 @@ TArray<FPendingCookedPlatformData>& FPackageDatas::GetPendingCookedPlatformDatas
 	return PendingCookedPlatformDatas;
 }
 
-void FPackageDatas::PollPendingCookedPlatformDatas()
+void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce)
 {
 	if (PendingCookedPlatformDatas.Num() == 0)
 	{
 		return;
 	}
 
-	// ProcessAsyncResults and IsCachedCookedPlatformDataLoaded can be expensive to call
-	// Cap the frequency at which we call them.
-	double CurrentTime = FPlatformTime::Seconds();
-	if (CurrentTime < LastPollAsyncTime + GPollAsyncPeriod)
+	if (!bForce)
 	{
-		return;
+		// ProcessAsyncResults and IsCachedCookedPlatformDataLoaded can be expensive to call
+		// Cap the frequency at which we call them.
+		double CurrentTime = FPlatformTime::Seconds();
+		if (CurrentTime < LastPollAsyncTime + GPollAsyncPeriod)
+		{
+			return;
+		}
+		LastPollAsyncTime = CurrentTime;
 	}
-	LastPollAsyncTime = CurrentTime;
 
 	GShaderCompilingManager->ProcessAsyncResults(true /* bLimitExecutionTime */,
 		false /* bBlockOnGlobalShaderCompletion */);
