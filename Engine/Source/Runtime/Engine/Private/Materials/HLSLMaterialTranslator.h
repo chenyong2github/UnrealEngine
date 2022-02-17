@@ -643,7 +643,7 @@ protected:
 
 	int32 GenericSwitch(const TCHAR* Function, int32 IfTrue, int32 IfFalse);
 
-	void StrataGenerateDerivedMaterialOperatorData();
+	bool StrataGenerateDerivedMaterialOperatorData();
 
 	// FMaterialCompiler interface.
 
