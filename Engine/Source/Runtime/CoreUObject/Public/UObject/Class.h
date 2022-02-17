@@ -630,6 +630,12 @@ private:
 	void SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const;
 };
 
+/**
+ * Flags describing a struct
+ * 
+ * This MUST be kept in sync with EStructFlags defined in
+ * Engine\Source\Programs\Shared\EpicGames.Core\UnrealEngineTypes.cs
+ */
 enum EStructFlags
 {
 	// State flags.

@@ -441,6 +441,25 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Gets an enumeration value associated with the specified key.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="SectionName">Section name</param>
+		/// <param name="KeyName">Key name</param>
+		/// <param name="Value">Value associated with the specified key. If the key has more than one value, only the first one is returned</param>
+		/// <returns>True if the key exists</returns>
+		public bool TryGetValue<T>(string SectionName, string KeyName, out T Value) where T : struct
+		{
+			string? Text;
+			if (TryGetValue(SectionName, KeyName, out Text))
+			{
+				Value = default(T);
+				return false;
+			}
+			return Enum.TryParse<T>(Text, out Value);
+		}
+
+		/// <summary>
 		/// Gets all values associated with the specified key
 		/// </summary>
 		/// <param name="SectionName">Section where the key is located</param>

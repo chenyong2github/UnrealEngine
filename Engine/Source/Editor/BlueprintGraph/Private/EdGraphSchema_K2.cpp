@@ -5188,7 +5188,7 @@ namespace FSetVariableByNameFunctionNames
 
 UFunction* UEdGraphSchema_K2::FindSetVariableByNameFunction(const FEdGraphPinType& PinType)
 {
-	//!!!! Keep this function synced with FExposeOnSpawnValidator::IsSupported !!!!
+	//!!!! Keep this function synced with FExposeOnSpawnValidator::IsSupported and Uht*Property.cs, CanExposeOnSpawn!!!!
 
 	struct FIsCustomStructureParamHelper
 	{

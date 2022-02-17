@@ -102,7 +102,12 @@ enum ESaveFlags
 	SAVE_Unversioned = SAVE_Unversioned_Native | SAVE_Unversioned_Properties,
 };
 
-/** Package flags, passed into UPackage::SetPackageFlags and related functions */
+/** 
+ * Package flags, passed into UPackage::SetPackageFlags and related functions
+ *
+ * This MUST be kept in sync with EPackageFlags defined in
+ * Engine\Source\Programs\Shared\EpicGames.Core\UnrealEngineTypes.cs
+ */
 enum EPackageFlags
 {
 	PKG_None						= 0x00000000,	///< No flags
@@ -169,6 +174,9 @@ public:
 
 /**
  * Flags describing a class.
+ *
+ * This MUST be kept in sync with EClassFlags defined in
+ * Engine\Source\Programs\Shared\EpicGames.Core\UnrealEngineTypes.cs
  */
 enum EClassFlags
 {
@@ -297,6 +305,9 @@ ENUM_CLASS_FLAGS(EClassFlags);
 
 /**
  * Flags used for quickly casting classes of certain types; all class cast flags are inherited
+ *
+ * This MUST be kept in sync with EClassCastFlags defined in
+ * Engine\Source\Programs\Shared\EpicGames.Core\UnrealEngineTypes.cs
  */
 enum EClassCastFlags : uint64
 {
@@ -369,6 +380,9 @@ ENUM_CLASS_FLAGS(EClassCastFlags)
  * Flags associated with each property in a class, overriding the
  * property's default behavior.
  * @warning When adding one here, please update ParsePropertyFlags()
+ * 
+ * This MUST be kept in sync with EPackageFlags defined in
+ * Engine\Source\Programs\Shared\EpicGames.Core\UnrealEngineTypes.cs
  */
 enum EPropertyFlags : uint64
 {
@@ -554,7 +568,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 ENUM_CLASS_FLAGS(EObjectFlags);
 
-/** Objects flags for internal use (GC, low level UObject code) */
+/** 
+ * Objects flags for internal use (GC, low level UObject code)
+ *
+ * This MUST be kept in sync with EInternalObjectFlags defined in
+ * Engine\Source\Programs\Shared\EpicGames.Core\UnrealEngineTypes.cs
+ */
 enum class EInternalObjectFlags : int32
 {
 	None = 0,
@@ -582,7 +601,12 @@ enum class EInternalObjectFlags : int32
 };
 ENUM_CLASS_FLAGS(EInternalObjectFlags);
 
-/** Flags describing a UEnum */
+/**
+ * Flags describing a UEnum 
+ * 
+ * This MUST be kept in sync with EEnumFlags defined in
+ * Engine\Source\Programs\Shared\EpicGames.Core\UnrealEngineTypes.cs
+ */
 enum class EEnumFlags
 {
 	None,

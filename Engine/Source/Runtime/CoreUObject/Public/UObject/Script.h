@@ -102,6 +102,9 @@ namespace FunctionCallspace
 // Function flags.
 //
 // Note: Please keep ParseFunctionFlags in sync when this enum is modified.
+//
+// This MUST be kept in sync with EEnumFlags defined in
+// Engine\Source\Programs\Shared\EpicGames.Core\UnrealEngineTypes.cs
 enum EFunctionFlags : uint32
 {
 	// Function flags.

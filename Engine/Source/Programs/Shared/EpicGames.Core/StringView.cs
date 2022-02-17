@@ -2,13 +2,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.Core
 {
 	/// <summary>
-	/// View of a character string. Allows comparing/manipulating substrings without unnecessary memory allocatinos.
+	/// View of a character string. Allows comparing/manipulating substrings without unnecessary memory allocations.
 	/// </summary>
 	public readonly struct StringView : IEquatable<StringView>
 	{
@@ -26,12 +24,71 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Length of the sequence of characters
+		/// </summary>
+		public int Length
+		{
+			get { return Memory.Length; }
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Text">String view to construct from</param>
+		public StringView(StringView Text)
+		{
+			this.Memory = Text.Memory;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Text">String view to construct from</param>
+		/// <param name="Index">Offset within the string for this view</param>
+		public StringView(StringView Text, int Index)
+		{
+			this.Memory = Text.Memory.Slice(Index);
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Text">String view to construct from</param>
+		/// <param name="Index">Offset within the string for this view</param>
+		/// <param name="Count">Number of characters to include</param>
+		public StringView(StringView Text, int Index, int Count)
+		{
+			this.Memory = Text.Memory.Slice(Index, Count);
+		}
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Memory">The memory containing the characters</param>
 		public StringView(ReadOnlyMemory<char> Memory)
 		{
 			this.Memory = Memory;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Memory">The memory containing the characters</param>
+		/// <param name="Index">Offset within the string for this view</param>
+		public StringView(ReadOnlyMemory<char> Memory, int Index)
+		{
+			this.Memory = Memory.Slice(Index);
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Memory">The memory containing the characters</param>
+		/// <param name="Index">Offset within the string for this view</param>
+		/// <param name="Count">Number of characters to include</param>
+		public StringView(ReadOnlyMemory<char> Memory, int Index, int Count)
+		{
+			this.Memory = Memory.Slice(Index, Count);
 		}
 
 		/// <summary>
@@ -99,6 +156,12 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
+		public int GetHashCode(StringComparison comparisonType)
+		{
+			return String.GetHashCode(Memory.Span, comparisonType);
+		}
+
+		/// <inheritdoc/>
 		public override string ToString()
 		{
 			return new string(Memory.Span);
@@ -161,13 +224,68 @@ namespace EpicGames.Core
 		/// <inheritdoc/>
 		public int GetHashCode(StringView obj)
 		{
-			return String.GetHashCode(obj.Span);
+			return String.GetHashCode(obj.Span, ComparisonType);
 		}
 
 		/// <inheritdoc/>
 		public int Compare(StringView X, StringView Y)
 		{
 			return X.Span.CompareTo(Y.Span, ComparisonType);
+		}
+	}
+
+	/// <summary>
+	/// Comparer for StringView objects.  However, it implements UE style ignore case compare
+	/// </summary>
+	public class StringViewComparerUE : IComparer<StringView>, IEqualityComparer<StringView>
+	{
+		/// <summary>
+		/// Static instance of an ordinal StringView comparer
+		/// </summary>
+		public static StringViewComparerUE Ordinal = new StringViewComparerUE(StringComparison.Ordinal);
+
+		/// <summary>
+		/// Static instance of an ordinal StringView comparer which ignores case
+		/// </summary>
+		public static StringViewComparerUE OrdinalIgnoreCase = new StringViewComparerUE(StringComparison.OrdinalIgnoreCase);
+
+		/// <summary>
+		/// The comparison type
+		/// </summary>
+		public StringComparison ComparisonType { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="ComparisonType">Type of comparison to perform</param>
+		public StringViewComparerUE(StringComparison ComparisonType)
+		{
+			this.ComparisonType = ComparisonType;
+		}
+
+		/// <inheritdoc/>
+		public bool Equals(StringView X, StringView Y)
+		{
+			return X.Span.Equals(Y.Span, ComparisonType);
+		}
+
+		/// <inheritdoc/>
+		public int GetHashCode(StringView obj)
+		{
+			return String.GetHashCode(obj.Span, ComparisonType);
+		}
+
+		/// <inheritdoc/>
+		public int Compare(StringView X, StringView Y)
+		{
+			if (ComparisonType == StringComparison.OrdinalIgnoreCase)
+			{
+				return StringUtils.CompareIgnoreCaseUE(X.Span, Y.Span);
+			}
+			else
+			{
+				return X.Span.CompareTo(Y.Span, ComparisonType);
+			}
 		}
 	}
 }

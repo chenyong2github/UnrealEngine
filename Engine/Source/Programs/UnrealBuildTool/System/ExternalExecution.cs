@@ -21,70 +21,6 @@ using OpenTracing.Util;
 
 namespace UnrealBuildTool
 {
-	// This enum has to be compatible with the one defined in the
-	// Engine\Source\Runtime\Core\Public\Misc\ComplilationResult.h 
-	// to keep communication between UHT, UBT and Editor compiling
-	// processes valid.
-	enum CompilationResult
-	{
-		/// <summary>
-		/// Compilation succeeded
-		/// </summary>
-		Succeeded = 0,
-
-		/// <summary>
-		/// Build was canceled, this is used on the engine side only
-		/// </summary>
-		Canceled = 1,
-
-		/// <summary>
-		/// All targets were up to date, used only with -canskiplink
-		/// </summary>
-		UpToDate = 2,
-
-		/// <summary>
-		/// The process has most likely crashed. This is what UE returns in case of an assert
-		/// </summary>
-		CrashOrAssert = 3,
-
-		/// <summary>
-		/// Compilation failed because generated code changed which was not supported
-		/// </summary>
-		FailedDueToHeaderChange = 4,
-
-		/// <summary>
-		/// Compilation failed due to the engine modules needing to be rebuilt
-		/// </summary>
-		FailedDueToEngineChange = 5,
-
-		/// <summary>
-		/// Compilation failed due to compilation errors
-		/// </summary>
-		OtherCompilationError = 6,
-
-		/// <summary>
-		/// Compilation failed due to live coding action limit being exceeded.
-		/// </summary>
-		LiveCodingLimitError = 7,
-
-		/// <summary>
-		/// Compilation is not supported in the current build
-		/// </summary>
-		Unsupported,
-
-		/// <summary>
-		/// Unknown error
-		/// </summary>
-		Unknown
-	}
-
-	static class CompilationResultExtensions
-	{
-		public static bool Succeeded(this CompilationResult Result)
-		{
-			return Result == CompilationResult.Succeeded || Result == CompilationResult.UpToDate;
-		}
-	}
 
 	class CompilationResultException : BuildException
 	{
@@ -97,38 +33,8 @@ namespace UnrealBuildTool
 		}
 	}
 
-	/// <summary>
-	/// Type of module. Mirrored in UHT as EBuildModuleType.
-	/// This should be sorted by the order in which we expect modules to be built.
-	/// </summary>
-	enum UHTModuleType
-	{
-		Program,
-		EngineRuntime,
-		EngineUncooked,
-		EngineDeveloper,
-		EngineEditor,
-		EngineThirdParty,
-		GameRuntime,
-		GameUncooked,
-		GameDeveloper,
-		GameEditor,
-		GameThirdParty,
-	}
 	static class UHTModuleTypeExtensions
 	{
-		public static bool IsProgramModule(this UHTModuleType ModuleType)
-		{
-			return ModuleType == UHTModuleType.Program;
-		}
-		public static bool IsEngineModule(this UHTModuleType ModuleType)
-		{
-			return ModuleType == UHTModuleType.EngineRuntime || ModuleType == UHTModuleType.EngineDeveloper || ModuleType == UHTModuleType.EngineEditor || ModuleType == UHTModuleType.EngineThirdParty;
-		}
-		public static bool IsGameModule(this UHTModuleType ModuleType)
-		{
-			return ModuleType == UHTModuleType.GameRuntime || ModuleType == UHTModuleType.GameDeveloper || ModuleType == UHTModuleType.GameEditor || ModuleType == UHTModuleType.GameThirdParty;
-		}
 		public static UHTModuleType? EngineModuleTypeFromHostType(ModuleHostType ModuleType)
 		{
 			switch (ModuleType)
@@ -308,91 +214,6 @@ namespace UnrealBuildTool
 		public override string ToString()
 		{
 			return ModuleName;
-		}
-	}
-
-	/// <summary>
-	/// This MUST be kept in sync with EGeneratedBodyVersion enum and 
-	/// ToGeneratedBodyVersion function in UHT defined in GeneratedCodeVersion.h.
-	/// </summary>
-	public enum EGeneratedCodeVersion
-	{
-		/// <summary>
-		/// 
-		/// </summary>
-		None,
-
-		/// <summary>
-		/// 
-		/// </summary>
-		V1,
-
-		/// <summary>
-		/// 
-		/// </summary>
-		V2,
-
-		/// <summary>
-		/// 
-		/// </summary>
-		VLatest = V2
-	};
-
-	struct UHTManifest
-	{
-		public class Module
-		{
-			public string Name { get; set; }
-			public string ModuleType { get; set; }
-			public string OverrideModuleType { get; set; }
-			public string BaseDirectory { get; set; }
-			public string IncludeBase { get; set; }     // The include path which all UHT-generated includes should be relative to
-			public string OutputDirectory { get; set; }
-			public List<string> ClassesHeaders { get; set; }
-			public List<string> PublicHeaders { get; set; }
-			public List<string> InternalHeaders { get; set; }
-			public List<string> PrivateHeaders { get; set; }
-			public string? GeneratedCPPFilenameBase { get; set; }
-			public bool SaveExportedHeaders { get; set; }
-			[JsonConverter(typeof(JsonStringEnumConverter))]
-			public EGeneratedCodeVersion UHTGeneratedCodeVersion { get; set; }
-
-			public Module(UHTModuleInfo Info)
-			{
-				Name = Info.ModuleName;
-				ModuleType = Info.ModuleType;
-				OverrideModuleType = Info.OverrideModuleType;
-				BaseDirectory = Info.ModuleDirectories[0].FullName;
-				IncludeBase = Info.ModuleDirectories[0].ParentDirectory!.FullName;
-				OutputDirectory = Path.GetDirectoryName(Info.GeneratedCPPFilenameBase)!;
-				ClassesHeaders = Info.PublicUObjectClassesHeaders.Select((Header) => Header.AbsolutePath).ToList();
-				PublicHeaders = Info.PublicUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList();
-				InternalHeaders = Info.InternalUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList();
-				PrivateHeaders = Info.PrivateUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList();
-				GeneratedCPPFilenameBase = Info.GeneratedCPPFilenameBase;
-				SaveExportedHeaders = !Info.bIsReadOnly;
-				UHTGeneratedCodeVersion = Info.GeneratedCodeVersion;
-			}
-
-			public override string ToString()
-			{
-				return Name;
-			}
-		}
-
-		public bool IsGameTarget { get; set; }     // True if the current target is a game target
-		public string RootLocalPath { get; set; }    // The engine path on the local machine
-		public string TargetName { get; set; }       // Name of the target currently being compiled
-		public string ExternalDependenciesFile { get; set; } // File to contain additional dependencies that the generated code depends on
-		public List<Module> Modules { get; set; }
-
-		public UHTManifest(string InTargetName, TargetType InTargetType, string InRootLocalPath, string InExternalDependenciesFile, List<Module> InModules)
-		{
-			IsGameTarget = (InTargetType != TargetType.Program);
-			RootLocalPath = InRootLocalPath;
-			TargetName = InTargetName;
-			ExternalDependenciesFile = InExternalDependenciesFile;
-			Modules = InModules;
 		}
 	}
 
@@ -1151,9 +972,32 @@ namespace UnrealBuildTool
 				List<UHTManifest.Module> Modules = new List<UHTManifest.Module>();
 				foreach(UHTModuleInfo UObjectModule in Makefile.UObjectModules)
 				{
-					Modules.Add(new UHTManifest.Module(UObjectModule));
+					Modules.Add(
+						new UHTManifest.Module
+						{
+							Name = UObjectModule.ModuleName,
+							ModuleType = (UHTModuleType)Enum.Parse(typeof(UHTModuleType), UObjectModule.ModuleType),
+							OverrideModuleType = (EPackageOverrideType)Enum.Parse(typeof(EPackageOverrideType), UObjectModule.OverrideModuleType),
+							BaseDirectory = UObjectModule.ModuleDirectories[0].FullName,
+							IncludeBase = UObjectModule.ModuleDirectories[0].ParentDirectory!.FullName,
+							OutputDirectory = Path.GetDirectoryName(UObjectModule.GeneratedCPPFilenameBase)!,
+							ClassesHeaders = UObjectModule.PublicUObjectClassesHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+							PublicHeaders = UObjectModule.PublicUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+							InternalHeaders = UObjectModule.InternalUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+							PrivateHeaders = UObjectModule.PrivateUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+							GeneratedCPPFilenameBase = UObjectModule.GeneratedCPPFilenameBase,
+							SaveExportedHeaders = !UObjectModule.bIsReadOnly,
+							GeneratedCodeVersion = UObjectModule.GeneratedCodeVersion,
+						});
 				}
-				UHTManifest Manifest = new UHTManifest(TargetName, Makefile.TargetType, RootLocalPath, ExternalDependenciesFile.FullName, Modules);
+				UHTManifest Manifest = new UHTManifest
+				{
+					TargetName = TargetName,
+					IsGameTarget = Makefile.TargetType != TargetType.Program,
+					RootLocalPath = RootLocalPath,
+					ExternalDependenciesFile = ExternalDependenciesFile.FullName,
+					Modules = Modules,
+				};
 
 				if (!bIsBuildingUHT && bUHTNeedsToRun)
 				{

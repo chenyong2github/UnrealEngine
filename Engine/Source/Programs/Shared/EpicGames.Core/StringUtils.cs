@@ -584,5 +584,55 @@ namespace EpicGames.Core
 			}
 			return Text;
 		}
+
+		/// <summary>
+		/// Compare two strings using UnrealEngine's ignore case algorithm
+		/// </summary>
+		/// <param name="X">First string to compare</param>
+		/// <param name="Y">Second string to compare</param>
+		/// <returns>Less than zero if X < Y, zero if X == Y, and greater than zero if X > y</returns>
+		public static int CompareIgnoreCaseUE(ReadOnlySpan<char> X, ReadOnlySpan<char> Y)
+		{
+			int Length = X.Length < Y.Length ? X.Length : Y.Length;
+
+			for (int Index = 0; Index < Length; ++Index)
+			{
+				char XC = X[Index];
+				char YC = Y[Index];
+				if (XC == YC)
+				{
+					continue;
+				}
+				else if (((XC | YC) & 0xffffff80) == 0) // if (BothAscii)
+				{
+					if (XC >= 'A' && XC <= 'Z')
+					{
+						XC += (char)32;
+					}
+					if (YC >= 'A' && YC <= 'Z')
+					{
+						YC += (char)32;
+					}
+					int Diff = XC - YC;
+					if (Diff != 0)
+					{
+						return Diff;
+					}
+				}
+				else
+				{
+					return XC - YC;
+				}
+			}
+
+			if (X.Length == Length)
+			{
+				return Y.Length == Length ? 0 : /* X[Length] */ -Y[Length];
+			}
+			else
+			{
+				return X[Length] /* - Y[Length] */;
+			}
+		}
 	}
 }
