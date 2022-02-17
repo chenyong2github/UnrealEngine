@@ -1007,6 +1007,12 @@ void UAnimSequenceBase::OnModelModified(const EAnimDataModelNotifyType& NotifyTy
 			const float InsertTime = T0;
 			for (FAnimNotifyEvent& Notify : Notifies)
 			{
+				// Proportional notifies don't need to be adjusted
+				if (Notify.GetLinkMethod() == EAnimLinkMethod::Proportional)
+				{
+					continue;
+				}
+
 				float CurrentTime = Notify.GetTime();
 				float NewDuration = 0.f;
 
@@ -1053,6 +1059,12 @@ void UAnimSequenceBase::OnModelModified(const EAnimDataModelNotifyType& NotifyTy
 			// re-locate notifies
 			for (FAnimNotifyEvent& Notify : Notifies)
 			{
+				// Proportional notifies don't need to be adjusted
+				if (Notify.GetLinkMethod() == EAnimLinkMethod::Proportional)
+				{
+					continue;
+				}
+
 				float CurrentTime = Notify.GetTime();
 				float NewDuration = 0.f;
 				

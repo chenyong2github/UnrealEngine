@@ -256,14 +256,12 @@ bool FAnimModel_AnimMontage::ClampToEndTime(float NewEndTime)
 	bool bClampingNeeded = (SequenceLength > 0.f && NewEndTime < SequenceLength);
 	if(bClampingNeeded)
 	{
-		float ratio = NewEndTime / AnimMontage->GetPlayLength();
-
 		for(int32 i=0; i < AnimMontage->CompositeSections.Num(); i++)
 		{
 			if(AnimMontage->CompositeSections[i].GetTime() > NewEndTime)
 			{
 				float CurrentTime = AnimMontage->CompositeSections[i].GetTime();
-				AnimMontage->CompositeSections[i].SetTime(CurrentTime * ratio);
+				AnimMontage->CompositeSections[i].SetTime(NewEndTime);
 			}
 		}
 
@@ -274,7 +272,7 @@ bool FAnimModel_AnimMontage::ClampToEndTime(float NewEndTime)
 
 			if(NotifyTime >= NewEndTime)
 			{
-				Notify.SetTime(NotifyTime * ratio);
+				Notify.SetTime(NewEndTime);
 				Notify.TriggerTimeOffset = GetTriggerTimeOffsetForType(AnimMontage->CalculateOffsetForNotify(Notify.GetTime()));
 			}
 		}
