@@ -179,14 +179,14 @@ public:
 	 *		that happens to be retrieved first from the octree
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	FSmartObjectRequestResult FindSmartObject(const FSmartObjectRequest& Request);
+	FSmartObjectRequestResult FindSmartObject(const FSmartObjectRequest& Request) const;
 
 	/**
 	 * Spatial lookup
 	 * @return All valid smart objects in range.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	bool FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults);
+	bool FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults) const;
 
 	/**
 	 * Goes through all defined slots of a given smart object and finds the first one matching the filter.
@@ -306,7 +306,7 @@ public:
 	/**
 	 * Returns the position (in world space) of the slot associated to the given request result.
 	 * @param Result A valid request result (Result.IsValid() returns true) returned by any of the Find methods.
-	 * @return Position (in world space) of the slot associated to ClaimHandle.
+	 * @return Position (in world space) of the slot associated to Result.
 	 * @note Method will ensure on invalid FSmartObjectRequestResult.
 	 */
 	TOptional<FVector> GetSlotLocation(const FSmartObjectRequestResult& Result) const;
@@ -314,7 +314,7 @@ public:
 	/**
 	 * Returns the position (in world space) of the slot represented by the provided slot handle.
 	 * @param SlotHandle Handle to a smart object slot.
-	 * @return Position (in world space) of the slot represented by the handle.
+	 * @return Position (in world space) of the slot associated to SlotHandle.
 	 * @note Method will ensure on invalid slot handle.
 	 */
 	TOptional<FVector> GetSlotLocation(FSmartObjectSlotHandle SlotHandle) const;
@@ -340,7 +340,7 @@ public:
 	/**
 	 * Returns the transform (in world space) of the slot associated to the given request result.
 	 * @param Result A valid request result (Result.IsValid() returns true) returned by any of the Find methods.
-	 * @return Transform (in world space) of the slot associated to ClaimHandle.
+	 * @return Transform (in world space) of the slot associated to Result.
 	 * @note Method will ensure on invalid FSmartObjectRequestResult.
 	 */
 	TOptional<FTransform> GetSlotTransform(const FSmartObjectRequestResult& Result) const;
@@ -348,11 +348,11 @@ public:
 	/**
 	 * Returns the transform (in world space) of the slot represented by the provided slot handle.
 	 * @param SlotHandle Handle to a smart object slot.
-	 * @return Transform (in world space) of the slot represented by the handle.
+	 * @return Transform (in world space) of the slot associated to SlotHandle.
 	 * @note Method will ensure on invalid slot handle.
 	 */
 	TOptional<FTransform> GetSlotTransform(FSmartObjectSlotHandle SlotHandle) const;
-	
+
 	/**
 	 * Returns the Activity GameplayTagContainer of the smartobject associated to the given request result.
 	 * @param Result A valid request result (Result.IsValid() returns true) returned by any of the Find methods.
@@ -402,6 +402,12 @@ protected:
 	 * and initialize octree using collection bounds.
 	 */
 	virtual void OnWorldBeginPlay(UWorld& World) override;
+
+	/** Creates all runtime data using main collection */
+	void InitializeRuntime();
+
+	/** Removes all runtime data */
+	void CleanupRuntime();
 
 	/**
 	 * Goes through all defined slots of smart object represented by SmartObjectRuntime
@@ -482,6 +488,12 @@ public:
 
 	/** Debugging helpers to add all registered smart objects to the simulation */
 	void DebugRegisterAllSmartObjects();
+
+	/** Debugging helper to emulate the start of the simulation to create all runtime data */
+	void DebugInitializeRuntime();
+
+	/** Debugging helper to emulate the stop of the simulation to destroy all runtime data */
+	void DebugCleanupRuntime();
 
 private:
 	TArray<TWeakObjectPtr<USmartObjectComponent>> DebugRegisteredComponents;

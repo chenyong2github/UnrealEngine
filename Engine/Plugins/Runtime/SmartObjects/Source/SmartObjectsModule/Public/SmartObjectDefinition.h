@@ -41,6 +41,14 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 {
 	GENERATED_BODY()
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	FName Name;
+
+	UPROPERTY(EditAnywhere, Category = SmartObject, meta = (DisplayName = "Color"))
+	FColor DEBUG_DrawColor = FColor::Yellow;
+#endif // WITH_EDITORONLY_DATA
+
 	/** This slot is available only for users matching this query. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	FGameplayTagQuery UserTagFilter;
@@ -64,18 +72,6 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
 	TArray<USmartObjectBehaviorDefinition*> BehaviorDefinitions;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = SmartObject)
-	FColor DEBUG_DrawColor;
-#endif // WITH_EDITORONLY_DATA
-
-	FSmartObjectSlotDefinition()
-		: Offset(FVector::ZeroVector), Rotation(FRotator::ZeroRotator)
-#if WITH_EDITORONLY_DATA
-		, DEBUG_DrawColor(FColor::Yellow)
-#endif // WITH_EDITORONLY_DATA
-	{}
 };
 
 /**
@@ -215,7 +211,7 @@ private:
 };
 
 /**
- * Mass Fragment used to share slot definition between all slot instances using that definition.
+ * Mass Fragment used to share slot definition between slot instances.
  */
 USTRUCT()
 struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinitionFragment : public FMassSharedFragment

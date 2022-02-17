@@ -7,6 +7,7 @@
 #include "EngineUtils.h"
 #include "MassCommandBuffer.h"
 #include "VisualLogger/VisualLogger.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 #if WITH_SMARTOBJECT_DEBUG
 #include "MassExecutor.h"
@@ -677,15 +678,11 @@ FSmartObjectSlotHandle USmartObjectSubsystem::FindSlot(const FSmartObjectRuntime
 
 void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults, const ESmartObjectSlotSearchMode SearchMode) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("SmartObject_FilterSlots");
+
 	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
 	const int32 NumSlotDefinitions = Definition.GetSlots().Num();
 	if (!ensureMsgf(NumSlotDefinitions > 0, TEXT("Definition should contain slot definitions at this point")))
-	{
-		return;
-	}
-
-	const UClass* RequiredDefinitionClass = *Filter.BehaviorDefinitionClass;
-	if (!ensureMsgf(RequiredDefinitionClass != nullptr, TEXT("Filter needs to provide required behavior definition type")))
 	{
 		return;
 	}
@@ -731,7 +728,8 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRunt
 				continue;
 			}
 
-			if (Definition.GetBehaviorDefinition(FSmartObjectSlotIndex(i), Filter.BehaviorDefinitionClass) == nullptr)
+			if (Filter.BehaviorDefinitionClass != nullptr &&
+				Definition.GetBehaviorDefinition(FSmartObjectSlotIndex(i), Filter.BehaviorDefinitionClass) == nullptr)
 			{
 				continue;
 			}
@@ -774,8 +772,10 @@ void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime)
 	}
 }
 
-FSmartObjectRequestResult USmartObjectSubsystem::FindSmartObject(const FSmartObjectRequest& Request)
+FSmartObjectRequestResult USmartObjectSubsystem::FindSmartObject(const FSmartObjectRequest& Request) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("SmartObject_FindSingleResult");
+
 	// find X instances, ignore distance as long as in range, accept first available
 	FSmartObjectRequestResult Result;
 	const FSmartObjectRequestFilter& Filter = Request.Filter;
@@ -792,8 +792,10 @@ FSmartObjectRequestResult USmartObjectSubsystem::FindSmartObject(const FSmartObj
 	return Result;
 }
 
-bool USmartObjectSubsystem::FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults)
+bool USmartObjectSubsystem::FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("SmartObject_FindAllResults");
+
 	const FSmartObjectRequestFilter& Filter = Request.Filter;
 	SmartObjectOctree.FindFirstElementWithBoundsTest(Request.QueryBox,
 		[&Filter, &OutResults, this](const FSmartObjectOctreeElement& Element)
@@ -822,6 +824,7 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectHandle Handle,
 									  TArray<FSmartObjectSlotHandle>& OutSlots,
 									  const ESmartObjectSlotSearchMode SearchMode) const
 	{
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("SmartObject_FindSlots");
 	if (!Handle.IsValid())
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Requesting a valid use for an invalid smart object."));
@@ -918,10 +921,9 @@ USmartObjectComponent* USmartObjectSubsystem::GetSmartObjectComponent(const FSma
 	return (IsValid(MainCollection) ? MainCollection->GetSmartObjectComponent(ClaimHandle.SmartObjectHandle) : nullptr);
 }
 
-void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
+void USmartObjectSubsystem::InitializeRuntime()
 {
-	Super::OnWorldBeginPlay(World);
-
+	const UWorld& World = GetWorldRef();
 	EntitySubsystem = World.GetSubsystem<UMassEntitySubsystem>();
 	if (!ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to use SmartObjects")))
 	{
@@ -983,6 +985,35 @@ void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
 	// This is the temporary way to force our commands to be processed until MassEntitySubsystem
 	// offers a threadsafe solution to push and flush commands in our own execution context.
 	EntitySubsystem->FlushCommands();
+}
+
+void USmartObjectSubsystem::CleanupRuntime()
+{
+	EntitySubsystem = GetWorldRef().GetSubsystem<UMassEntitySubsystem>();
+	if (!ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to use SmartObjects")))
+	{
+		return;
+	}
+
+	for (auto It(RuntimeSmartObjects.CreateIterator()); It; ++It)
+	{
+		RemoveFromSimulation(It.Key());
+	}
+
+	RuntimeCreatedEntries.Reset();
+	bInitialCollectionAddedToSimulation = false;
+
+	// Flush all entity subsystem commands pushed while stopping the simulation
+	// This is the temporary way to force our commands to be processed until MassEntitySubsystem
+	// offers a threadsafe solution to push and flush commands in our own execution context.
+	EntitySubsystem->Defer().ReplayBufferAgainstSystem(EntitySubsystem);
+}
+
+void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
+{
+	Super::OnWorldBeginPlay(World);
+
+	InitializeRuntime();
 }
 
 #if WITH_EDITOR
@@ -1060,4 +1091,25 @@ void USmartObjectSubsystem::DebugRegisterAllSmartObjects()
 		}
 	}
 }
+
+void USmartObjectSubsystem::DebugInitializeRuntime()
+{
+	// do not initialize more than once or on a GameWorld
+	if (bInitialCollectionAddedToSimulation || GetWorldRef().IsGameWorld())
+	{
+		return;
+	}
+	InitializeRuntime();
+}
+
+void USmartObjectSubsystem::DebugCleanupRuntime()
+{
+	// do not cleanup more than once or on a GameWorld
+	if (!bInitialCollectionAddedToSimulation || GetWorldRef().IsGameWorld())
+	{
+		return;
+	}
+	CleanupRuntime();
+}
+
 #endif // WITH_SMARTOBJECT_DEBUG

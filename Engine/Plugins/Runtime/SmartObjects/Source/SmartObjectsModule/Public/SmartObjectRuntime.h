@@ -231,6 +231,18 @@ public:
 	}
 
 	/**
+	 * Returns a reference to the definition of the slot's parent object.
+	 * Method will fail a check if called on an invalid SlotView.
+	 * @note The definition fragment is always created and assigned when creating an entity associated to a slot
+	 * so a valid SlotView is guaranteed to be able to provide it.
+	 */
+	const USmartObjectDefinition& GetSmartObjectDefinition() const
+	{
+		checkf(EntityView.IsSet(), TEXT("Definition can only be accessed through a valid SlotView"));
+		return *(EntityView.GetConstSharedFragmentData<FSmartObjectSlotDefinitionFragment>().SmartObjectDefinition);
+	}
+
+	/**
 	 * Returns a reference to the main definition of the slot.
 	 * Method will fail a check if called on an invalid SlotView.
 	 */
