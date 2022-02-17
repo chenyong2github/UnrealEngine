@@ -52,6 +52,9 @@
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usd/stageCacheContext.h"
 #include "pxr/usd/usd/usdFileFormat.h"
+#include "pxr/usd/usd/usdaFileFormat.h"
+#include "pxr/usd/usd/usdcFileFormat.h"
+#include "pxr/usd/usd/usdzFileFormat.h"
 #include "pxr/usd/usd/variantSets.h"
 #include "pxr/usd/usdGeom/mesh.h"
 #include "pxr/usd/usdGeom/metrics.h"
@@ -854,6 +857,45 @@ TArray<FString> UnrealUSDWrapper::GetAllSupportedFileFormats()
 		}
 
 		Result.Emplace( ANSI_TO_TCHAR( Ext.c_str() ) );
+	}
+#endif // #if USE_USD_SDK
+
+	return Result;
+}
+
+TArray<FString> UnrealUSDWrapper::GetNativeFileFormats()
+{
+	TArray<FString> Result;
+
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	const pxr::TfTokenVector NativeFormatIds{
+		pxr::UsdUsdFileFormatTokens->Id,
+		pxr::UsdUsdaFileFormatTokens->Id,
+		pxr::UsdUsdcFileFormatTokens->Id,
+		pxr::UsdUsdzFileFormatTokens->Id
+	};
+
+	std::set<std::string> FileExtensions;
+
+	for ( const pxr::TfToken& FormatId : NativeFormatIds )
+	{
+		const pxr::SdfFileFormatConstPtr Format = pxr::SdfFileFormat::FindById( FormatId );
+		if ( !Format )
+		{
+			continue;
+		}
+
+		for ( const std::string& FileExtension : Format->GetFileExtensions() )
+		{
+			FileExtensions.insert( FileExtension );
+		}
+	}
+
+	for ( const std::string& FileExtension : FileExtensions )
+	{
+		Result.Emplace( ANSI_TO_TCHAR( FileExtension.c_str() ) );
 	}
 #endif // #if USE_USD_SDK
 

@@ -191,8 +191,22 @@ public:
 	UNREALUSDWRAPPER_API static double GetDefaultTimeCode();
 #endif  // #if USE_USD_SDK
 
-	/** Returns the file extensions the USD SDK supports reading from (e.g. ["usd", "usda", "usdc", etc.]) */
+	/**
+	 * Returns the file extensions of all file formats supported by USD.
+	 * 
+	 * These include the extensions for the file formats built into USD as
+	 * well as those for any other file formats introduced through the USD
+	 * plugin system (e.g. "abc" for the Alembic file format of the usdAbc
+	 * plugin).
+	 */
 	UNREALUSDWRAPPER_API static TArray<FString> GetAllSupportedFileFormats();
+
+	/**
+	 * Returns the file extensions that are native to USD.
+	 * 
+	 * These are the extensions for the file formats built into USD (i.e. "usd", "usda", "usdc", and "usdz").
+	 */
+	UNREALUSDWRAPPER_API static TArray<FString> GetNativeFileFormats();
 
 	/**
 	 * Opens a file as a root layer of an USD stage, and returns that stage.
