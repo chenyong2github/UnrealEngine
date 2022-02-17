@@ -11975,7 +11975,7 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 			}
 			else
 			{
-				ReportErrorf(
+				ReportWarningf(
 					TEXT("Control Rig '%s', Variable '%s' not found."),
 					*InNode->GetOutermost()->GetPathName(),
 					*CurrentExternalVariable.Name.ToString()
