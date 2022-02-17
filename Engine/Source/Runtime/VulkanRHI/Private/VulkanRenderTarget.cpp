@@ -794,15 +794,17 @@ FVulkanSwapChain* FVulkanCommandListContext::GetSwapChain() const
 
 bool FVulkanCommandListContext::IsSwapchainImage(FRHITexture* InTexture) const
 {
-	TArray<FVulkanViewport*>& viewports = RHI->GetViewports();
-	uint32 numViewports = viewports.Num();
+	TArray<FVulkanViewport*>& Viewports = RHI->GetViewports();
+	uint32 NumViewports = Viewports.Num();
 
-	for (uint32 i = 0; i < numViewports; i++)
+	for (uint32 i = 0; i < NumViewports; i++)
 	{
-		for (int swapchainImageIdx = 0; swapchainImageIdx < FVulkanViewport::NUM_BUFFERS; swapchainImageIdx++)
+		VkImage Image = FVulkanTextureBase::Cast(InTexture)->Surface.Image;
+		uint32 BackBufferImageCount = Viewports[i]->GetBackBufferImageCount();
+
+		for (uint32 SwapchainImageIdx = 0; SwapchainImageIdx < BackBufferImageCount; SwapchainImageIdx++)
 		{
-			VkImage Image = FVulkanTextureBase::Cast(InTexture)->Surface.Image;
-			if (Image == viewports[i]->GetBackBufferImage(swapchainImageIdx))
+			if (Image == Viewports[i]->GetBackBufferImage(SwapchainImageIdx))
 			{
 				return true;
 			}

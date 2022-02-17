@@ -85,6 +85,11 @@ public:
 		return bIsFullscreen;
 	}
 
+	inline uint32 GetBackBufferImageCount()
+	{
+		return (uint32)BackBufferImages.Num();
+	}
+
 	inline VkImage GetBackBufferImage(uint32 Index)
 	{
 		if (BackBufferImages.Num() > 0)
