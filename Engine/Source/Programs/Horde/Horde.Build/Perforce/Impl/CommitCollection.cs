@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MongoDB.Bson.Serialization.Attributes;
+using EpicGames.Horde.Storage;
 
 namespace HordeServer.Commits.Impl
 {
@@ -48,8 +49,8 @@ namespace HordeServer.Commits.Impl
 			[BsonElement("p")]
 			public string BasePath { get; set; } = String.Empty;
 
-			[BsonElement("tr")]
-			public string? TreeRef { get; set; }
+			[BsonElement("r")]
+			public RefId? TreeRefId { get; set; }
 
 			[BsonElement("t")]
 			public DateTime DateUtc { get; set; }
@@ -76,7 +77,7 @@ namespace HordeServer.Commits.Impl
 				}
 				this.Description = NewCommit.Description;
 				this.BasePath = NewCommit.BasePath;
-				this.TreeRef = NewCommit.TreeRef;
+				this.TreeRefId = NewCommit.TreeRefId;
 				this.DateUtc = NewCommit.DateUtc;
 			}
 		}

@@ -70,7 +70,7 @@ namespace HordeServer.Commits
 		/// <summary>
 		/// Name of a reference describing the tree at this changelist
 		/// </summary>
-		public string? TreeRef { get; }
+		public RefId? TreeRefId { get; }
 	}
 
 	/// <summary>
@@ -102,8 +102,8 @@ namespace HordeServer.Commits
 		/// <inheritdoc cref="ICommit.DateUtc"/>
 		public DateTime DateUtc { get; set; }
 
-		/// <inheritdoc cref="ICommit.TreeRef"/>
-		public string? TreeRef { get; set; }
+		/// <inheritdoc cref="ICommit.TreeRefId"/>
+		public RefId? TreeRefId { get; set; }
 
 		/// <summary>
 		/// Constructor
@@ -111,7 +111,7 @@ namespace HordeServer.Commits
 		public NewCommit(ICommit Commit)
 			: this(Commit.StreamId, Commit.Change, Commit.OriginalChange, Commit.AuthorId, Commit.OwnerId, Commit.Description, Commit.BasePath, Commit.DateUtc)
 		{
-			this.TreeRef = Commit.TreeRef;
+			this.TreeRefId = Commit.TreeRefId;
 		}
 
 		/// <summary>
@@ -127,22 +127,6 @@ namespace HordeServer.Commits
 			this.Description = Description;
 			this.BasePath = BasePath;
 			this.DateUtc = DateUtc;
-		}
-	}
-
-	/// <summary>
-	/// Extension methods for commits
-	/// </summary>
-	static class CommitExtensions
-	{
-		/// <summary>
-		/// Get the ref id for a particular commit
-		/// </summary>
-		/// <param name="Commit"></param>
-		/// <returns></returns>
-		public static RefId GetRefId(this ICommit Commit)
-		{
-			return new RefId(IoHash.Compute(Encoding.UTF8.GetBytes(Commit.TreeRef!)));
 		}
 	}
 }

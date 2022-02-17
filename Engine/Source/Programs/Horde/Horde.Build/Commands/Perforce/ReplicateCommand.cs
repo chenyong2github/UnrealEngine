@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Impl;
+using EpicGames.Serialization;
 using HordeServer.Collections;
 using HordeServer.Commits;
 using HordeServer.Commits.Impl;
@@ -22,14 +25,23 @@ namespace HordeServer.Commands
 	[Command("perforce", "replicate", "Replicates commits for a particular change of changes from Perforce")]
 	class ReplicateCommand : Command
 	{
-		[CommandLine("-StreamId=", Required = true)]
-		public List<string> StreamIds { get; set; } = new List<string>();
+		[CommandLine("-Stream=", Required = true)]
+		public string StreamId { get; set; } = String.Empty;
 
 		[CommandLine(Required = true)]
 		public int Change { get; set; }
 
 		[CommandLine]
+		public int BaseChange { get; set; }
+
+		[CommandLine]
 		public int Count { get; set; } = 1;
+
+		[CommandLine]
+		public bool Content { get; set; }
+
+		[CommandLine]
+		public DirectoryReference? OutputDir { get; set; }
 
 		IConfiguration Configuration;
 
@@ -40,28 +52,62 @@ namespace HordeServer.Commands
 
 		public override async Task<int> ExecuteAsync(ILogger Logger)
 		{
-			IServiceProvider ServiceProvider = Startup.CreateServiceProvider(Configuration);
+			IServiceCollection Services = new ServiceCollection();
+			Startup.AddServices(Services, Configuration);
+
+			OutputDir ??= DirectoryReference.Combine(Program.DataDir, "p4");
+			Logger.LogInformation("Writing output to {OutputDir}", OutputDir);
+
+			DirectoryReference BlobsDir = DirectoryReference.Combine(OutputDir, "blobs");
+			Services.AddSingleton<IStorageClient, FileStorageClient>(SP => new FileStorageClient(BlobsDir, Logger));
+
+			DirectoryReference RootsDir = DirectoryReference.Combine(OutputDir, "roots");
+			DirectoryReference.CreateDirectory(RootsDir);
+
+			IServiceProvider ServiceProvider = Services.BuildServiceProvider();
 			CommitService CommitService = ServiceProvider.GetRequiredService<CommitService>();
-
+			ICommitCollection CommitCollection = ServiceProvider.GetRequiredService<ICommitCollection>();
 			IStreamCollection StreamCollection = ServiceProvider.GetRequiredService<IStreamCollection>();
+			IStorageClient StorageClient = ServiceProvider.GetRequiredService<IStorageClient>();
 
-			Dictionary<IStream, int> StreamToFirstChange = new Dictionary<IStream, int>();
-			foreach(string StreamId in StreamIds)
+			IStream? Stream = await StreamCollection.GetAsync(new StreamId(StreamId));
+			if (Stream == null)
 			{
-				IStream? Stream = await StreamCollection.GetAsync(new StreamId(StreamId));
-				if (Stream == null)
-				{
-					throw new FatalErrorException($"Stream '{Stream}' not found");
-				}
-				StreamToFirstChange[Stream] = Change;
+				throw new FatalErrorException($"Stream '{Stream}' not found");
 			}
 
-			string ClusterName = StreamToFirstChange.First().Key.ClusterName;
-			await foreach (NewCommit Commit in CommitService.FindCommitsForClusterAsync(ClusterName, StreamToFirstChange).Take(Count))
+			Dictionary<IStream, int> StreamToFirstChange = new Dictionary<IStream, int>();
+			StreamToFirstChange[Stream] = Change;
+
+			CommitTree? BaseTree = null; 
+			if (BaseChange != 0)
 			{
-				string BriefSummary = Commit.Description.Replace('\n', ' ').Substring(0, 50);
-				Logger.LogInformation("Commit {Change} by {AuthorId}: {Summary}", Commit.Change, Commit.AuthorId, BriefSummary);
-				Logger.LogInformation(" - Base path: {BasePath}", Commit.BasePath);
+				ICommit? BaseCommit = await CommitCollection.GetCommitAsync(Stream.Id, BaseChange);
+				if (BaseCommit == null)
+				{
+					throw new FatalErrorException($"Unable to find base commit {BaseChange}");
+				}
+
+				FileReference RootFile = FileReference.Combine(RootsDir, $"{BaseCommit.Change}.ref");
+				byte[] RootData = await FileReference.ReadAllBytesAsync(RootFile);
+				BaseTree = new CommitTree(BaseCommit.Change, TreePackObject.Parse(RootData));
+			}
+
+			await foreach (NewCommit NewCommit in CommitService.FindCommitsForClusterAsync(Stream.ClusterName, StreamToFirstChange).Take(Count))
+			{
+				string BriefSummary = NewCommit.Description.Replace('\n', ' ').Substring(0, 50);
+				Logger.LogInformation("Commit {Change} by {AuthorId}: {Summary}", NewCommit.Change, NewCommit.AuthorId, BriefSummary);
+				Logger.LogInformation(" - Base path: {BasePath}", NewCommit.BasePath);
+
+				if (Content)
+				{
+					BaseTree = await CommitService.FindCommitTreeAsync(Stream, NewCommit.Change, BaseTree);
+
+					FileReference RootFile = FileReference.Combine(RootsDir, $"{NewCommit.Change}.ref");
+					ReadOnlyMemory<byte> RootData = BaseTree.RootObject.ToCbObject().GetView();
+					await FileReference.WriteAllBytesAsync(RootFile, RootData.ToArray());
+					Logger.LogInformation("Written root to {RootFile} ({Size:n0} bytes)", RootFile, RootFile.ToFileInfo().Length);
+				}
 			}
 
 			return 0;
