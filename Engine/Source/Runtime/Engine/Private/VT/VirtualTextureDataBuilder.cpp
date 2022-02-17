@@ -589,6 +589,8 @@ static const TCHAR* GetSafePixelFormatName(EPixelFormat Format)
 
 void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& TileList, uint32 LayerIndex, FLayerData& GeneratedData, bool bAllowAsync)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.VT.BuildTiles);
+
 	const FTextureBuildSettings& BuildSettingsLayer0 = SettingsPerLayer[0];
 	const FTextureBuildSettings& BuildSettingsForLayer = SettingsPerLayer[LayerIndex];
 	const FVirtualTextureSourceLayerData& LayerData = SourceLayers[LayerIndex];
@@ -715,7 +717,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		const bool bIsSingleThreaded = !bAllowAsync;
 
 		int NumTiles = TileList.Num();
-		ParallelFor( TEXT("VT.BuildTiles.PF"), NumTiles,1, [&](int32 TileIndex)
+		ParallelFor( TEXT("Texture.VT.BuildTiles.PF"), NumTiles,1, [&](int32 TileIndex)
 		{
 			const FVTSourceTileEntry& Tile = TileList[TileIndex];
 

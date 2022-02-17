@@ -934,7 +934,7 @@ public:
 
 	virtual bool CompressImage(const FImage& InImage, const FTextureBuildSettings& InBuildSettings, FStringView DebugTexturePathName, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_CompressImage);
+		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_CompressImage);
 
 		check(InImage.SizeX > 0);
 		check(InImage.SizeY > 0);
@@ -1324,7 +1324,7 @@ public:
 			}
 
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_EncodeBCN);
+				TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN);
 
 			// if RDOLambda == 0, does non-RDO encode :
 			OodleTex_Err OodleErr = (VTable->fp_OodleTex_EncodeBCN_RDO_Ex)(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
@@ -1361,7 +1361,7 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 {
 	using namespace UE::Tasks;
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_EncodeBCN_RunJob);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN_RunJob);
 	
 	TArray<Private::FTaskBase*> Prerequisites;
 	Prerequisites.Reserve(NumDependencies);
@@ -1374,7 +1374,7 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 	Task->Init(TEXT("Oodle_EncodeBCN_Task"), 
 		[JobFunction, JobData]
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_EncodeBCN_Task);
+			TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN_Task);
 			JobFunction(JobData);
 		}, 
 		// Use Background priority so we don't use Foreground time in the Editor
@@ -1391,7 +1391,7 @@ static void OODLE_CALLBACK TFO_WaitJob(OO_U64 JobHandle, void* UserPtr)
 {
 	using namespace UE::Tasks;
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_WaitJob);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_WaitJob);
 
 	Private::FTaskBase* Task = reinterpret_cast<Private::FTaskBase*>(JobHandle);
 	Task->Wait();

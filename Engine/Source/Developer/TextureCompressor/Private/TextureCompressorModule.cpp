@@ -138,7 +138,7 @@ public:
 			// this is TMGS_Blur
 
 			// TMGS_Blur will always give us TableSize > 2
-			// @todo Oodle - temp check disabled
+			// @todo CB - temp check disabled
 			//   I  believe this should be true, but a bug in AssociatedNormalSourceMips
 			//   causes a 2 to come in here
 			//check( TableSize1D > 2 );
@@ -227,11 +227,11 @@ private:
 	// support even and non even sized filters
 	static void BuildGaussian1D(float *InOutTable, uint32 TableSize, float Sum, float Variance)
 	{
-		float Center = TableSize * 0.5f;
+		float Center = TableSize * 0.5f - 0.5f;
 		float CurrentSum = 0;
 		for(uint32 i = 0; i < TableSize; ++i)
 		{
-			float Actual = NormalDistribution(i - Center + 0.5f, Variance);
+			float Actual = NormalDistribution(i - Center, Variance);
 			InOutTable[i] = Actual;
 			CurrentSum += Actual;
 		}
@@ -389,7 +389,7 @@ static float DetermineScaledThreshold(float Threshold, float Scale)
 
 static FVector4f ComputeAlphaCoverage(const FVector4f Thresholds, const FVector4f Scales, const FImageView2D& SourceImageData)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ComputeAlphaCoverage);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.ComputeAlphaCoverage);
 
 	FVector4f Coverage(0, 0, 0, 0);
 
@@ -405,7 +405,7 @@ static FVector4f ComputeAlphaCoverage(const FVector4f Thresholds, const FVector4
 		const float ThresholdScaled = DetermineScaledThreshold(Thresholds[3] , Scales[3]);
 		
 		int32 CommonResult = 0;
-		ParallelFor( TEXT("ComputeAlphaCoverage.PF"),NumJobs,1, [&](int32 Index)
+		ParallelFor( TEXT("Texture.ComputeAlphaCoverage.PF"),NumJobs,1, [&](int32 Index)
 		{
 			int32 StartIndex = Index * NumRowsEachJob;
 			int32 EndIndex = FMath::Min(StartIndex + NumRowsEachJob, SourceImageData.SizeY);
@@ -448,7 +448,7 @@ static FVector4f ComputeAlphaCoverage(const FVector4f Thresholds, const FVector4
 		}
 
 		int32 CommonResults[4] = { 0, 0, 0, 0 };
-		ParallelFor( TEXT("ComputeAlphaCoverage.PF"),NumJobs,1, [&](int32 Index)
+		ParallelFor( TEXT("Texture.ComputeAlphaCoverage.PF"),NumJobs,1, [&](int32 Index)
 		{
 			int32 StartIndex = Index * NumRowsEachJob;
 			int32 EndIndex = FMath::Min(StartIndex + NumRowsEachJob, SourceImageData.SizeY);
@@ -490,7 +490,7 @@ static FVector4f ComputeAlphaCoverage(const FVector4f Thresholds, const FVector4
 
 static FVector4f ComputeAlphaScale(const FVector4f Coverages, const FVector4f AlphaThresholds, const FImageView2D& SourceImageData)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ComputeAlphaScale);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.ComputeAlphaScale);
 
 	// This function is not a good way to do this
 	// but we cannot change it without changing output pixels
@@ -552,7 +552,7 @@ static void GenerateMip2x2Simple(
 	int32 NumRowsEachJob;
 	int32 NumJobs = ImageParallelForComputeNumJobsForRows(NumRowsEachJob,DestImageData.SizeX,DestImageData.SizeY);
 
-	ParallelFor( TEXT("GenerateMip2x2Simple.PF"),NumJobs,1, [&](int32 Index)
+	ParallelFor( TEXT("Texture.GenerateMip2x2Simple.PF"),NumJobs,1, [&](int32 Index)
 	{
 		int32 StartIndex = Index * NumRowsEachJob;
 		int32 EndIndex = FMath::Min(StartIndex + NumRowsEachJob, DestImageData.SizeY);
@@ -617,7 +617,9 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 		return;
 	}
 
-	const int32 KernelCenter = KernelFilterTableSize / 2 - 1;
+	// if KernelFilterTableSize is odd, centered in-place filter can be applied
+	// KernelFilterTableSize should be even for standard down-sampling
+	const int32 KernelCenter = (KernelFilterTableSize - 1) / 2;
 
 	FVector4f AlphaScale(1, 1, 1, 1);
 	if (bDoScaleMipsForAlphaCoverage)
@@ -628,7 +630,7 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 	int32 NumRowsEachJob;
 	int32 NumJobs = ImageParallelForComputeNumJobsForRows(NumRowsEachJob,DestImageData.SizeX,DestImageData.SizeY);
 
-	ParallelFor( TEXT("GenerateSharpenedMip.PF"),NumJobs,1, [&](int32 Index)
+	ParallelFor( TEXT("Texture.GenerateSharpenedMip.PF"),NumJobs,1, [&](int32 Index)
 	{
 		int32 StartIndex = Index * NumRowsEachJob;
 		int32 EndIndex = FMath::Min(StartIndex + NumRowsEachJob, DestImageData.SizeY);
@@ -737,7 +739,7 @@ static void GenerateSharpenedMipB8G8R8A8(
 	bool bUnfiltered
 	)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateSharpenedMip);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.GenerateSharpenedMip);
 
 	switch(AddressMode)
 	{
@@ -856,11 +858,21 @@ static EMipGenAddressMode ComputeAdressMode(const FTextureBuildSettings& Setting
 
 static void GenerateTopMip(const FImage& SrcImage, FImage& DestImage, const FTextureBuildSettings& Settings)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.GenerateTopMip);
+
+	// GenerateTopMip is only used for ApplyCompositeTexture
+	// bApplyKernelToTopMip is not exposed to Texture GUI
+
 	EMipGenAddressMode AddressMode = ComputeAdressMode(Settings);
 
 	FImageKernel2D KernelDownsample;
+
+	//@todo CB this looks broken :
 	// /2 as input resolution is same as output resolution and the settings assumed the output is half resolution
 	KernelDownsample.BuildSeparatableGaussWithSharpen( FMath::Max( 2u, Settings.SharpenMipKernelSize / 2 ), Settings.MipSharpening );
+	
+	// use an odd filter here so it's not shifting :
+	//KernelDownsample.BuildSeparatableGaussWithSharpen( 5, -2.5f );
 	
 	DestImage.Init(SrcImage.SizeX, SrcImage.SizeY, SrcImage.NumSlices, SrcImage.Format, SrcImage.GammaSpace);
 
@@ -920,7 +932,7 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 		return;
 	}
 	
-	TRACE_CPUPROFILER_EVENT_SCOPE(DownscaleImage);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.DownscaleImage);
 		
 	float Downscale = FMath::Clamp(Settings.Downscale, 1.f, 8.f);
 	int32 FinalSizeX = FMath::CeilToInt(SrcImage.SizeX / Downscale);
@@ -1064,7 +1076,7 @@ void ITextureCompressorModule::GenerateMipChain(
 	uint32 MipChainDepth 
 	)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateMipChain);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.GenerateMipChain);
 
 	check(BaseImage.Format == ERawImageFormat::RGBA32F);
 
@@ -1375,7 +1387,7 @@ static uint32 ComputeLongLatCubemapExtents(const FImage& SrcImage, const uint32 
 
 void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const uint32 MaxCubemapTextureResolution, uint8 SourceEncodingOverride)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateBaseCubeMipFromLongitudeLatitude2D);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.GenerateBaseCubeMipFromLongitudeLatitude2D);
 
 	FImage LongLatImage;
 	SrcImage.Linearize(SourceEncodingOverride, LongLatImage);
@@ -1587,7 +1599,7 @@ static inline float ComputeTexelArea(uint32 x, uint32 y, float InvSideExtentMul2
  */
 static void GenerateAngularFilteredMip(FImage* DestMip, FImage& SrcMip, float ConeAngle)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateAngularFilteredMip);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.GenerateAngularFilteredMip);
 
 	int32 MipExtent = DestMip->SizeX;
 	float MipInvSideExtent = 1.0f / MipExtent;
@@ -1681,7 +1693,7 @@ static void GenerateAngularFilteredMip(FImage* DestMip, FImage& SrcMip, float Co
 
 void ITextureCompressorModule::GenerateAngularFilteredMips(TArray<FImage>& InOutMipChain, int32 NumMips, uint32 DiffuseConvolveMipLevel)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateAngularFilteredMips);
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.GenerateAngularFilteredMips);
 
 	TArray<FImage> SrcMipChain;
 	Exchange(SrcMipChain, InOutMipChain);
@@ -1774,7 +1786,7 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 		!FMath::IsNearlyEqual( InParams.AdjustMaxAlpha, 1.0f, (float)KINDA_SMALL_NUMBER ) ||
 		InBuildSettings.bChromaKeyTexture )
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(AdjustImageColors);
+		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.AdjustImageColors);
 
 		const FLinearColor ChromaKeyTarget = InBuildSettings.ChromaKeyColor;
 		const float ChromaKeyThreshold = InBuildSettings.ChromaKeyThreshold + SMALL_NUMBER;
@@ -1885,7 +1897,7 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 		// @todo Oodle - this is done here and not in other similar ParallelFor places here.  It should either be done everywhere or nowhere.
 		bool bForceSingleThread = GIsEditorLoadingPackage || GIsCookerLoadingPackage || IsInAsyncLoadingThread();
 
-		ParallelFor( TEXT("AdjustImageColorsFunc.PF"),NumJobs,1, AdjustImageColorsFunc, 
+		ParallelFor( TEXT("Texture.AdjustImageColorsFunc.PF"),NumJobs,1, AdjustImageColorsFunc, 
 			(bForceSingleThread ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None) );
 	}
 }
@@ -1996,6 +2008,8 @@ static void FlipGreenChannel( FImage& Image )
  */
 static bool DetectAlphaChannel(const FImage& InImage)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.DetectAlphaChannel);
+
 	// Uncompressed data is required to check for an alpha channel.
 	const FLinearColor* SrcColors = (&InImage.AsRGBA32F()[0]);
 	const FLinearColor* LastColor = SrcColors + (InImage.SizeX * InImage.SizeY * InImage.NumSlices);
@@ -2013,6 +2027,8 @@ static bool DetectAlphaChannel(const FImage& InImage)
 /** Calculate a scale per 4x4 block of each image, and apply it to the red/green channels. Store scale in the blue channel. */
 static void ApplyYCoCgBlockScale(TArray<FImage>& InOutMipChain)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.ApplyYCoCgBlockScale);
+
 	const uint32 MipCount = InOutMipChain.Num();
 	for (uint32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
 	{
@@ -2088,39 +2104,42 @@ static float SpecularPowerToRoughness(float SpecularPower)
 // @param CompositeTextureMode original type ECompositeTextureMode
 static void ApplyCompositeTexture(FImage& RoughnessSourceMips, const FImage& NormalSourceMips, uint8 CompositeTextureMode, float CompositePower)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.ApplyCompositeTexture);
+
 	check(RoughnessSourceMips.SizeX == NormalSourceMips.SizeX);
 	check(RoughnessSourceMips.SizeY == NormalSourceMips.SizeY);
 
 	FLinearColor* FirstColor = (&RoughnessSourceMips.AsRGBA32F()[0]);
 	const FLinearColor* NormalColors = (&NormalSourceMips.AsRGBA32F()[0]);
 
-	FLinearColor* LastColor = FirstColor + (RoughnessSourceMips.SizeX * RoughnessSourceMips.SizeY * RoughnessSourceMips.NumSlices);
-	for ( FLinearColor* Color = FirstColor; Color < LastColor; ++Color, ++NormalColors )
+	int64 Count = (int64) RoughnessSourceMips.SizeX * RoughnessSourceMips.SizeY * RoughnessSourceMips.NumSlices;
+	
+	float* TargetValuePtr;
+
+	switch((ECompositeTextureMode)CompositeTextureMode)
 	{
-		FVector Normal = FVector(NormalColors->R * 2.0f - 1.0f, NormalColors->G * 2.0f - 1.0f, NormalColors->B * 2.0f - 1.0f);
+		case CTM_NormalRoughnessToRed:
+			TargetValuePtr = &FirstColor->R;
+			break;
+		case CTM_NormalRoughnessToGreen:
+			TargetValuePtr = &FirstColor->G;
+			break;
+		case CTM_NormalRoughnessToBlue:
+			TargetValuePtr = &FirstColor->B;
+			break;
+		case CTM_NormalRoughnessToAlpha:
+			TargetValuePtr = &FirstColor->A;
+			break;
+		default:
+			UE_LOG(LogTextureCompressor, Error, TEXT("Invalid CompositeTextureMode"));
+			return;
+	}
 
-		// to prevent crash for unknown CompositeTextureMode
-		float Dummy;
-		float* RefValue = &Dummy;
-
-		switch((ECompositeTextureMode)CompositeTextureMode)
-		{
-			case CTM_NormalRoughnessToRed:
-				RefValue = &Color->R;
-				break;
-			case CTM_NormalRoughnessToGreen:
-				RefValue = &Color->G;
-				break;
-			case CTM_NormalRoughnessToBlue:
-				RefValue = &Color->B;
-				break;
-			case CTM_NormalRoughnessToAlpha:
-				RefValue = &Color->A;
-				break;
-			default:
-				checkSlow(0);
-		}
-		
+	for ( int64 i=0; i<Count; i++ )
+	{
+		const FLinearColor & NormalColor = NormalColors[i];
+		FVector3f Normal = FVector3f(NormalColor.R * 2.0f - 1.0f, NormalColor.G * 2.0f - 1.0f, NormalColor.B * 2.0f - 1.0f);
+				
 		// Toksvig estimation of variance
 		float LengthN = FMath::Min( Normal.Size(), 1.0f );
 		float Variance = ( 1.0f - LengthN ) / LengthN;
@@ -2128,7 +2147,7 @@ static void ApplyCompositeTexture(FImage& RoughnessSourceMips, const FImage& Nor
 
 		Variance *= CompositePower;
 		
-		float Roughness = *RefValue;
+		float Roughness = TargetValuePtr[i*4];
 
 #if 0
 		float Power = RoughnessToSpecularPower( Roughness );
@@ -2143,7 +2162,7 @@ static void ApplyCompositeTexture(FImage& RoughnessSourceMips, const FImage& Nor
 		Roughness = FMath::Pow( a2, 0.25f );
 #endif
 
-		*RefValue = Roughness;
+		TargetValuePtr[i*4] = Roughness;
 	}
 }
 
@@ -2177,7 +2196,7 @@ public:
 	 */
 	void DoWork()
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(CompressImage);
+		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CompressImage);
 
 		bCompressionResults = TextureFormat.CompressImageEx(
 			SourceImages,
@@ -2231,8 +2250,9 @@ static bool CompressMipChain(
 	uint32& OutNumMipsInTail,
 	uint32& OutExtData)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(CompressMipChain)
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CompressMipChain)
 
+	// @todo Oodle : DetectAlphaChannel could be merged with the CopyImage when the float promotion is done
 	const bool bImageHasAlphaChannel = !Settings.bForceNoAlphaChannel  && (Settings.bForceAlphaChannel || DetectAlphaChannel(MipChain[0]));
 
 	// now call the Ex version now that we have the proper MipChain
@@ -2296,7 +2316,7 @@ static bool CompressMipChain(
 		}
 	}
 
-	ParallelForWithPreWork( TEXT("CompressMipChain.PF"),AsyncCompressionTasks.Num(),1,
+	ParallelForWithPreWork( TEXT("Texture.CompressMipChain.PF"),AsyncCompressionTasks.Num(),1,
 		[&AsyncCompressionTasks](int32 TaskIndex)
 		{
 			AsyncCompressionTasks[TaskIndex].DoWork();
@@ -2392,7 +2412,7 @@ public:
 		uint32& OutExtData
 	)
 	{
-		//TRACE_CPUPROFILER_EVENT_SCOPE(BuildTexture);
+		//TRACE_CPUPROFILER_EVENT_SCOPE(Texture.BuildTexture);
 
 		const ITextureFormat* TextureFormat = nullptr;
 
@@ -2433,12 +2453,15 @@ public:
 			FTextureBuildSettings DefaultSettings;
 
 			// helps to reduce aliasing further
-			// @todo Oodle I think SharpenMipKernelSize=4 here is a bug
-			//	because GenerateTopMip does SharpenMipKernelSize/2
-			//	this actually gives you a kernel size of 2
-			//	which is a box filter
+
+			//@todo CB this looks broken :			
 			DefaultSettings.MipSharpening = -4.0f;
 			DefaultSettings.SharpenMipKernelSize = 4;
+
+			// same as TMGS_Blur2 :
+			//DefaultSettings.MipSharpening = -4.0f;
+			//DefaultSettings.SharpenMipKernelSize = 6;
+
 			DefaultSettings.bApplyKernelToTopMip = true;
 			// important to make accurate computation with normal length
 			DefaultSettings.bRenormalizeTopMip = true;
@@ -2517,7 +2540,7 @@ private:
 		const FTextureFormatCompressorCaps& CompressorCaps,
 		TArray<FImage>& OutMipChain)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(BuildTextureMips);
+		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.BuildTextureMips);
 
 		check(InSourceMips.Num());
 		check(InSourceMips[0].SizeX > 0 && InSourceMips[0].SizeY > 0 && InSourceMips[0].NumSlices > 0);
