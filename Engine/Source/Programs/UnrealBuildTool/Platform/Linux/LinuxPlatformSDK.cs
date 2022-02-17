@@ -64,6 +64,15 @@ namespace UnrealBuildTool
 		{
 			if (StringValue != null)
 			{
+				// if it doesnt start with a v (for an SDK version), assume its a valid version
+				// which will be used for devices. If a messed up toolchain ends up not having a v<num>
+				// 1 will be an invalid range number to pass which will fail the SDK range check
+				if (StringValue[0] != 'v')
+				{
+					OutValue = 1;
+					return true;
+				}
+
 				// Example: v11_clang-5.0.0-centos7
 				string FullVersionPattern = @"^v([0-9]+)_.*$";
 				Match Result = Regex.Match(StringValue, FullVersionPattern);
@@ -76,10 +85,6 @@ namespace UnrealBuildTool
 			OutValue = 0;
 			return false;
 		}
-
-
-
-
 
 		protected override bool PlatformSupportsAutoSDKs()
 		{

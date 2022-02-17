@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
@@ -20,6 +21,21 @@ public abstract class BaseLinuxPlatform : Platform
 	public BaseLinuxPlatform(UnrealTargetPlatform P)
 		: base(P)
 	{
+	}
+
+	public override DeviceInfo[] GetDevices()
+	{
+		List<DeviceInfo> Devices = new List<DeviceInfo>();
+
+		if (HostPlatform.Current.HostEditorPlatform == TargetPlatformType)
+		{
+			DeviceInfo LocalMachine = new DeviceInfo(TargetPlatformType, Environment.MachineName, Environment.MachineName,
+				RuntimeInformation.OSDescription, "Computer", true, true);
+
+			Devices.Add(LocalMachine);
+		}
+
+		return Devices.ToArray();
 	}
 
 	public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)
