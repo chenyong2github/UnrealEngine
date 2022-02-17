@@ -4266,7 +4266,7 @@ void FControlRigEditor::NotifyPreChange(FProperty* PropertyAboutToChange)
 void FControlRigEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	FBlueprintEditor::NotifyPostChange(PropertyChangedEvent, PropertyThatChanged);
-	
+
 	// we need to listen to changes for variables on the blueprint here since
 	// OnFinishedChangingProperties is called only for top level property changes.
 	// changes on a lower level property like transform under a user defined struct
