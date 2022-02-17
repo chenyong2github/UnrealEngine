@@ -52,7 +52,7 @@ namespace EpicGames.Horde.Storage.Impl
 
 		FileReference GetBlobFile(NamespaceId NamespaceId, IoHash Hash)
 		{
-			return FileReference.Combine(BaseDir, $"{NamespaceId}-{Hash}.blob");
+			return FileReference.Combine(BaseDir, NamespaceId.ToString(), $"{Hash}.blob");
 		}
 
 		/// <inheritdoc/>
@@ -67,6 +67,8 @@ namespace EpicGames.Horde.Storage.Impl
 		public async Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream, CancellationToken CancellationToken = default)
 		{
 			FileReference File = GetBlobFile(NamespaceId, Hash);
+			DirectoryReference.CreateDirectory(File.Directory);
+
 			Logger.LogInformation("Writing {File} ({Size} bytes)", File, Stream.Length);
 			using (Stream OutputStream = FileReference.Open(File, FileMode.Create, FileAccess.Write, FileShare.Read))
 			{
@@ -94,7 +96,7 @@ namespace EpicGames.Horde.Storage.Impl
 
 		FileReference GetRefFile(NamespaceId NamespaceId, BucketId BucketId, RefId RefId)
 		{
-			return FileReference.Combine(BaseDir, $"{NamespaceId}-{BucketId}-{RefId}.ref");
+			return FileReference.Combine(BaseDir, NamespaceId.ToString(), BucketId.ToString(), $"{RefId}.ref");
 		}
 
 		/// <inheritdoc/>
@@ -122,6 +124,8 @@ namespace EpicGames.Horde.Storage.Impl
 		public async Task<List<IoHash>> TrySetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CbObject Value, CancellationToken CancellationToken = default)
 		{
 			FileReference File = GetRefFile(NamespaceId, BucketId, RefId);
+			DirectoryReference.CreateDirectory(File.Directory);
+
 			Logger.LogInformation("Writing {File} ({Size} bytes)", File, Value.GetView().Length);
 			await FileReference.WriteAllBytesAsync(File, Value.GetView().ToArray(), CancellationToken);
 			return new List<IoHash>();

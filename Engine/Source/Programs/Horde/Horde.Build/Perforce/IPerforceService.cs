@@ -118,15 +118,6 @@ namespace HordeServer.Services
 		public Task<IStreamView> GetStreamViewAsync(string ClusterName, string StreamName);
 
 		/// <summary>
-		/// Gets the state of all files in a stream
-		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="StreamName">The stream name</param>
-		/// <param name="Change">The changelist to query</param>
-		/// <returns></returns>
-		public Task<List<ChangeFile>> GetStreamSnapshotAsync(string ClusterName, string StreamName, int Change);
-
-		/// <summary>
 		/// Create a new changelist by submitting the given file
 		/// </summary>
 		/// <param name="ClusterName">Name of the Perforce cluster</param>
@@ -203,14 +194,6 @@ namespace HordeServer.Services
 		/// <param name="ImpersonateUser">Name of the user to impersonate</param>
 		/// <returns>Commit details</returns>
 		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string ClusterName, string StreamName, IReadOnlyList<int> ChangeNumbers, string? ImpersonateUser);
-
-		/// <summary>
-		/// Create a ticket as the specified user
-		/// </summary>
-		/// <param name="ClusterName">Name of the Perforce cluster</param>
-		/// <param name="ImpersonateUser">Name of the user to impersonate</param>
-		/// <returns>Commit details</returns>
-		public Task<string> CreateTicket(string ClusterName, string ImpersonateUser);
 
 		/// <summary>
 		/// Gets the latest changes for a set of depot paths

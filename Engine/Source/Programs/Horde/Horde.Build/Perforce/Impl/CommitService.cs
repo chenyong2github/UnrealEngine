@@ -67,6 +67,11 @@ namespace HordeServer.Commits.Impl
 		public List<StreamId> ContentStreams { get; set; } = new List<StreamId>();
 
 		/// <summary>
+		/// Write Perforce stub files rather than including the actual content.
+		/// </summary>
+		public bool WriteStubFiles { get; set; } = true;
+
+		/// <summary>
 		/// Namespace to store content replicated from Perforce
 		/// </summary>
 		public NamespaceId NamespaceId { get; set; } = new NamespaceId("horde.p4");
@@ -83,23 +88,39 @@ namespace HordeServer.Commits.Impl
 	class CommitTree
 	{
 		/// <summary>
+		/// The stream id
+		/// </summary>
+		public StreamId StreamId { get; }
+
+		/// <summary>
 		/// The changelist number
 		/// </summary>
-		public int Change;
+		public int Change { get; }
 
 		/// <summary>
 		/// Root object describing the tree contents
 		/// </summary>
-		public TreePackObject RootObject;
+		public TreePackObject RootObject { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CommitTree(int Change, TreePackObject RootObject)
+		public CommitTree(StreamId StreamId, int Change, TreePackObject RootObject)
 		{
+			this.StreamId = StreamId;
 			this.Change = Change;
 			this.RootObject = RootObject;
 		}
+
+		/// <summary>
+		/// The ref id for storing this tree
+		/// </summary>
+		public RefId RefId => GetRefId(Change);
+
+		/// <summary>
+		/// The ref id for storing this tree
+		/// </summary>
+		public static RefId GetRefId(int Change) => new RefId(IoHash.Compute(Encoding.UTF8.GetBytes($"{Change}")));
 
 		/// <summary>
 		/// Gets the directory at the root of this tree
@@ -817,7 +838,20 @@ namespace HordeServer.Commits.Impl
 				return null;
 			}
 
-			return new CommitTree(Commit.Change, TreePackObject.Parse(Ref));
+			return new CommitTree(Commit.StreamId, Commit.Change, TreePackObject.Parse(Ref));
+		}
+
+		public async Task<CommitTree> ReadTreeAsync(StreamId StreamId, int Change)
+		{
+			RefId TreeRefId = new RefId(IoHash.Compute(Encoding.UTF8.GetBytes($"{Change}")));
+			IRef Ref = await StorageClient.GetRefAsync(Options.NamespaceId, new BucketId(StreamId.ToString()), TreeRefId);
+			return new CommitTree(StreamId, Change, TreePackObject.Parse(Ref));
+		}
+
+		public async Task WriteTreeAsync(StreamId StreamId, CommitTree Tree)
+		{
+			CbObject Object = Tree.RootObject.ToCbObject();
+			await StorageClient.SetRefAsync(Options.NamespaceId, new BucketId(StreamId.ToString()), Tree.RefId, Object);
 		}
 
 		/// <summary>
@@ -839,7 +873,7 @@ namespace HordeServer.Commits.Impl
 				}
 				else
 				{
-					BaseTree = new CommitTree(BaseCommit.Change, TreePackObject.Parse(await StorageClient.GetRefAsync(Options.NamespaceId, GetStreamBucketId(Stream.Id), BaseCommit.TreeRefId.Value)));
+					BaseTree = new CommitTree(BaseCommit.StreamId, BaseCommit.Change, TreePackObject.Parse(await StorageClient.GetRefAsync(Options.NamespaceId, GetStreamBucketId(Stream.Id), BaseCommit.TreeRefId.Value)));
 				}
 			}
 
@@ -887,34 +921,59 @@ namespace HordeServer.Commits.Impl
 			Logger.LogInformation("Updating client {Client} to changelist {Change}", ClientInfo.Client.Name, Change);
 			ClientInfo.Change = -1;
 
-			Dictionary<int, (string Path, TreePackFileWriter Writer)> Files = new Dictionary<int, (string, TreePackFileWriter)>();
-			await foreach (PerforceResponse Response in Perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { $"//...@{Change}" }, null, typeof(SyncRecord), true, default))
+			if (Options.WriteStubFiles)
 			{
-				PerforceIo? Io = Response.Io;
-				if (Io != null)
+				await foreach (PerforceResponse<SyncRecord> Record in Perforce.StreamCommandAsync<SyncRecord>("sync", new[] { "-k", $"//...@{Change}" }, null, default))
 				{
-					if (Io.Command == PerforceIoCommand.Open)
+					SyncRecord SyncRecord = Record.Data;
+					if (!SyncRecord.Path.StartsWith(ClientInfo.Client.Root, StringComparison.Ordinal))
 					{
-						string Path = GetClientRelativePath(Io.Payload, ClientInfo.Client.Root);
-						TreePackFileWriter FileWriter = new TreePackFileWriter(ClientInfo.TreePack);
-						Files[Io.File] = (Path, FileWriter);
+						throw new ArgumentException($"Unable to make path {ClientInfo.Client.Root} relative to client root {ClientInfo.Client.Root}");
 					}
-					else if (Io.Command == PerforceIoCommand.Write)
+
+					string RelativePath = SyncRecord.Path.Substring(ClientInfo.Client.Root.Length).Replace('\\', '/').TrimStart('/');
+
+					string DepotPath = $"{SyncRecord.DepotFile}#{SyncRecord.Revision}";
+					byte[] Data = new byte[Encoding.UTF8.GetMaxByteCount(DepotPath.Length) + 1];
+					Data[0] = (byte)TreePackNodeType.Binary;
+					int Length = Encoding.UTF8.GetBytes(DepotPath, Data.AsSpan(1));
+					ReadOnlyMemory<byte> EncodedData = Data.AsMemory(0, Length + 1);
+
+					IoHash Hash = await ClientInfo.TreePack.AddNodeAsync(EncodedData);
+					await DirWriter.FindOrAddFileByPathAsync(RelativePath, TreePackDirEntryFlags.File | TreePackDirEntryFlags.PerforceDepotPathAndRevision, Hash, Sha1Hash.Zero);
+				}
+			}
+			else
+			{
+				Dictionary<int, (string Path, TreePackFileWriter Writer)> Files = new Dictionary<int, (string, TreePackFileWriter)>();
+				await foreach (PerforceResponse Response in Perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { $"//...@{Change}" }, null, typeof(SyncRecord), true, default))
+				{
+					PerforceIo? Io = Response.Io;
+					if (Io != null)
 					{
-						TreePackFileWriter FileWriter = Files[Io.File].Writer;
-						await FileWriter.WriteAsync(Io.Payload, false);
-					}
-					else if (Io.Command == PerforceIoCommand.Close)
-					{
-						(string Path, TreePackFileWriter FileWriter) = Files[Io.File];
-						IoHash FileHash = await FileWriter.FinalizeAsync();
-						await DirWriter.FindOrAddFileByPathAsync(Path, TreePackDirEntryFlags.File, FileHash, Sha1Hash.Zero);
-						Files.Remove(Io.File);
-					}
-					else if (Io.Command == PerforceIoCommand.Unlink)
-					{
-						string Path = GetClientRelativePath(Io.Payload, ClientInfo.Client.Root);
-						await DirWriter.RemoveFileByPathAsync(Path);
+						if (Io.Command == PerforceIoCommand.Open)
+						{
+							string Path = GetClientRelativePath(Io.Payload, ClientInfo.Client.Root);
+							TreePackFileWriter FileWriter = new TreePackFileWriter(ClientInfo.TreePack);
+							Files[Io.File] = (Path, FileWriter);
+						}
+						else if (Io.Command == PerforceIoCommand.Write)
+						{
+							TreePackFileWriter FileWriter = Files[Io.File].Writer;
+							await FileWriter.WriteAsync(Io.Payload, false);
+						}
+						else if (Io.Command == PerforceIoCommand.Close)
+						{
+							(string Path, TreePackFileWriter FileWriter) = Files[Io.File];
+							IoHash FileHash = await FileWriter.FinalizeAsync();
+							await DirWriter.FindOrAddFileByPathAsync(Path, TreePackDirEntryFlags.File, FileHash, Sha1Hash.Zero);
+							Files.Remove(Io.File);
+						}
+						else if (Io.Command == PerforceIoCommand.Unlink)
+						{
+							string Path = GetClientRelativePath(Io.Payload, ClientInfo.Client.Root);
+							await DirWriter.RemoveFileByPathAsync(Path);
+						}
 					}
 				}
 			}
@@ -924,7 +983,7 @@ namespace HordeServer.Commits.Impl
 			// Return the new root object
 			IoHash RootHash = await DirWriter.FlushAsync();
 			TreePackObject RootObject = await ClientInfo.TreePack.FlushAsync(RootHash, DateTime.UtcNow);
-			return new CommitTree(Change, RootObject);
+			return new CommitTree(Stream.Id, Change, RootObject);
 		}
 
 		async Task FlushWorkspaceAsync(ReplicationClient ClientInfo, IPerforceConnection Perforce, int Change)

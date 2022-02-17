@@ -55,14 +55,9 @@ namespace HordeServer.Commands
 			IServiceCollection Services = new ServiceCollection();
 			Startup.AddServices(Services, Configuration);
 
-			OutputDir ??= DirectoryReference.Combine(Program.DataDir, "p4");
+			OutputDir ??= DirectoryReference.Combine(Program.DataDir, "Storage");
 			Logger.LogInformation("Writing output to {OutputDir}", OutputDir);
-
-			DirectoryReference BlobsDir = DirectoryReference.Combine(OutputDir, "blobs");
-			Services.AddSingleton<IStorageClient, FileStorageClient>(SP => new FileStorageClient(BlobsDir, Logger));
-
-			DirectoryReference RootsDir = DirectoryReference.Combine(OutputDir, "roots");
-			DirectoryReference.CreateDirectory(RootsDir);
+			Services.AddSingleton<IStorageClient, FileStorageClient>(SP => new FileStorageClient(OutputDir, Logger));
 
 			IServiceProvider ServiceProvider = Services.BuildServiceProvider();
 			CommitService CommitService = ServiceProvider.GetRequiredService<CommitService>();
@@ -82,15 +77,7 @@ namespace HordeServer.Commands
 			CommitTree? BaseTree = null; 
 			if (BaseChange != 0)
 			{
-				ICommit? BaseCommit = await CommitCollection.GetCommitAsync(Stream.Id, BaseChange);
-				if (BaseCommit == null)
-				{
-					throw new FatalErrorException($"Unable to find base commit {BaseChange}");
-				}
-
-				FileReference RootFile = FileReference.Combine(RootsDir, $"{BaseCommit.Change}.ref");
-				byte[] RootData = await FileReference.ReadAllBytesAsync(RootFile);
-				BaseTree = new CommitTree(BaseCommit.Change, TreePackObject.Parse(RootData));
+				BaseTree = await CommitService.ReadTreeAsync(Stream.Id, BaseChange);
 			}
 
 			await foreach (NewCommit NewCommit in CommitService.FindCommitsForClusterAsync(Stream.ClusterName, StreamToFirstChange).Take(Count))
@@ -102,11 +89,7 @@ namespace HordeServer.Commands
 				if (Content)
 				{
 					BaseTree = await CommitService.FindCommitTreeAsync(Stream, NewCommit.Change, BaseTree);
-
-					FileReference RootFile = FileReference.Combine(RootsDir, $"{NewCommit.Change}.ref");
-					ReadOnlyMemory<byte> RootData = BaseTree.RootObject.ToCbObject().GetView();
-					await FileReference.WriteAllBytesAsync(RootFile, RootData.ToArray());
-					Logger.LogInformation("Written root to {RootFile} ({Size:n0} bytes)", RootFile, RootFile.ToFileInfo().Length);
+					await CommitService.WriteTreeAsync(Stream.Id, BaseTree);
 				}
 			}
 

@@ -72,6 +72,12 @@ namespace EpicGames.Horde.Storage
 		public static TreePackObject Parse(ReadOnlyMemory<byte> Data) => CbSerializer.Deserialize<TreePackObject>(Data);
 
 		/// <summary>
+		/// Serialize this object to compact binary
+		/// </summary>
+		/// <returns></returns>
+		public CbObject ToCbObject() => CbSerializer.Serialize(this);
+
+		/// <summary>
 		/// Gets the root hash for this object
 		/// </summary>
 		/// <returns></returns>
@@ -284,6 +290,11 @@ namespace EpicGames.Horde.Storage
 		/// The attached entry includes a Git SHA1 of the corresponding blob/tree contents.
 		/// </summary>
 		HasGitSha1 = 32,
+
+		/// <summary>
+		/// The data for this entry is a Perforce depot path and revision rather than the actual file contents.
+		/// </summary>
+		PerforceDepotPathAndRevision = 64,
 	}
 
 	/// <summary>
@@ -966,7 +977,8 @@ namespace EpicGames.Horde.Storage
 		{
 			if (VisitedBlobs.Add(Blob))
 			{
-				foreach (BlobInfo ReferencedBlob in Blob.ReferencedBy)
+				BlobInfo[] ReferencedBy = Blob.ReferencedBy.ToArray();
+				foreach (BlobInfo ReferencedBlob in ReferencedBy)
 				{
 					ExpandReferences(ReferencedBlob, VisitedBlobs);
 					Blob.ReferencedBy.UnionWith(ReferencedBlob.ReferencedBy);
@@ -1119,6 +1131,7 @@ namespace EpicGames.Horde.Storage
 				Node.CompressedData = ReadOnlyMemory<byte>.Empty;
 			}
 
+			Blobs[Blob.Hash] = Blob;
 			return Blob;
 		}
 
@@ -1262,6 +1275,42 @@ namespace EpicGames.Horde.Storage
 
 			// Compute the final cost estimate; the amount of time we expect agents to spend downloading the file
 			return Probability * (DownloadInit + (Size / DownloadRate));
+		}
+
+		public async Task WriteTreeSummaryAsync(IoHash RootHash, DirectoryReference Directory, ILogger Logger)
+		{
+			DirectoryReference.CreateDirectory(Directory);
+
+			HashSet<NodeInfo> FoundNodes = new HashSet<NodeInfo>();
+			await FindNodesAsync(RootHash, FoundNodes);
+
+			HashSet<BlobInfo> FoundBlobs = new HashSet<BlobInfo>();
+			foreach (NodeInfo FoundNode in FoundNodes)
+			{
+				BlobInfo? FoundBlob = FoundNode.Blob;
+				if (FoundBlob != null && FoundBlobs.Add(FoundBlob) && !FoundBlob.IsLeaf)
+				{
+					TreePackObject Object = TreePackObject.Parse(FoundBlob.Data);
+
+					FileReference OutputFile = FileReference.Combine(Directory, $"{FoundBlob.Hash}.yml");
+					Logger.LogInformation("Writing summary: {File}", OutputFile);
+
+					WriteSummary(OutputFile, Object);
+				}
+			}
+		}
+
+		async Task FindNodesAsync(IoHash Hash, HashSet<NodeInfo> FoundNodes)
+		{
+			NodeInfo Node = Nodes[Hash];
+			if (FoundNodes.Add(Node) && (Node.Blob == null || !Node.Blob.IsLeaf))
+			{
+				ReadOnlyMemory<byte> Data = await GetDataAsync(Node.Hash);
+				foreach (IoHash RefHash in GetReferences(Data))
+				{
+					await FindNodesAsync(RefHash, FoundNodes);
+				}
+			}
 		}
 
 		public static void WriteSummary(FileReference File, TreePackObject Object)

@@ -103,11 +103,11 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Adds a directory to the current tree level with the given name
+		/// Gets a directory writer to the current tree level for the given directory name
 		/// </summary>
 		/// <param name="Name"></param>
-		/// <returns></returns>
-		public async ValueTask<TreePackDirWriter> FindOrAddDirAsync(Utf8String Name)
+		/// <returns>Writer for the given directory name. Null if a directory by this name does not exist.</returns>
+		public async ValueTask<TreePackDirWriter?> FindDirAsync(Utf8String Name)
 		{
 			TreePackDirWriter? Writer;
 			if (!NameToSubDir.TryGetValue(Name, out Writer))
@@ -116,15 +116,57 @@ namespace EpicGames.Horde.Storage
 				if (NameToEntry.TryGetValue(Name, out Entry) && (Entry.Flags & TreePackDirEntryFlags.Directory) != 0)
 				{
 					Writer = await FromDirNodeAsync(TreePack, Entry.Hash);
+					NameToEntry.Remove(Name);
+					NameToSubDir.Add(Name, Writer);
 				}
-				else
-				{
-					Writer = new TreePackDirWriter(TreePack);
-				}
-				NameToEntry.Remove(Name);
+			}
+			return Writer;
+		}
+
+		/// <summary>
+		/// Adds a directory to the current tree level with the given name
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <returns></returns>
+		public async ValueTask<TreePackDirWriter> FindOrAddDirAsync(Utf8String Name)
+		{
+			TreePackDirWriter? Writer = await FindDirAsync(Name);
+			if (Writer == null)
+			{
+				Writer = new TreePackDirWriter(TreePack);
 				NameToSubDir.Add(Name, Writer);
 			}
 			return Writer;
+		}
+
+		/// <summary>
+		/// Adds a file to the tree pack with the given path. 
+		/// </summary>
+		/// <param name="Path">Path to the file. Should be specified using forward slashes as directory separators, and without a leading slash.</param>
+		public async Task RemoveFileByPathAsync(Utf8String Path)
+		{
+			int Index = Path.IndexOf('/');
+			if (Index == -1)
+			{
+				if (NameToEntry.TryGetValue(Path, out TreePackDirEntry? Entry) && (Entry.Flags & TreePackDirEntryFlags.File) != 0)
+				{
+					NameToEntry.Remove(Path);
+				}
+			}
+			else
+			{
+				Utf8String DirName = Path.Substring(0, Index);
+
+				TreePackDirWriter? SubDirWriter = await FindDirAsync(DirName);
+				if (SubDirWriter != null)
+				{
+					await SubDirWriter.RemoveFileByPathAsync(Path.Substring(Index + 1));
+					if (SubDirWriter.NameToEntry.Count == 0 && SubDirWriter.NameToSubDir.Count == 0)
+					{
+						NameToSubDir.Remove(DirName);
+					}
+				}
+			}
 		}
 
 		/// <summary>

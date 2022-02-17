@@ -786,43 +786,6 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ChangeFile>> GetStreamSnapshotAsync(string ClusterName, string StreamName, int Change)
-		{
-			using IScope Scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetStreamSnapshotAsync").StartActive();
-			Scope.Span.SetTag("ClusterName", ClusterName);
-			Scope.Span.SetTag("StreamName", StreamName);
-			Scope.Span.SetTag("Change", Change);
-			
-			PerforceCluster Cluster = await GetClusterAsync(ClusterName);
-			using (P4.Repository Repository = await GetConnection(Cluster, Stream: StreamName))
-			{
-				P4.FileSpec FileSpec = new P4.FileSpec(new P4.DepotPath($"//UE5/Main/Engine/Build/..."), new P4.ChangelistIdVersion(Change));
-				Repository.Connection.Client.SyncFiles(new P4.SyncFilesCmdOptions(P4.SyncFilesCmdFlags.ServerOnly | P4.SyncFilesCmdFlags.Quiet), FileSpec);
-
-				string ClientPrefix = $"//{Repository.Connection.Client.Name}/";
-				P4.FileSpec StatSpec = new P4.FileSpec(new P4.ClientPath($"{ClientPrefix}..."));
-
-				IList<P4.FileMetaData> Files = Repository.GetFileMetaData(new P4.GetFileMetaDataCmdOptions(P4.GetFileMetadataCmdFlags.Synced | P4.GetFileMetadataCmdFlags.LocalPath | P4.GetFileMetadataCmdFlags.FileSize, null, null, 0, null, null, null), StatSpec);
-
-				List<ChangeFile> Results = new List<ChangeFile>();
-				foreach (P4.FileMetaData File in Files)
-				{
-					string RelativePath = File.ClientPath.Path;
-					if (RelativePath.StartsWith(ClientPrefix, StringComparison.OrdinalIgnoreCase))
-					{
-						RelativePath = RelativePath.Substring(ClientPrefix.Length);
-					}
-					else
-					{
-						throw new Exception($"Client path does not start with client name: {RelativePath}");
-					}
-					Results.Add(CreateChangeFile(RelativePath, File));
-				}
-				return Results;
-			}
-		}
-
-		/// <inheritdoc/>
 		public async Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, int? MinChange, int? MaxChange, int MaxResults)
 		{
 			using IScope Scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangesAsync").StartActive();
@@ -1073,25 +1036,6 @@ namespace HordeServer.Services
 
 				return Results;
 			}
-		}
-
-		/// <inheritdoc />
-		public async Task<string> CreateTicket(string ClusterName, string ImpersonateUser)
-		{
-			using IScope Scope = GlobalTracer.Instance.BuildSpan("PerforceService.CreateTicket").StartActive();
-			Scope.Span.SetTag("ClusterName", ClusterName);
-			Scope.Span.SetTag("ImpersonateUser", ImpersonateUser);
-			
-			PerforceCluster Cluster = await GetClusterAsync(ClusterName);
-
-			CachedTicketInfo Credential = await GetImpersonateCredential(Cluster, ImpersonateUser);
-
-			if (Credential == null)
-			{
-				throw new Exception($"Unable to get ticket for user {ImpersonateUser}");
-			}
-
-			return Credential.Ticket.Ticket;
 		}
 
 		/// <inheritdoc/>
