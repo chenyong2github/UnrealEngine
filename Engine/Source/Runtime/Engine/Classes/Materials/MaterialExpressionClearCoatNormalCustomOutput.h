@@ -21,9 +21,9 @@ class UMaterialExpressionClearCoatNormalCustomOutput : public UMaterialExpressio
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual FExpressionInput* GetInput(int32 InputIndex) override;
-
-	// Begin UObject Interface
 	virtual uint32 GetInputType(int32 InputIndex) override { return MCT_Float3; }
+	virtual UE::Shader::EValueType GetCustomOutputType(int32 OutputIndex) const override { return UE::Shader::EValueType::Float3; }
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
 #endif
 
 

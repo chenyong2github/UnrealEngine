@@ -21,6 +21,7 @@ class UMaterialFunctionInterface;
 class UMaterialExpression;
 class UMaterialExpressionFunctionInput;
 class UMaterialExpressionFunctionOutput;
+class UMaterialExpressionCustomOutput;
 struct FFunctionExpressionInput;
 class ITargetPlatform;
 
@@ -81,6 +82,10 @@ public:
 
 	UE::HLSLTree::FExpression* GetResultExpression() { return ResultExpression; }
 	UE::HLSLTree::FStatement* GetResultStatement() { return ResultStatement; }
+
+	void SetRequestedFields(EShaderFrequency ShaderFrequency, UE::HLSLTree::FRequestedType& OutRequestedType);
+
+	void EmitSharedCode(FStringBuilderBase& OutCode) const;
 
 	bool GenerateResult(UE::HLSLTree::FScope& Scope);
 
@@ -184,6 +189,7 @@ private:
 	UMaterial* TargetMaterial = nullptr;
 	FMaterialHLSLErrorHandler Errors;
 
+	TArray<UMaterialExpressionCustomOutput*> MaterialCustomOutputs;
 	const UE::Shader::FStructType* MaterialAttributesType = nullptr;
 	UE::Shader::FValue MaterialAttributesDefaultValue;
 

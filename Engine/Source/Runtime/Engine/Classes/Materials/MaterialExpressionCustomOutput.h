@@ -25,6 +25,10 @@ class UMaterialExpressionCustomOutput : public UMaterialExpression
 	virtual bool NeedsCustomOutputDefines() { return true; }
 	virtual bool ShouldCompileBeforeAttributes() { return false; }
 	virtual EShaderFrequency GetShaderFrequency() { return SF_Pixel; }
+
+	// This is currently only needed by the new HLSL translator
+	// Should probably be merged with UMaterialExpression base interface, which already provides GetInputType/GetOutputType
+	virtual UE::Shader::EValueType GetCustomOutputType(int32 OutputIndex) const { return UE::Shader::EValueType::Void; }
 #endif
 };
 

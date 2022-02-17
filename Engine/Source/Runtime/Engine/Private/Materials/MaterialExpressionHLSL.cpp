@@ -77,6 +77,7 @@
 #include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionIf.h"
 #include "Materials/MaterialExpressionCustom.h"
+#include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionSetLocal.h"
 #include "Materials/MaterialExpressionIfThenElse.h"
 #include "Materials/MaterialExpressionForLoop.h"
@@ -1249,6 +1250,12 @@ bool UMaterialExpressionCustom::GenerateHLSLExpression(FMaterialHLSLGenerator& G
 
 	OutExpression = Generator.GetTree().NewExpression<FExpressionGetStructField>(OutputStructType, &OutputStructType->Fields[OutputIndex], ExpressionCustom);
 	return true;
+}
+
+bool UMaterialExpressionClearCoatNormalCustomOutput::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	OutExpression = Input.AcquireHLSLExpression(Generator, Scope);
+	return OutExpression != nullptr;
 }
 
 bool UMaterialExpressionExecBegin::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)

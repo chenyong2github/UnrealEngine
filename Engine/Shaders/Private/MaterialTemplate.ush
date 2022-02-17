@@ -450,6 +450,8 @@ struct FMaterialPixelParameters
 	FStrataTree StrataTree;
 	FStrataPixelFootprint StrataPixelFootprint;
 #endif
+
+	FMaterialAttributes MaterialAttributes;
 };
 
 /**
@@ -527,7 +529,7 @@ struct FMaterialVertexParameters
 	uint WaterWaveParamIndex;
 #endif
 
-	FMaterialAttributes MaterialVertexAttributes;
+	FMaterialAttributes MaterialAttributes;
 
 	/** Cached primitive and instance data */
 	FSceneDataIntermediates SceneData;

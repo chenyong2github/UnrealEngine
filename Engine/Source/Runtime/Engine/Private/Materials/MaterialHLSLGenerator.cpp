@@ -8,6 +8,7 @@
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionFunctionInput.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
+#include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
 #include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/Material.h"
@@ -96,6 +97,8 @@ FMaterialHLSLGenerator::FMaterialHLSLGenerator(const FMaterialCompileTargetParam
 	FFunctionCallEntry* RootFunctionEntry = new(InOutTree.GetAllocator()) FFunctionCallEntry();
 	FunctionCallStack.Add(RootFunctionEntry);
 
+	InOutMaterial.GatherCustomOutputExpressions(MaterialCustomOutputs);
+
 	TArray<UE::Shader::FStructFieldInitializer, TInlineAllocator<MP_MAX + 16>> MaterialAttributeFields;
 
 	const TArray<FGuid>& OrderedVisibleAttributes = FMaterialAttributeDefinitionMap::GetOrderedVisibleAttributeList();
@@ -120,6 +123,27 @@ FMaterialHLSLGenerator::FMaterialHLSLGenerator(const FMaterialCompileTargetParam
 				const UE::Shader::FValue DefaultValue = UE::Shader::Cast(FMaterialAttributeDefinitionMap::GetDefaultValue(AttributeID), ValueType);
 				MaterialAttributesDefaultValue.Component.Append(DefaultValue.Component);
 			}
+		}
+	}
+
+	TArray<TStringBuilder<256>, TInlineAllocator<4>> CustomOutputNames;
+	CustomOutputNames.Reserve(MaterialCustomOutputs.Num());
+	for (UMaterialExpressionCustomOutput* CustomOutput : MaterialCustomOutputs)
+	{
+		const int32 NumOutputs = CustomOutput->GetNumOutputs();
+		const FString OutputName = CustomOutput->GetFunctionName();
+
+		check(!CustomOutput->ShouldCompileBeforeAttributes()); // not supported yet, looks like this isn't currently being used
+
+		for (int32 OutputIndex = 0; OutputIndex < NumOutputs; ++OutputIndex)
+		{
+			const UE::Shader::EValueType ValueType = CustomOutput->GetCustomOutputType(OutputIndex);
+			FStringBuilderBase& FormattedName = CustomOutputNames.AddDefaulted_GetRef();
+			FormattedName.Appendf(TEXT("%s%d"), *OutputName, OutputIndex);
+			MaterialAttributeFields.Emplace(FormattedName.ToView(), ValueType);
+
+			const UE::Shader::FValue DefaultValue(ValueType);
+			MaterialAttributesDefaultValue.Component.Append(DefaultValue.Component);
 		}
 	}
 
@@ -191,6 +215,60 @@ bool FMaterialHLSLGenerator::Generate()
 	}
 
 	return HLSLTree->Finalize();
+}
+
+void FMaterialHLSLGenerator::SetRequestedFields(EShaderFrequency ShaderFrequency, UE::HLSLTree::FRequestedType& OutRequestedType)
+{
+	for (UMaterialExpressionCustomOutput* CustomOutput : MaterialCustomOutputs)
+	{
+		if (CustomOutput->GetShaderFrequency() != ShaderFrequency)
+		{
+			continue;
+		}
+
+		const int32 NumOutputs = CustomOutput->GetNumOutputs();
+		const FString OutputName = CustomOutput->GetFunctionName();
+
+		for (int32 OutputIndex = 0; OutputIndex < NumOutputs; ++OutputIndex)
+		{
+			TStringBuilder<256> FieldName;
+			FieldName.Appendf(TEXT("%s%d"), *OutputName, OutputIndex);
+			const UE::Shader::FStructField* CustomOutputField = GetMaterialAttributesType()->FindFieldByName(FieldName.ToString());
+			check(CustomOutputField);
+			OutRequestedType.SetFieldRequested(CustomOutputField);
+		}
+	}
+}
+
+void FMaterialHLSLGenerator::EmitSharedCode(FStringBuilderBase& OutCode) const
+{
+	using namespace UE::Shader;
+	for (UMaterialExpressionCustomOutput* CustomOutput : MaterialCustomOutputs)
+	{
+		const int32 NumOutputs = CustomOutput->GetNumOutputs();
+		const FString OutputName = CustomOutput->GetFunctionName();
+		const EShaderFrequency ShaderFrequency = CustomOutput->GetShaderFrequency();
+
+		if (CustomOutput->NeedsCustomOutputDefines())
+		{
+			OutCode.Appendf(TEXT("#define NUM_MATERIAL_OUTPUTS_%s %d\n"), *OutputName.ToUpper(), NumOutputs);
+		}
+
+		for (int32 OutputIndex = 0; OutputIndex < NumOutputs; ++OutputIndex)
+		{
+			const EValueType ValueType = CustomOutput->GetCustomOutputType(OutputIndex);
+			const FValueTypeDescription ValueTypeDesc = GetValueTypeDescription(ValueType);
+
+			OutCode.Appendf(TEXT("#define HAVE_%s%d 1\n"), *OutputName, OutputIndex);
+
+			OutCode.Appendf(TEXT("%s %s%d(FMaterial%sParameters Parameters) { return Parameters.MaterialAttributes.%s%d; }\n"),
+				ValueTypeDesc.Name,
+				*OutputName, OutputIndex,
+				ShaderFrequency == SF_Pixel ? TEXT("Pixel") : TEXT("Vertex"),
+				*OutputName, OutputIndex);
+		}
+		OutCode.Append(TEXT("\n"));
+	}
 }
 
 static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& Generator,
@@ -298,6 +376,22 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 				{
 					const EMaterialProperty Property = (EMaterialProperty)PropertyIndex;
 					AttributesExpression = CompileMaterialInput(*this, Scope, Property, TargetMaterial, AttributesExpression);
+				}
+			}
+
+			for (UMaterialExpressionCustomOutput* CustomOutput : MaterialCustomOutputs)
+			{
+				const int32 NumOutputs = CustomOutput->GetNumOutputs();
+				const FString OutputName = CustomOutput->GetFunctionName();
+				for (int32 OutputIndex = 0; OutputIndex < NumOutputs; ++OutputIndex)
+				{
+					TStringBuilder<256> FieldName;
+					FieldName.Appendf(TEXT("%s%d"), *OutputName, OutputIndex);
+					const FStructField* CustomOutputField = GetMaterialAttributesType()->FindFieldByName(FieldName.ToString());
+					check(CustomOutputField);
+
+					FExpression* CustomOutputExpression = AcquireExpression(Scope, CustomOutput, OutputIndex);
+					AttributesExpression = HLSLTree->NewExpression<FExpressionSetStructField>(GetMaterialAttributesType(), CustomOutputField, AttributesExpression, CustomOutputExpression);
 				}
 			}
 

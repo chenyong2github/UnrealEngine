@@ -178,12 +178,7 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 
 	LazyPrintf.PushParam(*PixelMembersDeclaration);
 
-	{
-		FString DerivativeHelpers;// = DerivativeAutogen.GenerateUsedFunctions(*this);
-		FString DerivativeHelpersAndResources;// = DerivativeHelpers + ResourcesString;
-		//LazyPrintf.PushParam(*ResourcesString);
-		LazyPrintf.PushParam(*DerivativeHelpersAndResources);
-	}
+	LazyPrintf.PushParam(SharedShaderCode);
 
 	// Anything used bye the GenerationFunctionCode() like WorldPositionOffset shouldn't be using texures, right?
 	// Let those use the standard finite differences textures, since they should be the same. If we actually want
@@ -215,10 +210,11 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 
 	LazyPrintf.PushParam(*FString::Printf(TEXT("return %.5f"), Material.GetOpacityMaskClipValue()));
 
-	LazyPrintf.PushParam(TEXT("return Parameters.MaterialVertexAttributes.WorldPositionOffset"));
-	LazyPrintf.PushParam(TEXT("return Parameters.MaterialVertexAttributes.PrevWorldPositionOffset"));
-	LazyPrintf.PushParam(TEXT("return 0.0f"));
-	LazyPrintf.PushParam(TEXT("return 0.0f"));
+	LazyPrintf.PushParam(TEXT("return Parameters.MaterialAttributes.WorldPositionOffset"));
+	LazyPrintf.PushParam(TEXT("return Parameters.MaterialAttributes.PrevWorldPositionOffset"));
+	// CustomData0/1 are named ClearCoat/ClearCoatRoughness
+	LazyPrintf.PushParam(TEXT("return Parameters.MaterialAttributes.ClearCoat"));
+	LazyPrintf.PushParam(TEXT("return Parameters.MaterialAttributes.ClearCoatRoughness"));
 
 	// Print custom texture coordinate assignments, should be fine with regular derivatives
 	FString CustomUVAssignments;
@@ -229,7 +225,7 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 		//if (bEnableExecutionFlow)
 		{
 			const FString AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName((EMaterialProperty)(MP_CustomizedUVs0 + CustomUVIndex));
-			CustomUVAssignments += FString::Printf(TEXT("\tOutTexCoords[%u] = Parameters.MaterialVertexAttributes.%s;") LINE_TERMINATOR, CustomUVIndex, *AttributeName);
+			CustomUVAssignments += FString::Printf(TEXT("\tOutTexCoords[%u] = Parameters.MaterialAttributes.%s;") LINE_TERMINATOR, CustomUVIndex, *AttributeName);
 		}
 		/*else
 		{
@@ -293,7 +289,7 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 
 	//if (bEnableExecutionFlow)
 	{
-		FString EvaluateMaterialDeclaration = SharedShaderCode;
+		FString EvaluateMaterialDeclaration;
 
 		EvaluateMaterialDeclaration += TEXT("FMaterialAttributes EvaluateVertexMaterialAttributesInternal(FMaterialVertexParameters Parameters)" LINE_TERMINATOR);
 		EvaluateMaterialDeclaration += TEXT("{" LINE_TERMINATOR);
@@ -337,7 +333,12 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 			EvaluateMaterialDeclaration += PixelShaderCodePhase1;
 			EvaluateMaterialDeclaration += TEXT("}" LINE_TERMINATOR);
 
-			EvaluateMaterialAttributesPhase1 = TEXT("    FMaterialAttributes MaterialAttributesPhase1 = EvaluatePixelMaterialAttributesPhase1(Parameters);" LINE_TERMINATOR);
+			EvaluateMaterialAttributesPhase1  = TEXT("    FMaterialAttributes MaterialAttributesPhase1 = EvaluatePixelMaterialAttributesPhase1(Parameters);" LINE_TERMINATOR);
+			EvaluateMaterialAttributesPhase1 += TEXT("    Parameters.MaterialAttributes = MaterialAttributesPhase1;" LINE_TERMINATOR);
+		}
+		else
+		{
+			EvaluateMaterialAttributesPhase0 += TEXT("    Parameters.MaterialAttributes = MaterialAttributesPhase0;" LINE_TERMINATOR);
 		}
 
 		LazyPrintf.PushParam(*EvaluateMaterialDeclaration);
@@ -817,6 +818,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 
 		// Prepare all fields *except* normal
 		FRequestedType RequestedPixelAttributesType;
+		Generator.SetRequestedFields(SF_Pixel, RequestedPixelAttributesType);
 		for (const FGuid& AttributeID : OrderedVisibleAttributes)
 		{
 			if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == SF_Pixel)
@@ -878,6 +880,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	FStringBuilderMemstack VertexCode(Allocator, 1024 * 1024);
 	{
 		FRequestedType RequestedVertexAttributesType;
+		Generator.SetRequestedFields(SF_Vertex, RequestedVertexAttributesType);
 		for (const FGuid& AttributeID : OrderedVisibleAttributes)
 		{
 			if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == SF_Vertex)
@@ -921,8 +924,9 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	TypeRegistry.EmitDeclarationsCode(Declarations);
 
 	FStringBuilderMemstack SharedCode(Allocator, 64 * 1024);
+	Generator.EmitSharedCode(SharedCode);
 	EmitContext.EmitDeclarationsCode(SharedCode);
-
+	
 	FString MaterialTemplateSource = GenerateMaterialTemplateHLSL(InCompilerTarget.ShaderPlatform,
 		InOutMaterial,
 		EmitContext,

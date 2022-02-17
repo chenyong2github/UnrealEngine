@@ -2099,6 +2099,14 @@ public:
 	FORCEINLINE bool IsOwnerBeginDestroyed() const { return false; }
 #endif
 
+#if WITH_EDITORONLY_DATA
+	/* Gather any UMaterialExpressionCustomOutput expressions they can be compiled in turn */
+	virtual void GatherCustomOutputExpressions(TArray<class UMaterialExpressionCustomOutput*>& OutCustomOutputs) const {}
+
+	/* Gather any UMaterialExpressionCustomOutput expressions in the material and referenced function calls */
+	virtual void GatherExpressionsForCustomInterpolators(TArray<class UMaterialExpression*>& OutExpressions) const {}
+#endif // WITH_EDITORONLY_DATA
+
 protected:
 	// shared code needed for GetUniformScalarParameterExpressions, GetUniformVectorParameterExpressions, GetUniformCubeTextureExpressions..
 	// @return can be 0
@@ -2124,14 +2132,6 @@ protected:
 	/** Used to translate code for custom output attributes such as ClearCoatBottomNormal  */
 	virtual int32 CompileCustomAttribute(const FGuid& AttributeID, class FMaterialCompiler* Compiler) const {return INDEX_NONE;}
 #endif
-
-#if WITH_EDITORONLY_DATA
-	/* Gather any UMaterialExpressionCustomOutput expressions they can be compiled in turn */
-	virtual void GatherCustomOutputExpressions(TArray<class UMaterialExpressionCustomOutput*>& OutCustomOutputs) const {}
-
-	/* Gather any UMaterialExpressionCustomOutput expressions in the material and referenced function calls */
-	virtual void GatherExpressionsForCustomInterpolators(TArray<class UMaterialExpression*>& OutExpressions) const {}
-#endif // WITH_EDITORONLY_DATA
 
 	/** Useful for debugging. */
 	virtual FString GetBaseMaterialPathName() const { return TEXT(""); }
