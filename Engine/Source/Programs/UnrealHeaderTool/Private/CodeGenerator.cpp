@@ -6873,6 +6873,7 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 
 	// Finish all async file tasks before stopping the clock
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(GAsyncFileTasks);
+	GAsyncFileTasks.Reset();
 
 	// TEMPORARY change to log all files when UHT fails
 	if (FResults::GetOverallResults() != 0)
