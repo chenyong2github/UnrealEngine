@@ -73,6 +73,7 @@ class UMaterialExpressionFontSampleParameter : public UMaterialExpressionFontSam
 		}
 		return false;
 	}
+	virtual UE::HLSLTree::FExpression* GenerateHLSLTextureExpression(FMaterialHLSLGenerator& Generator, const UE::Shader::FTextureValue* TextureValue) override;
 #endif
 	//~ End UMaterialExpression Interface
 	

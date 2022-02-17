@@ -313,23 +313,6 @@ UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionOrConstant(FMa
 	return TryAcquireHLSLExpression(Generator, Scope);
 }
 
-UE::HLSLTree::FTextureParameterDeclaration* FExpressionInput::AcquireHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
-{
-	UE::HLSLTree::FTextureParameterDeclaration* Result = nullptr;
-	const FExpressionInput TracedInput = GetTracedInput();
-	if (!TracedInput.Expression)
-	{
-		Generator.GetErrors().AddError(TEXT("Missing input"));
-	}
-	else if (Expression)
-	{
-		Expression->ValidateState();
-		Result = Generator.AcquireTextureDeclaration(Scope, Expression, OutputIndex);
-	}
-
-	return Result;
-}
-
 void FExpressionInput::Connect( int32 InOutputIndex, class UMaterialExpression* InExpression )
 {
 	InExpression->ConnectExpression(this, InOutputIndex);

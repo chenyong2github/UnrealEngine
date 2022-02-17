@@ -168,6 +168,8 @@ void FPreshaderData::WriteValue(const FValue& Value)
 {
 	const int32 NumComponents = Value.Type.GetNumComponents();
 
+	check(!Value.Type.IsTexture());
+
 	WriteType(Value.Type);
 	for (int32 Index = 0; Index < NumComponents; ++Index)
 	{

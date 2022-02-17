@@ -174,6 +174,7 @@ enum class ERequestedType : uint8
 {
 	Void = 0u,
 	Scalar = 1u,
+	Texture = 1u, // Currently no different than scalar, just makes code more clear
 	Vector2 = 2u,
 	Vector3 = 3u,
 	Vector4 = 4u,
@@ -456,18 +457,6 @@ public:
 };
 
 /**
- * Represents an HLSL texture parameter.
- */
-class FTextureParameterDeclaration final : public FNode
-{
-public:
-	FTextureParameterDeclaration(const FName& InName, const FTextureDescription& InDescription) : Name(InName), Description(InDescription) {}
-
-	FName Name;
-	FTextureDescription Description;
-};
-
-/**
  * Represents an HLSL scope.  A scope contains a single statement, along with any expressions required by that statement
  */
 class FScope final : public FNode
@@ -577,6 +566,7 @@ public:
 	FExpression* NewUnaryOp(EOperation Op, FExpression* Input);
 	FExpression* NewBinaryOp(EOperation Op, FExpression* Lhs, FExpression* Rhs);
 
+	FExpression* NewAbs(FExpression* Input) { return NewUnaryOp(EOperation::Abs, Input); }
 	FExpression* NewNeg(FExpression* Input) { return NewUnaryOp(EOperation::Neg, Input); }
 	FExpression* NewRcp(FExpression* Input) { return NewUnaryOp(EOperation::Rcp, Input); }
 	FExpression* NewFrac(FExpression* Input) { return NewUnaryOp(EOperation::Frac, Input); }
@@ -593,8 +583,8 @@ public:
 	FExpression* NewMax(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Max, Lhs, Rhs); }
 	FExpression* NewLess(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Less, Lhs, Rhs); }
 	FExpression* NewGreater(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Greater, Lhs, Rhs); }
-
-	FTextureParameterDeclaration* NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue);
+	FExpression* NewLessEqual(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::LessEqual, Lhs, Rhs); }
+	FExpression* NewGreaterEqual(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::GreaterEqual, Lhs, Rhs); }
 
 private:
 	template<typename T, typename... ArgTypes>

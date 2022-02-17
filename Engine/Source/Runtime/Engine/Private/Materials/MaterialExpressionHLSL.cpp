@@ -11,6 +11,7 @@
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/MaterialExpressionExecEnd.h"
+#include "Materials/MaterialExpressionReroute.h"
 #include "Materials/MaterialExpressionGenericConstant.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant2Vector.h"
@@ -30,9 +31,12 @@
 #include "Materials/MaterialExpressionSceneTexelSize.h"
 #include "Materials/MaterialExpressionViewSize.h"
 #include "Materials/MaterialExpressionPanner.h"
+#include "Materials/MaterialExpressionVertexColor.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
+#include "Materials/MaterialExpressionFontSample.h"
+#include "Materials/MaterialExpressionFontSampleParameter.h"
 #include "Materials/MaterialExpressionTextureObject.h"
 #include "Materials/MaterialExpressionTextureObjectParameter.h"
 #include "Materials/MaterialExpressionSceneTexture.h"
@@ -43,10 +47,19 @@
 #include "Materials/MaterialExpressionFeatureLevelSwitch.h"
 #include "Materials/MaterialExpressionGetLocal.h"
 #include "Materials/MaterialExpressionOneMinus.h"
+#include "Materials/MaterialExpressionAbs.h"
+#include "Materials/MaterialExpressionFrac.h"
+#include "Materials/MaterialExpressionFloor.h"
+#include "Materials/MaterialExpressionCeil.h"
+#include "Materials/MaterialExpressionRound.h"
+#include "Materials/MaterialExpressionTruncate.h"
+#include "Materials/MaterialExpressionSaturate.h"
+#include "Materials/MaterialExpressionSign.h"
 #include "Materials/MaterialExpressionAdd.h"
 #include "Materials/MaterialExpressionSubtract.h"
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionDivide.h"
+#include "Materials/MaterialExpressionPower.h"
 #include "Materials/MaterialExpressionDotProduct.h"
 #include "Materials/MaterialExpressionMin.h"
 #include "Materials/MaterialExpressionMax.h"
@@ -62,12 +75,16 @@
 #include "Materials/MaterialExpressionReflectionVectorWS.h"
 #include "Materials/MaterialExpressionTransform.h"
 #include "Materials/MaterialExpressionTransformPosition.h"
+#include "Materials/MaterialExpressionIf.h"
 #include "Materials/MaterialExpressionCustom.h"
 #include "Materials/MaterialExpressionSetLocal.h"
 #include "Materials/MaterialExpressionIfThenElse.h"
 #include "Materials/MaterialExpressionForLoop.h"
 #include "Materials/MaterialExpressionWhileLoop.h"
 #include "Materials/MaterialFunctionInterface.h"
+#include "Engine/Engine.h"
+#include "Engine/Texture2D.h"
+#include "Engine/Font.h"
 
 bool UMaterialExpression::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
@@ -79,9 +96,10 @@ bool UMaterialExpression::GenerateHLSLStatements(FMaterialHLSLGenerator& Generat
 	return Generator.GetErrors().AddError(TEXT("Node does not support statements"));
 }
 
-bool UMaterialExpression::GenerateHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FTextureParameterDeclaration*& OutTexture)
+bool UMaterialExpressionReroute::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	return Generator.GetErrors().AddError(TEXT("Node does not support textures"));
+	OutExpression = Input.TryAcquireHLSLExpression(Generator, Scope);
+	return OutExpression != nullptr;
 }
 
 bool UMaterialExpressionGenericConstant::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
@@ -293,6 +311,13 @@ bool UMaterialExpressionPanner::GenerateHLSLExpression(FMaterialHLSLGenerator& G
 	return true;
 }
 
+bool UMaterialExpressionVertexColor::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::VertexColor);
+	return true;
+}
+
 bool UMaterialExpressionTextureCoordinate::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	OutExpression = Generator.NewTexCoord(CoordinateIndex);
@@ -316,70 +341,138 @@ bool UMaterialExpressionTextureCoordinate::GenerateHLSLExpression(FMaterialHLSLG
 	return true;
 }
 
-bool UMaterialExpressionTextureObject::GenerateHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FTextureParameterDeclaration*& OutTexture)
-{
-	const UE::HLSLTree::FTextureDescription TextureDesc(Texture, SamplerType);
-	OutTexture = Generator.AcquireTextureDeclaration(TextureDesc);
-	return true;
-}
-
-bool UMaterialExpressionTextureObjectParameter::GenerateHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FTextureParameterDeclaration*& OutTexture)
-{
-	const UE::HLSLTree::FTextureDescription TextureDesc(Texture, SamplerType);
-	OutTexture = Generator.AcquireTextureParameterDeclaration(ParameterName, TextureDesc);
-	return true;
-}
-
-bool UMaterialExpressionTextureSample::GenerateHLSLExpressionBase(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FTextureParameterDeclaration* TextureDeclaration, UE::HLSLTree::FExpression*& OutExpression)
+bool UMaterialExpressionTextureObject::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	using namespace UE::HLSLTree;
-	if (!TextureDeclaration)
+	using namespace UE::Shader;
+	const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
+	OutExpression = Generator.GetTree().NewExpression<FExpressionMaterialParameter>(EMaterialParameterType::Texture, FName(), TextureValue);
+	return true;
+}
+
+bool UMaterialExpressionTextureObjectParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
+	const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
+	OutExpression = Generator.GetTree().NewExpression<FExpressionMaterialParameter>(EMaterialParameterType::Texture, ParameterName, TextureValue);
+	return true;
+}
+
+bool UMaterialExpressionTextureSample::GenerateHLSLExpressionBase(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FExpression* TextureExpression, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	if (!TextureExpression)
 	{
 		return Generator.GetErrors().AddError(TEXT("Missing input texture"));
 	}
 
 	FExpression* TexCoordExpression = Coordinates.GetTracedInput().Expression ? Coordinates.TryAcquireHLSLExpression(Generator, Scope) : Generator.NewTexCoord(ConstCoordinate);
 	const FExpressionDerivatives TexCoordDerivatives;// = Generator.GetTree().GetAnalyticDerivatives(TexCoordExpression);
-	OutExpression = Generator.GetTree().NewExpression<FExpressionTextureSample>(TextureDeclaration, TexCoordExpression, TexCoordDerivatives, SamplerSource, MipValueMode);
+	OutExpression = Generator.GetTree().NewExpression<FExpressionTextureSample>(TextureExpression, TexCoordExpression, TexCoordDerivatives, SamplerSource, MipValueMode);
 	return true;
 }
 
 bool UMaterialExpressionTextureSample::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	UE::HLSLTree::FTextureParameterDeclaration* TextureDeclaration = nullptr;
+	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
+	FExpression* TextureExpression = nullptr;
 	if (TextureObject.GetTracedInput().Expression)
 	{
-		TextureDeclaration = TextureObject.AcquireHLSLTexture(Generator, Scope);
+		TextureExpression = TextureObject.AcquireHLSLExpression(Generator, Scope);
 	}
 	else if (Texture)
 	{
-		const UE::HLSLTree::FTextureDescription TextureDesc(Texture, SamplerType);
-		TextureDeclaration = Generator.AcquireTextureDeclaration(TextureDesc);
+		const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
+		TextureExpression = Generator.GetTree().NewExpression<FExpressionMaterialParameter>(EMaterialParameterType::Texture, FName(), TextureValue);
 	}
 
-	return GenerateHLSLExpressionBase(Generator, Scope, TextureDeclaration, OutExpression);
+	return GenerateHLSLExpressionBase(Generator, Scope, TextureExpression, OutExpression);
 }
 
 bool UMaterialExpressionTextureSampleParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	UE::HLSLTree::FTextureParameterDeclaration* TextureDeclaration = nullptr;
+	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
+	FExpression* TextureExpression = nullptr;
 	if (ParameterName.IsNone() && TextureObject.GetTracedInput().Expression)
 	{
-		TextureDeclaration = TextureObject.AcquireHLSLTexture(Generator, Scope);
+		TextureExpression = TextureObject.AcquireHLSLExpression(Generator, Scope);
 	}
 	else if (Texture)
 	{
-		const UE::HLSLTree::FTextureDescription TextureDesc(Texture, SamplerType);
-		TextureDeclaration = Generator.AcquireTextureParameterDeclaration(ParameterName, TextureDesc);
+		const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
+		TextureExpression = Generator.GetTree().NewExpression<FExpressionMaterialParameter>(EMaterialParameterType::Texture, ParameterName, TextureValue);
 	}
 
-	return GenerateHLSLExpressionBase(Generator, Scope, TextureDeclaration, OutExpression);
+	return GenerateHLSLExpressionBase(Generator, Scope, TextureExpression, OutExpression);
+}
+
+UE::HLSLTree::FExpression* UMaterialExpressionFontSample::GenerateHLSLTextureExpression(FMaterialHLSLGenerator& Generator, const UE::Shader::FTextureValue* TextureValue)
+{
+	return Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::Texture, FName(), TextureValue);
+}
+
+UE::HLSLTree::FExpression* UMaterialExpressionFontSampleParameter::GenerateHLSLTextureExpression(FMaterialHLSLGenerator& Generator, const UE::Shader::FTextureValue* TextureValue)
+{
+	return Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::Texture, ParameterName, TextureValue);
+}
+
+bool UMaterialExpressionFontSample::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
+
+	if (!Font)
+	{
+		return Generator.GetErrors().AddError(TEXT("Missing input Font"));
+	}
+	else if (Font->FontCacheType == EFontCacheType::Runtime)
+	{
+		return Generator.GetErrors().AddErrorf(TEXT("Font '%s' is runtime cached, but only offline cached fonts can be sampled"), *Font->GetName());
+	}
+	else if (!Font->Textures.IsValidIndex(FontTexturePage))
+	{
+		return Generator.GetErrors().AddErrorf(TEXT("Invalid font page %d. Max allowed is %d"), FontTexturePage, Font->Textures.Num());
+	}
+
+	UTexture* Texture = Font->Textures[FontTexturePage];
+	if (!Texture)
+	{
+		UE_LOG(LogMaterial, Log, TEXT("Invalid font texture. Using default texture"));
+		Texture = GEngine->DefaultTexture;
+	}
+	check(Texture);
+
+	EMaterialSamplerType ExpectedSamplerType;
+	if (Texture->CompressionSettings == TC_DistanceFieldFont)
+	{
+		ExpectedSamplerType = SAMPLERTYPE_DistanceFieldFont;
+	}
+	else
+	{
+		ExpectedSamplerType = Texture->SRGB ? SAMPLERTYPE_Color : SAMPLERTYPE_LinearColor;
+	}
+
+	FString SamplerTypeError;
+	if (!UMaterialExpressionTextureBase::VerifySamplerType(Generator.GetCompileTarget().FeatureLevel, Generator.GetCompileTarget().TargetPlatform, Texture, ExpectedSamplerType, SamplerTypeError))
+	{
+		return Generator.GetErrors().AddErrorf(TEXT("%s"), *SamplerTypeError);
+	}
+
+	const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, ExpectedSamplerType));
+	FExpression* TextureExpression = GenerateHLSLTextureExpression(Generator, TextureValue);
+	FExpression* TexCoordExpression = Generator.NewTexCoord(0);
+	FExpressionDerivatives TexCoordDerivatives;
+
+	OutExpression = Generator.GetTree().NewExpression<FExpressionTextureSample>(TextureExpression, TexCoordExpression, TexCoordDerivatives, SSM_FromTextureAsset, TMVM_None);
+	return true;
 }
 
 bool UMaterialExpressionSceneTexture::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	using namespace UE::HLSLTree;
-
 	if (OutputIndex == 0)
 	{
 		FExpression* ExpressionTexCoord = nullptr;
@@ -407,6 +500,102 @@ bool UMaterialExpressionOneMinus::GenerateHLSLExpression(FMaterialHLSLGenerator&
 		return false;
 	}
 	OutExpression = Generator.GetTree().NewSub(Generator.NewConstant(1.0f), InputExpression);
+	return true;
+}
+
+bool UMaterialExpressionAbs::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!InputExpression)
+	{
+		return false;
+	}
+	OutExpression = Generator.GetTree().NewUnaryOp(EOperation::Abs, InputExpression);
+	return true;
+}
+
+bool UMaterialExpressionFrac::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!InputExpression)
+	{
+		return false;
+	}
+	OutExpression = Generator.GetTree().NewUnaryOp(EOperation::Frac, InputExpression);
+	return true;
+}
+
+bool UMaterialExpressionFloor::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!InputExpression)
+	{
+		return false;
+	}
+	OutExpression = Generator.GetTree().NewUnaryOp(EOperation::Floor, InputExpression);
+	return true;
+}
+
+bool UMaterialExpressionCeil::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!InputExpression)
+	{
+		return false;
+	}
+	OutExpression = Generator.GetTree().NewUnaryOp(EOperation::Ceil, InputExpression);
+	return true;
+}
+
+bool UMaterialExpressionRound::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!InputExpression)
+	{
+		return false;
+	}
+	OutExpression = Generator.GetTree().NewUnaryOp(EOperation::Round, InputExpression);
+	return true;
+}
+
+bool UMaterialExpressionTruncate::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!InputExpression)
+	{
+		return false;
+	}
+	OutExpression = Generator.GetTree().NewUnaryOp(EOperation::Trunc, InputExpression);
+	return true;
+}
+
+bool UMaterialExpressionSaturate::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!InputExpression)
+	{
+		return false;
+	}
+	OutExpression = Generator.GetTree().NewUnaryOp(EOperation::Saturate, InputExpression);
+	return true;
+}
+
+bool UMaterialExpressionSign::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!InputExpression)
+	{
+		return false;
+	}
+	OutExpression = Generator.GetTree().NewUnaryOp(EOperation::Sign, InputExpression);
 	return true;
 }
 
@@ -468,6 +657,19 @@ bool UMaterialExpressionDivide::GenerateHLSLExpression(FMaterialHLSLGenerator& G
 		return false;
 	}
 	OutExpression = Generator.GetTree().NewDiv(Lhs, Rhs);
+	return true;
+}
+
+bool UMaterialExpressionPower::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	FExpression* Lhs = Base.AcquireHLSLExpression(Generator, Scope);
+	FExpression* Rhs = Exponent.AcquireHLSLExpressionOrConstant(Generator, Scope, ConstExponent);
+	if (!Lhs || !Rhs)
+	{
+		return false;
+	}
+	OutExpression = Generator.GetTree().NewBinaryOp(EOperation::PowPositiveClamped, Lhs, Rhs);
 	return true;
 }
 
@@ -914,6 +1116,35 @@ bool UMaterialExpressionTransformPosition::GenerateHLSLExpression(FMaterialHLSLG
 	}
 
 	OutExpression = TransformBase(Generator.GetTree(), kTable[TransformSourceType], kTable[TransformType], ExpressionInput, true);
+	return true;
+}
+
+bool UMaterialExpressionIf::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
+
+	FExpression* ExpressionA = A.AcquireHLSLExpression(Generator, Scope);
+	FExpression* ExpressionB = A.AcquireHLSLExpressionOrConstant(Generator, Scope, ConstB);
+	FExpression* ExpressionAGreaterThanB = AGreaterThanB.AcquireHLSLExpression(Generator, Scope);
+	FExpression* ExpressionALessThanB = ALessThanB.AcquireHLSLExpression(Generator, Scope);
+	if (!ExpressionA || !ExpressionB || !ExpressionAGreaterThanB || !ExpressionALessThanB)
+	{
+		return false;
+	}
+
+	UE::HLSLTree::FTree& Tree = Generator.GetTree();
+	FExpression* ExpressionCondAGreaterEqualB = Tree.NewGreaterEqual(ExpressionA, ExpressionB);
+	OutExpression = Tree.NewExpression<FExpressionSelect>(ExpressionCondAGreaterEqualB, ExpressionAGreaterThanB, ExpressionALessThanB);
+
+	FExpression* ExpressionAEqualsB = AEqualsB.TryAcquireHLSLExpression(Generator, Scope);
+	if (ExpressionAEqualsB)
+	{
+		FExpression* ExpressionThreshold = Generator.NewConstant(EqualsThreshold);
+		FExpression* ExpressionCondANotEqualsB = Tree.NewGreater(Tree.NewAbs(Tree.NewSub(ExpressionA, ExpressionB)), ExpressionThreshold);
+		OutExpression = Tree.NewExpression<FExpressionSelect>(ExpressionCondANotEqualsB, OutExpression, ExpressionAEqualsB);
+	}
+
 	return true;
 }
 

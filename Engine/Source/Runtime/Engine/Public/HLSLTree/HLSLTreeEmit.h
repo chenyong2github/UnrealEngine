@@ -431,6 +431,7 @@ public:
 	uint32 CurrentBoolUniformOffset = ~0u;
 	uint32 CurrentNumBoolComponents = 32u;
 	bool bReadMaterialNormal = false;
+	bool bUsesVertexColor = false;
 	uint32 TexCoordMask[SF_NumFrequencies] = { 0u };
 
 	int32 NumExpressionLocals = 0;

@@ -29,7 +29,6 @@ namespace HLSLTree
 class FScope;
 class FStatement;
 class FExpression;
-class FTextureParameterDeclaration;
 }
 }
 
@@ -307,7 +306,6 @@ class ENGINE_API UMaterialExpression : public UObject
 	 */
 	virtual bool GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope);
 	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression* &OutExpression);
-	virtual bool GenerateHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FTextureParameterDeclaration*& OutTexture);
 
 #endif // WITH_EDITOR
 

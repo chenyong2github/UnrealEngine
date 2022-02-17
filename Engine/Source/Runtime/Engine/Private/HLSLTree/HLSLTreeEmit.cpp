@@ -216,22 +216,45 @@ void EmitCustomHLSL(const FEmitCustomHLSL& EmitCustomHLSL, const TCHAR* Paramete
 
 	// Function that wraps custom HLSL, provides the interface expected by custom HLSL
 	// * LWC inputs have both LWC version and non-LWC version
+	// * Texture inputs are split into a Texture/SamplerState pair
 	// * First output is given through return value, additional outputs use inout function parameters
 	OutCode.Appendf(TEXT("%s CustomExpressionInternal%d(%s Parameters"), OutputStruct->Fields[0].Type.GetName(), EmitCustomHLSL.Index, ParametersTypeName);
 	for (const FEmitCustomHLSLInput& Input : EmitCustomHLSL.Inputs)
 	{
 		Shader::FType InputType = Input.Type;
-		if (InputType.IsNumericLWC())
+		if (InputType.IsTexture())
 		{
-			// Add an additional input for LWC type with the LWC-prefix
-			OutCode.Appendf(TEXT(", %s LWC"), InputType.GetName());
+			// Texture parameter followed by a SamplerState parameter
+			const TCHAR* TextureTypeName = nullptr;
+			switch (InputType.ValueType)
+			{
+			case Shader::EValueType::Texture2D: TextureTypeName = TEXT("Texture2D"); break;
+			case Shader::EValueType::Texture2DArray: TextureTypeName = TEXT("Texture2DArray"); break;
+			case Shader::EValueType::TextureCube: TextureTypeName = TEXT("TextureCube"); break;
+			case Shader::EValueType::TextureCubeArray: TextureTypeName = TEXT("TextureCubeArray"); break;
+			case Shader::EValueType::Texture3D: TextureTypeName = TEXT("Texture3D"); break;
+			default: checkNoEntry(); break;
+			}
+			OutCode.Appendf(TEXT(", %s "), TextureTypeName);
 			OutCode.Append(Input.Name);
-			// Regular, unprefixed input uses non-LWC type
-			InputType = InputType.GetNonLWCType();
+			OutCode.Appendf(TEXT(", SamplerState "));
+			OutCode.Append(Input.Name);
+			OutCode.Append(TEXT("Sampler"));
 		}
+		else
+		{
+			if (InputType.IsNumericLWC())
+			{
+				// Add an additional input for LWC type with the LWC-prefix
+				OutCode.Appendf(TEXT(", %s LWC"), InputType.GetName());
+				OutCode.Append(Input.Name);
+				// Regular, unprefixed input uses non-LWC type
+				InputType = InputType.GetNonLWCType();
+			}
 
-		OutCode.Appendf(TEXT(", %s "), InputType.GetName());
-		OutCode.Append(Input.Name);
+			OutCode.Appendf(TEXT(", %s "), InputType.GetName());
+			OutCode.Append(Input.Name);
+		}
 	}
 	for (int32 OutputIndex = 1; OutputIndex < OutputStruct->Fields.Num(); ++OutputIndex)
 	{
@@ -243,7 +266,7 @@ void EmitCustomHLSL(const FEmitCustomHLSL& EmitCustomHLSL, const TCHAR* Paramete
 	OutCode.Append(TEXT("\n}\n"));
 
 	// Function that calls the above wrapper, provides the interface expected by HLSLTree
-	// * No special handling for LWC inputs
+	// * All inputs types are passed through directly
 	// * All outputs are provided through a 'struct' type
 	OutCode.Appendf(TEXT("%s CustomExpression%d(%s Parameters"), OutputStruct->Name, EmitCustomHLSL.Index, ParametersTypeName);
 	for (const FEmitCustomHLSLInput& Input : EmitCustomHLSL.Inputs)
@@ -258,7 +281,14 @@ void EmitCustomHLSL(const FEmitCustomHLSL& EmitCustomHLSL, const TCHAR* Paramete
 	{
 		OutCode.Append(TEXT(", "));
 		OutCode.Append(Input.Name);
-		if (Input.Type.IsNumericLWC())
+		if (Input.Type.IsTexture())
+		{
+			// Pass the Texture and SamplerState to the wrapper
+			OutCode.Append(TEXT(".Texture, "));
+			OutCode.Append(Input.Name);
+			OutCode.Append(TEXT(".Sampler"));
+		}
+		else if (Input.Type.IsNumericLWC())
 		{
 			OutCode.Append(TEXT(", LWCToFloat("));
 			OutCode.Append(Input.Name);
@@ -590,7 +620,7 @@ void MoveToScope(FEmitShaderNode* EmitNode, FEmitScope& Scope)
 
 void FormatArg_ShaderValue(FEmitShaderExpression* ShaderValue, FEmitShaderDependencies& OutDependencies, FStringBuilderBase& OutCode)
 {
-	OutDependencies.Add(ShaderValue);
+	OutDependencies.AddUnique(ShaderValue);
 	OutCode.Append(ShaderValue->Reference);
 }
 
