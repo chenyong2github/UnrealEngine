@@ -50,12 +50,7 @@ void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstAr
 
 	for (auto& Pair : ArchetypeToEntities)
 	{
-		// @todo this is a temporary measure to skip entities we've destroyed without the
-		// UMassSpawnerSubsystem::DestroyEntities' caller knowledge. Should be removed once that's addressed.
-		if (Pair.Key.IsValid())
-		{
-			OutChunkCollections.Add(FMassArchetypeSubChunks(Pair.Key, Pair.Value, DuplicatesHandling));
-		}
+		OutChunkCollections.Add(FMassArchetypeSubChunks(Pair.Key, Pair.Value, DuplicatesHandling));
 	}
 }
 
