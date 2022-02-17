@@ -7713,7 +7713,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			}
 		}
 
-		FString ExtraReleaseVersionAssetsFile;
+		/*FString ExtraReleaseVersionAssetsFile;
 		const bool bUsingExtraReleaseVersionAssets = FParse::Value(FCommandLine::Get(), TEXT("ExtraReleaseVersionAssets="), ExtraReleaseVersionAssetsFile);
 		if (bUsingExtraReleaseVersionAssets)
 		{
@@ -7748,7 +7748,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			}
 			// Add these packages to the cache such that they're resolvable later
 			GetPackageNameCache().AppendCacheResults(MoveTemp(PackageToStandardFileNames));
-		}
+		}*/
 
 		for ( const ITargetPlatform* TargetPlatform: TargetPlatforms )
 		{
