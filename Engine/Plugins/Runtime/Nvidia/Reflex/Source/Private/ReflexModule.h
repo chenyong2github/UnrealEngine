@@ -6,6 +6,7 @@
 
 #include "ReflexLatencyMarkers.h"
 #include "ReflexMaxTickRateHandler.h"
+#include "ReflexStatsLatencyMarkers.h"
 
 class FReflexModule : public IModuleInterface
 {
@@ -22,4 +23,5 @@ private:
 
 	TUniquePtr<FReflexMaxTickRateHandler> ReflexMaxTickRateHandler;
 	TUniquePtr<FReflexLatencyMarkers> ReflexLatencyMarker;
+	TUniquePtr<FReflexStatsLatencyMarkers> ReflexStatsLatencyMarker;
 };

@@ -3,7 +3,7 @@
 	
 	"FriendlyName" : "Reflex",
 	"Version" : 1,
-	"VersionName" : "1.0",
+	"VersionName" : "1.6",
 	"Description" : "NVIDIA Reflex Latency Tracking and Tick Rate Handling",
 	"Category" : "Performance",
 	"CreatedBy" : "Epic Games, Inc.",

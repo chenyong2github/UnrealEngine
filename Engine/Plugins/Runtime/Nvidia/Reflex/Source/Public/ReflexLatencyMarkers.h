@@ -34,6 +34,7 @@ public:
 
 	bool bEnabled = false;
 	bool bFlashIndicatorEnabled = false;
+	bool bFlashIndicatorDriverControlled = false;
 
 	virtual void Tick(float DeltaTime);
 	virtual bool IsTickable() const { return true; }

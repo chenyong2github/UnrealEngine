@@ -30,7 +30,7 @@ void FReflexLatencyMarkers::Initialize()
 {
 	if (IsRHIDeviceNVIDIA())
 	{
-		NvU32 DriverVersion;
+		NvU32 DriverVersion = 0;
 		NvAPI_ShortString BranchString;
 
 		// Driver version check, 455 and above required for Reflex
@@ -38,6 +38,11 @@ void FReflexLatencyMarkers::Initialize()
 		if (DriverVersion >= 45500)
 		{
 			bProperDriverVersion = true;
+		}
+
+		if (DriverVersion >= 51123)
+		{
+			bFlashIndicatorDriverControlled = true;
 		}
 
 		// Need to verify that Reflex Low Latency mode is supported on current hardware
@@ -208,7 +213,7 @@ void FReflexLatencyMarkers::SetFlashIndicatorLatencyMarker(uint64 FrameNumber)
 {
 	if (DisableLatencyMarkers == 0 && bProperDriverVersion && bEnabled && IsRHIDeviceNVIDIA() && bFeatureSupport)
 	{
-		if (bFlashIndicatorEnabled)
+		if (GetFlashIndicatorEnabled())
 		{
 			NvAPI_Status status = NVAPI_OK;
 			NV_LATENCY_MARKER_PARAMS_V1 params = { 0 };
@@ -247,7 +252,7 @@ bool FReflexLatencyMarkers::GetFlashIndicatorEnabled()
 		return false;
 	}
 
-	return bFlashIndicatorEnabled;
+	return bFlashIndicatorEnabled || bFlashIndicatorDriverControlled;
 }
 
 void FReflexLatencyMarkers::SetEnabled(bool bInEnabled)

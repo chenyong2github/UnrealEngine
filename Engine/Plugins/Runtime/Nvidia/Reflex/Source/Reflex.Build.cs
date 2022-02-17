@@ -16,12 +16,17 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"Engine",
 					"RHI",
-					"CoreUObject"
+					"CoreUObject",
+					"SlateCore",
+					"Slate"
 				}
 			);
 
 			// Grab NVAPI
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
+
+			// Grab ReflexStat
+			PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "ThirdParty"));
 		}
 	}
 }

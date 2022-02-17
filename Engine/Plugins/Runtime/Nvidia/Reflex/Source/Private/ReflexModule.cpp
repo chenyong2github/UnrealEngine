@@ -21,6 +21,13 @@ void FReflexModule::StartupModule()
 		ReflexLatencyMarker->Initialize();
 		IModularFeatures::Get().RegisterModularFeature(ReflexLatencyMarker->GetModularFeatureName(), ReflexLatencyMarker.Get());
 	}
+
+	ReflexStatsLatencyMarker = MakeUnique<FReflexStatsLatencyMarkers>();
+	if (ReflexStatsLatencyMarker.IsValid())
+	{
+		ReflexStatsLatencyMarker->Initialize();
+		IModularFeatures::Get().RegisterModularFeature(ReflexStatsLatencyMarker->GetModularFeatureName(), ReflexStatsLatencyMarker.Get());
+	}
 }
 
 void FReflexModule::ShutdownModule()
@@ -33,5 +40,10 @@ void FReflexModule::ShutdownModule()
 	if (ReflexLatencyMarker.IsValid())
 	{
 		IModularFeatures::Get().UnregisterModularFeature(ReflexLatencyMarker->GetModularFeatureName(), ReflexLatencyMarker.Get());
+	}
+
+	if (ReflexStatsLatencyMarker.IsValid())
+	{
+		IModularFeatures::Get().UnregisterModularFeature(ReflexStatsLatencyMarker->GetModularFeatureName(), ReflexStatsLatencyMarker.Get());
 	}
 }
