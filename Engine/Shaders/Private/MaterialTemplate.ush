@@ -19,7 +19,6 @@
 #include "/Engine/Private/HairStrands/HairCardsAttributeCommon.ush"
 #include "/Engine/Private/HairStrands/HairStrandsAttributeCommon.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
-#include "/Engine/Private/MaterialTexture.ush"
 
 // Update this GUID to force all material shaders to recompile
 // Merge conflicts on this line should be resolved by generating a new GUID
@@ -1705,6 +1704,73 @@ MaterialFloat2 UnMirrorUV( MaterialFloat2 UV, FMaterialPixelParameters Parameter
 MaterialFloat2 GetParticleMacroUV(FMaterialPixelParameters Parameters)
 {
 	return (Parameters.ScreenPosition.xy / Parameters.ScreenPosition.w - Parameters.Particle.MacroUV.xy) * Parameters.Particle.MacroUV.zw + MaterialFloat2(.5, .5);
+}
+
+MaterialFloat4 ProcessMaterialColorTextureLookup(MaterialFloat4 TextureValue)
+{
+	return TextureValue;
+}
+
+MaterialFloat4 ProcessMaterialVirtualColorTextureLookup(MaterialFloat4 TextureValue)
+{
+	TextureValue = ProcessMaterialColorTextureLookup(TextureValue);
+#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
+	// on mobile all VT physical spaces use linear color formats, do sRGB to Linear conversion in the shader
+	TextureValue = MaterialFloat4(TextureValue.rgb*TextureValue.rgb, TextureValue.a);
+#endif
+	return TextureValue;
+}
+
+MaterialFloat4 ProcessMaterialExternalTextureLookup(MaterialFloat4 TextureValue)
+{
+#if COMPILER_GLSL_ES3_1
+	return MaterialFloat4(pow(TextureValue.rgb, 2.2f), TextureValue.a);
+#else
+	return ProcessMaterialColorTextureLookup(TextureValue);
+#endif
+}
+
+MaterialFloat4 ProcessMaterialLinearColorTextureLookup(MaterialFloat4 TextureValue)
+{
+	return TextureValue;
+}
+
+MaterialFloat4 ProcessMaterialGreyscaleTextureLookup(MaterialFloat4 TextureValue)
+{
+	// Sampling a greyscale texture in D3D9 gives: (G,G,G)
+	// Sampling a greyscale texture in D3D11 gives: (G,0,0)
+	// This replication reproduces the D3D9 behavior in all cases.
+	MaterialFloat GrayValue = TextureValue.r;
+#if (COMPILER_GLSL_ES3_1 || VULKAN_PROFILE) // OpenGLES3.1, Vulkan3.1 do not support sRGB sampling from R8
+	#if MOBILE_EMULATION
+	if( ResolvedView.MobilePreviewMode > 0.5f )
+	{
+		// undo HW srgb->lin
+		GrayValue = pow(GrayValue, 1.0f/2.2f); // TODO: replace with a more accurate lin -> sRGB conversion.
+	}
+	#endif
+	// sRGB read approximation (in highp if possible)
+	float LinValue = GrayValue;
+	LinValue *= LinValue;
+	return MaterialFloat4(LinValue.rrrr);
+#endif 
+	return GrayValue.rrrr;
+}
+
+MaterialFloat4 ProcessMaterialLinearGreyscaleTextureLookup(MaterialFloat4 TextureValue)
+{
+	// Sampling a greyscale texture in D3D9 gives: (G,G,G)
+	// Sampling a greyscale texture in D3D11 gives: (G,0,0)
+	// This replication reproduces the D3D9 behavior in all cases.
+	return TextureValue.rrrr;
+}
+
+MaterialFloat4 ProcessMaterialAlphaTextureLookup(MaterialFloat4 TextureValue)
+{
+	// Sampling a single channel texture in D3D9 gives: (G,G,G)
+	// Sampling a single channel texture in D3D11 gives: (G,0,0)
+	// This replication reproduces the D3D9 behavior in all cases.
+	return TextureValue.rrrr;
 }
 
 /** Accesses a shared material sampler or falls back if independent samplers are not supported. */

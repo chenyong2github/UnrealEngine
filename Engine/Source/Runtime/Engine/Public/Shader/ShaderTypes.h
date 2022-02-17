@@ -2,13 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
 #include "Serialization/MemoryLayout.h"
 
 class FMemStackBase;
-class UTexture;
 
 namespace UE
 {
@@ -61,13 +59,6 @@ enum class EValueComponentType : uint8
 	Double,
 	Int,
 	Bool,
-
-	FirstTexture,
-	Texture2D = FirstTexture,
-	Texture2DArray,
-	TextureCube,
-	TextureCubeArray,
-	Texture3D,
 };
 
 struct FValueComponentTypeDescription
@@ -83,8 +74,6 @@ struct FValueComponentTypeDescription
 FValueComponentTypeDescription GetValueComponentTypeDescription(EValueComponentType Type);
 inline const TCHAR* GetComponentTypeName(EValueComponentType Type) { return GetValueComponentTypeDescription(Type).Name; }
 inline uint32 GetComponentTypeSizeInBytes(EValueComponentType Type) { return GetValueComponentTypeDescription(Type).SizeInBytes; }
-inline bool IsNumericType(EValueComponentType Type) { return Type != EValueComponentType::Void && (uint8)Type < (uint8)EValueComponentType::FirstTexture; }
-inline bool IsTextureType(EValueComponentType Type) { return (uint8)Type >= (uint8)EValueComponentType::FirstTexture; }
 inline bool IsComponentTypeWithinBounds(EValueComponentType Type, FComponentBounds Bounds) { return IsWithinBounds(GetValueComponentTypeDescription(Type).Bounds, Bounds); }
 
 EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueComponentType Rhs);
@@ -125,12 +114,6 @@ enum class EValueType : uint8
 	DoubleInverse4x4,
 
 	Struct,
-
-	Texture2D,
-	Texture2DArray,
-	TextureCube,
-	TextureCubeArray,
-	Texture3D,
 };
 
 struct FValueTypeDescription
@@ -152,9 +135,6 @@ EValueType MakeNonLWCType(EValueType Type);
 EValueType MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
 EValueType MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
 
-inline bool IsNumericType(EValueType Type) { return IsNumericType(GetValueTypeDescription(Type).ComponentType); }
-inline bool IsTextureType(EValueType Type) { return IsTextureType(GetValueTypeDescription(Type).ComponentType); }
-
 struct FType
 {
 	FType() : StructType(nullptr), ValueType(EValueType::Void) {}
@@ -166,8 +146,7 @@ struct FType
 	FType GetNonLWCType() const { return IsNumericLWC() ? FType(MakeNonLWCType(ValueType)) : *this; }
 	bool IsVoid() const { return ValueType == EValueType::Void; }
 	bool IsStruct() const { return ValueType == EValueType::Struct; }
-	bool IsNumeric() const { return !IsStruct() && IsNumericType(ValueType); }
-	bool IsTexture() const { return !IsStruct() && IsTextureType(ValueType); }
+	bool IsNumeric() const { return !IsVoid() && !IsStruct(); }
 	bool IsNumericLWC() const { return IsNumeric() && IsLWCType(ValueType); }
 	int32 GetNumComponents() const;
 	int32 GetNumFlatFields() const;
@@ -302,37 +281,13 @@ struct FMemoryImageValue
 	uint32 Size;
 };
 
-struct FTextureValue
-{
-	FTextureValue() = default;
-	FTextureValue(UTexture* InTexture, EMaterialSamplerType InSamplerType = SAMPLERTYPE_Color)
-		: Texture(InTexture)
-		, SamplerType(InSamplerType)
-	{}
-
-	EValueType GetType() const;
-
-	UTexture* Texture = nullptr;
-	EMaterialSamplerType SamplerType = SAMPLERTYPE_Color;
-};
-
-inline bool operator==(const FTextureValue& Lhs, const FTextureValue& Rhs)
-{
-	return Lhs.Texture == Rhs.Texture && Lhs.SamplerType == Rhs.SamplerType;
-}
-inline bool operator!=(const FTextureValue& Lhs, const FTextureValue& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
-
 union FValueComponent
 {
 	FValueComponent() : Packed(0u) {}
-	FValueComponent(float InValue) : Packed(0u) { Float = InValue; }
-	FValueComponent(double InValue) : Packed(0u) { Double = InValue; }
-	FValueComponent(int32 InValue) : Packed(0u) { Int = InValue; }
-	FValueComponent(bool InValue) : Packed(0u) { Bool = InValue ? 1 : 0; }
-	FValueComponent(const FTextureValue* InValue) : Packed(0u) { Texture = InValue; }
+	FValueComponent(float v) : Packed(0u) { Float = v; }
+	FValueComponent(double v) : Packed(0u) { Double = v; }
+	FValueComponent(int32 v) : Packed(0u) { Int = v; }
+	FValueComponent(bool v) : Packed(0u) { Bool = v ? 1 : 0; }
 
 	// 'Bool' is stored as uint8 to avoid changing on different compilers
 	bool AsBool() const { return Bool != 0u; }
@@ -340,7 +295,6 @@ union FValueComponent
 	const TCHAR* ToString(EValueComponentType Type, FStringBuilderBase& OutString) const;
 
 	uint64 Packed;
-	const FTextureValue* Texture;
 	double Double;
 	float Float;
 	int32 Int;
@@ -476,8 +430,6 @@ struct FValue
 		Component.Add(v);
 	}
 
-	FValue(const FTextureValue* InValue);
-
 	inline const FType& GetType() const { return Type; }
 	inline const FValueComponent& GetComponent(int32 i) const
 	{
@@ -498,7 +450,6 @@ struct FValue
 	FDoubleValue AsDouble() const;
 	FIntValue AsInt() const;
 	FBoolValue AsBool() const;
-	const FTextureValue* AsTexture() const;
 
 	FLinearColor AsLinearColor() const;
 	FVector4d AsVector4d() const;

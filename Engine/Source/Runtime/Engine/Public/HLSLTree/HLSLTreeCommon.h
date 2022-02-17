@@ -39,7 +39,6 @@ public:
 
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
-	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
@@ -73,10 +72,6 @@ enum class EExternalInput : uint8
 	TexCoord5_Ddy,
 	TexCoord6_Ddy,
 	TexCoord7_Ddy,
-
-	VertexColor,
-	VertexColor_Ddx,
-	VertexColor_Ddy,
 
 	WorldPosition,
 	WorldPosition_NoOffsets,
@@ -198,19 +193,15 @@ public:
 class FExpressionTextureSample : public FExpression
 {
 public:
-	FExpressionTextureSample(FExpression* InTextureExpression,
-		FExpression* InTexCoordExpression,
-		const FExpressionDerivatives& InTexCoordDerivatives,
-		ESamplerSourceMode InSamplerSource,
-		ETextureMipValueMode InMipValueMode)
-		: TextureExpression(InTextureExpression)
+	FExpressionTextureSample(FTextureParameterDeclaration* InDeclaration, FExpression* InTexCoordExpression, const FExpressionDerivatives& InTexCoordDerivatives, ESamplerSourceMode InSamplerSource, ETextureMipValueMode InMipValueMode)
+		: Declaration(InDeclaration)
 		, TexCoordExpression(InTexCoordExpression)
 		, TexCoordDerivatives(InTexCoordDerivatives)
 		, SamplerSource(InSamplerSource)
 		, MipValueMode(InMipValueMode)
 	{}
 
-	FExpression* TextureExpression;
+	FTextureParameterDeclaration* Declaration;
 	FExpression* TexCoordExpression;
 	FExpressionDerivatives TexCoordDerivatives;
 	ESamplerSourceMode SamplerSource;

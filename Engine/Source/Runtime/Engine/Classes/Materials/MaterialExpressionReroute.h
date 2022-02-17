@@ -25,7 +25,6 @@ class ENGINE_API UMaterialExpressionReroute : public UMaterialExpressionRerouteB
 
 	virtual FText GetCreationDescription() const override;
 	virtual FText GetCreationName() const override;
-	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
 #endif
 	//~ End UMaterialExpression Interface
 
