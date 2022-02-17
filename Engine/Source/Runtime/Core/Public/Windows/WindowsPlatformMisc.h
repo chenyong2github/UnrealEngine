@@ -27,6 +27,16 @@ struct CORE_API FWindowsOSVersionHelper
 	static int32 GetOSVersions( FString& OutOSVersion, FString& OutOSSubVersion );
 };
 
+/**
+  * Determines the concurrency model to be set for a thread.
+  * 
+  * @see FWindowsPlatformMisc::CoInitialize
+  */
+enum class ECOMModel : uint8
+{
+	Singlethreaded = 0,		///< Single-Threaded Apartment (STA)
+	Multithreaded,			///< Multi-Threaded Apartment (MTA)
+};
 
 /**
 * Windows implementation of the misc OS functions
@@ -94,7 +104,7 @@ struct CORE_API FWindowsPlatformMisc
 	static bool DeleteStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName);
 	static bool DeleteStoredSection(const FString& InStoreId, const FString& InSectionName);
 
-	static bool CoInitialize();
+	static bool CoInitialize(ECOMModel Model = ECOMModel::Singlethreaded);
 	static void CoUninitialize();
 
 	/**

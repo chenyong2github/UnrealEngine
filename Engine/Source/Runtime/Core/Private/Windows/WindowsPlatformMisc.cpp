@@ -2035,9 +2035,9 @@ void FWindowsPlatformMisc::SetLastError(uint32 ErrorCode)
 	::SetLastError((DWORD)ErrorCode);
 }
 
-bool FWindowsPlatformMisc::CoInitialize()
+bool FWindowsPlatformMisc::CoInitialize(ECOMModel Model)
 {
-	HRESULT hr = ::CoInitialize(NULL);
+	HRESULT hr = ::CoInitializeEx(NULL, (Model == ECOMModel::Singlethreaded) ? COINIT_APARTMENTTHREADED : COINIT_MULTITHREADED);
 	return hr == S_OK || hr == S_FALSE;
 }
 
