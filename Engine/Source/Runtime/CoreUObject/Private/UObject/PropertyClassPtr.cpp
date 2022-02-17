@@ -30,8 +30,12 @@ void FClassPtrProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Valu
 
 bool FClassPtrProperty::Identical(const void* A, const void* B, uint32 PortFlags) const
 {
-	// Share comparison code with FObjectPtrProperty
-	return FObjectPtrProperty::StaticIdentical(A, B, PortFlags);
+	FObjectPtr ObjectA = A ? *((FObjectPtr*)A) : FObjectPtr();
+	FObjectHandle ObjectAHandle = ObjectA.GetHandle();
+	FObjectPtr ObjectB = B ? *((FObjectPtr*)B) : FObjectPtr();
+	FObjectHandle ObjectBHandle = ObjectB.GetHandle();
+
+	return ObjectAHandle == ObjectBHandle;
 }
 
 bool FClassPtrProperty::SameType(const FProperty* Other) const

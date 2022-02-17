@@ -111,17 +111,30 @@ bool FObjectPtrProperty::SameType(const FProperty* Other) const
 
 bool FObjectPtrProperty::Identical(const void* A, const void* B, uint32 PortFlags) const
 {
-	return StaticIdentical(A, B, PortFlags);
-}
+	// We never return Identical when duplicating for PIE because we want to be sure to serialize everything. An example is the LevelScriptActor being serialized against its CDO,
+	// which contains actor references. We want to serialize those references so they are fixed up.
+	if ((PortFlags & PPF_DuplicateForPIE) != 0)
+	{
+		return false;
+	}
 
-bool FObjectPtrProperty::StaticIdentical(const void* A, const void* B, uint32 PortFlags)
-{
 	FObjectPtr ObjectA = A ? *((FObjectPtr*)A) : FObjectPtr();
 	FObjectHandle ObjectAHandle = ObjectA.GetHandle();
 	FObjectPtr ObjectB = B ? *((FObjectPtr*)B) : FObjectPtr();
 	FObjectHandle ObjectBHandle = ObjectB.GetHandle();
 
-	return ObjectAHandle == ObjectBHandle;
+	if (ObjectAHandle == ObjectBHandle)
+	{
+		return true;
+	}
+
+	// Resolve the object handles and run the deep comparison logic 
+	if ((PortFlags & (PPF_DeepCompareInstances | PPF_DeepComparison)) != 0)
+	{
+		return FObjectPropertyBase::StaticIdentical(ObjectA.Get(), ObjectB.Get(), PortFlags);
+	}
+
+	return false;
 }
 
 UObject* FObjectPtrProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const

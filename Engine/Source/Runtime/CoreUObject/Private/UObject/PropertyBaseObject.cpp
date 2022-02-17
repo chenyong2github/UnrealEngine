@@ -68,9 +68,22 @@ void FObjectPropertyBase::InstanceSubobjects(void* Data, void const* DefaultData
 
 bool FObjectPropertyBase::Identical( const void* A, const void* B, uint32 PortFlags ) const
 {
+	// We never return Identical when duplicating for PIE because we want to be sure to serialize everything. An example is the LevelScriptActor being serialized against its CDO,
+	// which contains actor references. We want to serialize those references so they are fixed up.
+	if ((PortFlags & PPF_DuplicateForPIE) != 0)
+	{
+		return false;
+	}
+
 	UObject* ObjectA = A ? GetObjectPropertyValue(A) : nullptr;
 	UObject* ObjectB = B ? GetObjectPropertyValue(B) : nullptr;
-	if (!ObjectA && !ObjectB)
+
+	return StaticIdentical(ObjectA, ObjectB, PortFlags);
+}
+
+bool FObjectPropertyBase::StaticIdentical(UObject* ObjectA, UObject* ObjectB, uint32 PortFlags)
+{
+	if (ObjectA == ObjectB)
 	{
 		return true;
 	}
@@ -78,17 +91,11 @@ bool FObjectPropertyBase::Identical( const void* A, const void* B, uint32 PortFl
 	{
 		return false;
 	}
-	// Compare actual pointers. We don't do this during PIE because we want to be sure to serialize everything. An example is the LevelScriptActor being serialized against its CDO,
-	// which contains actor references. We want to serialize those references so they are fixed up.
-	const bool bDuplicatingForPIE = (PortFlags&PPF_DuplicateForPIE) != 0;
-	bool bResult = !bDuplicatingForPIE ? (ObjectA == ObjectB) : false;
-	// always serialize the cross level references, because they could be nullptr
-	// @todo: okay, this is pretty hacky overall - we should have a PortFlag or something
-	// that is set during SavePackage. Other times, we don't want to immediately return false
-	// (instead of just this ExportDefProps case)
+
+	bool bResult = false;
 
 	// In order for a deep comparison of instanced objects to match both objects must have the same class and name
-	if (!bResult && ObjectA->GetClass() == ObjectB->GetClass() && ObjectA->GetFName() == ObjectB->GetFName())
+	if (ObjectA->GetClass() == ObjectB->GetClass() && ObjectA->GetFName() == ObjectB->GetFName())
 	{
 		bool bPerformDeepComparison = (PortFlags&PPF_DeepComparison) != 0;
 		if (((PortFlags&PPF_DeepCompareInstances) != 0) && !bPerformDeepComparison)

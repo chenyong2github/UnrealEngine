@@ -2444,6 +2444,9 @@ public:
 	// Returns the qualified export path for a given object, parent, and export root scope
 	static FString GetExportPath(const UObject* Object, const UObject* Parent, const UObject* ExportRootScope, const uint32 PortFlags);
 
+	// Helper method for sharing code with FObjectPtrProperty even though one doesn't inherit from the other
+	static bool StaticIdentical(UObject* A, UObject* B, uint32 PortFlags);
+
 	virtual UObject* LoadObjectPropertyValue(const void* PropertyValueAddress) const
 	{
 		return GetObjectPropertyValue(PropertyValueAddress);
@@ -2646,9 +2649,8 @@ class COREUOBJECT_API FObjectPtrProperty : public FObjectProperty
 	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
 	// End of FProperty interface
 
-	// Helper methods for sharing code with FClassPtrProperty even though one doesn't inherit from the other
+	// Helper method for sharing code with FClassPtrProperty even though one doesn't inherit from the other
 	static void StaticSerializeItem(const FObjectPropertyBase* ObjectProperty, FStructuredArchive::FSlot Slot, void* Value, void const* Defaults);
-	static bool StaticIdentical(const void* A, const void* B, uint32 PortFlags);
 
 	// FObjectProperty interface
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
