@@ -1532,7 +1532,7 @@ bool IsSupportedMaterialDomain(EMaterialDomain Domain)
 
 bool IsWorldPositionOffsetSupported()
 {
-	return false; // TODO: PROG_RASTER
+	return true;
 }
 
 void FVertexFactoryResource::InitRHI()
