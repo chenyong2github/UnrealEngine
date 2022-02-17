@@ -191,10 +191,12 @@ FRigElementKey URigHierarchyController::AddBone(FName InName, FRigElementKey InP
 		if(bTransformInGlobal)
 		{
 			Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::InitialGlobal, true, false);
+			Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::CurrentGlobal, true, false);
 		}
 		else
 		{
 			Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::InitialLocal, true, false);
+			Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::CurrentLocal, true, false);
 		}
 
 		NewElement->Pose.Current = NewElement->Pose.Initial;
