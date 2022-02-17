@@ -255,7 +255,7 @@ void DeferredLightPixelMain(
 		float4 Radiance = 0;
 		if (LightMask > 0)
 		{
-			FShadowTerms ShadowTerms = { StrataPixelHeader.MaterialAO, 1.0, 1.0, InitHairTransmittanceData() };
+			FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
 			float4 LightAttenuation = GetPerPixelLightAttenuation(InputParams.ScreenUV);
 
 			float Dither = InterleavedGradientNoise(InputParams.PixelPos, View.StateFrameIndexMod8);

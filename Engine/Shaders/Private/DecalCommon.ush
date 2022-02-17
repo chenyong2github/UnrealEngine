@@ -31,7 +31,7 @@ float DecalCommonOutput(
 #endif
 #elif DECAL_RENDERSTAGE == DECAL_RENDERSTAGE_AO
 	// Replace color with AO for AO decals.
-	Color = lerp(1, InHeader.MaterialAO, DBuffer.Coverage);
+	Color = lerp(1, StrataGetAO(InHeader), DBuffer.Coverage);
 #endif
 
 #if DECAL_RENDERTARGETMODE == DECAL_RENDERTARGETMODE_SCENECOLOR

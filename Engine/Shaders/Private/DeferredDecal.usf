@@ -145,7 +145,8 @@ void FPixelShaderInOut_MainPS(inout FPixelShaderIn In, inout FPixelShaderOut Out
 	FStrataPixelHeader StrataHeader = InitialiseStrataPixelHeader();
 	StrataHeader.StrataTree = MaterialParameters.StrataTree;
 	StrataHeader.BSDFCount = 1;
-	StrataHeader.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+	StrataHeader.IrradianceAO = InitIrradianceAndOcclusion();
+	StrataHeader.IrradianceAO.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 	StrataHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
 	const float Coverage = DecalCommonOutput(Out, StrataHeader, DecalFading);
 	const float Opacity = Coverage;

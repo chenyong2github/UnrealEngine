@@ -57,7 +57,7 @@ float3 StrataForwardLightingCommon(
 	if (LightMask > 0.0)
 	{
 		// Evaluate the ShadowTerm that can then be used when integrating the lighting
-		FShadowTerms ShadowTerms = { StrataPixelHeader.MaterialAO, 1.0, 1.0, InitHairTransmittanceData() };
+		FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
 
 		float4 PrecomputedShadowFactors = HasZeroPrecShadowMask(StrataPixelHeader) ? 0.0f : 1.0f;
 	#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING
@@ -315,7 +315,7 @@ float3 StrataForwardLighting(
 					float IndirectIrradiance = 0.0f; 
 
 					// Compute the bent normal from the BSDF normal
-					const FShadingOcclusion ShadingOcclusion = ApplyBentNormal(MaterialParameters.CameraVector, StrataBSDFContext.N, MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters), Roughness, StrataPixelHeader.MaterialAO);
+					const FShadingOcclusion ShadingOcclusion = ApplyBentNormal(MaterialParameters.CameraVector, StrataBSDFContext.N, MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters), Roughness,  StrataGetAO(StrataPixelHeader));
 
 					// 1. Diffuse Sky evaluation using bent normal
 					{

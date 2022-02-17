@@ -261,7 +261,8 @@ void MainPS(
 	{
 		FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
 		StrataPixelHeader.StrataTree = GetInitialisedStrataTree();
-		StrataPixelHeader.MaterialAO = 1.0f - IndirectIrradianceAndAO;
+		StrataPixelHeader.IrradianceAO = InitIrradianceAndOcclusion();
+		StrataPixelHeader.IrradianceAO.MaterialAO = 1.0f - IndirectIrradianceAndAO;
 		SetCastContactShadow(StrataPixelHeader, 0);
 
 		uint SharedLocalBasisIndex = 0;

@@ -1066,7 +1066,8 @@ void FPixelShaderInOut_MainPS(
 	StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
 	StrataPixelHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount;
 	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
-	StrataPixelHeader.MaterialAO = MaterialAO;
+	StrataPixelHeader.IrradianceAO = InitIrradianceAndOcclusion();
+	StrataPixelHeader.IrradianceAO.MaterialAO = MaterialAO;
 	SetCastContactShadow(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW);
 	SetDynamicIndirectShadowCasterRepresentation(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION);
 #endif
@@ -1645,7 +1646,13 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 	// STRATA_TODO GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION and ALLOW_STATIC_LIGHTING cases
-	StrataPixelHeader.MaterialAO = GBuffer.GBufferAO;
+	// const FShadingOcclusion ShadingOcclusion = ApplyBentNormal(MaterialParameters.CameraVector, MaterialParameters.WorldNormal, MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters), GBuffer.Roughness, MaterialAO);
+	{
+		StrataPixelHeader.IrradianceAO									= InitIrradianceAndOcclusion();
+		StrataPixelHeader.IrradianceAO.MaterialAO						= GBuffer.GBufferAO;	// STRATA_TODO: AOMultiBounce(Luminance(GBuffer.SpecularColor), ShadingOcclusion.SpecOcclusion).g; // FIXME: ALLOW_STATIC_LIGHTING == 0 expects this to be AO
+		StrataPixelHeader.IrradianceAO.IndirectIrradiance				= IndirectIrradiance;	// STRATA_TODO
+		StrataPixelHeader.IrradianceAO.DiffuseIndirectSampleOcclusion	= 0xFFu;				// STRATA_TODO: GetDiffuseIndirectSampleOcclusion(GBuffer, MaterialParameters.CameraVector, MaterialParameters.WorldNormal, GetBentNormal(MaterialParameters), In.SvPosition.xy, MaterialAO);
+	}
 
 	// We only rely on this GBuffer structure for the write out to legacy render target such as velocity or precomputed shadow factors
 	const float4 PrecomputedShadowFactors = GBuffer.PrecomputedShadowFactors;

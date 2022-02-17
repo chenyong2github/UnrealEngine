@@ -207,7 +207,7 @@ float4 GetSimpleLightLighting(
 
 	#if STRATA_ENABLED && USE_HAIR_LIGHTING == 0
 		const FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight);
-		const FShadowTerms ShadowTerms = { StrataPixelHeader.MaterialAO, 1.0, 1.0, InitHairTransmittanceData() };
+		const FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
 
 		const float3 ToLight = LightData.TranslatedWorldPosition - TranslatedWorldPosition;
 		const float3 L = normalize(ToLight);
@@ -352,7 +352,7 @@ float4 GetLightGridLocalLighting(
 		#endif
 
 	#if STRATA_ENABLED && USE_HAIR_LIGHTING == 0
-		FShadowTerms ShadowTerms = { StrataPixelHeader.MaterialAO, 1.0, 1.0, InitHairTransmittanceData() };
+		FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
 
 		const uint FakeShadingModelID = 0;
 		const float FakeContactShadowOpacity = 1.0f;

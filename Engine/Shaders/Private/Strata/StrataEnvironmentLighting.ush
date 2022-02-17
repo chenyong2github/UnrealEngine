@@ -37,7 +37,7 @@ float4 StrataEnvironmentLighting(
 	FUpsampleDFAOOutput UpsampleDFAOOutput = UpsampleDFAO(BufferUV, SceneDepth);
 #endif
 
-	float CombinedScreenAndMaterialAO = StrataPixelHeader.MaterialAO * AmbientOcclusion;
+	float CombinedScreenAndMaterialAO = StrataGetAO(StrataPixelHeader) * AmbientOcclusion;
 
 	
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
@@ -85,7 +85,7 @@ float4 StrataEnvironmentLighting(
 		if (bProcessFrontFaceDiffuse || bProcessBackFaceDiffuse)
 		{
 			// Compute the common sky visibility factors
-			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(StrataBSDFContext.N, StrataBSDFContext.N, StrataPixelHeader.MaterialAO, AmbientOcclusion, BentNormal);
+			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(StrataBSDFContext.N, StrataBSDFContext.N, StrataGetAO(StrataPixelHeader), AmbientOcclusion, BentNormal);
 
 			if (bProcessFrontFaceDiffuse)
 			{

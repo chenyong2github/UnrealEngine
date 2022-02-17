@@ -210,7 +210,7 @@ struct FStrataBSDF
 
 // For HEADER_BIT_BSDF_COUNT and  HEADER_BIT_SHAREDLOCALBASES_X, please refer to values in StrataDefinitions.h
 #define HEADER_BIT_COUNT_STATE						HEADER_MASK_BIT_COUNT
-#define HEADER_BIT_COUNT_AO							8
+#define HEADER_BIT_COUNT_IRRADIANCE_AO				8
 #define HEADER_BIT_COUNT_SHADINGMODELS				4
 #define HEADER_BIT_COUNT_BSDF_COUNT					4
 #define HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT		3
@@ -218,8 +218,8 @@ struct FStrataBSDF
 #define HEADER_BIT_COUNT___UNUSED___				1
 
 #define HEADER_BIT_OFFSET_STATE						0
-#define HEADER_BIT_OFFSET_AO						(HEADER_BIT_OFFSET_STATE					+ HEADER_BIT_COUNT_STATE)
-#define HEADER_BIT_OFFSET_SHADINGMODELS				(HEADER_BIT_OFFSET_AO						+ HEADER_BIT_COUNT_AO)
+#define HEADER_BIT_OFFSET_IRRADIANCE_AO				(HEADER_BIT_OFFSET_STATE					+ HEADER_BIT_COUNT_STATE)
+#define HEADER_BIT_OFFSET_SHADINGMODELS				(HEADER_BIT_OFFSET_IRRADIANCE_AO			+ HEADER_BIT_COUNT_IRRADIANCE_AO)
 #define HEADER_BIT_OFFSET_BSDF_COUNT				(HEADER_BIT_OFFSET_SHADINGMODELS			+ HEADER_BIT_COUNT_SHADINGMODELS)
 #define HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT	(HEADER_BIT_OFFSET_BSDF_COUNT				+ HEADER_BIT_COUNT_BSDF_COUNT)
 #define HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE		(HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT	+ HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT)
@@ -229,10 +229,10 @@ struct FStrataBSDF
 // The different layout 'aliases' differently the material header
 // 
 // Layout 0 (Fast)
-#define HEADER_FASTENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_AO)
+#define HEADER_FASTENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_IRRADIANCE_AO)
 #define HEADER_FASTENCODING_MASK					((1u<<HEADER_FASTENCODING_BIT_COUNT)-1u)
 // Layout 1 (Single BSDF)
-#define HEADER_SINGLEENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_AO + HEADER_BIT_COUNT_SHADINGMODELS)
+#define HEADER_SINGLEENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_IRRADIANCE_AO + HEADER_BIT_COUNT_SHADINGMODELS)
 #define HEADER_SINGLEENCODING_MASK					((1u<<HEADER_SINGLEENCODING_BIT_COUNT)-1u)
 // Layout 2 (Complex)
 #define HEADER_COMPLEXENCODING_BIT_COUNT			(32u)
@@ -252,8 +252,8 @@ struct FStrataBSDF
 #define HEADER_GETSHAREDLOCALBASESTYPE(X)			READ_BITS( X, HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE, HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE)
 #define HEADER_SETSHAREDLOCALBASESTYPE(X, NewValue)	WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE, HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE, NewValue)
 
-#define HEADER_GETAO(X)								READ_BITS( X, HEADER_BIT_COUNT_AO, HEADER_BIT_OFFSET_AO)
-#define HEADER_SETAO(X, NewValue)					WRITE_BITS(X, HEADER_BIT_COUNT_AO, HEADER_BIT_OFFSET_AO, NewValue)
+#define HEADER_GETIRRADIANCE_AO(X)					READ_BITS( X, HEADER_BIT_COUNT_IRRADIANCE_AO, HEADER_BIT_OFFSET_IRRADIANCE_AO)
+#define HEADER_SETIRRADIANCE_AO(X, NewValue)		WRITE_BITS(X, HEADER_BIT_COUNT_IRRADIANCE_AO, HEADER_BIT_OFFSET_IRRADIANCE_AO, NewValue)
 
 #define HEADER_GETSTATE(X)							READ_BITS( X, HEADER_BIT_COUNT_STATE, HEADER_BIT_OFFSET_STATE)
 #define HEADER_SETSTATE(X, NewValue)				WRITE_BITS(X, HEADER_BIT_COUNT_STATE, HEADER_BIT_OFFSET_STATE, NewValue)
@@ -473,6 +473,55 @@ float3 StrataUnpackNormal(uint PackedNormal);
 uint   StrataPackNormal24(in float3 Normal);
 float3 StrataUnpackNormal24(uint PackedNormal);
 bool   IsStrataSlabFastPathCompatible(in FStrataBSDF BSDF);
+
+///////////////////////////////////////////////////////////////////////////////
+// Irradiance and occlusion
+struct FStrataIrradianceAndOcclusion
+{
+	float MaterialAO;
+	float IndirectIrradiance;
+	uint  DiffuseIndirectSampleOcclusion;
+};
+
+FStrataIrradianceAndOcclusion InitIrradianceAndOcclusion(float InAO=1.0f)
+{
+	FStrataIrradianceAndOcclusion Out;
+	Out.MaterialAO = 1.0f;
+	Out.IndirectIrradiance = 1.0f;
+	Out.DiffuseIndirectSampleOcclusion = 0xFFu;
+	return Out;
+}
+
+uint StrataPackIrradianceAndOcclusion(FStrataIrradianceAndOcclusion In, float QuantizationBias=0)
+{
+#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+	return In.DiffuseIndirectSampleOcclusion;
+#elif ALLOW_STATIC_LIGHTING
+	// No space for AO. Multiply IndirectIrradiance by AO instead of storing.
+	return min(0xFFu, (EncodeIndirectIrradiance(In.IndirectIrradiance * In.MaterialAO) + QuantizationBias * (1.0 / 255.0)) * 0xFFu);
+#else
+	return saturate(In.MaterialAO) * 0xFFu;
+#endif
+}
+
+FStrataIrradianceAndOcclusion StrataUnpackIrradianceAndOcclusion(uint In /*8bits*/)
+{
+	FStrataIrradianceAndOcclusion Out;
+#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+	Out.DiffuseIndirectSampleOcclusion = In;
+	Out.MaterialAO = saturate(1.0 - float(countbits(Out.DiffuseIndirectSampleOcclusion)) * rcp(float(INDIRECT_SAMPLE_COUNT)));
+	Out.IndirectIrradiance = 1.f;
+#elif ALLOW_STATIC_LIGHTING
+	Out.MaterialAO = 1.f;
+	Out.DiffuseIndirectSampleOcclusion = 0x0u;
+	Out.IndirectIrradiance = DecodeIndirectIrradiance(In * rcp(255));
+#else
+	Out.MaterialAO = In * rcp(255);
+	Out.DiffuseIndirectSampleOcclusion = 0x0u;
+	Out.IndirectIrradiance = 1.f;
+#endif
+	return Out;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Top layer
@@ -1063,6 +1112,7 @@ struct FStrataPixelHeader
 	FSharedLocalBases SharedLocalBases;
 	// The strata material BSDF topology organised as a tree
 	FStrataTree StrataTree;
+	FStrataIrradianceAndOcclusion IrradianceAO;
 #endif
 #if STRATA_DEFERRED_SHADING
 	FStrataMaterialContainer StrataBuffer;
@@ -1070,8 +1120,6 @@ struct FStrataPixelHeader
 	uint SharedLocalBasesTypes_PackedHeader; // Stores SharedLocalBasesTypes for non-simple material, and PackedHeader data for simple material
 	uint PackedTopLayerData;
 #endif
-
-	float MaterialAO;
 
 	uint State;
 };
@@ -1109,13 +1157,13 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 #if STRATA_INLINE_SHADING
 	Out.SharedLocalBases = (FSharedLocalBases)0;
 	Out.StrataTree = (FStrataTree)0;
+	Out.IrradianceAO = InitIrradianceAndOcclusion();
 #endif
 #if STRATA_DEFERRED_SHADING
 	Out.SharedLocalBasesIndexOffset = 0;
 	Out.SharedLocalBasesTypes_PackedHeader = 0;
 	Out.PackedTopLayerData = 0;
 #endif
-	Out.MaterialAO = 1.0f;
 	Out.State = 0;
 	return Out;
 }
@@ -1903,7 +1951,12 @@ float3 StrataGetWorldTangent(in FStrataPixelHeader Header, in FStrataBSDF BSDF, 
 
 float StrataGetAO(in FStrataPixelHeader Header)
 {
-	return HEADER_GETAO(Header.State);
+	return StrataUnpackIrradianceAndOcclusion(HEADER_GETIRRADIANCE_AO(Header.State)).MaterialAO;
+}
+
+FStrataIrradianceAndOcclusion StrataGetIrradianceAndAO(in FStrataPixelHeader Header)
+{
+	return StrataUnpackIrradianceAndOcclusion(HEADER_GETIRRADIANCE_AO(Header.State));
 }
 
 float StrataGetLegacyShadingModels(in FStrataBSDF BSDF)
@@ -2319,8 +2372,8 @@ void StrataConvertFromDBuffer(
 	OutHeader.SharedLocalBases = StrataInitialiseSharedLocalBases();
 	OutHeader.SharedLocalBases.Normals[SharedLocalBasisIndex] = In.WorldNormal;
 	OutHeader.SharedLocalBases.Tangents[SharedLocalBasisIndex] = 0.f;
+	OutHeader.IrradianceAO = InitIrradianceAndOcclusion();
 #endif
-	OutHeader.MaterialAO = 1.0f;
 	OutHeader.State = 0;
 	AddShadingModels(OutHeader, StrataShadingModelBit(STRATA_BSDF_TYPE_SLAB));
 
@@ -2563,6 +2616,11 @@ void PackStrataOut(
 		AndIsSimpleMaterial(StrataPixelHeader, BSDFVisibleCount == 1);
 		AndIsSingleMaterial(StrataPixelHeader, BSDFVisibleCount == 1);
 
+		// Store irradiance and AO into the state bits of the header
+	#if STRATA_INLINE_SHADING
+		HEADER_SETIRRADIANCE_AO(StrataPixelHeader.State, StrataPackIrradianceAndOcclusion(StrataPixelHeader.IrradianceAO, 0));
+	#endif
+
 		// Now write out Strata data
 
 		///////////////////////////////////////////////////////////////////////////
@@ -2598,7 +2656,6 @@ void PackStrataOut(
 #endif
 		}
 
-
 		{
 			int BSDFCount = 0;
 			STRATA_UNROLL_N(STRATA_CLAMPED_BSDF_COUNT)
@@ -2630,7 +2687,6 @@ void PackStrataOut(
 						{
 							uint Out = 0;
 							HEADER_SETSTATE(Out, StrataPixelHeader.State);
-							HEADER_SETAO(Out, PackR8(StrataPixelHeader.MaterialAO));
 
 							uint Packed16 = (PackedDiffuse8Bits << 8) | PackedRoughness8bits;
 							Out = (Out & HEADER_FASTENCODING_MASK) | (Packed16 << HEADER_FASTENCODING_BIT_COUNT);
@@ -2655,7 +2711,6 @@ void PackStrataOut(
 						{
 							uint Out = 0;
 							HEADER_SETSTATE(Out, StrataPixelHeader.State);
-							HEADER_SETAO(Out, PackR8(StrataPixelHeader.MaterialAO));
 							HEADER_SETSHADINGMODELS(Out, GetShadingModels(StrataPixelHeader));
 							Out = Out & HEADER_SINGLEENCODING_MASK;
 							Out = Out | ((BSDF.State & STATE_SINGLEENCODING_MASK) << HEADER_SINGLEENCODING_BIT_COUNT);
@@ -2789,7 +2844,6 @@ uint PackStrataHeader(uint InBSDFCount, FStrataPixelHeader InHeader)
 	HEADER_SETSHAREDLOCALBASESTYPE(Out, InHeader.SharedLocalBases.Types);
 #endif
 
-	HEADER_SETAO(Out, PackR8(InHeader.MaterialAO));
 	HEADER_SETSTATE(Out, InHeader.State);
 
 	return Out;
@@ -2803,7 +2857,6 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 
 	uint PackedHeader = StrataLoadUint1(StrataBuffer, StrataAddressing);
 	Out.State		= HEADER_GETSTATE(PackedHeader);
-	Out.MaterialAO	= UnpackR8(HEADER_GETAO(PackedHeader));
 	Out.BSDFCount   = HEADER_GETBSDFCOUNT(PackedHeader);
 
 	const bool bIsSimpleMaterial = (PackedHeader & HEADER_MASK_ISSIMPLEMATERIAL) > 0;
