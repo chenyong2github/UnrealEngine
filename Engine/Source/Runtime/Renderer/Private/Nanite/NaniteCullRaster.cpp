@@ -128,7 +128,19 @@ static FAutoConsoleVariableRef CVarNaniteMSInterp(
 );
 
 // TODO: WIP - PROG_RASTER
-int32 GNaniteProgrammableRaster = 0;
+int32 GNaniteAllowProgrammableRaster = 0;
+static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRaster(
+	TEXT("r.Nanite.AllowProgrammableRaster"),
+	GNaniteAllowProgrammableRaster,
+	TEXT(""),
+	ECVF_ReadOnly
+);
+
+// 0: Disabled
+// 1: Main pass only
+// 2: Shadow pass only
+// 3: All passes
+int32 GNaniteProgrammableRaster = 3;
 static FAutoConsoleVariableRef CVarNaniteProgrammableRaster(
 	TEXT("r.Nanite.ProgrammableRaster"),
 	GNaniteProgrammableRaster,
@@ -953,7 +965,7 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 			return false;
 		}
 
-		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, GNaniteProgrammableRaster != 0);
+		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1087,7 +1099,7 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 			return false;
 		}
 
-		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, GNaniteProgrammableRaster != 0);
+		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1244,7 +1256,7 @@ public:
 			return false;
 		}
 
-		return FNaniteMaterialShader::ShouldCompilePixelPermutation(Parameters, GNaniteProgrammableRaster != 0);
+		return FNaniteMaterialShader::ShouldCompilePixelPermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1358,7 +1370,23 @@ FCullingContext InitCullingContext(
 		CullingContext.Configuration.bTwoPassOcclusion = false;
 	}
 
-	CullingContext.Configuration.bProgrammableRaster = (GNaniteProgrammableRaster != 0);
+	CullingContext.Configuration.bProgrammableRaster = (GNaniteProgrammableRaster == 3); // Enabled in all passes
+	if (GNaniteProgrammableRaster == 2 && !CullingContext.Configuration.bPrimaryContext)
+	{
+		// Shadow pass only
+		CullingContext.Configuration.bProgrammableRaster = true;
+	}
+	else if (GNaniteProgrammableRaster == 1 && CullingContext.Configuration.bPrimaryContext)
+	{
+		// Main pass only
+		CullingContext.Configuration.bProgrammableRaster = true;
+	}
+
+	if (GNaniteAllowProgrammableRaster == 0)
+	{
+		// Never use programmable raster if the material shaders are unavailable
+		CullingContext.Configuration.bProgrammableRaster = false;
+	}
 
 	CullingContext.RenderFlags |= CullingContext.Configuration.bProgrammableRaster		? NANITE_RENDER_FLAG_PROGRAMMABLE_RASTER : 0u;
 	CullingContext.RenderFlags |= CullingContext.Configuration.bForceHWRaster			? NANITE_RENDER_FLAG_FORCE_HW_RASTER : 0u;
@@ -1898,11 +1926,13 @@ static void AddPass_Binning(
 		return;
 	}
 
+	const uint32 MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
+
 	BinningData.HeaderBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 4, FMath::RoundUpToPowerOfTwo(BinningData.BinCount)), TEXT("Nanite.RasterizerBinHeaders"));
 	BinningData.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(BinningData.BinCount * NANITE_RASTERIZER_ARG_COUNT), TEXT("Nanite.RasterizerBinIndirectArgs"));
 
 	// Support a max of 3 unique materials per visible cluster (i.e. if all clusters are fast path and use full range, never run out of space).
-	const uint32 MaxClusterIndirections = Nanite::FGlobalResources::GetMaxVisibleClusters() * 3u;
+	const uint32 MaxClusterIndirections = MaxVisibleClusters * 3u;
 	check(MaxClusterIndirections > 0);
 	BinningData.DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * 2, FMath::RoundUpToPowerOfTwo(MaxClusterIndirections)), TEXT("Nanite.RasterizerBinData"));
 
@@ -1932,7 +1962,7 @@ static void AddPass_Binning(
 
 	PassParameters->PageConstants = PageConstants;
 	PassParameters->RenderFlags = RenderFlags;
-	PassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
+	PassParameters->MaxVisibleClusters = MaxVisibleClusters;
 
 	// Classify SW Clusters
 	{
