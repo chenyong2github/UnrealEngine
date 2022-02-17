@@ -14,18 +14,19 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Commits
 {
+	using CommitId = ObjectId<ICommit>;
 	using StreamId = StringId<IStream>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Stores metadata about a commit
 	/// </summary>
-	interface ICommit
+	public interface ICommit
 	{
 		/// <summary>
 		/// Unique id for this document
 		/// </summary>
-		public ObjectId Id { get; }
+		public CommitId Id { get; }
 
 		/// <summary>
 		/// The stream id

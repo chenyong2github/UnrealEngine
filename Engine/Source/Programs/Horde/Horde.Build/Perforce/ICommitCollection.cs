@@ -12,6 +12,7 @@ using HordeServer.Utilities;
 namespace HordeServer.Commits
 {
 	using StreamId = StringId<IStream>;
+	using CommitId = ObjectId<ICommit>;
 
 	/// <summary>
 	/// Stores a collection of commits
@@ -29,7 +30,7 @@ namespace HordeServer.Commits
 		/// Gets a single commit
 		/// </summary>
 		/// <param name="Id">Identifier for the commit</param>
-		Task<ICommit?> GetCommitAsync(ObjectId Id);
+		Task<ICommit?> GetCommitAsync(CommitId Id);
 
 		/// <summary>
 		/// Finds commits matching certain criteria

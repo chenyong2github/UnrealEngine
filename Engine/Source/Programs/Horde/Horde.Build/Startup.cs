@@ -375,6 +375,7 @@ namespace HordeServer
 				return new NoOpDogStatsd();
 			});
 			Services.AddSingleton<CommitService>();
+			Services.AddSingleton<ICommitService>(SP => SP.GetRequiredService<CommitService>());
 			Services.AddSingleton<IClock, Clock>();
 			Services.AddSingleton<IDowntimeService, DowntimeService>();
 			Services.AddSingleton<IIssueService, IssueService>();

@@ -32,10 +32,12 @@ using HordeCommon;
 using EpicGames.Horde.Storage;
 using System.Text;
 using Microsoft.Extensions.Options;
+using Horde.Build.Utilities;
 
 namespace HordeServer.Commits.Impl
 {
 	using P4 = Perforce.P4;
+	using CommitId = ObjectId<ICommit>;
 	using StreamId = StringId<IStream>;
 	using IRef = EpicGames.Horde.Storage.IRef;
 
@@ -47,7 +49,7 @@ namespace HordeServer.Commits.Impl
 		/// <summary>
 		/// Whether to mirror commit metadata to the database
 		/// </summary>
-		public bool Metadata { get; set; }
+		public bool Metadata { get; set; } = true;
 
 		/// <summary>
 		/// Specific list of streams to enable commit mirroring for
@@ -125,6 +127,34 @@ namespace HordeServer.Commits.Impl
 			}
 		}
 
+		/// <summary>
+		/// A registered listener for new commits
+		/// </summary>
+		class ListenerInfo : IDisposable
+		{
+			List<ListenerInfo> Listeners;
+			public Action<ICommit> Callback;
+
+			public ListenerInfo(List<ListenerInfo> Listeners, Action<ICommit> Callback)
+			{
+				this.Listeners = Listeners;
+				this.Callback = Callback;
+
+				lock (Listeners)
+				{
+					Listeners.Add(this);
+				}
+			}
+
+			public void Dispose()
+			{
+				lock (Listeners)
+				{
+					Listeners.Remove(this);
+				}
+			}
+		}
+
 		public CommitServiceOptions Options { get; }
 
 		// Redis
@@ -166,6 +196,7 @@ namespace HordeServer.Commits.Impl
 		/// <inheritdoc/>
 		public async Task StartAsync(CancellationToken CancellationToken)
 		{
+			await StartNotificationsAsync();
 			if (Options.Metadata)
 			{
 				await StartMetadataReplicationAsync();
@@ -187,7 +218,56 @@ namespace HordeServer.Commits.Impl
 			{
 				await StopMetadataReplicationAsync();
 			}
+			await StopNotificationsAsync();
 		}
+
+		#region Notifications
+
+		List<ListenerInfo> Listeners = new List<ListenerInfo>();
+		RedisChannel<CommitId> CommitNotifyChannel { get; } = new RedisChannel<CommitId>("commits/notify");
+		RedisChannelSubscription<CommitId>? CommitNotifySubscription;
+
+		async Task StartNotificationsAsync()
+		{
+			ISubscriber Subscriber = Redis.Multiplexer.GetSubscriber();
+			CommitNotifySubscription = await Subscriber.SubscribeAsync(CommitNotifyChannel, DispatchCommitNotification);
+		}
+
+		async Task StopNotificationsAsync()
+		{
+			if (CommitNotifySubscription != null)
+			{
+				await CommitNotifySubscription.DisposeAsync();
+				CommitNotifySubscription = null;
+			}
+		}
+
+		async void DispatchCommitNotification(RedisChannel<CommitId> Channel, CommitId CommitId)
+		{
+			ICommit? Commit = await CommitCollection.GetCommitAsync(CommitId);
+			if (Commit != null)
+			{
+				lock (Listeners)
+				{
+					foreach (ListenerInfo Listener in Listeners)
+					{
+						Listener.Callback(Commit);
+					}
+				}
+			}
+		}
+
+		async Task NotifyListeners(CommitId CommitId)
+		{
+			await Redis.PublishAsync(CommitNotifyChannel, CommitId);
+		}
+
+		public IDisposable AddListener(Action<ICommit> OnAddCommit)
+		{
+			return new ListenerInfo(Listeners, OnAddCommit);
+		}
+
+		#endregion
 
 		#region Metadata updates
 
@@ -256,6 +336,7 @@ namespace HordeServer.Commits.Impl
 			await foreach (NewCommit NewCommit in FindCommitsForClusterAsync(ClusterName, StreamToFirstChange))
 			{
 				ICommit Commit = await CommitCollection.AddOrReplaceAsync(NewCommit);
+				await NotifyListeners(Commit.Id);
 
 				RedisList<int> StreamCommitsKey = RedisStreamChanges(Commit.StreamId);
 				await StreamCommitsKey.RightPushAsync(Commit.Change);

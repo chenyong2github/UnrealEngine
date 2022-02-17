@@ -15,6 +15,7 @@ using EpicGames.Horde.Storage;
 
 namespace HordeServer.Commits.Impl
 {
+	using CommitId = ObjectId<ICommit>;
 	using StreamId = StringId<IStream>;
 	using UserId = ObjectId<IUser>;
 
@@ -26,7 +27,7 @@ namespace HordeServer.Commits.Impl
 		class Commit : ICommit
 		{
 			[BsonIgnoreIfDefault]
-			public ObjectId Id { get; set; }
+			public CommitId Id { get; set; }
 
 			[BsonElement("s")]
 			public StreamId StreamId { get; set; }
@@ -106,7 +107,7 @@ namespace HordeServer.Commits.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ICommit?> GetCommitAsync(ObjectId Id)
+		public async Task<ICommit?> GetCommitAsync(CommitId Id)
 		{
 			return await Commits.Find(x => x.Id == Id).FirstOrDefaultAsync();
 		}

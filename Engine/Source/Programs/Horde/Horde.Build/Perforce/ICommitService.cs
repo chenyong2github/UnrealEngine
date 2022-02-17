@@ -11,23 +11,16 @@ using HordeServer.Utilities;
 
 namespace HordeServer.Commits
 {
-	using StreamId = StringId<IStream>;
-
 	/// <summary>
 	/// Provides information about commits
 	/// </summary>
-	interface ICommitService
+	public interface ICommitService
 	{
 		/// <summary>
-		/// Finds commits matching a set of criteria
+		/// Registers a delegate to be called when a new commit is added
 		/// </summary>
-		/// <param name="StreamId">The stream to query</param>
-		/// <param name="MinChange">Minimum change to query</param>
-		/// <param name="MaxChange">Maximum change to query</param>
-		/// <param name="Paths">Paths to filter by</param>
-		/// <param name="Index">Index of the first result to return</param>
-		/// <param name="Count">Maximum number of results to return</param>
-		/// <returns>List of commit objects</returns>
-		Task<List<ICommit>> FindCommitsAsync(StreamId StreamId, int? MinChange = null, int? MaxChange = null, string[]? Paths = null, int? Index = null, int? Count = null);
+		/// <param name="OnAddCommit">Callback for a new commit being added</param>
+		/// <returns>Disposable handler.</returns>
+		IDisposable AddListener(Action<ICommit> OnAddCommit);
 	}
 }
