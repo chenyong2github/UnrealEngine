@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Features/ModularFeatures.h"
-
+#include "Misc/ScopeLock.h"
 
 IModularFeatures& IModularFeatures::Get()
 {
