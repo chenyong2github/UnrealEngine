@@ -11,6 +11,7 @@
 #include "Widgets/Views/SListView.h"
 
 class FConcertSessionItem;
+class FExtender;
 class IConcertSessionBrowserController;
 class ITableRow;
 class UConcertSessionBrowserSettings;
