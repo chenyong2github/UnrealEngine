@@ -10,6 +10,11 @@ public:
 	virtual FTimedDataInputCollection& GetTimedDataInputCollection() { return Collection; }
 	virtual TArrayView<const struct FCommonFrameRateInfo> GetAllCommonFrameRates() { return FCommonFrameRates::GetAll(); }
 
+	virtual TSharedRef<SFrameRatePicker> CreateFrameRatePicker(SFrameRatePicker::FArguments Arguments) override
+	{
+		return SArgumentNew(Arguments, SFrameRatePicker);
+	}
+	
 private:
 	FTimedDataInputCollection Collection;
 };
