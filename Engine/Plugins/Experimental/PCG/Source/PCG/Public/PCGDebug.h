@@ -17,6 +17,9 @@ struct FPCGDebugVisualizationSettings
 public:
 	FPCGDebugVisualizationSettings();
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0"))
+	float PointScale = 1.0f;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TSoftObjectPtr<UStaticMesh> PointMesh;
 

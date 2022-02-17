@@ -77,9 +77,11 @@ namespace PCGDebugElement
 			InstanceCustomData.Reserve(NumCustomData);
 
 			// First, create target instance transforms
+			const float PointScale = DebugSettings.PointScale;
 			for (const FPCGPoint& Point : Points)
 			{
-				Instances.Add(Point.Transform);
+				FTransform& InstanceTransform = Instances.Add_GetRef(Point.Transform);
+				InstanceTransform.SetScale3D(InstanceTransform.GetScale3D() * PointScale);
 			}
 
 			UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Mesh, { Material });
