@@ -315,7 +315,7 @@ private:
 	FDataSetMeta& operator=(const FDataSetMeta&) = delete;
 };
 
-#include "VectorVMExperimental.h"
+#include "VectorVMExperimental.h"  // -V547
 
 //Data the VM will keep on each dataset locally per thread which is then thread safely pushed to it's destination at the end of execution.
 struct FDataSetThreadLocalTempData
