@@ -3,13 +3,11 @@
 #pragma once
 
 #include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/SoftObjectPath.h"
 #include "ConcertSessionBrowserSettings.generated.h"
 
 /** Serializes the multi-user session browser settings like the active filters. */
 UCLASS(config=Editor)
-class UConcertSessionBrowserSettings : public UObject
+class CONCERTSHAREDSLATE_API UConcertSessionBrowserSettings : public UObject
 {
 	GENERATED_BODY()
 
