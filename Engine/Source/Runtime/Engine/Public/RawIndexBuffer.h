@@ -311,6 +311,8 @@ public:
 	/** Serialize only meta data (e.g. number of indices) but not the actual index data */
 	void SerializeMetaData(FArchive& Ar);
 
+	void ClearMetaData();
+
     /**
      * Discard
      * discards the serialized data when it is not needed

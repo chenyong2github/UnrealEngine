@@ -426,11 +426,15 @@ void FRawStaticIndexBuffer::SerializeMetaData(FArchive& Ar)
 	Ar << CachedNumIndices << b32Bit;
 }
 
+void FRawStaticIndexBuffer::ClearMetaData()
+{
+	CachedNumIndices = -1;
+}
+
 void FRawStaticIndexBuffer::Discard()
 {
     IndexStorage.SetAllowCPUAccess(false);
     IndexStorage.Discard();
-	CachedNumIndices = IndexStorage.Num() / (b32Bit ? 4 : 2);
 }
 
 /*-----------------------------------------------------------------------------

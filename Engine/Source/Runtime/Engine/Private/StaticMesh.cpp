@@ -545,6 +545,7 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 		if (!bEnableReversedIndexBuffer)
 		{
 			SerializedAdditionalIndexBuffers->ReversedIndexBuffer.Discard();
+			SerializedAdditionalIndexBuffers->ReversedIndexBuffer.ClearMetaData();
 		}
 	}
 
@@ -554,6 +555,7 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 	if (!bEnableDepthOnlyIndexBuffer)
 	{
 		DepthOnlyIndexBuffer.Discard();
+		DepthOnlyIndexBuffer.ClearMetaData();
 	}
 
 	if (bSerializeReversedIndexBuffer)
@@ -564,6 +566,7 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 		if (!bEnableReversedIndexBuffer)
 		{
 			SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.Discard();
+			SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.ClearMetaData();
 		}
 	}
 
@@ -658,21 +661,25 @@ void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)
 		// Reversed indices are either stripped during cook or will be stripped on load.
 		// In either case, clear CachedNumIndices to show that the buffer will be empty after actual loading
 		SerializedAdditionalIndexBuffers->ReversedIndexBuffer.Discard();
+		SerializedAdditionalIndexBuffers->ReversedIndexBuffer.ClearMetaData();
 	}
 	DepthOnlyIndexBuffer.SerializeMetaData(Ar);
 	if (!bHasDepthOnlyIndices)
 	{
 		DepthOnlyIndexBuffer.Discard();
+		DepthOnlyIndexBuffer.ClearMetaData();
 	}
 	SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.SerializeMetaData(Ar);
 	if (!bHasReversedDepthOnlyIndices)
 	{
 		SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.Discard();
+		SerializedAdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.ClearMetaData();
 	}
 	SerializedAdditionalIndexBuffers->WireframeIndexBuffer.SerializeMetaData(Ar);
 	if (!bHasWireframeIndices)
 	{
 		SerializedAdditionalIndexBuffers->WireframeIndexBuffer.Discard();
+		SerializedAdditionalIndexBuffers->WireframeIndexBuffer.ClearMetaData();
 	}
 	if (Ar.IsLoading() && Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemovingTessellation)
 	{
@@ -698,6 +705,17 @@ void FStaticMeshLODResources::ClearAvailabilityInfo()
 	VertexBuffers.StaticMeshVertexBuffer.ClearMetaData();
 	VertexBuffers.PositionVertexBuffer.ClearMetaData();
 	VertexBuffers.ColorVertexBuffer.ClearMetaData();
+
+	IndexBuffer.ClearMetaData();
+	IndexBuffer.ClearMetaData();
+	DepthOnlyIndexBuffer.ClearMetaData();
+
+	if (AdditionalIndexBuffers)
+	{
+		AdditionalIndexBuffers->ReversedIndexBuffer.ClearMetaData();
+		AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.ClearMetaData();
+		AdditionalIndexBuffers->WireframeIndexBuffer.ClearMetaData();
+	}
 
 	delete AdditionalIndexBuffers;
 	AdditionalIndexBuffers = nullptr;
