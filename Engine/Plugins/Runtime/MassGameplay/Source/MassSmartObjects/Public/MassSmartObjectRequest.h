@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "SmartObjectTypes.h"
+#include "SmartObjectSubsystem.h"
 #include "MassEntityTypes.h"
 #include "ZoneGraphTypes.h"
 #include "Containers/StaticArray.h"
@@ -17,10 +17,10 @@ struct MASSSMARTOBJECTS_API FSmartObjectCandidate
 	GENERATED_BODY()
 
 	FSmartObjectCandidate() = default;
-	FSmartObjectCandidate(const FSmartObjectHandle InHandle, const float InCost) : Handle(InHandle), Cost(InCost) {}
+	FSmartObjectCandidate(const FSmartObjectRequestResult InResult, const float InCost)	: Result(InResult), Cost(InCost) {}
 
 	UPROPERTY(Transient)
-	FSmartObjectHandle Handle;
+	FSmartObjectRequestResult Result;
 
 	UPROPERTY(Transient)
 	float Cost = 0.f;
@@ -36,7 +36,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectRequestID
 	GENERATED_BODY()
 
 	FMassSmartObjectRequestID() = default;
-	FMassSmartObjectRequestID(const FMassEntityHandle InEntity) : Entity(InEntity) {}
+	explicit FMassSmartObjectRequestID(const FMassEntityHandle InEntity) : Entity(InEntity) {}
 
 	bool IsSet() const { return Entity.IsSet(); }
 	void Reset() { Entity.Reset(); }

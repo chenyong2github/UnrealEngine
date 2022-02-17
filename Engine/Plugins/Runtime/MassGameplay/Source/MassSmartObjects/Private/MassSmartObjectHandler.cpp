@@ -156,7 +156,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 
 	for (const FSmartObjectCandidate& Candidate : View)
 	{
-		if (ClaimSmartObject(Entity, User, Candidate.Handle))
+		if (ClaimSmartObject(Entity, User, Candidate.Result))
 		{
 #if WITH_MASSGAMEPLAY_DEBUG
 			UE_CVLOG(UE::Mass::Debug::IsDebuggingEntity(Entity),
@@ -165,7 +165,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 				Log,
 				TEXT("[%s] claimed [%s]"),
 				*Entity.DebugGetDescription(),
-				*LexToString(Candidate.Handle));
+				*LexToString(Candidate.Result));
 #endif // WITH_MASSGAMEPLAY_DEBUG
 			break;
 		}
@@ -174,12 +174,9 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 	return User.ClaimHandle.IsValid() ? EMassSmartObjectClaimResult::Succeeded : EMassSmartObjectClaimResult::Failed_NoAvailableCandidate;
 }
 
-bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectHandle& ObjectHandle) const
+bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectRequestResult& RequestResult) const
 {
-	FSmartObjectRequestFilter Filter;
-	Filter.BehaviorDefinitionClass = USmartObjectMassBehaviorDefinition::StaticClass();
-
-	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem.Claim(ObjectHandle, Filter);
+	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem.Claim(RequestResult);
 	const bool bSuccess = ClaimHandle.IsValid();
 	if (bSuccess)
 	{
@@ -206,7 +203,7 @@ bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, F
 		Log,
 		TEXT("[%s] claim for [%s] %s"),
 		*Entity.DebugGetDescription(),
-		*LexToString(ObjectHandle),
+		*LexToString(RequestResult),
 		bSuccess ? TEXT("Succeeded") : TEXT("Failed"));
 #endif // WITH_MASSGAMEPLAY_DEBUG
 

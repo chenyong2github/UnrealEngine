@@ -85,13 +85,14 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 	// Process world location based requests
 	WorldRequestQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &Filter, &EntitiesToSignal, &BeginRequestProcessing, &EndRequestProcessing](FMassExecutionContext& Context)
 	{
-		const FSmartObjectOctree& Octree = SmartObjectSubsystem->GetOctree();
-
 		const int32 NumEntities = Context.GetNumEntities();
 		EntitiesToSignal.Reserve(EntitiesToSignal.Num() + NumEntities);
 
 		const TConstArrayView<FMassSmartObjectWorldLocationRequestFragment> RequestList = Context.GetFragmentView<FMassSmartObjectWorldLocationRequestFragment>();
 		const TArrayView<FMassSmartObjectRequestResultFragment> ResultList = Context.GetMutableFragmentView<FMassSmartObjectRequestResultFragment>();
+
+		TArray<FSmartObjectRequestResult> QueryResults;
+		TArray<FSmartObjectCandidate> SortedResults;
 
 		for (int32 i = 0; i < NumEntities; ++i)
 		{
@@ -113,30 +114,31 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 			BeginRequestProcessing(Entity, Context, Result);
 			ON_SCOPE_EXIT{ EndRequestProcessing(SmartObjectSubsystem, Entity, Result);	};
 
-			Octree.FindElementsWithBoundsTest(SearchBounds, [this, &Filter, &Entity, &Result, &SearchOrigin, &bDisplayDebug, &DebugColor](const FSmartObjectOctreeElement& Element)
+			QueryResults.Reset();
+			SmartObjectSubsystem->FindSmartObjects(FSmartObjectRequest(SearchBounds, Filter), QueryResults);
+
+			SortedResults.Reset(QueryResults.Num());
+			for (const FSmartObjectRequestResult& QueryResult : QueryResults)
 			{
-				if (Result.NumCandidates < FMassSmartObjectRequestResult::MaxNumCandidates)
-				{
-					// Make sure that we can use a slot in that object (availability with supported definitions, etc.)
-					const FSmartObjectRequestResult SlotResult = SmartObjectSubsystem->FindSlot(Element.SmartObjectHandle, Filter);
-					if (SlotResult.IsValid())
-					{
-						const FVector ObjectLocation = Element.Bounds.Center;
-						Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(Element.SmartObjectHandle, FVector::DistSquared(SearchOrigin, ObjectLocation));
+				const FVector SlotLocation = SmartObjectSubsystem->GetSlotLocation(QueryResult.SlotHandle).GetValue();
+				SortedResults.Emplace(QueryResult, FVector::DistSquared(SearchOrigin, SlotLocation));
 
 #if WITH_MASSGAMEPLAY_DEBUG
-						if (bDisplayDebug)
-						{
-							constexpr float DebugRadius = 10.f;
-							// use more precise slot location for debug
-							UE_VLOG_LOCATION(SmartObjectSubsystem, LogSmartObject, Display,
-								SmartObjectSubsystem->GetSlotLocation(SlotResult.SlotHandle).Get(ObjectLocation), DebugRadius, DebugColor, TEXT("%s"), *LexToString(Element.SmartObjectHandle));
-							UE_VLOG_SEGMENT(SmartObjectSubsystem, LogSmartObject, Display, SearchOrigin, ObjectLocation, DebugColor, TEXT(""));
-						}
-#endif // WITH_MASSGAMEPLAY_DEBUG
-					}
+				if (bDisplayDebug)
+				{
+					constexpr float DebugRadius = 10.f;
+					UE_VLOG_LOCATION(SmartObjectSubsystem, LogSmartObject, Display, SlotLocation, DebugRadius, DebugColor, TEXT("%s"), *LexToString(QueryResult.SmartObjectHandle));
+					UE_VLOG_SEGMENT(SmartObjectSubsystem, LogSmartObject, Display, SearchOrigin, SlotLocation, DebugColor, TEXT(""));
 				}
-			});
+#endif // WITH_MASSGAMEPLAY_DEBUG
+			}
+			SortedResults.Sort([](const FSmartObjectCandidate& First, const FSmartObjectCandidate& Second){ return First.Cost < Second.Cost; });
+
+			Result.NumCandidates = FMath::Min<uint8>(FMassSmartObjectRequestResult::MaxNumCandidates, SortedResults.Num());
+			for (int ResultIndex = 0; ResultIndex < Result.NumCandidates; ResultIndex++)
+			{
+				Result.Candidates[ResultIndex] = SortedResults[ResultIndex];
+			}
 		}
 	});
 
@@ -239,7 +241,7 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 						continue;
 					}
 
-					Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(Handle, Cost);
+					Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(FoundSlot, Cost);
 
 #if WITH_MASSGAMEPLAY_DEBUG
 					if (bDisplayDebug)

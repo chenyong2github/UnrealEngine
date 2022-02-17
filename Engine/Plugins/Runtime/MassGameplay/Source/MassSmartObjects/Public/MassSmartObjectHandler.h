@@ -98,10 +98,10 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * associated to the provided identifier.
 	 * @param Entity MassEntity associated to the user fragment
 	 * @param User Fragment of the user claiming
-	 * @param ObjectHandle A valid smart object identifier (method will ensure otherwise)
+	 * @param RequestResult A valid smart object request result (method will ensure otherwise)
 	 * @return Whether the slot has been successfully claimed or not
 	 */
-	bool ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectHandle& ObjectHandle) const;
+	bool ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectRequestResult& RequestResult) const;
 
 	/**
 	 * Activates the mass gameplay behavior associated to the previously claimed smart object.
