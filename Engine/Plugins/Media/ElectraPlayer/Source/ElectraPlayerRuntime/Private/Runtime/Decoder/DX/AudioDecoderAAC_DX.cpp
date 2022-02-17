@@ -1256,7 +1256,7 @@ namespace Electra
 						bHaveDiscontinuity = true;
 					}
 					SequenceIndex = CurrentAccessUnit->AccessUnit->PTS.GetSequenceIndex();
-					if (!Decode(CurrentAccessUnit, false))
+					if (!bError && !Decode(CurrentAccessUnit, false))
 					{
 						bError = true;
 					}
