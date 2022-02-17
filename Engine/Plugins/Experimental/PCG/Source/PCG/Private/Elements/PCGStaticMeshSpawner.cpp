@@ -85,6 +85,11 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 			for (const FPCGPoint& Point : Points)
 			{
+				if (Point.Density <= 0)
+				{
+					continue;
+				}
+
 				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Point.Seed, Settings->Seed));
 				int RandomWeightedPick = RandomSource.RandRange(0, TotalWeight - 1);
 

@@ -372,15 +372,6 @@ bool FPCGFetchInputElement::ExecuteInternal(FPCGContextPtr Context) const
 		TaggedData.Data = PCGData;
 	}
 
-	// Third: fetch the exclusions provided by the component
-	TArray<UPCGData*> Exclusions = Component->GetPCGExclusionData();
-	for (const UPCGData* Exclusion : Exclusions)
-	{
-		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
-		TaggedData.Data = Exclusion;
-		TaggedData.Usage = EPCGDataUsage::Exclusion;
-	}
-
 	return true;
 }
 

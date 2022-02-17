@@ -18,16 +18,38 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	TArray<FPCGTaggedData> Exclusions = Context->InputData.GetExclusions();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+
+	// Forward any non-input data
+	Outputs.Append(Context->InputData.GetExclusions());
+	Outputs.Append(Context->InputData.GetAllSettings());
+
+	const bool bNoSampling = (Settings->Ratio <= 0);
+	const bool bTrivialSampling = (Settings->Ratio >= 1);
+
+	// Early exit when nothing will be generated out of this sampler
+#if WITH_EDITORONLY_DATA
+	if (bNoSampling && !Settings->bKeepZeroDensityPoints)
+#else
+	if (bNoSampling)
+#endif
+	{
+		return true;
+	}
 
 	// TODO: embarassingly parallel loop
 	for (const FPCGTaggedData& Input : Inputs)
 	{
-		FPCGTaggedData& Output = Outputs.Emplace_GetRef();
-		Output = Input;
+		FPCGTaggedData& Output = Outputs.Add_GetRef(Input);
 
 		if (!Input.Data || Cast<UPCGSpatialData>(Input.Data) == nullptr)
+		{
+			// TODO: add a log
+			continue;
+		}
+
+		// Skip processing if the transformation would be trivial
+		if (bTrivialSampling)
 		{
 			continue;
 		}
@@ -36,83 +58,61 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (!OriginalData)
 		{
+			// Log error
 			continue;
 		}
 
 		const TArray<FPCGPoint>& Points = OriginalData->GetPoints();
 		const int OriginalPointCount = Points.Num();
 
-		if(Settings->Ratio >= 1.0f && Exclusions.IsEmpty())
+		UPCGPointData* SampledData = NewObject<UPCGPointData>();
+		SampledData->TargetActor = OriginalData->TargetActor;
+		TArray<FPCGPoint>& SampledPoints = SampledData->GetMutablePoints();
+
+		Output.Data = SampledData;
+
+		// TODO: randomize on the fractional number of points
+#if WITH_EDITORONLY_DATA
+		int TargetNumPoints = (Settings->bKeepZeroDensityPoints ? OriginalPointCount : OriginalPointCount * Settings->Ratio);
+#else
+		int TargetNumPoints = OriginalPointCount * Settings->Ratio;
+#endif
+
+		// Early out
+		if (TargetNumPoints == 0)
 		{
-			Output.Data = OriginalData;
+			// TODO log
+			continue;
 		}
 		else
 		{
-			UPCGPointData* SampledData = NewObject<UPCGPointData>();
-			SampledData->TargetActor = OriginalData->TargetActor;
+			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointSamplerElement::Execute::SelectPoints);
 
-			Output.Data = SampledData;
+			// Approximate upper bound
+			SampledPoints.Reserve(FMath::Min(OriginalPointCount, 4 * TargetNumPoints / 3));
 
-			// TODO: randomize on the fractional number of points
-			int TargetNumPoints = OriginalPointCount * Settings->Ratio;
-
-			// Early out
-			if (TargetNumPoints == 0)
+			for (int Index = 0; Index < OriginalPointCount; ++Index)
 			{
-				return true;
-			}
+				const FPCGPoint& Point = Points[Index];
 
-			TArray<int> SelectedIndices;
-			// Build indices in a deterministic manner
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::CreatePCGData::SelectIndices)
+				// Apply a high-pass filter based on selected ratio
+				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, Point.Seed));
+				float Chance = RandomSource.FRand();
 
-				// Approximate upper bound
-				SelectedIndices.Reserve(4 * TargetNumPoints / 3);
-
-				for (int Index = 0; Index < OriginalPointCount; ++Index)
+				if (Chance < Settings->Ratio)
 				{
-					const FPCGPoint& Point = Points[Index];
-
-					// Apply a high-pass filter based on selected ratio
-					FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, Point.Seed));
-					float Chance = RandomSource.FRand();
-
-					if (Chance < Settings->Ratio)
-					{
-						// Remap density to a value between 0.5 and 1.0
-						float Density = Point.Density * (0.5f + 0.5f * (Settings->Ratio - Chance));
-
-						for (const FPCGTaggedData& Exclusion : Exclusions)
-						{
-							if (!Exclusion.Data)
-							{
-								continue;
-							}
-
-							Density *= (1.0f - Cast<UPCGSpatialData>(Exclusion.Data)->GetDensityAtPosition(Point.Transform.GetLocation()));
-
-							if (Density == 0)
-							{
-								break;
-							}
-						}
-
-						// Implicit threshold at 0.5f based on cumulated density
-						if(Density >= 0.5f)
-						{
-							SelectedIndices.Add(Index);
-						}
-					}
+					SampledPoints.Add(Point);
 				}
+#if WITH_EDITORONLY_DATA
+				else if (Settings->bKeepZeroDensityPoints)
+				{
+					FPCGPoint& SampledPoint = SampledPoints.Add_GetRef(Point);
+					SampledPoint.Density = 0;
+				}
+#endif
 			}
-
-			// Copy points using the indices
-			// TODO: pass thread info for parallel for
-			SampledData->CopyPointsFrom(OriginalData, SelectedIndices);
 		}
 	}
 
 	return true;
 }
-

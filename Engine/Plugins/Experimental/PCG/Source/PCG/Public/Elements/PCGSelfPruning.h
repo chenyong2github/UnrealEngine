@@ -27,7 +27,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGSelfPruningType PruningType = EPCGSelfPruningType::LargeToSmall;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin=0.0f, EditCondition="PruningType == EPCGSelfPruningType::LargeToSmall || PruningType == PruningType == EPCGSelfPruningType::SmallToLarge"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin=0.0f, EditCondition="PruningType == EPCGSelfPruningType::LargeToSmall || PruningType == EPCGSelfPruningType::SmallToLarge"))
 	float RadiusSimilarityFactor = 0.25f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)

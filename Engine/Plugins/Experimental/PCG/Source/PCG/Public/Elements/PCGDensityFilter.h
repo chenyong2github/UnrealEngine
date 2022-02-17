@@ -7,17 +7,17 @@
 #include "PCGElement.h"
 #include "PCGNode.h"
 
-#include "PCGPointSampler.generated.h"
+#include "PCGDensityFilter.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGPointSamplerSettings : public UPCGSettings
+class UPCGDensityFilterSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PointSamplerNode")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("DensityFilter")); }
 #endif
 
 protected:
@@ -25,8 +25,14 @@ protected:
 	//~End UPCGSettings interface
 
 public:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0", ClampMax="1"))
-	float Ratio = 0.1f;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ClampMin = "0", ClampMax = "1"))
+	float LowerBound = 0.5f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ClampMin = "0", ClampMax = "1"))
+	float UpperBound = 1.0f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bInvertFilter = false;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Debug)
@@ -34,7 +40,7 @@ public:
 #endif
 };
 
-class FPCGPointSamplerElement : public FSimpleTypedPCGElement<UPCGPointSamplerSettings>
+class FPCGDensityFilterElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;

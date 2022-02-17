@@ -5,6 +5,7 @@
 #include "PCGHelpers.h"
 #include "PCGSubsystem.h"
 #include "PCGVolume.h"
+#include "Data/PCGDifferenceData.h"
 #include "Data/PCGIntersectionData.h"
 #include "Data/PCGLandscapeData.h"
 #include "Data/PCGLandscapeSplineData.h"
@@ -664,6 +665,7 @@ void UPCGComponent::DirtyExclusionData(AActor* InActor)
 	if (UPCGData** ExclusionData = CachedExclusionData.Find(InActor))
 	{
 		*ExclusionData = nullptr;
+		CachedPCGData = nullptr;
 	}
 }
 
@@ -863,6 +865,7 @@ void UPCGComponent::DirtyGenerated(bool bInDirtyCachedInput)
 	{
 		CachedInputData = nullptr;
 		CachedActorData = nullptr;
+		CachedPCGData = nullptr;
 	}
 
 	// For partitioned graph, we must forward the call to the partition actor
@@ -913,9 +916,19 @@ void UPCGComponent::Refresh()
 
 UPCGData* UPCGComponent::GetPCGData()
 {
+	if (!CachedPCGData)
+	{
+		CachedPCGData = CreatePCGData();
+	}
+
+	return CachedPCGData;
+}
+
+UPCGData* UPCGComponent::GetInputPCGData()
+{
 	if (!CachedInputData)
 	{
-		CachedInputData = CreatePCGData();
+		CachedInputData = CreateInputPCGData();
 	}
 
 	return CachedInputData;
@@ -943,7 +956,7 @@ TArray<UPCGData*> UPCGComponent::GetPCGExclusionData()
 
 void UPCGComponent::UpdatePCGExclusionData()
 {
-	const UPCGData* InputData = GetPCGData();
+	const UPCGData* InputData = GetInputPCGData();
 	const UPCGSpatialData* InputSpatialData = Cast<const UPCGSpatialData>(InputData);
 
 	// Update the list of cached excluded actors here, since we might not have picked up everything on map load (due to WP)
@@ -1098,7 +1111,40 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor)
 
 UPCGData* UPCGComponent::CreatePCGData()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::CreatePCGData)
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::CreatePCGData);
+	UPCGData* InputData = GetInputPCGData();
+	UPCGSpatialData* SpatialInput = Cast<UPCGSpatialData>(InputData);
+	
+	// Early out: incompatible data
+	if (!SpatialInput)
+	{
+		return InputData;
+	}
+
+	UPCGDifferenceData* Difference = nullptr;
+	TArray<UPCGData*> ExclusionData = GetPCGExclusionData();
+
+	for (UPCGData* Exclusion : ExclusionData)
+	{
+		if (UPCGSpatialData* SpatialExclusion = Cast<UPCGSpatialData>(Exclusion))
+		{
+			if (!Difference)
+			{
+				Difference = SpatialInput->Subtract(SpatialExclusion);
+			}
+			else
+			{
+				Difference->AddDifference(SpatialExclusion);
+			}
+		}
+	}
+
+	return Difference ? Difference : InputData;
+}
+
+UPCGData* UPCGComponent::CreateInputPCGData()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::CreateInputPCGData);
 	AActor* Actor = GetOwner();
 	check(Actor);
 
