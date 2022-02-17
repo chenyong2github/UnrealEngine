@@ -41,8 +41,6 @@ private:
 
 	/** Manages the session browser */
 	TSharedPtr<FConcertServerSessionBrowserController> SessionBrowserController;
-	/** Manages tab for output log */
-	TSharedPtr<FOutputLogController> OutputLogController;
 	
 	void InitComponents(const FConcertServerWindowInitParams& WindowInitParams) const;
 

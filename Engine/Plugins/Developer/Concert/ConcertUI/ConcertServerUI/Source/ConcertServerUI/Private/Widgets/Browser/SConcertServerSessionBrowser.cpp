@@ -4,9 +4,11 @@
 
 #include "SPositiveActionButton.h"
 #include "OutputLog/Public/OutputLogModule.h"
+#include "Widgets/ConcertServerTabs.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/StatusBar/SConcertStatusBar.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 
@@ -32,6 +34,14 @@ void SConcertServerSessionBrowser::Construct(const FArguments& InArgs, TWeakPtr<
 			.Padding(1.0f, 2.0f)
 			[
 				MakeSessionTableView()
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Bottom)
+			[
+				SNew(SConcertStatusBar, ConcertServerTabs::GetSessionBrowserTabId())
 			]
 		]
 	];

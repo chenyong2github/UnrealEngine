@@ -7,5 +7,4 @@
 namespace ConcertServerTabs
 {
 	FName GetSessionBrowserTabId();
-	FName GetOutputLogTabId();
 }

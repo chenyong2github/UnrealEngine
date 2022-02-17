@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SWidgetDrawer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -12,6 +13,14 @@ public:
 
 	SLATE_BEGIN_ARGS(SConcertStatusBar) { }
 	SLATE_END_ARGS()
+	
+	~SConcertStatusBar();
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, FName StatusBarId);
+
+private:
+
+	TSharedPtr<SWidgetDrawer> WidgetDrawer;
+
+	TSharedRef<SWidgetDrawer> MakeWidgetDrawer(FName StatusBarId);
 };

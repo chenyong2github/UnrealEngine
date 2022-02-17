@@ -4,7 +4,6 @@
 
 #include "ConcertServerTabs.h"
 #include "Browser/ConcertServerSessionBrowserController.h"
-#include "OutputLog/OutputLogController.h"
 
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
@@ -21,7 +20,6 @@ FConcertServerWindowController::FConcertServerWindowController(const FConcertSer
 	: MultiUserServerLayoutIni(Params.MultiUserServerLayoutIni)
 {
 	SessionBrowserController = MakeShared<FConcertServerSessionBrowserController>();
-	OutputLogController = MakeShared<FOutputLogController>();
 	InitComponents(Params);
 
 	FDisplayMetrics DisplayMetrics;
@@ -56,7 +54,6 @@ FConcertServerWindowController::FConcertServerWindowController(const FConcertSer
 		(
 			FTabManager::NewStack()
 				->AddTab(ConcertServerTabs::GetSessionBrowserTabId(), ETabState::OpenedTab)
-				->AddTab(ConcertServerTabs::GetOutputLogTabId(), ETabState::OpenedTab)
 				->SetForegroundTab(ConcertServerTabs::GetSessionBrowserTabId())
 		)
 	);
@@ -75,7 +72,6 @@ void FConcertServerWindowController::InitComponents(const FConcertServerWindowIn
 {
 	const FConcertComponentInitParams Params { WindowInitParams.Server };
 	SessionBrowserController->Init(Params);
-	OutputLogController->Init(Params);
 }
 
 void FConcertServerWindowController::OnWindowClosed(const TSharedRef<SWindow>& Window)
