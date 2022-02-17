@@ -281,7 +281,7 @@ struct MediumSampleRGB
 };
 
 // If this is changed, please also update USkyAtmosphereComponent::GetTransmittance 
-MediumSampleRGB SampleMediumRGB(in float3 WorldPos)
+MediumSampleRGB SampleAtmosphereMediumRGB(in float3 WorldPos)
 {
 	const float SampleHeight = max(0.0, (length(WorldPos) - Atmosphere.BottomRadiusKm));
 

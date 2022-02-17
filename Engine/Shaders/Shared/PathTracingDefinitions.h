@@ -24,6 +24,8 @@
 #define PATHTRACING_LIGHT_SPOT								(3 << 6)
 #define PATHTRACING_LIGHT_RECT								(4 << 6)
 #define PATHTRACER_FLAG_CAST_SHADOW_MASK 					(1 << 9)
+#define PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK 				(1 << 10)
+#define PATHTRACER_FLAG_HAS_RECT_TEXTURE_MASK				(1 << 11)
 
 // Constants for the path tracer light grid
 #define PATHTRACER_LIGHT_GRID_SINGULAR_MASK					0x80000000u

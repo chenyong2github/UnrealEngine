@@ -17,9 +17,12 @@
 
 #include "../ShadingModels.ush"
 #include "./Utilities/PathTracingRandomSequence.ush"
+#include "./Utilities/PathTracingRIS.ush"
 #include "./Light/PathTracingLightSampling.ush"
 #include "./Light/PathTracingLightGrid.ush"
 #include "./Material/PathTracingMaterialSampling.ush"
+#include "./Volume/PathTracingVolume.ush"
+#include "./Volume/PathTracingVolumeSampling.ush"
 
 float BlendFactor;
 uint Iteration;
@@ -32,6 +35,10 @@ uint MaxSSSBounces;
 // 1: only Light sampling
 // 2: both Material and Light
 uint MISMode;
+
+// 0: only Density sampling
+// 1: Light sampling
+uint VolumeMISMode;
 
 uint ApproximateCaustics;
 uint EnableCameraBackfaceCulling;
@@ -97,11 +104,12 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance, bool bI
 	TotalRadiance += PathRadiance;
 }
 
-FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint NumVisibleLights)
+FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint NumVisibleLights, inout FVolumeSegment VolumeSegment)
 {
 	const uint RayFlags = bIsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 	const uint MissShaderIndex = 0;
-	float SelectionWeightSum = 0;
+	FRISContext HitSample = InitRISContext();
+	FRISContext VolSample = InitRISContext();
 	float3 PayloadThroughput = PathState.PathThroughput;
 	FPathTracingPayload Payload;
 	if (!bIncludeEmission && bLastBounce)
@@ -109,6 +117,13 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		Payload.SetMiss();
 		PathState.PathThroughput = 0;
 		return Payload;
+	}
+	FVolumeIntersectionList VolumeIsectList = VolumeIntersect(PathState.Ray.Origin, PathState.Ray.Direction, PathState.Ray.TMin, PathState.Ray.TMax);
+	if (VolumeIsectList.HitBlocker())
+	{
+		// We will hit the volume's blocker, 
+		// Clip the ray just before the planet hit so that we can intersect all other geometry but this one
+		PathState.Ray.TMax = asfloat(asuint(VolumeIsectList.BlockerHitT) - 1);
 	}
 	for (;;)
 	{
@@ -128,15 +143,167 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			PathState.Ray,
 			PackedPayload);
 
+		if (PackedPayload.IsMiss() && VolumeIsectList.HitBlocker())
+		{
+			// we didn't hit any real geometry, but we did hit the volume's blocker geometry
+			// create a virtual hit with it here
+			PackedPayload = VolumeGetBlockerHit(VolumeIsectList.BlockerID, PathState.Ray.Origin, PathState.Ray.Direction, VolumeIsectList.BlockerHitT);
+			PackedPayload.SetRayCone(PropagateRayCone(PathState.RayCone, 0.0, VolumeIsectList.BlockerHitT));
+		}
+
 		// Loop over lights to capture their contribution
 		// #dxr_todo: if we have lots of lights, having some hierarchical structure would be better ....
 		for (uint LightId = 0; LightId < NumVisibleLights; ++LightId)
 		{
 			RayDesc LightRay = PathState.Ray;
 			LightRay.TMax = PackedPayload.IsMiss() ? PathState.Ray.TMax : PackedPayload.HitT;
-			float3 LightRadiance = TraceLight(LightRay, LightId).Radiance;
-			AccumulateRadiance(PathState.Radiance, PathState.PathThroughput * LightRadiance, bIsCameraRay);
+			FLightHit LightHit = TraceLight(LightRay, LightId);
+			if (LightHit.IsHit())
+			{
+				// create a virtual surface hit so we only need to worry about volume transmission in one place
+				// NOTE: returning only a single light hit here causes lights at infinity to occlude each other
+				//       this is most likely what artists would want (imagine a scene with two suns for example)
+				//       but is not consistent with how reflections behave and the sorting order will be arbitrary
+				FPathTracingPayload LightHitPayload = (FPathTracingPayload)0; // clear all fields
+				LightHitPayload.HitT = LightHit.HitT;
+				LightHitPayload.RayCone = PropagateRayCone(PathState.RayCone, 0.0, LightHit.HitT);
+				LightHitPayload.Radiance = LightHit.Radiance;
+				LightHitPayload.ShadingModelID = SHADINGMODELID_UNLIT;
+				// alpha composite assumes premult, which allows emissive hits that are fully transparent
+				LightHitPayload.BlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE;
+				LightHitPayload.PrimitiveLightingChannelMask = 7;
+				LightHitPayload.SetFrontFace();
+				PackedPayload = PackPathTracingPayload(LightHitPayload);
+			}
 		}
+
+		// Volume Transmittance + Scatter Segment/Point selection
+		// This loop splits the potential volumetric segments into sub-intervals that do not overlap.
+		while (VolumeIsectList.HitVolume())
+		{
+			// extract the nearest interval from the list of segments
+			FVolumeIntersectionInterval Interval = VolumeIsectList.GetCurrentInterval();
+
+			if (PackedPayload.IsHit())
+			{
+				if (PackedPayload.HitT <= Interval.VolumeTMin)
+				{
+					// surface hit is in-front of the current interval, we are done
+					break;
+				}
+				// clip current volume segment to the next surface hit
+				Interval.VolumeTMax = min(PackedPayload.HitT, Interval.VolumeTMax);
+			}
+
+			// if this isn't our last bounce, potentially keep this segment for later so we can integrate local lighting
+			if (!bLastBounce)
+			{
+				// TODO: can we improve the selection probability for each ray segment somehow?
+				// NOTE: this only matters if we are tracing through several transparent hits or if there are multiple overlapping volumes
+				float3 Contrib = PathState.PathThroughput;
+				float SelectionWeight = max3(Contrib.x, Contrib.y, Contrib.z);
+				if (VolSample.Accept(SelectionWeight, RandomSequence_GenerateSample1D(PathState.RandSequence)))
+				{
+					// store this volume segment for later
+					VolumeSegment.Throughput = PathState.PathThroughput / SelectionWeight;
+					VolumeSegment.Interval = Interval;
+				}
+			}
+
+#if PATH_TRACING_USE_TRANSMITTANCE_FUNC
+			// NOTE: when using analytic raymarching, we can skip all raymarching on the last bounce because we know we don't need a scattering point
+			if (!bLastBounce)
+#endif
+			{
+				// remember the start of our interval before ray marching messes with it
+				float StartVolumeTMin = Interval.VolumeTMin;
+				// Ray marching loop
+				float3 PathThroughput = PathState.PathThroughput;
+				// Limit number of steps to prevent timeouts // FIXME: This biases the result!
+				for (int Step = 0; Step < MaxRaymarchSteps; Step++)
+				{
+					// figure out optimal bounds for the current ray segment
+					float3 SigmaBar = VolumeGetDensityBounds(PathState.Ray.Origin, PathState.Ray.Direction, Interval).SigmaMax;
+#if PATH_TRACING_USE_TRANSMITTANCE_FUNC == 0
+					// if we are not using analytical transmittance, a tight majorant could prevent us from "seeing" hits that match the density exactly
+					// leading to heavy noise on bright objects embedded in the volume
+					// however if we can track transmittance analytically, this workaround is not needed as we will re-compute a precise answer after ray marching
+					SigmaBar *= bIsCameraRay ? 2 : 1;
+#endif
+
+					// there is some atmosphere present along the current ray, ray march until we get to the current hit (or exit the atmosphere)
+					float3 ColorChannelPdf = PathThroughput;
+
+					// Sample the distance to the next interaction
+					float2 RandValue = RandomSequence_GenerateSample2D(PathState.RandSequence);
+					float DeltaT = SampleSpectralTransmittance(RandValue.x, SigmaBar, ColorChannelPdf);
+					if (DeltaT < 0.0)
+					{
+						// no more energy left in the path
+						break;
+					}
+
+					if (Interval.VolumeTMin + DeltaT < Interval.VolumeTMax)
+					{
+						Interval.VolumeTMin += DeltaT;
+						// our ray marching step stayed inside the atmo and is still in front of the next hit
+						PathThroughput *= EvaluateSpectralTransmittanceHit(DeltaT, SigmaBar, ColorChannelPdf).xyz;
+
+						// find out how much volume exists at the current point
+						float3 Ro = PathState.Ray.Origin;
+						float3 Rd = PathState.Ray.Direction;
+						float3 TranslatedWorldPos = Ro + Interval.VolumeTMin * Rd;
+						FVolumeShadedResult Result = VolumeGetDensity(TranslatedWorldPos, Interval);
+
+						// clamp to make sure we never exceed the majorant (should not be the case, but need to avoid any possible numerical issues)
+						float3 SigmaT = min(Result.SigmaT, SigmaBar);
+						float3 SigmaN = SigmaBar - SigmaT;
+
+#if PATH_TRACING_USE_TRANSMITTANCE_FUNC == 0
+						if (!bLastBounce) // check now if this loop is also computing transmittance
+#endif
+						{
+							float3 SigmaS = min(Result.SigmaSRayleigh + Result.SigmaSHG, SigmaT);
+							// accumulate a signal for the denoiser
+							AccumulateAlbedo(SigmaS, PathThroughput, PathState.PathRoughness, PathState.Albedo);
+							float3 Contrib = PathThroughput * SigmaS;
+							float SelectionWeight = max3(Contrib.x, Contrib.y, Contrib.z);
+							if (HitSample.Accept(SelectionWeight, RandValue.y))
+							{
+								// stash this hit for next time
+								Payload = CreateMediumHitPayload(Interval.VolumeTMin, TranslatedWorldPos, Result);
+								Payload.RayCone = PropagateRayCone(PathState.RayCone, 0.0, Interval.VolumeTMin);
+								PayloadThroughput = Contrib / SelectionWeight;
+							}
+						}
+
+						// keep tracing through the volume
+						PathThroughput *= SigmaN;
+					}
+					else
+					{
+						// update the path throughput, knowing that we escaped the medium
+						PathThroughput *= EvaluateSpectralTransmittanceMiss(Interval.VolumeTMax - Interval.VolumeTMin, SigmaBar, ColorChannelPdf).xyz;
+						// exit the ray marching loop
+						break;
+					}
+				}
+				// restore interval start now that we are finished with ray marching
+				Interval.VolumeTMin = StartVolumeTMin;
+#if PATH_TRACING_USE_TRANSMITTANCE_FUNC == 0
+				// record the change in transmittance since we already computed it
+				PathState.PathThroughput = PathThroughput;
+#endif
+			}
+#if PATH_TRACING_USE_TRANSMITTANCE_FUNC
+			// analytically handle the transmittance to the next surface (which will be higher quality than the transmittance implicitly computed above and prevent noise with emissive surfaces in volumes)
+			PathState.PathThroughput = VolumeGetTransmittance(PathState.PathThroughput, PathState.Ray.Origin, PathState.Ray.Direction, Interval, PathState.RandSequence);
+#endif
+			// Update our current volume intersection list to reflect the fact that we have made it to the end of this interval
+			// This will either clip the finished portions of active segments, or remove the segments we have fully marched through
+			VolumeIsectList = VolumeIsectList.Update(Interval.VolumeTMax);
+		}
+		// proceed to handling the surface hit (if any)
 
 		if (PackedPayload.IsMiss())
 		{
@@ -168,6 +335,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		float3 Transparency = GetMaterialTransparency(HitPayload, PathState.Ray.Direction);
 
 		// account for Beer's law through the currently active medium
+		// TODO: merge this with the volume raymarching?
 		PathState.PathThroughput *= exp(-PathState.SigmaT * (HitPayload.HitT - PathState.Ray.TMin));
 
 		if (!bLastBounce)
@@ -178,27 +346,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			AccumulateAlbedoNormal(HitPayload, PathState.PathThroughput, PathState.PathRoughness, PathState.Albedo, PathState.Normal);
 
 			float SelectionWeight = max3(Contrib.x, Contrib.y, Contrib.z);
-			SelectionWeightSum += SelectionWeight;
-			bool AcceptHit = false;
-
-			// weighted reservoir sampling
-			if (SelectionWeight > 0)
-			{
-				if (SelectionWeight < SelectionWeightSum)
-				{
-					// the acceptance probability is not 1.0
-					// generate a random number to see if we should accept this hit
-					float RandValue = RandomSequence_GenerateSample1D(PathState.RandSequence);
-					AcceptHit = RandValue * SelectionWeightSum < SelectionWeight;
-				}
-				else
-				{
-					// accept automatically on the first hit
-					AcceptHit = true;
-				}
-			}
-
-			if (AcceptHit)
+			if (HitSample.Accept(SelectionWeight, RandomSequence_GenerateSample1D(PathState.RandSequence)))
 			{
 				// stash this hit for next time
 				Payload = HitPayload;
@@ -206,8 +354,15 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			}
 		}
 
+		if (HitPayload.HitT == POSITIVE_INFINITY)
+		{
+			// if our hit was against an infinite light, exit now
+			break;
+		}
+
 		// account for local transparency change
 		PathState.PathThroughput *= Transparency;
+
 		// prepare next step around the loop
 		// retrace the exact same ray with TMin one ulp past the hit we just found
 		PathState.Ray.TMin = asfloat(asuint(HitPayload.HitT) + 1);
@@ -218,10 +373,13 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		}
 	}
 
-	if (SelectionWeightSum > 0)
+	// normalization will be 0 if we didn't pick any volume segment
+	VolumeSegment.Throughput *= VolSample.GetNormalization();
+
+	if (HitSample.HasSample())
 	{
 		// if we stored a valid hit in the payload, reset the path throughput to this point
-		PathState.PathThroughput = PayloadThroughput * SelectionWeightSum;
+		PathState.PathThroughput = PayloadThroughput * HitSample.GetNormalization();
 	}
 	else
 	{
@@ -231,7 +389,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 	return Payload;
 }
 
-float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRoughness)
+float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRoughness, inout RandomSequence RandSequence)
 {
 	const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
 	const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW;
@@ -254,12 +412,25 @@ float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRo
 
 	if (PackedPayload.IsMiss())
 	{
+		FVolumeIntersectionList VolumeIsectList = VolumeIntersect(Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
+		if (VolumeIsectList.HitBlocker())
+		{
+			// blockers are opaque -- done!
+			return 0.0;
+		}
+		float3 Throughput = PackedPayload.GetRayThroughput();
+		if (VolumeIsectList.HitVolume())
+		{
+			Throughput = VolumeGetTransmittance(Throughput, Ray.Origin, Ray.Direction, VolumeIsectList, RandSequence);
+		}
+
 		// we didn't hit any geo - just return whatever throughput is left
-		return PackedPayload.GetRayThroughput() * exp(-max(PackedPayload.GetTau() * AbsorptionScale, 0.0));
+		float3 Tau = PackedPayload.GetTau() * AbsorptionScale;
+		return Throughput * exp(-max(Tau, 0.0));
 	}
 
 	// we registered a hit -- assumed to be fully opaque
-	return 0;
+	return 0.0;
 }
 
 struct FProbeResult
@@ -417,34 +588,12 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 	{
 		// TODO: add Dwivedi sampling for faster escape in low albedo media ...
 
-		// Pick a color channel for transmittance sampling:
-		float3 ColorChannelWeight = PathThroughput * Albedo;
-		float3 ColorChannelCdf = float3(ColorChannelWeight.x,
-			ColorChannelWeight.x + ColorChannelWeight.y,
-			ColorChannelWeight.x + ColorChannelWeight.y + ColorChannelWeight.z);
-		if (ColorChannelCdf.z == 0)
+		float3 ColorChannelPdf = PathThroughput * Albedo;
+		Ray.TMax = SampleSpectralTransmittance(RandSample.z, SigmaT, ColorChannelPdf);
+		if (Ray.TMax < 0.0)
 		{
 			// no more energy left in the path
 			break;
-		}
-		ColorChannelCdf.xy /= ColorChannelCdf.z;
-		float3 ColorChannelPdf = float3(ColorChannelCdf.x, ColorChannelCdf.y - ColorChannelCdf.x, 1 - ColorChannelCdf.y);
-		// pick a maximum distance to scatter
-		const float OneMinusEpsilon = 0.99999994; // 32-bit float just before 1.0
-		if (RandSample.z < ColorChannelCdf.x)
-		{
-			float RescaleRand = min(RandSample.z / ColorChannelPdf.x, OneMinusEpsilon);
-			Ray.TMax = -log(1 - RescaleRand) * SSSRadius.x;
-		}
-		else if (RandSample.z < ColorChannelCdf.y)
-		{
-			float RescaleRand = min((RandSample.z - ColorChannelCdf.x) / ColorChannelPdf.y, OneMinusEpsilon);
-			Ray.TMax = -log(1 - RescaleRand) * SSSRadius.y;
-		}
-		else
-		{
-			float RescaleRand = min((RandSample.z - ColorChannelCdf.y) / ColorChannelPdf.z, OneMinusEpsilon);
-			Ray.TMax = -log(1 - RescaleRand) * SSSRadius.z;
 		}
 		for (;;)
 		{
@@ -457,12 +606,7 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 				Ray.Direction = UniformSampleSphere(RandSample.xy).xyz;
 				Ray.TMin = 0;
 				// account for transmittance and scattering up to this point
-				float3 Transmittance = exp(-Ray.TMax * SigmaT);
-				PathThroughput *= SigmaS * Transmittance;
-				// account for transmittance pdf (which is the balance heuristic combination of transmittance sampling in each color channel)
-				float3 TransmittancePdf = SigmaT * Transmittance;
-				PathThroughput /= dot(TransmittancePdf, ColorChannelPdf);
-
+				PathThroughput *= SigmaS * EvaluateSpectralTransmittanceHit(Ray.TMax, SigmaT, ColorChannelPdf).xyz;
 				// NOTE: phase function cancels out since it is being perfectly importance sampled
 
 				// exit the Interface counting loop and keep scattering
@@ -479,12 +623,8 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 			else
 #endif
 			{
-				// account for transmittance and scattering up to this point
-				float3 Transmittance = exp(-ProbeResult.HitT * SigmaT);
-				PathThroughput *= Transmittance;
-				// account for transmittance pdf (which is the balance heuristic combination of transmittance sampling in each color channel)
-				float3 TransmittancePdf = Transmittance; // integral of pdf from HitT to infinity
-				PathThroughput /= dot(Transmittance, ColorChannelPdf);
+				// account for transmittance to the boundary
+				PathThroughput *= EvaluateSpectralTransmittanceMiss(ProbeResult.HitT, SigmaT, ColorChannelPdf).xyz;
 
 				// our short ray hit the geomtry - decide if we should exit or not
 #if SSS_USE_TIR
@@ -691,12 +831,135 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	// because NEE handled it for us
 	uint NumVisibleLights = bIsCameraRay ? SceneVisibleLightCount : 0;
 
+	FVolumeSegment VolumeSegment = CreateEmptyVolumeSegment();
 	FPathTracingPayload Payload = TraceTransparentRay(
 		PathState,
 		bIsCameraRay,
 		bIsLastBounce,
 		bIncludeEmissive,
-		NumVisibleLights);
+		NumVisibleLights,
+		VolumeSegment);
+
+	// process the returned volume segment if we got one
+	if (VolumeSegment.IsValid() && VolumeMISMode != 0)
+	{
+		const float3 Ro = PathState.Ray.Origin;
+		const float3 Rd = PathState.Ray.Direction;
+		const float VTMin = VolumeSegment.Interval.VolumeTMin;
+		const float VTMax = VolumeSegment.Interval.VolumeTMax;
+
+		float LightPickingCdfSum = 0.0;
+		for (int LightId = 0; LightId < SceneLightCount; LightId++)
+		{
+			FVolumeLightSampleSetup LightSetup = PrepareLightVolumeSample(LightId, Ro, Rd, VTMin, VTMax);
+			if (LightSetup.IsValid())
+			{
+				float LightProb = LightSetup.LightImportance * GetVolumetricScatteringIntensity(LightId);
+				LightPickingCdfSum += LightProb;
+			}
+			LightPickingCdf[LightId] = LightPickingCdfSum;
+		}
+
+		if (LightPickingCdfSum > 0.0)
+		{
+			// at least one light is overlapping with our ray, so we have a chance to sample it
+			float3 RandSample = RandomSequence_GenerateSample3D(PathState.RandSequence);
+			int LightSampleLightId = 0;
+			float LightPickPdf = 0.0;
+			SelectLight(RandSample.x * LightPickingCdfSum, SceneLightCount, LightPickingCdf, LightSampleLightId, LightPickPdf);
+			LightPickPdf /= LightPickingCdfSum;
+
+			// picked a light! now use the equi-angular sampler to pick a position along the ray and store it for later
+			// so that we can compute the light during the ray-marching loop, when the path prefix pdf will be known
+			FVolumeLightSampleSetup LightSetup = PrepareLightVolumeSample(LightSampleLightId, Ro, Rd, VTMin, VTMax);
+			// Should be safe to assume LightSetup.IsValid() is true because otherwise the pdf would have been 0
+			float2 SampleResult = LightSetup.SampleDistance(RandSample.y);
+			float EquiAngularT = SampleResult.x;
+			float EquiAngularPathPdf = SampleResult.y;
+
+			// find out how much volume exists at the current point
+			const float3 TranslatedWorldPos = Ro + EquiAngularT * Rd;
+			const FVolumeShadedResult Result = VolumeGetDensity(TranslatedWorldPos, VolumeSegment.Interval);
+			const float3 SigmaT = Result.SigmaT;
+			const float3 SigmaS = min(Result.SigmaSRayleigh + Result.SigmaSHG, SigmaT);
+
+			if (any(SigmaS > 0))
+			{
+				// Account for the transmittance up to the current point within the current slice of volume
+				VolumeSegment.Interval.VolumeTMax = EquiAngularT;
+				VolumeSegment.Throughput = VolumeGetTransmittance(VolumeSegment.Throughput, Ro, Rd, VolumeSegment.Interval, PathState.RandSequence);
+
+				float3 Contrib = VolumeSegment.Throughput * SigmaS;
+
+				// account for probability of the path prefix
+				Contrib /= EquiAngularPathPdf * LightPickPdf;
+
+				// prepare a minimal payload that describes the hit we need to shade
+				FPathTracingPayload VolPayload = CreateMediumHitPayload(EquiAngularT, TranslatedWorldPos, Result);
+				float4 LightRandValue = RandomSequence_GenerateSample4D(PathState.RandSequence);
+
+				// compute direct light sampling?
+				if (MISMode != 0)
+				{
+					FLightSample LightSample = SampleLight(LightSampleLightId, LightRandValue.xy, TranslatedWorldPos, float3(0, 0, 0));
+					if (LightSample.Pdf > 0)
+					{
+						if (CastsVolumeShadow(LightSampleLightId))
+						{
+							RayDesc LightRay;
+							LightRay.Origin = TranslatedWorldPos;
+							LightRay.TMin = 0;
+							LightRay.Direction = LightSample.Direction;
+							LightRay.TMax = LightSample.Distance;
+							LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, 1.0, PathState.RandSequence);
+						}
+						// #dxr_todo: Is it cheaper to fire the ray first? Or eval the material first?
+						if (any(LightSample.RadianceOverPdf > 0))
+						{
+							// Evaluate material
+							FMaterialEval MaterialEval = Medium_EvalMaterial(Rd, LightSample.Direction, VolPayload);
+
+							// Record the contribution
+							float3 LightContrib = Contrib * LightSample.RadianceOverPdf * GetVolumetricScatteringIntensity(LightSampleLightId) * MaterialEval.Weight * MaterialEval.Pdf;
+							if (MISMode == 2)
+							{
+								LightContrib *= MISWeightRobust(LightSample.Pdf, MaterialEval.Pdf);
+							}
+							AccumulateRadiance(PathState.Radiance, LightContrib, bIsCameraRay);
+						}
+					}
+				}
+				// now compute again with phase function MIS
+				if (MISMode != 1)
+				{
+					FMaterialSample MaterialSample = Medium_SampleMaterial(Rd, VolPayload, LightRandValue);
+					if (MaterialSample.Pdf > 0)
+					{
+						RayDesc MaterialRay;
+						MaterialRay.Origin = TranslatedWorldPos;
+						MaterialRay.Direction = MaterialSample.Direction;
+						MaterialRay.TMin = 0.0;
+						MaterialRay.TMax = POSITIVE_INFINITY;
+						FLightHit LightResult = TraceLight(MaterialRay, LightSampleLightId);
+						if (LightResult.IsHit())
+						{
+							float3 LightContrib = Contrib * MaterialSample.Weight * LightResult.Radiance * GetVolumetricScatteringIntensity(LightSampleLightId);
+							if (MISMode == 2)
+							{
+								LightContrib *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf);
+							}
+							MaterialRay.TMax = LightResult.HitT;
+							if (CastsVolumeShadow(LightSampleLightId))
+							{
+								LightContrib *= TraceTransparentVisibilityRay(MaterialRay, PathState.PixelIndex, MaterialSample.Roughness, PathState.RandSequence);
+							}
+							AccumulateRadiance(PathState.Radiance, LightContrib, bIsCameraRay);
+						}
+					}
+				}
+			}
+		}
+	}
 
 	if (Payload.IsMiss())
 	{
@@ -705,21 +968,13 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	}
 
 	// fix dark edges in reflections from shading normals
-	Payload.WorldNormal = AdjustShadingNormal(Payload.WorldNormal, Payload.WorldGeoNormal, PathState.Ray.Direction);
+	Payload.WorldNormal       = AdjustShadingNormal(Payload.WorldNormal      , Payload.WorldGeoNormal, PathState.Ray.Direction);
 	Payload.WorldSmoothNormal = AdjustShadingNormal(Payload.WorldSmoothNormal, Payload.WorldGeoNormal, PathState.Ray.Direction);
+
 
 #if 0
 	PathState.Radiance = 0.5 * Payload.WorldGeoNormal + 0.5;
 	return false;
-#endif
-
-#if 0
-	if (Payload.ShadingModelID == SHADINGMODELID_EYE)
-	{
-		//Payload.WorldNormal = Payload.CustomVector;
-		Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
-		Payload.Anisotropy = 0;
-	}
 #endif
 
 	// As soon as the path is blurry enough, we can get away with diffuse sampling only
@@ -742,6 +997,12 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	}
 
 	FLightLoopCount LightLoopCount = LightGridLookup(Payload.TranslatedWorldPos);
+	if (Payload.ShadingModelID == SHADINGMODELID_MEDIUM && VolumeMISMode != 0)
+	{
+		// if we are using the volume segment for local lights, exclude them from the light loop below
+		LightLoopCount.NumLights = SceneInfiniteLightCount;
+		LightLoopCount.NumMISLights = SceneInfiniteLightCount;
+	}
 
 	// visualize the # of lights
 	if (VisualizeLightGrid)
@@ -760,6 +1021,8 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 	const bool bDoLightLoop = EnableDirectLighting != 0 || Bounce > 0;
 
+	const bool bIsVolumeSample = Payload.ShadingModelID == SHADINGMODELID_MEDIUM;
+
 	float LightPickingCdfSum = 0;
 
 	// If we are using Light sampling and the material can use it ...
@@ -770,12 +1033,17 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		float3 WorldNormal = Payload.WorldNormal;
 		uint PrimitiveLightingChannelMask = Payload.PrimitiveLightingChannelMask;
 
-		bool IsTransmissiveMaterial = ENABLE_TRANSMISSION && Payload.IsMaterialTransmissive();
+		const bool bIsTransmissiveMaterial = ENABLE_TRANSMISSION && Payload.IsMaterialTransmissive();
 
 		for (uint Index = 0, Num = LightLoopCount.NumLights; Index < Num; ++Index)
 		{
 			uint LightIndex = GetLightId(Index, LightLoopCount);
-			LightPickingCdfSum += EstimateLight(LightIndex, TranslatedWorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial);
+			float LightEstimate = EstimateLight(LightIndex, TranslatedWorldPos, WorldNormal, PrimitiveLightingChannelMask, bIsTransmissiveMaterial);
+			if (bIsVolumeSample)
+			{
+				LightEstimate *= GetVolumetricScatteringIntensity(LightIndex);
+			}
+			LightPickingCdfSum += LightEstimate;
 			LightPickingCdf[Index] = LightPickingCdfSum;
 		}
 
@@ -798,8 +1066,8 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 				if (CastsShadow(LightId))
 				{
 					// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
-					const float SignedPositionBias = IsTransmissiveMaterial ? sign(dot(Payload.WorldGeoNormal, LightSample.Direction)) : 1.0;
-					const bool bEnableShadowTermFix = Payload.ShadingModelID != SHADINGMODELID_HAIR;
+					const float SignedPositionBias = bIsTransmissiveMaterial ? sign(dot(Payload.WorldGeoNormal, LightSample.Direction)) : 1.0;
+					const bool bEnableShadowTermFix = Payload.ShadingModelID != SHADINGMODELID_HAIR && Payload.ShadingModelID != SHADINGMODELID_MEDIUM;
 					RayDesc LightRay;
 					LightRay.Origin = TranslatedWorldPos;
 					LightRay.TMin = 0;
@@ -809,7 +1077,12 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 					float AvgRoughness = ApproximateCaustics ? GetAverageRoughness(Payload) : 0.0;
 
-					LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, AvgRoughness);
+					LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, AvgRoughness, PathState.RandSequence);
+				}
+
+				if (bIsVolumeSample)
+				{
+					LightSample.RadianceOverPdf *= GetVolumetricScatteringIntensity(LightId);
 				}
 
 				// #dxr_todo: Is it cheaper to fire the ray first? Or eval the material first?
@@ -861,7 +1134,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	//   The second tweak is to add a sqrt() around the probability to soften the termination probability (paths will last
 	//  a little longer). This allows paths to go a bit deeper than the naive heuristic while still allowing them to terminate
 	//  early. This makes RR effective from the very first bounce without needing to delay it.
-	float ContinuationProb = sqrt(saturate(max(NextPathThroughput.x, max(NextPathThroughput.y, NextPathThroughput.z)) / max(PathState.PathThroughput.x, max(PathState.PathThroughput.y, PathState.PathThroughput.z))));
+	float ContinuationProb = sqrt(saturate(max3(NextPathThroughput.x, NextPathThroughput.y, NextPathThroughput.z) / max3(PathState.PathThroughput.x, PathState.PathThroughput.y, PathState.PathThroughput.z)));
 	if (ContinuationProb < 1)
 	{
 		// If there is some chance we should terminate the ray, draw an extra random value
@@ -933,6 +1206,11 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 			}
 
 			float3 LightContrib = PathState.PathThroughput * LightResult.Radiance;
+			if (bIsVolumeSample)
+			{
+				LightContrib *= GetVolumetricScatteringIntensity(LightId);
+			}
+
 			if (bUseMIS)
 			{
 				float PreviousCdfValue = 0.0;
@@ -951,7 +1229,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 				{
 					RayDesc LightRay = PathState.Ray;
 					LightRay.TMax = LightResult.HitT;
-					LightContrib *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, ShadowRayRoughness);
+					LightContrib *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, ShadowRayRoughness, PathState.RandSequence);
 				}
 				// the light made some contribution, and there was nothing along the shadow ray
 				AccumulateRadiance(PathState.Radiance, LightContrib, bIsCameraRay);

@@ -12,7 +12,8 @@ LightCommon.usf: Common utility functions for light sampling
 uint SceneLightCount;
 StructuredBuffer<FPathTracingLight> SceneLights;
 
-struct FLightHit {
+struct FLightHit
+{
 	float3 Radiance;
 	float Pdf;
 	float HitT;
@@ -21,12 +22,102 @@ struct FLightHit {
 	bool IsHit() { return HitT > 0; }
 };
 
-struct FLightSample {
+struct FLightSample
+{
 	float3 RadianceOverPdf;
 	float Pdf;
 	float3 Direction;
 	float Distance;
 };
+
+
+struct FVolumeLightSampleSetup
+{
+	float VolumeTMin;      // range of 't' values along the ray that overlap the light (and the volume)
+	float VolumeTMax;
+
+	float LightImportance; // estimate of the light radiance for this ray (could be 0 if light does not support equi-angular sampling)
+
+	// Equi-Angular case
+	float T0;			   // distance from ray origin to projected light center
+	float Height;		   // distance from light center to ray (when negative, use uniform sampler)
+	float ThetaMin;        // angle to start of ray interval
+	float ThetaMax;        // angle to end of ray interval
+
+	float K;               // normalization constant for the pdf
+
+	bool IsValid() { return VolumeTMin < VolumeTMax; } // NOTE: we assume the range is a subset of the ray's TMin/TMax
+
+	float2 SampleDistance(float RandSample)
+	{
+		if (Height > 0)
+		{
+			// equi-angular pdf
+			const float TanTheta = tan(lerp(ThetaMin, ThetaMax, RandSample));
+			const float T = Height * TanTheta + T0;
+			const float Pdf = rcp((1 + TanTheta * TanTheta) * K);
+			return float2(T, Pdf);
+		}
+		else
+		{
+			// uniform pdf
+			const float T = lerp(VolumeTMin, VolumeTMax, RandSample);
+			const float Pdf = rcp(K);
+			return float2(T, Pdf);
+		}
+	}
+
+	float Pdf(float T)
+	{
+		if (T > VolumeTMin && T < VolumeTMax)
+		{
+			if (Height > 0)
+			{
+				const float TanTheta = (T - T0) / Height;
+				return rcp((1 + TanTheta * TanTheta) * K);
+			}
+			else
+			{
+				return rcp(K);
+			}
+		}
+		return 0.0;
+	}
+};
+
+FVolumeLightSampleSetup CreateEquiAngularSampler(float LightImportance, float3 Center, float3 Ro, float3 Rd, float TMin, float TMax)
+{
+#if 0
+	float T0 = dot(Center - Ro, Rd);
+	float3 P0 = Ro + T0 * Rd;
+	Center = Center - normalize(Center - P0);
+#endif
+	const float3 V = Center - Ro;
+	FVolumeLightSampleSetup Result = (FVolumeLightSampleSetup)0;
+	Result.VolumeTMin = TMin;
+	Result.VolumeTMax = TMax;
+	Result.T0 = dot(V, Rd);
+	Result.Height = length(cross(V, Rd));
+	Result.ThetaMin = Result.Height > 0 ? atan((TMin - Result.T0) / Result.Height) : 0.0;
+	Result.ThetaMax = Result.Height > 0 ? atan((TMax - Result.T0) / Result.Height) : 0.0;
+	Result.K = (Result.ThetaMax - Result.ThetaMin) * Result.Height;
+	Result.LightImportance = LightImportance * (TMax - TMin);
+	return Result;
+}
+
+FVolumeLightSampleSetup CreateUniformSampler(float LightImportance, float TMin, float TMax)
+{
+	FVolumeLightSampleSetup Result = (FVolumeLightSampleSetup)0;
+	Result.VolumeTMin = TMin;
+	Result.VolumeTMax = TMax;
+	Result.LightImportance = LightImportance * (TMax - TMin);
+	Result.Height = -1.0; // mark that we don't want equi-angular sampling here
+	Result.K = TMax - TMin;
+	return Result;
+}
+
+
+
 
 FLightHit NullLightHit()
 {
@@ -55,6 +146,11 @@ FLightSample CreateLightSample(float3 RadianceOverPdf, float Pdf, float3 Directi
 	Sample.Direction = Direction;
 	Sample.Distance = Distance;
 	return Sample;
+}
+
+FVolumeLightSampleSetup NullVolumeLightSetup()
+{
+	return (FVolumeLightSampleSetup)0;
 }
 
 bool IsEnvironmentLight(int LightId)
@@ -141,14 +237,9 @@ float GetRadius(int LightId)
 	return SceneLights[LightId].Dimensions.x;
 }
 
-float GetSoftRadius(int LightId)
-{
-	return SceneLights[LightId].Dimensions.y;
-}
-
 float GetSourceLength(int LightId)
 {
-	return SceneLights[LightId].Dimensions.z;
+	return SceneLights[LightId].Dimensions.y;
 }
 
 float GetAttenuation(int LightId)
@@ -262,4 +353,19 @@ bool IsStationary(int LightId)
 bool CastsShadow(int LightId)
 {
 	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_CAST_SHADOW_MASK) != 0;
+}
+
+bool CastsVolumeShadow(int LightId)
+{
+	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK) != 0;
+}
+
+bool HasRectTexture(int LightId)
+{
+	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_HAS_RECT_TEXTURE_MASK) != 0;
+}
+
+float GetVolumetricScatteringIntensity(int LightId)
+{
+	return SceneLights[LightId].VolumetricScatteringIntensity;
 }

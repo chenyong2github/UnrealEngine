@@ -112,26 +112,24 @@ float SchlickPhase(float G, float CosTheta)
 // Follows PBRT convention http://www.pbr-book.org/3ed-2018/Light_Transport_II_Volume_Rendering/Sampling_Volume_Scattering.html#SamplingPhaseFunctions
 float HenyeyGreensteinPhaseInvertCDF(float E, float G)
 {
+	float R = 1.0 - 2.0 * E;
+	if (abs(G) < 0.001f)
+	{
+		// Careful: OneOver2G undefined for g close to 0
+		return R;
+	}
 	float OnePlusG2  = 1.0f + G * G;
 	float OneMinusG2 = 1.0f - G * G;
 	float OneOver2G  = 0.5f / G;
-	float t = OneMinusG2 / (1.0f + G - 2.0f * G * E);
-	return -OneOver2G * (OnePlusG2 - t * t);	// Careful: OneOver2G undefined for g close to 0
+	float t = OneMinusG2 / (1.0f + G * R);
+	return OneOver2G * (t * t - OnePlusG2);
 }
 
 // Follows PBRT convention http://www.pbr-book.org/3ed-2018/Light_Transport_II_Volume_Rendering/Sampling_Volume_Scattering.html#SamplingPhaseFunctions
 float4 ImportanceSampleHenyeyGreensteinPhase(float2 E, float G)
 {
 	float Phi = 2.0f * PI * E.x;
-	float CosTheta = 0;
-	if (abs(G) < 0.001f)
-	{
-		CosTheta = 1.0f - 2.0f * E.y;
-	}
-	else
-	{
-		CosTheta = HenyeyGreensteinPhaseInvertCDF(E.y, G);
-	}
+	float CosTheta = HenyeyGreensteinPhaseInvertCDF(E.y, G);
 	float SinTheta = sqrt(max(0.0f, 1.0f - CosTheta * CosTheta));
 
 	float3 H = float3(SinTheta * sin(Phi), SinTheta * cos(Phi), CosTheta);
@@ -139,6 +137,25 @@ float4 ImportanceSampleHenyeyGreensteinPhase(float2 E, float G)
 	return float4(H, HenyeyGreensteinPhase(G, CosTheta));
 }
 
+// Returns CosTheta given a random value in [0,1)
+float RayleighPhaseInvertCdf(float E)
+{
+	// [Frisvad, 2011] "Importance sampling the Rayleigh phase function"
+	// Optical Society of America. Journal A: Optics, Image Science, and Vision
+	float Z = E * 4.0 - 2.0;
+	float InvZ = sqrt(Z * Z + 1.0);
+	float u = pow(Z + InvZ, 1.0 / 3.0); // cbrt
+	return u - rcp(u);
+}
+
+float4 ImportanceSampleRayleigh(float2 E)
+{
+	float Phi = 2.0f * PI * E.x;
+	float CosTheta = RayleighPhaseInvertCdf(E.y);
+	float SinTheta = sqrt(max(0.0f, 1.0f - CosTheta * CosTheta));
+	float3 H = float3(SinTheta * sin(Phi), SinTheta * cos(Phi), CosTheta);
+	return float4(H, RayleighPhase(CosTheta));
+}
 
 
 //---------------------------------------------

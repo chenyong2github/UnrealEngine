@@ -18,6 +18,10 @@
 
 #define PATH_TRACING_PAYLOAD_NORMAL_BITS  24
 
+// shading model extensions beyond the default count
+#define SHADINGMODELID_MEDIUM  (SHADINGMODELID_NUM + 1)
+
+
 uint PayloadEncodeUnitVector(float3 Normal)
 {
 	const int BITS = PATH_TRACING_PAYLOAD_NORMAL_BITS;
@@ -51,6 +55,7 @@ struct FPackedPathTracingPayload : FMinimalPayload
 	uint2 GetPixelCoord() { return uint2(PackedPixelCoord & 0xFFFF, PackedPixelCoord >> 16); }
 
 	FRayCone GetRayCone() { return UnpackRayCone(PackedRayCone); }
+	void SetRayCone(FRayCone RayCone) { PackedRayCone = PackRayCone(RayCone); }
 
 	uint GetFlags() { return (PackedData[7] >> 23) & 0x3F; }
 	void SetFlag(uint Flag) { PackedData[7] |= Flag << 23; }
@@ -173,6 +178,7 @@ struct FPathTracingPayload : FMinimalPayload
 		return ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
 			   ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT || 
 			   ShadingModelID == SHADINGMODELID_HAIR ||
+			   ShadingModelID == SHADINGMODELID_MEDIUM ||
 			   IsMaterialSolidGlass();
 	}
 

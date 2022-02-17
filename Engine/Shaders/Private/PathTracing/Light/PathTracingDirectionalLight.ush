@@ -60,3 +60,20 @@ float DirectionalLight_EstimateLight(
 	float LightPower = Luminance(GetColor(LightId));
 	return LightPower * NoL;
 }
+
+// NOTE: unused
+FVolumeLightSampleSetup DirectionalLight_PrepareLightVolumeSample(
+	int LightId,
+	float3 RayOrigin,
+	float3 RayDirection,
+	float TMin,
+	float TMax
+)
+{
+	float3 LightColor = GetColor(LightId);
+	float SinThetaMax = max(0.001, GetRadius(LightId)); // Sin(Angle / 2)
+	float SinThetaMax2 = SinThetaMax * SinThetaMax;
+	float OneMinusCosThetaMax = SinThetaMax2 < 0.01 ? SinThetaMax2 * (0.5 + 0.125 * SinThetaMax2) : 1 - sqrt(1 - SinThetaMax2);
+	float SolidAngle = 2 * PI * OneMinusCosThetaMax;
+	return CreateUniformSampler(max3(LightColor.x, LightColor.y, LightColor.z) * rcp(SolidAngle), TMin, TMax);
+}

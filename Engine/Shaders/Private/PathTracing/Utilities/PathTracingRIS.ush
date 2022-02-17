@@ -1,0 +1,32 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+// Implementation of the core logic of Weighted Resampled Importance Sampling
+// The idea is to simulate sampling a discrete pdf built of individually weighted samples
+
+struct FRISContext
+{
+	float WeightSum;
+
+	bool Accept(float Weight, float RandValue)
+	{
+		WeightSum += Weight;
+		return Weight > 0 ? (Weight < WeightSum ? RandValue * WeightSum < Weight : true) : false;
+	}
+
+	bool HasSample()
+	{
+		return WeightSum > 0;
+	}
+
+	float GetNormalization()
+	{
+		return WeightSum;
+	}
+};
+
+FRISContext InitRISContext()
+{
+	return (FRISContext)0;
+}

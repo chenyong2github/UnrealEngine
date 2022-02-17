@@ -551,7 +551,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		float PHeight = length(P);
 
 		// Sample the medium
-		MediumSampleRGB Medium = SampleMediumRGB(P);
+		MediumSampleRGB Medium = SampleAtmosphereMediumRGB(P);
 		const float3 SampleOpticalDepth = Medium.Extinction * dt * AerialPespectiveViewDistanceScale;
 		const float3 SampleTransmittance = exp(-SampleOpticalDepth);
 		OpticalDepth += SampleOpticalDepth;
@@ -1554,7 +1554,7 @@ void RenderSkyAtmosphereDebugPS(
 
 
 		float3 SampleWorldPos = float3(0.0f, 0.0f, Atmosphere.BottomRadiusKm + UV.x * (Atmosphere.TopRadiusKm - Atmosphere.BottomRadiusKm));
-		MediumSampleRGB Sample = SampleMediumRGB(SampleWorldPos);
+		MediumSampleRGB Sample = SampleAtmosphereMediumRGB(SampleWorldPos);
 
 		// Curves represent the maximum contribution as extinction (no differenciation between scattering or absorption)
 		float3 Curves = float3(

@@ -97,6 +97,22 @@ TAutoConsoleVariable<int32> CVarPathTracingMISMode(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingVolumeMISMode(
+	TEXT("r.PathTracing.VolumeMISMode"),
+	1,
+	TEXT("Selects the sampling technique for volumetric integration of local lighting (default = 1)\n")
+	TEXT("0: Density sampling\n")
+	TEXT("1: Light sampling (default)\n"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarPathTracingMaxRaymarchSteps(
+	TEXT("r.PathTracing.MaxRaymarchSteps"),
+	256,
+	TEXT("Upper limit on the number of ray marching steps in volumes. This limit should not be hit in most cases, but raising it can reduce bias in case it is. (default = 256)."),
+	ECVF_RenderThreadSafe
+);
+
 TAutoConsoleVariable<int32> CVarPathTracingMISCompensation(
 	TEXT("r.PathTracing.MISCompensation"),
 	1,
@@ -155,6 +171,20 @@ TAutoConsoleVariable<int32> CVarPathTracingEnableCameraBackfaceCulling(
 	TEXT("r.PathTracing.EnableCameraBackfaceCulling"),
 	1,
 	TEXT("When non-zero, the path tracer will skip over backfacing triangles when tracing primary rays from the camera. (default = 1 (enabled))"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarPathTracingAtmosphereOpticalDepthLutResolution(
+	TEXT("r.PathTracing.AtmosphereOpticalDepthLUTResolution"),
+	512,
+	TEXT("Size of the square lookup texture used for transmittance calculations by the path tracer in reference atmosphere mode.  (default = 512)"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarPathTracingAtmosphereOpticalDepthLutNumSamples(
+	TEXT("r.PathTracing.AtmosphereOpticalDepthLUTNumSamples"),
+	16384,
+	TEXT("Number of ray marching samples used when building the transmittance lookup texture used for transmittance calculations by the path tracer in reference atmosphere mode.  (default = 16384)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -248,12 +278,16 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(uint32, MaxBounces)
 	SHADER_PARAMETER(uint32, MaxSSSBounces)
 	SHADER_PARAMETER(uint32, MISMode)
+	SHADER_PARAMETER(uint32, VolumeMISMode)
 	SHADER_PARAMETER(uint32, ApproximateCaustics)
 	SHADER_PARAMETER(uint32, EnableCameraBackfaceCulling)
 	SHADER_PARAMETER(uint32, EnableDirectLighting)
 	SHADER_PARAMETER(uint32, EnableEmissive)
 	SHADER_PARAMETER(uint32, SamplerType)
 	SHADER_PARAMETER(uint32, VisualizeLightGrid)
+	SHADER_PARAMETER(uint32, EnableAtmosphere)
+	SHADER_PARAMETER(uint32, EnableFog)
+	SHADER_PARAMETER(int32, MaxRaymarchSteps)
 	SHADER_PARAMETER(float, MaxPathIntensity)
 	SHADER_PARAMETER(float, MaxNormalBias)
 	SHADER_PARAMETER(float, FilterWidth)
@@ -284,6 +318,7 @@ struct FPathTracingConfig
 			PathTracingData.MaxBounces != Other.PathTracingData.MaxBounces ||
 			PathTracingData.MaxSSSBounces != Other.PathTracingData.MaxSSSBounces ||
 			PathTracingData.MISMode != Other.PathTracingData.MISMode ||
+			PathTracingData.VolumeMISMode != Other.PathTracingData.VolumeMISMode ||
 			PathTracingData.SamplerType != Other.PathTracingData.SamplerType ||
 			PathTracingData.ApproximateCaustics != Other.PathTracingData.ApproximateCaustics ||
 			PathTracingData.EnableCameraBackfaceCulling != Other.PathTracingData.EnableCameraBackfaceCulling ||
@@ -295,6 +330,9 @@ struct FPathTracingConfig
 			PathTracingData.AbsorptionScale != Other.PathTracingData.AbsorptionScale ||
 			PathTracingData.CameraFocusDistance != Other.PathTracingData.CameraFocusDistance ||
 			PathTracingData.CameraLensRadius != Other.PathTracingData.CameraLensRadius ||
+			PathTracingData.EnableAtmosphere != Other.PathTracingData.EnableAtmosphere ||
+			PathTracingData.EnableFog != Other.PathTracingData.EnableFog ||
+			PathTracingData.MaxRaymarchSteps != Other.PathTracingData.MaxRaymarchSteps ||
 			ViewRect != Other.ViewRect ||
 			LightShowFlags != Other.LightShowFlags ||
 			LightGridResolution != Other.LightGridResolution ||
@@ -305,6 +343,44 @@ struct FPathTracingConfig
 	}
 };
 
+struct FAtmosphereConfig
+{
+	FAtmosphereConfig() = default;
+	FAtmosphereConfig(const FAtmosphereUniformShaderParameters& Parameters) :
+		AtmoParameters(Parameters),
+		NumSamples(CVarPathTracingAtmosphereOpticalDepthLutNumSamples.GetValueOnRenderThread()),
+		Resolution(CVarPathTracingAtmosphereOpticalDepthLutResolution.GetValueOnRenderThread()) {}
+
+	bool IsDifferent(const FAtmosphereConfig& Other) const
+	{
+		// Compare only those parameters which impact the LUT construction
+		return
+			AtmoParameters.BottomRadiusKm != Other.AtmoParameters.BottomRadiusKm ||
+			AtmoParameters.TopRadiusKm != Other.AtmoParameters.TopRadiusKm ||
+			AtmoParameters.RayleighDensityExpScale != Other.AtmoParameters.RayleighDensityExpScale ||
+			AtmoParameters.RayleighScattering != Other.AtmoParameters.RayleighScattering ||
+			AtmoParameters.MieScattering != Other.AtmoParameters.MieScattering ||
+			AtmoParameters.MieDensityExpScale != Other.AtmoParameters.MieDensityExpScale ||
+			AtmoParameters.MieExtinction != Other.AtmoParameters.MieExtinction ||
+			AtmoParameters.MieAbsorption != Other.AtmoParameters.MieAbsorption ||
+			AtmoParameters.AbsorptionDensity0LayerWidth != Other.AtmoParameters.AbsorptionDensity0LayerWidth ||
+			AtmoParameters.AbsorptionDensity0ConstantTerm != Other.AtmoParameters.AbsorptionDensity0ConstantTerm ||
+			AtmoParameters.AbsorptionDensity0LinearTerm != Other.AtmoParameters.AbsorptionDensity0LinearTerm ||
+			AtmoParameters.AbsorptionDensity1ConstantTerm != Other.AtmoParameters.AbsorptionDensity1ConstantTerm ||
+			AtmoParameters.AbsorptionDensity1LinearTerm != Other.AtmoParameters.AbsorptionDensity1LinearTerm ||
+			AtmoParameters.AbsorptionExtinction != Other.AtmoParameters.AbsorptionExtinction ||
+			NumSamples != Other.NumSamples ||
+			Resolution != Other.Resolution;
+	}
+
+	// hold a copy of the parameters that influence LUT construction so we can detect when they change
+	FAtmosphereUniformShaderParameters AtmoParameters;
+
+	// parameters for the LUT itself
+	uint32 NumSamples;
+	uint32 Resolution;
+};
+
 struct FPathTracingState {
 	FPathTracingConfig LastConfig;
 	// Textures holding onto the accumulated frame data
@@ -312,6 +388,10 @@ struct FPathTracingState {
 	TRefCountPtr<IPooledRenderTarget> AlbedoRT;
 	TRefCountPtr<IPooledRenderTarget> NormalRT;
 	TRefCountPtr<IPooledRenderTarget> RadianceDenoisedRT;
+
+	// Texture holding onto the precomputed atmosphere data
+	TRefCountPtr<IPooledRenderTarget> AtmosphereOpticalDepthLUT;
+	FAtmosphereConfig LastAtmosphereConfig;
 
 	// Current sample index to be rendered by the path tracer - this gets incremented each time the path tracer accumulates a frame of samples
 	uint32 SampleIndex = 0;
@@ -322,7 +402,7 @@ struct FPathTracingState {
 };
 
 // This function prepares the portion of shader arguments that may involve invalidating the path traced state
-static void PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTracingData)
+static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, FPathTracingData& PathTracingData)
 {
 	PathTracingData.EnableDirectLighting = true;
 	int32 MaxBounces = CVarPathTracingMaxBounces.GetValueOnRenderThread();
@@ -356,6 +436,7 @@ static void PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.MaxSSSBounces = CVarPathTracingMaxSSSBounces.GetValueOnRenderThread();
 	PathTracingData.MaxNormalBias = GetRaytracingMaxNormalBias();
 	PathTracingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
+	PathTracingData.VolumeMISMode = CVarPathTracingVolumeMISMode.GetValueOnRenderThread();
 	PathTracingData.MaxPathIntensity = CVarPathTracingMaxPathIntensity.GetValueOnRenderThread();
 	if (PathTracingData.MaxPathIntensity <= 0)
 	{
@@ -386,6 +467,18 @@ static void PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 		PathTracingData.CameraFocusDistance = View.FinalPostProcessSettings.DepthOfFieldFocalDistance;
 		PathTracingData.CameraLensRadius = 0.5f * FocalLengthInCM / View.FinalPostProcessSettings.DepthOfFieldFstop;
 	}
+	PathTracingData.EnableAtmosphere =
+		ShouldRenderSkyAtmosphere(Scene, View.Family->EngineShowFlags) && 
+		View.SkyAtmosphereUniformShaderParameters &&
+		View.FinalPostProcessSettings.PathTracingEnableReferenceAtmosphere;
+	PathTracingData.EnableFog = ShouldRenderFog(*View.Family)
+		&& Scene->ExponentialFogs.Num() > 0
+		&& Scene->ExponentialFogs[0].bEnableVolumetricFog
+		&& Scene->ExponentialFogs[0].VolumetricFogDistance > 0
+		&& Scene->ExponentialFogs[0].VolumetricFogExtinctionScale > 0
+		&& (Scene->ExponentialFogs[0].FogData[0].Density > 0 ||
+			Scene->ExponentialFogs[0].FogData[1].Density > 0);
+	PathTracingData.MaxRaymarchSteps = CVarPathTracingMaxRaymarchSteps.GetValueOnRenderThread();
 }
 
 static bool ShouldCompilePathTracingShadersForProject(EShaderPlatform ShaderPlatform)
@@ -495,6 +588,55 @@ class FPathTracingBuildLightGridCS : public FGlobalShader
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingBuildLightGridCS, TEXT("/Engine/Private/PathTracing/PathTracingBuildLightGrid.usf"), TEXT("PathTracingBuildLightGridCS"), SF_Compute);
 
+// make a small custom struct to represent fog, because we need a more physical approach than the rest of the engine
+BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingFogParameters, )
+	SHADER_PARAMETER(FVector2f, FogDensity)
+	SHADER_PARAMETER(FVector2f, FogHeight)
+	SHADER_PARAMETER(FVector2f, FogFalloff)
+	SHADER_PARAMETER(FLinearColor, FogAlbedo)
+	SHADER_PARAMETER(float, FogPhaseG)
+	SHADER_PARAMETER(FVector2f, FogCenter)
+	SHADER_PARAMETER(float, FogMinZ)
+	SHADER_PARAMETER(float, FogMaxZ)
+	SHADER_PARAMETER(float, FogRadius)
+END_SHADER_PARAMETER_STRUCT()
+
+static FPathTracingFogParameters PrepareFogParameters(const FViewInfo& View, const FExponentialHeightFogSceneInfo& FogInfo)
+{
+	static_assert(FExponentialHeightFogSceneInfo::NumFogs == 2, "Path tracing code assumes a fixed number of fogs");
+	FPathTracingFogParameters Parameters = {};
+
+	const FVector PreViewTranslation = View.ViewMatrices.GetPreViewTranslation();
+
+	Parameters.FogDensity.X = FogInfo.FogData[0].Density * FogInfo.VolumetricFogExtinctionScale;
+	Parameters.FogDensity.Y = FogInfo.FogData[1].Density * FogInfo.VolumetricFogExtinctionScale;
+	Parameters.FogHeight.X = FogInfo.FogData[0].Height + PreViewTranslation.Z;
+	Parameters.FogHeight.Y = FogInfo.FogData[1].Height + PreViewTranslation.Z;
+	Parameters.FogFalloff.X = FogInfo.FogData[0].HeightFalloff;
+	Parameters.FogFalloff.Y = FogInfo.FogData[1].HeightFalloff;
+	Parameters.FogAlbedo = FogInfo.VolumetricFogAlbedo;
+	Parameters.FogPhaseG = FogInfo.VolumetricFogScatteringDistribution;
+
+	const float DensityEpsilon = 1e-6f;
+	const float Radius = FogInfo.VolumetricFogDistance;
+	// compute the value of Z at which the density becomes negligible (but don't go beyond the radius)
+	const float ZMax0 = Parameters.FogHeight.X + FMath::Min(Radius, FMath::Log2(FMath::Max(Parameters.FogDensity.X, DensityEpsilon) / DensityEpsilon) / Parameters.FogFalloff.X);
+	const float ZMax1 = Parameters.FogHeight.Y + FMath::Min(Radius, FMath::Log2(FMath::Max(Parameters.FogDensity.Y, DensityEpsilon) / DensityEpsilon) / Parameters.FogFalloff.Y);
+	// lowest point is just defined by the radius (fog is homogeneous below the height)
+	const float ZMin0 = Parameters.FogHeight.X - Radius;
+	const float ZMin1 = Parameters.FogHeight.Y - Radius;
+
+	// center X,Y around the current view point
+	// NOTE: this can lead to "sliding" when the view distance is low, would it be better to just use the component center instead?
+	// NOTE: the component position is not available here, would need to be added to FogInfo ...
+	const FVector O = View.ViewMatrices.GetViewOrigin() + PreViewTranslation;
+	Parameters.FogCenter = FVector2f(O.X, O.Y);
+	Parameters.FogMinZ = FMath::Min(ZMin0, ZMin1);
+	Parameters.FogMaxZ = FMath::Max(ZMax0, ZMax1);
+	Parameters.FogRadius = Radius;
+	return Parameters;
+}
+
 class FPathTracingRG : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FPathTracingRG)
@@ -533,6 +675,16 @@ class FPathTracingRG : public FGlobalShader
 
 		// Skylight
 		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingSkylight, SkylightParameters)
+
+		// sky atmosphere
+		SHADER_PARAMETER_STRUCT_REF(FAtmosphereUniformShaderParameters, Atmosphere)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AtmosphereOpticalDepthLUT)
+		SHADER_PARAMETER_SAMPLER(SamplerState, AtmosphereOpticalDepthLUTSampler)
+		SHADER_PARAMETER(FVector3f, PlanetCenterTranslatedWorldHi)
+		SHADER_PARAMETER(FVector3f, PlanetCenterTranslatedWorldLo)
+
+		// exponential height fog
+		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingFogParameters, FogParameters)
 
 		// IES Profiles
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, IESTexture)
@@ -577,6 +729,34 @@ class FPathTracingIESAtlasCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingIESAtlasCS, TEXT("/Engine/Private/PathTracing/PathTracingIESAtlas.usf"), TEXT("PathTracingIESAtlasCS"), SF_Compute);
+
+class FPathTracingBuildAtmosphereOpticalDepthLUTCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPathTracingBuildAtmosphereOpticalDepthLUTCS)
+	SHADER_USE_PARAMETER_STRUCT(FPathTracingBuildAtmosphereOpticalDepthLUTCS, FGlobalShader)
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		//OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_X"), FComputeShaderUtils::kGolden2DGroupSize);
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_Y"), FComputeShaderUtils::kGolden2DGroupSize);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, NumSamples)
+		SHADER_PARAMETER(uint32, Resolution)
+		SHADER_PARAMETER_STRUCT_REF(FAtmosphereUniformShaderParameters, Atmosphere)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, AtmosphereOpticalDepthLUT)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_SHADER_TYPE(, FPathTracingBuildAtmosphereOpticalDepthLUTCS, TEXT("/Engine/Private/PathTracing/PathTracingBuildAtmosphereLUT.usf"), TEXT("PathTracingBuildAtmosphereOpticalDepthLUTCS"), SF_Compute);
+
+
 
 template<bool UseAnyHitShader, bool UseIntersectionShader>
 class TPathTracingMaterial : public FMeshMaterialShader
@@ -1024,7 +1204,10 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 
 	// Prepend SkyLight to light buffer since it is not part of the regular light list
 	const float Inf = std::numeric_limits<float>::infinity();
-	if (PrepareSkyTexture(GraphBuilder, Scene, View, true, UseMISCompensation, &PassParameters->SkylightParameters))
+	// skylight should be excluded if we are using the reference atmosphere calculation (don't bother checking again if an atmosphere is present)
+	const bool bUseAtmosphere = PassParameters->PathTracingData.EnableAtmosphere != 0;
+	const bool bEnableSkydome = !bUseAtmosphere;
+	if (PrepareSkyTexture(GraphBuilder, Scene, View, bEnableSkydome, UseMISCompensation, &PassParameters->SkylightParameters))
 	{
 		check(Scene->SkyLight != nullptr);
 		FPathTracingLight& DestLight = Lights[NumLights++];
@@ -1033,6 +1216,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
 		DestLight.Flags |= Scene->SkyLight->bCastShadows ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
+		DestLight.Flags |= Scene->SkyLight->bCastVolumetricShadow ? PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK : 0;
+		DestLight.VolumetricScatteringIntensity = Scene->SkyLight->VolumetricScatteringIntensity;
 		DestLight.IESTextureSlice = -1;
 		DestLight.TranslatedBoundMin = FVector3f(-Inf, -Inf, -Inf);
 		DestLight.TranslatedBoundMax = FVector3f( Inf,  Inf,  Inf);
@@ -1072,6 +1257,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			DestLight.Flags = Transmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
 			DestLight.Flags |= LightingChannelMask & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 			DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsDynamicShadow() ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
+			DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsVolumetricShadow() ? PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK : 0;
 			DestLight.IESTextureSlice = -1;
 
 			// these mean roughly the same thing across all light types
@@ -1082,16 +1268,24 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			DestLight.dPdv = LightParameters.Tangent;
 			DestLight.Attenuation = LightParameters.InvRadius;
 			DestLight.FalloffExponent = 0;
+			DestLight.VolumetricScatteringIntensity = Light.LightSceneInfo->Proxy->GetVolumetricScatteringIntensity();
 			DestLight.RectLightAtlasUVOffset = 0;
 			DestLight.RectLightAtlasUVScale = 0;
 
 			DestLight.Normal = LightParameters.Direction;
-			DestLight.Dimensions = FVector3f(LightParameters.SourceRadius, LightParameters.SoftSourceRadius, 0.0f);
+			DestLight.Dimensions = FVector2f(LightParameters.SourceRadius, 0.0f);
 			DestLight.Flags |= PATHTRACING_LIGHT_DIRECTIONAL;
 
 			DestLight.TranslatedBoundMin = FVector3f(-Inf, -Inf, -Inf);
 			DestLight.TranslatedBoundMax = FVector3f( Inf,  Inf,  Inf);
 		}
+	}
+
+	if (bUseAtmosphere)
+	{
+		// show directional lights when atmosphere is enabled
+		// NOTE: there cannot be any skydome in this case
+		PassParameters->SceneVisibleLightCount = NumLights;
 	}
 
 	uint32 NumInfiniteLights = NumLights;
@@ -1128,6 +1322,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.Flags = Transmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
 		DestLight.Flags |= LightingChannelMask & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 		DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsDynamicShadow() ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
+		DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsVolumetricShadow() ? PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK : 0;
 		DestLight.IESTextureSlice = -1;
 
 		if (View.Family->EngineShowFlags.TexturedLightProfiles)
@@ -1148,6 +1343,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.dPdv = LightParameters.Tangent;
 		DestLight.Attenuation = LightParameters.InvRadius;
 		DestLight.FalloffExponent = 0;
+		DestLight.VolumetricScatteringIntensity = Light.LightSceneInfo->Proxy->GetVolumetricScatteringIntensity();
 		DestLight.RectLightAtlasUVOffset = 0;
 		DestLight.RectLightAtlasUVScale = 0;
 
@@ -1155,7 +1351,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		{
 			case LightType_Rect:
 			{
-				DestLight.Dimensions = FVector3f(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength, 0.0f);
+				DestLight.Dimensions = FVector2f(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength);
 				DestLight.Shaping = FVector2f(LightParameters.RectLightBarnCosAngle, LightParameters.RectLightBarnLength);
 				DestLight.FalloffExponent = LightParameters.FalloffExponent;
 				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
@@ -1178,11 +1374,15 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				// Rect light atlas UV transformation
 				DestLight.RectLightAtlasUVOffset = EncodeToF16x2(LightParameters.RectLightAtlasUVOffset);
 				DestLight.RectLightAtlasUVScale  = EncodeToF16x2(LightParameters.RectLightAtlasUVScale);
+				if (LightParameters.RectLightAtlasMaxLevel < 16)
+				{
+					DestLight.Flags |= PATHTRACER_FLAG_HAS_RECT_TEXTURE_MASK;
+				}
 				break;
 			}
 			case LightType_Spot:
 			{
-				DestLight.Dimensions = FVector3f(LightParameters.SourceRadius, LightParameters.SoftSourceRadius, LightParameters.SourceLength);
+				DestLight.Dimensions = FVector2f(LightParameters.SourceRadius, LightParameters.SourceLength);
 				DestLight.Shaping = LightParameters.SpotAngles;
 				DestLight.FalloffExponent = LightParameters.FalloffExponent;
 				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
@@ -1211,7 +1411,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			}
 			case LightType_Point:
 			{
-				DestLight.Dimensions = FVector3f(LightParameters.SourceRadius, LightParameters.SoftSourceRadius, LightParameters.SourceLength);
+				DestLight.Dimensions = FVector2f(LightParameters.SourceRadius, LightParameters.SourceLength);
 				DestLight.FalloffExponent = LightParameters.FalloffExponent;
 				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
 				DestLight.Flags |= PATHTRACING_LIGHT_POINT;
@@ -1325,6 +1525,14 @@ uint32 FSceneViewState::GetPathTracingSampleCount() const {
 	return State ? State->LastConfig.PathTracingData.MaxSamples : 0;
 }
 
+static void SplitDouble(double x, float* hi, float* lo)
+{
+	const double SPLIT = 134217729.0; // 2^27+1
+	double temp = SPLIT * x;
+	*hi = static_cast<float>(temp - (temp - x));
+	*lo = static_cast<float>(x - *hi);
+}
+
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDenoiseTextureParameters, )
 	RDG_TEXTURE_ACCESS(InputTexture, ERHIAccess::CopySrc)
@@ -1365,7 +1573,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	MaxSPP = FMath::Max(MaxSPP, 1u);
 	Config.LockedSamplingPattern = CVarPathTracingFrameIndependentTemporalSeed.GetValueOnRenderThread() == 0;
 
-
 	// compute an integer code of what show flags related to lights are currently enabled so we can detect changes
 	Config.LightShowFlags = 0;
 	Config.LightShowFlags |= View.Family->EngineShowFlags.SkyLighting           ? 1 << 0 : 0;
@@ -1375,7 +1582,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	Config.LightShowFlags |= View.Family->EngineShowFlags.PointLights           ? 1 << 4 : 0;
 	Config.LightShowFlags |= View.Family->EngineShowFlags.TexturedLightProfiles ? 1 << 5 : 0;
 
-	PrepareShaderArgs(View, Config.PathTracingData);
+	PreparePathTracingData(Scene, View, Config.PathTracingData);
 
 	Config.VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread() != 0;
 	Config.UseMISCompensation = Config.PathTracingData.MISMode == 2 && CVarPathTracingMISCompensation.GetValueOnRenderThread() != 0;
@@ -1412,6 +1619,52 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		Scene->PathTracingSkylightColor = Scene->SkyLight->GetEffectiveLightColor();
 		View.ViewState->PathTracingInvalidate();
 	}
+
+	// prepare atmosphere optical depth lookup texture (if needed)
+	FRDGTexture* AtmosphereOpticalDepthLUT = nullptr;
+	if (Config.PathTracingData.EnableAtmosphere)
+	{
+		check(Scene->GetSkyAtmosphereSceneInfo() != nullptr);
+		check(Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereShaderParameters() != nullptr);
+		FAtmosphereConfig AtmoConfig(*Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereShaderParameters());
+		if (!PathTracingState->AtmosphereOpticalDepthLUT.IsValid() || PathTracingState->LastAtmosphereConfig.IsDifferent(AtmoConfig))
+		{
+			PathTracingState->LastAtmosphereConfig = AtmoConfig;
+			// need to create a new LUT
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				FIntPoint(AtmoConfig.Resolution, AtmoConfig.Resolution),
+				PF_A32B32G32R32F,
+				FClearValueBinding::None,
+				TexCreate_ShaderResource | TexCreate_UAV);
+			AtmosphereOpticalDepthLUT = GraphBuilder.CreateTexture(Desc, TEXT("PathTracer.AtmosphereOpticalDepthLUT"), ERDGTextureFlags::MultiFrame);
+			FPathTracingBuildAtmosphereOpticalDepthLUTCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingBuildAtmosphereOpticalDepthLUTCS::FParameters>();
+			PassParameters->NumSamples = AtmoConfig.NumSamples;
+			PassParameters->Resolution = AtmoConfig.Resolution;
+			PassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
+			PassParameters->AtmosphereOpticalDepthLUT = GraphBuilder.CreateUAV(AtmosphereOpticalDepthLUT);
+			TShaderMapRef<FPathTracingBuildAtmosphereOpticalDepthLUTCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("Path Tracing Atmosphere Optical Depth LUT (Resolution=%u, NumSamples=%u)", AtmoConfig.Resolution, AtmoConfig.NumSamples),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(
+					FIntPoint(AtmoConfig.Resolution, AtmoConfig.Resolution),
+					FIntPoint(FComputeShaderUtils::kGolden2DGroupSize, FComputeShaderUtils::kGolden2DGroupSize))
+			);
+			GraphBuilder.QueueTextureExtraction(AtmosphereOpticalDepthLUT, &PathTracingState->AtmosphereOpticalDepthLUT);
+		}
+		else
+		{
+			AtmosphereOpticalDepthLUT = GraphBuilder.RegisterExternalTexture(PathTracingState->AtmosphereOpticalDepthLUT, TEXT("PathTracer.AtmosphereOpticalDepthLUT"));
+		}
+	}
+	else
+	{
+		AtmosphereOpticalDepthLUT = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+	}
+
+
 
 	// If the scene has changed in some way (camera move, object movement, etc ...)
 	// we must invalidate the ViewState to start over from scratch
@@ -1548,6 +1801,33 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 					PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
 					PassParameters->AlbedoTexture   = GraphBuilder.CreateUAV(AlbedoTexture);
 					PassParameters->NormalTexture   = GraphBuilder.CreateUAV(NormalTexture);
+
+					if (Config.PathTracingData.EnableAtmosphere)
+					{
+						PassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
+						FVector PlanetCenterTranslatedWorld = Scene->GetSkyAtmosphereSceneInfo()->GetSkyAtmosphereSceneProxy().GetAtmosphereSetup().PlanetCenterKm * double(FAtmosphereSetup::SkyUnitToCm) + View.ViewMatrices.GetPreViewTranslation();
+						SplitDouble(PlanetCenterTranslatedWorld.X, &PassParameters->PlanetCenterTranslatedWorldHi.X, &PassParameters->PlanetCenterTranslatedWorldLo.X);
+						SplitDouble(PlanetCenterTranslatedWorld.Y, &PassParameters->PlanetCenterTranslatedWorldHi.Y, &PassParameters->PlanetCenterTranslatedWorldLo.Y);
+						SplitDouble(PlanetCenterTranslatedWorld.Z, &PassParameters->PlanetCenterTranslatedWorldHi.Z, &PassParameters->PlanetCenterTranslatedWorldLo.Z);
+					}
+					else
+					{
+						FAtmosphereUniformShaderParameters AtmosphereParams = {};
+						PassParameters->Atmosphere = CreateUniformBufferImmediate(AtmosphereParams, EUniformBufferUsage::UniformBuffer_SingleFrame);
+						PassParameters->PlanetCenterTranslatedWorldHi = FVector3f(0);
+						PassParameters->PlanetCenterTranslatedWorldLo = FVector3f(0);
+					}
+					PassParameters->AtmosphereOpticalDepthLUT = AtmosphereOpticalDepthLUT;
+					PassParameters->AtmosphereOpticalDepthLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+					if (Config.PathTracingData.EnableFog)
+					{
+						PassParameters->FogParameters = PrepareFogParameters(View, Scene->ExponentialFogs[0]);
+					}
+					else
+					{
+						PassParameters->FogParameters = {};
+					}
 
 					// TODO: in multi-gpu case, assign different tiles to different GPUs
 					PassParameters->TileOffset.X = TileX;

@@ -87,3 +87,15 @@ FLightSample SkyLight_SampleLight(
 	return CreateLightSample(SkyLightRadiance / Pdf, Pdf, Direction, POSITIVE_INFINITY);
 #endif
 }
+
+// NOTE: unused
+FVolumeLightSampleSetup SkyLight_PrepareLightVolumeSample(
+	int LightId,
+	float3 RayOrigin,
+	float3 RayDirection,
+	float TMin,
+	float TMax
+)
+{
+	return CreateUniformSampler(4 * PI, TMin, TMax);
+}

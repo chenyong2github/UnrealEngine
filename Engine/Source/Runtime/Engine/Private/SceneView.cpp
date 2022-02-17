@@ -1674,6 +1674,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.PathTracingEnableReferenceDOF = Src.PathTracingEnableReferenceDOF;
 		}
 
+		if (Src.bOverride_PathTracingEnableReferenceAtmosphere)
+		{
+			Dest.PathTracingEnableReferenceAtmosphere = Src.PathTracingEnableReferenceAtmosphere;
+		}
+
 		if (Src.bOverride_PathTracingEnableDenoiser)
 		{
 			Dest.PathTracingEnableDenoiser = Src.PathTracingEnableDenoiser;

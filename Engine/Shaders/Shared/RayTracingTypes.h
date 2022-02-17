@@ -19,10 +19,11 @@ struct FPathTracingLight {
 	FVector3f dPdu;
 	FVector3f dPdv;
 	FVector3f Color;
-	FVector3f Dimensions; // Radius,SoftRadius,Length or RectWidth,RectHeight or Sin(Angle/2),Sin(SoftAngle/2) depending on light type
+	FVector2f Dimensions; // Radius,Length or RectWidth,RectHeight or Sin(Angle/2),0 depending on light type
 	FVector2f Shaping;  // Barndoor controls for RectLights, Cone angles for spots lights
 	float   Attenuation;
 	float   FalloffExponent; // for non-inverse square decay lights only
+	float   VolumetricScatteringIntensity;  // scale for volume contributions
 	int32   IESTextureSlice;
 	uint32  Flags; // see defines PATHTRACER_FLAG_*
 	FVector3f TranslatedBoundMin;
@@ -64,10 +65,11 @@ struct FPathTracingLight {
 	float3  dPdu;
 	float3  dPdv;
 	float3  Color;
-	float3  Dimensions;
+	float2  Dimensions;
 	float2  Shaping;
 	float   Attenuation;
 	float   FalloffExponent;
+	float   VolumetricScatteringIntensity;  // scale for volume contributions
 	int     IESTextureSlice;
 	uint    Flags;
 	float3  TranslatedBoundMin;

@@ -22,6 +22,7 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingSubsurfaceProfile.ush"
 #include "PathTracingEye.ush"
 #include "PathTracingHair.ush"
+#include "PathTracingMedium.ush"
 #include "../../BurleyNormalizedSSSCommon.ush"
 
 // Simplified material shaders for GPU Lightmass, supporting Lambert, Two Sided Foliage and Thin Translucent
@@ -257,6 +258,25 @@ void AccumulateAlbedoNormal(inout FPathTracingPayload Payload, float3 PathThroug
 		Normal += (1 - BrdfWeight) * RoughnessWeight * Luminance(PathThroughput) * Payload.WorldNormal;
 	}
 #endif
+}
+
+void AccumulateAlbedo(float3 SigmaS, float3 PathThroughput, float PathRoughness, inout float3 Albedo)
+{
+	const float MaxRoughness = 0.15; // don't bother past this level
+	const float MinRoughness = 0.10; // capture anything below this level
+	if (PathRoughness >= MaxRoughness)
+	{
+		// no point tracking past a certain roughness
+		return;
+	}
+	// figure out how much the current path should contribute to the denoiser aovs
+	PathThroughput *= 1 - saturate((PathRoughness - MinRoughness) / (MaxRoughness - MinRoughness));
+	// figure out how much the specular lobes should contribute to the total (relative to the current PathRoughness)
+	// if we are above the MinRoughness, use the PathRoughness as are lower bound instead so that multiple bounces don't accumulate too much albedo
+	const float VolumeRoughness = 1.0; // assume volume scattering is diffuse
+	const float RoughnessWeight = saturate((VolumeRoughness - max(MinRoughness, PathRoughness)) / (MaxRoughness - max(MinRoughness, PathRoughness)));
+
+	Albedo += RoughnessWeight * SigmaS * PathThroughput;
 }
 
 void AdjustMaterialRoughness(inout FPathTracingPayload Payload, float PathRoughness)
@@ -540,6 +560,9 @@ FMaterialSample SampleMaterial(
 		case SHADINGMODELID_HAIR:
 			Result = Hair_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
+		case SHADINGMODELID_MEDIUM:
+			Result = Medium_SampleMaterial(RayDirection, Payload, RandSample);
+			break;
 		default:
 			Result = Lambert_SampleMaterial(Payload, RandSample);
 			break;
@@ -638,6 +661,9 @@ FMaterialEval EvalMaterial(
 			break;
 		case SHADINGMODELID_HAIR:
 			Result = Hair_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
+			break;
+		case SHADINGMODELID_MEDIUM:
+			Result = Medium_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			break;
 		default:
 			Result = Lambert_EvalMaterial(OutgoingDirection, Payload);

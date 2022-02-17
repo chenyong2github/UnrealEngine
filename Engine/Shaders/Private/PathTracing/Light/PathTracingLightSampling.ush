@@ -76,6 +76,26 @@ float EstimateLight(
 	}
 }
 
+FVolumeLightSampleSetup PrepareLightVolumeSample(
+	int LightId,
+	float3 RayOrigin,
+	float3 RayDirection,
+	float TMin,
+	float TMax
+)
+{
+	// NOTE: distant lights are excluded from this because they work better with density sampling
+	switch (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK)
+	{
+		//case PATHTRACING_LIGHT_SKY:         return SkyLight_PrepareLightVolumeSample(LightId, RayOrigin, RayDirection, TMin, TMax);
+		case PATHTRACING_LIGHT_POINT:       return PointLight_PrepareLightVolumeSample(LightId, RayOrigin, RayDirection, TMin, TMax);
+		//case PATHTRACING_LIGHT_DIRECTIONAL: return DirectionalLight_PrepareLightVolumeSample(LightId, RayOrigin, RayDirection, TMin, TMax);
+		case PATHTRACING_LIGHT_RECT:        return RectLight_PrepareLightVolumeSample(LightId, RayOrigin, RayDirection, TMin, TMax);
+		case PATHTRACING_LIGHT_SPOT:        return SpotLight_PrepareLightVolumeSample(LightId, RayOrigin, RayDirection, TMin, TMax);
+		default:                            return NullVolumeLightSetup();
+	}
+}
+
 // #dxr_todo: passing LightPickingCdf as anything but inout causes performance to drop significantly -- why ?
 float InitLightPickingCdf(
 	float3 TranslatedWorldPos,
