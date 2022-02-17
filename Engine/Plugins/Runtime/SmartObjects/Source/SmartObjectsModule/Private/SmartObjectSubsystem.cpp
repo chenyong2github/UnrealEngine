@@ -1006,7 +1006,7 @@ void USmartObjectSubsystem::CleanupRuntime()
 	// Flush all entity subsystem commands pushed while stopping the simulation
 	// This is the temporary way to force our commands to be processed until MassEntitySubsystem
 	// offers a threadsafe solution to push and flush commands in our own execution context.
-	EntitySubsystem->Defer().ReplayBufferAgainstSystem(EntitySubsystem);
+	EntitySubsystem->FlushCommands();
 }
 
 void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
