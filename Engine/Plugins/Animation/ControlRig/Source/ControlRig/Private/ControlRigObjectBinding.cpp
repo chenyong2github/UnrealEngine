@@ -12,72 +12,62 @@ FControlRigObjectBinding::~FControlRigObjectBinding()
 
 void FControlRigObjectBinding::BindToObject(UObject* InObject)
 {
-	// If we are binding to an actor, find the first skeletal mesh component
-	if (AActor* Actor = Cast<AActor>(InObject))
-	{
-		if (UControlRigComponent* ControlRigComponent = Actor->FindComponentByClass<UControlRigComponent>())
-		{
-			SceneComponent = ControlRigComponent;
-		}
-		else if (USkeletalMeshComponent* SkeletalMeshComponent = Actor->FindComponentByClass<USkeletalMeshComponent>())
-		{
-			SceneComponent = SkeletalMeshComponent;
-		}
-	}
-	else if (UControlRigComponent* ControlRigComponent = Cast<UControlRigComponent>(InObject))
-	{
-		SceneComponent = ControlRigComponent;
-	}
-	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InObject))
-	{
-		SceneComponent = SkeletalMeshComponent;
-	}
-
-	ControlRigBind.Broadcast(SceneComponent.Get());
+	BoundObject = GetBindableObject(InObject);
+	ControlRigBind.Broadcast(BoundObject.Get());
 }
 
 void FControlRigObjectBinding::UnbindFromObject()
 {
-	SceneComponent = nullptr;
+	BoundObject = nullptr;
 
 	ControlRigUnbind.Broadcast();
 }
 
 bool FControlRigObjectBinding::IsBoundToObject(UObject* InObject) const
 {
-	if (AActor* Actor = Cast<AActor>(InObject))
-	{
-		if (UControlRigComponent* ControlRigComponent = Actor->FindComponentByClass<UControlRigComponent>())
-		{
-			return SceneComponent.Get() == ControlRigComponent;
-		}
-		else if (USkeletalMeshComponent* SkeletalMeshComponent = Actor->FindComponentByClass<USkeletalMeshComponent>())
-		{
-			return SceneComponent.Get() == SkeletalMeshComponent;
-		}
-	}
-	else if (UControlRigComponent* ControlRigComponent = Cast<UControlRigComponent>(InObject))
-	{
-		return SceneComponent.Get() == ControlRigComponent;
-	}
-	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InObject))
-	{
-		return SceneComponent.Get() == SkeletalMeshComponent;
-	}
-
-	return false;
+	return InObject != nullptr && BoundObject.Get() == GetBindableObject(InObject);
 }
 
 UObject* FControlRigObjectBinding::GetBoundObject() const
 {
-	return SceneComponent.Get();
+	return BoundObject.Get();
 }
 
 AActor* FControlRigObjectBinding::GetHostingActor() const
 {
-	if (SceneComponent.Get())
+	if (USceneComponent* SceneComponent = Cast<USceneComponent>(BoundObject.Get()))
 	{
 		return SceneComponent->GetOwner();
+	}
+
+	return nullptr;
+}
+
+UObject* FControlRigObjectBinding::GetBindableObject(UObject* InObject) const
+{
+	// If we are binding to an actor, find the first skeletal mesh component
+	if (AActor* Actor = Cast<AActor>(InObject))
+	{
+		if (UControlRigComponent* ControlRigComponent = Actor->FindComponentByClass<UControlRigComponent>())
+		{
+			return ControlRigComponent;
+		}
+		else if (USkeletalMeshComponent* SkeletalMeshComponent = Actor->FindComponentByClass<USkeletalMeshComponent>())
+		{
+			return SkeletalMeshComponent;
+		}
+	}
+	else if (UControlRigComponent* ControlRigComponent = Cast<UControlRigComponent>(InObject))
+	{
+		return ControlRigComponent;
+	}
+	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InObject))
+	{
+		return SkeletalMeshComponent;
+	}
+	else if (USkeleton* Skeleton = Cast<USkeleton>(InObject))
+	{
+		return Skeleton;
 	}
 
 	return nullptr;

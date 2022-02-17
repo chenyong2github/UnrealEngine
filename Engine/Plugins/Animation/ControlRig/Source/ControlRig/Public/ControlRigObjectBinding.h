@@ -22,10 +22,11 @@ public:
 	virtual bool IsBoundToObject(UObject* InObject) const override;
 	virtual UObject* GetBoundObject() const override;
 	virtual AActor* GetHostingActor() const override;
-
+protected:
+	UObject* GetBindableObject(UObject* InObject) const;
 private:
-	/** The scene component we are bound to */
-	TWeakObjectPtr<USceneComponent> SceneComponent;
+	/** The scene component or USkeleton we are bound to */
+	TWeakObjectPtr<UObject> BoundObject;
 
 	FControlRigBind ControlRigBind;
 	FControlRigUnbind ControlRigUnbind;
