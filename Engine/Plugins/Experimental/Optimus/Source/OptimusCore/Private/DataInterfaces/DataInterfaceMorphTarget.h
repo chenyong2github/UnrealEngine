@@ -4,14 +4,14 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "DataInterfaceSkeletalMeshRead.generated.h"
+#include "DataInterfaceMorphTarget.generated.h"
 
 class FSkeletalMeshObject;
 class USkeletalMeshComponent;
 
 /** Compute Framework Data Interface for reading skeletal mesh. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API USkeletalMeshReadDataInterface : public UOptimusComputeDataInterface
+class OPTIMUSCORE_API UMorphTargetDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -33,7 +33,7 @@ public:
 
 /** Compute Framework Data Provider for reading skeletal mesh. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class OPTIMUSCORE_API USkeletalMeshReadDataProvider : public UComputeDataProvider
+class UMorphTargetDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
@@ -47,18 +47,18 @@ public:
 	//~ End UComputeDataProvider Interface
 };
 
-class FSkeletalMeshReadDataProviderProxy : public FComputeDataProviderRenderProxy
+class FMorphTargetDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FSkeletalMeshReadDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
+	FMorphTargetDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	int32 GetInvocationCount() const override;
 	FIntVector GetDispatchDim(int32 InvocationIndex, FIntVector GroupDim) const override;
-	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
+	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData);
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
 	FSkeletalMeshObject* SkeletalMeshObject;
-	uint32 BoneRevisionNumber = 0;
+	uint32 FrameNumber = 0;
 };

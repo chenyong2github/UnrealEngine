@@ -4,14 +4,14 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "DataInterfaceMorphTarget.generated.h"
+#include "DataInterfaceCloth.generated.h"
 
 class FSkeletalMeshObject;
 class USkeletalMeshComponent;
 
 /** Compute Framework Data Interface for reading skeletal mesh. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API UMorphTargetDataInterface : public UOptimusComputeDataInterface
+class OPTIMUSCORE_API UClothDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -33,7 +33,7 @@ public:
 
 /** Compute Framework Data Provider for reading skeletal mesh. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class OPTIMUSCORE_API UMorphTargetDataProvider : public UComputeDataProvider
+class UClothDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
@@ -47,10 +47,10 @@ public:
 	//~ End UComputeDataProvider Interface
 };
 
-class FMorphTargetDataProviderProxy : public FComputeDataProviderRenderProxy
+class FClothDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FMorphTargetDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
+	FClothDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	int32 GetInvocationCount() const override;
@@ -59,6 +59,7 @@ public:
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
-	FSkeletalMeshObject* SkeletalMeshObject;
+	FSkeletalMeshObject* SkeletalMeshObject = nullptr;
+	float ClothBlendWeight = 0.0f;
 	uint32 FrameNumber = 0;
 };

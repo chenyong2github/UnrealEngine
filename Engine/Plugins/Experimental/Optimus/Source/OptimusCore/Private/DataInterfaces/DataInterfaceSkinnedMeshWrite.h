@@ -35,7 +35,7 @@ public:
 
 /** Compute Framework Data Provider for writing skinned mesh. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class OPTIMUSCORE_API USkinnedMeshWriteDataProvider : public UComputeDataProvider
+class USkinnedMeshWriteDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 

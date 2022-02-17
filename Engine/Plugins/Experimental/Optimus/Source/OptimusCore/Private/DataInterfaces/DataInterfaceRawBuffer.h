@@ -64,7 +64,7 @@ private:
 
 /** Compute Framework Data Provider for a transient buffer. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class OPTIMUSCORE_API UTransientBufferDataProvider : public UComputeDataProvider
+class UTransientBufferDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
