@@ -21,7 +21,6 @@ namespace HLSLTree
 class FNode;
 class FStructType;
 class FExpression;
-class FTextureParameterDeclaration;
 class FStatement;
 class FScope;
 class FTree;
@@ -64,9 +63,16 @@ enum class EOperation : uint8
 	None,
 
 	// Unary Ops
+	Abs,
 	Neg,
 	Rcp,
 	Frac,
+	Floor,
+	Ceil,
+	Round,
+	Trunc,
+	Saturate,
+	Sign,
 	Length,
 	Normalize,
 
@@ -76,11 +82,14 @@ enum class EOperation : uint8
 	Mul,
 	Div,
 	Fmod,
+	PowPositiveClamped,
 	Dot,
 	Min,
 	Max,
 	Less,
 	Greater,
+	LessEqual,
+	GreaterEqual,
 
 	VecMulMatrix3,
 	VecMulMatrix4,
@@ -100,32 +109,6 @@ struct FOperationDescription
 };
 
 FOperationDescription GetOperationDescription(EOperation Op);
-
-struct FTextureDescription
-{
-	FTextureDescription()
-		: Texture(nullptr), SamplerType(SAMPLERTYPE_Color)
-	{}
-
-	FTextureDescription(UTexture* InTexture, EMaterialSamplerType InSamplerType)
-		: Texture(InTexture), SamplerType(InSamplerType)
-	{}
-
-	UTexture* Texture;
-	EMaterialSamplerType SamplerType;
-};
-inline bool operator==(const FTextureDescription& Lhs, const FTextureDescription& Rhs)
-{
-	return Lhs.Texture == Rhs.Texture && Lhs.SamplerType == Rhs.SamplerType;
-}
-inline bool operator!=(const FTextureDescription& Lhs, const FTextureDescription& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
-inline uint32 GetTypeHash(const FTextureDescription& Ref)
-{
-	return HashCombine(GetTypeHash(Ref.Texture), GetTypeHash(Ref.SamplerType));
-}
 
 struct FCustomHLSLInput
 {

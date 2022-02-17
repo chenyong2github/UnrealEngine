@@ -4,6 +4,7 @@
 #include "Misc/StringBuilder.h"
 #include "MaterialShared.h"
 #include "MaterialSceneTextureId.h"
+#include "Engine/BlendableInterface.h" // BL_AfterTonemapping
 #include "Engine/Texture.h"
 
 namespace UE
@@ -49,6 +50,10 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input)
 	case EExternalInput::TexCoord5_Ddy: return FExternalInputDescription(TEXT("TexCoord5_Ddy"), Shader::EValueType::Float2);
 	case EExternalInput::TexCoord6_Ddy: return FExternalInputDescription(TEXT("TexCoord6_Ddy"), Shader::EValueType::Float2);
 	case EExternalInput::TexCoord7_Ddy: return FExternalInputDescription(TEXT("TexCoord7_Ddy"), Shader::EValueType::Float2);
+
+	case EExternalInput::VertexColor: return FExternalInputDescription(TEXT("VertexColor"), Shader::EValueType::Float4, EExternalInput::VertexColor_Ddx, EExternalInput::VertexColor_Ddy);
+	case EExternalInput::VertexColor_Ddx: return FExternalInputDescription(TEXT("VertexColor_Ddx"), Shader::EValueType::Float4);
+	case EExternalInput::VertexColor_Ddy: return FExternalInputDescription(TEXT("VertexColor_Ddy"), Shader::EValueType::Float4);
 
 	case EExternalInput::WorldPosition: return FExternalInputDescription(TEXT("WorldPosition"), Shader::EValueType::Double3, EExternalInput::WorldPosition_Ddx, EExternalInput::WorldPosition_Ddy, EExternalInput::PrevWorldPosition);
 	case EExternalInput::WorldPosition_NoOffsets: return FExternalInputDescription(TEXT("WorldPosition_NoOffsets"), Shader::EValueType::Double3, EExternalInput::WorldPosition_Ddx, EExternalInput::WorldPosition_Ddy, EExternalInput::PrevWorldPosition_NoOffsets);
@@ -216,8 +221,75 @@ void FExpressionMaterialParameter::ComputeAnalyticDerivatives(FTree& Tree, FExpr
 
 bool FExpressionMaterialParameter::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const EExpressionEvaluation Evaluation = IsStaticMaterialParameter(ParameterType) ? EExpressionEvaluation::Constant : EExpressionEvaluation::Preshader;
-	return OutResult.SetType(Context, RequestedType, Evaluation, GetShaderValueType(ParameterType));
+	EExpressionEvaluation Evaluation = EExpressionEvaluation::Shader;
+	if (IsStaticMaterialParameter(ParameterType))
+	{
+		Evaluation = EExpressionEvaluation::Constant;
+	}
+	else if (ParameterType == EMaterialParameterType::Scalar ||
+		ParameterType == EMaterialParameterType::Vector ||
+		ParameterType == EMaterialParameterType::DoubleVector)
+	{
+		Evaluation = EExpressionEvaluation::Preshader;
+	}
+	return OutResult.SetType(Context, RequestedType, Evaluation, DefaultValue.Type);
+}
+
+void FExpressionMaterialParameter::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+{
+	if (ParameterType == EMaterialParameterType::Texture)
+	{
+		const Shader::FTextureValue* TextureValue = DefaultValue.AsTexture();
+		check(TextureValue);
+
+		FMaterialTextureParameterInfo TextureParameterInfo;
+		TextureParameterInfo.ParameterInfo = ParameterName;
+		TextureParameterInfo.TextureIndex = Context.Material->GetReferencedTextures().Find(TextureValue->Texture);
+		TextureParameterInfo.SamplerSource = SSM_FromTextureAsset; // TODO - Is this needed?
+		check(TextureParameterInfo.TextureIndex != INDEX_NONE);
+
+		const Shader::EValueType TextureType = TextureValue->GetType();
+		EMaterialTextureParameterType TextureParameterType = EMaterialTextureParameterType::Count;
+		const TCHAR* ConstructorName = nullptr;
+		const TCHAR* TextureTypeName = nullptr;
+		switch (TextureType)
+		{
+		case Shader::EValueType::Texture2D:
+			TextureParameterType = EMaterialTextureParameterType::Standard2D;
+			ConstructorName = TEXT("MakeTexture2D");
+			TextureTypeName = TEXT("Texture2D");
+			break;
+		case Shader::EValueType::Texture2DArray:
+			TextureParameterType = EMaterialTextureParameterType::Array2D;
+			ConstructorName = TEXT("MakeTexture2DArray");
+			TextureTypeName = TEXT("Texture2DArray");
+			break;
+		case Shader::EValueType::TextureCube:
+			TextureParameterType = EMaterialTextureParameterType::Cube;
+			ConstructorName = TEXT("MakeTextureCube");
+			TextureTypeName = TEXT("TextureCube");
+			break;
+		case Shader::EValueType::TextureCubeArray:
+			TextureParameterType = EMaterialTextureParameterType::ArrayCube;
+			ConstructorName = TEXT("MakeTextureCubeArray");
+			TextureTypeName = TEXT("TextureCubeArray");
+			break;
+		case Shader::EValueType::Texture3D:
+			TextureParameterType = EMaterialTextureParameterType::Volume;
+			ConstructorName = TEXT("MakeTexture3D");
+			TextureTypeName = TEXT("VolumeTexture");
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+
+		const int32 ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddTextureParameter(TextureParameterType, TextureParameterInfo);
+
+		TStringBuilder<256> FormattedCode;
+		FormattedCode.Appendf(TEXT("%s(Material.%s_%d, Material.%s_%dSampler, %d)"), ConstructorName, TextureTypeName, ParameterIndex, TextureTypeName, ParameterIndex, (int32)TextureValue->SamplerType);
+		OutResult.Code = Context.EmitExpression(Scope, TextureType, FormattedCode.ToView());
+	}
 }
 
 void FExpressionMaterialParameter::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
@@ -327,6 +399,9 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		const TCHAR* Code = nullptr;
 		switch (InputType)
 		{
+		case EExternalInput::VertexColor: Code = TEXT("Parameters.VertexColor"); Context.bUsesVertexColor = (Context.ShaderFrequency != SF_Vertex); break;
+		case EExternalInput::VertexColor_Ddx: Code = TEXT("Parameters.VertexColor_DDX"); Context.bUsesVertexColor = (Context.ShaderFrequency != SF_Vertex); break;
+		case EExternalInput::VertexColor_Ddy: Code = TEXT("Parameters.VertexColor_DDY"); Context.bUsesVertexColor = (Context.ShaderFrequency != SF_Vertex); break;
 		case EExternalInput::WorldPosition: Code = TEXT("GetWorldPosition(Parameters)"); break;
 		case EExternalInput::WorldPosition_NoOffsets: Code = TEXT("GetWorldPosition_NoMaterialOffsets(Parameters)"); break;
 		case EExternalInput::TranslatedWorldPosition: Code = TEXT("GetTranslatedWorldPosition(Parameters)"); break;
@@ -430,7 +505,18 @@ void FExpressionMaterialSceneTexture::EmitValueShader(FEmitContext& Context, FEm
 
 bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	Context.PrepareExpression(TexCoordExpression, Scope, ERequestedType::Vector2);
+	const FPreparedType& TextureType = Context.PrepareExpression(TextureExpression, Scope, ERequestedType::Texture);
+	if (!Shader::IsTextureType(TextureType.ValueComponentType))
+	{
+		return Context.Errors->AddError(TEXT("Expected texture"));
+	}
+
+	const FPreparedType& TexCoordType = Context.PrepareExpression(TexCoordExpression, Scope, ERequestedType::Vector2);
+	if (TexCoordType.IsVoid())
+	{
+		return false;
+	}
+
 	Context.PrepareExpression(TexCoordDerivatives.ExpressionDdx, Scope, ERequestedType::Vector2);
 	Context.PrepareExpression(TexCoordDerivatives.ExpressionDdy, Scope, ERequestedType::Vector2);
 
@@ -439,156 +525,88 @@ bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& S
 
 void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	const FTextureDescription& Desc = Declaration->Description;
-	const EMaterialValueType MaterialValueType = Desc.Texture->GetMaterialType();
-	EMaterialTextureParameterType TextureType = EMaterialTextureParameterType::Count;
+	FEmitShaderExpression* EmitTexture = TextureExpression->GetValueShader(Context, Scope);
+	const Shader::EValueType TextureType = EmitTexture->Type;
+	check(Shader::IsTextureType(TextureType));
+
 	bool bVirtualTexture = false;
-	const TCHAR* TextureTypeName = nullptr;
 	const TCHAR* SampleFunctionName = nullptr;
-	switch (MaterialValueType)
+	switch (TextureType)
 	{
-	case MCT_Texture2D:
-		TextureType = EMaterialTextureParameterType::Standard2D;
-		TextureTypeName = TEXT("Texture2D");
+	case Shader::EValueType::Texture2D:
 		SampleFunctionName = TEXT("Texture2DSample");
 		break;
-	case MCT_TextureCube:
-		TextureType = EMaterialTextureParameterType::Cube;
-		TextureTypeName = TEXT("TextureCube");
+	case Shader::EValueType::TextureCube:
 		SampleFunctionName = TEXT("TextureCubeSample");
 		break;
-	case MCT_Texture2DArray:
-		TextureType = EMaterialTextureParameterType::Array2D;
-		TextureTypeName = TEXT("Texture2DArray");
+	case Shader::EValueType::Texture2DArray:
 		SampleFunctionName = TEXT("Texture2DArraySample");
 		break;
-	case MCT_VolumeTexture:
-		TextureType = EMaterialTextureParameterType::Volume;
-		TextureTypeName = TEXT("VolumeTexture");
+	case Shader::EValueType::Texture3D:
 		SampleFunctionName = TEXT("Texture3DSample");
 		break;
-	case MCT_TextureExternal:
+	/*case MCT_TextureExternal:
 		// TODO
-		TextureTypeName = TEXT("ExternalTexture");
 		SampleFunctionName = TEXT("TextureExternalSample");
 		break;
 	case MCT_TextureVirtual:
 		// TODO
-		TextureType = EMaterialTextureParameterType::Virtual;
 		SampleFunctionName = TEXT("TextureVirtualSample");
 		bVirtualTexture = true;
+		break;*/
+	default:
+		checkNoEntry();
+		break;
+	}
+
+	const bool AutomaticViewMipBias = false; // TODO
+	TStringBuilder<256> FormattedSampler;
+	switch (SamplerSource)
+	{
+	case SSM_FromTextureAsset:
+		FormattedSampler.Appendf(TEXT("%s.Sampler"), EmitTexture->Reference);
+		break;
+	case SSM_Wrap_WorldGroupSettings:
+		FormattedSampler.Appendf(TEXT("GetMaterialSharedSampler(%s.Sampler,%s)"),
+			EmitTexture->Reference,
+			AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearWrapedSampler") : TEXT("Material.Wrap_WorldGroupSettings"));
+		break;
+	case SSM_Clamp_WorldGroupSettings:
+		FormattedSampler.Appendf(TEXT("GetMaterialSharedSampler(%s.Sampler,%s)"),
+			EmitTexture->Reference,
+			AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearClampedSampler") : TEXT("Material.Clamp_WorldGroupSettings"));
 		break;
 	default:
 		checkNoEntry();
 		break;
 	}
 
-	const TCHAR* SamplerTypeFunction = TEXT("");
-	switch (Desc.SamplerType)
-	{
-	case SAMPLERTYPE_External:
-		SamplerTypeFunction = TEXT("ProcessMaterialExternalTextureLookup");
-		break;
-	case SAMPLERTYPE_Color:
-		SamplerTypeFunction = TEXT("ProcessMaterialColorTextureLookup");
-		break;
-	case SAMPLERTYPE_VirtualColor:
-		// has a mobile specific workaround
-		SamplerTypeFunction = TEXT("ProcessMaterialVirtualColorTextureLookup");
-		break;
-	case SAMPLERTYPE_LinearColor:
-	case SAMPLERTYPE_VirtualLinearColor:
-		SamplerTypeFunction = TEXT("ProcessMaterialLinearColorTextureLookup");
-		break;
-	case SAMPLERTYPE_Alpha:
-	case SAMPLERTYPE_VirtualAlpha:
-	case SAMPLERTYPE_DistanceFieldFont:
-		SamplerTypeFunction = TEXT("ProcessMaterialAlphaTextureLookup");
-		break;
-	case SAMPLERTYPE_Grayscale:
-	case SAMPLERTYPE_VirtualGrayscale:
-		SamplerTypeFunction = TEXT("ProcessMaterialGreyscaleTextureLookup");
-		break;
-	case SAMPLERTYPE_LinearGrayscale:
-	case SAMPLERTYPE_VirtualLinearGrayscale:
-		SamplerTypeFunction = TEXT("ProcessMaterialLinearGreyscaleTextureLookup");
-		break;
-	case SAMPLERTYPE_Normal:
-	case SAMPLERTYPE_VirtualNormal:
-		// Normal maps need to be unpacked in the pixel shader.
-		SamplerTypeFunction = TEXT("UnpackNormalMap");
-		break;
-	case SAMPLERTYPE_Masks:
-	case SAMPLERTYPE_VirtualMasks:
-	case SAMPLERTYPE_Data:
-		SamplerTypeFunction = TEXT("");
-		break;
-	default:
-		check(0);
-		break;
-	}
-
-	FMaterialTextureParameterInfo TextureParameterInfo;
-	TextureParameterInfo.ParameterInfo = Declaration->Name;
-	TextureParameterInfo.TextureIndex = Context.Material->GetReferencedTextures().Find(Desc.Texture);
-	TextureParameterInfo.SamplerSource = SamplerSource;
-	check(TextureParameterInfo.TextureIndex != INDEX_NONE);
-
-	const int32 ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddTextureParameter(TextureType, TextureParameterInfo);
-	const FString TextureName = FString::Printf(TEXT("Material.%s_%u"), TextureTypeName, ParameterIndex);
-
-	FString SamplerStateCode;
-	bool AutomaticViewMipBias = false; // TODO
-	bool RequiresManualViewMipBias = AutomaticViewMipBias;
-
-	if (!bVirtualTexture) //VT does not have explict samplers (and always requires manual view mip bias)
-	{
-		if (SamplerSource == SSM_FromTextureAsset)
-		{
-			SamplerStateCode = FString::Printf(TEXT("%sSampler"), *TextureName);
-		}
-		else if (SamplerSource == SSM_Wrap_WorldGroupSettings)
-		{
-			// Use the shared sampler to save sampler slots
-			const TCHAR* SharedSamplerName = AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearWrapedSampler") : TEXT("Material.Wrap_WorldGroupSettings");
-			SamplerStateCode = FString::Printf(TEXT("GetMaterialSharedSampler(%sSampler,%s)"), *TextureName, SharedSamplerName);
-			RequiresManualViewMipBias = false;
-		}
-		else if (SamplerSource == SSM_Clamp_WorldGroupSettings)
-		{
-			// Use the shared sampler to save sampler slots
-			const TCHAR* SharedSamplerName = AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearClampedSampler") : TEXT("Material.Clamp_WorldGroupSettings");
-			SamplerStateCode = FString::Printf(TEXT("GetMaterialSharedSampler(%sSampler,%s)"), *TextureName, SharedSamplerName);
-			RequiresManualViewMipBias = false;
-		}
-	}
-
 	FEmitShaderExpression* TexCoordValue = TexCoordExpression->GetValueShader(Context, Scope, Shader::EValueType::Float2);
 	FEmitShaderExpression* TexCoordValueDdx = nullptr;
 	FEmitShaderExpression* TexCoordValueDdy = nullptr;
+	FEmitShaderExpression* TextureResult = nullptr;
 	if (TexCoordDerivatives.IsValid())
 	{
 		TexCoordValueDdx = TexCoordDerivatives.ExpressionDdx->GetValueShader(Context, Scope, Shader::EValueType::Float2);
 		TexCoordValueDdy = TexCoordDerivatives.ExpressionDdy->GetValueShader(Context, Scope, Shader::EValueType::Float2);
-		OutResult.Code = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%(%Grad(%, %, %, %, %))"),
-			SamplerTypeFunction,
+		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Grad(%.Texture, %, %, %, %)"),
 			SampleFunctionName,
-			*TextureName,
-			*SamplerStateCode,
+			EmitTexture,
+			FormattedSampler.ToString(),
 			TexCoordValue,
 			TexCoordValueDdx,
 			TexCoordValueDdy);
 	}
 	else
 	{
-		OutResult.Code = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%(%(%, %, %))"),
-			SamplerTypeFunction,
+		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%(%.Texture, %, %)"),
 			SampleFunctionName,
-			*TextureName,
-			*SamplerStateCode,
+			EmitTexture,
+			FormattedSampler.ToString(),
 			TexCoordValue);
 	}
-	
+
+	OutResult.Code = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("ApplyMaterialSamplerType(%, %.SamplerType)"), TextureResult, EmitTexture);
 }
 
 void FExpressionGetStructField::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
@@ -837,6 +855,8 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 	{
 	case EOperation::Less:
 	case EOperation::Greater:
+	case EOperation::LessEqual:
+	case EOperation::GreaterEqual:
 		OutResult.ExpressionDdx = Tree.NewConstant(0.0f);
 		OutResult.ExpressionDdx = OutResult.ExpressionDdy;
 		break;
@@ -879,6 +899,14 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 		break;
 	case EOperation::Length:
 	case EOperation::Normalize:
+	case EOperation::Floor:
+	case EOperation::Ceil:
+	case EOperation::Round:
+	case EOperation::Trunc:
+	case EOperation::Sign:
+	case EOperation::Abs:
+	case EOperation::Saturate:
+	case EOperation::PowPositiveClamped:
 		// TODO
 		break;
 	case EOperation::Add:
@@ -1037,7 +1065,7 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 			return Context.Errors->AddErrorf(TEXT("Invalid arithmetic between %s and %s"), InputType[0].GetType().GetName(), InputType[1].GetType().GetName());
 		}
 		ResultType = MergePreparedTypes(InputType[0], InputType[1]);
-		if (Op == EOperation::Less || Op == EOperation::Greater)
+		if (Op == EOperation::Less || Op == EOperation::Greater || Op == EOperation::LessEqual || Op == EOperation::GreaterEqual)
 		{
 			ResultType.ValueComponentType = Shader::EValueComponentType::Bool;
 		}
@@ -1095,14 +1123,22 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<Shader::EValueT
 	case EOperation::Normalize:
 	case EOperation::Frac:
 	case EOperation::Rcp:
+	case EOperation::Sign:
+	case EOperation::Saturate:
 		Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
 		break;
 	case EOperation::Less:
 	case EOperation::Greater:
+	case EOperation::LessEqual:
+	case EOperation::GreaterEqual:
 		Types.ResultType = Shader::MakeValueType(Shader::EValueComponentType::Bool, NumComponents);
 		break;
 	case EOperation::Fmod:
 		Types.InputType[1] = Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
+		break;
+	case EOperation::PowPositiveClamped:
+		// No LWC support yet
+		Types.InputType[0] = Types.InputType[1] = Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
 		break;
 	case EOperation::Dot:
 		Types.ResultType = Shader::MakeValueType(ComponentType, 1);
@@ -1149,6 +1185,16 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 
 	switch (Op)
 	{
+	case EOperation::Abs:
+		if (Types.bIsLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCAbs(%)"), InputValue[0]);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitInlineExpression(Scope, Types.ResultType, TEXT("abs(%)"), InputValue[0]);
+		}
+		break;
 	case EOperation::Neg:
 		if (Types.bIsLWC)
 		{
@@ -1177,6 +1223,67 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 		else
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("frac(%)"), InputValue[0]);
+		}
+		break;
+
+	case EOperation::Floor:
+		if (Types.bIsLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCFloor(%)"), InputValue[0]);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("floor(%)"), InputValue[0]);
+		}
+		break;
+	case EOperation::Ceil:
+		if (Types.bIsLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCCeil(%)"), InputValue[0]);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("ceil(%)"), InputValue[0]);
+		}
+		break;
+	case EOperation::Round:
+		if (Types.bIsLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCRound(%)"), InputValue[0]);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("round(%)"), InputValue[0]);
+		}
+		break;
+	case EOperation::Trunc:
+		if (Types.bIsLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCTrunc(%)"), InputValue[0]);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("trunc(%)"), InputValue[0]);
+		}
+		break;
+	case EOperation::Saturate:
+		if (Types.bIsLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCSaturate(%)"), InputValue[0]);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("saturate(%)"), InputValue[0]);
+		}
+		break;
+	case EOperation::Sign:
+		if (Types.bIsLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCSign(%)"), InputValue[0]);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("sign(%)"), InputValue[0]);
 		}
 		break;
 	case EOperation::Length:
@@ -1249,6 +1356,9 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("fmod(%, %)"), InputValue[0], InputValue[1]);
 		}
 		break;
+	case EOperation::PowPositiveClamped:
+		OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("PositiveClampedPow(%, %)"), InputValue[0], InputValue[1]);
+		break;
 	case EOperation::Dot:
 		if (Types.bIsLWC)
 		{
@@ -1297,6 +1407,26 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 		else
 		{
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("(% > %)"), InputValue[0], InputValue[1]);
+		}
+		break;
+	case EOperation::LessEqual:
+		if (Types.bIsLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCLessEqual(%, %)"), InputValue[0], InputValue[1]);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("(% <= %)"), InputValue[0], InputValue[1]);
+		}
+		break;
+	case EOperation::GreaterEqual:
+		if (Types.bIsLWC)
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCGreaterEqual(%, %)"), InputValue[0], InputValue[1]);
+		}
+		else
+		{
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("(% >= %)"), InputValue[0], InputValue[1]);
 		}
 		break;
 	case EOperation::VecMulMatrix3:

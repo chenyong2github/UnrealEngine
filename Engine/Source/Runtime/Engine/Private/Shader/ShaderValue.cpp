@@ -4,6 +4,7 @@
 #include "Hash/xxhash.h"
 #include "Misc/MemStackUtility.h"
 #include "Misc/LargeWorldRenderPosition.h"
+#include "Engine/Texture.h"
 
 namespace UE
 {
@@ -33,7 +34,11 @@ FType FType::GetDerivativeType() const
 
 	check(ValueType != EValueType::Struct);
 	const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
-	return MakeValueType(EValueComponentType::Float, TypeDesc.NumComponents);
+	if (IsNumericType(TypeDesc.ComponentType))
+	{
+		return MakeValueType(EValueComponentType::Float, TypeDesc.NumComponents);
+	}
+	return EValueType::Void;
 }
 
 int32 FType::GetNumComponents() const
@@ -107,6 +112,11 @@ bool FType::Merge(const FType& OtherType)
 		const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
 		const FValueTypeDescription OtherTypeDesc = GetValueTypeDescription(OtherType);
 		const EValueComponentType ComponentType = CombineComponentTypes(TypeDesc.ComponentType, OtherTypeDesc.ComponentType);
+		if (ComponentType == EValueComponentType::Void)
+		{
+			return false;
+		}
+
 		const int8 NumComponents = FMath::Max(TypeDesc.NumComponents, OtherTypeDesc.NumComponents);
 		ValueType = MakeValueType(ComponentType, NumComponents);
 	}
@@ -272,8 +282,39 @@ void FormatComponent_Double(double Value, int32 NumComponents, EValueStringForma
 
 } // namespace Private
 
+EValueType FTextureValue::GetType() const
+{
+	if (Texture)
+	{
+		const EMaterialValueType MaterialType = Texture->GetMaterialType();
+		switch (MaterialType)
+		{
+		case MCT_Texture2D: return EValueType::Texture2D;
+		case MCT_Texture2DArray: return EValueType::Texture2DArray;
+		case MCT_TextureCube: return EValueType::TextureCube;
+		case MCT_TextureCubeArray: return EValueType::TextureCubeArray;
+		case MCT_VolumeTexture: return EValueType::Texture3D;
+		default: checkNoEntry(); break;
+		}
+	}
+	return EValueType::Void;
+}
+
+FValue::FValue(const FTextureValue* InValue) : Type(EValueType::Void)
+{
+	if (InValue)
+	{
+		Type = InValue->GetType();
+		if (Type != EValueType::Void)
+		{
+			Component.Add(InValue);
+		}
+	}
+}
+
 FValue FValue::FromMemoryImage(EValueType Type, const void* Data, uint32* OutSizeInBytes)
 {
+	check(IsNumericType(Type));
 	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
 
 	FValue Result(TypeDesc.ComponentType, TypeDesc.NumComponents);
@@ -296,7 +337,7 @@ FValue FValue::FromMemoryImage(EValueType Type, const void* Data, uint32* OutSiz
 
 FMemoryImageValue FValue::AsMemoryImage() const
 {
-	check(!Type.IsStruct());
+	check(Type.IsNumeric());
 	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
 
 	FMemoryImageValue Result;
@@ -375,15 +416,29 @@ bool FValue::AsBoolScalar() const
 	return false;
 }
 
+const FTextureValue* FValue::AsTexture() const
+{
+	if (Type.IsTexture() && Component.Num() > 0)
+	{
+		return Component[0].Texture;
+	}
+	return nullptr;
+}
+
 FValueComponentTypeDescription GetValueComponentTypeDescription(EValueComponentType Type)
 {
 	switch (Type)
 	{
 	case EValueComponentType::Void: return FValueComponentTypeDescription(TEXT("void"), 0u, EComponentBound::Zero, EComponentBound::Zero);
-	case EValueComponentType::Float: return FValueComponentTypeDescription(TEXT("float"), 4u, EComponentBound::NegFloatMax, EComponentBound::FloatMax);
-	case EValueComponentType::Double: return FValueComponentTypeDescription(TEXT("double"), 8u, EComponentBound::NegDoubleMax, EComponentBound::DoubleMax);
-	case EValueComponentType::Int: return FValueComponentTypeDescription(TEXT("int"), 4u, EComponentBound::IntMin, EComponentBound::IntMax);
+	case EValueComponentType::Float: return FValueComponentTypeDescription(TEXT("float"), sizeof(float), EComponentBound::NegFloatMax, EComponentBound::FloatMax);
+	case EValueComponentType::Double: return FValueComponentTypeDescription(TEXT("double"), sizeof(double), EComponentBound::NegDoubleMax, EComponentBound::DoubleMax);
+	case EValueComponentType::Int: return FValueComponentTypeDescription(TEXT("int"), sizeof(int32), EComponentBound::IntMin, EComponentBound::IntMax);
 	case EValueComponentType::Bool: return FValueComponentTypeDescription(TEXT("bool"), 1u, EComponentBound::Zero, EComponentBound::One);
+	case EValueComponentType::Texture2D: return FValueComponentTypeDescription(TEXT("Texture2D"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
+	case EValueComponentType::Texture2DArray: return FValueComponentTypeDescription(TEXT("Texture2DArray"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
+	case EValueComponentType::TextureCube: return FValueComponentTypeDescription(TEXT("TextureCube"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
+	case EValueComponentType::TextureCubeArray: return FValueComponentTypeDescription(TEXT("TextureCubeArray"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
+	case EValueComponentType::Texture3D: return FValueComponentTypeDescription(TEXT("Texture3D"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
 	default: checkNoEntry() return FValueComponentTypeDescription();
 	}
 }
@@ -410,9 +465,13 @@ EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueCompone
 	{
 		return EValueComponentType::Float;
 	}
-	else
+	else if(IsNumericType(Lhs) && IsNumericType(Rhs))
 	{
 		return EValueComponentType::Int;
+	}
+	else
+	{
+		return EValueComponentType::Void;
 	}
 }
 
@@ -577,6 +636,11 @@ FValueTypeDescription GetValueTypeDescription(EValueType Type)
 	case EValueType::Double4x4: return FValueTypeDescription(TEXT("FLWCMatrix"), EValueComponentType::Double, 16);
 	case EValueType::DoubleInverse4x4: return FValueTypeDescription(TEXT("FLWCInverseMatrix"), EValueComponentType::Double, 16);
 	case EValueType::Struct: return FValueTypeDescription(TEXT("struct"), EValueComponentType::Void, 0);
+	case EValueType::Texture2D: return FValueTypeDescription(TEXT("FTexture2D"), EValueComponentType::Texture2D, 1);
+	case EValueType::Texture2DArray: return FValueTypeDescription(TEXT("FTexture2DArray"), EValueComponentType::Texture2DArray, 1);
+	case EValueType::TextureCube: return FValueTypeDescription(TEXT("FTextureCube"), EValueComponentType::TextureCube, 1);
+	case EValueType::TextureCubeArray: return FValueTypeDescription(TEXT("FTextureCubeArray"), EValueComponentType::TextureCubeArray, 1);
+	case EValueType::Texture3D: return FValueTypeDescription(TEXT("FTexture3D"), EValueComponentType::Texture3D, 1);
 	default: checkNoEntry(); return FValueTypeDescription(TEXT("<INVALID>"), EValueComponentType::Void, 0);
 	}
 }
@@ -600,6 +664,7 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 		case 16: return EValueType::Float4x4;
 		default: break;
 		}
+		break;
 	case EValueComponentType::Double:
 		switch (NumComponents)
 		{
@@ -610,6 +675,7 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 		case 16: return EValueType::Double4x4;
 		default: break;
 		}
+		break;
 	case EValueComponentType::Int:
 		switch (NumComponents)
 		{
@@ -619,6 +685,7 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 		case 4: return EValueType::Int4;
 		default: break;
 		}
+		break;
 	case EValueComponentType::Bool:
 		switch (NumComponents)
 		{
@@ -628,6 +695,12 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 		case 4: return EValueType::Bool4;
 		default: break;
 		}
+		break;
+	case EValueComponentType::Texture2D: check(NumComponents == 1); return EValueType::Texture2D; break;
+	case EValueComponentType::Texture2DArray: check(NumComponents == 1); return EValueType::Texture2DArray; break;
+	case EValueComponentType::TextureCube: check(NumComponents == 1); return EValueType::TextureCube; break;
+	case EValueComponentType::TextureCubeArray: check(NumComponents == 1); return EValueType::TextureCubeArray; break;
+	case EValueComponentType::Texture3D: check(NumComponents == 1); return EValueType::Texture3D; break;
 	default:
 		break;
 	}

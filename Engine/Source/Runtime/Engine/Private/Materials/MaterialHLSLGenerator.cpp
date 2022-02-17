@@ -359,38 +359,32 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewSwizzle(const UE::HLSLTree
 	return HLSLTree->NewExpression<UE::HLSLTree::FExpressionSwizzle>(Params, Input);
 }
 
-UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextureDeclaration(const UE::HLSLTree::FTextureDescription& Value)
+const UE::Shader::FTextureValue* FMaterialHLSLGenerator::AcquireTextureValue(const UE::Shader::FTextureValue& InValue)
 {
+	using namespace UE::Shader;
 	FString SamplerTypeError;
-	if (!UMaterialExpressionTextureBase::VerifySamplerType(CompileTarget.FeatureLevel, CompileTarget.TargetPlatform, Value.Texture, Value.SamplerType, SamplerTypeError))
+	if (!UMaterialExpressionTextureBase::VerifySamplerType(CompileTarget.FeatureLevel, CompileTarget.TargetPlatform, InValue.Texture, InValue.SamplerType, SamplerTypeError))
 	{
 		Errors.AddError(SamplerTypeError);
 		return nullptr;
 	}
 
-	UE::HLSLTree::FTextureParameterDeclaration*& Declaration = TextureDeclarationMap.FindOrAdd(Value);
-	if (!Declaration)
-	{
-		Declaration = HLSLTree->NewTextureParameterDeclaration(FName(), Value);
-	}
-	return Declaration;
-}
+	FXxHash64Builder Hasher;
+	Hasher.Update(&InValue.Texture, sizeof(InValue.Texture));
+	Hasher.Update(&InValue.SamplerType, sizeof(InValue.SamplerType));
+	const FXxHash64 Hash = Hasher.Finalize();
 
-UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextureParameterDeclaration(const FName& Name, const UE::HLSLTree::FTextureDescription& DefaultValue)
-{
-	FString SamplerTypeError;
-	if (!UMaterialExpressionTextureBase::VerifySamplerType(CompileTarget.FeatureLevel, CompileTarget.TargetPlatform, DefaultValue.Texture, DefaultValue.SamplerType, SamplerTypeError))
+	FTextureValue const* const* PrevValue = TextureValueMap.Find(Hash);
+	if (PrevValue)
 	{
-		Errors.AddError(SamplerTypeError);
-		return nullptr;
+		check(*PrevValue);
+		check(**PrevValue == InValue);
+		return *PrevValue;
 	}
 
-	UE::HLSLTree::FTextureParameterDeclaration*& Declaration = TextureParameterDeclarationMap.FindOrAdd(Name);
-	if (!Declaration)
-	{
-		Declaration = HLSLTree->NewTextureParameterDeclaration(Name, DefaultValue);
-	}
-	return Declaration;
+	FTextureValue* Value = new(HLSLTree->GetAllocator()) FTextureValue(InValue);
+	TextureValueMap.Add(Hash, Value);
+	return Value;
 }
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex)
@@ -466,20 +460,6 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireFunctionInputExpressio
 	}
 
 	return InputExpression;
-}
-
-UE::HLSLTree::FTextureParameterDeclaration* FMaterialHLSLGenerator::AcquireTextureDeclaration(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex)
-{
-	using namespace UE::HLSLTree;
-	FOwnerScope TreeOwnerScope(GetTree(), MaterialExpression);
-	FOwnerScope ErrorOwnerScope(Errors, MaterialExpression);
-
-	FTextureParameterDeclaration* TextureDeclaration = nullptr;
-	if (MaterialExpression->GenerateHLSLTexture(*this, Scope, OutputIndex, TextureDeclaration))
-	{
-		return TextureDeclaration;
-	}
-	return nullptr;
 }
 
 bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression)
