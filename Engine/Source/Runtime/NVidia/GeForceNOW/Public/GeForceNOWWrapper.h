@@ -21,6 +21,8 @@ public:
 	virtual ~GeForceNOWWrapper();
 	static GeForceNOWWrapper& Get();
 
+	static const FString GetGfnOsTypeString(GfnOsType OsType);
+
 	/** Returns true if the GeForceNow SDK is initialized and running in cloud. */
 	bool IsRunningInGFN();
 
