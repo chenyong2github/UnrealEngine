@@ -6,7 +6,10 @@
 
 FDataDrivenConsoleVariable::~FDataDrivenConsoleVariable()
 {
-	UnRegister();
+	if (!Name.IsEmpty())
+	{
+		UnRegister();
+	}
 }
 
 void FDataDrivenConsoleVariable::Register()
@@ -37,12 +40,16 @@ void FDataDrivenConsoleVariable::Register()
 
 void FDataDrivenConsoleVariable::UnRegister(bool bUseShadowName)
 {
-	IConsoleVariable* CVarToRemove = IConsoleManager::Get().FindConsoleVariable(bUseShadowName  ? *ShadowName : *Name);
-	if (CVarToRemove)
+	const FString& NameToUnregister = bUseShadowName ? ShadowName : Name;
+	if (!NameToUnregister.IsEmpty())
 	{
-		FConsoleVariableDelegate NullCallback;
-		CVarToRemove->SetOnChangedCallback(NullCallback);
-		IConsoleManager::Get().UnregisterConsoleObject(CVarToRemove, false);
+		IConsoleVariable* CVarToRemove = IConsoleManager::Get().FindConsoleVariable(*NameToUnregister);
+		if (CVarToRemove)
+		{
+			FConsoleVariableDelegate NullCallback;
+			CVarToRemove->SetOnChangedCallback(NullCallback);
+			IConsoleManager::Get().UnregisterConsoleObject(CVarToRemove, false);
+		}
 	}
 }
 
