@@ -9,7 +9,7 @@
 #include "EnvQueryTest_PathfindingBatch.generated.h"
 
 UCLASS()
-class UEnvQueryTest_PathfindingBatch : public UEnvQueryTest_Pathfinding
+class AIMODULE_API UEnvQueryTest_PathfindingBatch : public UEnvQueryTest_Pathfinding
 {
 	GENERATED_UCLASS_BODY()
 

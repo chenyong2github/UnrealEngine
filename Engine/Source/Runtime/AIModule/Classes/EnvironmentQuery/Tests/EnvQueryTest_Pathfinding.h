@@ -76,4 +76,6 @@ protected:
 	float FindPathLengthTo(const FVector& ItemPos, const FVector& ContextPos, EPathFindingMode::Type Mode, const ANavigationData& NavData, UNavigationSystemV1& NavSys, FSharedConstNavQueryFilter NavFilter, const UObject* PathOwner) const;
 
 	ANavigationData* FindNavigationData(UNavigationSystemV1& NavSys, UObject* Owner) const;
+
+	virtual TSubclassOf<UNavigationQueryFilter> GetNavFilterClass(FEnvQueryInstance& QueryInstance) const;
 };

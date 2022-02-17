@@ -58,7 +58,7 @@ void UEnvQueryTest_Pathfinding::RunTest(FEnvQueryInstance& QueryInstance) const
 	}
 
 	EPathFindingMode::Type PFMode(EPathFindingMode::Regular);
-	FSharedConstNavQueryFilter NavFilter = UNavigationQueryFilter::GetQueryFilter(*NavData, QueryOwner, FilterClass);
+	FSharedConstNavQueryFilter NavFilter = UNavigationQueryFilter::GetQueryFilter(*NavData, QueryOwner, GetNavFilterClass(QueryInstance));
 
 	if (GetWorkOnFloatValues())
 	{
@@ -229,6 +229,11 @@ ANavigationData* UEnvQueryTest_Pathfinding::FindNavigationData(UNavigationSystem
 	}
 
 	return NavSys.GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
+}
+
+TSubclassOf<UNavigationQueryFilter> UEnvQueryTest_Pathfinding::GetNavFilterClass(FEnvQueryInstance& QueryInstance) const
+{
+	return FilterClass;
 }
 
 #undef LOCTEXT_NAMESPACE

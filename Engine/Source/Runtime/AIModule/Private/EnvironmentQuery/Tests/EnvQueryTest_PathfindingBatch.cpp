@@ -91,8 +91,10 @@ void UEnvQueryTest_PathfindingBatch::RunTest(FEnvQueryInstance& QueryInstance) c
 	TArray<float> CollectDistanceSq;
 	CollectDistanceSq.Init(0.0f, ContextLocations.Num());
 
-	FSharedNavQueryFilter NavigationFilterCopy = FilterClass ?
-		UNavigationQueryFilter::GetQueryFilter(*NavMeshData, QueryOwner, FilterClass)->GetCopy() :
+	TSubclassOf<UNavigationQueryFilter> NavFilterToUse = GetNavFilterClass(QueryInstance);
+
+	FSharedNavQueryFilter NavigationFilterCopy = NavFilterToUse ?
+		UNavigationQueryFilter::GetQueryFilter(*NavMeshData, QueryOwner, NavFilterToUse)->GetCopy() :
 		NavMeshData->GetDefaultQueryFilter()->GetCopy();
 
 	NavigationFilterCopy->SetBacktrackingEnabled(!bPathToItem);
