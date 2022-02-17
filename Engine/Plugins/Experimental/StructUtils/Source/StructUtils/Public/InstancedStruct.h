@@ -79,13 +79,27 @@ public:
 	{
 		UE::StructUtils::CheckStructType<T>();
 
-		Reset();
-
 		const UScriptStruct* Struct = TBaseStructure<T>::Get();
-		const int32 RequiredSize = Struct->GetStructureSize();
-		uint8* Memory = (uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize));
-		SetStructData(Struct, Memory);
+		uint8* Memory = nullptr;
 
+		const UScriptStruct* CurrentScriptStruct = GetScriptStruct();
+		if (Struct == CurrentScriptStruct)
+		{
+			// Struct type already matches; return the struct memory to a destroyed state so we can placement new over it
+			Memory = GetMutableMemory();
+			CurrentScriptStruct->DestroyStruct(Memory);
+		}
+		else
+		{
+			// Struct type mismatch; reset and reinitialize
+			Reset();
+
+			const int32 RequiredSize = Struct->GetStructureSize();
+			Memory = (uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize));
+			SetStructData(Struct, Memory);
+		}
+
+		check(Memory);
 		new (Memory) T(Forward<TArgs>(InArgs)...);
 	}
 
@@ -238,9 +252,6 @@ public:
 	}
 
 protected:
-
-	/** Initializes for new struct type (does nothing if same type) and returns mutable struct. */
-	UScriptStruct* ReinitializeAs(const UScriptStruct* InScriptStruct);
 
 	void DestroyScriptStruct() const
 	{

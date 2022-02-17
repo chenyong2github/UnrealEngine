@@ -57,23 +57,41 @@ FInstancedStruct& FInstancedStruct::operator=(const FConstStructView InOther)
 
 void FInstancedStruct::InitializeAs(const UScriptStruct* InScriptStruct, const uint8* InStructMemory /*= nullptr*/)
 {
-	Reset();
-
-	if (!InScriptStruct)
+	const UScriptStruct* CurrentScriptStruct = GetScriptStruct();
+	if (InScriptStruct && InScriptStruct == CurrentScriptStruct)
 	{
-		// InScriptStruct == nullptr signifies an empty, unset FInstancedStruct instance. No further work required.
-		return;
+		// Struct type already matches...
+		if (InStructMemory)
+		{
+			// ... apply the given state
+			CurrentScriptStruct->CopyScriptStruct(GetMutableMemory(), InStructMemory);
+		}
+		else
+		{
+			// ... return the struct to its default state
+			CurrentScriptStruct->DestroyStruct(GetMutableMemory());
+			CurrentScriptStruct->InitializeStruct(GetMutableMemory());
+		}
 	}
-
-	const int32 RequiredSize = InScriptStruct->GetStructureSize();
-	const uint8* Memory = ((uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize)));
-	SetStructData(InScriptStruct,Memory);
-
-	InScriptStruct->InitializeStruct(GetMutableMemory());
-
-	if (InStructMemory)
+	else
 	{
-		InScriptStruct->CopyScriptStruct(GetMutableMemory(), InStructMemory);
+		// Struct type mismatch; reset and reinitialize
+		Reset();
+
+		// InScriptStruct == nullptr signifies an empty, unset FInstancedStruct instance
+		if (InScriptStruct)
+		{
+			const int32 RequiredSize = InScriptStruct->GetStructureSize();
+			const uint8* Memory = ((uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize)));
+			SetStructData(InScriptStruct, Memory);
+
+			InScriptStruct->InitializeStruct(GetMutableMemory());
+
+			if (InStructMemory)
+			{
+				InScriptStruct->CopyScriptStruct(GetMutableMemory(), InStructMemory);
+			}
+		}
 	}
 }
 
@@ -144,13 +162,12 @@ bool FInstancedStruct::Serialize(FArchive& Ar)
 	if (Ar.IsLoading())
 	{
 		// UScriptStruct type
-		UScriptStruct* NewNonConstStruct = nullptr;
-		Ar << NewNonConstStruct;
-		if (NewNonConstStruct)
+		Ar << NonConstStruct;
+		if (NonConstStruct)
 		{
-			Ar.Preload(NewNonConstStruct);
+			Ar.Preload(NonConstStruct);
 		}
-		NonConstStruct = ReinitializeAs(NewNonConstStruct);
+		InitializeAs(NonConstStruct);
 
 		// Size of the serialized memory
 		int32 SerialSize = 0; 
@@ -230,7 +247,7 @@ bool FInstancedStruct::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UOb
 
 	if (StructPathName.Len() == 0 || FCString::Stricmp(StructPathName.ToString(), TEXT("None")) == 0)
 	{
-		ReinitializeAs(nullptr);
+		InitializeAs(nullptr);
 	}
 	else
 	{
@@ -240,7 +257,7 @@ bool FInstancedStruct::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UOb
 			return false;
 		}
 
-		ReinitializeAs(StructTypePtr);
+		InitializeAs(StructTypePtr);
 		if (const TCHAR* Result = StructTypePtr->ImportText(Buffer, GetMutableMemory(), Parent, PortFlags, ErrorText, [StructTypePtr]() { return StructTypePtr->GetName(); }))
 		{
 			Buffer = Result;
@@ -327,19 +344,6 @@ void FInstancedStruct::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 	{
 		OutDeps.Add(NonConstStruct);
 	}
-}
-
-UScriptStruct* FInstancedStruct::ReinitializeAs(const UScriptStruct* InScriptStruct)
-{
-	UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(GetScriptStruct());
-
-	if (InScriptStruct != NonConstStruct)
-	{
-		InitializeAs(InScriptStruct, nullptr);
-		NonConstStruct = const_cast<UScriptStruct*>(GetScriptStruct());
-	}
-
-	return NonConstStruct;
 }
 
 bool FInstancedStruct::Identical(const FInstancedStruct* Other, uint32 PortFlags) const
