@@ -9,9 +9,14 @@
 void GetVolumeLightingNonDirectional(float4 AmbientLightingVector, float3 DiffuseColor, inout float3 InterpolatedLighting, out float4 VolumeLighting);
 void GetVolumeLightingDirectional(float4 AmbientLightingVector, float3 DirectionalLightingVector, float3 WorldNormal, float3 DiffuseColor, inout float3 InterpolatedLighting, out float4 VolumeLighting);
 float3 GetBentNormalZero(in FMaterialPixelParameters MaterialParameters);
-void ApplyBentNormal(
-	in float3 CameraVector, in float3 WorldNormal, in float3x3 TangentToWorld, in float3 BentNormal0,
-	in float Roughness, inout float3 BentNormal, inout float DiffOcclusion, inout float SpecOcclusion);
+
+FShadingOcclusion ApplyBentNormal(
+	in float3 CameraVector,
+	in float3 WorldNormal,
+	in float3x3 TangentToWorld,
+	in float3 BentNormal0,
+	in float Roughness,
+	in float MaterialAO);
 
 void GetPrecomputedIndirectLightingAndSkyLight(
 	FMaterialPixelParameters MaterialParameters,
@@ -312,19 +317,14 @@ float3 StrataForwardLighting(
 				float IndirectOcclusion = 1.0f;
 				float IndirectIrradiance = 0.0f; 
 
-				const float MaterialAO = StrataPixelHeader.MaterialAO;
-				float DiffOcclusion = MaterialAO;
-				float SpecOcclusion = MaterialAO;
+				// Compute the bent normal from the BSDF normal
+				const FShadingOcclusion ShadingOcclusion = ApplyBentNormal(MaterialParameters.CameraVector, StrataBSDFContext.N, MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters), Roughness, StrataPixelHeader.MaterialAO);
 
 				// 1. Diffuse Sky evaluation using bent normal
 				{
-					// Compute the bent normal from the BSDF normal
-					float3 BentNormal = StrataBSDFContext.N;
-					ApplyBentNormal(MaterialParameters.CameraVector, MaterialParameters.WorldNormal, MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters), Roughness, BentNormal, DiffOcclusion, SpecOcclusion);
-
 					// Update a context specific for environment lighting
 					FStrataBSDFContext EnvBSDFContext = StrataBSDFContext;
-					EnvBSDFContext.N = BentNormal;
+					EnvBSDFContext.N = ShadingOcclusion.BentNormal;
 					StrataUpdateBSDFContext(EnvBSDFContext, EnvBSDFContext.L);
 
 					// And evaluate diffuse parameters
@@ -362,7 +362,7 @@ float3 StrataForwardLighting(
 					#endif
 
 						Color += (DiffuseIndirectLighting * DiffuseColorForIndirect + SubsurfaceIndirectLighting * SubsurfaceColorForIndirect) * 
-							CurrentBSDF.LuminanceWeight * AOMultiBounce(StrataEnvLight.DiffuseColor, DiffOcclusion);
+							CurrentBSDF.LuminanceWeight * AOMultiBounce(StrataEnvLight.DiffuseColor, ShadingOcclusion.DiffOcclusion);
 					}
 				}
 
@@ -377,7 +377,7 @@ float3 StrataForwardLighting(
 					{
 						int SingleCaptureIndex = GetPrimitiveData(MaterialParameters).SingleCaptureIndex;
 						Color += GetImageBasedReflectionSpecular(MaterialParameters, StrataEnvLight.SpecularDirection, Roughness, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex) *
-							 StrataEnvLight.SpecularWeight * IndirectOcclusion * CurrentBSDF.LuminanceWeight * AOMultiBounce(StrataEnvLight.SpecularColor, SpecOcclusion);
+							 StrataEnvLight.SpecularWeight * IndirectOcclusion * CurrentBSDF.LuminanceWeight * AOMultiBounce(StrataEnvLight.SpecularColor, ShadingOcclusion.SpecOcclusion);
 					}
 					// We skip hazy lob evaluation in forward.
 				}
