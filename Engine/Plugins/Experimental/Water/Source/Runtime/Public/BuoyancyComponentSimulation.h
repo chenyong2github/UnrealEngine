@@ -5,6 +5,7 @@
 #include "WaterBodyTypes.h"
 #include "BuoyancyTypes.h"
 #include "Chaos/DebugDrawQueue.h"
+#include "DrawDebugHelpers.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Kismet/KismetMathLibrary.h"
 
