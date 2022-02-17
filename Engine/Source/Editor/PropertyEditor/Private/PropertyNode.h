@@ -949,6 +949,11 @@ public:
 	 */
 	void SetExpandedChildPropertyNodes(const TSet<FString>& InNodesToExpand);
 
+	/**
+	 * Helper to fetch a PropertyPath 
+	 */
+	const FString& GetPropertyPath() const { return PropertyPath; }
+
 protected:
 
 	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange );

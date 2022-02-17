@@ -453,6 +453,11 @@ const TArray<TSharedRef<class IClassViewerFilter>>& FPropertyRowGenerator::GetCl
 	return NotImplemented;
 }
 
+void FPropertyRowGenerator::SetPropertyGenerationAllowListPaths(const TSet<FString>& InPropertyPathsToGeneratePropertyNodes)
+{
+	PropertyGenerationAllowListPaths = InPropertyPathsToGeneratePropertyNodes;
+}
+
 void FPropertyRowGenerator::PreSetObject(int32 NumNewObjects, bool bHasStructRoots)
 {
 	// Save existing expanded items first
@@ -610,7 +615,6 @@ void FPropertyRowGenerator::UpdatePropertyMaps()
 {
 	RootTreeNodes.Empty();
 
-
 	for (FDetailLayoutData& LayoutData : DetailLayouts)
 	{
 		// Check uniqueness.  It is critical that detail layouts can be destroyed
@@ -653,6 +657,7 @@ void FPropertyRowGenerator::UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyN
 	TSharedPtr<FDetailLayoutBuilderImpl> DetailLayout = MakeShareable(new FDetailLayoutBuilderImpl(InRootPropertyNode, LayoutData.ClassToPropertyMap, PropertyUtilities, PropertyGenerationUtilities, nullptr, false));
 	DetailLayout->AddNodeVisibilityChangedHandler(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FPropertyRowGenerator::LayoutNodeVisibilityChanged));
 	LayoutData.DetailLayout = DetailLayout;
+	LayoutData.DetailLayout->SetPropertyGenerationAllowListPaths(PropertyGenerationAllowListPaths);
 
 	TSharedPtr<FComplexPropertyNode> RootPropertyNode = InRootPropertyNode;
 	check(RootPropertyNode.IsValid());

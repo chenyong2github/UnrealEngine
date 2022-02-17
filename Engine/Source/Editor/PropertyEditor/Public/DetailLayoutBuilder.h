@@ -255,4 +255,16 @@ public:
 	 * @param DetailLayoutDelegate	The delegate to call when querying for custom detail layouts for the classes properties
 	 */
 	virtual void RegisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr) = 0;
+
+	/**
+	 * This function sets property paths to generate PropertyNodes.This improves the performance for cases where PropertyView is only showing a few properties of the object by not generating all other PropertyNodes
+	 *
+	 * @param InPropertyGenerationAllowListPaths Set of the property paths
+	 */
+	virtual void SetPropertyGenerationAllowListPaths(const TSet<FString>& InPropertyGenerationAllowListPaths) = 0;
+
+	/**
+	 * @return True if the property path is contained within our allowed paths
+	 */
+	virtual bool IsPropertyPathAllowed(const FString& InPath) const = 0;
 };

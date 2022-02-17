@@ -95,6 +95,8 @@ public:
 	{
 		CustomValidatePropertyNodesFunction = MoveTemp(InCustomValidatePropertyNodesFunction);
 	}
+	/** This function sets property paths to generate PropertyNodes.This improves the performance for cases where PropertyView is only showing a few properties of the object by not generating all other PropertyNodes */
+	virtual void SetPropertyGenerationAllowListPaths(const TSet<FString>& InPropertyGenerationAllowListPaths) override;
 	virtual void InvalidateCachedState() override;
 
 	/** FTickableEditorObject interface */
@@ -154,6 +156,8 @@ private:
 	FOnFinishedChangingProperties OnFinishedChangingPropertiesDelegate;
 	/** The ValidatePropertyNodes function can be overridden with this member, if set. Useful if your implementation doesn't require this kind of validation each Tick. */
 	FOnValidatePropertyRowGeneratorNodes CustomValidatePropertyNodesFunction;
+	/** If specified only nodes for these properties will be generated */
+	TSet<FString> PropertyGenerationAllowListPaths;
 
 	bool bViewingClassDefaultObject;
 };

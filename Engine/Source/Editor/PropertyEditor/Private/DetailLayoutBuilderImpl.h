@@ -53,6 +53,8 @@ public:
 	virtual bool HasClassDefaultObject() const override;
 	virtual void RegisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr) override;
 	virtual void SortCategories(const FOnCategorySortOrderFunction& SortFunction) override;
+	virtual void SetPropertyGenerationAllowListPaths(const TSet<FString>& InPropertyGenerationAllowListPaths) override;
+	virtual bool IsPropertyPathAllowed(const FString& InPath) const override;
 	/**
 	 * Creates a default category. The SDetails view will generate widgets in default categories
 	 *
@@ -244,6 +246,8 @@ private:
 	FClassToPropertyMap& PropertyMap;
 	/** Force hidden categories set by the user */
 	TSet<FName> ForceHiddenCategories;
+	/** If not empty only nodes for property specified paths will be generated */
+	TSet<FString> PropertyGenerationAllowListPaths;
 	/** Nodes that require ticking */
 	TSet<FDetailTreeNode*> TickableNodes;
 	/** Current filter applied to the view */

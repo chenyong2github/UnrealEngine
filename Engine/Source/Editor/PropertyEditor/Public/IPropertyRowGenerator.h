@@ -112,6 +112,11 @@ public:
 	 * This is useful if your implementation doesn't need to validate nodes every tick or needs to perform some other form of validation. */
 	virtual void SetCustomValidatePropertyNodesFunction(FOnValidatePropertyRowGeneratorNodes InCustomValidatePropertyNodesFunction) = 0;
 
+	/* Use this function to set property paths to generate FPropertyNodes. This improves the performance for cases where UPropertyView is only showing a few properties of the object by not generating all other FPropertyNodes 
+	*  An example of a nested property path: RootPropertyName[0]->NestedPropertyName[0]->PropertyName
+	*/
+	virtual void SetPropertyGenerationAllowListPaths(const TSet<FString>& InPropertyGenerationAllowListPaths) = 0;
+
 	/* Invalidates internal cached state.  Common use of this API is to synchronize the viewed object with changes made by external code. */
 	virtual void InvalidateCachedState() = 0;
 };

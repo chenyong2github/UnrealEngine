@@ -932,3 +932,26 @@ void FDetailLayoutBuilderImpl::SortCategories(const FOnCategorySortOrderFunction
 {
 	CategorySortOrderFunctions.Add(InSortFunction);
 }
+
+void FDetailLayoutBuilderImpl::SetPropertyGenerationAllowListPaths(const TSet<FString>& InPropertyGenerationAllowListPaths)
+{
+	PropertyGenerationAllowListPaths = InPropertyGenerationAllowListPaths;
+}
+
+bool FDetailLayoutBuilderImpl::IsPropertyPathAllowed(const FString& InPath) const
+{
+	if (PropertyGenerationAllowListPaths.IsEmpty())
+	{
+		return true;
+	}
+
+	for (const FString& PropertyName : PropertyGenerationAllowListPaths)
+	{
+		if (PropertyName.StartsWith(InPath))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}

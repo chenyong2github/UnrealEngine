@@ -371,7 +371,12 @@ void FDetailPropertyRow::GenerateChildrenForPropertyNode( TSharedPtr<FPropertyNo
 		for( int32 ChildIndex = 0; ChildIndex < RootPropertyNode->GetNumChildNodes(); ++ChildIndex )
 		{
 			TSharedPtr<FPropertyNode> ChildNode = RootPropertyNode->GetChildNode(ChildIndex);
-
+			
+			if (!LayoutBuilder.IsPropertyPathAllowed(ChildNode->GetPropertyPath()))
+			{
+				continue;
+			}
+			
 			if( ChildNode.IsValid() && ChildNode->HasNodeFlags( EPropertyNodeFlags::IsCustomized ) == 0 )
 			{
 				if( ChildNode->AsObjectNode() )
