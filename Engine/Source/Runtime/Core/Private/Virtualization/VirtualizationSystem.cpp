@@ -81,7 +81,7 @@ void Initialize()
 		if (EngineIni.GetString(TEXT("Core.ContentVirtualization"), TEXT("SystemName"), RawSystemName))
 		{
 			SystemName = FName(RawSystemName);
-			UE_LOG(LogVirtualization, Log, TEXT("VirtualizationSystem name found in ini file: %s"), *RawSystemName);
+			UE_LOG(LogVirtualization, Display, TEXT("VirtualizationSystem name found in ini file: %s"), *RawSystemName);
 		}
 	}
 

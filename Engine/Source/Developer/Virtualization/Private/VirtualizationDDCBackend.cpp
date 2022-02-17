@@ -38,13 +38,13 @@ bool FDDCBackend::Initialize(const FString& ConfigEntry)
 	bool bAllowLocal = true;
 	if (FParse::Bool(*ConfigEntry, TEXT("LocalStorage="), bAllowLocal))
 	{
-		UE_LOG(LogVirtualization, Log, TEXT("[%s] Use of local storage set to '%s"), *GetDebugName(), bAllowLocal ? TEXT("true") : TEXT("false"));
+		UE_LOG(LogVirtualization, Display, TEXT("[%s] Use of local storage set to '%s"), *GetDebugName(), bAllowLocal ? TEXT("true") : TEXT("false"));
 	}
 
 	bool bAllowRemote = true;
 	if (FParse::Bool(*ConfigEntry, TEXT("RemoteStorage="), bAllowRemote))
 	{
-		UE_LOG(LogVirtualization, Log, TEXT("[%s] Use of remote storage set to '%s"), *GetDebugName(), bAllowRemote ? TEXT("true") : TEXT("false"));
+		UE_LOG(LogVirtualization, Display, TEXT("[%s] Use of remote storage set to '%s"), *GetDebugName(), bAllowRemote ? TEXT("true") : TEXT("false"));
 	}
 
 	if (!bAllowLocal && !bAllowRemote)

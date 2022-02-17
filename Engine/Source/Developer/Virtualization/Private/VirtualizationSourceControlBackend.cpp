@@ -67,7 +67,7 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 
 	// Optional config values
 	FParse::Bool(*ConfigEntry, TEXT("UsePartitionedClient="), bUsePartitionedClient);
-	UE_LOG(LogVirtualization, Log, TEXT("[%s] Using partitioned clients: '%s'"), *GetDebugName(), bUsePartitionedClient ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogVirtualization, Display, TEXT("[%s] Using partitioned clients: '%s'"), *GetDebugName(), bUsePartitionedClient ? TEXT("true") : TEXT("false"));
 
 	ISourceControlModule& SSCModule = ISourceControlModule::Get();
 

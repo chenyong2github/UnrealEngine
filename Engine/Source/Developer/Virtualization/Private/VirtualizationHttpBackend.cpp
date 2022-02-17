@@ -1242,14 +1242,14 @@ struct FHttpServiceStatus : public FJsonSerializable
 	/** Prints the status of the HordeStorage service to the log */
 	void LogStatusInfo() const
 	{
-		UE_LOG(LogVirtualization, Log, TEXT("HordeStorage Status:"));
-		UE_LOG(LogVirtualization, Log, TEXT("Version: %s"), *Version);
-		UE_LOG(LogVirtualization, Log, TEXT("Site Id: %s"), *SiteIdentifier);
-		UE_LOG(LogVirtualization, Log, TEXT("GitHash: %s"), *GitHash);		
-		UE_LOG(LogVirtualization, Log, TEXT("Capabilities:"));
+		UE_LOG(LogVirtualization, Display, TEXT("HordeStorage Status:"));
+		UE_LOG(LogVirtualization, Display, TEXT("Version: %s"), *Version);
+		UE_LOG(LogVirtualization, Display, TEXT("Site Id: %s"), *SiteIdentifier);
+		UE_LOG(LogVirtualization, Display, TEXT("GitHash: %s"), *GitHash);		
+		UE_LOG(LogVirtualization, Display, TEXT("Capabilities:"));
 		for (const FString& Capability : Capabilities)
 		{
-			UE_LOG(LogVirtualization, Log, TEXT("\t%s"), *Capability);
+			UE_LOG(LogVirtualization, Display, TEXT("\t%s"), *Capability);
 		}	
 	}
 
@@ -1322,11 +1322,11 @@ bool FHttpBackend::Initialize(const FString& ConfigEntry)
 
 	if (FParse::Value(*ConfigEntry, TEXT("ChunkSize="), ChunkSize))
 	{
-		UE_LOG(LogVirtualization, Log, TEXT("ChunkSize set to '%" UINT64_FMT "' bytes"), ChunkSize);
+		UE_LOG(LogVirtualization, Display, TEXT("ChunkSize set to '%" UINT64_FMT "' bytes"), ChunkSize);
 	}
 	else
 	{
-		UE_LOG(LogVirtualization, Log, TEXT("Payloads will not be chunked!"));
+		UE_LOG(LogVirtualization, Display, TEXT("Payloads will not be chunked!"));
 	}
 
 	// If we are connecting to a locally hosted HordeStorage then we do not need authorization
@@ -1351,7 +1351,7 @@ bool FHttpBackend::Initialize(const FString& ConfigEntry)
 		}
 	}
 
-	UE_LOG(LogVirtualization, Log, TEXT("Attempting to connect to HordeStorage at '%s' with namespace '%s'"), *HostAddress, *Namespace);
+	UE_LOG(LogVirtualization, Display, TEXT("Attempting to connect to HordeStorage at '%s' with namespace '%s'"), *HostAddress, *Namespace);
 
 	if (!IsServiceReady())
 	{
@@ -1664,7 +1664,7 @@ bool FHttpBackend::IsServiceReady() const
 
 	if (Result == FRequest::Success && FRequest::IsSuccessfulResponse(Request.GetResponseCode()))
 	{
-		UE_LOG(LogVirtualization, Log, TEXT("HordeStorage status: '%s'."), *Request.GetResponseAsString());
+		UE_LOG(LogVirtualization, Display, TEXT("HordeStorage status: '%s'."), *Request.GetResponseAsString());
 		return true;
 	}
 	else
@@ -1683,7 +1683,7 @@ bool FHttpBackend::AcquireAccessToken()
 
 	if (IsUsingLocalHost())
 	{
-		UE_LOG(LogVirtualization, Log, TEXT("Connecting to a local host '%s', so skipping authorization"), *HostAddress);
+		UE_LOG(LogVirtualization, Display, TEXT("Connecting to a local host '%s', so skipping authorization"), *HostAddress);
 		return true;
 	}
 
@@ -1764,7 +1764,7 @@ bool FHttpBackend::AcquireAccessToken()
 						AccessToken = MakeUnique<FAccessToken>();
 					}
 					AccessToken->SetHeader(*AccessTokenString);
-					UE_LOG(LogVirtualization, Log, TEXT("Logged in to HTTP DDC services. Expires in %d seconds."), ExpiryTimeSeconds);
+					UE_LOG(LogVirtualization, Display, TEXT("Logged in to HTTP DDC services. Expires in %d seconds."), ExpiryTimeSeconds);
 
 					//Schedule a refresh of the token ahead of expiry time (this will not work in commandlets)
 					if (!IsRunningCommandlet())
