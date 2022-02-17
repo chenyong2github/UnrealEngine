@@ -4,6 +4,7 @@
 
 #include "WaterBodyTypes.h"
 #include "BuoyancyTypes.h"
+#include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Kismet/KismetMathLibrary.h"
 
@@ -413,12 +414,6 @@ public:
 					Pontoon.ImmersionDepth = 0.f;
 				}
 
-				//#if ENABLE_DRAW_DEBUG
-				//					if (CVarWaterDebugBuoyancy.GetValueOnAnyThread())
-				//					{
-				//						DrawDebugSphere(GetWorld(), Pontoon.CenterLocation, Pontoon.Radius, 16, FColor::Red, false, -1.f, 0, 1.f);
-				//					}
-				//#endif
 				ComputeBuoyancy(BuoyancyData, Pontoon, State.ForwardSpeedKmh, State.LinearVelocity.Z);
 
 				if (Pontoon.bIsInWater && !bPrevIsInWater)
@@ -437,23 +432,52 @@ public:
 			}
 			PontoonIndex++;
 		}
-		//#if ENABLE_DRAW_DEBUG
-		//			if (CVarWaterDebugBuoyancy.GetValueOnAnyThread())
-		//			{
-		//				TMap<const AWaterBody*, float> DebugSplineKeyMap;
-		//				TMap<const AWaterBody*, float> DebugSplineSegmentsMap;
-		//				for (int i = 0; i < 30; ++i)
-		//				{
-		//					for (int j = 0; j < 30; ++j)
-		//					{
-		//						FVector Location = PrimitiveComponent->GetComponentLocation() + (FVector::RightVector * (i - 15) * 30) + (FVector::ForwardVector * (j - 15) * 30);
-		//						GetWaterSplineKey(Location, DebugSplineKeyMap, DebugSplineSegmentsMap);
-		//						FVector Point(Location.X, Location.Y, GetWaterHeight(Location - FVector::UpVector * 200.f, DebugSplineKeyMap, GetOwner()->GetActorLocation().Z));
-		//						DrawDebugPoint(GetWorld(), Point, 5.f, IsOverlappingWaterBody() ? FColor::Green : FColor::Red, false, -1.f, 0);
-		//					}
-		//				}
-		//			}
-		//#endif
+#if ENABLE_DRAW_DEBUG
+		if (CVarWaterDebugBuoyancy.GetValueOnAnyThread())
+		{
+			const float NumPoints = CVarWaterBuoyancyDebugPoints.GetValueOnAnyThread();
+			const float Size = CVarWaterBuoyancyDebugSize.GetValueOnAnyThread();
+			const float StartOffset = NumPoints * 0.5f;
+			const float Scale = Size / NumPoints;
+			TMap<const FSolverSafeWaterBodyData*, float> DebugSplineKeyMap;
+			Chaos::FDebugDrawQueue::GetInstance().SetEnabled(true);
+			for (int i = 0; i < NumPoints; ++i)
+			{
+				for (int j = 0; j < NumPoints; ++j)
+				{
+					FVector Location = TParticleUtilities::GetCoMWorldPosition(Body) + (FVector::RightVector * (i - StartOffset) * Scale) + (FVector::ForwardVector * (j - StartOffset) * Scale);
+
+					FSphericalPontoon DummyPontoon;
+					for (const FSolverSafeWaterBodyData* WaterBody : SolverWaterBodies)
+					{
+						if (WaterBody && WaterBody->WaterBodyType == EWaterBodyType::River)
+						{
+							float SplineInputKey;
+							//if (CVarWaterUseSplineKeyOptimization.GetValueOnAnyThread())
+							//{
+							//	SplineInputKey = GetWaterSplineKeyFast(Location, WaterBody, OutSegmentMap);
+							//}
+							//else
+							{
+								SplineInputKey = WaterBody->WaterSpline.FindInputKeyClosestToWorldLocation(Location);
+							}
+							DummyPontoon.SolverSplineInputKeys.Add(WaterBody, SplineInputKey);
+						}
+					}
+					
+
+					const float WaterHeight = GetWaterHeight(SolverWaterBodies, Location - FVector::UpVector * 100.f, Aux.SmoothedWorldTimeSeconds, DummyPontoon.SolverSplineInputKeys, /*DefaultHeight*/-100000.f, DummyPontoon.SolverWaterBody, DummyPontoon.WaterDepth, DummyPontoon.WaterPlaneLocation, DummyPontoon.WaterPlaneNormal, DummyPontoon.WaterSurfacePosition, DummyPontoon.WaterVelocity, DummyPontoon.WaterBodyIndex);
+					const FVector DebugPoint(Location.X, Location.Y, WaterHeight);
+					Chaos::FDebugDrawQueue::GetInstance().DrawDebugPoint(DebugPoint, FColor::Green, false, -1.f, 0, 5.f);
+				}
+			}
+
+			for (FSphericalPontoon& Pontoon : Aux.Pontoons)
+			{
+				Chaos::FDebugDrawQueue::GetInstance().DrawDebugSphere(Pontoon.CenterLocation, Pontoon.Radius, 16, Pontoon.bIsInWater ? FColor::Blue : FColor::Red, false, -1.f, 0, 1.f);
+			}
+		}
+#endif
 		
 		State.bIsInWaterBody = State.NumPontoonsInWater > 0;
 	}

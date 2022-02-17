@@ -11,6 +11,10 @@
 class UBuoyancyComponent;
 class AWaterBody;
 
+extern WATER_API TAutoConsoleVariable<int32> CVarWaterDebugBuoyancy;
+extern WATER_API TAutoConsoleVariable<int32> CVarWaterBuoyancyDebugPoints;
+extern WATER_API TAutoConsoleVariable<int32> CVarWaterBuoyancyDebugSize;
+
 USTRUCT(Blueprintable)
 struct FSphericalPontoon
 {

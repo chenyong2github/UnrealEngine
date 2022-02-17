@@ -18,6 +18,18 @@ TAutoConsoleVariable<int32> CVarWaterDebugBuoyancy(
 	TEXT("Enable debug drawing for water interactions."),
 	ECVF_Default);
 
+TAutoConsoleVariable<int32> CVarWaterBuoyancyDebugPoints(
+	TEXT("r.Water.BuoyancyDebugPoints"),
+	10,
+	TEXT("Number of points in one dimension for buoyancy debug."),
+	ECVF_Default);
+
+TAutoConsoleVariable<int32> CVarWaterBuoyancyDebugSize(
+	TEXT("r.Water.BuoyancyDebugSize"),
+	1000,
+	TEXT("Side length of square for buoyancy debug."),
+	ECVF_Default);
+
 TAutoConsoleVariable<int32> CVarWaterUseSplineKeyOptimization(
 	TEXT("r.Water.UseSplineKeyOptimization"),
 	1,
@@ -468,13 +480,17 @@ int32 UBuoyancyComponent::UpdatePontoons(float DeltaTime, float ForwardSpeed, fl
 #if ENABLE_DRAW_DEBUG
 		if (CVarWaterDebugBuoyancy.GetValueOnAnyThread())
 		{
+			const float NumPoints = CVarWaterBuoyancyDebugPoints.GetValueOnAnyThread();
+			const float Size = CVarWaterBuoyancyDebugSize.GetValueOnAnyThread();
+			const float StartOffset = NumPoints * 0.5f;
+			const float Scale = Size / NumPoints;
 			TMap<const UWaterBodyComponent*, float> DebugSplineKeyMap;
 			TMap<const UWaterBodyComponent*, float> DebugSplineSegmentsMap;
-			for (int i = 0; i < 10; ++i)
+			for (int i = 0; i < NumPoints; ++i)
 			{
-				for (int j = 0; j < 10; ++j)
+				for (int j = 0; j < NumPoints; ++j)
 				{
-					FVector Location = PrimitiveComponent->GetComponentLocation() + (FVector::RightVector * (i - 5) * 90) + (FVector::ForwardVector * (j - 5) * 90);
+					FVector Location = PrimitiveComponent->GetComponentLocation() + (FVector::RightVector * (i - StartOffset) * Scale) + (FVector::ForwardVector * (j - StartOffset) * Scale);
 					GetWaterSplineKey(Location, DebugSplineKeyMap, DebugSplineSegmentsMap);
 					FVector Point(Location.X, Location.Y, GetWaterHeight(Location - FVector::UpVector * 200.f, DebugSplineKeyMap, GetOwner()->GetActorLocation().Z));
 					DrawDebugPoint(GetWorld(), Point, 5.f, IsOverlappingWaterBody() ? FColor::Green : FColor::Red, false, -1.f, 0);
