@@ -305,6 +305,7 @@ uint					NameInfoCount;
 uint					NameCharacterCount;
 StructuredBuffer<uint2> NameInfos;
 Buffer<uint>			Names;
+Buffer<int>				InstanceAABB;
 
 struct FNameInfo
 {
@@ -370,6 +371,7 @@ float2 Print(float2 Pos, float X, uint DigitCount, FFontColor Color)
 
 [numthreads(1, 1, 1)]
 void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
+#if PERMUTATION_OUTPUT_TYPE == 0
 {
 	// Draw AABB of the instance groups
 	if (any(DispatchThreadId != 0))
@@ -457,14 +459,14 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 		// Sim
 		if (bHasSim)
-			Pos = ShaderPrintText(Pos, TEXT("True"), FontGreen);
+			Pos = ShaderPrintText(Pos, TEXT("True "), FontGreen);
 		else
 			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
 		Pos = ShaderPrintText(Pos, TEXT(" "), FontWhite);
 
 		// RBF
 		if (bHasRBF)
-			Pos = ShaderPrintText(Pos, TEXT("True"), FontGreen);
+			Pos = ShaderPrintText(Pos, TEXT("True "), FontGreen);
 		else
 			Pos = ShaderPrintText(Pos, TEXT("False"), FontRed);
 		Pos = ShaderPrintText(Pos, TEXT(" "));
@@ -486,6 +488,15 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		AddNewLine(OriginalPos, Pos);
 	}
 }
+#else  // PERMUTATION_OUTPUT_TYPE
+{
+	if (all(DispatchThreadId == 0))
+	{
+		const FHairAABB AABB = ReadHairAABB(0, InstanceAABB);
+		AddAABBTWS(AABB.Min, AABB.Max, ColorDarkGreen);
+	}
+}
+#endif // PERMUTATION_OUTPUT_TYPE
 
 #endif // SHADER_PRINT_INSTANCE
 
