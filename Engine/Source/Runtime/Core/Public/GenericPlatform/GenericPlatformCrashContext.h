@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
 #include "HAL/PlatformMemory.h"
 #include "HAL/PlatformProcess.h"
