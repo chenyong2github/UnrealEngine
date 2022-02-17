@@ -6,8 +6,11 @@
 #include "ConcertMessageData.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STableRow.h"
+#include "Widgets/Input/SComboBox.h"
 
 class FConcertSessionItem;
+class SEditableTextBox;
+class SWidget;
 
 /**
  * The type of row used in the session list view to edit a new session (the session name + server).

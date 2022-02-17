@@ -3,10 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Attribute.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STableRow.h"
 
 class FConcertSessionItem;
+class SWidget;
+class SEditableTextBox;
 
 /**
  * The type of row used in the session list view to create and archive or restore a session (edit the information required for the operation).

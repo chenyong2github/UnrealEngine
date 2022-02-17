@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Attribute.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Views/STableRow.h"
 
 class FConcertSessionItem;
+class SWidget;
+class SInlineEditableTextBlock;
 
 class SSessionRow : public SMultiColumnTableRow<TSharedPtr<FConcertSessionItem>>
 {

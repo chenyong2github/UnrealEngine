@@ -8,8 +8,12 @@
 #include "EditorFontGlyphs.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Internationalization/Regex.h"
-#include "Widgets/SBoxPanel.h"
+#include "Styling/AppStyle.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SExpanderArrow.h"
 
 #define LOCTEXT_NAMESPACE "SConcertBrowser"

@@ -6,9 +6,11 @@
 #include "SessionBrowser/ConcertSessionItem.h"
 
 #include "EditorFontGlyphs.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SHeader.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STableRow.h"
