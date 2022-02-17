@@ -63,6 +63,10 @@ namespace Gauntlet
 	{
 		public static bool UsesEditor(this UnrealTargetRole Type)
 		{
+			if (Globals.Params.ParseParam("cookededitor"))
+			{
+				return Type == UnrealTargetRole.EditorGame || Type == UnrealTargetRole.EditorServer;
+			}
 			return Type == UnrealTargetRole.Editor || Type == UnrealTargetRole.EditorGame || Type == UnrealTargetRole.EditorServer;
 		}
 
@@ -73,12 +77,16 @@ namespace Gauntlet
 
 		public static bool IsClient(this UnrealTargetRole Type)
 		{
-			return Type == UnrealTargetRole.EditorGame || Type == UnrealTargetRole.Client || Type == UnrealTargetRole.CookedEditor;
+			return Type == UnrealTargetRole.EditorGame || Type == UnrealTargetRole.Client;
 		}
 
 		public static bool IsEditor(this UnrealTargetRole Type)
 		{
 			return Type == UnrealTargetRole.Editor || Type == UnrealTargetRole.CookedEditor;
+		}
+		public static bool IsCookedEditor(this UnrealTargetRole Type)
+		{
+			return Type == UnrealTargetRole.CookedEditor;
 		}
 
 		public static bool RunsLocally(this UnrealTargetRole Type)
@@ -247,6 +255,21 @@ namespace Gauntlet
 			}
 		}
 
+		public static Dictionary<string, UnrealTargetRole> CustomModuleToRoles = new Dictionary<string, UnrealTargetRole>();
+
+		/// <summary>
+		/// Adds an additional module name to search for when determining if an application path has a guantlet usable role.
+		/// Traditionally all application paths must be in the form ProjectName(Game|Server).exe
+		/// This method allows for applications with nontraditional names to have the role of Game, Server, Editor etc.
+		/// 
+		/// </summary>
+		/// <param name="InModuleName"> The ModuleName to look for in the application path</param>
+		/// <param name="InRole"> When applications are discovered applications with matching module name will have this role</param>
+		public static void AddCustomModuleName(string InModuleName, UnrealTargetRole InRole)
+		{
+			CustomModuleToRoles.Add(InModuleName, InRole);
+		}
+		
 		static ConfigInfo GetUnrealConfigFromFileName(string InProjectName, string InName)
 		{
 			ConfigInfo Config = new ConfigInfo();
@@ -268,7 +291,12 @@ namespace Gauntlet
 			// So we need to search for the project name minus 'Game', with the form, build-type, and platform all optional :(
 			// FortniteClient and EngineTest should match
 			// FortniteCustomName should not match.
-			string RegExMatch = string.Format(@"(({0}(Game|Client|Server|CookedEditor))|{1})(?:-(.+?)-(Debug|Test|Shipping))?", ShortName, InProjectName);
+			string ProjectNameRegEx = string.Format("|{0}", InProjectName);
+			foreach (KeyValuePair<string, UnrealTargetRole> ModuleAndRole in CustomModuleToRoles)
+			{
+				ProjectNameRegEx += string.Format("|{0}", ModuleAndRole.Key);
+			}
+			string RegExMatch = string.Format(@"(({0}(Game|Client|Server|CookedEditor)){1})(?:-(.+?)-(Debug|Test|Shipping))?", ShortName, ProjectNameRegEx);
 
 			// Format should be something like
 			// FortniteClient
@@ -278,11 +306,15 @@ namespace Gauntlet
 
 			if (NameMatch.Success)
 			{
+				string ModuleName = NameMatch.Groups[1].ToString();
 				string ModuleType = NameMatch.Groups[3].ToString().ToLower();
 				string PlatformName = NameMatch.Groups[4].ToString();
 				string ConfigType = NameMatch.Groups[5].ToString();
-
-				if (ModuleType == "cookededitor" || (ModuleType.Length == 0 && Globals.Params.ParseParam("cookededitor")))
+				if (CustomModuleToRoles.ContainsKey(ModuleName))
+				{
+					Config.RoleType = CustomModuleToRoles[ModuleName];
+				}
+				else if (ModuleType == "cookededitor" || (ModuleType.Length == 0 && Globals.Params.ParseParam("cookededitor")))
 				{
 					Config.RoleType = UnrealTargetRole.CookedEditor;
 				}

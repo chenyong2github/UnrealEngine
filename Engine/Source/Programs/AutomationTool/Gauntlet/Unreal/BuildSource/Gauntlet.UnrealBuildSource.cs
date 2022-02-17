@@ -657,7 +657,7 @@ namespace Gauntlet
 			bool HasSanitizerSuffix = !string.IsNullOrEmpty(SanitizerSuffix);
 			string ExePath;
 
-			if (TargetRole.UsesEditor())
+			if (TargetRole.UsesEditor() || TargetRole.IsEditor())
 			{
 				FileSystemReference EditorExe = null;
 

@@ -43,7 +43,14 @@ namespace Gauntlet
 
 		public string BuildPath { get; protected set; }
 
-		public virtual bool CanSupportRole(UnrealTargetRole InRoleType) { return InRoleType == Role; }
+		public virtual bool CanSupportRole(UnrealTargetRole InRoleType)
+		{
+			if (InRoleType.IsEditor())
+			{
+				return Role.IsCookedEditor();
+			}
+			return InRoleType == Role;
+		}
 
 		public PackagedBuild(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfig, UnrealTargetRole InRole, string InBuildPath, BuildFlags InFlags)
 		{
@@ -70,7 +77,14 @@ namespace Gauntlet
 
 		public string ExecutablePath { get; protected set; }
 
-		public virtual bool CanSupportRole(UnrealTargetRole InRoleType) { return InRoleType == Role; }
+		public virtual bool CanSupportRole(UnrealTargetRole InRoleType)
+		{
+			if (InRoleType.IsEditor())
+			{
+				return Role.IsCookedEditor();
+			}
+			return InRoleType == Role;
+		}
 
 		public StagedBuild(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfig, UnrealTargetRole InRole, string InBuildPath, string InExecutablePath)
 		{
@@ -210,12 +224,16 @@ namespace Gauntlet
 				string GameBinaryPath = Path.Combine(InPath, InProjectName, "Binaries", InPlatform.ToString());
 
 				// Executable will either be Project*.exe or for content-only UnrealGame.exe
-				string[] ExecutableMatches = new string[]
+				List<string> ExecutableMatches = new List<string>
 				{
 					ShortName + "*" + InExecutableExtension,
 					"UnrealGame*" + InExecutableExtension,
 				};
-
+				foreach (KeyValuePair<string, UnrealTargetRole> ModuleAndRole in UnrealHelpers.CustomModuleToRoles)
+				{
+					ExecutableMatches.Add(string.Format("{0}*{1}", ModuleAndRole.Key, InExecutableExtension));
+				}
+				
 				// check 
 				// 1) Path/Project/Binaries/Platform
 				// 2) Path (content only builds on some platforms write out a stub exe here)
@@ -250,7 +268,7 @@ namespace Gauntlet
 					UnrealTargetConfiguration Config = UnrealHelpers.GetConfigurationFromExecutableName(InProjectName, App.Name);
 					UnrealTargetRole Role = UnrealHelpers.GetRoleFromExecutableName(InProjectName, App.Name);
 
-					if (Config != UnrealTargetConfiguration.Unknown && Role != UnrealTargetRole.Unknown && !DiscoveredBuilds.Any(B => B.Configuration == Config))
+					if (Config != UnrealTargetConfiguration.Unknown && Role != UnrealTargetRole.Unknown && !DiscoveredBuilds.Any(B => B.Configuration == Config && B.Role == Role))
 					{
 						// store the exe path as relative to the staged dir path
 						T NewBuild = Activator.CreateInstance(typeof(T), new object[] { InPlatform, Config, Role, InPath, Utils.SystemHelpers.MakePathRelative(App.FullName, InPath) }) as T;
