@@ -25,7 +25,6 @@ struct FRigControlElement;
 class ISequencer;
 class FUICommandList;
 class IAssetViewport;
-
 /*
 *  The way this sequencer pivot tool works is that
 *  it will use modify the incoming selections temp pivot
@@ -67,12 +66,25 @@ struct FActorSelectonDuringDrag : public FSelectionDuringDrag
 struct FControlRigMappings
 {
 	TWeakObjectPtr<UControlRig> ControlRig;
+
+	FTransform GetParentTransform() const;
+	TOptional<FTransform> GetWorldTransform(const FName& Name) const;
+	void SetFromWorldTransform(const FName& Name, const FTransform& WorldTransform);
+	TArray<FName> GetAllControls() const;
+	void SelectControls();
+	bool IsAnyControlDeselected() const;
+private:
 	TMap<FName, FTransform> PivotTransforms;
 };
 
 struct FActorMappings
 {
 	TWeakObjectPtr<AActor> Actor;
+
+	TOptional<FTransform> GetWorldTransform() const;
+	void SetFromWorldTransform(const FTransform& WorldTransform);
+	void SelectActors();
+private:
 	FTransform PivotTransform;
 };
 
@@ -136,6 +148,7 @@ public:
 	virtual bool HasCancel() const override { return false; }
 	virtual bool HasAccept() const override { return false; }
 	virtual bool CanAccept() const override { return false; }
+	virtual void OnTick(float DeltaTime) override;
 
 	// IClickBehaviorTarget interface
 	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
@@ -149,9 +162,9 @@ public:
 	//If In Pivot Mode, if not then in Free Mode
 	bool IsInPivotMode() const { return bInPivotMode; }
 	//Toggle Pivot Mode
-	void TogglePivotMode() { bInPivotMode = !bInPivotMode; }
+	void TogglePivotMode() { SetPivotMode(!bInPivotMode); }
 	//Set Pivot Mode
-	void SetPivotMode(bool bVal) { bInPivotMode = bVal; }
+	void SetPivotMode(bool bVal);
 protected:
 
 	UPROPERTY()
