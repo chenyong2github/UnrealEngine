@@ -2580,6 +2580,8 @@ const FRigVMCompilerWorkData::FRigVMASTProxyArray& URigVMCompiler::FindProxiesWi
 
 	PinProxiesToProcess.Add(InProxy);
 
+	const FString CPPType = InProxy.GetSubjectChecked<URigVMPin>()->GetCPPType();
+
 	for(int32 ProxyIndex = 0; ProxyIndex < PinProxiesToProcess.Num(); ProxyIndex++)
 	{
 		const FRigVMASTProxy& CurrentProxy = PinProxiesToProcess[ProxyIndex];
@@ -2594,6 +2596,12 @@ const FRigVMCompilerWorkData::FRigVMASTProxyArray& URigVMCompiler::FindProxiesWi
 					{
 						continue;
 					}
+				}
+				// due to LWC we may have two pins that don't
+				// actually share the same CPP type (float vs double)
+				if(Pin->GetCPPType() != CPPType)
+				{
+					continue;
 				}
 			}
 			PinProxies.Add(CurrentProxy);
