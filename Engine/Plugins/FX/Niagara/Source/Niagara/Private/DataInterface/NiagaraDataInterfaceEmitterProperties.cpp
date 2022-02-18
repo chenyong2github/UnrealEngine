@@ -277,13 +277,14 @@ void UNiagaraDataInterfaceEmitterProperties::GetFunctions(TArray<FNiagaraFunctio
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSignature);
 		Sig.Name = SetFixedBoundsName;
 		Sig.bRequiresExecPin = true;
+		Sig.bSupportsGPU = false;
 		Sig.ModuleUsageBitmask = ENiagaraScriptUsageMask::Emitter | ENiagaraScriptUsageMask::System;
 		Sig.Inputs.Emplace_GetRef(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Execute")).SetValue(true);
 		Sig.Inputs.Emplace_GetRef(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Valid")).SetValue(true);
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Local Min"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Local Max"));
 #if WITH_EDITORONLY_DATA
-		Sig.SetDescription(LOCTEXT("SetEmitterFixedBounds", "Set local space fixed bounds for the emitter.  If Valid is set to false the emitter will fallback to the asset set fixed bounds (if valid) or dynamically generating bounds."));
+		Sig.SetDescription(LOCTEXT("SetEmitterFixedBounds", "Set local space fixed bounds for the emitter, this stomps any fixed bounds set from Blueprint.  If Valid is set to false the emitter will fallback to the asset set fixed bounds (if valid) or dynamically generating bounds."));
 #endif
 	}
 }

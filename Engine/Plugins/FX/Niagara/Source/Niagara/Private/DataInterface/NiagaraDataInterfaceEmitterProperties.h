@@ -19,8 +19,8 @@ class UNiagaraDataInterfaceEmitterProperties : public UNiagaraDataInterface
 public:
 	DECLARE_NIAGARA_DI_PARAMETER();
 
-	/** Selects which emitter the data inteface will bind to, i.e the emitter we are contained within or a named emitter. */
-	UPROPERTY(EditAnywhere, Category = "Emitter", meta = (EditCondition = "SourceMode == NDIEmitterSourceMode::Other"))
+	/** Selects which emitter the data interface will bind to, i.e the emitter we are contained within or a named emitter. */
+	UPROPERTY(EditAnywhere, Category = "Emitter")
 	FNiagaraDataInterfaceEmitterBinding EmitterBinding;
 
 	//UNiagaraDataInterface Interface
