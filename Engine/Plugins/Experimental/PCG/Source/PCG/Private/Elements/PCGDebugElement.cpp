@@ -32,7 +32,13 @@ namespace PCGDebugElement
 			return;
 		}
 
-		UMaterialInterface* Material = DebugSettings.Material.LoadSynchronous();
+		UMaterialInterface* Material = DebugSettings.GetMaterial().LoadSynchronous();
+
+		TArray<UMaterialInterface*> Materials;
+		if (Material)
+		{
+			Materials.Add(Material);
+		}
 
 		TArray<FPCGTaggedData> Outputs = Context->OutputData.GetInputs();
 
@@ -78,13 +84,16 @@ namespace PCGDebugElement
 
 			// First, create target instance transforms
 			const float PointScale = DebugSettings.PointScale;
+			const bool bIsRelative = DebugSettings.ScaleMethod == EPCGDebugVisScaleMethod::Relative;
+
 			for (const FPCGPoint& Point : Points)
 			{
 				FTransform& InstanceTransform = Instances.Add_GetRef(Point.Transform);
-				InstanceTransform.SetScale3D(InstanceTransform.GetScale3D() * PointScale);
+				InstanceTransform.SetScale3D(bIsRelative ? InstanceTransform.GetScale3D() * PointScale : FVector(PointScale));
 			}
 
-			UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Mesh, { Material });
+			UInstancedStaticMeshComponent* ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Mesh, Materials);
+			
 			ISMC->ComponentTags.AddUnique(PCGHelpers::DefaultPCGDebugTag);
 			ISMC->NumCustomDataFloats = NumCustomData;
 			const int32 PreExistingInstanceCount = ISMC->GetInstanceCount();

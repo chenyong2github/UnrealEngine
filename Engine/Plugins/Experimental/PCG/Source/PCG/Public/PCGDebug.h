@@ -9,6 +9,13 @@
 class UStaticMesh;
 class UMaterialInterface;
 
+UENUM()
+enum class EPCGDebugVisScaleMethod : uint8
+{
+	Relative,
+	Absolute
+};
+
 USTRUCT(BlueprintType)
 struct FPCGDebugVisualizationSettings
 {
@@ -21,8 +28,13 @@ public:
 	float PointScale = 1.0f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	EPCGDebugVisScaleMethod ScaleMethod = EPCGDebugVisScaleMethod::Relative;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	TSoftObjectPtr<UStaticMesh> PointMesh;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TSoftObjectPtr<UMaterialInterface> Material;
+	TSoftObjectPtr<UMaterialInterface> MaterialOverride;
+
+	TSoftObjectPtr<UMaterialInterface> GetMaterial() const;
 };
