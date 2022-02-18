@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealBuildTool", "UnrealBu
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Build", "..\Shared\EpicGames.Build\EpicGames.Build.csproj", "{75882F88-8F4E-469A-B74A-8A7E0C0E1A88}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealBuildToolTests", "..\UnrealBuildToolTests\UnrealBuildToolTests.csproj", "{3B158EAD-4D26-4608-B7AB-9AB7E028B489}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealBuildTool.Tests", "..\UnrealBuildTool.Tests\UnrealBuildTool.Tests.csproj", "{3B158EAD-4D26-4608-B7AB-9AB7E028B489}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{46FDC727-E9B0-4447-952A-03AD8073600F}"
 EndProject
