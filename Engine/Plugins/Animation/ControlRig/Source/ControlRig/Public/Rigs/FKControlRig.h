@@ -27,6 +27,9 @@ enum class EControlRigFKRigExecuteMode: uint8
 	/** Applies the authored pose as an additive layer */
 	Additive,
 
+	/** Sets the current pose without the use of offset transforms */
+	Direct,
+
 	/** MAX - invalid */
 	Max UMETA(Hidden),
 };
@@ -53,6 +56,7 @@ public:
 	void SetControlActive(int32 Index, bool bActive);
 	void SetControlActive(const TArray<FFKBoneCheckInfo>& InBoneChecks);
 
+	void SetApplyMode(EControlRigFKRigExecuteMode InMode);
 	void ToggleApplyMode();
 	bool CanToggleApplyMode() const { return true; }
 	bool IsApplyModeAdditive() const { return ApplyMode == EControlRigFKRigExecuteMode::Additive; }
@@ -69,6 +73,7 @@ private:
 
 	UPROPERTY()
 	EControlRigFKRigExecuteMode ApplyMode;
+	EControlRigFKRigExecuteMode CachedToggleApplyMode;
 
 	friend class FControlRigInteractionTest;
 };
