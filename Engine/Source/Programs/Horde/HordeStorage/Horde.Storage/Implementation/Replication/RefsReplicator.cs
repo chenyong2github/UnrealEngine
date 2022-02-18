@@ -296,8 +296,7 @@ namespace Horde.Storage.Implementation
                 HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                 response.EnsureSuccessStatusCode();
                 await using Stream blobStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(blobStream);
-                snapshot = await ReplicationLogSnapshot.DeserializeSnapshot(payload.GetStream());
+                snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(blobStream);
             }
 
             if (!snapshot.LastEvent.HasValue)
@@ -310,7 +309,7 @@ namespace Horde.Storage.Implementation
 
             // if MaxParallelReplications is set to not limit we use the default behavior of ParallelForEachAsync which is to limit based on CPUs 
             int maxParallelism = _replicatorSettings.MaxParallelReplications != -1 ? _replicatorSettings.MaxParallelReplications : 0;
-            await snapshot.LiveObjects.ParallelForEachAsync(async snapshotLiveObject =>
+            await snapshot.GetLiveObjects().ParallelForEachAsync(async snapshotLiveObject =>
             {
                 try
                 {
@@ -339,6 +338,8 @@ namespace Horde.Storage.Implementation
                 }
 
             }, maxParallelism, cancellationToken);
+
+            snapshot.Dispose();
 
             // snapshot processed, we proceed to reading the incremental state
             return (snapshotBucket, snapshotEvent, countOfObjectsReplicated);

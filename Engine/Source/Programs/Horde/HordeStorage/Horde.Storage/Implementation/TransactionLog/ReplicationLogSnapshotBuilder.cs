@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
+using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 
 namespace Horde.Storage.Implementation.TransactionLog
@@ -42,13 +43,13 @@ namespace Horde.Storage.Implementation.TransactionLog
                 await using BlobContents blobContents = await _blobService.GetObject(snapshotInfo.BlobNamespace, snapshotInfo.SnapshotBlob);
                 if (cancellationToken.IsCancellationRequested)
                     throw new TaskCanceledException();
-                snapshot = await ReplicationLogSnapshot.DeserializeSnapshot(blobContents.Stream);
+                snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(blobContents.Stream);
                 lastBucket = snapshot.LastBucket;
                 lastEvent = snapshot.LastEvent;
             }
             else
             {
-                snapshot = new ReplicationLogSnapshot(ns);
+                snapshot = ReplicationLogFactory.CreateEmptySnapshot(ns);
 
                 lastBucket = null;
                 lastEvent = null;
@@ -66,17 +67,20 @@ namespace Horde.Storage.Implementation.TransactionLog
             }
 
 
-            byte[] buf;
+            FileInfo tempFile = new FileInfo(Path.GetTempFileName());
             {
-                await using MemoryStream ms = new MemoryStream();
-                await snapshot.Serialize(ms);
-                await ms.FlushAsync(cancellationToken);
-                buf = ms.ToArray();
+                await using FileStream fs = tempFile.OpenWrite();
+                snapshot.Serialize(fs);
+                await fs.FlushAsync(cancellationToken);
             }
-            
-            
+
+            using FilesystemBufferedPayload payload = FilesystemBufferedPayload.FromTempFile(tempFile);
             {
-                BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(buf);
+                BlobIdentifier blobIdentifier;
+                {
+                    await using Stream stream = payload.GetStream();
+                    blobIdentifier = await BlobIdentifier.FromStream(stream);
+                }
 
                 CompactBinaryWriter writer = new CompactBinaryWriter();
                 writer.BeginObject();
@@ -89,10 +93,11 @@ namespace Horde.Storage.Implementation.TransactionLog
 
                 if (cancellationToken.IsCancellationRequested)
                     throw new TaskCanceledException();
-                
+
                 // upload the attachment first so we are not missing any references when we go to create the ref
-                await _blobService.PutObject(storeInNamespace, buf, blobIdentifier);
-                
+                await _blobService.PutObject(storeInNamespace, payload, blobIdentifier);
+            
+                tempFile.Delete();
                 (ContentId[] missingContentIds, BlobIdentifier[] missingBlobs) = await _objectService.Put(storeInNamespace, new BucketId("snapshot"), new IoHashKey(blobIdentifier.ToString()), cbBlobId, CompactBinaryObject.Load(cbObjectBytes));
                 List<ContentHash> missingHashes = new List<ContentHash>(missingContentIds);
                 missingHashes.AddRange(missingBlobs);

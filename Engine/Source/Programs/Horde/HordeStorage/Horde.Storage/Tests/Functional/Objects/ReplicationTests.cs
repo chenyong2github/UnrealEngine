@@ -593,15 +593,16 @@ namespace Horde.Storage.FunctionalTests.References
             Assert.AreEqual(snapshotBlobId, snapshotInfo.SnapshotBlob);
 
             BlobContents blobContents = await _blobStore.GetObject(SnapshotNamespace, snapshotBlobId);
-            ReplicationLogSnapshot snapshot = await ReplicationLogSnapshot.DeserializeSnapshot(blobContents.Stream);
+            ReplicationLogSnapshot snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(blobContents.Stream);
 
             Assert.AreEqual(lastEventId, snapshot.LastEvent);
             Assert.AreEqual(lastEventBucket, snapshot.LastBucket);
-            
-            Assert.IsTrue(snapshot.LiveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("firstObject")));
-            Assert.IsTrue(snapshot.LiveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("secondObject")));
-            Assert.IsTrue(snapshot.LiveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("thirdObject")));
-            Assert.IsTrue(snapshot.LiveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("fourthObject")));
+
+            List<ReplicationLogSnapshot.SnapshotLiveObject> liveObjects = snapshot.GetLiveObjects().ToList();
+            Assert.IsTrue(liveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("firstObject")));
+            Assert.IsTrue(liveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("secondObject")));
+            Assert.IsTrue(liveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("thirdObject")));
+            Assert.IsTrue(liveObjects.Any(o => o.Bucket == TestBucket && o.Key == IoHashKey.FromName("fourthObject")));
         }
 
 
@@ -654,7 +655,7 @@ namespace Horde.Storage.FunctionalTests.References
 
                 Assert.AreEqual(snapshotBlobId, foundSnapshot.SnapshotBlob);
                 BlobContents blobContents = await _blobStore.GetObject(SnapshotNamespace, snapshotBlobId);
-                ReplicationLogSnapshot snapshot = await ReplicationLogSnapshot.DeserializeSnapshot(blobContents.Stream);
+                ReplicationLogSnapshot snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(blobContents.Stream);
 
                 Assert.AreEqual(lastEventBucket, snapshot.LastBucket);
                 Assert.AreEqual(lastEventId, snapshot.LastEvent);
@@ -696,7 +697,7 @@ namespace Horde.Storage.FunctionalTests.References
             Assert.AreEqual(snapshotBlobId, snapshotInfo.SnapshotBlob);
 
             BlobContents blobContents = await _blobStore.GetObject(SnapshotNamespace, snapshotBlobId);
-            ReplicationLogSnapshot snapshot = await ReplicationLogSnapshot.DeserializeSnapshot(blobContents.Stream);
+            ReplicationLogSnapshot snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(blobContents.Stream);
 
             // insert more events
             await _replicationLog.InsertAddEvent(TestNamespace, TestBucket, IoHashKey.FromName("fifthObject"), objectHash, oldestTimestamp.AddDays(0.91));

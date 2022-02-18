@@ -185,7 +185,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             }
 
             // Build snapshot
-            ReplicationLogSnapshot snapshot = new ReplicationLogSnapshot(TestNamespace);
+            ReplicationLogSnapshot snapshot = ReplicationLogFactory.CreateEmptySnapshot(TestNamespace);
             foreach (ReplicationLogEvent logEvent in replicationEvents)
             {
                 snapshot.ProcessEvent(logEvent);
@@ -194,7 +194,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             byte[] snapshotContent;
             {
                 await using MemoryStream ms = new MemoryStream();
-                await snapshot.Serialize(ms);
+                snapshot.Serialize(ms);
                 snapshotContent = ms.ToArray();
             }
 
@@ -270,7 +270,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             }
             
             // Build snapshot
-            ReplicationLogSnapshot snapshot = new ReplicationLogSnapshot(TestNamespace);
+            ReplicationLogSnapshot snapshot = ReplicationLogFactory.CreateEmptySnapshot(TestNamespace);
             foreach (ReplicationLogEvent logEvent in snapshotEvents)
             {
                 snapshot.ProcessEvent(logEvent);
@@ -279,7 +279,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             byte[] snapshotContent;
             {
                 await using MemoryStream ms = new MemoryStream();
-                await snapshot.Serialize(ms);
+                snapshot.Serialize(ms);
                 snapshotContent = ms.ToArray();
             }
 
@@ -350,7 +350,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             }
 
             // Build snapshot
-            ReplicationLogSnapshot snapshot = new ReplicationLogSnapshot(TestNamespace);
+            ReplicationLogSnapshot snapshot = ReplicationLogFactory.CreateEmptySnapshot(TestNamespace);
             foreach (ReplicationLogEvent logEvent in snapshotEvents)
             {
                 snapshot.ProcessEvent(logEvent);
@@ -359,7 +359,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             byte[] snapshotContent;
             {
                 await using MemoryStream ms = new MemoryStream();
-                await snapshot.Serialize(ms);
+                snapshot.Serialize(ms);
                 snapshotContent = ms.ToArray();
             }
 

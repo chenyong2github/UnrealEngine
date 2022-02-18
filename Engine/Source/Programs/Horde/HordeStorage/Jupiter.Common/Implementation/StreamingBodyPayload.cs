@@ -60,6 +60,12 @@ namespace Jupiter.Common.Implementation
             _tempFile = new FileInfo(Path.GetTempFileName());
         }
 
+        private FilesystemBufferedPayload(FileInfo fi)
+        {
+            _tempFile = fi;
+            _length = fi.Length;
+        }
+
         public static async Task<FilesystemBufferedPayload> Create(Stream s)
         {
             FilesystemBufferedPayload payload = new FilesystemBufferedPayload();
@@ -87,6 +93,11 @@ namespace Jupiter.Common.Implementation
         public long Length
         {
             get { return _length; }
+        }
+
+        public static FilesystemBufferedPayload FromTempFile(FileInfo tempFile)
+        {
+            return new FilesystemBufferedPayload(tempFile);
         }
     }
 
