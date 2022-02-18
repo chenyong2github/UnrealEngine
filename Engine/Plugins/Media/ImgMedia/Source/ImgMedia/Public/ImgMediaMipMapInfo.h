@@ -40,8 +40,10 @@ struct FImgMediaMipMapObjectInfo
 {
 	/** Actor that is using our img sequence. */
 	TWeakObjectPtr<class AActor> Object;
-	/** Size of this object. */
+	/** Width of this object. */
 	float Width;
+	/** Height of this object. */
+	float Height;
 	/** LOD bias for the mipmap level. */
 	float LODBias;
 	/** Multiplier to apply to the distance to account for this object (e.g. its size). */
@@ -190,9 +192,10 @@ public:
 	 * Determine the size of an object.
 	 *
 	 * @param InActor Object to get the size of.
-	 * @return Size.
+	 * @param Width		Will be set to the width of the object.
+	 * @param Height	Will be set to the height of the object.
 	 */
-	IMGMEDIA_API static float GetObjectWidth(const AActor* InActor);
+	void GetObjectSize(const AActor* InActor, float& Width, float& Height);
 	
 	/**
 	 * Get information on all our cameras.

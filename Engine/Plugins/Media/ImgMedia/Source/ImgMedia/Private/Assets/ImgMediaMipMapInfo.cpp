@@ -41,12 +41,8 @@ void FImgMediaMipMapInfo::AddObject(AActor* InActor, float Width, float LODBias)
 		// Calculate dist adjust from bias.
 		Info->DistAdjust = FMath::Pow(2.0f, LODBias);
 
-		// If width < 0, then try to calculate it.
-		if (Width < 0.0f)
-		{
-			Width = GetObjectWidth(InActor);
-		}
-		Info->Width = Width;
+		// Get size of object.
+		GetObjectSize(InActor, Info->Width, Info->Height);
 
 		// Get dist adjust.
 		if (Width > 0.0f)
@@ -276,23 +272,17 @@ int FImgMediaMipMapInfo::GetMipLevelForDistance(float InDistance, const TArray<f
 	return MipLevel;
 }
 
-float FImgMediaMipMapInfo::GetObjectWidth(const AActor* InActor)
+void FImgMediaMipMapInfo::GetObjectSize(const AActor* InActor, float& Width, float& Height)
 {
 	// Get box extent of actor to calculate width from.
-	float Width = -1.0f;
+	Width = -1.0f;
 	if (InActor != nullptr)
 	{
-		const USceneComponent* RootComponent = InActor->GetRootComponent();
-		if (RootComponent != nullptr)
-		{
-			const UStaticMeshComponent* MeshComponent = Cast<const UStaticMeshComponent>(RootComponent);
-			if (MeshComponent != nullptr)
-			{
-				const UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh();
-				const FBoxSphereBounds Bounds = StaticMesh->GetBounds();
-				Width = Bounds.BoxExtent.X * 2.0f;
-			}
-		}
+		FVector BoundsOrigin;
+		FVector BoxExtent;
+		InActor->GetActorBounds(false, BoundsOrigin, BoxExtent);
+		Width = BoxExtent.Z * 2.0f;
+		Height = BoxExtent.Y * 2.0f;
 	}
 
 	// Did we get anything?
@@ -300,8 +290,7 @@ float FImgMediaMipMapInfo::GetObjectWidth(const AActor* InActor)
 	{
 		UE_LOG(LogImgMedia, Error, TEXT("FImgMediaMipMapInfo could not get size of %s."), InActor != nullptr ? *InActor->GetName() : TEXT("<nullptr>"));
 		Width = 0.0f;
+		Height = 0.0f;
 	}
-
-	return Width;
 }
 
