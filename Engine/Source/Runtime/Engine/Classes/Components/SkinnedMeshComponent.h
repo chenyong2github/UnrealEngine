@@ -239,7 +239,7 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncI
 	TObjectPtr<UMeshDeformer> MeshDeformer;
 
 	/** Object containing state for the bound MeshDeformer. */
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Deformer")
 	TObjectPtr<UMeshDeformerInstance> MeshDeformerInstance;
 
 	/** const getters for previous transform idea */
