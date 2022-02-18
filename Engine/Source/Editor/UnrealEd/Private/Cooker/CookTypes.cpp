@@ -30,12 +30,17 @@ double FCookerTimer::GetTimeTillNow() const
 {
 	return FPlatformTime::Seconds() - StartTime;
 }
-	
+
 bool FCookerTimer::IsTimeUp() const
+{
+	return IsTimeUp(FPlatformTime::Seconds());
+}
+
+bool FCookerTimer::IsTimeUp(double CurrentTimeSeconds) const
 {
 	if (bIsRealtimeMode)
 	{
-		if ((FPlatformTime::Seconds() - StartTime) > TimeSlice)
+		if ((CurrentTimeSeconds - StartTime) > TimeSlice)
 		{
 			return true;
 		}

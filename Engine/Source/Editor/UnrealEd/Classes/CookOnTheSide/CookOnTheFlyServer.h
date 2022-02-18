@@ -11,6 +11,7 @@
 #include "INetworkFileSystemModule.h"
 #include "IPlatformFileSandboxWrapper.h"
 #include "Misc/EnumClassFlags.h"
+#include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
 #include "TickableEditorObject.h"
 #include "UObject/Object.h"
@@ -157,6 +158,18 @@ public:
 	};
 
 private:
+	using FPollFunction = TUniqueFunction<void()>;
+	struct FPollable
+	{
+		FPollable(float InPeriodSeconds, float InPeriodIdleSeconds, FPollFunction&& InFunction);
+
+		FPollFunction PollFunction;
+		double NextTimeSeconds = 0.;
+		double NextTimeIdleSeconds = 0.;
+		float PeriodSeconds = 60.f;
+		float PeriodIdleSeconds = 5.f;
+	};
+
 	//////////////////////////////////////////////////////////////////////////
 	// Cook on the fly server interface adapter
 	class FCookOnTheFlyServerInterface;
@@ -311,6 +324,8 @@ private:
 		LoadLimited,	// Process the LoadQueue, stopping when loadqueuelength reaches the desired population level
 		Save,			// Process the SaveQueue
 		SaveLimited,	// Process the SaveQueue, stopping when savequeuelength reaches the desired population level
+		Poll,			// Execute pollables which have exceeded their period
+		PollIdle,		// Execute pollables which have exceeded their idle period
 		YieldTick,		// Progress is blocked by an async result. Temporarily exit TickCookOnTheSide.
 		Cancel,			// Cancel the current CookByTheBook
 	};
@@ -363,6 +378,10 @@ private:
 	 * Does not modify Cooked platforms.
 	 */
 	void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform);
+
+	void InitializePollables();
+	void PumpPollables(UE::Cook::FTickStackData& StackData, bool bIsIdle);
+	void PollFlushRenderingCommands();
 
 public:
 
@@ -1134,6 +1153,13 @@ private:
 	UE::Cook::FPackageData* SavingPackageData = nullptr;
 	/** Helper struct for running cooking in diagnostic modes */
 	TUniquePtr<FDiffModeCookServerUtils> DiffModeHelper;
+
+	TArray<FPollable> Pollables;
+	double PollNextTimeSeconds = 0.;
+	double PollNextTimeIdleSeconds = 0.;
+	int32 PollStartIndex = 0;
+	float PumpPollablesTimeSlice = 0.f;
+	float PumpPollablesMinPeriod = 0.f;
 
 	friend UE::Cook::FPackageData;
 	friend UE::Cook::FPendingCookedPlatformData;

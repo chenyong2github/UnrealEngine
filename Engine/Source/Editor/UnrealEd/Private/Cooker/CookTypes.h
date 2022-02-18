@@ -138,6 +138,7 @@ namespace UE::Cook
 
 		double GetTimeTillNow() const;
 		bool IsTimeUp() const;
+		bool IsTimeUp(double CurrentTimeSeconds) const;
 		void SavedPackage();
 		double GetTimeRemain() const;
 

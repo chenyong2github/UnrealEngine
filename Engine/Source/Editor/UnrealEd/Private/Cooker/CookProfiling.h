@@ -126,6 +126,7 @@ namespace DetailedCookStats
 	extern double TickCookOnTheSideBeginPrepareSaveTimeSec;
 	extern double TickCookOnTheSideFinishPrepareSaveTimeSec;
 	extern double GameCookModificationDelegateTimeSec;
+	extern double TickLoopFlushRenderingCommandsTimeSec;
 
 	// Stats tracked through FAutoRegisterCallback
 	extern uint32 NumPreloadedDependencies;
