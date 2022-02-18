@@ -20,16 +20,44 @@
 #define SUBPIXEL_DILATE				0	// To correct for mismatch with HW rasterizer
 
 #if HAS_RASTER_BIN
+
 uint ActiveRasterizerBin;
-StructuredBuffer<uint2> RasterizerBinData;
 
 // .x = count of SW clusters in bin
 // .y = count of HW clusters in bin
 // .z = offset of contiguous cluster range in global buffer
-// .w
+// .w = unused (TODO: PROG_RASTER - HW vs SW offsets)
 StructuredBuffer<uint4> RasterizerBinHeaders;
 
-ByteAddressBuffer MaterialSlotTable;
+StructuredBuffer<uint2> RasterizerBinData;
+
+// .x = VisibleIndex
+// .y = RangeStart
+// .z = RangeEnd
+uint3 FetchSWRasterizerBin(const uint ClusterIndex)
+{
+	const uint RasterBinOffset		= RasterizerBinHeaders[ActiveRasterizerBin].z;
+	const uint2 PackedData			= RasterizerBinData[RasterBinOffset + ClusterIndex].xy;
+	const uint VisibleIndex			= PackedData.x;
+	const uint RangeStart			= PackedData.y >> 16u;
+	const uint RangeEnd				= PackedData.y & 0xFFFFu;
+	return uint3(VisibleIndex, RangeStart, RangeEnd);
+}
+
+// .x = VisibleIndex
+// .y = RangeStart
+// .z = RangeEnd
+uint3 FetchHWRasterizerBin(const uint ClusterIndex)
+{
+	const uint RasterBinOffset		= RasterizerBinHeaders[ActiveRasterizerBin].z;
+	const uint RasterBinCapacity	= RasterizerBinHeaders[ActiveRasterizerBin].x + RasterizerBinHeaders[ActiveRasterizerBin].y; // SW + HW
+	const uint2 PackedData			= RasterizerBinData[RasterBinOffset + ((RasterBinCapacity - 1) - ClusterIndex)].xy; // HW clusters are written from the top
+	const uint VisibleIndex			= PackedData.x;
+	const uint RangeStart			= PackedData.y >> 16u;
+	const uint RangeEnd				= PackedData.y & 0xFFFFu;
+	return uint3(VisibleIndex, RangeStart, RangeEnd);
+}
+
 #endif
 
 #if VISUALIZE
@@ -584,8 +612,8 @@ void MicropolyRasterize(
 	uint	GroupIndex		: SV_GroupIndex) 
 {
 #if HAS_RASTER_BIN
-	const uint RasterBinOffset = RasterizerBinHeaders[ActiveRasterizerBin].z;
-	VisibleIndex = RasterizerBinData[RasterBinOffset + VisibleIndex].x;
+	const uint3 RasterBin = FetchSWRasterizerBin(VisibleIndex);
+	VisibleIndex = RasterBin.x;
 #endif
 
 #if HAS_PREV_DRAW_DATA
@@ -667,10 +695,10 @@ void MicropolyRasterize(
 	{
 		uint TriIndex = GroupIndex + j * 64;
 	#if HAS_RASTER_BIN
-		const uint RasterizerBin = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 		BRANCH
-		if (RasterizerBin != ActiveRasterizerBin)
+		if (TriIndex < RasterBin.y || TriIndex >= RasterBin.z)
 		{
+			// Tri not contained in active rasterizer bin
 			continue;
 		}
 	#endif
@@ -881,10 +909,8 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 	uint VisibleIndex = GroupClusterIndex;
 #if HAS_RASTER_BIN
-	const uint RasterBinOffset = RasterizerBinHeaders[ActiveRasterizerBin].z;
-	const uint RasterBinCapacity = RasterizerBinHeaders[ActiveRasterizerBin].x + RasterizerBinHeaders[ActiveRasterizerBin].y; // SW + HW
-	VisibleIndex = (RasterBinCapacity - 1) - VisibleIndex; // HW clusters are written from the top
-	VisibleIndex = RasterizerBinData[RasterBinOffset + VisibleIndex].x;
+	const uint3 RasterBin = FetchHWRasterizerBin(VisibleIndex);
+	VisibleIndex = RasterBin.x;
 #endif
 #if HAS_PREV_DRAW_DATA
 	VisibleIndex += InTotalPrevDrawClusters[0].y;
@@ -924,15 +950,9 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 		uint TriangleID = GroupThreadID;
 
 		bool bValidTriangle = true;
-		uint3 TriangleIndices = uint3(0u, 0u, 0u); // TODO: PROG_RASTER: Not safe to skip triangles here
+		uint3 TriangleIndices = uint3(0u, 0u, 0u);
 	#if HAS_RASTER_BIN
-		const uint RasterizerBin = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriangleID, MaterialSlotTable);
-		BRANCH
-		if (RasterizerBin != ActiveRasterizerBin)
-		{
-			bValidTriangle = false;
-		}
-		else
+		if (TriangleID >= RasterBin.y && TriangleID < RasterBin.z) // TODO: PROG_RASTER: Not safe to skip triangles here
 	#endif
 		{
 			TriangleIndices = ReadTriangleIndices(Cluster, TriangleID);
@@ -996,10 +1016,8 @@ void HWRasterizeMS(
 {
 	uint VisibleIndex = GroupID;
 #if HAS_RASTER_BIN
-	const uint RasterBinOffset = RasterizerBinHeaders[ActiveRasterizerBin].z;
-	const uint RasterBinCapacity = RasterizerBinHeaders[ActiveRasterizerBin].x + RasterizerBinHeaders[ActiveRasterizerBin].y; // SW + HW
-	VisibleIndex = (RasterBinCapacity - 1) - VisibleIndex; // HW clusters are written from the top
-	VisibleIndex = RasterizerBinData[RasterBinOffset + VisibleIndex].x;
+	const uint3 RasterBin = FetchHWRasterizerBin(VisibleIndex);
+	VisibleIndex = RasterBin.x;
 #endif
 #if HAS_PREV_DRAW_DATA
 	VisibleIndex += InTotalPrevDrawClusters[0].y;
@@ -1024,10 +1042,10 @@ void HWRasterizeMS(
 		bool bValidTriangle = true;
 		uint3 TriangleIndices = uint3(0u, 0u, 0u);
 	#if HAS_RASTER_BIN
-		const uint RasterizerBin = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriangleIndex, MaterialSlotTable);
 		BRANCH
-		if (RasterizerBin != ActiveRasterizerBin)
+		if (TriangleIndex < RasterBin.y || TriangleIndex >= RasterBin.z)
 		{
+			// Tri not contained in active rasterizer bin
 			bValidTriangle = false;
 		}
 		else
@@ -1081,10 +1099,8 @@ VSOut HWRasterizeVS(
 	)
 {
 #if HAS_RASTER_BIN
-	const uint RasterBinOffset = RasterizerBinHeaders[ActiveRasterizerBin].z;
-	const uint RasterBinCapacity = RasterizerBinHeaders[ActiveRasterizerBin].x + RasterizerBinHeaders[ActiveRasterizerBin].y; // SW + HW
-	VisibleIndex = (RasterBinCapacity - 1) - VisibleIndex; // HW clusters are written from the top (in each raster bin)
-	VisibleIndex = RasterizerBinData[RasterBinOffset + VisibleIndex].x;
+	const uint3 RasterBin = FetchHWRasterizerBin(VisibleIndex);
+	VisibleIndex = RasterBin.x;
 #endif
 
 #if HAS_PREV_DRAW_DATA
@@ -1117,13 +1133,8 @@ VSOut HWRasterizeVS(
 		bool bValidTriangle = true;
 		uint3 TriangleIndices = uint3(0u, 0u, 0u);
 	#if HAS_RASTER_BIN
-		const uint RasterizerBin = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 		BRANCH
-		if (RasterizerBin != ActiveRasterizerBin)
-		{
-			bValidTriangle = false;
-		}
-		else
+		if (TriIndex >= RasterBin.y && TriIndex < RasterBin.z)
 	#endif
 		{
 			TriangleIndices = ReadTriangleIndices(Cluster, TriIndex);

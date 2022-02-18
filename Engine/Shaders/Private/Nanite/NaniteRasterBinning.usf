@@ -163,6 +163,17 @@ uint2 GetClassifyClusterOffsetAndCount()
 
 #endif
 
+void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart, uint RangeEnd)
+{
+#if RASTER_BIN_CLASSIFY
+	IncrementRasterizerBinCount(RasterizerBin);
+#elif RASTER_BIN_SCATTER
+	const uint BinClusterMapping = AllocateRasterizerBinCluster(RasterizerBin);
+	OutRasterizerBinData[BinClusterMapping].x = ClusterIndex;
+	OutRasterizerBinData[BinClusterMapping].y = (RangeStart << 16u) | RangeEnd;
+#endif
+}
+
 [numthreads(64, 1, 1)]
 void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID)
 {
@@ -191,53 +202,77 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID)
 			uint RasterizerBin1 = 0;
 			uint RasterizerBin2 = 0;
 
+			uint RasterizerLen0 = 0;
+			uint RasterizerLen1 = 0;
+			uint RasterizerLen2 = 0;
+
+			// Length is remaining triangles after Material0 and Material1
+			const uint Material2Length = Cluster.NumTris - (Cluster.Material0Length + Cluster.Material1Length);
+
 			// The 0th material range is always non-zero length
 			{
 				RasterizerBin0 = GetMaterialRasterSlotFromIndex(Cluster.Material0Index, InstanceData.PrimitiveId, MaterialSlotTable);
-			#if RASTER_BIN_CLASSIFY
-				IncrementRasterizerBinCount(RasterizerBin0);
-			#elif RASTER_BIN_SCATTER
-				const uint Bin0ClusterIndex = AllocateRasterizerBinCluster(RasterizerBin0);
-				OutRasterizerBinData[Bin0ClusterIndex].x = RelativeClusterIndex;
-				OutRasterizerBinData[Bin0ClusterIndex].y = 0; // TODO: Add triangle range
-			#endif
 			}
 
 			BRANCH
 			if (Cluster.Material1Length > 0u)
 			{
 				RasterizerBin1 = GetMaterialRasterSlotFromIndex(Cluster.Material1Index, InstanceData.PrimitiveId, MaterialSlotTable);
-				if (RasterizerBin1 != RasterizerBin0)
-				{
-				#if RASTER_BIN_CLASSIFY
-					IncrementRasterizerBinCount(RasterizerBin1);
-				#elif RASTER_BIN_SCATTER
-					const uint Bin1ClusterIndex = AllocateRasterizerBinCluster(RasterizerBin1);
-					OutRasterizerBinData[Bin1ClusterIndex].x = RelativeClusterIndex;
-					OutRasterizerBinData[Bin1ClusterIndex].y = 0; // TODO: Add triangle range
-				#endif
-				}
 			}
 
 			BRANCH
-			if ((Cluster.Material0Length + Cluster.Material1Length) < Cluster.NumTris) // Length is remaining triangles after Material0 and Material1
+			if (Material2Length > 0)
 			{
 				RasterizerBin2 = GetMaterialRasterSlotFromIndex(Cluster.Material2Index, InstanceData.PrimitiveId, MaterialSlotTable);
-				if (RasterizerBin2 != RasterizerBin0 && RasterizerBin2 != RasterizerBin1)
-				{
-				#if RASTER_BIN_CLASSIFY
-					IncrementRasterizerBinCount(RasterizerBin2);
-				#elif RASTER_BIN_SCATTER
-					const uint Bin2ClusterIndex = AllocateRasterizerBinCluster(RasterizerBin2);
-					OutRasterizerBinData[Bin2ClusterIndex].x = RelativeClusterIndex;
-					OutRasterizerBinData[Bin2ClusterIndex].y = 0; // TODO: Add triangle range
-				#endif
-				}
+			}
+
+			if (RasterizerBin0 == RasterizerBin1 && RasterizerBin0 == RasterizerBin2)
+			{
+				RasterizerLen0 = Cluster.NumTris;
+			}
+			else if (RasterizerBin0 == RasterizerBin1)
+			{
+				RasterizerLen0 = (Cluster.Material0Length + Cluster.Material1Length);
+				RasterizerLen2 = Material2Length;
+			}
+			else if (RasterizerBin1 == RasterizerBin2)
+			{
+				RasterizerLen0 = Cluster.Material0Length;
+				RasterizerLen1 = Cluster.NumTris - Cluster.Material0Length;
+			}
+			else
+			{
+				RasterizerLen0 = Cluster.Material0Length;
+				RasterizerLen1 = Cluster.Material1Length;
+				RasterizerLen2 = Material2Length;
+			}
+
+			// The 0th material range is always non-zero length
+			{
+				ExportRasterizerBin(RasterizerBin0, RelativeClusterIndex, 0u, RasterizerLen0);
+			}
+
+			BRANCH
+			if (RasterizerLen1 > 0)
+			{
+				const uint Range1Start = RasterizerLen0;
+				const uint Range1End   = Range1Start + RasterizerLen1;
+				ExportRasterizerBin(RasterizerBin1, RelativeClusterIndex, Range1Start, Range1End);
+			}
+
+			BRANCH
+			if (RasterizerLen2 > 0)
+			{
+				const uint Range2Start = (RasterizerLen0 + RasterizerLen1);
+				const uint Range2End   = Range2Start + RasterizerLen2;
+				ExportRasterizerBin(RasterizerBin2, RelativeClusterIndex, Range2Start, Range2End);
 			}
 		}
 		else
 		{
-			uint LastSeen = 0xFFFFFFFFu;
+			uint CurrentRangeBin = 0xFFFFFFFFu;
+			uint CurrentRangeStart = 0;
+			uint CurrentRangeEnd = 0;
 
 			uint TableOffset = Cluster.PageBaseAddress + Cluster.MaterialTableOffset * 4u;
 			LOOP for (uint TableEntry = 0; TableEntry < Cluster.MaterialTableLength; ++TableEntry)
@@ -245,40 +280,35 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID)
 				const uint EncodedRange = ClusterPageData.Load(TableOffset);
 				TableOffset += 4;
 
+				const uint TriStart			= BitFieldExtractU32(EncodedRange, 8, 0);
+				const uint TriLength		= BitFieldExtractU32(EncodedRange, 8, 8);
 				const uint MaterialIndex	= BitFieldExtractU32(EncodedRange, 6, 16);
 				const uint RasterizerBinN	= GetMaterialRasterSlotFromIndex(MaterialIndex, InstanceData.PrimitiveId, MaterialSlotTable);
-				
-				BRANCH
-				if (RasterizerBinN != LastSeen)
+
+				// Check if raster slot matches the current run, and that the triangle range is contiguous.
+				const bool bMergeRange = (RasterizerBinN == CurrentRangeBin);
+				if (bMergeRange)
 				{
-					uint CheckTableOffset = Cluster.PageBaseAddress + Cluster.MaterialTableOffset * 4u;
-					LOOP for (uint CheckTableEntry = 0; (CheckTableEntry < TableEntry && RasterizerBinN != LastSeen); ++CheckTableEntry)
-					{
-						const uint CheckEncodedRange = ClusterPageData.Load(CheckTableOffset);
-						CheckTableOffset += 4;
-
-						const uint CheckMaterialIndex	= BitFieldExtractU32(CheckEncodedRange, 6, 16);
-						const uint CheckRasterizerBinN	= GetMaterialRasterSlotFromIndex(CheckMaterialIndex, InstanceData.PrimitiveId, MaterialSlotTable);
-						if (CheckRasterizerBinN == RasterizerBinN)
-						{
-							LastSeen = RasterizerBinN;
-						}
-					}
-
+					// Update current range
+					CurrentRangeEnd = TriStart + TriLength;
+				}
+				else
+				{
+					// Not merging previous range, and previous range has valid triangles that need to be flushed
 					BRANCH
-					if (RasterizerBinN != LastSeen)
+					if (CurrentRangeEnd > 0)
 					{
-					#if RASTER_BIN_CLASSIFY
-						IncrementRasterizerBinCount(RasterizerBinN);
-					#elif RASTER_BIN_SCATTER
-						const uint BinNClusterIndex = AllocateRasterizerBinCluster(RasterizerBinN);
-						OutRasterizerBinData[BinNClusterIndex].x = RelativeClusterIndex;
-						OutRasterizerBinData[BinNClusterIndex].y = 0; // TODO: Add triangle range
-					#endif
-						LastSeen = RasterizerBinN;
+						ExportRasterizerBin(CurrentRangeBin, RelativeClusterIndex, CurrentRangeStart, CurrentRangeEnd);
 					}
+
+					CurrentRangeBin   = RasterizerBinN;
+					CurrentRangeStart = TriStart;
+					CurrentRangeEnd   = CurrentRangeStart + TriLength;
 				}
 			}
+
+			// Need to flush current range
+			ExportRasterizerBin(CurrentRangeBin, RelativeClusterIndex, CurrentRangeStart, CurrentRangeEnd);
 		}
 	}
 }
