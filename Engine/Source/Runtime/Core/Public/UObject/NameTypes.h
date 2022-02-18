@@ -75,14 +75,19 @@ struct FNameEntryId
 		return Ename == NAME_None ? FNameEntryId() : FromValidEName(Ename);
 	}
 
+	friend inline bool operator==(FNameEntryId Id, EName Ename)
+	{
+		return Ename == NAME_None ? !Id : Id == FromValidENamePostInit(Ename);
+	}
+
 private:
 	uint32 Value;
 
 	CORE_API static FNameEntryId FromValidEName(EName Ename);
+	CORE_API static FNameEntryId FromValidENamePostInit(EName Ename);
 };
 
 CORE_API uint32 GetTypeHash(FNameEntryId Id);
-CORE_API bool operator==(FNameEntryId Id, EName Ename);
 inline bool operator==(EName Ename, FNameEntryId Id) { return Id == Ename; }
 inline bool operator!=(EName Ename, FNameEntryId Id) { return !(Id == Ename); }
 inline bool operator!=(FNameEntryId Id, EName Ename) { return !(Id == Ename); }

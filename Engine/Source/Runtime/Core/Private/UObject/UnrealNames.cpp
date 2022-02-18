@@ -1304,11 +1304,6 @@ static FNamePool& GetNamePoolPostInit()
 	return (FNamePool&)NamePoolData;
 }
 
-bool operator==(FNameEntryId Id, EName Ename)
-{
-	return Ename == NAME_None ? !Id : Id == GetNamePoolPostInit().Find(Ename);
-}
-
 static int32 CompareDifferentIdsAlphabetically(FNameEntryId AId, FNameEntryId BId)
 {
 	checkSlow(AId != BId);
@@ -2800,6 +2795,10 @@ FNameEntryId FNameEntryId::FromValidEName(EName Ename)
 	return GetNamePool().Find(Ename);
 }
 
+FNameEntryId FNameEntryId::FromValidENamePostInit(EName Ename)
+{
+	return GetNamePoolPostInit().Find(Ename);
+}
 
 void FName::TearDown()
 {
