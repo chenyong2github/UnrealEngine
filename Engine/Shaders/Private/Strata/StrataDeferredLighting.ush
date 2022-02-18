@@ -4,14 +4,6 @@
 
 #include "../AreaLightCommon.ush"
 
-#ifndef STRATA_FASTPATH 
-#define STRATA_FASTPATH 0
-#endif
-
-#ifndef STRATA_SINGLEPATH 
-#define STRATA_SINGLEPATH 0
-#endif
-
 float4 StrataReadPrecomputedShadowFactors(FStrataPixelHeader StrataPixelHeader, int2 PixelPos, Texture2D PrecomputedShadowTexture)
 {
 	if (HasPrecShadowMask(StrataPixelHeader))
@@ -44,17 +36,11 @@ float4 StrataDeferredLighting(
 
 	FRectTexture RectTexture = InitRectTexture(LightData);
 
-#if STRATA_FASTPATH == 0 && STRATA_SINGLEPATH == 0
-	LOOP
-	for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
-#endif
+	Strata_for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 	{
 		// Unpack BSDF data
-#if STRATA_FASTPATH
-		FStrataBSDF BSDF = UnpackFastPathStrataBSDFIn(MaterialBuffer, StrataAddressing, StrataPixelHeader);
-#else
-		FStrataBSDF BSDF = UnpackStrataBSDFIn(MaterialBuffer, StrataAddressing, StrataPixelHeader);
-#endif
+		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);
+
 		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V, L);
 
 		float Roughness = StrataGetBSDFRoughness(BSDFContext.BSDF);

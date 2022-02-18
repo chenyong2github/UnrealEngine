@@ -2,14 +2,6 @@
 
 #pragma once
 
-#ifndef STRATA_FASTPATH 
-#define STRATA_FASTPATH 0
-#endif
-
-#ifndef STRATA_SINGLEPATH 
-#define STRATA_SINGLEPATH 0
-#endif
-
 // Env. lighting evaluation for strata material.
 // Unpack BSDF on-the-fly
 float4 StrataEnvironmentLighting(
@@ -52,15 +44,10 @@ float4 StrataEnvironmentLighting(
 	uint NumCulledReflectionCaptures = 0;
 #endif
 
-#if STRATA_FASTPATH == 0 && STRATA_SINGLEPATH == 0
-	for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
-#endif
+	Strata_for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 	{
-	#if STRATA_FASTPATH
-		FStrataBSDF BSDF = UnpackFastPathStrataBSDFIn(MaterialBuffer, StrataAddressing, StrataPixelHeader);
-	#else
-		FStrataBSDF BSDF = UnpackStrataBSDFIn(MaterialBuffer, StrataAddressing, StrataPixelHeader);
-	#endif
+		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);
+
 		const float3 BSDFThroughput = BSDF.LuminanceWeight;
 
 		// Create the BSDF context

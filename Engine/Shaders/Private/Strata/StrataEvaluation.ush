@@ -19,6 +19,10 @@
 #define STRATA_FASTPATH 0
 #endif
 
+#ifndef STRATA_SINGLE 
+#define STRATA_SINGLE 0
+#endif
+
 #ifndef STRATA_TRANSLUCENT_ENABLED
 #define STRATA_TRANSLUCENT_ENABLED 0
 #endif
@@ -35,6 +39,28 @@
 #define STRATA_SSS_TRANSMISSION 0
 #endif
 
+///////////////////////////////////////////////////////////////////////////////
+// Strata Macros for reducing permutation boiler plate
+// 
+// This allows to write a loop over all BSDFs as follow and support permutations
+//
+// Strata_for(uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
+// {
+//		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);
+//		...
+// }
+#if STRATA_FASTPATH == 0 && STRATA_SINGLEPATH == 0
+	#define Strata_for(X) for(X)
+#else
+	#define Strata_for(X) 
+#endif
+
+#if STRATA_FASTPATH
+	#define UnpackStrataBSDF(X, Y, Z) UnpackFastPathStrataBSDFIn(X, Y, Z)
+#else
+	#define UnpackStrataBSDF(X, Y, Z) UnpackStrataBSDFIn(X, Y, Z)
+#endif
+
 // STRATA_TODO put in a common file
 // Point lobe in off-specular peak direction
 float3 StrataGetOffSpecularPeakReflectionDir(float3 Normal, float3 ReflectionVector, float Roughness)
@@ -45,7 +71,6 @@ float3 StrataGetOffSpecularPeakReflectionDir(float3 Normal, float3 ReflectionVec
 
 // When haziness is used, both lobes take equal part in the blending. Only roughness changes.
 #define SPECULAR_HAZINESS_WEIGHT 0.5f
-
 
 
 ///////////////////////////////////////////////////////////////////////////////
