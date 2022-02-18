@@ -2445,7 +2445,7 @@ FString FRigVMParserAST::DumpDot() const
 					}
 					else
 					{
-						Label = InExpr->To<FRigVMVarExprAST>()->GetPin()->GetName();
+						Label = InExpr->To<FRigVMVarExprAST>()->GetPin()->GetPinPath(true);
 					}
 						
 					if (InExpr->To<FRigVMVarExprAST>()->IsExecuteContext())
