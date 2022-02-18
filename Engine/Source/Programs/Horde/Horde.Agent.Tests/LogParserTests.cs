@@ -983,7 +983,7 @@ namespace HordeAgentTests
 				@"LogFort: Error: Serialized Class /Script/Engine.AnimSequence for a property of Class /Script/Engine.BlendSpace. Reference will be nullptred.",
 				@"    Property = ObjectProperty /Game/Animation/Game/Enemies/HuskHusky/HuskyHusk_AnimBlueprint.HuskyHusk_AnimBlueprint_C:AnimBlueprintGeneratedConstantData:ObjectProperty_358",
 				@"    Item = AnimSequence /Game/Animation/Game/Enemies/HuskyHusk_Riot/Locomotion/Idle/Idle_Shield.Idle_Shield",
-				@"LogDataAssetDirectoryExporter: Display: 'PlatformBlacklist' property is of type: string",
+				@"LogDataAssetDirectoryExporter: Display: 'Platform' property is of type: string",
 				@"Took 0.17187880000000003s to run p4.exe, ExitCode=0"
 			};
 
