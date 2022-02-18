@@ -200,8 +200,9 @@ public:
 	 * to the bulkdata object.
 	 *
 	 * @param InPayload	The payload that this bulkdata object should reference. @see FSharedBuffer
+	 * @param Owner The object that owns the bulkdata, or null to not associate with a UObject.
 	 */
-	void UpdatePayload(FSharedBuffer InPayload);
+	void UpdatePayload(FSharedBuffer InPayload, UObject* Owner = nullptr);
 
 	/**
 	 * Utility struct used to compute the Payload ID before calling UpdatePayload
@@ -237,9 +238,10 @@ public:
 	 * 
 	 * Use this override if you want compute PayloadId before updating the bulkdata
 	 *
-	 * @param InPayload				The payload to update the bulkdata with
+	 * @param InPayload	The payload to update the bulkdata with
+	 * @param Owner The object that owns the bulkdata, or null to not associate with a UObject.
 	 */
-	void UpdatePayload(FSharedBufferWithID InPayload);
+	void UpdatePayload(FSharedBufferWithID InPayload, UObject* Owner = nullptr);
 
 	/** 
 	 * Sets the compression options to be applied to the payload during serialization.
@@ -364,7 +366,7 @@ private:
 	/** The new path that saves payloads to the FPackageTrailer which is then appended to the end of the package file */
 	void SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner);
 
-	void UpdatePayloadImpl(FSharedBuffer&& InPayload, FIoHash&& InPayloadID);
+	void UpdatePayloadImpl(FSharedBuffer&& InPayload, FIoHash&& InPayloadID, UObject* Owner);
 
 	FCompressedBuffer GetDataInternal() const;
 

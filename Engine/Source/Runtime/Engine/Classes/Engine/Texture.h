@@ -361,6 +361,8 @@ struct FTextureSource
 	FORCEINLINE uint8* LockMip(int32 MipIndex) { return LockMip(0, 0, MipIndex); }
 	FORCEINLINE void UnlockMip(int32 MipIndex) { UnlockMip(0, 0, MipIndex); }
 
+	inline void SetOwner(UTexture* InOwner) { Owner = InOwner; }
+
 	struct FMipAllocation
 	{
 		/** Create an empty object */
@@ -461,6 +463,8 @@ private:
 #if WITH_EDITOR
 	/** Protects simultaneous access to BulkData */
 	TDontCopy<FRWLock> BulkDataLock;
+	/** Owner for associating BulkData with a package */
+	UTexture* Owner;
 #endif
 	/** The bulk source data. */
 	UE::Serialization::FEditorBulkData BulkData;

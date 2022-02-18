@@ -132,6 +132,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	CompressionYCoCg = 0;
 	Downscale = 0.f;
 	DownscaleOptions = ETextureDownscaleOptions::Default;
+	Source.SetOwner(this);
 #endif // #if WITH_EDITORONLY_DATA
 
 	if (FApp::CanEverRender() && !IsTemplate())
@@ -1180,7 +1181,11 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(const FTexture
 ------------------------------------------------------------------------------*/
 
 FTextureSource::FTextureSource()
-	: NumLockedMips(0u)
+	: 
+#if WITH_EDITOR
+	  Owner(nullptr),
+#endif
+	  NumLockedMips(0u)
 	, LockState(ELockState::None)
 #if WITH_EDITOR
 	, bHasHadBulkDataCleared(false)
@@ -1260,7 +1265,7 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 		}
 	}
 
-	BulkData.UpdatePayload(Buffer.MoveToShared());
+	BulkData.UpdatePayload(Buffer.MoveToShared(), Owner);
 	BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
 }
 
@@ -1272,7 +1277,7 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 {
 	InitBlockedImpl(InLayerFormats, InBlocks, InNumLayers, InNumBlocks);
 
-	BulkData.UpdatePayload(MoveTemp(NewData));
+	BulkData.UpdatePayload(MoveTemp(NewData), Owner);
 	BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
 }
 
@@ -1305,11 +1310,11 @@ void FTextureSource::InitLayered(
 	// it serves no purpose. Given a choice I'd assert on NewData == nullptr instead.
 	if (NewData != nullptr)
 	{
-		BulkData.UpdatePayload(FSharedBuffer::Clone(NewData, TotalBytes));
+		BulkData.UpdatePayload(FSharedBuffer::Clone(NewData, TotalBytes), Owner);
 	}
 	else
 	{
-		BulkData.UpdatePayload(FUniqueBuffer::Alloc(TotalBytes).MoveToShared());
+		BulkData.UpdatePayload(FUniqueBuffer::Alloc(TotalBytes).MoveToShared(), Owner);
 	}
 
 	BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
@@ -1333,7 +1338,7 @@ void FTextureSource::InitLayered(
 		NewLayerFormat
 	);
 
-	BulkData.UpdatePayload(MoveTemp(NewData));
+	BulkData.UpdatePayload(MoveTemp(NewData), Owner);
 	BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
 }
 
@@ -1419,7 +1424,7 @@ void FTextureSource::InitWithCompressedSourceData(
 
 	checkf(LockState == ELockState::None, TEXT("InitWithCompressedSourceData shouldn't be called in-between LockMip/UnlockMip"));
 
-	BulkData.UpdatePayload(FSharedBuffer::Clone(NewData.GetData(), NewData.Num()));
+	BulkData.UpdatePayload(FSharedBuffer::Clone(NewData.GetData(), NewData.Num()), Owner);
 
 	// Disable the internal bulkdata compression if the source data is already compressed
 	if (CompressionFormat == TSCF_None)
@@ -1439,6 +1444,7 @@ FTextureSource FTextureSource::CopyTornOff() const
 	Result.BulkData.TearOff();
 	// Use the default copy constructor to copy all the fields without having to write them manually
 	Result = *this;
+	Result.Owner = nullptr; // TornOffs don't count as belonging to the same owner
 	return Result;
 }
 
@@ -1475,7 +1481,7 @@ void FTextureSource::Compress()
 			TArray64<uint8> CompressedData = ImageWrapper->GetCompressed(PngQuality);
 			if ( CompressedData.Num() > 0 )
 			{
-				BulkData.UpdatePayload(MakeSharedBufferFromArray(MoveTemp(CompressedData)));
+				BulkData.UpdatePayload(MakeSharedBufferFromArray(MoveTemp(CompressedData)), Owner);
 
 				bPNGCompressed = true;
 				CompressionFormat = TSCF_PNG;
@@ -1590,7 +1596,7 @@ void FTextureSource::UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 		{
 			UE_CLOG(CompressionFormat == TSCF_JPEG, LogTexture, Warning, TEXT("Call to FTextureSource::UnlockMip will cause texture source to lose it's jpeg storage format"));
 
-			BulkData.UpdatePayload(LockedMipData.Release());
+			BulkData.UpdatePayload(LockedMipData.Release(), Owner);
 			BulkData.SetCompressionOptions(UE::Serialization::ECompressionOptions::Default);
 
 			bPNGCompressed = false;
@@ -1928,7 +1934,7 @@ void FTextureSource::ImportCustomProperties(const TCHAR* SourceText, FFeedbackCo
 			
 			if (bSuccess)
 			{
-				BulkData.UpdatePayload(Buffer.MoveToShared());
+				BulkData.UpdatePayload(Buffer.MoveToShared(), Owner);
 			}
 		}
 
