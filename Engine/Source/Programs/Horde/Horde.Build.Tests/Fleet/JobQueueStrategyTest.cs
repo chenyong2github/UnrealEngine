@@ -43,6 +43,12 @@ namespace Horde.Build.Tests.Fleet
 		}
 		
 		[TestMethod]
+		public async Task NoAgentsInPool()
+		{
+			await AssertAgentCount(1, 1, true, 0);
+		}
+		
+		[TestMethod]
 		public async Task BatchesNotWaitingLongEnough()
 		{
 			await AssertAgentCount(3, -1, false);
@@ -66,9 +72,9 @@ namespace Horde.Build.Tests.Fleet
 			await AssertAgentCount(25, 6);
 		}
 
-		public async Task AssertAgentCount(int NumBatchesReady, int ExpectedAgentDelta, bool WaitedBeyondThreshold = true)
+		public async Task AssertAgentCount(int NumBatchesReady, int ExpectedAgentDelta, bool WaitedBeyondThreshold = true, int NumAgents = 10)
 		{
-			(JobQueueStrategy Strategy, PoolSizeData PoolSizeData) = await SetUpJobsAsync(1, NumBatchesReady);
+			(JobQueueStrategy Strategy, PoolSizeData PoolSizeData) = await SetUpJobsAsync(1, NumBatchesReady, NumAgents);
 			TimeSpan TimeToWait = WaitedBeyondThreshold
 				? Strategy.ReadyTimeThreshold + TimeSpan.FromSeconds(5)
 				: TimeSpan.FromSeconds(15);
@@ -85,11 +91,11 @@ namespace Horde.Build.Tests.Fleet
 		/// </summary>
 		/// <param name="NumBatchesRunning">Num of job batches that should be in state running</param>
 		/// <param name="NumBatchesReady">Num of job batches that should be in state waiting</param>
-		private async Task<(JobQueueStrategy, PoolSizeData)> SetUpJobsAsync(int NumBatchesRunning, int NumBatchesReady)
+		private async Task<(JobQueueStrategy, PoolSizeData)> SetUpJobsAsync(int NumBatchesRunning, int NumBatchesReady, int NumAgents = 10)
 		{
 			IPool Pool1 = await PoolService.CreatePoolAsync("bogusPool1", null, true, 0, 0);
 			List<IAgent> Agents = new();
-			for (int i = 0; i < 10; i++)
+			for (int i = 0; i < NumAgents; i++)
 			{
 				Agents.Add(await CreateAgentAsync(Pool1));
 			}

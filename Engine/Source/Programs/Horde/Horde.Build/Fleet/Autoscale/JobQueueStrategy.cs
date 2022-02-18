@@ -48,7 +48,7 @@ namespace Horde.Build.Fleet.Autoscale
 		///
 		/// Useful to avoid a very small queue size triggering any scaling. 
 		/// </summary>
-		private readonly int MinQueueSizeForScaleOut = 3;
+		private readonly int MinQueueSizeForScaleOut = 0;
 
 		/// <summary>
 		/// Factor translating queue size to additional agents to grow the pool with
@@ -148,6 +148,16 @@ namespace Horde.Build.Fleet.Autoscale
 				if (QueueSize > 0)
 				{
 					int AdditionalAgentCount = (int)Math.Round(QueueSize * ScaleOutFactor);
+
+					int NumAgentsEnabled = Current.Agents.Count(x => x.Enabled);
+					if (NumAgentsEnabled == 0)
+					{
+						// Ensure pool can grow even if no agents are online combined with low queue count
+						// A low queue count with default scale out factor will yield an increase below 0.5,
+						// which is rounded down (see above).
+						AdditionalAgentCount = Math.Max(AdditionalAgentCount, 1);	
+					}
+					
 					if (QueueSize < MinQueueSizeForScaleOut)
 						AdditionalAgentCount = 0;
 
