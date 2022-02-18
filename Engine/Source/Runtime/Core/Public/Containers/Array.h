@@ -29,7 +29,6 @@
 
 #include <type_traits>
 
-
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
 	#define TARRAY_RANGED_FOR_CHECKS 0
 #else
@@ -41,6 +40,10 @@ template<> struct TCanBulkSerialize<unsigned int> { enum { Value = true }; };
 template<> struct TCanBulkSerialize<unsigned short> { enum { Value = true }; };
 template<> struct TCanBulkSerialize<int> { enum { Value = true }; };
 
+// Forward declarations
+
+template <typename T, typename AllocatorType> inline void* operator new(size_t Size, TArray<T, AllocatorType>& Array);
+template <typename T, typename AllocatorType> inline void* operator new(size_t Size, TArray<T, AllocatorType>& Array, typename TArray<T, AllocatorType>::SizeType Index);
 
 /**
  * Generic iterator which can operate on types that expose the following:

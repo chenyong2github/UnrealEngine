@@ -26,17 +26,20 @@
 	#define TSPARSEARRAY_RANGED_FOR_CHECKS 1
 #endif
 
-// Forward declarations.
-template<typename ElementType,typename Allocator = FDefaultSparseArrayAllocator >
-class TSparseArray;
-
-
 /** The result of a sparse array allocation. */
 struct FSparseArrayAllocationInfo
 {
 	int32 Index;
 	void* Pointer;
 };
+
+// Forward declarations.
+template<typename ElementType,typename Allocator = FDefaultSparseArrayAllocator >
+class TSparseArray;
+
+template <typename T, typename Allocator> void* operator new(size_t Size, TSparseArray<T, Allocator>& Array);
+template <typename T, typename Allocator> void* operator new(size_t Size, TSparseArray<T, Allocator>& Array, int32 Index);
+inline void* operator new(size_t Size, const FSparseArrayAllocationInfo& Allocation);
 
 /** Allocated elements are overlapped with free element info in the element list. */
 template<typename ElementType>

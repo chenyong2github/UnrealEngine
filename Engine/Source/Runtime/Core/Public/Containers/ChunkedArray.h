@@ -46,6 +46,14 @@ namespace UE4ChunkedArray_Private
 	};
 }
 
+// Forward declarations
+
+template<typename InElementType, uint32 TargetBytesPerChunk, typename AllocatorType>
+class TChunkedArray;
+
+template <typename T, uint32 TargetBytesPerChunk, typename AllocatorType>
+void* operator new(size_t Size, TChunkedArray<T, TargetBytesPerChunk, AllocatorType>& ChunkedArray);
+
 /** An array that uses multiple allocations to avoid allocation failure due to fragmentation. */
 template<typename InElementType, uint32 TargetBytesPerChunk = 16384, typename AllocatorType = FDefaultAllocator >
 class TChunkedArray
