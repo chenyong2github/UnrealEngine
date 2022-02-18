@@ -1253,6 +1253,9 @@ public:
 	 */
 	ENGINE_API bool NeedsSetMaterialUsage_Concurrent(bool &bOutHasUsage, const EMaterialUsage Usage) const;
 
+	ENGINE_API virtual void CacheShaders(EMaterialShaderPrecompileMode CompileMode) override;
+	ENGINE_API virtual bool IsComplete() const override;
+
 #if WITH_EDITORONLY_DATA
 	/**
 	 * @param	OutParameterNames		Storage array for the parameter names.
@@ -1489,8 +1492,6 @@ private:
 
 	/** Caches shader maps for an array of material resources. */
 	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default, const ITargetPlatform* TargetPlatform = nullptr);
-
-	ENGINE_API virtual void CacheShaders(EMaterialShaderPrecompileMode CompileMode) override;
 
 #if WITH_EDITOR
 	/**

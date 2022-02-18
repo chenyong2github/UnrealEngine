@@ -36,6 +36,7 @@
 #include "AssetCompilingManager.h"
 #include "ShaderCompiler.h"
 #include "EngineUtils.h"
+#include "Materials/MaterialInterface.h"
 
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
@@ -495,6 +496,10 @@ void UMoviePipeline::FlushAsyncEngineSystems()
 	{
 		GetWorld()->BlockTillLevelStreamingCompleted();
 	}
+
+	// Ensure we have complete shader maps for all materials used by primitives in the world.
+	// This way we will never render with the default material.
+	UMaterialInterface::SubmitRemainingJobsForWorld(GetWorld());
 
 	// Flush all assets still being compiled asynchronously.
 	// A progressbar is already in place so the user can get feedback while waiting for everything to settle.

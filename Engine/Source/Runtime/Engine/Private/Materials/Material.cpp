@@ -2297,6 +2297,30 @@ void UMaterial::CacheShaders(EMaterialShaderPrecompileMode CompileMode)
 	CacheResourceShadersForRendering(false, CompileMode);
 }
 
+bool UMaterial::IsComplete() const
+{
+	bool bComplete = true;
+	if (FApp::CanEverRender())
+	{
+		const EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+		uint32 FeatureLevelsToCompile = GetFeatureLevelsToCompileForRendering();
+
+		while (FeatureLevelsToCompile != 0)
+		{
+			const ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)FBitSet::GetAndClearNextBit(FeatureLevelsToCompile);
+			const EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
+
+			FMaterialResource* CurrentResource = FindMaterialResource(MaterialResources, FeatureLevel, ActiveQualityLevel, true);
+			if (CurrentResource && !CurrentResource->IsGameThreadShaderMapComplete())
+			{
+				bComplete = false;
+				break;
+			}
+		}
+	}
+	return bComplete;
+}
+
 void UMaterial::ReleaseResourcesAndMutateDDCKey(const FGuid& TransformationId)
 {
 	if (TransformationId.IsValid())

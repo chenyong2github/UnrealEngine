@@ -2163,6 +2163,31 @@ bool UMaterialInstance::GetMaterialLayers(FMaterialLayersFunctions& OutLayers, T
 	return false;
 }
 
+bool UMaterialInstance::IsComplete() const
+{
+	bool bComplete = true;
+	if (bHasStaticPermutationResource && FApp::CanEverRender())
+	{
+		check(IsA(UMaterialInstanceConstant::StaticClass()));
+
+		uint32 FeatureLevelsToCompile = GetFeatureLevelsToCompileForRendering();
+		const EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+
+		while (FeatureLevelsToCompile != 0)
+		{
+			const ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)FBitSet::GetAndClearNextBit(FeatureLevelsToCompile);
+			const EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
+
+			FMaterialResource* CurrentResource = FindMaterialResource(StaticPermutationMaterialResources, FeatureLevel, ActiveQualityLevel, true);
+			if (CurrentResource && !CurrentResource->IsGameThreadShaderMapComplete())
+			{
+				bComplete = false;
+				break;
+			}
+		}
+	}
+	return bComplete;
+}
 
 #if WITH_EDITOR
 bool UMaterialInstance::SetMaterialLayers(const FMaterialLayersFunctions& LayersValue)

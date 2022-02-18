@@ -806,6 +806,18 @@ public:
 	*/
 	ENGINE_API virtual void CacheShaders(EMaterialShaderPrecompileMode CompileMode = EMaterialShaderPrecompileMode::Default) {}
 
+	/** @brief Checks to see if this material has all its shaders cached.
+	*
+	* Materials are not guaranteed to have all their shaders compiled after loading.  It can be useful to
+	* check for completeness in order to cache remaining shaders.
+	* 
+	* @return Whether or not all shaders for this material exist.
+	*
+	* @see CacheShaders
+	* @note This function will return true if the resources are not cache for this material yet.
+	*/
+	ENGINE_API virtual bool IsComplete() const { return true; }
+
 #if WITH_EDITOR
 	/** Clears the shader cache and recompiles the shader for rendering. */
 	ENGINE_API virtual void ForceRecompileForRendering() {}
