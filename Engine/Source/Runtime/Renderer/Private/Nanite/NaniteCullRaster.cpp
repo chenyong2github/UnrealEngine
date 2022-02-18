@@ -128,7 +128,7 @@ static FAutoConsoleVariableRef CVarNaniteMSInterp(
 );
 
 // TODO: WIP - PROG_RASTER
-int32 GNaniteAllowProgrammableRaster = 0;
+int32 GNaniteAllowProgrammableRaster = 1;
 static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRaster(
 	TEXT("r.Nanite.AllowProgrammableRaster"),
 	GNaniteAllowProgrammableRaster,
@@ -746,7 +746,7 @@ class FRasterBinBuild_CS : public FNaniteGlobalShader
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FRasterBinBuild_CS, "/Engine/Private/Nanite/RasterBinning.usf", "RasterBinBuild", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FRasterBinBuild_CS, "/Engine/Private/Nanite/NaniteRasterBinning.usf", "RasterBinBuild", SF_Compute);
 
 class FRasterBinReserve_CS : public FNaniteGlobalShader
 {
@@ -781,7 +781,7 @@ class FRasterBinReserve_CS : public FNaniteGlobalShader
 		OutEnvironment.SetDefine(TEXT("RASTER_BIN_PASS"), NANITE_RASTER_BIN_RESERVE);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FRasterBinReserve_CS, "/Engine/Private/Nanite/RasterBinning.usf", "RasterBinReserve", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FRasterBinReserve_CS, "/Engine/Private/Nanite/NaniteRasterBinning.usf", "RasterBinReserve", SF_Compute);
 
 BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
