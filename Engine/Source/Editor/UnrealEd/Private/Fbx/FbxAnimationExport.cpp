@@ -534,6 +534,8 @@ FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const U
 		{
 			TmpNodeNoTransform->RemoveChild(MeshRootNode);
 			RootNode->AddChild(MeshRootNode);
+			//Export the preview mesh metadata
+			ExportObjectMetadata(SkelMesh, MeshRootNode);
 		}
 	}
 	
