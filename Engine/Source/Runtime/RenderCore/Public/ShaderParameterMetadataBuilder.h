@@ -64,6 +64,12 @@ public:
 		NextMemberOffset += sizeof(typename TParamTypeInfo::TAlignedType);
 	}
 
+	void AddNestedStruct(
+		const TCHAR* Name,
+		FShaderParametersMetadata* StructMetadata,
+		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
+		);
+
 	void AddBufferSRV(
 		const TCHAR* Name,
 		const TCHAR* ShaderType,

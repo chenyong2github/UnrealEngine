@@ -926,6 +926,30 @@ FString FShaderParametersMetadata::GetFullMemberCodeName(uint16 MemberOffset) co
 	return MemberName;
 }
 
+void FShaderParametersMetadataBuilder::AddNestedStruct(
+	const TCHAR* Name,
+	FShaderParametersMetadata* StructMetadata,
+	EShaderPrecisionModifier::Type Precision /* = EShaderPrecisionModifier::Float */
+)
+{
+	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+
+	new(Members) FShaderParametersMetadata::FMember(
+		Name,
+		TEXT(""),
+		__LINE__,
+		NextMemberOffset,
+		UBMT_NESTED_STRUCT,
+		Precision,
+		1,
+		1,
+		0,
+		StructMetadata
+	);
+
+	NextMemberOffset += Align(StructMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
+}
+
 void FShaderParametersMetadataBuilder::AddBufferSRV(
 	const TCHAR* Name,
 	const TCHAR* ShaderType,
