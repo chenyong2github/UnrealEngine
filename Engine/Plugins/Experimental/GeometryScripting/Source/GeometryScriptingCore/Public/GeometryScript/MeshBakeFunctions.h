@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "Sampling/MeshMapBaker.h"
 #include "MeshBakeFunctions.generated.h"
 
 class UDynamicMesh;
@@ -251,30 +252,41 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeSourceMeshOptions
 	int SourceNormalUVLayer = 0;
 };
 
-UCLASS(meta = (ScriptName = "GeometryScript_Baking"))
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeTextureAsyncResult
+{
+	GENERATED_BODY();
+
+	FGeometryScriptBakeTextureOptions BakeOptions;
+	TSharedPtr<UE::Geometry::FMeshMapBaker, ESPMode::ThreadSafe> BakeResult;
+};
+
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FBakeTextureDelegate, int, BakeId, FGeometryScriptBakeTextureAsyncResult, ResultOut);
+
+UCLASS(meta = (ScriptName = "GeometryScript_Bake"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshBakeFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 public:
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Bake Type Out") FGeometryScriptBakeTypeOptions MakeBakeTypeTangentNormal();
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Bake Type Out") FGeometryScriptBakeTypeOptions MakeBakeTypeObjectNormal();
 	
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Bake Type Out") FGeometryScriptBakeTypeOptions MakeBakeTypeFaceNormal();
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Bake Type Out") FGeometryScriptBakeTypeOptions MakeBakeTypeBentNormal(
 		int OcclusionRays = 16,
 		float MaxDistance = 0.0f,
 		float SpreadAngle = 180.0f);
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Bake Type Out") FGeometryScriptBakeTypeOptions MakeBakeTypePosition();
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Bake Type Out") FGeometryScriptBakeTypeOptions MakeBakeTypeCurvature(
 		EGeometryScriptBakeCurvatureTypeMode CurvatureType = EGeometryScriptBakeCurvatureTypeMode::Mean,
 		EGeometryScriptBakeCurvatureColorMode ColorMapping = EGeometryScriptBakeCurvatureColorMode::Grayscale,
@@ -282,30 +294,30 @@ public:
 		float MinRangeMultiplier = 0.0f,
 		EGeometryScriptBakeCurvatureClampMode Clamping = EGeometryScriptBakeCurvatureClampMode::None);
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Bake Type Out") FGeometryScriptBakeTypeOptions MakeBakeTypeAmbientOcclusion(
 		int OcclusionRays = 16,
 		float MaxDistance = 0.0f,
 		float SpreadAngle = 180.0f,
 		float BiasAngle = 15.0f);
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Bake Type Out") FGeometryScriptBakeTypeOptions MakeBakeTypeTexture(
 		UTexture2D* SourceTexture = nullptr,
 		int SourceUVLayer = 0);
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Bake Type Out") FGeometryScriptBakeTypeOptions MakeBakeTypeMultiTexture(
 		const TArray<UTexture2D*>& MaterialIDSourceTextures,
 		UPARAM(DisplayName="Source UV Channel") int SourceUVLayer = 0);
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Bake Type Out") FGeometryScriptBakeTypeOptions MakeBakeTypeVertexColor();
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Bake Type Out") FGeometryScriptBakeTypeOptions MakeBakeTypeMaterialID();
 	
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Baking")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
 	static UPARAM(DisplayName="Textures Out") TArray<UTexture2D*> BakeTexture(
 		UDynamicMesh* TargetMesh,
 		FTransform TargetTransform,
@@ -316,4 +328,52 @@ public:
 		const TArray<FGeometryScriptBakeTypeOptions>& BakeTypes,
 		FGeometryScriptBakeTextureOptions BakeOptions,
 		UGeometryScriptDebug* Debug = nullptr);
+
+	/** 
+	 * BakeTextureAsyncBegin() is the entry point for an asynchronous variant of BakeTexture.
+	 * Usage of this method is as follows:
+	 *
+	 * 1. BakeTextureAsyncBegin() kicks off an async compute.
+	 * 2. When the async compute is complete, it invokes the provided delegate back on the game thread.
+	 * 3. The delegate output is consumed by BakeTextureAsyncEnd() which converts the bake results into UTexture2D.
+	 * 4. An optional BakeId can be provided to BakeTextureAsyncBegin() that will be associated with the async compute.
+	 *    The BakeId can be used to distinguish multiple async computes on the same delegate.
+	 *
+	 * @param Completed the delegate to invoke on completion. Delegate signature: (int, FGeometryScriptBakeTextureAsyncResult)
+	 * @param BakeId optional integer identifier to aid in distinguishing multiple async computes on the same delegate.
+	 * @param TargetMesh the target mesh to bake to.
+	 * @param TargetTransform the transform of the target mesh. Only applicable when projecting in world space.
+	 * @param TargetOptions target mesh options such as which UV layer to bake with.
+	 * @param SourceMesh the source mesh to bake from.
+	 * @param SourceTransform the transform of the source mesh. Only applicable when projecting in world space.
+	 * @param SourceOptions source mesh options such source normal map.
+	 * @param BakeTypes the array of bake types & type specific parameters to bake
+	 * @param BakeOptions bake options (ex. resolution, number of samples, projection distance).
+	 * @param Debug debug structure to capture debug messages.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
+	static void BakeTextureAsyncBegin(
+		const FBakeTextureDelegate& Completed,
+		int BakeId,
+		UDynamicMesh* TargetMesh,
+		FTransform TargetTransform,
+		FGeometryScriptBakeTargetMeshOptions TargetOptions,
+		UDynamicMesh* SourceMesh,
+		FTransform SourceTransform,
+		FGeometryScriptBakeSourceMeshOptions SourceOptions,
+		const TArray<FGeometryScriptBakeTypeOptions>& BakeTypes,
+		FGeometryScriptBakeTextureOptions BakeOptions,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Converts the bake results of BakeTextureAsyncBegin() into UTexture2D.
+	 * This function is intended to be invoked by the delegate passed to
+	 * BakeTextureAsyncBegin()
+	 *
+	 * @param Result the result of a BakeTextureAsyncBegin() via delegate
+	 * @return array of UTexture2D corresponding to the requested bake types in BakeTextureAsyncBegin().
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Bake")
+	static UPARAM(DisplayName="Textures Out") TArray<UTexture2D*> BakeTextureAsyncEnd(
+		const FGeometryScriptBakeTextureAsyncResult& Result);
 };

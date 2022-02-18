@@ -41,3 +41,21 @@ void UE::Geometry::AppendWarning(UGeometryScriptDebug* Debug, EGeometryScriptErr
 		Debug->Append(Result);
 	}
 }
+
+void UE::Geometry::AppendError(TArray<FGeometryScriptDebugMessage>* DebugMessages, EGeometryScriptErrorType ErrorType, const FText& Message)
+{
+	FGeometryScriptDebugMessage Result = MakeScriptError(ErrorType, Message);
+	if (DebugMessages != nullptr)
+	{
+		DebugMessages->Add(Result);
+	}
+}
+
+void UE::Geometry::AppendWarning(TArray<FGeometryScriptDebugMessage>* DebugMessages, EGeometryScriptErrorType WarningType, const FText& Message)
+{
+	FGeometryScriptDebugMessage Result = MakeScriptWarning(WarningType, Message);
+	if (DebugMessages != nullptr)
+	{
+		DebugMessages->Add(Result);
+	}
+}
