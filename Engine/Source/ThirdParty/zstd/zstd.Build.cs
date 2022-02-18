@@ -13,6 +13,13 @@ public class zstd : ModuleRules
 			return;
 		}
 
-		AddVcPackage("zstd", true, "zstd_static");
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			AddVcPackage("zstd", true, "zstd_static");
+		}
+		else
+		{
+			AddVcPackage("zstd", true, "zstd");
+		}
 	}
 }
