@@ -45,7 +45,7 @@ struct FPCGGraphCache
 
 #if WITH_EDITOR
 	/** Clears any cache entry for the given data */
-	void CleanFromCache(AActor* InObject);
+	void CleanFromCache(const IPCGElement* InElement);
 #endif
 
 private:

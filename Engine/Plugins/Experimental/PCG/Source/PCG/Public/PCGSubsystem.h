@@ -77,12 +77,11 @@ public:
 	void CleanupPartitionActors(const FBox& InBounds);
 	void DeletePartitionActors();
 
-
 	/** Propagate to the graph compiler graph changes */
 	void NotifyGraphChanged(UPCGGraph* InGraph);
 
-	/** Cleans up the graph cache when a tracked actor is changed */
-	void CleanFromCache(AActor* InActor);
+	/** Cleans up the graph cache on an element basis */
+	void CleanFromCache(const IPCGElement* InElement);
 
 private:
 	FPCGTaskId DelayProcessGraph(UPCGComponent* Component, bool bGenerate, bool bSave, bool bUseEmptyNewBounds);

@@ -217,19 +217,18 @@ bool UPCGGraph::Contains(UPCGNode* Node) const
 }
 
 #if WITH_EDITOR
-TArray<FName> UPCGGraph::GetTrackedActorTags() const
+FPCGTagToSettingsMap UPCGGraph::GetTrackedTagsToSettings() const
 {
-	TArray<FName> TrackedActorTags;
-
+	FPCGTagToSettingsMap TagsToSettings;
 	for (UPCGNode* Node : Nodes)
 	{
 		if (Node && Node->DefaultSettings)
 		{
-			TrackedActorTags.Append(Node->DefaultSettings->GetTrackedActorTags());
+			Node->DefaultSettings->GetTrackedActorTags(TagsToSettings);
 		}
 	}
 
-	return TrackedActorTags;
+	return TagsToSettings;
 }
 
 void UPCGGraph::NotifyGraphChanged(bool bIsStructural)

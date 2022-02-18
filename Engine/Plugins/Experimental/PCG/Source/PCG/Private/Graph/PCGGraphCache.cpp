@@ -99,42 +99,14 @@ void FPCGGraphCache::ClearCache()
 }
 
 #if WITH_EDITOR
-void FPCGGraphCache::CleanFromCache(AActor* InActor)
+void FPCGGraphCache::CleanFromCache(const IPCGElement* InElement)
 {
-	if (!InActor || InActor->Tags.IsEmpty())
+	if (!InElement)
 	{
 		return;
 	}
 
 	FWriteScopeLock ScopeWriteLock(CacheLock);
-
-	for (TPair<const IPCGElement*, FPCGGraphCacheEntries>& ElementToEntries : CacheData)
-	{
-		FPCGGraphCacheEntries& Entries = ElementToEntries.Value;
-		for (int32 EntryIndex = Entries.Num() - 1; EntryIndex >= 0; --EntryIndex)
-		{
-			if (!Entries[EntryIndex].Settings)
-			{
-				continue;
-			}
-
-			TArray<FName> TrackedTags = Entries[EntryIndex].Settings->GetTrackedActorTags();
-
-			bool bShouldClean = false;
-			for (const FName& Tag : InActor->Tags)
-			{
-				if (TrackedTags.Contains(Tag))
-				{
-					bShouldClean = true;
-					break;
-				}
-			}
-
-			if (bShouldClean)
-			{
-				Entries.RemoveAtSwap(EntryIndex);
-			}
-		}
-	}
+	CacheData.Remove(InElement);
 }
 #endif // WITH_EDITOR

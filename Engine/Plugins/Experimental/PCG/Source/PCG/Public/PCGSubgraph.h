@@ -30,6 +30,12 @@ protected:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~End UObject interface implementation
 
+	//~Begin UPCGSettings interface
+#if WITH_EDITOR
+	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const override;
+#endif
+	//~End UPCGSettings interface
+
 	void OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructural);
 
 	virtual bool IsStructuralProperty(const FName& InPropertyName) const { return false; }
@@ -52,7 +58,6 @@ public:
 
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SubgraphNode")); }
-	virtual TArray<FName> GetTrackedActorTags() const override;
 #endif
 
 protected:

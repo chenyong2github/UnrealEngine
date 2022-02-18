@@ -55,6 +55,19 @@ void UPCGBaseSubgraphSettings::PostEditChangeProperty(struct FPropertyChangedEve
 	}
 }
 
+void UPCGBaseSubgraphSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const
+{
+	if (UPCGGraph* Subgraph = GetSubgraph())
+	{
+		FPCGTagToSettingsMap SubgraphMap = Subgraph->GetTrackedTagsToSettings();
+
+		for (const auto& TagToSettings : SubgraphMap)
+		{
+			OutTagToSettings.FindOrAdd(TagToSettings.Key).Append(TagToSettings.Value);
+		}
+	}
+}
+
 void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStructural)
 {
 	if (InGraph == GetSubgraph())
@@ -69,7 +82,6 @@ void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, bool bIsStr
 		}
 	}
 }
-
 #endif // WITH_EDITOR
 
 UPCGNode* UPCGSubgraphSettings::CreateNode() const
@@ -81,11 +93,6 @@ UPCGNode* UPCGSubgraphSettings::CreateNode() const
 bool UPCGSubgraphSettings::IsStructuralProperty(const FName& InPropertyName) const
 {
 	return (InPropertyName == GET_MEMBER_NAME_CHECKED(UPCGSubgraphSettings, Subgraph)) || Super::IsStructuralProperty(InPropertyName);
-}
-
-TArray<FName> UPCGSubgraphSettings::GetTrackedActorTags() const
-{
-	return Subgraph ? Subgraph->GetTrackedActorTags() : TArray<FName>();
 }
 #endif
 

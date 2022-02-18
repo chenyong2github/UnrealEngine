@@ -488,11 +488,11 @@ void UPCGSubsystem::NotifyGraphChanged(UPCGGraph* InGraph)
 	}
 }
 
-void UPCGSubsystem::CleanFromCache(AActor* InActor)
+void UPCGSubsystem::CleanFromCache(const IPCGElement* InElement)
 {
 	if (GraphExecutor)
 	{
-		GraphExecutor->GetCache().CleanFromCache(InActor);
+		GraphExecutor->GetCache().CleanFromCache(InElement);
 	}
 }
 
