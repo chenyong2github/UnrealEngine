@@ -11,7 +11,7 @@ class FPCGSettingsObjectCrc32 : public FArchiveObjectCrc32
 public:
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
-		return !(InProperty && InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DebugSettings));
+		return InProperty && InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DebugSettings);
 	}
 };
 #else
