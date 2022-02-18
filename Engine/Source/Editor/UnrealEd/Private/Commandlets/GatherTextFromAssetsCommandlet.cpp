@@ -474,6 +474,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 
 			if (ModuleLoadResult != EModuleLoadResult::Success)
 			{
+				UE_LOG(LogGatherTextFromAssetsCommandlet, Warning, TEXT("Failed to preload dependent module %s. Please check if the modules have been renamed or moved to another folder."), *ModuleName);
 				HasFailedToPreloadAnyModules = true;
 				continue;
 			}
