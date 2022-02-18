@@ -48,6 +48,7 @@ public:
 	virtual bool IsInteractive() const override { return true; }
 	virtual bool CanRename() const override { return true; }
 	virtual bool CanRenameItem(const ISceneOutlinerTreeItem& Item) const override;
+	virtual bool CanCustomizeToolbar() const { return true; }
 	virtual bool ShowStatusBar() const override { return true; }
 	virtual bool ShowViewButton() const override { return true; }
 	virtual bool ShowFilterOptions() const override { return true; }
@@ -148,6 +149,7 @@ public:
 	virtual bool SupportsKeyboardFocus() const override { return false; }
 	virtual bool CanRename() const override { return false; }
 	virtual bool CanRenameItem(const ISceneOutlinerTreeItem& Item) const override { return false; }
+	virtual bool CanCustomizeToolbar() const { return false; }
 	virtual void OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item) override {}
 	virtual FReply OnKeyDown(const FKeyEvent& InKeyEvent) override { return FReply::Unhandled(); }
 	virtual void OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeItem, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection) override;

@@ -145,7 +145,10 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 		.OnTextCommitted( this, &SSceneOutliner::OnFilterTextCommitted )
 	];
 
-	CustomAddToToolbar(Toolbar);
+	if (Mode->CanCustomizeToolbar())
+	{
+		CustomAddToToolbar(Toolbar);
+	}
 		
 	if (Mode->SupportsCreateNewFolder() && InInitOptions.bShowCreateNewFolder)
 	{

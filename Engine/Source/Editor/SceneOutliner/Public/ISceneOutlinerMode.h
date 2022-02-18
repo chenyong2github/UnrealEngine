@@ -82,6 +82,8 @@ public:
 	virtual TSharedPtr<SWidget> CreateContextMenu() { return TSharedPtr<SWidget>(); }
 	/** Check if an item can be renamed */
 	virtual bool CanRenameItem(const ISceneOutlinerTreeItem& Item) const { return false; }
+	/** Whether the toolbar can be customized. */
+	virtual bool CanCustomizeToolbar() const { return false; }
 
 	/** Synchronize the mode specific selection with the tree view */
 	virtual void SynchronizeSelection() {}
