@@ -43,7 +43,8 @@ namespace Horde.Storage.Implementation.TransactionLog
                 await using BlobContents blobContents = await _blobService.GetObject(snapshotInfo.BlobNamespace, snapshotInfo.SnapshotBlob);
                 if (cancellationToken.IsCancellationRequested)
                     throw new TaskCanceledException();
-                snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(blobContents.Stream);
+                using FilesystemBufferedPayload snapshotPayload = await FilesystemBufferedPayload.Create(blobContents.Stream);
+                snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(snapshotPayload.GetStream());
                 lastBucket = snapshot.LastBucket;
                 lastEvent = snapshot.LastEvent;
             }
