@@ -4900,7 +4900,10 @@ class RHI_API FRHIAsyncComputeCommandListImmediate : public FRHIComputeCommandLi
 public:
 	FRHIAsyncComputeCommandListImmediate()
 		: FRHIComputeCommandList(FRHIGPUMask::All())
-	{}
+	{
+		// TODO: handle async compute command list task prerequisites
+		bAsyncPSOCompileAllowed = false;
+	}
 
 	//If RHIThread is enabled this will dispatch all current commands to the RHI Thread.  If RHI thread is disabled
 	//this will immediately execute the current commands.
