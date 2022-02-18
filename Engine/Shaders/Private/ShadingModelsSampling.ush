@@ -51,7 +51,7 @@ struct FBxDFSample
 	uint Term;
 };
 
-FBxDFSample SampleDiffuseBxDF(float N, float4 E)
+FBxDFSample SampleDiffuseBxDF(float3 N, float4 E)
 {
 	float2 DiskE = UniformSampleDiskConcentric(E.xy);
 	float3x3 TangentBasis = GetTangentBasis(N);

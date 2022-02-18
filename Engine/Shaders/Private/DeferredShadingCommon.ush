@@ -730,9 +730,6 @@ uint ExtractSubsurfaceProfileInt(FGBufferData BufferData)
 	}
 #endif
 
-
-#if SHADING_PATH_DEFERRED
-
 // @param UV - UV space in the GBuffer textures (BufferSize resolution)
 // TOOD: need to find a way to make this more convenient.
 FGBufferData GetGBufferDataFromSceneTextures(float2 UV, bool bGetNormalizedNormal = true)
@@ -769,8 +766,6 @@ uint GetSceneLightingChannel(uint2 PixelCoord)
 	}
 	return ~0;
 }
-
-#endif
 
 // @param UV - UV space in the GBuffer textures (BufferSize resolution)
 FGBufferData GetGBufferData(float2 UV, bool bGetNormalizedNormal = true)
