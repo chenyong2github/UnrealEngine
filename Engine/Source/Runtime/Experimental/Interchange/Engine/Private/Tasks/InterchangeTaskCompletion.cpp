@@ -14,6 +14,7 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/GarbageCollection.h"
 #include "UObject/Object.h"
+#include "UObject/UObjectHash.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
@@ -81,9 +82,18 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 				Message->DestinationAssetName = ImportedObject->GetPathName();
 				Message->AssetType = ImportedObject->GetClass();
 
-				//Clear any async flag from the created asset
+				//Clear any async flag from the created asset and all its subobjects
 				const EInternalObjectFlags AsyncFlags = EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading;
 				ImportedObject->ClearInternalFlags(AsyncFlags);
+
+				TArray<UObject*> ImportedSubobjects;
+				const bool bIncludeNestedObjects = true;
+				GetObjectsWithOuter(ImportedObject, ImportedSubobjects, bIncludeNestedObjects);
+				for (UObject* ImportedSubobject : ImportedSubobjects)
+				{
+					ImportedSubobject->ClearInternalFlags(AsyncFlags);
+				}
+
 				//Make sure the package is dirty
 				ImportedObject->MarkPackageDirty();
 
