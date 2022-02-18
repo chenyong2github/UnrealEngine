@@ -159,9 +159,9 @@ void FRigTransformElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESeriali
 	}
 }
 
-void FRigTransformElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
+void FRigTransformElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights)
 {
-	Super::CopyPose(InOther, bCurrent, bInitial);
+	Super::CopyPose(InOther, bCurrent, bInitial, bWeights);
 
 	if(FRigTransformElement* Other = Cast<FRigTransformElement>(InOther))
 	{
@@ -259,8 +259,6 @@ void FRigMultiParentElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESeria
 
 	if(SerializationPhase == ESerializationPhase::StaticData)
 	{
-		Parent.Save(Ar);
-
 		int32 NumParents = ParentConstraints.Num();
 		Ar << NumParents;
 	}
@@ -287,7 +285,11 @@ void FRigMultiParentElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESeria
 
 	if(SerializationPhase == ESerializationPhase::StaticData)
 	{
-		Parent.Load(Ar);
+		if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RemovedMultiParentParentCache)
+		{
+			FRigCurrentAndInitialTransform Parent;
+			Parent.Load(Ar);
+		}
 
 		int32 NumParents = 0;
 		Ar << NumParents;
@@ -332,7 +334,6 @@ void FRigMultiParentElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElemen
 	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
 	
 	const FRigMultiParentElement* Source = CastChecked<FRigMultiParentElement>(InOther);
-	Parent = Source->Parent;
 	ParentConstraints.Reset();
 	ParentConstraints.Reserve(Source->ParentConstraints.Num());
 	IndexLookup.Reset();
@@ -349,19 +350,22 @@ void FRigMultiParentElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElemen
 	}
 }
 
-void FRigMultiParentElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
+void FRigMultiParentElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights)
 {
-	Super::CopyPose(InOther, bCurrent, bInitial);
+	Super::CopyPose(InOther, bCurrent, bInitial, bWeights);
 
-	if(FRigMultiParentElement* Other = Cast<FRigMultiParentElement>(InOther))
+	if(bWeights)
 	{
-		if(bCurrent)
+		FRigMultiParentElement* Source = Cast<FRigMultiParentElement>(InOther);
+		if(ensure(Source))
 		{
-			Parent.Current = Other->Parent.Current;
-		}
-		if(bInitial)
-		{
-			Parent.Initial = Other->Parent.Initial;
+			if(ensure(ParentConstraints.Num() == Source->ParentConstraints.Num()))
+			{
+				for(int32 ParentIndex = 0; ParentIndex < ParentConstraints.Num(); ParentIndex++)
+				{
+					ParentConstraints[ParentIndex].CopyPose(Source->ParentConstraints[ParentIndex], bCurrent, bInitial);
+				}
+			}
 		}
 	}
 }
@@ -717,9 +721,9 @@ void FRigControlElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* I
 	Shape = Source->Shape;
 }
 
-void FRigControlElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
+void FRigControlElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights)
 {
-	Super::CopyPose(InOther, bCurrent, bInitial);
+	Super::CopyPose(InOther, bCurrent, bInitial, bWeights);
 	
 	if(FRigControlElement* Other = Cast<FRigControlElement>(InOther))
 	{
@@ -760,9 +764,9 @@ void FRigCurveElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializati
 	}
 }
 
-void FRigCurveElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
+void FRigCurveElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights)
 {
-	Super::CopyPose(InOther, bCurrent, bInitial);
+	Super::CopyPose(InOther, bCurrent, bInitial, bWeights);
 	
 	if(FRigCurveElement* Other = Cast<FRigCurveElement>(InOther))
 	{
@@ -859,9 +863,9 @@ FTransform FRigReferenceElement::GetReferenceWorldTransform(const FRigUnitContex
 	return FTransform::Identity;
 }
 
-void FRigReferenceElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
+void FRigReferenceElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights)
 {
-	Super::CopyPose(InOther, bCurrent, bInitial);
+	Super::CopyPose(InOther, bCurrent, bInitial, bWeights);
 	
 	if(FRigReferenceElement* Other = Cast<FRigReferenceElement>(InOther))
 	{

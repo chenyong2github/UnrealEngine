@@ -51,6 +51,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Switch limit control over to per channel limits 
 		PerChannelLimits,
 
+		// Removed the parent cache for multi parent elements 
+		RemovedMultiParentParentCache,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

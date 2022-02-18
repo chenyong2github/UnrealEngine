@@ -515,7 +515,7 @@ public:
 		return Element;
 	}
 
-	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial) {}
+	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights) {}
 
 protected:
 
@@ -591,7 +591,7 @@ protected:
 
 public:
 	
-	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial) override;
+	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights) override;
 	
 protected:
 
@@ -731,10 +731,26 @@ public:
 	{
 		return bInitial ? InitialWeight : Weight;
 	}
+
+	FORCEINLINE void CopyPose(const FRigElementParentConstraint& InOther, bool bCurrent, bool bInitial)
+	{
+		if(bCurrent)
+		{
+			Weight = InOther.Weight;
+		}
+		if(bInitial)
+		{
+			InitialWeight = InOther.InitialWeight;
+		}
+		Cache.bDirty = true;
+	}
 };
 
-//typedef TArray<FRigElementParentConstraint> FRigElementParentConstraintArray;
+#if URIGHIERARCHY_ENSURE_CACHE_VALIDITY
+typedef TArray<FRigElementParentConstraint, TInlineAllocator<8>> FRigElementParentConstraintArray;
+#else
 typedef TArray<FRigElementParentConstraint, TInlineAllocator<1>> FRigElementParentConstraintArray;
+#endif
 
 USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigMultiParentElement : public FRigTransformElement
@@ -753,9 +769,6 @@ public:
 	virtual void Save(FArchive& A, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
 	
-	UPROPERTY(BlueprintReadOnly, Category = RigElement)
-	FRigCurrentAndInitialTransform Parent;
-
 	FRigElementParentConstraintArray ParentConstraints;
 	TMap<FRigElementKey, int32> IndexLookup;
 
@@ -771,7 +784,7 @@ protected:
 
 public:
 	
-	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial) override;
+	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights) override;
 
 protected:
 	
@@ -1013,7 +1026,7 @@ protected:
 
 public:
 	
-	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial) override;
+	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights) override;
 
 protected:
 
@@ -1055,7 +1068,7 @@ public:
 
 public:
 	
-	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial) override;
+	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights) override;
 
 protected:
 	
@@ -1136,7 +1149,7 @@ public:
 
 	FTransform GetReferenceWorldTransform(const FRigUnitContext* InContext, bool bInitial) const;
 
-	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial) override;
+	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights) override;
 
 protected:
 

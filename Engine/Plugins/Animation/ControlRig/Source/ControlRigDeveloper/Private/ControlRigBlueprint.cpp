@@ -189,6 +189,7 @@ UClass* UControlRigBlueprint::RegenerateClass(UClass* ClassToRegenerate, UObject
 		TGuardValue<bool> NotificationGuard(bSuspendAllNotifications, true);
 		Result = Super::RegenerateClass(ClassToRegenerate, PreviousCDO);
 	}
+	Hierarchy->CleanupInvalidCaches();
 	PropagateHierarchyFromBPToInstances();
 	return Result;
 }
@@ -3737,7 +3738,7 @@ void UControlRigBlueprint::PropagatePoseFromInstanceToBP(UControlRig* InControlR
 	// current transforms in BP and CDO are meaningless, no need to copy them
 	// we use BP hierarchy to initialize CDO and instances' hierarchy, 
 	// so it should always be in the initial state.
-	Hierarchy->CopyPose(InControlRig->GetHierarchy(), false, true);
+	Hierarchy->CopyPose(InControlRig->GetHierarchy(), false, true, false, true);
 }
 
 void UControlRigBlueprint::PropagatePoseFromBPToInstances()
@@ -3747,7 +3748,7 @@ void UControlRigBlueprint::PropagatePoseFromBPToInstances()
 		if (UControlRig* DefaultObject = Cast<UControlRig>(MyControlRigClass->GetDefaultObject(false)))
 		{
 			DefaultObject->PostInitInstanceIfRequired();
-			DefaultObject->GetHierarchy()->CopyPose(Hierarchy, true, true);
+			DefaultObject->GetHierarchy()->CopyPose(Hierarchy, true, true, true);
 
 			TArray<UObject*> ArchetypeInstances;
 			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
@@ -3756,7 +3757,7 @@ void UControlRigBlueprint::PropagatePoseFromBPToInstances()
 				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
 				{
 					InstanceRig->PostInitInstanceIfRequired();
-					InstanceRig->GetHierarchy()->CopyPose(Hierarchy, true, true);
+					InstanceRig->GetHierarchy()->CopyPose(Hierarchy, true, true, true);
 				}
 			}
 		}

@@ -258,8 +258,6 @@ FRigElementKey URigHierarchyController::AddNull(FName InName, FRigElementKey InP
 			Hierarchy->SetTransform(NewElement, InTransform, ERigTransformType::InitialLocal, true, false);
 		}
 
-		NewElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
-		NewElement->Parent.Current = NewElement->Parent.Initial;
 		NewElement->Pose.Current = NewElement->Pose.Initial;
 	}
 
@@ -325,11 +323,9 @@ FRigElementKey URigHierarchyController::AddControl(
 		NewElement->Shape.Set(ERigTransformType::InitialLocal, InShapeTransform);  
 		Hierarchy->SetControlValue(NewElement, InValue, ERigControlValueType::Initial, false);
 
-		NewElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
 		NewElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
 		NewElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
 		NewElement->Shape.MarkDirty(ERigTransformType::InitialGlobal);
-		NewElement->Parent.Current = NewElement->Parent.Initial;
 		NewElement->Offset.Current = NewElement->Offset.Initial;
 		NewElement->Pose.Current = NewElement->Pose.Initial;
 		NewElement->Shape.Current = NewElement->Shape.Initial;
@@ -1107,8 +1103,16 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 		{
 			if(FRigBaseElement* ExistingElement = Hierarchy->Find(NewElement->GetKey()))
 			{
-				ExistingElement->CopyPose(NewElement, true, true);
+				ExistingElement->CopyPose(NewElement, true, true, false);
 
+				if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ExistingElement))
+				{
+					Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal);
+					Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::InitialLocal);
+					ControlElement->Shape.MarkDirty(ERigTransformType::CurrentGlobal);
+					ControlElement->Shape.MarkDirty(ERigTransformType::InitialGlobal);
+				}
+				
 				TArray<FRigElementKey> CurrentParents = Hierarchy->GetParents(NewElement->GetKey());
 
 				bool bUpdateParents = CurrentParents.Num() != PerElementData.Parents.Num();
@@ -1586,6 +1590,14 @@ int32 URigHierarchyController::AddElement(FRigBaseElement* InElementToAdd, FRigB
 		SetParent(InElementToAdd, InFirstParent, bMaintainGlobalTransform);
 	}
 
+	if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InElementToAdd))
+	{
+		Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal);
+		Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::InitialLocal);
+		ControlElement->Shape.MarkDirty(ERigTransformType::CurrentGlobal);
+		ControlElement->Shape.MarkDirty(ERigTransformType::InitialGlobal);
+	}
+
 	// only notify once at the end
 	Notify(ERigHierarchyNotification::ElementAdded, InElementToAdd);
 
@@ -1959,6 +1971,8 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 		return false;
 	}
 
+	Hierarchy->EnsureCacheValidity();
+
 	if(bRemoveAllParents)
 	{
 		RemoveAllParents(InChild, bMaintainGlobalTransform);		
@@ -1986,8 +2000,6 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 
 		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InChild))
 		{
-			Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
-			Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialLocal);
 			Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal);
 			Hierarchy->GetControlShapeTransform(ControlElement, ERigTransformType::InitialLocal);
 		}
@@ -2030,9 +2042,6 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 
 		if(InWeight > SMALL_NUMBER)
 		{
-			MultiParentElement->Parent.MarkDirty(ERigTransformType::CurrentGlobal);  
-			MultiParentElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
-
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(MultiParentElement))
 			{
 				ControlElement->Offset.MarkDirty(ERigTransformType::CurrentGlobal);  
@@ -2219,9 +2228,6 @@ bool URigHierarchyController::RemoveParent(FRigBaseElement* InChild, FRigBaseEle
 					Pair.Value--;
 				}
 			}
-
-			MultiParentElement->Parent.MarkDirty(ERigTransformType::CurrentGlobal);  
-			MultiParentElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);  
 
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(MultiParentElement))
 			{

@@ -9,6 +9,7 @@
 #include "RigHierarchyPose.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "EdGraph/EdGraphPin.h"
+#include "RigHierarchyDefines.h"
 #if WITH_EDITOR
 #include "RigVMPythonUtils.h"
 #endif
@@ -16,15 +17,6 @@
 
 class URigHierarchy;
 class URigHierarchyController;
-
-// Define to switch between recursive calls for dirty propagation or flat iteration.
-// Based on this each element will either contains only the next tier of elements to dirty (recursive)
-// or a full flattened list of elements to dirty (no need to recurse)
-#define URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION 1
-
-// Debug define which performs a full check on the cache validity for all elements of the hierarchy.
-// This can be useful for debugging cache validity bugs.
-#define URIGHIERARCHY_ENSURE_CACHE_VALIDITY 0
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigHierarchyModifiedEvent, ERigHierarchyNotification /* type */, URigHierarchy* /* hierarchy */, const FRigBaseElement* /* element */);
 DECLARE_EVENT_FiveParams(URigHierarchy, FRigHierarchyUndoRedoTransformEvent, URigHierarchy*, const FRigElementKey&, ERigTransformType::Type, const FTransform&, bool /* bUndo */);
@@ -152,7 +144,7 @@ public:
 	 * Copies the contents of a hierarchy onto this one
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
-	void CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bInitial);
+	void CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bInitial, bool bWeights, bool bMatchPoseInGlobalIfNeeded = false);
 
 	/**
 	 * Update all elements that depend on external references
@@ -2563,6 +2555,8 @@ private:
 	void PropagateDirtyFlags(FRigTransformElement* InTransformElement, bool bInitial, bool bAffectChildren) const;
 #endif
 
+public:
+
 	/**
 	* Performs validation of the cache within the hierarchy on any mutation.
 	*/
@@ -2576,6 +2570,13 @@ private:
 		}
 #endif
 	}
+
+	/*
+	 * Cleans up caches after load
+	 */
+	void CleanupInvalidCaches();
+
+private:
 	
 	/**
 	 * The topology version of the hierarchy changes when elements are
@@ -2940,6 +2941,8 @@ protected:
 	
 	bool bEnableCacheValidityCheck;
 
+	static bool bEnableValidityCheckbyDefault;
+
 	UPROPERTY(transient)
 	TObjectPtr<URigHierarchy> HierarchyForCacheValidation;
 	
@@ -2961,10 +2964,13 @@ private:
 	
 #endif
 
+	static const TArray<FString>& GetTransformTypeStrings();
+
 	friend class URigHierarchyController;
 	friend class UControlRig;
 	friend class FControlRigEditor;
 	friend struct FRigHierarchyValidityBracket;
+	friend struct FRigHierarchyGlobalValidityBracket;
 	friend struct FControlRigVisualGraphUtils;
 };
 
@@ -2997,6 +3003,25 @@ struct CONTROLRIG_API FRigHierarchyValidityBracket
 
 	bool bPreviousValue;
 	TWeakObjectPtr<URigHierarchy> HierarchyPtr;
+};
+
+struct CONTROLRIG_API FRigHierarchyGlobalValidityBracket
+{
+public:
+	FRigHierarchyGlobalValidityBracket(bool bEnable = true)
+		: bPreviousValue(URigHierarchy::bEnableValidityCheckbyDefault)
+	{
+		URigHierarchy::bEnableValidityCheckbyDefault = true;
+	}
+
+	~FRigHierarchyGlobalValidityBracket()
+	{
+		URigHierarchy::bEnableValidityCheckbyDefault = bPreviousValue;
+	}
+
+private:
+
+	bool bPreviousValue;
 };
 
 template<>

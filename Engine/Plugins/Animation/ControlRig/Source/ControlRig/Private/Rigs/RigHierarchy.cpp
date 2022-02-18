@@ -85,6 +85,12 @@ FAutoConsoleCommandWithWorldAndArgs FCmdControlRigHierarchyTraceFrames
 
 const FRigBaseElementChildrenArray URigHierarchy::EmptyElementArray;
 
+#if URIGHIERARCHY_ENSURE_CACHE_VALIDITY
+bool URigHierarchy::bEnableValidityCheckbyDefault = true;
+#else
+bool URigHierarchy::bEnableValidityCheckbyDefault = false;
+#endif
+
 URigHierarchy::URigHierarchy()
 : TopologyVersion(0)
 , bEnableDirtyPropagation(true)
@@ -103,11 +109,7 @@ URigHierarchy::URigHierarchy()
 , TraceFramesLeft(0)
 , TraceFramesCaptured(0)
 #endif
-#if URIGHIERARCHY_ENSURE_CACHE_VALIDITY
-, bEnableCacheValidityCheck(true)
-#else
-, bEnableCacheValidityCheck(false)
-#endif
+, bEnableCacheValidityCheck(bEnableValidityCheckbyDefault)
 , HierarchyForCacheValidation()
 #if WITH_EDITOR
 , ExecuteContext(nullptr)
@@ -277,90 +279,8 @@ void URigHierarchy::PostLoad()
 	UObject::PostLoad();
 
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
-	
-	struct Local
-	{
-		static bool NeedsCheck(const FRigLocalAndGlobalTransform& InTransform)
-		{
-			return !InTransform.Local.bDirty && !InTransform.Global.bDirty;
-		}
-	};
 
-	// we need to check the elements for integrity (global vs local) to be correct.
-	for(int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
-	{
-		FRigBaseElement* BaseElement = Elements[ElementIndex];
-
-		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(BaseElement))
-		{
-			if(Local::NeedsCheck(ControlElement->Offset.Initial))
-			{
-				const FTransform ComputedGlobalTransform = SolveParentConstraints(
-					ControlElement->ParentConstraints, ERigTransformType::InitialGlobal,
-					ControlElement->Offset.Get(ERigTransformType::InitialLocal), true,
-					FTransform::Identity, false);
-
-				const FTransform CachedGlobalTransform = ControlElement->Offset.Get(ERigTransformType::InitialGlobal);
-				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
-				{
-					ControlElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
-				}
-			}
-
-			if(Local::NeedsCheck(ControlElement->Pose.Initial))
-			{
-				const FTransform ComputedGlobalTransform = SolveParentConstraints(
-					ControlElement->ParentConstraints, ERigTransformType::InitialGlobal,
-					GetControlOffsetTransform(ControlElement, ERigTransformType::InitialGlobal), true,
-					ControlElement->Pose.Get(ERigTransformType::InitialLocal), true);
-				
-				const FTransform CachedGlobalTransform = ControlElement->Pose.Get(ERigTransformType::InitialGlobal);
-				
-				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
-				{
-					// for nulls we perceive the local transform as less relevant
-					ControlElement->Pose.MarkDirty(ERigTransformType::InitialLocal);
-				}
-			}
-
-			// we also need to check the pose here - for controls it is a bit different than for other
-			// types.
-			continue;
-		}
-
-		if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(BaseElement))
-		{
-			if(Local::NeedsCheck(MultiParentElement->Pose.Initial))
-			{
-				const FTransform ComputedGlobalTransform = SolveParentConstraints(
-					MultiParentElement->ParentConstraints, ERigTransformType::InitialGlobal,
-					FTransform::Identity, false,
-					MultiParentElement->Pose.Get(ERigTransformType::InitialLocal), true);
-				
-				const FTransform CachedGlobalTransform = MultiParentElement->Pose.Get(ERigTransformType::InitialGlobal);
-				
-				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
-				{
-					// for nulls we perceive the local transform as less relevant
-					MultiParentElement->Pose.MarkDirty(ERigTransformType::InitialLocal);
-				}
-			}
-		}
-
-		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(BaseElement))
-		{
-			if(Local::NeedsCheck(TransformElement->Pose.Initial))
-			{
-				const FTransform ParentTransform = GetParentTransform(TransformElement, ERigTransformType::InitialGlobal);
-				const FTransform ComputedGlobalTransform = TransformElement->Pose.Get(ERigTransformType::InitialLocal) * ParentTransform;
-				const FTransform CachedGlobalTransform = TransformElement->Pose.Get(ERigTransformType::InitialGlobal);
-				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
-				{
-					TransformElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
-				}
-			}
-		}
-	}
+	CleanupInvalidCaches();
 }
 
 void URigHierarchy::Reset()
@@ -389,6 +309,11 @@ void URigHierarchy::Reset()
 	if(!IsGarbageCollecting())
 	{
 		Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
+	}
+
+	if(HierarchyForCacheValidation)
+	{
+		HierarchyForCacheValidation->Reset();
 	}
 }
 
@@ -536,17 +461,72 @@ void URigHierarchy::ClearListeningHierarchy()
 }
 #endif
 
-void URigHierarchy::CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bInitial)
+void URigHierarchy::CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bInitial, bool bWeights, bool bMatchPoseInGlobalIfNeeded)
 {
 	check(InHierarchy);
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 
+	// if we need to copy the weights but the hierarchies are topologically
+	// different we need to reset the topology. this is expensive and should
+	// only happen during construction of the hierarchy itself.
+	if(bWeights && (GetTopologyVersion() != InHierarchy->GetTopologyVersion()))
+	{
+		CopyHierarchy(InHierarchy);
+	}
+
+	const bool bPerformTopologyCheck = GetTopologyVersion() != InHierarchy->GetTopologyVersion();
 	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
 	{
 		FRigBaseElement* Element = Elements[ElementIndex];
 		if(FRigBaseElement* OtherElement = InHierarchy->Find(Element->GetKey()))
 		{
-			Element->CopyPose(OtherElement, bCurrent, bInitial);
+			Element->CopyPose(OtherElement, bCurrent, bInitial, bWeights);
+
+			// if the topologies don't match and we are supposed to match
+			// elements in global space...
+			if(bMatchPoseInGlobalIfNeeded && bPerformTopologyCheck)
+			{
+				FRigMultiParentElement* MultiParentElementA = Cast<FRigMultiParentElement>(Element);
+				FRigMultiParentElement* MultiParentElementB = Cast<FRigMultiParentElement>(OtherElement);
+				if(MultiParentElementA && MultiParentElementB)
+				{
+					if(MultiParentElementA->ParentConstraints.Num() != MultiParentElementB->ParentConstraints.Num())
+					{
+						FRigControlElement* ControlElementA = Cast<FRigControlElement>(Element);
+						FRigControlElement* ControlElementB = Cast<FRigControlElement>(OtherElement);
+						if(ControlElementA && ControlElementB)
+						{
+							if(bCurrent)
+							{
+								ControlElementA->Offset.Set(ERigTransformType::CurrentGlobal, InHierarchy->GetControlOffsetTransform(ControlElementB, ERigTransformType::CurrentGlobal));
+								ControlElementA->Offset.MarkDirty(ERigTransformType::CurrentLocal);
+								ControlElementA->Pose.MarkDirty(ERigTransformType::CurrentGlobal);
+								ControlElementA->Shape.MarkDirty(ERigTransformType::CurrentGlobal);
+							}
+							if(bInitial)
+							{
+								ControlElementA->Offset.Set(ERigTransformType::InitialGlobal, InHierarchy->GetControlOffsetTransform(ControlElementB, ERigTransformType::InitialGlobal));
+								ControlElementA->Offset.MarkDirty(ERigTransformType::InitialLocal);
+								ControlElementA->Pose.MarkDirty(ERigTransformType::InitialGlobal);
+								ControlElementA->Shape.MarkDirty(ERigTransformType::InitialGlobal);
+							}
+						}
+						else
+						{
+							if(bCurrent)
+							{
+								MultiParentElementA->Pose.Set(ERigTransformType::CurrentGlobal, InHierarchy->GetTransform(MultiParentElementB, ERigTransformType::CurrentGlobal));
+								MultiParentElementA->Pose.MarkDirty(ERigTransformType::CurrentLocal);
+							}
+							if(bInitial)
+							{
+								MultiParentElementA->Pose.Set(ERigTransformType::InitialGlobal, InHierarchy->GetTransform(MultiParentElementB, ERigTransformType::InitialGlobal));
+								MultiParentElementA->Pose.MarkDirty(ERigTransformType::InitialLocal);
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -636,6 +616,15 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 			}
 		}
 
+		// reset the weights to the initial values as well
+		if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(Elements[ElementIndex]))
+		{
+			for(FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
+			{
+				ParentConstraint.Weight = ParentConstraint.InitialWeight;
+			}
+		}
+
 		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Elements[ElementIndex]))
 		{
 			ControlElement->Offset.Current = ControlElement->Offset.Initial;
@@ -645,11 +634,6 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(Elements[ElementIndex]))
 		{
 			TransformElement->Pose.Current = TransformElement->Pose.Initial;
-		}
-
-		if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(Elements[ElementIndex]))
-		{
-			MultiParentElement->Parent.Current = MultiParentElement->Parent.Initial;
 		}
 	}
 	
@@ -1335,7 +1319,6 @@ bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, int32 InParentInde
 			}
 
 			TargetWeight = InWeight;
-			MultiParentElement->Parent.MarkDirty(GlobalType);
 
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(MultiParentElement))
 			{
@@ -1459,8 +1442,6 @@ bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild,  const TArray
 					MultiParentElement->ParentConstraints[WeightIndex].Weight = InputWeights[WeightIndex];
 				}
 			}
-
-			MultiParentElement->Parent.MarkDirty(GlobalType);
 
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(MultiParentElement))
 			{
@@ -2166,6 +2147,16 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 				const FTransform NewTransform = ComputeLocalControlValue(ControlElement, ControlElement->Pose.Get(OpposedType), GlobalType);
 				InTransformElement->Pose.Set(InTransformType, NewTransform);
 			}
+			else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InTransformElement))
+			{
+				// this is done for nulls and any element that can have more than one parent which 
+				// is not a control
+				const FTransform& GlobalTransform = MultiParentElement->Pose.Get(GlobalType);
+				const FTransform LocalTransform = InverseSolveParentConstraints(
+					GlobalTransform, 
+					MultiParentElement->ParentConstraints, GlobalType, FTransform::Identity);
+				MultiParentElement->Pose.Set(InTransformType, LocalTransform);
+			}
 			else
 			{
 				ParentTransform = GetParentTransform(InTransformElement, GlobalType);
@@ -2179,7 +2170,6 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 		{
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InTransformElement))
 			{
-				
 				// using GetControlOffsetTransform to check dirty flag before accessing the transform
 				// note: no need to do the same for Pose.Local because there is already an ensure:
 				// "ensure(!InTransformElement->Pose.IsDirty(OpposedType));" above
@@ -2188,6 +2178,16 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 					GetControlOffsetTransform(ControlElement, OpposedType), true,
 					ControlElement->Pose.Get(OpposedType), true);
 				ControlElement->Pose.Set(InTransformType, NewTransform);
+			}
+			else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InTransformElement))
+			{
+				// this is done for nulls and any element that can have more than one parent which 
+				// is not a control
+				const FTransform NewTransform = SolveParentConstraints(
+					MultiParentElement->ParentConstraints, InTransformType,
+					FTransform::Identity, false,
+					MultiParentElement->Pose.Get(OpposedType), true);
+				MultiParentElement->Pose.Set(InTransformType, NewTransform);
 			}
 			else
 			{
@@ -2374,18 +2374,51 @@ FTransform URigHierarchy::GetControlOffsetTransform(FRigControlElement* InContro
 
 		if(IsLocal(InTransformType))
 		{
+			const FTransform& GlobalTransform = InControlElement->Offset.Get(GlobalType);
 			const FTransform LocalTransform = InverseSolveParentConstraints(
-				InControlElement->Offset.Get(GlobalType), 
+				GlobalTransform, 
 				InControlElement->ParentConstraints, GlobalType, FTransform::Identity);
 			InControlElement->Offset.Set(InTransformType, LocalTransform);
+
+			if(bEnableCacheValidityCheck)
+			{
+				const FTransform ComputedTransform = SolveParentConstraints(
+					InControlElement->ParentConstraints, MakeGlobal(InTransformType),
+					LocalTransform, true,
+					FTransform::Identity, false);
+
+				const TArray<FString>& TransformTypeStrings = GetTransformTypeStrings();
+
+				checkf(FRigComputedTransform::Equals(GlobalTransform, ComputedTransform),
+					TEXT("Element '%s' Offset %s Cached vs Computed doesn't match. ('%s' <-> '%s')"),
+					*InControlElement->GetName().ToString(),
+					*TransformTypeStrings[(int32)InTransformType],
+					*GlobalTransform.ToString(), *ComputedTransform.ToString());
+			}
 		}
 		else
 		{
+			const FTransform& LocalTransform = InControlElement->Offset.Get(OpposedType); 
 			const FTransform GlobalTransform = SolveParentConstraints(
 				InControlElement->ParentConstraints, InTransformType,
-				InControlElement->Offset.Get(OpposedType), true,
+				LocalTransform, true,
 				FTransform::Identity, false);
 			InControlElement->Offset.Set(InTransformType, GlobalTransform);
+
+			if(bEnableCacheValidityCheck)
+			{
+				const FTransform ComputedTransform = InverseSolveParentConstraints(
+					GlobalTransform, 
+					InControlElement->ParentConstraints, GlobalType, FTransform::Identity);
+
+				const TArray<FString>& TransformTypeStrings = GetTransformTypeStrings();
+
+				checkf(FRigComputedTransform::Equals(LocalTransform, ComputedTransform),
+					TEXT("Element '%s' Offset %s Cached vs Computed doesn't match. ('%s' <-> '%s')"),
+					*InControlElement->GetName().ToString(),
+					*TransformTypeStrings[(int32)InTransformType],
+					*LocalTransform.ToString(), *ComputedTransform.ToString());
+			}
 		}
 
 		EnsureCacheValidity();
@@ -2523,11 +2556,15 @@ FTransform URigHierarchy::GetControlShapeTransform(FRigControlElement* InControl
 		const FTransform ParentTransform = GetTransform(InControlElement, GlobalType);
 		if(IsLocal(InTransformType))
 		{
-			InControlElement->Shape.Set(InTransformType, InControlElement->Shape.Get(OpposedType).GetRelativeTransform(ParentTransform));
+			FTransform LocalTransform = InControlElement->Shape.Get(OpposedType).GetRelativeTransform(ParentTransform);
+			LocalTransform.NormalizeRotation();
+			InControlElement->Shape.Set(InTransformType, LocalTransform);
 		}
 		else
 		{
-			InControlElement->Shape.Set(InTransformType, InControlElement->Shape.Get(OpposedType) * ParentTransform);
+			FTransform GlobalTransform = InControlElement->Shape.Get(OpposedType) * ParentTransform;
+			GlobalTransform.NormalizeRotation();
+			InControlElement->Shape.Set(InTransformType, GlobalTransform);
 		}
 
 		EnsureCacheValidity();
@@ -2718,23 +2755,16 @@ FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const E
 	}
 	else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InElement))
 	{
-		FRigComputedTransform& Output = MultiParentElement->Parent[InTransformType];
-
-		if(Output.bDirty)
-		{
-			const FTransform OutputTransform = SolveParentConstraints(
-				MultiParentElement->ParentConstraints,
-				InTransformType,
-				FTransform::Identity,
-				false,
-				FTransform::Identity,
-				false
-			);
-			MultiParentElement->Parent.Set(InTransformType, OutputTransform);
-
-			EnsureCacheValidity();
-		}
-		return Output.Transform;
+		const FTransform OutputTransform = SolveParentConstraints(
+			MultiParentElement->ParentConstraints,
+			InTransformType,
+			FTransform::Identity,
+			false,
+			FTransform::Identity,
+			false
+		);
+		EnsureCacheValidity();
+		return OutputTransform;
 	}
 	return FTransform::Identity;
 }
@@ -3525,16 +3555,9 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 			{
 				if(ERigTransformType::IsGlobal(TypeToDirty))
 				{
-					if(ControlElement->Parent.IsDirty(TypeToDirty) &&
-						ControlElement->Offset.IsDirty(TypeToDirty) &&
-						ControlElement->Pose.IsDirty(TypeToDirty))
-					{
-						continue;
-					}
-				}
-				else
-				{
-					if(ControlElement->Parent.IsDirty(TypeToDirty))
+					if(ControlElement->Offset.IsDirty(TypeToDirty) &&
+						ControlElement->Pose.IsDirty(TypeToDirty) &&
+						ControlElement->Shape.IsDirty(TypeToDirty))
 					{
 						continue;
 					}
@@ -3544,15 +3567,7 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 			{
 				if(ERigTransformType::IsGlobal(TypeToDirty))
 				{
-					if(MultiParentElement->Parent.IsDirty(TypeToDirty) &&
-						MultiParentElement->Pose.IsDirty(TypeToDirty))
-					{
-						continue;
-					}
-				}
-				else
-				{
-					if(MultiParentElement->Parent.IsDirty(TypeToDirty))
+					if(MultiParentElement->Pose.IsDirty(TypeToDirty))
 					{
 						continue;
 					}
@@ -3598,16 +3613,9 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 			{
 				if(ERigTransformType::IsGlobal(TypeToDirty))
 				{
-					if(ControlElement->Parent.IsDirty(TypeToDirty) &&
-						ControlElement->Offset.IsDirty(TypeToDirty) &&
-						ControlElement->Pose.IsDirty(TypeToDirty))
-					{
-						continue;
-					}
-				}
-				else
-				{
-					if(ControlElement->Parent.IsDirty(TypeToDirty))
+					if(ControlElement->Offset.IsDirty(TypeToDirty) &&
+						ControlElement->Pose.IsDirty(TypeToDirty) &&
+					    ControlElement->Shape.IsDirty(TypeToDirty))
 					{
 						continue;
 					}
@@ -3617,15 +3625,7 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 			{
 				if(ERigTransformType::IsGlobal(TypeToDirty))
 				{
-					if(MultiParentElement->Parent.IsDirty(TypeToDirty) &&
-						MultiParentElement->Pose.IsDirty(TypeToDirty))
-					{
-						continue;
-					}
-				}
-				else
-				{
-					if(MultiParentElement->Parent.IsDirty(TypeToDirty))
+					if(MultiParentElement->Pose.IsDirty(TypeToDirty))
 					{
 						continue;
 					}
@@ -3650,10 +3650,6 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 
 			ElementToDirty.Element->Pose.MarkDirty(TypeToDirty);
 		
-			if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(ElementToDirty.Element))
-			{
-				MultiParentElement->Parent.MarkDirty(GlobalType);
-			}
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ElementToDirty.Element))
 			{
 				ControlElement->Offset.MarkDirty(GlobalType);
@@ -3674,6 +3670,151 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 	}
 }
 
+void URigHierarchy::CleanupInvalidCaches()
+{
+	// create a copy of this hierarchy and pre compute all transforms
+	if(HierarchyForCacheValidation == nullptr)
+	{
+		HierarchyForCacheValidation = NewObject<URigHierarchy>(this, NAME_None, RF_Transient);
+		HierarchyForCacheValidation->bEnableCacheValidityCheck = false;
+	}
+	HierarchyForCacheValidation->CopyHierarchy(this);
+
+	struct Local
+	{
+		static bool NeedsCheck(const FRigLocalAndGlobalTransform& InTransform)
+		{
+			return !InTransform.Local.bDirty && !InTransform.Global.bDirty;
+		}
+	};
+
+	// mark all elements' initial as dirty where needed
+	for(int32 ElementIndex = 0; ElementIndex < HierarchyForCacheValidation->Elements.Num(); ElementIndex++)
+	{
+		FRigBaseElement* BaseElement = HierarchyForCacheValidation->Elements[ElementIndex];
+		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(BaseElement))
+		{
+			if(Local::NeedsCheck(ControlElement->Offset.Initial))
+			{
+				ControlElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
+			}
+
+			if(Local::NeedsCheck(ControlElement->Pose.Initial))
+			{
+				ControlElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
+			}
+
+			if(Local::NeedsCheck(ControlElement->Shape.Initial))
+			{
+				ControlElement->Shape.MarkDirty(ERigTransformType::InitialGlobal);
+			}
+			continue;
+		}
+
+		if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(BaseElement))
+		{
+			if(Local::NeedsCheck(MultiParentElement->Pose.Initial))
+			{
+				MultiParentElement->Pose.MarkDirty(ERigTransformType::InitialLocal);
+			}
+			continue;
+		}
+
+		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(BaseElement))
+		{
+			if(Local::NeedsCheck(TransformElement->Pose.Initial))
+			{
+				TransformElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
+			}
+		}
+	}
+
+	// recompute 
+	HierarchyForCacheValidation->ComputeAllTransforms();
+
+	// we need to check the elements for integrity (global vs local) to be correct.
+	for(int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+	{
+		FRigBaseElement* BaseElement = Elements[ElementIndex];
+
+		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(BaseElement))
+		{
+			FRigControlElement* OtherControlElement = HierarchyForCacheValidation->FindChecked<FRigControlElement>(ControlElement->GetKey());
+			
+			if(Local::NeedsCheck(ControlElement->Offset.Initial))
+			{
+				const FTransform CachedGlobalTransform = OtherControlElement->Offset.Get(ERigTransformType::InitialGlobal);
+				const FTransform ComputedGlobalTransform = HierarchyForCacheValidation->GetControlOffsetTransform(OtherControlElement, ERigTransformType::InitialGlobal);
+
+				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
+				{
+					ControlElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
+				}
+			}
+
+			if(Local::NeedsCheck(ControlElement->Pose.Initial))
+			{
+				const FTransform CachedGlobalTransform = ControlElement->Pose.Get(ERigTransformType::InitialGlobal);
+				const FTransform ComputedGlobalTransform = HierarchyForCacheValidation->GetTransform(OtherControlElement, ERigTransformType::InitialGlobal);
+				
+				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
+				{
+					ControlElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
+				}
+			}
+
+			if(Local::NeedsCheck(ControlElement->Shape.Initial))
+			{
+				const FTransform CachedGlobalTransform = ControlElement->Shape.Get(ERigTransformType::InitialGlobal);
+				const FTransform ComputedGlobalTransform = HierarchyForCacheValidation->GetControlShapeTransform(OtherControlElement, ERigTransformType::InitialGlobal);
+				
+				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
+				{
+					ControlElement->Shape.MarkDirty(ERigTransformType::InitialGlobal);
+				}
+			}
+			continue;
+		}
+
+		if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(BaseElement))
+		{
+			FRigMultiParentElement* OtherMultiParentElement = HierarchyForCacheValidation->FindChecked<FRigMultiParentElement>(MultiParentElement->GetKey());
+
+			if(Local::NeedsCheck(MultiParentElement->Pose.Initial))
+			{
+				const FTransform CachedGlobalTransform = MultiParentElement->Pose.Get(ERigTransformType::InitialGlobal);
+				const FTransform ComputedGlobalTransform = HierarchyForCacheValidation->GetTransform(OtherMultiParentElement, ERigTransformType::InitialGlobal);
+				
+				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
+				{
+					// for nulls we perceive the local transform as less relevant
+					MultiParentElement->Pose.MarkDirty(ERigTransformType::InitialLocal);
+				}
+			}
+			continue;
+		}
+
+		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(BaseElement))
+		{
+			FRigTransformElement* OtherTransformElement = HierarchyForCacheValidation->FindChecked<FRigTransformElement>(TransformElement->GetKey());
+
+			if(Local::NeedsCheck(TransformElement->Pose.Initial))
+			{
+				const FTransform CachedGlobalTransform = TransformElement->Pose.Get(ERigTransformType::InitialGlobal);
+				const FTransform ComputedGlobalTransform = HierarchyForCacheValidation->GetTransform(OtherTransformElement, ERigTransformType::InitialGlobal);
+				
+				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
+				{
+					TransformElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
+				}
+			}
+		}
+	}
+
+	ResetPoseToInitial(ERigElementType::All);
+	EnsureCacheValidity();
+}
+
 void URigHierarchy::EnsureCacheValidityImpl()
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
@@ -3683,14 +3824,7 @@ void URigHierarchy::EnsureCacheValidityImpl()
 	}
 	TGuardValue<bool> Guard(bEnableCacheValidityCheck, false);
 
-	static TArray<FString> TransformTypeStrings;
-	if(TransformTypeStrings.IsEmpty())
-	{
-		for(int32 TransformTypeIndex = 0; TransformTypeIndex < (int32) ERigTransformType::NumTransformTypes; TransformTypeIndex++)
-		{
-			TransformTypeStrings.Add(StaticEnum<ERigTransformType::Type>()->GetDisplayNameTextByValue((int64)TransformTypeIndex).ToString());
-		}
-	}
+	static const TArray<FString>& TransformTypeStrings = GetTransformTypeStrings();
 
 	// make sure that elements which are marked as dirty don't have fully cached children
 	ForEach<FRigTransformElement>([](FRigTransformElement* TransformElement)
@@ -3715,20 +3849,8 @@ void URigHierarchy::EnsureCacheValidityImpl()
 			{
 				if(FRigMultiParentElement* MultiParentElementToDirty = Cast<FRigMultiParentElement>(ElementToDirty.Element))
 				{
-					check(MultiParentElementToDirty->Parent.IsDirty(GlobalType) ||
-                        MultiParentElementToDirty->Parent.IsDirty(LocalType));
-
                     if(FRigControlElement* ControlElementToDirty = Cast<FRigControlElement>(ElementToDirty.Element))
                     {
-                        if(ControlElementToDirty->Parent.IsDirty(GlobalType))
-                        {
-                            checkf(ControlElementToDirty->Offset.IsDirty(GlobalType) ||
-                                    ControlElementToDirty->Offset.IsDirty(LocalType),
-                                    TEXT("Control '%s' %s Parent Cache is dirty, but the Offset is not."),
-                                    *ControlElementToDirty->GetKey().ToString(),
-                                    *TransformTypeString);
-                        }
-
                         if(ControlElementToDirty->Offset.IsDirty(GlobalType))
                         {
                             checkf(ControlElementToDirty->Pose.IsDirty(GlobalType) ||
@@ -3749,14 +3871,11 @@ void URigHierarchy::EnsureCacheValidityImpl()
                     }
                     else
                     {
-                        if(MultiParentElementToDirty->Parent.IsDirty(GlobalType))
-                        {
-                            checkf(MultiParentElementToDirty->Pose.IsDirty(GlobalType) ||
-                                    MultiParentElementToDirty->Pose.IsDirty(LocalType),
-                                    TEXT("MultiParent '%s' %s Parent Cache is dirty, but the Pose is not."),
-									*MultiParentElementToDirty->GetKey().ToString(),
-									*TransformTypeString);
-						}
+                        checkf(MultiParentElementToDirty->Pose.IsDirty(GlobalType) ||
+                                MultiParentElementToDirty->Pose.IsDirty(LocalType),
+                                TEXT("MultiParent '%s' %s Parent Cache is dirty, but the Pose is not."),
+								*MultiParentElementToDirty->GetKey().ToString(),
+								*TransformTypeString);
                     }
 				}
 				else
@@ -3783,39 +3902,13 @@ void URigHierarchy::EnsureCacheValidityImpl()
 	{
 		HierarchyForCacheValidation->CopyHierarchy(this);
 	}
-	HierarchyForCacheValidation->CopyPose(this, true, true);
+	HierarchyForCacheValidation->CopyPose(this, true, true, true);
 
 	// traverse the copied hierarchy and compare cached vs computed values
 	URigHierarchy* HierarchyForLambda = HierarchyForCacheValidation;
 	HierarchyForLambda->Traverse([HierarchyForLambda](FRigBaseElement* Element, bool& bContinue)
 	{
 		bContinue = true;
-
-		if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(Element))
-		{
-			for(int32 TransformTypeIndex = 0; TransformTypeIndex < (int32) ERigTransformType::NumTransformTypes; TransformTypeIndex++)
-			{
-				const ERigTransformType::Type TransformType = (ERigTransformType::Type)TransformTypeIndex;
-				const ERigTransformType::Type OpposedType = ERigTransformType::SwapLocalAndGlobal(TransformType);
-				const FString& TransformTypeString = TransformTypeStrings[TransformTypeIndex];
-
-				if(ERigTransformType::IsLocal(TransformType))
-				{
-					continue;
-				}
-
-				if(!MultiParentElement->Parent.IsDirty(TransformType))
-				{
-					const FTransform CachedTransform = HierarchyForLambda->GetParentTransform(MultiParentElement, TransformType);
-					MultiParentElement->Parent.MarkDirty(TransformType);
-					const FTransform ComputedTransform = HierarchyForLambda->GetParentTransform(MultiParentElement, TransformType);
-					checkf(FRigComputedTransform::Equals(CachedTransform, ComputedTransform),
-						TEXT("Element '%s' Parent %s Cached vs Computed doesn't match."),
-						*Element->GetName().ToString(),
-						*TransformTypeString);
-				}
-			}
-		}
 
 		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
 		{
@@ -3831,9 +3924,11 @@ void URigHierarchy::EnsureCacheValidityImpl()
 					ControlElement->Offset.MarkDirty(TransformType);
 					const FTransform ComputedTransform = HierarchyForLambda->GetControlOffsetTransform(ControlElement, TransformType);
 					checkf(FRigComputedTransform::Equals(CachedTransform, ComputedTransform),
-						TEXT("Element '%s' Offset %s Cached vs Computed doesn't match."),
+						TEXT("Element '%s' Offset %s Cached vs Computed doesn't match. ('%s' <-> '%s')"),
 						*Element->GetName().ToString(),
-						*TransformTypeString);
+						*TransformTypeString,
+						*CachedTransform.ToString(),
+						*ComputedTransform.ToString());
 				}
 			}
 		}
@@ -3852,9 +3947,10 @@ void URigHierarchy::EnsureCacheValidityImpl()
 					TransformElement->Pose.MarkDirty(TransformType);
 					const FTransform ComputedTransform = HierarchyForLambda->GetTransform(TransformElement, TransformType);
 					checkf(FRigComputedTransform::Equals(CachedTransform, ComputedTransform),
-						TEXT("Element '%s' Pose %s Cached vs Computed doesn't match."),
+						TEXT("Element '%s' Pose %s Cached vs Computed doesn't match. ('%s' <-> '%s')"),
 						*Element->GetName().ToString(),
-						*TransformTypeString);
+						*TransformTypeString,
+						*CachedTransform.ToString(), *ComputedTransform.ToString());
 				}
 			}
 		}
@@ -3873,9 +3969,10 @@ void URigHierarchy::EnsureCacheValidityImpl()
 					ControlElement->Shape.MarkDirty(TransformType);
 					const FTransform ComputedTransform = HierarchyForLambda->GetControlShapeTransform(ControlElement, TransformType);
 					checkf(FRigComputedTransform::Equals(CachedTransform, ComputedTransform),
-						TEXT("Element '%s' Shape %s Cached vs Computed doesn't match."),
+						TEXT("Element '%s' Shape %s Cached vs Computed doesn't match. ('%s' <-> '%s')"),
 						*Element->GetName().ToString(),
-						*TransformTypeString);
+						*TransformTypeString,
+						*CachedTransform.ToString(), *ComputedTransform.ToString());
 				}
 			}
 		}
@@ -4011,6 +4108,19 @@ URigHierarchy::TElementDependencyMap URigHierarchy::GetDependenciesForVM(URigVM*
 }
 
 #endif
+
+const TArray<FString>& URigHierarchy::GetTransformTypeStrings()
+{
+	static TArray<FString> TransformTypeStrings;
+	if(TransformTypeStrings.IsEmpty())
+	{
+		for(int32 TransformTypeIndex = 0; TransformTypeIndex < (int32) ERigTransformType::NumTransformTypes; TransformTypeIndex++)
+		{
+			TransformTypeStrings.Add(StaticEnum<ERigTransformType::Type>()->GetDisplayNameTextByValue((int64)TransformTypeIndex).ToString());
+		}
+	}
+	return TransformTypeStrings;
+}
 
 void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ERigTransformStackEntryType InEntryType,
                                          ERigTransformType::Type InTransformType, const FTransform& InOldTransform, const FTransform& InNewTransform,
@@ -4215,13 +4325,16 @@ void URigHierarchy::ComputeAllTransforms()
 		for(int32 TransformTypeIndex = 0; TransformTypeIndex < (int32) ERigTransformType::NumTransformTypes; TransformTypeIndex++)
 		{
 			const ERigTransformType::Type TransformType = (ERigTransformType::Type)TransformTypeIndex; 
+			if(FRigControlElement* ControlElement = Get<FRigControlElement>(ElementIndex))
+			{
+				GetControlOffsetTransform(ControlElement, TransformType);
+			}
 			if(FRigTransformElement* TransformElement = Get<FRigTransformElement>(ElementIndex))
 			{
 				GetTransform(TransformElement, TransformType);
 			}
 			if(FRigControlElement* ControlElement = Get<FRigControlElement>(ElementIndex))
 			{
-				GetControlOffsetTransform(ControlElement, TransformType);
 				GetControlShapeTransform(ControlElement, TransformType);
 			}
 		}
@@ -4270,6 +4383,17 @@ FTransform URigHierarchy::SolveParentConstraints(
 	FConstraintIndex NumConstraintsAffecting(0);
 	FRigElementWeight TotalWeight(0.f);
 	ComputeParentConstraintIndices(InConstraints, InTransformType, FirstConstraint, SecondConstraint, NumConstraintsAffecting, TotalWeight);
+
+	// performance improvement for case of a single parent
+	if(NumConstraintsAffecting.Location == 1 &&
+		NumConstraintsAffecting.Rotation == 1 &&
+		NumConstraintsAffecting.Scale == 1 &&
+		FirstConstraint.Location == FirstConstraint.Rotation &&
+		FirstConstraint.Location == FirstConstraint.Scale)
+	{
+		return LazilyComputeParentConstraint(InConstraints, FirstConstraint.Location, InTransformType,
+			InLocalOffsetTransform, bApplyLocalOffsetTransform, InLocalPoseTransform, bApplyLocalPoseTransform);
+	}
 
 	if(NumConstraintsAffecting.Location == 0 ||
 		NumConstraintsAffecting.Rotation == 0 ||
@@ -4498,13 +4622,25 @@ FTransform URigHierarchy::InverseSolveParentConstraints(
 	const bool bInitial = IsInitial(InTransformType);
 	check(ERigTransformType::IsGlobal(InTransformType));
 
-
 	// collect all of the weights
 	FConstraintIndex FirstConstraint;
 	FConstraintIndex SecondConstraint;
 	FConstraintIndex NumConstraintsAffecting(0);
 	FRigElementWeight TotalWeight(0.f);
 	ComputeParentConstraintIndices(InConstraints, InTransformType, FirstConstraint, SecondConstraint, NumConstraintsAffecting, TotalWeight);
+
+	// performance improvement for case of a single parent
+	if(NumConstraintsAffecting.Location == 1 &&
+		NumConstraintsAffecting.Rotation == 1 &&
+		NumConstraintsAffecting.Scale == 1 &&
+		FirstConstraint.Location == FirstConstraint.Rotation &&
+		FirstConstraint.Location == FirstConstraint.Scale)
+	{
+		const FTransform Transform = LazilyComputeParentConstraint(InConstraints, FirstConstraint.Location, InTransformType,
+			InLocalOffsetTransform, true, FTransform::Identity, false);
+
+		return InGlobalTransform.GetRelativeTransform(Transform);
+	}
 
 	if(NumConstraintsAffecting.Location == 0 ||
 		NumConstraintsAffecting.Rotation == 0 ||
@@ -4746,6 +4882,7 @@ FTransform URigHierarchy::LazilyComputeParentConstraint(
 			Transform = InLocalPoseTransform * Transform;
 		}
 
+		Transform.NormalizeRotation();
 		Constraint.Cache.Transform = Transform;
 		Constraint.Cache.bDirty = false;
 	}
@@ -4765,6 +4902,7 @@ void URigHierarchy::ComputeParentConstraintIndices(
 	// find all of the weights affecting this output
 	for(int32 ConstraintIndex = 0; ConstraintIndex < InConstraints.Num(); ConstraintIndex++)
 	{
+		// this is not relying on the cache whatsoever. we might as well remove it.
 		InConstraints[ConstraintIndex].Cache.bDirty = true;
 		
 		const FRigElementWeight& Weight = InConstraints[ConstraintIndex].GetWeight(bInitial);

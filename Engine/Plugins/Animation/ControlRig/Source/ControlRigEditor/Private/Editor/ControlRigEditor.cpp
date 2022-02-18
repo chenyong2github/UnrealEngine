@@ -1301,7 +1301,7 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 			{
 				// copy the initial transforms back to the blueprint
 				// no need to call modify here since this code only modifies the bp if the preview mesh changed
-				RigBlueprint->Hierarchy->CopyPose(DebuggedControlRig->GetHierarchy(), false, true);
+				RigBlueprint->Hierarchy->CopyPose(DebuggedControlRig->GetHierarchy(), false, true, false);
 			}
 		}
 
@@ -5884,7 +5884,9 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 		TargetControlElement->Settings = SourceControlElement->Settings;
 		Blueprint->Hierarchy->OnModified().Broadcast(ERigHierarchyNotification::ControlSettingChanged, Blueprint->Hierarchy, TargetControlElement);
 
-		TargetControlElement->CopyPose(SourceControlElement, true, true);
+		// we copy the pose including the weights since we want the topology to align during setup mode.
+		// i.e. dynamic reparenting should be reset here.
+		TargetControlElement->CopyPose(SourceControlElement, true, true, true);
 	}
 }
 

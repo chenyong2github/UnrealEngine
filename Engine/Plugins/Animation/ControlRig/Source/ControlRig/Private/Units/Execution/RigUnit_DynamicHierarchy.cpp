@@ -3,6 +3,7 @@
 #include "RigUnit_DynamicHierarchy.h"
 #include "Rigs/RigHierarchyController.h"
 #include "Units/RigUnitContext.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_PrepareForExecution.h"
 
 FRigUnit_AddParent_Execute()
 {
@@ -110,6 +111,19 @@ FRigUnit_SwitchParent_Execute()
 				}
 				return;
 			}
+
+			// during setup event also change the initial weights
+			if(ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
+			{
+				if(!ExecuteContext.Hierarchy->SwitchToParent(ChildElement, ParentElement, true, true, DependencyMap, &FailureReason))
+				{
+					if(!FailureReason.IsEmpty())
+					{
+						UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("%s"), *FailureReason);
+					}
+					return;
+				}
+			}
 			break;
 		}
 	}
@@ -161,4 +175,10 @@ FRigUnit_HierarchySetParentWeights_Execute()
 	}
 
 	ExecuteContext.Hierarchy->SetParentWeightArray(ChildElement, Weights, false, true);
+
+	// during setup event also change the initial weights
+	if(ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
+	{
+		ExecuteContext.Hierarchy->SetParentWeightArray(ChildElement, Weights, true, true);
+	}
 }

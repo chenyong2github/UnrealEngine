@@ -9,6 +9,15 @@
 
 class URigHierarchy;
 
+// Define to switch between recursive calls for dirty propagation or flat iteration.
+// Based on this each element will either contains only the next tier of elements to dirty (recursive)
+// or a full flattened list of elements to dirty (no need to recurse)
+#define URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION 1
+
+// Debug define which performs a full check on the cache validity for all elements of the hierarchy.
+// This can be useful for debugging cache validity bugs.
+#define URIGHIERARCHY_ENSURE_CACHE_VALIDITY 0
+
 /* 
  * This is rig element types that we support
  * This can be used as a mask so supported as a bitfield
@@ -391,7 +400,16 @@ public:
 				Get<FVector3f>().X, Get<FVector3f>().Z, Get<FVector3f>().Y); break;
 			case ERigControlType::Scale: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_vector(unreal.Vector(%.6f, %.6f, %.6f))"),
 				Get<FVector3f>().X, Get<FVector3f>().Y, Get<FVector3f>().Z); break;
-			case ERigControlType::Transform:
+			case ERigControlType::Transform: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_euler_transform(unreal.EulerTransform(location=[%.6f,%.6f,%.6f],rotation=[%.6f,%.6f,%.6f],scale=[%.6f,%.6f,%.6f]))"),
+				Get<FTransform_Float>().TranslationX,
+				Get<FTransform_Float>().TranslationY,
+				Get<FTransform_Float>().TranslationZ,
+				Get<FTransform_Float>().GetRotation().Rotator().Pitch,
+				Get<FTransform_Float>().GetRotation().Rotator().Yaw,
+				Get<FTransform_Float>().GetRotation().Rotator().Roll,
+				Get<FTransform_Float>().ScaleX,
+				Get<FTransform_Float>().ScaleY,
+				Get<FTransform_Float>().ScaleZ); break;
 			case ERigControlType::EulerTransform: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_euler_transform(unreal.EulerTransform(location=[%.6f,%.6f,%.6f],rotation=[%.6f,%.6f,%.6f],scale=[%.6f,%.6f,%.6f]))"),
 				Get<FEulerTransform_Float>().TranslationX,
 				Get<FEulerTransform_Float>().TranslationY,
