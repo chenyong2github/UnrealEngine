@@ -22,6 +22,9 @@
 // Enable concurrent code generation
 #define UHT_ENABLE_CONCURRENT_CODE_GENERATION 1
 
+// Enable the output of extra code gen that contributes to hashes
+#define UHT_ENABLE_EXTRA_HASH_OUTPUT 0
+
 struct FHeaderParserNames
 {
 	static const FName NAME_IsConversionRoot;

@@ -996,7 +996,6 @@ struct FPropertyTypeTraitsBooleanBase : public FPropertyTypeTraitsBase
 		{
 			return SizeText;
 		}
-		return TEXT("uint32");
 	}
 
 	static bool DefaultValueStringCppFormatToInnerFormat(const FUnrealPropertyDefinitionInfo& PropDef, const FString& CppForm, FString& OutForm)

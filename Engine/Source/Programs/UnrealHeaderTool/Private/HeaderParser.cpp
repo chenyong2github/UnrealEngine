@@ -1545,7 +1545,7 @@ FString FHeaderParser::FormatCommentForToolTip(const FString& Input)
 			int32 TemporaryMaxWhitespace = MaxNumWhitespaceToRemove;
 
 			// Allow eating an extra tab on subsequent lines if it's present
-			if ((Index > 0) && (Line.Len() > 0) && (Line[0] == '\t'))
+			if ((Index > FirstIndex) && (Line.Len() > 0) && (Line[0] == '\t'))
 			{
 				TemporaryMaxWhitespace++;
 			}
@@ -1562,7 +1562,7 @@ FString FHeaderParser::FormatCommentForToolTip(const FString& Input)
 				Line.RightChopInline(Pos, false);
 			}
 
-			if (Index > 0)
+			if (Index > FirstIndex)
 			{
 				Result += TEXT("\n");
 			}
@@ -1907,6 +1907,7 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 	{
 		ClearComment();
 		GetToken( Token );
+		int StartingLine = InputLine;
 
 		if (EAccessSpecifier AccessSpecifier = ParseAccessProtectionSpecifier(Token))
 		{
@@ -1959,6 +1960,16 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 		{
 			PopCompilerDirective();
 			// Do nothing and hope that the if code below worked out OK earlier
+
+			// skip it and skip over the text, it is not recorded or processed
+			if (StartingLine == InputLine)
+			{
+				TCHAR c;
+				while (!IsEOL(c = GetChar()))
+				{
+				}
+				ClearComment();
+			}
 		}
 		else if ( Token.IsSymbol(TEXT('#')) && MatchIdentifier(TEXT("if"), ESearchCase::CaseSensitive) )
 		{
@@ -2781,6 +2792,9 @@ void FHeaderParser::CompileDirective()
 		{
 			UngetChar();
 		}
+
+		// Remove any comments parsed to prevent any trailing comments from being picked up
+		ClearComment();
 	}
 }
 
@@ -4823,7 +4837,8 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		bEncounteredNewStyleClass_UnmatchedBrackets = false;
 
 		// Pop nesting here to allow other non UClass declarations in the header file.
-		if (CurrentClassDef.HasAllClassFlags(CLASS_Interface))
+		// Make sure we treat UInterface as a class and not an interface
+		if (CurrentClassDef.HasAllClassFlags(CLASS_Interface) && &CurrentClassDef != GUInterfaceDef)
 		{
 			checkf(TopNest->NestType == ENestType::Interface || TopNest->NestType == ENestType::NativeInterface, TEXT("Unexpected end of interface block."));
 			PopNest(TopNest->NestType, TEXT("'Interface'"));
@@ -4843,7 +4858,14 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		}
 		else
 		{
-			PopNest(ENestType::Class, TEXT("'Class'"));
+			if (&CurrentClassDef == GUInterfaceDef && TopNest->NestType == ENestType::NativeInterface)
+			{
+				PopNest(TopNest->NestType, TEXT("'Interface'"));
+			}
+			else
+			{
+				PopNest(ENestType::Class, TEXT("'Class'"));
+			}
 			PostPopNestClass(CurrentClassDef);
 
 			// Ensure classes have a GENERATED_BODY declaration
@@ -5326,6 +5348,7 @@ FUnrealClassDefinitionInfo& FHeaderParser::ParseClassNameDeclaration(FString& De
 	FUnrealClassDefinitionInfo* ClassDef = FUnrealClassDefinitionInfo::FindClass(*GetClassNameWithPrefixRemoved(*DeclaredClassName));
 	check(ClassDef);
 	ClassDef->SetClassCastFlags(ClassCastFlagMap::Get().GetCastFlag(DeclaredClassName));
+	ClassDef->SetClassCastFlags(ClassCastFlagMap::Get().GetCastFlag(FString(TEXT("F")) + DeclaredClassName.RightChop(1))); // For properties, check alternate name
 
 	// Skip optional final keyword
 	MatchIdentifier(TEXT("final"), ESearchCase::CaseSensitive);
@@ -5557,6 +5580,7 @@ bool FHeaderParser::TryParseIInterfaceClass()
 	// Push the interface class nesting again.
 	PushNest(ENestType::NativeInterface, FoundClassDef);
 
+	CurrentAccessSpecifier = ACCESS_Private;
 	return true;
 }
 
@@ -5568,6 +5592,8 @@ void FHeaderParser::CompileInterfaceDeclaration()
 	// Start of an interface block. Since Interfaces and Classes are always at the same nesting level,
 	// whereever a class declaration is allowed, an interface declaration is also allowed.
 	CheckAllow( TEXT("'interface'"), ENestAllowFlags::Class );
+
+	CurrentAccessSpecifier = ACCESS_Private;
 
 	FString DeclaredInterfaceName;
 	FString RequiredAPIMacroIfPresent;
@@ -8409,6 +8435,34 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseStructDeclaration(c
 			StructDef->SetStructFlags(STRUCT_Atomic);
 		}
 		break;
+
+		case EStructSpecifier::HasDefaults:
+			if (!SourceFile.IsNoExportTypes())
+			{
+				LogError(TEXT("The 'HasDefaults' struct specifier is only valid in the NoExportTypes.h file"));
+			}
+			break;
+
+		case EStructSpecifier::HasNoOpConstructor:
+			if (!SourceFile.IsNoExportTypes())
+			{
+				LogError(TEXT("The 'HasNoOpConstructor' struct specifier is only valid in the NoExportTypes.h file"));
+			}
+			break;
+
+		case EStructSpecifier::IsAlwaysAccessible:
+			if (!SourceFile.IsNoExportTypes())
+			{
+				LogError(TEXT("The 'IsAlwaysAccessible' struct specifier is only valid in the NoExportTypes.h file"));
+			}
+			break;
+
+		case EStructSpecifier::IsCoreType:
+			if (!SourceFile.IsNoExportTypes())
+			{
+				LogError(TEXT("The 'IsCoreType' struct specifier is only valid in the NoExportTypes.h file"));
+			}
+			break;
 		}
 	}
 
@@ -8591,6 +8645,8 @@ void FHeaderParser::ResetClassData()
 {
 	FUnrealClassDefinitionInfo& CurrentClassDef = GetCurrentClassDef();
 
+	check(CurrentClassDef.GetClassWithin() == nullptr);
+
 	// Set class flags and within.
 	CurrentClassDef.ClearClassFlags(CLASS_RecompilerClear);
 
@@ -8600,10 +8656,7 @@ void FHeaderParser::ResetClassData()
 		CurrentClassDef.SetClassConfigName(SuperClassDef->GetClassConfigName());
 
 		check(SuperClassDef->GetClassWithin());
-		if (CurrentClassDef.GetClassWithin() == nullptr)
-		{
-			CurrentClassDef.SetClassWithin(SuperClassDef->GetClassWithin());
-		}
+		CurrentClassDef.SetClassWithin(SuperClassDef->GetClassWithin());
 
 		// Copy special categories from parent
 		if (SuperClassDef->HasMetaData(FHeaderParserNames::NAME_HideCategories))
@@ -8634,6 +8687,10 @@ void FHeaderParser::ResetClassData()
 		{
 			CurrentClassDef.SetMetaData(FHeaderParserNames::NAME_PrioritizeCategories, *SuperClassDef->GetMetaData(FHeaderParserNames::NAME_PrioritizeCategories));
 		}
+	}
+	else
+	{
+		CurrentClassDef.SetClassWithin(GUObjectDef);
 	}
 
 	check(CurrentClassDef.GetClassWithin());

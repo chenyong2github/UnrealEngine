@@ -1831,6 +1831,12 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 		return AName < BName;
 	});
 
+#if UHT_ENABLE_EXTRA_HASH_OUTPUT
+	Out.Log(TEXT("#if 0\r\n"));
+	Out.Log(InDeclarations);
+	Out.Log(TEXT("#endif\r\n"));
+#endif
+
 	for (FUnrealFieldDefinitionInfo* FieldDef : Singletons)
 	{
 		Out.Log(FieldDef->GetExternDecl(true));
@@ -2182,7 +2188,9 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 	{
 		BaseClassHash = SuperClassDef->GetHash(ClassDef);
 	}
-	GeneratedClassRegisterFunctionText.Logf(TEXT("\r\n// %u\r\n"), BaseClassHash);
+
+	FUHTStringBuilder HashBuilder;
+	HashBuilder.Logf(TEXT("\r\n// %u\r\n"), BaseClassHash);
 
 	// Append info for the sparse class data struct onto the text to be hashed
 	TArray<FString> SparseClassDataTypes;
@@ -2192,13 +2200,21 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 	{
 		if (FUnrealScriptStructDefinitionInfo* SparseScriptStructDef = GTypeDefinitionInfoMap.FindByName<FUnrealScriptStructDefinitionInfo>(*SparseClassDataString))
 		{
-			GeneratedClassRegisterFunctionText.Logf(TEXT("%s\r\n"), *SparseScriptStructDef->GetName());
+			HashBuilder.Logf(TEXT("%s\r\n"), *SparseScriptStructDef->GetName());
 			for (FUnrealPropertyDefinitionInfo* ChildDef : TUHTFieldRange<FUnrealPropertyDefinitionInfo>(*SparseScriptStructDef))
 			{
-				GeneratedClassRegisterFunctionText.Logf(TEXT("%s %s\r\n"), *ChildDef->GetCPPType(), *ChildDef->GetNameWithDeprecated());
+				HashBuilder.Logf(TEXT("%s %s\r\n"), *ChildDef->GetCPPType(), *ChildDef->GetNameWithDeprecated());
 			}
 		}
 	}
+
+#if UHT_ENABLE_EXTRA_HASH_OUTPUT
+	Out.Log(TEXT("#if 0\r\n"));
+	Out.Log(HashBuilder);
+	Out.Log(TEXT("#endif\r\n"));
+#endif
+
+	GeneratedClassRegisterFunctionText.Log(HashBuilder);
 
 	// Calculate generated class initialization code hash so that we know when it changes after hot-reload
 	uint32 ClassHash = GenerateTextHash(*GeneratedClassRegisterFunctionText);
@@ -2996,7 +3012,7 @@ void ExportConstructorDefinition(FOutputDevice& Out, FUnrealClassDefinitionInfo&
 		FUnrealClassDefinitionInfo* SuperClassDef = ClassDef.GetSuperClass();
 		if (SuperClassDef != nullptr)
 		{
-			if (SuperClassDef->HasSource()) // Don't consider the internal types generated from the engine
+			if (SuperClassDef->HasSource() && !SuperClassDef->GetUnrealSourceFile().IsNoExportTypes()) // Don't consider the internal types generated from the engine
 			{
 				// Since we are dependent on our SuperClass having determined which constructors are defined, 
 				// if it is not yet determined we will need to wait on it becoming available. 
@@ -3132,11 +3148,21 @@ bool FNativeClassHeaderGenerator::WriteHeader(FGeneratedFileInfo& FileInfo, cons
 	GeneratedHeaderTextWithCopyright.Log(LINE_TERMINATOR);
 	GeneratedHeaderTextWithCopyright.Log(DisableDeprecationWarnings);
 
-	for (const FString& FWDecl : ForwardDeclarations)
+	if (ForwardDeclarations.Num() > 0)
 	{
-		if (FWDecl.Len() > 0)
+		TArray<const FString*> Sorted;
+		Sorted.Reserve(ForwardDeclarations.Num());
+		for (const FString& Ref : ForwardDeclarations)
 		{
-			GeneratedHeaderTextWithCopyright.Logf(TEXT("%s\r\n"), *FWDecl);
+			if (Ref.Len() > 0)
+			{
+				Sorted.Add(&Ref);
+			}
+		}
+		Sorted.Sort();
+		for (const FString* Ref : Sorted)
+		{
+			GeneratedHeaderTextWithCopyright.Logf(TEXT("%s\r\n"), **Ref);
 		}
 	}
 
@@ -3323,15 +3349,15 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 		FString StructMembers = StructRigVMInfo.Members.Declarations(false, TEXT(", \\\r\n\t\t"), true, false);
 
-		OutGeneratedHeaderText.Log(TEXT("\n"));
+		OutGeneratedHeaderText.Log(TEXT("\r\n"));
 		for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo.Methods)
 		{
 			FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(", \\\r\n\t\t"));
 			FString RigVMParameterPrefix2 = RigVMParameterPrefix + FString((StructMembers.IsEmpty() && ParameterSuffix.IsEmpty()) ? TEXT("") : TEXT(", \\\r\n\t\t"));
 			OutGeneratedHeaderText.Logf(TEXT("#define %s_%s() \\\r\n"), *StructNameCPP, *MethodInfo.Name);
-			OutGeneratedHeaderText.Logf(TEXT("\t%s %s::Static%s( \\\r\n\t\t%s%s%s \\\r\n\t)\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name, *RigVMParameterPrefix2, *StructMembers, *ParameterSuffix);
+			OutGeneratedHeaderText.Logf(TEXT("\t%s %s::Static%s( \\\r\n\t\t%s%s%s \\\r\n\t)\r\n"), *MethodInfo.ReturnType, *StructNameCPP, *MethodInfo.Name, *RigVMParameterPrefix2, *StructMembers, *ParameterSuffix);
 		}
-		OutGeneratedHeaderText.Log(TEXT("\n"));
+		OutGeneratedHeaderText.Log(TEXT("\r\n"));
 	}
 
 	// Export struct.
@@ -3580,7 +3606,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				Out.Log(TEXT("\t\r\n"));
 			}
 
-			Out.Logf(TEXT("    %sStatic%s(\r\n\t\t%s%s%s\r\n\t);\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *RigVMParameterPrefix3, *StructMembersForVirtualFunc, *ParameterSuffix);
+			Out.Logf(TEXT("\t%sStatic%s(\r\n\t\t%s%s%s\r\n\t);\r\n"), *MethodInfo.ReturnPrefix(), *MethodInfo.Name, *RigVMParameterPrefix3, *StructMembersForVirtualFunc, *ParameterSuffix);
 
 			if (RigVMVirtualFuncEpilog.Num() > 0)
 			{
@@ -3919,7 +3945,7 @@ void FNativeClassHeaderGenerator::ExportDelegateDefinition(FOutputDevice& Out, F
 	WriteMacro(Out, MacroName, DelegateOutput);
 }
 
-void FNativeClassHeaderGenerator::ExportEventParm(FUHTStringBuilder& Out, TSet<FString>& PropertyFwd, FUnrealFunctionDefinitionInfo& FunctionDef, int32 Indent, bool bOutputConstructor, EExportingState ExportingState)
+void FNativeClassHeaderGenerator::ExportEventParm(FUHTStringBuilder& Out, TSet<FString>& ForwardDeclarations, FUnrealFunctionDefinitionInfo& FunctionDef, int32 Indent, bool bOutputConstructor, EExportingState ExportingState)
 {
 	if (!WillExportEventParms(FunctionDef))
 	{
@@ -3944,7 +3970,7 @@ void FNativeClassHeaderGenerator::ExportEventParm(FUHTStringBuilder& Out, TSet<F
 			continue;
 		}
 
-		PropertyFwd.Add(PropDef->GetCPPTypeForwardDeclaration());
+		ForwardDeclarations.Add(PropDef->GetCPPTypeForwardDeclaration());
 
 		FUHTStringBuilder PropertyText;
 		PropertyText.Log(FCString::Tab(Indent + 1));
@@ -4211,8 +4237,8 @@ void FNativeClassHeaderGenerator::CheckRPCFunctions(FReferenceGatherers& OutRefe
 
 void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 	FOutputDevice&                   Out,
-	TSet<FString>&                   OutFwdDecls,
-	FUnrealFunctionDefinitionInfo&				 FunctionDef,
+	TSet<FString>&                   ForwardDeclarations,
+	FUnrealFunctionDefinitionInfo&	 FunctionDef,
 	const FFuncInfo&				 FunctionData,
 	EExportFunctionType::Type        FunctionType,
 	EExportFunctionHeaderStyle::Type FunctionHeaderStyle,
@@ -4276,7 +4302,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 
 		FString ExtendedReturnType;
 		FString ReturnType = ReturnPropertyDef->GetCPPType(&ExtendedReturnType, (FunctionHeaderStyle == EExportFunctionHeaderStyle::Definition && (FunctionType != EExportFunctionType::Interface) ? CPPF_Implementation : 0) | CPPF_ArgumentOrReturnValue);
-		OutFwdDecls.Add(ReturnPropertyDef->GetCPPTypeForwardDeclaration());
+		ForwardDeclarations.Add(ReturnPropertyDef->GetCPPTypeForwardDeclaration());
 		FUHTStringBuilder ReplacementText;
 		ReplacementText += ReturnType;
 		ApplyAlternatePropertyExportText(*ReturnPropertyDef, ReplacementText, EExportingState::Normal);
@@ -4324,7 +4350,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctionHeader(
 			continue;
 		}
 
-		OutFwdDecls.Add(PropertyDef->GetCPPTypeForwardDeclaration());
+		ForwardDeclarations.Add(PropertyDef->GetCPPTypeForwardDeclaration());
 
 		if( ParmCount++ )
 		{
@@ -5012,7 +5038,7 @@ bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGe
 		{
 			FUnrealClassDefinitionInfo& ClassDef = TypeDef->AsClassChecked();
 			FUnrealClassDefinitionInfo* ClassWithin = ClassDef.GetClassWithin();
-			if (ClassWithin && ClassWithin != GUObjectDef && ClassWithin->HasSource())
+			if (ClassWithin && ClassWithin->HasSource() && !ClassWithin->GetUnrealSourceFile().IsNoExportTypes())
 			{
 				FString Header = GetBuildPath(ClassWithin->GetUnrealSourceFile());
 				RelativeIncludes.AddUnique(MoveTemp(Header));
@@ -5049,10 +5075,17 @@ bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGe
 
 	if (InCrossModuleReferences.Num() > 0)
 	{
-		FileText.Logf(TEXT("// Cross Module References\r\n"));
+		TArray<const FString*> Sorted;
+		Sorted.Reserve(InCrossModuleReferences.Num());
 		for (const FString& Ref : InCrossModuleReferences)
 		{
-			FileText.Log(*Ref);
+			Sorted.Add(&Ref);
+		}
+		Sorted.Sort();
+		FileText.Logf(TEXT("// Cross Module References\r\n"));
+		for (const FString* Ref : Sorted)
+		{
+			FileText.Log(**Ref);
 		}
 		FileText.Logf(TEXT("// End Cross Module References\r\n"));
 	}
@@ -5348,6 +5381,31 @@ void FNativeClassHeaderGenerator::GenerateSourceFile(FGeneratedCPP& GeneratedCPP
 			{
 				SourceFile.GetSingletons().Append(MoveTemp(Singletons));
 			}
+
+			// Sort the forward declarations to make them more stable
+			TArray<FString> Lines;
+			GeneratedFunctionDeclarations.ParseIntoArrayLines(Lines);
+			TSet<FString> Unique;
+			for (const FString& Line : Lines)
+			{
+				Unique.Add(Line);
+			}
+			Lines.Empty();
+			for (const FString& Line : Unique)
+			{
+				Lines.Add(Line);
+			}
+			Lines.Sort();
+			GeneratedFunctionDeclarations.Empty();
+			for (const FString& Line : Lines)
+			{
+				GeneratedFunctionDeclarations.Logf(TEXT("%s\r\n"), *Line);
+			}
+#if UHT_ENABLE_EXTRA_HASH_OUTPUT
+			GeneratedCPPText.Logf(TEXT("#if 0\r\n"));
+			GeneratedCPPText.Log(GeneratedFunctionDeclarations);
+			GeneratedCPPText.Logf(TEXT("#endif\r\n"));
+#endif
 		}
 	);
 }
@@ -5797,48 +5855,7 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FGeneratedFileInfo& FileIn
 		const FString& ProjectSavedDir = FPaths::ProjectSavedDir();
 		const FString CleanFilename = FPaths::GetCleanFilename(FileInfo.GetFilename());
 
-		FString PathPrefix;
-		{
-			FString StdFilename = FileInfo.GetFilename();
-
-			FPaths::MakeStandardFilename(StdFilename);
-
-			bool bRelativePath = FPaths::IsRelative(StdFilename);
-
-			if (!bRelativePath)
-			{
-				// If path is still absolute that means MakeStandardFilename has failed
-				// In this case make it relative to the current project. 
-				bRelativePath = FPaths::MakePathRelativeTo(StdFilename, *FPaths::GetPath(FPaths::GetProjectFilePath()));
-			}
-
-			// If the path has passed either MakeStandardFilename or MakePathRelativeTo it should be using internal path separators
-			if (bRelativePath)
-			{
-				// Remove any preceding parent directory paths
-				while (StdFilename.RemoveFromStart(TEXT("../")));
-			}
-
-			StdFilename = FPaths::GetPath(StdFilename);
-
-			FStringOutputDevice Out;
-
-			for (TCHAR Char : StdFilename)
-			{
-				if (FChar::IsAlnum(Char))
-				{
-					Out.AppendChar(Char);
-				}
-				else
-				{
-					Out.AppendChar(TEXT('_'));
-				}
-			}
-
-			PathPrefix = MoveTemp(Out);
-		}
-
-		const FString Ref = ProjectSavedDir / TEXT("ReferenceGeneratedCode") / (PathPrefix + TEXT("_") + CleanFilename);
+		const FString Ref = ProjectSavedDir / TEXT("ReferenceGeneratedCode") / CleanFilename;
 
 		if (bWriteContents)
 		{
@@ -5850,7 +5867,7 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FGeneratedFileInfo& FileIn
 		{
 			{
 				FScopeLock Lock(&WritePacer);
-				const FString Verify = ProjectSavedDir / TEXT("VerifyGeneratedCode") / (PathPrefix + TEXT("_") + CleanFilename);
+				const FString Verify = ProjectSavedDir / TEXT("VerifyGeneratedCode") / CleanFilename;
 				bool Written = FFileHelper::SaveStringToFile(InNewHeaderContents, *Verify);
 				check(Written);
 			}
@@ -6006,55 +6023,35 @@ void GetScriptPlugins(TArray<IScriptGeneratorPluginInterface*>& ScriptPlugins)
 	}
 }
 
-TArray<TSharedRef<FUnrealTypeDefinitionInfo>> GEngineClasses;
-
 /**
  * Tries to resolve super classes for classes defined in the given class
  */
 void ResolveSuperClasses(const TCHAR* PackageName, FUnrealClassDefinitionInfo& ClassDef)
 {
-	UClass* Class = ClassDef.GetClassSafe();
-
-	// Propagate any already set ClassWithin (this only happens for the temporary engine objects)
-	if (Class != nullptr && Class->ClassWithin != nullptr)
-	{
-		ClassDef.SetClassWithin(&GTypeDefinitionInfoMap.FindByNameChecked<FUnrealClassDefinitionInfo>(*Class->ClassWithin->GetFName().ToString()));
-	}
 
 	// Resolve the base class
 	{
 		FUnrealStructDefinitionInfo::FBaseStructInfo& SuperClassInfo = ClassDef.GetSuperStructInfo();
 
-		if (Class == nullptr || Class->GetSuperClass() == nullptr)
+		if (!SuperClassInfo.Name.IsEmpty())
 		{
-			if (!SuperClassInfo.Name.IsEmpty())
+			const FString& BaseClassName = SuperClassInfo.Name;
+			const FString& BaseClassNameStripped = GetClassNameWithPrefixRemoved(BaseClassName);
+
+			FUnrealClassDefinitionInfo* FoundBaseClassDef = GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(*BaseClassNameStripped);
+			if (FoundBaseClassDef == nullptr)
 			{
-				const FString& BaseClassName = SuperClassInfo.Name;
-				const FString& BaseClassNameStripped = GetClassNameWithPrefixRemoved(BaseClassName);
-
-				FUnrealClassDefinitionInfo* FoundBaseClassDef = GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(*BaseClassNameStripped);
-				if (FoundBaseClassDef == nullptr)
-				{
-					FoundBaseClassDef = GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(*BaseClassName);
-				}
-
-				if (FoundBaseClassDef == nullptr)
-				{
-					// Don't know its parent class. Raise error.
-					ClassDef.Throwf(TEXT("Couldn't find parent type for '%s' named '%s' in current module (Package: %s) or any other module parsed so far."), *ClassDef.GetName(), *BaseClassName, PackageName);
-				}
-
-				SuperClassInfo.Struct = FoundBaseClassDef;
-				ClassDef.SetClassCastFlags(FoundBaseClassDef->GetClassCastFlags());
-				if (Class != nullptr)
-				{
-					Class->SetSuperStruct(FoundBaseClassDef->GetClass());
-				}
+				FoundBaseClassDef = GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(*BaseClassName);
 			}
-		}
-		else
-		{
-			SuperClassInfo.Struct = &GTypeDefinitionInfoMap.FindByNameChecked<FUnrealClassDefinitionInfo>(*Class->GetSuperClass()->GetFName().ToString());
+
+			if (FoundBaseClassDef == nullptr)
+			{
+				// Don't know its parent class. Raise error.
+				ClassDef.Throwf(TEXT("Couldn't find parent type for '%s' named '%s' in current module (Package: %s) or any other module parsed so far."), *ClassDef.GetName(), *BaseClassName, PackageName);
+			}
+
+			SuperClassInfo.Struct = FoundBaseClassDef;
+			ClassDef.SetClassCastFlags(FoundBaseClassDef->GetClassCastFlags());
 		}
 	}
 
@@ -6400,19 +6397,6 @@ void ResolveParents(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 	GUClassDef = &GTypeDefinitionInfoMap.FindByNameChecked<FUnrealClassDefinitionInfo>(*UClass::StaticClass()->GetFName().ToString());
 	GUInterfaceDef = &GTypeDefinitionInfoMap.FindByNameChecked<FUnrealClassDefinitionInfo>(*UInterface::StaticClass()->GetFName().ToString());
 
-	for (TSharedRef<FUnrealTypeDefinitionInfo> TypeDef : GEngineClasses)
-	{
-		FUnrealClassDefinitionInfo& ClassDef = UHTCastChecked<FUnrealClassDefinitionInfo>(TypeDef);
-
-		// Some of the temporary classes are contained within the no export file.  When they are, a new
-		// instance of the definition will be created.  So ignore this one if the found class def doesn't
-		// match this one.
-		if (&GTypeDefinitionInfoMap.FindByNameChecked(*ClassDef.GetFName().ToString()) == &ClassDef)
-		{
-			ResolveSuperClasses(TEXT("EngineObject"), ClassDef);
-		}
-	}
-
 	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
 	{
 		FResults::Try([PackageDef]() { ResolveSuperClasses(*PackageDef); });
@@ -6608,23 +6592,8 @@ void ParseSourceFiles(TArray<FUnrealSourceFile*>& OrderedSourceFiles)
 
 void PostParseFinalize(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 {
-	// Until we fix the issue with types not having sources, we need to do this
-	TArray<FUnrealTypeDefinitionInfo*> NoSourceTypeDefs;
-	GTypeDefinitionInfoMap.ForAllTypesByName([&NoSourceTypeDefs](FUnrealTypeDefinitionInfo& TypeDef)
+	auto PostParseFinalize = [&PackageDefs](EPostParseFinalizePhase Phase)
 	{
-		if (!TypeDef.HasSource())
-		{
-			NoSourceTypeDefs.Add(&TypeDef);
-		}
-	});
-
-	auto PostParseFinalize = [&PackageDefs, &NoSourceTypeDefs](EPostParseFinalizePhase Phase)
-	{
-		for (FUnrealTypeDefinitionInfo* TypeDef : NoSourceTypeDefs)
-		{
-			TypeDef->PostParseFinalize(Phase);
-		}
-
 		for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
 		{
 			FResults::Try([PackageDef, Phase]()
@@ -6634,22 +6603,9 @@ void PostParseFinalize(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 		}
 	};
 
-	for (FUnrealTypeDefinitionInfo* TypeDef : NoSourceTypeDefs)
-	{
-		TypeDef->ConcurrentPostParseFinalize();
-	}
-
 	PostParseFinalize(EPostParseFinalizePhase::Phase1);
 	PostParseFinalize(EPostParseFinalizePhase::Phase2);
 	FResults::WaitForErrorTasks();
-
-	for (FUnrealTypeDefinitionInfo* TypeDef : NoSourceTypeDefs)
-	{
-		if (FUnrealObjectDefinitionInfo* ObjectDef = UHTCast<FUnrealObjectDefinitionInfo>(TypeDef))
-		{
-			check(ObjectDef->GetObject());
-		}
-	}
 }
 
 void CreateEngineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
@@ -6737,11 +6693,8 @@ void ExportToScriptPlugins(TArray<IScriptGeneratorPluginInterface*>& ScriptPlugi
 	{
 		for (TSharedRef<FUnrealTypeDefinitionInfo> TypeDef : PackageDef->GetAllClasses())
 		{
-			if (TypeDef->HasSource())
-			{
-				UClass* Class = UHTCastChecked<FUnrealClassDefinitionInfo>(TypeDef).GetClass();
-				SourceFileLookup.Add(Class, &TypeDef->GetUnrealSourceFile());
-			}
+			UClass* Class = UHTCastChecked<FUnrealClassDefinitionInfo>(TypeDef).GetClass();
+			SourceFileLookup.Add(Class, &TypeDef->GetUnrealSourceFile());
 		}
 	}
 
@@ -6837,22 +6790,6 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 
 	double TotalPrepareModuleTime = FResults::TimedTry([&PackageDefs, &ModuleInfoPath]() { PrepareModules(PackageDefs, ModuleInfoPath); });
 
-	// TEMPORARY!!!
-	// At this time, there is a collection of classes that aren't listed in the NoExport
-	// file.  This means that we don't have an associated type definition for them.
-	// Force the creation of type data for them.  Once these are added to NoExport, then
-	// the HasSource can be looked at to be removed.  However, it might change output slightly.  
-	// Use -WRITEREF and -VERIFYREF to detect these changes.
-	FResults::Try([]()
-	{
-	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
-	{
-		TSharedRef<FUnrealClassDefinitionInfo> ClassDefRef = MakeShared<FUnrealClassDefinitionInfo>(*ClassIt);
-		GTypeDefinitionInfoMap.AddNameLookup(*ClassDefRef);
-		GEngineClasses.Add(ClassDefRef);
-	}
-	});
-
 	FString ExternalDependencies;
 	TArray<IScriptGeneratorPluginInterface*> ScriptPlugins;
 
@@ -6863,6 +6800,16 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	double TotalTopologicalSortTime = FResults::TimedTry([&OrderedSourceFiles]() { TopologicalSort(OrderedSourceFiles); });
 	double TotalParseTime = FResults::TimedTry([&OrderedSourceFiles]() { ParseSourceFiles(OrderedSourceFiles); });
 	double TotalPostParseFinalizeTime = FResults::TimedTry([&PackageDefs]() { PostParseFinalize(PackageDefs); });
+
+	// Look for any core classes that don't have a definition
+	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+	{
+		if (GTypeDefinitionInfoMap.FindByName(*ClassIt->GetFName().ToString()) == nullptr)
+		{
+			UE_LOG(LogCompile, Log, TEXT("The core class '%s' doesn't have a matching entry in NoExportTypes.h"), *ClassIt->GetFName().ToString());
+		}
+	}
+
 	TotalTopologicalSortTime += FResults::TimedTry([&OrderedSourceFiles]() { TopologicalSort(OrderedSourceFiles); }); // Sort again to include new dependencies
 	double TotalCodeGenTime = FResults::TimedTry([&PackageDefs, &OrderedSourceFiles]() { Export(PackageDefs, OrderedSourceFiles); });
 	double TotalCheckForScriptPluginsTime = FResults::TimedTry([&ScriptPlugins]() { GetScriptPlugins(ScriptPlugins); });
@@ -7004,22 +6951,14 @@ void ProcessParsedClass(FUnrealClassDefinitionInfo& ClassDef)
 
 	const static bool bVerboseOutput = FParse::Param(FCommandLine::Get(), TEXT("VERBOSE"));
 
-	if (ResultClass == nullptr)
+	if (TSharedRef<FUnrealTypeDefinitionInfo>* Existing = GTypeDefinitionInfoMap.FindByName(*ClassNameStripped))
 	{
-		if (TSharedRef<FUnrealTypeDefinitionInfo>* Existing = GTypeDefinitionInfoMap.FindByName(*ClassNameStripped))
-		{
-			ClassDef.Throwf(TEXT("Duplicate class name: %s also exists in file %s"), *ClassName, *(*Existing)->GetFilename());
-		}
-
-		if (bVerboseOutput)
-		{
-			UE_LOG(LogCompile, Log, TEXT("Imported: %s"), *ClassDef.GetFullName());
-		}
+		ClassDef.Throwf(TEXT("Duplicate class name: %s also exists in file %s"), *ClassName, *(*Existing)->GetFilename());
 	}
-	else
+
+	if (bVerboseOutput)
 	{
-		ClassDef.InitializeFromExistingUObject(ResultClass);
-		ClassDef.SetObject(ResultClass);
+		UE_LOG(LogCompile, Log, TEXT("Imported: %s"), *ClassDef.GetFullName());
 	}
 }
 

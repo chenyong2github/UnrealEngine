@@ -2300,10 +2300,6 @@ public:
 	virtual void ConcurrentPostParseFinalize() override;
 
 protected:
-	explicit FUnrealStructDefinitionInfo(UObject* Object)
-		: FUnrealFieldDefinitionInfo(Object)
-	{}
-
 	FUnrealStructDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, FUnrealObjectDefinitionInfo& InOuter);
 
 	/**
@@ -2764,12 +2760,6 @@ class FUnrealClassDefinitionInfo
 {
 public:
 	FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, bool bInIsInterface);
-
-	explicit FUnrealClassDefinitionInfo(UClass* Class)
-		: FUnrealStructDefinitionInfo(Class)
-	{
-		InitializeFromExistingUObject(Class);
-	}
 
 	/**
 	 * Attempts to find a class definition based on the given name
@@ -3339,6 +3329,14 @@ public:
 	}
 
 	/**
+	 * Return true if the class is compiled in
+	 */
+	bool IsCompiledIn() const
+	{
+		return bIsCompiledIn;
+	}
+
+	/**
 	 * Get the generated body access specifier
 	 */
 	EAccessSpecifier GetGeneratedBodyMacroAccessSpecifier() const
@@ -3374,12 +3372,6 @@ public:
 	 * Test to see if the class implements a specific interface
 	 */
 	bool ImplementsInterface(const FUnrealClassDefinitionInfo& SomeInterface) const;
-
-	/**
-	 * Invoked when the definition has an existing engine class
-	 */
-	void InitializeFromExistingUObject(UClass* Class);
-
 
 	FString GetNameWithPrefix(EEnforceInterfacePrefix EnforceInterfacePrefix = EEnforceInterfacePrefix::None) const;
 
@@ -3423,7 +3415,6 @@ private:
 	EClassFlags ClassFlags = CLASS_None; // Current class flags
 	EClassFlags ParsedClassFlags = CLASS_None; // Class flags from the preparse phase
 	EClassFlags InheritClassFlags = CLASS_ScriptInherit; // Flags to inherit from the super class
-	EClassFlags InitialEngineClassFlags = CLASS_None; // Class flags from a preexisting UObject
 	EClassCastFlags ClassCastFlags = CASTCLASS_None;
 	FUnrealClassDefinitionInfo* ClassWithin = nullptr;
 	ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
@@ -3466,6 +3457,9 @@ private:
 
 	/** True if the class is an interface */
 	bool bIsInterface = false;
+
+	/** True if the class is a compiled-in type and not created by UHT */
+	bool bIsCompiledIn = false;
 };
 
 template <typename To>
