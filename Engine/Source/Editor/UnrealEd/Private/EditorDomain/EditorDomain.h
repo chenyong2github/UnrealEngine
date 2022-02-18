@@ -205,7 +205,7 @@ private:
 	/** Callback for PostEngineInit, to handle saving of packages which we could not save before then. */
 	void OnPostEngineInit();
 	/** EndLoad callback to handle saving the EditorDomain version of the package. */
-	void OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages);
+	void OnEndLoadPackage(const FEndLoadPackageContext& Context);
 	/** For each of the now-loaded packages, if we had to load from workspace domain, save into the editor domain. */
 	void FilterKeepPackagesToSave(TArray<UPackage*>& InOutLoadedPackages);
 	/** PackageSaved context to invalidate our information about where it should be loaded from. */

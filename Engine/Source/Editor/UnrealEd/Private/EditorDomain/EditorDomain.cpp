@@ -500,7 +500,7 @@ void FEditorDomain::Tick(float DeltaTime)
 	}
 }
 
-void FEditorDomain::OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages)
+void FEditorDomain::OnEndLoadPackage(const FEndLoadPackageContext& Context)
 {
 	if (bExternalSave)
 	{
@@ -513,8 +513,8 @@ void FEditorDomain::OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages)
 		{
 			return;
 		}
-		PackagesToSave.Reserve(LoadedPackages.Num());
-		for (UPackage* Package : LoadedPackages)
+		PackagesToSave.Reserve(Context.LoadedPackages.Num());
+		for (UPackage* Package : Context.LoadedPackages)
 		{
 			PackagesToSave.Add(Package);
 		}

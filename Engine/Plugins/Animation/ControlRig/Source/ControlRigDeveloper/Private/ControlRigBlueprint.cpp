@@ -591,9 +591,9 @@ void UControlRigBlueprint::PostLoad()
 }
 
 #if WITH_EDITOR
-void UControlRigBlueprint::HandlePackageDone(TConstArrayView<UPackage*> InPackages)
+void UControlRigBlueprint::HandlePackageDone(const FEndLoadPackageContext& Context)
 {
-	if (!InPackages.Contains(GetPackage()))
+	if (!Context.LoadedPackages.Contains(GetPackage()))
 	{
 		return;
 	}

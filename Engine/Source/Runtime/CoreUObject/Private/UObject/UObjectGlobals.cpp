@@ -1100,6 +1100,7 @@ public:
 // Temporary load counter for the game thread, used mostly for checking if we're still loading
 // @todo: remove this in the new loader
 static int32 GGameThreadLoadCounter = 0;
+static int32 GGameThreadEndLoadCounter = -1;
 
 /** Notify delegate listeners of all the packages that loaded; called only once per explicit call to LoadPackage. */
 void BroadcastEndLoad(TArray<UPackage*>&& LoadedPackages)
@@ -1116,7 +1117,11 @@ void BroadcastEndLoad(TArray<UPackage*>&& LoadedPackages)
 		{
 			LoadedPackage->SetHasBeenEndLoaded(true);
 		}
-		FCoreUObjectDelegates::OnEndLoadPackage.Broadcast(LoadedPackages);
+		++GGameThreadEndLoadCounter; // Starts at -1, so the first increment takes it to 0
+		FCoreUObjectDelegates::OnEndLoadPackage.Broadcast(
+			FEndLoadPackageContext{ LoadedPackages, GGameThreadEndLoadCounter, true/* bSynchronous */ });
+		--GGameThreadEndLoadCounter;
+		ensure(GGameThreadEndLoadCounter >= -1);
 	}
 #endif
 }

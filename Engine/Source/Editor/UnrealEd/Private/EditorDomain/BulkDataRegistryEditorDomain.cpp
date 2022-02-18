@@ -116,13 +116,13 @@ FBulkDataRegistryEditorDomain::~FBulkDataRegistryEditorDomain()
 	}
 }
 
-void FBulkDataRegistryEditorDomain::OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages)
+void FBulkDataRegistryEditorDomain::OnEndLoadPackage(const FEndLoadPackageContext& Context)
 {
 	TArray<TUniquePtr<FPendingPackage>> PackagesToWrite;
 	{
 		FScopeLock PendingPackageScopeLock(&PendingPackageLock);
 
-		for (UPackage* LoadedPackage : LoadedPackages)
+		for (UPackage* LoadedPackage : Context.LoadedPackages)
 		{
 			FName PackageName = LoadedPackage->GetFName();
 			uint32 KeyHash = GetTypeHash(PackageName);

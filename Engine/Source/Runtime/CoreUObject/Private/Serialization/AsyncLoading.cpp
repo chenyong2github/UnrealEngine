@@ -4316,7 +4316,8 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 		{
 			CompletedUPackage->SetHasBeenEndLoaded(true);
 		}
-		FCoreUObjectDelegates::OnEndLoadPackage.Broadcast(CompletedUPackages.Array());
+		FCoreUObjectDelegates::OnEndLoadPackage.Broadcast(
+			FEndLoadPackageContext{ CompletedUPackages.Array(), 0, false /* bSynchronous */ });
 	}
 #endif
 

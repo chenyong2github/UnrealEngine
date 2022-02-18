@@ -12,6 +12,8 @@
 #include "MovieSceneControlRigParameterSection.h"
 #include "MovieSceneControlRigParameterTrack.generated.h"
 
+struct FEndLoadPackageContext;
+
 /**
  * Handles animation of skeletal mesh actors using animation ControlRigs
  */
@@ -50,7 +52,7 @@ public:
 	virtual void GetSelectedNodes(TArray<FName>& OutSelectedNodes) override;
 
 #if WITH_EDITOR
-	void HandlePackageDone(TConstArrayView<UPackage*> InPackages);
+	void HandlePackageDone(const FEndLoadPackageContext& Context);
 	// control Rigs are ready only after its package is fully end-loaded
 	void HandleControlRigPackageDone(UControlRig* InControlRig);
 #endif

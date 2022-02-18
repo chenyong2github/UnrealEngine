@@ -143,11 +143,14 @@ FResaveSizeTracker::FResaveSizeTracker()
 	ELoadingPhase::Type CurrentPhase = IPluginManager::Get().GetLastCompletedLoadingPhase();
 	if (CurrentPhase == ELoadingPhase::None || CurrentPhase < ELoadingPhase::PostEngineInit)
 	{
-		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FResaveSizeTracker::OnPostEngineInit);
+		// Our contract says that we need to keep information up until OnEnginePostInit is called on all
+		// subscribers to it, so we need to subscribe to the first event we can find that occurs after OnEnginePostInit
+		// is done. OnAllModuleLoadingPhasesComplete seems to be it.
+		FCoreDelegates::OnAllModuleLoadingPhasesComplete.AddRaw(this, &FResaveSizeTracker::OnAllModuleLoadingPhasesComplete);
 	}
 	else
 	{
-		OnPostEngineInit();
+		OnAllModuleLoadingPhasesComplete();
 	}
 	FCoreUObjectDelegates::OnEndLoadPackage.AddRaw(this, &FResaveSizeTracker::OnEndLoadPackage);
 }
@@ -155,10 +158,10 @@ FResaveSizeTracker::FResaveSizeTracker()
 FResaveSizeTracker::~FResaveSizeTracker()
 {
 	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
-	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	FCoreDelegates::OnAllModuleLoadingPhasesComplete.RemoveAll(this);
 }
 
-void FResaveSizeTracker::OnPostEngineInit()
+void FResaveSizeTracker::OnAllModuleLoadingPhasesComplete()
 {
 	bPostEngineInitComplete = true;
 
@@ -195,7 +198,7 @@ uint64 FResaveSizeTracker::GetBulkDataResaveSize(FName PackageName)
 	return PackageBulkResaveSize.FindRef(PackageName);
 }
 
-void FResaveSizeTracker::OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages)
+void FResaveSizeTracker::OnEndLoadPackage(const FEndLoadPackageContext& Context)
 {
 	if (!bPostEngineInitComplete)
 	{
@@ -203,8 +206,8 @@ void FResaveSizeTracker::OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPacka
 	}
 
 	TArray<FName> PackageNames;
-	PackageNames.Reserve(LoadedPackages.Num());
-	for (UPackage* LoadedPackage : LoadedPackages)
+	PackageNames.Reserve(Context.LoadedPackages.Num());
+	for (UPackage* LoadedPackage : Context.LoadedPackages)
 	{
 		PackageNames.Add(LoadedPackage->GetFName());
 	}
@@ -212,13 +215,16 @@ void FResaveSizeTracker::OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPacka
 	FWriteScopeLock ScopeLock(Lock);
 	// The contract for GetBulkDataResaveSize specifies that we must answer correctly until
 	// OnEndLoadPackage is complete. This includes being called from other subscribers to OnEndLoadPackage
-	// that might run after us. So we defer the removals from PackageBulkResaveSize until the next call 
+	// that might run after us. So we defer the removals from PackageBulkResaveSize until the next top-level call 
 	// to OnEndLoadPackage.
-	for (FName PackageName : DeferredRemove)
+	if (Context.RecursiveDepth == 0)
 	{
-		PackageBulkResaveSize.Remove(PackageName);
+		for (FName PackageName : DeferredRemove)
+		{
+			PackageBulkResaveSize.Remove(PackageName);
+		}
+		DeferredRemove.Reset();
 	}
-	DeferredRemove.Reset();
 	DeferredRemove.Append(MoveTemp(PackageNames));
 }
 

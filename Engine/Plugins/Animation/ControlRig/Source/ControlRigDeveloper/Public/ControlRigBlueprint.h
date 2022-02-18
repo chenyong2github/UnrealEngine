@@ -30,6 +30,7 @@
 class UControlRigBlueprintGeneratedClass;
 class USkeletalMesh;
 class UControlRigGraph;
+struct FEndLoadPackageContext;
 
 DECLARE_EVENT_TwoParams(UControlRigBlueprint, FOnVMCompiledEvent, UBlueprint*, URigVM*);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnRefreshEditorEvent, UControlRigBlueprint*);
@@ -580,7 +581,7 @@ private:
 	void HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 
 #if WITH_EDITOR
-	void HandlePackageDone(TConstArrayView<UPackage*> InPackages);
+	void HandlePackageDone(const FEndLoadPackageContext& Context);
 	// ControlRigBP, once end-loaded, will inform other ControlRig-Dependent systems that ControlRig instances are ready.
 	void BroadcastControlRigPackageDone();
 #endif

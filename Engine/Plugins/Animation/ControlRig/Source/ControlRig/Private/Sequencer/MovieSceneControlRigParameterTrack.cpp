@@ -404,7 +404,7 @@ void UMovieSceneControlRigParameterTrack::PostLoad()
 }
 
 #if WITH_EDITOR
-void UMovieSceneControlRigParameterTrack::HandlePackageDone(TConstArrayView<UPackage*> InPackages)
+void UMovieSceneControlRigParameterTrack::HandlePackageDone(const FEndLoadPackageContext& Context)
 {
 	if (!GetPackage()->GetHasBeenEndLoaded())
 	{
