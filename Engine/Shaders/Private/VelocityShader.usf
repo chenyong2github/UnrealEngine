@@ -175,6 +175,8 @@ void MainPixelShader(
 
 #if MATERIALBLENDING_MASKED_USING_COVERAGE
 	OutCoverage = DiscardMaterialWithPixelCoverage(MaterialParameters, PixelMaterialInputs);
+#else
+	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
 #endif
 
 	// 3d velocity, includes camera an object motion
