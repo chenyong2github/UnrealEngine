@@ -4744,6 +4744,17 @@ IMappedFileHandle* FPakPlatformFile::OpenMapped(const TCHAR* Filename)
 		return nullptr;
 	}
 
+#if !UE_BUILD_SHIPPING
+	if (bLookLooseFirst && IsNonPakFilenameAllowed(Filename))
+	{
+		IMappedFileHandle* Handle = LowerLevel->OpenMapped(Filename);
+		if (Handle != nullptr)
+		{
+			return Handle;
+		}
+	}
+#endif
+
 	// Check pak files first
 	FPakEntry FileEntry;
 	TRefCountPtr<FPakFile> PakEntry;
@@ -7415,6 +7426,9 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 	FString StartupPaksWildcard = GMountStartupPaksWildCard;
 #if !UE_BUILD_SHIPPING
 	FParse::Value(FCommandLine::Get(), TEXT("StartupPaksWildcard="), StartupPaksWildcard);
+
+	// initialize the bLookLooseFirst setting
+	bLookLooseFirst = FParse::Param(FCommandLine::Get(), TEXT("LookLooseFirst"));
 #endif
 
 	FString GlobalUTocPath = FString::Printf(TEXT("%sPaks/global.utoc"), *FPaths::ProjectContentDir());
@@ -8102,6 +8116,19 @@ void FPakPlatformFile::RegisterEncryptionKey(const FGuid& InGuid, const FAES::FA
 IFileHandle* FPakPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
 {
 	IFileHandle* Result = NULL;
+
+#if !UE_BUILD_SHIPPING
+	if (bLookLooseFirst && IsNonPakFilenameAllowed(Filename))
+	{
+		Result = LowerLevel->OpenRead(Filename, bAllowWrite);
+		if (Result != nullptr)
+		{
+			return Result;
+		}
+	}
+#endif
+
+
 	TRefCountPtr<FPakFile> PakFile;
 	FPakEntry FileEntry;
 	if (FindFileInPakFiles(Filename, &PakFile, &FileEntry))
@@ -8207,6 +8234,14 @@ bool FPakPlatformFile::BufferedCopyFile(IFileHandle& Dest, IFileHandle& Source, 
 
 bool FPakPlatformFile::CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags, EPlatformFileWrite WriteFlags)
 {
+#if !UE_BUILD_SHIPPING
+	if (bLookLooseFirst && LowerLevel->FileExists(From))
+	{
+		return LowerLevel->CopyFile(To, From, ReadFlags, WriteFlags);
+	}
+#endif
+
+
 	bool Result = false;
 	FPakEntry FileEntry;
 	TRefCountPtr<FPakFile> PakFile;
