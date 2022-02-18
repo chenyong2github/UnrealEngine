@@ -23,6 +23,8 @@ struct FNiagaraParticleReadDIFunctionVersion
 	};
 };
 
+static const FName GetLocalSpaceName("GetLocalSpace");
+
 static const FName GetNumSpawnedParticlesFunctionName("Get Num Spawned Particles");
 static const FName GetIDAtSpawnIndexFunctionName("Get ID At Spawn Index");
 static const FName GetNumParticlesFunctionName("Get Num Particles");
@@ -718,6 +720,20 @@ int32 UNiagaraDataInterfaceParticleRead::PerInstanceDataSize() const
 
 void UNiagaraDataInterfaceParticleRead::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+	// Misc functionality
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = GetLocalSpaceName;
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("Particle Reader"));
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bExperimental = true;
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsLocalSpace"));
+	#if WITH_EDITORONLY_DATA
+		Sig.SetDescription(LOCTEXT("GetEmitterLocalSpace", "Returns if the emitter is using local space or world space."));
+	#endif
+	}
+
 	//
 	// Spawn info and particle count
 	//
@@ -1196,6 +1212,13 @@ static bool HasMatchingVariable(TArrayView<const FNiagaraVariable> Variables, FN
 
 void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc)
 {
+	// Misc functionality
+	if ( BindingInfo.Name == GetLocalSpaceName )
+	{	
+		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetLocalSpace(Context); });
+		return;
+	}
+
 	//
 	// Spawn info and particle count
 	//
@@ -1392,6 +1415,21 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 	if (!bBindSuccessful)
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("Failed to bind VMExternalFunction '%s' with attribute '%s'! Check that the attribute is named correctly."), *BindingInfo.Name.ToString(), *AttributeToRead.ToString());
+	}
+}
+
+void UNiagaraDataInterfaceParticleRead::VMGetLocalSpace(FVectorVMExternalFunctionContext& Context)
+{
+	VectorVM::FUserPtrHandler<FNDIParticleRead_InstanceData> InstData(Context);
+	FNDIOutputParam<bool> OutIsLocalSpace(Context);
+
+	const FNiagaraEmitterInstance* EmitterInstance = InstData.Get()->EmitterInstance;
+	UNiagaraEmitter* NiagaraEmitter = EmitterInstance ? EmitterInstance->GetCachedEmitter() : nullptr;
+	const bool bIsLocalSpace = NiagaraEmitter ? NiagaraEmitter->bLocalSpace : false;
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
+	{
+		OutIsLocalSpace.SetAndAdvance(bIsLocalSpace);
 	}
 }
 

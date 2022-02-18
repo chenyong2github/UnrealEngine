@@ -49,6 +49,7 @@ public:
 	virtual bool HasInternalAttributeReads(const UNiagaraEmitter* OwnerEmitter, const UNiagaraEmitter* Provider) const override;
 	//UNiagaraDataInterface Interface End
 
+	void VMGetLocalSpace(FVectorVMExternalFunctionContext& Context);
 	void GetNumSpawnedParticles(FVectorVMExternalFunctionContext& Context);
 	void GetSpawnedIDAtIndex(FVectorVMExternalFunctionContext& Context);
 	void GetNumParticles(FVectorVMExternalFunctionContext& Context);

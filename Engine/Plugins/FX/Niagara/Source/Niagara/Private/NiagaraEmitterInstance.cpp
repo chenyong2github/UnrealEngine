@@ -122,8 +122,7 @@ struct FNiagaraEditorOnlyCycleTimer
 
 FNiagaraEmitterInstance::FNiagaraEmitterInstance(FNiagaraSystemInstance* InParentSystemInstance)
 	: CachedBounds(ForceInit)
-	, FixedBounds_GT(ForceInit)
-	, FixedBounds_CNC(ForceInit)
+	, FixedBounds(ForceInit)
 	, CachedSystemFixedBounds(ForceInit)
 	, ParentSystemInstance(InParentSystemInstance)
 {
@@ -175,7 +174,7 @@ FNiagaraEmitterInstance::~FNiagaraEmitterInstance()
 	}
 }
 
-FBox FNiagaraEmitterInstance::GetBounds()
+FBox FNiagaraEmitterInstance::GetBounds() const
 {
 	return CachedBounds;
 }
@@ -565,8 +564,7 @@ void FNiagaraEmitterInstance::OnPooledReuse()
 	bResetPending = true;
 	TotalSpawnedParticles = 0;
 
-	FixedBounds_GT.Init();
-	FixedBounds_CNC.Init();
+	FixedBounds.Init();
 }
 
 void FNiagaraEmitterInstance::SetParticleComponentActive(FObjectKey ComponentKey, int32 ParticleID) const
@@ -1027,35 +1025,39 @@ void FNiagaraEmitterInstance::PostTick()
 	}
 
 	CachedBounds.Init();
-	if (FixedBounds_CNC.IsValid)
 	{
-		CachedBounds = FixedBounds_CNC;
-	}
-	else if (CachedSystemFixedBounds.IsValid)
-	{
-		CachedBounds = CachedSystemFixedBounds;
-	}
-	else if (CachedEmitter->bFixedBounds || CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		CachedBounds = CachedEmitter->FixedBounds;
-	}
-	else
-	{
-		FBox DynamicBounds = InternalCalculateDynamicBounds(ParticleDataSet->GetCurrentDataChecked().GetNumInstances());
-		if (DynamicBounds.IsValid)
+		// Read lock can be smaller in scope, but probably not necessary
+		FRWScopeLock ScopeLock(FixedBoundsGuard, SLT_ReadOnly);
+		if (FixedBounds.IsValid)
 		{
-			if (CachedEmitter->bLocalSpace)
-			{
-				CachedBounds = DynamicBounds;
-			}
-			else
-			{
-				CachedBounds = DynamicBounds.TransformBy(FMatrix(ParentSystemInstance->GetOwnerParameters().EngineWorldToLocal));
-			}
+			CachedBounds = FixedBounds;
+		}
+		else if (CachedSystemFixedBounds.IsValid)
+		{
+			CachedBounds = CachedSystemFixedBounds;
+		}
+		else if (CachedEmitter->bFixedBounds || CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			CachedBounds = CachedEmitter->FixedBounds;
 		}
 		else
 		{
-			CachedBounds = CachedEmitter->FixedBounds;
+			FBox DynamicBounds = InternalCalculateDynamicBounds(ParticleDataSet->GetCurrentDataChecked().GetNumInstances());
+			if (DynamicBounds.IsValid)
+			{
+				if (CachedEmitter->bLocalSpace)
+				{
+					CachedBounds = DynamicBounds;
+				}
+				else
+				{
+					CachedBounds = DynamicBounds.TransformBy(FMatrix(ParentSystemInstance->GetOwnerParameters().EngineWorldToLocal));
+				}
+			}
+			else
+			{
+				CachedBounds = CachedEmitter->FixedBounds;
+			}
 		}
 	}
 
@@ -1145,8 +1147,6 @@ void FNiagaraEmitterInstance::PreTick()
 #if STATS
 	FScopeCycleCounter SystemStatCounter(CachedEmitter->GetStatID(true, true));
 #endif
-
-	FixedBounds_CNC = FixedBounds_GT;
 
 	checkSlow(ParticleDataSet);
 	FNiagaraDataSet& Data = *ParticleDataSet;
@@ -1242,11 +1242,15 @@ void FNiagaraEmitterInstance::SetSystemFixedBoundsOverride(FBox SystemFixedBound
 
 FBox FNiagaraEmitterInstance::GetFixedBounds() const
 {
-	if ( FixedBounds_GT.IsValid )
 	{
-		return FixedBounds_GT;
+		FRWScopeLock ScopeLock(FixedBoundsGuard, SLT_ReadOnly);
+		if (FixedBounds.IsValid)
+		{
+			return FixedBounds;
+		}
 	}
-	else if ( CachedEmitter && CachedEmitter->bFixedBounds)
+
+	if ( CachedEmitter && CachedEmitter->bFixedBounds)
 	{
 		return CachedEmitter->FixedBounds;
 	}
