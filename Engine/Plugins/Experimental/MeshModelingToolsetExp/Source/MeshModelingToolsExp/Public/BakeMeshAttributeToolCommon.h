@@ -21,6 +21,16 @@ class USkeletalMesh;
  */
 
 
+UENUM()
+enum class EBakeNormalSpace
+{
+	/** Tangent space */
+	Tangent,
+	/** Object space */
+	Object
+};
+
+
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UBakeInputMeshProperties : public UInteractiveToolPropertySet
 {
@@ -81,6 +91,11 @@ public:
 		GetOptions = GetSourceUVLayerNamesFunc, TransientToolProperty, NoResetToDefault,
 		EditCondition = "bHasSourceNormalMap == true", EditConditionHides, HideEditConditionToggle))
 	FString SourceNormalMapUVLayer;
+
+	/** Normal space of the source mesh normal map. */
+	UPROPERTY(EditAnywhere, Category = BakeInput, AdvancedDisplay, meta = (TransientToolProperty,
+		EditCondition = "bHasSourceNormalMap == true", EditConditionHides, HideEditConditionToggle))
+	EBakeNormalSpace SourceNormalSpace = EBakeNormalSpace::Tangent;
 
 	/** If true, expose the SourceNormalMap and SourceNormalMapUVLayer properties */
 	UPROPERTY()
@@ -300,10 +315,11 @@ public:
 struct FDetailMeshSettings
 {
 	int32 UVLayer = 0;
+	EBakeNormalSpace NormalSpace = EBakeNormalSpace::Tangent;
 	
 	bool operator==(const FDetailMeshSettings& Other) const
 	{
-		return UVLayer == Other.UVLayer;
+		return UVLayer == Other.UVLayer && NormalSpace == Other.NormalSpace;
 	}
 };
 

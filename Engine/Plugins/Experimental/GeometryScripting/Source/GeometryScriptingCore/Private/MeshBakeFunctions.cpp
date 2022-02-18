@@ -448,10 +448,11 @@ namespace GeometryScriptBakeLocals
 			}
 			else
 			{
-				DetailSampler.SetNormalMap(SourceMeshToUse,
-				IMeshBakerDetailSampler::FBakeDetailTexture(
+				DetailSampler.SetNormalTextureMap(SourceMeshToUse,
+				IMeshBakerDetailSampler::FBakeDetailNormalTexture(
 						SourceNormalMap.Get(),
-						SourceOptions.SourceNormalUVLayer));
+						SourceOptions.SourceNormalUVLayer,
+						SourceOptions.SourceNormalSpace == EGeometryScriptBakeNormalSpace::Tangent ? IMeshBakerDetailSampler::EBakeDetailNormalSpace::Tangent : IMeshBakerDetailSampler::EBakeDetailNormalSpace::Object));
 
 				if (!GetMeshTangents(SourceMesh, SourceMeshTangents))
 				{

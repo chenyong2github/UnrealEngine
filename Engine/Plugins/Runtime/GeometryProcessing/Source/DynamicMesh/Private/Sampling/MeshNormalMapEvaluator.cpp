@@ -12,14 +12,17 @@ void FMeshNormalMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCont
 	DetailSampler = Baker.GetDetailSampler();
 	auto GetDetailNormalMaps = [this](const void* Mesh)
 	{
-		const FDetailNormalTexture* NormalMap = DetailSampler->GetNormalMap(Mesh);
+		const FNormalTexture* NormalMap = DetailSampler->GetNormalTextureMap(Mesh);
 		if (NormalMap)
 		{
-			// Require valid normal map, UV layer and tangents to enable normal map transfer.
-			const bool bEnableNormalMapTransfer = DetailSampler->HasUVs(Mesh, NormalMap->Get<1>()) && DetailSampler->HasTangents(Mesh);
+			// Require valid normal map and UV layer to enable normal map transfer.
+			// Tangents also required if the map is in tangent space.
+			const bool bDetailNormalTangentSpace = NormalMap->Get<2>() == IMeshBakerDetailSampler::EBakeDetailNormalSpace::Tangent; 
+			const bool bEnableNormalMapTransfer = DetailSampler->HasUVs(Mesh, NormalMap->Get<1>()) &&
+				(!bDetailNormalTangentSpace || DetailSampler->HasTangents(Mesh));
 			if (bEnableNormalMapTransfer)
 			{
-				DetailNormalTextures.Add(Mesh, *NormalMap);
+				DetailNormalMaps.Add(Mesh, *NormalMap);
 				bHasDetailNormalTextures = true;
 			}
 		}
@@ -86,10 +89,11 @@ FVector3f FMeshNormalMapEvaluator::SampleFunction(const FCorrespondenceSample& S
 	{
 		const TImageBuilder<FVector4f>* DetailNormalMap = nullptr;
 		int DetailNormalUVLayer = 0;
-		const FDetailNormalTexture* DetailNormalTexture = DetailNormalTextures.Find(DetailMesh);
+		IMeshBakerDetailSampler::EBakeDetailNormalSpace DetailNormalSpace = IMeshBakerDetailSampler::EBakeDetailNormalSpace::Tangent;
+		const FNormalTexture* DetailNormalTexture = DetailNormalMaps.Find(DetailMesh);
 		if (DetailNormalTexture)
 		{
-			Tie(DetailNormalMap, DetailNormalUVLayer) = *DetailNormalTexture;
+			Tie(DetailNormalMap, DetailNormalUVLayer, DetailNormalSpace) = *DetailNormalTexture;
 		}
 
 		if (DetailNormalMap)
@@ -112,10 +116,15 @@ FVector3f FMeshNormalMapEvaluator::SampleFunction(const FCorrespondenceSample& S
 
 			// Map color space [0,1] to normal space [-1,1]
 			const FVector3f DetailNormalColor(DetailNormalColor4.X, DetailNormalColor4.Y, DetailNormalColor4.Z);
-			const FVector3f DetailNormalTangentSpace = (DetailNormalColor * 2.0f) - FVector3f::One();
-
-			// Convert detail normal tangent space to object space
-			FVector3f DetailNormalObjectSpace = DetailNormalTangentSpace.X * FVector3f(DetailTangentX) + DetailNormalTangentSpace.Y * FVector3f(DetailTangentY) + DetailNormalTangentSpace.Z * DetailNormal;
+			FVector3f DetailNormalObjectSpace = (DetailNormalColor * 2.0f) - FVector3f::One();
+			// Ideally this branch could be made compile time. Unfortunately since each mesh could have its
+			// own source normal map each with their own normal space, this branch must be resolved at runtime.
+			if (DetailNormalSpace == IMeshBakerDetailSampler::EBakeDetailNormalSpace::Tangent)
+			{
+				// Convert detail normal tangent space to object space
+				const FVector3f DetailNormalTangentSpace = DetailNormalObjectSpace;
+				DetailNormalObjectSpace = DetailNormalTangentSpace.X * FVector3f(DetailTangentX) + DetailNormalTangentSpace.Y * FVector3f(DetailTangentY) + DetailNormalTangentSpace.Z * DetailNormal;
+			}
 			Normalize(DetailNormalObjectSpace);
 			DetailNormal = DetailNormalObjectSpace;
 		}

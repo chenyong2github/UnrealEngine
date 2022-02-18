@@ -48,9 +48,16 @@ public:
 protected:
 	// Cached data
 	const IMeshBakerDetailSampler* DetailSampler = nullptr;
-	using FDetailNormalTexture = IMeshBakerDetailSampler::FBakeDetailTexture;
-	using FDetailNormalTextureMap = TMap<const void*, FDetailNormalTexture>;
-	FDetailNormalTextureMap DetailNormalTextures;
+	
+	using FDetailNormalTexture UE_DEPRECATED(5.1, "Use FNormalTexture instead.") = IMeshBakerDetailSampler::FBakeDetailTexture;
+	using FDetailNormalTextureMap UE_DEPRECATED(5.1, "Use FNormalTextureMap instead.") = TMap<const void*, IMeshBakerDetailSampler::FBakeDetailTexture>;
+	UE_DEPRECATED(5.1, "Use DetailNormalMaps instead.")
+	TMap<const void*, IMeshBakerDetailSampler::FBakeDetailTexture> DetailNormalTextures;
+
+	using FNormalTexture = IMeshBakerDetailSampler::FBakeDetailNormalTexture;
+	using FNormalTextureMap = TMap<const void*, FNormalTexture>;
+	FNormalTextureMap DetailNormalMaps;
+	
 	bool bHasDetailNormalTextures = false;
 	FAxisAlignedBox3d Bounds;
 	FVector3f DefaultValue = FVector3f::Zero();

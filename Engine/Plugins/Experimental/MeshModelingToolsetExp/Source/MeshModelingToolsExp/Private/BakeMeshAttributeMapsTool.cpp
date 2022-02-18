@@ -116,6 +116,7 @@ public:
 	// NormalMap settings
 	ImagePtr DetailMeshNormalMap;
 	int32 DetailMeshNormalUVLayer = 0;
+	IMeshBakerDetailSampler::EBakeDetailNormalSpace DetailMeshNormalSpace = IMeshBakerDetailSampler::EBakeDetailNormalSpace::Tangent; 
 
 	// Texture2DImage & MultiTexture settings
 	ImagePtr TextureImage;
@@ -164,7 +165,7 @@ public:
 			case EBakeMapType::TangentSpaceNormal:
 			{
 				TSharedPtr<FMeshNormalMapEvaluator, ESPMode::ThreadSafe> NormalEval = MakeShared<FMeshNormalMapEvaluator, ESPMode::ThreadSafe>();
-				DetailSampler.SetNormalMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(DetailMeshNormalMap.Get(), DetailMeshNormalUVLayer));
+				DetailSampler.SetNormalTextureMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailNormalTexture(DetailMeshNormalMap.Get(), DetailMeshNormalUVLayer, DetailMeshNormalSpace));
 				Baker->AddEvaluator(NormalEval);
 				break;
 			}
@@ -195,7 +196,7 @@ public:
 			{
 				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
 				PropertyEval->Property = EMeshPropertyMapType::Normal;
-				DetailSampler.SetNormalMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(DetailMeshNormalMap.Get(), DetailMeshNormalUVLayer));
+				DetailSampler.SetNormalTextureMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailNormalTexture(DetailMeshNormalMap.Get(), DetailMeshNormalUVLayer, DetailMeshNormalSpace));
 				Baker->AddEvaluator(PropertyEval);
 				break;
 			}
@@ -311,7 +312,15 @@ void UBakeMeshAttributeMapsTool::Setup()
 	InputMeshSettings->WatchProperty(InputMeshSettings->SourceNormalMap, [this](UTexture2D*)
 	{
 		// Only invalidate detail mesh if we need to recompute tangents.
-		if (!DetailMeshTangents)
+		if (!DetailMeshTangents && InputMeshSettings->SourceNormalSpace == EBakeNormalSpace::Tangent)
+		{
+			OpState |= EBakeOpState::EvaluateDetailMesh;
+		}
+		OpState |= EBakeOpState::Evaluate;
+	});
+	InputMeshSettings->WatchProperty(InputMeshSettings->SourceNormalSpace, [this](EBakeNormalSpace Space)
+	{
+		if (!DetailMeshTangents && Space == EBakeNormalSpace::Tangent)
 		{
 			OpState |= EBakeOpState::EvaluateDetailMesh;
 		}
@@ -416,6 +425,8 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMeshAttribute
 		Op->DetailMeshTangents = DetailMeshTangents;
 		Op->DetailMeshNormalMap = CachedDetailNormalMap;
 		Op->DetailMeshNormalUVLayer = CachedDetailMeshSettings.UVLayer;
+		Op->DetailMeshNormalSpace = CachedDetailMeshSettings.NormalSpace == EBakeNormalSpace::Tangent ?
+			IMeshBakerDetailSampler::EBakeDetailNormalSpace::Tangent : IMeshBakerDetailSampler::EBakeDetailNormalSpace::Object;
 	}
 
 	if ((bool)(CachedBakeSettings.BakeMapTypes & EBakeMapType::TangentSpaceNormal))
@@ -691,6 +702,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailNormalMap()
 
 	FDetailMeshSettings DetailMeshSettings;
 	DetailMeshSettings.UVLayer = DetailUVLayer;
+	DetailMeshSettings.NormalSpace = InputMeshSettings->SourceNormalSpace;
 
 	if (!(CachedDetailMeshSettings == DetailMeshSettings))
 	{

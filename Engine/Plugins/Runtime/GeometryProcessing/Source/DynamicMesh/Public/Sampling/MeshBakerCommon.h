@@ -96,6 +96,15 @@ class IMeshBakerDetailSampler
 public:
 	/** (Image, UVLayer) pair for detail textures */
 	using FBakeDetailTexture = TTuple<const TImageBuilder<FVector4f>*, int>;
+
+	enum class EBakeDetailNormalSpace
+	{
+		Tangent,
+		Object
+	};
+
+	/** (Image, NormalSpace, UVLayer) tuple for detail normal textures */
+	using FBakeDetailNormalTexture = TTuple<const TImageBuilder<FVector4f>*, int, EBakeDetailNormalSpace>;
 	
 	virtual ~IMeshBakerDetailSampler() = default;
 
@@ -114,13 +123,20 @@ public:
 	virtual void SetTextureMap(const void* Mesh, const FBakeDetailTexture& Map) = 0;
 
 	/** Associate a normal map and UV layer index for a given mesh in the detail set */
+	UE_DEPRECATED(5.1, "Use SetNormalTextureMap instead. This implementation assumes tangent normals.")
 	virtual void SetNormalMap(const void* Mesh, const FBakeDetailTexture& Map) = 0;
+
+	/** Associate a normal map and UV layer index for a given mesh in the detail set */
+	virtual void SetNormalTextureMap(const void* Mesh, const FBakeDetailNormalTexture& Map) = 0;
 
 	/** Retrieve a texture map and UV layer index from a given mesh in the detail set */
 	virtual const FBakeDetailTexture* GetTextureMap(const void* Mesh) const = 0;
 
 	/** Retrieve a normal map and UV layer index from a given mesh in the detail set */
+	UE_DEPRECATED(5.1, "Use GetNormalTextureMap instead. This implementation assumes tangent normals.")
 	virtual const FBakeDetailTexture* GetNormalMap(const void* Mesh) const = 0;
+
+	virtual const FBakeDetailNormalTexture* GetNormalTextureMap(const void* Mesh) const = 0;
 
 	/** @return true if identity correspondence is supported */
 	virtual bool SupportsIdentityCorrespondence() const = 0;
@@ -354,7 +370,12 @@ public:
 
 	virtual void SetNormalMap(const void* Mesh, const FBakeDetailTexture& Map) override
 	{
-		DetailNormalMap = Map;
+		DetailNormalTextureMap = FBakeDetailNormalTexture(Map.Key, Map.Value, EBakeDetailNormalSpace::Tangent);
+	}
+
+	virtual void SetNormalTextureMap(const void* Mesh, const FBakeDetailNormalTexture& Map) override
+	{
+		DetailNormalTextureMap = Map;
 	}
 
 	virtual const FBakeDetailTexture* GetTextureMap(const void* Mesh) const override
@@ -364,7 +385,12 @@ public:
 	
 	virtual const FBakeDetailTexture* GetNormalMap(const void* Mesh) const override
 	{
-		return &DetailNormalMap;
+		return nullptr;
+	}
+
+	virtual const FBakeDetailNormalTexture* GetNormalTextureMap(const void* Mesh) const override
+	{
+		return &DetailNormalTextureMap;
 	}
 
 	virtual bool SupportsIdentityCorrespondence() const override
@@ -564,7 +590,10 @@ protected:
 	const FDynamicMeshAABBTree3* DetailSpatial = nullptr;
 	const FMeshTangentsd* DetailTangents = nullptr;
 	FBakeDetailTexture DetailTextureMap = FBakeDetailTexture(nullptr, 0);
+
+	UE_DEPRECATED(5.1, "Use DetailNormalTextureMap instead.")
 	FBakeDetailTexture DetailNormalMap = FBakeDetailTexture(nullptr, 0);
+	FBakeDetailNormalTexture DetailNormalTextureMap = FBakeDetailNormalTexture(nullptr, 0, EBakeDetailNormalSpace::Tangent);
 };		
 	
 

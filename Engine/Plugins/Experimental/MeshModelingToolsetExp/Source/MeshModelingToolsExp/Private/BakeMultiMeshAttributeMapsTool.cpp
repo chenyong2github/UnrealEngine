@@ -66,6 +66,7 @@ class FMeshBakerMeshSceneSampler : public IMeshBakerDetailSampler
 {
 public:
 	using FDetailTextureMap = TMap<void*, FBakeDetailTexture>;
+	using FDetailNormalMap = TMap<void*, FBakeDetailNormalTexture>;
 
 public:
 	/**
@@ -104,6 +105,11 @@ public:
 
 	virtual void SetNormalMap(const void* Mesh, const FBakeDetailTexture& Map) override
 	{
+		DetailNormalMaps[Mesh] = FBakeDetailNormalTexture(Map.Key, Map.Value, EBakeDetailNormalSpace::Tangent);
+	}
+
+	virtual void SetNormalTextureMap(const void* Mesh, const FBakeDetailNormalTexture& Map) override
+	{
 		DetailNormalMaps[Mesh] = Map;
 	}
 
@@ -113,6 +119,11 @@ public:
 	}
 	
 	virtual const FBakeDetailTexture* GetNormalMap(const void* Mesh) const override
+	{
+		return nullptr;
+	}
+
+	virtual const FBakeDetailNormalTexture* GetNormalTextureMap(const void* Mesh) const override
 	{
 		return DetailNormalMaps.Find(Mesh);
 	}
@@ -294,7 +305,7 @@ public:
 	}
 
 	/** Initialize the mesh to normal textures map */
-	void SetNormalMaps(const FDetailTextureMap& Map)
+	void SetNormalMaps(const FDetailNormalMap& Map)
 	{
 		DetailNormalMaps = Map;
 	}
@@ -302,7 +313,7 @@ public:
 protected:
 	FMeshSceneAdapter* MeshScene = nullptr;
 	FDetailTextureMap DetailTextureMaps;
-	FDetailTextureMap DetailNormalMaps;
+	FDetailNormalMap DetailNormalMaps;
 };
 
 

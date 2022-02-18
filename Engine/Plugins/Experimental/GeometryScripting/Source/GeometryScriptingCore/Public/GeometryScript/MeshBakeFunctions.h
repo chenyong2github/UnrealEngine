@@ -69,6 +69,15 @@ enum class EGeometryScriptBakeTypes : uint8
 	MaterialID             UMETA(DisplayName = "Material ID"),
 };
 
+UENUM(BlueprintType)
+enum class EGeometryScriptBakeNormalSpace : uint8
+{
+	/* Tangent space */
+	Tangent,
+	/* Object space */
+	Object
+};
+
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeTypes
 {
@@ -250,6 +259,9 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeSourceMeshOptions
 
 	UPROPERTY(BlueprintReadWrite, Category = Options, meta = (DisplayName="Source Normal UV Channel"))
 	int SourceNormalUVLayer = 0;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	EGeometryScriptBakeNormalSpace SourceNormalSpace = EGeometryScriptBakeNormalSpace::Tangent;
 };
 
 USTRUCT(BlueprintType)
