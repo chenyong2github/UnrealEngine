@@ -201,7 +201,7 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
         }
 					
 		return true;
-	}, /*bGCPerActor=*/ false);
+	});
 
 	check(NumInstances == NumInstancesProcessed);
 

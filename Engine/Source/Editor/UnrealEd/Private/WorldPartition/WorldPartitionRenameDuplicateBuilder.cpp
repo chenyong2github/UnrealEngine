@@ -16,7 +16,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "HAL/FileManager.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionCopyWorldBuilder, All, All);
+DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionRenameDuplicateBuilder, All, All);
 
 class FReplaceObjectRefsArchive : public FArchiveUObject
 {
@@ -70,7 +70,7 @@ private:
 
 static bool DeleteExistingMapPackages(const FString& ExistingPackageName, FPackageSourceControlHelper& PackageHelper)
 {
-	UE_SCOPED_TIMER(TEXT("Delete existing destination packages"), LogWorldPartitionCopyWorldBuilder, Display);
+	UE_SCOPED_TIMER(TEXT("Delete existing destination packages"), LogWorldPartitionRenameDuplicateBuilder, Display);
 	TArray<FString> PackagesToDelete;
 
 	FString ExistingMapPackageFilePath = FPackageName::LongPackageNameToFilename(ExistingPackageName, FPackageName::GetMapPackageExtension());
@@ -109,79 +109,13 @@ static bool DeleteExistingMapPackages(const FString& ExistingPackageName, FPacka
 
 			if (!bSuccess)
 			{
-				UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("Failed to iterate existing external actors path: %s"), *ExternalPackagesPath);
+				UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Error, TEXT("Failed to iterate existing external actors path: %s"), *ExternalPackagesPath);
 				return false;
 			}
 		}
 	}
 
-	UE_LOG(LogWorldPartitionCopyWorldBuilder, Display, TEXT("Deleting %d packages..."), PackagesToDelete.Num());
-	if (PackagesToDelete.Num() > 0)
-	{
-		if (!PackageHelper.Delete(PackagesToDelete))
-		{
-			UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("Failed to delete existing destination packages:"));
-			for (const FString& PackageToDelete : PackagesToDelete)
-			{
-				UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("    Package: %s"), *PackageToDelete);
-			}
-			return false;
-		}
-	}
-
-	return true;
-}
-
-static bool SavePackages(const TArray<UPackage*>& Packages, FPackageSourceControlHelper& PackageHelper)
-{
-	const TArray<FString> PackageFilenames = SourceControlHelpers::PackageFilenames(Packages);
-	TArray<FString> PackagesToCheckout;
-	TArray<FString> PackagesToAdd;
-
-	for (int PackageIndex = 0; PackageIndex < Packages.Num(); ++PackageIndex)
-	{
-		const FString& PackageFilename = PackageFilenames[PackageIndex];
-		const bool bFileExists = IPlatformFile::GetPlatformPhysical().FileExists(*PackageFilename);
-
-		if (bFileExists)
-		{
-			PackagesToCheckout.Add(PackageFilename);
-		}
-		else
-		{
-			PackagesToAdd.Add(PackageFilename);
-		}
-	}
-
-	if (PackagesToCheckout.Num())
-	{
-		if (!PackageHelper.Checkout(PackagesToCheckout))
-		{
-			return false;
-		}
-	}
-
-	for(int PackageIndex = 0; PackageIndex < Packages.Num(); ++PackageIndex)
-	{
-		// Save package
-		FSavePackageArgs SaveArgs;
-		SaveArgs.TopLevelFlags = RF_Standalone;
-		if (!UPackage::SavePackage(Packages[PackageIndex], nullptr, *PackageFilenames[PackageIndex], SaveArgs))
-		{
-			UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("Error saving package %s."), *Packages[PackageIndex]->GetName());
-			return false;
-		}
-	}
-
-	if (PackagesToAdd.Num())
-	{
-		if (!PackageHelper.AddToSourceControl(PackagesToAdd))
-		{
-			return false;
-		}
-	}
-
-	return true;
+	return UWorldPartitionBuilder::DeletePackages(PackagesToDelete, PackageHelper);
 }
 
 UWorldPartitionRenameDuplicateBuilder::UWorldPartitionRenameDuplicateBuilder(const FObjectInitializer& ObjectInitializer)
@@ -196,7 +130,7 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 	if (!WorldPartition)
 	{
-		UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("Failed to retrieve WorldPartition."));
+		UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Error, TEXT("Failed to retrieve WorldPartition."));
 		return false;
 	}
 		
@@ -212,7 +146,7 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 
 	TArray<FActorCluster> ActorClusters;
 	{
-		UE_SCOPED_TIMER(TEXT("Create actor clusters"), LogWorldPartitionCopyWorldBuilder, Display);
+		UE_SCOPED_TIMER(TEXT("Create actor clusters"), LogWorldPartitionRenameDuplicateBuilder, Display);
 		FActorClusterContext::CreateActorClusters(World, ActorDescViewMap, ActorClusters);
 	}
 
@@ -241,7 +175,7 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 	// Delete destination if it exists
 	if (!DeleteExistingMapPackages(NewPackageName, PackageHelper))
 	{
-		UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("Failed to delete existing destination package."));
+		UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Error, TEXT("Failed to delete existing destination package."));
 		return false;
 	}
 				
@@ -250,7 +184,7 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 	TArray<UPackage*> DuplicatedPackagesToSave;
 	UWorld* NewWorld = nullptr;
 	{
-		UE_SCOPED_TIMER(TEXT("Duplicating world"), LogWorldPartitionCopyWorldBuilder, Display);
+		UE_SCOPED_TIMER(TEXT("Duplicating world"), LogWorldPartitionRenameDuplicateBuilder, Display);
 		FObjectDuplicationParameters DuplicationParameters(World, NewPackage);
 		DuplicationParameters.DuplicateMode = EDuplicateMode::World;
 
@@ -298,7 +232,7 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 		FSoftObjectPathFixupArchive SoftObjectPathFixupArchive(OriginalPackageName + TEXT(".") + OriginalWorldName, NewPackageName + TEXT(".") + NewWorldName);
 
 		{
-			UE_SCOPED_TIMER(TEXT("Saving actors"), LogWorldPartitionCopyWorldBuilder, Display);
+			UE_SCOPED_TIMER(TEXT("Saving actors"), LogWorldPartitionRenameDuplicateBuilder, Display);
 								
 			auto ProcessLoadedActors = [&](TArray<FWorldPartitionReference>& ActorReferences) -> bool
 			{
@@ -347,13 +281,13 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 					ActorPackages.Add(Actor->GetPackage());
 				}
 
-				UE_LOG(LogWorldPartitionCopyWorldBuilder, Display, TEXT("Saving %d actor(s)"), ActorPackages.Num());
-				if (!SavePackages(ActorPackages, PackageHelper))
+				UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Display, TEXT("Saving %d actor(s)"), ActorPackages.Num());
+				if (!UWorldPartitionBuilder::SavePackages(ActorPackages, PackageHelper))
 				{
-					UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("Failed to save actor packages:"));
+					UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Error, TEXT("Failed to save actor packages:"));
 					for (UPackage* ActorPackage : ActorPackages)
 					{
-						UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("    Package: %s"), *ActorPackage->GetName());
+						UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Error, TEXT("    Package: %s"), *ActorPackage->GetName());
 					}
 					return false;
 				}
@@ -392,7 +326,7 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 			TArray<FWorldPartitionReference> ActorReferences;
 			for (const FActorCluster& ActorCluster : ActorClusters)
 			{
-				UE_LOG(LogWorldPartitionCopyWorldBuilder, Display, TEXT("Processing cluster with %d actor(s)"), ActorCluster.Actors.Num());
+				UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Display, TEXT("Processing cluster with %d actor(s)"), ActorCluster.Actors.Num());
 				for (const FGuid& ActorGuid : ActorCluster.Actors)
 				{
 					// Duplicated actors don't need to be processed
@@ -432,8 +366,8 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 
 		{
 			// Save all duplicated packages
-			UE_SCOPED_TIMER(TEXT("Saving new map packages"), LogWorldPartitionCopyWorldBuilder, Display);
-			if (!SavePackages(DuplicatedPackagesToSave, PackageHelper))
+			UE_SCOPED_TIMER(TEXT("Saving new map packages"), LogWorldPartitionRenameDuplicateBuilder, Display);
+			if (!UWorldPartitionBuilder::SavePackages(DuplicatedPackagesToSave, PackageHelper))
 			{
 				return false;
 			}
@@ -442,7 +376,7 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 
 		{
 			// Validate results
-			UE_SCOPED_TIMER(TEXT("Validating actors"), LogWorldPartitionCopyWorldBuilder, Display);
+			UE_SCOPED_TIMER(TEXT("Validating actors"), LogWorldPartitionRenameDuplicateBuilder, Display);
 			for (UActorDescContainer::TConstIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 			{
 				const FWorldPartitionActorDesc* SourceActorDesc = *ActorDescIterator;
@@ -450,13 +384,13 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 				const FWorldPartitionActorDesc* NewActorDesc = NewWorld->GetWorldPartition()->GetActorDesc(DuplicatedGuid ? *DuplicatedGuid : SourceActorDesc->GetGuid());
 				if (!NewActorDesc)
 				{
-					UE_LOG(LogWorldPartitionCopyWorldBuilder, Warning, TEXT("Failed to find source actor for Actor: %s"), *SourceActorDesc->GetActorPath().ToString());
+					UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Warning, TEXT("Failed to find source actor for Actor: %s"), *SourceActorDesc->GetActorPath().ToString());
 				}
 				else
 				{
 					if (NewActorDesc->GetReferences().Num() != SourceActorDesc->GetReferences().Num())
 					{
-						UE_LOG(LogWorldPartitionCopyWorldBuilder, Warning, TEXT("Actor: %s and Source Actor: %s have mismatching reference count"), *NewActorDesc->GetActorPath().ToString(), *SourceActorDesc->GetActorPath().ToString());
+						UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Warning, TEXT("Actor: %s and Source Actor: %s have mismatching reference count"), *NewActorDesc->GetActorPath().ToString(), *SourceActorDesc->GetActorPath().ToString());
 					}
 					else
 					{
@@ -465,7 +399,7 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 							FGuid* DuplicateReferenceGuid = DuplicatedActorGuids.Find(ReferenceGuid);
 							if (!NewActorDesc->GetReferences().Contains(DuplicateReferenceGuid ? *DuplicateReferenceGuid : ReferenceGuid))
 							{
-								UE_LOG(LogWorldPartitionCopyWorldBuilder, Warning, TEXT("Actor: %s and Source Actor: %s have mismatching reference"), *NewActorDesc->GetActorPath().ToString(), *SourceActorDesc->GetActorPath().ToString());
+								UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Warning, TEXT("Actor: %s and Source Actor: %s have mismatching reference"), *NewActorDesc->GetActorPath().ToString(), *SourceActorDesc->GetActorPath().ToString());
 							}
 						}
 					}
@@ -479,15 +413,15 @@ bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCe
 		
 	if (PackagesToDelete.Num() > 0)
 	{
-		UE_SCOPED_TIMER(TEXT("Delete source packages (-rename switch)"), LogWorldPartitionCopyWorldBuilder, Display);
+		UE_SCOPED_TIMER(TEXT("Delete source packages (-rename switch)"), LogWorldPartitionRenameDuplicateBuilder, Display);
 		
-		UE_LOG(LogWorldPartitionCopyWorldBuilder, Display, TEXT("Deleting %d packages"), PackagesToDelete.Num());
+		UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Display, TEXT("Deleting %d packages"), PackagesToDelete.Num());
 		if (!PackageHelper.Delete(PackagesToDelete.Array()))
 		{
-			UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("Failed to delete source packages:"));
+			UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Error, TEXT("Failed to delete source packages:"));
 			for (const FString& PackageToDelete : PackagesToDelete)
 			{
-				UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("    Package: %s"), *PackageToDelete);
+				UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Error, TEXT("    Package: %s"), *PackageToDelete);
 			}
 			return false;
 		}
@@ -524,10 +458,10 @@ bool UWorldPartitionRenameDuplicateBuilder::PostWorldTeardown(FPackageSourceCont
 		RedirectorPackage->MarkAsFullyLoaded();
 
 		// Saving the NewPackage will save the duplicated external packages
-		UE_SCOPED_TIMER(TEXT("Saving new redirector"), LogWorldPartitionCopyWorldBuilder, Display);
-		if (!SavePackages({ RedirectorPackage }, PackageHelper))
+		UE_SCOPED_TIMER(TEXT("Saving new redirector"), LogWorldPartitionRenameDuplicateBuilder, Display);
+		if (!UWorldPartitionBuilder::SavePackages({ RedirectorPackage }, PackageHelper))
 		{
-			UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("Failed to save redirector package: %s"), *RedirectorPackage->GetName());
+			UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Error, TEXT("Failed to save redirector package: %s"), *RedirectorPackage->GetName());
 			return false;
 		}
 
@@ -544,7 +478,7 @@ bool UWorldPartitionRenameDuplicateBuilder::PostWorldTeardown(FPackageSourceCont
 		UWorld* RedirectedWorld = CastChecked<UWorld>(RedirectorPath.TryLoad());
 		if (!RedirectedWorld)
 		{
-			UE_LOG(LogWorldPartitionCopyWorldBuilder, Error, TEXT("Failed to validate redirector package: %s"), *RedirectorPackage->GetName());
+			UE_LOG(LogWorldPartitionRenameDuplicateBuilder, Error, TEXT("Failed to validate redirector package: %s"), *RedirectorPackage->GetName());
 			return false;
 		}
 	}

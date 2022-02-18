@@ -16,8 +16,25 @@
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Math/IntVector.h"
+#include "UObject/SavePackage.h"
+#include "Algo/Transform.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilder, Log, All);
+
+namespace FWorldPartitionBuilderLog
+{
+	void Error(bool bErrorsAsWarnings, const FString& Msg)
+	{
+		if (bErrorsAsWarnings)
+		{
+			UE_LOG(LogWorldPartitionBuilder, Warning, TEXT("%s"), *Msg);
+		}
+		else
+		{
+			UE_LOG(LogWorldPartitionBuilder, Error, TEXT("%s"), *Msg);
+		}
+	}
+}
 
 FCellInfo::FCellInfo()
 	: Location(ForceInitToZero)
@@ -261,4 +278,85 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 	}
 
 	return PostRun(World, PackageHelper, bResult);
+}
+
+bool UWorldPartitionBuilder::SavePackages(const TArray<UPackage*>& Packages, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings)
+{
+	if (Packages.IsEmpty())
+	{
+		return true;
+	}
+	UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Saving %d packages..."), Packages.Num());
+
+	const TArray<FString> PackageFilenames = SourceControlHelpers::PackageFilenames(Packages);
+	
+	TArray<FString> PackagesToCheckout;
+	TArray<FString> PackagesToAdd;
+	TArray<FString> PackageNames;
+
+	PackageNames.Reserve(Packages.Num());
+	Algo::Transform(Packages, PackageNames, [](UPackage* InPackage) { return InPackage->GetName(); });
+	bool bSuccess = PackageHelper.GetDesiredStatesForModification(PackageNames, PackagesToCheckout, PackagesToAdd, bErrorsAsWarnings);
+	if (!bSuccess && !bErrorsAsWarnings)
+	{
+		return false;
+	}
+		
+	if (PackagesToCheckout.Num())
+	{
+		if (!PackageHelper.Checkout(PackagesToCheckout, bErrorsAsWarnings))
+		{
+			bSuccess = false;
+			if (!bErrorsAsWarnings)
+			{
+				return false;
+			}
+		}
+	}
+
+	for (int PackageIndex = 0; PackageIndex < Packages.Num(); ++PackageIndex)
+	{
+		const FString& PackageFilename = PackageFilenames[PackageIndex];
+		// Check readonly flag in case some checkouts failed
+		if (!IPlatformFile::GetPlatformPhysical().IsReadOnly(*PackageFilename))
+		{
+			// Save package
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_Standalone;
+			if (!UPackage::SavePackage(Packages[PackageIndex], nullptr, *PackageFilenames[PackageIndex], SaveArgs))
+			{
+				bSuccess = false;
+				FWorldPartitionBuilderLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("Error saving package %s."), *Packages[PackageIndex]->GetName()));
+				if(!bErrorsAsWarnings)
+				{
+					return false;
+				}
+			}
+		}
+		else
+		{
+			check(bErrorsAsWarnings);
+		}
+	}
+
+	if (PackagesToAdd.Num())
+	{
+		if (!PackageHelper.AddToSourceControl(PackagesToAdd, bErrorsAsWarnings))
+		{
+			return false;
+		}
+	}
+
+	return bSuccess;
+}
+
+bool UWorldPartitionBuilder::DeletePackages(const TArray<FString>& PackageNames, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings)
+{
+	if (PackageNames.Num() > 0)
+	{
+		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Deleting %d packages..."), PackageNames.Num());
+		return PackageHelper.Delete(PackageNames, bErrorsAsWarnings);
+	}
+
+	return true;
 }

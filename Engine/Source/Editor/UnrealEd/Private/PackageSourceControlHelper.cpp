@@ -16,8 +16,24 @@
 #include "ISourceControlState.h"
 #include "ISourceControlProvider.h"
 #include "SourceControlOperations.h"
+#include "Misc/PackageName.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCommandletPackageHelper, Log, All);
+
+namespace FPackageSourceControlHelperLog
+{
+	void Error(bool bErrorsAsWarnings, const FString& Msg)
+	{
+		if (bErrorsAsWarnings)
+		{
+			UE_LOG(LogCommandletPackageHelper, Warning, TEXT("%s"), *Msg);
+		}
+		else
+		{
+			UE_LOG(LogCommandletPackageHelper, Error, TEXT("%s"), *Msg);
+		}
+	}
+}
 
 bool FPackageSourceControlHelper::UseSourceControl() const
 {
@@ -35,8 +51,10 @@ bool FPackageSourceControlHelper::Delete(const FString& PackageName) const
 	return Delete(PackageNames);
 }
 
-bool FPackageSourceControlHelper::Delete(const TArray<FString>& PackageNames) const
+bool FPackageSourceControlHelper::Delete(const TArray<FString>& PackageNames, bool bErrorsAsWarnings) const
 {
+	bool bSuccess = true;
+	
 	// Early out when not using source control
 	if (!UseSourceControl())
 	{
@@ -47,38 +65,33 @@ bool FPackageSourceControlHelper::Delete(const TArray<FString>& PackageNames) co
 			if (!IPlatformFile::GetPlatformPhysical().SetReadOnly(*Filename, false) ||
 				!IPlatformFile::GetPlatformPhysical().DeleteFile(*Filename))
 			{
-				UE_LOG(LogCommandletPackageHelper, Error, TEXT("Error deleting %s"), *Filename);
-				return false;
+				bSuccess = false;
+				FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("Error deleting %s"), *Filename));
+				if (!bErrorsAsWarnings)
+				{
+					return false;
+				}
 			}
 		}
 
-		return true;
+		return bSuccess;
 	}
 
 	TArray<FString> FilesToRevert;
 	TArray<FString> FilesToDeleteFromDisk;
 	TArray<FString> FilesToDeleteFromSCC;
-
-	bool bSCCErrorsFound = false;
-
+		
 	// First: get latest state from source control
-	TArray<FString> Filenames;
+	TArray<FString> Filenames = SourceControlHelpers::PackageFilenames(PackageNames);
 	TArray<FSourceControlStateRef> SourceControlStates;
-	Filenames.Reset(PackageNames.Num());
-
-	for (const FString& PackageName : PackageNames)
+	
+	if (GetSourceControlProvider().GetState(Filenames, SourceControlStates, EStateCacheUsage::ForceUpdate) != ECommandResult::Succeeded)
 	{
-		Filenames.Emplace(SourceControlHelpers::PackageFilename(PackageName));
-	}
-
-	ECommandResult::Type UpdateState = GetSourceControlProvider().GetState(Filenames, SourceControlStates, EStateCacheUsage::ForceUpdate);
-
-	if (UpdateState != ECommandResult::Succeeded)
-	{
-		UE_LOG(LogCommandletPackageHelper, Error, TEXT("Could not get source control state for packages"));
+		// Nothing we can do if SCCStates fail
+		FPackageSourceControlHelperLog::Error(false, TEXT("Could not get source control state for packages"));
 		return false;
 	}
-
+		
 	for(FSourceControlStateRef& SourceControlState : SourceControlStates)
 	{
 		const FString& Filename = SourceControlState->GetFilename();
@@ -90,13 +103,13 @@ bool FPackageSourceControlHelper::Delete(const TArray<FString>& PackageNames) co
 			FString OtherCheckedOutUser;
 			if (SourceControlState->IsCheckedOutOther(&OtherCheckedOutUser))
 			{
-				UE_LOG(LogCommandletPackageHelper, Error, TEXT("Overwriting package %s already checked out by %s, will not submit"), *Filename, *OtherCheckedOutUser);
-				bSCCErrorsFound = true;
+				FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("File %s already checked out by %s, will not delete"), *Filename, *OtherCheckedOutUser));
+				bSuccess = false;
 			}
 			else if (!SourceControlState->IsCurrent())
 			{
-				UE_LOG(LogCommandletPackageHelper, Error, TEXT("Overwriting package %s (not at head revision), will not submit"), *Filename);
-				bSCCErrorsFound = true;
+				FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("File %s (not at head revision), will not delete"), *Filename));
+				bSuccess = false;
 			}
 			else if (SourceControlState->IsAdded())
 			{
@@ -119,7 +132,7 @@ bool FPackageSourceControlHelper::Delete(const TArray<FString>& PackageNames) co
 		}
 	}
 
-	if (bSCCErrorsFound)
+	if (!bSuccess && !bErrorsAsWarnings)
 	{
 		// Errors were found, we'll cancel everything
 		return false;
@@ -142,8 +155,12 @@ bool FPackageSourceControlHelper::Delete(const TArray<FString>& PackageNames) co
 	{
 		if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FRevert>(), FilesToRevert) != ECommandResult::Succeeded)
 		{
-			UE_LOG(LogCommandletPackageHelper, Error, TEXT("Error reverting packages from source control"));
-			return false;
+			bSuccess = false;
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error reverting packages from source control"));
+			if (!bErrorsAsWarnings)
+			{
+				return false;
+			}
 		}
 	}
 
@@ -152,23 +169,30 @@ bool FPackageSourceControlHelper::Delete(const TArray<FString>& PackageNames) co
 	{
 		if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FDelete>(), FilesToDeleteFromSCC) != ECommandResult::Succeeded)
 		{
-			UE_LOG(LogCommandletPackageHelper, Error, TEXT("Error deleting packages from source control"));
-			return false;
+			bSuccess = false;
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error deleting packages from source control"));
+			if(!bErrorsAsWarnings)
+			{
+				return false;
+			}
 		}
 	}
 
 	// Then delete files on disk
-	bool bDeleteOnDiskOk = true;
 	for (const FString& Filename : FilesToDeleteFromDisk)
 	{
 		if (!IFileManager::Get().Delete(*Filename, false, true))
 		{
-			UE_LOG(LogCommandletPackageHelper, Error, TEXT("Error deleting package %s locally"), *Filename);
-			bDeleteOnDiskOk = false;
+			bSuccess = false;
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("Error deleting %s locally"), *Filename));
+			if(!bErrorsAsWarnings)
+			{
+				return false;
+			}
 		}
 	}
 
-	return bDeleteOnDiskOk;
+	return bSuccess;
 }
 
 bool FPackageSourceControlHelper::Delete(UPackage* Package) const
@@ -207,7 +231,7 @@ bool FPackageSourceControlHelper::AddToSourceControl(UPackage* Package) const
 	return true;
 }
 
-bool FPackageSourceControlHelper::AddToSourceControl(const TArray<FString>& PackageNames) const
+bool FPackageSourceControlHelper::AddToSourceControl(const TArray<FString>& PackageNames, bool bErrorsAsWarnings) const
 {
 	if (!UseSourceControl())
 	{
@@ -223,14 +247,13 @@ bool FPackageSourceControlHelper::AddToSourceControl(const TArray<FString>& Pack
 	bool bSuccess = true;
 	
 	TArray<FSourceControlStateRef> SourceControlStates;
-	ECommandResult::Type UpdateState = GetSourceControlProvider().GetState(PackageFilenames, SourceControlStates, EStateCacheUsage::ForceUpdate);
-
-	if (UpdateState != ECommandResult::Succeeded)
+	if (GetSourceControlProvider().GetState(PackageFilenames, SourceControlStates, EStateCacheUsage::ForceUpdate) != ECommandResult::Succeeded)
 	{
-		UE_LOG(LogCommandletPackageHelper, Error, TEXT("Could not get source control state for packages"));
+		// Nothing we can do if SCCStates fail
+		FPackageSourceControlHelperLog::Error(false, TEXT("Could not get source control state for packages"));
 		return false;
 	}
-	
+		
 	for (FSourceControlStateRef& SourceControlState : SourceControlStates)
 	{
 		const FString& PackageFilename = SourceControlState->GetFilename();
@@ -238,12 +261,12 @@ bool FPackageSourceControlHelper::AddToSourceControl(const TArray<FString>& Pack
 		FString OtherCheckedOutUser;
 		if (SourceControlState->IsCheckedOutOther(&OtherCheckedOutUser))
 		{
-			UE_LOG(LogCommandletPackageHelper, Error, TEXT("Overwriting package %s already checked out by %s, will not add"), *PackageFilename, *OtherCheckedOutUser);
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("File %s already checked out by %s, will not add"), *PackageFilename, *OtherCheckedOutUser));
 			bSuccess = false;
 		}
 		else if (!SourceControlState->IsCurrent())
 		{
-			UE_LOG(LogCommandletPackageHelper, Error, TEXT("Overwriting package %s (not at head revision), will not add"), *PackageFilename);
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("File %s (not at head revision), will not add"), *PackageFilename));
 			bSuccess = false;
 		}
 		else if (SourceControlState->IsAdded())
@@ -257,17 +280,21 @@ bool FPackageSourceControlHelper::AddToSourceControl(const TArray<FString>& Pack
 	}
 
 	// Any error up to here will be an early out
-	if (!bSuccess)
+	if (!bSuccess && !bErrorsAsWarnings)
 	{
 		return false;
 	}
 
 	if (PackagesToAdd.Num())
 	{
-		return (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FMarkForAdd>(), PackagesToAdd) == ECommandResult::Succeeded);
+		if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FMarkForAdd>(), PackagesToAdd) != ECommandResult::Succeeded)
+		{
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error adding packages to source control"));
+			return false;
+		}
 	}
 
-	return true;
+	return bSuccess;
 }
 
 bool FPackageSourceControlHelper::Checkout(UPackage* Package) const
@@ -275,7 +302,7 @@ bool FPackageSourceControlHelper::Checkout(UPackage* Package) const
 	return !Package || Checkout({ Package->GetName() });
 }
 
-bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames) const
+bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames, bool bErrorsAsWarnings) const
 {
 	const bool bUseSourceControl = UseSourceControl();
 
@@ -295,7 +322,8 @@ bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames) 
 
 		if (UpdateState != ECommandResult::Succeeded)
 		{
-			UE_LOG(LogCommandletPackageHelper, Error, TEXT("Could not get source control state for packages"));
+			// Nothing we can do if SCCStates fail
+			FPackageSourceControlHelperLog::Error(false, TEXT("Could not get source control state for packages"));
 			return false;
 		}
 
@@ -306,12 +334,12 @@ bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames) 
 			FString OtherCheckedOutUser;
 			if (SourceControlState->IsCheckedOutOther(&OtherCheckedOutUser))
 			{
-				UE_LOG(LogCommandletPackageHelper, Error, TEXT("Overwriting package %s already checked out by %s, will not checkout"), *PackageFilename, *OtherCheckedOutUser);
+				FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("File %s already checked out by %s, will not checkout"), *PackageFilename, *OtherCheckedOutUser));
 				bSuccess = false;
 			}
 			else if (!SourceControlState->IsCurrent())
 			{
-				UE_LOG(LogCommandletPackageHelper, Error, TEXT("Overwriting package %s (not at head revision), will not checkout"), *PackageFilename);
+				FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("File %s (not at head revision), will not checkout"), *PackageFilename));
 				bSuccess = false;
 			}
 			else if (SourceControlState->IsCheckedOut() || SourceControlState->IsAdded())
@@ -330,7 +358,7 @@ bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames) 
 		{
 			if (!IPlatformFile::GetPlatformPhysical().FileExists(*PackageFilename))
 			{
-				UE_LOG(LogCommandletPackageHelper, Error, TEXT("File %s cannot be checked out as it does not exist"), *PackageFilename);
+				FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("File %s cannot be checked out as it does not exist"), *PackageFilename));
 				bSuccess = false;
 			}
 			else if (IPlatformFile::GetPlatformPhysical().IsReadOnly(*PackageFilename))
@@ -341,7 +369,7 @@ bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames) 
 	}
 
 	// Any error up to here will be an early out
-	if (!bSuccess)
+	if (!bSuccess && !bErrorsAsWarnings)
 	{
 		return false;
 	}
@@ -349,11 +377,16 @@ bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames) 
 	// In the second pass, we will perform the checkout operation
 	if (PackagesToCheckout.Num() == 0)
 	{
-		return true;
+		return bSuccess;
 	}
 	else if (bUseSourceControl)
 	{
-		return GetSourceControlProvider().Execute(ISourceControlOperation::Create<FCheckOut>(), PackagesToCheckout) == ECommandResult::Succeeded;
+		if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FCheckOut>(), PackagesToCheckout) != ECommandResult::Succeeded)
+		{
+			// If operation didn't succeed. Get the list of invalid states when provided with a OutFailedPackages
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, TEXT("Error checking out packages from source control"));
+			return false;
+		}
 	}
 	else
 	{
@@ -363,7 +396,7 @@ bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames) 
 		{
 			if (!IPlatformFile::GetPlatformPhysical().SetReadOnly(*PackagesToCheckout[PackageIndex], false))
 			{
-				UE_LOG(LogCommandletPackageHelper, Error, TEXT("Error setting %s writable"), *PackagesToCheckout[PackageIndex]);
+				FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("Error setting %s writable"), *PackagesToCheckout[PackageIndex]));
 				bSuccess = false;
 				--PackageIndex;
 				break;
@@ -371,14 +404,83 @@ bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames) 
 		}
 
 		// If a file couldn't be made writeable, put back the files to their original state
-		if (!bSuccess)
+		if (!bSuccess && !bErrorsAsWarnings)
 		{
 			for (; PackageIndex >= 0; --PackageIndex)
 			{
 				IPlatformFile::GetPlatformPhysical().SetReadOnly(*PackagesToCheckout[PackageIndex], true);
 			}
 		}
-
-		return bSuccess;
 	}
+
+	return bSuccess;
+}
+
+bool FPackageSourceControlHelper::GetDesiredStatesForModification(const TArray<FString>& PackageNames, TArray<FString>& OutPackagesToCheckout, TArray<FString>& OutPackagesToAdd, bool bErrorsAsWarnings) const
+{
+	// Convert package names to package filenames
+	TMap<FString, FString> PackageFilenamesToPackageName;
+	TArray<FString> PackageFilenames;
+	PackageFilenames.Reserve(PackageNames.Num());
+
+	for (const FString& PackageName : PackageNames)
+	{
+		FString PackageFilename = SourceControlHelpers::PackageFilename(PackageName);
+		PackageFilenamesToPackageName.Add(PackageFilename, PackageName);
+		PackageFilenames.Add(PackageFilename);
+	}
+
+	if (!UseSourceControl())
+	{
+		for (const FString& PackageFilename : PackageFilenames)
+		{
+			if (IPlatformFile::GetPlatformPhysical().FileExists(*PackageFilename) && IPlatformFile::GetPlatformPhysical().IsReadOnly(*PackageFilename))
+			{
+				OutPackagesToCheckout.Add(PackageFilenamesToPackageName.FindChecked(PackageFilename));
+			}
+		}
+		return true;
+	}
+		
+	TArray<FSourceControlStateRef> SourceControlStates;
+	if (GetSourceControlProvider().GetState(PackageFilenames, SourceControlStates, EStateCacheUsage::ForceUpdate) != ECommandResult::Succeeded)
+	{
+		// Nothing we can do if SCCStates fail
+		FPackageSourceControlHelperLog::Error(false, TEXT("Could not get source control state for packages"));
+		return false;
+	}
+
+	bool bSuccess = true;
+
+
+	for (FSourceControlStateRef& SourceControlState : SourceControlStates)
+	{
+		const FString& PackageFilename = SourceControlState->GetFilename();
+
+		FString OtherCheckedOutUser;
+		if (SourceControlState->IsCheckedOutOther(&OtherCheckedOutUser))
+		{
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("File %s already checked out by %s, will not checkout"), *PackageFilename, *OtherCheckedOutUser));
+			bSuccess = false;
+		}
+		else if (!SourceControlState->IsCurrent())
+		{
+			FPackageSourceControlHelperLog::Error(bErrorsAsWarnings, FString::Printf(TEXT("File %s (not at head revision), will not checkout"), *PackageFilename));
+			bSuccess = false;
+		}
+		else if (SourceControlState->IsCheckedOut() || SourceControlState->IsAdded())
+		{
+			// Nothing to do
+		}
+		else if (SourceControlState->IsSourceControlled())
+		{
+			OutPackagesToCheckout.Add(PackageFilenamesToPackageName.FindChecked(PackageFilename));
+		}
+		else
+		{
+			OutPackagesToAdd.Add(PackageFilenamesToPackageName.FindChecked(PackageFilename));
+		}
+	}
+
+	return bSuccess;
 }
