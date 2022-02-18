@@ -1280,11 +1280,6 @@ bool UPCGComponent::AddTrackedActor(AActor* InActor, bool bForce)
 	check(InActor);
 	bool bAppliedChange = false;
 
-	if (bForce)
-	{
-		CachedTrackedActorToTags.FindOrAdd(InActor);
-	}
-
 	for (const FName& Tag : InActor->Tags)
 	{
 		if (!CachedTrackedTagsToSettings.Contains(Tag))
