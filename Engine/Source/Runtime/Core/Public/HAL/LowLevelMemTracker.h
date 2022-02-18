@@ -461,7 +461,8 @@ namespace LLMPrivate
 		Declare,
 		EnumTag,
 		CustomEnumTag,
-		FunctionAPI
+		FunctionAPI,
+		ImplicitParent
 	};
 }
 }
