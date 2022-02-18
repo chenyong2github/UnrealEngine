@@ -46,7 +46,7 @@ namespace Horde.Storage.Implementation
         /// <summary>
         /// Forcefully set the replication offset to a new value, should only be used to recover a replicator stuck in a bad state
         /// </summary>
-        void SetReplicationOffset(long state);
+        void SetReplicationOffset(long? state);
 
         Task StopReplicating();
 

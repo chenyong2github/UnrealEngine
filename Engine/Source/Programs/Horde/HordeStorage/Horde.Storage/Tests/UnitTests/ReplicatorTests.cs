@@ -314,7 +314,7 @@ namespace Horde.Storage.UnitTests
             Mock<HttpMessageHandler> handler = new Mock<HttpMessageHandler>();
             IHttpClientFactory httpClientFactory = handler.CreateClientFactory();
             using IReplicator replicator = new ReplicatorV1(replicatorSettings, replicationSettingsMonitor, jupiterSettingsMonitor, blobStoreMock.Object, transactionLogWriter.Object, remoteClientMock.Object, serviceCredentials, httpClientFactory);
-
+            replicator.SetReplicationOffset(null);
             Assert.IsNull(replicator.State.ReplicatorOffset, "Expected state to have been reset during test initialize");
 
             bool ran = await replicator.TriggerNewReplications();

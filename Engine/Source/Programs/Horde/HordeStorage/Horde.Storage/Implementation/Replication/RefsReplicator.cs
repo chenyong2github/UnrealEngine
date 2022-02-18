@@ -581,7 +581,7 @@ namespace Horde.Storage.Implementation
             _logger.Information("{Name} starting replication. Last transaction was {TransactionId} {Generation}", _name, State.ReplicatorOffset.GetValueOrDefault(0L), State.ReplicatingGeneration.GetValueOrDefault(Guid.Empty) );
         }
 
-        public void SetReplicationOffset(long state)
+        public void SetReplicationOffset(long? state)
         {
             throw new NotImplementedException();
         }

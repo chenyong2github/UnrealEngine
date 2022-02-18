@@ -448,7 +448,7 @@ namespace Horde.Storage.Implementation
             await _replicationFinishedEvent.WaitAsync();
         }
 
-        public void SetReplicationOffset(long offset)
+        public void SetReplicationOffset(long? offset)
         {
             State.ReplicatorOffset = offset;
             SaveState(_stateFile, State);
