@@ -2341,9 +2341,67 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(const 
 		}
 	}
 
+	// Some pipelines may author subframe values that are compatible with the
+	// engine's notion of a subframe, which is a floating point value between
+	// zero and one representing a percentage of a frame. Others may author
+	// subframe as integer values from zero to N instead, incrementing by one
+	// each subframe until the next frame is reached.
+	// Since this data is user-supplied, we don't want to trip over the
+	// checkSlow() in FFrameTime's constructor, so we apply the same clamping
+	// it does to bring the value into range here.
+	// Clients that are interested in the exact subframe value that was
+	// authored should query it using EvaluateRootBoneTimecodeSubframeAttributeAtTime().
+	SubFrame = FMath::Clamp(SubFrame + 0.5f - 0.5f, 0.f, FFrameTime::MaxSubframe);
+
 	OutQualifiedFrameTime = FQualifiedFrameTime(
 		FFrameTime(Timecode.ToFrameNumber(FrameRate), SubFrame),
 		FrameRate);
+
+	return true;
+}
+
+bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeSubframeAttributeAtTime(const UAnimSequenceBase* AnimationSequenceBase, const float EvalTime, float& OutSubframe)
+{
+	if (!AnimationSequenceBase)
+	{
+		return false;
+	}
+
+	const UAnimDataModel* AnimDataModel = AnimationSequenceBase->GetDataModel();
+	if (!AnimDataModel)
+	{
+		return false;
+	}
+
+	const int32 RootBoneIndex = 0;
+	const FBoneAnimationTrack* RootBoneTrack = AnimDataModel->FindBoneTrackByIndex(RootBoneIndex);
+	if (!RootBoneTrack)
+	{
+		return false;
+	}
+
+	const FName& RootBoneName = RootBoneTrack->Name;
+
+	FName TCSubframeAttrName(TEXT("TCSubframe"));
+	if (const UAnimationSettings* AnimationSettings = UAnimationSettings::Get())
+	{
+		TCSubframeAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.SubframeAttributeName;
+	}
+
+	FAnimationAttributeIdentifier SubframeAttributeIdentifier(TCSubframeAttrName, RootBoneIndex, RootBoneName, FFloatAnimationAttribute::StaticStruct());
+	const FAnimatedBoneAttribute* RootBoneSubframeAttribute = AnimDataModel->FindAttribute(SubframeAttributeIdentifier);
+	if (!RootBoneSubframeAttribute)
+	{
+		return false;
+	}
+
+	if (!RootBoneSubframeAttribute->Curve.CanEvaluate())
+	{
+		return false;
+	}
+
+	const FFloatAnimationAttribute EvaluatedAttribute = RootBoneSubframeAttribute->Curve.Evaluate<FFloatAnimationAttribute>(EvalTime);
+	OutSubframe = EvaluatedAttribute.Value;
 
 	return true;
 }

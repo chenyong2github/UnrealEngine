@@ -482,6 +482,24 @@ public:
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Helpers")
 	static bool EvaluateRootBoneTimecodeAttributesAtTime(const UAnimSequenceBase* AnimationSequenceBase, const float EvalTime, FQualifiedFrameTime& OutQualifiedFrameTime);
 
+	/** Evaluates the subframe timecode attribute (e.g. "TCSubframe") of the root bone and returns the resulting value.
+	 *
+	 *  Since the subframe component of FFrameTime is clamped to the range [0.0, 1.0), it cannot accurately represent the use
+	 *  case where the timecode metadata represents subframe values as whole numbered subframes instead of as a percentage of a
+	 *  frame the way the engine does. The subframe component of the FQualifiedFrameTime returned by
+	 *  EvaluateRootBoneTimecodeAttributesAtTime() may not reflect the authored subframe metadata in that case.
+	 * 
+	 *  This function allows access to the subframe values that were actually authored in the timecode metadata.
+	 *
+	 *  @param AnimationSequenceBase: Anim sequence for which to evaluate the root bone subframe attribute.
+	 *  @param EvalTime: Time (in seconds) at which to evaluate the subframe timecode bone attribute.
+	 *  @param OutSubframe: Resulting subframe value from evaluation. If no subframe timecode attribute is present
+	 *      on the bone or if it cannot be evaluated, the output parameter will not be modified.
+	 *  @return: true if the root bone had a subframe timecode attribute that could be evaluated and a value was set, or false otherwise.
+	 */
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Helpers")
+	static bool EvaluateRootBoneTimecodeSubframeAttributeAtTime(const UAnimSequenceBase* AnimationSequenceBase, const float EvalTime, float& OutSubframe);
+
 	/** Finds the Bone Path from the given Bone to the Root Bone */
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Helpers")
 	static void FindBonePathToRoot(const UAnimSequenceBase* AnimationSequenceBase, FName BoneName, TArray<FName>& BonePath);
