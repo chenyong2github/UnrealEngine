@@ -19,13 +19,6 @@ namespace Chaos
 	struct FSimCallbackInput;
 }
 
-#if !UE_BUILD_SHIPPING
-namespace PhysicsReplicationCVars
-{
-	extern ENGINE_API int32 LogPhysicsReplicationHardSnaps;
-}
-#endif
-
 class FPhysScene_PhysX;
 
 struct FReplicatedPhysicsTarget
@@ -105,7 +98,7 @@ protected:
 
 	/** Called when a dynamic rigid body receives a physics update */
 	virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay, int32 LocalFrame, int32 NumPredictedFrames);
-	virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay, bool* bDidHardSnap = nullptr); // deprecated path with no localframe/numpredicted
+	virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay); // deprecated path with no localframe/numpredicted
 
 	UWorld* GetOwningWorld();
 	const UWorld* GetOwningWorld() const;
