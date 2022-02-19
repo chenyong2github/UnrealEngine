@@ -316,20 +316,16 @@ public:
 	}
 };
 
-class UMaterialInterface;
 class FMaterialRenderProxy;
 class FNaniteRasterPipeline
 {
 public:
-	FNaniteRasterPipeline(TWeakObjectPtr<const UMaterialInterface> InRasterMaterial);
+	FNaniteRasterPipeline(const FMaterialRenderProxy* InRasterMaterial);
 	~FNaniteRasterPipeline();
-
-	void Cache(ERHIFeatureLevel::Type InFeatureLevel);
-	void Release();
 
 	inline const FMaterialRenderProxy* GetRenderProxy() const
 	{
-		return MaterialProxy;
+		return RasterMaterial;
 	}
 
 	inline bool AddRef()
@@ -358,8 +354,7 @@ public:
 	}
 
 private:
-	TWeakObjectPtr<const UMaterialInterface> MaterialInterface;
-	const FMaterialRenderProxy* MaterialProxy = nullptr;
+	const FMaterialRenderProxy* RasterMaterial = nullptr;
 	std::atomic<uint32> ReferenceCount{ 0 };
 	uint16 BinIndex = 0xFFFFu;
 };
@@ -377,12 +372,12 @@ public:
 
 	uint32 GetBinCount() const;
 
-	FNaniteRasterPipeline* Register(const UMaterialInterface* RasterMaterial);
-	void Unregister(const UMaterialInterface* RasterMaterial);
+	FNaniteRasterPipeline* Register(const FMaterialRenderProxy* InRasterMaterial);
+	void Unregister(const FMaterialRenderProxy* InRasterMaterial);
 
 	void BeginRaster();
 	
-	const TMap<const UMaterialInterface*, FNaniteRasterPipeline*>& GetRasterPipelines() const
+	const TMap<const FMaterialRenderProxy*, FNaniteRasterPipeline*>& GetRasterPipelines() const
 	{
 		// Make sure this is only called between BeginRaster() and FinishRaster()
 		return Pipelines;
@@ -396,7 +391,7 @@ private:
 	TBitArray<> PipelineBins;
 
 	// TODO: PROG_RASTER : Optimize (Switch from TMap to Experimental::TRobinHoodHashMap<>)
-	TMap<const UMaterialInterface*, FNaniteRasterPipeline*> Pipelines;
+	TMap<const FMaterialRenderProxy*, FNaniteRasterPipeline*> Pipelines;
 
 	uint32 CacheGeneration = 0;
 	ERHIFeatureLevel::Type FeatureLevel;

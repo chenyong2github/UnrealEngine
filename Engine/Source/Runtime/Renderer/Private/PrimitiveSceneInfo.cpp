@@ -627,12 +627,9 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 			for (int32 MaterialSectionIndex = 0; MaterialSectionIndex < NaniteMaterialSections.Num(); ++MaterialSectionIndex)
 			{
 				Nanite::FSceneProxyBase::FMaterialSection& MaterialSection = NaniteMaterialSections[MaterialSectionIndex];
+				check(MaterialSection.RasterMaterialProxy != nullptr);
 
-				const bool bValidMaterial = MaterialSection.RasterMaterial.IsValid() && !MaterialSection.RasterMaterial.IsStale();
-				const UMaterialInterface* RasterMaterial = bValidMaterial ? MaterialSection.RasterMaterial.Get() : UMaterial::GetDefaultMaterial(MD_Surface);
-				check(RasterMaterial);
-
-				FNaniteRasterPipeline* RasterPipeline = Scene->NaniteRasterPipelines.Register(RasterMaterial);
+				FNaniteRasterPipeline* RasterPipeline = Scene->NaniteRasterPipelines.Register(MaterialSection.RasterMaterialProxy);
 				check(RasterPipeline);
 
 				for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
@@ -661,10 +658,8 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 		TArray<Nanite::FSceneProxyBase::FMaterialSection>& NaniteMaterialSections = NaniteProxy->GetMaterialSections();
 		for (Nanite::FSceneProxyBase::FMaterialSection& MaterialSection : NaniteMaterialSections)
 		{
-			const bool bValidMaterial = MaterialSection.RasterMaterial.IsValid() && !MaterialSection.RasterMaterial.IsStale();
-			const UMaterialInterface* RasterMaterial = bValidMaterial ? MaterialSection.RasterMaterial.Get() : UMaterial::GetDefaultMaterial(MD_Surface);
-			check(RasterMaterial);
-			Scene->NaniteRasterPipelines.Unregister(RasterMaterial);
+			check(MaterialSection.RasterMaterialProxy != nullptr);
+			Scene->NaniteRasterPipelines.Unregister(MaterialSection.RasterMaterialProxy);
 		}
 	}
 

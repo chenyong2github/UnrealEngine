@@ -432,13 +432,14 @@ void FSceneProxyBase::DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* 
 	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
 	{
 		const FMaterialSection& Section = MaterialSections[SectionIndex];
-		if (!Section.ShadingMaterial.IsValid())
+		const FMaterialRenderProxy* MaterialProxy = Section.ShadingMaterialProxy;
+		if (!MaterialProxy)
 		{
 			continue;
 		}
 
 		MeshBatch.SegmentIndex = SectionIndex;
-		MeshBatch.MaterialRenderProxy = Section.ShadingMaterial->GetRenderProxy();
+		MeshBatch.MaterialRenderProxy = MaterialProxy;
 
 	#if WITH_EDITOR
 		HHitProxy* HitProxy = Section.HitProxy;
@@ -526,26 +527,28 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		// Keep track of highest observed material index.
 		MaterialMaxIndex = FMath::Max(MaterialSection.MaterialIndex, MaterialMaxIndex);
 
-		MaterialSection.ShadingMaterial = MaterialAudit.GetMaterial(MaterialSection.MaterialIndex);
+		UMaterialInterface* ShadingMaterial = MaterialAudit.GetMaterial(MaterialSection.MaterialIndex);
 
 		// Copy over per-instance material flags for this section
 		MaterialSection.bHasPerInstanceRandomID = MaterialAudit.HasPerInstanceRandomID(MaterialSection.MaterialIndex);
 		MaterialSection.bHasPerInstanceCustomData = MaterialAudit.HasPerInstanceCustomData(MaterialSection.MaterialIndex);
 
-		if (bHasSurfaceStaticLighting && MaterialSection.ShadingMaterial.IsValid() && !MaterialSection.ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
+		if (bHasSurfaceStaticLighting && ShadingMaterial && !ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
 		{
-			MaterialSection.ShadingMaterial = nullptr;
+			ShadingMaterial = nullptr;
 		}
 
-		if (MaterialSection.ShadingMaterial == nullptr)
+		if (ShadingMaterial == nullptr)
 		{
-			MaterialSection.ShadingMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			ShadingMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
+
+		MaterialSection.ShadingMaterialProxy = ShadingMaterial->GetRenderProxy();
 
 		//const FMaterial& RasterMaterial = RasterMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), DefaultMaterialProxy);
 		//bHasProgammableRaster = RasterMaterial.IsMasked() || RasterMaterial.MaterialUsesPixelDepthOffset() || RasterMaterial.MaterialMayModifyMeshPosition();
-		bHasProgrammableRaster = MaterialSection.ShadingMaterial->IsMasked();
-		MaterialSection.RasterMaterial = bHasProgrammableRaster ? MaterialSection.ShadingMaterial : nullptr;
+		bHasProgrammableRaster = ShadingMaterial->IsMasked();
+		MaterialSection.RasterMaterialProxy = bHasProgrammableRaster ? MaterialSection.ShadingMaterialProxy : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	}
 
 #if RHI_RAYTRACING
@@ -1189,7 +1192,7 @@ void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& M
 		const FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
 		FMeshBatch& MeshBatch = Materials[SectionIndex];
 		MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
-		MeshBatch.MaterialRenderProxy = MaterialSection.ShadingMaterial->GetRenderProxy();
+		MeshBatch.MaterialRenderProxy = MaterialSection.ShadingMaterialProxy;
 		MeshBatch.bWireframe = false;
 		MeshBatch.SegmentIndex = SectionIndex;
 		MeshBatch.LODIndex = 0;

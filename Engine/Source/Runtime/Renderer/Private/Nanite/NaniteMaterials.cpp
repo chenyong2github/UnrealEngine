@@ -1573,9 +1573,8 @@ void FNaniteMaterialCommands::Finish(FRHICommandListImmediate& RHICmdList)
 	NumMaterialDepthUpdates = 0;
 }
 
-FNaniteRasterPipeline::FNaniteRasterPipeline(TWeakObjectPtr<const UMaterialInterface> InRasterMaterial)
-: MaterialInterface(InRasterMaterial)
-, MaterialProxy(nullptr)
+FNaniteRasterPipeline::FNaniteRasterPipeline(const FMaterialRenderProxy* InRasterMaterial)
+: RasterMaterial(InRasterMaterial)
 , ReferenceCount(0)
 {
 }
@@ -1583,21 +1582,7 @@ FNaniteRasterPipeline::FNaniteRasterPipeline(TWeakObjectPtr<const UMaterialInter
 FNaniteRasterPipeline::~FNaniteRasterPipeline()
 {
 	check(ReferenceCount.load() == 0);
-	check(MaterialProxy == nullptr);
 }
-
-void FNaniteRasterPipeline::Cache(ERHIFeatureLevel::Type InFeatureLevel)
-{
-	check(MaterialInterface.IsValid());
-	MaterialProxy = MaterialInterface->GetRenderProxy();
-	check(MaterialProxy != nullptr);
-}
-
-void FNaniteRasterPipeline::Release()
-{
-	MaterialProxy = nullptr;
-}
-
 
 FNaniteRasterPipelines::FNaniteRasterPipelines(ERHIFeatureLevel::Type InFeatureLevel)
 : FeatureLevel(InFeatureLevel)
@@ -1615,7 +1600,6 @@ FNaniteRasterPipelines::~FNaniteRasterPipelines()
 	{
 		FNaniteRasterPipeline* RasterPipeline = PipelineIt->Value;
 		check(RasterPipeline);
-		RasterPipeline->Release();
 		RasterPipeline->ClearRefs();
 		delete RasterPipeline;
 	}
@@ -1657,9 +1641,9 @@ uint32 FNaniteRasterPipelines::GetBinCount() const
 	return PipelineBins.FindLast(true) + 1;
 }
 
-FNaniteRasterPipeline* FNaniteRasterPipelines::Register(const UMaterialInterface* RasterMaterial)
+FNaniteRasterPipeline* FNaniteRasterPipelines::Register(const FMaterialRenderProxy* InRasterMaterial)
 {
-	if (FReadScopeLock ReadLock(Lock); FNaniteRasterPipeline** RasterPipelinePtr = Pipelines.Find(RasterMaterial))
+	if (FReadScopeLock ReadLock(Lock); FNaniteRasterPipeline** RasterPipelinePtr = Pipelines.Find(InRasterMaterial))
 	{
 		FNaniteRasterPipeline* RasterPipeline = *RasterPipelinePtr;
 		check(RasterPipeline);
@@ -1672,7 +1656,7 @@ FNaniteRasterPipeline* FNaniteRasterPipelines::Register(const UMaterialInterface
 	// TODO: PROG_RASTER : Optimize (Remove extra lookup)
 
 	// With all threads holding a write lock, first see if the initial winning thread has inserted already.
-	if (FNaniteRasterPipeline** RasterPipelinePtr = Pipelines.Find(RasterMaterial))
+	if (FNaniteRasterPipeline** RasterPipelinePtr = Pipelines.Find(InRasterMaterial))
 	{
 		FNaniteRasterPipeline* RasterPipeline = *RasterPipelinePtr;
 		check(RasterPipeline);
@@ -1682,21 +1666,20 @@ FNaniteRasterPipeline* FNaniteRasterPipelines::Register(const UMaterialInterface
 
 	// Winning thread inserts
 
-	FNaniteRasterPipeline* RasterPipeline = new FNaniteRasterPipeline(RasterMaterial);
+	FNaniteRasterPipeline* RasterPipeline = new FNaniteRasterPipeline(InRasterMaterial);
 	const uint16 PipelineBinIndex = AllocateBin();
 	RasterPipeline->SetBinIndex(PipelineBinIndex);
-	Pipelines.Add(RasterMaterial, RasterPipeline);
-	RasterPipeline->Cache(FeatureLevel);
+	Pipelines.Add(InRasterMaterial, RasterPipeline);
 	RasterPipeline->AddRef();
 	return RasterPipeline;
 }
 
-void FNaniteRasterPipelines::Unregister(const UMaterialInterface* RasterMaterial)
+void FNaniteRasterPipelines::Unregister(const FMaterialRenderProxy* InRasterMaterial)
 {
 	// TODO: PROG_RASTER : Optimize (only acquire write lock for last ref deletion)
 	FWriteScopeLock WriteLock(Lock);
 
-	if (FNaniteRasterPipeline** RasterPipelinePtr = Pipelines.Find(RasterMaterial))
+	if (FNaniteRasterPipeline** RasterPipelinePtr = Pipelines.Find(InRasterMaterial))
 	{
 		FNaniteRasterPipeline* RasterPipeline = *RasterPipelinePtr;
 		if (RasterPipeline->DecRef())
@@ -1704,8 +1687,7 @@ void FNaniteRasterPipelines::Unregister(const UMaterialInterface* RasterMaterial
 			const uint16 PipelineBinIndex = RasterPipeline->GetBinIndex();
 			check(PipelineBinIndex != 0xFFFFu);
 			ReleaseBin(PipelineBinIndex);
-			RasterPipeline->Release();
-			Pipelines.Remove(RasterMaterial);
+			Pipelines.Remove(InRasterMaterial);
 			delete RasterPipeline;
 		}
 	}

@@ -2311,7 +2311,6 @@ void AddPass_Rasterize(
 		{
 			FRasterizerPass& RasterizerPass = RasterizerPasses.AddDefaulted_GetRef();
 			RasterizerPass.RasterPipeline = PipelineIt->Value;
-			RasterizerPass.RasterPipeline->Cache(Scene.GetFeatureLevel());
 
 			RasterizerPass.RasterizerBin = uint32(RasterizerPass.RasterPipeline->GetBinIndex());
 
