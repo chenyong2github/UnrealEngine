@@ -30,7 +30,7 @@ public:
 
 	/** Set of steps to perform to carry out this test plan */
 	UPROPERTY(EditAnywhere, Instanced, Category = Definition, Meta = (DisplayPriority = 0))
-	TArray<UInterchangeImportTestStepBase*> Steps;
+	TArray<TObjectPtr<UInterchangeImportTestStepBase>> Steps;
 
 	/** Click here to immediately run this single test through the automation framework */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = Run, Meta = (DisplayPriority = 1))

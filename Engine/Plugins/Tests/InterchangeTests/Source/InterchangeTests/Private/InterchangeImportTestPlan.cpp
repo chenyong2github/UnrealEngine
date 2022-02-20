@@ -3,6 +3,7 @@
 #include "InterchangeImportTestPlan.h"
 #include "JsonObjectConverter.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/FileHelper.h"
 #include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "InterchangeImportTestPlan"
