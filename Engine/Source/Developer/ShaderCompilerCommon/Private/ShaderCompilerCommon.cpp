@@ -1466,6 +1466,9 @@ void TransformStringIntoCharacterArray(FString& PreprocessedShaderSource)
 	// 3. Replace TEXT by its entry number
 	uint32 GlobalCount = 0;
 	{
+		const FString InitHashBegin(TEXT("InitShaderPrintText("));
+		const FString InitHashEnd(TEXT(")"));
+
 		const TCHAR* TextIdentifier = TEXT("TEXT(");
 		const TCHAR* SearchPtr = FCString::Strstr(&PreprocessedShaderSource[0], TextIdentifier);
 		while (SearchPtr)
@@ -1495,7 +1498,9 @@ void TransformStringIntoCharacterArray(FString& PreprocessedShaderSource)
 				const uint32 StartIndex = SearchPtr - StartPtr;
 				const uint32 CharCount = (EndPtr - SearchPtr) + 1;
 				PreprocessedShaderSource.RemoveAt(StartIndex, CharCount);
-				PreprocessedShaderSource.InsertAt(StartIndex, FString::FromInt(EntryIndex));
+
+				const FString HashText = InitHashBegin + FString::FromInt(EntryIndex) + InitHashEnd;
+				PreprocessedShaderSource.InsertAt(StartIndex, HashText);
 
 				// Update SearchPtr, as PreprocessedShaderSource has been modified, and its memory could have been reallocated, causing SearchPtr to be invalid.
 				SearchPtr = &PreprocessedShaderSource[0] + StartIndex;
@@ -1536,15 +1541,15 @@ void TransformStringIntoCharacterArray(FString& PreprocessedShaderSource)
 		}
 		TextChars += TEXT("};\n\n");
 
-		TextChars += TEXT("uint ShaderPrintGetChar(uint InIndex)       { return TEXT_CHARS[InIndex]; }\n");
-		TextChars += TEXT("uint ShaderPrintGetOffset(uint InTextEntry) { return TEXT_OFFSETS[InTextEntry]; }\n");
-		TextChars += TEXT("uint ShaderPrintGetHash(uint InTextEntry)   { return TEXT_HASHES[InTextEntry]; }\n");
+		TextChars += TEXT("uint ShaderPrintGetChar(uint InIndex)              { return TEXT_CHARS[InIndex]; }\n");
+		TextChars += TEXT("uint ShaderPrintGetOffset(FShaderPrintText InText) { return TEXT_OFFSETS[InText.Index]; }\n");
+		TextChars += TEXT("uint ShaderPrintGetHash(FShaderPrintText InText)   { return TEXT_HASHES[InText.Index]; }\n");
 	}
 	else
 	{	
-		TextChars += TEXT("uint ShaderPrintGetChar(uint Index) { return 0; }\n");
-		TextChars += TEXT("uint ShaderPrintGetOffset(uint InTextEntry) { return 0; }\n");
-		TextChars += TEXT("uint ShaderPrintGetHash(uint InTextEntry) { return 0; }\n");
+		TextChars += TEXT("uint ShaderPrintGetChar(uint Index)                { return 0; }\n");
+		TextChars += TEXT("uint ShaderPrintGetOffset(FShaderPrintText InText) { return 0; }\n");
+		TextChars += TEXT("uint ShaderPrintGetHash(FShaderPrintText InText)   { return 0; }\n");
 	}
 	
 	// 6. Insert global struct data + print function
