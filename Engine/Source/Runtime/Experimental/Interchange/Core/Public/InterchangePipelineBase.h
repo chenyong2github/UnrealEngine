@@ -19,7 +19,7 @@ enum class EInterchangePipelineTask : uint8
 	Export
 };
 
-UCLASS(BlueprintType, Blueprintable, Experimental)
+UCLASS(BlueprintType, Blueprintable, Experimental, EditInlineNew, Abstract)
 class INTERCHANGECORE_API UInterchangePipelineBase : public UObject
 {
 	GENERATED_BODY()

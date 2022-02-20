@@ -154,6 +154,8 @@ namespace UE
 
 		using FAssetImportResultRef = TSharedRef< FImportResult, ESPMode::ThreadSafe >;
 		using FSceneImportResultRef = TSharedRef< FImportResult, ESPMode::ThreadSafe >;
+		using FAssetImportResultPtr = TSharedPtr< FImportResult, ESPMode::ThreadSafe >;
+		using FSceneImportResultPtr = TSharedPtr< FImportResult, ESPMode::ThreadSafe >;
 
 		class FImportAsyncHelper : protected FGCObject
 		{
