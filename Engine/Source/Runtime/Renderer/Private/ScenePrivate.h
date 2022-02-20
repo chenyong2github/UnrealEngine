@@ -702,6 +702,16 @@ struct FShaderDrawDebugStateData
 	}
 };
 
+struct FShaderPrintStateData
+{
+	TRefCountPtr<FRDGPooledBuffer> StateBuffer;
+
+	void Release()
+	{
+		StateBuffer = nullptr;
+	}
+};
+
 // Some resources used across frames can prevent execution of PS, CS and VS work across overlapping frames work.
 // This struct is used to transparently double buffer the sky aerial perspective volume on some platforms,
 // in order to make sure two consecutive frames have no resource dependencies, resulting in no cross frame barrier/sync point.
@@ -1125,6 +1135,7 @@ public:
 	FHairStrandsViewStateData HairStrandsViewStateData;
 
 	FShaderDrawDebugStateData ShaderDrawDebugStateData;
+	FShaderPrintStateData ShaderPrintStateData;
 
 	FShadingEnergyConservationStateData ShadingEnergyConservationData;
 

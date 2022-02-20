@@ -358,14 +358,14 @@ float2 PrintInstanceName(float2 InPos, uint PrimitiveID, FFontColor InColor)
 float2 Print(float2 Pos, uint X, uint DigitCount, FFontColor Color)
 {
 	Pos = ShaderPrint(Pos, X, Color);
-	Pos.x -= ShaderPrintUniform.FontSize.z * (ShaderPrintTabCount - min(ShaderPrintTabCount, DigitCount));
+	Pos.x -= ShaderPrintUniform.FontSpacing.x * (ShaderPrintTabCount - min(ShaderPrintTabCount, DigitCount));
 	return Pos;
 }
 
 float2 Print(float2 Pos, float X, uint DigitCount, FFontColor Color)
 {
 	Pos = ShaderPrint(Pos, X, Color);
-	Pos.x -= ShaderPrintUniform.FontSize.z * (ShaderPrintTabCount - min(ShaderPrintTabCount, DigitCount));
+	Pos.x -= ShaderPrintUniform.FontSpacing.x * (ShaderPrintTabCount - min(ShaderPrintTabCount, DigitCount));
 	return Pos;
 }
 

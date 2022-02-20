@@ -19,26 +19,34 @@ class FViewInfo;
 
 struct FShaderPrintData
 {
-	FVector4f FontSize;
+	FVector2f FontSpacing;
+	FVector2f FontSize;
+	FIntPoint CursorCoord;
 	FIntRect OutputRect;
 	int32 MaxValueCount = -1;
 	int32 MaxSymbolCount = -1;
+	uint32 MaxStateCount = 0;
 	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
+	FRDGBufferRef ShaderPrintStateBuffer = nullptr;
 };
 
 namespace ShaderPrint
 {
 	// ShaderPrint uniform buffer layout
 	BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FUniformBufferParameters, RENDERER_API)
-		SHADER_PARAMETER(FVector4f, FontSize)
+		SHADER_PARAMETER(FVector2f, FontSize)
+		SHADER_PARAMETER(FVector2f, FontSpacing)
 		SHADER_PARAMETER(FIntPoint, Resolution)
+		SHADER_PARAMETER(FIntPoint, CursorCoord)
 		SHADER_PARAMETER(int32, MaxValueCount)
 		SHADER_PARAMETER(int32, MaxSymbolCount)
+		SHADER_PARAMETER(uint32, MaxStateCount)
 	END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 	// ShaderPrint parameter struct declaration
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FUniformBufferParameters, UniformBufferParameters)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(RWStructuredBuffer<uint2>, StateBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, RWValuesBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 

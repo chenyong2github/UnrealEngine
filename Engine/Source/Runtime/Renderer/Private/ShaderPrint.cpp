@@ -11,6 +11,7 @@
 #include "RenderGraphBuilder.h"
 #include "SceneRendering.h"
 #include "SystemTextures.h"
+#include "ScenePrivate.h"
 
 namespace ShaderPrint
 {
@@ -45,6 +46,13 @@ namespace ShaderPrint
 		TEXT("ShaderPrint output buffer size.\n"),
 		ECVF_Cheat | ECVF_RenderThreadSafe);
 
+	static TAutoConsoleVariable<int32> CVarMaxWidgetCount(
+		TEXT("r.ShaderPrintMaxWidget"),
+		32,
+		TEXT("ShaderPrint max widget count.\n"),
+		ECVF_Cheat | ECVF_RenderThreadSafe);
+
+	static uint32 GWidgetRequestCount = 0;
 	static uint32 GCharacterRequestCount = 0;
 	static bool GShaderPrintEnableOverride = false;
 
@@ -65,7 +73,7 @@ namespace ShaderPrint
 			if (!Buffer.IsValid())
 			{
 				FRHICommandList* UnusedCmdList = new FRHICommandList(FRHIGPUMask::All());
-				GetPooledFreeBuffer(*UnusedCmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), 1), Buffer, TEXT("EmptyShaderPrintValueBuffer"));
+				GetPooledFreeBuffer(*UnusedCmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), 1), Buffer, TEXT("ShaderPrint.EmptyValueBuffer"));
 				delete UnusedCmdList;
 				UnusedCmdList = nullptr;
 			}
@@ -82,6 +90,12 @@ namespace ShaderPrint
 		return IsEnabled() ? MaxValueCount : 0;
 	}
 
+	static int32 GetMaxWidgetCount()
+	{
+		int32 MaxValueCount = FMath::Max(CVarMaxWidgetCount.GetValueOnRenderThread() + int32(GWidgetRequestCount), 0);
+		return IsEnabled() ? MaxValueCount : 0;
+	}
+	
 	// Get symbol buffer size
 	// This is some multiple of the value buffer size to allow for maximum value->symbol expansion
 	static int32 GetMaxSymbolCount()
@@ -99,9 +113,13 @@ namespace ShaderPrint
 	{		
 		FUniformBufferParameters Out;
 		Out.FontSize = Data.FontSize;
+		Out.FontSpacing = Data.FontSpacing;
+		Out.CursorCoord = Data.CursorCoord;
+
 		Out.Resolution = Data.OutputRect.Size();
 		Out.MaxValueCount = Data.MaxValueCount;
 		Out.MaxSymbolCount = Data.MaxSymbolCount;
+		Out.MaxStateCount = Data.MaxStateCount;
 		return FUniformBufferRef::CreateUniformBufferImmediate(Out, UniformBuffer_SingleFrame);
 	}
 
@@ -109,6 +127,7 @@ namespace ShaderPrint
 	void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo & View, FShaderParameters& OutParameters)
 	{
 		OutParameters.UniformBufferParameters = CreateUniformBuffer(View.ShaderPrintData);
+		OutParameters.StateBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintStateBuffer);
 		OutParameters.RWValuesBuffer = GraphBuilder.CreateUAV(View.ShaderPrintData.ShaderPrintValueBuffer);
 	}
 
@@ -116,6 +135,7 @@ namespace ShaderPrint
 	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderPrintData& Data, FShaderParameters& OutParameters)
 	{
 		OutParameters.UniformBufferParameters = CreateUniformBuffer(Data);
+		OutParameters.StateBuffer = GraphBuilder.CreateSRV(Data.ShaderPrintStateBuffer);
 		OutParameters.RWValuesBuffer = GraphBuilder.CreateUAV(Data.ShaderPrintValueBuffer);
 	}
 
@@ -203,6 +223,28 @@ namespace ShaderPrint
 
 	IMPLEMENT_GLOBAL_SHADER(FShaderBuildIndirectDispatchArgsCS, "/Engine/Private/ShaderPrintDraw.usf", "BuildIndirectDispatchArgsCS", SF_Compute);
 
+	// Shader to clean & compact widget state
+	class FShaderCompactStateBufferCS : public FGlobalShader
+	{
+	public:
+		DECLARE_GLOBAL_SHADER(FShaderCompactStateBufferCS);
+		SHADER_USE_PARAMETER_STRUCT(FShaderCompactStateBufferCS, FGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER(uint32, FrameIndex)
+			SHADER_PARAMETER(uint32, FrameThreshold)
+			SHADER_PARAMETER_STRUCT_REF(FUniformBufferParameters, UniformBufferParameters)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWStateBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
+		{
+			return IsSupported(Parameters.Platform);
+		}
+	};
+
+	IMPLEMENT_GLOBAL_SHADER(FShaderCompactStateBufferCS, "/Engine/Private/ShaderPrintDraw.usf", "CompactStateBufferCS", SF_Compute);
+
 	// Shader to read the values buffer and convert to the symbols buffer
 	class FShaderBuildSymbolBufferCS : public FGlobalShader
 	{
@@ -211,9 +253,11 @@ namespace ShaderPrint
 		SHADER_USE_PARAMETER_STRUCT(FShaderBuildSymbolBufferCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER(uint32, FrameIndex)
 			SHADER_PARAMETER_STRUCT_REF(FUniformBufferParameters, UniformBufferParameters)
 			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<ShaderPrintItem>, ValuesBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, RWSymbolsBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWStateBuffer)
 			RDG_BUFFER_ACCESS(IndirectDispatchArgsBuffer, ERHIAccess::IndirectArgs)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -307,10 +351,14 @@ namespace ShaderPrint
 		const float FontHeight = FontSize / float(ViewSize.Y);
 		const float SpaceWidth = FontSpacingX / float(ViewSize.X);
 		const float SpaceHeight = FontSpacingY / float(ViewSize.Y);
-		View.ShaderPrintData.FontSize = FVector4f(FontWidth, FontHeight, SpaceWidth + FontWidth, SpaceHeight + FontHeight);
+
+		View.ShaderPrintData.FontSize = FVector2f(FontWidth, FontHeight);
+		View.ShaderPrintData.FontSpacing = FVector2f(SpaceWidth + FontWidth, SpaceHeight + FontHeight);		
 		View.ShaderPrintData.OutputRect = View.UnconstrainedViewRect;
 		View.ShaderPrintData.MaxValueCount = GetMaxValueCount();
 		View.ShaderPrintData.MaxSymbolCount = GetMaxSymbolCount();
+		View.ShaderPrintData.MaxStateCount = GetMaxWidgetCount();
+		View.ShaderPrintData.CursorCoord = View.CursorPos;
 		GCharacterRequestCount = 0;
 
 		// Early out if system is disabled
@@ -319,12 +367,35 @@ namespace ShaderPrint
 		if (!IsEnabled())
 		{
 			View.ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
+			View.ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 			return;
 		}
 
 		// Initialize output buffer and store in the view info
 		// Values buffer contains Count + 1 elements. The first element is only used as a counter.
-		View.ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), View.ShaderPrintData.MaxValueCount + 1), TEXT("ShaderPrintValueBuffer"));
+		View.ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), View.ShaderPrintData.MaxValueCount + 1), TEXT("ShaderPrint.ValueBuffer"));
+
+		// State buffer is retrieved from the view state, or created if it does not exist
+		View.ShaderPrintData.ShaderPrintStateBuffer = nullptr;
+		if (FSceneViewState* ViewState = View.ViewState)
+		{
+			if (ViewState->ShaderPrintStateData.StateBuffer)
+			{
+				View.ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(ViewState->ShaderPrintStateData.StateBuffer);
+			}
+			else
+			{
+				View.ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), (3*View.ShaderPrintData.MaxStateCount) + 1), TEXT("ShaderPrint.StateBuffer"));
+				AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(View.ShaderPrintData.ShaderPrintStateBuffer, PF_R32_UINT), 0u);
+				ViewState->ShaderPrintStateData.StateBuffer = GraphBuilder.ConvertToExternalBuffer(View.ShaderPrintData.ShaderPrintStateBuffer);
+			}
+		}
+		else
+		{
+			View.ShaderPrintData.MaxStateCount = 0;
+			View.ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
+		}
+
 
 		// Clear the output buffer internal counter ready for use
 		const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
@@ -352,13 +423,14 @@ namespace ShaderPrint
 	
 		// Initialize graph managed resources
 		// Symbols buffer contains Count + 1 elements. The first element is only used as a counter.
-		FRDGBufferRef SymbolBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), GetMaxSymbolCount() + 1), TEXT("ShaderPrintSymbolBuffer"));
-		FRDGBufferRef IndirectDispatchArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("ShaderPrintIndirectDispatchArgs"));
-		FRDGBufferRef IndirectDrawArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("ShaderPrintIndirectDrawArgs"));
+		FRDGBufferRef SymbolBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), GetMaxSymbolCount() + 1), TEXT("ShaderPrint.SymbolBuffer"));
+		FRDGBufferRef IndirectDispatchArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("ShaderPrint.IndirectDispatchArgs"));
+		FRDGBufferRef IndirectDrawArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("ShaderPrint.IndirectDrawArgs"));
 
 		// Non graph managed resources
 		FUniformBufferRef UniformBuffer = CreateUniformBuffer(View.ShaderPrintData);
 		FRDGBufferSRVRef ValuesBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintValueBuffer);
+		FRDGBufferSRVRef StateBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintStateBuffer);
 		FTextureRHIRef FontTexture = GSystemTextures.AsciiTexture->GetRenderTargetItem().ShaderResourceTexture;
 
 		const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
@@ -388,9 +460,11 @@ namespace ShaderPrint
 			TShaderMapRef<SHADER> ComputeShader(GlobalShaderMap);
 
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
+			PassParameters->FrameIndex = View.Family ? View.Family->FrameNumber : 0u;
 			PassParameters->UniformBufferParameters = UniformBuffer;
 			PassParameters->ValuesBuffer = ValuesBuffer;
 			PassParameters->RWSymbolsBuffer = GraphBuilder.CreateUAV(SymbolBuffer, EPixelFormat::PF_R32_UINT);
+			PassParameters->RWStateBuffer = GraphBuilder.CreateUAV(View.ShaderPrintData.ShaderPrintStateBuffer, EPixelFormat::PF_R32_UINT);
 			PassParameters->IndirectDispatchArgsBuffer = IndirectDispatchArgsBuffer;
 
 			FComputeShaderUtils::AddPass(
@@ -398,6 +472,23 @@ namespace ShaderPrint
 				RDG_EVENT_NAME("ShaderPrint::BuildSymbolBuffer"),
 				ComputeShader, PassParameters,
 				IndirectDispatchArgsBuffer, 0);
+		}
+
+		// CompactStateBuffer
+		{
+			typedef FShaderCompactStateBufferCS SHADER;
+			TShaderMapRef<SHADER> ComputeShader(GlobalShaderMap);
+
+			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
+			PassParameters->FrameIndex = View.Family ? View.Family->FrameNumber : 0u;
+			PassParameters->FrameThreshold = 300u;
+			PassParameters->UniformBufferParameters = UniformBuffer;
+			PassParameters->RWStateBuffer = GraphBuilder.CreateUAV(View.ShaderPrintData.ShaderPrintStateBuffer, EPixelFormat::PF_R32_UINT);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("ShaderPrint::CompactStateBuffer"),
+				ComputeShader, PassParameters, FIntVector(1,1,1));
 		}
 
 		// BuildIndirectDrawArgs

@@ -1536,34 +1536,15 @@ void TransformStringIntoCharacterArray(FString& PreprocessedShaderSource)
 		}
 		TextChars += TEXT("};\n\n");
 
-		// Function for reading global TEXT string
-		TextChars += TEXT("float2 ShaderPrintText(float2 Pos, uint InTextEntry, FFontColor InColor)\n");
-		TextChars += TEXT("{\n");
-		TextChars += TEXT("\tuint Begin = TEXT_OFFSETS[InTextEntry];\n");
-		TextChars += TEXT("\tuint End = TEXT_OFFSETS[InTextEntry + 1];\n");
-		TextChars += TEXT("\tfor (uint i = Begin; i < End; ++i)\n");
-		TextChars += TEXT("\t{\n");
-		TextChars += TEXT("\t\tPos = ShaderPrintSymbol(Pos, TEXT_CHARS[i], InColor);\n");
-		TextChars += TEXT("\t}\n");
-		TextChars += TEXT("\treturn Pos;\n");
-		TextChars += TEXT("}\n");
-		TextChars += TEXT("\n");
-		TextChars += TEXT("float2 ShaderPrintText(float2 Pos, uint InTextEntry)\n");
-		TextChars += TEXT("{\n");
-		TextChars += TEXT("\tFFontColor DefaultColor = GetDefaultFontColor();\n"); 
-		TextChars += TEXT("\tuint Begin = TEXT_OFFSETS[InTextEntry];\n");
-		TextChars += TEXT("\tuint End = TEXT_OFFSETS[InTextEntry + 1];\n");
-		TextChars += TEXT("\tfor (uint i = Begin; i < End; ++i)\n");
-		TextChars += TEXT("\t{\n");
-		TextChars += TEXT("\t\tPos = ShaderPrintSymbol(Pos, TEXT_CHARS[i], DefaultColor);\n");
-		TextChars += TEXT("\t}\n");
-		TextChars += TEXT("\treturn Pos;\n");
-		TextChars += TEXT("}\n");
+		TextChars += TEXT("uint ShaderPrintGetChar(uint InIndex)       { return TEXT_CHARS[InIndex]; }\n");
+		TextChars += TEXT("uint ShaderPrintGetOffset(uint InTextEntry) { return TEXT_OFFSETS[InTextEntry]; }\n");
+		TextChars += TEXT("uint ShaderPrintGetHash(uint InTextEntry)   { return TEXT_HASHES[InTextEntry]; }\n");
 	}
 	else
 	{	
-		TextChars += TEXT("float2 ShaderPrintText(float2 Pos, uint InTextEntry) { return Pos; }\n");
-		TextChars += TEXT("float2 ShaderPrintText(float2 Pos, uint InTextEntry, FFontColor InColor) { return Pos; }\n");
+		TextChars += TEXT("uint ShaderPrintGetChar(uint Index) { return 0; }\n");
+		TextChars += TEXT("uint ShaderPrintGetOffset(uint InTextEntry) { return 0; }\n");
+		TextChars += TEXT("uint ShaderPrintGetHash(uint InTextEntry) { return 0; }\n");
 	}
 	
 	// 6. Insert global struct data + print function
