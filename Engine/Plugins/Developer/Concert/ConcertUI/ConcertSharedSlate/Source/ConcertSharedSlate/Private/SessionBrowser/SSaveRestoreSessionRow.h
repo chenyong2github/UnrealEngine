@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Attribute.h"
+#include "SessionBrowser/ConcertSessionItem.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STableRow.h"
 
-class FConcertSessionItem;
 class SWidget;
 class SEditableTextBox;
 

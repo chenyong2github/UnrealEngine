@@ -2,6 +2,7 @@
 
 #include "SConcertStatusBar.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "OutputLogModule.h"
 #include "SWidgetDrawer.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
