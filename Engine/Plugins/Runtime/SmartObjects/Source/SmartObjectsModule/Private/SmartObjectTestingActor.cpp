@@ -2,49 +2,8 @@
 
 #include "SmartObjectTestingActor.h"
 #include "DebugRenderSceneProxy.h"
-#include "PrimitiveViewRelevance.h"
+#include "SmartObjectDebugSceneProxy.h"
 #include "Debug/DebugDrawService.h"
-
-//----------------------------------------------------------------------//
-// FSmartObjectTestSceneProxy
-//----------------------------------------------------------------------//
-#if UE_ENABLE_DEBUG_DRAWING
-class FSmartObjectTestSceneProxy final : public FDebugRenderSceneProxy
-{
-public:
-	explicit FSmartObjectTestSceneProxy(const UPrimitiveComponent& InComponent, const EDrawType InDrawType = EDrawType::WireMesh);
-
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
-	virtual uint32 GetMemoryFootprint() const override;
-
-private:
-	uint32 ViewFlagIndex = 0;
-};
-
-FSmartObjectTestSceneProxy::FSmartObjectTestSceneProxy(const UPrimitiveComponent& InComponent, const EDrawType InDrawType)
-	: FDebugRenderSceneProxy(&InComponent)
-{
-	DrawType = InDrawType;
-	ViewFlagName = TEXT("Game");
-	ViewFlagIndex = uint32(FEngineShowFlags::FindIndexByName(*ViewFlagName));
-}
-
-FPrimitiveViewRelevance FSmartObjectTestSceneProxy::GetViewRelevance(const FSceneView* View) const
-{
-	FPrimitiveViewRelevance Result;
-	Result.bDrawRelevance = IsShown(View) && ViewFlagIndex != INDEX_NONE && View->Family->EngineShowFlags.GetSingleFlag(ViewFlagIndex);
-	Result.bDynamicRelevance = true;
-	// ideally the TranslucencyRelevance should be filled out by the material, here we do it conservative
-	Result.bSeparateTranslucency = Result.bNormalTranslucency = true;
-	return Result;
-}
-
-uint32 FSmartObjectTestSceneProxy::GetMemoryFootprint(void) const
-{
-	return sizeof(*this) + FDebugRenderSceneProxy::GetAllocatedSize();
-}
-#endif // UE_ENABLE_DEBUG_DRAWING
-
 
 //----------------------------------------------------------------------//
 // USmartObjectTest
@@ -184,14 +143,6 @@ void USmartObjectSimpleQueryTest::DebugDraw(ASmartObjectTestingActor& TestingAct
 //----------------------------------------------------------------------//
 // USmartObjectTestRenderingComponent
 //----------------------------------------------------------------------//
-USmartObjectTestRenderingComponent::USmartObjectTestRenderingComponent(const FObjectInitializer& ObjectInitialize)
-	: Super(ObjectInitialize)
-{
-#if WITH_EDITORONLY_DATA
-	HitProxyPriority = HPP_Wireframe;
-#endif
-}
-
 FBoxSphereBounds USmartObjectTestRenderingComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
 	if (const ASmartObjectTestingActor* TestingActor = Cast<ASmartObjectTestingActor>(GetOwner()))
@@ -199,30 +150,6 @@ FBoxSphereBounds USmartObjectTestRenderingComponent::CalcBounds(const FTransform
 		return TestingActor->CalcTestsBounds();
 	}
 	return FBox(ForceInit);
-}
-
-void USmartObjectTestRenderingComponent::OnRegister()
-{
-	Super::OnRegister();
-
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-#if UE_ENABLE_DEBUG_DRAWING
-		CanvasDebugDrawDelegateHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &USmartObjectTestRenderingComponent::DebugDrawCanvas));
-#endif
-	}
-}
-
-void USmartObjectTestRenderingComponent::OnUnregister()
-{
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-#if UE_ENABLE_DEBUG_DRAWING
-		UDebugDrawService::Unregister(CanvasDebugDrawDelegateHandle);
-#endif
-	}
-	
-	Super::OnUnregister();
 }
 
 void USmartObjectTestRenderingComponent::PostInitProperties()
@@ -236,13 +163,6 @@ void USmartObjectTestRenderingComponent::PostInitProperties()
 }
 
 #if UE_ENABLE_DEBUG_DRAWING
-FDebugRenderSceneProxy* USmartObjectTestRenderingComponent::CreateDebugSceneProxy()
-{
-	FSmartObjectTestSceneProxy* DebugProxy = new FSmartObjectTestSceneProxy(*this, FDebugRenderSceneProxy::WireMesh);
-	DebugDraw(DebugProxy);
-	return DebugProxy;
-}
-
 void USmartObjectTestRenderingComponent::DebugDraw(FDebugRenderSceneProxy* DebugProxy)
 {
 	if (ASmartObjectTestingActor* TestingActor = Cast<ASmartObjectTestingActor>(GetOwner()))

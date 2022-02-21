@@ -22,6 +22,7 @@ namespace UnrealBuildTool.Rules
 				"GameplayTags",
 				"GameplayAbilities",
 				"MassEntity",
+				"RHI",
 				"StructUtils"
 			}
 			);

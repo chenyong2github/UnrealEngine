@@ -5,6 +5,7 @@
 #include "SmartObjectTypes.h"
 #include "Templates/SharedPointer.h"
 #include "Math/GenericOctree.h"
+#include "SmartObjectOctree.generated.h"
 
 typedef TSharedRef<struct FSmartObjectOctreeID, ESPMode::ThreadSafe> FSmartObjectOctreeIDSharedRef;
 
@@ -43,7 +44,7 @@ struct FSmartObjectOctreeSemantics
 	static void SetElementId(const FSmartObjectOctreeElement& Element, FOctreeElementId2 Id);
 };
 
-class FSmartObjectOctree : public TOctree2<FSmartObjectOctreeElement, FSmartObjectOctreeSemantics>
+struct FSmartObjectOctree : TOctree2<FSmartObjectOctreeElement, FSmartObjectOctreeSemantics>
 {
 public:
 	FSmartObjectOctree();
@@ -58,4 +59,29 @@ public:
 
 	/** Remove node */
 	void RemoveNode(const FOctreeElementId2& Id);
+};
+
+USTRUCT()
+struct SMARTOBJECTSMODULE_API FSmartObjectOctreeEntryData : public FSmartObjectSpatialEntryData
+{
+	GENERATED_BODY()
+
+	FSmartObjectOctreeEntryData() : SharedOctreeID(MakeShareable(new FSmartObjectOctreeID())) {}
+
+	FSmartObjectOctreeIDSharedRef SharedOctreeID;
+};
+
+UCLASS()
+class SMARTOBJECTSMODULE_API USmartObjectOctree : public USmartObjectSpacePartition
+{
+	GENERATED_BODY()
+
+protected:
+	virtual FInstancedStruct Add(const FSmartObjectHandle& Handle, const FBox& Bounds) override;
+	virtual void Remove(const FSmartObjectHandle& Handle, const FStructView& EntryData) override;
+	virtual void Find(const FBox& QueryBox, TArray<FSmartObjectHandle>& OutResults) override;
+	virtual void SetBounds(const FBox& Bounds) override;
+
+private:
+	FSmartObjectOctree SmartObjectOctree;
 };

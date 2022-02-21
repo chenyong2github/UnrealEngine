@@ -12,7 +12,6 @@ const FSmartObjectClaimHandle FSmartObjectClaimHandle::InvalidHandle = {};
 //----------------------------------------------------------------------//
 FSmartObjectRuntime::FSmartObjectRuntime(const USmartObjectDefinition& InDefinition)
 	: Definition(&InDefinition)
-	, SharedOctreeID(MakeShareable(new FSmartObjectOctreeID()))
 {
 	const int32 NumSlotDefinitions = InDefinition.GetSlots().Num();
 	SlotHandles.SetNum(NumSlotDefinitions);

@@ -7,7 +7,6 @@
 #include "Delegates/DelegateCombinations.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectDefinition.h"
-#include "SmartObjectOctree.h"
 #include "SmartObjectRuntime.generated.h"
 
 /**
@@ -150,7 +149,7 @@ public:
 
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>::ConstructForTests(void *)' */
-	FSmartObjectRuntime() : SharedOctreeID(MakeShareable(new FSmartObjectOctreeID())) {}
+	FSmartObjectRuntime() {}
 
 private:
 	/** Struct could have been nested inside the subsystem but not possible with USTRUCT */
@@ -163,16 +162,6 @@ private:
 	void SetTransform(const FTransform& Value) { Transform = Value; }
 
 	void SetRegisteredID(const FSmartObjectHandle Value) { RegisteredHandle = Value; }
-
-	const FSmartObjectOctreeIDSharedRef& GetSharedOctreeID() const { return SharedOctreeID; }
-	void SetOctreeID(const FSmartObjectOctreeIDSharedRef Value) { SharedOctreeID = Value; }
-
-	friend FString LexToString(const FSmartObjectRuntime& Runtime)
-	{
-		return FString::Printf(TEXT("Instance using defintion \'%s\' Reg: %s"),
-			*LexToString(Runtime.GetDefinition()),
-			*LexToString(Runtime.SharedOctreeID->ID.IsValidId()));
-	}
 
 	/** Runtime SlotHandles associated to each defined slot */
 	TArray<FSmartObjectSlotHandle> SlotHandles;
@@ -190,8 +179,13 @@ private:
 	/** RegisteredHandle != FSmartObjectHandle::Invalid when registered with SmartObjectSubsystem */
 	FSmartObjectHandle RegisteredHandle;
 
-	/** Reference to the associated octree node ID */
-	FSmartObjectOctreeIDSharedRef SharedOctreeID;
+	/** Spatial representation data associated to the current instance */
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", meta = (BaseStruct = "SmartObjectSpatialEntryData", ExcludeBaseStruct))
+	FInstancedStruct SpatialEntryData;
+
+#if UE_ENABLE_DEBUG_DRAWING
+	FBox Bounds = FBox(EForceInit::ForceInit);
+#endif
 };
 
 USTRUCT()

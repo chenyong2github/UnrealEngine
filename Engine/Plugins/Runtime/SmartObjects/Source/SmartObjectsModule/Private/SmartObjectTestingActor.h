@@ -3,7 +3,7 @@
 #pragma once
 
 #include "GameFramework/Actor.h"
-#include "Debug/DebugDrawComponent.h"
+#include "SmartObjectDebugRenderingComponent.h"
 #include "SmartObjectSubsystem.h"
 #include "SmartObjectTestingActor.generated.h"
 
@@ -112,25 +112,16 @@ protected:
 
 /** Debug rendering component for SmartObject tests. */
 UCLASS(ClassGroup = Debug, NotPlaceable)
-class SMARTOBJECTSMODULE_API USmartObjectTestRenderingComponent : public UDebugDrawComponent
+class SMARTOBJECTSMODULE_API USmartObjectTestRenderingComponent : public USmartObjectDebugRenderingComponent
 {
 	GENERATED_BODY()
-public:
-	explicit USmartObjectTestRenderingComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
 protected:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
 	virtual void PostInitProperties() override;
 
-protected:
 #if UE_ENABLE_DEBUG_DRAWING
-	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
-	virtual void DebugDraw(FDebugRenderSceneProxy* DebugProxy);
-	virtual void DebugDrawCanvas(UCanvas* Canvas, APlayerController*);
-
-	FDelegateHandle CanvasDebugDrawDelegateHandle;
+	virtual void DebugDraw(FDebugRenderSceneProxy* DebugProxy) override;
+	virtual void DebugDrawCanvas(UCanvas* Canvas, APlayerController*) override;
 #endif
 };
 

@@ -4,7 +4,6 @@
 
 #include "SmartObjectCollection.h"
 #include "Templates/SubclassOf.h"
-#include "SmartObjectOctree.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectRuntime.h"
 #include "Subsystems/WorldSubsystem.h"
@@ -12,6 +11,8 @@
 
 class USmartObjectComponent;
 class UMassEntitySubsystem;
+class ASmartObjectSubsystemRenderingActor;
+class FDebugRenderSceneProxy;
 
 #if WITH_EDITOR
 /** Called when main collection changed. */
@@ -146,7 +147,7 @@ enum class ESmartObjectSlotSearchMode
 /**
  * Subsystem that holds all registered smart object instances and offers the API for spatial queries and reservations.
  */
-UCLASS(config = Game)
+UCLASS(config = SmartObjects, defaultconfig, Transient)
 class SMARTOBJECTSMODULE_API USmartObjectSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
@@ -369,9 +370,6 @@ public:
 	 */
 	const FGameplayTagContainer& GetActivityTags(const FSmartObjectHandle& Handle) const;
 
-	/** @return The octree used by the subsystem to store all registered smart objects. */
-	const FSmartObjectOctree& GetOctree() const;
-
 	/**
 	 *	Register a callback to be notified if the claimed slot is no longer available and user need to perform cleanup.
 	 *	@param ClaimHandle Handle to identify the object and slot. Error will be reported if the handle is invalid.
@@ -384,6 +382,11 @@ public:
 	 *	@param ClaimHandle Handle to identify the object and slot. Error will be reported if the handle is invalid.
 	 */
 	void UnregisterSlotInvalidationCallback(const FSmartObjectClaimHandle& ClaimHandle);
+
+#if UE_ENABLE_DEBUG_DRAWING
+	void DebugDraw(FDebugRenderSceneProxy* DebugProxy) const;
+	void DebugDrawCanvas(UCanvas* Canvas, APlayerController* PlayerController) const {}
+#endif
 
 #if WITH_EDITOR
 	mutable FOnMainCollectionChanged OnMainCollectionChanged;
@@ -437,14 +440,29 @@ protected:
 	void RemoveFromSimulation(const FSmartObjectCollectionEntry& Entry);
 	void RemoveFromSimulation(const USmartObjectComponent& SmartObjectComponent);
 
-protected:
-	UPROPERTY()
-	ASmartObjectCollection* MainCollection;
+	/**
+	 * Name of the Space partition class to use.
+	 * Usage:
+	 *		[/Script/SmartObjectsModule.SmartObjectSubsystem]
+	 *		SpacePartitionClassName=/Script/SmartObjectsModule.<SpacePartitionClassName>
+	 */
+	UPROPERTY(config, meta=(MetaClass="SmartObjectSpacePartition", DisplayName="Spatial Representation Structure Class"))
+	FSoftClassPath SpacePartitionClassName;
 
 	UPROPERTY()
-	UMassEntitySubsystem* EntitySubsystem;
+	TSubclassOf<USmartObjectSpacePartition> SpacePartitionClass;
 
-	FSmartObjectOctree SmartObjectOctree;
+	UPROPERTY()
+	TObjectPtr<USmartObjectSpacePartition> SpacePartition;
+
+	UPROPERTY()
+	TObjectPtr<ASmartObjectSubsystemRenderingActor> RenderingActor;
+
+	UPROPERTY()
+	TObjectPtr<ASmartObjectCollection> MainCollection;
+
+	UPROPERTY()
+	TObjectPtr<UMassEntitySubsystem> EntitySubsystem;
 
 	TMap<FSmartObjectHandle, FSmartObjectRuntime> RuntimeSmartObjects;
 	TMap<FSmartObjectSlotHandle, FSmartObjectSlotClaimState> RuntimeSlotStates;

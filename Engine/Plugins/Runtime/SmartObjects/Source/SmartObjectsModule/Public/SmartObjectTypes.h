@@ -4,7 +4,10 @@
 
 #include "MassEntityTypes.h"
 #include "Containers/UnrealString.h"
+#include "EngineDefines.h"
 #include "SmartObjectTypes.generated.h"
+
+class FDebugRenderSceneProxy;
 
 #define WITH_SMARTOBJECT_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && 1)
 
@@ -154,4 +157,32 @@ USTRUCT(meta=(Hidden))
 struct SMARTOBJECTSMODULE_API FSmartObjectSlotStateData : public FMassFragment
 {
 	GENERATED_BODY()
+};
+
+/**
+ * This is the base struct to inherit from to store some data associated to a specific entry in the spatial representation structure
+ */
+USTRUCT()
+struct SMARTOBJECTSMODULE_API FSmartObjectSpatialEntryData
+{
+	GENERATED_BODY()
+};
+
+/**
+ * Base class for space partitioning structure that can be used to store smart object locations
+ */
+UCLASS(Abstract)
+class SMARTOBJECTSMODULE_API USmartObjectSpacePartition : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual void SetBounds(const FBox& Bounds) {}
+	virtual FInstancedStruct Add(const FSmartObjectHandle& Handle, const FBox& Bounds) { return FInstancedStruct(); }
+	virtual void Remove(const FSmartObjectHandle& Handle, const FStructView& EntryData) {}
+	virtual void Find(const FBox& QueryBox, TArray<FSmartObjectHandle>& OutResults) {}
+
+#if UE_ENABLE_DEBUG_DRAWING
+	virtual void Draw(FDebugRenderSceneProxy* DebugProxy) {}
+#endif
 };

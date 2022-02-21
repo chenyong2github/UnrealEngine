@@ -6,8 +6,14 @@
 #include "SmartObjectCollection.h"
 #include "EngineUtils.h"
 #include "MassCommandBuffer.h"
+#include "SmartObjectHashGrid.h"
 #include "VisualLogger/VisualLogger.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+
+#if UE_ENABLE_DEBUG_DRAWING
+#include "DebugRenderSceneProxy.h"
+#include "SmartObjectSubsystemRenderingActor.h"
+#endif
 
 #if WITH_SMARTOBJECT_DEBUG
 #include "MassExecutor.h"
@@ -59,13 +65,31 @@ namespace UE::SmartObject
 // USmartObjectSubsystem
 //----------------------------------------------------------------------//
 
-const FSmartObjectOctree& USmartObjectSubsystem::GetOctree() const
-{
-	return SmartObjectOctree;
-}
-
 void USmartObjectSubsystem::OnWorldComponentsUpdated(UWorld& World)
 {
+	// Load class required to instantiate the space partition structure
+	UE_CVLOG_UELOG(!SpacePartitionClassName.IsValid(), this, LogSmartObject, Error, TEXT("A valid space partition class name is required."));
+	if (SpacePartitionClassName.IsValid())
+	{
+		SpacePartitionClass = LoadClass<USmartObjectSpacePartition>(this, *SpacePartitionClassName.ToString());
+		UE_CVLOG_UELOG(*SpacePartitionClass == nullptr, this, LogSmartObject, Error, TEXT("Unable to load class %s"), *SpacePartitionClassName.ToString());
+}
+
+	// Class not specified or invalid, use some default
+	if (SpacePartitionClass.Get() == nullptr)
+{
+		SpacePartitionClassName = FSoftClassPath(USmartObjectHashGrid::StaticClass());
+		SpacePartitionClass = USmartObjectHashGrid::StaticClass();
+		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Using default class %s"), *SpacePartitionClassName.ToString());
+	}
+
+#if UE_ENABLE_DEBUG_DRAWING
+	// Spawn the rendering actor
+	FActorSpawnParameters SpawnInfo;
+	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	RenderingActor = World.SpawnActor<ASmartObjectSubsystemRenderingActor>(SpawnInfo);
+#endif // UE_ENABLE_DEBUG_DRAWING
+
 	// Register collections that were unable to register since they got loaded before the subsystem got created/initialized.
 	RegisterCollectionInstances();
 
@@ -76,7 +100,7 @@ void USmartObjectSubsystem::OnWorldComponentsUpdated(UWorld& World)
 	{
 		ComputeBounds(World, *MainCollection);
 	}
-#endif
+#endif // WITH_EDITOR
 
 	UE_CVLOG_UELOG(!IsValid(MainCollection), this, LogSmartObject, Error, TEXT("Collection is expected to be set once world components are updated."));
 }
@@ -107,6 +131,10 @@ void USmartObjectSubsystem::AddToSimulation(const FSmartObjectHandle Handle, con
 
 	FSmartObjectRuntime& Runtime = RuntimeSmartObjects.Emplace(Handle, FSmartObjectRuntime(Definition));
 	Runtime.SetRegisteredID(Handle);
+
+#if UE_ENABLE_DEBUG_DRAWING
+	Runtime.Bounds = Bounds;
+#endif
 
 	// Create runtime data and entity for each slot
 	int32 SlotIndex = 0;
@@ -147,10 +175,9 @@ void USmartObjectSubsystem::AddToSimulation(const FSmartObjectHandle Handle, con
 	// Transfer spatial information to the runtime instance
 	Runtime.SetTransform(Transform);
 
-	// Insert instance in the octree
-	const FSmartObjectOctreeIDSharedRef SharedOctreeID = MakeShareable(new FSmartObjectOctreeID());
-	Runtime.SetOctreeID(SharedOctreeID);
-	SmartObjectOctree.AddNode(Bounds, Handle, SharedOctreeID);
+	// Insert to the spatial representation structure and store associated data
+	checkfSlow(SpacePartition != nullptr, TEXT("Space partition is expected to be valid since we use the plugins default in OnWorldComponentsUpdated."));
+	Runtime.SpatialEntryData = SpacePartition->Add(Handle, Bounds);
 }
 
 void USmartObjectSubsystem::AddToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition)
@@ -177,29 +204,30 @@ void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectHandle Handle
 		return;
 	}
 
+	if (!ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to remove a smartobject from the simulation")))
+	{
+		return;
+	}
+
 	// Abort everything before removing since abort flow may require access to runtime data
 	AbortAll(*SmartObjectRuntime);
 
-	FSmartObjectOctreeID& SharedOctreeID = SmartObjectRuntime->GetSharedOctreeID().Get();
-	if (SharedOctreeID.ID.IsValidId())
-	{
-		SmartObjectOctree.RemoveNode(SharedOctreeID.ID);
-		SharedOctreeID.ID = {};
-	}
+	// Remove from space partition
+	checkfSlow(SpacePartition != nullptr, TEXT("Space partition is expected to be valid since we use the plugins default in OnWorldComponentsUpdated."));
+	SpacePartition->Remove(Handle, SmartObjectRuntime->SpatialEntryData);
 
+	// Destroy entities associated to slots
 	TArray<FMassEntityHandle> EntitiesToDestroy;
+	EntitiesToDestroy.Reserve(SmartObjectRuntime->SlotHandles.Num());
 	for (const FSmartObjectSlotHandle& SlotHandle : SmartObjectRuntime->SlotHandles)
 	{
 		RuntimeSlotStates.Remove(SlotHandle);
 		EntitiesToDestroy.Add(SlotHandle);
 	}
 
-	// Destroy entities associated to slots
-	if (ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to destroy slot data")))
-	{
 		EntitySubsystem->Defer().BatchDestroyEntities(EntitiesToDestroy);
-	}
 
+	// Remove object runtime data
 	RuntimeSmartObjects.Remove(Handle);
 }
 
@@ -630,6 +658,25 @@ void USmartObjectSubsystem::UnregisterSlotInvalidationCallback(const FSmartObjec
 	}
 }
 
+#if UE_ENABLE_DEBUG_DRAWING
+void USmartObjectSubsystem::DebugDraw(FDebugRenderSceneProxy* DebugProxy) const
+{
+	if (!bInitialCollectionAddedToSimulation)
+	{
+		return;
+	}
+
+	checkfSlow(SpacePartition != nullptr, TEXT("Space partition is expected to be valid since we use the plugins default in OnWorldComponentsUpdated."));
+	SpacePartition->Draw(DebugProxy);
+
+	for (auto It(RuntimeSmartObjects.CreateConstIterator()); It; ++It)
+	{
+		const FSmartObjectRuntime& Runtime = It.Value();
+		DebugProxy->Boxes.Emplace(Runtime.Bounds, GColorList.Blue);
+	}
+}
+#endif // UE_ENABLE_DEBUG_DRAWING
+
 void USmartObjectSubsystem::AddSlotDataDeferred(const FSmartObjectClaimHandle& ClaimHandle, const FConstStructView InData) const
 {
 	if (ensureMsgf(EntitySubsystem != nullptr, TEXT("Entity subsystem required to add slot data")) &&
@@ -774,40 +821,44 @@ void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime)
 
 FSmartObjectRequestResult USmartObjectSubsystem::FindSmartObject(const FSmartObjectRequest& Request) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("SmartObject_FindSingleResult");
+	TArray<FSmartObjectRequestResult> Results;
+	FindSmartObjects(Request, Results);
 
-	// find X instances, ignore distance as long as in range, accept first available
-	FSmartObjectRequestResult Result;
-	const FSmartObjectRequestFilter& Filter = Request.Filter;
-
-	SmartObjectOctree.FindFirstElementWithBoundsTest(Request.QueryBox,
-		[&Result, &Filter, this](const FSmartObjectOctreeElement& Element)
-		{
-			Result = FindSlot(Element.SmartObjectHandle, Filter);
-
-			const bool bContinueTraversal = !Result.IsValid();
-			return bContinueTraversal;
-		});
-
-	return Result;
+	return Results.Num() ? Results.Top() : FSmartObjectRequestResult();
 }
 
 bool USmartObjectSubsystem::FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("SmartObject_FindAllResults");
 
+	if (!bInitialCollectionAddedToSimulation)
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Can't find smart objet before runtime gets initialized (i.e. InitializeRuntime gets called)."));
+		return false;
+	}
+
 	const FSmartObjectRequestFilter& Filter = Request.Filter;
-	SmartObjectOctree.FindFirstElementWithBoundsTest(Request.QueryBox,
-		[&Filter, &OutResults, this](const FSmartObjectOctreeElement& Element)
+	TArray<FSmartObjectHandle> QueryResults;
+
+	checkfSlow(SpacePartition != nullptr, TEXT("Space partition is expected to be valid since we use the plugins default in OnWorldComponentsUpdated."));
+	SpacePartition->Find(Request.QueryBox, QueryResults);
+
+	for (const FSmartObjectHandle SmartObjectHandle : QueryResults)
+	{
+		const FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(SmartObjectHandle);
+		if (SmartObjectRuntime == nullptr || !Request.QueryBox.IsInside(SmartObjectRuntime->GetTransform().GetLocation()))
 		{
+			continue;
+		}
+
 			TArray<FSmartObjectSlotHandle> SlotHandles;
-			FindSlots(Element.SmartObjectHandle, Filter, SlotHandles);
+		FindSlots(SmartObjectHandle, Filter, SlotHandles);
+		OutResults.Reserve(OutResults.Num() + SlotHandles.Num());
 			for (FSmartObjectSlotHandle SlotHandle: SlotHandles)
 			{
-				OutResults.Emplace(Element.SmartObjectHandle, SlotHandle);
+			OutResults.Emplace(SmartObjectHandle, SlotHandle);
 			}
-			return true;
-		});
+	}
 
 	return (OutResults.Num() > 0);
 }
@@ -944,10 +995,10 @@ void USmartObjectSubsystem::InitializeRuntime()
 		return;
 	}
 
-	// Initialize octree using collection bounds
-	FVector Center, Extents;
-	MainCollection->GetBounds().GetCenterAndExtents(Center, Extents);
-	new(&SmartObjectOctree) FSmartObjectOctree(Center, Extents.Size2D());
+	// Initialize spatial representation structure
+	checkfSlow(*SpacePartitionClass != nullptr, TEXT("Partition class is expected to be valid since we use the plugins default in OnWorldComponentsUpdated."));
+	SpacePartition = NewObject<USmartObjectSpacePartition>(this, SpacePartitionClass);
+	SpacePartition->SetBounds(MainCollection->GetBounds());
 
 	// Perform all validations at once since multiple entries can share the same definition
 	MainCollection->ValidateDefinitions();
@@ -985,6 +1036,14 @@ void USmartObjectSubsystem::InitializeRuntime()
 	// This is the temporary way to force our commands to be processed until MassEntitySubsystem
 	// offers a threadsafe solution to push and flush commands in our own execution context.
 	EntitySubsystem->FlushCommands();
+
+#if UE_ENABLE_DEBUG_DRAWING
+	// Refresh debug draw
+	if (RenderingActor != nullptr)
+	{
+		RenderingActor->MarkComponentsRenderStateDirty();
+}
+#endif // UE_ENABLE_DEBUG_DRAWING
 }
 
 void USmartObjectSubsystem::CleanupRuntime()
@@ -1007,6 +1066,14 @@ void USmartObjectSubsystem::CleanupRuntime()
 	// This is the temporary way to force our commands to be processed until MassEntitySubsystem
 	// offers a threadsafe solution to push and flush commands in our own execution context.
 	EntitySubsystem->FlushCommands();
+
+#if UE_ENABLE_DEBUG_DRAWING
+	// Refresh debug draw
+	if (RenderingActor != nullptr)
+	{
+		RenderingActor->MarkComponentsRenderStateDirty();
+	}
+#endif // UE_ENABLE_DEBUG_DRAWING
 }
 
 void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
