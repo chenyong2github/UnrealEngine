@@ -767,6 +767,19 @@ namespace UnrealBuildTool
 		private bool? bWithServerCodeOverride;
 
 		/// <summary>
+		/// Compile with FName storing the number part in the name table. 
+		/// Saves memory when most names are not numbered and those that are are referenced multiple times.
+		/// The game and engine must ensure they reuse numbered names similarly to name strings to avoid leaking memory.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bFNameOutlineNumber
+		{
+			get { return bFNameOutlineNumberOverride ?? false;  }
+			set { bFNameOutlineNumberOverride = value;  }
+		}
+		private bool? bFNameOutlineNumberOverride;
+
+		/// <summary>
 		/// When enabled, Push Model Networking support will be compiled in.
 		/// This can help reduce CPU overhead of networking, at the cost of more memory.
 		/// Always enabled in editor builds.
@@ -2422,6 +2435,11 @@ namespace UnrealBuildTool
 		public bool bWithServerCode
 		{
 			get { return Inner.bWithServerCode; }
+		}
+
+		public bool bFNameOutlineNumber
+		{
+			get { return Inner.bFNameOutlineNumber;  }
 		}
 
 		public bool bWithPushModel

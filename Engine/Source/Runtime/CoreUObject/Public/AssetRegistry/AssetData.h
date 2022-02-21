@@ -101,6 +101,8 @@ public:
 	FName AssetName;
 	/** The name of the asset's class */
 	FName AssetClass;
+	/** Asset package flags */
+	uint32 PackageFlags = 0;
 	/** The map of values for properties that were marked AssetRegistrySearchable or added by GetAssetRegistryTags */
 	FAssetDataTagMapSharedView TagsAndValues;
 	/**
@@ -113,8 +115,6 @@ public:
 
 	/** The IDs of the pakchunks this asset is located in for streaming install.  Empty if not assigned to a chunk */
 	TArray<int32, TInlineAllocator<2>> ChunkIDs;
-	/** Asset package flags */
-	uint32 PackageFlags = 0;
 
 public:
 	/** Default constructor */

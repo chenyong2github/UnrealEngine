@@ -99,7 +99,7 @@ FArchive& operator<<(FArchive& Ar, FExportBundleHeader& ExportBundleHeader)
 
 FArchive& operator<<(FArchive& Ar, FScriptObjectEntry& ScriptObjectEntry)
 {
-	Ar << ScriptObjectEntry.ObjectName.Index << ScriptObjectEntry.ObjectName.Number;
+	Ar << ScriptObjectEntry.Mapped;
 	Ar << ScriptObjectEntry.GlobalIndex;
 	Ar << ScriptObjectEntry.OuterIndex;
 	Ar << ScriptObjectEntry.CDOClassIndex;
@@ -484,9 +484,8 @@ struct FGlobalImportStore
 			ScriptObjectEntriesMap.Reserve(ScriptObjectEntries.Num());
 			for (FScriptObjectEntry& ScriptObjectEntry : ScriptObjectEntries)
 			{
-				const FMappedName& MappedName = FMappedName::FromMinimalName(ScriptObjectEntry.ObjectName);
-				check(MappedName.IsGlobal());
-				ScriptObjectEntry.ObjectName = NameMap.GetMinimalName(MappedName);
+				check(ScriptObjectEntry.Mapped.IsGlobal());
+				ScriptObjectEntry.ObjectName = NameMap.GetMinimalName(ScriptObjectEntry.Mapped);
 
 				ScriptObjectEntriesMap.Add(ScriptObjectEntry.GlobalIndex, &ScriptObjectEntry);
 			}

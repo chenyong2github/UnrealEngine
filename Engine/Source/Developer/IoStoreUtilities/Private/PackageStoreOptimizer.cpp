@@ -1787,7 +1787,7 @@ FIoBuffer FPackageStoreOptimizer::CreateScriptObjectsBuffer() const
 	{
 		NameMapBuilder.MarkNameAsReferenced(ImportData.ObjectName);
 		FScriptObjectEntry& Entry = ScriptObjectEntries.AddDefaulted_GetRef();
-		Entry.ObjectName = NameMapBuilder.MapName(ImportData.ObjectName).ToUnresolvedMinimalName();
+		Entry.Mapped = NameMapBuilder.MapName(ImportData.ObjectName);
 		Entry.GlobalIndex = ImportData.GlobalIndex;
 		Entry.OuterIndex = ImportData.OuterIndex;
 		Entry.CDOClassIndex = ImportData.CDOClassIndex;
@@ -1814,10 +1814,10 @@ void FPackageStoreOptimizer::LoadScriptObjectsBuffer(const FIoBuffer& ScriptObje
 	ScriptObjectsArchive << NumScriptObjects;
 	for (int32 Index = 0; Index < NumScriptObjects; ++Index)
 	{
-		FScriptObjectEntry Entry;
+		FScriptObjectEntry Entry{};
 		ScriptObjectsArchive << Entry;
 		FScriptObjectData& ImportData = ScriptObjectsMap.Add(Entry.GlobalIndex);
-		const FMappedName& MappedName = FMappedName::FromMinimalName(Entry.ObjectName);
+		FMappedName MappedName = Entry.Mapped;
 		ImportData.ObjectName = FName::CreateFromDisplayId(NameMap[MappedName.GetIndex()], MappedName.GetNumber());
 		ImportData.GlobalIndex = Entry.GlobalIndex;
 		ImportData.OuterIndex = Entry.OuterIndex;

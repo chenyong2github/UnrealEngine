@@ -59,7 +59,7 @@ void FConcertLocalIdentifierTable::SetState(const FConcertLocalIdentifierState& 
 	NameToMappedIndex.Reserve(InState.MappedNames.Num());
 	for (const FString& MappedNameStr : InState.MappedNames)
 	{
-		const FName MappedName = FName(*MappedNameStr, NAME_NO_NUMBER_INTERNAL, FNAME_Add, /*bSplitName*/false);
+		const FName MappedName = FName(*MappedNameStr, NAME_NO_NUMBER_INTERNAL, /*bSplitName*/false);
 		const int32 NewIndex = MappedNames.Num();
 		MappedNames.Add(MappedName);
 		NameToMappedIndex.Add(MappedName, NewIndex);

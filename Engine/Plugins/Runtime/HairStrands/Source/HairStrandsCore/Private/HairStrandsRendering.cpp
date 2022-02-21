@@ -1392,9 +1392,9 @@ static void BuildHairAccelerationStructure_Strands(
 	FString DebugName(TEXT("AS_HairStrands_LOD") + FString::FromInt(LODIndex) + TEXT("_") + AssetDebugName);
 	Initializer.DebugName = FName(DebugName);
 #else
-	static const FName DebugName("AS_HairStrands");
+	static const FName DebugName("AS_HairStrands");	
 	static int32 DebugNumber = 0;
-	Initializer.DebugName = FName(DebugName, DebugNumber++);
+	Initializer.DebugName = FDebugName(DebugName, DebugNumber++);
 #endif
 
 	if (bProceduralPrimitive)
@@ -1448,7 +1448,7 @@ static void BuildHairAccelerationStructure_Cards(FRHICommandList& RHICmdList,
 #else
 	static const FName DebugName("AS_HairCards");
 	static int32 DebugNumber = 0;
-	Initializer.DebugName = FName(DebugName, DebugNumber++);
+	Initializer.DebugName = FDebugName(DebugName, DebugNumber++);
 #endif
 	Initializer.IndexBuffer = RestResource->RestIndexBuffer.IndexBufferRHI;
 	Initializer.IndexBufferOffset = 0;
@@ -1489,7 +1489,7 @@ static void BuildHairAccelerationStructure_Meshes(FRHICommandList& RHICmdList,
 #else
 	static const FName DebugName("AS_HairMeshes");
 	static int32 DebugNumber = 0;
-	Initializer.DebugName = FName(DebugName, DebugNumber++);
+	Initializer.DebugName = FDebugName(DebugName, DebugNumber++);
 #endif
 	Initializer.IndexBuffer = RestResource->IndexBuffer.IndexBufferRHI;
 	Initializer.IndexBufferOffset = 0;

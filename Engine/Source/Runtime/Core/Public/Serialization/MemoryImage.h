@@ -184,7 +184,7 @@ struct FMemoryImageResult
 	FPlatformTypeLayoutParameters TargetLayoutParameters;
 	TArray<FMemoryImageVTablePointer> VTables;
 	TArray<FMemoryImageNamePointer> ScriptNames;
-	TArray<FMemoryImageNamePointer> MinimalNames;
+	TArray<FMemoryImageNamePointer> MemoryImageNames;
 
 	CORE_API void SaveToArchive(FArchive& Ar) const;
 	CORE_API void ApplyPatches(void* FrozenObject) const;
@@ -237,8 +237,7 @@ public:
 	FMemoryImageSection* WritePointer(const FTypeLayoutDesc& StaticTypeDesc, const FTypeLayoutDesc& DerivedTypeDesc, uint32* OutOffsetToBase = nullptr);
 	uint32 WriteRawPointerSizedBytes(uint64 PointerValue);
 	uint32 WriteVTable(const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc);
-	uint32 WriteFName(const FName& Name);
-	uint32 WriteFMinimalName(const FMinimalName& Name);
+	uint32 WriteFMemoryImageName(TConstArrayView<uint8> InBytes, const FName& Name);
 	uint32 WriteFScriptName(const FScriptName& Name);
 	uint32 Flatten(FMemoryImageResult& OutResult) const;
 
@@ -249,7 +248,7 @@ public:
 	TArray<FSectionPointer> Pointers;
 	TArray<FMemoryImageVTablePointer> VTables;
 	TArray<FMemoryImageNamePointer> ScriptNames;
-	TArray<FMemoryImageNamePointer> MinimalNames;
+	TArray<FMemoryImageNamePointer> MemoryImageNames;
 	FSHAHash Hash;
 	uint32 MaxAlignment;
 };

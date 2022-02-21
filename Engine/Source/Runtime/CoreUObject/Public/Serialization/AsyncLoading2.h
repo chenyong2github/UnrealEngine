@@ -292,13 +292,21 @@ struct FExportBundleHeader
 
 struct FScriptObjectEntry
 {
-	FMinimalName ObjectName;
+	union 
+	{
+		FMappedName Mapped;
+		FMinimalName ObjectName;
+	};
 	FPackageObjectIndex GlobalIndex;
 	FPackageObjectIndex OuterIndex;
 	FPackageObjectIndex CDOClassIndex;
 
+	FScriptObjectEntry() {}
+
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FScriptObjectEntry& ScriptObjectEntry);
 };
+// The sizeof FMinimalName may be variable but FMappedName should always be larger, so FScriptObjectEntry has a fixed size.
+static_assert(sizeof(FMappedName) >= sizeof(FMinimalName));
 
 /**
  * Export map entry.

@@ -1432,16 +1432,16 @@ void FMemoryImageResult::SaveToArchive(FArchive& Ar) const
 
 
 	TArray<uint32> ScriptNameCounts;
-	TArray<uint32> MinimalNameCounts;
+	TArray<uint32> MemoryImageNameCounts;
 	CountNumNames(ScriptNames, ScriptNameCounts);
-	CountNumNames(MinimalNames, MinimalNameCounts);
+	CountNumNames(MemoryImageNames, MemoryImageNameCounts);
 
 	uint32 NumVTables = VTableCounts.Num();
 	uint32 NumScriptNames = ScriptNameCounts.Num();
-	uint32 NumMinimalNames = MinimalNameCounts.Num();
+	uint32 NumMemoryImageNames = MemoryImageNameCounts.Num();
 	Ar << NumVTables;
 	Ar << NumScriptNames;
-	Ar << NumMinimalNames;
+	Ar << NumMemoryImageNames;
 
 	{
 		int32 VTableIndex = 0;
@@ -1466,7 +1466,7 @@ void FMemoryImageResult::SaveToArchive(FArchive& Ar) const
 	}
 	
 	SerializeNames(ScriptNames, ScriptNameCounts, Ar);
-	SerializeNames(MinimalNames, MinimalNameCounts, Ar);
+	SerializeNames(MemoryImageNames, MemoryImageNameCounts, Ar);
 }
 
 static inline void ApplyVTablePatch(void* FrozenObject, const FTypeLayoutDesc& DerivedType, uint32 VTableOffset, uint32 Offset)
@@ -1482,10 +1482,10 @@ static inline void ApplyScriptNamePatch(void* FrozenObject, const FScriptName& N
 	new(NameDst) FScriptName(Name);
 }
 
-static inline void ApplyMinimalNamePatch(void* FrozenObject, const FMinimalName& Name, uint32 Offset)
+static inline void ApplyMemoryImageNamePatch(void* FrozenObject, const FMemoryImageName& Name, uint32 Offset)
 {
 	void* NameDst = (uint8*)FrozenObject + Offset;
-	new(NameDst) FMinimalName(Name);
+	new(NameDst) FMemoryImageName(Name);
 }
 
 void FMemoryImageResult::ApplyPatches(void* FrozenObject) const
@@ -1502,9 +1502,9 @@ void FMemoryImageResult::ApplyPatches(void* FrozenObject) const
 		ApplyScriptNamePatch(FrozenObject, NameToScriptName(Patch.Name), Patch.Offset);
 	}
 
-	for (const FMemoryImageNamePointer& Patch : MinimalNames)
+	for (const FMemoryImageNamePointer& Patch : MemoryImageNames)
 	{
-		ApplyMinimalNamePatch(FrozenObject, NameToMinimalName(Patch.Name), Patch.Offset);
+		ApplyMemoryImageNamePatch(FrozenObject, FMemoryImageName(Patch.Name), Patch.Offset);
 	}
 }
 
@@ -1523,10 +1523,10 @@ FMemoryImageObject FMemoryImageResult::LoadFromArchive(FArchive& Ar, const FType
 
 	uint32 NumVTables = 0u;
 	uint32 NumScriptNames = 0u;
-	uint32 NumMinimalNames = 0u;
+	uint32 NumMemoryImageNames = 0u;
 	Ar << NumVTables;
 	Ar << NumScriptNames;
-	Ar << NumMinimalNames;
+	Ar << NumMemoryImageNames;
 
 	for (uint32 i = 0u; i < NumVTables; ++i)
 	{
@@ -1563,7 +1563,7 @@ FMemoryImageObject FMemoryImageResult::LoadFromArchive(FArchive& Ar, const FType
 		}
 	}
 
-	for (uint32 i = 0u; i < NumMinimalNames; ++i)
+	for (uint32 i = 0u; i < NumMemoryImageNames; ++i)
 	{
 		FName Name;
 		uint32 NumPatches = 0u;
@@ -1574,7 +1574,7 @@ FMemoryImageObject FMemoryImageResult::LoadFromArchive(FArchive& Ar, const FType
 		{
 			uint32 Offset = 0u;
 			Ar << Offset;
-			ApplyMinimalNamePatch(FrozenObject, NameToMinimalName(Name), Offset);
+			ApplyMemoryImageNamePatch(FrozenObject, FMemoryImageName(Name), Offset);
 		}
 	}
 
@@ -1704,26 +1704,13 @@ uint32 FMemoryImageSection::WriteVTable(const FTypeLayoutDesc& TypeDesc, const F
 	return VTablePointer.Offset;
 }
 
-uint32 FMemoryImageSection::WriteFName(const FName& Name)
+uint32 FMemoryImageSection::WriteFMemoryImageName(TConstArrayView<uint8> InBytes, const FName& Name)
 {
-	const FPlatformTypeLayoutParameters& TargetLayoutParameters = ParentImage->TargetLayoutParameters;
-	if (!TargetLayoutParameters.WithCasePreservingFName())
-	{
-		return WriteFMinimalName(NameToMinimalName(Name));
-	}
-	else
-	{
-		return WriteFScriptName(NameToScriptName(Name));
-	}
-}
-
-uint32 FMemoryImageSection::WriteFMinimalName(const FMinimalName& Name)
-{
-	const uint32 Offset = WriteBytes(FMinimalName());
+	const uint32 Offset = WriteBytes(InBytes);
 	if (!Name.IsNone())
 	{
-		FMemoryImageNamePointer& NamePointer = MinimalNames.AddDefaulted_GetRef();
-		NamePointer.Name = MinimalNameToName(Name);
+		FMemoryImageNamePointer& NamePointer = ScriptNames.AddDefaulted_GetRef();
+		NamePointer.Name = Name;
 		NamePointer.Offset = Offset;
 	}
 	return Offset;
@@ -1731,7 +1718,7 @@ uint32 FMemoryImageSection::WriteFMinimalName(const FMinimalName& Name)
 
 uint32 FMemoryImageSection::WriteFScriptName(const FScriptName& Name)
 {
-	const uint32 Offset = WriteBytes(FScriptName());
+	const uint32 Offset = WriteBytes(Name);
 	if (!Name.IsNone())
 	{
 		FMemoryImageNamePointer& NamePointer = ScriptNames.AddDefaulted_GetRef();
@@ -1762,10 +1749,10 @@ uint32 FMemoryImageSection::Flatten(FMemoryImageResult& OutResult) const
 		ResultName->Offset += AlignedOffset;
 	}
 
-	OutResult.MinimalNames.Reserve(OutResult.MinimalNames.Num() + MinimalNames.Num());
-	for (const FMemoryImageNamePointer& Name : MinimalNames)
+	OutResult.MemoryImageNames.Reserve(OutResult.MemoryImageNames.Num() + MemoryImageNames.Num());
+	for (const FMemoryImageNamePointer& Name : MemoryImageNames)
 	{
-		FMemoryImageNamePointer* ResultName = new(OutResult.MinimalNames) FMemoryImageNamePointer(Name);
+		FMemoryImageNamePointer* ResultName = new(OutResult.MemoryImageNames) FMemoryImageNamePointer(Name);
 		ResultName->Offset += AlignedOffset;
 	}
 
@@ -1793,7 +1780,7 @@ void FMemoryImageSection::ComputeHash()
 	HashState.Update((uint8*)Pointers.GetData(), Pointers.Num() * Pointers.GetTypeSize());
 	HashState.Update((uint8*)VTables.GetData(), VTables.Num() * VTables.GetTypeSize());
 	UpdateHashNamePatches(ScriptNames, HashState);
-	UpdateHashNamePatches(MinimalNames, HashState);
+	UpdateHashNamePatches(MemoryImageNames, HashState);
 	HashState.Final();
 	HashState.GetHash(Hash.Hash);
 }
@@ -1870,7 +1857,7 @@ void FMemoryImage::Flatten(FMemoryImageResult& OutResult, bool bMergeDuplicateSe
 	// Sort to group runs of the same FName/VTable
 	OutResult.VTables.Sort();
 	OutResult.ScriptNames.Sort();
-	OutResult.MinimalNames.Sort();
+	OutResult.MemoryImageNames.Sort();
 }
 
 FMemoryImageWriter::FMemoryImageWriter(FMemoryImage& InImage) : Section(InImage.AllocateSection()) {}
@@ -1965,14 +1952,9 @@ uint32 FMemoryImageWriter::WriteVTable(const FTypeLayoutDesc& TypeDesc, const FT
 	return Section->WriteVTable(TypeDesc, DerivedTypeDesc);
 }
 
-uint32 FMemoryImageWriter::WriteFName(const FName& Name)
+uint32 FMemoryImageWriter::WriteFMemoryImageName(TConstArrayView<uint8> InBytes, const FName& Name)
 {
-	return Section->WriteFName(Name);
-}
-
-uint32 FMemoryImageWriter::WriteFMinimalName(const FMinimalName& Name)
-{
-	return Section->WriteFMinimalName(Name);
+	return Section->WriteFMemoryImageName(InBytes, Name);
 }
 
 uint32 FMemoryImageWriter::WriteFScriptName(const FScriptName& Name)

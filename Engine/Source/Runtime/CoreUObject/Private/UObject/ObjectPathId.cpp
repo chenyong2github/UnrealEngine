@@ -24,8 +24,8 @@ FCriticalSection GComplexPathLock;  // Could be changed to an RWLock later if ne
 //representing shared path elements like just registering the paths as FNames and not having
 //our own storage at all.
 TMultiMap<uint32, uint32> GComplexPathHashToId;
-template class CORE_API TArray<FMinimalName, TInlineAllocator<3>>;
-TArray<TArray<FMinimalName, TInlineAllocator<3>>> GComplexPaths;
+
+TArray<UE::ObjectPath::Private::FStoredObjectPath> GComplexPaths;
 /*
 template <int a, int b>
 struct assert_equality
@@ -37,10 +37,71 @@ struct assert_equality
 assert_equality<sizeof(TArray<FMinimalName, TInlineAllocator<3>>), 0> B;
 */
 
-static inline uint64 NameToUInt64(const FName& Name)
+namespace UE::ObjectPath::Private
 {
-	return (static_cast<uint64>(Name.GetComparisonIndex().ToUnstableInt()) << 32) |
-			static_cast<uint64>(Name.GetNumber());
+	FStoredObjectPath::FStoredObjectPath(TConstArrayView<FMinimalName> InNames)
+	{
+		// Copy into storage in reverse
+		NumElements = InNames.Num();
+
+		FMinimalName* Dest = nullptr;
+
+		if (NumElements > NumInlineElements)
+		{
+			Long = new FMinimalName[NumElements];
+			Dest = Long;
+		}
+		else
+		{
+			Dest = Short;
+		}
+
+		for (int32 i = NumElements - 1; i >= 0; --i)
+		{
+			*Dest = InNames[i];
+			++Dest;
+		}
+	}
+
+	FStoredObjectPath::~FStoredObjectPath()
+	{
+		if (NumElements > NumInlineElements)
+		{
+			delete[] Long;
+		}
+	}
+
+	FStoredObjectPath::FStoredObjectPath(FStoredObjectPath&& Other)
+		: NumElements(Other.NumElements)
+	{
+		Other.NumElements = 0;
+		if (NumElements > NumInlineElements)
+		{
+			Long = Other.Long;
+		}
+		else
+		{
+			FMemory::Memcpy(Short, Other.Short, sizeof(Short));
+		}
+	}
+
+	FStoredObjectPath& FStoredObjectPath::operator=(FStoredObjectPath&& Other)
+	{
+		this->~FStoredObjectPath();
+		new(this) FStoredObjectPath(MoveTemp(Other));
+
+		return *this;
+	}
+
+	TConstArrayView<FMinimalName> FStoredObjectPath::GetView() const
+	{
+		return TConstArrayView<FMinimalName>{ NumElements <= NumInlineElements ? Short : Long, NumElements };
+	}
+
+	static bool operator==(const FStoredObjectPath& A, const FStoredObjectPath& B)
+	{
+		return A.NumElements == B.NumElements && CompareItems(A.GetView().GetData(), B.GetView().GetData(), A.NumElements);
+	}
 }
 
 template <typename NameProducerType>
@@ -70,28 +131,31 @@ void StoreObjectPathId(NameProducerType& NameProducer, uint64 SimplePathFlag, ui
 
 	//Complex path scenario
 	TArray<FMinimalName, TInlineAllocator<3>> MinimalNames;
-	uint32 Key = GetTypeHash(NameToUInt64(Name));
-	MinimalNames.Emplace(Name.GetComparisonIndex(), Name.GetNumber());
+	uint32 Key = GetTypeHash(Name.ToUnstableInt());
+	MinimalNames.Emplace(NameToMinimalName(Name));
 	while (OuterName != NAME_None)
 	{
 		Name = OuterName;
 		OuterName = NameProducer();
-		MinimalNames.Emplace(Name.GetComparisonIndex(), Name.GetNumber());
-		Key = HashCombine(Key, GetTypeHash(NameToUInt64(Name)));
+		MinimalNames.Emplace(NameToMinimalName(Name));
+		Key = HashCombine(Key, GetTypeHash(Name.ToUnstableInt()));
 	}
+
+	// Reverse path so we can compare it to stored paths
+	UE::ObjectPath::Private::FStoredObjectPath PathToStore(MinimalNames);
 
 	FScopeLock ComplexPathScopeLock(&GComplexPathLock);
 	for (typename TMultiMap<uint32, uint32>::TConstKeyIterator It(GComplexPathHashToId, Key); It; ++It)
 	{
 		uint32 PotentialPathId = It.Value();
-		if (GComplexPaths[PotentialPathId-1] == MinimalNames)
+		if (GComplexPaths[PotentialPathId-1] == PathToStore)
 		{
 			OutObjectPathId = static_cast<uint32>(PotentialPathId << 1);
 			return;
 		}
 	}
 
-	uint32 NewId = GComplexPaths.Add(MinimalNames) + 1;
+	uint32 NewId = GComplexPaths.Emplace(MoveTemp(PathToStore)) + 1;
 	GComplexPathHashToId.Add(Key, NewId);
 	OutObjectPathId = static_cast<uint32>(NewId << 1);
 	GCoreComplexObjectPathDebug = GComplexPaths.GetData();
@@ -249,12 +313,10 @@ void FObjectPathId::Resolve(ResolvedNameContainerType& OutContainer) const
 	}
 
 	FScopeLock ComplexPathScopeLock(&GComplexPathLock);
-	//Append reversed path
-	TArray<FMinimalName, TInlineAllocator<3>>& FoundContainer = GComplexPaths[(PathId >> 1) - 1];
-	OutContainer.Reserve(OutContainer.Num() + FoundContainer.Num());
-	for (int32 Index = FoundContainer.Num() - 1; Index >= 0; --Index)
+	const UE::ObjectPath::Private::FStoredObjectPath& FoundContainer = GComplexPaths[(PathId >> 1) - 1];
+	
+	for (FMinimalName Name : FoundContainer.GetView())
 	{
-		FMinimalName& FoundMinimalName = FoundContainer[Index];
-		OutContainer.Emplace(FoundMinimalName.Index, FoundMinimalName.Index, FoundMinimalName.Number);
+		OutContainer.Emplace(MinimalNameToName(Name));
 	}
 }

@@ -79,7 +79,7 @@ public:
 	// Hit shader parameters per geometry segment
 	TArray<FHitGroupSystemParameters> HitGroupSystemParameters[MAX_NUM_GPUS];
 
-	FName DebugName;
+	FDebugName DebugName;
 
 	// Array of geometry descriptions, one per segment (single-segment geometry is a common case).
 	// Only references CPU-accessible structures (no GPU resources).

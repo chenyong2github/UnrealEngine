@@ -77,19 +77,36 @@ def UEFStringSummaryProvider(valobj,dict):
         Val = ValRef.GetSummary()
         return 'string=' + Val
 
+def UEFNameIndexToEntry(EntryId):
+    Index = EntryId.GetChildMemberWithName('Value').GetValueAsUnsigned(0)
+    # FNameDebugVisualizer::OffsetBits = 16
+    # FNameDebugVisualizer::OffsetMask = (1 << OffsetBits) - 1 = 65535
+    NameEntryExpr = '(FNameEntry*)(GNameBlocksDebug['+str(Index)+' >> 16]+((alignof(FNameEntry) * ('+str(Index)+' & 65535))))'
+    NameEntry = EntryId.CreateValueFromExpression('NameEntry', NameEntryExpr)
+    return NameEntry
+
 def UEFNameEntrySummaryProvider(valobj,dict):
     Header = valobj.GetChildMemberWithName('Header')
-    DataPtr = valobj.GetChildAtIndex(1).AddressOf().GetValueAsUnsigned(0)
-    IsWide = Header.GetChildMemberWithName('bIsWide').GetValueAsUnsigned(0)
     Len = min(Header.GetChildMemberWithName('Len').GetValueAsUnsigned(0), 1023)
-    if IsWide:
-        SizeOfTChar = valobj.CreateValueFromExpression('size', 'sizeof(TCHAR))').GetValueAsUnsigned(0)
-        Encoding = "utf-16" if SizeOfTChar == 2 else "utf-32"
-        NumBytes = Len * SizeOfTChar
-        Data = valobj.process.ReadMemory(DataPtr,NumBytes,lldb.SBError())
-        Name = Data.decode(Encoding).encode("utf-8")
+    if Len == 0:
+        UnderlyingId = valobj.GetValueForExpressionPath('.NumberedName.Id')
+        Number = valobj.GetValueForExpressionPath('.NumberedName.Number').GetValueAsUnsigned(0)
+        BaseNameEntry = UEFNameIndexToEntry(UnderlyingId)
+        BaseName = UEFNameEntrySummaryProvider(BaseNameEntry, dict)
+        return '%s_%s' % (BaseName, Number-1) # BaseName will already include name= from recursion 
     else:
-        Name = valobj.process.ReadMemory(DataPtr,Len,lldb.SBError())
+        DataPtr = valobj.GetChildAtIndex(1).AddressOf().GetValueAsUnsigned(0)
+        IsWide = Header.GetChildMemberWithName('bIsWide').GetValueAsUnsigned(0)
+        if IsWide:
+            DataPtr = valobj.GetValueForExpressionPath(".WideName").AddressOf().GetValueAsUnsigned(0)
+            SizeOfTChar = valobj.CreateValueFromExpression('size', 'sizeof(TCHAR))').GetValueAsUnsigned(0)
+            Encoding = "utf-16" if SizeOfTChar == 2 else "utf-32"
+            NumBytes = Len * SizeOfTChar
+            Data = valobj.process.ReadMemory(DataPtr,NumBytes,lldb.SBError())
+            Name = Data.decode(Encoding).encode("utf-8")
+        else:
+            DataPtr = valobj.GetValueForExpressionPath(".AnsiName").AddressOf().GetValueAsUnsigned(0)
+            Name = valobj.process.ReadMemory(DataPtr,Len,lldb.SBError())
     return 'name=%s' % Name
 
 def UEFNameSummaryProvider(valobj,dict):
@@ -98,18 +115,16 @@ def UEFNameSummaryProvider(valobj,dict):
         EntryId = valobj.GetChildMemberWithName('ComparisonIndex')
     if not EntryId.IsValid():
         EntryId = valobj.GetChildMemberWithName('Index')
-    Index = EntryId.GetChildMemberWithName('Value').GetValueAsUnsigned(0)
-    Number = valobj.GetChildMemberWithName('Number').GetValueAsUnsigned(0)
-
-    # FNameDebugVisualizer::OffsetBits = 16
-    # FNameDebugVisualizer::OffsetMask = (1 << OffsetBits) - 1 = 65535
-    NameEntryExpr = '(FNameEntry*)(GNameBlocksDebug[%s >> 16]+((alignof(FNameEntry) * (%s & 65535))))' % (Index, Index)
-    NameEntry = valobj.CreateValueFromExpression('NameEntry', NameEntryExpr)
-    NameStr = UEFNameEntrySummaryProvider(NameEntry, dict)
-    if Number != 0:
-        return '%s_%s' % (NameStr, Number-1)
+    NameEntry = UEFNameIndexToEntry(EntryId)
+    Number = valobj.GetChildMemberWithName('Number')
+    if not Number.IsValid():
+        return UEFNameEntrySummaryProvider(NameEntry, dict)
     else:
-        return '%s' % NameStr
+        NameStr = UEFNameEntrySummaryProvider(NameEntry, dict)
+        if Number.GetValueAsUnsigned(0) != 0:
+            return "'%s'_%d" % (NameStr, Number-1)
+        else:
+            return "'%s'" % NameStr
 
 def UEUObjectBaseSummaryProvider(valobj,dict):
     Name = valobj.GetChildMemberWithName('NamePrivate')

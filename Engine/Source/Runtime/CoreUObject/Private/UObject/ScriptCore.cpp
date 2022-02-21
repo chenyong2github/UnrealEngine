@@ -2323,10 +2323,10 @@ DEFINE_FUNCTION(UObject::execInstrumentation)
 #endif
 	if (EventType == EScriptInstrumentation::InlineEvent)
 	{
-		const FName& EventName = *reinterpret_cast<FName*>(&Stack.Code[1]);
-		FScriptInstrumentationSignal InstrumentationEventInfo(EventType, P_THIS, Stack, EventName);
+		const FScriptName& EventName = *reinterpret_cast<FScriptName*>(&Stack.Code[1]);
+		FScriptInstrumentationSignal InstrumentationEventInfo(EventType, P_THIS, Stack, ScriptNameToName(EventName));
 		FBlueprintCoreDelegates::InstrumentScriptEvent(InstrumentationEventInfo);
-		Stack.SkipCode(sizeof(FName) + 1);
+		Stack.SkipCode(sizeof(FScriptName) + 1);
 	}
 	else
 	{

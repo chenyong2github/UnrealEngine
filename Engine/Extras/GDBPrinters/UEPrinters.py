@@ -18,10 +18,12 @@
 #   end
 
 
-import gdb
 import itertools
+import random
 import re
 import sys
+
+import gdb
 
 # ------------------------------------------------------------------------------
 # We make our own base of the iterator to prevent issues between Python 2/3.
@@ -51,7 +53,7 @@ def default_iterator(val):
 # FBitReference
 #
 class FBitReferencePrinter:
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val
 
 	def to_string(self):
@@ -103,7 +105,7 @@ class TBitArrayPrinter:
 
 			return ('[%d]' % self.Counter, (data[self.Counter/32] >> self.Counter) & 1)
 
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val
 		self.NumBits = self.Value['NumBits']
 
@@ -174,7 +176,7 @@ class TChunkedArrayPrinter:
 			Val = gdb.parse_and_eval(Expr)
 			return ('[%d]' % self.Counter, Val)
 
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val
 		self.Typename = typename
 		self.NumElements = self.Value['NumElements']
@@ -252,7 +254,7 @@ class TSparseArrayPrinter:
 				else:
 					return self.__next__()
 
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val
 		self.Typename = typename
 		self.ArrayNum = self.Value['Data']['ArrayNum']
@@ -328,7 +330,7 @@ class TSetPrinter:
 
 			return ('[%s]' % self.Counter, Value.dereference())
 
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val
 		self.typename = typename
 		self.ArrayNum = self.Value["Elements"]["Data"]['ArrayNum']
@@ -353,7 +355,7 @@ class TSetPrinter:
 class TSetElementPrinter:
 	"Print TSetElement"
 
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val
 
 	def to_string(self):
@@ -400,7 +402,7 @@ class TMapPrinter:
 
 			return ('Pairs', self.Pairs)
 
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val
 		self.ArrayNum = self.Value['Pairs']['Elements']['Data']['ArrayNum']
 
@@ -457,7 +459,7 @@ class TWeakObjectPtrPrinter:
 				return ('Object', 'nullptr')
 
 
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val
 
 	def children(self):
@@ -474,7 +476,7 @@ class TWeakObjectPtrPrinter:
 class FStringPrinter:
 	"Print FString"
 
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val
 
 	def to_string(self):
@@ -494,6 +496,29 @@ class FStringPrinter:
 	def display_hint (self):
 		return 'string'
 
+# ------------------------------------------------------------------------------
+# FName shared 
+#
+def lookup_fname_entry(id):
+	expr = '((FNameEntry&)GNameBlocksDebug[%d >> FNameDebugVisualizer::OffsetBits][FNameDebugVisualizer::EntryStride * (%d & FNameDebugVisualizer::OffsetMask)])' % (id, id)
+	return gdb.parse_and_eval(expr)
+
+def get_fname_entry_string(entry):
+	header = entry['Header']
+	len = int(header['Len'].cast(gdb.lookup_type('uint16')))
+	is_wide = header['bIsWide'].cast(gdb.lookup_type('bool'))
+	if is_wide:
+		wide_string = entry['WideName'].cast(gdb.lookup_type('WIDECHAR').pointer())
+		return str(wide_string.string('','',len))
+	else:
+		ansi_string = entry['AnsiName'].cast(gdb.lookup_type('ANSICHAR').pointer())
+		return str(ansi_string.string('','',len))
+
+def get_fname_string(entry, number):
+	if number == 0:
+		return "'%s'" % get_fname_entry_string(entry)
+	else:
+		return "'%s'_%u" % (get_fname_entry_string(entry), number - 1)
 
 # ------------------------------------------------------------------------------
 # FNameEntry
@@ -502,24 +527,38 @@ class FStringPrinter:
 class FNameEntryPrinter:
 	"Print FNameEntry"
 
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val
 
 	def to_string(self):
-		self.Header = self.Value['Header']
-		IsWideString = self.Header['bIsWide'].cast(gdb.lookup_type('bool'))
-		self.AnsiName = self.Value['AnsiName']
-		self.WideName = self.Value['WideName']
-		Len = int(self.Header['Len'].cast(gdb.lookup_type('uint16')))
-		if IsWideString == True:
-			WideString = self.WideName.cast(gdb.lookup_type('WIDECHAR').pointer())
-			return '%s' % WideString.string('','',Len)
+		header = self.Value['Header']
+		len = int(header['Len'].cast(gdb.lookup_type('uint16')))
+		if len == 0:
+			base_entry  = lookup_fname_entry(int(self.Value['NumberedName']['Id']['Value']))
+			number = self.Value['NumberedName']['Number']
+			return get_fname_string(base_entry, number)
 		else:
-			AnsiString = self.AnsiName.cast(gdb.lookup_type('ANSICHAR').pointer())
-			return '%s' % AnsiString.string('','',Len)
+			return get_fname_string(self.Value, 0)
 
-	def display_hint (self):
-		return 'string'
+# ------------------------------------------------------------------------------
+# FNameEntryId
+#
+
+class FNameEntryIdPrinter:
+	"Print FNameEntryId"
+
+	def __init__(self, val):
+		self.Value = val
+
+	def to_string(self):
+		if self.Value.is_optimized_out:
+			return '<optimized out>'
+		id = int(self.Value['Value'])
+		unused_mask = gdb.parse_and_eval('FNameDebugVisualizer::UnusedMask')
+		if (id & unused_mask) != 0:
+			return 'invalid'
+		return lookup_fname_entry(id)
+
 
 # ------------------------------------------------------------------------------
 # FName
@@ -527,55 +566,47 @@ class FNameEntryPrinter:
 class FNamePrinter:
 	"Print FName"
 
-	def __init__(self, typename, val):
-		self.Value = val
+	def __init__(self, id, number):
+		self.Id = id
+		self.Number = number
 
 	def to_string(self):
-		if self.Value.is_optimized_out:
-			return '<optimized out>'
+		return get_fname_string(lookup_fname_entry(self.Id), self.Number)
 
-		# ComparisonIndex is an FNameEntryId
-		Index = self.Value['ComparisonIndex']['Value']
-		IndexValue = int(Index)
 
-		UnusedMask = gdb.parse_and_eval('FNameDebugVisualizer::UnusedMask')
-		if (IndexValue & UnusedMask) != 0:
-			return 'invalid'
-		else:
-			Expr = '((FNameEntry&)GNameBlocksDebug['+str(IndexValue)+' >> FNameDebugVisualizer::OffsetBits][FNameDebugVisualizer::EntryStride * ('+str(IndexValue)+' & FNameDebugVisualizer::OffsetMask)])'
-			NameEntry = gdb.parse_and_eval(Expr)
-			Number = self.Value['Number']
-			NumberValue = int(Number)
-			if NumberValue == 0:
-				return NameEntry
-			else:
-				return str([str(NameEntry), 'Number=' + str(NumberValue)])
-
+def make_fname_printer(val):
+	if val.is_optimized_out:
+		return '<optimized out>'
+	id = int(val['ComparisonIndex']['Value'])
+	unused_mask = gdb.parse_and_eval('FNameDebugVisualizer::UnusedMask')
+	if (id & unused_mask) != 0:
+		return 'invalid'
+	
+	# We need to pick the right printer based on whether FName has a Number member or not
+	if gdb.types.has_field(val.type, "Number"):
+		return FNamePrinter(id, int(val['Number']))
+	else:
+		# look up the id and use the FNameEntry printer
+		return FNameEntryPrinter(lookup_fname_entry(id))
+	
 
 # ------------------------------------------------------------------------------
 # FMinimalName
 #
-class FMinimalNamePrinter:
-	"Print FMinimalName"
-
-	def __init__(self, typename, val):
-		self.Value = val
-
-	def to_string(self):
-		Index = self.Value['Index']['Value']
-		IndexValue = int(Index)
-
-		if IndexValue >= 4194304:
-			return 'invalid'
-		else:
-			Expr = '((FNameEntry&)GNameBlocksDebug['+str(IndexValue)+' >> FNameDebugVisualizer::OffsetBits][FNameDebugVisualizer::EntryStride * ('+str(IndexValue)+' & FNameDebugVisualizer::OffsetMask)])'
-			NameEntry = gdb.parse_and_eval(Expr)
-			Number = self.Value['Number']
-			NumberValue = int(Number)
-			if NumberValue == 0:
-				return NameEntry
-			else:
-				return str([str(NameEntry), 'Number=' + str(NumberValue)])
+def make_fminimalname_printer(val):
+	if val.is_optimized_out:
+		return '<optimized out>'
+	id = int(val['Index']['Value'])
+	unused_mask = gdb.parse_and_eval('FNameDebugVisualizer::UnusedMask')
+	if (id & unused_mask) != 0:
+		return 'invalid'
+	
+	# We need to pick the right printer based on whether FName has a Number member or not
+	if gdb.types.has_field(val.type, "Number"):
+		return FNamePrinter(id, int(val['Number']))
+	else:
+		# look up the id and use the FNameEntry printer
+		return FNameEntryIdPrinter(val['Index'])
 
 # ------------------------------------------------------------------------------
 # TTuple
@@ -583,7 +614,7 @@ class FMinimalNamePrinter:
 class TTuplePrinter:
 	"Print TTuple"
 
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val
 
 		try:
@@ -652,7 +683,7 @@ class TArrayPrinter:
 
 			return ('[%d]' % self.Counter, data[self.Counter])
 
-	def __init__(self, typename, val):
+	def __init__(self, val):
 		self.Value = val;
 		self.ArrayNum = self.Value['ArrayNum']
 
@@ -673,54 +704,29 @@ class TArrayPrinter:
 # Register our lookup function. If no objfile is passed use all globally.
 def register_ue_printers(objfile):
 	if objfile == None:
-		objfile = gdb
+		objfile = gdb.current_objfile()
+	gdb.printing.register_pretty_printer(objfile, build_ue_pretty_printer(), True)
+	print("Registered pretty printers for UE classes")
 
-	objfile.pretty_printers.append(lookup_function)
+def build_ue_pretty_printer():
+	# add a random numeric suffix to the printer name so we can reload printers during the same session for iteration
+	pp = gdb.printing.RegexpCollectionPrettyPrinter("UnrealEngine")
+	pp.add_printer("FString", '^FString$', FStringPrinter)
+	pp.add_printer("FNameEntry", '^FNameEntry$', FNameEntryPrinter)
+	pp.add_printer("FNameEntryId", '^FNameEntryId$', FNameEntryIdPrinter)
+	pp.add_printer("FName", '^FName$', make_fname_printer)
+	pp.add_printer("FMinimalName", '^FMinimalName$', make_fminimalname_printer)
+	pp.add_printer("TArray", '^TArray<.+,.+>$', TArrayPrinter)
+	pp.add_printer("TBitArray", '^TBitArray<.+>$', TBitArrayPrinter)
+	pp.add_printer("TChunkedArray", '^TChunkedArray<.+>$', TChunkedArrayPrinter)
+	pp.add_printer("TSparseArray", '^TSparseArray<.+>$', TSparseArrayPrinter)
+	pp.add_printer("TSetElement", '^TSetElement<.+>$', TSetElementPrinter)
+#	pp.add_printer("TSet", '^TSet<.+>$', TSetPrinter)
+	pp.add_printer("FBitReference", '^FBitReference$', FBitReferencePrinter)
+#	pp.add_printer("TMap", '^TMap<.+,.+,.+>$', TMapPrinter)
+	pp.add_printer("TPair", '^TPair<.+,.+>$', TTuplePrinter)
+	pp.add_printer("TTuple", '^TTuple<.+,.+>$', TTuplePrinter)
+	pp.add_printer("TWeakObjectPtr", '^TWeakObjectPtr<.+>$', TWeakObjectPtrPrinter)
+	return pp
 
-
-#
-# We need this part which is a definition how pretty printers work.
-#
-def lookup_function (val):
-	"Look-up and return a pretty-printer that can print val."
-
-	# Get the type and check if it points to a reference. We check for both Object and Pointer type.
-	type = val.type;
-	if (type.code == gdb.TYPE_CODE_REF) or (type.code == gdb.TYPE_CODE_PTR):
-		type = type.target ()
-
-	# Get the unqualified type, mean remove const nor volatile and strippe of typedefs.
-	type = type.unqualified ().strip_typedefs ()
-
-	# Get the tag name. The tag name is the name after struct, union, or enum in C and C++
-	tag = type.tag
-	if tag == None:
-		return None
-
-	for function in pretty_printers_dict:
-		if function.search (tag):
-			return pretty_printers_dict[function] (tag, val)
-
-	# Cannot find a pretty printer.  Return None.
-	return None
-
-def build_dictionary ():
-	pretty_printers_dict[re.compile('^FString$')] = lambda typename, val: FStringPrinter(typename, val)
-	pretty_printers_dict[re.compile('^FNameEntry$')] = lambda typename, val: FNameEntryPrinter(typename, val)
-	pretty_printers_dict[re.compile('^FName$')] = lambda typename, val: FNamePrinter(typename, val)
-	pretty_printers_dict[re.compile('^FMinimalName$')] = lambda typename, val: FMinimalNamePrinter(typename, val)
-	pretty_printers_dict[re.compile('^TArray<.+,.+>$')] = lambda typename, val: TArrayPrinter(typename, val)
-	pretty_printers_dict[re.compile('^TBitArray<.+>$')] = lambda typename, val: TBitArrayPrinter(typename, val)
-	pretty_printers_dict[re.compile('^TChunkedArray<.+>$')] = lambda typename, val: TChunkedArrayPrinter(typename, val)
-	pretty_printers_dict[re.compile('^TSparseArray<.+>$')] = lambda typename, val: TSparseArrayPrinter(typename, val)
-	pretty_printers_dict[re.compile('^TSetElement<.+>$')] = lambda typename, val: TSetElementPrinter(typename, val)
-#	pretty_printers_dict[re.compile('^TSet<.+>$')] = lambda typename, val: TSetPrinter(typename, val)
-	pretty_printers_dict[re.compile('^FBitReference$')] = lambda typename, val: FBitReferencePrinter(typename, val)
-#	pretty_printers_dict[re.compile('^TMap<.+,.+,.+>$')] = lambda typename, val: TMapPrinter(typename, val)
-	pretty_printers_dict[re.compile('^TPair<.+,.+>$')] = lambda typename, val: TTuplePrinter(typename, val)
-	pretty_printers_dict[re.compile('^TTuple<.+,.+>$')] = lambda typename, val: TTuplePrinter(typename, val)
-	pretty_printers_dict[re.compile('^TWeakObjectPtr<.+>$')] = lambda typename, val: TWeakObjectPtrPrinter(typename, val)
-
-
-pretty_printers_dict = {}
-build_dictionary ()
+register_ue_printers(None)

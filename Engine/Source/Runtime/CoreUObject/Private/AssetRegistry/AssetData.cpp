@@ -55,8 +55,8 @@ FAssetData::FAssetData(FName InPackageName, FName InPackagePath, FName InAssetNa
 	, PackagePath(InPackagePath)
 	, AssetName(InAssetName)
 	, AssetClass(InAssetClass)
-	, ChunkIDs(MoveTemp(InChunkIDs))
 	, PackageFlags(InPackageFlags)
+	, ChunkIDs(MoveTemp(InChunkIDs))
 {
 	SetTagsAndAssetBundles(MoveTemp(InTags));
 
@@ -70,8 +70,8 @@ FAssetData::FAssetData(const FString& InLongPackageName, const FString& InObject
 	: ObjectPath(*InObjectPath)
 	, PackageName(*InLongPackageName)
 	, AssetClass(InAssetClass)
-	, ChunkIDs(MoveTemp(InChunkIDs))
 	, PackageFlags(InPackageFlags)
+	, ChunkIDs(MoveTemp(InChunkIDs))
 {
 	SetTagsAndAssetBundles(MoveTemp(InTags));
 

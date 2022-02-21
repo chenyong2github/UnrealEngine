@@ -413,9 +413,11 @@ FORCEINLINE uint32 FromPackedCallCountDuration_Duration(int64 Both)
 class FStatNameAndInfo
 {
 	/**
-	 * An FName, but the high bits of the Number are used for other fields.
+	 * Store name and number separately in case UE_FNAME_OUTLINE_NUMBER is set, so the high bits of the Number are used for other fields.
 	 */
-	FMinimalName NameAndInfo;
+	FNameEntryId Index;
+	int32 Number;
+
 public:
 	FORCEINLINE_STATS FStatNameAndInfo()
 	{
@@ -425,15 +427,14 @@ public:
 	 * Build from a raw FName
 	 */
 	FORCEINLINE_STATS FStatNameAndInfo(FName Other, bool bAlreadyHasMeta)
-		: NameAndInfo(NameToMinimalName(Other))
+		: Index(Other.GetComparisonIndex())
+		, Number(Other.GetNumber())
 	{
 		if (!bAlreadyHasMeta)
 		{
-			int32 Number = NameAndInfo.Number;
 			// ok, you can't have numbered stat FNames too large
 			checkStats(!(Number >> EStatAllFields::StartShift));
 			Number |= EStatMetaFlags::DummyAlwaysOne << (EStatMetaFlags::Shift + EStatAllFields::StartShift);
-			NameAndInfo.Number = Number;
 		}
 		CheckInvariants();
 	}
@@ -442,13 +443,14 @@ public:
 	 * Build with stat metadata
 	 */
 	FORCEINLINE_STATS FStatNameAndInfo(FName InStatName, char const* InGroup, char const* InCategory, TCHAR const* InDescription, EStatDataType::Type InStatType, bool bShouldClearEveryFrame, bool bCycleStat, bool bSortByName, FPlatformMemory::EMemoryCounterRegion MemoryRegion = FPlatformMemory::MCR_Invalid)
-		: NameAndInfo(NameToMinimalName(ToLongName(InStatName, InGroup, InCategory, InDescription, bSortByName)))
 	{
-		int32 Number = NameAndInfo.Number;
+		FName LongName = ToLongName(InStatName, InGroup, InCategory, InDescription, bSortByName);
+		Index = LongName.GetComparisonIndex();
+		Number = LongName.GetNumber();
+
 		// ok, you can't have numbered stat FNames too large
 		checkStats(!(Number >> EStatAllFields::StartShift));
 		Number |= (EStatMetaFlags::DummyAlwaysOne | EStatMetaFlags::HasLongNameAndMetaInfo) << (EStatMetaFlags::Shift + EStatAllFields::StartShift);
-		NameAndInfo.Number = Number;
 
 		SetField<EStatDataType>(InStatType);
 		SetFlag(EStatMetaFlags::ShouldClearEveryFrame, bShouldClearEveryFrame);
@@ -465,9 +467,9 @@ public:
 	/**
 	 * Internal use, used by the deserializer
 	 */
-	FORCEINLINE_STATS void SetNumberDirect(int32 Number)
+	FORCEINLINE_STATS void SetNumberDirect(int32 InNumber)
 	{
-		NameAndInfo.Number = Number;
+		Number = InNumber;
 	}
 
 	/**
@@ -476,7 +478,7 @@ public:
 	FORCEINLINE_STATS int32 GetRawNumber() const
 	{
 		CheckInvariants();
-		return NameAndInfo.Number;
+		return Number;
 	}
 
 	/**
@@ -487,10 +489,10 @@ public:
 		// ok, you can't have numbered stat FNames too large
 		checkStats(!(RawName.GetNumber() >> EStatAllFields::StartShift));
 		CheckInvariants();
-		int32 Number = NameAndInfo.Number;
-		Number &= ~((1 << EStatAllFields::StartShift) - 1);
-		NameAndInfo = NameToMinimalName(RawName);
-		NameAndInfo.Number = (Number | RawName.GetNumber());
+		int32 LocalNumber = Number;
+		LocalNumber &= ~((1 << EStatAllFields::StartShift) - 1);
+		Index = RawName.GetComparisonIndex();
+		Number = (LocalNumber | RawName.GetNumber());
 	}
 
 	/**
@@ -500,11 +502,7 @@ public:
 	FORCEINLINE_STATS FName GetRawName() const
 	{
 		CheckInvariants();
-		FMinimalName Result(NameAndInfo);
-		int32 Number = NameAndInfo.Number;
-		Number &= ((1 << EStatAllFields::StartShift) - 1);
-		Result.Number = Number;
-		return MinimalNameToName(Result);
+		return FName(Index, Index, Number & ((1 << EStatAllFields::StartShift) - 1));
 	}
 
 	/**
@@ -514,7 +512,7 @@ public:
 	FORCEINLINE_STATS FName GetEncodedName() const
 	{
 		CheckInvariants();
-		return MinimalNameToName(NameAndInfo);
+		return FName(Index, Index, Number);
 	}
 
 	/**
@@ -567,8 +565,8 @@ public:
 	 */
 	FORCEINLINE_STATS void CheckInvariants() const
 	{
-		checkStats((NameAndInfo.Number & (EStatMetaFlags::DummyAlwaysOne << (EStatAllFields::StartShift + EStatMetaFlags::Shift)))
-			&& NameAndInfo.Index);
+		checkStats((Number & (EStatMetaFlags::DummyAlwaysOne << (EStatAllFields::StartShift + EStatMetaFlags::Shift)))
+			&& Index);
 	}
 
 	/**
@@ -579,10 +577,10 @@ public:
 	typename TField::Type GetField() const
 	{
 		CheckInvariants();
-		int32 Number = NameAndInfo.Number;
-		Number = (Number >> (EStatAllFields::StartShift + TField::Shift)) & TField::Mask;
-		checkStats(Number != TField::Invalid && Number < TField::Num);
-		return typename TField::Type(Number);
+		int32 LocalNumber = Number;
+		LocalNumber = (LocalNumber >> (EStatAllFields::StartShift + TField::Shift)) & TField::Mask;
+		checkStats(LocalNumber != TField::Invalid && LocalNumber < TField::Num);
+		return typename TField::Type(LocalNumber);
 	}
 
 	/**
@@ -592,12 +590,12 @@ public:
 	template<typename TField>
 	void SetField(typename TField::Type Value)
 	{
-		int32 Number = NameAndInfo.Number;
+		int32 LocalNumber = Number;
 		CheckInvariants();
 		checkStats(Value < TField::Num && Value != TField::Invalid);
-		Number &= ~(TField::Mask << (EStatAllFields::StartShift + TField::Shift));
-		Number |= Value << (EStatAllFields::StartShift + TField::Shift);
-		NameAndInfo.Number = Number;
+		LocalNumber &= ~(TField::Mask << (EStatAllFields::StartShift + TField::Shift));
+		LocalNumber |= Value << (EStatAllFields::StartShift + TField::Shift);
+		Number = LocalNumber;
 		CheckInvariants();
 	}
 
@@ -607,10 +605,10 @@ public:
 	 */
 	bool GetFlag(EStatMetaFlags::Type Bit) const
 	{
-		int32 Number = NameAndInfo.Number;
+		int32 LocalNumber = Number;
 		CheckInvariants();
 		checkStats(Bit < EStatMetaFlags::Num && Bit != EStatMetaFlags::Invalid);
-		return !!((Number >> (EStatAllFields::StartShift + EStatMetaFlags::Shift)) & Bit);
+		return !!((LocalNumber >> (EStatAllFields::StartShift + EStatMetaFlags::Shift)) & Bit);
 	}
 
 	/**
@@ -620,18 +618,18 @@ public:
 	 */
 	void SetFlag(EStatMetaFlags::Type Bit, bool Value)
 	{
-		int32 Number = NameAndInfo.Number;
+		int32 LocalNumber = Number;
 		CheckInvariants();
 		checkStats(Bit < EStatMetaFlags::Num && Bit != EStatMetaFlags::Invalid);
 		if (Value)
 		{
-			Number |= (Bit << (EStatAllFields::StartShift + EStatMetaFlags::Shift));
+			LocalNumber |= (Bit << (EStatAllFields::StartShift + EStatMetaFlags::Shift));
 		}
 		else
 		{
-			Number &= ~(Bit << (EStatAllFields::StartShift + EStatMetaFlags::Shift));
+			LocalNumber &= ~(Bit << (EStatAllFields::StartShift + EStatMetaFlags::Shift));
 		}
-		NameAndInfo.Number = Number;
+		Number = LocalNumber;
 		CheckInvariants();
 	}
 

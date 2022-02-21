@@ -5328,28 +5328,33 @@ bool UEngine::HandleCountDisabledParticleItemsCommand( const TCHAR* Cmd, FOutput
 bool UEngine::HandleViewnamesCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	const TArray<const FNameEntry*> Entries = FName::DebugDump();
+	TConstArrayView<const FNameEntry*> IterEntries = Entries;
 
-	int32 NumLast = 0;
-	int32 BeginIdx = FParse::Value(Cmd, TEXT("NUM="), NumLast) ? FMath::Max(Entries.Num() - NumLast, 0) : 0;
-
-	FString Filename;
-	TUniquePtr<FArchive> FileWriter;
-	if (FParse::Value(Cmd, TEXT("FILENAME="), Filename))
-	{
-		const FString OutputFilename = FPaths::ProjectSavedDir() / FString::Printf(TEXT("Names-%s-%s.log"), *Filename, *FDateTime::Now().ToString());
-		FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*OutputFilename));
+	if(int32 NumLast = 0; FParse::Value(Cmd, TEXT("NUM="), NumLast))
+	{ 
+		IterEntries.RightInline(NumLast);
 	}
 
-	for (int32 I = BeginIdx; I < Entries.Num(); ++I)
+#if UE_FNAME_OUTLINE_NUMBER
+	bool bNumbered = FParse::Param(Cmd, TEXT("NUMBERED"));
+	bool bPlain = FParse::Param(Cmd, TEXT("PLAIN"));
+	if (!bNumbered && !bPlain)
 	{
-		const FString PlainNameString = Entries[I]->GetPlainNameString();
+		bNumbered = bPlain = true;
+	}
+#endif
 
-		Ar.Log(*PlainNameString);
-
-		if (FileWriter)
+	for (const FNameEntry* Entry : IterEntries)
+	{	
+#if UE_FNAME_OUTLINE_NUMBER
+		if( Entry->IsNumbered() && bNumbered)
 		{
-			FString LogEntry = FString::Printf(TEXT("%s") LINE_TERMINATOR, *PlainNameString);
-			FileWriter->Serialize(TCHAR_TO_ANSI(*LogEntry), LogEntry.Len());
+			Entry->DebugDump(Ar);
+		}
+		else if (!Entry->IsNumbered() && bPlain)
+#endif
+		{
+			Entry->DebugDump(Ar);
 		}
 	}
 
@@ -9205,6 +9210,11 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		const bool bShowHashBucketCollisionInfo = FParse::Param(Cmd, TEXT("SHOWBUCKETCOLLISIONS"));
 		LogHashOuterStatistics(Ar, bShowHashBucketCollisionInfo);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("HASHFNAME")))
+	{
+		FName::DisplayHash(Ar);
 		return true;
 	}
 	else if (FParse::Command(&Cmd, TEXT("OVERHEAD")))

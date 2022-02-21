@@ -734,8 +734,11 @@ class FChunkedFixedUObjectArray;
 extern CORE_API FChunkedFixedUObjectArray* GCoreObjectArrayForDebugVisualizers;
 
 /** Array to help visualize object paths in the debugger */
-extern template class TArray<FMinimalName, TInlineAllocator<3>>;
-extern CORE_API TArray<FMinimalName, TInlineAllocator<3>>* GCoreComplexObjectPathDebug;
+namespace UE::ObjectPath::Private
+{
+	struct FStoredObjectPath;
+}
+extern CORE_API UE::ObjectPath::Private::FStoredObjectPath* GCoreComplexObjectPathDebug;
 
 /** Array to help visualize object handles in the debugger */
 struct FObjectHandlePackageDebugData;

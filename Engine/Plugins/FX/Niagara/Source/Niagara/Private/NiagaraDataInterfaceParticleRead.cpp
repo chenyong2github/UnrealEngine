@@ -380,7 +380,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		const TArray<FNiagaraVariableLayoutInfo>& SourceEmitterVariableLayouts = SourceDataSet->GetVariableLayouts();
 		for (int AttrNameIdx = 0; AttrNameIdx < AttributeNames.Num(); ++AttrNameIdx)
 		{
-			const FName& AttrName = AttributeNames[AttrNameIdx];
+			const FMemoryImageName& AttrName = AttributeNames[AttrNameIdx];
 			if (AttrName == NAME_None)
 			{
 				InstanceData->AttributeIndices[AttrNameIdx] = -1;
@@ -614,7 +614,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, AttributeIndicesParam);
 	LAYOUT_FIELD(FShaderParameter, AttributeCompressedParam);
 	LAYOUT_FIELD(FShaderParameter, AcquireTagRegisterIndexParam);
-	LAYOUT_FIELD(TMemoryImageArray<FName>, AttributeNames);
+	LAYOUT_FIELD(TMemoryImageArray<FMemoryImageName>, AttributeNames);
 	LAYOUT_FIELD(TMemoryImageArray<ENiagaraParticleDataValueType>, AttributeTypes);
 };
 

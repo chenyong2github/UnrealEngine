@@ -139,7 +139,7 @@ public:
 
 		FNameEntryId DisplayId = NameEntries[MappedName.GetIndex()];
 		FNameEntryId ComparisonId = FName::GetComparisonIdFromDisplayId(DisplayId);
-		return FMinimalName(ComparisonId, MappedName.GetNumber());
+		return NameToMinimalName(FName(ComparisonId, DisplayId, MappedName.GetNumber()));
 	}
 
 private:

@@ -415,7 +415,7 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 				FRayTracingGeometryInitializer Initializer;
 				static const FName DebugName("FSkeletalMeshObjectCPUSkin");
 				static int32 DebugNumber = 0;
-				Initializer.DebugName = FName(DebugName, DebugNumber++);
+				Initializer.DebugName = FDebugName(DebugName, DebugNumber++);
 				Initializer.IndexBuffer = IndexBufferRHI;
 				Initializer.TotalPrimitiveCount = TrianglesCount;
 				Initializer.GeometryType = RTGT_Triangles;

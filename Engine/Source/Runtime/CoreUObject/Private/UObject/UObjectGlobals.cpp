@@ -23,6 +23,7 @@
 #include "UObject/UObjectBase.h"
 #include "UObject/UObjectBaseUtility.h"
 #include "UObject/UObjectHash.h"
+#include "UObject/UObjectHashPrivate.h"
 #include "UObject/Object.h"
 #include "UObject/GarbageCollection.h"
 #include "UObject/Class.h"
@@ -1870,16 +1871,330 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 	Object name functions.
 -----------------------------------------------------------------------------*/
 
+static TAtomic<int32> NameNumberUniqueIndex(MAX_int32 - 1000);
+
+DEFINE_LOG_CATEGORY_STATIC(LogUniqueObjectName, Error, Error);
+
+#define TRY_REUSE_NAMES UE_FNAME_OUTLINE_NUMBER
+
+#if TRY_REUSE_NAMES
+namespace NameReuse
+{
+	static bool GTryReuseNames = true;
+	static FAutoConsoleVariableRef CVar_TryReuseNames(
+		TEXT("UObject.ReuseNames"),
+		GTryReuseNames,
+		TEXT("Try to reuse object names to prevent growth of numbered name table.")
+	);
+
+	static int32 GNameRangeCycleCadence = 8;
+	static FAutoConsoleVariableRef CVar_NameRangeCycleCadence(
+		TEXT("UObject.NameRangeCycleCadence"),
+		GNameRangeCycleCadence,
+		TEXT("When we have created this many new names in the range-based allocator and the reuse range is exhausted, return to the start and try reusing existing names. Must be a power of 2.")
+	);
+
+	static int32 GNameRangeMaxIterations = 8;
+	static FAutoConsoleVariableRef CVar_NameRangeMaxIterations(
+		TEXT("UObject.NameRangeMaxIterations"),
+		GNameRangeMaxIterations,
+		TEXT("Max number of iterations of attempting to reuse old names before bailing and creating a new one.")
+	);
+
+	bool CanUseNameInOuter(UObject* TestParent, FName TestName)
+	{
+		return !DoesObjectPossiblyExist(TestParent, TestName);
+	}
+
+	// Pointers passed into this cache are converted to integers for storage and comparison.
+	// We are ok with false caches misses when the address is reused for another object. 
+	struct FRecentNameCache
+	{
+		static constexpr int32 MaxEntries = 64;
+		static constexpr int32 MaxNamesPerEntry = 16;
+
+		struct FEntry
+		{
+			FNameEntryId BaseName;
+			TArray<TTuple<UPTRINT, FName>> Names;
+
+			FEntry(FNameEntryId InBaseName)
+				: BaseName(InBaseName)
+			{
+				Names.Reserve(MaxNamesPerEntry);
+			}
+
+			FEntry(FEntry&&) = default;
+			FEntry& operator=(FEntry&&) = default;
+
+			void Reset(FNameEntryId InBaseName)
+			{
+				BaseName = InBaseName;
+				Names.Reset();
+			}
+
+			void Store(UPTRINT Parent, FName Name)
+			{
+				int32 Index = Names.IndexOfByPredicate([&](const TTuple<UPTRINT, FName>& Pair) { return Pair.Get<1>() == Name; });
+				if (Index != INDEX_NONE)
+				{
+					Names.RemoveAt(Index, 1, false);
+				}
+				else
+				{
+					if (Names.Num() >= MaxNamesPerEntry)
+					{
+						Names.RemoveAt(0, 1, false);
+					}
+				}
+
+				Names.Emplace(Parent, Name);
+			}
+		};
+
+		TArray<FEntry> Entries;
+
+		FRecentNameCache()
+		{
+		}
+
+		FName Find(UObject* ForParent, FNameEntryId BaseId, FName BaseName)
+		{
+			FEntry* Entry = Entries.FindByPredicate([BaseId](const FEntry& Entry) { return Entry.BaseName == BaseId; });
+			if (Entry) 
+			{
+				for (TTuple<UPTRINT, FName> Pair : Entry->Names)
+				{
+					if (Pair.Get<1>() != BaseName && Pair.Get<0>() != reinterpret_cast<UPTRINT>(ForParent))
+					{
+						if (CanUseNameInOuter(ForParent, Pair.Get<1>()))
+						{
+							return Pair.Get<1>();
+						}
+					}
+				}
+			}
+
+			return FName();
+		}
+
+		void Store(UObject* Parent, FNameEntryId BaseId, FName UsedName)
+		{
+			FEntry* Entry = Entries.FindByPredicate([BaseId](const FEntry& Entry) { return Entry.BaseName == BaseId; });
+			if (!Entry)
+			{
+				if (Entries.Num() < MaxEntries)
+				{
+					// Replace the oldest entry in the cache or add a new one
+					Entry = &Entries.Emplace_GetRef(BaseId);
+				}
+				else
+				{
+					Entry = &Entries[0];
+
+					UE_LOG(LogUniqueObjectName, Log, TEXT("EVICT: %s"), *FName(Entry->BaseName, Entry->BaseName, NAME_NO_NUMBER_INTERNAL).ToString());
+					Entry->Reset(BaseId);
+				}
+
+				UE_LOG(LogUniqueObjectName, Log, TEXT("STORE: %s"), *FName(BaseId, BaseId, NAME_NO_NUMBER_INTERNAL).ToString());
+			}
+
+			Entry->Store(reinterpret_cast<UPTRINT>(Parent), UsedName);
+
+			// Shift this entry to the end of the array as it's now the most recently used
+			int32 Index = Entry - Entries.GetData();
+			if (Index != Entries.Num() - 1)
+			{
+				FEntry Removed = MoveTemp(*Entry);
+				Entries.RemoveAt(Index, 1, false);
+				Entries.Add(MoveTemp(Removed));
+			}
+		}
+	};
+
+	static thread_local FRecentNameCache GRecentNameCache;
+
+	struct FNameRangeCache
+	{
+		struct FNameRangeEntry
+		{
+			static const constexpr int32 FirstNewNumber = MAX_int32 - 1001;
+
+			int32 NextNewNumber;
+			int32 Iterator;
+
+			FNameRangeEntry()
+				: NextNewNumber(FirstNewNumber)
+				, Iterator(FirstNewNumber - GNameRangeCycleCadence)
+			{
+			}
+
+			FName AllocateName(UObject* Parent, FNameEntryId BaseId, FName BaseName)
+			{
+				checkSlow(BaseId == BaseName.GetComparisonIndex());
+				int32 BaseNumber = BaseName.GetNumber();
+
+				// Do we have any old numbers to try and reuse? 
+				if (Iterator > NextNewNumber)
+				{
+					int32 Start = Iterator;
+					int32 End = Start - GNameRangeMaxIterations;
+					// Look for existing (name, number) pairs that are unused 
+					for (int32 i = Start; i > NextNewNumber && i > End; --i)
+					{
+						if (i == BaseNumber)
+						{
+							continue;
+						}
+
+						FName TestName(BaseId, BaseId, i);
+						if (CanUseNameInOuter(Parent, TestName))
+						{
+							UE_LOG(LogUniqueObjectName, Log, TEXT("HIT: %s %s"), *Parent->GetPathName(), *TestName.ToString());
+							Iterator = i - 1;
+							return TestName;
+						}
+					}
+
+					if (Iterator == NextNewNumber)
+					{
+						// Failed to find a name to reuse, reset iterator to where we should reset
+						Iterator = NextNewNumber - GNameRangeCycleCadence;
+					}
+				}
+
+				// Start == Next or we fail to reuse an existing index
+				for (int32 i = NextNewNumber; i > 0; --i)
+				{
+					if (i == BaseNumber)
+					{
+						continue;
+					}
+
+					FName TestName(BaseId, BaseId, i);
+					if (CanUseNameInOuter(Parent, TestName))
+					{
+						NextNewNumber = i - 1;
+						if (NextNewNumber < Iterator)
+						{
+							Iterator = FirstNewNumber;
+						}
+
+						UE_LOG(LogUniqueObjectName, Log, TEXT("MISS: %s %s"), *Parent->GetPathName(), *TestName.ToString());
+						return TestName;
+					}
+				}
+
+				return FName();
+			}
+		};
+
+		FName Find(UObject* Parent, FNameEntryId BaseId, FName BaseName)
+		{
+			Lock.ReadLock();
+			FNameRangeEntry* Entry = Find(BaseId);
+
+			if (Entry)
+			{
+				// already allocated name, we can release the shared lock and work on this object directly
+				Lock.ReadUnlock();
+			}
+			else
+			{
+				Lock.ReadUnlock();
+
+				// The first time we request a name if we've never created one, don't bother adding to the cache just yet.
+				FName TestName = FName::FindNumberedName(BaseId, FNameRangeEntry::FirstNewNumber + 1);
+				if (TestName.IsNone())
+				{
+					return FName(BaseId, BaseId, FNameRangeEntry::FirstNewNumber + 1);
+				}
+
+				FWriteScopeLock _(Lock);
+				// We didn't have a name but we may have been preempted as we acquired the write lock
+				Entry = Find(BaseId);
+				if (!Entry)
+				{
+					// we were not pre-empted, add a new entry for this name 
+					Entry = Add(BaseId);
+				}
+			}
+
+			return Entry->AllocateName(Parent, BaseId, BaseName);
+		}
+	private:
+		FRWLock Lock;
+		TMap<FNameEntryId, TUniquePtr<FNameRangeEntry>> Map;
+
+		FNameRangeEntry* Find(FNameEntryId Id)
+		{
+			TUniquePtr<FNameRangeEntry>* Ptr = Map.Find(Id);
+			if (Ptr) { return Ptr->Get(); }
+			return nullptr;
+		}
+
+		FNameRangeEntry* Add(FNameEntryId Id)
+		{
+			return Map.Emplace(Id, MakeUnique<FNameRangeEntry>()).Get();
+		}
+
+	};
+
+	static FNameRangeCache GNameRangeCache;
+
+	FName MakeUniqueObjectNameReusingNumber(UObject* Parent, FName BaseName)
+	{
+		if (!GTryReuseNames)
+		{
+			return FName();
+		}
+
+		static const FName NamePackage(NAME_Package);
+		if (!Parent || Parent == ANY_PACKAGE || BaseName == NamePackage || FPlatformProperties::HasEditorOnlyData() || !GFastPathUniqueNameGeneration)
+		{
+			return FName();
+		}
+
+		LLM_SCOPE(ELLMTag::UObject);
+
+		FNameEntryId BaseId = BaseName.GetDisplayIndex();
+		FName ReturnName = GRecentNameCache.Find(Parent, BaseId, BaseName);
+
+		if (ReturnName.IsNone())
+		{
+			ReturnName = GNameRangeCache.Find(Parent, BaseId, BaseName);
+		}
+
+		if (ReturnName.IsNone())
+		{
+			// Store this name for reuse 
+			GRecentNameCache.Store(Parent, BaseId, ReturnName);
+		}
+
+		return ReturnName;
+	}
+}
+#endif
+
 FName MakeUniqueObjectName( UObject* Parent, const UClass* Class, FName InBaseName/*=NAME_None*/ )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(MakeUniqueObjectName);
+
 	CSV_SCOPED_TIMING_STAT(UObject, MakeUniqueObjectName);
 	check(Class);
-	const FName BaseName = (InBaseName == NAME_None) ? Class->GetFName() : InBaseName;
+	const FName BaseName = InBaseName.IsNone() ? Class->GetFName() : InBaseName;
+
+#if TRY_REUSE_NAMES
+	if (FName Result = NameReuse::MakeUniqueObjectNameReusingNumber(Parent, BaseName); !Result.IsNone())
+	{
+		return Result;
+	}
+#endif
+#undef TRY_REUSE_NAMES
 
 	FName TestName;
 	do
 	{
-		// cache the class's name's index for faster name creation later
 		UObject* ExistingObject;
 
 		do
@@ -1922,8 +2237,7 @@ FName MakeUniqueObjectName( UObject* Parent, const UClass* Class, FName InBaseNa
 						*   could never clash with anything with a different outer. For animation trees, these outers are never saved or loaded, thus clashes are
 						*   impossible.
 						*/
-						static TAtomic<int32> UniqueIndex(MAX_int32 - 1000);
-						NameNumber = --UniqueIndex;
+						NameNumber = --NameNumberUniqueIndex;
 					}
 					else
 					{

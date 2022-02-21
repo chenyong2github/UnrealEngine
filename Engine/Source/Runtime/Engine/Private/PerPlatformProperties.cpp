@@ -34,7 +34,9 @@ ENGINE_API FArchive& operator<<(FArchive& Ar, TPerPlatformProperty<StructType, V
 #if WITH_EDITORONLY_DATA
 		if (!bCooked)
 		{
-			Ar << This->PerPlatform;
+			using MapType = decltype(This->PerPlatform);
+			using KeyFuncs = typename PerPlatformProperty::Private::KeyFuncs<MapType>;
+			KeyFuncs::SerializePerPlatformMap(Ar, This->PerPlatform);
 		}
 #endif
 	}
@@ -67,7 +69,9 @@ ENGINE_API void operator<<(FStructuredArchive::FSlot Slot, TPerPlatformProperty<
 #if WITH_EDITORONLY_DATA
 		if (!bCooked)
 		{
-			Record << SA_VALUE(TEXT("PerPlatform"), This->PerPlatform);
+			using MapType = decltype(This->PerPlatform);
+			using KeyFuncs = typename PerPlatformProperty::Private::KeyFuncs<MapType>;
+			KeyFuncs::SerializePerPlatformMap(UnderlyingArchive, Record, This->PerPlatform);
 		}
 #endif
 	}

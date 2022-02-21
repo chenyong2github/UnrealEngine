@@ -811,6 +811,17 @@ UObject* StaticFindObjectFastInternal(const UClass* ObjectClass, const UObject* 
 	return Result;
 }
 
+// Approximate search for finding unused object names
+bool DoesObjectPossiblyExist(const UObject* InOuter, FName ObjectName)
+{
+	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
+	check(InOuter != nullptr);
+	int32 Hash = GetObjectOuterHash(ObjectName, (PTRINT)InOuter);
+	FHashTableLock HashLock(ThreadHash);
+	// We don't need to iterate the multimap here as we are happy with false positives.
+	return ThreadHash.HashOuter.Contains(Hash);
+}
+
 // Assumes that ThreadHash's critical is already locked
 FORCEINLINE static void AddToOuterMap(FUObjectHashTables& ThreadHash, UObjectBase* Object)
 {

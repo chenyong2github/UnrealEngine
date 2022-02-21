@@ -10,6 +10,31 @@ class UObject;
 class FLinkerTables;
 struct FObjectImport;
 
+// Declared in the header so the type exists in debug info for debugger visualization, not a public part of the API.
+namespace UE::ObjectPath::Private
+{
+	struct FStoredObjectPath
+	{
+		static constexpr const int32 NumInlineElements = 3;
+		int32 NumElements;
+
+		union
+		{
+			FMinimalName Short[NumInlineElements];
+			FMinimalName* Long;
+		};
+
+		FStoredObjectPath(TConstArrayView<FMinimalName> InNames);
+		~FStoredObjectPath();
+		FStoredObjectPath(const FStoredObjectPath&) = delete;
+		FStoredObjectPath(FStoredObjectPath&&);
+		FStoredObjectPath& operator=(const FStoredObjectPath&) = delete;
+		FStoredObjectPath& operator=(FStoredObjectPath&&);
+
+		TConstArrayView<FMinimalName> GetView() const;
+	};
+}
+
 // @TODO: OBJPTR: Should this be changed to FObjectImportPathId? It is already written to target the specific patterns in import paths,
 //		 if we go further in the future and do things like store classname/classpackage info, to the path segments, it would be
 //		 even more specific to imports.

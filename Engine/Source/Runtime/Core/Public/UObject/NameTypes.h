@@ -30,16 +30,32 @@
 	#define WITH_CASE_PRESERVING_NAME WITH_EDITORONLY_DATA
 #endif
 
+// Should the number part of the fname be stored in the name table or in the FName instance?
+// Storing it in the name table may save memory overall but new number suffixes will cause the name table to grow like unique strings do.
+#ifndef UE_FNAME_OUTLINE_NUMBER
+	#define UE_FNAME_OUTLINE_NUMBER 0
+#endif // UE_FNAME_OUTLINE_NUMBER
+
 class FText;
 
 /** Maximum size of name, including the null terminator. */
 enum {NAME_SIZE	= 1024};
 
+struct FMinimalName;
+struct FScriptName;
+class CORE_API FName;
+
 /** Opaque id to a deduplicated name */
 struct FNameEntryId
 {
+	// Default initialize to be equal to NAME_None
 	FNameEntryId() : Value(0) {}
 	FNameEntryId(ENoInit) {}
+
+	bool IsNone() const
+	{
+		return Value == 0;
+	}
 
 	/** Slow alphabetical order that is stable / deterministic over process runs */
 	CORE_API int32 CompareLexical(FNameEntryId Rhs) const;
@@ -57,6 +73,7 @@ struct FNameEntryId
 	bool operator==(FNameEntryId Rhs) const { return Value == Rhs.Value; }
 	bool operator!=(FNameEntryId Rhs) const { return Value != Rhs.Value; }
 
+	// Returns true if this FNameEntryId is not equivalent to NAME_None
 	explicit operator bool() const { return Value != 0; }
 
 	UE_DEPRECATED(4.23, "NAME_INDEX is replaced by FNameEntryId, which is no longer a contiguous integer. "
@@ -150,7 +167,11 @@ enum ELinkerNameTableConstructor    {ENAME_LinkerConstructor};
 /** Enumeration for finding name. */
 enum EFindName
 {
-	/** Find a name; return 0 if it doesn't exist. */
+	/** 
+	* Find a name; return 0/NAME_None/FName() if it doesn't exist.
+	* When UE_FNAME_OUTLINE_NUMBER is set, we search for the exact name including the number suffix.
+	* Otherwise we search only for the string part.
+	*/
 	FNAME_Find,
 
 	/** Find a name or add it if it doesn't exist. */
@@ -193,6 +214,16 @@ private:
 	{
 		ANSICHAR	AnsiName[NAME_SIZE];
 		WIDECHAR	WideName[NAME_SIZE];
+#if UE_FNAME_OUTLINE_NUMBER
+		// These fields are valid when Header.Len == 0.
+		// Stores a (string, number) fname pair to construct the string "string_(number-1)" on demand.
+		// Id is a reference to another entry with Header.Len != 0 (no recursion).
+		struct 
+		{
+			FNameEntryId	Id;
+			uint32			Number;
+		} NumberedName;
+#endif // UE_FNAME_OUTLINE_NUMBER
 	};
 
 	FNameEntry(const FNameEntry&) = delete;
@@ -210,6 +241,15 @@ public:
 	FORCEINLINE int32 GetNameLength() const
 	{
 		return Header.Len;
+	}
+
+	FORCEINLINE bool IsNumbered() const 
+	{
+#if UE_FNAME_OUTLINE_NUMBER
+		return Header.Len == 0;
+#else
+		return false;
+#endif
 	}
 
 	/**
@@ -243,6 +283,7 @@ public:
 	/** Appends name to string with path separator using FString::PathAppend(). */
 	CORE_API void AppendNameToPathString(FString& OutString) const;
 
+	CORE_API void DebugDump(FOutputDevice& Out) const;
 
 	/**
 	 * Returns the size in bytes for FNameEntry structure. This is != sizeof(FNameEntry) as we only allocated as needed.
@@ -278,6 +319,11 @@ private:
 	void CopyAndConvertUnterminatedName(TCHAR* OutName) const;
 	const ANSICHAR* GetUnterminatedName(ANSICHAR(&OptionalDecodeBuffer)[NAME_SIZE]) const;
 	const WIDECHAR* GetUnterminatedName(WIDECHAR(&OptionalDecodeBuffer)[NAME_SIZE]) const;
+
+#if UE_FNAME_OUTLINE_NUMBER
+	static int32 GetNumberedEntrySize();
+	uint32 GetNumber() const;
+#endif // UE_FNAME_OUTLINE_NUMBER
 };
 
 /**
@@ -333,10 +379,16 @@ struct FNameEntrySerialized
 
 /**
  * The minimum amount of data required to reconstruct a name
- * This is smaller than FName, but you lose the case-preserving behavior
+ * This is smaller than FName when WITH_CASE_PRESERVING_NAME is set, but you lose the case-preserving behavior.
+ * The size of this type is not portable across different platforms and configurations, as with FName itself.
  */
 struct FMinimalName
 {
+	friend uint32 GetTypeHash(FMinimalName Name);
+	friend bool operator==(FMinimalName Lhs, FMinimalName Rhs);
+	friend bool operator==(FName Lhs, FMinimalName Rhs);
+	friend FName;
+
 	FMinimalName() {}
 	
 	FMinimalName(EName N)
@@ -344,39 +396,33 @@ struct FMinimalName
 	{
 	}
 
-	FMinimalName(FNameEntryId InIndex, int32 InNumber)
-		: Index(InIndex)
-		, Number(InNumber)
-	{
-	}
-
-	FORCEINLINE bool IsNone() const
-	{
-		return !Index && Number == NAME_NO_NUMBER_INTERNAL;
-	}
-
-	friend FORCEINLINE FArchive& operator<<(FArchive& Ar, FMinimalName& E)
-	{
-		Ar << E.Index;
-		Ar << E.Number;
-		return Ar;
-	}
-
-	FORCEINLINE bool operator<(FMinimalName Rhs) const { return Index == Rhs.Index ? Number < Rhs.Number : Index < Rhs.Index; };
-
+	FORCEINLINE explicit FMinimalName(const FName& Name);
+	FORCEINLINE bool IsNone() const;
+	FORCEINLINE bool operator<(FMinimalName Rhs) const;
+	
+private:
 	/** Index into the Names array (used to find String portion of the string/number pair) */
 	FNameEntryId	Index;
+#if !UE_FNAME_OUTLINE_NUMBER
 	/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */
 	int32			Number = NAME_NO_NUMBER_INTERNAL;
+#endif // UE_FNAME_OUTLINE_NUMBE
 };
 
 /**
  * The full amount of data required to reconstruct a case-preserving name
- * This will be the same size as FName when WITH_CASE_PRESERVING_NAME is 1, and is used to store an FName in cases where 
- * the size of FName must be constant between build configurations (eg, blueprint bytecode)
+ * This will be the maximum size of an FName across all values of WITH_CASE_PRESERVING_NAME and UE_FNAME_OUTLINE_NUMBER
+ * and is used to store an FName in cases where  the size of a name must be constant between build configurations (eg, blueprint bytecode)
+ * the layout is not guaranteed to be the same as FName even if the size is the same, so memory cannot be reinterpreted between the two.
+ * The layout here must be as expected by FScriptBytecodeWriter and XFER_NAME
  */
 struct FScriptName
 {
+	friend uint32 GetTypeHash(FScriptName Name);
+	friend bool operator==(FScriptName Lhs, FScriptName Rhs);
+	friend bool operator==(FName Lhs, FScriptName Rhs);
+	friend FName;
+
 	FScriptName() {}
 	
 	FScriptName(EName Ename)
@@ -385,26 +431,71 @@ struct FScriptName
 	{
 	}
 
-	FScriptName(FNameEntryId InComparisonIndex, FNameEntryId InDisplayIndex, int32 InNumber)
-		: ComparisonIndex(InComparisonIndex)
-		, DisplayIndex(InDisplayIndex)
-		, Number(InNumber)
-	{
-	}
-
-	FORCEINLINE bool IsNone() const
-	{
-		return !ComparisonIndex && Number == NAME_NO_NUMBER_INTERNAL;
-	}
+	FORCEINLINE explicit FScriptName(const FName& Name);
+	FORCEINLINE bool IsNone() const;
+	inline bool operator==(EName Name) { return *this == FScriptName(Name); }
 
 	CORE_API FString ToString() const;
 
-	/** Index into the Names array (used to find String portion of the string/number pair used for comparison) */
+	// The internal structure of FScriptName is private in order to handle UE_FNAME_OUTLINE_NUMBER
+private: 
+	/** Encoded address of name entry  (used to find String portion of the string/number pair used for comparison) */
 	FNameEntryId	ComparisonIndex;
-	/** Index into the Names array (used to find String portion of the string/number pair used for display) */
+	/** Encoded address of name entry  (used to find String portion of the string/number pair used for display) */
 	FNameEntryId	DisplayIndex;
+#if UE_FNAME_OUTLINE_NUMBER
+	uint32			Dummy = 0; // Dummy to keep the size the same regardless of build configuration, but change the name so trying to use Number is a compile error
+#else // UE_FNAME_OUTLINE_NUMBER
 	/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */
 	uint32			Number = NAME_NO_NUMBER_INTERNAL;
+#endif // UE_FNAME_OUTLINE_NUMBER
+};
+
+struct FMemoryImageName;
+
+namespace Freeze
+{
+	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FMemoryImageName& Object, const FTypeLayoutDesc&);
+	CORE_API uint32 IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const FMemoryImageName& Object, void* OutDst);
+}
+
+/**
+ * Predictably sized structure for representing an FName in memory images while allowing the size to be smaller than FScriptName
+ * when case-preserving behavior is not required.
+ */
+struct FMemoryImageName
+{
+	friend uint32 GetTypeHash(FMemoryImageName Name);
+	friend bool operator==(FMemoryImageName Lhs, FMemoryImageName Rhs);
+	friend bool operator==(FName Lhs, FMemoryImageName Rhs);
+	friend FName;
+
+	friend CORE_API void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FMemoryImageName& Object, const FTypeLayoutDesc&);
+	friend CORE_API uint32 Freeze::IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const FMemoryImageName& Object, void* OutDst);
+
+	FMemoryImageName();
+	FMemoryImageName(EName Name);
+	FORCEINLINE FMemoryImageName(const FName& Name);
+
+	inline bool operator==(EName Name) const { return *this == FMemoryImageName(Name); }
+
+	FORCEINLINE bool IsNone() const;
+	CORE_API FString ToString() const;
+
+	// The internal structure of FMemoryImageName is private in order to handle UE_FNAME_OUTLINE_NUMBER
+private:
+	/** Encoded address of name entry (used to find String portion of the string/number pair used for comparison) */
+	FNameEntryId	ComparisonIndex;
+#if UE_FNAME_OUTLINE_NUMBER
+	uint32			Dummy = 0; // Dummy to keep the size the same regardless of build configuration, but change the name so trying to use Number is a compile error
+#else // UE_FNAME_OUTLINE_NUMBER
+	/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */
+	uint32			Number = NAME_NO_NUMBER_INTERNAL;
+#endif // UE_FNAME_OUTLINE_NUMBER
+#if WITH_CASE_PRESERVING_NAME
+	/** Encoded address of name entry (used to find String portion of the string/number pair used for display) */
+	FNameEntryId	DisplayIndex;
+#endif
 };
 
 /**
@@ -415,6 +506,10 @@ struct FScriptName
 class CORE_API FName
 {
 public:
+#if UE_FNAME_OUTLINE_NUMBER
+	FNameEntryId GetComparisonIndex() const;
+	FNameEntryId GetDisplayIndex() const;
+#else // UE_FNAME_OUTLINE_NUMBER
 	FORCEINLINE FNameEntryId GetComparisonIndex() const
 	{
 		checkName(IsWithinBounds(ComparisonIndex));
@@ -427,7 +522,12 @@ public:
 		checkName(IsWithinBounds(Index));
 		return Index;
 	}
+#endif //UE_FNAME_OUTLINE_NUMBER
 
+#if UE_FNAME_OUTLINE_NUMBER
+	int32 GetNumber() const;
+	void SetNumber(const int32 NewNumber);
+#else //UE_FNAME_OUTLINE_NUMBER
 	FORCEINLINE int32 GetNumber() const
 	{
 		return Number;
@@ -437,6 +537,7 @@ public:
 	{
 		Number = NewNumber;
 	}
+#endif //UE_FNAME_OUTLINE_NUMBER
 	
 	/** Get name without number part as a dynamically allocated string */
 	FString GetPlainNameString() const;
@@ -525,19 +626,11 @@ public:
 	/**
 	 * Check to see if this FName matches the other FName, potentially also checking for any case variations
 	 */
-	FORCEINLINE bool IsEqual(const FName& Other, const ENameCase CompareMethod = ENameCase::IgnoreCase, const bool bCompareNumber = true ) const
-	{
-		return ((CompareMethod == ENameCase::IgnoreCase) ? ComparisonIndex == Other.ComparisonIndex : GetDisplayIndexFast() == Other.GetDisplayIndexFast())
-			&& (!bCompareNumber || GetNumber() == Other.GetNumber());
-	}
+	FORCEINLINE bool IsEqual(const FName& Other, const ENameCase CompareMethod = ENameCase::IgnoreCase, const bool bCompareNumber = true) const;
 
 	FORCEINLINE bool operator==(FName Other) const
 	{
-#if PLATFORM_64BITS && !WITH_CASE_PRESERVING_NAME
-		return ToComparableInt() == Other.ToComparableInt();
-#else
-		return (ComparisonIndex == Other.ComparisonIndex) & (GetNumber() == Other.GetNumber());
-#endif
+		return ToUnstableInt() == Other.ToUnstableInt();
 	}
 
 	FORCEINLINE bool operator!=(FName Other) const
@@ -545,15 +638,9 @@ public:
 		return !(*this == Other);
 	}
 
-	FORCEINLINE bool operator==(EName Ename) const
-	{
-		return (ComparisonIndex == Ename) & (GetNumber() == 0);
-	}
+	FORCEINLINE bool operator==(EName Ename) const;
 	
-	FORCEINLINE bool operator!=(EName Ename) const
-	{
-		return (ComparisonIndex != Ename) | (GetNumber() != 0);
-	}
+	FORCEINLINE bool operator!=(EName Ename) const;
 
 	UE_DEPRECATED(4.23, "Please use FastLess() / FNameFastLess or LexicalLess() / FNameLexicalLess instead. "
 		"Default lexical sort order is deprecated to avoid unintended expensive sorting. ")
@@ -584,9 +671,9 @@ public:
 	FORCEINLINE bool IsNone() const
 	{
 #if PLATFORM_64BITS && !WITH_CASE_PRESERVING_NAME
-		return ToComparableInt() == 0;
+		return ToUnstableInt() == 0;
 #else
-		return !ComparisonIndex && GetNumber() == NAME_NO_NUMBER_INTERNAL;
+		return ComparisonIndex.IsNone() && GetNumber() == NAME_NO_NUMBER_INTERNAL;
 #endif
 	}
 
@@ -678,7 +765,7 @@ public:
 	int32 Compare( const FName& Other ) const;
 
 	/**
-	 * Fast compares name to passed in one using indexes. Sort is allocation order ascending.
+	 * Fast non-alphabetical order that is only stable during this process' lifetime.
 	 *
 	 * @param	Other	Name to compare this against
 	 * @return	< 0 is this < Other, 0 if this == Other, > 0 if this > Other
@@ -690,8 +777,12 @@ public:
 			return ComparisonDiff;
 		}
 
-			return GetNumber() - Other.GetNumber();
-		}
+#if UE_FNAME_OUTLINE_NUMBER
+		return 0;  // If comparison indices are the same we are the same
+#else //UE_FNAME_OUTLINE_NUMBER
+		return GetNumber() - Other.GetNumber();
+#endif //UE_FNAME_OUTLINE_NUMBER
+	}
 
 	/**
 	 * Create an FName with a hardcoded string index.
@@ -707,11 +798,7 @@ public:
 	 * @param InNumber The hardcoded value for the number portion of the name
 	 */
 	FORCEINLINE FName(EName Ename, int32 InNumber)
-		: ComparisonIndex(FNameEntryId::FromEName(Ename))
-#if WITH_CASE_PRESERVING_NAME
-		, DisplayIndex(ComparisonIndex)
-#endif
-		, Number(InNumber)
+		: FName(CreateNumberedNameIfNecessary(FNameEntryId::FromEName(Ename), InNumber))
 	{
 	}
 
@@ -722,12 +809,8 @@ public:
 	 * @param Other The FName to take the string values from
 	 * @param InNumber The hardcoded value for the number portion of the name
 	 */
-	FORCEINLINE FName( const FName& Other, int32 InNumber )
-		: ComparisonIndex( Other.ComparisonIndex )
-#if WITH_CASE_PRESERVING_NAME
-		, DisplayIndex( Other.DisplayIndex )
-#endif
-		, Number( InNumber )
+	FORCEINLINE FName(FName Other, int32 InNumber)
+		: FName(CreateNumberedNameIfNecessary(Other.GetComparisonIndex(), Other.GetDisplayIndex(), InNumber))
 	{
 	}
 
@@ -735,12 +818,8 @@ public:
 	 * Create an FName from its component parts
 	 * Only call this if you *really* know what you're doing
 	 */
-	FORCEINLINE FName( const FNameEntryId InComparisonIndex, const FNameEntryId InDisplayIndex, const int32 InNumber )
-		: ComparisonIndex( InComparisonIndex )
-#if WITH_CASE_PRESERVING_NAME
-		, DisplayIndex( InDisplayIndex )
-#endif
-		, Number( InNumber )
+	FORCEINLINE FName(FNameEntryId InComparisonIndex, FNameEntryId InDisplayIndex, int32 InNumber)
+		: FName(CreateNumberedNameIfNecessary(InComparisonIndex, InDisplayIndex, InNumber))
 	{
 	}
 
@@ -755,14 +834,21 @@ public:
 	 */
 	static FName CreateFromDisplayId(FNameEntryId DisplayId, int32 Number)
 	{
+		check(ResolveEntry(DisplayId)->IsNumbered() == false); // This id should be unnumbered i.e. returned from GetDisplayIndex on an FName.
 		return FName(GetComparisonIdFromDisplayId(DisplayId), DisplayId, Number);
 	}
+
+#if UE_FNAME_OUTLINE_NUMBER
+	static FName FindNumberedName(FNameEntryId DisplayId, int32 Number);
+#endif //UE_FNAME_OUTLINE_NUMBER
 
 	/**
 	 * Default constructor, initialized to None
 	 */
 	FORCEINLINE FName()
+#if !UE_FNAME_OUTLINE_NUMBER
 		: Number(NAME_NO_NUMBER_INTERNAL)
+#endif //!UE_FNAME_OUTLINE_NUMBER
 	{
 	}
 
@@ -776,9 +862,16 @@ public:
 #endif
 	{}
 
+	FORCEINLINE explicit FName(FMinimalName InName);
+	FORCEINLINE explicit FName(FScriptName InName);
+	FORCEINLINE FName(FMemoryImageName InName);
+
 	/**
-	 * Create an FName. If FindType is FNAME_Find, and the string part of the name 
-	 * doesn't already exist, then the name will be NAME_None
+	 * Create an FName. If FindType is FNAME_Find, and the name 
+	 * doesn't already exist, then the name will be NAME_None.
+	 * The check for existance or not depends on UE_FNAME_OUTLINE_NUMBER.
+	 * When UE_FNAME_OUTLINE_NUMBER is 0, we only check for the string part.
+	 * When UE_FNAME_OUTLINE_NUMBER is 1, we check for whole name including the number.
 	 *
 	 * @param Name			Value for the string portion of the name
 	 * @param FindType		Action to take (see EFindName)
@@ -803,29 +896,52 @@ public:
 	}
 
 	/**
-	 * Create an FName. If FindType is FNAME_Find, and the string part of the name 
-	 * doesn't already exist, then the name will be NAME_None
+	 * Create an FName. Will add the string to the name table if it does not exist.
+	 * When UE_FNAME_OUTLINE_NUMBER is set, will also add the combination of base string and number to the name table if it doesn't exist.
 	 *
 	 * @param Name Value for the string portion of the name
 	 * @param Number Value for the number portion of the name
-	 * @param FindType Action to take (see EFindName)
-	 * @param bSplitName true if the trailing number should be split from the name when Number == NAME_NO_NUMBER_INTERNAL, or false to always use the name as-is
 	 */
-	FName(const WIDECHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
-	FName(const ANSICHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
-	FName(const UTF8CHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
-	FName(int32 Len, const WIDECHAR* Name, int32 Number, EFindName FindType = FNAME_Add);
-	FName(int32 Len, const ANSICHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
-	FName(int32 Len, const UTF8CHAR* Name, int32 InNumber, EFindName FindType = FNAME_Add);
+	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
+	FName(const WIDECHAR* Name, int32 Number, EFindName FindType);
+	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
+	FName(const ANSICHAR* Name, int32 Number, EFindName FindType);
+	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
+	FName(const UTF8CHAR* Name, int32 Number, EFindName FindType);
+	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
+	FName(int32 Len, const WIDECHAR* Name, int32 Number, EFindName FindType);
+	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
+	FName(int32 Len, const ANSICHAR* Name, int32 Number, EFindName FindType);
+	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
+	FName(int32 Len, const UTF8CHAR* Name, int32 Number, EFindName FindType);
+	FName(const WIDECHAR* Name, int32 Number);
+	FName(const ANSICHAR* Name, int32 Number);
+	FName(const UTF8CHAR* Name, int32 Number);
+	FName(int32 Len, const WIDECHAR* Name, int32 Number);
+	FName(int32 Len, const ANSICHAR* Name, int32 Number);
+	FName(int32 Len, const UTF8CHAR* Name, int32 Number);
 
 	template <typename CharRangeType,
 		typename CharType = typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type,
 		typename = decltype(ImplicitConv<TStringView<CharType>>(DeclVal<CharRangeType>()))>
-	inline FName(CharRangeType&& Name, int32 InNumber, EFindName FindType = FNAME_Add)
+	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
+	inline FName(CharRangeType&& Name, int32 InNumber, EFindName FindType)
+		: FName(NoInit)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		TStringView<CharType> View = Forward<CharRangeType>(Name);
+		*this = FName(View.Len(), View.GetData(), InNumber, FindType);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	template <typename CharRangeType,
+		typename CharType = typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type,
+		typename = decltype(ImplicitConv<TStringView<CharType>>(DeclVal<CharRangeType>()))>
+	inline FName(CharRangeType&& Name, int32 InNumber)
 		: FName(NoInit)
 	{
 		TStringView<CharType> View = Forward<CharRangeType>(Name);
-		*this = FName(View.Len(), View.GetData(), InNumber, FindType);
+		*this = FName(View.Len(), View.GetData(), InNumber);
 	}
 
 	/**
@@ -837,7 +953,9 @@ public:
 	 * @param FindType Action to take (see EFindName)
 	 * @param bSplitName true if the trailing number should be split from the name when Number == NAME_NO_NUMBER_INTERNAL, or false to always use the name as-is
 	 */
-	FName( const TCHAR* Name, int32 InNumber, EFindName FindType, bool bSplitName);
+	UE_DEPRECATED(5.1, "EFindName has been removed from constructors taking a Number argument to add clarity around UE_FNAME_OUTLINE_NUMBER.")
+	FName(const TCHAR* Name, int32 InNumber, EFindName FindType, bool bSplitName);
+	FName(const TCHAR* Name, int32 InNumber, bool bSplitName);
 
 	/**
 	 * Constructor used by FLinkerLoad when loading its name table; Creates an FName with an instance
@@ -890,6 +1008,13 @@ public:
 	 */
 	static int32 GetNumWideNames();
 
+#if UE_FNAME_OUTLINE_NUMBER
+	/**
+	 * @return number of numbered names in name table
+	 */
+	static int32 GetNumNumberedNames();
+#endif
+
 	static TArray<const FNameEntry*> DebugDump();
 
 	static FNameEntry const* GetEntry(EName Ename);
@@ -921,29 +1046,52 @@ public:
 	 */
 	static void TearDown();
 
-private:
+	/** Returns an integer that compares equal in the same way FNames do, only usable within the current process */
+#if UE_FNAME_OUTLINE_NUMBER
+	FORCEINLINE uint64 ToUnstableInt() const
+	{
+		return ComparisonIndex.ToUnstableInt();
+	}
+#else
+	FORCEINLINE uint64 ToUnstableInt() const
+	{
+		static_assert(STRUCT_OFFSET(FName, ComparisonIndex) == 0);
+		static_assert(STRUCT_OFFSET(FName, Number) == 4);
+		static_assert((STRUCT_OFFSET(FName, Number) + sizeof(Number)) == sizeof(uint64));
 
+		uint64 Out = 0;
+		FMemory::Memcpy(&Out, this, sizeof(uint64));
+		return Out;
+	}
+#endif
+
+private:
 	/** Index into the Names array (used to find String portion of the string/number pair used for comparison) */
 	FNameEntryId	ComparisonIndex;
+#if !UE_FNAME_OUTLINE_NUMBER
+	/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */
+	uint32			Number;
+#endif// ! //UE_FNAME_OUTLINE_NUMBER
 #if WITH_CASE_PRESERVING_NAME
 	/** Index into the Names array (used to find String portion of the string/number pair used for display) */
 	FNameEntryId	DisplayIndex;
 #endif // WITH_CASE_PRESERVING_NAME
-	/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */
-	uint32			Number;
-
-#if PLATFORM_64BITS && !WITH_CASE_PRESERVING_NAME
-	FORCEINLINE uint64 ToComparableInt() const
-	{
-		static_assert(sizeof(*this) == sizeof(uint64), "");
-		alignas(uint64) FName AlignedCopy = *this;
-		return reinterpret_cast<uint64&>(AlignedCopy);
-	}
-#endif
 
 	friend const TCHAR* DebugFName(int32);
 	friend const TCHAR* DebugFName(int32, int32);
 	friend const TCHAR* DebugFName(FName&);
+
+	friend struct FNameHelper;
+	friend FScriptName NameToScriptName(FName InName);
+	friend FMinimalName NameToMinimalName(FName InName);
+	friend uint32 GetTypeHash(FName Name);
+	friend FMinimalName::FMinimalName(const FName& Name);
+	friend FScriptName::FScriptName(const FName& Name);
+	friend FMemoryImageName::FMemoryImageName(const FName& Name);
+
+	friend bool operator==(FName Lhs, FMinimalName Rhs);
+	friend bool operator==(FName Lhs, FScriptName Rhs);
+	friend bool operator==(FName Lhs, FMemoryImageName Rhs);
 
 	FORCEINLINE FNameEntryId GetDisplayIndexFast() const
 	{
@@ -954,11 +1102,59 @@ private:
 #endif
 	}
 
+	// Accessor for unmodified comparison index when UE_FNAME_OUTLINE_NUMBER is set
+	FORCEINLINE FNameEntryId GetComparisonIndexInternal() const
+	{
+		return ComparisonIndex;
+	}
 
+	// Accessor for unmodified display index when UE_FNAME_OUTLINE_NUMBER is set
+	FORCEINLINE FNameEntryId GetDisplayIndexInternal() const
+	{
+#if WITH_CASE_PRESERVING_NAME
+		return DisplayIndex;
+#else // WITH_CASE_PRESERVING_NAME
+		return ComparisonIndex;
+#endif // WITH_CASE_PRESERVING_NAME
+	}
 
-
+	// Resolve the entry directly referred to by LookupId
+	static const FNameEntry* ResolveEntry(FNameEntryId LookupId);
+	// Recursively resolve through the entry referred to by LookupId to reach the allocated string entry, in the case of UE_FNAME_OUTLINE_NUMBER=1
+	static const FNameEntry* ResolveEntryRecursive(FNameEntryId LookupId);
 
 	static bool IsWithinBounds(FNameEntryId Id);
+
+	// These FNameEntryIds are passed in from user code so they must be non-numbered if Number != NAME_NO_NUMBER_INTERNAL
+#if UE_FNAME_OUTLINE_NUMBER
+	static FName CreateNumberedName(FNameEntryId ComparisonId, FNameEntryId DisplayId, int32 Number);
+#endif
+
+	FORCEINLINE static FName CreateNumberedNameIfNecessary(FNameEntryId ComparisonId, FNameEntryId DisplayId, int32 Number)
+	{
+#if UE_FNAME_OUTLINE_NUMBER
+		if (Number != NAME_NO_NUMBER_INTERNAL)
+		{
+			// We need to store a new entry in the name table
+			return CreateNumberedName(ComparisonId, DisplayId, Number);
+		}
+		// Otherwise we can just set the index members
+#endif
+		FName Out;
+		Out.ComparisonIndex = ComparisonId;
+#if WITH_CASE_PRESERVING_NAME
+		Out.DisplayIndex = DisplayId;
+#endif
+#if !UE_FNAME_OUTLINE_NUMBER
+		Out.Number = Number;
+#endif
+		return Out;
+	}
+
+	FORCEINLINE static FName CreateNumberedNameIfNecessary(FNameEntryId ComparisonId, int32 Number)
+	{
+		return CreateNumberedNameIfNecessary(ComparisonId, ComparisonId, Number);
+	}
 };
 
 template<> struct TIsZeroConstructType<class FName> { enum { Value = true }; };
@@ -966,30 +1162,400 @@ Expose_TNameOf(FName)
 
 namespace Freeze
 {
-	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FName& Object, const FTypeLayoutDesc&);
-	CORE_API uint32 IntrinsicAppendHash(const FName* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher);
-	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FMinimalName& Object, const FTypeLayoutDesc&);
+	// These structures mirror the layout of FMemoryImageName depending on the value of WITH_CASE_PRESERVING_NAME
+	// for use in memory image writing/unfreezing
+	template<bool bCasePreserving>
+	struct TMemoryImageNameLayout;
+
+	template<>
+	struct TMemoryImageNameLayout<false>
+	{
+		FNameEntryId	ComparisonIndex;
+		uint32			NumberOrDummy = 0;
+	};
+
+	template<>
+	struct TMemoryImageNameLayout<true> : public TMemoryImageNameLayout<false>
+	{
+		FNameEntryId	DisplayIndex;
+	};
+	
+	CORE_API uint32 IntrinsicAppendHash(const FMemoryImageName* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher);
+	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FMemoryImageName& Object, const FTypeLayoutDesc&);
+	CORE_API uint32 IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const FMemoryImageName& Object, void* OutDst);
 	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FScriptName& Object, const FTypeLayoutDesc&);
-	CORE_API uint32 IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, const FName& Object, void* OutDst);
 }
 
-DECLARE_INTRINSIC_TYPE_LAYOUT(FName);
-DECLARE_INTRINSIC_TYPE_LAYOUT(FMinimalName);
+FORCEINLINE FMemoryImageName::FMemoryImageName()
+{
+	// The structure must match the layout of Freeze::TMemoryImageNameLayout for the matching value of WITH_CASE_PRESERVING_NAME
+	static_assert(sizeof(FMemoryImageName) == sizeof(Freeze::TMemoryImageNameLayout<WITH_CASE_PRESERVING_NAME>));
+	static_assert(STRUCT_OFFSET(FMemoryImageName, ComparisonIndex) == STRUCT_OFFSET(Freeze::TMemoryImageNameLayout<WITH_CASE_PRESERVING_NAME>, ComparisonIndex));
+#if UE_FNAME_OUTLINE_NUMBER
+	static_assert(STRUCT_OFFSET(FMemoryImageName, Dummy) == STRUCT_OFFSET(Freeze::TMemoryImageNameLayout<WITH_CASE_PRESERVING_NAME>, NumberOrDummy));
+#else
+	static_assert(STRUCT_OFFSET(FMemoryImageName, Number) == STRUCT_OFFSET(Freeze::TMemoryImageNameLayout<WITH_CASE_PRESERVING_NAME>, NumberOrDummy));
+#endif
+#if WITH_CASE_PRESERVING_NAME
+	static_assert(STRUCT_OFFSET(FMemoryImageName, DisplayIndex) == STRUCT_OFFSET(Freeze::TMemoryImageNameLayout<WITH_CASE_PRESERVING_NAME>, DisplayIndex));
+#endif
+
+}
+
+FORCEINLINE FMemoryImageName::FMemoryImageName(EName Name)
+	: FMemoryImageName(FName(Name))
+{
+}
+
+DECLARE_INTRINSIC_TYPE_LAYOUT(FMemoryImageName);
 DECLARE_INTRINSIC_TYPE_LAYOUT(FScriptName);
 
+#if UE_FNAME_OUTLINE_NUMBER
 FORCEINLINE uint32 GetTypeHash(FName Name)
 {
-	return GetTypeHash(Name.GetComparisonIndex()) + Name.GetNumber();
+	return ::GetTypeHash(Name.GetComparisonIndexInternal());
 }
 
 FORCEINLINE uint32 GetTypeHash(FMinimalName Name)
 {
-	return GetTypeHash(Name.Index) + Name.Number;
+	return ::GetTypeHash(Name.Index);
 }
 
 FORCEINLINE uint32 GetTypeHash(FScriptName Name)
 {
-	return GetTypeHash(Name.ComparisonIndex) + Name.Number;
+	return ::GetTypeHash(Name.ComparisonIndex);
+}
+
+FORCEINLINE uint32 GetTypeHash(FMemoryImageName Name)
+{
+	return ::GetTypeHash(Name.ComparisonIndex);
+}
+
+FORCEINLINE FName::FName(FMinimalName InName)
+	: ComparisonIndex(InName.Index)
+#if WITH_CASE_PRESERVING_NAME
+	, DisplayIndex(InName.Index)
+#endif
+{
+}
+
+FORCEINLINE FName::FName(FScriptName InName)
+	: ComparisonIndex(InName.ComparisonIndex)
+#if WITH_CASE_PRESERVING_NAME
+	, DisplayIndex(InName.DisplayIndex)
+#endif
+{
+
+}
+
+FORCEINLINE FName::FName(FMemoryImageName InName)
+	: ComparisonIndex(InName.ComparisonIndex)
+#if WITH_CASE_PRESERVING_NAME
+	, DisplayIndex(InName.DisplayIndex)
+#endif
+{
+}
+
+FORCEINLINE FMinimalName::FMinimalName(const FName& Name)
+	: Index(Name.GetComparisonIndexInternal())
+{
+}
+
+FORCEINLINE FScriptName::FScriptName(const FName& Name)
+	: ComparisonIndex(Name.GetComparisonIndexInternal())
+#if WITH_CASE_PRESERVING_NAME
+	, DisplayIndex(Name.GetDisplayIndexInternal())
+#endif
+{
+}
+
+FORCEINLINE FMemoryImageName::FMemoryImageName(const FName& Name)
+	: ComparisonIndex(Name.GetComparisonIndexInternal())
+#if WITH_CASE_PRESERVING_NAME
+	, DisplayIndex(Name.GetDisplayIndexInternal())
+#endif
+{
+}
+
+FORCEINLINE bool FMinimalName::IsNone() const
+{
+	return Index.IsNone();
+}
+
+FORCEINLINE bool FMinimalName::operator<(FMinimalName Rhs) const
+{
+	return Index < Rhs.Index;
+}
+
+FORCEINLINE bool FScriptName::IsNone() const
+{
+	return ComparisonIndex.IsNone();
+}
+
+FORCEINLINE bool FMemoryImageName::IsNone() const
+{
+	return ComparisonIndex.IsNone();
+}
+
+FORCEINLINE bool FName::operator==(EName Ename) const
+{
+	return GetComparisonIndex() == Ename && GetNumber() == NAME_NO_NUMBER_INTERNAL;
+}
+
+FORCEINLINE bool operator==(FMinimalName Lhs, FMinimalName Rhs)
+{
+	return Lhs.Index == Rhs.Index;
+}
+
+FORCEINLINE bool operator==(FScriptName Lhs, FScriptName Rhs)
+{
+	return Lhs.ComparisonIndex == Rhs.ComparisonIndex;
+}
+
+FORCEINLINE bool operator==(FMemoryImageName Lhs, FMemoryImageName Rhs)
+{
+	return Lhs.ComparisonIndex == Rhs.ComparisonIndex;
+}
+
+FORCEINLINE bool operator==(FName Lhs, FMinimalName Rhs)
+{
+	return Lhs.GetComparisonIndexInternal() == Rhs.Index;
+}
+
+FORCEINLINE bool operator==(FName Lhs, FScriptName Rhs)
+{
+	return Lhs.GetComparisonIndexInternal() == Rhs.ComparisonIndex;
+}
+
+FORCEINLINE bool operator==(FName Lhs, FMemoryImageName Rhs)
+{
+	return Lhs.GetComparisonIndexInternal() == Rhs.ComparisonIndex;
+}
+
+FORCEINLINE bool FName::IsEqual(const FName& Rhs, const ENameCase CompareMethod /*= ENameCase::IgnoreCase*/, const bool bCompareNumber /*= true*/) const
+{
+	return bCompareNumber ?
+		(CompareMethod == ENameCase::IgnoreCase ? GetComparisonIndexInternal() == Rhs.GetComparisonIndexInternal() : GetDisplayIndexInternal() == Rhs.GetDisplayIndexInternal()) :  // Unresolved indices include the number, are stored in instances
+		(CompareMethod == ENameCase::IgnoreCase ? GetComparisonIndex() == Rhs.GetComparisonIndex() : GetDisplayIndex() == Rhs.GetDisplayIndex()); // Resolved indices, have to hit the name table
+}
+
+#else // UE_FNAME_OUTLINE_NUMBER
+FORCEINLINE uint32 GetTypeHash(FName Name)
+{
+	return ::GetTypeHash(Name.GetComparisonIndex()) + Name.GetNumber();
+}
+
+FORCEINLINE uint32 GetTypeHash(FMinimalName Name)
+{
+	return ::GetTypeHash(Name.Index) + Name.Number;
+}
+
+FORCEINLINE uint32 GetTypeHash(FScriptName Name)
+{
+	return ::GetTypeHash(Name.ComparisonIndex) + Name.Number;
+}
+
+FORCEINLINE uint32 GetTypeHash(FMemoryImageName Name)
+{
+	return ::GetTypeHash(Name.ComparisonIndex) + Name.Number;
+}
+
+FORCEINLINE FName::FName(FMinimalName InName)
+	: ComparisonIndex(InName.Index)
+	, Number(InName.Number)
+#if WITH_CASE_PRESERVING_NAME
+	, DisplayIndex(InName.Index)
+#endif
+{
+}
+
+FORCEINLINE FName::FName(FScriptName InName)
+	: ComparisonIndex(InName.ComparisonIndex)
+	, Number(InName.Number)
+#if WITH_CASE_PRESERVING_NAME
+	, DisplayIndex(InName.DisplayIndex)
+#endif
+{
+}
+
+FORCEINLINE FName::FName(FMemoryImageName InName)
+	: ComparisonIndex(InName.ComparisonIndex)
+	, Number(InName.Number)
+#if WITH_CASE_PRESERVING_NAME
+	, DisplayIndex(InName.DisplayIndex)
+#endif
+{
+}
+
+FORCEINLINE FMinimalName::FMinimalName(const FName& Name)
+	: Index(Name.GetComparisonIndexInternal())
+	, Number(Name.GetNumber())
+{
+}
+
+FORCEINLINE FScriptName::FScriptName(const FName& Name)
+	: ComparisonIndex(Name.GetComparisonIndexInternal())
+#if WITH_CASE_PRESERVING_NAME
+	, DisplayIndex(Name.GetDisplayIndexInternal())
+#endif
+	, Number(Name.GetNumber())
+{
+}
+
+FORCEINLINE FMemoryImageName::FMemoryImageName(const FName& Name)
+	: ComparisonIndex(Name.GetComparisonIndex())
+	, Number(Name.GetNumber())
+#if WITH_CASE_PRESERVING_NAME
+	, DisplayIndex(Name.GetDisplayIndex())
+#endif
+{
+}
+
+FORCEINLINE bool FMinimalName::IsNone() const
+{
+	return Index.IsNone() && Number == NAME_NO_NUMBER_INTERNAL;
+}
+
+FORCEINLINE bool FMinimalName::operator<(FMinimalName Rhs) const
+{
+	return Index == Rhs.Index ? Number < Rhs.Number : Index < Rhs.Index;
+}
+
+FORCEINLINE bool FScriptName::IsNone() const
+{
+	return ComparisonIndex.IsNone() && Number == NAME_NO_NUMBER_INTERNAL;
+}
+
+FORCEINLINE bool FMemoryImageName::IsNone() const
+{
+	return ComparisonIndex.IsNone() && Number == NAME_NO_NUMBER_INTERNAL;
+}
+
+FORCEINLINE bool FName::operator==(EName Ename) const
+{
+	return GetComparisonIndex() == Ename && GetNumber() == NAME_NO_NUMBER_INTERNAL;
+}
+
+FORCEINLINE bool operator==(FMinimalName Lhs, FMinimalName Rhs)
+{
+	return Lhs.Index == Rhs.Index && Lhs.Number == Rhs.Number;
+}
+
+FORCEINLINE bool operator==(FScriptName Lhs, FScriptName Rhs)
+{
+	return Lhs.ComparisonIndex == Rhs.ComparisonIndex && Lhs.Number == Rhs.Number;
+}
+
+FORCEINLINE bool operator==(FMemoryImageName Lhs, FMemoryImageName Rhs)
+{
+	return Lhs.ComparisonIndex == Rhs.ComparisonIndex && Lhs.Number == Rhs.Number;
+}
+
+FORCEINLINE bool operator==(FName Lhs, FMinimalName Rhs)
+{
+	return Lhs.GetComparisonIndex() == Rhs.Index && Lhs.GetNumber() == Rhs.Number;
+}
+
+FORCEINLINE bool operator==(FName Lhs, FScriptName Rhs)
+{
+	return Lhs.GetComparisonIndex() == Rhs.ComparisonIndex && Lhs.GetNumber() == Rhs.Number;
+}
+
+FORCEINLINE bool operator==(FName Lhs, FMemoryImageName Rhs)
+{
+	return Lhs.GetComparisonIndex() == Rhs.ComparisonIndex && Lhs.GetNumber() == Rhs.Number;
+}
+
+FORCEINLINE bool FName::IsEqual(const FName& Rhs, const ENameCase CompareMethod /*= ENameCase::IgnoreCase*/, const bool bCompareNumber /*= true*/) const
+{
+	return ((CompareMethod == ENameCase::IgnoreCase) ? GetComparisonIndex() == Rhs.GetComparisonIndex() : GetDisplayIndexFast() == Rhs.GetDisplayIndexFast())
+		&& (!bCompareNumber || GetNumber() == Rhs.GetNumber());
+}
+#endif // UE_FNAME_OUTLINE_NUMBER
+
+FORCEINLINE FName MinimalNameToName(FMinimalName InName)
+{
+	return FName(InName);
+}
+
+FORCEINLINE FName ScriptNameToName(FScriptName InName)
+{
+	return FName(InName);
+}
+
+FORCEINLINE FMinimalName NameToMinimalName(FName InName)
+{
+	return FMinimalName(InName);
+}
+
+FORCEINLINE FScriptName NameToScriptName(FName InName)
+{
+	return FScriptName(InName);
+}
+
+FORCEINLINE bool operator==(FMinimalName Lhs, FName Rhs)
+{
+	return operator==(Rhs, Lhs);
+}
+
+FORCEINLINE bool operator==(FScriptName Lhs, FName Rhs)
+{
+	return operator==(Rhs, Lhs);
+}
+
+FORCEINLINE bool operator==(FMemoryImageName Lhs, FName Rhs)
+{
+	return operator==(Rhs, Lhs);
+}
+
+FORCEINLINE bool operator!=(FMinimalName Lhs, FMinimalName Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator!=(FMinimalName Lhs, FName Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator!=(FScriptName Lhs, FScriptName Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator!=(FScriptName Lhs, FName Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator!=(FMemoryImageName Lhs, FMemoryImageName Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator!=(FMemoryImageName Lhs, FName Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator!=(FName Lhs, FMinimalName Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator!=(FName Lhs, FScriptName Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator!=(FName Lhs, FMemoryImageName Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool FName::operator!=(EName Ename) const
+{
+	return !(*this == Ename);
 }
 
 FORCEINLINE FString LexToString(const FName& Name)
@@ -1000,26 +1566,6 @@ FORCEINLINE FString LexToString(const FName& Name)
 FORCEINLINE void LexFromString(FName& Name, const TCHAR* Str)
 {
 	Name = FName(Str);
-}
-
-FORCEINLINE FMinimalName NameToMinimalName(const FName& InName)
-{
-	return FMinimalName(InName.GetComparisonIndex(), InName.GetNumber());
-}
-
-FORCEINLINE FName MinimalNameToName(const FMinimalName& InName)
-{
-	return FName(InName.Index, InName.Index, InName.Number);
-}
-
-FORCEINLINE FScriptName NameToScriptName(const FName& InName)
-{
-	return FScriptName(InName.GetComparisonIndex(), InName.GetDisplayIndex(), InName.GetNumber());
-}
-
-FORCEINLINE FName ScriptNameToName(const FScriptName& InName)
-{
-	return FName(InName.ComparisonIndex, InName.DisplayIndex, InName.Number);
 }
 
 inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FName& Name)
@@ -1089,66 +1635,6 @@ struct FNameLexicalLess
 		return A.LexicalLess(B);
 	}
 };
-
-FORCEINLINE bool operator==(const FMinimalName& Lhs, const FMinimalName& Rhs)
-{
-	return Lhs.Number == Rhs.Number && Lhs.Index == Rhs.Index;
-}
-
-FORCEINLINE bool operator!=(const FMinimalName& Lhs, const FMinimalName& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
-
-FORCEINLINE bool operator==(const FScriptName& Lhs, const FScriptName& Rhs)
-{
-	return Lhs.Number == Rhs.Number && Lhs.ComparisonIndex == Rhs.ComparisonIndex;
-}
-
-FORCEINLINE bool operator!=(const FScriptName& Lhs, const FScriptName& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
-
-FORCEINLINE bool operator==(const FName& Lhs, const FMinimalName& Rhs)
-{
-	return Lhs.GetNumber() == Rhs.Number && Lhs.GetComparisonIndex() == Rhs.Index;
-}
-
-FORCEINLINE bool operator!=(const FName& Lhs, const FMinimalName& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
-
-FORCEINLINE bool operator==(const FMinimalName& Lhs, const FName& Rhs)
-{
-	return Lhs.Number == Rhs.GetNumber() && Lhs.Index == Rhs.GetComparisonIndex();
-}
-
-FORCEINLINE bool operator!=(const FMinimalName& Lhs, const FName& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
-
-FORCEINLINE bool operator==(const FName& Lhs, const FScriptName& Rhs)
-{
-	return Lhs.GetNumber() == Rhs.Number && Lhs.GetComparisonIndex() == Rhs.ComparisonIndex;
-}
-
-FORCEINLINE bool operator!=(const FName& Lhs, const FScriptName& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
-
-FORCEINLINE bool operator==(const FScriptName& Lhs, const FName& Rhs)
-{
-	return Lhs.Number == Rhs.GetNumber() && Lhs.ComparisonIndex == Rhs.GetComparisonIndex();
-}
-
-FORCEINLINE bool operator!=(const FScriptName& Lhs, const FName& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
 
 #ifndef WITH_CUSTOM_NAME_ENCODING
 inline void FNameEntry::Encode(ANSICHAR*, uint32) {}

@@ -296,6 +296,35 @@ bool FObjectPtrTestHashConsistency::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestLongPath, FObjectPtrTestBase, TEST_NAME_ROOT TEXT(".LongPath"), ObjectPtrTestFlags)
+bool FObjectPtrTestLongPath::RunTest(const FString& Parameters)
+{
+	const FName TestPackage1Name(TEXT("/Engine/Test/FObjectPtrTestLongPath/Transient"));
+	UPackage* TestPackage1 = NewObject<UPackage>(nullptr, TestPackage1Name, RF_Transient);
+	TestPackage1->AddToRoot();
+
+	ON_SCOPE_EXIT{
+		TestPackage1->RemoveFromRoot();
+	};
+
+	UObject* TestObject1 = NewObject<UTestDummyObject>(TestPackage1, TEXT("TestObject1"));
+	UObject* TestObject2 = NewObject<UTestDummyObject>(TestObject1, TEXT("TestObject2"));
+	UObject* TestObject3 = NewObject<UTestDummyObject>(TestObject2, TEXT("TestObject3"));
+	UObject* TestObject4 = NewObject<UTestDummyObject>(TestObject3, TEXT("TestObject4"));
+
+	FObjectPathId LongPath(TestObject4);
+	FObjectPathId::ResolvedNameContainerType ResolvedNames;
+	LongPath.Resolve(ResolvedNames);
+
+	TestEqual(TEXT("Resolved path from FObjectPathId should have 4 elements"), ResolvedNames.Num(), 4);
+	TestEqual(TEXT("Resolved path from FObjectPathId should have TestObject1 at element 0"), ResolvedNames[0], TestObject1->GetFName());
+	TestEqual(TEXT("Resolved path from FObjectPathId should have TestObject2 at element 1"), ResolvedNames[1], TestObject2->GetFName());
+	TestEqual(TEXT("Resolved path from FObjectPathId should have TestObject3 at element 2"), ResolvedNames[2], TestObject3->GetFName());
+	TestEqual(TEXT("Resolved path from FObjectPathId should have TestObject4 at element 3"), ResolvedNames[3], TestObject4->GetFName());
+
+	return true;
+}
+
 // @TODO: OBJPTR: We should have a test that ensures that lazy loading of an object with an external package is handled correctly.
 //				  This should also include external packages in the outer chain of the target object.
 // IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestExternalPackages, FObjectPtrTestBase, TEST_NAME_ROOT TEXT(".ExternalPackages"), ObjectPtrTestFlags)

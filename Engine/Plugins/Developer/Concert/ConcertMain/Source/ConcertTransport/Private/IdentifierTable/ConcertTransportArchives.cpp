@@ -101,7 +101,7 @@ FArchive& FConcertIdentifierReader::operator<<(FName& Name)
 		{
 			FString PlainString;
 			*this << PlainString;
-			Name = FName(*PlainString, NAME_NO_NUMBER_INTERNAL, FNAME_Add, /*bSplitName*/false);
+			Name = FName(*PlainString, NAME_NO_NUMBER_INTERNAL, /*bSplitName*/false);
 		}
 		break;
 

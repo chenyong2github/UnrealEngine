@@ -252,7 +252,7 @@ void FNiagaraRendererRibbons::CreateRenderThreadResources()
 		FRayTracingGeometryInitializer Initializer;
 		static const FName DebugName("FNiagaraRendererRibbons");
 		static int32 DebugNumber = 0;
-		Initializer.DebugName = FName(DebugName, DebugNumber++);
+		Initializer.DebugName = FDebugName(DebugName, DebugNumber++);
 		Initializer.IndexBuffer = nullptr;
 		Initializer.TotalPrimitiveCount = 0;
 		Initializer.GeometryType = RTGT_Triangles;

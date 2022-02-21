@@ -1007,16 +1007,16 @@ FNetworkGUID UPackageMapClient::InternalLoadObject( FArchive & Ar, UObject *& Ob
 
 		FNetworkGUID OuterGUID = InternalLoadObject( Ar, ObjOuter, InternalLoadObjectRecursionCount + 1 );
 
-		FString PathName;
+		FString ObjectName;
 		uint32	NetworkChecksum = 0;
 
-		Ar << PathName;
+		Ar << ObjectName;
 
 		if ( ExportFlags.bHasNetworkChecksum )
 		{
 			Ar << NetworkChecksum;
 
-			UE_LOG(LogNetPackageMap, Verbose, TEXT("%s has network checksum %u"), *PathName, NetworkChecksum);
+			UE_LOG(LogNetPackageMap, Verbose, TEXT("%s has network checksum %u"), *ObjectName, NetworkChecksum);
 		}
 
 		const bool bIsPackage = NetGUID.IsStatic() && !OuterGUID.IsValid();
@@ -1029,7 +1029,7 @@ FNetworkGUID UPackageMapClient::InternalLoadObject( FArchive & Ar, UObject *& Ob
 		}
 
 		// Remap name for PIE
-		GEngine->NetworkRemapPath( Connection, PathName, true );
+		GEngine->NetworkRemapPath( Connection, ObjectName, true );
 
 		if (NetGUID.IsDefault())
 		{
@@ -1042,28 +1042,29 @@ FNetworkGUID UPackageMapClient::InternalLoadObject( FArchive & Ar, UObject *& Ob
 			// relative path name is meaningless. This may happen if the outer has been garbage collected.
 			if (!bIsPackage && OuterGUID.IsValid() && ObjOuter == nullptr)
 			{
-				UE_LOG( LogNetPackageMap, Log, TEXT( "InternalLoadObject: couldn't find outer for non-package object. GUID: %s, PathName: %s" ), *NetGUID.ToString(), *PathName );
+				UE_LOG( LogNetPackageMap, Log, TEXT( "InternalLoadObject: couldn't find outer for non-package object. GUID: %s, ObjectName: %s" ), *NetGUID.ToString(), *ObjectName );
 				Object = nullptr;
 				return NetGUID;
 			}
 
-			Object = StaticFindObject(UObject::StaticClass(), ObjOuter, *PathName, false);
+			Object = StaticFindObject(UObject::StaticClass(), ObjOuter, *ObjectName, false);
 
+			// Try to load package if it wasn't found. Note load package fails if the package is already loaded.
 			if (Object == nullptr && bIsPackage)
 			{
-				// Try to load package if it wasn't found. Note load package fails if the package is already loaded.
-				Object = LoadPackage(NULL, *PathName, LOAD_None);
+				FPackagePath Path = FPackagePath::FromPackageNameChecked(ObjectName);
+				Object = LoadPackage(nullptr, Path, LOAD_None);
 			}
 
 			if ( Object == NULL )
 			{
-				UE_LOG( LogNetPackageMap, Warning, TEXT( "UPackageMapClient::InternalLoadObject: Unable to resolve default guid from client: PathName: %s, ObjOuter: %s " ), *PathName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT( "NULL" ) );
+				UE_LOG( LogNetPackageMap, Warning, TEXT( "UPackageMapClient::InternalLoadObject: Unable to resolve default guid from client: ObjectName: %s, ObjOuter: %s " ), *ObjectName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT( "NULL" ) );
 				return NetGUID;
 			}
 
 			if (!IsValid(Object))
 			{
-				UE_LOG( LogNetPackageMap, Warning, TEXT( "UPackageMapClient::InternalLoadObject: Received reference to invalid object from client: PathName: %s, ObjOuter: %s "), *PathName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT( "NULL" ) );
+				UE_LOG( LogNetPackageMap, Warning, TEXT( "UPackageMapClient::InternalLoadObject: Received reference to invalid object from client: ObjectName: %s, ObjOuter: %s "), *ObjectName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT( "NULL" ) );
 				Object = NULL;
 				return NetGUID;
 			}
@@ -1074,7 +1075,7 @@ FNetworkGUID UPackageMapClient::InternalLoadObject( FArchive & Ar, UObject *& Ob
 
 				if (CompareNetworkChecksum != NetworkChecksum )
 				{
-					FString ErrorStr = FString::Printf(TEXT("UPackageMapClient::InternalLoadObject: Default object package network checksum mismatch! PathName: %s, ObjOuter: %s, GUID1: %u, GUID2: %u "), *PathName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT("NULL"), CompareNetworkChecksum, NetworkChecksum);
+					FString ErrorStr = FString::Printf(TEXT("UPackageMapClient::InternalLoadObject: Default object package network checksum mismatch! ObjectName: %s, ObjOuter: %s, GUID1: %u, GUID2: %u "), *ObjectName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT("NULL"), CompareNetworkChecksum, NetworkChecksum);
 					UE_LOG( LogNetPackageMap, Error, TEXT("%s"), *ErrorStr);
 					Object = NULL;
 
@@ -1089,7 +1090,7 @@ FNetworkGUID UPackageMapClient::InternalLoadObject( FArchive & Ar, UObject *& Ob
 
 				if ( Package == NULL )
 				{
-					UE_LOG( LogNetPackageMap, Error, TEXT( "UPackageMapClient::InternalLoadObject: Default object not a package from client: PathName: %s, ObjOuter: %s " ), *PathName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT( "NULL" ) );
+					UE_LOG( LogNetPackageMap, Error, TEXT( "UPackageMapClient::InternalLoadObject: Default object not a package from client: ObjectName: %s, ObjOuter: %s " ), *ObjectName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT( "NULL" ) );
 					Object = NULL;
 					return NetGUID;
 				}
@@ -1106,14 +1107,14 @@ FNetworkGUID UPackageMapClient::InternalLoadObject( FArchive & Ar, UObject *& Ob
 		else if ( Object != nullptr )
 		{
 			// If we already have the object, just do some sanity checking and return
-			SanityCheckExport( GuidCache.Get(), Object, NetGUID, PathName, ObjOuter, OuterGUID, ExportFlags );
+			SanityCheckExport( GuidCache.Get(), Object, NetGUID, ObjectName, ObjOuter, OuterGUID, ExportFlags );
 			return NetGUID;
 		}
 
 		// If we are the server, we should have found the object by now
 		if ( IsNetGUIDAuthority() )
 		{
-			UE_LOG( LogNetPackageMap, Warning, TEXT( "UPackageMapClient::InternalLoadObject: Server could not resolve non default guid from client. PathName: %s, ObjOuter: %s " ), *PathName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT( "NULL" ) );
+			UE_LOG( LogNetPackageMap, Warning, TEXT( "UPackageMapClient::InternalLoadObject: Server could not resolve non default guid from client. ObjectName: %s, ObjOuter: %s " ), *ObjectName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT( "NULL" ) );
 			return NetGUID;
 		}
 
@@ -1124,14 +1125,14 @@ FNetworkGUID UPackageMapClient::InternalLoadObject( FArchive & Ar, UObject *& Ob
 		const bool bIgnoreWhenMissing = ExportFlags.bNoLoad;
 
 		// Register this path and outer guid combo with the net guid
-		GuidCache->RegisterNetGUIDFromPath_Client( NetGUID, PathName, OuterGUID, NetworkChecksum, ExportFlags.bNoLoad, bIgnoreWhenMissing );
+		GuidCache->RegisterNetGUIDFromPath_Client( NetGUID, ObjectName, OuterGUID, NetworkChecksum, ExportFlags.bNoLoad, bIgnoreWhenMissing );
 
 		// Try again now that we've registered the path
 		Object = GuidCache->GetObjectFromNetGUID( NetGUID, GuidCache->IsExportingNetGUIDBunch );
 
 		if ( Object == NULL && !GuidCache->ShouldIgnoreWhenMissing( NetGUID ) )
 		{
-			UE_LOG( LogNetPackageMap, Warning, TEXT( "InternalLoadObject: Unable to resolve object from path. Path: %s, Outer: %s, NetGUID: %s" ), *PathName, ObjOuter ? *ObjOuter->GetPathName() : TEXT( "NULL" ), *NetGUID.ToString() );
+			UE_LOG( LogNetPackageMap, Warning, TEXT( "InternalLoadObject: Unable to resolve object from path. Path: %s, Outer: %s, NetGUID: %s" ), *ObjectName, ObjOuter ? *ObjOuter->GetPathName() : TEXT( "NULL" ), *NetGUID.ToString() );
 		}
 	}
 	else if ( Object == NULL && !GuidCache->ShouldIgnoreWhenMissing( NetGUID ) )
@@ -3270,7 +3271,7 @@ UObject* FNetGUIDCache::GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const
 	}
 
 	// See if this object is in memory
-	Object = StaticFindObject( UObject::StaticClass(), ObjOuter, *CacheObjectPtr->PathName.ToString(), false );
+	Object = FindObjectFast<UObject>(ObjOuter, CacheObjectPtr->PathName);
 
 	// Assume this is a package if the outer is invalid and this is a static guid
 	const bool bIsPackage = NetGUID.IsStatic() && !CacheObjectPtr->OuterGUID.IsValid();
@@ -3310,7 +3311,8 @@ UObject* FNetGUIDCache::GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const
 			else
 			{
 				// Async loading disabled
-				Object = LoadPackage( NULL, *CacheObjectPtr->PathName.ToString(), LOAD_None );
+				FPackagePath Path = FPackagePath::FromPackageNameChecked(CacheObjectPtr->PathName);
+				Object = LoadPackage(nullptr, Path, LOAD_None);
 				SyncLoadedGUIDs.AddUnique(NetGUID);
 			}
 		}

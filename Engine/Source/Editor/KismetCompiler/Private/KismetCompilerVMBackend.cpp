@@ -73,11 +73,12 @@ public:
 	{
 		FArchive& Ar = *this;
 
-		// We can't call Serialize directly as we need to store the data endian clean.
-		FScriptName ScriptName = NameToScriptName(Name);
-		Ar << ScriptName.ComparisonIndex;
-		Ar << ScriptName.DisplayIndex;
-		Ar << ScriptName.Number;
+		// This must match the format and endianness expected by XFERNAME 
+		FNameEntryId ComparisonIndex = Name.GetComparisonIndex(), DisplayIndex = Name.GetDisplayIndex();
+		uint32 Number = Name.GetNumber();
+		Ar << ComparisonIndex;
+		Ar << DisplayIndex;
+		Ar << Number;
 
 		return Ar;
 	}

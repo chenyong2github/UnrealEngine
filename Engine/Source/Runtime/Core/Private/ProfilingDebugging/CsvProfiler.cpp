@@ -1774,7 +1774,7 @@ public:
 
 private:
 	static CSV_PROFILER_INLINE uint64 GetStatID(const char* StatName) { return uint64(StatName); }
-	static CSV_PROFILER_INLINE uint64 GetStatID(const FName& StatId) { return StatId.GetComparisonIndex().ToUnstableInt(); }
+	static CSV_PROFILER_INLINE uint64 GetStatID(const FName& StatId) { return StatId.ToUnstableInt(); }
 
 	static FCriticalSection TlsCS;
 	static TArray<FWeakPtr> TlsInstances;
