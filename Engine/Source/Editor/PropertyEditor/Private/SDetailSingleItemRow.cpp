@@ -1015,7 +1015,7 @@ const UStruct* GetExactStructForProperty(const UStruct* MostDerivedStruct, const
 	return MostDerivedStruct;
 }
 
-void SDetailSingleItemRow::CopyRowNameText() const
+FString SDetailSingleItemRow::GetRowNameText() const
 {
 	if (const TSharedPtr<FDetailTreeNode> Owner = OwnerTreeNode.Pin())
 	{
@@ -1023,8 +1023,18 @@ void SDetailSingleItemRow::CopyRowNameText() const
 		if (BaseStructure)
 		{
 			const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
-			FPlatformApplicationMisc::ClipboardCopy(*FString::Printf(TEXT("(%s, %s)"), *FSoftObjectPtr(ExactStruct).ToString(), *Owner->GetNodeName().ToString()));
+			return FString::Printf(TEXT("(%s, %s)"), *FSoftObjectPtr(ExactStruct).ToString(), *Owner->GetNodeName().ToString());
 		}
+	}
+	return FString();
+}
+
+void SDetailSingleItemRow::CopyRowNameText() const
+{
+	const FString RowNameText = GetRowNameText();
+	if (!RowNameText.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*RowNameText);
 	}
 }
 
@@ -1038,10 +1048,12 @@ void SDetailSingleItemRow::OnToggleAllowList() const
 		if (IsAllowListChecked())
 		{
 			FPropertyEditorPermissionList::Get().RemoveFromAllowList(ExactStruct, Owner->GetNodeName(), OwnerName);
+			UE_LOG(LogPropertyEditorPermissionList, Log, TEXT("Removing %s from AllowList"), *GetRowNameText());
 		}
 		else
 		{
 			FPropertyEditorPermissionList::Get().AddToAllowList(ExactStruct, Owner->GetNodeName(), OwnerName);
+			UE_LOG(LogPropertyEditorPermissionList, Log, TEXT("Adding %s to AllowList"), *GetRowNameText());
 		}
 	}
 }
@@ -1066,10 +1078,12 @@ void SDetailSingleItemRow::OnToggleDenyList() const
 		if (IsDenyListChecked())
 		{
 			FPropertyEditorPermissionList::Get().RemoveFromDenyList(ExactStruct, Owner->GetNodeName(), OwnerName);
+			UE_LOG(LogPropertyEditorPermissionList, Log, TEXT("Removing %s from DenyList"), *GetRowNameText());
 		}
 		else
 		{
 			FPropertyEditorPermissionList::Get().AddToDenyList(ExactStruct, Owner->GetNodeName(), OwnerName);
+			UE_LOG(LogPropertyEditorPermissionList, Log, TEXT("Adding %s to AllowList"), *GetRowNameText());
 		}
 	}
 }

@@ -6,6 +6,8 @@
 #include "Misc/CoreDelegates.h"
 #include "UObject/UnrealType.h"
 
+DEFINE_LOG_CATEGORY(LogPropertyEditorPermissionList);
+
 namespace
 {
 	const FName PropertyEditorPermissionListOwner = "PropertyEditorPermissionList";

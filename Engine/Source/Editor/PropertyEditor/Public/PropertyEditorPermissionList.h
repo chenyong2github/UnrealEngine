@@ -7,6 +7,8 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Misc/NamePermissionList.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogPropertyEditorPermissionList, Log, All);
+
 /** Struct, OwnerName */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FPermissionListUpdated, TSoftObjectPtr<UStruct>, FName);
 

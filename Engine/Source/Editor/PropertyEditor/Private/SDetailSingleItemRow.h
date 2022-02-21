@@ -89,8 +89,9 @@ private:
 	void OnFavoriteMenuToggle();
 	bool CanFavorite() const;
 	bool IsFavorite() const;
-
+	
 	/** UIActions to help populate the PropertyEditorPermissionList, which must first be turned on through FPropertyEditorPermissionList::Get().SetShouldShowMenuEntries */
+	FString GetRowNameText() const;
 	void CopyRowNameText() const;
 	void OnToggleAllowList() const;
 	bool IsAllowListChecked() const;
