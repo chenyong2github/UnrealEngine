@@ -341,7 +341,7 @@ void UActorComponent::PostInitProperties()
 	// Instance components will be added during the owner's initialization
 	if (OwnerPrivate && CreationMethod != EComponentCreationMethod::Instance)
 	{
-		if (!FPlatformProperties::RequiresCookedData() && CreationMethod == EComponentCreationMethod::Native && HasAllFlags(RF_NeedLoad|RF_DefaultSubObject))
+		if (!FPlatformProperties::RequiresCookedData() && !OwnerPrivate->GetClass()->bCooked && CreationMethod == EComponentCreationMethod::Native && HasAllFlags(RF_NeedLoad|RF_DefaultSubObject))
 		{
 			UObject* MyArchetype = GetArchetype();
 			if (IsValid(MyArchetype) && MyArchetype != GetClass()->ClassDefaultObject)
