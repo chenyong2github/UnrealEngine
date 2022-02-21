@@ -156,7 +156,7 @@ public:
 	void CompileFunctions(EInternalCompilerFlags InternalFlags);
 
 	/** Called after the CDO has been generated, allows assignment of cached/derived data: */
-	void PostCDOCompiled();
+	void PostCDOCompiled(const UObject::FPostCDOCompiledContext& Context);
 
 	/** Compile a blueprint into a class and a set of functions */
 	void Compile();
@@ -289,7 +289,7 @@ protected:
 	virtual void PostCreateSchema();
 	virtual void SpawnNewClass(const FString& NewClassName);
 	virtual void OnNewClassSet(UBlueprintGeneratedClass* ClassToUse) {}
-	virtual void OnPostCDOCompiled() {}
+	virtual void OnPostCDOCompiled(const UObject::FPostCDOCompiledContext& Context) {}
 
 	/**
 	 * Backwards Compatability:  Ensures that the passed in TargetClass is of the proper type (e.g. BlueprintGeneratedClass, AnimBlueprintGeneratedClass), and NULLs the reference if it is not 

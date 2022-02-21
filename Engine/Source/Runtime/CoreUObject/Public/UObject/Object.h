@@ -216,10 +216,24 @@ public:
 	}
 
 #if WITH_EDITOR
+	struct FPostCDOCompiledContext
+	{
+		/** True if this notification was from a 'skeleton-only' compile */
+		bool bIsSkeletonOnly = false;
+	};
+
 	/**
 	 * Called after the Blueprint compiler has finished generating the Class Default Object (CDO) for a class. This can only happen in the editor.
 	 * This is called when the CDO and its associated class structure have been fully generated and populated, and allows the assignment of cached/derived data, 
 	 * eg) caching the name/count of properties of a certain type, or inspecting the properties on the class and using their meta-data and CDO default values to derive game data.
+	 */
+	virtual void PostCDOCompiled(const FPostCDOCompiledContext& Context)
+	{
+	}
+
+	/**
+	 * Called after the Blueprint compiler has finished generating the Class Default Object (CDO) for a class. This can only happen in the editor.
+	 * @note This version is deprecated as it wasn't called for skeleton-only compilation. Use the version taking FPostCDOCompiledContext instead.
 	 */
 	virtual void PostCDOCompiled()
 	{

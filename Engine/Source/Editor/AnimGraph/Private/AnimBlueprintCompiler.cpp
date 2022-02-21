@@ -1335,8 +1335,13 @@ void FAnimBlueprintCompilerContext::SpawnNewClass(const FString& NewClassName)
 	});
 }
 
-void FAnimBlueprintCompilerContext::OnPostCDOCompiled()
+void FAnimBlueprintCompilerContext::OnPostCDOCompiled(const UObject::FPostCDOCompiledContext& Context)
 {
+	if (Context.bIsSkeletonOnly)
+	{
+		return;
+	}
+
 	UAnimBlueprintGeneratedClass* NewAnimBlueprintClass = GetNewAnimBlueprintClass();
 	NewAnimBlueprintClass->OnPostLoadDefaults(NewAnimBlueprintClass->ClassDefaultObject);
 }

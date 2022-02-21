@@ -4741,7 +4741,7 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 			PropagateValuesToCDO(NewCDO, OldCDO);
 
 			// Perform any fixup or caching based on the new CDO.
-			PostCDOCompiled();
+			PostCDOCompiled(UObject::FPostCDOCompiledContext());
 		}
 
 		// Note: The old->new CDO copy is deferred when regenerating, so we skip this step in that case.
@@ -5037,13 +5037,17 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 	PostCompile();
 }
 
-void FKismetCompilerContext::PostCDOCompiled()
+void FKismetCompilerContext::PostCDOCompiled(const UObject::FPostCDOCompiledContext& Context)
 {
 	// Notify the CDO that it has finished compiling
-	NewClass->ClassDefaultObject->PostCDOCompiled();
+	NewClass->ClassDefaultObject->PostCDOCompiled(Context);
+	if (!Context.bIsSkeletonOnly)
+	{
+		NewClass->ClassDefaultObject->PostCDOCompiled();
+	}
 
 	// Allow children to customize PostCDOCompile:
-	OnPostCDOCompiled();
+	OnPostCDOCompiled(Context);
 }
 
 void FKismetCompilerContext::Compile()

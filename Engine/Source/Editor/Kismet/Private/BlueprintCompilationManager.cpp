@@ -1478,9 +1478,12 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 		{
 			DECLARE_SCOPE_HIERARCHICAL_COUNTER(PostCDOCompiled)
 
-			if(!CompilerData.IsSkeletonOnly() && CompilerData.Compiler.IsValid())
+			if (CompilerData.Compiler.IsValid())
 			{
-				CompilerData.Compiler->PostCDOCompiled();
+				UObject::FPostCDOCompiledContext PostCDOCompiledContext;
+				PostCDOCompiledContext.bIsSkeletonOnly = CompilerData.IsSkeletonOnly();
+
+				CompilerData.Compiler->PostCDOCompiled(PostCDOCompiledContext);
 			}
 		}
 

@@ -988,9 +988,14 @@ private:
 };
 
 
-void FWidgetBlueprintCompilerContext::OnPostCDOCompiled()
+void FWidgetBlueprintCompilerContext::OnPostCDOCompiled(const UObject::FPostCDOCompiledContext& Context)
 {
-	Super::OnPostCDOCompiled();
+	Super::OnPostCDOCompiled(Context);
+
+	if (Context.bIsSkeletonOnly)
+	{
+		return;
+	}
 
 	WidgetToMemberVariableMap.Empty();
 	WidgetAnimToMemberVariableMap.Empty();

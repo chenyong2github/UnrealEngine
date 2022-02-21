@@ -69,7 +69,7 @@ protected:
 	virtual void CopyTermDefaultsToDefaultObject(UObject* DefaultObject);
 	virtual void FinishCompilingClass(UClass* Class) override;
 	virtual bool ValidateGeneratedClass(UBlueprintGeneratedClass* Class) override;
-	virtual void OnPostCDOCompiled() override;
+	virtual void OnPostCDOCompiled(const UObject::FPostCDOCompiledContext& Context) override;
 	// End FKismetCompilerContext
 
 	void SanitizeBindings(UBlueprintGeneratedClass* Class);

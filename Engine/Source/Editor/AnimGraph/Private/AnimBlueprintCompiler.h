@@ -63,7 +63,7 @@ protected:
 	virtual void ProcessOneFunctionGraph(UEdGraph* SourceGraph, bool bInternalFunction = false) override;
 	virtual void SpawnNewClass(const FString& NewClassName) override;
 	virtual void OnNewClassSet(UBlueprintGeneratedClass* ClassToUse) override;
-	virtual void OnPostCDOCompiled() override;
+	virtual void OnPostCDOCompiled(const UObject::FPostCDOCompiledContext& Context) override;
 	virtual void CopyTermDefaultsToDefaultObject(UObject* DefaultObject) override;
 	virtual void PostCompile() override;
 	virtual void PostCompileDiagnostics() override;

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Blueprint/StateTreeItemBlueprintBase.h"
 #include "CoreMinimal.h"
@@ -31,8 +31,13 @@ AActor* UStateTreeItemBlueprintBase::GetOwnerActor(const FStateTreeExecutionCont
 }
 
 #if WITH_EDITOR
-void UStateTreeItemBlueprintBase::PostCDOCompiled()
+void UStateTreeItemBlueprintBase::PostCDOCompiled(const FPostCDOCompiledContext& Context)
 {
+	if (Context.bIsSkeletonOnly)
+	{
+		return;
+	}
+
 	// Save some property data for runtime use.
 	PropertyInfos.Reset();
 
