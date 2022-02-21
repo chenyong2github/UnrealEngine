@@ -755,23 +755,40 @@ FString FHlslNiagaraTranslator::BuildParameterMapHlslDefinitions(TArray<FNiagara
 		TArray<FNiagaraVariable> Vars = OtherOutputParamMapHistories[ParamMapIdx].Variables;
 		for (const FNiagaraVariableBase& Var : CompileOptions.AdditionalVariables)
 		{
-			uint32 Uses = 0;
+			bool bFoundSource = false;
 			if (FNiagaraParameterMapHistory::IsPreviousValue(Var))
 			{
 				FNiagaraVariable Source = FNiagaraParameterMapHistory::GetSourceForPreviousValue(FNiagaraVariable(Var));
-				for (int32 ParamMapIdxTest = 0; ParamMapIdxTest < OtherOutputParamMapHistories.Num(); ParamMapIdxTest++)
-				{				
+				const FNiagaraTypeDefinition& SourceType = Source.GetType();
 
-					if (OtherOutputParamMapHistories[ParamMapIdxTest].Variables.Contains(Source))
+				for (int32 ParamMapIdxTest = 0; !bFoundSource && ParamMapIdxTest < OtherOutputParamMapHistories.Num(); ParamMapIdxTest++)
+				{				
+					const TArray<FNiagaraVariable>& OtherVariables = OtherOutputParamMapHistories[ParamMapIdxTest].Variables;
+					const int32 OtherVarIndex = OtherVariables.IndexOfByPredicate([&](const FNiagaraVariable& OtherVar)
 					{
-						// Disallow the addition previous values if its source is not used
-						Uses++;
-						break;
+						return OtherVar.GetName() == Source.GetName();
+					});
+
+					if (OtherVarIndex != INDEX_NONE)
+					{
+						const FNiagaraTypeDefinition& OtherType = OtherVariables[OtherVarIndex].GetType();
+
+						if (OtherType == SourceType)
+						{
+							bFoundSource = true;
+						}
+						// special case handling for when we have an implicit Position type for the source
+						// and we've found a Vector
+						else if (SourceType == FNiagaraTypeDefinition::GetPositionDef()
+							&& OtherType == FNiagaraTypeDefinition::GetVec3Def())
+						{
+							bFoundSource = true;
+						}
 					}
 				}
 			}
 
-			if (Uses > 0)
+			if (bFoundSource)
 			{
 				Vars.AddUnique(FNiagaraVariable(Var.GetType(), Var.GetName()));
 			}
