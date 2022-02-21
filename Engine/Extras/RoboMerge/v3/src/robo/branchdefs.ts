@@ -137,6 +137,8 @@ const edgeOptionFieldsPrototype = {
 
 	implicitCommands: [''],
 
+	ignoreInCycleDetection: false,
+
 	approval: {
 		description: '',
 		channelName: '',
