@@ -131,6 +131,16 @@ public:
 		return UsedMalloc->GetDescriptiveName();
 	}
 
+	virtual void OnPreFork() override
+	{
+		UsedMalloc->OnPreFork();
+	}
+
+	virtual void OnPostFork() override
+	{
+		UsedMalloc->OnPostFork();
+	}
+
 	static constexpr SIZE_T MaxCallStackDepth = 64;
 	static constexpr SIZE_T CallStackEntriesToSkipCount = 2;
 

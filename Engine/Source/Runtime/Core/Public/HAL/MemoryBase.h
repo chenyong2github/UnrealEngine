@@ -205,6 +205,16 @@ public:
 		return TEXT("Unspecified allocator");
 	}
 
+	/**
+	 * Notifies the malloc implementation that the process is about to fork. May be used to trim caches etc.
+	 */
+	virtual void OnPreFork() {}
+
+	/**
+	 * Notifies the malloc implementation that the process has forked so we can try and avoid dirtying pre-fork pages.
+	 */
+	virtual void OnPostFork() {}
+
 protected:
 	friend struct FCurrentFrameCalls;
 

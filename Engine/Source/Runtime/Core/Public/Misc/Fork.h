@@ -80,6 +80,28 @@ public:
 		uint64 InThreadAffinityMask = FPlatformAffinity::GetNoAffinityMask(),
 		EThreadCreateFlags InCreateFlags = EThreadCreateFlags::None
 	);
+
+	/**
+	 * Performs low-level cross-platform actions that should happen immediately BEFORE forking in a well-specified order.
+	 * Runs after any higher level code like calling into game-level constructs or anything that may allocate memory.
+	 * E.g. notifies GMalloc to optimize for memory sharing across parent/child process
+	 * Note: This will be called multiple times on the parent before each fork. 
+	 */
+	static void LowLevelPreFork();
+
+	/**
+	 * Performs low-level cross-platform actions that should happen immediately AFTER forking in the PARENT process in a well-specified order.
+	 * Runs before any higher level code like calling into game-level constructs.
+	 * E.g. notifies GMalloc to optimize for memory sharing across parent/child process
+	 */
+	static void LowLevelPostForkParent();
+
+	/**
+	 * Performs low-level cross-platform actions that should happen immediately AFTER forking in the CHILD process in a well-specified order.
+	 * Runs before any higher level code like calling into game-level constructs.
+	 * E.g. notifies GMalloc to optimize for memory sharing across parent/child process
+	 */
+	static void LowLevelPostForkChild(uint16 ChildIndex=1);
 };
 
 

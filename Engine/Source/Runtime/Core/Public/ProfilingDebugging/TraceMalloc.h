@@ -14,6 +14,17 @@ public:
 	virtual void Free(void* Original) override;
 
 	static bool ShouldTrace();
+
+	virtual void OnPreFork() override
+	{
+		WrappedMalloc->OnPreFork();
+	}
+
+	virtual void OnPostFork() override
+	{
+		WrappedMalloc->OnPostFork();
+	}
+
 	FMalloc* WrappedMalloc;
 };
 

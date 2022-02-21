@@ -128,3 +128,19 @@ bool FForkProcessHelper::SupportsMultithreadingPostFork()
 	return bSupportsMT;
 #endif
 }
+
+void FForkProcessHelper::LowLevelPreFork()
+{
+	GMalloc->OnPreFork();
+}
+
+void FForkProcessHelper::LowLevelPostForkParent()
+{
+	// Currently nothing to do here, just provided for completeness. 
+}
+
+void FForkProcessHelper::LowLevelPostForkChild(uint16 ChildIndex)
+{
+	FForkProcessHelper::SetIsForkedChildProcess(ChildIndex);
+	GMalloc->OnPostFork();
+}

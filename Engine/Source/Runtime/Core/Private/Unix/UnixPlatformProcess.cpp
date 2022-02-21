@@ -1474,6 +1474,8 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 			// Make sure there are no pending messages in the log.
 			GLog->Flush();
 
+			// This should be the very last thing we do before forking for optimal interaction with GMalloc
+			FForkProcessHelper::LowLevelPreFork();
 			// ******** The fork happens here! ********
 			pid_t ChildPID = fork();
 			// ******** The fork happened! This is now either the parent process or the new child process ********
@@ -1489,8 +1491,8 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 			}
 			else if (ChildPID == 0)
 			{
-				// Child
-				FForkProcessHelper::SetIsForkedChildProcess(ChildIdx);
+				// This should be the very first thing we do after forking for optimal interaction with GMalloc
+				FForkProcessHelper::LowLevelPostForkChild(ChildIdx);
 
 				if (FPlatformMemory::HasForkPageProtectorEnabled())
 				{
@@ -1583,6 +1585,9 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 			}
 			else
 			{
+				// This should be the very first thing we do after forking for optimal interaction with GMalloc
+				FForkProcessHelper::LowLevelPostForkParent();
+
 				// Parent
 				AllChildren.Emplace(ChildPID, SignalData.SignalValue);
 

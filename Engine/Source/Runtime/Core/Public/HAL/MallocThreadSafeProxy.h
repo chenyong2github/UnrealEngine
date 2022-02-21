@@ -124,4 +124,14 @@ public:
 	{ 
 		return true; 
 	}
+
+	virtual void OnPreFork() override
+	{
+		UsedMalloc->OnPreFork();
+	}
+
+	virtual void OnPostFork() override
+	{
+		UsedMalloc->OnPostFork();
+	}
 };

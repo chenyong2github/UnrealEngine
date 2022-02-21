@@ -127,6 +127,16 @@ public:
 	{ 
 		return UsedMalloc->GetDescriptiveName(); 
 	}
+
+	virtual void OnPreFork() override
+	{
+		UsedMalloc->OnPreFork();
+	}
+
+	virtual void OnPostFork() override
+	{
+		UsedMalloc->OnPostFork();
+	}
 };
 
 
