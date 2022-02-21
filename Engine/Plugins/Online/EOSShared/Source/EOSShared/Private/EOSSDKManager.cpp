@@ -194,6 +194,9 @@ EOS_EResult FEOSSDKManager::Initialize()
 		{
 			bInitialized = true;
 
+			FCoreDelegates::OnConfigSectionChanged.AddRaw(this, &FEOSSDKManager::OnConfigSectionChanged);
+			LoadConfig();
+
 #if !NO_LOGGING
 			FCoreDelegates::OnLogVerbosityChanged.AddRaw(this, &FEOSSDKManager::OnLogVerbosityChanged);
 
@@ -232,11 +235,7 @@ IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(EOS_Platform_Options& Platf
 		{
 			ActivePlatforms.Emplace(PlatformHandle);
 			SharedPlatform = MakeShared<FEOSPlatformHandle, ESPMode::ThreadSafe>(*this, PlatformHandle);
-
-			if (!TickerHandle.IsValid())
-			{
-				TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FEOSSDKManager::Tick), 0.0f);
-			}
+			SetupTicker();
 		}
 		else
 		{
@@ -251,20 +250,64 @@ IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(EOS_Platform_Options& Platf
 	return SharedPlatform;
 }
 
+void FEOSSDKManager::OnConfigSectionChanged(const TCHAR* IniFilename, const TCHAR* SectionName)
+{
+	if (!FCString::Strcmp(IniFilename, *GEngineIni) && !FCString::Strcmp(SectionName, TEXT("EOSSDK")))
+	{
+		LoadConfig();
+	}
+}
+
+void FEOSSDKManager::LoadConfig()
+{
+	ConfigTickIntervalSeconds = 0.f;
+	GConfig->GetDouble(TEXT("EOSSDK"), TEXT("TickIntervalSeconds"), ConfigTickIntervalSeconds, GEngineIni);
+
+	SetupTicker();
+}
+
+void FEOSSDKManager::SetupTicker()
+{
+	if (TickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		TickerHandle.Reset();
+	}
+
+	if (ActivePlatforms.Num() > 0)
+	{
+		const double TickIntervalSeconds = ConfigTickIntervalSeconds > SMALL_NUMBER ? ConfigTickIntervalSeconds / ActivePlatforms.Num() : 0.f;
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FEOSSDKManager::Tick), TickIntervalSeconds);
+	}
+}
+
 bool FEOSSDKManager::Tick(float)
 {
 	ReleaseReleasedPlatforms();
 
-	//LLM_SCOPE(ELLMTag::EOSSDK); // TODO
-	for (EOS_HPlatform PlatformHandle : ActivePlatforms)
+	if (ActivePlatforms.Num())
 	{
-		LLM_SCOPE(ELLMTag::RealTimeCommunications);
-		QUICK_SCOPE_CYCLE_COUNTER(FEOSSDKManager_Tick);
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(EOSSDK);
-		EOS_Platform_Tick(PlatformHandle);
+		TArray<EOS_HPlatform> PlatformsToTick;
+		if (ConfigTickIntervalSeconds > SMALL_NUMBER)
+		{
+			PlatformTickIdx = (PlatformTickIdx + 1) % ActivePlatforms.Num();
+			PlatformsToTick.Emplace(ActivePlatforms[PlatformTickIdx]);
+		}
+		else
+		{
+			PlatformsToTick = ActivePlatforms;
+		}
+
+		for (EOS_HPlatform PlatformHandle : PlatformsToTick)
+		{
+			LLM_SCOPE(ELLMTag::RealTimeCommunications); // TODO should really be ELLMTag::EOSSDK
+			QUICK_SCOPE_CYCLE_COUNTER(FEOSSDKManager_Tick);
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(EOSSDK);
+			EOS_Platform_Tick(PlatformHandle);
+		}
 	}
 
-	return ActivePlatforms.Num() > 0;
+	return true;
 }
 
 void FEOSSDKManager::OnLogVerbosityChanged(const FLogCategoryName& CategoryName, ELogVerbosity::Type OldVerbosity, ELogVerbosity::Type NewVerbosity)
@@ -308,23 +351,20 @@ void FEOSSDKManager::ReleasePlatform(EOS_HPlatform PlatformHandle)
 
 void FEOSSDKManager::ReleaseReleasedPlatforms()
 {
-	for (EOS_HPlatform PlatformHandle : ReleasedPlatforms)
+	if (ReleasedPlatforms.Num() > 0)
 	{
-		if (ensure(ActivePlatforms.Contains(PlatformHandle)))
+		for (EOS_HPlatform PlatformHandle : ReleasedPlatforms)
 		{
-		EOS_Platform_Release(PlatformHandle);
-			ActivePlatforms.Remove(PlatformHandle);
+			if (ensure(ActivePlatforms.Contains(PlatformHandle)))
+			{
+				EOS_Platform_Release(PlatformHandle);
+				ActivePlatforms.Remove(PlatformHandle);
+			}
 		}
+		ReleasedPlatforms.Empty();
+		SetupTicker();
 	}
-	ReleasedPlatforms.Empty();
-
-	if (TickerHandle.IsValid() &&
-		ActivePlatforms.Num() == 0)
-		{
-			FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
-			TickerHandle.Reset();
-		}
-	}
+}
 
 void FEOSSDKManager::Shutdown()
 {
@@ -334,11 +374,13 @@ void FEOSSDKManager::Shutdown()
 		ReleaseReleasedPlatforms();
 
 		if (ActivePlatforms.Num() > 0)
-			{
+		{
 			UE_LOG(LogEOSSDK, Warning, TEXT("FEOSSDKManager::Shutdown Releasing %d remaining platforms"), ActivePlatforms.Num());
 			ReleasedPlatforms.Append(ActivePlatforms);
 			ReleaseReleasedPlatforms();
-			}
+		}
+
+		FCoreDelegates::OnConfigSectionChanged.RemoveAll(this);
 
 #if !NO_LOGGING
 		FCoreDelegates::OnLogVerbosityChanged.RemoveAll(this);

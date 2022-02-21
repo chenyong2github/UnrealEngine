@@ -4,16 +4,15 @@
 
 #if WITH_EOS_SDK
 
+#include "Containers/Ticker.h"
 #include "Containers/UnrealString.h"
+#include "IEOSSDKManager.h"
 
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
 #endif
 #include "eos_common.h"
 #include "eos_init.h"
-
-#include "IEOSSDKManager.h"
-#include "Containers/Ticker.h"
 
 struct FEOSPlatformHandle;
 
@@ -41,8 +40,11 @@ protected:
 private:
 	friend struct FEOSPlatformHandle;
 
+	void OnConfigSectionChanged(const TCHAR* IniFilename, const TCHAR* SectionName);
+	void LoadConfig();
 	void ReleasePlatform(EOS_HPlatform PlatformHandle);
 	void ReleaseReleasedPlatforms();
+	void SetupTicker();
 	bool Tick(float);
 	void OnLogVerbosityChanged(const FLogCategoryName& CategoryName, ELogVerbosity::Type OldVerbosity, ELogVerbosity::Type NewVerbosity);
 
@@ -52,12 +54,18 @@ private:
 
 	/** Are we currently initialized */
 	bool bInitialized = false;
+	/** Index of the last ticked platform, used for round-robin ticking when ConfigTickIntervalSeconds > 0 */
+	uint8 PlatformTickIdx = 0;
 	/** Created platforms actively ticking */
 	TArray<EOS_HPlatform> ActivePlatforms;
 	/** Contains platforms released with ReleasePlatform, which we will release on the next Tick. */
 	TArray<EOS_HPlatform> ReleasedPlatforms;
 	/** Handle to ticker delegate for Tick(), valid whenever there are ActivePlatforms to tick, or ReleasedPlatforms to release. */
 	FTSTicker::FDelegateHandle TickerHandle;
+
+	// Config
+	/** Interval between platform ticks. 0 means we tick every frame. */
+	double ConfigTickIntervalSeconds = 0.f;
 };
 
 struct FEOSPlatformHandle : public IEOSPlatformHandle

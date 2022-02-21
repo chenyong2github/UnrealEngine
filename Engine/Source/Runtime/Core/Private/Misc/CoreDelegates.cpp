@@ -142,6 +142,7 @@ FCoreDelegates::FOnFConfigFileCreated FCoreDelegates::OnFConfigDeleted;
 FCoreDelegates::FOnConfigValueRead FCoreDelegates::OnConfigValueRead;
 FCoreDelegates::FOnConfigSectionRead FCoreDelegates::OnConfigSectionRead;
 FCoreDelegates::FOnConfigSectionRead FCoreDelegates::OnConfigSectionNameRead;
+FCoreDelegates::FOnConfigSectionChanged FCoreDelegates::OnConfigSectionChanged;
 FCoreDelegates::FOnApplyCVarFromIni FCoreDelegates::OnApplyCVarFromIni;
 FCoreDelegates::FOnSystemResolutionChanged FCoreDelegates::OnSystemResolutionChanged;
 

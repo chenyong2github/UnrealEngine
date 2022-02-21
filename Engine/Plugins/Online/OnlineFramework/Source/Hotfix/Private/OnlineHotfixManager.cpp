@@ -922,6 +922,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 	bool bUpdateHttpConfigs = false;
 	bool bUpdateOnlineTracing = false;
 	TSet<FString> OnlineSubSections;
+	TSet<FString> UpdatedSectionNames;
 	// Find the set of object classes that were affected
 	while (StartIndex >= 0 && StartIndex < IniData.Len() && EndIndex >= StartIndex)
 	{
@@ -963,6 +964,8 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 					}
 				}
 
+				UpdatedSectionNames.Emplace(IniData.Mid(StartIndex+1, EndIndex - StartIndex - 1));
+
 				int32 PerObjectNameIndex = IniData.Find(TEXT(" "), ESearchCase::IgnoreCase, ESearchDir::FromStart, StartIndex);
 
 				const TCHAR* AssetHotfixIniHACK = TEXT("[AssetHotfix]");
@@ -974,6 +977,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 
 				if (bIsEngineIni)
 				{
+					// TODO replace all of this with bindees to FCoreDelegates::OnConfigSectionChanged
 					const TCHAR* LogConfigSection = TEXT("[Core.Log]");
 					const TCHAR* ConsoleVariableSection = TEXT("[ConsoleVariables]");
 					const TCHAR* HttpSection = TEXT("[HTTP"); // note "]" omitted on purpose since we want a partial match
@@ -997,8 +1001,8 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 					}
 					else if (FCString::Strnicmp(*IniData + StartIndex, OnlineSubSectionKey, FCString::Strlen(OnlineSubSectionKey)) == 0)
 					{
-						const FString SectionStr = IniData.Mid(StartIndex, EndIndex - StartIndex + 1);
-						OnlineSubSections.Add(SectionStr);
+						FString SectionStr = IniData.Mid(StartIndex, EndIndex - StartIndex + 1);
+						OnlineSubSections.Emplace(MoveTemp(SectionStr));
 					}
 				}
 
@@ -1095,6 +1099,12 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 		UE_LOG(LogHotfixManager, Verbose, TEXT("Reloading %s"), *ReloadObject->GetPathName());
 		ReloadObject->ReloadConfig();
 		NumObjectsReloaded++;
+	}
+
+	const FString ConfigFileName = ConfigFile->Name.ToString();
+	for (const FString& SectionName : UpdatedSectionNames)
+	{
+		FCoreDelegates::OnConfigSectionChanged.Broadcast(*ConfigFileName, *SectionName);
 	}
 
 	// Reload log suppression if configs changed
