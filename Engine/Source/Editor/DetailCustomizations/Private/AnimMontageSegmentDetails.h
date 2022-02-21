@@ -22,6 +22,7 @@ class SViewport;
 class UAnimationAsset;
 class UAnimSequenceBase;
 class USkeleton;
+struct FAnimSegment;
 
 class FAnimMontageSegmentDetails : public IDetailCustomization
 {

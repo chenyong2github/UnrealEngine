@@ -20,6 +20,7 @@
 #include "Settings/SkeletalMeshEditorSettings.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Animation/EditorAnimSegment.h"
+#include "Animation/AnimCompositeBase.h"
 
 #define LOCTEXT_NAMESPACE "AnimMontageSegmentDetails"
 
