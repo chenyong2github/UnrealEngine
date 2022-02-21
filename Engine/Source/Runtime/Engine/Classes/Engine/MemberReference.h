@@ -428,14 +428,13 @@ public:
 #endif
 				{
 					// Find in target scope or in the sparse class data
-					UScriptStruct* SparseClassDataStruct = TargetScope->GetSparseClassDataStruct();
-					if (SparseClassDataStruct)
+					ReturnField = FindUFieldOrFProperty(TargetScope, MemberName, EFieldIterationFlags::IncludeAll).Get<TFieldType>();
+					if (!ReturnField)
 					{
-						ReturnField = FindUFieldOrFProperty(SparseClassDataStruct, MemberName, EFieldIterationFlags::IncludeAll).Get<TFieldType>();
-					}
-					if (ReturnField == nullptr)
-					{
-						ReturnField = FindUFieldOrFProperty(TargetScope, MemberName, EFieldIterationFlags::IncludeAll).Get<TFieldType>();
+						if (UScriptStruct* SparseClassDataStruct = TargetScope->GetSparseClassDataStruct())
+						{
+							ReturnField = FindUFieldOrFProperty(SparseClassDataStruct, MemberName, EFieldIterationFlags::IncludeAll).Get<TFieldType>();
+						}
 					}
 				}
 

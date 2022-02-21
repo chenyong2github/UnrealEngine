@@ -394,19 +394,7 @@ FProperty* UK2Node_Variable::GetPropertyForVariable_Internal(UClass* OwningClass
 {
 	const FName VarName = GetVarName();
 
-	// Look in the sparse class data first
-	FProperty* VariableProperty = nullptr;
-	// TODO: move some of this into MemberReference::ResolveMember if possible
-	UClass* Scope = VariableReference.GetScope(OwningClass);
-	UScriptStruct* SparseClassDataStruct = Scope ? Scope->GetSparseClassDataStruct() : nullptr;
-	if (SparseClassDataStruct)
-	{
-		VariableProperty = FindFProperty<FProperty>(SparseClassDataStruct, VarName);
-	}
-	if (!VariableProperty)
-	{
-		VariableProperty = VariableReference.ResolveMember<FProperty>(OwningClass);
-	}
+	FProperty* VariableProperty = VariableReference.ResolveMember<FProperty>(OwningClass);
 
 	// if the variable has been deprecated, don't use it
 	if (VariableProperty != nullptr)
