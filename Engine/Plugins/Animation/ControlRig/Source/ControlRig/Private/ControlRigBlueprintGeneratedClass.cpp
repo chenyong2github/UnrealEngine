@@ -20,7 +20,7 @@ uint8* UControlRigBlueprintGeneratedClass::GetPersistentUberGraphFrame(UObject* 
 	return Super::GetPersistentUberGraphFrame(Obj, FuncToCheck);
 }
 
-void UControlRigBlueprintGeneratedClass::PostInitInstance(UObject* InObj)
+void UControlRigBlueprintGeneratedClass::PostInitInstance(UObject* InObj, FObjectInstancingGraph* InstanceGraph)
 {
 	UControlRig* ControlRig = Cast<UControlRig>(InObj);
 	check(ControlRig);

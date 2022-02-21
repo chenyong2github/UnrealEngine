@@ -1301,6 +1301,7 @@ enum class EAsyncPackageLoadingState2 : uint8
 	DeferredPostLoad,
 	DeferredPostLoadDone,
 	Finalize,
+	PostLoadInstances,
 	CreateClusters,
 	Complete,
 	DeferredDelete,
@@ -1622,6 +1623,9 @@ struct FAsyncPackage2
 	/** Returns the UPackage wrapped by this, if it is valid */
 	UPackage* GetLoadedPackage();
 
+	/** Class specific callback for initializing non-native objects */
+	EAsyncPackageState::Type PostLoadInstances(FAsyncLoadingThreadState2& ThreadState);
+
 	/** Creates GC clusters from loaded objects */
 	EAsyncPackageState::Type CreateClusters(FAsyncLoadingThreadState2& ThreadState);
 
@@ -1660,6 +1664,8 @@ private:
 	int32						ExternalReadIndex = 0;
 	/** Current index into DeferredClusterObjects array used to spread routing CreateClusters over several frames			*/
 	int32						DeferredClusterIndex = 0;
+	/** Current index into Export objects array used to spread routing PostLoadInstances over several frames			*/
+	int32						PostLoadInstanceIndex = 0;
 	EAsyncPackageLoadingState2	AsyncPackageLoadingState = EAsyncPackageLoadingState2::NewPackage;
 
 	struct FAllDependenciesState
@@ -1759,7 +1765,8 @@ private:
 	bool						bLoadHasFailed = false;
 	/** True if this package was created by this async package */
 	bool						bCreatedLinkerRoot = false;
-
+	/** True if package contains objects that can be put into GC clusters */
+	bool						bHasClusterObjects = false;
 	/** List of all request handles */
 	TArray<int32, TInlineAllocator<2>> RequestIDs;
 	/** List of ConstructedObjects = Exports + UPackage + ObjectsCreatedFromExports */
@@ -4643,7 +4650,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 			check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::Finalize);
 
-			bool bHasClusterObjects = false;
 			TArray<UObject*> CDODefaultSubobjects;
 			// Clear async loading flags (we still want RF_Async, but EInternalObjectFlags::AsyncLoading can be cleared)
 			for (int32 FinalizeIndex = 0, ExportCount = Package->Data.ExportInfo.ExportCount; FinalizeIndex < ExportCount; ++FinalizeIndex)
@@ -4682,7 +4688,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 				{
 					if (!(Export.bFiltered | Export.bExportLoadFailed) && Export.Object->CanBeClusterRoot())
 					{
-						bHasClusterObjects = true;
+						Package->bHasClusterObjects = true;
 						break;
 					}
 				}
@@ -4714,14 +4720,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(Package);
 
 			check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::Finalize);
-			if (bHasClusterObjects)
-			{
-				Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::CreateClusters;
-			}
-			else
-			{
-				Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::Complete;
-			}
+			Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::PostLoadInstances;
 			PackagesReadyForCallback.Add(Package);
 		}
 
@@ -4777,7 +4776,30 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			FAsyncPackage2* Package = CompletedPackages[PackageIndex];
 			{
 				bool bSafeToDelete = false;
-				if (Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::CreateClusters)
+				if (Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::PostLoadInstances)
+				{
+					SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_PostLoadInstancesGameThread);
+					// This package will create GC clusters but first check if all dependencies of this package have been fully loaded
+					if (Package->PostLoadInstances(ThreadState) == EAsyncPackageState::Complete)
+					{
+						// PostLoadInstances routed to all objects, safe to proceed to creating clusters or directly to completion
+						if (Package->bHasClusterObjects)
+						{
+							Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::CreateClusters;
+						}
+						else
+						{
+							Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::Complete;
+						}
+					}
+					else
+					{
+						// PostLoadInstances timed out
+						Result = EAsyncPackageState::TimeOut;
+						break;
+					}
+				}
+				else if (Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::CreateClusters)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_CreateClustersGameThread);
 					// This package will create GC clusters but first check if all dependencies of this package have been fully loaded
@@ -5827,6 +5849,21 @@ EAsyncPackageState::Type FAsyncPackage2::ProcessExternalReads(EExternalReadActio
 	ExternalReadDependencies.Empty();
 	GetPackageNode(Package_ExportsSerialized).ReleaseBarrier();
 	return EAsyncPackageState::Complete;
+}
+
+EAsyncPackageState::Type FAsyncPackage2::PostLoadInstances(FAsyncLoadingThreadState2& ThreadState)
+{
+	while (PostLoadInstanceIndex < Data.ExportInfo.ExportCount && !ThreadState.IsTimeLimitExceeded(TEXT("PostLoadInstances")))
+	{
+		const FExportObject& Export = Data.Exports[PostLoadInstanceIndex++];
+
+		if (!(Export.bFiltered | Export.bExportLoadFailed))
+		{
+			UClass* ObjClass = Export.Object->GetClass();
+			ObjClass->PostLoadInstance(Export.Object);
+		}
+	}
+	return PostLoadInstanceIndex == Data.ExportInfo.ExportCount ? EAsyncPackageState::Complete : EAsyncPackageState::TimeOut;
 }
 
 EAsyncPackageState::Type FAsyncPackage2::CreateClusters(FAsyncLoadingThreadState2& ThreadState)

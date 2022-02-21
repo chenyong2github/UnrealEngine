@@ -1726,6 +1726,17 @@ void EndLoad(FUObjectSerializeContext* LoadContext, TArray<UPackage*>* OutLoaded
 				}
 			}
 
+			{
+				// Additional operation performed by classes (used for non-native initialization)
+				SCOPED_LOADTIMER(PostLoadInstance);
+				for (UObject* Obj : ObjLoaded)
+				{
+					UClass* ObjClass = Obj->GetClass();
+					check(ObjClass);
+					ObjClass->PostLoadInstance(Obj);
+				}
+			}
+
 			// Create clusters after all objects have been loaded
 			if (FPlatformProperties::RequiresCookedData() && !GIsInitialLoad && GCreateGCClusters && GAssetClustreringEnabled && !GUObjectArray.IsOpenForDisregardForGC())
 			{
@@ -3051,7 +3062,7 @@ void FObjectInitializer::PostConstructInit()
 		Obj->PostInitProperties();
 	}
 
-	Class->PostInitInstance(Obj);
+	Class->PostInitInstance(Obj, InstanceGraph);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (!FUObjectThreadContext::Get().PostInitPropertiesCheck.Num() || (FUObjectThreadContext::Get().PostInitPropertiesCheck.Pop(false) != Obj))

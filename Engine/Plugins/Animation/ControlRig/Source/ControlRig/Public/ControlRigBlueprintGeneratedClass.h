@@ -18,7 +18,7 @@ public:
 
 	// UClass interface
 	virtual uint8* GetPersistentUberGraphFrame(UObject* Obj, UFunction* FuncToCheck) const override;
-	virtual void PostInitInstance(UObject* InObj) override;
+	virtual void PostInitInstance(UObject* InObj, FObjectInstancingGraph* InstanceGraph) override;
 
 	// UObject interface
 	void Serialize(FArchive& Ar);

@@ -1821,9 +1821,9 @@ void UPythonGeneratedClass::PostRename(UObject* OldOuter, const FName OldName)
 	}
 }
 
-void UPythonGeneratedClass::PostInitInstance(UObject* InObj)
+void UPythonGeneratedClass::PostInitInstance(UObject* InObj, FObjectInstancingGraph* InstanceGraph)
 {
-	Super::PostInitInstance(InObj);
+	Super::PostInitInstance(InObj, InstanceGraph);
 
 	// Execute Python code within this block
 	{

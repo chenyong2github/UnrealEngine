@@ -193,7 +193,7 @@ public:
 	virtual void BeginDestroy() override;
 
 	//~ UClass interface
-	virtual void PostInitInstance(UObject* InObj) override;
+	virtual void PostInitInstance(UObject* InObj, FObjectInstancingGraph* InstanceGraph) override;
 
 	//~ IPythonResourceOwner interface
 	virtual void ReleasePythonResources() override;

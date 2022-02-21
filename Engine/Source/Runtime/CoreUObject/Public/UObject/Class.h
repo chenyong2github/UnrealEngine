@@ -3069,7 +3069,12 @@ public:
 	/**
 	 * Called after PostInitProperties during object construction to allow class specific initialization of an object instance.
 	 */
-	virtual void PostInitInstance(UObject* InObj) {}
+	virtual void PostInitInstance(UObject* InObj, FObjectInstancingGraph* InstanceGraph) {}
+
+	/**
+	 * Called during PostLoad of an object to allow class specific PostLoad operations of an object instance.
+	 */
+	virtual void PostLoadInstance(UObject* InObj) {}
 
 	/**
 	 * Helper method to assist with initializing object properties from an explicit list.
@@ -3661,6 +3666,22 @@ public:
 		bLoadingObject = bIsLoading;
 	}
 
+	/**
+	 * Adds a member variable property that should not instantiate subobjects
+	 */
+	void AddPropertyToSubobjectExclusionList(const FProperty* Property)
+	{
+		SubobjectInstantiationExclusionList.Add(Property);
+	}
+
+	/**
+	 * Checks if a member variable property is in subobject instantiation exclusion list
+	 */
+	bool IsPropertyInSubobjectExclusionList(const FProperty* Property) const
+	{
+		return SubobjectInstantiationExclusionList.Contains(Property);
+	}
+
 private:
 	/**
 	 * Returns whether this instancing graph has a valid destination root.
@@ -3748,6 +3769,9 @@ private:
 	 * Maps the source (think archetype) to the destination (think instance)
 	 */
 	TMap<class UObject*,class UObject*>			SourceToDestinationMap;
+
+	/** List of member variable properties that should not instantiate subobjects */
+	TSet<const FProperty*>						SubobjectInstantiationExclusionList;
 };
 
 // UFunction interface.

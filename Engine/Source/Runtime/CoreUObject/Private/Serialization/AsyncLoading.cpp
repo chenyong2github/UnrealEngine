@@ -5036,6 +5036,7 @@ FAsyncPackage::FAsyncPackage(FAsyncLoadingThread& InThread, const FAsyncPackageD
 , FinishExternalReadDependenciesIndex(0)
 , PostLoadIndex(0)
 , DeferredPostLoadIndex(0)
+, PostLoadInstanceIndex(0)
 , DeferredFinalizeIndex(0)
 , DeferredClusterIndex(0)
 , TimeLimit(FLT_MAX)
@@ -6420,10 +6421,29 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 		UpdateLoadPercentage();
 	}
 
-	INC_FLOAT_STAT_BY(STAT_FAsyncPackage_TotalPostLoadGameThread, (float)(FPlatformTime::Seconds() - PostLoadStartTime));
-
 	// New objects might have been loaded during PostLoad.
 	Result = (DeferredPostLoadIndex == DeferredPostLoadObjects.Num()) ? EAsyncPackageState::Complete : EAsyncPackageState::TimeOut;
+
+	if (Result == EAsyncPackageState::Complete)
+	{
+		// Class specific object non-native initialization
+		while (PostLoadInstanceIndex < PackageObjLoaded.Num() &&
+			!AsyncLoadingThread.IsAsyncLoadingSuspendedInternal() &&
+			!::IsTimeLimitExceeded(InTickStartTime, bInUseTimeLimit, InOutTimeLimit, LastTypeOfWorkPerformed, LastObjectWorkWasPerformedOn))
+		{
+			UObject* Object = PackageObjLoaded[PostLoadInstanceIndex++];
+			check(Object);
+
+			LastObjectWorkWasPerformedOn = Object;
+			LastTypeOfWorkPerformed = TEXT("postloadinginstance_gamethread");
+
+			UClass* ObjectClass = Object->GetClass();
+			ObjectClass->PostLoadInstance(Object);
+		}
+	}
+
+	INC_FLOAT_STAT_BY(STAT_FAsyncPackage_TotalPostLoadGameThread, (float)(FPlatformTime::Seconds() - PostLoadStartTime));
+	Result = (PostLoadInstanceIndex == PackageObjLoaded.Num()) ? EAsyncPackageState::Complete : EAsyncPackageState::TimeOut;
 	if (Result == EAsyncPackageState::Complete)
 	{
 		LastObjectWorkWasPerformedOn = nullptr;
