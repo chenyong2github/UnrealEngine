@@ -8926,27 +8926,6 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, UMovieSceneFol
 
 	OnMovieSceneBindingsPastedDelegate.Broadcast(BindingsPasted);
 
-	// Temporarily spawn all spawnables so that component bindings can be fixed
-	TArray<TWeakObjectPtr<UMovieSceneSection> > SpawnSectionsToRemove;
-	for (auto SpawnableGuid : SpawnableGuids)
-	{
-		UMovieSceneSpawnTrack* SpawnTrack = MovieScene->FindTrack<UMovieSceneSpawnTrack>(SpawnableGuid);
-
-		if (SpawnTrack)
-		{
-			for (UMovieSceneSection* SpawnSection : SpawnTrack->GetAllSections())
-			{
-				SpawnSection->SetIsActive(false);
-			}
-
-			// Spawnable could have animated spawned state, so temporarily override it to spawn infinitely
-			UMovieSceneSpawnSection* SpawnSection = Cast<UMovieSceneSpawnSection>(SpawnTrack->CreateNewSection());
-			SpawnSection->GetChannel().Reset();
-			SpawnSection->GetChannel().SetDefault(true);
-			SpawnSectionsToRemove.Add(SpawnSection);
-		}
-	}
-	
 	// Refresh all immediately so that spawned actors will be generated immediately
 	ForceEvaluate();
 
@@ -8990,25 +8969,13 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, UMovieSceneFol
 			}
 		}
 	}
-	
-	for (TWeakObjectPtr<UMovieSceneSection> SpawnSectionToRemove : SpawnSectionsToRemove)
-	{
-		if (SpawnSectionToRemove.IsValid())
-		{
-			UMovieSceneTrack* SpawnTrack = SpawnSectionToRemove->GetTypedOuter<UMovieSceneTrack>();
-			if (SpawnTrack)
-			{
-				SpawnTrack->Modify();
-				SpawnTrack->RemoveSection(*SpawnSectionToRemove);
 
-				for (UMovieSceneSection* SpawnSection : SpawnTrack->GetAllSections())
-				{
-					SpawnSection->SetIsActive(true);
-				}
-			}
-		}
+	// Remap bindings in sections (ie. attach tracks)
+	for (TPair<FGuid, FGuid> GuidPair : OldToNewGuidMap)
+	{
+		FSequencerUtilities::UpdateBindingIDs(this, CompiledDataManager, GuidPair.Key, GuidPair.Value);
 	}
-	
+
 	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 
 	return true;
