@@ -697,7 +697,7 @@ void FPBDIslandManager::BuildGroups(const int32 NumContainers)
 	{
 		if( FPBDIslandSolver* IslandSolver = IslandSolvers[SortedIndex].Get())
 		{
-			check(GroupIndex < NumGroups);
+			checkf(GroupIndex < NumGroups, TEXT("Index %d is less than NumGroups %d"), GroupIndex, NumGroups);
 			IslandGroups[GroupIndex]->AddIsland(IslandSolver);
 			IslandGroups[GroupIndex]->NumParticles() += IslandSolver->NumParticles();
 			IslandGroups[GroupIndex]->NumConstraints() += IslandSolver->NumConstraints();
