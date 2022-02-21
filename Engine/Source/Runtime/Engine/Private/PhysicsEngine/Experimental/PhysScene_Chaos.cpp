@@ -781,6 +781,12 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 								
 								NewContact.PhysMaterial[0] = InternalMat1 ? FPhysicsUserData::Get<UPhysicalMaterial>(InternalMat1->UserData) : nullptr;
 								NewContact.PhysMaterial[1] = InternalMat2 ? FPhysicsUserData::Get<UPhysicalMaterial>(InternalMat2->UserData) : nullptr;
+
+
+								if (bSwapOrder)
+								{
+									NotifyInfo.RigidCollisionData.SwapContactOrders();
+								}
 							}
 						}
 					}

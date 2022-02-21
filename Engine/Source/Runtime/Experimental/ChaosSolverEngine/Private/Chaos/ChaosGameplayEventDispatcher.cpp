@@ -372,6 +372,12 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 										NewContact.ContactPosition = CollisionDataItem.Location;
 										NewContact.ContactPenetration = CollisionDataItem.PenetrationDepth;
 										// NewContact.PhysMaterial[1] UPhysicalMaterial required here
+
+
+										if (bSwapOrder)
+										{
+											NotifyInfo.RigidCollisionData.SwapContactOrders();
+										}
 									}
 
 								}
