@@ -570,6 +570,33 @@ bool DumpDebugShaderUSF(FString& PreprocessedShaderSource, const FShaderCompiler
 }
 
 
+static void PatchSpirvForPrecompilation(FSpirv& Spirv)
+{
+	// Remove [unroll] loop hints from SPIR-V as this can fail on infinite loops
+	for (FSpirvIterator SpirvInstruction : Spirv)
+	{
+		if (SpirvInstruction.Opcode() == SpvOpLoopMerge && SpirvInstruction.Operand(3) == SpvLoopControlUnrollMask)
+		{
+			(*SpirvInstruction)[3] = SpvLoopControlDontUnrollMask;
+		}
+	}
+}
+
+static void PatchHlslForPrecompilation(TArray<ANSICHAR>& HlslSource)
+{
+	const FAnsiStringView HlslSourceView = FAnsiStringView(HlslSource.GetData(), HlslSource.Num() - 1);
+	const int32 RootShaderParameterSourceLocation = HlslSourceView.Find("cbuffer RootShaderParameters");
+	if (RootShaderParameterSourceLocation != INDEX_NONE)
+	{
+		FString HlslSourceString = ANSI_TO_TCHAR(HlslSource.GetData());
+		HlslSourceString.ReplaceInline(TEXT("cbuffer RootShaderParameters"), TEXT("cbuffer _RootShaderParameters"), ESearchCase::CaseSensitive);
+		HlslSourceString.ReplaceInline(TEXT("_RootShaderParameters_"), TEXT(""), ESearchCase::CaseSensitive);
+		HlslSource.SetNum(HlslSourceString.Len() + 1);
+		FMemory::Memcpy(HlslSource.GetData(), TCHAR_TO_ANSI(*HlslSourceString), HlslSourceString.Len());
+		HlslSource[HlslSourceString.Len()] = '\0';
+	}
+}
+
 // Generate the dumped usf file; call the D3D compiler, gather reflection information and generate the output data
 bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FString& CompilerPath,
 	uint32 CompileFlags,
@@ -620,28 +647,38 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 	if (D3DCompileFunc)
 	{
 		bool bException = false;
-		FD3DExceptionInfo ExceptionInfo;
+		FD3DExceptionInfo ExceptionInfo{};
 
-		Result = D3DCompileWrapper(
-			D3DCompileFunc,
-			AnsiSourceFile.Get(),
-			AnsiSourceFile.Length(),
-			TCHAR_TO_ANSI(*Input.VirtualSourceFilePath),
-			/*pDefines=*/ NULL,
-			/*pInclude=*/ NULL,
-			TCHAR_TO_ANSI(*EntryPointName),
-			TCHAR_TO_ANSI(ShaderProfile),
-			CompileFlags,
-			0,
-			Shader.GetInitReference(),
-			Errors.GetInitReference(),
-			bException,
-			ExceptionInfo
-		);
+		const bool bPrecompileWithDXC = Input.Environment.CompilerFlags.Contains(CFLAG_PrecompileWithDXC);
+		if (!bPrecompileWithDXC)
+		{
+			Result = D3DCompileWrapper(
+				D3DCompileFunc,
+				AnsiSourceFile.Get(),
+				AnsiSourceFile.Length(),
+				TCHAR_TO_ANSI(*Input.VirtualSourceFilePath),
+				/*pDefines=*/ NULL,
+				/*pInclude=*/ NULL,
+				TCHAR_TO_ANSI(*EntryPointName),
+				TCHAR_TO_ANSI(ShaderProfile),
+				CompileFlags,
+				0,
+				Shader.GetInitReference(),
+				Errors.GetInitReference(),
+				bException,
+				ExceptionInfo
+			);
+		}
 
 		// Some materials give FXC a hard time to optimize and the compiler fails with an internal error.
-		if (Result == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW) || Result == E_OUTOFMEMORY || bException)
+		if (bPrecompileWithDXC || Result == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW) || Result == E_OUTOFMEMORY || bException)
 		{
+			if (bPrecompileWithDXC)
+			{
+				// Let the user know this shader had to be cross-compiled due to a crash in FXC. Only shows up if CVar 'r.ShaderDevelopmentMode' is enabled.
+				Output.Errors.Add(FShaderCompilerError(FString::Printf(TEXT("Cross-compiled shader to intermediate HLSL as pre-compile step for FXC: %s"), *Input.GenerateShaderName())));
+			}
+
 			CrossCompiler::FShaderConductorContext CompilerContext;
 
 			// Load shader source into compiler context
@@ -666,6 +703,10 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 			TargetDesc.CompileFlags.SetDefine(TEXT("reconstruct_global_uniforms"), 1);
 			TargetDesc.CompileFlags.SetDefine(TEXT("reconstruct_cbuffer_names"), 1);
 			TargetDesc.CompileFlags.SetDefine(TEXT("reconstruct_semantics"), 1);
+			TargetDesc.CompileFlags.SetDefine(TEXT("force_zero_initialized_variables"), 1);
+
+			// Patch SPIR-V for workarounds to prevent potential additional FXC failures
+			PatchSpirvForPrecompilation(Spirv);
 
 			TArray<ANSICHAR> CrossCompiledSource;
 			if (!CompilerContext.CompileSpirvToSourceAnsi(Options, TargetDesc, Spirv.GetByteData(), Spirv.GetByteSize(), CrossCompiledSource))
@@ -674,8 +715,12 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 				return false;
 			}
 
+			// Patch HLSL for workarounds to prevent potential additional FXC failures
+			PatchHlslForPrecompilation(CrossCompiledSource);
+
 			if (bDumpDebugInfo && CrossCompiledSource.Num() > 1)
 			{
+				DumpDebugShaderDisassembledSpirv(Input, Spirv.GetByteData(), Spirv.GetByteSize(), TEXT("intermediate.spvasm"));
 				DumpDebugShaderText(Input, CrossCompiledSource.GetData(), CrossCompiledSource.Num() - 1, TEXT("intermediate.hlsl"));
 			}
 
@@ -699,7 +744,7 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 				ExceptionInfo
 			);
 
-			if (SUCCEEDED(Result))
+			if (!bPrecompileWithDXC && SUCCEEDED(Result))
 			{
 				// Let the user know this shader had to be cross-compiled due to a crash in FXC. Only shows up if CVar 'r.ShaderDevelopmentMode' is enabled.
 				Output.Errors.Add(FShaderCompilerError(FString::Printf(TEXT("Cross-compiled shader to intermediate HLSL after first attempt crashed FXC: %s"), *Input.GenerateShaderName())));

@@ -112,6 +112,8 @@ enum ECompilerFlags
 	CFLAG_D3D12ForceShaderConductorRewrite,
 	// Enable support of C-style data types for platforms that can. Check for PLATFORM_SUPPORTS_REAL_TYPES.
 	CFLAG_AllowRealTypes,
+	// Precompile HLSL to optimized HLSL, then forward to FXC. Speeds up some shaders that take longer with FXC and works around crashes in FXC.
+	CFLAG_PrecompileWithDXC,
 
 	// Allow warnings to be treated as errors
 	CFLAG_WarningsAsErrors,

@@ -753,10 +753,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FVolumetricFogGlobalData,)
 	SHADER_PARAMETER(FVector3f, GridSize)
 	SHADER_PARAMETER(FVector3f, GridZParams)
 	SHADER_PARAMETER(FVector2f, SVPosToVolumeUV)
-	SHADER_PARAMETER(FIntPoint, FogGridToPixelXY)
 	SHADER_PARAMETER(float, MaxDistance)
 	SHADER_PARAMETER(FVector3f, HeightFogInscatteringColor)
 	SHADER_PARAMETER(FVector3f, HeightFogDirectionalLightInscatteringColor)
+	SHADER_PARAMETER(FIntPoint, FogGridToPixelXY)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 extern void SetupVolumetricFogGlobalData(const FViewInfo& View, FVolumetricFogGlobalData& Parameters);

@@ -97,6 +97,7 @@ static bool ParseSpirvCrossOption(const ShaderConductor::MacroDefine& define, co
 static bool ParseSpirvCrossOptionCommon(spirv_cross::CompilerGLSL::Options& opt, const ShaderConductor::MacroDefine& define)
 {
     PARSE_SPIRVCROSS_OPTION(define, "reconstruct_global_uniforms", opt.reconstruct_global_uniforms);
+	PARSE_SPIRVCROSS_OPTION(define, "force_zero_initialized_variables", opt.force_zero_initialized_variables);
     return false;
 }
 
