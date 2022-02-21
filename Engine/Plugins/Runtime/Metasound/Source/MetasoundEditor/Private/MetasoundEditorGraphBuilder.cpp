@@ -404,10 +404,15 @@ namespace Metasound
 				const bool bInterfaceChange = Result.Node->ContainsInterfaceChange();
 				const bool bMetadataChange = Result.Node->ContainsMetadataChange();
 				const bool bStyleChange = Result.Node->ContainsStyleChange();
-				if (Result.bIsDirty || bMetadataChange || bInterfaceChange || bStyleChange || bForceRefreshNodes)
+
+				const FText Title = Result.Node->GetCachedTitle();
+				Result.Node->CacheTitle();
+				const bool bTitleUpdated = !Title.IdenticalTo(Result.Node->GetCachedTitle());
+
+
+				if (Result.bIsDirty || bTitleUpdated || bMetadataChange || bInterfaceChange || bStyleChange || bForceRefreshNodes)
 				{
 					Result.Node->SyncChangeIDs();
-					Result.Node->CacheTitle();
 
 					if (GraphEditor.IsValid())
 					{

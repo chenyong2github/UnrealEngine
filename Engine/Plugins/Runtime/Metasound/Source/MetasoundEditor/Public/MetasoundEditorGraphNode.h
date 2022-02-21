@@ -103,6 +103,7 @@ public:
 	// Mark node for refresh
 	void SyncChangeIDs();
 
+	FText GetCachedTitle() const { return CachedTitle; }
 
 	// Returns whether or not Metadata has been changed since the last node refresh
 	bool ContainsMetadataChange() const;
