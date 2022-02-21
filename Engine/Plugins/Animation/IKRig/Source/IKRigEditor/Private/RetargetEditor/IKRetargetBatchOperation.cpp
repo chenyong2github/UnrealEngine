@@ -49,9 +49,9 @@ int32 FIKRetargetBatchOperation::GenerateAssetLists(const FIKRetargetBatchOperat
 				{
 					for (const FAnimSegment& Segment: Track.AnimTrack.AnimSegments)
 					{
-						if (Segment.IsValid() && Segment.AnimReference)
+						if (Segment.IsValid() && Segment.GetAnimReference())
 						{
-							AnimationAssetsToRetarget.AddUnique(Segment.AnimReference);
+							AnimationAssetsToRetarget.AddUnique(Segment.GetAnimReference());
 						}
 					}
 				}
