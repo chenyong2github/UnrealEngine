@@ -7917,6 +7917,26 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 				PlatformBasedPackages.Add(PackageData.NormalizedFileName);
 			}
 		}
+
+		FString ExtraReleaseVersionAssetsFile;
+		const bool bUsingExtraReleaseVersionAssets = FParse::Value(FCommandLine::Get(), TEXT("ExtraReleaseVersionAssets="), ExtraReleaseVersionAssetsFile);
+		if (bUsingExtraReleaseVersionAssets)
+		{
+			// read AssetPaths out of the file and add them as already-cooked PackageDatas
+			TArray<FString> OutAssetPaths;
+			FFileHelper::LoadFileToStringArray(OutAssetPaths, *ExtraReleaseVersionAssetsFile);
+			for (const FString& AssetPath : OutAssetPaths)
+			{
+				if (UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByFileName(FName(*AssetPath)))
+				{
+					PackageData->SetPlatformsCooked(TargetPlatforms, true /* Succeeded */);
+				}
+				else
+				{
+					UE_LOG(LogCook, Error, TEXT("Failed to resolve package data for ExtraReleaseVersionAsset [%s]"), *AssetPath);
+				}
+			}
+		}
 	}
 	
 	// add shader library chunkers
