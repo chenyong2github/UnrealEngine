@@ -203,8 +203,7 @@ FString	SAnimSegmentsPanel::GetAnimSegmentName(int32 AnimSegmentIndex) const
 	if (ValidIndex(AnimSegmentIndex))
 	{
 		FString TitleLabel;
-		UAnimSequenceBase* AnimReference = AnimTrack->AnimSegments[AnimSegmentIndex].AnimReference;
-		if(AnimReference)
+		if(const UAnimSequenceBase* AnimReference = AnimTrack->AnimSegments[AnimSegmentIndex].GetAnimReference())
 		{
 			FString AssetName = AnimReference->GetName();
 			if (AnimTrack->AnimSegments[AnimSegmentIndex].IsValid() == false)
@@ -231,8 +230,7 @@ FText SAnimSegmentsPanel::GetAnimSegmentDetailedInfo(int32 AnimSegmentIndex) con
 	if (ValidIndex(AnimSegmentIndex))
 	{
 		FAnimSegment& AnimSegment = AnimTrack->AnimSegments[AnimSegmentIndex];
-		UAnimSequenceBase * Anim = AnimSegment.AnimReference;
-		if ( Anim != NULL )
+		if (const UAnimSequenceBase* AnimReference = AnimTrack->AnimSegments[AnimSegmentIndex].GetAnimReference())
 		{
 			static const FNumberFormattingOptions FormatOptions = FNumberFormattingOptions()
 				.SetMinimumFractionalDigits(2)
@@ -240,11 +238,12 @@ FText SAnimSegmentsPanel::GetAnimSegmentDetailedInfo(int32 AnimSegmentIndex) con
 
 			if (AnimTrack->AnimSegments[AnimSegmentIndex].IsValid())
 			{
-				return FText::Format(LOCTEXT("AnimSegmentPanel_GetAnimSegmentDetailedInfoFmt", "{0} {1}"), FText::FromString(Anim->GetName()), FText::AsNumber(AnimSegment.GetLength(), &FormatOptions));
+				return FText::Format(LOCTEXT("AnimSegmentPanel_GetAnimSegmentDetailedInfoFmt", "{0} {1} {2}"), FText::FromString(AnimReference->GetName()), FText::AsNumber(AnimSegment.GetLength(), &FormatOptions), 
+					AnimTrack->AnimSegments[AnimSegmentIndex].IsPlayLengthOutOfDate() ? LOCTEXT("AnimSegmentPanel_GetAnimSegmentDetailedInfoFmt_Warning_PlayTimeIncorrect", "(segment length does not match animation play length)") : FText::FromString(FString()));
 			}
 			else
 			{
-				return FText::Format(LOCTEXT("AnimSegmentPanel_GetAnimSegmentDetailedInfoFmt_Error_RecursiveReference", "{0} {1} - ERROR: Recursive Reference Found"), FText::FromString(Anim->GetName()), FText::AsNumber(AnimSegment.GetLength(), &FormatOptions));  
+				return FText::Format(LOCTEXT("AnimSegmentPanel_GetAnimSegmentDetailedInfoFmt_Error_RecursiveReference", "{0} {1} - ERROR: Recursive Reference Found"), FText::FromString(AnimReference->GetName()), FText::AsNumber(AnimSegment.GetLength(), &FormatOptions));  
 			}
 			
 		}
@@ -318,11 +317,8 @@ void SAnimSegmentsPanel::AddAnimSegment( UAnimSequenceBase* NewSequenceBase, flo
 	OnPreAnimUpdateDelegate.ExecuteIfBound();
 
 	FAnimSegment NewSegment;
-	NewSegment.AnimReference = NewSequenceBase;
-	NewSegment.AnimStartTime = 0.f;
-	NewSegment.AnimEndTime = NewSequenceBase->GetPlayLength();
-	NewSegment.AnimPlayRate = 1.f;
-	NewSegment.LoopingCount = 1;
+	NewSegment.SetAnimReference(NewSequenceBase, true);
+
 	NewSegment.StartPos = NewStartPos;
 
 	AnimTrack->AnimSegments.Add(NewSegment);
@@ -334,7 +330,7 @@ void SAnimSegmentsPanel::ReplaceAnimSegment(int32 AnimSegmentIndex, UAnimSequenc
 	const FScopedTransaction Transaction(LOCTEXT("AnimSegmentPanel_ReplaceSegment", "Replace Segment"));
 	if (AnimTrack->AnimSegments.IsValidIndex(AnimSegmentIndex))
 	{
-		UAnimSequenceBase* OldSequenceBase = AnimTrack->AnimSegments[AnimSegmentIndex].AnimReference;
+		UAnimSequenceBase* OldSequenceBase = AnimTrack->AnimSegments[AnimSegmentIndex].GetAnimReference();
 		if (OldSequenceBase != NewSequenceBase)
 		{
 			OnPreAnimUpdateDelegate.ExecuteIfBound();
@@ -395,8 +391,7 @@ void SAnimSegmentsPanel::OpenAsset(int32 AnimSegmentIndex)
 {
 	if (ValidIndex(AnimSegmentIndex))
 	{
-		UAnimSequenceBase* Asset = AnimTrack->AnimSegments[AnimSegmentIndex].AnimReference;
-		if (Asset)
+		if (UAnimSequenceBase* Asset = AnimTrack->AnimSegments[AnimSegmentIndex].GetAnimReference())
 		{
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Asset);
 		}
@@ -407,7 +402,7 @@ void SAnimSegmentsPanel::FillSubMenu(FMenuBuilder& MenuBuilder, int32 AnimSegmen
 {
 	if (ValidIndex(AnimSegmentIndex))
 	{
-		UAnimSequenceBase* OldSequenceBase = AnimTrack->AnimSegments[AnimSegmentIndex].AnimReference;
+		UAnimSequenceBase* OldSequenceBase = AnimTrack->AnimSegments[AnimSegmentIndex].GetAnimReference();
 
 		if (ensureAlways(OldSequenceBase))
 		{

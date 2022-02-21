@@ -214,10 +214,18 @@ FLinearColor SAnimCompositePanel::HandleGetNodeColor(const FAnimSegment& InSegme
 {
 	static const FLinearColor DisabledColor(64, 64, 64);
 
-	if(InSegment.AnimReference != nullptr)
+	const FSlateColor OrangeAccent = FAppStyle::Get().GetSlateColor("Colors.AccentOrange");
+	FLinearColor OutOfDateNodeColor = OrangeAccent.GetSpecifiedColor();
+
+    if (InSegment.IsPlayLengthOutOfDate())
+    {
+	    return OutOfDateNodeColor;
+    }
+
+	if(const TObjectPtr<UAnimSequenceBase> AnimReference = InSegment.GetAnimReference())
 	{
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-		TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(InSegment.AnimReference->GetClass());
+		TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AnimReference->GetClass());
 		check(AssetTypeActions.IsValid());
 		return AssetTypeActions.Pin()->GetTypeColor().ReinterpretAsLinear();
 	}

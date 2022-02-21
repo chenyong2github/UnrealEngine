@@ -67,7 +67,7 @@ protected:
 	void RefreshAttributeTracks();
 
 	/** Callback for any change made to the UAnimDataModel embedded in the AnimSequenceBase instance this represents */
-	void OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& PayLoad);
+	virtual void OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& PayLoad);
 
 private:
 	/** UI handlers */
@@ -103,6 +103,6 @@ private:
 
 	/** Display flags for notifies track */
 	bool NotifiesTimingElementNodeDisplayFlags[ETimingElementType::Max];
-
+protected:
 	UE::Anim::FAnimDataModelNotifyCollector NotifyCollector;
 };

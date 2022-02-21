@@ -80,6 +80,7 @@ public:
 		/** Optional, additional values to draw on the timeline **/
 		SLATE_ATTRIBUTE( TArray<float>, DraggableBars )
 		SLATE_EVENT( FOnScrubBarDrag, OnBarDrag )
+		SLATE_EVENT( FOnScrubBarCommit, OnBarCommit )
 		/** Called each frame during playback */
 		SLATE_EVENT( FOnTickPlayback, OnTickPlayback )
 	SLATE_END_ARGS()

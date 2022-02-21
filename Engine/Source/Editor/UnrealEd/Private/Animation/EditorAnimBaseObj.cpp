@@ -19,6 +19,7 @@ void UEditorAnimBaseObj::InitFromAnim(UAnimSequenceBase* AnimObjectIn, FOnAnimOb
 	AnimObject = AnimObjectIn;
 	OnChange = OnChangeIn;
 }
+
 bool UEditorAnimBaseObj::ApplyChangesToMontage()
 {
 	return false;
@@ -36,7 +37,7 @@ void UEditorAnimBaseObj::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if(OnChange.IsBound())
+	if(OnChange.IsBound() && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
 		if (ApplyChangesToMontage())
 		{
@@ -44,16 +45,5 @@ void UEditorAnimBaseObj::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 		}
 	}
 }
-
-/*
-void UEditorAnimBaseObj::NotifyUser()
-{
-	FNotificationInfo Info( FString::Printf( *LOCTEXT( "InvalidAnimSeg", "Invalid Animation is selected" ).ToString() ) );
-
-	Info.bUseLargeFont = false;
-	Info.ExpireDuration = 5.0f;
-
-	TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification( Info );
-}*/
 
 #undef LOCTEXT_NAMESPACE

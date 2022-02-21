@@ -184,7 +184,7 @@ FVector2D SAnimTimingNode::ComputeDesiredSize(float) const
 {
 	// Desired height is always the same (a little less than the track height) but the width depends on the text we display
 	const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	static FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
+	static FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Regular", AnimTimingConstants::FontSize);
 	float TextWidth = FontMeasureService->Measure(FString::FromInt(Element->TriggerIdx), LabelFont).X;
 	return FVector2D(FMath::Max(AnimTimingConstants::DefaultNodeSize, TextWidth), AnimTimingConstants::DefaultNodeSize);
 }

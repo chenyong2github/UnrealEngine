@@ -16,7 +16,7 @@ void FAnimLinkableElement::LinkMontage(UAnimMontage* Montage, float AbsMontageTi
 		if(SegmentIndex != INDEX_NONE)
 		{
 			FAnimSegment& Segment = Slot.AnimTrack.AnimSegments[SegmentIndex];
-			LinkedSequence = Segment.AnimReference;
+			LinkedSequence = Segment.GetAnimReference();
 			SegmentBeginTime = Segment.StartPos;
 			SegmentLength = Segment.GetLength();
 
@@ -78,7 +78,7 @@ void FAnimLinkableElement::Update()
 		{
 			// Update timing info from current segment
 			FAnimSegment& Segment = Slot.AnimTrack.AnimSegments[SegmentIndex];
-			LinkedSequence = Segment.AnimReference;
+			LinkedSequence = Segment.GetAnimReference();
 			SegmentBeginTime = Segment.StartPos;
 			SegmentLength = Segment.GetLength();
 
@@ -139,7 +139,7 @@ void FAnimLinkableElement::OnChanged(float NewMontageTime)
 	{
 		// Update to the detected segment
 		FAnimSegment& Segment = Slot.AnimTrack.AnimSegments[SegmentIndex];
-		LinkedSequence = Segment.AnimReference;
+		LinkedSequence = Segment.GetAnimReference();
 		SegmentBeginTime = Segment.StartPos;
 		SegmentLength = Segment.GetLength();
 
@@ -423,7 +423,7 @@ void FAnimLinkableElement::RefreshSegmentOnLoad()
 			{
 				FAnimSegment& Segment = Slot.AnimTrack.AnimSegments[SegmentIndex];
 
-				if(Segment.AnimReference == LinkedSequence)
+				if(Segment.GetAnimReference() == LinkedSequence)
 				{
 					if(CachedLinkMethod == EAnimLinkMethod::Relative)
 					{

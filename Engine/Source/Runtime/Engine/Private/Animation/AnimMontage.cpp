@@ -373,9 +373,20 @@ void UAnimMontage::PostLoad()
 			UE_LOG(LogAnimMontage, Display, TEXT("UAnimMontage::PostLoad: The actual sequence length for %s does not match the length stored in the asset, please resave the asset."), *GetFullName());
 			SetCompositeLength(CurrentCalculatedLength);
 		}
+
+#if WITH_EDITOR
+		for (const FAnimSegment& AnimSegment : Track.AnimSegments)
+		{
+			if(AnimSegment.IsPlayLengthOutOfDate())
+			{
+				UE_LOG(LogAnimation, Warning, TEXT("AnimMontage (%s) contains a Segment for Slot (%s) for which the playable length %f is out-of-sync with the represented AnimationSequence its length %f (%s). Please up-date the segment and resave."), *GetFullName(), *SlotIter->SlotName.ToString(), (AnimSegment.AnimEndTime - AnimSegment.AnimStartTime), AnimSegment.GetAnimReference()->GetPlayLength(),
+					*AnimSegment.GetAnimReference()->GetFullName());
+			}
+		}
+#endif
 	}
 
-	for(auto& Composite : CompositeSections)
+	for(FCompositeSection& Composite : CompositeSections)
 	{
 		if(Composite.StartTime_DEPRECATED != 0.0f)
 		{
@@ -397,9 +408,9 @@ void UAnimMontage::PostLoad()
 		{
 			for (FAnimSegment& Segment : Slot.AnimTrack.AnimSegments)
 			{
-				if (Segment.AnimReference)
+				if (UAnimSequenceBase* AnimReference = Segment.GetAnimReference())
 				{
-					Segment.AnimReference->EnableRootMotionSettingFromMontage(true, RootMotionRootLock);
+					AnimReference->EnableRootMotionSettingFromMontage(true, RootMotionRootLock);
 				}
 			}
 		}
@@ -412,7 +423,7 @@ void UAnimMontage::PostLoad()
 		{
 			if ( SlotAnimTracks[I].AnimTrack.AnimSegments.Num() > 0 )
 			{
-				UAnimSequenceBase* SequenceBase = SlotAnimTracks[I].AnimTrack.AnimSegments[0].AnimReference;
+				UAnimSequenceBase* SequenceBase = SlotAnimTracks[I].AnimTrack.AnimSegments[0].GetAnimReference();
 				UAnimSequence* BaseAdditivePose = (SequenceBase) ? SequenceBase->GetAdditiveBasePose() : nullptr;
 				if (BaseAdditivePose)
 				{
@@ -431,10 +442,10 @@ void UAnimMontage::PostLoad()
 		{
 			if ( SlotAnimTracks[I].AnimTrack.AnimSegments.Num() > 0 )
 			{
-				UAnimSequenceBase* SequenceBase = SlotAnimTracks[I].AnimTrack.AnimSegments[0].AnimReference;
+				UAnimSequenceBase* SequenceBase = SlotAnimTracks[I].AnimTrack.AnimSegments[0].GetAnimReference();
 				if (SequenceBase && !MySkeleton->IsCompatible(SequenceBase->GetSkeleton()))
 				{
-					SlotAnimTracks[I].AnimTrack.AnimSegments[0].AnimReference = nullptr;
+					SlotAnimTracks[I].AnimTrack.AnimSegments[0].SetAnimReference(nullptr);
 					MarkPackageDirty();
 					break;
 				}
@@ -956,10 +967,10 @@ const TArray<class UAnimMetaData*> UAnimMontage::GetSectionMetaData(FName Sectio
 							// now add the animations within this section
 							for (auto& SegmentIter : SlotIter.AnimTrack.AnimSegments)
 							{
-								if (SegmentIter.AnimReference)
+								if (UAnimSequenceBase* AnimReference = SegmentIter.GetAnimReference())
 								{
 									// only add unique here
-									TArray<UAnimMetaData*> RefMetadata = SegmentIter.AnimReference->GetMetaData();
+									TArray<UAnimMetaData*> RefMetadata = AnimReference->GetMetaData();
 
 									for (auto& RefData : RefMetadata)
 									{
@@ -987,10 +998,10 @@ const TArray<class UAnimMetaData*> UAnimMontage::GetSectionMetaData(FName Sectio
 							{
 								if (SegmentIter.IsIncluded(SectionStartTime, SectionEndTime))
 								{
-									if (SegmentIter.AnimReference)
+									if (UAnimSequenceBase* AnimReference = SegmentIter.GetAnimReference())
 									{
 										// only add unique here
-										TArray<UAnimMetaData*> RefMetadata = SegmentIter.AnimReference->GetMetaData();
+										TArray<UAnimMetaData*> RefMetadata = AnimReference->GetMetaData();
 
 										for (auto& RefData : RefMetadata)
 										{
@@ -1069,8 +1080,6 @@ void UAnimMontage::UpdateLinkableElements()
 
 void UAnimMontage::UpdateLinkableElements(int32 SlotIdx, int32 SegmentIdx)
 {
-	FAnimSegment* UpdatedSegment = &SlotAnimTracks[SlotIdx].AnimTrack.AnimSegments[SegmentIdx];
-
 	for (FCompositeSection& Section : CompositeSections)
 	{
 		if (Section.GetSlotIndex() == SlotIdx && Section.GetSegmentIndex() == SegmentIdx)
@@ -1124,9 +1133,9 @@ void UAnimMontage::RefreshParentAssetData()
 		{
 			FAnimSegment& Segment = SlotTrack.AnimTrack.AnimSegments[SegmentIdx];
 			FAnimSegment& ParentSegment = ParentMontage->SlotAnimTracks[SlotIdx].AnimTrack.AnimSegments[SegmentIdx];
-			UAnimSequenceBase* SourceReference = Segment.AnimReference;
+			UAnimSequenceBase* SourceReference = Segment.GetAnimReference();
 			UAnimSequenceBase* TargetReference = Cast<UAnimSequenceBase>(AssetMappingTable->GetMappedAsset(SourceReference));
-			Segment.AnimReference = TargetReference;
+			Segment.SetAnimReference(TargetReference);
 
 			float LengthChange = FMath::IsNearlyZero(SourceReference->GetPlayLength()) ? 0.f : TargetReference->GetPlayLength() / SourceReference->GetPlayLength();
 			float RateChange = FMath::IsNearlyZero(SourceReference->RateScale) ? 0.f : FMath::Abs(TargetReference->RateScale / SourceReference->RateScale);
@@ -1227,7 +1236,7 @@ void UAnimMontage::CollectMarkers()
 		const FAnimTrack& AnimTrack = SlotAnimTracks[SyncSlotIndex].AnimTrack;
 		for (const auto& Seg : AnimTrack.AnimSegments)
 		{
-			const UAnimSequence* Sequence = Cast<UAnimSequence>(Seg.AnimReference);
+			const UAnimSequence* Sequence = Cast<UAnimSequence>(Seg.GetAnimReference());
 			if (Sequence && Sequence->AuthoredSyncMarkers.Num() > 0)
 			{
 				// @todo this won't work well if you have starttime < end time and it does have negative playrate
@@ -2848,11 +2857,7 @@ UAnimMontage* UAnimMontage::CreateSlotAnimationAsDynamicMontage_WithBlendSetting
 	FSlotAnimationTrack& NewTrack = NewMontage->SlotAnimTracks[0];
 	NewTrack.SlotName = SlotNodeName;
 	FAnimSegment NewSegment;
-	NewSegment.AnimReference = Asset;
-	NewSegment.AnimStartTime = 0.f;
-	NewSegment.AnimEndTime = Asset->GetPlayLength();
-	NewSegment.AnimPlayRate = 1.f;
-	NewSegment.StartPos = 0.f;
+	NewSegment.SetAnimReference(Asset, true);
 	NewSegment.LoopingCount = LoopCount;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
     NewMontage->SequenceLength = NewSegment.GetLength();

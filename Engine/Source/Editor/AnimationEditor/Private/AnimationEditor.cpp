@@ -768,7 +768,7 @@ void FAnimationEditor::ConditionalRefreshEditor(UObject* InObject)
 
 			for (FAnimSegment& Segment : Slot.AnimTrack.AnimSegments)
 			{
-				if (Segment.AnimReference == InObject)
+				if (Segment.GetAnimReference() == InObject)
 				{
 					bInterestingAsset = true;
 					break;

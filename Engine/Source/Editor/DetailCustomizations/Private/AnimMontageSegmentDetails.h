@@ -31,7 +31,27 @@ public:
 
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
+protected:
 	bool OnShouldFilterAnimAsset(const FAssetData& AssetData) const;
+	
+	const UAnimSequenceBase* GetAnimationAsset() const;
+	FAnimSegment* GetAnimationSegment() const;
+	bool CanEditSegmentProperties() const;
+
+	void SetAnimationAsset(const FAssetData& InAssetData);
+	void OnStartTimeChanged(float InValue, ETextCommit::Type InCommitType, bool bInteractive = false);	
+	void OnEndTimeChanged(float InValue, ETextCommit::Type InCommitType, bool bInteractive = false);
+
+	TOptional<float> GetStartTime() const;
+	TOptional<float> GetEndTime() const;	
+	TOptional<float> GetAnimationAssetPlayLength() const;
+	TOptional<float> GetPlayRate() const;
+
+protected:
+	TSharedPtr<IPropertyHandle> AnimSegmentHandle;
+	TSharedPtr<IPropertyHandle> AnimationAssetHandle;
+	TSharedPtr<IPropertyHandle> AnimStartTimeProperty;
+	TSharedPtr<IPropertyHandle> AnimEndTimeProperty;
 };
 
 
@@ -39,20 +59,16 @@ public:
 class SAnimationSegmentViewport : public SCompoundWidget
 {
 public:
+	DECLARE_DELEGATE_TwoParams(FOnValueChanged, float, bool);
+	
 	SLATE_BEGIN_ARGS( SAnimationSegmentViewport )
-		: _Skeleton(NULL)
-		, _AnimRef(NULL)
-		, _IsEditable(true)
 	{}
-		
-		SLATE_ARGUMENT( USkeleton*, Skeleton )
-		SLATE_ARGUMENT( UAnimSequenceBase*, AnimRef)
-		SLATE_ARGUMENT( TSharedPtr<IPropertyHandle>, AnimRefPropertyHandle )
-		SLATE_ARGUMENT( TSharedPtr<IPropertyHandle>, StartTimePropertyHandle )
-		SLATE_ARGUMENT( TSharedPtr<IPropertyHandle>, EndTimePropertyHandle )
-		SLATE_ARGUMENT(TSharedPtr<IPropertyHandle>, PlayRatePropertyHandle);
-
-		SLATE_ATTRIBUTE( bool, IsEditable )	
+		SLATE_ATTRIBUTE(const UAnimSequenceBase*, AnimRef)
+		SLATE_ATTRIBUTE(TOptional<float>, StartTime)
+		SLATE_ATTRIBUTE(TOptional<float>, EndTime)
+		SLATE_ATTRIBUTE(TOptional<float>, PlayRate)
+		SLATE_EVENT(FOnValueChanged, OnStartTimeChanged)
+		SLATE_EVENT(FOnValueChanged, OnEndTimeChanged)
 	SLATE_END_ARGS()
 	
 public:
@@ -65,25 +81,25 @@ public:
 	void RefreshViewport();
 
 private:
-
 	void InitSkeleton();
 
 	TSharedPtr<FEditorViewportClient> LevelViewportClient;
-	
-	TSharedPtr<IPropertyHandle> AnimRefPropertyHandle;
-	TSharedPtr<IPropertyHandle> StartTimePropertyHandle;
-	TSharedPtr<IPropertyHandle> EndTimePropertyHandle;
-	TSharedPtr<IPropertyHandle> PlayRatePropertyHandle;
 
+	TAttribute<const UAnimSequenceBase*> AnimationRefAttribute;	
+	TAttribute<TOptional<float>> StartTimeAttribute;
+	TAttribute<TOptional<float>> EndTimeAttribute;
+	TAttribute<TOptional<float>> PlayRateAttribute;
+	FOnValueChanged OnStartTimeChanged;
+	FOnValueChanged OnEndTimeChanged;
+	
 	/** Slate viewport for rendering and I/O */
 	//TSharedPtr<class FSceneViewport> Viewport;
 	TSharedPtr<SViewport> ViewportWidget;
 
 	TSharedPtr<class FSceneViewport> SceneViewport;
 
-	/** Skeleton */
-	USkeleton* TargetSkeleton;
-	UAnimSequenceBase *AnimRef;
+
+	TObjectPtr<UAnimSequenceBase> CurrentAnimSequenceBase;
 
 	FPreviewScene PreviewScene;
 	class UDebugSkelMeshComponent* PreviewComponent;
@@ -103,7 +119,7 @@ public:
 
 	/** Optional, additional values to draw on the timeline **/
 	TArray<float> GetBars() const;
-	void OnBarDrag(int32 index, float newPos);
+	void OnBarDrag(int32 index, float newPos, bool bInteractive);
 	
 
 };
@@ -128,6 +144,7 @@ public:
 		SLATE_ARGUMENT( bool, bAllowZoom )
 		SLATE_ATTRIBUTE( TArray<float>, DraggableBars )
 		SLATE_EVENT( FOnScrubBarDrag, OnBarDrag )
+		SLATE_EVENT( FOnScrubBarCommit, OnBarCommit )
 		SLATE_EVENT( FOnTickPlayback, OnTickPlayback )
 	SLATE_END_ARGS()
 	

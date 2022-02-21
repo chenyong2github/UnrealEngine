@@ -59,31 +59,65 @@ struct FAnimSegment
 {
 	GENERATED_USTRUCT_BODY()
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FAnimSegment(const FAnimSegment&) = default;
+	FAnimSegment(FAnimSegment&&) = default;
+	FAnimSegment& operator=(const FAnimSegment&) = default;
+	FAnimSegment& operator=(FAnimSegment&&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UE_DEPRECATED(5.1, "Public access to AnimReference has been deprecated, use Set/Get-AnimReference instead")
 	/** Anim Reference to play - only allow AnimSequence or AnimComposite **/
-	UPROPERTY(EditAnywhere, Category=AnimSegment)
+	UPROPERTY(EditAnywhere, Category=AnimSegment, meta=(DisplayName = "Animation Reference"))
 	TObjectPtr<UAnimSequenceBase> AnimReference;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	float CachedPlayLength = 0.f;
+#endif
+
+#if WITH_EDITOR
+	friend class UEditorAnimSegment;
+	friend class UEditorAnimCompositeSegment;
+	ENGINE_API void UpdateCachedPlayLength();
+#endif // WITH_EDITOR
+public:
+
+	ENGINE_API void SetAnimReference(UAnimSequenceBase* InAnimReference, bool bInitialize = false);
+	const TObjectPtr<UAnimSequenceBase>& GetAnimReference() const 
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return AnimReference;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+#if WITH_EDITOR
+	ENGINE_API bool IsPlayLengthOutOfDate() const;
+#endif // WITH_EDITOR
+	
 	/** Start Pos within this AnimCompositeBase */
-	UPROPERTY(VisibleAnywhere, Category=AnimSegment)
-	float	StartPos;
+	UPROPERTY(VisibleAnywhere, Category=AnimSegment, meta=(DisplayName = "Starting Position"))
+	float StartPos;
 
 	/** Time to start playing AnimSequence at. */
-	UPROPERTY(EditAnywhere, Category=AnimSegment)
-	float	AnimStartTime;
+	UPROPERTY(EditAnywhere, Category=AnimSegment, meta=(DisplayName = "Start Time"))
+	float AnimStartTime;
 
 	/** Time to end playing the AnimSequence at. */
-	UPROPERTY(EditAnywhere, Category=AnimSegment)
-	float	AnimEndTime;
+	UPROPERTY(EditAnywhere, Category=AnimSegment, meta=(DisplayName = "End Time"))
+	float AnimEndTime;
 
 	/** Playback speed of this animation. If you'd like to reverse, set -1*/
-	UPROPERTY(EditAnywhere, Category=AnimSegment)
-	float	AnimPlayRate;
+	UPROPERTY(EditAnywhere, Category=AnimSegment, meta=(DisplayName = "Play Rate"))
+	float AnimPlayRate;
 
-	UPROPERTY(EditAnywhere, Category=AnimSegment)
-	int32		LoopingCount;
+	UPROPERTY(EditAnywhere, Category=AnimSegment, meta=(DisplayName = "Loop Count"))
+	int32 LoopingCount;
 
 	FAnimSegment()
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: AnimReference(nullptr)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, StartPos(0.f)
 		, AnimStartTime(0.f)
 		, AnimEndTime(0.f)
@@ -96,7 +130,9 @@ struct FAnimSegment
 	/** Ensures PlayRate is non Zero */
 	float GetValidPlayRate() const
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		float SeqPlayRate = AnimReference ? AnimReference->RateScale : 1.0f;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		float FinalPlayRate = SeqPlayRate * AnimPlayRate;
 		return (FMath::IsNearlyZero(FinalPlayRate) ? 1.f : FinalPlayRate);
 	}
@@ -185,7 +221,9 @@ struct FAnimSegment
 	/** 
 	 * return true if anim notify is available 
 	 */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bool IsNotifyAvailable() const { return IsValid() && AnimReference && AnimReference->IsNotifyAvailable(); }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 private:
 
 	/**

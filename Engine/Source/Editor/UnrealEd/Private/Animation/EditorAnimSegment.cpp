@@ -17,7 +17,7 @@ UEditorAnimSegment::UEditorAnimSegment(const FObjectInitializer& ObjectInitializ
 	AnimSegmentIndex = 0;
 }
 
-void UEditorAnimSegment::InitAnimSegment(int AnimSlotIndexIn,int AnimSegmentIndexIn)
+void UEditorAnimSegment::InitAnimSegment(int32 AnimSlotIndexIn, int32 AnimSegmentIndexIn)
 {
 	AnimSlotIndex = AnimSlotIndexIn;
 	AnimSegmentIndex = AnimSegmentIndexIn;
@@ -30,13 +30,25 @@ void UEditorAnimSegment::InitAnimSegment(int AnimSlotIndexIn,int AnimSegmentInde
 	}
 }
 
+void UEditorAnimSegment::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FAnimSegment, AnimReference))
+	{
+		AnimSegment.UpdateCachedPlayLength();			
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
 bool UEditorAnimSegment::ApplyChangesToMontage()
 {
 	if(UAnimMontage* Montage = Cast<UAnimMontage>(AnimObject))
 	{
 		if(Montage->SlotAnimTracks.IsValidIndex(AnimSlotIndex) && Montage->SlotAnimTracks[AnimSlotIndex].AnimTrack.AnimSegments.IsValidIndex(AnimSegmentIndex) )
 		{
-			if (AnimSegment.AnimReference && Montage->GetSkeleton()->IsCompatible(AnimSegment.AnimReference->GetSkeleton()))
+			if (AnimSegment.GetAnimReference() && Montage->GetSkeleton()->IsCompatible(AnimSegment.GetAnimReference()->GetSkeleton()))
 			{
 				Montage->SlotAnimTracks[AnimSlotIndex].AnimTrack.AnimSegments[AnimSegmentIndex] = AnimSegment;
 				Montage->UpdateLinkableElements(AnimSlotIndex, AnimSegmentIndex);
@@ -52,7 +64,7 @@ bool UEditorAnimSegment::ApplyChangesToMontage()
 			}
 			else
 			{
-				AnimSegment.AnimReference = Montage->SlotAnimTracks[AnimSlotIndex].AnimTrack.AnimSegments[AnimSegmentIndex].AnimReference;
+				AnimSegment.SetAnimReference(Montage->SlotAnimTracks[AnimSlotIndex].AnimTrack.AnimSegments[AnimSegmentIndex].GetAnimReference());
 				return false;
 			}
 		}
@@ -64,13 +76,9 @@ bool UEditorAnimSegment::ApplyChangesToMontage()
 bool UEditorAnimSegment::PropertyChangeRequiresRebuild(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
-	if( PropertyName == FName(TEXT("AnimEndTime")) || PropertyName == FName(TEXT("AnimStartTime")) || PropertyName == FName(TEXT("AnimPlayRate")) || PropertyName == FName(TEXT("LoopingCount")))
-	{
-		// Changing the end or start time of the segment length can't change the order of the montage segments.
-		// Return false so that the montage editor does not fully rebuild its UI and we can keep this UEditorAnimSegment object 
-		// in the details view. (A better solution would be handling the rebuilding in a way that didn't possibly invalidate the UEditorMontageObj in the details view)
-		return false;
-	}
 
-	return true;
+	// Changing the end or start time of the segment length can't change the order of the montage segments.
+	// Return false so that the montage editor does not fully rebuild its UI and we can keep this UEditorAnimSegment object 
+	// in the details view. (A better solution would be handling the rebuilding in a way that didn't possibly invalidate the UEditorMontageObj in the details view)
+	return !(PropertyName == GET_MEMBER_NAME_CHECKED(FAnimSegment, AnimEndTime) || PropertyName == GET_MEMBER_NAME_CHECKED(FAnimSegment, AnimStartTime) || PropertyName == GET_MEMBER_NAME_CHECKED(FAnimSegment, AnimPlayRate) || PropertyName == GET_MEMBER_NAME_CHECKED(FAnimSegment, LoopingCount));
 }

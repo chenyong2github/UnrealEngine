@@ -61,6 +61,9 @@ public:
 	bool IsSectionTimingDisplayEnabled() const;
 	void ToggleSectionTimingDisplay();
 
+protected:	
+	virtual void OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& PayLoad) override;
+
 private:
 	/** The anim montage we wrap */
 	UAnimMontage* AnimMontage;

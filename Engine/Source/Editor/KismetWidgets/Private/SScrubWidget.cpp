@@ -59,6 +59,7 @@ void SScrubWidget::Construct( const SScrubWidget::FArguments& InArgs )
 
 	DraggableBars = InArgs._DraggableBars;
 	OnBarDrag = InArgs._OnBarDrag;
+	OnBarCommit = InArgs._OnBarCommit;
 	bDisplayDrag = InArgs._DisplayDrag;
 	bDisplayAnimScrubBarEditing = InArgs._bDisplayAnimScrubBarEditing;
 	bMouseMovedDuringPanning = false;
@@ -264,6 +265,14 @@ FReply SScrubWidget::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointe
 		if(DraggingBar)
 		{
 			DraggingBar = false;
+
+			if(OnBarCommit.IsBound())
+			{
+				const FVector2D CursorPos = MyGeometry.AbsoluteToLocal( MouseEvent.GetScreenSpacePosition() );
+				const FTrackScaleInfo ScaleInfo(ViewInputMin.Get(), ViewInputMax.Get(), 0.f, 0.f, MyGeometry.GetLocalSize());
+				const float NewDataPos = FMath::Clamp( ScaleInfo.LocalXToInput(CursorPos.X), ViewInputMin.Get(), ViewInputMax.Get() );				
+				OnBarCommit.ExecuteIfBound(DraggableBarIndex, NewDataPos);
+			}			
 		}
 		else if( bDragging )
 		{

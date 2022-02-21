@@ -94,7 +94,7 @@ FTransform UMotionWarpingUtilities::ExtractRootTransformFromAnimation(const UAni
 	{
 		if(const FAnimSegment* Segment = AnimMontage->SlotAnimTracks[0].AnimTrack.GetSegmentAtTime(Time))
 		{
-			if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(Segment->AnimReference))
+			if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(Segment->GetAnimReference()))
 			{
 				const float AnimSequenceTime = Segment->ConvertTrackPosToAnimPos(Time);
 				return AnimSequence->ExtractRootTrackTransform(AnimSequenceTime, nullptr);
@@ -295,21 +295,22 @@ void UMotionWarpingComponent::Update()
 			{
 				const FAnimTrack& AnimTrack = Montage->SlotAnimTracks[SlotIdx].AnimTrack;
 				const FAnimSegment* AnimSegment = AnimTrack.GetSegmentAtTime(PreviousPosition);
-				if (AnimSegment && AnimSegment->AnimReference)
+				const UAnimSequenceBase* AnimReference = AnimSegment->GetAnimReference();
+				if (AnimSegment && AnimReference)
 				{
-					for (const FAnimNotifyEvent& NotifyEvent : AnimSegment->AnimReference->Notifies)
+					for (const FAnimNotifyEvent& NotifyEvent : AnimReference->Notifies)
 					{
 						const UAnimNotifyState_MotionWarping* MotionWarpingNotify = NotifyEvent.NotifyStateClass ? Cast<UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass) : nullptr;
 						if (MotionWarpingNotify)
 						{
 							if (MotionWarpingNotify->RootMotionModifier == nullptr)
 							{
-								UE_LOG(LogMotionWarping, Warning, TEXT("MotionWarpingComponent::Update. A motion warping window in %s doesn't have a valid root motion modifier!"), *GetNameSafe(AnimSegment->AnimReference));
+								UE_LOG(LogMotionWarping, Warning, TEXT("MotionWarpingComponent::Update. A motion warping window in %s doesn't have a valid root motion modifier!"), *GetNameSafe(AnimReference));
 								continue;
 							}
 
-							const float NotifyStartTime = FMath::Clamp(NotifyEvent.GetTriggerTime(), 0.f, AnimSegment->AnimReference->GetPlayLength());
-							const float NotifyEndTime = FMath::Clamp(NotifyEvent.GetEndTriggerTime(), 0.f, AnimSegment->AnimReference->GetPlayLength());
+							const float NotifyStartTime = FMath::Clamp(NotifyEvent.GetTriggerTime(), 0.f, AnimReference->GetPlayLength());
+							const float NotifyEndTime = FMath::Clamp(NotifyEvent.GetEndTriggerTime(), 0.f, AnimReference->GetPlayLength());
 
 							// Convert notify times from AnimSequence times to montage times
 							const float StartTime = (NotifyStartTime - AnimSegment->AnimStartTime) + AnimSegment->StartPos;

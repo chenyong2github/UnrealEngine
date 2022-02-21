@@ -69,7 +69,7 @@ FTransform UContextualAnimUtilities::ExtractRootTransformFromAnimation(const UAn
 	{
 		if (const FAnimSegment* Segment = AnimMontage->SlotAnimTracks[0].AnimTrack.GetSegmentAtTime(Time))
 		{
-			if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(Segment->AnimReference))
+			if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(Segment->GetAnimReference()))
 			{
 				const float AnimSequenceTime = Segment->ConvertTrackPosToAnimPos(Time);
 				return AnimSequence->ExtractRootTrackTransform(AnimSequenceTime, nullptr);

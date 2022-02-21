@@ -23,6 +23,7 @@ DECLARE_DELEGATE_TwoParams( FOnCropAnimSequence, bool, float )
 DECLARE_DELEGATE_TwoParams( FOnAddAnimSequence, bool, int32 )
 DECLARE_DELEGATE_TwoParams( FOnAppendAnimSequence, bool, int32 )
 DECLARE_DELEGATE_TwoParams( FOnScrubBarDrag, int32, float)
+DECLARE_DELEGATE_TwoParams( FOnScrubBarCommit, int32, float)
 DECLARE_DELEGATE_OneParam( FOnReZeroAnimSequence, int32 )
 
 class KISMETWIDGETS_API SScrubWidget : public SCompoundWidget
@@ -72,7 +73,8 @@ public:
 		SLATE_EVENT( FOnReZeroAnimSequence, OnReZeroAnimSequence )
 		/** Optional, additional values to draw on the timeline **/
 		SLATE_ATTRIBUTE( TArray<float>, DraggableBars )
-		SLATE_EVENT( FOnScrubBarDrag, OnBarDrag)
+		SLATE_EVENT( FOnScrubBarDrag, OnBarDrag )
+		SLATE_EVENT( FOnScrubBarCommit, OnBarCommit )
 	SLATE_END_ARGS()
 
 
@@ -140,6 +142,7 @@ private:
 	/** Dragagble bars are generic lines drawn on the scrub widget that can be dragged with the mouse. This is very bare bones and just represents drawing/moving float values */
 	TAttribute<TArray<float>>	DraggableBars;
 	FOnScrubBarDrag OnBarDrag;
+	FOnScrubBarCommit OnBarCommit;
 
 	/** Distance Dragged **/
 	float DistanceDragged;

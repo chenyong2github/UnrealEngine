@@ -151,3 +151,18 @@ void UAnimComposite::SetCompositeLength(float InLength)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif	
 }
+
+void UAnimComposite::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	for (const FAnimSegment& AnimSegment : AnimationTrack.AnimSegments)
+	{
+		if(AnimSegment.IsPlayLengthOutOfDate())
+		{
+			UE_LOG(LogAnimation, Warning, TEXT("AnimComposite (%s) contains a Segment for which the playable length %f is out-of-sync with the represented AnimationSequence its length %f (%s). Please up-date the segment and resave."), *GetFullName(), (AnimSegment.AnimEndTime - AnimSegment.AnimStartTime), AnimSegment.GetAnimReference()->GetPlayLength(), *AnimSegment.GetAnimReference()->GetFullName());
+		}
+	}
+#endif
+}

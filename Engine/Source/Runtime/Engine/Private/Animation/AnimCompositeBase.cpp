@@ -20,7 +20,9 @@ UAnimSequenceBase * FAnimSegment::GetAnimationData(float PositionInTrack, float&
 {
 	if( bValid && IsInRange(PositionInTrack) )
 	{
-		if( AnimReference )
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if(AnimReference)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			const float ValidPlayRate = GetValidPlayRate();
 
@@ -43,11 +45,14 @@ UAnimSequenceBase * FAnimSegment::GetAnimationData(float PositionInTrack, float&
 			{
 				PositionInAnim = AnimEndTime + Delta * ValidPlayRate;
 			}
+
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			return AnimReference;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 /** Converts 'Track Position' to position on AnimSequence.
@@ -111,7 +116,9 @@ void FAnimSegment::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackP
 		)
 	{
 		// Only allow AnimSequences for now. Other types will need additional support.
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UAnimSequenceBase* AnimSequenceBase = AnimReference;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if(AnimSequenceBase)
 		{
 			const float ValidPlayRate = GetValidPlayRate();
@@ -171,7 +178,9 @@ void FAnimSegment::GetRootMotionExtractionStepsForTrackRange(TArray<FRootMotionE
 		return;
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!bValid || !AnimReference)
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		return;
 	}
@@ -208,8 +217,10 @@ void FAnimSegment::GetRootMotionExtractionStepsForTrackRange(TArray<FRootMotionE
 		const float AnimEndPoint = bAnimPlayingBackwards ? AnimStartTime : AnimEndTime;
 
 		// Only allow AnimSequences for now. Other types will need additional support.
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimReference);
 		UAnimComposite* AnimComposite = Cast<UAnimComposite>(AnimReference);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (AnimSequence || AnimComposite)
 		{
@@ -263,7 +274,8 @@ bool FAnimTrack::HasRootMotion() const
 {
 	for (const FAnimSegment& AnimSegment : AnimSegments)
 	{
-		if (AnimSegment.bValid && AnimSegment.AnimReference && AnimSegment.AnimReference->HasRootMotion())
+		const UAnimSequenceBase* AnimReference = AnimSegment.GetAnimReference();
+		if (AnimSegment.bValid && AnimReference && AnimReference->HasRootMotion())
 		{
 			return true;
 		}
@@ -278,7 +290,8 @@ class UAnimSequence* FAnimTrack::GetAdditiveBasePose() const
 	{
 		for (const FAnimSegment& AnimSegment : AnimSegments)
 		{
-			UAnimSequence* BasePose = (AnimSegment.AnimReference) ? (AnimSegment.AnimReference->GetAdditiveBasePose()) : nullptr;
+			UAnimSequenceBase* AnimReference = AnimSegment.GetAnimReference();
+			UAnimSequence* BasePose = AnimReference ? AnimReference->GetAdditiveBasePose() : nullptr;
 			if (BasePose)
 			{
 				return BasePose;
@@ -322,10 +335,9 @@ float FAnimTrack::GetLength() const
 
 	// in the future, if we're more clear about exactly what requirement is for segments, 
 	// this can be optimized. For now this is slow. 
-	for ( int32 I=0; I<AnimSegments.Num(); ++I )
+	for (const FAnimSegment& AnimSegment : AnimSegments)
 	{
-		const struct FAnimSegment& Segment = AnimSegments[I];
-		float EndFrame = Segment.StartPos + Segment.GetLength();
+		const float EndFrame = AnimSegment.StartPos + AnimSegment.GetLength();
 		if ( EndFrame > TotalLength )
 		{
 			TotalLength = EndFrame;
@@ -343,10 +355,10 @@ bool FAnimTrack::IsAdditive() const
 	// and if they mismatch, what can I do? That should be another verification function when this is created
 	// it will look visually wrong if something mismatches, but nothing really is better solution than that. 
 	// in editor, when this is created, the test has to be done to verify all are matches. 
-	for ( int32 I=0; I<AnimSegments.Num(); ++I )
+	for (const FAnimSegment& AnimSegment : AnimSegments)
 	{
-		const struct FAnimSegment & Segment = AnimSegments[I];
-		return ( Segment.AnimReference && Segment.bValid && Segment.AnimReference->IsValidAdditive() ); //-V612
+		const UAnimSequenceBase* AnimReference = AnimSegment.GetAnimReference();
+		return (AnimReference && AnimSegment.bValid && AnimReference->IsValidAdditive() ); //-V612
 	}
 
 	return false;
@@ -360,20 +372,12 @@ bool FAnimTrack::IsRotationOffsetAdditive() const
 	// and if they mismatch, what can I do? That should be another verification function when this is created
 	// it will look visually wrong if something mismatches, but nothing really is better solution than that. 
 	// in editor, when this is created, the test has to be done to verify all are matches. 
-	for ( int32 I=0; I<AnimSegments.Num(); ++I )
+	for (const FAnimSegment& AnimSegment : AnimSegments)
 	{
-		const struct FAnimSegment & Segment = AnimSegments[I];
-		if ( Segment.AnimReference && Segment.AnimReference->IsValidAdditive() )
+		const UAnimSequenceBase* AnimReference = AnimSegment.GetAnimReference();
+		if (AnimReference && AnimReference->IsValidAdditive())
 		{
-			UAnimSequenceBase* SequenceBase = Segment.AnimReference;
-			if (SequenceBase)
-			{
-				return (SequenceBase->GetAdditiveAnimType() == AAT_RotationOffsetMeshSpace);
-			}
-			else
-			{
-				break;
-			}
+			return (AnimReference->GetAdditiveAnimType() == AAT_RotationOffsetMeshSpace);
 		}
 		else
 		{
@@ -394,11 +398,11 @@ int32 FAnimTrack::GetTrackAdditiveType() const
 
 	if( AnimSegments.Num() > 0 )
 	{
-		const struct FAnimSegment & Segment = AnimSegments[0];
-		UAnimSequenceBase* SequenceBase = Segment.AnimReference;
-		if ( SequenceBase )
+		const FAnimSegment& AnimSegment = AnimSegments[0];
+		const UAnimSequenceBase* AnimReference = AnimSegment.GetAnimReference();
+		if (AnimReference)
 		{
-			return SequenceBase->GetAdditiveAnimType();
+			return AnimReference->GetAdditiveAnimType();
 		}
 	}
 	return -1;
@@ -410,17 +414,18 @@ void FAnimTrack::ValidateSegmentTimes()
 	if(AnimSegments.Num() > 0)
 	{
 		AnimSegments[0].StartPos = 0.0f;
-		for(int32 J = 0; J < AnimSegments.Num(); J++)
+		for(int32 SegmentIndex = 0; SegmentIndex < AnimSegments.Num(); SegmentIndex++)
 		{
-			FAnimSegment& Segment = AnimSegments[J];
-			if(J > 0)
+			FAnimSegment& AnimSegment = AnimSegments[SegmentIndex];
+			if(SegmentIndex > 0)
 			{
-				Segment.StartPos = AnimSegments[J - 1].StartPos + AnimSegments[J - 1].GetLength();
+				AnimSegment.StartPos = AnimSegments[SegmentIndex - 1].StartPos + AnimSegments[SegmentIndex - 1].GetLength();
 			}
 
-			if(Segment.AnimReference && Segment.AnimEndTime > Segment.AnimReference->GetPlayLength())
+			const UAnimSequenceBase* AnimReference = AnimSegment.GetAnimReference();
+			if(AnimReference && AnimSegment.AnimEndTime > AnimReference->GetPlayLength())
 			{
-				Segment.AnimEndTime = Segment.AnimReference->GetPlayLength();
+				AnimSegment.AnimEndTime = AnimReference->GetPlayLength();
 			}
 		}
 	}
@@ -459,11 +464,10 @@ int32 FAnimTrack::GetSegmentIndexAtTime(float InTime) const
 #if WITH_EDITOR
 bool FAnimTrack::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive/* = true*/) const
 {
-	for ( int32 I=0; I<AnimSegments.Num(); ++I )
+	for (const FAnimSegment& AnimSegment : AnimSegments)
 	{
-		const struct FAnimSegment& Segment = AnimSegments[I];
-		UAnimSequenceBase* AnimSeqBase = Segment.AnimReference;
-		if ( Segment.bValid && AnimSeqBase )
+		UAnimSequenceBase* AnimSeqBase = AnimSegment.GetAnimReference();
+		if ( AnimSegment.bValid && AnimSeqBase )
 		{
 			AnimSeqBase->HandleAnimReferenceCollection(AnimationAssets, bRecursive);
 		}
@@ -475,21 +479,16 @@ bool FAnimTrack::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& Anim
 void FAnimTrack::ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap)
 {
 	TArray<FAnimSegment> NewAnimSegments;
-	for ( int32 I=0; I<AnimSegments.Num(); ++I )
+	for (FAnimSegment& AnimSegment : AnimSegments)
 	{
-		struct FAnimSegment& Segment = AnimSegments[I];
-
-		if (Segment.IsValid())
+		if (AnimSegment.IsValid())
 		{
-			// now fix everythign else
-			UAnimSequenceBase* SequenceBase = Segment.AnimReference;
-			if (SequenceBase)
+			if (UAnimSequenceBase* SequenceBase = AnimSegment.GetAnimReference())
 			{
-				UAnimationAsset* const* ReplacementAsset = ReplacementMap.Find(SequenceBase);
-				if(ReplacementAsset)
+				if(UAnimationAsset* const* ReplacementAsset = ReplacementMap.Find(SequenceBase))
 				{
-					Segment.AnimReference = Cast<UAnimSequenceBase>(*ReplacementAsset);
-					NewAnimSegments.Add(Segment);
+					AnimSegment.SetAnimReference(Cast<UAnimSequenceBase>(*ReplacementAsset));
+					NewAnimSegments.Add(AnimSegment);
 				}
 
 				SequenceBase->ReplaceReferredAnimations(ReplacementMap);
@@ -591,12 +590,11 @@ void FAnimTrack::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, cons
 
 void FAnimTrack::EnableRootMotionSettingFromMontage(bool bInEnableRootMotion, const ERootMotionRootLock::Type InRootMotionRootLock)
 {
-	for (int32 I = 0; I < AnimSegments.Num(); ++I)
+	for (const FAnimSegment& AnimSegment : AnimSegments)
 	{
-		const FAnimSegment& AnimSegment = AnimSegments[I];
-		if (AnimSegment.AnimReference)
+		if (UAnimSequenceBase* AnimReference = AnimSegment.GetAnimReference())
 		{
-			AnimSegment.AnimReference->EnableRootMotionSettingFromMontage(bInEnableRootMotion, InRootMotionRootLock);
+			AnimReference->EnableRootMotionSettingFromMontage(bInEnableRootMotion, InRootMotionRootLock);
 		}
 	}
 }
@@ -605,10 +603,10 @@ void FAnimTrack::EnableRootMotionSettingFromMontage(bool bInEnableRootMotion, co
 // as a result of anim composite being a part of anim sequence base
 void FAnimTrack::InvalidateRecursiveAsset(class UAnimCompositeBase* CheckAsset)
 {
-	for (int32 I = 0; I < AnimSegments.Num(); ++I)
+	for (FAnimSegment& AnimSegment : AnimSegments)
 	{
-		FAnimSegment& AnimSegment = AnimSegments[I];
-		UAnimCompositeBase* CompositeBase = Cast<UAnimCompositeBase>(AnimSegment.AnimReference);
+		UAnimSequenceBase* SequenceBase = AnimSegment.GetAnimReference();
+		UAnimCompositeBase* CompositeBase = Cast<UAnimCompositeBase>(SequenceBase);
 		if (CompositeBase)
 		{
 			// add owner
@@ -626,7 +624,7 @@ void FAnimTrack::InvalidateRecursiveAsset(class UAnimCompositeBase* CheckAsset)
 		}
 		else
 		{
-			AnimSegment.bValid = IsValidToAdd(AnimSegment.AnimReference);
+			AnimSegment.bValid = IsValidToAdd(SequenceBase);
 		}
 	}
 }
@@ -635,14 +633,12 @@ void FAnimTrack::InvalidateRecursiveAsset(class UAnimCompositeBase* CheckAsset)
 // and return true if it finds nested same assets
 bool FAnimTrack::ContainRecursive(const TArray<UAnimCompositeBase*>& CurrentAccumulatedList)
 {
-	for (int32 I = 0; I < AnimSegments.Num(); ++I)
+	for (const FAnimSegment& AnimSegment : AnimSegments)
 	{
-		FAnimSegment& AnimSegment = AnimSegments[I];
-
 		// we don't want to send this list broad widely (but in depth search)
 		// to do that, we copy the current accumulated list, and send that only, not the siblings
 		TArray<UAnimCompositeBase*> LocalCurrentAccumulatedList = CurrentAccumulatedList;
-		UAnimCompositeBase* CompositeBase = Cast<UAnimCompositeBase>(AnimSegment.AnimReference);
+		UAnimCompositeBase* CompositeBase = Cast<UAnimCompositeBase>(AnimSegment.GetAnimReference());
 		if (CompositeBase && CompositeBase->ContainRecursive(LocalCurrentAccumulatedList))
 		{
 			return true;
@@ -776,3 +772,56 @@ void UAnimCompositeBase::PostLoad()
 
 	InvalidateRecursiveAsset();
 }
+
+void FAnimSegment::SetAnimReference(UAnimSequenceBase* InAnimReference, bool bInitialize /*= false*/)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	AnimReference = InAnimReference;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#if WITH_EDITOR
+	UpdateCachedPlayLength();
+#endif // WITH_EDITOR
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (AnimReference && bInitialize)
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{		
+		AnimStartTime = 0.f;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		AnimEndTime = AnimReference->GetPlayLength();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		AnimPlayRate = 1.f;
+		LoopingCount = 1;
+		StartPos = 0.f;
+	}
+}
+
+#if WITH_EDITOR
+bool FAnimSegment::IsPlayLengthOutOfDate() const
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (AnimReference && !FMath::IsNearlyZero(CachedPlayLength))
+	{
+		// When the segment length is equal to _cached_ playlength and the current model playlength is different flag as out-of-date
+		// this can happen when the sequence is reimported without updating the montage and thus ending up with 'invalid' playback range.
+		const float PlayableLength = (AnimEndTime - AnimStartTime);
+		return FMath::IsNearlyEqual(PlayableLength, CachedPlayLength, KINDA_SMALL_NUMBER) && !FMath::IsNearlyEqual(AnimReference->GetPlayLength(), CachedPlayLength, KINDA_SMALL_NUMBER);
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
+	return false;
+}
+
+void FAnimSegment::UpdateCachedPlayLength()
+{
+	CachedPlayLength = 0.f;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const UAnimDataModel* DataModel = AnimReference ? AnimReference->GetDataModel() : nullptr;	
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	if(DataModel)
+	{
+		CachedPlayLength = DataModel->GetPlayLength();
+	}
+}
+#endif // WITH_EDITOR

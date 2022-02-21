@@ -35,7 +35,7 @@ void CopyMetaData(FCompositeSection& Source, FCompositeSection& Dest, UObject* D
 	}
 }
 
-void UEditorCompositeSection::InitSection(int SectionIndexIn)
+void UEditorCompositeSection::InitSection(int32 SectionIndexIn)
 {
 	SectionIndex = SectionIndexIn;
 	if(UAnimMontage* Montage = Cast<UAnimMontage>(AnimObject))
@@ -47,6 +47,7 @@ void UEditorCompositeSection::InitSection(int SectionIndexIn)
 		}
 	}
 }
+
 bool UEditorCompositeSection::ApplyChangesToMontage()
 {
 	if(UAnimMontage* Montage = Cast<UAnimMontage>(AnimObject))

@@ -254,8 +254,8 @@ bool SAnimMontagePanel::IsDiffererentFromParent(FName SlotName, int32 SegmentIdx
 
 			if (ParentTrack && ParentTrack->AnimSegments.IsValidIndex(SegmentIdx))
 			{
-				UAnimSequenceBase* SourceAsset = ParentTrack->AnimSegments[SegmentIdx].AnimReference;
-				return (SourceAsset != Segment.AnimReference);
+				UAnimSequenceBase* SourceAsset = ParentTrack->AnimSegments[SegmentIdx].GetAnimReference();
+				return (SourceAsset != Segment.GetAnimReference());
 			}
 		}
 	}
@@ -277,7 +277,7 @@ void SAnimMontagePanel::ReplaceAnimationMapping(FName SlotName, int32 SegmentIdx
 
 			if (ParentTrack && ParentTrack->AnimSegments.IsValidIndex(SegmentIdx))
 			{
-				UAnimSequenceBase* SourceAsset = ParentTrack->AnimSegments[SegmentIdx].AnimReference;
+				UAnimSequenceBase* SourceAsset = ParentTrack->AnimSegments[SegmentIdx].GetAnimReference();
 				if (Montage->RemapAsset(SourceAsset, NewSequenceBase))
 				{
 					// success
@@ -592,8 +592,12 @@ void SAnimMontagePanel::Update()
 		OnSetMontagePreviewSlot(CurrentPreviewSlot);
 
 		int32 ColorIdx=0;
-		
-		FLinearColor NodeColor = FLinearColor(0.f, 0.5f, 0.0f, 0.5f);
+
+		const FSlateColor GreenAccent = FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
+		FLinearColor NodeColor = GreenAccent.GetSpecifiedColor();
+
+		const FSlateColor OrangeAccent = FAppStyle::Get().GetSlateColor("Colors.AccentOrange");
+		FLinearColor OutOfDateNodeColor = OrangeAccent.GetSpecifiedColor();
 
 		TSharedPtr<SVerticalBox> MontageSlots;
 		PanelArea->SetContent(
@@ -639,7 +643,15 @@ void SAnimMontagePanel::Update()
 						.ViewInputMin(ViewInputMin)
 						.ViewInputMax(ViewInputMax)
 						.bChildAnimMontage(bChildAnimMontage)
-						.OnGetNodeColor_Lambda([NodeColor](const FAnimSegment& InSegment){ return NodeColor; })
+						.OnGetNodeColor_Lambda([NodeColor, OutOfDateNodeColor](const FAnimSegment& InSegment)
+						{
+							if (InSegment.IsPlayLengthOutOfDate())
+							{
+								return OutOfDateNodeColor;
+							}
+							
+							return NodeColor;
+						})
 						.OnPreAnimUpdate(this, &SAnimMontagePanel::PreAnimUpdate)
 						.OnPostAnimUpdate(this, &SAnimMontagePanel::PostAnimUpdate)
 						.OnAnimReplaceMapping(this, &SAnimMontagePanel::ReplaceAnimationMapping)
@@ -662,7 +674,15 @@ void SAnimMontagePanel::Update()
 						.ViewInputMin(ViewInputMin)
 						.ViewInputMax(ViewInputMax)
 						.bChildAnimMontage(bChildAnimMontage)
-						.OnGetNodeColor_Lambda([NodeColor](const FAnimSegment& InSegment){ return NodeColor; })
+						.OnGetNodeColor_Lambda([NodeColor, OutOfDateNodeColor](const FAnimSegment& InSegment)
+						{
+							if (InSegment.IsPlayLengthOutOfDate())
+							{
+								return OutOfDateNodeColor;
+							}
+							
+							return NodeColor;
+						})
 						.TrackMaxValue(this, &SAnimMontagePanel::GetSequenceLength)
 						.TrackNumDiscreteValues(Montage->GetNumberOfSampledKeys())
 						.OnAnimSegmentNodeClicked(this, &SAnimMontagePanel::ShowSegmentInDetailsView, SlotAnimIdx)

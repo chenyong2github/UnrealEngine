@@ -81,12 +81,7 @@ UObject* UAnimMontageFactory::FactoryCreateNew(UClass* Class, UObject* InParent,
 			TargetSkeleton = SourceSkeleton;
 
 			FAnimSegment NewSegment;
-			NewSegment.AnimReference = SourceAnimation;
-			NewSegment.AnimStartTime = 0.f;
-			NewSegment.AnimEndTime = SourceAnimation->GetPlayLength();
-			NewSegment.AnimPlayRate = 1.f;
-			NewSegment.LoopingCount = 1;
-			NewSegment.StartPos = 0.f;
+			NewSegment.SetAnimReference(SourceAnimation, true);
 
 			FSlotAnimationTrack& NewTrack = AnimMontage->SlotAnimTracks[0];
 			NewTrack.AnimTrack.AnimSegments.Add(NewSegment);

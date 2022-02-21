@@ -312,4 +312,30 @@ void FAnimModel_AnimMontage::ToggleSectionTimingDisplay()
 	bSectionTimingEnabled = !bSectionTimingEnabled;
 }
 
+void FAnimModel_AnimMontage::OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& PayLoad)
+{
+	NotifyCollector.Handle(NotifyType);
+
+	switch(NotifyType)
+	{ 
+	case EAnimDataModelNotifyType::CurveAdded:
+	case EAnimDataModelNotifyType::CurveRemoved:
+		{
+			if (NotifyCollector.IsNotWithinBracket())
+			{
+				RefreshTracks();
+			}
+			break;
+		}
+	case EAnimDataModelNotifyType::BracketClosed:
+		{
+			if (NotifyCollector.IsNotWithinBracket())
+			{
+				RefreshTracks();
+			}
+			break;
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -1979,7 +1979,7 @@ bool UAnimInstance::IsPlayingSlotAnimation(const UAnimSequenceBase* Asset, FName
 				if (AnimTrack && AnimTrack->AnimSegments.Num() == 1)
 				{
 					OutMontage = CurMontage;
-					return (AnimTrack->AnimSegments[0].AnimReference == Asset);
+					return (AnimTrack->AnimSegments[0].GetAnimReference() == Asset);
 				}
 			}
 		}
