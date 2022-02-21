@@ -174,7 +174,7 @@ FSequencerTimeSliderController::FScrubberMetrics FSequencerTimeSliderController:
 	}
 
 	// Store off the pixel width of the frame
-	Metrics.FrameExtentsPx = TRange<float>(FrameStartPixel, FrameEndPixel);
+	Metrics.FrameExtentsPx = TRange<float>(FrameStartPixel - DilationPixels, FrameEndPixel + DilationPixels);
 
 	// Set the style of the scrub handle
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
@@ -189,7 +189,7 @@ FSequencerTimeSliderController::FScrubberMetrics FSequencerTimeSliderController:
 		Metrics.Style = ESequencerScrubberStyle::Vanilla;
 
 		float ScrubPixel = RangeToScreen.InputToLocalX(ScrubTime.AsSeconds());
-		Metrics.HandleRangePx = TRange<float>(ScrubPixel - MinScrubSize*.5f, ScrubPixel + MinScrubSize*.5f);
+		Metrics.HandleRangePx = TRange<float>(ScrubPixel - MinScrubSize*.5f - DilationPixels, ScrubPixel + MinScrubSize*.5f + DilationPixels);
 	}
 	else
 	{
