@@ -16,13 +16,13 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		class FMetasoundVariableDetailCustomization : public TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphVariable, FMetasoundVariableDetailCustomization>
+		class FMetasoundVariableDetailCustomization : public TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphVariable>
 		{
 		public:
 			static const FText MemberNameText;
 
 			FMetasoundVariableDetailCustomization()
-				: TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphVariable, FMetasoundVariableDetailCustomization>()
+				: TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphVariable>()
 			{
 			}
 
