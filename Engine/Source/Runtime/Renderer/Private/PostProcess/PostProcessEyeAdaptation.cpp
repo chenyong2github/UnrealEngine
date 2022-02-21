@@ -93,6 +93,23 @@ bool IsExtendLuminanceRangeEnabled()
 	return VarDefaultAutoExposureExtendDefaultLuminanceRange->GetValueOnRenderThread() == 1;
 }
 
+static EAutoExposureMethod ApplyEyeAdaptationQuality(EAutoExposureMethod AutoExposureMethod)
+{
+	static const auto CVarEyeAdaptationQuality = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.EyeAdaptationQuality"));
+	const int32 EyeAdaptationQuality = CVarEyeAdaptationQuality->GetValueOnRenderThread();
+	
+	if (AutoExposureMethod != EAutoExposureMethod::AEM_Manual)
+	{
+		if (EyeAdaptationQuality == 1)
+		{
+			// Clamp current method to AEM_Basic
+			AutoExposureMethod = EAutoExposureMethod::AEM_Basic;
+		}
+	}
+
+	return AutoExposureMethod;
+}
+
 float LuminanceMaxFromLensAttenuation()
 {
 	const bool bExtendedLuminanceRange = IsExtendLuminanceRangeEnabled();
@@ -118,6 +135,9 @@ EAutoExposureMethod GetAutoExposureMethod(const FViewInfo& View)
 	{
 		AutoExposureMethod = IsAutoExposureMethodSupported(View.GetFeatureLevel(), EAutoExposureMethod::AEM_Basic) ? EAutoExposureMethod::AEM_Basic : EAutoExposureMethod::AEM_Manual;
 	}
+
+	// Apply quality settings
+	AutoExposureMethod = ApplyEyeAdaptationQuality(AutoExposureMethod);
 
 	const int32 EyeOverride = CVarEyeAdaptationMethodOverride.GetValueOnRenderThread();
 

@@ -361,10 +361,14 @@ void BloomPS_Mobile(
 #endif
 
 #if MOBILE_USEEYEADAPTATION
-
-	const half Intensity = max(dot(AverageColor, half3(1.0f, 1.0f, 1.0f) / 3.0f), EyeAdaptation_LuminanceMin);
+	half Intensity = dot(AverageColor, half3(1.0f, 1.0f, 1.0f) / 3.0f);
+	if (Intensity == 0.0)
+	{
+		// Override intensity for black pixels to 0.1 This behaviour is controlled by the cvar "r.EyeAdaptation.BlackHistogramBucketInfluence"
+		Intensity = (0.1 - EyeAdaptation_BlackHistogramBucketInfluence);
+	}
+	Intensity = max(Intensity, EyeAdaptation_LuminanceMin);
 	const float LogIntensity = clamp(log2(Intensity), -10.0f, 20.0f);
-
 	// Store log intensity in the alpha channel: scale to 0,1 range.
 	OutEyeAdaptation = EyeAdaptation_HistogramScale * LogIntensity + EyeAdaptation_HistogramBias;
 #endif
@@ -1371,10 +1375,11 @@ void Histogram_MainCS(
 				// case is so the black background pixels in the editor have no effect. But if we have cases where
 				// pixel values can actually be black, we want to set EyeAdaptation_LastHistogramBucketInfluence=1.0.
 				// This value is controlled by the cvar "r.EyeAdaptation.BlackHistogramBucketInfluence"
-				if (Bucket0 == 0)
-				{
-					Weight0 *= EyeAdaptation_BlackHistogramBucketInfluence;
-				}
+				// THIS IS DONE in a Bloom setup, black pixels will set intencity to 0.1
+				//if (Bucket0 == 0)
+				//{
+				//	Weight0 *= EyeAdaptation_BlackHistogramBucketInfluence;
+				//}
 
 				// Accumulate the weight to the nearby history buckets.
 #if IOS // The IOS A8 and lower devices seems don't support using a float4 array as a two dimension array, separate the operations to two steps.
