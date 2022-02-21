@@ -142,7 +142,13 @@ namespace ChaosInterface
 	{
 	};
 
-	inline void FinishQueryHelper(TArray<FOverlapHit>& Hits, const FOverlapHit& BlockingHit, bool bHasBlockingHit)
+	#ifndef CHAOS_HIT_BUFFER_SIZE
+		#define CHAOS_HIT_BUFFER_SIZE 512 // Preallocated hit buffer size for traces and sweeps.
+	#endif // CHAOS_HIT_BUFFER_SIZE
+	static_assert(CHAOS_HIT_BUFFER_SIZE > 0, "Invalid Chaos hit buffer size.");
+
+
+	inline void FinishQueryHelper(TArray<FOverlapHit, TInlineAllocator<CHAOS_HIT_BUFFER_SIZE>>& Hits, const FOverlapHit& BlockingHit, bool bHasBlockingHit)
 	{
 		if (bHasBlockingHit)
 		{
@@ -150,7 +156,7 @@ namespace ChaosInterface
 		}
 	}
 
-	inline void FinishQueryHelper(TArray<FPTOverlapHit>& Hits, const FPTOverlapHit& BlockingHit, bool bHasBlockingHit)
+	inline void FinishQueryHelper(TArray<FPTOverlapHit, TInlineAllocator<CHAOS_HIT_BUFFER_SIZE>>& Hits, const FPTOverlapHit& BlockingHit, bool bHasBlockingHit)
 	{
 		if (bHasBlockingHit)
 		{
@@ -159,7 +165,7 @@ namespace ChaosInterface
 	}
 
 	template <typename HitType>
-	void FinishQueryHelper(TArray<HitType>& Hits, const HitType& BlockingHit, bool bHasBlockingHit)
+	void FinishQueryHelper(TArray<HitType, TInlineAllocator<CHAOS_HIT_BUFFER_SIZE>>& Hits, const HitType& BlockingHit, bool bHasBlockingHit)
 	{
 		Hits.Sort();
 		if (bHasBlockingHit)
@@ -194,7 +200,7 @@ namespace ChaosInterface
 			, bHasBlockingHit(false)
 			, bSingleResult(bSingle)
 		{
-			Hits.Reserve(bSingleResult ? 1 : 512);
+			// The Hits array is preallocated through its InlineAllocator, no need to reserve.
 		}
 
 		virtual ~FSQHitBuffer() {}
@@ -265,7 +271,7 @@ namespace ChaosInterface
 		bool bHasBlockingHit;
 		bool bSingleResult;
 
-		TArray<HitType> Hits;
+		TArray<HitType, TInlineAllocator<CHAOS_HIT_BUFFER_SIZE>> Hits;
 	};
 
 	template<typename HitType>
