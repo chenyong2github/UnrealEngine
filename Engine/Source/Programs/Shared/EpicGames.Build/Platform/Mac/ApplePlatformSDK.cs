@@ -69,7 +69,7 @@ namespace UnrealBuildBase
 
 			string PackagesKeyName = "Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppModel\\PackageRepository\\Packages";
 
-			RegistryKey PackagesKey = Registry.LocalMachine.OpenSubKey(PackagesKeyName);
+			RegistryKey? PackagesKey = Registry.LocalMachine.OpenSubKey(PackagesKeyName);
 			if (PackagesKey != null)
 			{
 				string[] PackageSubKeyNames = PackagesKey.GetSubKeyNames();
@@ -80,10 +80,14 @@ namespace UnrealBuildBase
 					{
 						string FullPackageSubKeyName = PackagesKeyName + "\\" + PackageSubKeyName;
 
-						RegistryKey iTunesKey = Registry.LocalMachine.OpenSubKey(FullPackageSubKeyName);
+						RegistryKey? iTunesKey = Registry.LocalMachine.OpenSubKey(FullPackageSubKeyName);
 						if (iTunesKey != null)
 						{
-							InstallPath = (string)iTunesKey.GetValue("Path") + "\\AMDS32\\MobileDevice.dll";
+							object? Value = iTunesKey.GetValue("Path");
+							if (Value != null)
+							{
+								InstallPath = (string)Value + "\\AMDS32\\MobileDevice.dll";
+							}
 							break;
 						}
 					}

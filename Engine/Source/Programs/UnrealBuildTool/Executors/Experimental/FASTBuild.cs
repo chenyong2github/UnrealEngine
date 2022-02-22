@@ -797,7 +797,7 @@ namespace UnrealBuildTool
 
 		public string GetRegistryValue(string keyName, string valueName, object defaultValue)
 		{
-			object returnValue = (string)Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\" + keyName, valueName, defaultValue);
+			object? returnValue = Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\" + keyName, valueName, defaultValue);
 			if (returnValue != null)
 				return returnValue.ToString()!;
 
@@ -805,7 +805,7 @@ namespace UnrealBuildTool
 			if (returnValue != null)
 				return returnValue.ToString()!;
 
-			returnValue = (string)Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\" + keyName, valueName, defaultValue);
+			returnValue = Microsoft.Win32.Registry.GetValue("HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\" + keyName, valueName, defaultValue);
 			if (returnValue != null)
 				return returnValue.ToString()!;
 

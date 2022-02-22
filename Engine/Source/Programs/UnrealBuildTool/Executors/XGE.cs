@@ -137,7 +137,7 @@ namespace UnrealBuildTool
 			{
 				using(RegistryKey BaseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, View))
 				{
-					using (RegistryKey Key = BaseKey.OpenSubKey("SOFTWARE\\Xoreax\\IncrediBuild\\Builder", false))
+					using (RegistryKey? Key = BaseKey.OpenSubKey("SOFTWARE\\Xoreax\\IncrediBuild\\Builder", false))
 					{
 						if(Key != null)
 						{
@@ -168,7 +168,7 @@ namespace UnrealBuildTool
 		{
 			using (RegistryKey BaseKey = RegistryKey.OpenBaseKey(Hive, View))
 			{
-				using (RegistryKey SubKey = BaseKey.OpenSubKey(KeyName))
+				using (RegistryKey? SubKey = BaseKey.OpenSubKey(KeyName))
 				{
 					if (SubKey != null)
 					{
@@ -586,7 +586,7 @@ namespace UnrealBuildTool
 			// @todo: There is a KB coming that will fix this. Once that KB is available, test if it is present. Stalls will not be a problem if it is.
 			//
 			// Stalls are possible. However there is a workaround in XGE build 1659 and newer that can avoid the issue.
-			string? XGEVersion = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) ? (string)Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Xoreax\IncrediBuild\Builder", "Version", null) : null;
+			string? XGEVersion = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) ? (string?)Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Xoreax\IncrediBuild\Builder", "Version", null) : null;
 			if (XGEVersion != null)
 			{
 				int XGEBuildNumber;

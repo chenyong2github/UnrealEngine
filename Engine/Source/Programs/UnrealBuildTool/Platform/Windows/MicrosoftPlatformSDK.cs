@@ -314,7 +314,7 @@ namespace UnrealBuildTool
 		{
 			foreach (KeyValuePair<RegistryKey, string> InstallRoot in InstallDirRoots)
 			{
-				using (RegistryKey Key = InstallRoot.Key.OpenSubKey(InstallRoot.Value + KeySuffix))
+				using (RegistryKey? Key = InstallRoot.Key.OpenSubKey(InstallRoot.Value + KeySuffix))
 				{
 					if (Key != null && TryReadDirRegistryKey(Key.Name, ValueName, out InstallDir))
 					{
@@ -337,7 +337,7 @@ namespace UnrealBuildTool
 			HashSet<string> AllSubKeys = new HashSet<string>(StringComparer.Ordinal);
 			foreach (KeyValuePair<RegistryKey, string> Root in InstallDirRoots)
 			{
-				using (RegistryKey Key = Root.Key.OpenSubKey(Root.Value + KeyName))
+				using (RegistryKey? Key = Root.Key.OpenSubKey(Root.Value + KeyName))
 				{
 					if (Key == null)
 					{

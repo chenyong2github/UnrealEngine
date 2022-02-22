@@ -1827,7 +1827,7 @@ namespace UnrealBuildTool
 		private bool CheckRegistryKey(RegistryKey RootKey, string VisualStudioVersion)
 		{
 			bool bInstalled = false;
-			RegistryKey VSSubKey = RootKey.OpenSubKey("SOFTWARE\\Microsoft\\VisualStudio\\" + VisualStudioVersion + "\\Projects\\{E53F8FEA-EAE0-44A6-8774-FFD645390401}");
+			RegistryKey? VSSubKey = RootKey.OpenSubKey("SOFTWARE\\Microsoft\\VisualStudio\\" + VisualStudioVersion + "\\Projects\\{E53F8FEA-EAE0-44A6-8774-FFD645390401}");
 			if (VSSubKey != null)
 			{
 				bInstalled = true;
