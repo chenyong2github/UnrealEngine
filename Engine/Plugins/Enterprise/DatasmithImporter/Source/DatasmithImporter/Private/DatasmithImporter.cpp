@@ -505,8 +505,9 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 
 		FDatasmithTextureResize::Initialize();
 
-		// Try to import textures async first, if possible
-		if ( GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework )
+		// Try to import textures async first, this does not work with DatasmithImportFactory as it creates a deadlock on the main thread.
+		const bool bInterchangeImport = false; /*GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework*/
+		if ( bInterchangeImport )
 		{
 			for ( int32 TextureIndex = 0; TextureIndex < FilteredTextureElements.Num(); TextureIndex++ )
 			{
