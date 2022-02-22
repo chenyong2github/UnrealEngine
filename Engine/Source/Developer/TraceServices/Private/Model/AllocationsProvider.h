@@ -124,7 +124,8 @@ private:
 		FNode* Prev;
 	};
 
-	static const int32 MaxAllocCount = 8 * 1024; // max number of short living allocations
+	//static const int32 MaxAllocCount = 8 * 1024; // max number of short living allocations
+	static const int32 MaxAllocCount = 64; // max number of short living allocations
 
 public:
 	FShortLivingAllocs();
@@ -151,7 +152,7 @@ public:
 	FAllocationItem* FindRange(uint64 Address) const;
 
 private:
-	TMap<uint64, FNode*> AddressMap; // map for short living allocations: Address -> FNode*
+	//TMap<uint64, FNode*> AddressMap; // map for short living allocations: Address -> FNode*
 	FNode* AllNodes = nullptr; // preallocated array of nodes (MaxAllocCount nodes)
 	FNode* LastAddedAllocNode = nullptr; // the last added alloc; double linked list: Prev -> .. -> OldestAlloc
 	FNode* OldestAllocNode = nullptr; // the oldest alloc; double linked list: Next -> .. -> LastAddedAlloc
@@ -264,9 +265,32 @@ public:
 	void Enumerate(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const;
 
 private:
+	template<typename ValueType>
+	struct TAddressKeyFuncs : BaseKeyFuncs<TPair<uint64, ValueType>, uint64, false>
+	{
+		typedef typename TTypeTraits<uint64>::ConstPointerType KeyInitType;
+		typedef const TPairInitializer<typename TTypeTraits<uint64>::ConstInitType, typename TTypeTraits<ValueType>::ConstInitType>& ElementInitType;
+
+		static FORCEINLINE uint64 GetSetKey(ElementInitType Element)
+		{
+			return Element.Key;
+		}
+
+		static FORCEINLINE bool Matches(uint64 A, uint64 B)
+		{
+			return A == B;
+		}
+
+		static FORCEINLINE uint32 GetKeyHash(uint64 Key)
+		{
+			return uint32(Key >> 6);
+		}
+	};
+
+private:
 	FAllocationItem* LastAlloc = nullptr; // last allocation
 	FShortLivingAllocs ShortLivingAllocs; // short living allocs
-	TMap<uint64, FAllocationItem*> LongLivingAllocs; // long living allocations
+	TMap<uint64, FAllocationItem*, FDefaultSetAllocator, TAddressKeyFuncs<FAllocationItem*>> LongLivingAllocs; // long living allocations
 	FHeapAllocs HeapAllocs; // heap allocs
 
 	uint32 TotalAllocCount = 0;
@@ -376,12 +400,14 @@ private:
 	FTagTracker TagTracker;
 	uint8 CurrentTracker = 0;
 
-	uint32 EventIndex[MaxRootHeaps];
+	TArray<FHeapSpec> HeapSpecs;
+
+	uint32 EventIndex[MaxRootHeaps] = { 0 };
+	FSbTree* SbTree[MaxRootHeaps] = { nullptr };
+	FLiveAllocCollection* LiveAllocs[MaxRootHeaps] = { nullptr };
 
 	uint64 AllocCount = 0;
 	uint64 FreeCount = 0;
-
-	FLiveAllocCollection* LiveAllocs[MaxRootHeaps];
 
 	uint64 MiscErrors = 0;
 	uint64 HeapErrors = 0;
@@ -393,8 +419,6 @@ private:
 
 	uint32 MaxEventDistance = 0;
 	uint32 EventDistanceHistogramPow2[33] = { 0 };
-
-	FSbTree* SbTree[MaxRootHeaps];
 
 	uint64 TotalAllocatedMemory = 0;
 	uint32 TotalLiveAllocations = 0;
@@ -415,8 +439,6 @@ private:
 	TPagedArray<uint32> MaxLiveAllocationsTimeline;
 	TPagedArray<uint32> AllocEventsTimeline;
 	TPagedArray<uint32> FreeEventsTimeline;
-
-	TArray<FHeapSpec> HeapSpecs;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

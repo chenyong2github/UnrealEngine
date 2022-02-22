@@ -23,11 +23,16 @@
 //#define INSIGHTS_DEBUG_WATCH_FOUND return // log and ignore events
 //#define INSIGHTS_DEBUG_WATCH_FOUND UE_DEBUG_BREAK(); break
 
+// Initial reserved number for long living allocations.
+#define INSIGHTS_LLA_RESERVE 0
+//#define INSIGHTS_LLA_RESERVE (64 * 1024)
+
 // Use optimized path for the short living allocations.
 // If enabled, caches the short living allocations, as there is a very high chance to be freed in the next few "free" events.
 // ~66% of all allocs are expected to have an "event distance" < 64 events
 // ~70% of all allocs are expected to have an "event distance" < 512 events
 #define INSIGHTS_USE_SHORT_LIVING_ALLOCS 1
+#define INSIGHTS_SLA_USE_ADDRESS_MAP 0
 
 // Use optimized path for the last alloc.
 // If enabled, caches the last added alloc, as there is a high chance to be freed in the next "free" event.
@@ -381,6 +386,10 @@ IAllocationsProvider::FQueryResult IAllocationsProvider::FQueryStatus::NextResul
 
 FShortLivingAllocs::FShortLivingAllocs()
 {
+#if INSIGHTS_SLA_USE_ADDRESS_MAP
+	AddressMap.Reserve(MaxAllocCount);
+#endif
+
 	AllNodes = new FNode[MaxAllocCount];
 
 	// Build the "unused" simple linked list.
@@ -403,7 +412,9 @@ FShortLivingAllocs::~FShortLivingAllocs()
 
 void FShortLivingAllocs::Reset()
 {
+#if INSIGHTS_SLA_USE_ADDRESS_MAP
 	AddressMap.Reset();
+#endif
 
 	FNode* Node = LastAddedAllocNode;
 	while (Node != nullptr)
@@ -425,14 +436,13 @@ void FShortLivingAllocs::Reset()
 
 FAllocationItem* FShortLivingAllocs::FindRef(uint64 Address)
 {
-#if 1
+#if INSIGHTS_SLA_USE_ADDRESS_MAP
 	FNode** NodePtr = AddressMap.Find(Address);
 	return NodePtr ? (*NodePtr)->Alloc : nullptr;
 #else
 	// Search linearly the list of allocations, backward, starting with most recent one.
 	// As the probability of finding a match for a "free" event is higher for the recent allocs,
 	// this could actually be faster than doing a O(log n) search in AddressMap.
-	// TODO: This needs to be tested for various MaxAllocCount values.
 	FNode* Node = LastAddedAllocNode;
 	while (Node != nullptr)
 	{
@@ -462,13 +472,17 @@ FAllocationItem* FShortLivingAllocs::AddAndRemoveOldest(FAllocationItem* Alloc)
 
 		// Remove the oldest allocation.
 		FAllocationItem* RemovedAlloc = OldestAllocNode->Alloc;
+#if INSIGHTS_SLA_USE_ADDRESS_MAP
 		AddressMap.Remove(RemovedAlloc->Address);
+#endif
 		OldestAllocNode = OldestAllocNode->Next;
 		INSIGHTS_SLOW_CHECK(OldestAllocNode != nullptr);
 		OldestAllocNode->Prev = nullptr;
 
 		// Add the new node.
+#if INSIGHTS_SLA_USE_ADDRESS_MAP
 		AddressMap.Add(Alloc->Address, NewNode);
+#endif
 		NewNode->Alloc = Alloc;
 		NewNode->Next = nullptr;
 		NewNode->Prev = LastAddedAllocNode;
@@ -486,7 +500,9 @@ FAllocationItem* FShortLivingAllocs::AddAndRemoveOldest(FAllocationItem* Alloc)
 		FirstUnusedNode = FirstUnusedNode->Next;
 
 		// Add the new node.
+#if INSIGHTS_SLA_USE_ADDRESS_MAP
 		AddressMap.Add(Alloc->Address, NewNode);
+#endif
 		NewNode->Alloc = Alloc;
 		NewNode->Next = nullptr;
 		NewNode->Prev = LastAddedAllocNode;
@@ -508,41 +524,58 @@ FAllocationItem* FShortLivingAllocs::AddAndRemoveOldest(FAllocationItem* Alloc)
 
 FAllocationItem* FShortLivingAllocs::Remove(uint64 Address)
 {
-	FNode* RemovedNode;
-	if (AddressMap.RemoveAndCopyValue(Address, RemovedNode))
+#if INSIGHTS_SLA_USE_ADDRESS_MAP
+	FNode* Node = nullptr;
+	if (!AddressMap.RemoveAndCopyValue(Address, Node))
 	{
-		INSIGHTS_SLOW_CHECK(AllocCount > 0);
-		--AllocCount;
-
-		FAllocationItem* RemovedAlloc = RemovedNode->Alloc;
-		INSIGHTS_SLOW_CHECK(RemovedAlloc->Address == Address);
-
-		// Remove node.
-		if (RemovedNode == OldestAllocNode)
+		return nullptr;
+	}
+	INSIGHTS_SLOW_CHECK(Node && Node->Alloc && Node->Alloc->Address == Address);
+#else
+	// Search linearly the list of allocations, backward, starting with most recent one.
+	// As the probability of finding a match for a "free" event is higher for the recent allocs,
+	// this could actually be faster than doing a O(log n) search in AddressMap.
+	FNode* Node = LastAddedAllocNode;
+	while (Node != nullptr)
+	{
+		if (Node->Alloc->Address == Address)
 		{
-			OldestAllocNode = OldestAllocNode->Next;
+			break;
 		}
-		if (RemovedNode == LastAddedAllocNode)
-		{
-			LastAddedAllocNode = LastAddedAllocNode->Prev;
-		}
-		if (RemovedNode->Prev)
-		{
-			RemovedNode->Prev->Next = RemovedNode->Next;
-		}
-		if (RemovedNode->Next)
-		{
-			RemovedNode->Next->Prev = RemovedNode->Prev;
-		}
+		Node = Node->Prev;
+	}
+	if (!Node)
+	{
+		return nullptr;
+	}
+#endif // INSIGHTS_SLA_USE_ADDRESS_MAP
 
-		// Add the removed node to the "unused" list.
-		RemovedNode->Next = FirstUnusedNode;
-		FirstUnusedNode = RemovedNode;
+	INSIGHTS_SLOW_CHECK(AllocCount > 0);
+	--AllocCount;
 
-		return RemovedAlloc;
+	// Remove node.
+	if (Node == OldestAllocNode)
+	{
+		OldestAllocNode = OldestAllocNode->Next;
+	}
+	if (Node == LastAddedAllocNode)
+	{
+		LastAddedAllocNode = LastAddedAllocNode->Prev;
+	}
+	if (Node->Prev)
+	{
+		Node->Prev->Next = Node->Next;
+	}
+	if (Node->Next)
+	{
+		Node->Next->Prev = Node->Prev;
 	}
 
-	return nullptr;
+	// Add the removed node to the "unused" list.
+	Node->Next = FirstUnusedNode;
+	FirstUnusedNode = Node;
+
+	return Node->Alloc;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -722,6 +755,9 @@ FAllocationItem* FHeapAllocs::FindRange(uint64 Address) const
 
 FLiveAllocCollection::FLiveAllocCollection()
 {
+#if INSIGHTS_LLA_RESERVE
+	LongLivingAllocs.Reserve(INSIGHTS_LLA_RESERVE);
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1001,13 +1037,7 @@ FAllocationsProvider::FAllocationsProvider(IAnalysisSession& InSession)
 	, AllocEventsTimeline(Session.GetLinearAllocator(), 1024)
 	, FreeEventsTimeline(Session.GetLinearAllocator(), 1024)
 {
-	FMemory::Memset(EventIndex, 0, sizeof(EventIndex));
-	FMemory::Memset(SbTree, 0, sizeof(SbTree));
-	FMemory::Memset(LiveAllocs, 0, sizeof(LiveAllocs));
 	HeapSpecs.AddZeroed(256);
-
-	// Create system root heap structures for backwards compatibility (before heap description events)
-	AddHeapSpec(EMemoryTraceRootHeap::SystemMemory, 0, TEXT("System memory"), EMemoryTraceHeapFlags::Root);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1043,6 +1073,9 @@ void FAllocationsProvider::EditInit(double InTime, uint8 InMinAlignment)
 
 	InitTime = InTime;
 	MinAlignment = InMinAlignment;
+
+	// Create system root heap structures for backwards compatibility (before heap description events)
+	AddHeapSpec(EMemoryTraceRootHeap::SystemMemory, 0, TEXT("System memory"), EMemoryTraceHeapFlags::Root);
 
 	bInitialized = true;
 
@@ -1188,7 +1221,15 @@ void FAllocationsProvider::EditAlloc(double Time, uint32 CallstackId, uint64 Add
 #endif
 
 	++AllocCount;
-	++EventIndex[RootHeap];
+	if (EventIndex[RootHeap] != ~0u)
+	{
+		++EventIndex[RootHeap];
+	}
+	else
+	{
+		UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] Too many events!"));
+		bInitialized = false; // ignore further events
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1276,7 +1317,15 @@ void FAllocationsProvider::EditFree(double Time, uint32 CallstackId, uint64 Addr
 	}
 
 	++FreeCount;
-	++EventIndex[RootHeap];
+	if (EventIndex[RootHeap] != ~0u)
+	{
+		++EventIndex[RootHeap];
+	}
+	else
+	{
+		UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] Too many events!"));
+		bInitialized = false; // ignore further events
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1488,7 +1537,7 @@ void FAllocationsProvider::EditPushTag(uint32 ThreadId, uint8 Tracker, TagIdType
 void FAllocationsProvider::EditPopTag(uint32 ThreadId, uint8 Tracker)
 {
 	EditAccessCheck();
-	
+
 	TagTracker.PopTag(ThreadId, Tracker);
 }
 
@@ -1588,6 +1637,8 @@ void FAllocationsProvider::EditOnAnalysisCompleted(double Time)
 		}
 	}
 
+	//TODO: shrink live allocs buffers
+
 	if (AllocErrors > 0)
 	{
 		UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] ALLOC event errors: %u"), AllocErrors);
@@ -1609,7 +1660,12 @@ void FAllocationsProvider::EditOnAnalysisCompleted(double Time)
 		UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] TagTracker errors: %u"), TagTracker.GetNumErrors());
 	}
 
-	UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Analysis Completed"));
+	uint64 TotalEventCount = 0;
+	for (uint32 RootHeap = 0; RootHeap < MaxRootHeaps; ++RootHeap)
+	{
+		TotalEventCount += EventIndex[RootHeap];
+	}
+	UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Analysis Completed (%llu events, %llu allocs, %llu frees)"), TotalEventCount, AllocCount, FreeCount);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1959,6 +2015,8 @@ const IAllocationsProvider* ReadAllocationsProvider(const IAnalysisSession& Sess
 #undef INSIGHTS_SLOW_CHECK
 #undef INSIGHTS_DEBUG_WATCH
 #undef INSIGHTS_DEBUG_WATCH_FOUND
+#undef INSIGHTS_LLA_RESERVE
 #undef INSIGHTS_USE_SHORT_LIVING_ALLOCS
+#undef INSIGHTS_SLA_USE_ADDRESS_MAP
 #undef INSIGHTS_USE_LAST_ALLOC
 #undef INSIGHTS_VALIDATE_ALLOC_EVENTS
