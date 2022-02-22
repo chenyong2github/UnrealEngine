@@ -1834,10 +1834,12 @@ void FPixelShaderInOut_MainPS(
 			Out.MRT[0] = half4(0.0f.xxx, Opacity);
 			Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);
 		#else
+			// Pre multipled alpha blending
+			float AdjustedAlpha = saturate(1 - dot(AdjustedDualBlendMul, float3(1.0f, 1.0f, 1.0f) / 3.0f));
 			#if STRATA_USES_CONVERSION_FROM_LEGACY && MATERIALBLENDING_ADDITIVE
-				float AdjustedAlpha = 0.0f;
-			#else
-				float AdjustedAlpha = saturate(1 - dot(AdjustedDualBlendMul, float3(1.0f, 1.0f, 1.0f) / 3.0f));
+				AdjustedAlpha = 0.0f;
+			#elif STRATA_PREMULT_ALPHA_OVERRIDE && !STRATA_OPTIMIZED_UNLIT
+				AdjustedAlpha = StrataData.PreMultipliedAlphaOverrideCoverage >= 0.0f ? saturate(StrataData.PreMultipliedAlphaOverrideCoverage) : AdjustedAlpha;
 			#endif
 			// Pre multipled alpha blending
 			Out.MRT[0] = half4(AdjustedDualBlendAdd, AdjustedAlpha);

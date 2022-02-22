@@ -99,6 +99,13 @@ FRWStrataMaterialContainer InitialiseRWStrataMaterialContainer(RWTexture2DArray<
 #define STRATA_USES_CONVERSION_FROM_LEGACY 0
 #endif
 
+// When converting legacy materials to Strata, we need to override transmittance/coverage to be independent from the material and directly linked to opacity. 
+#if STRATA_USES_CONVERSION_FROM_LEGACY && MATERIALBLENDING_ALPHACOMPOSITE
+#define STRATA_PREMULT_ALPHA_OVERRIDE 1
+#else
+#define STRATA_PREMULT_ALPHA_OVERRIDE 0
+#endif
+
 #define STRATA_INLINE_SINGLELAYERWATER (PROJECT_STRATA && MATERIAL_IS_STRATA && STRATA_INLINE_SHADING && MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
 // Behind the scene, we do all the simple volumetric lighting & transmitance computations considering a slab of 100 centimeters = 1 meter.
@@ -738,11 +745,18 @@ struct FStrataData
 	FStrataBSDF InlinedBSDF;// Used for parameter blending or special BSDF such as hair, cloud or water.
 
 	int  OperatorIndex;		// Used as entry point ot the material graph with multiple BSDF and operators.
+
+#if STRATA_PREMULT_ALPHA_OVERRIDE
+	float PreMultipliedAlphaOverrideCoverage;
+#endif
 };
 
 FStrataData GetInitialisedStrataData()
 {
 	FStrataData StrataData = (FStrataData)0;
+#if STRATA_PREMULT_ALPHA_OVERRIDE
+	StrataData.PreMultipliedAlphaOverrideCoverage = -1.0f;
+#endif
 	return StrataData;
 }
 

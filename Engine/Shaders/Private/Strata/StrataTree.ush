@@ -188,19 +188,19 @@ void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inou
 	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/3);
 	// MaxDistanceFromLeaves = 2 
 	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/4);
-#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID
+#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID && STRATA_PREMULT_ALPHA_OVERRIDE==0
 	// MaxDistanceFromLeaves = 3 
 	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/5);
 #endif
 
 	UpdateBSDFWeightAfterWeightOperatorVisit	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/2, /*PreviousIsInputA*/1); // WEIGHT
 	UpdateBSDFWeightAfterVerticalOperatorVisit	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/4, /*PreviousIsInputA*/1); // VERTICAL
-#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID
+#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID && STRATA_PREMULT_ALPHA_OVERRIDE==0
 	UpdateBSDFWeightAfterWeightOperatorVisit	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/5, /*PreviousIsInputA*/1); // WEIGHT
 #endif
 	UpdateBSDFWeightAfterWeightOperatorVisit	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/3, /*PreviousIsInputA*/1); // WEIGHT
 	UpdateBSDFWeightAfterVerticalOperatorVisit	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/4, /*PreviousIsInputA*/0); // VERTICAL
-#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID
+#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID && STRATA_PREMULT_ALPHA_OVERRIDE==0
 	UpdateBSDFWeightAfterWeightOperatorVisit	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/5, /*PreviousIsInputA*/1); // WEIGHT
 #endif
 }

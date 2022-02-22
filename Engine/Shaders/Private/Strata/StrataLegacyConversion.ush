@@ -458,10 +458,14 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	FStrataData Out		 = StrataVerticalLayering(WTop_Slab, WBot_Slab, StrataTree,	/*OperatorIndex*/4, /*MaxDistanceFromLeaves*/2);
 
 	// Take in account the legacy opacity weighting for translucent material
-	#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID
+	#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID && STRATA_PREMULT_ALPHA_OVERRIDE==0
 	{
 		Out = StrataWeight(Out, FinalWeight, StrataTree,	/*OperatorIndex*/5, /*MaxDistanceFromLeaves*/3);
 	}
+	#endif
+
+	#if STRATA_PREMULT_ALPHA_OVERRIDE
+	Out.PreMultipliedAlphaOverrideCoverage = Opacity;
 	#endif
 
 	return Out;
