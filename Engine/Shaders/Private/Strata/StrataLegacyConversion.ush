@@ -495,8 +495,32 @@ FStrataData StrataConvertLegacyMaterialStatic(
 
 	if (ShadingModel == SHADINGMODELID_UNLIT)
 	{
-		Out = GetStrataUnlitBSDF(Emissive, Zeros);
-//		Out = StrataWeight(Out, Opacity);				// STRATA_TODO
+		const float GreyTransmittance = saturate(1.0f - Opacity);
+	#if MATERIALBLENDING_OPAQUE || MATERIALBLENDING_MASKED
+		// Uses opaque blending
+		Out = GetStrataUnlitBSDF(Emissive, 0.0f);
+	#elif MATERIALBLENDING_ALPHACOMPOSITE
+		// Uses (Luminance, grey transmittance) blending
+		Out = GetStrataUnlitBSDF(Emissive, 0.0f);
+		#if STRATA_INLINE_SHADING
+			Out.InlinedBSDF.Coverage = Opacity;
+		#endif
+	#elif MATERIALBLENDING_TRANSLUCENT
+		// Uses (Luminance, grey transmittance) blending
+		Out = GetStrataUnlitBSDF(Emissive * Opacity, 0.0f);
+		#if STRATA_INLINE_SHADING
+			Out.InlinedBSDF.Coverage = Opacity;
+		#endif
+	#elif MATERIALBLENDING_ALPHAHOLDOUT
+		Out = GetStrataUnlitBSDF(0.0f, 1.0f);
+	#elif MATERIALBLENDING_ADDITIVE
+		Out = GetStrataUnlitBSDF(Emissive * Opacity, 1.0f);
+	#elif MATERIALBLENDING_MODULATE
+		Out = GetStrataUnlitBSDF(0.0f, Emissive);
+	#else
+		// Opaque and masked
+		Out = GetStrataUnlitBSDF(Emissive, 0.0f);
+	#endif
 	}
 	else if (ShadingModel == SHADINGMODELID_HAIR)
 	{

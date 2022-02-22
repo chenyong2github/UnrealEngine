@@ -130,7 +130,7 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #define FORCE_FULLY_ROUGH (SIMPLE_FORWARD_SHADING || MATERIAL_FULLY_ROUGH)
 #define EDITOR_ALPHA2COVERAGE (USE_EDITOR_COMPOSITING && SUPPORTS_PIXEL_COVERAGE)
 #define POST_PROCESS_SUBSURFACE ((MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE) && USES_GBUFFER)
-#define MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING (MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || STRATA_TRANSLUCENT_MATERIAL )
+#define MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING (MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || STRATA_BLENDING_TRANSLUCENT_COLOREDTRANSMITTANCE )
 
 #if  MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
@@ -1582,7 +1582,7 @@ void FPixelShaderInOut_MainPS(
 	#endif
 #endif
 
-#if MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING
+#if MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING || STRATA_TRANSLUCENT_MATERIAL
 	float3 DualBlendSurfaceLuminancePostCoverage	= 0.0f;
 	float3 DualBlendSurfaceTransmittancePreCoverage = 1.0f;
 	float DualBlendSurfaceCoverage					= 1.0f;
@@ -1799,6 +1799,7 @@ void FPixelShaderInOut_MainPS(
 			Out.MRT[0] = half4(Color, 0);
 		#endif
 		Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);
+
 	// MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT must come first because it also has MATERIALBLENDING_TRANSLUCENT defined
 	#elif MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING
 
@@ -1817,6 +1818,32 @@ void FPixelShaderInOut_MainPS(
 			Out.MRT[0] = half4(AdjustedDualBlendAdd,AdjustedAlpha);
 			Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);
 		#endif
+
+	#elif STRATA_TRANSLUCENT_MATERIAL
+
+			// Add fog luminance according to surfacecoverage and reduce surface luminance according to fog coverage.
+			float3 AdjustedDualBlendAdd = DualBlendSurfaceCoverage * Fogging.rgb + Fogging.a * DualBlendSurfaceLuminancePostCoverage;
+			// Fade the surface color transmittance out to 1 according to the surface coverage, and take into account the fog coverage to the surface.
+			float3 AdjustedDualBlendMul = lerp(1.0f, Fogging.a * DualBlendSurfaceTransmittancePreCoverage, DualBlendSurfaceCoverage);
+
+		#if STRATA_BLENDING_COLOREDTRANSMITTANCEONLY
+			// RETURN_COLOR not needed with modulative blending
+			half3 FoggedColor = lerp(float3(1, 1, 1), DualBlendSurfaceTransmittancePreCoverage, Fogging.aaa * DualBlendSurfaceCoverage);
+			Out.MRT[0] = half4(FoggedColor, 1.0f);
+		#elif STRATA_BLENDING_ALPHAHOLDOUT
+			Out.MRT[0] = half4(0.0f.xxx, Opacity);
+			Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);
+		#else
+			#if STRATA_USES_CONVERSION_FROM_LEGACY && MATERIALBLENDING_ADDITIVE
+				float AdjustedAlpha = 0.0f;
+			#else
+				float AdjustedAlpha = saturate(1 - dot(AdjustedDualBlendMul, float3(1.0f, 1.0f, 1.0f) / 3.0f));
+			#endif
+			// Pre multipled alpha blending
+			Out.MRT[0] = half4(AdjustedDualBlendAdd, AdjustedAlpha);
+			Out.MRT[0] = RETURN_COLOR(Out.MRT[0]);
+		#endif
+
 	#elif MATERIALBLENDING_ALPHAHOLDOUT
 		// not implemented for holdout
 		Out.MRT[0] = half4(Color * Fogging.a + Fogging.rgb * Opacity, Opacity);

@@ -250,6 +250,21 @@ enum EBlendMode
 	BLEND_MAX,
 };
 
+/**
+ * The blending mode for Strata materials
+ */
+UENUM(BlueprintType)
+enum EStrataBlendMode
+{
+	SBM_Opaque UMETA(DisplayName = "Opaque"),
+	SBM_Masked UMETA(DisplayName = "Masked"),
+	SBM_TranslucentGreyTransmittance UMETA(DisplayName = "Translucent - Grey Transmittance"),
+	SBM_TranslucentColoredTransmittance UMETA(DisplayName = "Translucent - Colored Transmittance"),
+	SBM_ColoredTransmittanceOnly UMETA(DisplayName = "Colored Transmittance Only"),
+	SBM_AlphaHoldout UMETA(DisplayName = "Alpha Holdout"),
+	SBM_MAX,
+};
+
 /** The default float precision for material's pixel shaders on mobile devices*/
 UENUM()
 enum EMaterialFloatPrecisionMode

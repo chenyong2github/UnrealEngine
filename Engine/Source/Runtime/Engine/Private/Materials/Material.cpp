@@ -2798,6 +2798,39 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		}
 	};
 
+	auto ConvertLegacyToStrataBlendMode = [&]()
+	{
+		if (ShadingModels.CountShadingModels() == 1 && ShadingModels.GetFirstShadingModel() == EMaterialShadingModel::MSM_ThinTranslucent)
+		{
+			StrataBlendMode = SBM_TranslucentColoredTransmittance;
+		}
+		else
+		{
+			switch (BlendMode)
+			{
+			case BLEND_Opaque:
+				StrataBlendMode = SBM_Opaque;
+				break;
+			case BLEND_Masked:
+				StrataBlendMode = SBM_Masked;
+				break;
+			case BLEND_Translucent:
+			case BLEND_AlphaComposite:
+			case BLEND_Additive:
+				StrataBlendMode = SBM_TranslucentGreyTransmittance;
+				break;
+			case BLEND_Modulate:
+				StrataBlendMode = SBM_ColoredTransmittanceOnly;
+				break;
+			case BLEND_AlphaHoldout:
+				StrataBlendMode = SBM_AlphaHoldout;
+				break;
+			default:
+				UE_LOG(LogMaterial, Error, TEXT("%s: Material blend mode could not be converted to Starta."), *GetName());
+			}
+		}
+	};
+
 	// SSS Profile
 	const bool bHasShadingModelMixture		= ShadingModels.CountShadingModels() > 1;
 	const bool bRequireSubsurfacePasses		= ShadingModels.HasShadingModel(MSM_SubsurfaceProfile) || ShadingModels.HasShadingModel(MSM_Subsurface) || ShadingModels.HasShadingModel(MSM_PreintegratedSkin) || ShadingModels.HasShadingModel(MSM_Eye);
@@ -2861,6 +2894,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			check(ConvertNode->ConvertedStrataMaterialInfo.CountShadingModels() == 1);
 		}
 
+		ConvertLegacyToStrataBlendMode();
 		bInvalidateShader = true;
 	}
 	else if (!bUseMaterialAttributes && !FrontMaterial.IsConnected())
@@ -3051,6 +3085,8 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			FrontMaterial.Connect(0, ConvertNode);
 			bInvalidateShader = true;
 		}
+
+		ConvertLegacyToStrataBlendMode();
 	}
 
 	if (bInvalidateShader)
@@ -3588,12 +3624,17 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendMode))
 		{
-			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_Volume || MaterialDomain == MD_UI || (MaterialDomain == MD_PostProcess && BlendableOutputAlpha);
+			return !Engine_IsStrataEnabled() && (MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_Volume || MaterialDomain == MD_UI || (MaterialDomain == MD_PostProcess && BlendableOutputAlpha));
+		}
+
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, StrataBlendMode))
+		{
+			return Engine_IsStrataEnabled();
 		}
 	
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, ShadingModel))
 		{
-			return MaterialDomain == MD_Surface;
+			return !Engine_IsStrataEnabled() && MaterialDomain == MD_Surface;
 		}
 
 		if (FCString::Strncmp(*PropertyName, TEXT("bUsedWith"), 9) == 0)
@@ -3739,6 +3780,29 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 			}
 		}
 	}
+
+	// If the strata blending mode is changed, make sure we update the legacy blend mode too for the shaders to be filtered to passes correctly at runtime.
+	if (Engine_IsStrataEnabled() && PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMaterial, StrataBlendMode))
+	{
+		switch (GetStrataBlendMode())
+		{
+		case SBM_Opaque:
+			BlendMode = BLEND_Opaque;
+			break;
+		case SBM_Masked:
+			BlendMode = BLEND_Masked;
+			break;
+		case SBM_TranslucentGreyTransmittance:
+		case SBM_TranslucentColoredTransmittance:
+		case SBM_ColoredTransmittanceOnly:
+			BlendMode = BLEND_Translucent;
+			break;
+		case SBM_AlphaHoldout:
+			BlendMode = BLEND_AlphaHoldout;
+			break;
+		}
+	}
+
 
 	//If we can be sure this material would be the same opaque as it is masked then allow it to be assumed opaque.
 	bCanMaskedBeAssumedOpaque = !OpacityMask.Expression && !(OpacityMask.UseConstant && OpacityMask.Constant < 0.999f) && !bUseMaterialAttributes;
@@ -4043,13 +4107,6 @@ void UMaterial::RebuildShadingModelField()
 				}
 			}
 
-			// Blend mode
-			// Unclear what best fallback it should be
-			if (BlendMode != EBlendMode::BLEND_Opaque && BlendMode != EBlendMode::BLEND_Masked)
-			{
-				BlendMode = EBlendMode::BLEND_Translucent; // This is to be able to use dual-source blending
-			}
-
 			// Subsurface profil
 			if (StrataMaterialInfo.HasShadingModel(SSM_SubsurfaceLit) && StrataMaterialInfo.CountSubsurfaceProfiles() > 0)
 			{
@@ -4070,10 +4127,6 @@ void UMaterial::RebuildShadingModelField()
 					MaterialDomain = EMaterialDomain::MD_Surface;
 				}
 				ShadingModel = MSM_Unlit;
-				if (BlendMode != EBlendMode::BLEND_Opaque && BlendMode != EBlendMode::BLEND_Masked)
-				{
-					BlendMode = EBlendMode::BLEND_Translucent; // This is to be able to use dual-source blending
-				}
 			}
 			else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_SubsurfaceLit))
 			{
@@ -4092,10 +4145,6 @@ void UMaterial::RebuildShadingModelField()
 					MaterialDomain = EMaterialDomain::MD_Surface;
 				}
 				ShadingModel = MSM_DefaultLit;
-				if (BlendMode != EBlendMode::BLEND_Opaque && BlendMode != EBlendMode::BLEND_Masked)
-				{
-					BlendMode = EBlendMode::BLEND_Translucent; // This is to be able to use dual-source blending
-				}
 			}
 			else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_VolumetricFogCloud))
 			{
@@ -5312,6 +5361,25 @@ EBlendMode UMaterial::GetBlendMode() const
 	else
 	{
 		return BlendMode;
+	}
+}
+
+EStrataBlendMode UMaterial::GetStrataBlendMode() const
+{
+	if (EStrataBlendMode(StrataBlendMode) == SBM_Masked)
+	{
+		if (bCanMaskedBeAssumedOpaque)
+		{
+			return SBM_Opaque;
+		}
+		else
+		{
+			return SBM_Masked;
+		}
+	}
+	else
+	{
+		return StrataBlendMode;
 	}
 }
 

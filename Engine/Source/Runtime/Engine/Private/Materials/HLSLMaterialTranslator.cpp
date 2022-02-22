@@ -1147,14 +1147,6 @@ bool FHLSLMaterialTranslator::Translate()
 			}
 		}
 
-		if (Material->IsStrataMaterial())
-		{
-			if (Domain!= MD_Volume && !(BlendMode == BLEND_Translucent || BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked))
-		{
-				Errorf(TEXT("Strata materials must be an opaque or translucent surface, or a volume."));
-			}
-		}
-
 		if (Domain == MD_DeferredDecal && !(BlendMode == BLEND_Translucent || BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_Modulate))
 		{
 			// We could make the change for the user but it would be confusing when going to DeferredDecal and back
@@ -1865,9 +1857,8 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 
 	OutEnvironment.SetDefine(TEXT("MATERIAL_IS_STRATA"), bMaterialIsStrata ? TEXT("1") : TEXT("0"));
 
-	// STRATA_TODO do not request DualSourceBlending if gray scale transmittance is selected.
-	// bMaterialRequestsDualSourceBlending this base on limited set of blend mode: Opaque, Masked, TransmittanceCoverage, TransmittanceColored;
-	bMaterialRequestsDualSourceBlending |= bMaterialIsStrata;
+	// Strata requests dual source blending only for SBM_TranslucentColoredTransmittance
+	bMaterialRequestsDualSourceBlending |= bMaterialIsStrata && Material->GetStrataBlendMode() == EStrataBlendMode::SBM_TranslucentColoredTransmittance;
 
 	// if duals source blending (colored transmittance) is not supported on a platform, it will fall back to standard alpha blending (grey scale transmittance)
 	OutEnvironment.SetDefine(TEXT("DUAL_SOURCE_COLOR_BLENDING_ENABLED"), bMaterialRequestsDualSourceBlending && Material->IsDualBlendingEnabled(Platform) ? TEXT("1") : TEXT("0"));

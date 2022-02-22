@@ -282,6 +282,7 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 			MaterialResource->MaterialUsesAnisotropy_GameThread();
 
 		const EBlendMode BlendMode = (EBlendMode)GetBlendMode();
+		const EStrataBlendMode StrataBlendMode = (EStrataBlendMode)GetStrataBlendMode();
 		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode) || IsSinglePassWaterTranslucent || bIsMobilePixelProjectedTranslucent; // We want meshes with water materials to be scheduled for translucent pass on mobile. And we also have to render the meshes used for mobile pixel projection reflection in translucent pass.
 
 		EMaterialDomain Domain = (EMaterialDomain)MaterialResource->GetMaterialDomain();
@@ -328,8 +329,8 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 			MaterialRelevance.bMasked = IsMasked();
 			MaterialRelevance.bDistortion = MaterialResource->IsDistorted();
 			MaterialRelevance.bHairStrands = IsCompatibleWithHairStrands(MaterialResource, InFeatureLevel);
-			MaterialRelevance.bSeparateTranslucency = (TranslucencyPass == MTP_AfterDOF);
-			MaterialRelevance.bSeparateTranslucencyModulate = bMaterialSeparateModulation;
+			MaterialRelevance.bSeparateTranslucency = (TranslucencyPass == MTP_AfterDOF) && StrataBlendMode != SBM_ColoredTransmittanceOnly;
+			MaterialRelevance.bSeparateTranslucencyModulate = bMaterialSeparateModulation || StrataBlendMode == SBM_ColoredTransmittanceOnly;
 			MaterialRelevance.bPostMotionBlurTranslucency = (TranslucencyPass == MTP_AfterMotionBlur);
 			MaterialRelevance.bNormalTranslucency = bIsTranslucent && (TranslucencyPass == MTP_BeforeDOF);
 			MaterialRelevance.bDisableDepthTest = bIsTranslucent && Material->bDisableDepthTest;		
@@ -940,6 +941,11 @@ float UMaterialInterface::GetOpacityMaskClipValue() const
 EBlendMode UMaterialInterface::GetBlendMode() const
 {
 	return BLEND_Opaque;
+}
+
+EStrataBlendMode UMaterialInterface::GetStrataBlendMode() const
+{
+	return SBM_Opaque;
 }
 
 bool UMaterialInterface::IsTwoSided() const

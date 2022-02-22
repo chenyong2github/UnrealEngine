@@ -83,6 +83,8 @@ FAutoConsoleVariableRef CVarDeferUniformExpressionCaching(
 	ECVF_RenderThreadSafe
 	);
 
+bool Engine_IsStrataEnabled();
+
 struct FAllowCachingStaticParameterValues
 {
 	FAllowCachingStaticParameterValues(FMaterial& InMaterial)
@@ -1461,7 +1463,12 @@ bool FMaterialResource::IsTranslucencyAfterMotionBlurEnabled() const
 
 bool FMaterialResource::IsDualBlendingEnabled(EShaderPlatform Platform) const
 {
-	const bool bMaterialRequestsDualSourceBlending = Material->ShadingModel == MSM_ThinTranslucent || IsStrataMaterial();
+	bool bMaterialRequestsDualSourceBlending = Material->ShadingModel == MSM_ThinTranslucent;
+	if (IsStrataMaterial())
+	{
+		EStrataBlendMode StrataBlendMode = GetStrataBlendMode();
+		bMaterialRequestsDualSourceBlending = StrataBlendMode == EStrataBlendMode::SBM_TranslucentColoredTransmittance;
+	}
 	const bool bIsPlatformSupported = RHISupportsDualSourceBlending(Platform);
 	return bMaterialRequestsDualSourceBlending && bIsPlatformSupported;
 }
@@ -1556,6 +1563,11 @@ bool FMaterialResource::GetCastDynamicShadowAsMasked() const
 EBlendMode FMaterialResource::GetBlendMode() const 
 {
 	return MaterialInstance ? MaterialInstance->GetBlendMode() : Material->GetBlendMode();
+}
+
+EStrataBlendMode FMaterialResource::GetStrataBlendMode() const
+{
+	return MaterialInstance ? MaterialInstance->GetStrataBlendMode() : Material->GetStrataBlendMode();
 }
 
 ERefractionMode FMaterialResource::GetRefractionMode() const
@@ -1678,15 +1690,10 @@ bool FMaterialResource::HasAmbientOcclusionConnected() const
 
 bool FMaterialResource::IsStrataMaterial() const
 {
-	// STRATA_TODO IsStrataMaterial should go away once Strata implementation is finished
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
-	const bool bStrataEnabled = CVar && CVar->GetValueOnAnyThread() > 0;
 	// We no longer support both types of material (Strata and non strata) so no need to check if FrontMaterial is plugged in.
 	// We simply consider all material as Strata when Strata is enabled.
-	return bStrataEnabled;
+	return Engine_IsStrataEnabled();
 }
-
-bool Engine_IsStrataEnabled();
 
 bool FMaterialResource::HasMaterialPropertyConnected(EMaterialProperty In) const
 {
@@ -2074,6 +2081,33 @@ void FMaterial::SetupMaterialEnvironment(
 	default: 
 		UE_LOG(LogMaterial, Warning, TEXT("Unknown material blend mode: %u  Setting to BLEND_Opaque"),(int32)GetBlendMode());
 		OutEnvironment.SetDefine(TEXT("MATERIALBLENDING_SOLID"),TEXT("1"));
+	}
+
+	if (Engine_IsStrataEnabled())
+	{
+		switch (GetStrataBlendMode())
+		{
+		case SBM_Opaque:
+			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_OPAQUE"), TEXT("1"));
+			break;
+		case SBM_Masked:
+			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_MASKED"), TEXT("1"));
+			break;
+		case SBM_TranslucentGreyTransmittance:
+			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_TRANSLUCENT_GREYTRANSMITTANCE"), TEXT("1"));
+			break;
+		case SBM_TranslucentColoredTransmittance:
+			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_TRANSLUCENT_COLOREDTRANSMITTANCE"), TEXT("1"));
+			break;
+		case SBM_ColoredTransmittanceOnly:
+			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_COLOREDTRANSMITTANCEONLY"), TEXT("1"));
+			break;
+		case SBM_AlphaHoldout:
+			OutEnvironment.SetDefine(TEXT("STRATA_BLENDING_ALPHAHOLDOUT"), TEXT("1"));
+			break;
+		default:
+			UE_LOG(LogMaterial, Error, TEXT("%s: unkown strata material blend mode could not be converted to Starta. (Asset: %s)"), *GetFriendlyName(), *GetAssetName());
+		}
 	}
 
 	{
