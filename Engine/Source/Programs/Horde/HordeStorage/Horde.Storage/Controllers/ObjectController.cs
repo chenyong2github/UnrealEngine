@@ -173,6 +173,10 @@ namespace Horde.Storage.Controllers
             }
            
             byte[] blobContents = await blob.Stream.ToByteArray();
+            if (blobContents.Length == 0)
+            {
+                _logger.Warning("0 byte object found for {Id} {Namespace}", id, ns);
+            }
             CompactBinaryObject compactBinaryObject = CompactBinaryObject.Load(blobContents);
 
             try

@@ -64,6 +64,9 @@ namespace Horde.Storage.Implementation
                 await fs.FlushAsync(cancellationToken);
             }
 
+            if (content.Length == 0)
+                _logger.Warning("0 byte file written as {Id} {Namespace}", blobIdentifier, ns);
+
             UpdateLastWriteTime(filePath.FullName, DateTime.UnixEpoch);
             return blobIdentifier;
         }
@@ -80,6 +83,8 @@ namespace Horde.Storage.Implementation
                 await content.CopyToAsync(fs, cancellationToken);
                 await fs.FlushAsync(cancellationToken);
             }
+            if (filePath.Length == 0)
+                _logger.Warning("0 byte file written as {Id} {Namespace}", blobIdentifier, ns);
 
             UpdateLastWriteTime(filePath.FullName, DateTime.UnixEpoch);
             return blobIdentifier;
@@ -96,6 +101,9 @@ namespace Horde.Storage.Implementation
                 await fs.WriteAsync(content, cancellationToken);
                 await fs.FlushAsync(cancellationToken);
             }
+
+            if (content.Length == 0)
+                _logger.Warning("0 byte file written as {Id} {Namespace}", blobIdentifier, ns);
 
             UpdateLastWriteTime(filePath.FullName, DateTime.UnixEpoch);
             return blobIdentifier;
