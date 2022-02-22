@@ -36,6 +36,11 @@ TSharedPtr<IStylusInputInterfaceInternal> CreateStylusInputInterface() { return 
 
 void UStylusInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	if (FApp::IsUnattended() || IsRunningCommandlet())
+	{
+		return;
+	}
+
 	Super::Initialize(Collection);
 
 	UE_LOG(LogStylusInput, Log, TEXT("Initializing StylusInput subsystem."));
