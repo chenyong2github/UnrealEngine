@@ -181,7 +181,7 @@ export namespace UnrealEngine {
           return;
 
         if (Program.logger)
-          LogServer.log({ RequestId: message.RequestId, Stage: 'Done' });
+          LogServer.logLoopback({ RequestId: message.RequestId, Stage: 'WebApp Done' }, true);
 
         delete pendings[message.RequestId];
         promise?.(message.ResponseBody);
@@ -305,7 +305,7 @@ export namespace UnrealEngine {
     const RequestId = httpRequest++;
     const payload = { RequestId, Verb, URL, Body };
     if (Program.logger)
-      LogServer.log(payload);
+      LogServer.logLoopback(payload);
 
     send('http', payload);
     if (!wantAnswer)
@@ -606,6 +606,19 @@ export namespace UnrealEngine {
         body.PropertyValue = value;
       } else {
         body.ResetToDefault = true; 
+      }
+
+      if (Program.logger) {
+        const presetObj = presets[preset];
+        const log = {
+          RequestId: httpRequest,
+          Stage: 'Set Property',
+          Preset: presetObj?.Name,
+          Property: presetObj?.Exposed[property]?.DisplayName,
+          Value: value
+        };
+
+        LogServer.logLoopback(log);
       }
 
       await put(`/remote/preset/${preset}/property/${property}`, body);
