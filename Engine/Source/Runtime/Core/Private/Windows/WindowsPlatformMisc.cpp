@@ -2979,3 +2979,24 @@ uint64 FWindowsPlatformMisc::GetFileVersion(const FString &FileName)
 	}
 	return 0;
 }
+
+int32 FWindowsPlatformMisc::GetMaxRefreshRate()
+{
+	int32 Result = FGenericPlatformMisc::GetMaxRefreshRate();
+
+#if !UE_SERVER
+	DEVMODE DeviceMode;
+	FMemory::Memzero(DeviceMode);
+	DeviceMode.dmSize = sizeof(DEVMODE);
+
+	if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &DeviceMode) != 0)
+	{
+		// dmDisplayFrequency isn't always useful, the Windows docs say it can
+		// return 0 or 1 to indicate 'default refresh rate', so always assume we
+		// can do at least the generic platform default of 60 Hz
+		Result = FMath::Max(Result, (int32)DeviceMode.dmDisplayFrequency);
+	}
+#endif
+
+	return Result;
+}
