@@ -24,6 +24,7 @@
 #include "Engine/Blueprint.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "RigVMDeveloperTypeUtils.h"
 #endif// WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "ControlRig"

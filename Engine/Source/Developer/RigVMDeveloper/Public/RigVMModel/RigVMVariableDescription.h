@@ -5,7 +5,7 @@
 #include "RigVMCore/RigVMExternalVariable.h"
 #include "RigVMModel/RigVMNode.h"
 #include "EdGraphSchema_K2.h"
-#include "RigVMTypeUtils.h"
+#include "RigVMDeveloperTypeUtils.h"
 #include "RigVMVariableDescription.generated.h"
 
 /**

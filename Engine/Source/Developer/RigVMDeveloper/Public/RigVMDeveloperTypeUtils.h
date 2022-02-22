@@ -5,39 +5,12 @@
 #include "RigVMDeveloperModule.h"
 #include "RigVMCore/RigVMExternalVariable.h"
 #include "EdGraphSchema_K2.h"
+#include "RigVMTypeUtils.h"
 
 struct FRigVMGraphVariableDescription;
 
 namespace RigVMTypeUtils
 {
-
-	const TCHAR TArrayPrefix[] = TEXT("TArray<");
-	const TCHAR TObjectPtrPrefix[] = TEXT("TObjectPtr<");
-	const TCHAR TArrayTemplate[] = TEXT("TArray<%s>");
-	const TCHAR TObjectPtrTemplate[] = TEXT("TObjectPtr<%s%s>");
-	
-	// Returns true if the type specified is an array
-	FORCEINLINE bool IsArrayType(const FString& InCPPType)
-	{
-		return InCPPType.StartsWith(TArrayPrefix);
-	}
-
-	FORCEINLINE FString ArrayTypeFromBaseType(const FString& InCPPType)
-	{
-		return FString::Printf(TArrayTemplate, *InCPPType);
-	}
-
-	FORCEINLINE FString BaseTypeFromArrayType(const FString& InCPPType)
-	{
-		return InCPPType.RightChop(7).LeftChop(1);
-	}
-
-	FORCEINLINE bool IsUObjectType(const FString& InCPPType)
-	{
-		return InCPPType.StartsWith(TObjectPtrPrefix);
-	}
-
-	
 #if WITH_EDITOR
 	RIGVMDEVELOPER_API FRigVMExternalVariable ExternalVariableFromBPVariableDescription(const FBPVariableDescription& InVariableDescription);
 

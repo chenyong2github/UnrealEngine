@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigVMTypeUtils.h"
+#include "RigVMDeveloperTypeUtils.h"
 #include "RigVMModel/RigVMVariableDescription.h"
 
 #if WITH_EDITOR
