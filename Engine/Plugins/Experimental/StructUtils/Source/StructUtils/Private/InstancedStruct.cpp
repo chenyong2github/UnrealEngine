@@ -69,8 +69,7 @@ void FInstancedStruct::InitializeAs(const UScriptStruct* InScriptStruct, const u
 		else
 		{
 			// ... return the struct to its default state
-			CurrentScriptStruct->DestroyStruct(GetMutableMemory());
-			CurrentScriptStruct->InitializeStruct(GetMutableMemory());
+			CurrentScriptStruct->ClearScriptStruct(GetMutableMemory());
 		}
 	}
 	else
@@ -81,8 +80,9 @@ void FInstancedStruct::InitializeAs(const UScriptStruct* InScriptStruct, const u
 		// InScriptStruct == nullptr signifies an empty, unset FInstancedStruct instance
 		if (InScriptStruct)
 		{
+			const int32 MinAlignment = InScriptStruct->GetMinAlignment();
 			const int32 RequiredSize = InScriptStruct->GetStructureSize();
-			const uint8* Memory = ((uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize)));
+			const uint8* Memory = ((uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize), MinAlignment));
 			SetStructData(InScriptStruct, Memory);
 
 			InScriptStruct->InitializeStruct(GetMutableMemory());

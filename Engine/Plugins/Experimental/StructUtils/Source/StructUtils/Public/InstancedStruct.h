@@ -87,15 +87,16 @@ public:
 		{
 			// Struct type already matches; return the struct memory to a destroyed state so we can placement new over it
 			Memory = GetMutableMemory();
-			CurrentScriptStruct->DestroyStruct(Memory);
+			((T*)Memory)->~T();
 		}
 		else
 		{
 			// Struct type mismatch; reset and reinitialize
 			Reset();
 
+			const int32 MinAlignment = Struct->GetMinAlignment();
 			const int32 RequiredSize = Struct->GetStructureSize();
-			Memory = (uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize));
+			Memory = (uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize), MinAlignment);
 			SetStructData(Struct, Memory);
 		}
 
