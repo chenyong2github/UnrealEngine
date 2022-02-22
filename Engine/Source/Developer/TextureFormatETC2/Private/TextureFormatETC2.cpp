@@ -39,6 +39,7 @@ class FETC2TextureBuildFunction final : public FTextureBuildFunction
 #define ENUM_SUPPORTED_FORMATS(op) \
 	op(ETC2_RGB) \
 	op(ETC2_RGBA) \
+	op(ETC2_R11) \
 	op(AutoETC2)
 
 #define DECL_FORMAT_NAME(FormatName) static FName GTextureFormatName##FormatName = FName(TEXT(#FormatName));
@@ -116,6 +117,9 @@ static bool CompressImageUsingQonvert(
 	case PF_ETC2_RGBA:
 		DstImg.nFormat = Q_FORMAT_ETC2_RGBA8;
 		break;
+	case PF_ETC2_R11_EAC:
+		DstImg.nFormat = Q_FORMAT_EAC_R_UNSIGNED;
+		break;
 	default:
 		UE_LOG(LogTextureFormatETC2, Fatal, TEXT("Unsupported EPixelFormat for compression: %u"), (uint32)PixelFormat);
 		return false;
@@ -146,7 +150,7 @@ class FTextureFormatETC2 : public ITextureFormat
 		const struct FTextureBuildSettings* BuildSettings = nullptr
 	) const override
 	{
-		return 0;
+		return 1;
 	}
 
 	virtual FName GetEncoderName(FName Format) const override
@@ -180,6 +184,11 @@ class FTextureFormatETC2 : public ITextureFormat
 				(BuildSettings.TextureFormatName == GTextureFormatNameAutoETC2 && bImageHasAlphaChannel))
 		{
 			return PF_ETC2_RGBA;
+		}
+
+		if (BuildSettings.TextureFormatName == GTextureFormatNameETC2_R11)
+		{
+			return PF_ETC2_R11_EAC;
 		}
 
 		UE_LOG(LogTextureFormatETC2, Fatal, TEXT("Unhandled texture format '%s' given to FTextureFormatAndroid::GetPixelFormatForImage()"), *BuildSettings.TextureFormatName.ToString());

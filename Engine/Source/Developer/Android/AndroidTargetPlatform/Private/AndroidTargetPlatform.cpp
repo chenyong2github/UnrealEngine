@@ -64,6 +64,7 @@ namespace AndroidTexFormat
 	const static FName NameBC7(TEXT("BC7"));
 	const static FName NameETC2_RGB(TEXT("ETC2_RGB"));
 	const static FName NameETC2_RGBA(TEXT("ETC2_RGBA"));
+	const static FName NameETC2_R11(TEXT("ETC2_R11"));
 	const static FName NameAutoETC2(TEXT("AutoETC2"));
 	const static FName NameASTC_4x4(TEXT("ASTC_4x4"));
 	const static FName NameASTC_6x6(TEXT("ASTC_6x6"));
@@ -90,7 +91,7 @@ namespace AndroidTexFormat
 		{ NameDXT5,			FName(TEXT("ASTC_RGBA"))	},
 		{ NameDXT5n,		FName(TEXT("ASTC_NormalAG"))},
 		{ NameBC5,			FName(TEXT("ASTC_NormalRG"))},
-		{ NameBC4,			NameG8						},
+		{ NameBC4,			NameETC2_R11				},
 		{ NameBC6H,			FName(TEXT("ASTC_RGB"))		},
 		{ NameBC7,			NameAutoASTC				},
 		{ NameAutoDXT,		NameAutoASTC				},
@@ -104,7 +105,7 @@ namespace AndroidTexFormat
 		{ NameDXT5,			NameETC2_RGBA	},
 		{ NameDXT5n,		NameETC2_RGB	},
 		{ NameBC5,			NameETC2_RGB	},
-		{ NameBC4,			NameG8			},
+		{ NameBC4,			NameETC2_R11	},
 		{ NameBC6H,			NameETC2_RGB	},
 		{ NameBC7,			NameAutoETC2	},
 		{ NameAutoDXT,		NameAutoETC2	},
@@ -541,8 +542,10 @@ void FAndroid_ASTCTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats
 		OutFormats.Remove(AndroidTexFormat::ASTCRemap[RemapIndex][0]);
 	}
 	
-	// support only ASTC for compressed textures
+	// ASTC for compressed textures
 	OutFormats.Add(AndroidTexFormat::NameAutoASTC);
+	// ETC for ETC2_R11
+	OutFormats.Add(AndroidTexFormat::NameAutoETC2);
 }
 
 void FAndroid_ASTCTargetPlatform::GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const

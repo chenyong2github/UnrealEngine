@@ -563,7 +563,7 @@ static FName FormatRemap[] =
 	FName(TEXT("DXT5")),	FName(TEXT("ASTC_RGBA")),
 	FName(TEXT("DXT5n")),	FName(TEXT("ASTC_NormalAG")),
 	FName(TEXT("BC5")),		FName(TEXT("ASTC_NormalRG")),
-	FName(TEXT("BC4")),		FName(TEXT("G8")),
+	FName(TEXT("BC4")),		FName(TEXT("ETC2_R11")),
 	FName(TEXT("BC6H")),	FName(TEXT("ASTC_RGB")), 
 	FName(TEXT("BC7")),		FName(TEXT("ASTC_RGBAuto"))
 };
