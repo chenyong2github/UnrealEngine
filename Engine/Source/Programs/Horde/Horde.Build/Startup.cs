@@ -559,7 +559,7 @@ namespace HordeServer
 						.Build();
 				});
 
-			if (Settings.EnableBackgroundServices)
+			if (Settings.IsRunModeActive(RunMode.Worker))
 			{
 				if (Settings.FeatureFlags.AutoscaleServiceV1Enabled)
 				{
