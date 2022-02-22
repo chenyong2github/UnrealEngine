@@ -323,6 +323,24 @@ namespace Horde.Storage.FunctionalTests.References
                 Assert.IsNotNull(value);
                 Assert.AreEqual(objectHash, new BlobIdentifier(value));
             }
+
+            {
+                // request the object as a jupiter inlined payload
+                var request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/refs/{TestNamespace}/bucket/{key}");
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(CustomMediaTypeNames.JupiterInlinedPayload));
+                HttpResponseMessage getResponse = await _httpClient.SendAsync(request);
+                getResponse.EnsureSuccessStatusCode();
+                Assert.AreEqual(CustomMediaTypeNames.JupiterInlinedPayload, getResponse.Content.Headers.ContentType?.MediaType);
+
+                await using MemoryStream ms = new MemoryStream();
+                await getResponse.Content.CopyToAsync(ms);
+                byte[] roundTrippedBuffer = ms.ToArray();
+
+                string roundTrippedString = Encoding.ASCII.GetString(roundTrippedBuffer);
+
+                Assert.AreEqual(objectContents, roundTrippedString);
+                Assert.AreEqual(objectHash, BlobIdentifier.FromBlob(roundTrippedBuffer));
+            }
         }
 
         [TestMethod]
