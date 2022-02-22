@@ -63,7 +63,7 @@ export async function getPreview(cl: number, singleBot?: string) {
 		}
 	}
 
-	if (errors) {
+	if (errors.length > 0) {
 		throw new Error(errors.join('\n\n'))
 	}
 	return status
