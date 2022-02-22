@@ -412,7 +412,7 @@ namespace ShaderPrint
 		}
 	};
 
-	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugClearCS, "/Engine/Private/ShaderDrawDebug.usf", "ShaderDrawDebugClearCS", SF_Compute);
+	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugClearCS, "/Engine/Private/ShaderPrintDrawPrimitive.usf", "ShaderDrawDebugClearCS", SF_Compute);
 	
 	class FShaderDrawDebugCopyCS : public FGlobalShader
 	{
@@ -437,7 +437,7 @@ namespace ShaderPrint
 		}
 	};
 
-	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugCopyCS, "/Engine/Private/ShaderDrawDebug.usf", "ShaderDrawDebugCopyCS", SF_Compute);
+	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugCopyCS, "/Engine/Private/ShaderPrintDrawPrimitive.usf", "ShaderDrawDebugCopyCS", SF_Compute);
 
 	class FShaderDrawDebugVS : public FGlobalShader
 	{
@@ -466,7 +466,7 @@ namespace ShaderPrint
 		}
 	};
 
-	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugVS, "/Engine/Private/ShaderDrawDebug.usf", "ShaderDrawDebugVS", SF_Vertex);
+	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugVS, "/Engine/Private/ShaderPrintDrawPrimitive.usf", "ShaderDrawDebugVS", SF_Vertex);
 
 
 	class FShaderDrawDebugPS : public FGlobalShader
@@ -500,7 +500,7 @@ namespace ShaderPrint
 		}
 	};
 
-	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugPS, "/Engine/Private/ShaderDrawDebug.usf", "ShaderDrawDebugPS", SF_Pixel);
+	IMPLEMENT_GLOBAL_SHADER(FShaderDrawDebugPS, "/Engine/Private/ShaderPrintDrawPrimitive.usf", "ShaderDrawDebugPS", SF_Pixel);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderDrawVSPSParameters , )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FShaderDrawDebugVS::FParameters, VS)
