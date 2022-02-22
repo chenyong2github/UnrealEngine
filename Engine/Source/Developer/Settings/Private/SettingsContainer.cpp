@@ -55,7 +55,7 @@ void FSettingsContainer::RemoveSection( const FName& CategoryName, const FName& 
 
 	if (Category.IsValid())
 	{
-		ISettingsSectionPtr Section = Category->GetSection(SectionName);
+		ISettingsSectionPtr Section = Category->GetSection(SectionName, true);
 
 		if (Section.IsValid())
 		{

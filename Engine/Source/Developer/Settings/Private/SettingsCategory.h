@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ISettingsCategory.h"
 #include "ISettingsSection.h"
+#include "Misc/NamePermissionList.h"
 
 class FSettingsSection;
 class SWidget;
@@ -89,9 +90,16 @@ public:
 		return Name;
 	}
 
-	virtual ISettingsSectionPtr GetSection( const FName& SectionName ) const override;
+	/** Gets a section if it's visible according to IsSectionVisiblePermissionList. bIgnoreVisibility=true will return the section even if it's filtered */
+	virtual ISettingsSectionPtr GetSection( const FName& SectionName, bool bIgnoreVisibility = false ) const override;
 
-	virtual int32 GetSections( TArray<ISettingsSectionPtr>& OutSections ) const override;
+	/** Gets all visible sections according to IsSectionVisiblePermissionList. bIgnoreVisibility=true will return sections even if they're filtered */
+	virtual int32 GetSections( TArray<ISettingsSectionPtr>& OutSections, bool bIgnoreVisibility = false ) const override;
+	
+	virtual FNamePermissionList* GetSectionVisibilityPermissionList() override
+	{
+		return &SectionVisibilityPermissionList;
+	}
 
 private:
 
@@ -106,4 +114,7 @@ private:
 
 	/** Holds the category's name. */
 	FName Name;
+
+	/** Determines which sections are returned with GetSection and GetSections */
+	FNamePermissionList SectionVisibilityPermissionList;
 };

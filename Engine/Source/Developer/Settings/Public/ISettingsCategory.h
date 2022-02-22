@@ -37,7 +37,7 @@ public:
 	 * @param SectionName The name of the section to get.
 	 * @return The settings section, or nullptr if it doesn't exist.
 	 */
-	virtual TSharedPtr<ISettingsSection> GetSection( const FName& SectionName ) const = 0;
+	virtual TSharedPtr<ISettingsSection> GetSection( const FName& SectionName, bool bIgnoreVisibility = false ) const = 0;
 
 	/**
 	 * Gets the setting sections contained in this category.
@@ -45,7 +45,7 @@ public:
 	 * @param OutSections Will hold the collection of sections.
 	 * @return The number of sections returned.
 	 */
-	virtual int32 GetSections( TArray<TSharedPtr<ISettingsSection>>& OutSections ) const = 0;
+	virtual int32 GetSections( TArray<TSharedPtr<ISettingsSection>>& OutSections, bool bIgnoreVisibility = false ) const = 0;
 
 	/**
 	 * Gets the category's name.
@@ -53,6 +53,8 @@ public:
 	 * @return Category name.
 	 */
 	virtual const FName& GetName() const = 0;
+
+	virtual class FNamePermissionList* GetSectionVisibilityPermissionList() = 0;
 
 public:
 

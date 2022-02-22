@@ -57,18 +57,26 @@ void FSettingsCategory::RemoveSection( const FName& SectionName )
 /* ISettingsCategory interface
  *****************************************************************************/
 
-ISettingsSectionPtr FSettingsCategory::GetSection( const FName& SectionName ) const
+ISettingsSectionPtr FSettingsCategory::GetSection( const FName& SectionName, bool bIgnoreVisibility ) const
 {
-	return Sections.FindRef(SectionName);
+	ISettingsSectionPtr Section = Sections.FindRef(SectionName);
+	if (bIgnoreVisibility || (Section.IsValid() && SectionVisibilityPermissionList.PassesFilter(Section->GetName())))
+	{
+		return Section;
+	}
+	return nullptr;
 }
 
-int32 FSettingsCategory::GetSections( TArray<ISettingsSectionPtr>& OutSections ) const
+int32 FSettingsCategory::GetSections( TArray<ISettingsSectionPtr>& OutSections, bool bIgnoreVisibility ) const
 {
 	OutSections.Empty(Sections.Num());
 
 	for (TMap<FName, TSharedPtr<FSettingsSection> >::TConstIterator It(Sections); It; ++It)
 	{
-		OutSections.Add(It.Value());
+		if (bIgnoreVisibility || SectionVisibilityPermissionList.PassesFilter(It.Value()->GetName()))
+		{
+			OutSections.Add(It.Value());
+		}
 	}
 
 	return OutSections.Num();
