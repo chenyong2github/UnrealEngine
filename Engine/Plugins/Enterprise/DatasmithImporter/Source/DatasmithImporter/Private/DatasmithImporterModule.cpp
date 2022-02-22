@@ -116,6 +116,11 @@ public:
 		ResetFromTemplates( Object );
 	}
 
+	virtual FOnGenerateDatasmithImportMenu& OnGenerateDatasmithImportMenu() override
+	{
+		return GenerateDatasmithImportMenuEvent;
+	}
+
 	bool IsInOfflineMode() const
 	{
 		return GetDefault< UDatasmithImporterEditorSettings >() && GetDefault< UDatasmithImporterEditorSettings >()->bOfflineImporter;
@@ -169,6 +174,9 @@ private:
 	FDelegateHandle IsAssetAutoReimportEnabledHandle;
 	FDelegateHandle BrowseExternalSourceUriHandle;
 	FDelegateHandle GetSupporedUriSchemeHandle;
+
+	FOnGenerateDatasmithImportMenu GenerateDatasmithImportMenuEvent;
+
 };
 
 void FDatasmithImporterModule::SetupMenuEntry()
@@ -205,6 +213,8 @@ void FDatasmithImporterModule::SetupMenuEntry()
 					FSlateIcon( FDatasmithStyle::GetStyleSetName(), TEXT( "Datasmith.Import" ) ),
 					FUIAction( FExecuteAction::CreateRaw( this, &FDatasmithImporterModule::OnClickedImportDirectLinkMenuEntry ) )
 				);
+
+				GenerateDatasmithImportMenuEvent.Broadcast(SubSection);
 			}),
 			bOpenMenuOnClick,
 			FSlateIcon( FDatasmithStyle::GetStyleSetName(), TEXT( "Datasmith.Import" ) )
