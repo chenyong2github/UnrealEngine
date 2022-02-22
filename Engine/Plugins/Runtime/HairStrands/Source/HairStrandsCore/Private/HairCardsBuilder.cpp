@@ -17,7 +17,7 @@
 #include "Containers/ResourceArray.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "HAL/ConsoleManager.h"
-#include "ShaderDebug.h"
+#include "ShaderPrint.h"
 #include "Async/ParallelFor.h"
 #include "Misc/ScopedSlowTask.h"
 #include "CommonRenderResources.h"
@@ -118,7 +118,7 @@ class FHairCardAtlasTextureRectPS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FOutput>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER(FVector3f, Raster_MinBound)
 		SHADER_PARAMETER(FVector3f, Raster_MaxBound)
 		
@@ -159,7 +159,7 @@ static void AddCardsTracingPass(
 	const bool bClear,
 	const FHairCardsProceduralAtlas& InAtlas,
 	const FHairCardsProceduralAtlas::Rect& Rect,
-	const FShaderDrawDebugData* ShaderDrawData,
+	const FShaderPrintData* ShaderPrintData,
 	const uint32 TotalVertexCount,
 	FRHIShaderResourceView* InStrandsVertexBuffer,
 	FRHIShaderResourceView* InStrandsAttributeBuffer,
@@ -192,9 +192,9 @@ static void AddCardsTracingPass(
 	ParametersPS->Curve_PositionBuffer = InStrandsVertexBuffer;
 	ParametersPS->Curve_AttributeBuffer = InStrandsAttributeBuffer;
 
-	if (ShaderDrawData)
+	if (ShaderPrintData)
 	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, ParametersPS->ShaderDrawParameters);
+		ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, ParametersPS->ShaderDrawParameters);
 	}
 
 	if (bOutputCoverageOnly)
@@ -278,7 +278,7 @@ static void AddHairCardAtlasTexturePass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	const FHairCardsProceduralAtlas& InAtlas,
-	const FShaderDrawDebugData* ShaderDrawData,
+	const FShaderPrintData* ShaderPrintData,
 	const uint32 TotalVertexCount,
 	FRHIShaderResourceView* InStrandsVertexBuffer,
 	FRHIShaderResourceView* InStrandsAttributeBuffer,
@@ -300,7 +300,7 @@ static void AddHairCardAtlasTexturePass(
 			bClear,
 			InAtlas,
 			Rect,
-			ShaderDrawData,
+			ShaderPrintData,
 			TotalVertexCount,
 			InStrandsVertexBuffer,
 			InStrandsAttributeBuffer,
@@ -318,7 +318,7 @@ static void AddHairCardAtlasTexturePass(
 			bClear,
 			InAtlas,
 			Rect,
-			ShaderDrawData,
+			ShaderPrintData,
 			TotalVertexCount,
 			InStrandsVertexBuffer,
 			InStrandsAttributeBuffer,
@@ -4067,7 +4067,7 @@ static void AddCardsTextureReadbackPass(
 void RunHairCardsAtlasQueries(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	const FShaderDrawDebugData* DebugShaderData)
+	const FShaderPrintData* DebugShaderData)
 {
 	FHairCardsBuilder::FCardsAtlasQuery Q;
 	while (FHairCardsBuilder::GCardsAtlasQuery.Dequeue(Q))

@@ -29,7 +29,6 @@ void ComputeHairStrandsInterpolation(
 	const uint32 ViewUniqueID,
 	const uint32 ViewRayTracingMask,
 	const FVector& TranslatedWorldOffset,
-	const struct FShaderDrawDebugData* DebugShaderData,
 	const struct FShaderPrintData* ShaderPrintData,
 	struct FHairGroupInstance* Instance,
 	int32 LODIndex,

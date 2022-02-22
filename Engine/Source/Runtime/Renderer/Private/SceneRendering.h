@@ -30,7 +30,6 @@
 #include "Templates/UniquePtr.h"
 #include "RenderGraphUtils.h"
 #include "MeshDrawCommands.h"
-#include "ShaderDebug.h"
 #include "ShaderPrintParameters.h"
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"
 #include "Nanite/Nanite.h"
@@ -1455,7 +1454,6 @@ public:
 	FShaderResourceViewRHIRef LightmapSceneDataOverrideSRV;
 
 	FShaderPrintData ShaderPrintData;
-	FShaderDrawDebugData ShaderDrawData;
 	FLumenTranslucencyGIVolume LumenTranslucencyGIVolume;
 
 #if RHI_RAYTRACING

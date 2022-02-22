@@ -689,26 +689,19 @@ struct FHLODSceneNodeVisibilityState
 	uint16 bIsFading	: 1;
 };
 
-struct FShaderDrawDebugStateData
+struct FShaderPrintStateData
 {
-	TRefCountPtr<FRDGPooledBuffer> Buffer;
+	TRefCountPtr<FRDGPooledBuffer> StateBuffer;
+	TRefCountPtr<FRDGPooledBuffer> LineBuffer;
 	FVector PreViewTranslation = FVector::ZeroVector;
 	bool bIsLocked = false;
 
 	void Release()
 	{
-		Buffer = nullptr;
 		bIsLocked = false;
-	}
-};
-
-struct FShaderPrintStateData
-{
-	TRefCountPtr<FRDGPooledBuffer> StateBuffer;
-
-	void Release()
-	{
+		PreViewTranslation = FVector::ZeroVector;
 		StateBuffer = nullptr;
+		LineBuffer = nullptr;
 	}
 };
 
@@ -1134,7 +1127,6 @@ public:
 
 	FHairStrandsViewStateData HairStrandsViewStateData;
 
-	FShaderDrawDebugStateData ShaderDrawDebugStateData;
 	FShaderPrintStateData ShaderPrintStateData;
 
 	FShadingEnergyConservationStateData ShadingEnergyConservationData;

@@ -17,7 +17,7 @@
 #include "SkyAtmosphereRendering.h"
 #include "VolumeLighting.h"
 #include "DynamicPrimitiveDrawing.h"
-#include "ShaderDebug.h"
+#include "ShaderPrint.h"
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
 #include "VolumetricRenderTarget.h"
@@ -1297,7 +1297,7 @@ class FDrawDebugCloudShadowCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CloudTracedTexture)
 		SHADER_PARAMETER(FVector4f, CloudTextureSizeInvSize)
 		SHADER_PARAMETER(FVector3f, CloudTraceDirection)
@@ -2478,12 +2478,12 @@ bool FSceneRenderer::RenderVolumetricCloud(
 
 					auto DebugCloudTexture = [&](FDrawDebugCloudShadowCS::FParameters* Parameters)
 					{
-						if (ShaderDrawDebug::IsEnabled(ViewInfo))
+						if (ShaderPrint::IsEnabled(ViewInfo))
 						{
 							FDrawDebugCloudShadowCS::FPermutationDomain Permutation;
 							TShaderMapRef<FDrawDebugCloudShadowCS> ComputeShader(GetGlobalShaderMap(ViewInfo.GetFeatureLevel()), Permutation);
 
-							ShaderDrawDebug::SetParameters(GraphBuilder, ViewInfo.ShaderDrawData, Parameters->ShaderDrawParameters);
+							ShaderPrint::SetParameters(GraphBuilder, ViewInfo.ShaderPrintData, Parameters->ShaderPrintParameters);
 
 							const FIntVector CloudShadowTextureSize = Parameters->CloudTracedTexture->Desc.GetSize();
 							const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(CloudShadowTextureSize.X, CloudShadowTextureSize.Y, 1), FIntVector(8, 8, 1));

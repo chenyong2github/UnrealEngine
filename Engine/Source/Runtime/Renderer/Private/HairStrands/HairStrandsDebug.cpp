@@ -25,7 +25,6 @@
 #include "CanvasTypes.h"
 #include "ShaderPrintParameters.h"
 #include "RenderGraphUtils.h"
-#include "ShaderDebug.h"
 #include "ShaderPrint.h"
 #include "ScreenPass.h"
 
@@ -74,7 +73,7 @@ static FAutoConsoleVariableRef CVarHairVirtualVoxel_DebugTraversalType(TEXT("r.H
 static bool TryEnableShaderDrawAndShaderPrint(const FViewInfo& View, uint32 ResquestedShaderDrawElements, uint32 RequestedShaderPrintElements)
 {
 	const EShaderPlatform Platform = View.Family->GetShaderPlatform();
-	if (!ShaderDrawDebug::IsSupported(Platform) || !ShaderPrint::IsSupported(Platform))
+	if (!ShaderPrint::IsSupported(Platform))
 	{
 		return false;
 	}
@@ -84,18 +83,8 @@ static bool TryEnableShaderDrawAndShaderPrint(const FViewInfo& View, uint32 Resq
 		ShaderPrint::SetEnabled(true);
 	}
 	ShaderPrint::RequestSpaceForCharacters(RequestedShaderPrintElements);
-
-	if (!ShaderDrawDebug::IsEnabled(View))
-	{
-		ShaderDrawDebug::SetEnabled(true);
-	}
-	ShaderDrawDebug::RequestSpaceForElements(ResquestedShaderDrawElements);
+	ShaderPrint::RequestSpaceForLines(ResquestedShaderDrawElements);
 	return true;
-}
-
-static bool IsDebugDrawAndDebugPrintEnabled(const FViewInfo& View)
-{
-	return ShaderDrawDebug::IsEnabled(View) && ShaderPrint::IsEnabled(View);
 }
 
 bool IsHairStrandsClusterDebugEnable()
@@ -341,7 +330,6 @@ class FHairDebugPrintCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneResourceParameters, GPUSceneResource)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawUniformBuffer)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -423,7 +411,6 @@ static void AddDebugHairPrintPass(
 	Parameters->HairStrands = View->HairStrandsViewData.UniformBuffer;
 	Parameters->HairMacroGroupAABBBuffer = GraphBuilder.CreateSRV(MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 	ShaderPrint::SetParameters(GraphBuilder, *View, Parameters->ShaderPrintUniformBuffer);
-	ShaderDrawDebug::SetParameters(GraphBuilder, View->ShaderDrawData, Parameters->ShaderDrawUniformBuffer);
 	TShaderMapRef<FHairDebugPrintCS> ComputeShader(View->ShaderMap);
 
 	ClearUnusedGraphResources(ComputeShader, Parameters);
@@ -675,7 +662,6 @@ class FDeepShadowInfoCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER(FVector2f, OutputResolution)
 		SHADER_PARAMETER(uint32, AllocatedSlotCount)
@@ -725,7 +711,6 @@ static void AddDeepShadowInfoPass(
 	Parameters->SceneTextures = SceneTextures;
 	Parameters->MacroGroupAABBBuffer = GraphBuilder.CreateSRV(MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 	Parameters->ShadowTranslatedWorldToLightTransformBuffer = GraphBuilder.CreateSRV(DeepShadowResources.DeepShadowTranslatedWorldToLightTransforms);
-	ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
 	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
 	Parameters->OutputTexture = GraphBuilder.CreateUAV(OutputTexture);
 
@@ -744,7 +729,6 @@ class FVoxelVirtualRaymarchingCS : public FGlobalShader
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER(FVector2f, OutputResolution)
 		SHADER_PARAMETER( int32, ForcedMipLevel)
@@ -798,7 +782,6 @@ static void AddVoxelPageRaymarchingPass(
 		Parameters->MaxTotalPageIndexCount  = VoxelResources.Parameters.Common.PageIndexCount;
 		Parameters->VirtualVoxel			= VoxelResources.UniformBuffer;
 		Parameters->TotalValidPageCounter	= GraphBuilder.CreateSRV(VoxelResources.PageIndexGlobalCounter, PF_R32_UINT);
-		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
 		ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
 		Parameters->OutputTexture			= GraphBuilder.CreateUAV(OutputTexture);
 
@@ -819,7 +802,6 @@ class FDebugHairTangentCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDraw)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrint)
 		SHADER_PARAMETER(FVector2f, OutputResolution)
 		SHADER_PARAMETER(FIntPoint, TileCount)
@@ -859,11 +841,10 @@ static void AddDebugHairTangentPass(
 	Parameters->TileCount				= FIntPoint(FMath::FloorToInt(Parameters->OutputResolution.X / Parameters->TileSize), FMath::FloorToInt(Parameters->OutputResolution.X / Parameters->TileSize));
 	Parameters->SceneTextures			= SceneTextures.UniformBuffer;
 	Parameters->BilinearTextureSampler	= TStaticSamplerState<SF_Bilinear>::GetRHI();
-	ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDraw);
 	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrint);
 
 	const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(OutputTexture->Desc.Extent.X, OutputTexture->Desc.Extent.Y, 1), FIntVector(8, 8, 1));
-	ShaderDrawDebug::RequestSpaceForElements(DispatchCount.X * DispatchCount.Y);
+	ShaderPrint::RequestSpaceForLines(DispatchCount.X * DispatchCount.Y);
 
 	TShaderMapRef<FDebugHairTangentCS> ComputeShader(View.ShaderMap);
 	FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::DebugTangentCS"), ComputeShader, Parameters, DispatchCount);
@@ -1111,7 +1092,6 @@ class FDrawDebugClusterAABBCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, TriangleCount)
 		SHADER_PARAMETER(uint32, HairGroupId)
 		SHADER_PARAMETER(int32, ClusterDebugMode)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1165,7 +1145,7 @@ static void AddDrawDebugClusterPass(
 				if (PrimitiveInfo.PublicDataPtr != HairGroupClusters.HairGroupPublicPtr)
 					continue;
 
-				if (ShaderDrawDebug::IsEnabled(View) && HairGroupClusters.CulledClusterCountBuffer)
+				if (ShaderPrint::IsEnabled(View) && HairGroupClusters.CulledClusterCountBuffer)
 				{
 					FRDGExternalBuffer& DrawIndirectBuffer = HairGroupClusters.HairGroupPublicPtr->GetDrawIndirectBuffer();
 
@@ -1189,7 +1169,6 @@ static void AddDrawDebugClusterPass(
 						FRDGBufferRef ClusterDebugInfoBuffer = GraphBuilder.RegisterExternalBuffer(HairGroupClusters.ClusterDebugInfoBuffer);
 						Parameters->ClusterDebugInfoBuffer = GraphBuilder.CreateSRV(ClusterDebugInfoBuffer);
 					}
-					ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
 					ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
 
 					check(Parameters->ClusterCount / 64 <= 65535);

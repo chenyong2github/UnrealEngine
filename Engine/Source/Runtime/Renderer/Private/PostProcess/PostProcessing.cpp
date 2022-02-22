@@ -41,7 +41,6 @@
 #include "PostProcess/PostProcessSubsurface.h"
 #include "Rendering/MotionVectorSimulation.h"
 #include "ShaderPrint.h"
-#include "ShaderDebug.h"
 #include "HighResScreenshot.h"
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
@@ -1346,14 +1345,9 @@ void AddPostProcessingPasses(
 			RectLightAtlas::AddRectLightAtlasDebugPass(GraphBuilder, View, SceneColor.Texture);
 		}
 
-		if (ShaderDrawDebug::IsEnabled(View))
-		{
-			ShaderDrawDebug::DrawView(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
-		}
-
 		if (ShaderPrint::IsEnabled(View))
 		{
-			ShaderPrint::DrawView(GraphBuilder, View, SceneColor);
+			ShaderPrint::DrawView(GraphBuilder, View, SceneColor, SceneDepth);
 		}
 
 		if (View.Family && View.Family->Scene)

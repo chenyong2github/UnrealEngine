@@ -20,7 +20,6 @@
 #include "NaniteSceneProxy.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
-#include "ShaderDebug.h"
 #include "InstanceUniformShaderParameters.h"
 #include "ShaderPrint.h"
 
@@ -1906,7 +1905,6 @@ class FGPUSceneDebugRenderCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneResourceParameters, GPUSceneResource)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
 		SHADER_PARAMETER(int32, bDrawAll)
 		SHADER_PARAMETER(int32, bDrawUpdatedOnly)
@@ -1926,7 +1924,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
 	{ 
-		return UseGPUScene(Parameters.Platform) && ShaderDrawDebug::IsSupported(Parameters.Platform);;
+		return UseGPUScene(Parameters.Platform) && ShaderPrint::IsSupported(Parameters.Platform);;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1963,14 +1961,14 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 	int32 DebugMode = CVarGPUSceneDebugMode.GetValueOnRenderThread();
 	if (DebugMode > 0)
 	{
-		ShaderDrawDebug::SetEnabled(true);
+		ShaderPrint::SetEnabled(true);
 		if (!ShaderPrint::IsEnabled(View)) { ShaderPrint::SetEnabled(true); }
 
 		int32 NumInstances = InstanceSceneDataAllocator.GetMaxSize();
-		if (ShaderDrawDebug::IsEnabled(View) && ShaderPrint::IsEnabled(View) && NumInstances > 0)
+		if (ShaderPrint::IsEnabled(View) && NumInstances > 0)
 		{
 			// This lags by one frame, so may miss some in one frame, also overallocates since we will cull a lot.
-			ShaderDrawDebug::RequestSpaceForElements(NumInstances * 12);
+			ShaderPrint::RequestSpaceForLines(NumInstances * 12);
 
 			FRDGBufferRef DrawCounterBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 1), TEXT("GPUScene.DebugCounter"));
 			FRDGBufferUAVRef DrawCounterUAV = GraphBuilder.CreateUAV(DrawCounterBuffer, PF_R32_UINT);
@@ -2032,7 +2030,6 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 			FRDGBufferRef SelectedPrimitiveFlagsRDG  = CreateStructuredBuffer(GraphBuilder, TEXT("GPUScene.Debug.SelectedPrimitiveFlags"), SelectedPrimitiveFlags);
 
 			FGPUSceneDebugRenderCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGPUSceneDebugRenderCS::FParameters>();
-			ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawUniformBuffer);
 			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintUniformBuffer);
 			PassParameters->GPUSceneResource = SetParameters(GraphBuilder);
 			PassParameters->bDrawUpdatedOnly = DebugMode == 3;

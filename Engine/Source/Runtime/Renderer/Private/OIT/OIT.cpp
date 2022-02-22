@@ -9,7 +9,6 @@
 #include "SceneRendering.h"
 
 #include "ShaderPrintParameters.h"
-#include "ShaderDebug.h"
 #include "ShaderPrint.h"
 #include "ScreenPass.h"
 
@@ -249,7 +248,6 @@ class FOITSortTriangleIndex_ScanCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 
 		// For Debug
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER(FMatrix44f, ViewToWorld)
 		SHADER_PARAMETER(FVector3f, WorldBound_Min)
@@ -354,7 +352,6 @@ class FOITSortTriangleIndex_Debug : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FOITSortTriangleIndex_Debug, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER(uint32, VisibleInstances)
 		SHADER_PARAMETER(uint32, VisiblePrimitives)
@@ -460,10 +457,6 @@ static void AddOITSortTriangleIndexPass(
 			Parameters->WorldBound_Max	= (FVector3f)Bounds.GetBox().Max;
 			Parameters->ViewBound_Min	= (FVector3f)ViewBounds.GetBox().Min;
 			Parameters->ViewBound_Max	= (FVector3f)ViewBounds.GetBox().Max;
-			if (ShaderDrawDebug::IsEnabled(View))
-			{
-				ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
-			}
 			if (ShaderPrint::IsEnabled(View))
 			{
 				ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
@@ -573,10 +566,6 @@ static void AddOITDebugPass(
 	Parameters->TotalEntries = DebugData.TotalEntries;
 
 	Parameters->DebugData = GraphBuilder.CreateSRV(DebugData.Buffer, FOITDebugData::Format);
-	if (ShaderDrawDebug::IsEnabled(View))
-	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
-	}
 	if (ShaderPrint::IsEnabled(View))
 	{
 		ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);

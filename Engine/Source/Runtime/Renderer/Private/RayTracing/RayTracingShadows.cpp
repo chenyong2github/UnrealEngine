@@ -136,7 +136,7 @@ class FOcclusionRGS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER(uint32, SamplesPerPixel)
 		SHADER_PARAMETER(float, NormalBias)
 		SHADER_PARAMETER(uint32, LightingChannelMask)
@@ -305,9 +305,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 			PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 			PassParameters->VirtualVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
 
-			if (ShaderDrawDebug::IsEnabled(View))
+			if (ShaderPrint::IsEnabled(View))
 			{
-				ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawParameters);
+				ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
 			}
 		}
 		FOcclusionRGS::FPermutationDomain PermutationVector;

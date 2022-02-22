@@ -47,7 +47,6 @@
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
 #include "ShaderPrint.h"
-#include "ShaderDebug.h"
 #include "GPUSortManager.h"
 #include "HairStrands/HairStrandsRendering.h"
 #include "HairStrands/HairStrandsData.h"
@@ -1954,7 +1953,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 		ShaderPrint::BeginView(GraphBuilder, View);
-		ShaderDrawDebug::BeginView(GraphBuilder, View);
 		ShadingEnergyConservation::Init(GraphBuilder, View);
 	}
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
@@ -3314,7 +3312,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	for (FViewInfo& View : Views)
 	{
 		ShaderPrint::EndView(View);
-		ShaderDrawDebug::EndView(View);
 	}
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);

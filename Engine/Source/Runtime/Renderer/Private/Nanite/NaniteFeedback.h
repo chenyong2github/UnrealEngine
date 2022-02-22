@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "ShaderDebug.h"
 #include "GPUMessaging.h"
 
 

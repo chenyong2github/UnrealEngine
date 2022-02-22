@@ -13,11 +13,9 @@
 #include "RenderGraphUtils.h"
 #include "CanvasTypes.h"
 #include "RenderGraphUtils.h"
-#include "GpuDebugRendering.h" 
 #include "SceneTextureParameters.h"
 #include "DynamicPrimitiveDrawing.h"
 #include "RenderTargetTemp.h"
-#include "ShaderPrintParameters.h"
 #include "ShaderPrint.h"
 
 // Console variables
@@ -59,7 +57,6 @@ class FPhysicsFieldRayMarchingCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_SRV(Buffer<float4>, BoundsMin)
@@ -103,7 +100,6 @@ static FPhysicsFieldRayMarchingCS::FParameters* CreateShaderParameters(FRDGBuild
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->SceneTextures = SceneTextures;
 
-	ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
 	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
 
 	Parameters->BoundsMin = PhysicsFieldResource->BoundsMin.SRV;
@@ -183,7 +179,7 @@ void RenderPhysicsField(
 	{
 		FPhysicsFieldResource* PhysicsFieldResource = (GPhysicsFieldSystemType == 0) ? PhysicsFieldProxy->DebugResource : PhysicsFieldProxy->FieldResource;
 
-		if (Views.Num() > 0 && PhysicsFieldResource && ShaderDrawDebug::IsEnabled() && ShaderPrint::IsEnabled(Views[0]) && RHIIsTypedUAVLoadSupported(PF_FloatRGBA))
+		if (Views.Num() > 0 && PhysicsFieldResource && ShaderPrint::IsEnabled(Views[0]) && RHIIsTypedUAVLoadSupported(PF_FloatRGBA))
 		{
 			AddPhysicsFieldRayMarchingPass(GraphBuilder, Views[0], PhysicsFieldResource, SceneColorTexture);
 		}

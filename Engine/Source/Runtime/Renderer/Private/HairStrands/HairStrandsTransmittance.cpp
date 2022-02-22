@@ -14,7 +14,6 @@
 #include "SceneTextureParameters.h"
 #include "RenderGraphUtils.h"
 #include "PostProcessing.h"
-#include "ShaderDebug.h"
 #include "ShaderPrintParameters.h"
 #include "LightSceneInfo.h"
 #include "ShaderPrint.h"
@@ -195,8 +194,7 @@ class FHairStrandsVoxelTransmittanceMaskCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, VirtualVoxel)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMap)
@@ -278,8 +276,7 @@ static FRDGBufferRef AddHairStrandsVoxelTransmittanceMaskPass(
 	Parameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 	Parameters->VirtualVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
 
-	ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
-	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintUniformBuffer);
+	ShaderPrint::SetParameters(GraphBuilder, View, Parameters->ShaderPrintParameters);
 
 	const bool bIsSuperSampled = GHairStrandsTransmittanceSuperSampling > 0;
 	const bool bIsMipTraversal = GHairStrandsTransmittanceMaskUseMipTraversal > 0;
@@ -447,7 +444,7 @@ class FHairStrandsVoxelShadowMaskPS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FOnePass>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		
 		SHADER_PARAMETER(FVector4f, Voxel_TranslatedLightPosition_LightDirection)
 		SHADER_PARAMETER(uint32, Voxel_MacroGroupCount)
@@ -537,7 +534,7 @@ static void AddHairStrandsVoxelShadowMaskPass(
 		Parameters->Voxel_MacroGroupCount = GroupCount;
 		Parameters->Voxel_RandomType = FMath::Clamp(GHairStrandsShadowRandomTraversalType, 0, 2);	
 		Parameters->RenderTargets[0] = FRenderTargetBinding(OutShadowMask, ERenderTargetLoadAction::ELoad);
-		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
+		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintParameters);
 		Parameters->RayMarchMaskTexture = RayMarchMask;
 
 		ClearUnusedGraphResources(PixelShader, Parameters);
@@ -597,8 +594,8 @@ class FHairStrandsDeepShadowMaskPS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FKernelType>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
-		                         
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
+		
 		SHADER_PARAMETER(FIntPoint, DeepShadow_SlotOffset)
 		SHADER_PARAMETER(uint32, DeepShadow_SlotIndex)
 		SHADER_PARAMETER(FIntPoint, DeepShadow_SlotResolution)
@@ -682,9 +679,9 @@ static void AddHairStrandsDeepShadowMaskPass(
 	Parameters->DeepShadow_TranslatedWorldToLightTransformBuffer = Params.DeepShadow_TranslatedWorldToLightTransformBuffer;
 	Parameters->DeepShadow_bIsGPUDriven = Params.DeepShadow_bIsGPUDriven ? 1 : 0;;
 	Parameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
-	if (ShaderDrawDebug::IsEnabled(View))
+	if (ShaderPrint::IsEnabled(View))
 	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, Parameters->ShaderDrawParameters);
+		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintParameters);
 	}
 
 	FRDGTextureRef RayMarchMask = nullptr;

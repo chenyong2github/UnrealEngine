@@ -16,7 +16,6 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "HairStrands/HairStrandsData.h"
 #include "SceneTextureReductions.h"
-#include "ShaderDebug.h"
 #include "GPUMessaging.h"
 #include "InstanceCulling/InstanceCullingMergedContext.h"
 

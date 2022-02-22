@@ -18,6 +18,8 @@
 #include "SceneView.h"
 #include "HairCardsVertexFactory.h"
 #include "HairStrandsVertexFactory.h"
+#include "RenderGraphEvent.h"
+#include "RenderGraphUtils.h"
 
 static int32 GHairStrandsMinLOD = 0;
 static FAutoConsoleVariableRef CVarGHairStrandsMinLOD(TEXT("r.HairStrands.MinLOD"), GHairStrandsMinLOD, TEXT("Clamp the min hair LOD to this value, preventing to reach lower/high-quality LOD."), ECVF_Scalability);
@@ -135,7 +137,6 @@ static void RunInternalHairStrandsInterpolation(
 	const uint32 ViewUniqueID,
 	const FHairStrandsInstances& Instances,
 	const FGPUSkinCache* SkinCache,
-	const FShaderDrawDebugData* ShaderDrawData,
 	const FShaderPrintData* ShaderPrintData,
 	FGlobalShaderMap* ShaderMap, 
 	EHairStrandsInterpolationType Type,
@@ -379,7 +380,6 @@ static void RunInternalHairStrandsInterpolation(
 				ViewUniqueID,
 				ViewRayTracingMask,
 				TranslatedWorldOffset,
-				ShaderDrawData, 
 				ShaderPrintData,
 				Instance,
 				Instance->Debug.MeshLODIndex,
@@ -394,7 +394,6 @@ static void RunHairStrandsInterpolation_Guide(
 	const uint32 ViewUniqueID,
 	const FHairStrandsInstances& Instances,
 	const FGPUSkinCache* SkinCache,
-	const FShaderDrawDebugData* ShaderDrawData,
 	const FShaderPrintData* ShaderPrintData,
 	FGlobalShaderMap* ShaderMap,
 	FHairStrandClusterData* ClusterData)
@@ -411,7 +410,6 @@ static void RunHairStrandsInterpolation_Guide(
 		ViewUniqueID,
 		Instances,
 		SkinCache,
-		ShaderDrawData,
 		ShaderPrintData,
 		ShaderMap,
 		EHairStrandsInterpolationType::SimulationStrands,
@@ -424,7 +422,6 @@ static void RunHairStrandsInterpolation_Strands(
 	const uint32 ViewUniqueID,
 	const FHairStrandsInstances& Instances,
 	const FGPUSkinCache* SkinCache,
-	const FShaderDrawDebugData* ShaderDrawData,
 	const FShaderPrintData* ShaderPrintData,
 	FGlobalShaderMap* ShaderMap,
 	FHairStrandClusterData* ClusterData)
@@ -441,7 +438,6 @@ static void RunHairStrandsInterpolation_Strands(
 		ViewUniqueID,
 		Instances,
 		SkinCache,
-		ShaderDrawData,
 		ShaderPrintData,
 		ShaderMap,
 		EHairStrandsInterpolationType::RenderStrands,
@@ -958,20 +954,20 @@ void RunHairStrandsFolliculeMaskQueries(FRDGBuilder& GraphBuilder, FGlobalShader
 
 #if WITH_EDITOR
 bool HasHairStrandsTexturesQueries();
-void RunHairStrandsTexturesQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* ShaderDebugData);
+void RunHairStrandsTexturesQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderPrintData* ShaderPrintData);
 #endif
 
 #if WITH_EDITOR
 bool HasHairCardsAtlasQueries();
-void RunHairCardsAtlasQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* ShaderDebugData);
+void RunHairCardsAtlasQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderPrintData* ShaderPrintData);
 #endif
 
-static void RunHairStrandsProcess(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* ShaderDebugData)
+static void RunHairStrandsProcess(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderPrintData* ShaderPrintData)
 {
 #if WITH_EDITOR
 	if (HasHairStrandsTexturesQueries())
 	{
-		RunHairStrandsTexturesQueries(GraphBuilder, ShaderMap, ShaderDebugData);
+		RunHairStrandsTexturesQueries(GraphBuilder, ShaderMap, ShaderPrintData);
 	}
 #endif
 
@@ -983,7 +979,7 @@ static void RunHairStrandsProcess(FRDGBuilder& GraphBuilder, FGlobalShaderMap* S
 #if WITH_EDITOR
 	if (HasHairCardsAtlasQueries())
 	{
-		RunHairCardsAtlasQueries(GraphBuilder, ShaderMap, ShaderDebugData);
+		RunHairCardsAtlasQueries(GraphBuilder, ShaderMap, ShaderPrintData);
 	}
 #endif
 }
@@ -996,7 +992,6 @@ void RunHairStrandsDebug(
 	const FSceneView& View,
 	const FHairStrandsInstances& Instances,
 	const FGPUSkinCache* SkinCache,
-	const FShaderDrawDebugData* ShaderDrawData,
 	const FShaderPrintData* ShaderPrintData,
 	FRDGTextureRef SceneColor,
 	FRDGTextureRef SceneDepth,
@@ -1032,7 +1027,7 @@ void ProcessHairStrandsBookmark(
 		if (bHasHairStardsnProcess)
 		{
 			check(GraphBuilder);
-			RunHairStrandsProcess(*GraphBuilder, Parameters.ShaderMap, Parameters.ShaderDebugData);
+			RunHairStrandsProcess(*GraphBuilder, Parameters.ShaderMap, Parameters.ShaderPrintData);
 		}
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessLODSelection)
@@ -1069,7 +1064,6 @@ void ProcessHairStrandsBookmark(
 			Parameters.ViewUniqueID,
 			Instances,
 			Parameters.SkinCache,
-			Parameters.ShaderDebugData,
 			Parameters.ShaderPrintData,
 			Parameters.ShaderMap,
 			&Parameters.HairClusterData);
@@ -1089,7 +1083,6 @@ void ProcessHairStrandsBookmark(
 			Parameters.ViewUniqueID,
 			Instances,
 			Parameters.SkinCache,
-			Parameters.ShaderDebugData,
 			Parameters.ShaderPrintData,
 			Parameters.ShaderMap,
 			&Parameters.HairClusterData);
@@ -1103,7 +1096,6 @@ void ProcessHairStrandsBookmark(
 			*Parameters.View,
 			Instances,
 			Parameters.SkinCache,
-			Parameters.ShaderDebugData,
 			Parameters.ShaderPrintData,
 			Parameters.SceneColorTexture,
 			Parameters.SceneDepthTexture,

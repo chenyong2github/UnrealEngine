@@ -9,7 +9,7 @@
 #include "RenderGraphUtils.h"
 #include "ShaderParameterStruct.h"
 #include "GlobalShader.h"
-#include "ShaderDebug.h"
+#include "ShaderPrint.h"
 #include "CommonRenderResources.h"
 #include "HairStrandsMeshProjection.h"
 #include "Engine/StaticMesh.h"
@@ -611,7 +611,7 @@ class FHairStrandsTexturePS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairStrandsTexturePS, FGlobalShader)
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER(FIntPoint, OutputResolution)
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(float, MaxDistance)
@@ -658,7 +658,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairStrandsTexturePS, "/Engine/Private/HairStrands/Hair
 static void InternalGenerateHairStrandsTextures(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	const FShaderDrawDebugData* ShaderDrawData,
+	const FShaderPrintData* ShaderPrintData,
 	const bool bClear,
 	const float InMaxDistance, 
 	const int32 InTracingDirection,
@@ -735,9 +735,9 @@ static void InternalGenerateHairStrandsTextures(
 	ParametersPS->Voxel_OffsetAndCount = GraphBuilder.CreateSRV(VoxelOffsetAndCount);
 	ParametersPS->Voxel_Data = GraphBuilder.CreateSRV(VoxelData);
 
-	if (ShaderDrawData)
+	if (ShaderPrintData)
 	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, ParametersPS->ShaderDrawParameters);
+		ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, ParametersPS->ShaderPrintParameters);
 	}
 
 	ParametersPS->RenderTargets[0] = FRenderTargetBinding(OutDepthTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
@@ -886,7 +886,7 @@ static void InternalBuildStrandsTextures_GPU(
 	FGlobalShaderMap* ShaderMap,
 	const FStrandsTexturesInfo& InInfo,
 	const FStrandsTexturesOutput& Output,
-	const struct FShaderDrawDebugData* DebugShaderData)
+	const struct FShaderPrintData* DebugShaderData)
 {
 	USkeletalMesh* SkeletalMesh = (USkeletalMesh*)InInfo.SkeletalMesh;
 	UStaticMesh* StaticMesh = (UStaticMesh*)InInfo.StaticMesh;
@@ -1120,7 +1120,7 @@ bool HasHairStrandsTexturesQueries()
 	return !GStrandsTexturesQueries.IsEmpty();
 }
 
-void RunHairStrandsTexturesQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderDrawDebugData* DebugShaderData)
+void RunHairStrandsTexturesQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, const struct FShaderPrintData* DebugShaderData)
 {
 	FStrandsTexturesQuery Q;
 	while (GStrandsTexturesQueries.Dequeue(Q))

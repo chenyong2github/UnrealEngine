@@ -15,7 +15,7 @@
 #include "Containers/ResourceArray.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "HAL/ConsoleManager.h"
-#include "ShaderDebug.h"
+#include "ShaderPrint.h"
 #include "Async/ParallelFor.h"
 #include "RenderTargetPool.h"
 #include "GroomTextureBuilder.h"
@@ -500,7 +500,7 @@ class FHairInterpolationCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDebug, FDynamicGeometry, FSimulation, FSingleGuide, FCulling>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER(uint32, VertexCount)
 		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(uint32, HairDebugMode)
@@ -581,7 +581,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairInterpolationCS, "/Engine/Private/HairStrands/HairS
 static void AddHairStrandsInterpolationPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	const FShaderDrawDebugData* ShaderDrawData,
+	const FShaderPrintData* ShaderPrintData,
 	const FHairGroupInstance* Instance,
 	const uint32 VertexCount,
 	const int32 MeshLODIndex,
@@ -690,9 +690,9 @@ static void AddHairStrandsInterpolationPass(
 
 	// Only needed if DEBUG_ENABLE is manually enabledin HairStrandsInterpolation.usf. This is for manual debug purpose only
 	#if 0
-	if (ShaderDrawData && ShaderDrawData->IsValid())
+	if (ShaderPrintData && ShaderPrintData->IsValid())
 	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawParameters);
+		ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderDrawParameters);
 	}
 	#endif
 
@@ -826,7 +826,7 @@ class FHairClusterAABBCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FCPUAABB>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderDrawParameters)
 		SHADER_PARAMETER(uint32, TotalClusterCount)
 		SHADER_PARAMETER(FVector3f, CPUBoundMin)
 		SHADER_PARAMETER(FVector3f, CPUBoundMax)
@@ -867,7 +867,7 @@ static void AddHairClusterAABBPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	const FVector& TranslatedWorldOffset,
-	const FShaderDrawDebugData* ShaderDrawData,
+	const FShaderPrintData* ShaderPrintData,
 	const EHairAABBUpdateType UpdateType,
 	FHairGroupInstance* Instance,
 	FRDGBufferSRVRef RenderDeformedOffsetBuffer,
@@ -895,9 +895,9 @@ static void AddHairClusterAABBPass(
 	Parameters->RenderDeformedPositionBuffer = RenderPositionBufferSRV;
 	Parameters->RenderDeformedOffsetBuffer = RenderDeformedOffsetBuffer;
 	Parameters->TotalClusterCount = 1;
-	if (ShaderDrawData)
+	if (ShaderPrintData)
 	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawParameters);
+		ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderDrawParameters);
 		
 	}
 
@@ -998,7 +998,7 @@ class FHairCardsDeformationCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, CardsDeformedPositionBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, CardsDeformedTangentBuffer)
 
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderDrawParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1010,7 +1010,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairCardsDeformationCS, "/Engine/Private/HairStrands/Ha
 static void AddHairCardsDeformationPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	const FShaderDrawDebugData* ShaderDrawData,
+	const FShaderPrintData* ShaderPrintData,
 	FHairGroupInstance* Instance,
 	const int32 MeshLODIndex)
 {
@@ -1079,9 +1079,9 @@ static void AddHairCardsDeformationPass(
 		Parameters->TriangleDeformedPosition2Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition2Buffer);
 	}
 
-	if (ShaderDrawData)
+	if (ShaderPrintData)
 	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawParameters);
+		ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderDrawParameters);
 	}
 
 	const uint32 GroupSize = ComputeGroupSize();
@@ -1221,7 +1221,6 @@ class FHairRaytracingGeometryCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutputIndexBuffer)
 		SHADER_PARAMETER(uint32, RaytracingProceduralSplits)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1239,7 +1238,6 @@ static void AddGenerateRaytracingGeometryPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	const FShaderPrintData* ShaderPrintData,
-	const FShaderDrawDebugData* ShaderDrawData,
 	uint32 VertexCount,
 	bool bProceduralPrimitive,
 	int ProceduralSplits,
@@ -1270,10 +1268,6 @@ static void AddGenerateRaytracingGeometryPass(
 	if (ShaderPrintData)
 	{
 		ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
-	}
-	if (ShaderDrawData)
-	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawParameters);
 	}
 	Parameters->OutputIndexBuffer = OutIndexBuffer;
 	Parameters->RaytracingProceduralSplits = ProceduralSplits;
@@ -1691,7 +1685,6 @@ void ComputeHairStrandsInterpolation(
 	const uint32 ViewUniqueID,
 	const uint32 ViewRayTracingMask,
 	const FVector& TranslatedWorldOffset,
-	const FShaderDrawDebugData* ShaderDrawData,
 	const FShaderPrintData* ShaderPrintData,
 	FHairGroupInstance* Instance,
 	int32 MeshLODIndex,
@@ -1826,7 +1819,7 @@ void ComputeHairStrandsInterpolation(
 					AddHairStrandsInterpolationPass(
 						GraphBuilder,
 						ShaderMap,
-						ShaderDrawData,
+						ShaderPrintData,
 						Instance,
 						Instance->Strands.RestResource->GetVertexCount(),
 						MeshLODIndex,
@@ -1936,7 +1929,7 @@ void ComputeHairStrandsInterpolation(
 						GraphBuilder,
 						ShaderMap,
 						TranslatedWorldOffset,
-						ShaderDrawData,
+						ShaderPrintData,
 						UpdateType,
 						Instance,
 						Strands_PositionOffsetSRV,
@@ -1976,7 +1969,6 @@ void ComputeHairStrandsInterpolation(
 						GraphBuilder,
 						ShaderMap,
 						ShaderPrintData,
-						ShaderDrawData,
 						Instance->Strands.RestResource->GetVertexCount(),
 						bProceduralPrimitive,
 						ProceduralSplits,
@@ -2074,7 +2066,7 @@ void ComputeHairStrandsInterpolation(
 					AddHairStrandsInterpolationPass(
 						GraphBuilder,
 						ShaderMap,
-						ShaderDrawData,
+						ShaderPrintData,
 						Instance,
 						LOD.Guides.RestResource->GetVertexCount(),
 						MeshLODIndex,
@@ -2109,7 +2101,7 @@ void ComputeHairStrandsInterpolation(
 					AddHairCardsDeformationPass(
 						GraphBuilder,
 						ShaderMap,
-						ShaderDrawData,
+						ShaderPrintData,
 						Instance,
 						MeshLODIndex);
 				}

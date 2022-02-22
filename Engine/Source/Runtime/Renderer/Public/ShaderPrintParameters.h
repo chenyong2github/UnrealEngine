@@ -26,9 +26,11 @@ namespace ShaderPrint
 		SHADER_PARAMETER(FVector2f, FontSpacing)
 		SHADER_PARAMETER(FIntPoint, Resolution)
 		SHADER_PARAMETER(FIntPoint, CursorCoord)
-		SHADER_PARAMETER(int32, MaxValueCount)
-		SHADER_PARAMETER(int32, MaxSymbolCount)
+		SHADER_PARAMETER(uint32, MaxValueCount)
+		SHADER_PARAMETER(uint32, MaxSymbolCount)
 		SHADER_PARAMETER(uint32, MaxStateCount)
+		SHADER_PARAMETER(uint32, MaxLineCount)
+		SHADER_PARAMETER(FVector3f, TranslatedWorldOffset)
 	END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 	// ShaderPrint parameter struct declaration
@@ -36,31 +38,59 @@ namespace ShaderPrint
 		SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, ShaderPrint_StateBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, ShaderPrint_RWValuesBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, ShaderPrint_RWLinesBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
-	// Call this to fill the FShaderParameters
-	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo & View, FShaderParameters& OutParameters);
-	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FShaderPrintData& Data, FShaderParameters& OutParameters);
+	// Does the platform support the ShaderPrint system?
+	RENDERER_API bool IsSupported(const EShaderPlatform Platform);
+
+	// Have we enabled the ShaderPrint system?
+	RENDERER_API bool IsEnabled();
+
+	// Call this to know if a view can render this debug information
+	RENDERER_API bool IsEnabled(const FViewInfo& View);
+
+	// Returns true if the default view exists and has shader debug rendering enabled (this needs to be checked before using a permutation that requires the shader draw parameters)
+	RENDERER_API bool IsDefaultViewEnabled();
+
+	// Enable/disable shader print
+	RENDERER_API void SetEnabled(bool bInEnabled);
+
+	// Set characters font size
+	RENDERER_API void SetFontSize(int32 InFontSize);
 
 	/**
-	 * Call to ensure enough space for some number of characters, is added cumulatively each frame, to make it possible for several systems to request a certain number independently.
+	 * Call to ensure enough space for some number of characters/lines, is added cumulatively each frame, to make 
+	 * it possible for several systems to request a certain number independently.
 	 * Is used to grow the max element count for subsequent frames (as the allocation happens early in the frame).
 	 * @param The number of elements requested, an element corresponds to a line, so a cube, for example, needs 12 elements.
 	 */
 	RENDERER_API void RequestSpaceForCharacters(uint32 MaxElementCount);
+	RENDERER_API void RequestSpaceForLines(uint32 MaxElementCount);
+
+	// Fill the FShaderParameters
+	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, FShaderParameters& OutParameters);
+	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo & View, FShaderParameters& OutParameters);
+	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FShaderPrintData& Data, FShaderParameters& OutParameters);
 }
 
 struct FShaderPrintData
 {
 	FVector2f FontSpacing;
 	FVector2f FontSize;
-	FIntPoint CursorCoord;
 	FIntRect OutputRect;
-	int32 MaxValueCount = -1;
-	int32 MaxSymbolCount = -1;
+	FIntPoint CursorCoord = FIntPoint(-1, -1);
+	uint32 MaxValueCount = 0;
+	uint32 MaxSymbolCount = 0;
 	uint32 MaxStateCount = 0;
+	uint32 MaxLineCount = 0u;
+	FVector TranslatedWorldOffset = FVector::ZeroVector;
+
+	bool IsEnabled() const { return MaxValueCount > 0 || MaxSymbolCount > 0 || MaxLineCount > 0; }
+	bool IsValid() const { return ShaderPrintValueBuffer != nullptr; }
 
 	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
 	FRDGBufferRef ShaderPrintStateBuffer = nullptr;
+	FRDGBufferRef ShaderPrintLineBuffer = nullptr;
 	TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters> UniformBuffer;
 };

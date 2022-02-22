@@ -12,7 +12,7 @@
 #include "HAL/FileManager.h"
 
 #include "PrimitiveSceneInfo.h"
-#include "ShaderDebug.h"
+#include "ShaderPrint.h"
 #include "RendererOnScreenNotification.h"
 
 static TAutoConsoleVariable<int32> CVarAccumulateStats(
@@ -745,7 +745,7 @@ class FVirtualSmInvalidateInstancePagesCS : public FGlobalShader
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
 		SHADER_PARAMETER(uint32, bDrawBounds)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutDynamicCasterPageFlags)
@@ -828,12 +828,12 @@ static void SetupCommonParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapAr
 
 	if (bDrawBounds)
 	{
-		ShaderDrawDebug::SetEnabled(true);
-		ShaderDrawDebug::RequestSpaceForElements(TotalInstanceCount * 12);
+		ShaderPrint::SetEnabled(true);
+		ShaderPrint::RequestSpaceForLines(TotalInstanceCount * 12);
 	}
 
 	// Note: this disables the whole debug permutation since the parameters must be bound.
-	const bool bUseDebugPermutation = bDrawBounds && ShaderDrawDebug::IsDefaultViewEnabled();
+	const bool bUseDebugPermutation = bDrawBounds && ShaderPrint::IsDefaultViewEnabled();
 
 	FVirtualShadowMapArrayFrameData &PrevBuffers = CacheManager->PrevBuffers;
 
@@ -862,7 +862,7 @@ static void SetupCommonParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapAr
 
 	if (bUseDebugPermutation)
 	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, OutPassParameters.ShaderDrawUniformBuffer);
+		ShaderPrint::SetParameters(GraphBuilder, OutPassParameters.ShaderPrintUniformBuffer);
 	}
 
 	const bool bUseHZB = (CVarCacheVsmUseHzb.GetValueOnRenderThread() != 0);

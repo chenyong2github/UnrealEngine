@@ -18,7 +18,7 @@
 #include "ScenePrivate.h"
 #include "RenderGraphEvent.h"
 #include "PostProcess/PostProcessing.h"
-#include "ShaderDebug.h"
+#include "ShaderPrint.h"
 #include "Lumen/LumenRadianceCache.h"
 #include "Lumen/LumenScreenProbeGather.h"
 #include "IndirectLightRendering.h"
@@ -121,7 +121,7 @@ class FHairEnvironmentAO : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, VirtualVoxel)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -172,9 +172,9 @@ static void AddHairStrandsEnvironmentAOPass(
 		ViewRect = View.ViewRect;
 	}
 
-	if (ShaderDrawDebug::IsEnabled(View))
+	if (ShaderPrint::IsEnabled(View))
 	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawParameters);
+		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
 	}
 
 	FHairEnvironmentAO::FPermutationDomain PermutationVector;
@@ -237,7 +237,7 @@ class FHairEnvironmentLightingPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyDiffuseLightingParameters, SkyDiffuseLighting)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCache)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsDebugData::FWriteParameters, DebugData)
 
 		SHADER_PARAMETER(uint32, bHasStaticLighting)
@@ -396,9 +396,9 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	ParametersPS->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 	ParametersPS->OutLightingBuffer = nullptr;
 
-	if (ShaderDrawDebug::IsEnabled(View))
+	if (ShaderPrint::IsEnabled(View))
 	{
-		ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, ParametersPS->ShaderDrawParameters);
+		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, ParametersPS->ShaderPrintParameters);
 	}
 
 	if (DebugData)
