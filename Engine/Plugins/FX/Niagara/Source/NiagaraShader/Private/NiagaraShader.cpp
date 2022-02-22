@@ -274,6 +274,8 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 	FString FeatureLevelString;
 	GetFeatureLevelName(FeatureLevel, FeatureLevelString);
 
+	LayoutParams.AppendKeyString(KeyString);
+
 	{
 		const FSHAHash LayoutHash = Freeze::HashLayout(StaticGetTypeLayoutDesc<FNiagaraShaderMapContent>(), LayoutParams);
 		KeyString += TEXT("_");

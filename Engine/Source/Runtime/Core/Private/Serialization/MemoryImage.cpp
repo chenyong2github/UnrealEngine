@@ -20,6 +20,9 @@ IMPLEMENT_TYPE_LAYOUT(FMemoryImageString);
 IMPLEMENT_TYPE_LAYOUT(FPlatformTypeLayoutParameters);
 IMPLEMENT_TYPE_LAYOUT(FHashedName);
 
+// Guid for versioning format changes/bug fixes to memory images
+#define MEMORYIMAGE_DERIVEDDATA_VER		TEXT("B6A0A753ED62499D8F30931E61FCAB05")
+
 static const uint32 NumTypeLayoutDescHashBuckets = 4357u;
 static const FTypeLayoutDesc* GTypeLayoutHashBuckets[NumTypeLayoutDescHashBuckets] = { nullptr };
 static uint32 GNumTypeLayoutsRegistered = 0u;
@@ -108,7 +111,7 @@ FArchive& FPlatformTypeLayoutParameters::Serialize(FArchive& Ar)
 
 void FPlatformTypeLayoutParameters::AppendKeyString(FString& KeyString) const
 {
-	KeyString += FString::Printf(TEXT("FL_%08x_MFA_%08x_"), Flags, MaxFieldAlignment);
+	KeyString += FString::Printf(TEXT("FL_%08x_MFA_%08x_V_") MEMORYIMAGE_DERIVEDDATA_VER, Flags, MaxFieldAlignment);
 }
 
 // evaluated during static-initialization, so logging from regular check() macros won't work correctly
@@ -1482,10 +1485,17 @@ static inline void ApplyScriptNamePatch(void* FrozenObject, const FScriptName& N
 	new(NameDst) FScriptName(Name);
 }
 
-static inline void ApplyMemoryImageNamePatch(void* FrozenObject, const FMemoryImageName& Name, uint32 Offset)
+static inline void ApplyMemoryImageNamePatch(void* FrozenObject, const FMemoryImageName& Name, uint32 Offset, const FPlatformTypeLayoutParameters& LayoutParameters)
 {
 	void* NameDst = (uint8*)FrozenObject + Offset;
-	new(NameDst) FMemoryImageName(Name);
+	if (LayoutParameters.IsCurrentPlatform())
+	{
+		new(NameDst) FMemoryImageName(Name);
+	}
+	else
+	{
+		Freeze::ApplyMemoryImageNamePatch(NameDst, Name, LayoutParameters);
+	}
 }
 
 void FMemoryImageResult::ApplyPatches(void* FrozenObject) const
@@ -1504,7 +1514,7 @@ void FMemoryImageResult::ApplyPatches(void* FrozenObject) const
 
 	for (const FMemoryImageNamePointer& Patch : MemoryImageNames)
 	{
-		ApplyMemoryImageNamePatch(FrozenObject, FMemoryImageName(Patch.Name), Patch.Offset);
+		ApplyMemoryImageNamePatch(FrozenObject, FMemoryImageName(Patch.Name), Patch.Offset, TargetLayoutParameters);
 	}
 }
 
@@ -1574,7 +1584,7 @@ FMemoryImageObject FMemoryImageResult::LoadFromArchive(FArchive& Ar, const FType
 		{
 			uint32 Offset = 0u;
 			Ar << Offset;
-			ApplyMemoryImageNamePatch(FrozenObject, FMemoryImageName(Name), Offset);
+			ApplyMemoryImageNamePatch(FrozenObject, FMemoryImageName(Name), Offset, LayoutParameters);
 		}
 	}
 
@@ -1706,10 +1716,10 @@ uint32 FMemoryImageSection::WriteVTable(const FTypeLayoutDesc& TypeDesc, const F
 
 uint32 FMemoryImageSection::WriteFMemoryImageName(TConstArrayView<uint8> InBytes, const FName& Name)
 {
-	const uint32 Offset = WriteBytes(InBytes);
+	const uint32 Offset = WriteBytes(InBytes.GetData(), InBytes.Num());
 	if (!Name.IsNone())
 	{
-		FMemoryImageNamePointer& NamePointer = ScriptNames.AddDefaulted_GetRef();
+		FMemoryImageNamePointer& NamePointer = MemoryImageNames.AddDefaulted_GetRef();
 		NamePointer.Name = Name;
 		NamePointer.Offset = Offset;
 	}

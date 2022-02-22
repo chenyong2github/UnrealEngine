@@ -4958,7 +4958,32 @@ uint32 Freeze::IntrinsicAppendHash(const FMemoryImageName* DummyObject, const FT
 	return Freeze::AppendHashForNameAndSize(TypeDesc.Name, SizeFromFields, Hasher);
 }
 
-void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FMemoryImageName& Object, const FTypeLayoutDesc&)
+void Freeze::ApplyMemoryImageNamePatch(void* NameDst, const FMemoryImageName& Name, const FPlatformTypeLayoutParameters& LayoutParams)
+{
+	if (!LayoutParams.WithCasePreservingFName())
+	{
+		TMemoryImageNameLayout<0>* ToWrite = new(NameDst) TMemoryImageNameLayout<0>();
+		ToWrite->ComparisonIndex = Name.ComparisonIndex;
+#if !UE_FNAME_OUTLINE_NUMBER
+		ToWrite->NumberOrDummy = Name.Number;
+#endif
+	}
+	else
+	{
+		TMemoryImageNameLayout<1>* ToWrite = new(NameDst) TMemoryImageNameLayout<1>();
+		ToWrite->ComparisonIndex = Name.ComparisonIndex;
+#if !UE_FNAME_OUTLINE_NUMBER
+		ToWrite->NumberOrDummy = Name.Number;
+#endif
+#if WITH_CASE_PRESERVING_NAME
+		ToWrite->DisplayIndex = Name.DisplayIndex;
+#else
+		ToWrite->DisplayIndex = Name.ComparisonIndex;
+#endif
+	}
+}
+
+void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FMemoryImageName& Object, const FTypeLayoutDesc& LayoutDesc)
 {
 	const FPlatformTypeLayoutParameters& TargetLayoutParameters = Writer.GetTargetLayoutParams();
 	if (TargetLayoutParameters.IsCurrentPlatform())

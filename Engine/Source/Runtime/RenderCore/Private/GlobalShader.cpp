@@ -449,6 +449,8 @@ void FGlobalShaderMapId::AppendKeyString(FString& KeyString, const TArray<FShade
 {
 #if WITH_EDITOR
 
+	LayoutParams.AppendKeyString(KeyString);
+
 	{
 		const FSHAHash LayoutHash = Freeze::HashLayout(StaticGetTypeLayoutDesc<FGlobalShaderMapContent>(), LayoutParams);
 		KeyString += TEXT("_");
