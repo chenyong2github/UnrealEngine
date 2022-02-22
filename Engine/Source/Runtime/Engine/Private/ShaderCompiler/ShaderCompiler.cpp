@@ -67,6 +67,7 @@
 
 #if WITH_EDITOR
 #include "Compression/OodleDataCompression.h"
+#include "UObject/ArchiveCookContext.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataRequestOwner.h"
@@ -6654,10 +6655,18 @@ FString SaveGlobalShaderFile(EShaderPlatform Platform, FString SavePath, class I
 	TArray<uint8> GlobalShaderData;
 	{
 		FMemoryWriter MemoryWriter(GlobalShaderData, true);
-		if (TargetPlatform)
+
+#if WITH_EDITOR
+		TOptional<FArchiveCookData> CookData;
+		FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
+		if (TargetPlatform != nullptr)
 		{
-			MemoryWriter.SetCookingTarget(TargetPlatform);
+			CookData.Emplace(*TargetPlatform, CookContext);
 		}
+		
+		MemoryWriter.SetCookData(CookData.GetPtrOrNull());
+#endif
+
 		GlobalShaderMap->SaveToGlobalArchive(MemoryWriter);
 	}
 
@@ -7233,7 +7242,14 @@ void RecompileShadersForRemote(
 					// write the shader compilation info to memory, converting fnames to strings
 					FMemoryWriter MemWriter(*Args.GlobalShaderMap, true);
 					FNameAsStringProxyArchive Ar(MemWriter);
-					Ar.SetCookingTarget(TargetPlatform);
+
+					TOptional<FArchiveCookData> CookData;
+					FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
+					if (TargetPlatform != nullptr)
+					{
+						CookData.Emplace(*TargetPlatform, CookContext);
+					}
+					Ar.SetCookData(CookData.GetPtrOrNull());
 
 					// save out the global shader map to the byte array
 					SaveGlobalShadersForRemoteRecompile(Ar, ShaderPlatform);
@@ -7249,7 +7265,15 @@ void RecompileShadersForRemote(
 					// write the shader compilation info to memory, converting fnames to strings
 					FMemoryWriter MemWriter(*Args.MeshMaterialMaps, true);
 					FNameAsStringProxyArchive Ar(MemWriter);
-					Ar.SetCookingTarget(TargetPlatform);
+
+					TOptional<FArchiveCookData> CookData;
+					FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
+					if (TargetPlatform != nullptr)
+					{
+						CookData.Emplace(*TargetPlatform, CookContext);
+					}
+
+					Ar.SetCookData(CookData.GetPtrOrNull());
 
 					// save out the shader map to the byte array
 					FMaterialShaderMap::SaveForRemoteRecompile(Ar, CompiledShaderMaps);

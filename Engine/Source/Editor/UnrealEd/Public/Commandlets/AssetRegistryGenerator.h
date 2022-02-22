@@ -9,6 +9,7 @@
 #include "Misc/AssetRegistryInterface.h"
 #include "Misc/Paths.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/Object.h"
 #include "UObject/UObjectHash.h"
 
 class FSandboxPlatformFile;
@@ -17,6 +18,7 @@ class ITargetPlatform;
 class IChunkDataGenerator;
 class UChunkDependencyInfo;
 struct FChunkDependencyTreeNode;
+struct FCookTagList;
 
 /**
  * Helper class for generating streaming install manifests
@@ -188,12 +190,13 @@ public:
 	void GetChunkAssignments(TArray<TSet<FName>>& OutAssignments) const;
 
 	/**
-	 * Attempts to update the metadata for a package in an asset registry generator
+	 * Attempts to update the metadata for a package in an asset registry generator.
+	 * This is only called for CookByTheBooks.
 	 *
 	 * @param Package The package to update info on
 	 * @param SavePackageResult The metadata to associate with the given package name
 	 */
-	void UpdateAssetRegistryPackageData(const UPackage& Package, FSavePackageResultStruct& SavePackageResult, TFuture<FMD5Hash>& CookedHash);
+	void UpdateAssetRegistryPackageData(const UPackage& Package, FSavePackageResultStruct& SavePackageResult, TFuture<FMD5Hash>& CookedHash, FCookTagList&& InArchiveCookTagList);
 
 private:
 	/**
@@ -221,6 +224,12 @@ private:
 
 	/** State of the asset registry that is being built for this platform */
 	FAssetRegistryState State;
+	
+	/** 
+	 * The list of tags to add for each asset. This is populated during cook by the books,
+	 * and is only added to development registries.
+	 */
+	TMap<FSoftObjectPath, TArray<TPair<FName, FString>>> CookTagsToAdd;
 
 	TMap<FName, TPair<TArray<FAssetData>, FAssetPackageData>> PreviousPackagesToUpdate;
 	/** List of packages that were loaded at startup */

@@ -192,7 +192,7 @@ void FArchiveState::Reset()
 	ArIsNetArchive						= false;
 	ArCustomPropertyList				= nullptr;
 	ArUseCustomPropertyList				= false;
-	CookingTargetPlatform				= nullptr;
+	CookData							= nullptr;
 	SerializedProperty					= nullptr;
 
 	delete SerializedPropertyChain;
@@ -252,7 +252,7 @@ void FArchiveState::CopyTrivialFArchiveStatusMembers(const FArchiveState& Archiv
 	ArIsNetArchive                       = ArchiveToCopy.ArIsNetArchive;
 	ArCustomPropertyList                 = ArchiveToCopy.ArCustomPropertyList;
 	ArUseCustomPropertyList              = ArchiveToCopy.ArUseCustomPropertyList;
-	CookingTargetPlatform                = ArchiveToCopy.CookingTargetPlatform;
+	CookData							 = ArchiveToCopy.CookData;
 	SerializedProperty					 = ArchiveToCopy.SerializedProperty;
 #if USE_STABLE_LOCALIZATION_KEYS
 	SetBaseLocalizationNamespace(ArchiveToCopy.GetBaseLocalizationNamespace());
@@ -911,10 +911,10 @@ void FArchive::SerializeCompressedNew(void* V, int64 Length, FName CompressionFo
 
 		// if there's a cooking target, and it wants to replace Zlib compression with another format, use it. When loading, 
 		// the platform will replace Zlib with that format above
-		if (CompressionFormatToEncode == NAME_Zlib && CookingTargetPlatform != nullptr)
+		if (CompressionFormatToEncode == NAME_Zlib && IsCooking())
 		{
 			// use the replacement format
-			CompressionFormatToEncode = CookingTargetPlatform->GetZlibReplacementFormat();
+			CompressionFormatToEncode = CookingTarget()->GetZlibReplacementFormat();
 
 			// with v2 headers, the modified CompressionFormatToEncode will be written in the archive
 		}

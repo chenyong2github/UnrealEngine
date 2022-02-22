@@ -19,6 +19,7 @@
 #include "CollectionManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/CookTagList.h"
 #include "GameDelegates.h"
 #include "Commandlets/IChunkDataGenerator.h"
 #include "Commandlets/ChunkDependencyInfo.h"
@@ -981,6 +982,41 @@ void FAssetRegistryGenerator::UpdateKeptPackages()
 	}
 }
 
+static void AddCookTagsToState(TMap<FSoftObjectPath, TArray<TPair<FName, FString>>>&& InCookTags, FAssetRegistryState& InState)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(AddCookTagToState)
+
+	uint32 ObjectCount = 0;
+	uint32 TagCount = 0;
+
+	for (TPair<FSoftObjectPath, TArray<TPair<FName, FString>>>& ObjectToTags : InCookTags)
+	{
+		ObjectCount++;
+		const FAssetData* AssetData = InState.GetAssetByObjectPath(FName(WriteToString<256>(ObjectToTags.Key)));
+
+		// Migrate to FAssetDataTagMap
+		FAssetDataTagMap NewTags;				
+		for (TPair<FName, FString>& Tag : ObjectToTags.Value)
+		{			
+			// Don't add empty tags
+			if (!Tag.Key.IsNone() && !Tag.Value.IsEmpty())
+			{
+				// Prepend Cook_
+				// Do the accumulation in a stack buffer to avoid a bit of work, but we still
+				// eat the FName generation.
+				FName TagName(WriteToString<256>(TEXTVIEW("Cook_"), Tag.Key));
+				NewTags.Add(TagName, MoveTemp(Tag.Value));
+				TagCount++;
+			}
+		}
+
+		InState.AddTagsToAssetData(ObjectToTags.Key, MoveTemp(NewTags));
+	} // end for each object
+
+	UE_LOG(LogAssetRegistryGenerator, Verbose, TEXT("Added %d cook tags to %d objects"), TagCount, ObjectCount);
+	InCookTags.Reset();
+}
+
 void FAssetRegistryGenerator::UpdateCollectionAssetData()
 {
 	// Read out the per-platform settings use to build the list of collections to tag
@@ -1410,10 +1446,16 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 
 		if (bSerializeDevelopmentAssetRegistry)
 		{
+			// Make a copy of the state so we can add tags to only the development registry.
+			FAssetRegistryState DevelopmentState;
+			DevelopmentState.InitializeFromExisting(State, DevelopmentSaveOptions);
+
+			AddCookTagsToState(MoveTemp(CookTagsToAdd), DevelopmentState);
+
 			// Create development registry data, used for DLC cooks, iterative cooks, and editor viewing
 			FArrayWriter SerializedAssetRegistry;
 
-			State.Save(SerializedAssetRegistry, DevelopmentSaveOptions);
+			DevelopmentState.Save(SerializedAssetRegistry, DevelopmentSaveOptions);
 
 			// Save the generated registry
 			FFileHelper::SaveArrayToFile(SerializedAssetRegistry, *PlatformSandboxPath);
@@ -2357,7 +2399,9 @@ const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object
 }
 
 void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Package,
-	FSavePackageResultStruct& SavePackageResult, TFuture<FMD5Hash>& CookedHash)
+	FSavePackageResultStruct& SavePackageResult, TFuture<FMD5Hash>& CookedHash,
+	FCookTagList&& InArchiveCookTagList
+	)
 {
 	const FName PackageName = Package.GetFName();
 	PreviousPackagesToUpdate.Remove(PackageName);
@@ -2369,6 +2413,10 @@ void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Pac
 	{
 		// Ensure all assets in the package are recorded in the registry
 		CreateOrFindAssetDatas(Package);
+
+		// Migrate cook tags over
+		CookTagsToAdd.Append(MoveTemp(InArchiveCookTagList.ObjectToTags));
+		InArchiveCookTagList.Reset();
 
 		// Set the PackageFlags to the recorded value from SavePackage
 		NewPackageFlags = SavePackageResult.SerializedPackageFlags;

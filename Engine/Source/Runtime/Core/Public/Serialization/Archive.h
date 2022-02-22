@@ -9,6 +9,7 @@
 #include "Misc/CompressionFlags.h"
 #include "Misc/EngineVersionBase.h"
 #include "Misc/VarArgs.h"
+#include "Serialization/ArchiveCookData.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/EnableIf.h"
 #include "Templates/Function.h"
@@ -35,6 +36,7 @@ typedef TFunction<bool (double RemainingTime)> FExternalReadCallback;
 struct FUObjectSerializeContext;
 class FField;
 enum class EFileRegionType : uint8;
+struct FArchiveCookContext;
 
 // Temporary while we shake out the EDL at boot
 #define USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME (1)
@@ -582,11 +584,38 @@ public:
 	 * @return true if the archive is used for cooking, false otherwise.
 	 */
 	FORCEINLINE bool IsCooking() const
-	{
-		check(!CookingTargetPlatform || (!IsLoading() && !IsTransacting() && IsSaving()));
-
-		return !!CookingTargetPlatform;
+	{		
+		return CookData != nullptr;
 	}
+
+	/**
+	 * Marks that this archive is "cooking" by providing the cook data bundle.
+	 * Must be set after loading/saving/transacting.
+	 */
+	void SetCookData(FArchiveCookData* InCookData)
+	{
+		checkf(!(InCookData == nullptr && CookData), TEXT("Can't turn off cooking once you turn it on!"));
+
+		if (InCookData)
+		{
+			check(!IsLoading() && !IsTransacting() && IsSaving());
+			CookData = InCookData;
+		}
+		
+	}
+
+	FArchiveCookData* GetCookData()
+	{
+		return CookData;
+	}
+
+	FORCEINLINE FArchiveCookContext* GetCookContext()
+	{
+		return CookData ? &CookData->CookContext : nullptr;
+	}
+
+	UE_DEPRECATED(5.1, "CookingTarget has been moved to FArchiveCookData.")
+	void SetCookingTarget(const ITargetPlatform*) {}
 
 	/**
 	 * Returns the cooking target platform.
@@ -595,17 +624,7 @@ public:
 	 */
 	FORCEINLINE const ITargetPlatform* CookingTarget() const
 	{
-		return CookingTargetPlatform;
-	}
-
-	/**
-	 * Sets the cooking target platform.
-	 *
-	 * @param InCookingTarget The target platform to set.
-	 */
-	FORCEINLINE void SetCookingTarget(const ITargetPlatform* InCookingTarget)
-	{
-		CookingTargetPlatform = InCookingTarget;
+		return CookData ? &CookData->TargetPlatform : nullptr;
 	}
 
 	/**
@@ -970,9 +989,9 @@ public:
 
 // These will be private in FArchive
 protected:
-	/** Holds the cooking target platform. */
-	const ITargetPlatform* CookingTargetPlatform;
-
+	/** Holds data for cooking. Required if cooking, nullptr means not cooking */
+	FArchiveCookData* CookData = nullptr;
+	
 	/** Holds the pointer to the property that is currently being serialized */
 	FProperty* SerializedProperty;
 
@@ -1880,7 +1899,9 @@ public:
 	using FArchiveState::IsNetArchive;
 	using FArchiveState::IsCooking;
 	using FArchiveState::CookingTarget;
-	using FArchiveState::SetCookingTarget;
+	using FArchiveState::SetCookData;
+	using FArchiveState::GetCookData;
+	using FArchiveState::GetCookContext;
 	using FArchiveState::UseToResolveEnumerators;
 	using FArchiveState::ShouldSkipProperty;
 	using FArchiveState::SetSerializedProperty;
@@ -2143,9 +2164,6 @@ public:
 	virtual void PopFileRegionType() { }
 
 private:
-	/** Holds the cooking target platform. */
-	using FArchiveState::CookingTargetPlatform;
-
 	/** Holds the pointer to the property that is currently being serialized */
 	using FArchiveState::SerializedProperty;
 

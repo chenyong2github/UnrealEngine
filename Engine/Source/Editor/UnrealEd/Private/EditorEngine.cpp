@@ -92,6 +92,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "UObject/PackageReload.h"
 #include "UObject/ReferenceChainSearch.h"
+#include "UObject/ArchiveCookContext.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "IMediaModule.h"
 #include "Scalability.h"
@@ -4308,7 +4309,14 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InBase,
 	const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
 	FSavePackageContext* SavePackageContext)
 {
-	FSavePackageArgs SaveArgs = { TargetPlatform, TopLevelFlags, SaveFlags, bForceByteSwapping,
+	// CookData can only be nonzero if we are cooking.
+	TOptional<FArchiveCookData> CookData;
+	FArchiveCookContext CookContext(InOuter, FArchiveCookContext::ECookTypeUnknown);
+	if (TargetPlatform != nullptr)
+	{
+		CookData.Emplace(*TargetPlatform, CookContext);
+	}
+	FSavePackageArgs SaveArgs = { nullptr /* deprecated target platform */, CookData.GetPtrOrNull(), TopLevelFlags, SaveFlags, bForceByteSwapping,
 		bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error, SavePackageContext };
 	return Save(InOuter, InBase, Filename, SaveArgs);
 }
@@ -4321,7 +4329,7 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 
 	FSavePackageArgs SaveArgs(InSaveArgs);
 	FScopedSlowTask SlowTask(100, FText(), SaveArgs.bSlowTask);
-	bool bIsCooking = SaveArgs.TargetPlatform != nullptr;
+	bool bIsCooking = SaveArgs.ArchiveCookData != nullptr;
 	SaveArgs.TopLevelFlags = UE::SavePackageUtilities::NormalizeTopLevelFlags(SaveArgs.TopLevelFlags, bIsCooking);
 	UObject* Asset = InAsset;
 	if (!Asset && InOuter)
@@ -4345,7 +4353,7 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 	bool bForceInitializedWorld = false;
 	const bool bSavingConcurrent = !!(SaveArgs.SaveFlags & ESaveFlags::SAVE_Concurrent);
 
-	FObjectSaveContextData ObjectSaveContext(InOuter, SaveArgs.TargetPlatform, Filename, SaveArgs.SaveFlags);
+	FObjectSaveContextData ObjectSaveContext(InOuter, SaveArgs.GetTargetPlatform(), Filename, SaveArgs.SaveFlags);
 	UWorld *OriginalOwningWorld = nullptr;
 	if ( World )
 	{
@@ -4455,7 +4463,14 @@ bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InBase, EObjectFlags
 	FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename,
 	uint32 SaveFlags, const ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask)
 {
-	FSavePackageArgs SaveArgs = { TargetPlatform, TopLevelFlags, SaveFlags, bForceByteSwapping,
+	// CookData should only be nonzero if we are cooking.
+	TOptional<FArchiveCookData> CookData;
+	FArchiveCookContext CookContext(InOuter, FArchiveCookContext::ECookTypeUnknown);
+	if (TargetPlatform != nullptr)
+	{
+		CookData.Emplace(*TargetPlatform, CookContext);
+	}
+	FSavePackageArgs SaveArgs = { nullptr /* deprecated target platform */, CookData.GetPtrOrNull(), TopLevelFlags, SaveFlags, bForceByteSwapping,
 		bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error };
 	return SavePackage(InOuter, InBase, Filename, SaveArgs);
 }

@@ -374,7 +374,7 @@ public:
 		, SaveArgs(InSaveArgs)
 		, PackageWriter(InSaveArgs.SavePackageContext ? InSaveArgs.SavePackageContext->PackageWriter : nullptr)
 		, SerializeContext(InSerializeContext)
-		, ExcludedObjectMarks(SavePackageUtilities::GetExcludedObjectMarksForTargetPlatform(SaveArgs.TargetPlatform))
+		, ExcludedObjectMarks(SavePackageUtilities::GetExcludedObjectMarksForTargetPlatform(SaveArgs.GetTargetPlatform()))
 	{
 		// Assumptions & checks
 		check(InPackage);
@@ -401,7 +401,7 @@ public:
 			TargetPackagePath.SetHeaderExtension(EPackageExtension::EmptyString);
 		}
 
-		bCanUseUnversionedPropertySerialization = CanUseUnversionedPropertySerialization(SaveArgs.TargetPlatform);
+		bCanUseUnversionedPropertySerialization = CanUseUnversionedPropertySerialization(SaveArgs.GetTargetPlatform());
 		bTextFormat = FString(Filename).EndsWith(FPackageName::GetTextAssetPackageExtension()) || FString(Filename).EndsWith(FPackageName::GetTextMapPackageExtension());
 		static const IConsoleVariable* ProcessPrestreamingRequests = IConsoleManager::Get().FindConsoleVariable(TEXT("s.ProcessPrestreamingRequests"));
 		if (ProcessPrestreamingRequests)
@@ -433,9 +433,14 @@ public:
 		return SaveArgs;
 	}
 
+	FArchiveCookData* GetCookData()
+	{
+		return SaveArgs.ArchiveCookData;
+	}
+
 	const ITargetPlatform* GetTargetPlatform() const
 	{
-		return SaveArgs.TargetPlatform;
+		return SaveArgs.GetTargetPlatform();
 	}
 
 	UPackage* GetPackage() const
@@ -490,7 +495,7 @@ public:
 
 	bool IsCooking() const
 	{
-		return SaveArgs.TargetPlatform != nullptr;
+		return SaveArgs.IsCooking();
 	}
 
 	bool IsProceduralSave() const

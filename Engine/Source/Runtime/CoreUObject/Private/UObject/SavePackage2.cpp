@@ -917,7 +917,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 
 		SaveContext.GetLinker()->SetPortFlags(SaveContext.GetPortFlags());
 		SaveContext.GetLinker()->SetFilterEditorOnly(SaveContext.IsFilterEditorOnly());
-		SaveContext.GetLinker()->SetCookingTarget(SaveContext.GetTargetPlatform());
+		SaveContext.GetLinker()->SetCookData(SaveContext.GetCookData());
 
 		bool bUseUnversionedProperties = SaveContext.IsSaveUnversionedProperties();
 		SaveContext.GetLinker()->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
@@ -2597,7 +2597,7 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 	{
 		SCOPED_SAVETIMER(UPackage_SaveConcurrent);
 		// Use concurrent new save only if new save is enabled, otherwise use old save
-		if (SavePackageUtilities::IsNewSaveEnabled(SaveArgs.TargetPlatform != nullptr))
+		if (SavePackageUtilities::IsNewSaveEnabled(SaveArgs.IsCooking()))
 		{
 			// @todo: Once GIsSavingPackage is reworked we should reinstore the saving flag here for the gc lock
 			// Passing in false here so that GIsSavingPackage is set to true on top of locking the GC

@@ -42,8 +42,15 @@ struct FPackageSaveInfo
  */
 struct FSavePackageArgs
 {
-	/* The platform being saved for when cooking, or nullptr if not cooking. */
+	UE_DEPRECATED(5.1, "TargetPlatform is now on the ArchiveCookData, use GetTargetPlatform() or IsCooking()")
 	const ITargetPlatform* TargetPlatform = nullptr;
+
+	/* nullptr if not cooking, passed to the FArchive */
+	FArchiveCookData* ArchiveCookData = nullptr;
+
+	bool IsCooking() const { return ArchiveCookData != nullptr; }
+	const ITargetPlatform* GetTargetPlatform() const { return ArchiveCookData ? &ArchiveCookData->TargetPlatform : nullptr; }
+	
 	/**
 	 * For all objects which are not referenced[either directly, or indirectly] through the InAsset provided
 	 * to the Save call (See UPackage::Save), only objects that contain any of these flags will be saved.

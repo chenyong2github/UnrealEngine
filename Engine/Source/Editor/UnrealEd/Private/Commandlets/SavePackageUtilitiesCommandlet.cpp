@@ -11,6 +11,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "UObject/ArchiveCookContext.h"
 #include "UObject/LinkerDiff.h"
 #include "UObject/LinkerSave.h"
 #include "UObject/Package.h"
@@ -34,10 +35,18 @@ int32 USavePackageUtilitiesCommandlet::Main(const FString& Params)
 		UObject* Asset = Package->FindAssetInPackage();
 		FString Filename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir());
 
+		// CookData should only be nonzero if we are cooking.
+		TOptional<FArchiveCookData> CookData;
+		FArchiveCookContext CookContext(Package, FArchiveCookContext::ECookTypeUnknown);
+		if (TargetPlatform != nullptr)
+		{
+			CookData.Emplace(*TargetPlatform, CookContext);
+		}
+
 		FSavePackageArgs SaveArgs;
 		SaveArgs.TopLevelFlags = RF_Public;
 		SaveArgs.SaveFlags = SAVE_CompareLinker;
-		SaveArgs.TargetPlatform = TargetPlatform;
+		SaveArgs.ArchiveCookData = CookData.GetPtrOrNull();
 		SaveArgs.bSlowTask = false;
 
 		// if not cooking add RF_Standalone to the top level flags

@@ -179,7 +179,7 @@ FPackageHarvester::FPackageHarvester(FSaveContext& InContext)
 
 	this->SetPortFlags(SaveContext.GetPortFlags());
 	this->SetFilterEditorOnly(SaveContext.IsFilterEditorOnly());
-	this->SetCookingTarget(SaveContext.GetTargetPlatform());
+	this->SetCookData(SaveContext.GetSaveArgs().ArchiveCookData);
 	this->SetSerializeContext(SaveContext.GetSerializeContext());
 	this->SetUseUnversionedPropertySerialization(SaveContext.IsSaveUnversionedProperties());
 }

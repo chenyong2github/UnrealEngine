@@ -4933,7 +4933,7 @@ FMaterialResourceMemoryWriter::FMaterialResourceMemoryWriter(FArchive& Ar) :
 {
 	check(Ar.IsSaving());
 	this->SetByteSwapping(Ar.IsByteSwapping());
-	this->SetCookingTarget(Ar.CookingTarget());
+	this->SetCookData(Ar.GetCookData());
 }
 
 FMaterialResourceMemoryWriter::~FMaterialResourceMemoryWriter()

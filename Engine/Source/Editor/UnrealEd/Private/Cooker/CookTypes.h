@@ -172,7 +172,10 @@ namespace UE::Cook
 		}
 	};
 
-	/** Context data passed into SavePackage for a given TargetPlatform. */
+	/** 
+	* Context data passed into SavePackage for a given TargetPlatform. Constant across packages, and internal
+	* to the cooker.
+	*/
 	struct FCookSavePackageContext
 	{
 		FCookSavePackageContext(const ITargetPlatform* InTargetPlatform,

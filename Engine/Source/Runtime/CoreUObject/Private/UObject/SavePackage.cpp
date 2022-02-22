@@ -23,6 +23,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ObjectThumbnail.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ArchiveCookContext.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Object.h"
@@ -372,7 +373,7 @@ public:
 		ArShouldSkipBulkData	= true;
 
 		ArPortFlags = Linker->GetPortFlags();
-		SetCookingTarget(Linker->CookingTarget());
+		SetCookData(Linker->GetCookData());
 	}
 
 	virtual FArchive& operator<<(UObject*& Obj) override;
@@ -1413,7 +1414,7 @@ struct FObjectExportSeekFreeSorter
 	 */
 	void SortExports(FLinkerSave* Linker)
 	{
-		SortArchive.SetCookingTarget(Linker->CookingTarget());
+		SortArchive.SetCookData(Linker->GetCookData());
 
 		TMap<UObject*,int32>	OriginalExportIndexes;
 
@@ -1775,7 +1776,15 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 	const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
 	FSavePackageContext* SavePackageContext)
 {
-	FSavePackageArgs SaveArgs = { TargetPlatform, TopLevelFlags, SaveFlags, bForceByteSwapping,
+	// CookData should only be nonzero if we are cooking.
+	TOptional<FArchiveCookData> CookData;
+	FArchiveCookContext CookContext(InOuter, FArchiveCookContext::ECookTypeUnknown);
+	if (TargetPlatform != nullptr)
+	{		
+		CookData.Emplace(*TargetPlatform, CookContext);
+	}
+	
+	FSavePackageArgs SaveArgs = { nullptr /* deprecated target platform */, CookData.GetPtrOrNull(), TopLevelFlags, SaveFlags, bForceByteSwapping,
 		bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error, SavePackageContext };
 	return UPackage::Save(InOuter, Base, Filename, SaveArgs);
 }
@@ -1783,11 +1792,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename,
 	const FSavePackageArgs& SaveArgs)
 {
-	const ITargetPlatform* TargetPlatform = SaveArgs.TargetPlatform;
-	if (SavePackageUtilities::IsNewSaveEnabled(TargetPlatform != nullptr))
+	const bool bIsCooking = SaveArgs.IsCooking();
+	if (SavePackageUtilities::IsNewSaveEnabled(bIsCooking))
 	{
 		return UPackage::Save2(InOuter, InAsset, Filename, SaveArgs);
 	}
+	const ITargetPlatform* TargetPlatform = SaveArgs.GetTargetPlatform();
 	UObject* Base = InAsset;
 	EObjectFlags TopLevelFlags = SaveArgs.TopLevelFlags;
 	FOutputDevice* Error = SaveArgs.Error;
@@ -1807,7 +1817,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 	check(InOuter);
 	check(Filename);
 
-	const bool bIsCooking = TargetPlatform != nullptr;
 	FPackagePath TargetPackagePath = FPackagePath::FromLocalPath(Filename);
 	if (TargetPackagePath.GetHeaderExtension() == EPackageExtension::Unspecified)
 	{
@@ -2022,7 +2031,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 			// Export objects (tags them as OBJECTMARK_TagExp).
 			FArchiveSaveTagExports ExportTaggerArchive( InOuter );
 			ExportTaggerArchive.SetPortFlags( ComparisonFlags );
-			ExportTaggerArchive.SetCookingTarget(TargetPlatform);
+			ExportTaggerArchive.SetCookData(SaveArgs.ArchiveCookData);
 			ExportTaggerArchive.SetSerializeContext(SaveContext);
 
 			check( ExportTaggerArchive.IsCooking() == !!TargetPlatform );
@@ -2236,7 +2245,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 
 				Linker->SetPortFlags(ComparisonFlags);
 				Linker->SetFilterEditorOnly( FilterEditorOnly );
-				Linker->SetCookingTarget(TargetPlatform);
+				Linker->SetCookData(SaveArgs.ArchiveCookData);
 
 				Linker->SetUseUnversionedPropertySerialization(bSaveUnversionedProperties);
 
@@ -4369,7 +4378,14 @@ bool UPackage::SavePackage(UPackage* InOuter, UObject* Base, EObjectFlags TopLev
 	FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename, uint32 SaveFlags,
 	const ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask)
 {
-	FSavePackageArgs SaveArgs = { TargetPlatform, TopLevelFlags, SaveFlags, bForceByteSwapping,
+	// CookData should only be nonzero if we are cooking.
+	TOptional<FArchiveCookData> CookData;
+	FArchiveCookContext CookContext(InOuter, FArchiveCookContext::ECookTypeUnknown);
+	if (TargetPlatform != nullptr)
+	{
+		CookData.Emplace(*TargetPlatform, CookContext);
+	}
+	FSavePackageArgs SaveArgs = { nullptr /* deprecated target platform */, CookData.GetPtrOrNull(), TopLevelFlags, SaveFlags, bForceByteSwapping,
 		bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error };
 	return SavePackage(InOuter, Base, Filename, SaveArgs);
 }
