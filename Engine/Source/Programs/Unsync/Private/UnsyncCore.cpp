@@ -2217,7 +2217,6 @@ ValidateTarget(FIOReader& Reader, const FNeedList& NeedList, EStrongHashAlgorith
 	FSemaphore IoSemaphore(MAX_ACTIVE_READERS);
 
 	const uint64		TotalStreamBytes = Reader.GetSize();
-	std::atomic<uint64> ReadBytesTotal	 = {};
 	std::atomic<uint64> NumInvalidBlocks = {};
 	FTaskGroup			TaskGroup;
 
@@ -2263,7 +2262,6 @@ ValidateTarget(FIOReader& Reader, const FNeedList& NeedList, EStrongHashAlgorith
 					  (ReadOffset + BatchSizeBytes) == ValidationBlocks[BlockIndex + 1].Offset);
 
 		auto ReadCallback = [StrongHasher,
-							 TotalStreamBytes,
 							 bLogVerbose,
 							 LogIndent,
 							 BatchBegin,
@@ -2285,7 +2283,6 @@ ValidateTarget(FIOReader& Reader, const FNeedList& NeedList, EStrongHashAlgorith
 						   BatchBegin,
 						   BatchEnd,
 						   StrongHasher,
-						   TotalStreamBytes,
 						   bLogVerbose,
 						   LogIndent,
 						   &NumInvalidBlocks,
@@ -3250,7 +3247,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 				RemainingSourceBytes -= LocalTask.NeedBytesFromSource;
 
 				ForegroundTaskGroup.run(
-					[Task = std::move(LocalTask), &ProxyPool, &NumForegroundTasks, &SyncTaskBody, LogVerbose = GLogVerbose]() {
+					[Task = std::move(LocalTask), &NumForegroundTasks, &SyncTaskBody, LogVerbose = GLogVerbose]() {
 						FLogVerbosityScope VerbosityScope(LogVerbose);
 						SyncTaskBody(Task, false);
 						--NumForegroundTasks;
@@ -3274,7 +3271,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 				RemainingSourceBytes -= LocalTask.NeedBytesFromSource;
 
 				BackgroundTaskGroup.run(
-					[Task = std::move(LocalTask), &NumBackgroundTasks, &SyncTaskBody, &CurrentBackgroundMemory, &ProxyPool]() {
+					[Task = std::move(LocalTask), &NumBackgroundTasks, &SyncTaskBody, &CurrentBackgroundMemory]() {
 						FLogVerbosityScope VerbosityScope(false);  // turn off logging from background threads
 						SyncTaskBody(Task, true);
 						--NumBackgroundTasks;

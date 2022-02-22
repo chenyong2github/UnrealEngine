@@ -297,8 +297,10 @@ struct FMemReader : FIOReader
 	uint64		 Size = 0;
 };
 
+#if UNSYNC_COMPILER_MSVC
 #pragma warning(push)
 #pragma warning(disable : 4250)	 // 'FMemReaderWriter': inherits 'FMemReader::FMemReader::flush_one' via dominance
+#endif // UNSYNC_COMPILER_MSVC
 struct FMemReaderWriter : FMemReader, FIOReaderWriter
 {
 	FMemReaderWriter(uint8* InData, uint64 InDataSize);
@@ -321,7 +323,9 @@ struct FMemReaderWriter : FMemReader, FIOReaderWriter
 
 	uint8* DataRw = nullptr;
 };
+#if UNSYNC_COMPILER_MSVC
 #pragma warning(pop)
+#endif // UNSYNC_COMPILER_MSVC
 
 struct FNullReaderWriter : FIOReaderWriter
 {
@@ -374,7 +378,7 @@ struct FDeferredOpenReader : FIOReader
 	{
 		return GetOrOpenInner()->Read(Dest, SourceOffset, ReadSize);
 	}
-	virtual bool ReadAsync(uint64 SourceOffset, uint64 Size, uint64 UserData, IOCallback Callback)
+	virtual bool ReadAsync(uint64 SourceOffset, uint64 Size, uint64 UserData, IOCallback Callback) override
 	{
 		return GetOrOpenInner()->ReadAsync(SourceOffset, Size, UserData, Callback);
 	}

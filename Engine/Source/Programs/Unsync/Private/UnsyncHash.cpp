@@ -4,10 +4,10 @@
 #include "UnsyncBuffer.h"
 #include "UnsyncProtocol.h"
 
-#pragma warning(push, 3)
+UNSYNC_THIRD_PARTY_INCLUDES_START
 #include <blake3.h>
 #include <md5-sse2.h>
-#pragma warning(pop)
+UNSYNC_THIRD_PARTY_INCLUDES_END
 
 namespace unsync {
 

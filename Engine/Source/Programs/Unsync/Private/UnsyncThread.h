@@ -16,7 +16,19 @@ UNSYNC_THIRD_PARTY_INCLUDES_START
 #else
 #	include <semaphore>
 #	include <thread>
+#	ifdef __APPLE__
+#		define UNSYNC_USE_MACH_SEMAPHORE 1
+#	endif
 #endif	// UNSYNC_USE_CONCRT
+#if !defined(UNSYNC_USE_MACH_SEMAPHORE)
+#	define UNSYNC_USE_MACH_SEMAPHORE 0
+#endif
+#if UNSYNC_USE_MACH_SEMAPHORE
+#include <mach/mach_init.h>
+#include <mach/mach_error.h>
+#include <mach/semaphore.h>
+#include <mach/task.h>
+#endif // UNSYNC_USE_MACH_SEMAPHORE
 UNSYNC_THIRD_PARTY_INCLUDES_END
 
 namespace unsync {
@@ -110,6 +122,42 @@ ParallelForEach(IT ItBegin, IT ItEnd, FT F)
 
 #else  // UNSYNC_USE_CONCRT
 
+#if UNSYNC_USE_MACH_SEMAPHORE
+
+class FSemaphore
+{
+public:
+	UNSYNC_DISALLOW_COPY_ASSIGN(FSemaphore)
+
+	explicit FSemaphore(uint32 MaxCount)
+	{
+		kern_return_t InitResult = semaphore_create(mach_task_self(), &Native, SYNC_POLICY_FIFO, MaxCount);
+		UNSYNC_ASSERTF(InitResult == KERN_SUCCESS, L"Failed to create a semaphore, error code: %d %hs", InitResult, mach_error_string(InitResult));
+	}
+
+	~FSemaphore()
+	{
+		kern_return_t DestroyResult = semaphore_destroy(mach_task_self(), Native);
+		UNSYNC_ASSERTF(DestroyResult == KERN_SUCCESS, L"Failed to destroy a semaphore, error code: %d %hs", DestroyResult, mach_error_string(DestroyResult));
+	}
+
+	void Acquire()
+	{
+		kern_return_t WaitResult = semaphore_wait(Native);
+		UNSYNC_ASSERTF(WaitResult == KERN_SUCCESS, L"Failed to wait for a semaphore, error code: %d %hs", WaitResult, mach_error_string(WaitResult));
+	}
+
+	void Release()
+	{
+		int32 SignalResult = semaphore_signal(Native);
+		UNSYNC_ASSERTF(SignalResult == 0, L"Failed to signal a semaphore, error code: %d %hs", SignalResult, mach_error_string(SignalResult));
+	}
+
+	semaphore_t Native = {};
+};
+
+#else // UNSYNC_USE_MACH_SEMAPHORE
+
 class FSemaphore
 {
 public:
@@ -124,8 +172,11 @@ public:
 	void Release() { Native.release(); }
 
 private:
+
 	std::counting_semaphore<UNSYNC_MAX_TOTAL_THREADS> Native;
 };
+
+#endif // UNSYNC_USE_MACH_SEMAPHORE
 
 // Single-threaded task group implementation
 struct FTaskGroup

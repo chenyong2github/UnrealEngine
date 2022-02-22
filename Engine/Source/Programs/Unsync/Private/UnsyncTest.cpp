@@ -219,7 +219,7 @@ TestRollingSum()
 				const Task& Task	 = Tasks[TaskIdx];
 				uint64		TaskSize = Task.End - Task.Begin;
 
-				auto ScanFn = [&HashReference, &TaskSize, &TaskIdx, &HashRolling, &Task, DataBegin, DataEnd, &ExpectedIdx](
+				auto ScanFn = [&HashReference, &HashRolling, &Task, DataBegin, DataEnd, &ExpectedIdx](
 								  const uint8* WindowBegin,
 								  const uint8* WindowEnd,
 								  uint32	   WindowHash) {

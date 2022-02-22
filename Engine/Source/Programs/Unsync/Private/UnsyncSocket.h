@@ -178,7 +178,7 @@ RecvStruct(FSocketBase& Socket, const T& Data)
 {
 	int32 Size = int32(sizeof(Data));
 	bool  bOk  = true;
-	bOk &= SocketRecvT(Socket, Data);
+	bOk &= SocketRecvT(Socket, Size);
 	bOk &= SocketRecvT(Socket, Data);
 	return bOk;
 }

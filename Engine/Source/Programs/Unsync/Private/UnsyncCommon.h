@@ -67,6 +67,7 @@ ClobberT(T& Object)
 #	define UNSYNC_ATTRIB_FORCEINLINE __attribute__((always_inline))
 #	define UNSYNC_THIRD_PARTY_INCLUDES_START \
 		_Pragma("GCC diagnostic push") \
+		_Pragma("GCC diagnostic ignored \"-Wunknown-pragmas\"") \
 		_Pragma("GCC diagnostic ignored \"-Wshadow\"")
 #	define UNSYNC_THIRD_PARTY_INCLUDES_END _Pragma("GCC diagnostic pop")
 #endif
