@@ -222,4 +222,5 @@ private:
 	friend class SControlRigGraphNode;
 	friend class FControlRigArgumentLayout;
 	friend class FControlRigGraphDetails;
+	friend class UControlRigPrototypeNodeSpawner;
 };
