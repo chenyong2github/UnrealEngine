@@ -18,6 +18,7 @@ UReplayNetConnection::UReplayNetConnection(const FObjectInitializer& ObjectIniti
 	SetInternalAck(true);
 	SetReplay(true);
 	SetAutoFlush(true);
+	SetUnlimitedBunchSizeAllowed(true);
 }
 
 void UReplayNetConnection::InitConnection(UNetDriver* InDriver, EConnectionState InState, const FURL& InURL, int32 InConnectionSpeed, int32 InMaxPacket)
@@ -30,6 +31,7 @@ void UReplayNetConnection::InitConnection(UNetDriver* InDriver, EConnectionState
 	SetInternalAck(true);
 	SetReplay(true);
 	SetAutoFlush(true);
+	SetUnlimitedBunchSizeAllowed(true);
 
 	InitSendBuffer();
 

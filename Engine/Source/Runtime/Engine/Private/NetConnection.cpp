@@ -224,6 +224,7 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	bInternalAck		( false )
 ,	bReplay				( false )
 ,	bForceInitialDirty	( false )
+,	bUnlimitedBunchSizeAllowed ( false )
 ,	RemoteAddr			( nullptr )
 ,	MaxPacketHandlerBits ( 0 )
 ,	State				( USOCK_Invalid )
@@ -4908,6 +4909,7 @@ void UNetConnection::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChanne
 USimulatedClientNetConnection::USimulatedClientNetConnection( const FObjectInitializer& ObjectInitializer ) : Super( ObjectInitializer )
 {
 	SetInternalAck(true);
+	SetUnlimitedBunchSizeAllowed(true);	// here to avoid changing the previous behavior controlled by SetInternalAck, but probably not necessary
 }
 
 void USimulatedClientNetConnection::HandleClientPlayer( class APlayerController* PC, class UNetConnection* NetConnection )

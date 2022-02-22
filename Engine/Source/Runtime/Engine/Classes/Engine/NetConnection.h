@@ -312,6 +312,18 @@ public:
 		bForceInitialDirty = bValue;
 	}
 
+	/**	Used to allow connections to ignore the bunch size limitation applied before splitting into partial bunch packets, 
+	*	or when receiving partial bunches to reassemble.
+	* 
+	*	!!!WARNING!!!  This is a security risk as the connection will accept much larger bunches before hitting the 
+	*	reliable buffer limit, or the array/string serialization limit.
+	*/
+	bool IsUnlimitedBunchSizeAllowed() const { return bUnlimitedBunchSizeAllowed; }
+	void SetUnlimitedBunchSizeAllowed(bool bValue)
+	{
+		bUnlimitedBunchSizeAllowed = bValue;
+	}
+
 	/** Destructor */
 	ENGINE_API virtual ~UNetConnection() {};
 
@@ -319,6 +331,7 @@ private:
 	uint32 bInternalAck : 1;	// Internally ack all packets, for 100% reliable connections.
 	uint32 bReplay : 1;			// Flag to indicate a replay connection, independent of reliability
 	uint32 bForceInitialDirty : 1;	// Force all properties dirty on initial replication
+	uint32 bUnlimitedBunchSizeAllowed : 1; // Ignore the value of net.MaxConstructedPartialBunchSizeBytes
 
 public:
 	struct FURL			URL;				// URL of the other side.
