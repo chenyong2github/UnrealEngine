@@ -270,6 +270,9 @@ operator new(size_t Size)
 
 void
 operator delete(void* Ptr)
+#ifdef __GNUC__
+noexcept
+#endif
 {
 	using namespace unsync;
 

@@ -126,7 +126,7 @@ public:
 
 	FSemaphore ParallelDownloadSemaphore;
 
-	const FRemoteDesc REMOTE_DESC;
+	const FRemoteDesc RemoteDesc;
 
 	void InitRequestMap(EStrongHashAlgorithmID InStrongHasher);
 	void BuildFileBlockRequests(const fs::path& OriginalFilePath, const fs::path& ResolvedFilePath, const FFileManifest& FileManifest);

@@ -16,12 +16,12 @@ struct FBufferView;
 
 enum class EStrongHashAlgorithmID : uint64;
 
-template<size_t size_bytes>
+template<size_t SizeBytes>
 struct THashValue
 {
-	alignas(uint32) uint8 Data[size_bytes];
+	alignas(uint32) uint8 Data[SizeBytes];
 
-	bool operator==(const THashValue& Other) const { return !memcmp(Data, Other.Data, size_bytes); }
+	bool operator==(const THashValue& Other) const { return !memcmp(Data, Other.Data, SizeBytes); }
 
 	bool operator!=(const THashValue& Other) const { return !(*this == Other); }
 
@@ -35,7 +35,7 @@ struct THashValue
 		}
 	};
 
-	static constexpr size_t Size() { return size_bytes; }
+	static constexpr size_t Size() { return SizeBytes; }
 };
 
 using FHash128 = THashValue<16>;

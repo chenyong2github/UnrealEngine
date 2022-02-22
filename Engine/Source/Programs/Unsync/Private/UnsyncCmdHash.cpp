@@ -86,7 +86,7 @@ CmdHash(const FCmdHashOptions& Options)
 					Block.Size		 = It.Size;
 					Blocks128.push_back(Block);
 				}
-				SaveBlocks(Blocks128, Options.BlockSize, OutputFilename) ? 0 : 1;
+				return SaveBlocks(Blocks128, Options.BlockSize, OutputFilename) ? 0 : 1;
 			}
 		}
 		else

@@ -644,11 +644,11 @@ main(int argc, char** argv)
 #endif	// UNSYNC_PLATFORM_WINDOWS
 
 #if UNSYNC_PLATFORM_UNIX
-	std::vector<char*> argv_utf8;
-	argv_utf8.reserve(argc);
+	std::vector<char*> ArgvUtf8;
+	ArgvUtf8.reserve(argc);
 	for (int32 i = 0; i < argc; ++i)
 	{
-		argv_utf8.push_back(argv[i]);
+		ArgvUtf8.push_back(argv[i]);
 	}
 #endif	// UNSYNC_PLATFORM_UNIX
 

@@ -1235,7 +1235,7 @@ DownloadBlocks(FProxyPool&					  ProxyPool,
 		std::vector<DownloadBatch> Batches;
 		Batches.push_back(DownloadBatch{});
 
-		const uint64 MaxBytesPerBatch = ProxyPool.REMOTE_DESC.Protocol == EProtocolFlavor::Jupiter ? 16_MB : 128_MB;
+		const uint64 MaxBytesPerBatch = ProxyPool.RemoteDesc.Protocol == EProtocolFlavor::Jupiter ? 16_MB : 128_MB;
 
 		for (uint64 I = 0; I < NeedBlocks->size() && !bGotError; ++I)
 		{
@@ -2638,9 +2638,9 @@ ToPath(const std::wstring_view& Str)
 {
 #if UNSYNC_PLATFORM_UNIX
 	// TODO: ensure that all serialized path separators are unix style ('/')
-	std::wstring temp = std::wstring(str);
-	std::replace(temp.begin(), temp.end(), L'\\', L'/');
-	return fs::path(temp);
+	std::wstring Temp = std::wstring(Str);
+	std::replace(Temp.begin(), Temp.end(), L'\\', L'/');
+	return fs::path(Temp);
 #else	// UNSYNC_PLATFORM_UNIX
 	return fs::path(Str);
 #endif	// UNSYNC_PLATFORM_UNIX
@@ -3672,7 +3672,7 @@ BuildTargetWithPatch(const uint8* PatchData, uint64 PatchSize, const uint8* Base
 		NeedList.Sequence.push_back(Hash);
 	}
 
-	Result = std::move(BuildTargetBuffer(SourceData, SourceDataSize, BaseData, BaseDataSize, NeedList, Header.StrongHashAlgorithmId));
+	Result = BuildTargetBuffer(SourceData, SourceDataSize, BaseData, BaseDataSize, NeedList, Header.StrongHashAlgorithmId);
 
 	FGenericBlockArray SourceValidation;
 
@@ -3741,7 +3741,7 @@ FSyncFilter::ShouldSync(const fs::path& Filename) const
 #if UNSYNC_PLATFORM_WINDOWS
 	return ShouldSync(Filename.native());
 #else
-	return ShouldSync(filename.wstring());
+	return ShouldSync(Filename.wstring());
 #endif
 }
 

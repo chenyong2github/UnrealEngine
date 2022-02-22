@@ -26,8 +26,9 @@ template<typename T>
 static void
 AppendHash(T& Output, const FHash160& Hash)
 {
-	static constexpr uint64 HashStrMaxLen = sizeof(FHash160::Data) * 2;
-	char					HashStr[HashStrMaxLen];
+	enum { HashStrMaxLen = sizeof(Hash.Data) * 2 };
+
+	char HashStr[HashStrMaxLen];
 
 	uint64 HashStrLen = BytesToHexChars(HashStr, sizeof(HashStr), Hash.Data, sizeof(Hash.Data));
 
@@ -43,7 +44,7 @@ MakeJupiterBlobUrl(std::string_view JupiterNamespace, std::string_view BlobName)
 static std::string
 MakeJupiterBlobUrl(std::string_view JupiterNamespace, const FHash160& Hash)
 {
-	static constexpr uint64 HashStrMaxLen = Hash.Size() * 2;
+	enum { HashStrMaxLen = sizeof(Hash.Data) * 2 };
 
 	fmt::basic_memory_buffer<char, HashStrMaxLen> HashStr;
 	AppendHash(HashStr, Hash);

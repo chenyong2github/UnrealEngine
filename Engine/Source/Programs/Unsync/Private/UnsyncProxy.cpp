@@ -452,9 +452,9 @@ FBlockRequestMap::GetMacroBlockRequest(const FGenericHash& BlockHash) const
 }
 
 FProxyPool::FProxyPool(const FRemoteDesc& InRemoteDesc)
-: REMOTE_DESC(InRemoteDesc)
+: ParallelDownloadSemaphore(InRemoteDesc.MaxConnections)
+, RemoteDesc(InRemoteDesc)
 , bValid(InRemoteDesc.IsValid())
-, ParallelDownloadSemaphore(InRemoteDesc.MaxConnections)
 {
 }
 
@@ -476,7 +476,7 @@ FProxyPool::Alloc()
 
 	if (!Result || !Result->IsValid())
 	{
-		Result = std::make_unique<FProxy>(REMOTE_DESC, &RequestMap);
+		Result = std::make_unique<FProxy>(RemoteDesc, &RequestMap);
 	}
 
 	return Result;

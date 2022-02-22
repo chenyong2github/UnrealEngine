@@ -594,9 +594,9 @@ ToWindowsFileTime(const fs::file_time_type& T)
 #endif	// UNSYNC_PLATFORM_WINDOWS
 
 #if UNSYNC_PLATFORM_UNIX
-FUnixFile::FUnixFile(const fs::path& in_filename, EFileMode in_mode, uint64 in_size) : filename(in_filename), mode(in_mode)
+FUnixFile::FUnixFile(const fs::path& InFilename, EFileMode InMode, uint64 in_size) : Filename(InFilename), Mode(InMode)
 {
-	FileHandle = fopen(in_filename.native().c_str(), bReadOnly(mode) ? "rb" : "w+b");
+	FileHandle = fopen(InFilename.native().c_str(), bReadOnly(Mode) ? "rb" : "w+b");
 	if (FileHandle == nullptr)
 	{
 		return;
@@ -604,7 +604,7 @@ FUnixFile::FUnixFile(const fs::path& in_filename, EFileMode in_mode, uint64 in_s
 
 	FileDescriptor = fileno(FileHandle);
 
-	if (bReadOnly(mode))
+	if (bReadOnly(Mode))
 	{
 		struct stat stat_buf = {};
 		LastError			 = fstat(FileDescriptor, &stat_buf);
@@ -621,7 +621,7 @@ FUnixFile::FUnixFile(const fs::path& in_filename, EFileMode in_mode, uint64 in_s
 
 FUnixFile::~FUnixFile()
 {
-	close();
+	Close();
 }
 
 void
@@ -637,7 +637,7 @@ FUnixFile::FlushOne()
 }
 
 void
-FUnixFile::close()
+FUnixFile::Close()
 {
 	if (FileHandle)
 	{
@@ -647,7 +647,7 @@ FUnixFile::close()
 }
 
 uint64
-FUnixFile::read(void* dest, uint64 SourceOffset, uint64 ReadSize)
+FUnixFile::Read(void* dest, uint64 SourceOffset, uint64 ReadSize)
 {
 	// TODO: handle partial reads (pread returning 0 < x < ReadSize)
 	uint64 read_bytes = pread(FileDescriptor, dest, ReadSize, SourceOffset);
@@ -665,11 +665,11 @@ FUnixFile::ReadAsync(uint64 SourceOffset, uint64 size, uint64 UserData, IOCallba
 }
 
 uint64
-FUnixFile::write(const void* data, uint64 DestOffset, uint64 WriteSize)
+FUnixFile::Write(const void* data, uint64 DestOffset, uint64 WriteSize)
 {
-	UNSYNC_ASSERT(IsWritable(mode));
+	UNSYNC_ASSERT(IsWritable(Mode));
 
-	if (!is_write_only(mode))
+	if (!IsWriteOnly(Mode))
 	{
 		FlushAll();	 // flush any outstanding read requests before writing
 	}
@@ -690,8 +690,8 @@ GetFileAttrib(const fs::path& path, FFileAttributeCache* AttribCache)
 
 	if (AttribCache)
 	{
-		auto it = AttribCache->map.find(path);
-		if (it != AttribCache->map.end())
+		auto it = AttribCache->Map.find(path);
+		if (it != AttribCache->Map.end())
 		{
 			result = it->second;
 			return result;
@@ -706,7 +706,7 @@ GetFileAttrib(const fs::path& path, FFileAttributeCache* AttribCache)
 	if (ec.value() == 0)
 	{
 		result.bDirectory = entry.is_directory();
-		result.Size		  = result.is_directory ? 0 : entry.FileSize();
+		result.Size		  = result.bDirectory ? 0 : entry.file_size();
 		result.Mtime	  = ToWindowsFileTime(entry.last_write_time());
 		result.bReadOnly  = false;	// TODO
 		result.bValid	  = true;
@@ -730,7 +730,7 @@ SetFileMtime(const fs::path& path, uint64 mtime)
 }
 
 uint64
-ToWindowsFileTime(const fs::file_time_type& file_time)
+ToWindowsFileTime(const fs::file_time_type& FileTime)
 {
 	const uint64 NANOS_PER_TICK	  = 100ull;
 	const uint64 TICKS_PER_SECOND = 1'000'000'000ull / NANOS_PER_TICK;	// each tick is 100ns
@@ -739,9 +739,9 @@ ToWindowsFileTime(const fs::file_time_type& file_time)
 	// Unix epoch    : 1970-01-01T00:00:00Z
 	const uint64 SECONDS_BETWEEN_WINDOWS_AND_UNIX = 11'644'473'600ull;
 
-	auto SysTime = std::chrono::file_clock::to_sys(file_time);
-
-	std::chrono::duration FullDuration = SysTime.time_since_epoch();
+	//auto SysTime = std::chrono::file_clock::to_sys(FileTime);
+	//std::chrono::duration FullDuration = SysTime.time_since_epoch();
+	std::chrono::duration FullDuration = FileTime.time_since_epoch();
 
 	uint64 FullSeconds = std::chrono::floor<std::chrono::seconds>(FullDuration).count();
 

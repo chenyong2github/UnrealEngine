@@ -115,16 +115,16 @@ class FSemaphore
 public:
 	UNSYNC_DISALLOW_COPY_ASSIGN(FSemaphore)
 
-	explicit FSemaphore(uint32 max_count) : native(max_count) {}
+	explicit FSemaphore(uint32 MaxCount) : Native(MaxCount) {}
 
 	~FSemaphore() {}
 
-	void acquire() { native.acquire(); }
+	void Acquire() { Native.acquire(); }
 
-	void release() { native.release(); }
+	void Release() { Native.release(); }
 
 private:
-	std::counting_semaphore<UNSYNC_MAX_TOTAL_THREADS> native;
+	std::counting_semaphore<UNSYNC_MAX_TOTAL_THREADS> Native;
 };
 
 // Single-threaded task group implementation

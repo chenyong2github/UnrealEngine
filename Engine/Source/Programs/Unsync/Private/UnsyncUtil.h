@@ -5,7 +5,7 @@
 #include "UnsyncCommon.h"
 
 UNSYNC_THIRD_PARTY_INCLUDES_START
-#ifdef UNSYNC_PLATFORM_WINDOWS
+#if UNSYNC_PLATFORM_WINDOWS
 #	include <Windows.h>
 #	include <intrin.h>
 #endif	// UNSYNC_PLATFORM_WINDOWS
@@ -188,8 +188,17 @@ AlignUpToMultiplePow2(uint64 X, uint64 MultiplePow2)
 	return X;
 }
 
+template <class T>
+concept TIsIntegral = std::is_integral_v<T>;
+
+template <class T>
+concept TIsSignedIntegral = TIsIntegral<T> && static_cast<T>(-1) < static_cast<T>(0);
+
+template <class T>
+concept TIsUnsignedIntegral = TIsIntegral<T> && !TIsSignedIntegral<T>;
+
 template<typename T>
-requires std::unsigned_integral<T>
+requires TIsUnsignedIntegral<T>
 inline uint32
 CheckedNarrow(T X)
 {
@@ -199,7 +208,7 @@ CheckedNarrow(T X)
 }
 
 template<typename T>
-requires std::signed_integral<T>
+requires TIsSignedIntegral<T>
 inline int32
 CheckedNarrow(T X)
 {
@@ -228,7 +237,7 @@ FillRandomBytes(uint8* Output, uint64 Size, uint32 Seed)
 	}
 }
 
-#ifndef _MSC_VER
+#if !UNSYNC_COMPILER_MSVC
 inline uint8
 _BitScanReverse64(unsigned long* Index, uint64 Mask)
 {
@@ -240,7 +249,7 @@ _BitScanReverse64(unsigned long* Index, uint64 Mask)
 	*Index = 63 - __builtin_clzll(Mask);
 	return 1;
 }
-#endif	// _MSC_VER
+#endif	// !UNSYNC_COMPILER_MSVC
 
 inline uint64
 FloorLog264(uint64 X)

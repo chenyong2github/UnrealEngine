@@ -42,25 +42,33 @@ ClobberT(T& Object)
 
 #define UNSYNC_CLOBBER(Object) ClobberT(Object)
 
-#if UNSYNC_PLATFORM_WINDOWS
-#	define UNSYNC_BREAK __debugbreak
+#if !defined(UNSYNC_COMPILER_MSVC) && defined(_MSC_VER) && !defined(__clang__)
+#	define UNSYNC_COMPILER_MSVC 1
+#elif !defined(UNSYNC_COMPILER_MSVC)
+#	define UNSYNC_COMPILER_MSVC 0
 #endif
 
-#if UNSYNC_PLATFORM_UNIX
+#if UNSYNC_COMPILER_MSVC
+#	define UNSYNC_BREAK __debugbreak
+#else
 #	define UNSYNC_BREAK __builtin_trap
 #endif
 
-#ifdef _MSC_VER
+#if UNSYNC_COMPILER_MSVC
 #	pragma warning(disable : 4100)	 // unreferenced formal parameter
 #	define UNSYNC_ATTRIB_FORCEINLINE [[msvc::forceinline]]
-#	define UNSYNC_THIRD_PARTY_INCLUDES_START                                                                                              \
-		__pragma(warning(push)) __pragma(warning(disable : 4458)) __pragma(warning(disable : 4668)) /* undefined macro, replaced with 0 */ \
-			__pragma(warning(disable : 4996))														/* deprecated */
+#	define UNSYNC_THIRD_PARTY_INCLUDES_START \
+		__pragma(warning(push)) \
+		__pragma(warning(disable : 4458)) \
+		__pragma(warning(disable : 4668)) /* undefined macro, replaced with 0 */ \
+		__pragma(warning(disable : 4996)) /* deprecated */
 #	define UNSYNC_THIRD_PARTY_INCLUDES_END __pragma(warning(pop))
 #else
 #	define UNSYNC_ATTRIB_FORCEINLINE __attribute__((always_inline))
-#	define UNSYNC_THIRD_PARTY_INCLUDE_BEGIN  // TODO: suppress warnings
-#	define UNSYNC_THIRD_PARTY_INCLUDE_END	  // TODO
+#	define UNSYNC_THIRD_PARTY_INCLUDES_START \
+		_Pragma("GCC diagnostic push") \
+		_Pragma("GCC diagnostic ignored \"-Wshadow\"")
+#	define UNSYNC_THIRD_PARTY_INCLUDES_END _Pragma("GCC diagnostic pop")
 #endif
 
 }  // namespace unsync

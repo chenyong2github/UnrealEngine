@@ -286,7 +286,7 @@ GetSystemRootCerts()
 
 #if UNSYNC_PLATFORM_UNIX
 	{
-		const char* possible_cert_paths[] = {
+		const char* PossibleCertsPaths[] = {
 			"/etc/ssl/certs/ca-certificates.crt",				  // Debian/Ubuntu/Gentoo etc.
 			"/etc/pki/tls/certs/ca-bundle.crt",					  // Fedora/RHEL 6
 			"/etc/ssl/ca-bundle.pem",							  // OpenSUSE
@@ -295,17 +295,17 @@ GetSystemRootCerts()
 			"/etc/ssl/cert.pem",								  // Alpine Linux
 		};
 
-		for (const char* certs_path : possible_cert_paths)
+		for (const char* CertsPath : PossibleCertsPaths)
 		{
-			g_system_root_certs = ReadFile(certs_path);
-			if (!g_system_root_certs.empty())
+			GSystemRootCerts = ReadFileToBuffer(CertsPath);
+			if (!GSystemRootCerts.Empty())
 			{
-				UNSYNC_VERBOSE2(L"Loaded system CA bundle from '%hs'", certs_path);
+				UNSYNC_VERBOSE2(L"Loaded system CA bundle from '%hs'", CertsPath);
 				break;
 			}
 		}
 
-		if (g_system_root_certs.empty())
+		if (GSystemRootCerts.Empty())
 		{
 			UNSYNC_WARNING(
 				L"Could not find CA certificate bundle in any of the known locations. "

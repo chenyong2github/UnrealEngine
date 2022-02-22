@@ -28,8 +28,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef NDEBUG
 #undef NDEBUG
 #endif // NDEBUG
+#ifdef _MSC_VER
 #pragma warning(disable: 4668) //  'foo' is not defined as a preprocessor macro (in Windows headers)
 #pragma warning(disable: 4456) // local variable shadowing
+#else
+_Pragma("GCC diagnostic ignored \"-Wshadow\"")
+#endif
 // EPIC_MOD_END
 
 #include "DebugHeap.h"

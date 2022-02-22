@@ -10,11 +10,9 @@ public class Unsync : ModuleRules
 		CppStandard = CppStandardVersion.Cpp20;
 		bUseUnity = false;
 		bEnableExceptions = true;
+		bUseRTTI = true; // Needed by CLI11 library
 
 		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "ThirdParty"));
-
-		PrivateDefinitions.Add("BLAKE3_NO_SSE2=1");
-		PrivateDefinitions.Add("BLAKE3_NO_AVX512=1");
 
 		PrivateDefinitions.Add("UNSYNC_USE_TLS=1");
 		PrivateDefinitions.Add("UNSYNC_USE_DEBUG_HEAP=1");
@@ -33,6 +31,7 @@ public class Unsync : ModuleRules
 			PrivateDefinitions.Add("UNSYNC_PLATFORM_UNIX=1");
 		}
 
+		PrivateDependencyModuleNames.Add("BLAKE3");
 		PrivateDependencyModuleNames.Add("CLI11");
 		PrivateDependencyModuleNames.Add("fmt");
 		PrivateDependencyModuleNames.Add("http_parser");

@@ -87,14 +87,16 @@ set(src
 
 # Add third party code
 
+set(blake3dir ${CMAKE_CURRENT_SOURCE_DIR}/../../ThirdParty/BLAKE3/0.3.7/c)
+
 set(thirdparty
-	ThirdParty/blake3_dispatch.c
-	ThirdParty/blake3_impl.h
-	ThirdParty/blake3_portable.c
-	ThirdParty/blake3_sse41.c
-	ThirdParty/blake3_avx2.c
-	ThirdParty/blake3.c
-	ThirdParty/blake3.h
+	${blake3dir}/blake3_dispatch.c
+	${blake3dir}/blake3_impl.h
+	${blake3dir}/blake3_portable.c
+	${blake3dir}/blake3_sse41.c
+	${blake3dir}/blake3_avx2.c
+	${blake3dir}/blake3.c
+	${blake3dir}/blake3.h
 	ThirdParty/md5-sse2.cpp
 	ThirdParty/md5-sse2.h
 )
@@ -174,8 +176,8 @@ if(MSVC)
 
 else()
 
-	set_source_files_properties(ThirdParty/blake3_sse41.c COMPILE_FLAGS -msse4.1)
-	set_source_files_properties(ThirdParty/blake3_avx2.c  COMPILE_FLAGS -mavx2)
+	set_source_files_properties(${blake3dir}/blake3_sse41.c COMPILE_FLAGS -msse4.1)
+	set_source_files_properties(${blake3dir}/blake3_avx2.c  COMPILE_FLAGS -mavx2)
 
 endif()
 
