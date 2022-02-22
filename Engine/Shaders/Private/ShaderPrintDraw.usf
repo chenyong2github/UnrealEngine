@@ -154,7 +154,7 @@ void AddIntSymbols(inout float2 ScreenPos, in int Value, in float3 Color)
 	AddUIntSymbols(ScreenPos, (uint)Value, Color);
 }
 
-void AddFloatSymbols(inout float2 ScreenPos, in float Value, in float3 Color)
+void AddFloatSymbols(inout float2 ScreenPos, in float Value, in float3 Color, in uint MaxDecimalCount)
 {
 	if (isinf(Value))
 	{
@@ -181,7 +181,8 @@ void AddFloatSymbols(inout float2 ScreenPos, in float Value, in float3 Color)
 	AddIntSymbols(ScreenPos, (int)Value, Color);
 	AddSymbol(ScreenPos, _DOT_, Color);
 
-	for (int i = 5; i > 0; --i)
+	MaxDecimalCount = min(MaxDecimalCount, MAX_DECIMAL_COUNT);
+	for (uint i = MaxDecimalCount; i > 0; --i)
 	{
 		Value = frac(Value);
 		if (Value > 0.f)
@@ -218,7 +219,7 @@ void BuildSymbolBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	if (Value.Type == SHADER_PRINT_TYPE_SYMBOL)
 		AddSymbol(Value.ScreenPos, Value.Value, Value.Color);
 	else if (Value.Type == SHADER_PRINT_TYPE_FLOAT)
-		AddFloatSymbols(Value.ScreenPos, asfloat(Value.Value), Value.Color);
+		AddFloatSymbols(Value.ScreenPos, asfloat(Value.Value), Value.Color, Value.Metadata);
 	else if (Value.Type == SHADER_PRINT_TYPE_INT)
 		AddIntSymbols(Value.ScreenPos, Value.Value, Value.Color);
 	else if (Value.Type == SHADER_PRINT_TYPE_UINT)

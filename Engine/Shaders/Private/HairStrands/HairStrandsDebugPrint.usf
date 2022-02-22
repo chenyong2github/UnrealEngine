@@ -354,21 +354,6 @@ float2 PrintInstanceName(float2 InPos, uint PrimitiveID, FFontColor InColor)
 	return InPos;
 }
 
-
-float2 Print(float2 Pos, uint X, uint DigitCount, FFontColor Color)
-{
-	Pos = ShaderPrint(Pos, X, Color);
-	Pos.x -= ShaderPrintUniform.FontSpacing.x * (ShaderPrintTabCount - min(ShaderPrintTabCount, DigitCount));
-	return Pos;
-}
-
-float2 Print(float2 Pos, float X, uint DigitCount, FFontColor Color)
-{
-	Pos = ShaderPrint(Pos, X, Color);
-	Pos.x -= ShaderPrintUniform.FontSpacing.x * (ShaderPrintTabCount - min(ShaderPrintTabCount, DigitCount));
-	return Pos;
-}
-
 [numthreads(1, 1, 1)]
 void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
 #if PERMUTATION_OUTPUT_TYPE == 0
@@ -396,21 +381,21 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	}
 
 	Pos = ShaderPrintText(Pos, TEXT("Total Groups        : "), FontWhite);
-	Pos = Print(Pos, TotalGroup, 8, FontYellow);
+	Pos = Print(Pos, TotalGroup, FontYellow, 8);
 	AddNewLine(OriginalPos, Pos);
 
 	Pos = ShaderPrintText(Pos, TEXT("Total Strand Curves : "), FontWhite);
-	Pos = Print(Pos, TotalStrandsCount, 8, FontOrange);
+	Pos = Print(Pos, TotalStrandsCount, FontOrange, 8);
 	AddNewLine(OriginalPos, Pos);
 
 	Pos = ShaderPrintText(Pos, TEXT("Total Strand Vertex : "), FontWhite);
-	Pos = Print(Pos, TotalVertexCount, 8, FontSilver);
+	Pos = Print(Pos, TotalVertexCount, FontSilver, 8);
 	AddNewLine(OriginalPos, Pos);
 
 	AddNewLine(OriginalPos, Pos);
 
 	// Draw instance details
-	Pos = ShaderPrintText(Pos, TEXT("   Group  LOD        Geometry Binding Sim   RBF   Clip    Strands Vertex  Name"));
+	Pos = ShaderPrintText(Pos, TEXT("   Group  LOD     Geometry Binding Sim   RBF   Clip    Strands Vertex  Name"));
 	AddNewLine(OriginalPos, Pos);
 
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
@@ -431,19 +416,19 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		const uint VertexCount		= InstanceData.w;
 
 		// Index
-		Pos = Print(Pos, InstanceIndex, 2, FontSilver);
+		Pos = Print(Pos, InstanceIndex, FontSilver, 2);
 		Pos = ShaderPrintText(Pos, TEXT(" "));
 
 		// Group
-		Pos = Print(Pos, GroupIndex, 1, FontYellow);
+		Pos = Print(Pos, GroupIndex, FontYellow, 1);
 		Pos = ShaderPrintText(Pos, TEXT("/"));
-		Pos = Print(Pos, GroupCount, 1, FontYellow);
+		Pos = Print(Pos, GroupCount, FontYellow, 1);
 		Pos = ShaderPrintText(Pos, TEXT("    "));
 
 		// LOD
-		Pos = Print(Pos, LOD, 7, FontYellow);	
+		Pos = Print(Pos, LOD, FontYellow, 4, 2);	
 		Pos = ShaderPrintText(Pos, TEXT("/"));
-		Pos = Print(Pos, LODCount, 1, FontYellow);
+		Pos = Print(Pos, LODCount, FontYellow, 1);
 		Pos = ShaderPrintText(Pos, TEXT("  "));
 
 		// Geometry
@@ -473,14 +458,14 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 		// Clip
 		if (ClipValue >= 0)
-			Pos = Print(Pos, ClipValue, 7, FontGreen);
+			Pos = Print(Pos, ClipValue, FontGreen, 7);
 		else 
-			Pos = Print(Pos, 0u, 7, FontSilver);
+			Pos = Print(Pos, 0u, FontSilver, 7);
 		Pos = ShaderPrintText(Pos, TEXT(" "));
 
 		// Count
-		Pos = Print(Pos, StrandsCount, 8, FontOrange);
-		Pos = Print(Pos, VertexCount,  8, FontSilver);
+		Pos = Print(Pos, StrandsCount, FontOrange, 8);
+		Pos = Print(Pos, VertexCount,  FontSilver, 8);
 
 		// Name
 		Pos = PrintInstanceName(Pos, InstanceIndex, FontWhite);
