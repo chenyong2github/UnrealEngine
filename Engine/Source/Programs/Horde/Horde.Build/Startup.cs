@@ -561,15 +561,7 @@ namespace HordeServer
 
 			if (Settings.IsRunModeActive(RunMode.Worker))
 			{
-				if (Settings.FeatureFlags.AutoscaleServiceV1Enabled)
-				{
-					Services.AddHostedService(Provider => Provider.GetRequiredService<AutoscaleService>());	
-				}
-				
-				if (Settings.FeatureFlags.AutoscaleServiceV2Enabled)
-				{
-					Services.AddHostedService(Provider => Provider.GetRequiredService<AutoscaleServiceV2>());
-				}
+				Services.AddHostedService(Provider => Provider.GetRequiredService<AutoscaleServiceV2>());
 				
 				Services.AddHostedService(Provider => Provider.GetRequiredService<AgentService>());
 				Services.AddHostedService(Provider => Provider.GetRequiredService<CommitService>());

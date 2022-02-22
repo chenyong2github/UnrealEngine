@@ -83,64 +83,6 @@ namespace HordeServer
 	}
 
 	/// <summary>
-	/// Settings for a remote execution instance
-	///
-	/// Instances are a concept from Google's remote execution API that Horde implements.
-	/// They are used for separating different type of executions into groups.
-	/// </summary>
-	public class RemoteExecInstanceSettings
-	{
-		/// <summary>
-		/// gRPC URL for the content-addressable storage to be used for this instance
-		/// </summary>
-		[Required]
-		public Uri? CasUrl { get; set; }
-		
-		/// <summary>
-		/// gRPC URL for the action cache to be used for this instance
-		/// </summary>
-		[Required]
-		public Uri? ActionCacheUrl { get; set; }
-		
-		/// <summary>
-		/// Service account token for accessing the gRPC URLs
-		/// </summary>
-		[Required]
-		public string? ServiceAccountToken { get; set; }
-		
-		/// <summary>
-		/// List of pool IDs this instance can be scheduled in
-		/// </summary>
-		public List<string>? PoolFilter { get; set; }
-
-		/// <summary>
-		/// Max time to wait for an agent to become available for serving a remote execution request (in milliseconds)
-		/// </summary>
-		public int AgentQueueTimeout { get; set; } = 5000;
-
-		internal TimeSpan AgentQueueTimeoutAsTimeSpan()
-		{
-			return TimeSpan.FromMilliseconds(AgentQueueTimeout);
-		}
-	}
-	
-	/// <summary>
-	/// Settings for remote execution
-	/// </summary>
-	public class RemoteExecSettings
-	{
-		/// <summary>
-		/// Mapping instance names to instance settings
-		/// </summary>
-		public Dictionary<string, RemoteExecInstanceSettings> Instances { get; set; } = new Dictionary<string, RemoteExecInstanceSettings>();
-
-		/// <summary>
-		/// Max number of concurrent leases per agent
-		/// </summary>
-		public int MaxConcurrentLeasesPerAgent { get; set; } = 1;
-	}
-
-	/// <summary>
 	/// Type of run mode this process should use. Each carry different types of workloads. 
 	/// More than one mode can be active. But not all modes are not guaranteed to be compatible with each other and will
 	/// raise an error if combined in such a way.
@@ -172,23 +114,6 @@ namespace HordeServer
 	/// </summary>
 	public class FeatureFlagSettings
 	{
-		/// <summary>
-		/// Registers the old v1 autoscale service as a background service
-		/// Added by carl.bystrom on Jan 26, 2022
-		/// </summary>
-		public bool AutoscaleServiceV1Enabled { get; set; } = true;
-		
-		/// <summary>
-		/// Registers the new autoscale service v2 as a background service (can run in parallel with v1 if shadow mode is on)
-		/// Added by carl.bystrom on Jan 26, 2022
-		/// </summary>
-		public bool AutoscaleServiceV2Enabled { get; set; } = false;
-		
-		/// <summary>
-		/// Shadow mode enabled on new AutoscaleServiceV2 will only log pool size changes but not act on them.
-		/// Added by carl.bystrom on Jan 26, 2022
-		/// </summary>
-		public bool AutoscaleServiceV2ShadowMode { get; set; } = true;
 	}
 
 	/// <summary>
@@ -576,11 +501,6 @@ namespace HordeServer
 		/// Path to the root config file
 		/// </summary>
 		public string ConfigPath { get; set; } = "Defaults/globals.json";
-
-		/// <summary>
-		/// Settings for remote execution
-		/// </summary>
-		public RemoteExecSettings RemoteExecSettings { get; set; } = new RemoteExecSettings();
 
 		/// <summary>
 		/// Settings for the storage service

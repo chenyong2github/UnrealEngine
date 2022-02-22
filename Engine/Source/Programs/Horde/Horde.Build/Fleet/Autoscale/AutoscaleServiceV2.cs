@@ -118,11 +118,6 @@ namespace Horde.Build.Fleet.Autoscale
 				int DeltaAgentCount = DesiredAgentCount - CurrentAgentCount;
 
 				Logger.LogInformation("{PoolName,-48} Current={Current,4} Target={Target,4} Delta={Delta,4} Status={Status}", Pool.Name, CurrentAgentCount, DesiredAgentCount, DeltaAgentCount, PoolSizeData.StatusMessage);
-
-				if (Settings.FeatureFlags.AutoscaleServiceV2ShadowMode)
-				{
-					continue;
-				}
 				
 				try
 				{

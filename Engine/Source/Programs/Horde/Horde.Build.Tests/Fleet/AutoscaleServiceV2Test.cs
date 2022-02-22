@@ -68,34 +68,6 @@ namespace Horde.Build.Tests.Fleet
 		FleetManagerSpy FleetManagerSpy = new();
 		
 		[TestMethod]
-		public async Task ShadowModeEnabled()
-		{
-			ServerSettings.FeatureFlags.AutoscaleServiceV2ShadowMode = false;
- 
-			var Service = GetAutoscaleService(FleetManagerSpy);
-			var PoolSizeDatas = await GetPoolSizeData();
-			PoolSizeDatas[0] = PoolSizeDatas[0].Copy(DesiredAgentCount: 8);
-
-			await Service.ResizePools(PoolSizeDatas);
-			Assert.AreEqual(1, FleetManagerSpy.ExpandPoolAsyncCallCount);
-			Assert.AreEqual(0, FleetManagerSpy.ShrinkPoolAsyncCallCount);
-		}
-		
-		[TestMethod]
-		public async Task ShadowModeDisabled()
-		{
-			ServerSettings.FeatureFlags.AutoscaleServiceV2ShadowMode = true;
- 
-			var Service = GetAutoscaleService(FleetManagerSpy);
-			var PoolSizeDatas = await GetPoolSizeData();
-			PoolSizeDatas[0] = PoolSizeDatas[0].Copy(DesiredAgentCount: 8);
-
-			await Service.ResizePools(PoolSizeDatas);
-			Assert.AreEqual(0, FleetManagerSpy.ExpandPoolAsyncCallCount);
-			Assert.AreEqual(0, FleetManagerSpy.ShrinkPoolAsyncCallCount);
-		}
-		
-		[TestMethod]
 		public async Task PerPoolStrategy()
 		{
 			var Service = GetAutoscaleService(FleetManagerSpy);
