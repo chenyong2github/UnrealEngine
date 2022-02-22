@@ -155,10 +155,12 @@ const UPCGPointData* UPCGUnionData::CreatePointData() const
 	// Trivial results
 	if (Data.Num() == 0)
 	{
+		UE_LOG(LogPCG, Error, TEXT("Invalid union"));
 		return nullptr;
 	}
 	else if (Data.Num() == 1)
 	{
+		UE_LOG(LogPCG, Verbose, TEXT("Union is trivial"));
 		return Data[0]->ToPointData();
 	}
 
@@ -186,6 +188,8 @@ const UPCGPointData* UPCGUnionData::CreatePointData() const
 		}
 		break;
 	}
+
+	UE_LOG(LogPCG, Verbose, TEXT("Union generated %d points out of %d data sources"), PointData->GetPoints().Num(), Data.Num());
 
 	return PointData;
 }

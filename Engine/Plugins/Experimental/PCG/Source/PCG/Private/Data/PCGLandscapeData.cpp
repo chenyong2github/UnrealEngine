@@ -116,5 +116,7 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData() const
 		}
 	}
 
+	UE_LOG(LogPCG, Verbose, TEXT("Landscape %s extracted %d of %d potential points"), *Landscape->GetFName().ToString(), Points.Num(), (MaxX - MinX) * (MaxY - MinY));
+
 	return Data;
 }

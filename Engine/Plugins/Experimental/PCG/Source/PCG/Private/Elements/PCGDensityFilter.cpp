@@ -34,6 +34,7 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContextPtr Context) const
 	if (bNoResults)
 #endif
 	{
+		PCGE_LOG(Verbose, "Skipped - all inputs rejected");
 		return true;
 	}
 
@@ -46,13 +47,14 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (!Input.Data || Cast<UPCGSpatialData>(Input.Data) == nullptr)
 		{
-			// TODO: log
+			PCGE_LOG(Error, "Invalid input data");
 			continue;
 		}
 
 		// Skip processing if the transformation is trivial
 		if (bTrivialFilter)
 		{
+			PCGE_LOG(Verbose, "Skipped - trivial filter");
 			continue;
 		}
 
@@ -60,7 +62,7 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (!OriginalData)
 		{
-			// Log error
+			PCGE_LOG(Error, "Unable to get point data from input");
 			continue;
 		}
 
@@ -87,6 +89,8 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContextPtr Context) const
 			}
 #endif
 		}
+
+		PCGE_LOG(Verbose, "Generated %d points out of %d source points", FilteredPoints.Num(), Points.Num());
 	}
 
 	return true;

@@ -123,6 +123,7 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(const UPCGSpatialD
 
 	if (!SourcePointData)
 	{
+		UE_LOG(LogPCG, Error, TEXT("Intersection unable to get source points"));
 		return nullptr;
 	}
 
@@ -147,6 +148,8 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(const UPCGSpatialD
 			NewPoint.Density = PCGIntersectionDataMaths::ComputeDensity(Point.Density, YDensity, DensityFunction);
 		}
 	}
+
+	UE_LOG(LogPCG, Verbose, TEXT("Intersection generated %d points from %d source points"), TargetPoints.Num(), SourcePoints.Num());
 
 	return Data;
 }

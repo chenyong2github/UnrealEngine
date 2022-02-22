@@ -34,6 +34,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 	if (bNoSampling)
 #endif
 	{
+		PCGE_LOG(Verbose, "Skipped - all inputs rejected");
 		return true;
 	}
 
@@ -44,13 +45,14 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (!Input.Data || Cast<UPCGSpatialData>(Input.Data) == nullptr)
 		{
-			// TODO: add a log
+			PCGE_LOG(Error, "Invalid input data");
 			continue;
 		}
 
 		// Skip processing if the transformation would be trivial
 		if (bTrivialSampling)
 		{
+			PCGE_LOG(Verbose, "Skipped - trivial sampling");
 			continue;
 		}
 
@@ -58,7 +60,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (!OriginalData)
 		{
-			// Log error
+			PCGE_LOG(Error, "Unable to get point data from input");
 			continue;
 		}
 
@@ -81,7 +83,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 		// Early out
 		if (TargetNumPoints == 0)
 		{
-			// TODO log
+			PCGE_LOG(Verbose, "Skipped - all points rejected");
 			continue;
 		}
 		else
@@ -111,6 +113,8 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 				}
 #endif
 			}
+
+			PCGE_LOG(Verbose, "Generated %d points from %d source points", SampledPoints.Num(), OriginalPointCount);
 		}
 	}
 

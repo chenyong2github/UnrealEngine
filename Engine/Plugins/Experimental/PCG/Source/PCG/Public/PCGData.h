@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
+#include "PCGModule.h"
+
 #include "PCGData.generated.h"
 
 class UPCGSettings;

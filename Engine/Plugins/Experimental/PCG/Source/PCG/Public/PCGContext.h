@@ -27,6 +27,11 @@ struct FPCGContext
 	FPCGTaskId TaskId = InvalidTaskId;
 	bool bIsPaused = false;
 
+#if WITH_EDITOR
+	double ElapsedTime = 0.0;
+	int32 ExecutionCount = 0;
+#endif
+
 	template<typename SettingsType>
 	const SettingsType* GetInputSettings()
 	{
@@ -39,4 +44,7 @@ struct FPCGContext
 			return InputData.GetSettings<SettingsType>();
 		}
 	}
+
+	FName GetTaskName() const;
+	FName GetComponentName() const;
 };

@@ -37,13 +37,14 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContextPtr Context) cons
 
 		if (!Input.Data || Cast<UPCGSpatialData>(Input.Data) == nullptr)
 		{
-			// TODO: log error
+			PCGE_LOG(Error, "Invalid input data");
 			continue;
 		}
 
 		// Skip processing if the remapping is trivial
 		if (bTrivialRemapping)
 		{
+			PCGE_LOG(Verbose, "Skipped - trivial remapping");
 			continue;
 		}
 
@@ -51,7 +52,7 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContextPtr Context) cons
 
 		if (!OriginalData)
 		{
-			// TODO: log error
+			PCGE_LOG(Error, "Unable to get points from input");
 			continue;
 		}
 

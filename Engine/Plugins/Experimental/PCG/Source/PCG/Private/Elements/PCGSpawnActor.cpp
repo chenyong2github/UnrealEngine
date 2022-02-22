@@ -72,8 +72,9 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContextPtr Context) const
 	check(Settings);
 
 	// Early out
-	if(!Settings->TemplateActorClass)
+	if(!Settings->TemplateActorClass || Settings->TemplateActorClass->HasAnyClassFlags(CLASS_Abstract))
 	{
+		PCGE_LOG(Error, "Invalid template actor class (%s)", Settings->TemplateActorClass ? *Settings->TemplateActorClass->GetFName().ToString() : TEXT("None"));
 		return true;
 	}
 
@@ -89,7 +90,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (!SpatialData)
 		{
-			// Data type mismatch
+			PCGE_LOG(Error, "Invalid input data");
 			continue;
 		}
 
@@ -97,7 +98,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (!TargetActor)
 		{
-			// No target actor
+			PCGE_LOG(Error, "Invalid target actor");
 			continue;
 		}
 
@@ -106,6 +107,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (!PointData)
 		{
+			PCGE_LOG(Error, "Unable to get point data from input");
 			continue;
 		}
 
@@ -113,6 +115,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (Points.IsEmpty())
 		{
+			PCGE_LOG(Verbose, "Skipped - no points");
 			continue;
 		}
 
@@ -143,6 +146,10 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContextPtr Context) const
 				if (Mesh)
 				{
 					ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Mesh);
+				}
+				else
+				{
+					PCGE_LOG(Error, "No supported mesh found");
 				}
 			}
 
@@ -185,6 +192,8 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContextPtr Context) const
 							}
 						}
 					}
+
+					PCGE_LOG(Verbose, "Generated %d actors", Points.Num());
 				}
 			}
 
@@ -194,6 +203,8 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContextPtr Context) const
 				ISMC->NumCustomDataFloats = 0;
 				ISMC->AddInstances(Instances, false, true);
 				ISMC->UpdateBounds();
+
+				PCGE_LOG(Verbose, "Added %d ISM instances", Instances.Num());
 			}
 		}
 

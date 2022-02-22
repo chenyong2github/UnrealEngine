@@ -53,6 +53,7 @@ bool FPCGSelfPruningElement::ExecuteInternal(FPCGContextPtr Context) const
 	if (Settings->PruningType == EPCGSelfPruningType::None)
 	{
 		Context->OutputData = Context->InputData;
+		PCGE_LOG(Verbose, "Skipped - Type is none");
 		return true;
 	}
 
@@ -67,9 +68,9 @@ bool FPCGSelfPruningElement::ExecuteInternal(FPCGContextPtr Context) const
 	{
 		const UPCGSpatialData* SpatialInput = Cast<UPCGSpatialData>(Input.Data);
 
-		if (!SpatialInput || !SpatialInput->TargetActor)
+		if (!SpatialInput)
 		{
-			// Data type mismatch / no output actor
+			PCGE_LOG(Error, "Invalid input data");
 			continue;
 		}
 
@@ -164,6 +165,8 @@ bool FPCGSelfPruningElement::ExecuteInternal(FPCGContextPtr Context) const
 		{
 			OutputPoints.Add(*Point);
 		}
+
+		PCGE_LOG(Verbose, "Generated %d points from %d source points", OutputPoints.Num(), Points.Num());
 	}
 
 	// Finally, forward any exclusions/settings

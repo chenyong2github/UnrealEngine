@@ -2,6 +2,7 @@
 
 #include "PCGElement.h"
 #include "PCGContext.h"
+#include "PCGModule.h"
 #include "PCGSettings.h"
 #include "Elements/PCGDebugElement.h"
 #include "Graph/PCGGraphCache.h"
@@ -60,17 +61,41 @@ bool IPCGElement::Execute(FPCGContextPtr Context) const
 
 		bool bDone = false;
 
+#if WITH_EDITOR
+		UE_LOG(LogPCG, Verbose, TEXT("---------------------------------------"));
+#endif
+
 		if (IsCacheable(Settings) && Context->Cache && Context->Cache->GetFromCache(this, Context->InputData, Settings, Context->OutputData))
 		{
+			PCGE_LOG(Verbose, "Used cached results");
 			bDone = true;
 		}
 		else
 		{
+#if WITH_EDITOR
+			const double StartTime = FPlatformTime::Seconds();
+#endif
+
 			bDone = ExecuteInternal(Context);
 
-			if (bDone && IsCacheable(Settings) && Context->Cache)
+#if WITH_EDITOR
+			const double EndTime = FPlatformTime::Seconds();
+			Context->ElapsedTime += (EndTime - StartTime);
+			Context->ExecutionCount++;
+#endif
+
+			if (bDone)
 			{
-				Context->Cache->StoreInCache(this, Context->InputData, Settings, Context->OutputData);
+				if (IsCacheable(Settings) && Context->Cache)
+				{
+					Context->Cache->StoreInCache(this, Context->InputData, Settings, Context->OutputData);
+				}
+
+#if WITH_EDITOR
+				PCGE_LOG(Log, "Executed in (%f)s and (%d) call(s)", Context->ElapsedTime, Context->ExecutionCount);
+#else
+				PCGE_LOG(Log, "Executed");
+#endif
 			}
 		}
 

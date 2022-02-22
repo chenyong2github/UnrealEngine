@@ -37,7 +37,7 @@ FBox UPCGVolumeData::GetStrictBounds() const
 
 const UPCGPointData* UPCGVolumeData::CreatePointData() const
 {
-	// TODO
+	UE_LOG(LogPCG, Error, TEXT("Volume data has no default point sampling"));
 	return nullptr;
 }
 

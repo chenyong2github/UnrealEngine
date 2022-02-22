@@ -130,6 +130,8 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 {
 	Texture = InTexture;
 	Transform = InTransform;
+	Width = 0;
+	Height = 0;
 
 	if (Texture)
 	{

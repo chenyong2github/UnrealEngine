@@ -22,6 +22,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 	// TODO: we could compute an approximate radius based on the points per squared meters if that's useful
 	if (Settings->PointRadius <= 0)
 	{
+		PCGE_LOG(Warning, "Skipped - Invalid point radius");
 		return true;
 	}
 
@@ -35,7 +36,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (!SpatialInput || !SpatialInput->TargetActor)
 		{
-			// Data type mismatch / no output actor
+			PCGE_LOG(Error, "Invalid input data");
 			continue;
 		}
 
@@ -43,7 +44,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (!InputBounds.IsValid)
 		{
-			// With invalid bounds, we can't do anything
+			PCGE_LOG(Warning, "Input data has invalid bounds");
 			continue;
 		}
 
@@ -65,6 +66,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (CellMinX > CellMaxX || CellMinY > CellMaxY)
 		{
+			PCGE_LOG(Verbose, "Skipped - invalid cell bounds");
 			continue;
 		}
 
@@ -76,6 +78,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		if (TargetPointCount == 0)
 		{
+			PCGE_LOG(Verbose, "Skipped - density yields no points");
 			continue;
 		}
 		else if (TargetPointCount > CellCount)
@@ -138,6 +141,8 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 			CurrentX += CellSize;
 		}
+
+		PCGE_LOG(Verbose, "Generated %d points in %d cells", SampledPoints.Num(), CellCount);
 	}
 
 	// Finally, forward any exclusions/settings

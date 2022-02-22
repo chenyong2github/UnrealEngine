@@ -26,6 +26,11 @@ void UPCGRenderTargetData::Initialize(UTextureRenderTarget2D* InRenderTarget, co
 		Width = RenderTarget->SizeX;
 		Height = RenderTarget->SizeY;
 	}
+	else
+	{
+		Width = 0;
+		Height = 0;
+	}
 
 	Bounds = FBox(EForceInit::ForceInit);
 	Bounds += FVector(-1.0f, -1.0f, 0.0f);

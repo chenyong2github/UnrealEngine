@@ -71,6 +71,8 @@ const UPCGPointData* UPCGSplineData::CreatePointData() const
 		Distance += 1.0f;
 	}
 
+	UE_LOG(LogPCG, Verbose, TEXT("Spline %s generated %d points"), *Spline->GetFName().ToString(), Points.Num());
+
 	return Data;
 }
 

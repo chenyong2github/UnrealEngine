@@ -112,5 +112,7 @@ const UPCGPointData* UPCGProjectionData::CreatePointData() const
 		}
 	}
 
+	UE_LOG(LogPCG, Verbose, TEXT("Projection generated %d points from %d source points"), Points.Num(), SourcePoints.Num());
+
 	return PointData;
 }

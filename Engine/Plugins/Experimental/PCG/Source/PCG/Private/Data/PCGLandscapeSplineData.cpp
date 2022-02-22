@@ -187,6 +187,8 @@ const UPCGPointData* UPCGLandscapeSplineData::CreatePointData() const
 		}
 	}
 
+	UE_LOG(LogPCG, Verbose, TEXT("Landscape spline %s generated %d points on %d segments"), *Spline->GetFName().ToString(), Points.Num(), Segments.Num());
+
 	return Data;
 }
 

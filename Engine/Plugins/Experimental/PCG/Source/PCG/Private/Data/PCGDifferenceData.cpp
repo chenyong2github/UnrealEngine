@@ -135,8 +135,15 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData() const
 	// This is similar to what we are doing in UPCGUnionData::CreatePointData
 	const UPCGPointData* SourcePointData = Source->ToPointData();
 
-	if (!Difference || !SourcePointData)
+	if (!SourcePointData)
 	{
+		UE_LOG(LogPCG, Error, TEXT("Difference unable to get source points"));
+		return SourcePointData;
+	}
+
+	if (!Difference)
+	{
+		UE_LOG(LogPCG, Verbose, TEXT("Difference is trivial"));
 		return SourcePointData;
 	}
 
@@ -162,6 +169,8 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData() const
 		}
 #endif
 	}
+
+	UE_LOG(LogPCG, Verbose, TEXT("Difference generated %d points from %d source points"), TargetPoints.Num(), SourcePointData->GetPoints().Num());
 
 	return Data;
 }
