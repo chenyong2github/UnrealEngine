@@ -122,9 +122,13 @@ URigHierarchy::URigHierarchy()
 #endif
 }
 
-URigHierarchy::~URigHierarchy()
+void URigHierarchy::BeginDestroy()
 {
+	// reset needs to be in begin destroy since
+	// reset touches a UObject member of this hierarchy,
+	// which will be GCed by the time this hierarchy reaches destructor
 	Reset();
+	Super::BeginDestroy();
 }
 
 void URigHierarchy::Serialize(FArchive& Ar)

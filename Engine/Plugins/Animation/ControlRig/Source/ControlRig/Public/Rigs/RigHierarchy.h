@@ -95,9 +95,9 @@ public:
 	typedef TPair<int32, TArray<int32>> TElementDependencyMapPair;
 
 	URigHierarchy();
-	virtual ~URigHierarchy();
 
 	// UObject interface
+	virtual void BeginDestroy() override;
 	virtual void Serialize(FArchive& Ar) override;
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
