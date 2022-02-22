@@ -211,13 +211,6 @@ static FAutoConsoleVariableRef CVarNaniteDisocclusionHack(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarCompactVSMViews(
-	TEXT("r.Nanite.CompactVSMViews"),
-	1,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
 extern int32 GNaniteShowStats;
 
 static bool UseMeshShader(Nanite::EPipeline Pipeline)
@@ -481,9 +474,8 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 	class FNearClipDim : SHADER_PERMUTATION_BOOL( "NEAR_CLIP" );
 	class FPrimitiveFilterDim : SHADER_PERMUTATION_BOOL("PRIMITIVE_FILTER");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL( "DEBUG_FLAGS" );
-	class FUseCompactedViewsDim : SHADER_PERMUTATION_BOOL( "USE_COMPACTED_VIEWS" );
 
-	using FPermutationDomain = TShaderPermutationDomain<FNearClipDim, FPrimitiveFilterDim, FDebugFlagsDim, FUseCompactedViewsDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FNearClipDim, FPrimitiveFilterDim, FDebugFlagsDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -1669,7 +1661,6 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FInstanceCullVSM_CS::FNearClipDim>(RasterState.bNearClip);
 		PermutationVector.Set<FInstanceCullVSM_CS::FPrimitiveFilterDim>(CullingContext.PrimitiveFilterBuffer != nullptr);
 		PermutationVector.Set<FInstanceCullVSM_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
-		PermutationVector.Set<FInstanceCullVSM_CS::FUseCompactedViewsDim>(CVarCompactVSMViews.GetValueOnRenderThread() != 0);
 
 		auto ComputeShader = SharedContext.ShaderMap->GetShader<FInstanceCullVSM_CS>(PermutationVector);
 
@@ -3029,7 +3020,7 @@ void CullRasterize(
 	GPUSceneParameters.GPUScenePrimitiveSceneData = Scene.GPUScene.PrimitiveBuffer.SRV;
 	GPUSceneParameters.GPUSceneFrameNumber = Scene.GPUScene.GetSceneFrameNumber();
 	
-	if (VirtualShadowMapArray && CVarCompactVSMViews.GetValueOnRenderThread() != 0)
+	if (VirtualShadowMapArray != nullptr)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteInstanceCullVSM);
 

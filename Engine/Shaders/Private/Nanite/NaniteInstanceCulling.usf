@@ -466,13 +466,8 @@ void InstanceCullVSM(
 #if DEBUG_FLAGS
 	if (DebugFlags & NANITE_DEBUG_FLAG_WRITE_STATS && DispatchIndex == 0)
 	{
-	#if USE_COMPACTED_VIEWS
 		OutStatsBuffer[0].NumPrimaryViews = CompactedViewsAllocation[0];
 		OutStatsBuffer[0].NumTotalViews = CompactedViewsAllocation[1];
-	#else
-		OutStatsBuffer[0].NumPrimaryViews = NumPrimaryViews;
-		OutStatsBuffer[0].NumTotalViews = NumPrimaryViews * GetNaniteView( 0 ).TargetNumMipLevels;
-	#endif
 	}
 #endif
 
@@ -536,16 +531,11 @@ void InstanceCullVSM(
 	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
 
 	// Loop over each of the views
-#if USE_COMPACTED_VIEWS
 	uint NumCompactedPrimaryViews = CompactedViewsAllocation[0];
 	for (uint CompactedViewInfoIndex = 0; CompactedViewInfoIndex < NumCompactedPrimaryViews; ++CompactedViewInfoIndex)
 	{
 		FCompactedViewInfo ViewInfo = CompactedViewInfo[CompactedViewInfoIndex];
 		uint PrimaryViewId = ViewInfo.StartOffset;
-#else // USE_COMPACTED_VIEWS
-	for (uint PrimaryViewId = 0; PrimaryViewId < NumPrimaryViews; ++PrimaryViewId)
-	{
-#endif // USE_COMPACTED_VIEWS
 		uint VisibleMipsMask = 0U;
 
 		{
@@ -560,15 +550,9 @@ void InstanceCullVSM(
 
 			const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
 			
-#if USE_COMPACTED_VIEWS
 			for (uint MipViewInfoIndex = 0; MipViewInfoIndex < ViewInfo.NumValidViews; ++MipViewInfoIndex)
 			{
 				uint MipViewId = ViewInfo.StartOffset + MipViewInfoIndex;
-#else // USE_COMPACTED_VIEWS
-			for(uint TargetMipLevel = 0; TargetMipLevel < (uint)NaniteView.TargetNumMipLevels; TargetMipLevel++)
-			{
-				uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
-#endif // USE_COMPACTED_VIEWS
 				FNaniteView MipView = GetNaniteView(MipViewId);
 				float2 ViewSize = MipView.ViewSizeAndInvSize.xy;
 
@@ -604,11 +588,7 @@ void InstanceCullVSM(
 
 				if( bVisible )
 				{
-#if USE_COMPACTED_VIEWS
 					VisibleMipsMask |= ( 1u << MipViewInfoIndex);
-#else // USE_COMPACTED_VIEWS
-					VisibleMipsMask |= ( 1u << TargetMipLevel );
-#endif // USE_COMPACTED_VIEWS
 				}
 			}
 		}
@@ -634,15 +614,10 @@ void InstanceCullVSM(
 		// Iteration count is equal to the maximum lane output count.
 		while( VisibleMipsMask && NodeOffset < MaxNodes)
 		{
-#if USE_COMPACTED_VIEWS
 			uint MipViewInfoIndex = firstbitlow( VisibleMipsMask );	// Jump to next set bit.
 			uint MipViewId = ViewInfo.StartOffset + MipViewInfoIndex;
-#else // !USE_COMPACTED_VIEWS
-			uint TargetMipLevel = firstbitlow( VisibleMipsMask );	// Jump to next set bit.
-			uint MipViewId = TargetMipLevel * NumPrimaryViews + PrimaryViewId;
-#endif // USE_COMPACTED_VIEWS
-			VisibleMipsMask &= VisibleMipsMask - 1u;				// Remove bottom bit.
 
+			VisibleMipsMask &= VisibleMipsMask - 1u;				// Remove bottom bit.
 
 			FCandidateNode Node;
 			Node.Flags = NANITE_CULLING_FLAG_TEST_LOD;
