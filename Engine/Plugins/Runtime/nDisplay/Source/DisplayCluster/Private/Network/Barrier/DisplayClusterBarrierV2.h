@@ -89,5 +89,7 @@ private:
 	double BarrierWaitTimeOverall = 0;
 
 	// Barrier state CS
-	mutable FCriticalSection BarrierCS;
+	mutable FCriticalSection DataCS;
+	// Barrier entrance CS
+	mutable FCriticalSection EntranceCS;
 };
