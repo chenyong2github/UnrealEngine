@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "Mesh.h"
-#include "BevelType.h"
 
 #include "CoreMinimal.h"
+#include "BevelType.h"
+#include "Mesh.h"
 #include "UObject/ObjectMacros.h"
-#include "UObject/TextProperty.h"
-#include "Text3DComponent.generated.h"
 
+#include "Text3DComponent.generated.h"
 
 UENUM()
 enum class EText3DVerticalTextAlignment : uint8
@@ -146,8 +145,7 @@ public:
 	 * Delegate called after text is rebuilt
 	 */
 	DECLARE_MULTICAST_DELEGATE(FTextGeneratedNative);
-	FTextGeneratedNative& OnTextGenerated()				{ return TextGeneratedNativeDelegate; }
-
+	FTextGeneratedNative& OnTextGenerated() { return TextGeneratedNativeDelegate; }
 
 	/** Set the text value and signal the primitives to be rebuilt */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
@@ -280,6 +278,9 @@ private:
 
 	FTextGeneratedNative TextGeneratedNativeDelegate;
 
+	/** Flagged as true when the text mesh is being built. */
+	std::atomic<bool> bIsBuilding;
+	
 	bool bPendingBuild;
 	bool bFreezeBuild;
 
@@ -292,12 +293,14 @@ private:
 	UPROPERTY(Transient)
 	TArray<UStaticMeshComponent*> CharacterMeshes;
 
+	/** Allocates, or shrinks existing components to match the input number. Returns false if nothing modified. */
+	bool AllocateGlyphs(int32 Num);
+
 	class UMaterialInterface* GetMaterial(const EText3DGroupType Type) const;
 	void SetMaterial(const EText3DGroupType Type, class UMaterialInterface* Material);
 
-
-	void Rebuild();
 	void UpdateTransforms();
+	void Rebuild(const bool bCleanCache = false);
 	void ClearTextMesh();
 	void BuildTextMesh(const bool bCleanCache = false);
 	void CheckBevel();

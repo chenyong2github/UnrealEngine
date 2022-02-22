@@ -209,24 +209,24 @@ UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshPa
 	uint32 HashGroup = 0;
 	HashGroup = HashCombine(HashGroup, GetTypeHash(Font));
 	HashGroup = HashCombine(HashGroup, GetTypeHash(GlyphIndex));
-	FString StaticMeshName = FString::Printf(TEXT("Text3D_Char_%u_%u"), HashGroup, HashParameters);
-	
-	FMeshCreator MeshCreator;
-	TSharedContourNode Root = GetGlyphContours(GlyphIndex);
+	const FString StaticMeshName = FString::Printf(TEXT("Text3D_Char_%u_%u"), HashGroup, HashParameters);
+
+	const TSharedContourNode Root = GetGlyphContours(GlyphIndex);
 	if (Root->Children.Num() == 0)
 	{
 		return nullptr;
 	}
 
+	UText3DEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UText3DEngineSubsystem>();
+	UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Subsystem, *StaticMeshName);
+	CachedMeshes.Glyphs.Add(GlyphIndex, StaticMesh);
+
+	FMeshCreator MeshCreator;
 	MeshCreator.CreateMeshes(Root, Parameters.Extrude, Parameters.Bevel, Parameters.BevelType, Parameters.BevelSegments, Parameters.bOutline, Parameters.OutlineExpand);
 	MeshCreator.SetFrontAndBevelTextureCoordinates(Parameters.Bevel);
 	MeshCreator.MirrorGroups(Parameters.Extrude);
-
-	UText3DEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UText3DEngineSubsystem>();
-	UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Subsystem, *StaticMeshName);
+		
 	MeshCreator.BuildMesh(StaticMesh, Subsystem->DefaultMaterial);
-
-	CachedMeshes.Glyphs.Add(GlyphIndex, StaticMesh);
 
 	return StaticMesh;
 }

@@ -3,10 +3,8 @@
 #pragma once
 
 #include "Mesh.h"
-#include "MeshTypes.h"
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
-
 
 struct FText3DPolygonGroup
 {

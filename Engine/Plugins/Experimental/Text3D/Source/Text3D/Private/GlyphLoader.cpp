@@ -2,17 +2,17 @@
 
 #include "GlyphLoader.h"
 #include "Arrangement.h"
-#include "Part.h"
 #include "BoxTypes.h"
-#include "Curve/DynamicGraph2.h"
+#include "Part.h"
 #include "Polygon2.h"
+#include "Curve/DynamicGraph2.h"
 
 using namespace UE::Geometry;
 
-FGlyphLoader::FGlyphLoader(const FT_GlyphSlot Glyph) :
-	Root(MakeShared<FContourNode>(nullptr, false, true)),
-	EndIndex(-1),
-	VertexID(0)
+FGlyphLoader::FGlyphLoader(const FT_GlyphSlot Glyph)
+	: Root(MakeShared<FContourNode>(nullptr, false, true))
+	, EndIndex(-1)
+	, VertexID(0)
 {
 	check(Glyph);
 
@@ -56,10 +56,10 @@ void FGlyphLoader::FLine::Add(FGlyphLoader* const Loader)
 	}
 }
 
-FGlyphLoader::FCurve::FCurve(const bool bLineIn) :
-	bLine(bLineIn),
-	StartT(0.f),
-	EndT(1.f)
+FGlyphLoader::FCurve::FCurve(const bool bLineIn)
+	: bLine(bLineIn)
+	, StartT(0.f)
+	, EndT(1.f)
 {
 	Loader = nullptr;
 
@@ -171,7 +171,8 @@ void FGlyphLoader::FCurve::CheckPart(const FPointData& Start, const FPointData& 
 {
 	const FVector2D Side = (End.Position - Start.Position).GetSafeNormal();
 
-	if ((FVector2D::DotProduct(Side, Start.Tangent) > FPart::CosMaxAngleSideTangent && FVector2D::DotProduct(Side, End.Tangent) > FPart::CosMaxAngleSideTangent) || Depth >= MaxDepth)
+	if ((FVector2D::DotProduct(Side, Start.Tangent) > FPart::CosMaxAngleSideTangent &&
+		FVector2D::DotProduct(Side, End.Tangent) > FPart::CosMaxAngleSideTangent) || Depth >= MaxDepth)
 	{
 		if (!bFirstSplit && Start.Point == First)
 		{
@@ -226,15 +227,15 @@ FVector2D FGlyphLoader::FQuadraticCurve::Tangent(const float T)
 	return QuadraticCurveTangent(E, F, T).GetSafeNormal();
 }
 
-FGlyphLoader::FCubicCurve::FCubicCurve(const FVector2D A, const FVector2D B, const FVector2D C, const FVector2D D) :
-	FCurve(OnOneLine(A, B, C) && OnOneLine(B, C, D)),
-	E(-A + 3.f * B - 3.f * C + D),
-	F(A - 2.f * B + C),
-	G(-A + B),
-	H(A),
-	bSharpStart(false),
-	bSharpMiddle(false),
-	bSharpEnd(false)
+FGlyphLoader::FCubicCurve::FCubicCurve(const FVector2D A, const FVector2D B, const FVector2D C, const FVector2D D)
+	: FCurve(OnOneLine(A, B, C) && OnOneLine(B, C, D))
+	, E(-A + 3.f * B - 3.f * C + D)
+	, F(A - 2.f * B + C)
+	, G(-A + B)
+	, H(A)
+	, bSharpStart(false)
+	, bSharpMiddle(false)
+	, bSharpEnd(false)
 {
 	if (!bLine)
 	{
@@ -292,7 +293,8 @@ TSharedPtr<FPolygon2f> FGlyphLoader::CreateContour(const FT_Outline Outline, con
 	return Contour.IsValid() ? RemoveBadPoints(Contour) : Contour;
 }
 
-bool FGlyphLoader::IsInside(const TSharedPtr<const FPolygon2f> ContourA, const TSharedPtr<const FPolygon2f> ContourB) const
+bool FGlyphLoader::IsInside(const TSharedPtr<const FPolygon2f> ContourA,
+							const TSharedPtr<const FPolygon2f> ContourB) const
 {
 	return ContourB->Contains(ContourA->GetSegmentPoint(0, 0));
 }
@@ -358,10 +360,10 @@ void FGlyphLoader::FixParityAndDivide(const TSharedContourNode Node, const bool 
 
 		// Fix parity
 		if (Child->bClockwise != bClockwiseIn)
-			{
+		{
 			ChildContour->Reverse();
 			Child->bClockwise = bClockwiseIn;
-			}
+		}
 
 		MakeArrangement(ChildContour);
 		Junctions.Reset();
@@ -554,7 +556,8 @@ TSharedPtr<FPolygon2f> FGlyphLoader::ProcessFreetypeOutline(const FT_Outline Out
 
 	Contour = MakeShared<FPolygon2f>();
 
-	for (const TDoubleLinkedList<FVector2f>::TDoubleLinkedListNode* Point = ProcessedContour.GetTail(); Point; Point = Point->GetPrevNode())
+	for (const TDoubleLinkedList<FVector2f>::TDoubleLinkedListNode* Point = ProcessedContour.GetTail(); Point; Point =
+		 Point->GetPrevNode())
 	{
 		Contour->AppendVertex(Point->GetValue());
 	}
@@ -564,19 +567,19 @@ TSharedPtr<FPolygon2f> FGlyphLoader::ProcessFreetypeOutline(const FT_Outline Out
 
 bool FGlyphLoader::IsBadNormal(const TSharedPtr<FPolygon2f> Contour, const int32 Point) const
 {
-		FVector2f ToPrev;
-		FVector2f ToNext;
+	FVector2f ToPrev;
+	FVector2f ToNext;
 
-		Contour->NeighbourVectors(Point, ToPrev, ToNext, true);
-		return FMath::IsNearlyZero(1.0f - FVector2D::DotProduct(FVector2D(ToPrev), FVector2D(ToNext)));
+	Contour->NeighbourVectors(Point, ToPrev, ToNext, true);
+	return FMath::IsNearlyZero(1.0f - FVector2D::DotProduct(FVector2D(ToPrev), FVector2D(ToNext)));
 }
 
 bool FGlyphLoader::MergedWithNext(const TSharedPtr<FPolygon2f> Contour, const int32 Point) const
 {
-		const int32 Current = Point;
-		const int32 Next = (Point + 1) % Contour->VertexCount();
+	const int32 Current = Point;
+	const int32 Next = (Point + 1) % Contour->VertexCount();
 
-		return FVector2D((*Contour)[Next] - (*Contour)[Current]).IsNearlyZero();
+	return FVector2D((*Contour)[Next] - (*Contour)[Current]).IsNearlyZero();
 }
 
 TSharedPtr<FPolygon2f> FGlyphLoader::RemoveBadPoints(const TSharedPtr<FPolygon2f> Contour) const
@@ -662,7 +665,7 @@ bool FGlyphLoader::FindRegular()
 	for (int32 VID = 0; VID < Graph.MaxVertexID(); VID++)
 	{
 		if (Graph.IsRegularVertex(VID))
-	{
+		{
 			VertexID = VID;
 			return true;
 		}
@@ -694,7 +697,8 @@ void FGlyphLoader::DetachBadContour()
 	RemoveDetachedContourFromPath(JunctionIndexInContour);
 }
 
-void FGlyphLoader::DetachFinishedContour(const int32 RepeatedJunctionIndex, const TArray<FVector2f>& InitialVertices, const TSharedContourNode RootForDetaching)
+void FGlyphLoader::DetachFinishedContour(const int32 RepeatedJunctionIndex, const TArray<FVector2f>& InitialVertices,
+										 const TSharedContourNode RootForDetaching)
 {
 	const int32 JunctionIndexInContour = FindStartOfDetachedContour(RepeatedJunctionIndex);
 
@@ -708,7 +712,9 @@ void FGlyphLoader::DetachFinishedContour(const int32 RepeatedJunctionIndex, cons
 
 	RemoveDetachedContourFromPath(JunctionIndexInContour);
 
-	const TSharedContourNode FinishedContourNode = MakeShared<FContourNode>(FinishedContour, false, FinishedContour->IsClockwise());
+	const TSharedContourNode FinishedContourNode = MakeShared<FContourNode>(FinishedContour,
+																			false,
+																			FinishedContour->IsClockwise());
 	Insert(FinishedContourNode, RootForDetaching);
 }
 
@@ -759,7 +765,7 @@ void FGlyphLoader::RemoveUnneededNodes(const TSharedContourNode Node) const
 {
 	TArray<TSharedContourNode>& Children = Node->Children;
 
-	for (int32 ChildIndex = 0; ChildIndex < Children.Num(); )
+	for (int32 ChildIndex = 0; ChildIndex < Children.Num();)
 	{
 		const TSharedContourNode Child = Children[ChildIndex];
 
@@ -775,17 +781,19 @@ void FGlyphLoader::RemoveUnneededNodes(const TSharedContourNode Node) const
 	}
 }
 
-void FGlyphLoader::MergeRootForDetaching(const TSharedContourNode RemovedNode, const TSharedContourNode RootForDetaching, const TSharedContourNode RemovedNodeParent) const
+void FGlyphLoader::MergeRootForDetaching(const TSharedContourNode RemovedNode,
+										 const TSharedContourNode RootForDetaching,
+										 const TSharedContourNode RemovedNodeParent) const
 {
 	for (const TSharedContourNode& Child : RemovedNode->Children)
-		{
+	{
 		Insert(Child, RootForDetaching);
-		}
+	}
 
 	for (const TSharedContourNode& Child : RootForDetaching->Children)
-		{
+	{
 		RemovedNodeParent->Children.Add(Child);
-		}
+	}
 }
 
 bool FGlyphLoader::IsOutgoing(const int32 Junction, const int32 EID) const
@@ -809,7 +817,7 @@ int32 FGlyphLoader::FindOutgoing(const int32 Junction) const
 
 		// Needed direction is the one that is outgoing and it's clockwise neighbour is not
 		if (!IsOutgoing(Junction, Current) && IsOutgoing(Junction, Next))
-	{
+		{
 			return Next;
 		}
 	}
@@ -823,7 +831,7 @@ int32 FGlyphLoader::edge_other_v(const int32 EID, const int32 VID) const
 	return (Edge.A == VID) ? Edge.B : ((Edge.B == VID) ? Edge.A : FDynamicGraph::InvalidID);
 }
 
-void FGlyphLoader::SortedVtxEdges(const int32 VID, TArray<int32> &Sorted) const
+void FGlyphLoader::SortedVtxEdges(const int32 VID, TArray<int32>& Sorted) const
 {
 	FDynamicGraph2d& Graph = Arrangement->Graph;
 	Sorted.Reserve(Graph.GetVtxEdgeCount(VID));
@@ -834,9 +842,11 @@ void FGlyphLoader::SortedVtxEdges(const int32 VID, TArray<int32> &Sorted) const
 	}
 
 	const FVector2d V = Graph.GetVertex(VID);
-	Algo::SortBy(Sorted, [&](int32 EID) {
-		const int32 NbrVID = edge_other_v(EID, VID);
-		const FVector2d D = Graph.GetVertex(NbrVID) - V;
-		return TMathUtil<double>::Atan2Positive(D.Y, D.X);
-	});
+	Algo::SortBy(Sorted,
+				 [&](int32 EID)
+				 {
+					 const int32 NbrVID = edge_other_v(EID, VID);
+					 const FVector2d D = Graph.GetVertex(NbrVID) - V;
+					 return TMathUtil<double>::Atan2Positive(D.Y, D.X);
+				 });
 }

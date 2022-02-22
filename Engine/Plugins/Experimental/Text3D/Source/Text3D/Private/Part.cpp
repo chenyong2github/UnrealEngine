@@ -84,6 +84,8 @@ bool FPart::ComputeNormal()
 		Normal *= -Scale * FPlatformMath::Sign(FVector2D::CrossProduct(A, C)) / FPlatformMath::Sqrt(NormalLength2);
 	}
 
+	Normal.Normalize();
+
 	return true;
 }
 

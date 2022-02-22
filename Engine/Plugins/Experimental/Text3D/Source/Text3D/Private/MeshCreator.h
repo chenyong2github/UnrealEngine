@@ -64,13 +64,13 @@ private:
 	/**
 	 * Recursively compute vertex count in tree.
 	 * @param Node - Tree node.
-	 * @param VertexCount - Pointer to counter.
+	 * @param OutVertexCount - Pointer to counter.
 	 */
 	void AddToVertexCount(const TSharedContourNode& Node, int32& OutVertexCount);
 	/**
 	 * Triangulate solid region with holes and convert contours to old format.
 	 * @param Node - Tree node.
-	 * @param VertexIndex - Pointer to last used vertex index.
+	 * @param OutVertexIndex - Pointer to last used vertex index.
 	 * @param bOutline - Front face has outline and is not filled.
 	 */
 	void TriangulateAndConvert(const TSharedContourNode& Node, int32& OutVertexIndex, const bool bOutline);

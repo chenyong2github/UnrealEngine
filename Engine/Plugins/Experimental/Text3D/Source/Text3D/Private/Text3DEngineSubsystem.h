@@ -117,7 +117,6 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-
 	void Reset();
 	void Cleanup();
 	FCachedFontData& GetCachedFontData(class UFont* Font);
