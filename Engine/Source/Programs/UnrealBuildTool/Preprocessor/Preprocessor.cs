@@ -65,6 +65,11 @@ namespace UnrealBuildTool
 		List<DirectoryItem> IncludeDirectories = new List<DirectoryItem>();
 
 		/// <summary>
+        /// Framework paths to look in
+        /// </summary>
+		List<DirectoryItem> FrameworkDirectories = new List<DirectoryItem>();
+
+		/// <summary>
 		/// Set of all included files with the #pragma once directive
 		/// </summary>
 		HashSet<FileItem> PragmaOnceFiles = new HashSet<FileItem>();
@@ -210,6 +215,41 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Adds a framework path to the preprocessor
+		/// </summary>
+		/// <param name="Directory">The framework path</param>
+		public void AddFrameworkPath(DirectoryItem Directory)
+		{
+			if (!FrameworkDirectories.Contains(Directory))
+			{
+				FrameworkDirectories.Add(Directory);
+			}
+		}
+
+		/// <summary>
+		/// Adds a framework path to the preprocessor
+		/// </summary>
+		/// <param name="Location">The framework path</param>
+		public void AddFrameworkPath(DirectoryReference Location)
+		{
+			DirectoryItem Directory = DirectoryItem.GetItemByDirectoryReference(Location);
+			if (!Directory.Exists)
+			{
+				throw new FileNotFoundException("Unable to find " + Location.FullName);
+			}
+			AddFrameworkPath(Directory);
+		}
+
+		/// <summary>
+		/// Adds a framework path to the preprocessor
+		/// </summary>
+		/// <param name="DirectoryName">The framework path</param>
+		public void AddFrameworkPath(string DirectoryName)
+		{
+			AddFrameworkPath(new DirectoryReference(DirectoryName));
+		}
+
+		/// <summary>
 		/// Try to resolve an quoted include against the list of include directories. Uses search order described by https://msdn.microsoft.com/en-us/library/36k2cdd4.aspx.
 		/// </summary>
 		/// <param name="Context">The current preprocessor context</param>
@@ -279,6 +319,21 @@ namespace UnrealBuildTool
 				{
 					File = ResolvedFile;
 					return true;
+				}
+			}
+
+			// Try to match the include path against any of the MacOS framework Header paths
+			if (Fragments.Length > 1)
+			{
+				foreach (DirectoryItem BaseDirectory in FrameworkDirectories)
+				{
+					if (BaseDirectory.TryGetDirectory($"{Fragments[0]}.framework", out DirectoryItem? FrameworkBaseDirectory) &&
+						FrameworkBaseDirectory.TryGetDirectory("Headers", out DirectoryItem? HeaderDirectory) &&
+						TryResolveRelativeIncludePath(HeaderDirectory, Fragments.Skip(1).ToArray(), out FileItem? ResolvedFile))
+					{
+						File = ResolvedFile;
+						return true;
+					}
 				}
 			}
 

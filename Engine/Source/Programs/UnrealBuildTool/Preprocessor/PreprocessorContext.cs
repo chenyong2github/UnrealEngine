@@ -82,7 +82,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="SourceFile">The source file being parsed</param>
 		/// <param name="Outer">The outer context</param>
-		public PreprocessorFileContext(SourceFile SourceFile, PreprocessorContext Outer)
+		public PreprocessorFileContext(SourceFile SourceFile, PreprocessorContext? Outer)
 			: base(Outer)
 		{
 			this.SourceFile = SourceFile;
