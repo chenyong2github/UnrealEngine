@@ -2,7 +2,7 @@
 
 #include "ComputeFramework/ComputeKernelSource.h"
 
-#include "ShaderParameterMetadataBuilder.h"
+#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 
 template<typename T>
 void ParametrizedAddParm(FShaderParametersMetadataBuilder& OutBuilder, const TCHAR* InName)

@@ -4,11 +4,11 @@
 
 #include "Components/SceneComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
+#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "CoreGlobals.h"
 #include "Engine/World.h"
 #include "SceneInterface.h"
-#include "ShaderParameterMetadataBuilder.h"
 
 FString USceneDataInterface::GetDisplayName() const
 {

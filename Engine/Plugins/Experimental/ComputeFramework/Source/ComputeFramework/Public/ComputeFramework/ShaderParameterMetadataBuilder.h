@@ -1,15 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	ShaderParameterMetadata.h: Meta data about shader parameter structures
-=============================================================================*/
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "ShaderParameterMacros.h"
+#include "ShaderParameterMetadata.h"
 
-class RENDERCORE_API FShaderParametersMetadataBuilder
+class COMPUTEFRAMEWORK_API FShaderParametersMetadataBuilder
 {
 public:
 	template<typename T>

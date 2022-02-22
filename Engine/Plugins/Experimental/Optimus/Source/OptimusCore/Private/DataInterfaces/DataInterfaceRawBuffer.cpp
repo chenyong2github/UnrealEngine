@@ -3,13 +3,13 @@
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
 
 #include "Components/SkeletalMeshComponent.h"
+#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "ShaderCore.h"
-#include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 
 const int32 UTransientBufferDataInterface::ReadValueInputIndex = 1;

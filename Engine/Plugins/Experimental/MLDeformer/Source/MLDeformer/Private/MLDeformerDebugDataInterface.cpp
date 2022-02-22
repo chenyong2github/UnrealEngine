@@ -5,6 +5,7 @@
 #include "Animation/AnimSequence.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
+#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "GeometryCache.h"
 #include "GeometryCacheMeshData.h"
@@ -16,7 +17,6 @@
 #include "RenderGraphUtils.h"
 #include "RenderGraphResources.h"
 #include "Rendering/SkeletalMeshModel.h"
-#include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 
 FString UMLDeformerDebugDataInterface::GetDisplayName() const
