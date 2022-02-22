@@ -410,7 +410,7 @@ namespace UnrealBuildTool
 
 		private string EscapeDefinitionForISPC(string Definition)
 		{
-			// See: https://github.com/DeepakRajendrakumaran/ispc/blob/main/src/main.cpp#L260 for ispc's argument parsing code, which does the following (and does not support escaping):
+			// See: https://github.com/ispc/ispc/blob/4ee767560cd752eaf464c124eb7ef1b0fd37f1df/src/main.cpp#L264 for ispc's argument parsing code, which does the following (and does not support escaping):
 			// Argument      Parses as 
 			// "abc""def"    One agrument:  abcdef
 			// "'abc'"       One argument:  'abc'
