@@ -74,8 +74,8 @@ void UMLAdapterSensor_Movement::OnAvatarSet(AActor* Avatar)
 void UMLAdapterSensor_Movement::GetObservations(FMLAdapterMemoryWriter& Ar)
 {
 	FScopeLock Lock(&ObservationCS);
-	FVector Location = bAbsoluteLocation ? CurrentLocation : (CurrentLocation - RefLocation);
-	FVector Velocity = bAbsoluteVelocity ? CurrentVelocity : (CurrentVelocity - RefVelocity);
+	FVector3f Location = bAbsoluteLocation ? CurrentLocation : (CurrentLocation - RefLocation);
+	FVector3f Velocity = bAbsoluteVelocity ? CurrentVelocity : (CurrentVelocity - RefVelocity);
 	
 	FMLAdapter::FSpaceSerializeGuard SerializeGuard(SpaceDef, Ar);	
 	Ar << Location << Velocity;

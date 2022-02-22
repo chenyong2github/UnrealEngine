@@ -87,11 +87,17 @@ void UMLAdapterActuator_Camera::DigestInputData(FMLAdapterMemoryReader& ValueStr
 	FScopeLock Lock(&ActionCS);
 	if (bVectorMode)
 	{
-		ValueStream << HeadingVector;
+		FVector3f HeadingVector3f;
+		ValueStream << HeadingVector3f;
+		HeadingVector = HeadingVector3f;
 	}
 	else
 	{
-		ValueStream << HeadingRotator.Pitch << HeadingRotator.Yaw;
+		float Pitch;
+		float Yaw;
+		ValueStream << Pitch << Yaw;
+		HeadingRotator.Pitch = Pitch;
+		HeadingRotator.Yaw = Yaw;
 	}
 }
 

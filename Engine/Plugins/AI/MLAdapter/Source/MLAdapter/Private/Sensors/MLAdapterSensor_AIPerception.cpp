@@ -217,11 +217,14 @@ void UMLAdapterSensor_AIPerception::GetObservations(FMLAdapterMemoryWriter& Ar)
 		Ar.Serialize(&TargetData.Distance, sizeof(float));
 		if (bVectorMode)
 		{
-			Ar << TargetData.HeadingVector;
+			FVector3f HeadingVector3f = TargetData.HeadingVector;
+			Ar << HeadingVector3f;
 		}
 		else
 		{
-			Ar << TargetData.HeadingRotator.Pitch << TargetData.HeadingRotator.Yaw;
+			float Pitch = TargetData.HeadingRotator.Pitch;
+			float Yaw = TargetData.HeadingRotator.Yaw;
+			Ar << Pitch << Yaw;
 		}
 	}
 }
