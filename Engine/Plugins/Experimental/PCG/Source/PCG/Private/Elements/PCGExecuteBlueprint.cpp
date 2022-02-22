@@ -185,6 +185,9 @@ void UPCGBlueprintSettings::OnDependencyChanged(UObject* Object, FPropertyChange
 		return;
 	}
 
+	// When a data dependency is changed, this means we have to dirty the cache, otherwise it will not register as a change.
+	DirtyCache();
+
 	BlueprintElementInstance->OnBlueprintChangedDelegate.Broadcast(BlueprintElementInstance);
 }
 #endif

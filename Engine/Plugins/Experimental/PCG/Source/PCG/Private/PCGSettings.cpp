@@ -4,6 +4,10 @@
 #include "PCGNode.h"
 #include "Serialization/ArchiveObjectCrc32.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
 /** In order to reuse the cache when only debug settings change, we must make sure to ignore these from the CRC check */
 #if WITH_EDITORONLY_DATA
 class FPCGSettingsObjectCrc32 : public FArchiveObjectCrc32
@@ -55,6 +59,24 @@ UPCGNode* UPCGSettings::CreateNode() const
 	return NewObject<UPCGNode>();
 }
 
+#if WITH_EDITOR
+void UPCGSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	OnSettingsChangedDelegate.Broadcast(this);
+}
+
+void UPCGSettings::DirtyCache()
+{
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+	UPCGSubsystem* PCGSubsystem = World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
+	if (PCGSubsystem)
+	{
+		PCGSubsystem->CleanFromCache(GetElement().Get());
+	}
+}
+#endif // WITH_EDITOR
+
 FPCGElementPtr UPCGTrivialSettings::CreateElement() const
 {
 	return MakeShared<FPCGTrivialElement>();
@@ -66,13 +88,3 @@ bool FPCGTrivialElement::ExecuteInternal(FPCGContextPtr Context) const
 	Context->OutputData = Context->InputData;
 	return true;
 }
-
-#if WITH_EDITOR
-
-void UPCGSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-	OnSettingsChangedDelegate.Broadcast(this);
-}
-
-#endif // WITH_EDITOR

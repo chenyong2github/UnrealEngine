@@ -79,7 +79,10 @@ protected:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
+
+	/** Method that can be called to dirty the cache data from this settings objects if the operator== does not allow to detect changes */
+	void DirtyCache();
+#endif 
 
 private:
 	mutable FPCGElementPtr CachedElement;

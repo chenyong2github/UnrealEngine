@@ -1383,6 +1383,10 @@ bool UPCGComponent::DirtyTrackedActor(AActor* InActor)
 
 		bAppliedChange = true;
 	}
+	else if (AddTrackedActor(InActor))
+	{
+		bAppliedChange = true;
+	}
 
 	return bAppliedChange;
 }
