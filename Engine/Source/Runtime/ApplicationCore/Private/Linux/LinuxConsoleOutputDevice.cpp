@@ -21,7 +21,8 @@
 FLinuxConsoleOutputDevice::FLinuxConsoleOutputDevice()
 	: bOverrideColorSet(false),
 	  bOutputtingToTerminal(isatty(STDOUT_FILENO)),
-	  bIsWindowShown(true)
+	  bIsWindowShown(true),
+	  bIsStdoutSet(false)
 {
 	FString CommandLine = FCommandLine::Get();
 
@@ -33,6 +34,9 @@ FLinuxConsoleOutputDevice::FLinuxConsoleOutputDevice()
 	{
 		bIsWindowShown = false;
 	}
+
+	// If -stdout is getting set we are doing a printf in LaunchEngineLoop.cpp, so lets avoid double printing here
+	bIsStdoutSet = FParse::Param(*CommandLine, TEXT("stdout"));
 }
 
 FLinuxConsoleOutputDevice::~FLinuxConsoleOutputDevice()
@@ -51,7 +55,7 @@ bool FLinuxConsoleOutputDevice::IsShown()
 
 void FLinuxConsoleOutputDevice::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category)
 {
-	if (!bIsWindowShown)
+	if (!bIsWindowShown || bIsStdoutSet)
 		return;
 
 	static bool bEntry=false;

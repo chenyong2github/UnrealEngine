@@ -22,6 +22,9 @@ private:
 	/** true if window is visible */
 	bool bIsWindowShown;
 
+	/** true if stdout is set via the command line */
+	bool bIsStdoutSet;
+
 public:
 
 	/**
