@@ -82,6 +82,12 @@ namespace UnrealBuildTool.Rules
 					//required for FPostProcessMaterialInputs
 					Path.Combine(EngineDir, "Source/Runtime/Renderer/Private")
 				});
+
+			// Is this the editor?
+			if (Target.bBuildEditor == true)
+			{
+				PublicDependencyModuleNames.Add("UnrealEd");
+			}
 		}
 	}
 }
