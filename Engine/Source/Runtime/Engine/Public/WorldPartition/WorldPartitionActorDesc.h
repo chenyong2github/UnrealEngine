@@ -163,7 +163,7 @@ public:
 protected:
 	FWorldPartitionActorDesc();
 
-	void TransformInstance(const FString& From, const FString& To);
+	void TransformInstance(const FString& From, const FString& To, const FTransform& InstanceTransform);
 
 	virtual void TransferFrom(const FWorldPartitionActorDesc* From)
 	{

@@ -90,6 +90,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 		return;
 	}
 
+	const FTransform WorldToLocal = WorldPartition->GetInstanceTransform().Inverse();
+
 #if !UE_BUILD_SHIPPING
 	bool bUseReplaySources = false;
 	if (AWorldPartitionReplay* Replay = WorldPartition->Replay)
@@ -104,8 +106,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 		// We are in the SIE
 		if (GEnableSimulationStreamingSource && UWorldPartition::IsSimulating())
 		{
-			const FVector ViewLocation = GCurrentLevelEditingViewportClient->GetViewLocation();
-			const FRotator ViewRotation = GCurrentLevelEditingViewportClient->GetViewRotation();
+			const FVector ViewLocation = WorldToLocal.TransformPosition(GCurrentLevelEditingViewportClient->GetViewLocation());
+			const FRotator ViewRotation = WorldToLocal.TransformRotation(GCurrentLevelEditingViewportClient->GetViewRotation().Quaternion()).Rotator();
 			static const FName NAME_SIE(TEXT("SIE"));
 			StreamingSources.Add(FWorldPartitionStreamingSource(NAME_SIE, ViewLocation, ViewRotation, EStreamingSourceTargetState::Activated, /*bBlockOnSlowLoading=*/false, EStreamingSourcePriority::Default));
 		}
@@ -126,7 +128,9 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 						FRotator ViewRotation;
 						Player->PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
 
-				
+						// Transform to Local
+						ViewLocation = WorldToLocal.TransformPosition(ViewLocation);
+						ViewRotation = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
 						const EStreamingSourceTargetState TargetState = Player->PlayerController->StreamingSourceShouldActivate() ? EStreamingSourceTargetState::Activated : EStreamingSourceTargetState::Loaded;
 						const bool bBlockOnSlowLoading = Player->PlayerController->StreamingSourceShouldBlockOnSlowStreaming();
 						StreamingSources.Add(FWorldPartitionStreamingSource(Player->PlayerController->GetFName(), ViewLocation, ViewRotation, TargetState, bBlockOnSlowLoading, EStreamingSourcePriority::Default));
@@ -142,6 +146,9 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 			StreamingSource.Priority = EStreamingSourcePriority::Low;
 			if (StreamingSourceProvider->GetStreamingSource(StreamingSource))
 			{
+				// Transform to Local
+				StreamingSource.Location = WorldToLocal.TransformPosition(StreamingSource.Location);
+				StreamingSource.Rotation = WorldToLocal.TransformRotation(StreamingSource.Rotation.Quaternion()).Rotator();
 				StreamingSources.Add(StreamingSource);
 			}
 		}
@@ -176,10 +183,11 @@ UE_SUPPRESS(LogWorldPartition, Verbosity, \
 	if (ToActivateCells.Num() > 0 || ToLoadCells.Num() > 0 || ToUnloadCells.Num() > 0) \
 	{ \
 		UE_LOG(LogWorldPartition, Verbosity, TEXT("UWorldPartitionStreamingPolicy: CellsToActivate(%d), CellsToLoad(%d), CellsToUnload(%d)"), ToActivateCells.Num(), ToLoadCells.Num(), ToUnloadCells.Num()); \
+		FTransform LocalToWorld = WorldPartition->GetInstanceTransform(); \
 		for (int i = 0; i < StreamingSources.Num(); ++i) \
 		{ \
-			FVector ViewLocation = StreamingSources[i].Location; \
-			FRotator ViewRotation = StreamingSources[i].Rotation; \
+			FVector ViewLocation = LocalToWorld.TransformPosition(StreamingSources[i].Location); \
+			FRotator ViewRotation = LocalToWorld.TransformRotation(StreamingSources[i].Rotation.Quaternion()).Rotator(); \
 			UE_LOG(LogWorldPartition, Verbosity, TEXT("UWorldPartitionStreamingPolicy: Sources[%d] = %s,%s"), i, *ViewLocation.ToString(), *ViewRotation.ToString()); \
 		} \
 	} \

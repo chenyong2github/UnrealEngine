@@ -153,11 +153,21 @@ void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
 	OutData.Append(PayloadData);
 }
 
-void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FString& To)
+void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FString& To, const FTransform& InstanceTransform)
 {
 	check(!HardRefCount);
 
 	ActorPath = *ActorPath.ToString().Replace(*From, *To);
+
+	// Transform BoundsLocation and BoundsExtent if necessary
+	if (!InstanceTransform.Equals(FTransform::Identity))
+	{
+		//@todo_ow: This will result in a new BoundsExtent that is larger than it should. To fix this, we would need the Object Oriented BoundingBox of the actor (the BV of the actor without rotation)
+		const FVector BoundsMin = BoundsLocation - BoundsExtent;
+		const FVector BoundsMax = BoundsLocation + BoundsExtent;
+		const FBox NewBounds = FBox(BoundsMin, BoundsMax).TransformBy(InstanceTransform);
+		NewBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
+	}
 }
 
 FString FWorldPartitionActorDesc::ToString() const
