@@ -108,7 +108,7 @@ UControlRigGraphNode* UControlRigPrototypeNodeSpawner::SpawnNode(UEdGraph* Paren
 	if (RigBlueprint != nullptr && RigGraph != nullptr)
 	{
 		bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
-		bool const bUndo = !bIsTemplateNode;
+		bool const bIsUserFacingNode = !bIsTemplateNode;
 
 		const FRigVMPrototype* Prototype = FRigVMRegistry::Get().FindPrototype(InNotation);
 		if (Prototype == nullptr)
@@ -124,11 +124,11 @@ UControlRigGraphNode* UControlRigPrototypeNodeSpawner::SpawnNode(UEdGraph* Paren
 			Controller->OpenUndoBracket(FString::Printf(TEXT("Add '%s' Node"), *Name.ToString()));
 		}
 
-		if (URigVMPrototypeNode* ModelNode = Controller->AddPrototypeNode(InNotation, Location, Name.ToString(), bUndo, !bIsTemplateNode))
+		if (URigVMPrototypeNode* ModelNode = Controller->AddPrototypeNode(InNotation, Location, Name.ToString(), bIsUserFacingNode, !bIsTemplateNode))
 		{
 			NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
 
-			if (NewNode && bUndo)
+			if (NewNode && bIsUserFacingNode)
 			{
 				Controller->ClearNodeSelection(true);
 				Controller->SelectNode(ModelNode, true, true);
@@ -136,14 +136,19 @@ UControlRigGraphNode* UControlRigPrototypeNodeSpawner::SpawnNode(UEdGraph* Paren
 				UControlRigUnitNodeSpawner::HookupMutableNode(ModelNode, RigBlueprint);
 			}
 
-			if (bUndo)
+			if (bIsUserFacingNode)
 			{
 				Controller->CloseUndoBracket();
+			}
+			else
+			{
+				NewNode->ModelNodePath = Prototype->GetNotation().ToString();
+				Controller->RemoveNode(ModelNode, false);
 			}
 		}
 		else
 		{
-			if (bUndo)
+			if (bIsUserFacingNode)
 			{
 				Controller->CancelUndoBracket();
 			}
