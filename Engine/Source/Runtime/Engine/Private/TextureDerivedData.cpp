@@ -245,7 +245,8 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 
 	if(IsValid(Texture.CompositeTexture) && Texture.CompositeTextureMode != CTM_Disabled)
 	{
-		CompositeTextureStr += TEXT("_");
+		// CompositeTextureMode output changed so force a new DDC key value :
+		CompositeTextureStr += TEXT("_C_");
 		CompositeTextureStr += Texture.CompositeTexture->Source.GetIdString();
 	}
 
