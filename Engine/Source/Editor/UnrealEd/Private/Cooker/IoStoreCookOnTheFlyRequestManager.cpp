@@ -98,6 +98,7 @@ public:
 		}
 
 		Socket->SetReuseAddr();
+		Socket->SetNoDelay();
 
 		if (!Socket->Bind(*ListenAddr))
 		{
