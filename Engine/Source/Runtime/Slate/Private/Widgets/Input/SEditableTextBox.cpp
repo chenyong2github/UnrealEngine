@@ -98,6 +98,15 @@ void SEditableTextBox::Construct( const FArguments& InArgs )
 			ErrorReporting->AsWidget()
 		];
 	}
+	else
+	{
+		// this also creates a default widget
+		// if we don't create the widget in Construct() 
+		// it will get created in OnEditableTextChanged()
+		// create it now so that the default size of the textbox
+		// won't grow after user use it once
+		SetError(FText::GetEmpty());
+	}
 }
 
 void SEditableTextBox::SetStyle(const FEditableTextBoxStyle* InStyle)
