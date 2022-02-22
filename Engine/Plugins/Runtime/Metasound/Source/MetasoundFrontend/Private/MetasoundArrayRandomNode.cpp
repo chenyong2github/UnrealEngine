@@ -39,9 +39,7 @@ namespace Metasound
 	{
 		if (InSeed == INDEX_NONE)
 		{
-			static FThreadSafeCounter SeedCounter(FMath::Rand());
-			SeedCounter.Increment();
-			RandomStream.Initialize(SeedCounter.GetValue());
+			RandomStream.Initialize(FPlatformTime::Cycles());
 		}
 		else
 		{
