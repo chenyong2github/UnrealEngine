@@ -18,7 +18,8 @@ namespace UnrealBuildTool.Rules
                     "Documentation",
 					"GraphEditor",
 					"BlueprintGraph",
-					"MessageLog"
+					"MessageLog",
+					"ApplicationCore"
 				}
 			);
 
