@@ -266,6 +266,7 @@ namespace Horde.Storage.UnitTests
 
 
         [TestMethod]
+        [Ignore("Fails intermittently on build machines, this is a test for our legacy replicator so disabling as this code will be removed soon")]
         public async Task ReplicatorDeleteTransactionV1()
         {
             ReplicatorSettings replicatorSettings = new ReplicatorSettings
