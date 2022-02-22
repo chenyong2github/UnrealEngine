@@ -4,7 +4,6 @@
 
 #include "TestRunner.h"
 #include "TestHarness.h"
-#include "Modules/ModuleManager.h"
 #include "HAL/PlatformTLS.h"
 
 #include "CommonEngineInit.inl"
@@ -14,6 +13,19 @@
 #define USE_GLOBAL_ENGINE_SETUP
 #endif
 
+// Test run interceptor
+struct TestRunListener : public Catch::TestEventListenerBase {
+	using TestEventListenerBase::TestEventListenerBase; // inherit constructor
+public:
+	void testCaseStarting(Catch::TestCaseInfo  const& TestInfo) override {
+		if (bDebug)
+		{
+			std::cout << TestInfo.lineInfo.file << ":" << TestInfo.lineInfo.line << " with tags " << TestInfo.tagsAsString() << std::endl;
+		}
+	}
+};
+
+CATCH_REGISTER_LISTENER(TestRunListener);
 
 void GlobalSetup()
 {
@@ -57,18 +69,6 @@ int RunTests(int argc, const char* argv[])
 	// Sleep to allow sync with Gauntlet
 	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 #endif
-
-// Global initialization
-#ifdef USE_GLOBAL_ENGINE_SETUP
-	GlobalSetup();
-#endif
-
-	TArray<FName> ModuleNames;
-	FModuleManager::Get().FindModules(TEXT("*LowLevelTests"), ModuleNames);
-	for (FName ModuleName : ModuleNames)
-	{
-		FModuleManager::Get().LoadModule(ModuleName);
-	}
 
 	//Read command-line from file (if any). Some platforms do this earlier.
 #ifndef PLATFORM_SKIP_ADDITIONAL_ARGS
@@ -115,18 +115,22 @@ int RunTests(int argc, const char* argv[])
 		{
 			bMultithreaded = false;
 		}
+		if (std::strcmp(argv[i], "--debug") == 0)
+		{
+			bDebug = true;
+		}
 	}
+
+// Global initialization
+#ifdef USE_GLOBAL_ENGINE_SETUP
+	GlobalSetup();
+#endif
 
 	int SessionResult = 0;
 	{
 		TGuardValue<bool> CatchRunning(bCatchIsRunning, true);
 		SessionResult = Catch::Session().run(CatchArgc, CatchArgv.Get());
 		CatchArgv.Reset();
-	}
-
-	for (FName ModuleName : ModuleNames)
-	{
-		FModuleManager::Get().UnloadModule(ModuleName);
 	}
 
 // Global cleanup

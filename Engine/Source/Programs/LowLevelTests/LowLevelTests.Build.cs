@@ -42,11 +42,12 @@ public class LowLevelTests : ModuleRules
 			// Disable exception handling so that tests can assert for exceptions
 			bEnableObjCExceptions = false;
 			bEnableExceptions = false;
-
+		
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 				"Core",
 				"Cbor",
+				"CoreUObject",
 				"Projects",
 				"LowLevelTestsRunner"
 				});
@@ -63,6 +64,17 @@ public class LowLevelTests : ModuleRules
 
 		if (this.GetType() != typeof(LowLevelTests))
 		{
+			string SetupFile = Path.Combine("Private", "setup.cpp");
+			string TeardownFile = Path.Combine("Private", "teardown.cpp");
+			if (File.Exists(Path.Combine(ModuleDirectory.ToString(), SetupFile)))
+			{
+				BuildOrderSettings.AddBuildOrderOverride(SetupFile, SourceFileBuildOrder.First);
+			}
+			if (File.Exists(Path.Combine(ModuleDirectory.ToString(), TeardownFile)))
+			{
+				BuildOrderSettings.AddBuildOrderOverride(TeardownFile, SourceFileBuildOrder.Last);
+			}
+
 			UpdateBuildGraphPropertiesFile();
 		}
 	}

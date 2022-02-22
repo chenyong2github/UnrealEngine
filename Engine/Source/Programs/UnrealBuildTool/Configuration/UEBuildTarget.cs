@@ -1108,6 +1108,11 @@ namespace UnrealBuildTool
 		private bool bTestsRequireCoreUObject = false;
 
 		/// <summary>
+		/// Track low level tests runner module for configuration.
+		/// </summary>
+		private ModuleRules? LowLevelTestsRunnerModule;
+
+		/// <summary>
 		/// Used to keep track of all modules by name.
 		/// </summary>
 		private Dictionary<string, UEBuildModule> Modules = new Dictionary<string, UEBuildModule>(StringComparer.InvariantCultureIgnoreCase);
@@ -4333,6 +4338,10 @@ namespace UnrealBuildTool
 				{
 					RulesObject.PrivateIncludePathModuleNames.Add("LowLevelTestsRunner");
 				}
+				else if (RulesObject.Name == "LowLevelTestsRunner")
+				{
+					LowLevelTestsRunnerModule = RulesObject;
+				}
 
 				// If one of these modules is in the dependency graph, we must enable their appropriate global definitions
 				if (RulesObject.Name == "Editor")
@@ -4350,6 +4359,26 @@ namespace UnrealBuildTool
 				if (RulesObject.Name == "CoreUObject")
 				{
 					bTestsRequireCoreUObject = true;
+				}
+
+				if (LowLevelTestsRunnerModule != null)
+				{
+					if (bTestsRequireEditor && !LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("Editor"))
+					{
+						LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("Editor");
+					}
+					if (bTestsRequireEngine && !LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("Engine"))
+					{
+						LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("Engine");
+					}
+					if (bTestsRequireApplicationCore && !LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("ApplicationCore"))
+					{
+						LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("ApplicationCore");
+					}
+					if (bTestsRequireCoreUObject && !LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("CoreUObject"))
+					{
+						LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("CoreUObject");
+					}
 				}
 			}
 		}

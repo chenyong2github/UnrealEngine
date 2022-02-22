@@ -207,6 +207,22 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Alter build order of source files for specific cases where necessary
+		/// An example is test files that must be executed first for module level setup or last for module level teardown
+		/// </summary>
+		public enum SourceFileBuildOrder
+		{
+			/// <summary>
+			/// Moves the order of the module source file at the beginning of compilation
+			/// </summary>
+			First,
+			/// <summary>
+			/// Moves the order of the module source file at the end of compilation
+			/// </summary>
+			Last,
+		}
+
+		/// <summary>
 		/// Information about a file which is required by the target at runtime, and must be moved around with it.
 		/// </summary>
 		[Serializable]
@@ -445,6 +461,51 @@ namespace UnrealBuildTool
 				this.Attributes = Attributes;
 				this.Header = Header;
 			}
+		}
+
+		/// <summary>
+		/// Specifies build order overrides for source files in this module
+		/// A source file can be moved towards the beginning or end of compilation
+		/// Example use case: test setup and test teardown files that need to compile first and last respectively in a module
+		/// </summary>
+		public class SourceFilesBuildOrderSettings
+		{
+			private DirectoryReference ModuleDirectory;
+			private Dictionary<FileItem, SourceFileBuildOrder> BuildOrderOverridesPrivate;
+
+			/// <summary>
+			/// Constructs <see cref="SourceFilesBuildOrderSettings"/> given module directory.
+			/// </summary>
+			/// <param name="InModuleDirectory">Module source directory</param>
+			public SourceFilesBuildOrderSettings(DirectoryReference InModuleDirectory)
+			{
+				ModuleDirectory = InModuleDirectory;
+				BuildOrderOverridesPrivate = new Dictionary<FileItem, SourceFileBuildOrder>();
+			}
+
+			/// <summary>
+			/// Slightly alter the order of build of a module source file by placing it either at the beginning or end of compilation
+			/// </summary>
+			/// <param name="InRelativeSourceFile">Relative path of source file to module's directory</param>
+			/// <param name="InBuildOrderOverride">A <see cref="SourceFileBuildOrder"/> specifying order placement: 
+			/// <see cref="SourceFileBuildOrder.First"/> for beginning of compilation, <see cref="SourceFileBuildOrder.Last"/> for end</param>
+			public void AddBuildOrderOverride(string InRelativeSourceFile, SourceFileBuildOrder InBuildOrderOverride)
+			{
+				FileItem File = FileItem.GetItemByPath(Path.Combine(ModuleDirectory.FullName, InRelativeSourceFile));
+				if (File.Exists)
+				{
+					BuildOrderOverridesPrivate.Add(File, InBuildOrderOverride);
+				}
+				else
+				{
+					Log.TraceWarning("Cannot apply build order override, file doesn't exist: {0}", File.AbsolutePath);
+				}
+			}
+
+			/// <summary>
+			/// Get build order overrides map of module source file to <see cref="SourceFileBuildOrder"/>.
+			/// </summary>
+			public IReadOnlyDictionary<FileItem, SourceFileBuildOrder> Overrides => BuildOrderOverridesPrivate;
 		}
 
 		/// <summary>
@@ -1065,6 +1126,22 @@ namespace UnrealBuildTool
 				return Path.Combine(Directory.FullName, "Tests");
 			}
 		}
+
+		/// <summary>
+		/// Optional compilation order override rules for module's source files.
+		/// </summary>
+		public SourceFilesBuildOrderSettings BuildOrderSettings
+		{
+			get
+			{
+				if (BuildOrderOverridesPrivate == null)
+				{
+					BuildOrderOverridesPrivate = new SourceFilesBuildOrderSettings(Directory);
+				}
+				return BuildOrderOverridesPrivate;
+			}
+		}
+		private SourceFilesBuildOrderSettings BuildOrderOverridesPrivate;
 
 #nullable disable
 		/// <summary>

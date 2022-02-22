@@ -5,3 +5,4 @@
 TCHAR GInternalProjectName[64] = TEXT("LowLevelTests");
 const TCHAR* GForeignEngineDir = nullptr;
 FEngineLoop GEngineLoop;
+bool GIsConsoleExecutable = true;

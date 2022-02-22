@@ -23,6 +23,7 @@
 static bool bCatchIsRunning = false;
 static bool bGAllowLogging = true;
 static bool bMultithreaded = true;
+static bool bDebug = false;
 
 #if __cplusplus
 	extern "C" const char* GetProcessExecutablePath();
