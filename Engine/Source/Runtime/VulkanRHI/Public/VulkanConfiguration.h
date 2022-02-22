@@ -337,6 +337,18 @@
 	#define VULKAN_SUPPORTS_SHADER_VIEWPORT_INDEX_LAYER	0
 #endif
 
+#ifdef VK_KHR_maintenance4
+	#define VULKAN_SUPPORTS_MAINTENANCE4	(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement
+#else
+	#define VULKAN_SUPPORTS_MAINTENANCE4	0
+#endif
+
+#ifdef VK_EXT_descriptor_indexing
+	#define VULKAN_SUPPORTS_DESCRIPTOR_INDEXING	(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement
+#else
+	#define VULKAN_SUPPORTS_DESCRIPTOR_INDEXING	0
+#endif
+
 
 #ifndef VULKAN_OBJECT_TRACKING 
 #define VULKAN_OBJECT_TRACKING 0 //Track objects created and memory used. use r.vulkan.dumpmemory to dump to console

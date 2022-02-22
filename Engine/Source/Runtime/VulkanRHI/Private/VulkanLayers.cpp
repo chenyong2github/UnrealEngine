@@ -770,11 +770,11 @@ void FOptionalVulkanInstanceExtensions::Setup(const TArray<const ANSICHAR*>& Ins
 	check(Packed == 0);
 
 #if VULKAN_SUPPORTS_EXTERNAL_MEMORY
-	HasKHRExternalMemoryCapabilities = HasExtension(InstanceExtensions, VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
+	HasKHRExternalMemoryCapabilities = HasExtension(InstanceExtensions, VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);  // Promoted to 1.1
 #endif
 
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
-	HasKHRGetPhysicalDeviceProperties2 = HasExtension(InstanceExtensions, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+	HasKHRGetPhysicalDeviceProperties2 = HasExtension(InstanceExtensions, VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);  // Promoted to 1.1
 #endif
 }
 
@@ -782,140 +782,137 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 {
 	check(Packed == 0);
 
-#if VULKAN_SUPPORTS_MAINTENANCE_LAYER1
-	HasKHRMaintenance1 = HasExtension(DeviceExtensions, VK_KHR_MAINTENANCE1_EXTENSION_NAME);
-#endif
-#if VULKAN_SUPPORTS_MAINTENANCE_LAYER2
-	HasKHRMaintenance2 = HasExtension(DeviceExtensions, VK_KHR_MAINTENANCE2_EXTENSION_NAME);
-#endif
-	//HasMirrorClampToEdge = HasExtension(VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME);
 
-#if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
-	HasKHRDedicatedAllocation = HasExtension(DeviceExtensions, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME) && HasExtension(DeviceExtensions, VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
-#endif
-
+	// Optional Extensions
 #if VULKAN_SUPPORTS_VALIDATION_CACHE
 	HasEXTValidationCache = HasExtension(DeviceExtensions, VK_EXT_VALIDATION_CACHE_EXTENSION_NAME);
 #endif
-
-	bool bHasAnyCrashExtension = false;
-#if VULKAN_SUPPORTS_AMD_BUFFER_MARKER
-	if (GGPUCrashDebuggingEnabled)
-	{
-		HasAMDBufferMarker = HasExtension(DeviceExtensions, VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
-		bHasAnyCrashExtension = bHasAnyCrashExtension || HasAMDBufferMarker;
-	}
-#endif
-
-#if VULKAN_SUPPORTS_NV_DIAGNOSTICS
-	if (GGPUCrashDebuggingEnabled)
-	{
-		HasNVDiagnosticCheckpoints = HasExtension(DeviceExtensions, VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
-		HasNVDeviceDiagnosticConfig = HasExtension(DeviceExtensions, VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
-		bHasAnyCrashExtension = bHasAnyCrashExtension || (HasNVDeviceDiagnosticConfig && HasNVDiagnosticCheckpoints);
-	}
-#endif
-
-	if (GGPUCrashDebuggingEnabled && !bHasAnyCrashExtension)
-	{
-		UE_LOG(LogVulkanRHI, Warning, TEXT("Tried to enable GPU crash debugging but no extension found! Will use local tracepoints."));
-	}
-
-#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
-	HasYcbcrSampler = HasExtension(DeviceExtensions, VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME) && HasExtension(DeviceExtensions, VK_KHR_BIND_MEMORY_2_EXTENSION_NAME) && HasExtension(DeviceExtensions, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
-#endif
-
 #if VULKAN_SUPPORTS_MEMORY_PRIORITY
-	HasMemoryPriority = HasExtension(DeviceExtensions, VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
-	if (FParse::Param(FCommandLine::Get(), TEXT("disablememorypriority")))
-	{
-		HasMemoryPriority = 0;
-	}
-#else
-	HasMemoryPriority = 0;
+	HasMemoryPriority = HasExtension(DeviceExtensions, VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME) && (!FParse::Param(FCommandLine::Get(), TEXT("disablememorypriority")));
 #endif
-
 #if VULKAN_SUPPORTS_MEMORY_BUDGET
-	HasMemoryBudget = HasExtension(DeviceExtensions, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
-	if (FParse::Param(FCommandLine::Get(), TEXT("disablememorybudget")))
-	{
-		HasMemoryBudget = 0;
-	}
-#else
-	HasMemoryBudget = 0;
+	HasMemoryBudget = HasExtension(DeviceExtensions, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME) && (!FParse::Param(FCommandLine::Get(), TEXT("disablememorybudget")));
 #endif
-
-#if VULKAN_SUPPORTS_TEXTURE_COMPRESSION_ASTC_HDR
-	HasEXTTextureCompressionASTCHDR = HasExtension(DeviceExtensions, VK_EXT_TEXTURE_COMPRESSION_ASTC_HDR_EXTENSION_NAME);
-#else
-	HasEXTTextureCompressionASTCHDR = 0;
-#endif
-
 #if VULKAN_SUPPORTS_ASTC_DECODE_MODE
 	HasEXTASTCDecodeMode = HasExtension(DeviceExtensions, VK_EXT_ASTC_DECODE_MODE_EXTENSION_NAME);
-#else
-	HasEXTASTCDecodeMode = 0;
 #endif
-
-#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
-	HasDriverProperties = HasExtension(DeviceExtensions, VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_RENDERPASS2
-	HasKHRRenderPass2 = HasExtension(DeviceExtensions, VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
-#endif
-
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
 	HasEXTFragmentDensityMap = HasExtension(DeviceExtensions, VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
 #endif
-
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
 	HasEXTFragmentDensityMap2 = HasExtension(DeviceExtensions, VK_EXT_FRAGMENT_DENSITY_MAP_2_EXTENSION_NAME);
 #endif
-
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 	HasKHRFragmentShadingRate = HasExtension(DeviceExtensions, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
 #endif
-
-#if VULKAN_SUPPORTS_MULTIVIEW
-	HasKHRMultiview = HasExtension(DeviceExtensions, VK_KHR_MULTIVIEW_EXTENSION_NAME);
-#endif
-
 #if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
 	HasEXTFullscreenExclusive = HasExtension(DeviceExtensions, VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);
 #endif
-
-	HasKHRImageFormatList = HasExtension(DeviceExtensions, VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
-
-#if VULKAN_SUPPORTS_QCOM_RENDERPASS_TRANSFORM
-	HasQcomRenderPassTransform = HasExtension(DeviceExtensions, VK_QCOM_RENDER_PASS_TRANSFORM_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
-	HasBufferAtomicInt64 = HasExtension(DeviceExtensions, VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME);
-#endif
-
 #if VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS
 	HasImageAtomicInt64 = HasExtension(DeviceExtensions, VK_EXT_SHADER_IMAGE_ATOMIC_INT64_EXTENSION_NAME);
 #endif
 
-#if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
-	HasScalarBlockLayoutFeatures = HasExtension(DeviceExtensions, VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME);
+
+	// Vendor
+	{
+		bool bHasAnyCrashExtension = false;
+
+#if VULKAN_SUPPORTS_AMD_BUFFER_MARKER
+		if (GGPUCrashDebuggingEnabled)
+		{
+			HasAMDBufferMarker = HasExtension(DeviceExtensions, VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
+			bHasAnyCrashExtension = bHasAnyCrashExtension || HasAMDBufferMarker;
+		}
 #endif
 
+#if VULKAN_SUPPORTS_NV_DIAGNOSTICS
+		if (GGPUCrashDebuggingEnabled)
+		{
+			HasNVDiagnosticCheckpoints = HasExtension(DeviceExtensions, VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME);
+			HasNVDeviceDiagnosticConfig = HasExtension(DeviceExtensions, VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME);
+			bHasAnyCrashExtension = bHasAnyCrashExtension || (HasNVDeviceDiagnosticConfig && HasNVDiagnosticCheckpoints);
+		}
+#endif
+
+		if (GGPUCrashDebuggingEnabled && !bHasAnyCrashExtension)
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Tried to enable GPU crash debugging but no extension found! Will use local tracepoints."));
+		}
+
+#if VULKAN_SUPPORTS_QCOM_RENDERPASS_TRANSFORM
+		HasQcomRenderPassTransform = HasExtension(DeviceExtensions, VK_QCOM_RENDER_PASS_TRANSFORM_EXTENSION_NAME);
+#endif
+	}
+
+
+	// Promoted to 1.1
+	{
+#if VULKAN_SUPPORTS_MAINTENANCE_LAYER1
+		HasKHRMaintenance1 = HasExtension(DeviceExtensions, VK_KHR_MAINTENANCE1_EXTENSION_NAME);
+#endif
+#if VULKAN_SUPPORTS_MAINTENANCE_LAYER2
+		HasKHRMaintenance2 = HasExtension(DeviceExtensions, VK_KHR_MAINTENANCE2_EXTENSION_NAME);
+#endif
+#if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
+		HasKHRDedicatedAllocation = HasExtension(DeviceExtensions, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME) && HasExtension(DeviceExtensions, VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
+#endif
+#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
+		HasYcbcrSampler = HasExtension(DeviceExtensions, VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME) && HasExtension(DeviceExtensions, VK_KHR_BIND_MEMORY_2_EXTENSION_NAME) && HasExtension(DeviceExtensions, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+#endif
+#if VULKAN_SUPPORTS_MULTIVIEW
+		HasKHRMultiview = HasExtension(DeviceExtensions, VK_KHR_MULTIVIEW_EXTENSION_NAME);
+#endif
+	}
+
+
+	// Promoted to 1.2
+	{
+#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
+		HasDriverProperties = HasExtension(DeviceExtensions, VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME);
+#endif
+#if VULKAN_SUPPORTS_RENDERPASS2
+		HasKHRRenderPass2 = HasExtension(DeviceExtensions, VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+#endif
+
+		HasKHRImageFormatList = HasExtension(DeviceExtensions, VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
+
+#if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
+		HasKHRShaderAtomicInt64 = HasExtension(DeviceExtensions, VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME);
+#endif
+#if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
+		HasEXTScalarBlockLayout = HasExtension(DeviceExtensions, VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME);
+#endif
+#if VULKAN_SUPPORTS_DESCRIPTOR_INDEXING
+		HasEXTDescriptorIndexing = HasExtension(DeviceExtensions, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+#endif
+#if VULKAN_SUPPORTS_SHADER_VIEWPORT_INDEX_LAYER
+		HasEXTShaderViewportIndexLayer = HasExtension(DeviceExtensions, VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME);
+#endif
+	}
+
+
+	// Promoted to 1.3
+	{
+#if VULKAN_SUPPORTS_TEXTURE_COMPRESSION_ASTC_HDR
+		HasEXTTextureCompressionASTCHDR = HasExtension(DeviceExtensions, VK_EXT_TEXTURE_COMPRESSION_ASTC_HDR_EXTENSION_NAME);
+#endif
+#if VULKAN_SUPPORTS_MAINTENANCE4
+		HasKHRMaintenance4 = HasExtension(DeviceExtensions, VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
+#endif
+	}
+
+
 #if VULKAN_RHI_RAYTRACING
+	// Optional Extensions
 	HasAccelerationStructure	= HasExtension(DeviceExtensions, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
 	HasRayTracingPipeline		= HasExtension(DeviceExtensions, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
 	HasRayQuery		            = HasExtension(DeviceExtensions, VK_KHR_RAY_QUERY_EXTENSION_NAME);
-	HasDescriptorIndexing		= HasExtension(DeviceExtensions, VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
-	HasBufferDeviceAddress		= HasExtension(DeviceExtensions, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
 	HasDeferredHostOperations	= HasExtension(DeviceExtensions, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+
+	// Promoted to 1.2
+	HasBufferDeviceAddress		= HasExtension(DeviceExtensions, VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
 	HasSPIRV_14					= HasExtension(DeviceExtensions, VK_KHR_SPIRV_1_4_EXTENSION_NAME);
 	HasShaderFloatControls		= HasExtension(DeviceExtensions, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
-#endif
-
-#if VULKAN_SUPPORTS_SHADER_VIEWPORT_INDEX_LAYER
-	HasEXTShaderViewportIndexLayer = HasExtension(DeviceExtensions, VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME);
 #endif
 }
 

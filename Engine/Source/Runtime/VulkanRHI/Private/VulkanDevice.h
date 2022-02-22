@@ -37,39 +37,49 @@ struct FOptionalVulkanDeviceExtensions
 	{
 		struct
 		{
-			uint64 HasKHRMaintenance1 : 1;
-			uint64 HasKHRMaintenance2 : 1;
-			uint64 HasKHRDedicatedAllocation : 1;
+			// Optional Extensions
 			uint64 HasEXTValidationCache : 1;
-			uint64 HasAMDBufferMarker : 1;
-			uint64 HasNVDiagnosticCheckpoints : 1;
-			uint64 HasNVDeviceDiagnosticConfig : 1;
-			uint64 HasYcbcrSampler : 1;
 			uint64 HasMemoryPriority : 1;
 			uint64 HasMemoryBudget : 1;
-			uint64 HasDriverProperties : 1;
+			uint64 HasEXTASTCDecodeMode : 1;
 			uint64 HasEXTFragmentDensityMap : 1;
 			uint64 HasEXTFragmentDensityMap2 : 1;
 			uint64 HasKHRFragmentShadingRate : 1;
-			uint64 HasKHRRenderPass2 : 1;
 			uint64 HasEXTFullscreenExclusive : 1;
-			uint64 HasKHRImageFormatList : 1;
-			uint64 HasEXTTextureCompressionASTCHDR : 1;
-			uint64 HasEXTASTCDecodeMode : 1;
-			uint64 HasQcomRenderPassTransform : 1;
 			uint64 HasImageAtomicInt64 : 1;
-			uint64 HasBufferAtomicInt64 : 1;
-			uint64 HasScalarBlockLayoutFeatures : 1;
-			uint64 HasKHRMultiview : 1;
 			uint64 HasAccelerationStructure : 1;
 			uint64 HasRayTracingPipeline : 1;
 			uint64 HasRayQuery : 1;
-			uint64 HasDescriptorIndexing : 1;
-			uint64 HasBufferDeviceAddress : 1;
 			uint64 HasDeferredHostOperations : 1;
+
+			// Vendor specific
+			uint64 HasAMDBufferMarker : 1;
+			uint64 HasNVDiagnosticCheckpoints : 1;
+			uint64 HasNVDeviceDiagnosticConfig : 1;
+			uint64 HasQcomRenderPassTransform : 1;
+
+			// Promoted to 1.1
+			uint64 HasKHRMaintenance1 : 1;
+			uint64 HasKHRMaintenance2 : 1;
+			uint64 HasKHRDedicatedAllocation : 1;
+			uint64 HasYcbcrSampler : 1;  // Combination of VK_KHR_sampler_ycbcr_conversion + VK_KHR_bind_memory2 + VK_KHR_get_memory_requirements2
+			uint64 HasKHRMultiview : 1;
+
+			// Promoted to 1.2
+			uint64 HasDriverProperties : 1;
+			uint64 HasKHRRenderPass2 : 1;
+			uint64 HasKHRImageFormatList : 1;
+			uint64 HasKHRShaderAtomicInt64 : 1;
+			uint64 HasEXTScalarBlockLayout : 1;
+			uint64 HasBufferDeviceAddress : 1;
 			uint64 HasSPIRV_14 : 1;
 			uint64 HasShaderFloatControls : 1;
+			uint64 HasEXTDescriptorIndexing : 1;
 			uint64 HasEXTShaderViewportIndexLayer : 1;
+
+			// Promoted to 1.3
+			uint64 HasEXTTextureCompressionASTCHDR : 1;
+			uint64 HasKHRMaintenance4 : 1;
 		};
 		uint64 Packed;
 	};
@@ -93,7 +103,7 @@ struct FOptionalVulkanDeviceExtensions
 		return 
 			HasAccelerationStructure && 
 			(HasRayTracingPipeline || HasRayQuery) &&
-			HasDescriptorIndexing && 
+			HasEXTDescriptorIndexing &&
 			HasBufferDeviceAddress && 
 			HasDeferredHostOperations && 
 			HasSPIRV_14 && 

@@ -381,7 +381,7 @@ void FVulkanDevice::CreateDevice()
 #endif
 
 #if VULKAN_SUPPORTS_SCALAR_BLOCK_LAYOUT
-	if (OptionalDeviceExtensions.HasScalarBlockLayoutFeatures)
+	if (OptionalDeviceExtensions.HasEXTScalarBlockLayout)
 	{
 		ZeroVulkanStruct(OptionalFeatures.ScalarBlockLayoutFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT);
 		OptionalFeatures.ScalarBlockLayoutFeatures.scalarBlockLayout = VK_TRUE;
@@ -407,7 +407,7 @@ void FVulkanDevice::CreateDevice()
 	// Ensure we have both to enable atomic code paths
 	VkPhysicalDeviceShaderAtomicInt64Features BufferAtomicFeatures;
 	VkPhysicalDeviceShaderImageAtomicInt64FeaturesEXT ImageAtomicFeatures;
-	if (bEnable64bitAtomics && OptionalDeviceExtensions.HasBufferAtomicInt64 && OptionalDeviceExtensions.HasImageAtomicInt64)
+	if (bEnable64bitAtomics && OptionalDeviceExtensions.HasKHRShaderAtomicInt64 && OptionalDeviceExtensions.HasImageAtomicInt64)
 	{
 		ZeroVulkanStruct(BufferAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
 		BufferAtomicFeatures.shaderBufferInt64Atomics = VK_TRUE;
@@ -1206,7 +1206,7 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 #if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
 		VkPhysicalDeviceShaderAtomicInt64FeaturesKHR BufferAtomicFeatures;
 		ZeroVulkanStruct(BufferAtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
-		if (OptionalDeviceExtensions.HasBufferAtomicInt64)  // Set by QueryGPU if extension is supported
+		if (OptionalDeviceExtensions.HasKHRShaderAtomicInt64)  // Set by QueryGPU if extension is supported
 		{
 			*NextPropsAddr = &BufferAtomicFeatures;
 			NextPropsAddr = &BufferAtomicFeatures.pNext;
@@ -1272,19 +1272,45 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 		}
 #endif
 
+#if VULKAN_SUPPORTS_MAINTENANCE4
+		VkPhysicalDeviceMaintenance4FeaturesKHR Maintenance4Features;
+		ZeroVulkanStruct(Maintenance4Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES);
+		if (OptionalDeviceExtensions.HasKHRMaintenance4)  // Set by QueryGPU if extension is supported
+		{
+			*NextPropsAddr = &Maintenance4Features;
+			NextPropsAddr = &Maintenance4Features.pNext;
+		}
+#endif
+
+#if VULKAN_SUPPORTS_DESCRIPTOR_INDEXING
+		VkPhysicalDeviceDescriptorIndexingFeaturesEXT DescriptorIndexingFeatures;
+		ZeroVulkanStruct(DescriptorIndexingFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES);
+		if (OptionalDeviceExtensions.HasEXTDescriptorIndexing)  // Set by QueryGPU if extension is supported
+		{
+			*NextPropsAddr = &DescriptorIndexingFeatures;
+			NextPropsAddr = &DescriptorIndexingFeatures.pNext;
+		}
+#endif
+
 		VulkanRHI::vkGetPhysicalDeviceFeatures2KHR(Gpu, &Features2);
 
 		// If we have the extension but the feature is not supported, clear the bits.
 #if VULKAN_SUPPORTS_BUFFER_64BIT_ATOMICS
-		OptionalDeviceExtensions.HasBufferAtomicInt64 = (BufferAtomicFeatures.shaderBufferInt64Atomics == VK_TRUE);
+		OptionalDeviceExtensions.HasKHRShaderAtomicInt64 = (BufferAtomicFeatures.shaderBufferInt64Atomics == VK_TRUE);
 #endif
 #if VULKAN_SUPPORTS_IMAGE_64BIT_ATOMICS
 		OptionalDeviceExtensions.HasImageAtomicInt64 = (ImageAtomicFeatures.shaderImageInt64Atomics == VK_TRUE);
 #endif
+#if VULKAN_SUPPORTS_MAINTENANCE4
+		OptionalDeviceExtensions.HasKHRMaintenance4 = (Maintenance4Features.maintenance4 == VK_TRUE);
+#endif
+#if VULKAN_SUPPORTS_DESCRIPTOR_INDEXING
+		OptionalDeviceExtensions.HasEXTDescriptorIndexing = (DescriptorIndexingFeatures.runtimeDescriptorArray == VK_TRUE); // :todo-jn: add resource specific checks
+#endif
 	}
 #endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
-	UE_LOG(LogVulkanRHI, Display, TEXT("Using Device %d: Geometry %d BufferAtomic64 %d ImageAtomic64 %d"), DeviceIndex, PhysicalFeatures.geometryShader, OptionalDeviceExtensions.HasBufferAtomicInt64, OptionalDeviceExtensions.HasImageAtomicInt64);
+	UE_LOG(LogVulkanRHI, Display, TEXT("Using Device %d: Geometry %d BufferAtomic64 %d ImageAtomic64 %d"), DeviceIndex, PhysicalFeatures.geometryShader, OptionalDeviceExtensions.HasKHRShaderAtomicInt64, OptionalDeviceExtensions.HasImageAtomicInt64);
 
 	CreateDevice();
 
