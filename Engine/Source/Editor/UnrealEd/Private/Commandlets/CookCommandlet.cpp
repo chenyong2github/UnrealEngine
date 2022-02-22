@@ -990,14 +990,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 	});
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-	FLowLevelMemTracker& MemTracker = FLowLevelMemTracker::Get();
-	if (MemTracker.IsEnabled())
-	{
-		MemTracker.UpdateStatsPerFrame();
-	}
-	FDateTime LastMemTrackerTime = FDateTime::UtcNow();
-	double MemTrackerPeriodSeconds = 120.0;
-	FParse::Value(FCommandLine::Get(), TEXT("CookLLMPeriod="), MemTrackerPeriodSeconds);
+	FLowLevelMemTracker::Get().UpdateStatsPerFrame();
 #endif
 
 	do
@@ -1006,138 +999,93 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 			COOK_STAT(FScopedDurationTimer StartCookByTheBookTimer(DetailedCookStats::StartCookByTheBookTimeSec));
 			CookOnTheFlyServer->StartCookByTheBook(StartupOptions);
 		}
-
-
-		// Garbage collection should happen when either
-		//	1. We have cooked a map (configurable asset type)
-		//	2. We have cooked non-map packages and...
-		//		a. we have accumulated 50 (configurable) of these since the last GC.
-		//		b. we have been idle for 20 (configurable) seconds.
-		bool bShouldGC = false;
-		FString GCReason;
-
-		// megamoth
-		uint32 NonMapPackageCountSinceLastGC = 0;
-
-		const uint32 PackagesPerGC = CookOnTheFlyServer->GetPackagesPerGC();
-		const double IdleTimeToGC = CookOnTheFlyServer->GetIdleTimeToGC();
-		const uint32 PackagesPerPartialGC = CookOnTheFlyServer->GetPackagesPerPartialGC();
-
-		double LastCookActionTime = FPlatformTime::Seconds();
-
-		FDateTime LastConnectionTime = FDateTime::UtcNow();
-		bool bHadConnection = false;
-
 		while (CookOnTheFlyServer->IsCookByTheBookRunning())
 		{
 			DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "CookByTheBook.MainLoop" ), STAT_CookByTheBook_MainLoop, STATGROUP_LoadTime );
 			{
 				uint32 TickResults = 0;
-				static const float CookOnTheSideTimeSlice = 10.0f;
+				const float CookOnTheSideTimeSlice = 10.0f;
+				uint32 UnusedVariable = 0;
 
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
-				if (MemTracker.IsEnabled())
-				{
-					FDateTime CurrentTime = FDateTime::UtcNow();
-					if (CurrentTime >= LastMemTrackerTime + FTimespan::FromSeconds(MemTrackerPeriodSeconds))
-					{
-						MemTracker.UpdateStatsPerFrame();
-						LastMemTrackerTime = CurrentTime;
-					}
-				}
-#endif
-
-				TickResults = CookOnTheFlyServer->TickCookOnTheSide( CookOnTheSideTimeSlice, NonMapPackageCountSinceLastGC, ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay );
+				TickResults = CookOnTheFlyServer->TickCookOnTheSide( CookOnTheSideTimeSlice, UnusedVariable,
+					ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay );
 
 				{
 					UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_ShaderProcessAsync, DetailedCookStats::TickLoopShaderProcessAsyncResultsTimeSec);
 					GShaderCompilingManager->ProcessAsyncResults(true, false);
 				}
-
-				
-				// Flush the asset registry before GC
 				{
 					UE_SCOPED_COOKTIMER(CookByTheBook_TickAssetRegistry);
 					FAssetRegistryModule::TickAssetRegistry(-1.0f);
 				}
-
-				auto DumpMemStats = []()
+				
+				if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC) != 0)
 				{
-					FGenericMemoryStats MemStats;
-					GMalloc->GetAllocatorStats(MemStats);
-					for (const auto& Item : MemStats.Data)
+					FString GCReason;
+					if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC_PackageCount) != 0)
 					{
-						UE_LOG(LogCookCommandlet, Display, TEXT("Item %s = %d"), *Item.Key, Item.Value);
+						GCReason = TEXT("Exceeded packages per GC");
 					}
-				};
-
-
-				const bool bHasExceededMaxMemory = CookOnTheFlyServer->HasExceededMaxMemory();
-				// We should GC if we have packages to collect and we've been idle for some time.
-				const bool bExceededPackagesPerGC = (PackagesPerGC > 0) && (NonMapPackageCountSinceLastGC > PackagesPerGC);
-				const bool bWaitingOnObjectCache = ((TickResults & UCookOnTheFlyServer::COSR_WaitingOnCache) == 0);
-
-
-				if (!bWaitingOnObjectCache && bExceededPackagesPerGC) // if we are waiting on things to cache then ignore the exceeded packages per gc
-				{
-					bShouldGC = true;
-					GCReason = TEXT("Exceeded packages per GC");
-				}
-				else if (bHasExceededMaxMemory) // if we are exceeding memory then we need to gc (this can cause thrashing if the cooker loads the same stuff into memory next tick
-				{
-					bShouldGC = true;
-					GCReason = TEXT("Exceeded Max Memory");
-
-					int32 JobsToLogAt = GShaderCompilingManager->GetNumRemainingJobs();
-
-					UE_SCOPED_COOKTIMER(CookByTheBook_ShaderJobFlush);
-					UE_LOG(LogCookCommandlet, Display, TEXT("Detected max mem exceeded - forcing shader compilation flush"));
-					while ( true )
+					else if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC_OOM) != 0)
 					{
-						int32 NumRemainingJobs = GShaderCompilingManager->GetNumRemainingJobs();
-						if ( NumRemainingJobs < 1000)
+						// this can cause thrashing if the cooker loads the same stuff into memory next tick
+						GCReason = TEXT("Exceeded Max Memory");
+
+						int32 JobsToLogAt = GShaderCompilingManager->GetNumRemainingJobs();
+
+						UE_SCOPED_COOKTIMER(CookByTheBook_ShaderJobFlush);
+						UE_LOG(LogCookCommandlet, Display, TEXT("Detected max mem exceeded - forcing shader compilation flush"));
+						while (true)
 						{
-							UE_LOG(LogCookCommandlet, Display, TEXT("Finished flushing shader jobs at %d"), NumRemainingJobs);
-							break;
+							int32 NumRemainingJobs = GShaderCompilingManager->GetNumRemainingJobs();
+							if (NumRemainingJobs < 1000)
+							{
+								UE_LOG(LogCookCommandlet, Display, TEXT("Finished flushing shader jobs at %d"), NumRemainingJobs);
+								break;
+							}
+
+							if (NumRemainingJobs < JobsToLogAt)
+							{
+								UE_LOG(LogCookCommandlet, Display, TEXT("Flushing shader jobs, remaining jobs %d"), NumRemainingJobs);
+							}
+
+							GShaderCompilingManager->ProcessAsyncResults(false, false);
+
+							FPlatformProcess::Sleep(0.05);
+
+							// GShaderCompilingManager->FinishAllCompilation();
 						}
-
-						if (NumRemainingJobs < JobsToLogAt )
-						{
-							UE_LOG(LogCookCommandlet, Display, TEXT("Flushing shader jobs, remaining jobs %d"), NumRemainingJobs);
-						}
-
-						GShaderCompilingManager->ProcessAsyncResults(false, false);
-
-						FPlatformProcess::Sleep(0.05);
-
-						// GShaderCompilingManager->FinishAllCompilation();
 					}
-				}
-				else if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC) != 0) // cooker loaded some object which needs to be cleaned up before the cooker can proceed so force gc
-				{
-					GCReason = TEXT("COSR_RequiresGC");
-					bShouldGC = true;
-				}
+					else 
+					{
+						// cooker loaded some object which needs to be cleaned up before the cooker can proceed so force gc
+						GCReason = TEXT("COSR_RequiresGC");
+					}
 
-				bShouldGC |= bTestCook; // testing cooking / gc path
-
-
-				if (bShouldGC )
-				{
+					// Flush the asset registry before GC
+					{
+						UE_SCOPED_COOKTIMER(CookByTheBook_TickAssetRegistry);
+						FAssetRegistryModule::TickAssetRegistry(-1.0f);
+					}
 					UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_GC, DetailedCookStats::TickLoopGCTimeSec);
-					bShouldGC = false;
 
 					int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
 					int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
 					UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), (bPartialGC? TEXT(" partial gc") : TEXT("")), *GCReason);
-					GCReason = FString();
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-					if (MemTracker.IsEnabled())
-					{
-						MemTracker.UpdateStatsPerFrame();
-					}
+					FLowLevelMemTracker::Get().UpdateStatsPerFrame();
 #endif
+					auto DumpMemStats = []()
+					{
+						FGenericMemoryStats MemStats;
+						GMalloc->GetAllocatorStats(MemStats);
+						for (const auto& Item : MemStats.Data)
+						{
+							UE_LOG(LogCookCommandlet, Display, TEXT("Item %s = %d"), *Item.Key, Item.Value);
+						}
+					};
+
 					DumpMemStats();
 
 					CollectGarbage(RF_NoFlags);
@@ -1147,8 +1095,6 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 					UE_LOG(LogCookCommandlet, Display, TEXT("%s GC before %d available %d after %d available %d"), (bPartialGC ? TEXT("Partial") : TEXT("Full")), NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC);
 
 					DumpMemStats();
-
-					NonMapPackageCountSinceLastGC = 0;
 				}
 
 				{
@@ -1172,10 +1118,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 	} while (bTestCook);
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-	if (MemTracker.IsEnabled())
-	{
-		MemTracker.UpdateStatsPerFrame();
-	}
+	FLowLevelMemTracker::Get().UpdateStatsPerFrame();
 #endif
 
 	if (StartupOptions.DLCName.IsEmpty())

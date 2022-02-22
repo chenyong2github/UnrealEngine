@@ -1551,18 +1551,36 @@ UCookOnTheFlyServer::FPollable::FPollable(float InPeriodSeconds, float InPeriodI
 
 void UCookOnTheFlyServer::InitializePollables()
 {
+	using namespace UE::Cook;
+
 	Pollables.Reset();
 
 	if (IsCookByTheBookMode() && !IsCookingInEditor())
 	{
-		if (Pollables.IsEmpty())
-		{
-			Pollables.Add(FPollable(60.f, 5.f, [this] { PollFlushRenderingCommands(); }));
-		}
+		Pollables.Add(FPollable(60.f, 5.f, [this](FTickStackData&) { PollFlushRenderingCommands(); }));
 
-		for (FPollable& Pollable : Pollables)
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+		double MemTrackerPeriodSeconds = 120.0;
+		FParse::Value(FCommandLine::Get(), TEXT("-CookLLMPeriod="), MemTrackerPeriodSeconds);
+		Pollables.Add(FPollable(MemTrackerPeriodSeconds, MemTrackerPeriodSeconds, [] (FTickStackData&) { FLowLevelMemTracker::Get().UpdateStatsPerFrame(); }));
+#endif
+		bool bTestCook = IsCookFlagSet(ECookInitializationFlags::TestCook);
+		if (PackagesPerGC > 0 || bTestCook)
 		{
-			Pollable.NextTimeSeconds = Pollable.NextTimeIdleSeconds = 0.0;
+			// PackagesPerGC is usually used only to debug; max memory counts are commonly used instead
+			// Since it's not commonly used, we make a concession to support it: we check on a timer rather than checking after every saved package.
+			// For large values, check less frequently.
+			uint32 NumPackagesForTimeEstimate = UINT32_MAX;
+			if (bTestCook)
+			{
+				NumPackagesForTimeEstimate = FMath::Min(NumPackagesForTimeEstimate, 50U);
+			}
+			if (PackagesPerGC > 0)
+			{
+				NumPackagesForTimeEstimate = FMath::Min(NumPackagesForTimeEstimate, PackagesPerGC);
+			}
+			float PeriodSeconds = FMath::Min(NumPackagesForTimeEstimate * .01f, 10.f);
+			Pollables.Add(FPollable(PeriodSeconds, PeriodSeconds, [this](FTickStackData& StackData) { PollPackagesPerGC(StackData); }));
 		}
 	}
 
@@ -1603,7 +1621,7 @@ void UCookOnTheFlyServer::PumpPollables(UE::Cook::FTickStackData& StackData, boo
 		double NextTimeSeconds = bIsIdle ? Pollable.NextTimeIdleSeconds : Pollable.NextTimeSeconds;
 		if (NextTimeSeconds <= CurrentTime)
 		{
-			Pollable.PollFunction();
+			Pollable.PollFunction(StackData);
 			double NewCurrentTime = FPlatformTime::Seconds();
 			Pollable.NextTimeSeconds = NewCurrentTime + Pollable.PeriodSeconds;
 			Pollable.NextTimeIdleSeconds = NewCurrentTime + Pollable.PeriodIdleSeconds;
@@ -1620,7 +1638,7 @@ void UCookOnTheFlyServer::PumpPollables(UE::Cook::FTickStackData& StackData, boo
 	// If we early exited, finish calculating PollNextTimeSeconds from the remaining members we didn't reach
 	for (int32 Index = PollStartIndex; Index != PollEndIndex; Index = (Index+1) % NumPollables)
 	{
-		FPollable& Pollable = Pollables[Index++];
+		FPollable& Pollable = Pollables[Index];
 		PollNextTimeSeconds = FMath::Min(Pollable.NextTimeSeconds, PollNextTimeSeconds);
 		PollNextTimeIdleSeconds = FMath::Min(Pollable.NextTimeIdleSeconds, PollNextTimeIdleSeconds);
 	}
@@ -1635,6 +1653,22 @@ void UCookOnTheFlyServer::PollFlushRenderingCommands()
 	// Flush rendering commands to release any RHI resources (shaders and shader maps).
 	// Delete any FPendingCleanupObjects (shader maps).
 	FlushRenderingCommands();
+}
+
+void UCookOnTheFlyServer::PollPackagesPerGC(UE::Cook::FTickStackData& StackData)
+{
+	if (IsCookFlagSet(ECookInitializationFlags::TestCook))
+	{
+		StackData.ResultFlags |= COSR_RequiresGC;
+	}
+	else if (PackagesPerGC > 0 && CookedPackageCountSinceLastGC > PackagesPerGC)
+	{
+		// if we are waiting on things to cache then ignore the PackagesPerGC
+		if (!bSaveBusy)
+		{
+			StackData.ResultFlags |= COSR_RequiresGC | COSR_RequiresGC_PackageCount;
+		}
+	}
 }
 
 UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::Cook::FTickStackData& StackData)
@@ -1964,7 +1998,7 @@ void UCookOnTheFlyServer::PumpLoads(UE::Cook::FTickStackData& StackData, uint32 
 
 		if (HasExceededMaxMemory())
 		{
-			StackData.ResultFlags |= COSR_RequiresGC;
+			StackData.ResultFlags |= COSR_RequiresGC | COSR_RequiresGC_OOM;
 			return;
 		}
 	}
@@ -3070,7 +3104,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 	{
 		if (HasExceededMaxMemory())
 		{
-			StackData.ResultFlags |= COSR_RequiresGC;
+			StackData.ResultFlags |= COSR_RequiresGC | COSR_RequiresGC_OOM;
 		}
 	};
 
@@ -3992,6 +4026,8 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 			GeneratorPackage->PostGarbageCollect();
 		}
 	}
+
+	CookedPackageCountSinceLastGC = 0;
 }
 
 void UCookOnTheFlyServer::BeginDestroy()
@@ -4361,6 +4397,7 @@ void FSaveCookedPackageContext::FinishPlatform()
 		else
 		{
 			++StackData.CookedPackageCount;
+			++COTFS.CookedPackageCountSinceLastGC;
 			StackData.ResultFlags |= UCookOnTheFlyServer::COSR_CookedPackage;
 		}
 	}

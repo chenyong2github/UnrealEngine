@@ -158,7 +158,7 @@ public:
 	};
 
 private:
-	using FPollFunction = TUniqueFunction<void()>;
+	using FPollFunction = TUniqueFunction<void(UE::Cook::FTickStackData&)>;
 	struct FPollable
 	{
 		FPollable(float InPeriodSeconds, float InPeriodIdleSeconds, FPollFunction&& InFunction);
@@ -382,6 +382,7 @@ private:
 	void InitializePollables();
 	void PumpPollables(UE::Cook::FTickStackData& StackData, bool bIsIdle);
 	void PollFlushRenderingCommands();
+	void PollPackagesPerGC(UE::Cook::FTickStackData& StackData);
 
 public:
 
@@ -393,7 +394,9 @@ public:
 		COSR_ErrorLoadingPackage	= 0x00000004,
 		COSR_RequiresGC				= 0x00000008,
 		COSR_WaitingOnCache			= 0x00000010,
-		COSR_MarkedUpKeepPackages	= 0x00000040
+		COSR_MarkedUpKeepPackages	= 0x00000040,
+		COSR_RequiresGC_OOM			= 0x00000080,
+		COSR_RequiresGC_PackageCount= 0x00000100,
 	};
 
 
@@ -1160,7 +1163,7 @@ private:
 	int32 PollStartIndex = 0;
 	float PumpPollablesTimeSlice = 0.f;
 	float PumpPollablesMinPeriod = 0.f;
-
+	uint32 CookedPackageCountSinceLastGC = 0;
 	friend UE::Cook::FPackageData;
 	friend UE::Cook::FPendingCookedPlatformData;
 	friend UE::Cook::FPlatformManager;
