@@ -520,13 +520,17 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 			{
 				FAnimNotifyContext NotifyContext(Instance);
 				float ClampedNormalizedPreviousTime = FMath::Clamp<float>(NormalizedPreviousTime, 0.f, 1.f);
-				const float ClampedNormalizedCurrentTime = FMath::Clamp<float>(NormalizedCurrentTime, 0.f, 1.f);
+				float ClampedNormalizedCurrentTime = FMath::Clamp<float>(NormalizedCurrentTime, 0.f, 1.f);
 
 				if (Instance.BlendSpace.bIsEvaluator && !Instance.BlendSpace.bTeleportToTime)
 				{
 					// When running under an evaluator the time is being set explicitly and we want to add on the deltas.
-					// Note that this could take ClampedNormalizedPreviousTime out of the 0-1 range
 					ClampedNormalizedPreviousTime -= ExtraNormalizedDeltaTime;
+					ClampedNormalizedPreviousTime = ClampedNormalizedPreviousTime < 0.0f ? ClampedNormalizedPreviousTime + 1.0f : ClampedNormalizedPreviousTime;
+
+					// Also when under an evaluator, since the time is explicitly set before the update is called, the desired 
+					// current time is actually what we recorded before advancing time (effectively ignoring whatever was added).
+					ClampedNormalizedCurrentTime = FMath::Clamp<float>(NormalizedPreviousTime, 0.f, 1.f);
 				}
 
 				const bool bGenerateNotifies = (NormalizedCurrentTime != NormalizedPreviousTime) && NotifyTriggerMode != ENotifyTriggerMode::None;

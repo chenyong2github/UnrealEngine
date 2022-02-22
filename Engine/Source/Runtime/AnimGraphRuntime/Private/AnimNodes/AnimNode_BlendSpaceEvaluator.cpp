@@ -36,5 +36,5 @@ void FAnimNode_BlendSpaceEvaluator::GatherDebugData(FNodeDebugData& DebugData)
 
 float FAnimNode_BlendSpaceEvaluator::GetPlayRate() const
 {
-	return 0.0f;
+	return bTeleportToNormalizedTime ? 0.0f : 1.0f;;
 }
