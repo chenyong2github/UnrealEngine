@@ -36,6 +36,15 @@ namespace Chaos
 			FPBDCollisionConstraint& Constraint);
 
 		template <typename ConvexType>
+		void ConstructCapsuleConvexOneShotManifold(
+			const FImplicitCapsule3& Capsule,
+			const FRigidTransform3& CapsuleTransform,
+			const ConvexType& Convex,
+			const FRigidTransform3& ConvexTransform,
+			const FReal CullDistance,
+			TCArray<FContactPoint, 4>& OutContactPoints);
+
+		template <typename ConvexType>
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const ConvexType& Convex, 
 			const FTriangle& Triangle, 

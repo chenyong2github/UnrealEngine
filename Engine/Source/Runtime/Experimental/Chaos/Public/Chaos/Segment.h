@@ -8,10 +8,15 @@ namespace Chaos
 	{
 	public:
 		TSegment() {}
-		TSegment(const TVec3<T>& x1, const TVec3<T>& x2)
-			: MPoint(x1)
-			, MAxis(x2 - x1)
+		TSegment(const TVec3<T>& X1, const TVec3<T>& X2)
+			: MPoint(X1)
+			, MAxis(X2 - X1)
 			, MLength(MAxis.SafeNormalize())
+		{ }
+		TSegment(const TVec3<T>& X1, const TVec3<T>& Axis, const T Length)
+			: MPoint(X1)
+			, MAxis(Axis)
+			, MLength(Length)
 		{ }
 
 		FORCEINLINE bool IsConvex() const { return true; }

@@ -1077,7 +1077,14 @@ namespace Chaos
 		{
 			if (Constraint.GetUseManifold())
 			{
-				ConstructConvexConvexOneShotManifold<FCapsule, FImplicitBox3>(A, ATransform, B, BTransform, Dt, Constraint);
+				TCArray<FContactPoint, 4> ContactPoints;
+				ConstructCapsuleConvexOneShotManifold<FImplicitBox3>(A, ATransform, B, BTransform, Constraint.GetCullDistance(), ContactPoints);
+
+				Constraint.ResetActiveManifoldContacts();
+				for (const FContactPoint& ContactPoint : ContactPoints)
+				{
+					Constraint.AddOneshotManifoldContact(ContactPoint);
+				}
 			}
 			else
 			{
@@ -1130,7 +1137,14 @@ namespace Chaos
 			{
 				if (Constraint.GetUseManifold())
 				{
-					ConstructConvexConvexOneShotManifold<FCapsule, ConvexType>(A, ATransform, B, BTransform, Dt, Constraint);
+					TCArray<FContactPoint, 4> ContactPoints;
+					ConstructCapsuleConvexOneShotManifold<ConvexType>(A, ATransform, B, BTransform, Constraint.GetCullDistance(), ContactPoints);
+
+					Constraint.ResetActiveManifoldContacts();
+					for (const FContactPoint& ContactPoint : ContactPoints)
+					{
+						Constraint.AddOneshotManifoldContact(ContactPoint);
+					}
 				}
 				else
 				{
