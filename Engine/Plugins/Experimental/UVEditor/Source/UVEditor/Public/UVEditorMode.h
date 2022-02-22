@@ -30,6 +30,7 @@ class UUVEditorBackgroundPreview;
 class UUVToolViewportButtonsAPI;
 class UUVTool2DViewportAPI;
 class UUVEditorMode;
+class UTexture2D;
 
 /**
  * Visualization settings for the UUVEditorMode's Grid
