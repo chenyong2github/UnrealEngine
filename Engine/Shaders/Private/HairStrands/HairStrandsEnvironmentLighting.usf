@@ -57,7 +57,7 @@
 #include "../SkyLightingShared.ush"
 #include "../VolumetricLightmapShared.ush"
 #include "../HairBsdf.ush"
-#include "../ShaderDrawDebug.ush"
+#include "../ShaderPrint.ush"
 #if PERMUTATION_LUMEN
 #include "../Lumen/LumenRadianceCacheCommon.ush"
 #endif

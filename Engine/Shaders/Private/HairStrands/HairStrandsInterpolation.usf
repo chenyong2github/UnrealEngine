@@ -23,7 +23,7 @@ float UnpackHairControlPointCoordU(uint InPackedDataW)
 #define DEBUG_ENABLE 0
 
 #if DEBUG_ENABLE && ALLOW_DEBUG_RENDERING
-#include "../ShaderDrawDebug.ush"
+#include "../ShaderPrint.ush"
 #include "../ColorMap.ush"
 #endif
 

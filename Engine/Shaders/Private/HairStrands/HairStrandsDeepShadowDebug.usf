@@ -127,7 +127,6 @@ void VisualizeDomPS(
 #if SHADER_DOMINFO
 
 #include "../ShaderPrint.ush"
-#include "../ShaderDrawDebug.ush"
 #include "../Matrices.ush"
 #include "HairStrandsDeepShadowCommonStruct.ush"
 #include "HairStrandsAABBCommon.ush"

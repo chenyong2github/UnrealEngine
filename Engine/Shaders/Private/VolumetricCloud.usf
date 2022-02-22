@@ -1545,7 +1545,7 @@ void MainPS(
 
 #if SHADER_SHADOW_FILTER_CS
 
-#include "ShaderDrawDebug.ush"
+#include "ShaderPrint.ush"
 #include "MonteCarlo.ush"
 
 SamplerState BilinearSampler;
@@ -1680,7 +1680,7 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 #if SHADER_DEBUG_SHADOW_CS
 
-#include "ShaderDrawDebug.ush"
+#include "ShaderPrint.ush"
 
 Texture2D<float2> CloudTracedTexture;
 float4 CloudTextureSizeInvSize;

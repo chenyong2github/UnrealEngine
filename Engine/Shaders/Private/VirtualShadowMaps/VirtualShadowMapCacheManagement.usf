@@ -11,7 +11,7 @@
  #include "../Nanite/NaniteHZBCull.ush"
 
 #if ENABLE_DEBUG_MODE
-#include "../ShaderDrawDebug.ush"
+#include "../ShaderPrint.ush"
 #include "../ColorMap.ush"
 #endif
 

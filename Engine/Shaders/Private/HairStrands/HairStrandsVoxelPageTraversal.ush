@@ -21,7 +21,7 @@
 #ifndef VOXEL_TRAVERSAL_DEBUG
 #define VOXEL_TRAVERSAL_DEBUG 0
 #else
-#include "../ShaderDrawDebug.ush"
+#include "../ShaderPrint.ush"
 #endif
 
 #ifndef VOXEL_TRAVERSAL_FORCE_MIP_ENABLE

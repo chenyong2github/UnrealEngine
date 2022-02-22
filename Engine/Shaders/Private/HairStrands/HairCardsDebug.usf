@@ -1,14 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
-#include "../ShaderDrawDebug.ush"
+#include "../ShaderPrint.ush"
 
 #if SHADER_ATLAS
-
-#define PRINT_ATLAS_RESOLUTION 0
-#if PRINT_ATLAS_RESOLUTION
-#include "../ShaderPrint.ush"
-#endif
 
 #define DEBUG_MODE_DEPTH 1
 #define DEBUG_MODE_COVERAGE 2

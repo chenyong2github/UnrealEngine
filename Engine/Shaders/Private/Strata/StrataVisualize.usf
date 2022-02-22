@@ -9,7 +9,7 @@
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 
 #include "/Engine/Private/MiniFontCommon.ush"
-#include "/Engine/Private/ShaderDrawDebug.ush"
+#include "/Engine/Private/ShaderPrint.ush"
 
 
 void DrawReferentialTWS(float3 P /*In Translated World Space*/, float3 X, float3 Y, float3 N, float3 InColor)

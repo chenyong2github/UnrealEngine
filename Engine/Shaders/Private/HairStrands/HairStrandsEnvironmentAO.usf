@@ -10,7 +10,7 @@
 #include "HairStrandsVoxelPageCommon.ush"
 #include "HairStrandsEnvironmentLightingCommon.ush"
 
-#include "../ShaderDrawDebug.ush"
+#include "../ShaderPrint.ush"
 
 #define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
 #define VOXEL_TRAVERSAL_DEBUG 0 

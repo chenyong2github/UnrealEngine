@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
-#include "../ShaderDrawDebug.ush"
+#include "../ShaderPrint.ush"
 #include "../MonteCarlo.ush"
 
 #include "HairStrandsVisibilityCommon.ush"

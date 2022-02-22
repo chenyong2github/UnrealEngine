@@ -245,7 +245,6 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #if SHADER_POSITION_CHANGED
 
 #include "../ShaderPrint.ush"
-#include "../ShaderDrawDebug.ush"
 #include "HairStrandsAABBCommon.ush"
 
 uint VertexCount;

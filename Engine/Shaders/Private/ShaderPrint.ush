@@ -178,6 +178,25 @@ FFontColor GetDefaultFontColor()							{ FFontColor Out; Out.Color = float3(1,1,
 #define FontEmerald		InitFontColor(46.f / 255.f, 204.f / 255.f, 113.f / 255.f)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Primitive colors
+
+#define ColorWhite		float4(1, 1, 1, 1)
+#define ColorBlack		float4(0, 0, 0, 1)
+#define ColorRed		float4(1, 0, 0, 1)
+#define ColorGreen		float4(0, 1, 0, 1)
+#define ColorBlue		float4(0, 0, 1, 1)
+#define ColorYellow		float4(1, 1, 0, 1)
+#define ColorCyan		float4(0, 1, 1, 1)
+#define ColorMagenta	float4(1, 0, 1, 1)
+#define ColorOrange		float4(243.f / 255.f, 156.f / 255.f,  18.f / 255.f, 1)
+#define ColorPurple		float4(169.f / 255.f,   7.f / 255.f, 228.f / 255.f, 1)
+#define ColorTurquoise	float4( 26.f / 255.f, 188.f / 255.f, 156.f / 255.f, 1)
+#define ColorSilver		float4(189.f / 255.f, 195.f / 255.f, 199.f / 255.f, 1)
+#define ColorEmerald	float4( 46.f / 255.f, 204.f / 255.f, 113.f / 255.f, 1)
+#define ColorLightGreen	float4(0.5f, 0.75f, 0.5f, 1.0f)
+#define ColorDarkGreen	float4(0.25f,0.50f, 0.25f, 1.0f)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Util pack/unpac functions
 
 FPackedShaderPrintItem PackShaderPrintItem(FShaderPrintItem In)
@@ -653,3 +672,257 @@ float AddSlider(inout FShaderPrintContext InContext, FShaderPrintText InTextEntr
 
 	return Value;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Primitives (Line, AABB, OBB, Referentials, ...)
+
+struct FShaderDrawElement 
+{
+	float3 Pos0;
+	float3 Pos1;
+	float4 Color0;
+	float4 Color1;
+};
+
+FShaderDrawElement UnpackShaderElement(StructuredBuffer<uint> InPrimitiveBuffer, uint InIndex)
+{
+	const uint Index8 = (1 + InIndex) * 8;
+
+	FShaderDrawElement Out = (FShaderDrawElement)0;
+	{
+		Out.Pos0.x = asfloat(InPrimitiveBuffer[Index8 + 0]);
+		Out.Pos0.y = asfloat(InPrimitiveBuffer[Index8 + 1]);
+		Out.Pos0.z = asfloat(InPrimitiveBuffer[Index8 + 2]);
+
+		const uint PackedColor0 = InPrimitiveBuffer[Index8 + 3];
+		Out.Color0 = float4((PackedColor0.x >> 24) & 0xFF, (PackedColor0.x >> 16) & 0xFF, (PackedColor0.x >> 8) & 0xFF, (PackedColor0.x) & 0xFF) / 255.0f;
+	}
+	{
+		Out.Pos1.x = asfloat(InPrimitiveBuffer[Index8 + 4]);
+		Out.Pos1.y = asfloat(InPrimitiveBuffer[Index8 + 5]);
+		Out.Pos1.z = asfloat(InPrimitiveBuffer[Index8 + 6]);
+
+		const uint PackedColor1 = InPrimitiveBuffer[Index8 + 7];
+		Out.Color1 = float4((PackedColor1.x >> 24) & 0xFF, (PackedColor1.x >> 16) & 0xFF, (PackedColor1.x >> 8) & 0xFF, (PackedColor1.x) & 0xFF) / 255.0f;
+	}
+	return Out;
+}
+
+RWStructuredBuffer<uint> ShaderPrint_RWLinesBuffer;
+
+bool AllocateShaderDrawElement(uint Count, inout uint OutIndex)
+{
+	OutIndex = 0;
+	if (ShaderPrint.MaxLineCount == 0)
+	{
+		return false;
+	}
+
+	InterlockedAdd(ShaderPrint_RWLinesBuffer[0], Count, OutIndex);
+	return (1+OutIndex) < ShaderPrint.MaxLineCount;
+}
+
+void AddShaderElement(FShaderDrawElement E, uint Index)
+{
+	const uint4 PackedC0 = uint4(255.0f * saturate(E.Color0));
+	const uint4 PackedC1 = uint4(255.0f * saturate(E.Color1));
+
+	const uint Index8 = (1 + Index) * 8;
+	ShaderPrint_RWLinesBuffer[Index8 + 0] = asuint(E.Pos0.x);
+	ShaderPrint_RWLinesBuffer[Index8 + 1] = asuint(E.Pos0.y);
+	ShaderPrint_RWLinesBuffer[Index8 + 2] = asuint(E.Pos0.z);
+	ShaderPrint_RWLinesBuffer[Index8 + 3] = (PackedC0.x << 24) | (PackedC0.y << 16) | (PackedC0.z << 8) | (PackedC0.w);
+
+	ShaderPrint_RWLinesBuffer[Index8 + 4] = asuint(E.Pos1.x);
+	ShaderPrint_RWLinesBuffer[Index8 + 5] = asuint(E.Pos1.y);
+	ShaderPrint_RWLinesBuffer[Index8 + 6] = asuint(E.Pos1.z);
+	ShaderPrint_RWLinesBuffer[Index8 + 7] = (PackedC1.x << 24) | (PackedC1.y << 16) | (PackedC1.z << 8) | (PackedC1.w);
+}
+
+int2 GetCursorPos()
+{
+	return ShaderPrint.CursorCoord;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Line
+
+void AddLineTWS(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)
+{
+	uint Offset = 0;
+	if (AllocateShaderDrawElement(1, Offset))
+	{
+		FShaderDrawElement Element;
+		Element.Pos0 = Pos0;
+		Element.Pos1 = Pos1;
+		Element.Color0 = Color0;
+		Element.Color1 = Color1;
+		AddShaderElement(Element, Offset);
+	}
+}
+
+void AddLineTWS(float3 Pos0, float3 Pos1, float4 Color)					{ AddLineTWS(Pos0, Pos1, Color, Color); }
+void AddLineWS(float3 Pos0, float3 Pos1, float4 Color)					{ AddLineTWS(Pos0+ShaderPrint.TranslatedWorldOffset, Pos1+ShaderPrint.TranslatedWorldOffset, Color); }
+void AddLineWS(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)	{ AddLineTWS(Pos0+ShaderPrint.TranslatedWorldOffset, Pos1+ShaderPrint.TranslatedWorldOffset, Color0, Color1); }
+void AddLine(float3 Pos0, float3 Pos1, float4 Color)					{ AddLineTWS(Pos0+ShaderPrint.TranslatedWorldOffset, Pos1+ShaderPrint.TranslatedWorldOffset, Color); }
+void AddLine(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)	{ AddLineTWS(Pos0+ShaderPrint.TranslatedWorldOffset, Pos1+ShaderPrint.TranslatedWorldOffset, Color0, Color1); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Quad
+
+void AddQuadTWS(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)
+{
+	uint Offset = 0;
+	if (AllocateShaderDrawElement(4, Offset))
+	{
+		FShaderDrawElement Element;
+		Element.Color0 = Element.Color1 = Color;
+		Element.Pos0 = Pos0; Element.Pos1 = Pos1; AddShaderElement(Element, Offset + 0);
+		Element.Pos0 = Pos1; Element.Pos1 = Pos2; AddShaderElement(Element, Offset + 1);
+		Element.Pos0 = Pos2; Element.Pos1 = Pos3; AddShaderElement(Element, Offset + 2);
+		Element.Pos0 = Pos3; Element.Pos1 = Pos0; AddShaderElement(Element, Offset + 3);
+	}
+}
+
+void AddQuadWS(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color) { AddQuadTWS(Pos0+ShaderPrint.TranslatedWorldOffset, Pos1+ShaderPrint.TranslatedWorldOffset, Pos2+ShaderPrint.TranslatedWorldOffset, Pos3+ShaderPrint.TranslatedWorldOffset, Color); }
+void AddQuad(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)	 { AddQuadTWS(Pos0+ShaderPrint.TranslatedWorldOffset, Pos1+ShaderPrint.TranslatedWorldOffset, Pos2+ShaderPrint.TranslatedWorldOffset, Pos3+ShaderPrint.TranslatedWorldOffset, Color); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// AABB
+
+void AddAABBTWS(float3 Min, float3 Max, float4 Color)
+{
+	uint Offset = 0;
+	if (AllocateShaderDrawElement(12, Offset))
+	{
+		float3 P0 = float3(Min.x, Min.y, Min.z);
+		float3 P1 = float3(Max.x, Min.y, Min.z);
+		float3 P2 = float3(Max.x, Max.y, Min.z);
+		float3 P3 = float3(Min.x, Max.y, Min.z);
+		float3 P4 = float3(Min.x, Min.y, Max.z);
+		float3 P5 = float3(Max.x, Min.y, Max.z);
+		float3 P6 = float3(Max.x, Max.y, Max.z);
+		float3 P7 = float3(Min.x, Max.y, Max.z);
+
+		FShaderDrawElement Element;
+		Element.Color0 = Element.Color1 = Color;
+
+		Element.Pos0 = P0; Element.Pos1 = P1; AddShaderElement(Element, Offset + 0);
+		Element.Pos0 = P1; Element.Pos1 = P2; AddShaderElement(Element, Offset + 1);
+		Element.Pos0 = P2; Element.Pos1 = P3; AddShaderElement(Element, Offset + 2);
+		Element.Pos0 = P3; Element.Pos1 = P0; AddShaderElement(Element, Offset + 3);
+
+		Element.Pos0 = P4; Element.Pos1 = P5; AddShaderElement(Element, Offset + 4);
+		Element.Pos0 = P5; Element.Pos1 = P6; AddShaderElement(Element, Offset + 5);
+		Element.Pos0 = P6; Element.Pos1 = P7; AddShaderElement(Element, Offset + 6);
+		Element.Pos0 = P7; Element.Pos1 = P4; AddShaderElement(Element, Offset + 7);
+
+		Element.Pos0 = P0; Element.Pos1 = P4; AddShaderElement(Element, Offset + 8);
+		Element.Pos0 = P1; Element.Pos1 = P5; AddShaderElement(Element, Offset + 9);
+		Element.Pos0 = P2; Element.Pos1 = P6; AddShaderElement(Element, Offset +10);
+		Element.Pos0 = P3; Element.Pos1 = P7; AddShaderElement(Element, Offset +11);
+	}
+}
+
+void AddAABBWS(float3 Min, float3 Max, float4 Color)	{ AddAABBTWS(Min + ShaderPrint.TranslatedWorldOffset, Max + ShaderPrint.TranslatedWorldOffset, Color); }
+void AddAABB(float3 Min, float3 Max, float4 Color)		{ AddAABBTWS(Min + ShaderPrint.TranslatedWorldOffset, Max + ShaderPrint.TranslatedWorldOffset, Color); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Cross
+
+void AddCrossTWS(float3 Pos, float Size, float4 Color)
+{
+	AddLineTWS(Pos - float3(Size,0,0), Pos + float3(Size,0,0), Color, Color);
+	AddLineTWS(Pos - float3(0,Size,0), Pos + float3(0,Size,0), Color, Color);
+	AddLineTWS(Pos - float3(0,0,Size), Pos + float3(0,0,Size), Color, Color);
+}
+
+void AddCrossWS(float3 Pos, float Size, float4 Color)	{ AddAABBTWS(Pos + ShaderPrint.TranslatedWorldOffset, Size, Color); }
+void AddCross(float3 Pos, float Size, float4 Color)		{ AddAABBTWS(Pos + ShaderPrint.TranslatedWorldOffset, Size, Color); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Referential
+
+void AddReferentialTWS(float3 Pos, float3 T, float3 B, float3 N, float Scale=1)
+{
+	AddLineTWS(Pos, Pos + normalize(T)*Scale, ColorRed);
+	AddLineTWS(Pos, Pos + normalize(B)*Scale, ColorGreen);
+	AddLineTWS(Pos, Pos + normalize(N)*Scale, ColorBlue);
+}
+
+void AddReferentialTWS(float3 Pos, float3 TangentZ, float Scale=1)
+{
+	const float Sign = TangentZ.z >= 0 ? 1 : -1;
+	const float a = -rcp(Sign + TangentZ.z);
+	const float b = TangentZ.x * TangentZ.y * a;
+
+	const float3 TangentX = { 1 + Sign * a * Pow2(TangentZ.x), Sign * b, -Sign * TangentZ.x };
+	const float3 TangentY = { b,  Sign + a * Pow2(TangentZ.y), -TangentZ.y };
+
+	AddReferentialTWS(Pos, TangentX, TangentY, TangentZ, Scale);
+}
+
+void AddReferentialTWS(float4x4 InM, float Scale = 1)
+{
+	AddReferentialTWS(InM[3].xyz, InM[0].xyz, InM[1].xyz, InM[2].xyz, Scale);
+}
+
+void AddReferentialWS(float4x4 InM, float Scale = 1)							{ AddReferentialTWS(InM[3].xyz + ShaderPrint.TranslatedWorldOffset, InM[0].xyz, InM[1].xyz, InM[2].xyz, Scale); }
+void AddReferentialWS(float3 Pos, float3 TangentZ, float Scale = 1)				{ AddReferentialTWS(Pos + ShaderPrint.TranslatedWorldOffset, TangentZ, Scale); }
+void AddReferentialWS(float3 Pos, float3 T, float3 B, float3 N, float Scale = 1){ AddReferentialTWS(Pos + ShaderPrint.TranslatedWorldOffset, T, B, N, Scale); }
+void AddReferential(float4x4 InM, float Scale = 1)								{ AddReferentialTWS(InM[3].xyz + ShaderPrint.TranslatedWorldOffset, InM[0].xyz, InM[1].xyz, InM[2].xyz, Scale); }
+void AddReferential(float3 Pos, float3 TangentZ, float Scale = 1)				{ AddReferentialTWS(Pos + ShaderPrint.TranslatedWorldOffset, TangentZ, Scale); }
+void AddReferential(float3 Pos, float3 T, float3 B, float3 N, float Scale = 1)	{ AddReferentialTWS(Pos + ShaderPrint.TranslatedWorldOffset, T, B, N, Scale); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Triangle
+
+void AddLineTriangleTWS(float3 P0, float3 P1, float3 P2, float4 Color)
+{
+	AddLineTWS(P0, P1, Color, Color);
+	AddLineTWS(P1, P2, Color, Color);
+	AddLineTWS(P2, P0, Color, Color);
+}
+
+void AddLineTriangleWS(float3 P0, float3 P1, float3 P2, float4 Color)	{ AddLineTriangleTWS(P0 + ShaderPrint.TranslatedWorldOffset, P1 + ShaderPrint.TranslatedWorldOffset, P2 + ShaderPrint.TranslatedWorldOffset, Color); }
+void AddLineTriangle(float3 P0, float3 P1, float3 P2, float4 Color)		{ AddLineTriangleTWS(P0 + ShaderPrint.TranslatedWorldOffset, P1 + ShaderPrint.TranslatedWorldOffset, P2 + ShaderPrint.TranslatedWorldOffset, Color); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// OBB
+
+void AddOBBTWS(float3 Min, float3 Max, float4 Color, float4x4 Transform)
+{
+	uint Offset = 0;
+	if (AllocateShaderDrawElement(12, Offset))
+	{
+		float3 P0 = mul(float4(Min.x, Min.y, Min.z, 1.0f), Transform).xyz;
+		float3 P1 = mul(float4(Max.x, Min.y, Min.z, 1.0f), Transform).xyz;
+		float3 P2 = mul(float4(Max.x, Max.y, Min.z, 1.0f), Transform).xyz;
+		float3 P3 = mul(float4(Min.x, Max.y, Min.z, 1.0f), Transform).xyz;
+		float3 P4 = mul(float4(Min.x, Min.y, Max.z, 1.0f), Transform).xyz;
+		float3 P5 = mul(float4(Max.x, Min.y, Max.z, 1.0f), Transform).xyz;
+		float3 P6 = mul(float4(Max.x, Max.y, Max.z, 1.0f), Transform).xyz;
+		float3 P7 = mul(float4(Min.x, Max.y, Max.z, 1.0f), Transform).xyz;
+
+		FShaderDrawElement Element;
+		Element.Color0 = Element.Color1 = Color;
+
+		Element.Pos0 = P0; Element.Pos1 = P1; AddShaderElement(Element, Offset + 0);
+		Element.Pos0 = P1; Element.Pos1 = P2; AddShaderElement(Element, Offset + 1);
+		Element.Pos0 = P2; Element.Pos1 = P3; AddShaderElement(Element, Offset + 2);
+		Element.Pos0 = P3; Element.Pos1 = P0; AddShaderElement(Element, Offset + 3);
+
+		Element.Pos0 = P4; Element.Pos1 = P5; AddShaderElement(Element, Offset + 4);
+		Element.Pos0 = P5; Element.Pos1 = P6; AddShaderElement(Element, Offset + 5);
+		Element.Pos0 = P6; Element.Pos1 = P7; AddShaderElement(Element, Offset + 6);
+		Element.Pos0 = P7; Element.Pos1 = P4; AddShaderElement(Element, Offset + 7);
+
+		Element.Pos0 = P0; Element.Pos1 = P4; AddShaderElement(Element, Offset + 8);
+		Element.Pos0 = P1; Element.Pos1 = P5; AddShaderElement(Element, Offset + 9);
+		Element.Pos0 = P2; Element.Pos1 = P6; AddShaderElement(Element, Offset + 10);
+		Element.Pos0 = P3; Element.Pos1 = P7; AddShaderElement(Element, Offset + 11);
+	}
+}
+
+void AddOBBWS(float3 Min, float3 Max, float4 Color, float4x4 Transform) { Transform[3].xyz += ShaderPrint.TranslatedWorldOffset; AddOBBTWS(Min, Max, Color, Transform); }
+void AddOBB(float3 Min, float3 Max, float4 Color, float4x4 Transform)	{ Transform[3].xyz += ShaderPrint.TranslatedWorldOffset; AddOBBTWS(Min, Max, Color, Transform); }

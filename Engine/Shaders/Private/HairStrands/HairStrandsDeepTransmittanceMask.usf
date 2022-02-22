@@ -12,7 +12,6 @@
 
 #define DEBUG_ENABLE 0
 #if DEBUG_ENABLE
-	#include "../ShaderDrawDebug.ush"
 	#include "../ShaderPrint.ush"
 #endif //DEBUG_ENABLE
 
