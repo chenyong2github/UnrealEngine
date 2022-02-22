@@ -2,6 +2,7 @@
 
 #include "GenericPlatform/GenericWindow.h"
 #include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGenericPlatformWindow, Log, All);
 
