@@ -173,7 +173,7 @@ void FImgMediaMipMapInfo::UpdateMipLevelCache()
 
 					// Account for object size and possible rotation.
 					// Closest case is the object edge is pointing towards us.
-					AdjustedDistToCamera = AdjustedDistToCamera - Info->Width;
+					AdjustedDistToCamera = AdjustedDistToCamera - Info->Width * 0.5f;
 
 					// If we are using our calculated distances,
 					// then account for various settings.
