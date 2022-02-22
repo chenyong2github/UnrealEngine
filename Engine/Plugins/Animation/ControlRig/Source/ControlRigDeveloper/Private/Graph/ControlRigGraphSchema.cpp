@@ -1000,6 +1000,19 @@ bool UControlRigGraphSchema::CanGraphBeDropped(TSharedPtr<FEdGraphSchemaAction> 
 	return false;
 }
 
+FString UControlRigGraphSchema::GetFindReferenceSearchTerm(const FEdGraphSchemaAction* InGraphAction) const
+{
+	if(InGraphAction)
+	{
+		if(InGraphAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId())
+		{
+			const FEdGraphSchemaAction_K2Var* VarAction = (const FEdGraphSchemaAction_K2Var*)InGraphAction;
+			return VarAction->GetVariableName().ToString();
+		}
+	}
+	return Super::GetFindReferenceSearchTerm(InGraphAction);
+}
+
 FReply UControlRigGraphSchema::BeginGraphDragAction(TSharedPtr<FEdGraphSchemaAction> InAction, const FPointerEvent& MouseEvent) const
 {
 	if (!InAction.IsValid())

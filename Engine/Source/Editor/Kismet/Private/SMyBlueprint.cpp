@@ -2705,8 +2705,30 @@ bool SMyBlueprint::IsImplementationDesiredAsFunction(const UFunction* OverrideFu
 
 void SMyBlueprint::OnFindReference()
 {
-	bool bUseQuotes = true;
 	FString SearchTerm;
+	for(const UEdGraph* UberGraph : GetBlueprintObj()->UbergraphPages)
+	{
+		if(const UEdGraphSchema* Schema = UberGraph->GetSchema())
+		{
+			TArray<TSharedPtr<FEdGraphSchemaAction> > SelectedActions;
+			GraphActionMenu->GetSelectedActions(SelectedActions);
+			if(SelectedActions.Num() == 1)
+			{
+				if (const FEdGraphSchemaAction* GraphAction = SelectedActions[0].Get())
+				{
+					SearchTerm = Schema->GetFindReferenceSearchTerm(GraphAction);
+					if(!SearchTerm.IsEmpty())
+					{
+						BlueprintEditorPtr.Pin()->SummonSearchUI(true, SearchTerm);
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	bool bUseQuotes = true;
+
 	if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
 	{
 		SearchTerm = GraphAction->FuncName.ToString();

@@ -995,6 +995,11 @@ class ENGINE_API UEdGraphSchema : public UObject
 	virtual bool CanGraphBeDropped(TSharedPtr<FEdGraphSchemaAction> InAction) const { return false; }
 
 	/*
+	 * Returns a custom reference string for searching within the blueprint based on a given action
+	 */
+	virtual FString GetFindReferenceSearchTerm(const FEdGraphSchemaAction* InGraphAction) const { return FString(); }
+
+	/*
 	 * Begins a drag and drop action to drag a graph action into another graph
 	 */
 	UE_DEPRECATED(5.0, "Use version that takes FPointerEvent instead.")
