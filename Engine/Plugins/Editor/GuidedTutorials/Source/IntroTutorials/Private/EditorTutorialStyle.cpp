@@ -58,6 +58,8 @@ FEditorTutorialStyle::FEditorTutorialStyle()
 	Set("Tutorials.Border", new BOX_BRUSH("Tutorials/OverlayFrame", FMargin(18.0f / 64.0f), FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)));
 	Set("Tutorials.Shadow", new BOX_BRUSH("Tutorials/TutorialShadow", FVector2D(256.0f, 256.0f), FMargin(114.0f / 256.0f)));
 
+	Set("Tutorials.Highlight.Border", new BOX_BRUSH("Tutorials/TutorialBorder", FVector2D(64.0f, 64.0f), FMargin(25.0f / 64.0f)));
+
 	const FTextBlockStyle TutorialBrowserText = FTextBlockStyle(TutorialText)
 		.SetColorAndOpacity(FSlateColor::UseForeground())
 		.SetHighlightColor(TutorialSelectionColor);
