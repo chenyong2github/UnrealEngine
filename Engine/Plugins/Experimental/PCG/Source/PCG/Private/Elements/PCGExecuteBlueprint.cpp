@@ -311,6 +311,7 @@ FPCGElementPtr UPCGBlueprintSettings::CreateElement() const
 
 bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContextPtr Context) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGExecuteBlueprintElement::Execute);
 	const UPCGBlueprintSettings* Settings = Context->GetInputSettings<UPCGBlueprintSettings>();
 
 	if (Settings && Settings->BlueprintElementInstance)

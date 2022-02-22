@@ -138,6 +138,7 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 #if WITH_EDITORONLY_DATA
 		if (Texture->GetPlatformData()->Mips.Num() > 0)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UPCGTextureData::Initialize::ReadData);
 			Width = Texture->GetSizeX();
 			Height = Texture->GetSizeY();
 
