@@ -141,11 +141,33 @@ public:
 public:
 	void GetReferencedMeshNames(TArray<FString>& OutMeshNames) const;
 
-private:
 #if WITH_EDITOR
 	// UObject interface
+	virtual void PreEditChange(FEditPropertyChain& PropertyAboutToChange) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	// End of UObject interface
+
+	/** Enable the preview texture. Only should be called by the object managing the preview texture state. */
+	void EnablePreviewTexture();
+	
+	/**
+	 * Signal that the preview texture should be disabled.
+	 * @return True if the preview texture was disabled. False if it was already disabled.
+	 */
+	bool DisablePreviewTexture();
+
+	/** If this viewport is allowed to render a preview texture. Used with resizing viewports. */
+	bool IsPreviewTextureAllowed() const { return bAllowPreviewTexture; }
+	
+protected:
+	virtual void OnPreCompile(class FCompilerResultsLog& MessageLog) override;
+	
+private:
+	/** If this viewport is allowed to render a preview texture. */
+	bool bAllowPreviewTexture = true;
+	
+	/** If this object is managing the preview texture state. */
+	bool bIsManagingPreviewTexture = false;
 #endif
 
 public:

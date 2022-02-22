@@ -13,6 +13,10 @@
 
 #include "Engine/StaticMesh.h"
 
+#if WITH_EDITOR
+#include "Kismet2/CompilerResultsLog.h"
+#endif
+
 #define SAVE_MAP_TO_ARRAY(Map, DestArray) \
 	for (const auto& KeyVal : Map) \
 	{ \
@@ -174,12 +178,78 @@ UDisplayClusterConfigurationViewport::UDisplayClusterConfigurationViewport()
 }
 
 #if WITH_EDITOR
+void UDisplayClusterConfigurationViewport::PreEditChange(FEditPropertyChain& PropertyAboutToChange)
+{
+	if (TDoubleLinkedList<FProperty*>::TDoubleLinkedListNode* ActiveMemberNode = PropertyAboutToChange.
+		GetActiveMemberNode())
+	{
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(ActiveMemberNode->GetValue()))
+		{
+			if (StructProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, Region))
+			{
+				if (DisablePreviewTexture())
+				{
+					bIsManagingPreviewTexture = true;
+				}
+			}
+		}
+	}
+	
+	Super::PreEditChange(PropertyAboutToChange);
+}
 
 void UDisplayClusterConfigurationViewport::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		if (TDoubleLinkedList<FProperty*>::TDoubleLinkedListNode* ActiveMemberNode = PropertyChangedEvent.
+			PropertyChain.GetActiveMemberNode())
+		{
+			if (const FStructProperty* StructProperty = CastField<FStructProperty>(ActiveMemberNode->GetValue()))
+			{
+				if (StructProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, Region))
+				{
+					if (bIsManagingPreviewTexture)
+					{
+						EnablePreviewTexture();
+					}
+				}
+			}
+		}
+	}
+	
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 
 	OnPostEditChangeChainProperty.Broadcast(PropertyChangedEvent);
+}
+
+void UDisplayClusterConfigurationViewport::EnablePreviewTexture()
+{
+	bAllowPreviewTexture = true;
+	bIsManagingPreviewTexture = false;
+}
+
+bool UDisplayClusterConfigurationViewport::DisablePreviewTexture()
+{
+	if (bAllowPreviewTexture)
+	{
+		bAllowPreviewTexture = false;
+		return true;
+	}
+	
+	return false;
+}
+
+void UDisplayClusterConfigurationViewport::OnPreCompile(FCompilerResultsLog& MessageLog)
+{
+	Super::OnPreCompile(MessageLog);
+
+	if (!ensure(bAllowPreviewTexture))
+	{
+		// Verify correct rendering value is applied. This branch shouldn't be hit as long as the Region
+		// struct always has a final PostEditChangeProperty called without a change type of Interactive.
+		EnablePreviewTexture();
+	}
 }
 
 void UDisplayClusterConfigurationClusterNode::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)

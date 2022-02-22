@@ -121,6 +121,14 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	// ~UObject
 
+#if WITH_EDITOR
+protected:
+	friend class FDisplayClusterConfiguratorKismetCompilerContext;
+	
+	/** Called by nDisplay compiler prior to compilation. */
+	virtual void OnPreCompile(class FCompilerResultsLog& MessageLog) {}
+#endif
+	
 protected:
 	/** Called before saving to collect objects which should be exported as a sub object block. */
 	virtual void GetObjectsToExport(TArray<UObject*>& OutObjects) {}

@@ -75,6 +75,9 @@ public:
 	/** Create and retrieve a render texture 2d from the render target. */
 	UTexture2D* GetOrCreateViewportPreviewTexture2D();
 
+	/** Return the render texture 2d but do not recreate it. */
+	UTexture2D* GetViewportPreviewTexture2D() const;
+
 	/** Sets an override texture to display on the viewport instead of the render target */
 	void SetOverrideTexture(UTexture* InOverrideTexture);
 

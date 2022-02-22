@@ -154,6 +154,7 @@ protected:
 	/** Remove invalid nodes. */
 	void CleanupChildrenNodes();
 	
+public:
 	template<class TObjectType>
 	TObjectType* GetObjectChecked() const
 	{

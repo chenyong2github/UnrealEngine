@@ -196,6 +196,29 @@ bool SDisplayClusterConfiguratorViewportNode::IsAspectRatioFixed() const
 	return ViewportEdNode->IsFixedAspectRatio();
 }
 
+void SDisplayClusterConfiguratorViewportNode::BeginUserInteraction() const
+{
+	SDisplayClusterConfiguratorBaseNode::BeginUserInteraction();
+
+	const UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	UDisplayClusterConfigurationViewport* Viewport = ViewportEdNode->GetObjectChecked<UDisplayClusterConfigurationViewport>();
+	bIsManagingPreviewTexture = Viewport->DisablePreviewTexture();
+}
+
+void SDisplayClusterConfiguratorViewportNode::EndUserInteraction() const
+{
+	SDisplayClusterConfiguratorBaseNode::EndUserInteraction();
+	
+	if (bIsManagingPreviewTexture)
+	{
+		const UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+		UDisplayClusterConfigurationViewport* Viewport = ViewportEdNode->GetObjectChecked<UDisplayClusterConfigurationViewport>();
+		
+		Viewport->EnablePreviewTexture();
+		bIsManagingPreviewTexture = false;
+	}
+}
+
 FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
 {
 	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();

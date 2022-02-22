@@ -75,6 +75,19 @@ void FDisplayClusterConfiguratorKismetCompilerContext::OnNewClassSet(UBlueprintG
 void FDisplayClusterConfiguratorKismetCompilerContext::PreCompile()
 {
 	Super::PreCompile();
+	
+	const UDisplayClusterBlueprint* DCBlueprint = CastChecked<UDisplayClusterBlueprint>(Blueprint);
+	if (const UDisplayClusterConfigurationData* ConfigData = DCBlueprint->GetConfig())
+	{
+		ForEachObjectWithOuter(ConfigData, [this](UObject* Child)
+		{
+			if (UDisplayClusterConfigurationData_Base* BaseNode = Cast<UDisplayClusterConfigurationData_Base>(Child))
+			{
+				BaseNode->OnPreCompile(MessageLog);
+			}
+		});
+	}
+
 	ValidateConfiguration();
 }
 

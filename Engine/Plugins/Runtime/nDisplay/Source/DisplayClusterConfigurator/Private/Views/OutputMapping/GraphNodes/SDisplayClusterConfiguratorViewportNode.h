@@ -39,6 +39,8 @@ public:
 	virtual float GetNodeMinimumSize() const override;
 	virtual float GetNodeMaximumSize() const override;
 	virtual bool IsAspectRatioFixed() const override;
+	virtual void BeginUserInteraction() const override;
+	virtual void EndUserInteraction() const override;
 	//~ End of SDisplayClusterConfiguratorBaseNode interface
 
 private:
@@ -64,4 +66,7 @@ private:
 	TSharedPtr<SImage> BackgroundImage;
 
 	UTexture* CachedTexture;
+	
+	/** If this object is managing the preview texture, such as through resizing. */
+	mutable bool bIsManagingPreviewTexture = false;
 };

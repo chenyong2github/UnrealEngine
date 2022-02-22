@@ -228,6 +228,15 @@ UTexture* UDisplayClusterConfiguratorViewportNode::GetPreviewTexture() const
 		UDisplayClusterConfiguratorWindowNode* ParentWindow = GetParentChecked<UDisplayClusterConfiguratorWindowNode>();
 		if (UDisplayClusterPreviewComponent* PreviewComp = RootActor->GetPreviewComponent(ParentWindow->GetNodeName(), GetNodeName()))
 		{
+			const UDisplayClusterConfigurationViewport* CfgViewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
+			if (!CfgViewport->IsPreviewTextureAllowed())
+			{
+				// The preview texture may be disabled during certain operations, like a resize. Use only an old preview
+				// if possible. This can improve performance and also prevent possible DX crashes if the render target
+				// size is smaller than the viewport region size.
+				return PreviewComp->GetViewportPreviewTexture2D();
+			}
+			
 			if (UTexture2D* Texture = PreviewComp->GetOrCreateViewportPreviewTexture2D())
 			{
 				return Texture;
