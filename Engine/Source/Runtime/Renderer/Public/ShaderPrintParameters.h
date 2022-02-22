@@ -16,24 +16,12 @@
 #include "ShaderParameters.h"
 
 class FViewInfo;
-
-struct FShaderPrintData
-{
-	FVector2f FontSpacing;
-	FVector2f FontSize;
-	FIntPoint CursorCoord;
-	FIntRect OutputRect;
-	int32 MaxValueCount = -1;
-	int32 MaxSymbolCount = -1;
-	uint32 MaxStateCount = 0;
-	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
-	FRDGBufferRef ShaderPrintStateBuffer = nullptr;
-};
+struct FShaderPrintData;
 
 namespace ShaderPrint
 {
 	// ShaderPrint uniform buffer layout
-	BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FUniformBufferParameters, RENDERER_API)
+	BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FShaderPrintCommonParameters, RENDERER_API)
 		SHADER_PARAMETER(FVector2f, FontSize)
 		SHADER_PARAMETER(FVector2f, FontSpacing)
 		SHADER_PARAMETER(FIntPoint, Resolution)
@@ -45,9 +33,9 @@ namespace ShaderPrint
 
 	// ShaderPrint parameter struct declaration
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FUniformBufferParameters, UniformBufferParameters)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, StateBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, RWValuesBuffer)
+		SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, ShaderPrint_StateBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, ShaderPrint_RWValuesBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	// Call this to fill the FShaderParameters
@@ -61,3 +49,18 @@ namespace ShaderPrint
 	 */
 	RENDERER_API void RequestSpaceForCharacters(uint32 MaxElementCount);
 }
+
+struct FShaderPrintData
+{
+	FVector2f FontSpacing;
+	FVector2f FontSize;
+	FIntPoint CursorCoord;
+	FIntRect OutputRect;
+	int32 MaxValueCount = -1;
+	int32 MaxSymbolCount = -1;
+	uint32 MaxStateCount = 0;
+
+	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
+	FRDGBufferRef ShaderPrintStateBuffer = nullptr;
+	TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters> UniformBuffer;
+};

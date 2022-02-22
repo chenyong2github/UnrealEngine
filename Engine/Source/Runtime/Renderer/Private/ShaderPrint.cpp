@@ -104,39 +104,35 @@ namespace ShaderPrint
 	}
 
 	// ShaderPrint uniform buffer
-	IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FUniformBufferParameters, "ShaderPrintUniform");
-	typedef TUniformBufferRef<FUniformBufferParameters> FUniformBufferRef;
-
+	IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FShaderPrintCommonParameters, "ShaderPrint");
+	
 	// Fill the uniform buffer parameters
 	// Return a uniform buffer with values filled and with single frame lifetime
-	static FUniformBufferRef CreateUniformBuffer(const FShaderPrintData& Data)
+	static TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters> CreateUniformBuffer(const FShaderPrintData& Data)
 	{		
-		FUniformBufferParameters Out;
+		FShaderPrintCommonParameters Out;
 		Out.FontSize = Data.FontSize;
 		Out.FontSpacing = Data.FontSpacing;
 		Out.CursorCoord = Data.CursorCoord;
-
 		Out.Resolution = Data.OutputRect.Size();
 		Out.MaxValueCount = Data.MaxValueCount;
 		Out.MaxSymbolCount = Data.MaxSymbolCount;
 		Out.MaxStateCount = Data.MaxStateCount;
-		return FUniformBufferRef::CreateUniformBufferImmediate(Out, UniformBuffer_SingleFrame);
+		return TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters>::CreateUniformBufferImmediate(Out, UniformBuffer_SingleFrame);
 	}
 
 	// Fill the FShaderParameters parameters
 	void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo & View, FShaderParameters& OutParameters)
 	{
-		OutParameters.UniformBufferParameters = CreateUniformBuffer(View.ShaderPrintData);
-		OutParameters.StateBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintStateBuffer);
-		OutParameters.RWValuesBuffer = GraphBuilder.CreateUAV(View.ShaderPrintData.ShaderPrintValueBuffer);
+		SetParameters(GraphBuilder, View.ShaderPrintData, OutParameters);
 	}
 
 	// Fill the FShaderParameters parameters
 	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderPrintData& Data, FShaderParameters& OutParameters)
 	{
-		OutParameters.UniformBufferParameters = CreateUniformBuffer(Data);
-		OutParameters.StateBuffer = GraphBuilder.CreateSRV(Data.ShaderPrintStateBuffer);
-		OutParameters.RWValuesBuffer = GraphBuilder.CreateUAV(Data.ShaderPrintValueBuffer);
+		OutParameters.Common = Data.UniformBuffer;
+		OutParameters.ShaderPrint_StateBuffer = GraphBuilder.CreateSRV(Data.ShaderPrintStateBuffer);
+		OutParameters.ShaderPrint_RWValuesBuffer = GraphBuilder.CreateUAV(Data.ShaderPrintValueBuffer);
 	}
 
 	// Supported platforms
@@ -209,7 +205,7 @@ namespace ShaderPrint
 		SHADER_USE_PARAMETER_STRUCT(FShaderBuildIndirectDispatchArgsCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_STRUCT_REF(FUniformBufferParameters, UniformBufferParameters)
+			SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
 			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<ShaderPrintItem>, ValuesBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, RWSymbolsBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWIndirectDispatchArgsBuffer)
@@ -233,7 +229,7 @@ namespace ShaderPrint
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER(uint32, FrameIndex)
 			SHADER_PARAMETER(uint32, FrameThreshold)
-			SHADER_PARAMETER_STRUCT_REF(FUniformBufferParameters, UniformBufferParameters)
+			SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWStateBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -254,7 +250,7 @@ namespace ShaderPrint
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER(uint32, FrameIndex)
-			SHADER_PARAMETER_STRUCT_REF(FUniformBufferParameters, UniformBufferParameters)
+			SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
 			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<ShaderPrintItem>, ValuesBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<ShaderPrintItem>, RWSymbolsBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWStateBuffer)
@@ -277,7 +273,7 @@ namespace ShaderPrint
 		SHADER_USE_PARAMETER_STRUCT(FShaderBuildIndirectDrawArgsCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_STRUCT_REF(FUniformBufferParameters, UniformBufferParameters)
+			SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
 			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<ShaderPrintItem>, SymbolsBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWIndirectDrawArgsBuffer)
 		END_SHADER_PARAMETER_STRUCT()
@@ -303,7 +299,7 @@ namespace ShaderPrint
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			RENDER_TARGET_BINDING_SLOTS()
-			SHADER_PARAMETER_STRUCT_REF(FUniformBufferParameters, UniformBufferParameters)
+			SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
 			SHADER_PARAMETER_TEXTURE(Texture2D, MiniFontTexture)
 			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<ShaderPrintItem>, SymbolsBuffer)
 			RDG_BUFFER_ACCESS(IndirectDrawArgsBuffer, ERHIAccess::IndirectArgs)
@@ -366,6 +362,7 @@ namespace ShaderPrint
 		// This is in case some debug shader code is still active (we don't want an unbound buffer!)
 		if (!IsEnabled())
 		{
+			View.ShaderPrintData.UniformBuffer = CreateUniformBuffer(View.ShaderPrintData);
 			View.ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 			View.ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 			return;
@@ -396,6 +393,7 @@ namespace ShaderPrint
 			View.ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 		}
 
+		View.ShaderPrintData.UniformBuffer = CreateUniformBuffer(View.ShaderPrintData);
 
 		// Clear the output buffer internal counter ready for use
 		const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
@@ -428,7 +426,6 @@ namespace ShaderPrint
 		FRDGBufferRef IndirectDrawArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("ShaderPrint.IndirectDrawArgs"));
 
 		// Non graph managed resources
-		FUniformBufferRef UniformBuffer = CreateUniformBuffer(View.ShaderPrintData);
 		FRDGBufferSRVRef ValuesBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintValueBuffer);
 		FRDGBufferSRVRef StateBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintStateBuffer);
 		FTextureRHIRef FontTexture = GSystemTextures.AsciiTexture->GetRenderTargetItem().ShaderResourceTexture;
@@ -442,7 +439,7 @@ namespace ShaderPrint
 			TShaderMapRef<SHADER> ComputeShader(GlobalShaderMap);
 
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
-			PassParameters->UniformBufferParameters = UniformBuffer;
+			PassParameters->Common = View.ShaderPrintData.UniformBuffer;
 			PassParameters->ValuesBuffer = ValuesBuffer;
 			PassParameters->RWSymbolsBuffer = GraphBuilder.CreateUAV(SymbolBuffer, EPixelFormat::PF_R32_UINT);
 			PassParameters->RWIndirectDispatchArgsBuffer = GraphBuilder.CreateUAV(IndirectDispatchArgsBuffer, EPixelFormat::PF_R32_UINT);
@@ -461,7 +458,7 @@ namespace ShaderPrint
 
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
 			PassParameters->FrameIndex = View.Family ? View.Family->FrameNumber : 0u;
-			PassParameters->UniformBufferParameters = UniformBuffer;
+			PassParameters->Common = View.ShaderPrintData.UniformBuffer;
 			PassParameters->ValuesBuffer = ValuesBuffer;
 			PassParameters->RWSymbolsBuffer = GraphBuilder.CreateUAV(SymbolBuffer, EPixelFormat::PF_R32_UINT);
 			PassParameters->RWStateBuffer = GraphBuilder.CreateUAV(View.ShaderPrintData.ShaderPrintStateBuffer, EPixelFormat::PF_R32_UINT);
@@ -482,7 +479,7 @@ namespace ShaderPrint
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
 			PassParameters->FrameIndex = View.Family ? View.Family->FrameNumber : 0u;
 			PassParameters->FrameThreshold = 300u;
-			PassParameters->UniformBufferParameters = UniformBuffer;
+			PassParameters->Common = View.ShaderPrintData.UniformBuffer;
 			PassParameters->RWStateBuffer = GraphBuilder.CreateUAV(View.ShaderPrintData.ShaderPrintStateBuffer, EPixelFormat::PF_R32_UINT);
 
 			FComputeShaderUtils::AddPass(
@@ -497,7 +494,7 @@ namespace ShaderPrint
 			TShaderMapRef<SHADER> ComputeShader(GlobalShaderMap);
 
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
-			PassParameters->UniformBufferParameters = UniformBuffer;
+			PassParameters->Common = View.ShaderPrintData.UniformBuffer;
 			PassParameters->SymbolsBuffer = GraphBuilder.CreateSRV(SymbolBuffer);
 			PassParameters->RWIndirectDrawArgsBuffer = GraphBuilder.CreateUAV(IndirectDrawArgsBuffer, EPixelFormat::PF_R32_UINT);
 
@@ -516,7 +513,7 @@ namespace ShaderPrint
 
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture.Texture, ERenderTargetLoadAction::ELoad);
-			PassParameters->UniformBufferParameters = UniformBuffer;
+			PassParameters->Common = View.ShaderPrintData.UniformBuffer;
 			PassParameters->MiniFontTexture = FontTexture;
 			PassParameters->SymbolsBuffer = GraphBuilder.CreateSRV(SymbolBuffer);
 			PassParameters->IndirectDrawArgsBuffer = IndirectDrawArgsBuffer;
