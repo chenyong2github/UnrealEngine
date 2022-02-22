@@ -44,7 +44,8 @@ namespace Horde.Storage.Implementation.TransactionLog
                 if (cancellationToken.IsCancellationRequested)
                     throw new TaskCanceledException();
                 using FilesystemBufferedPayload snapshotPayload = await FilesystemBufferedPayload.Create(blobContents.Stream);
-                snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(snapshotPayload.GetStream());
+                await using Stream s = snapshotPayload.GetStream();
+                snapshot = ReplicationLogFactory.DeserializeSnapshotFromStream(s);
                 lastBucket = snapshot.LastBucket;
                 lastEvent = snapshot.LastEvent;
             }
