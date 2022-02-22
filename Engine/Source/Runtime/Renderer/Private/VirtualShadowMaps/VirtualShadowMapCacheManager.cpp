@@ -30,7 +30,7 @@ static TAutoConsoleVariable<int32> CVarCacheVirtualSMs(
 );
 
 static TAutoConsoleVariable<int32> CVarDrawInvalidatingBounds(
-	TEXT("r.Shadow.Virtual.DrawInvalidatingBounds"),
+	TEXT("r.Shadow.Virtual.Cache.DrawInvalidatingBounds"),
 	0,
 	TEXT("Turn on debug render cache invalidating instance bounds, heat mapped by number of pages invalidated.\n")
 	TEXT("   1  = Draw all bounds.\n")

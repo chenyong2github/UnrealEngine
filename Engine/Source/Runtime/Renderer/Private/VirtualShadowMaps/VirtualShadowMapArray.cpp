@@ -118,10 +118,10 @@ TAutoConsoleVariable<int32> CVarMarkCoarsePagesLocal(
 );
 
 TAutoConsoleVariable<int32> CVarCoarsePagesIncludeNonNanite(
-	TEXT("r.Shadow.Virtual.CoarsePagesIncludeNonNanite"),
+	TEXT("r.Shadow.Virtual.NonNanite.IncludeInCoarsePages"),
 	1,
-	TEXT("Include non-nanite geometry in coarse pages.")
-	TEXT("Rendering non-nanite geometry into large coarse pages can be expensive; disabling this can be a significant performance win."),
+	TEXT("Include non-Nanite geometry in coarse pages.")
+	TEXT("Rendering non-Nanite geometry into large coarse pages can be expensive; disabling this can be a significant performance win."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
