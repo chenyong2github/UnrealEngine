@@ -7,7 +7,7 @@
 
 #define PRINT_ATLAS_RESOLUTION 0
 #if PRINT_ATLAS_RESOLUTION
-#include "../ShaderPrintCommon.ush"
+#include "../ShaderPrint.ush"
 #endif
 
 #define DEBUG_MODE_DEPTH 1

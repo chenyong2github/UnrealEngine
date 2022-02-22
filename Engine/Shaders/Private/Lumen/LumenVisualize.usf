@@ -15,7 +15,7 @@
 #include "LumenVisualizeTraces.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../SHCommon.ush"
-#include "../ShaderPrintCommon.ush"
+#include "../ShaderPrint.ush"
 #include "LumenVisualize.ush"
 
 uint3 CullGridSize;

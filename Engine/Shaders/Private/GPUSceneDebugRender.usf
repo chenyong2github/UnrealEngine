@@ -3,7 +3,7 @@
 #include "Common.ush"
 #include "SceneData.ush"
 #include "ShaderDrawDebug.ush"
-#include "ShaderPrintCommon.ush"
+#include "ShaderPrint.ush"
 
 int NumInstances;
 int NumScenePrimitives;

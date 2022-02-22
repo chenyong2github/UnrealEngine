@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "../Common.ush"
-#include "../ShaderPrintCommon.ush"
+#include "../ShaderPrint.ush"
 #include "LumenCardCommon.ush"
 #include "LumenCardTile.ush"
 #include "LumenSceneLighting.ush"

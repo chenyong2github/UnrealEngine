@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "../Common.ush"
-#include "../ShaderPrintCommon.ush"
+#include "../ShaderPrint.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenRadianceCacheMarkCommon.ush"
 #include "LumenRadianceCacheUpdate.ush"

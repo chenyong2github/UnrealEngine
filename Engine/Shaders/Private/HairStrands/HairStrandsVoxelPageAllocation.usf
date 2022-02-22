@@ -792,7 +792,7 @@ void VoxelIndPageClearCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 Gro
 #define DEBUG_ENABLE 0
 
 #if DEBUG_ENABLE
-#include "../ShaderPrintCommon.ush"
+#include "../ShaderPrint.ush"
 void AddNewLine(float2 OriginalPos, inout float2 Pos)
 {
 	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;

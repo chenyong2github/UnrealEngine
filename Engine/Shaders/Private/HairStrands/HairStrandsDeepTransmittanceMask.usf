@@ -13,7 +13,7 @@
 #define DEBUG_ENABLE 0
 #if DEBUG_ENABLE
 	#include "../ShaderDrawDebug.ush"
-	#include "../ShaderPrintCommon.ush"
+	#include "../ShaderPrint.ush"
 #endif //DEBUG_ENABLE
 
 #ifndef MAX_HAIR_MACROGROUP_COUNT
@@ -235,7 +235,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #include "../LightGridCommon.ush"
 
 #if VOXEL_TRAVERSAL_DEBUG
-#include "../ShaderPrintCommon.ush"
+#include "../ShaderPrint.ush"
 void PrintInfo(uint Index, uint2 PixelCoord, FHairTransmittanceMask TransmittanceMask)
 {
 	#if 0

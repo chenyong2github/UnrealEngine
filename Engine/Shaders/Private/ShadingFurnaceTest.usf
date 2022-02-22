@@ -20,7 +20,7 @@
 #include "MonteCarlo.ush" 
 
 #if DEBUG_ENABLE
-#include "ShaderPrintCommon.ush"
+#include "ShaderPrint.ush"
 #include "ShaderDrawDebug.ush"
 #include "ColorMap.ush"
 #endif 

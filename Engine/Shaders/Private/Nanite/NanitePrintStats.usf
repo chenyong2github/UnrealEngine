@@ -3,7 +3,7 @@
 #include "../Common.ush"
 
 #if SHADER_PRINT_STATS
-#include "../ShaderPrintCommon.ush"
+#include "../ShaderPrint.ush"
 #endif
 
 #include "NaniteCulling.ush"

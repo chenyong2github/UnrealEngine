@@ -199,7 +199,7 @@ void MainPS(
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if SHADER_TILE_DEBUG_PRINT
-#include "../ShaderPrintCommon.ush"
+#include "../ShaderPrint.ush"
 
 int2 MaxResolution;
 uint TileGroupSize;

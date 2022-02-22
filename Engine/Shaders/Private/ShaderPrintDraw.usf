@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "Common.ush"	
-#include "ShaderPrintCommon.ush"
+#include "ShaderPrint.ush"
 
 uint2 ViewportResolution;
 uint FrameIndex;
