@@ -27,6 +27,8 @@ private:
 	struct FCameraCutCache
 	{
 		TWeakObjectPtr<> LastLockedCamera;
+		UE::MovieScene::FInstanceHandle LastInstanceHandle;
+		TObjectPtr<UMovieSceneSection> LastSection;
 	};
 
 	struct FCameraCutInputInfo
