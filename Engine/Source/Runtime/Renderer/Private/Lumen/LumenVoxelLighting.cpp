@@ -239,6 +239,12 @@ FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex)
 	return CameraOrigin;
 }
 
+FIntVector AlignVisBufferSizeToTileSize(FIntVector Dimension)
+{
+	FIntVector Groups = FIntVector::DivideAndRoundUp(Dimension, GVisBufferTileSize);
+	return Groups * GVisBufferTileSize;
+}
+
 class FClearVoxelLightingClipmapCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FClearVoxelLightingClipmapCS)
@@ -344,7 +350,7 @@ class FClearVisBuffer : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FClearVisBuffer, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWVoxelVisBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWVoxelVisBuffer)
 		RDG_BUFFER_ACCESS(ClearVisBufferIndirectArgBuffer, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, UpdateTileBuffer)
 		SHADER_PARAMETER(FIntVector, ClipmapGridResolution)
@@ -473,7 +479,7 @@ class FVoxelTraceCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWVoxelVisBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWVoxelVisBuffer)
 		RDG_BUFFER_ACCESS(TraceIndirectArgBuffer, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, VoxelTraceAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, VoxelTraceData)
@@ -515,7 +521,7 @@ class FHeightfieldVoxelTraceCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWVoxelVisBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWVoxelVisBuffer)
 		RDG_BUFFER_ACCESS(TraceIndirectArgBuffer, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, VoxelTraceAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, VoxelTraceData)
@@ -558,7 +564,7 @@ class FCompactVisBufferCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCompactedVisBufferAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCompactedVisBuffer)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, VoxelVisBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, VoxelVisBuffer)
 		SHADER_PARAMETER(FIntVector, ClipmapGridResolution)
 		SHADER_PARAMETER(uint32, ClipmapIndex)
 		SHADER_PARAMETER(FVector3f, VoxelCoordToUVScale)
@@ -626,7 +632,7 @@ class FVisBufferShadingCS : public FGlobalShader
 		RDG_BUFFER_ACCESS(CompactedVisBufferIndirectArguments, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CompactedVisBufferAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CompactedVisBuffer)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelVisBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, VoxelVisBuffer)
 		SHADER_PARAMETER(uint32, ClipmapIndex)
 		SHADER_PARAMETER(FVector3f, GridMin)
 		SHADER_PARAMETER(FVector3f, GridVoxelSize)
@@ -669,7 +675,7 @@ void VoxelizeVisBuffer(
 	FScene* Scene,
 	const FLumenCardTracingInputs& TracingInputs,
 	FRDGTextureRef VoxelLighting,
-	FRDGTextureRef VoxelVisBuffer,
+	FRDGBufferRef VoxelVisBuffer,
 	const TArray<int32, SceneRenderingAllocator>& ClipmapsToUpdate,
 	FRDGBuilder& GraphBuilder)
 {
@@ -739,7 +745,7 @@ void VoxelizeVisBuffer(
 			PassParameters->RWCompactedVisBuffer = GraphBuilder.CreateUAV(CompactedVisBuffer, PF_R32_UINT);
 			PassParameters->ClipmapGridResolution = ClipmapGridResolution;
 			PassParameters->ClipmapIndex = ClipmapIndex;
-			PassParameters->VoxelVisBuffer = VoxelVisBuffer;
+			PassParameters->VoxelVisBuffer = GraphBuilder.CreateSRV(VoxelVisBuffer, PF_R32_UINT);
 			PassParameters->VoxelCoordToUVScale = (FVector3f)Clipmap.VoxelCoordToUVScale;
 			PassParameters->VoxelCoordToUVBias = (FVector3f)Clipmap.VoxelCoordToUVBias;
 
@@ -781,7 +787,7 @@ void VoxelizeVisBuffer(
 			PassParameters->CompactedVisBuffer = GraphBuilder.CreateSRV(CompactedVisBuffer, PF_R32_UINT);
 			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
 			PassParameters->MeshSDFTracingParameters = MeshSDFTracingParameters;
-			PassParameters->VoxelVisBuffer = VoxelVisBuffer;
+			PassParameters->VoxelVisBuffer = GraphBuilder.CreateSRV(VoxelVisBuffer,PF_R32_UINT);
 			PassParameters->ClipmapIndex = ClipmapIndex;
 			PassParameters->ClipmapGridResolution = ClipmapGridResolution;
 			PassParameters->VoxelCoordToUVScale = (FVector3f)Clipmap.VoxelCoordToUVScale;
@@ -894,7 +900,7 @@ void UpdateVoxelVisBuffer(
 	FScene* Scene, 
 	const FViewInfo& View,
 	FLumenCardTracingInputs& TracingInputs,
-	FRDGTextureRef VoxelVisBuffer,
+	FRDGBufferRef VoxelVisBuffer,
 	const TArray<int32, SceneRenderingAllocator>& ClipmapsToUpdate, 
 	bool bForceFullUpdate)
 {
@@ -1098,7 +1104,7 @@ void UpdateVoxelVisBuffer(
 			// Clear updated visibility buffer tiles
 			{
 				FClearVisBuffer::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearVisBuffer::FParameters>();
-				PassParameters->RWVoxelVisBuffer = GraphBuilder.CreateUAV(VoxelVisBuffer);
+				PassParameters->RWVoxelVisBuffer = GraphBuilder.CreateUAV(VoxelVisBuffer, PF_R32_UINT);
 				PassParameters->UpdateTileBuffer = GraphBuilder.CreateSRV(UpdateTileBuffer, PF_R32_UINT);
 				PassParameters->ClearVisBufferIndirectArgBuffer = ClearVisBufferIndirectArgBuffer;
 				PassParameters->ClipmapIndex = ClipmapIndex;
@@ -1180,7 +1186,7 @@ void UpdateVoxelVisBuffer(
 				// Voxel tracing
 				{
 					FVoxelTraceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelTraceCS::FParameters>();
-					PassParameters->RWVoxelVisBuffer = GraphBuilder.CreateUAV(VoxelVisBuffer);
+                    PassParameters->RWVoxelVisBuffer = GraphBuilder.CreateUAV(VoxelVisBuffer, PF_R32_UINT);
 					GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
 					PassParameters->TraceIndirectArgBuffer = TraceIndirectArgBuffer;
 					PassParameters->VoxelTraceData = GraphBuilder.CreateSRV(VoxelTraceData, PF_R32_UINT);
@@ -1295,7 +1301,7 @@ void UpdateVoxelVisBuffer(
 				{
 
 					FHeightfieldVoxelTraceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHeightfieldVoxelTraceCS::FParameters>();
-					PassParameters->RWVoxelVisBuffer = GraphBuilder.CreateUAV(VoxelVisBuffer);
+                    PassParameters->RWVoxelVisBuffer = GraphBuilder.CreateUAV(VoxelVisBuffer, PF_R32_UINT);
 					GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
 					PassParameters->TraceIndirectArgBuffer = TraceIndirectArgBuffer;
 					PassParameters->VoxelTraceData = GraphBuilder.CreateSRV(VoxelTraceData, PF_R32_UINT);
@@ -1362,26 +1368,27 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 		}
 	}
 
-	FRDGTextureRef VoxelVisBuffer = View.ViewState->Lumen.VoxelVisBuffer ? GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.VoxelVisBuffer) : nullptr;
+	FRDGBufferRef VoxelVisBuffer = View.ViewState->Lumen.VoxelVisBuffer ? GraphBuilder.RegisterExternalBuffer(View.ViewState->Lumen.VoxelVisBuffer) : nullptr;
 	{
-		FRDGTextureDesc VoxelVisBufferDesc(FRDGTextureDesc::Create3D(
-			FIntVector(
-				ClipmapResolution.X,
-				ClipmapResolution.Y * ClampedNumClipmapLevels,
-				ClipmapResolution.Z * GNumVoxelDirections),
-			PF_R32_UINT,
-			FClearValueBinding::Black,
-			TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling));
+		FIntVector VoxelVisBufferDimension = AlignVisBufferSizeToTileSize(
+			FIntVector(ClipmapResolution.X,
+			ClipmapResolution.Y * ClampedNumClipmapLevels,
+			ClipmapResolution.Z * GNumVoxelDirections));
 
-		if (!VoxelVisBuffer
-			|| VoxelVisBuffer->Desc.Extent != VoxelVisBufferDesc.Extent
-			|| VoxelVisBuffer->Desc.Depth != VoxelVisBufferDesc.Depth)
+		FRDGBufferDesc VoxelVisBufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32),
+			VoxelVisBufferDimension.X *
+			VoxelVisBufferDimension.Y *
+			VoxelVisBufferDimension.Z);
+        
+        if (!VoxelVisBuffer
+			|| VoxelVisBuffer->Desc.BytesPerElement != VoxelVisBufferDesc.BytesPerElement
+			|| VoxelVisBuffer->Desc.NumElements != VoxelVisBufferDesc.NumElements)
 		{
 			bForceFullUpdate = true;
-			VoxelVisBuffer = GraphBuilder.CreateTexture(VoxelVisBufferDesc, TEXT("Lumen.VoxelVisBuffer"));
+			VoxelVisBuffer = GraphBuilder.CreateBuffer(VoxelVisBufferDesc, TEXT("Lumen.VoxelVisBuffer"));
 
-			uint32 VisBufferClearValue[4] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
-			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VoxelVisBuffer), VisBufferClearValue);
+			uint32 VisBufferClearValue = 0xFFFFFFFF;
+			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VoxelVisBuffer, PF_R32_UINT), VisBufferClearValue);
 		}
 	}
 
@@ -1432,7 +1439,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 		View.ViewState->Lumen.NumClipmapLevels = TracingInputs.NumClipmapLevels;
 	}
 
-	View.ViewState->Lumen.VoxelVisBuffer = GraphBuilder.ConvertToExternalTexture(VoxelVisBuffer);
+	View.ViewState->Lumen.VoxelVisBuffer = GraphBuilder.ConvertToExternalBuffer(VoxelVisBuffer);
 }
 
 void Lumen::ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds)

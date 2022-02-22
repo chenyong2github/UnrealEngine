@@ -1959,6 +1959,36 @@ uint2 ZOrder2D(uint Index, const uint SizeLog2)
 	return Coord;
 }
 
+uint3 ZOrder3D(uint Index, const uint SizeLog2)
+{
+    uint3 Coord = 0;
+    
+    UNROLL
+    for (uint i = 0; i < SizeLog2; i++)
+    {
+        Coord.x |= ((Index >> (3 * i + 0)) & 0x1) << i;
+        Coord.y |= ((Index >> (3 * i + 1)) & 0x1) << i;
+        Coord.z |= ((Index >> (3 * i + 2)) & 0x1) << i;
+    }
+
+    return Coord;
+}
+
+uint ZOrder3DEncode(uint3 Coord, const uint SizeLog2)
+{
+    uint Index = 0;
+    
+    UNROLL
+    for (uint i = 0; i < SizeLog2; i++)
+    {
+        Index |= ((Coord.x >> i) & 0x1) << (3 * i + 0);
+        Index |= ((Coord.y >> i) & 0x1) << (3 * i + 1);
+        Index |= ((Coord.z >> i) & 0x1) << (3 * i + 2);
+    }
+
+    return Index;
+}
+
 
 // see PixelShaderOutputCommon
 struct FPixelShaderIn

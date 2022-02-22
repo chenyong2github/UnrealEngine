@@ -64,7 +64,7 @@ uint3 ClipmapGridResolution;
 float3 VoxelCoordToUVScale;
 float3 VoxelCoordToUVBias;
 
-uint3 VoxelCoordToVisBufferTextureCoord(uint ClipmapIndex, uint3 VoxelCoord, uint DirectionIndex)
+uint VoxelCoordToVisBufferCoord(uint ClipmapIndex, uint3 VoxelCoord, uint DirectionIndex)
 {
 	float3 ClipmapUV = frac((VoxelCoord + 0.5f) * VoxelCoordToUVScale + VoxelCoordToUVBias);
 
@@ -72,7 +72,15 @@ uint3 VoxelCoordToVisBufferTextureCoord(uint ClipmapIndex, uint3 VoxelCoord, uin
 	TextureCoord.y += ClipmapIndex * ClipmapGridResolution.y;
 	TextureCoord.z += DirectionIndex * ClipmapGridResolution.z;
 
-	return TextureCoord;
+	uint3 Dimension = uint3(ClipmapGridResolution.x, 0, ClipmapGridResolution.z * NUM_VOXEL_DIRECTIONS);
+	uint3 GroupMaxCount = (Dimension + VIS_BUFFER_TILE_SIZE - 1) / VIS_BUFFER_TILE_SIZE;
+	uint3 GroupThreadId = TextureCoord % VIS_BUFFER_TILE_SIZE;
+	uint3 GroupId = TextureCoord / VIS_BUFFER_TILE_SIZE;
+
+	uint GroupIndex = GroupId.x + GroupId.z * GroupMaxCount.x + GroupId.y * (GroupMaxCount.x * GroupMaxCount.z);
+	uint GroupThreadIndex = ZOrder3DEncode(GroupThreadId, log2(VIS_BUFFER_TILE_SIZE));
+
+	return GroupIndex * (VIS_BUFFER_TILE_SIZE * VIS_BUFFER_TILE_SIZE * VIS_BUFFER_TILE_SIZE) + GroupThreadIndex;
 }
 
 RWBuffer<uint> RWClearVisBufferIndirectArgBuffer;
@@ -140,7 +148,8 @@ void BuildUpdateGridTilesCS(
 		float DistanceSq = ComputeSquaredDistanceBetweenAABBs(UpdateBoundsCenter, UpdateBoundsExtent, GridWorldCenter, TileWorldExtent);
 		if (DistanceSq <= 0.0f)
 		{
-			GroupInsideBounds = 1;
+			// Metal compiler issue: it requires `+=` instead of `=` to record the value as of UE 5.0
+			GroupInsideBounds += 1;
 			break;
 		}
 	}
@@ -160,7 +169,7 @@ void BuildUpdateGridTilesCS(
 	}
 }
 
-RWTexture3D<uint> RWVoxelVisBuffer;
+RWStructuredBuffer<uint> RWVoxelVisBuffer;
 StructuredBuffer<uint> UpdateTileBuffer;
 uint ClipmapIndex;
 
@@ -187,8 +196,8 @@ void ClearVisBufferCS(
 
 	uint3 VoxelCoord = UpdateTileCoord * VIS_BUFFER_TILE_SIZE + VoxelCoordOffset;
 
-	uint3 VisBufferTextureCoord = VoxelCoordToVisBufferTextureCoord(ClipmapIndex, VoxelCoord, DirectionIndex);
-	RWVoxelVisBuffer[VisBufferTextureCoord] = VIS_BUFFER_CLEAR;
+	uint VisBufferCoord = VoxelCoordToVisBufferCoord(ClipmapIndex, VoxelCoord, DirectionIndex);
+	RWVoxelVisBuffer[VisBufferCoord] = VIS_BUFFER_CLEAR;
 }
 
 RWStructuredBuffer<uint> RWObjectIndexBuffer;
@@ -406,8 +415,8 @@ void VoxelTraceCS(
 				VisBufferPayload = EncodeVoxelVisBuffer(VisBuffer);
 			}
 
-			uint3 VisBufferTextureCoord = VoxelCoordToVisBufferTextureCoord(ClipmapIndex, VoxelCoord, DirectionIndex);
-			InterlockedMin(RWVoxelVisBuffer[VisBufferTextureCoord], VisBufferPayload);
+			uint VisBufferCoord = VoxelCoordToVisBufferCoord(ClipmapIndex, VoxelCoord, DirectionIndex);
+			InterlockedMin(RWVoxelVisBuffer[VisBufferCoord], VisBufferPayload);
 		}
 	}
 }
@@ -473,8 +482,8 @@ void HeightfieldVoxelTraceCS(
 			VisBuffer.HitObjectId = Result.bHitFrontFace ? HeightfieldObjectIndex : LUMEN_INVALID_HEIGHTFIELD_OBJECT_INDEX;
 			uint VisBufferPayload = EncodeVoxelVisBuffer(VisBuffer);
 
-			uint3 VisBufferTextureCoord = VoxelCoordToVisBufferTextureCoord(ClipmapIndex, VoxelCoord, DirectionIndex);
-			InterlockedMin(RWVoxelVisBuffer[VisBufferTextureCoord], VisBufferPayload);
+			uint VisBufferCoord = VoxelCoordToVisBufferCoord(ClipmapIndex, VoxelCoord, DirectionIndex);
+			InterlockedMin(RWVoxelVisBuffer[VisBufferCoord], VisBufferPayload);
 		}
 	}
 }
@@ -482,7 +491,7 @@ void HeightfieldVoxelTraceCS(
 RWStructuredBuffer<uint> RWCompactedVisBufferAllocator;
 RWStructuredBuffer<uint> RWCompactedVisBuffer;
 
-Texture3D<uint> VoxelVisBuffer;
+StructuredBuffer<uint> VoxelVisBuffer;
 
 groupshared uint GroupCompactedVisBuffer[VIS_BUFFER_SHADING_WAVE_SIZE * NUM_VOXEL_DIRECTIONS];
 groupshared uint GroupCompactedVisBufferAllocator;
@@ -507,8 +516,8 @@ void CompactVisBufferCS(
 	{
 		for (uint DirectionIndex = 0; DirectionIndex < NUM_VOXEL_DIRECTIONS; ++DirectionIndex)
 		{
-			uint3 VisBufferTextureCoord = VoxelCoordToVisBufferTextureCoord(ClipmapIndex, VoxelCoord, DirectionIndex);
-			uint VisBufferPayload = VoxelVisBuffer.Load(int4(VisBufferTextureCoord, 0)).x;
+			uint VisBufferCoord = VoxelCoordToVisBufferCoord(ClipmapIndex, VoxelCoord, DirectionIndex);
+			uint VisBufferPayload = VoxelVisBuffer[VisBufferCoord];
 
 			if (VisBufferPayload != VIS_BUFFER_INVALID && VisBufferPayload != VIS_BUFFER_CLEAR)
 			{
@@ -597,8 +606,8 @@ void VisBufferShadingCS(
 			float3 Lighting = 0;
 			float Opacity = 0;
 
-			uint3 VisBufferTextureCoord = VoxelCoordToVisBufferTextureCoord(ClipmapIndex, VoxelCoord, DirectionIndex);
-			uint VisBufferPayload = VoxelVisBuffer.Load(int4(VisBufferTextureCoord, 0)).x;
+			uint VisBufferCoord = VoxelCoordToVisBufferCoord(ClipmapIndex, VoxelCoord, DirectionIndex);
+			uint VisBufferPayload = VoxelVisBuffer[VisBufferCoord];
 
 			if (VisBufferPayload != VIS_BUFFER_INVALID && VisBufferPayload != VIS_BUFFER_CLEAR)
 			{

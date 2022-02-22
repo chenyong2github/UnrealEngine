@@ -126,7 +126,7 @@ public:
 	int32 NumClipmapLevels = 0;
 	FLumenVoxelLightingClipmapState VoxelLightingClipmapState[MaxVoxelClipmapLevels];
 	TRefCountPtr<IPooledRenderTarget> VoxelLighting;
-	TRefCountPtr<IPooledRenderTarget> VoxelVisBuffer;
+	TRefCountPtr<FRDGPooledBuffer>     VoxelVisBuffer;
 	const FScene* VoxelVisBufferCachedScene = nullptr;
 	FIntVector VoxelGridResolution;
 
