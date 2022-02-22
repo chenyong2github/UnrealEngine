@@ -104,8 +104,17 @@ namespace UnrealBuildTool
 		public static readonly Identifier Alignof = Identifier.FindOrAdd("alignof");
 		public static readonly Identifier __has_builtin = Identifier.FindOrAdd("__has_builtin");
 		public static readonly Identifier __has_feature = Identifier.FindOrAdd("__has_feature");
+		public static readonly Identifier __has_warning = Identifier.FindOrAdd("__has_warning");
 		public static readonly Identifier __building_module = Identifier.FindOrAdd("__building_module");
 		public static readonly Identifier __pragma = Identifier.FindOrAdd("__pragma");
+		public static readonly Identifier __builtin_return_address = Identifier.FindOrAdd("__builtin_return_address");
+		public static readonly Identifier __builtin_frame_address = Identifier.FindOrAdd("__builtin_frame_address");
+		public static readonly Identifier __has_cpp_attribute = Identifier.FindOrAdd("__has_cpp_attribute");
+		public static readonly Identifier __has_keyword = Identifier.FindOrAdd("__has_keyword");
+		public static readonly Identifier __has_extension = Identifier.FindOrAdd("__has_extension");
+		public static readonly Identifier __has_include = Identifier.FindOrAdd("__has_include");
+		public static readonly Identifier __has_include_next = Identifier.FindOrAdd("__has_include_next");
+		public static readonly Identifier __is_target_arch = Identifier.FindOrAdd("__is_target_arch");
 	}
 
 	/// <summary>
