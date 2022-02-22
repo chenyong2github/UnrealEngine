@@ -99,12 +99,10 @@ FRWStrataMaterialContainer InitialiseRWStrataMaterialContainer(RWTexture2DArray<
 #define STRATA_USES_CONVERSION_FROM_LEGACY 0
 #endif
 
-// When converting legacy materials to Strata, we need to override transmittance/coverage to be independent from the material and directly linked to opacity. 
-#if STRATA_USES_CONVERSION_FROM_LEGACY && MATERIALBLENDING_ALPHACOMPOSITE
-#define STRATA_PREMULT_ALPHA_OVERRIDE 1
-#else
-#define STRATA_PREMULT_ALPHA_OVERRIDE 0
-#endif
+// When converting legacy materials to Strata, we need to override transmittance/coverage to be independent from the material and directly linked to opacity
+#define STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE (STRATA_USES_CONVERSION_FROM_LEGACY && MATERIALBLENDING_ALPHACOMPOSITE)
+
+#define STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT (!MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID && STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE==0)
 
 #define STRATA_INLINE_SINGLELAYERWATER (PROJECT_STRATA && MATERIAL_IS_STRATA && STRATA_INLINE_SHADING && MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
@@ -746,7 +744,7 @@ struct FStrataData
 
 	int  OperatorIndex;		// Used as entry point ot the material graph with multiple BSDF and operators.
 
-#if STRATA_PREMULT_ALPHA_OVERRIDE
+#if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE
 	float PreMultipliedAlphaOverrideCoverage;
 #endif
 };
@@ -754,7 +752,7 @@ struct FStrataData
 FStrataData GetInitialisedStrataData()
 {
 	FStrataData StrataData = (FStrataData)0;
-#if STRATA_PREMULT_ALPHA_OVERRIDE
+#if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE
 	StrataData.PreMultipliedAlphaOverrideCoverage = -1.0f;
 #endif
 	return StrataData;

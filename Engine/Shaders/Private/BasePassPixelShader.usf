@@ -1820,6 +1820,12 @@ void FPixelShaderInOut_MainPS(
 		#endif
 
 	#elif STRATA_TRANSLUCENT_MATERIAL
+			
+		#if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE && !STRATA_OPTIMIZED_UNLIT
+			// This data patching is working because DualBlendSurfaceCoverage is always 1 when converting material from legacy to Strata with premultiplied alpha blending.
+			DualBlendSurfaceTransmittancePreCoverage= StrataData.PreMultipliedAlphaOverrideCoverage >= 0.0f ? 0.0f											: DualBlendSurfaceTransmittancePreCoverage;
+			DualBlendSurfaceCoverage				= StrataData.PreMultipliedAlphaOverrideCoverage >= 0.0f ? StrataData.PreMultipliedAlphaOverrideCoverage	: DualBlendSurfaceCoverage;
+		#endif
 
 			// Add fog luminance according to surfacecoverage and reduce surface luminance according to fog coverage.
 			float3 AdjustedDualBlendAdd = DualBlendSurfaceCoverage * Fogging.rgb + Fogging.a * DualBlendSurfaceLuminancePostCoverage;
@@ -1838,8 +1844,6 @@ void FPixelShaderInOut_MainPS(
 			float AdjustedAlpha = saturate(1 - dot(AdjustedDualBlendMul, float3(1.0f, 1.0f, 1.0f) / 3.0f));
 			#if STRATA_USES_CONVERSION_FROM_LEGACY && MATERIALBLENDING_ADDITIVE
 				AdjustedAlpha = 0.0f;
-			#elif STRATA_PREMULT_ALPHA_OVERRIDE && !STRATA_OPTIMIZED_UNLIT
-				AdjustedAlpha = StrataData.PreMultipliedAlphaOverrideCoverage >= 0.0f ? saturate(StrataData.PreMultipliedAlphaOverrideCoverage) : AdjustedAlpha;
 			#endif
 			// Pre multipled alpha blending
 			Out.MRT[0] = half4(AdjustedDualBlendAdd, AdjustedAlpha);
