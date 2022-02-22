@@ -1096,11 +1096,8 @@ FOperationRequestedTypes GetOperationRequestedTypes(EOperation Op, const FReques
 	{
 	case EOperation::Length:
 	case EOperation::Normalize:
+	case EOperation::Sum:
 		Types.InputType[0] = ERequestedType::Vector4;
-		break;
-	case EOperation::Dot:
-		Types.InputType[0] = ERequestedType::Vector4;
-		Types.InputType[1] = ERequestedType::Vector4;
 		break;
 	case EOperation::VecMulMatrix3:
 		Types.bIsMatrixOperation = true;
@@ -1148,6 +1145,7 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<Shader::EValueT
 	switch (Op)
 	{
 	case EOperation::Length:
+	case EOperation::Sum:
 		Types.ResultType = Shader::MakeValueType(ComponentType, 1);
 		break;
 	case EOperation::Normalize:
@@ -1187,9 +1185,6 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<Shader::EValueT
 	case EOperation::Atan2Fast:
 		// No LWC support yet
 		Types.InputType[0] = Types.InputType[1] = Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
-		break;
-	case EOperation::Dot:
-		Types.ResultType = Shader::MakeValueType(ComponentType, 1);
 		break;
 	case EOperation::VecMulMatrix3:
 		// No LWC for matrix3
@@ -1262,6 +1257,10 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
 		break;
 	}
+	case EOperation::Sum:
+		OutResult.ExpressionDdx = Tree.NewSum(InputDerivatives[0].ExpressionDdx);
+		OutResult.ExpressionDdy = Tree.NewSum(InputDerivatives[0].ExpressionDdy);
+		break;
 	case EOperation::Frac:
 		OutResult = InputDerivatives[0];
 		break;
@@ -1316,17 +1315,6 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 		// We can't really do anything meaningful in the non-zero case.
 		OutResult = InputDerivatives[0];
 		break;
-	case EOperation::Dot:
-	{
-		// Dot means multiply the values, then sum the resulting components
-		FExpression* MulDdx = Tree.NewAdd(Tree.NewMul(InputDerivatives[0].ExpressionDdx, Inputs[1]), Tree.NewMul(InputDerivatives[1].ExpressionDdx, Inputs[0]));
-		FExpression* MulDdy = Tree.NewAdd(Tree.NewMul(InputDerivatives[0].ExpressionDdy, Inputs[1]), Tree.NewMul(InputDerivatives[1].ExpressionDdy, Inputs[0]));
-		// Dot the products with 1 to sum them
-		FExpression* Const1 = Tree.NewConstant(FVector4f(1.0f, 1.0f, 1.0f, 1.0f));
-		OutResult.ExpressionDdx = Tree.NewDot(MulDdx, Const1);
-		OutResult.ExpressionDdy = Tree.NewDot(MulDdy, Const1);
-		break;
-	}
 	case EOperation::Min:
 	{
 		FExpression* Cond = Tree.NewLess(Inputs[0], Inputs[1]);
@@ -1398,6 +1386,7 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 		switch (Op)
 		{
 		case EOperation::Length:
+		case EOperation::Sum:
 			ResultType = FPreparedType(Shader::MakeValueType(InputType[0].ValueComponentType, 1), InputType[0].GetEvaluation(Scope));
 			break;
 		default:
@@ -1579,6 +1568,7 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("normalize(%)"), InputValue[0]);
 		}
 		break;
+	case EOperation::Sum: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCVectorSum(%)") : TEXT("VectorSum(%)"), InputValue[0]); break;
 	case EOperation::Sin: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCSin(%)") : TEXT("sin(%)"), InputValue[0]); break;
 	case EOperation::Cos: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCCos(%)") : TEXT("cos(%)"), InputValue[0]); break;
 	case EOperation::Tan: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCTan(%)") : TEXT("tan(%)"), InputValue[0]); break;
@@ -1643,16 +1633,6 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 		break;
 	case EOperation::Atan2: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("atan2(%, %)"), InputValue[0], InputValue[1]); break;
 	case EOperation::Atan2Fast: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("atan2Fast(%, %)"), InputValue[0], InputValue[1]); break;
-	case EOperation::Dot:
-		if (Types.bIsLWC)
-		{
-			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCDot(%, %)"), InputValue[0], InputValue[1]);
-		}
-		else
-		{
-			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("dot(%, %)"), InputValue[0], InputValue[1]);
-		}
-		break;
 	case EOperation::Min:
 		if (Types.bIsLWC)
 		{

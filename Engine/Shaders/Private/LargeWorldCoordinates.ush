@@ -399,59 +399,19 @@ FLWCMatrix LWCMakeRelativeToTile(FLWCMatrix M, float3 NewTile)
 	return M;
 }
 
-FLWCScalar LWCDot(FLWCScalar Lhs, FLWCScalar Rhs)
-{
-	return LWCMultiply(Lhs, Rhs);
-}
-FLWCScalar LWCDot(FLWCScalar Lhs, float Rhs)
-{
-	return LWCMultiply(Lhs, Rhs);
-}
+FLWCScalar LWCVectorSum(FLWCScalar V) { return V; }
+FLWCScalar LWCVectorSum(FLWCVector2 V) { return LWCAdd(LWCGetX(V), LWCGetY(V)); }
+FLWCScalar LWCVectorSum(FLWCVector3 V) { return LWCAdd(LWCAdd(LWCGetX(V), LWCGetY(V)), LWCGetZ(V)); }
+FLWCScalar LWCVectorSum(FLWCVector4 V) { return LWCAdd(LWCAdd(LWCAdd(LWCGetX(V), LWCGetY(V)), LWCGetZ(V)), LWCGetW(V)); }
 
-FLWCScalar LWCDot(FLWCVector2 Lhs, FLWCVector2 Rhs)
-{
-	FLWCScalar X2 = LWCMultiply(LWCGetX(Lhs), LWCGetX(Rhs));
-	FLWCScalar Y2 = LWCMultiply(LWCGetY(Lhs), LWCGetY(Rhs));
-	return LWCAdd(X2, Y2);
-}
-FLWCScalar LWCDot(FLWCVector2 Lhs, float2 Rhs)
-{
-	FLWCScalar X2 = LWCMultiply(LWCGetX(Lhs), Rhs.x);
-	FLWCScalar Y2 = LWCMultiply(LWCGetY(Lhs), Rhs.y);
-	return LWCAdd(X2, Y2);
-}
-
-FLWCScalar LWCDot(FLWCVector3 Lhs, FLWCVector3 Rhs)
-{
-	FLWCScalar X2 = LWCMultiply(LWCGetX(Lhs), LWCGetX(Rhs));
-	FLWCScalar Y2 = LWCMultiply(LWCGetY(Lhs), LWCGetY(Rhs));
-	FLWCScalar Z2 = LWCMultiply(LWCGetZ(Lhs), LWCGetZ(Rhs));
-	return LWCAdd(LWCAdd(X2, Y2), Z2);
-}
-FLWCScalar LWCDot(FLWCVector3 Lhs, float3 Rhs)
-{
-	FLWCScalar X2 = LWCMultiply(LWCGetX(Lhs), Rhs.x);
-	FLWCScalar Y2 = LWCMultiply(LWCGetY(Lhs), Rhs.y);
-	FLWCScalar Z2 = LWCMultiply(LWCGetZ(Lhs), Rhs.z);
-	return LWCAdd(LWCAdd(X2, Y2), Z2);
-}
-
-FLWCScalar LWCDot(FLWCVector4 Lhs, FLWCVector4 Rhs)
-{
-	FLWCScalar X2 = LWCMultiply(LWCGetX(Lhs), LWCGetX(Rhs));
-	FLWCScalar Y2 = LWCMultiply(LWCGetY(Lhs), LWCGetY(Rhs));
-	FLWCScalar Z2 = LWCMultiply(LWCGetZ(Lhs), LWCGetZ(Rhs));
-	FLWCScalar W2 = LWCMultiply(LWCGetW(Lhs), LWCGetW(Rhs));
-	return LWCAdd(LWCAdd(LWCAdd(X2, Y2), Z2), W2);
-}
-FLWCScalar LWCDot(FLWCVector4 Lhs, float4 Rhs)
-{
-	FLWCScalar X2 = LWCMultiply(LWCGetX(Lhs), Rhs.x);
-	FLWCScalar Y2 = LWCMultiply(LWCGetY(Lhs), Rhs.y);
-	FLWCScalar Z2 = LWCMultiply(LWCGetZ(Lhs), Rhs.z);
-	FLWCScalar W2 = LWCMultiply(LWCGetW(Lhs), Rhs.w);
-	return LWCAdd(LWCAdd(LWCAdd(X2, Y2), Z2), W2);
-}
+FLWCScalar LWCDot(FLWCScalar Lhs, FLWCScalar Rhs) { return LWCMultiply(Lhs, Rhs); }
+FLWCScalar LWCDot(FLWCScalar Lhs, float Rhs) { return LWCMultiply(Lhs, Rhs); }
+FLWCScalar LWCDot(FLWCVector2 Lhs, FLWCVector2 Rhs) { return LWCVectorSum(LWCMultiply(Lhs, Rhs)); }
+FLWCScalar LWCDot(FLWCVector2 Lhs, float2 Rhs) { return LWCVectorSum(LWCMultiply(Lhs, Rhs)); }
+FLWCScalar LWCDot(FLWCVector3 Lhs, FLWCVector3 Rhs) { return LWCVectorSum(LWCMultiply(Lhs, Rhs)); }
+FLWCScalar LWCDot(FLWCVector3 Lhs, float3 Rhs) { return LWCVectorSum(LWCMultiply(Lhs, Rhs)); }
+FLWCScalar LWCDot(FLWCVector4 Lhs, FLWCVector4 Rhs) { return LWCVectorSum(LWCMultiply(Lhs, Rhs)); }
+FLWCScalar LWCDot(FLWCVector4 Lhs, float4 Rhs) { return LWCVectorSum(LWCMultiply(Lhs, Rhs)); }
 
 // LWCLength2Scaled returns the length2 of the vector, scaled by the LWC tile size
 FLWCScalar LWCLength2Scaled(FLWCScalar V)

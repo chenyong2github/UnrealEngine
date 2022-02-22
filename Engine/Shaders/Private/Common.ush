@@ -193,6 +193,11 @@ float4 FmodFloor(float4 Lhs, float4 Rhs)
 	return Lhs - floor(Lhs / Rhs) * Rhs;
 }
 
+float VectorSum(float V) { return V; }
+float VectorSum(float2 V) { return V.x + V.y; }
+float VectorSum(float3 V) { return V.x + V.y + V.z; }
+float VectorSum(float4 V) { return V.x + V.y + V.z + V.w; }
+
 #include "LargeWorldCoordinates.ush"
 
 #include "InstancedStereo.ush"

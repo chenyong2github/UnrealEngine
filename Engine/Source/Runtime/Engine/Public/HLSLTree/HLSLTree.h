@@ -561,6 +561,7 @@ public:
 	FExpression* NewAbs(FExpression* Input) { return NewUnaryOp(EOperation::Abs, Input); }
 	FExpression* NewNeg(FExpression* Input) { return NewUnaryOp(EOperation::Neg, Input); }
 	FExpression* NewSaturate(FExpression* Input) { return NewUnaryOp(EOperation::Saturate, Input); }
+	FExpression* NewSum(FExpression* Input) { return NewUnaryOp(EOperation::Sum, Input); }
 	FExpression* NewRcp(FExpression* Input) { return NewUnaryOp(EOperation::Rcp, Input); }
 	FExpression* NewFrac(FExpression* Input) { return NewUnaryOp(EOperation::Frac, Input); }
 	FExpression* NewLength(FExpression* Input) { return NewUnaryOp(EOperation::Length, Input); }
@@ -573,7 +574,6 @@ public:
 	FExpression* NewMul(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Mul, Lhs, Rhs); }
 	FExpression* NewDiv(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Div, Lhs, Rhs); }
 	FExpression* NewFmod(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Fmod, Lhs, Rhs); }
-	FExpression* NewDot(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Dot, Lhs, Rhs); }
 	FExpression* NewMin(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Min, Lhs, Rhs); }
 	FExpression* NewMax(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Max, Lhs, Rhs); }
 	FExpression* NewLess(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Less, Lhs, Rhs); }
@@ -582,6 +582,7 @@ public:
 	FExpression* NewGreaterEqual(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::GreaterEqual, Lhs, Rhs); }
 
 	FExpression* NewCross(FExpression* Lhs, FExpression* Rhs);
+	FExpression* NewDot(FExpression* Lhs, FExpression* Rhs) { return NewSum(NewMul(Lhs, Rhs)); }
 	FExpression* NewLerp(FExpression* A, FExpression* B, FExpression* T) { return NewAdd(A, NewMul(NewSub(B, A), T)); }
 
 private:
