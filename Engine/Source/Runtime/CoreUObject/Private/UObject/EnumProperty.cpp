@@ -279,7 +279,7 @@ void FEnumProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue,
 		if (GoodValue == MaxValue)
 		{
 			// not all native enums have Max value declared
-			ValueStr += FString::Printf(TEXT("(%s)(%ull)"), *FullyQualifiedEnumName, ActualValue);
+			ValueStr += FString::Printf(TEXT("(%s)(%llu)"), *FullyQualifiedEnumName, ActualValue);
 		}
 		else
 		{
