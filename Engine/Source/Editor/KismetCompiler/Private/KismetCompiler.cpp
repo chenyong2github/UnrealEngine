@@ -5043,7 +5043,9 @@ void FKismetCompilerContext::PostCDOCompiled(const UObject::FPostCDOCompiledCont
 	NewClass->ClassDefaultObject->PostCDOCompiled(Context);
 	if (!Context.bIsSkeletonOnly)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 		NewClass->ClassDefaultObject->PostCDOCompiled();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	}
 
 	// Allow children to customize PostCDOCompile:

@@ -235,6 +235,7 @@ public:
 	 * Called after the Blueprint compiler has finished generating the Class Default Object (CDO) for a class. This can only happen in the editor.
 	 * @note This version is deprecated as it wasn't called for skeleton-only compilation. Use the version taking FPostCDOCompiledContext instead.
 	 */
+	UE_DEPRECATED(5.1, "Use version that takes FPostCDOCompiledContext instead.")
 	virtual void PostCDOCompiled()
 	{
 	}
