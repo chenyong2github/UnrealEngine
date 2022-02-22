@@ -422,7 +422,7 @@ bool FLevelEditorActionCallbacks::CanSaveUnpartitionedWorld()
 		return false;
 	}
 
-	return GetWorld() && !GetWorld()->HasSubsystem<UWorldPartitionSubsystem>();
+	return !UWorld::IsPartitionedWorld(GetWorld());
 }
 
 void FLevelEditorActionCallbacks::Save()

@@ -2680,6 +2680,19 @@ public:
 	bool IsPartitionedWorld() const { return GetWorldPartition() != nullptr; }
 
 	/**
+	* Returns true if world contains an associated UWorldPartition object.
+	*/
+	static bool IsPartitionedWorld(const UWorld* InWorld)
+	{
+		if (InWorld)
+		{
+			return InWorld->IsPartitionedWorld();
+		}
+
+		return false;
+	}
+		
+	/**
 	 * Returns the current levels BSP model.
 	 *
 	 * @return BSP UModel

@@ -149,7 +149,7 @@ void FActorDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 		const bool bShouldDisplayWorldPartitionProperties = Algo::AnyOf(SelectedActors, [](const TWeakObjectPtr<AActor> Actor)
 		{
 			UWorld* World = Actor.IsValid() ? Actor->GetTypedOuter<UWorld>() : nullptr;
-			return World != nullptr && UWorld::HasSubsystem<UWorldPartitionSubsystem>(World);
+			return UWorld::IsPartitionedWorld(World);
 		});
 
 		if (!bShouldDisplayWorldPartitionProperties)
@@ -707,7 +707,7 @@ void FActorDetails::AddActorCategory( IDetailLayoutBuilder& DetailBuilder, const
 		if (SelectedActorInfo.SelectionClass != AWorldSettings::StaticClass())
 		{
 			// Actor Packaging Mode
-			const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(SelectedActorInfo.SharedWorld);
+			const bool bIsPartitionedWorld = UWorld::IsPartitionedWorld(SelectedActorInfo.SharedWorld);
 
 			auto OnGetMenuContent = [=]() -> TSharedRef<SWidget> {
 				FMenuBuilder MenuBuilder(true, nullptr);

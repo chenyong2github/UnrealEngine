@@ -358,7 +358,7 @@ void UDerivedDataCacheCommandlet::CacheWorldPackages(UWorld* World, uint8 Packag
 
 	// If the world is partitioned
 	bool bResult = true;
-	if (World->HasSubsystem<UWorldPartitionSubsystem>())
+	if (UWorld::IsPartitionedWorld(World))
 	{
 		// Ensure the world has a valid world partition.
 		UWorldPartition* WorldPartition = World->GetWorldPartition();

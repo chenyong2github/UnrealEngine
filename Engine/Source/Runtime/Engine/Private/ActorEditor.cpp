@@ -78,13 +78,9 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 	{
 		if (!IsTemplate())
 		{
-			if (UWorld* World = GetTypedOuter<UWorld>())
+			if (!UWorld::IsPartitionedWorld(GetTypedOuter<UWorld>()))
 			{
-				const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(World);
-				if (!bIsPartitionedWorld)
-				{
-					return false;
-				}
+				return false;
 			}
 		}
 	}
@@ -1516,7 +1512,7 @@ bool AActor::IsValidForDataLayer() const
 		return false;
 	}
 
-	const bool bIsPartitionedActor = UWorld::HasSubsystem<UWorldPartitionSubsystem>(World);
+	const bool bIsPartitionedActor = UWorld::IsPartitionedWorld(World);
 	const bool bIsInEditorWorld = World->WorldType == EWorldType::Editor;
 	const bool bIsBuilderBrush = FActorEditorUtils::IsABuilderBrush(this);
 	const bool bIsHidden = GetClass()->GetDefaultObject<AActor>()->bHiddenEd;

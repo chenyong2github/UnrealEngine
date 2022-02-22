@@ -330,7 +330,7 @@ UActorPartitionSubsystem::UActorPartitionSubsystem()
 
 bool UActorPartitionSubsystem::IsLevelPartition() const
 {
-	return !GetWorld()->HasSubsystem<UWorldPartitionSubsystem>();
+	return !UWorld::IsPartitionedWorld(GetWorld());
 }
 
 #if WITH_EDITOR

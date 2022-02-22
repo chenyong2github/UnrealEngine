@@ -1207,7 +1207,7 @@ void SLevelViewportToolBar::FillShowMenu(UToolMenu* Menu) const
 			}
 
 			// Show Layers sub-menu is dynamically generated when the user enters 'show' menu
-			if (!UWorld::HasSubsystem<UWorldPartitionSubsystem>(World))
+			if (!UWorld::IsPartitionedWorld(World))
 			{
 				Section.AddSubMenu("ShowLayers", LOCTEXT("ShowLayersMenu", "Layers"), LOCTEXT("ShowLayersMenu_ToolTip", "Show layers flags"),
 					FNewToolMenuDelegate::CreateStatic(&SLevelViewportToolBar::FillShowLayersMenu, Viewport), false, FSlateIcon(FAppStyle::Get().GetStyleSetName(), "ShowFlagsMenu.SubMenu.Layers"));

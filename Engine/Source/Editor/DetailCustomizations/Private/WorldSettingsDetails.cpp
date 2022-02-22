@@ -106,7 +106,7 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 
 	if (CustomizedLevel)
 	{
-		const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(CustomizedLevel->GetWorld());
+		const bool bIsPartitionedWorld = UWorld::IsPartitionedWorld(CustomizedLevel->GetWorld());
 
 		IDetailCategoryBuilder& WorldCategory = DetailBuilder.EditCategory("World");
 		if (GetDefault<UEditorExperimentalSettings>()->bEnableOneFilePerActorSupport)

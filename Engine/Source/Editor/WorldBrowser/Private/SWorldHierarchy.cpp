@@ -62,7 +62,7 @@ void SWorldHierarchy::OnBrowseWorld(UWorld* InWorld)
 	// Bind to a new world
 	if (InWorld)
 	{
-		if (UWorld::HasSubsystem<UWorldPartitionSubsystem>(InWorld))
+		if (UWorld::IsPartitionedWorld(InWorld))
 		{
 			ChildSlot
 			[

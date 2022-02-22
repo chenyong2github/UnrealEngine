@@ -908,7 +908,7 @@ FText SFoliageEdit::GetActiveToolMessage() const
 
 EVisibility SFoliageEdit::GetVisibility_DataLayer() const
 {
-	if (UWorld::HasSubsystem<UWorldPartitionSubsystem>(FoliageEditMode->GetWorld()) && (IsPaintTool() || IsPlaceTool() || IsReapplySettingsTool() || IsPaintFillTool()))
+	if (UWorld::IsPartitionedWorld(FoliageEditMode->GetWorld()) && (IsPaintTool() || IsPlaceTool() || IsReapplySettingsTool() || IsPaintFillTool()))
 	{
 		return EVisibility::Visible;
 	}

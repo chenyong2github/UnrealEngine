@@ -360,8 +360,7 @@ bool UProceduralFoliageComponent::CanEditChange(const FProperty* InProperty) con
 	{
 		if (!IsTemplate())
 		{
-			const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(GetWorld());
-			if (!bIsPartitionedWorld)
+			if (!UWorld::IsPartitionedWorld(GetWorld()))
 			{
 				return false;
 			}

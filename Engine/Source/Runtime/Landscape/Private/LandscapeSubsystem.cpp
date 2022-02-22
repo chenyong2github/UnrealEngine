@@ -202,7 +202,7 @@ int32 ULandscapeSubsystem::GetOudatedPhysicalMaterialComponentsCount()
 
 bool ULandscapeSubsystem::IsGridBased() const
 {
-	return UWorld::HasSubsystem<UWorldPartitionSubsystem>(GetWorld());
+	return UWorld::IsPartitionedWorld(GetWorld());
 }
 
 void ULandscapeSubsystem::ChangeGridSize(ULandscapeInfo* LandscapeInfo, uint32 GridSizeInComponents)

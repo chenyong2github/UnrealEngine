@@ -89,7 +89,7 @@ bool UWorldPartitionBuilder::RunBuilder(UWorld* World)
 		FScopedEditorWorld EditorWorld(World, IVS);
 
 		// Make sure the world is partitioned
-		if (World->HasSubsystem<UWorldPartitionSubsystem>())
+		if (UWorld::IsPartitionedWorld(World))
 		{
 			// Ensure the world has a valid world partition.
 			UWorldPartition* WorldPartition = World->GetWorldPartition();

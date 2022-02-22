@@ -172,7 +172,7 @@ void SLayerBrowser::Construct(const FArguments& InArgs)
 	ChildSlot
 		[
 			SAssignNew(ContentAreaBox, SVerticalBox)
-			.IsEnabled_Lambda([]() { return GWorld ? !UWorld::HasSubsystem<UWorldPartitionSubsystem>(GWorld) : false; })
+			.IsEnabled_Lambda([]() { return !UWorld::IsPartitionedWorld(GWorld); })
 		];
 
 	SetupLayersMode();
