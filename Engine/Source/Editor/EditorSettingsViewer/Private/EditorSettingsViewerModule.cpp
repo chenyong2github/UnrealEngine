@@ -246,13 +246,6 @@ protected:
 			GetMutableDefault<UGraphEditorSettings>()
 		);
 
-		// graph editors
-		SettingsModule.RegisterSettings("Editor", "ContentEditors", "BlueprintEditor",
-			LOCTEXT("ContentEditorsBlueprintEditorSettingsName", "Blueprint Editor"),
-			LOCTEXT("ContentEditorsGraphBlueprintSettingsDescription", "Customize Blueprint Editors."),
-			GetMutableDefault<UBlueprintEditorSettings>()
-		);
-
 		// Persona editors
 		SettingsModule.RegisterSettings("Editor", "ContentEditors", "Persona",
 			LOCTEXT("ContentEditorsPersonaSettingsName", "Animation Editor"),
