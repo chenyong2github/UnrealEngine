@@ -170,8 +170,8 @@ void MainCS(
 				HighFrequencyColor  += (kernelWeight * HighFrequencyHdrWeight) * SampleHighFrequencyColor;
 				HighFrequencyWeight += (kernelWeight * HighFrequencyHdrWeight) * SampleHistoryValidity;
 
-				HistoryValidity       += max(kernelWeight, tsr_half(0.0)) * SampleHistoryValidity;
-				HistoryValidityWeight += max(kernelWeight, tsr_half(0.0));
+				HistoryValidity       += kernelWeight * SampleHistoryValidity;
+				HistoryValidityWeight += kernelWeight;
 			}
 		}
 
