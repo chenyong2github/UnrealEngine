@@ -1,15 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Common.ush"
+
+
+#if STRATA_ENABLED
+// Mention that we are going to use a single slab
+#define STRATA_CLAMPED_BSDF_COUNT 1
+#define STRATA_INLINE_SHADING 1
+#include "Strata/Strata.ush"
+#endif // STRATA_ENABLED
+
 #include "DeferredShadingCommon.ush"
 #include "VelocityCommon.ush"
 
-#if PROJECT_STRATA
-
-// Mention that we are going to use a single slab
-#define STRATA_CLAMPED_BSDF_COUNT 1
-
+#if STRATA_ENABLED
 #include "SceneTexturesCommon.ush"
-#include "Strata/Strata.ush"
 RWTexture2DArray<uint> MaterialTextureArrayUAV;
 uint MaxBytesPerPixel;
 
@@ -18,10 +23,9 @@ void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader Strata
 void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree) {}
 void UpdateAllBSDFWeightAfterOperatorVisit(inout FStrataTree StrataTree) {}
 
-#endif
+#endif // STRATA_ENABLED
+
 int DebugProbesMode;
-
-
 
 #define PROBE_MODE_SPECULAR	0
 #define PROBE_MODE_DIFFUSE	1
@@ -65,7 +69,7 @@ void MainPS(
 	  in  float4 SvPosition		: SV_Position
 	, out float4 OutColor		: SV_Target0
 #if PERMUTATION_PASS == RENDER_BASEPASS
-	#if PROJECT_STRATA
+	#if STRATA_ENABLED
 	, out float4 OutGBufferA : SV_Target1
 	, out uint OutGBufferB : SV_Target2
 	, out uint OutGBufferC : SV_Target3
@@ -250,7 +254,7 @@ void MainPS(
 	const float  Roughness = 0.01f;
 	const float  IndirectIrradianceAndAO = 0.0f;
 
-#if PROJECT_STRATA
+#if STRATA_ENABLED
 
 	// EarlyDepthStencil does not work because we render a simple quad on screen with custom OutDepth.
 	// We cannot rely on late depth test because pixel shader would have already operated the write to strata buffer.
@@ -327,7 +331,7 @@ void MainPS(
 		return;
 	}
 	
-#else // PROJECT_STRATA
+#else // STRATA_ENABLED
 
 	// We write all outputs, the rasterizer will discard what is not bound. That is fine since we do not care that much about performance for this debug view.
 
@@ -345,7 +349,7 @@ void MainPS(
 	OutGBufferD = float4(0.0f, 0.0f, 0.0f, 0.0f);	// custom data
 	OutGBufferE = float4(1.0f, 1.0f, 1.0f, 1.0f);	// Pre computed shadow factor
 
-#endif // PROJECT_STRATA
+#endif // STRATA_ENABLED
 
 	OutColor = 0.0f;
 
@@ -353,7 +357,7 @@ void MainPS(
 
 
 
-#if PERMUTATION_PASS == RENDER_VELOCITYPASS || PERMUTATION_PASS == RENDER_DEPTHPREPASS || (PERMUTATION_PASS == RENDER_BASEPASS && PROJECT_STRATA == 0)
+#if PERMUTATION_PASS == RENDER_VELOCITYPASS || PERMUTATION_PASS == RENDER_DEPTHPREPASS || (PERMUTATION_PASS == RENDER_BASEPASS && STRATA_ENABLED == 0)
 	// Base pass with strata cannot write to depth because it is going to execute in shader depth testing
 	OutDepth = DeviceZ;
 #endif

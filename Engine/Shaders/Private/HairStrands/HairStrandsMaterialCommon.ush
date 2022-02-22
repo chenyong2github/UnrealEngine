@@ -202,7 +202,7 @@ FEvaluateOutput Evaluate(
 		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, LocalScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 
-#if PROJECT_STRATA && MATERIAL_IS_STRATA && MATERIAL_SHADINGMODEL_HAIR
+#if STRATA_ENABLED && MATERIAL_IS_STRATA && MATERIAL_SHADINGMODEL_HAIR
 		FStrataBSDF HairBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 
 		OutSample.BaseColor = HAIR_BASECOLOR(HairBSDF);

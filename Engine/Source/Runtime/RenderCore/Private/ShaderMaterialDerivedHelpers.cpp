@@ -95,7 +95,7 @@ FShaderMaterialDerivedDefines RENDERCORE_API CalculateDerivedMaterialParameters(
 	Dst.THIN_TRANSLUCENT_USE_DUAL_BLEND = Mat.MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT && SrcGlobal.bSupportsDualBlending;
 
 	// matching the logic in BasePassPixelShader.usf
-	Dst.STRATA_ENABLED = Mat.PROJECT_STRATA | Mat.MATERIAL_IS_STRATA;
+	Dst.STRATA_ENABLED = Mat.STRATA_ENABLED | Mat.MATERIAL_IS_STRATA;
 	Dst.SHADER_STRATA_TRANSLUCENT_ENABLED = Dst.STRATA_ENABLED && Dst.MATERIALBLENDING_ANY_TRANSLUCENT;
 	// As of today, all translucent Strata material forces dual source color blending. STRATA_TODO: optimize out dual color blending when not needed or requested
 	Dst.MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING = (Mat.MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || Mat.STRATA_BLENDING_TRANSLUCENT_COLOREDTRANSMITTANCE);

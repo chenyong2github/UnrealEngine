@@ -4,9 +4,6 @@
 	PostProcessMaterialShaders.usf: Shaders for rendering post process materials
 =============================================================================*/
 
-#define STRATA_INLINE_SHADING 1
-#define STRATA_DEFERRED_SHADING 1
-
 #include "Common.ush"
 #include "ScreenPass.ush"
 

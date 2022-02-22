@@ -241,7 +241,6 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		if (PermutationVector.Get<FSMRTAdaptiveRayCountDim>())

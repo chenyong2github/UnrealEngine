@@ -578,6 +578,7 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 	{
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("STRATA_INLINE_SHADING"), 1);
 	}
 };
 

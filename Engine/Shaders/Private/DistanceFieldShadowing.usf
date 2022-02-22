@@ -9,6 +9,10 @@
 #include "DistanceFieldLightingShared.ush"
 #include "DistanceFieldShadowingShared.ush"
 
+#if STRATA_ENABLED
+#include "/Engine/Private/Strata/Strata.ush"
+#endif
+
 #define SCATTER_TILE_CULLING (CULLING_TYPE == 0)
 #define POINT_LIGHT (CULLING_TYPE == 2)
 

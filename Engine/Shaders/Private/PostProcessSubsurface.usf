@@ -6,10 +6,6 @@
 
 #include "Common.ush"
 
-#ifndef STRATA_ENABLED
-#define STRATA_ENABLED PROJECT_STRATA
-#endif
-
 #ifdef STRATA_ENABLED
 #include "Strata/Strata.ush"
 #endif

@@ -133,7 +133,6 @@ class FOcclusionRGS : public FGlobalShader
 		{
 			OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_COHERENT_RAYS"), 0);
 		}
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled());
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )

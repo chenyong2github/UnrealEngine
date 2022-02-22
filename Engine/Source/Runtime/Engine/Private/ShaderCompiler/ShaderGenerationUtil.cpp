@@ -236,7 +236,7 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderMaterialPropertyDefin
 	FETCH_COMPILE_BOOL(IS_BASE_PASS);
 	FETCH_COMPILE_BOOL(IS_MATERIAL_SHADER);
 
-	FETCH_COMPILE_BOOL(PROJECT_STRATA);
+	FETCH_COMPILE_BOOL(STRATA_ENABLED);
 	FETCH_COMPILE_BOOL(MATERIAL_IS_STRATA);
 
 	FETCH_COMPILE_BOOL(DUAL_SOURCE_COLOR_BLENDING_ENABLED);
@@ -1713,7 +1713,7 @@ static void DetermineUsedMaterialSlots(
 	bool bHasTangent = SrcGlobal.GBUFFER_HAS_TANGENT;
 	bool bHasVelocity = Dst.WRITES_VELOCITY_TO_GBUFFER;
 	bool bHasStaticLighting = Dst.GBUFFER_HAS_PRECSHADOWFACTOR || Dst.WRITES_PRECSHADOWFACTOR_TO_GBUFFER;
-	bool bIsStrataMaterial = Mat.PROJECT_STRATA; // Similarly to FetchFullGBufferInfo, we do not check for MATERIAL_IS_STRATA as this is decided per project.
+	bool bIsStrataMaterial = Mat.STRATA_ENABLED; // Similarly to FetchFullGBufferInfo, we do not check for MATERIAL_IS_STRATA as this is decided per project.
 
 	// Strata doesn't use gbuffer, and thus doesn't need CustomData
 	const bool bUseCustomData = !bIsStrataMaterial;

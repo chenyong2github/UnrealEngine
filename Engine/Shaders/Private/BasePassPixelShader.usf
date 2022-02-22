@@ -39,7 +39,12 @@
 #endif
 
 // Enable Strata. This define & include need to be defined before certains includes (i.e., DBufferDecalShared which uses them internally)
-#define STRATA_ENABLED (PROJECT_STRATA && MATERIAL_IS_STRATA)
+#if !MATERIAL_IS_STRATA && STRATA_ENABLED
+#undef STRATA_ENABLED
+#define STRATA_ENABLED 0
+#endif
+
+// For the base pass STRATA_INLINE_SHADING is defined in BasePassRendering.h
 #if STRATA_ENABLED
 #include "/Engine/Private/Strata/Strata.ush"
 #endif

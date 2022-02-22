@@ -124,7 +124,7 @@ void MainVisibility(
 		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 
-#if PROJECT_STRATA && MATERIAL_IS_STRATA
+#if STRATA_ENABLED && MATERIAL_IS_STRATA
 		FStrataBSDF HairBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 
 		BaseColor		 = HAIR_BASECOLOR(HairBSDF);

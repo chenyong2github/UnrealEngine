@@ -1152,7 +1152,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("SUBPIXEL_SHADOW"), (uint32)(SubPixelShadow ? 1 : 0));
 		OutEnvironment.SetDefine(TEXT("USE_FADE_PLANE"), (uint32)(bUseFadePlane ? 1 : 0));
 		OutEnvironment.SetDefine(TEXT("USE_TRANSMISSION"), (uint32)(bUseTransmission ? 1 : 0));
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), (uint32)(Strata::IsStrataEnabled() ? 1 : 0));
 	}
 
 	/**
@@ -1474,7 +1473,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("SHADOW_QUALITY"), Quality);
 		OutEnvironment.SetDefine(TEXT("USE_TRANSMISSION"), (uint32)(bUseTransmission ? 1 : 0));
 		OutEnvironment.SetDefine(TEXT("SUBPIXEL_SHADOW"), (uint32)(bUseSubPixel ? 1 : 0));
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), (uint32)(Strata::IsStrataEnabled() ? 1 : 0));
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)

@@ -14,7 +14,10 @@
 #include "Random.ush"
 #include "VolumetricCloudCommon.ush"
 
-#define STRATA_ENABLED PROJECT_STRATA && MATERIAL_IS_STRATA
+#if STRATA_ENABLED && !MATERIAL_IS_STRATA
+#undef STRATA_ENABLED
+#define STRATA_ENABLED 0
+#endif
 
 #ifndef SHADER_RENDERVIEW_CS
 #define SHADER_RENDERVIEW_CS 0

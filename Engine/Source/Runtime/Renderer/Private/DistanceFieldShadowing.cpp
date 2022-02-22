@@ -180,7 +180,6 @@ class FCullObjectsForShadowCS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters,OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("UPDATEOBJECTS_THREADGROUP_SIZE"), UpdateObjectsGroupSize);
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1 : 0);
 	}
 };
 
@@ -271,6 +270,7 @@ class FDistanceFieldShadowingCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float2>, RWShadowFactors)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER(FVector2f, NumGroups)
 		SHADER_PARAMETER(FVector3f, LightDirection)
 		SHADER_PARAMETER(FVector4f, LightPositionAndInvRadius)
@@ -760,6 +760,7 @@ void RayTraceShadows(
 		PassParameters->HeightFieldAtlasParameters = HeightFieldAtlasParameters;
 		PassParameters->WorldToShadow = FMatrix44f(FTranslationMatrix(ProjectedShadowInfo->PreShadowTranslation) * FMatrix(ProjectedShadowInfo->TranslatedWorldToClipInnerMatrix));
 		PassParameters->TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
 		if (ProjectedShadowInfo->bDirectionalLight)
 		{

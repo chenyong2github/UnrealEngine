@@ -10,7 +10,10 @@
 
 #include "Common.ush"
 
-#define STRATA_ENABLED PROJECT_STRATA && MATERIAL_IS_STRATA
+#if STRATA_ENABLED && !MATERIAL_IS_STRATA
+#undef STRATA_ENABLED
+#define STRATA_ENABLED 0
+#endif
 
 #define SceneTexturesStruct VoxelizeVolumePass.SceneTextures 
 

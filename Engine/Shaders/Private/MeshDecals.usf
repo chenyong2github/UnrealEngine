@@ -15,9 +15,7 @@
 	#define EyeAdaptationStruct DecalPass
 #endif
 
-#if STRATA_ENABLED 
-#define STRATA_INLINE_SHADING 1
-#define STRATA_DEFERRED_SHADING 1
+#if STRATA_ENABLED
 #include "Strata/Strata.ush"
 #endif
 
@@ -141,9 +139,9 @@ void FPixelShaderInOut_MainPS(
 	FStrataPixelHeader StrataHeader = InitialiseStrataPixelHeader();
 	StrataHeader.BSDFCount = 1;
 	StrataHeader.IrradianceAO = InitIrradianceAndOcclusion();
-	StrataHeader.IrrdianceAO.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+	StrataHeader.IrradianceAO.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 	StrataHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
-	const float Coverage = DecalCommonOutput(Out, StrataHeader, PixelMaterialInputs.FrontMaterial, 1.f);
+	const float Coverage = DecalCommonOutput(Out, StrataHeader, 1.f /*CoverageWeight*/);
 	const float Opacity = Coverage;
 #else // STRATA_ENABLED
 	float3 Color = GetMaterialEmissive(PixelMaterialInputs);

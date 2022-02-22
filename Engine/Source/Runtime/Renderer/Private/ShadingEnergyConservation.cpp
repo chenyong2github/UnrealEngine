@@ -127,7 +127,6 @@ class FShadingFurnaceTestPassPS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_FURNACE_ANALYTIC"), 1);
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled()); 
 	}
 };
 

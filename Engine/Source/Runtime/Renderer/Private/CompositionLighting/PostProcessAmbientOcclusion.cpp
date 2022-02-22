@@ -506,11 +506,6 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
-	}
-
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
@@ -692,7 +687,6 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 0);
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -726,7 +720,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 16);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), 16);
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1077,7 +1070,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 8);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), 8);
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1170,7 +1162,6 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 0);
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1267,7 +1258,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), 8);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), 8);
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)

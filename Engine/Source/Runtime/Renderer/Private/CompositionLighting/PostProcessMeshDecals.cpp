@@ -32,6 +32,12 @@ public:
 			DecalRendering::GetBaseRenderStage(DecalRendering::ComputeDecalBlendDesc(Parameters.Platform, Parameters.MaterialParameters)) != EDecalRenderStage::None;
 	}
 
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("STRATA_INLINE_SHADING"), 1);
+	}
+
 	FMeshDecalsVS() = default;
 	FMeshDecalsVS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
 		: FMeshMaterialShader(Initializer)

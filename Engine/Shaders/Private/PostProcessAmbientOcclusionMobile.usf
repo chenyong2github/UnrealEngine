@@ -114,10 +114,6 @@
 #define USE_NORMALS 1
 
 // -----------------------------------------------------------------------------------------------------------------------------
-// To be included after defines
-#ifndef STRATA_ENABLED
-#define STRATA_ENABLED 0
-#endif
 
 #include "PostProcessAmbientOcclusionCommon.ush"
 

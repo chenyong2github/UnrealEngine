@@ -445,6 +445,8 @@ public:
 		OutEnvironment.SetDefine(TEXT("IS_BASE_PASS"), 1);
 		OutEnvironment.SetDefine(TEXT("IS_MOBILE_BASE_PASS"), 0);
 
+		OutEnvironment.SetDefine(TEXT("STRATA_INLINE_SHADING"), 1);
+
 		TBasePassPixelShaderBaseType<LightMapPolicyType>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 	

@@ -209,7 +209,9 @@ public:
 			OutEnvironment.SetDefine(TEXT("MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER"), 1);
 		}
 
-		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
+		// PostProcessMaterial can both read & write Strata data
+		OutEnvironment.SetDefine(TEXT("STRATA_INLINE_SHADING"), 1);
+		OutEnvironment.SetDefine(TEXT("STRATA_DEFERRED_SHADING"), 1);
 	}
 
 protected:

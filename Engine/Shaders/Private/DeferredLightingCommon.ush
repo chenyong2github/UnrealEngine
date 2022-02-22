@@ -12,12 +12,20 @@
 #include "CapsuleLightIntegrate.ush"
 #include "RectLightIntegrate.ush"
 
-#ifndef STRATA_ENABLED
-#define STRATA_ENABLED 0
-#endif
-
-#ifndef StrataStruct
-#define StrataStruct Strata
+// This Strata include assumes that if inline shading is required, it needs to 
+// be defined prior to DeferredLightingCommong.ush
+#if STRATA_ENABLED 
+	#include "Strata/Strata.ush"
+	// StrataStruct.MaterialTextureArray is only available to translucent materials or global shaders computing contact shadows.
+	// It is not defined for opaque materials, only the UAV is available to write the strata buffer.
+	#define STRATA_RAYCAST_ENABLED (!MATERIAL_IS_STRATA || STRATA_TRANSLUCENT_ENABLED)
+	#if STRATA_RAYCAST_ENABLED
+		#if MATERIAL_IS_STRATA
+			#define StrataRayCast StrataStruct
+		#else
+			#define StrataRayCast Strata
+		#endif
+	#endif
 #endif
 
 /** 
@@ -149,12 +157,10 @@ float ShadowRayCast(
 		// Ignore hits that come from non-shadow-casting pixels
 		float3 SampleUVz = RayStartUVz + RayStepUVz * FirstHitTime;
 	#if STRATA_ENABLED
-		#if (!MATERIAL_IS_STRATA || STRATA_TRANSLUCENT_ENABLED)
-		// StrataStruct.MaterialTextureArray is only available to translucent materials or global shaders computing contact shadows.
-		// It is not defined for opaque materials, only the UAV is available to write the strata buffer.
+		#if STRATA_RAYCAST_ENABLED
 		uint2 PixelPos = View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy * SampleUVz.xy;
-		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), StrataStruct.MaxBytesPerPixel);
-		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataStruct.MaterialTextureArray, StrataAddressing, StrataStruct.TopLayerTexture);
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), StrataRayCast.MaxBytesPerPixel);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataRayCast.MaterialTextureArray, StrataAddressing, StrataRayCast.TopLayerTexture);
 		bOutHitCastContactShadow = DoesCastContactShadow(StrataPixelHeader);
 		#endif
 	#else
