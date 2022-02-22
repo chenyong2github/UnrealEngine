@@ -155,9 +155,10 @@ namespace Metasound
 			// @param InMetaSound - FMetasoundAssetBase derived UObject.
 			// @param InVariableID - ID of variable existing on the root graph.
 			// @param InVariableNodeClassName - FNodeClassName of the variable node to add.
+			// @param InEditorNode - (Optional) Editor node to set as referencing new variable node handle.
 			//
 			// @return The added frontend node handle. On error, the returned handle is invalid.
-			static Frontend::FNodeHandle AddVariableNodeHandle(UObject& InMetaSound, const FGuid& InVariableID, const Metasound::FNodeClassName& InVariableNodeClassName);
+			static Frontend::FNodeHandle AddVariableNodeHandle(UObject& InMetaSound, const FGuid& InVariableID, const Metasound::FNodeClassName& InVariableNodeClassName, UMetasoundEditorGraphVariableNode* InEditorNode = nullptr);
 
 			// Attempts to connect Frontend node counterparts together for provided pins.  Returns true if succeeded,
 			// and breaks pin link and returns false if failed.  If bConnectEdPins is set, will attempt to connect

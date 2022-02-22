@@ -919,7 +919,7 @@ namespace Metasound
 			return Variable;
 		}
 
-		Frontend::FNodeHandle FGraphBuilder::AddVariableNodeHandle(UObject& InMetaSound, const FGuid& InVariableID, const Metasound::FNodeClassName& InVariableNodeClassName)
+		Frontend::FNodeHandle FGraphBuilder::AddVariableNodeHandle(UObject& InMetaSound, const FGuid& InVariableID, const Metasound::FNodeClassName& InVariableNodeClassName, UMetasoundEditorGraphVariableNode* InVariableNode)
 		{
 			using namespace Frontend;
 
@@ -966,6 +966,13 @@ namespace Metasound
 							}
 					}
 				}
+			}
+
+			if (InVariableNode)
+			{
+				InVariableNode->ClassName = FrontendNode->GetClassMetadata().GetClassName();
+				InVariableNode->ClassType = FrontendNode->GetClassMetadata().GetType();
+				InVariableNode->SetNodeID(FrontendNode->GetID());
 			}
 
 			return FrontendNode;
@@ -1212,8 +1219,6 @@ namespace Metasound
 				return false;
 			}
 
-			bool bWasErroredNode = InNode.ErrorType == EMessageSeverity::Error;
-
 			// If node isn't a MetasoundEditorGraphNode, just remove and return (ex. comment nodes)
 			UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(&InNode);
 			UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(InNode.GetGraph());
@@ -1237,37 +1242,62 @@ namespace Metasound
 
 			FNodeHandle NodeHandle = Node->GetNodeHandle();
 			Frontend::FGraphHandle GraphHandle = NodeHandle->GetOwningGraph();
+
+			auto RemoveNodeLocation = [](FNodeHandle InNodeHandle, const FGuid& InNodeGuid)
+			{
+				FMetasoundFrontendNodeStyle Style = InNodeHandle->GetNodeStyle();
+				Style.Display.Locations.Remove(InNodeGuid);
+				InNodeHandle->SetNodeStyle(Style);
+			};	
+
+			auto RemoveNodeHandle = [] (FGraphHandle InGraphHandle, FNodeHandle InNodeHandle)
+			{
+				if (ensure(InGraphHandle->RemoveNode(*InNodeHandle)))
+				{
+					InGraphHandle->GetOwningDocument()->RemoveUnreferencedDependencies();
+				}
+			};
+
 			if (GraphHandle->IsValid())
 			{
-				switch (NodeHandle->GetClassMetadata().GetType())
+				const EMetasoundFrontendClassType ClassType = NodeHandle->GetClassMetadata().GetType();
+				switch (ClassType)
 				{
+					// NodeHandle does not get removed in these cases as EdGraph Inputs/Outputs
+					// Frontend node is represented by the editor graph as a respective member
+					// (not a node) on the MetasoundGraph. Therefore, just the editor position
+					// data is removed.
 					case EMetasoundFrontendClassType::Output:
 					case EMetasoundFrontendClassType::Input:
 					{
-						// NodeHandle does not get removed in these cases as EdGraph Inputs/Outputs
-						// merely reference their respective types set on the MetasoundGraph. It must
-						// be removed from the location display data however for graph sync reasons.
-						FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
-						Style.Display.Locations.Remove(InNode.NodeGuid);
-						NodeHandle->SetNodeStyle(Style);
+						RemoveNodeLocation(NodeHandle, InNode.NodeGuid);
+					}
+					break;
+					
+					// NodeHandle is only removed for variable accessors if the editor graph
+					// no longer contains nodes representing the given accessor on the MetasoundGraph.
+					// Therefore, just the editor position data is removed unless no location remains
+					// on the Frontend node.
+					case EMetasoundFrontendClassType::VariableAccessor:
+					case EMetasoundFrontendClassType::VariableDeferredAccessor:
+					{
+						RemoveNodeLocation(NodeHandle, InNode.NodeGuid);
+						if (NodeHandle->GetNodeStyle().Display.Locations.IsEmpty())
+						{
+							RemoveNodeHandle(GraphHandle, NodeHandle);
+						}
 					}
 					break;
 
 					case EMetasoundFrontendClassType::Graph:
 					case EMetasoundFrontendClassType::Literal:
-					case EMetasoundFrontendClassType::VariableAccessor:
-					case EMetasoundFrontendClassType::VariableDeferredAccessor:
 					case EMetasoundFrontendClassType::VariableMutator:
 					case EMetasoundFrontendClassType::Variable:
 					case EMetasoundFrontendClassType::External:
 					default:
 					{
 						static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 9, "Possible missing MetasoundFrontendClassType switch case coverage.");
-
-						if (ensure(GraphHandle->RemoveNode(*NodeHandle)))
-						{
-							GraphHandle->GetOwningDocument()->RemoveUnreferencedDependencies();
-						}
+						RemoveNodeHandle(GraphHandle, NodeHandle);
 					}
 					break;
 				}

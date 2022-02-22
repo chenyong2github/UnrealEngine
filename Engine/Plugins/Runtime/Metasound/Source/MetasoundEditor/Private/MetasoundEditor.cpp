@@ -1808,11 +1808,31 @@ namespace Metasound
 					// Can only have one setter node
 					if (const UMetasoundEditorGraphVariable* Variable = VariableNode->Variable)
 					{
-						FConstVariableHandle VariableHandle = Variable->GetConstVariableHandle();
-						FConstNodeHandle VariableMutatorNodeHandle = VariableHandle->FindMutatorNode();
-						if (VariableNode->GetNodeID() == VariableMutatorNodeHandle->GetID())
+						if (Graph.ContainsVariable(*Variable))
 						{
-							bNotifyMultipleVariableSetters = true;
+							FConstVariableHandle VariableHandle = Variable->GetConstVariableHandle();
+							if (VariableHandle->IsValid())
+							{
+								FConstNodeHandle VariableMutatorNodeHandle = VariableHandle->FindMutatorNode();
+								if (VariableNode->GetNodeID() == VariableMutatorNodeHandle->GetID())
+								{
+									bNotifyMultipleVariableSetters = true;
+									NodesToRemove.Add(GraphNode);
+								}
+								else
+								{
+									// Fix-up if variable getter node does not exist but variable does
+									FConstNodeHandle NodeHandle = VariableNode->GetConstNodeHandle();
+									if (!NodeHandle->IsValid())
+									{
+										const FNodeClassName NodeClassName = VariableNode->GetClassName().ToNodeClassName();
+										NodeHandle = FGraphBuilder::AddVariableNodeHandle(*Metasound, Variable->GetVariableID(), NodeClassName, VariableNode);
+									}
+								}
+							}
+						}
+						else
+						{
 							NodesToRemove.Add(GraphNode);
 						}
 					}
