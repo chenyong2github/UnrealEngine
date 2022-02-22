@@ -2,8 +2,6 @@
 
 #include "CookOnTheFlyMessages.h"
 
-#if WITH_COTF
-
 namespace UE { namespace ZenCookOnTheFly { namespace Messaging
 {
 
@@ -46,5 +44,3 @@ FArchive& operator<<(FArchive& Ar, FRecookPackagesResponse& Response)
 }
 
 }}} // namesapce UE::ZenCookOnTheFly::Messaging
-
-#endif // WITH_COTF

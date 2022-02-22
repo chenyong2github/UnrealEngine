@@ -222,7 +222,9 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 			CookServer->Initialize(ECookMode::CookByTheBookFromTheEditor, BaseCookingFlags);
 		}
 
+#if WITH_COTF
 		ExternalCookOnTheFlyServer = new FExternalCookOnTheFlyServer();
+#endif
 	}
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("nomcp")))

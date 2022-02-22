@@ -3,9 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#if WITH_COTF
-
 #include "IO/PackageStore.h"
 
 namespace UE { namespace ZenCookOnTheFly { namespace Messaging
@@ -47,5 +44,3 @@ struct FRecookPackagesResponse
 };
 
 }}} // namesapce UE::ZenCookOnTheFly::Messaging
-
-#endif // WITH_COTF
