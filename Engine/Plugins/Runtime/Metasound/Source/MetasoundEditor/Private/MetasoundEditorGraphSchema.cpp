@@ -1392,6 +1392,46 @@ void UMetasoundEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSe
 	Super::BreakPinLinks(TargetPin, bSendsNodeNotifcation);
 }
 
+void UMetasoundEditorGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const
+{
+	using namespace Metasound::Editor;
+
+	UEdGraphPin* InputPin = nullptr;
+	UEdGraphPin* OutputPin = nullptr;
+	if (!SourcePin || !TargetPin || !SourcePin->LinkedTo.Contains(TargetPin) || !TargetPin->LinkedTo.Contains(SourcePin))
+	{
+		return;
+	}
+
+	if (SourcePin->Direction == EGPD_Input)
+	{
+		InputPin = SourcePin;
+	}
+	else if (TargetPin->Direction == EGPD_Input)
+	{
+		InputPin = TargetPin;
+	}
+	else
+	{
+		return;
+	}
+
+	UEdGraphNode* OwningNode = InputPin->GetOwningNode();
+	if (!OwningNode)
+	{
+		return;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("BreakSinglePinLink", "Break Single Pin Link"));
+	UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(OwningNode->GetGraph());
+	Graph->GetMetasoundChecked().Modify();
+	SourcePin->Modify();
+	TargetPin->Modify();
+
+	FGraphBuilder::DisconnectPinVertex(*InputPin);
+	Super::BreakSinglePinLink(SourcePin, TargetPin);
+}
+
 void UMetasoundEditorGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* HoverGraph, FString& OutTooltipText, bool& OutOkIcon) const
 {
 	using namespace Metasound;
