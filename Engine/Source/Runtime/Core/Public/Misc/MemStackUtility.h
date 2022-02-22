@@ -43,6 +43,13 @@ inline const TCHAR* AllocateStringf(FMemStackBase& Allocator, const FormatType& 
 	return AllocateString(Allocator, String);
 }
 
+template <typename FormatType, typename... ArgTypes>
+inline FStringView AllocateStringViewf(FMemStackBase& Allocator, const FormatType& Format, ArgTypes... Args)
+{
+	TStringBuilder<1024> String;
+	String.Appendf(Format, Forward<ArgTypes>(Args)...);
+	return AllocateStringView(Allocator, String.ToView());
+}
 
 template<typename T>
 inline TArrayView<T> AllocateArrayView(FMemStackBase& Allocator, TArrayView<T> View)

@@ -274,16 +274,12 @@ void FMaterialHLSLGenerator::EmitSharedCode(FStringBuilderBase& OutCode) const
 static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& Generator,
 	UE::HLSLTree::FScope& Scope,
 	EMaterialProperty InputProperty,
-	UMaterial* Material,
-	UE::HLSLTree::FExpression* AttributesExpression)
+	UMaterial* Material)
 {
 	using namespace UE::HLSLTree;
 
-	// We're only interesting in attributes that map to valid fields
-	const UE::Shader::FStructField* AttributeField = Generator.GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(InputProperty));
-
 	FExpression* Expression = nullptr;
-	if (AttributeField && Material->IsPropertyActive(InputProperty))
+	if (Material->IsPropertyActive(InputProperty))
 	{
 		FMaterialInputDescription InputDescription;
 		if (Material->GetExpressionInputDescription(InputProperty, InputDescription))
@@ -304,17 +300,7 @@ static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& G
 		}
 	}
 
-	if (Expression)
-	{
-		FExpression* SetAttributeExpression = Generator.GetTree().NewExpression<FExpressionSetStructField>(
-			Generator.GetMaterialAttributesType(),
-			AttributeField,
-			AttributesExpression,
-			Expression);
-		return SetAttributeExpression;
-	}
-
-	return AttributesExpression;
+	return Expression;
 }
 
 bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
@@ -348,6 +334,8 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 
 		if (TargetMaterial)
 		{
+			const FStructField* PrevWPOField = GetMaterialAttributesType()->FindFieldByName(TEXT("PrevWorldPositionOffset"));
+
 			FExpression* AttributesExpression = nullptr;
 			if (TargetMaterial->bUseMaterialAttributes)
 			{
@@ -355,18 +343,21 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 				if (TargetMaterial->GetExpressionInputDescription(MP_MaterialAttributes, InputDescription))
 				{
 					check(InputDescription.Type == UE::Shader::EValueType::Struct);
-					AttributesExpression = InputDescription.Input->AcquireHLSLExpression(*this, Scope);
+					AttributesExpression = InputDescription.Input->TryAcquireHLSLExpression(*this, Scope);
 
-					const FString& WPOName = FMaterialAttributeDefinitionMap::GetAttributeName(MP_WorldPositionOffset);
-					const FStructField* WPOField = GetMaterialAttributesType()->FindFieldByName(*WPOName);
-					const FStructField* PrevWPOField = GetMaterialAttributesType()->FindFieldByName(TEXT("PrevWorldPositionOffset"));
+					if (AttributesExpression)
+					{
+						const FString& WPOName = FMaterialAttributeDefinitionMap::GetAttributeName(MP_WorldPositionOffset);
+						const FStructField* WPOField = GetMaterialAttributesType()->FindFieldByName(*WPOName);
 
-					FRequestedType PrevRequestedType;
-					PrevRequestedType.SetFieldRequested(WPOField);
+						FRequestedType PrevRequestedType;
+						PrevRequestedType.SetFieldRequested(WPOField);
 
-					FExpression* PrevAttributesExpression = HLSLTree->GetPreviousFrame(AttributesExpression, PrevRequestedType);
-					FExpression* PrevWPOExpression = HLSLTree->NewExpression<FExpressionGetStructField>(GetMaterialAttributesType(), WPOField, PrevAttributesExpression);
-					AttributesExpression = HLSLTree->NewExpression<FExpressionSetStructField>(GetMaterialAttributesType(), PrevWPOField, AttributesExpression, PrevWPOExpression);
+						FExpression* PrevAttributesExpression = HLSLTree->GetPreviousFrame(AttributesExpression, PrevRequestedType);
+						ensure(PrevAttributesExpression);
+						FExpression* PrevWPOExpression = HLSLTree->NewExpression<FExpressionGetStructField>(GetMaterialAttributesType(), WPOField, PrevAttributesExpression);
+						AttributesExpression = HLSLTree->NewExpression<FExpressionSetStructField>(GetMaterialAttributesType(), PrevWPOField, AttributesExpression, PrevWPOExpression);
+					}
 				}
 			}
 			else
@@ -375,7 +366,27 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 				for (int32 PropertyIndex = 0; PropertyIndex < MP_MAX; ++PropertyIndex)
 				{
 					const EMaterialProperty Property = (EMaterialProperty)PropertyIndex;
-					AttributesExpression = CompileMaterialInput(*this, Scope, Property, TargetMaterial, AttributesExpression);
+
+					// We're only interesting in attributes that map to valid fields
+					const UE::Shader::FStructField* AttributeField = GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(Property));
+					if (AttributeField)
+					{
+						FExpression* InputExpression = CompileMaterialInput(*this, Scope, Property, TargetMaterial);
+						if (InputExpression)
+						{
+							AttributesExpression = GetTree().NewExpression<FExpressionSetStructField>(
+								GetMaterialAttributesType(),
+								AttributeField,
+								AttributesExpression,
+								InputExpression);
+							if (Property == MP_WorldPositionOffset)
+							{
+								FExpression* PrevWPOExpression = HLSLTree->GetPreviousFrame(InputExpression, ERequestedType::Vector3);
+								ensure(PrevWPOExpression);
+								AttributesExpression = HLSLTree->NewExpression<FExpressionSetStructField>(GetMaterialAttributesType(), PrevWPOField, AttributesExpression, PrevWPOExpression);
+							}
+						}
+					}
 				}
 			}
 
@@ -466,6 +477,7 @@ const UE::Shader::FTextureValue* FMaterialHLSLGenerator::AcquireTextureValue(con
 	FXxHash64Builder Hasher;
 	Hasher.Update(&InValue.Texture, sizeof(InValue.Texture));
 	Hasher.Update(&InValue.SamplerType, sizeof(InValue.SamplerType));
+	Hasher.Update(&InValue.ExternalTextureGuid, sizeof(InValue.ExternalTextureGuid));
 	const FXxHash64 Hash = Hasher.Finalize();
 
 	FTextureValue const* const* PrevValue = TextureValueMap.Find(Hash);

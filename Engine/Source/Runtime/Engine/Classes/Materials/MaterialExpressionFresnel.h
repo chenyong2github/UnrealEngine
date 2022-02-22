@@ -49,6 +49,7 @@ class UMaterialExpressionFresnel : public UMaterialExpression
 	{
 		OutCaptions.Add(FString(TEXT("Fresnel")));
 	}
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

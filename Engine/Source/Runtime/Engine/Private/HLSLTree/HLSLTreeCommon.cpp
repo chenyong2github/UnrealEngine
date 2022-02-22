@@ -51,6 +51,11 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input)
 	case EExternalInput::TexCoord6_Ddy: return FExternalInputDescription(TEXT("TexCoord6_Ddy"), Shader::EValueType::Float2);
 	case EExternalInput::TexCoord7_Ddy: return FExternalInputDescription(TEXT("TexCoord7_Ddy"), Shader::EValueType::Float2);
 
+	case EExternalInput::LightmapTexCoord: return FExternalInputDescription(TEXT("LightmapTexCoord"), Shader::EValueType::Float2, EExternalInput::LightmapTexCoord_Ddx, EExternalInput::LightmapTexCoord_Ddy);
+	case EExternalInput::LightmapTexCoord_Ddx: return FExternalInputDescription(TEXT("LightmapTexCoord_Ddx"), Shader::EValueType::Float2);
+	case EExternalInput::LightmapTexCoord_Ddy: return FExternalInputDescription(TEXT("LightmapTexCoord_Ddy"), Shader::EValueType::Float2);
+
+	case EExternalInput::TwoSidedSign: return FExternalInputDescription(TEXT("TwoSidedSign"), Shader::EValueType::Float1);
 	case EExternalInput::VertexColor: return FExternalInputDescription(TEXT("VertexColor"), Shader::EValueType::Float4, EExternalInput::VertexColor_Ddx, EExternalInput::VertexColor_Ddy);
 	case EExternalInput::VertexColor_Ddx: return FExternalInputDescription(TEXT("VertexColor_Ddx"), Shader::EValueType::Float4);
 	case EExternalInput::VertexColor_Ddy: return FExternalInputDescription(TEXT("VertexColor_Ddy"), Shader::EValueType::Float4);
@@ -59,6 +64,7 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input)
 	case EExternalInput::WorldPosition_NoOffsets: return FExternalInputDescription(TEXT("WorldPosition_NoOffsets"), Shader::EValueType::Double3, EExternalInput::WorldPosition_Ddx, EExternalInput::WorldPosition_Ddy, EExternalInput::PrevWorldPosition_NoOffsets);
 	case EExternalInput::TranslatedWorldPosition: return FExternalInputDescription(TEXT("TranslatedWorldPosition"), Shader::EValueType::Float3, EExternalInput::WorldPosition_Ddx, EExternalInput::WorldPosition_Ddy, EExternalInput::PrevTranslatedWorldPosition);
 	case EExternalInput::TranslatedWorldPosition_NoOffsets: return FExternalInputDescription(TEXT("TranslatedWorldPosition_NoOffsets"), Shader::EValueType::Float3, EExternalInput::WorldPosition_Ddx, EExternalInput::WorldPosition_Ddy, EExternalInput::PrevTranslatedWorldPosition_NoOffsets);
+	case EExternalInput::ActorWorldPosition: return FExternalInputDescription(TEXT("TranslatedWorldPosition_NoOffsets"), Shader::EValueType::Double3);
 
 	case EExternalInput::PrevWorldPosition: return FExternalInputDescription(TEXT("PrevWorldPosition"), Shader::EValueType::Double3, EExternalInput::WorldPosition_Ddx, EExternalInput::WorldPosition_Ddy);
 	case EExternalInput::PrevWorldPosition_NoOffsets: return FExternalInputDescription(TEXT("PrevWorldPosition_NoOffsets"), Shader::EValueType::Double3, EExternalInput::WorldPosition_Ddx, EExternalInput::WorldPosition_Ddy);
@@ -68,12 +74,30 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input)
 	case EExternalInput::WorldPosition_Ddx: return FExternalInputDescription(TEXT("WorldPosition_Ddx"), Shader::EValueType::Float3);
 	case EExternalInput::WorldPosition_Ddy: return FExternalInputDescription(TEXT("WorldPosition_Ddx"), Shader::EValueType::Float3);
 
+	case EExternalInput::WorldNormal: return FExternalInputDescription(TEXT("WorldNormal"), Shader::EValueType::Float3);
+	case EExternalInput::WorldReflection: return FExternalInputDescription(TEXT("WorldReflection"), Shader::EValueType::Float3);
+	case EExternalInput::WorldVertexNormal: return FExternalInputDescription(TEXT("WorldVertexNormal"), Shader::EValueType::Float3);
+	case EExternalInput::WorldVertexTangent: return FExternalInputDescription(TEXT("WorldVertexTangent"), Shader::EValueType::Float3);
+
 	case EExternalInput::ViewportUV: return FExternalInputDescription(TEXT("ViewportUV"), Shader::EValueType::Float2);
 	case EExternalInput::PixelPosition: return FExternalInputDescription(TEXT("PixelPosition"), Shader::EValueType::Float2);
 	case EExternalInput::ViewSize: return FExternalInputDescription(TEXT("ViewSize"), Shader::EValueType::Float2);
 	case EExternalInput::RcpViewSize: return FExternalInputDescription(TEXT("RcpViewSize"), Shader::EValueType::Float2);
+	case EExternalInput::FieldOfView: return FExternalInputDescription(TEXT("FieldOfView"), Shader::EValueType::Float1, EExternalInput::None, EExternalInput::None, EExternalInput::PrevFieldOfView);
+	case EExternalInput::TanHalfFieldOfView: return FExternalInputDescription(TEXT("TanHalfFieldOfView"), Shader::EValueType::Float2, EExternalInput::None, EExternalInput::None, EExternalInput::PrevTanHalfFieldOfView);
+	case EExternalInput::CotanHalfFieldOfView: return FExternalInputDescription(TEXT("CotanHalfFieldOfView"), Shader::EValueType::Float2, EExternalInput::None, EExternalInput::None, EExternalInput::PrevCotanHalfFieldOfView);
+	case EExternalInput::TemporalSampleCount: return FExternalInputDescription(TEXT("TemporalSampleCount"), Shader::EValueType::Float1);
+	case EExternalInput::TemporalSampleIndex: return FExternalInputDescription(TEXT("TemporalSampleIndex"), Shader::EValueType::Float1);
+	case EExternalInput::TemporalSampleOffset: return FExternalInputDescription(TEXT("TemporalSampleOffset"), Shader::EValueType::Float2);
+	case EExternalInput::PreExposure: return FExternalInputDescription(TEXT("PreExposure"), Shader::EValueType::Float1);
+	case EExternalInput::RcpPreExposure: return FExternalInputDescription(TEXT("RcpPreExposure"), Shader::EValueType::Float1);
+	case EExternalInput::RuntimeVirtualTextureOutputLevel: return FExternalInputDescription(TEXT("RuntimeVirtualTextureOutputLevel"), Shader::EValueType::Float1);
+	case EExternalInput::RuntimeVirtualTextureOutputDerivative: return FExternalInputDescription(TEXT("RuntimeVirtualTextureOutputDerivative"), Shader::EValueType::Float2);
+	case EExternalInput::RuntimeVirtualTextureMaxLevel: return FExternalInputDescription(TEXT("RuntimeVirtualTextureMaxLevel"), Shader::EValueType::Float1);
 
+	case EExternalInput::CameraVector: return FExternalInputDescription(TEXT("CameraVector"), Shader::EValueType::Float3);
 	case EExternalInput::CameraWorldPosition: return FExternalInputDescription(TEXT("CameraWorldPosition"), Shader::EValueType::Double3, EExternalInput::None, EExternalInput::None, EExternalInput::PrevCameraWorldPosition);
+	case EExternalInput::ViewWorldPosition: return FExternalInputDescription(TEXT("ViewWorldPosition"), Shader::EValueType::Double3, EExternalInput::None, EExternalInput::None, EExternalInput::PrevViewWorldPosition);
 	case EExternalInput::PreViewTranslation: return FExternalInputDescription(TEXT("PreViewTranslation"), Shader::EValueType::Double3, EExternalInput::None, EExternalInput::None, EExternalInput::PrevPreViewTranslation);
 	case EExternalInput::TangentToWorld: return FExternalInputDescription(TEXT("TangentToWorld"), Shader::EValueType::Float4x4);
 	case EExternalInput::LocalToWorld: return FExternalInputDescription(TEXT("LocalToWorld"), Shader::EValueType::Double4x4, EExternalInput::None, EExternalInput::None, EExternalInput::PrevLocalToWorld);
@@ -87,7 +111,11 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input)
 	case EExternalInput::ParticleToWorld: return FExternalInputDescription(TEXT("ParticleToWorld"), Shader::EValueType::Double4x4);
 	case EExternalInput::InstanceToWorld: return FExternalInputDescription(TEXT("InstanceToWorld"), Shader::EValueType::Double4x4);
 
+	case EExternalInput::PrevFieldOfView: return FExternalInputDescription(TEXT("PrevFieldOfView"), Shader::EValueType::Float2);
+	case EExternalInput::PrevTanHalfFieldOfView: return FExternalInputDescription(TEXT("PrevTanHalfFieldOfView"), Shader::EValueType::Float2);
+	case EExternalInput::PrevCotanHalfFieldOfView: return FExternalInputDescription(TEXT("PrevCotanHalfFieldOfView"), Shader::EValueType::Float2);
 	case EExternalInput::PrevCameraWorldPosition: return FExternalInputDescription(TEXT("PrevCameraWorldPosition"), Shader::EValueType::Double3);
+	case EExternalInput::PrevViewWorldPosition: return FExternalInputDescription(TEXT("PrevViewWorldPosition"), Shader::EValueType::Double3);
 	case EExternalInput::PrevPreViewTranslation: return FExternalInputDescription(TEXT("PrevPreViewTranslation"), Shader::EValueType::Double3);
 	case EExternalInput::PrevLocalToWorld: return FExternalInputDescription(TEXT("PrevLocalToWorld"), Shader::EValueType::Double4x4);
 	case EExternalInput::PrevWorldToLocal: return FExternalInputDescription(TEXT("PrevWorldToLocal"), Shader::EValueType::DoubleInverse4x4);
@@ -106,6 +134,10 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input)
 
 	case EExternalInput::PrevGameTime: return FExternalInputDescription(TEXT("PrevGameTime"), Shader::EValueType::Float1);
 	case EExternalInput::PrevRealTime: return FExternalInputDescription(TEXT("PrevRealTime"), Shader::EValueType::Float1);
+
+	case EExternalInput::ParticleColor: return FExternalInputDescription(TEXT("ParticleColor"), Shader::EValueType::Float4);
+	case EExternalInput::ParticleTranslatedWorldPosition: return FExternalInputDescription(TEXT("ParticleTranslatedWorldPosition"), Shader::EValueType::Float3);
+	case EExternalInput::ParticleRadius: return FExternalInputDescription(TEXT("ParticleRadius"), Shader::EValueType::Float1);
 
 	default: checkNoEntry(); return FExternalInputDescription(TEXT("Invalid"), Shader::EValueType::Void);
 	}
@@ -207,6 +239,27 @@ void FExpressionConstant::EmitValuePreshader(FEmitContext& Context, FEmitScope& 
 	OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(Value);
 }
 
+void FExpressionMaterialShadingModel::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
+{
+	const Shader::FValue ZeroValue(Shader::EValueType::Float1);
+	OutResult.ExpressionDdx = Tree.NewConstant(ZeroValue);
+	OutResult.ExpressionDdy = OutResult.ExpressionDdx;
+}
+
+bool FExpressionMaterialShadingModel::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Constant, Shader::EValueType::Int1);
+}
+
+void FExpressionMaterialShadingModel::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
+{
+	Context.ShadingModelsFromCompilation.AddShadingModel(ShadingModel);
+
+	Context.PreshaderStackPosition++;
+	OutResult.Type = Shader::EValueType::Int1;
+	OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(Shader::FValue((int32)ShadingModel));
+}
+
 void FExpressionMaterialParameter::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
 {
 	const Shader::FType Type = GetShaderValueType(ParameterType);
@@ -242,49 +295,69 @@ void FExpressionMaterialParameter::EmitValueShader(FEmitContext& Context, FEmitS
 		const Shader::FTextureValue* TextureValue = DefaultValue.AsTexture();
 		check(TextureValue);
 
-		FMaterialTextureParameterInfo TextureParameterInfo;
-		TextureParameterInfo.ParameterInfo = ParameterName;
-		TextureParameterInfo.TextureIndex = Context.Material->GetReferencedTextures().Find(TextureValue->Texture);
-		TextureParameterInfo.SamplerSource = SSM_FromTextureAsset; // TODO - Is this needed?
-		check(TextureParameterInfo.TextureIndex != INDEX_NONE);
-
 		const Shader::EValueType TextureType = TextureValue->GetType();
-		EMaterialTextureParameterType TextureParameterType = EMaterialTextureParameterType::Count;
 		const TCHAR* ConstructorName = nullptr;
 		const TCHAR* TextureTypeName = nullptr;
-		switch (TextureType)
-		{
-		case Shader::EValueType::Texture2D:
-			TextureParameterType = EMaterialTextureParameterType::Standard2D;
-			ConstructorName = TEXT("MakeTexture2D");
-			TextureTypeName = TEXT("Texture2D");
-			break;
-		case Shader::EValueType::Texture2DArray:
-			TextureParameterType = EMaterialTextureParameterType::Array2D;
-			ConstructorName = TEXT("MakeTexture2DArray");
-			TextureTypeName = TEXT("Texture2DArray");
-			break;
-		case Shader::EValueType::TextureCube:
-			TextureParameterType = EMaterialTextureParameterType::Cube;
-			ConstructorName = TEXT("MakeTextureCube");
-			TextureTypeName = TEXT("TextureCube");
-			break;
-		case Shader::EValueType::TextureCubeArray:
-			TextureParameterType = EMaterialTextureParameterType::ArrayCube;
-			ConstructorName = TEXT("MakeTextureCubeArray");
-			TextureTypeName = TEXT("TextureCubeArray");
-			break;
-		case Shader::EValueType::Texture3D:
-			TextureParameterType = EMaterialTextureParameterType::Volume;
-			ConstructorName = TEXT("MakeTexture3D");
-			TextureTypeName = TEXT("VolumeTexture");
-			break;
-		default:
-			checkNoEntry();
-			break;
-		}
+		int32 ParameterIndex = INDEX_NONE;
 
-		const int32 ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddTextureParameter(TextureParameterType, TextureParameterInfo);
+		if (TextureType == Shader::EValueType::TextureExternal)
+		{
+			check(TextureValue->SamplerType == SAMPLERTYPE_External);
+
+			ConstructorName = TEXT("MakeTextureExternal");
+			TextureTypeName = TEXT("ExternalTexture");
+
+			FMaterialExternalTextureParameterInfo TextureParameterInfo;
+			TextureParameterInfo.ParameterName = NameToScriptName(ParameterName);
+			TextureParameterInfo.ExternalTextureGuid = TextureValue->ExternalTextureGuid;
+			if (TextureValue->Texture)
+			{
+				TextureParameterInfo.SourceTextureIndex = Context.Material->GetReferencedTextures().Find(TextureValue->Texture);
+			}
+			ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddExternalTextureParameter(TextureParameterInfo);
+		}
+		else
+		{
+			EMaterialTextureParameterType TextureParameterType = EMaterialTextureParameterType::Count;
+			switch (TextureType)
+			{
+			case Shader::EValueType::Texture2D:
+				TextureParameterType = EMaterialTextureParameterType::Standard2D;
+				ConstructorName = TEXT("MakeTexture2D");
+				TextureTypeName = TEXT("Texture2D");
+				break;
+			case Shader::EValueType::Texture2DArray:
+				TextureParameterType = EMaterialTextureParameterType::Array2D;
+				ConstructorName = TEXT("MakeTexture2DArray");
+				TextureTypeName = TEXT("Texture2DArray");
+				break;
+			case Shader::EValueType::TextureCube:
+				TextureParameterType = EMaterialTextureParameterType::Cube;
+				ConstructorName = TEXT("MakeTextureCube");
+				TextureTypeName = TEXT("TextureCube");
+				break;
+			case Shader::EValueType::TextureCubeArray:
+				TextureParameterType = EMaterialTextureParameterType::ArrayCube;
+				ConstructorName = TEXT("MakeTextureCubeArray");
+				TextureTypeName = TEXT("TextureCubeArray");
+				break;
+			case Shader::EValueType::Texture3D:
+				TextureParameterType = EMaterialTextureParameterType::Volume;
+				ConstructorName = TEXT("MakeTexture3D");
+				TextureTypeName = TEXT("VolumeTexture");
+				break;
+			default:
+				checkNoEntry();
+				break;
+			}
+
+			FMaterialTextureParameterInfo TextureParameterInfo;
+			TextureParameterInfo.ParameterInfo = ParameterName;
+			TextureParameterInfo.TextureIndex = Context.Material->GetReferencedTextures().Find(TextureValue->Texture);
+			TextureParameterInfo.SamplerSource = SSM_FromTextureAsset; // TODO - Is this needed?
+			check(TextureParameterInfo.TextureIndex != INDEX_NONE);
+			ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddTextureParameter(TextureParameterType, TextureParameterInfo);
+		}
 
 		TStringBuilder<256> FormattedCode;
 		FormattedCode.Appendf(TEXT("%s(Material.%s_%d, Material.%s_%dSampler, %d)"), ConstructorName, TextureTypeName, ParameterIndex, TextureTypeName, ParameterIndex, (int32)TextureValue->SamplerType);
@@ -360,6 +433,14 @@ void FExpressionExternalInput::ComputeAnalyticDerivatives(FTree& Tree, FExpressi
 
 FExpression* FExpressionExternalInput::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
+	if (InputType == EExternalInput::ActorWorldPosition)
+	{
+		return Tree.NewBinaryOp(EOperation::VecMulMatrix3, Tree.NewBinaryOp(EOperation::VecMulMatrix3,
+			Tree.NewExpression<FExpressionExternalInput>(EExternalInput::ActorWorldPosition),
+			Tree.NewExpression< FExpressionExternalInput>(EExternalInput::WorldToLocal)),
+			Tree.NewExpression< FExpressionExternalInput>(EExternalInput::PrevLocalToWorld));
+	}
+
 	const FExternalInputDescription InputDesc = GetExternalInputDescription(InputType);
 	if (InputDesc.PreviousFrame != EExternalInput::None)
 	{
@@ -371,16 +452,27 @@ FExpression* FExpressionExternalInput::ComputePreviousFrame(FTree& Tree, const F
 bool FExpressionExternalInput::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	const FExternalInputDescription InputDesc = GetExternalInputDescription(InputType);
+
+	switch (InputType)
+	{
+	case EExternalInput::WorldNormal:
+	case EExternalInput::WorldReflection:
+		Context.bReadMaterialNormal = true;
+		break;
+	default:
+		break;
+	}
+
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, InputDesc.Type);
 }
 
 void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	const int32 TypeIndex = (int32)InputType;
+	Context.ExternalInputMask[Context.ShaderFrequency][TypeIndex] = true;
 	if (IsTexCoord(InputType))
 	{
 		const int32 TexCoordIndex = TypeIndex - (int32)EExternalInput::TexCoord0;
-		Context.TexCoordMask[Context.ShaderFrequency] |= (1u << TexCoordIndex);
 		OutResult.Code = Context.EmitInlineExpression(Scope, Shader::EValueType::Float2, TEXT("Parameters.TexCoords[%].xy"), TexCoordIndex);
 	}
 	else if (IsTexCoord_Ddx(InputType))
@@ -399,13 +491,18 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		const TCHAR* Code = nullptr;
 		switch (InputType)
 		{
-		case EExternalInput::VertexColor: Code = TEXT("Parameters.VertexColor"); Context.bUsesVertexColor = (Context.ShaderFrequency != SF_Vertex); break;
-		case EExternalInput::VertexColor_Ddx: Code = TEXT("Parameters.VertexColor_DDX"); Context.bUsesVertexColor = (Context.ShaderFrequency != SF_Vertex); break;
-		case EExternalInput::VertexColor_Ddy: Code = TEXT("Parameters.VertexColor_DDY"); Context.bUsesVertexColor = (Context.ShaderFrequency != SF_Vertex); break;
+		case EExternalInput::LightmapTexCoord: Code = TEXT("GetLightmapUVs(Parameters)"); break;
+		case EExternalInput::LightmapTexCoord_Ddx: Code = TEXT("GetLightmapUVs_DDX(Parameters)"); break;
+		case EExternalInput::LightmapTexCoord_Ddy: Code = TEXT("GetLightmapUVs_DDY(Parameters)"); break;
+		case EExternalInput::TwoSidedSign: Code = TEXT("Parameters.TwoSidedSign"); break;
+		case EExternalInput::VertexColor: Code = TEXT("Parameters.VertexColor"); Context.bUsesVertexColor |= (Context.ShaderFrequency != SF_Vertex); break;
+		case EExternalInput::VertexColor_Ddx: Code = TEXT("Parameters.VertexColor_DDX"); Context.bUsesVertexColor |= (Context.ShaderFrequency != SF_Vertex); break;
+		case EExternalInput::VertexColor_Ddy: Code = TEXT("Parameters.VertexColor_DDY"); Context.bUsesVertexColor |= (Context.ShaderFrequency != SF_Vertex); break;
 		case EExternalInput::WorldPosition: Code = TEXT("GetWorldPosition(Parameters)"); break;
 		case EExternalInput::WorldPosition_NoOffsets: Code = TEXT("GetWorldPosition_NoMaterialOffsets(Parameters)"); break;
 		case EExternalInput::TranslatedWorldPosition: Code = TEXT("GetTranslatedWorldPosition(Parameters)"); break;
 		case EExternalInput::TranslatedWorldPosition_NoOffsets: Code = TEXT("GetTranslatedWorldPosition_NoMaterialOffsets(Parameters)"); break;
+		case EExternalInput::ActorWorldPosition: Code = TEXT("GetActorWorldPosition(Parameters)"); break;
 		case EExternalInput::PrevWorldPosition: Code = TEXT("GetPrevWorldPosition(Parameters)"); break;
 		case EExternalInput::PrevWorldPosition_NoOffsets: Code = TEXT("GetPrevWorldPosition_NoMaterialOffsets(Parameters)"); break;
 		case EExternalInput::PrevTranslatedWorldPosition: Code = TEXT("GetPrevTranslatedWorldPosition(Parameters)"); break;
@@ -413,12 +510,31 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		case EExternalInput::WorldPosition_Ddx: Code = TEXT("Parameters.WorldPosition_DDX"); break;
 		case EExternalInput::WorldPosition_Ddy: Code = TEXT("Parameters.WorldPosition_DDY"); break;
 
+		case EExternalInput::WorldNormal: Code = TEXT("Parameters.WorldNormal"); break;
+		case EExternalInput::WorldReflection: Code = TEXT("Parameters.ReflectionVector"); break;
+		case EExternalInput::WorldVertexNormal: Code = TEXT("Parameters.TangentToWorld[2]"); break;
+		case EExternalInput::WorldVertexTangent: Code = TEXT("Parameters.TangentToWorld[0]"); break;
+
 		case EExternalInput::ViewportUV: Code = TEXT("GetViewportUV(Parameters)"); break;
 		case EExternalInput::PixelPosition: Code = TEXT("GetPixelPosition(Parameters)"); break;
 		case EExternalInput::ViewSize: Code = TEXT("View.ViewSizeAndInvSize.xy"); break;
 		case EExternalInput::RcpViewSize: Code = TEXT("View.ViewSizeAndInvSize.zw"); break;
 
+		case EExternalInput::FieldOfView: Code = TEXT("View.FieldOfViewWideAngles"); break;
+		case EExternalInput::TanHalfFieldOfView: Code = TEXT("GetTanHalfFieldOfView()"); break;
+		case EExternalInput::CotanHalfFieldOfView: Code = TEXT("GetCotanHalfFieldOfView()"); break;
+		case EExternalInput::TemporalSampleCount: Code = TEXT("View.TemporalAAParams.y"); break;
+		case EExternalInput::TemporalSampleIndex: Code = TEXT("View.TemporalAAParams.x"); break;
+		case EExternalInput::TemporalSampleOffset: Code = TEXT("View.TemporalAAParams.zw"); break;
+		case EExternalInput::PreExposure: Code = TEXT("View.PreExposure.x"); break;
+		case EExternalInput::RcpPreExposure: Code = TEXT("View.OneOverPreExposure.x"); break;
+		case EExternalInput::RuntimeVirtualTextureOutputLevel:  Code = TEXT("View.RuntimeVirtualTextureMipLevel.x"); break;
+		case EExternalInput::RuntimeVirtualTextureOutputDerivative: Code = TEXT("View.RuntimeVirtualTextureMipLevel.zw"); break;
+		case EExternalInput::RuntimeVirtualTextureMaxLevel:  Code = TEXT("View.RuntimeVirtualTextureMipLevel.y"); break;
+
+		case EExternalInput::CameraVector: Code = TEXT("Parameters.CameraVector"); break;
 		case EExternalInput::CameraWorldPosition: Code = TEXT("ResolvedView.WorldCameraOrigin"); break;
+		case EExternalInput::ViewWorldPosition: Code = TEXT("ResolvedView.WorldViewOrigin"); break;
 		case EExternalInput::PreViewTranslation: Code = TEXT("ResolvedView.PreViewTranslation"); break;
 		case EExternalInput::TangentToWorld: Code = TEXT("Parameters.TangentToWorld"); break;
 		case EExternalInput::LocalToWorld: Code = TEXT("GetLocalToWorld(Parameters)"); break;
@@ -432,7 +548,11 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		case EExternalInput::ParticleToWorld: Code = TEXT("Parameters.Particle.ParticleToWorld"); break;
 		case EExternalInput::InstanceToWorld: Code = TEXT("GetInstanceToWorld(Parameters)"); break;
 
+		case EExternalInput::PrevFieldOfView: Code = TEXT("View.PrevFieldOfViewWideAngles"); break;
+		case EExternalInput::PrevTanHalfFieldOfView: Code = TEXT("GetPrevTanHalfFieldOfView()"); break;
+		case EExternalInput::PrevCotanHalfFieldOfView: Code = TEXT("GetPrevCotanHalfFieldOfView()"); break;
 		case EExternalInput::PrevCameraWorldPosition: Code = TEXT("ResolvedView.PrevWorldCameraOrigin"); break;
+		case EExternalInput::PrevViewWorldPosition: Code = TEXT("ResolvedView.PrevWorldViewOrigin"); break;
 		case EExternalInput::PrevPreViewTranslation: Code = TEXT("ResolvedView.PrevPreViewTranslation"); break;
 		case EExternalInput::PrevLocalToWorld: Code = TEXT("GetPrevLocalToWorld(Parameters)"); break;
 		case EExternalInput::PrevWorldToLocal: Code = TEXT("GetPrimitiveData(Parameters).PreviousWorldToLocal"); break;
@@ -449,6 +569,11 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		case EExternalInput::DeltaTime: Code = TEXT("View.DeltaTime"); break;
 		case EExternalInput::PrevGameTime: Code = TEXT("View.PrevFrameGameTime"); break;
 		case EExternalInput::PrevRealTime: Code = TEXT("View.PrevFrameRealTime"); break;
+
+		case EExternalInput::ParticleColor: Code = TEXT("Parameters.Particle.Color"); Context.bUsesParticleColor |= (Context.ShaderFrequency != SF_Vertex); break;
+		case EExternalInput::ParticleTranslatedWorldPosition: Code = TEXT("Parameters.Particle.TranslatedWorldPositionAndSize.xyz"); Context.bNeedsParticlePosition = true; break;
+		case EExternalInput::ParticleRadius: Code = TEXT("Parameters.Particle.TranslatedWorldPositionAndSize.w"); Context.bNeedsParticlePosition = true; break;
+
 		default:
 			checkNoEntry();
 			break;
@@ -503,6 +628,63 @@ void FExpressionMaterialSceneTexture::EmitValueShader(FEmitContext& Context, FEm
 	OutResult.Code = EmitLookup;
 }
 
+bool FExpressionMaterialNoise::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	const FPreparedType& PositionType = Context.PrepareExpression(PositionExpression, Scope, ERequestedType::Vector3);
+	const FPreparedType& FilterWidthType = Context.PrepareExpression(FilterWidthExpression, Scope, ERequestedType::Scalar);
+	if (PositionType.IsVoid() || FilterWidthType.IsVoid())
+	{
+		return false;
+	}
+	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::EValueType::Float1);
+}
+
+void FExpressionMaterialNoise::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+{
+	bool bIsLWC = Shader::IsLWCType(PositionExpression->GetPreparedType().ValueComponentType);
+	FEmitShaderExpression* EmitPosition = PositionExpression->GetValueShader(Context, Scope, bIsLWC ? Shader::EValueType::Double3 : Shader::EValueType::Float3);
+	FEmitShaderExpression* EmitFilterWidth = FilterWidthExpression->GetValueShader(Context, Scope, Shader::EValueType::Float1);
+
+	if (bIsLWC)
+	{
+		// If Noise is driven by a LWC position, just take the offset within the current tile
+		// Will generate discontinuity in noise at tile boudaries
+		// Could potentially add noise functions that operate directly on LWC values, but that would be very expensive
+		EmitPosition = Context.EmitExpression(Scope, Shader::EValueType::Float3, TEXT("LWCNormalizeTile(%).Offset"), EmitPosition);
+	}
+
+	OutResult.Code = Context.EmitExpression(Scope, Shader::EValueType::Float1, TEXT("MaterialExpressionNoise(%,%,%,%,%,%,%,%,%,%,%,%)"),
+		EmitPosition,
+		Parameters.Scale,
+		Parameters.Quality,
+		Parameters.NoiseFunction,
+		Parameters.bTurbulence,
+		Parameters.Levels,
+		Parameters.OutputMin,
+		Parameters.OutputMax,
+		Parameters.LevelScale,
+		EmitFilterWidth,
+		Parameters.bTiling,
+		Parameters.RepeatSize);
+}
+
+namespace Private
+{
+Shader::EValueType GetTexCoordType(Shader::EValueType TextureType)
+{
+	switch (TextureType)
+	{
+	case Shader::EValueType::Texture2D:
+	case Shader::EValueType::TextureExternal: return Shader::EValueType::Float2;
+	case Shader::EValueType::Texture2DArray:
+	case Shader::EValueType::TextureCube:
+	case Shader::EValueType::Texture3D: return Shader::EValueType::Float3;
+	case Shader::EValueType::TextureCubeArray: return Shader::EValueType::Float4;
+	default: checkNoEntry(); return Shader::EValueType::Void;
+	}
+}
+}
+
 bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	const FPreparedType& TextureType = Context.PrepareExpression(TextureExpression, Scope, ERequestedType::Texture);
@@ -511,14 +693,15 @@ bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& S
 		return Context.Errors->AddError(TEXT("Expected texture"));
 	}
 
-	const FPreparedType& TexCoordType = Context.PrepareExpression(TexCoordExpression, Scope, ERequestedType::Vector2);
+	const FRequestedType RequestedTexCoordType = Private::GetTexCoordType(TextureType.GetType());
+	const FPreparedType& TexCoordType = Context.PrepareExpression(TexCoordExpression, Scope, RequestedTexCoordType);
 	if (TexCoordType.IsVoid())
 	{
 		return false;
 	}
 
-	Context.PrepareExpression(TexCoordDerivatives.ExpressionDdx, Scope, ERequestedType::Vector2);
-	Context.PrepareExpression(TexCoordDerivatives.ExpressionDdy, Scope, ERequestedType::Vector2);
+	Context.PrepareExpression(TexCoordDerivatives.ExpressionDdx, Scope, RequestedTexCoordType);
+	Context.PrepareExpression(TexCoordDerivatives.ExpressionDdy, Scope, RequestedTexCoordType);
 
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::EValueType::Float4);
 }
@@ -545,11 +728,10 @@ void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope
 	case Shader::EValueType::Texture3D:
 		SampleFunctionName = TEXT("Texture3DSample");
 		break;
-	/*case MCT_TextureExternal:
-		// TODO
+	case Shader::EValueType::TextureExternal:
 		SampleFunctionName = TEXT("TextureExternalSample");
 		break;
-	case MCT_TextureVirtual:
+	/*case MCT_TextureVirtual:
 		// TODO
 		SampleFunctionName = TEXT("TextureVirtualSample");
 		bVirtualTexture = true;
@@ -581,14 +763,15 @@ void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope
 		break;
 	}
 
-	FEmitShaderExpression* TexCoordValue = TexCoordExpression->GetValueShader(Context, Scope, Shader::EValueType::Float2);
+	const Shader::EValueType TexCoordType = Private::GetTexCoordType(TextureType);
+	FEmitShaderExpression* TexCoordValue = TexCoordExpression->GetValueShader(Context, Scope, TexCoordType);
 	FEmitShaderExpression* TexCoordValueDdx = nullptr;
 	FEmitShaderExpression* TexCoordValueDdy = nullptr;
 	FEmitShaderExpression* TextureResult = nullptr;
 	if (TexCoordDerivatives.IsValid())
 	{
-		TexCoordValueDdx = TexCoordDerivatives.ExpressionDdx->GetValueShader(Context, Scope, Shader::EValueType::Float2);
-		TexCoordValueDdy = TexCoordDerivatives.ExpressionDdy->GetValueShader(Context, Scope, Shader::EValueType::Float2);
+		TexCoordValueDdx = TexCoordDerivatives.ExpressionDdx->GetValueShader(Context, Scope, TexCoordType);
+		TexCoordValueDdy = TexCoordDerivatives.ExpressionDdy->GetValueShader(Context, Scope, TexCoordType);
 		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Grad(%.Texture, %, %, %, %)"),
 			SampleFunctionName,
 			EmitTexture,
@@ -642,7 +825,6 @@ bool FExpressionGetStructField::PrepareValue(FEmitContext& Context, FEmitScope& 
 		return Context.Errors->AddErrorf(TEXT("Expected type %s"), StructType->Name);
 	}
 
-	//StructPreparedType.SetForwardValue(RequestedStructType, StructExpression);
 	return OutResult.SetType(Context, RequestedType, StructPreparedType.GetFieldType(Field));
 }
 
@@ -711,9 +893,6 @@ bool FExpressionSetStructField::PrepareValue(FEmitContext& Context, FEmitScope& 
 	const FRequestedType RequestedFieldType = RequestedType.GetField(Field);
 	FPreparedType FieldPreparedType = Context.PrepareExpression(FieldExpression, Scope, RequestedFieldType);
 
-	StructPreparedType.SetForwardValue(RequestedStructType, StructExpression);
-	FieldPreparedType.SetForwardValue(RequestedFieldType, FieldExpression);
-
 	FPreparedType ResultType(StructPreparedType);
 	if (ResultType.IsVoid())
 	{
@@ -731,12 +910,16 @@ void FExpressionSetStructField::EmitValueShader(FEmitContext& Context, FEmitScop
 
 	const FRequestedType RequestedFieldType = RequestedType.GetField(Field);
 	const EExpressionEvaluation FieldEvaluation = FieldExpression->GetEvaluation(Scope, RequestedFieldType);
-	FEmitShaderExpression* FieldValue = FieldExpression->GetValueShader(Context, Scope, RequestedFieldType, Field->Type);
 
-	if (StructEvaluation == EExpressionEvaluation::None)
+	FEmitShaderExpression* StructValue = (StructEvaluation != EExpressionEvaluation::None) ? StructExpression->GetValueShader(Context, Scope, RequestedStructType) : nullptr;
+	FEmitShaderExpression* FieldValue = (FieldEvaluation != EExpressionEvaluation::None) ? FieldExpression->GetValueShader(Context, Scope, RequestedFieldType, Field->Type) : nullptr;
+
+	if (StructEvaluation == EExpressionEvaluation::None && FieldEvaluation == EExpressionEvaluation::None)
 	{
-		check(FieldEvaluation != EExpressionEvaluation::None);
-
+		OutResult.Code = Context.EmitExpression(Scope, StructType, TEXT("((%)0)"), StructType->Name);
+	}
+	else if (StructEvaluation == EExpressionEvaluation::None)
+	{
 		// StructExpression is not used, so default to a zero-initialized struct
 		// This will happen if all the accessed struct fields are explicitly defined
 		OutResult.Code = Context.EmitExpression(Scope, StructType, TEXT("%_Set%((%)0, %)"),
@@ -745,9 +928,14 @@ void FExpressionSetStructField::EmitValueShader(FEmitContext& Context, FEmitScop
 			StructType->Name,
 			FieldValue);
 	}
+	else if (FieldEvaluation == EExpressionEvaluation::None)
+	{
+		// Don't need field, can just forward the struct value
+		OutResult.Code = StructValue;
+	}
 	else
 	{
-		FEmitShaderExpression* StructValue = StructExpression->GetValueShader(Context, Scope, RequestedStructType);
+		check(StructValue->Type.StructType == StructType);
 		OutResult.Code = Context.EmitExpression(Scope, StructType, TEXT("%_Set%(%, %)"),
 			StructType->Name,
 			Field->Name,
@@ -790,10 +978,13 @@ void FExpressionSetStructField::EmitValuePreshader(FEmitContext& Context, FEmitS
 bool FExpressionSelect::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	const FPreparedType& ConditionType = Context.PrepareExpression(ConditionExpression, Scope, ERequestedType::Scalar);
-	if (ConditionType.GetEvaluation(Scope, ERequestedType::Scalar) == EExpressionEvaluation::Constant)
+	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, ERequestedType::Scalar);
+	if (ConditionEvaluation == EExpressionEvaluation::Constant)
 	{
 		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, Shader::EValueType::Bool1).AsBoolScalar();
-		return OutResult.SetForwardValue(Context, Scope, RequestedType, bCondition ? TrueExpression : FalseExpression);
+		FPreparedType ResultType = Context.PrepareExpression(bCondition ? TrueExpression : FalseExpression, Scope, RequestedType);
+		ResultType.MergeEvaluation(EExpressionEvaluation::Shader); // TODO - support preshader
+		return OutResult.SetType(Context, RequestedType, ResultType);
 	}
 
 	const FPreparedType& LhsType = Context.PrepareExpression(FalseExpression, Scope, RequestedType);
@@ -805,24 +996,40 @@ bool FExpressionSelect::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 		return Context.Errors->AddError(TEXT("Type mismatch"));
 	}
 
-	return OutResult.SetType(Context, RequestedType, MergePreparedTypes(LhsType, RhsType));
+	FPreparedType ResultType = MergePreparedTypes(LhsType, RhsType);
+	ResultType.MergeEvaluation(ConditionEvaluation);
+	ResultType.MergeEvaluation(EExpressionEvaluation::Shader); // TODO - support preshader
+	return OutResult.SetType(Context, RequestedType, ResultType);
 }
 
 void FExpressionSelect::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	const Shader::FType LocalType = GetType();
-	FEmitShaderExpression* TrueValue = TrueExpression->GetValueShader(Context, Scope, RequestedType, LocalType);
-	FEmitShaderExpression* FalseValue = FalseExpression->GetValueShader(Context, Scope, RequestedType, LocalType);
+	const EExpressionEvaluation ConditionEvaluation = ConditionExpression->GetEvaluation(Scope, ERequestedType::Scalar);
+	if (ConditionEvaluation == EExpressionEvaluation::Constant)
+	{
+		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, Shader::EValueType::Bool1).AsBoolScalar();
+		FExpression* InputExpression = bCondition ? TrueExpression : FalseExpression;
+		OutResult.Code = InputExpression->GetValueShader(Context, Scope, RequestedType);
+	}
+	else
+	{
+		const Shader::FType LocalType = GetType();
+		FEmitShaderExpression* TrueValue = TrueExpression->GetValueShader(Context, Scope, RequestedType, LocalType);
+		FEmitShaderExpression* FalseValue = FalseExpression->GetValueShader(Context, Scope, RequestedType, LocalType);
 
-	OutResult.Code = Context.EmitExpression(Scope, LocalType, TEXT("(% ? % : %)"),
-		ConditionExpression->GetValueShader(Context, Scope, Shader::EValueType::Bool1),
-		TrueValue,
-		FalseValue);
+		OutResult.Code = Context.EmitExpression(Scope, LocalType, TEXT("(% ? % : %)"),
+			ConditionExpression->GetValueShader(Context, Scope, Shader::EValueType::Bool1),
+			TrueValue,
+			FalseValue);
+	}
 }
 
 void FExpressionSelect::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
-	check(false); // TODO
+	// TODO
+	Context.PreshaderStackPosition++;
+	OutResult.Type = GetType();
+	OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(OutResult.Type);
 }
 
 FExpression* FTree::NewUnaryOp(EOperation Op, FExpression* Input)
@@ -837,16 +1044,177 @@ FExpression* FTree::NewBinaryOp(EOperation Op, FExpression* Lhs, FExpression* Rh
 	return NewExpression<FExpressionOperation>(Op, Inputs);
 }
 
+FExpression* FTree::NewCross(FExpression* Lhs, FExpression* Rhs)
+{
+	//c_P[0] = v_A[1] * v_B[2] - v_A[2] * v_B[1];
+	//c_P[1] = -(v_A[0] * v_B[2] - v_A[2] * v_B[0]);
+	//c_P[2] = v_A[0] * v_B[1] - v_A[1] * v_B[0];
+	FExpression* Lhs0 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(1, 0, 0), Lhs);
+	FExpression* Lhs1 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(2, 2, 1), Lhs);
+	FExpression* Rhs0 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(2, 2, 1), Rhs);
+	FExpression* Rhs1 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(1, 0, 0), Rhs);
+	return NewSub(NewMul(NewMul(Lhs0, Rhs0), NewConstant(FVector3f(1.0f, -1.0f, 1.0f))), NewMul(Lhs1, Rhs1));
+}
+
 FExpressionOperation::FExpressionOperation(EOperation InOp, TConstArrayView<FExpression*> InInputs) : Op(InOp)
 {
 	const FOperationDescription OpDesc = GetOperationDescription(InOp);
 	check(OpDesc.NumInputs == InInputs.Num());
+	check(InInputs.Num() <= MaxInputs);
+
 	for (int32 i = 0; i < OpDesc.NumInputs; ++i)
 	{
 		Inputs[i] = InInputs[i];
 		check(Inputs[i]);
 	}
 }
+
+namespace Private
+{
+struct FOperationRequestedTypes
+{
+	FRequestedType InputType[FExpressionOperation::MaxInputs];
+	bool bIsMatrixOperation = false;
+};
+struct FOperationTypes
+{
+	
+	Shader::EValueType InputType[FExpressionOperation::MaxInputs];
+	Shader::EValueType ResultType;
+	bool bIsLWC = false;
+};
+
+FOperationRequestedTypes GetOperationRequestedTypes(EOperation Op, const FRequestedType& RequestedType)
+{
+	const FOperationDescription OpDesc = GetOperationDescription(Op);
+	FOperationRequestedTypes Types;
+	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
+	{
+		Types.InputType[Index] = RequestedType;
+	}
+	switch (Op)
+	{
+	case EOperation::Length:
+	case EOperation::Normalize:
+		Types.InputType[0] = ERequestedType::Vector4;
+		break;
+	case EOperation::Dot:
+		Types.InputType[0] = ERequestedType::Vector4;
+		Types.InputType[1] = ERequestedType::Vector4;
+		break;
+	case EOperation::VecMulMatrix3:
+		Types.bIsMatrixOperation = true;
+		Types.InputType[0] = ERequestedType::Vector3;
+		Types.InputType[1] = ERequestedType::Matrix4x4;
+		break;
+	case EOperation::VecMulMatrix4:
+		Types.bIsMatrixOperation = true;
+		Types.InputType[0] = ERequestedType::Vector3;
+		Types.InputType[1] = ERequestedType::Matrix4x4;
+		break;
+	case EOperation::Matrix3MulVec:
+	case EOperation::Matrix4MulVec:
+		// No LWC for transpose matrices
+		Types.bIsMatrixOperation = true;
+		Types.InputType[0] = ERequestedType::Matrix4x4;
+		Types.InputType[1] = ERequestedType::Vector3;
+		break;
+	default:
+		break;
+	}
+	return Types;
+}
+
+FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<Shader::EValueType> InputTypes)
+{
+	Shader::EValueComponentType ComponentType = Shader::EValueComponentType::Void;
+	int32 NumComponents = 0;
+	for (int32 Index = 0; Index < InputTypes.Num(); ++Index)
+	{
+		const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(InputTypes[Index]);
+		ComponentType = Shader::CombineComponentTypes(ComponentType, InputTypeDesc.ComponentType);
+		NumComponents = FMath::Max<int32>(NumComponents, InputTypeDesc.NumComponents);
+	}
+
+	Shader::EValueType IntermediateType = Shader::MakeValueType(ComponentType, NumComponents);
+
+	FOperationTypes Types;
+	for (int32 Index = 0; Index < InputTypes.Num(); ++Index)
+	{
+		Types.InputType[Index] = IntermediateType;
+	}
+	Types.ResultType = IntermediateType;
+	Types.bIsLWC = (ComponentType == Shader::EValueComponentType::Double);
+	switch (Op)
+	{
+	case EOperation::Length:
+		Types.ResultType = Shader::MakeValueType(ComponentType, 1);
+		break;
+	case EOperation::Normalize:
+		Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
+		break;
+	case EOperation::Frac:
+	case EOperation::Rcp:
+	case EOperation::Sqrt:
+	case EOperation::Sign:
+	case EOperation::Saturate:
+	case EOperation::Sin:
+	case EOperation::Cos:
+	case EOperation::Tan:
+	case EOperation::Asin:
+	case EOperation::AsinFast:
+	case EOperation::Acos:
+	case EOperation::AcosFast:
+	case EOperation::Atan:
+	case EOperation::AtanFast:
+		Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
+		break;
+	case EOperation::Log2:
+		// No LWC support yet
+		Types.InputType[0] = Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
+		break;
+	case EOperation::Less:
+	case EOperation::Greater:
+	case EOperation::LessEqual:
+	case EOperation::GreaterEqual:
+		Types.ResultType = Shader::MakeValueType(Shader::EValueComponentType::Bool, NumComponents);
+		break;
+	case EOperation::Fmod:
+		Types.InputType[1] = Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
+		break;
+	case EOperation::PowPositiveClamped:
+	case EOperation::Atan2:
+	case EOperation::Atan2Fast:
+		// No LWC support yet
+		Types.InputType[0] = Types.InputType[1] = Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
+		break;
+	case EOperation::Dot:
+		Types.ResultType = Shader::MakeValueType(ComponentType, 1);
+		break;
+	case EOperation::VecMulMatrix3:
+		// No LWC for matrix3
+		Types.InputType[0] = Shader::EValueType::Float3;
+		Types.InputType[1] = Shader::EValueType::Float4x4;
+		Types.ResultType = Shader::EValueType::Float3;
+		break;
+	case EOperation::VecMulMatrix4:
+		Types.InputType[0] = Shader::EValueType::Float3;
+		Types.InputType[1] = Shader::EValueType::Float4x4;
+		Types.ResultType = Shader::EValueType::Float3;
+		break;
+	case EOperation::Matrix3MulVec:
+	case EOperation::Matrix4MulVec:
+		// No LWC for transpose matrices
+		Types.InputType[0] = Shader::EValueType::Float4x4;
+		Types.InputType[1] = Shader::EValueType::Float3;
+		Types.ResultType = Shader::EValueType::Float3;
+		break;
+	default:
+		break;
+	}
+	return Types;
+}
+} // namespace Private
 
 void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
 {
@@ -907,6 +1275,19 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 	case EOperation::Abs:
 	case EOperation::Saturate:
 	case EOperation::PowPositiveClamped:
+	case EOperation::Sin:
+	case EOperation::Cos:
+	case EOperation::Tan:
+	case EOperation::Asin:
+	case EOperation::AsinFast:
+	case EOperation::Acos:
+	case EOperation::AcosFast:
+	case EOperation::Atan:
+	case EOperation::AtanFast:
+	case EOperation::Atan2:
+	case EOperation::Atan2Fast:
+	case EOperation::Sqrt:
+	case EOperation::Log2:
 		// TODO
 		break;
 	case EOperation::Add:
@@ -974,11 +1355,12 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 
 FExpression* FExpressionOperation::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
+	const Private::FOperationRequestedTypes RequestedTypes = Private::GetOperationRequestedTypes(Op, RequestedType);
 	const FOperationDescription OpDesc = GetOperationDescription(Op);
 	FExpression* PrevFrameInputs[MaxInputs];
 	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
 	{
-		PrevFrameInputs[Index] = Tree.GetPreviousFrame(Inputs[Index], RequestedType);
+		PrevFrameInputs[Index] = Tree.GetPreviousFrame(Inputs[Index], RequestedTypes.InputType[Index]);
 	}
 
 	return Tree.NewExpression<FExpressionOperation>(Op, MakeArrayView(PrevFrameInputs, OpDesc.NumInputs));
@@ -987,43 +1369,12 @@ FExpression* FExpressionOperation::ComputePreviousFrame(FTree& Tree, const FRequ
 bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	const FOperationDescription OpDesc = GetOperationDescription(Op);
-	FRequestedType InputRequestedType[MaxInputs];
-	bool bIsMatrixOperation = false;
-	switch (Op)
-	{
-	case EOperation::Length:
-	case EOperation::Normalize:
-		// Each component of result is influenced by all components of input
-		InputRequestedType[0] = ERequestedType::Vector4;
-		break;
-	case EOperation::VecMulMatrix3:
-	case EOperation::VecMulMatrix4:
-		InputRequestedType[0] = ERequestedType::Vector3;
-		InputRequestedType[1] = ERequestedType::Matrix4x4;
-		bIsMatrixOperation = true;
-		break;
-	case EOperation::Matrix3MulVec:
-	case EOperation::Matrix4MulVec:
-		InputRequestedType[0] = ERequestedType::Matrix4x4;
-		InputRequestedType[1] = ERequestedType::Vector3;
-		bIsMatrixOperation = true;
-		break;
-	case EOperation::Dot:
-		InputRequestedType[0] = ERequestedType::Vector4;
-		InputRequestedType[1] = ERequestedType::Vector4;
-		break;
-	default:
-		for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
-		{
-			InputRequestedType[Index] = RequestedType;
-		}
-		break;
-	}
+	const Private::FOperationRequestedTypes RequestedTypes = Private::GetOperationRequestedTypes(Op, RequestedType);
 
 	FPreparedType InputType[MaxInputs];
 	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
 	{
-		InputType[Index] = Context.PrepareExpression(Inputs[Index], Scope, InputRequestedType[Index]);
+		InputType[Index] = Context.PrepareExpression(Inputs[Index], Scope, RequestedTypes.InputType[Index]);
 		if (InputType[Index].IsVoid())
 		{
 			return false;
@@ -1036,7 +1387,7 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 	}
 
 	FPreparedType ResultType;
-	if (bIsMatrixOperation)
+	if (RequestedTypes.bIsMatrixOperation)
 	{
 		const EExpressionEvaluation Evaluation = CombineEvaluations(InputType[0].GetEvaluation(Scope), InputType[1].GetEvaluation(Scope));
 		const Shader::EValueComponentType ComponentType = Shader::CombineComponentTypes(InputType[0].ValueComponentType, InputType[1].ValueComponentType);
@@ -1060,10 +1411,10 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 	}
 	else if(OpDesc.NumInputs == 2)
 	{
-		if (InputType[0].GetNumComponents() != 1 && InputType[1].GetNumComponents() != 1 && InputType[0].GetNumComponents() != InputType[1].GetNumComponents())
+		/*if (InputType[0].GetNumComponents() != 1 && InputType[1].GetNumComponents() != 1 && InputType[0].GetNumComponents() != InputType[1].GetNumComponents())
 		{
 			return Context.Errors->AddErrorf(TEXT("Invalid arithmetic between %s and %s"), InputType[0].GetType().GetName(), InputType[1].GetType().GetName());
-		}
+		}*/
 		ResultType = MergePreparedTypes(InputType[0], InputType[1]);
 		if (Op == EOperation::Less || Op == EOperation::Greater || Op == EOperation::LessEqual || Op == EOperation::GreaterEqual)
 		{
@@ -1087,87 +1438,6 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 	return OutResult.SetType(Context, RequestedType, ResultType);
 }
 
-namespace Private
-{
-struct FOperationTypes
-{
-	Shader::EValueType InputType[FExpressionOperation::MaxInputs];
-	Shader::EValueType ResultType;
-	bool bIsLWC;
-};
-FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<Shader::EValueType> InputTypes)
-{
-	Shader::EValueComponentType ComponentType = Shader::EValueComponentType::Void;
-	int32 NumComponents = 0;
-	for (int32 Index = 0; Index < InputTypes.Num(); ++Index)
-	{
-		const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(InputTypes[Index]);
-		ComponentType = Shader::CombineComponentTypes(ComponentType, InputTypeDesc.ComponentType);
-		NumComponents = FMath::Max<int32>(NumComponents, InputTypeDesc.NumComponents);
-	}
-
-	Shader::EValueType IntermediateType = Shader::MakeValueType(ComponentType, NumComponents);
-
-	FOperationTypes Types;
-	for (int32 Index = 0; Index < InputTypes.Num(); ++Index)
-	{
-		Types.InputType[Index] = IntermediateType;
-	}
-	Types.ResultType = IntermediateType;
-	Types.bIsLWC = (ComponentType == Shader::EValueComponentType::Double);
-	switch (Op)
-	{
-	case EOperation::Length:
-		Types.ResultType = Shader::MakeValueType(ComponentType, 1);
-		break;
-	case EOperation::Normalize:
-	case EOperation::Frac:
-	case EOperation::Rcp:
-	case EOperation::Sign:
-	case EOperation::Saturate:
-		Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
-		break;
-	case EOperation::Less:
-	case EOperation::Greater:
-	case EOperation::LessEqual:
-	case EOperation::GreaterEqual:
-		Types.ResultType = Shader::MakeValueType(Shader::EValueComponentType::Bool, NumComponents);
-		break;
-	case EOperation::Fmod:
-		Types.InputType[1] = Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
-		break;
-	case EOperation::PowPositiveClamped:
-		// No LWC support yet
-		Types.InputType[0] = Types.InputType[1] = Types.ResultType = Shader::MakeNonLWCType(IntermediateType);
-		break;
-	case EOperation::Dot:
-		Types.ResultType = Shader::MakeValueType(ComponentType, 1);
-		break;
-	case EOperation::VecMulMatrix3:
-		// No LWC for matrix3
-		Types.InputType[0] = Shader::EValueType::Float3;
-		Types.InputType[1] = Shader::EValueType::Float4x4;
-		Types.ResultType = Shader::EValueType::Float3;
-		break;
-	case EOperation::VecMulMatrix4:
-		Types.InputType[0] = Shader::EValueType::Float3;
-		Types.InputType[1] = Shader::EValueType::Float4x4;
-		Types.ResultType = Shader::EValueType::Float3;
-		break;
-	case EOperation::Matrix3MulVec:
-	case EOperation::Matrix4MulVec:
-		// No LWC for transpose matrices
-		Types.InputType[0] = Shader::EValueType::Float4x4;
-		Types.InputType[1] = Shader::EValueType::Float3;
-		Types.ResultType = Shader::EValueType::Float3;
-		break;
-	default:
-		break;
-	}
-	return Types;
-}
-} // namespace Private
-
 void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	const FOperationDescription OpDesc = GetOperationDescription(Op);
@@ -1176,11 +1446,12 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 	{
 		InputTypes[Index] = Inputs[Index]->GetType();
 	}
+	const Private::FOperationRequestedTypes RequestedTypes = Private::GetOperationRequestedTypes(Op, RequestedType);
 	const Private::FOperationTypes Types = Private::GetOperationTypes(Op, MakeArrayView(InputTypes, OpDesc.NumInputs));
 	FEmitShaderExpression* InputValue[MaxInputs] = { nullptr };
 	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
 	{
-		InputValue[Index] = Inputs[Index]->GetValueShader(Context, Scope, Types.InputType[Index]);
+		InputValue[Index] = Inputs[Index]->GetValueShader(Context, Scope, RequestedTypes.InputType[Index], Types.InputType[Index]);
 	}
 
 	switch (Op)
@@ -1215,6 +1486,8 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("rcp(%)"), InputValue[0]);
 		}
 		break;
+	case EOperation::Sqrt: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCSqrt(%)") : TEXT("sqrt(%)"), InputValue[0]); break;
+	case EOperation::Log2: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("log2(%)"), InputValue[0]); break;
 	case EOperation::Frac:
 		if (Types.bIsLWC)
 		{
@@ -1306,6 +1579,15 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("normalize(%)"), InputValue[0]);
 		}
 		break;
+	case EOperation::Sin: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCSin(%)") : TEXT("sin(%)"), InputValue[0]); break;
+	case EOperation::Cos: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCCos(%)") : TEXT("cos(%)"), InputValue[0]); break;
+	case EOperation::Tan: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCTan(%)") : TEXT("tan(%)"), InputValue[0]); break;
+	case EOperation::Asin: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCAsin(%)") : TEXT("asin(%)"), InputValue[0]); break;
+	case EOperation::AsinFast: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCAsin(%)") : TEXT("asinFast(%)"), InputValue[0]); break;
+	case EOperation::Acos: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCAcos(%)") : TEXT("acos(%)"), InputValue[0]); break;
+	case EOperation::AcosFast: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCAcos(%)") : TEXT("acosFast(%)"), InputValue[0]); break;
+	case EOperation::Atan: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCAtan(%)") : TEXT("atan(%)"), InputValue[0]); break;
+	case EOperation::AtanFast: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, Types.bIsLWC ? TEXT("LWCAtan(%)") : TEXT("atanFast(%)"), InputValue[0]); break;
 	case EOperation::Add:
 		if (Types.bIsLWC)
 		{
@@ -1359,6 +1641,8 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 	case EOperation::PowPositiveClamped:
 		OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("PositiveClampedPow(%, %)"), InputValue[0], InputValue[1]);
 		break;
+	case EOperation::Atan2: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("atan2(%, %)"), InputValue[0], InputValue[1]); break;
+	case EOperation::Atan2Fast: OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("atan2Fast(%, %)"), InputValue[0], InputValue[1]); break;
 	case EOperation::Dot:
 		if (Types.bIsLWC)
 		{
@@ -1432,7 +1716,7 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 	case EOperation::VecMulMatrix3:
 		if (Types.bIsLWC)
 		{
-			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCMlutiplyVector(%, %)"), InputValue[0], InputValue[1]);
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCMultiply(%, %)"), InputValue[0], InputValue[1]);
 		}
 		else
 		{
@@ -1442,7 +1726,7 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 	case EOperation::VecMulMatrix4:
 		if (Types.bIsLWC)
 		{
-			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCMlutiply(%, %)"), InputValue[0], InputValue[1]);
+			OutResult.Code = Context.EmitExpression(Scope, Types.ResultType, TEXT("LWCMultiply(%, %)"), InputValue[0], InputValue[1]);
 		}
 		else
 		{
@@ -1469,19 +1753,74 @@ void FExpressionOperation::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 	{
 		InputTypes[Index] = Inputs[Index]->GetType();
 	}
+	const Private::FOperationRequestedTypes RequestedTypes = Private::GetOperationRequestedTypes(Op, RequestedType);
 	const Private::FOperationTypes Types = Private::GetOperationTypes(Op, MakeArrayView(InputTypes, OpDesc.NumInputs));
 	check(OpDesc.PreshaderOpcode != Shader::EPreshaderOpcode::Nop);
 
 	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
 	{
-		Inputs[Index]->GetValuePreshader(Context, Scope, Types.InputType[Index], OutResult.Preshader);
+		Inputs[Index]->GetValuePreshader(Context, Scope, RequestedTypes.InputType[Index], OutResult.Preshader);
 	}
 
-	check(Context.PreshaderStackPosition > 0);
-	Context.PreshaderStackPosition--;
+	const int32 NumInputsToPop = OpDesc.NumInputs - 1;
+	if (NumInputsToPop > 0)
+	{
+		check(Context.PreshaderStackPosition >= NumInputsToPop);
+		Context.PreshaderStackPosition -= NumInputsToPop;
+	}
 
 	OutResult.Preshader.WriteOpcode(OpDesc.PreshaderOpcode);
 	OutResult.Type = Types.ResultType;
+}
+
+void FExpressionDerivative::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
+{
+	// TODO
+}
+
+FExpression* FExpressionDerivative::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+{
+	return Tree.NewExpression<FExpressionDerivative>(Coord, Tree.GetPreviousFrame(Input, RequestedType));
+}
+
+bool FExpressionDerivative::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	FPreparedType ResultType = Context.PrepareExpression(Input, Scope, RequestedType);
+	if (ResultType.IsVoid())
+	{
+		return false;
+	}
+
+	ResultType.ValueComponentType = Shader::MakeNonLWCType(ResultType.ValueComponentType);
+
+	const EExpressionEvaluation InputEvaluation = ResultType.GetEvaluation(Scope, RequestedType);
+	if (InputEvaluation != EExpressionEvaluation::Shader)
+	{
+		ResultType.SetEvaluation(EExpressionEvaluation::Constant);
+	}
+	return OutResult.SetType(Context, RequestedType, ResultType);
+}
+
+void FExpressionDerivative::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+{
+	FEmitShaderExpression* EmitInput = Input->GetValueShader(Context, Scope, RequestedType);
+	const bool bIsLWC = Shader::IsLWCType(EmitInput->Type);
+	const TCHAR* FunctionName = nullptr;
+	switch (Coord)
+	{
+	case EDerivativeCoordinate::Ddx: FunctionName = bIsLWC ? TEXT("LWCDdx") : TEXT("ddx"); break;
+	case EDerivativeCoordinate::Ddy: FunctionName = bIsLWC ? TEXT("LWCDdy") : TEXT("ddy"); break;
+	default: checkNoEntry(); break;
+	}
+	OutResult.Code = Context.EmitExpression(Scope, Shader::MakeNonLWCType(EmitInput->Type), TEXT("%(%)"), FunctionName, EmitInput);
+}
+
+void FExpressionDerivative::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
+{
+	// Derivative of a constant is 0
+	Context.PreshaderStackPosition++;
+	OutResult.Type = GetType();
+	OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(OutResult.Type);
 }
 
 void FExpressionSwizzle::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
@@ -1503,13 +1842,34 @@ FExpression* FExpressionSwizzle::ComputePreviousFrame(FTree& Tree, const FReques
 bool FExpressionSwizzle::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	const FRequestedType RequestedInputType = Parameters.GetRequestedInputType(RequestedType);
-	const FPreparedType& InputType = Context.PrepareExpression(Input, Scope, RequestedInputType);
 
-	FPreparedType ResultType(InputType.ValueComponentType);
-	for (int32 ComponentIndex = 0; ComponentIndex < Parameters.NumComponents; ++ComponentIndex)
+	FPreparedType ResultType;
+	if (RequestedInputType.IsVoid())
 	{
-		const int32 SwizzledComponentIndex = Parameters.ComponentIndex[ComponentIndex];
-		ResultType.SetComponent(ComponentIndex, InputType.GetComponent(SwizzledComponentIndex));
+		// All the requested components are outside the swizzle, so just return 0
+		ResultType.ValueComponentType = Shader::EValueComponentType::Float;
+		for (int32 ComponentIndex = 0; ComponentIndex < Parameters.NumComponents; ++ComponentIndex)
+		{
+			ResultType.SetComponent(ComponentIndex, EExpressionEvaluation::ConstantZero);
+		}
+	}
+	else
+	{
+		const FPreparedType& InputType = Context.PrepareExpression(Input, Scope, RequestedInputType);
+
+		ResultType.ValueComponentType = InputType.ValueComponentType;
+		for (int32 ComponentIndex = 0; ComponentIndex < Parameters.NumComponents; ++ComponentIndex)
+		{
+			if (RequestedType.IsComponentRequested(ComponentIndex))
+			{
+				const int32 SwizzledComponentIndex = Parameters.ComponentIndex[ComponentIndex];
+				ResultType.SetComponent(ComponentIndex, InputType.GetComponent(SwizzledComponentIndex));
+			}
+			else
+			{
+				ResultType.SetComponent(ComponentIndex, EExpressionEvaluation::ConstantZero);
+			}
+		}
 	}
 
 	return OutResult.SetType(Context, RequestedType, ResultType);
@@ -1517,16 +1877,24 @@ bool FExpressionSwizzle::PrepareValue(FEmitContext& Context, FEmitScope& Scope, 
 
 void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	const FRequestedType RequestedInputType = Parameters.GetRequestedInputType(RequestedType);
-
 	static const TCHAR ComponentName[] = { 'x', 'y', 'z', 'w' };
 	TCHAR Swizzle[5] = TEXT("");
 	TCHAR LWCSwizzle[10] = TEXT("");
 	bool bHasSwizzleReorder = false;
 
-	for (int32 ComponentIndex = 0; ComponentIndex < Parameters.NumComponents; ++ComponentIndex)
+	const int32 NumComponents = FMath::Min(RequestedType.GetNumComponents(), Parameters.NumComponents);
+	FRequestedType RequestedInputType;
+	for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
 	{
-		const int32 SwizzledComponentIndex = Parameters.ComponentIndex[ComponentIndex];
+		// If component wasn't requested, we just refer to 'x' component of input, since that should always be present
+		int32 SwizzledComponentIndex = 0;
+
+		if (RequestedType.IsComponentRequested(ComponentIndex))
+		{
+			SwizzledComponentIndex = Parameters.ComponentIndex[ComponentIndex];
+			RequestedInputType.SetComponentRequest(SwizzledComponentIndex);
+		}
+
 		Swizzle[ComponentIndex] = ComponentName[SwizzledComponentIndex];
 		LWCSwizzle[ComponentIndex * 2 + 0] = TEXT(',');
 		LWCSwizzle[ComponentIndex * 2 + 1] = TEXT('0') + SwizzledComponentIndex;
@@ -1538,18 +1906,30 @@ void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, FEmitScope& Scop
 	}
 
 	FEmitShaderExpression* InputValue = Input->GetValueShader(Context, Scope, RequestedInputType);
-	if (bHasSwizzleReorder || Parameters.NumComponents != InputValue->Type.GetNumComponents())
+	const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(InputValue->Type);
+
+	if (bHasSwizzleReorder || NumComponents != InputTypeDesc.NumComponents)
 	{
-		const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(InputValue->Type);
-		const Shader::EValueType ResultType = Shader::MakeValueType(InputTypeDesc.ComponentType, Parameters.NumComponents);
+		const Shader::EValueType ResultType = Shader::MakeValueType(InputTypeDesc.ComponentType, NumComponents);
+		const int32 NumRequestedComponents = RequestedInputType.GetNumComponents();
+		check(NumRequestedComponents > 0);
+	
+		if (NumRequestedComponents > InputTypeDesc.NumComponents)
+		{
+			// Zero-extend our input if needed, so we can acccess all the given components
+			InputValue = Context.EmitCast(Scope, InputValue, Shader::MakeValueType(InputTypeDesc.ComponentType, NumRequestedComponents), EEmitCastFlags::ZeroExtendScalar);
+		}
+
 		if (InputTypeDesc.ComponentType == Shader::EValueComponentType::Double)
 		{
+			check(LWCSwizzle[0]);
 			OutResult.Code = Context.EmitInlineExpression(Scope, ResultType, TEXT("LWCSwizzle(%%)"),
 				InputValue,
 				LWCSwizzle);
 		}
 		else
 		{
+			check(Swizzle[0]);
 			OutResult.Code = Context.EmitInlineExpression(Scope, ResultType, TEXT("%.%"),
 				InputValue,
 				Swizzle);
@@ -1564,17 +1944,25 @@ void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, FEmitScope& Scop
 void FExpressionSwizzle::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
 	const FRequestedType RequestedInputType = Parameters.GetRequestedInputType(RequestedType);
+	if (RequestedInputType.IsVoid())
+	{
+		Context.PreshaderStackPosition++;
+		OutResult.Type = Shader::MakeValueType(Shader::EValueComponentType::Float, Parameters.NumComponents);
+		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(OutResult.Type);
+	}
+	else
+	{
+		const Shader::FType InputType = Input->GetValuePreshader(Context, Scope, RequestedInputType, OutResult.Preshader);
+		const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(InputType);
 
-	const Shader::FType InputType = Input->GetValuePreshader(Context, Scope, RequestedInputType, OutResult.Preshader);
-	const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(InputType);
-
-	OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ComponentSwizzle)
-		.Write((uint8)Parameters.NumComponents)
-		.Write((uint8)Parameters.ComponentIndex[0])
-		.Write((uint8)Parameters.ComponentIndex[1])
-		.Write((uint8)Parameters.ComponentIndex[2])
-		.Write((uint8)Parameters.ComponentIndex[3]);
-	OutResult.Type = Shader::MakeValueType(InputTypeDesc.ComponentType, Parameters.NumComponents);
+		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ComponentSwizzle)
+			.Write((uint8)Parameters.NumComponents)
+			.Write((uint8)Parameters.ComponentIndex[0])
+			.Write((uint8)Parameters.ComponentIndex[1])
+			.Write((uint8)Parameters.ComponentIndex[2])
+			.Write((uint8)Parameters.ComponentIndex[3]);
+		OutResult.Type = Shader::MakeValueType(InputTypeDesc.ComponentType, Parameters.NumComponents);
+	}
 }
 
 void FExpressionAppend::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
@@ -1600,28 +1988,31 @@ bool FExpressionAppend::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 	const int32 NumRequestedComponents = RequestedType.GetNumComponents();
 	const int32 NumLhsComponents = FMath::Min(LhsType.GetNumComponents(), NumRequestedComponents);
 
+	FPreparedType ResultType(LhsType.ValueComponentType);
+	for (int32 Index = 0; Index < NumLhsComponents; ++Index)
+	{
+		ResultType.SetComponent(Index, LhsType.GetComponent(Index));
+	}
+
 	FRequestedType RhsRequestedType;
 	for (int32 Index = NumLhsComponents; Index < NumRequestedComponents; ++Index)
 	{
 		RhsRequestedType.SetComponentRequest(Index - NumLhsComponents, RequestedType.IsComponentRequested(Index));
 	}
 
-	const FPreparedType& RhsType = Context.PrepareExpression(Rhs, Scope, RhsRequestedType);
-	const int32 NumRhsComponents = FMath::Min(RhsType.GetNumComponents(), NumRequestedComponents - NumLhsComponents);
+	if (!RhsRequestedType.IsVoid())
+	{
+		const FPreparedType& RhsType = Context.PrepareExpression(Rhs, Scope, RhsRequestedType);
+		if (LhsType.ValueComponentType != RhsType.ValueComponentType)
+		{
+			return Context.Errors->AddError(TEXT("Type mismatch"));
+		}
 
-	if (LhsType.ValueComponentType != RhsType.ValueComponentType)
-	{
-		return Context.Errors->AddError(TEXT("Type mismatch"));
-	}
-
-	FPreparedType ResultType(LhsType.ValueComponentType);
-	for (int32 Index = 0; Index < NumLhsComponents; ++Index)
-	{
-		ResultType.SetComponent(Index, LhsType.GetComponent(Index));
-	}
-	for (int32 Index = 0; Index < NumRhsComponents; ++Index)
-	{
-		ResultType.SetComponent(NumLhsComponents + Index, LhsType.GetComponent(Index));
+		const int32 NumRhsComponents = FMath::Min(RhsType.GetNumComponents(), NumRequestedComponents - NumLhsComponents);
+		for (int32 Index = 0; Index < NumRhsComponents; ++Index)
+		{
+			ResultType.SetComponent(NumLhsComponents + Index, RhsType.GetComponent(Index));
+		}
 	}
 
 	return OutResult.SetType(Context, RequestedType, ResultType);
@@ -1634,9 +2025,11 @@ struct FAppendTypes
 	Shader::EValueType ResultType;
 	Shader::EValueType LhsType;
 	Shader::EValueType RhsType;
+	FRequestedType LhsRequestedType;
+	FRequestedType RhsRequestedType;
 	bool bIsLWC;
 };
-FAppendTypes GetAppendTypes(Shader::EValueType LhsType, Shader::EValueType RhsType)
+FAppendTypes GetAppendTypes(const FRequestedType& RequestedType, Shader::EValueType LhsType, Shader::EValueType RhsType)
 {
 	const Shader::FValueTypeDescription LhsTypeDesc = Shader::GetValueTypeDescription(LhsType);
 	const Shader::FValueTypeDescription RhsTypeDesc = Shader::GetValueTypeDescription(RhsType);
@@ -1644,9 +2037,24 @@ FAppendTypes GetAppendTypes(Shader::EValueType LhsType, Shader::EValueType RhsTy
 	const int32 NumComponents = FMath::Min(LhsTypeDesc.NumComponents + RhsTypeDesc.NumComponents, 4);
 
 	FAppendTypes Types;
+	for (int32 Index = 0; Index < LhsTypeDesc.NumComponents; ++Index)
+	{
+		if (RequestedType.IsComponentRequested(Index))
+		{
+			Types.LhsRequestedType.SetComponentRequest(Index);
+		}
+	}
+	for (int32 Index = LhsTypeDesc.NumComponents; Index < NumComponents; ++Index)
+	{
+		if (RequestedType.IsComponentRequested(Index))
+		{
+			Types.RhsRequestedType.SetComponentRequest(Index - LhsTypeDesc.NumComponents);
+		}
+	}
+
 	Types.ResultType = Shader::MakeValueType(ComponentType, NumComponents);
 	Types.LhsType = Shader::MakeValueType(ComponentType, LhsTypeDesc.NumComponents);
-	Types.RhsType = Shader::MakeValueType(ComponentType, FMath::Min<int32>(RhsTypeDesc.NumComponents, 4 - LhsTypeDesc.NumComponents));
+	Types.RhsType = Shader::MakeValueType(ComponentType, NumComponents - LhsTypeDesc.NumComponents);
 	Types.bIsLWC = ComponentType == Shader::EValueComponentType::Double;
 	return Types;
 }
@@ -1654,8 +2062,8 @@ FAppendTypes GetAppendTypes(Shader::EValueType LhsType, Shader::EValueType RhsTy
 
 void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	const Private::FAppendTypes Types = Private::GetAppendTypes(Lhs->GetType(), Rhs->GetType());
-	FEmitShaderExpression* LhsValue = Lhs->GetValueShader(Context, Scope, Types.LhsType);
+	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Lhs->GetType(), Rhs->GetType());
+	FEmitShaderExpression* LhsValue = Lhs->GetValueShader(Context, Scope, Types.LhsRequestedType, Types.LhsType);
 
 	if (Types.RhsType == Shader::EValueType::Void)
 	{
@@ -1663,7 +2071,7 @@ void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope
 	}
 	else
 	{
-		FEmitShaderExpression* RhsValue = Rhs->GetValueShader(Context, Scope, Types.RhsType);
+		FEmitShaderExpression* RhsValue = Rhs->GetValueShader(Context, Scope, Types.RhsRequestedType, Types.RhsType);
 		if (Types.bIsLWC)
 		{
 			OutResult.Code = Context.EmitInlineExpression(Scope, Types.ResultType, TEXT("MakeLWCVector(%, %)"),
@@ -1682,11 +2090,11 @@ void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope
 
 void FExpressionAppend::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
-	const Private::FAppendTypes Types = Private::GetAppendTypes(Lhs->GetType(), Rhs->GetType());
-	Lhs->GetValuePreshader(Context, Scope, Types.LhsType, OutResult.Preshader);
+	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Lhs->GetType(), Rhs->GetType());
+	Lhs->GetValuePreshader(Context, Scope, Types.LhsRequestedType, OutResult.Preshader);
 	if (Types.RhsType != Shader::EValueType::Void)
 	{
-		Rhs->GetValuePreshader(Context, Scope, Types.RhsType, OutResult.Preshader);
+		Rhs->GetValuePreshader(Context, Scope, Types.RhsRequestedType, OutResult.Preshader);
 
 		check(Context.PreshaderStackPosition > 0);
 		Context.PreshaderStackPosition--;
@@ -1696,15 +2104,14 @@ void FExpressionAppend::EmitValuePreshader(FEmitContext& Context, FEmitScope& Sc
 	OutResult.Type = Types.ResultType;
 }
 
-bool FExpressionReflectionVector::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+bool FExpressionInlineCustomHLSL::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	Context.bReadMaterialNormal = true;
-	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::EValueType::Float3);
+	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::FType(ResultType));
 }
 
-void FExpressionReflectionVector::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void FExpressionInlineCustomHLSL::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	OutResult.Code = Context.EmitInlineExpression(Scope, Shader::EValueType::Float3, TEXT("Parameters.ReflectionVector"));
+	OutResult.Code = Context.EmitExpression(Scope, ResultType, Code);
 }
 
 bool FExpressionCustomHLSL::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const

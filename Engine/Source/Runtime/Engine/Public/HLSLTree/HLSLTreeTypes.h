@@ -47,6 +47,9 @@ enum class EExpressionEvaluation : uint8
 
 	/** The expression outputs constant preshader code evaluated at compile time (via FExpressionEmitResult::Preshader) */
 	Constant,
+
+	/** The expression evaluates to 0 */
+	ConstantZero,
 };
 
 EExpressionEvaluation CombineEvaluations(EExpressionEvaluation Lhs, EExpressionEvaluation Rhs);
@@ -66,6 +69,8 @@ enum class EOperation : uint8
 	Abs,
 	Neg,
 	Rcp,
+	Sqrt,
+	Log2,
 	Frac,
 	Floor,
 	Ceil,
@@ -75,6 +80,15 @@ enum class EOperation : uint8
 	Sign,
 	Length,
 	Normalize,
+	Sin,
+	Cos,
+	Tan,
+	Asin,
+	AsinFast,
+	Acos,
+	AcosFast,
+	Atan,
+	AtanFast,
 
 	// Binary Ops
 	Add,
@@ -83,6 +97,8 @@ enum class EOperation : uint8
 	Div,
 	Fmod,
 	PowPositiveClamped,
+	Atan2,
+	Atan2Fast,
 	Dot,
 	Min,
 	Max,

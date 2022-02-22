@@ -199,6 +199,10 @@ FEmitContext::FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& I
 	, Errors(&InErrors)
 	, TypeRegistry(&InTypeRegistry)
 {
+	for (int32 Index = 0; Index < SF_NumFrequencies; ++Index)
+	{
+		ExternalInputMask[Index].Init(false, 256);
+	}
 }
 
 FEmitContext::~FEmitContext()
@@ -640,6 +644,8 @@ int32 InternalFormatString(FStringBuilderBase* OutString, FEmitShaderDependencie
 				case EFormatArgType::ShaderValue: FormatArg_ShaderValue(Arg.ShaderValue, OutDependencies, *OutString); break;
 				case EFormatArgType::String: OutString->Append(Arg.String); break;
 				case EFormatArgType::Int: OutString->Appendf(TEXT("%d"), Arg.Int); break;
+				case EFormatArgType::Uint: OutString->Appendf(TEXT("%u"), Arg.Uint); break;
+				case EFormatArgType::Float: OutString->Appendf(TEXT("%#.9gf"), Arg.Float); break;
 				case EFormatArgType::Bool: OutString->Append(Arg.Bool ? TEXT("true") : TEXT("false")); break;
 				default:
 					checkNoEntry();
@@ -668,6 +674,11 @@ void InternalFormatStrings(FStringBuilderBase* OutString0, FStringBuilderBase* O
 FEmitShaderExpression* FEmitContext::InternalEmitExpression(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, bool bInline, const Shader::FType& Type, FStringView Code)
 {
 	FEmitShaderExpression* ShaderValue = nullptr;
+
+	if (Code.Contains(TEXT("(Local253.xy - float3(0.00000000f, 0.00000000f, 1.00000000f))")))
+	{
+		int a = 0;
+	}
 
 	FXxHash64Builder Hasher;
 	Hasher.Update(Code.GetData(), Code.Len() * sizeof(TCHAR));
@@ -823,7 +834,7 @@ FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, 
 		const Shader::EValueType FieldType = Type.GetFlatFieldType(FieldIndex);
 		const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(FieldType);
 		const int32 NumFieldComponents = TypeDesc.NumComponents;
-		const EExpressionEvaluation FieldEvaluation = Expression->GetPreparedType().GetFieldEvaluation(Scope, ComponentIndex, NumFieldComponents);
+		const EExpressionEvaluation FieldEvaluation = Expression->GetPreparedType().GetFieldEvaluation(Scope, RequestedType, ComponentIndex, NumFieldComponents);
 
 		if (FieldEvaluation == EExpressionEvaluation::Preshader)
 		{
@@ -910,7 +921,8 @@ FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, 
 		else
 		{
 			// We allow FieldEvaluation to be 'None', since in that case we still need to fill in a value for the HLSL initializer
-			check(FieldEvaluation == EExpressionEvaluation::Constant ||
+			check(FieldEvaluation == EExpressionEvaluation::ConstantZero ||
+				FieldEvaluation == EExpressionEvaluation::Constant ||
 				FieldEvaluation == EExpressionEvaluation::ConstantLoop ||
 				FieldEvaluation == EExpressionEvaluation::None);
 
@@ -919,8 +931,16 @@ FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, 
 			Shader::FValue FieldConstantValue(ConstantValue.Type.GetComponentType(ComponentIndex), NumFieldComponents);
 			for (int32 i = 0; i < NumFieldComponents; ++i)
 			{
-				// Allow replicating scalar values
-				FieldConstantValue.Component[i] = ConstantValue.Component.Num() == 1 ? ConstantValue.Component[0] : ConstantValue.Component[ComponentIndex + i];
+				if (ConstantValue.Component.Num() == 1)
+				{
+					// Allow replicating scalar values
+					FieldConstantValue.Component[i] = ConstantValue.Component[0];
+				}
+				else if (ConstantValue.Component.IsValidIndex(ComponentIndex + i))
+				{
+					FieldConstantValue.Component[i] = ConstantValue.Component[ComponentIndex + i];
+				}
+				// else component defaults to 0
 			}
 
 			if (TypeDesc.ComponentType == Shader::EValueComponentType::Double)
@@ -992,7 +1012,7 @@ FEmitShaderExpression* FEmitContext::EmitConstantZero(FEmitScope& Scope, const S
 	return EmitInlineExpression(Scope, Type, TEXT("((%)0)"), Type.GetName());
 }
 
-FEmitShaderExpression* FEmitContext::EmitCast(FEmitScope& Scope, FEmitShaderExpression* ShaderValue, const Shader::FType& DestType)
+FEmitShaderExpression* FEmitContext::EmitCast(FEmitScope& Scope, FEmitShaderExpression* ShaderValue, const Shader::FType& DestType, EEmitCastFlags Flags)
 {
 	check(ShaderValue);
 	check(!DestType.IsVoid());
@@ -1032,7 +1052,7 @@ FEmitShaderExpression* FEmitContext::EmitCast(FEmitScope& Scope, FEmitShaderExpr
 		}
 		else
 		{
-			const bool bReplicateScalar = (SourceTypeDesc.NumComponents == 1);
+			const bool bReplicateScalar = (SourceTypeDesc.NumComponents == 1) && !EnumHasAnyFlags(Flags, EEmitCastFlags::ZeroExtendScalar);
 
 			int32 NumComponents = 0;
 			bool bNeedClosingParen = false;
@@ -1043,7 +1063,7 @@ FEmitShaderExpression* FEmitContext::EmitCast(FEmitScope& Scope, FEmitShaderExpr
 			}
 			else
 			{
-				if (SourceTypeDesc.NumComponents == 1 || SourceTypeDesc.NumComponents == DestTypeDesc.NumComponents)
+				if ((SourceTypeDesc.NumComponents == 1 && bReplicateScalar) || SourceTypeDesc.NumComponents == DestTypeDesc.NumComponents)
 				{
 					NumComponents = DestTypeDesc.NumComponents;
 					// Cast the scalar to the correct type, HLSL language will replicate the scalar if needed when performing this cast

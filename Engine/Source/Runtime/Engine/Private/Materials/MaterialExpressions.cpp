@@ -6110,9 +6110,9 @@ void UMaterialExpressionBreakMaterialAttributes::Serialize(FStructuredArchive::F
 }
 
 #if WITH_EDITOR
-static TMap<EMaterialProperty, int32> PropertyToIOIndexMap;
+TMap<EMaterialProperty, int32> UMaterialExpressionBreakMaterialAttributes::PropertyToIOIndexMap;
 
-static void BuildPropertyToIOIndexMap()
+void UMaterialExpressionBreakMaterialAttributes::BuildPropertyToIOIndexMap()
 {
 	if (PropertyToIOIndexMap.Num() == 0)
 	{

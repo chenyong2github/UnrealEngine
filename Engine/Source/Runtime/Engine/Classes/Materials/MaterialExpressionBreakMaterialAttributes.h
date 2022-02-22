@@ -31,6 +31,11 @@ class UMaterialExpressionBreakMaterialAttributes : public UMaterialExpression
 	virtual bool IsInputConnectionRequired(int32 InputIndex) const override;
 	virtual uint32 GetInputType(int32 InputIndex) override {return MCT_MaterialAttributes;}
 	virtual uint32 GetOutputType(int32 OutputIndex) override;
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
+
+	static TMap<EMaterialProperty, int32> PropertyToIOIndexMap;
+	static void BuildPropertyToIOIndexMap();
+
 #endif // WITH_EDITOR
 	//~ End UMaterialExpression Interface
 };

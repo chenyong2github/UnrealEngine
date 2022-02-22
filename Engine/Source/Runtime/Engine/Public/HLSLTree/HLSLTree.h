@@ -243,8 +243,6 @@ struct FPreparedComponent
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
 
 	FEmitScope* LoopScope = nullptr;
-	FExpression* ForwardValue = nullptr;
-	int32 ForwardComponentIndex = INDEX_NONE;
 	Shader::FComponentBounds Bounds;
 	EExpressionEvaluation Evaluation = EExpressionEvaluation::None;
 };
@@ -252,9 +250,7 @@ inline bool operator==(const FPreparedComponent& Lhs, const FPreparedComponent& 
 {
 	return Lhs.Evaluation == Rhs.Evaluation &&
 		Lhs.Bounds == Rhs.Bounds &&
-		Lhs.LoopScope == Rhs.LoopScope &&
-		Lhs.ForwardValue == Rhs.ForwardValue &&
-		Lhs.ForwardComponentIndex == Rhs.ForwardComponentIndex;
+		Lhs.LoopScope == Rhs.LoopScope;
 }
 inline bool operator!=(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs)
 {
@@ -277,7 +273,6 @@ public:
 	void SetEvaluation(EExpressionEvaluation Evaluation);
 	void MergeEvaluation(EExpressionEvaluation Evaluation);
 	void SetLoopEvaluation(FEmitScope& Scope, const FRequestedType& RequestedType);
-	void SetForwardValue(const FRequestedType& RequestedType, FExpression* ForwardValue);
 	void UpdateBounds(const FRequestedType& RequestedType, Shader::FComponentBounds Bounds);
 
 	void SetField(const Shader::FStructField* Field, const FPreparedType& FieldType);
@@ -295,7 +290,7 @@ public:
 
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const;
-	EExpressionEvaluation GetFieldEvaluation(const FEmitScope& Scope, int32 ComponentIndex, int32 NumComponents) const;
+	EExpressionEvaluation GetFieldEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType, int32 ComponentIndex, int32 NumComponents) const;
 	Shader::FComponentBounds GetBounds(const FRequestedType& RequestedType) const;
 	FPreparedComponent GetComponent(int32 Index) const;
 
@@ -333,8 +328,6 @@ public:
 
 	bool SetType(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluation Evaluation, const Shader::FType& Type);
 	bool SetType(FEmitContext& Context, const FRequestedType& RequestedType, const FPreparedType& Type);
-
-	bool SetForwardValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FExpression* InValue);
 
 private:
 	bool TryMergePreparedType(FEmitContext& Context, const Shader::FStructType* StructType, Shader::EValueComponentType ComponentType);
@@ -387,7 +380,6 @@ public:
 	FRequestedType GetRequestedType() const { return PrepareValueResult.PreparedType.GetRequestedType(); }
 	Shader::FType GetType() const { return PrepareValueResult.PreparedType.GetType(); }
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const { return PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType); }
-	FExpression* GetForwardValue(const FRequestedType& RequestedType);
 
 	virtual void Reset() override;
 
@@ -568,10 +560,13 @@ public:
 
 	FExpression* NewAbs(FExpression* Input) { return NewUnaryOp(EOperation::Abs, Input); }
 	FExpression* NewNeg(FExpression* Input) { return NewUnaryOp(EOperation::Neg, Input); }
+	FExpression* NewSaturate(FExpression* Input) { return NewUnaryOp(EOperation::Saturate, Input); }
 	FExpression* NewRcp(FExpression* Input) { return NewUnaryOp(EOperation::Rcp, Input); }
 	FExpression* NewFrac(FExpression* Input) { return NewUnaryOp(EOperation::Frac, Input); }
 	FExpression* NewLength(FExpression* Input) { return NewUnaryOp(EOperation::Length, Input); }
 	FExpression* NewNormalize(FExpression* Input) { return NewUnaryOp(EOperation::Normalize, Input); }
+	FExpression* NewSin(FExpression* Input) { return NewUnaryOp(EOperation::Sin, Input); }
+	FExpression* NewCos(FExpression* Input) { return NewUnaryOp(EOperation::Cos, Input); }
 
 	FExpression* NewAdd(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Add, Lhs, Rhs); }
 	FExpression* NewSub(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Sub, Lhs, Rhs); }
@@ -585,6 +580,9 @@ public:
 	FExpression* NewGreater(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Greater, Lhs, Rhs); }
 	FExpression* NewLessEqual(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::LessEqual, Lhs, Rhs); }
 	FExpression* NewGreaterEqual(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::GreaterEqual, Lhs, Rhs); }
+
+	FExpression* NewCross(FExpression* Lhs, FExpression* Rhs);
+	FExpression* NewLerp(FExpression* A, FExpression* B, FExpression* T) { return NewAdd(A, NewMul(NewSub(B, A), T)); }
 
 private:
 	template<typename T, typename... ArgTypes>

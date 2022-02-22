@@ -14,6 +14,7 @@
 #include "MaterialHLSLGenerator.h"
 #include "ShaderCore.h"
 #include "HLSLTree/HLSLTree.h"
+#include "HLSLTree/HLSLTreeCommon.h"
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "Containers/LazyPrintf.h"
 
@@ -52,6 +53,8 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 	const TCHAR* PixelShaderCodePhase0,
 	const TCHAR* PixelShaderCodePhase1)
 {
+	using namespace UE::HLSLTree;
+
 	FString MaterialTemplateSource;
 	LoadShaderSourceFileChecked(TEXT("/Engine/Private/MaterialTemplate.ush"), ShaderPlatform, MaterialTemplateSource);
 
@@ -76,9 +79,15 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 
 	FLazyPrintf LazyPrintf(*MaterialTemplateSource);
 
-	const uint32 VertexTexCoordMask = EmitContext.TexCoordMask[SF_Vertex];
-	const uint32 PixelTexCoordMask = EmitContext.TexCoordMask[SF_Pixel];
-	const uint32 NumTexCoords = PixelTexCoordMask ? (FMath::FloorLog2(PixelTexCoordMask) + 1u) : 0u;
+	uint32 NumTexCoords = 0u;
+	for (int32 TexCoordIndex = UE::HLSLTree::MaxNumTexCoords - 1; TexCoordIndex >= 0; --TexCoordIndex)
+	{
+		if (EmitContext.IsExternalInputUsed(SF_Pixel, MakeInputTexCoord(TexCoordIndex)))
+		{
+			NumTexCoords = TexCoordIndex + 1;
+			break;
+		}
+	}
 
 	const uint32 NumUserVertexTexCoords = NumTexCoords;
 	const uint32 NumUserTexCoords = NumTexCoords;
@@ -301,7 +310,9 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 		EvaluateMaterialDeclaration += TEXT("    FMaterialAttributes Result = EvaluateVertexMaterialAttributesInternal(Parameters);" LINE_TERMINATOR);
 		for (uint32 TexCoordIndex = 0; TexCoordIndex < NumTexCoords; ++TexCoordIndex)
 		{
-			if ((PixelTexCoordMask & (1u << TexCoordIndex)) && !(VertexTexCoordMask & (1u << TexCoordIndex)))
+			const EExternalInput TexCoordInput = MakeInputTexCoord(TexCoordIndex);
+
+			if (EmitContext.IsExternalInputUsed(SF_Pixel, TexCoordInput) && !EmitContext.IsExternalInputUsed(SF_Vertex, TexCoordInput))
 			{
 				const FString AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName((EMaterialProperty)(MP_CustomizedUVs0 + TexCoordIndex));
 				EvaluateMaterialDeclaration += FString::Printf(TEXT("    Result.%s = Parameters.TexCoords[%d];") LINE_TERMINATOR, *AttributeName, TexCoordIndex);
@@ -442,7 +453,7 @@ static void GetMaterialEnvironment(EShaderPlatform InPlatform,
 		OutEnvironment.SetDefine(TEXT("USE_PARTICLE_SUBUVS"), TEXT("1"));
 	}
 
-	if (false)//bUsesLightmapUVs)
+	if (EmitContext.ExternalInputMask[SF_Pixel][(int32)UE::HLSLTree::EExternalInput::LightmapTexCoord])
 	{
 		OutEnvironment.SetDefine(TEXT("LIGHTMAP_UV_ACCESS"), TEXT("1"));
 	}
@@ -545,12 +556,11 @@ static void GetMaterialEnvironment(EShaderPlatform InPlatform,
 	// If the material gets its shading model from the material expressions, then we use the result from the compilation (assuming it's valid).
 	// This result will potentially be tighter than what GetShadingModels() returns, because it only picks up the shading models from the expressions that get compiled for a specific feature level and quality level
 	// For example, the material might have shading models behind static switches. GetShadingModels() will return both the true and the false paths from that switch, whereas the shading model field from the compilation will only contain the actual shading model selected 
-	/*if (InMaterial.IsShadingModelFromMaterialExpression() && ShadingModelsFromCompilation.IsValid())
+	if (InMaterial.IsShadingModelFromMaterialExpression() && EmitContext.ShadingModelsFromCompilation.IsValid())
 	{
 		// Shading models fetched from the compilation of the expression graph
-		ShadingModels = ShadingModelsFromCompilation;
-	}*/
-
+		ShadingModels = EmitContext.ShadingModelsFromCompilation;
+	}
 	ensure(ShadingModels.IsValid());
 
 	if (ShadingModels.IsLit())
@@ -726,17 +736,17 @@ static bool IsAttributeUsed(FMaterialHLSLGenerator& Generator,
 		return false;
 	}
 
+	FRequestedType RequestedType;
+	RequestedType.SetFieldRequested(PropertyField);
+
 	const int32 NumComponents = PropertyField->GetNumComponents();
-	const EExpressionEvaluation Evaluation = ResultType.GetFieldEvaluation(Scope, PropertyField->ComponentIndex, NumComponents);
+	const EExpressionEvaluation Evaluation = ResultType.GetFieldEvaluation(Scope, RequestedType, PropertyField->ComponentIndex, NumComponents);
 	if (Evaluation == EExpressionEvaluation::None)
 	{
 		return false;
 	}
-	else if (Evaluation == EExpressionEvaluation::Constant)
+	else if (Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::ConstantZero)
 	{
-		FRequestedType RequestedType;
-		RequestedType.SetFieldRequested(PropertyField);
-
 		const FValue& DefaultValue = Generator.GetMaterialAttributesDefaultValue();
 		const FValue ConstantValue = Expression->GetValueConstant(Context, Scope, RequestedType);
 		if (DefaultValue.GetType() != ConstantValue.GetType())

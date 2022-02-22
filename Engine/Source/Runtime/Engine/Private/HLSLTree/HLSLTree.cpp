@@ -98,6 +98,8 @@ FOperationDescription GetOperationDescription(EOperation Op)
 	case EOperation::Abs: return FOperationDescription(TEXT("Abs"), TEXT("abs"), 1, Shader::EPreshaderOpcode::Abs); break;
 	case EOperation::Neg: return FOperationDescription(TEXT("Neg"), TEXT("-"), 1, Shader::EPreshaderOpcode::Neg); break;
 	case EOperation::Rcp: return FOperationDescription(TEXT("Rcp"), TEXT("/"), 1, Shader::EPreshaderOpcode::Rcp); break;
+	case EOperation::Sqrt: return FOperationDescription(TEXT("Sqrt"), TEXT("sqrt"), 1, Shader::EPreshaderOpcode::Sqrt); break;
+	case EOperation::Log2: return FOperationDescription(TEXT("Log2"), TEXT("log2"), 1, Shader::EPreshaderOpcode::Log2); break;
 	case EOperation::Frac: return FOperationDescription(TEXT("Frac"), TEXT("frac"), 1, Shader::EPreshaderOpcode::Frac); break;
 	case EOperation::Floor: return FOperationDescription(TEXT("Floor"), TEXT("floor"), 1, Shader::EPreshaderOpcode::Floor); break;
 	case EOperation::Ceil: return FOperationDescription(TEXT("Ceil"), TEXT("ceil"), 1, Shader::EPreshaderOpcode::Ceil); break;
@@ -107,6 +109,16 @@ FOperationDescription GetOperationDescription(EOperation Op)
 	case EOperation::Sign: return FOperationDescription(TEXT("Sign"), TEXT("sign"), 1, Shader::EPreshaderOpcode::Sign); break;
 	case EOperation::Length: return FOperationDescription(TEXT("Length"), TEXT("length"), 1, Shader::EPreshaderOpcode::Length); break;
 	case EOperation::Normalize: return FOperationDescription(TEXT("Normalize"), TEXT("normalize"), 1, Shader::EPreshaderOpcode::Normalize); break;
+	case EOperation::Sin: return FOperationDescription(TEXT("Sin"), TEXT("sin"), 1, Shader::EPreshaderOpcode::Sin); break;
+	case EOperation::Cos: return FOperationDescription(TEXT("Cos"), TEXT("cos"), 1, Shader::EPreshaderOpcode::Cos); break;
+	case EOperation::Tan: return FOperationDescription(TEXT("Tan"), TEXT("tan"), 1, Shader::EPreshaderOpcode::Tan); break;
+	case EOperation::Asin: return FOperationDescription(TEXT("Asin"), TEXT("asin"), 1, Shader::EPreshaderOpcode::Asin); break;
+	case EOperation::AsinFast: return FOperationDescription(TEXT("AsinFast"), TEXT("asinFast"), 1, Shader::EPreshaderOpcode::Asin); break;
+	case EOperation::Acos: return FOperationDescription(TEXT("Acos"), TEXT("acos"), 1, Shader::EPreshaderOpcode::Acos); break;
+	case EOperation::AcosFast: return FOperationDescription(TEXT("AcosFast"), TEXT("acosFast"), 1, Shader::EPreshaderOpcode::Acos); break;
+	case EOperation::Atan: return FOperationDescription(TEXT("Atan"), TEXT("atan"), 1, Shader::EPreshaderOpcode::Atan); break;
+	case EOperation::AtanFast: return FOperationDescription(TEXT("AtanFast"), TEXT("atanFast"), 1, Shader::EPreshaderOpcode::Atan); break;
+
 	// Binary
 	case EOperation::Add: return FOperationDescription(TEXT("Add"), TEXT("+"), 2, Shader::EPreshaderOpcode::Add); break;
 	case EOperation::Sub: return FOperationDescription(TEXT("Subtract"), TEXT("-"), 2, Shader::EPreshaderOpcode::Sub); break;
@@ -114,6 +126,8 @@ FOperationDescription GetOperationDescription(EOperation Op)
 	case EOperation::Div: return FOperationDescription(TEXT("Divide"), TEXT("/"), 2, Shader::EPreshaderOpcode::Div); break;
 	case EOperation::Fmod: return FOperationDescription(TEXT("Fmod"), TEXT("%"), 2, Shader::EPreshaderOpcode::Fmod); break;
 	case EOperation::PowPositiveClamped: return FOperationDescription(TEXT("PowPositiveClamped"), TEXT("PowPositiveClamped"), 2, Shader::EPreshaderOpcode::Nop); break;
+	case EOperation::Atan2: return FOperationDescription(TEXT("Atan2"), TEXT("atan2"), 2, Shader::EPreshaderOpcode::Atan2); break;
+	case EOperation::Atan2Fast: return FOperationDescription(TEXT("Atan2Fast"), TEXT("atan2Fast"), 2, Shader::EPreshaderOpcode::Atan2); break;
 	case EOperation::Dot: return FOperationDescription(TEXT("Dot"), TEXT("dot"), 2, Shader::EPreshaderOpcode::Dot); break;
 	case EOperation::Min: return FOperationDescription(TEXT("Min"), TEXT("min"), 2, Shader::EPreshaderOpcode::Min); break;
 	case EOperation::Max: return FOperationDescription(TEXT("Max"), TEXT("max"), 2, Shader::EPreshaderOpcode::Max); break;
@@ -167,11 +181,15 @@ EExpressionEvaluation CombineEvaluations(EExpressionEvaluation Lhs, EExpressionE
 	{
 		return EExpressionEvaluation::ConstantLoop;
 	}
+	else if (Lhs == EExpressionEvaluation::Constant || Rhs == EExpressionEvaluation::Constant)
+	{
+		return EExpressionEvaluation::Constant;
+	}
 
 	// Otherwise must be constant
-	check(Lhs == EExpressionEvaluation::Constant);
-	check(Rhs == EExpressionEvaluation::Constant);
-	return EExpressionEvaluation::Constant;
+	check(Lhs == EExpressionEvaluation::ConstantZero);
+	check(Rhs == EExpressionEvaluation::ConstantZero);
+	return EExpressionEvaluation::ConstantZero;
 }
 
 EExpressionEvaluation MakeLoopEvaluation(EExpressionEvaluation Evaluation)
@@ -251,54 +269,27 @@ FExpression* FExpressionLocalPHI::ComputePreviousFrame(FTree& Tree, const FReque
 bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	check(NumValues <= MaxNumPreviousScopes);
-	FExpression* ForwardExpression = Values[0];
-	bool bForwardExpressionValid = true;
 
-	// There are 2 cases we want to optimize here
-	// 1) If the PHI node has the same value in all the previous scopes, we can avoid generating code for the previous scopes, and just use the value directly
-	for (int32 i = 1; i < NumValues; ++i)
-	{
-		FExpression* ScopeExpression = Values[i];
-		if (ScopeExpression != ForwardExpression)
-		{
-			ForwardExpression = nullptr;
-			bForwardExpressionValid = false;
-			break;
-		}
-	}
+	FEmitScope* EmitValueScopes[MaxNumPreviousScopes];
+	FScope* LiveScopes[MaxNumPreviousScopes];
+	FExpression* LiveValues[MaxNumPreviousScopes];
+	int32 NumLiveScopes = 0;
 
-	if (bForwardExpressionValid)
-	{
-		check(ForwardExpression);
-		return OutResult.SetForwardValue(Context, Scope, RequestedType, ForwardExpression);
-	}
-
-	// 2) PHI has different values in previous scopes, but possible some previous scopes may become dead due to constant folding
-	// In this case, we check to see if the value is the same in all live scopes, and forward if possible
-	FEmitScope* EmitScopes[MaxNumPreviousScopes] = { nullptr };
 	for (int32 i = 0; i < NumValues; ++i)
 	{
-		// Ignore values in dead scopes
-		EmitScopes[i] = Context.PrepareScope(Scopes[i]);
-		if (EmitScopes[i])
+		FEmitScope* EmitValueScope = Context.PrepareScope(Scopes[i]);
+		if (EmitValueScope)
 		{
-			FExpression* ScopeExpression = Values[i];
-			if (!ForwardExpression)
-			{
-				ForwardExpression = ScopeExpression;
-				bForwardExpressionValid = true;
-			}
-			else if (ForwardExpression != ScopeExpression)
-			{
-				bForwardExpressionValid = false;
-			}
+			const int32 LiveScopeIndex = NumLiveScopes++;
+			EmitValueScopes[LiveScopeIndex] = EmitValueScope;
+			LiveScopes[LiveScopeIndex] = Scopes[i];
+			LiveValues[LiveScopeIndex] = Values[i];
 		}
 	}
 
-	if (bForwardExpressionValid)
+	if (NumLiveScopes == 0)
 	{
-		check(ForwardExpression);
-		return OutResult.SetForwardValue(Context, Scope, RequestedType, ForwardExpression);
+		return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::ConstantZero, Shader::EValueType::Float1);
 	}
 
 	FPreparedType TypePerValue[MaxNumPreviousScopes];
@@ -307,15 +298,15 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, FEmitScope& Scope,
 
 	auto UpdateValueTypes = [&]()
 	{
-		for (int32 i = 0; i < NumValues; ++i)
+		for (int32 i = 0; i < NumLiveScopes; ++i)
 		{
-			if (!EmitScopes[i] || EmitScopes[i]->Evaluation == EExpressionEvaluation::Unknown)
+			if (EmitValueScopes[i]->Evaluation == EExpressionEvaluation::Unknown)
 			{
-				EmitScopes[i] = Context.PrepareScope(Scopes[i]);
+				EmitValueScopes[i] = Context.PrepareScope(LiveScopes[i]);
 			}
-			if (TypePerValue[i].IsVoid() && EmitScopes[i])
+			if (TypePerValue[i].IsVoid())
 			{
-				const FPreparedType& ValueType = Context.PrepareExpression(Values[i], *EmitScopes[i], RequestedType);
+				const FPreparedType& ValueType = Context.PrepareExpression(LiveValues[i], *EmitValueScopes[i], RequestedType);
 				if (!ValueType.IsVoid())
 				{
 					TypePerValue[i] = ValueType;
@@ -323,12 +314,12 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, FEmitScope& Scope,
 					if (MergedType.IsVoid())
 					{
 						return Context.Errors->AddErrorf(TEXT("Mismatched types for local variable %s and %s"),
-							CurrentType.GetType().GetName(),
-							ValueType.GetType().GetName());
+							CurrentType.GetName(),
+							ValueType.GetName());
 					}
 					CurrentType = MergedType;
-					CurrentType.MergeEvaluation(EmitScopes[i]->Evaluation);
-					check(NumValidTypes < NumValues);
+					CurrentType.MergeEvaluation(EmitValueScopes[i]->Evaluation);
+					check(NumValidTypes < NumLiveScopes);
 					NumValidTypes++;
 				}
 			}
@@ -350,14 +341,14 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, FEmitScope& Scope,
 		return false;
 	}
 
-	if (NumValidTypes < NumValues)
+	if (NumValidTypes < NumLiveScopes)
 	{
 		// Now try to assign remaining types that failed the first iteration 
 		if (!UpdateValueTypes())
 		{
 			return false;
 		}
-		if (NumValidTypes < NumValues)
+		if (NumValidTypes < NumLiveScopes)
 		{
 			return Context.Errors->AddError(TEXT("Failed to compute all types for LocalPHI"));
 		}
@@ -371,13 +362,15 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, FEmitScope& Scope,
 			}
 
 			// Since we changed our type, need to update any dependant values again
-			for (int32 i = 0; i < NumValues; ++i)
+			for (int32 i = 0; i < NumLiveScopes; ++i)
 			{
-				const FPreparedType& ValueType = Context.PrepareExpression(Values[i], *EmitScopes[i], RequestedType);
+				const FPreparedType& ValueType = Context.PrepareExpression(LiveValues[i], *EmitValueScopes[i], RequestedType);
 				// Don't expect types to change *again*
 				if (ValueType.IsVoid() || MergePreparedTypes(CurrentType, ValueType) != CurrentType)
 				{
-					return Context.Errors->AddError(TEXT("Mismatched types for local variable %s and %s"));
+					return Context.Errors->AddErrorf(TEXT("Mismatched types for local variable %s and %s"),
+						CurrentType.GetName(),
+						ValueType.GetName());
 				}
 			}
 		}
@@ -386,74 +379,118 @@ bool FExpressionLocalPHI::PrepareValue(FEmitContext& Context, FEmitScope& Scope,
 	return true;
 }
 
+namespace Private
+{
+struct FLocalPHILiveScopes
+{
+	FEmitScope* EmitDeclarationScope = nullptr;
+	FEmitScope* EmitValueScopes[MaxNumPreviousScopes];
+	FExpression* LiveValues[MaxNumPreviousScopes];
+	int32 NumScopes = 0;
+	bool bCanForwardValue = true;
+};
+
+bool GetLiveScopes(FEmitContext& Context, const FExpressionLocalPHI& Expression, FLocalPHILiveScopes& OutLiveScopes)
+{
+	for (int32 ScopeIndex = 0; ScopeIndex < Expression.NumValues; ++ScopeIndex)
+	{
+		FEmitScope* EmitValueScope = Context.AcquireEmitScope(Expression.Scopes[ScopeIndex]);
+		if (!IsScopeDead(EmitValueScope))
+		{
+			if (OutLiveScopes.bCanForwardValue)
+			{
+				for (int32 PrevScopeIndex = 0; PrevScopeIndex < OutLiveScopes.NumScopes; ++PrevScopeIndex)
+				{
+					if (Expression.Values[ScopeIndex] != OutLiveScopes.LiveValues[PrevScopeIndex])
+					{
+						OutLiveScopes.bCanForwardValue = false;
+					}
+				}
+			}
+
+			const int32 LiveScopeIndex = OutLiveScopes.NumScopes++;
+			OutLiveScopes.LiveValues[LiveScopeIndex] = Expression.Values[ScopeIndex];
+			OutLiveScopes.EmitValueScopes[LiveScopeIndex] = EmitValueScope;
+			OutLiveScopes.EmitDeclarationScope = FEmitScope::FindSharedParent(OutLiveScopes.EmitDeclarationScope, EmitValueScope);
+			if (!OutLiveScopes.EmitDeclarationScope)
+			{
+				return Context.Errors->AddError(TEXT("Invalid LocalPHI"));
+			}
+		}
+	}
+	return OutLiveScopes.NumScopes > 0;
+}
+}
+
 void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	FEmitShaderExpression* const* PrevEmitExpression = Context.EmitLocalPHIMap.Find(this);
 	FEmitShaderExpression* EmitExpression = PrevEmitExpression ? *PrevEmitExpression : nullptr;
 	if (!EmitExpression)
 	{
-		const int32 LocalPHIIndex = Context.NumExpressionLocalPHIs++;
-		const Shader::FType LocalType = GetType();
-
-		// This is the first time we've emitted shader code for this PHI
-		// Create an expression and add it to the map first, so if this is called recursively this path will only be taken the first time
-		EmitExpression = OutResult.Code = Context.EmitInlineExpression(Scope,
-			LocalType,
-			TEXT("LocalPHI%"), LocalPHIIndex);
-		Context.EmitLocalPHIMap.Add(this, EmitExpression);
-
 		// Find the outermost scope to declare our local variable
-		FEmitScope* EmitDeclarationScope = &Scope;
-		FEmitScope* EmitValueScopes[MaxNumPreviousScopes] = { nullptr };
-		for (int32 i = 0; i < NumValues; ++i)
+		Private::FLocalPHILiveScopes LiveScopes;
+		if (!Private::GetLiveScopes(Context, *this, LiveScopes))
 		{
-			EmitValueScopes[i] = Context.AcquireEmitScope(Scopes[i]);
-			EmitDeclarationScope = FEmitScope::FindSharedParent(EmitDeclarationScope, EmitValueScopes[i]);
-			if (!EmitDeclarationScope)
-			{
-				Context.Errors->AddError(TEXT("Invalid LocalPHI"));
-				return;
-			}
+			return;
 		}
 
-		FEmitShaderStatement* EmitDeclaration = nullptr;
-		for (int32 i = 0; i < NumValues; ++i)
+		if (LiveScopes.bCanForwardValue)
 		{
-			FEmitScope* EmitValueScope = EmitValueScopes[i];
-			if (EmitValueScope == EmitDeclarationScope)
+			EmitExpression = LiveScopes.LiveValues[0]->GetValueShader(Context, Scope);
+			Context.EmitLocalPHIMap.Add(this, EmitExpression);
+		}
+		else
+		{
+			// This is the first time we've emitted shader code for this PHI
+			// Create an expression and add it to the map first, so if this is called recursively this path will only be taken the first time
+			const int32 LocalPHIIndex = Context.NumExpressionLocalPHIs++;
+			const Shader::FType LocalType = GetType();
+
+			EmitExpression = OutResult.Code = Context.EmitInlineExpression(Scope,
+				LocalType,
+				TEXT("LocalPHI%"), LocalPHIIndex);
+			Context.EmitLocalPHIMap.Add(this, EmitExpression);
+
+			FEmitShaderStatement* EmitDeclaration = nullptr;
+			for (int32 i = 0; i < LiveScopes.NumScopes; ++i)
 			{
-				FEmitShaderExpression* ShaderValue = Values[i]->GetValueShader(Context, *EmitValueScope, LocalType);
-				EmitDeclaration = Context.EmitStatement(*EmitValueScope, TEXT("% LocalPHI% = %;"),
+				FEmitScope* EmitValueScope = LiveScopes.EmitValueScopes[i];
+				if (EmitValueScope == LiveScopes.EmitDeclarationScope)
+				{
+					FEmitShaderExpression* ShaderValue = LiveScopes.LiveValues[i]->GetValueShader(Context, *EmitValueScope, LocalType);
+					EmitDeclaration = Context.EmitStatement(*EmitValueScope, TEXT("% LocalPHI% = %;"),
+						LocalType.GetName(),
+						LocalPHIIndex,
+						ShaderValue);
+					break;
+				}
+			}
+			if (!EmitDeclaration)
+			{
+				EmitDeclaration = Context.EmitStatement(*LiveScopes.EmitDeclarationScope, TEXT("% LocalPHI%;"),
 					LocalType.GetName(),
-					LocalPHIIndex,
-					ShaderValue);
-				break;
+					LocalPHIIndex);
 			}
-		}
-		if (!EmitDeclaration)
-		{
-			EmitDeclaration = Context.EmitStatement(*EmitDeclarationScope, TEXT("% LocalPHI%;"),
-				LocalType.GetName(),
-				LocalPHIIndex);
-		}
 
-		FEmitShaderNode* Dependencies[MaxNumPreviousScopes] = { nullptr };
-		int32 NumDependencies = 0;
-		for (int32 i = 0; i < NumValues; ++i)
-		{
-			FEmitScope* EmitValueScope = EmitValueScopes[i];
-			if (EmitValueScope != EmitDeclarationScope)
+			FEmitShaderNode* Dependencies[MaxNumPreviousScopes] = { nullptr };
+			int32 NumDependencies = 0;
+			for (int32 i = 0; i < LiveScopes.NumScopes; ++i)
 			{
-				FEmitShaderExpression* ShaderValue = Values[i]->GetValueShader(Context, *EmitValueScope, LocalType);
-				FEmitShaderStatement* EmitAssignment = Context.EmitStatementWithDependency(*EmitValueScope, EmitDeclaration, TEXT("LocalPHI% = %;"),
-					LocalPHIIndex,
-					ShaderValue);
-				Dependencies[NumDependencies++] = EmitAssignment;
+				FEmitScope* EmitValueScope = LiveScopes.EmitValueScopes[i];
+				if (EmitValueScope != LiveScopes.EmitDeclarationScope)
+				{
+					FEmitShaderExpression* ShaderValue = LiveScopes.LiveValues[i]->GetValueShader(Context, *EmitValueScope, LocalType);
+					FEmitShaderStatement* EmitAssignment = Context.EmitStatementWithDependency(*EmitValueScope, EmitDeclaration, TEXT("LocalPHI% = %;"),
+						LocalPHIIndex,
+						ShaderValue);
+					Dependencies[NumDependencies++] = EmitAssignment;
+				}
 			}
-		}
 
-		// Fill in the expression's dependencies
-		EmitExpression->Dependencies = MemStack::AllocateArrayView(*Context.Allocator, MakeArrayView(Dependencies, NumDependencies));
+			// Fill in the expression's dependencies
+			EmitExpression->Dependencies = MemStack::AllocateArrayView(*Context.Allocator, MakeArrayView(Dependencies, NumDependencies));
+		}
 	}
 
 	OutResult.Code = EmitExpression;
@@ -475,27 +512,38 @@ void FExpressionLocalPHI::EmitValuePreshader(FEmitContext& Context, FEmitScope& 
 	OutResult.Type = GetType();
 	if (ValueStackPosition == INDEX_NONE)
 	{
-		// Assign the initial value
-		Context.PreshaderStackPosition++;
-		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(OutResult.Type);
-
-		ValueStackPosition = Context.PreshaderStackPosition;
-		const FPreshaderLocalPHIScope LocalPHIScope(this, ValueStackPosition);
-		Context.PreshaderLocalPHIScopes.Add(&LocalPHIScope);
-
-		FEmitScope* EmitRootScope = nullptr;// &Scope;
-		FEmitPreshaderScope PreshaderScopes[MaxNumPreviousScopes];
-		for (int32 i = 0; i < NumValues; ++i)
+		Private::FLocalPHILiveScopes LiveScopes;
+		if (!Private::GetLiveScopes(Context, *this, LiveScopes))
 		{
-			FEmitPreshaderScope& PreshaderScope = PreshaderScopes[i];
-			PreshaderScope.Scope = Context.AcquireEmitScope(Scopes[i]);
-			PreshaderScope.Value = Values[i];
-			EmitRootScope = FEmitScope::FindSharedParent(PreshaderScopes[i].Scope, EmitRootScope);
+			return;
 		}
 
-		Context.EmitPreshaderScope(*EmitRootScope, RequestedType, MakeArrayView(PreshaderScopes, NumValues), OutResult.Preshader);
-		verify(Context.PreshaderLocalPHIScopes.Pop(false) == &LocalPHIScope);
-		check(Context.PreshaderStackPosition == ValueStackPosition);
+		if (LiveScopes.bCanForwardValue)
+		{
+			OutResult.Type = LiveScopes.LiveValues[0]->GetValuePreshader(Context, Scope, RequestedType, OutResult.Preshader);
+		}
+		else
+		{
+			// Assign the initial value
+			Context.PreshaderStackPosition++;
+			OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(OutResult.Type);
+
+			ValueStackPosition = Context.PreshaderStackPosition;
+			const FPreshaderLocalPHIScope LocalPHIScope(this, ValueStackPosition);
+			Context.PreshaderLocalPHIScopes.Add(&LocalPHIScope);
+
+			FEmitPreshaderScope PreshaderScopes[MaxNumPreviousScopes];
+			for (int32 i = 0; i < LiveScopes.NumScopes; ++i)
+			{
+				FEmitPreshaderScope& PreshaderScope = PreshaderScopes[i];
+				PreshaderScope.Scope = LiveScopes.EmitValueScopes[i];
+				PreshaderScope.Value = LiveScopes.LiveValues[i];
+			}
+
+			Context.EmitPreshaderScope(*LiveScopes.EmitDeclarationScope, RequestedType, MakeArrayView(PreshaderScopes, LiveScopes.NumScopes), OutResult.Preshader);
+			verify(Context.PreshaderLocalPHIScopes.Pop(false) == &LocalPHIScope);
+			check(Context.PreshaderStackPosition == ValueStackPosition);
+		}
 	}
 	else
 	{
@@ -651,11 +699,6 @@ FPreparedComponent CombineComponents(const FPreparedComponent& Lhs, const FPrepa
 		{
 			Result.LoopScope = FEmitScope::FindSharedParent(Lhs.LoopScope, Rhs.LoopScope);
 		}
-		if (Lhs.ForwardValue == Rhs.ForwardValue && Lhs.ForwardComponentIndex == Rhs.ForwardComponentIndex)
-		{
-			Result.ForwardValue = Lhs.ForwardValue;
-			Result.ForwardComponentIndex = Lhs.ForwardComponentIndex;
-		}
 		if (Lhs.Bounds.Min == Rhs.Bounds.Min)
 		{
 			Result.Bounds.Min = Lhs.Bounds.Min;
@@ -776,24 +819,41 @@ EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope, cons
 		{
 			Result = CombineEvaluations(Result, PreparedComponents[Index].GetEvaluation(Scope));
 		}
+		else
+		{
+			Result = CombineEvaluations(Result, EExpressionEvaluation::ConstantZero);
+		}
 	}
 	return Result;
 }
 
-EExpressionEvaluation FPreparedType::GetFieldEvaluation(const FEmitScope& Scope, int32 ComponentIndex, int32 NumComponents) const
+EExpressionEvaluation FPreparedType::GetFieldEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType, int32 ComponentIndex, int32 NumComponents) const
 {
 	EExpressionEvaluation Result = EExpressionEvaluation::None;
 	for (int32 Index = 0; Index < NumComponents; ++Index)
 	{
 		const FPreparedComponent Component = GetComponent(ComponentIndex + Index);
-		Result = CombineEvaluations(Result, Component.GetEvaluation(Scope));
+		if (RequestedType.IsComponentRequested(ComponentIndex + Index))
+		{
+			Result = CombineEvaluations(Result, Component.GetEvaluation(Scope));
+		}
+		else if(!Component.IsNone())
+		{
+			Result = CombineEvaluations(Result, EExpressionEvaluation::ConstantZero);
+		}
 	}
 	return Result;
 }
 
 FPreparedComponent FPreparedType::GetComponent(int32 Index) const
 {
-	return PreparedComponents.IsValidIndex(Index) ? PreparedComponents[Index] : FPreparedComponent();
+	if (PreparedComponents.IsValidIndex(Index))
+	{
+		return PreparedComponents[Index];
+	}
+	// Return 'ConstantZero' for unprepared components
+	// TODO - do we ever want to return 'None' instead?
+	return EExpressionEvaluation::ConstantZero;
 }
 
 void FPreparedType::EnsureNumComponents(int32 NumComponents)
@@ -866,19 +926,6 @@ void FPreparedType::SetLoopEvaluation(FEmitScope& Scope, const FRequestedType& R
 			{
 				Component.LoopScope = FEmitScope::FindSharedParent(&Scope, Component.LoopScope);
 			}
-		}
-	}
-}
-
-void FPreparedType::SetForwardValue(const FRequestedType& RequestedType, FExpression* ForwardValue)
-{
-	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
-	{
-		FPreparedComponent& Component = PreparedComponents[Index];
-		if (RequestedType.IsComponentRequested(Index) && !Component.IsNone())
-		{
-			Component.ForwardValue = ForwardValue;
-			Component.ForwardComponentIndex = Index;
 		}
 	}
 }
@@ -985,7 +1032,6 @@ bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context, const Shad
 		return false;
 	}
 
-	// If we previously had a forwarded value set, reset that and start over
 	if (!PreparedType.IsInitialized())
 	{
 		PreparedType.PreparedComponents.Reset();
@@ -1031,6 +1077,11 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 				{
 					PreparedType.MergeComponent(Index, Evaluation);
 				}
+				else
+				{
+					// If component wasn't requested, it can be replaced with constant-0
+					PreparedType.MergeComponent(Index, EExpressionEvaluation::ConstantZero);
+				}
 			}
 		}
 		return true;
@@ -1052,24 +1103,22 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 
 	if (TryMergePreparedType(Context, Type.StructType, ComponentType))
 	{
-		const int32 NumComponents = RequestedType.GetNumComponents();
+		const int32 NumComponents = Type.GetNumComponents();
 		for (int32 Index = 0; Index < NumComponents; ++Index)
 		{
 			if (RequestedType.IsComponentRequested(Index))
 			{
 				PreparedType.MergeComponent(Index, Type.GetComponent(Index));
 			}
+			else
+			{
+				// If component wasn't requested, it can be replaced with constant-0
+				PreparedType.MergeComponent(Index, EExpressionEvaluation::ConstantZero);
+			}
 		}
 		return true;
 	}
 	return false;
-}
-
-bool FPrepareValueResult::SetForwardValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FExpression* InForwardValue)
-{
-	FPreparedType ForwardPreparedType = Context.PrepareExpression(InForwardValue, Scope, RequestedType);
-	ForwardPreparedType.SetForwardValue(RequestedType, InForwardValue);
-	return SetType(Context, RequestedType, ForwardPreparedType);
 }
 
 void FStatement::EmitPreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> Scopes, Shader::FPreshaderData& OutPreshader) const
@@ -1097,95 +1146,24 @@ void FExpression::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, c
 	check(false);
 }
 
-FExpression* FExpression::GetForwardValue(const FRequestedType& RequestedType)
-{
-	TArray<FExpression*, TInlineAllocator<16>> VisitedExpressions;
-	FExpression* Expression = this;
-	int32 BaseComponentIndex = 0;
-
-	while (true)
-	{
-		const FPreparedType& PreparedType = Expression->PrepareValueResult.PreparedType;
-
-		VisitedExpressions.Add(Expression);
-
-		FExpression* ForwardValue = nullptr;
-		int32 ForwardComponentIndex = INDEX_NONE;
-		int32 StartComponentIndex = INDEX_NONE;
-		// Scan the required components, and see if they all have the same ForwardValue, in the correct order
-		for (int32 Index = 0; Index < RequestedType.RequestedComponents.Num(); ++Index)
-		{
-			if (RequestedType.RequestedComponents[Index])
-			{
-				const FPreparedComponent Component = PreparedType.GetComponent(BaseComponentIndex + Index);
-				if (!Component.IsNone())
-				{
-					if (!Component.ForwardValue)
-					{
-						return nullptr;
-					}
-
-					if (StartComponentIndex == INDEX_NONE)
-					{
-						StartComponentIndex = Index;
-						ForwardValue = Component.ForwardValue;
-						ForwardComponentIndex = Component.ForwardComponentIndex;
-					}
-					else if (ForwardValue != Component.ForwardValue ||
-						ForwardComponentIndex + Index - StartComponentIndex != Component.ForwardComponentIndex)
-					{
-						return nullptr;
-					}
-				}
-			}
-		}
-
-		check(ForwardValue);
-		if (ForwardValue == this)
-		{
-			// Don't forward to ourselves
-			return nullptr;
-		}
-		if (ForwardComponentIndex == StartComponentIndex)
-		{
-			// Forward to a value with no component offset, can use that directly
-			return ForwardValue;
-		}
-
-		// If there's a component offset, we can't forward directly
-		// Instead, recursively check to see if the ForwardValue itself has a Forward value
-		// This can happen when forwarding across multiple set/get struct field expressions
-		BaseComponentIndex = ForwardComponentIndex - StartComponentIndex;
-		Expression = ForwardValue;
-
-		// Make sure we're not in a loop
-		check(!VisitedExpressions.Contains(Expression));
-	}
-
-	checkNoEntry();
-	return nullptr;
-}
-
 FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
-	FExpression* ForwardValue = GetForwardValue(RequestedType);
-	if (ForwardValue)
-	{
-		return ForwardValue->GetValueShader(Context, Scope, RequestedType);
-	}
-
+	
 	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType);
-	check(Evaluation != EExpressionEvaluation::None);
+	check(Evaluation != EExpressionEvaluation::None && Evaluation != EExpressionEvaluation::Unknown);
 
 	FEmitShaderExpression* Value = nullptr;
-	if (Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::Preshader)
+	if (Evaluation == EExpressionEvaluation::ConstantZero)
+	{
+		Value = Context.EmitConstantZero(Scope, GetType());
+	}
+	else if (Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::Preshader)
 	{
 		Value = Context.EmitPreshaderOrConstant(Scope, RequestedType, this);
 	}
 	else
 	{
-		check(Evaluation != EExpressionEvaluation::None && Evaluation != EExpressionEvaluation::Unknown);
 		FEmitValueShaderResult Result;
 		EmitValueShader(Context, Scope, RequestedType, Result);
 		Value = Result.Code;
@@ -1228,17 +1206,19 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
-	FExpression* ForwardValue = GetForwardValue(RequestedType);
-	if (ForwardValue)
-	{
-		return ForwardValue->GetValuePreshader(Context, Scope, RequestedType, OutPreshader);
-	}
-
+	
 	const int32 PrevStackPosition = Context.PreshaderStackPosition;
 	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType);
+	check(Evaluation != EExpressionEvaluation::None && Evaluation != EExpressionEvaluation::Unknown);
 
 	FEmitValuePreshaderResult Result(OutPreshader);
-	if (Evaluation == EExpressionEvaluation::Constant)
+	if (Evaluation == EExpressionEvaluation::ConstantZero)
+	{
+		Context.PreshaderStackPosition++;
+		Result.Type = GetType();
+		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(Result.Type);
+	}
+	else if (Evaluation == EExpressionEvaluation::Constant)
 	{
 		const Shader::FValue ConstantValue = GetValueConstant(Context, Scope, RequestedType);
 		Context.PreshaderStackPosition++;
@@ -1247,7 +1227,7 @@ Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& 
 	}
 	else
 	{
-		check(Evaluation != EExpressionEvaluation::None && Evaluation != EExpressionEvaluation::Unknown && Evaluation != EExpressionEvaluation::Shader);
+		check(Evaluation != EExpressionEvaluation::Shader);
 		EmitValuePreshader(Context, Scope, RequestedType, Result);
 	}
 	check(Context.PreshaderStackPosition == PrevStackPosition + 1);
@@ -1257,32 +1237,32 @@ Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& 
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
-	FExpression* ForwardValue = GetForwardValue(RequestedType);
-	if (ForwardValue)
-	{
-		return ForwardValue->GetValueConstant(Context, Scope, RequestedType);
-	}
-
-	check(!bReentryFlag);
-
-	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType);
-	check(Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::ConstantLoop);
 	
-	Shader::FPreshaderData ConstantPreshader;
+	check(!bReentryFlag);
+	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType);
+	if (Evaluation == EExpressionEvaluation::ConstantZero)
 	{
-		FExpressionReentryScope ReentryScope(this);
-		const int32 PrevPreshaderStackPosition = Context.PreshaderStackPosition;
-		FEmitValuePreshaderResult PreshaderResult(ConstantPreshader);
-		EmitValuePreshader(Context, Scope, RequestedType, PreshaderResult);
-		check(Context.PreshaderStackPosition == PrevPreshaderStackPosition + 1);
-		Context.PreshaderStackPosition--;
+		return Shader::FValue(GetType());
 	}
+	else
+	{
+		check(Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::ConstantLoop);
+		Shader::FPreshaderData ConstantPreshader;
+		{
+			FExpressionReentryScope ReentryScope(this);
+			const int32 PrevPreshaderStackPosition = Context.PreshaderStackPosition;
+			FEmitValuePreshaderResult PreshaderResult(ConstantPreshader);
+			EmitValuePreshader(Context, Scope, RequestedType, PreshaderResult);
+			check(Context.PreshaderStackPosition == PrevPreshaderStackPosition + 1);
+			Context.PreshaderStackPosition--;
+		}
 
-	// Evaluate the constant preshader and store its value
-	Shader::FPreshaderStack Stack;
-	const Shader::FPreshaderValue PreshaderValue = ConstantPreshader.EvaluateConstant(*Context.Material, Stack);
-	Shader::FValue Result = PreshaderValue.AsShaderValue(Context.TypeRegistry);
-	return Result;
+		// Evaluate the constant preshader and store its value
+		Shader::FPreshaderStack Stack;
+		const Shader::FPreshaderValue PreshaderValue = ConstantPreshader.EvaluateConstant(*Context.Material, Stack);
+		Shader::FValue Result = PreshaderValue.AsShaderValue(Context.TypeRegistry);
+		return Result;
+	}
 }
 
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType)

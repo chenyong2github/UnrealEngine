@@ -68,6 +68,7 @@ enum class EValueComponentType : uint8
 	TextureCube,
 	TextureCubeArray,
 	Texture3D,
+	TextureExternal,
 };
 
 struct FValueComponentTypeDescription
@@ -131,6 +132,7 @@ enum class EValueType : uint8
 	TextureCube,
 	TextureCubeArray,
 	Texture3D,
+	TextureExternal,
 };
 
 struct FValueTypeDescription
@@ -310,15 +312,21 @@ struct FTextureValue
 		, SamplerType(InSamplerType)
 	{}
 
+	FTextureValue(const FGuid& InGuid)
+		: ExternalTextureGuid(InGuid)
+		, SamplerType(SAMPLERTYPE_External)
+	{}
+
 	EValueType GetType() const;
 
 	UTexture* Texture = nullptr;
+	FGuid ExternalTextureGuid;
 	EMaterialSamplerType SamplerType = SAMPLERTYPE_Color;
 };
 
 inline bool operator==(const FTextureValue& Lhs, const FTextureValue& Rhs)
 {
-	return Lhs.Texture == Rhs.Texture && Lhs.SamplerType == Rhs.SamplerType;
+	return Lhs.Texture == Rhs.Texture && Lhs.SamplerType == Rhs.SamplerType && Lhs.ExternalTextureGuid == Rhs.ExternalTextureGuid;
 }
 inline bool operator!=(const FTextureValue& Lhs, const FTextureValue& Rhs)
 {

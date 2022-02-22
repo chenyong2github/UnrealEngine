@@ -563,6 +563,19 @@ int32 FUniformExpressionSet::FindOrAddTextureParameter(EMaterialTextureParameter
 	return UniformTextureParameters[(int32)Type].Add(Info);
 }
 
+int32 FUniformExpressionSet::FindOrAddExternalTextureParameter(const FMaterialExternalTextureParameterInfo& Info)
+{
+	for (int32 i = 0; i < UniformExternalTextureParameters.Num(); ++i)
+	{
+		if (UniformExternalTextureParameters[i] == Info)
+		{
+			return i;
+		}
+	}
+
+	return UniformExternalTextureParameters.Add(Info);
+}
+
 int32 FUniformExpressionSet::FindOrAddNumericParameter(EMaterialParameterType Type, const FMaterialParameterInfo& ParameterInfo, uint32 DefaultValueOffset)
 {
 	for (int32 i = 0; i < UniformNumericParameters.Num(); ++i)

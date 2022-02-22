@@ -37,6 +37,9 @@ class FEmitScope;
 class FEmitShaderExpression;
 class FEmitShaderStatement;
 
+// TODO - remove dependency
+enum class EExternalInput : uint8;
+
 struct FEmitPreshaderScope;
 
 struct FEmitShaderScopeEntry
@@ -112,6 +115,8 @@ enum class EFormatArgType : uint8
 	ShaderValue,
 	String,
 	Int,
+	Uint,
+	Float,
 	Bool,
 };
 
@@ -121,6 +126,8 @@ struct FFormatArgVariant
 	FFormatArgVariant(FEmitShaderExpression* InValue) : Type(EFormatArgType::ShaderValue), ShaderValue(InValue) { check(InValue); }
 	FFormatArgVariant(const TCHAR* InValue) : Type(EFormatArgType::String), String(InValue) { check(InValue); }
 	FFormatArgVariant(int32 InValue) : Type(EFormatArgType::Int), Int(InValue) {}
+	FFormatArgVariant(uint32 InValue) : Type(EFormatArgType::Uint), Uint(InValue) {}
+	FFormatArgVariant(float InValue) : Type(EFormatArgType::Float), Float(InValue) {}
 	FFormatArgVariant(bool InValue) : Type(EFormatArgType::Bool), Bool(InValue) {}
 
 	EFormatArgType Type = EFormatArgType::Void;
@@ -129,6 +136,8 @@ struct FFormatArgVariant
 		FEmitShaderExpression* ShaderValue;
 		const TCHAR* String;
 		int32 Int;
+		uint32 Uint;
+		float Float;
 		bool Bool;
 	};
 };
@@ -196,6 +205,10 @@ public:
 	EEmitScopeState State = EEmitScopeState::Uninitialized;
 	EExpressionEvaluation Evaluation = EExpressionEvaluation::None;
 };
+inline bool IsScopeDead(const FEmitScope* Scope)
+{
+	return !Scope || Scope->State == EEmitScopeState::Dead;
+}
 
 struct FEmitCustomHLSLInput
 {
@@ -227,6 +240,14 @@ struct FPreshaderLocalPHIScope
 	const FExpression* ExpressionLocalPHI;
 	int32 ValueStackPosition;
 };
+
+enum class EEmitCastFlags : uint32
+{
+	None = 0u,
+	// Scalars are replicated by default, this will zero-extend them instead
+	ZeroExtendScalar = (1u << 0),
+};
+ENUM_CLASS_FLAGS(EEmitCastFlags)
 
 /** Tracks shared state while emitting HLSL code */
 class FEmitContext
@@ -400,7 +421,7 @@ public:
 
 	FEmitShaderExpression* EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, FExpression* Expression);
 	FEmitShaderExpression* EmitConstantZero(FEmitScope& Scope, const Shader::FType& Type);
-	FEmitShaderExpression* EmitCast(FEmitScope& Scope, FEmitShaderExpression* ShaderValue, const Shader::FType& DestType);
+	FEmitShaderExpression* EmitCast(FEmitScope& Scope, FEmitShaderExpression* ShaderValue, const Shader::FType& DestType, EEmitCastFlags Flags = EEmitCastFlags::None);
 
 	/** FStringViews passed to this method are expected to reference persistent memory */
 	FEmitShaderExpression* EmitCustomHLSL(FEmitScope& Scope, FStringView DeclarationCode, FStringView FunctionCode, TConstArrayView<FCustomHLSLInput> Inputs, const Shader::FStructType* OutputType);
@@ -432,7 +453,12 @@ public:
 	uint32 CurrentNumBoolComponents = 32u;
 	bool bReadMaterialNormal = false;
 	bool bUsesVertexColor = false;
-	uint32 TexCoordMask[SF_NumFrequencies] = { 0u };
+	bool bNeedsParticlePosition = false;
+	bool bUsesParticleColor = false;
+	TBitArray<> ExternalInputMask[SF_NumFrequencies];
+	FMaterialShadingModelField ShadingModelsFromCompilation;
+
+	bool IsExternalInputUsed(EShaderFrequency Frequency, EExternalInput Input) const { return ExternalInputMask[Frequency][(uint8)Input]; }
 
 	int32 NumExpressionLocals = 0;
 	int32 NumExpressionLocalPHIs = 0;

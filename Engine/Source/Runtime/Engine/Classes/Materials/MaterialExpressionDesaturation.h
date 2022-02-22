@@ -32,6 +32,7 @@ class UMaterialExpressionDesaturation : public UMaterialExpression
 	{
 		OutCaptions.Add(TEXT("Desaturation"));
 	}
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

@@ -294,9 +294,16 @@ EValueType FTextureValue::GetType() const
 		case MCT_TextureCube: return EValueType::TextureCube;
 		case MCT_TextureCubeArray: return EValueType::TextureCubeArray;
 		case MCT_VolumeTexture: return EValueType::Texture3D;
+		case MCT_TextureExternal: return EValueType::TextureExternal;
+		case MCT_TextureVirtual: return EValueType::Texture2D; // TODO
 		default: checkNoEntry(); break;
 		}
 	}
+	else if (ExternalTextureGuid.IsValid())
+	{
+		return EValueType::TextureExternal;
+	}
+
 	return EValueType::Void;
 }
 
@@ -439,6 +446,7 @@ FValueComponentTypeDescription GetValueComponentTypeDescription(EValueComponentT
 	case EValueComponentType::TextureCube: return FValueComponentTypeDescription(TEXT("TextureCube"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
 	case EValueComponentType::TextureCubeArray: return FValueComponentTypeDescription(TEXT("TextureCubeArray"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
 	case EValueComponentType::Texture3D: return FValueComponentTypeDescription(TEXT("Texture3D"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
+	case EValueComponentType::TextureExternal: return FValueComponentTypeDescription(TEXT("TextureExternal"), sizeof(void*), EComponentBound::Zero, EComponentBound::Zero);
 	default: checkNoEntry() return FValueComponentTypeDescription();
 	}
 }
@@ -641,6 +649,7 @@ FValueTypeDescription GetValueTypeDescription(EValueType Type)
 	case EValueType::TextureCube: return FValueTypeDescription(TEXT("FTextureCube"), EValueComponentType::TextureCube, 1);
 	case EValueType::TextureCubeArray: return FValueTypeDescription(TEXT("FTextureCubeArray"), EValueComponentType::TextureCubeArray, 1);
 	case EValueType::Texture3D: return FValueTypeDescription(TEXT("FTexture3D"), EValueComponentType::Texture3D, 1);
+	case EValueType::TextureExternal: return FValueTypeDescription(TEXT("FTextureExternal"), EValueComponentType::TextureExternal, 1);
 	default: checkNoEntry(); return FValueTypeDescription(TEXT("<INVALID>"), EValueComponentType::Void, 0);
 	}
 }
@@ -701,6 +710,7 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 	case EValueComponentType::TextureCube: check(NumComponents == 1); return EValueType::TextureCube; break;
 	case EValueComponentType::TextureCubeArray: check(NumComponents == 1); return EValueType::TextureCubeArray; break;
 	case EValueComponentType::Texture3D: check(NumComponents == 1); return EValueType::Texture3D; break;
+	case EValueComponentType::TextureExternal: check(NumComponents == 1); return EValueType::TextureExternal; break;
 	default:
 		break;
 	}

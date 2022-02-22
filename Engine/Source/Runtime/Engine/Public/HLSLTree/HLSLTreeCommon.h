@@ -25,6 +25,20 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
+class FExpressionMaterialShadingModel : public FExpression
+{
+public:
+	explicit FExpressionMaterialShadingModel(EMaterialShadingModel InShadingModel)
+		: ShadingModel(InShadingModel)
+	{}
+
+	TEnumAsByte<EMaterialShadingModel> ShadingModel;
+
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
+};
+
 class FExpressionMaterialParameter : public FExpression
 {
 public:
@@ -74,6 +88,11 @@ enum class EExternalInput : uint8
 	TexCoord6_Ddy,
 	TexCoord7_Ddy,
 
+	LightmapTexCoord,
+	LightmapTexCoord_Ddx,
+	LightmapTexCoord_Ddy,
+
+	TwoSidedSign,
 	VertexColor,
 	VertexColor_Ddx,
 	VertexColor_Ddy,
@@ -82,6 +101,7 @@ enum class EExternalInput : uint8
 	WorldPosition_NoOffsets,
 	TranslatedWorldPosition,
 	TranslatedWorldPosition_NoOffsets,
+	ActorWorldPosition,
 
 	PrevWorldPosition,
 	PrevWorldPosition_NoOffsets,
@@ -91,12 +111,30 @@ enum class EExternalInput : uint8
 	WorldPosition_Ddx,
 	WorldPosition_Ddy,
 
+	WorldVertexNormal,
+	WorldVertexTangent,
+	WorldNormal,
+	WorldReflection,
+
 	ViewportUV,
 	PixelPosition,
 	ViewSize,
 	RcpViewSize,
+	FieldOfView,
+	TanHalfFieldOfView,
+	CotanHalfFieldOfView,
+	TemporalSampleCount,
+	TemporalSampleIndex,
+	TemporalSampleOffset,
+	PreExposure,
+	RcpPreExposure,
+	RuntimeVirtualTextureOutputLevel,
+	RuntimeVirtualTextureOutputDerivative,
+	RuntimeVirtualTextureMaxLevel,
 
+	CameraVector,
 	CameraWorldPosition,
+	ViewWorldPosition,
 	PreViewTranslation,
 	TangentToWorld,
 	LocalToWorld,
@@ -110,7 +148,12 @@ enum class EExternalInput : uint8
 	ParticleToWorld,
 	InstanceToWorld,
 
+	PrevFieldOfView,
+	PrevTanHalfFieldOfView,
+	PrevCotanHalfFieldOfView,
+
 	PrevCameraWorldPosition,
+	PrevViewWorldPosition,
 	PrevPreViewTranslation,
 	PrevLocalToWorld,
 	PrevWorldToLocal,
@@ -129,8 +172,12 @@ enum class EExternalInput : uint8
 
 	PrevGameTime,
 	PrevRealTime,
+
+	ParticleColor,
+	ParticleTranslatedWorldPosition,
+	ParticleRadius,
 };
-static constexpr int32 NumTexCoords = 8;
+static constexpr int32 MaxNumTexCoords = 8;
 
 struct FExternalInputDescription
 {
@@ -149,19 +196,19 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input);
 
 inline bool IsTexCoord(EExternalInput Type)
 {
-	return FMath::IsWithin((int32)Type, (int32)EExternalInput::TexCoord0, (int32)EExternalInput::TexCoord0 + NumTexCoords);
+	return FMath::IsWithin((int32)Type, (int32)EExternalInput::TexCoord0, (int32)EExternalInput::TexCoord0 + MaxNumTexCoords);
 }
 inline bool IsTexCoord_Ddx(EExternalInput Type)
 {
-	return FMath::IsWithin((int32)Type, (int32)EExternalInput::TexCoord0_Ddx, (int32)EExternalInput::TexCoord0_Ddx + NumTexCoords);
+	return FMath::IsWithin((int32)Type, (int32)EExternalInput::TexCoord0_Ddx, (int32)EExternalInput::TexCoord0_Ddx + MaxNumTexCoords);
 }
 inline bool IsTexCoord_Ddy(EExternalInput Type)
 {
-	return FMath::IsWithin((int32)Type, (int32)EExternalInput::TexCoord0_Ddy, (int32)EExternalInput::TexCoord0_Ddy + NumTexCoords);
+	return FMath::IsWithin((int32)Type, (int32)EExternalInput::TexCoord0_Ddy, (int32)EExternalInput::TexCoord0_Ddy + MaxNumTexCoords);
 }
 inline EExternalInput MakeInputTexCoord(int32 Index)
 {
-	check(Index >= 0 && Index < NumTexCoords);
+	check(Index >= 0 && Index < MaxNumTexCoords);
 	return (EExternalInput)((int32)EExternalInput::TexCoord0 + Index);
 }
 
@@ -190,6 +237,39 @@ public:
 	FExpression* TexCoordExpression;
 	uint32 SceneTextureId;
 	bool bFiltered;
+
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+};
+
+struct FMaterialNoiseParameters
+{
+	FMaterialNoiseParameters() { FMemory::Memzero(*this); }
+
+	int32 Quality;
+	int32 Levels;
+	float Scale;
+	uint32 RepeatSize;
+	float OutputMin;
+	float OutputMax;
+	float LevelScale;
+	uint8 NoiseFunction;
+	bool bTiling;
+	bool bTurbulence;
+};
+
+class FExpressionMaterialNoise : public FExpression
+{
+public:
+	FExpressionMaterialNoise(const FMaterialNoiseParameters& InParams, FExpression* InPositionExpression, FExpression* InFilterWidthExpression)
+		: PositionExpression(InPositionExpression)
+		, FilterWidthExpression(InFilterWidthExpression)
+		, Parameters(InParams)
+	{}
+
+	FExpression* PositionExpression;
+	FExpression* FilterWidthExpression;
+	FMaterialNoiseParameters Parameters;
 
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
@@ -301,10 +381,25 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
+class FExpressionDerivative : public FExpression
+{
+public:
+	FExpressionDerivative(EDerivativeCoordinate InCoord, FExpression* InInput) : Input(InInput), Coord(InCoord) {}
+
+	FExpression* Input;
+	EDerivativeCoordinate Coord;
+
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
+	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
+};
+
 struct FSwizzleParameters
 {
 	FSwizzleParameters() : NumComponents(0) { ComponentIndex[0] = ComponentIndex[1] = ComponentIndex[2] = ComponentIndex[3] = INDEX_NONE; }
-	FSwizzleParameters(int8 IndexR, int8 IndexG, int8 IndexB, int8 IndexA);
+	explicit FSwizzleParameters(int8 IndexR, int8 IndexG = INDEX_NONE, int8 IndexB = INDEX_NONE, int8 IndexA = INDEX_NONE);
 
 	FRequestedType GetRequestedInputType(const FRequestedType& RequestedType) const;
 	bool HasSwizzle() const;
@@ -350,11 +445,17 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
-class FExpressionReflectionVector : public FExpression
+/** Can be used to emit HLSL chunks with no inputs, where it's not worth the trouble of defining a new expression type */
+class FExpressionInlineCustomHLSL : public FExpression
 {
 public:
+	FExpressionInlineCustomHLSL(Shader::EValueType InType, FStringView InCode) : Code(InCode), ResultType(InType) {}
+
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+
+	FStringView Code;
+	Shader::EValueType ResultType;
 };
 
 class FExpressionCustomHLSL : public FExpression
