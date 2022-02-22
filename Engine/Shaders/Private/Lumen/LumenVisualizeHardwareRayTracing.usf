@@ -471,7 +471,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 		int LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
 
-		const bool bCullBackFacingTriangles = false;
+		const uint CullingMode = 0;
 		const bool bHiResSurface = VisualizeHiResSurface != 0 ? true : false;
 
 		FRayTracedLightingContext Context = CreateRayTracedLightingContext(
@@ -479,7 +479,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 			RayCone,
 			TraceCoord,
 			LinearCoord,
-			bCullBackFacingTriangles,
+			CullingMode,
 			MaxTranslucentSkipCount,
 			MaxTraversalIterations,
 			bHiResSurface);

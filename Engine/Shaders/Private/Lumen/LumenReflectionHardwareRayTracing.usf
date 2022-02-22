@@ -129,8 +129,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		RayCone = PropagateRayCone(RayCone, RayData.ConeHalfAngle, SceneDepth);
 
 		const bool bHiResSurface = true;
-		const bool bCullBackFacingTriangles = true;
-		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, MaxTranslucentSkipCount, MaxTraversalIterations, bHiResSurface);
+		const uint CullingMode = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, CullingMode, MaxTranslucentSkipCount, MaxTraversalIterations, bHiResSurface);
 		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
 		Context.bUseBookmark = true;

@@ -84,7 +84,8 @@ FRayTracedLightingResult EpsilonTrace(RayDesc Ray, inout FRayTracedLightingConte
 	FRayTracedLightingResult Result = CreateRayTracedLightingResult();
 
 #if ENABLE_NEAR_FIELD_TRACING
-	Context.bCullBackFacingTriangles = true;
+	uint OriginalCullingMode = Context.CullingMode;
+	Context.CullingMode = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 	Ray.TMax = AvoidSelfIntersectionTraceDistance;
 
 	if (Ray.TMax > Ray.TMin)
@@ -100,7 +101,7 @@ FRayTracedLightingResult EpsilonTrace(RayDesc Ray, inout FRayTracedLightingConte
 		}
 #endif // DIM_LIGHTING_MODE
 	}
-	Context.bCullBackFacingTriangles = false;
+	Context.CullingMode = OriginalCullingMode;
 #endif // ENABLE_NEAR_FIELD_TRACING
 
 	return Result;
@@ -166,13 +167,13 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		FRayCone RayCone = (FRayCone)0;
 		RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
 
-		bool bCullBackfacingTriangles = false;
+		uint CullingMode = 0;
 		FRayTracedLightingContext Context = CreateRayTracedLightingContext(
 			TLAS,
 			RayCone,
 			ScreenTileCoord,
 			ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x,
-			bCullBackfacingTriangles,
+			CullingMode,
 			MaxTranslucentSkipCount,
 			MaxTraversalIterations);
 		Context.bCalculateHitVelocity = true;

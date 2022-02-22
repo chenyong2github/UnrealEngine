@@ -71,6 +71,11 @@ StructuredBuffer<FHitGroupRootConstants> HitGroupData;
 StructuredBuffer<uint> LightTileAllocator;
 StructuredBuffer<uint2> LightTiles;
 
+bool IsRayOccluded(FLumenMinimalRayResult Result)
+{
+	return Result.bHit || !Result.bCompleted;
+}
+
 LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 {
 	uint2 CoordInCardTile = uint2(DispatchThreadIndex.x % CARD_TILE_SIZE, DispatchThreadIndex.x / CARD_TILE_SIZE);
@@ -132,13 +137,13 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 
 				{
 					FRayCone RayCone = (FRayCone)0;
-					bool bCullBackFacingTriangles = false;
+					uint CullingMode = RAY_FLAG_CULL_FRONT_FACING_TRIANGLES;
 					FRayTracedLightingContext Context = CreateRayTracedLightingContext(
 						TLAS,
 						RayCone,
 						CoordInCardTile,
 						CoordInCardTile.x, // dummy coordinate
-						bCullBackFacingTriangles,
+						CullingMode,
 						TranslucentSkipCount,
 						MaxTraversalIterations);
 
@@ -150,8 +155,11 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 					FLumenMinimalPayload Payload;
+					
+					FLumenMinimalRayResult MinimalRayResult;
+					MinimalRayResult.bHit = false;
+					MinimalRayResult.bCompleted = true;
 
-					bool bHit = false;
 #if ENABLE_FAR_FIELD_TRACING
 					{
 						// Rebase origin and point-source direction for far-field rays
@@ -163,22 +171,21 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 
 						Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
 						Context.bSkipClosestHitShader = true;
-						FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRay(FarFieldRay, Context, Payload);
-						bHit = MinimalRayResult.bHit || !MinimalRayResult.bCompleted;
+						MinimalRayResult = TraceLumenMinimalRay(FarFieldRay, Context, Payload);
 
 						Context.bSkipClosestHitShader = false;
 					}
 #endif // ENABLE_FAR_FIELD_TRACING
-					if (!bHit)
+					
+					if (!IsRayOccluded(MinimalRayResult))
 					{
 						Ray.TMin = 0;
 						Ray.TMax = NearFieldTMax;
 						Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
-						FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRay(Ray, Context, Payload);
-						bHit = MinimalRayResult.bHit || !MinimalRayResult.bCompleted;
+						MinimalRayResult = TraceLumenMinimalRay(Ray, Context, Payload);
 					}
 
-					ShadowMaskRay.ShadowFactor = bHit ? 0.0f : 1.0f;
+					ShadowMaskRay.ShadowFactor = IsRayOccluded(MinimalRayResult) ? 0.0f : 1.0f;
 				}
 
 				ShadowMaskRay.bShadowFactorComplete = true;

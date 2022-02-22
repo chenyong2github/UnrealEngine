@@ -116,8 +116,8 @@ struct FRayTracedLightingContext
 	float FarFieldMaxTraceDistance;
 	float3 FarFieldReferencePos;
 
+	uint CullingMode;
 	bool bHiResSurface;	// Whether to sample high res surface cache data or low res always resident pages
-	bool bCullBackFacingTriangles;
 	bool bAcceptFirstHitAndEndSearch;
 	bool bSkipClosestHitShader;
 	bool bCalculateHitVelocity;
@@ -129,7 +129,7 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	in FRayCone RayCone,
 	in uint2 TraceCoord,
 	in uint LinearCoord,
-	bool bCullBackFacingTriangles,
+	in uint CullingMode,
 	in int TranslucentSkipCountMax,
 	uint MaxTraversalIterations,
 	bool bHiResSurface
@@ -145,8 +145,8 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	Context.FarFieldMaxTraceDistance = -1.0;
 	Context.FarFieldReferencePos = 0;
 	Context.MaxTraversalIterations = MaxTraversalIterations;
+	Context.CullingMode = CullingMode;
 	Context.bHiResSurface = bHiResSurface;
-	Context.bCullBackFacingTriangles = bCullBackFacingTriangles;
 	Context.bAcceptFirstHitAndEndSearch = false;
 	Context.bSkipClosestHitShader = false;
 	Context.bCalculateHitVelocity = false;
@@ -159,13 +159,13 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	in FRayCone RayCone,
 	in uint2 TraceCoord,
 	in uint LinearCoord,
-	bool bCullBackFacingTriangles,
+	in uint CullingMode,
 	in int TranslucentSkipCountMax,
 	uint MaxTraversalIterations
 )
 {
 	bool bHiResSurface = false;
-	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, TranslucentSkipCountMax, MaxTraversalIterations, bHiResSurface);
+	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, CullingMode, TranslucentSkipCountMax, MaxTraversalIterations, bHiResSurface);
 }
 
 FRayTracedLightingContext CreateRayTracedLightingContext(
@@ -173,13 +173,13 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	in FRayCone RayCone,
 	in uint2 TraceCoord,
 	in uint LinearCoord,
-	bool bCullBackFacingTriangles,
+	in uint CullingMode,
 	uint MaxTraversalIterations
 )
 {
 	int TranslucentSkipCountMax = 0;
 	bool bHiResSurface = false;
-	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, TranslucentSkipCountMax, MaxTraversalIterations, bHiResSurface);
+	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, CullingMode, TranslucentSkipCountMax, MaxTraversalIterations, bHiResSurface);
 }
 
 struct FRayTracedLightingResult
@@ -279,7 +279,7 @@ FLumenMinimalRayResult TraceLumenMinimalRay(
 	#endif
 
 	uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
-	RayFlags |= Context.bCullBackFacingTriangles ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
+	RayFlags |= Context.CullingMode;
 	RayFlags |= Context.bAcceptFirstHitAndEndSearch ? RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH : 0;
 	RayFlags |= Context.bSkipClosestHitShader ? RAY_FLAG_SKIP_CLOSEST_HIT_SHADER : 0;
 
@@ -425,7 +425,7 @@ bool TraceDeferredMaterialRay(
 	DeferredMaterialPayload.PixelCoordinates = (Context.TraceCoord.y << 16) | Context.TraceCoord.x;
 
 	uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
-	RayFlags |= Context.bCullBackFacingTriangles ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
+	RayFlags |= Context.CullingMode;
 
 	FRayIntersectionBookmark Bookmark = (FRayIntersectionBookmark)0;
 	TraceDeferredMaterialGatherRay(Context.TLAS, RayFlags, Context.InstanceMask, Ray, Bookmark, DeferredMaterialPayload);

@@ -229,8 +229,8 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
 
 			const uint LinearCoord = ProbeTexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + ProbeTexelCoord.x;
-			const bool bCullBackFacingTriangles = false;
-			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ProbeTexelCoord, LinearCoord, bCullBackFacingTriangles, MaxTraversalIterations);
+			const uint CullingMode = 0;
+			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ProbeTexelCoord, LinearCoord, CullingMode, MaxTraversalIterations);
 
 			// Set far-field context specialization
 			Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;

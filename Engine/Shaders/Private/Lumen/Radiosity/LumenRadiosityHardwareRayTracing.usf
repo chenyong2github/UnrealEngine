@@ -79,8 +79,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 				RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
 
 				const uint LinearCoord = CoordInCardTile.y * CARD_TILE_SIZE + CoordInCardTile.x;
-				const bool bCullBackFacingTriangles = true;
-				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, CoordInCardTile, LinearCoord, bCullBackFacingTriangles, MaxTraversalIterations);
+				const uint OriginalCullingMode = 0;
+				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, CoordInCardTile, LinearCoord, OriginalCullingMode, MaxTraversalIterations);
 
 #if DIM_AVOID_SELF_INTERSECTION_TRACE
 				// First trace - short distance with backface culling enabled to avoid self intersecting in cases where the traced geometry doesn't match what's in the GBuffer (Nanite, Ray Tracing LODs, etc)
@@ -89,7 +89,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 
 				if (Ray.TMax > Ray.TMin)
 				{
-					Context.bCullBackFacingTriangles = true;
+					Context.CullingMode = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 					RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 				}
 
@@ -99,7 +99,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 					Ray.TMin = max(Ray.TMin, AvoidSelfIntersectionTraceDistance);
 					Ray.TMax = MaxTraceDistance;
 					
-					Context.bCullBackFacingTriangles = false;
+					Context.CullingMode = OriginalCullingMode;
 					RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 				}
 #else
