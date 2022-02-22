@@ -5,6 +5,7 @@
 
 namespace CADLibrary
 {
+enum class ECADParsingResult : uint8;
 
 class ICADFileParser
 {

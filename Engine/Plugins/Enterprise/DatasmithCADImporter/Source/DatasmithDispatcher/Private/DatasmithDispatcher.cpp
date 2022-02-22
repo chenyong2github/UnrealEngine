@@ -169,7 +169,7 @@ void FDatasmithDispatcher::Process(bool bWithProcessor)
 				break;
 			}
 
-			FWindowsPlatformProcess::Sleep(0.1);
+			FPlatformProcess::Sleep(0.1);
 		}
 
 		CloseHandlers();

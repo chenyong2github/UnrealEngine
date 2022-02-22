@@ -91,10 +91,16 @@ void FCADInterfacesModule::StartupModule()
 #if WITH_EDITOR & defined(USE_TECHSOFT_SDK)
 	check(TechSoftLibHandle == nullptr);
 
-	FString TechSoftDllPath = FPaths::Combine(CADImporterDllPath, "TechSoft");
+	FString TechSoftDllPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(CADImporterDllPath, "TechSoft"));
 	FPlatformProcess::PushDllDirectory(*TechSoftDllPath);
 
+#if PLATFORM_WINDOWS
 	FString TechSoftDll = TEXT("A3DLIBS.dll");
+#elif PLATFORM_LINUX
+	FString TechSoftDll = TEXT("libA3DLIBS.so");
+#else
+#error Platform not supported
+#endif
 	TechSoftDll = FPaths::Combine(TechSoftDllPath, TechSoftDll);
 
 	if (!FPaths::FileExists(TechSoftDll))

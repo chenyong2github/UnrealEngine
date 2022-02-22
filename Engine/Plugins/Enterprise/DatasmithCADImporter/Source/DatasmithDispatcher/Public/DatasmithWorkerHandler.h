@@ -19,7 +19,7 @@ namespace DatasmithDispatcher
 class FDatasmithDispatcher;
 
 //Handle a Worker by socket communication
-class FDatasmithWorkerHandler
+class DATASMITHDISPATCHER_API FDatasmithWorkerHandler
 {
 	enum class EWorkerState
 	{

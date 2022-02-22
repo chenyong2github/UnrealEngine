@@ -17,7 +17,7 @@ namespace CADLibrary
 
 	bool FCTSession::SaveBrep(const FString& FilePath)
 	{
-		return CTKIO_SaveFile({ MainObjectId }, *FilePath, L"Ct");
+		return CTKIO_SaveFile({ MainObjectId }, *FilePath, TEXT("Ct"));
 	}
 
 	bool FCTSession::TopoFixes(double SewingToleranceFactor)

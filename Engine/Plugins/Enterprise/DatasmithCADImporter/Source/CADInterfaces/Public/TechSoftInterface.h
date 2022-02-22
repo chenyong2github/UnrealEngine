@@ -71,12 +71,6 @@ private:
 
 namespace TechSoftInterface
 {
-
-/**
- * Single-ownership smart TeshSoft file object
- * This object ensure to delete the FileModel when it no more used
- */
-
 CADINTERFACES_API bool TECHSOFT_InitializeKernel(const TCHAR* = TEXT(""));
 
 CADINTERFACES_API FString GetTechSoftVersion();

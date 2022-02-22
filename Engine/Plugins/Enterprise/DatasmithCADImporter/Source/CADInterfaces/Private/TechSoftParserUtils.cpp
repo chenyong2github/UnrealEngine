@@ -619,7 +619,8 @@ namespace TechSoftParserUtils
 		if (UsedEntitiesFlags & kA3DTessFaceDataTriangleFan)
 		{
 			ensure(FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex);
-			uint32 LastFanIndex = 1 + FaceSetIndex + SizesTriangulated[FaceSetIndex++];
+			uint32 LastFanIndex = 1 + FaceSetIndex;
+			LastFanIndex += SizesTriangulated[FaceSetIndex++];
 			for (; FaceSetIndex < LastFanIndex; FaceSetIndex++)
 			{
 				uint32 FanSize = (FaceTessData.m_puiSizesTriangulated[FaceSetIndex] & kA3DTessFaceDataNormalMask);

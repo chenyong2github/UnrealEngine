@@ -7,7 +7,7 @@
 #include "DatasmithMaterialElements.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
-#include "Math.h"
+#include "Math/UnrealMathUtility.h"
 #include "MeshDescription.h"
 #include "MeshOperator.h"
 #include "Misc/FileHelper.h"

@@ -7,6 +7,7 @@
 
 #include "CADOptions.h"
 
+#include "GenericPlatform/GenericPlatformMisc.h"
 #include "Math/Color.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
@@ -106,7 +107,7 @@ FUniqueTechSoftModelFile SaveBodiesToPrcFile(void** Bodies, uint32 BodyCount, co
 
 	TUniqueTSObj<A3DMiscSingleAttributeData> SingleAttributeData;
 	SingleAttributeData->m_eType = kA3DModellerAttributeTypeString;
-	SingleAttributeData->m_pcTitle = "MaterialTable";
+	SingleAttributeData->m_pcTitle = (char*)"MaterialTable";
 	SingleAttributeData->m_pcData = (char*)StringAnsi.c_str();
 
 	TUniqueTSObj<A3DMiscAttributeData> AttributesData;
@@ -153,7 +154,6 @@ bool FillBodyMesh(void* BodyPtr, const FImportParameters& ImportParameters, doub
 		TechSoftInterfaceUtils::FTechSoftTessellationExtractor Extractor(RepresentationItemData->m_pTessBase);
 		return Extractor.FillBodyMesh(BodyMesh, FileUnit);
 	}
-
 
 	// TUniqueTechSoftObj does not work in this case
 	TUniqueTSObj<A3DRWParamsTessellationData> TessellationParameters;
@@ -333,8 +333,15 @@ void SaveModelFileToPrcFile(void* ModelFile, const FString& Filename)
 	ParamsExportData->m_bCompressBrep = false;
 	ParamsExportData->m_bCompressTessellation = false;
 
-	A3DUTF8Char HsfFileName[_MAX_PATH];
-	FCStringAnsi::Strncpy(HsfFileName, TCHAR_TO_UTF8(*Filename), _MAX_PATH);
+#if PLATFORM_WINDOWS
+	A3DUTF8Char HsfFileName[MAX_PATH];
+	FCStringAnsi::Strncpy(HsfFileName, TCHAR_TO_UTF8(*Filename), MAX_PATH);
+#elif PLATFORM_LINUX
+	A3DUTF8Char HsfFileName[PATH_MAX];
+	FCStringAnsi::Strncpy(HsfFileName, TCHAR_TO_UTF8(*Filename), PATH_MAX);
+#else
+#error Platform not supported
+#endif // PLATFORM_WINDOWS
 
 	TechSoftInterface::ExportModelFileToPrcFile(ModelFile, ParamsExportData.GetPtr(), HsfFileName, nullptr);
 #endif
@@ -575,6 +582,180 @@ A3DCrvNurbs* CreateTrimNurbsCurve(A3DCrvNurbs* CurveNurbsPtr, double UMin, doubl
 
 	return CADLibrary::TechSoftInterface::CreateCurveNurbs(*TransformedNurbsData);
 }
+
+void ExtractAttribute(const A3DMiscAttributeData& AttributeData, TMap<FString, FString>& OutMetaData)
+{
+	FString AttributeName;
+	if (AttributeData.m_bTitleIsInt)
+	{
+		A3DUns32 UnsignedValue = 0;
+		memcpy(&UnsignedValue, AttributeData.m_pcTitle, sizeof(A3DUns32));
+		AttributeName = FString::Printf(TEXT("%u"), UnsignedValue);
+	}
+	else if (AttributeData.m_pcTitle && AttributeData.m_pcTitle[0] != '\0')
+	{
+		AttributeName = UTF8_TO_TCHAR(AttributeData.m_pcTitle);
+	}
+
+	for (A3DUns32 Index = 0; Index < AttributeData.m_uiSize; ++Index)
+	{
+		FString AttributeValue;
+		switch (AttributeData.m_asSingleAttributesData[Index].m_eType)
+		{
+		case kA3DModellerAttributeTypeTime:
+		case kA3DModellerAttributeTypeInt:
+		{
+			A3DInt32 Value;
+			memcpy(&Value, AttributeData.m_asSingleAttributesData[Index].m_pcData, sizeof(A3DInt32));
+			AttributeValue = FString::Printf(TEXT("%d"), Value);
+			break;
+		}
+
+		case kA3DModellerAttributeTypeReal:
+		{
+			A3DDouble Value;
+			memcpy(&Value, AttributeData.m_asSingleAttributesData[Index].m_pcData, sizeof(A3DDouble));
+			AttributeValue = FString::Printf(TEXT("%f"), Value);
+			break;
+		}
+
+		case kA3DModellerAttributeTypeString:
+		{
+			if (AttributeData.m_asSingleAttributesData[Index].m_pcData && AttributeData.m_asSingleAttributesData[Index].m_pcData[0] != '\0')
+			{
+				AttributeValue = UTF8_TO_TCHAR(AttributeData.m_asSingleAttributesData[Index].m_pcData);
+			}
+			break;
+		}
+
+		default:
+			break;
+		}
+
+		if (AttributeName.Len())
+		{
+			if (Index)
+			{
+				OutMetaData.Emplace(FString::Printf(TEXT("%s_%u"), *AttributeName, (int32)Index), AttributeValue);
+			}
+			else
+			{
+				OutMetaData.Emplace(AttributeName, AttributeValue);
+			}
+		}
+	}
+}
+
+FString CleanSdkName(const FString& Name)
+{
+	int32 Index;
+	if (Name.FindLastChar(TEXT('['), Index))
+	{
+		return Name.Left(Index);
+	}
+	return Name;
+}
+
+FString CleanCatiaInstanceSdkName(const FString& Name)
+{
+	int32 Index;
+	if (Name.FindChar(TEXT('('), Index))
+	{
+		FString NewName = Name.RightChop(Index + 1);
+		if (NewName.FindLastChar(TEXT(')'), Index))
+		{
+			NewName = NewName.Left(Index);
+		}
+		return NewName;
+	}
+	return Name;
+}
+
+FString Clean3dxmlReferenceSdkName(const FString& Name)
+{
+	int32 Index;
+	if (Name.FindChar(TEXT('('), Index))
+	{
+		FString NewName = Name.Left(Index);
+		return NewName;
+	}
+	return Name;
+}
+
+FString CleanSwInstanceSdkName(const FString& Name)
+{
+	int32 Position;
+	if (Name.FindLastChar(TEXT('-'), Position))
+	{
+		FString NewName = Name.Left(Position) + TEXT("<") + Name.RightChop(Position + 1) + TEXT(">");
+		return NewName;
+	}
+	return Name;
+}
+
+FString CleanSwReferenceSdkName(const FString& Name)
+{
+	int32 Position;
+	if (Name.FindLastChar(TEXT('-'), Position))
+	{
+		FString NewName = Name.Left(Position);
+		return NewName;
+	}
+	return Name;
+}
+
+FString CleanCatiaReferenceName(const FString& Name)
+{
+	int32 Position;
+	if (Name.FindLastChar(TEXT('.'), Position))
+	{
+		FString Indice = Name.RightChop(Position + 1);
+		if (Indice.IsNumeric())
+		{
+			FString NewName = Name.Left(Position);
+			return NewName;
+		}
+	}
+	return Name;
+}
+
+FString CleanNameByRemoving_prt(const FString& Name)
+{
+	int32 Position;
+	if (Name.FindLastChar(TEXT('.'), Position))
+	{
+		FString Extension = Name.RightChop(Position);
+		if (Extension.Equals(TEXT("prt"), ESearchCase::IgnoreCase))
+		{
+			FString NewName = Name.Left(Position);
+			return NewName;
+		}
+	}
+	return Name;
+}
+
+bool CheckIfNameExists(TMap<FString, FString>& MetaData)
+{
+	FString* NamePtr = MetaData.Find(TEXT("Name"));
+	if (NamePtr != nullptr)
+	{
+		return true;
+	}
+	return false;
+}
+
+bool ReplaceOrAddNameValue(TMap<FString, FString>& MetaData, const TCHAR* Key)
+{
+	FString* NamePtr = MetaData.Find(Key);
+	if (NamePtr != nullptr)
+	{
+		FString& Name = MetaData.FindOrAdd(TEXT("Name"));
+		Name = *NamePtr;
+		return true;
+	}
+	return false;
+}
+
 #endif
 
 } // NS TechSoftUtils
