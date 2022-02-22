@@ -235,12 +235,6 @@ namespace Chaos
 				return;
 			}
 
-			TPBDRigidParticleHandle<FReal, 3>* RigidParticle = Particle->CastToRigidParticle();
-			if (!CHAOS_ENSURE(RigidParticle))
-			{
-				return;
-			}
-
 			const FReal MinBounds = Particle->Geometry()->BoundingBox().Extents().Min();
 			const FReal Depth = -SweptConstraint.GetPhi();
 			const FReal MaxDepth = MinBounds * CCDAllowedDepthBoundsScale;
@@ -248,7 +242,23 @@ namespace Chaos
 			if (TOI <= 0.0f)
 			{
 				// Initial overlap. Phi is correct already.
-				SweptConstraint.TimeOfImpact = 0.0f;
+				TPBDRigidParticleHandle<FReal, 3> *Rigid0 = SweptConstraint.GetParticle0()->CastToRigidParticle();
+				TPBDRigidParticleHandle<FReal, 3> *Rigid1 = SweptConstraint.GetParticle1()->CastToRigidParticle();
+				const FRigidTransform3& ShapeWorldTransform1 = SweptConstraint.GetShapeWorldTransform1();
+				const FVec3 Normal = ShapeWorldTransform1.TransformVectorNoScale(SweptConstraint.GetClosestManifoldPoint()->ContactPoint.ShapeContactNormal);
+				const FVec3 V0 = Rigid0 != nullptr ? Rigid0->V() : FVec3(0.f);
+				const FVec3 V1 = Rigid1 != nullptr ? Rigid1->V() : FVec3(0.f);
+				const FReal NormalV = FVec3::DotProduct(V0 - V1, Normal);
+				// The two objects are already separating. This constraint needs not to be considered for CCD if the normal velocity is positive.
+				// If TOI < 0 (initial penetration case), CCD will not depenetrate the objects since CCD is only a velocity solve. Depenetration will be left for the main solve.
+				if (NormalV >= 0) 
+				{
+					SweptConstraint.TimeOfImpact = std::numeric_limits<FReal>::max();
+				}
+				else
+				{
+					SweptConstraint.TimeOfImpact = 0.0f;
+				}
 			}
 			else if (TOI > 0.0f && TOI <= 1.0f)
 			{
@@ -1337,8 +1347,8 @@ namespace Chaos
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateGenericConvexConvexConstraintSwept, ConstraintsDetailedStats);
 			FReal TOI = TNumericLimits<FReal>::Max();
-			const FRigidTransform3 EndWorldTransform0(FGenericParticleHandle(Particle0)->P(), FGenericParticleHandle(Particle0)->Q());
-			const FRigidTransform3 EndWorldTransform1(FGenericParticleHandle(Particle1)->P(), FGenericParticleHandle(Particle1)->Q());
+			const FRigidTransform3& EndWorldTransform0 = Constraint.GetShapeWorldTransform0();
+			const FRigidTransform3& EndWorldTransform1 = Constraint.GetShapeWorldTransform1();
 			UpdateContactPointNoCull(Constraint, GenericConvexConvexContactPointSwept(Implicit0, StartWorldTransform0, EndWorldTransform0, Implicit1, StartWorldTransform1, EndWorldTransform1, Dir, Length, TOI), Dt);
 			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
 		}

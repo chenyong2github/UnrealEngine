@@ -41,7 +41,7 @@ namespace Chaos
 
 			return 0;
 		}
-		return TNumericLimits<FReal>::Max();
+		return 0;
 	}
 
 	int32 FCCDConstraint::GetFastMovingKinematicIndex(const FPBDCollisionConstraint* Constraint, const FVec3 Displacements[]) const
@@ -433,6 +433,14 @@ namespace Chaos
 							*	When resweeping, compute estimated TOI instead of accurate TOI since updated TOI might need to be updated again.
 							*/
 
+							// We need to update cached position at TOI=1 in collision constraint.
+							FPBDCollisionConstraint* SweptConstraint = SortedCCDConstraints[i]->SweptConstraint;
+							FRigidTransform3 ShapeWorldTransform0 = SweptConstraint->GetShapeWorldTransform0();
+							FRigidTransform3 ShapeWorldTransform1 = SweptConstraint->GetShapeWorldTransform1();
+							ShapeWorldTransform0.SetTranslation(FConstGenericParticleHandle(SweptConstraint->GetParticle0())->P());
+							ShapeWorldTransform1.SetTranslation(FConstGenericParticleHandle(SweptConstraint->GetParticle1())->P());
+
+							SweptConstraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 							const bool bUpdated = Collisions::UpdateConstraintFromGeometrySwept<ECollisionUpdateType::Deepest>(*(AttachedCCDConstraint->SweptConstraint), RigidTransforms[0], RigidTransforms[1], RestDt);
 							if (bUpdated)
 							{
@@ -453,19 +461,6 @@ namespace Chaos
 					std::sort(SortedCCDConstraints.GetData() + ConstraintIndex, SortedCCDConstraints.GetData() + ConstraintStart + ConstraintNum, CCDConstraintSortPredicate);
 				}
 			}
-		}
-
-		// We need to update the world-space contact points at the final locations
-		for (int32 i = ConstraintStart; i < ConstraintEnd; i++)
-		{
-			FPBDCollisionConstraint* Constraint = SortedCCDConstraints[i]->SweptConstraint;
-			FRigidTransform3 ShapeWorldTransform0 = Constraint->GetShapeWorldTransform0();
-			FRigidTransform3 ShapeWorldTransform1 = Constraint->GetShapeWorldTransform1();
-			ShapeWorldTransform0.SetTranslation(FConstGenericParticleHandle(Constraint->GetParticle0())->P());
-			ShapeWorldTransform1.SetTranslation(FConstGenericParticleHandle(Constraint->GetParticle1())->P());
-
-			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
-			Constraint->UpdateManifoldContacts();
 		}
 	}
 
@@ -559,24 +554,17 @@ namespace Chaos
 
 	void FCCDManager::UpdateSweptConstraints(const FReal Dt, FCollisionConstraintAllocator *CollisionAllocator)
 	{
+		// We need to update the world-space contact points at the final locations
+		// @todo(chaos): parallelize this code
 		for (FPBDCollisionConstraint* SweptConstraint : SweptConstraints)
 		{
-			FRigidTransform3 RigidTransforms[2];
-			for (int32 i = 0; i < 2; i++)
-			{
-				FGenericParticleHandle Particle = FGenericParticleHandle(SweptConstraint->GetParticle(i));
-				const bool IsStatic = Particle->ObjectState() == EObjectStateType::Static;
-				if (IsStatic)
-				{
-					RigidTransforms[i] = FRigidTransform3(Particle->X(), Particle->R());
-				}
-				else
-				{
-					RigidTransforms[i] = FRigidTransform3(Particle->P(), Particle->Q());
-				}
-			}
-			SweptConstraint->ResetManifold();
-			Collisions::UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(*(SweptConstraint), RigidTransforms[0], RigidTransforms[1], Dt);
+			FRigidTransform3 ShapeWorldTransform0 = SweptConstraint->GetShapeWorldTransform0();
+			FRigidTransform3 ShapeWorldTransform1 = SweptConstraint->GetShapeWorldTransform1();
+			ShapeWorldTransform0.SetTranslation(FConstGenericParticleHandle(SweptConstraint->GetParticle0())->P());
+			ShapeWorldTransform1.SetTranslation(FConstGenericParticleHandle(SweptConstraint->GetParticle1())->P());
+
+			SweptConstraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+			SweptConstraint->UpdateManifoldContacts();
 
 			// @todo(zhenglin): Removing constraints that has Phi larger than CullDistance could reduce the island sizes in the normal solve. But I could not get this to work...
 			// if (SweptConstraint->GetPhi() > SweptConstraint->GetCullDistance())
