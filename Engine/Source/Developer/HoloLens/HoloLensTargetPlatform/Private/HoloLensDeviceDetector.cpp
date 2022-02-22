@@ -354,6 +354,13 @@ void FHoloLensDeviceDetector::OnDeviceWatcherDeviceAdded(IDeviceInformation* Inf
 		DeviceIp = hstr.GetRawBuffer(nullptr);
 	}
 
+	// Xbox always requires authentication & https, so no point in even trying
+	if (NewDevice.DeviceTypeName == TEXT("Windows.Xbox"))
+	{
+		UE_LOG(LogHoloLensTargetPlatform, Verbose, TEXT("ignoring %s %s"), *NewDevice.DeviceTypeName.ToString(), *DeviceIp);
+		return;
+	}
+
 	NewDevice.WdpUrl = FString::Printf(TEXT("%s://%s:%d/"), *Protocol, *DeviceIp, WdpPort);
 
 
