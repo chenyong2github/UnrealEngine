@@ -2392,10 +2392,11 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 
 	if (!FoundSourceEmitter)
 	{
-		FNiagaraDataInterfaceError SourceEmitterNotFoundError(LOCTEXT("SourceEmitterNotFoundError", "Source emitter not found."),
-			LOCTEXT("SourceEmitterNotFoundErrorSummary", "Source emitter not found"),
-			FNiagaraDataInterfaceFix());
-		OutErrors.Add(SourceEmitterNotFoundError);
+		Warnings.Emplace(
+			LOCTEXT("SourceEmitterNotFound", "Source emitter was not found."),
+			FText::Format(LOCTEXT("SourceEmitterNotFoundSummary", "Source emitter '{0}' could not be found"), FText::FromString(EmitterName)),
+			FNiagaraDataInterfaceFix()
+		);
 	}
 
 	// Filter through all the relevant CPU scripts

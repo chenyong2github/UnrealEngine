@@ -362,7 +362,7 @@ void UNiagaraDataInterfaceEmitterProperties::GetFeedback(UNiagaraSystem* Asset, 
 		{
 			OutWarnings.Emplace(
 				LOCTEXT("SourceEmitterNotFound", "Source emitter was not found."),
-				FText::Format(LOCTEXT("SourceEmitterNotFoundSummary", "Source emitter '{0}' was not could not be found"), FText::FromName(EmitterBinding.EmitterName)),
+				FText::Format(LOCTEXT("SourceEmitterNotFoundSummary", "Source emitter '{0}' could not be found"), FText::FromName(EmitterBinding.EmitterName)),
 				FNiagaraDataInterfaceFix()
 			);
 		}
