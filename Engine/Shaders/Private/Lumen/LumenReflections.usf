@@ -78,7 +78,8 @@ void ReflectionTileClassificationMarkCS(
 
 		if (NeedRayTracedReflections(ApplySmoothBias(GBufferData.Roughness), GBufferData.ShadingModelID))
 		{
-			SharedTileClassification = 1;
+			// Metal compiler issue: it requires `+=` instead of `=` to record the tile as of UE 5.0
+			SharedTileClassification += 1;
 		}
 	}
 
@@ -86,7 +87,7 @@ void ReflectionTileClassificationMarkCS(
 
 	if (all(GroupThreadId == 0))
 	{
-		RWResolveTileUsed[GroupId] = SharedTileClassification;
+		RWResolveTileUsed[GroupId] = SharedTileClassification > 0 ? 1u : 0;
 	}
 
 	// Clear tiles that the generate shader won't run on
