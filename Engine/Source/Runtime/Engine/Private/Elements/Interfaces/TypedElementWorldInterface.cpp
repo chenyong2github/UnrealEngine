@@ -255,6 +255,30 @@ FScriptTypedElementHandle ITypedElementWorldInterface::DuplicateElement(const FS
 	return GetRegistry().CreateScriptHandle(DuplicateElement(NativeHandle, InWorld, InLocationOffset).GetId());
 }
 
+bool ITypedElementWorldInterface::CanPromoteElement(const FScriptTypedElementHandle& InElementHandle)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return false;
+	}
+
+	return CanPromoteElement(NativeHandle);
+}
+
+FScriptTypedElementHandle ITypedElementWorldInterface::PromoteElement(const FScriptTypedElementHandle& InElementHandle, UWorld* OverrideWorld)
+{
+	FTypedElementHandle NativeHandle = InElementHandle.GetTypedElementHandle();
+	if (!NativeHandle)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InElementHandle is not a valid handle."), ELogVerbosity::Error);
+		return FScriptTypedElementHandle();
+	}
+
+	return GetRegistry().CreateScriptHandle(PromoteElement(NativeHandle, OverrideWorld).GetId());
+}
+
 class UTypedElementRegistry& ITypedElementWorldInterface::GetRegistry() const
 {
 	return *UTypedElementRegistry::GetInstance();

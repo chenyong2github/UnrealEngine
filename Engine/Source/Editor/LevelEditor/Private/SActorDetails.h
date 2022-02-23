@@ -25,6 +25,11 @@ class SSubobjectEditor;
 class ISCSEditorUICustomization;
 class FSubobjectEditorTreeNode;
 
+namespace UE::LevelEditor::Private
+{
+	class SElementSelectionDetailsButtons;
+}
+
 /**
  * Wraps a details panel customized for viewing actors
  */
@@ -76,7 +81,7 @@ public:
 private:
 	void RefreshTopLevelElements(TArrayView<const TTypedElement<ITypedElementDetailsInterface>> InDetailsElements, const bool bForceRefresh, const bool bOverrideLock);
 	void RefreshSubobjectTreeElements(TArrayView<const TSharedPtr<FSubobjectEditorTreeNode>> InSelectedNodes, const bool bForceRefresh, const bool bOverrideLock);
-	void SetElementDetailsObjects(TArrayView<const TUniquePtr<ITypedElementDetailsObject>> InElementDetailsObjects, const bool bForceRefresh, const bool bOverrideLock);
+	void SetElementDetailsObjects(TArrayView<const TUniquePtr<ITypedElementDetailsObject>> InElementDetailsObjects, const bool bForceRefresh, const bool bOverrideLock, TArrayView<const TTypedElement<ITypedElementDetailsInterface>>* InDetailsElementsPtr = nullptr);
 
 	AActor* GetActorContext() const;
 	UObject* GetActorContextAsObject() const;
@@ -108,6 +113,8 @@ private:
 
 	/** The subobject editor provides a tree widget that allows for editing of subobjects */
 	TSharedPtr<SSubobjectEditor> SubobjectEditor;
+
+	TSharedPtr<UE::LevelEditor::Private::SElementSelectionDetailsButtons> ElementSelectionDetailsButtons;
 
 	// The selection set this details panel is observing
 	UTypedElementSelectionSet* SelectionSet = nullptr;

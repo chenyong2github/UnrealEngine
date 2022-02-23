@@ -11,6 +11,7 @@
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/Selection.h"
@@ -22,6 +23,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "LevelEditor.h"
 #include "LevelEditorGenericDetails.h"
+#include "LevelEditorSubsystem.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "SSubobjectEditor.h"
@@ -34,11 +36,135 @@
 #include "UnrealEdGlobals.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/SRichTextBlock.h"
+
+#define LOCTEXT_NAMESPACE "SActorDetails"
+
+namespace UE::LevelEditor::Private
+{
+	class SElementSelectionDetailsButtons : public SCompoundWidget
+	{
+	public:
+		SLATE_BEGIN_ARGS(SElementSelectionDetailsButtons)
+		{}
+
+		SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs, TSharedRef<SWidget> SubobjectEditorButtonBox, TFunction<TArray<TTypedElement<ITypedElementDetailsInterface>>()>&& InGetDetailsHandles)
+		{
+			GetDetailsHandles = MoveTemp(InGetDetailsHandles);
+	
+			ChildSlot
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+					.AutoWidth()
+					[
+						SAssignNew(PromoteElementButton, SButton)
+						.ButtonStyle(FAppStyle::Get(), "DetailsView.NameAreaButton")
+						.ContentPadding(0)
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Element.PromoteElement")))
+						.OnClicked(this, &SElementSelectionDetailsButtons::OnPromoteElement)
+						.ToolTipText(LOCTEXT("PromoteElementTooltip", "Promote the selected elements."))
+						[
+							SNew(SImage)
+							.Image(FAppStyle::Get().GetBrush("Icons.PromoteElements"))
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SubobjectEditorButtonBox
+					]
+				];
+		}
+
+		void UpdateSelection(TArrayView<const TTypedElement<ITypedElementDetailsInterface>>* InDetailsElementsPtr)
+		{
+			TArrayView<const TTypedElement<ITypedElementDetailsInterface>> DetailsElementsView;
+			TArray<TTypedElement<ITypedElementDetailsInterface>> DetailsElementsContainer;
+
+			if (InDetailsElementsPtr)
+			{
+				DetailsElementsView = *InDetailsElementsPtr;
+			}
+			else
+			{
+				DetailsElementsContainer = GetDetailsHandles();
+				DetailsElementsView = MakeArrayView(DetailsElementsContainer);
+			}
+
+			bool bCanPromoteAnElement = false;
+			UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+			for (const TTypedElement<ITypedElementDetailsInterface>& DetailsElement : DetailsElementsView)
+			{
+				if (TTypedElement<ITypedElementWorldInterface> WorldElement = Registry->GetElement<ITypedElementWorldInterface>(DetailsElement))
+				{
+					if (WorldElement.CanPromoteElement())
+					{
+						bCanPromoteAnElement = true;
+						break;
+					}
+				}
+			}
+
+			if (bCanPromoteAnElement)
+			{
+				PromoteElementButton->SetVisibility(EVisibility::Visible);
+			}
+			else
+			{
+				PromoteElementButton->SetVisibility(EVisibility::Collapsed);
+			}
+		}
+
+	private:
+		FReply OnPromoteElement()
+		{
+			FScopedTransaction Transaction(LOCTEXT("PromoteElementsTransaction", "Promote Elements"));
+
+			TArray<TTypedElement<ITypedElementDetailsInterface>> DetailsElements = GetDetailsHandles();
+
+			TArray<AActor*> Actors;
+			Actors.Reserve(DetailsElements.Num());
+
+			UTypedElementSelectionSet* SelectionSet = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>()->GetSelectionSet();
+			FTypedElementSelectionOptions SelectionOptions;
+			UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+
+			for (const TTypedElement<ITypedElementDetailsInterface>& DetailsElement : DetailsElements)
+			{
+				if (TTypedElement<ITypedElementWorldInterface> WorldElement = Registry->GetElement<ITypedElementWorldInterface>(DetailsElement))
+				{
+					if (WorldElement.CanPromoteElement())
+					{
+						SelectionSet->DeselectElement(WorldElement, SelectionOptions);
+					}
+
+					if (FTypedElementHandle PromotedElement = WorldElement.PromoteElement())
+					{
+						SelectionSet->SelectElement(PromotedElement, SelectionOptions);
+					}
+				}
+			}
+
+			return FReply::Handled();
+		}
+
+		TSharedPtr<SButton> PromoteElementButton;
+		TFunction<TArray<TTypedElement<ITypedElementDetailsInterface>>()> GetDetailsHandles;
+	};
+}
 
 class SActorDetailsUneditableComponentWarning : public SCompoundWidget
 {
@@ -152,9 +278,55 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 
 	ComponentsBox->SetContent(SubobjectEditor.ToSharedRef());
 
-	TSharedRef<SWidget> ButtonBox = SubobjectEditor->GetToolButtonsBox().ToSharedRef();
-	ButtonBox->SetVisibility(MakeAttributeSP(this, &SActorDetails::GetComponentEditorVisibility));
-	DetailsView->SetNameAreaCustomContent( ButtonBox );
+	TSharedRef<SWidget> SubobjectEditorButtonBox = SubobjectEditor->GetToolButtonsBox().ToSharedRef();
+	SubobjectEditorButtonBox->SetVisibility(MakeAttributeSP(this, &SActorDetails::GetComponentEditorVisibility));
+
+
+	TFunction<TArray<TTypedElement<ITypedElementDetailsInterface>>()> GetDetailsHandles = [this]()
+	{
+		TArray<TTypedElement<ITypedElementDetailsInterface>> DetailsElements;
+
+		// Regenerate the details handles
+		if (bHasSelectionOverride)
+		{
+			UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+			DetailsElements.Reserve(SelectionOverrideActors.Num());
+
+			for (AActor* Actor : SelectionOverrideActors)
+			{
+				if (FTypedElementHandle ActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor))
+				{
+					if (TTypedElement<ITypedElementDetailsInterface> ActorDetailsHandle = Registry->GetElement<ITypedElementDetailsInterface>(ActorElementHandle))
+					{
+						// Check if the actor element does to provide a details object
+						if (TUniquePtr<ITypedElementDetailsObject> ElementDetailsObject = ActorDetailsHandle.GetDetailsObject())
+						{
+							DetailsElements.Add(ActorDetailsHandle);
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			DetailsElements.Reserve(SelectionSet->GetNumSelectedElements());
+			SelectionSet->ForEachSelectedElement<ITypedElementDetailsInterface>([&DetailsElements](const TTypedElement<ITypedElementDetailsInterface>& InDetailsElement)
+				{
+					// Check if the element does to provide a details object
+					if (TUniquePtr<ITypedElementDetailsObject> ElementDetailsObject = InDetailsElement.GetDetailsObject())
+					{
+						DetailsElements.Add(InDetailsElement);
+					}
+					return true;
+				});
+		}
+
+		return DetailsElements;
+	};
+
+
+	TSharedRef<SWidget> ButtonBox = SAssignNew(ElementSelectionDetailsButtons, UE::LevelEditor::Private::SElementSelectionDetailsButtons, SubobjectEditorButtonBox, MoveTemp(GetDetailsHandles));
+	DetailsView->SetNameAreaCustomContent(ButtonBox);
 
 	ChildSlot
 	[
@@ -274,7 +446,7 @@ void SActorDetails::OverrideSelection(const TArray<AActor*>& InActors, const boo
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
 	TArray<TTypedElement<ITypedElementDetailsInterface>> DetailsElements;
-	DetailsElements.Reserve(SelectionSet->GetNumSelectedElements());
+	DetailsElements.Reserve(InActors.Num());
 	for (AActor* Actor : InActors)
 	{
 		if (FTypedElementHandle ActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor))
@@ -313,11 +485,10 @@ void SActorDetails::RefreshTopLevelElements(TArrayView<const TTypedElement<IType
 		}
 	}
 
-	// Update the underlying details view
-	SetElementDetailsObjects(TopLevelElements, bForceRefresh, bOverrideLock);
+	// Update the underlying details view and the Elements buttons
+	SetElementDetailsObjects(TopLevelElements, bForceRefresh, bOverrideLock, &InDetailsElements);
 
 	// Update the Subobject tree if we were asked to edit a single actor
-	
 	if (AActor* Actor = GetActorContext())
 	{
 		// Enable the selection guard to prevent OnTreeSelectionChanged() from altering the editor's component selection
@@ -402,7 +573,7 @@ void SActorDetails::RefreshSubobjectTreeElements(TArrayView<const FSubobjectEdit
 	}
 }
 
-void SActorDetails::SetElementDetailsObjects(TArrayView<const TUniquePtr<ITypedElementDetailsObject>> InElementDetailsObjects, const bool bForceRefresh, const bool bOverrideLock)
+void SActorDetails::SetElementDetailsObjects(TArrayView<const TUniquePtr<ITypedElementDetailsObject>> InElementDetailsObjects, const bool bForceRefresh, const bool bOverrideLock, TArrayView<const TTypedElement<ITypedElementDetailsInterface>>* InDetailsElementsPtr)
 {
 	TArray<UObject*> DetailsObjects;
 	DetailsObjects.Reserve(InElementDetailsObjects.Num());
@@ -414,6 +585,7 @@ void SActorDetails::SetElementDetailsObjects(TArrayView<const TUniquePtr<ITypedE
 		}
 	}
 	DetailsView->SetObjects(DetailsObjects, bForceRefresh, bOverrideLock);
+	ElementSelectionDetailsButtons->UpdateSelection(InDetailsElementsPtr);
 }
 
 void SActorDetails::PostUndo(bool bSuccess)
@@ -880,3 +1052,5 @@ void SActorDetails::OnObjectsReplaced(const TMap<UObject*, UObject*>& InReplacem
 		SubobjectEditor->UpdateTree();
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

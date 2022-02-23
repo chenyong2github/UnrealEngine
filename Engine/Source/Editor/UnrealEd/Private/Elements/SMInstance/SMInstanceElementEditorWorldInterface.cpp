@@ -2,10 +2,12 @@
 
 #include "Elements/SMInstance/SMInstanceElementEditorWorldInterface.h"
 #include "Elements/SMInstance/SMInstanceElementData.h"
-#include "Components/InstancedStaticMeshComponent.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
+
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/StaticMeshActor.h"
 
 bool USMInstanceElementEditorWorldInterface::CanDeleteElement(const FTypedElementHandle& InElementHandle)
 {
@@ -137,4 +139,79 @@ void USMInstanceElementEditorWorldInterface::DuplicateElements(TArrayView<const 
 			}
 		}
 	}
+}
+
+bool USMInstanceElementEditorWorldInterface::CanPromoteElement(const FTypedElementHandle& InElementHandle)
+{
+	if (const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+	{
+		if (UWorld* ElementWorld = SMInstance.GetISMComponent()->GetWorld())
+		{
+			return !ElementWorld->IsGameWorld() && SMInstance.CanDeleteSMInstance();
+		}
+	}
+
+	return false;
+}
+
+FTypedElementHandle USMInstanceElementEditorWorldInterface::PromoteElement(const FTypedElementHandle& InElementHandle, UWorld* OverrideWorld /* = nullptr */)
+{
+	UWorld* World = OverrideWorld;
+	if (CanPromoteElement(InElementHandle))
+	{
+		if (const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+		{
+			UInstancedStaticMeshComponent* OldComponent = SMInstance.GetISMComponent();
+			if (!World)
+			{
+				World = SMInstance.GetISMComponent()->GetWorld();
+			}
+
+			// Create Actor
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.ObjectFlags = RF_Transactional;
+			SpawnParams.OverrideLevel = World->GetCurrentLevel();
+
+			AStaticMeshActor* StaticMeshActor = World->SpawnActor<AStaticMeshActor>(SpawnParams);
+
+			UStaticMeshComponent* NewComponent = StaticMeshActor->GetStaticMeshComponent();
+
+			// Copy editable properties
+			FComponentReregisterContext ComponentRegisterContext(NewComponent);
+			FProperty* Property = UStaticMeshComponent::StaticClass()->PropertyLink;
+			while (Property)
+			{
+				if (Property->HasAllPropertyFlags(CPF_Edit))
+				{
+					void* DestinationAddress = Property->ContainerPtrToValuePtr<void>(NewComponent);
+					void* SourceAddress = Property->ContainerPtrToValuePtr<void>(OldComponent);
+					Property->CopyCompleteValue(DestinationAddress, SourceAddress);
+				}
+
+				Property = Property->PropertyLinkNext;
+			}
+
+			// Set the transform
+			FTransform WorldTransform;
+			SMInstance.GetSMInstanceTransform(WorldTransform, /*bWorldSpace*/true);
+			StaticMeshActor->SetActorTransform(WorldTransform);
+
+			// Move the custom data
+			int32 CustomDataStart = OldComponent->NumCustomDataFloats * SMInstance.GetISMInstanceIndex();
+			for (int32 Index = 0; Index < OldComponent->NumCustomDataFloats; ++Index)
+			{
+				const float CustomData = OldComponent->PerInstanceSMCustomData[CustomDataStart + Index];
+				NewComponent->SetCustomPrimitiveDataFloat(Index, CustomData);
+			}
+
+			StaticMeshActor->PostEditChange();
+			StaticMeshActor->PostEditMove(true);
+
+			SMInstance.DeleteSMInstance();
+
+			return UEngineElementsLibrary::AcquireEditorActorElementHandle(StaticMeshActor);
+		}
+	}
+
+	return FTypedElementHandle();
 }

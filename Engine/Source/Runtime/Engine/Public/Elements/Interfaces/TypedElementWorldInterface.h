@@ -192,6 +192,27 @@ public:
 	{
 	}
 
+	/**
+	 * Can the element be promoted
+	 * Generally available when the element is lighter representation of another element.
+	 * Like an instance for example.
+	 */
+	virtual bool CanPromoteElement(const FTypedElementHandle& InElementHandle)
+	{
+		return false;
+	}
+
+	/**
+	 * Promote a element when possible
+	 * Generally available when the element is lighter representation of another element.
+	 * Like an instance for example.
+	 * 
+	 * @param OverrideWorld Override the world in which the promotion might create new elements. Leave it to null to use the world from the handle.
+	 */
+	virtual FTypedElementHandle PromoteElement(const FTypedElementHandle& InElementHandle, UWorld* OverrideWorld = nullptr)
+	{
+		return FTypedElementHandle();
+	}
 
 	/**
 	 * Script Api
@@ -313,6 +334,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual FScriptTypedElementHandle DuplicateElement(const FScriptTypedElementHandle& InElementHandle, UWorld* InWorld, const FVector& InLocationOffset);
 
+	/**
+	 * Can the element be promoted
+	 * Generally available when the element is a lighter representation of another element.
+	 * Like an instance for example.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool CanPromoteElement(const FScriptTypedElementHandle& InElementHandle);
+
+	/**
+	 * Promote an element when possible
+	 * Generally available when the element is a lighter representation of another element.
+	 * Like an instance for example.
+	 * 
+	 * @param OverrideWorld Override the world in which the promotion might create new elements. Leave it to null to use the world from the handle.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual FScriptTypedElementHandle PromoteElement(const FScriptTypedElementHandle& InElementHandle, UWorld* OverrideWorld = nullptr);
+
 private:
 	/**
 	 * Return the registry associated with this interface implementation
@@ -344,4 +383,6 @@ struct TTypedElement<ITypedElementWorldInterface> : public TTypedElementBase<ITy
 	bool DeleteElement(UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions) const { return InterfacePtr->DeleteElement(*this, InWorld, InSelectionSet, InDeletionOptions); }
 	bool CanDuplicateElement() const { return InterfacePtr->CanDuplicateElement(*this); }
 	FTypedElementHandle DuplicateElement(UWorld* InWorld, const FVector& InLocationOffset) const { return InterfacePtr->DuplicateElement(*this, InWorld, InLocationOffset); }
+	bool CanPromoteElement() const { return InterfacePtr->CanPromoteElement(*this); }
+	FTypedElementHandle PromoteElement(UWorld* OverrideWorld = nullptr) const { return InterfacePtr->PromoteElement(*this, OverrideWorld); }
 };

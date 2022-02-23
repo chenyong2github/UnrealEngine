@@ -571,6 +571,21 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle
 	return FTypedElementHandle();
 }
 
+FTypedElementHandle UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(const FSMInstanceElementId& SMInstanceElementId)
+{
+	if (GIsEditor)
+	{
+		TTypedElementOwnerScopedAccess<FSMInstanceElementData> SMInstanceElement = GSMInstanceElementOwnerStore.FindElementOwner(SMInstanceElementId);
+
+		if (SMInstanceElement)
+		{
+			return SMInstanceElement->AcquireHandle();
+		}
+	}
+
+	return FTypedElementHandle();
+}
+
 void UEngineElementsLibrary::ReplaceEditorSMInstanceElementHandles(const TMap<FSMInstanceId, FSMInstanceId>& ReplacementSMInstanceIds)
 {
 	TMap<FSMInstanceElementId, FSMInstanceElementId> PotentialSMInstanceReplacements;

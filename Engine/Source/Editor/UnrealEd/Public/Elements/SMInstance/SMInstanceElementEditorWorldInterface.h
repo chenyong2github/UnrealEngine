@@ -17,4 +17,6 @@ public:
 	virtual bool CanDuplicateElement(const FTypedElementHandle& InElementHandle) override;
 	virtual FTypedElementHandle DuplicateElement(const FTypedElementHandle& InElementHandle, UWorld* InWorld, const FVector& InLocationOffset) override;
 	virtual void DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements) override;
+	virtual bool CanPromoteElement(const FTypedElementHandle& InElementHandle) override;
+	virtual FTypedElementHandle PromoteElement(const FTypedElementHandle& InElementHandle, UWorld* OverrideWorld /* = nullptr */) override;
 };
