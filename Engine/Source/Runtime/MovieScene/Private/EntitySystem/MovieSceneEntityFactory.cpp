@@ -49,6 +49,7 @@ void FChildEntityFactory::Apply(UMovieSceneEntitySystemLinker* Linker, FEntityAl
 
 	int32 CurrentParentOffset = 0;
 	const FEntityAllocation* ParentAllocation = ParentAllocationProxy.GetAllocation();
+	FEntityAllocationWriteContext WriteContext = FEntityAllocationWriteContext::NewAllocation();
 
 	// We attempt to allocate all the linker entities contiguously in memory for efficient initialization,
 	// but we may reach capacity constraints within allocations so we may have to run the factories more than once
@@ -62,10 +63,23 @@ void FChildEntityFactory::Apply(UMovieSceneEntitySystemLinker* Linker, FEntityAl
 
 		CurrentEntityOffsets = MakeArrayView(ParentEntityOffsets.GetData() + CurrentParentOffset, NumAdded);
 
-		Linker->EntityManager.InitializeChildAllocation(ParentType, DerivedEntityType, ParentAllocation, CurrentEntityOffsets, ChildRange);
+		if (TOptionalComponentWriter<FMovieSceneEntityID> ParentEntityIDs =
+			ChildRange.Allocation->TryWriteComponents(FBuiltInComponentTypes::Get()->ParentEntity, WriteContext))
+		{
+			TArrayView<const FMovieSceneEntityID> ParentIDs = ParentAllocation->GetEntityIDs();
+			for (int32 Index = 0; Index < ChildRange.Num; ++Index)
+			{
+				const int32 ParentIndex = CurrentEntityOffsets[Index];
+				const int32 ChildIndex  = ChildRange.ComponentStartOffset + Index;
 
-		// Important: This must go after Linker->EntityManager.InitializeChildAllocation so that we know that parent entity IDs are initialized correctly
+				ParentEntityIDs[ChildIndex] = ParentIDs[ParentIndex];
+			}
+		}
+
+		// Initialize the bound objects before we call child initializers
 		InitializeAllocation(Linker, ParentType, DerivedEntityType, ParentAllocation, CurrentEntityOffsets, ChildRange);
+
+		Linker->EntityManager.InitializeChildAllocation(ParentType, DerivedEntityType, ParentAllocation, CurrentEntityOffsets, ChildRange);
 
 		CurrentParentOffset += NumAdded;
 	}

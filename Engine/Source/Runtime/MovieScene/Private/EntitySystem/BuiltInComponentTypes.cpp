@@ -192,29 +192,9 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->Factories.DuplicateChildComponent(PropertyBinding);
 	ComponentRegistry->Factories.DuplicateChildComponent(HierarchicalBias);
 
-	// Children always need a Parent
+	// Children always need a Parent - these are initialized by the tasks that create them
 	{
-		struct FParentEntityInitializer : TChildEntityInitializer<FMovieSceneEntityID, FMovieSceneEntityID>
-		{
-			explicit FParentEntityInitializer(TComponentTypeID<FMovieSceneEntityID> ParentEntity)
-				: TChildEntityInitializer(TComponentTypeID<FMovieSceneEntityID>(), ParentEntity)
-			{}
-
-			virtual void Run(const FEntityRange& ChildRange, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets) override
-			{
-				TArrayView<const FMovieSceneEntityID> ParentIDs       = ParentAllocation->GetEntityIDs();
-				TComponentWriter<FMovieSceneEntityID> ChildComponents = GetChildComponents(ChildRange.Allocation);
-
-				for (int32 Index = 0; Index < ChildRange.Num; ++Index)
-				{
-					const int32 ParentIndex = ParentAllocationOffsets[Index];
-					const int32 ChildIndex  = ChildRange.ComponentStartOffset + Index;
-
-					ChildComponents[ChildIndex] = ParentIDs[ParentIndex];
-				}
-			}
-		};
-		ComponentRegistry->Factories.DefineChildComponent(FParentEntityInitializer(ParentEntity));
+		ComponentRegistry->Factories.DefineChildComponent(FComponentTypeID::Invalid(), ParentEntity);
 	}
 	
 	// Bool channel relationships
