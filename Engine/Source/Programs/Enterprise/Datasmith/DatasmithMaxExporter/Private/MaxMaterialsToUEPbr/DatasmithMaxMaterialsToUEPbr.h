@@ -101,28 +101,39 @@ class FDatasmithMaxMaterialsToUEPbrExpressions: public FDatasmithMaxMaterialsToU
 public:
 	TSharedPtr<IDatasmithUEPbrMaterialElement> GetMaterialElement();
 
-	IDatasmithMaterialExpressionScalar& Scalar(float Value);
-
-	IDatasmithMaterialExpressionColor& Color(const FLinearColor& Value);
+	// Specify ParameterName to have constant exposed as material parameter
+	IDatasmithMaterialExpression& Scalar(float Value, const TCHAR* ParameterName=nullptr);
+	IDatasmithMaterialExpression& Color(const FLinearColor& Value, const TCHAR* ParameterName=nullptr);
 
 	IDatasmithMaterialExpression* WeightTextureOrScalar(const DatasmithMaxTexmapParser::FMapParameter& TextureWeight, float Weight);
 
-	IDatasmithMaterialExpressionGeneric& Add(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+	IDatasmithMaterialExpression& Add(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+	IDatasmithMaterialExpression& Add(IDatasmithMaterialExpression& A, float B);
 
-	IDatasmithMaterialExpressionGeneric& Subtract(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+	IDatasmithMaterialExpression& Subtract(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+	IDatasmithMaterialExpression& Subtract(IDatasmithMaterialExpression& A, float B);
 
-	IDatasmithMaterialExpressionGeneric& Multiply(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+	IDatasmithMaterialExpression& Multiply(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+	IDatasmithMaterialExpression& Multiply(IDatasmithMaterialExpression& A, float B);
 
-	IDatasmithMaterialExpressionGeneric& Divide(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+	IDatasmithMaterialExpression& Divide(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
 
-	IDatasmithMaterialExpressionGeneric& Desaturate(IDatasmithMaterialExpression& A);
+	IDatasmithMaterialExpression& Desaturate(IDatasmithMaterialExpression& A);
 
-	IDatasmithMaterialExpressionGeneric& Power(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+	IDatasmithMaterialExpression& Power(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B);
+	IDatasmithMaterialExpression& Power(IDatasmithMaterialExpression& A, float Exp);
 
-	IDatasmithMaterialExpressionGeneric& Lerp(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B, IDatasmithMaterialExpression& Alpha);
+	IDatasmithMaterialExpression& Lerp(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B, IDatasmithMaterialExpression& Alpha);
 
-	IDatasmithMaterialExpressionGeneric& Fresnel(IDatasmithMaterialExpression* Exponent=nullptr, IDatasmithMaterialExpression* BaseReflectFraction=nullptr); // Any input can be null
+	IDatasmithMaterialExpression& Fresnel(IDatasmithMaterialExpression* Exponent=nullptr, IDatasmithMaterialExpression* BaseReflectFraction=nullptr); // Any input can be null
 
+	IDatasmithMaterialExpression& PathTracingQualitySwitch(IDatasmithMaterialExpression& Normal, IDatasmithMaterialExpression& PathTraced);
+
+	IDatasmithMaterialExpression* BlendTexmapWithColor(const DatasmithMaxTexmapParser::FMapParameter& Texmap, const FLinearColor& InColor, const TCHAR* ColorName = nullptr, const TCHAR* WeightName = nullptr);
+	IDatasmithMaterialExpression* BlendTexmapWithScalar(const DatasmithMaxTexmapParser::FMapParameter& Texmap, float InScalar, const TCHAR* ScalarName = nullptr, const TCHAR* WeightName = nullptr);
+
+	// Multiply RGB without multiplying A
+	FLinearColor ScaleRGB(const FLinearColor& C, const float X) { return C * FLinearColor(X, X, X);}
 
 	IDatasmithMaterialExpression* ApplyWeightExpression(IDatasmithMaterialExpression* ValueExpression, IDatasmithMaterialExpression* WeightExpression);
 
@@ -138,7 +149,7 @@ public:
 	IDatasmithMaterialExpression* TextureOrScalar(const TCHAR* Name,
 	                                              const DatasmithMaxTexmapParser::FMapParameter& Map, float Value);
 
-	IDatasmithMaterialExpressionGeneric& OneMinus(IDatasmithMaterialExpression& Expression);
+	IDatasmithMaterialExpression& OneMinus(IDatasmithMaterialExpression& Expression);
 };
 
 // Utility macros to simplify material expression composition:

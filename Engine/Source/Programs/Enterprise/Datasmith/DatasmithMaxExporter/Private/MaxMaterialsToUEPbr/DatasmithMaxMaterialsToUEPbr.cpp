@@ -76,6 +76,11 @@ FDatasmithMaxMaterialsToUEPbr* FDatasmithMaxMaterialsToUEPbrManager::GetMaterial
 		static FDatasmithMaxCoronaLightMaterialToUEPbr CoronaConverter = FDatasmithMaxCoronaLightMaterialToUEPbr();
 		MaterialConverter = &CoronaConverter;
 	}
+	else if ( MaterialClassID == CORONAPHYSICALMTLCLASS )
+	{
+		static FDatasmithMaxCoronaPhysicalMaterialToUEPbr CoronaConverter = FDatasmithMaxCoronaPhysicalMaterialToUEPbr();
+		MaterialConverter = &CoronaConverter;
+	}
 	else if (MaterialClassID == PHYSICALMATCLASS)
 	{
 		static FDatasmithMaxPhysicalMaterialToUEPbr PhysicalConverter = FDatasmithMaxPhysicalMaterialToUEPbr();

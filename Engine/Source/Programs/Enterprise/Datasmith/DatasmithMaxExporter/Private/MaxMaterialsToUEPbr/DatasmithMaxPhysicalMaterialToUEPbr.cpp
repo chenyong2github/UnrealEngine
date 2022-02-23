@@ -21,14 +21,18 @@ TSharedPtr<IDatasmithUEPbrMaterialElement> FDatasmithMaxMaterialsToUEPbrExpressi
 	return ConvertState.MaterialElement;
 }
 
-IDatasmithMaterialExpressionScalar& FDatasmithMaxMaterialsToUEPbrExpressions::Scalar(float Value)
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Scalar(float Value, const TCHAR* ParameterName)
 {
 	IDatasmithMaterialExpressionScalar* ScalarExpression = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	ScalarExpression->GetScalar() = Value;
+	if (ParameterName)
+	{
+		ScalarExpression->SetName(ParameterName);
+	}
 	return *ScalarExpression;
 }
 
-IDatasmithMaterialExpressionColor& FDatasmithMaxMaterialsToUEPbrExpressions::Color(const FLinearColor& Value)
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Color(const FLinearColor& Value, const TCHAR* ParameterName)
 {
 	IDatasmithMaterialExpressionColor* Result = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	Result->GetColor() = Value;
@@ -51,7 +55,7 @@ IDatasmithMaterialExpression* FDatasmithMaxMaterialsToUEPbrExpressions::WeightTe
 	return nullptr;
 }
 
-IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::Add(IDatasmithMaterialExpression& A,
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Add(IDatasmithMaterialExpression& A,
 	IDatasmithMaterialExpression& B)
 {
 	IDatasmithMaterialExpressionGeneric* Result = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
@@ -62,7 +66,12 @@ IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::A
 	return *Result;
 }
 
-IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::Subtract(IDatasmithMaterialExpression& A,
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Add(IDatasmithMaterialExpression& A, float B)
+{
+	return Add(A, Scalar(B));
+}
+
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Subtract(IDatasmithMaterialExpression& A,
 	IDatasmithMaterialExpression& B)
 {
 	IDatasmithMaterialExpressionGeneric* Result = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
@@ -73,7 +82,12 @@ IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::S
 	return *Result;
 }
 
-IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::Multiply(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B)
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Subtract(IDatasmithMaterialExpression& A, float B)
+{
+	return Subtract(A, Scalar(B));
+}
+
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Multiply(IDatasmithMaterialExpression& A, IDatasmithMaterialExpression& B)
 {
 	IDatasmithMaterialExpressionGeneric* Result = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	Result->SetExpressionName(TEXT("Multiply"));
@@ -83,7 +97,12 @@ IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::M
 	return *Result;
 }
 
-IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::Divide(IDatasmithMaterialExpression& A,
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Multiply(IDatasmithMaterialExpression& A, float B)
+{
+	return Multiply(A, Scalar(B));
+}
+
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Divide(IDatasmithMaterialExpression& A,
 	IDatasmithMaterialExpression& B)
 {
 	IDatasmithMaterialExpressionGeneric* Result = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
@@ -94,7 +113,7 @@ IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::D
 	return *Result;
 }
 
-IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::Desaturate(IDatasmithMaterialExpression& A)
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Desaturate(IDatasmithMaterialExpression& A)
 {
 	IDatasmithMaterialExpressionGeneric* Result = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	Result->SetExpressionName(TEXT("Desaturation"));
@@ -103,7 +122,7 @@ IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::D
 	return *Result;
 }
 
-IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::Power(IDatasmithMaterialExpression& A,
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Power(IDatasmithMaterialExpression& A,
 	IDatasmithMaterialExpression& B)
 {
 	IDatasmithMaterialExpressionGeneric* Result = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
@@ -114,7 +133,22 @@ IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::P
 	return *Result;
 }
 
-IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::Lerp(IDatasmithMaterialExpression& A,
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Power(IDatasmithMaterialExpression& A, float Exp)
+{
+	TSharedRef<IDatasmithKeyValueProperty> ExpProperty = FDatasmithSceneFactory::CreateKeyValueProperty(TEXT("ConstExponent"));
+	ExpProperty->SetPropertyType(EDatasmithKeyValuePropertyType::Float);
+	ExpProperty->SetValue(*LexToString(Exp));
+
+	IDatasmithMaterialExpressionGeneric* Result = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	Result->SetExpressionName(TEXT("Power"));
+
+	A.ConnectExpression(*Result->GetInput(0));
+	Result->AddProperty(ExpProperty);
+	return *Result;
+}
+
+
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Lerp(IDatasmithMaterialExpression& A,
 	IDatasmithMaterialExpression& B, IDatasmithMaterialExpression& Alpha)
 {
 	IDatasmithMaterialExpressionGeneric* Result = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
@@ -126,7 +160,7 @@ IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::L
 	return *Result;
 }
 
-IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::Fresnel(IDatasmithMaterialExpression* Exponent,
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::Fresnel(IDatasmithMaterialExpression* Exponent,
 	IDatasmithMaterialExpression* BaseReflectFraction)
 {
 	IDatasmithMaterialExpressionGeneric* Fresnel = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
@@ -136,6 +170,30 @@ IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::F
 	Connect(*Fresnel->GetInput(1), BaseReflectFraction);
 	return *Fresnel;
 }
+
+
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::PathTracingQualitySwitch(
+	IDatasmithMaterialExpression& Normal, IDatasmithMaterialExpression& PathTraced)
+{
+	IDatasmithMaterialExpressionGeneric* Result = GetMaterialElement()->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	Result->SetExpressionName(TEXT("PathTracingQualitySwitch"));
+
+	Connect(*Result->GetInput(0), Normal);
+	Connect(*Result->GetInput(1), PathTraced);
+	return *Result;
+}
+
+IDatasmithMaterialExpression* FDatasmithMaxMaterialsToUEPbrExpressions::BlendTexmapWithColor(const DatasmithMaxTexmapParser::FMapParameter& Texmap, const FLinearColor& InColor, const TCHAR* ColorName, const TCHAR* WeightName)
+{
+	IDatasmithMaterialExpression* TexmapExpression = ConvertTexmap(Texmap);
+	return TexmapExpression ? &Lerp(Color(InColor, ColorName), *TexmapExpression, Scalar(Texmap.Weight, WeightName)) : nullptr;
+};
+
+IDatasmithMaterialExpression* FDatasmithMaxMaterialsToUEPbrExpressions::BlendTexmapWithScalar(const DatasmithMaxTexmapParser::FMapParameter& Texmap, float InScalar, const TCHAR* ScalarName, const TCHAR* WeightName)
+{
+	IDatasmithMaterialExpression* TexmapExpression = ConvertTexmap(Texmap);
+	return TexmapExpression ? &Lerp(Scalar(InScalar, ScalarName), *TexmapExpression, Scalar(Texmap.Weight, WeightName)) : nullptr;
+};
 
 IDatasmithMaterialExpression* FDatasmithMaxMaterialsToUEPbrExpressions::ApplyWeightExpression(
 	IDatasmithMaterialExpression* ValueExpression, IDatasmithMaterialExpression* WeightExpression)
@@ -181,11 +239,9 @@ IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::CalcIORC
 	IDatasmithMaterialExpression& RpDen = Add(RpDenPre, Scalar(1.0));
 	IDatasmithMaterialExpression& Rp = Divide(RpNum, RpDen);
 
-	IDatasmithMaterialExpression& ResPre = Add(Rp, Rs);
-	IDatasmithMaterialExpression& ResMul = Multiply(ResPre, Scalar(0.5));
-	IDatasmithMaterialExpression& Res = Power(ResMul, Scalar(0.5));
+	IDatasmithMaterialExpression& Res = Multiply(Add(Rp, Rs), Scalar(0.5));
 
-	return Lerp(ToBeConnected0, ToBeConnected90, Res);
+	return Lerp(ToBeConnected0, ToBeConnected90, Power(Res, Scalar(0.5)));
 }
 
 void FDatasmithMaxMaterialsToUEPbrExpressions::Connect(IDatasmithExpressionInput& Input, IDatasmithMaterialExpression& ValueExpression)
@@ -215,7 +271,7 @@ IDatasmithMaterialExpression* FDatasmithMaxMaterialsToUEPbrExpressions::TextureO
 	return FDatasmithMaxTexmapToUEPbrUtils::MapOrValue(this, Map, Name, TOptional<FLinearColor>(), Value);
 }
 
-IDatasmithMaterialExpressionGeneric& FDatasmithMaxMaterialsToUEPbrExpressions::OneMinus(
+IDatasmithMaterialExpression& FDatasmithMaxMaterialsToUEPbrExpressions::OneMinus(
 	IDatasmithMaterialExpression& Expression)
 {
 	IDatasmithMaterialExpressionGeneric* Result = GetMaterialElement()->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();

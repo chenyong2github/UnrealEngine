@@ -701,7 +701,7 @@ IDatasmithMaterialExpression* FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( FData
 				MapWeightLerp->SetExpressionName( TEXT("LinearInterpolate") );
 
 				IDatasmithMaterialExpressionScalar* MapWeight = MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
-				MapWeight->SetName( TEXT("Map Weight") );
+				MapWeight->SetName( *(FString(ParameterName) + TEXT("Map Weight")) );
 				MapWeight->GetScalar() = MapParameter.Weight;
 
 				if ( ValueExpression )

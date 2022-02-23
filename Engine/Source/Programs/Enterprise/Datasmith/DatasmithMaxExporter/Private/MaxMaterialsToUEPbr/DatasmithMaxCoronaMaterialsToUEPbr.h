@@ -4,7 +4,7 @@
 
 #include "DatasmithMaxMaterialsToUEPbr.h"
 
-class FDatasmithMaxCoronaMaterialsToUEPbr : public FDatasmithMaxMaterialsToUEPbr
+class FDatasmithMaxCoronaMaterialsToUEPbr : public FDatasmithMaxMaterialsToUEPbrExpressions
 {
 public:
 	FDatasmithMaxCoronaMaterialsToUEPbr();
@@ -20,7 +20,14 @@ public:
 	virtual void Convert( TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithBaseMaterialElement >& MaterialElement, Mtl* Material, const TCHAR* AssetsPath ) override;
 };
 
-class FDatasmithMaxCoronaLightMaterialToUEPbr : public FDatasmithMaxMaterialsToUEPbrExpressions
+class FDatasmithMaxCoronaLightMaterialToUEPbr : public FDatasmithMaxCoronaMaterialsToUEPbr
+{
+public:
+	virtual bool IsSupported( Mtl* Material ) override;
+	virtual void Convert( TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithBaseMaterialElement >& MaterialElement, Mtl* Material, const TCHAR* AssetsPath ) override;
+};
+
+class FDatasmithMaxCoronaPhysicalMaterialToUEPbr : public FDatasmithMaxCoronaMaterialsToUEPbr
 {
 public:
 	virtual bool IsSupported( Mtl* Material ) override;
