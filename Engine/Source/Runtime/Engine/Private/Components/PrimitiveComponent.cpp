@@ -1491,7 +1491,15 @@ void UPrimitiveComponent::SetOnlyOwnerSee(bool bNewOnlyOwnerSee)
 bool UPrimitiveComponent::ShouldComponentAddToScene() const
 {
 	bool bSceneAdd = USceneComponent::ShouldComponentAddToScene();
-	return bSceneAdd && (ShouldRender() || bCastHiddenShadow || bRayTracingFarField);
+
+#if WITH_EDITOR
+	AActor* Owner = GetOwner();
+	const bool bIsHiddenInEditor = GIsEditor && Owner && Owner->IsHiddenEd();
+#else
+	const bool bIsHiddenInEditor = false;
+#endif
+
+	return bSceneAdd && (ShouldRender() || (bCastHiddenShadow && !bIsHiddenInEditor) || bRayTracingFarField);
 }
 
 bool UPrimitiveComponent::ShouldCreatePhysicsState() const
