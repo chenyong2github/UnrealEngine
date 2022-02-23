@@ -430,6 +430,7 @@ public:
 	FErrorHandlerInterface* Errors = nullptr;
 	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
 	EShaderFrequency ShaderFrequency = SF_Pixel;
+	bool bUseAnalyticDerivatives = false;
 
 	TArray<FEmitShaderNode*> EmitNodes;
 	TMap<const FScope*, FEmitScope*> EmitScopeMap;

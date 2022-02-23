@@ -151,6 +151,7 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 EValueType MakeValueType(EValueType BaseType, int32 NumComponents);
 EValueType MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 RequestedNumComponents);
 EValueType MakeNonLWCType(EValueType Type);
+EValueType MakeDerivativeType(EValueType Type);
 EValueType MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
 EValueType MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
 

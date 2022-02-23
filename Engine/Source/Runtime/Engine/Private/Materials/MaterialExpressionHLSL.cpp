@@ -573,8 +573,35 @@ bool UMaterialExpressionTextureSample::GenerateHLSLExpressionBase(FMaterialHLSLG
 	}
 
 	FExpression* TexCoordExpression = Coordinates.GetTracedInput().Expression ? Coordinates.TryAcquireHLSLExpression(Generator, Scope) : Generator.NewTexCoord(ConstCoordinate);
-	const FExpressionDerivatives TexCoordDerivatives;// = Generator.GetTree().GetAnalyticDerivatives(TexCoordExpression);
-	OutExpression = Generator.GetTree().NewExpression<FExpressionTextureSample>(TextureExpression, TexCoordExpression, TexCoordDerivatives, SamplerSource, MipValueMode);
+	FExpression* MipLevelExpression = nullptr;
+	FExpressionDerivatives TexCoordDerivatives;
+	switch (MipValueMode)
+	{
+	case TMVM_None:
+		TexCoordDerivatives = Generator.GetTree().GetAnalyticDerivatives(TexCoordExpression);
+		break;
+	case TMVM_MipBias:
+	{
+		MipLevelExpression = MipValue.AcquireHLSLExpressionOrConstant(Generator, Scope, ConstMipValue);
+		FExpression* DerivativeScale = Generator.GetTree().NewExp2(MipLevelExpression);
+		TexCoordDerivatives = Generator.GetTree().GetAnalyticDerivatives(TexCoordExpression);
+		TexCoordDerivatives.ExpressionDdx = Generator.GetTree().NewMul(TexCoordDerivatives.ExpressionDdx, DerivativeScale);
+		TexCoordDerivatives.ExpressionDdy = Generator.GetTree().NewMul(TexCoordDerivatives.ExpressionDdy, DerivativeScale);
+		break;
+	}
+	case TMVM_MipLevel:
+		MipLevelExpression = MipValue.AcquireHLSLExpressionOrConstant(Generator, Scope, ConstMipValue);
+		break;
+	case TMVM_Derivative:
+		TexCoordDerivatives.ExpressionDdx = CoordinatesDX.AcquireHLSLExpression(Generator, Scope);
+		TexCoordDerivatives.ExpressionDdy = CoordinatesDY.AcquireHLSLExpression(Generator, Scope);
+		break;
+	default:
+		checkNoEntry();
+		break;
+	}
+	
+	OutExpression = Generator.GetTree().NewExpression<FExpressionTextureSample>(TextureExpression, TexCoordExpression, MipLevelExpression, TexCoordDerivatives, SamplerSource, MipValueMode);
 	return true;
 }
 
@@ -669,9 +696,9 @@ bool UMaterialExpressionFontSample::GenerateHLSLExpression(FMaterialHLSLGenerato
 	const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, ExpectedSamplerType));
 	FExpression* TextureExpression = GenerateHLSLTextureExpression(Generator, TextureValue);
 	FExpression* TexCoordExpression = Generator.NewTexCoord(0);
-	FExpressionDerivatives TexCoordDerivatives;
+	const FExpressionDerivatives TexCoordDerivatives = Generator.GetTree().GetAnalyticDerivatives(TextureExpression);
 
-	OutExpression = Generator.GetTree().NewExpression<FExpressionTextureSample>(TextureExpression, TexCoordExpression, TexCoordDerivatives, SSM_FromTextureAsset, TMVM_None);
+	OutExpression = Generator.GetTree().NewExpression<FExpressionTextureSample>(TextureExpression, TexCoordExpression, nullptr, TexCoordDerivatives, SSM_FromTextureAsset, TMVM_None);
 	return true;
 }
 

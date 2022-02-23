@@ -413,6 +413,7 @@ void FExpressionExternalInput::ComputeAnalyticDerivatives(FTree& Tree, FExpressi
 	}
 	else
 	{
+		const Shader::EValueType DerivativeType = Shader::MakeDerivativeType(InputDesc.Type);
 		switch (InputType)
 		{
 		case EExternalInput::ViewportUV:
@@ -426,6 +427,10 @@ void FExpressionExternalInput::ComputeAnalyticDerivatives(FTree& Tree, FExpressi
 			break;
 		}
 		default:
+			if (DerivativeType != Shader::EValueType::Void)
+			{
+				OutResult.ExpressionDdx = OutResult.ExpressionDdy = Tree.NewConstant(Shader::FValue(DerivativeType));
+			}
 			break;
 		}
 	}
@@ -700,8 +705,16 @@ bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& S
 		return false;
 	}
 
-	Context.PrepareExpression(TexCoordDerivatives.ExpressionDdx, Scope, RequestedTexCoordType);
-	Context.PrepareExpression(TexCoordDerivatives.ExpressionDdy, Scope, RequestedTexCoordType);
+	const bool bUseAnalyticDerivatives = Context.bUseAnalyticDerivatives && (MipValueMode != TMVM_MipLevel) && TexCoordDerivatives.IsValid();
+	if (MipValueMode == TMVM_Derivative || bUseAnalyticDerivatives)
+	{
+		Context.PrepareExpression(TexCoordDerivatives.ExpressionDdx, Scope, RequestedTexCoordType);
+		Context.PrepareExpression(TexCoordDerivatives.ExpressionDdy, Scope, RequestedTexCoordType);
+	}
+	else if (MipValueMode == TMVM_MipLevel || MipValueMode == TMVM_MipBias)
+	{
+		Context.PrepareExpression(MipValueExpression, Scope, ERequestedType::Scalar);
+	}
 
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::EValueType::Float4);
 }
@@ -765,23 +778,39 @@ void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope
 
 	const Shader::EValueType TexCoordType = Private::GetTexCoordType(TextureType);
 	FEmitShaderExpression* TexCoordValue = TexCoordExpression->GetValueShader(Context, Scope, TexCoordType);
-	FEmitShaderExpression* TexCoordValueDdx = nullptr;
-	FEmitShaderExpression* TexCoordValueDdy = nullptr;
+
 	FEmitShaderExpression* TextureResult = nullptr;
-	if (TexCoordDerivatives.IsValid())
+	if (MipValueMode == TMVM_MipLevel)
 	{
-		TexCoordValueDdx = TexCoordDerivatives.ExpressionDdx->GetValueShader(Context, Scope, TexCoordType);
-		TexCoordValueDdy = TexCoordDerivatives.ExpressionDdy->GetValueShader(Context, Scope, TexCoordType);
+		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Level(%.Texture, %, %, %)"),
+			SampleFunctionName,
+			EmitTexture,
+			FormattedSampler.ToString(),
+			TexCoordValue,
+			MipValueExpression->GetValueShader(Context, Scope, Shader::EValueType::Float1));
+	}
+	else if (MipValueMode == TMVM_Derivative || (Context.bUseAnalyticDerivatives && TexCoordDerivatives.IsValid()))
+	{
 		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Grad(%.Texture, %, %, %, %)"),
 			SampleFunctionName,
 			EmitTexture,
 			FormattedSampler.ToString(),
 			TexCoordValue,
-			TexCoordValueDdx,
-			TexCoordValueDdy);
+			TexCoordDerivatives.ExpressionDdx->GetValueShader(Context, Scope, TexCoordType),
+			TexCoordDerivatives.ExpressionDdy->GetValueShader(Context, Scope, TexCoordType));
+	}
+	else if (MipValueMode == TMVM_MipBias)
+	{
+		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%Bias(%.Texture, %, %, %)"),
+			SampleFunctionName,
+			EmitTexture,
+			FormattedSampler.ToString(),
+			TexCoordValue,
+			MipValueExpression->GetValueShader(Context, Scope, Shader::EValueType::Float1));
 	}
 	else
 	{
+		check(MipValueMode == TMVM_None);
 		TextureResult = Context.EmitExpression(Scope, Shader::EValueType::Float4, TEXT("%(%.Texture, %, %)"),
 			SampleFunctionName,
 			EmitTexture,
@@ -973,6 +1002,22 @@ void FExpressionSetStructField::EmitValuePreshader(FEmitContext& Context, FEmitS
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::SetField).Write(Field->ComponentIndex).Write(Field->GetNumComponents());
 	}
 	OutResult.Type = StructType;
+}
+
+void FExpressionSelect::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
+{
+	const FExpressionDerivatives TrueDerivatives = Tree.GetAnalyticDerivatives(TrueExpression);
+	const FExpressionDerivatives FalseDerivatives = Tree.GetAnalyticDerivatives(FalseExpression);
+	OutResult.ExpressionDdx = Tree.NewExpression<FExpressionSelect>(ConditionExpression, TrueDerivatives.ExpressionDdx, FalseDerivatives.ExpressionDdx);
+	OutResult.ExpressionDdy = Tree.NewExpression<FExpressionSelect>(ConditionExpression, TrueDerivatives.ExpressionDdy, FalseDerivatives.ExpressionDdy);
+}
+
+FExpression* FExpressionSelect::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+{
+	return Tree.NewExpression<FExpressionSelect>(
+		Tree.GetPreviousFrame(ConditionExpression, ERequestedType::Scalar),
+		Tree.GetPreviousFrame(TrueExpression, RequestedType),
+		Tree.GetPreviousFrame(FalseExpression, RequestedType));
 }
 
 bool FExpressionSelect::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const

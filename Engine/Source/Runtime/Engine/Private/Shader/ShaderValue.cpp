@@ -33,12 +33,7 @@ FType FType::GetDerivativeType() const
 	}
 
 	check(ValueType != EValueType::Struct);
-	const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
-	if (IsNumericType(TypeDesc.ComponentType))
-	{
-		return MakeValueType(EValueComponentType::Float, TypeDesc.NumComponents);
-	}
-	return EValueType::Void;
+	return MakeDerivativeType(ValueType);
 }
 
 int32 FType::GetNumComponents() const
@@ -734,6 +729,16 @@ EValueType MakeNonLWCType(EValueType Type)
 {
 	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
 	return MakeValueType(MakeNonLWCType(TypeDesc.ComponentType), TypeDesc.NumComponents);
+}
+
+EValueType MakeDerivativeType(EValueType Type)
+{
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
+	if (IsNumericType(TypeDesc.ComponentType))
+	{
+		return MakeValueType(EValueComponentType::Float, TypeDesc.NumComponents);
+	}
+	return EValueType::Void;
 }
 
 EValueType MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage)

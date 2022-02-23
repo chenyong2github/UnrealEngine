@@ -72,6 +72,7 @@ enum class EOperation : uint8
 	Sqrt,
 	Rsqrt,
 	Log2,
+	Exp2,
 	Frac,
 	Floor,
 	Ceil,
