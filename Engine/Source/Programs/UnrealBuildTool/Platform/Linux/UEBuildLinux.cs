@@ -200,27 +200,31 @@ namespace UnrealBuildTool
 
 		public override void ValidateTarget(TargetRules Target)
 		{
-			HashSet<string> Sanitizers = new HashSet<string>();
-			if (Target.LinuxPlatform.bEnableAddressSanitizer)
+			if (!Target.IsNameOverriden())
 			{
-				Sanitizers.Add("A");
-			}
-			if (Target.LinuxPlatform.bEnableThreadSanitizer)
-			{
-				Sanitizers.Add("T");
-			}
-			if (Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
-			{
-				Sanitizers.Add("UB");
-			}
-			if (Target.LinuxPlatform.bEnableMemorySanitizer)
-			{
-				Sanitizers.Add("M");
-			}
+				string? SanitizerSuffix = null;
 
-			if (Sanitizers.Count > 0)
-			{
-				Target.AddNameSuffix($"{string.Join(string.Empty, Sanitizers)}San");
+				if (Target.LinuxPlatform.bEnableAddressSanitizer)
+				{
+					SanitizerSuffix = "ASan";
+				}
+				else if (Target.LinuxPlatform.bEnableThreadSanitizer)
+				{
+					SanitizerSuffix = "TSan";
+				}
+				else if (Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
+				{
+					SanitizerSuffix = "UBSan";
+				}
+				else if (Target.LinuxPlatform.bEnableMemorySanitizer)
+				{
+					SanitizerSuffix = "MSan";
+				}
+
+				if (!String.IsNullOrEmpty(SanitizerSuffix))
+				{
+					Target.Name = Target.Name + "-" + SanitizerSuffix;
+				}
 			}
 
 			if (Target.bAllowLTCG && Target.LinkType != TargetLinkType.Monolithic)
