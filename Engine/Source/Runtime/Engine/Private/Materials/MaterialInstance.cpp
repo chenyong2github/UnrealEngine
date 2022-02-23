@@ -3760,6 +3760,11 @@ float UMaterialInstance::GetOpacityMaskClipValue() const
 	return OpacityMaskClipValue;
 }
 
+bool UMaterialInstance::GetCastDynamicShadowAsMasked() const
+{
+	return bCastDynamicShadowAsMasked;
+}
+
 EBlendMode UMaterialInstance::GetBlendMode() const
 {
 	return BlendMode;
@@ -3792,7 +3797,7 @@ bool UMaterialInstance::IsDitheredLODTransition() const
 
 bool UMaterialInstance::IsMasked() const
 {
-	return GetBlendMode() == EBlendMode::BLEND_Masked;
+	return GetBlendMode() == EBlendMode::BLEND_Masked || (GetBlendMode() == EBlendMode::BLEND_Translucent && GetCastDynamicShadowAsMasked());
 }
 
 USubsurfaceProfile* UMaterialInstance::GetSubsurfaceProfile_Internal() const
