@@ -382,6 +382,8 @@ private:
 	void InitializePollables();
 	void PumpPollables(UE::Cook::FTickStackData& StackData, bool bIsIdle);
 	void PollFlushRenderingCommands();
+	TOptional<FPollable> CreatePollableLLM();
+	TOptional<FPollable> CreatePollableTriggerGC();
 	void PollPackagesPerGC(UE::Cook::FTickStackData& StackData);
 
 public:
