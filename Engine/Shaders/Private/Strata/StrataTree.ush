@@ -84,6 +84,9 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	//  - When coming from non parameter blending, this is equal identity 1 and the operator parsing will continue to correctly weight the BSDF according to the tree.
 	CurrentBSDF.LuminanceWeight = float3(1.0f, 1.0f, 1.0f) * CurrentBSDFCoverage;
 
+	// All BSDF are considered for contribution as the top BSDF can have their coverage dip to 0 and then another BSDF need to be considered for the top layer representation.
+	CurrentBSDF.TopLayerWeight = 1.0f;
+
 	StrataTree.Operators[CurrentBSDF.OperatorIndex].Coverage = CurrentBSDFCoverage;
 	StrataTree.Operators[CurrentBSDF.OperatorIndex].Transmittance = CurrentBSDFTransmittance;
 
@@ -174,6 +177,7 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 }
 
 
+
 #define Op StrataTree.Operators[OpIndex]
 
 void UpdateBSDFWeightAfterVerticalOperatorVisit(
@@ -188,6 +192,9 @@ void UpdateBSDFWeightAfterVerticalOperatorVisit(
 	// Otherise, the BSDF comes from the bottom part so we affect it weights from the gathered top layer coverage/transmittance
 	CurrentBSDF.LuminanceWeight *= 
 		PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTopCoverage) + saturate(Op.VerticalTopCoverage) * Op.VerticalTopTransmittance;
+
+	// If the BSDF is from the bottom, we reduce its contribution according to the top layer coverage only.
+	CurrentBSDF.TopLayerWeight *= PreviousIsInputA ? 1.0 : saturate(1.0f - Op.VerticalTopCoverage);
 
 #endif // STRATA_INLINE_SHADING
 }
@@ -207,6 +214,8 @@ void UpdateBSDFWeightAfterHorizontalOperatorVisit(
 	CurrentBSDF.LuminanceWeight *= Weight;
 	CurrentBSDF.Coverage *= Weight;
 
+	CurrentBSDF.TopLayerWeight *= Weight;
+
 #endif // STRATA_INLINE_SHADING
 }
 
@@ -221,6 +230,8 @@ void UpdateBSDFWeightAfterWeightOperatorVisit(
 	const float Weight = saturate(Op.Weight);
 	CurrentBSDF.LuminanceWeight *= Weight;
 	CurrentBSDF.Coverage *= Weight;
+
+	CurrentBSDF.TopLayerWeight *= Weight;
 
 #endif // STRATA_INLINE_SHADING
 }
