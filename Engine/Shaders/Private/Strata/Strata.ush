@@ -1857,6 +1857,8 @@ void EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF)
 
 void EnableSlabBSDFIsThin(inout FStrataBSDF BSDF)
 {
+	// BSDF_SETISTHIN is already set when creating the Slab.
+	BSDF_SETISSIMPLEVOLUME(BSDF, 0);
 	EnableSlabMFPComputationSpace(BSDF);
 }
 
@@ -2524,10 +2526,6 @@ void PackStrataOut(
 					// Sanitize happening after will clamp values that could have gone above and below valid range.
 					StrataDitherBSDF(BSDF, Dither);
 
-					// Sanitize BSDF in place before it is used and packed out to memory
-					StrataSanitizeBSDF(BSDF);
-
-
 					bool bIsSimpleMaterial = true;
 					bool bIsSingleMaterial = true;
 					switch (BSDF_GETTYPE(BSDF))
@@ -2546,37 +2544,15 @@ void PackStrataOut(
 						// they use the complex pass, as the toplayer data does not contain the full frame basis, only the top normal.
 						bIsSingleMaterial = BSDF_GETHASANISOTROPY(BSDF) == 0 && LuminanceWeightEqualOne;
 
-						// Two sided lighting can only be evalauted on the bottom layer, together with option SSS. Otherwise, the simple volume will be used.
-						const bool bIsThin = BSDF.bIsBottom && BSDF_GETISTHIN(BSDF);
-
-						// We want simple volumetric only if the DMFP input is pluged in, otherwise we avoid storing the DFMP
-						const bool bIsSimpleVolume = !BSDF.bIsBottom && BSDF_GETHASDMFP(BSDF);
-
-						bStrataSubsurfaceEnable = bStrataSubsurfaceEnable || (BSDF_GETHASSSS(BSDF) && BSDF.Coverage > 0.0f && !bIsSimpleVolume);
-
-						if (bIsSimpleVolume)
-						{
-							EnableSlabBSDFSimpleVolumetric(BSDF);
-
-							// Mark the BSDF has not having any SSS through post process.
-							bStrataSubsurfaceEnable = false;
-						}
-
-						if (bIsThin)
-						{
-							EnableSlabBSDFIsThin(BSDF);
-						}
-						else
-						{
-							// If not selected or not possible to have two sided lighting enabled (not bottom layer or SSSProfile is enabled), let's make sure we disable the feature.
-							BSDF_SETISTHIN(BSDF, 0);
-						}
-
 						if (BSDF.bIsTop)
 						{
 							TopLayerCoverage += BSDF.bIsTop ? BSDF.Coverage : 0.0f;
 							TopLayerData.Roughness += BSDF.Coverage * SLAB_ROUGHNESS(BSDF);
 						}
+
+						const bool bIsThin = BSDF_GETISTHIN(BSDF);
+						const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);
+						bStrataSubsurfaceEnable = bStrataSubsurfaceEnable || (BSDF_GETHASSSS(BSDF) && BSDF.Coverage > 0.0f && !bIsSimpleVolume && !bIsThin); // Should it be coverage>0 or any(LuminanceWeight>0) ?
 
 						const bool bSSSMask = !bIsThin && BSDF.bIsBottom;	// SSS and Thin can only be on the bottom layer, so ignoring bIsSimpleVolume here.
 						SetHasSubsurface(StrataPixelHeader, (bSSSMask && BSDF_GETHASSSS(BSDF)));

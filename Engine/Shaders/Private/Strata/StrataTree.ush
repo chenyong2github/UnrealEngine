@@ -1,11 +1,61 @@
 
-
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/ShadingCommon.ush"
 
 #ifndef STRATA_OPAQUE_MATERIAL
 #define STRATA_OPAQUE_MATERIAL 0
 #endif
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Utilities
+
+void PostProcessSlabBeforeLighting(inout FStrataBSDF BSDF)
+{
+	// Two sided lighting can only be evaluated on the bottom layer, together with option SSS. Otherwise, the simple volume will be used.
+	const bool bIsThin = BSDF.bIsBottom && BSDF_GETISTHIN(BSDF);
+
+	// We want simple volumetric only if the DMFP input is pluged in, otherwise we avoid dealing with simple volumetric.
+	// We also do not want to use the simple volumetric path if we are dealing with an opaque material and this slab is not at the bottom.
+	// And when opaque, the bottom layer must be opaque and thus will ahve a solid opaque diffuse color.
+	const bool bIsSimpleVolume = !bIsThin && BSDF_GETHASDMFP(BSDF) && (!STRATA_OPAQUE_MATERIAL || (STRATA_OPAQUE_MATERIAL && !BSDF.bIsBottom));
+
+	if (bIsSimpleVolume)
+	{
+		EnableSlabBSDFSimpleVolumetric(BSDF);
+	}
+
+	if (bIsThin)
+	{
+		EnableSlabBSDFIsThin(BSDF);
+	}
+	else
+	{
+		// If not selected or not possible to have two sided lighting enabled (not bottom layer or SSSProfile is enabled), let's make sure we disable the feature.
+		BSDF_SETISTHIN(BSDF, 0);
+	}
+}
+
+void PostProcessBSDFBeforeLighting(inout FStrataBSDF BSDF)
+{
+	// Sanitize BSDF before it is used for forward shading
+	StrataSanitizeBSDF(BSDF);
+
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB:
+	{
+		PostProcessSlabBeforeLighting(BSDF);
+		break;
+	}
+	}
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Tree processing functions
 
 void UpdateSingleBSDFOperatorCoverageTransmittance(
 	FStrataPixelHeader StrataPixelHeader,
@@ -17,22 +67,9 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	float3 L
 )
 {
-	// Sanitize BSDF before it is used for forward shading
-	StrataSanitizeBSDF(CurrentBSDF);
+#if STRATA_INLINE_SHADING
 
-	BRANCH
-	if (BSDF_GETTYPE(CurrentBSDF) == STRATA_BSDF_TYPE_SLAB)
-	{
-		// We want simple volumetric only if the DMFP input is pluged in, otherwise we avoid dealing with simple volumetric.
-		// We also do not want to use the simple volumetric path if we are dealing with an opaque material and this slab is not at the bottom.
-		// And when opaque, the bottom layer must be opaque and thus will ahve a solid opaque diffuse color.
-		const bool bIsSimpleVolume = BSDF_GETHASDMFP(CurrentBSDF) && (!STRATA_OPAQUE_MATERIAL || (STRATA_OPAQUE_MATERIAL && !CurrentBSDF.bIsBottom));
-
-		if (bIsSimpleVolume)
-		{
-			EnableSlabBSDFSimpleVolumetric(CurrentBSDF);
-		}
-	}
+	PostProcessBSDFBeforeLighting(CurrentBSDF);
 
 	// Compute current BSDF transmittance
 	FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
@@ -49,11 +86,15 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 
 	StrataTree.Operators[CurrentBSDF.OperatorIndex].Coverage = CurrentBSDFCoverage;
 	StrataTree.Operators[CurrentBSDF.OperatorIndex].Transmittance = CurrentBSDFTransmittance;
+
+#endif // STRATA_INLINE_SHADING
 }
 
 
 void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int OpIndex)
 {
+#if STRATA_INLINE_SHADING
+
 #define Op StrataTree.Operators[OpIndex]
 #define OpA StrataTree.Operators[StrataTree.Operators[OpIndex].LeftIndex]
 #define OpB StrataTree.Operators[StrataTree.Operators[OpIndex].RightIndex]
@@ -128,6 +169,8 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 #undef Op
 #undef OpA
 #undef OpB
+
+#endif // STRATA_INLINE_SHADING
 }
 
 
@@ -139,10 +182,14 @@ void UpdateBSDFWeightAfterVerticalOperatorVisit(
 	int OpIndex,
 	int PreviousIsInputA)
 {
+#if STRATA_INLINE_SHADING
+
 	// PreviousIsInputA > 0 means it is a BSDF affecting the top layer so we do not affect it by anything for this vertical layering.
 	// Otherise, the BSDF comes from the bottom part so we affect it weights from the gathered top layer coverage/transmittance
 	CurrentBSDF.LuminanceWeight *= 
 		PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTopCoverage) + saturate(Op.VerticalTopCoverage) * Op.VerticalTopTransmittance;
+
+#endif // STRATA_INLINE_SHADING
 }
 
 void UpdateBSDFWeightAfterHorizontalOperatorVisit(
@@ -151,14 +198,16 @@ void UpdateBSDFWeightAfterHorizontalOperatorVisit(
 	int OpIndex,
 	int PreviousIsInputA)
 {
+#if STRATA_INLINE_SHADING
+
 	const float Mix = saturate(Op.Weight);
 	const float AMix = 1.0 - Mix;
 	const float BMix = Mix;
 	const float Weight = PreviousIsInputA > 0 ? AMix : BMix;
 	CurrentBSDF.LuminanceWeight *= Weight;
-#if STRATA_INLINE_SHADING
 	CurrentBSDF.Coverage *= Weight;
-#endif
+
+#endif // STRATA_INLINE_SHADING
 }
 
 void UpdateBSDFWeightAfterWeightOperatorVisit(
@@ -167,15 +216,21 @@ void UpdateBSDFWeightAfterWeightOperatorVisit(
 	int OpIndex,
 	int PreviousIsInputA)
 {
+#if STRATA_INLINE_SHADING
+
 	const float Weight = saturate(Op.Weight);
 	CurrentBSDF.LuminanceWeight *= Weight;
-#if STRATA_INLINE_SHADING
 	CurrentBSDF.Coverage *= Weight;
-#endif
+
+#endif // STRATA_INLINE_SHADING
 }
 
 #undef Op
 
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Legacy materials conversion
 
 void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, bool bRoughDiffuseEnabled, FStrataAddressing NullStrataAddressing, float3 V, float3 NullLightDir)
 {

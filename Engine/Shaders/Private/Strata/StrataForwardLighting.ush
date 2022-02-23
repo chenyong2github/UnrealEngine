@@ -293,7 +293,6 @@ float3 StrataForwardLighting(
 
 			if (StrataIsBSDFVisible(CurrentBSDF))
 			{
-
 				// Compute current BSDF transmittance
 				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
 			

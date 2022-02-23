@@ -142,20 +142,6 @@ void Main(
 		{
 		#define BSDF StrataTree.BSDFs[BSDFIdx]
 
-			// Sanitize BSDF before it is used for forward shading
-			StrataSanitizeBSDF(BSDF);
-
-			BRANCH
-			if (BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_SLAB)
-			{
-				// We want simple volumetric only if the DMFP input is pluged in, otherwise we avoid dealing with simple volumetric
-				const bool bIsSimpleVolume = BSDF_GETHASDMFP(BSDF);
-				if (bIsSimpleVolume)
-				{
-					EnableSlabBSDFSimpleVolumetric(BSDF);
-				}
-			}
-
 			const float BSDFCoverage = BSDF.Coverage;
 
 			// Create the BSDF context
