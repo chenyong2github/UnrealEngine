@@ -1494,60 +1494,63 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 
 			UBlueprint* BP = CompilerData.BP;
 
-			if (!CompilerData.IsSkeletonOnly())
+			// Ensure that delegate nodes/pins conform to compiled function names/signatures. In general,
+			// these will rely on the skeleton class, so we must also include it for a skeleton-only pass.
+			FBlueprintEditorUtils::UpdateDelegatesInBlueprint(BP);
+
+			// These are post-compile validations that generally rely on a fully-generated up-to-date class,
+			// so we defer it on skeleton-only passes as well as during compile-on-load, where it's generally
+			// going to be handled during the PostLoad() phase after all dependencies have been loaded/compiled.
+			if (!CompilerData.IsSkeletonOnly() && !BP->bIsRegeneratingOnLoad && BP->GeneratedClass)
 			{
-				FBlueprintEditorUtils::UpdateDelegatesInBlueprint(BP);
-				if (!BP->bIsRegeneratingOnLoad && BP->GeneratedClass)
+				FKismetEditorUtilities::StripExternalComponents(BP);
+
+				if (BP->SimpleConstructionScript)
 				{
-					FKismetEditorUtilities::StripExternalComponents(BP);
+					BP->SimpleConstructionScript->FixupRootNodeParentReferences();
+				}
 
-					if (BP->SimpleConstructionScript)
+				if (BP->Status != BS_Error)
+				{
+					if (CompilerData.Compiler.IsValid())
 					{
-						BP->SimpleConstructionScript->FixupRootNodeParentReferences();
-					}
+						// Route through the compiler context in order to perform type-specific Blueprint class validation.
+						CompilerData.Compiler->ValidateGeneratedClass(CastChecked<UBlueprintGeneratedClass>(BP->GeneratedClass));
 
-					if (BP->Status != BS_Error)
-					{
-						if (CompilerData.Compiler.IsValid())
+						if (CompilerData.ShouldValidateClassDefaultObject())
 						{
-							// Route through the compiler context in order to perform type-specific Blueprint class validation.
-							CompilerData.Compiler->ValidateGeneratedClass(CastChecked<UBlueprintGeneratedClass>(BP->GeneratedClass));
-
-							if (CompilerData.ShouldValidateClassDefaultObject())
+							// Our CDO should be properly constructed by this point and should always exist
+							UObject* ClassDefaultObject = BP->GeneratedClass->GetDefaultObject(false);
+							if (ensureAlways(ClassDefaultObject))
 							{
-								// Our CDO should be properly constructed by this point and should always exist
-								UObject* ClassDefaultObject = BP->GeneratedClass->GetDefaultObject(false);
-								if (ensureAlways(ClassDefaultObject))
+								FKismetCompilerUtilities::ValidateEnumProperties(ClassDefaultObject, *CompilerData.ActiveResultsLog);
+
+								// Make sure any class-specific validation passes on the CDO
+								TArray<FText> ValidationErrors;
+								EDataValidationResult ValidateCDOResult = ClassDefaultObject->IsDataValid(/*out*/ ValidationErrors);
+								if (ValidateCDOResult == EDataValidationResult::Invalid)
 								{
-									FKismetCompilerUtilities::ValidateEnumProperties(ClassDefaultObject, *CompilerData.ActiveResultsLog);
+									for (const FText& ValidationError : ValidationErrors)
+									{
+										CompilerData.ActiveResultsLog->Error(*ValidationError.ToString());
+									}
+								}
 
-									// Make sure any class-specific validation passes on the CDO
-									TArray<FText> ValidationErrors;
-									EDataValidationResult ValidateCDOResult = ClassDefaultObject->IsDataValid(/*out*/ ValidationErrors);
-									if (ValidateCDOResult == EDataValidationResult::Invalid)
-									{
-										for (const FText& ValidationError : ValidationErrors)
-										{
-											CompilerData.ActiveResultsLog->Error(*ValidationError.ToString());
-										}
-									}
-
-									// Adjust Blueprint status to match anything new that was found during validation.
-									if (CompilerData.ActiveResultsLog->NumErrors > 0)
-									{
-										BP->Status = BS_Error;
-									}
-									else if (BP->Status == BS_UpToDate && CompilerData.ActiveResultsLog->NumWarnings > 0)
-									{
-										BP->Status = BS_UpToDateWithWarnings;
-									}
+								// Adjust Blueprint status to match anything new that was found during validation.
+								if (CompilerData.ActiveResultsLog->NumErrors > 0)
+								{
+									BP->Status = BS_Error;
+								}
+								else if (BP->Status == BS_UpToDate && CompilerData.ActiveResultsLog->NumWarnings > 0)
+								{
+									BP->Status = BS_UpToDateWithWarnings;
 								}
 							}
 						}
-						else
-						{
-							UBlueprint::ValidateGeneratedClass(BP->GeneratedClass);
-						}
+					}
+					else
+					{
+						UBlueprint::ValidateGeneratedClass(BP->GeneratedClass);
 					}
 				}
 			}
