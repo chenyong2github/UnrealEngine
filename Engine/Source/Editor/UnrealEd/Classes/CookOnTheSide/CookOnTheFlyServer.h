@@ -153,6 +153,8 @@ public:
 		bool bBindAnyPort = false;
 		/** Whether to save the cooked output to the Zen storage server. */
 		bool bZenStore = false;
+		/** Whether the network file server should use a platform-specific communication protocol instead of TCP (used when bZenStore == false) */
+		bool bPlatformProtocol = false;
 		/** Target platforms */
 		TArray<ITargetPlatform*> TargetPlatforms;
 	};

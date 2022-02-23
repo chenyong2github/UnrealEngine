@@ -107,6 +107,9 @@ enum class ETargetPlatformFeatures
 
 	/* The platform makes use of extra cook-time file region metadata in its packaging process. */
 	CookFileRegionMetadata,
+
+	/** The platform supports communication (reading and writing data) between a target a connected PC. */
+	DirectDataExchange,
 };
 
 enum class EPlatformAuthentication

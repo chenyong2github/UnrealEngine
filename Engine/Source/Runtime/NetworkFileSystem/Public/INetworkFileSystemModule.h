@@ -65,6 +65,14 @@ enum ENetworkFileServerProtocol
 {
 	NFSP_Tcp,
 	NFSP_Http,
+
+	/**
+	 * Platform-specific type of connection between a target device and a host pc.
+	 * 
+	 * It potentially offers performance benefits compared to generic networking protocols but is
+	 * supported by only some of the platforms.
+	 */
+	NFSP_Platform,
 };
 
 // Network file server options

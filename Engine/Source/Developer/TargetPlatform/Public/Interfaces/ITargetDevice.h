@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Interfaces/TargetDeviceId.h"
+#include "Interfaces/ITargetDeviceSocket.h"
 
 class ITargetDevice;
 class ITargetDeviceOutput;
@@ -397,6 +398,42 @@ public:
 	{
 		return ExecuteConsoleCommand(TEXT("ReloadGlobalShaders"));
 	}
+
+	/**
+	 * Opens a direct connection with the device allowing data exchange with a process running on the target.
+	 * 
+	 * ProtocolIndex is a number that identifies the connection and has to be know both to the target
+	 * process and the PC. There can be only one connection using a given protocol index at a time.
+	 * 
+	 * You may check EHostProtocol enumeration for known protocols used by the engine.
+	 * 
+	 * This function just opens a communication channel but doesn't check if there is a peer
+	 * on the other end of the connection. To know this, you should either check IsProtocolAvailable
+	 * or ITargetDeviceSocket::Connected.
+	 * 
+	 * @param ProtocolIndex Unique index of the communication channel (from 0 to a platform-dependent maximum).
+	 * @return Socket object on success, nullptr otherwise.
+	 * @see CloseSocket, EHostProtocol, IsProtocolAvailable, ITargetDeviceSocket::Connected
+	 */
+	virtual ITargetDeviceSocketPtr OpenConnection(uint32 ProtocolIndex)	{ return nullptr; }
+
+	/**
+	 * Closes a previously opened connection with a process on the target.
+	 * 
+	 * @param Socket Socket object returned by OpenSocket.
+	 * @see OpenSocket
+	 */
+	virtual void CloseConnection(ITargetDeviceSocketPtr Socket)			{ }
+
+	/**
+	 * Checks if connections using the given ProtocolIndex are available for this device at the moment.
+	 * If this function returns true, it means that OpenConnection should succeed and communication
+	 * with a game running on the target should be possible.
+	 * 
+	 * @param ProtocolIndex Unique index of the communication channel (from 0 to a platform-dependent maximum).
+	 * @return True if the protocol is available and we can connect to the device, false otherwise.
+	 */
+	virtual bool IsProtocolAvailable(uint32 ProtocolIndex) const		{ return false; }
 
 public:
 

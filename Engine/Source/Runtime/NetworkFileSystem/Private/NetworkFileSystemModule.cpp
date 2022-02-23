@@ -7,6 +7,7 @@
 #include "NetworkFileSystemLog.h"
 #include "NetworkFileServer.h"
 #include "NetworkFileServerHttp.h"
+#include "NetworkFileServerPlatformProtocol.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 
 
@@ -60,6 +61,9 @@ public:
 #endif
 		case NFSP_Tcp:
 			return new FNetworkFileServer(MoveTemp(FileServerOptions));
+
+		case NFSP_Platform:
+			return new FNetworkFileServerPlatformProtocol(MoveTemp(FileServerOptions));
 		}
  
 		return nullptr;

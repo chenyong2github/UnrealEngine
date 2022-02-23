@@ -525,7 +525,7 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 	else
 	{
 		FNetworkFileServerOptions ServerOptions;
-		ServerOptions.Protocol = NFSP_Tcp;
+		ServerOptions.Protocol = CookOnTheFlyOptions.bPlatformProtocol ? NFSP_Platform : NFSP_Tcp;
 		ServerOptions.Port = CookOnTheFlyOptions.bBindAnyPort ? 0 : -1;
 		CookOnTheFlyRequestManager = UE::Cook::MakeNetworkFileCookOnTheFlyRequestManager(*CookOnTheFlyServerInterface, MoveTemp(ServerOptions));
 	}
