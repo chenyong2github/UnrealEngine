@@ -36,11 +36,6 @@ namespace UnrealBuildTool.Rules
 					"USDUtilities",
 				}
 			);
-
-			if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-			{
-				PublicDefinitions.Add("UE_TRACE_ENABLED=1");
-			}
 		}
 	}
 }
