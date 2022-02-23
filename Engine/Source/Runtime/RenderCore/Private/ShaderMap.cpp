@@ -616,7 +616,12 @@ uint32 FShaderMapContent::GetMaxNumInstructionsForShader(const FShaderMapBase& I
 		FShader* PipelineShader = Pipeline->GetShader(ShaderType->GetFrequency());
 		if (PipelineShader)
 		{
-			MaxNumInstructions = FMath::Max(MaxNumInstructions, PipelineShader->GetNumInstructions());
+			const FShaderType* PipelineShaderType = PipelineShader->GetType(InShaderMap.GetPointerTable());
+			if (PipelineShaderType &&
+				(PipelineShaderType == ShaderType))
+			{
+				MaxNumInstructions = FMath::Max(MaxNumInstructions, PipelineShader->GetNumInstructions());
+			}
 		}
 	}
 
