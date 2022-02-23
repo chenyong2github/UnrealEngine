@@ -646,13 +646,13 @@ void FComputeKernelShaderMap::Register(EShaderPlatform InShaderPlatform)
 void FComputeKernelShaderMap::AddRef()
 {
 	check(!bDeletedThroughDeferredCleanup);
-	++NumRefs;
+	FPlatformAtomics::InterlockedIncrement(&NumRefs);
 }
 
 void FComputeKernelShaderMap::Release()
 {
 	check(NumRefs > 0);
-	if(--NumRefs == 0)
+	if(FPlatformAtomics::InterlockedDecrement(&NumRefs) == 0)
 	{
 		if (bRegistered)
 		{
