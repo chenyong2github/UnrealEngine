@@ -23,6 +23,7 @@ SMediaPlayerEditorOutput::SMediaPlayerEditorOutput()
 	: MediaPlayer(nullptr)
 	, MediaTexture(nullptr)
 	, SoundComponent(nullptr)
+	, bIsOurMediaTexture(false)
 { }
 
 
@@ -34,10 +35,15 @@ SMediaPlayerEditorOutput::~SMediaPlayerEditorOutput()
 		MediaPlayer.Reset();
 	}
 
-	if (MediaTexture != nullptr)
+	// Did we create the media texture?
+	if (bIsOurMediaTexture)
 	{
-		MediaTexture->RemoveFromRoot();
-		MediaTexture = nullptr;
+		bIsOurMediaTexture = false;
+		if (MediaTexture != nullptr)
+		{
+			MediaTexture->RemoveFromRoot();
+			MediaTexture = nullptr;
+		}
 	}
 
 	if (SoundComponent != nullptr)
@@ -54,7 +60,8 @@ SMediaPlayerEditorOutput::~SMediaPlayerEditorOutput()
 /* SMediaPlayerEditorOutput interface
  *****************************************************************************/
 
-void SMediaPlayerEditorOutput::Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer)
+void SMediaPlayerEditorOutput::Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer,
+	UMediaTexture* InMediaTexture)
 {
 	MediaPlayer = &InMediaPlayer;
 
@@ -73,15 +80,25 @@ void SMediaPlayerEditorOutput::Construct(const FArguments& InArgs, UMediaPlayer&
 		}
 	}
 
-	// create media texture
-	MediaTexture = NewObject<UMediaTexture>(GetTransientPackage(), NAME_None, RF_Transient | RF_Public);
-
-	if (MediaTexture != nullptr)
+	// Did we get media texture passed in?
+	if (InMediaTexture != nullptr)
 	{
-		MediaTexture->AutoClear = true;
-		MediaTexture->SetMediaPlayer(&InMediaPlayer);
-		MediaTexture->UpdateResource();
-		MediaTexture->AddToRoot();
+		MediaTexture = InMediaTexture;
+		bIsOurMediaTexture = false;
+	}
+	else
+	{
+		// create media texture
+		MediaTexture = NewObject<UMediaTexture>(GetTransientPackage(), NAME_None, RF_Transient | RF_Public);
+		bIsOurMediaTexture = true;
+
+		if (MediaTexture != nullptr)
+		{
+			MediaTexture->AutoClear = true;
+			MediaTexture->SetMediaPlayer(&InMediaPlayer);
+			MediaTexture->UpdateResource();
+			MediaTexture->AddToRoot();
+		}
 	}
 
 	TSharedRef<SMediaImage> MediaImage = SNew(SMediaImage, MediaTexture)

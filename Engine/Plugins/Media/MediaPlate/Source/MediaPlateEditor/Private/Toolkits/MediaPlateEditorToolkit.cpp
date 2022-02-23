@@ -7,6 +7,7 @@
 #include "EditorReimportHandler.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "MediaPlate.h"
+#include "MediaPlateEditorModule.h"
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
 #include "Models/MediaPlateEditorCommands.h"
@@ -90,6 +91,13 @@ void FMediaPlateEditorToolkit::Initialize(AMediaPlate* InMediaPlate, const ETool
 	
 	ExtendToolBar();
 	RegenerateMenusAndToolbars();
+
+	// Tell the editor module that this media plate is playing.
+	FMediaPlateEditorModule* EditorModule = FModuleManager::LoadModulePtr<FMediaPlateEditorModule>("MediaPlateEditor");
+	if (EditorModule != nullptr)
+	{
+		EditorModule->MediaPlateStartedPlayback(MediaPlate);
+	}
 }
 
 /* FAssetEditorToolkit interface
@@ -323,10 +331,11 @@ float FMediaPlateEditorToolkit::GetReverseRate() const
 TSharedRef<SDockTab> FMediaPlateEditorToolkit::HandleTabManagerSpawnTab(const FSpawnTabArgs& Args, FName TabIdentifier)
 {
 	UMediaPlayer* MediaPlayer = MediaPlate->GetMediaPlayer();
+	UMediaTexture* MediaTexture = MediaPlate->GetMediaTexture();
 	TSharedPtr<SWidget> TabWidget = SNullWidget::NullWidget;
 	if (TabIdentifier == MediaPlateEditorToolkit::ViewerTabId)
 	{
-		TabWidget = SNew(SMediaPlayerEditorViewer, *MediaPlayer, Style);
+		TabWidget = SNew(SMediaPlayerEditorViewer, *MediaPlayer, MediaTexture, Style);
 	}
 
 	return SNew(SDockTab)

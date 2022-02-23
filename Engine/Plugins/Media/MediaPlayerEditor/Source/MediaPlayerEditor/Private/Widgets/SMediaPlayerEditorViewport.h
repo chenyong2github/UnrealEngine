@@ -7,6 +7,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class UMediaPlayer;
+class UMediaTexture;
 
 
 class SMediaPlayerEditorViewport
@@ -29,9 +30,11 @@ public:
 	 *
 	 * @param InArgs The declaration data for this widget.
 	 * @param InMediaPlayer The UMediaPlayer asset to show the details for.
+	 * @param InMediaTexture The UMediaTexture asset to output video to. If nullptr then use our own.
 	 * @param InStyleSet The style set to use.
 	 */
-	void Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer, const TSharedRef<ISlateStyle>& InStyle);
+	void Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer,
+		UMediaTexture* InMediaTexture, const TSharedRef<ISlateStyle>& InStyle);
 
 public:
 

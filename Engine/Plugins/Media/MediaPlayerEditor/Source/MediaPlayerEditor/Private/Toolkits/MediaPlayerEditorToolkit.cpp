@@ -414,7 +414,7 @@ TSharedRef<SDockTab> FMediaPlayerEditorToolkit::HandleTabManagerSpawnTab(const F
 	}
 	else if (TabIdentifier == MediaPlayerEditorToolkit::ViewerTabId)
 	{
-		TabWidget = SNew(SMediaPlayerEditorViewer, *MediaPlayer, Style);
+		TabWidget = SNew(SMediaPlayerEditorViewer, *MediaPlayer, nullptr, Style);
 	}
 
 	return SNew(SDockTab)

@@ -63,7 +63,8 @@ SMediaPlayerEditorViewer::~SMediaPlayerEditorViewer()
 /* SMediaPlayerEditorPlayer interface
  *****************************************************************************/
 
-void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer, const TSharedRef<ISlateStyle>& InStyle)
+void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer,
+	UMediaTexture* InMediaTexture, const TSharedRef<ISlateStyle>& InStyle)
 {
 	MediaPlayer = &InMediaPlayer;
 	Style = InStyle;
@@ -337,7 +338,7 @@ void SMediaPlayerEditorViewer::Construct(const FArguments& InArgs, UMediaPlayer&
 							.Padding(0.0f)
 							[
 								// movie area
-								SNew(SMediaPlayerEditorViewport, InMediaPlayer, InStyle)
+								SNew(SMediaPlayerEditorViewport, InMediaPlayer, InMediaTexture, InStyle)
 							]
 					]
 

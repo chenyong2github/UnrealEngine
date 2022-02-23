@@ -29,7 +29,8 @@ SMediaPlayerEditorViewport::SMediaPlayerEditorViewport()
 /* SMediaPlayerEditorPlayer interface
  *****************************************************************************/
 
-void SMediaPlayerEditorViewport::Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer, const TSharedRef<ISlateStyle>& InStyle)
+void SMediaPlayerEditorViewport::Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer,
+	UMediaTexture* InMediaTexture, const TSharedRef<ISlateStyle>& InStyle)
 {
 	MediaPlayer = &InMediaPlayer;
 	Style = InStyle;
@@ -62,7 +63,7 @@ void SMediaPlayerEditorViewport::Construct(const FArguments& InArgs, UMediaPlaye
 						})
 						[
 							// movie texture
-							SNew(SMediaPlayerEditorOutput, InMediaPlayer)
+							SNew(SMediaPlayerEditorOutput, InMediaPlayer, InMediaTexture)
 						]
 					]
 				]
