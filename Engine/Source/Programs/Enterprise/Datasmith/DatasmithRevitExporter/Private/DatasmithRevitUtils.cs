@@ -66,40 +66,44 @@ namespace DatasmithRevitExporter
 			{
 				foreach (Parameter Parameter in Parameters)
 				{
-					if (Parameter.HasValue)
+					try
 					{
-						if (Settings != null && !Settings.MatchParameterByMetadata(Parameter))
+						if (Parameter.HasValue)
 						{
-							continue; // Skip export of this param
-						}
-
-						string ParameterValue = Parameter.AsValueString();
-
-						if (string.IsNullOrEmpty(ParameterValue))
-						{
-							switch (Parameter.StorageType)
+							if (Settings != null && !Settings.MatchParameterByMetadata(Parameter))
 							{
-								case StorageType.Integer:
-								ParameterValue = Parameter.AsInteger().ToString();
-								break;
-								case StorageType.Double:
-								ParameterValue = Parameter.AsDouble().ToString();
-								break;
-								case StorageType.String:
-								ParameterValue = Parameter.AsString();
-								break;
-								case StorageType.ElementId:
-								ParameterValue = Parameter.AsElementId().ToString();
-								break;
+								continue; // Skip export of this param
+							}
+
+							string ParameterValue = Parameter.AsValueString();
+
+							if (string.IsNullOrEmpty(ParameterValue))
+							{
+								switch (Parameter.StorageType)
+								{
+									case StorageType.Integer:
+									ParameterValue = Parameter.AsInteger().ToString();
+									break;
+									case StorageType.Double:
+									ParameterValue = Parameter.AsDouble().ToString();
+									break;
+									case StorageType.String:
+									ParameterValue = Parameter.AsString();
+									break;
+									case StorageType.ElementId:
+									ParameterValue = Parameter.AsElementId().ToString();
+									break;
+								}
+							}
+
+							if (!string.IsNullOrEmpty(ParameterValue))
+							{
+								string MetadataKey = InMetadataPrefix + Parameter.Definition.Name;
+								ElementMetaData.AddPropertyString(MetadataKey, ParameterValue);
 							}
 						}
-
-						if (!string.IsNullOrEmpty(ParameterValue))
-						{
-							string MetadataKey = InMetadataPrefix + Parameter.Definition.Name;
-							ElementMetaData.AddPropertyString(MetadataKey, ParameterValue);
-						}
 					}
+					catch { }
 				}
 			}
 		}

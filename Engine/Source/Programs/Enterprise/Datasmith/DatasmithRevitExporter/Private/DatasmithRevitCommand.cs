@@ -126,7 +126,6 @@ namespace DatasmithRevitExporter
 		}
 	}
 
-#if false // AutoSync is temporary disabled
 	[Transaction(TransactionMode.Manual)]
 	public class DatasmithAutoSyncRevitCommand : DatasmithRevitCommand
 	{
@@ -139,7 +138,6 @@ namespace DatasmithRevitExporter
 			return Result.Succeeded;
 		}
 	}
-#endif
 
 	// Add-in external command Export to Unreal Datasmith. 
 	[Transaction(TransactionMode.Manual)]
