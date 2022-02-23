@@ -29,6 +29,10 @@ namespace HordeAgent.Parser.Matchers
 				{
 					NumLines++;
 				}
+				else if (Cursor.IsMatch(NumLines, "(Error executing.+)(tool returned code)(.+)"))
+				{
+					NumLines++;
+				}
 				else
 				{
 					break;

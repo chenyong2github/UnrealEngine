@@ -122,11 +122,13 @@ namespace HordeAgentTests
 				@"Took 620.820352s to run UE4Editor-Cmd.exe, ExitCode=777003",
 				@"Editor terminated with exit code 777003 while running GenerateSkinSwapDetections for D:\Build\++UE5\Sync\FortniteGame\FortniteGame.uproject; see log D:\Build\++UE5\Sync\Engine\Programs\AutomationTool\Saved\Logs\GenerateSkinSwapDetections-2020.08.18-21.47.07.txt",
 				@"AutomationTool exiting with ExitCode=1 (Error_Unknown)",
+				@"Error executing D:\build\++Fortnite\Sync\Engine\Build\Windows\link - filter\link - filter.exe(tool returned code: STATUS_ACCESS_VIOLATION)",
+				@"Error executing C:\Windows\system32\cmd.exe (tool returned code: 1)",
 				@"BUILD FAILED"
 			};
 
 			List<LogEvent> Events = Parse(Lines);
-			CheckEventGroup(Events, 1, 3, LogLevel.Error, KnownLogEvents.ExitCode);
+			CheckEventGroup(Events, 1, 5, LogLevel.Error, KnownLogEvents.ExitCode);
 		}
 
 		[TestMethod]
