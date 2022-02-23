@@ -22,9 +22,12 @@ namespace ModulesViewColumns
 {
 	static const FName AddressRangeColumnName(TEXT("BaseAddress"));
 	static const FName ModuleNameColumnName(TEXT("ModuleName"));
-	static const FName SymbolsFileColumnName(TEXT("SymbolsFile"));
+	static const FName DiscoveredColumnName(TEXT("Discovered"));
+	static const FName CachedColumnName(TEXT("Cached"));
+	static const FName ResolvedColumnName(TEXT("Resolved"));
+	static const FName FailedColumnName(TEXT("Failed"));
 	static const FName StatusColumnName(TEXT("Status"));
-	static const FName StatsColumnName(TEXT("Stats"));
+	static const FName SymbolsFileColumnName(TEXT("SymbolsFile"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -81,6 +84,12 @@ protected:
 
 	void LoadSymbols_Execute(TSharedPtr<FModule> Module, bool bOpenFile);
 
+	void UpdateSorting();
+
+private:
+	EColumnSortMode::Type GetSortModeForColumn(const FName ColumnId) const;
+	void OnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type SortMode);
+
 protected:
 	/** The list view widget. */
 	TSharedPtr<SListView<TSharedPtr<FModule>>> ListView;
@@ -96,6 +105,12 @@ protected:
 
 	/** Last time we queried about discovered modules. */
 	double LastUpdateTime;
+
+	/** The current sorting column. */
+	FName SortColumn;
+
+	/** Sorting mode (ascending or descending) for current sorting column. */
+	EColumnSortMode::Type SortMode;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

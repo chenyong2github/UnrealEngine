@@ -43,6 +43,11 @@ public:
 		return Module;
 	}
 
+	uint64 GetBaseAddress() const
+	{
+		return Module->Base;
+	}
+
 	FText GetAddressRangeText() const
 	{
 		TStringBuilder<64> Sb;
@@ -60,9 +65,50 @@ public:
 		return FText::FromStringView(Module->FullName);
 	}
 
-	FText GetSymbolsFileText() const
+	inline uint32 GetDiscoveredSymbolCount() const
 	{
-		return Module->StatusMessage ? FText::FromStringView(Module->StatusMessage) : FText();
+		// Workaround for the fact that Stats.Discovered does not include the Stats.Cached value.
+		return Module->Stats.Discovered + Module->Stats.Cached;
+	}
+
+	FText GetDiscoveredAsText() const
+	{
+		// Discovered != Cached + Resolved + Failed ?
+		if (GetDiscoveredSymbolCount() != Module->Stats.Cached + Module->Stats.Resolved + Module->Stats.Failed)
+		{
+			return FText::Format(LOCTEXT("DiscoveredStarredFmt", "{0} (!)"), FText::AsNumber(Module->Stats.Discovered + Module->Stats.Cached));
+		}
+		return FText::AsNumber(GetDiscoveredSymbolCount());
+	}
+
+	inline uint32 GetCachedSymbolCount() const
+	{
+		return Module->Stats.Cached;
+	}
+
+	FText GetCachedAsText() const
+	{
+		return FText::AsNumber(GetCachedSymbolCount());
+	}
+
+	inline uint32 GetResolvedSymbolCount() const
+	{
+		return Module->Stats.Resolved;
+	}
+
+	FText GetResolvedAsText() const
+	{
+		return FText::AsNumber(GetResolvedSymbolCount());
+	}
+
+	inline uint32 GetFailedSymbolCount() const
+	{
+		return Module->Stats.Failed;
+	}
+
+	FText GetFailedAsText() const
+	{
+		return FText::AsNumber(GetFailedSymbolCount());
 	}
 
 	FText GetStatusText() const
@@ -70,22 +116,9 @@ public:
 		return FText::FromStringView(ModuleStatusToString(Module->Status.load()));
 	}
 
-	FText GetStatsText() const
+	FText GetSymbolsFileText() const
 	{
-		TStringBuilder<128> Sb;
-		Sb.Appendf(
-		TEXT("Discovered: %u, Cached: %u, Resolved: %u, Failed: %u"),
-			Module->Stats.Discovered.load(),
-			Module->Stats.Cached.load(),
-			Module->Stats.Resolved.load(),
-			Module->Stats.Failed.load()
-		);
-		return FText::FromStringView(Sb.ToView());
-	}
-
-	uint64 GetBaseAddress() const
-	{
-		return Module->Base;
+		return Module->StatusMessage ? FText::FromStringView(Module->StatusMessage) : FText();
 	}
 
 	FText GetToolTipText() const { return FText(); }
@@ -155,13 +188,44 @@ public:
 					.ToolTipText(this, &SModuleRow::GetModuleFullName)
 				];
 		}
-		else if (ColumnName == ModulesViewColumns::SymbolsFileColumnName)
+		else if (ColumnName == ModulesViewColumns::DiscoveredColumnName)
 		{
 			return SNew(SBox)
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.Text(this, &SModuleRow::GetSymbolsFile)
+					.ColorAndOpacity(this, &SModuleRow::GetDiscoveredColor)
+					.Text(this, &SModuleRow::GetDiscoveredAsText)
+				];
+		}
+		else if (ColumnName == ModulesViewColumns::CachedColumnName)
+		{
+			return SNew(SBox)
+				.Padding(FMargin(4.0, 0.0))
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(this, &SModuleRow::GetCachedColor)
+					.Text(this, &SModuleRow::GetCachedAsText)
+				];
+		}
+		else if (ColumnName == ModulesViewColumns::ResolvedColumnName)
+		{
+			return SNew(SBox)
+				.Padding(FMargin(4.0, 0.0))
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(this, &SModuleRow::GetResolvedColor)
+					.Text(this, &SModuleRow::GetResolvedAsText)
+				];
+		}
+		else if (ColumnName == ModulesViewColumns::FailedColumnName)
+		{
+			return SNew(SBox)
+				.Padding(FMargin(4.0, 0.0))
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(this, &SModuleRow::GetFailedColor)
+					.Text(this, &SModuleRow::GetFailedAsText)
 				];
 		}
 		else if (ColumnName == ModulesViewColumns::StatusColumnName)
@@ -170,28 +234,24 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
+					.ColorAndOpacity(this, &SModuleRow::GetStatusColor)
 					.Text(this, &SModuleRow::GetStatus)
 				];
 		}
-		else if (ColumnName == ModulesViewColumns::StatsColumnName)
+		else if (ColumnName == ModulesViewColumns::SymbolsFileColumnName)
 		{
 			return SNew(SBox)
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.ColorAndOpacity(this, &SModuleRow::GetStatsColor)
-					.Text(this, &SModuleRow::GetStats)
+					.ColorAndOpacity(this, &SModuleRow::GetStatusColor)
+					.Text(this, &SModuleRow::GetSymbolsFile)
 				];
 		}
 		else
 		{
 			return SNew(STextBlock).Text(LOCTEXT("UnknownColumn", "Unknown Column"));
 		}
-	}
-
-	FSlateColor GetBackgroundColor() const
-	{
-		return FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
 	}
 
 	FText GetAddressRange() const
@@ -204,18 +264,6 @@ public:
 		else
 		{
 			return FText();
-		}
-	}
-
-	FSlateColor GetAddressRangeColor() const
-	{
-		if (IsSelected())
-		{
-			return FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
-		}
-		else
-		{
-			return FLinearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		}
 	}
 
@@ -245,12 +293,51 @@ public:
 		}
 	}
 
-	FText GetSymbolsFile() const
+	FText GetDiscoveredAsText() const
 	{
-		TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		const TSharedPtr<FModule> ModulePin = WeakModule.Pin();
 		if (ModulePin.IsValid())
 		{
-			return ModulePin->GetSymbolsFileText();
+			return ModulePin->GetDiscoveredAsText();
+		}
+		else
+		{
+			return FText();
+		}
+	}
+
+	FText GetCachedAsText() const
+	{
+		const TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		if (ModulePin.IsValid())
+		{
+			return ModulePin->GetCachedAsText();
+		}
+		else
+		{
+			return FText();
+		}
+	}
+
+	FText GetResolvedAsText() const
+	{
+		const TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		if (ModulePin.IsValid())
+		{
+			return ModulePin->GetResolvedAsText();
+		}
+		else
+		{
+			return FText();
+		}
+	}
+
+	FText GetFailedAsText() const
+	{
+		const TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		if (ModulePin.IsValid())
+		{
+			return ModulePin->GetFailedAsText();
 		}
 		else
 		{
@@ -271,61 +358,16 @@ public:
 		}
 	}
 
-	FText GetStats() const
-	{
-		const TSharedPtr<FModule> ModulePin = WeakModule.Pin();
-		if (ModulePin.IsValid())
-		{
-			return ModulePin->GetStatsText();
-		}
-		else
-		{
-			return FText();
-		}
-	}
-
-	FSlateColor GetStatsColor() const
+	FText GetSymbolsFile() const
 	{
 		TSharedPtr<FModule> ModulePin = WeakModule.Pin();
 		if (ModulePin.IsValid())
 		{
-			const TraceServices::FModule* Module = ModulePin->GetModule();
-			check(Module != nullptr);
-
-			if (Module->Stats.Failed > 0)
-			{
-				if (Module->Stats.Cached + Module->Stats.Resolved > Module->Stats.Failed)
-				{
-					return FLinearColor(1.0f, 0.9f, 0.6f, 1.0f);
-				}
-				else
-				{
-					return FLinearColor(1.0f, 0.7f, 0.7f, 1.0f);
-				}
-			}
-			else if (Module->Stats.Cached > 0 || Module->Stats.Resolved > 0)
-			{
-				return FLinearColor(0.7f, 1.0f, 0.7f, 1.0f);
-			}
-			else if (Module->Stats.Discovered > 0)
-			{
-				return FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
-			}
-			else
-			{
-				if (IsSelected())
-				{
-					return FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
-				}
-				else
-				{
-					return FLinearColor(0.2f, 0.2f, 0.2f, 1.0f);
-				}
-			}
+			return ModulePin->GetSymbolsFileText();
 		}
 		else
 		{
-			return FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			return FText();
 		}
 	}
 
@@ -342,6 +384,163 @@ public:
 		}
 	}
 
+	inline const FLinearColor GetRedColor() const       { return FLinearColor(1.0f, 0.7f, 0.7f, 1.0f); }
+	inline const FLinearColor GetYellowColor() const    { return FLinearColor(1.0f, 0.9f, 0.6f, 1.0f); }
+	inline const FLinearColor GetGreenColor() const     { return FLinearColor(0.7f, 1.0f, 0.7f, 1.0f); }
+	inline const FLinearColor GetWhileColor() const     { return FLinearColor(1.0f, 1.0f, 1.0f, 1.0f); }
+	inline const FLinearColor GetGrayColor() const      { return FLinearColor(0.5f, 0.5f, 0.5f, 1.0f); }
+	inline const FLinearColor GetDarkGrayColor() const  { return FLinearColor(0.2f, 0.2f, 0.2f, 1.0f); }
+	inline const FLinearColor GetBlackColor() const     { return FLinearColor(0.0f, 0.0f, 0.0f, 1.0f); }
+
+	FSlateColor GetBackgroundColor() const
+	{
+		return FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+	}
+
+	FSlateColor GetAddressRangeColor() const
+	{
+		return IsSelected() ? GetGrayColor() : GetDarkGrayColor();
+	}
+
+	FSlateColor GetDiscoveredColor() const
+	{
+		TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		if (ModulePin.IsValid())
+		{
+			const TraceServices::FModule* Module = ModulePin->GetModule();
+			check(Module != nullptr);
+
+			if (Module->Stats.Failed > 0)
+			{
+				if (Module->Stats.Cached + Module->Stats.Resolved > Module->Stats.Failed)
+				{
+					return GetYellowColor();
+				}
+				else
+				{
+					return GetRedColor();
+				}
+			}
+			else if (Module->Stats.Cached > 0 || Module->Stats.Resolved > 0)
+			{
+				return GetGreenColor();
+			}
+			else if (Module->Stats.Discovered > 0)
+			{
+				return GetWhileColor();
+			}
+			else
+			{
+				return IsSelected() ? GetGrayColor() : GetDarkGrayColor();
+			}
+		}
+		else
+		{
+			return GetBlackColor();
+		}
+	}
+
+	FSlateColor GetCachedColor() const
+	{
+		TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		if (ModulePin.IsValid())
+		{
+			const TraceServices::FModule* Module = ModulePin->GetModule();
+			check(Module != nullptr);
+
+			if (Module->Stats.Cached > 0)
+			{
+				return GetGreenColor();
+			}
+			else
+			{
+				return IsSelected() ? GetGrayColor() : GetDarkGrayColor();
+			}
+		}
+		else
+		{
+			return GetBlackColor();
+		}
+	}
+
+	FSlateColor GetResolvedColor() const
+	{
+		TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		if (ModulePin.IsValid())
+		{
+			const TraceServices::FModule* Module = ModulePin->GetModule();
+			check(Module != nullptr);
+
+			if (Module->Stats.Resolved > 0)
+			{
+				return GetGreenColor();
+			}
+			else
+			{
+				return IsSelected() ? GetGrayColor() : GetDarkGrayColor();
+			}
+		}
+		else
+		{
+			return GetBlackColor();
+		}
+	}
+
+	FSlateColor GetFailedColor() const
+	{
+		TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		if (ModulePin.IsValid())
+		{
+			const TraceServices::FModule* Module = ModulePin->GetModule();
+			check(Module != nullptr);
+
+			if (Module->Stats.Failed > 0)
+			{
+				return GetRedColor();
+			}
+			else
+			{
+				return IsSelected() ? GetGrayColor() : GetDarkGrayColor();
+			}
+		}
+		else
+		{
+			return GetBlackColor();
+		}
+	}
+
+	FSlateColor GetStatusColor() const
+	{
+		TSharedPtr<FModule> ModulePin = WeakModule.Pin();
+		if (ModulePin.IsValid())
+		{
+			const TraceServices::FModule* Module = ModulePin->GetModule();
+			check(Module != nullptr);
+
+			const TraceServices::EModuleStatus Status = Module->Status;
+			switch (Status)
+			{
+				case TraceServices::EModuleStatus::Pending:
+					return GetYellowColor();
+
+				case TraceServices::EModuleStatus::Loaded:
+					return GetGreenColor();
+
+				case TraceServices::EModuleStatus::VersionMismatch:
+				case TraceServices::EModuleStatus::NotFound:
+				case TraceServices::EModuleStatus::Failed:
+					return GetRedColor();
+
+				default:
+					return IsSelected() ? GetGrayColor() : GetDarkGrayColor();
+			}
+		}
+		else
+		{
+			return GetBlackColor();
+		}
+	}
+
 private:
 	TWeakPtr<FModule> WeakModule;
 	TWeakPtr<SModulesView> WeakParentWidget;
@@ -353,6 +552,8 @@ private:
 
 SModulesView::SModulesView()
 	: LastUpdateTime(0.0)
+	, SortColumn(ModulesViewColumns::DiscoveredColumnName)
+	, SortMode(EColumnSortMode::Descending)
 {
 }
 
@@ -439,23 +640,62 @@ void SModulesView::Construct(const FArguments& InArgs)
 							+ SHeaderRow::Column(ModulesViewColumns::AddressRangeColumnName)
 							.ManualWidth(320.0f)
 							.DefaultLabel(LOCTEXT("AddressRangeColumn", "Address Range"))
+							.InitialSortMode(EColumnSortMode::Ascending)
+							.SortMode(this, &SModulesView::GetSortModeForColumn, ModulesViewColumns::AddressRangeColumnName)
+							.OnSort(this, &SModulesView::OnSortModeChanged)
 
 							+ SHeaderRow::Column(ModulesViewColumns::ModuleNameColumnName)
 							.ManualWidth(300.0f)
 							.DefaultLabel(LOCTEXT("ModuleNameColumn", "Name"))
+							.InitialSortMode(EColumnSortMode::Ascending)
+							.SortMode(this, &SModulesView::GetSortModeForColumn, ModulesViewColumns::ModuleNameColumnName)
+							.OnSort(this, &SModulesView::OnSortModeChanged)
 
-							+ SHeaderRow::Column(ModulesViewColumns::StatsColumnName)
-							.ManualWidth(350.0f)
-							.DefaultLabel(LOCTEXT("StatsColumn", "Statistics"))
-							.DefaultTooltip(LOCTEXT("StatsColumnTooltip", "Discovered = The total number of symbols discovered.\nCached = The number of symbols loaded from cache (*.ucache file).\nResolved = The number of symbols successfully resolved.\nFailed = The number of symbols failed to resolve."))
+							+ SHeaderRow::Column(ModulesViewColumns::DiscoveredColumnName)
+							.ManualWidth(76.0f)
+							.DefaultLabel(LOCTEXT("DiscoveredColumn", "Discovered"))
+							.DefaultTooltip(LOCTEXT("DiscoveredColumnTooltip", "The total number of symbols discovered in the trace.\nDiscovered = Cached + Resolved + Failed"))
+							.InitialSortMode(EColumnSortMode::Descending)
+							.SortMode(this, &SModulesView::GetSortModeForColumn, ModulesViewColumns::DiscoveredColumnName)
+							.OnSort(this, &SModulesView::OnSortModeChanged)
+
+							+ SHeaderRow::Column(ModulesViewColumns::CachedColumnName)
+							.ManualWidth(76.0f)
+							.DefaultLabel(LOCTEXT("CachedColumn", "Cached"))
+							.DefaultTooltip(LOCTEXT("CachedColumnTooltip", "The number of symbols loaded (pre-resolved) from the cache (*.ucache file)."))
+							.InitialSortMode(EColumnSortMode::Descending)
+							.SortMode(this, &SModulesView::GetSortModeForColumn, ModulesViewColumns::CachedColumnName)
+							.OnSort(this, &SModulesView::OnSortModeChanged)
+
+							+ SHeaderRow::Column(ModulesViewColumns::ResolvedColumnName)
+							.ManualWidth(76.0f)
+							.DefaultLabel(LOCTEXT("ResolvedColumn", "Resolved"))
+							.DefaultTooltip(LOCTEXT("ResolvedColumnTooltip", "The number of symbols successfully resolved in the current analysis session."))
+							.InitialSortMode(EColumnSortMode::Descending)
+							.SortMode(this, &SModulesView::GetSortModeForColumn, ModulesViewColumns::ResolvedColumnName)
+							.OnSort(this, &SModulesView::OnSortModeChanged)
+
+							+ SHeaderRow::Column(ModulesViewColumns::FailedColumnName)
+							.ManualWidth(76.0f)
+							.DefaultLabel(LOCTEXT("FailedColumn", "Failed"))
+							.DefaultTooltip(LOCTEXT("FailedColumnTooltip", "The number of symbols failed to resolve."))
+							.InitialSortMode(EColumnSortMode::Descending)
+							.SortMode(this, &SModulesView::GetSortModeForColumn, ModulesViewColumns::FailedColumnName)
+							.OnSort(this, &SModulesView::OnSortModeChanged)
 
 							+ SHeaderRow::Column(ModulesViewColumns::StatusColumnName)
 							.ManualWidth(100.0f)
 							.DefaultLabel(LOCTEXT("StatusColumn", "Status"))
+							.InitialSortMode(EColumnSortMode::Ascending)
+							.SortMode(this, &SModulesView::GetSortModeForColumn, ModulesViewColumns::StatusColumnName)
+							.OnSort(this, &SModulesView::OnSortModeChanged)
 
 							+ SHeaderRow::Column(ModulesViewColumns::SymbolsFileColumnName)
 							.ManualWidth(800.0f)
 							.DefaultLabel(LOCTEXT("SymbolsFileColumn", "Symbols"))
+							.InitialSortMode(EColumnSortMode::Ascending)
+							.SortMode(this, &SModulesView::GetSortModeForColumn, ModulesViewColumns::SymbolsFileColumnName)
+							.OnSort(this, &SModulesView::OnSortModeChanged)
 						)
 					]
 				]
@@ -499,10 +739,15 @@ void SModulesView::Tick(const FGeometry& AllottedGeometry, const double InCurren
 	const TSharedPtr<const IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (const IModuleProvider* ModuleProvider = Session->ReadProvider<IModuleProvider>("ModuleProvider"))
 	{
+		const int32 ModuleCount = Modules.Num();
 		ModuleProvider->EnumerateModules(Modules.Num(), [this](const TraceServices::FModule& InModule)
 		{
 			Modules.Emplace(MakeShared<FModule>(&InModule));
 		});
+		if (Modules.Num() != ModuleCount)
+		{
+			UpdateSorting();
+		}
 	}
 }
 
@@ -671,6 +916,177 @@ void SModulesView::LoadSymbols_Execute(TSharedPtr<FModule> Module, bool bOpenFil
 	if (IModuleProvider* ModuleProvider = const_cast<IAnalysisSession*>(Session.Get())->EditProvider<IModuleProvider>("ModuleProvider"))
 	{
 		LoadSymbolsTask = ModuleProvider->LoadSymbolsForModuleUsingPath(Module->GetBaseAddress(), *SelectedFile);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+EColumnSortMode::Type SModulesView::GetSortModeForColumn(const FName ColumnId) const
+{
+	return ColumnId == SortColumn ? SortMode : EColumnSortMode::None;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SModulesView::OnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode)
+{
+	SortColumn = ColumnId;
+	SortMode = InSortMode;
+	UpdateSorting();
+
+	if (ListView.IsValid())
+	{
+		ListView->RebuildList();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SModulesView::UpdateSorting()
+{
+	if (SortColumn == ModulesViewColumns::AddressRangeColumnName)
+	{
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetBaseAddress() < B->GetBaseAddress(); });
+		}
+		else
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetBaseAddress() > B->GetBaseAddress(); });
+		}
+	}
+	else if (SortColumn == ModulesViewColumns::ModuleNameColumnName)
+	{
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{
+					if (A->GetModule()->Name == nullptr)
+					{
+						return true;
+					}
+					if (B->GetModule()->Name == nullptr)
+					{
+						return false;
+					}
+					return FCString::Strcmp(A->GetModule()->Name, B->GetModule()->Name) < 0;
+				});
+		}
+		else
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{
+					if (A->GetModule()->Name == nullptr)
+					{
+						return false;
+					}
+					if (B->GetModule()->Name == nullptr)
+					{
+						return true;
+					}
+					return FCString::Strcmp(A->GetModule()->Name, B->GetModule()->Name) > 0;
+				});
+		}
+	}
+	else if (SortColumn == ModulesViewColumns::DiscoveredColumnName)
+	{
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetDiscoveredSymbolCount() < B->GetDiscoveredSymbolCount(); });
+		}
+		else
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetDiscoveredSymbolCount() > B->GetDiscoveredSymbolCount(); });
+		}
+	}
+	else if (SortColumn == ModulesViewColumns::CachedColumnName)
+	{
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetCachedSymbolCount() < B->GetCachedSymbolCount(); });
+		}
+		else
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetCachedSymbolCount() > B->GetCachedSymbolCount(); });
+		}
+	}
+	else if (SortColumn == ModulesViewColumns::ResolvedColumnName)
+	{
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetResolvedSymbolCount() < B->GetResolvedSymbolCount(); });
+		}
+		else
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetResolvedSymbolCount() > B->GetResolvedSymbolCount(); });
+		}
+	}
+	else if (SortColumn == ModulesViewColumns::FailedColumnName)
+	{
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetFailedSymbolCount() < B->GetFailedSymbolCount(); });
+		}
+		else
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetFailedSymbolCount() > B->GetFailedSymbolCount(); });
+		}
+	}
+	else if (SortColumn == ModulesViewColumns::StatusColumnName)
+	{
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetModule()->Status < B->GetModule()->Status; });
+		}
+		else
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{ return A->GetModule()->Status > B->GetModule()->Status; });
+		}
+	}
+	else if (SortColumn == ModulesViewColumns::SymbolsFileColumnName)
+	{
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{
+					if (A->GetModule()->StatusMessage == nullptr)
+					{
+						return true;
+					}
+					if (B->GetModule()->StatusMessage == nullptr)
+					{
+						return false;
+					}
+					return FCString::Strcmp(A->GetModule()->StatusMessage, B->GetModule()->StatusMessage) < 0;
+				});
+		}
+		else
+		{
+			Modules.Sort([](const TSharedPtr<FModule>& A, const TSharedPtr<FModule>& B)
+				{
+					if (A->GetModule()->StatusMessage == nullptr)
+					{
+						return false;
+					}
+					if (B->GetModule()->StatusMessage == nullptr)
+					{
+						return true;
+					}
+					return FCString::Strcmp(A->GetModule()->StatusMessage, B->GetModule()->StatusMessage) > 0;
+				});
+		}
 	}
 }
 
