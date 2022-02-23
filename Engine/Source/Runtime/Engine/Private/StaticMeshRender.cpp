@@ -1989,11 +1989,13 @@ void FStaticMeshSceneProxy::GetDistanceFieldAtlasData(const FDistanceFieldVolume
 	SelfShadowBias = DistanceFieldSelfShadowBias;
 }
 
-void FStaticMeshSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform>& ObjectLocalToWorldTransforms) const
+void FStaticMeshSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform>& InstanceLocalToPrimitiveTransforms) const
 {
+	check(InstanceLocalToPrimitiveTransforms.IsEmpty());
+
 	if (DistanceFieldData)
 	{
-		ObjectLocalToWorldTransforms.Add((FMatrix44f)GetLocalToWorld());
+		InstanceLocalToPrimitiveTransforms.Add(FRenderTransform::Identity);
 	}
 }
 

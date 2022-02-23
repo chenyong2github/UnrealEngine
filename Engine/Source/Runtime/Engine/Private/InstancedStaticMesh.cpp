@@ -1674,16 +1674,18 @@ void FInstancedStaticMeshSceneProxy::GetDistanceFieldAtlasData(const FDistanceFi
 	FStaticMeshSceneProxy::GetDistanceFieldAtlasData(OutDistanceFieldData, SelfShadowBias);
 }
 
-void FInstancedStaticMeshSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform>& ObjectLocalToWorldTransforms) const
+void FInstancedStaticMeshSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform>& InstanceLocalToPrimitiveTransforms) const
 {
-	ObjectLocalToWorldTransforms.Reset();
+	check(InstanceLocalToPrimitiveTransforms.IsEmpty());
 
 	if (ensureMsgf(InstancedRenderData.PerInstanceRenderData->InstanceBuffer.RequireCPUAccess, TEXT("GetDistanceFieldInstanceData requires a CPU copy of the per-instance data to be accessible. Possible mismatch in ComponentRequestsCPUAccess / IncludePrimitiveInDistanceFieldSceneData filtering.")))
 	{
 		const TArray<FRenderTransform>& PerInstanceTransforms = InstancedRenderData.PerInstanceRenderData->GetPerInstanceTransforms();
-		for (const FRenderTransform& InstanceToLocal : PerInstanceTransforms)
+
+		InstanceLocalToPrimitiveTransforms.SetNumUninitialized(PerInstanceTransforms.Num());
+		for (int32 InstanceIndex = 0; InstanceIndex < PerInstanceTransforms.Num(); ++InstanceIndex)
 		{
-			ObjectLocalToWorldTransforms.Add(InstanceToLocal * (FMatrix44f)GetLocalToWorld());
+			InstanceLocalToPrimitiveTransforms[InstanceIndex] = PerInstanceTransforms[InstanceIndex];
 		}
 	}
 }

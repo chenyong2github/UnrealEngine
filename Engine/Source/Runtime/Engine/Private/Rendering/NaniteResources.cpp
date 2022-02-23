@@ -1324,15 +1324,17 @@ void FSceneProxy::GetDistanceFieldAtlasData(const FDistanceFieldVolumeData*& Out
 	SelfShadowBias = DistanceFieldSelfShadowBias;
 }
 
-void FSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform>& ObjectLocalToWorldTransforms) const
+void FSceneProxy::GetDistanceFieldInstanceData(TArray<FRenderTransform>& InstanceLocalToPrimitiveTransforms) const
 {
+	check(InstanceLocalToPrimitiveTransforms.IsEmpty());
+
 	if (DistanceFieldData)
 	{
-		const FRenderTransform PrimitiveToWorld = (FMatrix44f)GetLocalToWorld();
-		for (const FPrimitiveInstance& Instance : InstanceSceneData)
+		InstanceLocalToPrimitiveTransforms.SetNumUninitialized(InstanceSceneData.Num());
+		for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 		{
-			FRenderTransform& InstanceToWorld = ObjectLocalToWorldTransforms.Emplace_GetRef();
-			InstanceToWorld = Instance.ComputeLocalToWorld(PrimitiveToWorld);
+			const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
+			InstanceLocalToPrimitiveTransforms[InstanceIndex] = Instance.LocalToPrimitive;
 		}
 	}
 }

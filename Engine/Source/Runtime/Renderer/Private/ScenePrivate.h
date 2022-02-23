@@ -1774,7 +1774,7 @@ class FPrimitiveAndInstance
 {
 public:
 
-	FPrimitiveAndInstance(const FRenderTransform& InLocalToWorld, const FBox& InWorldBounds, FPrimitiveSceneInfo* InPrimitive, int32 InInstanceIndex)
+	FPrimitiveAndInstance(const FMatrix& InLocalToWorld, const FBox& InWorldBounds, FPrimitiveSceneInfo* InPrimitive, int32 InInstanceIndex)
 	: LocalToWorld(InLocalToWorld)
 	, WorldBounds(InWorldBounds)
 	, InstanceIndex(InInstanceIndex)
@@ -1782,7 +1782,7 @@ public:
 	{
 	}
 
-	FRenderTransform LocalToWorld;
+	FMatrix LocalToWorld;
 	FBox WorldBounds;
 	int32 InstanceIndex;
 	FPrimitiveSceneInfo* Primitive;

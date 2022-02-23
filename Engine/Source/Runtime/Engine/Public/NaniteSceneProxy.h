@@ -227,7 +227,7 @@ public:
 	}
 
 	virtual void GetDistanceFieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
-	virtual void GetDistanceFieldInstanceData(TArray<FRenderTransform>& ObjectLocalToWorldTransforms) const override;
+	virtual void GetDistanceFieldInstanceData(TArray<FRenderTransform>& InstanceLocalToPrimitiveTransforms) const override;
 	virtual bool HasDistanceFieldRepresentation() const override;
 
 	virtual const FCardRepresentationData* GetMeshCardRepresentation() const override;
