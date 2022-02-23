@@ -197,7 +197,7 @@ void FImgMediaMipMapInfoManager::UpdateCameraInfo()
 
 #if WITH_EDITOR
 	// If we are have no cameras then we could be in the editor and not PIE so get the editor view.
-	if (CameraInfos.IsEmpty())
+	if ((CameraInfos.IsEmpty()) && (GEditor != nullptr))
 	{
 		// Loop through all viewport clients.
 		for (FEditorViewportClient* ViewportClient : GEditor->GetAllViewportClients())
