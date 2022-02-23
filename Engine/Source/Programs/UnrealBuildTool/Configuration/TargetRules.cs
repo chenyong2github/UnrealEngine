@@ -189,18 +189,9 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if (!string.IsNullOrEmpty(NameOverride))
+				if (!String.IsNullOrEmpty(NameOverride))
 				{
-					if (NameSuffixes.Count > 0)
-					{
-						return $"{NameOverride}-{NameSuffix}";
-					}
 					return NameOverride;
-				}
-
-				if (NameSuffixes.Count > 0)
-				{
-					return $"{DefaultName}-{NameSuffix}";
 				}
 
 				return DefaultName;
@@ -214,36 +205,14 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// If the Name of this target has been overriden
 		/// </summary>
-		public bool IsNameOverriden() { return !string.IsNullOrEmpty(NameOverride) || NameSuffixes.Count > 0; }
-
-		/// <summary>
-		/// Add an optional suffix to append to Name
-		/// </summary>
-		/// <param name="Suffix">The string to append</param>
-		public void AddNameSuffix(string Suffix) { NameSuffixes.Add(Suffix); }
-
-		/// <summary>
-		/// Optional suffix to append to Name
-		/// </summary>
-		public string? NameSuffix
-		{
-			get
-			{
-				return NameSuffixes.Count > 0 ? string.Join("-", NameSuffixes) : null;
-			}
-		}
-
-		private HashSet<string> NameSuffixes = new HashSet<string>();
+		public bool IsNameOverriden() { return !String.IsNullOrEmpty(NameOverride); }
 
 		/// <summary>
 		/// Override the name used for this target
 		/// </summary>
 		[CommandLine("-TargetNameOverride=")]
-		private string? NameOverride { get; set; }
+		private string? NameOverride;
 
-		/// <summary>
-		/// The default name for this target, 
-		/// </summary>
 		private readonly string DefaultName;
 
 		private TestTargetRules? TestTargetRules;
@@ -2074,11 +2043,6 @@ namespace UnrealBuildTool
 		public string Name
 		{
 			get { return Inner.Name; }
-		}
-
-		public string? NameSuffix
-		{
-			get { return Inner.NameSuffix; }
 		}
 
 		public TestTargetRules TestTarget { get { return Inner.CreateOrGetTestTarget(); } }
