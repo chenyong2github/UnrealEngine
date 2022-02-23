@@ -189,9 +189,18 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if (!String.IsNullOrEmpty(NameOverride))
+				if (!string.IsNullOrEmpty(NameOverride))
 				{
+					if (NameSuffixes.Count > 0)
+					{
+						return $"{NameOverride}-{NameSuffix}";
+					}
 					return NameOverride;
+				}
+
+				if (NameSuffixes.Count > 0)
+				{
+					return $"{DefaultName}-{NameSuffix}";
 				}
 
 				return DefaultName;
@@ -205,14 +214,36 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// If the Name of this target has been overriden
 		/// </summary>
-		public bool IsNameOverriden() { return !String.IsNullOrEmpty(NameOverride); }
+		public bool IsNameOverriden() { return !string.IsNullOrEmpty(NameOverride) || NameSuffixes.Count > 0; }
+
+		/// <summary>
+		/// Add an optional suffix to append to Name
+		/// </summary>
+		/// <param name="Suffix">The string to append</param>
+		public void AddNameSuffix(string Suffix) { NameSuffixes.Add(Suffix); }
+
+		/// <summary>
+		/// Optional suffix to append to Name
+		/// </summary>
+		public string? NameSuffix
+		{
+			get
+			{
+				return NameSuffixes.Count > 0 ? string.Join("-", NameSuffixes) : null;
+			}
+		}
+
+		private HashSet<string> NameSuffixes = new HashSet<string>();
 
 		/// <summary>
 		/// Override the name used for this target
 		/// </summary>
 		[CommandLine("-TargetNameOverride=")]
-		private string? NameOverride;
+		private string? NameOverride { get; set; }
 
+		/// <summary>
+		/// The default name for this target, 
+		/// </summary>
 		private readonly string DefaultName;
 
 		private TestTargetRules? TestTargetRules;
@@ -347,6 +378,18 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-AllModules")]
 		public bool bBuildAllModules = false;
+
+		/// <summary>
+		/// Decides whether to compile with all the "Tests" folders from all dependent modules.
+		/// </summary>
+		public bool bIncludeAllTests
+		{
+			get { return bIncludeAllTestsOverride ?? false; }
+		}
+		/// <summary>
+		/// Set this override to true in derived target classes to compile with all the "Tests" folders from all dependent modules.
+		/// </summary>
+		protected bool? bIncludeAllTestsOverride;
 
 		/// <summary>
 		/// Additional plugins that are built for this target type but not enabled.
@@ -590,6 +633,20 @@ namespace UnrealBuildTool
 		public bool bForceBuildShaderFormats = false;
 
 		/// <summary>
+		/// Override for including extra shader formats
+		/// </summary>
+		public bool? bNeedsExtraShaderFormatsOverride;
+
+		/// <summary>
+		/// Whether we should include any extra shader formats. By default this is only enabled for Program and Editor targets.
+		/// </summary>
+		public bool bNeedsExtraShaderFormats
+		{
+			set { bNeedsExtraShaderFormatsOverride = value; }
+			get { return bNeedsExtraShaderFormatsOverride ?? (bForceBuildShaderFormats || bBuildDeveloperTools) && (Type == TargetType.Editor || Type == TargetType.Program); }
+		}
+
+		/// <summary>
 		/// Whether we should compile SQLite using the custom "Unreal" platform (true), or using the native platform (false).
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -708,6 +765,19 @@ namespace UnrealBuildTool
 			set { bWithServerCodeOverride = value; }
 		}
 		private bool? bWithServerCodeOverride;
+
+		/// <summary>
+		/// Compile with FName storing the number part in the name table. 
+		/// Saves memory when most names are not numbered and those that are are referenced multiple times.
+		/// The game and engine must ensure they reuse numbered names similarly to name strings to avoid leaking memory.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bFNameOutlineNumber
+		{
+			get { return bFNameOutlineNumberOverride ?? false;  }
+			set { bFNameOutlineNumberOverride = value;  }
+		}
+		private bool? bFNameOutlineNumberOverride;
 
 		/// <summary>
 		/// When enabled, Push Model Networking support will be compiled in.
@@ -1065,8 +1135,23 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Forces frame pointers to be retained this is usually required when you want reliable callstacks e.g. mallocframeprofiler
 		/// </summary>
-		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bRetainFramePointers = true;
+		public bool bRetainFramePointers
+		{
+			get 
+			{
+				// Default to disabled on Linux to maintain legacy behavior
+				return bRetainFramePointersOverride ?? Platform.IsInGroup(UnrealPlatformGroup.Linux) == false;
+			}
+			set { bRetainFramePointersOverride = value; }
+		}
+
+		/// <summary>
+		/// Forces frame pointers to be retained this is usually required when you want reliable callstacks e.g. mallocframeprofiler
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration", Name="bRetainFramePointers")]
+		[CommandLine("-RetainFramePointers", Value="true")]
+		[CommandLine("-NoRetainFramePointers", Value="false")]
+		public bool? bRetainFramePointersOverride = null;
 
 		/// <summary>
 		/// New Monolithic Graphics drivers have optional "fast calls" replacing various D3d functions
@@ -1991,6 +2076,11 @@ namespace UnrealBuildTool
 			get { return Inner.Name; }
 		}
 
+		public string? NameSuffix
+		{
+			get { return Inner.NameSuffix; }
+		}
+
 		public TestTargetRules TestTarget { get { return Inner.CreateOrGetTestTarget(); } }
 
 		public TargetRules TestedTarget {
@@ -2099,6 +2189,11 @@ namespace UnrealBuildTool
 			get { return Inner.bBuildAllModules; }
 		}
 
+		public bool bIncludeAllTests
+		{
+			get { return Inner.bIncludeAllTests; }
+		}
+		
 		public IEnumerable<string> AdditionalPlugins
 		{
 			get { return Inner.AdditionalPlugins; }
@@ -2219,12 +2314,7 @@ namespace UnrealBuildTool
 
 		public bool bCompileISPC
 		{
-			get { return Inner.bCompileISPC && GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); }   // LWC_TODO: Temporarily disable ISPC when LWC is turned on. To be removed when double support is added to ISPC.
-		}
-
-		public bool bLWCDisabled 
-		{
-			get { return GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); }
+			get { return Inner.bCompileISPC; }
 		}
 		
 		public bool bCompilePython
@@ -2265,6 +2355,11 @@ namespace UnrealBuildTool
 		public bool bForceBuildShaderFormats
 		{
 			get { return Inner.bForceBuildShaderFormats; }
+		}
+
+		public bool bNeedsExtraShaderFormats
+		{
+			get { return Inner.bNeedsExtraShaderFormats; }
 		}
 
 		public bool bCompileCustomSQLitePlatform
@@ -2340,6 +2435,11 @@ namespace UnrealBuildTool
 		public bool bWithServerCode
 		{
 			get { return Inner.bWithServerCode; }
+		}
+
+		public bool bFNameOutlineNumber
+		{
+			get { return Inner.bFNameOutlineNumber;  }
 		}
 
 		public bool bWithPushModel
