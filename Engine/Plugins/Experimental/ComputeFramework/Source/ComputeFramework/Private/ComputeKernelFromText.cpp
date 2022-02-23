@@ -53,7 +53,6 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 		KernelSourceText = FString();
 		PermutationSet = FComputeKernelPermutationSet();
 		DefinitionsSet = FComputeKernelDefinitionSet();
-		InputParams.Empty();
 
 		return;
 	}
@@ -110,29 +109,6 @@ void UComputeKernelFromText::ReparseKernelSourceText()
 		}
 
 		DefinitionsSet = MoveTemp(NewDefinitionsSet);
-	}
-
-	{
-		static const FRegexPattern KernelInputParamPattern(TEXT(R"(KERNEL_PARAM\(\s*([a-z0-9]+)\s*,\s*([a-zA-Z_]\w*)\s*\))"));
-		TArray<FShaderParamTypeDefinition> Params;
-
-		FRegexMatcher Matcher(KernelInputParamPattern, KernelSourceText);
-		while (Matcher.FindNext())
-		{
-			FShaderParamTypeDefinition Param = {};
-
-			FString TypeDecl  = Matcher.GetCaptureGroup(1);
-			FString ParamName = Matcher.GetCaptureGroup(2);
-
-			Param.Name				= MoveTemp(ParamName);
-			Param.ValueType			= FShaderValueType::FromString(TypeDecl);
-			Param.BindingType		= EShaderParamBindingType::ConstantParameter;
-
-			Param.ResetTypeDeclaration();
-			Params.Emplace(MoveTemp(Param));
-		}
-
-		InputParams = MoveTemp(Params);
 	}
 
 	{

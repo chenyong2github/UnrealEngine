@@ -100,9 +100,6 @@ public:
 	UComputeGraph(FVTableHelper& Helper);
 	virtual ~UComputeGraph();
 
-	/** Retrieves a kernel's parameter bindings, if any */
-	virtual void GetKernelBindings(int32 InKernelIndex, TMap<int32, TArray<uint8>>& OutBindings) const {}
-
 	/** Called each time that a single kernel shader compilation is completed. */
 	virtual void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors) {}
 
@@ -117,10 +114,10 @@ public:
 
 	/** 
 	 * Create UComputeDataProvider objects to match the current UComputeDataInterface objects. 
-	 * If InBindingObject is set then we attempt to setup bindings from that UObject.
+	 * We attempt to setup bindings from the InBindingObjects.
 	 * The caller is responsible for any data provider binding not handled by the default behavior.
 	 */
-	void CreateDataProviders(UObject* InBindingObject,TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const;
+	void CreateDataProviders(TArrayView<UObject*> InBindingObjects, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const;
 
 	/** Returns true if there is a valid DataProvider entry for each of our DataInterfaces. */
 	bool ValidateProviders(TArray< TObjectPtr<UComputeDataProvider> > const& DataProviders) const;

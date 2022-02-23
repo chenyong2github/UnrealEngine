@@ -20,13 +20,16 @@ struct COMPUTEFRAMEWORK_API FComputeGraphInstance
 
 public:
 	/** Create the Data Provider objects for the ComputeGraph. */
-	void CreateDataProviders(UComputeGraph* InComputeGraph, UObject* InBindingObject);
+	void CreateDataProviders(UComputeGraph* InComputeGraph, TArrayView<UObject*> InBindingObjects);
 
 	/** Create the Data Provider objects. */
 	void DestroyDataProviders();
 
 	/** Returns true if the Data Provider objects are all created and valid. */
 	bool ValidateDataProviders(UComputeGraph* InComputeGraph) const;
+
+	/** Get the Data Provider objects. */
+	TArray< TObjectPtr<UComputeDataProvider> >& GetDataProviders() { return DataProviders; }
 
 	/** Enqueue the ComputeGraph work. */
 	bool EnqueueWork(UComputeGraph* InComputeGraph, FSceneInterface const* Scene);

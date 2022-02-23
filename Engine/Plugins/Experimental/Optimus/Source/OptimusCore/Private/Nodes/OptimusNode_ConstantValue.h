@@ -42,9 +42,14 @@ public:
 		return CategoryName::Values; 
 	}
 
-	FOptimusDataTypeRef GetDataType() const;
+#if WITH_EDITOR
+	// UObject overrides
+	void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif
 
 	// IOptimusValueProvider overrides 
+	FString GetValueName() const override;
+	FOptimusDataTypeRef GetValueType() const override;
 	TArray<uint8> GetShaderValue() const override;
 
 protected:

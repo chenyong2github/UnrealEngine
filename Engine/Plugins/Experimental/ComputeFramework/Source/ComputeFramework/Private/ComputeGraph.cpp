@@ -125,11 +125,19 @@ bool UComputeGraph::ValidateProviders(TArray< TObjectPtr<UComputeDataProvider> >
 	return true;
 }
 
-void UComputeGraph::CreateDataProviders(UObject* InBindingObject, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const
+void UComputeGraph::CreateDataProviders(TArrayView<UObject*> InBindingObjects, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const
 {
 	// If we want default bindings then get any associated Actor and look for objects of the requested type.
-	UActorComponent* Component = Cast<UActorComponent>(InBindingObject);
-	AActor* Actor = (Component != nullptr) ? Component->GetOwner() : nullptr;
+	AActor* Actor = nullptr;
+	for (UObject* BindingObject : InBindingObjects)
+	{
+		UActorComponent* Component = Cast<UActorComponent>(BindingObject);
+		Actor = (Component != nullptr) ? Component->GetOwner() : nullptr;
+		if (Actor != nullptr)
+		{
+			break;
+		}
+	}
 
 	// Iterate DataInterfaces and add a provider for each one.
 	OutProviders.Reserve(DataInterfaces.Num());
@@ -168,11 +176,15 @@ void UComputeGraph::CreateDataProviders(UObject* InBindingObject, TArray< TObjec
 			for (int32 BindingIndex = 0; BindingIndex < SourceTypes.Num(); ++BindingIndex)
 			{
 				UClass* SourceType = SourceTypes[BindingIndex];
-				if (InBindingObject != nullptr && InBindingObject->IsA(SourceType))
+				for (UObject* BindingObject : InBindingObjects)
 				{
-					Bindings[BindingIndex] = InBindingObject;
+					if (BindingObject != nullptr && BindingObject->IsA(SourceType))
+					{
+						Bindings[BindingIndex] = BindingObject;
+						break;
+					}
 				}
-				else if (Actor != nullptr)
+				if (Bindings[BindingIndex] == nullptr && Actor != nullptr)
 				{
 					Bindings[BindingIndex] = Actor->GetComponentByClass(SourceType);
 				}
@@ -216,8 +228,6 @@ FComputeGraphRenderProxy* UComputeGraph::CreateProxy() const
 					Invocation.BoundProviderIndices.AddUnique(GraphEdge.DataInterfaceIndex);
 				}
 			}
-
-			GetKernelBindings(KernelIndex, Invocation.ShaderParamBindings);
 		}
 	}
 
@@ -253,16 +263,6 @@ TCHAR const* UComputeGraph::GetDataInterfaceUID(int32 DataInterfaceIndex)
 
 FShaderParametersMetadata* UComputeGraph::BuildKernelShaderMetadata(int32 KernelIndex) const
 {
-	UComputeKernelSource* KernelSource = KernelInvocations[KernelIndex] != nullptr ? KernelInvocations[KernelIndex]->KernelSource : nullptr;
-	if (KernelSource == nullptr)
-	{
-		return nullptr;
-	}
-
-	// Extract shader parameter info from kernel.
-	FShaderParametersMetadataBuilder Builder;
-	KernelSource->GetShaderParameters(Builder);
-
 	// Gather relevant data providers.
 	TArray<int32> DataProviderIndices;
 	for (FComputeGraphEdge const& GraphEdge : GraphEdges)
@@ -274,6 +274,8 @@ FShaderParametersMetadata* UComputeGraph::BuildKernelShaderMetadata(int32 Kernel
 	}
 
 	// Extract shader parameter info from data providers.
+	FShaderParametersMetadataBuilder Builder;
+
 	for (int32 DataProviderIndex : DataProviderIndices)
 	{
 		UComputeDataInterface* DataInterface = DataInterfaces[DataProviderIndex];
@@ -380,12 +382,6 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex, FComputeKernelDefini
 		UComputeKernelSource* KernelSource = KernelInvocations[KernelIndex]->KernelSource;
 		if (KernelSource != nullptr)
 		{
-			// Add shader parameters.
-			for (const FShaderParamTypeDefinition& ParamDef: KernelSource->InputParams)
-			{
-				HLSL += FString::Printf(TEXT("%s %s;\n"), *ParamDef.ValueType->ToString(), *ParamDef.Name);
-			}
-			
 			// Add defines and permutations.
 			OutDefinitionSet = KernelSource->DefinitionsSet;
 			OutPermutationVector.AddPermutationSet(KernelSource->PermutationSet);

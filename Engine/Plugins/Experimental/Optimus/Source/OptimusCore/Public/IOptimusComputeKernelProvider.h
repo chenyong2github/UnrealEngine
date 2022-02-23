@@ -7,6 +7,7 @@
 
 #include "IOptimusComputeKernelProvider.generated.h"
 
+class UComputeDataInterface;
 class UOptimusComputeDataInterface;
 class UOptimusKernelSource;
 class UOptimusNode;
@@ -19,7 +20,7 @@ struct FOptimusCompilerDiagnostic;
 // during kernel compilation to read/write values from/to that data interface's resource.
 struct FOptimus_InterfaceBinding
 {
-	UOptimusComputeDataInterface* DataInterface;
+	UComputeDataInterface const* DataInterface;
 	int32 DataInterfaceBindingIndex;
 	FString BindingFunctionName;
 };
@@ -68,7 +69,7 @@ public:
 	 * @param InKernelSourceOuter The outer object that will own the new kernel source.
 	 * @param InNodeDataInterfaceMap
 	 * @param InLinkDataInterfaceMap
-	 * @param InValueNodeSet
+	 * @param InValueNodes
 	 * @param OutParameterBindings
 	 * @param OutInputDataBindings
 	 * @param OutOutputDataBindings
@@ -78,8 +79,8 @@ public:
 		const FOptimusPinTraversalContext& InTraversalContext,
 		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
-		const TSet<const UOptimusNode *>& InValueNodeSet,
-		FOptimus_KernelParameterBindingList& OutParameterBindings,
+		const TArray<const UOptimusNode*>& InValueNodes,
+		const UComputeDataInterface* GraphDataInterface,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings,
 		FOptimus_InterfaceBindingMap& OutOutputDataBindings
 	) const = 0;

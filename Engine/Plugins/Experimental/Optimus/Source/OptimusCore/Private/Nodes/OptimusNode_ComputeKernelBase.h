@@ -73,8 +73,8 @@ public:
 		const FOptimusPinTraversalContext& InTraversalContext,
 		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
-		const TSet<const UOptimusNode *>& InValueNodeSet,
-		FOptimus_KernelParameterBindingList& OutParameterBindings,
+		const TArray<const UOptimusNode*>& InValueNodes,
+		const UComputeDataInterface* GraphDataInterface,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings, FOptimus_InterfaceBindingMap& OutOutputDataBindings
 	) const override;
 
@@ -109,10 +109,10 @@ private:
 		const UOptimusNodePin* InOutputPin,
 		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
-		const TSet<const UOptimusNode *>& InValueNodeSet,
+		const TArray<const UOptimusNode*>& InValueNodes,
+		const UComputeDataInterface* GraphDataInterface,
 		UOptimusKernelSource* InKernelSource,
 		TArray<FString>& OutGeneratedFunctions,
-		FOptimus_KernelParameterBindingList& OutParameterBindings,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings
 		) const;
 

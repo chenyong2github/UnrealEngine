@@ -19,6 +19,7 @@
 class UComputeGraph;
 class USkeletalMesh;
 class UOptimusActionStack;
+class UOptimusComputeGraph;
 class UOptimusDeformer;
 class UOptimusResourceDescription;
 class UOptimusVariableDescription;
@@ -28,6 +29,7 @@ enum class EOptimusDiagnosticLevel : uint8;
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileBegin, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileEnd, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusGraphCompileMessageDelegate, const TSharedRef<FTokenizedMessage>&);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOptimusConstantValueUpdate, FString const&, TArray<uint8> const&);
 
 
 USTRUCT()
@@ -45,7 +47,7 @@ struct FOptimusComputeGraphInfo
 	bool bExecuteTrigger = false;
 
 	UPROPERTY()
-	TObjectPtr<UComputeGraph> ComputeGraph = nullptr;
+	TObjectPtr<UOptimusComputeGraph> ComputeGraph = nullptr;
 };
 
 /** A container class that owns variable descriptors. This is used to ensure we don't end up
@@ -314,7 +316,7 @@ private:
 
 	// Compile a node graph to a compute graph. Returns either a completed compute graph, or
 	// the error message to pass back, if the compilation failed.
-	using FOptimusCompileResult = TVariant<FEmptyVariantState, UComputeGraph*, TSharedRef<FTokenizedMessage>>;
+	using FOptimusCompileResult = TVariant<FEmptyVariantState, UOptimusComputeGraph*, TSharedRef<FTokenizedMessage>>;
 	FOptimusCompileResult CompileNodeGraphToComputeGraph(
 		const UOptimusNodeGraph *InNodeGraph
 		);
@@ -338,4 +340,6 @@ private:
 	FOptimusCompileEnd CompileEndDelegate;
 
 	FOptimusGraphCompileMessageDelegate CompileMessageDelegate;
+
+	FOptimusConstantValueUpdate ConstantValueUpdateDelegate;
 };

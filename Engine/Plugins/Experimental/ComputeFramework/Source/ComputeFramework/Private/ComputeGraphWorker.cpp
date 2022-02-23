@@ -38,7 +38,6 @@ void FComputeGraphTaskWorker::Enqueue(const FComputeGraphRenderProxy* ComputeGra
 		ShaderInvocation.KernelResource = Invocation.KernelResource;
 		ShaderInvocation.ShaderParamMetadata = Invocation.ShaderMetadata;
 		ShaderInvocation.ShaderPermutationVector = Invocation.ShaderPermutationVector;
-		ShaderInvocation.ShaderParamBindings = Invocation.ShaderParamBindings;
 
 		// todo[CF]: dispatch dimension logic needs to be way more involved
 		TArray<FIntVector> DispatchDimensions;
@@ -95,33 +94,6 @@ void FComputeGraphTaskWorker::SubmitWork(
 
 				TArray<FShaderParametersMetadata::FMember> const& ParamMembers = KernelInvocation.ShaderParamMetadata->GetMembers();
 
-				// Copy in the shader parameter bindings first.
-				for (const TPair<int32, TArray<uint8>>& Binding : KernelInvocation.ShaderParamBindings)
-				{
-					const FShaderParametersMetadata::FMember& Member = ParamMembers[Binding.Key];
-					const TArray<uint8>& ParamValue = Binding.Value;
-
-					SIZE_T ParamSize;
-					if (const FShaderParametersMetadata* StructMetaData = Member.GetStructMetadata())
-					{
-						// TODO: Rows/Columns/ElemCount?
-						ParamSize = StructMetaData->GetSize();
-					}
-					else
-					{
-						ParamSize = Member.GetMemberSize();
-					}
-
-					if (ensure(ParamSize == ParamValue.Num()))
-					{
-						// Need to fill in for each sub invocation.
-						for (int32 SubInvocationIndex = 0; SubInvocationIndex < NumSubInvocations; ++SubInvocationIndex)
-						{
-							FMemory::Memcpy(&ParameterBuffer[Member.GetOffset() + SubInvocationIndex * ParameterBufferSize], ParamValue.GetData(), ParamSize);
-						}
-					}
-				}
-
 				// Iterate data providers to fill data structures.
 				FComputeDataProviderRenderProxy::FCollectedDispatchData DispatchData;
 				DispatchData.ParameterBuffer = ParameterBuffer;
@@ -129,6 +101,7 @@ void FComputeGraphTaskWorker::SubmitWork(
 
 				FComputeDataProviderRenderProxy::FDispatchSetup DispatchSetup{ NumSubInvocations, 0, ParameterBufferSize, 0, *KernelInvocation.ShaderPermutationVector };
 
+				// todo[CF]: Only iterate data providers for this kernel. Then we can expect it to be found...
 				for (int32 DataProviderIndex = 0; DataProviderIndex < GraphInvocation.DataProviderProxies.Num(); ++DataProviderIndex)
 				{
 					FComputeDataProviderRenderProxy* DataProvider = GraphInvocation.DataProviderProxies[DataProviderIndex];

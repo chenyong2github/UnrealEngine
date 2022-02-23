@@ -24,10 +24,6 @@ public:
 	UPROPERTY(VisibleAnywhere, meta = (ShowOnlyInnerProperties), Category = "Kernel")
 	FComputeKernelDefinitionSet DefinitionsSet;
 
-	/* Named input parameters for the kernel. */
-	UPROPERTY(VisibleAnywhere, EditFixedSize, Category = "Parameters")
-	TArray<FShaderParamTypeDefinition> InputParams;
-
 	/* Named external inputs for the kernel. These must be fulfilled by linked data providers. */
 	UPROPERTY(VisibleAnywhere, EditFixedSize, Category = "External")
 	TArray<FShaderFunctionDefinition> ExternalInputs;
@@ -35,9 +31,6 @@ public:
 	/* Named external outputs for the kernel. These must be fulfilled by linked data providers. */
 	UPROPERTY(VisibleAnywhere, EditFixedSize, Category = "External")
 	TArray<FShaderFunctionDefinition> ExternalOutputs;
-
-	/** Register the input parameters with a shader metadata builder. */
-	void GetShaderParameters(class FShaderParametersMetadataBuilder& OutBuilder) const;
 
 	/** Get kernel entry point name. */
 	virtual FString GetEntryPoint() const PURE_VIRTUAL(UComputeKernelSource::GetEntryPoint, return {};);

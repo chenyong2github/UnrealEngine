@@ -27,6 +27,8 @@ enum class EOptimusGlobalNotifyType
 	VariableIndexChanged,	/// A variable's index has changed (Subject == UOptimusVariableDescription)
 	VariableRenamed,		/// A variable has been renamed (Subject == UOptimusVariableDescription)
 	VariableTypeChanged,	/// A variable's type has been changed (Subject == UOptimusVariableDescription)
+	
+	ConstantValueChanged,	/// A constant's value has been changed (Subject == UOptimusNode_ConstantValue)
 
 	NodeTypeAdded,			/// A new node type has been added (Subject == UClass)
 	NodeTypeRemoved,		/// A node type is about to be removed (Subject == UClass)

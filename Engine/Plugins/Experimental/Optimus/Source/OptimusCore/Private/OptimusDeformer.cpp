@@ -5,6 +5,7 @@
 #include "Actions/OptimusNodeGraphActions.h"
 #include "Actions/OptimusResourceActions.h"
 #include "Actions/OptimusVariableActions.h"
+#include "DataInterfaces/DataInterfaceGraph.h"
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
 #include "IOptimusComputeKernelProvider.h"
 #include "IOptimusDataInterfaceProvider.h"
@@ -30,7 +31,7 @@
 #include "Misc/UObjectToken.h"
 #include "RenderingThread.h"
 #include "UObject/Package.h"
-
+#include "Nodes/OptimusNode_ConstantValue.h"
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
 
@@ -645,12 +646,12 @@ bool UOptimusDeformer::Compile()
 		}
 		
 		FOptimusCompileResult Result = CompileNodeGraphToComputeGraph(Graph);
-		if (Result.IsType<UComputeGraph *>())
+		if (Result.IsType<UOptimusComputeGraph*>())
 		{
 			FOptimusComputeGraphInfo Info;
 			Info.GraphType = Graph->GraphType;
 			Info.GraphName = Graph->GetFName();
-			Info.ComputeGraph = Result.Get<UComputeGraph*>();
+			Info.ComputeGraph = Result.Get<UOptimusComputeGraph*>();
 			ComputeGraphs.Add(Info);
 		}
 		else if (Result.IsType<TSharedRef<FTokenizedMessage>>())
@@ -667,7 +668,6 @@ bool UOptimusDeformer::Compile()
 	{
 		ComputeGraphInfo.ComputeGraph->UpdateResources();
 	}
-
 	
 	return true;
 }
@@ -729,8 +729,8 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 	FOptimus_PinToDataInterfaceMap LinkDataInterfaceMap;
 
 	// Find all value nodes (constant and variable) 
-	TSet<const UOptimusNode *> ValueNodeSet; 
-	
+	TArray<const UOptimusNode *> ValueNodes; 
+
 	for (FNodeWithTraversalContext ConnectedNode: ConnectedNodes)
 	{
 		if (const IOptimusDataInterfaceProvider* DataInterfaceNode = Cast<const IOptimusDataInterfaceProvider>(ConnectedNode.Node))
@@ -766,9 +766,30 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 		}
 		else if (Cast<const IOptimusValueProvider>(ConnectedNode.Node))
 		{
-			ValueNodeSet.Add(ConnectedNode.Node);
+			ValueNodes.AddUnique(ConnectedNode.Node);
 		}
 	}
+
+	// Create the graph data interface and fill it with the value nodes.
+	UGraphDataInterface* GraphDataInterface = NewObject<UGraphDataInterface>(this);
+
+	TArray<FGraphVariableDescription> ValueNodeDescriptions;
+	ValueNodeDescriptions.Reserve(ValueNodes.Num());
+	for (UOptimusNode const* ValueNode : ValueNodes)
+	{
+		if (IOptimusValueProvider const* ValueProvider = Cast<const IOptimusValueProvider>(ValueNode))
+		{
+			FGraphVariableDescription& ValueNodeDescription = ValueNodeDescriptions.AddDefaulted_GetRef();
+			ValueNodeDescription.Name = ValueProvider->GetValueName();
+			ValueNodeDescription.ValueType = ValueProvider->GetValueType()->ShaderValueType;
+
+			if (UOptimusNode_ConstantValue const* ConstantNode = Cast<const UOptimusNode_ConstantValue>(ValueNode))
+			{
+				ValueNodeDescription.Value = ConstantNode->GetShaderValue();
+			}
+		}
+	}
+	GraphDataInterface->Init(ValueNodeDescriptions);
 
 	// Loop through all kernels, create a kernel source, and create a compute kernel for it.
 	struct FKernelWithDataBindings
@@ -784,7 +805,6 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 	{
 		if (const IOptimusComputeKernelProvider *KernelProvider = Cast<const IOptimusComputeKernelProvider>(ConnectedNode.Node))
 		{
-			FOptimus_KernelParameterBindingList KernelParameterBindings;
 			FKernelWithDataBindings BoundKernel;
 
 			BoundKernel.KernelNodeIndex = InNodeGraph->Nodes.IndexOfByKey(ConnectedNode.Node);
@@ -793,7 +813,8 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 			UComputeKernelSource *KernelSource = KernelProvider->CreateComputeKernel(
 				BoundKernel.Kernel, ConnectedNode.TraversalContext,
 				NodeDataInterfaceMap, LinkDataInterfaceMap,
-				ValueNodeSet, KernelParameterBindings, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings
+				ValueNodes, GraphDataInterface,
+				BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings
 			);
 			if (!KernelSource)
 			{
@@ -815,16 +836,6 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 			
 			BoundKernel.Kernel->KernelSource = KernelSource;
 
-			for (int32 ParameterIndex = 0; ParameterIndex < KernelParameterBindings.Num(); ParameterIndex++)
-			{
-				const FOptimus_KernelParameterBinding& Binding = KernelParameterBindings[ParameterIndex];
-				FOptimus_ShaderParameterBinding ShaderParameterBinding;
-				ShaderParameterBinding.ValueNode = Binding.ValueNode;
-				ShaderParameterBinding.KernelIndex = BoundKernels.Num();
-				ShaderParameterBinding.ParameterIndex = ParameterIndex;
-				ComputeGraph->KernelParameterBindings.Add(ShaderParameterBinding);
-			}
-
 			BoundKernels.Add(BoundKernel);
 
 			ComputeGraph->KernelInvocations.Add(BoundKernel.Kernel);
@@ -833,7 +844,8 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 	}
 
 	// Now that we've collected all the pieces, time to line them up.
-	for (TPair<const UOptimusNode *, UOptimusComputeDataInterface *>&Item: NodeDataInterfaceMap)
+	ComputeGraph->DataInterfaces.Add(GraphDataInterface);
+	for (TPair<const UOptimusNode*, UOptimusComputeDataInterface*>& Item : NodeDataInterfaceMap)
 	{
 		ComputeGraph->DataInterfaces.Add(Item.Value);
 	}
@@ -853,7 +865,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 		{
 			const int32 KernelBindingIndex = DataBinding.Key;
 			const FOptimus_InterfaceBinding& InterfaceBinding = DataBinding.Value;
-			const UOptimusComputeDataInterface* DataInterface = InterfaceBinding.DataInterface;
+			const UComputeDataInterface* DataInterface = InterfaceBinding.DataInterface;
 			const int32 DataInterfaceBindingIndex = InterfaceBinding.DataInterfaceBindingIndex;
 			const FString BindingFunctionName = InterfaceBinding.BindingFunctionName;
 
@@ -880,7 +892,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 		{
 			const int32 KernelBindingIndex = DataBinding.Key;
 			const FOptimus_InterfaceBinding& InterfaceBinding = DataBinding.Value;
-			const UOptimusComputeDataInterface* DataInterface = InterfaceBinding.DataInterface;
+			const UComputeDataInterface* DataInterface = InterfaceBinding.DataInterface;
 			const int32 DataInterfaceBindingIndex = InterfaceBinding.DataInterfaceBindingIndex;
 			const FString BindingFunctionName = InterfaceBinding.BindingFunctionName;
 
@@ -903,7 +915,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 		}
 	}
 
-	Result.Set<UComputeGraph *>(ComputeGraph);
+	Result.Set<UOptimusComputeGraph*>(ComputeGraph);
 	return Result;
 }
 
@@ -1078,6 +1090,13 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 	case EOptimusGlobalNotifyType::VariableTypeChanged:
 		checkSlow(Cast<UOptimusVariableDescription>(InObject) != nullptr);
 		break;
+
+	case EOptimusGlobalNotifyType::ConstantValueChanged:
+		if (UOptimusNode_ConstantValue* ConstantValue = Cast<UOptimusNode_ConstantValue>(InObject))
+		{
+			ConstantValueUpdateDelegate.Broadcast(ConstantValue->GetValueName(), ConstantValue->GetShaderValue());
+		}
+		break;
 	default:
 		checkfSlow(false, TEXT("Unchecked EOptimusGlobalNotifyType!"));
 		break;
@@ -1122,13 +1141,13 @@ UMeshDeformerInstance* UOptimusDeformer::CreateInstance(UMeshComponent* InMeshCo
 	}
 
 	UOptimusDeformerInstance* Instance = NewObject<UOptimusDeformerInstance>();
-	Instance->MeshComponent = InMeshComponent;
+	Instance->SetMeshComponent(InMeshComponent);
 	Instance->SetupFromDeformer(this);
 
-	// Make sure all the instances know when we finish compiling so they can update their
-	// local state to match.
+	// Make sure all the instances know when we finish compiling so they can update their local state to match.
 	CompileEndDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetupFromDeformer);
-	
+	ConstantValueUpdateDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetConstantValueDirect);
+
 	return Instance;
 }
 

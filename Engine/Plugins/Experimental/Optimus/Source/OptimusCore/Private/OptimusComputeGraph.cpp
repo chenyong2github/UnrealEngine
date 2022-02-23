@@ -15,26 +15,6 @@
 #define LOCTEXT_NAMESPACE "OptimusComputeGraph"
 
 
-void UOptimusComputeGraph::GetKernelBindings(int32 InKernelIndex, TMap<int32, TArray<uint8>>& OutBindings) const
-{
-	for (const FOptimus_ShaderParameterBinding& Binding: KernelParameterBindings)
-	{
-		if (Binding.KernelIndex == InKernelIndex)
-		{
-			// This may happen if the node has been GC'd.
-			if (const IOptimusValueProvider *ValueProvider = Cast<const IOptimusValueProvider>(Binding.ValueNode))
-			{
-				TArray<uint8> ValueData = ValueProvider->GetShaderValue();
-				if (!ValueData.IsEmpty())
-				{
-					OutBindings.Emplace(Binding.ParameterIndex, MoveTemp(ValueData));
-				}
-			}
-		}
-	}
-}
-
-
 void UOptimusComputeGraph::OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors)
 {
 	// Find the Optimus objects from the raw kernel index.

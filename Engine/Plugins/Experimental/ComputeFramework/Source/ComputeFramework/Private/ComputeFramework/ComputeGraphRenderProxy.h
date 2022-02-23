@@ -24,7 +24,6 @@ public:
 		FShaderParametersMetadata const* ShaderMetadata = nullptr;
 		FComputeKernelPermutationVector const* ShaderPermutationVector = nullptr;
 		TArray<int32> BoundProviderIndices;
-		TMap<int32, TArray<uint8>> ShaderParamBindings;
 	};
 
 	TArray<FKernelInvocation> KernelInvocations;

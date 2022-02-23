@@ -1000,6 +1000,7 @@ void FOptimusEditor::OnDeformerModified(
 	case EOptimusGlobalNotifyType::ResourceIndexChanged:
 	case EOptimusGlobalNotifyType::VariableRenamed:
 	case EOptimusGlobalNotifyType::VariableIndexChanged:
+	case EOptimusGlobalNotifyType::ConstantValueChanged:
 		RefreshEvent.Broadcast();
 		break;
 		

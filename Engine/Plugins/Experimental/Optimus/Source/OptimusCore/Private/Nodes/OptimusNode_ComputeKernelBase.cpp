@@ -5,8 +5,10 @@
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
 
-#include "OptimusKernelSource.h"
+#include "DataInterfaces/DataInterfaceGraph.h"
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
+#include "IOptimusValueProvider.h"
+#include "OptimusKernelSource.h"
 
 
 static FString GetShaderParamPinValueString(
@@ -47,8 +49,8 @@ UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 	const FOptimusPinTraversalContext& InTraversalContext,
 	const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 	const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
-	const TSet<const UOptimusNode *>& InValueNodeSet,
-	FOptimus_KernelParameterBindingList& OutParameterBindings,
+	const TArray<const UOptimusNode *>& InValueNodes,
+	const UComputeDataInterface* GraphDataInterface,
 	FOptimus_InterfaceBindingMap& OutInputDataBindings, FOptimus_InterfaceBindingMap& OutOutputDataBindings
 ) const
 {
@@ -75,8 +77,8 @@ UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 		{
 			ProcessInputPinForComputeKernel(
 				Pin, (ConnectedPins.IsEmpty() ? nullptr : ConnectedPins[0]),
-				InNodeDataInterfaceMap, InLinkDataInterfaceMap, InValueNodeSet,
-				KernelSource, GeneratedFunctions, OutParameterBindings, OutInputDataBindings
+				InNodeDataInterfaceMap, InLinkDataInterfaceMap, InValueNodes, GraphDataInterface,
+				KernelSource, GeneratedFunctions, OutInputDataBindings
 				);
 		}
 		else if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
@@ -153,10 +155,10 @@ void UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel(
 	const UOptimusNodePin* InOutputPin,
 	const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 	const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
-	const TSet<const UOptimusNode*>& InValueNodeSet,
+	const TArray<const UOptimusNode*>& InValueNodes,
+	const UComputeDataInterface* GraphDataInterface,
 	UOptimusKernelSource* InKernelSource,
 	TArray<FString>& OutGeneratedFunctions,
-	FOptimus_KernelParameterBindingList& OutParameterBindings,
 	FOptimus_InterfaceBindingMap& OutInputDataBindings
 	) const
 {
@@ -170,7 +172,7 @@ void UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel(
 	// link can connect into it. 
 	if (InOutputPin)
 	{
-		UOptimusComputeDataInterface* DataInterface = nullptr;
+		UComputeDataInterface const* DataInterface = nullptr;
 		int32 DataInterfaceFuncIndex = INDEX_NONE;
 		FString DataFunctionName;
 		
@@ -190,9 +192,10 @@ void UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel(
 		else if(InNodeDataInterfaceMap.Contains(OutputNode))
 		{
 			// FIXME: Sub-pin read support.
-			DataInterface = InNodeDataInterfaceMap[OutputNode];
+			UOptimusComputeDataInterface const* OptimusDataInterface = InNodeDataInterfaceMap[OutputNode];
+			DataInterface = OptimusDataInterface;
 
-			TArray<FOptimusCDIPinDefinition> PinDefs = DataInterface->GetPinDefinitions();
+			TArray<FOptimusCDIPinDefinition> PinDefs = OptimusDataInterface->GetPinDefinitions();
 
 			int32 DataInterfaceDefPinIndex = GetPinIndex(InOutputPin); 
 			DataFunctionName = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
@@ -201,27 +204,13 @@ void UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel(
 			DataInterface->GetSupportedInputs(ReadFunctions);
 			DataInterfaceFuncIndex = ReadFunctions.IndexOfByPredicate([DataFunctionName](const FShaderFunctionDefinition &InDef) { return DataFunctionName == InDef.Name; });
 		}
-		else if (ensure(InValueNodeSet.Contains(OutputNode)))
+		else if (IOptimusValueProvider const* ValueProvider = Cast<const IOptimusValueProvider>(OutputNode))
 		{
-			FString ParameterName = TEXT("__") + InInputPin->GetName(); 
-			
-			FOptimus_KernelParameterBinding Binding;
-			Binding.ValueNode = OutputNode;
-			Binding.ParameterName = ParameterName;
-			Binding.ValueType = InInputPin->GetDataType()->ShaderValueType;
-
-			OutParameterBindings.Add(Binding);
-
-			FShaderParamTypeDefinition ParameterDefinition;
-			ParameterDefinition.Name = Binding.ParameterName;
-			ParameterDefinition.ValueType = Binding.ValueType;
-			ParameterDefinition.ResetTypeDeclaration();
-
-			InKernelSource->InputParams.Add(ParameterDefinition);
-
-			OutGeneratedFunctions.Add(
-				FString::Printf(TEXT("%s Read%s() { return %s; }"),
-					*Binding.ValueType->ToString(), *InInputPin->GetName(), *Binding.ParameterName));
+			// Value nodes bind the single graph data interface.
+			DataInterface = GraphDataInterface;
+			DataInterfaceFuncIndex = InValueNodes.Find(OutputNode);
+			check(DataInterfaceFuncIndex != INDEX_NONE);
+			DataFunctionName = ValueProvider->GetValueName();
 		}
 
 		// If we are connected from a data interface, set the input binding up now.

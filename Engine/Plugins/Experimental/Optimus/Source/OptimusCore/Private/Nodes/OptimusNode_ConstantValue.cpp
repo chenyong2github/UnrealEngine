@@ -3,6 +3,7 @@
 #include "Nodes/OptimusNode_ConstantValue.h"
 
 #include "OptimusNodePin.h"
+#include "OptimusNodeGraph.h"
 
 
 void UOptimusNode_ConstantValueGeneratorClass::Link(FArchive& Ar, bool bRelinkExistingProperties)
@@ -66,7 +67,29 @@ UClass* UOptimusNode_ConstantValueGeneratorClass::GetClassForType(UObject* InPac
 }
 
 
-FOptimusDataTypeRef UOptimusNode_ConstantValue::GetDataType() const
+#if WITH_EDITOR
+
+void UOptimusNode_ConstantValue::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+	{
+		UOptimusNodeGraph* Graph = GetOwningGraph();
+		Graph->GlobalNotify(EOptimusGlobalNotifyType::ConstantValueChanged, this);
+	}
+}
+
+#endif // WITH_EDITOR
+
+
+FString UOptimusNode_ConstantValue::GetValueName() const
+{
+	return GetName();
+}
+
+
+FOptimusDataTypeRef UOptimusNode_ConstantValue::GetValueType() const
 {
 	UOptimusNode_ConstantValueGeneratorClass* Class = Cast<UOptimusNode_ConstantValueGeneratorClass>(GetClass());
 	if (ensure(Class))
@@ -83,7 +106,7 @@ TArray<uint8> UOptimusNode_ConstantValue::GetShaderValue() const
 	if (ensure(ValuePin))
 	{
 		const FProperty *ValueProperty = ValuePin->GetPropertyFromPin();
-		FOptimusDataTypeRef DataType = GetDataType();
+		FOptimusDataTypeRef DataType = GetValueType();
 		if (ensure(ValueProperty) && ensure(DataType.IsValid()))
 		{
 			TArrayView<const uint8> ValueData(ValueProperty->ContainerPtrToValuePtr<uint8>(this), ValueProperty->GetSize());
@@ -102,7 +125,7 @@ TArray<uint8> UOptimusNode_ConstantValue::GetShaderValue() const
 
 void UOptimusNode_ConstantValue::ConstructNode()
 {
-	SetDisplayName(FText::Format(FText::FromString(TEXT("{0} Constant")), GetDataType()->DisplayName));
+	SetDisplayName(FText::Format(FText::FromString(TEXT("{0} Constant")), GetValueType()->DisplayName));
 
 	UOptimusNode::ConstructNode();
 }

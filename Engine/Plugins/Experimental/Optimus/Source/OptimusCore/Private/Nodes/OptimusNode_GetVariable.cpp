@@ -30,6 +30,28 @@ UOptimusVariableDescription* UOptimusNode_GetVariable::GetVariableDescription() 
 }
 
 
+FString UOptimusNode_GetVariable::GetValueName() const
+{
+	if (const UOptimusVariableDescription* Var = VariableDesc.Get())
+	{
+		return Var->VariableName.GetPlainNameString();
+	}
+
+	return {};
+}
+
+
+FOptimusDataTypeRef UOptimusNode_GetVariable::GetValueType() const
+{
+	if (const UOptimusVariableDescription* Var = VariableDesc.Get())
+	{
+		return Var->DataType;
+	}
+
+	return {};
+}
+
+
 TArray<uint8> UOptimusNode_GetVariable::GetShaderValue() const
 {
 	if (const UOptimusVariableDescription* Var = VariableDesc.Get();

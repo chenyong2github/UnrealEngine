@@ -10,12 +10,12 @@
 #include "ComputeFramework/ComputeGraphWorker.h"
 #include "ComputeFramework/ComputeSystem.h"
 
-void FComputeGraphInstance::CreateDataProviders(UComputeGraph* InComputeGraph, UObject* InBindingObject)
+void FComputeGraphInstance::CreateDataProviders(UComputeGraph* InComputeGraph, TArrayView<UObject*> InBindingObjects)
 {
 	DataProviders.Reset();
 	if (InComputeGraph != nullptr)
 	{
-		InComputeGraph->CreateDataProviders(InBindingObject, DataProviders);
+		InComputeGraph->CreateDataProviders(InBindingObjects, DataProviders);
 	}
 }
 
