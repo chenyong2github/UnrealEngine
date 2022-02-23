@@ -17,11 +17,13 @@
 #include "Misc/PackageName.h"
 #include "Misc/PathViews.h"
 #include "SocketSubsystem.h"
+#include "GenericPlatform/GenericPlatformHostCommunication.h"
 
 #if ENABLE_HTTP_FOR_NETWORK_FILE
 #include "HTTPTransport.h"
 #endif
 #include "TCPTransport.h"
+#include "PlatformTransport.h"
 
 #include "HAL/IPlatformFileModule.h"
 #include "Templates/UniquePtr.h"
@@ -75,6 +77,20 @@ ITransport *CreateTransportForHostAddress(const FString &HostIp )
 #if ENABLE_HTTP_FOR_NETWORK_FILE
 		return new FHTTPTransport();
 #endif
+	}
+
+	if ( HostIp.StartsWith(TEXT("platform://")))
+	{
+		if (FPlatformMisc::GetPlatformHostCommunication().Available())
+		{
+			return new FPlatformTransport(EHostProtocol::CookOnTheFly, "CookOnTheFly");
+		}
+		else
+		{
+			UE_LOG(LogNetworkPlatformFile, Warning, TEXT("Platform transport (platform://) not supported for this platform."));
+
+			return nullptr;
+		}
 	}
 
 	// no transport specified assuming tcp

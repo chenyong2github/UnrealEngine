@@ -22,6 +22,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
+#include "GenericPlatform/GenericPlatformHostCommunication.h"
 #include "HAL/FileManagerGeneric.h"
 #include "Misc/VarargsHelper.h"
 #include "Misc/SecureHash.h"
@@ -1203,6 +1204,12 @@ IPlatformChunkInstall* FGenericPlatformMisc::GetPlatformChunkInstall()
 {
 	static FGenericPlatformChunkInstall Singleton;
 	return &Singleton;
+}
+
+IPlatformHostCommunication& FGenericPlatformMisc::GetPlatformHostCommunication()
+{
+	static FPlatformHostCommunicationAutoInit<FGenericPlatformHostCommunication> Singleton;
+	return Singleton;
 }
 
 void GenericPlatformMisc_GetProjectFilePathProjectDir(FString& OutGameDir)

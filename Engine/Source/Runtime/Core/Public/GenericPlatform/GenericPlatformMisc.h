@@ -15,6 +15,7 @@ class GenericApplication;
 class IPlatformChunkInstall;
 class IInstallBundleManager;
 class IPlatformCompression;
+class IPlatformHostCommunication;
 struct FGenericCrashContext;
 struct FGenericMemoryWarningContext;
 struct FCustomChunk;
@@ -1153,6 +1154,13 @@ public:
 	 * @return Returns the platform specific compression interface
 	 */
 	static IPlatformCompression* GetPlatformCompression();
+
+	/**
+	 * Returns the platform specific interface for communication with processes running on the host pc.
+	 * 
+	 * @return Returns the platform specific host communication interface.
+	 */
+	static IPlatformHostCommunication& GetPlatformHostCommunication();
 
 	/**
 	 * Has the OS execute a command and path pair (such as launch a browser)
