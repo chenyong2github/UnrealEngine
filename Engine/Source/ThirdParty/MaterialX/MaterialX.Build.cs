@@ -47,8 +47,6 @@ public class MaterialX : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			// Not yet supported
-			/*
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"Mac",
@@ -56,11 +54,10 @@ public class MaterialX : ModuleRules
 
 			foreach (string MaterialXLibrary in MaterialXLibraries)
 			{
-				string StaticLibName = MaterialXLibrary + LibPostfix + ".a";
+				string StaticLibName = "lib" + MaterialXLibrary + LibPostfix + ".a";
 				PublicAdditionalLibraries.Add(
 					Path.Combine(LibDirectory, StaticLibName));
 			}
-			*/
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
