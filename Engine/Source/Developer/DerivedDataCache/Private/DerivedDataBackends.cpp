@@ -1566,6 +1566,10 @@ bool FDerivedDataBackendInterface::FBackendDebugOptions::ShouldSimulateMiss(cons
 	{
 		TStringBuilder<256> Type;
 		Type << InCacheKey.Bucket;
+		if (Type.ToView().StartsWith(TEXTVIEW("Legacy")))
+		{
+			Type.RemoveAt(0, TEXTVIEW("Legacy").Len());
+		}
 		if (SimulateMissTypes.Contains(Type.ToView()))
 		{
 			return true;
