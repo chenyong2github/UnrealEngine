@@ -288,7 +288,7 @@ struct FOpenGLGPUProfiler : public FGPUProfiler
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /** The interface which is implemented by the dynamically bound RHI. */
-class OPENGLDRV_API FOpenGLDynamicRHI  final : public FDynamicRHI, public IRHICommandContextPSOFallback
+class OPENGLDRV_API FOpenGLDynamicRHI  final : public FDynamicRHIPSOFallback, public IRHICommandContextPSOFallback
 {
 public:
 

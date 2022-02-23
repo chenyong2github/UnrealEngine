@@ -2546,7 +2546,9 @@ public:
 		ComputeShader->UpdateStats();
 		if (Bypass())
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			GetComputeContext().RHISetComputeShader(ComputeShader);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandSetComputeShader)(ComputeShader);

@@ -105,15 +105,6 @@ void FMetalRHIComputeContext::RHISetAsyncComputeBudget(EAsyncComputeBudget Budge
 	FMetalRHICommandContext::RHISetAsyncComputeBudget(Budget);
 }
 
-void FMetalRHIComputeContext::RHISetComputeShader(FRHIComputeShader* ComputeShader)
-{
-	if (!Context->GetCurrentCommandBuffer())
-	{
-		Context->InitFrame(false, 0, 0);
-	}
-	FMetalRHICommandContext::RHISetComputeShader(ComputeShader);
-}
-
 void FMetalRHIComputeContext::RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState)
 {
 	if (!Context->GetCurrentCommandBuffer())

@@ -112,14 +112,6 @@ void FD3D12CommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIBuffer* Ve
 	StateCache.SetStreamSource(VertexBuffer ? &VertexBuffer->ResourceLocation : nullptr, StreamIndex, Offset);
 }
 
-void FD3D12CommandContext::RHISetComputeShader(FRHIComputeShader* ComputeShaderRHI)
-{
-	// TODO: Eventually the high-level should just use RHISetComputePipelineState() directly similar to how graphics PSOs are handled.
-	TRefCountPtr<FRHIComputePipelineState> ComputePipelineStateRHI = RHICreateComputePipelineState(ComputeShaderRHI);
-	FD3D12ComputePipelineState* const ComputePipelineState = FD3D12DynamicRHI::ResourceCast(ComputePipelineStateRHI.GetReference());
-	RHISetComputePipelineState(ComputePipelineState);
-}
-
 void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
 {
 	FD3D12ComputeShader* ComputeShader = nullptr;

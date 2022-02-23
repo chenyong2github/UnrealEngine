@@ -21,19 +21,15 @@ public:
 	{
 	}
 
-	/**
-	*Sets the current compute shader.  Mostly for compliance with platforms
-	*that require shader setting before resource binding.
-	*/
-	virtual void RHISetComputeShader(FRHIComputeShader* Shader) override final
+	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) override final
 	{
-		State.bComputeShaderSet = true;
+		State.bComputePSOSet = true;
 
 		// Reset the compute UAV tracker since the renderer must re-bind all resources after changing a shader.
 		Tracker->ResetUAVState(RHIValidation::EUAVMode::Compute);
 
 		State.GlobalUniformBuffers.bInSetPipelineStateCall = true;
-		RHIContext->RHISetComputeShader(Shader);
+		RHIContext->RHISetComputePipelineState(ComputePipelineState);
 		State.GlobalUniformBuffers.bInSetPipelineStateCall = false;
 	}
 
@@ -117,7 +113,7 @@ public:
 	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
 	virtual void RHISetShaderTexture(FRHIComputeShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		Tracker->Assert(NewTexture->GetWholeResourceIdentitySRV(), ERHIAccess::SRVCompute);
 		RHIContext->RHISetShaderTexture(Shader, TextureIndex, NewTexture);
 	}
@@ -130,7 +126,7 @@ public:
 	*/
 	virtual void RHISetShaderSampler(FRHIComputeShader* Shader, uint32 SamplerIndex, FRHISamplerState* NewState) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderSampler(Shader, SamplerIndex, NewState);
 	}
 
@@ -142,7 +138,7 @@ public:
 	*/
 	virtual void RHISetUAVParameter(FRHIComputeShader* Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		Tracker->AssertUAV(UAV, RHIValidation::EUAVMode::Compute, UAVIndex);
 		RHIContext->RHISetUAVParameter(Shader, UAVIndex, UAV);
 	}
@@ -156,14 +152,14 @@ public:
 	*/
 	virtual void RHISetUAVParameter(FRHIComputeShader* Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV, uint32 InitialCount) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		Tracker->AssertUAV(UAV, RHIValidation::EUAVMode::Compute, UAVIndex);
 		RHIContext->RHISetUAVParameter(Shader, UAVIndex, UAV, InitialCount);
 	}
 
 	virtual void RHISetShaderResourceViewParameter(FRHIComputeShader* Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		if (SRV) 
 		{
 			Tracker->Assert(SRV->ViewIdentity, ERHIAccess::SRVCompute);
@@ -173,14 +169,14 @@ public:
 
 	virtual void RHISetShaderUniformBuffer(FRHIComputeShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		State.GlobalUniformBuffers.ValidateSetShaderUniformBuffer(Buffer);
 		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
 	}
 
 	virtual void RHISetShaderParameter(FRHIComputeShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderParameter(Shader, BufferIndex, BaseIndex, NumBytes, NewValue);
 	}
 
@@ -244,7 +240,7 @@ protected:
 		RHIValidation::FGlobalUniformBuffers GlobalUniformBuffers;
 
 		FString ComputePassName;
-		bool bComputeShaderSet{};
+		bool bComputePSOSet{};
 
 		void Reset();
 	};
@@ -264,19 +260,16 @@ public:
 		return *RHIContext;
 	}
 
-	/**
-	*Sets the current compute shader.  Mostly for compliance with platforms
-	*that require shader setting before resource binding.
-	*/
-	virtual void RHISetComputeShader(FRHIComputeShader* Shader) override final
+	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) override final
 	{
-		State.bComputeShaderSet = true;
-		State.bGfxPSOSet = false;
+		State.bComputePSOSet = true;
 
 		// Reset the compute UAV tracker since the renderer must re-bind all resources after changing a shader.
 		Tracker->ResetUAVState(RHIValidation::EUAVMode::Compute);
 
-		RHIContext->RHISetComputeShader(Shader);
+		State.GlobalUniformBuffers.bInSetPipelineStateCall = true;
+		RHIContext->RHISetComputePipelineState(ComputePipelineState);
+		State.GlobalUniformBuffers.bInSetPipelineStateCall = false;
 	}
 
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) override final
@@ -570,7 +563,7 @@ public:
 	{
 		checkf(State.bInsideBeginRenderPass, TEXT("Graphics PSOs can only be set inside a RenderPass!"));
 		State.bGfxPSOSet = true;
-		State.bComputeShaderSet = false;
+		State.bComputePSOSet = false;
 
 		ValidateDepthStencilForSetGraphicsPipelineState(GraphicsState->DSMode);
 
@@ -587,7 +580,7 @@ public:
 	{
 		checkf(State.bInsideBeginRenderPass, TEXT("Graphics PSOs can only be set inside a RenderPass!"));
 		State.bGfxPSOSet = true;
-		State.bComputeShaderSet = false;
+		State.bComputePSOSet = false;
 
 		ValidateDepthStencilForSetGraphicsPipelineState(PsoInit.DepthStencilState->ActualDSMode);
 
@@ -611,7 +604,7 @@ public:
 	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
 	virtual void RHISetShaderTexture(FRHIComputeShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		Tracker->Assert(NewTexture->GetWholeResourceIdentitySRV(), ERHIAccess::SRVCompute);
 		RHIContext->RHISetShaderTexture(Shader, TextureIndex, NewTexture);
 	}
@@ -624,7 +617,7 @@ public:
 	*/
 	virtual void RHISetShaderSampler(FRHIComputeShader* Shader, uint32 SamplerIndex, FRHISamplerState* NewState) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderSampler(Shader, SamplerIndex, NewState);
 	}
 
@@ -648,7 +641,7 @@ public:
 	*/
 	virtual void RHISetUAVParameter(FRHIPixelShader* Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV) override final
 	{
-		checkf(State.bGfxPSOSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bGfxPSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		Tracker->AssertUAV(UAV, RHIValidation::EUAVMode::Graphics, UAVIndex);
 		RHIContext->RHISetUAVParameter(Shader, UAVIndex, UAV);
 	}
@@ -664,7 +657,7 @@ public:
 	*/
 	virtual void RHISetUAVParameter(FRHIComputeShader* Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		Tracker->AssertUAV(UAV, RHIValidation::EUAVMode::Compute, UAVIndex);
 		RHIContext->RHISetUAVParameter(Shader, UAVIndex, UAV);
 	}
@@ -678,7 +671,7 @@ public:
 	*/
 	virtual void RHISetUAVParameter(FRHIComputeShader* Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV, uint32 InitialCount) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		Tracker->AssertUAV(UAV, RHIValidation::EUAVMode::Compute, UAVIndex);
 		RHIContext->RHISetUAVParameter(Shader, UAVIndex, UAV, InitialCount);
 	}
@@ -695,7 +688,7 @@ public:
 
 	virtual void RHISetShaderResourceViewParameter(FRHIComputeShader* Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		if (SRV)
 		{
 			Tracker->Assert(SRV->ViewIdentity, ERHIAccess::SRVCompute);
@@ -712,7 +705,7 @@ public:
 
 	virtual void RHISetShaderUniformBuffer(FRHIComputeShader* Shader, uint32 BufferIndex, FRHIUniformBuffer* Buffer) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		State.GlobalUniformBuffers.ValidateSetShaderUniformBuffer(Buffer);
 		RHIContext->RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
 	}
@@ -725,7 +718,7 @@ public:
 
 	virtual void RHISetShaderParameter(FRHIComputeShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) override final
 	{
-		checkf(State.bComputeShaderSet, TEXT("A Compute shader has to be set to set resources into a shader!"));
+		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		RHIContext->RHISetShaderParameter(Shader, BufferIndex, BaseIndex, NumBytes, NewValue);
 	}
 
@@ -1112,7 +1105,7 @@ protected:
 		FString PreviousRenderPassName;
 		FString ComputePassName;
 		bool bGfxPSOSet{};
-		bool bComputeShaderSet{};
+		bool bComputePSOSet{};
 		bool bInsideBeginRenderPass{};
 
 		void Reset();

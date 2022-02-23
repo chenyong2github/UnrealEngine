@@ -358,23 +358,17 @@ public:
 	* CAUTION: Platforms that support RHIThread but don't actually have a threadsafe implementation must flush internally with FScopedRHIThreadStaller StallRHIThread(FRHICommandListExecutor::GetImmediateCommandList()); when the call is from the render thread
 	*/
 	// FlushType: Thread safe
-	// TODO: [PSO API] Make pure virtual
-	virtual FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer)
-	{
-		return new FRHIGraphicsPipelineStateFallBack(Initializer);
-	}
+	virtual FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer) = 0;
 
-	virtual TRefCountPtr<FRHIComputePipelineState> RHICreateComputePipelineState(FRHIComputeShader* ComputeShader)
-	{
-		return new FRHIComputePipelineStateFallback(ComputeShader);
-	}
+	// FlushType: Thread safe
+	virtual FComputePipelineStateRHIRef RHICreateComputePipelineState(FRHIComputeShader * ComputeShader) = 0;
 
 	virtual FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer, FRHIPipelineBinaryLibrary* PipelineBinary)
 	{
 		return RHICreateGraphicsPipelineState(Initializer);
 	}
 
-	virtual TRefCountPtr<FRHIComputePipelineState> RHICreateComputePipelineState(FRHIComputeShader* ComputeShader, FRHIPipelineBinaryLibrary* PipelineBinary)
+	virtual FComputePipelineStateRHIRef RHICreateComputePipelineState(FRHIComputeShader* ComputeShader, FRHIPipelineBinaryLibrary* PipelineBinary)
 	{
 		return RHICreateComputePipelineState(ComputeShader);
 	}
@@ -1322,6 +1316,21 @@ protected:
 /** A global pointer to the dynamically bound RHI implementation. */
 extern RHI_API FDynamicRHI* GDynamicRHI;
 
+// Dynamic RHI for RHIs that do not support real Graphics/Compute Pipelines.
+class FDynamicRHIPSOFallback : public FDynamicRHI
+{
+public:
+	virtual FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer) override
+	{
+		return new FRHIGraphicsPipelineStateFallBack(Initializer);
+	}
+
+	virtual FComputePipelineStateRHIRef RHICreateComputePipelineState(FRHIComputeShader* ComputeShader) override
+	{
+		return new FRHIComputePipelineStateFallback(ComputeShader);
+	}
+};
+
 FORCEINLINE FSamplerStateRHIRef RHICreateSamplerState(const FSamplerStateInitializerRHI& Initializer)
 {
 	return GDynamicRHI->RHICreateSamplerState(Initializer);
@@ -1359,7 +1368,7 @@ FORCEINLINE FVertexDeclarationRHIRef RHICreateVertexDeclaration(const FVertexDec
 	return GDynamicRHI->RHICreateVertexDeclaration(Elements);
 }
 
-FORCEINLINE TRefCountPtr<FRHIComputePipelineState> RHICreateComputePipelineState(FRHIComputeShader* ComputeShader)
+FORCEINLINE FComputePipelineStateRHIRef RHICreateComputePipelineState(FRHIComputeShader* ComputeShader)
 {
 	return GDynamicRHI->RHICreateComputePipelineState(ComputeShader);
 }

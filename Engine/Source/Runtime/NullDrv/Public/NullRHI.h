@@ -10,7 +10,7 @@
 struct Rect;
 
 /** A null implementation of the dynamically bound RHI. */
-class FNullDynamicRHI : public FDynamicRHI , public IRHICommandContextPSOFallback
+class FNullDynamicRHI : public FDynamicRHIPSOFallback, public IRHICommandContextPSOFallback
 {
 public:
 

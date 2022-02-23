@@ -88,15 +88,6 @@ void FAGXRHIComputeContext::RHISetAsyncComputeBudget(EAsyncComputeBudget Budget)
 	FAGXRHICommandContext::RHISetAsyncComputeBudget(Budget);
 }
 
-void FAGXRHIComputeContext::RHISetComputeShader(FRHIComputeShader* ComputeShader)
-{
-	if (!Context->GetCurrentCommandBuffer())
-	{
-		Context->InitFrame(false, 0, 0);
-	}
-	FAGXRHICommandContext::RHISetComputeShader(ComputeShader);
-}
-
 void FAGXRHIComputeContext::RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState)
 {
 	if (!Context->GetCurrentCommandBuffer())

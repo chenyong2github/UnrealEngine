@@ -434,7 +434,7 @@ FValidationComputeContext::FValidationComputeContext()
 void FValidationComputeContext::FState::Reset()
 {
 	ComputePassName.Reset();
-	bComputeShaderSet = false;
+	bComputePSOSet = false;
 	TrackerInstance.ResetAllUAVState();
 	GlobalUniformBuffers.Reset();
 }
@@ -517,7 +517,7 @@ void FValidationContext::FState::Reset()
 	RenderPassName.Reset();
 	PreviousRenderPassName.Reset();
 	ComputePassName.Reset();
-	bComputeShaderSet = false;
+	bComputePSOSet = false;
 	TrackerInstance.ResetAllUAVState();
 	GlobalUniformBuffers.Reset();
 }

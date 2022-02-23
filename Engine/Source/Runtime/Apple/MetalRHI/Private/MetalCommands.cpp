@@ -121,19 +121,6 @@ void FMetalRHICommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIBuffer*
 	}
 }
 
-void FMetalRHICommandContext::RHISetComputeShader(FRHIComputeShader* ComputeShaderRHI)
-{
-	@autoreleasepool {
-	FMetalComputeShader* ComputeShader = ResourceCast(ComputeShaderRHI);
-
-	// cache this for Dispatch
-	// sets this compute shader pipeline as the current (this resets all state, so we need to set all resources after calling this)
-	Context->GetCurrentState().SetComputeShader(ComputeShader);
-
-	ApplyStaticUniformBuffers(ComputeShader);
-	}
-}
-
 void FMetalRHICommandContext::RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState)
 {
 	@autoreleasepool {

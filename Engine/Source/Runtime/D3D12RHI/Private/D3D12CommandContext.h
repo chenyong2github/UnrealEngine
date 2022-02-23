@@ -267,7 +267,6 @@ public:
 	virtual void RHIEndTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 
 	// IRHIComputeContext interface
-	virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) final override;
 	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) final override;
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) final override;
 	virtual void RHIDispatchIndirectComputeShader(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset) final override;
@@ -508,10 +507,6 @@ public:
 #define ContextRedirect(Call) { for (uint32 GPUIndex : GPUMask) PhysicalContexts[GPUIndex]->##Call; }
 #define ContextGPU0(Call) { PhysicalContexts[0]->##Call; }
 
-	FORCEINLINE virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) final override
-	{
-		ContextRedirect(RHISetComputeShader(ComputeShader));
-	}
 	FORCEINLINE virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) final override
 	{
 		ContextRedirect(RHISetComputePipelineState(ComputePipelineState));

@@ -399,7 +399,7 @@ struct FD3D11Adapter
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /** The interface which is implemented by the dynamically bound RHI. */
-class D3D11RHI_API FD3D11DynamicRHI : public FDynamicRHI, public IRHICommandContextPSOFallback
+class D3D11RHI_API FD3D11DynamicRHI : public FDynamicRHIPSOFallback, public IRHICommandContextPSOFallback
 {
 public:
 	typedef TMap<FD3D11LockedKey, FD3D11LockedData> FD3D11LockTracker;

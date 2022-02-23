@@ -165,19 +165,14 @@ public:
 	{
 	}
 
-	/**
-	*Sets the current compute shader.
-	*/
-	virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) = 0;
-
-	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState)
+	UE_DEPRECATED(5.1, "ComputePipelineStates should be used instead of direct ComputeShaders.")
+	virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader)
 	{
-		if (ComputePipelineState)
-		{
-			FRHIComputePipelineStateFallback* FallbackState = static_cast<FRHIComputePipelineStateFallback*>(ComputePipelineState);
-			RHISetComputeShader(FallbackState->GetComputeShader());
-		}
+		RHI_API void RHISetComputeShaderBackwardsCompatible(IRHIComputeContext*, FRHIComputeShader*);
+		RHISetComputeShaderBackwardsCompatible(this, ComputeShader);
 	}
+
+	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) = 0;
 
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) = 0;
 
@@ -841,23 +836,17 @@ FORCEINLINE FBoundShaderStateRHIRef RHICreateBoundShaderState(
 );
 
 
-// Command Context for RHIs that do not support real Graphics Pipelines.
+// Command Context for RHIs that do not support real Graphics/Compute Pipelines.
 class IRHICommandContextPSOFallback : public IRHICommandContext
 {
 public:
-	/**
-	* Set bound shader state. This will set the vertex decl/shader, and pixel shader
-	* @param BoundShaderState - state resource
-	*/
 	virtual void RHISetBoundShaderState(FRHIBoundShaderState* BoundShaderState) = 0;
-
 	virtual void RHISetDepthStencilState(FRHIDepthStencilState* NewState, uint32 StencilRef) = 0;
-
 	virtual void RHISetRasterizerState(FRHIRasterizerState* NewState) = 0;
-
 	virtual void RHISetBlendState(FRHIBlendState* NewState, const FLinearColor& BlendFactor) = 0;
-
 	virtual void RHIEnableDepthBoundsTest(bool bEnable) = 0;
+	// TODO: uncomment when removed from IRHIComputeContext
+	//virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) = 0;
 
 	/**
 	* This will set most relevant pipeline state. Legacy APIs are expected to set corresponding disjoint state as well.
@@ -875,6 +864,16 @@ public:
 		SetGraphicsPipelineStateFromInitializer(PsoInit, StencilRef, bApplyAdditionalState);
 	}
 #endif
+
+	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState)
+	{
+		if (FRHIComputePipelineStateFallback* FallbackState = static_cast<FRHIComputePipelineStateFallback*>(ComputePipelineState))
+		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			RHISetComputeShader(FallbackState->GetComputeShader());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
 
 private:
 	void SetGraphicsPipelineStateFromInitializer(const FGraphicsPipelineStateInitializer& PsoInit, uint32 StencilRef, bool bApplyAdditionalState)

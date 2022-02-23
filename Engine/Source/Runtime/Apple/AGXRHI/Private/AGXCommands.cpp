@@ -120,19 +120,6 @@ void FAGXRHICommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIBuffer* V
 	}
 }
 
-void FAGXRHICommandContext::RHISetComputeShader(FRHIComputeShader* ComputeShaderRHI)
-{
-	@autoreleasepool {
-	FAGXComputeShader* ComputeShader = ResourceCast(ComputeShaderRHI);
-
-	// cache this for Dispatch
-	// sets this compute shader pipeline as the current (this resets all state, so we need to set all resources after calling this)
-	Context->GetCurrentState().SetComputeShader(ComputeShader);
-
-	ApplyStaticUniformBuffers(ComputeShader);
-	}
-}
-
 void FAGXRHICommandContext::RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState)
 {
 	@autoreleasepool {

@@ -2754,3 +2754,9 @@ void FRHICommandListImmediate::UpdateRHIResources(FRHIResourceUpdateInfo* Update
 		}
 	}
 }
+
+RHI_API void RHISetComputeShaderBackwardsCompatible(IRHIComputeContext* InContext, FRHIComputeShader* InShader)
+{
+	TRefCountPtr<FRHIComputePipelineState> ComputePipelineState = RHICreateComputePipelineState(InShader);
+	InContext->RHISetComputePipelineState(ComputePipelineState);
+}

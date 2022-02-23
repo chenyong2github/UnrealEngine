@@ -34,12 +34,6 @@ public:
 	/** Get the profiler pointer */
 	FORCEINLINE class FAGXProfiler* GetProfiler() const { return Profiler; }
 
-	/**
-	 *Sets the current compute shader.  Mostly for compliance with platforms
-	 *that require shader setting before resource binding.
-	 */
-	virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) override;
-	
 	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) override;
 	
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) final override;
@@ -260,7 +254,6 @@ public:
 	virtual ~FAGXRHIComputeContext();
 	
 	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) final override;
-	virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) final override;
 	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) final override;
 	virtual void RHISubmitCommandsHint() final override;
 };
