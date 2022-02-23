@@ -70,6 +70,11 @@ void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos
 {
 	Super::OnClickPress(PressPos);
 
+	if (!PlacementInfo)
+	{
+		return;
+	}
+
 	DestroyPreviewElements();
 	LastBrushStamp.Radius = 100.0f * LastBrushStampWorldToPixelScale;
 
