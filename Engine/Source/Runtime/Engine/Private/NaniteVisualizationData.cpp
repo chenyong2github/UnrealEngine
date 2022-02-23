@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteVisualizationData.h"
+#include "NaniteDefinitions.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
@@ -9,68 +10,40 @@
 
 static FNaniteVisualizationData GNaniteVisualizationData;
 
-// Nanite Visualization Modes (must match NaniteDataDecode.ush)
-#define VISUALIZE_OVERVIEW							0
-#define VISUALIZE_TRIANGLES							(1 << 0)
-#define VISUALIZE_CLUSTERS							(1 << 1)
-#define VISUALIZE_PRIMITIVES						(1 << 2)
-#define VISUALIZE_INSTANCES							(1 << 3)
-#define VISUALIZE_GROUPS							(1 << 4)
-#define VISUALIZE_PAGES								(1 << 5)
-#define VISUALIZE_OVERDRAW							(1 << 6)
-#define VISUALIZE_RASTER_MODE						(1 << 7)
-#define VISUALIZE_SCENE_Z_MIN						(1 << 8)
-#define VISUALIZE_SCENE_Z_MAX						(1 << 9)
-#define VISUALIZE_SCENE_Z_DELTA						(1 << 10)
-#define VISUALIZE_MATERIAL_Z_MIN					(1 << 11)
-#define VISUALIZE_MATERIAL_Z_MAX					(1 << 12)
-#define VISUALIZE_MATERIAL_Z_DELTA					(1 << 13)
-#define VISUALIZE_MATERIAL_MODE						(1 << 14)
-#define VISUALIZE_MATERIAL_INDEX					(1 << 15)
-#define VISUALIZE_MATERIAL_DEPTH					(1 << 16)
-#define VISUALIZE_MATERIAL_COMPLEXITY				(1 << 17)
-#define VISUALIZE_HIT_PROXY_DEPTH					(1 << 18)
-#define VISUALIZE_NANITE_MASK						(1 << 19)
-#define VISUALIZE_LIGHTMAP_UVS						(1 << 20)
-#define VISUALIZE_LIGHTMAP_UV_INDEX					(1 << 21)
-#define VISUALIZE_LIGHTMAP_DATA_INDEX				(1 << 22)
-#define VISUALIZE_HIERARCHY_OFFSET					(1 << 23)
-#define VISUALIZE_POSITION_BITS						(1 << 24)
-#define VISUALIZE_VSM_STATIC_CACHING				(1 << 25)
-
 void FNaniteVisualizationData::Initialize()
 {
 	if (!bIsInitialized)
 	{
-		AddVisualizationMode(TEXT("Overview"), LOCTEXT("Overview", "Overview"), FModeType::Overview, VISUALIZE_OVERVIEW, true);
+		AddVisualizationMode(TEXT("Overview"), LOCTEXT("Overview", "Overview"), FModeType::Overview, NANITE_VISUALIZE_OVERVIEW, true);
 
-		AddVisualizationMode(TEXT("Mask"), LOCTEXT("Mask", "Mask"), FModeType::Standard, VISUALIZE_NANITE_MASK, true);
-		AddVisualizationMode(TEXT("Triangles"), LOCTEXT("Triangles", "Triangles"), FModeType::Standard, VISUALIZE_TRIANGLES, true);
-		AddVisualizationMode(TEXT("Clusters"), LOCTEXT("Clusters", "Clusters"), FModeType::Standard, VISUALIZE_CLUSTERS, true);
-		AddVisualizationMode(TEXT("Primitives"), LOCTEXT("Primitives", "Primitives"), FModeType::Standard, VISUALIZE_PRIMITIVES, true);
-		AddVisualizationMode(TEXT("Instances"), LOCTEXT("Instances", "Instances"), FModeType::Standard, VISUALIZE_INSTANCES, true);
-		AddVisualizationMode(TEXT("Overdraw"), LOCTEXT("Overdraw", "Overdraw"), FModeType::Standard, VISUALIZE_OVERDRAW, false);
-		AddVisualizationMode(TEXT("MaterialComplexity"), LOCTEXT("MaterialComplexity", "Material Complexity"), FModeType::Standard, VISUALIZE_MATERIAL_COMPLEXITY, false);
-		AddVisualizationMode(TEXT("MaterialID"), LOCTEXT("MaterialID", "Material ID"), FModeType::Standard, VISUALIZE_MATERIAL_DEPTH, true);
-		AddVisualizationMode(TEXT("LightmapUV"), LOCTEXT("LightmapUV", "Lightmap UV"), FModeType::Standard, VISUALIZE_LIGHTMAP_UVS, true);
+		AddVisualizationMode(TEXT("Mask"), LOCTEXT("Mask", "Mask"), FModeType::Standard, NANITE_VISUALIZE_NANITE_MASK, true);
+		AddVisualizationMode(TEXT("Triangles"), LOCTEXT("Triangles", "Triangles"), FModeType::Standard, NANITE_VISUALIZE_TRIANGLES, true);
+		AddVisualizationMode(TEXT("Clusters"), LOCTEXT("Clusters", "Clusters"), FModeType::Standard, NANITE_VISUALIZE_CLUSTERS, true);
+		AddVisualizationMode(TEXT("Primitives"), LOCTEXT("Primitives", "Primitives"), FModeType::Standard, NANITE_VISUALIZE_PRIMITIVES, true);
+		AddVisualizationMode(TEXT("Instances"), LOCTEXT("Instances", "Instances"), FModeType::Standard, NANITE_VISUALIZE_INSTANCES, true);
+		AddVisualizationMode(TEXT("Overdraw"), LOCTEXT("Overdraw", "Overdraw"), FModeType::Standard, NANITE_VISUALIZE_OVERDRAW, false);
+		AddVisualizationMode(TEXT("MaterialComplexity"), LOCTEXT("MaterialComplexity", "Material Complexity"), FModeType::Standard, NANITE_VISUALIZE_MATERIAL_COMPLEXITY, false);
+		AddVisualizationMode(TEXT("MaterialID"), LOCTEXT("MaterialID", "Material ID"), FModeType::Standard, NANITE_VISUALIZE_MATERIAL_DEPTH, true);
+		AddVisualizationMode(TEXT("LightmapUV"), LOCTEXT("LightmapUV", "Lightmap UV"), FModeType::Standard, NANITE_VISUALIZE_LIGHTMAP_UVS, true);
 
-		AddVisualizationMode(TEXT("Groups"), LOCTEXT("Groups", "Groups"), FModeType::Advanced, VISUALIZE_GROUPS, true);
-		AddVisualizationMode(TEXT("Pages"), LOCTEXT("Pages", "Pages"), FModeType::Advanced, VISUALIZE_PAGES, true);
-		AddVisualizationMode(TEXT("Hierarchy"), LOCTEXT("Hierarchy", "Hierarchy"), FModeType::Advanced, VISUALIZE_HIERARCHY_OFFSET, true);
-		AddVisualizationMode(TEXT("RasterMode"), LOCTEXT("RasterMode", "Raster Mode"), FModeType::Advanced, VISUALIZE_RASTER_MODE, true);
-		AddVisualizationMode(TEXT("SceneZMin"), LOCTEXT("SceneZMin", "Scene Z Min"), FModeType::Advanced, VISUALIZE_SCENE_Z_MIN, true);
-		AddVisualizationMode(TEXT("SceneZMax"), LOCTEXT("SceneZMax", "Scene Z Max"), FModeType::Advanced, VISUALIZE_SCENE_Z_MAX, true);
-		AddVisualizationMode(TEXT("SceneZDelta"), LOCTEXT("SceneZDelta", "Scene Z Delta"), FModeType::Advanced, VISUALIZE_SCENE_Z_DELTA, true);
-		AddVisualizationMode(TEXT("MaterialZMin"), LOCTEXT("MaterialZMin", "Material Z Min"), FModeType::Advanced, VISUALIZE_MATERIAL_Z_MIN, true);
-		AddVisualizationMode(TEXT("MaterialZMax"), LOCTEXT("MaterialZMax", "Material Z Max"), FModeType::Advanced, VISUALIZE_MATERIAL_Z_MAX, true);
-		AddVisualizationMode(TEXT("MaterialZDelta"), LOCTEXT("MaterialZDelta", "Material Z Delta"), FModeType::Advanced, VISUALIZE_MATERIAL_Z_DELTA, true);
-		AddVisualizationMode(TEXT("MaterialMode"), LOCTEXT("MaterialMode", "Material Mode"), FModeType::Advanced, VISUALIZE_MATERIAL_MODE, true);
-		AddVisualizationMode(TEXT("MaterialIndex"), LOCTEXT("MaterialIndex", "Material Index"), FModeType::Advanced, VISUALIZE_MATERIAL_INDEX, true);
-		AddVisualizationMode(TEXT("HitProxyID"), LOCTEXT("HitProxyID", "Hit Proxy ID"), FModeType::Advanced, VISUALIZE_HIT_PROXY_DEPTH, true);
-		AddVisualizationMode(TEXT("LightmapUVIndex"), LOCTEXT("LightmapUVIndex", "Lightmap UV Index"), FModeType::Advanced, VISUALIZE_LIGHTMAP_UV_INDEX, true);
-		AddVisualizationMode(TEXT("LightmapDataIndex"), LOCTEXT("LightmapDataIndex", "Lightmap Data Index"), FModeType::Advanced, VISUALIZE_LIGHTMAP_DATA_INDEX, true);
-		AddVisualizationMode(TEXT("PositionBits"), LOCTEXT("PositionBits", "Position Bits"), FModeType::Advanced, VISUALIZE_POSITION_BITS, true);
-		AddVisualizationMode(TEXT("VSMStatic"), LOCTEXT("VSMStatic", "Virtual Shadow Map Static"), FModeType::Advanced, VISUALIZE_VSM_STATIC_CACHING, true);
+		AddVisualizationMode(TEXT("Groups"), LOCTEXT("Groups", "Groups"), FModeType::Advanced, NANITE_VISUALIZE_GROUPS, true);
+		AddVisualizationMode(TEXT("Pages"), LOCTEXT("Pages", "Pages"), FModeType::Advanced, NANITE_VISUALIZE_PAGES, true);
+		AddVisualizationMode(TEXT("Hierarchy"), LOCTEXT("Hierarchy", "Hierarchy"), FModeType::Advanced, NANITE_VISUALIZE_HIERARCHY_OFFSET, true);
+		AddVisualizationMode(TEXT("RasterMode"), LOCTEXT("RasterMode", "Raster Mode"), FModeType::Advanced, NANITE_VISUALIZE_RASTER_MODE, true);
+		AddVisualizationMode(TEXT("RasterBins"), LOCTEXT("RasterBins", "Raster Bins"), FModeType::Advanced, NANITE_VISUALIZE_RASTER_BINS, true);
+		AddVisualizationMode(TEXT("SceneZMin"), LOCTEXT("SceneZMin", "Scene Z Min"), FModeType::Advanced, NANITE_VISUALIZE_SCENE_Z_MIN, true);
+		AddVisualizationMode(TEXT("SceneZMax"), LOCTEXT("SceneZMax", "Scene Z Max"), FModeType::Advanced, NANITE_VISUALIZE_SCENE_Z_MAX, true);
+		AddVisualizationMode(TEXT("SceneZDelta"), LOCTEXT("SceneZDelta", "Scene Z Delta"), FModeType::Advanced, NANITE_VISUALIZE_SCENE_Z_DELTA, true);
+		AddVisualizationMode(TEXT("MaterialZMin"), LOCTEXT("MaterialZMin", "Material Z Min"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_Z_MIN, true);
+		AddVisualizationMode(TEXT("MaterialZMax"), LOCTEXT("MaterialZMax", "Material Z Max"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_Z_MAX, true);
+		AddVisualizationMode(TEXT("MaterialZDelta"), LOCTEXT("MaterialZDelta", "Material Z Delta"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_Z_DELTA, true);
+		AddVisualizationMode(TEXT("MaterialMode"), LOCTEXT("MaterialMode", "Material Mode"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_MODE, true);
+		AddVisualizationMode(TEXT("MaterialIndex"), LOCTEXT("MaterialIndex", "Material Index"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_INDEX, true);
+		AddVisualizationMode(TEXT("HitProxyID"), LOCTEXT("HitProxyID", "Hit Proxy ID"), FModeType::Advanced, NANITE_VISUALIZE_HIT_PROXY_DEPTH, true);
+		AddVisualizationMode(TEXT("LightmapUVIndex"), LOCTEXT("LightmapUVIndex", "Lightmap UV Index"), FModeType::Advanced, NANITE_VISUALIZE_LIGHTMAP_UV_INDEX, true);
+		AddVisualizationMode(TEXT("LightmapDataIndex"), LOCTEXT("LightmapDataIndex", "Lightmap Data Index"), FModeType::Advanced, NANITE_VISUALIZE_LIGHTMAP_DATA_INDEX, true);
+		AddVisualizationMode(TEXT("PositionBits"), LOCTEXT("PositionBits", "Position Bits"), FModeType::Advanced, NANITE_VISUALIZE_POSITION_BITS, true);
+		AddVisualizationMode(TEXT("VSMStatic"), LOCTEXT("VSMStatic", "Virtual Shadow Map Static"), FModeType::Advanced, NANITE_VISUALIZE_VSM_STATIC_CACHING, true);
 
 		ConfigureConsoleCommand();
 
@@ -148,7 +121,7 @@ bool FNaniteVisualizationData::IsActive() const
 		return false;
 	}
 
-	if (GetActiveModeID() == VISUALIZE_OVERVIEW && GetOverviewModeBitMask() == 0x0)
+	if (GetActiveModeID() == NANITE_VISUALIZE_OVERVIEW && GetOverviewModeBitMask() == 0x0)
 	{
 		return false;
 	}

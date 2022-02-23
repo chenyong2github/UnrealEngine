@@ -1911,7 +1911,7 @@ static void AddPass_Binning(
 {
 	const bool bProgrammableRaster = (RenderFlags & NANITE_RENDER_FLAG_PROGRAMMABLE_RASTER) != 0;
 
-	BinningData.BinCount = bProgrammableRaster ? Scene.NaniteRasterPipelines.GetBinCount() : 0u;
+	BinningData.BinCount = bProgrammableRaster ? Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetBinCount() : 0u;
 	if (BinningData.BinCount == 0)
 	{
 		return;
@@ -2090,10 +2090,6 @@ void AddPass_Rasterize(
 
 	LLM_SCOPE_BYTAG(Nanite);
 
-	check(RasterState.CullMode == CM_CW || RasterState.CullMode == CM_CCW);		// CM_None not implemented
-
-	RasterPipelines.BeginRaster();
-
 	// Rasterizer Binning
 	FBinningData BinningData = {};
 	AddPass_Binning(
@@ -2117,7 +2113,7 @@ void AddPass_Rasterize(
 
 	const bool bProgrammableRaster = BinningData.BinCount > 0;
 
-	auto ConstructRasterBinPassParameters = [&]() -> FHWRasterizePS::FParameters*
+	auto ConstructRasterBinPassParameters = [&](bool bIsTwoSided) -> FHWRasterizePS::FParameters*
 	{
 		auto* RasterPassParameters = GraphBuilder.AllocParameters<FHWRasterizePS::FParameters>();
 		auto* CommonPassParameters = &RasterPassParameters->Common;
@@ -2126,6 +2122,12 @@ void AddPass_Rasterize(
 		if (RasterState.CullMode == CM_CCW)
 		{
 			CommonPassParameters->RenderFlags |= NANITE_RENDER_FLAG_REVERSE_CULLING;
+		}
+		
+		// Support CM_None for all rasterizer bins, or for specific two-sided material rasterizer bins
+		if (RasterState.CullMode == CM_None || bIsTwoSided)
+		{
+			CommonPassParameters->RenderFlags |= NANITE_RENDER_FLAG_TWO_SIDED;
 		}
 
 		CommonPassParameters->View = Scene.UniformBuffers.ViewUniformBuffer;
@@ -2278,7 +2280,7 @@ void AddPass_Rasterize(
 
 		TShaderRef<FMicropolyRasterizeCS> RasterComputeShader;
 
-		FNaniteRasterPipeline* RasterPipeline = nullptr;
+		FNaniteRasterPipeline RasterPipeline{};
 
 		const FMaterialRenderProxy* VertexMaterialProxy	= nullptr;
 		const FMaterialRenderProxy* PixelMaterialProxy	= nullptr;
@@ -2295,15 +2297,17 @@ void AddPass_Rasterize(
 	TArray<FRasterizerPass, SceneRenderingAllocator> RasterizerPasses;
 	if (bProgrammableRaster)
 	{
-		const auto& Pipelines = RasterPipelines.GetRasterPipelines();
+		const auto& Pipelines = RasterPipelines.GetRasterPipelineMap();
 
 		RasterizerPasses.Reserve(Pipelines.Num());
-		for (auto PipelineIt = Pipelines.CreateConstIterator(); PipelineIt; ++PipelineIt)
+		for (auto RasterBinIter = Pipelines.begin(); RasterBinIter != Pipelines.end(); ++RasterBinIter)
 		{
-			FRasterizerPass& RasterizerPass = RasterizerPasses.AddDefaulted_GetRef();
-			RasterizerPass.RasterPipeline = PipelineIt->Value;
+			auto& RasterBin = *RasterBinIter;
+			const FNaniteRasterEntry& RasterEntry = RasterBin.Value;
 
-			RasterizerPass.RasterizerBin = uint32(RasterizerPass.RasterPipeline->GetBinIndex());
+			FRasterizerPass& RasterizerPass = RasterizerPasses.AddDefaulted_GetRef();
+			RasterizerPass.RasterizerBin = uint32(RasterEntry.BinIndex);
+			RasterizerPass.RasterPipeline = RasterEntry.RasterPipeline;
 
 			RasterizerPass.VertexMaterialProxy	= FixedMaterialProxy;
 			RasterizerPass.PixelMaterialProxy	= FixedMaterialProxy;
@@ -2311,11 +2315,11 @@ void AddPass_Rasterize(
 			FMaterialShaderTypes ProgrammableShaderTypes;
 			ProgrammableShaderTypes.PipelineType = nullptr;
 			{
-				const FMaterial& RasterMaterial = RasterizerPass.RasterPipeline->GetRenderProxy()->GetIncompleteMaterialWithFallback(Scene.GetFeatureLevel());
+				const FMaterial& RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(Scene.GetFeatureLevel());
 
 				const bool bMayModifyMeshPosition	= false;//RasterMaterial.MaterialModifiesMeshPosition_RenderThread(); // TODO: PROG_RASTER
 				const bool bUsesPixelDepthOffset	= false;//RasterMaterial.MaterialUsesPixelDepthOffset(); // TODO: PROG_RASTER
-				const bool bUsesAlphaTest			= RasterMaterial.GetBlendMode() == EBlendMode::BLEND_Masked;
+				const bool bUsesAlphaTest			= RasterMaterial.IsMasked();
 
 				// Programmable vertex features
 				if (bMayModifyMeshPosition)
@@ -2337,7 +2341,7 @@ void AddPass_Rasterize(
 				}
 			}
 
-			const FMaterialRenderProxy* ProgrammableRasterProxy = RasterizerPass.RasterPipeline->GetRenderProxy();
+			const FMaterialRenderProxy* ProgrammableRasterProxy = RasterEntry.RasterPipeline.RasterMaterial;
 			while (ProgrammableRasterProxy)
 			{
 				const FMaterial* Material = ProgrammableRasterProxy->GetMaterialNoFallback(Scene.GetFeatureLevel());
@@ -2376,8 +2380,6 @@ void AddPass_Rasterize(
 			// Note: The indirect args offset is in bytes
 			RasterizerPass.IndirectOffset = (RasterizerPass.RasterizerBin * NANITE_RASTERIZER_ARG_COUNT) * 4u;
 			RasterizerPass.IndirectArgs = BinningData.IndirectArgs;
-
-			RasterizerPass.RasterPipeline = nullptr; // To disallow accessing this outside of BeginRaster/FinishRaster
 		}
 	}
 	else
@@ -2390,11 +2392,9 @@ void AddPass_Rasterize(
 		RasterizerPass.RasterizerBin		= 0u;
 	}
 
-	RasterPipelines.FinishRaster();
-
 	for (FRasterizerPass& RasterizerPass : RasterizerPasses)
 	{
-		RasterizerPass.RasterComputeShader = SharedContext.ShaderMap->GetShader<FMicropolyRasterizeCS>(PermutationVectorCS); // TODO: PROG_RASTER
+		RasterizerPass.RasterComputeShader = SharedContext.ShaderMap->GetShader<FMicropolyRasterizeCS>(PermutationVectorCS); // TODO: PROG_RASTER (Add programmable raster to SW path)
 		check(!RasterizerPass.RasterComputeShader.IsNull());
 
 		if (RasterizerPass.RasterVertexShader.IsNull() || RasterizerPass.RasterMeshShader.IsNull())
@@ -2429,11 +2429,10 @@ void AddPass_Rasterize(
 		check(RasterizerPass.PixelMaterial);
 	}
 
-	// TEMP: TODO: PROG_RASTER - Fix ValidateRHIAccess errors around IndirectArgs and re-merge RDG passes
-#if 1
+	// TODO: PROG_RASTER: Optimization (Fold multiple HW rasterizer calls into combined RDG pass to reduce overhead)
 	for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 	{
-		FHWRasterizePS::FParameters* RasterBinPassParameters = ConstructRasterBinPassParameters();
+		FHWRasterizePS::FParameters* RasterBinPassParameters = ConstructRasterBinPassParameters(RasterizerPass.RasterPipeline.bIsTwoSided);
 		RasterBinPassParameters->Common.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
 		RasterBinPassParameters->Common.IndirectArgs = RasterizerPass.IndirectArgs;
 
@@ -2451,14 +2450,14 @@ void AddPass_Rasterize(
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI(); // TODO: PROG_RASTER - Support depth clip as a rasterizer bin and remove shader permutations
+
 			// NOTE: We do *not* use RasterState.CullMode here because HWRasterize[VS/MS] already
 			// changes the index order in cases where the culling should be flipped.
-#if 1 // TODO: PROG_RASTER (two sided material bin that turns off culling)
-			GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, CM_CW);
-#else
-			GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, CM_None);
-#endif
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			// The exception is if CM_None is specified for two sided materials, or if the entire raster pass has CM_None specified.
+			const bool bCullModeNone = (RasterBinPassParameters->Common.RenderFlags & NANITE_RENDER_FLAG_TWO_SIDED) != 0u;
+			GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, bCullModeNone ? CM_None : CM_CW);
+
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			if (bUsePrimitiveShader || bUseMeshShader)
 			{
@@ -2514,99 +2513,13 @@ void AddPass_Rasterize(
 			RHICmdList.EndRenderPass();
 		});
 	}
-#else
-	
-	
-	GraphBuilder.AddPass(
-		bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
-		RasterBinPassParameters,
-		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-		[RasterBinPassParameters, RasterizerPasses, ViewRect, &SceneView, RPInfo, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
-	{
-			
-		RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: HW Rasterize") : TEXT("Post Pass: HW Rasterize"));
-		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
-		RHICmdList.SetStreamSource(0, nullptr, 0);
-
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-		// NOTE: We do *not* use RasterState.CullMode here because HWRasterize[VS/MS] already
-		// changes the index order in cases where the culling should be flipped.
-#if 1 // TODO: PROG_RASTER (two sided material bin that turns off culling)
-		GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, CM_CW);
-#else
-		GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, CM_None);
-#endif
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-		if (bUsePrimitiveShader || bUseMeshShader)
-		{
-			GraphicsPSOInit.PrimitiveType = PT_PointList;
-		}
-
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = bUseMeshShader ? nullptr : GEmptyVertexDeclaration.VertexDeclarationRHI;
-
-		for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
-		{
-			RasterBinPassParameters->Common.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
-			RasterBinPassParameters->Common.IndirectArgs = RasterizerPass.IndirectArgs;
-
-			if (bUseMeshShader)
-			{
-				GraphicsPSOInit.BoundShaderState.SetMeshShader(RasterizerPass.RasterMeshShader.GetMeshShader());
-			}
-			else
-			{
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = RasterizerPass.RasterVertexShader.GetVertexShader();
-			}
-
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = RasterizerPass.RasterPixelShader.GetPixelShader();
-
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-
-			if (bUseMeshShader)
-			{
-				RasterizerPass.RasterMeshShader->SetParameters(RHICmdList, SceneView, RasterizerPass.VertexMaterialProxy, *RasterizerPass.VertexMaterial);
-			}
-			else
-			{
-				RasterizerPass.RasterVertexShader->SetParameters(RHICmdList, SceneView, RasterizerPass.VertexMaterialProxy, *RasterizerPass.VertexMaterial);
-			}
-
-			RasterizerPass.RasterPixelShader->SetParameters(RHICmdList, SceneView, RasterizerPass.PixelMaterialProxy, *RasterizerPass.PixelMaterial);
-
-			if (bUseMeshShader)
-			{
-				SetShaderParameters(RHICmdList, RasterizerPass.RasterMeshShader, RasterizerPass.RasterMeshShader.GetMeshShader(), RasterBinPassParameters->Common);
-			}
-			else
-			{
-				SetShaderParameters(RHICmdList, RasterizerPass.RasterVertexShader, RasterizerPass.RasterVertexShader.GetVertexShader(), RasterBinPassParameters->Common);
-			}
-
-			SetShaderParameters(RHICmdList, RasterizerPass.RasterPixelShader, RasterizerPass.RasterPixelShader.GetPixelShader(), *RasterBinPassParameters);
-
-			if (bUseMeshShader)
-			{
-				RHICmdList.DispatchIndirectMeshShader(RasterBinPassParameters->Common.IndirectArgs->GetIndirectRHICallBuffer(), RasterizerPass.IndirectOffset + 16);
-			}
-			else
-			{
-				RHICmdList.DrawPrimitiveIndirect(RasterBinPassParameters->Common.IndirectArgs->GetIndirectRHICallBuffer(), RasterizerPass.IndirectOffset + 16);
-			}
-		}
-
-		RHICmdList.EndRenderPass();
-	});
-#endif // TODO: TEMP - END
 
 	if (Scheduling != ERasterScheduling::HardwareOnly)
 	{
+		// TODO: PROG_RASTER: Optimization (Fold multiple SW rasterizer calls into combined RDG pass to reduce overhead)
 		for (const FRasterizerPass& RasterizerPass : RasterizerPasses)
 		{
-			FHWRasterizePS::FParameters* SWRasterBinPassParameters = ConstructRasterBinPassParameters();
+			FHWRasterizePS::FParameters* SWRasterBinPassParameters = ConstructRasterBinPassParameters(RasterizerPass.RasterPipeline.bIsTwoSided);
 			SWRasterBinPassParameters->Common.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
 			SWRasterBinPassParameters->Common.IndirectArgs = RasterizerPass.IndirectArgs;
 

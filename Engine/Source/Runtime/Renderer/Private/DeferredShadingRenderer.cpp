@@ -2417,7 +2417,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 				Nanite::CullRasterize(
 					GraphBuilder,
-					Scene->NaniteRasterPipelines,
+					Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 					*Scene,
 					View,
 					{ PackedView },

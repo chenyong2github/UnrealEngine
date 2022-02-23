@@ -28,6 +28,7 @@ class FIndirectLightingCacheUniformParameters;
 template<typename ElementType,typename OctreeSemantics> class TOctree2;
 
 class FNaniteCommandInfo;
+struct FNaniteRasterBin;
 struct FNaniteMaterialSlot;
 struct FRayTracingInstance;
 
@@ -326,6 +327,7 @@ public:
 	/** The primitive's static meshes. */
 	TArray<class FStaticMeshBatch> StaticMeshes;
 
+	TArray<FNaniteRasterBin> NaniteRasterBins[ENaniteMeshPass::Num];
 	TArray<FNaniteCommandInfo> NaniteCommandInfos[ENaniteMeshPass::Num];
 	TArray<FNaniteMaterialSlot> NaniteMaterialSlots[ENaniteMeshPass::Num];
 

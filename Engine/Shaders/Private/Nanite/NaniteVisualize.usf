@@ -177,65 +177,70 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 		// Note: The mode is no longer a bitmask at this point, just a single visualization mode.
 
-		if (VisualizeMode == VISUALIZE_TRIANGLES)
+		if (VisualizeMode == NANITE_VISUALIZE_TRIANGLES)
 		{
 			Result = IntToColor(TriIndex);
 			Result = Result * 0.8 + 0.2;
 			bDarkOutline = true;
 		}
-		else if (VisualizeMode == VISUALIZE_CLUSTERS)
+		else if (VisualizeMode == NANITE_VISUALIZE_CLUSTERS)
 		{
 			Result = IntToColor(VisibleCluster.ClusterIndex);
 			Result = Result * 0.8 + 0.2;
 			bDarkOutline = true;
 		}
-		else if (VisualizeMode == VISUALIZE_GROUPS)
+		else if (VisualizeMode == NANITE_VISUALIZE_GROUPS)
 		{
 			Result = IntToColor(Cluster.GroupIndex);
 		}
-		else if (VisualizeMode == VISUALIZE_PAGES)
+		else if (VisualizeMode == NANITE_VISUALIZE_PAGES)
 		{
 			Result = IntToColor(VisibleCluster.PageIndex);
 		}
-		else if (VisualizeMode == VISUALIZE_PRIMITIVES)
+		else if (VisualizeMode == NANITE_VISUALIZE_PRIMITIVES)
 		{
 			Result = IntToColor(InstanceData.PrimitiveId) * 0.8;
 		}
-		else if (VisualizeMode == VISUALIZE_INSTANCES)
+		else if (VisualizeMode == NANITE_VISUALIZE_INSTANCES)
 		{
 			Result = IntToColor(VisibleCluster.InstanceId) * 0.8;
 		}
-		else if (VisualizeMode == VISUALIZE_RASTER_MODE)
+		else if (VisualizeMode == NANITE_VISUALIZE_RASTER_MODE)
 		{
 			Result = ( IntToColor(DebugValueMax) * 0.75 + 0.25 ) * ( IntToColor(TriIndex).x * 0.5 + 0.5 );
 		}
-		else if (VisualizeMode == VISUALIZE_OVERDRAW)
+		else if (VisualizeMode == NANITE_VISUALIZE_RASTER_BINS)
+		{
+			const uint RasterSlot = GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
+			Result = IntToColor(RasterSlot);
+		}
+		else if (VisualizeMode == NANITE_VISUALIZE_OVERDRAW)
 		{
 			const float OverdrawScale = GetOverdrawScale();
 			const float OverdrawCount = DebugValueAdd; // Num of evaluations per pixel
 			const float OverdrawColor = 1 - exp2( -OverdrawCount * OverdrawScale );
 			Result = ColorMapInferno(OverdrawColor);
 		}
-		else if (VisualizeMode == VISUALIZE_HIERARCHY_OFFSET)
+		else if (VisualizeMode == NANITE_VISUALIZE_HIERARCHY_OFFSET)
 		{
 			Result = IntToColor(HierarchyOffset);
 		}
-		else if (VisualizeMode == VISUALIZE_MATERIAL_MODE)
+		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_MODE)
 		{
 			Result = IsMaterialFastPath(Cluster) ? float3(0, 1, 0) : float3(1, 0, 0);
 		}
-		else if (VisualizeMode == VISUALIZE_MATERIAL_INDEX)
+		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_INDEX)
 		{
 			Result = IntToColor(GetRelativeMaterialIndex(Cluster, TriIndex));
 		}
-		else if (VisualizeMode == VISUALIZE_MATERIAL_DEPTH)
+		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_DEPTH)
 		{
 			//const uint MaterialSlot = GetMaterialShadingSlot(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 			const uint MaterialSlot = ResolvedMaterialSlot;
 			const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 			Result = IntToColor(MaterialDepthId);
 		}
-		else if (VisualizeMode == VISUALIZE_MATERIAL_COMPLEXITY)
+		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_COMPLEXITY)
 		{
 			const uint TileMaterialCount = MaterialComplexity[TilePos];
 			const float ComplexityScale = GetComplexityScale();
@@ -244,7 +249,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 			Result = ColorMapTurbo(ComplexityColor);
 		}
 	#if USE_EDITOR_SHADERS
-		else if (VisualizeMode == VISUALIZE_HIT_PROXY_DEPTH)
+		else if (VisualizeMode == NANITE_VISUALIZE_HIT_PROXY_DEPTH)
 		{
 			if ((InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u)
 			{
@@ -256,24 +261,24 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 			}
 		}
 	#endif
-		else if (VisualizeMode == VISUALIZE_NANITE_MASK)
+		else if (VisualizeMode == NANITE_VISUALIZE_NANITE_MASK)
 		{
 			Result = float3(0, 1, 0);
 		}
-		else if (VisualizeMode == VISUALIZE_LIGHTMAP_UVS)
+		else if (VisualizeMode == NANITE_VISUALIZE_LIGHTMAP_UVS)
 		{
 			const float2 LightmapUVs = AttributeData.TexCoords[PrimitiveData.LightmapUVIndex];
 			Result = float3(LightmapUVs.x, LightmapUVs.y, 0);
 		}
-		else if (VisualizeMode == VISUALIZE_LIGHTMAP_UV_INDEX)
+		else if (VisualizeMode == NANITE_VISUALIZE_LIGHTMAP_UV_INDEX)
 		{
 			Result = IntToColor(PrimitiveData.LightmapUVIndex);
 		}
-		else if (VisualizeMode == VISUALIZE_LIGHTMAP_DATA_INDEX)
+		else if (VisualizeMode == NANITE_VISUALIZE_LIGHTMAP_DATA_INDEX)
 		{
 			Result = IntToColor(PrimitiveData.LightmapDataIndex);
 		}
-		else if (VisualizeMode == VISUALIZE_POSITION_BITS)
+		else if (VisualizeMode == NANITE_VISUALIZE_POSITION_BITS)
 		{
 			const uint NumBits = Cluster.PosBits.x + Cluster.PosBits.y + Cluster.PosBits.z;
 
@@ -286,7 +291,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 				Result = lerp(float3(1.0f, 1.0f, 1.0f), float3(1.0f, 0.0f, 0.0f), (NumBits - 30) / (float)(3 * 16 - 30));
 			}
 		}
-		else if (VisualizeMode == VISUALIZE_VSM_STATIC_CACHING)
+		else if (VisualizeMode == NANITE_VISUALIZE_VSM_STATIC_CACHING)
 		{
 			Result = ShouldCacheInstanceAsStatic(InstanceData) ? float3(0, 1, 0) : float3(1, 0, 0);
 		}
@@ -295,7 +300,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 	{
 		// Non-Nanite Pixel
 
-		if (GetVisualizeMode() == VISUALIZE_NANITE_MASK)
+		if (GetVisualizeMode() == NANITE_VISUALIZE_NANITE_MASK)
 		{
 			if (SceneDepth[PixelPos] > 0.0f) // only visualize written fragments
 			{

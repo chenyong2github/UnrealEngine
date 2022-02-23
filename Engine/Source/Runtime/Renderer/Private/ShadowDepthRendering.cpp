@@ -1405,7 +1405,7 @@ static void RenderShadowDepthAtlasNanite(
 
 			Nanite::CullRasterize(
 				GraphBuilder,
-				Scene.NaniteRasterPipelines,
+				Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 				Scene,
 				SceneView,
 				PackedViews,
@@ -1425,7 +1425,7 @@ static void RenderShadowDepthAtlasNanite(
 
 			Nanite::CullRasterize(
 				GraphBuilder,
-				Scene.NaniteRasterPipelines,
+				Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 				Scene,
 				SceneView,
 				PackedViewsNoNearClip,
@@ -1722,7 +1722,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 					Nanite::CullRasterize(
 						GraphBuilder,
-						Scene->NaniteRasterPipelines,
+						Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 						*Scene,
 						SceneView,
 						VirtualShadowViews,
@@ -1961,7 +1961,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 					Nanite::CullRasterize(
 						GraphBuilder,
-						Scene->NaniteRasterPipelines,
+						Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 						*Scene,
 						SceneView,
 						PackedViews,

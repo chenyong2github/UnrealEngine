@@ -23,35 +23,6 @@ uint GetHWClusterCounterIndex(uint InRenderFlags)
 #endif
 }
 
-// Debug Visualization Modes (must match NaniteRender.cpp)
-#define VISUALIZE_OVERVIEW							0u
-#define VISUALIZE_TRIANGLES							(1u << 0u)
-#define VISUALIZE_CLUSTERS							(1u << 1u)
-#define VISUALIZE_PRIMITIVES						(1u << 2u)
-#define VISUALIZE_INSTANCES							(1u << 3u)
-#define VISUALIZE_GROUPS							(1u << 4u)
-#define VISUALIZE_PAGES								(1u << 5u)
-#define VISUALIZE_OVERDRAW							(1u << 6u)
-#define VISUALIZE_RASTER_MODE						(1u << 7u)
-#define VISUALIZE_SCENE_Z_MIN						(1u << 8u)
-#define VISUALIZE_SCENE_Z_MAX						(1u << 9u)
-#define VISUALIZE_SCENE_Z_DELTA						(1u << 10u)
-#define VISUALIZE_MATERIAL_Z_MIN					(1u << 11u)
-#define VISUALIZE_MATERIAL_Z_MAX					(1u << 12u)
-#define VISUALIZE_MATERIAL_Z_DELTA					(1u << 13u)
-#define VISUALIZE_MATERIAL_MODE						(1u << 14u)
-#define VISUALIZE_MATERIAL_INDEX					(1u << 15u)
-#define VISUALIZE_MATERIAL_DEPTH					(1u << 16u)
-#define VISUALIZE_MATERIAL_COMPLEXITY				(1u << 17u)
-#define VISUALIZE_HIT_PROXY_DEPTH					(1u << 18u)
-#define VISUALIZE_NANITE_MASK						(1u << 19u)
-#define VISUALIZE_LIGHTMAP_UVS						(1u << 20u)
-#define VISUALIZE_LIGHTMAP_UV_INDEX					(1u << 21u)
-#define VISUALIZE_LIGHTMAP_DATA_INDEX				(1u << 22u)
-#define VISUALIZE_HIERARCHY_OFFSET					(1u << 23u)
-#define VISUALIZE_POSITION_BITS						(1u << 24u)
-#define VISUALIZE_VSM_STATIC_CACHING				(1u << 25u)
-
 struct FStats
 {
 	uint NumTris;

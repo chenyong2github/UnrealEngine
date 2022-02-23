@@ -2708,7 +2708,7 @@ public:
 	FNaniteMaterialCommands NaniteMaterials[ENaniteMeshPass::Num];
 
 	/** Nanite raster material pipelines. These are stored on the scene as they are computed at FPrimitiveSceneInfo::AddToScene time. */
-	FNaniteRasterPipelines NaniteRasterPipelines;
+	FNaniteRasterPipelines NaniteRasterPipelines[ENaniteMeshPass::Num];
 
 	/**
 	 * The following arrays are densely packed primitive data needed by various

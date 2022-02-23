@@ -545,9 +545,16 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 		MaterialSection.ShadingMaterialProxy = ShadingMaterial->GetRenderProxy();
 
-		//const FMaterial& RasterMaterial = RasterMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), DefaultMaterialProxy);
-		//bHasProgammableRaster = RasterMaterial.IsMasked() || RasterMaterial.MaterialUsesPixelDepthOffset() || RasterMaterial.MaterialMayModifyMeshPosition();
-		bHasProgrammableRaster = ShadingMaterial->IsMasked();
+		MaterialSection.bHasWorldPositionOffset = false;//RasterMaterial.MaterialModifiesMeshPosition_RenderThread(); // TODO: PROG_RASTER
+		MaterialSection.bHasPixelDepthOffset = false;//RasterMaterial.MaterialUsesPixelDepthOffset(); // TODO: PROG_RASTER
+		MaterialSection.bHasMaskedMaterial = ShadingMaterial->IsMasked();
+		MaterialSection.bHasTwoSidedMaterial = ShadingMaterial->IsTwoSided();
+
+		bHasProgrammableRaster |= MaterialSection.bHasWorldPositionOffset;
+		bHasProgrammableRaster |= MaterialSection.bHasPixelDepthOffset;
+		bHasProgrammableRaster |= MaterialSection.bHasMaskedMaterial;
+
+		// NOTE: bHasTwoSidedMaterial does not go into bHasProgrammableRaster because we want only want this flag to control culling, not a full shader graph bin
 		MaterialSection.RasterMaterialProxy = bHasProgrammableRaster ? MaterialSection.ShadingMaterialProxy : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	}
 

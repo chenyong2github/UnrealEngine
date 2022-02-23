@@ -3170,20 +3170,29 @@ void CalcMaterialParametersEx(
 
 	Parameters.LightVector = 0;
 
+#if IS_NANITE_PASS
+	// Nanite does not support OPTIONAL_IsFrontFace, so Nanite sets the following to 1.0f or -1.0f in
+	// GetMaterialPixelParameters - here we pull it out into our own front facing bool.
+	const bool bNaniteIsFrontFace = Parameters.TwoSidedSign < 0.0f;
+#endif
+
 	Parameters.TwoSidedSign = 1.0f;
 
 #if MATERIAL_TWOSIDED && HAS_PRIMITIVE_UNIFORM_BUFFER
-    // #dxr: DirectX Raytracing's HitKind() intrinsic already accounts for negative scaling
-    #if PIXELSHADER
-	    Parameters.TwoSidedSign *= ResolvedView.CullingSign * GetPrimitive_DeterminantSign(Parameters.PrimitiveId);
-    #endif
-
+	// #dxr: DirectX Raytracing's HitKind() intrinsic already accounts for negative scaling
+	#if PIXELSHADER
+		Parameters.TwoSidedSign *= ResolvedView.CullingSign * GetPrimitive_DeterminantSign(Parameters.PrimitiveId);
+	#endif
 #endif
 
 #if (MATERIAL_TWOSIDED && !MATERIAL_TWOSIDED_SEPARATE_PASS) || RAYHITGROUPSHADER
 	// Either we have a two-sided material that needs a sign flip, or we have a ray tracing material
 	// that needs to consider rays arriving from either side
-	Parameters.TwoSidedSign *= GetFloatFacingSign(bIsFrontFace);
+	#if IS_NANITE_PASS
+		Parameters.TwoSidedSign *= GetFloatFacingSign(bNaniteIsFrontFace);
+	#else
+		Parameters.TwoSidedSign *= GetFloatFacingSign(bIsFrontFace);
+	#endif
 #endif
 
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED

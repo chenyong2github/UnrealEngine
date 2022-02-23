@@ -7,6 +7,10 @@
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
 
+#ifndef VIRTUAL_TEXTURE_TARGET
+#define VIRTUAL_TEXTURE_TARGET 0
+#endif
+
 // Nanite material evaluation is deferred to a screenspace pass sampling the visibility buffer,
 // so the 'interpolants' used in the GBuffer pass are almost all generated in the PixelShader, instead of exported from VS.
 // FNaniteFullscreenVSToPS is the struct containing what actually needs to be passed between VS and PS in the Nanite GBuffer pass.
@@ -136,7 +140,7 @@ void SetLightMapDataIndex(inout FVertexFactoryInterpolantsVSToPS Interpolants, u
 #endif // NEEDS_LIGHTMAP_COORDINATE
 
 // Shared function (for Nanite raster and shading passes) to fetch a valid FMaterialPixelParameters struct, which is used by material inputs.
-FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteView, UlongType PackedPixel, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
+FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteView, UlongType PackedPixel, bool bHasPageData, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
 {
 	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
 
@@ -147,7 +151,7 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
-		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex);
+		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex, bHasPageData);
 		FInstanceSceneData InstanceData          = GetInstanceSceneData(VisibleCluster, false);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 		FPrimitiveSceneData PrimitiveData        = GetPrimitiveData(InstanceData.PrimitiveId);
@@ -162,6 +166,16 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		const float4 PointClip0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToClip);
 		const float4 PointClip1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);
 		const float4 PointClip2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToClip);
+
+		// TODO: PROG_RASTER: Optimize
+		float3 PointClip0_DivW = PointClip0.xyz / PointClip0.w;
+		float3 PointClip1_DivW = PointClip1.xyz / PointClip1.w;
+		float3 PointClip2_DivW = PointClip2.xyz / PointClip2.w;
+
+		const float3 PointClip01 = PointClip1_DivW.xyz - PointClip0_DivW.xyz;
+		const float3 PointClip02 = PointClip2_DivW.xyz - PointClip0_DivW.xyz;
+		float DetXY = PointClip01.x * PointClip02.y - PointClip01.y * PointClip02.x;
+		Result.TwoSidedSign = CondMask(DetXY >= 0.0f, -1.0f, 1.0f);
 
 		const float2 PixelClip = (SvPosition.xy - NaniteView.ViewRect.xy) * NaniteView.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
 
@@ -313,7 +327,6 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		Result.CustomDataCount  = InstanceData.CustomDataCount;
 	#endif
 
-		Result.TwoSidedSign = 1;
 		Result.PrimitiveId  = InstanceData.PrimitiveId;
 		Result.InstanceId   = InstanceData.RelativeId;
 	}
@@ -328,7 +341,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 {
 	const uint2 PixelPos = SvPosition.xy - float2(0.5f, 0.5f);
 	const UlongType PackedPixel = Nanite.VisBuffer64[PixelPos];
-	return FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, Interpolants, SvPosition);
+	return FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Interpolants, SvPosition);
 }
 
 FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)

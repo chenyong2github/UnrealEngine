@@ -12,6 +12,25 @@ class FParallelCommandListBindings;
 class FNaniteDrawListContext : public FMeshPassDrawListContext
 {
 public:
+	struct FDeferredCommand
+	{
+		FPrimitiveSceneInfo* PrimitiveSceneInfo;
+		FMeshDrawCommand MeshDrawCommand;
+		FNaniteMaterialCommands::FCommandHash CommandHash;
+#if WITH_DEBUG_VIEW_MODES
+		uint32 InstructionCount;
+#endif
+		uint8 SectionIndex;
+	};
+
+	struct FDeferredPipeline
+	{
+		FPrimitiveSceneInfo* PrimitiveSceneInfo;
+		FNaniteRasterPipeline RasterPipeline;
+		uint8 SectionIndex;
+	};
+
+public:
 	struct FPrimitiveSceneInfoScope
 	{
 		FPrimitiveSceneInfoScope(const FPrimitiveSceneInfoScope&) = delete;
@@ -54,81 +73,39 @@ public:
 
 	virtual FMeshDrawCommand& AddCommand(FMeshDrawCommand& Initializer, uint32 NumElements) override final;
 
+	virtual void FinalizeCommand(
+		const FMeshBatch& MeshBatch,
+		int32 BatchElementIndex,
+		const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		FMeshDrawCommandSortKey SortKey,
+		EFVisibleMeshDrawCommandFlags Flags,
+		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
+		const FMeshProcessorShaders* ShadersForDebugging,
+		FMeshDrawCommand& MeshDrawCommand
+	) override final;
+
 	void BeginPrimitiveSceneInfo(FPrimitiveSceneInfo& PrimitiveSceneInfo);
 	void EndPrimitiveSceneInfo();
 
 	void BeginMeshPass(ENaniteMeshPass::Type MeshPass);
 	void EndMeshPass();
 
-protected:
-	void FinalizeCommandCommon(
-		const FMeshBatch& MeshBatch,
-		int32 BatchElementIndex,
-		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
-		const FMeshProcessorShaders* ShadersForDebugging,
-		FMeshDrawCommand& MeshDrawCommand
-	);
-
-	void AddCommandInfo(FPrimitiveSceneInfo& PrimitiveSceneInfo, FNaniteCommandInfo CommandInfo, ENaniteMeshPass::Type MeshPass, uint8 SectionIndex);
-
-	FMeshDrawCommand MeshDrawCommandForStateBucketing;
-	FPrimitiveSceneInfo* CurrPrimitiveSceneInfo = nullptr;	
-	ENaniteMeshPass::Type CurrMeshPass = ENaniteMeshPass::Num;
-};
-
-class FNaniteDrawListContextImmediate : public FNaniteDrawListContext
-{
-public:
-	FNaniteDrawListContextImmediate(FScene& InScene) : Scene(InScene) {}
-
-	virtual void FinalizeCommand(
-		const FMeshBatch& MeshBatch,
-		int32 BatchElementIndex,
-		const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
-		ERasterizerFillMode MeshFillMode,
-		ERasterizerCullMode MeshCullMode,
-		FMeshDrawCommandSortKey SortKey,
-		EFVisibleMeshDrawCommandFlags Flags,
-		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
-		const FMeshProcessorShaders* ShadersForDebugging,
-		FMeshDrawCommand& MeshDrawCommand
-	) override final;
+	void Apply(FScene& Scene);
 
 private:
-	FScene& Scene;
-};
+	void AddShadingCommand(FPrimitiveSceneInfo& PrimitiveSceneInfo, const FNaniteCommandInfo& CommandInfo, ENaniteMeshPass::Type MeshPass, uint8 SectionIndex);
+	void AddRasterBin(FPrimitiveSceneInfo& PrimitiveSceneInfo, const FNaniteRasterBin& CommandInfo, ENaniteMeshPass::Type MeshPass, uint8 SectionIndex);
 
-class FNaniteDrawListContextDeferred : public FNaniteDrawListContext
-{
+private:
+	FMeshDrawCommand MeshDrawCommandForStateBucketing;
+	FPrimitiveSceneInfo* CurrentPrimitiveSceneInfo = nullptr;
+	ENaniteMeshPass::Type CurrentMeshPass = ENaniteMeshPass::Num;
+
 public:
-	virtual void FinalizeCommand(
-		const FMeshBatch& MeshBatch,
-		int32 BatchElementIndex,
-		const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
-		ERasterizerFillMode MeshFillMode,
-		ERasterizerCullMode MeshCullMode,
-		FMeshDrawCommandSortKey SortKey,
-		EFVisibleMeshDrawCommandFlags Flags,
-		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
-		const FMeshProcessorShaders* ShadersForDebugging,
-		FMeshDrawCommand& MeshDrawCommand
-	) override final;
-	
-	void RegisterDeferredCommands(FScene& Scene);
-
-private:	
-	struct FDeferredCommand
-	{
-		FPrimitiveSceneInfo* PrimitiveSceneInfo;
-		FMeshDrawCommand MeshDrawCommand;
-		FNaniteMaterialCommands::FCommandHash CommandHash;
-	#if WITH_DEBUG_VIEW_MODES
-		uint32 InstructionCount;
-	#endif
-		uint8 SectionIndex;
-	};
-
-	TArray<FDeferredCommand> DeferredCommands[ENaniteMeshPass::Num];	
+	TArray<FDeferredCommand> DeferredCommands[ENaniteMeshPass::Num];
+	TArray<FDeferredPipeline> DeferredPipelines[ENaniteMeshPass::Num];
 };
 
 class FNaniteMeshProcessor : public FMeshPassProcessor

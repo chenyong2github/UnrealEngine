@@ -202,12 +202,6 @@ FRasterContext InitRasterContext(
 	FRDGTextureRef ExternalDepthBuffer = nullptr
 );
 
-struct FRasterState
-{
-	bool bNearClip = true;
-	ERasterizerCullMode CullMode = CM_CW;
-};
-
 void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	FNaniteRasterPipelines& RasterPipelines,

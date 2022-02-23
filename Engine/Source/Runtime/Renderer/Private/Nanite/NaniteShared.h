@@ -13,6 +13,7 @@
 #include "MaterialShaderType.h"
 #include "MaterialShader.h"
 #include "Misc/ScopeRWLock.h"
+#include "Experimental/Containers/RobinHoodHashTable.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNanite, Warning, All);
 
@@ -128,6 +129,12 @@ struct FVisualizeResult
 	uint8 bSkippedTile    : 1;
 };
 
+struct FRasterState
+{
+	bool bNearClip = true;
+	ERasterizerCullMode CullMode = CM_CW;
+};
+
 /*
  * GPU side buffers containing Nanite resource data.
  */
@@ -184,6 +191,7 @@ private:
 };
 
 extern TGlobalResource< FGlobalResources > GGlobalResources;
+
 } // namespace Nanite
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
@@ -317,52 +325,80 @@ public:
 };
 
 class FMaterialRenderProxy;
-class FNaniteRasterPipeline
+
+struct FNaniteRasterPipeline
 {
-public:
-	FNaniteRasterPipeline(const FMaterialRenderProxy* InRasterMaterial);
-	~FNaniteRasterPipeline();
-
-	inline const FMaterialRenderProxy* GetRenderProxy() const
-	{
-		return RasterMaterial;
-	}
-
-	inline bool AddRef()
-	{
-		return ReferenceCount.fetch_add(1, std::memory_order_relaxed) == 0;
-	}
-
-	inline bool DecRef()
-	{
-		return ReferenceCount.fetch_sub(1, std::memory_order_acq_rel) == 1;
-	}
-
-	inline void ClearRefs()
-	{
-		ReferenceCount.store(0u);
-	}
-
-	inline void SetBinIndex(uint16 InBinIndex)
-	{
-		BinIndex = InBinIndex;
-	}
-
-	inline uint16 GetBinIndex() const
-	{
-		return BinIndex;
-	}
-
-private:
 	const FMaterialRenderProxy* RasterMaterial = nullptr;
-	std::atomic<uint32> ReferenceCount{ 0 };
+	bool bIsTwoSided = false;
+
+	inline uint32 GetPipelineHash() const
+	{
+		struct FHashKey
+		{
+			uint32 MaterialFlags;
+			uint32 MaterialHash;
+
+			static inline uint32 PointerHash(const void* Key)
+			{
+			#if PLATFORM_64BITS
+				// Ignoring the lower 4 bits since they are likely zero anyway.
+				// Higher bits are more significant in 64 bit builds.
+				return reinterpret_cast<UPTRINT>(Key) >> 4;
+			#else
+				return reinterpret_cast<UPTRINT>(Key);
+			#endif
+			};
+
+		} HashKey;
+
+		HashKey.MaterialFlags  = 0;
+		HashKey.MaterialFlags |= bIsTwoSided ? 0x1u : 0x0u;
+		HashKey.MaterialHash   = FHashKey::PointerHash(RasterMaterial);
+		return uint32(CityHash64((char*)&HashKey, sizeof(FHashKey)));
+	}
+
+	FORCENOINLINE friend uint32 GetTypeHash(const FNaniteRasterPipeline& Other)
+	{
+		return Other.GetPipelineHash();
+	}
+};
+
+struct FNaniteRasterBin
+{
+	int32  BinId = INDEX_NONE;
 	uint16 BinIndex = 0xFFFFu;
 };
+
+struct FNaniteRasterEntry
+{
+	FNaniteRasterPipeline RasterPipeline{};
+	uint32 ReferenceCount = 0;
+	uint16 BinIndex = 0xFFFFu;
+};
+
+struct FNaniteRasterEntryKeyFuncs : TDefaultMapHashableKeyFuncs<FNaniteRasterPipeline, FNaniteRasterEntry, false>
+{
+	static inline bool Matches(KeyInitType A, KeyInitType B)
+	{
+		return A.GetPipelineHash() == B.GetPipelineHash();
+	}
+
+	static inline uint32 GetKeyHash(KeyInitType Key)
+	{
+		return Key.GetPipelineHash();
+	}
+};
+
+using FNaniteRasterPipelineMap = Experimental::TRobinHoodHashMap<FNaniteRasterPipeline, FNaniteRasterEntry, FNaniteRasterEntryKeyFuncs>;
 
 class FNaniteRasterPipelines
 {
 public:
-	FNaniteRasterPipelines(ERHIFeatureLevel::Type InFeatureLevel);
+	typedef Experimental::FHashType FRasterHash;
+	typedef Experimental::FHashElementId FRasterId;
+
+public:
+	FNaniteRasterPipelines();
 	~FNaniteRasterPipelines();
 
 	uint16 AllocateBin();
@@ -372,29 +408,18 @@ public:
 
 	uint32 GetBinCount() const;
 
-	FNaniteRasterPipeline* Register(const FMaterialRenderProxy* InRasterMaterial);
-	void Unregister(const FMaterialRenderProxy* InRasterMaterial);
+	FNaniteRasterBin Register(const FNaniteRasterPipeline& InRasterPipeline);
+	void Unregister(const FNaniteRasterBin& InRasterBin);
 
-	void BeginRaster();
-	
-	const TMap<const FMaterialRenderProxy*, FNaniteRasterPipeline*>& GetRasterPipelines() const
+	const FNaniteRasterPipelineMap& GetRasterPipelineMap() const
 	{
 		// Make sure this is only called between BeginRaster() and FinishRaster()
-		return Pipelines;
+		return PipelineMap;
 	}
 
-	void FinishRaster();
-
 private:
-	mutable FRWLock Lock;
-
 	TBitArray<> PipelineBins;
-
-	// TODO: PROG_RASTER : Optimize (Switch from TMap to Experimental::TRobinHoodHashMap<>)
-	TMap<const FMaterialRenderProxy*, FNaniteRasterPipeline*> Pipelines;
-
-	uint32 CacheGeneration = 0;
-	ERHIFeatureLevel::Type FeatureLevel;
+	FNaniteRasterPipelineMap PipelineMap;
 };
 
 extern bool ShouldRenderNanite(const FScene* Scene, const FViewInfo& View, bool bCheckForAtomicSupport = true);

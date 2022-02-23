@@ -97,6 +97,10 @@ public:
 
 		uint8 bHasPerInstanceRandomID : 1;
 		uint8 bHasPerInstanceCustomData : 1;
+		uint8 bHasWorldPositionOffset : 1;
+		uint8 bHasPixelDepthOffset : 1; 
+		uint8 bHasMaskedMaterial : 1;
+		uint8 bHasTwoSidedMaterial : 1;
 	};
 
 public:
