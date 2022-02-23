@@ -142,8 +142,9 @@ private:
  * You can override GetGroupID to provide your own grouping.
  * 
  * Various query functions are provided to allow group topology to be interrogated.
- * Note that these functions refer to "GroupID", "CornerID", and "GroupEdgeID", 
- * these are simply indices into the internal .Groups, .Corners, and .Edges arrays
+ * Note that when functions refer to "CornerID", and "GroupEdgeID", these are simply
+ * indices into the internal Corners and Edges arrays. However references to "GroupID"
+ * refer to the actual group IDs in FDynamicMesh (not an index into Groups).
  */
 class DYNAMICMESH_API FGroupTopology
 {

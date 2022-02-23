@@ -52,7 +52,7 @@ struct FEdgeSplitInfo
 	bool bIsBoundary;					// was the split edge a boundary edge?  (redundant)
 
 	int NewVertex;						// new vertex f that was created
-	FIndex2i NewTriangles;				// new triangles [t2,t3], oriented as explained below
+	FIndex2i NewTriangles;				// new triangles [t2,t3], oriented as explained in SplitEdge() header comment
 	FIndex3i NewEdges;					// new edges are [f,b], [f,c] and [f,d] if this is not a boundary edge
 
 	double SplitT;						// parameter value for NewVertex along original edge
