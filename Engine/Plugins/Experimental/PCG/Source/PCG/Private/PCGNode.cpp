@@ -52,6 +52,26 @@ UPCGNode* UPCGNode::AddEdgeTo(UPCGNode* To)
 	}
 }
 
+void UPCGNode::SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings)
+{
+#if WITH_EDITOR
+	const bool bDifferentSettings = (DefaultSettings != InSettings);
+	if (bDifferentSettings && DefaultSettings)
+	{
+		DefaultSettings->OnSettingsChangedDelegate.RemoveAll(this);
+	}
+#endif
+
+	DefaultSettings = InSettings;
+
+#if WITH_EDITOR
+	if (bDifferentSettings && DefaultSettings)
+	{
+		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
+	}
+#endif
+}
+
 void UPCGNode::ConnectTo(UPCGNode* InSuccessor)
 {
 	OutboundNodes.AddUnique(InSuccessor);

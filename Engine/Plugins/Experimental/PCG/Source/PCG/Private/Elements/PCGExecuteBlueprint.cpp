@@ -121,12 +121,55 @@ UWorld* UPCGBlueprintElement::GetWorld() const
 #endif
 }
 
+void UPCGBlueprintElement::PostLoad()
+{
+	Super::PostLoad();
+	Initialize();
+}
+
+void UPCGBlueprintElement::BeginDestroy()
+{
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+#endif
+
+	Super::BeginDestroy();
+}
+
+void UPCGBlueprintElement::Initialize()
+{
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UPCGBlueprintElement::OnDependencyChanged);
+	DataDependencies = PCGBlueprintHelper::GetDataDependencies(this);
+#endif
+}
+
 #if WITH_EDITOR
 void UPCGBlueprintElement::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	// Since we don't really know what changed, let's just rebuild our data dependencies
+	DataDependencies = PCGBlueprintHelper::GetDataDependencies(this);
+
 	OnBlueprintChangedDelegate.Broadcast(this);
 }
+
+void UPCGBlueprintElement::OnDependencyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
+	{
+		return;
+	}
+
+	if (!DataDependencies.Contains(Object))
+	{
+		return;
+	}
+
+	OnBlueprintChangedDelegate.Broadcast(this);
+}
+
 #endif // WITH_EDITOR
 
 void UPCGBlueprintSettings::SetupBlueprintEvent()
@@ -160,7 +203,6 @@ void UPCGBlueprintSettings::SetupBlueprintElementEvent()
 #if WITH_EDITOR
 	if (BlueprintElementInstance)
 	{
-		DataDependencies = PCGBlueprintHelper::GetDataDependencies(BlueprintElementInstance);
 		BlueprintElementInstance->OnBlueprintChangedDelegate.AddUObject(this, &UPCGBlueprintSettings::OnBlueprintElementChanged);
 	}
 #endif
@@ -172,33 +214,13 @@ void UPCGBlueprintSettings::TeardownBlueprintElementEvent()
 	if (BlueprintElementInstance)
 	{
 		BlueprintElementInstance->OnBlueprintChangedDelegate.RemoveAll(this);
-		DataDependencies.Reset();
 	}
 #endif
 }
-
-#if WITH_EDITOR
-void UPCGBlueprintSettings::OnDependencyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (!BlueprintElementInstance || PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive || !DataDependencies.Contains(Object))
-	{
-		return;
-	}
-
-	// When a data dependency is changed, this means we have to dirty the cache, otherwise it will not register as a change.
-	DirtyCache();
-
-	BlueprintElementInstance->OnBlueprintChangedDelegate.Broadcast(BlueprintElementInstance);
-}
-#endif
 
 void UPCGBlueprintSettings::PostLoad()
 {
 	Super::PostLoad();
-
-#if WITH_EDITOR
-	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UPCGBlueprintSettings::OnDependencyChanged);
-#endif
 
 	if (BlueprintElement_DEPRECATED && !BlueprintElementType)
 	{
@@ -222,10 +244,6 @@ void UPCGBlueprintSettings::BeginDestroy()
 {
 	TeardownBlueprintElementEvent();
 	TeardownBlueprintEvent();
-
-#if WITH_EDITOR
-	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
-#endif
 
 	Super::BeginDestroy();
 }
@@ -254,10 +272,10 @@ void UPCGBlueprintSettings::OnBlueprintElementChanged(UPCGBlueprintElement* InEl
 {
 	if (InElement == BlueprintElementInstance)
 	{
-		OnSettingsChangedDelegate.Broadcast(this);
+		// When a data dependency is changed, this means we have to dirty the cache, otherwise it will not register as a change.
+		DirtyCache();
 
-		// Since we don't know what property has changed in the element, we need to rebuild our list of dependencies
-		DataDependencies = PCGBlueprintHelper::GetDataDependencies(BlueprintElementInstance);
+		OnSettingsChangedDelegate.Broadcast(this);
 	}
 }
 #endif
@@ -284,6 +302,7 @@ void UPCGBlueprintSettings::RefreshBlueprintElement()
 	if (BlueprintElementType)
 	{
 		BlueprintElementInstance = NewObject<UPCGBlueprintElement>(this, BlueprintElementType);
+		BlueprintElementInstance->Initialize();
 		SetupBlueprintElementEvent();
 	}
 	else

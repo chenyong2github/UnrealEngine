@@ -28,8 +28,16 @@ class UPCGBlueprintElement : public UObject
 	GENERATED_BODY()
 
 public:
+	// ~Begin UObject interface
+	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
+	// ~End UObject interface
+
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = Execution)
 	void Execute(const FPCGDataCollection& Input, FPCGDataCollection& Output) const;
+
+	/** Called after object creation to setup the object callbacks */
+	void Initialize();
 
 #if WITH_EDITOR
 	// ~Begin UObject interface
@@ -42,6 +50,12 @@ public:
 
 #if WITH_EDITOR
 	FOnPCGBlueprintChanged OnBlueprintChangedDelegate;
+#endif
+
+protected:
+#if WITH_EDITOR
+	void OnDependencyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
+	TSet<TObjectPtr<UObject>> DataDependencies;
 #endif
 };
 
@@ -96,7 +110,6 @@ protected:
 protected:
 #if WITH_EDITOR
 	void OnBlueprintChanged(UBlueprint* InBlueprint);
-	void OnDependencyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
 	void OnBlueprintElementChanged(UPCGBlueprintElement* InElement);
 #endif
 
@@ -105,10 +118,6 @@ protected:
 	void TeardownBlueprintEvent();
 	void SetupBlueprintElementEvent();
 	void TeardownBlueprintElementEvent();
-
-#if WITH_EDITORONLY_DATA
-	TSet<TObjectPtr<UObject>> DataDependencies;
-#endif
 };
 
 class FPCGExecuteBlueprintElement : public FSimpleTypedPCGElement<UPCGBlueprintSettings>

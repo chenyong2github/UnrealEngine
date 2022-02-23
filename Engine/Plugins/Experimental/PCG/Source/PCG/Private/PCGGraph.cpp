@@ -64,7 +64,7 @@ void UPCGGraph::InitializeFromTemplate()
 		InNode->InboundNodes.Reset();
 
 		// Reset settings as well
-		InNode->DefaultSettings = NewObject<UPCGTrivialSettings>(InNode);
+		InNode->SetDefaultSettings(NewObject<UPCGTrivialSettings>(InNode));
 	};
 
 	ResetDefaultNode(InputNode);
@@ -104,7 +104,7 @@ UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsCla
 		Modify();
 
 		// Assign settings to node
-		Node->DefaultSettings = Settings;
+		Node->SetDefaultSettings(Settings);
 		Settings->Rename(nullptr, Node);
 		Settings->SetFlags(RF_Transactional);
 
@@ -141,7 +141,7 @@ UPCGNode* UPCGGraph::AddNode(UPCGSettings* InSettings)
 		Modify();
 
 		// Assign settings to node & reparent
-		Node->DefaultSettings = InSettings;
+		Node->SetDefaultSettings(InSettings);
 
 		// Reparent node to this graph
 		Node->Rename(nullptr, this);

@@ -38,6 +38,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Node)
 	UPCGNode* AddEdgeTo(UPCGNode* To);
 
+	/** Changes the default settings in the node */
+	void SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings);
+
+	/** Note: do not set this property directly from code, use SetDefaultSettings instead */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Node, meta=(EditInline))
 	TObjectPtr<UPCGSettings> DefaultSettings;
 
