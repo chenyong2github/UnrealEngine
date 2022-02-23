@@ -7,6 +7,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "DesktopPlatformModule.h"
 #include "ISourceControlModule.h"
+#include "IUndoHistoryEditorModule.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "SourceCodeNavigation.h"
@@ -26,7 +27,6 @@
 #include "WorkspaceMenuStructureModule.h"
 #include "Features/EditorFeatures.h"
 #include "Features/IModularFeatures.h"
-#include "UndoHistoryModule.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "ITranslationEditor.h"
 #include "LauncherPlatformModule.h"
@@ -101,7 +101,7 @@ void FMainMenu::RegisterEditMenu()
 			LOCTEXT("UndoHistoryTabTitle", "Undo History"),
 			LOCTEXT("UndoHistoryTooltipText", "View the entire undo history."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "UndoHistory.TabIcon"),
-			FUIAction(FExecuteAction::CreateStatic(&FUndoHistoryModule::ExecuteOpenUndoHistory))
+			FUIAction(FExecuteAction::CreateLambda([](){  IUndoHistoryEditorModule::Get().ExecuteOpenUndoHistory(); } ))
 			);
 	}
 

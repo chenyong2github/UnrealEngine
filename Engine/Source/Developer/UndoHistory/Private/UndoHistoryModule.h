@@ -3,10 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Framework/Docking/TabManager.h"
-#include "Interfaces/IUndoHistoryModule.h"
-
-UNDOHISTORY_API extern const FName UndoHistoryTabName;
+#include "IUndoHistoryModule.h"
 
 /**
 * Implements the UndoHistory module.
@@ -16,19 +13,8 @@ class FUndoHistoryModule : public IUndoHistoryModule
 public:
 
 	//~ Begin IModuleInterface Interface
-
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 	virtual bool SupportsDynamicReloading() override;
-
 	//~ End IModuleInterface Interface
-
-	static void ExecuteOpenUndoHistory()
-	{
-		FGlobalTabmanager::Get()->TryInvokeTab(UndoHistoryTabName);
-	}
-
-private:
-	// Handles creating the project settings tab.
-	TSharedRef<SDockTab> HandleSpawnSettingsTab(const FSpawnTabArgs& SpawnTabArgs);
 };

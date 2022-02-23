@@ -13,7 +13,7 @@
 #include "Widgets/SUndoHistoryTableRow.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Editor/TransBuffer.h"
-#include "Classes/UndoHistorySettings.h"
+#include "UndoHistorySettings.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Widgets/SUndoHistoryDetails.h"
 
@@ -125,7 +125,7 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 									.Padding(FMargin(4.0f, 0.0f))
 									[
 										SNew(STextBlock)
-											.TextStyle(FEditorStyle::Get(), "Docking.TabFont")
+											.TextStyle(FEditorStyle::Get(), "NormalText")
 											.Text(LOCTEXT("TransactionDetailsLabel", "Transaction Details"))
 									]
 							]

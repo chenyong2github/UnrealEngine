@@ -37,8 +37,6 @@ public:
 	SLATE_BEGIN_ARGS(SUndoHistory) { }
 	SLATE_END_ARGS()
 
-public:
-
 	virtual ~SUndoHistory();
 
 	/**
@@ -47,13 +45,9 @@ public:
 	 * @param InArgs The declaration data for this widget.
 	 */
 	void Construct( const FArguments& InArgs );
-
-public:
-
+	
 	//~ Begin SWidget Interface
-
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-
 	//~ End SWidget Interface
 
 protected:

@@ -2,35 +2,28 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class UndoHistory : ModuleRules
+	public class UndoHistoryEditor : ModuleRules
 	{
-		public UndoHistory(ReadOnlyTargetRules Target) : base(Target)
+		public UndoHistoryEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
-					"Core",
+					"Core"
 				}
 			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"ApplicationCore",
 					"CoreUObject",
+					"EditorFramework",
 					"EditorStyle",
 					"Engine",
 					"InputCore",
 					"Slate",
 					"SlateCore",
-					"EditorFramework",
+					"UndoHistory",
 					"UnrealEd",
-					"ApplicationCore"
-				}
-			);
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					"Editor/UndoHistory/Private",
-					"Editor/UndoHistory/Private/Widgets",
-					"Editor/UndoHistory/Private/Classes"
 				}
 			);
 		}

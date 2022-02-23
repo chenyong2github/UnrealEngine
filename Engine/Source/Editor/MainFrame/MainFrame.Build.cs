@@ -39,7 +39,7 @@ public class MainFrame : ModuleRules
 				"TranslationEditor",
 				"Projects",
 				"DeviceProfileEditor",
-				"UndoHistory",
+				"UndoHistoryEditor",
 				"Analytics",
 				"ToolMenus",
 				"LauncherServices",

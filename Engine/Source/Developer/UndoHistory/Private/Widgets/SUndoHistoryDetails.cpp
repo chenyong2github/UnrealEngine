@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SUndoHistoryDetails.h"
-#include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Text/STextBlock.h"
@@ -30,49 +29,45 @@ namespace TransactionDetailsUI
 	static const FName TypeLabel(TEXT("Type"));
 	static const FName ChangeFlagsLabel(TEXT("ChangeFlags"));
  
-	TSharedRef<STextBlock> CreateRenameIcon()
+	TSharedRef<SImage> CreateRenameIcon()
 	{
-		return SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+		return SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.Rename"))
 			.ToolTipText(LOCTEXT("RenameChangeToolTip", "Renamed."))
-			.Text(FText::FromString(TEXT("\xf044")) /*fa-pencil-square-o*/);
+			.ColorAndOpacity(FSlateColor::UseForeground()); 
 	}
 
-	TSharedRef<STextBlock> CreateOuterChangeIcon()
+	TSharedRef<SImage> CreateOuterChangeIcon()
 	{
-		return SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+		return SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.CircleArrowUp"))
+ 
 			.ToolTipText(LOCTEXT("OuterChangeToolTip", "Has an outer change."))
-			.Text(FText::FromString(TEXT("\xf148")) /*fa-pencil-square-o*/);
+			.ColorAndOpacity(FSlateColor::UseForeground()); 
 	}
-
-	TSharedRef<STextBlock> CreatePendingKillIcon()
+	TSharedRef<SImage> CreatePendingKillIcon()
 	{
-		return SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+		return SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.FilledCircle"))
+ 
 			.ToolTipText(LOCTEXT("PendingKillToolTip", "Has a pending kill change."))
-			.Text(FText::FromString(TEXT("\xf014")) /*fa-pencil-square-o*/);
+			.ColorAndOpacity(FSlateColor::UseForeground());
 	}
-
-	TSharedRef<STextBlock> CreateNonPropertyChangeIcon()
+	TSharedRef<SImage> CreateNonPropertyChangeIcon()
 	{
-		return SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+		return SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+ 
 			.ToolTipText(LOCTEXT("NonPropertyChangeToolTip", "Has a non-property change."))
-			.Text(FText::FromString(TEXT("\xf013")) /*fa-cog*/);
+			.ColorAndOpacity(FSlateColor::UseForeground());
 	}
-
-	TSharedRef<STextBlock> CreateAnnotationIcon()
+	TSharedRef<SImage> CreateAnnotationIcon()
 	{
-		return SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+		return SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.Info"))
+ 
 			.ToolTipText(LOCTEXT("AnnotationToolTip", "Has an annotation."))
-			.Text(FText::FromString(TEXT("\xf031")) /*fa-font*/);
+			.ColorAndOpacity(FSlateColor::UseForeground()); 
 	}
 };
 
@@ -240,7 +235,7 @@ void SUndoHistoryDetails::Construct(const FArguments& InArgs)
 	ChildSlot
 		[
 			SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(4.0f, 1.0f))
 				[
 					SNew(SVerticalBox)
@@ -252,7 +247,7 @@ void SUndoHistoryDetails::Construct(const FArguments& InArgs)
 						.AutoHeight()
 						[
 							SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+								.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 								.Padding(FMargin(0.0f, 1.0f))
 								[
 									SNew(SGridPanel)
@@ -260,7 +255,7 @@ void SUndoHistoryDetails::Construct(const FArguments& InArgs)
 									+ SGridPanel::Slot(0, 0)
 									[
 										SNew(STextBlock)
-											.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+											.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
 											.Text(LOCTEXT("TransactionActionLabel", "Action:"))
 									]
 
@@ -275,7 +270,7 @@ void SUndoHistoryDetails::Construct(const FArguments& InArgs)
 										.Padding(0.0f, 4.0f, 0.0f, 0.0f)
 										[
 											SNew(STextBlock)
-												.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+												.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
 												.Text(LOCTEXT("TransactionIdLabel", "Transaction Id:"))
 										]
 
