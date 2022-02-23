@@ -7,6 +7,7 @@
 #include "DerivedDataCacheStore.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataRequestOwner.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformFileManager.h"
@@ -21,6 +22,7 @@
 #include "Misc/EngineBuildSettings.h"
 #include "Misc/Guid.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/StringBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "PakFileCacheStore.h"
@@ -1475,10 +1477,33 @@ FDerivedDataBackend& FDerivedDataBackend::Get()
 	return FDerivedDataBackendGraph::Get();
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class EBackendDebugKeyState
+{
+	None,
+	HitGet,
+	MissGet,
+};
+
+struct Private::FBackendDebugMissState
+{
+	FCriticalSection Lock;
+	TMap<FCacheKey, EBackendDebugKeyState> Keys;
+	TMap<FName, EBackendDebugKeyState> LegacyKeys;
+};
+
+FBackendDebugOptions::FBackendDebugOptions()
+	: RandomMissRate(0)
+	, SpeedClass(EBackendSpeedClass::Unknown)
+{
+	SimulateMissState.Get() = MakePimpl<Private::FBackendDebugMissState>();
+}
+
 /**
  * Parse debug options for the provided node name. Returns true if any options were specified
  */
-bool FDerivedDataBackendInterface::FBackendDebugOptions::ParseFromTokens(FDerivedDataBackendInterface::FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InInputTokens)
+bool FBackendDebugOptions::ParseFromTokens(FDerivedDataBackendInterface::FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InInputTokens)
 {
 	// check if the input stream has any ddc options for this node
 	FString PrefixKey = FString(TEXT("-ddc-")) + InNodeName;
@@ -1523,40 +1548,96 @@ bool FDerivedDataBackendInterface::FBackendDebugOptions::ParseFromTokens(FDerive
 	return true;
 }
 
-/* Convenience function for backends that check if the key should be missed or not */
-bool FDerivedDataBackendInterface::FBackendDebugOptions::ShouldSimulateMiss(const TCHAR* InCacheKey)
+bool FBackendDebugOptions::ShouldSimulatePutMiss(const TCHAR* LegacyKey)
 {
-	if (!SimulateMissTypes.IsEmpty())
+	if (RandomMissRate == 0 && SimulateMissTypes.IsEmpty())
 	{
-		FStringView TypeStr(InCacheKey);
-		TypeStr.LeftInline(TypeStr.Find(TEXT("_")));
-		if (SimulateMissTypes.Contains(TypeStr))
-		{
-			return true;
-		}
+		return false;
 	}
 
-	return RandomMissRate > 0 && FMath::RandHelper(100) < RandomMissRate;
+	const FName Key(LegacyKey);
+
+	Private::FBackendDebugMissState& State = *SimulateMissState.Get();
+	const uint32 KeyHash = GetTypeHash(Key);
+
+	FScopeLock Lock(&State.Lock);
+	State.LegacyKeys.AddByHash(KeyHash, Key, EBackendDebugKeyState::HitGet);
+	return false;
 }
 
-/* Convenience function for backends that check if the key should be missed or not */
-bool FDerivedDataBackendInterface::FBackendDebugOptions::ShouldSimulateMiss(const UE::DerivedData::FCacheKey& InCacheKey)
+bool FBackendDebugOptions::ShouldSimulateGetMiss(const TCHAR* LegacyKey)
 {
-	if (!SimulateMissTypes.IsEmpty())
+	if (RandomMissRate == 0 && SimulateMissTypes.IsEmpty())
 	{
-		TStringBuilder<256> Type;
-		Type << InCacheKey.Bucket;
-		if (Type.ToView().StartsWith(TEXTVIEW("Legacy")))
-		{
-			Type.RemoveAt(0, TEXTVIEW("Legacy").Len());
-		}
-		if (SimulateMissTypes.Contains(Type.ToView()))
-		{
-			return true;
-		}
+		return false;
 	}
 
-	return RandomMissRate > 0 && FMath::RandHelper(100) < RandomMissRate;
+	const FStringView KeyView(LegacyKey);
+	const FName Key(KeyView);
+
+	bool bMiss = (RandomMissRate >= 100);
+	if (!bMiss && !SimulateMissTypes.IsEmpty())
+	{
+		const FStringView Bucket = KeyView.Left(KeyView.Find(TEXT("_")));
+		bMiss = SimulateMissTypes.Contains(Bucket);
+	}
+	if (!bMiss && RandomMissRate > 0)
+	{
+		bMiss = FMath::RandHelper(100) < RandomMissRate;
+	}
+
+	Private::FBackendDebugMissState& State = *SimulateMissState.Get();
+	const uint32 KeyHash = GetTypeHash(Key);
+
+	FScopeLock Lock(&State.Lock);
+	const EBackendDebugKeyState KeyState = bMiss ? EBackendDebugKeyState::MissGet : EBackendDebugKeyState::HitGet;
+	return State.LegacyKeys.FindOrAddByHash(KeyHash, Key, KeyState) == EBackendDebugKeyState::MissGet;
+}
+
+bool FBackendDebugOptions::ShouldSimulatePutMiss(const FCacheKey& Key)
+{
+	if (RandomMissRate == 0 && SimulateMissTypes.IsEmpty())
+	{
+		return false;
+	}
+
+	Private::FBackendDebugMissState& State = *SimulateMissState.Get();
+	const uint32 KeyHash = GetTypeHash(Key);
+
+	FScopeLock Lock(&State.Lock);
+	State.Keys.AddByHash(KeyHash, Key, EBackendDebugKeyState::HitGet);
+	return false;
+}
+
+bool FBackendDebugOptions::ShouldSimulateGetMiss(const FCacheKey& Key)
+{
+	if (RandomMissRate == 0 && SimulateMissTypes.IsEmpty())
+	{
+		return false;
+	}
+
+	bool bMiss = (RandomMissRate >= 100);
+	if (!bMiss && !SimulateMissTypes.IsEmpty())
+	{
+		TStringBuilder<256> Bucket;
+		Bucket << Key.Bucket;
+		if (Bucket.ToView().StartsWith(TEXTVIEW("Legacy")))
+		{
+			Bucket.RemoveAt(0, TEXTVIEW("Legacy").Len());
+		}
+		bMiss = SimulateMissTypes.Contains(Bucket.ToView());
+	}
+	if (!bMiss && RandomMissRate > 0)
+	{
+		bMiss = FMath::RandHelper(100) < RandomMissRate;
+	}
+
+	Private::FBackendDebugMissState& State = *SimulateMissState.Get();
+	const uint32 KeyHash = GetTypeHash(Key);
+
+	FScopeLock Lock(&State.Lock);
+	const EBackendDebugKeyState KeyState = bMiss ? EBackendDebugKeyState::MissGet : EBackendDebugKeyState::HitGet;
+	return State.Keys.FindOrAddByHash(KeyHash, Key, KeyState) == EBackendDebugKeyState::MissGet;
 }
 
 } // UE::DerivedData

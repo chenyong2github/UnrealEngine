@@ -10,11 +10,14 @@
 #include "DerivedDataLegacyCacheStore.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Stats/Stats.h"
+#include "Templates/DontCopy.h"
+#include "Templates/PimplPtr.h"
 
 class FDerivedDataCacheUsageStats;
 class FDerivedDataCacheStatsNode;
 
 namespace UE::DerivedData { struct FCacheKey; }
+namespace UE::DerivedData::Private { struct FBackendDebugMissState; }
 
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Gets"),STAT_DDC_NumGets,STATGROUP_DDC, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Puts"),STAT_DDC_NumPuts,STATGROUP_DDC, );
@@ -69,22 +72,27 @@ struct FBackendDebugOptions
 	/** Types of DDC entries that should always be a miss */
 	TArray<FString>		SimulateMissTypes;
 
-	FBackendDebugOptions()
-		: RandomMissRate(0)
-		, SpeedClass(EBackendSpeedClass::Unknown)
-	{
-	}
+	/** State for simulated misses. */
+	TDontCopy<TPimplPtr<Private::FBackendDebugMissState>> SimulateMissState;
+
+	FBackendDebugOptions();
 
 	/** Fill in the provided structure based on the name of the node (e.g. 'shared') and the provided token stream */
 	static bool ParseFromTokens(FBackendDebugOptions& OutOptions, const TCHAR* InNodeName, const TCHAR* InTokens);
 
 	/**
-		* Returns true if, according to the properties of this struct, the provided key should be treated as a miss.
-		* Implementing that miss and accounting for any behavior impact (e.g. skipping a subsequent put) is left to
-		* each backend.
-		*/
-	bool ShouldSimulateMiss(const TCHAR* InCacheKey);
-	bool ShouldSimulateMiss(const UE::DerivedData::FCacheKey& InCacheKey);
+	 * Returns true if, according to the properties of this struct, the provided key should be treated as a miss.
+	 * Implementing that miss and accounting for any behavior impact (e.g. skipping a subsequent put) is left to
+	 * each backend.
+	 */
+	bool ShouldSimulateMiss(const TCHAR* CacheKey) { return ShouldSimulateGetMiss(CacheKey); }
+	bool ShouldSimulateMiss(const FCacheKey& CacheKey) { return ShouldSimulateGetMiss(CacheKey); }
+
+	bool ShouldSimulatePutMiss(const FCacheKey& Key);
+	bool ShouldSimulateGetMiss(const FCacheKey& Key);
+
+	bool ShouldSimulatePutMiss(const TCHAR* LegacyKey);
+	bool ShouldSimulateGetMiss(const TCHAR* LegacyKey);
 };
 
 /**

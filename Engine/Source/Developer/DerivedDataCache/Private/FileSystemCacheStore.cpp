@@ -825,9 +825,6 @@ private:
 
 	[[nodiscard]] bool FileExists(FStringBuilderBase& Path) const;
 
-	[[nodiscard]] bool ShouldSimulateMiss(const TCHAR* InKey);
-	[[nodiscard]] bool ShouldSimulateMiss(const FCacheKey& Key);
-
 private:
 	void BuildCacheLegacyPath(const TCHAR* const CacheKey, FStringBuilderBase& Path) const
 	{
@@ -873,13 +870,6 @@ private:
 
 	/** Debug Options */
 	FBackendDebugOptions DebugOptions;
-
-	/** Keys we ignored due to miss rate settings */
-	FCriticalSection MissedKeysCS;
-	TSet<FName> DebugMissedKeys;
-	TSet<FCacheKey> DebugMissedCacheKeys;
-	TSet<FName> DebugPutKeys;
-	TSet<FCacheKey> DebugPutCacheKeys;
 
 	FDerivedDataCacheUsageStats UsageStats;
 
@@ -1300,7 +1290,7 @@ bool FFileSystemCacheStore::CachedDataProbablyExists(const TCHAR* const CacheKey
 		return false;
 	}
 
-	if (ShouldSimulateMiss(CacheKey))
+	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for exists check of %s"), *CachePath, CacheKey);
 		return false;
@@ -1351,7 +1341,7 @@ bool FFileSystemCacheStore::GetCachedData(const TCHAR* const CacheKey, TArray<ui
 		return false;
 	}
 
-	if (ShouldSimulateMiss(CacheKey))
+	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s"), *CachePath, CacheKey);
 		return false;
@@ -1443,13 +1433,10 @@ FFileSystemCacheStore::EPutStatus FFileSystemCacheStore::PutCachedData(
 		return EPutStatus::NotCached;
 	}
 
-	if (ShouldSimulateMiss(CacheKey))
+	if (DebugOptions.ShouldSimulatePutMiss(CacheKey))
 	{
-		const FName Key(CacheKey);
-		const uint32 Hash = GetTypeHash(Key);
-
-		FScopeLock Lock(&MissedKeysCS);
-		DebugPutKeys.AddByHash(Hash, Key);
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s"), *CachePath, CacheKey);
+		return EPutStatus::NotCached;
 	}
 
 	TStringBuilder<256> LegacyPath;
@@ -1781,12 +1768,11 @@ bool FFileSystemCacheStore::PutCacheRecord(
 		return false;
 	}
 
-	if (ShouldSimulateMiss(Key))
+	if (DebugOptions.ShouldSimulatePutMiss(Key))
 	{
-		const uint32 Hash = GetTypeHash(Key);
-
-		FScopeLock Lock(&MissedKeysCS);
-		DebugPutCacheKeys.AddByHash(Hash, Key);
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
+			*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
+		return false;
 	}
 
 	TStringBuilder<256> Path;
@@ -1940,7 +1926,7 @@ FOptionalCacheRecord FFileSystemCacheStore::GetCacheRecordOnly(
 		return FOptionalCacheRecord();
 	}
 
-	if (ShouldSimulateMiss(Key))
+	if (DebugOptions.ShouldSimulateGetMiss(Key))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
 			*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
@@ -2065,12 +2051,11 @@ bool FFileSystemCacheStore::PutCacheValue(
 		return false;
 	}
 
-	if (ShouldSimulateMiss(Key))
+	if (DebugOptions.ShouldSimulatePutMiss(Key))
 	{
-		const uint32 Hash = GetTypeHash(Key);
-
-		FScopeLock Lock(&MissedKeysCS);
-		DebugPutCacheKeys.AddByHash(Hash, Key);
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
+			*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
+		return false;
 	}
 
 	// Check if there is an existing value package.
@@ -2161,7 +2146,7 @@ bool FFileSystemCacheStore::GetCacheValueOnly(
 		return false;
 	}
 
-	if (ShouldSimulateMiss(Key))
+	if (DebugOptions.ShouldSimulateGetMiss(Key))
 	{
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
 			*CachePath, *WriteToString<96>(Key), Name.Len(), Name.GetData());
@@ -2585,71 +2570,6 @@ bool FFileSystemCacheStore::FileExists(FStringBuilderBase& Path) const
 		IFileManager::Get().SetTimeStamp(*Path, FDateTime::UtcNow());
 	}
 	return true;
-}
-
-bool FFileSystemCacheStore::ShouldSimulateMiss(const TCHAR* const InKey)
-{
-	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
-	{
-		return false;
-	}
-
-	const FName Key(InKey);
-	const uint32 Hash = GetTypeHash(Key);
-
-	{
-		FScopeLock Lock(&MissedKeysCS);
-		if (DebugPutKeys.ContainsByHash(Hash, Key))
-		{
-			return false;
-		}
-
-		if (DebugMissedKeys.ContainsByHash(Hash, Key))
-		{
-			return true;
-		}
-	}
-
-	if (DebugOptions.ShouldSimulateMiss(InKey))
-	{
-		FScopeLock Lock(&MissedKeysCS);
-		DebugMissedKeys.AddByHash(Hash, Key);
-		return true;
-	}
-
-	return false;
-}
-
-bool FFileSystemCacheStore::ShouldSimulateMiss(const FCacheKey& Key)
-{
-	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
-	{
-		return false;
-	}
-
-	const uint32 Hash = GetTypeHash(Key);
-
-	{
-		FScopeLock Lock(&MissedKeysCS);
-		if (DebugPutCacheKeys.ContainsByHash(Hash, Key))
-		{
-			return false;
-		}
-
-		if (DebugMissedCacheKeys.ContainsByHash(Hash, Key))
-		{
-			return true;
-		}
-	}
-
-	if (DebugOptions.ShouldSimulateMiss(Key))
-	{
-		FScopeLock Lock(&MissedKeysCS);
-		DebugMissedCacheKeys.AddByHash(Hash, Key);
-		return true;
-	}
-
-	return false;
 }
 
 ILegacyCacheStore* CreateFileSystemCacheStore(

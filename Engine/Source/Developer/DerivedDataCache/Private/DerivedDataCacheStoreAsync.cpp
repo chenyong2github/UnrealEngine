@@ -306,9 +306,9 @@ void FCacheStoreAsync::Execute(
 	{
 		Invoke(OnExecute, *InnerCache, Requests, Owner, [this, COOK_STAT(OnAddStats,) OnComplete = MoveTemp(OnComplete)](auto&& Response)
 		{
-			if (Response.Status == EStatus::Ok)
+			if (COOK_STAT(auto Timer = Invoke(OnAddStats, UsageStats)); Response.Status == EStatus::Ok)
 			{
-				COOK_STAT(Invoke(OnAddStats, UsageStats).AddHit(0));
+				COOK_STAT(Timer.AddHit(0));
 			}
 			OnComplete(MoveTemp(Response));
 			FDerivedDataBackend::Get().AddToAsyncCompletionCounter(-1);
