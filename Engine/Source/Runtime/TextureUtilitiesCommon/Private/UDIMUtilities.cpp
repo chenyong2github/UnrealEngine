@@ -3,6 +3,8 @@
 #include "UDIMUtilities.h"
 
 #include "Internationalization/Regex.h"
+#include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 
 namespace UE
 {
@@ -50,6 +52,41 @@ namespace UE
 		int32 GetUDIMIndex(int32 BlockX, int32 BlockY)
 		{
 			return BlockY * 10 + BlockX + 1001;
+		}
+
+		TEXTUREUTILITIESCOMMON_API TMap<int32, FString> GetUDIMBlocksFromSourceFile(const FString& File, const FString& UdimRegexPattern, FString* OutFilenameWithoutUdimPatternAndExtension)
+		{
+			FString PreUDIMName;
+			FString PostUDIMName;
+			TMap<int32, FString> UDIMsAndSourcesFile;
+
+			if (ParseUDIMName(FPaths::GetBaseFilename(File), UdimRegexPattern, PreUDIMName, PostUDIMName) != INDEX_NONE)
+			{ 
+				const FString Path = FPaths::GetPath(File);
+				const FString UDIMFilter = (Path / PreUDIMName) + TEXT("*") + PostUDIMName + FPaths::GetExtension(File, true);
+
+				TArray<FString> UDIMFiles;
+				IFileManager::Get().FindFiles(UDIMFiles, *UDIMFilter, true, false);
+				UDIMFiles.Reserve(UDIMFiles.Num());
+
+				for (FString& UDIMFile : UDIMFiles)
+				{
+					const int32 UDIMIndex = ParseUDIMName(FPaths::GetBaseFilename(UDIMFile), UdimRegexPattern, PreUDIMName, PostUDIMName);
+					if (UDIMIndex != INDEX_NONE)
+					{
+						const FString UDIMName = PreUDIMName + PostUDIMName;
+						FString UDIMPath = FPaths::Combine(Path, UDIMFile);
+						UDIMsAndSourcesFile.Add(UDIMIndex, MoveTemp(UDIMPath));
+					}
+				}
+
+				if (!UDIMsAndSourcesFile.IsEmpty() && OutFilenameWithoutUdimPatternAndExtension)
+				{
+					*OutFilenameWithoutUdimPatternAndExtension = PreUDIMName + PostUDIMName;
+				}
+			}
+
+			return UDIMsAndSourcesFile;
 		}
 
 		void ExtractUDIMCoordinates(int32 UDIMIndex, int32& OutBlockX, int32& OutBlockY)

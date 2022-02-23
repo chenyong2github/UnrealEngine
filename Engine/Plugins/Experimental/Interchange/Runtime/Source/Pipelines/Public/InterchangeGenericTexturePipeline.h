@@ -25,7 +25,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** 
-	 * If enable, after a new import a test will be run to see if the texture is a normal map
+	 * If enable, after a new import a test will be run to see if the texture is a normal map.
 	 * If the texture is a normal map the SRG, CompressionSettings and LODGroup settings will be adjusted.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
@@ -34,6 +34,10 @@ public:
 	/** If enabled, the texture's green channel will be inverted for normal maps. */
 	UPROPERTY(EditAnywhere, Category = "Textures")
 	bool bFlipNormalMapGreenChannel = false;
+
+	/** If enabled detect if a texture use a UDIM pattern and if so import it as UIDMs. */
+	UPROPERTY(EditAnywhere, Category = "Textures")
+	bool bImportUDIMs = true;
 
 	/** Specify the files type that should be imported as long/lat cubemap */
 	UPROPERTY(EditAnywhere, Category = "Textures")

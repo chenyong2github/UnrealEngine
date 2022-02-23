@@ -5,15 +5,12 @@
 #include "CoreMinimal.h"
 #include "Nodes/InterchangeFactoryBaseNode.h"
 
-#if WITH_ENGINE
 #include "Engine/Texture.h"
-#include "Engine/Texture2D.h"
-#endif
 
 #include "InterchangeTextureFactoryNode.generated.h"
 
 
-UCLASS(BlueprintType, Experimental)
+UCLASS(BlueprintType, Abstract, Experimental)
 class INTERCHANGEFACTORYNODES_API UInterchangeTextureFactoryNode : public UInterchangeFactoryBaseNode
 {
 	GENERATED_BODY()
@@ -26,33 +23,14 @@ public:
 	 * @param InAssetClass - The class the texture factory will create for this node.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	void InitializeTextureNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass, const FString& InAssetName)
+	void InitializeTextureNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetName)
 	{
 		//Initialize
-		bIsTextureNodeClassInitialized = false;
 		InitializeNode(UniqueID, DisplayLabel, EInterchangeNodeContainerType::FactoryData);
-		
-		//Set the class
-		FString OperationName = GetTypeName() + TEXT(".SetAssetClassName");
-		InterchangePrivateNodeBase::SetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, InAssetClass);
-		FillAssetClassFromAttribute();
-		
-		//Set the asset name
-		OperationName = GetTypeName() + TEXT(".SetAssetName");
-		InterchangePrivateNodeBase::SetCustomAttribute<FString>(*Attributes, AssetNameKey, OperationName, InAssetName);
-	}
 
-	virtual void Serialize(FArchive& Ar) override
-	{
-		Super::Serialize(Ar);
-#if WITH_ENGINE
-		if (Ar.IsLoading())
-		{
-			//Make sure the class is properly set when we compile with engine, this will set the
-			//bIsTextureNodeClassInitialized to true.
-			SetTextureNodeClassFromClassAttribute();
-		}
-#endif //#if WITH_ENGINE
+		//Set the asset name
+		FString OperationName = GetTypeName() + TEXT(".SetAssetName");
+		InterchangePrivateNodeBase::SetCustomAttribute<FString>(*Attributes, AssetNameKey, OperationName, InAssetName);
 	}
 
 	/**
@@ -66,14 +44,11 @@ public:
 
 	/** Get the class this node want to create */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	virtual class UClass* GetObjectClass() const override
+	virtual UClass* GetObjectClass() const override
 	{
-		ensure(bIsTextureNodeClassInitialized);
-#if WITH_ENGINE
-		return AssetClass.Get() != nullptr ? AssetClass.Get() : UTexture::StaticClass();
-#else
+		// This function should always be overridden by the sub texture factory node
+		ensure(false);
 		return nullptr;
-#endif
 	}
 
 	virtual FGuid GetHash() const override
@@ -553,32 +528,6 @@ public:
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTextureFactoryNode, VirtualTextureStreaming, bool, UTexture)
 	}
 
-	/** Return false if the Attribute was not set previously.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	virtual bool GetCustomAddressX(uint8& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressX, uint8);
-	}
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	virtual bool SetCustomAddressX(const uint8 AttributeValue, bool bAddApplyDelegate = true)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTextureFactoryNode, AddressX, uint8, UTexture2D)
-	}
-
-	/** Return false if the Attribute was not set previously.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	virtual bool GetCustomAddressY(uint8& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressY, uint8);
-	}
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	virtual bool SetCustomAddressY(const uint8 AttributeValue, bool bAddApplyDelegate = true)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTextureFactoryNode, AddressY, uint8, UTexture2D)
-	}
-
 	//////////////////////////////////////////////////////////////////////////
 	//Level of Detail
 
@@ -708,41 +657,6 @@ public:
 
 private:
 
-	void FillAssetClassFromAttribute()
-	{
-#if WITH_ENGINE
-		FString OperationName = GetTypeName() + TEXT(".GetAssetClassName");
-		FString ClassName;
-		InterchangePrivateNodeBase::GetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, ClassName);
-		FillAssetClassFromClassName(ClassName);
-#endif
-	}
-
-#if WITH_ENGINE
-	virtual void FillAssetClassFromClassName(const FString& ClassName)
-	{
-		if (ClassName.Equals(UTexture2D::StaticClass()->GetName()))
-		{
-			AssetClass = UTexture2D::StaticClass();
-			bIsTextureNodeClassInitialized = true;
-		}
-		else if (ClassName.Equals(UTexture::StaticClass()->GetName()))
-		{
-			AssetClass = UTexture::StaticClass();
-			bIsTextureNodeClassInitialized = true;
-		}
-	}
-#endif
-
-	bool SetTextureNodeClassFromClassAttribute()
-	{
-		if (!bIsTextureNodeClassInitialized)
-		{
-			FillAssetClassFromAttribute();
-		}
-		return bIsTextureNodeClassInitialized;
-	}
-
 	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FBaseNodeStaticData::ClassTypeAttributeKey();
 	const UE::Interchange::FAttributeKey AssetNameKey = UE::Interchange::FBaseNodeStaticData::AssetNameKey();
 
@@ -782,8 +696,6 @@ private:
 	const UE::Interchange::FAttributeKey Macro_CustomSRGBKey = UE::Interchange::FAttributeKey(TEXT("SRGB"));
 	const UE::Interchange::FAttributeKey Macro_CustombUseLegacyGammaKey = UE::Interchange::FAttributeKey(TEXT("bUseLegacyGamma"));
 	const UE::Interchange::FAttributeKey Macro_CustomVirtualTextureStreamingKey = UE::Interchange::FAttributeKey(TEXT("VirtualTextureStreaming"));
-	const UE::Interchange::FAttributeKey Macro_CustomAddressXKey = UE::Interchange::FAttributeKey(TEXT("AddressX"));
-	const UE::Interchange::FAttributeKey Macro_CustomAddressYKey = UE::Interchange::FAttributeKey(TEXT("AddressY"));
 
 	//Level of Detail
 	const UE::Interchange::FAttributeKey Macro_CustombPreserveBorderKey = UE::Interchange::FAttributeKey(TEXT("bPreserveBorder"));
@@ -803,7 +715,7 @@ private:
 	//TODO support per platform data in the FAttributeStorage, so we can set different value per platform at the pipeline stage, We set only the default value for now
 	//IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(Downscale, float, UTexture, );
 
-#if WITH_ENGINE
+
 	bool ApplyCustomDownscaleToAsset(UObject* Asset) const
 	{
 		if (!Asset)
@@ -841,12 +753,4 @@ private:
 		}
 		return false;
 	}
-#endif //WITH_ENGINE
-
-protected:
-#if WITH_ENGINE
-	TSubclassOf<UTexture> AssetClass = nullptr;
-#endif
-
-	bool bIsTextureNodeClassInitialized = false;
 };

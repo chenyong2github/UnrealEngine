@@ -18,16 +18,8 @@ class INTERCHANGEFACTORYNODES_API UInterchangeTextureCubeFactoryNode : public UI
 	GENERATED_BODY()
 
 private:
-
-#if WITH_ENGINE
-	virtual void FillAssetClassFromClassName(const FString& ClassName) override
+	virtual UClass* GetObjectClass() const override
 	{
-		if (ClassName.Equals(UTextureCube::StaticClass()->GetName()))
-		{
-			AssetClass = UTextureCube::StaticClass();
-			bIsTextureNodeClassInitialized = true;
-		}
+		return UTextureCube::StaticClass();
 	}
-#endif
-
 };

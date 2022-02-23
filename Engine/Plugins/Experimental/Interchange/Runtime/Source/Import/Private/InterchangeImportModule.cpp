@@ -28,7 +28,6 @@
 #include "Texture/InterchangeTextureFactory.h"
 #include "Texture/InterchangeTGATranslator.h"
 #include "Texture/InterchangeTIFFTranslator.h"
-#include "Texture/InterchangeUDIMTranslator.h"
 
 DEFINE_LOG_CATEGORY(LogInterchangeImport);
 
@@ -56,12 +55,6 @@ void FInterchangeImportModule::StartupModule()
 		InterchangeManager.RegisterTranslator(UInterchangeOBJTranslator::StaticClass());
 
 		//Textures
-
-		// UDIM must be registered before the other texture translators
-		// @todo: this seems a bit fragile; can we do better?
-		InterchangeManager.RegisterTranslator(UInterchangeUDIMTranslator::StaticClass());
-		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeUDIMTranslator::StaticClass());
-
 		InterchangeManager.RegisterTranslator(UInterchangeBMPTranslator::StaticClass());
 		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeBMPTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeDDSTranslator::StaticClass());

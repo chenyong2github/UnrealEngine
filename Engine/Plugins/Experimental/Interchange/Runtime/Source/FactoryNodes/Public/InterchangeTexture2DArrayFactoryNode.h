@@ -21,7 +21,13 @@ class INTERCHANGEFACTORYNODES_API UInterchangeTexture2DArrayFactoryNode : public
 
 public:
 
-	virtual bool SetCustomAddressX(const uint8 AttributeValue, bool bAddApplyDelegate = true) override
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool GetCustomAddressX(uint8& AttributeValue) const
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressX, uint8);
+	}
+
+	bool SetCustomAddressX(const uint8 AttributeValue, bool bAddApplyDelegate = true)
 	{
 #if WITH_EDITORONLY_DATA
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTexture2DArrayFactoryNode, AddressX, uint8, UTexture2DArray)
@@ -30,7 +36,13 @@ public:
 #endif
 	}
 
-	virtual bool SetCustomAddressY(const uint8 AttributeValue, bool bAddApplyDelegate = true) override
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool GetCustomAddressY(uint8& AttributeValue) const
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressY, uint8);
+	}
+
+	bool SetCustomAddressY(const uint8 AttributeValue, bool bAddApplyDelegate = true)
 	{
 #if WITH_EDITORONLY_DATA
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTexture2DArrayFactoryNode, AddressY, uint8, UTexture2DArray)
@@ -55,22 +67,14 @@ public:
 #endif
 	}
 
-
 private:
-#if WITH_ENGINE
-	virtual void FillAssetClassFromClassName(const FString& ClassName) override
+	virtual UClass* GetObjectClass() const override
 	{
-		if (ClassName.Equals(UTexture2DArray::StaticClass()->GetName()))
-		{
-			AssetClass = UTexture2DArray::StaticClass();
-			bIsTextureNodeClassInitialized = true;
-		}
+		return UTexture2DArray::StaticClass();
 	}
-#endif
 
 	// Addressing
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(AddressX);
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(AddressY);
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(AddressZ);
-
 };

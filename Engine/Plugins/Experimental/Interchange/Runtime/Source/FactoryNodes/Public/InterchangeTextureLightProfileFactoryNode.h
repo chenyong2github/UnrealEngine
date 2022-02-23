@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InterchangeTextureFactoryNode.h"
+#include "InterchangeTexture2DFactoryNode.h"
 #include "Nodes/InterchangeBaseNode.h"
 
 #if WITH_ENGINE
@@ -15,7 +15,7 @@
 #include "InterchangeTextureLightProfileFactoryNode.generated.h"
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGEFACTORYNODES_API UInterchangeTextureLightProfileFactoryNode : public UInterchangeTextureFactoryNode
+class INTERCHANGEFACTORYNODES_API UInterchangeTextureLightProfileFactoryNode : public UInterchangeTexture2DFactoryNode
 {
 	GENERATED_BODY()
 
@@ -56,16 +56,10 @@ public:
 
 
 private:
-#if WITH_ENGINE
-	virtual void FillAssetClassFromClassName(const FString& ClassName) override
+	virtual UClass* GetObjectClass() const override
 	{
-		if (ClassName.Equals(UTextureLightProfile::StaticClass()->GetName()))
-		{
-			AssetClass = UTextureLightProfile::StaticClass();
-			bIsTextureNodeClassInitialized = true;
-		}
+		return UTextureLightProfile::StaticClass();
 	}
-#endif
 
 	// Addressing
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(Brightness);

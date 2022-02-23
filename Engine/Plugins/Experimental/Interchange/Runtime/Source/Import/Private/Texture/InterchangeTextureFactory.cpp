@@ -20,6 +20,7 @@
 #include "InterchangeTextureCubeFactoryNode.h"
 #include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureFactoryNode.h"
+#include "InterchangeTexture2DFactoryNode.h"
 #include "InterchangeTextureLightProfileFactoryNode.h"
 #include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureNode.h"
@@ -44,13 +45,86 @@
 
 namespace UE::Interchange::Private::InterchangeTextureFactory
 {
+	class FScopedTranslatorsAndSourceData
+	{
+	public:
+		FScopedTranslatorsAndSourceData(const UInterchangeTranslatorBase& BaseTranslator, uint32 NumRequired)
+		{
+			UObject* TransientPackage = GetTransientPackage();
+
+			TranslatorsAndSourcesData.Reserve(NumRequired);
+
+			UClass* TranslatorClass = BaseTranslator.GetClass();
+			for (uint32 Index = 0; Index < NumRequired; Index++)
+			{
+				TranslatorsAndSourcesData.Emplace(
+					NewObject<UInterchangeTranslatorBase>(TransientPackage, TranslatorClass, NAME_None)
+					, NewObject<UInterchangeSourceData>(TransientPackage, UInterchangeSourceData::StaticClass(), NAME_None)
+				);
+
+			}
+		};
+
+		~FScopedTranslatorsAndSourceData()
+		{
+			for (TPair<UInterchangeTranslatorBase*, UInterchangeSourceData*>& TranslatorAndSourceData : TranslatorsAndSourcesData)
+			{
+				TranslatorAndSourceData.Key->ClearInternalFlags(EInternalObjectFlags::Async);
+				TranslatorAndSourceData.Value->ClearInternalFlags(EInternalObjectFlags::Async);
+			}
+		};
+
+		TPair<UInterchangeTranslatorBase*, UInterchangeSourceData*>& operator[](uint32 Index)
+		{
+			return TranslatorsAndSourcesData[Index];
+		}
+
+		const TPair<UInterchangeTranslatorBase*, UInterchangeSourceData*>& operator[](uint32 Index) const
+		{
+			return TranslatorsAndSourcesData[Index];
+		}
+
+		uint32 Num() const
+		{
+			return TranslatorsAndSourcesData.Num();
+		}
+
+	private:
+		TArray<TPair<UInterchangeTranslatorBase*, UInterchangeSourceData*>> TranslatorsAndSourcesData;
+	};
+
+	class FScopedClearAsyncFlag
+	{
+	public:
+		FScopedClearAsyncFlag(UObject* InObject)
+			: Object(nullptr)
+		{
+			if (InObject && InObject->HasAnyInternalFlags(EInternalObjectFlags::Async))
+			{
+				Object = InObject;
+			}
+		}
+
+		~FScopedClearAsyncFlag()
+		{
+			if (Object)
+			{
+				Object->ClearInternalFlags(EInternalObjectFlags::Async);
+			}
+		}
+
+	private:
+		UObject* Object;
+	};
+
+
 	/**
 	 * Return the supported class if the node is one otherwise return nullptr
 	 */
 	UClass* GetSupportedFactoryNodeClass(const UInterchangeBaseNode* AssetNode)
 	{
 		UClass* TextureCubeFactoryClass = UInterchangeTextureCubeFactoryNode::StaticClass();
-		UClass* TextureFactoryClass = UInterchangeTextureFactoryNode::StaticClass();
+		UClass* Texture2DFactoryClass = UInterchangeTexture2DFactoryNode::StaticClass();
 		UClass* Texture2DArrayFactoryClass = UInterchangeTexture2DArrayFactoryNode::StaticClass();
 		UClass* TextureLightProfileFactoryClass = UInterchangeTextureLightProfileFactoryNode::StaticClass();
 		UClass* AssetClass = AssetNode->GetClass();
@@ -67,15 +141,15 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		{
 			return TextureLightProfileFactoryClass;
 		}
-		else if (AssetClass->IsChildOf(TextureFactoryClass))
+		else if (AssetClass->IsChildOf(Texture2DFactoryClass))
 		{
-			return TextureFactoryClass;
+			return Texture2DFactoryClass;
 		}
 #else
 		while (AssetClass)
 		{
 			if (AssetClass == TextureCubeFactoryClass
-				|| AssetClass == TextureFactoryClass
+				|| AssetClass == Texture2DFactoryClass
 				|| AssetClass == Texture2DArrayFactoryClass
 				|| AssetClass == TextureLightProfileFactoryClass)
 			{
@@ -90,7 +164,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 	}
 
 	using FTextureFactoryNodeVariant = TVariant<FEmptyVariantState
-		, UInterchangeTextureFactoryNode*
+		, UInterchangeTexture2DFactoryNode*
 		, UInterchangeTextureCubeFactoryNode*
 		, UInterchangeTexture2DArrayFactoryNode*
 		,UInterchangeTextureLightProfileFactoryNode* >;
@@ -104,9 +178,9 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 				SupportedFactoryNodeClass = GetSupportedFactoryNodeClass(AssetNode);
 			}
 
-			if (SupportedFactoryNodeClass == UInterchangeTextureFactoryNode::StaticClass())
+			if (SupportedFactoryNodeClass == UInterchangeTexture2DFactoryNode::StaticClass())
 			{
-				return FTextureFactoryNodeVariant(TInPlaceType<UInterchangeTextureFactoryNode*>(), static_cast<UInterchangeTextureFactoryNode*>(AssetNode));
+				return FTextureFactoryNodeVariant(TInPlaceType<UInterchangeTexture2DFactoryNode*>(), static_cast<UInterchangeTexture2DFactoryNode*>(AssetNode));
 			}
 
 			if (SupportedFactoryNodeClass == UInterchangeTextureCubeFactoryNode::StaticClass())
@@ -138,9 +212,9 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 	{
 		FString TextureNodeUniqueID;
 
-		if (UInterchangeTextureFactoryNode* const* TextureFactoryNode = FactoryVariant.TryGet<UInterchangeTextureFactoryNode*>())
+		if (UInterchangeTexture2DFactoryNode* const* Texture2DFactoryNode = FactoryVariant.TryGet<UInterchangeTexture2DFactoryNode*>())
 		{
-			(*TextureFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID);
+			(*Texture2DFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID);
 		}
 		else if (UInterchangeTextureCubeFactoryNode* const* TextureCubeFactoryNode = FactoryVariant.TryGet<UInterchangeTextureCubeFactoryNode*>())
 		{
@@ -231,18 +305,120 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return {};
 	}
 
-	FTexturePayloadVariant GetTexturePayload(const UInterchangeSourceData* SourceData, const FString& PayloadKey, const FTextureNodeVariant& TextureNodeVariant, const UInterchangeTranslatorBase* Translator)
+	TOptional<FImportBlockedImage> GetBlockedTexturePayloadDataFromSourceFiles(const UInterchangeSourceData* SourceData, const TMap<int32, FString>& InBlockSourcesData, const UInterchangeTranslatorBase* Translator)
+	{
+		check(!InBlockSourcesData.IsEmpty());
+
+		TArray<const TPair<int32, FString>*> UDIMsAndSourcesFileArray;
+		UDIMsAndSourcesFileArray.Reserve(InBlockSourcesData.Num());
+		int32 OrginalSourceDataIndex = INDEX_NONE;
+		for (const TPair<int32, FString>& Pair : InBlockSourcesData)
+		{
+			if (OrginalSourceDataIndex == INDEX_NONE && SourceData->GetFilename() == Pair.Value)
+			{
+				OrginalSourceDataIndex = UDIMsAndSourcesFileArray.Num();
+			}
+
+			UDIMsAndSourcesFileArray.Add(&Pair);
+		}
+
+		if (OrginalSourceDataIndex != INDEX_NONE && 0 != OrginalSourceDataIndex)
+		{
+			// Move the original file to the front.
+			UDIMsAndSourcesFileArray.Swap(0, OrginalSourceDataIndex);
+		}
+
+		FScopedTranslatorsAndSourceData TranslatorsAndSourceData(*Translator, UDIMsAndSourcesFileArray.Num());
+
+		/**
+			* Possible improvement notes.
+			* If we are able at some point to extract the size and format of the textures from the translate step for some formats,
+			* We could use those information to init the blocked image RawData and set the ImportsImages RawData to be a view into the blocked image.
+			*/ 
+		TArray<UE::Interchange::FImportImage> Images;
+		Images.AddDefaulted(UDIMsAndSourcesFileArray.Num());
+
+		ParallelFor(UDIMsAndSourcesFileArray.Num(), [&TranslatorsAndSourceData, &UDIMsAndSourcesFileArray, &Images](int32 Index)
+			{
+				TPair<UInterchangeTranslatorBase*,UInterchangeSourceData*>& TranslatorAndSourceData = TranslatorsAndSourceData[Index];
+				UInterchangeTranslatorBase* Translator = TranslatorAndSourceData.Key;
+				IInterchangeTexturePayloadInterface* TextureTranslator = CastChecked<IInterchangeTexturePayloadInterface>(TranslatorAndSourceData.Key);
+				UInterchangeSourceData* SourceDataForBlock = TranslatorAndSourceData.Value;
+
+				const TPair<int32, FString>& UDIMAndFilename = *UDIMsAndSourcesFileArray[Index];
+				const int32 CurrentUDIM = UDIMAndFilename.Key;
+				SourceDataForBlock->SetFilename(UDIMAndFilename.Value);
+				
+				TOptional<UE::Interchange::FImportImage> Payload;
+				if (Translator->CanImportSourceData(SourceDataForBlock))
+				{
+					Translator->SourceData = SourceDataForBlock;
+					Payload = TextureTranslator->GetTexturePayloadData(SourceDataForBlock, SourceDataForBlock->GetFilename());
+				}
+
+				if (Payload.IsSet())
+				{
+					UE::Interchange::FImportImage& Image = Payload.GetValue();
+					// Consume the image
+					Images[Index] = MoveTemp(Image);
+				}
+				else
+				{
+					// Todo Capture the error message from the translator?
+				}
+
+				// Let the translator release his data.
+				Translator->ImportFinish();
+			}
+			, EParallelForFlags::Unbalanced | EParallelForFlags::BackgroundPriority);
+
+
+		UE::Interchange::FImportBlockedImage BlockedImage;
+		// If the image that triggered the import is not valid. We shouldn't import the rest of the images into the UDIM.
+		if (BlockedImage.InitDataSharedAmongBlocks(Images[0]))
+		{
+			BlockedImage.BlocksData.Reserve(Images.Num());
+
+			for (int32 Index = 0; Index < Images.Num(); ++Index)
+			{
+				int32 UDIMIndex = UDIMsAndSourcesFileArray[Index]->Key;
+				const int32 BlockX = (UDIMIndex - 1001) % 10;
+				const int32 BlockY = (UDIMIndex - 1001) / 10;
+				BlockedImage.InitBlockFromImage(BlockX, BlockY, Images[Index]);
+			}
+
+			BlockedImage.MigrateDataFromImagesToRawData(Images);
+		}
+
+		return BlockedImage;
+	}
+
+	FTexturePayloadVariant GetTexturePayload(const UInterchangeSourceData* SourceData, const FString& PayloadKey, const FTextureNodeVariant& TextureNodeVariant, const FTextureFactoryNodeVariant& FactoryNodeVariant, const UInterchangeTranslatorBase* Translator)
 	{
 		// Standard texture 2D payload
 		if (const UInterchangeTexture2DNode* const* TextureNode =  TextureNodeVariant.TryGet<const UInterchangeTexture2DNode*>())
 		{
+			TMap<int32, FString> BlockAndSourceDataFiles;
+			if (const UInterchangeTexture2DFactoryNode* const* Texture2DFactoryNode = FactoryNodeVariant.TryGet<UInterchangeTexture2DFactoryNode*>())
+			{
+				BlockAndSourceDataFiles = (*Texture2DFactoryNode)->GetSourceBlocks();
+			}
+
+			// Is there a case were a translator can be both interface and how should the factory chose which to invoke?
 			if (const IInterchangeTexturePayloadInterface* TextureTranslator = Cast<IInterchangeTexturePayloadInterface>(Translator))
 			{
-				return FTexturePayloadVariant(TInPlaceType<TOptional<FImportImage>>(), TextureTranslator->GetTexturePayloadData(SourceData, PayloadKey));
+				if (BlockAndSourceDataFiles.IsEmpty())
+				{
+					return FTexturePayloadVariant(TInPlaceType<TOptional<FImportImage>>(), TextureTranslator->GetTexturePayloadData(SourceData, PayloadKey));
+				}
+				else
+				{
+					return FTexturePayloadVariant(TInPlaceType<TOptional<FImportBlockedImage>>(), GetBlockedTexturePayloadDataFromSourceFiles(SourceData, BlockAndSourceDataFiles, Translator));
+				}
 			}
 			else if (const IInterchangeBlockedTexturePayloadInterface* BlockedTextureTranslator = Cast<IInterchangeBlockedTexturePayloadInterface>(Translator))
 			{
-				return FTexturePayloadVariant(TInPlaceType<TOptional<FImportBlockedImage>>(), BlockedTextureTranslator->GetBlockedTexturePayloadData((*TextureNode)->GetSourceBlocks(), SourceData));
+				return FTexturePayloadVariant(TInPlaceType<TOptional<FImportBlockedImage>>(), BlockedTextureTranslator->GetBlockedTexturePayloadData(SourceData, PayloadKey));
 			}
 		}
 
@@ -626,11 +802,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 	}
 
 
-	TArray<FString> GetFilesToHash(const FTextureNodeVariant& TextureNodeVariant, const FTexturePayloadVariant& TexturePayload)
+	TArray<FString> GetFilesToHash(const FTextureFactoryNodeVariant& TextureFactoryNodeVariant, const FTexturePayloadVariant& TexturePayload)
 	{
 		TArray<FString> FilesToHash;
 		// Standard texture 2D payload
-		if (const UInterchangeTexture2DNode* const* TextureNode = TextureNodeVariant.TryGet<const UInterchangeTexture2DNode*>())
+		if (const UInterchangeTexture2DFactoryNode* const* TextureNode = TextureFactoryNodeVariant.TryGet<UInterchangeTexture2DFactoryNode*>())
 		{
 			using namespace UE::Interchange;
 			if (const TOptional<FImportBlockedImage>* OptionalBlockedPayload = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
@@ -874,7 +1050,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 	UClass* SupportedFactoryNodeClass = GetSupportedFactoryNodeClass(Arguments.AssetNode);
 	if (SupportedFactoryNodeClass == nullptr)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter is not a UInterchangeTextureFactoryNode or UInterchangeTextureCubeFactoryNode."));
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter is not a child of UInterchangeTextureFactoryNode"));
 		return nullptr;
 	}
 
@@ -895,7 +1071,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 		return nullptr;
 	}
 
-	FTexturePayloadVariant TexturePayload = GetTexturePayload(Arguments.SourceData, PayLoadKey.GetValue(), TextureNodeVariant, Arguments.Translator);
+	FTexturePayloadVariant TexturePayload = GetTexturePayload(Arguments.SourceData, PayLoadKey.GetValue(), TextureNodeVariant, TextureFactoryNodeVariant, Arguments.Translator);
 
 	if(TexturePayload.IsType<FEmptyVariantState>())
 	{
@@ -949,7 +1125,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 		return Texture;
 	}
 
-	FGraphEventArray TasksToDo = GenerateHashSourceFilesTasks(Arguments.SourceData, GetFilesToHash(TextureNodeVariant, TexturePayload), SourceFiles);
+	FGraphEventArray TasksToDo = GenerateHashSourceFilesTasks(Arguments.SourceData, GetFilesToHash(TextureFactoryNodeVariant, TexturePayload), SourceFiles);
 
 	// Hash the payload while we hash the source files
 

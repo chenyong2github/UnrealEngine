@@ -34,7 +34,7 @@
 #include "ObjectTools.h"
 #include "RHI.h"
 #include "InterchangeSourceData.h"
-#include "InterchangeTextureFactoryNode.h"
+#include "InterchangeTexture2DFactoryNode.h"
 #include "InterchangeTextureNode.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithTextureImport"
@@ -431,13 +431,13 @@ void UDatasmithTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeCon
 
 	FString DisplayLabel = TextureTranslatedNode->GetDisplayLabel();
 	FString NodeUID = UInterchangeTextureFactoryNode::GetTextureFactoryNodeUidFromTextureNodeUid(TextureTranslatedNode->GetUniqueID());
-	UInterchangeTextureFactoryNode* TextureFactoryNode = NewObject<UInterchangeTextureFactoryNode>(BaseNodeContainer, NAME_None);
+	UInterchangeTexture2DFactoryNode* TextureFactoryNode = NewObject<UInterchangeTexture2DFactoryNode>(BaseNodeContainer, NAME_None);
 	if (!ensure(TextureFactoryNode))
 	{
 		return;
 	}
 	//Creating a UTexture2D
-	TextureFactoryNode->InitializeTextureNode(NodeUID, DisplayLabel, UTexture2D::StaticClass()->GetName(), TextureTranslatedNode->GetDisplayLabel());
+	TextureFactoryNode->InitializeTextureNode(NodeUID, DisplayLabel, TextureTranslatedNode->GetDisplayLabel());
 	TextureFactoryNode->SetCustomTranslatedTextureNodeUid(TextureTranslatedNode->GetUniqueID());
 	BaseNodeContainer->AddNode(TextureFactoryNode);
 

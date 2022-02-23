@@ -3,14 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InterchangeTextureNode.h"
+#include "InterchangeTextureFactoryNode.h"
 
-#include "InterchangeTexture2DNode.generated.h"
+#include "Engine/Texture2D.h"
 
-//Interchange namespace
+#include "InterchangeTexture2DFactoryNode.generated.h"
+
 namespace UE::Interchange
-{
-	struct FTexture2DNodeStaticData : public FBaseNodeStaticData
+{ 
+	struct FTexture2DFactoryNodeStaticData : public FBaseNodeStaticData
 	{
 		static const FString& GetBaseSourceBlocksKey()
 		{
@@ -21,25 +22,37 @@ namespace UE::Interchange
 }//ns UE::Interchange
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGENODES_API UInterchangeTexture2DNode : public UInterchangeTextureNode
+class INTERCHANGEFACTORYNODES_API UInterchangeTexture2DFactoryNode : public UInterchangeTextureFactoryNode
 {
 	GENERATED_BODY()
 
 public:
 
-	virtual void PostInitProperties()
+
+	/** Return false if the Attribute was not set previously.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool GetCustomAddressX(uint8& AttributeValue) const
 	{
-		Super::PostInitProperties();
-		SourceBlocks.Initialize(Attributes.ToSharedRef(), UE::Interchange::FTexture2DNodeStaticData::GetBaseSourceBlocksKey());
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressX, uint8);
 	}
 
-	/**
-	 * Return the node type name of the class, we use this when reporting error
-	 */
-	virtual FString GetTypeName() const override
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool SetCustomAddressX(const uint8 AttributeValue, bool bAddApplyDelegate = true)
 	{
-		const FString TypeName = TEXT("Texture2DNode");
-		return TypeName;
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTexture2DFactoryNode, AddressX, uint8, UTexture2D)
+	}
+
+	/** Return false if the Attribute was not set previously.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool GetCustomAddressY(uint8& AttributeValue) const
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressY, uint8);
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
+	bool SetCustomAddressY(const uint8 AttributeValue, bool bAddApplyDelegate = true)
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTexture2DFactoryNode, AddressY, uint8, UTexture2D)
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -63,7 +76,8 @@ public:
 	 * The textures must be of the same format and use the same pixel format
 	 * The first block in the map is used to determine the accepted texture format and pixel format
 	 */
-	void SetSourceBlocks(TMap<int32, FString>&& InSourceBlocks)
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | UDIMs")
+	void SetSourceBlocks(const TMap<int32, FString>& InSourceBlocks)
 	{
 		SourceBlocks = InSourceBlocks;
 	}
@@ -76,7 +90,7 @@ public:
 	 * The textures must be of the same format and use the same pixel format
 	 * The first block in the map is used to determine the accepted texture format and pixel format
 	 */
-	void SetSourceBlocks(const TMap<int32, FString>& InSourceBlocks)
+	void SetSourceBlocks(TMap<int32, FString>&& InSourceBlocks)
 	{
 		SourceBlocks = InSourceBlocks;
 	}
@@ -84,7 +98,20 @@ public:
 	// UDIMs ends here
 	//////////////////////////////////////////////////////////////////////////
 
-protected:
+	virtual UClass* GetObjectClass() const override
+	{
+		return UTexture2D::StaticClass();
+	}
+
+	virtual void PostInitProperties()
+	{
+		Super::PostInitProperties();
+		SourceBlocks.Initialize(Attributes.ToSharedRef(), UE::Interchange::FTexture2DFactoryNodeStaticData::GetBaseSourceBlocksKey());
+	}
+
+private:
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AddressX);
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AddressY);
 
 	UE::Interchange::TMapAttributeHelper<int32, FString> SourceBlocks;
 };

@@ -10,6 +10,7 @@
 #include "InterchangeTexture2DArrayFactoryNode.h"
 #include "InterchangeTexture2DArrayNode.h"
 #include "InterchangeTexture2DArrayNode.h"
+#include "InterchangeTexture2DFactoryNode.h"
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeTextureCubeFactoryNode.h"
@@ -27,6 +28,7 @@
 #if WITH_EDITOR
 #include "NormalMapIdentification.h"
 #include "TextureCompiler.h"
+#include "UDIMUtilities.h"
 #endif //WITH_EDITOR
 
 namespace UE::Interchange::Private
@@ -35,7 +37,7 @@ namespace UE::Interchange::Private
 	{
 		if (UInterchangeTexture2DNode::StaticClass() == NodeClass)
 		{
-			return UInterchangeTextureFactoryNode::StaticClass();
+			return UInterchangeTexture2DFactoryNode::StaticClass();
 		}
 
 		if (UInterchangeTextureCubeNode::StaticClass() == NodeClass)
@@ -51,31 +53,6 @@ namespace UE::Interchange::Private
 		if (UInterchangeTextureLightProfileNode::StaticClass() == NodeClass)
 		{
 			return UInterchangeTextureLightProfileFactoryNode::StaticClass();
-		}
-
-		return nullptr;
-	}
-
-	UClass* GetDefaultAssetClassFromFactoryClass(UClass* NodeClass)
-	{
-		if (UInterchangeTextureFactoryNode::StaticClass() == NodeClass)
-		{
-			return UTexture2D::StaticClass();
-		}
-
-		if (UInterchangeTextureCubeFactoryNode::StaticClass() == NodeClass)
-		{
-			return UTextureCube::StaticClass();
-		}
-
-		if (UInterchangeTexture2DArrayFactoryNode::StaticClass() == NodeClass)
-		{
-			return UTexture2DArray::StaticClass();
-		}
-
-		if (UInterchangeTextureLightProfileFactoryNode::StaticClass() == NodeClass)
-		{
-			return UTextureLightProfile::StaticClass();
 		}
 
 		return nullptr;
@@ -162,10 +139,11 @@ UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::HandleCreati
 {
 	UClass* FactoryClass = UE::Interchange::Private::GetDefaultFactoryClassFromTextureNodeClass(TextureNode->GetClass());
 
+	TOptional<FString> SourceFile = TextureNode->GetPayLoadKey();
 #if WITH_EDITORONLY_DATA
-	if (FactoryClass == UInterchangeTextureFactoryNode::StaticClass())
+	if (FactoryClass == UInterchangeTexture2DFactoryNode::StaticClass())
 	{ 
-		if (TOptional<FString> SourceFile = TextureNode->GetPayLoadKey())
+		if (SourceFile)
 		{
 			const FString Extension = FPaths::GetExtension(SourceFile.GetValue()).ToLower();
 			if (FileExtensionsToImportAsLongLatCubemap.Contains(Extension))
@@ -176,7 +154,37 @@ UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::HandleCreati
 	}
 #endif
 
-	return CreateTextureFactoryNode(TextureNode, FactoryClass);
+	UInterchangeTextureFactoryNode* InterchangeTextureFactoryNode =  CreateTextureFactoryNode(TextureNode, FactoryClass);
+
+	if (FactoryClass == UInterchangeTexture2DFactoryNode::StaticClass() && InterchangeTextureFactoryNode)
+	{
+		// Forward the UDIM from the translator to the factory node
+		TMap<int32, FString> SourceBlocks;
+		UInterchangeTexture2DFactoryNode* Texture2DFactoryNode = static_cast<UInterchangeTexture2DFactoryNode*>(InterchangeTextureFactoryNode);
+		if (const UInterchangeTexture2DNode* Texture2DNode = Cast<UInterchangeTexture2DNode>(TextureNode))
+		{
+			SourceBlocks = Texture2DNode->GetSourceBlocks();
+		}
+
+#if WITH_EDITOR
+		if (SourceBlocks.IsEmpty() && bImportUDIMs && SourceFile)
+		{
+			FString PrettyAssetName;
+			SourceBlocks = UE::TextureUtilitiesCommon::GetUDIMBlocksFromSourceFile(SourceFile.GetValue(), UE::TextureUtilitiesCommon::DefaultUdimRegexPattern, &PrettyAssetName);
+			if (!PrettyAssetName.IsEmpty())
+			{
+				InterchangeTextureFactoryNode->SetAssetName(PrettyAssetName);
+			}
+		}
+#endif
+
+		if (!SourceBlocks.IsEmpty())
+		{
+			Texture2DFactoryNode->SetSourceBlocks(MoveTemp(SourceBlocks));
+		}
+	}
+
+	return InterchangeTextureFactoryNode;
 }
 
 UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::CreateTextureFactoryNode(const UInterchangeTextureNode* TextureNode, const TSubclassOf<UInterchangeTextureFactoryNode>& FactorySubclass)
@@ -201,20 +209,13 @@ UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::CreateTextur
 			return nullptr;
 		}
 
-		UClass* TextureClass = UE::Interchange::Private::GetDefaultAssetClassFromFactoryClass(FactoryClass);
-		if (!ensure(TextureClass))
-		{
-			// Log an error
-			return nullptr;
-		}
-
 		TextureFactoryNode = NewObject<UInterchangeTextureFactoryNode>(BaseNodeContainer, FactoryClass);
 		if (!ensure(TextureFactoryNode))
 		{
 			return nullptr;
 		}
-		//Creating a UTexture2D
-		TextureFactoryNode->InitializeTextureNode(NodeUid, DisplayLabel, TextureClass->GetName(), TextureNode->GetDisplayLabel());
+		//Creating a Texture
+		TextureFactoryNode->InitializeTextureNode(NodeUid, DisplayLabel, TextureNode->GetDisplayLabel());
 		TextureFactoryNode->SetCustomTranslatedTextureNodeUid(TextureNode->GetUniqueID());
 		BaseNodeContainer->AddNode(TextureFactoryNode);
 		TextureFactoryNodes.Add(TextureFactoryNode);

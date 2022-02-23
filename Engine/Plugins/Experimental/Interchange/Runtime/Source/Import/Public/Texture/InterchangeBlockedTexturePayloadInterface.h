@@ -26,16 +26,14 @@ class INTERCHANGEIMPORT_API IInterchangeBlockedTexturePayloadInterface
 {
 	GENERATED_BODY()
 public:
-
-
 	/**
 	 * Once the translation is done, the import process need a way to retrieve payload data.
 	 * This payload will be use by the factories to create the asset.
 	 *
-	 * @param SourceData - The sources data containing the data to translate
-	 * @param OriginalFile - The file that was used to start the import
+	 * @param SourceData - The source data containing the data to translate
+	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data
 	 * @return a PayloadData containing the import blocked image data. The TOptional will not be set if there is an error.
 	 */
-	virtual TOptional<UE::Interchange::FImportBlockedImage> GetBlockedTexturePayloadData(const TMap<int32, FString>& InSourcesData,  const UInterchangeSourceData* OriginalFile) const = 0;
+	virtual TOptional<UE::Interchange::FImportBlockedImage> GetBlockedTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const {return {};}
 };
 
