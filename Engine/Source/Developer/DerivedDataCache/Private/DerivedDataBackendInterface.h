@@ -235,12 +235,16 @@ public:
 class FDerivedDataBackend
 {
 public:
+	static FDerivedDataBackend* Create();
+
 	/**
 	 * Singleton to retrieve the GLOBAL backend
 	 *
 	 * @return Reference to the global cache backend
 	 */
 	static FDerivedDataBackend& Get();
+
+	virtual ~FDerivedDataBackend() = default;
 
 	/**
 	 * Singleton to retrieve the root cache
