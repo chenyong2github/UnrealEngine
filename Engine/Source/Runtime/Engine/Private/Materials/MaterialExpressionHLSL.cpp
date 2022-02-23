@@ -1130,7 +1130,7 @@ bool UMaterialExpressionMax::GenerateHLSLExpression(FMaterialHLSLGenerator& Gene
 bool UMaterialExpressionClamp::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	UE::HLSLTree::FExpression* ExpressionMin = Min.AcquireHLSLExpressionOrConstant(Generator, Scope, MinDefault);
-	UE::HLSLTree::FExpression* ExpressionMax = Min.AcquireHLSLExpressionOrConstant(Generator, Scope, MaxDefault);
+	UE::HLSLTree::FExpression* ExpressionMax = Max.AcquireHLSLExpressionOrConstant(Generator, Scope, MaxDefault);
 	UE::HLSLTree::FExpression* ExpressionInput = Input.AcquireHLSLExpression(Generator, Scope);
 	if (!ExpressionMin || !ExpressionMax || !ExpressionInput)
 	{

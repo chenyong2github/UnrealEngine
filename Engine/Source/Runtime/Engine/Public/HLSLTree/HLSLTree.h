@@ -268,12 +268,12 @@ public:
 	FPreparedType() = default;
 	FPreparedType(Shader::EValueComponentType InComponentType) : ValueComponentType(InComponentType) {}
 	FPreparedType(const Shader::FStructType* InStructType) : StructType(InStructType) {}
-	FPreparedType(const Shader::FType& InType, EExpressionEvaluation InEvalution = EExpressionEvaluation::None);
+	FPreparedType(Shader::EValueType InType, const FPreparedComponent& InComponent = FPreparedComponent());
+	FPreparedType(const Shader::FType& InType, const FPreparedComponent& InComponent = FPreparedComponent());
 
 	void SetEvaluation(EExpressionEvaluation Evaluation);
 	void MergeEvaluation(EExpressionEvaluation Evaluation);
 	void SetLoopEvaluation(FEmitScope& Scope, const FRequestedType& RequestedType);
-	void UpdateBounds(const FRequestedType& RequestedType, Shader::FComponentBounds Bounds);
 
 	void SetField(const Shader::FStructField* Field, const FPreparedType& FieldType);
 	FPreparedType GetFieldType(const Shader::FStructField* Field) const;
@@ -291,10 +291,13 @@ public:
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const;
 	EExpressionEvaluation GetFieldEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType, int32 ComponentIndex, int32 NumComponents) const;
+	Shader::FComponentBounds GetComponentBounds(int32 Index) const;
 	Shader::FComponentBounds GetBounds(const FRequestedType& RequestedType) const;
+	FPreparedComponent GetMergedComponent() const;
 	FPreparedComponent GetComponent(int32 Index) const;
 
 	void SetComponent(int32 Index, const FPreparedComponent& InComponent);
+	void SetComponentBounds(int32 Index, const Shader::FComponentBounds Bounds);
 	void MergeComponent(int32 Index, const FPreparedComponent& InComponent);
 
 	/** Unlike FRequestedType, one of these should be set */
@@ -318,6 +321,7 @@ inline bool operator!=(const FPreparedType& Lhs, const FPreparedType& Rhs)
 }
 
 FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& Rhs);
+FPreparedType MakeNonLWCType(const FPreparedType& Type);
 
 class FPrepareValueResult
 {
@@ -563,6 +567,8 @@ public:
 	FExpression* NewSaturate(FExpression* Input) { return NewUnaryOp(EOperation::Saturate, Input); }
 	FExpression* NewSum(FExpression* Input) { return NewUnaryOp(EOperation::Sum, Input); }
 	FExpression* NewRcp(FExpression* Input) { return NewUnaryOp(EOperation::Rcp, Input); }
+	FExpression* NewSqrt(FExpression* Input) { return NewUnaryOp(EOperation::Sqrt, Input); }
+	FExpression* NewRsqrt(FExpression* Input) { return NewUnaryOp(EOperation::Rsqrt, Input); }
 	FExpression* NewFrac(FExpression* Input) { return NewUnaryOp(EOperation::Frac, Input); }
 	FExpression* NewLength(FExpression* Input) { return NewUnaryOp(EOperation::Length, Input); }
 	FExpression* NewNormalize(FExpression* Input) { return NewUnaryOp(EOperation::Normalize, Input); }
@@ -581,6 +587,7 @@ public:
 	FExpression* NewLessEqual(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::LessEqual, Lhs, Rhs); }
 	FExpression* NewGreaterEqual(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::GreaterEqual, Lhs, Rhs); }
 
+	FExpression* NewPow2(FExpression* Input) { return NewMul(Input, Input); }
 	FExpression* NewCross(FExpression* Lhs, FExpression* Rhs);
 	FExpression* NewDot(FExpression* Lhs, FExpression* Rhs) { return NewSum(NewMul(Lhs, Rhs)); }
 	FExpression* NewLerp(FExpression* A, FExpression* B, FExpression* T) { return NewAdd(A, NewMul(NewSub(B, A), T)); }

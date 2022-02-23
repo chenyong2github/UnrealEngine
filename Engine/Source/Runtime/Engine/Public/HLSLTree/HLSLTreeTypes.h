@@ -70,6 +70,7 @@ enum class EOperation : uint8
 	Neg,
 	Rcp,
 	Sqrt,
+	Rsqrt,
 	Log2,
 	Frac,
 	Floor,

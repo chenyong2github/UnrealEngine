@@ -80,69 +80,6 @@ public:
 	int32 OutputIndex;
 };
 
-FOperationDescription::FOperationDescription(const TCHAR* InName, const TCHAR* InOperator, int8 InNumInputs, Shader::EPreshaderOpcode InOpcode)
-	: Name(InName), Operator(InOperator), NumInputs(InNumInputs), PreshaderOpcode(InOpcode)
-{}
-
-FOperationDescription::FOperationDescription()
-	: Name(nullptr), Operator(nullptr), PreshaderOpcode(Shader::EPreshaderOpcode::Nop)
-{}
-
-
-FOperationDescription GetOperationDescription(EOperation Op)
-{
-	switch (Op)
-	{
-	case EOperation::None: return FOperationDescription(TEXT("None"), TEXT(""), 0, Shader::EPreshaderOpcode::Nop); break;
-	// Unary
-	case EOperation::Abs: return FOperationDescription(TEXT("Abs"), TEXT("abs"), 1, Shader::EPreshaderOpcode::Abs); break;
-	case EOperation::Neg: return FOperationDescription(TEXT("Neg"), TEXT("-"), 1, Shader::EPreshaderOpcode::Neg); break;
-	case EOperation::Rcp: return FOperationDescription(TEXT("Rcp"), TEXT("/"), 1, Shader::EPreshaderOpcode::Rcp); break;
-	case EOperation::Sqrt: return FOperationDescription(TEXT("Sqrt"), TEXT("sqrt"), 1, Shader::EPreshaderOpcode::Sqrt); break;
-	case EOperation::Log2: return FOperationDescription(TEXT("Log2"), TEXT("log2"), 1, Shader::EPreshaderOpcode::Log2); break;
-	case EOperation::Frac: return FOperationDescription(TEXT("Frac"), TEXT("frac"), 1, Shader::EPreshaderOpcode::Frac); break;
-	case EOperation::Floor: return FOperationDescription(TEXT("Floor"), TEXT("floor"), 1, Shader::EPreshaderOpcode::Floor); break;
-	case EOperation::Ceil: return FOperationDescription(TEXT("Ceil"), TEXT("ceil"), 1, Shader::EPreshaderOpcode::Ceil); break;
-	case EOperation::Round: return FOperationDescription(TEXT("Round"), TEXT("round"), 1, Shader::EPreshaderOpcode::Round); break;
-	case EOperation::Trunc: return FOperationDescription(TEXT("Trunc"), TEXT("trunc"), 1, Shader::EPreshaderOpcode::Trunc); break;
-	case EOperation::Saturate: return FOperationDescription(TEXT("Saturate"), TEXT("saturate"), 1, Shader::EPreshaderOpcode::Saturate); break;
-	case EOperation::Sign: return FOperationDescription(TEXT("Sign"), TEXT("sign"), 1, Shader::EPreshaderOpcode::Sign); break;
-	case EOperation::Length: return FOperationDescription(TEXT("Length"), TEXT("length"), 1, Shader::EPreshaderOpcode::Length); break;
-	case EOperation::Normalize: return FOperationDescription(TEXT("Normalize"), TEXT("normalize"), 1, Shader::EPreshaderOpcode::Normalize); break;
-	case EOperation::Sum: return FOperationDescription(TEXT("Sum"), TEXT("sum"), 1, Shader::EPreshaderOpcode::Nop); break; // TODO
-	case EOperation::Sin: return FOperationDescription(TEXT("Sin"), TEXT("sin"), 1, Shader::EPreshaderOpcode::Sin); break;
-	case EOperation::Cos: return FOperationDescription(TEXT("Cos"), TEXT("cos"), 1, Shader::EPreshaderOpcode::Cos); break;
-	case EOperation::Tan: return FOperationDescription(TEXT("Tan"), TEXT("tan"), 1, Shader::EPreshaderOpcode::Tan); break;
-	case EOperation::Asin: return FOperationDescription(TEXT("Asin"), TEXT("asin"), 1, Shader::EPreshaderOpcode::Asin); break;
-	case EOperation::AsinFast: return FOperationDescription(TEXT("AsinFast"), TEXT("asinFast"), 1, Shader::EPreshaderOpcode::Asin); break;
-	case EOperation::Acos: return FOperationDescription(TEXT("Acos"), TEXT("acos"), 1, Shader::EPreshaderOpcode::Acos); break;
-	case EOperation::AcosFast: return FOperationDescription(TEXT("AcosFast"), TEXT("acosFast"), 1, Shader::EPreshaderOpcode::Acos); break;
-	case EOperation::Atan: return FOperationDescription(TEXT("Atan"), TEXT("atan"), 1, Shader::EPreshaderOpcode::Atan); break;
-	case EOperation::AtanFast: return FOperationDescription(TEXT("AtanFast"), TEXT("atanFast"), 1, Shader::EPreshaderOpcode::Atan); break;
-
-	// Binary
-	case EOperation::Add: return FOperationDescription(TEXT("Add"), TEXT("+"), 2, Shader::EPreshaderOpcode::Add); break;
-	case EOperation::Sub: return FOperationDescription(TEXT("Subtract"), TEXT("-"), 2, Shader::EPreshaderOpcode::Sub); break;
-	case EOperation::Mul: return FOperationDescription(TEXT("Multiply"), TEXT("*"), 2, Shader::EPreshaderOpcode::Mul); break;
-	case EOperation::Div: return FOperationDescription(TEXT("Divide"), TEXT("/"), 2, Shader::EPreshaderOpcode::Div); break;
-	case EOperation::Fmod: return FOperationDescription(TEXT("Fmod"), TEXT("%"), 2, Shader::EPreshaderOpcode::Fmod); break;
-	case EOperation::PowPositiveClamped: return FOperationDescription(TEXT("PowPositiveClamped"), TEXT("PowPositiveClamped"), 2, Shader::EPreshaderOpcode::Nop); break;
-	case EOperation::Atan2: return FOperationDescription(TEXT("Atan2"), TEXT("atan2"), 2, Shader::EPreshaderOpcode::Atan2); break;
-	case EOperation::Atan2Fast: return FOperationDescription(TEXT("Atan2Fast"), TEXT("atan2Fast"), 2, Shader::EPreshaderOpcode::Atan2); break;
-	case EOperation::Min: return FOperationDescription(TEXT("Min"), TEXT("min"), 2, Shader::EPreshaderOpcode::Min); break;
-	case EOperation::Max: return FOperationDescription(TEXT("Max"), TEXT("max"), 2, Shader::EPreshaderOpcode::Max); break;
-	case EOperation::Less: return FOperationDescription(TEXT("Less"), TEXT("<"), 2, Shader::EPreshaderOpcode::Less); break;
-	case EOperation::Greater: return FOperationDescription(TEXT("Greater"), TEXT(">"), 2, Shader::EPreshaderOpcode::Greater); break;
-	case EOperation::LessEqual: return FOperationDescription(TEXT("LessEqual"), TEXT("<="), 2, Shader::EPreshaderOpcode::Nop); break;
-	case EOperation::GreaterEqual: return FOperationDescription(TEXT("GreaterEqual"), TEXT(">="), 2, Shader::EPreshaderOpcode::Nop); break;
-	case EOperation::VecMulMatrix3: return FOperationDescription(TEXT("VecMulMatrix3"), TEXT("mul"), 2, Shader::EPreshaderOpcode::Nop); break;
-	case EOperation::VecMulMatrix4: return FOperationDescription(TEXT("VecMulMatrix4"), TEXT("mul"), 2, Shader::EPreshaderOpcode::Nop); break;
-	case EOperation::Matrix3MulVec: return FOperationDescription(TEXT("Matrix3MulVec"), TEXT("mul"), 2, Shader::EPreshaderOpcode::Nop); break;
-	case EOperation::Matrix4MulVec: return FOperationDescription(TEXT("Matrix4MulVec"), TEXT("mul"), 2, Shader::EPreshaderOpcode::Nop); break;
-	default: checkNoEntry(); return FOperationDescription();
-	}
-}
-
 EExpressionEvaluation CombineEvaluations(EExpressionEvaluation Lhs, EExpressionEvaluation Rhs)
 {
 	if (Lhs == EExpressionEvaluation::None)
@@ -711,7 +648,12 @@ FPreparedComponent CombineComponents(const FPreparedComponent& Lhs, const FPrepa
 	}
 }
 
-FPreparedType::FPreparedType(const Shader::FType& InType, EExpressionEvaluation InEvalution)
+FPreparedType::FPreparedType(Shader::EValueType InType, const FPreparedComponent& InComponent)
+	: FPreparedType(Shader::FType(InType), InComponent)
+{
+}
+
+FPreparedType::FPreparedType(const Shader::FType& InType, const FPreparedComponent& InComponent)
 {
 	if (InType.IsStruct())
 	{
@@ -722,13 +664,13 @@ FPreparedType::FPreparedType(const Shader::FType& InType, EExpressionEvaluation 
 		ValueComponentType = Shader::GetValueTypeDescription(InType).ComponentType;
 	}
 
-	if (InEvalution != EExpressionEvaluation::None)
+	if (!InComponent.IsNone())
 	{
 		const int32 NumComponents = InType.GetNumComponents();
 		PreparedComponents.Reserve(NumComponents);
 		for (int32 Index = 0; Index < NumComponents; ++Index)
 		{
-			SetComponent(Index, InEvalution);
+			SetComponent(Index, InComponent);
 		}
 	}
 }
@@ -845,6 +787,16 @@ EExpressionEvaluation FPreparedType::GetFieldEvaluation(const FEmitScope& Scope,
 	return Result;
 }
 
+FPreparedComponent FPreparedType::GetMergedComponent() const
+{
+	FPreparedComponent Result;
+	for (const FPreparedComponent& Component : PreparedComponents)
+	{
+		Result = CombineComponents(Result, Component);
+	}
+	return Result;
+}
+
 FPreparedComponent FPreparedType::GetComponent(int32 Index) const
 {
 	if (PreparedComponents.IsValidIndex(Index))
@@ -874,6 +826,18 @@ void FPreparedType::SetComponent(int32 Index, const FPreparedComponent& InCompon
 	if (PreparedComponents.IsValidIndex(Index))
 	{
 		PreparedComponents[Index] = InComponent;
+	}
+}
+
+void FPreparedType::SetComponentBounds(int32 Index, const Shader::FComponentBounds Bounds)
+{
+	if (PreparedComponents.IsValidIndex(Index))
+	{
+		FPreparedComponent& Component = PreparedComponents[Index];
+		if (!Component.IsNone())
+		{
+			Component.Bounds = Bounds;
+		}
 	}
 }
 
@@ -930,37 +894,37 @@ void FPreparedType::SetLoopEvaluation(FEmitScope& Scope, const FRequestedType& R
 	}
 }
 
-void FPreparedType::UpdateBounds(const FRequestedType& RequestedType, Shader::FComponentBounds Bounds)
+Shader::FComponentBounds FPreparedType::GetComponentBounds(int32 Index) const
 {
-	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	const FPreparedComponent Component = GetComponent(Index);
+	if (Component.Evaluation == EExpressionEvaluation::None)
 	{
-		FPreparedComponent& Component = PreparedComponents[Index];
-		if (RequestedType.IsComponentRequested(Index) && !Component.IsNone())
-		{
-			Component.Bounds.Min = Shader::MaxBound(Component.Bounds.Min, Bounds.Min);
-			Component.Bounds.Max = Shader::MinBound(Component.Bounds.Max, Bounds.Max);
-		}
+		return Shader::FComponentBounds();
 	}
+	else if (Component.Evaluation == EExpressionEvaluation::ConstantZero)
+	{
+		return Shader::FComponentBounds(Shader::EComponentBound::Zero, Shader::EComponentBound::Zero);
+	}
+
+	const Shader::EValueComponentType ComponentType = StructType ? StructType->ComponentTypes[Index] : ValueComponentType;
+	check(ComponentType != Shader::EValueComponentType::Void);
+
+	const Shader::FValueComponentTypeDescription ComponentTypeDesc = Shader::GetValueComponentTypeDescription(ComponentType);
+	const Shader::EComponentBound MinBound = Shader::MaxBound(Component.Bounds.Min, ComponentTypeDesc.Bounds.Min);
+	const Shader::EComponentBound MaxBound = Shader::MinBound(Component.Bounds.Max, ComponentTypeDesc.Bounds.Max);
+	return Shader::FComponentBounds(MinBound, MaxBound);
 }
 
 Shader::FComponentBounds FPreparedType::GetBounds(const FRequestedType& RequestedType) const
 {
 	Shader::FComponentBounds Result(Shader::EComponentBound::DoubleMax, Shader::EComponentBound::NegDoubleMax);
-	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	for (int32 Index = 0; Index < RequestedType.RequestedComponents.Num(); ++Index)
 	{
-		const FPreparedComponent& Component = PreparedComponents[Index];
-		if (RequestedType.IsComponentRequested(Index) && !Component.IsNone())
+		if (RequestedType.IsComponentRequested(Index))
 		{
-			// Constrain the component bounds we've stored by the range of the component's type
-			const Shader::EValueComponentType ComponentType = StructType ? StructType->ComponentTypes[Index] : ValueComponentType;
-			check(ComponentType != Shader::EValueComponentType::Void);
-
-			const Shader::FValueComponentTypeDescription ComponentTypeDesc = Shader::GetValueComponentTypeDescription(ComponentType);
-			const Shader::EComponentBound MinBound = Shader::MaxBound(Component.Bounds.Min, ComponentTypeDesc.Bounds.Min);
-			const Shader::EComponentBound MaxBound = Shader::MinBound(Component.Bounds.Max, ComponentTypeDesc.Bounds.Max);
-	
-			Result.Min = Shader::MinBound(Result.Min, MinBound);
-			Result.Max = Shader::MaxBound(Result.Max, MaxBound);
+			const Shader::FComponentBounds ComponentBounds = GetComponentBounds(Index);
+			Result.Min = Shader::MinBound(Result.Min, ComponentBounds.Min);
+			Result.Max = Shader::MaxBound(Result.Max, ComponentBounds.Max);
 		}
 	}
 	return Result;
@@ -1022,6 +986,16 @@ FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& 
 		Result.SetComponent(Index, CombineComponents(LhsComponent, RhsComponent));
 	}
 
+	return Result;
+}
+
+FPreparedType MakeNonLWCType(const FPreparedType& Type)
+{
+	FPreparedType Result(Type);
+	if (Result.IsNumeric())
+	{
+		Result.ValueComponentType = Shader::MakeNonLWCType(Result.ValueComponentType);
+	}
 	return Result;
 }
 
