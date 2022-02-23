@@ -2176,8 +2176,10 @@ void FGPUSceneDynamicContext::Release()
 {
 	for (auto UploadData : DymamicPrimitiveUploadData)
 	{
-		check(UploadData->InstanceSceneDataOffset != INDEX_NONE);
-		GPUScene.FreeInstanceSceneDataSlots(UploadData->InstanceSceneDataOffset, UploadData->TotalInstanceCount);
+		if (UploadData->InstanceSceneDataOffset != INDEX_NONE)
+		{
+			GPUScene.FreeInstanceSceneDataSlots(UploadData->InstanceSceneDataOffset, UploadData->TotalInstanceCount);
+		}
 		if (UploadData->InstancePayloadDataOffset != INDEX_NONE)
 		{
 			GPUScene.FreeInstancePayloadDataSlots(UploadData->InstancePayloadDataOffset, UploadData->InstancePayloadDataFloat4Count);

@@ -1955,6 +1955,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ShaderPrint::BeginView(GraphBuilder, View);
 		ShadingEnergyConservation::Init(GraphBuilder, View);
 	}
+	
+	ON_SCOPE_EXIT
+	{
+		for (FViewInfo& View : Views)
+		{
+			ShaderPrint::EndView(View);
+		}
+	};
+
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
 	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
@@ -3307,11 +3316,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		// After AddPostProcessingPasses in case of Lumen Visualizations writing to feedback
 		FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
-	}
-
-	for (FViewInfo& View : Views)
-	{
-		ShaderPrint::EndView(View);
 	}
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
