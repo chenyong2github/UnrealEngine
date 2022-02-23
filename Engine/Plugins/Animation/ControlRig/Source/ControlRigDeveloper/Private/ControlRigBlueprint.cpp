@@ -2129,6 +2129,8 @@ void UControlRigBlueprint::ReplaceDeprecatedNodes()
 
 void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 {
+	RefreshAllModels();
+	
 	Super::PostDuplicate(bDuplicateForPIE);
 	
 	if (URigHierarchyController* Controller = Hierarchy->GetController(true))
