@@ -659,8 +659,11 @@ bool IPakFileCacheStore::SortAndCopy(const FString &InputFilename, const FString
 	for (int KeyIndex = 0; KeyIndex < KeyNames.Num(); KeyIndex++)
 	{
 		Buffer.Reset();
-		InputPak.GetCachedData(*KeyNames[KeyIndex], Buffer);
-		OutputPak.PutCachedData(*KeyNames[KeyIndex], Buffer, false);
+		// Data over 2 GiB is not copied.
+		if (InputPak.GetCachedData(*KeyNames[KeyIndex], Buffer))
+		{
+			OutputPak.PutCachedData(*KeyNames[KeyIndex], Buffer, false);
+		}
 		KeySizes.Add(Buffer.Num());
 	}
 
@@ -1443,7 +1446,7 @@ bool FPakFileCacheStore::SaveFile(
 		if (const int64 EndOffset = FileHandle->Tell(); EndOffset >= Offset && !Ar.IsError())
 		{
 			FCacheValue& Item = CacheItems.Emplace(Path, FCacheValue(Offset, EndOffset - Offset, HashAr.GetHash()));
-			UE_LOG(LogDerivedDataCache, Log,
+			UE_LOG(LogDerivedDataCache, VeryVerbose,
 				TEXT("%s: File %.*s from '%.*s' written with offset %" INT64_FMT ", size %" INT64_FMT", CRC 0x%08x."),
 				*CachePath, Path.Len(), Path.GetData(), DebugName.Len(), DebugName.GetData(), Item.Offset, Item.Size, Item.Crc);
 			return true;

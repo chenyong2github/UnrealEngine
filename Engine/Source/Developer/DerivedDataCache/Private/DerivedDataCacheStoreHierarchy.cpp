@@ -11,6 +11,7 @@
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "HAL/CriticalSection.h"
+#include "MemoryCacheStore.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/ScopeRWLock.h"
 #include "Serialization/CompactBinary.h"
@@ -22,13 +23,14 @@
 namespace UE::DerivedData
 {
 
-ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, ECacheStoreFlags InnerFlags, bool bCacheInFlightPuts);
+ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, ECacheStoreFlags InnerFlags, IMemoryCacheStore* MemoryCache);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FCacheStoreHierarchy final : public ILegacyCacheStore, public ICacheStoreOwner
 {
 public:
+	explicit FCacheStoreHierarchy(IMemoryCacheStore* MemoryCache);
 	~FCacheStoreHierarchy() final = default;
 
 	void Add(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags) final;
@@ -126,6 +128,7 @@ private:
 	mutable FRWLock NodesLock;
 	ECacheStoreNodeFlags CombinedNodeFlags{};
 	TArray<FCacheStoreNode, TInlineAllocator<8>> Nodes;
+	IMemoryCacheStore* MemoryCache;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -213,12 +216,21 @@ ENUM_CLASS_FLAGS(FCacheStoreHierarchy::ECacheStoreNodeFlags);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FCacheStoreHierarchy::FCacheStoreHierarchy(IMemoryCacheStore* InMemoryCache)
+	: MemoryCache(InMemoryCache)
+{
+	if (MemoryCache)
+	{
+		Add(MemoryCache, ECacheStoreFlags::Local | ECacheStoreFlags::Query);
+	}
+}
+
 void FCacheStoreHierarchy::Add(ILegacyCacheStore* CacheStore, ECacheStoreFlags Flags)
 {
 	FWriteScopeLock Lock(NodesLock);
 	checkf(!Algo::FindBy(Nodes, CacheStore, &FCacheStoreNode::Cache),
 		TEXT("Attempting to add a cache store that was previously registered to the hierarchy."));
-	TUniquePtr<ILegacyCacheStore> AsyncCacheStore(CreateCacheStoreAsync(CacheStore, Flags, /*bCacheInFlightPuts*/ false));
+	TUniquePtr<ILegacyCacheStore> AsyncCacheStore(CreateCacheStoreAsync(CacheStore, Flags, MemoryCache));
 	Nodes.Add({CacheStore, Flags, {}, MoveTemp(AsyncCacheStore)});
 	UpdateNodeFlags();
 }
@@ -1260,9 +1272,9 @@ bool FCacheStoreHierarchy::LegacyDebugOptions(FBackendDebugOptions& Options)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner)
+ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, IMemoryCacheStore* MemoryCache)
 {
-	FCacheStoreHierarchy* Hierarchy = new FCacheStoreHierarchy;
+	FCacheStoreHierarchy* Hierarchy = new FCacheStoreHierarchy(MemoryCache);
 	OutOwner = Hierarchy;
 	return Hierarchy;
 }

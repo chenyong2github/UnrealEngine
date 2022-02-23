@@ -7,7 +7,6 @@
 #include "DerivedDataCacheStore.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataRequestOwner.h"
-#include "FileBackedDerivedDataBackend.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformFileManager.h"
@@ -15,6 +14,7 @@
 #include "Internationalization/FastDecimalFormat.h"
 #include "Math/BasicMathExpressionEvaluator.h"
 #include "Math/UnitConversion.h"
+#include "MemoryCacheStore.h"
 #include "Misc/App.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
@@ -44,8 +44,8 @@ static TAutoConsoleVariable<FString> GDerivedDataCacheGraphName(
 namespace UE::DerivedData
 {
 
-ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerBackend, ECacheStoreFlags InnerFlags, bool bCacheInFlightPuts);
-ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner);
+ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerBackend, ECacheStoreFlags InnerFlags, IMemoryCacheStore* MemoryCache);
+ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, IMemoryCacheStore* MemoryCache);
 ILegacyCacheStore* CreateCacheStoreThrottle(ILegacyCacheStore* InnerCache, uint32 LatencyMS, uint32 MaxBytesPerSecond);
 ILegacyCacheStore* CreateCacheStoreVerify(ILegacyCacheStore* InnerCache, bool bPutOnError);
 ILegacyCacheStore* CreateFileSystemCacheStore(const TCHAR* CacheDirectory, const TCHAR* Params, const TCHAR* AccessLogFileName, ECacheStoreFlags& OutFlags);
@@ -60,7 +60,7 @@ ILegacyCacheStore* CreateHttpCacheStore(
 	const FDerivedDataBackendInterface::ESpeedClass* ForceSpeedClass,
 	EBackendLegacyMode LegacyMode,
 	bool bReadOnly);
-FFileBackedDerivedDataBackend* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
+IMemoryCacheStore* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
 IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Filename, bool bWriting, bool bCompressed);
 ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath);
 ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace);
@@ -80,6 +80,7 @@ public:
 	 */
 	FDerivedDataBackendGraph()
 		: RootCache(nullptr)
+		, MemoryCache(nullptr)
 		, BootCache(nullptr)
 		, WritePakCache(nullptr)
 		, AsyncNode(nullptr)
@@ -155,7 +156,7 @@ public:
 		// Hierarchy must exist in the graph.
 		if (!Hierarchy)
 		{
-			ILegacyCacheStore* HierarchyStore = CreateCacheStoreHierarchy(Hierarchy);
+			ILegacyCacheStore* HierarchyStore = CreateCacheStoreHierarchy(Hierarchy, GetMemoryCache());
 			if (RootNode.Key)
 			{
 				Hierarchy->Add(RootNode.Key, RootNode.Value);
@@ -167,7 +168,7 @@ public:
 		// Async must exist in the graph.
 		if (!AsyncNode)
 		{
-			AsyncNode = CreateCacheStoreAsync(RootNode.Key, RootNode.Value, /*bCacheInFlightPuts*/ true);
+			AsyncNode = CreateCacheStoreAsync(RootNode.Key, RootNode.Value, GetMemoryCache());
 			CreatedNodes.AddUnique(AsyncNode);
 			RootNode.Key = AsyncNode;
 		}
@@ -227,7 +228,7 @@ public:
 					UE_LOG(LogDerivedDataCache, Display, TEXT("Boot nodes are deprecated. Please remove the Boot node from the cache graph."));
 					if (BootCache == nullptr)
 					{
-						BootCache = ParseBootCache(*NodeName, *Entry, BootCacheFilename);
+						BootCache = ParseBootCache(*NodeName, *Entry);
 						ParsedNode = MakeTuple(BootCache, ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store);
 					}
 					else
@@ -436,13 +437,13 @@ public:
 		{
 			if (!Hierarchy)
 			{
-				ILegacyCacheStore* HierarchyStore = CreateCacheStoreHierarchy(Hierarchy);
+				ILegacyCacheStore* HierarchyStore = CreateCacheStoreHierarchy(Hierarchy, GetMemoryCache());
 				Hierarchy->Add(InnerNode.Key, InnerNode.Value);
 				CreatedNodes.AddUnique(HierarchyStore);
 				InnerNode.Key = HierarchyStore;
 			}
 
-			ILegacyCacheStore* AsyncStore = CreateCacheStoreAsync(InnerNode.Key, InnerNode.Value, /*bCacheInFlightPuts*/ true);
+			ILegacyCacheStore* AsyncStore = CreateCacheStoreAsync(InnerNode.Key, InnerNode.Value, GetMemoryCache());
 			InnerNode = MakeTuple(AsyncStore, InnerNode.Value);
 		}
 		else
@@ -539,7 +540,7 @@ public:
 			return MakeTuple(nullptr, ECacheStoreFlags::None);
 		}
 
-		ILegacyCacheStore* HierarchyStore = CreateCacheStoreHierarchy(Hierarchy);
+		ILegacyCacheStore* HierarchyStore = CreateCacheStoreHierarchy(Hierarchy, GetMemoryCache());
 		ECacheStoreFlags Flags = ECacheStoreFlags::None;
 		for (const FParsedNode& Node : InnerNodes)
 		{
@@ -955,9 +956,9 @@ public:
 	 * @param OutFilename filename specified for the cache
 	 * @return Boot data cache backend interface instance or nullptr if unsuccessful
 	 */
-	FFileBackedDerivedDataBackend* ParseBootCache( const TCHAR* NodeName, const TCHAR* Entry, FString& OutFilename )
+	IMemoryCacheStore* ParseBootCache(const TCHAR* NodeName, const TCHAR* Entry)
 	{
-		FFileBackedDerivedDataBackend* Cache = nullptr;
+		IMemoryCacheStore* Cache = nullptr;
 
 		// Only allow boot cache with the editor. We don't want other tools and utilities (eg. SCW) writing to the same file.
 #if WITH_EDITOR
@@ -965,44 +966,15 @@ public:
 		int64 MaxCacheSize = -1; // in MB
 		const int64 MaxSupportedCacheSize = 2048; // 2GB
 
-		FParse::Value( Entry, TEXT("MaxCacheSize="), MaxCacheSize);
-		FParse::Value( Entry, TEXT("Filename="), Filename );
-		if ( !Filename.Len() )
-		{
-			UE_LOG( LogDerivedDataCache, Warning, TEXT("FDerivedDataBackendGraph:  %s filename not found in *engine.ini, will not use %s cache."), NodeName, NodeName );
-		}
-		else
-		{
-			// make sure MaxCacheSize does not exceed 2GB
-			MaxCacheSize = FMath::Min(MaxCacheSize, MaxSupportedCacheSize);
+		FParse::Value(Entry, TEXT("MaxCacheSize="), MaxCacheSize);
 
-			UE_LOG( LogDerivedDataCache, Display, TEXT("Max Cache Size: %d MB"), MaxCacheSize);
-			Cache = CreateMemoryCacheStore(TEXT("Boot"), MaxCacheSize * 1024 * 1024, /*bCanBeDisabled*/ true);
+		// make sure MaxCacheSize does not exceed 2GB
+		MaxCacheSize = FMath::Min(MaxCacheSize, MaxSupportedCacheSize);
 
-			if( Cache && Filename.Len() )
-			{
-				OutFilename = Filename;
-
-				if (MaxCacheSize > 0 && IFileManager::Get().FileSize(*Filename) >= (MaxCacheSize * 1024 * 1024))
-				{
-					UE_LOG( LogDerivedDataCache, Warning, TEXT("FDerivedDataBackendGraph:  %s filename exceeds max size."), NodeName );
-				}
-
-				if (IFileManager::Get().FileSize(*Filename) < 0)
-				{
-					UE_LOG( LogDerivedDataCache, Display, TEXT("Starting with empty %s cache"), NodeName );
-				}
-				else if( Cache->LoadCache( *Filename ) )
-				{
-					UE_LOG( LogDerivedDataCache, Display, TEXT("Loaded %s cache: %s"), NodeName, *Filename );
-				}
-				else
-				{
-					UE_LOG( LogDerivedDataCache, Warning, TEXT("Could not load %s cache: %s"), NodeName, *Filename );
-				}
-			}
-		}
+		UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Max Cache Size: %d MB"), NodeName, MaxCacheSize);
+		Cache = CreateMemoryCacheStore(TEXT("Boot"), MaxCacheSize * 1024 * 1024, /*bCanBeDisabled*/ true);
 #endif
+
 		return Cache;
 	}
 
@@ -1013,26 +985,26 @@ public:
 	 * @param Entry Node definition.
 	 * @return Memory data cache backend interface instance or nullptr if unsuccessful
 	 */
-	FFileBackedDerivedDataBackend* ParseMemoryCache( const TCHAR* NodeName, const TCHAR* Entry )
+	IMemoryCacheStore* ParseMemoryCache( const TCHAR* NodeName, const TCHAR* Entry )
 	{
-		FFileBackedDerivedDataBackend* Cache = nullptr;
 		FString Filename;
-
-		FParse::Value( Entry, TEXT("Filename="), Filename );
-		Cache = CreateMemoryCacheStore(NodeName, /*MaxCacheSize*/ -1, /*bCanBeDisabled*/ false);
-		if( Cache && Filename.Len() )
+		FParse::Value(Entry, TEXT("Filename="), Filename);
+		IMemoryCacheStore* Cache = CreateMemoryCacheStore(NodeName, /*MaxCacheSize*/ -1, /*bCanBeDisabled*/ false);
+		if (Cache && Filename.Len())
 		{
-			if( Cache->LoadCache( *Filename ) )
-			{
-				UE_LOG( LogDerivedDataCache, Display, TEXT("Loaded %s cache: %s"), NodeName, *Filename );
-			}
-			else
-			{
-				UE_LOG( LogDerivedDataCache, Warning, TEXT("Could not load %s cache: %s"), NodeName, *Filename );
-			}
+			UE_LOG(LogDerivedDataCache, Display, TEXT("Memory nodes that load from a file are deprecated. Please remove the filename from the cache configuration."));
 		}
-
 		return Cache;
+	}
+
+	IMemoryCacheStore* GetMemoryCache()
+	{
+		if (!MemoryCache)
+		{
+			MemoryCache = CreateMemoryCacheStore(TEXT("Memory"), 0, /*bCanBeDisabled*/ false);
+			CreatedNodes.Add(MemoryCache);
+		}
+		return MemoryCache;
 	}
 
 	virtual ~FDerivedDataBackendGraph()
@@ -1057,10 +1029,6 @@ public:
 		check(RootCache);
 		if (BootCache)
 		{
-			if( !FParse::Param( FCommandLine::Get(), TEXT("DDCNOSAVEBOOT") ) && !FParse::Param( FCommandLine::Get(), TEXT("Multiprocess") ) )
-			{
-				BootCache->SaveCache(*BootCacheFilename);
-			}
 			BootCache->Disable();
 		}
 	}
@@ -1271,7 +1239,6 @@ private:
 
 	FThreadSafeCounter								AsyncCompletionCounter;
 	FString											GraphName;
-	FString											BootCacheFilename;
 	FString											ReadPakFilename;
 	FString											WritePakFilename;
 
@@ -1282,7 +1249,8 @@ private:
 	TArray< ILegacyCacheStore* > CreatedNodes;
 
 	/** Instances of backend interfaces which exist in only one copy */
-	FFileBackedDerivedDataBackend*	BootCache;
+	IMemoryCacheStore* MemoryCache;
+	IMemoryCacheStore*	BootCache;
 	IPakFileCacheStore* WritePakCache;
 	ILegacyCacheStore*	AsyncNode;
 	ICacheStoreOwner* Hierarchy;

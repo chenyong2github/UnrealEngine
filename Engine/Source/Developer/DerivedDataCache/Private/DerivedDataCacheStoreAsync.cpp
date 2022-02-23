@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Async/AsyncWork.h"
+#include "DerivedDataBackendInterface.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheStore.h"
 #include "DerivedDataCacheUsageStats.h"
@@ -9,8 +10,8 @@
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataValueId.h"
 #include "Experimental/Async/LazyEvent.h"
-#include "FileBackedDerivedDataBackend.h"
 #include "Memory/SharedBuffer.h"
+#include "MemoryCacheStore.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Stats/Stats.h"
 #include "Tasks/Task.h"
@@ -18,8 +19,6 @@
 
 namespace UE::DerivedData
 {
-
-FFileBackedDerivedDataBackend* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
 
 /**
  * A cache store that executes non-blocking requests in a dedicated thread pool.
@@ -29,14 +28,27 @@ FFileBackedDerivedDataBackend* CreateMemoryCacheStore(const TCHAR* Name, int64 M
 class FCacheStoreAsync : public ILegacyCacheStore
 {
 public:
-	FCacheStoreAsync(ILegacyCacheStore* InInnerCache, ECacheStoreFlags InInnerFlags, bool bCacheInFlightPuts);
+	FCacheStoreAsync(ILegacyCacheStore* InnerCache, ECacheStoreFlags InnerFlags, IMemoryCacheStore* MemoryCache);
 
 	virtual void Put(
 		TConstArrayView<FCachePutRequest> Requests,
 		IRequestOwner& Owner,
 		FOnCachePutComplete&& OnComplete) override
 	{
-		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner, MoveTemp(OnComplete), &ICacheStore::Put);
+		if (MemoryCache)
+		{
+			MemoryCache->Put(Requests, Owner, [](auto&&){});
+			Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner,
+				[this, OnComplete = MoveTemp(OnComplete)](FCachePutResponse&& Response)
+				{
+					MemoryCache->Delete(Response.Key);
+					OnComplete(MoveTemp(Response));
+				}, &ICacheStore::Put);
+		}
+		else
+		{
+			Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner, MoveTemp(OnComplete), &ICacheStore::Put);
+		}
 	}
 
 	virtual void Get(
@@ -52,7 +64,20 @@ public:
 		IRequestOwner& Owner,
 		FOnCachePutValueComplete&& OnComplete) override
 	{
-		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner, MoveTemp(OnComplete), &ICacheStore::PutValue);
+		if (MemoryCache)
+		{
+			MemoryCache->PutValue(Requests, Owner, [](auto&&){});
+			Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner,
+				[this, OnComplete = MoveTemp(OnComplete)](FCachePutValueResponse&& Response)
+				{
+					MemoryCache->DeleteValue(Response.Key);
+					OnComplete(MoveTemp(Response));
+				}, &ICacheStore::PutValue);
+		}
+		else
+		{
+			Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner, MoveTemp(OnComplete), &ICacheStore::PutValue);
+		}
 	}
 
 	virtual void GetValue(
@@ -76,7 +101,20 @@ public:
 		IRequestOwner& Owner,
 		FOnLegacyCachePutComplete&& OnComplete) override
 	{
-		Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner, MoveTemp(OnComplete), &ILegacyCacheStore::LegacyPut);
+		if (MemoryCache)
+		{
+			MemoryCache->LegacyPut(Requests, Owner, [](auto&&){});
+			Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner,
+				[this, OnComplete = MoveTemp(OnComplete)](FLegacyCachePutResponse&& Response)
+				{
+					MemoryCache->LegacyDelete(Response.Key);
+					OnComplete(MoveTemp(Response));
+				}, &ILegacyCacheStore::LegacyPut);
+		}
+		else
+		{
+			Execute(COOK_STAT(&FDerivedDataCacheUsageStats::TimePut,) Requests, Owner, MoveTemp(OnComplete), &ILegacyCacheStore::LegacyPut);
+		}
 	}
 
 	virtual void LegacyGet(
@@ -114,22 +152,22 @@ private:
 		OnExecuteType&& OnExecute);
 
 	ILegacyCacheStore* InnerCache;
-	ECacheStoreFlags InnerFlags;
-	TUniquePtr<ILegacyCacheStore> MemoryCache;
+	IMemoryCacheStore* MemoryCache;
 	FDerivedDataCacheUsageStats UsageStats;
+	ECacheStoreFlags InnerFlags;
 };
 
-FCacheStoreAsync::FCacheStoreAsync(ILegacyCacheStore* InInnerCache, ECacheStoreFlags InInnerFlags, bool bCacheInFlightPuts)
+FCacheStoreAsync::FCacheStoreAsync(ILegacyCacheStore* InInnerCache, ECacheStoreFlags InInnerFlags, IMemoryCacheStore* InMemoryCache)
 	: InnerCache(InInnerCache)
+	, MemoryCache(InMemoryCache)
 	, InnerFlags(InInnerFlags)
-	, MemoryCache(bCacheInFlightPuts ? CreateMemoryCacheStore(TEXT("InflightMemoryCache"), /*MaxCacheSize*/ -1, /*bCanBeDisabled*/ false) : nullptr)
 {
 	check(InnerCache);
 }
 
 void FCacheStoreAsync::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
-	OutNode = {TEXT("AsyncWrapper"), TEXT(""), EnumHasAnyFlags(InnerFlags, ECacheStoreFlags::Local)};
+	OutNode = {TEXT("Async"), TEXT(""), EnumHasAnyFlags(InnerFlags, ECacheStoreFlags::Local)};
 	OutNode.Stats.Add(TEXT(""), UsageStats);
 
 	InnerCache->LegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get());
@@ -302,9 +340,9 @@ void FCacheStoreAsync::Execute(
 		});
 }
 
-ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, ECacheStoreFlags InnerFlags, bool bCacheInFlightPuts)
+ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerCache, ECacheStoreFlags InnerFlags, IMemoryCacheStore* MemoryCache)
 {
-	return new FCacheStoreAsync(InnerCache, InnerFlags, bCacheInFlightPuts);
+	return new FCacheStoreAsync(InnerCache, InnerFlags, MemoryCache);
 }
 
 } // UE::DerivedData

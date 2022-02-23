@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "MemoryCacheStore.h"
+
+#include "Algo/Accumulate.h"
 #include "Algo/AllOf.h"
+#include "Algo/BinarySearch.h"
+#include "Algo/NoneOf.h"
+#include "DerivedDataBackendInterface.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataValue.h"
-#include "FileBackedDerivedDataBackend.h"
 #include "HAL/FileManager.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeLock.h"
@@ -20,83 +25,13 @@ namespace UE::DerivedData
 /**
  * A simple thread safe, memory based backend. This is used for Async puts and the boot cache.
  */
-class FMemoryCacheStore final : public FFileBackedDerivedDataBackend
+class FMemoryCacheStore final : public IMemoryCacheStore
 {
 public:
 	explicit FMemoryCacheStore(const TCHAR* InName, int64 InMaxCacheSize = -1, bool bCanBeDisabled = false);
 	~FMemoryCacheStore() final;
 
-	/** Return a name for this interface */
-	FString GetName() const final { return Name; }
-
-	/** return true if this cache is writable **/
-	bool IsWritable() const final;
-
-	/** Returns a class of speed for this interface **/
-	ESpeedClass GetSpeedClass()  const final;
-
-	/**
-	 * Synchronous test for the existence of a cache item
-	 *
-	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
-	 * @return				true if the data probably will be found, this can't be guaranteed because of concurrency in the backends, corruption, etc
-	 */
-	bool CachedDataProbablyExists(const TCHAR* CacheKey) final;
-
-	/**
-	 * Synchronous retrieve of a cache item
-	 *
-	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
-	 * @param	OutData		Buffer to receive the results, if any were found
-	 * @return				true if any data was found, and in this case OutData is non-empty
-	 */
-	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) final;
-
-	/**
-	 * Asynchronous, fire-and-forget placement of a cache item
-	 *
-	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
-	 * @param	InData		Buffer containing the data to cache, can be destroyed after the call returns, immediately
-	 * @param	bPutEvenIfExists	If true, then do not attempt skip the put even if CachedDataProbablyExists returns true
-	 */
-	EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) final;
-
-	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) final;
-
-	/**
-	 * Save the cache to disk
-	 * @param	Filename	Filename to save
-	 * @return	true if file was saved successfully
-	 */
-	bool SaveCache(const TCHAR* Filename);
-
-	/**
-	 * Load the cache from disk
-	 * @param	Filename	Filename to load
-	 * @return	true if file was loaded successfully
-	 */
-	bool LoadCache(const TCHAR* Filename);
-
-	/**
-	 * Disable cache and ignore all subsequent requests
-	 */
-	void Disable() final;
-
-	TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const final;
-
-	TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) final;
-
-	/**
-	 *  Determines if we would cache the provided data
-	 */
-	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) final;
-
-	/**
-	 * Apply debug options
-	 */
-	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) final;
-
-	EBackendLegacyMode GetLegacyMode() const final { return EBackendLegacyMode::ValueWithLegacyFallback; }
+	// ICacheStore Interface
 
 	void Put(
 		TConstArrayView<FCachePutRequest> Requests,
@@ -119,98 +54,84 @@ public:
 		IRequestOwner& Owner,
 		FOnCacheGetChunkComplete&& OnComplete) final;
 
+	// ILegacyCacheStore Interface
+
+	void LegacyPut(
+		TConstArrayView<FLegacyCachePutRequest> Requests,
+		IRequestOwner& Owner,
+		FOnLegacyCachePutComplete&& OnComplete) final;
+	void LegacyGet(
+		TConstArrayView<FLegacyCacheGetRequest> Requests,
+		IRequestOwner& Owner,
+		FOnLegacyCacheGetComplete&& OnComplete) final;
+	void LegacyDelete(
+		TConstArrayView<FLegacyCacheDeleteRequest> Requests,
+		IRequestOwner& Owner,
+		FOnLegacyCacheDeleteComplete&& OnComplete) final;
+
+	void LegacyStats(FDerivedDataCacheStatsNode& OutNode) final;
+	bool LegacyDebugOptions(FBackendDebugOptions& Options) final;
+
+	// IMemoryCacheStore Interface
+
+	void Delete(const FCacheKey& Key) final;
+	void DeleteValue(const FCacheKey& Key) final;
+	void LegacyDelete(const FLegacyCacheKey& Key) final;
+
+	void Disable() final;
+
 private:
-	/** Name of the cache file loaded (if any). */
-	FString CacheFilename;
 	FDerivedDataCacheUsageStats UsageStats;
 
-	struct FCacheValue
+	struct FCacheRecordComponents
 	{
-		int32 Age;
-		int32 Size;
-		FRWLock DataLock;
-		TArray<uint8> Data;
-		FCacheValue(int32 InSize, int32 InAge = 0)
-			: Age(InAge)
-			, Size(InSize)
-		{
-		}
-
-		~FCacheValue()
-		{
-			// Ensure we don't begin destruction of this value while our own PutCachedData function is holding this lock
-			FWriteScopeLock WriteLock(DataLock);
-		}
+		FCbObject Meta;
+		TArray<FValueWithId> Values;
 	};
-
-	FORCEINLINE int32 CalcSerializedCacheValueSize(const FString& Key, const FCacheValue& Val)
-	{
-		return (Key.Len() + 1) * sizeof(TCHAR) + sizeof(FCacheValue::Age) + Val.Size;
-	}
-
-	FORCEINLINE int32 CalcSerializedCacheValueSize(const FString& Key, const TArrayView<const uint8>& Data)
-	{
-		return (Key.Len() + 1) * sizeof(TCHAR) + sizeof(FCacheValue::Age) + Data.Num();
-	}
 
 	/** Name of this cache (used for debugging) */
 	FString Name;
 
-	/** Set of files that are being written to disk asynchronously. */
-	TMap<FString, FCacheValue*> CacheItems;
+	/** Set of legacy values in this cache. */
+	TMap<FCacheKey, FLegacyCacheValue> LegacyCacheValues;
 	/** Set of records in this cache. */
-	TSet<FCacheRecord, FCacheRecordKeyFuncs> CacheRecords;
+	TMap<FCacheKey, FCacheRecordComponents> CacheRecords;
 	/** Set of values in this cache. */
 	TMap<FCacheKey, FValue> CacheValues;
-	/** Maximum size the cached items can grow up to ( in bytes ) */
-	int64 MaxCacheSize;
+	/** Maximum size the cached items can grow up to (in bytes) */
+	uint64 MaxCacheSize;
 	/** When set to true, this cache is disabled...ignore all requests. */
 	std::atomic<bool> bDisabled;
 	/** Object used for synchronization via a scoped lock						*/
 	mutable FRWLock SynchronizationObject;
 	/** Current estimated cache size in bytes */
-	int64 CurrentCacheSize;
+	uint64 CurrentCacheSize;
 	/** Indicates that the cache max size has been exceeded. This is used to avoid
 		warning spam after the size has reached the limit. */
 	bool bMaxSizeExceeded;
 
-	/** When a memory cache can be disabled, it won't return true for CachedDataProbablyExists calls.
-	  * This is to avoid having the Boot DDC tells it has some resources that will suddenly disappear after the boot.
-	  * Get() requests will still get fulfilled and other cache level will be properly back-filled 
-	  * offering the speed benefit of the boot cache while maintaining coherency at all cache levels.
-	  * 
-	  * The problem is that most asset types (audio/staticmesh/texture) will always verify if their different LODS/Chunks can be found in the cache using CachedDataProbablyExists.
-	  * If any of the LOD/MIP can't be found, a build of the asset is triggered, otherwise they skip asset compilation altogether.
-	  * However, we should not skip the compilation based on the CachedDataProbablyExists result of the boot cache because it is a lie and will disappear at some point.
-	  * When the boot cache disappears and the streamer tries to fetch a LOD that it has been told was cached, it will fail and will then have no choice but to rebuild the asset synchronously.
-	  * This obviously causes heavy game-thread stutters.
+	/**
+	 * When a memory cache can be disabled, it won't return true for CachedDataProbablyExists calls.
+	 * This is to avoid having the Boot DDC tells it has some resources that will suddenly disappear after the boot.
+	 * Get() requests will still get fulfilled and other cache level will be properly back-filled 
+	 * offering the speed benefit of the boot cache while maintaining coherency at all cache levels.
+	 * 
+	 * The problem is that most asset types (audio/staticmesh/texture) will always verify if their different LODS/Chunks can be found in the cache using CachedDataProbablyExists.
+	 * If any of the LOD/MIP can't be found, a build of the asset is triggered, otherwise they skip asset compilation altogether.
+	 * However, we should not skip the compilation based on the CachedDataProbablyExists result of the boot cache because it is a lie and will disappear at some point.
+	 * When the boot cache disappears and the streamer tries to fetch a LOD that it has been told was cached, it will fail and will then have no choice but to rebuild the asset synchronously.
+	 * This obviously causes heavy game-thread stutters.
 
-	  * However, if the bootcache returns false during CachedDataProbablyExists. The async compilation will be triggered and data will be put in the both the boot.ddc and the local cache.
-	  * This way, no more heavy game-thread stutters during streaming...
+	 * However, if the bootcache returns false during CachedDataProbablyExists. The async compilation will be triggered and data will be put in the both the boot.ddc and the local cache.
+	 * This way, no more heavy game-thread stutters during streaming...
 
-	  * This can be reproed when you clear the local cache but do not clear the boot.ddc file, but even if it's a corner case, I stumbled upon it enough times that I though it was worth to fix so the caches are coherent.
-	  */
+	 * This can be reproed when you clear the local cache but do not clear the boot.ddc file, but even if it's a corner case, I stumbled upon it enough times that I though it was worth to fix so the caches are coherent.
+	 */
 	bool bCanBeDisabled = false;
 	bool bShuttingDown  = false;
 
-	enum 
-	{
-		/** Magic number to use in header */
-		MemCache_Magic = 0x0cac0ddc,
-		/** Magic number to use in header (new, > 2GB size compatible) */
-		MemCache_Magic64 = 0x0cac1ddc,
-		/** Oldest cache items to keep */
-		MaxAge = 3,
-		/** Size of data that is stored in the cachefile apart from the cache entries (64 bit size). */
-		SerializationSpecificDataSize = sizeof(uint32)	// Magic
-									  + sizeof(int64)	// Size
-									  + sizeof(uint32), // CRC
-	};
-
 protected:
 
-	/* Debug helpers */
-	bool ShouldSimulateMiss(const TCHAR* InKey);
 	bool ShouldSimulateMiss(const FCacheKey& InKey);
 
 	/** Debug Options */
@@ -224,9 +145,9 @@ protected:
 
 FMemoryCacheStore::FMemoryCacheStore(const TCHAR* InName, int64 InMaxCacheSize, bool bInCanBeDisabled)
 	: Name(InName)
-	, MaxCacheSize(InMaxCacheSize)
-	, bDisabled( false )
-	, CurrentCacheSize( SerializationSpecificDataSize )
+	, MaxCacheSize(InMaxCacheSize < 0 ? 0 : uint64(InMaxCacheSize))
+	, bDisabled(false)
+	, CurrentCacheSize(0)
 	, bMaxSizeExceeded(false)
 	, bCanBeDisabled(bInCanBeDisabled)
 {
@@ -238,401 +159,32 @@ FMemoryCacheStore::~FMemoryCacheStore()
 	Disable();
 }
 
-bool FMemoryCacheStore::IsWritable() const
-{
-	return !bDisabled;
-}
-
-FDerivedDataBackendInterface::ESpeedClass FMemoryCacheStore::GetSpeedClass() const
-{
-	return ESpeedClass::Local;
-}
-
-bool FMemoryCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
-{
-	// See comments on the declaration of bCanBeDisabled variable.
-	if (bCanBeDisabled)
-	{
-		return false;
-	}
-
-	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
-
-	if (ShouldSimulateMiss(CacheKey))
-	{
-		return false;
-	}
-
-	if (bDisabled)
-	{
-		return false;
-	}
-
-	FReadScopeLock ScopeLock(SynchronizationObject);
-	bool Result = CacheItems.Contains(FString(CacheKey));
-	if (Result)
-	{
-		COOK_STAT(Timer.AddHit(0));
-	}
-	return Result;
-}
-
-bool FMemoryCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
-{
-	COOK_STAT(auto Timer = UsageStats.TimeGet());
-
-	if (ShouldSimulateMiss(CacheKey))
-	{
-		return false;
-	}
-	
-	if (!bDisabled)
-	{
-		FReadScopeLock ScopeLock(SynchronizationObject);
-
-		FCacheValue* Item = CacheItems.FindRef(FString(CacheKey));
-		if (Item)
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryCacheStore::GetCachedData);
-			FReadScopeLock ItemLock(Item->DataLock);
-
-			OutData = Item->Data;
-			Item->Age = 0;
-			check(OutData.Num());
-			COOK_STAT(Timer.AddHit(OutData.Num()));
-			return true;
-		}
-	}
-	OutData.Empty();
-	return false;
-}
-
-TBitArray<> FMemoryCacheStore::TryToPrefetch(TConstArrayView<FString> CacheKeys)
-{
-	return CachedDataProbablyExistsBatch(CacheKeys);
-}
-
-bool FMemoryCacheStore::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
-{
-	if (bDisabled || bMaxSizeExceeded)
-	{
-		return false;
-	}
-
-	return true;
-}
-
-FDerivedDataBackendInterface::EPutStatus FMemoryCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryCacheStore::PutCachedData);
-	COOK_STAT(auto Timer = UsageStats.TimePut());
-
-	FString Key;
-	{
-		FReadScopeLock ReadScopeLock(SynchronizationObject);
-
-		if (ShouldSimulateMiss(CacheKey))
-		{
-			return EPutStatus::Skipped;
-		}
-
-		// Should never hit this as higher level code should be checking..
-		if (!WouldCache(CacheKey, InData))
-		{
-			//UE_LOG(LogDerivedDataCache, Warning, TEXT("WouldCache was not called prior to attempted Put!"));
-			return EPutStatus::NotCached;
-		}
-
-		Key = CacheKey;
-		FCacheValue* Item = CacheItems.FindRef(Key);
-		if (Item)
-		{
-			//check(Item->Data == InData); // any second attempt to push data should be identical data
-			return EPutStatus::Cached;
-		}
-	}
-	
-	// Compute the size of the cache before copying the data to avoid alloc/memcpy of something we might throw away
-	// if we bust the cache size.
-	int32 CacheValueSize = CalcSerializedCacheValueSize(Key, InData);
-
-	FCacheValue* Val = nullptr;
-
-	{
-		FWriteScopeLock WriteScopeLock(SynchronizationObject);
-
-		// check if we haven't exceeded the MaxCacheSize
-		if (MaxCacheSize > 0 && (CurrentCacheSize + CacheValueSize) > MaxCacheSize)
-		{
-			UE_LOG(LogDerivedDataCache, Display, TEXT("Failed to cache data. Maximum cache size reached. CurrentSize %d kb / MaxSize: %d kb"), CurrentCacheSize / 1024, MaxCacheSize / 1024);
-			bMaxSizeExceeded = true;
-			return EPutStatus::NotCached;
-		}
-
-		if (CacheItems.Contains(Key))
-		{
-			// Another thread already beat us, just return.
-			return EPutStatus::Cached;
-		}
-
-		COOK_STAT(Timer.AddHit(InData.Num()));
-		Val = new FCacheValue(InData.Num());
-		// Make sure no other thread can access the data until we finish copying it
-		Val->DataLock.WriteLock();
-		CacheItems.Add(Key, Val);
-
-		CurrentCacheSize += CacheValueSize;
-	}
-
-	// Data is copied outside of the lock so that we only lock
-	// for this specific key instead of always locking all keys by default.
-	Val->Data = InData;
-	// It is now safe for other thread to access this data, unlock
-	Val->DataLock.WriteUnlock();
-
-	return EPutStatus::Cached;
-}
-
-void FMemoryCacheStore::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
-{
-	if (bDisabled || bTransient)
-	{
-		return;
-	}
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryCacheStore::RemoveCachedData);
-	FString Key(CacheKey);
-	FCacheValue* Item = nullptr;
-	{
-		FWriteScopeLock WriteScopeLock(SynchronizationObject);
-		
-		if (CacheItems.RemoveAndCopyValue(Key, Item) && Item)
-		{
-			CurrentCacheSize -= CalcSerializedCacheValueSize(Key, *Item);
-			bMaxSizeExceeded = false;
-		}
-	}
-
-	if (Item)
-	{
-		// Just make sure any other thread has finished writing or reading the data before deleting.
-		Item->DataLock.WriteLock();
-
-		// Avoid deleting the item with a locked FRWLock, unlocking is safe because
-		// the item is now unreachable from other threads
-		Item->DataLock.WriteUnlock();
-		delete Item;
-	}
-}
-
-bool FMemoryCacheStore::SaveCache(const TCHAR* Filename)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryCacheStore::SaveCache);
-
-	double StartTime = FPlatformTime::Seconds();
-	TUniquePtr<FArchive> SaverArchive(IFileManager::Get().CreateFileWriter(Filename, FILEWRITE_EvenIfReadOnly));
-	if (!SaverArchive)
-	{
-		UE_LOG(LogDerivedDataCache, Error, TEXT("Could not save memory cache %s."), Filename);
-		return false;
-	}
-
-	FArchive& Saver = *SaverArchive;
-	uint32 Magic = MemCache_Magic64;
-	Saver << Magic;
-	const int64 DataStartOffset = Saver.Tell();
-	{
-		FWriteScopeLock ScopeLock(SynchronizationObject);
-		check(!bDisabled);
-		for (TMap<FString, FCacheValue*>::TIterator It(CacheItems); It; ++It )
-		{
-			Saver << It.Key();
-			Saver << It.Value()->Age;
-			FReadScopeLock ReadScopeLock(It.Value()->DataLock);
-			Saver << It.Value()->Data;
-		}
-	}
-	const int64 DataSize = Saver.Tell(); // Everything except the footer
-	int64 Size = DataSize;
-	uint32 Crc = MemCache_Magic64; // Crc takes more time than I want to spend  FCrc::MemCrc_DEPRECATED(&Buffer[0], Size);
-	Saver << Size;
-	Saver << Crc;
-
-	check(SerializationSpecificDataSize + DataSize <= MaxCacheSize || MaxCacheSize <= 0);
-
-	UE_LOG(LogDerivedDataCache, Log, TEXT("Saved boot cache %4.2fs %lldMB %s."), float(FPlatformTime::Seconds() - StartTime), DataSize / (1024 * 1024), Filename);
-	return true;
-}
-
-bool FMemoryCacheStore::LoadCache(const TCHAR* Filename)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMemoryCacheStore::LoadCache);
-
-	double StartTime = FPlatformTime::Seconds();
-	const int64 FileSize = IFileManager::Get().FileSize(Filename);
-	if (FileSize < 0)
-	{
-		UE_LOG(LogDerivedDataCache, Warning, TEXT("Could not find memory cache %s."), Filename);
-		return false;
-	}
-	// We test 3 * uint32 which is the old format (< SerializationSpecificDataSize). We'll test
-	// against SerializationSpecificDataSize later when we read the magic number from the cache.
-	if (FileSize < sizeof(uint32) * 3)
-	{
-		UE_LOG(LogDerivedDataCache, Error, TEXT("Memory cache was corrputed (short) %s."), Filename);
-		return false;
-	}
-	if (FileSize > MaxCacheSize*2 && MaxCacheSize > 0)
-	{
-		UE_LOG(LogDerivedDataCache, Error, TEXT("Refusing to load DDC cache %s. Size exceeds doubled MaxCacheSize."), Filename);
-		return false;
-	}
-
-	TUniquePtr<FArchive> LoaderArchive(IFileManager::Get().CreateFileReader(Filename));
-	if (!LoaderArchive)
-	{
-		UE_LOG(LogDerivedDataCache, Warning, TEXT("Could not read memory cache %s."), Filename);
-		return false;
-	}
-
-	FArchive& Loader = *LoaderArchive;
-	uint32 Magic = 0;
-	Loader << Magic;
-	if (Magic != MemCache_Magic && Magic != MemCache_Magic64)
-	{
-		UE_LOG(LogDerivedDataCache, Error, TEXT("Memory cache was corrputed (magic) %s."), Filename);
-		return false;
-	}
-	// Check the file size again, this time against the correct minimum size.
-	if (Magic == MemCache_Magic64 && FileSize < SerializationSpecificDataSize)
-	{
-		UE_LOG(LogDerivedDataCache, Error, TEXT("Memory cache was corrputed (short) %s."), Filename);
-		return false;
-	}
-	// Calculate expected DataSize based on the magic number (footer size difference)
-	const int64 DataSize = FileSize - (Magic == MemCache_Magic64 ? (SerializationSpecificDataSize - sizeof(uint32)) : (sizeof(uint32) * 2));		
-	Loader.Seek(DataSize);
-	int64 Size = 0;
-	uint32 Crc = 0;
-	if (Magic == MemCache_Magic64)
-	{
-		Loader << Size;
-	}
-	else
-	{
-		uint32 Size32 = 0;
-		Loader << Size32;
-		Size = (int64)Size32;
-	}
-	Loader << Crc;
-	if (Size != DataSize)
-	{
-		UE_LOG(LogDerivedDataCache, Error, TEXT("Memory cache was corrputed (size) %s."), Filename);
-		return false;
-	}
-	if ((Crc != MemCache_Magic && Crc != MemCache_Magic64) || Crc != Magic)
-	{
-		UE_LOG(LogDerivedDataCache, Warning, TEXT("Memory cache was corrputed (crc) %s."), Filename);
-		return false;
-	}
-	// Seek to data start offset (skip magic number)
-	Loader.Seek(sizeof(uint32));
-	{
-		TArray<uint8> Working;
-		FWriteScopeLock ScopeLock(SynchronizationObject);
-		check(!bDisabled);
-		while (Loader.Tell() < DataSize)
-		{
-			FString Key;
-			int32 Age;
-			Loader << Key;
-			Loader << Age;
-			Age++;
-			Loader << Working;
-			if (Age < MaxAge)
-			{
-				CacheItems.Add(Key, new FCacheValue(Working.Num(), Age))->Data = MoveTemp(Working);
-			}
-			Working.Reset();
-		}
-		// these are just a double check on ending correctly
-		if (Magic == MemCache_Magic64)
-		{
-			Loader << Size;
-		}
-		else
-		{
-			uint32 Size32 = 0;
-			Loader << Size32;
-			Size = (int64)Size32;
-		}
-		Loader << Crc;
-
-		CurrentCacheSize = FileSize;
-		CacheFilename = Filename;
-	}
-
-	UE_LOG(LogDerivedDataCache, Log, TEXT("Loaded boot cache %4.2fs %lldMB %s."), float(FPlatformTime::Seconds() - StartTime), DataSize / (1024 * 1024), Filename);
-	return true;
-}
-
 void FMemoryCacheStore::Disable()
 {
 	check(bCanBeDisabled || bShuttingDown);
 	FWriteScopeLock ScopeLock(SynchronizationObject);
 	bDisabled = true;
-	for (TMap<FString,FCacheValue*>::TIterator It(CacheItems); It; ++It )
-	{
-		delete It.Value();
-	}
-	CacheItems.Empty();
-
-	CurrentCacheSize = SerializationSpecificDataSize;
+	CacheRecords.Empty();
+	CacheValues.Empty();
+	LegacyCacheValues.Empty();
+	CurrentCacheSize = 0;
 }
 
-TSharedRef<FDerivedDataCacheStatsNode> FMemoryCacheStore::GatherUsageStats() const
+void FMemoryCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
-	TSharedRef<FDerivedDataCacheStatsNode> Usage =
-		MakeShared<FDerivedDataCacheStatsNode>(CacheFilename.IsEmpty() ? TEXT("Memory") : TEXT("Boot"), CacheFilename, /*bIsLocal*/ true);
-	Usage->Stats.Add(TEXT(""), UsageStats);
-	return Usage;
+	OutNode = {!bCanBeDisabled ? TEXT("Memory") : TEXT("Boot"), TEXT(""), /*bIsLocal*/ true};
+	OutNode.Stats.Add(TEXT(""), UsageStats);
 }
 
-bool FMemoryCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+bool FMemoryCacheStore::LegacyDebugOptions(FBackendDebugOptions& InOptions)
 {
 	DebugOptions = InOptions;
 	return true;
 }
 
-bool FMemoryCacheStore::ShouldSimulateMiss(const TCHAR* InKey)
-{
-	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
-	{
-		return false;
-	}
-
-	const FName Key(InKey);
-	const uint32 Hash = GetTypeHash(Key);
-
-	if (FScopeLock Lock(&MissedKeysCS); DebugMissedKeys.ContainsByHash(Hash, Key))
-	{
-		return true;
-	}
-
-	if (DebugOptions.ShouldSimulateMiss(InKey))
-	{
-		FScopeLock Lock(&MissedKeysCS);
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
-		DebugMissedKeys.AddByHash(Hash, Key);
-		return true;
-	}
-
-	return false;
-}
-
 bool FMemoryCacheStore::ShouldSimulateMiss(const FCacheKey& Key)
 {
-	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
+	if (!bCanBeDisabled || (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty()))
 	{
 		return false;
 	}
@@ -659,17 +211,24 @@ void FMemoryCacheStore::Put(
 	IRequestOwner& Owner,
 	FOnCachePutComplete&& OnComplete)
 {
+	if (bDisabled)
+	{
+		return CompleteWithStatus(Requests, OnComplete, EStatus::Error);
+	}
+
 	for (const FCachePutRequest& Request : Requests)
 	{
-		const FCacheRecord& Record = Request.Record;
-		const FCacheKey& Key = Record.GetKey();
 		EStatus Status = EStatus::Error;
 		ON_SCOPE_EXIT
 		{
-			OnComplete({Request.Name, Key, Request.UserData, Status});
+			OnComplete(Request.MakeResponse(Status));
 		};
 
-		if (!EnumHasAnyFlags(Request.Policy.GetRecordPolicy(), ECachePolicy::StoreLocal))
+		const FCacheRecord& Record = Request.Record;
+		const FCacheKey& Key = Record.GetKey();
+		const TConstArrayView<FValueWithId> Values = Record.GetValues();
+
+		if (Algo::NoneOf(Values, &FValue::HasData))
 		{
 			continue;
 		}
@@ -677,50 +236,128 @@ void FMemoryCacheStore::Put(
 		if (ShouldSimulateMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%s'"),
-				*GetName(), *WriteToString<96>(Key), *Request.Name);
-			continue;
-		}
-
-		const TConstArrayView<FValueWithId> Values = Record.GetValues();
-
-		if (!Algo::AllOf(Values, &FValue::HasData))
-		{
+				*Name, *WriteToString<96>(Key), *Request.Name);
 			continue;
 		}
 
 		COOK_STAT(auto Timer = UsageStats.TimePut());
-		const int64 RecordSize = Private::GetCacheRecordCompressedSize(Record);
 		const bool bReplaceExisting = !EnumHasAnyFlags(Request.Policy.GetRecordPolicy(), ECachePolicy::QueryLocal);
 
 		FWriteScopeLock ScopeLock(SynchronizationObject);
-		FCacheRecord* const ExistingRecord = CacheRecords.Find(Key);
-		Status = ExistingRecord && !bReplaceExisting ? EStatus::Ok : EStatus::Error;
-		if (bDisabled || Status == EStatus::Ok)
+		FCacheRecordComponents& Components = CacheRecords.FindOrAdd(Key);
+		const bool bHasExisting = !Components.Values.IsEmpty();
+		Status = EStatus::Ok;
+
+		if (bHasExisting && !bReplaceExisting && Algo::AllOf(Components.Values, &FValue::HasData))
 		{
 			continue;
 		}
 
-		const int64 ExistingRecordSize = ExistingRecord ? Private::GetCacheRecordCompressedSize(*ExistingRecord) : 0;
-		const int64 RequiredSize = RecordSize - ExistingRecordSize;
-
-		if (MaxCacheSize > 0 && (CurrentCacheSize + RequiredSize) > MaxCacheSize)
+		int64 RequiredSize = 0;
+		if (bHasExisting && !bReplaceExisting)
 		{
-			UE_LOG(LogDerivedDataCache, Display, TEXT("Failed to cache data. Maximum cache size reached. CurrentSize %" INT64_FMT " KiB / MaxSize: %" INT64_FMT " KiB"), CurrentCacheSize / 1024, MaxCacheSize / 1024);
-			bMaxSizeExceeded = true;
-			continue;
-		}
-
-		CurrentCacheSize += RequiredSize;
-		if (ExistingRecord)
-		{
-			*ExistingRecord = Record;
+			for (const FValueWithId& Value : Components.Values)
+			{
+				if (!Value.HasData())
+				{
+					if (const FValueWithId& NewValue = Record.GetValue(Value.GetId());
+						NewValue &&
+						NewValue.HasData() &&
+						NewValue.GetRawHash() == Value.GetRawHash())
+					{
+						RequiredSize += NewValue.GetData().GetCompressedSize();
+					}
+					else if (!EnumHasAnyFlags(Request.Policy.GetRecordPolicy(), ECachePolicy::PartialRecord) &&
+						EnumHasAnyFlags(Request.Policy.GetValuePolicy(Value.GetId()), ECachePolicy::StoreLocal))
+					{
+						Status = EStatus::Error;
+					}
+				}
+			}
 		}
 		else
 		{
-			CacheRecords.Add(Record);
+			RequiredSize = Record.GetMeta().GetSize() - Components.Meta.GetSize();
+			RequiredSize -= Algo::TransformAccumulate(Components.Values, [](const FValue& Value) { return Value.GetData().GetCompressedSize(); }, uint64(0));
+			for (const FValueWithId& NewValue : Record.GetValues())
+			{
+				if (NewValue.HasData())
+				{
+					RequiredSize += NewValue.GetData().GetCompressedSize();
+				}
+				else if (const int32 ValueIndex = Algo::BinarySearchBy(Components.Values, NewValue.GetId(), &FValueWithId::GetId);
+					ValueIndex != INDEX_NONE &&
+					Components.Values[ValueIndex].HasData() &&
+					Components.Values[ValueIndex].GetRawHash() == NewValue.GetRawHash())
+				{
+					RequiredSize += Components.Values[ValueIndex].GetData().GetCompressedSize();
+				}
+				else if (!EnumHasAnyFlags(Request.Policy.GetRecordPolicy(), ECachePolicy::PartialRecord) &&
+					EnumHasAnyFlags(Request.Policy.GetValuePolicy(NewValue.GetId()), ECachePolicy::StoreLocal))
+				{
+					Status = EStatus::Error;
+				}
+			}
 		}
-		COOK_STAT(Timer.AddHit(RecordSize));
+
+		if (Status == EStatus::Error)
+		{
+			continue;
+		}
+
+		if (MaxCacheSize > 0 && (CurrentCacheSize + RequiredSize) > MaxCacheSize)
+		{
+			UE_CLOG(!bMaxSizeExceeded, LogDerivedDataCache, Display,
+				TEXT("Failed to cache data. Maximum cache size reached. ")
+				TEXT("CurrentSize %" UINT64_FMT " KiB / MaxSize: %" UINT64_FMT " KiB"),
+				CurrentCacheSize / 1024, MaxCacheSize / 1024);
+			bMaxSizeExceeded = true;
+			Status = EStatus::Ok;
+			continue;
+		}
+
 		Status = EStatus::Ok;
+		CurrentCacheSize += RequiredSize;
+
+		if (!bHasExisting)
+		{
+			Components.Meta = Record.GetMeta();
+			Components.Values = Record.GetValues();
+		}
+		else if (!bReplaceExisting)
+		{
+			for (FValueWithId& Value : Components.Values)
+			{
+				if (!Value.HasData())
+				{
+					if (const FValueWithId& NewValue = Record.GetValue(Value.GetId()); NewValue && NewValue.GetRawHash() == Value.GetRawHash())
+					{
+						Value = NewValue;
+					}
+				}
+			}
+		}
+		else
+		{
+			FCacheRecordComponents ExistingComponents = MoveTemp(Components);
+			Components.Meta = Record.GetMeta();
+			Components.Values = Record.GetValues();
+			for (FValueWithId& Value : Components.Values)
+			{
+				if (!Value.HasData())
+				{
+					if (const int32 ExistingValueIndex = Algo::BinarySearchBy(ExistingComponents.Values, Value.GetId(), &FValueWithId::GetId);
+						ExistingValueIndex != INDEX_NONE &&
+						ExistingComponents.Values[ExistingValueIndex].HasData() &&
+						ExistingComponents.Values[ExistingValueIndex].GetRawHash() == Value.GetRawHash())
+					{
+						Value = ExistingComponents.Values[ExistingValueIndex];
+					}
+				}
+			}
+		}
+
+		COOK_STAT(Timer.AddHit(RequiredSize));
 	}
 }
 
@@ -738,44 +375,68 @@ void FMemoryCacheStore::Get(
 	{
 		const FCacheKey& Key = Request.Key;
 		const FCacheRecordPolicy& Policy = Request.Policy;
-		const bool bExistsOnly = EnumHasAllFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipData);
-		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
-		FOptionalCacheRecord Record;
+		COOK_STAT(auto Timer = EnumHasAnyFlags(Policy.GetRecordPolicy(), ECachePolicy::SkipData) ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
+		FCacheRecordComponents Components;
 		EStatus Status = EStatus::Error;
+
 		if (ShouldSimulateMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
-				*GetName(), *WriteToString<96>(Key), *Request.Name);
+				*Name, *WriteToString<96>(Key), *Request.Name);
 		}
-		else if (FReadScopeLock ScopeLock(SynchronizationObject); const FCacheRecord* CacheRecord = CacheRecords.Find(Key))
+		else if (FReadScopeLock ScopeLock(SynchronizationObject); const FCacheRecordComponents* FoundComponents = CacheRecords.Find(Key))
 		{
-			Status = EStatus::Ok;
-			Record = *CacheRecord;
-		}
-		if (Record)
-		{
-			for (const FValueWithId& Value : Record.Get().GetValues())
+			if (!FoundComponents->Values.IsEmpty())
 			{
-				if (!Value.HasData() && !EnumHasAnyFlags(Policy.GetValuePolicy(Value.GetId()), ECachePolicy::SkipData))
+				Status = EStatus::Ok;
+				Components = *FoundComponents;
+			}
+		}
+
+		FCacheRecordBuilder Builder(Request.Key);
+
+		if (Status == EStatus::Ok)
+		{
+			const ECachePolicy RecordPolicy = Policy.GetRecordPolicy();
+			for (const FValueWithId& Value : Components.Values)
+			{
+				const ECachePolicy ValuePolicy = Policy.GetValuePolicy(Value.GetId());
+				if (!EnumHasAnyFlags(ValuePolicy, ECachePolicy::QueryLocal))
+				{
+					Builder.AddValue(Value.RemoveData());
+					continue;
+				}
+				if (!Value.HasData())
 				{
 					Status = EStatus::Error;
-					if (!EnumHasAllFlags(Policy.GetRecordPolicy(), ECachePolicy::PartialRecord))
+					if (!EnumHasAnyFlags(RecordPolicy, ECachePolicy::PartialRecord))
 					{
-						Record.Reset();
+						Builder = FCacheRecordBuilder(Request.Key);
 						break;
 					}
 				}
+				const bool bExistsOnly = EnumHasAnyFlags(ValuePolicy, ECachePolicy::SkipData);
+				Builder.AddValue(bExistsOnly ? Value.RemoveData() : Value);
 			}
 		}
-		if (Record)
-		{
-			COOK_STAT(Timer.AddHit(Private::GetCacheRecordCompressedSize(Record.Get())));
-			OnComplete({Request.Name, MoveTemp(Record).Get(), Request.UserData, Status});
-		}
-		else
-		{
-			OnComplete(Request.MakeResponse(EStatus::Error));
-		}
+
+		FCacheRecord Record = Builder.Build();
+		COOK_STAT(Timer.AddHitOrMiss(
+			Status == EStatus::Ok ? FCookStats::CallStats::EHitOrMiss::Hit : FCookStats::CallStats::EHitOrMiss::Miss,
+			Private::GetCacheRecordCompressedSize(Record)));
+		OnComplete({Request.Name, MoveTemp(Record), Request.UserData, Status});
+	}
+}
+
+void FMemoryCacheStore::Delete(const FCacheKey& Key)
+{
+	FWriteScopeLock ScopeLock(SynchronizationObject);
+	FCacheRecordComponents Components;
+	if (CacheRecords.RemoveAndCopyValue(Key, Components))
+	{
+		CurrentCacheSize -= Components.Meta.GetSize() +
+			Algo::TransformAccumulate(Components.Values, [](const FValue& Value) { return Value.GetData().GetCompressedSize(); }, uint64(0));
+		bMaxSizeExceeded = false;
 	}
 }
 
@@ -784,6 +445,11 @@ void FMemoryCacheStore::PutValue(
 	IRequestOwner& Owner,
 	FOnCachePutValueComplete&& OnComplete)
 {
+	if (bDisabled)
+	{
+		return CompleteWithStatus(Requests, OnComplete, EStatus::Error);
+	}
+
 	for (const FCachePutValueRequest& Request : Requests)
 	{
 		EStatus Status = EStatus::Error;
@@ -792,23 +458,18 @@ void FMemoryCacheStore::PutValue(
 			OnComplete(Request.MakeResponse(Status));
 		};
 
-		if (!EnumHasAnyFlags(Request.Policy, ECachePolicy::StoreLocal))
+		const FCacheKey& Key = Request.Key;
+		const FValue& Value = Request.Value;
+
+		if (!Value.HasData())
 		{
 			continue;
 		}
-
-		const FCacheKey& Key = Request.Key;
-		const FValue& Value = Request.Value;
 
 		if (ShouldSimulateMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%s'"),
-				*GetName(), *WriteToString<96>(Key), *Request.Name);
-			continue;
-		}
-
-		if (!Value.HasData())
-		{
+				*Name, *WriteToString<96>(Key), *Request.Name);
 			continue;
 		}
 
@@ -818,9 +479,10 @@ void FMemoryCacheStore::PutValue(
 
 		FWriteScopeLock ScopeLock(SynchronizationObject);
 		FValue* const ExistingValue = CacheValues.Find(Key);
-		Status = ExistingValue && !bReplaceExisting ? EStatus::Ok : EStatus::Error;
-		if (bDisabled || Status == EStatus::Ok)
+
+		if (ExistingValue && !bReplaceExisting)
 		{
+			Status = EStatus::Ok;
 			continue;
 		}
 
@@ -829,7 +491,10 @@ void FMemoryCacheStore::PutValue(
 
 		if (MaxCacheSize > 0 && (CurrentCacheSize + RequiredSize) > MaxCacheSize)
 		{
-			UE_LOG(LogDerivedDataCache, Display, TEXT("Failed to cache data. Maximum cache size reached. CurrentSize %" INT64_FMT " KiB / MaxSize: %" INT64_FMT " KiB"), CurrentCacheSize / 1024, MaxCacheSize / 1024);
+			UE_CLOG(!bMaxSizeExceeded, LogDerivedDataCache, Display,
+				TEXT("Failed to cache data. Maximum cache size reached. ")
+				TEXT("CurrentSize %" UINT64_FMT " KiB / MaxSize: %" UINT64_FMT " KiB"),
+				CurrentCacheSize / 1024, MaxCacheSize / 1024);
 			bMaxSizeExceeded = true;
 			continue;
 		}
@@ -843,6 +508,7 @@ void FMemoryCacheStore::PutValue(
 		{
 			CacheValues.Add(Key, Value);
 		}
+
 		COOK_STAT(Timer.AddHit(ValueSize));
 		Status = EStatus::Ok;
 	}
@@ -861,39 +527,38 @@ void FMemoryCacheStore::GetValue(
 	for (const FCacheGetValueRequest& Request : Requests)
 	{
 		const FCacheKey& Key = Request.Key;
-		const ECachePolicy Policy = Request.Policy;
-		const bool bExistsOnly = EnumHasAllFlags(Policy, ECachePolicy::SkipData);
+		const bool bExistsOnly = EnumHasAllFlags(Request.Policy, ECachePolicy::SkipData);
 		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
-		bool bProcessHit = false;
+
 		FValue Value;
 		EStatus Status = EStatus::Error;
 		if (ShouldSimulateMiss(Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
-				*GetName(), *WriteToString<96>(Key), *Request.Name);
+				*Name, *WriteToString<96>(Key), *Request.Name);
+		}
+		else if (bExistsOnly && bCanBeDisabled)
+		{
 		}
 		else if (FReadScopeLock ScopeLock(SynchronizationObject); const FValue* CacheValue = CacheValues.Find(Key))
 		{
 			Status = EStatus::Ok;
-			Value = *CacheValue;
-			bProcessHit = true;
-		}
-
-		if (bProcessHit)
-		{
-			if (!Value.HasData() && !EnumHasAnyFlags(Policy, ECachePolicy::SkipData))
-			{
-				Status = EStatus::Error;
-			}
-
+			Value = !bExistsOnly ? *CacheValue : CacheValue->RemoveData();
 			COOK_STAT(Timer.AddHit(Value.GetData().GetCompressedSize()));
-			Value = EnumHasAnyFlags(Policy, ECachePolicy::SkipData) ? Value.RemoveData() : Value;
-			OnComplete({Request.Name, Request.Key, MoveTemp(Value), Request.UserData, Status});
 		}
-		else
-		{
-			OnComplete(Request.MakeResponse(EStatus::Error));
-		}
+
+		OnComplete({Request.Name, Request.Key, MoveTemp(Value), Request.UserData, Status});
+	}
+}
+
+void FMemoryCacheStore::DeleteValue(const FCacheKey& Key)
+{
+	FWriteScopeLock ScopeLock(SynchronizationObject);
+	FValue Value;
+	if (CacheValues.RemoveAndCopyValue(Key, Value))
+	{
+		CurrentCacheSize -= Value.GetData().GetCompressedSize();
+		bMaxSizeExceeded = false;
 	}
 }
 
@@ -920,7 +585,7 @@ void FMemoryCacheStore::GetChunks(
 		if (ShouldSimulateMiss(Request.Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
-				*GetName(), *WriteToString<96>(Request.Key, '/', Request.Id), *Request.Name);
+				*Name, *WriteToString<96>(Request.Key, '/', Request.Id), *Request.Name);
 		}
 		else if (bHasValue && (ValueKey == Request.Key) && (ValueId == Request.Id) && (bExistsOnly || Reader.HasSource()))
 		{
@@ -932,17 +597,20 @@ void FMemoryCacheStore::GetChunks(
 			FReadScopeLock ScopeLock(SynchronizationObject);
 			if (Request.Id.IsValid())
 			{
-				if (const FCacheRecord* Record = CacheRecords.Find(Request.Key))
+				if (const FCacheRecordComponents* Components = CacheRecords.Find(Request.Key))
 				{
-					const FValueWithId& ValueWithId = Record->GetValue(Request.Id);
-					bHasValue = ValueWithId.IsValid();
-					Reader.ResetSource();
-					Value.Reset();
-					Value = ValueWithId;
-					ValueId = Request.Id;
-					ValueKey = Request.Key;
-					Reader.SetSource(Value.GetData());
-					bProcessHit = true;
+					if (const int32 ValueIndex = Algo::BinarySearchBy(Components->Values, Request.Id, &FValueWithId::GetId); ValueIndex != INDEX_NONE)
+					{
+						const FValueWithId& ValueWithId = Components->Values[ValueIndex];
+						bHasValue = ValueWithId.IsValid();
+						Reader.ResetSource();
+						Value.Reset();
+						Value = ValueWithId;
+						ValueId = Request.Id;
+						ValueKey = Request.Key;
+						Reader.SetSource(Value.GetData());
+						bProcessHit = true;
+					}
 				}
 			}
 			else
@@ -981,7 +649,149 @@ void FMemoryCacheStore::GetChunks(
 	}
 }
 
-FFileBackedDerivedDataBackend* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled)
+void FMemoryCacheStore::LegacyPut(
+	const TConstArrayView<FLegacyCachePutRequest> Requests,
+	IRequestOwner& Owner,
+	FOnLegacyCachePutComplete&& OnComplete)
+{
+	if (bDisabled)
+	{
+		return CompleteWithStatus(Requests, OnComplete, EStatus::Error);
+	}
+
+	for (const FLegacyCachePutRequest& Request : Requests)
+	{
+		EStatus Status = EStatus::Error;
+		ON_SCOPE_EXIT
+		{
+			OnComplete(Request.MakeResponse(Status));
+		};
+
+		const FCacheKey& Key = Request.Key.GetKey();
+		const FLegacyCacheValue& Value = Request.Value;
+
+		if (!Value.HasData())
+		{
+			continue;
+		}
+
+		if (ShouldSimulateMiss(Key))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%s'"),
+				*Name, *WriteToString<96>(Key), *Request.Name);
+			continue;
+		}
+
+		COOK_STAT(auto Timer = UsageStats.TimePut());
+		const int64 ValueSize = Value.GetRawSize();
+		const bool bReplaceExisting = !EnumHasAnyFlags(Request.Policy, ECachePolicy::QueryLocal);
+
+		FWriteScopeLock ScopeLock(SynchronizationObject);
+		FLegacyCacheValue* const ExistingValue = LegacyCacheValues.Find(Key);
+
+		if (ExistingValue && !bReplaceExisting)
+		{
+			Status = EStatus::Ok;
+			continue;
+		}
+
+		const int64 ExistingValueSize = ExistingValue ? ExistingValue->GetRawSize() : 0;
+		const int64 RequiredSize = ValueSize - ExistingValueSize;
+
+		if (MaxCacheSize > 0 && (CurrentCacheSize + RequiredSize) > MaxCacheSize)
+		{
+			UE_CLOG(!bMaxSizeExceeded, LogDerivedDataCache, Display,
+				TEXT("Failed to cache data. Maximum cache size reached. ")
+				TEXT("CurrentSize %" UINT64_FMT " KiB / MaxSize: %" UINT64_FMT " KiB"),
+				CurrentCacheSize / 1024, MaxCacheSize / 1024);
+			bMaxSizeExceeded = true;
+			continue;
+		}
+
+		CurrentCacheSize += RequiredSize;
+		if (ExistingValue)
+		{
+			*ExistingValue = Value;
+		}
+		else
+		{
+			LegacyCacheValues.Add(Key, Value);
+		}
+
+		COOK_STAT(Timer.AddHit(ValueSize));
+		Status = EStatus::Ok;
+	}
+}
+
+void FMemoryCacheStore::LegacyGet(
+	const TConstArrayView<FLegacyCacheGetRequest> Requests,
+	IRequestOwner& Owner,
+	FOnLegacyCacheGetComplete&& OnComplete)
+{
+	if (bDisabled)
+	{
+		return CompleteWithStatus(Requests, OnComplete, EStatus::Error);
+	}
+
+	for (const FLegacyCacheGetRequest& Request : Requests)
+	{
+		const FCacheKey& Key = Request.Key.GetKey();
+		const bool bExistsOnly = EnumHasAllFlags(Request.Policy, ECachePolicy::SkipData);
+		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
+
+		FLegacyCacheValue Value;
+		EStatus Status = EStatus::Error;
+		if (ShouldSimulateMiss(Key))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%s'"),
+				*Name, *WriteToString<96>(Key), *Request.Name);
+		}
+		else if (bExistsOnly && bCanBeDisabled)
+		{
+		}
+		else if (FReadScopeLock ScopeLock(SynchronizationObject); const FLegacyCacheValue* CacheValue = LegacyCacheValues.Find(Key))
+		{
+			Status = EStatus::Ok;
+			if (!bExistsOnly)
+			{
+				Value = *CacheValue;
+			}
+			COOK_STAT(Timer.AddHit(Value.GetRawSize()));
+		}
+
+		OnComplete({Request.Name, Request.Key, MoveTemp(Value), Request.UserData, Status});
+	}
+}
+
+void FMemoryCacheStore::LegacyDelete(const FLegacyCacheKey& Key)
+{
+	FWriteScopeLock ScopeLock(SynchronizationObject);
+	FLegacyCacheValue Value;
+	if (LegacyCacheValues.RemoveAndCopyValue(Key.GetKey(), Value))
+	{
+		CurrentCacheSize -= Value.GetRawSize();
+		bMaxSizeExceeded = false;
+	}
+}
+
+void FMemoryCacheStore::LegacyDelete(
+	const TConstArrayView<FLegacyCacheDeleteRequest> Requests,
+	IRequestOwner& Owner,
+	FOnLegacyCacheDeleteComplete&& OnComplete)
+{
+	if (bDisabled)
+	{
+		return CompleteWithStatus(Requests, OnComplete, EStatus::Error);
+	}
+
+	for (const FLegacyCacheDeleteRequest& Request : Requests)
+	{
+		LegacyDelete(Request.Key);
+	}
+	CompleteWithStatus(Requests, OnComplete, EStatus::Ok);
+}
+
+IMemoryCacheStore* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled)
 {
 	return new FMemoryCacheStore(Name, MaxCacheSize, bCanBeDisabled);
 }

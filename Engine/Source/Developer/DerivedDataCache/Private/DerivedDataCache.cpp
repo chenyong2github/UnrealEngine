@@ -361,9 +361,9 @@ class FDerivedDataCache final
 						LegacyRequest.Name = DebugContext;
 						LegacyRequest.Key = FLegacyCacheKey(CacheKey, FDerivedDataBackend::Get().GetMaxKeyLength());
 						LegacyRequest.Value = FLegacyCacheValue(FCompositeBuffer(FSharedBuffer::Clone(MakeMemoryView(Data))));
-						FRequestOwner BlockingOwner(EPriority::Blocking);
-						FDerivedDataBackend::Get().GetRoot().LegacyPut({LegacyRequest}, BlockingOwner, [](auto&&){});
-						BlockingOwner.Wait();
+						FRequestOwner AsyncOwner(EPriority::Normal);
+						FDerivedDataBackend::Get().GetRoot().LegacyPut({LegacyRequest}, AsyncOwner, [](auto&&){});
+						AsyncOwner.KeepAlive();
 					}
 					INC_FLOAT_STAT_BY(STAT_DDC_PutTime, bSynchronousForStats ? (float)ThisTime : 0.0f);
 				}
@@ -602,9 +602,9 @@ public:
 			LegacyRequest.Name = DebugContext;
 			LegacyRequest.Key = FLegacyCacheKey(CacheKey, FDerivedDataBackend::Get().GetMaxKeyLength());
 			LegacyRequest.Value = FLegacyCacheValue(FCompositeBuffer(FSharedBuffer::Clone(MakeMemoryView(Data))));
-			FRequestOwner BlockingOwner(EPriority::Blocking);
-			FDerivedDataBackend::Get().GetRoot().LegacyPut({LegacyRequest}, BlockingOwner, [](auto&&){});
-			BlockingOwner.Wait();
+			FRequestOwner AsyncOwner(EPriority::Normal);
+			FDerivedDataBackend::Get().GetRoot().LegacyPut({LegacyRequest}, AsyncOwner, [](auto&&){});
+			AsyncOwner.KeepAlive();
 		}
 		INC_FLOAT_STAT_BY(STAT_DDC_PutTime,(float)ThisTime);
 		INC_DWORD_STAT(STAT_DDC_NumPuts);
