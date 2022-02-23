@@ -943,6 +943,7 @@ bool FMaterial::UsesCustomDepthStencil_GameThread() const
 
 uint8 FMaterial::GetRuntimeVirtualTextureOutputAttibuteMask_RenderThread() const
 {
+	check(IsInParallelRenderingThread());
 	return RenderingThreadShaderMap ? RenderingThreadShaderMap->GetRuntimeVirtualTextureOutputAttributeMask() : 0;
 }
 
@@ -1001,6 +1002,7 @@ void FMaterial::SetInlineShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 	// SetInlineShaderMap is called during PostLoad(), before given UMaterial(Instance) is fully initialized
 	// Can't check for completeness yet
 	bGameThreadShaderMapIsComplete = false;
+	GameThreadShaderMapSubmittedPriority = EShaderCompileJobPriority::None;
 
 	TRefCountPtr<FMaterial> Material = this;
 	TRefCountPtr<FMaterialShaderMap> ShaderMap = InMaterialShaderMap;
@@ -1023,6 +1025,9 @@ void FMaterial::SetCompilingShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 		GameThreadCompilingShaderMapId = CompilingShaderMapId;
 		check(GameThreadCompilingShaderMapId != 0u);
 		InMaterialShaderMap->AddCompilingDependency(this);
+
+		GameThreadPendingCompilerEnvironment = InMaterialShaderMap->GetPendingCompilerEnvironment();
+		GameThreadShaderMapSubmittedPriority = EShaderCompileJobPriority::None;
 
 		TRefCountPtr<FMaterial> Material = this;
 		TRefCountPtr<FSharedShaderCompilerEnvironment> PendingCompilerEnvironment = InMaterialShaderMap->GetPendingCompilerEnvironment();
@@ -2434,7 +2439,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 			(PrecompileMode != EMaterialShaderPrecompileMode::None))
 		{
 			// Submit the remaining shaders in the map for compilation.
-			SubmitCompileJobs(EShaderCompileJobPriority::High);
+			SubmitCompileJobs_GameThread(EShaderCompileJobPriority::High);
 		}
 		else
 		{
@@ -3523,8 +3528,28 @@ void FMaterialRenderProxy::ReleaseResource()
 	}
 }
 
-void FMaterial::SubmitCompileJobs(EShaderCompileJobPriority Priority) const
+void FMaterial::SubmitCompileJobs_GameThread(EShaderCompileJobPriority Priority)
 {
+	check(IsInGameThread());
+
+	if (GameThreadCompilingShaderMapId != 0u && GameThreadShaderMap)
+	{
+		const EShaderCompileJobPriority SubmittedPriority = GameThreadShaderMapSubmittedPriority;
+
+		// To avoid as much useless work as possible, we make sure to submit our compile jobs only once per priority upgrade.
+		if (GameThreadShaderMapSubmittedPriority == EShaderCompileJobPriority::None || Priority > SubmittedPriority)
+		{
+			check(GameThreadPendingCompilerEnvironment.IsValid());
+
+			GameThreadShaderMapSubmittedPriority = Priority;
+			GameThreadShaderMap->SubmitCompileJobs(GameThreadCompilingShaderMapId, this, GameThreadPendingCompilerEnvironment, Priority);
+		}
+	}
+}
+
+void FMaterial::SubmitCompileJobs_RenderThread(EShaderCompileJobPriority Priority) const
+{
+	check(IsInParallelRenderingThread());
 	if (RenderingThreadCompilingShaderMapId != 0u && RenderingThreadShaderMap)
 	{
 		// std::atomic don't support enum class, so we have to make sure our cast assumptions are respected.
@@ -3558,7 +3583,7 @@ const FMaterial& FMaterialRenderProxy::GetMaterialWithFallback(ERHIFeatureLevel:
 
 		if (BaseMaterial)
 		{
-			BaseMaterial->SubmitCompileJobs(EShaderCompileJobPriority::Normal);
+			BaseMaterial->SubmitCompileJobs_RenderThread(EShaderCompileJobPriority::Normal);
 		}
 	}
 	return *Material;

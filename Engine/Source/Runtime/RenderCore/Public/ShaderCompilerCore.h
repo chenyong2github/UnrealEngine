@@ -526,3 +526,43 @@ extern RENDERCORE_API bool CheckVirtualShaderFilePath(FStringView VirtualPath, T
  * @return True if the file was successfully loaded.
  */
 extern RENDERCORE_API bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors);
+
+enum class EShaderCompilerWorkerType : uint8
+{
+	None,
+	LocalThread,
+	Distributed,
+};
+
+enum class EShaderCompileJobType : uint8
+{
+	Single,
+	Pipeline,
+	Num,
+};
+static const int32 NumShaderCompileJobTypes = (int32)EShaderCompileJobType::Num;
+
+enum class EShaderCompileJobPriority : uint8
+{
+	None = 0xff,
+
+	Low = 0u,
+	Normal,
+	High,
+	ForceLocal, // Force shader to skip XGE and compile on local machine
+	Num,
+};
+static const int32 NumShaderCompileJobPriorities = (int32)EShaderCompileJobPriority::Num;
+
+inline const TCHAR* ShaderCompileJobPriorityToString(EShaderCompileJobPriority v)
+{
+	switch (v)
+	{
+	case EShaderCompileJobPriority::None: return TEXT("None");
+	case EShaderCompileJobPriority::Low: return TEXT("Low");
+	case EShaderCompileJobPriority::Normal: return TEXT("Normal");
+	case EShaderCompileJobPriority::High: return TEXT("High");
+	case EShaderCompileJobPriority::ForceLocal: return TEXT("ForceLocal");
+	default: checkNoEntry(); return TEXT("");
+	}
+}

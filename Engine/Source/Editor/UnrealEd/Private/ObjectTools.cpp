@@ -4759,7 +4759,7 @@ namespace ThumbnailTools
 				{
 					if (!CurrentResource->IsGameThreadShaderMapComplete())
 					{
-						CurrentResource->SubmitCompileJobs(EShaderCompileJobPriority::High);
+						CurrentResource->SubmitCompileJobs_GameThread(EShaderCompileJobPriority::High);
 					}
 					CurrentResource->FinishCompilation();
 				}

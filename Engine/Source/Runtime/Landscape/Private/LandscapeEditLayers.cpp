@@ -1722,7 +1722,7 @@ bool ALandscape::IsMaterialResourceCompiled(FMaterialResource* InMaterialResourc
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Landscape_WaitForMaterialCompilation);
-		InMaterialResource->SubmitCompileJobs(EShaderCompileJobPriority::ForceLocal);
+		InMaterialResource->SubmitCompileJobs_GameThread(EShaderCompileJobPriority::ForceLocal);
 		if (bInWaitForCompilation)
 		{
 			InMaterialResource->FinishCompilation();

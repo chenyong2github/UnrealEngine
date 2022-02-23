@@ -4430,6 +4430,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 				{
 					check(Material->GameThreadCompilingShaderMapId != 0u);
 					Material->GameThreadCompilingShaderMapId = 0u;
+					Material->GameThreadPendingCompilerEnvironment.SafeRelease();
 					MaterialDependencies.RemoveAt(MaterialIndex);
 					MaterialsToReleaseCompilingId.Add(Material);
 				}

@@ -1218,7 +1218,7 @@ FMaterialStatistics UMaterialEditingLibrary::GetStatistics(class UMaterialInterf
 	{
 		if (!Resource->IsGameThreadShaderMapComplete())
 		{
-			Resource->SubmitCompileJobs(EShaderCompileJobPriority::High);
+			Resource->SubmitCompileJobs_GameThread(EShaderCompileJobPriority::High);
 		}
 		Resource->FinishCompilation();
 

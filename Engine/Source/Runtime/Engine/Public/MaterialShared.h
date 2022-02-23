@@ -28,6 +28,7 @@
 #include "MaterialSceneTextureId.h"
 #include "VirtualTexturing.h"
 #include "Templates/UnrealTemplate.h"
+#include "ShaderCompilerCore.h"
 
 #include "Shader/Preshader.h"
 
@@ -2019,7 +2020,8 @@ public:
 
 	ENGINE_API bool ShouldCacheShaders(const FMaterialShaderTypes& InTypes, const FVertexFactoryType* InVertexFactoryType) const;
 
-	ENGINE_API void SubmitCompileJobs(EShaderCompileJobPriority Priority) const;
+	ENGINE_API void SubmitCompileJobs_GameThread(EShaderCompileJobPriority Priority);
+	ENGINE_API void SubmitCompileJobs_RenderThread(EShaderCompileJobPriority Priority) const;
 
 	/** Returns a string that describes the material's usage for debugging purposes. */
 	virtual FString GetMaterialUsageDescription() const = 0;
@@ -2190,12 +2192,18 @@ private:
 	uint32 GameThreadCompilingShaderMapId;
 	uint32 RenderingThreadCompilingShaderMapId;
 
+	TRefCountPtr<FSharedShaderCompilerEnvironment> GameThreadPendingCompilerEnvironment;
 	TRefCountPtr<FSharedShaderCompilerEnvironment> RenderingThreadPendingCompilerEnvironment;
 
 	/** 
 	 * Used to prevent submitting the material more than once during CacheMeshDrawCommands unless priority has been increased. 
 	 */
 	mutable std::atomic<int8> RenderingThreadShaderMapSubmittedPriority { -1 };
+
+	/**
+	 * Used to prevent submitting the material more than once.  This is accessed by just the game thread so it doesn't need to be an atomic.
+	 */
+	EShaderCompileJobPriority GameThreadShaderMapSubmittedPriority = EShaderCompileJobPriority::None;
 
 	/** 
 	 * Game thread tracked shader map, which is ref counted and manages shader map lifetime. 
