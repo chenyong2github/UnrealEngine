@@ -25,7 +25,6 @@ namespace UnrealBuildTool.Rules
 					"Projects",
 					"Concert",
 					"ConcertTransport",
-					"ConcertSyncClient",
 					"ConcertSyncCore",
 					"UndoHistory"
 				}

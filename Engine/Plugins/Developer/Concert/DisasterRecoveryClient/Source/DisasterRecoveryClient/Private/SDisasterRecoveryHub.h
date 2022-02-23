@@ -12,7 +12,7 @@
 class FConcertActivityStream;
 class FDisasterRecoverySessionManager;
 class SConcertSessionRecovery;
-struct FConcertClientSessionActivity;
+struct FConcertSessionActivity;
 class FDisasterRecoverySessionTreeNode;
 class SWindow;
 
@@ -66,14 +66,14 @@ private:
 	// Selected session activities.
 	TSharedRef<SWidget> MakeSessionActivityView();
 	bool ShouldDisplayActivityDetails() const { return true; }
-	bool FetchActivities(TArray<TSharedPtr<FConcertClientSessionActivity>>& InOutActivities, int32& OutFetchedCount, FText& ErrorMsg);
+	bool FetchActivities(TArray<TSharedPtr<FConcertSessionActivity>>& InOutActivities, int32& OutFetchedCount, FText& ErrorMsg);
 	FText GetNoActivityDisplayedReason() const;
 
 	// Recover buttons.
 	FText GetRecoverAllButtonTooltip() const;
 	FReply OnRecoverAllButtonClicked();
-	void OnRecoverThroughButtonClicked(TSharedPtr<FConcertClientSessionActivity> ThroughActivity);
-	FReply RecoverThrough(TSharedPtr<FConcertClientSessionActivity> ThroughActivity);
+	void OnRecoverThroughButtonClicked(TSharedPtr<FConcertSessionActivity> ThroughActivity);
+	FReply RecoverThrough(TSharedPtr<FConcertSessionActivity> ThroughActivity);
 	bool IsRecoverAllButtonEnabled() const;
 	bool IsRecoverThroughButtonVisible() const;
 

@@ -354,7 +354,7 @@ void FConcertClientSessionBrowserController::RestoreSession(const FGuid& ServerA
 	TSharedPtr<FConcertActivityStream> ActivityStream = MakeShared<FConcertActivityStream>(ConcertClient, ServerAdminEndpointId, SessionId, bRequestActivityDetails);
 
 	// The UI uses this function to read and consume the activity stream.
-	auto ReadActivitiesFn = [ActivityStream](TArray<TSharedPtr<FConcertClientSessionActivity>>& InOutActivities, int32& OutFetchCount, FText& OutErrorMsg)
+	auto ReadActivitiesFn = [ActivityStream](TArray<TSharedPtr<FConcertSessionActivity>>& InOutActivities, int32& OutFetchCount, FText& OutErrorMsg)
 	{
 		return ActivityStream->Read(InOutActivities, OutFetchCount, OutErrorMsg);
 	};
@@ -367,7 +367,7 @@ void FConcertClientSessionBrowserController::RestoreSession(const FGuid& ServerA
 
 	// Invoked if the client selects a point in time to recover.
 	TWeakPtr<IConcertClient, ESPMode::ThreadSafe> WeakClient = ConcertClient;
-	auto OnAcceptRestoreFn = [WeakClient, ServerAdminEndpointId, SessionId, RestoredName, SessionFilter](TSharedPtr<FConcertClientSessionActivity> SelectedRecoveryActivity)
+	auto OnAcceptRestoreFn = [WeakClient, ServerAdminEndpointId, SessionId, RestoredName, SessionFilter](TSharedPtr<FConcertSessionActivity> SelectedRecoveryActivity)
 	{
 		FConcertCopySessionArgs RestoreSessionArgs;
 		RestoreSessionArgs.bAutoConnect = true;

@@ -596,7 +596,7 @@ void SDisasterRecoveryHub::OnSessionSelectionChanged(TSharedPtr<FDisasterRecover
 TSharedRef<SWidget> SDisasterRecoveryHub::MakeSessionActivityView()
 {
 	return SAssignNew(ActivityView, SConcertSessionRecovery)
-		.OnFetchActivities([this](TArray<TSharedPtr<FConcertClientSessionActivity>>& InOutActivities, int32& OutFetchedCount, FText& ErrorMsg) { return FetchActivities(InOutActivities, OutFetchedCount, ErrorMsg); })
+		.OnFetchActivities([this](TArray<TSharedPtr<FConcertSessionActivity>>& InOutActivities, int32& OutFetchedCount, FText& ErrorMsg) { return FetchActivities(InOutActivities, OutFetchedCount, ErrorMsg); })
 		.ClientAvatarColorColumnVisibility(EVisibility::Hidden) // Disaster recovery has only one user, the local one.
 		.ClientNameColumnVisibility(EVisibility::Hidden)
 		.OperationColumnVisibility(EVisibility::Visible)
@@ -609,7 +609,7 @@ TSharedRef<SWidget> SDisasterRecoveryHub::MakeSessionActivityView()
 		.IsIgnoredActivityFilteringEnabled(true)     // Events ignored when restoring are not displayed by default. Enabled to inspect Multi-User transaction/package activities recorded (but not recoverable) by disaster recovery session in case the crash occurred during the Multi-User session.
 		.AreRecoverAllAndCancelButtonsVisible(false) // Replaced by this widget own (for better placement)
 		.IsRecoverThroughButtonsVisible(this, &SDisasterRecoveryHub::IsRecoverThroughButtonVisible)
-		.OnRestore([this](TSharedPtr<FConcertClientSessionActivity> ThroughActivity) { OnRecoverThroughButtonClicked(ThroughActivity); return /*DismissWindow*/false; }) // Invoked when the 'Recover Through' button is clicked.
+		.OnRestore([this](TSharedPtr<FConcertSessionActivity> ThroughActivity) { OnRecoverThroughButtonClicked(ThroughActivity); return /*DismissWindow*/false; }) // Invoked when the 'Recover Through' button is clicked.
 		.NoActivitiesReasonText(this, &SDisasterRecoveryHub::GetNoActivityDisplayedReason);
 }
 
@@ -637,7 +637,7 @@ FText SDisasterRecoveryHub::GetNoActivityDisplayedReason() const
 	}
 }
 
-bool SDisasterRecoveryHub::FetchActivities(TArray<TSharedPtr<FConcertClientSessionActivity>>& InOutActivities, int32& OutFetchedCount, FText& ErrorMsg)
+bool SDisasterRecoveryHub::FetchActivities(TArray<TSharedPtr<FConcertSessionActivity>>& InOutActivities, int32& OutFetchedCount, FText& ErrorMsg)
 {
 	if (SelectedSessionActivityStream)
 	{
@@ -677,12 +677,12 @@ bool SDisasterRecoveryHub::IsRecoverThroughButtonVisible() const
 	return IsRecoverAllButtonEnabled();
 }
 
-void SDisasterRecoveryHub::OnRecoverThroughButtonClicked(TSharedPtr<FConcertClientSessionActivity> ThroughActivity)
+void SDisasterRecoveryHub::OnRecoverThroughButtonClicked(TSharedPtr<FConcertSessionActivity> ThroughActivity)
 {
 	RecoverThrough(ThroughActivity);
 }
 
-FReply SDisasterRecoveryHub::RecoverThrough(TSharedPtr<FConcertClientSessionActivity> ThroughActivity)
+FReply SDisasterRecoveryHub::RecoverThrough(TSharedPtr<FConcertSessionActivity> ThroughActivity)
 {
 	if (SelectedSessionNode && !SelectedSessionNode->IsCategoryNode() && ThroughActivity)
 	{

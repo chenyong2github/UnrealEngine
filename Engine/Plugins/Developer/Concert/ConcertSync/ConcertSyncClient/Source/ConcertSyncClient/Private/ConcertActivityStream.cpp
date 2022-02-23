@@ -20,7 +20,7 @@ FConcertActivityStream::FConcertActivityStream(TWeakPtr<IConcertClient, ESPMode:
 	Fetch(-GetRequestBatchSize()); // Negative -> request the N last activities (the most recent ones), up to 1024.
 }
 
-bool FConcertActivityStream::Read(TArray<TSharedPtr<FConcertClientSessionActivity>>& InOutArray, int32& OutReadCount, FText& OutErrorMsg)
+bool FConcertActivityStream::Read(TArray<TSharedPtr<FConcertSessionActivity>>& InOutArray, int32& OutReadCount, FText& OutErrorMsg)
 {
 	OutErrorMsg = LastErrorMsg;
 	if (!OutErrorMsg.IsEmpty())
@@ -114,7 +114,7 @@ void FConcertActivityStream::Fetch(int64 RequestFetchCount)
 					SyncActivity->EventSummary.GetPayload(EventSummaryPayload);
 					
 					// Note: Moving the 'SyncActivity' slices the derived type on purpose when this is a transaction/package activity. Details are decoupled in EventPayload.
-					AvailableActivities.Add(MakeShared<FConcertClientSessionActivity>(MoveTemp(*SyncActivity), MoveTemp(EventSummaryPayload), MoveTemp(EventPayload)));
+					AvailableActivities.Add(MakeShared<FConcertSessionActivity>(MoveTemp(*SyncActivity), MoveTemp(EventSummaryPayload), MoveTemp(EventPayload)));
 				}
 
 				if (RequestFetchCount > 0) // Response to second and subsequent requests.

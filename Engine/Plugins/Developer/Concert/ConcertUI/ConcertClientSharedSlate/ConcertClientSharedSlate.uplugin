@@ -1,9 +1,9 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "0.2",
+	"VersionName": "0.1",
 	"FriendlyName": "Concert Shared Slate",
-	"Description": "Contains UI that is shared for server and client UI modules",
+	"Description": "Contains UI that is shared by client UI modules only",
 	"Category": "Networking",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
@@ -18,7 +18,7 @@
 	"SupportedPrograms": [ "UnrealMultiUserServer", "UnrealRecoverySvc", "CrashReportClientEditor" ],
 	"Modules": [
         {
-          "Name": "ConcertSharedSlate",
+          "Name": "ConcertClientSharedSlate",
           "Type": "UncookedOnly",
           "LoadingPhase": "Default",
           "ProgramAllowList": [ "UnrealMultiUserServer", "UnrealRecoverySvc", "CrashReportClientEditor" ]
@@ -32,6 +32,10 @@
 		{
 			"Name": "ConcertSyncCore",
 			"Enabled": true
-		}
+		},
+        {
+          "Name": "ConcertSyncClient",
+          "Enabled": true
+        }
 	]
 }

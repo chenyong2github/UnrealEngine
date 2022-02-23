@@ -2,7 +2,6 @@
 
 #include "SConcertSessionRecovery.h"
 
-#include "IConcertClientWorkspace.h"
 #include "EditorStyleSet.h"
 #include "EditorFontGlyphs.h"
 #include "Widgets/SWindow.h"
@@ -35,7 +34,7 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 	SAssignNew(ActivityView, SConcertSessionActivities)
 	.OnFetchActivities(InArgs._OnFetchActivities)
 	.OnMapActivityToClient(InArgs._OnMapActivityToClient)
-	.OnMakeColumnOverlayWidget([this](TWeakPtr<FConcertClientSessionActivity> Activity, const FName& ColumnId) { return MakeRecoverThroughWidget(Activity, ColumnId); })
+	.OnMakeColumnOverlayWidget([this](TWeakPtr<FConcertSessionActivity> Activity, const FName& ColumnId) { return MakeRecoverThroughWidget(Activity, ColumnId); })
 	.HighlightText(this, &SConcertSessionRecovery::HighlightSearchText)
 	.TimeFormat(ActivityViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
 	.ClientAvatarColorColumnVisibility(InArgs._ClientAvatarColorColumnVisibility)
@@ -162,9 +161,9 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 	];
 }
 
-TSharedPtr<SWidget> SConcertSessionRecovery::MakeRecoverThroughWidget(TWeakPtr<FConcertClientSessionActivity> Activity, const FName& ColumnId)
+TSharedPtr<SWidget> SConcertSessionRecovery::MakeRecoverThroughWidget(TWeakPtr<FConcertSessionActivity> Activity, const FName& ColumnId)
 {
-	if (TSharedPtr<FConcertClientSessionActivity> ActivityPin = Activity.Pin())
+	if (TSharedPtr<FConcertSessionActivity> ActivityPin = Activity.Pin())
 	{
 		if (ActivityView->IsLastColumn(ColumnId) && !ActivityPin->Activity.bIgnored) // The most right cell and activity will not be ignored on recovery.
 		{
@@ -203,12 +202,12 @@ int32 SConcertSessionRecovery::GetTotalActivityNum() const
 	return ActivityView->GetTotalActivityNum();
 }
 
-TSharedPtr<FConcertClientSessionActivity> SConcertSessionRecovery::GetMostRecentActivity() const
+TSharedPtr<FConcertSessionActivity> SConcertSessionRecovery::GetMostRecentActivity() const
 {
 	return ActivityView->GetMostRecentActivity();
 }
 
-EVisibility SConcertSessionRecovery::GetRecoverThroughButtonVisibility(TSharedPtr<FConcertClientSessionActivity> Activity)
+EVisibility SConcertSessionRecovery::GetRecoverThroughButtonVisibility(TSharedPtr<FConcertSessionActivity> Activity)
 {
 	return Activity == ActivityView->GetSelectedActivity() && IsRecoverThroughButtonVisible.Get() ? EVisibility::Visible : EVisibility::Hidden;
 }
@@ -292,7 +291,7 @@ FReply SConcertSessionRecovery::OnRecoverAllClicked()
 	return FReply::Handled();
 }
 
-void SConcertSessionRecovery::RecoverThrough(TSharedPtr<FConcertClientSessionActivity> Item)
+void SConcertSessionRecovery::RecoverThrough(TSharedPtr<FConcertSessionActivity> Item)
 {
 	bool bShouldDismissWindow = true;
 	if (Item)

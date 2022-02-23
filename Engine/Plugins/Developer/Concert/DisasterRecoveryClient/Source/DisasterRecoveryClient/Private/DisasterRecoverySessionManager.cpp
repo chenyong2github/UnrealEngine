@@ -810,7 +810,7 @@ TFuture<TPair<bool, FText>> FDisasterRecoverySessionManager::CreateAndJoinSessio
 	return Promise->GetFuture();
 }
 
-TFuture<TPair<bool, FText>> FDisasterRecoverySessionManager::RestoreAndJoinSession(TSharedPtr<FDisasterRecoverySession> Session, TSharedPtr<FConcertClientSessionActivity> ThroughActivity)
+TFuture<TPair<bool, FText>> FDisasterRecoverySessionManager::RestoreAndJoinSession(TSharedPtr<FDisasterRecoverySession> Session, TSharedPtr<FConcertSessionActivity> ThroughActivity)
 {
 	// Failed if another session is already in progress or active.
 	if (HasInProgressSession())

@@ -22,6 +22,7 @@
 #include "ConcertFrontendUtils.h"
 #include "ConcertMessageData.h"
 #include "SSessionHistory.h"
+#include "ConcertClientFrontendUtils.h"
 
 #define LOCTEXT_NAMESPACE "SActiveSession"
 
@@ -95,7 +96,7 @@ public:
 			if (ClientInfoPin.IsValid() && SyncClientPin.IsValid())
 			{
 				SyncClientPin->GetSessionClientActions(*ClientInfoPin, ActionDefs);
-				ConcertFrontendUtils::AppendButtons(PresenceCell, ActionDefs);
+				ConcertClientFrontendUtils::AppendButtons(PresenceCell, ActionDefs);
 			}
 			return PresenceCell;
 		}
@@ -288,7 +289,7 @@ public:
 	FSlateFontInfo GetAvatarFont() const
 	{
 		// This font is used to render a small square box filled with the avatar color.
-		FSlateFontInfo ClientIconFontInfo = FAppStyle::Get().GetFontStyle(ConcertFrontendUtils::ButtonIconSyle);
+		FSlateFontInfo ClientIconFontInfo = FAppStyle::Get().GetFontStyle(ConcertClientFrontendUtils::ButtonIconSyle);
 		ClientIconFontInfo.Size = 8;
 		ClientIconFontInfo.OutlineSettings.OutlineSize = 1;
 
@@ -404,7 +405,7 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 		LeaveSessionDef.OnExecute.BindLambda([this]() { OnClickLeaveSession(); });
 		LeaveSessionDef.IconStyle = TEXT("Concert.LeaveSession");
 
-		ConcertFrontendUtils::AppendButtons(StatusBar, ButtonDefs);
+		ConcertClientFrontendUtils::AppendButtons(StatusBar, ButtonDefs);
 	}
 
 	ChildSlot
@@ -709,7 +710,7 @@ const FButtonStyle& SActiveSession::GetConnectionIconStyle() const
 		}
 	}
 	
-	return FAppStyle::Get().GetWidgetStyle<FButtonStyle>(ConcertFrontendUtils::ButtonStyleNames[(int32)ButtonStyle]);
+	return FAppStyle::Get().GetWidgetStyle<FButtonStyle>(ConcertClientFrontendUtils::ButtonStyleNames[(int32)ButtonStyle]);
 }
 
 FSlateColor SActiveSession::GetConnectionIconColor() const
@@ -719,7 +720,7 @@ FSlateColor SActiveSession::GetConnectionIconColor() const
 
 FSlateFontInfo SActiveSession::GetConnectionIconFontInfo() const
 {
-	FSlateFontInfo ConnectionIconFontInfo = FAppStyle::Get().GetFontStyle(ConcertFrontendUtils::ButtonIconSyle);
+	FSlateFontInfo ConnectionIconFontInfo = FAppStyle::Get().GetFontStyle(ConcertClientFrontendUtils::ButtonIconSyle);
 	ConnectionIconFontInfo.OutlineSettings.OutlineSize = 1;
 	ConnectionIconFontInfo.OutlineSettings.OutlineColor = GetConnectionIconStyle().Pressed.TintColor.GetSpecifiedColor();
 

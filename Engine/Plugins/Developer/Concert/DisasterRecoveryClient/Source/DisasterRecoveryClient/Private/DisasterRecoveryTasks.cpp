@@ -432,7 +432,7 @@ bool FFindRecoverableDisasterRecoverySessionTask::Tick()
 
 		if (ReadCount > 0) // On error, ReadCount is 0.
 		{
-			for (const TSharedPtr<FConcertClientSessionActivity>& Activity : Activities)
+			for (const TSharedPtr<FConcertSessionActivity>& Activity : Activities)
 			{
 				if (!Activity->Activity.bIgnored)
 				{

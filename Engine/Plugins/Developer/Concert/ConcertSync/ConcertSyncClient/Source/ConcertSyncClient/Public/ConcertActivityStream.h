@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "ConcertMessageData.h"
 
-struct FConcertClientSessionActivity;
+struct FConcertSessionActivity;
 class IConcertClient;
 
 /**
@@ -35,7 +35,7 @@ public:
 	 * @param OutErrorMsg Contains the last error message, if any or an empty text.
 	 * @return True if all activities were consumed, false otherwise.
 	 */
-	bool Read(TArray<TSharedPtr<FConcertClientSessionActivity>>& InOutActivities, int32& OutReadCount, FText& OutErrorMsg);
+	bool Read(TArray<TSharedPtr<FConcertSessionActivity>>& InOutActivities, int32& OutReadCount, FText& OutErrorMsg);
 
 	/** Returns the client info corresponding to an activities. The stream maintains this state as an optimization. */
 	const FConcertClientInfo* GetActivityClientInfo(const FGuid& ActivityEndpointId) const { return EndpointClientInfoMap.Find(ActivityEndpointId); }
@@ -53,7 +53,7 @@ private:
 	FGuid SessionId;
 	int64 LowestFetchedActivityId = 0; // The next Activity ID to fetch. Activity IDs are 1-based.
 	int64 TotalActivityCount = 0;
-	TArray<TSharedPtr<FConcertClientSessionActivity>> AvailableActivities; // Activities currently cached and ready for consumption.
+	TArray<TSharedPtr<FConcertSessionActivity>> AvailableActivities; // Activities currently cached and ready for consumption.
 	TMap<FGuid, FConcertClientInfo> EndpointClientInfoMap;
 	TSharedPtr<uint8, ESPMode::ThreadSafe> FetchRequestContinuationToken; // Used to disarm TFuture continuation.
 	FText LastErrorMsg;

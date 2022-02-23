@@ -2,7 +2,6 @@
 
 #include "SConcertSessionActivities.h"
 
-#include "IConcertClientWorkspace.h"
 #include "Algo/Transform.h"
 #include "Misc/AsyncTaskNotification.h"
 #include "Misc/ITransaction.h"
@@ -50,12 +49,12 @@ const FName ShowPackageActivitiesCheckBoxId     = TEXT("ShowPackageActivities");
 const FName ShowTransactionActivitiesCheckBoxId = TEXT("ShowTransactionActivities");
 const FName ShowIgnoredActivitiesCheckBoxId     = TEXT("ShowIgnoredActivities");
 
-FText GetActivityDateTime(const FConcertClientSessionActivity& Activity, SConcertSessionActivities::ETimeFormat TimeFormat)
+FText GetActivityDateTime(const FConcertSessionActivity& Activity, SConcertSessionActivities::ETimeFormat TimeFormat)
 {
 	return TimeFormat == SConcertSessionActivities::ETimeFormat::Relative ? ConcertFrontendUtils::FormatRelativeTime(Activity.Activity.EventTime) : FText::AsDateTime(Activity.Activity.EventTime);
 }
 
-FText GetOperationName(const FConcertClientSessionActivity& Activity)
+FText GetOperationName(const FConcertSessionActivity& Activity)
 {
 	if (const FConcertSyncTransactionActivitySummary* TransactionSummary = Activity.ActivitySummary.Cast<FConcertSyncTransactionActivitySummary>())
 	{
@@ -107,7 +106,7 @@ FText GetOperationName(const FConcertClientSessionActivity& Activity)
 	return FText::GetEmpty();
 }
 
-FText GetPackageName(const FConcertClientSessionActivity& Activity)
+FText GetPackageName(const FConcertSessionActivity& Activity)
 {
 	if (const FConcertSyncPackageActivitySummary* Summary = Activity.ActivitySummary.Cast<FConcertSyncPackageActivitySummary>())
 	{
@@ -122,7 +121,7 @@ FText GetPackageName(const FConcertClientSessionActivity& Activity)
 	return FText::GetEmpty();
 }
 
-FText GetSummary(const FConcertClientSessionActivity& Activity, const FText& ClientName, bool bAsRichText)
+FText GetSummary(const FConcertSessionActivity& Activity, const FText& ClientName, bool bAsRichText)
 {
 	if (const FConcertSyncActivitySummary* Summary = Activity.ActivitySummary.Cast<FConcertSyncActivitySummary>())
 	{
@@ -142,7 +141,7 @@ FText GetClientName(const FConcertClientInfo* InActivityClient)
 /**
  * Displays the summary of an activity recorded and recoverable in the SConcertSessionRecovery list view.
  */
-class SConcertSessionActivityRow : public SMultiColumnTableRow<TSharedPtr<FConcertClientSessionActivity>>
+class SConcertSessionActivityRow : public SMultiColumnTableRow<TSharedPtr<FConcertSessionActivity>>
 {
 public:
 	SLATE_BEGIN_ARGS(SConcertSessionActivityRow)
@@ -166,7 +165,7 @@ public:
 	 * @param InActivityClient The client who produced this activity. Can be null if unknown or not desirable.
 	 * @param InOwnerTableView The table view that will own this row.
 	 */
-	void Construct(const FArguments& InArgs, TSharedPtr<FConcertClientSessionActivity> InActivity, const FConcertClientInfo* InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView);
+	void Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionActivity> InActivity, const FConcertClientInfo* InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView);
 
 	/** Generates the widget representing this row. */
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
@@ -185,7 +184,7 @@ private:
 	FText MakeTooltipText() const;
 
 private:
-	TWeakPtr<FConcertClientSessionActivity> Activity;
+	TWeakPtr<FConcertSessionActivity> Activity;
 	TAttribute<SConcertSessionActivities::ETimeFormat> TimeFormat;
 	FText AbsoluteDateTime;
 	FText ClientName;
@@ -195,7 +194,7 @@ private:
 };
 
 
-void SConcertSessionActivityRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertClientSessionActivity> InActivity, const FConcertClientInfo* InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView)
+void SConcertSessionActivityRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionActivity> InActivity, const FConcertClientInfo* InActivityClient, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	Activity = InActivity;
 	TimeFormat = InArgs._TimeFormat;
@@ -206,7 +205,7 @@ void SConcertSessionActivityRow::Construct(const FArguments& InArgs, TSharedPtr<
 	ClientAvatarColor = InActivityClient ? InActivityClient->AvatarColor : FConcertFrontendStyle::Get()->GetColor("Concert.DisconnectedColor");
 
 	// Construct base class
-	SMultiColumnTableRow<TSharedPtr<FConcertClientSessionActivity>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
+	SMultiColumnTableRow<TSharedPtr<FConcertSessionActivity>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
 
 	if (InActivity->Activity.bIgnored)
 	{
@@ -216,7 +215,7 @@ void SConcertSessionActivityRow::Construct(const FArguments& InArgs, TSharedPtr<
 
 TSharedRef<SWidget> SConcertSessionActivityRow::GenerateWidgetForColumn(const FName& ColumnId)
 {
-	TSharedPtr<FConcertClientSessionActivity> ActivityPin = Activity.Pin();
+	TSharedPtr<FConcertSessionActivity> ActivityPin = Activity.Pin();
 	TSharedRef<SOverlay> Overlay = SNew(SOverlay);
 
 	if (ColumnId == ConcertSessionActivityUtils::AvatarColorColumnId)
@@ -303,7 +302,7 @@ TSharedRef<SWidget> SConcertSessionActivityRow::GenerateWidgetForColumn(const FN
 
 FText SConcertSessionActivityRow::MakeTooltipText() const
 {
-	if (TSharedPtr<FConcertClientSessionActivity> ActivityPin = Activity.Pin())
+	if (TSharedPtr<FConcertSessionActivity> ActivityPin = Activity.Pin())
 	{
 		FText Client = GetClientName();
 		FText Operation = ConcertSessionActivityUtils::GetOperationName(*ActivityPin);
@@ -343,7 +342,7 @@ FText SConcertSessionActivityRow::MakeTooltipText() const
 
 FText SConcertSessionActivityRow::FormatEventDateTime() const
 {
-	if (TSharedPtr<FConcertClientSessionActivity> ItemPin = Activity.Pin())
+	if (TSharedPtr<FConcertSessionActivity> ItemPin = Activity.Pin())
 	{
 		return TimeFormat.Get() == SConcertSessionActivities::ETimeFormat::Relative ? ConcertFrontendUtils::FormatRelativeTime(ItemPin->Activity.EventTime) : AbsoluteDateTime;
 	}
@@ -371,7 +370,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 	DetailsAreaVisibility = InArgs._DetailsAreaVisibility;
 	bAutoScrollDesired = InArgs._IsAutoScrollEnabled;
 
-	SearchTextFilter = MakeShared<TTextFilter<const FConcertClientSessionActivity&>>(TTextFilter<const FConcertClientSessionActivity&>::FItemToStringArray::CreateSP(this, &SConcertSessionActivities::PopulateSearchStrings));
+	SearchTextFilter = MakeShared<TTextFilter<const FConcertSessionActivity&>>(TTextFilter<const FConcertSessionActivity&>::FItemToStringArray::CreateSP(this, &SConcertSessionActivities::PopulateSearchStrings));
 	SearchTextFilter->OnChanged().AddSP(this, &SConcertSessionActivities::OnActivityFilterUpdated);
 
 	// Set the initial filter state.
@@ -432,7 +431,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 				.BorderBackgroundColor(FSlateColor(FLinearColor(0.6, 0.6, 0.6)))
 				.Padding(0)
 				[
-					SAssignNew(ActivityView, SListView<TSharedPtr<FConcertClientSessionActivity>>)
+					SAssignNew(ActivityView, SListView<TSharedPtr<FConcertSessionActivity>>)
 					.ListItemsSource(&Activities)
 					.OnGenerateRow(this, &SConcertSessionActivities::OnGenerateActivityRowWidget)
 					.SelectionMode(ESelectionMode::Single)
@@ -582,7 +581,7 @@ void SConcertSessionActivities::OnListViewScrolled(double InScrollOffset)
 	}
 }
 
-void SConcertSessionActivities::OnListViewSelectionChanged(TSharedPtr<FConcertClientSessionActivity> InActivity, ESelectInfo::Type SelectInfo)
+void SConcertSessionActivities::OnListViewSelectionChanged(TSharedPtr<FConcertSessionActivity> InActivity, ESelectInfo::Type SelectInfo)
 {
 	UpdateDetailArea(InActivity);
 }
@@ -593,7 +592,7 @@ void SConcertSessionActivities::OnDetailsAreaExpansionChanged(bool bExpanded)
 	UpdateDetailArea(bDetailsAreaExpanded ? GetSelectedActivity() : nullptr);
 }
 
-void SConcertSessionActivities::UpdateDetailArea(TSharedPtr<FConcertClientSessionActivity> InSelectedActivity)
+void SConcertSessionActivities::UpdateDetailArea(TSharedPtr<FConcertSessionActivity> InSelectedActivity)
 {
 	if (DetailsAreaVisibility != EVisibility::Visible || !bDetailsAreaExpanded)
 	{
@@ -705,13 +704,13 @@ EConcertActivityFilterFlags SConcertSessionActivities::QueryActiveActivityFilter
 void SConcertSessionActivities::OnActivityFilterUpdated()
 {
 	// Try preserving the selected activity.
-	TSharedPtr<FConcertClientSessionActivity> SelectedActivity = GetSelectedActivity();
+	TSharedPtr<FConcertSessionActivity> SelectedActivity = GetSelectedActivity();
 
 	// Reset the list of displayed activities.
 	Activities.Reset(AllActivities.Num());
 
 	// Apply the filter.
-	for (TSharedPtr<FConcertClientSessionActivity>& Activity : AllActivities)
+	for (TSharedPtr<FConcertSessionActivity>& Activity : AllActivities)
 	{
 		if (PassesFilters(*Activity))
 		{
@@ -797,7 +796,7 @@ void SConcertSessionActivities::FetchActivities()
 	}
 }
 
-void SConcertSessionActivities::Append(TSharedPtr<FConcertClientSessionActivity> Activity)
+void SConcertSessionActivities::Append(TSharedPtr<FConcertSessionActivity> Activity)
 {
 	if (Activity->Activity.bIgnored)
 	{
@@ -834,7 +833,7 @@ void SConcertSessionActivities::Reset()
 	IgnoredActivityNum = 0;
 }
 
-bool SConcertSessionActivities::PassesFilters(const FConcertClientSessionActivity& Activity)
+bool SConcertSessionActivities::PassesFilters(const FConcertSessionActivity& Activity)
 {
 	if (Activity.Activity.EventType == EConcertSyncActivityEventType::Connection && ConnectionActivitiesVisibility.Get() != EVisibility::Visible) // Filter out 'connection' activities?
 	{
@@ -866,7 +865,7 @@ FText SConcertSessionActivities::UpdateTextFilter(const FText& InFilterText)
 	return SearchTextFilter->GetFilterErrorText();
 }
 
-void SConcertSessionActivities::PopulateSearchStrings(const FConcertClientSessionActivity& Activity, TArray<FString>& OutSearchStrings) const
+void SConcertSessionActivities::PopulateSearchStrings(const FConcertSessionActivity& Activity, TArray<FString>& OutSearchStrings) const
 {
 	FText ClientName = GetActivityUserFn ? ConcertSessionActivityUtils::GetClientName(GetActivityUserFn(Activity.Activity.EndpointId)) : FText::GetEmpty();
 
@@ -889,7 +888,7 @@ void SConcertSessionActivities::PopulateSearchStrings(const FConcertClientSessio
 	}
 }
 
-TSharedRef<ITableRow> SConcertSessionActivities::OnGenerateActivityRowWidget(TSharedPtr<FConcertClientSessionActivity> Activity, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SConcertSessionActivities::OnGenerateActivityRowWidget(TSharedPtr<FConcertSessionActivity> Activity, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(SConcertSessionActivityRow, Activity, GetActivityUserFn ? GetActivityUserFn(Activity->Activity.EndpointId) : nullptr, OwnerTable)
 		.TimeFormat(TimeFormat)
@@ -897,13 +896,13 @@ TSharedRef<ITableRow> SConcertSessionActivities::OnGenerateActivityRowWidget(TSh
 		.OnMakeColumnOverlayWidget(MakeColumnOverlayWidgetFn);
 }
 
-TSharedPtr<FConcertClientSessionActivity> SConcertSessionActivities::GetSelectedActivity() const
+TSharedPtr<FConcertSessionActivity> SConcertSessionActivities::GetSelectedActivity() const
 {
-	TArray<TSharedPtr<FConcertClientSessionActivity>> SelectedItems = ActivityView->GetSelectedItems();
+	TArray<TSharedPtr<FConcertSessionActivity>> SelectedItems = ActivityView->GetSelectedItems();
 	return SelectedItems.Num() ? SelectedItems[0] : nullptr;
 }
 
-TSharedPtr<FConcertClientSessionActivity> SConcertSessionActivities::GetMostRecentActivity() const
+TSharedPtr<FConcertSessionActivity> SConcertSessionActivities::GetMostRecentActivity() const
 {
 	// NOTE: This function assumes that activities are sorted by ID. When used for recovery purpose,
 	//       the activities are listed from the most recent to the oldest. When displaying a live
@@ -925,7 +924,7 @@ bool SConcertSessionActivities::IsLastColumn(const FName& ColumnId) const
 	return ColumnId == ConcertSessionActivityUtils::SummaryColumnId; // Summary column is always visible and always the last.
 }
 
-void SConcertSessionActivities::DisplayTransactionDetails(const FConcertClientSessionActivity& Activity, const FConcertTransactionEventBase& InTransaction)
+void SConcertSessionActivities::DisplayTransactionDetails(const FConcertSessionActivity& Activity, const FConcertTransactionEventBase& InTransaction)
 {
 	const FConcertSyncTransactionActivitySummary* Summary = Activity.ActivitySummary.Cast<FConcertSyncTransactionActivitySummary>();
 	FString TransactionTitle = Summary ? Summary->TransactionTitle.ToString() : FString();
@@ -958,7 +957,7 @@ void SConcertSessionActivities::DisplayTransactionDetails(const FConcertClientSe
 	SetDetailsPanelVisibility(TransactionDetailsPanel.Get());
 }
 
-void SConcertSessionActivities::DisplayPackageDetails(const FConcertClientSessionActivity& Activity, int64 PackageRevision, const FConcertPackageInfo& PackageInfo)
+void SConcertSessionActivities::DisplayPackageDetails(const FConcertSessionActivity& Activity, int64 PackageRevision, const FConcertPackageInfo& PackageInfo)
 {
 	const FConcertClientInfo* ClientInfo = nullptr;
 	if (GetActivityUserFn)

@@ -404,7 +404,7 @@ bool FConcertClientWorkspace::IsTransactionEventPartiallySynced(const FConcertSy
 	return TransactionEvent.Transaction.ExportedObjects.Num() == 0;
 }
 
-void FConcertClientWorkspace::GetActivities(const int64 FirstActivityIdToFetch, const int64 MaxNumActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, TArray<FConcertClientSessionActivity>& OutActivities) const
+void FConcertClientWorkspace::GetActivities(const int64 FirstActivityIdToFetch, const int64 MaxNumActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, TArray<FConcertSessionActivity>& OutActivities) const
 {
 	OutEndpointClientInfoMap.Reset();
 	OutActivities.Reset();

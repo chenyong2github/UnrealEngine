@@ -18,41 +18,6 @@ DECLARE_DELEGATE_RetVal(bool, FCanProcessPendingPackages);
 DECLARE_MULTICAST_DELEGATE(FOnWorkspaceSynchronized);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnActivityAddedOrUpdated, const FConcertClientInfo&/*InClientInfo*/, const FConcertSyncActivity&/*InActivity*/, const FStructOnScope&/*InActivitySummary*/);
 
-
-struct FConcertClientSessionActivity
-{
-	FConcertClientSessionActivity() = default;
-
-	FConcertClientSessionActivity(const FConcertSyncActivity& InActivity, const FStructOnScope& InActivitySummary, TUniquePtr<FConcertSessionSerializedPayload> OptionalEventPayload = nullptr)
-		: Activity(InActivity)
-		, EventPayload(MoveTemp(OptionalEventPayload))
-	{
-		ActivitySummary.InitializeFromChecked(InActivitySummary);
-	}
-
-	FConcertClientSessionActivity(FConcertSyncActivity&& InActivity, FStructOnScope&& InActivitySummary, TUniquePtr<FConcertSessionSerializedPayload> OptionalEventPayload = nullptr)
-		: Activity(MoveTemp(InActivity))
-		, EventPayload(MoveTemp(OptionalEventPayload))
-	{
-		ActivitySummary.InitializeFromChecked(MoveTemp(InActivitySummary));
-	}
-
-	/** The generic activity part. */
-	FConcertSyncActivity Activity;
-
-	/** Contains the activity summary to display as text. */
-	TStructOnScope<FConcertSyncActivitySummary> ActivitySummary;
-
-	/**
-	 * The activity event payload usable for activity inspection. Might be null if it was not requested or did not provide insightful information.
-	 *   - If the activity type is 'transaction' and EventPayload is not null, it contains a FConcertSyncTransactionEvent with full transaction data.
-	 *   - If the activity type is 'package' and EventPayload is not null, it contains a FConcertSyncPackageEvent with the package meta data only.
-	 *   - Not set for other activity types (connection/lock).
-	 * @see FConcertActivityStream
-	 */
-	TUniquePtr<FConcertSessionSerializedPayload> EventPayload;
-};
-
 class IConcertClientWorkspace
 {
 public:
@@ -124,7 +89,7 @@ public:
 	 * @param OutEndpointClientInfoMap The client info for the activities fetched.
 	 * @param OutActivities the activities fetched.
 	 */
-	virtual void GetActivities(const int64 FirstActivityIdToFetch, const int64 MaxNumActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, TArray<FConcertClientSessionActivity>& OutActivities) const = 0;
+	virtual void GetActivities(const int64 FirstActivityIdToFetch, const int64 MaxNumActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, TArray<FConcertSessionActivity>& OutActivities) const = 0;
 
 	/**
 	 * Get the ID of the last activity in the session.

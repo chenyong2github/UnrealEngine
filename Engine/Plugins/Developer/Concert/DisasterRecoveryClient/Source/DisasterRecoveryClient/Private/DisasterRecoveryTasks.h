@@ -10,7 +10,7 @@
 class IConcertSyncClient;
 class IConcertClientSession;
 class FConcertActivityStream;
-struct FConcertClientSessionActivity;
+struct FConcertSessionActivity;
 struct FDisasterRecoverySession;
 
 
@@ -199,7 +199,7 @@ private:
 	TFunction<void(TSharedPtr<FDisasterRecoverySession>)> OnCandidateSearchResultFn;
 	TFunction<void(const FText&)> OnErrorFn;
 	TSharedPtr<FConcertActivityStream> ActivityStream;
-	TArray<TSharedPtr<FConcertClientSessionActivity>> Activities;
+	TArray<TSharedPtr<FConcertSessionActivity>> Activities;
 	TUniquePtr<FMountDisasterRecoverySessionRepositoryTask> MountingTask;
 	TUniquePtr<FLookupDisasterRecoverySessionIdTask> SearchingSessionIdTask;
 	FGuid SessionId;

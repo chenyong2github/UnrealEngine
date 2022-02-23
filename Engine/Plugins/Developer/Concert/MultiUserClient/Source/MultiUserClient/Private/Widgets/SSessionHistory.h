@@ -36,7 +36,7 @@ public:
 
 private:
 	/** Callback for selecting an activity in the list view. */
-	void HandleSelectionChanged(TSharedPtr<FConcertClientSessionActivity> InSessionActivity, ESelectInfo::Type SelectInfo);
+	void HandleSelectionChanged(TSharedPtr<FConcertSessionActivity> InSessionActivity, ESelectInfo::Type SelectInfo);
 
 	/** Fetches activities from the server and updates the list view. */
 	void ReloadActivities();
@@ -63,10 +63,10 @@ private:
 	FText HighlightSearchedText() const;
 
 	/** Returns the specified package event (without the package data itself) if available. */
-	bool GetPackageEvent(const FConcertClientSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutPackageEvent) const;
+	bool GetPackageEvent(const FConcertSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutPackageEvent) const;
 
 	/** Returns the specified package event if available. */
-	TFuture<TOptional<FConcertSyncTransactionEvent>> GetTransactionEvent(const FConcertClientSessionActivity& Activity) const;
+	TFuture<TOptional<FConcertSyncTransactionEvent>> GetTransactionEvent(const FConcertSessionActivity& Activity) const;
 
 private:
 
@@ -77,7 +77,7 @@ private:
 	TMap<FGuid, FConcertClientInfo> EndpointClientInfoMap;
 
 	/** Holds the map of activity IDs to Concert activities. */
-	TMap<int64, TSharedPtr<FConcertClientSessionActivity>> ActivityMap;
+	TMap<int64, TSharedPtr<FConcertSessionActivity>> ActivityMap;
 
 	/** Display the activity list. */
 	TSharedPtr<SConcertSessionActivities> ActivityListView;

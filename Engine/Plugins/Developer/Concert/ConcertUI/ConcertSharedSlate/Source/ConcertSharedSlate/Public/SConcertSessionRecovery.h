@@ -7,7 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-struct FConcertClientSessionActivity;
+struct FConcertSessionActivity;
 struct FConcertClientInfo;
 class SConcertSessionActivities;
 class FConcertSessionActivitiesOptions;
@@ -19,7 +19,7 @@ class CONCERTSHAREDSLATE_API SConcertSessionRecovery : public SCompoundWidget
 {
 public:
 	/** Used to pull activities from a session. Used to fetch and display the activities of an archived session. */
-	using FFetchActivitiesFunc = TFunction<bool(TArray<TSharedPtr<FConcertClientSessionActivity>>& /*InOutActivities*/, int32& /*OutFetchedCount*/, FText& /*ErrorMsg*/)>;
+	using FFetchActivitiesFunc = TFunction<bool(TArray<TSharedPtr<FConcertSessionActivity>>& /*InOutActivities*/, int32& /*OutFetchedCount*/, FText& /*ErrorMsg*/)>;
 
 	/** Used to map an activity to its client. */
 	using FGetActivityClientInfoFunc = TFunction<const FConcertClientInfo*(FGuid /*ClientId*/)>;
@@ -52,7 +52,7 @@ public:
 		SLATE_ARGUMENT(FGetActivityClientInfoFunc, OnMapActivityToClient)
 
 		/** Invoked when the user clicks the 'recover' button. */
-		SLATE_ARGUMENT(TFunction<bool(TSharedPtr<FConcertClientSessionActivity>)>, OnRestore)
+		SLATE_ARGUMENT(TFunction<bool(TSharedPtr<FConcertSessionActivity>)>, OnRestore)
 
 		/** Invoked when the user clicks the 'cancel' button. */
 		SLATE_ARGUMENT(TFunction<void()>, OnCancel)
@@ -104,7 +104,7 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	/** Returns the activity, selected by the user, through which the session should be (or was) recovered or null to prevent recovery. */
-	TSharedPtr<FConcertClientSessionActivity> GetRecoverThroughItem() { return RecoveryThroughItem; }
+	TSharedPtr<FConcertSessionActivity> GetRecoverThroughItem() { return RecoveryThroughItem; }
 
 	/** Removes all activities from the view and reset the activity stream. */
 	void Reset();
@@ -116,7 +116,7 @@ public:
 	FText GetRecoverAllButtonTooltip() const;
 
 	/** Returns the most recent activity available, ignoring the current filter. */
-	TSharedPtr<FConcertClientSessionActivity> GetMostRecentActivity() const;
+	TSharedPtr<FConcertSessionActivity> GetMostRecentActivity() const;
 
 private:
 	void OnSearchTextChanged(const FText& InFilterText);
@@ -126,10 +126,10 @@ private:
 	FReply OnCancelRecoveryClicked();
 	FReply OnRecoverAllClicked();
 
-	EVisibility GetRecoverThroughButtonVisibility(TSharedPtr<FConcertClientSessionActivity> Activity);
+	EVisibility GetRecoverThroughButtonVisibility(TSharedPtr<FConcertSessionActivity> Activity);
 	FText GetRecoverThroughButtonTooltip() const;
-	TSharedPtr<SWidget> MakeRecoverThroughWidget(TWeakPtr<FConcertClientSessionActivity>, const FName&);
-	void RecoverThrough(TSharedPtr<FConcertClientSessionActivity> Item);
+	TSharedPtr<SWidget> MakeRecoverThroughWidget(TWeakPtr<FConcertSessionActivity>, const FName&);
+	void RecoverThrough(TSharedPtr<FConcertSessionActivity> Item);
 
 	/** Close the windows hosting this recovery widget. */
 	void DismissWindow();
@@ -142,7 +142,7 @@ private:
 	TSharedPtr<FConcertSessionActivitiesOptions> ActivityViewOptions;
 
 	/** The activity selected when the user click 'Recover' or 'Recover Through' buttons. */
-	TSharedPtr<FConcertClientSessionActivity> RecoveryThroughItem;
+	TSharedPtr<FConcertSessionActivity> RecoveryThroughItem;
 
 	/** The parent window hosting this widget. */
 	TWeakPtr<SWindow> ParentWindow;
@@ -160,7 +160,7 @@ private:
 	TAttribute<bool> IsRecoverThroughButtonVisible;
 
 	/** The function invoked when the user clicks the restore button. Might not be bound. */
-	TFunction<bool(TSharedPtr<FConcertClientSessionActivity>)> OnRestoreFn;
+	TFunction<bool(TSharedPtr<FConcertSessionActivity>)> OnRestoreFn;
 
 	/** The function invoked when the user clicks the cancel button. Might not be bound. */
 	TFunction<void()> OnCancelFn;

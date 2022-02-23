@@ -20,7 +20,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnDisasterRecoverySessionUpdated, TSharedRe
 
 class IConcertClientSession;
 class FConcertActivityStream;
-struct FConcertClientSessionActivity;
+struct FConcertSessionActivity;
 
 /**
  * Monitors, creates, restores, imports and inspects disaster recovery sessions.
@@ -101,7 +101,7 @@ public:
 	 * @return True if the session was discarded, false and an error message if it failed.
 	 * @note OnSessionAdded() is invoked if the session is created and the original archived session remains unmodified.
 	 */
-	TFuture<TPair<bool, FText>> RestoreAndJoinSession(TSharedPtr<FDisasterRecoverySession> ArchivedSession, TSharedPtr<FConcertClientSessionActivity> ThroughActivity);
+	TFuture<TPair<bool, FText>> RestoreAndJoinSession(TSharedPtr<FDisasterRecoverySession> ArchivedSession, TSharedPtr<FConcertSessionActivity> ThroughActivity);
 
 	/** Leave the current live session, if any. If is safe to call the function even if the user doesn't have a live session in progress. */
 	void LeaveSession();

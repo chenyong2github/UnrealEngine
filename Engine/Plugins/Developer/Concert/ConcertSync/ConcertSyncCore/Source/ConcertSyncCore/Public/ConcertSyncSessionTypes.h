@@ -6,6 +6,7 @@
 #include "ConcertMessageData.h"
 #include "ConcertWorkspaceData.h"
 #include "ConcertTransactionEvents.h"
+#include "UObject/StructOnScope.h"
 #include "ConcertSyncSessionTypes.generated.h"
 
 /** Types of connection events */
@@ -404,4 +405,38 @@ protected:
 	//~ FConcertSyncActivitySummary interface
 	virtual FText CreateDisplayText(const bool InUseRichText) const override;
 	virtual FText CreateDisplayTextForUser(const FText InUserDisplayName, const bool InUseRichText) const override;
+};
+
+struct FConcertSessionActivity
+{
+	FConcertSessionActivity() = default;
+
+	FConcertSessionActivity(const FConcertSyncActivity& InActivity, const FStructOnScope& InActivitySummary, TUniquePtr<FConcertSessionSerializedPayload> OptionalEventPayload = nullptr)
+		: Activity(InActivity)
+		, EventPayload(MoveTemp(OptionalEventPayload))
+	{
+		ActivitySummary.InitializeFromChecked(InActivitySummary);
+	}
+
+	FConcertSessionActivity(FConcertSyncActivity&& InActivity, FStructOnScope&& InActivitySummary, TUniquePtr<FConcertSessionSerializedPayload> OptionalEventPayload = nullptr)
+		: Activity(MoveTemp(InActivity))
+		, EventPayload(MoveTemp(OptionalEventPayload))
+	{
+		ActivitySummary.InitializeFromChecked(MoveTemp(InActivitySummary));
+	}
+
+	/** The generic activity part. */
+	FConcertSyncActivity Activity;
+
+	/** Contains the activity summary to display as text. */
+	TStructOnScope<FConcertSyncActivitySummary> ActivitySummary;
+
+	/**
+	 * The activity event payload usable for activity inspection. Might be null if it was not requested or did not provide insightful information.
+	 *   - If the activity type is 'transaction' and EventPayload is not null, it contains a FConcertSyncTransactionEvent with full transaction data.
+	 *   - If the activity type is 'package' and EventPayload is not null, it contains a FConcertSyncPackageEvent with the package meta data only.
+	 *   - Not set for other activity types (connection/lock).
+	 * @see FConcertActivityStream
+	 */
+	TUniquePtr<FConcertSessionSerializedPayload> EventPayload;
 };

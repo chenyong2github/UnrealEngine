@@ -50,8 +50,8 @@ void SSessionHistory::Construct(const FArguments& InArgs, TSharedPtr<IConcertSyn
 	ActivityListViewOptions = MakeShared<FConcertSessionActivitiesOptions>();
 
 	SAssignNew(ActivityListView, SConcertSessionActivities)
-		.OnGetPackageEvent([this](const FConcertClientSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutEvent) { return GetPackageEvent(Activity, OutEvent); })
-		.OnGetTransactionEvent([this](const FConcertClientSessionActivity& Activity) { return GetTransactionEvent(Activity); })
+		.OnGetPackageEvent([this](const FConcertSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutEvent) { return GetPackageEvent(Activity, OutEvent); })
+		.OnGetTransactionEvent([this](const FConcertSessionActivity& Activity) { return GetTransactionEvent(Activity); })
 		.OnMapActivityToClient([this](FGuid ClientId){ return EndpointClientInfoMap.Find(ClientId); })
 		.HighlightText(this, &SSessionHistory::HighlightSearchedText)
 		.TimeFormat(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
@@ -151,14 +151,14 @@ void SSessionHistory::ReloadActivities()
 		const int64 LastActivityId = WorkspacePtr->GetLastActivityId();
 		const int64 FirstActivityIdToFetch = FMath::Max<int64>(1, LastActivityId - MaximumNumberOfActivities);
 
-		TArray<FConcertClientSessionActivity> FetchedActivities;
+		TArray<FConcertSessionActivity> FetchedActivities;
 		WorkspacePtr->GetActivities(FirstActivityIdToFetch, MaximumNumberOfActivities, EndpointClientInfoMap, FetchedActivities);
 
-		for (FConcertClientSessionActivity& FetchedActivity : FetchedActivities)
+		for (FConcertSessionActivity& FetchedActivity : FetchedActivities)
 		{
 			if (ConcertSessionHistoryUI::PackageNamePassesFilter(PackageNameFilter, FetchedActivity.ActivitySummary))
 			{
-				TSharedRef<FConcertClientSessionActivity> NewActivity = MakeShared<FConcertClientSessionActivity>(MoveTemp(FetchedActivity));
+				TSharedRef<FConcertSessionActivity> NewActivity = MakeShared<FConcertSessionActivity>(MoveTemp(FetchedActivity));
 				ActivityMap.Add(NewActivity->Activity.ActivityId, NewActivity);
 				ActivityListView->Append(NewActivity);
 			}
@@ -175,7 +175,7 @@ void SSessionHistory::HandleActivityAddedOrUpdated(const FConcertClientInfo& InC
 	{
 		EndpointClientInfoMap.Add(InActivity.EndpointId, InClientInfo);
 
-		if (TSharedPtr<FConcertClientSessionActivity> ExistingActivity = ActivityMap.FindRef(InActivity.ActivityId))
+		if (TSharedPtr<FConcertSessionActivity> ExistingActivity = ActivityMap.FindRef(InActivity.ActivityId))
 		{
 			ExistingActivity->Activity = InActivity;
 			ExistingActivity->ActivitySummary = MoveTemp(ActivitySummary);
@@ -183,7 +183,7 @@ void SSessionHistory::HandleActivityAddedOrUpdated(const FConcertClientInfo& InC
 		}
 		else
 		{
-			TSharedRef<FConcertClientSessionActivity> NewActivity = MakeShared<FConcertClientSessionActivity>();
+			TSharedRef<FConcertSessionActivity> NewActivity = MakeShared<FConcertSessionActivity>();
 			NewActivity->Activity = InActivity;
 			NewActivity->ActivitySummary = MoveTemp(ActivitySummary);
 
@@ -218,7 +218,7 @@ void SSessionHistory::RegisterWorkspaceHandler()
 	}
 }
 
-bool SSessionHistory::GetPackageEvent(const FConcertClientSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutPackageEvent) const
+bool SSessionHistory::GetPackageEvent(const FConcertSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutPackageEvent) const
 {
 	if (TSharedPtr<IConcertClientWorkspace> WorkspacePtr = Workspace.Pin())
 	{
@@ -229,7 +229,7 @@ bool SSessionHistory::GetPackageEvent(const FConcertClientSessionActivity& Activ
 	return false; // The data is not available.
 }
 
-TFuture<TOptional<FConcertSyncTransactionEvent>> SSessionHistory::GetTransactionEvent(const FConcertClientSessionActivity& Activity) const
+TFuture<TOptional<FConcertSyncTransactionEvent>> SSessionHistory::GetTransactionEvent(const FConcertSessionActivity& Activity) const
 {
 	if (TSharedPtr<IConcertClientWorkspace> WorkspacePtr = Workspace.Pin())
 	{

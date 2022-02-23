@@ -11,7 +11,7 @@
 #include "Widgets/Views/SListView.h"
 #include "ConcertSyncSessionTypes.h"
 
-struct FConcertClientSessionActivity;
+struct FConcertSessionActivity;
 struct FConcertClientInfo;
 struct FConcertPackageInfo;
 struct FConcertTransactionEventBase;
@@ -45,19 +45,19 @@ public:
 	};
 
 	/** Used to pull activities from a session. Used to fetch and display the activities of an archived session. */
-	using FFetchActivitiesFunc = TFunction<bool(TArray<TSharedPtr<FConcertClientSessionActivity>>& /*InOutActivities*/, int32& /*OutFetchedCount*/, FText& /*ErrorMsg*/)>;
+	using FFetchActivitiesFunc = TFunction<bool(TArray<TSharedPtr<FConcertSessionActivity>>& /*InOutActivities*/, int32& /*OutFetchedCount*/, FText& /*ErrorMsg*/)>;
 
 	/** Used to map an activity to its client. */
 	using FGetActivityClientInfoFunc = TFunction<const FConcertClientInfo*(FGuid /*ClientId*/)>;
 
 	/** Returns the transaction event corresponding the specified activity.*/
-	using FGetTransactionEvent = TFunction<TFuture<TOptional<FConcertSyncTransactionEvent>>(const FConcertClientSessionActivity& /*Activity*/)>;
+	using FGetTransactionEvent = TFunction<TFuture<TOptional<FConcertSyncTransactionEvent>>(const FConcertSessionActivity& /*Activity*/)>;
 
 	/** Returns the package event corresponding to the package activity. */
-	using FGetPackageEvent = TFunction<bool(const FConcertClientSessionActivity& /*Activity*/, FConcertSyncPackageEventMetaData& /*OutEvent*/)>;
+	using FGetPackageEvent = TFunction<bool(const FConcertSessionActivity& /*Activity*/, FConcertSyncPackageEventMetaData& /*OutEvent*/)>;
 
 	/** Used to overlay a widget over a column widget to add custom functionalities to a row. */
-	using FMakeColumnOverlayWidgetFunc = TFunction<TSharedPtr<SWidget>(TWeakPtr<FConcertClientSessionActivity> /*ThisRowActivity*/, const FName& /*ColumnId*/)>;
+	using FMakeColumnOverlayWidgetFunc = TFunction<TSharedPtr<SWidget>(TWeakPtr<FConcertSessionActivity> /*ThisRowActivity*/, const FName& /*ColumnId*/)>;
 
 public:
 	SLATE_BEGIN_ARGS(SConcertSessionActivities)
@@ -145,7 +145,7 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/** Returns the activity selected or null if none is selected. */
-	TSharedPtr<FConcertClientSessionActivity> GetSelectedActivity() const;
+	TSharedPtr<FConcertSessionActivity> GetSelectedActivity() const;
 
 	/** Returns the total number of activities currently stored (no filter applied). */
 	int32 GetTotalActivityNum() const { return AllActivities.Num(); }
@@ -157,7 +157,7 @@ public:
 	int32 GetIgnoredActivityNum() const { return IgnoredActivityNum; }
 
 	/** Returns the most recent activity available, ignoring the current filter. */
-	TSharedPtr<FConcertClientSessionActivity> GetMostRecentActivity() const;
+	TSharedPtr<FConcertSessionActivity> GetMostRecentActivity() const;
 
 	/** Returns true if the column names is the last one (most right one). */
 	bool IsLastColumn(const FName& ColumnId) const;
@@ -166,7 +166,7 @@ public:
 	void Reset();
 
 	/** Append an activity to the view. Used to populate the view from a live session. */
-	void Append(TSharedPtr<FConcertClientSessionActivity> Activity);
+	void Append(TSharedPtr<FConcertSessionActivity> Activity);
 
 	/** Request the view to refresh. */
 	void RequestRefresh();
@@ -176,7 +176,7 @@ public:
 
 private:
 	/** Generates a row widget in the table view. */
-	TSharedRef<ITableRow> OnGenerateActivityRowWidget(TSharedPtr<FConcertClientSessionActivity> Item, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> OnGenerateActivityRowWidget(TSharedPtr<FConcertSessionActivity> Item, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Fetches more activities. */
 	void FetchActivities();
@@ -188,16 +188,16 @@ private:
 	void OnActivityFilterUpdated();
 
 	/** Returns true if the specified activity passes the view filters. */
-	bool PassesFilters(const FConcertClientSessionActivity& Activity);
+	bool PassesFilters(const FConcertSessionActivity& Activity);
 
 	/** Invoked when the list view scrolled to fetch more data from the activity provider. */
 	void OnListViewScrolled(double InScrollOffset);
 
 	/** Invoked when the list view selection changes. */
-	void OnListViewSelectionChanged(TSharedPtr<FConcertClientSessionActivity> InActivity, ESelectInfo::Type SelectInfo);
+	void OnListViewSelectionChanged(TSharedPtr<FConcertSessionActivity> InActivity, ESelectInfo::Type SelectInfo);
 
 	/** Convert the item into a list of text element used search bars. */
-	void PopulateSearchStrings(const FConcertClientSessionActivity& Item, TArray<FString>& OutSearchStrings) const;
+	void PopulateSearchStrings(const FConcertSessionActivity& Item, TArray<FString>& OutSearchStrings) const;
 
 	/** Returns whether the details expandable area should be visible or not. */
 	EVisibility GetDetailAreaVisibility() const { return DetailsAreaVisibility; }
@@ -209,13 +209,13 @@ private:
 	void OnDetailsAreaExpansionChanged(bool bExpanded);
 
 	/** Displays what properties/objects changed during a transaction in the details area when a transaction activity is selected in the list. */
-	void DisplayTransactionDetails(const FConcertClientSessionActivity& Activity, const FConcertTransactionEventBase& InTransaction);
+	void DisplayTransactionDetails(const FConcertSessionActivity& Activity, const FConcertTransactionEventBase& InTransaction);
 
 	/** Displays what changed in a package in the details area when a package activity is selected in the list. */
-	void DisplayPackageDetails(const FConcertClientSessionActivity& Activity, int64 PackageRevision, const FConcertPackageInfo& PackageInfo);
+	void DisplayPackageDetails(const FConcertSessionActivity& Activity, int64 PackageRevision, const FConcertPackageInfo& PackageInfo);
 
 	/** Update the detail area to display the proper panel and details. */
-	void UpdateDetailArea(TSharedPtr<FConcertClientSessionActivity> InSelectedActivity);
+	void UpdateDetailArea(TSharedPtr<FConcertSessionActivity> InSelectedActivity);
 
 	/** Change the visibility of the details panels, keeping only one visible. */
 	void SetDetailsPanelVisibility(const SWidget* VisiblePanel);
@@ -228,13 +228,13 @@ private:
 
 private:
 	/** List of all activities (including the filtered out ones). */
-	TArray<TSharedPtr<FConcertClientSessionActivity>> AllActivities;
+	TArray<TSharedPtr<FConcertSessionActivity>> AllActivities;
 
 	/** List of currently displayed activities. */
-	TArray<TSharedPtr<FConcertClientSessionActivity>> Activities;
+	TArray<TSharedPtr<FConcertSessionActivity>> Activities;
 
 	/** The list view widget displaying the activities. */
-	TSharedPtr<SListView<TSharedPtr<FConcertClientSessionActivity>>> ActivityView;
+	TSharedPtr<SListView<TSharedPtr<FConcertSessionActivity>>> ActivityView;
 
 	/** Used to overlay a widget over a column widget (add an extra layer above the normal one) */
 	FMakeColumnOverlayWidgetFunc MakeColumnOverlayWidgetFn;
@@ -303,7 +303,7 @@ private:
 	bool bAllActivitiesFetched = false;
 
 	/** Utility class used to tokenize and match text displayed in the list view. */
-	TSharedPtr<TTextFilter<const FConcertClientSessionActivity&>> SearchTextFilter;
+	TSharedPtr<TTextFilter<const FConcertSessionActivity&>> SearchTextFilter;
 
 	/** The expandable area under which the activity details are displayed. */
 	TSharedPtr<SExpandableArea> ExpandableDetails;
