@@ -293,6 +293,7 @@ public:
 	virtual void PostInit() override;
 	virtual void Shutdown() override;
 	virtual const TCHAR* GetName() override { return TEXT("D3D12"); }
+	virtual ERHIInterfaceType GetInterfaceType() const override final { return ERHIInterfaceType::D3D12; }
 
 	template<typename TRHIType>
 	static FORCEINLINE typename TD3D12ResourceTraits<TRHIType>::TConcreteType* ResourceCast(TRHIType* Resource)

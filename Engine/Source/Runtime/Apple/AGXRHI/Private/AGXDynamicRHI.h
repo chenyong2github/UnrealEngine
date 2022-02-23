@@ -37,6 +37,7 @@ public:
 	virtual void Init();
 	virtual void Shutdown() {}
 	virtual const TCHAR* GetName() override { return TEXT("AGX"); }
+	virtual ERHIInterfaceType GetInterfaceType() const override { return ERHIInterfaceType::Agx; }
 
 	virtual FRHIShaderLibraryRef RHICreateShaderLibrary(EShaderPlatform Platform, FString const& FilePath, FString const& Name) final override;
 	virtual FSamplerStateRHIRef RHICreateSamplerState(const FSamplerStateInitializerRHI& Initializer) final override;

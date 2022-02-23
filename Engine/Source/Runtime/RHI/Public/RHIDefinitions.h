@@ -24,6 +24,18 @@
 #define RHI_RAYTRACING 0
 #endif
 
+enum class ERHIInterfaceType
+{
+	Hidden,
+	Null,
+	D3D11,
+	D3D12,
+	Vulkan,
+	Metal,
+	Agx,
+	OpenGL,
+};
+
 enum EShaderFrequency : uint8
 {
 	SF_Vertex			= 0,

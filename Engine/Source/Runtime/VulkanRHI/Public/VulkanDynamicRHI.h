@@ -56,6 +56,7 @@ public:
 	virtual void PostInit() final override;
 	virtual void Shutdown() final override;;
 	virtual const TCHAR* GetName() final override { return TEXT("Vulkan"); }
+	virtual ERHIInterfaceType GetInterfaceType() const override { return ERHIInterfaceType::Vulkan; }
 
 	void InitInstance();
 

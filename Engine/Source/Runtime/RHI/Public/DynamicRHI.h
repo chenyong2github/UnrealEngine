@@ -187,6 +187,9 @@ public:
 
 	virtual const TCHAR* GetName() = 0;
 
+	virtual ERHIInterfaceType GetInterfaceType() const { return ERHIInterfaceType::Hidden; }
+	virtual FDynamicRHI* GetNonValidationRHI() { return this; }
+
 	/** Called after PostInit to initialize the pixel format info, which is needed for some commands default implementations */
 	void InitPixelFormatInfo(const TArray<uint32>& PixelFormatBlockBytesIn)
 	{
@@ -1330,6 +1333,23 @@ public:
 		return new FRHIComputePipelineStateFallback(ComputeShader);
 	}
 };
+
+FORCEINLINE ERHIInterfaceType RHIGetInterfaceType()
+{
+	return GDynamicRHI->GetInterfaceType();
+}
+
+template<typename TRHI>
+FORCEINLINE TRHI* CastDynamicRHI(FDynamicRHI* InDynamicRHI)
+{
+	return static_cast<TRHI*>(InDynamicRHI->GetNonValidationRHI());
+}
+
+template<typename TRHI>
+FORCEINLINE TRHI* GetDynamicRHI()
+{
+	return CastDynamicRHI<TRHI>(GDynamicRHI);
+}
 
 FORCEINLINE FSamplerStateRHIRef RHICreateSamplerState(const FSamplerStateInitializerRHI& Initializer)
 {

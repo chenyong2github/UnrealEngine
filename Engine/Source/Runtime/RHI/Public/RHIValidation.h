@@ -64,6 +64,16 @@ public:
 		return *RHIName;
 	}
 
+	virtual ERHIInterfaceType GetInterfaceType() const override final
+	{
+		return RHI->GetInterfaceType();
+	}
+
+	virtual FDynamicRHI* GetNonValidationRHI() override final
+	{
+		return RHI;
+	}
+
 	/////// RHI Methods
 
 	// FlushType: Thread safe

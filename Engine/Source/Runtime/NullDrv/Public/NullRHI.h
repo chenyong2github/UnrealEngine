@@ -20,6 +20,7 @@ public:
 	virtual void Init();
 	virtual void Shutdown();
 	virtual const TCHAR* GetName() override { return TEXT("Null"); }
+	virtual ERHIInterfaceType GetInterfaceType() const override { return ERHIInterfaceType::Null; }
 
 	virtual FSamplerStateRHIRef RHICreateSamplerState(const FSamplerStateInitializerRHI& Initializer) final override
 	{ 

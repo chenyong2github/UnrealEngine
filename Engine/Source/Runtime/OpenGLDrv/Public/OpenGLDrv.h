@@ -306,6 +306,7 @@ public:
 
 	virtual void Shutdown();
 	virtual const TCHAR* GetName() override { return TEXT("OpenGL"); }
+	virtual ERHIInterfaceType GetInterfaceType() const override final { return ERHIInterfaceType::OpenGL; }
 
 	// If using a Proxy object return the contained GL object rather than the proxy itself.
 	template<typename TRHIType>
