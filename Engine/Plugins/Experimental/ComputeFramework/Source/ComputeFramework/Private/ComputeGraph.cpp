@@ -486,7 +486,8 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 				ShaderSourceHash, 
 				ShaderDefinitionSet,
 				ShaderPermutationVector,
-				ShaderMetadata);
+				ShaderMetadata,
+				GetOutermost()->GetFName());
 
 			KernelResource->OnCompilationComplete().BindUObject(this, &UComputeGraph::ShaderCompileCompletionCallback);
 
@@ -600,7 +601,8 @@ void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* Targe
 					ShaderSourceHash, 
 					ShaderDefinitionSet,
 					ShaderPermutationVector,
-					ShaderMetadata);
+					ShaderMetadata,
+					GetOutermost()->GetFName());
 
 				const uint32 CompilationFlags = uint32(EComputeKernelCompilationFlags::IsCooking);
 				CacheShadersForResource(ShaderPlatform, TargetPlatform, CompilationFlags, KernelResource.Get());

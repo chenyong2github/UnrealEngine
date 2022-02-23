@@ -426,7 +426,8 @@ public:
 		uint64 InShaderCodeHash,
 		FComputeKernelDefinitionSet& InShaderDefinitionSet,
 		FComputeKernelPermutationVector& InShaderPermutationVector,
-		FShaderParametersMetadata* InShaderMetadata
+		FShaderParametersMetadata* InShaderMetadata,
+		FName const& InAssetPath
 	);
 
 	void SetupCompileEnvironment(int32 InPermutationId, FShaderCompilerEnvironment& OutShaderEnvironment) const;
@@ -535,6 +536,11 @@ private:
 
 
 	FString FriendlyName;
+
+#if WITH_EDITOR
+	/** Asset using this resource */
+	FName AssetPath;
+#endif
 
 	friend class FComputeKernelShaderMap;
 	friend class FShaderCompilingManager;

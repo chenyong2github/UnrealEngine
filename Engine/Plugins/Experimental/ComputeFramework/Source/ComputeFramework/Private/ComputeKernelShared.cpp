@@ -172,6 +172,8 @@ void FComputeKernelResource::SerializeShaderMap(FArchive& Ar)
 
 			if (bValid)
 			{
+				GameThreadShaderMap->AssociateWithAsset(AssetPath);
+
 				GameThreadShaderMap->Serialize(Ar);
 			}
 #endif
@@ -205,7 +207,8 @@ void FComputeKernelResource::SetupResource(
 	uint64 InShaderCodeHash,
 	FComputeKernelDefinitionSet& InShaderDefinitionSet,
 	FComputeKernelPermutationVector& InShaderPermutationVector,
-	FShaderParametersMetadata* InShaderMetadata
+	FShaderParametersMetadata* InShaderMetadata,
+	FName const& InAssetPath
 	)
 {
 	FeatureLevel = InFeatureLevel;
@@ -217,6 +220,9 @@ void FComputeKernelResource::SetupResource(
 	ShaderPermutationVector = MoveTemp(InShaderPermutationVector);
 	ShaderMetadata.Reset(InShaderMetadata);
 	CompileErrors.Reset();
+#if WITH_EDITOR
+	AssetPath = InAssetPath;
+#endif
 }
 
 int32 FComputeKernelResource::GetNumPermutations() const 
