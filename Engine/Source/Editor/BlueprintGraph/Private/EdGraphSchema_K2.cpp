@@ -484,30 +484,20 @@ public:
 
 		OutChildren.Sort(FCompareChildren());
 	}
-
-	/** Loads an asset based on the AssetReference through the asset registry */
-	static UObject* LoadAsset(const FSoftObjectPath& AssetReference)
-	{
-		if (AssetReference.IsValid())
-		{
-			const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-			const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AssetReference.ToString());
-			return AssetData.GetAsset(); //-V558
-		}
-		return nullptr;
-	}
 };
 
 const FEdGraphPinType& UEdGraphSchema_K2::FPinTypeTreeInfo::GetPinType(bool bForceLoadedSubCategoryObject)
 {
-	if (bForceLoadedSubCategoryObject)
+	// Only attempt to load the sub category object if we need to
+	if (SubCategoryObjectAssetReference.IsValid() && (!PinType.PinSubCategoryObject.IsValid() || FSoftObjectPath(PinType.PinSubCategoryObject.Get()) != SubCategoryObjectAssetReference))
 	{
-		// Only attempt to load the sub category object if we need to
-		if ( SubCategoryObjectAssetReference.IsValid() && (!PinType.PinSubCategoryObject.IsValid() || FSoftObjectPath(PinType.PinSubCategoryObject.Get()) != SubCategoryObjectAssetReference) )
+		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*SubCategoryObjectAssetReference.ToString());
+		if (bForceLoadedSubCategoryObject || AssetData.IsAssetLoaded())
 		{
-			UObject* LoadedObject = FGatherTypesHelper::LoadAsset(SubCategoryObjectAssetReference);
+			UObject* LoadedObject = AssetData.GetAsset();
 
-			if(UBlueprint* BlueprintObject = Cast<UBlueprint>(LoadedObject))
+			if (UBlueprint* BlueprintObject = Cast<UBlueprint>(LoadedObject))
 			{
 				PinType.PinSubCategoryObject = *BlueprintObject->GeneratedClass;
 			}
@@ -517,33 +507,7 @@ const FEdGraphPinType& UEdGraphSchema_K2::FPinTypeTreeInfo::GetPinType(bool bFor
 			}
 		}
 	}
-	else
-	{
-		if (SubCategoryObjectAssetReference.IsValid())
-		{
-			const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-			const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*SubCategoryObjectAssetReference.ToString());
 
-			if(!AssetData.IsAssetLoaded())
-			{
-				UObject* LoadedObject = FindObject<UClass>(ANY_PACKAGE, *AssetData.AssetClass.ToString());
-
-				// If the unloaded asset is a Blueprint, we need to pull the generated class and assign that
-				if(UBlueprint* BlueprintObject = Cast<UBlueprint>(LoadedObject))
-				{
-					PinType.PinSubCategoryObject = *BlueprintObject->GeneratedClass;
-				}
-				else
-				{
-					PinType.PinSubCategoryObject = LoadedObject;
-				}
-			}
-			else
-			{
-				PinType.PinSubCategoryObject = AssetData.GetAsset();
-			}
-		}
-	}
 	return PinType;
 }
 

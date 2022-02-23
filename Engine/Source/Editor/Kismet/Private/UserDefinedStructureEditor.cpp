@@ -990,8 +990,11 @@ public:
 			const auto Child = PinTypeNode->Children[ChildIndex];
 			if(Child.IsValid())
 			{
-				const bool bCanCheckSubObjectWithoutLoading = Child->GetPinType(false).PinSubCategoryObject.IsValid();
-				if (bCanCheckSubObjectWithoutLoading && !FStructureEditorUtils::CanHaveAMemberVariableOfType(Parent, Child->GetPinType(false)))
+				const bool bForceLoadSubCategoryObject = false;
+				const FEdGraphPinType& PinType = Child->GetPinType(bForceLoadSubCategoryObject);
+
+				const bool bCanCheckSubObjectWithoutLoading = PinType.PinSubCategoryObject.IsValid();
+				if(bCanCheckSubObjectWithoutLoading && !FStructureEditorUtils::CanHaveAMemberVariableOfType(Parent, PinType))
 				{
 					PinTypeNode->Children.RemoveAt(ChildIndex);
 					continue;

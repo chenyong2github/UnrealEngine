@@ -188,21 +188,24 @@ bool FStructureEditorUtils::CanHaveAMemberVariableOfType(const UUserDefinedStruc
 {
 	if ((VarType.PinCategory == UEdGraphSchema_K2::PC_Struct) && Struct)
 	{
-		if (const UScriptStruct* SubCategoryStruct = Cast<const UScriptStruct>(VarType.PinSubCategoryObject.Get()))
+		if (const UObject* TypeObject = VarType.PinSubCategoryObject.Get())
 		{
-			const EStructureError Result = IsStructureValid(SubCategoryStruct, Struct, OutMsg);
-			if (EStructureError::Ok != Result)
+			if (const UScriptStruct* SubCategoryStruct = Cast<const UScriptStruct>(TypeObject))
 			{
+				const EStructureError Result = IsStructureValid(SubCategoryStruct, Struct, OutMsg);
+				if (EStructureError::Ok != Result)
+				{
+					return false;
+				}
+			}
+			else
+			{
+				if (OutMsg)
+				{
+					*OutMsg = LOCTEXT("StructureIncorrectStructType", "Incorrect struct type in a structure member variable.").ToString();
+				}
 				return false;
 			}
-		}
-		else
-		{
-			if (OutMsg)
-			{
-				*OutMsg = LOCTEXT("StructureIncorrectStructType", "Incorrect struct type in a structure member variable.").ToString();
-			}
-			return false;
 		}
 	}
 	else if ((VarType.PinCategory == UEdGraphSchema_K2::PC_Exec) 
@@ -215,18 +218,6 @@ bool FStructureEditorUtils::CanHaveAMemberVariableOfType(const UUserDefinedStruc
 			*OutMsg = LOCTEXT("StructureIncorrectTypeCategory", "Incorrect type for a structure member variable.").ToString();
 		}
 		return false;
-	}
-	else
-	{
-		const UClass* PinSubCategoryClass = Cast<const UClass>(VarType.PinSubCategoryObject.Get());
-		if (PinSubCategoryClass && PinSubCategoryClass->IsChildOf(UBlueprint::StaticClass()))
-		{
-			if (OutMsg)
-			{
-				*OutMsg = LOCTEXT("StructureUseBlueprintReferences", "Struct cannot use any blueprint references").ToString();
-			}
-			return false;
-		}
 	}
 	return true;
 }
