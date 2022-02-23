@@ -149,22 +149,6 @@ bool FSkeletalMeshEditor::OnRequestClose()
 				continue;
 			}
 			
-			//Do not prevent exiting if we are not using the skeletal mesh build workflow
-			if (!SkeletalMesh->IsLODImportedDataBuildAvailable(LODIndex))
-			{
-				if (!LODInfo->bHasBeenSimplified && !SkeletalMesh->IsReductionActive(LODIndex))
-				{
-					continue;
-				}
-				//Do not prevent exit if the generated LOD is base on a LODModel not using the skeletalmesh build workflow
-				int32 ReduceBaseLOD = LODInfo->ReductionSettings.BaseLOD;
-				if(!IsReductionParentBaseLODUseSkeletalMeshBuildWorkflow(SkeletalMesh, ReduceBaseLOD))
-				{
-					continue;
-				}
-				
-			}
-
 			bool bValidLODSettings = false;
 			if (SkeletalMesh->GetLODSettings() != nullptr)
 			{

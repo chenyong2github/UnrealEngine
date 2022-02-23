@@ -205,24 +205,33 @@ FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, U
 		bool bUseFullPrecisionUVs = BaseLODInfo ? BaseLODInfo->BuildSettings.bUseFullPrecisionUVs : false;
 		KeySuffix += SkelMesh->GetImportedModel()->GetIdString();
 		KeySuffix += (bUseFullPrecisionUVs || !GVertexElementTypeSupport.IsSupported(VET_Half2)) ? "1" : "0";
+		
+		//Dummy call to update the FSkeletalMeshLODModel::BuildStringID members.
+		SkelMesh->GetImportedModel()->GetLODModelIdString();
+		
+		//Dummy call to update the LODInfo::BuildGUID members.
+		{
+			FString TmpString;
+			SerializeLODInfoForDDC(SkelMesh, TmpString);
+		}
 	}
 	else
 	{
-		FString tmpDebugString;
+		FString TmpPartialKeySuffix;
 		//Synchronize the user data that are part of the key
 		SkelMesh->GetImportedModel()->SyncronizeLODUserSectionsData();
-		tmpDebugString = SkelMesh->GetImportedModel()->GetIdString();
-		KeySuffix += tmpDebugString;
-		tmpDebugString = SkelMesh->GetImportedModel()->GetLODModelIdString();
-		KeySuffix += tmpDebugString;
+		TmpPartialKeySuffix = SkelMesh->GetImportedModel()->GetIdString();
+		KeySuffix += TmpPartialKeySuffix;
+		TmpPartialKeySuffix = SkelMesh->GetImportedModel()->GetLODModelIdString();
+		KeySuffix += TmpPartialKeySuffix;
 		
 		//Add the max gpu bone per section
 		const int32 MaxGPUSkinBones = FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones(TargetPlatform);
 		KeySuffix += FString::FromInt(MaxGPUSkinBones);
 
-		tmpDebugString = TEXT("");
-		SerializeLODInfoForDDC(SkelMesh, tmpDebugString);
-		KeySuffix += tmpDebugString;
+		TmpPartialKeySuffix = TEXT("");
+		SerializeLODInfoForDDC(SkelMesh, TmpPartialKeySuffix);
+		KeySuffix += TmpPartialKeySuffix;
 	}
 
 	KeySuffix += SkelMesh->GetHasVertexColors() ? "1" : "0";
