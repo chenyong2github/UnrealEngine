@@ -5,6 +5,7 @@
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/AppStyle.h"
+#include "Styling/CoreStyle.h"
 
 FName FEditorTutorialStyle::StyleName("FEditorTutorialStyle");
 TUniquePtr<FEditorTutorialStyle> FEditorTutorialStyle::Instance(nullptr);
