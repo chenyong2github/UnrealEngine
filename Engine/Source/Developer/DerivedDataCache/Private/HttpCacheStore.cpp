@@ -62,15 +62,10 @@
 #define UE_HTTPDDC_BACKEND_WAIT_INTERVAL 0.01f
 #define UE_HTTPDDC_BACKEND_WAIT_INTERVAL_MS ((uint32)(UE_HTTPDDC_BACKEND_WAIT_INTERVAL*1000))
 #define UE_HTTPDDC_HTTP_REQUEST_TIMEOUT_SECONDS 30L
-#define UE_HTTPDDC_HTTP_REQUEST_TIMOUT_ENABLED 1
+#define UE_HTTPDDC_HTTP_REQUEST_TIMEOUT_ENABLED 1
 #define UE_HTTPDDC_HTTP_DEBUG 0
-#if WITH_DATAREQUEST_HELPER
-	#define UE_HTTPDDC_GET_REQUEST_POOL_SIZE 16 
-	#define UE_HTTPDDC_PUT_REQUEST_POOL_SIZE 4
-#else
-	#define UE_HTTPDDC_GET_REQUEST_POOL_SIZE 48
-	#define UE_HTTPDDC_PUT_REQUEST_POOL_SIZE 16
-#endif
+#define UE_HTTPDDC_GET_REQUEST_POOL_SIZE 48
+#define UE_HTTPDDC_PUT_REQUEST_POOL_SIZE 16
 #define UE_HTTPDDC_MAX_FAILED_LOGIN_ATTEMPTS 16
 #define UE_HTTPDDC_MAX_ATTEMPTS 4
 #define UE_HTTPDDC_MAX_BUFFER_RESERVE 104857600u
@@ -111,6 +106,58 @@ private:
 	FRWLock		Lock;
 	FString		Token;
 	uint32		Serial;
+};
+
+struct FHttpSharedData
+{
+	FHttpSharedData()
+	{
+		FMemory::Memset(WriteLocked, 0, sizeof(WriteLocked));
+		CurlShare = curl_share_init();
+		curl_share_setopt(CurlShare, CURLSHOPT_USERDATA, this);
+		curl_share_setopt(CurlShare, CURLSHOPT_LOCKFUNC, LockFn);
+		curl_share_setopt(CurlShare, CURLSHOPT_UNLOCKFUNC, UnlockFn);
+		curl_share_setopt(CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+		curl_share_setopt(CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+	}
+
+	~FHttpSharedData()
+	{
+		curl_share_cleanup(CurlShare);
+	}
+
+	CURLSH* CurlShare;
+
+private:
+	FRWLock Locks[CURL_LOCK_DATA_LAST];
+	bool WriteLocked[CURL_LOCK_DATA_LAST];
+
+	static void LockFn(CURL* Handle, curl_lock_data Data, curl_lock_access Access, void* User)
+	{
+		FHttpSharedData* SharedData = (FHttpSharedData*)User;
+		if (Access == CURL_LOCK_ACCESS_SHARED)
+		{
+			SharedData->Locks[Data].ReadLock();
+		}
+		else
+		{
+			SharedData->Locks[Data].WriteLock();
+			SharedData->WriteLocked[Data] = true;
+		}
+	}
+	static void UnlockFn(CURL* Handle, curl_lock_data Data, void* User)
+	{
+		FHttpSharedData* SharedData = (FHttpSharedData*)User;
+		if (!SharedData->WriteLocked[Data])
+		{
+			SharedData->Locks[Data].ReadUnlock();
+		}
+		else
+		{
+			SharedData->WriteLocked[Data] = false;
+			SharedData->Locks[Data].WriteUnlock();
+		}
+	}
 };
 
 /**
@@ -179,14 +226,18 @@ public:
 		BytesReceived = 0;
 		CurlResult = CURL_LAST;
 
+		static FHttpSharedData SharedData;
+
 		curl_easy_reset(Curl);
 
 		// Options that are always set for all connections.
-#if UE_HTTPDDC_HTTP_REQUEST_TIMOUT_ENABLED
+#if UE_HTTPDDC_HTTP_REQUEST_TIMEOUT_ENABLED
 		curl_easy_setopt(Curl, CURLOPT_CONNECTTIMEOUT, UE_HTTPDDC_HTTP_REQUEST_TIMEOUT_SECONDS);
 #endif
 		curl_easy_setopt(Curl, CURLOPT_FOLLOWLOCATION, 1L);
 		curl_easy_setopt(Curl, CURLOPT_NOSIGNAL, 1L);
+		curl_easy_setopt(Curl, CURLOPT_DNS_CACHE_TIMEOUT, 300L); // Don't re-resolve every minute
+		curl_easy_setopt(Curl, CURLOPT_SHARE, SharedData.CurlShare);
 		// SSL options
 		curl_easy_setopt(Curl, CURLOPT_USE_SSL, CURLUSESSL_ALL);
 		curl_easy_setopt(Curl, CURLOPT_SSL_VERIFYPEER, 1);
@@ -2119,6 +2170,13 @@ private:
 	EBackendLegacyMode LegacyMode;
 	static inline FHttpCacheStore* AnyInstance = nullptr;
 
+	struct FValueDebugContext
+	{
+		FStringView Name;
+		const FCacheKey& Key;
+		FString Id;
+	};
+
 	bool IsServiceReady();
 	bool AcquireAccessToken();
 	bool ShouldRetryOnError(int64 ResponseCode);
@@ -2145,30 +2203,26 @@ private:
 		ECachePolicy Policy,
 		uint64& OutWriteSize);
 
-	bool GetCacheValueOnly(
-		FStringView Name,
-		const FCacheKey& Key,
-		ECachePolicy Policy,
-		FValue& OutValue);
 	bool GetCacheValue(
 		FStringView Name,
 		const FCacheKey& Key,
 		ECachePolicy Policy,
-		FValue& OutValue);
+		FValue& OutValue,
+		FHttpRequest* ExistingHttpRequest = nullptr);
 
-	template<typename ValueType, typename ValuePrinterType>
-	bool TryGetCachedDataBatch(
-		FStringView Name,
-		const FCacheKey& Key,
+	template<typename ValueType, typename ValueHashGetterType, typename ValueDebugContextGetterType>
+	TBitArray<> TryGetCachedDataBatch(
 		TConstArrayView<ValueType> Values,
 		TArray<FCompressedBuffer>& OutBuffers,
-		ValuePrinterType ValuePrinter);
-	template<typename ValueType, typename ValuePrinterType>
-	bool CachedDataProbablyExistsBatch(
-		FStringView Name,
-		const FCacheKey& Key,
+		ValueHashGetterType ValueHashGetter,
+		ValueDebugContextGetterType ValueDebugContextGetter,
+		FHttpRequest* ExistingHttpRequest = nullptr);
+	template<typename ValueType, typename ValueHashGetterType, typename ValueDebugContextGetterType>
+	TBitArray<> CachedDataProbablyExistsBatch(
 		TConstArrayView<ValueType> Values,
-		ValuePrinterType ValuePrinter);
+		ValueHashGetterType ValueHashGetter,
+		ValueDebugContextGetterType ValueDebugContextGetter,
+		FHttpRequest* ExistingHttpRequest = nullptr);
 };
 
 FHttpCacheStore::FHttpCacheStore(
@@ -2714,6 +2768,8 @@ FOptionalCacheRecord FHttpCacheStore::GetCacheRecordOnly(
 		return FOptionalCacheRecord();
 	}
 
+	FScopedRequestPtr Request(GetRequestPools[IsInGameThread()].Get());
+
 	FOptionalCacheRecord Record;
 	{
 		FString Bucket(Key.Bucket.ToString());
@@ -2727,7 +2783,10 @@ FOptionalCacheRecord FHttpCacheStore::GetCacheRecordOnly(
 		int64 ResponseCode = 0;
 		for (uint32 Attempts = 0; (Attempts < UE_HTTPDDC_MAX_ATTEMPTS) && !ShouldAbortForShutdown() && (Attempts == 0 || ShouldRetryOnError(ResponseCode)); ++Attempts)
 		{
-			FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
+			if (Attempts > 0)
+			{
+				Request->Reset();
+			}
 
 			TArray<uint8> ByteArray;
 			Request->SetHeader(TEXT("Accept"), TEXT("application/x-ue-cb"));
@@ -2860,11 +2919,16 @@ bool FHttpCacheStore::PutCacheValue(
 		CompressedBlobsUri << "api/v1/compressed-blobs/" << StructuredNamespace << "/" << Value.GetRawHash();
 
 		FSharedBuffer TempBuffer = Value.GetData().GetCompressed().ToShared();
+		FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
 
 		int64 ResponseCode = 0;
 		for (uint32 Attempts = 0; (Attempts < UE_HTTPDDC_MAX_ATTEMPTS) && !ShouldAbortForShutdown() && (Attempts == 0 || ShouldRetryOnError(ResponseCode)); ++Attempts)
 		{
-			FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
+			if (Attempts > 0)
+			{
+				Request->Reset();
+			}
+
 			Request->PerformBlockingUpload<FHttpRequest::PutCompressedBlob>(*CompressedBlobsUri, MakeConstArrayView(TempBuffer));
 
 			ResponseCode = Request->GetResponseCode();
@@ -2883,11 +2947,12 @@ bool FHttpCacheStore::PutCacheValue(
 	return bPutCompletedSuccessfully && NeededBlobHashes.IsEmpty();
 }
 
-bool FHttpCacheStore::GetCacheValueOnly(
+bool FHttpCacheStore::GetCacheValue(
 	const FStringView Name,
 	const FCacheKey& Key,
 	const ECachePolicy Policy,
-	FValue& OutValue)
+	FValue& OutValue,
+	FHttpRequest* ExistingHttpRequest)
 {
 	if (!IsUsable())
 	{
@@ -2913,6 +2978,7 @@ bool FHttpCacheStore::GetCacheValueOnly(
 		return false;
 	}
 
+	const bool bSkipData = EnumHasAnyFlags(Policy, ECachePolicy::SkipData);
 
 	FString Bucket(Key.Bucket.ToString());
 	Bucket.ToLowerInline();
@@ -2920,15 +2986,37 @@ bool FHttpCacheStore::GetCacheValueOnly(
 	TStringBuilder<256> RefsUri;
 	RefsUri << "api/v1/refs/" << StructuredNamespace << "/" << Bucket << "/" << Key.Hash;
 
+	FHttpRequest* Request = ExistingHttpRequest;
+	TOptional<FScopedRequestPtr> RequestPoolRequest;
+	if (Request == nullptr)
+	{
+		RequestPoolRequest.Emplace(GetRequestPools[IsInGameThread()].Get());
+		Request = RequestPoolRequest->Get();
+	}
+	else
+	{
+		Request->Reset();
+	}
+
 	bool bIsSuccessfulResponse = false;
 	FSharedBuffer ResponseBuffer;
 	int64 ResponseCode = 0;
 	for (uint32 Attempts = 0; (Attempts < UE_HTTPDDC_MAX_ATTEMPTS) && !ShouldAbortForShutdown() && (Attempts == 0 || ShouldRetryOnError(ResponseCode)); ++Attempts)
 	{
-		FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
+		if (Attempts > 0)
+		{
+			Request->Reset();
+		}
 
 		TArray<uint8> ByteArray;
-		Request->SetHeader(TEXT("Accept"), TEXT("application/x-ue-cb"));
+		if (bSkipData)
+		{
+			Request->SetHeader(TEXT("Accept"), TEXT("application/x-ue-cb"));
+		}
+		else
+		{
+			Request->SetHeader(TEXT("Accept"), TEXT("application/x-jupiter-inline"));
+		}
 		Request->PerformBlockingDownload(*RefsUri, &ByteArray, { 401, 404 });
 		ResponseCode = Request->GetResponseCode();
 
@@ -2947,62 +3035,39 @@ bool FHttpCacheStore::GetCacheValueOnly(
 		return false;
 	}
 
-	if (ValidateCompactBinary(ResponseBuffer, ECbValidateMode::Default) != ECbValidateError::None)
+	if (bSkipData)
 	{
-		UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid package for %s from '%.*s'"),
-			*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
-		return false;
-	}
+		if (ValidateCompactBinary(ResponseBuffer, ECbValidateMode::Default) != ECbValidateError::None)
+		{
+			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid package for %s from '%.*s'"),
+				*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
+			return false;
+		}
 
-	FCbPackage Package;
-	Package.SetObject(FCbObject(ResponseBuffer));
-	const FCbObjectView Object = Package.GetObject();
-	const FIoHash RawHash = Object["RawHash"].AsHash();
-	const uint64 RawSize = Object["RawSize"].AsUInt64(MAX_uint64);
-	if (RawHash.IsZero() || RawSize == MAX_uint64)
+		const FCbObjectView Object = FCbObject(ResponseBuffer);
+		const FIoHash RawHash = Object["RawHash"].AsHash();
+		const uint64 RawSize = Object["RawSize"].AsUInt64(MAX_uint64);
+		if (RawHash.IsZero() || RawSize == MAX_uint64)
+		{
+			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid value for %s from '%.*s'"),
+				*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
+			return false;
+		}
+		OutValue = FValue(RawHash, RawSize);
+	}
+	else
 	{
-		UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid value for %s from '%.*s'"),
-			*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
-		return false;
+		FCompressedBuffer CompressedBuffer = FCompressedBuffer::FromCompressed(MoveTemp(ResponseBuffer));
+		if (!CompressedBuffer)
+		{
+			UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid package for %s from '%.*s'"),
+				*GetName(), *WriteToString<96>(Key), Name.Len(), Name.GetData());
+			return false;
+		}
+		OutValue = FValue(CompressedBuffer);
 	}
-
-	OutValue = FValue(RawHash, RawSize);
 
 	return true;
-}
-
-bool FHttpCacheStore::GetCacheValue(
-	const FStringView Name,
-	const FCacheKey& Key,
-	const ECachePolicy Policy,
-	FValue& OutValue)
-{
-	if (GetCacheValueOnly(Name, Key, Policy, OutValue))
-	{
-		if (IsValueDataReady(OutValue, Policy))
-		{
-			return true;
-		}
-
-		if (EnumHasAnyFlags(Policy, ECachePolicy::SkipData))
-		{
-			if (CachedDataProbablyExistsBatch<FValue>(Name, Key, {OutValue}, [](const FValue& Value) { return FString(TEXT("Default")); }))
-			{
-				return true;
-			}
-		}
-		else
-		{
-			TArray<FCompressedBuffer> Buffers;
-			if (TryGetCachedDataBatch<FValue>(Name, Key, {OutValue}, Buffers, [](const FValue& Value) { return FString(TEXT("Default")); }))
-			{
-				check(Buffers.Num() == 1);
-				OutValue = FValue(MoveTemp(Buffers[0]));
-				return true;
-			}
-		}
-	}
-	return false;
 }
 
 FOptionalCacheRecord FHttpCacheStore::GetCacheRecord(
@@ -3053,14 +3118,24 @@ FOptionalCacheRecord FHttpCacheStore::GetCacheRecord(
 		}
 	}
 
-	if (!CachedDataProbablyExistsBatch<FValueWithId>(Name, Key, RequiredHeads, [](const FValueWithId& Value) { return WriteToString<16>(Value.GetId()); }))
+	auto HashGetter = [](const FValueWithId& Value)
+	{
+		return Value.GetRawHash();
+	};
+
+	auto DebugContextGetter = [Name, &Key](const FValueWithId& Value)
+	{
+		return FValueDebugContext{ Name, Key, FString(*WriteToString<16>(Value.GetId())) };
+	};
+
+	if (CachedDataProbablyExistsBatch<FValueWithId>(RequiredHeads, HashGetter, DebugContextGetter).CountSetBits() != RequiredHeads.Num())
 	{
 		OutStatus = EStatus::Error;
 		return FOptionalCacheRecord();
 	}
 
 	TArray<FCompressedBuffer> FetchedBuffers;
-	if (!TryGetCachedDataBatch<FValueWithId>(Name, Key, RequiredGets, FetchedBuffers, [](const FValueWithId& Value) { return WriteToString<16>(Value.GetId()); }))
+	if (TryGetCachedDataBatch<FValueWithId>(RequiredGets, FetchedBuffers, HashGetter, DebugContextGetter).CountSetBits() != RequiredGets.Num())
 	{
 		OutStatus = EStatus::Error;
 		return FOptionalCacheRecord();
@@ -3079,17 +3154,32 @@ FOptionalCacheRecord FHttpCacheStore::GetCacheRecord(
 	return RecordBuilder.Build();
 }
 
-template<typename ValueType, typename ValuePrinterType>
-bool FHttpCacheStore::TryGetCachedDataBatch(
-	const FStringView Name,
-	const FCacheKey& Key,
+template<typename ValueType, typename ValueHashGetterType, typename ValueDebugContextGetterType>
+TBitArray<> FHttpCacheStore::TryGetCachedDataBatch(
 	TConstArrayView<ValueType> Values,
 	TArray<FCompressedBuffer>& OutBuffers,
-	ValuePrinterType ValuePrinter)
+	ValueHashGetterType ValueHashGetter,
+	ValueDebugContextGetterType ValueDebugContextGetter,
+	FHttpRequest* ExistingHttpRequest)
 {
+	FHttpRequest* Request = ExistingHttpRequest;
+	TOptional<FScopedRequestPtr> RequestPoolRequest;
+	if (Request == nullptr)
+	{
+		RequestPoolRequest.Emplace(GetRequestPools[IsInGameThread()].Get());
+		Request = RequestPoolRequest->Get();
+	}
+	else
+	{
+		Request->Reset();
+	}
+
+	bool bRequestNeedsReset = false;
+	TBitArray<> Results(true, Values.Num());
+	int32 ValueIndex = 0;
 	for (const ValueType& Value : Values)
 	{
-		const FIoHash& RawHash = Value.GetRawHash();
+		const FIoHash& RawHash = ValueHashGetter(Value);
 		TStringBuilder<256> CompressedBlobsUri;
 		CompressedBlobsUri << "api/v1/compressed-blobs/" << StructuredNamespace << "/" << RawHash;
 
@@ -3098,11 +3188,15 @@ bool FHttpCacheStore::TryGetCachedDataBatch(
 		int64 ResponseCode = 0;
 		for (uint32 Attempts = 0; (Attempts < UE_HTTPDDC_MAX_ATTEMPTS) && !ShouldAbortForShutdown() && (Attempts == 0 || ShouldRetryOnError(ResponseCode)); ++Attempts)
 		{
-			FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
+			if (bRequestNeedsReset)
+			{
+				Request->Reset();
+			}
 
 			TArray<uint8> ByteArray;
 			const FHttpRequest::Result Result = Request->PerformBlockingDownload(*CompressedBlobsUri, &ByteArray, {404});
 			ResponseCode = Request->GetResponseCode();
+			bRequestNeedsReset = true;
 
 			if (FHttpRequest::IsSuccessResponse(ResponseCode))
 			{
@@ -3114,67 +3208,128 @@ bool FHttpCacheStore::TryGetCachedDataBatch(
 
 		if (!bHit)
 		{
+			FValueDebugContext DebugContext = ValueDebugContextGetter(Value);
 			UE_LOG(LogDerivedDataCache, Verbose,
 				TEXT("%s: Cache miss with missing value %s with hash %s for %s from '%.*s'"),
-				*GetName(), *ValuePrinter(Value), *WriteToString<48>(RawHash), *WriteToString<96>(Key),
-				Name.Len(), Name.GetData());
-			return false;
+				*GetName(), *DebugContext.Id, *WriteToString<48>(RawHash), *WriteToString<96>(DebugContext.Key),
+				DebugContext.Name.Len(), DebugContext.Name.GetData());
+			Results[ValueIndex] = false;
 		}
 		else if (CompressedBuffer.GetRawHash() != RawHash)
 		{
+			FValueDebugContext DebugContext = ValueDebugContextGetter(Value);
 			UE_LOG(LogDerivedDataCache, Display,
 				TEXT("%s: Cache miss with corrupted value %s with hash %s for %s from '%.*s'"),
-				*GetName(), *ValuePrinter(Value), *WriteToString<48>(RawHash),
-				*WriteToString<96>(Key), Name.Len(), Name.GetData());
-			return false;
+				*GetName(), *DebugContext.Id, *WriteToString<48>(RawHash),
+				*WriteToString<96>(DebugContext.Key), DebugContext.Name.Len(), DebugContext.Name.GetData());
+			Results[ValueIndex] = false;
 		}
 		else
 		{
 			OutBuffers.Add(CompressedBuffer);
 		}
+		++ValueIndex;
 	}
-	return true;
+	return Results;
 }
 
-template<typename ValueType, typename ValuePrinterType>
-bool FHttpCacheStore::CachedDataProbablyExistsBatch(
-	const FStringView Name,
-	const FCacheKey& Key,
+template<typename ValueType, typename ValueHashGetterType, typename ValueDebugContextGetterType>
+TBitArray<> FHttpCacheStore::CachedDataProbablyExistsBatch(
 	TConstArrayView<ValueType> Values,
-	ValuePrinterType ValuePrinter)
+	ValueHashGetterType ValueHashGetter,
+	ValueDebugContextGetterType ValueDebugContextGetter,
+	FHttpRequest* ExistingHttpRequest)
 {
+	if (Values.IsEmpty())
+	{
+		return TBitArray<>();
+	}
+
+	FHttpRequest* Request = ExistingHttpRequest;
+	TOptional<FScopedRequestPtr> RequestPoolRequest;
+	if (Request == nullptr)
+	{
+		RequestPoolRequest.Emplace(GetRequestPools[IsInGameThread()].Get());
+		Request = RequestPoolRequest->Get();
+	}
+	else
+	{
+		Request->Reset();
+	}
+
+	TStringBuilder<256> CompressedBlobsUri;
+	CompressedBlobsUri << "api/v1/compressed-blobs/" << StructuredNamespace << "/exists?";
+	bool bFirstItem = true;
 	for (const ValueType& Value : Values)
 	{
-		const FIoHash& RawHash = Value.GetRawHash();
-		TStringBuilder<256> CompressedBlobsUri;
-		CompressedBlobsUri << "api/v1/compressed-blobs/" << StructuredNamespace << "/" << RawHash;
-
-		bool bIsHit = false;
-		int64 ResponseCode = 0;
-		for (uint32 Attempts = 0; (Attempts < UE_HTTPDDC_MAX_ATTEMPTS) && !ShouldAbortForShutdown() && (Attempts == 0 || ShouldRetryOnError(ResponseCode)); ++Attempts)
+		if (!bFirstItem)
 		{
-			FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
+			CompressedBlobsUri << "&";
+		}
+		CompressedBlobsUri << "id=" << ValueHashGetter(Value);
+		bFirstItem = false;
+	}
 
-			const FHttpRequest::Result Result = Request->PerformBlockingQuery<FHttpRequest::Head>(*CompressedBlobsUri, {404});
-			ResponseCode = Request->GetResponseCode();
-
-			if (FHttpRequest::IsSuccessResponse(ResponseCode) || ResponseCode == 404)
-			{
-				bIsHit = (Result == FHttpRequest::Success && FHttpRequest::IsSuccessResponse(ResponseCode));
-				break;
-			}
+	int64 ResponseCode = 0;
+	for (uint32 Attempts = 0; (Attempts < UE_HTTPDDC_MAX_ATTEMPTS) && !ShouldAbortForShutdown() && (Attempts == 0 || ShouldRetryOnError(ResponseCode)); ++Attempts)
+	{
+		if (Attempts > 0)
+		{
+			Request->Reset();
 		}
 
-		if (!bIsHit)
+		TConstArrayView<uint8> DummyBuffer;
+		const FHttpRequest::Result Result = Request->PerformBlockingUpload<FHttpRequest::Post>(*CompressedBlobsUri, DummyBuffer);
+		ResponseCode = Request->GetResponseCode();
+
+		if (FHttpRequest::IsSuccessResponse(ResponseCode))
 		{
-			UE_LOG(LogDerivedDataCache, Verbose,
-				TEXT("%s: Cache miss with missing value %s with hash %s for %s from '%.*s'"),
-				*GetName(), *ValuePrinter(Value), *WriteToString<48>(RawHash), *WriteToString<96>(Key),
-				Name.Len(), Name.GetData());
-			return false;
+			if (TSharedPtr<FJsonObject> ResponseObject = Request->GetResponseAsJsonObject())
+			{
+				TArray<FString> NeedsArrayStrings;
+				if (ResponseObject->TryGetStringArrayField(TEXT("needs"), NeedsArrayStrings))
+				{
+					if (NeedsArrayStrings.IsEmpty())
+					{
+						return TBitArray<>(true, Values.Num());
+					}
+				}
+
+				TBitArray<> Results(true, Values.Num());
+				for (const FString& NeedsString : NeedsArrayStrings)
+				{
+					FIoHash NeedHash;
+					LexFromString(NeedHash, *NeedsString);
+					for (int32 ValueIndex = 0; ValueIndex < Values.Num(); ++ValueIndex)
+					{
+						if (NeedHash == ValueHashGetter(Values[ValueIndex]))
+						{
+							Results[ValueIndex] = false;
+
+							FValueDebugContext DebugContext = ValueDebugContextGetter(Values[ValueIndex]);
+							UE_LOG(LogDerivedDataCache, Verbose,
+								TEXT("%s: Cache exists miss with missing value %s with hash %s for %s from '%.*s'"),
+								*GetName(), *DebugContext.Id, *NeedsString, *WriteToString<96>(DebugContext.Key),
+								DebugContext.Name.Len(), DebugContext.Name.GetData());
+						}
+					}
+				}
+
+				return Results;
+			}
+			else
+			{
+				UE_LOG(LogDerivedDataCache, Warning,
+					TEXT("%s: Cache exists returned invalid results."),
+					*GetName());
+				return TBitArray<>(false, Values.Num());
+			}
+
+			return TBitArray<>(false, Values.Num());
 		}
 	}
-	return true;
+
+	return TBitArray<>(false, Values.Num());
 }
 
 bool FHttpCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
@@ -3610,23 +3765,46 @@ void FHttpCacheStore::GetValue(
 	IRequestOwner& Owner,
 	FOnCacheGetValueComplete&& OnComplete)
 {
+	COOK_STAT(double StartTime = FPlatformTime::Seconds());
+	COOK_STAT(bool bIsInGameThread = IsInGameThread());
+
+	FScopedRequestPtr HttpRequest(GetRequestPools[IsInGameThread()].Get());
+	int64 HitBytes = 0;
+
 	for (const FCacheGetValueRequest& Request : Requests)
 	{
-		COOK_STAT(auto Timer = UsageStats.TimeGet());
 		FValue Value;
-		if (GetCacheValue(Request.Name, Request.Key, Request.Policy, Value))
+		if (!GetCacheValue(Request.Name, Request.Key, Request.Policy, Value, HttpRequest.Get()))
 		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%s'"),
-				*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
-			TRACE_COUNTER_ADD(HttpDDC_BytesReceived, Value.GetData().GetCompressedSize());
-			COOK_STAT(Timer.AddHit(Value.GetData().GetCompressedSize()));
-			OnComplete({Request.Name, Request.Key, Value, Request.UserData, EStatus::Ok});
+			COOK_STAT(UsageStats.GetStats.Accumulate(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Counter, 1l, bIsInGameThread));
+			OnComplete(Request.MakeResponse(EStatus::Error));
 		}
 		else
 		{
-			OnComplete(Request.MakeResponse(EStatus::Error));
+			if (!IsValueDataReady(Value, Request.Policy) && !EnumHasAnyFlags(Request.Policy, ECachePolicy::SkipData))
+			{
+				// With inline fetching, expect we will always have a value we can use.  Even SkipData/Exists can rely on the blob existing if the ref is reported to exist.
+				UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Cache miss due to inlining failure for %s from '%s'"),
+					*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
+				COOK_STAT(UsageStats.GetStats.Accumulate(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Counter, 1l, bIsInGameThread));
+				OnComplete(Request.MakeResponse(EStatus::Error));
+			}
+			else
+			{
+				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for %s from '%s'"),
+					*GetName(), *WriteToString<96>(Request.Key), *Request.Name);
+				uint64 ValueSize = Value.GetData().GetCompressedSize();
+				TRACE_COUNTER_ADD(HttpDDC_BytesReceived, ValueSize);
+				HitBytes += ValueSize;
+				COOK_STAT(UsageStats.GetStats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter, 1l, bIsInGameThread));
+				OnComplete({ Request.Name, Request.Key, Value, Request.UserData, EStatus::Ok });
+			}
 		}
 	}
+
+	COOK_STAT(const int64 CyclesUsed = int64((FPlatformTime::Seconds() - StartTime) / FPlatformTime::GetSecondsPerCycle()));
+	COOK_STAT(UsageStats.GetStats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles, CyclesUsed, bIsInGameThread));
+	COOK_STAT(UsageStats.GetStats.Accumulate(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes, HitBytes, bIsInGameThread));
 }
 
 void FHttpCacheStore::GetChunks(
@@ -3687,8 +3865,18 @@ void FHttpCacheStore::GetChunks(
 					}
 					else
 					{
+						auto HashGetter = [](const FValueWithId& Value)
+						{
+							return Value.GetRawHash();
+						};
+
+						auto DebugContextGetter = [&Request](const FValueWithId& Value)
+						{
+							return FValueDebugContext{ Request.Name, Request.Key, FString(*WriteToString<16>(Value.GetId())) };
+						};
+
 						TArray<FCompressedBuffer> ValueBuffers;
-						if (TryGetCachedDataBatch<FValueWithId>(Request.Name, Request.Key, ::MakeArrayView({ ValueWithId }), ValueBuffers, [](const FValueWithId& Value) { return WriteToString<16>(Value.GetId()); }))
+						if (TryGetCachedDataBatch<FValueWithId>(::MakeArrayView({ ValueWithId }), ValueBuffers, HashGetter, DebugContextGetter).CountSetBits() == 1)
 						{
 							ValueBuffer = ValueBuffers[0];
 							ValueReader.SetSource(ValueBuffer);
@@ -3704,15 +3892,25 @@ void FHttpCacheStore::GetChunks(
 			else
 			{
 				ValueKey = Request.Key;
-				bHasValue = GetCacheValueOnly(Request.Name, Request.Key, Request.Policy, Value);
+				bHasValue = GetCacheValue(Request.Name, Request.Key, Request.Policy, Value);
 				if (IsValueDataReady(Value, Request.Policy))
 				{
 					ValueReader.SetSource(Value.GetData());
 				}
 				else
 				{
+					auto HashGetter = [](const FValue& Value)
+					{
+						return Value.GetRawHash();
+					};
+
+					auto DebugContextGetter = [&Request](const FValue& Value)
+					{
+						return FValueDebugContext{ Request.Name, Request.Key, FString(TEXT("Default")) };
+					};
+
 					TArray<FCompressedBuffer> ValueBuffers;
-					if (TryGetCachedDataBatch<FValue>(Request.Name, Request.Key, { Value }, ValueBuffers, [](const FValue& Value) { return FString(TEXT("Default")); }))
+					if (TryGetCachedDataBatch<FValue>({ Value }, ValueBuffers, HashGetter, DebugContextGetter).CountSetBits() == 1)
 					{
 						ValueBuffer = ValueBuffers[0];
 						ValueReader.SetSource(ValueBuffer);

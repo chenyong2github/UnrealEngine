@@ -846,7 +846,7 @@ public:
 		FString OAuthProvider;
 		FString OAuthClientId;
 		FString OAuthSecret;
-		EBackendLegacyMode LegacyMode = EBackendLegacyMode::ValueWithLegacyFallback;
+		EBackendLegacyMode LegacyMode = EBackendLegacyMode::ValueOnly;
 		bool bReadOnly = false;
 
 		ParseHttpCacheParams(NodeName, Entry, IniFilename, IniSection, Host, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, LegacyMode, bReadOnly);
