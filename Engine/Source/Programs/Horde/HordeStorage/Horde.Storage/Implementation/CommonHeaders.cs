@@ -8,5 +8,7 @@ namespace Horde.Storage.Implementation
         public const string HashHeaderName = "X-Jupiter-IoHash";
 
         public const string LastAccessHeaderName = "X-Jupiter-LastAccess";
+
+        public const string InlinePayloadHash = "X-Jupiter-InlinePayloadHash";
     }
 }
