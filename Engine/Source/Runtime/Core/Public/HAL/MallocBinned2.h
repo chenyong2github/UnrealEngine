@@ -15,6 +15,7 @@
 #include "HAL/Allocators/PooledVirtualMemoryAllocator.h"
 #include "HAL/PlatformMath.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Misc/Fork.h"
 #include "Templates/Atomic.h"
 
 #define BINNED2_MAX_CACHED_OS_FREES (64)
