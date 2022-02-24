@@ -86,6 +86,7 @@ namespace DistortionRenderingUtils
 				RHICmdList.CopyToStagingBuffer(UndistortedPointsBuffer.Buffer, DestinationStagingBuffer, 0, BufferSize);
 
 				// Wait to ensure that the staging buffer is ready to read
+				RHICmdList.SubmitCommandsAndFlushGPU();
 				RHICmdList.BlockUntilGPUIdle();
 
 				// Copy data out of the staging buffer
