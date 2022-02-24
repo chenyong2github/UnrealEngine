@@ -33,6 +33,8 @@ class NIAGARAVERTEXFACTORIES_API FNiagaraGPURayTracingTransformsCS : public FGlo
 		SHADER_PARAMETER(uint32,	CPUNumInstances)
 		SHADER_PARAMETER(uint32,	InstanceCountOffset)
 
+		SHADER_PARAMETER(FVector3f,	SystemLWCTile)
+
 		SHADER_PARAMETER(uint32,	PositionDataOffset)
 		SHADER_PARAMETER(uint32,	RotationDataOffset)
 		SHADER_PARAMETER(uint32,	ScaleDataOffset)

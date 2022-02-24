@@ -16,6 +16,8 @@ uint	ParticleDataIntStride;
 uint	CPUNumInstances;
 uint	InstanceCountOffset;
 
+float3	SystemLWCTile;
+
 uint	PositionDataOffset;
 uint	RotationDataOffset;
 uint	ScaleDataOffset;
@@ -73,6 +75,10 @@ float4 SafeGetVec4(int RegisterIndex, uint InstanceID, float4 DefaultValue)
 #define THREADGROUP_SIZE 1
 #endif
 
+// TODO: This doesn't take a lot of features into account that are needed to solve for a Niagara mesh's transform.
+// See NiagaraCalculateMeshParticleTransforms in NiagaraMeshParticleUtils.ush for exactly what all goes into it.
+// In an upcoming update, this shader should be deprecated and instead, RayTracing should be getting transforms
+// from GPU Scene so this work doesn't have to be duplicated.
 [numthreads(THREADGROUP_SIZE,1,1)]
 void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -87,7 +93,9 @@ void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThread
 	float4x4 InstanceTransformTransposed = 0;
 	if (InstanceIndex < GPUNumInstances)
 	{
-		float3 InstancePosition = SafeGetVec3(PositionDataOffset, InstanceIndex, DefaultPosition);
+		float3 InstanceSimPosition = SafeGetVec3(PositionDataOffset, InstanceIndex, DefaultPosition);
+		// LWC_TODO: Precision loss
+		float3 InstancePosition = bLocalSpace ? InstanceSimPosition : LWCHackToFloat(MakeLWCVector3(SystemLWCTile, InstanceSimPosition));
 		float4 InstanceRotation = NiagaraQuatMul(SafeGetVec4(RotationDataOffset, InstanceIndex, DefaultRotation), MeshRotation);
 		float3 InstanceScale    = SafeGetVec3(ScaleDataOffset, InstanceIndex, DefaultScale) * MeshScale;
 
@@ -107,6 +115,10 @@ void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThread
 		if ( MeshIndexOffset != -1 )
 		{
 			bInstanceValid &= GetInt(MeshIndexOffset, InstanceIndex) == MeshIndexValue;
+		}
+		else
+		{
+			bInstanceValid &= MeshIndexValue == 0;
 		}
 
 		if ( bInstanceValid )

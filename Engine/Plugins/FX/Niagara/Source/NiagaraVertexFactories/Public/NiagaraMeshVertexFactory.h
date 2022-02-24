@@ -72,7 +72,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraMeshCommonParameters, NIAGARAVERTEXFACTORI
 	SHADER_PARAMETER(FVector4f, DefaultPrevRotation)
 	SHADER_PARAMETER(FVector3f, DefaultPrevPosition)
 	SHADER_PARAMETER(FVector3f, DefaultPrevVelocity)
-	SHADER_PARAMETER(float, DefaultPrevCameraOffset)	
+	SHADER_PARAMETER(float, DefaultPrevCameraOffset)
 END_SHADER_PARAMETER_STRUCT()
 
 /**
@@ -130,6 +130,7 @@ public:
 		: FNiagaraVertexFactoryBase(InType, InFeatureLevel)
 		, MeshIndex(-1)
 		, LODIndex(-1)
+		, bAddPrimitiveIDElement(true)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataStride(0)
 	{}
@@ -138,6 +139,7 @@ public:
 		: FNiagaraVertexFactoryBase(NVFT_MAX, ERHIFeatureLevel::Num)
 		, MeshIndex(-1)
 		, LODIndex(-1)
+		, bAddPrimitiveIDElement(true)
 		, InstanceVerticesCPU(nullptr)
 		, FloatDataStride(0)
 	{}
@@ -200,12 +202,6 @@ public:
 	{
 		return Data.NumTexCoords;
 	}
-	
-	/**
-	* Copy the data from another vertex factory
-	* @param Other - factory to copy from
-	*/
-	void Copy(const FNiagaraMeshVertexFactory& Other);
 
 	// FRenderResource interface.
 	virtual void InitRHI() override;
@@ -215,11 +211,15 @@ public:
 
 	int32 GetLODIndex() const { return LODIndex; }
 	void SetLODIndex(int32 InLODIndex) { LODIndex = InLODIndex; }
+
+	bool IsPrimitiveIDElementEnabled() const { return bAddPrimitiveIDElement; }
+	void EnablePrimitiveIDElement(bool bEnable) { bAddPrimitiveIDElement = bEnable; }
 	
 protected:
 	FStaticMeshDataType Data;
 	int32 MeshIndex;	
-	int32 LODIndex;	
+	int32 LODIndex;
+	bool bAddPrimitiveIDElement;
 
 	/** Uniform buffer with mesh particle parameters. */
 	FRHIUniformBuffer* MeshParticleUniformBuffer;
