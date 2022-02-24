@@ -108,7 +108,10 @@ TSharedRef<SWidget> SDMXFixturePatchTree::GenerateAddNewEntityButton()
 			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
 			.ForegroundColor(FLinearColor::White)
 			.ToolTipText(AddButtonToolTip)
-			.OnComboBoxOpened(FOnComboBoxOpened::CreateLambda([this]() { AddButtonDropdownList->ClearSelection(); }));
+			.OnComboBoxOpened(FOnComboBoxOpened::CreateLambda([this]() 
+				{ 
+					AddButtonDropdownList->RefreshEntitiesList();
+				}));
 
 	AddButtonDropdownList->SetComboButton(AddComboButton);
 
