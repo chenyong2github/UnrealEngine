@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "AssetRegistryExportCommandlet.h"
 
 #include "AssetData.h"
