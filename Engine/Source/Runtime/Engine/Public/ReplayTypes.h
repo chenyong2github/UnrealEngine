@@ -253,13 +253,7 @@ struct FDeltaCheckpointData
 	/** Channels closed that were open in the previous checkpoint, and the reason why */
 	TMap<FNetworkGUID, EChannelCloseReason> ChannelsToClose;
 
-	void CountBytes(FArchive& Ar) const
-	{
-		RecordingDeletedNetStartupActors.CountBytes(Ar);
-		DestroyedNetStartupActors.CountBytes(Ar);
-		DestroyedDynamicActors.CountBytes(Ar);
-		ChannelsToClose.CountBytes(Ar);
-	}
+	void CountBytes(FArchive& Ar) const;
 };
 
 class FRepActorsCheckpointParams

@@ -302,16 +302,7 @@ private:
 
 		TMap<FName, uint32> NameTableMap;
 
-		void CountBytes(FArchive& Ar) const
-		{
-			CheckpointAckState.CountBytes(Ar);
-			PendingCheckpointActors.CountBytes(Ar);
-			DeltaCheckpointData.CountBytes(Ar);
-			DeltaChannelCloseKeys.CountBytes(Ar);
-			NetGuidCacheSnapshot.CountBytes(Ar);
-			CheckpointDeletedNetStartupActors.CountBytes(Ar);
-			NameTableMap.CountBytes(Ar);
-		}
+		void CountBytes(FArchive& Ar) const;
 	};
 
 	FCheckpointSaveStateContext CheckpointSaveContext;

@@ -1613,6 +1613,29 @@ bool FReplayHelper::SetExternalDataForObject(UNetConnection* Connection, UObject
 	return false;
 }
 
+void FDeltaCheckpointData::CountBytes(FArchive& Ar) const
+{
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FDeltaCheckpointData::CountBytes");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RecordingDeletedNetStartupActors", RecordingDeletedNetStartupActors.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DestroyedNetStartupActors", DestroyedNetStartupActors.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DestroyedDynamicActors", DestroyedDynamicActors.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ChannelsToClose", ChannelsToClose.CountBytes(Ar));
+}
+
+void FReplayHelper::FCheckpointSaveStateContext::CountBytes(FArchive& Ar) const
+{
+	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FCheckpointSaveStateContext::CountBytes");
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CheckpointAckState", CheckpointAckState.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("PendingCheckpointActors", PendingCheckpointActors.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DeltaCheckpointData", DeltaCheckpointData.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DeltaChannelCloseKeys", DeltaChannelCloseKeys.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NetGuidCacheSnapshot", NetGuidCacheSnapshot.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CheckpointDeletedNetStartupActors", CheckpointDeletedNetStartupActors.CountBytes(Ar));
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("NameTableMap", NameTableMap.CountBytes(Ar));
+}
+
 void FReplayHelper::Serialize(FArchive& Ar)
 {
 	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FReplayHelper::Serialize");
