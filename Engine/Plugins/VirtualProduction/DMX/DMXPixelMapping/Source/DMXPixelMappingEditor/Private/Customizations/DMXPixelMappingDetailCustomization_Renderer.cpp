@@ -7,6 +7,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
+#include "SWarningOrErrorBox.h"
 #include "Engine/Texture.h"
 #include "Layout/Visibility.h"
 #include "Materials/Material.h"
@@ -16,61 +17,6 @@
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingDetailCustomization_Renderer"
 
-/**
- * Renderer editor warning message widget
- */
-class SRendererCustomizationWarningMessage
-	: public SCompoundWidget
-{
-public:
-	SLATE_BEGIN_ARGS(SRendererCustomizationWarningMessage)
-		: _WarningText(FText::GetEmpty())
-		{}
-
-		SLATE_ATTRIBUTE(FText, WarningText)
-
-	SLATE_END_ARGS()
-
-	/**
-	 * Construct this widget
-	 *
-	 * @param	InArgs	The declaration data for this widget
-	 */
-	void Construct( const FArguments& InArgs )
-	{
-		const FSlateBrush* WarningIcon = FEditorStyle::GetBrush("SettingsEditor.WarningIcon");
-
-		ChildSlot
-		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
-			.BorderBackgroundColor(FColor (166,137,0))
-			[
-				SNew(SHorizontalBox)
-				.Visibility(EVisibility::Visible)
-
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-				[
-					SNew(SImage)
-					.Image(WarningIcon)
-				]
-
-				+SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-				[
-					SNew(STextBlock)
-					.Text(InArgs._WarningText)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-			]
-		];
-	}
-};
 
 void FDMXPixelMappingDetailCustomization_Renderer::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
@@ -216,8 +162,9 @@ void FDMXPixelMappingDetailCustomization_Renderer::AddInputTextureWarning(IDetai
 			.Visibility(TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_Renderer::GetInputTextureWarning))
 			.WholeRowContent()
 			[
-				SNew(SRendererCustomizationWarningMessage)
-					.WarningText(this, &FDMXPixelMappingDetailCustomization_Renderer::GetInputTextureWarningText)
+				SNew(SWarningOrErrorBox)
+				.MessageStyle(EMessageStyle::Warning)
+				.Message(this, &FDMXPixelMappingDetailCustomization_Renderer::GetInputTextureWarningText)
 			];
 }
 
@@ -227,8 +174,9 @@ void FDMXPixelMappingDetailCustomization_Renderer::AddMaterialWarning(IDetailCat
 			.Visibility(TAttribute<EVisibility>(this, &FDMXPixelMappingDetailCustomization_Renderer::GetMaterialWarningVisibility))
 			.WholeRowContent()
 			[
-				SNew(SRendererCustomizationWarningMessage)
-					.WarningText(LOCTEXT("WarningNonUIMaterial", "This is not UI Material.\nChange Material Domain to User Interface.\nOr select another Material."))
+				SNew(SWarningOrErrorBox)
+				.MessageStyle(EMessageStyle::Warning)
+				.Message(LOCTEXT("WarningNonUIMaterial", "Selected Material is not UI Material.\nChange Material Domain to User Interface.\nOr select another Material."))
 			];
 }
 

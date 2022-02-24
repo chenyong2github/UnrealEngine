@@ -8,27 +8,27 @@ public class DMXPixelMappingEditor : ModuleRules
 	public DMXPixelMappingEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateDependencyModuleNames.AddRange( new string[] {
+			"ApplicationCore",
 			"Core",
 			"CoreUObject",
-			"Engine",
-			"UnrealEd",
-			"Slate",
-			"SlateCore",
-			"EditorStyle",
-			"InputCore",
-			"PropertyEditor",
-			"RHI",
-			"RenderCore",
-			"EditorStyle",
-			"Projects",
-			"DMXRuntime",
 			"DMXEditor",
 			"DMXPixelMappingCore",
 			"DMXPixelMappingEditorWidgets",
 			"DMXPixelMappingRuntime",
 			"DMXPixelMappingRenderer",
 			"DMXPixelMappingBlueprintGraph",
-			"ApplicationCore"
+			"DMXRuntime",
+			"EditorStyle",
+			"Engine",
+			"InputCore",
+			"Projects",
+			"PropertyEditor",
+			"RenderCore",
+			"RHI",
+			"Slate",
+			"SlateCore",
+			"ToolWidgets",
+			"UnrealEd",
 		});
 	}
 }
