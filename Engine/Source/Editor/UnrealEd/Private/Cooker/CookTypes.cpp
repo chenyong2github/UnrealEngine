@@ -31,6 +31,11 @@ double FCookerTimer::GetTimeTillNow() const
 	return FPlatformTime::Seconds() - StartTime;
 }
 
+double FCookerTimer::GetEndTimeSeconds() const
+{
+	return bIsRealtimeMode ? StartTime + TimeSlice : MAX_flt;
+}
+
 bool FCookerTimer::IsTimeUp() const
 {
 	return IsTimeUp(FPlatformTime::Seconds());

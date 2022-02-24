@@ -1005,21 +1005,11 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 			DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "CookByTheBook.MainLoop" ), STAT_CookByTheBook_MainLoop, STATGROUP_LoadTime );
 			{
 				uint32 TickResults = 0;
-				const float CookOnTheSideTimeSlice = 10.0f;
 				uint32 UnusedVariable = 0;
 
-				TickResults = CookOnTheFlyServer->TickCookOnTheSide( CookOnTheSideTimeSlice, UnusedVariable,
-					ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay );
+				TickResults = CookOnTheFlyServer->TickCookOnTheSide( MAX_flt, UnusedVariable,
+					ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay, MAX_int32);
 
-				{
-					UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_ShaderProcessAsync, DetailedCookStats::TickLoopShaderProcessAsyncResultsTimeSec);
-					GShaderCompilingManager->ProcessAsyncResults(true, false);
-				}
-				{
-					UE_SCOPED_COOKTIMER(CookByTheBook_TickAssetRegistry);
-					FAssetRegistryModule::TickAssetRegistry(-1.0f);
-				}
-				
 				if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC) != 0)
 				{
 					FString GCReason;
@@ -1097,16 +1087,6 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 
 					DumpMemStats();
 				}
-
-				{
-					UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_ProcessDeferredCommands, DetailedCookStats::TickLoopProcessDeferredCommandsTimeSec);
-					ProcessDeferredCommands();
-				}
-			}
-
-			{
-				UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_TickCommandletStats, DetailedCookStats::TickLoopTickCommandletStatsTimeSec);
-				FStats::TickCommandletStats();
 			}
 		}
 	} while (bTestCook);

@@ -328,6 +328,7 @@ private:
 		SaveLimited,	// Process the SaveQueue, stopping when savequeuelength reaches the desired population level
 		Poll,			// Execute pollables which have exceeded their period
 		PollIdle,		// Execute pollables which have exceeded their idle period
+		WaitForAsync,	// Sleep for a time slice while we wait for async tasks to complete
 		YieldTick,		// Progress is blocked by an async result. Temporarily exit TickCookOnTheSide.
 		Cancel,			// Cancel the current CookByTheBook
 	};
@@ -387,6 +388,7 @@ private:
 	TOptional<FPollable> CreatePollableLLM();
 	TOptional<FPollable> CreatePollableTriggerGC();
 	void PollPackagesPerGC(UE::Cook::FTickStackData& StackData);
+	void WaitForAsync(UE::Cook::FTickStackData& StackData);
 
 public:
 
@@ -512,7 +514,7 @@ public:
 	* 
 	* @return returns ECookOnTheSideResult
 	*/
-	uint32 TickCookOnTheSide( const float TimeSlice, uint32 &CookedPackagesCount, ECookTickFlags TickFlags = ECookTickFlags::None );
+	uint32 TickCookOnTheSide( const float TimeSlice, uint32 &CookedPackagesCount, ECookTickFlags TickFlags = ECookTickFlags::None, int32 InMaxNumPackagesToSave = 50);
 
 	/**
 	* Clear all the previously cooked data all cook requests from now on will be considered recook requests
@@ -1168,6 +1170,7 @@ private:
 	float PumpPollablesTimeSlice = 0.f;
 	float PumpPollablesMinPeriod = 0.f;
 	uint32 CookedPackageCountSinceLastGC = 0;
+	float WaitForAsyncSleepSeconds = 0.0f;
 	friend UE::Cook::FPackageData;
 	friend UE::Cook::FPendingCookedPlatformData;
 	friend UE::Cook::FPlatformManager;

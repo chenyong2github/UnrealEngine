@@ -137,6 +137,7 @@ namespace UE::Cook
 		FCookerTimer(ENoWait);
 
 		double GetTimeTillNow() const;
+		double GetEndTimeSeconds() const;
 		bool IsTimeUp() const;
 		bool IsTimeUp(double CurrentTimeSeconds) const;
 		void SavedPackage();
@@ -166,8 +167,8 @@ namespace UE::Cook
 		/** CookFlags describing details of the caller's desired behavior of the current TickCookOnTheSide request. */
 		ECookTickFlags TickFlags;
 
-		explicit FTickStackData(const float& TimeSlice, const bool bIsRealtimeMode, ECookTickFlags InTickFlags)
-			:Timer(TimeSlice, bIsRealtimeMode), TickFlags(InTickFlags)
+		explicit FTickStackData(const float& TimeSlice, const bool bIsRealtimeMode, ECookTickFlags InTickFlags, int32 InMaxNumPackagesToSave)
+			:Timer(TimeSlice, bIsRealtimeMode, InMaxNumPackagesToSave), TickFlags(InTickFlags)
 		{
 		}
 	};
