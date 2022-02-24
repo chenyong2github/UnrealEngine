@@ -1835,7 +1835,8 @@ void FCollectionManager::LoadCollections()
 
 	FRWLock CollectionLock;
 	ParallelFor(
-		ECollectionShareType::CST_All,
+		TEXT("LoadCollections.PF"),
+		ECollectionShareType::CST_All,1,
 		[this, &CollectionLock](int32 CacheIdx)
 		{
 			const ECollectionShareType::Type ShareType = ECollectionShareType::Type(CacheIdx);
@@ -1847,7 +1848,8 @@ void FCollectionManager::LoadCollections()
 			IFileManager::Get().FindFiles(Filenames, *WildCard, true, false);
 
 			ParallelFor(
-				Filenames.Num(),
+				TEXT("LoadCollections.PF"),
+				Filenames.Num(),1,
 				[this, &CollectionLock, &Filenames, &CollectionFolder, bUseSCC, ShareType](int32 FilenameIdx)
 				{
 					const FString& BaseFilename = Filenames[FilenameIdx];

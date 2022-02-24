@@ -139,7 +139,7 @@ public:
 	template <typename Lambda>
 	void ParallelForEachProxy(const Lambda& Func)
 	{
-		::ParallelFor(DirtyProxyBucketInfo.TotalNum,[this,&Func](int32 Idx)
+		::ParallelFor( TEXT("Chaos.PF"),DirtyProxyBucketInfo.TotalNum,1, [this,&Func](int32 Idx)
 		{
 			int32 BucketIdx, InnerIdx;
 			DirtyProxyBucketInfo.GetBucketIdx(Idx, BucketIdx, InnerIdx);

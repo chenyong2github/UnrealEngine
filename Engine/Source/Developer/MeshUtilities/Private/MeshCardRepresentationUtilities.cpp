@@ -550,6 +550,8 @@ void GenerateSurfels(
 	FSurfelScene& SurfelScene,
 	FClusteringParams& ClusteringParams)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateSurfels);
+
 	const uint32 NumSourceVertices = Context.EmbreeScene.Geometry.VertexArray.Num();
 	const uint32 NumSourceIndices = Context.EmbreeScene.Geometry.IndexArray.Num();
 	const int32 NumSourceTriangles = NumSourceIndices / 3;
@@ -645,7 +647,7 @@ void GenerateSurfels(
 	const int32 DebugSurfelDirection = MeshCardRepresentation::GetDebugSurfelDirection();
 
 	const bool bSingleThreaded = CVarCardRepresentationParallelBuild.GetValueOnAnyThread() == 0;
-	ParallelFor(MeshCardGen::NumAxisAlignedDirections,
+	ParallelFor( TEXT("GenerateSurfels.PF"), MeshCardGen::NumAxisAlignedDirections,1,
 		[&](int32 AxisAlignedDirectionIndex)
 		{
 			if (DebugSurfelDirection < 0 || DebugSurfelDirection == AxisAlignedDirectionIndex)
@@ -660,7 +662,7 @@ void GenerateSurfels(
 					SurfelScenePerDirection
 				);
 			}			
-		}, bSingleThreaded);
+		}, bSingleThreaded? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 
 	ClusteringParams.VoxelSize = VoxelSize;
 	ClusteringParams.MaxSurfelDistanceXY = MeshCardRepresentation::GetMaxSurfelDistanceXY();
@@ -1038,7 +1040,7 @@ void BuildMeshCardsLOD1(const FBox& MeshBounds, const FGenerateCardMeshContext& 
 
 	// Generate initial list of clusters
 	const bool bSingleThreaded = CVarCardRepresentationParallelBuild.GetValueOnAnyThread() == 0;
-	ParallelFor(MeshCardGen::NumAxisAlignedDirections,
+	ParallelFor( TEXT("BuildMeshCardsLOD1.PF"), MeshCardGen::NumAxisAlignedDirections,1,
 		[&](int32 AxisAlignedDirectionIndex)
 		{
 			const FSurfelScenePerDirection& SurfelScenePerDirection = SurfelScene.Directions[AxisAlignedDirectionIndex];
@@ -1088,13 +1090,13 @@ void BuildMeshCardsLOD1(const FBox& MeshBounds, const FGenerateCardMeshContext& 
 					break;
 				}
 			}
-		}, bSingleThreaded);
+		}, bSingleThreaded? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 
 	LimitClusters(ClusteringParams, SurfelScene, LODLevel);
 
 	if (LODLevel.NeedToReGrow())
 	{
-		ParallelFor(MeshCardGen::NumAxisAlignedDirections,
+		ParallelFor( TEXT("BuildMeshCardsLOD1.PF"), MeshCardGen::NumAxisAlignedDirections,1,
 			[&](int32 AxisAlignedDirectionIndex)
 			{
 				if (LODLevel.Directions[AxisAlignedDirectionIndex].bNeedsToReGrow)
@@ -1131,7 +1133,7 @@ void BuildMeshCardsLOD1(const FBox& MeshBounds, const FGenerateCardMeshContext& 
 						}
 					}
 				}
-			}, bSingleThreaded);
+			}, bSingleThreaded? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 	}
 
 	UpdateLODLevelCoverage(SurfelScene, ClusteringParams, LODLevel);

@@ -7373,6 +7373,8 @@ static inline FShader* ProcessCompiledJob(FShaderCompileJob* SingleJob, const FS
 
 void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJobPtr>& CompilationResults)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompiledGlobalShaders);
+
 	UE_LOG(LogShaders, Verbose, TEXT("Compiled %u global shaders"), CompilationResults.Num());
 
 	TArray<EShaderPlatform> ShaderPlatformsProcessed;

@@ -1324,7 +1324,7 @@ public:
 
 		// Iterate over all objects. Note that we iterate over the UObjectArray and usually check only internal flags which
 		// are part of the array so we don't suffer from cache misses as much as we would if we were to check ObjectFlags.
-		ParallelFor(NumThreads, [ObjectsToSerializeArrays, &ClustersToDissolveList, &KeepClusterRefsList, FastKeepFlags, KeepFlags, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
+		ParallelFor( TEXT("GarbageCollection.PF"),NumThreads,1, [ObjectsToSerializeArrays, &ClustersToDissolveList, &KeepClusterRefsList, FastKeepFlags, KeepFlags, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(MarkObjectsAsUnreachableTask);
 			int32 FirstObjectIndex = ThreadIndex * NumberOfObjectsPerThread + GUObjectArray.GetFirstGCIndex();
@@ -1436,7 +1436,7 @@ public:
 			}
 
 			GObjectCountDuringLastMarkPhase.Add(ObjectCountDuringMarkPhase);
-		}, !bParallel);
+		}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 		
 		// Collect all objects to serialize from all threads and put them into a single array
 		{
@@ -2109,7 +2109,7 @@ void GatherUnreachableObjects(bool bForceSingleThreaded)
 
 	// Iterate over all objects. Note that we iterate over the UObjectArray and usually check only internal flags which
 	// are part of the array so we don't suffer from cache misses as much as we would if we were to check ObjectFlags.
-	ParallelFor(NumThreads, [&ClusterItemsToDestroy, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
+	ParallelFor( TEXT("GarbageCollection.PF"),NumThreads,1, [&ClusterItemsToDestroy, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherUnreachableObjectsTask);
 		int32 FirstObjectIndex = ThreadIndex * NumberOfObjectsPerThread + (GExitPurge ? 0 : GUObjectArray.GetFirstGCIndex());
@@ -2138,7 +2138,7 @@ void GatherUnreachableObjects(bool bForceSingleThreaded)
 			GUnreachableObjects.Append(ThisThreadUnreachableObjects);
 			ClusterItemsToDestroy.Append(ThisThreadClusterItemsToDestroy);
 		}
-	}, bForceSingleThreaded);
+	}, bForceSingleThreaded ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 
 	{
 		// @todo: if GUObjectClusters.FreeCluster() was thread safe we could do this in parallel too

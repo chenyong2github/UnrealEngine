@@ -259,7 +259,7 @@ void FStaticMeshOperations::ComputeTriangleTangentsAndNormals(FMeshDescription& 
 	const int32 BatchSize = 8 * 1024;
 	const int32 BatchCount = (NumTriangles + BatchSize - 1) / BatchSize;
 
-	ParallelFor(BatchCount,
+	ParallelFor( TEXT("ComputeTriangleTangentsAndNormals.PF"), BatchCount,1,
 		[BatchSize, ComparisonThreshold, NumTriangles, &Attributes](int32 BatchIndex)
 		{
 			TArrayView<const FVector3f> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
@@ -1376,7 +1376,7 @@ void FStaticMeshOperations::ComputeTangentsAndNormals(FMeshDescription& MeshDesc
 	const int32 BatchCount = (NumVertices + BatchSize - 1) / BatchSize;
 
 	//Iterate all vertex to compute normals for all vertex instance
-	ParallelFor(BatchCount,
+	ParallelFor( TEXT("ComputeTangentsAndNormals.PF"), BatchCount,1,
 		[NumVertices, BatchSize, bComputeTangentWithMikkTSpace, bComputeWeightedNormals, &MeshDescription, &TriangleDatas](int32 BatchIndex)
 		{
 			FStaticMeshAttributes Attributes(MeshDescription);
