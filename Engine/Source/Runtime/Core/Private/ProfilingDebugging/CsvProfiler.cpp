@@ -2895,6 +2895,8 @@ void FCsvProfiler::EndFrame()
 		CSV_CUSTOM_STAT_GLOBAL(ExtendedUsedMB, UsedExtendedMB, ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT_GLOBAL(SystemMaxMB, TotalSystemMB, ECsvCustomStatOp::Set);
 
+		MemoryStats.SetEndFrameCsvStats();
+
 		// If we're single-threaded, process the stat data here
 		if (ProcessingThread == nullptr)
 		{

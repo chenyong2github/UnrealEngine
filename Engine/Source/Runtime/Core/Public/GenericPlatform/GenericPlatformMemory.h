@@ -174,6 +174,9 @@ struct CORE_API FGenericPlatformMemoryStats : public FPlatformMemoryConstants
 	TArray<FPlatformSpecificStat> GetPlatformSpecificStats() const;
 
 	uint64 GetAvailablePhysical(bool bExcludeExtraDevMemory) const;
+
+	/** Called by FCsvProfiler::EndFrame to set platform specific CSV stats. */
+	void SetEndFrameCsvStats() const {}
 };
 
 
