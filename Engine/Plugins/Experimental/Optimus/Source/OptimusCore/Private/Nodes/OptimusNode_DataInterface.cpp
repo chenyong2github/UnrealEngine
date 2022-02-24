@@ -14,6 +14,42 @@ UOptimusNode_DataInterface::UOptimusNode_DataInterface()
 }
 
 
+int32 UOptimusNode_DataInterface::GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const
+{
+	if (!InPin || InPin->GetParentPin() != nullptr)
+	{
+		return INDEX_NONE;
+	}
+
+	int32 PinIndex = GetPins().IndexOfByKey(InPin);
+	if (!ensure(PinIndex != INDEX_NONE))
+	{
+		return INDEX_NONE;
+	}
+
+	// FIXME: This information should be baked into the pin definition so we don't have to
+	// look it up repeatedly.
+	const UOptimusComputeDataInterface *DataInterfaceCDO = Cast<UOptimusComputeDataInterface>(DataInterfaceClass->GetDefaultObject());
+	const FString FunctionName = DataInterfaceCDO->GetPinDefinitions()[PinIndex].DataFunctionName;
+	
+	TArray<FShaderFunctionDefinition> FunctionDefinitions;
+	if (InPin->GetDirection() == EOptimusNodePinDirection::Input)
+	{
+		DataInterfaceCDO->GetSupportedOutputs(FunctionDefinitions);
+	}
+	else
+	{
+		DataInterfaceCDO->GetSupportedInputs(FunctionDefinitions);
+	}
+	
+	return FunctionDefinitions.IndexOfByPredicate(
+		[FunctionName](const FShaderFunctionDefinition& InDef)
+		{
+			return InDef.Name == FunctionName;
+		});
+}
+
+
 void UOptimusNode_DataInterface::SetDataInterfaceClass(
 	TSubclassOf<UOptimusComputeDataInterface> InDataInterfaceClass
 	)

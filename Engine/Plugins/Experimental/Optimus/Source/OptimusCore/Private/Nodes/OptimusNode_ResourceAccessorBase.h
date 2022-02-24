@@ -2,17 +2,20 @@
 
 #pragma once
 
+#include "IOptimusDataInterfaceProvider.h"
 #include "OptimusNode.h"
 
 #include "OptimusNode_ResourceAccessorBase.generated.h"
 
 
+class UOptimusComputeDataInterface;
 class UOptimusResourceDescription;
 
 
 UCLASS(Abstract)
-class UOptimusNode_ResourceAccessorBase
-	: public UOptimusNode
+class UOptimusNode_ResourceAccessorBase : 
+	public UOptimusNode,
+	public IOptimusDataInterfaceProvider
 {
 	GENERATED_BODY()
 
@@ -27,6 +30,11 @@ public:
 		return CategoryName::Resources;
 	}
 
+	// IOptimusDataInterfaceProvider implementations
+	UOptimusComputeDataInterface* GetDataInterface(UObject *InOuter) const override;
+	bool IsRetainedDataInterface() const override { return true; }
+	int32 GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const override { return INDEX_NONE; }
+	
 private:
 	UPROPERTY()
 	TWeakObjectPtr<UOptimusResourceDescription> ResourceDesc;

@@ -11,6 +11,9 @@
 #include "OptimusResourceDescription.generated.h"
 
 
+class UPersistentBufferDataInterface;
+
+
 UCLASS(BlueprintType)
 class OPTIMUSCORE_API UOptimusResourceDescription :
 	public UObject
@@ -31,8 +34,11 @@ public:
 	 *  as a flat array, rather than array-of-arrays and deeper. */
 	UPROPERTY(EditAnywhere, Category=ResourceDescription)
 	FOptimusDataDomain DataDomain;
+
+	UPROPERTY()
+	TObjectPtr<UPersistentBufferDataInterface> DataInterface;
 	
 #if WITH_EDITOR
-	void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };

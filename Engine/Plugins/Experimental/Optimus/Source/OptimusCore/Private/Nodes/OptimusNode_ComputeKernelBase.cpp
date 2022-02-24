@@ -2,6 +2,8 @@
 
 #include "OptimusNode_ComputeKernelBase.h"
 
+#include "IOptimusDataInterfaceProvider.h"
+#include "OptimusCoreModule.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
 
@@ -38,12 +40,6 @@ static void CopyValueType(FShaderValueTypeHandle InValueType,  FShaderParamTypeD
 	OutParamDef.ResetTypeDeclaration();
 }
 
-// TODO: This belongs on the interface node. 
-static int32 GetPinIndex(const UOptimusNodePin* InPin)
-{
-	return InPin->GetOwningNode()->GetPins().IndexOfByKey(InPin);
-}
-
 UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 	UObject *InKernelSourceOuter,
 	const FOptimusPinTraversalContext& InTraversalContext,
@@ -51,7 +47,8 @@ UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 	const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
 	const TArray<const UOptimusNode *>& InValueNodes,
 	const UComputeDataInterface* GraphDataInterface,
-	FOptimus_InterfaceBindingMap& OutInputDataBindings, FOptimus_InterfaceBindingMap& OutOutputDataBindings
+	FOptimus_InterfaceBindingMap& OutInputDataBindings,
+	FOptimus_InterfaceBindingMap& OutOutputDataBindings
 ) const
 {
 	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InKernelSourceOuter);
@@ -99,7 +96,34 @@ UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 	
 	KernelSource->SetSourceAndEntryPoint(CookedSource, GetKernelName());
 
-	// UE_LOG(LogOptimusCore, Log, TEXT("Cooked source:\n%s\n"), *CookedSource);
+#if 0
+	UE_LOG(LogOptimusCore, Log, TEXT("Kernel: %s [%s]"), *GetNodePath(), *GetNodeName().ToString());
+	UE_LOG(LogOptimusCore, Log, TEXT("Cooked Source:\n%s\n"), *CookedSource);
+	if (!OutInputDataBindings.IsEmpty())
+	{
+		UE_LOG(LogOptimusCore, Log, TEXT("Input Bindings:"));
+		for (const TPair<int32, FOptimus_InterfaceBinding>& Binding: OutInputDataBindings)
+		{
+			TArray<FShaderFunctionDefinition> Defs;
+			Binding.Value.DataInterface->GetSupportedInputs(Defs);
+			UE_LOG(LogOptimusCore, Log, TEXT("  K[%d] %s -> %s@%d [%s]"), Binding.Key, *Binding.Value.BindingFunctionName,
+				*Binding.Value.DataInterface->GetName(), Binding.Value.DataInterfaceBindingIndex,
+				Defs.IsValidIndex(Binding.Value.DataInterfaceBindingIndex) ? *Defs[Binding.Value.DataInterfaceBindingIndex].Name : TEXT("<undefined>"));
+		}
+	}
+	if (!OutOutputDataBindings.IsEmpty())
+	{
+		UE_LOG(LogOptimusCore, Log, TEXT("Output Bindings:"));
+		for (const TPair<int32, FOptimus_InterfaceBinding>& Binding: OutOutputDataBindings)
+		{
+			TArray<FShaderFunctionDefinition> Defs;
+			Binding.Value.DataInterface->GetSupportedOutputs(Defs);
+			UE_LOG(LogOptimusCore, Log, TEXT("  K[%d] %s -> %s@%d [%s]"), Binding.Key, *Binding.Value.BindingFunctionName,
+				*Binding.Value.DataInterface->GetName(), Binding.Value.DataInterfaceBindingIndex,
+				Defs.IsValidIndex(Binding.Value.DataInterfaceBindingIndex) ? *Defs[Binding.Value.DataInterfaceBindingIndex].Name : TEXT("<undefined>"));
+		}
+	}
+#endif
 	
 	return KernelSource;
 }
@@ -191,18 +215,18 @@ void UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel(
 		}
 		else if(InNodeDataInterfaceMap.Contains(OutputNode))
 		{
+			const IOptimusDataInterfaceProvider* InterfaceProvider = Cast<const IOptimusDataInterfaceProvider>(OutputNode);
+			
 			// FIXME: Sub-pin read support.
 			UOptimusComputeDataInterface const* OptimusDataInterface = InNodeDataInterfaceMap[OutputNode];
 			DataInterface = OptimusDataInterface;
 
-			TArray<FOptimusCDIPinDefinition> PinDefs = OptimusDataInterface->GetPinDefinitions();
-
-			int32 DataInterfaceDefPinIndex = GetPinIndex(InOutputPin); 
-			DataFunctionName = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
-
+			DataInterfaceFuncIndex = InterfaceProvider->GetDataFunctionIndexFromPin(InOutputPin);
+			
 			TArray<FShaderFunctionDefinition> ReadFunctions;
 			DataInterface->GetSupportedInputs(ReadFunctions);
-			DataInterfaceFuncIndex = ReadFunctions.IndexOfByPredicate([DataFunctionName](const FShaderFunctionDefinition &InDef) { return DataFunctionName == InDef.Name; });
+
+			DataFunctionName = ReadFunctions[DataInterfaceFuncIndex].Name;
 		}
 		else if (IOptimusValueProvider const* ValueProvider = Cast<const IOptimusValueProvider>(OutputNode))
 		{
@@ -336,13 +360,16 @@ void UOptimusNode_ComputeKernelBase::ProcessOutputPinForComputeKernel(
 			{
 				continue;
 			}
+
+			const IOptimusDataInterfaceProvider* InterfaceProvider = Cast<const IOptimusDataInterfaceProvider>(ConnectedNode);
 			
 			// FIXME: Sub-pin write support.
 			UOptimusComputeDataInterface* DataInterface = InNodeDataInterfaceMap[ConnectedNode];
-			int32 DataInterfaceDefPinIndex = GetPinIndex(ConnectedPin);
-			TArray<FOptimusCDIPinDefinition> PinDefs = DataInterface->GetPinDefinitions();
-
-			FString DataFunctionName = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
+			int32 DataFunctionIndex = InterfaceProvider->GetDataFunctionIndexFromPin(ConnectedPin);
+			
+			TArray<FShaderFunctionDefinition> FunctionDefinitions;
+			DataInterface->GetSupportedOutputs(FunctionDefinitions);
+			FString DataFunctionName = FunctionDefinitions[DataFunctionIndex].Name;
 			
 			WriteConnectionDefs.Add({DataInterface, DataFunctionName, ConnectedPin->GetName()});
 		}

@@ -16,6 +16,7 @@
 
 #include "OptimusDeformer.generated.h"
 
+class UPersistentBufferDataInterface;
 class UComputeGraph;
 class USkeletalMesh;
 class UOptimusActionStack;
@@ -305,6 +306,11 @@ protected:
 	// The compute graphs to execute.
 	UPROPERTY()
 	TArray<FOptimusComputeGraphInfo> ComputeGraphs;
+
+	// Data interfaces that need resource release if our owning component is unregistered
+	// or if the deformer gets recompiled.
+	UPROPERTY()
+	TArray<TObjectPtr<UOptimusComputeDataInterface>> RetainedDataInterfaces;
 	
 private:
 	UOptimusNodeGraph* ResolveGraphPath(const FStringView InPath, FStringView& OutRemainingPath) const;

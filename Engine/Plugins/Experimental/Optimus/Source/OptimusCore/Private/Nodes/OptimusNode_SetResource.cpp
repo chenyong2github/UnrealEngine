@@ -4,6 +4,22 @@
 
 #include "OptimusNodePin.h"
 #include "OptimusResourceDescription.h"
+#include "DataInterfaces/DataInterfaceRawBuffer.h"
+
+
+int32 UOptimusNode_SetResource::GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const
+{
+	if (!InPin || InPin->GetParentPin() != nullptr)
+	{
+		return INDEX_NONE;
+	}
+	if (!ensure(GetPins().Contains(InPin)))
+	{
+		return INDEX_NONE;
+	}
+
+	return URawBufferDataInterface::WriteValueOutputIndex;
+}
 
 
 void UOptimusNode_SetResource::ConstructNode()

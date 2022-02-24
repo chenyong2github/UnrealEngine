@@ -33,6 +33,8 @@
 #include "UObject/Package.h"
 #include "Nodes/OptimusNode_ConstantValue.h"
 
+#define PRINT_COMPILED_OUTPUT 1
+
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
 
 static const FName DefaultResourceName("Resource");
@@ -630,6 +632,7 @@ bool UOptimusDeformer::Compile()
 	}
 
 	ComputeGraphs.Reset();
+	RetainedDataInterfaces.Reset();
 	
 	CompileBeginDelegate.Broadcast(this);
 	
@@ -679,7 +682,8 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 {
 	FOptimusCompileResult Result;
 
-	// HACK: Find an interface node that has no output pins. That's our terminal node.
+	// Terminal nodes are data providers that contain only input pins. Any graph with no
+	// written output is a null graph.
 	TArray<const UOptimusNode*> TerminalNodes;
 	
 	for (const UOptimusNode* Node: InNodeGraph->GetAllNodes())
@@ -735,10 +739,19 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 	{
 		if (const IOptimusDataInterfaceProvider* DataInterfaceNode = Cast<const IOptimusDataInterfaceProvider>(ConnectedNode.Node))
 		{
-			UOptimusComputeDataInterface* DataInterface =
-				NewObject<UOptimusComputeDataInterface>(this, DataInterfaceNode->GetDataInterfaceClass());
+			UOptimusComputeDataInterface* DataInterface = DataInterfaceNode->GetDataInterface(this); 
 
 			NodeDataInterfaceMap.Add(ConnectedNode.Node, DataInterface);
+
+			if (DataInterfaceNode->IsRetainedDataInterface())
+			{
+				// All resource nodes that point to the same resource description give us 
+				// the same data interface.
+				if (!RetainedDataInterfaces.Contains(DataInterface))
+				{
+					RetainedDataInterfaces.Add(DataInterface);
+				}
+			}
 		}
 		else if (Cast<const IOptimusComputeKernelProvider>(ConnectedNode.Node) != nullptr)
 		{
@@ -757,7 +770,11 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 							UTransientBufferDataInterface* TransientBufferDI =
 								NewObject<UTransientBufferDataInterface>(this);
 
+							const TArray<FName> LevelNames = Pin->GetDataDomainLevelNames(); 
+
+							TransientBufferDI->bClearBeforeUse = true;
 							TransientBufferDI->ValueType = Pin->GetDataType()->ShaderValueType;
+							TransientBufferDI->DataDomain = LevelNames.IsEmpty() ? Optimus::DomainName::Vertex : LevelNames[0]; 
 							LinkDataInterfaceMap.Add(Pin, TransientBufferDI);
 						}
 					}
@@ -914,6 +931,11 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 			}
 		}
 	}
+
+#if PRINT_COMPILED_OUTPUT
+	
+#endif
+	
 
 	Result.Set<UOptimusComputeGraph*>(ComputeGraph);
 	return Result;

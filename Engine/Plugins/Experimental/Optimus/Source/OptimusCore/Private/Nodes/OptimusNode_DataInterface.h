@@ -29,10 +29,12 @@ public:
 	}
 
 	// -- IOptimusDataInterfaceProvider implementations
-	UClass *GetDataInterfaceClass() const override
+	UOptimusComputeDataInterface *GetDataInterface(UObject *InOuter) const override
 	{
-		return DataInterfaceClass;
+		return NewObject<UOptimusComputeDataInterface>(InOuter, DataInterfaceClass);
 	}
+	bool IsRetainedDataInterface() const override { return false; }
+	int32 GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const override;
 
 	void SetDataInterfaceClass(TSubclassOf<UOptimusComputeDataInterface> InDataInterfaceClass);
 	

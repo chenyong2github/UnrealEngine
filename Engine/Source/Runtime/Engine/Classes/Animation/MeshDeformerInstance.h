@@ -25,6 +25,12 @@ public:
 		WorkLoad_Update,
 	};
 
+	/** Called to allocate any persistent render resources */
+	virtual void AllocateResources() {}
+
+	/** Called when persistent render resources should be released */ 
+	virtual void ReleaseResources() {}
+
 	/** Get if mesh deformer is active (compiled and valid). */
 	virtual bool IsActive() const PURE_VIRTUAL(, return false;);
 	/** Enqueue the mesh deformer workload on a scene. */

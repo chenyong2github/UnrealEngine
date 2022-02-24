@@ -446,6 +446,7 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex, FComputeKernelDefini
 			// Add the kernel code.
 			HLSL += KernelSource->GetSource();
 		}
+		// UE_LOG(LogComputeFramework, Display, TEXT("Kernel Source[%s]:\n%s\n"), *GetPathName(), *HLSL);
 	}
 
 	return HLSL;

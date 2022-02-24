@@ -6,14 +6,112 @@
 #include "DataInterfaces/DataInterfaceGraph.h"
 #include "OptimusComputeGraph.h"
 #include "OptimusDataTypeRegistry.h"
+#include "OptimusComputeDataInterface.h"
 #include "OptimusDeformer.h"
 #include "OptimusVariableDescription.h"
 
+#include "Components/MeshComponent.h"
+
+
+void FOptimusPersistentStructuredBuffer::InitRHI()
+{
+	if (ElementCount > 0)
+	{
+		FRHIResourceCreateInfo CreateInfo(TEXT("PersistentStructuredBuffer"));
+		Buffer = RHICreateStructuredBuffer(
+			ElementStride, ElementStride * ElementCount,
+			BUF_ShaderResource | BUF_UnorderedAccess,
+			CreateInfo);
+
+		BufferUAV = RHICreateUnorderedAccessView(Buffer, false, false);
+	}
+}
+
+
+void FOptimusPersistentStructuredBuffer::ReleaseRHI()
+{
+	BufferUAV.SafeRelease();
+	Buffer.SafeRelease();
+}
+
+
+const TArray<FOptimusPersistentStructuredBufferPtr>& FOptimusPersistentBufferPool::GetResourceBuffers(
+	FName InResourceName, 
+	int32 InElementStride, 
+	TArray<int32> InInvocationElementCount
+	)
+{
+	check(IsInRenderingThread());
+
+	TArray<FOptimusPersistentStructuredBufferPtr>* ResourceBuffersPtr = ResourceBuffersMap.Find(InResourceName);
+	if (ResourceBuffersPtr == nullptr)
+	{
+		TArray<FOptimusPersistentStructuredBufferPtr> ResourceBuffers;
+
+		for (int32 Index = 0; Index < InInvocationElementCount.Num(); Index++)
+		{
+			FOptimusPersistentStructuredBufferPtr BufferPtr = MakeShared<FOptimusPersistentStructuredBuffer>(InInvocationElementCount[Index], InElementStride);
+			BufferPtr->InitRHI();
+			ResourceBuffers.Add(BufferPtr);
+		}
+
+		return ResourceBuffersMap.Add(InResourceName, MoveTemp(ResourceBuffers));
+	}
+	else
+	{
+		static TArray<FOptimusPersistentStructuredBufferPtr> EmptyArray;
+		
+		// Verify that the buffers are correct based on the incoming information. If there's a
+		// mismatch, then something has gone wrong upstream (either duplicated names, missing
+		// resource clearing on recompile, or something else).
+		if (!ensure(ResourceBuffersPtr->Num() == InInvocationElementCount.Num()))
+		{
+			return EmptyArray;
+		}
+
+		for (int32 Index = 0; Index < ResourceBuffersPtr->Num(); Index++)
+		{
+			FOptimusPersistentStructuredBufferPtr BufferPtr = (*ResourceBuffersPtr)[Index];
+			if (!ensure(BufferPtr.IsValid()) ||
+				!ensure(BufferPtr->GetElementStride() == InElementStride) ||
+				!ensure(BufferPtr->GetElementCount() == InInvocationElementCount[Index]))
+			{
+				return EmptyArray;
+			}	
+		}
+
+		return *ResourceBuffersPtr;
+	}
+}
+
+
+void FOptimusPersistentBufferPool::ReleaseResources()
+{
+	check(IsInRenderingThread());
+
+	for (TTuple<FName, TArray<FOptimusPersistentStructuredBufferPtr>>& ResourceBuffersInfo: ResourceBuffersMap)
+	{
+		for (const FOptimusPersistentStructuredBufferPtr& BufferPtr: ResourceBuffersInfo.Value)
+		{
+			BufferPtr->ReleaseRHI();
+		}
+	}
+
+	ResourceBuffersMap.Reset();
+}
+
+
 void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 {
+	// If we're doing a recompile, ditch all stored render resources.
+	ReleaseResources();
+
+	// Create the persistent buffer pool
+	BufferPool = MakeShared<FOptimusPersistentBufferPool>();
+	
 	// (Re)Create and bind data providers.
 	ComputeGraphExecInfos.Reset();
-	
+
 	for (const FOptimusComputeGraphInfo& ComputeGraphInfo : InDeformer->ComputeGraphs)
 	{
 		TArray<UObject*, TInlineAllocator<1>> BindingObjects;
@@ -43,6 +141,26 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 		Ptr->MarkRenderDynamicDataDirty();
 	}
 }
+
+
+void UOptimusDeformerInstance::AllocateResources()
+{
+	
+}
+
+
+void UOptimusDeformerInstance::ReleaseResources()
+{
+	if (BufferPool)
+	{
+		ENQUEUE_RENDER_COMMAND(FOptimusReleasePoolMemory)(
+			[BufferPool=MoveTemp(BufferPool)](FRHICommandListImmediate& InCmdList)
+			{
+				BufferPool->ReleaseResources();
+			});
+	}
+}
+
 
 bool UOptimusDeformerInstance::IsActive() const
 {
@@ -90,6 +208,7 @@ namespace
 		return false;
 	}
 }
+
 
 bool UOptimusDeformerInstance::SetBoolVariable(FName InVariableName, bool InValue)
 {

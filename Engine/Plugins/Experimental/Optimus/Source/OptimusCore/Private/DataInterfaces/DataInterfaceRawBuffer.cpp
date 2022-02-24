@@ -2,6 +2,7 @@
 
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
 
+#include "OptimusDeformerInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
@@ -9,23 +10,66 @@
 #include "RenderGraphUtils.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "ShaderCore.h"
 #include "SkeletalRenderPublic.h"
+#include "Algo/Accumulate.h"
 
-const int32 UTransientBufferDataInterface::ReadValueInputIndex = 1;
-const int32 UTransientBufferDataInterface::WriteValueOutputIndex = 0;
 
-bool UTransientBufferDataInterface::SupportsAtomics() const
+const int32 URawBufferDataInterface::ReadValueInputIndex = 1;
+const int32 URawBufferDataInterface::WriteValueOutputIndex = 0;
+
+
+const USkeletalMeshComponent* URawBufferDataInterface::GetComponentFromSourceObjects(
+	TArrayView<TObjectPtr<UObject>> InSourceObjects)
+{
+	if (InSourceObjects.Num() != 1)
+	{
+		return nullptr;
+	}
+	
+	return Cast<USkeletalMeshComponent>(InSourceObjects[0]);
+}
+
+
+void URawBufferDataInterface::FillProviderFromComponent(
+	const USkeletalMeshComponent* InComponent, 
+	URawBufferDataProvider* InProvider
+	) const
+{
+	InProvider->ElementStride = ValueType->GetResourceElementSize();
+	InProvider->NumElementsPerInvocation.Reset();
+
+	FSkeletalMeshRenderData const* SkeletalMeshRenderData = InComponent != nullptr ? InComponent->GetSkeletalMeshRenderData() : nullptr;
+	if (SkeletalMeshRenderData == nullptr)
+	{
+		return;
+	}
+	
+	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData->GetPendingFirstLOD(0);
+
+	if (DataDomain.Name == Optimus::DomainName::Triangle)
+	{
+		for (const FSkelMeshRenderSection& RenderSection: LodRenderData->RenderSections)
+		{
+			InProvider->NumElementsPerInvocation.Add(RenderSection.NumTriangles);
+		}
+	}
+	else
+	{
+		// TODO: For now, all other domain types default to vertex counts. 
+		for (const FSkelMeshRenderSection& RenderSection: LodRenderData->RenderSections)
+		{	
+			InProvider->NumElementsPerInvocation.Add(RenderSection.NumVertices);
+		}
+	}
+}
+
+
+bool URawBufferDataInterface::SupportsAtomics() const
 {
 	return ValueType->Type == EShaderFundamentalType::Int;
 }
 
-FString UTransientBufferDataInterface::GetDisplayName() const
-{
-	return TEXT("Transient");
-}
-
-TArray<FOptimusCDIPinDefinition> UTransientBufferDataInterface::GetPinDefinitions() const
+TArray<FOptimusCDIPinDefinition> URawBufferDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 	Defs.Add({"ValueIn", "ReadValue", DataDomain.Name, "ReadNumValues"});
@@ -33,7 +77,7 @@ TArray<FOptimusCDIPinDefinition> UTransientBufferDataInterface::GetPinDefinition
 	return Defs;
 }
 
-void UTransientBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void URawBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	{
 		FShaderFunctionDefinition Fn;
@@ -74,7 +118,7 @@ void UTransientBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDef
 	}
 }
 
-void UTransientBufferDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
+void URawBufferDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	{
 		FShaderFunctionDefinition Fn;
@@ -115,81 +159,134 @@ void UTransientBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShade
 	OutBuilder.AddNestedStruct<FTransientBufferDataInterfaceParameters>(UID);
 }
 
-void UTransientBufferDataInterface::GetHLSL(FString& OutHLSL) const
+BEGIN_SHADER_PARAMETER_STRUCT(FPersistentBufferDataInterfaceParameters, )
+	SHADER_PARAMETER(uint32, StartOffset)
+	SHADER_PARAMETER(uint32, BufferSize)
+	SHADER_PARAMETER_UAV(RWStructuredBuffer<int>, BufferUAV)
+END_SHADER_PARAMETER_STRUCT()
+
+
+void UPersistentBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const
+{
+	OutBuilder.AddNestedStruct<FPersistentBufferDataInterfaceParameters>(UID);
+}
+
+void URawBufferDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#define BUFFER_TYPE ");
 	OutHLSL += ValueType->ToString();
 	OutHLSL += TEXT(" \n");
 	if (SupportsAtomics()) { OutHLSL += TEXT("#define BUFFER_TYPE_SUPPORTS_ATOMIC 1\n"); }
+	if (UseSplitBuffers()) { OutHLSL += TEXT("#define BUFFER_SPLIT_READ_WRITE 1\n"); }
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceRawBuffer.ush\"\n");
 	OutHLSL += TEXT("#undef BUFFER_TYPE\n");
 	if (SupportsAtomics()) { OutHLSL += TEXT("#undef BUFFER_TYPE_SUPPORTS_ATOMIC\n"); }
+	if (UseSplitBuffers()) { OutHLSL += TEXT("#undef BUFFER_SPLIT_READ_WRITE\n"); }
 }
 
-void UTransientBufferDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
+
+void URawBufferDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
 	// Default setup with an assumption that we want to size to match a USkeletalMeshComponent.
 	// That's a massive generalization of course...
 	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
 }
 
+
+FString UTransientBufferDataInterface::GetDisplayName() const
+{
+	return TEXT("Transient");
+}
+
 UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
 	UTransientBufferDataProvider *Provider = NewObject<UTransientBufferDataProvider>();
-	Provider->ElementStride = ValueType->GetResourceElementSize();
-	Provider->NumElements = 0;
+	FillProviderFromComponent(GetComponentFromSourceObjects(InSourceObjects), Provider);
+	Provider->bClearBeforeUse = bClearBeforeUse;
+	return Provider;
+}
 
-	if (InSourceObjects.Num() == 1)
+
+FString UPersistentBufferDataInterface::GetDisplayName() const
+{
+	return TEXT("Persistent");
+}
+
+
+UComputeDataProvider* UPersistentBufferDataInterface::CreateDataProvider(
+	TArrayView<TObjectPtr<UObject>> InSourceObjects,
+	uint64 InInputMask,
+	uint64 InOutputMask
+	) const
+{
+	UPersistentBufferDataProvider *Provider = NewObject<UPersistentBufferDataProvider>();
+
+	if (const USkeletalMeshComponent* Component = GetComponentFromSourceObjects(InSourceObjects))
 	{
-		// todo[CF]: Clear before use needs to be set according to context. For now we default to clearing.
-		//Provider->bClearBeforeUse = false;
+		FillProviderFromComponent(Component, Provider);
 
-		USkeletalMeshComponent* SkeletalMesh = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
-		FSkeletalMeshRenderData const* SkeletalMeshRenderData = SkeletalMesh != nullptr ? SkeletalMesh->GetSkeletalMeshRenderData() : nullptr;
-		if (SkeletalMeshRenderData != nullptr)
-		{
-			FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData->GetPendingFirstLOD(0);
-			Provider->NumInvocations = LodRenderData->RenderSections.Num();
-			// todo[CF]: Over allocating here until the logic for correct buffer size is handled.
-			Provider->NumElements = LodRenderData->GetNumVertices() * 8;
-		}
+		Provider->DeformerInstance = Cast<UOptimusDeformerInstance>(Component->MeshDeformerInstance);
+		Provider->ResourceName = ResourceName;
 	}
 
 	return Provider;
 }
 
 
-bool UTransientBufferDataProvider::IsValid() const
+bool URawBufferDataProvider::IsValid() const
 {
-	return NumElements != 0;
+	return !NumElementsPerInvocation.IsEmpty();
 }
+
 
 FComputeDataProviderRenderProxy* UTransientBufferDataProvider::GetRenderProxy()
 {
-	return new FTransientBufferDataProviderProxy(ElementStride, NumInvocations, NumElements, bClearBeforeUse);
+	return new FTransientBufferDataProviderProxy(ElementStride, NumElementsPerInvocation, bClearBeforeUse);
 }
 
 
-FTransientBufferDataProviderProxy::FTransientBufferDataProviderProxy(int32 InElementStride, int32 InNumInvocations, int32 InNumElements, bool bInClearBeforeUse)
+bool UPersistentBufferDataProvider::IsValid() const
+{
+	return URawBufferDataProvider::IsValid() && DeformerInstance.IsValid();
+}
+
+
+FComputeDataProviderRenderProxy* UPersistentBufferDataProvider::GetRenderProxy()
+{
+	FOptimusPersistentBufferPoolPtr BufferPoolPtr;
+	
+	const UOptimusDeformerInstance* DeformerInstancePtr = DeformerInstance.Get();
+	if (ensure(DeformerInstancePtr))
+	{
+		BufferPoolPtr = DeformerInstancePtr->GetBufferPool();
+	}	
+	return new FPersistentBufferDataProviderProxy(BufferPoolPtr, ResourceName, ElementStride, NumElementsPerInvocation);
+}
+
+
+FTransientBufferDataProviderProxy::FTransientBufferDataProviderProxy(
+	int32 InElementStride,
+	TArray<int32> InInvocationElementCount,
+	bool bInClearBeforeUse
+	)
 	: ElementStride(InElementStride)
-	, NumInvocations(InNumInvocations)
-	, NumElements(InNumElements)
+	, InvocationElementCount(InInvocationElementCount)
 	, bClearBeforeUse(bInClearBeforeUse)
 {
+	
 }
 
 void FTransientBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
-	// todo[CF]: Need to know number of invocations and size for each invocation
-	for (int32 Index = 0; Index < NumInvocations; ++Index)
+	for (const int32 NumElements: InvocationElementCount)
 	{
 		Buffer.Add(GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(ElementStride, NumElements), TEXT("TransientBuffer"), ERDGBufferFlags::None));
-		BufferSRV.Add(GraphBuilder.CreateSRV(Buffer[Index]));
-		BufferUAV.Add(GraphBuilder.CreateUAV(Buffer[Index]));
+		BufferSRV.Add(GraphBuilder.CreateSRV(Buffer.Last()));
+		BufferUAV.Add(GraphBuilder.CreateUAV(Buffer.Last()));
 
 		if (bClearBeforeUse)
 		{
-			AddClearUAVPass(GraphBuilder, BufferUAV[Index], 0);
+			AddClearUAVPass(GraphBuilder, BufferUAV.Last(), 0);
 		}
 	}
 }
@@ -201,12 +298,66 @@ void FTransientBufferDataProviderProxy::GatherDispatchData(FDispatchSetup const&
 		return;
 	}
 
-	for (int32 InvocationIndex = 0; InvocationIndex < NumInvocations; ++InvocationIndex)
+	for (int32 InvocationIndex = 0; InvocationIndex < InvocationElementCount.Num(); ++InvocationIndex)
 	{
-		FTransientBufferDataInterfaceParameters* Parameters = (FTransientBufferDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+		FTransientBufferDataInterfaceParameters* Parameters =
+			reinterpret_cast<FTransientBufferDataInterfaceParameters*>(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
 		Parameters->StartOffset = 0;
-		Parameters->BufferSize = NumElements;
+		Parameters->BufferSize = InvocationElementCount[InvocationIndex];
 		Parameters->BufferSRV = BufferSRV[InvocationIndex];
 		Parameters->BufferUAV = BufferUAV[InvocationIndex];
 	}
+}
+
+
+
+FPersistentBufferDataProviderProxy::FPersistentBufferDataProviderProxy(
+	TSharedPtr<FOptimusPersistentBufferPool> InBufferPool,
+	FName InResourceName,
+	int32 InElementStride,
+	TArray<int32> InInvocationElementCount
+	) :
+	BufferPool(InBufferPool),
+	ResourceName(InResourceName),	
+	ElementStride(InElementStride),
+	InvocationElementCount(InInvocationElementCount)
+{
+	
+}
+
+
+void FPersistentBufferDataProviderProxy::AllocateResources(
+	FRDGBuilder& GraphBuilder
+	)
+{
+}
+
+
+void FPersistentBufferDataProviderProxy::GatherDispatchData(
+	FDispatchSetup const& InDispatchSetup,
+	FCollectedDispatchData& InOutDispatchData
+	)
+{
+	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FPersistentBufferDataInterfaceParameters)))
+	{
+		return;
+	}
+
+	const TArray<FOptimusPersistentStructuredBufferPtr>& Buffers = BufferPool->GetResourceBuffers(ResourceName, ElementStride, InvocationElementCount);
+	if (Buffers.Num() != InvocationElementCount.Num())
+	{
+		return;
+	}
+	
+	for (int32 InvocationIndex = 0; InvocationIndex < InvocationElementCount.Num(); ++InvocationIndex)
+	{
+		FPersistentBufferDataInterfaceParameters* Parameters =
+			reinterpret_cast<FPersistentBufferDataInterfaceParameters*>(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
+		
+		Parameters->StartOffset = 0;
+		Parameters->BufferSize = InvocationElementCount[InvocationIndex];
+		Parameters->BufferUAV = Buffers[InvocationIndex]->GetUAV();
+	}
+
+	FComputeDataProviderRenderProxy::GatherDispatchData(InDispatchSetup, InOutDispatchData);
 }

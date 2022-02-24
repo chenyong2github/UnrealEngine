@@ -5,7 +5,9 @@
 uint DI_LOCAL(StartOffset);
 uint DI_LOCAL(BufferSize);
 
+#ifdef BUFFER_SPLIT_READ_WRITE
 StructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferSRV);
+#endif
 RWStructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferUAV);
 
 DI_IMPL_READ(ReadNumValues, uint, void)
@@ -16,7 +18,11 @@ DI_IMPL_READ(ReadNumValues, uint, void)
 DI_IMPL_READ(ReadValue, BUFFER_TYPE, uint Index)
 {
 	uint BufferIndex = DI_LOCAL(StartOffset) + Index;
+#ifdef BUFFER_SPLIT_READ_WRITE
 	return DI_LOCAL(BufferSRV)[BufferIndex];
+#else
+	return DI_LOCAL(BufferUAV)[BufferIndex];
+#endif
 }
 
 DI_IMPL_WRITE(WriteValue, uint Index, BUFFER_TYPE Value)

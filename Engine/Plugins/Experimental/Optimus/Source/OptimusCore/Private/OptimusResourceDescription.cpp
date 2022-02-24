@@ -6,10 +6,10 @@
 
 #if WITH_EDITOR
 void UOptimusResourceDescription::PostEditChangeProperty(
-	struct FPropertyChangedEvent& PropertyChangedEvent
+	FPropertyChangedEvent& PropertyChangedEvent
 	)
 {
-	FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UOptimusResourceDescription, ResourceName))
 	{

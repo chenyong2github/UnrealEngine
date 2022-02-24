@@ -16,6 +16,9 @@ class UOptimusNode_GetResource
 {
 	GENERATED_BODY()
 
+	// IOptimusDataInterfaceProvider implementations
+	int32 GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const override;
+
 protected:
 	void ConstructNode() override;
 };

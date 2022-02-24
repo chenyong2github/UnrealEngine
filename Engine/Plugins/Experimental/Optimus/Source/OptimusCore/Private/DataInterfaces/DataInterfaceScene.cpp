@@ -101,16 +101,10 @@ FComputeDataProviderRenderProxy* USceneDataProvider::GetRenderProxy()
 
 FSceneDataProviderProxy::FSceneDataProviderProxy(USceneComponent* SceneComponent)
 {
-	bool bUseSceneTime = SceneComponent != nullptr;
-#if WITH_EDITOR
-	// Don't tick time in Editor unless in PIE.
-	if (GIsEditor && bUseSceneTime)
-	{
-		bUseSceneTime &= (bUseSceneTime && SceneComponent->GetWorld() != nullptr && SceneComponent->GetWorld()->WorldType != EWorldType::Editor);
-	}
-#endif
-	GameTime = bUseSceneTime ? SceneComponent->GetWorld()->TimeSeconds : 0;
+	const bool bUseSceneTime = SceneComponent != nullptr;
+
 	GameTimeDelta = bUseSceneTime ? SceneComponent->GetWorld()->DeltaTimeSeconds : 0;
+	GameTime = bUseSceneTime ? SceneComponent->GetWorld()->TimeSeconds : 0;
 	FrameNumber = bUseSceneTime ? SceneComponent->GetScene()->GetFrameNumber() : 0;
 }
 

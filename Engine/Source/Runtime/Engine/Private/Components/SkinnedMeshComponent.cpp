@@ -596,8 +596,13 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 				}
 			}
 
-			// After creating the MeshObject we need to run the MeshDeformer at least once to set up the vertex data.
-			bUpdateDeformerAtNextTick |= (MeshDeformerInstance != nullptr);
+			if (MeshDeformerInstance)
+			{
+				MeshDeformerInstance->AllocateResources();
+				
+				// After creating the MeshObject we need to run the MeshDeformer at least once to set up the vertex data.
+				bUpdateDeformerAtNextTick = true;
+			}
 
 			//Allow the editor a chance to manipulate it before its added to the scene
 			PostInitMeshObject(MeshObject);
@@ -655,6 +660,11 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 void USkinnedMeshComponent::DestroyRenderState_Concurrent()
 {
 	Super::DestroyRenderState_Concurrent();
+
+	if (MeshDeformerInstance)
+	{
+		MeshDeformerInstance->ReleaseResources();
+	}
 
 	if(MeshObject)
 	{
