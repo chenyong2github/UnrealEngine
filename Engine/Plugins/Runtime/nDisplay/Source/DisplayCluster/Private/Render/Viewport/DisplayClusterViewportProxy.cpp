@@ -537,6 +537,8 @@ void ResampleCopyTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdList, 
 	// Texture format mismatch, use a shader to do the copy.
 	// #todo-renderpasses there's no explicit resolve here? Do we need one?
 	FRHIRenderPassInfo RPInfo(DstTexture, ERenderTargetActions::Load_Store);
+	TransitionRenderPassTargets(RHICmdList, RPInfo);
+
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("DisaplyClusterRender_ResampleTexture"));
 	{
 		FIntVector SrcSizeXYZ = SrcTexture->GetSizeXYZ();
@@ -589,6 +591,7 @@ void ResampleCopyTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
 	}
 	RHICmdList.EndRenderPass();
+	RHICmdList.Transition(FRHITransitionInfo(DstTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 }
 
 void ImplResolveResource(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InputResource, const FIntRect& InputRect, FRHITexture2D* OutputResource, const FIntRect& OutputRect, const bool bOutputIsMipsResource, const bool bOutputIsPreviewResource)
@@ -605,12 +608,25 @@ void ImplResolveResource(FRHICommandListImmediate& RHICmdList, FRHITexture2D* In
 		CopyInfo.Size = FIntVector(InputRect.Width(), InputRect.Height(), 0);
 		CopyInfo.SourcePosition.X = InputRect.Min.X;
 		CopyInfo.SourcePosition.Y = InputRect.Min.Y;
-
-		CopyInfo.DestMipIndex = 0;
 		CopyInfo.DestPosition.X = OutputRect.Min.X;
 		CopyInfo.DestPosition.Y = OutputRect.Min.Y;
 
+		// Copy texture
+		FRHITransitionInfo TransitionsBefore[] =
+		{
+			FRHITransitionInfo(InputResource, ERHIAccess::Unknown, ERHIAccess::CopySrc),
+			FRHITransitionInfo(OutputResource, ERHIAccess::Unknown, ERHIAccess::CopyDest)
+		};
+		RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
+
 		RHICmdList.CopyTexture(InputResource, OutputResource, CopyInfo);
+
+		FRHITransitionInfo TransitionsAfter[] =
+		{
+			FRHITransitionInfo(InputResource, ERHIAccess::CopySrc, ERHIAccess::SRVMask),
+			FRHITransitionInfo(OutputResource, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
+		};
+		RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
 	}
 	else
 	{

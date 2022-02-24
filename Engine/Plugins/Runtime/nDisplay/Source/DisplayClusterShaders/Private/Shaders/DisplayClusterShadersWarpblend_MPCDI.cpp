@@ -583,10 +583,16 @@ bool FDisplayClusterShadersWarpblend_MPCDI::RenderWarpBlend_MPCDI(FRHICommandLis
 	SCOPED_DRAW_EVENT(RHICmdList, nDisplay_Mpcdi_WarpBlend);
 
 	// Do single-pass warp&blend render
+	bool bIsRenderSuccess = false;
 	FRHIRenderPassInfo RPInfo(InWarpBlendParameters.Dest.Texture, ERenderTargetActions::Load_Store);
+	TransitionRenderPassTargets(RHICmdList, RPInfo);
+
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("nDisplay_MpcdiWarpBlend"));
-	bool bIsRenderSuccess = MpcdiPassRenderer.Render(RHICmdList);
+	{
+		bIsRenderSuccess = MpcdiPassRenderer.Render(RHICmdList);
+	}
 	RHICmdList.EndRenderPass();
+	RHICmdList.Transition(FRHITransitionInfo(InWarpBlendParameters.Dest.Texture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 
 	return bIsRenderSuccess;
 };

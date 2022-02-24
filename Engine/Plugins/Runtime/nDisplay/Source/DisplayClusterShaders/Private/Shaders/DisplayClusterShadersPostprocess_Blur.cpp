@@ -138,8 +138,10 @@ static void PicpBlurPostProcess_RenderThread(
 	TShaderMapRef<FDirectProjectionVS>                VertexShader(GlobalShaderMap);
 	TShaderMapRef<TPicpBlurPostProcessPS<ShaderType>> PixelShader(GlobalShaderMap);
 
-	FRHIRenderPassInfo RPInfo1(OutRenderTargetableTexture, ERenderTargetActions::DontLoad_Store);
-	RHICmdList.BeginRenderPass(RPInfo1, TEXT("nDisplay_PicpPostProcessBlur"));
+	FRHIRenderPassInfo RPInfo(OutRenderTargetableTexture, ERenderTargetActions::DontLoad_Store);
+	TransitionRenderPassTargets(RHICmdList, RPInfo);
+
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("nDisplay_PicpPostProcessBlur"));
 	{
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -163,6 +165,7 @@ static void PicpBlurPostProcess_RenderThread(
 		FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
 	}
 	RHICmdList.EndRenderPass();
+	RHICmdList.Transition(FRHITransitionInfo(OutRenderTargetableTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 }
 
 DECLARE_GPU_STAT_NAMED(nDisplay_Picp_PostProcess_Compose, TEXT("nDisplay Picp_PostProcess::Compose"));

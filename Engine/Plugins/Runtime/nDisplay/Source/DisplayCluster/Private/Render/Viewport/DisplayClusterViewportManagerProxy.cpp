@@ -264,6 +264,7 @@ static void ImplClearRenderTargetResource_RenderThread(FRHICommandListImmediate&
 		DrawClearQuad(RHICmdList, FLinearColor::Black);
 	}
 	RHICmdList.EndRenderPass();
+	RHICmdList.Transition(FRHITransitionInfo(InRenderTargetTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 }
 
 void FDisplayClusterViewportManagerProxy::ImplClearFrameTargets_RenderThread(FRHICommandListImmediate& RHICmdList) const

@@ -81,18 +81,38 @@ template<typename RegionType>
 static void SetupCopyOrResolveRegion(RegionType& Region, const FVulkanSurface& SrcSurface, const FVulkanSurface& DstSurface, const VkImageSubresourceRange& SrcRange, const VkImageSubresourceRange& DstRange, const FResolveParams& ResolveParams)
 {
 	FMemory::Memzero(Region);
-	ensure(SrcSurface.Width == DstSurface.Width && SrcSurface.Height == DstSurface.Height);
 
-	if(ResolveParams.Rect.X1 >= 0 && ResolveParams.Rect.Y1 >= 0 && ResolveParams.DestRect.X1 >= 0 && ResolveParams.DestRect.Y1 >= 0)
+	bool bCopySrcSubRect = ResolveParams.Rect.IsValid()     && (ResolveParams.Rect.X1 != 0     || ResolveParams.Rect.Y1 != 0     || ResolveParams.Rect.X2 != SrcSurface.Width     || ResolveParams.Rect.Y2 != SrcSurface.Height);
+	bool bCopyDstSubRect = ResolveParams.DestRect.IsValid() && (ResolveParams.DestRect.X1 != 0 || ResolveParams.DestRect.Y1 != 0 || ResolveParams.DestRect.X2 != DstSurface.Width || ResolveParams.DestRect.Y2 != DstSurface.Height);
+	if(bCopySrcSubRect || bCopyDstSubRect)
 	{
-		Region.srcOffset.x = ResolveParams.Rect.X1;
-		Region.srcOffset.y = ResolveParams.Rect.Y1;
-		Region.dstOffset.x = ResolveParams.DestRect.X1;
-		Region.dstOffset.y = ResolveParams.DestRect.Y1;
+		const FResolveRect& SrcSubRect = ResolveParams.Rect.IsValid()     ? ResolveParams.Rect     : FResolveRect(0, 0, SrcSurface.Width, SrcSurface.Height);
+		const FResolveRect& DstSubRect = ResolveParams.DestRect.IsValid() ? ResolveParams.DestRect : FResolveRect(0, 0, DstSurface.Width, DstSurface.Height);
+
+		const uint32 SrcSubRectWidth  = SrcSubRect.X2 - SrcSubRect.X1;
+		const uint32 SrcSubRectHeight = SrcSubRect.Y2 - SrcSubRect.Y1;
+
+		const uint32 DstSubRectWidth  = DstSubRect.X2 - DstSubRect.X1;
+		const uint32 DstSubRectHeight = DstSubRect.Y2 - DstSubRect.Y1;
+
+		ensure(SrcSubRectWidth == DstSubRectWidth && SrcSubRectHeight == DstSubRectHeight);
+
+		Region.srcOffset.x = SrcSubRect.X1;
+		Region.srcOffset.y = SrcSubRect.Y1;
+		Region.dstOffset.x = DstSubRect.X1;
+		Region.dstOffset.y = DstSubRect.Y1;
+
+		Region.extent.width = FMath::Max(1u, SrcSubRectWidth >> ResolveParams.MipIndex);
+		Region.extent.height = FMath::Max(1u, SrcSubRectHeight >> ResolveParams.MipIndex);
+	}
+	else
+	{
+		ensure(SrcSurface.Width == DstSurface.Width && SrcSurface.Height == DstSurface.Height);
+
+		Region.extent.width = FMath::Max(1u, SrcSurface.Width >> ResolveParams.MipIndex);
+		Region.extent.height = FMath::Max(1u, SrcSurface.Height >> ResolveParams.MipIndex);
 	}
 
-	Region.extent.width = FMath::Max(1u, SrcSurface.Width >> ResolveParams.MipIndex);
-	Region.extent.height = FMath::Max(1u, SrcSurface.Height >> ResolveParams.MipIndex);
 	Region.extent.depth = 1;
 	Region.srcSubresource.aspectMask = SrcSurface.GetFullAspectMask();
 	Region.srcSubresource.baseArrayLayer = SrcRange.baseArrayLayer;
