@@ -303,6 +303,7 @@ private:
 	void Rebuild(const bool bCleanCache = false);
 	void ClearTextMesh();
 	void BuildTextMesh(const bool bCleanCache = false);
+	void BuildTextMeshInternal(const bool bCleanCache);
 	void CheckBevel();
 	float MaxBevel() const;
 
