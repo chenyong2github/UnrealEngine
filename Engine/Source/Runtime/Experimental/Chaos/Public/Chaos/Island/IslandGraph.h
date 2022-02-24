@@ -130,6 +130,9 @@ public:
 
 		/** Node Island Index (for static/kinematic particles could belong to several islands) */
 		int32 IslandIndex = INDEX_NONE;
+		
+		/** List of islands in which the node is referenced */
+		TSet<int32> NodeIslands;
 
 		/** Check if a node is valid (checked for graph partitioning) */
 		bool bValidNode = true;

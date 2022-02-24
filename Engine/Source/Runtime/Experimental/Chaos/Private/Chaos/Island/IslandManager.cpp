@@ -173,8 +173,7 @@ inline void UpdateSyncState(FPBDIslandSolver* IslandSolver, FPBDRigidsSOAs& Part
 		IslandSolver->SetNeedsResim(bNeedsResim);
 	}
 }
-
-/** Add all the graph particle and constraints to the solver islands*/
+	/** Add all the graph particle and constraints to the solver islands*/
 inline void PopulateIslands(FPBDIslandManager::GraphType* IslandGraph)
 {
 	auto AddNodeToIsland = [IslandGraph](const int32 IslandIndex, FPBDIslandManager::GraphType::FGraphNode& GraphNode)
@@ -191,22 +190,36 @@ inline void PopulateIslands(FPBDIslandManager::GraphType* IslandGraph)
 	TSet<int32> NodeIslands;
 	for(auto& GraphNode : IslandGraph->GraphNodes)
 	{
+		NodeIslands = GraphNode.NodeIslands;
+		GraphNode.NodeIslands.Reset();
+
+		// First we re-add the island indices coming from a sleeping islands since we are not adding them here.
+		for (auto& IslandIndex : NodeIslands)
+		{
+			if (IslandGraph->GraphIslands.IsValidIndex(IslandIndex))
+			{
+				if (IslandGraph->GraphIslands[IslandIndex].IslandItem->IsSleeping())
+				{
+					GraphNode.NodeIslands.Add(IslandIndex);
+				}
+			}
+		}
 		// If the node is valid : only one island
 		if( GraphNode.bValidNode)
 		{
 			AddNodeToIsland(GraphNode.IslandIndex, GraphNode);
+			GraphNode.NodeIslands.Add(GraphNode.IslandIndex);
 		}
 		else
 		{
 			// A particle could belong to several islands when static/kinematic (not valid)
 			// First we compute the unique particle set of islands
-			NodeIslands.Reset();
 			for( auto& NodeEdge : GraphNode.NodeEdges)
 			{
-				NodeIslands.Add(IslandGraph->GraphEdges[NodeEdge].IslandIndex);
+				GraphNode.NodeIslands.Add(IslandGraph->GraphEdges[NodeEdge].IslandIndex);
 			}
 			// Loop over the set of islands and add the particle to the solver island
-			for(auto& NodeIsland : NodeIslands)
+			for(auto& NodeIsland : GraphNode.NodeIslands)
 			{
 				AddNodeToIsland(NodeIsland, GraphNode);
 			}
@@ -499,27 +512,28 @@ void FPBDIslandManager::RemoveParticle(FGeometryParticleHandle* ParticleHandle)
 			if (IslandGraph->GraphNodes.IsValidIndex(*NodeIndex))
 			{
 				const FGraphNode& GraphNode = IslandGraph->GraphNodes[*NodeIndex];
-				// If the node is valid : we need to also remove it from its own island 
-				if(GraphNode.NodeEdges.Num() == 0 && IslandSolvers.IsValidIndex(GraphNode.IslandIndex))
-				{
-					IslandSolvers[GraphNode.IslandIndex]->RemoveParticle(ParticleHandle);
-				}
-				else
-				{
-					// We loop over all the connected edges to find all the islands in which the particle
-					// is (static/kinematic particles could belong to several islands)
-					// And remove the particle from the solver island. It will allow the solver
-					// islands to be updated directly and not at the next sync.
-					for (const int32& EdgeIndex : GraphNode.NodeEdges)
-					{
-						const int32 IslandIndex = IslandGraph->GraphEdges[EdgeIndex].IslandIndex;
-						if (IslandSolvers.IsValidIndex(IslandIndex))
-						{
-							IslandSolvers[IslandIndex]->RemoveParticle(ParticleHandle);
 
-							//We need to remove as well the constraint from the island solver since the edges are removed from the graph
-							IslandSolvers[IslandIndex]->RemoveConstraint(IslandGraph->GraphEdges[EdgeIndex].EdgeItem);
-						}
+				// We loop over all the connected edges to find all the islands in which the particle
+				// is (static/kinematic particles could belong to several islands)
+				// And remove the particle from the solver island. It will allow the solver
+				// islands to be updated directly and not at the next sync.
+				for (const int32& EdgeIndex : GraphNode.NodeEdges)
+				{
+					const int32 IslandIndex = IslandGraph->GraphEdges[EdgeIndex].IslandIndex;
+					if (IslandSolvers.IsValidIndex(IslandIndex))
+					{
+						//We need to remove as well the constraint from the island solver since the edges are removed from the graph
+						IslandSolvers[IslandIndex]->RemoveConstraint(IslandGraph->GraphEdges[EdgeIndex].EdgeItem);
+						IslandGraph->GraphEdges[EdgeIndex].EdgeItem->SetConstraintGraphIndex(INDEX_NONE);
+					}
+				}
+
+				// If the node is valid : we need to also remove it from its own island 
+				for (const int32& IslandIndex : GraphNode.NodeIslands)
+				{
+					if (IslandSolvers.IsValidIndex(IslandIndex))
+					{
+						IslandSolvers[IslandIndex]->RemoveParticle(ParticleHandle);
 					}
 				}
 			}
