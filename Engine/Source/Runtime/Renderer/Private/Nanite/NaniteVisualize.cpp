@@ -460,10 +460,10 @@ void DrawVisualization(
 
 		if (RasterResults.MaterialDepth)
 		{
-			if (GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_MINZ ||
-				GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_MAXZ ||
-				GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_DELTAZ ||
-				GNaniteDebugVisualize == VISUALIZE_MAT_HTILE_ZMASK)
+			if (GNaniteDebugVisualize == NANITE_VISUALIZE_MAT_HTILE_MINZ ||
+				GNaniteDebugVisualize == NANITE_VISUALIZE_MAT_HTILE_MAXZ ||
+				GNaniteDebugVisualize == NANITE_VISUALIZE_MAT_HTILE_DELTAZ ||
+				GNaniteDebugVisualize == NANITE_VISUALIZE_MAT_HTILE_ZMASK)
 			{
 				HTileSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMetaData(RasterResults.MaterialDepth, ERDGTextureMetaDataAccess::HTile));
 			}

@@ -3,7 +3,6 @@
 #include "Common.ush"
 #include "HTileEncoding.ush"
 
-// TODO: Extract VISUALIZE defines out of Nanite
 // TODO: This shader shouldn't know about Nanite scene vs. material depth (just the HTile bits to visualize)
 #include "./Nanite/NaniteDataDecode.ush"
 
@@ -56,19 +55,19 @@ void VisualizeHTile(uint3 PixelPos : SV_DispatchThreadID)
 	const float2 TileMinMax = TileMinMaxFP / (float2)((1 << 14) - 1);
 
 	float Result = 0.0f;
-	if (VisualizeMode == VISUALIZE_SCENE_Z_MIN || VisualizeMode == VISUALIZE_MATERIAL_Z_MIN)
+	if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MIN || VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_MIN)
 	{
 		Result = pow(TileMinMax.x, 0.11f);
 	}
-	else if (VisualizeMode == VISUALIZE_SCENE_Z_MAX || VisualizeMode == VISUALIZE_MATERIAL_Z_MAX)
+	else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MAX || VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_MAX)
 	{
 		Result = pow(TileMinMax.y, 0.11f);
 	}
-	else if (VisualizeMode == VISUALIZE_SCENE_Z_DELTA || VisualizeMode == VISUALIZE_MATERIAL_Z_DELTA)
+	else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_DELTA || VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_DELTA)
 	{
 		Result = pow(TileMinMax.y - TileMinMax.x, 0.11f);
 	}
-	/*else if (VisualizeMode == VISUALIZE_SCENE_Z_MASK || VisualizeMode == VISUALIZE_MATERIAL_Z_MASK)
+	/*else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MASK || VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_MASK)
 	{
 		Result = ExtractFloat(HTileEnc, 0, 4) / 15.0f;
 	}*/
