@@ -54,7 +54,7 @@ FString NumberToStringWithFractionalPrecision(const RealType Number,
 
 void UMeshAnalysisProperties::Update(const FDynamicMesh3& MeshIn, const FTransform& Transform)
 {
-	FTriangleMeshAdapterd TransformedMesh = UE::Geometry::MakeTransformedDynamicMeshAdapter(&MeshIn, Transform);
+	FTriangleMeshAdapterd TransformedMesh = UE::Geometry::MakeTransformedDynamicMeshAdapter(&MeshIn, (FTransform3d)Transform);
 	FVector2d VolArea = TMeshQueries<FTriangleMeshAdapterd>::GetVolumeArea(TransformedMesh);
 	
 	TArray<TTuple<double, int32>> MagnitudeToFractionalDigits;

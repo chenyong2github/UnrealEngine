@@ -171,7 +171,7 @@ void UHoleFillTool::Setup()
 	SelectionMechanic->Properties->bSelectFaces = false;
 	SelectionMechanic->Properties->bSelectVertices = false;
 	SelectionMechanic->Initialize(OriginalMesh.Get(),
-		TargetComponent->GetWorldTransform(),
+		(FTransform3d)TargetComponent->GetWorldTransform(),
 		GetTargetWorld(),
 		Topology.Get(),
 		[this]() { return &MeshSpatial; }

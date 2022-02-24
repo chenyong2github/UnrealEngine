@@ -98,16 +98,32 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	//   SetFromRotationMatrix(FMatrix3f)
 
 
-	explicit inline operator FQuat() const
+	explicit inline operator FQuat4f() const
 	{
-		FQuat Quat; 
+		FQuat4f Quat; 
 		Quat.X = (float)X;
 		Quat.Y = (float)Y;
 		Quat.Z = (float)Z;
 		Quat.W = (float)W;
 		return Quat;
 	}
-	explicit inline TQuaternion(const FQuat& Quat)
+	explicit inline operator FQuat4d() const
+	{
+		FQuat4d Quat; 
+		Quat.X = (double)X;
+		Quat.Y = (double)Y;
+		Quat.Z = (double)Z;
+		Quat.W = (double)W;
+		return Quat;
+	}
+	explicit inline TQuaternion(const FQuat4f& Quat)
+	{
+		X = (RealType)Quat.X;
+		Y = (RealType)Quat.Y;
+		Z = (RealType)Quat.Z;
+		W = (RealType)Quat.W;
+	}
+	explicit inline TQuaternion(const FQuat4d& Quat)
 	{
 		X = (RealType)Quat.X;
 		Y = (RealType)Quat.Y;

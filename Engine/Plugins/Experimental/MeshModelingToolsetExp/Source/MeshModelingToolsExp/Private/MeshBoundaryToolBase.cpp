@@ -45,7 +45,7 @@ void UMeshBoundaryToolBase::Setup()
 	SelectionMechanic->Properties->bSelectFaces = false;
 	SelectionMechanic->Properties->bSelectVertices = false;
 	SelectionMechanic->Initialize(OriginalMesh.Get(),
-		Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform(),
+		(FTransform3d)Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform(),
 		GetTargetWorld(),
 		Topology.Get(),
 		[this]() { return &MeshSpatial; }

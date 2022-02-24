@@ -75,7 +75,7 @@ void UPolygonOnMeshTool::Setup()
 	AddInputBehavior(HoverBehavior);
 
 	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	WorldTransform = TargetComponent->GetWorldTransform();
+	WorldTransform = (FTransform3d)TargetComponent->GetWorldTransform();
 
 	// hide input StaticMeshComponent
 	TargetComponent->SetOwnerVisibility(false);

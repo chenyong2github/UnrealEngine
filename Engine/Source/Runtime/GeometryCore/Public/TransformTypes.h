@@ -98,7 +98,7 @@ public:
 	*/
 	operator FTransform3d() const
 	{
-		return FTransform((FQuat4d)Rotation, (FVector3d)Translation, (FVector3d)Scale3D);
+		return FTransform3d((FQuat4d)Rotation, (FVector3d)Translation, (FVector3d)Scale3D);
 	}
 
 	/**

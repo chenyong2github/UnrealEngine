@@ -173,8 +173,8 @@ void UCombineMeshesTool::CreateNewAsset()
 	AccumulateDMesh.Attributes()->EnableTangents();
 	AccumulateDMesh.Attributes()->EnableMaterialID();
 	AccumulateDMesh.Attributes()->EnablePrimaryColors();
-	FTransform AccumToWorld(Box.GetCenter());
-	FTransform ToAccum(-Box.GetCenter());
+	FTransform3d AccumToWorld(Box.GetCenter());
+	FTransform3d ToAccum(-Box.GetCenter());
 
 	FSimpleShapeSet3d SimpleCollision;
 	UE::Geometry::FComponentCollisionSettings CollisionSettings;
@@ -258,7 +258,7 @@ void UCombineMeshesTool::CreateNewAsset()
 		{
 			// TODO: will need to refactor this when we support duplicating multiple
 			check(Targets.Num() == 1);
-			AccumToWorld = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
+			AccumToWorld = (FTransform3d)UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 		}
 
 		// max len explicitly enforced here, would ideally notify user
@@ -270,7 +270,7 @@ void UCombineMeshesTool::CreateNewAsset()
 
 		FCreateMeshObjectParams NewMeshObjectParams;
 		NewMeshObjectParams.TargetWorld = GetTargetWorld();
-		NewMeshObjectParams.Transform = AccumToWorld;
+		NewMeshObjectParams.Transform = (FTransform)AccumToWorld;
 		NewMeshObjectParams.BaseName = UseBaseName;
 		NewMeshObjectParams.Materials = AllMaterials;
 		NewMeshObjectParams.SetMesh(&AccumulateDMesh);

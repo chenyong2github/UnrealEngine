@@ -358,7 +358,7 @@ void UEditMeshPolygonsTool::Setup()
 		SelectionMechanic->PolyEdgesRenderer.LineThickness = 1.0;
 	}
 	SelectionMechanic->Initialize(CurrentMesh.Get(),
-		Preview->PreviewMesh->GetTransform(),
+		(FTransform3d)Preview->PreviewMesh->GetTransform(),
 		TargetWorld,
 		Topology.Get(),
 		[this]() { return &GetSpatial(); }
