@@ -104,7 +104,7 @@ public:
 	 * Set the Mesh Component that owns this instance.
 	 * Call once before first call to SetupFromDeformer().
 	 */
-	void SetMeshComponent(UMeshComponent* InMeshComponent) { MeshComponent = InMeshComponent; }
+	void SetMeshComponent(UMeshComponent* InMeshComponent);
 
 	/** 
 	 * Setup the instance. 

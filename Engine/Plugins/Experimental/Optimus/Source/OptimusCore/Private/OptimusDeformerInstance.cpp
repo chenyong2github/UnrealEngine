@@ -101,6 +101,12 @@ void FOptimusPersistentBufferPool::ReleaseResources()
 }
 
 
+void UOptimusDeformerInstance::SetMeshComponent(UMeshComponent* InMeshComponent)
+{ 
+	MeshComponent = InMeshComponent;
+}
+
+
 void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 {
 	// If we're doing a recompile, ditch all stored render resources.
