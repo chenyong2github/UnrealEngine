@@ -871,8 +871,7 @@ class DevicenDisplay(DeviceUnreal):
         ])
 
         # Device profile CVars.
-        dp_cvars = self.csettings['ndisplay_dp_cvars'].get_value(self.name)
-        dp_cvars = [cvar.strip() for cvar in dp_cvars if len(cvar.strip()) and len(cvar.split('=')) == 2]
+        dp_cvars = []
 
         # Insights traces parameters
         if CONFIG.INSIGHTS_TRACE_ENABLE.get_value():
@@ -894,6 +893,14 @@ class DevicenDisplay(DeviceUnreal):
             # if bookmarks are enabled, also enable the vblank monitoring thread
             if 'bookmark' in traces.split(','):
                 dp_cvars.append('nDisplay.sync.diag.VBlankMonitoring=1')
+
+        # Always tell Chaos to be deterministic
+        dp_cvars.append('p.Chaos.Solver.Deterministic=1')
+
+        # Add user set dp cvars, overriding any of the forced ones.
+        user_dp_cvars = self.csettings['ndisplay_dp_cvars'].get_value(self.name)
+        user_dp_cvars = [cvar.strip() for cvar in user_dp_cvars if len(cvar.strip()) and len(cvar.split('=')) == 2]
+        dp_cvars = self.add_or_override_cvars(dp_cvars, user_dp_cvars)
 
         # add accumulated dpcvars to args
         if len(dp_cvars):

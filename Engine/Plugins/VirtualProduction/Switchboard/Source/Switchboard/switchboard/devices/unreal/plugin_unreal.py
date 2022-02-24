@@ -1316,6 +1316,34 @@ class DeviceUnreal(Device):
     def get_utrace_filepath(self):
         return self.get_remote_log_path() / f'{self.name}_{self.runtime_str}.utrace'
 
+    @staticmethod
+    def add_or_override_cvars(cvars:list[str], new_cvars:list[str]):
+        ''' Adds new cvars, or overrides values if already existing.
+
+        Args:
+            cvars     : Cvars to be overridden
+            new_cvars : Cvars to override or add
+
+        Returns:
+            list[str]: Resulting list of cvars.
+        '''
+
+        cvars_map = OrderedDict() # keep the original order
+
+        for cvar in cvars + new_cvars:
+
+            parts = cvar.strip().split('=')
+
+            if len(parts) != 2:
+                continue
+
+            name = parts[0]
+            value = parts[1]
+
+            cvars_map[name.lower()] = (name,value)
+
+        return [f'{cvar[0]}={cvar[1]}' for cvar in cvars_map.values()]
+
     def generate_unreal_command_line_args(self, map_name):
         command_line_args = f'{self.extra_cmdline_args_setting}'
 
@@ -1347,8 +1375,7 @@ class DeviceUnreal(Device):
             command_line_args += f' -ExecCmds="{exec_cmds_expanded}"'
 
         # DPCVars may need to be appended to, so we don't concatenate them until the end.
-        dp_cvars = DeviceUnreal.csettings["dp_cvars"].get_value(self.name)
-        dp_cvars = [cvar.strip() for cvar in dp_cvars if len(cvar.strip().split('=')) == 2]
+        dp_cvars = []
 
         (supported_roles, unsupported_roles) = self.get_vproles()
 
@@ -1375,6 +1402,11 @@ class DeviceUnreal(Device):
                 dp_cvars.append('r.AllowMultiGPUInEditor=1')
         except ValueError:
             LOGGER.warning(f"Invalid Number of GPUs '{max_gpu_count}'")
+
+        # Add user set dp cvars, overriding any of the forced ones.
+        user_dp_cvars = DeviceUnreal.csettings["dp_cvars"].get_value(self.name)
+        user_dp_cvars = [cvar.strip() for cvar in user_dp_cvars if len(cvar.strip().split('=')) == 2]
+        dp_cvars = self.add_or_override_cvars(dp_cvars, user_dp_cvars)
 
         # add accumulated dpcvars to args
         if len(dp_cvars):
