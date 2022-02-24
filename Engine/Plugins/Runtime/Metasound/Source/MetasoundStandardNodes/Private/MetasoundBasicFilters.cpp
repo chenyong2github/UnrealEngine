@@ -827,12 +827,18 @@ namespace Metasound
 
 	FVertexInterface FBiquadFilterOperator::DeclareVertexInterface()
 	{
+		static const FDataVertexMetadata GainPinMetaData
+		{
+			  METASOUND_GET_PARAM_TT(ParamGainDb) // description
+			, METASOUND_LOCTEXT("Biquad_Filter_DisplayName", "Gain (dB)") // display name
+		};
+
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
 				TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME(ParamAudioInput), METASOUND_GET_PARAM_TT(ParamAudioInput)),
 				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(ParamCutoffFrequency), METASOUND_GET_PARAM_TT(ParamCutoffFrequency), 20000.f),
 				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(ParamBandwidth), METASOUND_GET_PARAM_TT(ParamBandwidth), 1.f),
-				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(ParamGainDb), METASOUND_GET_PARAM_TT(ParamGainDb), 0.f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(ParamGainDb), GainPinMetaData, 0.f),
 				TInputDataVertexModel<FEnumEBiquadFilterType>(METASOUND_GET_PARAM_NAME(ParamFilterType), METASOUND_GET_PARAM_TT(ParamFilterType))
 			),
 			FOutputVertexInterface(

@@ -26,6 +26,7 @@ namespace Metasound
 	struct FDataVertexMetadata
 	{
 		FText Description;
+		FText DisplayName;
 		bool bIsAdvancedDisplay = false;
 	};
 

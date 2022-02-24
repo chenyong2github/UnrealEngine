@@ -210,6 +210,7 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 
 #if WITH_EDITOR
 			ClassInput.Metadata.SetSerializeText(false);
+			ClassInput.Metadata.SetDisplayName(VertexMetadata.DisplayName);
 			ClassInput.Metadata.SetDescription(VertexMetadata.Description);
 			ClassInput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
 
@@ -261,6 +262,7 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 
 #if WITH_EDITOR
 			ClassOutput.Metadata.SetSerializeText(false);
+			ClassOutput.Metadata.SetDisplayName(VertexMetadata.DisplayName);
 			ClassOutput.Metadata.SetDescription(VertexMetadata.Description);
 			ClassOutput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
 

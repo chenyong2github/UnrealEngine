@@ -170,7 +170,11 @@ namespace Metasound
 					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputRatio), 4.0f),
 					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputKnee), 12.0f),
 					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputRange), -60.0f),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputGain), 0.0f),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(InputGain),
+					{ 
+						METASOUND_GET_PARAM_TT(InputGain),
+						METASOUND_LOCTEXT("InputGainName", "Gain (dB)")
+					}, 0.0f),
 					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_TT(InputAttackTime), 0.01f),
 					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_TT(InputReleaseTime), 0.1f),
 					TInputDataVertexModel<FEnumEnvelopePeakMode>(METASOUND_GET_PARAM_NAME_AND_TT(InputEnvelopeMode), 1.0f),

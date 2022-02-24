@@ -62,7 +62,14 @@ namespace Metasound
 					}
 
 					// gain scalar
-					InputInterface.Add(TInputDataVertexModel<float>(GetGainInputName(InputIndex), GetGainInputDescription(InputIndex), 1.0f));
+					FDataVertexMetadata GainPinMetaData
+					{
+						GetGainInputDescription(InputIndex),
+						GetGainInputDisplayName(InputIndex)
+					};
+					TInputDataVertexModel<float>GainVertexModel(GetGainInputName(InputIndex), GainPinMetaData, 1.0f);
+
+					InputInterface.Add(GainVertexModel);
 				}
 
 				// outputs
@@ -248,6 +255,11 @@ namespace Metasound
 		static const FVertexName GetGainInputName(uint32 InputIndex)
 		{
 			return *FString::Printf(TEXT("Gain %i"), InputIndex);
+		}
+
+		static const FText GetGainInputDisplayName(uint32 InputIndex)
+		{
+			return METASOUND_LOCTEXT_FORMAT("AudioMixerGainInputDisplayName", "Gain {0} (Lin)", InputIndex);
 		}
 
 		static const FText GetGainInputDescription(uint32 InputIndex)
