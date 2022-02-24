@@ -4198,6 +4198,7 @@ bool SAssetView::PerformQuickJump(const bool bWasJumping)
 			const FString& NewSelectedItemName = NewSelectedItem->GetItem().GetDisplayName().ToString();
 			if(NewSelectedItemName.StartsWith(QuickJumpData.JumpTerm, ESearchCase::IgnoreCase))
 			{
+				ClearSelection(true);
 				RequestScrollIntoView(NewSelectedItem);
 				ClearSelection();
 				// Consider it derived from a keypress because otherwise it won't update the navigation selector
