@@ -36,6 +36,9 @@
     <None Update="CompactBinaryObjects\build">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="CompactBinaryObjects\compact_binary">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="CompactBinaryObjects\ReferenceOutput">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
