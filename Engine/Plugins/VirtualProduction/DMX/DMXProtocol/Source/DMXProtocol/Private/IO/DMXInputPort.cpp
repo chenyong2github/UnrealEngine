@@ -3,6 +3,7 @@
 #include "IO/DMXInputPort.h"
 
 #include "DMXProtocolSettings.h"
+#include "DMXProtocolUtils.h"
 #include "DMXStats.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPortConfig.h"
@@ -480,12 +481,20 @@ void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InOutInputPortConfig, 
 	PriorityStrategy = InputPortConfig.GetPortPriorityStrategy();
 	Priority = InputPortConfig.GetPriority();
 
+	const bool bValidDeviceAddress = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs().ContainsByPredicate([this](const TSharedPtr<FString>& IPAddress)
+		{
+			return *IPAddress == DeviceAddress;
+		});
+	if (!bValidDeviceAddress)
+	{
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot register Input Port %s. Device Address '%s' does not exist on the local machine."), *PortName, *DeviceAddress);
+	}
+
 	// Re-register the port if required
-	if (bNeedsUpdateRegistration)
+	if (bNeedsUpdateRegistration && bValidDeviceAddress)
 	{
 		Register();
 	}
-
 
 	OnPortUpdated.Broadcast();
 }
