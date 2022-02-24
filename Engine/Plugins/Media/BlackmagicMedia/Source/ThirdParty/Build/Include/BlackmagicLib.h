@@ -208,6 +208,7 @@ namespace BlackmagicDesign
 		bool bOutputInterlacedFieldsTimecodeNeedToMatch;
 		bool bLogDropFrames;
 		bool bUseGPUDMA;
+		bool bScheduleInDifferentThread;
 	};
 
 	/* IInputEventCallback definition
@@ -418,7 +419,7 @@ namespace BlackmagicDesign
 
 	 /* Configure Logging
 	 *****************************************************************************/
-	UEBLACKMAGICDESIGN_API void SetLoggingCallbacks(LoggingCallbackPtr LogInfoFunc, LoggingCallbackPtr LogWarningFunc, LoggingCallbackPtr LogErrorFunc);
+	UEBLACKMAGICDESIGN_API void SetLoggingCallbacks(LoggingCallbackPtr LogInfoFunc, LoggingCallbackPtr LogWarningFunc, LoggingCallbackPtr LogErrorFunc, LoggingCallbackPtr LogVerboseFunc);
 
 	 /* Initialization
 	 *****************************************************************************/

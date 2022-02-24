@@ -18,6 +18,7 @@ private:
 	static void LogInfo(const TCHAR* InFormat, ...);
 	static void LogWarning(const TCHAR* InFormat, ...);
 	static void LogError(const TCHAR* InFormat, ...);
+	static void LogVerbose(const TCHAR* InFormat, ...);
 
 private:
 	static void* LibHandle;

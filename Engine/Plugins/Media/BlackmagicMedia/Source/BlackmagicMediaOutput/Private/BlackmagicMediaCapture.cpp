@@ -530,6 +530,7 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 	ChannelOptions.bOutputInterlacedFieldsTimecodeNeedToMatch = InBlackmagicMediaOutput->bInterlacedFieldsTimecodeNeedToMatch && InBlackmagicMediaOutput->OutputConfiguration.MediaConfiguration.MediaMode.Standard == EMediaIOStandardType::Interlaced && InBlackmagicMediaOutput->TimecodeFormat != EMediaIOTimecodeFormat::None;
 	ChannelOptions.bLogDropFrames = bLogDropFrame;
 	ChannelOptions.bUseGPUDMA = ShouldCaptureRHITexture();
+	ChannelOptions.bScheduleInDifferentThread = InBlackmagicMediaOutput->bUseMultithreadedScheduling;
 
 	AudioBitDepth = InBlackmagicMediaOutput->AudioBitDepth;
 	bOutputAudio = InBlackmagicMediaOutput->bOutputAudio;

@@ -554,7 +554,10 @@ void UAjaMediaCapture::OnRHITextureCaptured_RenderingThread(const FCaptureBaseDa
 	FScopeLock ScopeLock(&RenderThreadCriticalSection);
 	if (OutputChannel)
 	{
-		AJA::UnlockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::UnlockDMATexture);
+			AJA::UnlockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+		}
 
 		const AJA::FTimecode Timecode = AjaMediaCaptureDevice::ConvertToAJATimecode(InBaseData.SourceFrameTimecode, InBaseData.SourceFrameTimecodeFramerate.AsDecimal(), FrameRate.AsDecimal());
 		

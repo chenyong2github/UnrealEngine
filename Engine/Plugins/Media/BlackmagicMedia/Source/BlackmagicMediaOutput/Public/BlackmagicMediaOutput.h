@@ -104,6 +104,12 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Output")
 	bool bInterlacedFieldsTimecodeNeedToMatch;
+
+	/**
+	 * Whether to use multi threaded scheduling which should improve performance when outputting 4k and 8k content. (Experimental)
+	 */
+	UPROPERTY(BlueprintReadWrite, AdvancedDisplay, EditAnywhere, Category = "Output")
+	bool bUseMultithreadedScheduling = false;
 	
 	/** Try to maintain a the engine "Genlock" with the VSync signal. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Synchronization")
