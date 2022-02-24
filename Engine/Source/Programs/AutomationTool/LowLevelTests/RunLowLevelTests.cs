@@ -104,8 +104,8 @@ namespace LowLevelTests
 				if (!string.IsNullOrEmpty(Options.Device))
 				{
 					(LowLevelTestNode as LowLevelTests)
-						.LowLevelTestsApp
-						.UnrealDeviceReservation
+						.LowLevelTestsApp?
+						.UnrealDeviceReservation?
 						.ReleaseDevices();
 				}
 
