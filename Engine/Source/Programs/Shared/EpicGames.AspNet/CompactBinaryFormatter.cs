@@ -2,19 +2,16 @@
 
 using Microsoft.AspNetCore.Mvc.Formatters;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.IO;
 using EpicGames.Serialization;
-using EpicGames.Serialization.Converters;
-using System.Reflection;
-using System.Net.Mime;
 using EpicGames.Core;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
+using Microsoft.Extensions.Logging;
 
-namespace HordeServer.Utilities
+namespace EpicGames.AspNet
 {
 	/// <summary>
 	/// Global constants
@@ -65,12 +62,13 @@ namespace HordeServer.Utilities
 			}
 			catch (Exception Ex)
 			{
-				Serilog.Log.Logger.Error("Unable to parse compact binary: {Dump}", FormatHexDump(Data, 256));
+				ILogger<CbInputFormatter> Logger = Context.HttpContext.RequestServices.GetRequiredService<ILogger<CbInputFormatter>>();
+				Logger.LogError("Unable to parse compact binary: {Dump}", FormatHexDump(Data, 256));
 				foreach ((string Name, StringValues Values) in Context.HttpContext.Request.Headers)
 				{
 					foreach (string Value in Values)
 					{
-						Serilog.Log.Logger.Information("Header {Name}: {Value}", Name, Value);
+						Logger.LogInformation("Header {Name}: {Value}", Name, Value);
 					}
 				}
 				throw new Exception($"Unable to parse compact binary request: {FormatHexDump(Data, 256)}", Ex);

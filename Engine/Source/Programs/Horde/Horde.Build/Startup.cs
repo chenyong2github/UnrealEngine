@@ -89,6 +89,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Horde.Build.Storage.Services;
 using EpicGames.Horde.Storage;
 using System.Net.Http;
+using EpicGames.AspNet;
 using EpicGames.Horde.Storage.Impl;
 
 namespace HordeServer
