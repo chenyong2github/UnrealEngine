@@ -1049,7 +1049,10 @@ void* FD3D12UploadHeapAllocator::AllocUploadResource(uint32 InSize, uint32 InAli
 
 			// Flush to GPU & Wait (stall the RHI thread)
 			FScopedRHIThreadStaller StallRHIThread(FRHICommandListExecutor::GetImmediateCommandList());
-			Adapter->GetDevice(0)->GetDefaultCommandContext().FlushCommands(true);	// Don't wait yet, since we're stalling the RHI thread.
+			for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex++)
+			{
+				Adapter->GetDevice(GPUIndex)->GetDefaultCommandContext().FlushCommands(true);	// Don't wait yet, since we're stalling the RHI thread.
+			}
 
 			// Waited for GPU to finish so all sync points are ready so can force free all pending deletes (done while RHI thread is stalled)
 			bool bForceFreePendingDeletes = true;
