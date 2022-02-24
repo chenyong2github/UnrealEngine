@@ -44,7 +44,7 @@ public:
 	/**
 	 * Non virtual helper to allow blueprint to implement event base function to implement a post import pipeline,
 	 * It is call after we completely import an asset. PostEditChange is already called. Some assets uses asynchronous build.
-	 * This can be useful if you need build data of an asset to finish the setup of another asset.
+	 * This can be useful if you need builded data of an asset to finish the setup of another asset.
 	 * @example - PhysicsAsset need skeletal mesh render data to be build properly.
 	 * @note - the Interchange manager is calling this function not the virtual one that is call by the default implementation.
 	 */
@@ -84,6 +84,19 @@ public:
 	}
 
 	/**
+	 * Non virtual helper to allow blueprint to implement event base function.
+	 * the Interchange framework is calling this function not the virtual one that is called by the default implementation.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Pipeline")
+	void ScriptedSetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex);
+
+	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual SetReimportContentFromSourceIndex */
+	void ScriptedSetReimportSourceIndex_Implementation(UClass* ReimportObjectClass, const int32 SourceFileIndex)
+	{
+		SetReimportSourceIndex(ReimportObjectClass, SourceFileIndex);
+	}
+
+	/**
 	 * Non scripted class should return false here, we have the default to true because scripted class cannot override
 	 * this function since it can be call in a asynchronous thread, which python cannot be executed.
 	 *
@@ -100,7 +113,7 @@ public:
 	void SaveSettings(const FName PipelineStackName);
 
 	virtual void PreDialogCleanup(const FName PipelineStackName) {};
-	
+
 	/**
 	 * This function is used to add the given message object directly into the results for this operation.
 	 */
@@ -153,6 +166,10 @@ protected:
 	virtual bool CanExecuteOnAnyThread(EInterchangePipelineTask PipelineTask)
 	{
 		return true;
+	}
+
+	virtual void SetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex)
+	{
 	}
 
 	/** This function can modify the BaseNodeContainer to create a pipeline that will set/validate the graph nodes hierarchy and options.*/

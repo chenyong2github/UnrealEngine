@@ -392,8 +392,11 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 			{
 				if (bUseInterchangeFramework && CanReimportHandler->IsInterchangeFactory())
 				{
-					UE::Interchange::FScopedSourceData ScopedSourceData(SourceFilenames[0]);
+					int32 RealSourceFileIndex = SourceFileIndex == INDEX_NONE ? 0 : SourceFileIndex;
+					int32 RealValidSourceFileIndex = SourceFilenames.IsValidIndex(RealSourceFileIndex) ? RealSourceFileIndex : 0;
+					UE::Interchange::FScopedSourceData ScopedSourceData(SourceFilenames[RealValidSourceFileIndex]);
 
+					CanReimportHandler->SetReimportSourceIndex(Obj, SourceFileIndex);
 					bool bUseATextureTranslator = false;
 					if (bUseInterchangeFrameworkForTextureOnly)
 					{
@@ -429,6 +432,7 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 						FImportAssetParameters ImportAssetParameters;
 						ImportAssetParameters.bIsAutomated = GIsAutomationTesting || FApp::IsUnattended() || IsRunningCommandlet() || GIsRunningUnattendedScript;
 						ImportAssetParameters.ReimportAsset = Obj;
+						ImportAssetParameters.ReimportSourceIndex = SourceFileIndex;
 						InterchangeManager.ImportAsset(FString(), ScopedSourceData.GetSourceData(), ImportAssetParameters);
 						InterchangeManager.OnAssetPostImport.Remove(PostImportHandle);
 						return true;

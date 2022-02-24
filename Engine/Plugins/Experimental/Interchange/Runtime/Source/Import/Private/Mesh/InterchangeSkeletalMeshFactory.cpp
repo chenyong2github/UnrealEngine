@@ -1152,8 +1152,32 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 	ensure(LodDataUniqueIds.Num() == LodCount);
 	int32 CurrentLodIndex = 0;
 
+	EInterchangeSkeletalMeshContentType ImportContent = EInterchangeSkeletalMeshContentType::All;
+	SkeletalMeshFactoryNode->GetCustomImportContentType(ImportContent);
+	const bool bApplyGeometry = !bIsReImport || (ImportContent == EInterchangeSkeletalMeshContentType::All || ImportContent == EInterchangeSkeletalMeshContentType::Geometry);
+	const bool bApplySkinning = !bIsReImport || (ImportContent == EInterchangeSkeletalMeshContentType::All || ImportContent == EInterchangeSkeletalMeshContentType::SkinningWeights);
+	const bool bApplyPartialContent = bIsReImport && ImportContent != EInterchangeSkeletalMeshContentType::All;
+	const bool bApplyGeometryOnly = bApplyPartialContent && bApplyGeometry;
+	const bool bApplySkinningOnly = bApplyPartialContent && bApplySkinning;
+	
+	if (bApplySkinningOnly)
+	{
+		//Ignore vertex color when we import only the skinning
+		constexpr bool bForceIgnoreVertexColor = true;
+		SkeletalMeshFactoryNode->SetCustomVertexColorIgnore(bForceIgnoreVertexColor);
+		constexpr bool bFalseSetting = false;
+		SkeletalMeshFactoryNode->SetCustomVertexColorReplace(bFalseSetting);
+	}
+
 	for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
 	{
+		ESkeletalMeshGeoImportVersions GeoImportVersion = ESkeletalMeshGeoImportVersions::LatestVersion;
+		ESkeletalMeshSkinningImportVersions SkinningImportVersion = ESkeletalMeshSkinningImportVersions::LatestVersion;
+		if (bIsReImport && SkeletalMesh->GetImportedModel() && SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(CurrentLodIndex))
+		{
+			SkeletalMesh->GetLODImportedDataVersions(CurrentLodIndex, GeoImportVersion, SkinningImportVersion);
+		}
+
 		FString LodUniqueId = LodDataUniqueIds[LodIndex];
 		const UInterchangeSkeletalMeshLodDataNode* LodDataNode = Cast<UInterchangeSkeletalMeshLodDataNode>(Arguments.NodeContainer->GetNode(LodUniqueId));
 		if (!LodDataNode)
@@ -1331,9 +1355,13 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 					}
 				}
 			}
-			// Store whether or not this mesh has vertex colors
-			SkeletalMesh->SetHasVertexColors(SkeletalMeshImportData.bHasVertexColors);
-			SkeletalMesh->SetVertexColorGuid(SkeletalMesh->GetHasVertexColors() ? FGuid::NewGuid() : FGuid());
+
+			if (bApplyGeometry)
+			{
+				// Store whether or not this mesh has vertex colors
+				SkeletalMesh->SetHasVertexColors(SkeletalMeshImportData.bHasVertexColors);
+				SkeletalMesh->SetVertexColorGuid(SkeletalMesh->GetHasVertexColors() ? FGuid::NewGuid() : FGuid());
+			}
 		}
 
 		if (bIsReImport)
@@ -1373,10 +1401,32 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 
 		UE::Interchange::Private::ProcessImportMeshMaterials(SkeletalMesh->GetMaterials(), SkeletalMeshImportData, AvailableMaterials);
 		UE::Interchange::Private::ProcessImportMeshInfluences(SkeletalMeshImportData.Wedges.Num(), SkeletalMeshImportData.Influences);
+
+		if (bApplyGeometryOnly)
+		{
+			FSkeletalMeshImportData::ReplaceSkeletalMeshRigImportData(SkeletalMesh, &SkeletalMeshImportData, CurrentLodIndex);
+		}
+		else if(bApplySkinningOnly)
+		{
+			FSkeletalMeshImportData::ReplaceSkeletalMeshGeometryImportData(SkeletalMesh, &SkeletalMeshImportData, CurrentLodIndex);
+		}
+
 		//Store the original fbx import data the SkelMeshImportDataPtr should not be modified after this
 		SkeletalMesh->SaveLODImportedData(CurrentLodIndex, SkeletalMeshImportData);
-		//We reimport both
-		SkeletalMesh->SetLODImportedDataVersions(CurrentLodIndex, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
+
+		if (bApplySkinningOnly)
+		{
+			SkeletalMesh->SetLODImportedDataVersions(CurrentLodIndex, GeoImportVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
+		}
+		else if (bApplyGeometryOnly)
+		{
+			SkeletalMesh->SetLODImportedDataVersions(CurrentLodIndex, ESkeletalMeshGeoImportVersions::LatestVersion, SkinningImportVersion);
+		}
+		else
+		{
+			//We reimport both
+			SkeletalMesh->SetLODImportedDataVersions(CurrentLodIndex, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
+		}
 
 		auto AddLodInfo = [&SkeletalMesh]()
 		{
@@ -1446,10 +1496,17 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		CurrentLodIndex++;
 	}
 
-	SkeletonReference->MergeAllBonesToBoneTree(SkeletalMesh);
-	if (SkeletalMesh->GetSkeleton() != SkeletonReference)
+	if(SkeletonReference)
 	{
-		SkeletalMesh->SetSkeleton(SkeletonReference);
+		SkeletonReference->MergeAllBonesToBoneTree(SkeletalMesh);
+		if (SkeletalMesh->GetSkeleton() != SkeletonReference)
+		{
+			SkeletalMesh->SetSkeleton(SkeletonReference);
+		}
+	}
+	else
+	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("Interchange Import UInterchangeSkeletalMeshFactory::CreateAsset, USkeleton* SkeletonReference is nullptr."));
 	}
 
 	SkeletalMesh->CalculateInvRefMatrices();
@@ -1518,7 +1575,58 @@ void UInterchangeSkeletalMeshFactory::PreImportPreCompletedCallback(const FImpor
 																										  , Arguments.NodeContainer
 																										  , Arguments.Pipelines);
 
-		ImportDataPtr = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
+		ImportDataPtr = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters, [&Arguments, SkeletalMesh](UInterchangeAssetImportData* AssetImportData)
+			{
+				auto GetSourceIndexFromContentType = [](const EInterchangeSkeletalMeshContentType& ImportContentType)->int32
+				{
+					return (ImportContentType == EInterchangeSkeletalMeshContentType::Geometry)
+						? 1
+						: (ImportContentType == EInterchangeSkeletalMeshContentType::SkinningWeights)
+						? 2
+						: 0;
+				};
+
+				auto GetSourceLabelFromSourceIndex = [](const int32 SourceIndex)->FString
+				{
+					return (SourceIndex == 1)
+						? NSSkeletalMeshSourceFileLabels::GeometryText().ToString()
+						: (SourceIndex == 2)
+						? NSSkeletalMeshSourceFileLabels::SkinningText().ToString()
+						: NSSkeletalMeshSourceFileLabels::GeoAndSkinningText().ToString();
+				};
+
+				if (UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.NodeContainer->GetNode(Arguments.NodeUniqueID)))
+				{
+					EInterchangeSkeletalMeshContentType ImportContentType = EInterchangeSkeletalMeshContentType::All;
+					SkeletalMeshFactoryNode->GetCustomImportContentType(ImportContentType);
+					const FString& NewSourceFilename = Arguments.SourceData->GetFilename();
+					const int32 NewSourceIndex = GetSourceIndexFromContentType(ImportContentType);
+					//NewSourceIndex should be 0, 1 or 2 (All, Geo, Skinning)
+					check(NewSourceIndex >= 0 && NewSourceIndex < 3);
+					const FString DefaultFilename = AssetImportData->ScriptGetFirstFilename();
+					const TArray<FString> OldFilenames = AssetImportData->ScriptExtractFilenames();
+					for (int32 SourceIndex = 0; SourceIndex < 3; ++SourceIndex)
+					{
+						FString SourceLabel = GetSourceLabelFromSourceIndex(SourceIndex);
+						if (SourceIndex == NewSourceIndex)
+						{
+							AssetImportData->ScriptedAddFilename(NewSourceFilename, SourceIndex, SourceLabel);
+						}
+						else
+						{
+							//Extract filename create a default path if the FSourceFile::RelativeFilename is empty
+							//We want to fill the entry with the base source file (SourceIndex 0, All) in this case.
+							const bool bValidOldFilename = AssetImportData->SourceData.SourceFiles.IsValidIndex(SourceIndex)
+								&& !AssetImportData->SourceData.SourceFiles[SourceIndex].RelativeFilename.IsEmpty()
+								&& OldFilenames.IsValidIndex(SourceIndex);
+							const FString& OldFilename = bValidOldFilename ? OldFilenames[SourceIndex] : DefaultFilename;
+							AssetImportData->ScriptedAddFilename(OldFilename, SourceIndex, SourceLabel);
+						}
+					}
+				}
+			});
+
+		
 		SkeletalMesh->SetAssetImportData(ImportDataPtr);
 	}
 #endif

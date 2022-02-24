@@ -9,14 +9,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "EditorReimportHandler.h"
-#include "ReimportInterchangeFactory.generated.h"
+#include "InterchangeReimportHandler.generated.h"
 
 /**
  * This FReimportHandler class is temporary until we remove the UFactory import/reimport code.
  * We use this ReimportHandler factory to make sure the set reimport is not touching the UInterchangeAssetImportData when reimporting an asset
  */
 UCLASS(MinimalAPI, collapsecategories)
-class UReimportInterchangeFactory : public UObject, public FReimportHandler
+class UInterchangeReimportHandler : public UObject, public FReimportHandler
 {
 	GENERATED_UCLASS_BODY()
 
@@ -30,6 +30,9 @@ class UReimportInterchangeFactory : public UObject, public FReimportHandler
 		}
 	}
 	virtual void SetReimportPaths(UObject* Obj, const FString& NewReimportPath, const int32 SourceIndex) override;
+
+	virtual void SetReimportSourceIndex(UObject* Obj, const int32 SourceIndex) override;
+
 	virtual EReimportResult::Type Reimport(UObject* Obj) override
 	{
 		return Reimport(Obj, INDEX_NONE);

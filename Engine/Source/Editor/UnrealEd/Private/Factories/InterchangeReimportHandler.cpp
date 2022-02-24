@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Factories/ReimportInterchangeFactory.h"
+#include "Factories/InterchangeReimportHandler.h"
 
 #include "CoreMinimal.h"
 #include "EngineDefines.h"
@@ -14,15 +14,15 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/ObjectMacros.h"
 
-#define LOCTEXT_NAMESPACE "ReimportInterchangeFactory"
+#define LOCTEXT_NAMESPACE "InterchangeReimportHandler"
 
-UReimportInterchangeFactory::UReimportInterchangeFactory(const FObjectInitializer& ObjectInitializer)
+UInterchangeReimportHandler::UInterchangeReimportHandler(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
 
 //~ Begin FReimportHandler Interface
-bool UReimportInterchangeFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
+bool UInterchangeReimportHandler::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
 	auto CanReimportAsset = [&OutFilenames](UAssetImportData* AssetImportData)
 	{
@@ -79,9 +79,32 @@ bool UReimportInterchangeFactory::CanReimport(UObject* Obj, TArray<FString>& Out
 	return false;
 }
 
-void UReimportInterchangeFactory::SetReimportPaths(UObject* Obj, const FString& NewReimportPath, const int32 SourceFileIndex)
+void UInterchangeReimportHandler::SetReimportPaths(UObject* Obj, const FString& NewReimportPath, const int32 SourceFileIndex)
 {
-	auto SetAssetImportDataPath = [SourceFileIndex, &NewReimportPath](UAssetImportData* AssetImportData)
+	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj);
+	UStaticMesh* StaticMesh = Cast<UStaticMesh>(Obj);
+//	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Obj);
+	UTexture* Texture = Cast<UTexture>(Obj);
+
+	UAssetImportData* AssetImportData = nullptr;
+	if (SkeletalMesh)
+	{
+		AssetImportData = SkeletalMesh->GetAssetImportData();
+	}
+	else if (StaticMesh)
+	{
+		AssetImportData = StaticMesh->GetAssetImportData();
+	}
+// 	else if (AnimSequence)
+// 	{
+// 		AssetImportData = AnimSequence->AssetImportData;
+// 	}
+	else if (Texture)
+	{
+		AssetImportData = Texture->AssetImportData;
+	}
+
+	if (AssetImportData)
 	{
 		int32 RealSourceFileIndex = SourceFileIndex == INDEX_NONE ? 0 : SourceFileIndex;
 		if (RealSourceFileIndex < AssetImportData->GetSourceFileCount())
@@ -94,48 +117,29 @@ void UReimportInterchangeFactory::SetReimportPaths(UObject* Obj, const FString& 
 			FString SourceIndexLabel = USkeletalMesh::GetSourceFileLabelFromIndex(RealSourceFileIndex).ToString();
 			AssetImportData->AddFileName(NewReimportPath, RealSourceFileIndex, SourceIndexLabel);
 		}
-	};
+	}
+}
 
-	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj);
-	UStaticMesh* StaticMesh = Cast<UStaticMesh>(Obj);
-//	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Obj);
-	UTexture* Texture = Cast<UTexture>(Obj);
-	if (SkeletalMesh)
+void UInterchangeReimportHandler::SetReimportSourceIndex(UObject* Obj, const int32 SourceIndex)
+{
+	if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj))
 	{
-		if (UAssetImportData* AssetImportData = SkeletalMesh->GetAssetImportData())
+		if (UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(SkeletalMesh->GetAssetImportData()))
 		{
-			SetAssetImportDataPath(AssetImportData);
-		}
-	}
-	else if (StaticMesh)
-	{
-		if (UAssetImportData* AssetImportData = StaticMesh->GetAssetImportData())
-		{
-			SetAssetImportDataPath(AssetImportData);
-		}
-	}
-// 	else if (AnimSequence)
-// 	{
-// 		if (UAssetImportData* AssetImportData = AnimSequence->AssetImportData)
-// 		{
-// 			SetAssetImportDataPath(AssetImportData);
-// 		}
-// 	}
-	else if (Texture)
-	{
-		if (UAssetImportData* AssetImportData = Texture->AssetImportData)
-		{
-			SetAssetImportDataPath(AssetImportData);
+			for (UInterchangePipelineBase* PipelineBase : InterchangeAssetImportData->Pipelines)
+			{
+				PipelineBase->ScriptedSetReimportSourceIndex(Obj->GetClass(), SourceIndex);
+			}
 		}
 	}
 }
 
-EReimportResult::Type UReimportInterchangeFactory::Reimport(UObject* Obj, int32 SourceFileIndex)
+EReimportResult::Type UInterchangeReimportHandler::Reimport(UObject* Obj, int32 SourceFileIndex)
 {
 	return EReimportResult::Failed;
 }
 
-int32 UReimportInterchangeFactory::GetPriority() const
+int32 UInterchangeReimportHandler::GetPriority() const
 {
 	//We want a high priority to surpass other legacy re-import handlers
 	return UFactory::GetDefaultImportPriority() + 10;

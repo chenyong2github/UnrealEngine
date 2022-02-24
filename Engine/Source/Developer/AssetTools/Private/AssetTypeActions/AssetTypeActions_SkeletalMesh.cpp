@@ -593,37 +593,24 @@ EVisibility FAssetTypeActions_SkeletalMesh::GetThumbnailSkinningOverlayVisibilit
 		return EVisibility::Collapsed;
 	}
 
-	//Prevent loading all assets when we display the thumbnail
-	//The tags cannot change until the asset is loaded in memory
-	if (!AssetData.IsAssetLoaded())
-	{
-		FAssetDataTagMapSharedView::FFindTagResult Result = AssetData.TagsAndValues.FindTag(GET_MEMBER_NAME_CHECKED(UFbxSkeletalMeshImportData, LastImportContentType));
-		if (Result.IsSet() && Result.GetValue() == TEXT("FBXICT_Geometry"))
-		{
-			//Show the icon
-			return EVisibility::HitTestInvisible;
-		}
-		return EVisibility::Collapsed;
-	}
+	//Prevent loading assets when we display the thumbnail use the asset registry tags
 
-	//The object is loaded we can use the memory value of the object to set the overlay
-	UObject* Obj = AssetData.GetAsset();
-	if(USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Obj))
+	//Legacy fbx code
+	FAssetDataTagMapSharedView::FFindTagResult Result = AssetData.TagsAndValues.FindTag(GET_MEMBER_NAME_CHECKED(UFbxSkeletalMeshImportData, LastImportContentType));
+	if (Result.IsSet() && Result.GetValue() == TEXT("FBXICT_Geometry"))
 	{
-		// Don't block on asset compilation just for overlay, the thumbnail is refreshed anyway once the compilation is complete.
-		if (!SkeletalMesh->IsCompiling())
-		{
-			UAssetImportData* GenericImportData = SkeletalMesh->GetAssetImportData();
-			if (GenericImportData != nullptr)
-			{
-				UFbxSkeletalMeshImportData* ImportData = Cast<UFbxSkeletalMeshImportData>(GenericImportData);
-				if (ImportData != nullptr && ImportData->LastImportContentType == EFBXImportContentType::FBXICT_Geometry)
-				{
-					return EVisibility::HitTestInvisible;
-				}
-			}
-		}
+		//Show the icon
+		return EVisibility::HitTestInvisible;
 	}
+#if WITH_EDITORONLY_DATA
+	//Generic Interchange code
+	Result = AssetData.TagsAndValues.FindTag(NSSkeletalMeshSourceFileLabels::GetSkeletalMeshLastImportContentTypeMetadataKey());
+	if (Result.IsSet() && Result.GetValue().Equals(NSSkeletalMeshSourceFileLabels::GeometryMetaDataValue()))
+	{
+		//Show the icon
+		return EVisibility::HitTestInvisible;
+	}
+#endif
 	return EVisibility::Collapsed;
 }
 

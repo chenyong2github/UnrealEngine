@@ -218,6 +218,16 @@ public:
 	}
 
 	/**
+	* If we want to import a specific source index and there is some settings to update in the asset import data before starting the re-import.
+	*
+	* @param	Obj - Object for which to change re-import settings.
+	* @param	SourceIndex - the index of the SourceFile that will be re-imported
+	*/
+	virtual void SetReimportSourceIndex(UObject* Obj, const int32 SourceIndex)
+	{
+	}
+
+	/**
 	 * Attempt to reimport the specified object from its source
 	 *
 	 * @param	Obj	Object to attempt to reimport

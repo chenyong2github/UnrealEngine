@@ -61,7 +61,23 @@ public:
 #endif
 		return TempDisplayLabels;
 	}
-	
+
+#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
+	/**
+	 * This function add tags to the asset registry.
+	 */
+	virtual void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) override
+	{
+		if (NodeContainer->IsNodeUidValid(NodeUniqueID))
+		{
+			NodeContainer->GetNode(NodeUniqueID)->AppendAssetRegistryTags(OutTags);
+		}
+		Super::AppendAssetRegistryTags(OutTags);
+	}
+#endif
+#endif
+
 	/** The graph that was use to create this asset */
 	UPROPERTY(VisibleAnywhere, Category = "Interchange | AssetImportData")
 	TObjectPtr<UInterchangeBaseNodeContainer> NodeContainer;

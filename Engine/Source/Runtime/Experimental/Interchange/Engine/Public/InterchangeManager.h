@@ -247,6 +247,10 @@ struct FImportAssetParameters
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
 	TObjectPtr<UObject> ReimportAsset = nullptr;
 
+	// If we are doing a reimport, set the source index here. Some asset have more then one source file when they import partial part of there content.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
+	int32 ReimportSourceIndex = INDEX_NONE;
+
 	// Tell interchange that import is automated and it shouldn't present a model window
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
 	bool bIsAutomated = false;

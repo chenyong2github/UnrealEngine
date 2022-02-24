@@ -178,6 +178,52 @@ bool UInterchangeSkeletalMeshFactoryNode::SetCustomVertexColorOverride(const FCo
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(VertexColorOverride, FColor)
 }
 
+bool UInterchangeSkeletalMeshFactoryNode::GetCustomImportContentType(EInterchangeSkeletalMeshContentType& AttributeValue) const
+{
+	FString OperationName = GetTypeName() + TEXT(".GetImportContentType");
+	uint8 EnumRawValue = 0;
+	const bool bResult = InterchangePrivateNodeBase::GetCustomAttribute<uint8>(*Attributes, Macro_CustomImportContentTypeKey, OperationName, EnumRawValue);
+	if (bResult)
+	{
+		AttributeValue = static_cast<EInterchangeSkeletalMeshContentType>(EnumRawValue);
+	}
+	return bResult;
+}
+
+bool UInterchangeSkeletalMeshFactoryNode::SetCustomImportContentType(const EInterchangeSkeletalMeshContentType& AttributeValue)
+{
+	FString OperationName = GetTypeName() + TEXT(".SetImportContentType");
+	uint8 EnumRawValue = static_cast<uint8>(AttributeValue);
+	return InterchangePrivateNodeBase::SetCustomAttribute<uint8>(*Attributes, Macro_CustomImportContentTypeKey, OperationName, EnumRawValue);
+}
+
+void UInterchangeSkeletalMeshFactoryNode::AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	Super::AppendAssetRegistryTags(OutTags);
+#if WITH_EDITORONLY_DATA
+	EInterchangeSkeletalMeshContentType ContentType;
+	if (GetCustomImportContentType(ContentType))
+	{
+		auto ImportContentTypeToString = [](const EInterchangeSkeletalMeshContentType value)-> FString
+		{
+			switch (value)
+			{
+			case EInterchangeSkeletalMeshContentType::All:
+				return NSSkeletalMeshSourceFileLabels::GeoAndSkinningMetaDataValue();
+			case EInterchangeSkeletalMeshContentType::Geometry:
+				return NSSkeletalMeshSourceFileLabels::GeometryMetaDataValue();
+			case EInterchangeSkeletalMeshContentType::SkinningWeights:
+				return NSSkeletalMeshSourceFileLabels::SkinningMetaDataValue();
+			}
+			return NSSkeletalMeshSourceFileLabels::GeoAndSkinningMetaDataValue();
+		};
+
+		FString EnumString = ImportContentTypeToString(ContentType);
+		OutTags.Add(FAssetRegistryTag(NSSkeletalMeshSourceFileLabels::GetSkeletalMeshLastImportContentTypeMetadataKey(), EnumString, FAssetRegistryTag::TT_Hidden));
+	}
+#endif
+}
+
 void UInterchangeSkeletalMeshFactoryNode::FillAssetClassFromAttribute()
 {
 #if WITH_ENGINE

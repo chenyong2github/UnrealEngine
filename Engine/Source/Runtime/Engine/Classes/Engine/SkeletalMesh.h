@@ -742,6 +742,30 @@ namespace NSSkeletalMeshSourceFileLabels
 		static FText SkinningText = (NSLOCTEXT("FBXReimport", "ImportContentTypeSkinning", "Skinning Weights"));
 		return SkinningText;
 	}
+
+	static const FString& GeoAndSkinningMetaDataValue()
+	{
+		static FString GeoAndSkinningName(TEXT("All"));
+		return GeoAndSkinningName;
+	}
+
+	static const FString& GeometryMetaDataValue()
+	{
+		static FString GeometryName(TEXT("Geometry"));
+		return GeometryName;
+	}
+
+	static const FString& SkinningMetaDataValue()
+	{
+		static FString SkinningName(TEXT("SkinningWeights"));
+		return SkinningName;
+	}
+
+	static FName GetSkeletalMeshLastImportContentTypeMetadataKey()
+	{
+		static FName SkeletalMeshLastImportContentTypeMetadataKey("SkeletalMeshLastImportContentTypeMetadataKey");
+		return SkeletalMeshLastImportContentTypeMetadataKey;
+	}
 }
 #endif
 

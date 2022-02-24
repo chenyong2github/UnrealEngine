@@ -166,12 +166,15 @@ bool FillCustom##AttributeName##FromAsset(UObject* Asset)															\
 UE::Interchange::FAttributeStorage::TAttributeHandle<ValueType> Handle = RegisterAttribute<ValueType>(UE::Interchange::FAttributeKey(NodeAttributeKey), Value);	\
 return Handle.IsValid();
 
-#define INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(ValueType)																							\
-UE::Interchange::FAttributeStorage::TAttributeHandle<ValueType> Handle = GetAttributeHandle<ValueType>(UE::Interchange::FAttributeKey(NodeAttributeKey));	\
-if (Handle.IsValid())																															\
-{																																				\
-	return (Handle.Get(OutValue) == UE::Interchange::EAttributeStorageResult::Operation_Success);													\
-}																																				\
+#define INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(ValueType)																						\
+if(HasAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey)))																			\
+{																																			\
+	UE::Interchange::FAttributeStorage::TAttributeHandle<ValueType> Handle = GetAttributeHandle<ValueType>(UE::Interchange::FAttributeKey(NodeAttributeKey));	\
+	if (Handle.IsValid())																													\
+	{																																		\
+		return (Handle.Get(OutValue) == UE::Interchange::EAttributeStorageResult::Operation_Success);										\
+	}																																		\
+}																																			\
 return false;
 
 //Interchange namespace
@@ -593,6 +596,11 @@ public:
 
 	static void CopyStorage(const UInterchangeBaseNode* SourceNode, UInterchangeBaseNode* DestinationNode);
 	
+	virtual void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+	{
+		return;
+	}
+
 	UPROPERTY()
 	mutable FSoftObjectPath ReferenceObject;
 protected:

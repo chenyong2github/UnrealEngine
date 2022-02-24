@@ -5,6 +5,7 @@
 #include "EditorFramework/AssetImportData.h"
 
 class UAssetImportData;
+class UInterchangeAssetImportData;
 class UInterchangeBaseNode;
 class UInterchangeBaseNodeContainer;
 class UInterchangePipelineBase;
@@ -46,6 +47,14 @@ namespace UE
 			 * @return The source data that should be stored on the asset or nullptr if a parameter is invalid
 			 */
 			static UAssetImportData* UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters);
+
+			/**
+			 * Update the AssetImportData of the specified asset in the parameters. Also update the node container and the node unique id.
+			 * If the AssetImportData is null it will create one. If the AssetImportData is not an UInterchangeAssetImportData it will create a new one.
+			 * The file source update is done by calling the function parameter CustomFileSourceUpdate, so its the client responsability to properly update the file source.
+			 * @return The source data that should be stored on the asset or nullptr if a parameter is invalid
+			 */
+			static UAssetImportData* UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters, TFunctionRef<void(UInterchangeAssetImportData*)> CustomFileSourceUpdate);
 
 #if WITH_EDITORONLY_DATA
 			struct FSetImportAssetDataParameters : public FUpdateImportAssetDataParameters

@@ -51,10 +51,49 @@ void UInterchangeGenericMeshPipeline::ExecutePostImportPipeline(const UInterchan
 		return;
 	}
 
+	//Set the last content type import
+	LastSkeletalMeshImportContentType = SkeletalMeshImportContentType;
+
 	PostImportSkeletalMesh(CreatedAsset, Node);
 
 	//Finish the physics asset import, it need the skeletal mesh render data to create the physics collision geometry
 	PostImportPhysicsAssetImport(CreatedAsset, Node);
+}
+
+void UInterchangeGenericMeshPipeline::SetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex)
+{
+	if (ReimportObjectClass == USkeletalMesh::StaticClass())
+	{
+		switch (SourceFileIndex)
+		{
+			case 0:
+			{
+				//Geo and skinning
+				SkeletalMeshImportContentType = EInterchangeSkeletalMeshContentType::All;
+			}
+			break;
+
+			case 1:
+			{
+				//Geo only
+				SkeletalMeshImportContentType = EInterchangeSkeletalMeshContentType::Geometry;
+			}
+			break;
+
+			case 2:
+			{
+				//Skinning only
+				SkeletalMeshImportContentType = EInterchangeSkeletalMeshContentType::SkinningWeights;
+			}
+			break;
+
+			default:
+			{
+				//In case SourceFileIndex == INDEX_NONE //No specified options, we use the last imported content type
+				SkeletalMeshImportContentType = LastSkeletalMeshImportContentType;
+			}
+		};
+	}
 }
 
 void UInterchangeGenericMeshPipeline::PreDialogCleanup(const FName PipelineStackName)

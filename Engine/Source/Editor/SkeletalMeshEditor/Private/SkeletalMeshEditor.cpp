@@ -56,6 +56,7 @@
 #include "Misc/CoreMisc.h"
 #include "Toolkits/AssetEditorToolkitMenuContext.h"
 #include "MeshMergeModule.h"
+#include "InterchangeAssetImportData.h"
 
 const FName SkeletalMeshEditorAppIdentifier = FName(TEXT("SkeletalMeshEditorApp"));
 
@@ -401,10 +402,13 @@ void FSkeletalMeshEditor::RegisterReimportContextMenu(const FName InBaseMenuName
 		{
 			if (USkeletalMesh* FoundSkeletalMesh = SkeletalMeshEditor->SkeletalMesh)
 			{
-				UFbxSkeletalMeshImportData* SkeletalMeshImportData = Cast<UFbxSkeletalMeshImportData>(FoundSkeletalMesh->GetAssetImportData());
-				if (SkeletalMeshImportData)
+				if (UFbxSkeletalMeshImportData* SkeletalMeshImportData = Cast<UFbxSkeletalMeshImportData>(FoundSkeletalMesh->GetAssetImportData()))
 				{
 					SkeletalMeshImportData->ImportContentType = SourceFileIndex == 0 ? EFBXImportContentType::FBXICT_All : SourceFileIndex == 1 ? EFBXImportContentType::FBXICT_Geometry : EFBXImportContentType::FBXICT_SkinningWeights;
+					SkeletalMeshEditor->HandleReimportMeshWithNewFile(SourceFileIndex);
+				}
+				else if (UInterchangeAssetImportData* InterchangeImportData = Cast<UInterchangeAssetImportData>(FoundSkeletalMesh->GetAssetImportData()))
+				{
 					SkeletalMeshEditor->HandleReimportMeshWithNewFile(SourceFileIndex);
 				}
 			}
@@ -447,27 +451,28 @@ void FSkeletalMeshEditor::RegisterReimportContextMenu(const FName InBaseMenuName
 				if (SkeletalMeshImportData)
 				{
 					SkeletalMeshImportData->ImportContentType = SourceFileIndex == 0 ? EFBXImportContentType::FBXICT_All : SourceFileIndex == 1 ? EFBXImportContentType::FBXICT_Geometry : EFBXImportContentType::FBXICT_SkinningWeights;
-					if (bReimportAll)
+				}
+
+				if (bReimportAll)
+				{
+					if (bWithNewFile)
 					{
-						if (bWithNewFile)
-						{
-							SkeletalMeshEditor->HandleReimportAllMeshWithNewFile(SourceFileIndex);
-						}
-						else
-						{
-							SkeletalMeshEditor->HandleReimportAllMesh(SourceFileIndex);
-						}
+						SkeletalMeshEditor->HandleReimportAllMeshWithNewFile(SourceFileIndex);
 					}
 					else
 					{
-						if (bWithNewFile)
-						{
-							SkeletalMeshEditor->HandleReimportMeshWithNewFile(SourceFileIndex);
-						}
-						else
-						{
-							SkeletalMeshEditor->HandleReimportMesh(SourceFileIndex);
-						}
+						SkeletalMeshEditor->HandleReimportAllMesh(SourceFileIndex);
+					}
+				}
+				else
+				{
+					if (bWithNewFile)
+					{
+						SkeletalMeshEditor->HandleReimportMeshWithNewFile(SourceFileIndex);
+					}
+					else
+					{
+						SkeletalMeshEditor->HandleReimportMesh(SourceFileIndex);
 					}
 				}
 			}

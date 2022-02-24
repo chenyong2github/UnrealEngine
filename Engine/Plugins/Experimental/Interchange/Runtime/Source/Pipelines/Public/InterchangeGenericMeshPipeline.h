@@ -6,6 +6,7 @@
 #include "InterchangePipelineBase.h"
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "InterchangeSkeletalMeshFactoryNode.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -21,7 +22,7 @@ class UInterchangeStaticMeshLodDataNode;
 
 /** Force mesh type, if user want to import all meshes as one type*/
 UENUM(BlueprintType)
-enum EInterchangeForceMeshType
+enum class EInterchangeForceMeshType : uint8
 {
 	/** Will import from the source type, no conversion */
 	IFMT_None UMETA(DisplayName = "None"),
@@ -34,7 +35,7 @@ enum EInterchangeForceMeshType
 };
 
 UENUM(BlueprintType)
-enum EInterchangeVertexColorImportOption
+enum class EInterchangeVertexColorImportOption : uint8
 {
 	/** Import the mesh using the vertex colors from the translated source. */
 	IVCIO_Replace UMETA(DisplayName = "Replace"),
@@ -57,7 +58,7 @@ public:
 
 	/** Allow to convert mesh to a particular type */
  	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
- 	TEnumAsByte<enum EInterchangeForceMeshType> ForceAllMeshAsType = EInterchangeForceMeshType::IFMT_None;
+ 	EInterchangeForceMeshType ForceAllMeshAsType = EInterchangeForceMeshType::IFMT_None;
 
 	/** If enable, meshes LODs will be imported. Note that it required the advanced bBakeMesh property to be enabled. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes", meta = (editcondition = "bBakeMeshes"))
@@ -69,7 +70,7 @@ public:
 
 	/** Specify how vertex colors should be imported */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
-	TEnumAsByte<enum EInterchangeVertexColorImportOption> VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Replace;
+	EInterchangeVertexColorImportOption VertexColorImportOption = EInterchangeVertexColorImportOption::IVCIO_Replace;
 
 	/** Specify override color in the case that VertexColorImportOption is set to Override */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Meshes")
@@ -99,6 +100,14 @@ public:
 	/** If enable, import the animation asset find in the sources. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
 	bool bImportSkeletalMeshes = true;
+
+	/** Re-import partially or totally a skeletal mesh. You can choose betwwen geometry, skinning or everything.*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (DisplayName = "Import Content Type"))
+	EInterchangeSkeletalMeshContentType SkeletalMeshImportContentType;
+	
+	/** The value of the content type during the last import. This cannot be edited and is set only on successful import or re-import*/
+	UPROPERTY()
+	EInterchangeSkeletalMeshContentType LastSkeletalMeshImportContentType;
 
 	/** If enable all translated skinned mesh node will be imported has a one skeletal mesh, note that it can still create several skeletal mesh for each different skeleton root joint. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes")
@@ -139,6 +148,8 @@ protected:
 	{
 		return true;
 	}
+
+	virtual void SetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex) override;
 
 private:
 

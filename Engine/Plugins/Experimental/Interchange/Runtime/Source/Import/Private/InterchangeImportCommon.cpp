@@ -80,6 +80,21 @@ namespace UE
 
 		UAssetImportData* FFactoryCommon::UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters)
 		{
+			return UpdateImportAssetData(Parameters, [&Parameters](UInterchangeAssetImportData* AssetImportData)
+				{
+#if WITH_EDITORONLY_DATA
+					//Set the asset import data file source to allow reimport. TODO: manage MD5 Hash properly
+					TOptional<FMD5Hash> FileContentHash = Parameters.SourceData->GetFileContentHash();
+
+					//Update the first filename, TODO for asset using multiple source file we have to update the correct index
+					AssetImportData->Update(Parameters.SourceData->GetFilename(), FileContentHash.IsSet() ? &FileContentHash.GetValue() : nullptr);
+#endif //WITH_EDITORONLY_DATA
+				});
+
+		}
+
+		UAssetImportData* FFactoryCommon::UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters, TFunctionRef<void(UInterchangeAssetImportData*)> CustomFileSourceUpdate)
+		{
 #if WITH_EDITORONLY_DATA
 			if (!ensure(IsInGameThread()))
 			{
@@ -102,11 +117,7 @@ namespace UE
 				}
 			}
 
-			//Set the asset import data file source to allow reimport. TODO: manage MD5 Hash properly
-			TOptional<FMD5Hash> FileContentHash = Parameters.SourceData->GetFileContentHash();
-
-			//Update the first filename, TODO for asset using multiple source file we have to update the correct index
-			AssetImportData->Update(Parameters.SourceData->GetFilename(), FileContentHash.IsSet() ? &FileContentHash.GetValue() : nullptr);
+			CustomFileSourceUpdate(AssetImportData);
 
 
 			Private::ImportCommon::EndSetupAssetData(Parameters, AssetImportData);
@@ -116,7 +127,6 @@ namespace UE
 #endif //#if WITH_EDITORONLY_DATA
 			return nullptr;
 		}
-
 
 #if WITH_EDITORONLY_DATA
 		FFactoryCommon::FSetImportAssetDataParameters::FSetImportAssetDataParameters(UObject* InAssetImportDataOuter
@@ -187,10 +197,7 @@ namespace UE
 			{
 				case EReimportStrategyFlags::ApplyNoProperties:
 				{
-					//We want to have no effect, we want to keep the original pipeline node.
-					//So we copy the previous asset node into the pipeline mode, the pipeline node will be saved
-					//in the import asset data, and it will save the original import node.
-					UInterchangeBaseNode::CopyStorage(PreviousAssetNode, PipelineAssetNode);
+					//We want to have no effect
 					break;
 				}
 					
