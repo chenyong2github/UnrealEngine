@@ -57,8 +57,17 @@ namespace Chaos
 		return { GetContact().GetParticle0(), GetContact().GetParticle1() };
 	}
 
-	void FPBDCollisionConstraintHandle::GatherInput(FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+	void FPBDCollisionConstraintHandle::PreGatherInput(FPBDIslandSolverData& SolverData)
 	{
+		ConcreteContainer()->PreGatherInput(GetContact(), SolverData);
+	}
+
+	void FPBDCollisionConstraintHandle::GatherInput(FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData, const bool bNeedsPreGather)
+	{
+		if (bNeedsPreGather)
+		{
+			PreGatherInput(SolverData);
+		}
 		ConcreteContainer()->GatherInput(Dt, GetContact(), Particle0Level, Particle1Level, SolverData);
 	}
 

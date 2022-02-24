@@ -457,6 +457,12 @@ namespace Chaos
 			SolverBodies[1] = InSolverBody1;
 		}
 
+		int32 GetSolverBodyContainerIndex() const { return ConstraintIndex; }
+		void SetSolverBodyContainerIndex(int32 InConstraintIndex)
+		{
+			ConstraintIndex = InConstraintIndex;
+		}
+
 		/**
 		 * @brief Whether this constraint was fully restored from a previous tick, and the manifold should be reused as-is
 		*/
@@ -647,6 +653,9 @@ namespace Chaos
 
 		// These are only needed here while we still have the legacy solvers (not QuasiPBD)
 		FSolverBody* SolverBodies[2];
+
+		// Stores the index into the solver container for this constraint
+		int32 ConstraintIndex;
 
 		// Simplex data from the last call to GJK, used to warm-start GJK
 		FGJKSimplexData GJKWarmStartData;

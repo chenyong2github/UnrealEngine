@@ -27,7 +27,9 @@ namespace Chaos
 	/** console variable to disable the colors computation on each island */
 	int32 ChaosDisableIslandColors = true;
 	FAutoConsoleVariableRef CVarChaosDisableIslandColors(TEXT("p.Chaos.Islands.DisableColors"), ChaosDisableIslandColors, TEXT(""));
-
+	
+	DECLARE_CYCLE_STAT(TEXT("FPBDConstraintRule::Gather"), STAT_Constraints_Gather, STATGROUP_Chaos);
+	DECLARE_CYCLE_STAT(TEXT("FPBDConstraintRule::Color_Gather"), STAT_Constraints_Color_Gather, STATGROUP_Chaos);
 
 	template<class ConstraintType>
 	TSimpleConstraintRule<ConstraintType>::TSimpleConstraintRule(int32 InPriority, FConstraints& InConstraints)
@@ -149,6 +151,7 @@ namespace Chaos
 	template<class ConstraintType>
 	void TPBDConstraintIslandRule<ConstraintType>::GatherSolverInput(const FReal Dt, int32 GroupIndex)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_Constraints_Gather);
 		if(FPBDIslandGroup* IslandGroup = ConstraintGraph->GetIslandGroup(GroupIndex))
 		{
 			// This will reset the number of constraints inside the solver datas. For now we keep this function since according
@@ -158,7 +161,7 @@ namespace Chaos
 			Constraints.SetNumIslandConstraints(IslandGroup->ConstraintCount(Constraints.GetContainerId()), *IslandGroup);
 			IslandGroup->InitConstraintIndex(Constraints.GetContainerId());
 			
-			for (auto& IslandSolver : IslandGroup->GetIslands() )
+			for (FPBDIslandSolver* IslandSolver : IslandGroup->GetIslands())
 			{
 				if(!IslandSolver->IsSleeping() && !IslandSolver->IsUsingCache())
 				{
@@ -239,6 +242,7 @@ namespace Chaos
 	template<class ConstraintType>
 	void TPBDConstraintColorRule<ConstraintType>::GatherSolverInput(const FReal Dt, int32 GroupIndex)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_Constraints_Color_Gather);
 		FPBDConstraintGraph* LocalGraph = ConstraintGraph;
 		auto GetParticleLevel = [LocalGraph](TGeometryParticleHandle<FReal, 3>* ConstrainedParticle) -> int32
 		{
@@ -261,7 +265,7 @@ namespace Chaos
 				IslandConstraintSets.Reset();
 				int32 ConstraintSetBegin = 0, ConstraintSetEnd = 0;
 				
-				for (auto& IslandSolver : IslandGroup->GetIslands() )
+				for (FPBDIslandSolver* IslandSolver : IslandGroup->GetIslands())
 				{
 					ConstraintSetBegin = ConstraintSetEnd;
 
@@ -296,10 +300,19 @@ namespace Chaos
 									
 									if (OffsetEnd != OffsetBegin)
 									{
+										for (int32 ConstraintIndex = OffsetBegin; ConstraintIndex < OffsetEnd; ++ConstraintIndex)
+										{
+											FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];
+											if (Constraint->IsEnabled())
+											{
+												Constraint->PreGatherInput(*IslandGroup);
+											}
+										}
 										// Calculate the range of indices for this color as a set of independent contacts
 										TPair<int32, int32> ColorConstrainSet(ConstraintSetEnd, ConstraintSetEnd);
-										for(int32 ConstraintIndex = OffsetBegin; ConstraintIndex < OffsetEnd; ++ConstraintIndex)
+										InnerPhysicsParallelFor(OffsetEnd - OffsetBegin, [&](int32 Index)
 										{
+											int32 ConstraintIndex = Index + OffsetBegin;
 											FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];
 											if (Constraint->IsEnabled())
 											{
@@ -308,11 +321,17 @@ namespace Chaos
 												const TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstrainedParticles = Constraint->GetConstrainedParticles();
 												const int32 Particle0Level = GetParticleLevel(ConstrainedParticles[0]);
 												const int32 Particle1Level = GetParticleLevel(ConstrainedParticles[1]);
-									
+
 												// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
 												// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
-												Constraint->GatherInput(Dt, Particle0Level, Particle1Level, *IslandGroup);
-									
+												Constraint->GatherInput(Dt, Particle0Level, Particle1Level, *IslandGroup, false);
+											}
+										});
+										for (int32 ConstraintIndex = OffsetBegin; ConstraintIndex < OffsetEnd; ++ConstraintIndex)
+										{
+											FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];
+											if (Constraint->IsEnabled())
+											{
 												// Update the current constraint set of this color
 												ColorConstrainSet.Value = ++ConstraintSetEnd;
 											}
