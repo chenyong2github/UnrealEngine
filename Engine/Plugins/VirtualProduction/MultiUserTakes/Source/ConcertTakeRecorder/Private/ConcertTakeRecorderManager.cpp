@@ -859,7 +859,7 @@ ETransactionFilterResult FConcertTakeRecorderManager::ShouldObjectBeTransacted(U
 
 	UConcertTakeSynchronization const* TakeSync	= GetDefault<UConcertTakeSynchronization>();
 	if (WeakSession.IsValid()
-		&& TakeSync->bTransactTakeMetaData
+		&& TakeSync->bTransactTakeMetadata
 		&& InObject
 		&& InObject->IsA<UTakeMetaData>())
 	{

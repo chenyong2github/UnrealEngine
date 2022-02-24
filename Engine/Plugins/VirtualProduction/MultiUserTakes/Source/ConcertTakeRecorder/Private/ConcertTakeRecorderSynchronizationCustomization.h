@@ -59,7 +59,7 @@ public:
 		IDetailCategoryBuilder& TakeSync = DetailLayout.EditCategory("Multi-user Take Synchronization");
 
 		TSharedPtr<IPropertyHandle> TransactMetaData = DetailLayout.GetProperty(
-			GET_MEMBER_NAME_CHECKED(UConcertTakeSynchronization, bTransactTakeMetaData));
+			GET_MEMBER_NAME_CHECKED(UConcertTakeSynchronization, bTransactTakeMetadata));
 		TransactMetaData->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &ThisType::TakeMetaPropertyChanged));
 
 		TSharedPtr<IPropertyHandle> SyncTakeRecordingProperty = DetailLayout.GetProperty(
