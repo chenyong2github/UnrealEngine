@@ -426,6 +426,11 @@ void UGameFrameworkComponentManager::CreateComponentOnInstance(AActor* ActorInst
 		TSet<FObjectKey>& ComponentInstances = ComponentClassToComponentInstanceMap.FindOrAdd(*ComponentClass);
 		ComponentInstances.Add(NewComp);
 
+		if (USceneComponent* NewSceneComp = Cast<USceneComponent>(NewComp))
+		{
+			NewSceneComp->SetupAttachment(ActorInstance->GetRootComponent());
+		}
+
 		NewComp->RegisterComponent();
 	}
 }
