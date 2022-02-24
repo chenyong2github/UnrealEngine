@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MassCrowdReplicationProcessor.h"
+#include "MassCrowdReplicator.h"
 #include "MassReplicationTypes.h"
 #include "MassClientBubbleHandler.h"
 #include "MassCrowdBubble.h"

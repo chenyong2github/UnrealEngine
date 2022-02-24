@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.UMassSimulationSettings
 
-#include "MassReplicationProcessorBase.h"
+#include "MassReplicationProcessor.h"
 #include "MassClientBubbleHandler.h"
 #include "MassLODSubsystem.h"
 #include "MassCommonFragments.h"

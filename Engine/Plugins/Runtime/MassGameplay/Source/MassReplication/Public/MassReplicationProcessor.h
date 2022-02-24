@@ -11,7 +11,7 @@
 #include "MassSpawnerTypes.h"
 #include "MassLODSubsystem.h"
 #include "MassReplicationSubsystem.h"
-#include "MassReplicationProcessorBase.generated.h"
+#include "MassReplicationProcessor.generated.h"
 
 class UMassReplicationSubsystem;
 class AMassClientBubbleInfoBase;

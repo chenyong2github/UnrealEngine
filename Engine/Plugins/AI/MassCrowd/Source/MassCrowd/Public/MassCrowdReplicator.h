@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "MassReplicationProcessorBase.h"
+#include "MassReplicationProcessor.h"
 
-#include "MassCrowdReplicationProcessor.generated.h"
+#include "MassCrowdReplicator.generated.h"
 
 /** Class that handles replication and only runs on the server. It queries Mass entity fragments and sets those values when appropriate using the MassClientBubbleHandler. */
 UCLASS()

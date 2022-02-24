@@ -2,7 +2,7 @@
 
 #include "MassReplicationFragments.h"
 #include "MassReplicationSubsystem.h"
-#include "MassReplicationProcessorBase.h"
+#include "MassReplicationProcessor.h"
 #include "Engine/World.h"
 
 //----------------------------------------------------------------------//
