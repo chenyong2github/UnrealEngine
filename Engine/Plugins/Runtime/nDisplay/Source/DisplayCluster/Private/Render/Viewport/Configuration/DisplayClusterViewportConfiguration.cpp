@@ -91,21 +91,38 @@ bool FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(EDisplayClust
 				RenderFrameSettings.PreviewRenderTargetRatioMult = InPreviewSettings->PreviewRenderTargetRatioMult;
 
 				// Limit preview textures max size
-				RenderFrameSettings.PreviewMaxTextureSize = InPreviewSettings->PreviewMaxTextureSize;
+				RenderFrameSettings.PreviewMaxTextureDimension = InPreviewSettings->PreviewMaxTextureDimension;
+
+				// Hack preview gamma.
+				// In a scene, PostProcess always renders on top of the preview textures.
+				// But in it, PostProcess is also rendered with the flag turned off.
+				RenderFrameSettings.bPreviewEnablePostProcess = InPreviewSettings->bPreviewEnablePostProcess;
 
 				// Support mGPU for preview rendering
 				RenderFrameSettings.bAllowMultiGPURenderingInEditor = InPreviewSettings->bAllowMultiGPURenderingInEditor;
 				RenderFrameSettings.PreviewMinGPUIndex = InPreviewSettings->MinGPUIndex;
 				RenderFrameSettings.PreviewMaxGPUIndex = InPreviewSettings->MaxGPUIndex;
 
-
 				RenderFrameSettings.bIsRenderingInEditor = true;
+			}
+			else
+			{
+				RenderFrameSettings.bPreviewEnablePostProcess = false;
+				RenderFrameSettings.bAllowMultiGPURenderingInEditor = false;
+				RenderFrameSettings.bIsRenderingInEditor = false;
 			}
 
 			ConfigurationBase.Update(InClusterNodeId);
 			ConfigurationICVFX.Update();
 			ConfigurationProjectionPolicy.Update();
 			ConfigurationICVFX.PostUpdate();
+
+#if WITH_EDITOR
+			if (InPreviewSettings != nullptr && !InPreviewSettings->bIsPIE)
+			{
+				ConfigurationICVFX.PostUpdatePreview_Editor(*InPreviewSettings);
+			}
+#endif
 
 			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
 
@@ -131,6 +148,8 @@ bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(EDisplayCl
 {
 	if (InClusterNodeId.Equals(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll, ESearchCase::IgnoreCase))
 	{
+		check(!InPreviewSettings.bIsPIE);
+
 		// initialize all nodes
 		ADisplayClusterRootActor* RootActor = GetRootActor();
 		if (RootActor != nullptr)

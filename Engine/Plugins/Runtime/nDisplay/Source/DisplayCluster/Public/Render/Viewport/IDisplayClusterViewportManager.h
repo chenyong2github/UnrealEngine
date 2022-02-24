@@ -103,11 +103,23 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) = 0;
 
 #if WITH_EDITOR
-	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmmount, bool& bOutFrameRendered) = 0;
+	/**
+	* Render in editor (preview)
+	* [Game thread func]
+	*
+	* @param InRenderFrame - render frame setup
+	* @param InViewport
+	* @param InFirstViewportNum - begin render from this viewport in frame
+	* @param InViewportsAmount - max viewports for render
+	* @param OutViewportsAmount - total viewport rendered
+	* @param bOutFrameRendered - true, if cluster node composition pass done (additional pass after last viewport is rendered)
+	*
+	* @return - true, if render success
+	*/
+	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmount, int32& OutViewportsAmount, bool& bOutFrameRendered) = 0;
 #endif
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 	/**
 	* Find viewport object by name
 	* [Game thread func]

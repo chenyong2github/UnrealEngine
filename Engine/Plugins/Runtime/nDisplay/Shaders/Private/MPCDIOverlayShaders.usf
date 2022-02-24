@@ -195,8 +195,14 @@ OutputPS IcvfxWarpPS(OutputVS IN)
 
 	// Compose all:
 #if VIEWPORT_INPUT
+
 	// First and single pass renders:
-	float4 OutColor = float4(InputTexture.Sample(InputSampler, ViewportUV).rgb, 1.0f);
+
+	#if VIEWPORT_INPUT_ALPHA
+		float4 OutColor = float4(InputTexture.Sample(InputSampler, ViewportUV));
+	#else
+		float4 OutColor = float4(InputTexture.Sample(InputSampler, ViewportUV).rgb, 1.0f);
+	#endif
 
 	#if OVERLAY_UNDER
 		OutColor.xyz = ComposeIcvfxOverlay(OutColor.xyz, OverlayUV);

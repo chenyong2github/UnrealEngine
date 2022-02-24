@@ -17,7 +17,7 @@ public:
 	virtual ~FDisplayClusterProjectionDomeprojectionViewAdapterDX11();
 
 public:
-	virtual bool Initialize(const FString& File) override;
+	virtual bool Initialize(class IDisplayClusterViewport* InViewport, const FString& File) override;
 
 public:
 	virtual bool CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const uint32 Channel, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
@@ -34,7 +34,7 @@ private:
 	class FViewData
 	{
 	public:
-		bool Initialize(const FString& InFile, FCriticalSection& DllAccessCS);
+		bool Initialize(class IDisplayClusterViewport* InViewport, const FString& InFile, FCriticalSection& DllAccessCS);
 		void Release(FCriticalSection& DllAccessCS);
 
 	public:

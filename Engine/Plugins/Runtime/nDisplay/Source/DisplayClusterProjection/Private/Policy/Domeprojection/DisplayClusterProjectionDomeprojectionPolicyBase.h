@@ -45,7 +45,7 @@ protected:
 
 private:
 	// Parse Domeprojection related data from the nDisplay config file
-	bool ReadConfigData(const FString& InViewportId, FString& OutFile, FString& OutOrigin, uint32& OutChannel);
+	bool ReadConfigData(class IDisplayClusterViewport* InViewport, FString& OutFile, FString& OutOrigin, uint32& OutChannel);
 
 private:
 	FString OriginCompId;

@@ -72,7 +72,7 @@ bool FDisplayClusterProjectionMeshPolicy::CreateWarpMeshInterface(IDisplayCluste
 
 		if (!bResult)
 		{
-			if (!IsEditorOperationMode())
+			if (!IsEditorOperationMode(InViewport))
 			{
 				UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't create mesh warpblend interface"));
 			}
@@ -95,7 +95,7 @@ bool FDisplayClusterProjectionMeshPolicy::HandleStartScene(IDisplayClusterViewpo
 
 	if (!CreateWarpMeshInterface(InViewport))
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Couldn't create warp interface for viewport '%s'"), *InViewport->GetId());
 		}
@@ -133,7 +133,7 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshConfiguration(IDisplayClust
 		}
 #endif
 
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("No component ID '%s' specified for projection policy '%s'"), *ComponentId, *GetId());
 		}
@@ -196,7 +196,7 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshConfiguration(IDisplayClust
 		OutWarpCfg.ProceduralMeshComponent = Root->GetComponentByName<UProceduralMeshComponent>(ComponentId);
 		if (OutWarpCfg.ProceduralMeshComponent == nullptr)
 		{
-			if (!IsEditorOperationMode())
+			if (!IsEditorOperationMode(InViewport))
 			{
 				UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't find mesh component '%s' in RootActor"), *ComponentId);
 			}

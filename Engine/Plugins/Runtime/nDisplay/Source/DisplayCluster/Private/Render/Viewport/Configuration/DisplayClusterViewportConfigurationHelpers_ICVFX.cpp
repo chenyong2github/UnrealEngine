@@ -38,26 +38,73 @@
 
 #include "Misc/DisplayClusterLog.h"
 
-// Initialize camera policy with camera component and settings
-static bool ImplUpdateCameraProjectionSettings(TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InOutCameraProjection, const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings, UCameraComponent* const CameraComponent)
-{
-	FDisplayClusterProjectionCameraPolicySettings PolicyCameraSettings;
-	PolicyCameraSettings.FOVMultiplier = CameraSettings.CustomFrustum.bEnable ? CameraSettings.CustomFrustum.FieldOfViewMultiplier : 1.f;
+////////////////////////////////////////////////////////////////////////////////
+// Experimental feature: to be approved after testing
+int32 GDisplayClusterPreviewEnableReuseViewportInCluster = 1;
+static FAutoConsoleVariableRef CVarDisplayClusterPreviewEnableReuseViewportInCluster(
+	TEXT("DC.Preview.EnableReuseViewportInCluster"),
+	GDisplayClusterPreviewEnableReuseViewportInCluster,
+	TEXT("Experimental feature (0 == disabled, 1 == enabled)"),
+	ECVF_RenderThreadSafe
+);
 
-	// Lens correction
-	PolicyCameraSettings.FrustumRotation = CameraSettings.FrustumRotation;
-	PolicyCameraSettings.FrustumOffset   = CameraSettings.FrustumOffset;
+////////////////////////////////////////////////////////////////////////////////
+namespace DisplayClusterViewportConfigurationHelpers_ICVFX_Impl
+{
+	static float ImplGetFieldOfViewMultiplier(const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings)
+	{
+		return CameraSettings.CustomFrustum.bEnable ? CameraSettings.CustomFrustum.FieldOfViewMultiplier : 1.f;
+	}
 
 	// Initialize camera policy with camera component and settings
-	return IDisplayClusterProjection::Get().CameraPolicySetCamera(InOutCameraProjection, CameraComponent, PolicyCameraSettings);
-}
+	static bool ImplUpdateCameraProjectionSettings(TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InOutCameraProjection, const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings, UCameraComponent* const CameraComponent)
+	{
+		FDisplayClusterProjectionCameraPolicySettings PolicyCameraSettings;
+		PolicyCameraSettings.FOVMultiplier = ImplGetFieldOfViewMultiplier(CameraSettings);
 
-// Return unique ICVFX name
-FString ImplGetNameICVFX(const FString& InClusterNodeId, const FString& InViewportId, const FString& InResourceId)
-{
-	return FString::Printf(TEXT("%s_%s_%s_%s"), *InClusterNodeId, DisplayClusterViewportStrings::icvfx::prefix, *InViewportId, *InResourceId);
-}
+		// Lens correction
+		PolicyCameraSettings.FrustumRotation = CameraSettings.FrustumRotation;
+		PolicyCameraSettings.FrustumOffset = CameraSettings.FrustumOffset;
 
+		// Initialize camera policy with camera component and settings
+		return IDisplayClusterProjection::Get().CameraPolicySetCamera(InOutCameraProjection, CameraComponent, PolicyCameraSettings);
+	}
+
+	// Return unique ICVFX name
+	static FString ImplGetNameICVFX(const FString& InClusterNodeId, const FString& InViewportId, const FString& InResourceId)
+	{
+		return FString::Printf(TEXT("%s_%s_%s_%s"), *InClusterNodeId, DisplayClusterViewportStrings::icvfx::prefix, *InViewportId, *InResourceId);
+	}
+
+#if WITH_EDITOR
+	static bool IsPreviewEnableReuseViewportInCluster_EditorImpl(ADisplayClusterRootActor& InRootActor)
+	{
+		if (GDisplayClusterPreviewEnableReuseViewportInCluster > 0)
+		{
+			FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(InRootActor);
+			if (ViewportManager)
+			{
+				const FDisplayClusterRenderFrameSettings& RenderFrameSettings = ViewportManager->GetRenderFrameSettings();
+				switch (RenderFrameSettings.RenderMode)
+				{
+				case EDisplayClusterRenderFrameMode::PreviewInScene:
+					return true;
+				default:
+					break;
+				}
+			}
+		}
+
+		return false;
+	}
+#endif
+};
+
+using namespace DisplayClusterViewportConfigurationHelpers_ICVFX_Impl;
+
+////////////////////////////////////////////////////////////////////////////////
+// FDisplayClusterViewportConfigurationHelpers_ICVFX
+////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::ImplFindViewport(ADisplayClusterRootActor& RootActor, const FString& InViewportId, const FString& InResourceId)
 {
 	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor);
@@ -174,6 +221,100 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::GetO
 	return CameraViewport;
 }
 
+#if WITH_EDITOR
+void FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewReuseInnerFrustumViewportWithinClusterNodes_Editor(FDisplayClusterViewport& InCameraViewport, ADisplayClusterRootActor& InRootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
+{
+	if (!IsPreviewEnableReuseViewportInCluster_EditorImpl(InRootActor))
+	{
+		return;
+	}
+
+	const FDisplayClusterRenderFrameSettings& RenderFrameSettingsConstRef = InCameraViewport.GetRenderFrameSettings();
+	switch (RenderFrameSettingsConstRef.RenderMode)
+	{
+	case EDisplayClusterRenderFrameMode::PreviewInScene:
+		// Only for preview mode
+		break;
+	default:
+		return;
+	}
+
+	const FString ICVFXCameraId = InCameraComponent.GetCameraUniqueId();
+
+	// Search for rendered camera viewport on other cluster nodes
+	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(InRootActor);
+	if (ViewportManager != nullptr)
+	{
+		for (FDisplayClusterViewport* ViewportIt : ViewportManager->ImplGetWholeClusterViewports_Editor())
+		{
+			if (ViewportIt != nullptr
+			&& (ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXIncamera) != 0 
+			&& (ViewportIt->InputShaderResources.Num() > 0 && ViewportIt->InputShaderResources[0] != nullptr && ViewportIt->Contexts.Num() > 0)
+			&& (ViewportIt->RenderSettings.OverrideViewportId.IsEmpty())
+			&& (ViewportIt->GetClusterNodeId() != InCameraViewport.GetClusterNodeId()))
+			{
+				// this is incamera viewport. Check by name
+				const FString RequiredViewportId = ImplGetNameICVFX(ViewportIt->GetClusterNodeId(), ICVFXCameraId, DisplayClusterViewportStrings::icvfx::camera);
+				if (RequiredViewportId.Equals(ViewportIt->GetId()))
+				{
+					if (FDisplayClusterViewportConfigurationHelpers_OpenColorIO::IsInnerFrustumViewportSettingsEqual_Editor(*ViewportIt, InCameraViewport, InCameraComponent)
+					&&  FDisplayClusterViewportConfigurationHelpers_Postprocess::IsInnerFrustumViewportSettingsEqual_Editor(*ViewportIt, InCameraViewport, InCameraComponent))
+					{
+						// Reuse exist viewport:
+						InCameraViewport.RenderSettings.OverrideViewportId = ViewportIt->GetId();
+						return;
+					}
+				}
+			}
+		}
+	}
+}
+
+void FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewReuseChromakeyViewportWithinClusterNodes_Editor(FDisplayClusterViewport& InChromakeyViewport, ADisplayClusterRootActor& InRootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
+{
+	if (!IsPreviewEnableReuseViewportInCluster_EditorImpl(InRootActor))
+	{
+		return;
+	}
+
+	const FDisplayClusterRenderFrameSettings& RenderFrameSettingsConstRef = InChromakeyViewport.GetRenderFrameSettings();
+	switch (RenderFrameSettingsConstRef.RenderMode)
+	{
+	case EDisplayClusterRenderFrameMode::PreviewInScene:
+		// Only for preview mode
+		break;
+	default:
+		return;
+	}
+
+	const FString ICVFXCameraId = InCameraComponent.GetCameraUniqueId();
+
+	// Search for rendered camera viewport on other cluster nodes
+	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(InRootActor);
+	if (ViewportManager != nullptr)
+	{
+		for (FDisplayClusterViewport* ViewportIt : ViewportManager->ImplGetWholeClusterViewports_Editor())
+		{
+			if (ViewportIt != nullptr
+				&& (ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXChromakey) != 0
+				&& (ViewportIt->InputShaderResources.Num() > 0 && ViewportIt->InputShaderResources[0] != nullptr && ViewportIt->Contexts.Num() > 0)
+				&& (ViewportIt->RenderSettings.OverrideViewportId.IsEmpty())
+				&& (ViewportIt->GetClusterNodeId() != InChromakeyViewport.GetClusterNodeId()))
+			{
+				// this is chromakey viewport. Check by name
+				const FString RequiredViewportId = ImplGetNameICVFX(ViewportIt->GetClusterNodeId(), ICVFXCameraId, DisplayClusterViewportStrings::icvfx::chromakey);
+				if (RequiredViewportId.Equals(ViewportIt->GetId()))
+				{
+					// Reuse exist viewport:
+					InChromakeyViewport.RenderSettings.OverrideViewportId = ViewportIt->GetId();
+					return;
+				}
+			}
+		}
+	}
+}
+#endif
+
 FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::GetOrCreateChromakeyViewport(ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
 {
 	const FString CameraId = InCameraComponent.GetCameraUniqueId();
@@ -278,7 +419,7 @@ FDisplayClusterShaderParameters_ICVFX::FCameraSettings FDisplayClusterViewportCo
 	const int32 CameraRenderOrder = RootActor.GetInnerFrustumPriority(InnerFrustumID);
 	Result.RenderOrder = (CameraRenderOrder<0) ? CameraSettings.RenderSettings.RenderOrder : CameraRenderOrder;
 
-	const float FieldOfViewMultiplier = CameraSettings.CustomFrustum.bEnable ? CameraSettings.CustomFrustum.FieldOfViewMultiplier : 1;
+	const float FieldOfViewMultiplier = ImplGetFieldOfViewMultiplier(CameraSettings);
 
 	// softedge adjustments	
 	const float Overscan = (FieldOfViewMultiplier > 0) ? FieldOfViewMultiplier : 1;
@@ -478,7 +619,6 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateChromakeyViewportS
 	if (ChromakeySettings.ChromakeyRenderTexture.bReplaceCameraViewport)
 	{
 		InCameraViewport.RenderSettings.OverrideViewportId = DstViewport.GetId();
-		InCameraViewport.RenderSettings.bSkipRendering = true;
 	}
 }
 
@@ -636,7 +776,6 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportS
 	if (InRenderSettings.bReplaceViewport)
 	{
 		BaseViewport.RenderSettings.OverrideViewportId = DstViewport.GetId();
-		BaseViewport.RenderSettings.bSkipRendering = true;
 	}
 	else
 	{
@@ -691,12 +830,17 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportBuff
 {
 	float BufferRatio = CameraSettings.BufferRatio;
 
-	const float FieldOfViewMultiplier = CameraSettings.CustomFrustum.bEnable ? CameraSettings.CustomFrustum.FieldOfViewMultiplier : 1;
-
-	// adapt resolution should work as a shortcut to improve rendering quality
 	if (CameraSettings.CustomFrustum.bAdaptResolution)
 	{
-		DstViewport.RenderSettings.RenderTargetRatio *= FieldOfViewMultiplier;
+		const float FieldOfViewMultiplier = ImplGetFieldOfViewMultiplier(CameraSettings);
+
+		// adapt resolution should work as a shortcut to improve rendering quality
+		DstViewport.RenderSettings.RenderTargetAdaptRatio = FieldOfViewMultiplier;
+	}
+	else
+	{
+		// Don't use an adaptive resolution multiplier
+		DstViewport.RenderSettings.RenderTargetAdaptRatio = 1.f;
 	}
 
 	DstViewport.Owner.SetViewportBufferRatio(DstViewport, BufferRatio);

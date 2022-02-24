@@ -116,7 +116,6 @@ bool FDisplayClusterViewportConfigurationProjectionPolicy::UpdateCameraPolicy_IC
 	if (ExistCameraViewport)
 	{
 		DstViewport.RenderSettings.OverrideViewportId = ExistCameraViewport->GetId();
-		DstViewport.RenderSettings.bSkipRendering = true;
 	}
 	else
 	{

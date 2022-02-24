@@ -230,5 +230,4 @@ public:
 	FDisplayClusterShaderParametersICVFX_ViewportResource    Lightcard;
 	FDisplayClusterShaderParametersICVFX_ViewportResource    Lightcard_OCIO;
 	EDisplayClusterShaderParametersICVFX_LightcardRenderMode LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Under;
-
 };

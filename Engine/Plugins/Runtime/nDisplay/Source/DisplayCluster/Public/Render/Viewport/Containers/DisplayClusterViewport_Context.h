@@ -17,15 +17,19 @@ public:
 public:
 	const uint32            ContextNum;
 
-	const EStereoscopicPass StereoscopicPass;
-	const int32             StereoViewIndex;
+	EStereoscopicPass StereoscopicPass;
+	int32             StereoViewIndex;
 
 	// Camera location and orientation
 	FVector  ViewLocation = FVector::ZeroVector;
+	bool bIsValidViewLocation = false;
+
 	FRotator ViewRotation = FRotator::ZeroRotator;
+	bool bIsValidViewRotation = false;
 
 	// Projection Matrix
 	FMatrix ProjectionMatrix = FMatrix::Identity;
+	bool bIsValidProjectionMatrix = false;
 
 	// Overscan Projection Matrix (internal use)
 	FMatrix OverscanProjectionMatrix = FMatrix::Identity;
@@ -50,6 +54,9 @@ public:
 
 	// Location and size on a frame target texture
 	FIntRect FrameTargetRect;
+
+	// Buffer ratio
+	float CustomBufferRatio = 1;
 
 	// Mips number for additional MipsShader resources
 	int32 NumMips = 1;

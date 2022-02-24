@@ -13,6 +13,11 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 
+#include "Render/Viewport/DisplayClusterViewport.h"
+#include "Render/Viewport/Containers/DisplayClusterViewportReadPixels.h"
+#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
+#include "Render/Viewport/DisplayClusterViewportHelpers.h"
+
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
@@ -47,8 +52,6 @@ void UDisplayClusterPreviewComponent::OnComponentCreated()
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::OnComponentCreated"), STAT_OnComponentCreated, STATGROUP_NDisplay);
 	
 	Super::OnComponentCreated();
-
-	InitializePreviewMaterial();
 }
 
 void UDisplayClusterPreviewComponent::DestroyComponent(bool bPromoteChildren)
@@ -58,10 +61,21 @@ void UDisplayClusterPreviewComponent::DestroyComponent(bool bPromoteChildren)
 	ReleasePreviewMesh();
 	ReleasePreviewMaterial();
 
-	ReleasePreviewTexture();
 	ReleasePreviewRenderTarget();
 
 	Super::DestroyComponent(bPromoteChildren);
+}
+
+void UDisplayClusterPreviewComponent::ResetPreviewComponent(bool bInRestoreSceneMaterial)
+{
+	if (bInRestoreSceneMaterial)
+	{
+		RestorePreviewMeshMaterial();
+	}
+	else
+	{
+		UpdatePreviewMesh();
+	}
 }
 
 IDisplayClusterViewport* UDisplayClusterPreviewComponent::GetCurrentViewport() const
@@ -93,12 +107,6 @@ void UDisplayClusterPreviewComponent::RestorePreviewMeshMaterial()
 {
 	UpdatePreviewMeshReference();
 
-	if (!bIsRootActorPreviewMesh)
-	{
-		// Forged created meshes, dont restore
-		ReleasePreviewMesh();
-	}
-
 	if (PreviewMesh && OriginalMaterial)
 	{
 		// Restore
@@ -123,6 +131,9 @@ void UDisplayClusterPreviewComponent::SetPreviewMeshMaterial()
 			}
 		}
 
+		InitializePreviewMaterial();
+		UpdatePreviewMaterial();
+
 		// Set preview material
 		if (PreviewMaterialInstance)
 		{
@@ -142,56 +153,65 @@ void UDisplayClusterPreviewComponent::UpdatePreviewMeshReference()
 	}
 }
 
-bool UDisplayClusterPreviewComponent::UpdatePreviewMesh(bool bRestoreOriginalMaterial)
+bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::UpdatePreviewMesh"), STAT_UpdatePreviewMesh, STATGROUP_NDisplay);
-	
+
 	check(IsInGameThread());
 
 	UpdatePreviewMeshReference();
 
-	// And search for new mesh reference
-	IDisplayClusterViewport* Viewport = GetCurrentViewport();
-	if (Viewport != nullptr && Viewport->GetProjectionPolicy().IsValid() && Viewport->GetProjectionPolicy()->HasPreviewMesh())
+	if (IsPreviewEnabled())
 	{
-		// create warp mesh or update changes
-		if (Viewport->GetProjectionPolicy()->IsConfigurationChanged(&WarpMeshSavedProjectionPolicy))
+		check(ViewportConfig);
+
+		// And search for new mesh reference
+		IDisplayClusterViewport* Viewport = GetCurrentViewport();
+		const bool bIsViewportEnabled = RenderTarget != nullptr && Viewport != nullptr && Viewport->GetRenderSettings().bEnable && Viewport->GetProjectionPolicy().IsValid();
+		if (bIsViewportEnabled)
 		{
-			if (bRestoreOriginalMaterial)
+			// Handle preview mesh:
+			if (Viewport->GetProjectionPolicy()->HasPreviewMesh())
 			{
-				RestorePreviewMeshMaterial();
+				// create warp mesh or update changes
+				if (PreviewMesh != nullptr)
+				{
+					if (Viewport->GetProjectionPolicy()->IsConfigurationChanged(&WarpMeshSavedProjectionPolicy))
+					{
+						RestorePreviewMeshMaterial();
+						ReleasePreviewMesh();
+					}
+				}
+
+				if (PreviewMesh == nullptr)
+				{
+					// Get new mesh ptr
+					PreviewMesh = Viewport->GetProjectionPolicy()->GetOrCreatePreviewMeshComponent(Viewport, bIsRootActorPreviewMesh);
+
+					// Update saved proj policy parameters
+					WarpMeshSavedProjectionPolicy = ViewportConfig->ProjectionPolicy;
+				}
+
+				if (OriginalMaterial == nullptr)
+				{
+					// Assign preview material to mesh
+					SetPreviewMeshMaterial();
+				}
+
+				return true;
 			}
+
+			// Policy without preview mesh
+			RestorePreviewMeshMaterial();
 			ReleasePreviewMesh();
-		}
 
-		if (PreviewMesh == nullptr)
-		{
-			// Get new mesh ptr
-			PreviewMesh = Viewport->GetProjectionPolicy()->GetOrCreatePreviewMeshComponent(Viewport, bIsRootActorPreviewMesh);
-
-			// Assign preview material to mesh
-			SetPreviewMeshMaterial();
-
-			if (!ensure(ViewportConfig))
-			{
-				// Can be null during a reimport.
-				// @TODO reimport: See if we can avoid this during reimport.
-				return false;
-			}
-
-			// Update saved proj policy parameters
-			WarpMeshSavedProjectionPolicy = ViewportConfig->ProjectionPolicy;
 			return true;
 		}
 	}
-	else
-	{
-		if (bRestoreOriginalMaterial)
-		{
-			RestorePreviewMeshMaterial();
-		}
-		ReleasePreviewMesh();
-	}
+
+	// Viewport don't render
+	RestorePreviewMeshMaterial();
+	ReleasePreviewMesh();
 
 	return false;
 }
@@ -258,31 +278,46 @@ void UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget"), STAT_UpdatePreviewRenderTarget, STATGROUP_NDisplay);
 	
-	FIntPoint TextureSize(1,1);
-	float     TextureGamma = 1.f;
+	EPixelFormat TextureFormat = EPixelFormat::PF_Unknown;
+	FIntPoint    TextureSize(1,1);
+	float        TextureGamma = 1.f;
+	bool         bTextureSRGB = false;
 
-	if (GetPreviewTextureSettings(TextureSize, TextureGamma))
+	if (GetPreviewTextureSettings(TextureSize, TextureFormat, TextureGamma, bTextureSRGB))
 	{
-		// Create new RTT for preview Material in scene
-		if (RenderTarget == nullptr)
+		if (RenderTarget != nullptr)
 		{
-			static const TConsoleVariableData<int32>* CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
-			static const EPixelFormat SceneTargetFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnGameThread()));
-
-			RenderTarget = NewObject<UTextureRenderTarget2D>(this);
-			RenderTarget->ClearColor = FLinearColor::Black;
-			// Always use linear color gamma in scene material
-			RenderTarget->TargetGamma = TextureGamma;
-			RenderTarget->InitCustomFormat(TextureSize.X, TextureSize.Y, SceneTargetFormat, false);
-
-			InitializePreviewMaterial();
-			UpdatePreviewMaterial();
+			// Re-create RTT when format changed
+			if (RenderTarget->GetFormat() != TextureFormat)
+			{
+				ReleasePreviewRenderTarget();
+			}
 		}
-		// Update exist RTT resource:
+
+		if (RenderTarget != nullptr)
+		{
+			// Update an existing RTT resource only when settings change
+			if (RenderTarget->TargetGamma != TextureGamma
+				|| RenderTarget->SRGB != bTextureSRGB
+				|| RenderTarget->GetSurfaceWidth() != TextureSize.X
+				|| RenderTarget->GetSurfaceHeight() != TextureSize.Y)
+			{
+				RenderTarget->TargetGamma = TextureGamma;
+				RenderTarget->SRGB = bTextureSRGB;
+
+				RenderTarget->ResizeTarget(TextureSize.X, TextureSize.Y);
+			}
+		}
 		else
 		{
-			RenderTarget->ResizeTarget(TextureSize.X, TextureSize.Y);
+			// Create new RTT
+			RenderTarget = NewObject<UTextureRenderTarget2D>(this);
+			RenderTarget->ClearColor = FLinearColor::Black;
 			RenderTarget->TargetGamma = TextureGamma;
+			RenderTarget->SRGB = bTextureSRGB;
+
+			RenderTarget->InitCustomFormat(TextureSize.X, TextureSize.Y, TextureFormat, false);
+			UpdatePreviewMaterial();
 		}
 	}
 	else
@@ -301,161 +336,34 @@ void UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget()
 	}
 }
 
-bool UDisplayClusterPreviewComponent::GetPreviewTextureSettings(FIntPoint& OutSize, float& OutGamma) const
+bool UDisplayClusterPreviewComponent::GetPreviewTextureSettings(FIntPoint& OutSize, EPixelFormat& OutTextureFormat, float& OutGamma, bool& bOutSRGB) const
 {
-	IDisplayClusterViewport* Viewport = GetCurrentViewport();
-	if (Viewport != nullptr)
+	if (IDisplayClusterViewport* PublicViewport = GetCurrentViewport())
 	{
-		// The viewport size is already capped for RenderSettings
-		const TArray<FDisplayClusterViewport_Context>& Contexts = Viewport->GetContexts();
-		if (Contexts.Num() > 0)
+		if (FDisplayClusterViewport* Viewport = static_cast<FDisplayClusterViewport*>(PublicViewport))
 		{
-			OutSize = Contexts[0].FrameTargetRect.Size();
+			// The viewport size is already capped for RenderSettings
+			const TArray<FDisplayClusterViewport_Context>& Contexts = PublicViewport->GetContexts();
+			if (Contexts.Num() > 0)
+			{
+				DisplayClusterViewportHelpers::GetPreviewRenderTargetDesc_Editor(Viewport->GetRenderFrameSettings(), OutTextureFormat, OutGamma, bOutSRGB);
 
-			check(OutSize.X > 0);
-			check(OutSize.Y > 0);
+				OutSize = Contexts[0].FrameTargetRect.Size();
 
-			//! Get gamma from current FViewport
-			OutGamma = 2.2f;
+				check(OutSize.X > 0);
+				check(OutSize.Y > 0);
 
-			return true;
+				return true;
+			}
 		}
 	}
 
 	return false;
 }
 
-bool UDisplayClusterPreviewComponent::IsPreviewAvailable() const
+UTexture* UDisplayClusterPreviewComponent::GetViewportPreviewTexture2D()
 {
-	IDisplayClusterViewport* Viewport = GetCurrentViewport();
-	return (Viewport != nullptr) && Viewport->GetProjectionPolicy().IsValid();
-}
-
-void UDisplayClusterPreviewComponent::ReleasePreviewTexture()
-{
-	if (PreviewTexture != nullptr)
-	{
-		PreviewTexture = nullptr;
-	}
-}
-
-bool UDisplayClusterPreviewComponent::UpdatePreviewTexture()
-{
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::UpdatePreviewTexture"), STAT_UpdatePreviewTexture, STATGROUP_NDisplay);
-	
-	check(RenderTarget);
-
-	TArray<FColor> SurfData;
-	FRenderTarget* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
-	RenderTargetResource->ReadPixels(SurfData);
-	{
-		// Check for invalid data.. could happen if a viewport was unbound from a screen/mesh/ect but still has a policy assigned.
-		const FColor EmptyColor(ForceInitToZero);
-		if (SurfData.Num() > 0 && SurfData[0] == EmptyColor)
-		{
-			// Quick test on first element shows we might have an invalid texture.
-			const TSet<FColor> TestEmpty(SurfData);
-			if (TestEmpty.Num() == 1 && *TestEmpty.CreateConstIterator() == EmptyColor)
-			{
-				// Check rest of the texture -- Texture is blank
-				ReleasePreviewTexture();
-				return false;
-			}
-		}
-	}
-
-	FIntPoint DstSize = RenderTargetResource->GetSizeXY();
-	bool SRGB = RenderTarget->SRGB;
-
-	// If source rendertarget texture changed
-	if (PreviewTexture != nullptr)
-	{
-		if (PreviewTexture->GetSizeX() != DstSize.X || PreviewTexture->GetSizeY() != DstSize.Y || PreviewTexture->SRGB != SRGB)
-		{
-			// Size changed, re-create
-			ReleasePreviewTexture();
-		}
-	}
-
-	if (PreviewTexture == nullptr)
-	{
-		// Create new resource
-		PreviewTexture = UTexture2D::CreateTransient(DstSize.X, DstSize.Y, PF_B8G8R8A8);
-		if (PreviewTexture == nullptr)
-		{
-			return false;
-		}
-
-		PreviewTexture->MipGenSettings = TMGS_NoMipmaps;
-		PreviewTexture->SRGB = RenderTarget->SRGB;
-	}
-
-	// Alpha channel must non-opaque for preview in OutputMapping
-	for (FColor& PixelIt : SurfData)
-	{
-		PixelIt.A = 255;
-	}
-
-	// Transfer data
-	{
-		void* TextureData = PreviewTexture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-		const int32 TextureDataSize = SurfData.Num() * 4;
-		FMemory::Memcpy(TextureData, SurfData.GetData(), TextureDataSize);
-		PreviewTexture->GetPlatformData()->Mips[0].BulkData.Unlock();
-		PreviewTexture->UpdateResource();
-	}
-
-	if (PreviewTexture->GetOuter() != this)
-	{
-		PreviewTexture->Rename(nullptr, this, REN_DoNotDirty | REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
-	}
-
-	return true;
-}
-
-void UDisplayClusterPreviewComponent::HandleRenderTargetTextureDeferredUpdate(const EDisplayClusterRenderFrameMode InRenderFrameMode)
-{
-	check(IsInGameThread());
-
-	switch (InRenderFrameMode)
-	{
-	case EDisplayClusterRenderFrameMode::PreviewInScene:
-		if (RenderTargetSurfaceChangedCnt < 1)
-		{
-			RenderTargetSurfaceChangedCnt = 2;
-		}
-		break;
-	default:
-		break;
-	}
-}
-
-UTexture2D* UDisplayClusterPreviewComponent::GetOrCreateViewportPreviewTexture2D()
-{
-	if (IsPreviewAvailable())
-	{
-		if (RenderTarget && RenderTargetSurfaceChangedCnt)
-		{
-			if (--RenderTargetSurfaceChangedCnt == 0)
-			{
-				UpdatePreviewTexture();
-			}
-		}
-
-		return PreviewTexture;
-	}
-
-	return nullptr;
-}
-
-UTexture2D* UDisplayClusterPreviewComponent::GetViewportPreviewTexture2D() const
-{
-	if (IsPreviewAvailable())
-	{
-		return PreviewTexture;
-	}
-
-	return nullptr;
+	return RenderTarget;
 }
 
 void UDisplayClusterPreviewComponent::SetOverrideTexture(UTexture* InOverrideTexture)

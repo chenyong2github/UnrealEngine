@@ -66,9 +66,16 @@ public:
 	virtual void RenderFrame(FViewport* InViewport) override;
 
 #if WITH_EDITOR
-	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmmount, bool& bOutFrameRendered) override;
+	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmount, int32& OutViewportsAmount, bool& bOutFrameRendered) override;
 	
 	void ImplUpdatePreviewRTTResources();
+
+	const TArray<FDisplayClusterViewport*>& ImplGetWholeClusterViewports_Editor() const
+	{
+		check(IsInGameThread());
+
+		return Viewports;
+	}
 #endif
 
 	virtual IDisplayClusterViewport* FindViewport(const FString& InViewportId) const override
@@ -80,7 +87,7 @@ public:
 
 	virtual const TArrayView<IDisplayClusterViewport*> GetViewports() const override
 	{
-		return TArrayView<IDisplayClusterViewport*>((IDisplayClusterViewport**)(Viewports.GetData()), Viewports.Num());
+		return TArrayView<IDisplayClusterViewport*>((IDisplayClusterViewport**)(ClusterNodeViewports.GetData()), ClusterNodeViewports.Num());
 	}
 
 	virtual void MarkComponentGeometryDirty(const FName InComponentName = NAME_None) override;
@@ -98,7 +105,7 @@ public:
 	const TArray<FDisplayClusterViewport*>& ImplGetViewports() const
 	{
 		check(IsInGameThread());
-		return Viewports;
+		return ClusterNodeViewports;
 	}
 
 	FDisplayClusterViewport* ImplFindViewport(const FString& InViewportId) const;
@@ -128,7 +135,7 @@ private:
 	void ResetSceneRenderTargetSize();
 	void UpdateSceneRenderTargetSize();
 	void HandleViewportRTTChanges(const TArray<FDisplayClusterViewport_Context>& PrevContexts, const TArray<FDisplayClusterViewport_Context>& Contexts);
-	void ImplUpdateClusterNodeViewports();
+	void ImplUpdateClusterNodeViewports(const EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId);
 
 protected:
 	friend FDisplayClusterViewportManagerProxy;

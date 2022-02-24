@@ -187,13 +187,11 @@ bool FDisplayClusterRootActorDetailsCustomization::RebuildNodeIdOptionsList()
 	}
 
 	// Initialize special options
-	NodeIdOptionAll  = MakeShared<FString>(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll);
 	NodeIdOptionNone = MakeShared<FString>(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone);
 
 	// Fill combobox with the options
 	NodeIdOptions.Reset();
 	NodeIdOptions.Emplace(NodeIdOptionNone);
-	NodeIdOptions.Emplace(NodeIdOptionAll);
 	for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& Node : ConfigurationData->Cluster->Nodes)
 	{
 		if (!Node.Key.IsEmpty())
@@ -230,7 +228,7 @@ void FDisplayClusterRootActorDetailsCustomization::UpdateNodeIdSelection()
 		else
 		{
 			// Set combobox selected item (options list is not empty here)
-			NodeIdComboBox->SetSelectedItem(NodeIdOptionAll);
+			NodeIdComboBox->SetSelectedItem(NodeIdOptionNone);
 		}
 	}
 }

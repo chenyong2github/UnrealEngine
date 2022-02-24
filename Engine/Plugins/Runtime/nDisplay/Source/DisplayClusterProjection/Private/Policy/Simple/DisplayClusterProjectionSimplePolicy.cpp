@@ -32,7 +32,7 @@ FDisplayClusterProjectionSimplePolicy::~FDisplayClusterProjectionSimplePolicy()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterProjectionSimplePolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
+bool FDisplayClusterProjectionSimplePolicy::HandleStartScene(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
@@ -41,7 +41,7 @@ bool FDisplayClusterProjectionSimplePolicy::HandleStartScene(class IDisplayClust
 	// Get assigned screen ID
 	if (!DisplayClusterHelpers::map::template ExtractValue(GetParameters(), DisplayClusterProjectionStrings::cfg::simple::Screen, ScreenId))
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("No screen ID specified for projection policy of viewport '%s'"), *InViewport->GetId());
 		}
@@ -60,7 +60,7 @@ bool FDisplayClusterProjectionSimplePolicy::HandleStartScene(class IDisplayClust
 	return false;
 }
 
-void FDisplayClusterProjectionSimplePolicy::HandleEndScene(class IDisplayClusterViewport* InViewport)
+void FDisplayClusterProjectionSimplePolicy::HandleEndScene(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
@@ -68,7 +68,7 @@ void FDisplayClusterProjectionSimplePolicy::HandleEndScene(class IDisplayCluster
 	ScreenCompRef.ResetSceneComponent();
 }
 
-bool FDisplayClusterProjectionSimplePolicy::CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
+bool FDisplayClusterProjectionSimplePolicy::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
 	check(IsInGameThread());
 
@@ -92,7 +92,7 @@ bool FDisplayClusterProjectionSimplePolicy::CalculateView(class IDisplayClusterV
 	return true;
 }
 
-bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
+bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
 {
 	check(IsInGameThread());
 
@@ -177,7 +177,7 @@ bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(class IDisplayCl
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterProjectionSimplePolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterProjectionSimplePolicy::InitializeMeshData(class IDisplayClusterViewport* InViewport)
+bool FDisplayClusterProjectionSimplePolicy::InitializeMeshData(IDisplayClusterViewport* InViewport)
 {
 	UE_LOG(LogDisplayClusterProjectionSimple, Verbose, TEXT("Initializing screen geometry for viewport policy  %s"), *GetId());
 
@@ -185,7 +185,7 @@ bool FDisplayClusterProjectionSimplePolicy::InitializeMeshData(class IDisplayClu
 	ADisplayClusterRootActor* const Root = InViewport->GetOwner().GetRootActor();
 	if (!Root)
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionSimple, Error, TEXT("Couldn't get a VR root object"));
 		}
@@ -197,7 +197,7 @@ bool FDisplayClusterProjectionSimplePolicy::InitializeMeshData(class IDisplayClu
 	UDisplayClusterScreenComponent* ScreenComp = Root->GetComponentByName<UDisplayClusterScreenComponent>(ScreenId);
 	if (!ScreenComp)
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionSimple, Warning, TEXT("Couldn't initialize screen component"));
 		}
@@ -208,16 +208,15 @@ bool FDisplayClusterProjectionSimplePolicy::InitializeMeshData(class IDisplayClu
 	return ScreenCompRef.SetSceneComponent(ScreenComp);
 }
 
-void FDisplayClusterProjectionSimplePolicy::ReleaseMeshData(class IDisplayClusterViewport* InViewport)
+void FDisplayClusterProjectionSimplePolicy::ReleaseMeshData(IDisplayClusterViewport* InViewport)
 {
 }
-
 
 #if WITH_EDITOR
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicyPreview
 //////////////////////////////////////////////////////////////////////////////////////////////
-UMeshComponent* FDisplayClusterProjectionSimplePolicy::GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
+UMeshComponent* FDisplayClusterProjectionSimplePolicy::GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
 {
 	bOutIsRootActorComponent = true;
 

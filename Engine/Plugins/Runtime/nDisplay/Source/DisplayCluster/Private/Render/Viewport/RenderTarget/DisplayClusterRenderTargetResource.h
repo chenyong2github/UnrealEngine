@@ -78,6 +78,9 @@ enum class EDisplayClusterViewportResourceState : uint8
 	Unused,
 	Deleted,
 
+	// Disable reallocation of this resource for the current frame
+	DisableReallocate,
+
 	COUNT
 };
 ///////////////////////////////////////////////////////////////////

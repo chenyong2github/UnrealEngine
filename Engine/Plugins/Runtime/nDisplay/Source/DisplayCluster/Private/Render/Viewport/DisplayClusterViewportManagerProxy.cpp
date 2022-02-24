@@ -230,8 +230,8 @@ void FDisplayClusterViewportManagerProxy::UpdateDeferredResources_RenderThread(F
 {
 	check(IsInRenderingThread());
 
-	TArray<FDisplayClusterViewportProxy*> OverridedViewports;
-	OverridedViewports.Reserve(ClusterNodeViewportProxies.Num());
+	TArray<FDisplayClusterViewportProxy*> OverriddenViewports;
+	OverriddenViewports.Reserve(ClusterNodeViewportProxies.Num());
 
 	for (FDisplayClusterViewportProxy* ViewportProxy : ClusterNodeViewportProxies)
 	{
@@ -242,12 +242,12 @@ void FDisplayClusterViewportManagerProxy::UpdateDeferredResources_RenderThread(F
 		else
 		{
 			// Update after all
-			OverridedViewports.Add(ViewportProxy);
+			OverriddenViewports.Add(ViewportProxy);
 		}
 	}
 
 	// Update deferred viewports after all
-	for (FDisplayClusterViewportProxy* ViewportProxy : OverridedViewports)
+	for (FDisplayClusterViewportProxy* ViewportProxy : OverriddenViewports)
 	{
 		ViewportProxy->UpdateDeferredResources(RHICmdList);
 	}
@@ -352,8 +352,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 						case EWarpPass::Render:
 							PrjPolicy->ApplyWarpBlend_RenderThread(RHICmdList, ViewportProxy);
 
-							// Implement ViewportRemap feature after warp
-							ViewportProxy->ImplViewportRemap_RenderThread(RHICmdList);
+							ViewportProxy->PostResolveViewport_RenderThread(RHICmdList);
 							break;
 
 						case EWarpPass::End:
@@ -372,8 +371,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 							// just resolve not warped viewports to frame target texture
 							ViewportProxy->ResolveResources_RenderThread(RHICmdList, EDisplayClusterViewportResourceType::InputShaderResource, ViewportProxy->GetOutputResourceType_RenderThread());
 							
-							// Implement ViewportRemap feature after resolve
-							ViewportProxy->ImplViewportRemap_RenderThread(RHICmdList);
+							ViewportProxy->PostResolveViewport_RenderThread(RHICmdList);
 							break;
 
 						default:
@@ -404,39 +402,51 @@ void FDisplayClusterViewportManagerProxy::DoCrossGPUTransfers_RenderThread(FRHIC
 
 	for (FDisplayClusterViewportProxy* ViewportProxy : ClusterNodeViewportProxies)
 	{
-		for (FDisplayClusterViewport_Context& ViewportContext : ViewportProxy->Contexts)
+		bool bShouldCrossGPUTransfersViewportRenderResources = true;
+
+		// Skip a frozen viewport that has already been transferred between GPUs
+		// The first time freezing should do the transfer (RenderTargets must be assigned on the first pass)
+		if (ViewportProxy->RenderSettings.bFreezeRendering && ViewportProxy->RenderTargets.Num() == 0)
 		{
-			if (ViewportContext.bAllowGPUTransferOptimization && ViewportContext.GPUIndex >= 0)
+			bShouldCrossGPUTransfersViewportRenderResources = false;
+		}
+
+		if (bShouldCrossGPUTransfersViewportRenderResources)
+		{
+			for (FDisplayClusterViewport_Context& ViewportContext : ViewportProxy->Contexts)
 			{
-				// Use optimized cross GPU transfer for this context
-
-				FRenderTarget* RenderTarget = ViewportProxy->RenderTargets[ViewportContext.ContextNum];
-				FRHITexture2D* TextureRHI = ViewportProxy->RenderTargets[ViewportContext.ContextNum]->GetViewportRenderTargetResourceRHI();
-
-				FRHIGPUMask RenderTargetGPUMask = (GNumExplicitGPUsForRendering > 1 && RenderTarget) ? RenderTarget->GetGPUMask(RHICmdList) : FRHIGPUMask::GPU0();
+				if (ViewportContext.bAllowGPUTransferOptimization && ViewportContext.GPUIndex >= 0)
 				{
-					static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing.GPUCount"));
-					if (CVar && CVar->GetInt() > 1)
+					// Use optimized cross GPU transfer for this context
+
+					FRenderTarget* RenderTarget = ViewportProxy->RenderTargets[ViewportContext.ContextNum];
+					FRHITexture2D* TextureRHI = ViewportProxy->RenderTargets[ViewportContext.ContextNum]->GetViewportRenderTargetResourceRHI();
+
+					FRHIGPUMask RenderTargetGPUMask = (GNumExplicitGPUsForRendering > 1 && RenderTarget) ? RenderTarget->GetGPUMask(RHICmdList) : FRHIGPUMask::GPU0();
 					{
-						RenderTargetGPUMask = FRHIGPUMask::All(); // Broadcast to all GPUs 
-					}
-				}
-
-				FRHIGPUMask ContextGPUMask = FRHIGPUMask::FromIndex(ViewportContext.GPUIndex);
-
-				if (ContextGPUMask != RenderTargetGPUMask)
-				{
-					// Clamp the view rect by the rendertarget rect to prevent issues when resizing the viewport.
-					const FIntRect TransferRect = ViewportContext.RenderTargetRect;
-
-					if (TransferRect.Width() > 0 && TransferRect.Height() > 0)
-					{
-						for (uint32 RenderTargetGPUIndex : RenderTargetGPUMask)
+						static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing.GPUCount"));
+						if (CVar && CVar->GetInt() > 1)
 						{
-							if (!ContextGPUMask.Contains(RenderTargetGPUIndex))
+							RenderTargetGPUMask = FRHIGPUMask::All(); // Broadcast to all GPUs 
+						}
+					}
+
+					FRHIGPUMask ContextGPUMask = FRHIGPUMask::FromIndex(ViewportContext.GPUIndex);
+
+					if (ContextGPUMask != RenderTargetGPUMask)
+					{
+						// Clamp the view rect by the rendertarget rect to prevent issues when resizing the viewport.
+						const FIntRect TransferRect = ViewportContext.RenderTargetRect;
+
+						if (TransferRect.Width() > 0 && TransferRect.Height() > 0)
+						{
+							for (uint32 RenderTargetGPUIndex : RenderTargetGPUMask)
 							{
-								FTransferResourceParams ResourceParams(TextureRHI, TransferRect, ContextGPUMask.GetFirstIndex(), RenderTargetGPUIndex, true, ViewportContext.bEnabledGPUTransferLockSteps);
-								TransferResources.Add(ResourceParams);
+								if (!ContextGPUMask.Contains(RenderTargetGPUIndex))
+								{
+									FTransferResourceParams ResourceParams(TextureRHI, TransferRect, ContextGPUMask.GetFirstIndex(), RenderTargetGPUIndex, true, ViewportContext.bEnabledGPUTransferLockSteps);
+									TransferResources.Add(ResourceParams);
+								}
 							}
 						}
 					}

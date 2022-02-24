@@ -37,12 +37,10 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 {
 	check(IsInGameThread());
 
-	const EDisplayClusterRenderFrameMode RenderMode = GetRenderFrameSettings().RenderMode;
-
-	// Only for preview modes:
-	switch (RenderMode)
+	switch (GetRenderFrameSettings().RenderMode)
 	{
 	case EDisplayClusterRenderFrameMode::PreviewInScene:
+		// Only for preview modes:
 		break;
 	default:
 		return;
@@ -78,7 +76,7 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 	}
 
 	// Get all supported preview rtt resources from root actor
-	RootActor->GetPreviewRenderTargetableTextures(RenderMode, PreviewViewportNames, PreviewRenderTargetableTextures);
+	RootActor->GetPreviewRenderTargetableTextures(PreviewViewportNames, PreviewRenderTargetableTextures);
 
 	// Configure preview RTT to viwports:
 	for (int32 ViewportIndex = 0; ViewportIndex < PreviewViewportNames.Num(); ViewportIndex++)
@@ -101,9 +99,10 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 	}
 }
 
-bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmmount, bool& bOutFrameRendered)
+bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmount, int32& OutViewportsAmount, bool& bOutFrameRendered)
 {
 	bOutFrameRendered = false;
+	OutViewportsAmount = 0;
 
 	UWorld* CurrentWorld = GetCurrentWorld();
 	if (CurrentWorld == nullptr)
@@ -118,7 +117,6 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 	const bool bIsRenderedImmediatelyAfterAnotherViewFamily = false;
 
 	int32 ViewportIndex = 0;
-	int32 RenderedViewportsAmmount = 0;
 	bool bViewportsRenderPassDone = false;
 
 	for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : InRenderFrame.RenderTargets)
@@ -138,71 +136,78 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 				break;
 			}
 
-			// Create the view family for rendering the world scene to the viewport's render target
-			FSceneViewFamilyContext ViewFamily(CreateViewFamilyConstructionValues(
-				RenderTargetIt,
-				PreviewScene,
-				EngineShowFlags,
-				bAdditionalViewFamily
-			));
-
-			ConfigureViewFamily(RenderTargetIt, ViewFamiliesIt, ViewFamily);
-
-			for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamiliesIt.Views)
+			if ((ViewportIndex + ViewFamiliesIt.Views.Num()) < (int32)(InFirstViewportNum + 1))
 			{
-				bool bViewportAlreadyRendered = ViewportIndex < (int32)InFirstViewportNum;
-				ViewportIndex++;
+				// Skip already rendered viewports
+				ViewportIndex += ViewFamiliesIt.Views.Num();
+			}
+			else
+			{
+				// Create the view family for rendering the world scene to the viewport's render target
+				FSceneViewFamilyContext ViewFamily(CreateViewFamilyConstructionValues(
+					RenderTargetIt,
+					PreviewScene,
+					EngineShowFlags,
+					bAdditionalViewFamily
+				));
 
-				if (!bViewportAlreadyRendered)
+				ConfigureViewFamily(RenderTargetIt, ViewFamiliesIt, ViewFamily);
+
+				for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamiliesIt.Views)
 				{
-					FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
+					bool bViewportAlreadyRendered = ViewportIndex < (int32)InFirstViewportNum;
+					ViewportIndex++;
 
-					check(ViewportPtr != nullptr);
-					check(ViewIt.ContextNum < (uint32)ViewportPtr->Contexts.Num());
-
-					// Calculate the player's view information.
-					FVector  ViewLocation;
-					FRotator ViewRotation;
-					FSceneView* View = ViewportPtr->ImplCalcScenePreview(ViewFamily, ViewIt.ContextNum);
-
-					if (View && ViewIt.bDisableRender)
+					if (!bViewportAlreadyRendered)
 					{
-						ViewFamily.Views.Remove(View);
+						FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
+						check(ViewportPtr != nullptr);
+						check(ViewIt.ContextNum < (uint32)ViewportPtr->Contexts.Num());
 
-						delete View;
-						View = nullptr;
-					}
+						// Calculate the player's view information.
+						FVector  ViewLocation;
+						FRotator ViewRotation;
+						FSceneView* View = ViewportPtr->ImplCalcScenePreview(ViewFamily, ViewIt.ContextNum);
 
-					if (View)
-					{
-						// Apply viewport context settings to view (crossGPU, visibility, etc)
-						ViewIt.Viewport->SetupSceneView(ViewIt.ContextNum, PreviewScene->GetWorld(), ViewFamily, *View);
-
-						RenderedViewportsAmmount++;
-						if (InViewportsAmmount > 0 && RenderedViewportsAmmount >= InViewportsAmmount)
+						if (View != nullptr && ViewIt.IsShouldRenderView() == false)
 						{
-							bViewportsRenderPassDone = true;
-							break;
+							ViewFamily.Views.Remove(View);
+
+							delete View;
+							View = nullptr;
+						}
+
+						if (View != nullptr)
+						{
+							// Count all rendered viewports on this render pass
+							OutViewportsAmount++;
+
+							// Apply viewport context settings to view (crossGPU, visibility, etc)
+							ViewIt.Viewport->SetupSceneView(ViewIt.ContextNum, PreviewScene->GetWorld(), ViewFamily, *View);
+
+							// The allowed number of viewports is limited by the "InViewportAmount" value.
+							if (InViewportsAmount > 0 && OutViewportsAmount >= InViewportsAmount)
+							{
+								bViewportsRenderPassDone = true;
+								break;
+							}
 						}
 					}
 				}
-			}
 
-			if (ViewFamily.Views.Num() > 0)
-			{
-				// Screen percentage is still not supported in scene capture.
-				ViewFamily.EngineShowFlags.ScreenPercentage = false;
-				ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f));
-
-				ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily = bIsRenderedImmediatelyAfterAnotherViewFamily;
-
-				FCanvas Canvas(RenderTargetIt.RenderTargetPtr, nullptr, PreviewScene->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing /*FCanvas::CDM_ImmediateDrawing*/, 1.0f);
-				Canvas.Clear(FLinearColor::Black);
-
-				GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
-
-				if (GetRenderFrameSettings().bAllowMultiGPURenderingInEditor)
+				if (ViewFamily.Views.Num() > 0)
 				{
+					// Screen percentage is still not supported in scene capture.
+					ViewFamily.EngineShowFlags.ScreenPercentage = false;
+					ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f));
+
+					ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily = bIsRenderedImmediatelyAfterAnotherViewFamily;
+
+					FCanvas Canvas(RenderTargetIt.RenderTargetPtr, nullptr, PreviewScene->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing /*FCanvas::CDM_ImmediateDrawing*/, 1.0f);
+					Canvas.Clear(FLinearColor::Black);
+
+					GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
+
 					if (GNumExplicitGPUsForRendering > 1)
 					{
 						const FRHIGPUMask SubmitGPUMask = ViewFamily.Views.Num() == 1 ? ViewFamily.Views[0]->GPUMask : FRHIGPUMask::All();
@@ -218,12 +223,18 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 		}
 	}
 
+	// Render cluster node compose on this pass if possible
+	bool bHasExtraRenderPass = (InViewportsAmount < 0) || (OutViewportsAmount < InViewportsAmount);
+
 	// bViewportsRenderPassDone means all viewports for this cluster node have been rendered
 	// and we can start frame composing(creating mips, warps, composing icvfx, OutputRemap, etc.).
 	// The main idea is to move the frame composition to a separate render pass.
 	// This will reduce the load on the CPU + GPU and increase the FPS for the preview.
-	if (ViewportIndex == InRenderFrame.ViewportsAmmount && !bViewportsRenderPassDone)
+	if (!bViewportsRenderPassDone && bHasExtraRenderPass)
 	{
+		// Count cluster node compose render pass as viewport
+		OutViewportsAmount++;
+
 		// Handle special viewports game-thread logic at frame end
 		// custom postprocess single frame flag must be removed at frame end on game thread
 		FinalizeNewFrame();

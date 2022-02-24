@@ -239,6 +239,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Light Cards", meta = (DisplayName = "Enable Light Cards"))
 	bool bEnable = true;
 
+	/** Enable\Disable freeze rendering for lightcards when outer viewports rendering also freezed. This will impact performance. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Light Cards", meta = (DisplayName = "Ignore Freezing of Outer Viewports for Lightcards"))
+	bool bIgnoreOuterViewportsFreezingForLightcards = true;
+
 	/** Specify how to render Light Cards in relation to the inner frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Light Cards", meta = (DisplayName = "Blending Mode", EditCondition = "bEnable"))
 	EDisplayClusterConfigurationICVFX_LightcardRenderMode Blendingmode = EDisplayClusterConfigurationICVFX_LightcardRenderMode::Under;
@@ -543,6 +547,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Light Cards", meta = (ExpandProperties))
 	FDisplayClusterConfigurationICVFX_LightcardSettings Lightcard;
+
+	/** Freeze rendering for viewports. This improves performance. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Viewports, meta = (DisplayName = "Freeze Viewports"))
+	bool bFreezeRenderOuterViewports = false;
 
 	// Hide list for all icvfx viewports (outer, inner, cameras, etc)
 	// (This allow to hide all actors from layers for icvfx render logic)

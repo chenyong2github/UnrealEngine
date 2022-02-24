@@ -116,7 +116,7 @@ bool FDisplayClusterProjectionCameraPolicy::ImplGetProjectionMatrix(const float 
 
 	// Clamp camera fov to valid range [1.f, 178.f]
 	const float ClampedCameraFOV = FMath::Clamp(ScaledCameraFOV, 1.f, 178.f);
-	if (ClampedCameraFOV != ScaledCameraFOV && !IsEditorOperationMode())
+	if (ClampedCameraFOV != ScaledCameraFOV && !IsEditorOperationMode(InViewport))
 	{
 		UE_LOG(LogDisplayClusterProjectionCamera, Warning, TEXT("CameraFOV clamped: '%d' -> '%d'. (FieldOfView='%d', FOVMultiplier='%d'"), ScaledCameraFOV, ClampedCameraFOV, InCameraFOV, CameraSettings.FOVMultiplier);
 	}
@@ -164,19 +164,33 @@ bool FDisplayClusterProjectionCameraPolicy::GetProjectionMatrix(IDisplayClusterV
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterProjectionCameraPolicy::SetCamera(UCameraComponent* NewCamera, const FDisplayClusterProjectionCameraPolicySettings& InCameraSettings)
 {
+	if(CameraSettings.bCameraOverrideDefaults && InCameraSettings.bCameraOverrideDefaults == false)
+	{
+		// Ignore default camera updates (UE-137222)
+		return;
+	}
+
+	CameraSettings = InCameraSettings;
+
 	if (NewCamera)
 	{
 		UE_LOG(LogDisplayClusterProjectionCamera, Verbose, TEXT("New camera set: %s"), *NewCamera->GetFullName());
+
 		CameraRef.SetSceneComponent(NewCamera);
 	}
 	else
 	{
-		CameraRef.ResetSceneComponent();
-		if (!IsEditorOperationMode())
+		if (InCameraSettings.bCameraOverrideDefaults == false)
 		{
-			UE_LOG(LogDisplayClusterProjectionCamera, Warning, TEXT("Trying to set nullptr camera pointer"));
+			if (!IsEditorOperationMode(nullptr))
+			{
+				UE_LOG(LogDisplayClusterProjectionCamera, Warning, TEXT("Trying to set nullptr camera pointer"));
+			}
 		}
-	}
 
-	CameraSettings = InCameraSettings;
+		CameraRef.ResetSceneComponent();
+
+		// After ref reset, allow to use default cameras again
+		CameraSettings.bCameraOverrideDefaults = false;
+	}
 }

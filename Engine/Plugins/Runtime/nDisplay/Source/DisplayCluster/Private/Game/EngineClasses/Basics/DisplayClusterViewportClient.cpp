@@ -495,7 +495,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				FRotator	ViewRotation;
 				FSceneView* View = LocalPlayer->CalcSceneView(&ViewFamily, ViewLocation, ViewRotation, InViewport, nullptr, ViewportContext.StereoViewIndex);
 
-				if (View && DCView.bDisableRender)
+				if (View && DCView.IsShouldRenderView() == false)
 				{
 					ViewFamily.Views.Remove(View);
 
@@ -889,8 +889,6 @@ bool UDisplayClusterViewportClient::Draw_PIE(FViewport* InViewport, FCanvas* Sce
 	default:
 		break;
 	}
-		
-
 
 	//Get world for render
 	UWorld* const MyWorld = GetWorld();
@@ -900,8 +898,13 @@ bool UDisplayClusterViewportClient::Draw_PIE(FViewport* InViewport, FCanvas* Sce
 	{
 		return false;
 	}
+
+	FDisplayClusterPreviewSettings PreviewSettings;
+	PreviewSettings.bPreviewEnablePostProcess = true;
+	PreviewSettings.bIsPIE = true;
+
 	// Update local node viewports (update\create\delete) and build new render frame
-	if (ViewportManager->UpdateConfiguration(RenderFrameMode, LocalNodeId, RootActor) == false)
+	if (ViewportManager->UpdateConfiguration(RenderFrameMode, LocalNodeId, RootActor, &PreviewSettings) == false)
 	{
 		return false;
 	}
@@ -913,7 +916,8 @@ bool UDisplayClusterViewportClient::Draw_PIE(FViewport* InViewport, FCanvas* Sce
 	}
 
 	bool bOutFrameRendered = false;
-	if (ViewportManager->RenderInEditor(RenderFrame, InViewport, 0, -1, bOutFrameRendered) == false)
+	int32 RenderedViewportsAmount = 0;
+	if (ViewportManager->RenderInEditor(RenderFrame, InViewport, 0, -1, RenderedViewportsAmount, bOutFrameRendered) == false)
 	{
 		return false;
 	}

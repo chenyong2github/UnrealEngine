@@ -2,6 +2,8 @@
 
 #include "DisplayClusterRenderTargetResourcesPool.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
+#include "Render/Viewport/DisplayClusterViewportHelpers.h"
+
 #include "RHICommandList.h"
 #include "Engine/RendererSettings.h"
 #include "RenderingThread.h"
@@ -55,41 +57,16 @@ namespace DisplayClusterRenderTargetResourcesPool
 			}
 		}
 
-		// Get default settings for preview rendering:
-		static TConsoleVariableData<int32>* CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
-		EPixelFormat Format = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnGameThread()));
+#if WITH_EDITOR
+		EPixelFormat PreviewPixelFormat;
+		float PreviewDisplayGamma = 1.f;
+		bool bPreviewSRGB = true;
+		DisplayClusterViewportHelpers::GetPreviewRenderTargetDesc_Editor(InRenderFrameSettings, PreviewPixelFormat, PreviewDisplayGamma, bPreviewSRGB);
 
-		// default gamma for preview in editor
-		float Gamma = 2.2f;
-		switch (InRenderFrameSettings.RenderMode)
-		{
-		case EDisplayClusterRenderFrameMode::PreviewInScene:
-			Gamma = 1.f;
-			break;
-		default:
-			break;
-		}
-
-		// By default sRGB disabled (Preview rendering)
-		bool bShouldUseSRGB = false;
-
-		return new FDisplayClusterViewportResourceSettings(InRenderFrameSettings.ClusterNodeId, Format, bShouldUseSRGB, Gamma);
-	}
-
-	static bool IsTextureSizeValidImpl(const FIntPoint& InSize)
-	{
-		static const int32 MaxTextureSize = 1 << (GMaxTextureMipCount - 1);
-
-		// just check the texture size is valid
-		if (InSize.X <= 0 || InSize.Y <= 0 || InSize.X > MaxTextureSize || InSize.Y > MaxTextureSize)
-		{
-			return false;
-		}
-
-
-		//@todo - maybe check free size of video memory before texture allocation
-
-		return true;
+		return new FDisplayClusterViewportResourceSettings(InRenderFrameSettings.ClusterNodeId, PreviewPixelFormat, bPreviewSRGB, PreviewDisplayGamma);
+#else
+		return nullptr;
+#endif
 	}
 };
 
@@ -117,9 +94,16 @@ void FDisplayClusterRenderTargetResourcesPool::ImplBeginReallocateResources(TArr
 	// Mark cluster node resources as unused
 	for (TViewportResourceType* ResourceIt : InOutViewportResources)
 	{
-		if (ResourceIt != nullptr && ResourceIt->GetResourceSettingsConstRef().IsClusterNodeNameEqual(*ResourceSettings))
+		if (ResourceIt != nullptr && ResourceIt->GetViewportResourceState(EDisplayClusterViewportResourceState::DisableReallocate) == false)
 		{
-			ResourceIt->RaiseViewportResourceState(EDisplayClusterViewportResourceState::Unused);
+			if (const bool bIsCurrentClusterNodeResource = ResourceIt->GetResourceSettingsConstRef().IsClusterNodeNameEqual(*ResourceSettings))
+			{
+				ResourceIt->RaiseViewportResourceState(EDisplayClusterViewportResourceState::Unused);
+			}
+			else
+			{
+				ResourceIt->RaiseViewportResourceState(EDisplayClusterViewportResourceState::DisableReallocate);
+			}
 		}
 	}
 }
@@ -149,6 +133,9 @@ void FDisplayClusterRenderTargetResourcesPool::ImplFinishReallocateResources(TAr
 				UnusedResources.Add(ResourceIt);
 				ResourceIt->RaiseViewportResourceState(EDisplayClusterViewportResourceState::Deleted);
 			}
+
+			// Clear 'DisableReallocate' at frame end
+			ResourceIt->ClearViewportResourceState(EDisplayClusterViewportResourceState::DisableReallocate);
 		}
 	}
 
@@ -190,7 +177,7 @@ void FDisplayClusterRenderTargetResourcesPool::ImplReleaseResources(TArray<TView
 template <typename TViewportResourceType>
 TViewportResourceType* FDisplayClusterRenderTargetResourcesPool::ImplAllocateResource(TArray<TViewportResourceType*>& InOutViewportResources, const FDisplayClusterViewportResourceSettings& InSettings)
 {
-	if (!IsTextureSizeValidImpl(InSettings.Size))
+	if (!DisplayClusterViewportHelpers::IsValidTextureSize(InSettings.Size))
 	{
 		return nullptr;
 	}

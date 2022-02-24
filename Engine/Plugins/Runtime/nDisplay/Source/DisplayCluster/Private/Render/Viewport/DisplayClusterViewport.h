@@ -8,6 +8,7 @@
 #include "Render/Viewport/Containers/ImplDisplayClusterViewport_CustomFrustum.h"
 #include "Render/Viewport/Containers/ImplDisplayClusterViewport_Overscan.h"
 #include "Render/Viewport/Containers/DisplayClusterViewportRemap.h"
+#include "Render/Viewport/Containers/DisplayClusterViewport_Enums.h"
 
 #include "Render/Viewport/DisplayClusterViewport_CustomPostProcessSettings.h"
 #include "Render/Viewport/DisplayClusterViewport_TextureShare.h"
@@ -62,6 +63,7 @@ public:
 		check(IsInGameThread());
 		return ClusterNodeId;
 	}
+
 	virtual const FDisplayClusterViewport_RenderSettings& GetRenderSettings() const override
 	{
 		check(IsInGameThread());
@@ -108,6 +110,8 @@ public:
 
 	virtual IDisplayClusterViewportManager& GetOwner() const override;
 
+	const FDisplayClusterRenderFrameSettings& GetRenderFrameSettings() const;
+
 	//////////////////////////////////////////////////////
 	/// ~IDisplayClusterViewport
 	//////////////////////////////////////////////////////
@@ -118,11 +122,13 @@ public:
 	FSceneView* ImplCalcScenePreview(class FSceneViewFamilyContext& InOutViewFamily, uint32 ContextNum);
 	bool    ImplPreview_CalculateStereoViewOffset(const uint32 InContextNum, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation);
 	FMatrix ImplPreview_GetStereoProjectionMatrix(const uint32 InContextNum);
+
+	bool GetPreviewPixels(TSharedPtr<class FDisplayClusterViewportReadPixelsData, ESPMode::ThreadSafe>& OutPixelsData) const;
+
 #endif //WITH_EDITOR
 
 	// Get from logic request for additional targetable resource
 	bool ShouldUseAdditionalTargetableResource() const;
-
 	bool ShouldUseAdditionalFrameTargetableResource() const;
 	bool ShouldUseFullSizeFrameTargetableResource() const;
 
@@ -170,6 +176,11 @@ public:
 
 public:
 	FIntRect GetValidRect(const FIntRect& InRect, const TCHAR* DbgSourceName);
+
+private:
+	float GetClusterRenderTargetRatioMult(const FDisplayClusterRenderFrameSettings& InFrameSettings) const;
+	FIntPoint GetDesiredContextSize(const FIntPoint& InSize, const FDisplayClusterRenderFrameSettings& InFrameSettings) const;
+	float GetCustomBufferRatio(const FDisplayClusterRenderFrameSettings& InFrameSettings) const;
 
 #if WITH_EDITOR
 	// Support view states for preview
@@ -252,6 +263,8 @@ protected:
 	TArray<FDisplayClusterViewportTextureResource*> AdditionalFrameTargetableResources;
 
 #if WITH_EDITOR
+	friend class UDisplayClusterPreviewComponent;
+
 	FTextureRHIRef OutputPreviewTargetableResource;
 #endif
 

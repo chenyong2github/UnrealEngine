@@ -7,6 +7,7 @@
 #include "DisplayClusterViewportConfigurationHelpers_Visibility.h"
 
 #include "DisplayClusterRootActor.h"
+#include "DisplayClusterConfigurationTypes_Viewport.h"
 
 #include "IDisplayClusterProjection.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
@@ -16,10 +17,20 @@
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/DisplayClusterViewportStrings.h"
+#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
 
 #include "Components/DisplayClusterICVFXCameraComponent.h"
 
 #include "Misc/DisplayClusterLog.h"
+
+////////////////////////////////////////////////////////////////////////////////
+int32 GDisplayClusterEnableAlphaChannelRendering = 0;
+static FAutoConsoleVariableRef CVarDisplayClusterEnableAlphaChannelRendering(
+	TEXT("DC.EnableAlphaChannelRendering"),
+	GDisplayClusterEnableAlphaChannelRendering,
+	TEXT("Enable alpha channel rendering to backbuffer (0 == disabled, 1 == enabled)"),
+	ECVF_RenderThreadSafe
+);
 
 ////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportConfigurationCameraViewport
@@ -48,6 +59,11 @@ public:
 			// Support projection policy update
 			FDisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(*CameraViewport);
 
+#if WITH_EDITOR
+			// Reuse for EditorPreview
+			FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewReuseInnerFrustumViewportWithinClusterNodes_Editor(*CameraViewport, InRootActor, InCameraComponent);
+#endif
+
 			return true;
 		}
 
@@ -68,6 +84,11 @@ public:
 
 			// Support projection policy update
 			FDisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(*ChromakeyViewport);
+
+#if WITH_EDITOR
+			// reuse for EditorPreview
+			FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewReuseChromakeyViewportWithinClusterNodes_Editor(*ChromakeyViewport, InRootActor, InCameraComponent);
+#endif
 
 			return true;
 		}
@@ -360,12 +381,35 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 				}
 			}
 
-			// Sort cameras by render order for each target
 			for (FDisplayClusterViewport* TargetIt : TargetViewports)
 			{
 				if (TargetIt)
 				{
+					// Sort cameras by render order for each target
 					TargetIt->RenderSettingsICVFX.ICVFX.SortCamerasRenderOrder();
+				}
+			}
+
+			if (StageSettings.bFreezeRenderOuterViewports)
+			{
+				// Freeze rendering for outer viewports
+				for (FDisplayClusterViewport* TargetIt : TargetViewports)
+				{
+					TargetIt->RenderSettings.bFreezeRendering = true;
+				}
+
+				// Freeze render for lightcards when outer viewports freezed
+				if (StageSettings.Lightcard.bIgnoreOuterViewportsFreezingForLightcards == false)
+				{
+					const EDisplayClusterViewportRuntimeICVFXFlags LightcardViewportMask = ViewportRuntime_ICVFXLightcardColor | ViewportRuntime_ICVFXLightcard | ViewportRuntime_ICVFXLightcardColor;
+
+					for (FDisplayClusterViewport* ViewportIt : ViewportManager->ImplGetViewports())
+					{
+						if (ViewportIt && (ViewportIt->RenderSettingsICVFX.RuntimeFlags & LightcardViewportMask) != 0)
+						{
+							ViewportIt->RenderSettings.bFreezeRendering = true;
+						}
+					}
 				}
 			}
 		}
@@ -386,6 +430,15 @@ void FDisplayClusterViewportConfigurationICVFX::PostUpdate()
 
 		// Support additional hide list for icvfx cameras:
 		UpdateCameraHideList(*ViewportManager);
+
+		// Support alpha channel rendering for WarpBlend
+		if (GDisplayClusterEnableAlphaChannelRendering != 0)
+		{
+			for (FDisplayClusterViewport* ViewportIt : ViewportManager->ImplGetViewports())
+			{
+				ViewportIt->RenderSettings.bWarpBlendRenderAlphaChannel = true;
+			}
+		}
 	}
 }
 
@@ -513,3 +566,9 @@ EDisplayClusterViewportICVFXFlags FDisplayClusterViewportConfigurationICVFX::Imp
 	// Collect all targets disable flags
 	return ~(InvFlags);
 }
+
+#if WITH_EDITOR
+void FDisplayClusterViewportConfigurationICVFX::PostUpdatePreview_Editor(const FDisplayClusterPreviewSettings& InPreviewSettings)
+{
+}
+#endif

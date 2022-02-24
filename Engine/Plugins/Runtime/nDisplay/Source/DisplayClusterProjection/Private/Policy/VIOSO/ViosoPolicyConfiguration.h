@@ -20,7 +20,7 @@ struct FViosoPolicyConfiguration
 	//@todo add more vioso options, if required
 	float Gamma = 1.f;
 
-	bool Initialize(const TMap<FString, FString>& InParameters, const FString& InViewportId);
+	bool Initialize(const TMap<FString, FString>& InParameters, class IDisplayClusterViewport* InViewport);
 
 	FString ToString() const;
 };

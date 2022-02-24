@@ -273,7 +273,7 @@ bool FDisplayClusterViewportManager::ShouldUseAdditionalFrameTargetableResource(
 
 bool FDisplayClusterViewportManager::UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, ADisplayClusterRootActor* InRootActorPtr, const FDisplayClusterPreviewSettings* InPreviewSettings)
 {
-	ClusterNodeViewports.Empty();
+	ImplUpdateClusterNodeViewports(InRenderMode, InClusterNodeId);
 
 	if (InRootActorPtr)
 	{
@@ -289,8 +289,6 @@ bool FDisplayClusterViewportManager::UpdateConfiguration(EDisplayClusterRenderFr
 		{
 			if (Configuration->UpdateConfiguration(InRenderMode, InClusterNodeId))
 			{
-				ImplUpdateClusterNodeViewports();
-
 				return true;
 			}
 		}
@@ -299,8 +297,6 @@ bool FDisplayClusterViewportManager::UpdateConfiguration(EDisplayClusterRenderFr
 		{
 			if (Configuration->UpdatePreviewConfiguration(InRenderMode, InClusterNodeId, *InPreviewSettings))
 			{
-				ImplUpdateClusterNodeViewports();
-
 				return true;
 			}
 		}
@@ -317,28 +313,28 @@ const FDisplayClusterRenderFrameSettings& FDisplayClusterViewportManager::GetRen
 	return Configuration->GetRenderFrameSettings();
 }
 
-void FDisplayClusterViewportManager::ImplUpdateClusterNodeViewports()
+void FDisplayClusterViewportManager::ImplUpdateClusterNodeViewports(const EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId)
 {
-	const FDisplayClusterRenderFrameSettings& RenderFrameSettings = GetRenderFrameSettings();
+	ClusterNodeViewports.Empty();
 
-	switch (RenderFrameSettings.RenderMode)
+	switch (InRenderMode)
 	{
 	case EDisplayClusterRenderFrameMode::PreviewInScene:
 		{
 			// Per-viewport preview render required special render order for viewports
-			// Sort viewports: move linked and overrided viewports to last
+			// Sort viewports: move linked and overridden viewports to last
 			TArray<FDisplayClusterViewport*> LinkedViewports;
-			TArray<FDisplayClusterViewport*> OverridedViewports;
+			TArray<FDisplayClusterViewport*> OverriddenViewports;
 			for (FDisplayClusterViewport* Viewport : Viewports)
 			{
-				if (Viewport && Viewport->GetClusterNodeId() == RenderFrameSettings.ClusterNodeId)
+				if (Viewport && Viewport->GetClusterNodeId() == InClusterNodeId)
 				{
 					bool bHasParentViewport = Viewport->RenderSettings.GetParentViewportId().IsEmpty() == false;
 					bool bHasViewportOverride = Viewport->RenderSettings.OverrideViewportId.IsEmpty() == false;
 
 					if (bHasViewportOverride)
 					{
-						OverridedViewports.Add(Viewport);
+						OverriddenViewports.Add(Viewport);
 					}
 					else if (bHasParentViewport)
 					{
@@ -352,7 +348,7 @@ void FDisplayClusterViewportManager::ImplUpdateClusterNodeViewports()
 			}
 
 			ClusterNodeViewports.Append(LinkedViewports);
-			ClusterNodeViewports.Append(OverridedViewports);
+			ClusterNodeViewports.Append(OverriddenViewports);
 		}
 		break;
 	default:
@@ -453,7 +449,7 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 void FDisplayClusterViewportManager::UpdateDesiredNumberOfViews(FDisplayClusterRenderFrame& InOutRenderFrame)
 {
 	InOutRenderFrame.DesiredNumberOfViews = 0;
-	InOutRenderFrame.ViewportsAmmount = 0;
+	InOutRenderFrame.ViewportsAmount = 0;
 
 	for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : InOutRenderFrame.RenderTargets)
 	{
@@ -463,18 +459,15 @@ void FDisplayClusterViewportManager::UpdateDesiredNumberOfViews(FDisplayClusterR
 
 			for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamilyIt.Views)
 			{
-				InOutRenderFrame.ViewportsAmmount++;
+				InOutRenderFrame.ViewportsAmount++;
 
-				if (ViewIt.bDisableRender == false)
+				if (ViewIt.bDisableRender == false && ViewIt.Viewport != nullptr)
 				{
 					ViewFamilyIt.NumViewsForRender++;
 
-					if (ViewIt.Viewport)
-					{
-						// Get StereoViewIndex for this viewport
-						const int32 StereoViewIndex = ViewIt.Viewport->GetContexts()[ViewIt.ContextNum].StereoViewIndex;
-						InOutRenderFrame.DesiredNumberOfViews = FMath::Max(StereoViewIndex + 1, InOutRenderFrame.DesiredNumberOfViews);
-					}
+					// Get StereoViewIndex for this viewport
+					const int32 StereoViewIndex = ViewIt.Viewport->GetContexts()[ViewIt.ContextNum].StereoViewIndex;
+					InOutRenderFrame.DesiredNumberOfViews++;
 				}
 			}
 		}
@@ -505,6 +498,15 @@ void FDisplayClusterViewportManager::FinalizeNewFrame()
 
 	// Send updated viewports data to render thread proxy
 	ViewportManagerProxy->ImplUpdateViewports(ClusterNodeViewports);
+
+	// Finish update settings
+	for (FDisplayClusterViewport* Viewport : ClusterNodeViewports)
+	{
+		if (Viewport)
+		{
+			Viewport->RenderSettings.FinishUpdateSettings();
+		}
+	}
 
 	// Update postprocess data from game thread
 	PostProcessManager->Tick();
@@ -550,12 +552,29 @@ FSceneViewFamily::ConstructionValues FDisplayClusterViewportManager::CreateViewF
 			break;
 	}
 
+	const FDisplayClusterRenderFrameSettings& RenderFrameSettings = GetRenderFrameSettings();
+	switch (RenderFrameSettings.RenderMode)
+	{
+	case EDisplayClusterRenderFrameMode::PreviewInScene:
+
+		// Disable eye adaptation for preview
+		InEngineShowFlags.EyeAdaptation = 0;
+
+		if (RenderFrameSettings.bPreviewEnablePostProcess == false)
+		{
+			// Disable postprocess for preview
+			InEngineShowFlags.PostProcessing = 0;
+		}
+		break;
+	default:
+		break;
+	}
+
 	return FSceneViewFamily::ConstructionValues(InFrameTarget.RenderTargetPtr, InScene, InEngineShowFlags)
 		.SetResolveScene(bResolveScene)
 		.SetRealtimeUpdate(true)
 		.SetAdditionalViewFamily(bInAdditionalViewFamily);
 }
-
 
 void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget, const FDisplayClusterRenderFrame::FFrameViewFamily& InFrameViewFamily, FSceneViewFamilyContext& ViewFamily)
 {
@@ -570,7 +589,7 @@ void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRe
 			ViewExt->SetupViewFamily(ViewFamily);
 		}
 	}
-
+	
 	// Setup capture mode:
 	{
 		ViewFamily.SceneCaptureCompositeMode = ESceneCaptureCompositeMode::SCCM_Overwrite;
@@ -586,6 +605,24 @@ void FDisplayClusterViewportManager::ConfigureViewFamily(const FDisplayClusterRe
 				break;
 		}
 	}
+
+#if WITH_EDITOR
+	const FDisplayClusterRenderFrameSettings& RenderFrameSettings = GetRenderFrameSettings();
+	switch (RenderFrameSettings.RenderMode)
+	{
+	case EDisplayClusterRenderFrameMode::PreviewInScene:
+		if (RenderFrameSettings.bPreviewEnablePostProcess == false)
+		{
+			// Disable postprocess for preview
+			ViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
+			ViewFamily.SceneCaptureCompositeMode = ESceneCaptureCompositeMode::SCCM_Overwrite;
+		}
+		break;
+	default:
+		break;
+	}
+#endif
+
 }
 
 void FDisplayClusterViewportManager::RenderFrame(FViewport* InViewport)
@@ -688,6 +725,7 @@ FDisplayClusterViewport* FDisplayClusterViewportManager::ImplCreateViewport(cons
 
 	// Add viewport on gamethread
 	Viewports.Add(NewViewport);
+	ClusterNodeViewports.Add(NewViewport);
 
 	// Add viewport proxy on renderthread
 	ViewportManagerProxy->ImplCreateViewport(NewViewport->ViewportProxy);
@@ -707,12 +745,24 @@ void FDisplayClusterViewportManager::ImplDeleteViewport(FDisplayClusterViewport*
 	// Delete viewport proxy on render thread
 	ViewportManagerProxy->ImplDeleteViewport(ExistViewport->ViewportProxy);
 
-	// Remove viewport obj from manager
-	int32 ViewportIndex = Viewports.Find(ExistViewport);
-	if (ViewportIndex != INDEX_NONE)
 	{
-		Viewports[ViewportIndex] = nullptr;
-		Viewports.RemoveAt(ViewportIndex);
+		// Remove viewport obj from manager
+		int32 ViewportIndex = Viewports.Find(ExistViewport);
+		if (ViewportIndex != INDEX_NONE)
+		{
+			Viewports[ViewportIndex] = nullptr;
+			Viewports.RemoveAt(ViewportIndex);
+		}
+	}
+
+	{
+		// Remove cluster node viewport
+		int32 ViewportIndex = ClusterNodeViewports.Find(ExistViewport);
+		if (ViewportIndex != INDEX_NONE)
+		{
+			ClusterNodeViewports[ViewportIndex] = nullptr;
+			ClusterNodeViewports.RemoveAt(ViewportIndex);
+		}
 	}
 
 	delete ExistViewport;

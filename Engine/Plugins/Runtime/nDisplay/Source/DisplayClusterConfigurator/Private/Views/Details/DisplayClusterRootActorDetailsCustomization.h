@@ -45,7 +45,6 @@ private:
 
 	TArray<TSharedPtr<FString>> NodeIdOptions;
 	TSharedPtr<FString> NodeIdOptionNone;
-	TSharedPtr<FString> NodeIdOptionAll;
 	TSharedPtr<SSearchableComboBox> NodeIdComboBox;
 
 	bool bMultipleObjectsSelected;

@@ -488,6 +488,7 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 		{
 			GetTypedPrimitives<UStaticMeshComponent>(OutPrimitives, &WarpMeshNames);
 			GetTypedPrimitives<UProceduralMeshComponent>(OutPrimitives, &WarpMeshNames);
+			GetTypedPrimitives<UDisplayClusterScreenComponent>(OutPrimitives, &WarpMeshNames);
 		}
 	}
 

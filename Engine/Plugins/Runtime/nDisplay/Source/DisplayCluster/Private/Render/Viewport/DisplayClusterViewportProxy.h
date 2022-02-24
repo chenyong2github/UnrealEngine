@@ -14,6 +14,7 @@ class FDisplayClusterViewport;
 class IDisplayClusterShaders;
 class IDisplayClusterProjectionPolicy;
 class IDisplayClusterRender_MeshComponent;
+class FDisplayClusterViewportReadPixelsData;
 
 class FDisplayClusterViewportProxy
 	: public IDisplayClusterViewportProxy
@@ -87,9 +88,11 @@ public:
 	// ~IDisplayClusterViewportProxy
 	///////////////////////////////
 
-	bool ImplResolveResources_RenderThread(FRHICommandListImmediate& RHICmdList, FDisplayClusterViewportProxy const* SourceProxy, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const;
+	void PostResolveViewport_RenderThread(FRHICommandListImmediate& RHICmdList) const;
 
-	void ImplViewportRemap_RenderThread(FRHICommandListImmediate& RHICmdList) const;
+#if WITH_EDITOR
+	bool GetPreviewPixels_GameThread(TSharedPtr<FDisplayClusterViewportReadPixelsData, ESPMode::ThreadSafe>& OutPixelsData) const;
+#endif
 
 	inline bool FindContext_RenderThread(const int32 ViewIndex, uint32* OutContextNum)
 	{
@@ -110,6 +113,17 @@ public:
 
 		return false;
 	}
+
+private:
+	bool ImplGetResourcesWithRects_RenderThread(const EDisplayClusterViewportResourceType InResourceType, TArray<FRHITexture2D*>& OutResources, TArray<FIntRect>& OutResourceRects, const int32 InRecursionDepth) const;
+	bool ImplGetResources_RenderThread(const EDisplayClusterViewportResourceType InResourceType, TArray<FRHITexture2D*>& OutResources, const int32 InRecursionDepth) const;
+
+	void ImplViewportRemap_RenderThread(FRHICommandListImmediate& RHICmdList) const;
+	void ImplPreviewReadPixels_RenderThread(FRHICommandListImmediate& RHICmdList) const;
+
+	bool ImplResolveResources_RenderThread(FRHICommandListImmediate& RHICmdList, FDisplayClusterViewportProxy const* SourceProxy, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const;
+
+	bool IsShouldOverrideViewportResource(const EDisplayClusterViewportResourceType InResourceType) const;
 
 protected:
 	friend FDisplayClusterViewportProxyData;
@@ -145,6 +159,10 @@ protected:
 
 #if WITH_EDITOR
 	FTextureRHIRef OutputPreviewTargetableResource;
+	
+	mutable bool bPreviewReadPixels = false;
+	mutable FCriticalSection PreviewPixelsCSGuard;
+	mutable TSharedPtr<FDisplayClusterViewportReadPixelsData, ESPMode::ThreadSafe> PreviewPixels;
 #endif
 
 	// unique viewport resources

@@ -45,7 +45,11 @@ OutputPS WarpPS(OutputVS IN)
 	float4 ViewportUVW = mul(WarpedUV, ViewportTextureProjectionMatrix);
 	float2 ViewportUV = ViewportUVW.xy / ViewportUVW.w;
 
+#if VIEWPORT_INPUT_ALPHA
+	float4 OutColor = float4(InputTexture.Sample(InputSampler, ViewportUV));
+#else
 	float4 OutColor = float4(InputTexture.Sample(InputSampler, ViewportUV).rgb, 1.0f);
+#endif
 
 	//@todo: add LUT here
 

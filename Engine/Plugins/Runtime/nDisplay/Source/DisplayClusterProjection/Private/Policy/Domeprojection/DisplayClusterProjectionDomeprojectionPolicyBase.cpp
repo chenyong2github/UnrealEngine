@@ -31,9 +31,9 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(class I
 
 	// Read domeprojection config data from nDisplay config file
 	FString File;
-	if (!ReadConfigData(InViewport->GetId(), File, OriginCompId, DomeprojectionChannel))
+	if (!ReadConfigData(InViewport, File, OriginCompId, DomeprojectionChannel))
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Couldn't read Domeprojection configuration from the config file"));
 		}
@@ -43,7 +43,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(class I
 
 	if (File.IsEmpty())
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Domeprojection configuration file is empty"));
 		}
@@ -65,9 +65,9 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(class I
 	const int32 MaxViewsAmount = 2; // always init contexts for stereo
 
 	ViewAdapter = CreateViewAdapter(FDisplayClusterProjectionDomeprojectionViewAdapterBase::FInitParams{ MaxViewsAmount });
-	if (!(ViewAdapter && ViewAdapter->Initialize(FullFilePath)))
+	if (!(ViewAdapter && ViewAdapter->Initialize(InViewport, FullFilePath)))
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("An error occurred during Domeprojection viewport adapter initialization"));
 		}
@@ -110,7 +110,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::CalculateView(class IDis
 	FRotator OriginSpaceViewRotation = FRotator::ZeroRotator;
 	if (!ViewAdapter->CalculateView(InViewport, InContextNum, DomeprojectionChannel, OriginSpaceViewLocation, OriginSpaceViewRotation, ViewOffset, WorldToMeters, NCP, FCP))
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionDomeprojection, Warning, TEXT("Couldn't compute view info for <%s> viewport"), *InViewport->GetId());
 		}
@@ -158,8 +158,12 @@ void FDisplayClusterProjectionDomeprojectionPolicyBase::ApplyWarpBlend_RenderThr
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterProjectionDomeprojectionPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(const FString& InViewportId, FString& OutFile, FString& OutOrigin, uint32& OutChannel)
+bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(class IDisplayClusterViewport* InViewport, FString& OutFile, FString& OutOrigin, uint32& OutChannel)
 {
+	check(InViewport);
+
+	const FString InViewportId = InViewport->GetId();
+
 	// Domeprojection file (mandatory)
 	if (DisplayClusterHelpers::map::ExtractValue(GetParameters(), DisplayClusterProjectionStrings::cfg::domeprojection::File, OutFile))
 	{
@@ -167,7 +171,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(const FSt
 	}
 	else
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Viewport <%s>: Projection parameter '%s' not found"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::File);
 		}
@@ -182,7 +186,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(const FSt
 	}
 	else
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Viewport <%s>: Parameter <%s> not found in the config file"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::Channel);
 		}
@@ -197,7 +201,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(const FSt
 	}
 	else
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionDomeprojection, Log, TEXT("Viewport <%s>: No <%s> parameter found for projection %s"), *InViewportId, DisplayClusterProjectionStrings::cfg::domeprojection::Origin, *OutOrigin);
 		}

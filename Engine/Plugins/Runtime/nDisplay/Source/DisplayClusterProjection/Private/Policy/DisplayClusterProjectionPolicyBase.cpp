@@ -25,12 +25,49 @@ FDisplayClusterProjectionPolicyBase::~FDisplayClusterProjectionPolicyBase()
 {
 }
 
-bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode()
+bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode_RenderThread(const IDisplayClusterViewportProxy* InViewportProxy)
 {
-	// Hide spam in logs when configuring VP in editor [UE-114493]
-	static const bool bIsEditorOperationMode = IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Editor;
+	check(IsInRenderingThread());
 
-	return bIsEditorOperationMode;
+	if (const bool bIsClusterOperationMode = IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(class IDisplayClusterViewport* InViewport)
+{
+	check(IsInGameThread());
+
+	// Hide spam in logs when configuring VP in editor
+	if (const bool bIsClusterOperationMode = IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster)
+	{
+		return false;
+	}
+
+	// Get state from viewport world (UE-114493)
+	if (InViewport)
+	{
+		if (UWorld* CurrentWorld = InViewport->GetOwner().GetCurrentWorld())
+		{
+			if (CurrentWorld)
+			{
+				switch (CurrentWorld->WorldType)
+				{
+				case EWorldType::Editor:
+				case EWorldType::EditorPreview:
+					return true;
+
+				default:
+					break;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 bool FDisplayClusterProjectionPolicyBase::IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const
@@ -74,7 +111,7 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(IDisplayClus
 
 				if (PolicyOriginComp == nullptr)
 				{
-					if (!IsEditorOperationMode())
+					if (!IsEditorOperationMode(InViewport))
 					{
 						UE_LOG(LogDisplayClusterProjection, Error, TEXT("No custom origin set or component '%s' not found for policy '%s'. VR root will be used."), *OriginCompId, *GetId());
 					}
@@ -86,7 +123,7 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(IDisplayClus
 
 		if (!PolicyOriginComp)
 		{
-			if (!IsEditorOperationMode())
+			if (!IsEditorOperationMode(InViewport))
 			{
 				UE_LOG(LogDisplayClusterProjection, Error, TEXT("Couldn't set origin component"));
 			}

@@ -170,7 +170,7 @@ protected:
 // Placed here to ensure layout builders process referencers first
 //////////////////////////////////////////////////////////////////////////////////////////////
 #if WITH_EDITORONLY_DATA
-private:	
+private:
 	UPROPERTY(EditAnywhere, Transient, Category = Viewports, meta = (PropertyPath = "CurrentConfigData.RenderFrameSettings.ClusterICVFXOuterViewportBufferRatioMult"))
 	FDisplayClusterEditorPropertyReference ViewportScreenPercentageMultiplierRef;
 
@@ -179,6 +179,9 @@ private:
 
 	UPROPERTY(EditInstanceOnly, Transient, Category = Viewports, meta = (DisplayName = "Viewport Overscan", PropertyPath = "CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.Overscan", ToolTip = "Render a larger frame than specified in the configuration to achieve continuity across displays when using post-processing effects."))
 	FDisplayClusterEditorPropertyReference ViewportOverscanRef;
+
+	UPROPERTY(EditAnywhere, Transient, Category = Viewports, meta = (PropertyPath = "CurrentConfigData.StageSettings.bFreezeRenderOuterViewports"))
+	FDisplayClusterEditorPropertyReference FreezeRenderOuterViewportsRef;
 
 	UPROPERTY(EditAnywhere, Transient, Category = Viewports, meta = (PropertyPath = "CurrentConfigData.StageSettings.HideList"))
 	FDisplayClusterEditorPropertyReference ClusterHideListRef;
@@ -291,55 +294,45 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Enable Editor Preview"))
 	bool bPreviewEnable = true;
 	
-	/** render preview every frame */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Capture Every Frame", EditCondition = "bPreviewEnable"))
-	bool bPreviewRenderEveryFrame = true;
-
-	/** Selectively preview a specific viewport or show all/none. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Preview Node", EditCondition = "bPreviewEnable"))
-	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
-
-	/** Render Mode */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (EditCondition = "bPreviewEnable"))
-	EDisplayClusterConfigurationRenderMode RenderMode = EDisplayClusterConfigurationRenderMode::Mono;
-
-	/** Render with mGPU */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (EditCondition = "bPreviewEnable"))
-	bool bAllowMultiGPURendering = true;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (EditCondition = "bPreviewEnable"))
-	int MinGPUIndex = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (EditCondition = "bPreviewEnable"))
-	int MaxGPUIndex = 1;
-
-	/** Tick Per Frame */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200", EditCondition = "bPreviewEnable"))
-	int TickPerFrame = 1;
-
-	/** Nodes Per Frame */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200", EditCondition = "bPreviewEnable"))
-	int NodesPerFrame = 1;
-
-	/** Viewports Per Frame */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200", EditCondition = "bPreviewEnable"))
-	int ViewportsPerFrame = 1;
-
 	/** Adjust resolution scaling for the editor preview. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Preview Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1", EditCondition = "bPreviewEnable"))
 	float PreviewRenderTargetRatioMult = 0.25;
 
+	/** Enable PostProcess for preview. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Enable Post Process", EditCondition = "bPreviewEnable"))
+	bool bPreviewEnablePostProcess = false;
+
+	/** Freeze preview render.  This will impact editor performance. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Freeze Editor Preview", EditCondition = "bPreviewEnable"))
+	bool bFreezePreviewRender = false;
+
 	/** Render ICVFX Frustums */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "ICVFX Camera Frustums", EditCondition = "bPreviewEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Enable Camera Frustums", EditCondition = "bPreviewEnable"))
 	bool bPreviewICVFXFrustums = false;
 
 	/** Render ICVFX Frustums */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "ICVFX Camera Frustums Distance", EditCondition = "bPreviewEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Camera Frustum Distance", EditCondition = "bPreviewEnable"))
 	float PreviewICVFXFrustumsFarDistance = 1000.0f;
 
+	/** Selectively preview a specific viewport or show all/none. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Preview Node", EditCondition = "bPreviewEnable"))
+	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone;
+
+	/** Render Mode */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Render Mode", EditCondition = "bPreviewEnable"))
+	EDisplayClusterConfigurationRenderMode RenderMode = EDisplayClusterConfigurationRenderMode::Mono;
+
+	/** Tick Per Frame */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", AdvancedDisplay, meta = (DisplayName = "Tick Per Frame", ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200", EditCondition = "bPreviewEnable"))
+	int TickPerFrame = 1;
+
+	/** Max amount of Viewports Per Frame */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", AdvancedDisplay, meta = (DisplayName = "Viewports Per Frame", ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200", EditCondition = "bPreviewEnable"))
+	int ViewportsPerFrame = 1;
+
 	/** The maximum dimension of any internal texture for preview. Use less memory for large preview viewports */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", meta = (DisplayName = "Preview Texture Max Size", ClampMin = "64", UIMin = "64", ClampMax = "4096", UIMax = "4096", EditCondition = "bPreviewEnable"))
-	int PreviewMaxTextureSize = 2048;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor Preview", AdvancedDisplay, meta = (DisplayName = "Preview Texture Max Size", ClampMin = "64", UIMin = "64", ClampMax = "4096", UIMax = "4096", EditCondition = "bPreviewEnable"))
+	int PreviewMaxTextureDimension = 2048;
 
 private:
 	UPROPERTY(Transient)
@@ -372,10 +365,14 @@ public:
 	void BeginDestroy_Editor();
 	void RerunConstructionScripts_Editor();
 
+	// Preview components free referenced meshes and materials
+	void ResetPreviewComponents_Editor(bool bInRestoreSceneMaterial);
+
 	UDisplayClusterPreviewComponent* GetPreviewComponent(const FString& NodeId, const FString& ViewportId);
 
 	void UpdatePreviewComponents();
 	void ReleasePreviewComponents();
+
 
 	float GetPreviewRenderTargetRatioMult() const
 	{
@@ -384,7 +381,7 @@ public:
 
 	IDisplayClusterViewport* FindPreviewViewport(const FString& InViewportId) const;
 
-	void GetPreviewRenderTargetableTextures(const EDisplayClusterRenderFrameMode InRenderFrameMode, const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures);
+	void GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures);
 
 	void UpdateInnerFrustumPriority();
 	void ResetInnerFrustumPriority();
@@ -399,17 +396,18 @@ public:
 	}
 
 protected:
-	FString GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const;
+	FString GeneratePreviewComponentName_Editor(const FString& NodeId, const FString& ViewportId) const;
+	void ResetPreviewInternals_Editor();
 
-	void ImplRenderPreviewForSceneMaterials_Editor(const int32 InNumNodesForRender);
+	bool ImplUpdatePreviewConfiguration_Editor(const FString& InClusterNodeId);
 
-	void RenderPreviewClusterNode_Editor(const EDisplayClusterRenderFrameMode InRenderFrameMode, const FString& InClusterNodeId);
-	bool UpdatePreviewConfiguration_Editor(const EDisplayClusterRenderFrameMode InRenderFrameMode, const FString& InClusterNodeId);
+	void ImplRenderPreview_Editor();
+	bool ImplRenderPassPreviewClusterNode_Editor();
 
-	void ResetPreviewInternals();
-	
-	void RenderPreviewFrustums();
-	void RenderPreviewFrustum(const FMatrix ProjectionMatrix, const FMatrix ViewMatrix, const FVector ViewOrigin);
+	bool ImplUpdatePreviewRenderFrame_Editor(const FString& InClusterNodeId);
+
+	void ImplRenderPreviewFrustums_Editor();
+	void ImplRenderPreviewViewportFrustum_Editor(const FMatrix ProjectionMatrix, const FMatrix ViewMatrix, const FVector ViewOrigin);
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
@@ -425,9 +423,20 @@ private:
 	int32 PreviewClusterNodeIndex = 0;
 	int32 PreviewViewportIndex = 0;
 	TUniquePtr<FDisplayClusterRenderFrame> PreviewRenderFrame;
+	FString PreviewRenderFrameClusterNodeId;
+	int32 PreviewViewportsRenderedInThisFrameCnt = 0;
 
 	FOnPreviewUpdated OnPreviewGenerated;
 	FOnPreviewUpdated OnPreviewDestroyed;
+
+	struct FFrustumPreviewViewportContextCache
+	{
+		FVector  ViewLocation;
+		FRotator ViewRotation;
+		FMatrix  ProjectionMatrix;
+	};
+	// Cache the last valid viewport context
+	TMap<FString, FFrustumPreviewViewportContextCache> FrustumPreviewViewportContextCache;
 
 #endif
 };

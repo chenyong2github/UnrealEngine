@@ -26,7 +26,7 @@ public:
 	virtual ~FDisplayClusterProjectionDomeprojectionViewAdapterBase() = default;
 
 public:
-	virtual bool Initialize(const FString& File) = 0;
+	virtual bool Initialize(class IDisplayClusterViewport* InViewport, const FString& File) = 0;
 	
 	virtual void Release()
 	{ }

@@ -44,7 +44,7 @@ protected:
 
 private:
 	// Parse EasyBlend related data from the nDisplay config file
-	bool ReadConfigData(const FString& InViewportId, FString& OutFile, FString& OutOrigin, float& OutGeometryScale);
+	bool ReadConfigData(class IDisplayClusterViewport* InViewport, FString& OutFile, FString& OutOrigin, float& OutGeometryScale);
 
 private:
 	FString OriginCompId;

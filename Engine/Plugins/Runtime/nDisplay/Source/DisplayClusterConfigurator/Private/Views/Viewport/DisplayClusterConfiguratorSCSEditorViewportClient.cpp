@@ -1083,15 +1083,15 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::SyncShowPreview()
 	if (BlueprintEditorPtr.IsValid())
 	{
 		const bool bShouldShowPreview = GetShowPreview();
-		
-		if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(BlueprintEditorPtr.Pin()->GetPreviewActor()))
+		if (!bShouldShowPreview)
 		{
-			const FString CorrectShowPreviewValue = bShouldShowPreview ? DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll : DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone;
-			
-			if (CorrectShowPreviewValue != Actor->PreviewNodeId)
+			if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(BlueprintEditorPtr.Pin()->GetPreviewActor()))
 			{
-				Actor->PreviewNodeId = CorrectShowPreviewValue;
-				Actor->UpdatePreviewComponents();
+				if (Actor->PreviewNodeId != DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone)
+				{
+					Actor->PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone;
+					Actor->UpdatePreviewComponents();
+				}
 			}
 		}
 	}

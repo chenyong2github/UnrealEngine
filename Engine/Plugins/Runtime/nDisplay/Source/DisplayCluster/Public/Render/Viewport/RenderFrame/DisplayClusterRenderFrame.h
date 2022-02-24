@@ -20,6 +20,12 @@ public:
 	class FFrameView
 	{
 	public:
+		inline bool IsShouldRenderView() const
+		{
+			return !bDisableRender && !bFreezeRendering;
+		}
+
+	public:
 		// Viewport game-thread data
 		class IDisplayClusterViewport* Viewport = nullptr;
 
@@ -27,6 +33,7 @@ public:
 		uint32 ContextNum = 0;
 
 		bool bDisableRender = false;
+		bool bFreezeRendering = false;
 	};
 
 	class FFrameViewFamily
@@ -84,7 +91,7 @@ public:
 	FIntRect FrameRect;
 
 	int32 DesiredNumberOfViews = 0;
-	int32 ViewportsAmmount = 0;
+	int32 ViewportsAmount = 0;
 
 	IDisplayClusterViewportManager* ViewportManager = nullptr;
 };

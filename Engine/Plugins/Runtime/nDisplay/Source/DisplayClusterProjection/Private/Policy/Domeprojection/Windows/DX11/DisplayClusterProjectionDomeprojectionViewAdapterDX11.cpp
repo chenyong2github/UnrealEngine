@@ -42,13 +42,13 @@ FDisplayClusterProjectionDomeprojectionViewAdapterDX11::~FDisplayClusterProjecti
 	Views.Empty();
 }
 
-bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::Initialize(const FString& InFile)
+bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::Initialize(class IDisplayClusterViewport* InViewport, const FString& InFile)
 {
 	bool bResult = true;
 
 	for (FViewData& ViewIt : Views)
 	{
-		if (!ViewIt.Initialize(InFile, DllAccessCS))
+		if (!ViewIt.Initialize(InViewport, InFile, DllAccessCS))
 		{
 			bResult = false;
 		}
@@ -236,14 +236,14 @@ void FDisplayClusterProjectionDomeprojectionViewAdapterDX11::FViewData::Release(
 	}
 }
 
-bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::FViewData::Initialize(const FString& InFile, FCriticalSection& DllAccessCS)
+bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::FViewData::Initialize(class IDisplayClusterViewport* InViewport, const FString& InFile, FCriticalSection& DllAccessCS)
 {
 	// Initialize Domeprojection DLL API
 	FScopeLock lock(&DllAccessCS);
 
 	if (!DisplayClusterProjectionDomeprojectionLibraryDX11::Initialize())
 	{
-		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Couldn't link to the Domeprojection DLL"));
 		}
@@ -253,7 +253,7 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::FViewData::Initiali
 
 	if (InFile.IsEmpty())
 	{
-		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("File name is empty"));
 		}

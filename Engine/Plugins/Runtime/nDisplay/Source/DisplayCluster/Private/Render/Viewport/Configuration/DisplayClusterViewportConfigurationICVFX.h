@@ -10,6 +10,8 @@ class FDisplayClusterViewportManager;
 class FDisplayClusterViewport;
 class ADisplayClusterRootActor;
 
+struct FDisplayClusterPreviewSettings;
+
 class FDisplayClusterViewportConfigurationICVFX
 {
 public:
@@ -19,6 +21,10 @@ public:
 public:
 	void Update();
 	void PostUpdate();
+
+#if WITH_EDITOR
+	void PostUpdatePreview_Editor(const FDisplayClusterPreviewSettings& InPreviewSettings);
+#endif
 
 private:
 	void ImplBeginReallocateViewports(FDisplayClusterViewportManager& ViewportManager);

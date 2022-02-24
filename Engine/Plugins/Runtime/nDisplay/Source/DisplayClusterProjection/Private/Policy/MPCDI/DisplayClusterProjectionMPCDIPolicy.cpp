@@ -86,7 +86,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleStartScene(IDisplayClusterViewp
 		// Ignore broken MPCDI config for other attempts
 		bInvalidConfiguration = true;
 
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't load MPCDI config for viewport '%s'"), *InViewport->GetId());
 		}
@@ -153,7 +153,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::CalculateView(IDisplayClusterViewport
 
 	if (WarpBlendInterface.IsValid() == false || WarpBlendContexts.Num() == 0)
 	{
-		if (!IsEditorOperationMode())
+		if (!IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Invalid warp data for viewport '%s'"), *InViewport->GetId());
 		}
@@ -273,29 +273,37 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 					const IDisplayClusterViewportProxy* RefViewportProxy = RefViewportManagerProxy.FindViewport_RenderThread(It->ViewportId);
 					if (RefViewportProxy)
 					{
-						TArray<FRHITexture2D*> RefTextures;
-						// Use for input first MipsShader texture if enabled in viewport render settings
-						if (RefViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::MipsShaderResource, RefTextures) ||
-							RefViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::InputShaderResource, RefTextures))
+						const FDisplayClusterViewport_RenderSettings& RefViewportRenderSettings = RefViewportProxy->GetRenderSettings_RenderThread();
+						if (RefViewportRenderSettings.bSkipRendering == false)
 						{
-							const int32 ReContextNum = FMath::Min(ContextNum, RefTextures.Num());
-							It->Texture = RefTextures[ReContextNum];
-
-							// Support stereo icvfx
-							for (FDisplayClusterShaderParameters_ICVFX::FCameraSettings& CameraIt : ShaderICVFX.Cameras)
+							TArray<FRHITexture2D*> RefTextures;
+							// Use for input first MipsShader texture if enabled in viewport render settings
+							if (RefViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::MipsShaderResource, RefTextures) ||
+								RefViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::InputShaderResource, RefTextures))
 							{
-								if (It->ViewportId == CameraIt.Resource.ViewportId)
+								if (ContextNum < RefTextures.Num())
 								{
-									// matched camera reference, update context for current eye
-									const FDisplayClusterViewport_Context& InContext = RefViewportProxy->GetContexts_RenderThread()[ContextNum];
-
-									FDisplayClusterShaderParametersICVFX_CameraContext CameraContext;
-									CameraContext.CameraViewLocation = InContext.ViewLocation;
-									CameraContext.CameraViewRotation = InContext.ViewRotation;
-									CameraContext.CameraPrjMatrix = InContext.ProjectionMatrix;
-
-									CameraIt.UpdateCameraContext(CameraContext);
+									It->Texture = RefTextures[ContextNum];
 								}
+							}
+						}
+
+						const TArray<FDisplayClusterViewport_Context>& RefViewportContexts = RefViewportProxy->GetContexts_RenderThread();
+
+						// Support stereo icvfx
+						for (FDisplayClusterShaderParameters_ICVFX::FCameraSettings& CameraIt : ShaderICVFX.Cameras)
+						{
+							if (It->ViewportId == CameraIt.Resource.ViewportId && ContextNum < RefViewportContexts.Num())
+							{
+								// matched camera reference, update context for current eye
+								const FDisplayClusterViewport_Context& InContext = RefViewportContexts[ContextNum];
+
+								FDisplayClusterShaderParametersICVFX_CameraContext CameraContext;
+								CameraContext.CameraViewLocation = InContext.ViewLocation;
+								CameraContext.CameraViewRotation = InContext.ViewRotation;
+								CameraContext.CameraPrjMatrix = InContext.ProjectionMatrix;
+
+								CameraIt.UpdateCameraContext(CameraContext);
 							}
 						}
 					}
@@ -310,9 +318,11 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 				WarpBlendParameters.Src.Set(InputTextures[ContextNum], InputRects[ContextNum]);
 				WarpBlendParameters.Dest.Set(OutputTextures[ContextNum], OutputRects[ContextNum]);
 
+				WarpBlendParameters.bRenderAlphaChannel = InViewportProxy->GetRenderSettings_RenderThread().bWarpBlendRenderAlphaChannel;
+
 				if (!ShadersAPI.RenderWarpBlend_ICVFX(RHICmdList, WarpBlendParameters, ShaderICVFX))
 				{
-					if (!IsEditorOperationMode())
+					if (!IsEditorOperationMode_RenderThread(InViewportProxy))
 					{
 						UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't apply icvfx warp&blend"));
 					}
@@ -337,11 +347,12 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 
 		WarpBlendParameters.Src.Set(InputTextures[ContextNum], InputRects[ContextNum]);
 		WarpBlendParameters.Dest.Set(OutputTextures[ContextNum], OutputRects[ContextNum]);
-
+		
+		WarpBlendParameters.bRenderAlphaChannel = InViewportProxy->GetRenderSettings_RenderThread().bWarpBlendRenderAlphaChannel;
 
 		if (!ShadersAPI.RenderWarpBlend_MPCDI(RHICmdList, WarpBlendParameters))
 		{
-			if (!IsEditorOperationMode())
+			if (!IsEditorOperationMode_RenderThread(InViewportProxy))
 			{
 				UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("Couldn't apply mpcdi warp&blend"));
 			}
@@ -430,7 +441,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::CreateWarpBlendFromConfig(IDisplayClu
 	bool bResult = false;
 
 	FConfigParser CfgData;
-	if (CfgData.ImplLoadConfig(GetParameters()))
+	if (CfgData.ImplLoadConfig(InViewport, GetParameters()))
 	{
 		IDisplayClusterShaders& ShadersAPI = IDisplayClusterShaders::Get();
 
@@ -445,7 +456,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::CreateWarpBlendFromConfig(IDisplayClu
 			// Check if MPCDI file exists
 			if (CfgData.MPCDIFileName.IsEmpty())
 			{
-				if (!IsEditorOperationMode())
+				if (!IsEditorOperationMode(InViewport))
 				{
 					UE_LOG(LogDisplayClusterProjectionMPCDI, Warning, TEXT("File not found: Empty"));
 				}

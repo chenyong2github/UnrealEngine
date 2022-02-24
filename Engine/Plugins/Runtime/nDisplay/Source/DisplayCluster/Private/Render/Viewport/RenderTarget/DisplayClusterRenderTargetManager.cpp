@@ -85,19 +85,16 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(FViewport*
 								FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
 								if (ViewportPtr)
 								{
-									// Array already resized in function FDisplayClusterViewport::UpdateFrameContexts() with RenderTargets.AddZeroed(ViewportContextAmmount);
+									// Array already resized in function FDisplayClusterViewport::UpdateFrameContexts() with RenderTargets.AddZeroed(ViewportContextAmount);
 									check(ViewIt.ContextNum < (uint32)ViewportPtr->RenderTargets.Num());
+									check(ViewportPtr->Contexts[ViewIt.ContextNum].bDisableRender == false);
 
-									// Support override
-									if (ViewportPtr->Contexts[ViewIt.ContextNum].bDisableRender == false)
+									ViewportPtr->RenderTargets[ViewIt.ContextNum] = NewResource;
+
+									if (NewResource->GetViewportResourceState(EDisplayClusterViewportResourceState::Initialized) == false)
 									{
-										ViewportPtr->RenderTargets[ViewIt.ContextNum] = NewResource;
-
-										if (NewResource->GetViewportResourceState(EDisplayClusterViewportResourceState::Initialized) == false)
-										{
-											// Log: New resource created
-											UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Created new ViewportRenderTarget resource %08X (%dx%d) for viewport '%s'"), NewResource, NewResource->GetSizeX(), NewResource->GetSizeY(), *ViewportPtr->GetId());
-										}
+										// Log: New resource created
+										UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Created new ViewportRenderTarget resource %08X (%dx%d) for viewport '%s'"), NewResource, NewResource->GetSizeX(), NewResource->GetSizeY(), *ViewportPtr->GetId());
 									}
 								}
 							}
@@ -110,32 +107,34 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(FViewport*
 		// Allocate viewport internal resources
 		for (FDisplayClusterViewport* ViewportIt : InViewports)
 		{
-			const bool bShouldUseAdditionalTargetableResource = ViewportIt->AdditionalTargetableResources.Num() > 0;
-
-			EPixelFormat CustomFormat = ImplGetCustomFormat(ViewportIt->RenderSettings.CaptureMode);
-
-			// Allocate all context resources:
-			for (const FDisplayClusterViewport_Context& ContextIt : ViewportIt->GetContexts())
+			if (ViewportIt && ViewportIt->RenderSettings.bFreezeRendering == false)
 			{
+				EPixelFormat CustomFormat = ImplGetCustomFormat(ViewportIt->RenderSettings.CaptureMode);
 
-				const FIntPoint& ContextSize = ContextIt.ContextSize;
-				const uint32&     ContextNum = ContextIt.ContextNum;
-
-				check(ViewportIt->InputShaderResources.Num() > 0);
-				ViewportIt->InputShaderResources[ContextNum] = ResourcesPool->AllocateTextureResource(ContextSize, false, CustomFormat);
-				ImplViewportTextureResourceLogging(ViewportIt, ContextNum, TEXT("InputShader"), ViewportIt->InputShaderResources[ContextNum]);
-
-				// Allocate custom resources:
-				if (bShouldUseAdditionalTargetableResource)
+				// Allocate all context resources:
+				for (const FDisplayClusterViewport_Context& ContextIt : ViewportIt->GetContexts())
 				{
-					ViewportIt->AdditionalTargetableResources[ContextNum] = ResourcesPool->AllocateTextureResource(ContextSize, true, CustomFormat);
-					ImplViewportTextureResourceLogging(ViewportIt, ContextNum, TEXT("AdditionalRTT"), ViewportIt->AdditionalTargetableResources[ContextNum]);
-				}
+					const FIntPoint& ContextSize = ContextIt.ContextSize;
+					const uint32& ContextNum = ContextIt.ContextNum;
 
-				if (ContextIt.NumMips > 1)
-				{
-					ViewportIt->MipsShaderResources[ContextNum] = ResourcesPool->AllocateTextureResource(ContextSize, false, CustomFormat, ContextIt.NumMips);
-					ImplViewportTextureResourceLogging(ViewportIt, ContextNum, TEXT("Mips"), ViewportIt->MipsShaderResources[ContextNum]);
+					if (ViewportIt->InputShaderResources.Num() > (int32)ContextNum)
+					{
+						ViewportIt->InputShaderResources[ContextNum] = ResourcesPool->AllocateTextureResource(ContextSize, false, CustomFormat);
+						ImplViewportTextureResourceLogging(ViewportIt, ContextNum, TEXT("InputShader"), ViewportIt->InputShaderResources[ContextNum]);
+					}
+
+					// Allocate custom resources:
+					if (ViewportIt->AdditionalTargetableResources.Num() > (int32)ContextNum)
+					{
+						ViewportIt->AdditionalTargetableResources[ContextNum] = ResourcesPool->AllocateTextureResource(ContextSize, true, CustomFormat);
+						ImplViewportTextureResourceLogging(ViewportIt, ContextNum, TEXT("AdditionalRTT"), ViewportIt->AdditionalTargetableResources[ContextNum]);
+					}
+
+					if (ViewportIt->MipsShaderResources.Num() > (int32)ContextNum)
+					{
+						ViewportIt->MipsShaderResources[ContextNum] = ResourcesPool->AllocateTextureResource(ContextSize, false, CustomFormat, ContextIt.NumMips);
+						ImplViewportTextureResourceLogging(ViewportIt, ContextNum, TEXT("Mips"), ViewportIt->MipsShaderResources[ContextNum]);
+					}
 				}
 			}
 		}

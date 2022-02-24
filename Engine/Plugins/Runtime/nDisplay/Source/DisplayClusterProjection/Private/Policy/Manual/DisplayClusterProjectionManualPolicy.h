@@ -52,7 +52,7 @@ protected:
 
 	virtual bool ExtractAngles(const FString& InAngles, FFrustumAngles& OutAngles);
 private:
-	EManualDataType DataTypeFromString(const FString& DataTypeInString) const;
+	EManualDataType DataTypeFromString(class IDisplayClusterViewport* InViewport, const FString& DataTypeInString) const;
 private:
 	// Current data type (matrix, frustum angle, ...)
 	EManualDataType DataType = EManualDataType::Matrix;

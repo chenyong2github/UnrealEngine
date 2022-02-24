@@ -59,10 +59,20 @@ namespace MpcdiShaderPermutation
 	class FMpcdiShaderAlphaMapBlending : SHADER_PERMUTATION_BOOL("ALPHAMAP_BLENDING");
 	class FMpcdiShaderBetaMapBlending : SHADER_PERMUTATION_BOOL("BETAMAP_BLENDING");
 
+	class FMpcdiShaderViewportInputAlpha : SHADER_PERMUTATION_BOOL("VIEWPORT_INPUT_ALPHA");
+
 	class FMpcdiShaderMeshWarp : SHADER_PERMUTATION_BOOL("MESH_WARP");
 
-	using FCommonVSDomain = TShaderPermutationDomain<FMpcdiShaderMeshWarp>;
-	using FCommonPSDomain = TShaderPermutationDomain<FMpcdiShaderAlphaMapBlending, FMpcdiShaderBetaMapBlending, FMpcdiShaderMeshWarp>;
+	using FCommonVSDomain = TShaderPermutationDomain<
+		FMpcdiShaderMeshWarp
+	>;
+
+	using FCommonPSDomain = TShaderPermutationDomain<
+		FMpcdiShaderAlphaMapBlending,
+		FMpcdiShaderBetaMapBlending,
+		FMpcdiShaderViewportInputAlpha,
+		FMpcdiShaderMeshWarp
+	>;
 
 	bool ShouldCompileCommonPSPermutation(const FGlobalShaderPermutationParameters& Parameters, const FCommonPSDomain& PermutationVector)
 	{
@@ -254,6 +264,11 @@ public:
 
 		if (WarpBlendParameters.WarpInterface.IsValid())
 		{
+			if (WarpBlendParameters.bRenderAlphaChannel)
+			{
+				RenderPassData.PSPermutationVector.Set<MpcdiShaderPermutation::FMpcdiShaderViewportInputAlpha>(true);
+			}
+
 			switch (WarpBlendParameters.WarpInterface->GetWarpGeometryType())
 			{
 				case EDisplayClusterWarpGeometryType::WarpMesh:

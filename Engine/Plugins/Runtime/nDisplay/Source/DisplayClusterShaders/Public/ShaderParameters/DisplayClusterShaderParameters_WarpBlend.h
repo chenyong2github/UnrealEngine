@@ -33,4 +33,7 @@ struct FDisplayClusterShaderParameters_WarpBlend
 
 	// Context data
 	FDisplayClusterWarpContext Context;
+
+	// Render alpha channel from input texture to warp output
+	bool bRenderAlphaChannel = false;
 };

@@ -59,7 +59,7 @@ FDisplayClusterProjectionEasyBlendViewAdapterDX11::~FDisplayClusterProjectionEas
 	}
 }
 
-bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::Initialize(const FString& File)
+bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::Initialize(class IDisplayClusterViewport* InViewport, const FString& File)
 {
 	if (!IsEasyBlendRenderingEnabled())
 	{
@@ -69,7 +69,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::Initialize(const FString
 	// Initialize EasyBlend DLL API
 	if (!DisplayClusterProjectionEasyBlendLibraryDX11::Initialize())
 	{
-		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't link to the EasyBlend DLL"));
 		}
@@ -78,7 +78,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::Initialize(const FString
 
 	if(File.IsEmpty())
 	{
-		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+		if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(InViewport))
 		{
 			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("File is empty"));
 		}

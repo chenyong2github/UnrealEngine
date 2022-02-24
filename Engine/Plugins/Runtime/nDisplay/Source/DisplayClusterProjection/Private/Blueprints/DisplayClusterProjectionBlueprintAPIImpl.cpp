@@ -30,6 +30,7 @@ void UDisplayClusterProjectionBlueprintAPIImpl::CameraPolicySetCamera(const FStr
 			// @todo: Add extra settings latter to BP call if required
 			FDisplayClusterProjectionCameraPolicySettings Settings;
 			Settings.FOVMultiplier = FOVMultiplier;
+			Settings.bCameraOverrideDefaults = true;
 
 			IDisplayClusterProjection::Get().CameraPolicySetCamera(Viewport->GetProjectionPolicy(), NewCamera, Settings);
 		}

@@ -31,7 +31,11 @@ bool FDisplayClusterViewport::CalculateView(const uint32 InContextNum, FVector& 
 	{
 		// Store the view location/rotation
 		Contexts[InContextNum].ViewLocation = InOutViewLocation;
+		Contexts[InContextNum].bIsValidViewLocation = true;
+
 		Contexts[InContextNum].ViewRotation = InOutViewRotation;
+		Contexts[InContextNum].bIsValidViewRotation = true;
+
 		Contexts[InContextNum].WorldToMeters = WorldToMeters;
 
 		return true;
@@ -45,6 +49,7 @@ bool FDisplayClusterViewport::GetProjectionMatrix(const uint32 InContextNum, FMa
 	if (ProjectionPolicy.IsValid() && ProjectionPolicy->GetProjectionMatrix(this, InContextNum, OutPrjMatrix))
 	{
 		Contexts[InContextNum].ProjectionMatrix = OutPrjMatrix;
+		Contexts[InContextNum].bIsValidProjectionMatrix = true;
 
 		if (OverscanRendering.IsEnabled())
 		{

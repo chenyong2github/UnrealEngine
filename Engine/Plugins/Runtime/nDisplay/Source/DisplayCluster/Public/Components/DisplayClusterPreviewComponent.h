@@ -12,7 +12,7 @@
 
 class IDisplayClusterProjectionPolicy;
 class UTextureRenderTarget2D;
-class UTexture2D;
+class UTexture;
 class UDisplayClusterConfigurationViewport;
 class UMaterial;
 class UMaterialInstanceDynamic;
@@ -42,8 +42,6 @@ public:
 public:
 	bool InitializePreviewComponent(ADisplayClusterRootActor* RootActor, const FString& ClusterNodeId, const FString& ViewportId, UDisplayClusterConfigurationViewport* ViewportConfig);
 
-	bool IsPreviewAvailable() const;
-
 	const FString& GetViewportId() const
 	{ 
 		return ViewportId; 
@@ -65,35 +63,34 @@ public:
 	}
 
 	void UpdatePreviewResources();
-	void HandleRenderTargetTextureDeferredUpdate(const EDisplayClusterRenderFrameMode InRenderFrameMode);
 
-	UMeshComponent* GetPreviewMesh() const
+	UMeshComponent* GetPreviewMesh()
 	{
+		UpdatePreviewMeshReference();
+
 		return PreviewMesh;
 	}
 
 	/** Create and retrieve a render texture 2d from the render target. */
-	UTexture2D* GetOrCreateViewportPreviewTexture2D();
+	UTexture* GetViewportPreviewTexture2D();
 
-	/** Return the render texture 2d but do not recreate it. */
-	UTexture2D* GetViewportPreviewTexture2D() const;
+	void ResetPreviewComponent(bool bInRestoreSceneMaterial);
 
 	/** Sets an override texture to display on the viewport instead of the render target */
 	void SetOverrideTexture(UTexture* InOverrideTexture);
 
 protected:
+	bool IsPreviewEnabled() const;
+
 	class IDisplayClusterViewport* GetCurrentViewport() const;
-	bool GetPreviewTextureSettings(FIntPoint& OutSize, float& OutGamma) const;
+	bool GetPreviewTextureSettings(FIntPoint& OutSize, EPixelFormat& OutTextureFormat, float& OutGamma, bool& bOutSRGB) const;
 
 	void UpdatePreviewRenderTarget();
 	void ReleasePreviewRenderTarget();
 
-	bool UpdatePreviewMesh(bool bRestoreOriginalMaterial = false);
+	bool UpdatePreviewMesh();
 	void ReleasePreviewMesh();
 	void UpdatePreviewMeshReference();
-
-	bool UpdatePreviewTexture();
-	void ReleasePreviewTexture();
 
 	void InitializePreviewMaterial();
 	void ReleasePreviewMaterial();
@@ -101,13 +98,6 @@ protected:
 
 	void RestorePreviewMeshMaterial();
 	void SetPreviewMeshMaterial();
-
-	bool IsPreviewEnabled() const;
-
-protected:
-	// Set to true, when RTT surface updated
-	int32 RenderTargetSurfaceChangedCnt = 0;
-	bool bIsEditingProperty = false;
 #endif /* WITH_EDITOR */
 
 #if WITH_EDITORONLY_DATA
@@ -147,9 +137,6 @@ private:
 
 	UPROPERTY()
 	UMaterialInstanceDynamic* PreviewMaterialInstance = nullptr;
-
-	UPROPERTY(Transient)
-	UTexture2D* PreviewTexture = nullptr;
 
 	UPROPERTY(Transient)
 	UTexture* OverrideTexture = nullptr;

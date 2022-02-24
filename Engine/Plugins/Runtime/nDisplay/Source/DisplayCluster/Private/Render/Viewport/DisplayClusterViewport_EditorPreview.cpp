@@ -2,7 +2,7 @@
 
 #include "Components/DisplayClusterPreviewComponent.h"
 #include "Render/Viewport/DisplayClusterViewport.h"
-
+#include "Render/Viewport/DisplayClusterViewportProxy.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
 #include "Misc/DisplayClusterLog.h"
@@ -23,7 +23,7 @@
 #include "Components/DisplayClusterScreenComponent.h"
 
 #include "Render/Viewport/DisplayClusterViewportManager.h"
-#include "Render/Viewport/IDisplayClusterViewport.h"
+#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
 
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfigurationHelpers_Postprocess.h"
 
@@ -44,10 +44,10 @@ void FDisplayClusterViewport::CleanupViewState()
 
 FSceneViewStateInterface* FDisplayClusterViewport::GetViewState(uint32 ViewIndex)
 {
-	int32 RequiredAmmount = (int32)ViewIndex - ViewStates.Num() + 1;
-	if(RequiredAmmount > 0)
+	int32 RequiredAmount = (int32)ViewIndex - ViewStates.Num() + 1;
+	if(RequiredAmount > 0)
 	{
-		ViewStates.AddDefaulted(RequiredAmmount);
+		ViewStates.AddDefaulted(RequiredAmount);
 	}
 
 	if (ViewStates[ViewIndex].GetReference() == NULL)
@@ -115,6 +115,11 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 		ViewInitOptions.StereoIPD = StereoIPD * (ViewInitOptions.WorldToMetersScale / 100.0f);
 
 		ViewInitOptions.BackgroundColor = FLinearColor::Black;
+
+		if (Owner.GetRenderFrameSettings().bPreviewEnablePostProcess == false)
+		{
+			ViewInitOptions.OverlayColor = FLinearColor::Black;
+		}
 
 		FSceneView* View = new FSceneView(ViewInitOptions);
 
@@ -240,23 +245,15 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	const float EyeOffset = CfgEyeDist / 2.f;
 	const float EyeOffsetValues[] = { -EyeOffset, 0.f, EyeOffset };
 
-	auto DecodeEyeType = [](const EStereoscopicPass StereoPass)
-	{
-		switch (StereoPass)
-		{
-		case EStereoscopicPass::eSSP_PRIMARY:
-			return EDisplayClusterEyeType::StereoLeft;
-		case EStereoscopicPass::eSSP_SECONDARY:
-			return EDisplayClusterEyeType::StereoRight;
-		default:
-			break;
-		}
-
-		return EDisplayClusterEyeType::Mono;
-	};
-
 	// Decode current eye type	
-	const EDisplayClusterEyeType EyeType = DecodeEyeType(ViewportContext.StereoscopicPass);
+	// Decode current eye type
+	EDisplayClusterEyeType EyeType = EDisplayClusterEyeType::Mono;
+	if (Contexts.Num() > 1)
+	{
+		// Support stereo:
+		EyeType = (InContextNum == 0) ? EDisplayClusterEyeType::StereoLeft : EDisplayClusterEyeType::StereoRight;
+	}
+
 	const int32 EyeIndex = (int32)EyeType;
 
 	float PassOffset = 0.f;
@@ -325,4 +322,10 @@ FMatrix FDisplayClusterViewport::ImplPreview_GetStereoProjectionMatrix(const uin
 	return PrjMatrix;
 }
 
+bool FDisplayClusterViewport::GetPreviewPixels(TSharedPtr<FDisplayClusterViewportReadPixelsData, ESPMode::ThreadSafe>& OutPixelsData) const
+{
+	check(IsInGameThread());
+
+	return (ViewportProxy != nullptr) && ViewportProxy->GetPreviewPixels_GameThread(OutPixelsData);
+}
 #endif

@@ -273,7 +273,8 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const int32 ViewIndex,
 		return;
 	}
 
-	const FDisplayClusterViewport_Context& ViewportContext = ViewportPtr->GetContexts()[ViewportContextNum];
+	const TArray<FDisplayClusterViewport_Context>& ViewportContexts = ViewportPtr->GetContexts();
+	const FDisplayClusterViewport_Context& ViewportContext = ViewportContexts[ViewportContextNum];
 
 	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("OLD ViewLoc: %s, ViewRot: %s"), *ViewLocation.ToString(), *ViewRotation.ToString());
 	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("WorldToMeters: %f"), WorldToMeters);
@@ -308,23 +309,14 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const int32 ViewIndex,
 	const float EyeOffset = CfgEyeDist / 2.f;
 	const float EyeOffsetValues[] = { -EyeOffset, 0.f, EyeOffset };
 
-	auto DecodeEyeType = [](const EStereoscopicPass StereoPass)
+	// Decode current eye type
+	EDisplayClusterEyeType EyeType = EDisplayClusterEyeType::Mono;
+	if(ViewportContexts.Num() > 1)
 	{
-		switch (StereoPass)
-		{
-		case EStereoscopicPass::eSSP_PRIMARY:
-			return EDisplayClusterEyeType::StereoLeft;
-		case EStereoscopicPass::eSSP_SECONDARY:
-			return EDisplayClusterEyeType::StereoRight;
-		default:
-			break;
-		}
+		// Support stereo:
+		EyeType = (ViewportContextNum == 0)? EDisplayClusterEyeType::StereoLeft : EDisplayClusterEyeType::StereoRight;
+	}
 
-		return EDisplayClusterEyeType::Mono;
-	};
-
-	// Decode current eye type	
-	const EDisplayClusterEyeType EyeType = DecodeEyeType(ViewportContext.StereoscopicPass);
 	const int32 EyeIndex = (int32)EyeType;
 
 	float PassOffset = 0.f;
@@ -514,8 +506,6 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, const class FViewport& Viewport, class SViewport* ViewportWidget)
 {
-	check(IsInGameThread());
-
 	// Store viewport
 	if (!MainViewport)
 	{
@@ -526,8 +516,8 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 
 void FDisplayClusterDeviceBase::CalculateRenderTargetSize(const class FViewport& Viewport, uint32& InOutSizeX, uint32& InOutSizeY)
 {
-	check(IsInGameThread());
-	check(InOutSizeX > 0 && InOutSizeY > 0);
+	InOutSizeX = FMath::Max(1, (int32)InOutSizeX);
+	InOutSizeY = FMath::Max(1, (int32)InOutSizeY);
 }
 
 bool FDisplayClusterDeviceBase::NeedReAllocateViewportRenderTarget(const class FViewport& Viewport)
@@ -541,7 +531,7 @@ bool FDisplayClusterDeviceBase::NeedReAllocateViewportRenderTarget(const class F
 	uint32 newSizeX = rtSize.X;
 	uint32 newSizeY = rtSize.Y;
 
-	//CalculateRenderTargetSize(Viewport, newSizeX, newSizeY);
+	CalculateRenderTargetSize(Viewport, newSizeX, newSizeY);
 
 	// Here we conclude if need to re-allocate
 	const bool Result = (newSizeX != rtSize.X || newSizeY != rtSize.Y);

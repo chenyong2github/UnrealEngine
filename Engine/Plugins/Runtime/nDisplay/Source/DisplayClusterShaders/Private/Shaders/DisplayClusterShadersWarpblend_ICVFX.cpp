@@ -54,7 +54,8 @@ enum class EIcvfxShaderType : uint8
 namespace IcvfxShaderPermutation
 {
 	// Shared permutation for picp warp
-	class FIcvfxShaderViewportInput    : SHADER_PERMUTATION_BOOL("VIEWPORT_INPUT");
+	class FIcvfxShaderViewportInput      : SHADER_PERMUTATION_BOOL("VIEWPORT_INPUT");
+	class FIcvfxShaderViewportInputAlpha : SHADER_PERMUTATION_BOOL("VIEWPORT_INPUT_ALPHA");
 
 	class FIcvfxShaderOverlayUnder     : SHADER_PERMUTATION_BOOL("OVERLAY_UNDER");
 	class FIcvfxShaderOverlayOver      : SHADER_PERMUTATION_BOOL("OVERLAY_OVER");
@@ -76,6 +77,8 @@ namespace IcvfxShaderPermutation
 
 	using FCommonPSDomain = TShaderPermutationDomain<
 		FIcvfxShaderViewportInput,
+		FIcvfxShaderViewportInputAlpha,
+
 		FIcvfxShaderOverlayUnder,
 		FIcvfxShaderOverlayOver,
 		FIcvfxShaderOverlayAlpha,
@@ -116,6 +119,11 @@ namespace IcvfxShaderPermutation
 		if (!PermutationVector.Get<FIcvfxShaderViewportInput>())
 		{
 			if (PermutationVector.Get<FIcvfxShaderOverlayUnder>() || (PermutationVector.Get<FIcvfxShaderInnerCamera>() == PermutationVector.Get<FIcvfxShaderOverlayOver>()))
+			{
+				return false;
+			}
+
+			if (PermutationVector.Get<FIcvfxShaderViewportInputAlpha>())
 			{
 				return false;
 			}
@@ -402,6 +410,11 @@ public:
 			RenderPassData.PSParameters.InputSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 			RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderViewportInput>(true);
+
+			if (WarpBlendParameters.bRenderAlphaChannel)
+			{
+				RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderViewportInputAlpha>(true);
+			}
 		}
 
 		// Vertex shader viewport rect

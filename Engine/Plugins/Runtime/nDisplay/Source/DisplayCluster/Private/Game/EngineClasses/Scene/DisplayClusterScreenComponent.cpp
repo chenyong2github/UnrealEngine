@@ -27,6 +27,14 @@ UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInit
 	{
 		SetVisibility(true);
 	}
+
+#if WITH_EDITORONLY_DATA
+	SetIsVisualizationComponent(true);
+#endif
+
+	bVisibleInReflectionCaptures = false;
+	bVisibleInRayTracing = false;
+	bVisibleInRealTimeSkyCaptures = false;
 #endif
 
 	// Default screen size

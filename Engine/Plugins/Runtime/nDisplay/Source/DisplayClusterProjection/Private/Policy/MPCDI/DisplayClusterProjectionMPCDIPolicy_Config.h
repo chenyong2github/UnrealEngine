@@ -37,7 +37,7 @@ struct FConfigParser
 
 	bool     bEnablePreview = false;
 
-	inline bool ImplLoadConfig(const TMap<FString, FString>& InConfigParameters)
+	inline bool ImplLoadConfig(class IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
 	{
 		FString MPCDITypeKey;
 		if (DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::MPCDITypeKey, MPCDITypeKey))
@@ -47,7 +47,7 @@ struct FConfigParser
 
 		if (MPCDITypeKey.IsEmpty())
 		{
-			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(InViewport))
 			{
 				UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Undefined mpcdi type key '%s'='%s'"), DisplayClusterProjectionStrings::cfg::mpcdi::MPCDITypeKey, *MPCDITypeKey);
 			}
@@ -56,12 +56,12 @@ struct FConfigParser
 
 		if (MPCDITypeKey.Compare(DisplayClusterProjectionStrings::cfg::mpcdi::TypeMPCDI) == 0)
 		{
-			return ImplLoadMPCDIConfig(InConfigParameters) && ImplLoadBase(InConfigParameters);
+			return ImplLoadMPCDIConfig(InViewport, InConfigParameters) && ImplLoadBase(InViewport, InConfigParameters);
 		}
 
 		if (MPCDITypeKey.Compare(DisplayClusterProjectionStrings::cfg::mpcdi::TypePFM) == 0)
 		{
-			return ImplLoadPFMConfig(InConfigParameters) && ImplLoadBase(InConfigParameters);
+			return ImplLoadPFMConfig(InViewport, InConfigParameters) && ImplLoadBase(InViewport, InConfigParameters);
 		}
 
 		UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Unknown mpcdi type key '%s'='%s'"), DisplayClusterProjectionStrings::cfg::mpcdi::MPCDITypeKey, *MPCDITypeKey);
@@ -69,7 +69,7 @@ struct FConfigParser
 	}
 
 private:
-	inline bool ImplLoadMPCDIConfig(const TMap<FString, FString>& InConfigParameters)
+	inline bool ImplLoadMPCDIConfig(class IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
 	{
 		// Filename
 		FString LocalMPCDIFileName;
@@ -87,7 +87,7 @@ private:
 		// Buffer
 		if (!DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::Buffer, BufferId))
 		{
-			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(InViewport))
 			{
 				UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Argument '%s' not found in the config file"), DisplayClusterProjectionStrings::cfg::mpcdi::Buffer);
 			}
@@ -103,7 +103,7 @@ private:
 		// Region
 		if (!DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::Region, RegionId))
 		{
-			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(InViewport))
 			{
 				UE_LOG(LogDisplayClusterProjectionMPCDI, Error, TEXT("Argument '%s' not found in the config file"), DisplayClusterProjectionStrings::cfg::mpcdi::Region);
 			}
@@ -119,7 +119,7 @@ private:
 		return true;
 	}
 
-	inline bool ImplLoadPFMConfig(const TMap<FString, FString>& InConfigParameters)
+	inline bool ImplLoadPFMConfig(class IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
 	{
 		// PFM file
 		FString LocalPFMFile;
@@ -199,7 +199,7 @@ private:
 		return true;
 	}
 
-	inline bool ImplLoadBase(const TMap<FString, FString>& InConfigParameters)
+	inline bool ImplLoadBase(class IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
 	{
 		// Origin node (optional)
 		if (DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::Origin, OriginType))
@@ -208,7 +208,7 @@ private:
 		}
 		else
 		{
-			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode())
+			if (!FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(InViewport))
 			{
 				UE_LOG(LogDisplayClusterProjectionMPCDI, Log, TEXT("No origin node found. VR root will be used as default."));
 			}

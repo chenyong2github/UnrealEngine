@@ -13,4 +13,7 @@ struct FDisplayClusterProjectionCameraPolicySettings
 
 	// Move incamera frustum on this value to fix broken lens on physic camera
 	FVector  FrustumOffset = FVector::ZeroVector;
+
+	// When enabled, ignore all next updates, until null cam ref not assigned (UE-137222)
+	bool bCameraOverrideDefaults = false;
 };
