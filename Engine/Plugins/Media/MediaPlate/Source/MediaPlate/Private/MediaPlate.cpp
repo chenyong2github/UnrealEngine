@@ -133,6 +133,7 @@ void AMediaPlate::Play()
 	if (MediaPlayer != nullptr)
 	{
 		MediaPlayer->PlayOnOpen = true;
+		MediaPlayer->SetLooping(bLoop);
 		MediaPlayer->OpenSource(MediaSource);
 	}
 }

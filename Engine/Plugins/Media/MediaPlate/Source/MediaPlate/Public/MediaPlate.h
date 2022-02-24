@@ -55,6 +55,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
 	bool bAutoPlay;
 
+	/** If set then loop when we reach the end. */
+	UPROPERTY(EditAnywhere, Category = "MediaPlate")
+	bool bLoop;
+
 	/** Holds the media player. */
 	UPROPERTY(Category = MediaPlate, VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UMediaComponent> MediaComponent;
