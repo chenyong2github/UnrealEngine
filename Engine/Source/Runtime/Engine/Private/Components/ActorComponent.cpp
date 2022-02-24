@@ -21,6 +21,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UObjectHash.h"
 #include "Engine/NetDriver.h"
+#include "Engine/ActorChannel.h"
 #include "Net/UnrealNetwork.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -2095,8 +2096,9 @@ void UActorComponent::RemoveReplicatedSubObject(UObject* SubObject)
 	}
 }
 
-bool UActorComponent::ReplicateSubobjects(class UActorChannel* Channel, class FOutBunch* Bunch, FReplicationFlags* RepFlags)
+bool UActorComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags)
 {
+	UActorChannel::SetCurrentSubObjectOwner(this);
 	return false;
 }
 

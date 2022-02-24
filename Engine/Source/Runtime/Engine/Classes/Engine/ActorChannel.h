@@ -8,12 +8,14 @@
 #include "Misc/NetworkGuid.h"
 #include "Engine/Channel.h"
 #include "Net/DataReplication.h"
+#include "Containers/StaticBitArray.h"
 #include "ActorChannel.generated.h"
 
 #ifndef NET_ENABLE_SUBOBJECT_REPKEYS
 #define NET_ENABLE_SUBOBJECT_REPKEYS 1
 #endif // NET_ENABLE_SUBOBJECT_REPKEYS
 
+class UActorComponent;
 class AActor;
 class FInBunch;
 class FNetFieldExportGroup;
@@ -269,8 +271,18 @@ public:
 	//	
 	// --------------------------------
 
+    /** 
+    * Sets the owner of the next replicated subobjects that will be passed to ReplicateSubObject.
+    * The ActorComponent version will choose not to replicate the future subobjects if the component opted to use the registered list.
+    */
+	static void SetCurrentSubObjectOwner(AActor* SubObjectOwner);
+	static void SetCurrentSubObjectOwner(UActorComponent* SubObjectOwner);
+
 	/** Replicates given subobject on this actor channel */
-	bool ReplicateSubobject(UObject *Obj, FOutBunch &Bunch, const FReplicationFlags &RepFlags);
+	bool ReplicateSubobject(UObject* Obj, FOutBunch& Bunch, FReplicationFlags RepFlags);
+
+	/** Replicates an ActorComponent subobject. Used to catch ActorChannels who are using the registration list while their Owner is not flagged to use it */
+	bool ReplicateSubobject(UActorComponent* ActorChannel, FOutBunch& Bunch, FReplicationFlags RepFlags);
 	
 	/** Custom implementation for ReplicateSubobject when RepFlags.bUseCustomSubobjectReplication is true */
 	virtual bool ReplicateSubobjectCustom(UObject* Obj, FOutBunch& Bunch, const FReplicationFlags& RepFlags) { return true;  }
@@ -372,13 +384,16 @@ protected:
 private:
 
 	/** Handle the replication of subobjects for this actor. Returns true if data was written into the Bunch. */
-	bool DoSubObjectReplication(FOutBunch& Bunch, const FReplicationFlags& RepFlags);
+	bool DoSubObjectReplication(FOutBunch& Bunch, FReplicationFlags& OutRepFlags);
 
 	/** Replicate Subobjects using the actor's registered list and its replicated actor component list */
-	bool ReplicateRegisteredSubObjects(FOutBunch& Bunch, const FReplicationFlags& RepFlags);
+	bool ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags);
 
     /** Write the replicated bits into the bunch data */
-	bool WriteSubObjectInBunch(UObject* Obj, FOutBunch& Bunch, const FReplicationFlags& RepFlags);
+	bool WriteSubObjectInBunch(UObject* Obj, FOutBunch& Bunch, FReplicationFlags RepFlags);
+
+	/** Find the replicated subobjects of the component and write them into the bunch */
+	bool WriteSubObjects(UActorComponent* Component, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap);
 
 private:
 

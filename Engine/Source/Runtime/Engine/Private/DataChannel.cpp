@@ -141,7 +141,29 @@ public:
 		AActor::FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
 		return ComponentInfo ? &(ComponentInfo->SubObjects.GetRegistryList()) : nullptr;
 	}
+
+	static bool IsSubObjectInRegistry(AActor* InActor, UActorComponent* InActorComp, UObject* InSubObject)
+	{
+		AActor::FReplicatedComponentInfo* ComponentInfo = InActor->ReplicatedComponentsInfo.FindByKey(InActorComp);
+		return ComponentInfo ? ComponentInfo->SubObjects.IsSubObjectInRegistry(InSubObject) : false;
+	}
 };
+
+namespace DataChannelInternal
+{
+	/**
+	* Track the owner of the next subobjects replicated via ReplicateSubObject.
+	* Nulled out after every call to UActorChannel::ReplicateActor()
+	*/
+	UObject* CurrentSubObjectOwner = nullptr;
+
+	/**
+	* When enabled we will ignore requests to replicate a subobject via the public ReplicateSubObject function.
+	* This occurs when the subobjects belong to an ActorComponent converted to the registered list, but the owner does not support it yet so we still call ReplicateSubObjects on the actor.
+	* This flag is controlled via UActorChannel::SetCurrentSubObjectOwner, so it is important for users set the owner properly if they are controlling component replication themselves.
+	*/
+	bool bIgnoreLegacyReplicateSubObject = false;
+}
 
 /*-----------------------------------------------------------------------------
 	UChannel implementation.
@@ -3201,7 +3223,6 @@ int64 UActorChannel::ReplicateActor()
 	{
 		Bunch.bReliable = true;
 		Bunch.bIsReplicationPaused = true;
-
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -3423,25 +3444,25 @@ int64 UActorChannel::ReplicateActor()
 	return NumBitsWrote;
 }
 
-bool UActorChannel::DoSubObjectReplication(FOutBunch& Bunch, const FReplicationFlags& RepFlags)
+bool UActorChannel::DoSubObjectReplication(FOutBunch& Bunch, FReplicationFlags& OutRepFlags)
 {
 	bool bWroteSomethingImportant = false;
 
 	if (Actor->IsUsingRegisteredSubObjectList())
 	{
 		// If the actor replicates it's subobjects and those of it's components via the list.
-		bWroteSomethingImportant |= ReplicateRegisteredSubObjects(Bunch, RepFlags);
+		bWroteSomethingImportant |= ReplicateRegisteredSubObjects(Bunch, OutRepFlags);
 	}
 	else
 	{
 		// Replicate the subobjects using the virtual method.
-		bWroteSomethingImportant |= Actor->ReplicateSubobjects(this, &Bunch, const_cast<FReplicationFlags*>(&RepFlags));
+		bWroteSomethingImportant |= Actor->ReplicateSubobjects(this, &Bunch, &OutRepFlags);
 	}
 
 	return bWroteSomethingImportant;
 }
 
-bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, const FReplicationFlags& RepFlags)
+bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags)
 {
 	check(Actor->IsUsingRegisteredSubObjectList());
 
@@ -3451,6 +3472,7 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, const FRepli
 
 	// Start with the Actor's subobjects
 	{
+		SetCurrentSubObjectOwner(Actor);
 		const TArray<UE::Net::FSubObjectRegistry::FEntry>& ActorSubObjects = FSubObjectGetter::GetSubObjects(Actor);
 		for (const UE::Net::FSubObjectRegistry::FEntry& SubObjectInfo : ActorSubObjects)
 		{
@@ -3466,30 +3488,117 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, const FRepli
 	{
 		check(ReplicatedComponent);
 
+		SetCurrentSubObjectOwner(ReplicatedComponent);
+
 		if (ReplicatedComponent->IsUsingRegisteredSubObjectList())
 		{
-			if (const TArray<UE::Net::FSubObjectRegistry::FEntry>* ComponentSubObjects = FSubObjectGetter::GetSubObjectsOfActorCompoment(Actor, ReplicatedComponent))
-			{
-				for (const UE::Net::FSubObjectRegistry::FEntry& SubObjectInfo : *ComponentSubObjects)
-				{
-					checkf(IsValid(SubObjectInfo.SubObject), TEXT("Found invalid subobject (%s) registered in %s"), *GetNameSafe(SubObjectInfo.SubObject), *GetNameSafe(ReplicatedComponent));
-
-					if (ConditionMap[SubObjectInfo.NetCondition])
-					{
-						bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
-					}
-				}
-			}
+			bWroteSomethingImportant |= WriteSubObjects(ReplicatedComponent, Bunch, RepFlags, ConditionMap);
 		}
-		// If a component is not using the registered list, collect the subobjects to replicate via the virtual function.
 		else
 		{
-			// Replicate the subobjects using the virtual method
+			// Replicate the component's SubObjects using the virtual method
 			ReplicatedComponent->ReplicateSubobjects(this, &Bunch, const_cast<FReplicationFlags*>(&RepFlags));
 		}
 
-		// Finally replicate the component itself after it's subobjects. They need to be created before the component on the receiving end.
+		// Finally replicate the component itself at the end. SubObjects have to be created before the component on the receiving end.
+		SetCurrentSubObjectOwner(Actor);
 		bWroteSomethingImportant |= WriteSubObjectInBunch(ReplicatedComponent, Bunch, RepFlags);
+	}
+
+	return bWroteSomethingImportant;
+}
+
+
+void UActorChannel::SetCurrentSubObjectOwner(AActor* SubObjectOwner)
+{
+	DataChannelInternal::CurrentSubObjectOwner = SubObjectOwner;
+	DataChannelInternal::bIgnoreLegacyReplicateSubObject = false;
+}
+
+void UActorChannel::SetCurrentSubObjectOwner(UActorComponent* SubObjectOwner)
+{
+	DataChannelInternal::CurrentSubObjectOwner = SubObjectOwner;
+	DataChannelInternal::bIgnoreLegacyReplicateSubObject = SubObjectOwner && SubObjectOwner->IsUsingRegisteredSubObjectList();
+}
+
+bool UActorChannel::ReplicateSubobject(UObject* SubObj, FOutBunch& Bunch, FReplicationFlags RepFlags)
+{
+	if (!IsValid(SubObj))
+	{
+		return false;
+	}
+
+	bool bWroteSomethingImportant = false;
+
+	if (!DataChannelInternal::bIgnoreLegacyReplicateSubObject)
+	{
+		bWroteSomethingImportant = WriteSubObjectInBunch(SubObj, Bunch, RepFlags);
+	}
+	else
+	{
+#if !UE_BUILD_SHIPPING
+		// Make sure the SubObjectOwner actually has the SubObject in his list and will replicate it later.
+		UActorComponent* Component = CastChecked<UActorComponent>(DataChannelInternal::CurrentSubObjectOwner);
+		const bool bIsInRegistry = FSubObjectGetter::IsSubObjectInRegistry(Actor, Component, SubObj);
+		ensureMsgf(bIsInRegistry, TEXT("ReplicatedSubObject %s was replicated using the legacy method but it is not in %s::%s registered list. It won't be replicated at all."), 
+			*SubObj->GetName(), *Actor->GetName(), *Component->GetName());
+#endif
+	}
+
+	return bWroteSomethingImportant;
+}
+
+
+bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags)
+{
+    // This function traps ActorComponents using the registration list even if their owning Actor isn't using the list itself.
+
+	if (!IsValid(ReplicatedComponent))
+	{
+		return false;
+	}
+
+	bool bWroteSomethingImportant = false;
+
+	if (ReplicatedComponent->IsUsingRegisteredSubObjectList())
+	{
+		const TStaticBitArray<COND_Max> ConditionMap = FSendingRepState::BuildConditionMapFromRepFlags(RepFlags);
+
+		checkf(Actor->IsUsingRegisteredSubObjectList() == false, TEXT("This code should only be hit when an Actor that does NOT support the SubObjectList is replicating an ActorComponent that does: %s replicating %s."), 
+			*Actor->GetName(), *ReplicatedComponent->GetName());
+
+		ensureMsgf(DataChannelInternal::CurrentSubObjectOwner == ReplicatedComponent, TEXT("%s (owner %s) was not the CurrentSubObjectOwner prior to replicating his subobjects. Make sure to call UActorChannel::SetCurrentSubObjectOwner BEFORE replicating any of the component's subobjects."),
+			*ReplicatedComponent->GetName(), *Actor->GetName());
+
+        // Write all the subobjects of the component
+		bWroteSomethingImportant |= WriteSubObjects(ReplicatedComponent, Bunch, RepFlags, ConditionMap);
+
+        // Finally write the component itself
+		SetCurrentSubObjectOwner(Actor);
+		bWroteSomethingImportant |= WriteSubObjectInBunch(ReplicatedComponent, Bunch, RepFlags);
+	}
+	else
+	{
+		return ReplicateSubobject(StaticCast<UObject*>(ReplicatedComponent), Bunch, RepFlags);
+	}
+
+	return bWroteSomethingImportant;
+}
+
+bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap)
+{
+	bool bWroteSomethingImportant = false;
+	if (const TArray<UE::Net::FSubObjectRegistry::FEntry>* ComponentSubObjects = FSubObjectGetter::GetSubObjectsOfActorCompoment(Actor, ReplicatedComponent))
+	{
+		for (const UE::Net::FSubObjectRegistry::FEntry& SubObjectInfo : *ComponentSubObjects)
+		{
+			checkf(IsValid(SubObjectInfo.SubObject), TEXT("Found invalid subobject (%s) registered in %s"), *GetNameSafe(SubObjectInfo.SubObject), *GetNameSafe(ReplicatedComponent));
+
+			if (ConditionMap[SubObjectInfo.NetCondition])
+			{
+				bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
+			}
+		}
 	}
 
 	return bWroteSomethingImportant;
@@ -4484,19 +4593,7 @@ void UActorChannel::AddedToChannelPool()
 #endif // NET_ENABLE_SUBOBJECT_REPKEYS
 }
 
-bool UActorChannel::ReplicateSubobject(UObject* Obj, FOutBunch& Bunch, const FReplicationFlags& RepFlags)
-{
-	if (!IsValid(Obj))
-	{
-		return false;
-	}
-
-	const bool bWroteSomethingImportant = WriteSubObjectInBunch(Obj, Bunch, RepFlags);
-
-	return bWroteSomethingImportant;
-}
-
-bool UActorChannel::WriteSubObjectInBunch(UObject * Obj, FOutBunch & Bunch, const FReplicationFlags & RepFlags)
+bool UActorChannel::WriteSubObjectInBunch(UObject* Obj, FOutBunch& Bunch, FReplicationFlags RepFlags)
 {
 	if (!IsValid(Obj))
 	{

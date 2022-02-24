@@ -43,10 +43,14 @@ public:
 		ELifetimeCondition NetCondition = COND_None;
 
 		bool operator==(const FEntry& rhs) const { return SubObject == rhs.SubObject; }
+		bool operator==(UObject* rhs) const { return SubObject == rhs; }
 	};
 
 	/** Returns the list of registered subobjects */
 	const TArray<FSubObjectRegistry::FEntry>& GetRegistryList() const { return Registry; }
+
+	/** Returns true if the subobject is contained in this list */
+	bool IsSubObjectInRegistry(UObject* SubObject) const;
 
 private:
 

@@ -30,13 +30,18 @@ FSubObjectRegistry::EResult FSubObjectRegistry::AddSubObjectUnique(UObject* InSu
 
 ELifetimeCondition FSubObjectRegistry::GetNetCondition(UObject* InSubObject) const
 {
-	const int32 CurrentIndex = Registry.Find(FEntry{ InSubObject });
+	const int32 CurrentIndex = Registry.IndexOfByKey(InSubObject);
 	return CurrentIndex == INDEX_NONE ? COND_Max : Registry[CurrentIndex].NetCondition;
 }
 
 bool FSubObjectRegistry::RemoveSubObject(UObject* InSubObject)
 {
 	return Registry.RemoveSingle(FEntry{ InSubObject }) == 1;
+}
+
+bool FSubObjectRegistry::IsSubObjectInRegistry(UObject* SubObject) const
+{
+	return Registry.FindByKey(SubObject) != nullptr;
 }
 
 } //namespace Net
