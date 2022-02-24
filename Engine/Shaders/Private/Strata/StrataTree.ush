@@ -85,7 +85,7 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	CurrentBSDF.LuminanceWeight = float3(1.0f, 1.0f, 1.0f) * CurrentBSDFCoverage;
 
 	// All BSDF are considered for contribution as the top BSDF can have their coverage dip to 0 and then another BSDF need to be considered for the top layer representation.
-	CurrentBSDF.TopLayerWeight = 1.0f;
+	CurrentBSDF.TopLayerDataWeight = 1.0f;
 
 	StrataTree.Operators[CurrentBSDF.OperatorIndex].Coverage = CurrentBSDFCoverage;
 	StrataTree.Operators[CurrentBSDF.OperatorIndex].Transmittance = CurrentBSDFTransmittance;
@@ -180,7 +180,8 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 
 #define Op StrataTree.Operators[OpIndex]
 
-void UpdateBSDFWeightAfterVerticalOperatorVisit(
+
+void UpdateAllBSDFWithBottomUpOperatorVisit_Weight(
 	inout FStrataTree StrataTree,
 	inout FStrataBSDF CurrentBSDF,
 	int OpIndex,
@@ -188,18 +189,16 @@ void UpdateBSDFWeightAfterVerticalOperatorVisit(
 {
 #if STRATA_INLINE_SHADING
 
-	// PreviousIsInputA > 0 means it is a BSDF affecting the top layer so we do not affect it by anything for this vertical layering.
-	// Otherise, the BSDF comes from the bottom part so we affect it weights from the gathered top layer coverage/transmittance
-	CurrentBSDF.LuminanceWeight *= 
-		PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTopCoverage) + saturate(Op.VerticalTopCoverage) * Op.VerticalTopTransmittance;
+	const float Weight = saturate(Op.Weight);
+	CurrentBSDF.LuminanceWeight *= Weight;
+	CurrentBSDF.Coverage *= Weight;
 
-	// If the BSDF is from the bottom, we reduce its contribution according to the top layer coverage only.
-	CurrentBSDF.TopLayerWeight *= PreviousIsInputA ? 1.0 : saturate(1.0f - Op.VerticalTopCoverage);
+	CurrentBSDF.TopLayerDataWeight *= Weight;
 
 #endif // STRATA_INLINE_SHADING
 }
 
-void UpdateBSDFWeightAfterHorizontalOperatorVisit(
+void UpdateAllBSDFWithBottomUpOperatorVisit_Horizontal(
 	inout FStrataTree StrataTree,
 	inout FStrataBSDF CurrentBSDF,
 	int OpIndex,
@@ -214,12 +213,12 @@ void UpdateBSDFWeightAfterHorizontalOperatorVisit(
 	CurrentBSDF.LuminanceWeight *= Weight;
 	CurrentBSDF.Coverage *= Weight;
 
-	CurrentBSDF.TopLayerWeight *= Weight;
+	CurrentBSDF.TopLayerDataWeight *= Weight;
 
 #endif // STRATA_INLINE_SHADING
 }
 
-void UpdateBSDFWeightAfterWeightOperatorVisit(
+void UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
 	inout FStrataTree StrataTree,
 	inout FStrataBSDF CurrentBSDF,
 	int OpIndex,
@@ -227,11 +226,13 @@ void UpdateBSDFWeightAfterWeightOperatorVisit(
 {
 #if STRATA_INLINE_SHADING
 
-	const float Weight = saturate(Op.Weight);
-	CurrentBSDF.LuminanceWeight *= Weight;
-	CurrentBSDF.Coverage *= Weight;
+	// PreviousIsInputA > 0 means it is a BSDF affecting the top layer so we do not affect it by anything for this vertical layering.
+	// Otherise, the BSDF comes from the bottom part so we affect it weights from the gathered top layer coverage/transmittance
+	CurrentBSDF.LuminanceWeight *=
+		PreviousIsInputA > 0 ? 1.0f : saturate(1.0f - Op.VerticalTopCoverage) + saturate(Op.VerticalTopCoverage) * Op.VerticalTopTransmittance;
 
-	CurrentBSDF.TopLayerWeight *= Weight;
+	// If the BSDF is from the bottom, we reduce its contribution according to the top layer coverage only.
+	CurrentBSDF.TopLayerDataWeight *= PreviousIsInputA ? 1.0 : saturate(1.0f - Op.VerticalTopCoverage);
 
 #endif // STRATA_INLINE_SHADING
 }
@@ -259,15 +260,15 @@ void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inou
 	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/5);
 #endif
 
-	UpdateBSDFWeightAfterWeightOperatorVisit	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/2, /*PreviousIsInputA*/1); // WEIGHT
-	UpdateBSDFWeightAfterVerticalOperatorVisit	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/4, /*PreviousIsInputA*/1); // VERTICAL
+	UpdateAllBSDFWithBottomUpOperatorVisit_Weight	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/2, /*PreviousIsInputA*/1);
+	UpdateAllBSDFWithBottomUpOperatorVisit_Vertical	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/4, /*PreviousIsInputA*/1);
 #if STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT
-	UpdateBSDFWeightAfterWeightOperatorVisit	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/5, /*PreviousIsInputA*/1); // WEIGHT
+	UpdateAllBSDFWithBottomUpOperatorVisit_Weight	(StrataTree, StrataTree.BSDFs[0], /*OperatorIndex*/5, /*PreviousIsInputA*/1);
 #endif
-	UpdateBSDFWeightAfterWeightOperatorVisit	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/3, /*PreviousIsInputA*/1); // WEIGHT
-	UpdateBSDFWeightAfterVerticalOperatorVisit	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/4, /*PreviousIsInputA*/0); // VERTICAL
+	UpdateAllBSDFWithBottomUpOperatorVisit_Weight	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/3, /*PreviousIsInputA*/1);
+	UpdateAllBSDFWithBottomUpOperatorVisit_Vertical	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/4, /*PreviousIsInputA*/0);
 #if STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT
-	UpdateBSDFWeightAfterWeightOperatorVisit	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/5, /*PreviousIsInputA*/1); // WEIGHT
+	UpdateAllBSDFWithBottomUpOperatorVisit_Weight	(StrataTree, StrataTree.BSDFs[1], /*OperatorIndex*/5, /*PreviousIsInputA*/1);
 #endif
 }
 

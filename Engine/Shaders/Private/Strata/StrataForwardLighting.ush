@@ -272,7 +272,7 @@ float3 StrataForwardLighting(
 		//
 		// Update the luminance weight of each BSDF according to the operators it has to traverse up to the strata tree root node.
 		//
-		UpdateAllBSDFWeightAfterOperatorVisit(StrataTree);
+		UpdateAllBSDFWithBottomUpOperatorVisit(StrataTree);
 #else
 		LegacyUpdateBSDFsOperators(StrataPixelHeader, StrataTree, bRoughDiffuseEnabled, NullStrataAddressing, V, L);
 #endif

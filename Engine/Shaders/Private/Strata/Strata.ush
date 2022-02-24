@@ -21,7 +21,8 @@
 #include "../OctahedralCommon.ush"
 #include "../SubsurfaceProfileCommon.ush"
 #include "../BurleyNormalizedSSSCommon.ush"
-#include "/Engine/Shared/StrataDefinitions.h"     
+#include "/Engine/Shared/StrataDefinitions.h"
+#include "/Engine/Private/Strata/StrataStatisticalOperators.ush"
 
 
 // DXC has issue with unrolling certain part of the code. To address temporarly the warning-as-error issues, 
@@ -127,7 +128,7 @@ FRWStrataMaterialContainer InitialiseRWStrataMaterialContainer(RWTexture2DArray<
 
 struct FStrataBSDF
 {
-	uint				State;		// Extra informations and other enabled BSDF features
+	uint				State;			// Extra informations and other enabled BSDF features
 
 	// STRATA_TODO pack the following
 	int					OperatorIndex;
@@ -137,13 +138,13 @@ struct FStrataBSDF
 
 #if STRATA_INLINE_SHADING
 
-	float				Coverage;	// The coverage of the material, as ratio of visible matter in this pixel.
+	float				Coverage;		// The coverage of the material, as ratio of visible matter in this pixel.
 
-	float3				Emissive;	// All bsdf can potientially have emissive. This is never written out to the strata gbuffer but instead accumulated in the emissive buffer during the base pass.
-	float				ThicknessCm;// This must be kept in order to be able to normalize the mean free path to comply with our volumetric material math all done in a normalised slab of medium.
+	float3				Emissive;		// All bsdf can potientially have emissive. This is never written out to the strata gbuffer but instead accumulated in the emissive buffer during the base pass.
+	float				ThicknessCm;	// This must be kept in order to be able to normalize the mean free path to comply with our volumetric material math all done in a normalised slab of medium.
 	float3				TmpDMFP;
 
-	float				TopLayerWeight;// The weight this BSDF contributes to the top layer (normal and roughness for SSR and SSAO for instance)
+	float				TopLayerDataWeight;// The weight this BSDF contributes to the top layer (normal and roughness for SSR and SSAO for instance)
 #endif
 
 	// Water has too many parameters to be stores in the extra VGPRs below. So we extend this structure for the case where it is evaluated inline only.
@@ -2450,7 +2451,7 @@ void StrataConvertFromDBuffer(
 #if STRATA_USES_CONVERSION_FROM_LEGACY==0
 void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, bool bRoughDiffuseEnabled, FStrataAddressing NullStrataAddressing, float3 V, float3 L);
 void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree);
-void UpdateAllBSDFWeightAfterOperatorVisit(inout FStrataTree StrataTree);
+void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree);
 #else
 void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, bool bRoughDiffuseEnabled, FStrataAddressing NullStrataAddressing, float3 V, float3 L);
 #endif
@@ -2512,7 +2513,7 @@ void PackStrataOut(
 		//
 		// Update the luminance weight of each BSDF according to the operators it has to traverse up to the strata tree root node.
 		//
-		UpdateAllBSDFWeightAfterOperatorVisit(StrataTree);
+		UpdateAllBSDFWithBottomUpOperatorVisit(StrataTree);
 
 #else
 		LegacyUpdateBSDFsOperators(StrataPixelHeader, StrataTree, bRoughDiffuseEnabled, NullStrataAddressing, V, NullLightDir);
@@ -2555,8 +2556,8 @@ void PackStrataOut(
 						// they use the complex pass, as the toplayer data does not contain the full frame basis, only the top normal.
 						bIsSingleMaterial = BSDF_GETHASANISOTROPY(BSDF) == 0 && LuminanceWeightEqualOne;
 
-						TopLayerTotalWeight += BSDF.TopLayerWeight;
-						TopLayerData.Roughness += BSDF.TopLayerWeight * SLAB_ROUGHNESS(BSDF);
+						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
+						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLAB_ROUGHNESS(BSDF);
 
 						const bool bIsThin = BSDF_GETISTHIN(BSDF);
 						const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);
@@ -2572,8 +2573,8 @@ void PackStrataOut(
 					{
 						bIsSimpleMaterial = false;
 
-						TopLayerTotalWeight += BSDF.TopLayerWeight;
-						TopLayerData.Roughness += BSDF.TopLayerWeight * FullyRough;
+						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
+						TopLayerData.Roughness += BSDF.TopLayerDataWeight * FullyRough;
 
 						break;
 					}
@@ -2583,8 +2584,8 @@ void PackStrataOut(
 						bIsSimpleMaterial = false;
 						EmissiveColor += BSDF_GETEMISSIVE(BSDF) * BSDF.LuminanceWeight;
 
-						TopLayerTotalWeight += BSDF.TopLayerWeight;
-						TopLayerData.Roughness += BSDF.TopLayerWeight * SLW_ROUGHNESS(BSDF);
+						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
+						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLW_ROUGHNESS(BSDF);
 
 						break;
 					}
@@ -2592,7 +2593,7 @@ void PackStrataOut(
 
 					float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, BSDF, StrataAddressing);
 					float3 N = TangentBasis[2];
-					TopLayerData.WorldNormal += N * BSDF.TopLayerWeight;
+					TopLayerData.WorldNormal += N * BSDF.TopLayerDataWeight;
 
 					AddShadingModels(StrataPixelHeader, StrataShadingModelBit(BSDF_GETTYPE(BSDF)));
 					AndIsSimpleMaterial(StrataPixelHeader, bIsSimpleMaterial);

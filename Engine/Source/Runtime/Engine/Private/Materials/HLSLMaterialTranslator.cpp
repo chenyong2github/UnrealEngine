@@ -1402,6 +1402,7 @@ bool FHLSLMaterialTranslator::Translate()
 				}
 
 				// Propagate up the coverage/transmittance of each node in the strata tree.
+				// For that we visit all the operator according to their distance from the Strata tree leaves, from small to large.
 				{
 					check(StrataMaterialRootOperator);
 					int32 RootMaximumDistanceToLeaves = StrataMaterialRootOperator->MaxDistanceFromLeaves;
@@ -1422,13 +1423,13 @@ bool FHLSLMaterialTranslator::Translate()
 					ResourcesString += "}\n";
 				}
 
-				// Update the luminance weight of each BSDF according to the operators it has to traverse up to the strata tree root node.
+				// Update the luminance weight of each BSDF according to the operators it has to traverse bottom-up to the strata tree root node.
 				{
 					// Update the coverage/transmittance of each node in the graph
 					check(StrataMaterialRootOperator);
 					int32 RootMaximumDistanceToLeaves = StrataMaterialRootOperator->MaxDistanceFromLeaves;
 
-					ResourcesString += "void UpdateAllBSDFWeightAfterOperatorVisit(inout FStrataTree StrataTree)\n";
+					ResourcesString += "void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree)\n";
 					ResourcesString += "{\n";
 					for (uint32 BSDFIndex = 0; BSDFIndex < StrataMaterialBSDFCount; ++BSDFIndex)
 					{
@@ -1441,20 +1442,20 @@ bool FHLSLMaterialTranslator::Translate()
 								{
 									switch (CurrentOperator.OperatorType)
 									{
-									case STRATA_OPERATOR_VERTICAL:
+									case STRATA_OPERATOR_WEIGHT:
 									{
-										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterVerticalOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
+										ResourcesString += FString::Printf(TEXT("\t UpdateAllBSDFWithBottomUpOperatorVisit_Weight(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, 1);
 										break;
 									}
 									case STRATA_OPERATOR_HORIZONTAL:
 									{
-										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterHorizontalOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
+										ResourcesString += FString::Printf(TEXT("\t UpdateAllBSDFWithBottomUpOperatorVisit_Horizontal(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
 										break;
 									}
 
-									case STRATA_OPERATOR_WEIGHT:
+									case STRATA_OPERATOR_VERTICAL:
 									{
-										ResourcesString += FString::Printf(TEXT("\t UpdateBSDFWeightAfterWeightOperatorVisit(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, 1);
+										ResourcesString += FString::Printf(TEXT("\t UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
 										break;
 									}
 
