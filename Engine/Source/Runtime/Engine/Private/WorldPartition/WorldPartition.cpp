@@ -462,7 +462,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			{
 				if (bIsInstanced)
 				{
-					const FString LongActorPackageName = ActorDescIterator->ActorPackage.ToString();
+					const FString LongActorPackageName = ActorDescIterator->GetActorPackage().ToString();
 					const FString ActorPackageName = FPaths::GetBaseFilename(LongActorPackageName);
 					const FString InstancedName = FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackage->GetName(), *ActorPackageName);
 

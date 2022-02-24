@@ -96,7 +96,6 @@ void FWorldPartitionActorDesc::Init(const FWorldPartitionActorDescInitData& Desc
 	Serialize(MetadataAr);
 
 	Container = nullptr;
-	ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
 }
 
 bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
@@ -293,11 +292,21 @@ FName FWorldPartitionActorDesc::GetActorLabelOrName() const
 
 bool FWorldPartitionActorDesc::IsLoaded(bool bEvenIfPendingKill) const
 {
+	if (ActorPtr.IsExplicitlyNull())
+	{
+		ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
+	}
+
 	return ActorPtr.IsValid(bEvenIfPendingKill);
 }
 
 AActor* FWorldPartitionActorDesc::GetActor(bool bEvenIfPendingKill, bool bEvenIfUnreachable) const
 {
+	if (ActorPtr.IsExplicitlyNull())
+	{
+		ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
+	}
+
 	return bEvenIfUnreachable ? ActorPtr.GetEvenIfUnreachable() : ActorPtr.Get(bEvenIfPendingKill);
 }
 
@@ -309,7 +318,7 @@ AActor* FWorldPartitionActorDesc::Load() const
 		ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
 	}
 
-	// The, if the actor isn't loaded, load it
+	// Then, if the actor isn't loaded, load it
 	if (ActorPtr.IsExplicitlyNull())
 	{
 		const FLinkerInstancingContext* InstancingContext = nullptr;

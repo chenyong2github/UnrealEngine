@@ -27,13 +27,6 @@ enum class EContainerClusterMode : uint8
 };
 #endif
 
-#if WITH_DEV_AUTOMATION_TESTS
-namespace WorldPartitionTests
-{
-	class FWorldPartitionSoftRefTest;
-}
-#endif
-
 /**
  * Represents a potentially unloaded actor (editor-only)
  */
@@ -41,17 +34,9 @@ class ENGINE_API FWorldPartitionActorDesc
 {
 #if WITH_EDITOR
 	friend class AActor;
-	friend class UWorldPartition;
 	friend class UActorDescContainer;
-	friend class UWorldPartitionRuntimeHash;
-	friend class FWorldPartitionStreamingGenerator;
 	friend struct FWorldPartitionHandleImpl;
 	friend struct FWorldPartitionReferenceImpl;
-	friend struct FWorldPartitionHandleUtils;
-
-#if WITH_DEV_AUTOMATION_TESTS
-	friend class WorldPartitionTests::FWorldPartitionSoftRefTest;
-#endif
 
 public:
 	virtual ~FWorldPartitionActorDesc() {}
@@ -77,7 +62,6 @@ public:
 	inline const FGuid& GetParentActor() const { return ParentActor; }
 
 	FName GetActorName() const;
-
 	FName GetActorLabelOrName() const;
 
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
@@ -104,11 +88,6 @@ protected:
 		return --SoftRefCount;
 	}
 
-	inline uint32 GetSoftRefCount() const
-	{
-		return SoftRefCount;
-	}
-
 	inline uint32 IncHardRefCount() const
 	{
 		return ++HardRefCount;
@@ -120,11 +99,6 @@ protected:
 		return --HardRefCount;
 	}
 
-	inline uint32 GetHardRefCount() const
-	{
-		return HardRefCount;
-	}
-
 	virtual void SetContainer(UActorDescContainer* InContainer)
 	{
 		check(!Container || !InContainer);
@@ -132,6 +106,16 @@ protected:
 	}
 
 public:
+	inline uint32 GetSoftRefCount() const
+	{
+		return SoftRefCount;
+	}
+
+	inline uint32 GetHardRefCount() const
+	{
+		return HardRefCount;
+	}
+
 	const TArray<FGuid>& GetReferences() const
 	{
 		return References;
@@ -160,16 +144,22 @@ public:
 
 	void SerializeTo(TArray<uint8>& OutData);
 
+	void TransformInstance(const FString& From, const FString& To, const FTransform& InstanceTransform);
+
 protected:
 	FWorldPartitionActorDesc();
-
-	void TransformInstance(const FString& From, const FString& To, const FTransform& InstanceTransform);
 
 	virtual void TransferFrom(const FWorldPartitionActorDesc* From)
 	{
 		Container = From->Container;
 		SoftRefCount = From->SoftRefCount;
 		HardRefCount = From->HardRefCount;
+	}
+
+	virtual void TransferWorldData(const FWorldPartitionActorDesc* From)
+	{
+		BoundsLocation = From->BoundsLocation;
+		BoundsExtent = From->BoundsExtent;
 	}
 
 	virtual void Serialize(FArchive& Ar);
