@@ -6,10 +6,7 @@
 #include "../SceneTextureParameters.ush"
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 #include "../SphericalGaussian.ush"
-#if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
 #include "../Strata/Strata.ush"
-#endif
 #include "RayTracingCommon.ush"
 #include "RayTracingDeferredShadingCommon.ush"
 

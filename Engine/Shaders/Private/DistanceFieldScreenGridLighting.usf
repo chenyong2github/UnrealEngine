@@ -9,11 +9,7 @@
 #include "DistanceFieldLightingShared.ush"
 #include "DistanceFieldAOShared.ush"
 #include "GlobalDistanceFieldShared.ush"
-
-#if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
-#include "/Engine/Private/Strata/Strata.ush"
-#endif
+#include "Strata/Strata.ush"
 
 // Pass a debug value through the pipeline instead of a bent normal
 #define PASS_THROUGH_DEBUG_VALUE 0

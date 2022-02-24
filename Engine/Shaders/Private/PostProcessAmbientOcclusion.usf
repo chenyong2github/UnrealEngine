@@ -8,11 +8,7 @@
 #include "ScreenPass.ush"
 #include "PostProcessCommon.ush"				
 #include "DeferredShadingCommon.ush"
-
-#if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
-#include "/Engine/Private/Strata/Strata.ush"
-#endif
+#include "Strata/Strata.ush"
 
 // set by C++:
 //

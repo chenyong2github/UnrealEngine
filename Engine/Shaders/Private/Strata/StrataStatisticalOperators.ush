@@ -139,5 +139,3 @@ StrataLobeStatistic StrataNormaliseLobe(inout StrataLobeStatistic LobeAccum, ino
 	OutputLobe.Sigma= LobeAccum.Sigma / WeightAccum;
 	return OutputLobe;
 }
-
-

@@ -11,10 +11,7 @@
 #include "../ScreenSpaceDenoise/SSDPublic.ush"
 #include "../TransmissionCommon.ush"
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
-#if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
 #include "../Strata/Strata.ush"
-#endif
 #include "RayTracingCommon.ush"
 #include "RayTracingDeferredShadingCommon.ush"
 #include "RayTracingDirectionalLight.ush"

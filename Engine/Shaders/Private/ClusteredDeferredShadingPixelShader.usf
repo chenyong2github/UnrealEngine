@@ -9,6 +9,7 @@
 #define SUPPORT_CONTACT_SHADOWS 0
 #define USE_IES_PROFILE 0
 #define NON_DIRECTIONAL_DIRECT_LIGHTING 0
+#define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
 
 // Used in RectLight.ush, and requires a per-light texture which we cannot support at present.
 // If the textures are atlased or something like that in the future it should be ok to turn on.
@@ -16,13 +17,7 @@
 
 #include "HairStrands/HairStrandsVisibilityCommonStruct.ush" 
 #include "Common.ush"
-
-#if STRATA_ENABLED 
-#define STRATA_INLINE_SHADING 0
-#define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
-#include "/Engine/Private/Strata/Strata.ush"
-#endif
-
+#include "Strata/Strata.ush"
 #include "DeferredShadingCommon.ush"  
 #include "BRDF.ush"
 #include "ShadingModels.ush"
@@ -40,8 +35,8 @@
   #else
 	#error Strata tile type non-implemented
   #endif
-#include "/Engine/Private/Strata/StrataEvaluation.ush"
-#include "/Engine/Private/Strata/StrataDeferredLighting.ush"
+#include "Strata/StrataEvaluation.ush"
+#include "Strata/StrataDeferredLighting.ush"
 #endif
 
 #if USE_HAIR_LIGHTING == 1

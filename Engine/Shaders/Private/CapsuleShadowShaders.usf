@@ -11,11 +11,7 @@
 #include "SHCommon.ush"
 #include "VolumetricLightmapShared.ush"
 #include "ReflectionEnvironmentShared.ush"
-
-#if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
-#include "/Engine/Private/Strata/Strata.ush"
-#endif
+#include "Strata/Strata.ush"
 
 #ifndef THREADGROUP_SIZEX
 #define THREADGROUP_SIZEX 1

@@ -5,11 +5,7 @@
 =============================================================================*/
 
 #include "Common.ush"
-
-#ifdef STRATA_ENABLED
 #include "Strata/Strata.ush"
-#endif
-
 #include "PostProcessCommon.ush"
 #include "DeferredShadingCommon.ush"
 #include "SubsurfaceProfileCommon.ush"

@@ -45,10 +45,7 @@
 #endif
 
 // For the base pass STRATA_INLINE_SHADING is defined in BasePassRendering.h
-#if STRATA_ENABLED
-#include "/Engine/Private/Strata/Strata.ush"
-#endif
-
+#include "Strata/Strata.ush"
 #include "SHCommon.ush"
 #include "/Engine/Generated/Material.ush"
 #include "BasePassCommon.ush"

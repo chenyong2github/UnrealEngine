@@ -8,10 +8,7 @@
 #include "Random.ush"
 #include "DeferredShadingCommon.ush"
 #include "MonteCarlo.ush"
-
-#if STRATA_ENABLED
 #include "Strata/Strata.ush"
-#endif
 
 // Setup the max number of Burley samples
 #define BURLEY_NUM_SAMPLES	64

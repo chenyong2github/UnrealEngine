@@ -10,10 +10,6 @@ VirtualShadowMaps/VirtualShadowMapTransmissionCommon.ush:
 #include "../DeferredShadingCommon.ush"
 #include "VirtualShadowMapProjectionCommon.ush"
 
-#ifndef STRATA_ENABLED
-#error STRATA_ENABLED needs to be defined
-#endif
-
 half GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 {
 	half Opacity = 1.0;

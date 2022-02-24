@@ -89,10 +89,7 @@ float3 ModulatedShadowBlendOp(float3 Source)
 float2 ShadowNearAndFarDepth;
 #endif
 
-#if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
-#include "/Engine/Private/Strata/Strata.ush"
-#endif
+#include "Strata/Strata.ush"
 
 /**
 * Entry point for uniform manual PCF that supports lights using normal shadows.

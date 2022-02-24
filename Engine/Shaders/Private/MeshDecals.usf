@@ -15,10 +15,7 @@
 	#define EyeAdaptationStruct DecalPass
 #endif
 
-#if STRATA_ENABLED
 #include "Strata/Strata.ush"
-#endif
-
 #include "DecalCommon.ush"
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"

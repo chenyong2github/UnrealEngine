@@ -5,18 +5,14 @@
 =============================================================================*/
 
 #define SUPPORT_CONTACT_SHADOWS 1
+#define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
 
 #include "HairStrands/HairStrandsVisibilityCommonStruct.ush" 
 #include "Common.ush"
 
 #include "LargeWorldCoordinates.ush"
 
-#if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
-#define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
-#include "/Engine/Private/Strata/Strata.ush"
-#endif
-
+#include "Strata/Strata.ush"
 #include "DeferredShadingCommon.ush"
 #include "DeferredLightingCommon.ush"
 
@@ -46,8 +42,8 @@
   #else
 	#error Strata tile type non-implemented
   #endif
-#include "/Engine/Private/Strata/StrataEvaluation.ush"
-#include "/Engine/Private/Strata/StrataDeferredLighting.ush"
+#include "Strata/StrataEvaluation.ush"
+#include "Strata/StrataDeferredLighting.ush"
 #endif
 
 struct FInputParams

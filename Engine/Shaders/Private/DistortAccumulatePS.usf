@@ -27,12 +27,9 @@
 #endif
 
 #if STRATA_ENABLED
-#define STRATA_USE_ENV_BRDF_APPROX 1
-#include "/Engine/Private/Strata/StrataEvaluation.ush"
-
-#include "/Engine/Private/Strata/StrataStatisticalOperators.ush"
+#include "Strata/StrataEvaluation.ush"
+#include "Strata/StrataStatisticalOperators.ush"
 #endif
-
 
 void ClipOccludedPixel(float PixelZ, float SceneZ)
 {

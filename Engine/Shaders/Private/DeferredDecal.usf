@@ -17,12 +17,10 @@
 
 #if PIXELSHADER
 
-#if STRATA_ENABLED 
+// Decals require both inline & deferred shading path for reading & writing Strata data
 #define STRATA_INLINE_SHADING 1
 #define STRATA_DEFERRED_SHADING 1
 #include "Strata/Strata.ush"
-#endif
-
 #include "DecalCommon.ush"
 
 #endif // PIXELSHADER

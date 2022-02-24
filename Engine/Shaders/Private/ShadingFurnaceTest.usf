@@ -8,13 +8,8 @@
 #define SHADING_PATH_DEFERRED 1
 #define USE_SOURCE_TEXTURE 0
 #define DEBUG_ENABLE 0
-
-#if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
 #define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
-#include "/Engine/Private/Strata/Strata.ush"
-#endif
-
+#include "Strata/Strata.ush"
 #include "DeferredShadingCommon.ush"
 #include "DeferredLightingCommon.ush"
 #include "MonteCarlo.ush" 
@@ -24,10 +19,8 @@
 #include "ColorMap.ush"
 #endif 
 
-#if STRATA_ENABLED
-#include "/Engine/Private/Strata/StrataEvaluation.ush"
-#include "/Engine/Private/Strata/StrataDeferredLighting.ush"
-#endif
+#include "Strata/StrataEvaluation.ush"
+#include "Strata/StrataDeferredLighting.ush"
 
 #if SHADER_FURNACE_ANALYTIC
 

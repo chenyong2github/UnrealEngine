@@ -2,6 +2,14 @@
 
 #pragma once
 
+// Sanity guard. 
+#ifndef STRATA_ENABLED
+	#define STRATA_ENABLED 1
+	#error STRATA_ENABLED needs to be defined
+#endif
+
+#if STRATA_ENABLED
+
 #include "../ShadingEnergyConservation.ush"
 #include "../BRDF.ush"
 #include "../ColorSpace.ush"
@@ -3107,3 +3115,5 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 
 	return OutBSDF;
 }
+
+#endif // STRATA_ENABLED

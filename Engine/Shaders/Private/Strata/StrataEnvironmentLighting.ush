@@ -2,6 +2,14 @@
 
 #pragma once
 
+// Sanity guard. 
+#ifndef STRATA_ENABLED
+	#define STRATA_ENABLED 1
+	#error STRATA_ENABLED needs to be defined
+#endif
+
+#if STRATA_ENABLED
+
 // Env. lighting evaluation for strata material.
 // Unpack BSDF on-the-fly
 float4 StrataEnvironmentLighting(
@@ -182,3 +190,4 @@ float4 StrataEnvironmentLighting(
 	return LightAccumulator_GetResult(Out);
 }
 
+#endif // STRATA_ENABLED

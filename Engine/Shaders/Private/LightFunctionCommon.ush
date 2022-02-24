@@ -4,9 +4,7 @@
 	LightFunctionCommon.usf: Utility functions for light functions.
 =============================================================================*/
 
-#if STRATA_ENABLED
 #include "/Engine/Private/Strata/Strata.ush" 
-#endif
 
 /** Tan of spotlight cone outer angle in x, ShadowFadeFraction in y, IsSpotLight in z, IsPointLight in w. */
 float4 LightFunctionParameters;

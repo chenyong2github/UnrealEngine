@@ -6,11 +6,7 @@
 #include "../MonteCarlo.ush"
 #include "../SceneTextureParameters.ush"
 #include "../ScreenSpaceDenoise/SSDPublic.ush"
-
-#if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
-#include "/Engine/Private/Strata/Strata.ush"
-#endif
+#include "../Strata/Strata.ush"
 
 // Generate vector truncation warnings to errors.
 #pragma warning(error: 3206)

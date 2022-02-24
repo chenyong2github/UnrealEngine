@@ -11,20 +11,18 @@
 #include "IESLightProfilesCommon.ush"
 #include "CapsuleLightIntegrate.ush"
 #include "RectLightIntegrate.ush"
+#include "Strata/Strata.ush"
 
 // This Strata include assumes that if inline shading is required, it needs to 
 // be defined prior to DeferredLightingCommong.ush
-#if STRATA_ENABLED 
-	#include "Strata/Strata.ush"
-	// StrataStruct.MaterialTextureArray is only available to translucent materials or global shaders computing contact shadows.
-	// It is not defined for opaque materials, only the UAV is available to write the strata buffer.
-	#define STRATA_RAYCAST_ENABLED (!MATERIAL_IS_STRATA || STRATA_TRANSLUCENT_ENABLED)
-	#if STRATA_RAYCAST_ENABLED
-		#if MATERIAL_IS_STRATA
-			#define StrataRayCast StrataStruct
-		#else
-			#define StrataRayCast Strata
-		#endif
+// StrataStruct.MaterialTextureArray is only available to translucent materials or global shaders computing contact shadows.
+// It is not defined for opaque materials, only the UAV is available to write the strata buffer.
+#define STRATA_RAYCAST_ENABLED (!MATERIAL_IS_STRATA || STRATA_TRANSLUCENT_ENABLED)
+#if STRATA_RAYCAST_ENABLED
+	#if MATERIAL_IS_STRATA
+		#define StrataRayCast StrataStruct
+	#else
+		#define StrataRayCast Strata
 	#endif
 #endif
 
