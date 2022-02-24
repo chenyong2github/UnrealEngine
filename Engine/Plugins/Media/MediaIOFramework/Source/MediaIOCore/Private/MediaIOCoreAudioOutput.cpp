@@ -7,6 +7,11 @@
 #include "AudioMixerSubmix.h"
 #include "Sound/AudioSettings.h"
 
+
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
+
 DEFINE_LOG_CATEGORY_STATIC(LogMediaIOAudioOutput, Log, All);
 
 FMediaIOAudioOutput::FMediaIOAudioOutput(Audio::FPatchOutputStrongPtr InPatchOutput, const FAudioOptions& InAudioOptions)
@@ -42,38 +47,31 @@ Audio::FAlignedFloatBuffer FMediaIOAudioOutput::GetFloatBuffer() const
 	Audio::FAlignedFloatBuffer FloatBuffer;
 	FloatBuffer.SetNumZeroed(NumSamplesToPop);
 
-	GetAudioBuffer(NumSamplesToPop, FloatBuffer.GetData());
+	const int32 NumPopped = GetAudioBuffer(NumSamplesToPop, FloatBuffer.GetData());
 
 	// Trim back the buffer after we get the buffer since it might be bigger because of alignment
 	constexpr bool bAllowShrinking = false;
-	FloatBuffer.SetNum(NumSamplesPerFrame, bAllowShrinking);
+	FloatBuffer.SetNum(NumPopped, bAllowShrinking);
 	return FloatBuffer;
 }
 
 FMediaIOAudioCapture::FMediaIOAudioCapture()
 {
-	if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDeviceRaw())
-	{
-		if (AudioDevice->IsAudioMixerEnabled())
-		{
-			Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice);
-			NumChannels = MixerDevice->GetDeviceOutputChannels();
-			SampleRate = MixerDevice->GetSampleRate();
-			MasterSubmixName = *GetDefault<UAudioSettings>()->MasterSubmix.GetAssetName();
-			AudioDevice->RegisterSubmixBufferListener(this);
-		}
-	}
+	RegisterMainAudioDevice();
+#if WITH_EDITOR
+	FEditorDelegates::PostPIEStarted.AddRaw(this, &FMediaIOAudioCapture::OnPIEStarted);
+	FEditorDelegates::PrePIEEnded.AddRaw(this, &FMediaIOAudioCapture::OnPIEEnded);
+#endif
 }
 
 FMediaIOAudioCapture::~FMediaIOAudioCapture()
 {
-	if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-	{
-		if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDeviceRaw())
-		{
-			AudioDevice->UnregisterSubmixBufferListener(this);
-		}
-	}
+#if WITH_EDITOR
+	FEditorDelegates::EndPIE.RemoveAll(this);
+	FEditorDelegates::PostPIEStarted.RemoveAll(this);
+#endif
+
+	UnregisterMainAudioDevice();
 }
 
 void FMediaIOAudioCapture::OnNewSubmixBuffer(const USoundSubmix* InOwningSubmix, float* InAudioData, int32 InNumSamples, int32 InNumChannels, const int32 InSampleRate, double InAudioClock)
@@ -114,4 +112,63 @@ TSharedPtr<FMediaIOAudioOutput> FMediaIOAudioCapture::CreateAudioOutput(int32 In
 	}
 
 	return nullptr;
+}
+
+#if WITH_EDITOR
+void FMediaIOAudioCapture::OnPIEStarted(const bool)
+{
+	UnregisterMainAudioDevice();
+	
+	if (GEditor)
+	{
+		if (FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext())
+		{
+			Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(PIEWorldContext->World()->GetAudioDeviceRaw());
+			RegisterBufferListener(MixerDevice);
+		}
+	}
+}
+
+void FMediaIOAudioCapture::OnPIEEnded(const bool)
+{
+	if (GEditor)
+	{
+		if (FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext())
+		{
+			UnregisterBufferListener(PIEWorldContext->World()->GetAudioDeviceRaw());
+		}
+	}
+	
+	RegisterMainAudioDevice();
+}
+#endif
+
+void FMediaIOAudioCapture::RegisterMainAudioDevice()
+{
+	RegisterBufferListener(GEngine->GetMainAudioDeviceRaw());
+}
+
+void FMediaIOAudioCapture::UnregisterMainAudioDevice()
+{
+	UnregisterBufferListener(GEngine->GetMainAudioDeviceRaw());
+}
+
+void FMediaIOAudioCapture::RegisterBufferListener(FAudioDevice* AudioDevice)
+{
+	if (AudioDevice && AudioDevice->IsAudioMixerEnabled())
+	{
+		Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice);
+		NumChannels = MixerDevice->GetDeviceOutputChannels();
+		SampleRate = MixerDevice->GetSampleRate();
+		MasterSubmixName = *GetDefault<UAudioSettings>()->MasterSubmix.GetAssetName();
+		AudioDevice->RegisterSubmixBufferListener(this);
+	}
+}
+
+void FMediaIOAudioCapture::UnregisterBufferListener(FAudioDevice* AudioDevice)
+{
+	if (AudioDevice)
+	{
+		AudioDevice->UnregisterSubmixBufferListener(this);
+	}
 }

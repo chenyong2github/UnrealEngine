@@ -25,17 +25,18 @@ namespace UE::MediaIoCoreModule::Private
 
 		OutputType* ConvertedBufferPtr = ConvertedBuffer.GetData();
 
-		for (int32 Index = 0; Index < InBuffer.Num(); Index += 2)
+		for (int32 Index = 0; Index < InBuffer.Num(); Index += NumInputChannels)
 		{
 			constexpr double Scale = TNumericLimits<OutputType>::Max();
-		
+
+			// @Note: While this conversion is a common approach, it can introduce distortion. 
+			// See: https://www.cs.cmu.edu/~rbd/papers/cmj-float-to-int.html
 			// Convert values for each channel
 			for (int32 ChannelIndex = 0; ChannelIndex < NumInputChannels; ++ChannelIndex)
 			{
-				// @Note: While this conversion is a common approach, it can introduce distortion. 
-				// See: https://www.cs.cmu.edu/~rbd/papers/cmj-float-to-int.html
 				const float FloatValue = InBuffer[Index + ChannelIndex];
 				OutputType ConvertedValue = static_cast<OutputType>((FloatValue * Scale) + 0.5);
+
 				*(ConvertedBufferPtr + ChannelIndex) = ConvertedValue;
 			}
 		
@@ -108,6 +109,16 @@ public:
 	/** Create an audio output that will receive audio samples. */
 	TSharedPtr<FMediaIOAudioOutput> CreateAudioOutput(int32 InNumOutputChannels, FFrameRate InTargetFrameRate, uint32 InMaxSampleLatency, uint32 InOutputSampleRate);
 
+private:
+#if WITH_EDITOR
+	void OnPIEStarted(const bool);
+	void OnPIEEnded(const bool);
+#endif
+
+	void RegisterMainAudioDevice();
+	void UnregisterMainAudioDevice();
+	void RegisterBufferListener(FAudioDevice* AudioDevice);
+	void UnregisterBufferListener(FAudioDevice* AudioDevice);
 private:
 	/** Sample rate on the engine side. */ 
 	uint32 SampleRate = 0;
