@@ -934,6 +934,10 @@ COREUOBJECT_API UClass* GetParentNativeClass(UClass* Class);
 #define USE_LIGHTWEIGHT_UOBJECT_STATS_FOR_HITCH_DETECTION (1)
 #endif
 
+#if CPUPROFILERTRACE_ENABLED
+COREUOBJECT_API FName GetClassTraceScope(const UObjectBaseUtility* Object);
+#endif
+
 #if STATS
 
 /** Structure used to track time spent by a UObject */
@@ -967,7 +971,7 @@ public:
 #if CPUPROFILERTRACE_ENABLED
 			if (!bStarted && UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
 			{
-				StartTrace(Object->GetFName());
+				StartObjectTrace(Object);
 			}
 #endif
 		}
@@ -1000,7 +1004,7 @@ public:
 #if CPUPROFILERTRACE_ENABLED
 			if (!bStarted && UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
 			{
-				StartTrace(Object->GetFName());
+				StartObjectTrace(Object);
 			}
 #endif
 		}
@@ -1012,6 +1016,10 @@ public:
 		}
 #endif
 	}
+
+#if CPUPROFILERTRACE_ENABLED
+	COREUOBJECT_API void StartObjectTrace(const UObjectBaseUtility* Object);
+#endif
 
 	/**
 	 * Updates the stat with the time spent

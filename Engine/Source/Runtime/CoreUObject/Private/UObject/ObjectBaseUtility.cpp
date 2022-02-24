@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Serialization/CustomVersion.h"
 #include "UObject/UObjectBaseUtility.h"
 #include "UObject/Package.h"
@@ -123,6 +124,39 @@ int32 UObjectBaseUtility::GetLinkerLicenseeUEVersion() const
 		return GPackageFileLicenseeUEVersion;
 	}
 }
+
+#if CPUPROFILERTRACE_ENABLED
+COREUOBJECT_API FName GetClassTraceScope(const UObjectBaseUtility* Object)
+{
+	UClass* Class = Object->GetClass();
+	if (Class->IsNative())
+	{
+		return Class->GetFName();
+	}
+	else
+	{
+		static const FName NAME_Blueprint(TEXT("Blueprint"));
+		return NAME_Blueprint;
+	}
+}
+#endif
+
+#if STATS && CPUPROFILERTRACE_ENABLED
+void FScopeCycleCounterUObject::StartObjectTrace(const UObjectBaseUtility* Object)
+{
+#if LOADTIMEPROFILERTRACE_ENABLED
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(AssetLoadTimeChannel))
+	{
+		StartTrace(Object->GetFName());
+	}
+	else
+#endif
+	{
+		StartTrace(GetClassTraceScope(Object));
+	}
+}
+#endif
+
 
 // Console variable so that GarbageCollectorSettings work in the editor but we don't want to use it in runtime as we can't support changing its value from console
 int32 GPendingKillEnabled = 1;

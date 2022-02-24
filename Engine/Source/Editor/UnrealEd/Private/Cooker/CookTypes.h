@@ -219,13 +219,13 @@ namespace UE::Cook
 
 inline void RouteBeginCacheForCookedPlatformData(UObject* Obj, const ITargetPlatform* TargetPlatform)
 {
-	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(Obj->GetClass()->GetFName(), TEXT("_BeginCacheForCookedPlatformData")));
+	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(GetClassTraceScope(Obj), TEXT("_BeginCacheForCookedPlatformData")));
 	Obj->BeginCacheForCookedPlatformData(TargetPlatform);
 }
 
 inline bool RouteIsCachedCookedPlatformDataLoaded(UObject* Obj, const ITargetPlatform* TargetPlatform)
 {
-	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(Obj->GetClass()->GetFName(), TEXT("_IsCachedCookedPlatformDataLoaded")));
+	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(GetClassTraceScope(Obj), TEXT("_IsCachedCookedPlatformDataLoaded")));
 	return Obj->IsCachedCookedPlatformDataLoaded(TargetPlatform);
 }
 
