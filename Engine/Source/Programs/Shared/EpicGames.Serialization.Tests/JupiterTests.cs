@@ -99,6 +99,21 @@ namespace EpicGames.Serialization.Tests
 			Assert.AreEqual(IoHash.Parse("c7a03f83c08cdca882110ecf2b5654ee3b09b11e"), payloadFields[2]["RawHash"]!.AsHash());
 		}
 
+		[TestMethod]
+		public void compact_binary()
+		{
+			byte[] bytes = File.ReadAllBytes("CompactBinaryObjects/compact_binary");
+
+			CbObject o = new CbObject(bytes);
+			Assert.AreEqual("", o.AsField().Name);
+			List<CbField> buildActionFields = o.ToList();
+			Assert.AreEqual(3, buildActionFields.Count);
+			CbField payloads = buildActionFields[0];
+			List<CbField> payloadFields = payloads.ToList();
+			Assert.AreEqual(2, payloadFields.Count);
+
+			Assert.AreEqual("{\"Key\":{\"Bucket\":\"EditorDomainPackage\",\"Hash\":\"37dbaa409ef30ba67f18c8fc2faaf606636cb915\"},\"Meta\":{\"FileSize\":24789},\"Attachments\":[{\"Id\":\"000000000000000000000001\",\"RawHash\":\"da6fc57e4b9f91377c9509ea0ad567bacb3796c5\",\"RawSize\":24789}]}", o.ToJson());
+		}
 
 		[TestMethod]
 		public void WriteArray()

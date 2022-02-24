@@ -576,6 +576,17 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Tests if the given field type is a object id
+		/// </summary>
+		/// <param name="Type">Type to check</param>
+		/// <returns>True if the field is a object id</returns>
+		public static bool IsObjectId(CbFieldType type)
+		{
+			return GetType(type) == CbFieldType.ObjectId;
+		}
+
+
+		/// <summary>
 		/// Tests if the given field type has fields
 		/// </summary>
 		/// <param name="Type">Type to check</param>
@@ -820,6 +831,8 @@ namespace EpicGames.Serialization
 						return AsDateTime();
 					case CbFieldType.TimeSpan:
 						return AsTimeSpan();
+					case CbFieldType.ObjectId:
+						return AsObjectId();
 					default:
 						throw new NotImplementedException($"Unknown field type ({FieldType})");
 				}
@@ -1372,6 +1385,27 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public TimeSpan AsTimeSpan(TimeSpan Default = default) => new TimeSpan(AsTimeSpanTicks(Default.Ticks));
 
+
+		/// <summary>
+		/// Access the field as a object id
+		/// </summary>
+		/// <param name="Default"></param>
+		/// <returns></returns>
+		public ReadOnlyMemory<byte> AsObjectId(ReadOnlyMemory<byte> Default = default)
+		{
+			if (CbFieldUtils.IsObjectId(TypeWithFlags))
+			{
+				Error = CbFieldError.None;
+
+				return Payload;
+			}
+			else
+			{
+				Error = CbFieldError.TypeError;
+				return Default;
+			}
+		}
+
 		/// <inheritdoc cref="CbFieldUtils.HasFieldName(CbFieldType)"/>
 		public bool HasName() => CbFieldUtils.HasFieldName(TypeWithFlags);
 
@@ -1419,6 +1453,10 @@ namespace EpicGames.Serialization
 
 		/// <inheritdoc cref="CbFieldUtils.IsTimeSpan(CbFieldType)"/>
 		public bool IsTimeSpan() => CbFieldUtils.IsTimeSpan(TypeWithFlags);
+
+		
+		/// <inheritdoc cref="CbFieldUtils.IsObjectId(CbFieldType)"/>
+		public bool IsObjectId() => CbFieldUtils.IsObjectId(TypeWithFlags);
 
 		/// <summary>
 		/// Whether the field has a value
@@ -2631,7 +2669,10 @@ namespace EpicGames.Serialization
 		{
 			if (Field.IsObject())
 			{
-				Writer.WriteStartObject();
+				if (Field.NameLen != 0)
+					Writer.WriteStartObject(Field.Name.Span);
+				else
+					Writer.WriteStartObject();
 				CbObject Object = Field.AsObject();
 				foreach (CbField ObjectField in Object.InnerField)
 				{
@@ -2641,7 +2682,12 @@ namespace EpicGames.Serialization
 			}
 			else if (Field.IsArray())
 			{
-				Writer.WriteStartArray();
+				Writer.WriteStartArray(Field.Name.Span);
+				CbArray Array = Field.AsArray();
+				foreach (CbField ObjectField in Array)
+				{
+					WriteField(ObjectField, Writer);
+				}
 				Writer.WriteEndArray();
 			}
 			else if (Field.IsInteger())
@@ -2674,6 +2720,10 @@ namespace EpicGames.Serialization
 			else if (Field.IsString())
 			{
 				Writer.WriteString(Field.Name.Span, Field.AsUtf8String().Span);
+			}
+			else if (Field.IsObjectId())
+			{
+				Writer.WriteString(Field.Name.Span, StringUtils.FormatUtf8HexString(Field.AsObjectId().Span).Span);
 			}
 			else
 			{
