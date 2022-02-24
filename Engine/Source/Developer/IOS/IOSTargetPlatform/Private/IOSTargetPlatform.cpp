@@ -653,6 +653,12 @@ void FIOSTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 FName FIOSTargetPlatform::FinalizeVirtualTextureLayerFormat(FName Format) const
 {
 #if WITH_EDITOR
+
+	// VirtualTexture Format was already run through the ordinary texture remaps to change AutoDXT to ASTC or ETC
+	// this then runs again
+	// currently it forces all ASTC to ETC
+	// this is needed because the runtime virtual texture encoder only supports ETC
+
 	const static FName NameETC2_RGB(TEXT("ETC2_RGB"));
 	const static FName NameETC2_RGBA(TEXT("ETC2_RGBA"));
 	const static FName NameAutoETC2(TEXT("AutoETC2"));
