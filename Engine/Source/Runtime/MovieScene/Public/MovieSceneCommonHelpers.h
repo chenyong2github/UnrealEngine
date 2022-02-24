@@ -14,6 +14,7 @@ class AActor;
 class UCameraComponent;
 class UMovieScene;
 class UMovieSceneSection;
+class UMovieSceneSubSection;
 class UMovieSceneSequence;
 class USceneComponent;
 class USoundBase;
@@ -73,6 +74,11 @@ public:
 	 */
 	static void GetDescendantMovieScenes(UMovieSceneSequence* InSequence, TArray<UMovieScene*> & InMovieScenes);
 
+	/*
+	 * Gather up descendant movie scene sub-sections from the incoming movie scene
+	 */
+	static void GetDescendantSubSections(const UMovieScene* InMovieScene, TArray<UMovieSceneSubSection*>& InSubSections);
+	
 	/**
 	 * Get the scene component from the runtime object
 	 *

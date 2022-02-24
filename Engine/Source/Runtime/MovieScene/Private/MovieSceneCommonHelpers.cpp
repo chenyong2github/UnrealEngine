@@ -348,6 +348,26 @@ void MovieSceneHelpers::GetDescendantMovieScenes(UMovieSceneSequence* InSequence
 	}
 }
 
+void MovieSceneHelpers::GetDescendantSubSections(const UMovieScene* InMovieScene, TArray<UMovieSceneSubSection*>& InSubSections)
+{
+	if (!IsValid(InMovieScene))
+	{
+		return;
+	}
+
+	for (UMovieSceneSection* Section : InMovieScene->GetAllSections())
+	{
+		if (UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(Section))
+		{
+			InSubSections.Add(SubSection);
+			
+			if (const UMovieSceneSequence* SubSequence = SubSection->GetSequence())
+			{
+				GetDescendantSubSections(SubSequence->GetMovieScene(), InSubSections);
+			}
+		}
+	}
+}
 
 USceneComponent* MovieSceneHelpers::SceneComponentFromRuntimeObject(UObject* Object)
 {
