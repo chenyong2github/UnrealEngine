@@ -597,7 +597,7 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 
 							Chaos::FPhysicsSolver* Solver = Proxy->GetSolver<Chaos::FPhysicsSolver>();
 
-							Solver->SetSuspensionTargetOnPhysicsThread(Constraint, TargetPos, PWheel.InContact());
+							Solver->SetSuspensionTarget(Constraint, TargetPos, HitResult.ImpactNormal, PWheel.InContact());
 						}
 					}
 				}

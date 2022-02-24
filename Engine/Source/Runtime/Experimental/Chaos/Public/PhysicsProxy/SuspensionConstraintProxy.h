@@ -46,7 +46,7 @@ public:
 	void DestroyOnGameThread();
 	void DestroyOnPhysicsThread(FPBDRigidsSolver* InSolver);
 
-	void UpdateTargetOnPhysicsThread(FPBDRigidsSolver* InSolver, const FVector& TargetPos, bool Enabled);
+	void UpdateTargetOnPhysicsThread(FPBDRigidsSolver* InSolver, const FVector& TargetPos, const FVector& Normal, bool Enabled);
 
 
 	//

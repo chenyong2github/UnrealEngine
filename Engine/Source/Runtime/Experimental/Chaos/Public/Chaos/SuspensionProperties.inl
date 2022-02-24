@@ -12,6 +12,7 @@ CHAOS_INNER_SUSP_PROPERTY(SuspensionSettings, SpringDamping, FReal);
 CHAOS_INNER_SUSP_PROPERTY(SuspensionSettings, MinLength, FReal);
 CHAOS_INNER_SUSP_PROPERTY(SuspensionSettings, MaxLength, FReal);
 CHAOS_INNER_SUSP_PROPERTY(SuspensionSettings, Axis, FVec3);
+CHAOS_INNER_SUSP_PROPERTY(SuspensionSettings, Normal, FVec3)
 CHAOS_INNER_SUSP_PROPERTY(SuspensionParticleProxy, ParticleProxy, FSingleParticlePhysicsProxy*)
 CHAOS_INNER_SUSP_PROPERTY(SuspensionLocation, Location, FVec3)
 

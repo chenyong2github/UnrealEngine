@@ -23,6 +23,7 @@ namespace Chaos
 		MinLength = static_cast<uint64_t>(1) << 8,
 		MaxLength = static_cast<uint64_t>(1) << 9,
 		Axis = static_cast<uint64_t>(1) << 10,
+		Normal = static_cast<uint64_t>(1) << 11,
 
 		DummyFlag
 	};

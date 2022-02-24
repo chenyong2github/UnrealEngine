@@ -17,6 +17,7 @@ namespace Chaos
 {
 	class FPBDSuspensionConstraints;
 	class FPBDIslandSolverData;
+	class FPBDCollisionSolver;
 
 	class CHAOS_API FPBDSuspensionConstraintHandle : public TIndexedContainerConstraintHandle<FPBDSuspensionConstraints>
 	{
@@ -236,7 +237,7 @@ namespace Chaos
 		void ScatterOutput(FReal Dt, FPBDIslandSolverData& SolverData);
 
 		bool ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
-		bool ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return false; }
+		bool ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
 
 	protected:
 		using Base::GetConstraintIndex;
@@ -259,6 +260,9 @@ namespace Chaos
 
 		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
+
+		TArray<FPBDCollisionSolver*> CollisionSolvers;
+		TArray<FSolverBody> StaticCollisionBodies;
 	};
 }
 

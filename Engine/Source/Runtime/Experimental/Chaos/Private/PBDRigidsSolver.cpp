@@ -694,12 +694,12 @@ namespace Chaos
 			});
 	}
 
-	void FPBDRigidsSolver::SetSuspensionTargetOnPhysicsThread(Chaos::FSuspensionConstraint* GTConstraint, const FVector& TargetPos, bool Enabled)
+	void FPBDRigidsSolver::SetSuspensionTarget(Chaos::FSuspensionConstraint* GTConstraint, const FVector& TargetPos, const FVector& Normal, bool Enabled)
 	{
 		EnsureIsInPhysicsThreadContext();
 		FSuspensionConstraintPhysicsProxy* SuspensionProxy = GTConstraint->GetProxy<FSuspensionConstraintPhysicsProxy>();
 		check(SuspensionProxy);
-		SuspensionProxy->UpdateTargetOnPhysicsThread(this, TargetPos, Enabled);
+		SuspensionProxy->UpdateTargetOnPhysicsThread(this, TargetPos, Normal, Enabled);
 	}
 
 	CHAOS_API int32 RewindCaptureNumFrames = -1;

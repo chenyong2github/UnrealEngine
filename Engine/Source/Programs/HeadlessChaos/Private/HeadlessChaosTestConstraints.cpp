@@ -145,6 +145,7 @@ namespace ChaosTest {
 		SuspensionSettings.SpringStiffness = 0.0f;		// the spring has no effect
 		SuspensionSettings.SpringDamping = 0.0f;
 		SuspensionSettings.Axis = FVec3(0.0f, 0.0f, 1.0f);
+		SuspensionSettings.Normal = FVec3(0.0f, 0.0f, 1.0f);
 
 		{
 			FParticleUniqueIndicesMultithreaded UniqueIndices;
@@ -289,6 +290,7 @@ namespace ChaosTest {
 		SuspensionSettings.SpringDamping = 0.5f;
 		SuspensionSettings.Target = FVec3(0,0,9);
 		SuspensionSettings.Axis = FVec3(0.0f, 0.0f, 1.0f);
+		SuspensionSettings.Normal = FVec3(0.0f, 0.0f, 1.0f);
 
 		TArray<FVec3> SusLocalOffset;
 		SusLocalOffset.Push(FVector(0, 0, -1));

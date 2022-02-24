@@ -38,11 +38,12 @@ namespace Chaos
 			, MinLength(0)
 			, MaxLength(0)
 			, Axis(0,0,1)
-			, Target(0,0,0)
+			, Target(0, 0, 0)
+			, Normal(0, 0, 0)
 		{
 		}
 
-		FPBDSuspensionSettings(bool InEnabled, FReal InHardstopStiffness, FReal InHardstopVelocityCompensation, FReal InSpringPreload, FReal InSpringStiffness, FReal InDamping, FReal InMinLength, FReal InMaxLength, const FVec3& InAxis, const FVec3& InTarget)
+		FPBDSuspensionSettings(bool InEnabled, FReal InHardstopStiffness, FReal InHardstopVelocityCompensation, FReal InSpringPreload, FReal InSpringStiffness, FReal InDamping, FReal InMinLength, FReal InMaxLength, const FVec3& InAxis, const FVec3& InTarget, const FVec3& InNormal)
 			: Enabled(InEnabled)
 			, HardstopStiffness(InHardstopStiffness)
 			, HardstopVelocityCompensation(InHardstopVelocityCompensation)
@@ -53,6 +54,7 @@ namespace Chaos
 			, MaxLength(InMaxLength)
 			, Axis(InAxis)
 			, Target(InTarget)
+			, Normal(InNormal)
 		{
 		}
 
@@ -66,6 +68,7 @@ namespace Chaos
 		FReal MaxLength;
 		FVec3 Axis;
 		FVec3 Target;
+		FVec3 Normal;
 	};
 
 	class CHAOS_API FPBDSuspensionResults
