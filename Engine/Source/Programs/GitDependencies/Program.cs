@@ -91,8 +91,8 @@ namespace GitDependencies
 			List<string> ArgsList = new List<string>(Args);
 			NormalizeArguments(ArgsList);
 
-			// Find the default arguments from the UE4_GITDEPS_ARGS environment variable. These arguments do not cause an error if duplicated or redundant, but can still override defaults.
-			List<string> DefaultArgsList = SplitArguments(System.Environment.GetEnvironmentVariable("UE4_GITDEPS_ARGS"));
+			// Find the default arguments from the UE_GITDEPS_ARGS environment variable. These arguments do not cause an error if duplicated or redundant, but can still override defaults.
+			List<string> DefaultArgsList = SplitArguments(GetLegacyEnvironmentVariable("UE_GITDEPS_ARGS", "UE4_GITDEPS_ARGS"));
 			NormalizeArguments(DefaultArgsList);
 
 			// Parse the parameters
@@ -102,7 +102,7 @@ namespace GitDependencies
 			bool bHelp = ParseSwitch(ArgsList, "-help");
 			float CacheSizeMultiplier = ParseFloatParameter(ArgsList, DefaultArgsList, "-cache-size-multiplier=", 2.0f);
 			int CacheDays = ParseIntParameter(ArgsList, DefaultArgsList, "-cache-days=", 7);
-			string RootPath = ParseParameter(ArgsList, "-root=", Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "../../..")));
+			string RootPath = ParseParameter(ArgsList, "-root=", Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "../../../../..")));
 
 			// Parse the cache path. A specific path can be set using -catch=<PATH> or the UE4_GITDEPS environment variable, otherwise we look for a parent .git directory
 			// and use a sub-folder of that. Users which download the source through a zip file (and won't have a .git directory) are unlikely to benefit from caching, as
@@ -110,7 +110,7 @@ namespace GitDependencies
 			string CachePath = null;
 			if (!ParseSwitch(ArgsList, "-no-cache"))
 			{
-				string CachePathParam = ParseParameter(ArgsList, DefaultArgsList, "-cache=", System.Environment.GetEnvironmentVariable("UE4_GITDEPS"));
+				string CachePathParam = ParseParameter(ArgsList, DefaultArgsList, "-cache=", GetLegacyEnvironmentVariable("UE_GITDEPS", "UE4_GITDEPS"));
 				if (String.IsNullOrEmpty(CachePathParam))
 				{
 					string CheckPath = Path.GetFullPath(RootPath);
@@ -120,6 +120,10 @@ namespace GitDependencies
 						if (Directory.Exists(GitPath))
 						{
 							CachePath = Path.Combine(GitPath, "ue4-gitdeps");
+							if (!Directory.Exists(CachePath))
+							{
+								CachePath = Path.Combine(GitPath, "ue-gitdeps");
+							}
 							break;
 						}
 						CheckPath = Path.GetDirectoryName(CheckPath);
@@ -211,7 +215,7 @@ namespace GitDependencies
 				Log.WriteLine("   Proxy server: {0}", (Proxy == null)? "none" : Proxy.ToString());
 				Log.WriteLine("   Download cache: {0}", (CachePath == null)? "disabled" : CachePath);
 				Log.WriteLine();
-				Log.WriteLine("Default arguments can be set through the UE4_GITDEPS_ARGS environment variable.");
+				Log.WriteLine("Default arguments can be set through the UE_GITDEPS_ARGS environment variable.");
 				return 0;
 			}
 
@@ -224,6 +228,16 @@ namespace GitDependencies
 				return 1;
 			}
 			return 0;
+		}
+
+		static string GetLegacyEnvironmentVariable(string Name, string LegacyName)
+		{
+			string Value = System.Environment.GetEnvironmentVariable(Name);
+			if (string.IsNullOrEmpty(Value))
+			{
+				Value = System.Environment.GetEnvironmentVariable(LegacyName);
+			}
+			return Value;
 		}
 
 		static void NormalizeArguments(List<string> ArgsList)
@@ -382,7 +396,15 @@ namespace GitDependencies
 			}
 
 			// Figure out the path to the working manifest
-			string WorkingManifestPath = Path.Combine(RootPath, ".ue4dependencies");
+			string WorkingManifestPath = Path.Combine(RootPath, ".uedependencies");
+			if (!File.Exists(WorkingManifestPath))
+			{
+				string LegacyManifestPath = Path.Combine(RootPath, ".ue4dependencies");
+				if (File.Exists(LegacyManifestPath) || File.Exists(LegacyManifestPath + TempManifestExtension))
+				{
+					WorkingManifestPath = LegacyManifestPath;
+				}
+			}
 
 			// Recover from any interrupted transaction to the working manifest, by moving the temporary file into place.
 			string TempWorkingManifestPath = WorkingManifestPath + TempManifestExtension;
