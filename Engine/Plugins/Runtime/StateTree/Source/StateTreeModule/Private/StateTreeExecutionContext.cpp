@@ -11,6 +11,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Algo/Reverse.h"
 #include "Logging/LogScopedVerbosityOverride.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG_UELOG(GetOwner(), LogStateTree, Verbosity, TEXT("%s: ") Format, *GetInstanceDescription(), ##__VA_ARGS__)
 #define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG_UELOG((Condition), GetOwner(), LogStateTree, Verbosity, TEXT("%s: ") Format, *GetInstanceDescription(), ##__VA_ARGS__)
@@ -33,16 +34,9 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 	// Set owner first for proper logging (it will be reset in case of failure) 
 	Owner = &InOwner;
 	
-	if (!InStateTree.IsValidStateTree())
+	if (!InStateTree.IsReadyToRun())
 	{
 		STATETREE_LOG(Error, TEXT("%s: StateTree asset '%s' is not valid."), ANSI_TO_TCHAR(__FUNCTION__), *InStateTree.GetName());
-		Reset();
-		return false;
-	}
-	
-	if (InStateTree.Instances.Num() == 0)
-	{
-		STATETREE_LOG(Error, TEXT("%s: StateTree asset '%s' has no valid instances."), ANSI_TO_TCHAR(__FUNCTION__), *InStateTree.GetName());
 		Reset();
 		return false;
 	}
@@ -53,8 +47,7 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 	if (StorageType == EStateTreeStorage::Internal)
 	{
 		// Duplicate instance state.
-		StorageInstance = StateTree->InstanceStorageDefaultValue;
-		InitInstanceData(InOwner, FStateTreeDataView(StorageInstance));
+		InitInstanceData(InOwner, *StateTree, InternalInstanceData);
 	}
 
 	// Initialize data views for all possible items.
@@ -62,24 +55,29 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 
 	// Initialize array to keep track of which states have been updated.
 	VisitedStates.Init(false, StateTree->States.Num());
-	
+
 	return true;
 }
 
-bool FStateTreeExecutionContext::InitInstanceData(UObject& InOwner, FStateTreeDataView ExternalStorage) const
+void FStateTreeExecutionContext::Reset()
 {
-	if (!Owner || !StateTree)
-	{
-		STATETREE_LOG(Error, TEXT("%s: Failed to init instance data on '%s' using StateTree '%s'."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Owner), *GetNameSafe(StateTree));
-		return false;
-	}
+	InternalInstanceData.Reset();
+	DataViews.Reset();
+	StorageType = EStateTreeStorage::Internal;
+	VisitedStates.Reset();
+	StateTree = nullptr;
+	Owner = nullptr;
+}
 
-	check (ExternalStorage.IsValid());
-	FStateTreeExecutionState& Exec = GetExecState(ExternalStorage);
+bool FStateTreeExecutionContext::InitInstanceData(UObject& InOwner, const UStateTree& InStateTree, FStateTreeInstanceData& OutInstanceData)
+{
+	OutInstanceData.CopyFrom(InStateTree.InstanceDataDefaultValue);
+
+	check (OutInstanceData.IsValid());
+	FStateTreeExecutionState& Exec = GetExecState(OutInstanceData);
 
 	Exec.InstanceObjects.Reset();
-	for (const UObject* Instance : StateTree->InstanceObjects)
+	for (const UObject* Instance : InStateTree.InstanceObjects)
 	{
 		Exec.InstanceObjects.Add(DuplicateObject(Instance, &InOwner));
 	}
@@ -87,21 +85,24 @@ bool FStateTreeExecutionContext::InitInstanceData(UObject& InOwner, FStateTreeDa
 	return true;
 }
 
-EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeDataView ExternalStorage)
+EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeInstanceData* ExternalInstanceData)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Start);
+
 	if (!Owner || !StateTree)
 	{
 		return EStateTreeRunStatus::Failed;
 	}
 	
-	FStateTreeDataView Storage = SelectMutableStorage(ExternalStorage);
-	FStateTreeExecutionState& Exec = GetExecState(Storage);
+	FStateTreeInstanceData& InstanceData = SelectMutableInstanceData(ExternalInstanceData);
+	checkSlow(InstanceData.GetLayout() == StateTree->InstanceDataDefaultValue.GetLayout());
+	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	// Stop if still running previous state.
 	if (Exec.TreeRunStatus == EStateTreeRunStatus::Running)
 	{
 		const FStateTreeTransitionResult Transition(FStateTreeStateStatus(Exec.CurrentState, Exec.LastTickStatus), FStateTreeHandle::Succeeded);
-		ExitState(Storage, Transition);
+		ExitState(InstanceData, Transition);
 	}
 	
 	// Initialize to unset running state.
@@ -112,7 +113,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeDataView Externa
 	// Select new Starting from root.
 	VisitedStates.Init(false, StateTree->States.Num());
 	static const FStateTreeHandle RootState = FStateTreeHandle(0);
-	const FStateTreeTransitionResult Transition = SelectState(Storage, FStateTreeStateStatus(FStateTreeHandle::Invalid), RootState, RootState, 0);
+	const FStateTreeTransitionResult Transition = SelectState(InstanceData, FStateTreeStateStatus(FStateTreeHandle::Invalid), RootState, RootState, 0);
 
 	// Handle potential transition.
 	if (Transition.Next.IsValid())
@@ -127,12 +128,12 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeDataView Externa
 		else
 		{
 			// Enter state tasks can fail/succeed, treat it same as tick.
-			Exec.LastTickStatus = EnterState(Storage, Transition);
+			Exec.LastTickStatus = EnterState(InstanceData, Transition);
 			
 			// Report state completed immediately.
 			if (Exec.LastTickStatus != EStateTreeRunStatus::Running)
 			{
-				StateCompleted(Storage, Exec.CurrentState, Exec.LastTickStatus);
+				StateCompleted(InstanceData, Exec.CurrentState, Exec.LastTickStatus);
 			}
 		}
 	}
@@ -148,22 +149,25 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeDataView Externa
 	return Exec.TreeRunStatus;
 }
 
-EStateTreeRunStatus FStateTreeExecutionContext::Stop(FStateTreeDataView ExternalStorage)
+EStateTreeRunStatus FStateTreeExecutionContext::Stop(FStateTreeInstanceData* ExternalInstanceData)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Stop);
+
 	if (!Owner || !StateTree)
 	{
 		return EStateTreeRunStatus::Failed;
 	}
 	
-	FStateTreeDataView Storage = SelectMutableStorage(ExternalStorage);
-	FStateTreeExecutionState& Exec = GetExecState(Storage);
+	FStateTreeInstanceData& InstanceData = SelectMutableInstanceData(ExternalInstanceData);
+	checkSlow(InstanceData.GetLayout() == StateTree->InstanceDataDefaultValue.GetLayout());
+	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	// Exit states if still in some valid state.
 	if (Exec.CurrentState.IsValid() && (Exec.CurrentState != FStateTreeHandle::Succeeded || Exec.CurrentState != FStateTreeHandle::Failed))
 	{
 		// Transition to Succeeded state.
 		const FStateTreeTransitionResult Transition(FStateTreeStateStatus(Exec.CurrentState, Exec.LastTickStatus), FStateTreeHandle::Succeeded);
-		ExitState(Storage, Transition);
+		ExitState(InstanceData, Transition);
 		Exec.CurrentState = FStateTreeHandle::Succeeded;
 	}
 
@@ -173,16 +177,17 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop(FStateTreeDataView External
 	return Exec.TreeRunStatus;
 }
 
-EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FStateTreeDataView ExternalStorage)
+EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FStateTreeInstanceData* ExternalInstanceData)
 {
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeCtxTick);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Tick);
 
 	if (!Owner || !StateTree)
 	{
 		return EStateTreeRunStatus::Failed;
 	}
-	FStateTreeDataView Storage = SelectMutableStorage(ExternalStorage);
-	FStateTreeExecutionState& Exec = GetExecState(Storage);
+	FStateTreeInstanceData& InstanceData = SelectMutableInstanceData(ExternalInstanceData);
+	checkSlow(InstanceData.GetLayout() == StateTree->InstanceDataDefaultValue.GetLayout());
+	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	// No ticking of the tree is done or stopped.
 	if (Exec.TreeRunStatus != EStateTreeRunStatus::Running)
@@ -203,15 +208,15 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 	{
 		// Tick evaluators on active states. Further evaluator may be ticked during selection as non-active states are visited.
 		// Ticked states are kept track of and evaluators are ticked just once per frame.
-		TickEvaluators(Storage, Exec.CurrentState, EStateTreeEvaluationType::Tick, DeltaTime);
+		TickEvaluators(InstanceData, Exec.CurrentState, EStateTreeEvaluationType::Tick, DeltaTime);
 
 		// Tick tasks on active states.
-		Exec.LastTickStatus = TickTasks(Storage, Exec.CurrentState, DeltaTime);
+		Exec.LastTickStatus = TickTasks(InstanceData, Exec.CurrentState, DeltaTime);
 		
 		// Report state completed immediately.
 		if (Exec.LastTickStatus != EStateTreeRunStatus::Running)
 		{
-			StateCompleted(Storage, Exec.CurrentState, Exec.LastTickStatus);
+			StateCompleted(InstanceData, Exec.CurrentState, Exec.LastTickStatus);
 		}
 	}
 
@@ -221,12 +226,12 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 	for (int32 Iter = 0; Iter < MaxIterations; Iter++)
 	{
 		// Trigger conditional transitions or state succeed/failed transitions. First tick transition is handled here too.
-		FStateTreeTransitionResult Transition = TriggerTransitions(Storage, FStateTreeStateStatus(Exec.CurrentState, Exec.LastTickStatus), 0);
+		FStateTreeTransitionResult Transition = TriggerTransitions(InstanceData, FStateTreeStateStatus(Exec.CurrentState, Exec.LastTickStatus), 0);
 
 		// Handle potential transition.
 		if (Transition.Next.IsValid())
 		{
-			ExitState(Storage, Transition);
+			ExitState(InstanceData, Transition);
 			
 			if (Transition.Next == FStateTreeHandle::Succeeded || Transition.Next == FStateTreeHandle::Failed)
 			{
@@ -236,12 +241,12 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 			}
 			
 			// Enter state tasks can fail/succeed, treat it same as tick.
-			Exec.LastTickStatus = EnterState(Storage, Transition);
+			Exec.LastTickStatus = EnterState(InstanceData, Transition);
 
 			// Report state completed immediately.
 			if (Exec.LastTickStatus != EStateTreeRunStatus::Running)
 			{
-				StateCompleted(Storage, Exec.CurrentState, Exec.LastTickStatus);
+				StateCompleted(InstanceData, Exec.CurrentState, Exec.LastTickStatus);
 			}
 		}
 		
@@ -267,24 +272,16 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 	return Exec.TreeRunStatus;
 }
 
-void FStateTreeExecutionContext::Reset()
+EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeInstanceData& InstanceData, const FStateTreeTransitionResult& Transition)
 {
-	StateTree = nullptr;
-	Owner = nullptr;
-	DataViews.Reset();
-	StorageInstance.Reset();
-	StorageType = EStateTreeStorage::Internal;
-	VisitedStates.Reset();
-}
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_EnterState);
 
-EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView Storage, const FStateTreeTransitionResult& Transition)
-{
 	if (!Transition.Next.IsValid())
 	{
 		return EStateTreeRunStatus::Failed;
 	}
 
-	FStateTreeExecutionState& Exec = GetExecState(Storage);
+	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	// Activate evaluators along the active branch.
 	TStaticArray<FStateTreeHandle, 32> States;
@@ -321,13 +318,13 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 			// Must update data views.
 			for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 			{
-				const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
-				DataViews[Eval.DataViewIndex] = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
+				const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
+				DataViews[Eval.DataViewIndex] = GetInstanceData(InstanceData, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			}
 			for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 			{
-				const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
-				DataViews[Task.DataViewIndex] = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
+				const FStateTreeTaskBase& Task = GetNode<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
+				DataViews[Task.DataViewIndex] = GetInstanceData(InstanceData, Task.bInstanceIsObject, Task.InstanceIndex);
 			}
 			continue;
 		}
@@ -340,8 +337,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 		
 		for (int32 EvalIndex = State.EvaluatorsBegin; EvalIndex < (int32)(State.EvaluatorsBegin + State.EvaluatorsNum); EvalIndex++)
 		{
-			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(EvalIndex);
-			const FStateTreeDataView EvalInstanceView = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
+			const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(EvalIndex);
+			const FStateTreeDataView EvalInstanceView = GetInstanceData(InstanceData, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			DataViews[Eval.DataViewIndex] = EvalInstanceView;
 
 			// Copy bound properties.
@@ -350,14 +347,18 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 				StateTree->PropertyBindings.CopyTo(DataViews, Eval.BindingsBatch.Index, EvalInstanceView);
 			}
 			STATETREE_LOG(Verbose, TEXT("%*s  Notify Evaluator '%s'."), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Eval.Name.ToString());
-			Eval.EnterState(*this, ChangeType, CurrentTransition);
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_EnterState);
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Eval_EnterState);
+				Eval.EnterState(*this, ChangeType, CurrentTransition);
+			}
 		}
 		
 		// Activate tasks on current state.
 		for (int32 TaskIndex = State.TasksBegin; TaskIndex < (int32)(State.TasksBegin + State.TasksNum); TaskIndex++)
 		{
-			const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(TaskIndex);
-			const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
+			const FStateTreeTaskBase& Task = GetNode<FStateTreeTaskBase>(TaskIndex);
+			const FStateTreeDataView TaskInstanceView = GetInstanceData(InstanceData, Task.bInstanceIsObject, Task.InstanceIndex);
 			DataViews[Task.DataViewIndex] = TaskInstanceView;
 
 			// Copy bound properties.
@@ -367,15 +368,20 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 			}
 		
 			STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
-			const EStateTreeRunStatus Status = Task.EnterState(*this, ChangeType, CurrentTransition);
-			
-			if (Status == EStateTreeRunStatus::Failed)
+
 			{
-				// Store how far in the enter state we got. This will be used to match the ExitState() calls.
-				Exec.EnterStateFailedTaskIndex = TaskIndex;
-				Exec.CurrentState = CurrentHandle;
-				Result = Status;
-				break;
+				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_EnterState);
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_EnterState);
+				const EStateTreeRunStatus Status = Task.EnterState(*this, ChangeType, CurrentTransition);
+				
+				if (Status == EStateTreeRunStatus::Failed)
+				{
+					// Store how far in the enter state we got. This will be used to match the ExitState() calls.
+					Exec.EnterStateFailedTaskIndex = TaskIndex;
+					Exec.CurrentState = CurrentHandle;
+					Result = Status;
+					break;
+				}
 			}
 		}
 	}
@@ -388,15 +394,17 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 	return Result;
 }
 
-void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FStateTreeTransitionResult& Transition)
+void FStateTreeExecutionContext::ExitState(FStateTreeInstanceData& InstanceData, const FStateTreeTransitionResult& Transition)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_ExitState);
+
 	if (!Transition.Source.State.IsValid())
 	{
 		return;
 	}
 
 	// Reset transition delay
-	FStateTreeExecutionState& Exec = GetExecState(Storage);
+	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 	Exec.GatedTransitionIndex = INDEX_NONE;
 	Exec.GatedTransitionTime = 0.0f;
 
@@ -433,13 +441,13 @@ void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FSt
 			// Must update item views.
 			for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 			{
-				FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
-				DataViews[Eval.DataViewIndex] = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
+				const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
+				DataViews[Eval.DataViewIndex] = GetInstanceData(InstanceData, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			}
 			for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 			{
-				FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
-				DataViews[Task.DataViewIndex] = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
+				const FStateTreeTaskBase& Task = GetNode<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
+				DataViews[Task.DataViewIndex] = GetInstanceData(InstanceData, Task.bInstanceIsObject, Task.InstanceIndex);
 			}
 			continue;
 		}
@@ -452,8 +460,8 @@ void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FSt
 
 		for (int32 EvalIndex = State.EvaluatorsBegin; EvalIndex < (int32)(State.EvaluatorsBegin + State.EvaluatorsNum); EvalIndex++)
 		{
-			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(EvalIndex);
-			const FStateTreeDataView EvalInstanceView = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
+			const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(EvalIndex);
+			const FStateTreeDataView EvalInstanceView = GetInstanceData(InstanceData, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			DataViews[Eval.DataViewIndex] = EvalInstanceView;
 
 			// Copy bound properties.
@@ -462,7 +470,11 @@ void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FSt
 				StateTree->PropertyBindings.CopyTo(DataViews, Eval.BindingsBatch.Index, EvalInstanceView);
 			}
 			STATETREE_LOG(Verbose, TEXT("%*s  Notify Evaluator '%s'."), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Eval.Name.ToString());
-			Eval.ExitState(*this, ChangeType, CurrentTransition);
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_ExitState);
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Eval_ExitState);
+				Eval.ExitState(*this, ChangeType, CurrentTransition);
+			}
 		}
 
 		// Deactivate tasks on current State
@@ -472,8 +484,8 @@ void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FSt
 			// The task order in the tree (BF) allows us to use the comparison.
 			if (TaskIndex <= (int32)Exec.EnterStateFailedTaskIndex)
 			{
-				const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(TaskIndex);
-				const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
+				const FStateTreeTaskBase& Task = GetNode<FStateTreeTaskBase>(TaskIndex);
+				const FStateTreeDataView TaskInstanceView = GetInstanceData(InstanceData, Task.bInstanceIsObject, Task.InstanceIndex);
 				DataViews[Task.DataViewIndex] = TaskInstanceView;
 
 				// Copy bound properties.
@@ -483,14 +495,20 @@ void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FSt
 				}
 
 				STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
-				Task.ExitState(*this, ChangeType, CurrentTransition);
+				{
+					QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_ExitState);
+					CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_ExitState);
+					Task.ExitState(*this, ChangeType, CurrentTransition);
+				}
 			}
 		}
 	}
 }
 
-void FStateTreeExecutionContext::StateCompleted(FStateTreeDataView Storage, const FStateTreeHandle CurrentState, const EStateTreeRunStatus CompletionStatus)
+void FStateTreeExecutionContext::StateCompleted(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const EStateTreeRunStatus CompletionStatus)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_StateCompleted);
+
 	if (!CurrentState.IsValid())
 	{
 		return;
@@ -499,7 +517,7 @@ void FStateTreeExecutionContext::StateCompleted(FStateTreeDataView Storage, cons
 	TStaticArray<FStateTreeHandle, 32> States;
 	const int32 NumStates = GetActiveStates(CurrentState, States);
 
-	FStateTreeExecutionState& Exec = GetExecState(Storage);
+	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	// Call from child towards root to allow to pass results back.
 	// Note: Completed is assumed to be called immediately after tick or enter state, so there's no property copying.
@@ -517,7 +535,7 @@ void FStateTreeExecutionContext::StateCompleted(FStateTreeDataView Storage, cons
 			// The task order in the tree (BF) allows us to use the comparison.
 			if (TaskIndex <= (int32)Exec.EnterStateFailedTaskIndex)
 			{
-				const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(TaskIndex);
+				const FStateTreeTaskBase& Task = GetNode<FStateTreeTaskBase>(TaskIndex);
 
 				STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
 				Task.StateCompleted(*this, CompletionStatus, CurrentState);
@@ -527,7 +545,7 @@ void FStateTreeExecutionContext::StateCompleted(FStateTreeDataView Storage, cons
 		// Notify evaluators
 		for (int32 EvalIndex = (int32)(State.EvaluatorsBegin + State.EvaluatorsNum) - 1; EvalIndex >= State.EvaluatorsBegin; EvalIndex--)
 		{
-			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(EvalIndex);
+			const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(EvalIndex);
 
 			STATETREE_LOG(Verbose, TEXT("%*s  Notify Evaluator '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Eval.Name.ToString());
 			Eval.StateCompleted(*this, CompletionStatus, CurrentState);
@@ -535,9 +553,9 @@ void FStateTreeExecutionContext::StateCompleted(FStateTreeDataView Storage, cons
 	}
 }
 
-void FStateTreeExecutionContext::TickEvaluators(FStateTreeDataView Storage, const FStateTreeHandle CurrentState, const EStateTreeEvaluationType EvalType, const float DeltaTime)
+void FStateTreeExecutionContext::TickEvaluators(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const EStateTreeEvaluationType EvalType, const float DeltaTime)
 {
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeCtxTickEvaluators);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TickEvaluators);
 
 	if (!CurrentState.IsValid())
 	{
@@ -563,8 +581,8 @@ void FStateTreeExecutionContext::TickEvaluators(FStateTreeDataView Storage, cons
 		// Tick evaluators
 		for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 		{
-			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
-			const FStateTreeDataView EvalInstanceView = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
+			const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
+			const FStateTreeDataView EvalInstanceView = GetInstanceData(InstanceData, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			DataViews[Eval.DataViewIndex] = EvalInstanceView;
 
 			// Copy bound properties.
@@ -573,16 +591,19 @@ void FStateTreeExecutionContext::TickEvaluators(FStateTreeDataView Storage, cons
 				StateTree->PropertyBindings.CopyTo(DataViews, Eval.BindingsBatch.Index, EvalInstanceView);
 			}
 			STATETREE_LOG(Verbose, TEXT("%*s  Evaluate: '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Eval.Name.ToString());
-			Eval.Evaluate(*this, EvalType, DeltaTime);
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Eval_Tick);
+				Eval.Evaluate(*this, EvalType, DeltaTime);
+			}
 		}
 
 		VisitedStates[CurrentHandle.Index] = true;
 	}
 }
 
-EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeDataView Storage, const FStateTreeHandle CurrentState, const float DeltaTime)
+EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const float DeltaTime)
 {
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeCtxTickTasks);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TickTasks);
 
 	if (!CurrentState.IsValid())
 	{
@@ -605,8 +626,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeDataView Sto
 		// Tick Tasks
 		for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 		{
-			const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
-			const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
+			const FStateTreeTaskBase& Task = GetNode<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
+			const FStateTreeDataView TaskInstanceView = GetInstanceData(InstanceData, Task.bInstanceIsObject, Task.InstanceIndex);
 			DataViews[Task.DataViewIndex] = TaskInstanceView;
 
 			// Copy bound properties.
@@ -615,16 +636,22 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeDataView Sto
 				StateTree->PropertyBindings.CopyTo(DataViews, Task.BindingsBatch.Index, TaskInstanceView);
 			}
 			STATETREE_LOG(Verbose, TEXT("%*s  Tick: '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
-			const EStateTreeRunStatus TaskResult = Task.Tick(*this, DeltaTime);
+			
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_Tick);
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_Tick);
 
-			// TODO: Add more control over which states can control the failed/succeeded result.
-			if (TaskResult != EStateTreeRunStatus::Running)
-			{
-				Result = TaskResult;
-			}
-			if (TaskResult == EStateTreeRunStatus::Failed)
-			{
-				break;
+				const EStateTreeRunStatus TaskResult = Task.Tick(*this, DeltaTime);
+
+				// TODO: Add more control over which states can control the failed/succeeded result.
+				if (TaskResult != EStateTreeRunStatus::Running)
+				{
+					Result = TaskResult;
+				}
+				if (TaskResult == EStateTreeRunStatus::Failed)
+				{
+					break;
+				}
 			}
 		}
 		NumTotalTasks += State.TasksNum;
@@ -639,14 +666,14 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeDataView Sto
 	return Result;
 }
 
-bool FStateTreeExecutionContext::TestAllConditions(FStateTreeDataView Storage, const uint32 ConditionsOffset, const uint32 ConditionsNum)
+bool FStateTreeExecutionContext::TestAllConditions(FStateTreeInstanceData& InstanceData, const uint32 ConditionsOffset, const uint32 ConditionsNum)
 {
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeCtxTestConditions);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TestConditions);
 
 	for (uint32 i = 0; i < ConditionsNum; i++)
 	{
-		const FStateTreeConditionBase& Cond = GetItem<FStateTreeConditionBase>(ConditionsOffset + i);
-		const FStateTreeDataView CondInstanceView = GetInstanceData(Storage, Cond.bInstanceIsObject, Cond.InstanceIndex);
+		const FStateTreeConditionBase& Cond = GetNode<FStateTreeConditionBase>(ConditionsOffset + i);
+		const FStateTreeDataView CondInstanceView = GetInstanceData(InstanceData, Cond.bInstanceIsObject, Cond.InstanceIndex);
 		DataViews[Cond.DataViewIndex] = CondInstanceView;
 
 		// Copy bound properties.
@@ -663,9 +690,11 @@ bool FStateTreeExecutionContext::TestAllConditions(FStateTreeDataView Storage, c
 	return true;
 }
 
-FStateTreeTransitionResult FStateTreeExecutionContext::TriggerTransitions(FStateTreeDataView Storage, const FStateTreeStateStatus CurrentStatus, const int32 Depth)
+FStateTreeTransitionResult FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& InstanceData, const FStateTreeStateStatus CurrentStatus, const int32 Depth)
 {
-	FStateTreeExecutionState& Exec = GetExecState(Storage);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TriggerTransition);
+
+	FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 	EStateTreeTransitionEvent Event = EStateTreeTransitionEvent::OnCondition;
 	if (CurrentStatus.RunStatus == EStateTreeRunStatus::Succeeded)
 	{
@@ -685,7 +714,7 @@ FStateTreeTransitionResult FStateTreeExecutionContext::TriggerTransitions(FState
 			// All transition conditions must pass
 			const int16 TransitionIndex = State.TransitionsBegin + i;
 			const FBakedStateTransition& Transition = StateTree->Transitions[TransitionIndex];
-			if (EnumHasAllFlags(Transition.Event, Event) && TestAllConditions(Storage, Transition.ConditionsBegin, Transition.ConditionsNum))
+			if (EnumHasAllFlags(Transition.Event, Event) && TestAllConditions(InstanceData, Transition.ConditionsBegin, Transition.ConditionsNum))
 			{
 				// If a transition has delay, we stop testing other transitions, but the transition will not pass the condition until the delay time passes.
 				if (Transition.GateDelay > 0)
@@ -709,7 +738,7 @@ FStateTreeTransitionResult FStateTreeExecutionContext::TriggerTransitions(FState
 				
 				if (Transition.Type == EStateTreeTransitionType::GotoState || Transition.Type == EStateTreeTransitionType::NextState)
 				{
-					FStateTreeTransitionResult Result = SelectState(Storage, CurrentStatus, Transition.State, Transition.State, Depth + 1);
+					FStateTreeTransitionResult Result = SelectState(InstanceData, CurrentStatus, Transition.State, Transition.State, Depth + 1);
 					if (Result.Next.IsValid())
 					{
 						STATETREE_LOG(Verbose, TEXT("Transition on state '%s' (%s) -[%s]-> state '%s'"), *GetSafeStateName(CurrentStatus.State), *State.Name.ToString(), *GetSafeStateName(Result.Target), *GetSafeStateName(Result.Next));
@@ -752,8 +781,10 @@ FStateTreeTransitionResult FStateTreeExecutionContext::TriggerTransitions(FState
 	return FStateTreeTransitionResult(CurrentStatus, FStateTreeHandle::Invalid);
 }
 
-FStateTreeTransitionResult FStateTreeExecutionContext::SelectState(FStateTreeDataView Storage, const FStateTreeStateStatus InitialStateStatus, const FStateTreeHandle InitialTargetState, const FStateTreeHandle NextState, const int Depth)
+FStateTreeTransitionResult FStateTreeExecutionContext::SelectState(FStateTreeInstanceData& InstanceData, const FStateTreeStateStatus InitialStateStatus, const FStateTreeHandle InitialTargetState, const FStateTreeHandle NextState, const int Depth)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_SelectState);
+
 	if (!NextState.IsValid())
 	{
 		// Trying to select non-existing state.
@@ -765,17 +796,17 @@ FStateTreeTransitionResult FStateTreeExecutionContext::SelectState(FStateTreeDat
 	const FBakedStateTreeState& State = StateTree->States[NextState.Index];
 
 	// Make sure all the evaluators for the target state are up to date.
-	TickEvaluators(Storage, NextState, EStateTreeEvaluationType::PreSelect, 0.0f);
+	TickEvaluators(InstanceData, NextState, EStateTreeEvaluationType::PreSelect, 0.0f);
 	
 	// Check that the state can be entered
-	if (TestAllConditions(Storage, State.EnterConditionsBegin, State.EnterConditionsNum))
+	if (TestAllConditions(InstanceData, State.EnterConditionsBegin, State.EnterConditionsNum))
 	{
 		// If the state has children, proceed to select children.
 		if (State.HasChildren())
 		{
 			for (uint16 ChildState = State.ChildrenBegin; ChildState < State.ChildrenEnd; ChildState = StateTree->States[ChildState].GetNextSibling())
 			{
-				const FStateTreeTransitionResult ChildResult = SelectState(Storage, InitialStateStatus, InitialTargetState, FStateTreeHandle(ChildState), Depth + 1);
+				const FStateTreeTransitionResult ChildResult = SelectState(InstanceData, InitialStateStatus, InitialTargetState, FStateTreeHandle(ChildState), Depth + 1);
 				if (ChildResult.Next.IsValid())
 				{
 					// Selection succeeded
@@ -871,39 +902,45 @@ FString FStateTreeExecutionContext::GetStateStatusString(const FStateTreeStateSt
 	}
 }
 
-EStateTreeRunStatus FStateTreeExecutionContext::GetLastTickStatus(FStateTreeDataView ExternalStorage) const
+EStateTreeRunStatus FStateTreeExecutionContext::GetLastTickStatus(const FStateTreeInstanceData* ExternalInstanceData) const
 {
-	const FStateTreeExecutionState& Exec = GetExecState(SelectStorage(ExternalStorage));
+	const FStateTreeExecutionState& Exec = GetExecState(SelectInstanceData(ExternalInstanceData));
 	return Exec.LastTickStatus;
 }
 
-void FStateTreeExecutionContext::AddStructReferencedObjects(FReferenceCollector& Collector)
+void FStateTreeExecutionContext::AddStructReferencedObjects(FReferenceCollector& Collector) const
 {
 	if (StorageType == EStateTreeStorage::Internal)
 	{
-		AddStructReferencedObjects(FStateTreeDataView(StorageInstance), Collector);
+		AddStructReferencedObjects(&InternalInstanceData, Collector);
 	}
 }
 
-void FStateTreeExecutionContext::AddStructReferencedObjects(const FStateTreeDataView Storage, FReferenceCollector& Collector)
+void FStateTreeExecutionContext::AddStructReferencedObjects(const FStateTreeInstanceData* InstanceData, FReferenceCollector& Collector) const
 {
-	if (Storage.IsValid())
+	if (InstanceData && InstanceData->IsValid())
 	{
-		FStateTreeExecutionState& Exec = GetExecState(Storage);
-		Collector.AddReferencedObjects(Exec.InstanceObjects);
+		const FStateTreeExecutionState& Exec = GetExecState(*InstanceData);
+		for (const UObject* Object : Exec.InstanceObjects)
+		{
+			Collector.AddReferencedObject(Object);
+		}
+		
+		InstanceData->AddStructReferencedObjects(Collector);
 	}
 }
 
 #if WITH_GAMEPLAY_DEBUGGER
 
-FString FStateTreeExecutionContext::GetDebugInfoString(FStateTreeDataView ExternalStorage) const
+FString FStateTreeExecutionContext::GetDebugInfoString(const FStateTreeInstanceData* ExternalInstanceData) const
 {
 	if (!StateTree)
 	{
 		return FString(TEXT("No StateTree asset."));
 	}
-	FStateTreeDataView Storage = SelectStorage(ExternalStorage);
-	FStateTreeExecutionState& Exec = GetExecState(Storage);
+	const FStateTreeInstanceData& InstanceData = SelectInstanceData(ExternalInstanceData);
+	checkSlow(InstanceData.GetLayout() == StateTree->InstanceDataDefaultValue.GetLayout());
+	const FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	FString DebugString = FString::Printf(TEXT("StateTree (asset: '%s')\n"), *GetNameSafe(StateTree));
 
@@ -941,7 +978,7 @@ FString FStateTreeExecutionContext::GetDebugInfoString(FStateTreeDataView Extern
 				DebugString += TEXT("\nTasks:\n");
 				for (int32 j = 0; j < int32(State.TasksNum); j++)
 				{
-					const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + j);
+					const FStateTreeTaskBase& Task = GetNode<FStateTreeTaskBase>(int32(State.TasksBegin) + j);
 					Task.AppendDebugInfoString(DebugString, *this);
 				}
 			}
@@ -950,7 +987,7 @@ FString FStateTreeExecutionContext::GetDebugInfoString(FStateTreeDataView Extern
 				DebugString += TEXT("\nEvaluators:\n");
 				for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 				{
-					const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
+					const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
 					Eval.AppendDebugInfoString(DebugString, *this);
 				}
 			}
@@ -962,7 +999,7 @@ FString FStateTreeExecutionContext::GetDebugInfoString(FStateTreeDataView Extern
 #endif // WITH_GAMEPLAY_DEBUGGER
 
 #if WITH_STATETREE_DEBUG
-void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeDataView ExternalStorage)
+void FStateTreeExecutionContext::DebugPrintInternalLayout(const FStateTreeInstanceData* ExternalInstanceData)
 {
 	LOG_SCOPE_VERBOSITY_OVERRIDE(LogStateTree, ELogVerbosity::Log);
 
@@ -975,24 +1012,30 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeDataView Ext
 	FString DebugString = FString::Printf(TEXT("StateTree (asset: '%s')\n"), *GetNameSafe(StateTree));
 
 	// Tree items (e.g. tasks, evaluators, conditions)
-	DebugString += FString::Printf(TEXT("\nItems(%d)\n"), StateTree->Items.Num());
-	for (const FInstancedStruct& Item : StateTree->Items)
+	DebugString += FString::Printf(TEXT("\nItems(%d)\n"), StateTree->Nodes.Num());
+	for (const FInstancedStruct& Node : StateTree->Nodes)
 	{
-		DebugString += FString::Printf(TEXT("  %s\n"), Item.IsValid() ? *Item.GetScriptStruct()->GetName() : TEXT("null"));
+		DebugString += FString::Printf(TEXT("  %s\n"), Node.IsValid() ? *Node.GetScriptStruct()->GetName() : TEXT("null"));
 	}
 
-	// Instance storage data (e.g. tasks, evaluators, conditions)
+	// Instance InstanceData data (e.g. tasks, evaluators, conditions)
 	DebugString += FString::Printf(TEXT("\nInstance Data(%d)\n"), StateTree->Instances.Num());
 	for (const FInstancedStruct& Data : StateTree->Instances)
 	{
 		DebugString += FString::Printf(TEXT("  %s\n"), Data.IsValid() ? *Data.GetScriptStruct()->GetName() : TEXT("null"));
 	}
 
-	// Instance storage offsets (e.g. tasks, evaluators, conditions)
-	DebugString += FString::Printf(TEXT("\nInstance Data Offsets(%d)\n  [ %-40s | %-6s ]\n"), StateTree->InstanceStorageOffsets.Num(), TEXT("Name"), TEXT("Offset"));
-	for (const FStateTreeInstanceStorageOffset& Offset : StateTree->InstanceStorageOffsets)
+	// Instance InstanceData offsets (e.g. tasks, evaluators, conditions)
+
+	if (const FStateTreeInstanceDataLayout* InstanceLayout = StateTree->InstanceDataDefaultValue.GetLayout().Get())
 	{
-		DebugString += FString::Printf(TEXT("  | %-40s | %6d |\n"), Offset.Struct ? *Offset.Struct->GetName() : TEXT("null"),  Offset.Offset);
+		DebugString += FString::Printf(TEXT("\nInstance Data Offsets(%d)\n  [ %-40s | %-6s ]\n"), InstanceLayout->Num(), TEXT("Name"), TEXT("Offset"));
+
+		for (int32 Index = 0; Index < InstanceLayout->Num(); Index++)
+		{
+			const FStateTreeInstanceDataLayout::FLayoutItem& Item = InstanceLayout->GetItem(Index);
+			DebugString += FString::Printf(TEXT("  | %-40s | %6d |\n"), Item.ScriptStruct ? *Item.ScriptStruct->GetName() : TEXT("null"), Item.Offset);
+		}
 	}
 
 	// External data (e.g. fragments, subsystems)
@@ -1025,7 +1068,6 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeDataView Ext
 	}
 
 	// States
-	FStateTreeDataView Storage = SelectMutableStorage(ExternalStorage);
 	DebugString += FString::Printf(TEXT("\nStates(%d)\n"
 		"  [ %-30s | %15s | %5s [%3s:%-3s[ | Begin Idx : %4s %4s %4s %4s | Num : %4s %4s %4s %4s | Transitions : %-16s %-40s %-16s %-40s ]\n"),
 		StateTree->States.Num(),
@@ -1053,7 +1095,7 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeDataView Ext
 		{
 			for (int32 EvalIndex = 0; EvalIndex < State.EvaluatorsNum; EvalIndex++)
 			{
-				const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(State.EvaluatorsBegin + EvalIndex);
+				const FStateTreeEvaluatorBase& Eval = GetNode<FStateTreeEvaluatorBase>(State.EvaluatorsBegin + EvalIndex);
 				DebugString += FString::Printf(TEXT("  | %-30s | %-12s | %-30s | %15s | %10d |\n"), *State.Name.ToString(),
 					TEXT("  Evaluator"), *Eval.Name.ToString(), *Eval.BindingsBatch.Describe(), Eval.DataViewIndex);
 			}
@@ -1064,7 +1106,7 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeDataView Ext
 		{
 			for (int32 TaskIndex = 0; TaskIndex < State.TasksNum; TaskIndex++)
 			{
-				const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(State.TasksBegin + TaskIndex);
+				const FStateTreeTaskBase& Task = GetNode<FStateTreeTaskBase>(State.TasksBegin + TaskIndex);
 				DebugString += FString::Printf(TEXT("  | %-30s | %-12s | %-30s | %15s | %10d |\n"), *State.Name.ToString(),
 					TEXT("  Task"), *Task.Name.ToString(), *Task.BindingsBatch.Describe(), Task.DataViewIndex);
 			}
@@ -1074,14 +1116,15 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeDataView Ext
 	UE_LOG(LogStateTree, Log, TEXT("%s"), *DebugString);
 }
 
-FString FStateTreeExecutionContext::GetActiveStateName(FStateTreeDataView ExternalStorage) const
+FString FStateTreeExecutionContext::GetActiveStateName(const FStateTreeInstanceData* ExternalInstanceData) const
 {
 	if (!StateTree)
 	{
 		return FString(TEXT("<None>"));
 	}
-	const FStateTreeDataView Storage = SelectStorage(ExternalStorage);
-	FStateTreeExecutionState& Exec = GetExecState(Storage);
+	const FStateTreeInstanceData& InstanceData = SelectInstanceData(ExternalInstanceData);
+	checkSlow(InstanceData.GetLayout() == StateTree->InstanceDataDefaultValue.GetLayout());
+	const FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 
 	FString FullStateName;
 	

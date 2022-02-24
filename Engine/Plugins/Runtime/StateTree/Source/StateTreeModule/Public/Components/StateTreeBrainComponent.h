@@ -61,8 +61,6 @@ public:
 	virtual FString GetDebugInfoString() const override;
 #endif // WITH_GAMEPLAY_DEBUGGER
 
-private:
-
 protected:
 
 	bool SetContextRequirements();

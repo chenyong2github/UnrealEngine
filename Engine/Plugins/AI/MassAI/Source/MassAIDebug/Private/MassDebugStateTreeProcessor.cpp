@@ -20,7 +20,8 @@ UMassDebugStateTreeProcessor::UMassDebugStateTreeProcessor()
 
 void UMassDebugStateTreeProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassStateTreeInstanceFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddConstSharedRequirement<FMassStateTreeSharedFragment>();
 	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 }
 
@@ -58,54 +59,67 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 	
 	QUICK_SCOPE_CYCLE_COUNTER(UMassDebugStateTreeProcessor_Run);	
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Debugger, MassStateTreeSubsystem, &EntitySubsystem, MassSignalSubsystem](FMassExecutionContext& Context)
+	{
+		const FMassEntityHandle SelectedEntity = Debugger->GetSelectedEntity();
+		const int32 NumEntities = Context.GetNumEntities();
+		const TConstArrayView<FMassStateTreeInstanceFragment> StateTreeInstanceList = Context.GetFragmentView<FMassStateTreeInstanceFragment>();
+		const FMassStateTreeSharedFragment& SharedStateTree = Context.GetConstSharedFragment<FMassStateTreeSharedFragment>();
+		const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
+
+		const UStateTree* StateTree = SharedStateTree.StateTree;
+
+		// Not reporting error since this processor is a debug tool 
+		if (StateTree == nullptr)
 		{
-			const FMassEntityHandle SelectedEntity = Debugger->GetSelectedEntity();
-			const int32 NumEntities = Context.GetNumEntities();
-			const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetFragmentView<FMassStateTreeFragment>();
-			const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
-			const UStateTree* StateTree = MassStateTreeSubsystem->GetRegisteredStateTreeAsset(StateTreeList[0].StateTreeHandle);
+			return;
+		}
+	
+		for (int32 i = 0; i < NumEntities; ++i)
+		{
+			const FMassEntityHandle Entity = Context.GetEntity(i);
 
-			// Not reporting error since this processor is a debug tool 
-			if (StateTree == nullptr)
+			if (Entity != SelectedEntity && !UE::Mass::Debug::IsDebuggingEntity(Entity))
 			{
-				return;
+				continue;
 			}
-		
-			for (int32 i = 0; i < NumEntities; ++i)
+			
+			const FMassStateTreeInstanceFragment& StateTreeInstance = StateTreeInstanceList[i];
+
+			FStateTreeInstanceData* InstanceData = MassStateTreeSubsystem->GetInstanceData(StateTreeInstance.InstanceHandle);
+			if (InstanceData == nullptr)
 			{
-				FMassEntityHandle Entity = Context.GetEntity(i);
-				if (Entity == SelectedEntity)
-				{
-					FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *MassSignalSubsystem, Context);
-					StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
-					StateTreeContext.SetEntity(Entity);
-					
+				continue;
+			}
+			
+			if (Entity == SelectedEntity)
+			{
+				FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *MassSignalSubsystem, Context);
+				StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
+				StateTreeContext.SetEntity(Entity);
+				
 #if WITH_GAMEPLAY_DEBUGGER
-					const FStructView Storage = EntitySubsystem.GetFragmentDataStruct(Entity, StateTree->GetInstanceStorageStruct());
-					Debugger->AppendSelectedEntityInfo(StateTreeContext.GetDebugInfoString(Storage));
+				Debugger->AppendSelectedEntityInfo(StateTreeContext.GetDebugInfoString(InstanceData));
 #endif // WITH_GAMEPLAY_DEBUGGER
-				}
-					
-				FColor EntityColor = FColor::White;
-				const bool bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(Entity, &EntityColor);
-				if (bDisplayDebug)
-				{
-					const FTransformFragment& Transform = TransformList[i];
-					
-					const FVector ZOffset(0,0,50);
-					const FVector Position = Transform.GetTransform().GetLocation() + ZOffset;
-
-					FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *MassSignalSubsystem, Context);
-					StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
-					StateTreeContext.SetEntity(Entity);
-
-					const FStructView Storage = EntitySubsystem.GetFragmentDataStruct(Entity, StateTree->GetInstanceStorageStruct());
-
-					// State
-					UE_VLOG_SEGMENT_THICK(this, LogStateTree, Log, Position, Position + FVector(0,0,50), EntityColor, /*Thickness*/ 2, TEXT("%s %s"),
-						*Entity.DebugGetDescription(), *StateTreeContext.GetActiveStateName(Storage));
-				}
 			}
-		});
+				
+			FColor EntityColor = FColor::White;
+			const bool bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(Entity, &EntityColor);
+			if (bDisplayDebug)
+			{
+				const FTransformFragment& Transform = TransformList[i];
+				
+				const FVector ZOffset(0,0,50);
+				const FVector Position = Transform.GetTransform().GetLocation() + ZOffset;
+
+				FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *MassSignalSubsystem, Context);
+				StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
+				StateTreeContext.SetEntity(Entity);
+
+				// State
+				UE_VLOG_SEGMENT_THICK(this, LogStateTree, Log, Position, Position + FVector(0,0,50), EntityColor, /*Thickness*/ 2, TEXT("%s %s"),
+					*Entity.DebugGetDescription(), *StateTreeContext.GetActiveStateName(InstanceData));
+			}
+		}
+	});
 	#endif // WITH_MASSGAMEPLAY_DEBUG
 }

@@ -40,23 +40,28 @@ struct MASSAIBEHAVIOR_API FMassStateTreeTaskBase : public FStateTreeTaskBase
 };
 
 /**
-* A handle pointing to a registered StateTree asset in UMassStateTreeSubsystem.
-*/
-struct FMassStateTreeHandle
+ * A handle pointing to a StateTree instance data in UMassStateTreeSubsystem.
+ */
+struct FMassStateTreeInstanceHandle
 {
-	static constexpr uint16 Invalid = MAX_uint16;
-
-	FMassStateTreeHandle() = default;
+	FMassStateTreeInstanceHandle() = default;
 
 	/** Initializes new handle based on an index */
-	static FMassStateTreeHandle Make(const uint16 InIndex) { return FMassStateTreeHandle(InIndex); }
+	static FMassStateTreeInstanceHandle Make(const int32 InIndex, const int32 InGeneration) { return FMassStateTreeInstanceHandle(InIndex, InGeneration); }
 	
-	/** Returns index the handle points to */
-	uint16 GetIndex() const { return Index; }
+	/** @returns index the handle points to */
+	int32 GetIndex() const { return Index; }
+
+	/** @returns generation of the handle, used to identify recycled indices. */ 
+	int32 GetGeneration() const { return Generation; }
+
+	/** @returns true if the handle is valid. */
+	bool IsValid() const { return Index != INDEX_NONE; }
 
 protected:
-	FMassStateTreeHandle(const uint16 InIndex) : Index(InIndex) {}
+	FMassStateTreeInstanceHandle(const int32 InIndex, const int32 InGeneration) : Index(InIndex), Generation(InGeneration) {}
 
-	uint16 Index = Invalid;
+	int32 Index = INDEX_NONE;
+	int32 Generation = 0;
 };
 

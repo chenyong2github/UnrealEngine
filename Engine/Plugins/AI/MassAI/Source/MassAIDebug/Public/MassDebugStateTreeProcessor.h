@@ -6,7 +6,6 @@
 #include "MassDebugStateTreeProcessor.generated.h"
 
 class UMassEntitySubsystem;
-struct FMassStateTreeFragment;
 struct FMassEntityQuery;
 struct FMassExecutionContext;
 

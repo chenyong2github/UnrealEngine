@@ -57,10 +57,6 @@ protected:
 	UMassSignalSubsystem* SignalSubsystem = nullptr;
 	
 	FMassEntityQuery EntityQuery;
-
-	/** The maximum number of entities to signal activation per LOD for each update, -1 means no limit */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
-	int32 MaxActivationsPerLOD[EMassLOD::Max];
 };
 
 /** 

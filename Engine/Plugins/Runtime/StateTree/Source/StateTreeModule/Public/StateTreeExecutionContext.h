@@ -6,6 +6,7 @@
 #include "InstancedStruct.h"
 #include "Containers/StaticArray.h"
 #include "StateTreePropertyBindings.h"
+#include "StateTreeInstanceData.h"
 #include "StateTreeExecutionContext.generated.h"
 
 struct FStateTreeEvaluatorBase;
@@ -64,8 +65,11 @@ public:
 	/** Initializes the StateTree instance to be used with specific owner and StateTree asset. */
 	bool Init(UObject& InOwner, const UStateTree& InStateTree, const EStateTreeStorage InStorageType);
 
-	/**  Initializes external storage (no need to call, if using internal storage). */
-	bool InitInstanceData(UObject& InOwner, FStateTreeDataView ExternalStorage) const;
+	/** Resets the instance to initial empty state. Note: Does not call ExitState(). */
+	void Reset();
+
+	/** Initializes external instance data (no need to call, if using internal storage). */
+	static bool InitInstanceData(UObject& InOwner, const UStateTree& InStateTree, FStateTreeInstanceData& OutInstanceData);
 
 	/** Returns the StateTree asset in use. */
 	const UStateTree* GetStateTree() const { return StateTree; }
@@ -79,12 +83,12 @@ public:
 	bool IsValid() const { return Owner != nullptr && StateTree != nullptr; }
 	
 	/** Start executing. */
-	EStateTreeRunStatus Start(FStateTreeDataView ExternalStorage = FStateTreeDataView());
+	EStateTreeRunStatus Start(FStateTreeInstanceData* ExternalInstanceData = nullptr);
 	/** Stop executing. */
-	EStateTreeRunStatus Stop(FStateTreeDataView ExternalStorage = FStateTreeDataView());
+	EStateTreeRunStatus Stop(FStateTreeInstanceData* ExternalInstanceData = nullptr);
 
 	/** Tick the state tree logic. */
-	EStateTreeRunStatus Tick(const float DeltaTime, FStateTreeDataView ExternalStorage = FStateTreeDataView());
+	EStateTreeRunStatus Tick(const float DeltaTime, FStateTreeInstanceData* ExternalInstanceData = nullptr);
 
 	/** @return Pointer to a State or null if state not found */ 
 	const FBakedStateTreeState* GetStateFromHandle(const FStateTreeHandle StateHandle) const
@@ -224,21 +228,21 @@ public:
 		return nullptr;
 	}
 	
-	EStateTreeRunStatus GetLastTickStatus(FStateTreeDataView ExternalStorage = FStateTreeDataView()) const;
+	EStateTreeRunStatus GetLastTickStatus(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
 
 #if WITH_GAMEPLAY_DEBUGGER
 	/** @return Debug string describing the current state of the execution */
-	FString GetDebugInfoString(FStateTreeDataView ExternalStorage = FStateTreeDataView()) const;
+	FString GetDebugInfoString(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
 #endif // WITH_GAMEPLAY_DEBUGGER
 
 #if WITH_STATETREE_DEBUG
-	FString GetActiveStateName(FStateTreeDataView ExternalStorage = FStateTreeDataView()) const;
+	FString GetActiveStateName(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
 	
-	void DebugPrintInternalLayout(FStateTreeDataView ExternalStorage);
+	void DebugPrintInternalLayout(const FStateTreeInstanceData* ExternalInstanceData = nullptr);
 #endif
 
-	void AddStructReferencedObjects(class FReferenceCollector& Collector);
-	void AddStructReferencedObjects(const FStateTreeDataView ExternalStorage, class FReferenceCollector& Collector);
+	void AddStructReferencedObjects(class FReferenceCollector& Collector) const;
+	void AddStructReferencedObjects(const FStateTreeInstanceData* ExternalInstanceData, class FReferenceCollector& Collector) const;
 
 protected:
 
@@ -249,47 +253,42 @@ protected:
 	virtual void BeginGatedTransition(const FStateTreeExecutionState& Exec) {};
 	
 	/**
-	 * Resets the instance to initial empty state. Note: Does not call ExitState().
-	 */
-	void Reset();
-
-	/**
 	 * Handles logic for entering State. EnterState is called on new active Evaluators and Tasks that are part of the re-planned tree.
 	 * Re-planned tree is from the transition target up to the leaf state. States that are parent to the transition target state
 	 * and still active after the transition will remain intact.
 	 * @return Run status returned by the tasks.
 	 */
-	EStateTreeRunStatus EnterState(FStateTreeDataView Storage, const FStateTreeTransitionResult& Transition);
+	EStateTreeRunStatus EnterState(FStateTreeInstanceData& InstanceData, const FStateTreeTransitionResult& Transition);
 
 	/**
 	 * Handles logic for exiting State. ExitState is called on current active Evaluators and Tasks that are part of the re-planned tree.
 	 * Re-planned tree is from the transition target up to the leaf state. States that are parent to the transition target state
 	 * and still active after the transition will remain intact.
 	 */
-	void ExitState(FStateTreeDataView Storage, const FStateTreeTransitionResult& Transition);
+	void ExitState(FStateTreeInstanceData& InstanceData, const FStateTreeTransitionResult& Transition);
 
 	/**
 	 * Handles logic for exiting State. ExitState is called on current active Evaluators and Tasks in reverse order (from leaf to root).
 	 */
-	void StateCompleted(FStateTreeDataView Storage, const FStateTreeHandle CurrentState, const EStateTreeRunStatus CompletionStatus);
+	void StateCompleted(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const EStateTreeRunStatus CompletionStatus);
 
 	/**
 	 * Ticks evaluators of all active states starting from current state by delta time.
 	 * If TickEvaluators() is called multiple times per frame (i.e. during selection when visiting new states), each state and evaluator is ticked only once.
 	 */
-	void TickEvaluators(FStateTreeDataView Storage, const FStateTreeHandle CurrentState, const EStateTreeEvaluationType EvalType, const float DeltaTime);
+	void TickEvaluators(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const EStateTreeEvaluationType EvalType, const float DeltaTime);
 
 	/**
 	 * Ticks tasks of all active states starting from current state by delta time.
 	 * @return Run status returned by the tasks.
 	 */
-	EStateTreeRunStatus TickTasks(FStateTreeDataView Storage, const FStateTreeHandle CurrentState, const float DeltaTime);
+	EStateTreeRunStatus TickTasks(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const float DeltaTime);
 
 	/**
 	 * Checks all conditions at given range
 	 * @return True if all conditions pass.
 	 */
-	bool TestAllConditions(FStateTreeDataView Storage, const uint32 ConditionsOffset, const uint32 ConditionsNum);
+	bool TestAllConditions(FStateTreeInstanceData& InstanceData, const uint32 ConditionsOffset, const uint32 ConditionsNum);
 
 	/**
 	 * Triggers transitions based on current run status. CurrentStatus is used to select which transitions events are triggered.
@@ -298,7 +297,7 @@ protected:
 	 * the actual next state returned by the selector.
 	 * @return Transition result describing the source state, state transitioned to, and next selected state.
 	 */
-	FStateTreeTransitionResult TriggerTransitions(FStateTreeDataView Storage, const FStateTreeStateStatus CurrentStatus, const int Depth);
+	FStateTreeTransitionResult TriggerTransitions(FStateTreeInstanceData& InstanceData, const FStateTreeStateStatus CurrentStatus, const int Depth);
 
 	/**
 	 * Runs state selection logic starting at the specified state, walking towards the leaf states.
@@ -312,51 +311,54 @@ protected:
 	 * @param Depth Depth of recursion.
 	 * @return Transition result describing the source state, transition target state, and next selected state.
 	 */
-	FStateTreeTransitionResult SelectState(FStateTreeDataView Storage, const FStateTreeStateStatus InitialStateStatus, const FStateTreeHandle InitialTargetState, const FStateTreeHandle NextState, const int Depth);
+	FStateTreeTransitionResult SelectState(FStateTreeInstanceData& InstanceData, const FStateTreeStateStatus InitialStateStatus, const FStateTreeHandle InitialTargetState, const FStateTreeHandle NextState, const int Depth);
 
 	/** @return State handles from specified state handle back to the root, specified handle included. */
 	int32 GetActiveStates(const FStateTreeHandle StateHandle, TStaticArray<FStateTreeHandle, 32>& OutStateHandles) const;
 
 	/** @return Mutable storage based on storage settings. */
-	FStateTreeDataView SelectMutableStorage(FStateTreeDataView ExternalStorage)
+	FStateTreeInstanceData& SelectMutableInstanceData(FStateTreeInstanceData* ExternalInstanceData)
 	{
-		return StorageType == EStateTreeStorage::External ? ExternalStorage : FStateTreeDataView(StorageInstance);
+		check(StorageType != EStateTreeStorage::External || (StorageType == EStateTreeStorage::External && ExternalInstanceData != nullptr));
+		return StorageType == EStateTreeStorage::External ? *ExternalInstanceData : InternalInstanceData;
 	}
 
 	/** @return Const storage based on storage settings. */
-	const FStateTreeDataView SelectStorage(FStateTreeDataView ExternalStorage) const
+	const FStateTreeInstanceData& SelectInstanceData(const FStateTreeInstanceData* ExternalInstanceData) const
 	{
-		return StorageType == EStateTreeStorage::External ? ExternalStorage : FStateTreeDataView(StorageInstance);
+		check(StorageType != EStateTreeStorage::External || (StorageType == EStateTreeStorage::External && ExternalInstanceData != nullptr));
+		return StorageType == EStateTreeStorage::External ? *ExternalInstanceData : InternalInstanceData;
 	}
 
 	/** @return View to an Evaluator, a Task, or a Condition instance data. */
-	FStateTreeDataView GetInstanceData(FStateTreeDataView Storage, const bool bIsObject, const int32 Index) const
+	FStateTreeDataView GetInstanceData(FStateTreeInstanceData& InstanceData, const bool bIsObject, const int32 Index) const
 	{
 		if (UNLIKELY(bIsObject == true))
 		{
-			const FStateTreeExecutionState& Exec = GetExecState(Storage);
+			const FStateTreeExecutionState& Exec = GetExecState(InstanceData);
 			return FStateTreeDataView(Exec.InstanceObjects[Index]);
 		}
-		else
-		{
-			const FStateTreeInstanceStorageOffset& ItemOffset = StateTree->InstanceStorageOffsets[Index];
-			return FStateTreeDataView(ItemOffset.Struct, Storage.GetMutableMemory() + ItemOffset.Offset);
-		}
+		
+		return FStateTreeDataView(InstanceData.GetMutable(Index));
 	}
 
 	/** @return StateTree execution state from the instance storage. */
-	FStateTreeExecutionState& GetExecState(FStateTreeDataView Storage) const
+	static FStateTreeExecutionState& GetExecState(FStateTreeInstanceData& InstanceData)
 	{
-		const FStateTreeInstanceStorageOffset& ItemOffset = StateTree->InstanceStorageOffsets[0];
-		check(ItemOffset.Struct == FStateTreeExecutionState::StaticStruct());
-		return *reinterpret_cast<FStateTreeExecutionState*>(Storage.GetMutableMemory() + ItemOffset.Offset);
+		return InstanceData.GetMutable<FStateTreeExecutionState>(0);
 	}
 
-	/** @return Item at specified index. */
-	template <typename T>
-	T& GetItem(const int32 Index) const
+	/** @return const StateTree execution state from the instance storage. */
+	static const FStateTreeExecutionState& GetExecState(const FStateTreeInstanceData& InstanceData)
 	{
-		return StateTree->Items[Index].template GetMutable<T>();
+		return InstanceData.Get<FStateTreeExecutionState>(0);
+	}
+
+	/** @return StateTree node at specified index. */
+	template <typename T>
+	const T& GetNode(const int32 Index) const
+	{
+		return StateTree->Nodes[Index].template Get<T>();
 	}
 	
 	/** @return String describing state status for logging and debug. */
@@ -382,7 +384,7 @@ protected:
 	TArray<FStateTreeDataView> DataViews;
 
 	/** Optional Instance of the storage */
-	FInstancedStruct StorageInstance;
+	FStateTreeInstanceData InternalInstanceData;
 
 	/** Storage type of the context */
 	EStateTreeStorage StorageType = EStateTreeStorage::Internal;

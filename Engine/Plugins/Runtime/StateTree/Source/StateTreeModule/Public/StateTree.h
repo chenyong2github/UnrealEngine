@@ -8,6 +8,7 @@
 #include "StateTreeSchema.h"
 #include "InstancedStruct.h"
 #include "StateTreePropertyBindings.h"
+#include "StateTreeInstanceData.h"
 #include "StateTree.generated.h"
 
 /**
@@ -20,23 +21,14 @@ class STATETREEMODULE_API UStateTree : public UDataAsset
 
 public:
 
-	UStateTree(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	~UStateTree();
-
-	/** @return Script Struct that can be used to instantiate the runtime storage */
-	const UScriptStruct* GetInstanceStorageStruct() const { return InstanceStorageStruct; }
-
-	/** @return Instance of the runtime storage that contains the default values */
-	const FInstancedStruct& GetInstanceStorageDefaultValue() const { return InstanceStorageDefaultValue; }
-
+	/** @return Size required for the instance data in bytes. */
+	int32 GetInstanceDataSize() const;
+	
 	/** @return Number of runtime data (Evaluators, Tasks, Conditions) in the runtime storage. */
 	int32 GetNumInstances() const { return Instances.Num(); }
 
 	/** @return Number of data views required for StateTree execution (Evaluators, Tasks, Conditions, External data). */
 	int32 GetNumDataViews() const { return NumDataViews; }
-
-	/** @return Base index in data views for external data. */
-	int32 GetExternalDataBaseIndex() const { return ExternalDataBaseIndex; }
 
 	/** @return List of external data required by the state tree */
 	TConstArrayView<FStateTreeExternalDataDesc> GetExternalDataDescs() const { return ExternalDataDescs; }
@@ -45,14 +37,10 @@ public:
 	const UStateTreeSchema* GetSchema() const { return Schema; }
 	void SetSchema(UStateTreeSchema* InSchema) { Schema = InSchema; }
 
-	/** @return true is the tree asset is considered valid (e.g. at least one state) */
-	bool IsValidStateTree() const;
-
-	void ResolvePropertyPaths();
+	/** @return true is the tree asset is to be used at runtime. */
+	bool IsReadyToRun() const;
 
 #if WITH_EDITOR
-	void OnPIEStarted(const bool bIsSimulating);
-	
 	/** Resets the baked data to empty. */
 	void ResetBaked();
 #endif
@@ -68,19 +56,16 @@ public:
 #endif
 
 protected:
-	virtual void BeginDestroy() override;
+	
+	/** Resolved references between data in the StateTree. */
+	void Link();
+
 	virtual void PostLoad() override;
 	
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #endif
-
-	/** Initializes the types and default values related to StateTree runtime storage */
-	void InitInstanceStorageType();
-
-	/** Resolved references between data in the StateTree. */
-	void Link();
 
 private:
 
@@ -91,7 +76,7 @@ private:
 
 	/** Evaluators, Tasks, and Condition items */
 	UPROPERTY()
-	TArray<FInstancedStruct> Items;
+	TArray<FInstancedStruct> Nodes;
 
 	/** Evaluators, Tasks, and Conditions runtime data. */
 	UPROPERTY()
@@ -101,16 +86,8 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UObject>> InstanceObjects;
 
-	/** Script Struct that can be used to instantiate the runtime storage */
 	UPROPERTY()
-	TObjectPtr<UScriptStruct> InstanceStorageStruct;
-
-	/** Offsets into the runtime type to quickly get a struct view to a specific Task or Evaluator */
-	TArray<FStateTreeInstanceStorageOffset> InstanceStorageOffsets;
-
-	/** Instance of the runtime storage that contains the default values. */
-	UPROPERTY()
-	FInstancedStruct InstanceStorageDefaultValue;
+	FStateTreeInstanceData InstanceDataDefaultValue;
 
 	/** List of external data required by the state tree, creating during linking. */
 	UPROPERTY(Transient)

@@ -4,9 +4,22 @@
 
 #include "MassStateTreeTypes.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "StateTreeExecutionContext.h"
 #include "MassStateTreeSubsystem.generated.h"
 
 class UStateTree;
+
+USTRUCT()
+struct MASSAIBEHAVIOR_API FMassStateTreeInstanceDataItem
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FStateTreeInstanceData InstanceData;
+
+	UPROPERTY()
+	int32 Generation = 0;
+};
 
 /**
 * A subsystem managing StateTree assets in Mass
@@ -22,18 +35,35 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	// USubsystem END
 
-	/** Registers a StateTree asset to be used */
-	FMassStateTreeHandle RegisterStateTreeAsset(UStateTree* StateTree);
+	/**
+	 * Allocates new instance data for specified StateTree.
+	 * @param StateTree StateTree to allocated the data for.
+	 * @return Handle to the data.
+	 */
+	FMassStateTreeInstanceHandle AllocateInstanceData(const UStateTree* StateTree);
 
-	/** @return StateTree asset based on a handle */
-	UStateTree* GetRegisteredStateTreeAsset(FMassStateTreeHandle Handle) { return RegisteredStateTrees[Handle.GetIndex()]; }
+	/**
+	 * Frees instance data.
+	 * @param Handle Instance data handle to free.
+	 */
+	void FreeInstanceData(const FMassStateTreeInstanceHandle Handle);
 
-	/** @return Array of registered StateTree assets */
-	TConstArrayView<UStateTree*> GetRegisteredStateTreeAssets() const { return RegisteredStateTrees; }
+	/** @return Pointer to instance data held by the handle, or nullptr if handle is not valid. */
+	FStateTreeInstanceData* GetInstanceData(const FMassStateTreeInstanceHandle Handle)
+	{
+		return IsValidHandle(Handle) ? &InstanceDataArray[Handle.GetIndex()].InstanceData : nullptr;
+	}
+
+	/** @return True if the handle points to active instance data. */
+	bool IsValidHandle(const FMassStateTreeInstanceHandle Handle) const
+	{
+		return InstanceDataArray.IsValidIndex(Handle.GetIndex()) && InstanceDataArray[Handle.GetIndex()].Generation == Handle.GetGeneration();
+	}
 	
 protected:
 
-	/** Array of registered (in use) StateTrees */
+	TArray<int32> InstanceDataFreelist;
+
 	UPROPERTY(Transient)
-	TArray<UStateTree*> RegisteredStateTrees;
+	TArray<FMassStateTreeInstanceDataItem> InstanceDataArray;
 };

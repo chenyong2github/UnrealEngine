@@ -153,9 +153,6 @@ void UStateTreeBrainComponent::StartLogic()
 {
 	STATETREE_LOG(Log, TEXT("%s: Start Logic"), ANSI_TO_TCHAR(__FUNCTION__));
 
-	// TODO: Move this to UStateTree
-	StateTree->ResolvePropertyPaths();
-
 	if (SetContextRequirements())
 	{
 		StateTreeContext.Start();

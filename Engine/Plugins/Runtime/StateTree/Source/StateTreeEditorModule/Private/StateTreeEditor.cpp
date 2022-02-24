@@ -324,13 +324,10 @@ FText FStateTreeEditor::GetStatisticsText() const
 		return FText::GetEmpty();
 	}
 
-	if (const UScriptStruct* StorageStruct = StateTree->GetInstanceStorageStruct())
-	{
-		const FText SizeText = FText::AsMemory((uint64)StorageStruct->GetStructureSize());
-		const FText NumNodesText = FText::AsNumber(StateTree->GetNumInstances());
+	const FText SizeText = FText::AsMemory((uint64)StateTree->GetInstanceDataSize());
+	const FText NumNodesText = FText::AsNumber(StateTree->GetNumInstances());
 
-		return FText::Format(LOCTEXT("RuntimeSize", "Runtime size: {0}, {1} nodes"), SizeText, NumNodesText);
-	}
+	return FText::Format(LOCTEXT("RuntimeSize", "Runtime size: {0}, {1} nodes"), SizeText, NumNodesText);
 	
 	return FText::GetEmpty();
 }
@@ -743,7 +740,7 @@ FSlateIcon FStateTreeEditor::GetCompileStatusImage() const
 		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusUnknown);
 	}
 	
-	if (!StateTree->IsValidStateTree())
+	if (!StateTree->IsReadyToRun())
 	{
 		return FSlateIcon(FEditorStyle::GetStyleSetName(), CompileStatusBackground, NAME_None, CompileStatusError);
 	}

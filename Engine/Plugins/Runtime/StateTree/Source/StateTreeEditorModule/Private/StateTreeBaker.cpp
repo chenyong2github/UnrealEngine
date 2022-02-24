@@ -42,12 +42,8 @@ bool FStateTreeBaker::Bake(UStateTree& InStateTree)
 
 	BindingsCompiler.Finalize();
 
-	// TODO: This is just for testing. It should be called just before use.
-	StateTree->ResolvePropertyPaths();
-
+	StateTree->PropertyBindings.ResolvePaths();
 	StateTree->Link();
-	
-	StateTree->InitInstanceStorageType();
 
 	return true;
 }
@@ -93,7 +89,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 		FStateTreeCompilerLogStateScope LogStateScope(SourceState, Log);
 		
 		// Enter conditions.
-		BakedState.EnterConditionsBegin = uint16(StateTree->Items.Num());
+		BakedState.EnterConditionsBegin = uint16(StateTree->Nodes.Num());
 		for (FStateTreeEditorNode& CondNode : SourceState->EnterConditions)
 		{
 			if (!CreateCondition(CondNode))
@@ -103,7 +99,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 				return false;
 			}
 		}
-		BakedState.EnterConditionsNum = uint8(uint16(StateTree->Items.Num()) - BakedState.EnterConditionsBegin);
+		BakedState.EnterConditionsNum = uint8(uint16(StateTree->Nodes.Num()) - BakedState.EnterConditionsBegin);
 
 		// Transitions
 		BakedState.TransitionsBegin = uint16(StateTree->Transitions.Num());
@@ -120,7 +116,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 			}
 			// Note: Unset transition is allowed here. It can be used to mask a transition at parent.
 
-			BakedTransition.ConditionsBegin = uint16(StateTree->Items.Num());
+			BakedTransition.ConditionsBegin = uint16(StateTree->Nodes.Num());
 			for (FStateTreeEditorNode& CondNode : Transition.Conditions)
 			{
 				if (!CreateCondition(CondNode))
@@ -131,7 +127,7 @@ bool FStateTreeBaker::CreateStateTransitions()
 					return false;
 				}
 			}
-			BakedTransition.ConditionsNum = uint8(uint16(StateTree->Items.Num()) - BakedTransition.ConditionsBegin);
+			BakedTransition.ConditionsNum = uint8(uint16(StateTree->Nodes.Num()) - BakedTransition.ConditionsBegin);
 		}
 		BakedState.TransitionsNum = uint8(uint16(StateTree->Transitions.Num()) - BakedState.TransitionsBegin);
 	}
@@ -198,7 +194,7 @@ bool FStateTreeBaker::CreateCondition(const FStateTreeEditorNode& CondNode)
 	}
 
 	// Copy the condition
-	FInstancedStruct& Item = StateTree->Items.AddDefaulted_GetRef();
+	FInstancedStruct& Item = StateTree->Nodes.AddDefaulted_GetRef();
 	Item = CondNode.Node;
 
 	FStateTreeConditionBase& Cond = Item.GetMutable<FStateTreeConditionBase>();
@@ -285,7 +281,7 @@ bool FStateTreeBaker::CreateTask(const FStateTreeEditorNode& TaskNode)
 	}
 
 	// Copy the task
-	FInstancedStruct& Item = StateTree->Items.AddDefaulted_GetRef();
+	FInstancedStruct& Item = StateTree->Nodes.AddDefaulted_GetRef();
 	Item = TaskNode.Node;
 	
 	FStateTreeTaskBase& Task = Item.GetMutable<FStateTreeTaskBase>();
@@ -373,7 +369,7 @@ bool FStateTreeBaker::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
     }
 
 	// Copy the evaluator
-	FInstancedStruct& Item = StateTree->Items.AddDefaulted_GetRef();
+	FInstancedStruct& Item = StateTree->Nodes.AddDefaulted_GetRef();
 	Item = EvalNode.Node;
 
 	FStateTreeEvaluatorBase& Eval = Item.GetMutable<FStateTreeEvaluatorBase>();
@@ -539,8 +535,8 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 	check(StateTree->Instances.Num() <= int32(MAX_uint16));
 
 	// Collect evaluators
-	check(StateTree->Items.Num() <= int32(MAX_uint16));
-	BakedState.EvaluatorsBegin = uint16(StateTree->Items.Num());
+	check(StateTree->Nodes.Num() <= int32(MAX_uint16));
+	BakedState.EvaluatorsBegin = uint16(StateTree->Nodes.Num());
 
 	for (FStateTreeEditorNode& EvalNode : State.Evaluators)
 	{
@@ -550,13 +546,13 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 		}
 	}
 	
-	const int32 EvaluatorsNum = StateTree->Items.Num() - int32(BakedState.EvaluatorsBegin);
+	const int32 EvaluatorsNum = StateTree->Nodes.Num() - int32(BakedState.EvaluatorsBegin);
 	check(EvaluatorsNum <= int32(MAX_uint8));
 	BakedState.EvaluatorsNum = uint8(EvaluatorsNum);
 
 	// Collect tasks
-	check(StateTree->Items.Num() <= int32(MAX_uint16));
-	BakedState.TasksBegin = uint16(StateTree->Items.Num());
+	check(StateTree->Nodes.Num() <= int32(MAX_uint16));
+	BakedState.TasksBegin = uint16(StateTree->Nodes.Num());
 
 	for (FStateTreeEditorNode& TaskNode : State.Tasks)
 	{
@@ -571,7 +567,7 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 		return false;
 	}
 	
-	const int32 TasksNum = StateTree->Items.Num() - int32(BakedState.TasksBegin);
+	const int32 TasksNum = StateTree->Nodes.Num() - int32(BakedState.TasksBegin);
 	check(TasksNum <= int32(MAX_uint8));
 	BakedState.TasksNum = uint8(TasksNum);
 

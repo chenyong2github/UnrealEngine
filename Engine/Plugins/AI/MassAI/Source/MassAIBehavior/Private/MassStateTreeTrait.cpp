@@ -11,6 +11,9 @@
 
 void UMassStateTreeTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
+	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
+	check(EntitySubsystem);
+
 	UMassStateTreeSubsystem* MassStateTreeSubsystem = World.GetSubsystem<UMassStateTreeSubsystem>();
 	if (!MassStateTreeSubsystem)
 	{
@@ -23,20 +26,19 @@ void UMassStateTreeTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildCo
 		UE_VLOG(MassStateTreeSubsystem, LogMassBehavior, Error, TEXT("StateTree asset is not set or unavailable."));
 		return;
 	}
-	if (!StateTree->GetInstanceStorageDefaultValue().IsValid())
+	if (!StateTree->IsReadyToRun())
 	{
-		UE_VLOG(MassStateTreeSubsystem, LogMassBehavior, Error, TEXT("StateTree asset is valid but missing runtime storage type."));
+		UE_VLOG(MassStateTreeSubsystem, LogMassBehavior, Error, TEXT("StateTree asset is ready to run."));
 		return;
 	}
 
-	const FMassStateTreeHandle Handle = MassStateTreeSubsystem->RegisterStateTreeAsset(StateTree);
+	FMassStateTreeSharedFragment SharedStateTree;
+	SharedStateTree.StateTree = StateTree;
+	
+	const FConstSharedStruct StateTreeFragment = EntitySubsystem->GetOrCreateConstSharedFragment(UE::StructUtils::GetStructCrc32(FConstStructView::Make(SharedStateTree)), SharedStateTree);
+	BuildContext.AddConstSharedFragment(StateTreeFragment);
 
-	// Add fragment describing which StateTree to run
-	FMassStateTreeFragment& StateTreeFragment = BuildContext.AddFragment_GetRef<FMassStateTreeFragment>();
-	StateTreeFragment.StateTreeHandle = Handle;
-
-	// Add runtime storage as a fragment
-	BuildContext.AddFragment(StateTree->GetInstanceStorageDefaultValue());
+	BuildContext.AddFragment<FMassStateTreeInstanceFragment>();
 }
 
 void UMassStateTreeTrait::ValidateTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const

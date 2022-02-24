@@ -28,9 +28,6 @@ public:
 	FMassEntityHandle GetEntity() const { return Entity; }
 	void SetEntity(const FMassEntityHandle InEntity) { Entity = InEntity; }
 
-	int32 GetEntityIndex() const { return EntityIndex; }
-	void SetEntityIndex(const int32 InIndex) { EntityIndex = InIndex; }
-
 protected:
 
 	/** Prefix that will be used by STATETREE_LOG and STATETREE_CLOG, using Entity description. */
@@ -42,5 +39,4 @@ protected:
 	UMassSignalSubsystem* SignalSubsystem = nullptr;
 	FMassExecutionContext* EntitySubsystemExecutionContext = nullptr;
 	FMassEntityHandle Entity;
-	int32 EntityIndex = INDEX_NONE;
 };
