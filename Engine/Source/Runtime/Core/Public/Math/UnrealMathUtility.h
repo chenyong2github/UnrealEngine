@@ -9,8 +9,6 @@
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
 
-//#define IMPLEMENT_ASSIGNMENT_OPERATOR_MANUALLY
-
 // Assert on non finite numbers. Used to track NaNs.
 #ifndef ENABLE_NAN_DIAGNOSTIC
 	#if UE_BUILD_DEBUG

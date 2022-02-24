@@ -206,16 +206,6 @@ public:
      */
     explicit FORCEINLINE TVector(EForceInit);
 
-#ifdef IMPLEMENT_ASSIGNMENT_OPERATOR_MANUALLY
-    /**
-    * Copy another TVector<T> into this one
-    *
-    * @param Other The other vector.
-    * @return Reference to vector after copy.
-    */
-    FORCEINLINE TVector<T>& operator=(const TVector<T>& Other);
-#endif
-
     /**
      * Calculate cross product between this and another vector.
      *
@@ -1398,20 +1388,6 @@ FORCEINLINE TVector<T>::TVector(EForceInit)
 {
     DiagnosticCheckNaN();
 }
-
-#ifdef IMPLEMENT_ASSIGNMENT_OPERATOR_MANUALLY
-template<typename T>
-FORCEINLINE TVector<T>& TVector<T>::operator=(const TVector<T>& Other)
-{
-    this->X = Other.X;
-    this->Y = Other.Y;
-    this->Z = Other.Z;
-
-    DiagnosticCheckNaN();
-
-    return *this;
-}
-#endif
 
 template<typename T>
 FORCEINLINE TVector<T> TVector<T>::operator^(const TVector<T>& V) const

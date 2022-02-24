@@ -234,20 +234,6 @@ public:
 	/** Acceptable form: "%f,%f,%f|%f,%f,%f|%f,%f,%f" */
 	CORE_API bool InitFromString(const FString& InSourceString);
 
-#ifdef IMPLEMENT_ASSIGNMENT_OPERATOR_MANUALLY
-	/**
-	* Copy another Transform into this one
-	*/
-	FORCEINLINE TTransform<T>& operator=(const TTransform<T>& Other)
-	{
-		this->Rotation = Other.Rotation;
-		this->Translation = Other.Translation;
-		this->Scale3D = Other.Scale3D;
-
-		return *this;
-	}
-#endif
-
 	/**
 	* Convert this Transform to a transformation matrix with scaling.
 	*/

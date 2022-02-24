@@ -294,18 +294,6 @@ public:
 	/** Acceptable form: "%f,%f,%f|%f,%f,%f|%f,%f,%f" */
 	CORE_API bool InitFromString( const FString& InSourceString );
 
-	/**
-	* Copy another Transform into this one
-	*/
-	FORCEINLINE TTransform& operator=(const TTransform& Other)
-	{
-		this->Rotation = Other.Rotation;
-		this->Translation = Other.Translation;
-		this->Scale3D = Other.Scale3D;
-
-		return *this;
-	}
-
 
 	FORCEINLINE TMatrix<T> ToMatrixWithScale() const
 	{

@@ -131,15 +131,6 @@ public:
 
 public:
 
-#ifdef IMPLEMENT_ASSIGNMENT_OPERATOR_MANUALLY
-	/**
-	 * Copy another TQuat into this one
-	 *
-	 * @return reference to this TQuat
-	 */
-	FORCEINLINE TQuat<T>& operator=(const TQuat<T>& Other);
-#endif
-
 	/**
 	 * Gets the result of adding a Quaternion to this.
 	 * This is a component-wise addition; composing quaternions should be done via multiplication.
@@ -859,19 +850,6 @@ inline bool TQuat<T>::InitFromString(const FString& InSourceString)
 	DiagnosticCheckNaN();
 	return bSuccess;
 }
-
-#ifdef IMPLEMENT_ASSIGNMENT_OPERATOR_MANUALLY
-template<typename T>
-FORCEINLINE TQuat<T>& TQuat<T>::operator=(const TQuat<T>& Other)
-{
-	this->X = Other.X;
-	this->Y = Other.Y;
-	this->Z = Other.Z;
-	this->W = Other.W;
-
-	return *this;
-}
-#endif
 
 template<typename T>
 FORCEINLINE TQuat<T>::TQuat(TVector<T> Axis, T AngleRad)
