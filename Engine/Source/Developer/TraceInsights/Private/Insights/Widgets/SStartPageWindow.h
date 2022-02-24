@@ -25,6 +25,19 @@ namespace Insights
 	struct FStoreBrowserTraceInfo;
 }
 
+namespace TraceStoreColumns
+{
+	static const FName Date(TEXT("Date"));
+	static const FName Name(TEXT("Name"));
+	static const FName Uri(TEXT("Uri"));
+	static const FName Platform(TEXT("Platform"));
+	static const FName AppName(TEXT("AppName"));
+	static const FName BuildConfig(TEXT("BuildConfig"));
+	static const FName BuildTarget(TEXT("BuildTarget"));
+	static const FName Size(TEXT("Size"));
+	static const FName Status(TEXT("Status"));
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Type definition for shared pointers to instances of SNotificationItem. */
@@ -227,6 +240,12 @@ private:
 	 */
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)  override;
 
+	EColumnSortMode::Type GetSortModeForColumn(const FName ColumnId) const;
+	void OnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+
+	void UpdateSorting();
+	void UpdateTraceListView();
+
 private:
 	/** Widget for the non-intrusive notifications. */
 	TSharedPtr<SNotificationList> NotificationList;
@@ -263,6 +282,9 @@ private:
 
 	TSharedPtr<SListView<TSharedPtr<FTraceViewModel>>> TraceListView;
 	TSharedPtr<FTraceViewModel> SelectedTrace;
+
+	FName SortColumn;
+	EColumnSortMode::Type SortMode;
 
 	FString SplashScreenOverlayTraceFile;
 	float SplashScreenOverlayFadeTime;
