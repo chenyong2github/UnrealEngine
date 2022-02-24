@@ -47,7 +47,7 @@ namespace Chaos
 
 					if ((ParticleA != nullptr) && (ParticleB != nullptr))
 					{
-						ProduceOverlaps(Dt, NarrowPhase, ParticleA, ParticleB);
+						ProduceOverlaps(Dt, NarrowPhase, ParticleA, ParticleB, ParticleA);
 					}
 				}
 			}
@@ -62,7 +62,7 @@ namespace Chaos
 						{
 							if (ParticleB != nullptr)
 							{
-								ProduceOverlaps(Dt, NarrowPhase, ParticleA, ParticleB);
+								ProduceOverlaps(Dt, NarrowPhase, ParticleA, ParticleB, ParticleA);
 							}
 						}
 					}
@@ -75,13 +75,14 @@ namespace Chaos
 			FReal Dt,
 			FNarrowPhase& NarrowPhase,
 			FParticleHandle* ParticleA,
-			FParticleHandle* ParticleB)
+			FParticleHandle* ParticleB,
+			FParticleHandle* SearchParticle)
 		{
 			const FAABB3& Box0 = ParticleA->WorldSpaceInflatedBounds();
 			const FAABB3& Box1 = ParticleB->WorldSpaceInflatedBounds();
 			if (Box0.Intersects(Box1))
 			{
-				NarrowPhase.GenerateCollisions(Dt, ParticleA, ParticleB, true);
+				NarrowPhase.GenerateCollisions(Dt, ParticleA, ParticleB, SearchParticle, true);
 			}
 		}
 

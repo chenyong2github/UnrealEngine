@@ -34,9 +34,9 @@ namespace Chaos
 		FReal GetBoundsVelocityInflation() const { return BoundsVelocityInflation; }
 		void SetBoundsVelocityInflation(const FReal InBoundsVelocityInflation) { BoundsVelocityInflation = InBoundsVelocityInflation; }
 
-		void GenerateCollisions(FReal Dt, TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const bool bForceDisableCCD)
+		void GenerateCollisions(FReal Dt, TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, TGeometryParticleHandle<FReal, 3>* SearchParticlePerfHint, const bool bForceDisableCCD)
 		{
-			FParticlePairMidPhase* MidPhase = CollisionAllocator->GetParticlePairMidPhase(Particle0, Particle1);
+			FParticlePairMidPhase* MidPhase = CollisionAllocator->GetParticlePairMidPhase(Particle0, Particle1, SearchParticlePerfHint);
 			if (MidPhase != nullptr)
 			{
 				Context.bForceDisableCCD = bForceDisableCCD;
@@ -44,9 +44,9 @@ namespace Chaos
 			}
 		}
 
-		FParticlePairMidPhase* GetParticlePairMidPhase(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1)
+		FParticlePairMidPhase* GetParticlePairMidPhase(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, TGeometryParticleHandle<FReal, 3>* SearchParticlePerfHint )
 		{
-			return CollisionAllocator->GetParticlePairMidPhase(Particle0, Particle1);
+			return CollisionAllocator->GetParticlePairMidPhase(Particle0, Particle1, SearchParticlePerfHint);
 		}
 
 		// Use this function if a Mid phase pair is already allocated

@@ -163,11 +163,11 @@ namespace Chaos
 		 * @note Nothing outside of thie allocator should hold a pointer to the midphase, or any constraints 
 		 * it creates for more than the duration of the tick. Except the IslandManager :| 
 		*/
-		FParticlePairMidPhase* GetParticlePairMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1)
+		FParticlePairMidPhase* GetParticlePairMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, FGeometryParticleHandle* SearchParticlePerformanceHint)
 		{
 			// NOTE: Called from the CollisionDetection parellel-for loop.
 
-			FParticlePairMidPhase* MidPhase = FindParticlePairMidPhaseImpl(Particle0, Particle1);
+			FParticlePairMidPhase* MidPhase = FindParticlePairMidPhaseImpl(Particle0, Particle1, SearchParticlePerformanceHint);
 			if (MidPhase == nullptr)
 			{
 				MidPhase = CreateParticlePairMidPhase(Particle0, Particle1);
@@ -179,9 +179,9 @@ namespace Chaos
 		/**
 		 * @brief Return a midphase for a particle pair only if it already exists
 		*/
-		FParticlePairMidPhase* FindParticlePairMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1)
+		FParticlePairMidPhase* FindParticlePairMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, FGeometryParticleHandle* SearchParticlePerformanceHint)
 		{
-			return FindParticlePairMidPhaseImpl(Particle0, Particle1);
+			return FindParticlePairMidPhaseImpl(Particle0, Particle1, SearchParticlePerformanceHint);
 		}
 
 		/**
@@ -234,7 +234,7 @@ namespace Chaos
 					Swap(Particle0, Particle1);
 				}
 
-				FParticlePairMidPhase* MidPhase = GetParticlePairMidPhase(Particle0, Particle1);
+				FParticlePairMidPhase* MidPhase = GetParticlePairMidPhase(Particle0, Particle1, SourceConstraint.Particle[0]);
 
 				// We may be adding multiple constraints for the same particle pair, so we need
 				// to make sure the map is up to date in the case where we just created a new MidPhase
@@ -314,10 +314,10 @@ namespace Chaos
 			PruneExpiredMidPhases();
 		}
 
-		FParticlePairMidPhase* FindParticlePairMidPhaseImpl(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1)
+		FParticlePairMidPhase* FindParticlePairMidPhaseImpl(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, FGeometryParticleHandle* SearchParticle)
 		{
 			// Find the existing midphase from one of the particle's lists of midphases
-			FGeometryParticleHandle* SearchParticle = (Particle0->ParticleCollisions().Num() < Particle1->ParticleCollisions().Num()) ? Particle0 : Particle1;
+//			FGeometryParticleHandle* SearchParticle2 = (Particle0->ParticleCollisions().Num() <= Particle1->ParticleCollisions().Num()) ? Particle0 : Particle1;
 
 			const FCollisionParticlePairKey Key = FCollisionParticlePairKey(Particle0, Particle1);
 			return SearchParticle->ParticleCollisions().FindMidPhase(Key.GetKey());

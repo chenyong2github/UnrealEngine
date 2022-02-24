@@ -238,6 +238,7 @@ namespace Chaos
 				const int32 NumPotentials = PotentialIntersections.Num();
 				int32 NumIntoNarrowPhase = 0;
 				TArray<FParticlePairMidPhase*> MidPhasePairs;
+				MidPhasePairs.Reserve(NumPotentials);
 				for (int32 i = 0; i < NumPotentials; ++i)
 				{
 					auto& Particle2 = *PotentialIntersections[i].GetGeometryParticleHandle_PhysicsThread();
@@ -374,19 +375,27 @@ namespace Chaos
 						Swap(ParticleA, ParticleB);
 					}
 
-					FParticlePairMidPhase* MidPhase = NarrowPhase.GetParticlePairMidPhase(ParticleA, ParticleB);
+					FParticlePairMidPhase* MidPhase = NarrowPhase.GetParticlePairMidPhase(ParticleA, ParticleB, Particle1.Handle());
 					if (MidPhase)
 					{
 						MidPhasePairs.Add(MidPhase);
 					}
 				}
 
+				const int32  PrefetchLookahead = 4;
+
+				for (int32 Index = 0; Index < MidPhasePairs.Num() && Index < PrefetchLookahead; Index++)
+				{
+					MidPhasePairs[Index]->CachePrefetch();
+				}
+
+
 				for (int32 Index = 0; Index < MidPhasePairs.Num(); Index++)
 				{
 					// Prefetch next pair
-					if (Index != MidPhasePairs.Num() - 1)
+					if (Index + PrefetchLookahead  < MidPhasePairs.Num())
 					{
-						MidPhasePairs[Index + 1]->CachePrefetch();
+						MidPhasePairs[Index + PrefetchLookahead]->CachePrefetch();
 					}
 
 					FParticlePairMidPhase* MidPhasePair = MidPhasePairs[Index];
