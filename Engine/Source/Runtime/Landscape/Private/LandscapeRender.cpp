@@ -3995,7 +3995,27 @@ void FLandscapeComponentSceneProxy::ChangeComponentScreenSizeToUseSubSections_Re
 
 bool FLandscapeComponentSceneProxy::HeightfieldHasPendingStreaming() const
 {
-	return HeightmapTexture && HeightmapTexture->bHasStreamingUpdatePending;
+	bool bHeightmapTextureStreaming = false;
+
+	if (HeightmapTexture)
+	{
+		bHeightmapTextureStreaming |= HeightmapTexture->bHasStreamingUpdatePending;
+#if WITH_EDITOR
+		bHeightmapTextureStreaming |= HeightmapTexture->IsCompiling();
+#endif
+	}
+
+	bool bVisibilityTextureStreaming = false;
+
+	if (VisibilityWeightmapTexture)
+	{
+		bVisibilityTextureStreaming |= VisibilityWeightmapTexture->bHasStreamingUpdatePending;
+#if WITH_EDITOR
+		bVisibilityTextureStreaming |= VisibilityWeightmapTexture->IsCompiling();
+#endif
+	}
+
+	return bHeightmapTextureStreaming || bVisibilityTextureStreaming;
 }
 
 void FLandscapeComponentSceneProxy::GetHeightfieldRepresentation(UTexture2D*& OutHeightmapTexture, UTexture2D*& OutDiffuseColorTexture, UTexture2D*& OutVisibilityTexture, FHeightfieldComponentDescription& OutDescription) const
