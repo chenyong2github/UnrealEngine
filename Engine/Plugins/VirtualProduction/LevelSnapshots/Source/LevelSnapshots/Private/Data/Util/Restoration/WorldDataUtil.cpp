@@ -124,7 +124,7 @@ namespace UE::LevelSnapshots::Private::Internal
 
 	static void CaptureSnapshotData(const TArray<AActor*>& ActorsInWorld, FWorldSnapshotData& SnapshotData)
 	{
-		FScopedSlowTask CaptureData(ActorsInWorld.Num(), LOCTEXT("TakeSnapshotKey", "Capturing data"));
+		FScopedSlowTask CaptureData(ActorsInWorld.Num(), LOCTEXT("CapturingWorldData", "Capturing data"));
 		CaptureData.MakeDialogDelayed(1.f);
 		
 		const bool bShouldLog = ConsoleVariables::CVarLogTimeTakingSnapshots.GetValueOnAnyThread();
@@ -143,7 +143,7 @@ namespace UE::LevelSnapshots::Private::Internal
 
 	static void ComputeActorHashes(const TArray<AActor*>& ActorsInWorld, FWorldSnapshotData& SnapshotData)
 	{
-		FScopedSlowTask ComputeHash(1.f, LOCTEXT("TakeSnapshotKey", "Computing hashes"));
+		FScopedSlowTask ComputeHash(1.f, LOCTEXT("ComputingDataHashes", "Computing hashes"));
 		ComputeHash.MakeDialogDelayed(1.f);
 		
 		// Hashing takes about half of the time
