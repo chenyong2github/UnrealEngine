@@ -112,21 +112,25 @@ FDMXImportGDTFDMXValue::FDMXImportGDTFDMXValue(const FString& InDMXValueStr)
     }
 };
 
-void FDMXImportGDTFDMXChannel::ParseOffset(const FString& InOffsetStr)
+bool FDMXImportGDTFDMXChannel::ParseOffset(const FString& InOffsetStr)
 {
-    if (!InOffsetStr.IsEmpty())
-    {
-        Offset.Empty();
-        TArray<FString> OffsetStrArray;
-        InOffsetStr.ParseIntoArray(OffsetStrArray, TEXT(","));
+	if (InOffsetStr.IsEmpty())
+	{
+		return false;
+	}
 
-        for (int32 OffsetIndex = 0; OffsetIndex < OffsetStrArray.Num(); ++OffsetIndex)
-        {
-            int32 OffsetValue;
-            LexTryParseString(OffsetValue, *OffsetStrArray[OffsetIndex]);
-            Offset.Add(OffsetValue);
-        }
+    Offset.Empty();
+    TArray<FString> OffsetStrArray;
+    InOffsetStr.ParseIntoArray(OffsetStrArray, TEXT(","));
+
+    for (int32 OffsetIndex = 0; OffsetIndex < OffsetStrArray.Num(); ++OffsetIndex)
+    {
+        int32 OffsetValue;
+        LexTryParseString(OffsetValue, *OffsetStrArray[OffsetIndex]);
+        Offset.Add(OffsetValue);
     }
+    
+	return true;
 }
 
 TArray<FDMXImportGDTFChannelFunction> UDMXImportGDTFDMXModes::GetDMXChannelFunctions(const FDMXImportGDTFDMXMode& InMode)

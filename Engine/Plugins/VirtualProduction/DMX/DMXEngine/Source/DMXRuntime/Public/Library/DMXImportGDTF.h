@@ -613,7 +613,8 @@ struct DMXRUNTIME_API FDMXImportGDTFDMXChannel
 {
     GENERATED_BODY()
 
-    void ParseOffset(const FString& InOffsetStr);
+	/** Parses the offset of the channel. Returns false if no valid offset is specified */
+    bool ParseOffset(const FString& InOffsetStr);
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, BlueprintReadOnly, Category = "DMX")
     int32 DMXBreak = 0;

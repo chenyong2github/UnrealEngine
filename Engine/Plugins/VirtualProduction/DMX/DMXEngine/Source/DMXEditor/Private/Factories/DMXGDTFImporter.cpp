@@ -418,9 +418,16 @@ UDMXImportGDTF* FDMXGDTFImporter::CreateGDTFDesctription()
                         {
                             for (const FXmlNode* DMXChannelNode : DMXChannelsNode->GetChildrenNodes())
                             {
-                                FDMXImportGDTFDMXChannel ImportDMXChannel;
+								FDMXImportGDTFDMXChannel ImportDMXChannel;
+
+								// Ignore Channels that do not specify a valid offset.
+								// E.g. 'Robe Lighting s.r.o.@Robin 800X LEDWash.gdtf' specifies virtual Dimmer channels that have no offset and cannot be accessed.
+								if (!ImportDMXChannel.ParseOffset(DMXChannelNode->GetAttribute("Offset")))
+								{
+									continue;
+								}
+
                                 LexTryParseString(ImportDMXChannel.DMXBreak, *DMXChannelNode->GetAttribute("DMXBreak"));
-                                ImportDMXChannel.ParseOffset(DMXChannelNode->GetAttribute("Offset"));
                                 ImportDMXChannel.Default = FDMXImportGDTFDMXValue(DMXChannelNode->GetAttribute("Default"));
                                 ImportDMXChannel.Highlight = FDMXImportGDTFDMXValue(DMXChannelNode->GetAttribute("Highlight"));
                                 ImportDMXChannel.Geometry = FName(*DMXChannelNode->GetAttribute("Geometry"));
