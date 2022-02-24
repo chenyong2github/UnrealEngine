@@ -2112,6 +2112,7 @@ void AddPass_Rasterize(
 	const bool bHavePrevDrawData = (RenderFlags & NANITE_RENDER_FLAG_HAVE_PREV_DRAW_DATA);
 
 	const bool bProgrammableRaster = BinningData.BinCount > 0;
+	FRDGBufferRef BinIndirectArgs = bProgrammableRaster ? BinningData.IndirectArgs : IndirectArgs;
 
 	auto ConstructRasterBinPassParameters = [&](bool bIsTwoSided) -> FHWRasterizePS::FParameters*
 	{
@@ -2288,9 +2289,7 @@ void AddPass_Rasterize(
 		const FMaterial* VertexMaterial = nullptr;
 		const FMaterial* PixelMaterial = nullptr;
 
-		FRDGBufferRef IndirectArgs = nullptr;
 		uint32 IndirectOffset = 0u;
-
 		uint32 RasterizerBin = ~uint32(0u);
 	};
 
@@ -2379,7 +2378,6 @@ void AddPass_Rasterize(
 
 			// Note: The indirect args offset is in bytes
 			RasterizerPass.IndirectOffset = (RasterizerPass.RasterizerBin * NANITE_RASTERIZER_ARG_COUNT) * 4u;
-			RasterizerPass.IndirectArgs = BinningData.IndirectArgs;
 		}
 	}
 	else
@@ -2387,7 +2385,6 @@ void AddPass_Rasterize(
 		FRasterizerPass& RasterizerPass		= RasterizerPasses.AddDefaulted_GetRef();
 		RasterizerPass.VertexMaterialProxy	= FixedMaterialProxy;
 		RasterizerPass.PixelMaterialProxy	= FixedMaterialProxy;
-		RasterizerPass.IndirectArgs			= IndirectArgs;
 		RasterizerPass.IndirectOffset		= 0u;
 		RasterizerPass.RasterizerBin		= 0u;
 	}
@@ -2434,7 +2431,7 @@ void AddPass_Rasterize(
 	{
 		FHWRasterizePS::FParameters* RasterBinPassParameters = ConstructRasterBinPassParameters(RasterizerPass.RasterPipeline.bIsTwoSided);
 		RasterBinPassParameters->Common.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
-		RasterBinPassParameters->Common.IndirectArgs = RasterizerPass.IndirectArgs;
+		RasterBinPassParameters->Common.IndirectArgs = BinIndirectArgs;
 
 		GraphBuilder.AddPass(
 			bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
@@ -2521,7 +2518,7 @@ void AddPass_Rasterize(
 		{
 			FHWRasterizePS::FParameters* SWRasterBinPassParameters = ConstructRasterBinPassParameters(RasterizerPass.RasterPipeline.bIsTwoSided);
 			SWRasterBinPassParameters->Common.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
-			SWRasterBinPassParameters->Common.IndirectArgs = RasterizerPass.IndirectArgs;
+			SWRasterBinPassParameters->Common.IndirectArgs = BinIndirectArgs;
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,

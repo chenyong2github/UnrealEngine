@@ -74,7 +74,7 @@ uint2 GetVisualizeValues()
 	uint VisualizeValueMax = 0; // InterlockedMax64 using depth (value associated with surviving fragment)
 	uint VisualizeValueAdd = 0; // InterlockedAdd32 (value accumulated with every evaluated fragment)
 	
-	if (VisualizeModeBitMask & VISUALIZE_RASTER_MODE)
+	if (VisualizeModeBitMask & NANITE_VISUALIZE_RASTER_MODE)
 	{
 	#if SOFTWARE_RASTER
 		VisualizeValueMax = 2; // Software Raster
@@ -83,7 +83,7 @@ uint2 GetVisualizeValues()
 	#endif
 	}
 
-	if (VisualizeModeBitMask & VISUALIZE_OVERDRAW)
+	if (VisualizeModeBitMask & NANITE_VISUALIZE_OVERDRAW)
 	{
 		VisualizeValueAdd = 1;
 	}
