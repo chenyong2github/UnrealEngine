@@ -60,10 +60,10 @@ struct FNiagaraDataInterfaceProxyTexture : public FNiagaraDataInterfaceProxy
 					InstanceData->ResolvedTextureRHI = nullptr;
 				}
 			}
-			if (InstanceData->TextureReferenceRHI.IsValid())
+			if (InstanceData->ResolvedTextureRHI.IsValid())
 			{
 				// Make sure the texture is readable, we don't know where it's coming from.
-				RHICmdList.Transition(FRHITransitionInfo(InstanceData->TextureReferenceRHI->GetReferencedTexture(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+				RHICmdList.Transition(FRHITransitionInfo(InstanceData->ResolvedTextureRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 			}
 		}
 	}
