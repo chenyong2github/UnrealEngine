@@ -831,6 +831,7 @@ namespace EpicGames.BuildGraph
 			MacroChoice.Items.Add(CreateSchemaElement("Warning", ScriptSchemaStandardType.Warning));
 			MacroChoice.Items.Add(CreateSchemaElement("Error", ScriptSchemaStandardType.Error));
 			MacroChoice.Items.Add(CreateSchemaElement("Expand", ScriptSchemaStandardType.Expand));
+			MacroChoice.Items.Add(CreateSchemaElement("Label", ScriptSchemaStandardType.Label));
 
 			// Agent scope
 			MacroChoice.Items.Add(CreateSchemaElement("Node", ScriptSchemaStandardType.Node));
