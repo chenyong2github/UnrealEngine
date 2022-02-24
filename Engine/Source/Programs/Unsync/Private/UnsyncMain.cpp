@@ -13,17 +13,18 @@
 #include "UnsyncThread.h"
 #include "UnsyncUtil.h"
 
+UNSYNC_THIRD_PARTY_INCLUDES_START
 #if UNSYNC_PLATFORM_WINDOWS
 #	include <io.h>
+#	include <shellapi.h>
 #endif	// UNSYNC_PLATFORM_WINDOWS
-
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <system_error>
-
 #include <CLI/CLI.hpp>
+UNSYNC_THIRD_PARTY_INCLUDES_END
 
 namespace unsync {
 

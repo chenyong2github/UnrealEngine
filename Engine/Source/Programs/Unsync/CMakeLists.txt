@@ -116,7 +116,7 @@ find_package(fmt CONFIG REQUIRED)
 find_package(unofficial-http-parser CONFIG REQUIRED)
 find_package(zstd CONFIG REQUIRED)
 
-target_include_directories(unsync PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty)
+target_include_directories(unsync PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty ${blake3dir})
 target_compile_definitions(unsync PRIVATE BLAKE3_NO_SSE2=1 BLAKE3_NO_AVX512=1)
 
 target_link_directories(unsync PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib)
@@ -141,10 +141,12 @@ if (UNSYNC_USE_DEBUG_HEAP)
 endif(UNSYNC_USE_DEBUG_HEAP)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-	target_compile_definitions(unsync PRIVATE 
+	target_compile_definitions(unsync PRIVATE
 		UNSYNC_PLATFORM_WINDOWS=1
 		UNSYNC_PLATFORM_UNIX=0
 		UNSYNC_USE_CONCRT=1
+		WIN32_LEAN_AND_MEAN=1
+		NOMINMAX=1
 	)
 else()
 	target_compile_definitions(unsync PRIVATE 
@@ -157,7 +159,6 @@ endif()
 if(MSVC)
 
 	add_definitions(-MP)
-	add_definitions(-DNOMINMAX=1)
 	add_definitions(-D_SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING=1)
 	add_definitions(-D_CRT_SECURE_NO_WARNINGS=1)
 	add_definitions(-D_WINSOCK_DEPRECATED_NO_WARNINGS=1)

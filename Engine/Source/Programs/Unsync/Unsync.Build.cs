@@ -23,6 +23,11 @@ public class Unsync : ModuleRules
 			PrivateDefinitions.Add("UNSYNC_USE_CONCRT=1");
 			PrivateDefinitions.Add("UNSYNC_PLATFORM_UNIX=0");
 			PrivateDefinitions.Add("NOMINMAX=1");
+			PrivateDefinitions.Add("WIN32_LEAN_AND_MEAN=1");
+			PrivateDefinitions.Add("_SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING=1");
+			PrivateDefinitions.Add("_CRT_SECURE_NO_WARNINGS=1");
+			PrivateDefinitions.Add("_WINSOCK_DEPRECATED_NO_WARNINGS=1");
+			PrivateDefinitions.Add("_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING=1");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
 		{

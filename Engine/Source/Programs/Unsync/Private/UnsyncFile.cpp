@@ -14,6 +14,12 @@
 #	include <unistd.h>
 #endif	// UNSYNC_PLATFORM_UNIX
 
+#if UNSYNC_PLATFORM_WINDOWS
+UNSYNC_THIRD_PARTY_INCLUDES_START
+#include <winioctl.h>
+UNSYNC_THIRD_PARTY_INCLUDES_END
+#endif // UNSYNC_PLATFORM_WINDOWS
+
 namespace unsync {
 
 bool GForceBufferedFiles = false;
