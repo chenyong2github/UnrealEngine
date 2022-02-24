@@ -295,7 +295,7 @@ struct FPointConstraintDatas
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 		
-		void InitPointPositionConstraint();
+		void InitPointPositionConstraint(const FReal Dt);
 
 		void InitPointPositionMass();
 		
@@ -337,7 +337,7 @@ struct FPointConstraintDatas
 		
 		void ApplyPointPositionConstraint();
 		
-		FVec3 ComputePointCX();
+		FVec3 ComputePointCX(const bool bLinearCompute);
 		
 		void ApplyAxisPositionConstraint(
 			const int32 ConstraintIndex,
@@ -573,6 +573,7 @@ struct FPointConstraintDatas
 		// World-space constraint settings
 		FVec3 ConnectorXs[MaxConstrainedBodies];			// World-space joint connector positions
 		FRotation3 ConnectorRs[MaxConstrainedBodies];		// World-space joint connector rotations
+		FVec3 ConnectorWDts[MaxConstrainedBodies];			// World-space joint connector angular velocities * dt
 
 		// XPBD Initial iteration world-space body state
 		FVec3 InitConnectorXs[MaxConstrainedBodies];		// World-space joint connector positions
