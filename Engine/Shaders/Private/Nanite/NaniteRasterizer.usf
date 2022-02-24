@@ -134,25 +134,15 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3] )
 	FRasterTri Tri;
 	Tri.bIsValid = true;
 
-	uint3 VertWinding = uint3(0, 1, 2);
-	
 	float3 v01 = Verts[1] - Verts[0];
 	float3 v02 = Verts[2] - Verts[0];
 
+	const bool bIsTwoSided = (RenderFlags & NANITE_RENDER_FLAG_TWO_SIDED) != 0u;
+
 	float DetXY = v01.x * v02.y - v01.y * v02.x;
-	if( DetXY >= 0.0f )
+	if( DetXY >= 0.0f ) // Backface culled (except if two sided)
 	{
-		bool bIsTwoSided = (RenderFlags & NANITE_RENDER_FLAG_TWO_SIDED) != 0u;
-		if (bIsTwoSided)
-		{
-			// Swap winding order to support two sided materials
-			VertWinding.xyz = VertWinding.zyx;
-		}
-		else
-		{
-			// Backface culled
-			Tri.bIsValid = false;
-		}
+		Tri.bIsValid = bIsTwoSided;
 	}
 
 	float InvDet = rcp( DetXY );
@@ -161,9 +151,9 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3] )
 	GradZ.y = ( v01.x * v02.z - v01.z * v02.x ) * InvDet;
 
 	// 16.8 fixed point
-	float2 Vert0 = Verts[VertWinding.x].xy;
-	float2 Vert1 = Verts[VertWinding.y].xy;
-	float2 Vert2 = Verts[VertWinding.z].xy;
+	float2 Vert0 = Verts[0].xy;
+	float2 Vert1 = Verts[1].xy;
+	float2 Vert2 = Verts[2].xy;
 
 	// Bounding rect
 	const float2 MinSubpixel = min3( Vert0, Vert1, Vert2 );
@@ -198,6 +188,14 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3] )
 	Tri.Edge01 = -v01.xy;
 	Tri.Edge12 = Vert1 - Vert2;
 	Tri.Edge20 = v02.xy;
+
+	if (bIsTwoSided)
+	{
+		// Swap winding order to support two sided materials
+		Tri.Edge01 *= -1.0f;
+		Tri.Edge12 *= -1.0f;
+		Tri.Edge20 *= -1.0f;
+	}
 	
 	// Rebase off MinPixel with half pixel offset
 	// 4.8 fixed point
