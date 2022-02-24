@@ -50,14 +50,14 @@ bool FWmfMediaSink::Initialize(TComPtr<FWmfMediaStreamSink> InStreamSink)
 		return false;
 	}
 
-#if WMFMEDIA_PLAYER_VERSION >= 2
 	// Now only support for DX11 or DX12
-	const TCHAR* RHIName = GDynamicRHI->GetName();
-	if ((TCString<TCHAR>::Stricmp(RHIName, TEXT("D3D11")) != 0) &&
-		(TCString<TCHAR>::Stricmp(RHIName, TEXT("D3D12")) != 0))
+	ERHIInterfaceType RHIType = RHIGetInterfaceType();
+
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	if (RHIType != ERHIInterfaceType::D3D11 && RHIType != ERHIInterfaceType::D3D12)
 #else
 	// Now only support for DX11
-	if (TCString<TCHAR>::Stricmp(GDynamicRHI->GetName(), TEXT("D3D11")) != 0)
+	if (RHIType != ERHIInterfaceType::D3D11)
 #endif // WMFMEDIA_PLAYER_VERSION >= 2
 	{
 		return false;
@@ -525,8 +525,8 @@ bool FWmfMediaSink::CreateDXGIManagerAndDevice()
 
 		// Is this D3D12?
 		TRefCountPtr<IDXGIAdapter> DXGIAdapter;
-		const TCHAR* RHIName = GDynamicRHI->GetName();
-		if (TCString<TCHAR>::Stricmp(RHIName, TEXT("D3D12")) == 0)
+		ERHIInterfaceType RHIType = RHIGetInterfaceType();
+		if (RHIType == ERHIInterfaceType::D3D12)
 		{
 			TRefCountPtr<IDXGIFactory4> DXGIFactory;
 			Result = CreateDXGIFactory(__uuidof(IDXGIFactory4), (void**)DXGIFactory.GetInitReference());
@@ -546,7 +546,7 @@ bool FWmfMediaSink::CreateDXGIManagerAndDevice()
 			}
 		}
 		// Is this D3D11?
-		else if(TCString<TCHAR>::Stricmp(RHIName, TEXT("D3D11")) == 0)
+		else if(RHIType == ERHIInterfaceType::D3D11)
 		{
 			ID3D11Device* PreExistingD3D11Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
 

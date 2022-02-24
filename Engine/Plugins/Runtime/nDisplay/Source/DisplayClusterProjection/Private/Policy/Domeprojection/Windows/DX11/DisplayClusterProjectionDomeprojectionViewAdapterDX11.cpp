@@ -62,7 +62,7 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::CalculateView(IDisp
 {
 	check(GDynamicRHI);
 
-	FD3D11DynamicRHI* d3d11RHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
+	FD3D11DynamicRHI* d3d11RHI = GetDynamicRHI<FD3D11DynamicRHI>();
 	ID3D11Device* D3D11Device = d3d11RHI ? d3d11RHI->GetDevice() : nullptr;
 	if (!D3D11Device)
 	{
@@ -262,7 +262,7 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::FViewData::Initiali
 	}
 
 	check(GDynamicRHI);
-	FD3D11DynamicRHI* d3d11RHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
+	FD3D11DynamicRHI* d3d11RHI = GetDynamicRHI<FD3D11DynamicRHI>();
 
 	dpResult Result = DisplayClusterProjectionDomeprojectionLibraryDX11::dpCreateContextFunc(&Context, d3d11RHI->GetDevice(), DP_PLUGIN_ID);
 	if (Result != dpNoError)

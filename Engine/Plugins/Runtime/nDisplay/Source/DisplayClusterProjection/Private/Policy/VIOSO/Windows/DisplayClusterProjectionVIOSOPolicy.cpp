@@ -53,7 +53,7 @@ public:
 		DepthStencilView = NULL;
 
 
-		FD3D11DynamicRHI* d3d11RHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
+		FD3D11DynamicRHI* d3d11RHI = GetDynamicRHI<FD3D11DynamicRHI>();
 		DeviceContext = d3d11RHI ? d3d11RHI->GetDeviceContext() : nullptr;
 
 		if (DeviceContext)
@@ -140,21 +140,20 @@ private:
 FDisplayClusterProjectionVIOSOPolicy::FDisplayClusterProjectionVIOSOPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: FDisplayClusterProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 {
-	FString RHIName = GDynamicRHI->GetName();
+	const ERHIInterfaceType RHIType = RHIGetInterfaceType();
 
 	// Create warper for view
-	if (RHIName == DisplayClusterProjectionStrings::rhi::D3D11)
+	if (RHIType == ERHIInterfaceType::D3D11)
 	{
 		RenderDevice = ERenderDevice::D3D11;
 	}
-	else
-	if (RHIName == DisplayClusterProjectionStrings::rhi::D3D12)
+	else if (RHIType == ERHIInterfaceType::D3D12)
 	{
 		RenderDevice = ERenderDevice::D3D12;
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("VIOSO warp projection not supported by '%s' rhi"),*RHIName);
+		UE_LOG(LogDisplayClusterProjectionVIOSO, Error, TEXT("VIOSO warp projection not supported by '%s' rhi"), GDynamicRHI->GetName());
 	}
 }
 
@@ -469,7 +468,7 @@ bool FDisplayClusterProjectionVIOSOPolicy::FViewData::InitializeVIOSO(FRHITextur
 #if VIOSO_USE_GRAPHICS_API_D3D12
 	case ERenderDevice::D3D12:
 	{
-		FD3D12DynamicRHI* DynamicRHI = FD3D12DynamicRHI::GetD3DRHI();
+		FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
 		ID3D12CommandQueue* D3D12CommandQueue = DynamicRHI->RHIGetD3DCommandQueue();
 
 		if (Warper.Initialize(D3D12CommandQueue, InConfigData))

@@ -230,7 +230,7 @@ void BeginOcclusionQueryBatch(uint32 NumOcclusionQueries)
 	if (IsRunningRHIInSeparateThread())
 	{
 
-		GBatcher.StartNewBatch(*(FOpenGLDynamicRHI*)GDynamicRHI);
+		GBatcher.StartNewBatch(*GetDynamicRHI<FOpenGLDynamicRHI>());
 	}
 }
 
@@ -238,7 +238,7 @@ void EndOcclusionQueryBatch()
 {
 	if (IsRunningRHIInSeparateThread())
 	{
-		GBatcher.EndBatch(*(FOpenGLDynamicRHI*)GDynamicRHI);
+		GBatcher.EndBatch(*GetDynamicRHI<FOpenGLDynamicRHI>());
 	}
 }
 
@@ -246,7 +246,7 @@ void FOpenGLDynamicRHI::RHIPollOcclusionQueries()
 {
 	if (IsRunningRHIInSeparateThread())
 	{
-		GBatcher.SoftFlush(*(FOpenGLDynamicRHI*)GDynamicRHI);
+		GBatcher.SoftFlush(*GetDynamicRHI<FOpenGLDynamicRHI>());
 	}
 }
 

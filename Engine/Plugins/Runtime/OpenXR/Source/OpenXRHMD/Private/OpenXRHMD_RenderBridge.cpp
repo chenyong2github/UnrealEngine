@@ -82,7 +82,7 @@ public:
 
 	virtual void* GetGraphicsBinding() override
 	{
-		FD3D12DynamicRHI* DynamicRHI = FD3D12DynamicRHI::GetD3DRHI();
+		FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
 		ID3D12Device* Device = DynamicRHI->GetAdapter().GetD3DDevice();
 		ID3D12CommandQueue* Queue = DynamicRHI->RHIGetD3DCommandQueue();
 

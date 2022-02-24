@@ -89,9 +89,8 @@ namespace UE::PixelStreaming
 		FRHIResourceCreateInfo CreateInfo(TEXT("BlankTexture"));
 
 		FTexture2DRHIRef Texture;
-		FString RHIName = GDynamicRHI->GetName();
 
-		if (RHIName == TEXT("Vulkan"))
+		if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
 		{
 			Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable | TexCreate_External, ERHIAccess::Present, CreateInfo);
 		}

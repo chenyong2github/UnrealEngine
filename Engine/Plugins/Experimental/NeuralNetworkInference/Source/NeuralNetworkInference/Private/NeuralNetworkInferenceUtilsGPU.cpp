@@ -74,9 +74,7 @@ bool FNeuralNetworkInferenceUtilsGPU::GPUSanityChecks(const FRDGBuilder* const I
 
 bool FNeuralNetworkInferenceUtilsGPU::IsD3D12RHI()
 {
-	const FString RHIName = GDynamicRHI->GetName();
-
-	return RHIName == TEXT("D3D12");
+	return RHIGetInterfaceType() == ERHIInterfaceType::D3D12;
 }
 
 ID3D12Resource* FNeuralNetworkInferenceUtilsGPU::GetD3D12Resource(FRHIBuffer* Buffer)

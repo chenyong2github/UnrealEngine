@@ -261,7 +261,7 @@ void FSteamVRHMD::D3D12Bridge::FinishRendering()
 	bool bSubmitDepth = CVarEnableDepthSubmission->GetInt() > 0;
 	vr::EVRSubmitFlags Flags = bSubmitDepth ? vr::EVRSubmitFlags::Submit_TextureWithDepth : vr::EVRSubmitFlags::Submit_Default;
 
-	FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
+	FD3D12DynamicRHI* D3D12RHI = GetDynamicRHI<FD3D12DynamicRHI>();
 	FD3D12Device* Device = D3D12RHI->GetAdapter().GetDevice(0);
 
 	vr::D3D12TextureData_t TextureData;

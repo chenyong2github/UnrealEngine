@@ -89,24 +89,24 @@ namespace AVEncoder
 		}
     }
 
-    bool FAmfCommon::InitializeContext(FString RHIName, void* NativeDevice, void* NativeInstance, void* NativePhysicalDevice)
+    bool FAmfCommon::InitializeContext(ERHIInterfaceType RHIType, const FString& RHIName, void* NativeDevice, void* NativeInstance, void* NativePhysicalDevice)
     {
 		AMF_RESULT Res = AMF_FAIL;
 
 		// Create context
 		Res = AmfFactory->CreateContext(&AmfContext);
 
-		if (RHIName == TEXT("D3D11"))
+		if (RHIType == ERHIInterfaceType::D3D11)
 		{
 			Res = AmfContext->InitDX11(NativeDevice);
-			UE_LOG(LogEncoderAMF, Log, TEXT("Amf initialised with %s"), *RHIName);
+			UE_LOG(LogEncoderAMF, Log, TEXT("Amf initialised with D3D11"));
 		}
-		else if (RHIName == TEXT("D3D12"))
+		else if (RHIType == ERHIInterfaceType::D3D12)
 		{
 			Res = AMFContext2Ptr(AmfContext)->InitDX12(NativeDevice);
-			UE_LOG(LogEncoderAMF, Log, TEXT("Amf initialised with %s"), *RHIName);
+			UE_LOG(LogEncoderAMF, Log, TEXT("Amf initialised with D3D12"));
 		}
-		else if (RHIName == TEXT("Vulkan"))
+		else if (RHIType == ERHIInterfaceType::Vulkan)
 		{
 			amf::AMFContext1Ptr pContext1(AmfContext);
 
@@ -119,13 +119,12 @@ namespace AVEncoder
 				AmfVulkanDevice.hDevice = (VkDevice)NativeDevice;
 
 				Res = pContext1->InitVulkan(&AmfVulkanDevice);
-				UE_LOG(LogEncoderAMF, Log, TEXT("Amf initialised with %s"), *RHIName);
 			}
 			else
 			{
 				Res = pContext1->InitVulkan(NativeDevice);
-				UE_LOG(LogEncoderAMF, Log, TEXT("Amf initialised with %s"), *RHIName);
 			}
+			UE_LOG(LogEncoderAMF, Log, TEXT("Amf initialised with Vulkan"));
 		}
 		else
 		{

@@ -87,7 +87,7 @@ public:
 		{
 //WE COULD ALSO CHECK FOR SINGLE THREADING ISSUES HERE!? -- kinda piggy back on this?
 			// to detect cooking and other commandlets that run with NullRHI
-			if (GDynamicRHI == nullptr || GDynamicRHI->GetName() == FString(TEXT("Null")) || GDynamicRHI->GetName() == FString("Empty"))
+			if (GDynamicRHI == nullptr || RHIGetInterfaceType() == ERHIInterfaceType::Null || RHIGetInterfaceType() == ERHIInterfaceType::Hidden)
 			{
 				UE_LOG(LogElectraPlayerPlugin, Log, TEXT("Dummy Dynamic RHI detected. Electra Player plugin is not initialised"));
 				return;
@@ -95,6 +95,7 @@ public:
 
 			Electra::FParamDict Params;
 			Params.Set("DeviceName", Electra::FVariantValue(FString(GDynamicRHI->GetName())));
+			Params.Set("DeviceType", Electra::FVariantValue(int64(RHIGetInterfaceType())));
 			FElectraPlayerPlugin::PlatformSetupResourceParams(Params);
 			FElectraPlayerPlatform::StartupPlatformResources(Params);
 

@@ -20,16 +20,15 @@ TUniquePtr<IDisplayClusterRenderSyncHelper> FDisplayClusterRenderSyncHelper::Cre
 {
 	if (GDynamicRHI)
 	{
-		const FString RHIName = GDynamicRHI->GetName();
+		const ERHIInterfaceType RHIType = RHIGetInterfaceType();
 
 		// Instantiate DX helper
-		if (RHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase) ||
-			RHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::D3D11 || RHIType == ERHIInterfaceType::D3D12)
 		{
 			return MakeUnique<FDisplayClusterRenderSyncHelper::FDCRSHelperDX>();
 		}
 		// Instantiate Vulkan helper
-		else if (RHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		else if (RHIType == ERHIInterfaceType::Vulkan)
 		{
 			return MakeUnique<FDisplayClusterRenderSyncHelper::FDCRSHelperVulkan>();
 		}

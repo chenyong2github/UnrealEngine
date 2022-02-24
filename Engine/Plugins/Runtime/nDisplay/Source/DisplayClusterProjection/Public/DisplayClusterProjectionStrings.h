@@ -129,10 +129,4 @@ namespace DisplayClusterProjectionStrings
 		static constexpr const TCHAR* Domeprojection = TEXT("domeprojection");
 		static constexpr const TCHAR* Link           = TEXT("link");
 	}
-
-	namespace rhi
-	{
-		static constexpr const TCHAR* D3D11  = TEXT("D3D11");
-		static constexpr const TCHAR* D3D12  = TEXT("D3D12");
-	}
 };

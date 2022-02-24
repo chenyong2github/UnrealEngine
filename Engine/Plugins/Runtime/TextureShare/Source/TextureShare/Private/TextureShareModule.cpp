@@ -112,18 +112,12 @@ bool FTextureShareModule::SetBackbufferRect(int StereoViewIndex, const FIntRect*
 
 ETextureShareDevice FTextureShareModule::GetTextureShareDeviceType() const
 {
-	FString RHIName = GDynamicRHI->GetName();
-	if (RHIName == TEXT("D3D11"))
+	switch (RHIGetInterfaceType())
 	{
-		return ETextureShareDevice::D3D11;
+	case ERHIInterfaceType::D3D11: return ETextureShareDevice::D3D11;
+	case ERHIInterfaceType::D3D12: return ETextureShareDevice::D3D12;
+	default:                       return ETextureShareDevice::Undefined;
 	}
-	else
-		if (RHIName == TEXT("D3D12"))
-		{
-			return ETextureShareDevice::D3D12;
-		}
-
-	return ETextureShareDevice::Undefined;
 };
 
 bool FTextureShareModule::CreateShare(const FString& ShareName, const FTextureShareSyncPolicy& SyncMode, ETextureShareProcess Process, float SyncWaitTime)

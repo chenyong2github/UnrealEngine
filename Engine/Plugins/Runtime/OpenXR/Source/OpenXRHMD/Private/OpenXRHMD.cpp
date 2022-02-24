@@ -852,11 +852,11 @@ bool FOpenXRHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Co
 
 bool CheckPlatformDepthExtensionSupport(const XrInstanceProperties& InstanceProps)
 {
-	if (FCStringAnsi::Strstr(InstanceProps.runtimeName, "SteamVR/OpenXR") && (FApp::GetGraphicsRHI() == TEXT("Vulkan")))
+	if (FCStringAnsi::Strstr(InstanceProps.runtimeName, "SteamVR/OpenXR") && RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
 	{
 		return false;
 	}
-	else if (FCStringAnsi::Strstr(InstanceProps.runtimeName, "Oculus") && (FApp::GetGraphicsRHI() == TEXT("DirectX 12")))
+	else if (FCStringAnsi::Strstr(InstanceProps.runtimeName, "Oculus") && RHIGetInterfaceType() == ERHIInterfaceType::D3D12)
 	{
 		// No PF_DepthStencil compatible formats offered yet
 		return false;

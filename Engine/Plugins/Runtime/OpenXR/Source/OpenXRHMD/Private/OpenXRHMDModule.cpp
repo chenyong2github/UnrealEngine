@@ -246,9 +246,7 @@ bool FOpenXRHMDModule::InitRenderBridge()
 		}
 	}
 
-
-	FString RHIString = FApp::GetGraphicsRHI();
-	if (RHIString.IsEmpty())
+	if (GDynamicRHI == nullptr)
 	{
 		return false;
 	}
@@ -258,42 +256,45 @@ bool FOpenXRHMDModule::InitRenderBridge()
 		return false;
 	}
 
+	const ERHIInterfaceType RHIType = RHIGetInterfaceType();
+
 #ifdef XR_USE_GRAPHICS_API_D3D11
-	if (RHIString == TEXT("DirectX 11") && IsExtensionEnabled(XR_KHR_D3D11_ENABLE_EXTENSION_NAME))
+	if (RHIType == ERHIInterfaceType::D3D11 && IsExtensionEnabled(XR_KHR_D3D11_ENABLE_EXTENSION_NAME))
 	{
 		RenderBridge = CreateRenderBridge_D3D11(Instance, System);
 	}
 	else
 #endif
 #ifdef XR_USE_GRAPHICS_API_D3D12
-	if (RHIString == TEXT("DirectX 12") && IsExtensionEnabled(XR_KHR_D3D12_ENABLE_EXTENSION_NAME))
+	if (RHIType == ERHIInterfaceType::D3D12 && IsExtensionEnabled(XR_KHR_D3D12_ENABLE_EXTENSION_NAME))
 	{
 		RenderBridge = CreateRenderBridge_D3D12(Instance, System);
 	}
 	else
 #endif
 #if defined(XR_USE_GRAPHICS_API_OPENGL_ES) && defined(XR_USE_PLATFORM_ANDROID)
-	if (RHIString == TEXT("OpenGL") && IsExtensionEnabled(XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME))
+	if (RHIType == ERHIInterfaceType::OpenGL && IsExtensionEnabled(XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME))
 	{
 		RenderBridge = CreateRenderBridge_OpenGLES(Instance, System);
 	}
 	else
 #endif
 #ifdef XR_USE_GRAPHICS_API_OPENGL
-	if (RHIString == TEXT("OpenGL") && IsExtensionEnabled(XR_KHR_OPENGL_ENABLE_EXTENSION_NAME))
+	if (RHIType == ERHIInterfaceType::OpenGL && IsExtensionEnabled(XR_KHR_OPENGL_ENABLE_EXTENSION_NAME))
 	{
 		RenderBridge = CreateRenderBridge_OpenGL(Instance, System);
 	}
 	else
 #endif
 #ifdef XR_USE_GRAPHICS_API_VULKAN
-	if (RHIString == TEXT("Vulkan") && IsExtensionEnabled(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
+	if (RHIType == ERHIInterfaceType::Vulkan && IsExtensionEnabled(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
 	{
 		RenderBridge = CreateRenderBridge_Vulkan(Instance, System);
 	}
 	else
 #endif
 	{
+		FString RHIString = FApp::GetGraphicsRHI();
 		UE_LOG(LogHMD, Warning, TEXT("%s is not currently supported by the OpenXR runtime"), *RHIString);
 		return false;
 	}

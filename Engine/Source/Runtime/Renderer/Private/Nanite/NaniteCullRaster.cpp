@@ -2596,8 +2596,7 @@ FRasterContext InitRasterContext(
 	{
 		// Determine what is providing support for atomics.
 #if PLATFORM_WINDOWS
-		// TODO: This... should be cleaned up. No way to query the RHI in another capacity.
-		static const bool bIsDx12 = FCString::Stristr(GDynamicRHI->GetName(), TEXT("D3D12")) != nullptr; // Also covers -rhivalidation => D3D12_Validation
+		const bool bIsDx12 = RHIGetInterfaceType() == ERHIInterfaceType::D3D12;
 
 		if (!FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(GShaderPlatformForFeatureLevel[SharedContext.FeatureLevel]))
 		{

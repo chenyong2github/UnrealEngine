@@ -30,13 +30,10 @@ bool FCEFWebBrowserWindowRHIHelper::BUseRHIRenderer()
 #if WITH_ENGINE
 	if (GDynamicRHI != nullptr && FCEFWebBrowserWindow::CanSupportAcceleratedPaint())
 	{
-		static bool sbD3D11Renderer = TCString<TCHAR>::Stricmp(GDynamicRHI->GetName(), TEXT("D3D11")) == 0;
-		return sbD3D11Renderer;
+		return RHIGetInterfaceType() == ERHIInterfaceType::D3D11;
 	}
-	return false;
-#else
-	return false;
 #endif
+	return false;
 }
 
 void FCEFWebBrowserWindowRHIHelper::UpdateCachedGeometry(const FGeometry& AllottedGeometryIn)

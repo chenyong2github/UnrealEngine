@@ -22,25 +22,27 @@
 #include "Misc/DisplayClusterStrings.h"
 
 
-TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRenderDeviceFactoryInternal::Create(const FString& InDeviceType, const FString& InRHIName)
+TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRenderDeviceFactoryInternal::Create(const FString& InDeviceType)
 {
+	const ERHIInterfaceType RHIType = RHIGetInterfaceType();
+
 	// Monoscopic
 	if (InDeviceType.Equals(DisplayClusterStrings::args::dev::Mono, ESearchCase::IgnoreCase))
 	{
 #if PLATFORM_WINDOWS
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::D3D11)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating DX11 monoscopic device..."));
 			return MakeShared<FDisplayClusterDeviceMonoscopicDX11, ESPMode::ThreadSafe>();
 		}
-		else if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
+		else if (RHIType == ERHIInterfaceType::D3D12)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating DX12 monoscopic device..."));
 			return MakeShared<FDisplayClusterDeviceMonoscopicDX12, ESPMode::ThreadSafe>();
 		}
 		else
 #endif
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::Vulkan)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating Vulkan monoscopic device..."));
 			return MakeShared<FDisplayClusterDeviceMonoscopicVulkan, ESPMode::ThreadSafe>();
@@ -50,19 +52,19 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 	else if (InDeviceType.Equals(DisplayClusterStrings::args::dev::QBS, ESearchCase::IgnoreCase))
 	{
 #if PLATFORM_WINDOWS
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::D3D11)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D11 quad buffer stereo device..."));
 			return MakeShared<FDisplayClusterDeviceQuadBufferStereoDX11, ESPMode::ThreadSafe>();
 		}
-		else if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
+		else if (RHIType == ERHIInterfaceType::D3D12)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 quad buffer stereo device..."));
 			return MakeShared<FDisplayClusterDeviceQuadBufferStereoDX12, ESPMode::ThreadSafe>();
 		}
 		else
 #endif
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::Vulkan)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating Vulkan quad buffer stereo device..."));
 			return MakeShared<FDisplayClusterDeviceQuadBufferStereoVulkan, ESPMode::ThreadSafe>();
@@ -72,19 +74,19 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 	else if (InDeviceType.Equals(DisplayClusterStrings::args::dev::SbS, ESearchCase::IgnoreCase))
 	{
 #if PLATFORM_WINDOWS
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::D3D11)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D11 side-by-side stereo device..."));
 			return MakeShared<FDisplayClusterDeviceSideBySideDX11, ESPMode::ThreadSafe>();
 		}
-		else if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
+		else if (RHIType == ERHIInterfaceType::D3D12)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 side-by-side stereo device..."));
 			return MakeShared<FDisplayClusterDeviceSideBySideDX12, ESPMode::ThreadSafe>();
 		}
 		else
 #endif
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::Vulkan)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating Vulkan side-by-side stereo device..."));
 			return MakeShared<FDisplayClusterDeviceSideBySideVulkan, ESPMode::ThreadSafe>();
@@ -94,26 +96,26 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 	else if (InDeviceType.Equals(DisplayClusterStrings::args::dev::TB, ESearchCase::IgnoreCase))
 	{
 #if PLATFORM_WINDOWS
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::D3D11)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D11 top-bottom stereo device..."));
 			return MakeShared<FDisplayClusterDeviceTopBottomDX11, ESPMode::ThreadSafe>();
 		}
-		else if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
+		else if (RHIType == ERHIInterfaceType::D3D12)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating D3D12 top-bottom stereo device..."));
 			return MakeShared<FDisplayClusterDeviceTopBottomDX12, ESPMode::ThreadSafe>();
 		}
 		else
 #endif
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::Vulkan)
 		{
 			UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating Vulkan top-bottom stereo device..."));
 			return MakeShared<FDisplayClusterDeviceTopBottomVulkan, ESPMode::ThreadSafe>();
 		}
 	}
 
-	UE_LOG(LogDisplayClusterRender, Warning, TEXT("An internal rendering device factory couldn't create a device %s:%s"), *InRHIName, *InDeviceType);
+	UE_LOG(LogDisplayClusterRender, Warning, TEXT("An internal rendering device factory couldn't create a device %s:%s"), GDynamicRHI->GetName(), *InDeviceType);
 
 	return nullptr;
 }

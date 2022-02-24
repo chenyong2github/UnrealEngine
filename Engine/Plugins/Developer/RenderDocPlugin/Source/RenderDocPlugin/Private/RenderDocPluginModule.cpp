@@ -98,7 +98,7 @@ public:
 	static RENDERDOC_DevicePointer GetRenderdocDevicePointer()
 	{
 		RENDERDOC_DevicePointer Device;
-		if(0 == FCString::Strcmp(GDynamicRHI->GetName(),TEXT("Vulkan")))
+		if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
 		{
 			Device = GDynamicRHI->RHIGetNativeInstance();
 #ifndef RENDERDOC_DEVICEPOINTER_FROM_VKINSTANCE

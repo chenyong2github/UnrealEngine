@@ -12,6 +12,7 @@
 #include "ElectraPlayer.h"
 
 #include "ParameterDictionary.h"
+#include "RHIDefinitions.h"
 
 // ----------------------------------------------------------------------------------------------------------------------
 
@@ -57,9 +58,9 @@ bool CreateDirectXResources(const FParamDict& Params)
 	if (Electra::IsWindows8Plus())
 	{
 		static const FString DeviceKey("Device");
-		static const FString DeviceNameKey("DeviceName");
+		static const FString DeviceTypeKey("DeviceType");
 
-		if (!Params.HaveKey(DeviceKey) || !Params.HaveKey(DeviceNameKey))
+		if (!Params.HaveKey(DeviceKey) || !Params.HaveKey(DeviceTypeKey))
 		{
 			UE_LOG(LogElectraPlayer, Warning, TEXT("ElectraPlayer: Missing rendering device info"));
 			return false;
@@ -79,9 +80,9 @@ bool CreateDirectXResources(const FParamDict& Params)
 		uint32 UE4DxDeviceCreationFlags = 0;
 		TRefCountPtr<IDXGIAdapter> DXGIAdapter;
 
-		FString DeviceName = Params.GetValue(DeviceNameKey).GetFString();
+		const ERHIInterfaceType RHIType = (ERHIInterfaceType)Params.GetValue(DeviceTypeKey).GetInt64();
 
-		if (DeviceName.StartsWith(TEXT("D3D11")))
+		if (RHIType == ERHIInterfaceType::D3D11)
 		{
 			ID3D11Device* UE4DxDevice = static_cast<ID3D11Device*>(Params.GetValue(DeviceKey).GetPointer());
 
@@ -96,7 +97,7 @@ bool CreateDirectXResources(const FParamDict& Params)
 
 			Electra::FDXDeviceInfo::s_DXDeviceInfo->DxVersion = Electra::FDXDeviceInfo::ED3DVersion::Version11Win8;
 		}
-		else if (DeviceName.StartsWith(TEXT("D3D12")))
+		else if (RHIType == ERHIInterfaceType::D3D12)
 		{
 			TRefCountPtr<IDXGIFactory4> DXGIFactory;
 			CHECK_HR(CreateDXGIFactory(__uuidof(IDXGIFactory4), (void**)DXGIFactory.GetInitReference()));

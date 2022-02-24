@@ -17,10 +17,10 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> FDisplayClusterProjectionDomeprojectionPolicyFactory::Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 {
-	FString RHIName = GDynamicRHI->GetName();
+	const ERHIInterfaceType RHIType = RHIGetInterfaceType();
 
 #if PLATFORM_WINDOWS
-	if (RHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase))
+	if (RHIType == ERHIInterfaceType::D3D11)
 	{
 		check(InConfigurationProjectionPolicy != nullptr);
 
@@ -29,7 +29,7 @@ TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> FDisplayCluster
 	}
 #endif
 
-	UE_LOG(LogDisplayClusterProjectionDomeprojection, Warning, TEXT("There is no implementation of '%s' projection policy for RHI %s"), *InConfigurationProjectionPolicy->Type, *RHIName);
+	UE_LOG(LogDisplayClusterProjectionDomeprojection, Warning, TEXT("There is no implementation of '%s' projection policy for RHI %s"), *InConfigurationProjectionPolicy->Type, GDynamicRHI->GetName());
 
 	return nullptr;
 }

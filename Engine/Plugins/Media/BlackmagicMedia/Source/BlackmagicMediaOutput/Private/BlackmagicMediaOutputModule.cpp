@@ -33,23 +33,14 @@ void FBlackmagicMediaOutputModule::StartupModule()
 
 					auto GetRHI = []()
 					{
-						FString RHIName = GDynamicRHI->GetName();
-						if (RHIName == TEXT("D3D11"))
+						switch (RHIGetInterfaceType())
 						{
-							return BlackmagicDesign::ERHI::D3D11;
+						case ERHIInterfaceType::D3D11: return BlackmagicDesign::ERHI::D3D11;
+						case ERHIInterfaceType::D3D12: return BlackmagicDesign::ERHI::D3D12;
+						case ERHIInterfaceType::Vulkan: return BlackmagicDesign::ERHI::Vulkan;
+						default: return BlackmagicDesign::ERHI::Invalid;
 						}
-						else if (RHIName == TEXT("D3D12"))
-						{
-							return BlackmagicDesign::ERHI::D3D12;
-						}
-						else if (RHIName == TEXT("Vulkan"))
-						{
-							return BlackmagicDesign::ERHI::Vulkan;
-						}
-
-						return  BlackmagicDesign::ERHI::Invalid;
 					};
-
 
 					BlackmagicDesign::FInitializeDMAArgs Args;
 					BlackmagicDesign::ERHI RHI = GetRHI();

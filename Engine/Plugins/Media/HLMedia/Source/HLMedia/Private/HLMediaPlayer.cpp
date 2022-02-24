@@ -375,8 +375,8 @@ bool FHLMediaPlayer::InitializePlayer(const TSharedPtr<FArchive, ESPMode::Thread
 
         ID3D11Device* Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
 		checkf(Device, TEXT("No available D3D11Device"));
-		FString RHIString = FApp::GetGraphicsRHI();
-		if (RHIString == TEXT("DirectX 12"))
+
+		if (RHIGetInterfaceType() == ERHIInterfaceType::D3D12)
 		{
 			ID3D11Device* PrevDevice = Device;
 			ID3D12Device* D3d12Device = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());

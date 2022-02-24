@@ -60,7 +60,7 @@ bool FD3D12CrossGPUItem::CreateSharingHeapResource(ID3D12Resource* SrcResource, 
 #endif
 
 
-	FD3D12DynamicRHI* DynamicRHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
+	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
 	Resource = DynamicRHI->RHICreateTexture2DFromResource(Format, TexCreate_None, FClearValueBinding::None, D3D12Resource).GetReference();
 
 	return Resource.IsValid();
@@ -75,7 +75,7 @@ bool FD3D12CrossGPUItem::OpenSharingHeapResource(HANDLE ResourceHandle, EPixelFo
 {
 	auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
 
-	FD3D12DynamicRHI* DynamicRHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
+	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
 
 	// Open shared handle on secondaryDevice device
 #if TE_USE_NAMEDSHARE
@@ -152,7 +152,7 @@ bool FD3D12CrossGPUItem::CreateCudaResource(ID3D12Resource* SrcResource, FIntPoi
 		IID_PPV_ARGS(D3D12Resource.GetInitReference())));
 
 	// Setup SRV
-	FD3D12DynamicRHI* DynamicRHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
+	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
 	Resource = DynamicRHI->RHICreateTexture2DFromResource(Format, TexCreate_None, FClearValueBinding::None, D3D12Resource).GetReference();
 
 	if (!Resource.IsValid())

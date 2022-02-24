@@ -36,7 +36,7 @@ public:
 					UE_LOG(LogEncoderAMF, Error, TEXT("Vulkan AMF is currently unsuported and has been disabled."));
 					return;
 #endif
-					AMF.InitializeContext("Vulkan", NULL);
+					AMF.InitializeContext(ERHIInterfaceType::Vulkan, "Vulkan", NULL);
 					amf::AMFContext1Ptr pContext1(AMF.GetContext());
 
 					amf_size NumDeviceExtensions = 0;

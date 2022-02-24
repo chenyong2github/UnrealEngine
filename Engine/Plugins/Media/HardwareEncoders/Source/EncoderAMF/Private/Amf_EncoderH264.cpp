@@ -143,7 +143,7 @@ namespace AVEncoder
 				
 		TSharedRef<FVideoEncoderInputImpl>	Input(StaticCastSharedRef<FVideoEncoderInputImpl>(input));
 
-		FString RHIName = "null";
+		ERHIInterfaceType RHIType = ERHIInterfaceType::Hidden;
 
 		// TODO fix initializing contexts
 		FrameFormat = input->GetFrameFormat();
@@ -152,16 +152,16 @@ namespace AVEncoder
 #if PLATFORM_WINDOWS
 		case AVEncoder::EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
 			EncoderDevice = Input->GetD3D11EncoderDevice();
-			RHIName = "D3D11";
+			RHIType = ERHIInterfaceType::D3D11;
 			break;
 		case AVEncoder::EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
 			EncoderDevice = Input->GetD3D12EncoderDevice();
-			RHIName = "D3D12";
+			RHIType = ERHIInterfaceType::D3D12;
 			break;
 #endif
 		case AVEncoder::EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM:
 			EncoderDevice = Input->GetVulkanEncoderDevice();
-			RHIName = "Vulkan";
+			RHIType = ERHIInterfaceType::Vulkan;
 			break;
 		case AVEncoder::EVideoFrameFormat::Undefined:
 		default:
@@ -170,7 +170,7 @@ namespace AVEncoder
 		}
 
 		//TODO(sandor.hadas) see if the current issues with AMF can be resolved then remove this error message
-		if (RHIName == "D3D11")
+		if (RHIType == ERHIInterfaceType::D3D11)
 		{
 			UE_LOG(LogEncoderAMF, Error, TEXT("AMF with DX11 is not currently supported try DX12 or Vulkan."));
 			return false;
@@ -184,9 +184,9 @@ namespace AVEncoder
 				
 		if (!Amf.GetIsCtxInitialized())
 		{	
-			if (RHIName != "Vulkan")
+			if (RHIType != ERHIInterfaceType::Vulkan)
 			{
-				if (!Amf.InitializeContext(GDynamicRHI->GetName(), EncoderDevice))
+				if (!Amf.InitializeContext(RHIGetInterfaceType(), GDynamicRHI->GetName(), EncoderDevice))
 				{
 					UE_LOG(LogEncoderAMF, Error, TEXT("Amf component not initialised"));
 				}
@@ -194,7 +194,7 @@ namespace AVEncoder
 			else
 			{
 				FVulkanDataStruct* VulkanData = static_cast<FVulkanDataStruct*>(EncoderDevice);
-				if (!Amf.InitializeContext(GDynamicRHI->GetName(), VulkanData->VulkanDevice, VulkanData->VulkanInstance, VulkanData->VulkanPhysicalDevice))
+				if (!Amf.InitializeContext(RHIGetInterfaceType(), GDynamicRHI->GetName(), VulkanData->VulkanDevice, VulkanData->VulkanInstance, VulkanData->VulkanPhysicalDevice))
 				{
 					UE_LOG(LogEncoderAMF, Error, TEXT("Amf component not initialised"));
 				}
@@ -520,7 +520,7 @@ namespace AVEncoder
 				Packet.IsKeyFrame = true;
 			}
 
-			if (FString(GDynamicRHI->GetName()) != FString("Vulkan")) // Amf with Vulkan doesn't currently support statistics
+			if (RHIGetInterfaceType() != ERHIInterfaceType::Vulkan) // Amf with Vulkan doesn't currently support statistics
 			{
 				if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_STATISTIC_FRAME_QP, &Packet.VideoQP) != AMF_OK)
 				{
@@ -794,7 +794,7 @@ namespace AVEncoder
 	{
 		bool bSuccess = true;
 
-		AMF.InitializeContext(GDynamicRHI->GetName(), NULL);
+		AMF.InitializeContext(RHIGetInterfaceType(), GDynamicRHI->GetName(), NULL);
 		EncoderInfo.CodecType = ECodecType::H264;
 		
 		// Create temp component

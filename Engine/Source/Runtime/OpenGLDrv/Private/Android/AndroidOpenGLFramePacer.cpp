@@ -390,7 +390,7 @@ bool FAndroidOpenGLFramePacer::SwapBuffers(bool bLockToVsync)
 							break;
 						}
 
-						static_cast<FOpenGLDynamicRHI*>(GDynamicRHI)->RHIPollOcclusionQueries();
+						GetDynamicRHI<FOpenGLDynamicRHI>()->RHIPollOcclusionQueries();
 					}
 				}
 			}

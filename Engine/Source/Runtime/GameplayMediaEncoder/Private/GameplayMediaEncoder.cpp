@@ -218,18 +218,18 @@ bool FGameplayMediaEncoder::Initialize()
 
 	if(GDynamicRHI)
 	{
-		FString RHIName = GDynamicRHI->GetName();
+		const ERHIInterfaceType RHIType = RHIGetInterfaceType();
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
-		if(RHIName == TEXT("D3D11"))
+		if (RHIType == ERHIInterfaceType::D3D11)
 		{
 			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), true, IsRHIDeviceAMD());
 		}
-		else if(RHIName == TEXT("D3D12"))
+		else if (RHIType == ERHIInterfaceType::D3D12)
 		{
 			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), true, IsRHIDeviceNVIDIA());
 		}
-		else if (RHIName == TEXT("Vulkan"))
+		else if (RHIType == ERHIInterfaceType::Vulkan)
 		{
 			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForVulkan(GDynamicRHI->RHIGetNativeDevice(), true);
 		}
@@ -582,8 +582,8 @@ TSharedPtr<AVEncoder::FVideoEncoderInputFrame> FGameplayMediaEncoder::ObtainInpu
 	if(!BackBuffers.Contains(InputFrame))
 	{
 #if PLATFORM_WINDOWS && PLATFORM_DESKTOP
-		FString RHIName = GDynamicRHI->GetName();
-		if(RHIName == TEXT("D3D11"))
+		const ERHIInterfaceType RHIType = RHIGetInterfaceType();
+		if (RHIType == ERHIInterfaceType::D3D11)
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(VideoConfig.Width, VideoConfig.Height, EPixelFormat::PF_B8G8R8A8, 1, 1,
@@ -591,7 +591,7 @@ TSharedPtr<AVEncoder::FVideoEncoderInputFrame> FGameplayMediaEncoder::ObtainInpu
 			InputFrame->SetTexture((ID3D11Texture2D*)Texture->GetNativeResource(), [&, InputFrame](ID3D11Texture2D* NativeTexture) { BackBuffers.Remove(InputFrame); });
 			BackBuffers.Add(InputFrame, Texture);
 		}
-		else if(RHIName == TEXT("D3D12"))
+		else if (RHIType == ERHIInterfaceType::D3D12)
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(VideoConfig.Width, VideoConfig.Height, EPixelFormat::PF_B8G8R8A8, 1, 1,

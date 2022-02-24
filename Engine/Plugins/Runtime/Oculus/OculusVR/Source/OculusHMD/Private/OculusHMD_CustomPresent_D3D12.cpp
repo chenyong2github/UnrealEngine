@@ -73,7 +73,7 @@ bool FD3D12CustomPresent::IsUsingCorrectDisplayAdapter() const
 
 void* FD3D12CustomPresent::GetOvrpDevice() const
 {
-	FD3D12DynamicRHI* DynamicRHI = FD3D12DynamicRHI::GetD3DRHI();
+	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
 	return DynamicRHI->RHIGetD3DCommandQueue();
 }
 
@@ -82,7 +82,7 @@ FTextureRHIRef FD3D12CustomPresent::CreateTexture_RenderThread(uint32 InSizeX, u
 {
 	CheckInRenderThread();
 
-	FD3D12DynamicRHI* DynamicRHI = FD3D12DynamicRHI::GetD3DRHI();
+	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
 
 	// Add TexCreate_Shared flag to indicate the textures are shared with DX11 and therefore its initial state is D3D12_RESOURCE_STATE_COMMON
 	switch (InResourceType)

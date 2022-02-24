@@ -53,7 +53,7 @@ inline bool CreateSharedHandle(ID3D11Device* pD3D11Device, ID3D11Texture2D* pD3D
 
 bool FTextureShareD3D11::CreateRHITexture(ID3D11Texture2D* OpenedSharedResource, EPixelFormat Format, FTexture2DRHIRef& DstTexture)
 {
-	FD3D11DynamicRHI* DynamicRHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
+	FD3D11DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D11DynamicRHI>();
 
 	// Create RHI texture from D3D11 resource
 	ETextureCreateFlags TexCreateFlags = TexCreate_Shared;

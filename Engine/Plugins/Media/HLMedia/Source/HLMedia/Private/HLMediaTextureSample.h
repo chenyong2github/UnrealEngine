@@ -39,11 +39,10 @@ public:
         D3D11_TEXTURE2D_DESC Desc;
         InTexture->GetDesc(&Desc);
 
-		FString RHIString = FApp::GetGraphicsRHI();
-		if (RHIString == TEXT("DirectX 12"))
+		if (RHIGetInterfaceType() == ERHIInterfaceType::D3D12)
 		{
 			// MediaFoundation creates a DX11 texture.  To use this texture with DX12, open the shared handle with the DX12 RHI.
-			FD3D12DynamicRHI* DX12RHI = StaticCast<FD3D12DynamicRHI*>(GDynamicRHI);
+			FD3D12DynamicRHI* DX12RHI = GetDynamicRHI<FD3D12DynamicRHI>();
 			TComPtr<ID3D12Resource> sharedMediaTexture;
 			if (FAILED(DX12RHI->GetAdapter().GetD3DDevice()->OpenSharedHandle(InSharedTextureHandle, IID_PPV_ARGS(&sharedMediaTexture))))
 			{

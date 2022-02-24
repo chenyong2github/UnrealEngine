@@ -31,7 +31,7 @@ inline bool CreateSharedHandle(ID3D12Device* pD3D12Device, ID3D12Resource* pD3D1
 
 bool FTextureShareD3D12::CreateRHITexture(ID3D12Resource* OpenedSharedResource, EPixelFormat Format, FTexture2DRHIRef& DstTexture)
 {
-	FD3D12DynamicRHI* DynamicRHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
+	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
 
 	ETextureCreateFlags TexCreateFlags = TexCreate_Shared;
 	DstTexture = DynamicRHI->RHICreateTexture2DFromResource(Format, TexCreateFlags, FClearValueBinding::None, (ID3D12Resource*)OpenedSharedResource).GetReference();

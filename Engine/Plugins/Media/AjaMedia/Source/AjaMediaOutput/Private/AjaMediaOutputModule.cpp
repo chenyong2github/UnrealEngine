@@ -33,22 +33,13 @@ void FAjaMediaOutputModule::StartupModule()
 
 					auto GetRHI = []()
 					{
-						FString RHIName = GDynamicRHI->GetName();
-						if (RHIName == TEXT("D3D11"))
+						switch (RHIGetInterfaceType())
 						{
-							return AJA::ERHI::D3D11;
+						case ERHIInterfaceType::D3D11: return AJA::ERHI::D3D11;
+						case ERHIInterfaceType::D3D12: return AJA::ERHI::D3D12;
+						case ERHIInterfaceType::Vulkan: return AJA::ERHI::Vulkan;
+						default: return AJA::ERHI::Invalid;
 						}
-						else if (RHIName == TEXT("D3D12"))
-						{
-							return AJA::ERHI::D3D12;
-						}
-						else if (RHIName == TEXT("Vulkan"))
-						{
-							return AJA::ERHI::Vulkan;
-						}
-
-						return AJA::ERHI::Invalid;
-
 					};
 
 					AJA::FInitializeDMAArgs Args;
@@ -57,7 +48,7 @@ void FAjaMediaOutputModule::StartupModule()
 					/* Re-enable when adding vulkan support
 					if (RHI == AJA::ERHI::Vulkan)
 					{
-						FVulkanDynamicRHI* vkDynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
+						FVulkanDynamicRHI* vkDynamicRHI = GetDynamicRHI<FVulkanDynamicRHI>();
 						Args.InVulkanInstance = vkDynamicRHI->GetInstance();
 
 						FMemory::Memcpy(Args.InRHIDeviceUUID, vkDynamicRHI->GetDevice()->GetDeviceIdProperties().deviceUUID, 16);

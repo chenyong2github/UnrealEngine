@@ -304,16 +304,13 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ForceCPUIfNoGPU(ENeuralDeviceType& In
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::IsGPUSupported()
 {
-#ifdef WITH_UE_AND_ORT_SUPPORT
-#ifdef PLATFORM_WIN64
+#if defined(WITH_UE_AND_ORT_SUPPORT) && PLATFORM_WINDOWS
 	// Return whether it is DX12
-	const FString RHIName = GDynamicRHI->GetName();
-	return (RHIName == TEXT("D3D12"));
-#endif //PLATFORM_WIN64
-#endif //WITH_UE_AND_ORT_SUPPORT
-
+	return RHIGetInterfaceType() == ERHIInterfaceType::D3D12;
+#else
 	// If not Windows and/or if WITH_UE_AND_ORT_SUPPORT not defined, then this should return false because GPU will not work
 	return false;
+#endif
 }
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT,
@@ -547,7 +544,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 		}
 
 		// Get adapter's D3D12 device that we would like to share with DirectML execution provider
-		FD3D12DynamicRHI*			RHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
+		FD3D12DynamicRHI*			RHI = GetDynamicRHI<FD3D12DynamicRHI>();
 		FD3D12Adapter&				RHIAdapter = RHI->GetAdapter(0);
 		const FD3D12AdapterDesc&	RHIAdapterDesc = RHIAdapter.GetDesc();
 

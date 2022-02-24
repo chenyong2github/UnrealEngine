@@ -3067,7 +3067,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	}
 	else if (IsRHIDeviceAMD())
 	{
-		static const bool bIsDx12 = FCString::Strcmp(GDynamicRHI->GetName(), TEXT("D3D12")) == 0;
+		const bool bIsDx12 = RHIGetInterfaceType() == ERHIInterfaceType::D3D12;
 		PermutationVector0.Set<FVisiblityRasterComputeCS::FRasterAtomic>(bIsDx12 ? 2 : 3);
 	}
 #else

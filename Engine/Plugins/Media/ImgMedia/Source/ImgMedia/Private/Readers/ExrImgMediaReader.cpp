@@ -231,8 +231,7 @@ TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> FExrImgMediaReader::GetReader(c
 	}
 	
 	// Check GetCompressionName of OpenExrWrapper for other compression names.
-	if (
-		FHardwareInfo::GetHardwareInfo(NAME_RHI) == "D3D12"
+	if (GDynamicRHI && GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12
 		&& Info.CompressionName == "Uncompressed" 
 		&& CVarEnableUncompressedExrGpuReader.GetValueOnAnyThread()
 		)

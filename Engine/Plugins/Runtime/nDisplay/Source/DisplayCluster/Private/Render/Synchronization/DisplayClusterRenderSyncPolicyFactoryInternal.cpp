@@ -12,8 +12,10 @@
 #include "DisplayClusterConfigurationStrings.h"
 
 
-TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFactoryInternal::Create(const FString& InPolicyType, const FString& InRHIName, const TMap<FString, FString>& Parameters)
+TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFactoryInternal::Create(const FString& InPolicyType, const TMap<FString, FString>& Parameters)
 {
+	const ERHIInterfaceType RHIType = RHIGetInterfaceType();
+
 	// None
 	if (InPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::None, ESearchCase::IgnoreCase))
 	{
@@ -28,17 +30,16 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFacto
 	else if (InPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::Ethernet, ESearchCase::IgnoreCase))
 	{
 #if PLATFORM_WINDOWS
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11,  ESearchCase::IgnoreCase) ||
-			InRHIName.Equals(DisplayClusterStrings::rhi::D3D12,  ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::D3D11 || RHIType == ERHIInterfaceType::D3D12)
 		{
 			return MakeShared<FDisplayClusterRenderSyncPolicyEthernet>(Parameters);
 		}
-		else if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		else if (RHIType == ERHIInterfaceType::Vulkan)
 		{
 			return MakeShared<FDisplayClusterRenderSyncPolicyEthernetBarrier>(Parameters);
 		}
 #elif PLATFORM_LINUX
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::Vulkan)
 		{
 			return MakeShared<FDisplayClusterRenderSyncPolicyEthernet>(Parameters);
 		}
@@ -48,26 +49,23 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFacto
 	else if (InPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia, ESearchCase::IgnoreCase))
 	{
 #if PLATFORM_WINDOWS
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::D3D11, ESearchCase::IgnoreCase) ||
-			InRHIName.Equals(DisplayClusterStrings::rhi::D3D12, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::D3D11 || RHIType == ERHIInterfaceType::D3D12)
 		{
 			return MakeShared<FDisplayClusterRenderSyncPolicyNvidia>(Parameters);
 		}
-		else if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		else if (RHIType == ERHIInterfaceType::Vulkan)
 		{
-			UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Sync policy '%s' has not been implemented for '%s' RHI. Default '%s' will be used."),
+			UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Sync policy '%s' has not been implemented for 'Vulkan' RHI. Default '%s' will be used."),
 				DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia,
-				*InRHIName,
 				DisplayClusterConfigurationStrings::config::cluster::render_sync::EthernetBarrier);
 
 			return MakeShared<FDisplayClusterRenderSyncPolicyEthernetBarrier>(Parameters);
 		}
 #elif PLATFORM_LINUX
-		if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		if (RHIType == ERHIInterfaceType::Vulkan)
 		{
-			UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Sync policy '%s' has not been implemented for '%s' RHI. Default '%s' will be used."),
+			UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Sync policy '%s' has not been implemented for 'Vulkan' RHI. Default '%s' will be used."),
 				DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia,
-				*InRHIName,
 				DisplayClusterConfigurationStrings::config::cluster::render_sync::EthernetBarrier);
 
 			return MakeShared<FDisplayClusterRenderSyncPolicyEthernetBarrier>(Parameters);

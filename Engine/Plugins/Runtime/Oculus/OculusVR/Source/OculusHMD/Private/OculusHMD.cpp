@@ -9,7 +9,6 @@
 #include "Slate/SceneViewport.h"
 #include "PostProcess/PostProcessHMD.h"
 #include "PostProcess/SceneRenderTargets.h"
-#include "HardwareInfo.h"
 #include "ScreenRendering.h"
 #include "GameFramework/PlayerController.h"
 #include "Math/UnrealMathUtility.h"
@@ -2046,47 +2045,39 @@ namespace OculusHMD
 
 		check(!CustomPresent.IsValid());
 
-		FString RHIString;
-		{
-			FString HardwareDetails = FHardwareInfo::GetHardwareDetailsString();
-			FString RHILookup = NAME_RHI.ToString() + TEXT("=");
-
-			if (!FParse::Value(*HardwareDetails, *RHILookup, RHIString))
-			{
-				return false;
-			}
-		}
+		check(GDynamicRHI);
+		const ERHIInterfaceType RHIType = RHIGetInterfaceType();
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_D3D11
-		if (RHIString == TEXT("D3D11"))
+		if (RHIType == ERHIInterfaceType::D3D11)
 		{
 			CustomPresent = CreateCustomPresent_D3D11(this);
 		}
 		else
 #endif
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_D3D12
-		if (RHIString == TEXT("D3D12"))
+		if (RHIType == ERHIInterfaceType::D3D12)
 		{
 			CustomPresent = CreateCustomPresent_D3D12(this);
 		}
 		else
 #endif
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_OPENGL
-		if (RHIString == TEXT("OpenGL"))
+		if (RHIType == ERHIInterfaceType::OpenGL)
 		{
 			CustomPresent = CreateCustomPresent_OpenGL(this);
 		}
 		else
 #endif
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN
-		if (RHIString == TEXT("Vulkan"))
+		if (RHIType == ERHIInterfaceType::Vulkan)
 		{
 			CustomPresent = CreateCustomPresent_Vulkan(this);
 		}
 		else
 #endif
 		{
-			UE_LOG(LogHMD, Warning, TEXT("%s is not currently supported by OculusHMD plugin"), *RHIString);
+			UE_LOG(LogHMD, Warning, TEXT("%s is not currently supported by OculusHMD plugin"), GDynamicRHI->GetName());
 			return false;
 		}
 

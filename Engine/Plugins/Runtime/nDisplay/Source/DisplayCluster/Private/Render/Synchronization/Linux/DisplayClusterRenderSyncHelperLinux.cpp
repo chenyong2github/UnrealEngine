@@ -14,10 +14,8 @@ TUniquePtr<IDisplayClusterRenderSyncHelper> FDisplayClusterRenderSyncHelper::Cre
 {
 	if (GDynamicRHI)
 	{
-		const FString RHIName = GDynamicRHI->GetName();
-
 		// Instantiate Vulkan helper
-		if (RHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
+		if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
 		{
 			return MakeUnique<FDisplayClusterRenderSyncHelper::FDCRSHelperVulkan>();
 		}

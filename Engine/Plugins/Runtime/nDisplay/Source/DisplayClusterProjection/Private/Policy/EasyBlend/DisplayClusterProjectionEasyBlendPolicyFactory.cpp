@@ -18,17 +18,17 @@ TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> FDisplayCluster
 {
 	check(InConfigurationProjectionPolicy != nullptr);
 
-	FString RHIName = GDynamicRHI->GetName();
+	const ERHIInterfaceType RHIType = RHIGetInterfaceType();
 
 #if PLATFORM_WINDOWS
-	if (RHIName.Equals(DisplayClusterProjectionStrings::rhi::D3D11, ESearchCase::IgnoreCase))
+	if (RHIType == ERHIInterfaceType::D3D11)
 	{
 		UE_LOG(LogDisplayClusterProjectionEasyBlend, Verbose, TEXT("Instantiating projection policy <%s> id='%s'"), *InConfigurationProjectionPolicy->Type, *ProjectionPolicyId);
 		return MakeShared<FDisplayClusterProjectionEasyBlendPolicyDX11, ESPMode::ThreadSafe>(ProjectionPolicyId, InConfigurationProjectionPolicy);
 	}
 #endif
 
-	UE_LOG(LogDisplayClusterProjectionEasyBlend, Warning, TEXT("There is no implementation of '%s' projection policy for RHI %s"), *InConfigurationProjectionPolicy->Type, *RHIName);
+	UE_LOG(LogDisplayClusterProjectionEasyBlend, Warning, TEXT("There is no implementation of '%s' projection policy for RHI %s"), *InConfigurationProjectionPolicy->Type, GDynamicRHI->GetName());
 	
 	return nullptr;
 }

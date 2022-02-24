@@ -42,14 +42,6 @@ namespace DisplayClusterStrings
 		}
 	}
 
-	// RHI names
-	namespace rhi
-	{
-		static constexpr const TCHAR* D3D11  = TEXT("D3D11");
-		static constexpr const TCHAR* D3D12  = TEXT("D3D12");
-		static constexpr const TCHAR* Vulkan = TEXT("Vulkan");
-	}
-
 	// Log strings
 	namespace log
 	{

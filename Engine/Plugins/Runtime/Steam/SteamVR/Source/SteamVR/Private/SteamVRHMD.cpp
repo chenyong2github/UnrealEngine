@@ -312,26 +312,23 @@ public:
 
 	static inline D3DApiLevel GetD3DApiLevel()
 	{
-		FString RHIString;
+		if (GDynamicRHI == nullptr)
 		{
-			FString HardwareDetails = FHardwareInfo::GetHardwareDetailsString();
-			FString RHILookup = NAME_RHI.ToString() + TEXT("=");
-
-			if (!FParse::Value(*HardwareDetails, *RHILookup, RHIString))
-			{
-				// RHI might not be up yet. Let's check the command-line and see if DX12 was specified.
-				// This will get hit on startup since we don't have RHI details during stereo device bringup. 
-				// This is not a final fix; we should probably move the stereo device init to later on in startup.
-				bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
-				return bForceD3D12 ? D3DApiLevel::Direct3D12 : D3DApiLevel::Direct3D11;
-			}
+			// RHI might not be up yet. Let's check the command-line and see if DX12 was specified.
+			// This will get hit on startup since we don't have RHI details during stereo device bringup. 
+			// This is not a final fix; we should probably move the stereo device init to later on in startup.
+			bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
+			return bForceD3D12 ? D3DApiLevel::Direct3D12 : D3DApiLevel::Direct3D11;
 		}
 
-		if (RHIString == TEXT("D3D11"))
+		const ERHIInterfaceType RHIType = RHIGetInterfaceType();
+
+		if (RHIType == ERHIInterfaceType::D3D11)
 		{
 			return D3DApiLevel::Direct3D11;
 		}
-		if (RHIString == TEXT("D3D12"))
+
+		if (RHIType == ERHIInterfaceType::D3D12)
 		{
 			return D3DApiLevel::Direct3D12;
 		}

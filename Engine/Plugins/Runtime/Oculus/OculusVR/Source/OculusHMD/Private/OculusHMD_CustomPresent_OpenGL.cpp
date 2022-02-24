@@ -55,7 +55,7 @@ FTextureRHIRef FOpenGLCustomPresent::CreateTexture_RenderThread(uint32 InSizeX, 
 {
 	CheckInRenderThread();
 
-	FOpenGLDynamicRHI* DynamicRHI = static_cast<FOpenGLDynamicRHI*>(GDynamicRHI);
+	FOpenGLDynamicRHI* DynamicRHI = GetDynamicRHI<FOpenGLDynamicRHI>();
 
 	switch (InResourceType)
 	{
@@ -75,7 +75,7 @@ FTextureRHIRef FOpenGLCustomPresent::CreateTexture_RenderThread(uint32 InSizeX, 
 
 void FOpenGLCustomPresent::SubmitGPUFrameTime(float GPUFrameTime)
 {
-	FOpenGLDynamicRHI* DynamicRHI = static_cast<FOpenGLDynamicRHI*>(GDynamicRHI);
+	FOpenGLDynamicRHI* DynamicRHI = GetDynamicRHI<FOpenGLDynamicRHI>();
 	DynamicRHI->GetGPUProfilingData().ExternalGPUTime = GPUFrameTime * 1000;
 }
 

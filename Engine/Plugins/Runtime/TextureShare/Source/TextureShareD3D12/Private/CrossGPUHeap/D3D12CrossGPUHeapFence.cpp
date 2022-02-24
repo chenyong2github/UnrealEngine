@@ -141,7 +141,7 @@ bool FD3D12CrossGPUFence::ImplSignal(FRHICommandListImmediate& RHICmdList, uint6
 	//@todo integrate into RHICmd. Now just flush
 	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 
-	FD3D12DynamicRHI* DynamicRHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
+	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
 
 	ID3D12CommandQueue* D3D12CommandQueue = DynamicRHI->RHIGetD3DCommandQueue();
 
@@ -190,7 +190,7 @@ bool FD3D12CrossGPUFence::Open(HANDLE FenceHandle)
 {
 	auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
 
-	FD3D12DynamicRHI* DynamicRHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
+	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
 
 	// Open shared handle on secondaryDevice device
 #if TE_USE_NAMEDFENCE
@@ -210,7 +210,7 @@ bool FD3D12CrossGPUFence::Open(HANDLE FenceHandle)
 bool FD3D12CrossGPUFence::SetupFence()
 {
 	auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
-	FD3D12DynamicRHI* DynamicRHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
+	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
 
 	ID3D12CommandQueue* D3D12CommandQueue = DynamicRHI->RHIGetD3DCommandQueue();
 

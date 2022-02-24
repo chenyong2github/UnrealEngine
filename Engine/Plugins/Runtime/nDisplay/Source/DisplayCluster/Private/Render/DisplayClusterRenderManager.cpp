@@ -509,28 +509,25 @@ TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> FDisplayClusterRend
 			return nullptr;
 		}
 
-		// Runtime RHI
-		const FString RHIName = GDynamicRHI->GetName();
-
 		// Monoscopic
 		if (FParse::Param(FCommandLine::Get(), DisplayClusterStrings::args::dev::Mono))
 		{
-			NewRenderDevice = RenderDeviceFactories[DisplayClusterStrings::args::dev::Mono]->Create(DisplayClusterStrings::args::dev::Mono, RHIName);
+			NewRenderDevice = RenderDeviceFactories[DisplayClusterStrings::args::dev::Mono]->Create(DisplayClusterStrings::args::dev::Mono);
 		}
 		// Quad buffer stereo
 		else if (FParse::Param(FCommandLine::Get(), DisplayClusterStrings::args::dev::QBS))
 		{
-			NewRenderDevice = RenderDeviceFactories[DisplayClusterStrings::args::dev::QBS]->Create(DisplayClusterStrings::args::dev::QBS, RHIName);
+			NewRenderDevice = RenderDeviceFactories[DisplayClusterStrings::args::dev::QBS]->Create(DisplayClusterStrings::args::dev::QBS);
 		}
 		// Side-by-side
 		else if (FParse::Param(FCommandLine::Get(), DisplayClusterStrings::args::dev::SbS))
 		{
-			NewRenderDevice = RenderDeviceFactories[DisplayClusterStrings::args::dev::SbS]->Create(DisplayClusterStrings::args::dev::SbS, RHIName);
+			NewRenderDevice = RenderDeviceFactories[DisplayClusterStrings::args::dev::SbS]->Create(DisplayClusterStrings::args::dev::SbS);
 		}
 		// Top-bottom
 		else if (FParse::Param(FCommandLine::Get(), DisplayClusterStrings::args::dev::TB))
 		{
-			NewRenderDevice = RenderDeviceFactories[DisplayClusterStrings::args::dev::TB]->Create(DisplayClusterStrings::args::dev::TB, RHIName);
+			NewRenderDevice = RenderDeviceFactories[DisplayClusterStrings::args::dev::TB]->Create(DisplayClusterStrings::args::dev::TB);
 		}
 		// Leave native render but inject custom present for cluster synchronization
 		else
@@ -587,19 +584,18 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderManager::Create
 
 	// Create sync policy specified in a config file
 	const FString SyncPolicyType = ConfigData->Cluster->Sync.RenderSyncPolicy.Type;
-	const FString RHIName = GDynamicRHI->GetName();
 
 	TSharedPtr<IDisplayClusterRenderSyncPolicy> NewSyncPolicy;
 	if (SyncPolicyFactories.Contains(SyncPolicyType))
 	{
 		UE_LOG(LogDisplayClusterRender, Log, TEXT("A factory for the requested synchronization policy <%s> was found"), *SyncPolicyType);
-		NewSyncPolicy = SyncPolicyFactories[SyncPolicyType]->Create(SyncPolicyType, RHIName, ConfigData->Cluster->Sync.RenderSyncPolicy.Parameters);
+		NewSyncPolicy = SyncPolicyFactories[SyncPolicyType]->Create(SyncPolicyType, ConfigData->Cluster->Sync.RenderSyncPolicy.Parameters);
 	}
 	else
 	{
 		const FString DefaultPolicy = DisplayClusterConfigurationStrings::config::cluster::render_sync::EthernetBarrier;
 		UE_LOG(LogDisplayClusterRender, Log, TEXT("No factory found for the requested synchronization policy <%s>. Default '%s' policy will be used."), *SyncPolicyType, *DefaultPolicy);
-		NewSyncPolicy = SyncPolicyFactories[DefaultPolicy]->Create(DefaultPolicy, RHIName, TMap<FString, FString>());
+		NewSyncPolicy = SyncPolicyFactories[DefaultPolicy]->Create(DefaultPolicy, TMap<FString, FString>());
 	}
 
 	return NewSyncPolicy;

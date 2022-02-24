@@ -111,16 +111,16 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 		return nullptr;
 	}
 
-	FString RHIName = GDynamicRHI->GetName();
+	const ERHIInterfaceType RHIType = RHIGetInterfaceType();
 
 	// Consider if we want to support runtime resolution changing?
 	bool bIsResizable = false;
 
-	if (RHIName == TEXT("Vulkan"))
+	if (RHIType == ERHIInterfaceType::Vulkan)
 	{
 		if (IsRHIDeviceAMD())
 		{
-			FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
+			FVulkanDynamicRHI* DynamicRHI = GetDynamicRHI<FVulkanDynamicRHI>();
 			AVEncoder::FVulkanDataStruct VulkanData = { DynamicRHI->GetInstance(), DynamicRHI->GetDevice()->GetPhysicalHandle(), DynamicRHI->GetDevice()->GetInstanceHandle() };
 
 			return AVEncoder::FVideoEncoderInput::CreateForVulkan(&VulkanData, bIsResizable);
@@ -139,7 +139,7 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 		}
 	}
 #if PLATFORM_WINDOWS
-	else if (RHIName == TEXT("D3D11"))
+	else if (RHIType == ERHIInterfaceType::D3D11)
 	{
 		if (IsRHIDeviceAMD())
 		{
@@ -150,7 +150,7 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 			return AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), bIsResizable, false);
 		}
 	}
-	else if (RHIName == TEXT("D3D12"))
+	else if (RHIType == ERHIInterfaceType::D3D12)
 	{
 		if (IsRHIDeviceAMD())
 		{
@@ -163,16 +163,16 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 	}
 #endif
 
-	UE_LOG(LogPixelStreaming, Error, TEXT("Current RHI %s is not supported in Pixel Streaming"), *RHIName);
+	UE_LOG(LogPixelStreaming, Error, TEXT("Current RHI %s is not supported in Pixel Streaming"), GDynamicRHI->GetName());
 	return nullptr;
 }
 
 void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
 {
-	FString RHIName = GDynamicRHI->GetName();
+	const ERHIInterfaceType RHIType = RHIGetInterfaceType();
 
 	// VULKAN
-	if (RHIName == TEXT("Vulkan"))
+	if (RHIType == ERHIInterfaceType::Vulkan)
 	{
 		if (IsRHIDeviceAMD())
 		{
@@ -191,12 +191,12 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::
 #if PLATFORM_WINDOWS
 	// TODO: Fix CUDA DX11 (Using CUDA as a bridge between DX11 and NVENC currently produces garbled results)
 	// DX11
-	else if (RHIName == TEXT("D3D11"))
+	else if (RHIType == ERHIInterfaceType::D3D11)
 	{
 		InputFrame->SetTexture((ID3D11Texture2D*)Texture->GetNativeResource(), [](ID3D11Texture2D* NativeTexture) { /* Do something with released texture if needed */ });
 	}
 	// DX12
-	else if (RHIName == TEXT("D3D12"))
+	else if (RHIType == ERHIInterfaceType::D3D12)
 	{
 		if (IsRHIDeviceAMD())
 		{
@@ -214,14 +214,14 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::
 #endif // PLATFORM_WINDOWS
 	else
 	{
-		UE_LOG(LogPixelStreaming, Error, TEXT("Pixel Streaming does not support this RHI - %s"), *RHIName);
+		UE_LOG(LogPixelStreaming, Error, TEXT("Pixel Streaming does not support this RHI - %s"), GDynamicRHI->GetName());
 	}
 }
 
 void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
 {
 	FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
-	VkDevice Device = static_cast<FVulkanDynamicRHI*>(GDynamicRHI)->GetDevice()->GetInstanceHandle();
+	VkDevice Device = GetDynamicRHI<FVulkanDynamicRHI>()->GetDevice()->GetInstanceHandle();
 
 #if PLATFORM_WINDOWS
 	HANDLE Handle;
