@@ -221,8 +221,7 @@ public:
 							[
 								SNew(SImage)
 								.ColorAndOpacity(FSlateColor::UseForeground())
-								.Image(FAppStyle::Get().GetBrush("Docking.Sidebar.PinTabIcon"))
-								.DesiredSizeOverride(FVector2D(12, 12))
+								.Image(this, &STabDrawerButton::GetPinButtonImage)
 							]
 						]
 					]
@@ -367,6 +366,18 @@ private:
 		else
 		{
 			return ECheckBoxState::Unchecked;
+		}
+	}
+
+	const FSlateBrush* GetPinButtonImage() const
+	{
+		if (IsTabPinned(Tab.ToSharedRef()))
+		{
+			return FAppStyle::Get().GetBrush("Icons.Pinned");
+		}
+		else
+		{
+			return FAppStyle::Get().GetBrush("Icons.Unpinned");
 		}
 	}
 
