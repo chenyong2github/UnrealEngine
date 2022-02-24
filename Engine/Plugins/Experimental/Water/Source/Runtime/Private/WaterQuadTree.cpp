@@ -15,7 +15,7 @@ void FWaterQuadTree::FNode::AddNodeForRender(const FNodeData& InNodeData, const 
 	int32 TileDebugID = InWaterBodyRenderData.WaterBodyType;
 
 	// The base height of this tile comes either the top of the bounding box (for rivers) or the given base height (lakes and ocean)
-	float BaseHeight = InWaterBodyRenderData.IsRiver() ? Bounds.Max.Z : InWaterBodyRenderData.SurfaceBaseHeight;
+	double BaseHeight = InWaterBodyRenderData.IsRiver() ? Bounds.Max.Z : InWaterBodyRenderData.SurfaceBaseHeight;
 
 	// If there's a transition water body
 	if (TransitionWaterBodyIndex > 0)
@@ -46,30 +46,34 @@ void FWaterQuadTree::FNode::AddNodeForRender(const FNodeData& InNodeData, const 
 		}
 	}
 
+	const float BaseHeightTWS = BaseHeight + InTraversalDesc.PreViewTranslation.Z;
+
 	const int32 DensityIndex = FMath::Min(InDensityLevel, InTraversalDesc.DensityCount - 1);
 	const int32 BucketIndex = MaterialIndex * InTraversalDesc.DensityCount + DensityIndex;
 	
 	++Output.BucketInstanceCounts[BucketIndex];
 
-	const FVector Position(Bounds.GetCenter());
+	const FVector TranslatedWorldPosition(Bounds.GetCenter() + InTraversalDesc.PreViewTranslation);
 	const FVector2D Scale(Bounds.GetSize());
 	FStagingInstanceData& StagingData = Output.StagingInstanceData[Output.StagingInstanceData.AddUninitialized()];
 
 	// Add the data to the bucket
 	StagingData.BucketIndex = BucketIndex;
-	StagingData.Data[0].X = Position.X;
-	StagingData.Data[0].Y = Position.Y;
-	StagingData.Data[0].Z = BaseHeight;
+	StagingData.Data[0].X = TranslatedWorldPosition.X;
+	StagingData.Data[0].Y = TranslatedWorldPosition.Y;
+	StagingData.Data[0].Z = BaseHeightTWS;
 	StagingData.Data[0].W = *(float*)&NodeWaterBodyIndex;
 
 	// Lowest LOD isn't always 0, this increases with the height distance 
 	const bool bIsLowestLOD = (InLODLevel == InTraversalDesc.LowestLOD);
 
 	// Only allow a tile to morph if it's not the last density level and not the last LOD level, sicne there is no next level to morph to
-	const uint32 bShouldMorph = (InTraversalDesc.bLODMorphingEnabled && (InDensityLevel < InTraversalDesc.DensityCount - 1) && (InLODLevel < InTraversalDesc.LODCount - 1)) ? 1 : 0;
+	const uint32 bShouldMorph = (InTraversalDesc.bLODMorphingEnabled && (DensityIndex != InTraversalDesc.DensityCount - 1)) ? 1 : 0;
+	// Tiles can morph twice to be able to morph between 3 LOD levels. Next to last density level can only morph once
+	const uint32 bCanMorphTwice = (DensityIndex < InTraversalDesc.DensityCount - 2) ? 1 : 0;
 
-	// Pack some of the data to save space. LOD level in the lower 8 bits and then bShouldMorph in the 9th bit
-	const uint32 BitPackedChannel = ((uint32)(InLODLevel) & 0xFF) | (bShouldMorph << 8);
+	// Pack some of the data to save space. LOD level in the lower 8 bits and then bShouldMorph in the 9th bit and bCanMorphTwice in the 10th bit
+	const uint32 BitPackedChannel = ((uint32)(InLODLevel) & 0xFF) | (bShouldMorph << 8) | (bCanMorphTwice << 9);
 
 	// Should morph
 	StagingData.Data[1].X = *(float*)&BitPackedChannel;
@@ -95,8 +99,8 @@ void FWaterQuadTree::FNode::AddNodeForRender(const FNodeData& InNodeData, const 
 		FColor Color;
 		if (InTraversalDesc.DebugShowTypeColor)
 		{
-			static FColor WaterTypeColor[] = { FColor::Red, FColor::Green, FColor::Blue, FColor::Yellow, FColor::Purple };
-			Color = WaterTypeColor[TileDebugID];
+			//static FColor WaterTypeColor[] = { FColor::Red, FColor::Green, FColor::Blue, FColor::Yellow, FColor::Purple };
+			Color = GColorList.GetFColorByIndex(DensityIndex + 1);
 		}
 		else
 		{

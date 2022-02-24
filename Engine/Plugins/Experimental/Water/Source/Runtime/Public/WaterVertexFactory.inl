@@ -12,11 +12,10 @@
 // ----------------------------------------------------------------------------------
 
 template <bool bWithWaterSelectionSupport>
-TWaterVertexFactory<bWithWaterSelectionSupport>::TWaterVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, int32 InNumQuadsPerSide, float InLODScale, FVector2D InMorphOrigin)
+TWaterVertexFactory<bWithWaterSelectionSupport>::TWaterVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, int32 InNumQuadsPerSide, float InLODScale)
 	: FVertexFactory(InFeatureLevel)
 	, NumQuadsPerSide(InNumQuadsPerSide)
 	, LODScale(InLODScale)
-	, MorphOrigin(InMorphOrigin)
 {
 	VertexBuffer = new FWaterMeshVertexBuffer(NumQuadsPerSide);
 	IndexBuffer = new FWaterMeshIndexBuffer(NumQuadsPerSide);
@@ -119,7 +118,6 @@ void TWaterVertexFactory<bWithWaterSelectionSupport>::SetupUniformDataForGroup(E
 	FWaterVertexFactoryParameters UniformParams;
 	UniformParams.NumQuadsPerTileSide = NumQuadsPerSide;
 	UniformParams.LODScale = LODScale;
-	UniformParams.MorphOrigin = FVector2f(MorphOrigin);	// LWC_TODO: Precision loss
 	UniformParams.bRenderSelected = true;
 	UniformParams.bRenderUnselected = true;
 

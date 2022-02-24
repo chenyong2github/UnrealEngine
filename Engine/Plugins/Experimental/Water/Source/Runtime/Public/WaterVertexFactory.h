@@ -16,7 +16,6 @@
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FWaterVertexFactoryParameters, )
 	SHADER_PARAMETER(float, LODScale)
 	SHADER_PARAMETER(int32, NumQuadsPerTileSide)
-	SHADER_PARAMETER(FVector2f, MorphOrigin)
 	SHADER_PARAMETER(int32, bRenderSelected)
 	SHADER_PARAMETER(int32, bRenderUnselected)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -158,7 +157,7 @@ public:
 	static constexpr int32 NumRenderGroups = bWithWaterSelectionSupport ? 3 : 1; // Must match EWaterMeshRenderGroupType
 	static constexpr int32 NumAdditionalVertexStreams = TWaterInstanceDataBuffers<bWithWaterSelectionSupport>::NumBuffers;
 
-	TWaterVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, int32 InNumQuadsPerSide,	float InLODScale, FVector2D InMorphOrigin);
+	TWaterVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, int32 InNumQuadsPerSide,	float InLODScale);
 	~TWaterVertexFactory();
 
 	/**
@@ -194,9 +193,6 @@ private:
 
 	const int32 NumQuadsPerSide = 0;
 	const float LODScale = 0.0f;
-
-	/** Center of the water quadtree. Used to ensure that the morphing algorithm works on all LOD levels */
-	const FVector2D MorphOrigin = FVector2D::ZeroVector;
 };
 
 

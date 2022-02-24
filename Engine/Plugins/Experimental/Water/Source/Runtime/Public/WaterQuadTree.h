@@ -24,7 +24,7 @@ struct FWaterBodyRenderData
 	UMaterialInterface* RiverToOceanMaterial = nullptr;
 
 	/** World Z position of the waterbody, this is where the tiles for this water body will be rendered*/
-	float SurfaceBaseHeight = 0.0f;
+	double SurfaceBaseHeight = 0.0;
 
 	/** Render priority. If two water bodies overlap, this will decide which water body is used for a tile */
 	int16 Priority = TNumericLimits<int16>::Min();
@@ -104,6 +104,7 @@ struct FWaterQuadTree
 		int32 ForceCollapseDensityLevel = TNumericLimits<int32>::Max();
 		float LODScale = 1.0;
 		FVector ObserverPosition = FVector::ZeroVector;
+		FVector PreViewTranslation = FVector::ZeroVector;
 		FConvexVolume Frustum;
 		bool bLODMorphingEnabled = true;
 
