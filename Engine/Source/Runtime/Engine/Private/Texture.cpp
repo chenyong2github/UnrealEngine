@@ -119,6 +119,8 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	MaxTextureSize = 0; // means no limitation
 	MipGenSettings = TMGS_FromTextureGroup;
 	CompositeTextureMode = CTM_NormalRoughnessToAlpha;
+	// @todo Oodle : this should have defaulted to CTM_Disabled
+	//	but it's hard to change now because of UPROPERTY writing deltas to default
 	CompositePower = 1.0f;
 	bUseLegacyGamma = false;
 	bIsImporting = false;
@@ -2634,14 +2636,12 @@ bool FTextureSource::FMipData::GetMipData(TArray64<uint8>& OutMipData, int32 Blo
 				(const uint8*)MipData.GetData() + MipOffset,
 				MipSize
 			);
-		}
 
-		return true;
+			return true;
+		}
 	}
-	else
-	{
-		return false;
-	}
+
+	return false;
 }
 
 #endif //WITH_EDITOR
