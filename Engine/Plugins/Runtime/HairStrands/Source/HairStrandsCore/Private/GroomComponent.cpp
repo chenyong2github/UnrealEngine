@@ -1860,11 +1860,22 @@ FBoxSphereBounds UGroomComponent::CalcBounds(const FTransform& InLocalToWorld) c
 		{
 			const FBox LocalSkeletalBound = RegisteredMeshComponent->CalcBounds(FTransform::Identity).GetBox();
 
+			// Compute an extra 'radius' which will be added to the skel. mesh bound. 
+			// It is based on the different of the groom bound and the skel. bound at rest position
+			float BoundExtraRadius = 0.f;
+			if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(RegisteredMeshComponent))
+			{
+				FBoxSphereBounds RestBounds;
+				SkeletalMeshComponent->GetPreSkinnedLocalBounds(RestBounds);
+				const FBox RestBox = RestBounds.GetBox();
+				const FVector3f MinDiff = LocalHairBound.Min - RestBox.Min;
+				const FVector3f MaxDiff = LocalHairBound.Max - RestBox.Max;
+				BoundExtraRadius = FMath::Max3(0.f, FMath::Max3(MinDiff.X, MinDiff.Y, MinDiff.Z), FMath::Max3(MaxDiff.X, MaxDiff.Y, MaxDiff.Z));
+			}
+			
 			FBox LocalBound(EForceInit::ForceInitToZero);
-			LocalBound += LocalSkeletalBound.Min;
-			LocalBound += LocalSkeletalBound.Max;
-			LocalBound += LocalHairBound.Min;
-			LocalBound += LocalHairBound.Max;
+			LocalBound += LocalSkeletalBound.Min - BoundExtraRadius;
+			LocalBound += LocalSkeletalBound.Max + BoundExtraRadius;
 			return FBoxSphereBounds(LocalBound.TransformBy(InLocalToWorld));
 		}
 		else
