@@ -15,8 +15,17 @@ namespace Chaos::Softs
 class CHAOS_API FPBDEvolution : public TArrayCollection
 {
  public:
-	// TODO(mlentine): Init particles from some type of input
-	FPBDEvolution(FSolverParticles&& InParticles, FSolverRigidParticles&& InGeometryParticles, TArray<TVec3<int32>>&& CollisionTriangles, int32 NumIterations = 1, FSolverReal CollisionThickness = 0, FSolverReal SelfCollisionsThickness = 0, FSolverReal CoefficientOfFriction = 0, FSolverReal Damping = 0.04f);
+	// TODO: Tidy up this constructor (and update Headless Chaos)
+	FPBDEvolution(
+		FSolverParticles&& InParticles,
+		FSolverRigidParticles&& InGeometryParticles,
+		TArray<TVec3<int32>>&& CollisionTriangles,
+		int32 NumIterations = 1,
+		FSolverReal CollisionThickness = (FSolverReal)0.,
+		FSolverReal SelfCollisionsThickness = (FSolverReal)0.,
+		FSolverReal CoefficientOfFriction = (FSolverReal)0.,
+		FSolverReal Damping = (FSolverReal)0.04,
+		FSolverReal LocalDamping = (FSolverReal)0.);
 	~FPBDEvolution() {}
 
 	// Advance one time step. Filter the input time step if specified.
@@ -108,6 +117,9 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	FSolverReal GetDamping(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupDampings[GroupId]; }
 	void SetDamping(const FSolverReal Damping, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupDampings[GroupId] = Damping; }
 
+	FSolverReal GetLocalDamping(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupLocalDampings[GroupId]; }
+	void SetLocalDamping(const FSolverReal LocalDamping, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupLocalDampings[GroupId] = LocalDamping; }
+
 	bool GetUseCCD(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupUseCCDs[GroupId]; }
 	void SetUseCCD(const bool bUseCCD, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupUseCCDs[GroupId] = bUseCCD; }
 
@@ -149,6 +161,7 @@ private:
 	TArrayCollectionArray<FSolverReal> MGroupSelfCollisionThicknesses;
 	TArrayCollectionArray<FSolverReal> MGroupCoefficientOfFrictions;
 	TArrayCollectionArray<FSolverReal> MGroupDampings;
+	TArrayCollectionArray<FSolverReal> MGroupLocalDampings;
 	TArrayCollectionArray<bool> MGroupUseCCDs;
 	
 	TArray<TFunction<void(FSolverParticles&, const FSolverReal)>> MConstraintInits;
@@ -165,6 +178,7 @@ private:
 	FSolverReal MSelfCollisionThickness;
 	FSolverReal MCoefficientOfFriction;
 	FSolverReal MDamping;
+	FSolverReal MLocalDamping;
 	FSolverReal MTime;
 	FSolverReal MSmoothDt;
 };

@@ -105,6 +105,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Refresh geometry collections that had not already generated convex bodies.
 		GeometryCollectionConvexDefaults,
 
+		// Add faster damping calculations to the cloth simulation and rename previous Damping parameter to LocalDamping.
+		ChaosClothFasterDamping,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

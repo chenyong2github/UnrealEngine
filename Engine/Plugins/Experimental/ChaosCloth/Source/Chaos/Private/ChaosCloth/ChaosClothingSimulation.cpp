@@ -415,6 +415,7 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		TVec2<FRealSingle>(ClothConfig->Lift.Low, ClothConfig->Lift.High),  // Animatable
 		ClothConfig->bUsePointBasedWindModel,
 		ClothConfig->DampingCoefficient,
+		ClothConfig->LocalDampingCoefficient,
 		ClothConfig->CollisionThickness,
 		ClothConfig->FrictionCoefficient,
 		ClothConfig->bUseCCD,
@@ -522,11 +523,11 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		const bool bNeedsReset = (ClothingSimulationConsole::Command && ClothingSimulationConsole::Command->MustReset(ResetCount)) ||
-			(Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
+			Context->TeleportMode == EClothingTeleportMode::TeleportAndReset || PrevSimulationTime == 0.f;
 #else
-		const bool bNeedsReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
+		const bool bNeedsReset = Context->TeleportMode == EClothingTeleportMode::TeleportAndReset || PrevSimulationTime == 0.f;
 #endif
-		const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None) || !PrevSimulationTime;
+		const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
 		bIsTeleported = bNeedsTeleport;
 
 		// Update Solver animatable parameters
@@ -827,6 +828,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			TVec2<FRealSingle>(ClothConfig->Lift.Low, ClothConfig->Lift.High),  // Animatable
 			ClothConfig->bUsePointBasedWindModel,
 			ClothConfig->DampingCoefficient,
+			ClothConfig->LocalDampingCoefficient,
 			ClothConfig->CollisionThickness,
 			ClothConfig->FrictionCoefficient,
 			ClothConfig->bUseCCD,

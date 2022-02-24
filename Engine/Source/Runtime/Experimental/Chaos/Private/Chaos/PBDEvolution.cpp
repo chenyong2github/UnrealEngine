@@ -59,6 +59,7 @@ void FPBDEvolution::AddGroups(int32 NumGroups)
 		MGroupSelfCollisionThicknesses[GroupId] = MSelfCollisionThickness;
 		MGroupCoefficientOfFrictions[GroupId] = MCoefficientOfFriction;
 		MGroupDampings[GroupId] = MDamping;
+		MGroupLocalDampings[GroupId] = MLocalDamping;
 		MGroupUseCCDs[GroupId]  = false;
 	}
 }
@@ -69,9 +70,16 @@ void FPBDEvolution::ResetGroups()
 	AddGroups(1);  // Add default group
 }
 
-FPBDEvolution::FPBDEvolution(FSolverParticles&& InParticles, FSolverRigidParticles&& InGeometryParticles, TArray<TVec3<int32>>&& CollisionTriangles,
-    int32 NumIterations, FSolverReal CollisionThickness, FSolverReal SelfCollisionThickness, FSolverReal CoefficientOfFriction, FSolverReal Damping)
-    : MParticles(MoveTemp(InParticles))
+FPBDEvolution::FPBDEvolution(
+	FSolverParticles&& InParticles,
+	FSolverRigidParticles&& InGeometryParticles,
+	TArray<TVec3<int32>>&& CollisionTriangles,
+	int32 NumIterations, FSolverReal CollisionThickness,
+	FSolverReal SelfCollisionThickness,
+	FSolverReal CoefficientOfFriction,
+	FSolverReal Damping,
+	FSolverReal LocalDamping)
+	: MParticles(MoveTemp(InParticles))
 	, MParticlesActiveView(MParticles)
 	, MCollisionParticles(MoveTemp(InGeometryParticles))
 	, MCollisionParticlesActiveView(MCollisionParticles)
@@ -83,6 +91,7 @@ FPBDEvolution::FPBDEvolution(FSolverParticles&& InParticles, FSolverRigidParticl
 	, MSelfCollisionThickness(SelfCollisionThickness)
 	, MCoefficientOfFriction(CoefficientOfFriction)
 	, MDamping(Damping)
+	, MLocalDamping(LocalDamping)
 	, MTime(0)
 	, MSmoothDt(1.f / 30.f)  // Initialize filtered timestep at 30fps
 {
@@ -94,6 +103,7 @@ FPBDEvolution::FPBDEvolution(FSolverParticles&& InParticles, FSolverRigidParticl
 	TArrayCollection::AddArray(&MGroupSelfCollisionThicknesses);
 	TArrayCollection::AddArray(&MGroupCoefficientOfFrictions);
 	TArrayCollection::AddArray(&MGroupDampings);
+	TArrayCollection::AddArray(&MGroupLocalDampings);
 	TArrayCollection::AddArray(&MGroupUseCCDs);
 	AddGroups(1);  // Add default group
 
@@ -208,7 +218,7 @@ void FPBDEvolution::PreIterationUpdate(
 		VelocityField.UpdateForces(MParticles, Dt);  // Update force per surface element
 	}
 
-	FPerParticleDampVelocity DampVelocityRule(MGroupDampings[ParticleGroupId]);
+	FPerParticleDampVelocity DampVelocityRule(MGroupLocalDampings[ParticleGroupId]);
 	if (bDampVelocityRule)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDVelocityDampUpdateState);
@@ -220,9 +230,30 @@ void FPBDEvolution::PreIterationUpdate(
 		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosClothSolverIntegrate);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverIntegrate);
 
+		constexpr FSolverReal DampingFrequency = (FSolverReal)60.;  // The damping value is the percentage of velocity removed per frame when running at 60Hz
+		const FSolverReal Damping = FMath::Clamp(MGroupDampings[ParticleGroupId], (FSolverReal)0., (FSolverReal)1.);
+		FSolverReal DampingPowDt;
+		FSolverReal DampingIntegrated;
+		if (Damping > (FSolverReal)1. - (FSolverReal)KINDA_SMALL_NUMBER)
+		{
+			DampingIntegrated = DampingPowDt = (FSolverReal)0.;
+		}
+		else if (Damping > (FSolverReal)SMALL_NUMBER)
+		{
+			const FSolverReal LogValueByFrequency = FMath::Loge((FSolverReal)1. - Damping) * DampingFrequency;
+
+			DampingPowDt = FMath::Exp(LogValueByFrequency * Dt);  // DampingPowDt = FMath::Pow(OneMinusDamping, Dt * DampingFrequency);
+			DampingIntegrated = (DampingPowDt - (FSolverReal)1.) / LogValueByFrequency;
+		}
+		else
+		{
+			DampingPowDt = (FSolverReal)1.;
+			DampingIntegrated = Dt;
+		}
+
 		const int32 RangeSize = Range - Offset;
 		PhysicsParallelFor(RangeSize,
-			[this, &Offset, &ForceRule, &Gravity, &VelocityField, &DampVelocityRule, Dt](int32 i)
+			[this, &Offset, &ForceRule, &Gravity, &VelocityField, &DampVelocityRule, DampingPowDt, DampingIntegrated, Dt](int32 i)
 			{
 				const int32 Index = Offset + i;
 				if (MParticles.InvM(Index) != (FSolverReal)0.)  // Process dynamic particles
@@ -251,8 +282,10 @@ void FPBDEvolution::PreIterationUpdate(
 						DampVelocityRule.ApplyFast(MParticles, Dt, Index);
 					}
 
-					// Euler Step
-					MParticles.P(Index) = MParticles.X(Index) + MParticles.V(Index) * Dt;
+					// Euler Step with point damping integration
+					MParticles.P(Index) = MParticles.X(Index) + MParticles.V(Index) * DampingIntegrated;
+
+					MParticles.V(Index) *= DampingPowDt;
 				}
 				else  // Process kinematic particles
 				{
@@ -299,7 +332,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FSolverReal Dt, const bool bSmoothD
 
 				if (MGroupVelocityFields[ParticleGroupId].IsActive())
 				{
-					if (MGroupDampings[ParticleGroupId] > (FSolverReal)0.)
+					if (MGroupLocalDampings[ParticleGroupId] > (FSolverReal)0.)
 					{
 						if (MGroupForceRules[ParticleGroupId])  // VeloctiyFields, Damping, Forces  // Damping?????
 						{
@@ -324,7 +357,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FSolverReal Dt, const bool bSmoothD
 				}
 				else   // No Velocity Fields
 				{
-					if (MGroupDampings[ParticleGroupId] > (FSolverReal)0.)
+					if (MGroupLocalDampings[ParticleGroupId] > (FSolverReal)0.)
 					{
 						if (MGroupForceRules[ParticleGroupId])  // VeloctiyFields, Damping, Forces
 						{

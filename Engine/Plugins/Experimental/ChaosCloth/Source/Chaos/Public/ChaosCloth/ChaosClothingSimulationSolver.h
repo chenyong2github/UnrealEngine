@@ -86,7 +86,12 @@ namespace Chaos
 			FRealSingle FictitiousAngularScale);
 
 		// Set general cloth simulation properties.
-		void SetProperties(uint32 GroupId, FRealSingle DampingCoefficient, FRealSingle CollisionThickness, FRealSingle FrictionCoefficient);
+		void SetProperties(
+			uint32 GroupId,
+			FRealSingle DampingCoefficient,
+			FRealSingle MotionDampingCoefficient,
+			FRealSingle CollisionThickness,
+			FRealSingle FrictionCoefficient);
 
 		// Set whether to use continuous collision detection.
 		void SetUseCCD(uint32 GroupId, bool bUseCCD);

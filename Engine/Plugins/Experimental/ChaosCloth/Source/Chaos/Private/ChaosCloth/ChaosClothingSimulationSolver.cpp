@@ -71,6 +71,7 @@ namespace ClothingSimulationSolverDefault
 	static const FRealSingle CollisionThickness = 1.2f;
 	static const FRealSingle FrictionCoefficient = 0.2f;
 	static const FRealSingle DampingCoefficient = 0.01f;
+	static const FRealSingle LocalDampingCoefficient = 0.f;
 }
 
 namespace ClothingSimulationSolverConstant
@@ -104,7 +105,8 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 			(Softs::FSolverReal)ClothingSimulationSolverDefault::CollisionThickness,
 			(Softs::FSolverReal)ClothingSimulationSolverDefault::SelfCollisionThickness,
 			(Softs::FSolverReal)ClothingSimulationSolverDefault::FrictionCoefficient,
-			(Softs::FSolverReal)ClothingSimulationSolverDefault::DampingCoefficient));
+			(Softs::FSolverReal)ClothingSimulationSolverDefault::DampingCoefficient,
+			(Softs::FSolverReal)ClothingSimulationSolverDefault::LocalDampingCoefficient));
 
 	// Add simulation groups arrays
 	Evolution->AddArray(&PreSimulationTransforms);
@@ -653,9 +655,10 @@ void FClothingSimulationSolver::ParticleMassClampAndEnslave(int32 Offset, int32 
 	}
 }
 
-void FClothingSimulationSolver::SetProperties(uint32 GroupId, FRealSingle DampingCoefficient, FRealSingle CollisionThickness, FRealSingle FrictionCoefficient)
+void FClothingSimulationSolver::SetProperties(uint32 GroupId, FRealSingle DampingCoefficient, FRealSingle LocalDampingCoefficient, FRealSingle CollisionThickness, FRealSingle FrictionCoefficient)
 {
 	Evolution->SetDamping(DampingCoefficient, GroupId);
+	Evolution->SetLocalDamping(LocalDampingCoefficient, GroupId);
 	Evolution->SetCollisionThickness(CollisionThickness, GroupId);
 	Evolution->SetCoefficientOfFriction(FrictionCoefficient, GroupId);
 }

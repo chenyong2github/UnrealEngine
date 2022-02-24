@@ -57,6 +57,7 @@ namespace Chaos
 			const TVec2<FRealSingle>& InLift,
 			bool bInUseLegacyWind,
 			FRealSingle InDampingCoefficient,
+			FRealSingle InLocalDampingCoefficient,
 			FRealSingle InCollisionThickness,
 			FRealSingle InFrictionCoefficient,
 			bool bInUseCCD,
@@ -216,6 +217,7 @@ namespace Chaos
 		FRealSingle AirDensity;
 		bool bUseLegacyWind;
 		FRealSingle DampingCoefficient;
+		FRealSingle LocalDampingCoefficient;
 		FRealSingle CollisionThickness;
 		FRealSingle FrictionCoefficient;
 		bool bUseCCD;

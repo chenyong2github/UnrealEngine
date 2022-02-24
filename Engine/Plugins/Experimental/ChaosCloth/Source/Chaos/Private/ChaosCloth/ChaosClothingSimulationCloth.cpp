@@ -121,7 +121,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 				DisabledCollisionElements.Emplace(TVec2<int32>(Element, Index));
 			}
 		}
-		ClothConstraints.SetSelfCollisionConstraints(TriangleMesh, MoveTemp(DisabledCollisionElements), (FReal)Cloth->SelfCollisionThickness);
+		ClothConstraints.SetSelfCollisionConstraints(TriangleMesh, MoveTemp(DisabledCollisionElements), (Softs::FSolverReal)Cloth->SelfCollisionThickness);
 	}
 
 	// Edge constraints
@@ -138,7 +138,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 		if (Cloth->bUseBendingElements)
 		{
 			TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
-			ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), Cloth->BendingStiffness[0]);  // TODO: Add support for weight maps
+			ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), (Softs::FSolverReal)Cloth->BendingStiffness[0]);  // TODO: Add support for weight maps
 		}
 		else
 		{
@@ -189,12 +189,12 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 				}
 			}
 
-			ClothConstraints.SetVolumeConstraints(DoubleBendingConstraints, (FReal)Cloth->VolumeStiffness);
+			ClothConstraints.SetVolumeConstraints(DoubleBendingConstraints, (Softs::FSolverReal)Cloth->VolumeStiffness);
 		}
 		else
 		{
 			TArray<Chaos::TVec3<int32>> SurfaceConstraints = SurfaceElements;
-			ClothConstraints.SetVolumeConstraints(MoveTemp(SurfaceConstraints), (FReal)Cloth->VolumeStiffness);
+			ClothConstraints.SetVolumeConstraints(MoveTemp(SurfaceConstraints), (Softs::FSolverReal)Cloth->VolumeStiffness);
 		}
 	}
 
@@ -204,13 +204,13 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	{
 		const TConstArrayView<FRealSingle>& TetherScaleMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::TetherScale];
 
-		const FReal MeshScale = Cloth->Mesh->GetReferenceBoneTransform().GetScale3D().GetMax();
+		const Softs::FSolverReal MeshScale(Cloth->Mesh->GetReferenceBoneTransform().GetScale3D().GetMax());
 
 		ClothConstraints.SetLongRangeConstraints(
 			Tethers,
 			TetherStiffnessMultipliers,
 			TetherScaleMultipliers,
-			FVec2((FReal)Cloth->TetherScale[0], (FReal)Cloth->TetherScale[1]) * MeshScale,
+			Softs::FSolverVec2((Softs::FSolverReal)Cloth->TetherScale[0], (Softs::FSolverReal)Cloth->TetherScale[1]) * MeshScale,
 			Cloth->bUseXPBDConstraints);
 	}
 
@@ -239,7 +239,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	// Shape target constraint
 	if (Cloth->ShapeTargetStiffness > (FRealSingle)0.)
 	{
-		ClothConstraints.SetShapeTargetConstraints((FReal)Cloth->ShapeTargetStiffness);
+		ClothConstraints.SetShapeTargetConstraints((Softs::FSolverReal)Cloth->ShapeTargetStiffness);
 	}
 
 	// Commit rules to solver
@@ -253,7 +253,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	NumDynammicParticles = 0;
 	for (int32 Index = 0; Index < NumParticles; ++Index)
 	{
-		if (InvMasses[Index] == 0.f)
+		if (InvMasses[Index] == (Softs::FSolverReal)0.)
 		{
 			++NumKinenamicParticles;
 		}
@@ -363,6 +363,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	const TVec2<FRealSingle>& InLift,
 	bool bInUseLegacyWind,
 	FRealSingle InDampingCoefficient,
+	FRealSingle InLocalDampingCoefficient,
 	FRealSingle InCollisionThickness,
 	FRealSingle InFrictionCoefficient,
 	bool bInUseCCD,
@@ -403,6 +404,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, AirDensity(1.225e-6f)  // Set by clothing interactor
 	, bUseLegacyWind(bInUseLegacyWind)
 	, DampingCoefficient(InDampingCoefficient)
+	, LocalDampingCoefficient(InLocalDampingCoefficient)
 	, CollisionThickness(InCollisionThickness)
 	, FrictionCoefficient(InFrictionCoefficient)
 	, bUseCCD(bInUseCCD)
@@ -808,7 +810,7 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		Solver->SetWindVelocity(GroupId, WindVelocity + Solver->GetWindVelocity());
 
 		// Update general solver properties
-		Solver->SetProperties(GroupId, DampingCoefficient, CollisionThickness, FrictionCoefficient);
+		Solver->SetProperties(GroupId, DampingCoefficient, LocalDampingCoefficient, CollisionThickness, FrictionCoefficient);
 
 		// Update use of continuous collision detection
 		Solver->SetUseCCD(GroupId, bUseCCD);
