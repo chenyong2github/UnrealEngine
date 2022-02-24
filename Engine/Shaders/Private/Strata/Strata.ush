@@ -719,11 +719,16 @@ struct FStrataOperator
 	int RightIndex;
 	float Weight;
 
+	// Coverage / Transmittance
+
 	float  Coverage;					// The summarised coverage of all the matter (from the sub tree) represented by that operator
 	float3 Transmittance;				// This is the transmittance of the matter itself. If coverage is 0.25, then 25% of the light will be affected by the transmittance and 75% of light won't be.
 
 	float VerticalTopCoverage;			// Only used by vertical layering operators. It represent the coverage of all the matter of the top layer (from the left sub tree).
 	float3 VerticalTopTransmittance;	// Only used by vertical layering operators. It represent the transmittance of matter of the top layer (from the left sub tree).
+
+	// Rough refraction
+	StrataLobeStatistic LobeStat;
 };
 
 FStrataOperator GetInitialisedStrataOperator()
@@ -1906,6 +1911,17 @@ float3 StrataGetBSDFSpecularColor(in FStrataBSDF BSDF)
 	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_F0(BSDF);
 	case STRATA_BSDF_TYPE_HAIR: 			return DielectricSpecularToF0(HAIR_SPECULAR(BSDF));
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return DielectricSpecularToF0(SLW_SPECULAR(BSDF));
+	}
+	return 0.f;
+}
+
+float3 StrataGetBSDFSpecularF90(in FStrataBSDF BSDF)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_F90(BSDF);
+	case STRATA_BSDF_TYPE_HAIR: 			return 1.0f;
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 1.0f;
 	}
 	return 0.f;
 }

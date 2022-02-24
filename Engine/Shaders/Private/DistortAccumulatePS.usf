@@ -132,63 +132,9 @@ void Main(
 		LegacyUpdateBSDFsOperators(StrataPixelHeader, StrataTree, bRoughDiffuseEnabled, NullStrataAddressing, V, DummyL);
 	#endif
 
-		
-		STRATA_UNROLL_N(STRATA_CLAMPED_BSDF_COUNT)
-		for (int BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
-		{
-		#define BSDF StrataTree.BSDFs[BSDFIdx]
-
-			const float BSDFCoverage = BSDF.Coverage;
-
-			// Create the BSDF context
-			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, NullStrataAddressing, V, DummyL);
-
-			FStrataEvaluateResult StrataEvaluate = StrataEvaluateBSDF(StrataBSDFContext, true); // Works to call because DummyL is nto used when computing StrataEvaluate.Throughput
-
-			// We only support rough refraction from Slab material type for now.
-			if (BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_SLAB)
-			{
-				// Surface directional albedo
-				const FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(SLAB_ROUGHNESS(BSDF), StrataBSDFContext.SatNoV, SLAB_F0(BSDF), SLAB_F90(BSDF));
-
-				// The top layer we consider a transition air to water. For layers below, we assume they all have similar index of refraction.
-				const float InterfaceEta12 = BSDF.bIsTop ? 1.0f / 1.33f : 1.0f; // STRATA_TODO Use Refraction.x in IOR mode? Or the material IOR corresponding to F0?
-
-				// Transform input Lobe into local space w.r.t. normal
-				const float3 SavedWorldSpaceWiLobeMu = WiLobe.Mu;
-				WiLobe.Mu = float3(dot(WiLobe.Mu, StrataBSDFContext.X), dot(WiLobe.Mu, StrataBSDFContext.Y), dot(WiLobe.Mu, StrataBSDFContext.N));
-
-				// Compute the refracted Lobe according to roughness . 
-				// STRATA_TODO: take into account scattering and transmittance. Colored transmittance is taken into account already but not scattering influence on variance.
-				StrataLobeStatistic NewLobe = StrataGetRefractedLobe(WiLobe, EnergyTerms.E * BSDF.LuminanceWeight, SLAB_ROUGHNESS(BSDF), InterfaceEta12);
-
-				// Transform the new Lobe direction to world space and weight/accumulate
-				// STRATA_TODO it should be better to weight lobes horizontally weighted and chain lobes that are vertically layered. For that we would need another set of UpdateAllXXX function as seen above.
-				NewLobe.Mu = NewLobe.Mu.x * StrataBSDFContext.X + NewLobe.Mu.y * StrataBSDFContext.Y + NewLobe.Mu.z * StrataBSDFContext.N;
-				StrataAccumulateWeightedLobe(AccumulatedLayerLobes, AccumulatedLayerLobesWeights, NewLobe);
-
-				// Restore current layer input Lobe direction to world space
-				WiLobe.Mu = SavedWorldSpaceWiLobeMu;
-			}
-			else
-			{
-				// Full roughness to make it visible as something to fix in case a type is not handled.
-				WiLobe.Sigma = 1000.0;
-			}
-
-		#undef BSDF
-		}
+		WiLobe = StrataTree.Operators[StrataData.OperatorIndex].LobeStat;
+		//half3 LobeWorldDir = normalize(TransformWorldVectorToView(WiLobe.Mu));
 	}
-
-	if (AccumulatedLayerLobesWeights > 0.0f)
-	{
-		// Now compute the new input Wi Lobe from the accumulated refracted Lobe of the previous layer
-		WiLobe = StrataNormaliseLobe(AccumulatedLayerLobes, AccumulatedLayerLobesWeights);
-		// And negate the direction to make sure the previously refracted direction is the new incoming
-		WiLobe.Mu = -WiLobe.Mu;
-	}
-
-
 
 	// Not write out variance (as this is more linear to accumulate than roughness)
 	OutVariance = float4(WiLobe.Sigma, 0.0f, 0.0f, 0.0f);
@@ -196,17 +142,10 @@ void Main(
 	// Only allow clipping if roughness is close to 0.
 	const bool TryToClip = OutVariance.x < 0.01f;
 
-	// Finally, negate the direction to make sure the new incombing Lobe is the refracted Lobe we want to take into account
-	WiLobe.Mu = -WiLobe.Mu;
-
-	// FixUp to reuse the same distortion code we have for now. STRATA_TODO implement a new model?
-	half3 LobeWorldDir = normalize(TransformWorldVectorToView(WiLobe.Mu));
-	Normal = LobeWorldDir;
-
 	// Compute UV distortion
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
 		MaterialParameters, PixelMaterialInputs, ResolvedView,
-		Normal, DistortionParams, ScreenUV, Refraction, TryToClip, EyeIndex);
+		MaterialParameters.WorldNormal, DistortionParams, ScreenUV, Refraction, TryToClip, EyeIndex);
 
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;

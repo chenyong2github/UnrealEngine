@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "/Engine/Private/Common.ush"
 
 // Statistical operators representing BSDF as a sum of lobes.
@@ -8,9 +10,8 @@
 struct StrataLobeStatistic
 {
 	// Mean
-	// xy is the 2d projection of the main direction vector onto the plane defined by the surface normal. 
-	// z is along the normal.
-	float3 Mu;
+	// xy is the 2d projection of the lobe main direction onto the plane defined by the surface normal. 
+	float2 Mu;
 
 	// Energy
 	float3 E;
@@ -52,7 +53,7 @@ StrataLobeStatistic StrataGetViewDiracLobe(float3 Wi)
 {
 	StrataLobeStatistic WiLobe;
 	WiLobe.E = 1.0f;
-	WiLobe.Mu = Wi;
+	WiLobe.Mu = Wi.xy;
 	WiLobe.Sigma = 0.0f;
 	return WiLobe;
 }
@@ -63,7 +64,7 @@ StrataLobeStatistic StrataGetReflectedLobe(StrataLobeStatistic WiLobe, float3 In
 
 	WoLobe.E = WiLobe.E * InterfaceFDG;
 
-	WoLobe.Mu = float3(-WiLobe.Mu.xy, WiLobe.Mu.z);
+	WoLobe.Mu = WiLobe.Mu;
 
 	WoLobe.Sigma = WiLobe.Sigma + StrataLobeRoughnessToVariance(InterfaceRoughness);
 
@@ -76,9 +77,7 @@ StrataLobeStatistic StrataGetRefractedLobe(StrataLobeStatistic WiLobe, float3 In
 
 	WoLobe.E = WiLobe.E * (1.0f - InterfaceFDG);
 
-	WoLobe.Mu.xy = -WiLobe.Mu.xy * InterfaceEta12;
-	const float SquaredProjectedLength = WiLobe.Mu.x * WiLobe.Mu.x + WiLobe.Mu.y * WiLobe.Mu.y;
-	WoLobe.Mu.z = -sqrt(1.0f - SquaredProjectedLength);
+	WoLobe.Mu.xy = WiLobe.Mu.xy * InterfaceEta12;
 
 	//	const float S = 0.5f * (1.0f + InterfaceEta12 * (WiLobe.Mu.z / WoLobe.Mu.z));				// This respect eq.10 but it goes crazy and does not respect the roughness of a single front layer
 	//	const float S = 0.5f * (1.0f + InterfaceEta12 * max(0.0, WiLobe.Mu.z / WoLobe.Mu.z));		// This respect the roughness range better but looks incorrect
@@ -94,48 +93,20 @@ StrataLobeStatistic StrataGetTransmittedLobe(StrataLobeStatistic WiLobe, float3 
 
 	WoLobe.E = WiLobe.E * exp(-OpticalDepth);
 
-	// No refraction in the paper here
-	WoLobe.Mu = -WiLobe.Mu;
+	// Continue straight forward
+	WoLobe.Mu = WiLobe.Mu;
 
 	WoLobe.Sigma = WiLobe.Sigma;
 
 	return WoLobe;
 }
 
-StrataLobeStatistic StrataGetScatteredLobe(StrataLobeStatistic WiLobe, float3 InScattering)
+StrataLobeStatistic StrataHorizontalMixLobe(StrataLobeStatistic A, StrataLobeStatistic B, float Mix)
 {
 	StrataLobeStatistic WoLobe;
-
-	WoLobe.E = WiLobe.E * InScattering;
-
-	// No refraction in the paper here
-	WoLobe.Mu = -WiLobe.Mu;
-
-	// In our case, we use an isotropic phase function and the paper do not support that (only HG phase function with g > 0.7).
-	// So we simply assume a roughness of 1 for the Lobe over which incomling light to scatter is integrated.
-	const float IsotropicPhaseLobeVariance = StrataLobeRoughnessToVariance(1.0f);
-	WoLobe.Sigma = WiLobe.Sigma + IsotropicPhaseLobeVariance;
-
+	WoLobe.E = lerp(A.E, B.E, Mix);
+	WoLobe.Mu = lerp(A.Mu, B.Mu, Mix);
+	WoLobe.Sigma = lerp(A.Sigma, B.Sigma, Mix);
 	return WoLobe;
 }
 
-
-
-// This accumulation function can be used to merge Lobes while taking into account their relative importance due to E and a coverage
-void StrataAccumulateWeightedLobe(inout StrataLobeStatistic LobeAccum, inout float WeightAccum, in StrataLobeStatistic NewLobe)
-{
-	const float NewLobeWeight = dot(NewLobe.E, (1.0f / 3.0f).xxx);
-	LobeAccum.E		+= NewLobe.E * NewLobeWeight;
-	LobeAccum.Mu	+= NewLobe.Mu * NewLobeWeight;
-	LobeAccum.Sigma	+= NewLobe.Sigma * NewLobeWeight;
-	WeightAccum		+= NewLobeWeight;
-}
-
-StrataLobeStatistic StrataNormaliseLobe(inout StrataLobeStatistic LobeAccum, inout float WeightAccum)
-{
-	StrataLobeStatistic OutputLobe;
-	OutputLobe.E	= LobeAccum.E / WeightAccum;
-	OutputLobe.Mu	= normalize(LobeAccum.Mu);
-	OutputLobe.Sigma= LobeAccum.Sigma / WeightAccum;
-	return OutputLobe;
-}
