@@ -94,7 +94,6 @@ class DeviceAdditionalSettingsUI(QtCore.QObject):
         if is_checked is not self.enable_insights_menu().isChecked():
             self.enable_insights_menu().setChecked(is_checked)
             self._update_enable_state()
-            self.signal_device_widget_tracing.emit(self)
 
     def set_insight_tracing_args(self, value):
         """
@@ -770,7 +769,9 @@ class SwitchboardDialog(QtCore.QObject):
         self.p4_refresh_engine_cl()
         self.refresh_levels()
         self.update_current_config_text()
-        
+        self.refresh_muserver_autojoin()
+        self.refresh_trace_settings()
+
     def update_current_config_text(self):
         # Can be none when current file is deleted
         if SETTINGS.CONFIG is not None:
