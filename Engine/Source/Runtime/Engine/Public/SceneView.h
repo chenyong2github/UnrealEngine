@@ -1734,6 +1734,9 @@ public:
 	/** When enabled, the scene capture will composite into the render target instead of overwriting its contents. */
 	ESceneCaptureCompositeMode SceneCaptureCompositeMode;
 
+	/** Whether this view is for thumbnail rendering */
+	bool bThumbnailRendering = false;
+
 	/**
 	 * GetWorld->IsPaused() && !Simulate
 	 * Simulate is excluded as the camera can move which invalidates motionblur

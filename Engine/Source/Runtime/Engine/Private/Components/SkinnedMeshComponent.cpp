@@ -3194,10 +3194,10 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 			{
 				NewPredictedLODLevel = FMath::Clamp(MeshObject->MinDesiredLODLevel + LODBias, 0, MaxLODIndex);
 			}
-			// If no MeshObject - just assume lowest LOD.
+			// If no MeshObject - just reuse old predicted LOD.
 			else
 			{
-				NewPredictedLODLevel = MinLodIndex;
+				NewPredictedLODLevel = FMath::Clamp(OldPredictedLODLevel, MinLodIndex, MaxLODIndex);
 			}
 
 			// now check to see if we have a MinLODLevel and apply it

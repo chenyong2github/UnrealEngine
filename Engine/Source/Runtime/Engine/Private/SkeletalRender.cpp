@@ -33,7 +33,7 @@ FSkeletalMeshObject
 -----------------------------------------------------------------------------*/
 
 FSkeletalMeshObject::FSkeletalMeshObject(USkinnedMeshComponent* InMeshComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, ERHIFeatureLevel::Type InFeatureLevel)
-:	MinDesiredLODLevel(InSkelMeshRenderData->CurrentFirstLODIdx)
+:	MinDesiredLODLevel(FMath::Max<int32>(InMeshComponent->GetPredictedLODLevel(), InSkelMeshRenderData->CurrentFirstLODIdx))
 ,	MaxDistanceFactor(0.f)
 ,	WorkingMinDesiredLODLevel(MinDesiredLODLevel)
 ,	WorkingMaxDistanceFactor(0.f)
@@ -89,6 +89,12 @@ FSkeletalMeshObject::~FSkeletalMeshObject()
 
 void FSkeletalMeshObject::UpdateMinDesiredLODLevel(const FSceneView* View, const FBoxSphereBounds& Bounds, int32 FrameNumber, uint8 CurFirstLODIdx)
 {
+	// Thumbnail rendering doesn't contribute to MinDesiredLODLevel calculation
+	if (View->Family && View->Family->bThumbnailRendering)
+	{
+		return;
+	}
+
 	static const auto* SkeletalMeshLODRadiusScale = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.SkeletalMeshLODRadiusScale"));
 	float LODScale = FMath::Clamp(SkeletalMeshLODRadiusScale->GetValueOnRenderThread(), 0.25f, 1.0f);
 
@@ -102,7 +108,7 @@ void FSkeletalMeshObject::UpdateMinDesiredLODLevel(const FSceneView* View, const
 
 	int32 NewLODLevel = 0;
 
-	// Look for a lower LOD if the EngineShowFlags is enabled - Thumbnail rendering disables LODs
+	// Look for a lower LOD if the EngineShowFlags is enabled
 	if( View->Family && 1==View->Family->EngineShowFlags.LOD )
 	{
 		// Iterate from worst to best LOD
