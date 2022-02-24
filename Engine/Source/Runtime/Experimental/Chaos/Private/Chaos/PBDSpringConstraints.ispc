@@ -3,6 +3,7 @@
 #define EXPLICIT_VECTOR4 1
 
 #include "Math/Vector.isph"
+#include "Chaos/PBDSofts.isph"
 
 static inline float SafeNormalize(FVector3f &Direction)
 {
@@ -12,9 +13,8 @@ static inline float SafeNormalize(FVector3f &Direction)
 	return (SizeSquared < FLOAT_KINDA_SMALL_NUMBER) ? FLOAT_ZERO : Size;
 }
 
-export void ApplySpringConstraints(uniform FVector3f P[],
+export void ApplySpringConstraints(uniform FVector4f PandInvM[],
 									const uniform FIntVector2 Constraints[],
-									const uniform float InvM[],
 									const uniform float Dists[],
 									const uniform float Stiffness,
 									const uniform int32 NumConstraints)
@@ -25,8 +25,13 @@ export void ApplySpringConstraints(uniform FVector3f P[],
 		const varying int32 i1 = Constraint.V[0];
 		const varying int32 i2 = Constraint.V[1];
 
-		const varying FVector3f P1 = VectorGather(&P[i1]);
-		const varying FVector3f P2 = VectorGather(&P[i2]);
+		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
+		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
+
+		varying FVector3f P1, P2;
+		varying float InvM1, InvM2;
+		UnzipPandInvM(PandInvM1, P1, InvM1);
+		UnzipPandInvM(PandInvM2, P2, InvM2);
 
 		FVector3f Direction = P1 - P2;
 		const float Distance = SafeNormalize(Direction);
@@ -35,11 +40,6 @@ export void ApplySpringConstraints(uniform FVector3f P[],
 
 		const FVector3f InnerDelta = (Distance - Dist) * Direction;
 
-		#pragma ignore warning(perf)
-		const varying float InvM1 = InvM[i1];
-		#pragma ignore warning(perf)
-		const varying float InvM2 = InvM[i2];
-
 		const float CombinedInvMass = InvM2 + InvM1;
 		const FVector3f ComputedDelta = Stiffness * InnerDelta / CombinedInvMass;
 
@@ -47,18 +47,17 @@ export void ApplySpringConstraints(uniform FVector3f P[],
 
 		if (InvM1 > FLOAT_ZERO)
 		{
-			VectorScatter(&P[i1], P1 - (InvM1 * Delta));
+			VectorScatter(&PandInvM[i1], SetVector4( P1 - (InvM1 * Delta), InvM1 ));
 		}
 		if (InvM2 > FLOAT_ZERO)
 		{
-			VectorScatter(&P[i2], P2 + (InvM2 * Delta));
+			VectorScatter(&PandInvM[i2], SetVector4( P2 + (InvM2 * Delta), InvM2 ));
 		}
 	}
 }
 
-export void ApplySpringConstraintsWithWeightMaps(uniform FVector3f P[],
+export void ApplySpringConstraintsWithWeightMaps(uniform FVector4f PandInvM[],
 									const uniform FIntVector2 Constraints[],
-									const uniform float InvM[],
 									const uniform float Dists[],
 									const uniform uint8 StiffnessIndices[],
 									const uniform float StiffnessTable[],
@@ -71,8 +70,13 @@ export void ApplySpringConstraintsWithWeightMaps(uniform FVector3f P[],
 		const varying int32 i1 = Constraint.V[0];
 		const varying int32 i2 = Constraint.V[1];
 
-		const varying FVector3f P1 = VectorGather(&P[i1]);
-		const varying FVector3f P2 = VectorGather(&P[i2]);
+		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
+		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
+
+		varying FVector3f P1, P2;
+		varying float InvM1, InvM2;
+		UnzipPandInvM(PandInvM1, P1, InvM1);
+		UnzipPandInvM(PandInvM2, P2, InvM2);
 
 		FVector3f Direction = P1 - P2;
 		const float Distance = SafeNormalize(Direction);
@@ -81,11 +85,6 @@ export void ApplySpringConstraintsWithWeightMaps(uniform FVector3f P[],
 		const varying uint8 StiffnessIndex = StiffnessIndices[i];
 
 		const FVector3f InnerDelta = (Distance - Dist) * Direction;
-
-		#pragma ignore warning(perf)
-		const varying float InvM1 = InvM[i1];
-		#pragma ignore warning(perf)
-		const varying float InvM2 = InvM[i2];
 
 		#pragma ignore warning(perf)
 		const varying float Stiffness = StiffnessTable[StiffnessIndex];
@@ -97,11 +96,11 @@ export void ApplySpringConstraintsWithWeightMaps(uniform FVector3f P[],
 
 		if (InvM1 > FLOAT_ZERO)
 		{
-			VectorScatter(&P[i1], P1 - (InvM1 * Delta));
+			VectorScatter(&PandInvM[i1], SetVector4( P1 - (InvM1 * Delta), InvM1 ));
 		}
 		if (InvM2 > FLOAT_ZERO)
 		{
-			VectorScatter(&P[i2], P2 + (InvM2 * Delta));
+			VectorScatter(&PandInvM[i2], SetVector4( P2 + (InvM2 * Delta), InvM2 ));
 		}
 	}
 }

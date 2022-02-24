@@ -53,9 +53,9 @@ namespace Chaos
 			int32 PrevLODIndex,
 			int32 LODIndex,
 			const Softs::FSolverVec3* Normals,
-			const Softs::FSolverVec3* Positions,
+			const Softs::FPAndInvM* PositionAndInvMs,
 			const Softs::FSolverVec3* Velocities,
-			Softs::FSolverVec3* OutPositions0,
+			Softs::FPAndInvM* OutPositionAndInvMs0,
 			Softs::FSolverVec3* OutPositions1,
 			Softs::FSolverVec3* OutVelocities) const;
 		// ---- End of the Cloth interface ----

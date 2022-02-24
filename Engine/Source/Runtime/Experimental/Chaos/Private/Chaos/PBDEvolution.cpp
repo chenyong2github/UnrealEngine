@@ -203,6 +203,7 @@ void FPBDEvolution::PreIterationUpdate(
 
 	if (bVelocityField)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDVelocityFieldUpdateForces);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityFieldUpdateForces);
 		VelocityField.UpdateForces(MParticles, Dt);  // Update force per surface element
 	}
@@ -210,11 +211,13 @@ void FPBDEvolution::PreIterationUpdate(
 	FPerParticleDampVelocity DampVelocityRule(MGroupDampings[ParticleGroupId]);
 	if (bDampVelocityRule)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDVelocityDampUpdateState);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityDampUpdateState);
 		DampVelocityRule.UpdatePositionBasedState(MParticles, Offset, Range);
 	}
 
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosClothSolverIntegrate);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverIntegrate);
 
 		const int32 RangeSize = Range - Offset;
@@ -459,7 +462,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FSolverReal Dt, const bool bSmoothD
 						ispc::PostIterationUpdates(
 							(ispc::FVector3f*)Particles.GetV().GetData(),
 							(ispc::FVector3f*)Particles.XArray().GetData(),
-							(const ispc::FVector3f*)Particles.GetP().GetData(),
+							(const ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 							Dt,
 							Offset,
 							Range);

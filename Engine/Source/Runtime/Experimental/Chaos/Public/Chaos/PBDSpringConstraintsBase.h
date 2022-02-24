@@ -4,7 +4,7 @@
 #include "Chaos/Core.h"
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/Utilities.h"
-#include "Chaos/PBDParticles.h"
+#include "Chaos/PBDSoftsSolverParticles.h"
 #include "Chaos/PBDStiffness.h"
 #include "Containers/Array.h"
 #include "Templates/EnableIf.h"

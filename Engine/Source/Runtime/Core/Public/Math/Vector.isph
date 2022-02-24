@@ -437,13 +437,13 @@ inline void VectorStore(uniform FVector3f *uniform DstPtr, const varying FVector
 	}
 }
 
-inline varying FVector4 VectorLoad(const uniform FVector4 *uniform SrcPtr)
+inline varying FVector4d VectorLoad(const uniform FVector4d *uniform SrcPtr)
 {
-	varying FVector4 Result;
+	varying FVector4d Result;
 
 	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
 	{
-		aos_to_soa4_ispc((uniform FReal * uniform)SrcPtr, &Result.V[0], &Result.V[1], &Result.V[2], &Result.V[3]);
+		aos_to_soa4_ispc((uniform double * uniform)SrcPtr, &Result.V[0], &Result.V[1], &Result.V[2], &Result.V[3]);
 	}
 	else
 	{
@@ -454,11 +454,41 @@ inline varying FVector4 VectorLoad(const uniform FVector4 *uniform SrcPtr)
 	return Result;
 }
 
-inline void VectorStore(uniform FVector4 *uniform DstPtr, const varying FVector4 &V)
+inline varying FVector4f VectorLoad(const uniform FVector4f *uniform SrcPtr)
+{
+	varying FVector4f Result;
+
+	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
+	{
+		aos_to_soa4_ispc((uniform float * uniform)SrcPtr, &Result.V[0], &Result.V[1], &Result.V[2], &Result.V[3]);
+	}
+	else
+	{
+		#pragma ignore warning(perf)
+		Result = SrcPtr[programIndex];
+	}
+
+	return Result;
+}
+
+inline void VectorStore(uniform FVector4d *uniform DstPtr, const varying FVector4d &V)
 {
 	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
 	{
-		soa_to_aos4_ispc(V.V[0], V.V[1], V.V[2], V.V[3], (uniform FReal *uniform)DstPtr);
+		soa_to_aos4_ispc(V.V[0], V.V[1], V.V[2], V.V[3], (uniform double *uniform)DstPtr);
+	}
+	else
+	{
+		#pragma ignore warning(perf)
+		DstPtr[programIndex] = V;
+	}
+}
+
+inline void VectorStore(uniform FVector4f *uniform DstPtr, const varying FVector4f &V)
+{
+	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
+	{
+		soa_to_aos4_ispc(V.V[0], V.V[1], V.V[2], V.V[3], (uniform float *uniform)DstPtr);
 	}
 	else
 	{
@@ -515,20 +545,20 @@ inline void VectorScatter(uniform FVector3f *varying DstPtr, const varying FVect
 	*DstPtr = V;
 }
 
-inline varying FVector4 VectorGather(const uniform FVector4 *varying SrcPtr)
+inline varying FVector4d VectorGather(const uniform FVector4d *varying SrcPtr)
 {
-	varying FVector4 Result;
+	varying FVector4d Result;
 
 	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
 	{
 		unmasked
 		{
-			uniform FVector4 *uniform Src[programCount];
-			uniform FVector4 *uniform DstPtr = (uniform FVector4 *uniform)&Result;
+			uniform FVector4d *uniform Src[programCount];
+			uniform FVector4d *uniform DstPtr = (uniform FVector4d *uniform)&Result;
 
 			foreach(i = 0 ... programCount)
 			{
-				Src[i] = (uniform FVector4 *varying)&SrcPtr[0];
+				Src[i] = (uniform FVector4d *varying)&SrcPtr[0];
 			}
 
 			DstPtr[0] = *Src[0];
@@ -552,7 +582,7 @@ inline varying FVector4 VectorGather(const uniform FVector4 *varying SrcPtr)
 			DstPtr[15] = *Src[15];
 #endif
 
-			aos_to_soa4_ispc((uniform FReal * uniform)&Result, &Result.V[0], &Result.V[1], &Result.V[2], &Result.V[3]);
+			aos_to_soa4_ispc((uniform double * uniform)&Result, &Result.V[0], &Result.V[1], &Result.V[2], &Result.V[3]);
 		}
 	}
 	else
@@ -564,20 +594,114 @@ inline varying FVector4 VectorGather(const uniform FVector4 *varying SrcPtr)
 	return Result;
 }
 
-inline void VectorScatter(uniform FVector4 *varying DstPtr, const varying FVector4 &V)
+inline varying FVector4f VectorGather(const uniform FVector4f *varying SrcPtr)
+{
+	varying FVector4f Result;
+
+	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
+	{
+		unmasked
+		{
+			uniform FVector4f *uniform Src[programCount];
+			uniform FVector4f *uniform DstPtr = (uniform FVector4f *uniform)&Result;
+
+			foreach(i = 0 ... programCount)
+			{
+				Src[i] = (uniform FVector4f *varying)&SrcPtr[0];
+			}
+
+			DstPtr[0] = *Src[0];
+			DstPtr[1] = *Src[1];
+			DstPtr[2] = *Src[2];
+			DstPtr[3] = *Src[3];
+#if TARGET_WIDTH == 8 || TARGET_WIDTH == 16
+			DstPtr[4] = *Src[4];
+			DstPtr[5] = *Src[5];
+			DstPtr[6] = *Src[6];
+			DstPtr[7] = *Src[7];
+#endif
+#if TARGET_WIDTH == 16
+			DstPtr[8] = *Src[8];
+			DstPtr[9] = *Src[9];
+			DstPtr[10] = *Src[10];
+			DstPtr[11] = *Src[11];
+			DstPtr[12] = *Src[12];
+			DstPtr[13] = *Src[13];
+			DstPtr[14] = *Src[14];
+			DstPtr[15] = *Src[15];
+#endif
+
+			aos_to_soa4_ispc((uniform float * uniform)&Result, &Result.V[0], &Result.V[1], &Result.V[2], &Result.V[3]);
+		}
+	}
+	else
+	{
+		#pragma ignore warning(perf)
+		Result = *SrcPtr;
+	}
+
+	return Result;
+}
+
+inline void VectorScatter(uniform FVector4d *varying DstPtr, const varying FVector4d &V)
 {
 	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
 	{
 		unmasked
 		{
-			uniform FVector4 Result[programCount];
-			soa_to_aos4_ispc(V.V[0], V.V[1], V.V[2], V.V[3], (uniform FReal *uniform)&Result);
+			uniform FVector4d Result[programCount];
+			soa_to_aos4_ispc(V.V[0], V.V[1], V.V[2], V.V[3], (uniform double *uniform)&Result);
 
-			uniform FVector4 *uniform Dst[programCount];
+			uniform FVector4d *uniform Dst[programCount];
 
 			foreach(i = 0 ... programCount)
 			{
-				Dst[i] = (uniform FVector4 *varying)&DstPtr[0];
+				Dst[i] = (uniform FVector4d *varying)&DstPtr[0];
+			}
+
+			*Dst[0] = Result[0];
+			*Dst[1] = Result[1];
+			*Dst[2] = Result[2];
+			*Dst[3] = Result[3];
+#if TARGET_WIDTH == 8 || TARGET_WIDTH == 16
+			*Dst[4] = Result[4];
+			*Dst[5] = Result[5];
+			*Dst[6] = Result[6];
+			*Dst[7] = Result[7];
+#endif
+#if TARGET_WIDTH == 16
+			*Dst[8] = Result[8];
+			*Dst[9] = Result[9];
+			*Dst[10] = Result[10];
+			*Dst[11] = Result[11];
+			*Dst[12] = Result[12];
+			*Dst[13] = Result[13];
+			*Dst[14] = Result[14];
+			*Dst[15] = Result[15];
+#endif
+		}
+	}
+	else
+	{
+		#pragma ignore warning(perf)
+		*DstPtr = V;
+	}
+}
+
+inline void VectorScatter(uniform FVector4f *varying DstPtr, const varying FVector4f &V)
+{
+	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
+	{
+		unmasked
+		{
+			uniform FVector4f Result[programCount];
+			soa_to_aos4_ispc(V.V[0], V.V[1], V.V[2], V.V[3], (uniform float *uniform)&Result);
+
+			uniform FVector4f *uniform Dst[programCount];
+
+			foreach(i = 0 ... programCount)
+			{
+				Dst[i] = (uniform FVector4f *varying)&DstPtr[0];
 			}
 
 			*Dst[0] = Result[0];
@@ -1111,9 +1235,15 @@ inline uniform FVector4f SetVector4(const uniform float X, const uniform float Y
 	return Result;
 }
 
-inline FVector4 SetVector4(const FVector &V, const FReal W)
+inline FVector4d SetVector4(const FVector3d &V, const FReal W)
 {
-	const FVector4 Result = {{V.V[0], V.V[1], V.V[2], W}};
+	const FVector4d Result = {{V.V[0], V.V[1], V.V[2], W}};
+	return Result;
+}
+
+inline FVector4f SetVector4(const FVector3f &V, const FReal W)
+{
+	const FVector4f Result = {{V.V[0], V.V[1], V.V[2], W}};
 	return Result;
 }
 

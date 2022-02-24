@@ -3,6 +3,7 @@
 #include "Chaos/Plane.h"
 #include "Chaos/TriangleCollisionPoint.h"
 #include "Chaos/TriangleMesh.h"
+#include "Chaos/PBDSoftsSolverParticles.h"
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 #include "Chaos/Framework/Parallel.h"

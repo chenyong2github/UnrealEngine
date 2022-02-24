@@ -117,8 +117,8 @@ namespace Chaos
 		Softs::FSolverVec3* GetAnimationNormals(int32 Offset) { return AnimationNormals.GetData() + Offset; }
 		const Softs::FSolverVec3* GetNormals(int32 Offset) const { return Normals.GetData() + Offset; }
 		Softs::FSolverVec3* GetNormals(int32 Offset) { return Normals.GetData() + Offset; }
-		const Softs::FSolverVec3* GetParticlePs(int32 Offset) const;
-		Softs::FSolverVec3* GetParticlePs(int32 Offset);
+		const Softs::FPAndInvM* GetParticlePandInvMs(int32 Offset) const;
+		Softs::FPAndInvM* GetParticlePandInvMs(int32 Offset);
 		const Softs::FSolverVec3* GetParticleXs(int32 Offset) const;
 		Softs::FSolverVec3* GetParticleXs(int32 Offset);
 		const Softs::FSolverVec3* GetParticleVs(int32 Offset) const;

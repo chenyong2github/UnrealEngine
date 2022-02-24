@@ -3,7 +3,7 @@
 
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/Array.h"
-#include "Chaos/PBDParticles.h"
+#include "Chaos/PBDSoftsSolverParticles.h"
 #include "Chaos/ParticleRule.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 

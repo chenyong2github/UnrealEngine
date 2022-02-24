@@ -3,6 +3,7 @@
 #define EXPLICIT_VECTOR4 1
 
 #include "Math/Vector.isph"
+#include "Chaos/PBDSofts.isph"
 
 struct FTether
 {
@@ -21,7 +22,7 @@ static inline varying FTether LoadTetherHelper(const uniform FTether *uniform Sr
 	return Tether;
 }
 
-export void ApplyLongRangeConstraints(uniform FVector3f P[],
+export void ApplyLongRangeConstraints(uniform FVector4f PandInvM[],
 										const uniform FTether Tethers[],
 										const uniform float Stiffness,
 										const uniform float Scale,
@@ -49,8 +50,13 @@ export void ApplyLongRangeConstraints(uniform FVector3f P[],
 		const varying int32 i1 = Start + ParticleOffset;
 		const varying int32 i2 = End + ParticleOffset;
 
-		const varying FVector3f P1 = VectorGather(&P[i1]);
-		const varying FVector3f P2 = VectorGather(&P[i2]);
+		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
+		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
+
+		varying FVector3f P1, P2;
+		varying float InvM1, InvM2;
+		UnzipPandInvM(PandInvM1, P1, InvM1);
+		UnzipPandInvM(PandInvM2, P2, InvM2);
 
 #if HW_GATHER_SUPPORTED == 1
 		if(i + programCount < NumConstraints)
@@ -68,11 +74,11 @@ export void ApplyLongRangeConstraints(uniform FVector3f P[],
 
 		const FVector3f Delta = VectorSelect(Offset < FLOAT_ZERO, FloatZeroVector, ComputedDelta);
 
-		VectorScatter(&P[i2], P2 + Delta);
+		VectorScatter(&PandInvM[i2], SetVector4(P2 + Delta, InvM2));
 	}
 }
 
-export void ApplyLongRangeConstraintsStiffnessWeightmap(uniform FVector3f P[],
+export void ApplyLongRangeConstraintsStiffnessWeightmap(uniform FVector4f PandInvM[],
 														const uniform FTether Tethers[],
 														const uniform uint8 StiffnessIndices[],
 														const uniform float StiffnessTable[],
@@ -104,8 +110,13 @@ export void ApplyLongRangeConstraintsStiffnessWeightmap(uniform FVector3f P[],
 		const varying int32 i1 = Start + ParticleOffset;
 		const varying int32 i2 = End + ParticleOffset;
 
-		const varying FVector3f P1 = VectorGather(&P[i1]);
-		const varying FVector3f P2 = VectorGather(&P[i2]);
+		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
+		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
+
+		varying FVector3f P1, P2;
+		varying float InvM1, InvM2;
+		UnzipPandInvM(PandInvM1, P1, InvM1);
+		UnzipPandInvM(PandInvM2, P2, InvM2);
 
 #if HW_GATHER_SUPPORTED == 1
 		if(i + programCount < NumConstraints)
@@ -126,11 +137,11 @@ export void ApplyLongRangeConstraintsStiffnessWeightmap(uniform FVector3f P[],
 
 		const FVector3f Delta = VectorSelect(Offset < FLOAT_ZERO, FloatZeroVector, ComputedDelta);
 
-		VectorScatter(&P[i2], P2 + Delta);
+		VectorScatter(&PandInvM[i2], SetVector4(P2 + Delta, InvM2));
 	}
 }
 
-export void ApplyLongRangeConstraintsScaleWeightmap(uniform FVector3f P[],
+export void ApplyLongRangeConstraintsScaleWeightmap(uniform FVector4f PandInvM[],
 													const uniform FTether Tethers[],
 													const uniform float Stiffness,
 													const uniform uint8 ScaleIndices[],
@@ -162,8 +173,13 @@ export void ApplyLongRangeConstraintsScaleWeightmap(uniform FVector3f P[],
 		const varying int32 i1 = Start + ParticleOffset;
 		const varying int32 i2 = End + ParticleOffset;
 
-		const varying FVector3f P1 = VectorGather(&P[i1]);
-		const varying FVector3f P2 = VectorGather(&P[i2]);
+		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
+		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
+
+		varying FVector3f P1, P2;
+		varying float InvM1, InvM2;
+		UnzipPandInvM(PandInvM1, P1, InvM1);
+		UnzipPandInvM(PandInvM2, P2, InvM2);
 
 #if HW_GATHER_SUPPORTED == 1
 		if(i + programCount < NumConstraints)
@@ -184,12 +200,12 @@ export void ApplyLongRangeConstraintsScaleWeightmap(uniform FVector3f P[],
 
 		const FVector3f Delta = VectorSelect(Offset < FLOAT_ZERO, FloatZeroVector, ComputedDelta);
 
-		VectorScatter(&P[i2], P2 + Delta);
+		VectorScatter(&PandInvM[i2], SetVector4(P2 + Delta, InvM2));
 	}
 }
 
 
-export void ApplyLongRangeConstraintsStiffnessScaleWeightmaps(uniform FVector3f P[],
+export void ApplyLongRangeConstraintsStiffnessScaleWeightmaps(uniform FVector4f PandInvM[],
 																const uniform FTether Tethers[],
 																const uniform uint8 StiffnessIndices[],
 																const uniform float StiffnessTable[],
@@ -224,8 +240,13 @@ export void ApplyLongRangeConstraintsStiffnessScaleWeightmaps(uniform FVector3f 
 		const varying int32 i1 = Start + ParticleOffset;
 		const varying int32 i2 = End + ParticleOffset;
 
-		const varying FVector3f P1 = VectorGather(&P[i1]);
-		const varying FVector3f P2 = VectorGather(&P[i2]);
+		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
+		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
+
+		varying FVector3f P1, P2;
+		varying float InvM1, InvM2;
+		UnzipPandInvM(PandInvM1, P1, InvM1);
+		UnzipPandInvM(PandInvM2, P2, InvM2);
 
 #if HW_GATHER_SUPPORTED == 1
 		if(i + programCount < NumConstraints)
@@ -248,6 +269,6 @@ export void ApplyLongRangeConstraintsStiffnessScaleWeightmaps(uniform FVector3f 
 
 		const FVector3f Delta = VectorSelect(Offset < FLOAT_ZERO, FloatZeroVector, ComputedDelta);
 
-		VectorScatter(&P[i2], P2 + Delta);
+		VectorScatter(&PandInvM[i2], SetVector4(P2 + Delta, InvM2));
 	}
 }

@@ -335,7 +335,7 @@ void FClothingSimulationSolver::EnableParticles(int32 Offset, bool bEnable)
 
 void FClothingSimulationSolver::ResetStartPose(int32 Offset, int32 NumParticles)
 {
-	Softs::FSolverVec3* const Ps = GetParticlePs(Offset);
+	Softs::FPAndInvM* const PandInvMs = GetParticlePandInvMs(Offset);
 	Softs::FSolverVec3* const Xs = GetParticleXs(Offset);
 	Softs::FSolverVec3* const Vs = GetParticleVs(Offset);
 	const Softs::FSolverVec3* const Positions = GetAnimationPositions(Offset);
@@ -343,19 +343,19 @@ void FClothingSimulationSolver::ResetStartPose(int32 Offset, int32 NumParticles)
 
 	for (int32 Index = 0; Index < NumParticles; ++Index)
 	{
-		Ps[Index] = Xs[Index] = OldPositions[Index] = Positions[Index];
+		PandInvMs[Index].P = Xs[Index] = OldPositions[Index] = Positions[Index];
 		Vs[Index] = Softs::FSolverVec3(0.);
 	}
 }
 
-const Softs::FSolverVec3* FClothingSimulationSolver::GetParticlePs(int32 Offset) const
+const Softs::FPAndInvM* FClothingSimulationSolver::GetParticlePandInvMs(int32 Offset) const
 {
-	return &Evolution->Particles().P(Offset);
+	return &Evolution->Particles().PAndInvM(Offset);
 }
 
-Softs::FSolverVec3* FClothingSimulationSolver::GetParticlePs(int32 Offset)
+Softs::FPAndInvM* FClothingSimulationSolver::GetParticlePandInvMs(int32 Offset)
 {
-	return &Evolution->Particles().P(Offset);
+	return &Evolution->Particles().PAndInvM(Offset);
 }
 
 const Softs::FSolverVec3* FClothingSimulationSolver::GetParticleXs(int32 Offset) const
@@ -784,10 +784,11 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 			if (bRealTypeCompatibleWithISPC && bChaos_PreSimulationTransforms_ISPC_Enabled)  // TODO: Make the ISPC works with both Single and Double depending on the FSolverReal type
 			{
 				ispc::ApplyPreSimulationTransforms(
-					(ispc::FVector3f*)Particles.GetP().GetData(),
+					(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 					(ispc::FVector3f*)Particles.GetV().GetData(),
 					(ispc::FVector3f*)Particles.XArray().GetData(),
 					(ispc::FVector3f*)OldAnimationPositions.GetData(),
+					Particles.GetInvM().GetData(),
 					ParticleGroupIds.GetData(),
 					(ispc::FTransform3f*)PreSimulationTransforms.GetData(),
 					(ispc::FVector3f&)DeltaLocalSpaceLocation,
@@ -806,6 +807,9 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 						// Update initial state for particles
 						Particles.P(Index) = Particles.X(Index) = GroupSpaceTransform.TransformPositionNoScale(Particles.X(Index)) - DeltaLocalSpaceLocation;
 						Particles.V(Index) = GroupSpaceTransform.TransformVector(Particles.V(Index));
+
+						// Copy InvM over to PAndInvM
+						Particles.PAndInvM(Index).InvM = Particles.InvM(Index);
 
 						// Update anim initial state (target updated by skinning)
 						OldAnimationPositions[Index] = GroupSpaceTransform.TransformPositionNoScale(OldAnimationPositions[Index]) - DeltaLocalSpaceLocation;

@@ -6,7 +6,7 @@
 #endif
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
-static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3)");
+static_assert(sizeof(ispc::FVector4f) == sizeof(Chaos::Softs::FPAndInvM), "sizeof(ispc::FVector4f) != sizeof(Chaos::Softs::FPAndInvM)");
 static_assert(sizeof(ispc::FTether) == sizeof(Chaos::Softs::FPBDLongRangeConstraintsBase::FTether), "sizeof(ispc::FTether) != sizeof(Chaos::Softs::FPBDLongRangeConstraintsBase::FTether)");
 
 bool bChaos_LongRange_ISPC_Enabled = true;
@@ -34,7 +34,7 @@ void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverR
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
 					ispc::ApplyLongRangeConstraints(
-						(ispc::FVector3f*)Particles.GetP().GetData(),
+						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(const ispc::FTether*)TetherBatch.GetData(),
 						ExpStiffnessValue,
 						ScaleValue,
@@ -65,7 +65,7 @@ void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverR
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
 					ispc::ApplyLongRangeConstraintsScaleWeightmap(
-						(ispc::FVector3f*)Particles.GetP().GetData(),
+						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(const ispc::FTether*)TetherBatch.GetData(),
 						ExpStiffnessValue,
 						ScaleIndices.GetData(),
@@ -104,7 +104,7 @@ void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverR
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
 					ispc::ApplyLongRangeConstraintsStiffnessWeightmap(
-						(ispc::FVector3f*)Particles.GetP().GetData(),
+						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(const ispc::FTether*)TetherBatch.GetData(),
 						Stiffness.GetIndices().GetData(),
 						Stiffness.GetTable().GetData(),
@@ -138,7 +138,7 @@ void FPBDLongRangeConstraints::Apply(FSolverParticles& Particles, const FSolverR
 				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
 				{
 					ispc::ApplyLongRangeConstraintsStiffnessScaleWeightmaps(
-						(ispc::FVector3f*)Particles.GetP().GetData(),
+						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(const ispc::FTether*)TetherBatch.GetData(),
 						Stiffness.GetIndices().GetData(),
 						Stiffness.GetTable().GetData(),

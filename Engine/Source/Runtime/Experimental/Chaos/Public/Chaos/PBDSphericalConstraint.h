@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Chaos/PBDSoftsEvolutionFwd.h"
-#include "Chaos/PBDParticles.h"
+#include "Chaos/PBDSoftsSolverParticles.h"
 #include "ChaosStats.h"
 #include "Containers/ArrayView.h"
 #include "Containers/ContainersFwd.h"

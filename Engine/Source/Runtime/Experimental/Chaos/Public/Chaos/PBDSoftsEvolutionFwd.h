@@ -18,6 +18,7 @@ namespace Chaos
 	template <class T, int d> class TRotation;
 	template <class T, int d> class TRigidTransform;
 	template <class T, int d> class TAABB;
+	template <class T> struct TVector3AndScalar;
 
 	class FPerParticleGravity;
 
@@ -31,12 +32,13 @@ namespace Chaos
 		using FSolverVec3 = TVector<FSolverReal, 3>;
 		using FSolverMatrix33 = PMatrix<FSolverReal, 3, 3>;
 		using FSolverMatrix44 = PMatrix<FSolverReal, 4, 4>;
-		using FSolverParticles = TPBDParticles<FSolverReal, 3>;
 		using FSolverRigidParticles = TKinematicGeometryParticlesImp<FSolverReal, 3, EGeometryParticlesSimType::Other>;
 		using FSolverRotation3 = TRotation<FSolverReal, 3>;
 		using FSolverRigidTransform3 = TRigidTransform<FSolverReal, 3>;
 		using FSolverTransform3 = UE::Math::TTransform<FSolverReal>;
 		using FSolverAABB3 = TAABB<FSolverReal, 3>;
+		class FSolverParticles;
+		struct FPAndInvM;
 
 		// Softs solver class
 		class FPBDEvolution;

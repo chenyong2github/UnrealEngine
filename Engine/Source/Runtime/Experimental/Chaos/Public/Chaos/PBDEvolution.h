@@ -5,7 +5,7 @@
 #include "Chaos/ArrayCollection.h"
 #include "Chaos/PBDActiveView.h"
 #include "Chaos/PBDSoftsEvolutionFwd.h"
-#include "Chaos/PBDParticles.h"
+#include "Chaos/PBDSoftsSolverParticles.h"
 #include "Chaos/KinematicGeometryParticles.h"
 #include "Chaos/VelocityField.h"
 

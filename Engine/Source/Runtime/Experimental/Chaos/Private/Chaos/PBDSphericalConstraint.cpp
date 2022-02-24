@@ -13,7 +13,7 @@
 bool bChaos_Spherical_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosSphericalISPCEnabled(TEXT("p.Chaos.Spherical.ISPC"), bChaos_Spherical_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in spherical constraints"));
 
-static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3)");
+static_assert(sizeof(ispc::FVector4f) == sizeof(Chaos::Softs::FPAndInvM), "sizeof(ispc::FVector4f) != sizeof(Chaos::Softs::FPAndInvM)");
 #endif
 
 namespace Chaos::Softs {
@@ -26,9 +26,8 @@ void FPBDSphericalConstraint::ApplyHelperISPC(FSolverParticles& Particles, const
 
 #if INTEL_ISPC
 	ispc::ApplySphericalConstraints(
-		(ispc::FVector3f*)Particles.GetP().GetData(),
+		(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 		(const ispc::FVector3f*)AnimationPositions.GetData(),
-		Particles.GetInvM().GetData(),
 		SphereRadii.GetData(),
 		SphereRadiiMultiplier,
 		ParticleOffset,
@@ -43,10 +42,9 @@ void FPBDSphericalBackstopConstraint::ApplyLegacyHelperISPC(FSolverParticles& Pa
 
 #if INTEL_ISPC
 	ispc::ApplyLegacySphericalBackstopConstraints(
-		(ispc::FVector3f*)Particles.GetP().GetData(),
+		(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 		(const ispc::FVector3f*)AnimationPositions.GetData(),
 		(const ispc::FVector3f*)AnimationNormals.GetData(),
-		Particles.GetInvM().GetData(),
 		SphereOffsetDistances.GetData(),
 		SphereRadii.GetData(),
 		SphereRadiiMultiplier,
@@ -62,10 +60,9 @@ void FPBDSphericalBackstopConstraint::ApplyHelperISPC(FSolverParticles& Particle
 
 #if INTEL_ISPC
 	ispc::ApplySphericalBackstopConstraints(
-		(ispc::FVector3f*)Particles.GetP().GetData(),
+		(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 		(const ispc::FVector3f*)AnimationPositions.GetData(),
 		(const ispc::FVector3f*)AnimationNormals.GetData(),
-		Particles.GetInvM().GetData(),
 		SphereOffsetDistances.GetData(),
 		SphereRadii.GetData(),
 		SphereRadiiMultiplier,

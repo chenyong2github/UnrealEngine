@@ -726,9 +726,9 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 				PrevLODIndex,
 				LODIndex,
 				Solver->GetNormals(PrevOffset),
-				Solver->GetParticlePs(PrevOffset),
+				Solver->GetParticlePandInvMs(PrevOffset),
 				Solver->GetParticleVs(PrevOffset),
-				Solver->GetParticlePs(Offset),
+				Solver->GetParticlePandInvMs(Offset),
 				Solver->GetParticleXs(Offset),
 				Solver->GetParticleVs(Offset));
 
@@ -853,14 +853,6 @@ TConstArrayView<Softs::FSolverVec3> FClothingSimulationCloth::GetParticlePositio
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
 	return TConstArrayView<Softs::FSolverVec3>(Solver->GetParticleXs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
-}
-
-TConstArrayView<Softs::FSolverVec3> FClothingSimulationCloth::GetParticleOldPositions(const FClothingSimulationSolver* Solver) const
-{
-	check(Solver);
-	const int32 LODIndex = LODIndices.FindChecked(Solver);
-	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<Softs::FSolverVec3>(Solver->GetParticlePs(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
 TConstArrayView<Softs::FSolverVec3> FClothingSimulationCloth::GetParticleNormals(const FClothingSimulationSolver* Solver) const

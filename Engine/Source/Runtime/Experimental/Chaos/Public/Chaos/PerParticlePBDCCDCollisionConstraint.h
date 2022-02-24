@@ -4,6 +4,7 @@
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/Transform.h"
 #include "Chaos/PBDActiveView.h"
+#include "Chaos/PBDSoftsSolverParticles.h"
 #include "Misc/ScopeLock.h"
 
 namespace Chaos::Softs

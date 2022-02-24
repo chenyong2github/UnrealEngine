@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDSpringConstraints.h"
-#include "Chaos/PBDParticles.h"
+#include "Chaos/PBDSoftsSolverParticles.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/GraphColoring.h"
 #include "Chaos/Framework/Parallel.h"
@@ -15,7 +15,7 @@
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Spring Constraint"), STAT_PBD_Spring, STATGROUP_Chaos);
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
-static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3)");
+static_assert(sizeof(ispc::FVector4f) == sizeof(Chaos::Softs::FPAndInvM), "sizeof(ispc::FVector4f) != sizeof(Chaos::Softs::FPAndInvM)");
 static_assert(sizeof(ispc::FIntVector2) == sizeof(Chaos::TVec2<int32>), "sizeof(ispc::FIntVector2) != sizeof(Chaos::TVec2<int32>)");
 
 bool bChaos_Spring_ISPC_Enabled = true;
@@ -106,9 +106,8 @@ void FPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverReal
 					const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
 					const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
 					ispc::ApplySpringConstraints(
-						(ispc::FVector3f*)&Particles.GetP()[0],
+						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(ispc::FIntVector2*)&Constraints.GetData()[ColorStart],
-						&Particles.GetInvM().GetData()[0],
 						&Dists.GetData()[ColorStart],
 						ExpStiffnessValue,
 						ColorSize);
@@ -139,9 +138,8 @@ void FPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverReal
 					const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
 					const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
 					ispc::ApplySpringConstraintsWithWeightMaps(
-						(ispc::FVector3f*) & Particles.GetP()[0],
+						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(ispc::FIntVector2*) & Constraints.GetData()[ColorStart],
-						&Particles.GetInvM().GetData()[0],
 						&Dists.GetData()[ColorStart],
 						&Stiffness.GetIndices().GetData()[ColorStart],
 						&Stiffness.GetTable().GetData()[0],

@@ -3,6 +3,7 @@
 #include "ChaosCloth/ChaosClothingSimulationSolver.h"
 #include "ChaosCloth/ChaosWeightMapTarget.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
+#include "Chaos/PBDSoftsSolverParticles.h" // Needed for PAndInvM in WrapDeformLOD
 #include "ClothingSimulation.h"
 #include "ClothingAsset.h"
 #include "Containers/ArrayView.h"
@@ -187,12 +188,12 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 bool FClothingSimulationMesh::WrapDeformLOD(
 	int32 PrevLODIndex,
 	int32 LODIndex,
-	const FSolverVec3* Normals,
-	const FSolverVec3* Positions,
-	const FSolverVec3* Velocities,
-	FSolverVec3* OutPositions0,
-	FSolverVec3* OutPositions1,
-	FSolverVec3* OutVelocities) const
+	const Softs::FSolverVec3* Normals,
+	const Softs::FPAndInvM* PositionAndInvMs,
+	const Softs::FSolverVec3* Velocities,
+	Softs::FPAndInvM* OutPositionAndInvMs0,
+	Softs::FSolverVec3* OutPositions1,
+	Softs::FSolverVec3* OutVelocities) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FClothingSimulationMesh_WrapDeformLOD);
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothWrapDeformClothLOD);
@@ -217,10 +218,10 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 		const int32 VertIndex1 = (int32)VertData.SourceMeshVertIndices[1];
 		const int32 VertIndex2 = (int32)VertData.SourceMeshVertIndices[2];
 
-		OutPositions0[Index] = OutPositions1[Index] =
-			Positions[VertIndex0] * (FSolverReal)VertData.PositionBaryCoordsAndDist.X + Normals[VertIndex0] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W +
-			Positions[VertIndex1] * (FSolverReal)VertData.PositionBaryCoordsAndDist.Y + Normals[VertIndex1] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W +
-			Positions[VertIndex2] * (FSolverReal)VertData.PositionBaryCoordsAndDist.Z + Normals[VertIndex2] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W;
+		OutPositionAndInvMs0[Index].P = OutPositions1[Index] =
+			PositionAndInvMs[VertIndex0].P * (FSolverReal)VertData.PositionBaryCoordsAndDist.X + Normals[VertIndex0] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W +
+			PositionAndInvMs[VertIndex1].P * (FSolverReal)VertData.PositionBaryCoordsAndDist.Y + Normals[VertIndex1] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W +
+			PositionAndInvMs[VertIndex2].P * (FSolverReal)VertData.PositionBaryCoordsAndDist.Z + Normals[VertIndex2] * (FSolverReal)VertData.PositionBaryCoordsAndDist.W;
 
 		OutVelocities[Index] = 
 			Velocities[VertIndex0] * (FSolverReal)VertData.PositionBaryCoordsAndDist.X +

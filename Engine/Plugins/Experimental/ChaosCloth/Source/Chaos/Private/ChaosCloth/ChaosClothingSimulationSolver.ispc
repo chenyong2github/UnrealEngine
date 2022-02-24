@@ -5,10 +5,11 @@
 #include "Math/Vector.isph"
 #include "Math/Transform.isph"
 
-export void ApplyPreSimulationTransforms(uniform FVector3f ParticlesP[],
+export void ApplyPreSimulationTransforms(uniform FVector4f ParticlesPandInvM[],
 										uniform FVector3f ParticlesV[],
 										uniform FVector3f ParticlesX[],
 										uniform FVector3f OldAnimationPositions[],
+										const uniform float InvM[],
 										const uniform uint32 ParticleGroupIds[],
 										const uniform FTransform3f PreSimulationTransforms[],
 										const uniform FVector3f &DeltaLocalSpaceLocation,
@@ -25,7 +26,8 @@ export void ApplyPreSimulationTransforms(uniform FVector3f ParticlesP[],
 
 		const varying FVector3f ParticleX = VectorLoad(&ParticlesX[Index]);
 		const varying FVector3f PX = TransformPosition(GroupSpaceTransform, ParticleX) - DeltaLocalSpaceLocation;
-		VectorStore(&ParticlesP[Index], PX);
+
+		VectorStore(&ParticlesPandInvM[Index], SetVector4(PX, InvM[i]));
 		VectorStore(&ParticlesX[Index], PX);
 
 		const varying FVector3f ParticleV = VectorLoad(&ParticlesV[Index]);

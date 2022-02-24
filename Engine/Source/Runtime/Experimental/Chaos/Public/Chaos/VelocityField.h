@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Chaos/PBDSoftsEvolutionFwd.h"
-#include "Chaos/PBDParticles.h"
+#include "Chaos/PBDSoftsSolverParticles.h"
 #include "Chaos/TriangleMesh.h"
 
 namespace Chaos::Softs

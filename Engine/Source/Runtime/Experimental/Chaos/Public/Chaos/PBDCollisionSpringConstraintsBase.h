@@ -4,7 +4,7 @@
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 #include "Chaos/Core.h"
 #include "Chaos/PBDSoftsEvolutionFwd.h"
-#include "Chaos/PBDParticles.h"
+#include "Chaos/PBDSoftsSolverParticles.h"
 #include "Containers/Set.h"
 
 

@@ -13,7 +13,7 @@ DECLARE_CYCLE_STAT(TEXT("Chaos PBD Axial Spring Constraint"), STAT_PBD_AxialSpri
 bool bChaos_AxialSpring_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosAxialSpringISPCEnabled(TEXT("p.Chaos.AxialSpring.ISPC"), bChaos_AxialSpring_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in AxialSpring constraints"));
 
-static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3");
+static_assert(sizeof(ispc::FVector4f) == sizeof(Chaos::Softs::FPAndInvM), "sizeof(ispc::FVector4f) != sizeof(Chaos::Softs::FPAndInvM");
 static_assert(sizeof(ispc::FIntVector) == sizeof(Chaos::TVec3<int32>), "sizeof(ispc::FIntVector) != sizeof(Chaos::TVec3<int32>");
 #endif
 
@@ -108,9 +108,8 @@ void FPBDAxialSpringConstraints::Apply(FSolverParticles& Particles, const FSolve
 					const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
 					const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
 					ispc::ApplyAxialSpringConstraints(
-						(ispc::FVector3f*)&Particles.GetP()[0],
+						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(ispc::FIntVector*)&Constraints.GetData()[ColorStart],
-						&Particles.GetInvM().GetData()[0],
 						&Barys.GetData()[ColorStart],
 						&Dists.GetData()[ColorStart],
 						ExpStiffnessValue,
@@ -142,9 +141,8 @@ void FPBDAxialSpringConstraints::Apply(FSolverParticles& Particles, const FSolve
 					const int32 ColorStart = ConstraintsPerColorStartIndex[ConstraintColorIndex];
 					const int32 ColorSize = ConstraintsPerColorStartIndex[ConstraintColorIndex + 1] - ColorStart;
 					ispc::ApplyAxialSpringConstraintsWithWeightMaps(
-						(ispc::FVector3f*)&Particles.GetP()[0],
+						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(ispc::FIntVector*)&Constraints.GetData()[ColorStart],
-						&Particles.GetInvM().GetData()[0],
 						&Barys.GetData()[ColorStart],
 						&Dists.GetData()[ColorStart],
 						&Stiffness.GetIndices().GetData()[ColorStart],

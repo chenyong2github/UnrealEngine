@@ -76,9 +76,8 @@ void FPerParticlePBDCollisionConstraint::ApplyHelperISPC(FSolverParticles& InPar
 					[this, &InParticles, Dt, BatchBegin, BatchEnd, DynamicGroupId, PerGroupFriction, PerGroupThickness](FSolverRigidParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
 					{
 						ispc::ApplyPerParticleCollisionFastFriction(
-							(ispc::FVector3f*)InParticles.GetP().GetData(),
+							(ispc::FVector4f*)InParticles.GetPAndInvM().GetData(),
 							(const ispc::FVector3f*)InParticles.XArray().GetData(),
-							InParticles.GetInvM().GetData(),
 							(const ispc::FVector3f*)CollisionParticles.AllV().GetData(),
 							(const ispc::FVector3f*)CollisionParticles.XArray().GetData(),
 							(const ispc::FVector3f*)CollisionParticles.AllW().GetData(),
@@ -113,9 +112,8 @@ void FPerParticlePBDCollisionConstraint::ApplyHelperISPC(FSolverParticles& InPar
 					[this, &InParticles, Dt, BatchBegin, BatchEnd, DynamicGroupId, PerGroupThickness](FSolverRigidParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
 					{
 						ispc::ApplyPerParticleCollisionNoFriction(
-							(ispc::FVector3f*)InParticles.GetP().GetData(),
+							(ispc::FVector4f*)InParticles.GetPAndInvM().GetData(),
 							(const ispc::FVector3f*)InParticles.XArray().GetData(),
-							InParticles.GetInvM().GetData(),
 							(const ispc::FVector3f*)CollisionParticles.AllV().GetData(),
 							(const ispc::FVector3f*)CollisionParticles.XArray().GetData(),
 							(const ispc::FVector3f*)CollisionParticles.AllW().GetData(),
@@ -150,9 +148,8 @@ void FPerParticlePBDCollisionConstraint::ApplyHelperISPC(FSolverParticles& InPar
 				[this, &InParticles, Dt, BatchBegin, BatchEnd](FSolverRigidParticles& CollisionParticles, int32 CollisionOffset, int32 CollisionRange)
 				{
 					ispc::ApplyPerParticleCollision(
-						(ispc::FVector3f*)InParticles.GetP().GetData(),
+						(ispc::FVector4f*)InParticles.GetPAndInvM().GetData(),
 						(const ispc::FVector3f*)InParticles.XArray().GetData(),
-						InParticles.GetInvM().GetData(),
 						(const ispc::FVector3f*)CollisionParticles.AllV().GetData(),
 						(const ispc::FVector3f*)CollisionParticles.XArray().GetData(),
 						(const ispc::FVector3f*)CollisionParticles.AllW().GetData(),

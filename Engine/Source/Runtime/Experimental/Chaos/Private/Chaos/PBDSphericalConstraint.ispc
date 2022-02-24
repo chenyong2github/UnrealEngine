@@ -3,10 +3,10 @@
 #define EXPLICIT_VECTOR4 1
 
 #include "Math/Vector.isph"
+#include "Chaos/PBDSofts.isph"
 
-export void ApplySphericalConstraints(uniform FVector3f P[],
+export void ApplySphericalConstraints(uniform FVector4f ParticlesPandInvM[],
 									const uniform FVector3f AnimationPositions[],
-									const uniform float InvM[],
 									const uniform float SphereRadii[],
 									const uniform float SphereRadiiMultiplier,
 									const uniform int32 ParticleOffset,
@@ -17,17 +17,20 @@ export void ApplySphericalConstraints(uniform FVector3f P[],
 	foreach(Index = 0 ... ParticleCount)
 	{
 		const int32 ParticleIndex = ParticleOffset + Index;
-		const float IM = InvM[ParticleIndex];
+		const uniform int32 Offset = extract(ParticleIndex, 0);
+		const FVector4f PandInvM = VectorLoad(&ParticlesPandInvM[Offset]);
+
+		varying FVector3f Position;
+		varying float IM;
+		UnzipPandInvM(PandInvM, Position, IM);
 
 		if(all(IM == 0))
 		{
 			continue;
 		}
 
-		const uniform int32 Offset = extract(ParticleIndex, 0);
 		
 		const FVector3f Center = VectorLoad(&AnimationPositions[Offset]);
-		const FVector3f Position = VectorLoad(&P[Offset]);
 
 		const FVector3f CenterToParticle = Position - Center;
 		const float DistanceSquared = VectorSizeSquared(CenterToParticle);
@@ -38,15 +41,14 @@ export void ApplySphericalConstraints(uniform FVector3f P[],
 
 		if (IM != 0 && DistanceSquared > ((Radius * Radius) + DeadZoneSquareRadius))
 		{
-			VectorStore(&P[Offset], FinalPosition);
+			VectorStore(&ParticlesPandInvM[Offset], SetVector4(FinalPosition, IM));
 		}
 	}
 }
 
-export void ApplyLegacySphericalBackstopConstraints(uniform FVector3f P[],
+export void ApplyLegacySphericalBackstopConstraints(uniform FVector4f ParticlesPandInvM[],
 													const uniform FVector3f AnimationPositions[],
 													const uniform FVector3f AnimationNormals[],
-													const uniform float InvM[],
 													const uniform float SphereOffsetDistances[],
 													const uniform float SphereRadii[],
 													const uniform float SphereRadiiMultiplier,
@@ -58,7 +60,12 @@ export void ApplyLegacySphericalBackstopConstraints(uniform FVector3f P[],
 	foreach(Index = 0 ... ParticleCount)
 	{
 		const int32 ParticleIndex = ParticleOffset + Index;
-		const float IM = InvM[ParticleIndex];
+		const uniform int32 Offset = extract(ParticleIndex, 0);
+		const FVector4f PandInvM = VectorLoad(&ParticlesPandInvM[Offset]);
+
+		varying FVector3f Position;
+		varying float IM;
+		UnzipPandInvM(PandInvM, Position, IM);
 
 		if(all(IM == 0))
 		{
@@ -72,7 +79,7 @@ export void ApplyLegacySphericalBackstopConstraints(uniform FVector3f P[],
 		const float Radius = SphereRadii[Index] * SphereRadiiMultiplier;
 
 		const FVector3f Center = AnimationPosition - SphereOffsetDistance * AnimationNormal;  // Legacy version already includes the radius within the distance
-		const FVector3f CenterToParticle = VectorLoad(&P[extract(ParticleIndex, 0)]) - Center;
+		const FVector3f CenterToParticle = Position - Center;
 		const float DistanceSquared = VectorSizeSquared(CenterToParticle);
 
 		const FVector3f DistSquaredLessRadiusSquared = ((Radius / sqrt(DistanceSquared)) * CenterToParticle) + Center;
@@ -83,15 +90,14 @@ export void ApplyLegacySphericalBackstopConstraints(uniform FVector3f P[],
 
 		if (IM != 0 && NewP.V[0] != 0)
 		{
-			VectorStore(&P[extract(ParticleIndex, 0)], NewP);
+			VectorStore(&ParticlesPandInvM[Offset], SetVector4(NewP, IM));
 		}
 	}
 }
 
-export void ApplySphericalBackstopConstraints(uniform FVector3f P[],
+export void ApplySphericalBackstopConstraints(uniform FVector4f ParticlesPandInvM[],
 												const uniform FVector3f AnimationPositions[],
 												const uniform FVector3f AnimationNormals[],
-												const uniform float InvM[],
 												const uniform float SphereOffsetDistances[],
 												const uniform float SphereRadii[],
 												const uniform float SphereRadiiMultiplier,
@@ -103,7 +109,12 @@ export void ApplySphericalBackstopConstraints(uniform FVector3f P[],
 	foreach(Index = 0 ... ParticleCount)
 	{
 		const int32 ParticleIndex = ParticleOffset + Index;
-		const float IM = InvM[ParticleIndex];
+		const uniform int32 Offset = extract(ParticleIndex, 0);
+		const FVector4f PandInvM = VectorLoad(&ParticlesPandInvM[Offset]);
+
+		varying FVector3f Position;
+		varying float IM;
+		UnzipPandInvM(PandInvM, Position, IM);
 
 		if(all(IM == 0))
 		{
@@ -117,7 +128,7 @@ export void ApplySphericalBackstopConstraints(uniform FVector3f P[],
 		const float Radius = SphereRadii[Index] * SphereRadiiMultiplier;
 
 		const FVector3f Center = AnimationPosition - (Radius + SphereOffsetDistance) * AnimationNormal;  // Non legacy version adds radius to the distance
-		const FVector3f CenterToParticle = VectorLoad(&P[extract(ParticleIndex, 0)]) - Center;
+		const FVector3f CenterToParticle = Position - Center;
 		const float DistanceSquared = VectorSizeSquared(CenterToParticle);
 
 		const FVector3f DistSquaredLessRadiusSquared = ((Radius / sqrt(DistanceSquared)) * CenterToParticle) + Center;
@@ -128,7 +139,7 @@ export void ApplySphericalBackstopConstraints(uniform FVector3f P[],
 
 		if (IM != 0 && NewP.V[0] != 0)
 		{
-			VectorStore(&P[extract(ParticleIndex, 0)], NewP);
+			VectorStore(&ParticlesPandInvM[Offset], SetVector4(NewP, IM));
 		}
 	}
 }

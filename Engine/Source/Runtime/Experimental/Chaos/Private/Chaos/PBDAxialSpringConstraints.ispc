@@ -3,10 +3,10 @@
 #define EXPLICIT_VECTOR4 1
 
 #include "Math/Vector.isph"
+#include "Chaos/PBDSofts.isph"
 
-export void ApplyAxialSpringConstraints(uniform FVector3f P[],
+export void ApplyAxialSpringConstraints(uniform FVector4f PandInvM[],
 										const uniform FIntVector Constraints[],
-										const uniform float InvM[],
 										const uniform float Barys[],
 										const uniform float Dists[],
 										const uniform float Stiffness,
@@ -24,23 +24,22 @@ export void ApplyAxialSpringConstraints(uniform FVector3f P[],
 		const varying int32 i2 = Constraint.V[1];
 		const varying int32 i3 = Constraint.V[2];
 
-		const varying FVector3f P2 = VectorGather(&P[i2]);
-		const varying FVector3f P3 = VectorGather(&P[i3]);
+		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
+		const varying FVector4f PandInvM3 = VectorGather(&PandInvM[i3]);
 
-		const varying FVector3f P1 = VectorGather(&P[i1]);
+		varying FVector3f P1, P2, P3;
+		varying float M1, M2, M3;
+		UnzipPandInvM(PandInvM2, P2, M2);
+		UnzipPandInvM(PandInvM3, P3, M3);
+
+		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
+		UnzipPandInvM(PandInvM1, P1, M1);
 
 		const FVector3f P0 = (P2 - P3) * Bary + P3;
 		const FVector3f Difference = P1 - P0;
 
 		const float Distance = VectorSize(Difference);
 		const float Multiplier = 2 / (max(Bary, 1 - Bary) + 1);
-
-		#pragma ignore warning(perf)
-		const varying float M1 = InvM[i1];
-		#pragma ignore warning(perf)
-		const varying float M2 = InvM[i2];
-		#pragma ignore warning(perf)
-		const varying float M3 = InvM[i3];
 
 		const FVector3f Direction = Difference / Distance;
 		const FVector3f InnerDelta = (Distance - Dist) * Direction;
@@ -53,22 +52,21 @@ export void ApplyAxialSpringConstraints(uniform FVector3f P[],
 
 		if (M1 > 0)
 		{
-			VectorScatter(&P[i1], P1 - (Multiplier * M1 * Delta));
+			VectorScatter(&PandInvM[i1], SetVector4(P1 - (Multiplier * M1 * Delta), M1));
 		}
 		if (M2)
 		{
-			VectorScatter(&P[i2], P2 + (Multiplier * M2 * Bary * Delta));
+			VectorScatter(&PandInvM[i2], SetVector4(P2 + (Multiplier * M2 * Bary * Delta), M2));
 		}
 		if (M3)
 		{
-			VectorScatter(&P[i3], P3 + (Multiplier * M3 * (1 - Bary) * Delta));
+			VectorScatter(&PandInvM[i3], SetVector4(P3 + (Multiplier * M3 * (1 - Bary) * Delta), M3));
 		}
 	}
 }
 
-export void ApplyAxialSpringConstraintsWithWeightMaps(uniform FVector3f P[],
+export void ApplyAxialSpringConstraintsWithWeightMaps(uniform FVector4f PandInvM[],
 										const uniform FIntVector Constraints[],
-										const uniform float InvM[],
 										const uniform float Barys[],
 										const uniform float Dists[],
 										const uniform uint8 StiffnessIndices[],
@@ -88,23 +86,22 @@ export void ApplyAxialSpringConstraintsWithWeightMaps(uniform FVector3f P[],
 		const varying int32 i2 = Constraint.V[1];
 		const varying int32 i3 = Constraint.V[2];
 
-		const varying FVector3f P2 = VectorGather(&P[i2]);
-		const varying FVector3f P3 = VectorGather(&P[i3]);
+		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
+		const varying FVector4f PandInvM3 = VectorGather(&PandInvM[i3]);
 
-		const varying FVector3f P1 = VectorGather(&P[i1]);
+		varying FVector3f P1, P2, P3;
+		varying float M1, M2, M3;
+		UnzipPandInvM(PandInvM2, P2, M2);
+		UnzipPandInvM(PandInvM3, P3, M3);
+
+		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
+		UnzipPandInvM(PandInvM1, P1, M1);
 
 		const FVector3f P0 = (P2 - P3) * Bary + P3;
 		const FVector3f Difference = P1 - P0;
 
 		const float Distance = VectorSize(Difference);
 		const float Multiplier = 2 / (max(Bary, 1 - Bary) + 1);
-
-		#pragma ignore warning(perf)
-		const varying float M1 = InvM[i1];
-		#pragma ignore warning(perf)
-		const varying float M2 = InvM[i2];
-		#pragma ignore warning(perf)
-		const varying float M3 = InvM[i3];
 
 		#pragma ignore warning(perf)
 		const varying float Stiffness = StiffnessTable[StiffnessIndex];
@@ -120,15 +117,15 @@ export void ApplyAxialSpringConstraintsWithWeightMaps(uniform FVector3f P[],
 
 		if (M1 > 0)
 		{
-			VectorScatter(&P[i1], P1 - (Multiplier * M1 * Delta));
+			VectorScatter(&PandInvM[i1], SetVector4(P1 - (Multiplier * M1 * Delta), M1));
 		}
 		if (M2)
 		{
-			VectorScatter(&P[i2], P2 + (Multiplier * M2 * Bary * Delta));
+			VectorScatter(&PandInvM[i2], SetVector4(P2 + (Multiplier * M2 * Bary * Delta), M2));
 		}
 		if (M3)
 		{
-			VectorScatter(&P[i3], P3 + (Multiplier * M3 * (1 - Bary) * Delta));
+			VectorScatter(&PandInvM[i3], SetVector4(P3 + (Multiplier * M3 * (1 - Bary) * Delta), M3));
 		}
 	}
 }

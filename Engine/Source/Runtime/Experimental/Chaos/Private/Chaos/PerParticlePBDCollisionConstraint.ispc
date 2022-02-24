@@ -4,6 +4,7 @@
 
 #include "Math/Vector.isph"
 #include "Math/Transform.isph"
+#include "Chaos/PBDSofts.isph"
 
 enum ImplicitObjectType
 {
@@ -546,9 +547,8 @@ static inline void PhiWithNormalConvex(const uniform uint8 *uniform TypedObjectP
 
 extern "C" unmasked void GetPhiWithNormal(const uniform uint8 *uniform CollisionParticles, const uniform float *uniform V, uniform float *uniform Normal, uniform float *uniform Phi, const uniform int i, const uniform int ProgramCount, const uniform int Mask);
 
-export void ApplyPerParticleCollision(uniform FVector3f ParticlesP[],
+export void ApplyPerParticleCollision(uniform FVector4f ParticlesPandInvM[],
 										const uniform FVector3f ParticlesX[],
-										const uniform float ParticlesInvM[],
 										const uniform FVector3f CollisionV[],
 										const uniform FVector3f CollisionX[],
 										const uniform FVector3f CollisionW[],
@@ -596,14 +596,15 @@ export void ApplyPerParticleCollision(uniform FVector3f ParticlesP[],
 
 	foreach(Index = OuterOffset ... BailAt)
 	{
-		const float IM = ParticlesInvM[Index];
+		const FVector4f PandInvM = VectorLoad(&ParticlesPandInvM[extract(Index, 0)]);
+		varying FVector3f P;
+		varying float IM;
+		UnzipPandInvM(PandInvM, P, IM);
 
 		if(all(IM == 0))
 		{
 			continue;
 		}
-
-		FVector3f P = VectorLoad(&ParticlesP[extract(Index, 0)]);
 
 		const uint32 DynamicGroupId = DynamicGroupIds[Index]; // Particle group Id
 
@@ -713,14 +714,13 @@ export void ApplyPerParticleCollision(uniform FVector3f ParticlesP[],
 
 		if(IM != 0)
 		{
-			VectorStore(&ParticlesP[extract(Index, 0)], P);
+			VectorStore(&ParticlesPandInvM[extract(Index, 0)], SetVector4(P, IM));
 		}
 	}
 }
 
-export void ApplyPerParticleCollisionFastFriction(uniform FVector3f ParticlesP[],
+export void ApplyPerParticleCollisionFastFriction(uniform FVector4f ParticlesPandInvM[],
 													const uniform FVector3f ParticlesX[],
-													const uniform float ParticlesInvM[],
 													const uniform FVector3f CollisionV[],
 													const uniform FVector3f CollisionX[],
 													const uniform FVector3f CollisionW[],
@@ -766,14 +766,15 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector3f ParticlesP[]
 
 	foreach(Index = OuterOffset ... BailAt)
 	{
-		const float IM = ParticlesInvM[Index];
+		const FVector4f PandInvM = VectorLoad(&ParticlesPandInvM[extract(Index, 0)]);
+		varying FVector3f P;
+		varying float IM;
+		UnzipPandInvM(PandInvM, P, IM);
 
 		if(all(IM == 0))
 		{
 			continue;
 		}
-
-		FVector3f P = VectorLoad(&ParticlesP[extract(Index, 0)]);
 
 		for(uniform int i = InnerOffset; i < InnerRange; i++) // SequentialFor
 		{
@@ -865,14 +866,13 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector3f ParticlesP[]
 
 		if(IM != 0)
 		{
-			VectorStore(&ParticlesP[extract(Index, 0)], P);
+			VectorStore(&ParticlesPandInvM[extract(Index, 0)], SetVector4(P, IM));
 		}
 	}
 }
 
-export void ApplyPerParticleCollisionNoFriction(uniform FVector3f ParticlesP[],
+export void ApplyPerParticleCollisionNoFriction(uniform FVector4f ParticlesPandInvM[],
 												const uniform FVector3f ParticlesX[],
-												const uniform float ParticlesInvM[],
 												const uniform FVector3f CollisionV[],
 												const uniform FVector3f CollisionX[],
 												const uniform FVector3f CollisionW[],
@@ -917,14 +917,15 @@ export void ApplyPerParticleCollisionNoFriction(uniform FVector3f ParticlesP[],
 
 	foreach(Index = OuterOffset ... BailAt)
 	{
-		const float IM = ParticlesInvM[Index];
+		const FVector4f PandInvM = VectorLoad(&ParticlesPandInvM[extract(Index, 0)]);
+		varying FVector3f P;
+		varying float IM;
+		UnzipPandInvM(PandInvM, P, IM);
 
 		if(all(IM == 0))
 		{
 			continue;
 		}
-
-		FVector3f P = VectorLoad(&ParticlesP[extract(Index, 0)]);
 
 		for(uniform int i = InnerOffset; i < InnerRange; i++) // SequentialFor
 		{
@@ -1006,7 +1007,7 @@ export void ApplyPerParticleCollisionNoFriction(uniform FVector3f ParticlesP[],
 
 		if(IM != 0)
 		{
-			VectorStore(&ParticlesP[extract(Index, 0)], P);
+			VectorStore(&ParticlesPandInvM[extract(Index, 0)], SetVector4(P, IM));
 		}
 	}
 }
