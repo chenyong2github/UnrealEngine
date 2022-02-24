@@ -88,6 +88,34 @@ namespace Chaos
 		const FReal Margin;
 	};
 
+	/**
+	 * @brief A sphere with minimal API for use in GJK/EPA
+	 * Equivalent to TGJKCoreShape<FImplicitSphere3> without any indirection.
+	*/
+	class FGJKSphereShape
+	{
+	public:
+		FGJKSphereShape(const FVec3 InPos, const FReal InRadius) 
+			: Pos(InPos), Radius(InRadius) 
+		{
+		}
+
+		inline const FVec3& SupportCore(const FVec3& Direction, const FReal InMargin, FReal* MaxMarginDelta, int32& VertexIndex) const
+		{
+			VertexIndex = 0;
+			return Pos;
+		}
+
+		inline FReal GetMargin() const
+		{
+			return Radius;
+		}
+
+	private:
+		FVec3 Pos;
+		FReal Radius;
+	};
+
 
 	// Utility for creating TGJKShape objects using template parameter deduction
 	template<typename T_SHAPE>

@@ -578,27 +578,47 @@ namespace Chaos
 			C2 = P2 + T * D2;
 		}
 
-		inline FReal ClosestTimeOnLineSegment(const FVector& Point, const FVector& StartPoint, const FVector& EndPoint)
+		template<typename T>
+		inline T ClosestTimeOnLineSegment(const TVec3<T>& Point, const TVec3<T>& StartPoint, const TVec3<T>& EndPoint)
 		{
-			const FVector Segment = EndPoint - StartPoint;
-			const FVector VectToPoint = Point - StartPoint;
+			const TVec3<T> Segment = EndPoint - StartPoint;
+			const TVec3<T> VectToPoint = Point - StartPoint;
 
 			// See if closest point is before StartPoint
-			const FVector::FReal Dot1 = FVec3::DotProduct(VectToPoint, Segment);
+			const T Dot1 = TVec3<T>::DotProduct(VectToPoint, Segment);
 			if (Dot1 <= 0)
 			{
-				return FReal(0);
+				return T(0);
 			}
 
 			// See if closest point is beyond EndPoint
-			const FVector::FReal Dot2 = FVec3::DotProduct(Segment, Segment);
+			const T Dot2 = TVec3<T>::DotProduct(Segment, Segment);
 			if (Dot2 <= Dot1)
 			{
-				return FReal(1);
+				return T(1);
 			}
 
 			// Closest Point is within segment
 			return Dot1 / Dot2;
+		}
+
+		/**
+		 * @brief The distance from Start to the sphere along the vector Dir. Returns numeric max if no intersection.
+		*/
+		template<typename T>
+		inline T RaySphereIntersectionDistance(const TVec3<T>& RayStart, const TVec3<T>& RayDir, const TVec3<T>& SpherePos, const T SphereRadius)
+		{
+			const TVec3<T> EO = SpherePos - RayStart;
+			const T V = TVec3<T>::DotProduct(RayDir, EO);
+			const T Disc = SphereRadius * SphereRadius - (TVec3<T>::DotProduct(EO, EO) - V * V);
+			if (Disc >= 0)
+			{
+				return (V - FMath::Sqrt(Disc));
+			}
+			else
+			{
+				return TNumericLimits<T>::Max();
+			}
 		}
 
 
