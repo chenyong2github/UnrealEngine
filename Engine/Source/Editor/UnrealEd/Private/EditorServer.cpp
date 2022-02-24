@@ -6025,17 +6025,6 @@ bool UEditorEngine::HandleCallbackCommand( UWorld* InWorld, const TCHAR* Str , F
 
 bool UEditorEngine::HandleTestPropsCommand( const TCHAR* Str, FOutputDevice& Ar )
 {
-	UObject* Object;
-	UClass* Class = NULL;
-	if( ParseObject<UClass>( Str, TEXT("CLASS="), Class, ANY_PACKAGE ) != false )
-	{ 
-		Object = NewObject<UObject>(GetTransientPackage(), Class);
-	}
-	else
-	{
-		Object = NewObject<UPropertyEditorTestObject>();
-	}
-
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title( NSLOCTEXT("UnrealEd", "PropertyEditorTestWindowTitle", "Property Editor Test") )
 		.ClientSize(FVector2D(500,1000));
@@ -6044,6 +6033,17 @@ bool UEditorEngine::HandleTestPropsCommand( const TCHAR* Str, FOutputDevice& Ar 
 
 	if( FParse::Command(&Str,TEXT("TREE")) )
 	{
+		UObject* Object;
+		UClass* Class = NULL;
+		if( ParseObject<UClass>( Str, TEXT("CLASS="), Class, ANY_PACKAGE ) != false )
+		{ 
+			Object = NewObject<UObject>(GetTransientPackage(), Class);
+		}
+		else
+		{
+			Object = NewObject<UPropertyEditorTestObject>();
+		}
+
 		FDetailsViewArgs Args;
 		Args.bHideSelectionTip = true;
 
@@ -6098,7 +6098,13 @@ bool UEditorEngine::HandleTestPropsCommand( const TCHAR* Str, FOutputDevice& Ar 
 		StructArgs.bShowObjects = true;
 		StructArgs.bShowInterfaces = true;
 
-		TSharedRef<IStructureDetailsView> StructDetails = Module.CreateStructureDetailView(DetailsArgs, StructArgs, MakeShared<FStructOnScope>(FPropertyEditorTestBasicStruct::StaticStruct()));
+		UStruct* Struct = nullptr;
+		if (!ParseObject<UStruct>(Str, TEXT("STRUCT="), Struct, ANY_PACKAGE))
+		{
+			Struct = FPropertyEditorTestBasicStruct::StaticStruct();
+		}
+
+		TSharedRef<IStructureDetailsView> StructDetails = Module.CreateStructureDetailView(DetailsArgs, StructArgs, MakeShared<FStructOnScope>(Struct));
 
 		Window->SetContent(
 			SNew(SBorder)
@@ -6108,8 +6114,31 @@ bool UEditorEngine::HandleTestPropsCommand( const TCHAR* Str, FOutputDevice& Ar 
 			]
 		);
 	}
+	else if ( FParse::Command(&Str, TEXT("GENERATOR")) )
+	{
+		UPropertyEditorRowGeneratorTest* TestGenerator = NewObject<UPropertyEditorRowGeneratorTest>();
+		
+		Window->SetContent(
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				TestGenerator->GenerateWidget()
+			]
+		);
+	}
 	else
 	{
+		UObject* Object;
+		UClass* Class = nullptr;
+		if( ParseObject<UClass>( Str, TEXT("CLASS="), Class, ANY_PACKAGE ) != false )
+		{ 
+			Object = NewObject<UObject>(GetTransientPackage(), Class);
+		}
+		else
+		{
+			Object = NewObject<UPropertyEditorTestObject>();
+		}
+
 		//Details
 		TArray<UObject*> Objects;
 		Objects.Add( Object );

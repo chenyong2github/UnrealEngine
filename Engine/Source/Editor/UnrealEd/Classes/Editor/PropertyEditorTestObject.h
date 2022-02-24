@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "UObject/PrimaryAssetId.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/SoftObjectPath.h"
 #include "Blueprint/UserWidget.h"
@@ -178,13 +179,31 @@ struct FPropertyEditorTestEditCondition
 	int32 EnabledAndVisibleWhenOne = 0;
 };
 
-UCLASS(EditInlineNew)
+UCLASS(EditInlineNew, Abstract)
 class UPropertyEditorTestInstancedObject : public UObject
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category=Default)
 	int32 Number;
+};
+
+UCLASS()
+class UFirstDerivedPropertyEditorTestObject : public UPropertyEditorTestInstancedObject
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Foo)
+	FString String;
+};
+
+UCLASS()
+class USecondDerivedPropertyEditorTestObject : public UPropertyEditorTestInstancedObject
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Bar)
+	bool Bool;
 };
 
 USTRUCT()
@@ -196,10 +215,10 @@ struct FPropertyEditorTestInstancedStruct
 	TObjectPtr<UPropertyEditorTestInstancedObject> Object { nullptr };
 };
 
-UCLASS(transient)
+UCLASS(transient, BlueprintType, EditInlineNew)
 class UPropertyEditorTestObject : public UObject
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category=BasicProperties)
 	int8 Int8Property;
@@ -371,6 +390,9 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
 	TArray<FPropertyEditorTestInstancedStruct> InstancedStructArray;
 
+	UPROPERTY(EditAnywhere, Category=ArraysOfProperties, Instanced, meta=(TitleProperty="Number"))
+	TArray<TObjectPtr<UPropertyEditorTestInstancedObject>> ObjectPropertyArrayWithTitle;
+
 	UPROPERTY(EditAnywhere, Instanced, Category=ArraysOfProperties)
 	TArray<TObjectPtr<UPropertyEditorTestInstancedObject>> InstancedUObjectArray;
 
@@ -427,7 +449,13 @@ class UPropertyEditorTestObject : public UObject
 	FRichCurve RichCurve;
 
 	UPROPERTY(EditAnywhere, Category=Assets)
-	FSoftObjectPath AssetReferenceCustomStruct;
+	FSoftObjectPath SoftObjectPath;
+
+	UPROPERTY(EditAnywhere, Category=Assets)
+	FPrimaryAssetId PrimaryAssetId;
+
+	UPROPERTY(EditAnywhere, Category=Assets, meta=(DisplayThumbnail=false))
+	FPrimaryAssetId PrimaryAssetIdWithoutThumbnail;
 
 	UPROPERTY(EditAnywhere, Category=Assets, meta=(DisplayThumbnail="true"))
 	FSoftObjectPath AssetReferenceCustomStructWithThumbnail;
@@ -518,6 +546,9 @@ class UPropertyEditorTestObject : public UObject
 
 	UPROPERTY(EditAnywhere, Category="TMap Tests")
 	TMap<int32, FString> Int32ToStringMap;
+
+	UPROPERTY(EditAnywhere, Category = "TMap Tests", meta=(MultiLine=true))
+	TMap<FString, FText> StringToMultilineTextMap;
 
 	UPROPERTY(EditAnywhere, Category="TMap Tests")
 	TMap<FString, FLinearColor> StringToColorMap;
@@ -678,6 +709,15 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=EditCondition, meta=(EditCondition="EditConditionFlags & ETestEnumFlags::One == false"))
 	bool bDisabledWhenFlagsIsOdd;
 
+	UPROPERTY(EditAnywhere, Category=EditCondition, meta=(EditCondition=false))
+	int32 AlwaysDisabled;
+
+	UPROPERTY(EditAnywhere, Category="Category Inline Edit Condition", meta=(InlineCategoryProperty))
+	bool bCategoryInlineEditCondition;
+
+	UPROPERTY(EditAnywhere, Category="Category Inline Edit Condition", meta=(EditCondition="bCategoryInlineEditCondition"))
+	float EnabledWhenCategoryChecked;
+
 	UPROPERTY(EditAnywhere, Category=OnlyInlineProperty, meta=(InlineCategoryProperty))
 	TEnumAsByte<EComponentMobility::Type> InlineProperty;
 
@@ -738,7 +778,28 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category="Inline Edit Conditions")
 	TArray<FPropertyEditorTestEditCondition> ArrayOfStructsWithInlineCondition;
 
-	bool CanEditChange(const FProperty* InProperty) const;
+	UPROPERTY(EditAnywhere, Category = ArraysOfProperties)
+	int32 NestedArrayOfInts[5];
+};
+
+UCLASS(HideCategories=(ShownByDerived))
+class UHideCategoriesBase : public UObject
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, Category=ShownByDerived)
+	int32 HiddenInBase;
+};
+
+UCLASS(ShowCategories=(ShownByDerived))
+class UShowCategoriesTest : public UHideCategoriesBase
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, Category=InDerived)
+	int32 InDerived;
 };
 
 UCLASS(EditInlineNew, Blueprintable)
@@ -751,8 +812,14 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="Visible")
 	int32 ShouldBeVisible;
-};
 
+	UPROPERTY(EditAnywhere, Instanced, Category=Default)
+	TObjectPtr<USoundBase> ObjectA;
+
+	UPROPERTY(EditAnywhere, Instanced, Category=Default)
+	TObjectPtr<USoundBase> ObjectB;
+};
+ 
 UCLASS(Blueprintable)
 class UBlueprintPropertyContainerTestObject : public UObject
 {
@@ -788,9 +855,49 @@ class APropertyEditorTestActor : public AActor
 {
 	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, Instanced, Category = ArraysOfProperties)
+	TArray<TObjectPtr<UPropertyEditorTestInstancedObject>> InstancedUObjectArray;
+
 	UPROPERTY(EditAnywhere, Category=Default, meta=(GetOptions=GetOptionsFunc))
-	FName GetOptionsValue;
+	FName GetOptionsValue; 
+
+	UPROPERTY(EditDefaultsOnly, Category="Defaults Only")
+	float DefaultsOnly;
+
+	UPROPERTY(EditDefaultsOnly, Category="Defaults Only|Subcategory")
+	float DefaultsOnlySubcategory;
+
+	UPROPERTY(EditInstanceOnly, Category="Instance Only")
+	float InstanceOnly;
+
+	UPROPERTY(EditInstanceOnly, Category="Instance Only|Subcategory")
+	float InstanceOnlySubcategory;
+
+	UPROPERTY(EditAnywhere, Category="Map")
+	TMap<int32, FText> MultiLineMap;
 
 	UFUNCTION()
 	TArray<FString> GetOptionsFunc() const;
+};
+
+class IDetailTreeNode;
+class IPropertyRowGenerator;
+
+UCLASS()
+class UPropertyEditorRowGeneratorTest : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	TSharedRef<SWidget> GenerateWidget();
+
+private:
+	void OnRowsRefreshed();
+	TSharedRef<ITableRow> GenerateListRow(TSharedPtr<IDetailTreeNode> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+
+private:
+	TArray<TSharedPtr<IDetailTreeNode>> DetailsNodes;
+	TSharedPtr<SListView<TSharedPtr<IDetailTreeNode>>> ListView;
+	TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator;
 };
