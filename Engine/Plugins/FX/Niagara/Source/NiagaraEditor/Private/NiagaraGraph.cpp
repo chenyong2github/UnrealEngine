@@ -486,19 +486,19 @@ void UNiagaraGraph::ChangeParameterType(const FNiagaraVariable& CurrentParameter
 				Pin->Modify();
 				Pin->PinType = NiagaraSchema->TypeDefinitionToPinType(NewType);
 				Pin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
+
+				// fix default pin types if necessary
+				if (UNiagaraNodeParameterMapGet* GetNode = Cast<UNiagaraNodeParameterMapGet>(NiagaraNode))
+				{
+					UEdGraphPin* DefaultPin = GetNode->GetDefaultPin(Pin);
+					if (Pin->Direction == EGPD_Output && DefaultPin && DefaultPin->PinType != Pin->PinType)
+					{
+						DefaultPin->PinType = Pin->PinType;
+					}
+				}
+
 				NiagaraNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
 				break;
-			}
-
-			// fix default pin types if necessary
-			if (UNiagaraNodeParameterMapGet* GetNode = Cast<UNiagaraNodeParameterMapGet>(NiagaraNode))
-			{
-				UEdGraphPin* DefaultPin = GetNode->GetDefaultPin(Pin);
-				if (Pin->Direction == EGPD_Output && DefaultPin && DefaultPin->PinType != Pin->PinType)
-				{
-					DefaultPin->PinType = Pin->PinType;
-					NiagaraNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
-				}
 			}
 		}
 	}
