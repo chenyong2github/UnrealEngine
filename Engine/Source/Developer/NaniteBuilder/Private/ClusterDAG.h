@@ -33,7 +33,7 @@ struct FClusterGroup
 };
 
 // Performs DAG reduction and appends the resulting clusters and groups
-void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Cluster, uint32 ClusterBaseStart, uint32 ClusterBaseNum, uint32 MeshIndex, FBounds& MeshBounds );
+void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Cluster, uint32 ClusterBaseStart, uint32 ClusterBaseNum, uint32 MeshIndex, FBounds3f& MeshBounds );
 
 FBinaryHeap< float > FindDAGCut(
 	const TArray< FClusterGroup >& Groups,

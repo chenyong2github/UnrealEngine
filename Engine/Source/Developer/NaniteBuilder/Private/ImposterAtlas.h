@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 
-struct FBounds;
-
 namespace Nanite
 {
 
@@ -17,7 +15,7 @@ public:
 	static constexpr uint32	AtlasSize	= 12;
 	static constexpr uint32	TileSize	= 12;
 
-				FImposterAtlas( TArray< uint16 >& InPixels, const FBounds& MeshBounds );
+				FImposterAtlas( TArray< uint16 >& InPixels, const FBounds3f& MeshBounds );
 	void		Rasterize( const FIntPoint& TilePos, const FCluster& Cluster, uint32 ClusterIndex );
 
 private:

@@ -8,10 +8,164 @@
 
 struct FSurfaceAreaHeuristic
 {
-	float operator()( const FBounds& Bounds ) const
+	float operator()( const FBounds3f& Bounds ) const
 	{
 		FVector3f Extent = Bounds.Max - Bounds.Min;
 		return Extent.X * Extent.Y + Extent.X * Extent.Z + Extent.Y * Extent.Z;
+	}
+};
+
+struct FIgnoreDirty
+{
+	int32	Num() const { return 0; }
+	void	Add( uint32 Index ) {}
+	void	Mark( uint32 Index ) {}
+
+	template< typename FFuncType >
+	void	ForAll( const FFuncType& Func ) {}
+};
+
+struct FTrackDirty
+{
+	TBitArray<>			NodeIsDirty;
+	TArray< uint32 >	DirtyNodes;
+
+	int32	Num() const { return DirtyNodes.Num(); }
+
+	void	Add( uint32 Index )
+	{
+		NodeIsDirty.Add( true );
+		DirtyNodes.Add( Index );
+	}
+
+	void	Mark( uint32 Index )
+	{
+		if( !NodeIsDirty[ Index ] )
+		{
+			NodeIsDirty[ Index ] = true;
+			DirtyNodes.Add( Index );
+		}
+	}
+
+	template< typename FFuncType >
+	void	ForAll( const FFuncType& Func )
+	{
+		for( uint32 Index : DirtyNodes )
+		{
+			Func( Index );
+			NodeIsDirty[ Index ] = false;
+		}
+		DirtyNodes.Reset();
+	}
+};
+
+struct FSingleRoot
+{
+	struct FRoot
+	{
+		FBounds3f		Bounds;
+		uint32			FirstChild = ~0u;
+
+		const FVector3f& ToRelative( const FVector3f& Position ) const	{ return Position; }
+		const FBounds3f& ToRelative( const FBounds3f& Other ) const		{ return Other; }
+		const FBounds3f& ToAbsolute( const FBounds3f& Other ) const		{ return Other; }
+	};
+	FRoot Root;
+
+	FRoot&	FindOrAdd( const FBounds3f& Bounds )	{ return Root; }
+	FRoot&	FindChecked( uint32 RootFirstChild )	{ return Root; }
+	void	Remove( uint32 RootFirstChild )			{ Root.FirstChild = ~0u; }
+
+	template< typename FFuncType >
+	void ForAll( const FFuncType& Func ) const
+	{
+		Func( Root );
+	}
+};
+
+// Supports LWC with a tile grid at the top where each tile points to a BVH in tile relative coordinates.
+struct FRootForest
+{
+	struct FRoot
+	{
+		FVector3d		Offset;
+		FBounds3f		Bounds;
+		uint32			FirstChild;
+
+		template< typename T >
+		FVector3f ToRelative( const UE::Math::TVector<T>& Position ) const
+		{
+			return FVector3f( Position - Offset );
+		}
+
+		template< typename T >
+		FBounds3f ToRelative( const TBounds<T>& Other ) const
+		{
+			return Other.ToRelative( Offset );
+		}
+
+		FBounds3d ToAbsolute( const FBounds3f& Other ) const
+		{
+			return Other.ToAbsolute( Offset );
+		}
+	};
+	TArray< FRoot > Roots;
+
+	template< typename T >
+	FRoot& FindOrAdd( const TBounds<T>& Bounds )
+	{
+		constexpr double TileSize = 1024.0 * 1024.0;
+
+		UE::Math::TVector<T> RootOffset = Bounds.GetCenter() / TileSize;
+		RootOffset.X = FMath::RoundToZero( RootOffset.X );
+		RootOffset.Y = FMath::RoundToZero( RootOffset.Y );
+		RootOffset.Z = FMath::RoundToZero( RootOffset.Z );
+		RootOffset *= TileSize;
+
+		FRoot* Root = Roots.FindByPredicate(
+			[ &RootOffset ]( FRoot& Root )
+			{
+				return Root.Offset == RootOffset;
+			} );
+
+		if( Root == nullptr )
+		{
+			Root = &Roots.AddDefaulted_GetRef();
+			Root->Offset = RootOffset;
+			Root->FirstChild = ~0u;
+		}
+
+		return *Root;
+	}
+
+	FRoot& FindChecked( uint32 RootFirstChild )
+	{
+		FRoot* Root = Roots.FindByPredicate(
+			[ RootFirstChild ]( FRoot& Root )
+			{
+				return Root.FirstChild == RootFirstChild;
+			} );
+		check( Root );
+		return *Root;
+	}
+
+	void Remove( uint32 RootFirstChild )
+	{
+		Roots.RemoveAllSwap(
+			[ RootFirstChild ]( FRoot& Root )
+			{
+				return Root.FirstChild == RootFirstChild;
+			},
+			false );
+	}
+
+	template< typename FFuncType >
+	void ForAll( const FFuncType& Func ) const
+	{
+		for( const FRoot& Root : Roots )
+		{
+			Func( Root );
+		}
 	}
 };
 
@@ -20,42 +174,130 @@ constexpr uint32 ConstLog2( uint32 x )
 	return ( x < 2 ) ? 0 : 1 + ConstLog2( x / 2 );
 }
 
-template< uint32 MaxChildren, typename FCostMetric = FSurfaceAreaHeuristic >
+class FLowestCostList
+{
+	using FCandidate = TPair< float, uint32 >;
+
+public:
+	void	Reset()
+	{
+		CandidateHead = 0;
+		Candidates.Reset();
+		NumZeros = 0;
+	}
+
+	void	Add( float NodeCost, uint32 NodeIndex )
+	{
+		if( NodeCost < KINDA_SMALL_NUMBER && NumZeros < MaxZeros )
+		{
+			ZeroCostNodes[ NumZeros++ ] = NodeIndex;
+		}
+		else
+		{
+			Candidates.Add( FCandidate( NodeCost, NodeIndex ) );
+		}
+	}
+
+	bool GetNext( float BestCost, float& NodeCost, uint32& NodeIndex )
+	{
+		if( NumZeros )
+		{
+			NodeIndex = ZeroCostNodes[ --NumZeros ];
+		}
+		else
+		{
+			// Move head up
+			int32 Num = Candidates.Num();
+			while( CandidateHead < Num && Candidates[ CandidateHead ].Key >= BestCost )
+				CandidateHead++;
+			if( CandidateHead == Num )
+				return false;
+
+			// Find smallest linear search
+			float SmallestCost	= Candidates[ CandidateHead ].Key;
+			int32 SmallestIndex	= CandidateHead;
+			for( int32 i = CandidateHead + 1; i < Num; i++ )
+			{
+				float Cost = Candidates[i].Key;
+				if( Cost < SmallestCost )
+				{
+					SmallestCost = Cost;
+					SmallestIndex = i;
+				}
+			}
+
+			// Return smallest cost and NodeIndex
+			NodeCost = SmallestCost;
+			NodeIndex = Candidates[ SmallestIndex ].Value;
+
+			Candidates.RemoveAtSwap( SmallestIndex, 1, false );
+		}
+
+		return true;
+	}
+
+private:
+	TArray< FCandidate >	Candidates;
+	int32	CandidateHead;
+
+	static constexpr uint32 MaxZeros = 32;
+	uint32	NumZeros = 0;
+	uint32	ZeroCostNodes[ MaxZeros ];
+};
+
+
+template<
+	uint32 MaxChildren,
+	typename FRootPolicy	= FSingleRoot,
+	typename FDirtyPolicy	= FIgnoreDirty,
+	typename FCostMetric	= FSurfaceAreaHeuristic
+>
 class FDynamicBVH
 {
+	using FRoot = typename FRootPolicy::FRoot;
+	
+	FRootPolicy		Roots;
+	FDirtyPolicy	DirtyPolicy;
 	FCostMetric		CostMetric;
 
 public:
 					FDynamicBVH();
 
-	const FBounds&	GetBounds() const { return RootBounds; }
-	int32			GetNumNodes() const { return Nodes.Num(); }
-	int32			GetNumLeaves() const { return Leaves.Num(); }
-	int32			GetNumDirty() const { return DirtyNodes.Num(); }
+	int32			GetNumNodes() const		{ return Nodes.Num(); }
+	int32			GetNumLeaves() const	{ return Leaves.Num(); }
+	int32			GetNumDirty() const		{ return DirtyPolicy.Num(); }
 
-	void			Add( const FBounds& Bounds, uint32 Index );
-	void			Update( const FBounds& Bounds, uint32 Index );
+					template< typename T  >
+	void			Add( const TBounds<T>& Bounds, uint32 Index );
+					template< typename T  >
+	void			Update( const TBounds<T>& Bounds, uint32 Index );
 	void			Remove( uint32 Index );
-	
-	void			AddDefaulted()		{ Leaves.Add( ~0u ); }
+
+	bool			IsPresent( uint32 Index ) const	{ return Index < (uint32)Leaves.Num() && Leaves[ Index ] != ~0u; }
+	void			AddDefaulted()					{ Leaves.Add( ~0u ); }
 	void			SwapIndexes( uint32 Index0, uint32 Index1 );
 
-	void			Build( const TArray< FBounds >& BoundsArray, uint32 FirstIndex );
+	void			Build( const TArray< FBounds3f >& BoundsArray, uint32 FirstIndex );
 
-	const FBounds&	GetBounds( uint32 Index ) const
+					template< typename T, typename FFuncType >
+	void			ForAll( const TBounds<T>& Bounds, const FFuncType& Func ) const;
+					template< typename FPredicate, typename FFuncType >
+	void			ForAll( const FPredicate& Predicate, const FFuncType& Func ) const;
+					template< typename FFuncType >
+	void			ForAllDirty( const FFuncType& Func );
+
+					template< typename T, typename FFuncType >
+	uint32			FindClosest( const UE::Math::TVector<T>& Position, const FFuncType& LeafDistSqr );
+
+	// Not correct with FRootForest
+	const FBounds3f& GetBounds( uint32 Index ) const
 	{
 		check( Leaves[ Index ] != ~0u );
 		uint32 NodeIndex = Leaves[ Index ];
 		return GetNode( NodeIndex ).GetBounds( NodeIndex );
 	}
-
-	template< typename FPredicate, typename FFuncType >
-	void			ForAll( const FPredicate& Predicate, const FFuncType& Func ) const;
-
-	template< typename FFuncType >
-	void			ForAllDirty( const FFuncType& Func );
-
-	float			GetTotalCost() const
+	
+	float GetTotalCost() const
 	{
 		float TotalCost = 0.0f;
 		for( auto& Node : Nodes )
@@ -70,7 +312,7 @@ public:
 		return TotalCost;
 	}
 
-	bool			Check() const
+	bool Check() const
 	{
 		for( int32 i = 0; i < Nodes.Num(); i++ )
 		{
@@ -93,21 +335,21 @@ protected:
 	struct FNode
 	{
 		// Index: low bits index child, high bits index FNode
-		uint32	ParentIndex;
-		uint32	NumChildren;		// Lots of bits for this!
-		uint32	ChildIndexes[ MaxChildren ];
-		FBounds	ChildBounds[ MaxChildren ];
+		uint32		ParentIndex;
+		uint32		NumChildren;		// Lots of bits for this!
+		uint32		ChildIndexes[ MaxChildren ];
+		FBounds3f	ChildBounds[ MaxChildren ];
 		
-		uint32			GetFirstChild( uint32 NodeIndex ) const	{ return ChildIndexes[ NodeIndex & ChildMask ]; }
-		const FBounds&	GetBounds( uint32 NodeIndex ) const		{ return ChildBounds[ NodeIndex & ChildMask ]; }
+		uint32				GetFirstChild( uint32 NodeIndex ) const	{ return ChildIndexes[ NodeIndex & ChildMask ]; }
+		const FBounds3f&	GetBounds( uint32 NodeIndex ) const		{ return ChildBounds[ NodeIndex & ChildMask ]; }
 		
-		bool	IsRoot() const						{ return ParentIndex == ~0u; }
-		bool	IsLeaf( uint32 NodeIndex ) const	{ return GetFirstChild( NodeIndex ) & 1; }
-		bool	IsFull() const						{ return NumChildren == MaxChildren; }
+		bool		IsRoot() const						{ return ParentIndex == ~0u; }
+		bool		IsLeaf( uint32 NodeIndex ) const	{ return GetFirstChild( NodeIndex ) & 1; }
+		bool		IsFull() const						{ return NumChildren == MaxChildren; }
 
-		FBounds	UnionBounds() const
+		FBounds3f	UnionBounds() const
 		{
-			FBounds Bounds;
+			FBounds3f Bounds;
 			for( uint32 i = 0; i < NumChildren; i++ )
 			{
 				Bounds += ChildBounds[i];
@@ -118,14 +360,9 @@ protected:
 
 	TArray< FNode >		Nodes;
 	TArray< uint32 >	Leaves;
-	TArray< uint32 >	FreeList;
-	FBounds				RootBounds;
+	uint32				FreeHead = ~0u;
 
-	TBitArray<>			NodeIsDirty;
-	TArray< uint32 >	DirtyNodes;
-
-	using FCandidate = TPair< float, uint32 >;
-	TArray< FCandidate > Candidates;
+	FLowestCostList		Candidates;
 
 protected:
 	FNode&			GetNode( uint32 NodeIndex )			{ return Nodes[ NodeIndex >> IndexShift ]; }
@@ -133,20 +370,16 @@ protected:
 
 	void	MarkDirty( uint32 NodeIndex )
 	{
-		if( !NodeIsDirty[ NodeIndex >> IndexShift ] )
-		{
-			NodeIsDirty[ NodeIndex >> IndexShift ] = true;
-			DirtyNodes.Add( NodeIndex >> IndexShift );
-		}
+		DirtyPolicy.Mark( NodeIndex >> IndexShift );
 	}
 
-	void	Set( uint32 NodeIndex, const FBounds& Bounds, uint32 FirstChild )
+	void	Set( uint32 NodeIndex, const FBounds3f& Bounds, uint32 FirstChild )
 	{
 		GetNode( NodeIndex ).ChildBounds[ NodeIndex & ChildMask ] = Bounds;
 		SetFirstChild( NodeIndex, FirstChild );
 	}
 	
-	void	SetBounds( uint32 NodeIndex, const FBounds& Bounds )
+	void	SetBounds( uint32 NodeIndex, const FBounds3f& Bounds )
 	{
 		GetNode( NodeIndex ).ChildBounds[ NodeIndex & ChildMask ] = Bounds;
 		MarkDirty( NodeIndex );
@@ -168,11 +401,13 @@ protected:
 		}
 	}
 
-	uint32	FindBestInsertion_BranchAndBound( const FBounds& RESTRICT Bounds );
-	uint32	FindBestInsertion_Greedy( const FBounds& RESTRICT Bounds );
+	uint32	FindBestInsertion_BranchAndBound( uint32 NodeIndex, const FBounds3f& RESTRICT Bounds );
+	uint32	FindBestInsertion_Greedy( uint32 NodeIndex, const FBounds3f& RESTRICT Bounds );
 
-	uint32	Insert( const FBounds& RESTRICT Bounds, uint32 NodeIndex );
+	uint32	Insert( FRoot& RESTRICT Root, const FBounds3f& RESTRICT Bounds, uint32 NodeIndex );
 	void	Extract( uint32 NodeIndex );
+	void	RemoveAndSwap( uint32 NodeIndex );
+	bool	RecursivePromoteChild( uint32 NodeIndex );
 	uint32	PromoteChild( uint32 NodeIndex );
 	void	Rotate( uint32 NodeIndex );
 	
@@ -182,21 +417,16 @@ protected:
 	void	CheckNode( uint32 NodeIndex ) const;
 };
 
-template< uint32 MaxChildren, typename FCostMetric >
-FDynamicBVH< MaxChildren, FCostMetric >::FDynamicBVH()
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::FDynamicBVH()
 {
 	static_assert( MaxChildren > 1, "Must at least be binary tree." );
 	static_assert( ( MaxChildren & (MaxChildren - 1) ) == 0, "MaxChildren must be power of 2" );
-
-	Nodes.AddDefaulted();
-	NodeIsDirty.Add( true );
-
-	Nodes[0].ParentIndex = ~0u;
-	Nodes[0].NumChildren = 0;
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-FORCEINLINE void FDynamicBVH< MaxChildren, FCostMetric >::Add( const FBounds& Bounds, uint32 Index )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+template< typename T  >
+FORCEINLINE void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::Add( const TBounds<T>& Bounds, uint32 Index )
 {
 	if( Index >= (uint32)Leaves.Num() )
 	{
@@ -205,21 +435,31 @@ FORCEINLINE void FDynamicBVH< MaxChildren, FCostMetric >::Add( const FBounds& Bo
 		FMemory::Memset( &Leaves[ First ], 0xff, Count * sizeof( uint32 ) );
 	}
 
+	FRoot& Root = Roots.FindOrAdd( Bounds );
+
+	if( Root.FirstChild == ~0u )
+	{
+		Root.FirstChild = AllocNode();
+		GetNode( Root.FirstChild ).ParentIndex = ~0u;
+		GetNode( Root.FirstChild ).NumChildren = 0;
+	}
+
 	check( Leaves[ Index ] == ~0u );
-	Leaves[ Index ] = Insert( Bounds, ( Index << 1 ) | 1 );
+	Leaves[ Index ] = Insert( Root, Root.ToRelative( Bounds ), ( Index << 1 ) | 1 );
 
 	//CheckNode( Leaves[ Index ] );
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-FORCEINLINE void FDynamicBVH< MaxChildren, FCostMetric >::Update( const FBounds& Bounds, uint32 Index )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+template< typename T  >
+FORCEINLINE void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::Update( const TBounds<T>& Bounds, uint32 Index )
 {
 	Remove( Index );
 	Add( Bounds, Index );
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-FORCEINLINE void FDynamicBVH< MaxChildren, FCostMetric >::Remove( uint32 Index )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+FORCEINLINE void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::Remove( uint32 Index )
 {
 	check( Leaves[ Index ] != ~0u );
 	check( GetNode( Leaves[ Index ] ).GetFirstChild( Leaves[ Index ] ) == ( (Index << 1) | 1 ) );
@@ -228,8 +468,8 @@ FORCEINLINE void FDynamicBVH< MaxChildren, FCostMetric >::Remove( uint32 Index )
 	Leaves[ Index ] = ~0u;
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-FORCEINLINE void FDynamicBVH< MaxChildren, FCostMetric >::SwapIndexes( uint32 Index0, uint32 Index1 )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+FORCEINLINE void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::SwapIndexes( uint32 Index0, uint32 Index1 )
 {
 	Swap( Leaves[ Index0 ], Leaves[ Index1 ] );
 		
@@ -249,9 +489,8 @@ FORCEINLINE void FDynamicBVH< MaxChildren, FCostMetric >::SwapIndexes( uint32 In
 	}
 }
 
-
-template< uint32 MaxChildren, typename FCostMetric >
-uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_BranchAndBound( const FBounds& RESTRICT Bounds )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+uint32 FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::FindBestInsertion_BranchAndBound( uint32 NodeIndex, const FBounds3f& RESTRICT Bounds )
 {
 	// Uses branch and bound search algorithm outlined in:
 	// [ Bittner et al. 2012, "Fast Insertion-Based Optimization of Bounding Volume Hierarchies" ]
@@ -263,15 +502,9 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_BranchAndBound
 	float	BestCost = MAX_flt;
 	uint32	BestIndex = 0;
 
-	int32 CandidateHead = 0;
 	Candidates.Reset();
-
-	constexpr uint32 MaxZeros = 32;
-	uint32 NumZeros = 0;
-	uint32 ZeroCostNodes[ MaxZeros ];
 	
 	float InducedCost = 0.0f;
-	uint32 NodeIndex = 0;
 
 	while( true )
 	{
@@ -287,7 +520,7 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_BranchAndBound
 				constexpr uint32 Four = MaxChildren < 4 ? MaxChildren : 4;
 				for( uint32 j = 0; j < Four; j++ )
 				{
-					const FBounds& RESTRICT NodeBounds = Node.ChildBounds[ i + j ];
+					const FBounds3f& RESTRICT NodeBounds = Node.ChildBounds[ i + j ];
 
 					float DirectCost = CostMetric( Bounds + NodeBounds );
 					// Cost if we need to add a level
@@ -296,7 +529,7 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_BranchAndBound
 					ChildCost[j] = TotalCost[j] - CostMetric( NodeBounds );
 				}
 
-				for( uint32 j = 0; i + j < Node.NumChildren; j++ )
+				for( uint32 j = 0; j < 4 && i + j < Node.NumChildren; j++ )
 				{
 					if( ChildCost[j] < BestCost )
 					{
@@ -310,14 +543,7 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_BranchAndBound
 						bool bIsLeaf = FirstChild & 1;
 						if( !bIsLeaf )
 						{
-							if( ChildCost[j] < SMALL_NUMBER && NumZeros < MaxZeros )
-							{
-								ZeroCostNodes[ NumZeros++ ] = FirstChild;
-							}
-							else
-							{
-								Candidates.Add( FCandidate( ChildCost[j], FirstChild ) );
-							}
+							Candidates.Add( ChildCost[j], FirstChild );
 						}
 					}
 				}
@@ -333,37 +559,8 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_BranchAndBound
 			}
 		}
 		
-		if( NumZeros )
-		{
-			NodeIndex = ZeroCostNodes[ --NumZeros ];
-		}
-		else
-		{
-			// Move head up
-			int32 Num = Candidates.Num();
-			while( CandidateHead < Num && Candidates[ CandidateHead ].Key >= BestCost )
-				CandidateHead++;
-			if( CandidateHead == Num )
-				break;
-
-			// Find smallest linear search
-			float SmallestCost	= Candidates[ CandidateHead ].Key;
-			int32 SmallestIndex	= CandidateHead;
-			for( int32 i = CandidateHead + 1; i < Num; i++ )
-			{
-				float Cost = Candidates[i].Key;
-				if( Cost < SmallestCost )
-				{
-					SmallestCost = Cost;
-					SmallestIndex = i;
-				}
-			}
-
-			InducedCost = SmallestCost;
-			NodeIndex = Candidates[ SmallestIndex ].Value;
-
-			Candidates.RemoveAtSwap( SmallestIndex, 1, false );
-		}
+		if( !Candidates.GetNext( BestCost, InducedCost, NodeIndex ) )
+			break;
 		
 		if( InducedCost + MinAddedCost >= BestCost )
 		{
@@ -375,8 +572,8 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_BranchAndBound
 	return BestIndex;
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_Greedy( const FBounds& RESTRICT Bounds )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+uint32 FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::FindBestInsertion_Greedy( uint32 NodeIndex, const FBounds3f& RESTRICT Bounds )
 {
 	// Binary tree nodes besides the root are always full meaning a new level will always be added.
 	float MinAddedCost = MaxChildren > 2 ? 0.0f : CostMetric( Bounds );
@@ -386,7 +583,6 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_Greedy( const 
 	uint32	BestIndex = 0;
 
 	float InducedCost = 0.0f;
-	uint32 NodeIndex = 0;
 
 	do
 	{
@@ -396,59 +592,55 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_Greedy( const 
 		if( Node.IsFull() )
 		{
 			float	BestChildDist = MAX_flt;
-			float	BestChildCost = MAX_flt;
 			uint32	BestChildIndex = ~0u;
+
 			for( uint32 i = 0; i < Node.NumChildren; i += 4 )
 			{
-				FVector4f TotalCost;
-				FVector4f ChildCost;
 				FVector4f Dist;
 				constexpr uint32 Four = MaxChildren < 4 ? MaxChildren : 4;
 				for( uint32 j = 0; j < Four; j++ )
 				{
-					const FBounds& RESTRICT NodeBounds = Node.ChildBounds[ i + j ];
+					const FBounds3f& RESTRICT NodeBounds = Node.ChildBounds[ i + j ];
 
-					float DirectCost = CostMetric( Bounds + NodeBounds );
-					// Cost if we need to add a level
-					TotalCost[j] = InducedCost + DirectCost;
-					// Induced cost for children
-					ChildCost[j] = TotalCost[j] - CostMetric( NodeBounds );
-
-					FVector3f Delta = ( Bounds.Min + Bounds.Max ) - ( NodeBounds.Min + NodeBounds.Max );
+					FVector3f Delta = ( Bounds.Min - NodeBounds.Min ) + ( Bounds.Max - NodeBounds.Max );
 					Delta = Delta.GetAbs();
 					Dist[j] = Delta.X + Delta.Y + Delta.Z;
-					Dist[j] += ChildCost[j] * 4.0f;
 				}
 
-				for( uint32 j = 0; i + j < Node.NumChildren; j++ )
+				for( uint32 j = 0; j < 4 && i + j < Node.NumChildren; j++ )
 				{
-					if( ChildCost[j] < BestCost )
+					if( Dist[j] < BestChildDist )
 					{
-						if( TotalCost[j] < BestCost )
-						{
-							BestCost = TotalCost[j];
-							BestIndex = NodeIndex + i + j;
-						}
-
-						uint32 FirstChild = Node.ChildIndexes[ i + j ];
-						bool bIsLeaf = FirstChild & 1;
-						if( !bIsLeaf )
-						{
-							// Pick only 1 child to continue
-							//if( ChildCost < BestChildCost )
-							if( Dist[j] < BestChildDist )
-							{
-								BestChildDist = Dist[j];
-								BestChildCost = ChildCost[j];
-								BestChildIndex = FirstChild;
-							}
-						}
+						BestChildDist = Dist[j];
+						BestChildIndex = i + j;
 					}
 				}
 			}
 
-			InducedCost	= BestChildCost;
-			NodeIndex	= BestChildIndex;
+			const FBounds3f& RESTRICT ClosestBounds = Node.ChildBounds[ BestChildIndex ];
+
+			float DirectCost = CostMetric( Bounds + ClosestBounds );
+			// Cost if we need to add a level
+			float TotalCost = InducedCost + DirectCost;
+			// Induced cost for children
+			float ChildCost = TotalCost - CostMetric( ClosestBounds );
+
+			if( ChildCost >= BestCost )
+				break;
+
+			if( TotalCost < BestCost )
+			{
+				BestCost = TotalCost;
+				BestIndex = NodeIndex + BestChildIndex;
+			}
+
+			uint32 FirstChild = Node.ChildIndexes[ BestChildIndex ];
+			bool bIsLeaf = FirstChild & 1;
+			if( bIsLeaf )
+				break;
+
+			InducedCost	= ChildCost;
+			NodeIndex	= FirstChild;
 		}
 		else
 		{
@@ -468,20 +660,20 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_Greedy( const 
 	return BestIndex;
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-uint32 FDynamicBVH< MaxChildren, FCostMetric >::Insert( const FBounds& RESTRICT Bounds, uint32 Index )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+uint32 FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::Insert( FRoot& RESTRICT Root, const FBounds3f& RESTRICT Bounds, uint32 Index )
 {
-	FNode& Root = Nodes[0];
-	if( !Root.IsFull() )
+	FNode& RootNode = GetNode( Root.FirstChild );
+	if( !RootNode.IsFull() )
 	{
-		uint32 NodeIndex = Root.NumChildren++;
+		uint32 NodeIndex = Root.FirstChild + RootNode.NumChildren++;
 		Set( NodeIndex, Bounds, Index );
-		RootBounds += Bounds;
+		Root.Bounds += Bounds;
 		return NodeIndex;
 	}
 
-	uint32 BestIndex = FindBestInsertion_BranchAndBound( Bounds );
-	//uint32 BestIndex = FindBestInsertion_Greedy( Bounds );
+	//uint32 BestIndex = FindBestInsertion_BranchAndBound( Root.FirstChild, Bounds );
+	uint32 BestIndex = FindBestInsertion_Greedy( Root.FirstChild, Bounds );
 	
 	// Add to BestIndex's children
 	uint32 NodeIndex = GetNode( BestIndex ).GetFirstChild( BestIndex );
@@ -513,8 +705,8 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::Insert( const FBounds& RESTRICT 
 	Set( NodeIndex, Bounds, Index );
 
 	// Propagate bounds up tree
-	FBounds PathBounds	= Bounds;
-	uint32  PathIndex	= BestIndex;
+	FBounds3f PathBounds = Bounds;
+	uint32    PathIndex  = BestIndex;
 	while( PathIndex != ~0u )
 	{
 		FNode& PathNode = GetNode( PathIndex );
@@ -525,16 +717,58 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::Insert( const FBounds& RESTRICT 
 		PathBounds	= PathNode.GetBounds( PathIndex );
 		PathIndex	= PathNode.ParentIndex;
 	}
-	RootBounds += PathBounds;
+	Root.Bounds += PathBounds;
 
 	return NodeIndex;
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-void FDynamicBVH< MaxChildren, FCostMetric >::Extract( uint32 NodeIndex )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::Extract( uint32 NodeIndex )
 {
 	FNode& Node = GetNode( NodeIndex );
 	check( Node.IsRoot() || Node.NumChildren > 1 );
+
+	RemoveAndSwap( NodeIndex );
+	
+	// Propagate bounds up tree
+	FBounds3f PathBounds = Node.UnionBounds();
+	uint32    PathIndex  = Node.ParentIndex;
+	uint32    RootIndex  = NodeIndex;
+	while( PathIndex != ~0u )
+	{
+		RootIndex = PathIndex;
+
+		SetBounds( PathIndex, PathBounds );
+
+		FNode& PathNode = GetNode( PathIndex );
+		PathBounds	= PathNode.UnionBounds();
+		PathIndex	= PathNode.ParentIndex;
+	}
+	Roots.FindChecked( RootIndex & ~ChildMask ).Bounds = PathBounds;
+
+	if( !Node.IsRoot() && Node.NumChildren == 1 )
+	{
+		Set( Node.ParentIndex,
+			Node.ChildBounds[0],
+			Node.ChildIndexes[0] );
+			
+		FreeNode( NodeIndex );
+	}
+	else if( Node.IsRoot() && Node.NumChildren == 0 )
+	{
+		Roots.Remove( NodeIndex & ~ChildMask );
+		FreeNode( NodeIndex );
+	}
+	else
+	{
+		RecursivePromoteChild( NodeIndex );
+	}
+}
+
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::RemoveAndSwap( uint32 NodeIndex )
+{
+	FNode& Node = GetNode( NodeIndex );
 
 	uint32 LastChild = --Node.NumChildren;
 	if( ( NodeIndex & ChildMask ) < LastChild )
@@ -544,65 +778,48 @@ void FDynamicBVH< MaxChildren, FCostMetric >::Extract( uint32 NodeIndex )
 			Node.GetBounds( LastChild ),
 			Node.GetFirstChild( LastChild ) );
 	}
-	
-	// Propagate bounds up tree
-	FBounds PathBounds	= Node.UnionBounds();
-	uint32  PathIndex	= Node.ParentIndex;
-	while( PathIndex != ~0u )
-	{
-		SetBounds( PathIndex, PathBounds );
-
-		FNode& PathNode = GetNode( PathIndex );
-		PathBounds	= PathNode.UnionBounds();
-		PathIndex	= PathNode.ParentIndex;
-	}
-	RootBounds = PathBounds;
-
-	if( !Node.IsRoot() && Node.NumChildren == 1 )
-	{
-		FNode& ParentNode = GetNode( Node.ParentIndex );
-
-		Set( Node.ParentIndex,
-			Node.ChildBounds[0],
-			Node.ChildIndexes[0] );
-			
-		FreeNode( NodeIndex );
-	}
-	else
-	{
-		// Recursively promotes children to fill the hole until it reaches a leaf.
-		// The result of doing this on every Extract is that all inner nodes are guarenteed to be full.
-		do
-		{
-			FNode& PathNode = GetNode( NodeIndex );
-
-			// Find best node to promote a child from.
-			float	BestCost = 0.0f;
-			uint32	BestIndex = ~0u;
-			for( uint32 i = 0; i < PathNode.NumChildren; i++ )
-			{
-				if( !PathNode.IsLeaf(i) )
-				{
-					float Cost = CostMetric( PathNode.ChildBounds[i] );
-					if( Cost > BestCost )
-					{
-						BestCost = Cost;
-						BestIndex = ( NodeIndex & ~ChildMask ) | i;
-					}
-				}
-			}
-
-			if( BestIndex == ~0u )
-				break;
-
-			NodeIndex = PromoteChild( BestIndex );
-		}
-		while( NodeIndex != ~0u );
-	}
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-uint32 FDynamicBVH< MaxChildren, FCostMetric >::PromoteChild( uint32 NodeIndex )
+// Recursively promotes children to fill the hole until it reaches a leaf.
+// The result of doing this on every Extract is that all inner nodes are guarenteed to be full.
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+bool FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::RecursivePromoteChild( uint32 NodeIndex )
+{
+	bool bPromoted = false;
+
+	do
+	{
+		FNode& PathNode = GetNode( NodeIndex );
+
+		// Find best node to promote a child from.
+		float	BestCost = 0.0f;
+		uint32	BestIndex = ~0u;
+		for( uint32 i = 0; i < PathNode.NumChildren; i++ )
+		{
+			if( !PathNode.IsLeaf(i) )
+			{
+				float Cost = CostMetric( PathNode.ChildBounds[i] );
+				if( Cost > BestCost )
+				{
+					BestCost = Cost;
+					BestIndex = ( NodeIndex & ~ChildMask ) | i;
+				}
+			}
+		}
+
+		if( BestIndex == ~0u )
+			break;
+
+		NodeIndex = PromoteChild( BestIndex );
+		bPromoted = true;
+	}
+	while( NodeIndex != ~0u );
+
+	return bPromoted;
+}
+
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+uint32 FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::PromoteChild( uint32 NodeIndex )
 {
 	FNode& RESTRICT Node = GetNode( NodeIndex );
 	check( !Node.IsLeaf( NodeIndex ) );
@@ -611,11 +828,11 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::PromoteChild( uint32 NodeIndex )
 	uint32 FirstChild = Node.GetFirstChild( NodeIndex );
 	FNode& RESTRICT Children = GetNode( FirstChild );
 	
-	FBounds Excluded[ MaxChildren ];
+	FBounds3f Excluded[ MaxChildren ];
 
 	// Sweep forward and backward with prefix and postfix sums. Prefix + postfix sums == sum excluding this.
-	FBounds Forward;
-	FBounds Back;
+	FBounds3f Forward;
+	FBounds3f Back;
 	for( uint32 i = 0; i < Children.NumChildren; i++ )
 	{
 		uint32 j = Children.NumChildren - 1 - i;
@@ -678,15 +895,15 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::PromoteChild( uint32 NodeIndex )
 	return BestIndex;
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-void FDynamicBVH< MaxChildren, FCostMetric >::Rotate( uint32 NodeIndex )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::Rotate( uint32 NodeIndex )
 {
 	FNode& RESTRICT Node = GetNode( NodeIndex );
 
 	if( Node.IsRoot() )
 		return;
 
-	FBounds ExcludedBounds;
+	FBounds3f ExcludedBounds;
 	for( uint32 i = 0; i < Node.NumChildren; i++ )
 	{
 		if( i != (NodeIndex & ChildMask) )
@@ -714,7 +931,7 @@ void FDynamicBVH< MaxChildren, FCostMetric >::Rotate( uint32 NodeIndex )
 	if( BestIndex != ~0u )
 	{
 		// Swap
-		FBounds Bounds		= Node.GetBounds( NodeIndex );
+		FBounds3f Bounds	= Node.GetBounds( NodeIndex );
 		uint32 FirstChild	= Node.GetFirstChild( NodeIndex );
 
 		Set( NodeIndex, ParentNode.GetBounds( BestIndex ), ParentNode.GetFirstChild( BestIndex ) );
@@ -722,111 +939,226 @@ void FDynamicBVH< MaxChildren, FCostMetric >::Rotate( uint32 NodeIndex )
 	}
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-FORCEINLINE uint32 FDynamicBVH< MaxChildren, FCostMetric >::AllocNode()
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+FORCEINLINE uint32 FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::AllocNode()
 {
-	if( FreeList.Num() )
+	if( FreeHead != ~0u )
 	{
-		return FreeList.Pop( false ) << IndexShift;
+		uint32 NodeIndex = FreeHead;
+		uint32& NextIndex = GetNode( NodeIndex ).ParentIndex;
+		FreeHead = NextIndex;
+		NextIndex = ~0u;
+		return NodeIndex;
 	}
 	else
 	{
-		NodeIsDirty.Add( true );
+		DirtyPolicy.Add( Nodes.Num() );
 		return Nodes.AddUninitialized() << IndexShift;
 	}
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-FORCEINLINE void FDynamicBVH< MaxChildren, FCostMetric >::FreeNode( uint32 NodeIndex )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+FORCEINLINE void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::FreeNode( uint32 NodeIndex )
 {
 	// Assumes nothing is still linking to it
-	GetNode( NodeIndex ).ParentIndex = ~0u;
+	GetNode( NodeIndex ).ParentIndex = FreeHead;
 	GetNode( NodeIndex ).NumChildren = 0;
-	FreeList.Push( NodeIndex >> IndexShift );
+	FreeHead = NodeIndex & ~ChildMask;
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-void FDynamicBVH< MaxChildren, FCostMetric >::CheckNode( uint32 NodeIndex ) const
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::CheckNode( uint32 NodeIndex ) const
 {
 	const FNode& Node = GetNode( NodeIndex );
 
 	check( ( NodeIndex & ChildMask ) < Node.NumChildren );
-
-	if( Node.IsRoot() )
-	{
-		//check( ( NodeIndex & ~ChildMask ) == 0 );
-	}
-	else
+	
+	if( !Node.IsRoot() )
 	{
 		check( Node.NumChildren > 1 );
 		check( GetNode( Node.ParentIndex ).GetFirstChild( Node.ParentIndex ) == ( NodeIndex & ~ChildMask ) );
 	}
 
-	for( uint32 i = 0; i < Node.NumChildren; i++ )
+	uint32 FirstChild = Node.GetFirstChild( NodeIndex );
+	if( FirstChild & 1 )
 	{
-		uint32 FirstChild = Node.GetFirstChild( NodeIndex );
-		if( FirstChild & 1 )
+		check( Leaves[ FirstChild >> 1 ] == NodeIndex );
+	}
+	else
+	{
+		check( ( FirstChild & ChildMask ) == 0 );
+
+		const FNode& Children = GetNode( FirstChild );
+		for( uint32 i = 0; i < Children.NumChildren; i++ )
 		{
-			check( Leaves[ FirstChild >> 1 ] == NodeIndex );
-		}
-		else
-		{
-			check( ( FirstChild & ChildMask ) == 0 );
-			check( GetNode( FirstChild ).ParentIndex == NodeIndex );
+			check( Children.ParentIndex == NodeIndex );
 		}
 	}
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-template< typename FPredicate, typename FFuncType >
-void FDynamicBVH< MaxChildren, FCostMetric >::ForAll( const FPredicate& Predicate, const FFuncType& Func ) const
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+template< typename T, typename FFuncType >
+void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::ForAll( const TBounds<T>& Bounds, const FFuncType& Func ) const
 {
-	if( !Predicate( RootBounds ) )
-		return;
-
 	TArray< uint32, TInlineAllocator<256> > Stack;
 
-	uint32 NodeIndex = 0;
-
-	while( true )
-	{
-		const FNode& RESTRICT Node = GetNode( NodeIndex );
-
-		for( uint32 i = 0; i < Node.NumChildren; i++ )
+	Roots.ForAll(
+		[ this, &Stack, &Bounds, &Func ]( const FRoot& Root )
 		{
-			if( Predicate( Node.ChildBounds[i] ) )
+			FBounds3f RelativeBounds = Root.ToRelative( Bounds );
+
+			if( !RelativeBounds.Intersect( Root.Bounds ) )
+				return;
+
+			uint32 NodeIndex = Root.FirstChild;
+
+			while( true )
 			{
-				uint32 FirstChild = Node.GetFirstChild( NodeIndex );
-				if( FirstChild & 1 )
+				const FNode& RESTRICT Node = GetNode( NodeIndex );
+
+				for( uint32 i = 0; i < Node.NumChildren; i++ )
 				{
-					Func( FirstChild >> 1 );
+					// TODO detect fully contained and stop intersection testing.
+					if( RelativeBounds.Intersect( Node.ChildBounds[i] ) )
+					{
+						uint32 FirstChild = Node.ChildIndexes[i];
+						if( FirstChild & 1 )
+						{
+							// Leaf
+							Func( FirstChild >> 1 );
+						}
+						else
+						{
+							Stack.Push( FirstChild );
+						}
+					}
 				}
-				else
-				{
-					Stack.Push( FirstChild );
-				}
+
+				if( Stack.Num() == 0 )
+					break;
+
+				NodeIndex = Stack.Pop( false );
 			}
-		}
-
-		if( Stack.Num() == 0 )
-			break;
-
-		NodeIndex = Stack.Pop( false );
-	}
+		} );
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-template< typename FFuncType >
-void FDynamicBVH< MaxChildren, FCostMetric >::ForAllDirty( const FFuncType& Func )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+template< typename FPredicate, typename FFuncType >
+void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::ForAll( const FPredicate& Predicate, const FFuncType& Func ) const
 {
-	for( uint32 NodeIndex : DirtyNodes )
-	{
-		Func( NodeIndex, GetNode( NodeIndex ) );
-		NodeIsDirty[ NodeIndex ] = false;
-	}
-	DirtyNodes.Reset();
+	TArray< uint32, TInlineAllocator<256> > Stack;
+
+	Roots.ForAll(
+		[ this, &Stack, &Predicate, &Func ]( const FRoot& Root )
+		{
+			if( !Predicate( Root.ToAbsolute( Root.Bounds ) ) )
+				return;
+
+			uint32 NodeIndex = Root.FirstChild;
+
+			while( true )
+			{
+				const FNode& RESTRICT Node = GetNode( NodeIndex );
+
+				for( uint32 i = 0; i < Node.NumChildren; i++ )
+				{
+					if( Predicate( Root.ToAbsolute( Node.ChildBounds[i] ) ) )
+					{
+						uint32 FirstChild = Node.ChildIndexes[i];
+						if( FirstChild & 1 )
+						{
+							// Leaf
+							Func( FirstChild >> 1 );
+						}
+						else
+						{
+							Stack.Push( FirstChild );
+						}
+					}
+				}
+
+				if( Stack.Num() == 0 )
+					break;
+
+				NodeIndex = Stack.Pop( false );
+			}
+		} );
 }
 
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+template< typename FFuncType >
+void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::ForAllDirty( const FFuncType& Func )
+{
+	DirtyPolicy.ForAll(
+		[&]( uint32 Index )
+		{
+			Func( Index, GetNode( Index << IndexShift ) );
+		}
+	);
+}
+
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+template< typename T, typename FFuncType >
+uint32 FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::FindClosest( const UE::Math::TVector<T>& Position, const FFuncType& LeafDistSqr )
+{
+	float	ClosestDistSqr = MAX_flt;
+	uint32	ClosestIndex = ~0u;
+
+	Candidates.Reset();
+
+	Roots.ForAll(
+		[ this, &Position, &LeafDistSqr, &ClosestDistSqr, &ClosestIndex ]( const FRoot& Root )
+		{
+			FVector3f RelativePosition = Root.ToRelative( Position );
+
+			float	NodeDistSqr	= Root.Bounds.DistSqr( RelativePosition );
+			uint32	NodeIndex	= Root.NodeIndex;
+
+			while( NodeDistSqr < ClosestDistSqr )
+			{
+				const FNode& RESTRICT Node = GetNode( NodeIndex );
+
+				for( uint32 i = 0; i < Node.NumChildren; i += 4 )
+				{
+					FVector4f ChildDistSqr;
+					constexpr uint32 Four = MaxChildren < 4 ? MaxChildren : 4;
+					for( uint32 j = 0; j < Four; j++ )
+					{
+						const FBounds3f& RESTRICT NodeBounds = Node.ChildBounds[ i + j ];
+
+						ChildDistSqr[j] = NodeBounds.DistSqr( RelativePosition );
+					}
+
+					for( uint32 j = 0; j < 4 && i + j < Node.NumChildren; j++ )
+					{
+						if( ChildDistSqr[j] < ClosestDistSqr )
+						{
+							uint32 FirstChild = Node.ChildIndexes[ i + j ];
+							if( FirstChild & 1 )
+							{
+								uint32 Index = FirstChild >> 1;
+								float DistSqr = LeafDistSqr( Position, Index );
+								if( DistSqr < ClosestDistSqr )
+								{
+									ClosestDistSqr	= DistSqr;
+									ClosestIndex	= Index;
+								}
+							}
+							else
+							{
+								Candidates.Add( ChildDistSqr[j], FirstChild );
+							}
+						}
+					}
+				}
+		
+				if( !Candidates.GetNext( ClosestDistSqr, NodeDistSqr, NodeIndex ) )
+					break;
+			}
+		} );
+
+	return ClosestIndex;
+}
 
 class FMortonArray
 {
@@ -840,7 +1172,7 @@ public:
 	};
 	
 public:
-			FMortonArray( const TArray< FBounds >& InBounds );
+			FMortonArray( const TArray< FBounds3f >& InBounds );
 
 	uint32	GetIndex( int32 i ) const { return Sorted[i].Index; }
 	uint32	Split( const FRange& Range );
@@ -857,7 +1189,7 @@ private:
 	};
 	TArray< FSortPair >			Sorted;
 
-	const TArray< FBounds >&	Bounds;
+	const TArray< FBounds3f >&	Bounds;
 };
 
 FORCEINLINE uint32 FMortonArray::Split( const FRange& Range )
@@ -894,8 +1226,8 @@ FORCEINLINE uint32 FMortonArray::Split( const FRange& Range )
 	return Max;
 }
 
-template< uint32 MaxChildren, typename FCostMetric >
-void FDynamicBVH< MaxChildren, FCostMetric >::Build( const TArray< FBounds >& BoundsArray, uint32 FirstIndex )
+template< uint32 MaxChildren, typename FRootPolicy, typename FDirtyPolicy, typename FCostMetric >
+void FDynamicBVH< MaxChildren, FRootPolicy, FDirtyPolicy, FCostMetric >::Build( const TArray< FBounds3f >& BoundsArray, uint32 FirstIndex )
 {
 	if( FirstIndex + BoundsArray.Num() > (uint32)Leaves.Num() )
 	{
@@ -909,7 +1241,8 @@ void FDynamicBVH< MaxChildren, FCostMetric >::Build( const TArray< FBounds >& Bo
 	using FRange = FMortonArray::FRange;
 
 	// TEMP Start empty
-	FreeNode(0);
+	FRoot& Root = Roots.FindOrAdd( FBounds3f( { FVector3f::ZeroVector, FVector3f::ZeroVector } ) );
+	Root.FirstChild = 0;
 
 	struct FCreateNode
 	{
@@ -943,8 +1276,8 @@ void FDynamicBVH< MaxChildren, FCostMetric >::Build( const TArray< FBounds >& Bo
 			}
 
 			// Propagate bounds up tree
-			FBounds PathBounds	= Node.UnionBounds();
-			uint32  PathIndex	= Node.ParentIndex;
+			FBounds3f PathBounds = Node.UnionBounds();
+			uint32    PathIndex  = Node.ParentIndex;
 			while( PathIndex != ~0u )
 			{
 				SetBounds( PathIndex, PathBounds );
@@ -954,8 +1287,8 @@ void FDynamicBVH< MaxChildren, FCostMetric >::Build( const TArray< FBounds >& Bo
 					break;
 
 				FNode& PathNode = GetNode( PathIndex );
-				PathBounds	= PathNode.UnionBounds();
-				PathIndex	= PathNode.ParentIndex;
+				PathBounds = PathNode.UnionBounds();
+				PathIndex  = PathNode.ParentIndex;
 			}
 			// TODO: RootBounds
 

@@ -4,14 +4,14 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/OutputDeviceRedirector.h"
 
-FMortonArray::FMortonArray( const TArray< FBounds >& InBounds )
+FMortonArray::FMortonArray( const TArray< FBounds3f >& InBounds )
 	: Bounds( InBounds )
 {
 	TArray< FSortPair > Unsorted;
 	Unsorted.AddUninitialized( Bounds.Num() );
 	Sorted.AddUninitialized( Bounds.Num() );
 	
-	FBounds TotalBounds;
+	FBounds3f TotalBounds;
 	for( int i = 0; i < Bounds.Num(); i++ )
 	{
 		TotalBounds += Bounds[i].Min + Bounds[i].Max;
@@ -42,7 +42,7 @@ FMortonArray::FMortonArray( const TArray< FBounds >& InBounds )
 
 void FMortonArray::RegenerateCodes( const FRange& Range )
 {
-	FBounds TotalBounds;
+	FBounds3f TotalBounds;
 	for( int32 i = Range.Begin; i < Range.End; i++ )
 	{
 		uint32 Index = Sorted[i].Index;
@@ -79,11 +79,11 @@ inline FVector3f RandomVector( float Min, float Max )
 	return V;
 }
 
-static FBounds RandomBounds( float CenterMin, float CenterMax, float ExtentMin, float ExtentMax )
+static FBounds3f RandomBounds( float CenterMin, float CenterMax, float ExtentMin, float ExtentMax )
 {
 	FVector3f Center = RandomVector( CenterMin, CenterMax );
 	FVector3f Extent = RandomVector( ExtentMin, ExtentMax );
-	return FBounds( { Center - Extent, Center + Extent } );
+	return FBounds3f( { Center - Extent, Center + Extent } );
 }
 
 template< uint32 MaxChildren >
@@ -142,6 +142,31 @@ void TestBVH_AddRemove()
 	uint32 Time1 = FPlatformTime::Cycles();
 	GLog->Logf( TEXT("TestBVH_AddRemove [%.2fms]"), FPlatformTime::ToMilliseconds( Time1 - Time0 ) );
 	GLog->Logf( TEXT("TestBVH_AddRemove tested %.2f"), (float)BVH.NumTested / 65536.0f );
+
+	BVH.Check();
+}
+
+void TestBVH_AddRemoveOverlapped()
+{
+	FMath::RandInit( 17 );
+
+	FDynamicBVH<4> BVH;
+	RandomBVH( -64.0f, 64.0f, 16.0f, 64.0f, 8192, BVH );
+
+	uint32 Num = BVH.GetNumLeaves();
+	uint32 Time0 = FPlatformTime::Cycles();
+
+	BVH.NumTested = 0;
+	
+	for( int i = 0; i < 65536; i++ )
+	{
+		BVH.Add( RandomBounds( -64.0f, 64.0f, 16.0f, 64.0f ), Num );
+		BVH.Remove( Num );
+	}
+
+	uint32 Time1 = FPlatformTime::Cycles();
+	GLog->Logf( TEXT("TestBVH_AddRemoveOverlapped [%.2fms]"), FPlatformTime::ToMilliseconds( Time1 - Time0 ) );
+	GLog->Logf( TEXT("TestBVH_AddRemoveOverlapped tested %.2f"), (float)BVH.NumTested / 65536.0f );
 
 	BVH.Check();
 }
@@ -207,8 +232,8 @@ void TestBVH_UpdateJitter()
 	{
 		uint32 Index = FMath::Rand() % Num;
 
-		FBounds Bounds = BVH.GetBounds( Index );
-		FVector4f Jitter = FVector4f(RandomVector( -0.01f, 0.01f ), 0.f); // W is 0, since we add to Min/Max below and shouldn't add to W.
+		FBounds3f Bounds = BVH.GetBounds( Index );
+		FVector3f Jitter = RandomVector( -0.01f, 0.01f );
 		Bounds.Min += Jitter;
 		Bounds.Max += Jitter;
 
@@ -223,7 +248,7 @@ void TestBVH_UpdateJitter()
 
 void TestBVH_Ordered()
 {
-	FBounds UnitBounds;
+	FBounds3f UnitBounds;
 	UnitBounds.Min = FVector3f::ZeroVector;
 	UnitBounds.Max = FVector3f::OneVector;
 
@@ -231,7 +256,7 @@ void TestBVH_Ordered()
 
 	for( uint32 i = 0; i < 8192; i++ )
 	{
-		FBounds Bounds = UnitBounds;
+		FBounds3f Bounds = UnitBounds;
 		Bounds.Min.X += (float)i;
 		Bounds.Max.X += (float)i;
 		BVH.Add( Bounds, i );
@@ -298,7 +323,7 @@ void TestBVH_Build()
 
 	uint32 Num = 65536;
 
-	TArray< FBounds > BoundsArray;
+	TArray< FBounds3f > BoundsArray;
 	BoundsArray.AddUninitialized( Num );
 	
 	for( uint32 i = 0; i < Num; i++ )
@@ -319,6 +344,7 @@ bool FTestBVH::RunTest( const FString& Parameters )
 {
 	TestBVH_ZeroToZero();
 	TestBVH_AddRemove();
+	TestBVH_AddRemoveOverlapped();
 	TestBVH_BatchAddRemove();
 	TestBVH_UpdateTeleport();
 	TestBVH_UpdateJitter();

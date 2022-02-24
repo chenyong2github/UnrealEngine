@@ -189,7 +189,7 @@ public:
 
 	TMap< uint32, uint32 >	AdjacentClusters;
 
-	FBounds		Bounds;
+	FBounds3f	Bounds;
 	uint32		GUID = 0;
 	int32		MipLevel = 0;
 

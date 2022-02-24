@@ -14,7 +14,7 @@ static const uint32 MaxGroupSize = 32;
 
 static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, TAtomic< uint32 >& NumClusters, TArrayView< uint32 > Children, int32 GroupIndex, uint32 MeshIndex );
 
-void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, uint32 ClusterRangeStart, uint32 ClusterRangeNum, uint32 MeshIndex, FBounds& MeshBounds )
+void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, uint32 ClusterRangeStart, uint32 ClusterRangeNum, uint32 MeshIndex, FBounds3f& MeshBounds )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite.BuildDAG);
 
@@ -209,7 +209,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 
 		auto GetCenter = [&]( uint32 Index )
 		{
-			FBounds& Bounds = LevelClusters[ Index ].Bounds;
+			FBounds3f& Bounds = LevelClusters[ Index ].Bounds;
 			return 0.5f * ( Bounds.Min + Bounds.Max );
 		};
 		Partitioner.BuildLocalityLinks( DisjointSet, MeshBounds, GetCenter );

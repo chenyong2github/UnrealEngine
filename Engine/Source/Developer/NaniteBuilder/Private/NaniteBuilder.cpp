@@ -292,7 +292,7 @@ static void ClusterTriangles(
 	const TArrayView< const uint32 >& Indexes,
 	const TArrayView< const int32 >& MaterialIndexes,
 	TArray< FCluster >& Clusters,	// Append
-	const FBounds& MeshBounds,
+	const FBounds3f& MeshBounds,
 	uint32 NumTexCoords,
 	bool bHasColors )
 {
@@ -453,7 +453,7 @@ static bool BuildNaniteData(
 		NumTexCoords = NANITE_MAX_UVS;
 	}
 
-	FBounds	VertexBounds;
+	FBounds3f	VertexBounds;
 	uint32 Channel = 255;
 	for( auto& Vert : InputMeshData.Vertices )
 	{
@@ -527,7 +527,7 @@ static bool BuildNaniteData(
 
 	uint32 Time0 = FPlatformTime::Cycles();
 
-	FBounds MeshBounds;	
+	FBounds3f MeshBounds;	
 	TArray<FClusterGroup> Groups;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::DAG.Reduce);

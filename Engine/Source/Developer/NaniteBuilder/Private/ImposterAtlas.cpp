@@ -16,7 +16,7 @@ inline FVector3f OctahedronToUnitVector( const FVector2D& Oct )
 namespace Nanite
 {
 
-FImposterAtlas::FImposterAtlas( TArray< uint16 >& InPixels, const FBounds& Bounds )
+FImposterAtlas::FImposterAtlas( TArray< uint16 >& InPixels, const FBounds3f& Bounds )
 	: Pixels( InPixels )
 {
 	BoundsCenter = 0.5f * ( Bounds.Max + Bounds.Min );

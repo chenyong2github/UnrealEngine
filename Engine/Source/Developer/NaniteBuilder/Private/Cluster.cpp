@@ -613,7 +613,7 @@ FMatrix44f CovarianceToBasis( const FMatrix44f& Covariance )
 
 void FCluster::Bound()
 {
-	Bounds = FBounds();
+	Bounds = FBounds3f();
 	SurfaceArea = 0.0f;
 	
 	TArray< FVector3f, TInlineAllocator<128> > Positions;

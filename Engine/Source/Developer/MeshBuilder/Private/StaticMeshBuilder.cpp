@@ -61,7 +61,7 @@ static bool UseNativeQuadraticReduction()
 static void ComputeBoundsFromPositionBuffer(const FPositionVertexBuffer& UsePositionBuffer, FBoxSphereBounds& BoundsOut)
 {
 	// Calculate the bounding box.
-	FBounds Bounds;
+	FBounds3f Bounds;
 	for (uint32 VertexIndex = 0; VertexIndex < UsePositionBuffer.GetNumVertices(); VertexIndex++)
 	{
 		Bounds += UsePositionBuffer.VertexPosition(VertexIndex);
@@ -87,7 +87,7 @@ static void ComputeBoundsFromPositionBuffer(const FPositionVertexBuffer& UsePosi
 static void ComputeBoundsFromVertexList(const TArray<FStaticMeshBuildVertex>& Vertices, FBoxSphereBounds& BoundsOut)
 {
 	// Calculate the bounding box.
-	FBounds Bounds;
+	FBounds3f Bounds;
 	for (int32 VertexIndex = 0; VertexIndex < Vertices.Num(); VertexIndex++)
 	{
 		Bounds += Vertices[VertexIndex].Position;

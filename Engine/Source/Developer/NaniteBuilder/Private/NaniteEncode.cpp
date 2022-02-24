@@ -26,7 +26,7 @@ namespace Nanite
 struct FClusterGroupPart					// Whole group or a part of a group that has been split.
 {
 	TArray<uint32>	Clusters;				// Can be reordered during page allocation, so we need to store a list here.
-	FBounds			Bounds;
+	FBounds3f		Bounds;
 	uint32			PageIndex;
 	uint32			GroupIndex;				// Index of group this is a part of.
 	uint32			HierarchyNodeIndex;
@@ -592,7 +592,7 @@ static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FClust
 struct FHierarchyNode
 {
 	FSphere3f		LODBounds[NANITE_MAX_BVH_NODE_FANOUT];
-	FBounds			Bounds[NANITE_MAX_BVH_NODE_FANOUT];
+	FBounds3f		Bounds[NANITE_MAX_BVH_NODE_FANOUT];
 	float			MinLODErrors[NANITE_MAX_BVH_NODE_FANOUT];
 	float			MaxParentLODErrors[NANITE_MAX_BVH_NODE_FANOUT];
 	uint32			ChildrenStartIndex[NANITE_MAX_BVH_NODE_FANOUT];
@@ -607,7 +607,7 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHier
 	{
 		OutNode.LODBounds[i] = FVector4f(InNode.LODBounds[i].Center, InNode.LODBounds[i].W);
 
-		const FBounds& Bounds = InNode.Bounds[i];
+		const FBounds3f& Bounds = InNode.Bounds[i];
 		OutNode.Misc0[i].BoxBoundsCenter = Bounds.GetCenter();
 		OutNode.Misc1[i].BoxBoundsExtent = Bounds.GetExtent();
 
@@ -640,7 +640,7 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHier
 	}
 }
 
-static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters, const FBounds& MeshBounds, const FMeshNaniteSettings& Settings)
+static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters, const FBounds3f& MeshBounds, const FMeshNaniteSettings& Settings)
 {	
 	// Simple global quantization for EA
 	const int32 MaxPositionQuantizedValue	= (1 << NANITE_MAX_POSITION_QUANTIZATION_BITS) - 1;
@@ -688,7 +688,7 @@ static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters
 	// Make sure all clusters are encodable. A large enough cluster could hit the 21bpc limit. If it happens scale back until it fits.
 	for (const FCluster& Cluster : Clusters)
 	{
-		const FBounds& Bounds = Cluster.Bounds;
+		const FBounds3f& Bounds = Cluster.Bounds;
 		
 		int32 Iterations = 0;
 		while (true)
@@ -1400,7 +1400,7 @@ static void AssignClustersToPages(
 		check(Part.Clusters.Num() <= NANITE_MAX_CLUSTERS_PER_GROUP);
 		check(Part.PageIndex < (uint32)Pages.Num());
 
-		FBounds Bounds;
+		FBounds3f Bounds;
 		for (uint32 ClusterIndex : Part.Clusters)
 		{
 			Bounds += Clusters[ClusterIndex].Bounds;
@@ -2030,7 +2030,7 @@ struct FIntermediateNode
 	uint32				MipLevel	= MAX_int32;
 	bool				bLeaf		= false;
 	
-	FBounds				Bound;
+	FBounds3f			Bound;
 	TArray< uint32 >	Children;
 };
 
@@ -2077,7 +2077,7 @@ static uint32 BuildHierarchyRecursive(TArray<Nanite::FHierarchyNode>& HierarchyN
 
 			const Nanite::FHierarchyNode& ChildHNode = HierarchyNodes[ChildHierarchyNodeIndex];
 
-			FBounds Bounds;
+			FBounds3f Bounds;
 			TArray< FSphere3f, TInlineAllocator<NANITE_MAX_BVH_NODE_FANOUT> > LODBoundSpheres;
 			float MinLODError = MAX_flt;
 			float MaxParentLODError = 0.0f;
@@ -2139,7 +2139,7 @@ static void WriteDotGraph(const TArray<FIntermediateNode>& Nodes)
 
 static float BVH_Cost(const TArray<FIntermediateNode>& Nodes, TArrayView<uint32> NodeIndices)
 {
-	FBounds Bound;
+	FBounds3f Bound;
 	for (uint32 NodeIndex : NodeIndices)
 	{
 		Bound += Nodes[NodeIndex].Bound;
@@ -4018,7 +4018,7 @@ void Encode(
 	const FMeshNaniteSettings& Settings,
 	TArray< FCluster >& Clusters,
 	TArray< FClusterGroup >& Groups,
-	const FBounds& MeshBounds,
+	const FBounds3f& MeshBounds,
 	uint32 NumMeshes,
 	uint32 NumTexCoords,
 	bool bHasColors)
