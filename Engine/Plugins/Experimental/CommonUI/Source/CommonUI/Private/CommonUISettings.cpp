@@ -132,7 +132,7 @@ UObject* UCommonUISettings::GetDefaultImageResourceObject() const
 const FGameplayTagContainer& UCommonUISettings::GetPlatformTraits() const
 {
 #if WITH_EDITOR
-	const FName SimulatedPlatform = UPlatformSettings::GetEditorSimulatedPlatform();
+	const FName SimulatedPlatform = UPlatformSettingsManager::GetEditorSimulatedPlatform();
 	if (SimulatedPlatform != NAME_None)
 	{
 		static FName LastSimulatedPlatform = NAME_None;

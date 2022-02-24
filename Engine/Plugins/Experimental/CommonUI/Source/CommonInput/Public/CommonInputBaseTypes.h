@@ -177,7 +177,7 @@ public:
 
 	static UCommonInputPlatformSettings* Get()
 	{
-		return UPlatformSettings::GetSettingsForPlatform<UCommonInputPlatformSettings>();
+		return UPlatformSettingsManager::Get().GetSettingsForPlatform<UCommonInputPlatformSettings>();
 	}
 
 	bool TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName GamepadName) const;

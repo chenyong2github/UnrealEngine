@@ -52,7 +52,7 @@ void FPerPlatformSettingsCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 						.AllowChildren(true)
 						.CreateCategoryNodes(false);
 
-					IDetailGroup& PlatformGroup = ChildBuilder.AddGroup(PlatformSettings->GetFName(), FText::FromString(PlatformSettings->GetPlatformIniName()));
+					IDetailGroup& PlatformGroup = ChildBuilder.AddGroup(PlatformSettings->GetFName(), FText::FromName(PlatformSettings->GetPlatformIniName()));
 
 					TSharedPtr<IPropertyHandle> PlatformSettingsPropertyArrayEntry = PlatformSettingsProperty->GetChildHandle(0);
 

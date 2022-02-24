@@ -8,17 +8,24 @@
 #include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
 #include "DeveloperSettings.h"
+#include "PlatformSettingsManager.h"
 
 #include "PlatformSettings.generated.h"
 
+class UPlatformSettings;
+
 USTRUCT()
-struct FPerPlatformSettings
+struct DEVELOPERSETTINGS_API FPerPlatformSettings
 {
 	GENERATED_BODY()
 
-public:
+	void Initialize(TSubclassOf<UPlatformSettings> SettingsClass);
+
+private:
 	UPROPERTY(Instanced, Transient, EditAnywhere, EditFixedSize, Category = Layout)
 	TArray<TObjectPtr<UPlatformSettings>> Settings;
+
+	friend class FPerPlatformSettingsCustomization;
 };
 
 /**
@@ -33,12 +40,12 @@ public:
  *         FPerPlatformSettings PlatformOptions
  * 
  * Step 3) In your UDeveloperSettings subclasses construct, there should be a line like this,
- *         PlatformOptions.Settings = UPlatformSettings::GetAllPlatformSettings<UMyPerPlatformSettings>();
+ *         PlatformOptions.Settings.Initialize(UMyPerPlatformSettings::StaticClass());
  *         This will actually ensure that you initialize the settings exposed in the editor to whatever
  *         the current platform configuration is for them.
  * 
  * Step 4) Nothing else needed.  In your system code, you will just call 
- *         UMyPerPlatformSettings* MySettings = UPlatformSettings::GetSettingsForPlatform<UMyPerPlatformSettings>()
+ *         UMyPerPlatformSettings* MySettings = UPlatformSettingsManager::Get().GetSettingsForPlatform<UMyPerPlatformSettings>()
  *         that will get you the current settings for the active platform, or the simulated platform in the editor.
  */
 UCLASS(Abstract, perObjectConfig)
@@ -48,52 +55,22 @@ class DEVELOPERSETTINGS_API UPlatformSettings : public UObject
 
 public:
 	UPlatformSettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	
-public:
-	template <typename TPlatformSettingsClass>
-	FORCEINLINE static TPlatformSettingsClass* GetSettingsForPlatform()
-	{
-		return Cast<TPlatformSettingsClass>(GetSettingsForPlatform(TPlatformSettingsClass::StaticClass()));
-	}
-
-	static UPlatformSettings* GetSettingsForPlatform(TSubclassOf<UPlatformSettings> SettingsClass);
-
-#if WITH_EDITOR
-	static FName GetEditorSimulatedPlatform() { return SimulatedEditorPlatform; }
-	static void SetEditorSimulatedPlatform(FName PlatformIniName) { SimulatedEditorPlatform = PlatformIniName; }
-
-	static TArray<FName> GetKnownAndEnablePlatformIniNames();
-
-	template <typename TPlatformSettingsClass>
-	FORCEINLINE static TArray<UPlatformSettings*> GetAllPlatformSettings()
-	{
-		return GetAllPlatformSettings(TPlatformSettingsClass::StaticClass());
-	}
-
-	static TArray<UPlatformSettings*> GetAllPlatformSettings(TSubclassOf<UPlatformSettings> SettingsClass);
-
-	template <typename TPlatformSettingsClass>
-	FORCEINLINE static TPlatformSettingsClass* GetSettingsForPlatform(FString TargetIniPlatformName)
-	{
-		return Cast<TPlatformSettingsClass>(GetSettingsForPlatformInternal(TPlatformSettingsClass::StaticClass(), TargetIniPlatformName));
-	}
-#endif
 
 	virtual void InitializePlatformDefaults() { }
 
-	FString GetPlatformIniName() const { return ConfigPlatformName; }
+	FName GetPlatformIniName() const { return ConfigPlatformName; }
 	
+	//~UObject interface
 	virtual const TCHAR* GetConfigOverridePlatform() const override
 	{
-		return ConfigPlatformName.IsEmpty() ? nullptr : *ConfigPlatformName;
+		return ConfigPlatformNameStr.IsEmpty() ? nullptr : *ConfigPlatformNameStr;
 	}
+	//~End of UObject interface
 
 private:
-	static UPlatformSettings* GetSettingsForPlatformInternal(TSubclassOf<UPlatformSettings> SettingsClass, FString TargetIniPlatformName);
+	// The platform we are an instance of settings for
+	FName ConfigPlatformName;
+	FString ConfigPlatformNameStr;
 
-	FString ConfigPlatformName;
-
-#if WITH_EDITOR
-	static FName SimulatedEditorPlatform;
-#endif
+	friend UPlatformSettingsManager;
 };

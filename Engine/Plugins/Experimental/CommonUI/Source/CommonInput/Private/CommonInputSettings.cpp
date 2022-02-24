@@ -14,9 +14,7 @@ UCommonInputSettings::UCommonInputSettings(const FObjectInitializer& Initializer
 	: Super(Initializer)
 	, bInputDataLoaded(false)
 {
-#if WITH_EDITOR
-	PlatformInput.Settings = UPlatformSettings::GetAllPlatformSettings<UCommonInputPlatformSettings>();
-#endif
+	PlatformInput.Initialize(UCommonInputPlatformSettings::StaticClass());
 }
 
 void UCommonInputSettings::LoadData()
@@ -146,7 +144,7 @@ void UCommonInputSettings::PostInitProperties()
 		{
 			const FCommonInputPlatformBaseData& OriginalData = PlatformData.Value;
 
-			if (UCommonInputPlatformSettings* Settings = UPlatformSettings::GetSettingsForPlatform<UCommonInputPlatformSettings>(PlatformData.Key.ToString()))
+			if (UCommonInputPlatformSettings* Settings = UPlatformSettingsManager::Get().GetSettingsForPlatform<UCommonInputPlatformSettings>(PlatformData.Key))
 			{
 				Settings->bSupportsMouseAndKeyboard = OriginalData.bSupportsMouseAndKeyboard;
 				Settings->bSupportsGamepad = OriginalData.bSupportsGamepad;
@@ -161,9 +159,9 @@ void UCommonInputSettings::PostInitProperties()
 			else if (PlatformData.Key == FCommonInputDefaults::PlatformPC)
 			{
 				TArray<UCommonInputPlatformSettings*> PCPlatforms;
-				PCPlatforms.Add(UPlatformSettings::GetSettingsForPlatform<UCommonInputPlatformSettings>("Windows"));
-				PCPlatforms.Add(UPlatformSettings::GetSettingsForPlatform<UCommonInputPlatformSettings>("WinGDK"));
-				PCPlatforms.Add(UPlatformSettings::GetSettingsForPlatform<UCommonInputPlatformSettings>("Linux"));
+				PCPlatforms.Add(UPlatformSettingsManager::Get().GetSettingsForPlatform<UCommonInputPlatformSettings>("Windows"));
+				PCPlatforms.Add(UPlatformSettingsManager::Get().GetSettingsForPlatform<UCommonInputPlatformSettings>("WinGDK"));
+				PCPlatforms.Add(UPlatformSettingsManager::Get().GetSettingsForPlatform<UCommonInputPlatformSettings>("Linux"));
 
 				for (UCommonInputPlatformSettings* PCPlatform : PCPlatforms)
 				{

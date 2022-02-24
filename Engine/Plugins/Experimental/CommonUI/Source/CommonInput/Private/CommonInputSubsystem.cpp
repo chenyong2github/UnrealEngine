@@ -314,8 +314,11 @@ void UCommonInputSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	FCommonInputBase::GetInputSettings()->LoadData();
-	GamepadInputType = UPlatformSettings::GetSettingsForPlatform<UCommonInputPlatformSettings>()->GetDefaultGamepadName();
-	CurrentInputType = LastInputType = UPlatformSettings::GetSettingsForPlatform<UCommonInputPlatformSettings>()->GetDefaultInputType();
+
+	const UCommonInputPlatformSettings* Settings = UPlatformSettingsManager::Get().GetSettingsForPlatform<UCommonInputPlatformSettings>();
+
+	GamepadInputType = Settings->GetDefaultGamepadName();
+	CurrentInputType = LastInputType = Settings->GetDefaultInputType();
 
 	CommonInputPreprocessor = MakeShared<FCommonInputPreprocessor>(*this);
 	FSlateApplication::Get().RegisterInputPreProcessor(CommonInputPreprocessor, 0);

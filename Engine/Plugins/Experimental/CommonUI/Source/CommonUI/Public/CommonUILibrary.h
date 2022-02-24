@@ -18,6 +18,6 @@ public:
 	/**
 	 * Finds the first parent widget of the given type and returns it, or null if no parent could be found.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Common UI")
+	UFUNCTION(BlueprintCallable, Category="Common UI", meta=(DeterminesOutputType=Type))
 	static UWidget* FindParentWidgetOfType(UWidget* StartingWidget, TSubclassOf<UWidget> Type);
 };

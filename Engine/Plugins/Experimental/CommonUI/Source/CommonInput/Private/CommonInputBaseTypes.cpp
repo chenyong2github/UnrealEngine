@@ -246,7 +246,7 @@ void UCommonInputPlatformSettings::InitializeControllerData() const
 
 void UCommonInputPlatformSettings::InitializePlatformDefaults()
 {
-	const FName PlatformName = *GetPlatformIniName();
+	const FName PlatformName = GetPlatformIniName();
 	const FDataDrivenPlatformInfo& PlatformInfo = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
 	if (PlatformInfo.DefaultInputType == "Gamepad")
 	{
