@@ -26,6 +26,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Serilog;
 using Logger = Serilog.Core.Logger;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 
 namespace Horde.Storage.FunctionalTests.References
 {
@@ -168,12 +169,12 @@ namespace Horde.Storage.FunctionalTests.References
         [TestMethod]
         public async Task ReplicationLogCreation()
         {
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             HttpContent requestContent = new ByteArrayContent(objectData);
@@ -239,12 +240,12 @@ namespace Horde.Storage.FunctionalTests.References
         [TestMethod]
         public async Task ReplicationLogReading()
         {
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             DateTime oldestTimestamp = DateTime.Now.AddDays(-1);
@@ -298,12 +299,12 @@ namespace Horde.Storage.FunctionalTests.References
         [TestMethod]
         public async Task ReplicationLogResume()
         {
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             DateTime oldestTimestamp = DateTime.Now.AddDays(-3);
@@ -360,12 +361,12 @@ namespace Horde.Storage.FunctionalTests.References
         [TestMethod]
         public async Task ReplicationLogReadingLimit()
         {
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             DateTime oldestTimestamp = DateTime.Now.AddDays(-1);
@@ -412,12 +413,12 @@ namespace Horde.Storage.FunctionalTests.References
         public async Task ReplicationLogInvalidBucket()
         {
             // the namespace exists but the bucket does not
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             await _replicationLog.InsertAddEvent(TestNamespace, TestBucket, IoHashKey.FromName("firstObject"), objectHash, DateTime.Now.AddDays(-1));
@@ -442,12 +443,12 @@ namespace Horde.Storage.FunctionalTests.References
         public async Task ReplicationLogOldBucket()
         {
             // the namespace exists but the bucket id is from a old bucket that does not exist anymore
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             await _replicationLog.InsertAddEvent(TestNamespace, TestBucket, IoHashKey.FromName("firstObject"), objectHash, DateTime.Now.AddDays(-1));
@@ -487,12 +488,12 @@ namespace Horde.Storage.FunctionalTests.References
         [TestMethod]
         public async Task ReplicationLogNoIncrementalLogAvailable()
         {
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             DateTime oldestTimestamp = DateTime.Now.AddDays(-1);
@@ -526,12 +527,12 @@ namespace Horde.Storage.FunctionalTests.References
         [TestMethod]
         public async Task ReplicationLogSnapshotCreation()
         {
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             DateTime oldestTimestamp = DateTime.Now.AddDays(-1);
@@ -609,12 +610,12 @@ namespace Horde.Storage.FunctionalTests.References
         [TestMethod]
         public async Task ReplicationLogSnapshotQuerying()
         {
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             DateTime oldestTimestamp = DateTime.Now.AddDays(-1);
@@ -666,12 +667,12 @@ namespace Horde.Storage.FunctionalTests.References
         [TestMethod]
         public async Task ReplicationLogSnapshotResume()
         {
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             DateTime oldestTimestamp = DateTime.Now.AddDays(-1);
@@ -739,12 +740,12 @@ namespace Horde.Storage.FunctionalTests.References
             const int maxCountOfSnapshots = 10;
             int countOfSnapshotsToCreate = maxCountOfSnapshots + 2;
 
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             List<BlobIdentifier> createdSnapshots = new List<BlobIdentifier>();

@@ -19,6 +19,7 @@ using Moq;
 using Serilog;
 using Serilog.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 
 namespace Horde.Storage.FunctionalTests.GC
 {
@@ -177,25 +178,25 @@ namespace Horde.Storage.FunctionalTests.GC
 
             IObjectService? objectService = server.Services.GetService<IObjectService>()!;
             Assert.IsNotNull(objectService);
-            (BlobIdentifier ob0_hash, CompactBinaryObject ob0_cb) = GetCBWithAttachment(object0id);
+            (BlobIdentifier ob0_hash, CbObject ob0_cb) = GetCBWithAttachment(object0id);
             await objectService.Put(TestNamespace, DefaultBucket, object0Name, ob0_hash, ob0_cb);
            
-            (BlobIdentifier ob1_hash, CompactBinaryObject ob1_cb) = GetCBWithAttachment(object1id);
+            (BlobIdentifier ob1_hash, CbObject ob1_cb) = GetCBWithAttachment(object1id);
             await objectService.Put(TestNamespace, DefaultBucket, object1Name, ob1_hash, ob1_cb);
 
-            (BlobIdentifier ob2_hash, CompactBinaryObject ob2_cb) = GetCBWithAttachment(object2id);
+            (BlobIdentifier ob2_hash, CbObject ob2_cb) = GetCBWithAttachment(object2id);
             await objectService.Put(TestNamespace, DefaultBucket, object2Name, ob2_hash, ob2_cb);
 
-            (BlobIdentifier ob3_hash, CompactBinaryObject ob3_cb) = GetCBWithAttachment(object3id);
+            (BlobIdentifier ob3_hash, CbObject ob3_cb) = GetCBWithAttachment(object3id);
             await objectService.Put(TestNamespace, DefaultBucket, object3Name, ob3_hash, ob3_cb);
 
-            (BlobIdentifier ob4_hash, CompactBinaryObject ob4_cb) = GetCBWithAttachment(object4id);
+            (BlobIdentifier ob4_hash, CbObject ob4_cb) = GetCBWithAttachment(object4id);
             await objectService.Put(TestNamespace, DefaultBucket, object4Name, ob4_hash, ob4_cb);
 
-            (BlobIdentifier ob5_hash, CompactBinaryObject ob5_cb) = GetCBWithAttachment(object5id);
+            (BlobIdentifier ob5_hash, CbObject ob5_cb) = GetCBWithAttachment(object5id);
             await objectService.Put(TestNamespace, DefaultBucket, object5Name, ob5_hash, ob5_cb);
 
-            (BlobIdentifier ob6_hash, CompactBinaryObject ob6_cb) = GetCBWithAttachment(object6id);
+            (BlobIdentifier ob6_hash, CbObject ob6_cb) = GetCBWithAttachment(object6id);
             await objectService.Put(TestNamespace, DefaultBucket, object6Name, ob6_hash, ob6_cb);
 
             IReferencesStore referenceStore = server.Services.GetService<IReferencesStore>()!;
@@ -236,15 +237,15 @@ namespace Horde.Storage.FunctionalTests.GC
             }
         }
 
-        private (BlobIdentifier, CompactBinaryObject) GetCBWithAttachment(BlobIdentifier blobIdentifier)
+        private (BlobIdentifier, CbObject) GetCBWithAttachment(BlobIdentifier blobIdentifier)
         {
-            CompactBinaryWriter compactBinaryWriter = new CompactBinaryWriter();
-            compactBinaryWriter.BeginObject();
-            compactBinaryWriter.AddBinaryAttachment(blobIdentifier);
-            compactBinaryWriter.EndObject();
+            CbWriter writer = new CbWriter();
+            writer.BeginObject();
+            writer.WriteBinaryAttachment("Attachment", blobIdentifier.AsIoHash());
+            writer.EndObject();
 
-            byte[] b = compactBinaryWriter.Save();
-            return (BlobIdentifier.FromBlob(b), CompactBinaryObject.Load(b));
+            byte[] b = writer.ToByteArray();
+            return (BlobIdentifier.FromBlob(b), new CbObject(b));
         }
     }
 }

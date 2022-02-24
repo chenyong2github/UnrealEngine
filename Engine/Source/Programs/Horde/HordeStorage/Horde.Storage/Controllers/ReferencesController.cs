@@ -12,7 +12,9 @@ using System.Text;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using Datadog.Trace;
+using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 using Horde.Storage.Implementation;
 using Jupiter;
 using Jupiter.Common.Implementation;
@@ -25,6 +27,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Serilog;
+using ContentHash = Jupiter.Implementation.ContentHash;
+using Log = Serilog.Log;
 
 namespace Horde.Storage.Controllers
 {
@@ -152,20 +156,19 @@ namespace Horde.Storage.Controllers
                     case MediaTypeNames.Application.Octet:
                     {
                         byte[] blobMemory = await blob.Stream.ToByteArray();
-                        ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(blobMemory);
-                        CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                        List<CompactBinaryField> compactBinaryFields = cb.GetFields().ToList();
-                        // detect if this object was uploaded as a raw object, in which case we deconstruct the generated compact binary
-                        if (compactBinaryFields.Count == 1)
+                        CbObject cb = new CbObject(blobMemory);
+                        int countOfAttachmentFields = cb.Count(field => field.IsAttachment());
+                        CbField? binaryAttachmentField = cb.FirstOrDefault(field => field.IsBinaryAttachment());
+                        if (countOfAttachmentFields == 1 && binaryAttachmentField != null)
                         {
-                            CompactBinaryField field = compactBinaryFields[0];
-                            if (field.IsBinaryAttachment() && string.IsNullOrEmpty(field.Name))
-                            {
-                                // this is a very simple object, we just fetch the blob it references and return that
-                                BlobContents referencedBlobContents = await _blobStore.GetObject(ns, field.AsBinaryAttachment()!);
-                                await WriteBody(referencedBlobContents, MediaTypeNames.Application.Octet);
-                                break;
-                            }
+                            // there is a single attachment field and that is of the binary attachment type, fetch that attachment and return it instead of the compact binary
+                            // this is so that we match the uploaded that happened as a octet-stream which generates a small cb object with a single attachment
+
+                            IoHash hash = binaryAttachmentField.AsBinaryAttachment();
+
+                            BlobContents referencedBlobContents = await _blobStore.GetObject(ns, BlobIdentifier.FromIoHash(hash));
+                            await WriteBody(referencedBlobContents, MediaTypeNames.Application.Octet);
+                            break;
                         }
 
                         // this doesn't look like the generated compact binary so we just return the payload
@@ -179,8 +182,7 @@ namespace Horde.Storage.Controllers
                             using IScope scope = Tracer.Instance.StartActive("json.readblob");
                             blobMemory = await blob.Stream.ToByteArray();
                         }
-                        ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(blobMemory);
-                        CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
+                        CbObject cb = new CbObject(blobMemory);
                         string s = cb.ToJson();
                         await WriteBody(new BlobContents(Encoding.UTF8.GetBytes(s)), MediaTypeNames.Application.Json);
                         break;
@@ -188,10 +190,10 @@ namespace Horde.Storage.Controllers
                     }
                     case CustomMediaTypeNames.JupiterInlinedPayload:
                     {
+
                         byte[] blobMemory = await blob.Stream.ToByteArray();
-                        ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(blobMemory);
-                        CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                        List<CompactBinaryField> compactBinaryFields = cb.GetFields().ToList();
+                        CbObject cb = new CbObject(blobMemory);
+                        List<CbField> compactBinaryFields = cb.ToList();
                         int countOfBinaryAttachmentFields = compactBinaryFields.Count(field => field.IsBinaryAttachment());
                         int countOfAttachmentFields = compactBinaryFields.Count(field => field.IsAttachment());
                         // if the object consists of a single attachment field we return this attachment field instead
@@ -359,7 +361,7 @@ namespace Horde.Storage.Controllers
                 // we have to verify the blobs are available locally, as the record of the key is replicated a head of the content
                 // TODO: Once we support inline replication this step is not needed as at least one region as this blob, just maybe not this current one
                 byte[] blobContents = await blob.Stream.ToByteArray();
-                CompactBinaryObject compactBinaryObject = CompactBinaryObject.Load(blobContents);
+                CbObject compactBinaryObject = new CbObject(blobContents);
                 // the reference resolver will throw if any blob is missing, so no need to do anything other then process each reference
                 IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, compactBinaryObject);
                 List<BlobIdentifier>? _ = await references.ToListAsync();
@@ -425,9 +427,9 @@ namespace Horde.Storage.Controllers
                     // we have to verify the blobs are available locally, as the record of the key is replicated a head of the content
                     // TODO: Once we support inline replication this step is not needed as at least one region as this blob, just maybe not this current one
                     byte[] blobContents = await blob.Stream.ToByteArray();
-                    CompactBinaryObject compactBinaryObject = CompactBinaryObject.Load(blobContents);
+                    CbObject cb = new CbObject(blobContents);
                     // the reference resolver will throw if any blob is missing, so no need to do anything other then process each reference
-                    IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, compactBinaryObject);
+                    IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, cb);
                     List<BlobIdentifier>? _ = await references.ToListAsync();
                 }
                 catch (ObjectNotFoundException)
@@ -445,7 +447,7 @@ namespace Horde.Storage.Controllers
             });
             await Task.WhenAll(tasks);
 
-            return Ok(new { Needs = missingObject.ToArray()});
+            return Ok(new ExistCheckMultipleRefsResponse(missingObject.ToList()));
         }
 
 

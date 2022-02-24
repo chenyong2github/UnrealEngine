@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Cassandra;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 using Horde.Storage.Implementation;
 using Horde.Storage.Implementation.Blob;
 using Jupiter;
@@ -92,12 +93,12 @@ namespace Horde.Storage.FunctionalTests.Storage
         [TestMethod]
         public async Task UploadRef()
         {
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField","thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             HttpContent requestContent = new ByteArrayContent(objectData);

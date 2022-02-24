@@ -6,12 +6,17 @@ using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using Blake3;
+using EpicGames.Core;
+using EpicGames.Serialization;
 using Newtonsoft.Json;
+using SharpYaml.Tokens;
+using JsonWriter = Newtonsoft.Json.JsonWriter;
 
 namespace Jupiter.Implementation
 {
     [JsonConverter(typeof(BlobIdentifierConverter))]
     [TypeConverter(typeof(BlobIdentifierTypeConverter))]
+    [CbConverter(typeof(BlobIdentifierCbConverter))]
     public class BlobIdentifier : ContentHash,  IEquatable<BlobIdentifier>
     {
         // multi thread the hashing for blobs larger then this size
@@ -135,6 +140,16 @@ namespace Jupiter.Implementation
             byte[] hash = blake3Hash.AsSpan().Slice(0, 20).ToArray();
             return new BlobIdentifier(hash);
         }
+
+        public static BlobIdentifier FromIoHash(IoHash blobIdentifier)
+        {
+            return new BlobIdentifier(blobIdentifier.ToByteArray());
+        }
+
+        public IoHash AsIoHash()
+        {
+            return new IoHash(HashData);
+        }
     }
 
     public class BlobIdentifierTypeConverter : TypeConverter
@@ -176,5 +191,16 @@ namespace Jupiter.Implementation
                 return null;
             return new BlobIdentifier(s!);
         }
+    }
+
+    public class BlobIdentifierCbConverter : CbConverterBase<BlobIdentifier>
+    {
+        public override BlobIdentifier Read(CbField field) => new BlobIdentifier(field.AsHash().ToByteArray());
+
+        /// <inheritdoc/>
+        public override void Write(CbWriter writer, BlobIdentifier value) => writer.WriteBinaryAttachmentValue(new IoHash(value.HashData));
+
+        /// <inheritdoc/>
+        public override void WriteNamed(CbWriter writer, Utf8String name, BlobIdentifier value) => writer.WriteBinaryAttachment(name, new IoHash(value.HashData));
     }
 }

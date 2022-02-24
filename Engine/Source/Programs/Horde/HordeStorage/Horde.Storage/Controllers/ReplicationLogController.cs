@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using async_enumerable_dotnet;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 using Horde.Storage.Implementation;
 using Horde.Storage.Implementation.TransactionLog;
 using Jupiter;
@@ -74,7 +75,7 @@ namespace Horde.Storage.Controllers
 
             ReplicationLogSnapshotBuilder builder = ActivatorUtilities.CreateInstance<ReplicationLogSnapshotBuilder>(_provider);
             BlobIdentifier snapshotBlob = await builder.BuildSnapshot(ns, _snapshotSettings.CurrentValue.SnapshotStorageNamespace, CancellationToken.None);
-            return Ok(new { SnapshotBlobId = snapshotBlob });
+            return Ok(new SnapshotCreatedResponse(snapshotBlob));
         }
 
         [HttpGet("incremental/{ns}")]
@@ -141,6 +142,22 @@ namespace Horde.Storage.Controllers
             }
 
         }
+    }
+
+    public class SnapshotCreatedResponse
+    {
+        public SnapshotCreatedResponse()
+        {
+            SnapshotBlobId = null!;
+        }
+
+        public SnapshotCreatedResponse(BlobIdentifier snapshotBlob)
+        {
+            SnapshotBlobId = snapshotBlob;
+        }
+
+        [CbField("snapshotBlobId")]
+        public BlobIdentifier SnapshotBlobId { get; set; }
     }
 
     public class ReplicationLogSnapshots

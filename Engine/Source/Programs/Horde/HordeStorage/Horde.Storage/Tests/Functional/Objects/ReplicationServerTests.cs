@@ -14,6 +14,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Serilog;
 using Logger = Serilog.Core.Logger;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 
 namespace Horde.Storage.FunctionalTests.References
 {
@@ -60,12 +61,12 @@ namespace Horde.Storage.FunctionalTests.References
         public async Task ReplicationPublicEndpoint()
         {
             // insert a random object
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             HttpContent requestContent = new ByteArrayContent(objectData);

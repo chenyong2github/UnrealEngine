@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using async_enumerable_dotnet;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 using Horde.Storage.Implementation.Blob;
 using Jupiter.Implementation;
 using Jupiter.Utils;
@@ -18,7 +19,7 @@ namespace Horde.Storage.Implementation
     public interface IObjectService
     {
         Task<(ObjectRecord, BlobContents?)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[] fields);
-        Task<(ContentId[], BlobIdentifier[])> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CompactBinaryObject payload);
+        Task<(ContentId[], BlobIdentifier[])> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CbObject payload);
         Task<(ContentId[], BlobIdentifier[])> Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash);
 
         IAsyncEnumerable<NamespaceId> GetNamespaces();
@@ -91,16 +92,16 @@ namespace Horde.Storage.Implementation
             return (o, blobContents);
         }
 
-        public async Task<(ContentId[], BlobIdentifier[])> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CompactBinaryObject payload)
+        public async Task<(ContentId[], BlobIdentifier[])> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CbObject payload)
         {
-            bool hasReferences = payload.GetAllFields().Any(field => field.IsAttachment());
+            bool hasReferences = payload.Any(field => field.IsAttachment());
 
             // if we have no references we are always finalized, e.g. there are no referenced blobs to upload
             bool isFinalized = !hasReferences;
 
-            Task objectStorePut = _referencesStore.Put(ns, bucket, key, blobHash, payload.Data, isFinalized);
+            Task objectStorePut = _referencesStore.Put(ns, bucket, key, blobHash, payload.GetView().ToArray(), isFinalized);
 
-            Task<BlobIdentifier> blobStorePut = _blobService.PutObject(ns, payload.Data, blobHash);
+            Task<BlobIdentifier> blobStorePut = _blobService.PutObject(ns, payload.GetView().ToArray(), blobHash);
             Task addRefToBodyTask = _blobIndex.AddRefToBlobs(ns, bucket, key, new [] {blobHash});
             ContentId[] missingReferences = Array.Empty<ContentId>();
             BlobIdentifier[] missingBlobs = Array.Empty<BlobIdentifier>();
@@ -157,12 +158,12 @@ namespace Horde.Storage.Implementation
             if (blob == null)
                 throw new InvalidOperationException("No blob when attempting to finalize");
             byte[] blobContents = await blob.Stream.ToByteArray();
-            CompactBinaryObject payload = CompactBinaryObject.Load(blobContents);
+            CbObject payload = new CbObject(blobContents);
 
             if (!o.BlobIdentifier.Equals(blobHash))
                 throw new ObjectHashMismatchException(ns, bucket, key, blobHash, o.BlobIdentifier);
 
-            bool hasReferences = payload.GetAllFields().Any(field => field.IsAttachment());
+            bool hasReferences = payload.Any(field => field.IsAttachment());
 
             ContentId[] missingReferences = Array.Empty<ContentId>();
             BlobIdentifier[] missingBlobs = Array.Empty<BlobIdentifier>();

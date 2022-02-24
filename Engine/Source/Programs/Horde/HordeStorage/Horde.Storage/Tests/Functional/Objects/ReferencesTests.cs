@@ -12,6 +12,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Cassandra;
 using Dasync.Collections;
+using EpicGames.Core;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation;
 using Jupiter;
@@ -27,6 +28,7 @@ using Newtonsoft.Json.Linq;
 using Serilog;
 using Logger = Serilog.Core.Logger;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 
 namespace Horde.Storage.FunctionalTests.References
 {
@@ -249,15 +251,14 @@ namespace Horde.Storage.FunctionalTests.References
                     await getResponse.Content.CopyToAsync(ms);
 
                     byte[] roundTrippedBuffer = ms.ToArray();
-                    ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                    CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                    List<CompactBinaryField> fields = cb.GetFields().ToList();
+                    CbObject cb = new CbObject(roundTrippedBuffer);
+                    List<CbField> fields = cb.ToList();
 
-                    Assert.AreEqual(1, fields.Count);
-                    CompactBinaryField payloadField = fields[0];
+                    Assert.AreEqual(2, fields.Count);
+                    CbField payloadField = fields[0];
                     Assert.IsNotNull(payloadField);
                     Assert.IsTrue(payloadField.IsBinaryAttachment());
-                    attachment = payloadField.AsBinaryAttachment()!;
+                    attachment = BlobIdentifier.FromIoHash(payloadField.AsBinaryAttachment());
                 }
 
                 {
@@ -282,14 +283,14 @@ namespace Horde.Storage.FunctionalTests.References
                 byte[] roundTrippedBuffer = ms.ToArray();
                 string s = Encoding.ASCII.GetString(roundTrippedBuffer);
                 JObject jObject = JObject.Parse(s);
-                Assert.AreEqual(1, jObject.Children().Count());
+                Assert.AreEqual(2, jObject.Children().Count());
                 JToken? childToken = jObject.Children().First();
                 Assert.IsNotNull(childToken);
                 Assert.AreEqual(JTokenType.Property, childToken.Type);
                 JProperty property = jObject.Children<JProperty>().First();
                 Assert.IsNotNull(property);
 
-                Assert.AreEqual("", property!.Name);
+                Assert.AreEqual("RawHash", property!.Name);
 
                 string value = property.Value.Value<string>()!;
                 Assert.IsNotNull(value);
@@ -310,14 +311,14 @@ namespace Horde.Storage.FunctionalTests.References
                 byte[] roundTrippedBuffer = ms.ToArray();
                 string s = Encoding.ASCII.GetString(roundTrippedBuffer);
                 JObject jObject = JObject.Parse(s);
-                Assert.AreEqual(1, jObject.Children().Count());
+                Assert.AreEqual(2, jObject.Children().Count());
                 JToken? childToken = jObject.Children().First();
                 Assert.IsNotNull(childToken);
                 Assert.AreEqual(JTokenType.Property, childToken.Type);
                 JProperty property = jObject.Children<JProperty>().First();
                 Assert.IsNotNull(property);
 
-                Assert.AreEqual("", property!.Name);
+                Assert.AreEqual("RawHash", property!.Name);
 
                 string? value = property.Value.Value<string>()!;
                 Assert.IsNotNull(value);
@@ -346,12 +347,12 @@ namespace Horde.Storage.FunctionalTests.References
         [TestMethod]
         public async Task PutGetCompactBinary()
         {
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("thisIsAField", "stringField");
+            writer.WriteString("stringField", "thisIsAField");
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
             IoHashKey key = IoHashKey.FromName("newReferenceObject");
 
@@ -368,11 +369,10 @@ namespace Horde.Storage.FunctionalTests.References
                 await using MemoryStream ms = new MemoryStream();
                 await result.Content.CopyToAsync(ms);
                 byte[] roundTrippedBuffer = ms.ToArray();
-                ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                CompactBinaryField? needsField = cb["needs"];
-                Assert.IsNotNull(needsField);
-                List<BlobIdentifier?> missingBlobs = needsField!.AsArray().Select(field => field.AsHash()).ToList();
+                CbObject cb = new CbObject(roundTrippedBuffer);
+                CbField needsField = cb["needs"];
+                Assert.AreNotEqual(CbField.Empty, needsField);
+                List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
                 Assert.AreEqual(0, missingBlobs.Count);
             }
 
@@ -406,12 +406,11 @@ namespace Horde.Storage.FunctionalTests.References
                 await getResponse.Content.CopyToAsync(ms);
 
                 byte[] roundTrippedBuffer = ms.ToArray();
-                ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                List<CompactBinaryField> fields = cb.GetFields().ToList();
+                CbObject cb = new CbObject(roundTrippedBuffer);
+                List<CbField> fields = cb.ToList();
 
                 Assert.AreEqual(1, fields.Count);
-                CompactBinaryField stringField = fields[0];
+                CbField stringField = fields[0];
                 Assert.AreEqual("stringField", stringField.Name);
                 Assert.AreEqual("thisIsAField", stringField.AsString());
             }
@@ -447,18 +446,18 @@ namespace Horde.Storage.FunctionalTests.References
         [TestMethod]
         public async Task PutGetCompactBinaryHierarchy()
         {
-            CompactBinaryWriter childObjectWriter = new CompactBinaryWriter();
+            CbWriter childObjectWriter = new CbWriter();
             childObjectWriter.BeginObject();
-            childObjectWriter.AddString("thisIsAField", "stringField");
+            childObjectWriter.WriteString("stringField", "thisIsAField");
             childObjectWriter.EndObject();
-            byte[] childObjectData = childObjectWriter.Save();
+            byte[] childObjectData = childObjectWriter.ToByteArray();
             BlobIdentifier childObjectHash = BlobIdentifier.FromBlob(childObjectData);
 
-            CompactBinaryWriter parentObjectWriter = new CompactBinaryWriter();
+            CbWriter parentObjectWriter = new CbWriter();
             parentObjectWriter.BeginObject();
-            parentObjectWriter.AddCompactBinaryAttachment(childObjectHash, "childObject");
+            parentObjectWriter.WriteObjectAttachment("childObject", childObjectHash.AsIoHash());
             parentObjectWriter.EndObject();
-            byte[] parentObjectData = parentObjectWriter.Save();
+            byte[] parentObjectData = parentObjectWriter.ToByteArray();
             BlobIdentifier parentObjectHash = BlobIdentifier.FromBlob(parentObjectData);
 
             IoHashKey key = IoHashKey.FromName("newHierarchyObject");
@@ -476,11 +475,10 @@ namespace Horde.Storage.FunctionalTests.References
                 await using MemoryStream ms = new MemoryStream();
                 await result.Content.CopyToAsync(ms);
                 byte[] roundTrippedBuffer = ms.ToArray();
-                ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                CompactBinaryField? needsField = cb["needs"];
-                Assert.IsNotNull(needsField);
-                List<BlobIdentifier?> missingBlobs = needsField!.AsArray().Select(field => field.AsHash()).ToList();
+                CbObject cb = new CbObject(roundTrippedBuffer);
+                CbField needsField = cb["needs"];
+                Assert.AreNotEqual(CbField.Empty, needsField);
+                List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
                 Assert.AreEqual(1, missingBlobs.Count);
                 Assert.AreEqual(childObjectHash, missingBlobs[0]);
             }
@@ -503,11 +501,10 @@ namespace Horde.Storage.FunctionalTests.References
                 await using MemoryStream ms = new MemoryStream();
                 await result.Content.CopyToAsync(ms);
                 byte[] roundTrippedBuffer = ms.ToArray();
-                ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                CompactBinaryField? value = cb["identifier"];
-                Assert.IsNotNull(value);
-                Assert.AreEqual(childObjectHash, value!.AsHash());
+                CbObject cb = new CbObject(roundTrippedBuffer);
+                CbField value = cb["identifier"];
+                Assert.AreNotEqual(CbField.Empty, value);
+                Assert.AreEqual(childObjectHash, BlobIdentifier.FromIoHash(value.AsHash()));
             }
 
             // since we have now uploaded the child object putting the object again should result in no missing references
@@ -524,11 +521,9 @@ namespace Horde.Storage.FunctionalTests.References
                 await using MemoryStream ms = new MemoryStream();
                 await result.Content.CopyToAsync(ms);
                 byte[] roundTrippedBuffer = ms.ToArray();
-                ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                CompactBinaryField? needsField = cb["needs"];
-                Assert.IsNotNull(needsField);
-                List<BlobIdentifier?> missingBlobs = needsField!.AsArray().Select(field => field.AsHash()).ToList();
+                CbObject cb = new CbObject(roundTrippedBuffer);
+                CbField needsField = cb["needs"];
+                List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
                 Assert.AreEqual(0, missingBlobs.Count);
             }
 
@@ -562,14 +557,13 @@ namespace Horde.Storage.FunctionalTests.References
                 await getResponse.Content.CopyToAsync(ms);
 
                 byte[] roundTrippedBuffer = ms.ToArray();
-                ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                List<CompactBinaryField> fields = cb.GetFields().ToList();
+                CbObject cb = new CbObject(roundTrippedBuffer);
+                List<CbField> fields = cb.ToList();
 
                 Assert.AreEqual(1, fields.Count);
-                CompactBinaryField childObjectField = fields[0];
+                CbField childObjectField = fields[0];
                 Assert.AreEqual("childObject", childObjectField.Name);
-                Assert.AreEqual(childObjectHash, childObjectField.AsHash());
+                Assert.AreEqual(childObjectHash, BlobIdentifier.FromIoHash(childObjectField.AsHash()));
             }
 
 
@@ -595,7 +589,7 @@ namespace Horde.Storage.FunctionalTests.References
 
                 string? value = property.Value.Value<string>();
                 Assert.IsNotNull(value);
-                Assert.AreEqual(childObjectHash.ToString(), value);
+                Assert.AreEqual(childObjectHash.ToString().ToLower(), value);
             }
 
             {
@@ -653,23 +647,23 @@ namespace Horde.Storage.FunctionalTests.References
             BlobIdentifier blobHashChild = BlobIdentifier.FromBlob(dataChild);
             await _blobService.PutObject(TestNamespace, dataChild, blobHashChild);
 
-            CompactBinaryWriter writerChild = new CompactBinaryWriter();
+            CbWriter writerChild = new CbWriter();
             writerChild.BeginObject();
-            writerChild.AddBinaryAttachment(blobHashChild, "blob");
+            writerChild.WriteBinaryAttachment("blob", blobHashChild.AsIoHash());
             writerChild.EndObject();
 
-            byte[] childDataObject = writerChild.Save();
+            byte[] childDataObject = writerChild.ToByteArray();
             BlobIdentifier childDataObjectHash = BlobIdentifier.FromBlob(childDataObject);
             await _blobService.PutObject(TestNamespace, childDataObject, childDataObjectHash);
 
-            CompactBinaryWriter writerParent = new CompactBinaryWriter();
+            CbWriter writerParent = new CbWriter();
             writerParent.BeginObject();
             
-            writerParent.AddBinaryAttachment(blobHash, "blobAttachment");
-            writerParent.AddCompactBinaryAttachment(childDataObjectHash, "objectAttachment");
+            writerParent.WriteBinaryAttachment("blobAttachment", blobHash.AsIoHash());
+            writerParent.WriteObjectAttachment("objectAttachment", childDataObjectHash.AsIoHash());
             writerParent.EndObject();
 
-            byte[] objectData = writerParent.Save();
+            byte[] objectData = writerParent.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             IoHashKey key = IoHashKey.FromName("newHierarchyObject");
@@ -688,11 +682,9 @@ namespace Horde.Storage.FunctionalTests.References
                 await using MemoryStream ms = new MemoryStream();
                 await result.Content.CopyToAsync(ms);
                 byte[] roundTrippedBuffer = ms.ToArray();
-                ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                CompactBinaryField? needsField = cb["needs"];
-                Assert.IsNotNull(needsField);
-                List<BlobIdentifier?> missingBlobs = needsField!.AsArray().Select(field => field.AsHash()).ToList();
+                CbObject cb = new CbObject(roundTrippedBuffer);
+                CbField needsField = cb["needs"];
+                List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
                 Assert.AreEqual(0, missingBlobs.Count);
             }
 
@@ -732,15 +724,15 @@ namespace Horde.Storage.FunctionalTests.References
 
                     byte[] roundTrippedBuffer = ms.ToArray();
                     ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                    CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                    Assert.AreEqual(2, cb.GetFields().Count());
+                    CbObject cb = new CbObject(roundTrippedBuffer);
+                    Assert.AreEqual(2, cb.Count());
 
-                    CompactBinaryField? blobAttachmentField = cb["blobAttachment"];
-                    Assert.IsNotNull(blobAttachmentField);
-                    blobAttachment = blobAttachmentField!.AsBinaryAttachment()!;
-                    CompactBinaryField? objectAttachmentField = cb["objectAttachment"];
-                    Assert.IsNotNull(objectAttachmentField);
-                    objectAttachment = objectAttachmentField!.AsCompactBinaryAttachment()!;
+                    CbField blobAttachmentField = cb["blobAttachment"];
+                    Assert.AreNotEqual(CbField.Empty, blobAttachmentField);
+                    blobAttachment = BlobIdentifier.FromIoHash(blobAttachmentField.AsBinaryAttachment());
+                    CbField objectAttachmentField = cb["objectAttachment"];
+                    Assert.AreNotEqual(CbField.Empty, objectAttachmentField);
+                    objectAttachment = BlobIdentifier.FromIoHash(objectAttachmentField.AsObjectAttachment().Hash);
                 }
 
                 {
@@ -763,13 +755,13 @@ namespace Horde.Storage.FunctionalTests.References
                     await getAttachment.Content.CopyToAsync(ms);
                     byte[] roundTrippedBuffer = ms.ToArray();
                     ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                    CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                    Assert.AreEqual(1, cb.GetFields().Count());
+                    CbObject cb = new CbObject(roundTrippedBuffer);
+                    Assert.AreEqual(1, cb.Count());
 
-                    CompactBinaryField? blobField = cb["blob"];
-                    Assert.IsNotNull(blobField);
+                    CbField blobField = cb["blob"];
+                    Assert.AreNotEqual(CbField.Empty, blobField);
 
-                    attachedBlobIdentifier = blobField!.AsBinaryAttachment()!;
+                    attachedBlobIdentifier = BlobIdentifier.FromIoHash(blobField!.AsBinaryAttachment());
                 }
 
                 {
@@ -822,23 +814,23 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] dataChild = Encoding.ASCII.GetBytes(blobContentsChild);
             BlobIdentifier blobHashChild = BlobIdentifier.FromBlob(dataChild);
 
-            CompactBinaryWriter writerChild = new CompactBinaryWriter();
+            CbWriter writerChild = new CbWriter();
             writerChild.BeginObject();
-            writerChild.AddBinaryAttachment(blobHashChild, "blob");
+            writerChild.WriteBinaryAttachment("blob", blobHashChild.AsIoHash());
             writerChild.EndObject();
 
-            byte[] childDataObject = writerChild.Save();
+            byte[] childDataObject = writerChild.ToByteArray();
             BlobIdentifier childDataObjectHash = BlobIdentifier.FromBlob(childDataObject);
             await _blobService.PutObject(TestNamespace, childDataObject, childDataObjectHash);
 
-            CompactBinaryWriter writerParent = new CompactBinaryWriter();
+            CbWriter writerParent = new CbWriter();
             writerParent.BeginObject();
             
-            writerParent.AddBinaryAttachment(blobHash, "blobAttachment");
-            writerParent.AddCompactBinaryAttachment(childDataObjectHash, "objectAttachment");
+            writerParent.WriteBinaryAttachment("blobAttachment", blobHash.AsIoHash());
+            writerParent.WriteObjectAttachment("objectAttachment", childDataObjectHash.AsIoHash());
             writerParent.EndObject();
 
-            byte[] objectData = writerParent.Save();
+            byte[] objectData = writerParent.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
             
             IoHashKey key = IoHashKey.FromName("newHierarchyObject");
@@ -857,10 +849,9 @@ namespace Horde.Storage.FunctionalTests.References
                     await result.Content.CopyToAsync(ms);
                     byte[] roundTrippedBuffer = ms.ToArray();
                     ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                    CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                    CompactBinaryField? needsField = cb["needs"];
-                    Assert.IsNotNull(needsField);
-                    List<BlobIdentifier?> missingBlobs = needsField!.AsArray().Select(field => field.AsHash()).ToList();
+                    CbObject cb = new CbObject(roundTrippedBuffer);
+                    CbField needsField = cb["needs"];
+                    List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
                     Assert.AreEqual(2, missingBlobs.Count);
                     Assert.IsTrue(missingBlobs.Contains(blobHash));
                     Assert.IsTrue(missingBlobs.Contains(blobHashChild));
@@ -908,12 +899,12 @@ namespace Horde.Storage.FunctionalTests.References
 
             await contentIdStore.Put(TestNamespace, contentId, blobHash, blobData.Length);
 
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddBinaryAttachment(contentId.AsBlobIdentifier(), "blob");
+            writer.WriteBinaryAttachment("blob", contentId.AsIoHash());
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
+            byte[] objectData = writer.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
             
             IoHashKey key = IoHashKey.FromName("putContentIdMissingBlob");
@@ -931,15 +922,14 @@ namespace Horde.Storage.FunctionalTests.References
                     await using MemoryStream ms = new MemoryStream();
                     await result.Content.CopyToAsync(ms);
                     byte[] roundTrippedBuffer = ms.ToArray();
-                    ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                    CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                    CompactBinaryField? needsField = cb["needs"];
-                    Assert.IsNotNull(needsField);
-                    List<BlobIdentifier?> missingBlobs = needsField!.AsArray().Select(field => field.AsHash()).ToList();
+                    CbObject cb = new CbObject(roundTrippedBuffer);
+                    CbField needsField = cb["needs"];
+                    Assert.AreNotEqual(CbField.Empty, needsField);
+                    List<IoHash> missingBlobs = needsField.AsArray().Select(field => field.AsHash()).ToList();
                     Assert.AreEqual(1, missingBlobs.Count);
 
                     Assert.AreNotEqual(blobHash, missingBlobs[0], "Refs should not be returning the mapped blob identifiers as this is unknown to the client attempting to put a new ref");
-                    Assert.AreEqual(contentId.AsBlobIdentifier(), missingBlobs[0]);
+                    Assert.AreEqual(contentId.AsBlobIdentifier(), BlobIdentifier.FromIoHash(missingBlobs[0]));
                 }
             }
 
@@ -983,23 +973,23 @@ namespace Horde.Storage.FunctionalTests.References
             byte[] dataChild = Encoding.ASCII.GetBytes(blobContentsChild);
             BlobIdentifier blobHashChild = BlobIdentifier.FromBlob(dataChild);
 
-            CompactBinaryWriter writerChild = new CompactBinaryWriter();
+            CbWriter writerChild = new CbWriter();
             writerChild.BeginObject();
-            writerChild.AddBinaryAttachment(blobHashChild, "blob");
+            writerChild.WriteBinaryAttachment("blob", blobHashChild.AsIoHash());
             writerChild.EndObject();
 
-            byte[] childDataObject = writerChild.Save();
+            byte[] childDataObject = writerChild.ToByteArray();
             BlobIdentifier childDataObjectHash = BlobIdentifier.FromBlob(childDataObject);
             await _blobService.PutObject(TestNamespace, childDataObject, childDataObjectHash);
 
-            CompactBinaryWriter writerParent = new CompactBinaryWriter();
+            CbWriter writerParent = new CbWriter();
             writerParent.BeginObject();
             
-            writerParent.AddBinaryAttachment(blobHash, "blobAttachment");
-            writerParent.AddCompactBinaryAttachment(childDataObjectHash, "objectAttachment");
+            writerParent.WriteBinaryAttachment("blobAttachment", blobHash.AsIoHash());
+            writerParent.WriteObjectAttachment("objectAttachment", childDataObjectHash.AsIoHash());
             writerParent.EndObject();
 
-            byte[] objectData = writerParent.Save();
+            byte[] objectData = writerParent.ToByteArray();
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
 
             {
@@ -1015,11 +1005,9 @@ namespace Horde.Storage.FunctionalTests.References
                     await using MemoryStream ms = new MemoryStream();
                     await result.Content.CopyToAsync(ms);
                     byte[] roundTrippedBuffer = ms.ToArray();
-                    ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                    CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                    CompactBinaryField? needsField = cb["needs"];
-                    Assert.IsNotNull(needsField);
-                    List<BlobIdentifier?> missingBlobs = needsField!.AsArray().Select(field => field.AsHash()).ToList();
+                    CbObject cb = new CbObject(roundTrippedBuffer);
+                    CbField needsField = cb["needs"];
+                    List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
                     Assert.AreEqual(2, missingBlobs.Count);
                     Assert.IsTrue(missingBlobs.Contains(blobHash));
                     Assert.IsTrue(missingBlobs.Contains(blobHashChild));
@@ -1055,10 +1043,9 @@ namespace Horde.Storage.FunctionalTests.References
                     await result.Content.CopyToAsync(ms);
                     byte[] roundTrippedBuffer = ms.ToArray();
                     ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                    CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                    CompactBinaryField? needsField = cb["needs"];
-                    Assert.IsNotNull(needsField);
-                    List<BlobIdentifier?> missingBlobs = needsField!.AsArray().Select(field => field.AsHash()).ToList();
+                    CbObject cb = new CbObject(roundTrippedBuffer);
+                    CbField? needsField = cb["needs"];
+                    List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
                     Assert.AreEqual(0, missingBlobs.Count);
                 }
             }
@@ -1094,11 +1081,9 @@ namespace Horde.Storage.FunctionalTests.References
                 await using MemoryStream ms = new MemoryStream();
                 await result.Content.CopyToAsync(ms);
                 byte[] roundTrippedBuffer = ms.ToArray();
-                ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
-                CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
-                CompactBinaryField? needsField = cb["needs"];
-                Assert.IsNotNull(needsField);
-                List<BlobIdentifier?> missingBlobs = needsField!.AsArray().Select(field => field.AsHash()).ToList();
+                CbObject cb = new CbObject(roundTrippedBuffer);
+                CbField needsField = cb["needs"];
+                List<BlobIdentifier> missingBlobs = needsField.AsArray().Select(field => BlobIdentifier.FromIoHash(field.AsHash())).ToList();
                 Assert.AreEqual(0, missingBlobs.Count);
             }
 

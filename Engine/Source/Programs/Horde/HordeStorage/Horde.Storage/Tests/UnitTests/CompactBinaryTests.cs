@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using EpicGames.Core;
+using EpicGames.Serialization;
 using Jupiter.Implementation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -18,29 +20,28 @@ namespace EuropaUnit
         {
             byte[] bytes = File.ReadAllBytes("CompactBinaryObjects/build");
 
-            ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(bytes);
-            CompactBinaryObject o = CompactBinaryObject.Load(ref memory);
+            CbObject o = new CbObject(bytes);
 
-            Assert.AreEqual("BuildAction", o.Name);
-            List<CompactBinaryField> buildActionFields = o.GetFields().ToList();
+            Assert.AreEqual("BuildAction", o.AsField().Name);
+            List<CbField> buildActionFields = o.ToList();
             Assert.AreEqual(3, buildActionFields.Count);
             Assert.AreEqual("Function", buildActionFields[0].Name);
             Assert.AreEqual("Constants", buildActionFields[1].Name);
             Assert.AreEqual("Inputs", buildActionFields[2].Name);
 
-            List<CompactBinaryField>  constantsFields = buildActionFields[1].GetFields().ToList();
+            List<CbField>  constantsFields = buildActionFields[1].ToList();
             Assert.AreEqual(3, constantsFields.Count);
             Assert.AreEqual("TextureBuildSettings", constantsFields[0].Name);
             Assert.AreEqual("TextureOutputSettings", constantsFields[1].Name);
             Assert.AreEqual("TextureSource", constantsFields[2].Name);
 
-            List<CompactBinaryField>  inputsFields = buildActionFields[2].GetFields().ToList();
+            List<CbField>  inputsFields = buildActionFields[2].ToList();
             Assert.AreEqual(1, inputsFields.Count);
             Assert.AreEqual("7587B323422942733DDD048A91709FDE", inputsFields[0].Name);
             Assert.IsTrue(inputsFields[0].IsBinaryAttachment());
             Assert.IsTrue(inputsFields[0].IsAttachment());
-            Assert.IsFalse(inputsFields[0].IsCompactBinaryAttachment());
-            Assert.AreEqual(new BlobIdentifier("f855382171a0b1e5a1c653aa6c5121a05cbf4ba0"), inputsFields[0].AsHash());
+            Assert.IsFalse(inputsFields[0].IsObjectAttachment());
+            Assert.AreEqual(IoHash.Parse("f855382171a0b1e5a1c653aa6c5121a05cbf4ba0"), inputsFields[0].AsHash());
         }
 
         
@@ -49,19 +50,18 @@ namespace EuropaUnit
         {
             byte[] bytes = File.ReadAllBytes("CompactBinaryObjects/ReferenceOutput");
 
-            ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(bytes);
-            CompactBinaryObject o = CompactBinaryObject.Load(ref memory);
+            CbObject o = new CbObject(bytes);
 
-            Assert.AreEqual("BuildOutput", o.Name);
-            List<CompactBinaryField> buildActionFields = o.GetFields().ToList();
+            Assert.AreEqual("BuildOutput", o.AsField().Name);
+            List<CbField> buildActionFields = o.ToList();
             Assert.AreEqual(1, buildActionFields.Count);
-            CompactBinaryField payloads = buildActionFields[0];
-            List<CompactBinaryField> payloadFields = payloads.GetFields().ToList();
+            CbField payloads = buildActionFields[0];
+            List<CbField> payloadFields = payloads.ToList();
             Assert.AreEqual(3, payloadFields.Count);
 
-            Assert.AreEqual(new BlobIdentifier("5d8a6dc277c968f0d027c98f879c955c1905c293"), payloadFields[0]["RawHash"]!.AsHash());
-            Assert.AreEqual(new BlobIdentifier("313f0d0d334100d83aeb1ee2c42794fd087cb0ae"), payloadFields[1]["RawHash"]!.AsHash());
-            Assert.AreEqual(new BlobIdentifier("c7a03f83c08cdca882110ecf2b5654ee3b09b11e"), payloadFields[2]["RawHash"]!.AsHash());
+            Assert.AreEqual(IoHash.Parse("5d8a6dc277c968f0d027c98f879c955c1905c293"), payloadFields[0]["RawHash"]!.AsHash());
+            Assert.AreEqual(IoHash.Parse("313f0d0d334100d83aeb1ee2c42794fd087cb0ae"), payloadFields[1]["RawHash"]!.AsHash());
+            Assert.AreEqual(IoHash.Parse("c7a03f83c08cdca882110ecf2b5654ee3b09b11e"), payloadFields[2]["RawHash"]!.AsHash());
         }
 
         [TestMethod]
@@ -69,18 +69,15 @@ namespace EuropaUnit
         {
             byte[] bytes = File.ReadAllBytes("CompactBinaryObjects/compact_binary");
 
-            BlobIdentifier bi = BlobIdentifier.FromBlob(bytes);
-            ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(bytes);
-            CompactBinaryObject o = CompactBinaryObject.Load(ref memory);
-
-            Assert.AreEqual("", o.Name);
-            List<CompactBinaryField> buildActionFields = o.GetFields().ToList();
+            CbObject o = new CbObject(bytes);
+            Assert.AreEqual("", o.AsField().Name);
+            List<CbField> buildActionFields = o.ToList();
             Assert.AreEqual(3, buildActionFields.Count);
-            CompactBinaryField payloads = buildActionFields[0];
-            List<CompactBinaryField> payloadFields = payloads.GetFields().ToList();
+            CbField payloads = buildActionFields[0];
+            List<CbField> payloadFields = payloads.ToList();
             Assert.AreEqual(2, payloadFields.Count);
 
-            Assert.AreEqual("{\"Key\":{\"Bucket\":\"EditorDomainPackage\",\"Hash\":\"37DBAA409EF30BA67F18C8FC2FAAF606636CB915\"},\"Meta\":{\"FileSize\":24789},\"Attachments\":[{\"Id\":\"000000000000000000000001\",\"RawHash\":\"DA6FC57E4B9F91377C9509EA0AD567BACB3796C5\",\"RawSize\":24789}]}", o.ToJson());
+            Assert.AreEqual("{\"Key\":{\"Bucket\":\"EditorDomainPackage\",\"Hash\":\"37dbaa409ef30ba67f18c8fc2faaf606636cb915\"},\"Meta\":{\"FileSize\":24789},\"Attachments\":[{\"Id\":\"000000000000000000000001\",\"RawHash\":\"da6fc57e4b9f91377c9509ea0ad567bacb3796c5\",\"RawSize\":24789}]}", o.ToJson());
         }
 
 
@@ -88,53 +85,54 @@ namespace EuropaUnit
         [TestMethod]
         public void WriteArray()
         {
-            var hash1 = new BlobIdentifier("5d8a6dc277c968f0d027c98f879c955c1905c293");
-            var hash2 = new BlobIdentifier("313f0d0d334100d83aeb1ee2c42794fd087cb0ae");
+            IoHash hash1 = IoHash.Parse("5d8a6dc277c968f0d027c98f879c955c1905c293");
+            IoHash hash2 = IoHash.Parse("313f0d0d334100d83aeb1ee2c42794fd087cb0ae");
 
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddUniformArray(new BlobIdentifier[] { hash1, hash2}, CompactBinaryFieldType.Hash, "needs");
+            writer.BeginUniformArray("needs", CbFieldType.Hash);
+            writer.WriteHashValue(hash1);
+            writer.WriteHashValue(hash2);
+            writer.EndUniformArray();
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
-            ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(objectData);
-            CompactBinaryObject o = CompactBinaryObject.Load(ref memory);
+            byte[] objectData = writer.ToByteArray();
+            CbObject o = new CbObject(objectData);
 
             // the top object has no name
-            Assert.AreEqual("", o.Name);
-            List<CompactBinaryField> fields = o.GetFields().ToList();
+            Assert.AreEqual("", o.AsField().Name);
+            List<CbField> fields = o.ToList();
             Assert.AreEqual(1, fields.Count);
-            CompactBinaryField? needs = o["needs"];
-            List<CompactBinaryField> blobList = needs!.AsArray().ToList();
-            BlobIdentifier?[] blobs = blobList.Select(field => field!.AsHash()).ToArray();
-            CollectionAssert.AreEqual(new BlobIdentifier[] {hash1, hash2}, blobs);
+            CbField? needs = o["needs"];
+            List<CbField> blobList = needs!.AsArray().ToList();
+            IoHash[] blobs = blobList.Select(field => field!.AsHash()).ToArray();
+            CollectionAssert.AreEqual(new IoHash[] {hash1, hash2}, blobs);
         }
 
 
         [TestMethod]
         public void WriteObject()
         {
-            var hash1 = new BlobIdentifier("5d8a6dc277c968f0d027c98f879c955c1905c293");
+            IoHash hash1 = IoHash.Parse("5d8a6dc277c968f0d027c98f879c955c1905c293");
 
-            CompactBinaryWriter writer = new CompactBinaryWriter();
+            CbWriter writer = new CbWriter();
             writer.BeginObject();
-            writer.AddString("test", "string");
-            writer.AddBinaryAttachment(hash1, "hash");
+            writer.WriteString("string", "test");
+            writer.WriteBinaryAttachment("hash", hash1);
             writer.EndObject();
 
-            byte[] objectData = writer.Save();
-            ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(objectData);
-            CompactBinaryObject o = CompactBinaryObject.Load(ref memory);
+            byte[] objectData = writer.ToByteArray();
+            CbObject o = new CbObject(objectData);
 
             // the object has no name and 2 fields
-            Assert.AreEqual("", o.Name);
-            List<CompactBinaryField> fields = o.GetFields().ToList();
+            Assert.AreEqual("", o.AsField().Name);
+            List<CbField> fields = o.ToList();
             Assert.AreEqual(2, fields.Count);
 
-            CompactBinaryField? stringField = o["string"];
+            CbField? stringField = o["string"];
             Assert.AreEqual("test", stringField!.AsString());
 
-            CompactBinaryField? hashField = o["hash"];
+            CbField? hashField = o["hash"];
             Assert.AreEqual(hash1, hashField!.AsAttachment());
         }
     }

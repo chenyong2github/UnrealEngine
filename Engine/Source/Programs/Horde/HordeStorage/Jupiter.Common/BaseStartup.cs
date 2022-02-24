@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Amazon;
 using Datadog.Trace;
+using EpicGames.AspNet;
 using Jupiter.Common;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -81,8 +82,8 @@ namespace Jupiter
                 .AddNewtonsoftJson()
                 .AddMvcOptions(options =>
                 {
-                    options.InputFormatters.Add(new CompactBinaryInputFormatter());
-                    options.OutputFormatters.Add(new CompactBinaryOutputFormatter());
+                    options.InputFormatters.Add(new CbInputFormatter());
+                    options.OutputFormatters.Add(new CbOutputFormatter());
                     options.OutputFormatters.Add(new RawOutputFormatter());
 
                     options.FormatterMappings.SetMediaTypeMappingForFormat("raw", MediaTypeNames.Application.Octet);

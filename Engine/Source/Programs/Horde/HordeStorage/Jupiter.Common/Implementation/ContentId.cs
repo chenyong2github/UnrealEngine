@@ -3,7 +3,9 @@
 using System;
 using System.ComponentModel;
 using System.Globalization;
+using EpicGames.Core;
 using Newtonsoft.Json;
+using JsonWriter = Newtonsoft.Json.JsonWriter;
 
 namespace Jupiter.Implementation
 {
@@ -67,6 +69,16 @@ namespace Jupiter.Implementation
         public BlobIdentifier AsBlobIdentifier()
         {
             return new BlobIdentifier(HashData);
+        }
+
+        public static ContentId FromIoHash(IoHash ioHash)
+        {
+            return new ContentId(ioHash.ToByteArray());
+        }
+
+        public IoHash AsIoHash()
+        {
+            return new IoHash(HashData);
         }
     }
 

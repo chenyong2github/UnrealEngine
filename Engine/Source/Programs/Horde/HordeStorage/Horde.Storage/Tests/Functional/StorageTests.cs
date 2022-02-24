@@ -16,7 +16,9 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Azure.Storage.Blobs;
 using Dasync.Collections;
+using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation;
 using Jupiter;
@@ -33,6 +35,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Serilog;
 using Serilog.Core;
+using ContentHash = Jupiter.Implementation.ContentHash;
 
 namespace Horde.Storage.FunctionalTests.Storage
 {
@@ -629,9 +632,12 @@ namespace Horde.Storage.FunctionalTests.Storage
         {
             BlobIdentifier newContent = BlobIdentifier.FromBlob(Encoding.ASCII.GetBytes("this content has never been submitted"));
             HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, requestUri: $"api/v1/s/{TestNamespaceName}/exist");
-            CompactBinaryWriter writer = new CompactBinaryWriter();
-            writer.AsArray(new BlobIdentifier[] { _smallFileHash, newContent}, CompactBinaryFieldType.Hash);
-            byte[] buf = writer.Save();
+            CbWriter writer = new CbWriter();
+            writer.BeginUniformArray(CbFieldType.Hash);
+            writer.WriteHashValue(_smallFileHash.AsIoHash());
+            writer.WriteHashValue(newContent.AsIoHash());
+            writer.EndUniformArray();
+            byte[] buf = writer.ToByteArray();
             request.Content = new ByteArrayContent(buf);
             request.Content.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
 
@@ -677,16 +683,15 @@ namespace Horde.Storage.FunctionalTests.Storage
             Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
             Assert.AreEqual(CustomMediaTypeNames.UnrealCompactBinary, response.Content.Headers.ContentType!.MediaType!);
             byte[] data = await response.Content.ReadAsByteArrayAsync();
-            ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(data);
-            CompactBinaryObject cb = CompactBinaryObject.Load(ref memory);
-            
-            Assert.AreEqual(1, cb.GetFields().Count());
-            CompactBinaryField? needs = cb["needs"];
+            CbObject cb = new CbObject(data);
+
+            Assert.AreEqual(1, cb.Count());
+            CbField? needs = cb["needs"];
             Assert.IsNotNull(needs);
-            BlobIdentifier?[] neededBlobs = needs!.AsArray().Select(field => field.AsHash()).ToArray();
+            IoHash[] neededBlobs = needs!.AsArray().Select(field => field.AsHash()).ToArray();
 
             Assert.AreEqual(1, neededBlobs.Length);
-            Assert.AreEqual(newContent, neededBlobs[0]);
+            Assert.AreEqual(newContent, BlobIdentifier.FromIoHash(neededBlobs[0]));
         }
 
         [TestMethod]

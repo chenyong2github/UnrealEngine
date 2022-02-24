@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using async_enumerable_dotnet;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 using Horde.Storage.Implementation;
 using Jupiter;
 using Jupiter.Common.Implementation;
@@ -142,10 +143,7 @@ namespace Horde.Storage.Controllers
             using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
 
             BlobIdentifier identifier = await _storage.PutObject(ns, payload, id);
-            return Ok(new
-            {
-                Identifier = identifier
-            });
+            return Ok(new PutBlobResponse(identifier));
         }
 
         [HttpGet("{ns}/{id}/references")]
@@ -177,7 +175,7 @@ namespace Horde.Storage.Controllers
             {
                 _logger.Warning("0 byte object found for {Id} {Namespace}", id, ns);
             }
-            CompactBinaryObject compactBinaryObject = CompactBinaryObject.Load(blobContents);
+            CbObject compactBinaryObject = new CbObject(blobContents);
 
             try
             {
@@ -233,6 +231,22 @@ namespace Horde.Storage.Controllers
 
             return Ok();
         }
+    }
+
+    public class PutBlobResponse
+    {
+        public PutBlobResponse()
+        {
+            Identifier = null!;
+        }
+
+        public PutBlobResponse(BlobIdentifier identifier)
+        {
+            Identifier = identifier;
+        }
+
+        [CbField("identifier")]
+        public BlobIdentifier Identifier { get; set; }
     }
 
     public class DeletedResponse

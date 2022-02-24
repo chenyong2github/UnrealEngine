@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using Datadog.Trace;
+using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 using Jupiter.Implementation;
 using Jupiter.Utils;
 
@@ -14,7 +14,7 @@ namespace Horde.Storage.Implementation
 {
     public interface IReferenceResolver
     {
-        IAsyncEnumerable<BlobIdentifier> ResolveReferences(NamespaceId ns, CompactBinaryObject cb);
+        IAsyncEnumerable<BlobIdentifier> ResolveReferences(NamespaceId ns, CbObject cb);
     }
 
     public class ReferenceResolver : IReferenceResolver
@@ -28,34 +28,35 @@ namespace Horde.Storage.Implementation
             _contentIdStore = contentIdStore;
         }
 
-        public async IAsyncEnumerable<BlobIdentifier> ResolveReferences(NamespaceId ns, CompactBinaryObject cb)
+        public async IAsyncEnumerable<BlobIdentifier> ResolveReferences(NamespaceId ns, CbObject cb)
         {
             // TODO: This is cacheable and we should store the result somewhere
-            Queue<CompactBinaryObject> objectsToVisit = new Queue<CompactBinaryObject>();
+            Queue<CbObject> objectsToVisit = new Queue<CbObject>();
             objectsToVisit.Enqueue(cb);
             List<ContentId> unresolvedContentIdReferences = new List<ContentId>();
             List<BlobIdentifier> unresolvedBlobReferences = new List<BlobIdentifier>();
 
             List<Task<(ContentId, BlobIdentifier[]?)>> pendingContentIdResolves = new();
-            List<Task<CompactBinaryObject>> pendingCompactBinaryAttachments = new();
+            List<Task<CbObject>> pendingCompactBinaryAttachments = new();
 
             while(pendingCompactBinaryAttachments.Count != 0 || pendingContentIdResolves.Count != 0 || objectsToVisit.Count != 0)
             {
-                if (objectsToVisit.TryDequeue(out CompactBinaryObject? parent))
+                if (objectsToVisit.TryDequeue(out CbObject? parent))
                 {
                     // enumerate all fields in the compact binary and start to resolve their dependencies
-                    foreach (CompactBinaryField field in parent.GetAllFields())
+                    foreach (CbField field in parent)
                     {
                         if (!field.IsAttachment())
                             continue;
 
-                        BlobIdentifier? blobIdentifier = field.AsAttachment();
-                        if (blobIdentifier == null)
+                        IoHash attachmentHash = field.AsAttachment();
+                        if (field.HasError())
                             continue;
 
+                        BlobIdentifier blobIdentifier = BlobIdentifier.FromIoHash(attachmentHash);
                         if (field.IsBinaryAttachment())
                         {
-                            pendingContentIdResolves.Add(ResolveContentId(ns, ContentId.FromBlobIdentifier(blobIdentifier)));
+                            pendingContentIdResolves.Add(ResolveContentId(ns, ContentId.FromIoHash(attachmentHash)));
                         }
                         else
                         {
@@ -64,7 +65,7 @@ namespace Horde.Storage.Implementation
                         }
 
                         // if its a reference to another compact binary we need to fetch it and resolve it
-                        if (!field.IsCompactBinaryAttachment())
+                        if (!field.IsObjectAttachment())
                             continue;
 
                         pendingCompactBinaryAttachments.Add(ParseCompactBinaryAttachment(ns, blobIdentifier));
@@ -101,14 +102,14 @@ namespace Horde.Storage.Implementation
                 }
 
                 // check for any compact binary attachment fetches and add those to the objects we are handling
-                List<Task<CompactBinaryObject>> finishedCompactBinaryResolves = new();
-                foreach (Task<CompactBinaryObject> pendingCompactBinaryAttachment in pendingCompactBinaryAttachments)
+                List<Task<CbObject>> finishedCompactBinaryResolves = new();
+                foreach (Task<CbObject> pendingCompactBinaryAttachment in pendingCompactBinaryAttachments)
                 {
                     if (pendingCompactBinaryAttachment.IsCompleted)
                     {
                         try
                         {
-                            CompactBinaryObject childBinaryObject = await pendingCompactBinaryAttachment;
+                            CbObject childBinaryObject = await pendingCompactBinaryAttachment;
                             objectsToVisit.Enqueue(childBinaryObject);
                         }
                         catch (BlobNotFoundException e)
@@ -120,7 +121,7 @@ namespace Horde.Storage.Implementation
                 }
 
                 // cleanup finished tasks
-                foreach (Task<CompactBinaryObject> finishedTask in finishedCompactBinaryResolves)
+                foreach (Task<CbObject> finishedTask in finishedCompactBinaryResolves)
                 {
                     pendingCompactBinaryAttachments.Remove(finishedTask);
                 }
@@ -137,11 +138,11 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        private async Task<CompactBinaryObject> ParseCompactBinaryAttachment(NamespaceId ns, BlobIdentifier blobIdentifier)
+        private async Task<CbObject> ParseCompactBinaryAttachment(NamespaceId ns, BlobIdentifier blobIdentifier)
         {
             BlobContents contents = await _blobStore.GetObject(ns, blobIdentifier);
             byte[] data = await contents.Stream.ToByteArray();
-            CompactBinaryObject childBinaryObject = CompactBinaryObject.Load(data);
+            CbObject childBinaryObject = new CbObject(data);
 
             return childBinaryObject;
         }

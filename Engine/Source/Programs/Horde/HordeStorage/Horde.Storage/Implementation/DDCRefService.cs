@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 using Horde.Storage.Controllers;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
@@ -16,6 +17,15 @@ namespace Horde.Storage.Implementation
 {
     public class RefResponse
     {
+        public RefResponse()
+        {
+            Name = null!;
+            LastAccessTime = null!;
+            Metadata = null!;
+            ContentHash = null!;
+            BlobIdentifiers = null!;
+        }
+
         public RefResponse(string name, DateTime? lastAccessTime, ContentHash contentHash, BlobIdentifier[] blobIdentifiers, Dictionary<string, object>? metadata)
         {
             Name = name;
@@ -25,13 +35,22 @@ namespace Horde.Storage.Implementation
             BlobIdentifiers = blobIdentifiers;
         }
 
-        public string Name { get; }
-        public DateTime? LastAccessTime { get; }
-        public Dictionary<string, object>? Metadata { get; }
+        [CbField("name")]
+        public string Name { get; set; }
 
-        public ContentHash ContentHash { get; }
-        public BlobIdentifier[] BlobIdentifiers { get; }
+        [CbField("lastAccessTime")]
+        public DateTime? LastAccessTime { get; set; }
 
+        [CbField("metadata")]
+        public Dictionary<string, object>? Metadata { get; set; }
+
+        [CbField("contentHash")]
+        public ContentHash ContentHash { get; set; }
+
+        [CbField("blobIdentifiers")]
+        public BlobIdentifier[] BlobIdentifiers { get; set; }
+
+        [CbField("blob")]
         public byte[]? Blob { get; set; }
     }
 

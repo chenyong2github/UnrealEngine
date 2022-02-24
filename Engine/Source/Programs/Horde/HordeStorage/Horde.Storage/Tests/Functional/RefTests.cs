@@ -29,6 +29,7 @@ using Newtonsoft.Json.Linq;
 using Serilog;
 using Serilog.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 
 namespace Horde.Storage.FunctionalTests.Ref
 {
@@ -340,20 +341,18 @@ namespace Horde.Storage.FunctionalTests.Ref
             response.EnsureSuccessStatusCode();
 
             byte[] buffer = await response.Content.ReadAsByteArrayAsync();
-            ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(buffer);
-            CompactBinaryObject o = CompactBinaryObject.Load(ref memory);
-            List<CompactBinaryField> fields = o.GetFields().ToList();
-            Assert.AreEqual(5, fields.Count);
+            CbObject o = new CbObject(buffer);
+            List<CbField> fields = o.ToList();
+            Assert.AreEqual(6, fields.Count);
             Assert.AreEqual($"{TestNamespace}.bucket.testObjectWithMetadata", o["name"]!.AsString());
-            // we do not support serializing random dictionaries to compact binary
-            Assert.IsNull(o["metadata"]);
+            Assert.IsNotNull(o["metadata"]);
 
             Assert.IsNotNull(o["contentHash"]);
 
             Assert.IsNotNull(o["lastAccessTime"]);
 
             Assert.IsNotNull(o["blob"]);
-            CollectionAssert.AreEqual(TestObjectData, o["blob"]!.AsBinary());
+            CollectionAssert.AreEqual(TestObjectData, o["blob"]!.AsBinary().ToArray());
         }
 
         [TestMethod]

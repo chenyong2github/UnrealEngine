@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 
@@ -84,13 +85,13 @@ namespace Horde.Storage.Implementation.TransactionLog
                     blobIdentifier = await BlobIdentifier.FromStream(stream);
                 }
 
-                CompactBinaryWriter writer = new CompactBinaryWriter();
+                CbWriter writer = new CbWriter();
                 writer.BeginObject();
-                writer.AddBinaryAttachment(blobIdentifier, "snapshotBlob");
-                writer.AddDateTime(DateTime.Now, "timestamp");
+                writer.WriteBinaryAttachment("snapshotBlob", blobIdentifier.AsIoHash());
+                writer.WriteDateTime("timestamp", DateTime.Now);
                 writer.EndObject();
 
-                byte[] cbObjectBytes = writer.Save();
+                byte[] cbObjectBytes = writer.ToByteArray();
                 BlobIdentifier cbBlobId = BlobIdentifier.FromBlob(cbObjectBytes);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -100,7 +101,7 @@ namespace Horde.Storage.Implementation.TransactionLog
                 await _blobService.PutObject(storeInNamespace, payload, blobIdentifier);
             
                 tempFile.Delete();
-                (ContentId[] missingContentIds, BlobIdentifier[] missingBlobs) = await _objectService.Put(storeInNamespace, new BucketId("snapshot"), new IoHashKey(blobIdentifier.ToString()), cbBlobId, CompactBinaryObject.Load(cbObjectBytes));
+                (ContentId[] missingContentIds, BlobIdentifier[] missingBlobs) = await _objectService.Put(storeInNamespace, new BucketId("snapshot"), new IoHashKey(blobIdentifier.ToString()), cbBlobId, new CbObject(cbObjectBytes));
                 List<ContentHash> missingHashes = new List<ContentHash>(missingContentIds);
                 missingHashes.AddRange(missingBlobs);
                 if (missingHashes.Count != 0)

@@ -5,11 +5,15 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Blake3;
+using EpicGames.Core;
+using EpicGames.Serialization;
 using Newtonsoft.Json;
+using JsonWriter = Newtonsoft.Json.JsonWriter;
 
 namespace Jupiter.Implementation
 {
     [JsonConverter(typeof(ContentHashConverter))]
+    [CbConverter(typeof(ContentHashCbConverter))]
     public class ContentHash : IEquatable<ContentHash>, IEquatable<byte[]>
     {
         protected readonly ByteArrayComparer Comparer = new ByteArrayComparer();
@@ -111,5 +115,16 @@ namespace Jupiter.Implementation
 
             return new ContentHash(s!);
         }
+    }
+
+    public class ContentHashCbConverter : CbConverterBase<ContentHash>
+    {
+        public override ContentHash Read(CbField field) => new ContentHash(field.AsHash().ToByteArray());
+
+        /// <inheritdoc/>
+        public override void Write(CbWriter writer, ContentHash value) => writer.WriteHashValue(new IoHash(value.HashData));
+
+        /// <inheritdoc/>
+        public override void WriteNamed(CbWriter writer, Utf8String name, ContentHash value) => writer.WriteHash(name, new IoHash(value.HashData));
     }
 }

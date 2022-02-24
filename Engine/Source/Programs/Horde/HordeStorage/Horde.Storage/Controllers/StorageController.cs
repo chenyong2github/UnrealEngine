@@ -10,6 +10,7 @@ using System.Net.Mime;
 using System.Threading.Tasks;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
 using Horde.Storage.Implementation;
 using Jupiter;
 using Jupiter.Common.Implementation;
@@ -362,6 +363,7 @@ namespace Horde.Storage.Controllers
 
     public class HeadMultipleResponse
     {
+        [CbField("needs")]
         public BlobIdentifier[] Needs { get; set; } = null!;
     }
 }
