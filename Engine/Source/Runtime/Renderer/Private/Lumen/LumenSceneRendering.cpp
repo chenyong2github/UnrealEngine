@@ -1256,7 +1256,10 @@ float ComputeMaxCardUpdateDistanceFromCamera(float LumenSceneViewDistance)
 	return MaxCardDistanceFromCamera + GLumenSceneCardCaptureMargin;
 }
 
-// Make sure all mesh rendering data is prepared before we render
+/**
+ * Make sure that all mesh rendering data is prepared before we render this primitive group
+ * @return Will return true it primitive group is ready to render or we need to wait until next frame
+ */
 bool UpdateStaticMeshes(FLumenPrimitiveGroup& PrimitiveGroup)
 {
 	bool bReadyToRender = true;
@@ -1277,14 +1280,21 @@ bool UpdateStaticMeshes(FLumenPrimitiveGroup& PrimitiveGroup)
 				PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck();
 				bReadyToRender = false;
 			}
+
+			if (PrimitiveGroup.bHeightfield && PrimitiveSceneInfo->Proxy->HeightfieldHasPendingStreaming())
+			{
+				bReadyToRender = false;
+			}
 		}
 	}
 
 	return bReadyToRender;
 }
 
-// Process a throttled number of Lumen surface cache add requests
-// It will make virtual and physical allocations, and evict old pages as required
+/**
+ * Process a throttled number of Lumen surface cache add requests
+ * It will make virtual and physical allocations, and evict old pages as required
+ */
 void ProcessLumenSurfaceCacheRequests(
 	const FViewInfo& MainView,
 	FVector LumenSceneCameraOrigin,
