@@ -18,7 +18,7 @@ const int32 URawBufferDataInterface::ReadValueInputIndex = 1;
 const int32 URawBufferDataInterface::WriteValueOutputIndex = 0;
 
 
-const USkeletalMeshComponent* URawBufferDataInterface::GetComponentFromSourceObjects(
+USkinnedMeshComponent* URawBufferDataInterface::GetComponentFromSourceObjects(
 	TArrayView<TObjectPtr<UObject>> InSourceObjects)
 {
 	if (InSourceObjects.Num() != 1)
@@ -26,12 +26,12 @@ const USkeletalMeshComponent* URawBufferDataInterface::GetComponentFromSourceObj
 		return nullptr;
 	}
 	
-	return Cast<USkeletalMeshComponent>(InSourceObjects[0]);
+	return Cast<USkinnedMeshComponent>(InSourceObjects[0]);
 }
 
 
 void URawBufferDataInterface::FillProviderFromComponent(
-	const USkeletalMeshComponent* InComponent, 
+	const USkinnedMeshComponent* InComponent,
 	URawBufferDataProvider* InProvider
 	) const
 {
@@ -187,9 +187,9 @@ void URawBufferDataInterface::GetHLSL(FString& OutHLSL) const
 
 void URawBufferDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 {
-	// Default setup with an assumption that we want to size to match a USkeletalMeshComponent.
+	// Default setup with an assumption that we want to size to match a USkinnedMeshComponent.
 	// That's a massive generalization of course...
-	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
+	OutSourceTypes.Add(USkinnedMeshComponent::StaticClass());
 }
 
 
@@ -221,11 +221,11 @@ UComputeDataProvider* UPersistentBufferDataInterface::CreateDataProvider(
 {
 	UPersistentBufferDataProvider *Provider = NewObject<UPersistentBufferDataProvider>();
 
-	if (const USkeletalMeshComponent* Component = GetComponentFromSourceObjects(InSourceObjects))
+	if (USkinnedMeshComponent* Component = GetComponentFromSourceObjects(InSourceObjects))
 	{
 		FillProviderFromComponent(Component, Provider);
 
-		Provider->DeformerInstance = Cast<UOptimusDeformerInstance>(Component->MeshDeformerInstance);
+		Provider->SkinnedMeshComponent = Component;
 		Provider->ResourceName = ResourceName;
 	}
 
@@ -247,7 +247,7 @@ FComputeDataProviderRenderProxy* UTransientBufferDataProvider::GetRenderProxy()
 
 bool UPersistentBufferDataProvider::IsValid() const
 {
-	return URawBufferDataProvider::IsValid() && DeformerInstance.IsValid();
+	return URawBufferDataProvider::IsValid();
 }
 
 
@@ -255,10 +255,10 @@ FComputeDataProviderRenderProxy* UPersistentBufferDataProvider::GetRenderProxy()
 {
 	FOptimusPersistentBufferPoolPtr BufferPoolPtr;
 	
-	const UOptimusDeformerInstance* DeformerInstancePtr = DeformerInstance.Get();
-	if (ensure(DeformerInstancePtr))
+	const UOptimusDeformerInstance* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->MeshDeformerInstance);
+	if (ensure(DeformerInstance))
 	{
-		BufferPoolPtr = DeformerInstancePtr->GetBufferPool();
+		BufferPoolPtr = DeformerInstance->GetBufferPool();
 	}	
 	return new FPersistentBufferDataProviderProxy(BufferPoolPtr, ResourceName, ElementStride, NumElementsPerInvocation);
 }

@@ -12,8 +12,8 @@
 class FRDGBuffer;
 class FRDGBufferSRV;
 class FRDGBufferUAV;
-class UOptimusDeformerInstance;
 class URawBufferDataProvider;
+class USkinnedMeshComponent;
 struct FOptimusPersistentBufferPool;
 
 UCLASS(Abstract)
@@ -55,8 +55,8 @@ public:
 	FOptimusDataDomain DataDomain;
 
 protected:
-	static const USkeletalMeshComponent* GetComponentFromSourceObjects(TArrayView<TObjectPtr<UObject>> InSourceObjects);
-	void FillProviderFromComponent(const USkeletalMeshComponent* InComponent, URawBufferDataProvider* InProvider) const;
+	static USkinnedMeshComponent* GetComponentFromSourceObjects(TArrayView<TObjectPtr<UObject>> InSourceObjects);
+	void FillProviderFromComponent(const USkinnedMeshComponent* InComponent, URawBufferDataProvider* InProvider) const;
 	
 	virtual bool UseSplitBuffers() const { return true; } 
 private:
@@ -161,9 +161,8 @@ public:
 	FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
 
-	/** The deformer instance that "owns" this provider. */ 
 	UPROPERTY()
-	TWeakObjectPtr<const UOptimusDeformerInstance> DeformerInstance = nullptr;
+	TObjectPtr<USkinnedMeshComponent> SkinnedMeshComponent = nullptr;
 
 	/** The resource this buffer is provider to */
 	FName ResourceName;
