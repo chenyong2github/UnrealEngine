@@ -240,6 +240,7 @@ namespace EpicGames.Serialization
 			new CbClassConverterFactory(),
 			new CbEnumConverterFactory(),
 			new CbListConverterFactory(),
+			new CbArrayConverterFactory(),
 			new CbDictionaryConverterFactory(),
 			new CbNullableConverterFactory()
 		};

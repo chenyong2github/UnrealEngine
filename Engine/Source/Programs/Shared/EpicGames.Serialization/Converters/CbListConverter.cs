@@ -44,15 +44,12 @@ namespace EpicGames.Serialization.Converters
 		/// <inheritdoc/>
 		public override void WriteNamed(CbWriter Writer, Utf8String Name, List<T> List)
 		{
-			if (List.Count > 0)
+			Writer.BeginArray(Name);
+			foreach (T Element in List)
 			{
-				Writer.BeginArray(Name);
-				foreach (T Element in List)
-				{
-					CbSerializer.Serialize<T>(Writer, Element);
-				}
-				Writer.EndArray();
+				CbSerializer.Serialize<T>(Writer, Element);
 			}
+			Writer.EndArray();
 		}
 	}
 
