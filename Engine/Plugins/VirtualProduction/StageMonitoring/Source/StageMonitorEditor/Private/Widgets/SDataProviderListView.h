@@ -94,6 +94,15 @@ private:
 	/** Binds to the current session desired delegates */
 	void AttachToMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession);
 
+	/** Returns sort method for a given column name */
+	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
+
+	/** Called when sort mode changed for a given column */
+	void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+
+	/** Sorts provider list based on active column sort mode */
+	void SortProviderList();
+
 private:
 	
 	/** Widget and data containing info about what's shown in the listview */
@@ -108,5 +117,14 @@ private:
 
 	/** Timestamp when we last refreshed UI */
 	double LastRefreshTime = 0.0;
+
+	/** Currently sorted column name */
+	FName SortedColumnName;
+	
+	/** Sort mode for the currently sorted column */
+	EColumnSortMode::Type SortMode = EColumnSortMode::Ascending;
+
+	/** Cache of stringified roles to array of roles to avoid parsing into array constantly */
+	TMap<FString, TArray<FString>> CachedRoleStringToArray;
 };
 
