@@ -182,8 +182,17 @@ int32 GetMotionBlurDirections()
 }
 
 // static
-bool FVelocityFlattenTextures::AllowExternal()
+bool FVelocityFlattenTextures::AllowExternal(const FViewInfo& View)
 {
+	const bool bEnableCameraMotionBlur = View.bCameraMotionBlur.Get(true);
+	const bool bOverrideCameraMotionBlur = View.ClipToPrevClipOverride.IsSet();
+
+	// Do not use external velocity flatten passes if the camera motion blur needs to be modified.
+	if (!bEnableCameraMotionBlur || bOverrideCameraMotionBlur)
+	{
+		return false;
+	}
+
 	return CVarMotionBlurAllowExternalVelocityFlatten.GetValueOnRenderThread() != 0;
 }
 
@@ -298,8 +307,7 @@ class FMotionBlurVelocityFlattenCS : public FMotionBlurShader
 public:
 	static const uint32 ThreadGroupSize = 16;
 
-	class FCameraMotionBlurMode : SHADER_PERMUTATION_INT("CAMERA_MOTION_BLUR_MODE", 3);
-	using FPermutationDomain = TShaderPermutationDomain<FCameraMotionBlurMode, FMotionBlurDirections>;
+	using FPermutationDomain = TShaderPermutationDomain<FMotionBlurDirections>;
 
 	DECLARE_GLOBAL_SHADER(FMotionBlurVelocityFlattenCS);
 	SHADER_USE_PARAMETER_STRUCT(FMotionBlurVelocityFlattenCS, FMotionBlurShader);
@@ -309,6 +317,8 @@ public:
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Velocity)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVelocityFlattenParameters, VelocityFlattenParameters)
 		SHADER_PARAMETER(FMatrix44f, ClipToPrevClipOverride)
+		SHADER_PARAMETER(int32, bCancelCameraMotion)
+		SHADER_PARAMETER(int32, bAddCustomCameraMotion)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
@@ -640,9 +650,11 @@ void AddMotionBlurVelocityPass(
 		FMotionBlurVelocityFlattenCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurVelocityFlattenCS::FParameters>();
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->VelocityFlattenParameters = GetVelocityFlattenParameters(View);
-		if (bOverrideCameraMotionBlur)
+		PassParameters->bCancelCameraMotion = !bEnableCameraMotionBlur || bOverrideCameraMotionBlur;
+		PassParameters->bAddCustomCameraMotion = bOverrideCameraMotionBlur;
+		if (PassParameters->bAddCustomCameraMotion)
 		{
-			PassParameters->ClipToPrevClipOverride = FMatrix44f(View.ClipToPrevClipOverride.GetValue());		// LWC_TODO: Precision loss?
+			PassParameters->ClipToPrevClipOverride = FMatrix44f(View.ClipToPrevClipOverride.GetValue());
 		}
 
 		PassParameters->Velocity = Viewports.VelocityParameters;
@@ -654,7 +666,6 @@ void AddMotionBlurVelocityPass(
 		PassParameters->DebugOutput = CreateDebugUAV(GraphBuilder, VelocityFlatTexture->Desc.Extent, TEXT("Debug.MotionBlur.Flatten"));
 
 		FMotionBlurVelocityFlattenCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FMotionBlurVelocityFlattenCS::FCameraMotionBlurMode>(bEnableCameraMotionBlur ? (bOverrideCameraMotionBlur ? 2 : 1) : 0);
 		PermutationVector.Set<FMotionBlurDirections>(BlurDirections);
 
 		TShaderMapRef<FMotionBlurVelocityFlattenCS> ComputeShader(View.ShaderMap, PermutationVector);

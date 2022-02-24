@@ -20,9 +20,10 @@
 
 SCREEN_PASS_TEXTURE_VIEWPORT(Velocity)
 
-#if CAMERA_MOTION_BLUR_MODE == 2 // TODO: move into MotionBlurVelocityFlatten.ush
 float4x4 ClipToPrevClipOverride;
-#endif
+
+uint bCancelCameraMotion;
+uint bAddCustomCameraMotion;
 
 Texture2D VelocityTexture;
 Texture2D DepthTexture;
@@ -45,6 +46,23 @@ float2 GetCameraMotionVelocity(uint2 DispatchThreadId, float Depth, float4x4 Cli
 	float4 PrevClip = mul(ThisClip, ClipToPrevClip);
 	float2 PrevScreen = PrevClip.xy / PrevClip.w;
 	return ScreenPos - PrevScreen;
+}
+
+float2 PreprocessVelocityForMotionBlur(uint2 DispatchThreadId, float DeviceZ, float2 Velocity, float2 CameraMotionVelocity)
+{
+	FLATTEN
+	if (bCancelCameraMotion)
+	{
+		Velocity -= CameraMotionVelocity;
+	}
+
+	BRANCH
+	if (bAddCustomCameraMotion)
+	{
+		Velocity += GetCameraMotionVelocity(DispatchThreadId, DeviceZ, ClipToPrevClipOverride);
+	}
+
+	return Velocity;
 }
 
 
@@ -97,31 +115,15 @@ void MainCS(
 	float4 EncodedVelocity = VelocityTexture[ PixelPos + DepthOffset ];
 	float DeviceZ = DepthTexture[ PixelPos + DepthOffset ].x;
 
-	float2 Velocity = 0.0f;
+	float2 CameraMotionVelocity = GetCameraMotionVelocity(DispatchThreadId, DeviceZ, View.ClipToPrevClip);
+	float2 Velocity = CameraMotionVelocity;
+	FLATTEN
 	if (EncodedVelocity.x > 0.0)
 	{
 		Velocity = DecodeVelocityFromTexture(EncodedVelocity).xy;
-#if CAMERA_MOTION_BLUR_MODE != 1
-		// Cancel motion blur caused by the current camera movements
-		Velocity -= GetCameraMotionVelocity(DispatchThreadId, DeviceZ, View.ClipToPrevClip);
-#endif
-#if CAMERA_MOTION_BLUR_MODE == 2
-		// Apply motion blur caused by the custom camera movements
-		Velocity += GetCameraMotionVelocity(DispatchThreadId, DeviceZ, ClipToPrevClipOverride);
-#endif
 	}
-#if CAMERA_MOTION_BLUR_MODE > 0
-	else
-	{
-#if CAMERA_MOTION_BLUR_MODE == 2
-		// Apply motion blur caused by the custom camera movements
-		Velocity = GetCameraMotionVelocity(DispatchThreadId, DeviceZ, ClipToPrevClipOverride);
-#else
-		// Apply motion blur caused by the current camera movements
-		Velocity = GetCameraMotionVelocity(DispatchThreadId, DeviceZ, View.ClipToPrevClip);
-#endif
-	}
-#endif
+
+	Velocity = PreprocessVelocityForMotionBlur(DispatchThreadId, DeviceZ, Velocity, CameraMotionVelocity);
 
 	FVelocityRange VelocityPolarRange;
 	float2 VelocityPolar;

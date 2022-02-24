@@ -67,7 +67,7 @@ struct FVelocityFlattenTextures
 	}
 
 	// returns whether FVelocityFlattenTextures can be generated in external system.
-	static bool AllowExternal();
+	static bool AllowExternal(const FViewInfo& View);
 };
 
 struct FMotionBlurInputs

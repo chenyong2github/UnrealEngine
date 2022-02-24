@@ -594,7 +594,7 @@ void AddPostProcessingPasses(
 
 			UpscalerPassInputs.bAllowDownsampleSceneColor = bAllowSceneDownsample;
 			UpscalerPassInputs.bGenerateOutputMip1 = bMotionBlurNeedsHalfResInput;
-			UpscalerPassInputs.bGenerateVelocityFlattenTextures = PassSequence.IsEnabled(EPass::MotionBlur) && FVelocityFlattenTextures::AllowExternal() && !bVisualizeMotionBlur;
+			UpscalerPassInputs.bGenerateVelocityFlattenTextures = PassSequence.IsEnabled(EPass::MotionBlur) && FVelocityFlattenTextures::AllowExternal(View) && !bVisualizeMotionBlur;
 			UpscalerPassInputs.DownsampleOverrideFormat = DownsampleOverrideFormat;
 			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
 			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
