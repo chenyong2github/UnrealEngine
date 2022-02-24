@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImgMediaMipMapInfoManager.h"
-#include "ImgMediaEngine.h"
 #include "ImgMediaPrivate.h"
 #include "MediaPlayer.h"
 #include "MediaPlayerFacade.h"
