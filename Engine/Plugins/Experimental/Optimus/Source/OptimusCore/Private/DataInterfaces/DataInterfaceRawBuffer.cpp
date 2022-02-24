@@ -280,7 +280,8 @@ void FTransientBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuil
 {
 	for (const int32 NumElements: InvocationElementCount)
 	{
-		Buffer.Add(GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(ElementStride, NumElements), TEXT("TransientBuffer"), ERDGBufferFlags::None));
+		// todo[CF]: Over allocating by 8x here until the logic for correct buffer size is handled.
+		Buffer.Add(GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(ElementStride, NumElements * 8), TEXT("TransientBuffer"), ERDGBufferFlags::None));
 		BufferSRV.Add(GraphBuilder.CreateSRV(Buffer.Last()));
 		BufferUAV.Add(GraphBuilder.CreateUAV(Buffer.Last()));
 

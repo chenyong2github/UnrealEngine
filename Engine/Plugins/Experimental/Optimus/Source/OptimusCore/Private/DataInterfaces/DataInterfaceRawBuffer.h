@@ -83,7 +83,7 @@ public:
 
 	/** Set to true if the buffer should be cleared prior to each render */ 
 	UPROPERTY()
-	bool bClearBeforeUse = false;
+	bool bClearBeforeUse = true;
 };
 
 
