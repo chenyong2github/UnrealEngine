@@ -735,6 +735,7 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 
 		if (ActorHasExcludedTag(InActor))
 		{
+			DirtyExclusionData(InActor);
 			bDirtyAndRefresh = true;
 		}
 
@@ -807,6 +808,7 @@ void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedE
 			if (ActorHasExcludedTag(Actor))
 			{
 				DirtyExclusionData(Actor);
+				bDirtyAndRefresh = true;
 			}
 
 			if (DirtyTrackedActor(Actor))
