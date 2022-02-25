@@ -47,7 +47,7 @@ DIContext.ClipmapExponent = ClipmapExponent_##NAME;\
 DIContext.ClipmapCount = ClipmapCount_##NAME;\
 DIContext.TargetCount = TargetCount_##NAME;\
 DIContext.FieldTargets = FieldTargets_##NAME;\
-DIContext.SystemLWCTile = SystemLWCTile##NAME;\
+DIContext.SystemLWCTile = SystemLWCTile_##NAME;\
 
 float3 DIPhysicsField_SamplePhysicsVectorField(in FDIPhysicsFieldContext DIContext, in float3 WorldPosition, in int VectorTarget)
 {
