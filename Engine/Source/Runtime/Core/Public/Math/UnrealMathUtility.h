@@ -493,7 +493,8 @@ public:
 	{
 		return (X < Min) ? Min : (X < Max) ? X : Max;
 	}
-	MIX_TYPES_3_ARGS(Clamp);
+	/** Allow mixing float/double arguments, promoting to highest precision type. */
+	MIX_FLOATS_3_ARGS(Clamp);
 
 	/** Wraps X to be between Min and Max, inclusive. */
 	/** When X can wrap to both Min and Max, it will wrap to Min if it lies below the range and wrap to Max if it is above the range. */
@@ -526,7 +527,8 @@ public:
 	{
 		return (Grid == T{}) ? Location : (Floor((Location + (Grid/(T)2)) / Grid) * Grid);
 	}
-	MIX_TYPES_2_ARGS(GridSnap);
+	/** Allow mixing float/double arguments, promoting to highest precision type. */
+	MIX_FLOATS_2_ARGS(GridSnap);
 
 	/** Divides two integers and rounds up */
 	template <class T>

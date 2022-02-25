@@ -35,8 +35,8 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 	ensureMsgf(((uint32)OverrideDesc.Extent.Y) <= GetMax2DTextureDimension(), TEXT("CreateTexture %s Y size too large: %i, Max: %i, clamping"), Name ? Name : TEXT(""), OverrideDesc.Extent.Y, GetMax2DTextureDimension());
 #endif
 	// Clamp the texture size to that which is permissible, otherwise it's a guaranteed crash.
-	OverrideDesc.Extent.X = FMath::Clamp(OverrideDesc.Extent.X, 1, GetMax2DTextureDimension());
-	OverrideDesc.Extent.Y = FMath::Clamp(OverrideDesc.Extent.Y, 1, GetMax2DTextureDimension());
+	OverrideDesc.Extent.X = FMath::Clamp<int32>(OverrideDesc.Extent.X, 1, GetMax2DTextureDimension());
+	OverrideDesc.Extent.Y = FMath::Clamp<int32>(OverrideDesc.Extent.Y, 1, GetMax2DTextureDimension());
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(OverrideDesc, Name, Flags));
 	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, OverrideDesc, Flags);

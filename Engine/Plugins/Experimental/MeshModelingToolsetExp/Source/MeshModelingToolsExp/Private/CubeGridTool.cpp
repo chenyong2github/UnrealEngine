@@ -1754,7 +1754,7 @@ void UCubeGridTool::ApplyPushPull(int32 NumBlocks)
 
 void UCubeGridTool::SetPowerOfTwoClamped(int32 PowerOfTwo)
 {
-	Settings->PowerOfTwo = FMath::Clamp(PowerOfTwo, 0, Settings->MaxPowerOfTwo);
+	Settings->PowerOfTwo = FMath::Clamp<int32>(PowerOfTwo, 0, Settings->MaxPowerOfTwo);
 	CubeGrid->SetGridPower(Settings->PowerOfTwo);
 
 	// Update CurrentExtrudeAmount to reflect the new step size (mainly important

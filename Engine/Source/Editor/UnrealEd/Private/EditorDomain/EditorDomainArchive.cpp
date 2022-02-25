@@ -179,7 +179,7 @@ void FEditorDomainPackageSegments::Precache(int64 InStart, int64 InSize, bool* b
 	{
 		int64 End = InStart + InSize;
 		End = FMath::Min(End, this->Size);
-		int64 Start = FMath::Clamp(InStart, 0, End);
+		int64 Start = FMath::Clamp<int64>(InStart, 0, End);
 
 		bool bIsReady;
 		EnsureSegmentRange(Start, End, false /* bWait */, bIsReady);

@@ -2147,7 +2147,7 @@ bool RunDoubleVectorTest()
 bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 {
 	float F1 = 1.f;
-	uint32 D1 = *(uint32 *)&F1;
+	uint32 U1 = *(uint32 *)&F1;
 	VectorRegister4Float V0, V1, V2, V3;
 	float Float0, Float1, Float2, Float3;
 
@@ -2164,7 +2164,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 	ResetPassing();
 
-	V0 = MakeVectorRegister( D1, D1, D1, D1 );
+	V0 = MakeVectorRegister( U1, U1, U1, U1);
 	V1 = MakeVectorRegister( F1, F1, F1, F1 );
 	LogTest<float>( TEXT("MakeVectorRegister"), TestVectorsEqual( V0, V1 ) );
 
@@ -3024,7 +3024,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 		bool B;
 		float F2 = 0, F3 = 0;
-		double D2 = 0, D3 = 0;
+		double D1 = 0, D2 = 0, D3 = 0;
 		
 		// Check for ambiguity for bool predicates handling multiple float arguments and
 		// where there are overloads with different numbers of arguments or with default values.
@@ -3047,7 +3047,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		B = FMath::IsNearlyEqual(F1, D2, D3);
 
 		int32 I1 = 0, I2 = 0, I3 = 0;
-		uint32 U1 = 0, U2 = 0, U3 = 0;
+		uint32 U2 = 0, U3 = 0;
 
 		F = FMath::Clamp(F1, F2, F3);
 		D = FMath::Clamp(D1, D2, D3);
@@ -3059,9 +3059,17 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		U = FMath::Clamp(U1, U2, U3);
 		F = FMath::Clamp(F1, I1, F2);
 		D = FMath::Clamp(F1, D2, I3);
-		U = FMath::Clamp(U1, I1, U3);
+
+		CheckPassing(FMath::Clamp( 1, 0, 2) == 1);
+		CheckPassing(FMath::Clamp(-1, 0, 2) == 0);
+		CheckPassing(FMath::Clamp( 3, 0, 2) == 2);
+
+		U1 = 0; U2 = 2;
+		CheckPassing(FMath::Clamp<int32>(-1, U1, U2) == 0);
 
 #if MATHTEST_CHECK_INVALID_FLOAT_VARIANTS
+		// Expected to generate errors (ambiguous arguments)
+		U = FMath::Clamp(U1, I1, U3);
 		// Expected to generate errors (double->float truncation)
 		F = FMath::Clamp(F1, F2, D3);
 		F = FMath::Clamp(F1, D2, F3);
@@ -3072,6 +3080,13 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 		int64 Big1 = 0, Big2 = 0, Big3 = 0;
 		Big3 = FMath::Max(Big1, Big2);
+
+		U1 = uint32(-1);
+		CheckPassing(FMath::Max<int32>(0, U1) == 0);
+
+		U1 = uint32(-1);
+		CheckPassing(FMath::Min<int32>(0, U1) == -1);
+
 		// Test compilation mixing int32/int64 types
 		//Big3 = FMath::Max(Big1, I2);
 		//Big3 = FMath::Max(I1, Big2);

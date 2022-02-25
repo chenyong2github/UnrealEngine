@@ -270,7 +270,7 @@ static FRDGBufferRef AddHairStrandsVoxelTransmittanceMaskPass(
 	}
 
 	Parameters->ShadowChannelMask = FVector4f(0, 0, 0, 0);
-	Parameters->ShadowChannelMask[FMath::Clamp(Params.ShadowChannelMask, 0, 3)] = 1.0f;
+	Parameters->ShadowChannelMask[FMath::Clamp<uint32>(Params.ShadowChannelMask, 0, 3)] = 1.0f;
 	Parameters->LightChannelMask = Params.LightChannelMask;
 	Parameters->IndirectArgsBuffer = IndirectArgsBuffer;
 	Parameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
@@ -408,7 +408,7 @@ static FRDGBufferRef AddHairStrandsDeepShadowTransmittanceMaskPass(
 	Parameters->DeepShadow_TranslatedWorldToLightTransformBuffer = Params.DeepShadow_TranslatedWorldToLightTransformBuffer;
 	Parameters->RayMarchMaskTexture = ScreenShadowMaskSubPixelTexture ? ScreenShadowMaskSubPixelTexture : GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
 	Parameters->ShadowChannelMask = FVector4f(0, 0, 0, 0);
-	Parameters->ShadowChannelMask[FMath::Clamp(Params.ShadowChannelMask, 0, 3)] = 1.0f;
+	Parameters->ShadowChannelMask[FMath::Clamp<uint32>(Params.ShadowChannelMask, 0, 3)] = 1.0f;
 
 	for (uint32 SlotIndex=0;SlotIndex< FHairStrandsDeepShadowData::MaxMacroGroupCount;++SlotIndex)
 	{

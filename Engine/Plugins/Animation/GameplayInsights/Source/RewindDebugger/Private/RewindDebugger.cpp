@@ -485,7 +485,7 @@ void FRewindDebugger::Step(int frames)
 
 					if (EventCount > 0)
 					{
-						ScrubFrameIndex = FMath::Clamp(ScrubFrameIndex + frames, 0, (int64)EventCount - 1);
+						ScrubFrameIndex = FMath::Clamp<int64>(ScrubFrameIndex + frames, 0, (int64)EventCount - 1);
 
 						const FRecordingInfoMessage& Event = Recording->GetEvent(ScrubFrameIndex);
 						CurrentScrubTime = Event.ElapsedTime;

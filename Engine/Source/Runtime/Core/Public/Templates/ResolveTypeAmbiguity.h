@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "Templates/IsSigned.h"
 
 /**
  * This file defines a few macros which can be used to restrict (via deprecation) ambiguous calls to functions expecting float params/return type.
@@ -41,33 +42,37 @@
 
 
 // Mixing any types with any other type results in same type as "X * Y", which is promoted to the type of the result of mixed arithmetic between the types
-#define MIX_TYPES_2_ARGS_ACTUAL(Func, OptionalMarkup) \
-	template<typename Arg1, typename Arg2, TEMPLATE_REQUIRES(TNot<TIsSame<Arg1, Arg2>>::Value)> \
+#define MIX_SIGNED_TYPES_2_ARGS_ACTUAL(Func, OptionalMarkup) \
+	template<typename Arg1, typename Arg2, TEMPLATE_REQUIRES(TAnd< TIsSigned<Arg1>, TIsSigned<Arg2>, TNot<TIsSame<Arg1, Arg2>> >::Value)> \
 	static OptionalMarkup FORCEINLINE auto Func(Arg1 X, Arg2 Y) -> decltype(X * Y) \
 	{ \
 		using ArgType = decltype(X * Y); \
 		return Func((ArgType)X, (ArgType)Y); \
 	}
 
-#define MIX_TYPES_2_ARGS(Func)				MIX_TYPES_2_ARGS_ACTUAL(Func,)
-#define MIX_TYPES_2_ARGS_CONSTEXPR(Func)	MIX_TYPES_2_ARGS_ACTUAL(Func, CONSTEXPR)
+#define MIX_SIGNED_TYPES_2_ARGS(Func)				MIX_SIGNED_TYPES_2_ARGS_ACTUAL(Func,)
+#define MIX_SIGNED_TYPES_2_ARGS_CONSTEXPR(Func)		MIX_SIGNED_TYPES_2_ARGS_ACTUAL(Func, CONSTEXPR)
 
 // Mixing any types with any other type results in same type as "X * Y", which is promoted to the type of the result of mixed arithmetic between the types
-#define MIX_TYPES_3_ARGS_ACTUAL(Func, OptionalMarkup) \
-	template<typename Arg1, typename Arg2, typename Arg3, TEMPLATE_REQUIRES(TOr< \
-																				TNot<TIsSame<Arg1, Arg2>>, \
-																				TNot<TIsSame<Arg2, Arg3>>, \
-																				TNot<TIsSame<Arg1, Arg3>> \
-																				>::Value \
-																			)> \
+#define MIX_SIGNED_TYPES_3_ARGS_ACTUAL(Func, OptionalMarkup) \
+	template<typename Arg1, typename Arg2, typename Arg3, TEMPLATE_REQUIRES(TAnd< \
+																				TOr< \
+																					TNot<TIsSame<Arg1, Arg2>>, \
+																					TNot<TIsSame<Arg2, Arg3>>, \
+																					TNot<TIsSame<Arg1, Arg3>> \
+																					>, \
+																				TIsSigned<Arg1>, \
+																				TIsSigned<Arg2>, \
+																				TIsSigned<Arg3> \
+																				>::Value)> \
 	static OptionalMarkup FORCEINLINE auto Func(Arg1 X, Arg2 Y, Arg3 Z) -> decltype(X * Y * Z) \
 	{ \
 		using ArgType = decltype(X * Y * Z); \
 		return Func((ArgType)X, (ArgType)Y, (ArgType)Z); \
 	}
 
-#define MIX_TYPES_3_ARGS(Func)				MIX_TYPES_3_ARGS_ACTUAL(Func,)
-#define MIX_TYPES_3_ARGS_CONSTEXPR(Func)	MIX_TYPES_3_ARGS_ACTUAL(Func, CONSTEXPR)
+#define MIX_SIGNED_TYPES_3_ARGS(Func)				MIX_SIGNED_TYPES_3_ARGS_ACTUAL(Func,)
+#define MIX_SIGNED_TYPES_3_ARGS_CONSTEXPR(Func)		MIX_SIGNED_TYPES_3_ARGS_ACTUAL(Func, CONSTEXPR)
 
 
 // Cannot know whether the type of e.g. Fmod(int, int) should be float or double.

@@ -1020,8 +1020,8 @@ FIntPoint FLumenCard::ResLevelToResLevelXYBias() const
 		Bias.X = FMath::FloorLog2(FMath::RoundToInt(WorldOBB.Extent.Y / WorldOBB.Extent.X));
 	}
 
-	Bias.X = FMath::Clamp(Bias.X, 0, Lumen::MaxResLevel - Lumen::MinResLevel);
-	Bias.Y = FMath::Clamp(Bias.Y, 0, Lumen::MaxResLevel - Lumen::MinResLevel);
+	Bias.X = FMath::Clamp<int32>(Bias.X, 0, Lumen::MaxResLevel - Lumen::MinResLevel);
+	Bias.Y = FMath::Clamp<int32>(Bias.Y, 0, Lumen::MaxResLevel - Lumen::MinResLevel);
 	return Bias;
 }
 

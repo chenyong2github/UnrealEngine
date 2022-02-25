@@ -28,7 +28,7 @@ using namespace UE::Geometry;
 
 void UFractureAutoUVSettings::SetNumUVChannels(int32 NumUVChannels)
 {
-	NumUVChannels = FMath::Clamp(NumUVChannels, 1, GeometryCollectionUV::MAX_NUM_UV_CHANNELS);
+	NumUVChannels = FMath::Clamp<int32>(NumUVChannels, 1, GeometryCollectionUV::MAX_NUM_UV_CHANNELS);
 	UVChannelNamesList.Reset();
 	for (int32 k = 0; k < NumUVChannels; ++k)
 	{

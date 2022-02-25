@@ -2409,7 +2409,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				{
 					for (uint32 LODIt = 0, LODCount = GroomAsset->GetLODCount(); LODIt < LODCount; ++LODIt)
 					{
-						const uint32 EffectiveLODIt = FMath::Clamp(LODIt, 0, SkelLODCount - 1);
+						const uint32 EffectiveLODIt = FMath::Clamp<uint32>(LODIt, 0, SkelLODCount - 1);
 						const bool bSupportSkinCache = ParentSkelMeshComponent->IsSkinCacheAllowed(EffectiveLODIt);
 						const EGroomBindingType BindingType = GroomAsset->GetBindingType(GroupIt, LODIt);
 						const bool bIsVisible = GroomAsset->IsVisible(GroupIt, LODIt);

@@ -94,7 +94,7 @@ FName GetShaderCompressionFormat(const FName& ShaderFormat)
 	};
 	
 	//GShaderCompressionFormatChoice = (GShaderCompressionFormatChoice < 0) ? 0 : GShaderCompressionFormatChoice;
-	GShaderCompressionFormatChoice = FMath::Clamp(GShaderCompressionFormatChoice, 0, UE_ARRAY_COUNT(Formats) - 1);
+	GShaderCompressionFormatChoice = FMath::Clamp<int32>(GShaderCompressionFormatChoice, 0, UE_ARRAY_COUNT(Formats) - 1);
 	return Formats[GShaderCompressionFormatChoice];
 }
 

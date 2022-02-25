@@ -206,7 +206,7 @@ namespace LumenRadiosity
 			RadiosityProbeSpacing /= 2;
 		}
 
-		return FMath::RoundUpToPowerOfTwo(FMath::Clamp(RadiosityProbeSpacing, 1, Lumen::CardTileSize));
+		return FMath::RoundUpToPowerOfTwo(FMath::Clamp<uint32>(RadiosityProbeSpacing, 1, Lumen::CardTileSize));
 	}
 
 	int32 GetHemisphereProbeResolution(const FViewInfo& View)
