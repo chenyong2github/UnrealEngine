@@ -801,8 +801,9 @@ TSharedRef<SDockTab> FContentBrowserSingleton::SpawnContentBrowserTab( const FSp
 	TSharedRef<SDockTab> NewTab = SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
 		.Label( Label )
-		.ToolTip( IDocumentation::Get()->CreateToolTip( Label, nullptr, "Shared/ContentBrowser", "Tab" ) );
-
+		.ToolTip( IDocumentation::Get()->CreateToolTip( Label, nullptr, "Shared/ContentBrowser", "Tab" ) )
+		.OnExtendContextMenu_Raw(this, &FContentBrowserSingleton::ExtendContentBrowserTabContextMenu);
+	
 	TSharedRef<SWidget> NewBrowser = CreateContentBrowser( SpawnTabArgs.GetTabId().TabType, NewTab, nullptr );
 
 	// Add wrapper for tutorial highlighting
@@ -817,6 +818,62 @@ TSharedRef<SDockTab> FContentBrowserSingleton::SpawnContentBrowserTab( const FSp
 
 	return NewTab;
 }
+
+void FContentBrowserSingleton::ExtendContentBrowserTabContextMenu(FMenuBuilder& InMenuBuilder)
+{
+	InMenuBuilder.BeginSection("SummonContentBrowserTabs", LOCTEXT("ContentBrowserTabs", "Content Browser Tabs"));
+
+	for (int32 BrowserIdx = 0; BrowserIdx < UE_ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++)
+	{
+		const FName TabID = ContentBrowserTabIDs[BrowserIdx];
+		const FText DefaultDisplayName = GetContentBrowserLabelWithIndex(BrowserIdx);
+
+		InMenuBuilder.AddMenuEntry(DefaultDisplayName,
+			LOCTEXT("ContentBrowserMenuTooltipText", "Open a Content Browser tab."),
+			FSlateIcon(),
+			FUIAction(
+					FExecuteAction::CreateLambda([TabID, this]()
+					{
+						// Go through all the content browsers to check if the current one is open
+						for (int32 BrowserIdx = 0; BrowserIdx < AllContentBrowsers.Num(); ++BrowserIdx)
+						{
+							const TWeakPtr<SContentBrowser>& Browser = AllContentBrowsers[BrowserIdx];
+
+							if (Browser.IsValid() && Browser.Pin()->GetInstanceName() == TabID)
+							{
+								FocusContentBrowser(Browser.Pin()); // Focus it if so
+							}
+						}
+
+						// If the tab was not found, try to open it
+						FGlobalTabmanager::Get()->TryInvokeTab(TabID);
+					}
+				),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateLambda([this, TabID]()
+					{
+						// Go through all the content browsers to check if the current one is open
+						for (int32 BrowserIdx = 0; BrowserIdx < AllContentBrowsers.Num(); ++BrowserIdx)
+						{
+							const TWeakPtr<SContentBrowser>& Browser = AllContentBrowsers[BrowserIdx];
+
+							if (Browser.IsValid() && Browser.Pin()->GetInstanceName() == TabID)
+							{
+								return true;
+							}
+						}
+
+						return false;
+						
+					}
+				)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton);
+	}
+
+	InMenuBuilder.EndSection();
+}
+
 
 bool FContentBrowserSingleton::IsLocked(const FName& InstanceName) const
 {

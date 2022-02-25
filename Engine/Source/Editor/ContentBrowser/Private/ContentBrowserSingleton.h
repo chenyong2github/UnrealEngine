@@ -140,6 +140,8 @@ private:
 	/** Creates the Content Browser submenu in the Level Editor Toolbar Add menu */
 	void GetContentBrowserSubMenu(UToolMenu* Menu, TSharedRef<FWorkspaceItem> ContentBrowserGroup);
 
+	void ExtendContentBrowserTabContextMenu(FMenuBuilder& InMenuBuilder);
+
 public:
 	/** The tab identifier/instance name for content browser tabs */
 	FName ContentBrowserTabIDs[MAX_CONTENT_BROWSERS];
