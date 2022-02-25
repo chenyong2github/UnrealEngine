@@ -74,6 +74,8 @@ namespace HordeServer.Controllers
 		/// <param name="SessionId">The session to query</param>
 		/// <param name="StartTime">Start of the time window to consider</param>
 		/// <param name="FinishTime">End of the time window to consider</param>
+		/// <param name="MinFinishTime">Start of the time window to consider when querying by finish time (if set, other criteria are ignored)</param>
+		/// <param name="MaxFinishTime">End of the time window to consider when querying by finish time (if set, other criteria are ignored)</param>
 		/// <param name="Index">Index of the first result to return</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <param name="Filter">Filter to apply to the results</param>
@@ -81,7 +83,16 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/leases")]
 		[ProducesResponseType(200, Type = typeof(List<GetAgentLeaseResponse>))]
-		public async Task<ActionResult<List<object>>> FindLeasesAsync([FromQuery] AgentId? AgentId, [FromQuery] SessionId? SessionId, [FromQuery] DateTimeOffset? StartTime, [FromQuery] DateTimeOffset? FinishTime, [FromQuery] int Index = 0, [FromQuery] int Count = 1000, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<List<object>>> FindLeasesAsync(
+			[FromQuery] AgentId? AgentId,
+			[FromQuery] SessionId? SessionId,
+			[FromQuery] DateTimeOffset? StartTime,
+			[FromQuery] DateTimeOffset? FinishTime,
+			[FromQuery] DateTimeOffset? MinFinishTime,
+			[FromQuery] DateTimeOffset? MaxFinishTime,
+			[FromQuery] int Index = 0,
+			[FromQuery] int Count = 1000,
+			[FromQuery] PropertyFilter? Filter = null)
 		{
 			GlobalPermissionsCache PermissionsCache = new GlobalPermissionsCache();
 			if (AgentId == null)
@@ -106,7 +117,16 @@ namespace HordeServer.Controllers
 
 			bool IncludeCosts = await AclService.AuthorizeAsync(AclAction.ViewCosts, User, PermissionsCache);
 
-			List<ILease> Leases = await AgentService.FindLeasesAsync(AgentId, SessionId, StartTime?.UtcDateTime, FinishTime?.UtcDateTime, Index, Count);
+			List<ILease> Leases;
+			if (MinFinishTime == null && MaxFinishTime == null)
+			{
+				Leases = await AgentService.FindLeasesAsync(AgentId, SessionId, StartTime?.UtcDateTime, FinishTime?.UtcDateTime, Index, Count);
+			}
+			else
+			{
+				// Optimized path for queries made by finish time
+				Leases = await AgentService.FindLeasesByFinishTimeAsync(MinFinishTime?.UtcDateTime, MaxFinishTime?.UtcDateTime, Index, Count);
+			}
 
 			List<object> Responses = new List<object>();
 

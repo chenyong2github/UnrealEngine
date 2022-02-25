@@ -159,6 +159,27 @@ namespace HordeServer.Collections.Impl
 			List<LeaseDocument> Results = await Collection.Find(Filter, FindOptions).SortByDescending(x => x.StartTime).Range(Index, Count).ToListAsync();
 			return Results.ConvertAll<ILease>(x => x);
 		}
+		
+		/// <inheritdoc/>
+		public async Task<List<ILease>> FindLeasesByFinishTimeAsync(DateTime? MinFinishTime, DateTime? MaxFinishTime, int? Index, int? Count, string? IndexHint, bool ConsistentRead)
+		{
+			IMongoCollection<LeaseDocument> Collection = ConsistentRead ? Leases : Leases.WithReadPreference(ReadPreference.SecondaryPreferred);
+			FilterDefinitionBuilder<LeaseDocument> FilterBuilder = Builders<LeaseDocument>.Filter;
+			FilterDefinition<LeaseDocument> Filter = FilterDefinition<LeaseDocument>.Empty;
+
+			if (MinFinishTime == null && MaxFinishTime == null)
+			{
+				throw new ArgumentException($"Both {nameof(MinFinishTime)} and {nameof(MaxFinishTime)} cannot be null");
+			}
+
+			if (MinFinishTime != null) Filter &= FilterBuilder.Gt(x => x.FinishTime, MinFinishTime.Value);
+			if (MaxFinishTime != null) Filter &= FilterBuilder.Lt(x => x.FinishTime, MaxFinishTime.Value);
+
+			FindOptions? FindOptions = IndexHint == null ? null : new FindOptions { Hint = new BsonString(IndexHint) };
+			List<LeaseDocument> Results = await Collection.Find(Filter, FindOptions).SortByDescending(x => x.FinishTime).Range(Index, Count).ToListAsync();
+
+			return Results.ConvertAll<ILease>(x => x);
+		}
 
 		/// <inheritdoc/>
 		public async Task<List<ILease>> FindLeasesAsync(DateTime? MinTime, DateTime? MaxTime)

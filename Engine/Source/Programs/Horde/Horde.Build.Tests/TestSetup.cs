@@ -99,6 +99,7 @@ namespace HordeServerTests
 		public JobsController JobsController => GetJobsController();
 		public AgentsController AgentsController => GetAgentsController();
 		public PoolsController PoolsController => GetPoolsController();
+		public LeasesController LeasesController => GetLeasesController();
 
 		private static bool IsDatadogWriterPatched;
 
@@ -235,6 +236,14 @@ namespace HordeServerTests
 		private PoolsController GetPoolsController()
 		{
 			PoolsController Controller = new PoolsController(AclService, PoolService);
+			Controller.ControllerContext = GetControllerContext();
+			return Controller;
+		}
+		
+		private LeasesController GetLeasesController()
+		{
+			ILogger<LeasesController> Logger = ServiceProvider.GetRequiredService<ILogger<LeasesController>>();
+			LeasesController Controller = new LeasesController(AclService, AgentService, Logger);
 			Controller.ControllerContext = GetControllerContext();
 			return Controller;
 		}

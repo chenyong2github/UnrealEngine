@@ -761,6 +761,19 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
+		/// Finds all leases by finish time
+		/// </summary>
+		/// <param name="MinFinishTime">Start of the search window to return results for</param>
+		/// <param name="MaxFinishTime">End of the search window to return results for</param>
+		/// <param name="Index">Index of the first result to return</param>
+		/// <param name="Count">Number of results to return</param>
+		/// <returns>List of leases matching the given criteria</returns>
+		public Task<List<ILease>> FindLeasesByFinishTimeAsync(DateTime? MinFinishTime, DateTime? MaxFinishTime, int? Index, int? Count)
+		{
+			return Leases.FindLeasesByFinishTimeAsync(MinFinishTime, MaxFinishTime, Index, Count, null, false);
+		}
+
+		/// <summary>
 		/// Gets a specific lease
 		/// </summary>
 		/// <param name="LeaseId">Unique id of the lease</param>
