@@ -19,7 +19,7 @@ void FAjaMediaOutputModule::StartupModule()
 	const auto DMAInitializationFunc = [this]()
 	{
 		const FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
-		bIsGPUTextureTransferAvailable = GPUDriverInfo.IsNVIDIA();
+		bIsGPUTextureTransferAvailable = GPUDriverInfo.IsNVIDIA() &&!FModuleManager::Get().IsModuleLoaded("RenderDocPlugin");
 
 		if (bIsGPUTextureTransferAvailable)
 		{

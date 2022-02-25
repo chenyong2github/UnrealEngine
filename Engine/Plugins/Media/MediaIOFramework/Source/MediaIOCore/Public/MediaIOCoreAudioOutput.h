@@ -9,7 +9,7 @@
 namespace UE::MediaIoCoreModule::Private
 {
 	template <typename OutputType>
-	TArray<OutputType> ConvertAndUpmixBuffer(const Audio::FAlignedFloatBuffer& InBuffer, int32 NumInputChannels, int32 NumOutputChannels)
+	TArray<OutputType> ConvertAndUpmixBuffer(const Audio::FAlignedFloatBuffer& InBuffer, int32 NumInputChannels, int32 NumOutputChannels, uint32 NumSamplesToGet)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MediaIoCoreModule::ConvertAndUpmixBuffer);
 		/**
@@ -42,6 +42,9 @@ namespace UE::MediaIoCoreModule::Private
 		
 			ConvertedBufferPtr += NumOutputChannels;
 		}
+
+		constexpr bool bAllowShrinking = false;
+		ConvertedBuffer.SetNum(NumSamplesToGet, bAllowShrinking);
 		return ConvertedBuffer;
 	}
 }
@@ -68,13 +71,26 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FMediaIOAudioOutput::GetAudioSamples);
 		
-		const Audio::FAlignedFloatBuffer FloatBuffer = GetFloatBuffer();
-		return UE::MediaIoCoreModule::Private::ConvertAndUpmixBuffer<OutputType>(FloatBuffer, NumInputChannels, NumOutputChannels);
+		const Audio::FAlignedFloatBuffer FloatBuffer = GetFloatBuffer(NumSamplesPerFrame);
+		return UE::MediaIoCoreModule::Private::ConvertAndUpmixBuffer<OutputType>(FloatBuffer, NumInputChannels, NumOutputChannels, NumSamplesPerFrame);
 	}
+	
+	template <typename OutputType>
+	TArray<OutputType> GetAudioSamples(uint32 NumSamplesToGet) const
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FMediaIOAudioOutput::GetAudioSamples);
+		
+		const Audio::FAlignedFloatBuffer FloatBuffer = GetFloatBuffer(NumSamplesToGet);
+		return UE::MediaIoCoreModule::Private::ConvertAndUpmixBuffer<OutputType>(FloatBuffer, NumInputChannels, NumOutputChannels, NumSamplesToGet);
+	}
+
+public:
+	// @todo: Depend on frame number to correctly fetch the right amount of frames on framerates like 59.97
+	int32 NumSamplesPerFrame = 0;
 
 private:
 	int32 GetAudioBuffer(int32 InNumSamplesToPop, float* OutBuffer) const;
-	Audio::FAlignedFloatBuffer GetFloatBuffer() const;
+	Audio::FAlignedFloatBuffer GetFloatBuffer(uint32 NumSamplesToGet) const;
 
 private:
 	/** The buffer accumulating audio samples. */

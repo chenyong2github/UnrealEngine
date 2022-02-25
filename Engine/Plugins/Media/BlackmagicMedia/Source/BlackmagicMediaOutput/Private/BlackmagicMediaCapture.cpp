@@ -541,7 +541,7 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 		UMediaIOCoreSubsystem::FCreateAudioOutputArgs Args;
 		Args.NumOutputChannels = static_cast<int32>(ChannelOptions.NumAudioChannels);
 		Args.TargetFrameRate = FrameRate;
-		Args.MaxSampleLatency = InBlackmagicMediaOutput->AudioBufferSize;
+		Args.MaxSampleLatency = Align(InBlackmagicMediaOutput->AudioBufferSize, 4);
 		Args.OutputSampleRate = static_cast<uint32>(InBlackmagicMediaOutput->AudioSampleRate);
 		AudioOutput = GEngine->GetEngineSubsystem<UMediaIOCoreSubsystem>()->CreateAudioOutput(Args);
 	}
@@ -737,39 +737,51 @@ void UBlackmagicMediaCapture::WaitForSync_RenderingThread()
 
 void UBlackmagicMediaCapture::OutputAudio_RenderingThread(const FCaptureBaseData& InBaseData, const BlackmagicDesign::FTimecode& InTimecode)
 {
-	if (bOutputAudio)
+	if (bOutputAudio && AudioOutput)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::OutputAudio);
+
+		const double NewTimestamp = FPlatformTime::Seconds();
+		double CurrentFrameTime = NewTimestamp - OutputAudioTimestamp;
+		
+		const float TargetFrametime = 1 / FrameRate.AsDecimal();
+		if (UNLIKELY(OutputAudioTimestamp == 0))
+		{
+			CurrentFrameTime = TargetFrametime;
+		}
+
+		float FrameTimeRatio = CurrentFrameTime / TargetFrametime;
+
+		uint32_t NumSamplesToPull = FrameTimeRatio * AudioOutput->NumSamplesPerFrame;
+		NumSamplesToPull = FMath::Clamp(NumSamplesToPull, 0, AudioOutput->NumSamplesPerFrame);
 
 		BlackmagicDesign::FAudioSamplesDescriptor AudioSamples;
 		AudioSamples.Timecode = InTimecode;
 		AudioSamples.FrameIdentifier = InBaseData.SourceFrameNumber;
 		check(NumOutputChannels != 0);
-
-		if (AudioOutput)
+		
+		if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_32Bits)
 		{
-			if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_32Bits)
-			{
-				TArray<int32> AudioBuffer = AudioOutput->GetAudioSamples<int32>();
-				AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
-				AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
-				AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int32);
-				EventCallback->SendAudioSamples(AudioSamples);
-			}
-			else if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_16Bits)
-			{
-				TArray<int16> AudioBuffer = AudioOutput->GetAudioSamples<int16>();
-				AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
-				AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
-				AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int16);
-
-				EventCallback->SendAudioSamples(AudioSamples);
-			}
-			else
-			{
-				checkNoEntry();
-			}
+			TArray<int32> AudioBuffer = AudioOutput->GetAudioSamples<int32>(NumSamplesToPull);
+			AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
+			AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
+			AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int32);
+			EventCallback->SendAudioSamples(AudioSamples);
 		}
+		else if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_16Bits)
+		{
+			TArray<int16> AudioBuffer = AudioOutput->GetAudioSamples<int16>(NumSamplesToPull);
+			AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
+			AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
+			AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int16);
+
+			EventCallback->SendAudioSamples(AudioSamples);
+		}
+		else
+		{
+			checkNoEntry();
+		}
+		
+		OutputAudioTimestamp = NewTimestamp;
 	}
 }
-

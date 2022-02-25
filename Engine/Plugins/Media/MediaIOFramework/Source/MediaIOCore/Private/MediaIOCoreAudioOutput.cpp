@@ -22,6 +22,7 @@ FMediaIOAudioOutput::FMediaIOAudioOutput(Audio::FPatchOutputStrongPtr InPatchOut
     , MaxSampleLatency(InAudioOptions.InMaxSampleLatency)
     , OutputSampleRate(InAudioOptions.InOutputSampleRate)
 {
+	NumSamplesPerFrame = FMath::CeilToInt(NumInputChannels * OutputSampleRate / TargetFrameRate.AsDecimal());
 }
 
 int32 FMediaIOAudioOutput::GetAudioBuffer(int32 InNumSamplesToPop, float* OutBuffer) const
@@ -36,22 +37,16 @@ int32 FMediaIOAudioOutput::GetAudioBuffer(int32 InNumSamplesToPop, float* OutBuf
 	return 0;
 }
 
-Audio::FAlignedFloatBuffer FMediaIOAudioOutput::GetFloatBuffer() const
+Audio::FAlignedFloatBuffer FMediaIOAudioOutput::GetFloatBuffer(uint32 NumSamplesToGet) const
 {
-	// @todo: Depend on frame number to correctly fetch the right amount of frames on framerates like 59.97
-	const int32 NumSamplesPerFrame = FMath::CeilToInt(NumInputChannels * OutputSampleRate / TargetFrameRate.AsDecimal());
-
 	// NumSamplesToPop must be a multiple of 4 in order to avoid an assertion in the audio pipeline.
-	const int32 NumSamplesToPop = Align(NumSamplesPerFrame, 4);
+	const int32 NumSamplesToPop = Align(NumSamplesToGet, 4);
 
 	Audio::FAlignedFloatBuffer FloatBuffer;
 	FloatBuffer.SetNumZeroed(NumSamplesToPop);
 
 	const int32 NumPopped = GetAudioBuffer(NumSamplesToPop, FloatBuffer.GetData());
 
-	// Trim back the buffer after we get the buffer since it might be bigger because of alignment
-	constexpr bool bAllowShrinking = false;
-	FloatBuffer.SetNum(NumPopped, bAllowShrinking);
 	return FloatBuffer;
 }
 

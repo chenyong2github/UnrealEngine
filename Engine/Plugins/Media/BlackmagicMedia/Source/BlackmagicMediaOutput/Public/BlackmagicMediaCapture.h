@@ -91,6 +91,8 @@ private:
 
 	EBlackmagicMediaOutputAudioBitDepth AudioBitDepth = EBlackmagicMediaOutputAudioBitDepth::Signed_16Bits;
 
+	uint32 NumAudioSamplesPerFrame = 0;
+
 	bool bOutputAudio = false;
 
 	uint8 NumOutputChannels = 0;
@@ -100,4 +102,7 @@ private:
 
 	/** Whether or not GPUTextureTransfer was initialized successfully. */
 	bool bGPUTextureTransferAvailable = false;
+
+	/** The last time OutputAudio was called. Used to adjust the number of audio samples to grab on each frame depending on the frame time. */
+	double OutputAudioTimestamp;
 };
