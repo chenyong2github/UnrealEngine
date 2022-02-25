@@ -595,7 +595,6 @@ void UDetailsViewWrapperObject::SetContentForPin(URigVMPin* InPin)
 	if(const FProperty* Property = GetClass()->FindPropertyByName(InPin->GetFName()))
 	{
 		FDetailsViewWrapperObjectImportErrorContext ErrorPipe;
-		uint8* DataPtr = Property->ContainerPtrToValuePtr<uint8>(this);
-		Property->ImportText_InContainer(*DefaultValue, DataPtr, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe);		
+		Property->ImportText_InContainer(*DefaultValue, this, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe);
 	}
 }
