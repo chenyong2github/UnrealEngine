@@ -257,26 +257,29 @@ void UAnimGraphNode_ControlRig::ValidateAnimNodeDuringCompilation(USkeleton* For
 		if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(TargetClass->ClassGeneratedBy))
 		{
 			URigHierarchy* Hierarchy = Blueprint->Hierarchy;
-			const FReferenceSkeleton& ReferenceSkeleton = ForSkeleton->GetReferenceSkeleton();
-			const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton.GetRefBoneInfo();
-
-			for (const FMeshBoneInfo& BoneInfo : BoneInfos)
+			if (ForSkeleton)
 			{
-				const FRigElementKey BoneKey(BoneInfo.Name, ERigElementType::Bone);
-				if (Hierarchy->Contains(BoneKey))
+				const FReferenceSkeleton& ReferenceSkeleton = ForSkeleton->GetReferenceSkeleton();
+				const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton.GetRefBoneInfo();
+
+				for (const FMeshBoneInfo& BoneInfo : BoneInfos)
 				{
-					const FRigElementKey ParentKey = Hierarchy->GetFirstParent(BoneKey);
-
-					FName DesiredParentName = NAME_None;
-					if (BoneInfo.ParentIndex != INDEX_NONE)
+					const FRigElementKey BoneKey(BoneInfo.Name, ERigElementType::Bone);
+					if (Hierarchy->Contains(BoneKey))
 					{
-						DesiredParentName = BoneInfos[BoneInfo.ParentIndex].Name;
-					}
+						const FRigElementKey ParentKey = Hierarchy->GetFirstParent(BoneKey);
 
-					if (DesiredParentName != ParentKey.Name)
-					{
-						FString Message = FString::Printf(TEXT("@@ - Hierarchy discrepancy for bone '%s' - different parents on Control Rig vs SkeletalMesh."), *BoneInfo.Name.ToString());
-						MessageLog.Warning(*Message, this);
+						FName DesiredParentName = NAME_None;
+						if (BoneInfo.ParentIndex != INDEX_NONE)
+						{
+							DesiredParentName = BoneInfos[BoneInfo.ParentIndex].Name;
+						}
+
+						if (DesiredParentName != ParentKey.Name)
+						{
+							FString Message = FString::Printf(TEXT("@@ - Hierarchy discrepancy for bone '%s' - different parents on Control Rig vs SkeletalMesh."), *BoneInfo.Name.ToString());
+							MessageLog.Warning(*Message, this);
+						}
 					}
 				}
 			}

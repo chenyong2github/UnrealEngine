@@ -188,7 +188,7 @@ void UAnimGraphNode_OrientationWarping::ValidateAnimNodeDuringCompilation(USkele
 
 	auto HasInvalidBoneIndex = [&](const FName& BoneName)
 	{
-		return ForSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName) == INDEX_NONE;
+		return ForSkeleton && ForSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName) == INDEX_NONE;
 	};
 
 	auto InvalidBoneNameMessage = [&](const FName& BoneName)

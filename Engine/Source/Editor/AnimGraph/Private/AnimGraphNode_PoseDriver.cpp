@@ -114,12 +114,15 @@ void UAnimGraphNode_PoseDriver::ValidateAnimNodeDuringCompilation(USkeleton* For
 	}
 
 	FName MissingBoneName = NAME_None;
-	for (const FBoneReference& BoneRef : Node.SourceBones)
+	if (ForSkeleton)
 	{
-		if (ForSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneRef.BoneName) == INDEX_NONE)
+		for (const FBoneReference& BoneRef : Node.SourceBones)
 		{
-			MissingBoneName = BoneRef.BoneName;
-			break;
+			if (ForSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneRef.BoneName) == INDEX_NONE)
+			{
+				MissingBoneName = BoneRef.BoneName;
+				break;
+			}
 		}
 	}
 

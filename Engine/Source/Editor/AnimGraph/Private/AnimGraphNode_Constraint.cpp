@@ -38,7 +38,7 @@ UAnimGraphNode_Constraint::UAnimGraphNode_Constraint(const FObjectInitializer& O
 
 void UAnimGraphNode_Constraint::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
 {
-	if (ForSkeleton->GetReferenceSkeleton().FindBoneIndex(Node.BoneToModify.BoneName) == INDEX_NONE)
+	if (ForSkeleton && ForSkeleton->GetReferenceSkeleton().FindBoneIndex(Node.BoneToModify.BoneName) == INDEX_NONE)
 	{
 		if (Node.BoneToModify.BoneName == NAME_None)
 		{

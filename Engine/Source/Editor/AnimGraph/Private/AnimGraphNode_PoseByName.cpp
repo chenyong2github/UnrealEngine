@@ -120,7 +120,7 @@ void UAnimGraphNode_PoseByName::ValidateAnimNodeDuringCompilation(class USkeleto
 			MessageLog.Error(TEXT("@@ references an unknown pose asset"), this);
 		}
 	}
-	else
+	else if (ForSkeleton)
 	{
 		USkeleton* SeqSkeleton = PoseAssetToCheck->GetSkeleton();
 		if (SeqSkeleton && // if anim sequence doesn't have skeleton, it might be due to anim sequence not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?

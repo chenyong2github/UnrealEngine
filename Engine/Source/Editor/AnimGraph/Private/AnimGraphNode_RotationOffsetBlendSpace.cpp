@@ -158,7 +158,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::ValidateAnimNodeDuringCompilation(
 	{
 		MessageLog.Error(TEXT("@@ references an invalid blend space (one that is not an aim offset)"), this);
 	}
-	else
+	else if (ForSkeleton)
 	{
 		USkeleton* BlendSpaceSkeleton = BlendSpaceToCheck->GetSkeleton();
 		if (BlendSpaceSkeleton && // if blend space doesn't have skeleton, it might be due to blend space not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?

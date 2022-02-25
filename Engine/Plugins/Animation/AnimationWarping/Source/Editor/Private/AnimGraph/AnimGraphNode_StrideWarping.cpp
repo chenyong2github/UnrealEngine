@@ -220,7 +220,7 @@ void UAnimGraphNode_StrideWarping::ValidateAnimNodeDuringCompilation(USkeleton* 
 
 	auto HasInvalidBoneIndex = [&] (const FName& BoneName) 
 	{ 
-		return ForSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName) == INDEX_NONE; 
+		return ForSkeleton && ForSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName) == INDEX_NONE; 
 	};
 
 	auto InvalidBoneNameMessage = [&](const FName& BoneName) 
