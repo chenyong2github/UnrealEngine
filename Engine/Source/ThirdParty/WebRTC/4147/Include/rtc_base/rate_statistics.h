@@ -43,6 +43,10 @@ class RTC_EXPORT RateStatistics {
 
   RateStatistics(RateStatistics&& other);
 
+  RateStatistics& operator=(const RateStatistics& other);
+
+  RateStatistics& operator=(RateStatistics&& other);
+
   ~RateStatistics();
 
   // Reset instance to original state.
@@ -92,10 +96,10 @@ class RTC_EXPORT RateStatistics {
   int64_t oldest_index_;
 
   // To convert counts/ms to desired units
-  const float scale_;
+  float scale_;
 
   // The window sizes, in ms, over which the rate is calculated.
-  const int64_t max_window_size_ms_;
+  int64_t max_window_size_ms_;
   int64_t current_window_size_ms_;
 };
 }  // namespace webrtc

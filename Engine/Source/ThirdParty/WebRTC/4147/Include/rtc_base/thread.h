@@ -21,6 +21,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <atomic>
 
 #if defined(WEBRTC_POSIX)
 #include <pthread.h>
@@ -37,6 +38,7 @@
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/thread_message.h"
+#include "rtc_base/thread_observer.h"
 
 #if defined(WEBRTC_WIN)
 #include "rtc_base/win32.h"
@@ -572,6 +574,10 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public webrtc::TaskQueueBase {
   std::unique_ptr<SocketServer> own_ss_;
 
   std::string name_;
+
+#if WEBRTC_EXTENSION_THREAD_OBSERVER
+  std::atomic<bool> is_real_thread_created_{ false };
+#endif
 
   // TODO(tommi): Add thread checks for proper use of control methods.
   // Ideally we should be able to just use PlatformThread.

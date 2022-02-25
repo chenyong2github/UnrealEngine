@@ -57,6 +57,7 @@
 #include <tuple>
 #include <utility>
 
+#include "absl/types/optional.h"
 #include "api/scoped_refptr.h"
 #include "rtc_base/event.h"
 #include "rtc_base/message_handler.h"
@@ -108,7 +109,10 @@ class RTC_EXPORT SynchronousMethodCall : public rtc::MessageData,
  private:
   void OnMessage(rtc::Message*) override;
 
-  rtc::Event e_;
+  // as `rtc::Event` is used only when switching to another thread,
+  // we can avoid an useless system resource allocation in direct calls
+  // and do it by demand
+  absl::optional<rtc::Event> e_;
   rtc::MessageHandler* proxy_;
 };
 

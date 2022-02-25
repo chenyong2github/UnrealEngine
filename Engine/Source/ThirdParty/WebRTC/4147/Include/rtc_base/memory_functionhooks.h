@@ -11,6 +11,7 @@
 #define RTC_BASE_MEMORY_FUNCTIONHOOKS_H_
 
 #include <stdint.h>
+#include <stddef.h>
 
 namespace rtc {
 
