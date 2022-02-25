@@ -47,34 +47,22 @@ protected:
 	/**
 	 * Node width offset between nodes in the SoundCueEditor.
 	 */
-	static float GetNodeWidthOffset()
-	{
-		return 500.0f;
-	}
+	static float GetNodeWidthOffset();
 
 	/**
 	 * Initial width offset of first node in the SoundCueEditor.
 	 */
-	static float GetInitialWidthOffset()
-	{
-		return 300.0f;
-	}
+	static float GetInitialWidthOffset();
 
 	/**
 	 * Node height offset between nodes in the SoundCueEditor.
 	 */
-	static float GetNodeHeightOffset()
-	{
-		return 200.0f;
-	}
+	static float GetNodeHeightOffset();
 
 	/**
 	 * Initial height offset of first node in the SoundCueEditor.
 	 */
-	static float GetInitialHeightOffset()
-	{
-		return 0.0f;
-	}
+	static float GetInitialHeightOffset();
 
 	/**
 	 * Sets the provided node's position to the location on the template's grid
