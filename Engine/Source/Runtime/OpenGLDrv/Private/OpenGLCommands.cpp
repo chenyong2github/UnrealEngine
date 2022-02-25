@@ -15,6 +15,7 @@
 #include "OpenGLDrv.h"
 #include "OpenGLDrvPrivate.h"
 #include "RenderUtils.h"
+#include "RHICoreShader.h"
 
 /*
 #define DECLARE_ISBOUNDSHADER(ShaderType) template <typename TShaderType> inline void ValidateBoundShader(TRefCountPtr<FOpenGLBoundShaderState> InBoundShaderState, FRHIGraphicsShader* GfxShader, TShaderType* ShaderTypeRHI) \
@@ -2808,6 +2809,51 @@ uint32 FOpenGLDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 {
 	check(GPUIndex == 0);
 	return GGPUFrameTime;
+}
+
+template <typename TRHIShader, typename TRHIProxyShader>
+void FOpenGLDynamicRHI::ApplyStaticUniformBuffers(TRHIShader* Shader, TRHIProxyShader* ProxyShader)
+{
+	if (ProxyShader)
+	{
+		check(Shader);
+		UE::RHICore::ApplyStaticUniformBuffers(this, Shader, ProxyShader->StaticSlots, ProxyShader->Bindings.ShaderResourceTable.ResourceTableLayoutHashes, GlobalUniformBuffers);
+	}
+}
+
+void FOpenGLDynamicRHI::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, uint32 StencilRef, bool bApplyAdditionalState)
+{
+	FRHIGraphicsPipelineStateFallBack* FallbackGraphicsState = static_cast<FRHIGraphicsPipelineStateFallBack*>(GraphicsState);
+
+	auto& PsoInit = FallbackGraphicsState->Initializer;
+
+	RHISetBoundShaderState(
+		RHICreateBoundShaderState_internal(
+			PsoInit.BoundShaderState.VertexDeclarationRHI,
+			PsoInit.BoundShaderState.VertexShaderRHI,
+			PsoInit.BoundShaderState.PixelShaderRHI,
+			PsoInit.BoundShaderState.GetGeometryShader(),
+			PsoInit.bFromPSOFileCache
+		).GetReference()
+	);
+
+	RHISetDepthStencilState(FallbackGraphicsState->Initializer.DepthStencilState, StencilRef);
+	RHISetRasterizerState(FallbackGraphicsState->Initializer.RasterizerState);
+	RHISetBlendState(FallbackGraphicsState->Initializer.BlendState, FLinearColor(1.0f, 1.0f, 1.0f));
+	if (GSupportsDepthBoundsTest)
+	{
+		RHIEnableDepthBoundsTest(FallbackGraphicsState->Initializer.bDepthBounds);
+	}
+
+	if (bApplyAdditionalState)
+	{
+		ApplyStaticUniformBuffers(PsoInit.BoundShaderState.VertexShaderRHI, ResourceCast(PsoInit.BoundShaderState.VertexShaderRHI));
+		ApplyStaticUniformBuffers(PsoInit.BoundShaderState.GetGeometryShader(), ResourceCast(PsoInit.BoundShaderState.GetGeometryShader()));
+		ApplyStaticUniformBuffers(PsoInit.BoundShaderState.PixelShaderRHI, ResourceCast(PsoInit.BoundShaderState.PixelShaderRHI));
+	}
+
+	// Store the PSO's primitive (after since IRHICommandContext::RHISetGraphicsPipelineState sets the BSS)
+	PrimitiveType = PsoInit.PrimitiveType;
 }
 
 void FOpenGLDynamicRHI::RHISetComputeShader(FRHIComputeShader* ComputeShaderRHI)

@@ -15,7 +15,6 @@
 #include "GPUProfiler.h"
 #include "RenderResource.h"
 #include "Templates/EnableIf.h"
-#include "RHICoreShader.h"
 
 // @todo platplug: Replace all of these includes with a call to COMPILED_PLATFORM_HEADER(OpenGLDrvPrivate.h)
 //TODO: Move these to OpenGLDrvPrivate.h
@@ -925,40 +924,7 @@ public:
 		RHITHREAD_GLCOMMAND_EPILOGUE();
 	}
 
-	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, uint32 StencilRef, bool bApplyAdditionalState) final override
-	{
-		FRHIGraphicsPipelineStateFallBack* FallbackGraphicsState = static_cast<FRHIGraphicsPipelineStateFallBack*>(GraphicsState);
-
-		auto& PsoInit = FallbackGraphicsState->Initializer;
-
-		RHISetBoundShaderState(
-			RHICreateBoundShaderState_internal(
-				PsoInit.BoundShaderState.VertexDeclarationRHI,
-				PsoInit.BoundShaderState.VertexShaderRHI,
-				PsoInit.BoundShaderState.PixelShaderRHI,
-				PsoInit.BoundShaderState.GetGeometryShader(),
-				PsoInit.bFromPSOFileCache
-			).GetReference()
-		);
-
-		RHISetDepthStencilState(FallbackGraphicsState->Initializer.DepthStencilState, StencilRef);
-		RHISetRasterizerState(FallbackGraphicsState->Initializer.RasterizerState);
-		RHISetBlendState(FallbackGraphicsState->Initializer.BlendState, FLinearColor(1.0f, 1.0f, 1.0f));
-		if (GSupportsDepthBoundsTest)
-		{
-			RHIEnableDepthBoundsTest(FallbackGraphicsState->Initializer.bDepthBounds);
-		}
-
-		if (bApplyAdditionalState)
-		{
-			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.VertexShaderRHI, ResourceCast(PsoInit.BoundShaderState.VertexShaderRHI));
-			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.GetGeometryShader(), ResourceCast(PsoInit.BoundShaderState.GetGeometryShader()));
-			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.PixelShaderRHI, ResourceCast(PsoInit.BoundShaderState.PixelShaderRHI));
-		}
-
-		// Store the PSO's primitive (after since IRHICommandContext::RHISetGraphicsPipelineState sets the BSS)
-		PrimitiveType = PsoInit.PrimitiveType;
-	}
+	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, uint32 StencilRef, bool bApplyAdditionalState) final override;
 
 	FBoundShaderStateRHIRef RHICreateBoundShaderState_internal(
 		FRHIVertexDeclaration* VertexDeclarationRHI,
@@ -1039,14 +1005,7 @@ private:
 	int32 BeginSceneContextType;
 
 	template <typename TRHIShader, typename TRHIProxyShader>
-	void ApplyStaticUniformBuffers(TRHIShader* Shader, TRHIProxyShader* ProxyShader)
-	{
-		if (ProxyShader)
-		{
-			check(Shader);
-			UE::RHICore::ApplyStaticUniformBuffers(this, Shader, ProxyShader->StaticSlots, ProxyShader->Bindings.ShaderResourceTable.ResourceTableLayoutHashes, GlobalUniformBuffers);
-		}
-	}
+	void ApplyStaticUniformBuffers(TRHIShader* Shader, TRHIProxyShader* ProxyShader);
 
 	TArray<FRHIUniformBuffer*> GlobalUniformBuffers;
 

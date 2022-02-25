@@ -12,6 +12,7 @@
 #include "VulkanPendingState.h"
 #include "VulkanPipeline.h"
 #include "VulkanLLM.h"
+#include "RHICoreShader.h"
 
 enum
 {
@@ -347,6 +348,31 @@ bool FVulkanGraphicsPipelineDescriptorState::InternalUpdateDescriptorSets(FVulka
 	return true;
 }
 
+template <typename TRHIShader>
+void FVulkanCommandListContext::ApplyStaticUniformBuffers(TRHIShader* Shader)
+{
+	if (Shader)
+	{
+		const auto& StaticSlots = Shader->StaticSlots;
+		const auto& UBInfos = Shader->GetCodeHeader().UniformBuffers;
+
+		for (int32 BufferIndex = 0; BufferIndex < StaticSlots.Num(); ++BufferIndex)
+		{
+			const FUniformBufferStaticSlot Slot = StaticSlots[BufferIndex];
+
+			if (IsUniformBufferStaticSlotValid(Slot))
+			{
+				FRHIUniformBuffer* Buffer = GlobalUniformBuffers[Slot];
+				UE::RHICore::ValidateStaticUniformBuffer(Buffer, Slot, UBInfos[BufferIndex].LayoutHash);
+
+				if (Buffer)
+				{
+					RHISetShaderUniformBuffer(Shader, BufferIndex, Buffer);
+				}
+			}
+		}
+	}
+}
 
 void FVulkanCommandListContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, uint32 StencilRef, bool bApplyAdditionalState)
 {
@@ -378,6 +404,31 @@ void FVulkanCommandListContext::RHISetGraphicsPipelineState(FRHIGraphicsPipeline
 #endif
 		ApplyStaticUniformBuffers(static_cast<FVulkanPixelShader*>(Pipeline->VulkanShaders[ShaderStage::Pixel]));
 	}
+}
+
+void FVulkanCommandListContext::RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState)
+{
+	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
+	if (CmdBuffer->IsInsideRenderPass())
+	{
+		if (GVulkanSubmitAfterEveryEndRenderPass)
+		{
+			CommandBufferManager->SubmitActiveCmdBuffer();
+			CommandBufferManager->PrepareForNewActiveCommandBuffer();
+			CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
+		}
+	}
+
+	if (CmdBuffer->CurrentDescriptorPoolSetContainer == nullptr)
+	{
+		CmdBuffer->CurrentDescriptorPoolSetContainer = &Device->GetDescriptorPoolsManager().AcquirePoolSetContainer();
+	}
+
+	//#todo-rco: Set PendingGfx to null
+	FVulkanComputePipeline* ComputePipeline = ResourceCast(ComputePipelineState);
+	PendingComputeState->SetComputePipeline(ComputePipeline);
+
+	ApplyStaticUniformBuffers(const_cast<FVulkanComputeShader*>(ComputePipeline->GetShader()));
 }
 
 

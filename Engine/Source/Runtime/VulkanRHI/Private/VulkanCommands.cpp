@@ -115,31 +115,6 @@ void FVulkanCommandListContext::RHISetStreamSource(uint32 StreamIndex, FRHIBuffe
 	}
 }
 
-void FVulkanCommandListContext::RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState)
-{
-	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
-	if (CmdBuffer->IsInsideRenderPass())
-	{
-		if (GVulkanSubmitAfterEveryEndRenderPass)
-		{
-			CommandBufferManager->SubmitActiveCmdBuffer();
-			CommandBufferManager->PrepareForNewActiveCommandBuffer();
-			CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
-		}
-	}
-
-	if (CmdBuffer->CurrentDescriptorPoolSetContainer == nullptr)
-	{
-		CmdBuffer->CurrentDescriptorPoolSetContainer = &Device->GetDescriptorPoolsManager().AcquirePoolSetContainer();
-	}
-
-	//#todo-rco: Set PendingGfx to null
-	FVulkanComputePipeline* ComputePipeline = ResourceCast(ComputePipelineState);
-	PendingComputeState->SetComputePipeline(ComputePipeline);
-
-	ApplyStaticUniformBuffers(const_cast<FVulkanComputeShader*>(ComputePipeline->GetShader()));
-}
-
 void FVulkanCommandListContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
 {
 #if VULKAN_ENABLE_AGGRESSIVE_STATS
