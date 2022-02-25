@@ -15,7 +15,7 @@ namespace CADKernel
 
 class FInfoEntity;
 
-class FSurfacicPolyline
+class CADKERNEL_API FSurfacicPolyline
 {
 
 public:

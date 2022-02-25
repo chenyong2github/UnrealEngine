@@ -177,6 +177,11 @@ void FTopologicalEdge::Link(FTopologicalEdge& Twin, double SquareJoiningToleranc
 		return;
 	}
 
+	if(IsDeleted() || Twin.IsDeleted())
+	{
+		return;
+	}
+
 	const FPoint& Edge1Vertex1 = GetStartVertex()->GetBarycenter();
 	const FPoint& Edge1Vertex2 = GetEndVertex()->GetBarycenter();
 	const FPoint& Edge2Vertex1 = Twin.GetStartVertex()->GetBarycenter();
@@ -654,10 +659,15 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<F
 		if (NURBS->GetDegree() < NurbsMaxDegree)
 		{
 			NURBS = BSpline::DuplicateNurbsCurveWithHigherDegree(NurbsMaxDegree, *NURBS);
+			if(!NURBS.IsValid())
+			{
+				// cancel
+				return TSharedPtr<FTopologicalEdge>();
+			}
 		}
 		else
 		{
-			NURBS = FEntity::MakeShared<FNURBSCurve>(NURBS.ToSharedRef());
+			NURBS = FEntity::MakeShared<FNURBSCurve>(*NURBS);
 		}
 
 		if (Edges[Index].Direction == EOrientation::Back)
@@ -705,9 +715,9 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<F
 	TArray<FPoint> NewPoles;
 	NurbsMaxDegree++;
 	NewNodalVector.Reserve(PoleCount + NurbsMaxDegree);
-	NewWeights.Reserve(PoleCount + NurbsMaxDegree);
 	NewPoles.Reserve(PoleCount + NurbsMaxDegree);
 
+	bool bIsRational = false;
 	for (const TSharedPtr<FNURBSCurve>& NurbsCurve : NurbsCurves)
 	{
 		if (!NurbsCurve.IsValid())
@@ -715,14 +725,59 @@ TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<F
 			continue;
 		}
 
-		if (!NewPoles.IsEmpty())
+		if (NurbsCurve->IsRational())
 		{
-			NewPoles.Pop();
-			NewWeights.Pop();
+			bIsRational = true;
+			break;
 		}
+	}
 
-		NewPoles.Append(NurbsCurve->GetPoles());
-		NewWeights.Append(NurbsCurve->GetWeights());
+	if(bIsRational)
+	{
+		NewWeights.Reserve(PoleCount + NurbsMaxDegree);
+		for (const TSharedPtr<FNURBSCurve>& NurbsCurve : NurbsCurves)
+		{
+			if (!NurbsCurve.IsValid())
+			{
+				continue;
+			}
+
+			if (!NewPoles.IsEmpty())
+			{
+				NewPoles.Pop();
+				NewWeights.Pop();
+			}
+
+			NewPoles.Append(NurbsCurve->GetPoles());
+			if(NurbsCurve->IsRational())
+			{
+				NewWeights.Append(NurbsCurve->GetWeights());
+			}
+			else
+			{
+				for (int32 Index = 0; Index < NurbsCurve->GetPoles().Num(); ++Index)
+				{
+					NewWeights.Add(1.);
+				}
+			}
+		}
+	}
+	else
+	{
+		for (const TSharedPtr<FNURBSCurve>& NurbsCurve : NurbsCurves)
+		{
+			if (!NurbsCurve.IsValid())
+			{
+				continue;
+			}
+
+			if (!NewPoles.IsEmpty())
+			{
+				NewPoles.Pop();
+			}
+
+			NewPoles.Append(NurbsCurve->GetPoles());
+		}
 	}
 
 	for (const TSharedPtr<FNURBSCurve>& NurbsCurve : NurbsCurves)

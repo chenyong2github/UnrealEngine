@@ -416,14 +416,7 @@ TSharedPtr<FTopologicalEdge> FCoreTechBridge::AddEdge(CT_OBJECT_ID CTCoedgeId, T
 	}
 
 	TSharedPtr<FCurve> Curve;
-	if (PoleDim == 2)
-	{
-		Curve = FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles, 2);
-	}
-	else
-	{
-		Curve = FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles, Weights, 2);
-	}
+	Curve = FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles, Weights, 2);
 
 	if (!Curve.IsValid())
 	{
@@ -853,19 +846,17 @@ TSharedPtr<FCurve> FCoreTechBridge::AddNurbsCurve(CT_OBJECT_ID CTCurveId)
 		Poles[IPole].Set(RawPoles.GetData() + Index);
 	}
 
+	TArray<double> Weights;
 	if (PoleDim > 3)
 	{
-		TArray<double> Weights;
 		Weights.SetNum(PoleNum);
 		Index = 3;
 		for (CT_UINT32 IPole = 0; IPole < PoleNum; IPole++, Index += 4)
 		{
 			Weights[IPole] = RawPoles[Index];
 		}
-		return FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles, Weights);
 	}
-
-	return FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles);
+	return FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles, Weights);
 }
 
 TSharedPtr<FCurve> FCoreTechBridge::AddLineCurve(CT_OBJECT_ID CTCurveId, CT_OBJECT_ID CTSurfaceId)

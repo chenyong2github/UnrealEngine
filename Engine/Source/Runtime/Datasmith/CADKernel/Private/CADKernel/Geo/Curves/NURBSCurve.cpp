@@ -13,24 +13,13 @@
 namespace CADKernel
 { 
 
-FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, int8 InDimension)
-	: FCurve(InDimension)
-	, Degree(InDegre)
-	, NodalVector(InNodalVector)
-	, Poles(InPoles)
-	, bIsRational(false)
-{
-	Weights.Init(1.0, InPoles.Num());
-	Finalize();
-}
-
 FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension)
 	: FCurve(InDimension)
 	, Degree(InDegre)
 	, NodalVector(InNodalVector)
 	, Weights(InWeights)
 	, Poles(InPoles)
-	, bIsRational(true)
+	, bIsRational(!InWeights.IsEmpty())
 {
 	Finalize();
 }
@@ -46,9 +35,15 @@ FNURBSCurve::FNURBSCurve(FNurbsCurveData& NurbsCurveData)
 	Finalize();
 }
 
-FNURBSCurve::FNURBSCurve(const TSharedRef<FNURBSCurve>& Nurbs)
-	: FNURBSCurve(Nurbs->Degree, Nurbs->NodalVector, Nurbs->Poles, Nurbs->Weights, Nurbs->Dimension)
+FNURBSCurve::FNURBSCurve(const FNURBSCurve& Nurbs)
+	: FCurve(Nurbs.Dimension)
+	, Degree(Nurbs.Degree)
+	, NodalVector(Nurbs.NodalVector)
+	, Weights(Nurbs.Weights)
+	, Poles(Nurbs.Poles)
+	, bIsRational(Nurbs.bIsRational)
 {
+	Finalize();
 }
 
 TSharedPtr<FEntityGeom> FNURBSCurve::ApplyMatrix(const FMatrixH& InMatrix) const

@@ -813,23 +813,18 @@ namespace CADKernel
 			}
 		}
 
-		TSharedRef<FNURBSCurve> DuplicateNurbsCurveWithHigherDegree(int32 Degre, const FNURBSCurve& InCurve)
+		TSharedPtr<FNURBSCurve> DuplicateNurbsCurveWithHigherDegree(int32 Degre, const FNURBSCurve& InCurve)
 		{
 			TArray<FPoint> NewPoles;
 			TArray<double> NewNodalVector;
 			TArray<double> NewWeights;
 
 			DuplicateNurbsCurveWithHigherDegree(Degre, InCurve.GetPoles(), InCurve.GetNodalVector(), InCurve.GetWeights(), NewPoles, NewNodalVector, NewWeights);
-			
-			TSharedPtr<FCurve> Curve;
-			if (InCurve.IsRational())
+			if (NewPoles.IsEmpty())
 			{
-				return FEntity::MakeShared<FNURBSCurve>(Degre, NewNodalVector, NewPoles, NewWeights, InCurve.GetDimension());
+				return TSharedPtr<FNURBSCurve>();
 			}
-			else
-			{
-				return FEntity::MakeShared<FNURBSCurve>(Degre, NewNodalVector, NewPoles, InCurve.GetDimension());
-			}
+			return FEntity::MakeShared<FNURBSCurve>(Degre, NewNodalVector, NewPoles, NewWeights, InCurve.GetDimension());
 		}
 
 
@@ -1540,7 +1535,11 @@ namespace CADKernel
 			//int32 newN=n+1;
 			int32 newN = degre + 1;
 
-			ensureCADKernel(newPoles.Num() + newN - 1 == newNodalVector.Num());
+			if (newPoles.Num() + newN - 1 != newNodalVector.Num())
+			{
+				newPoles.Empty();
+				return;
+			}
 
 			TArray<bool> polesDone;
 			polesDone.Init(false, newPoles.Num());

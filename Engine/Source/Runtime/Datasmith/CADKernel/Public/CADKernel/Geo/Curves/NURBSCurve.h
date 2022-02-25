@@ -39,10 +39,9 @@ namespace CADKernel
 		TArray<double> HomogeneousPoles;
 		int32 PoleDimension;
 
-		FNURBSCurve(int32 InDegree, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, int8 InDimension = 3);
 		FNURBSCurve(int32 InDegree, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension = 3);
 		FNURBSCurve(FNurbsCurveData& NurbsCurveData);
-		FNURBSCurve(const TSharedRef<FNURBSCurve>& Nurbs);
+		FNURBSCurve(const FNURBSCurve& Nurbs);
 
 		FNURBSCurve() = default;
 
