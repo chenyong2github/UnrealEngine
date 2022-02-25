@@ -1444,7 +1444,7 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(AutoExposureBias);
 		LERP_PP(HistogramLogMin);
 		LERP_PP(HistogramLogMax);
-		LERP_PP(LocalExposureContrastReduction);
+		LERP_PP(LocalExposureContrastScale);
 		LERP_PP(LocalExposureDetailStrength);
 		LERP_PP(LocalExposureBlurredLuminanceBlend);
 		LERP_PP(LocalExposureBlurredLuminanceKernelSizePercent);
@@ -1941,7 +1941,7 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 
 		if (Value <= 0)
 		{
-			FinalPostProcessSettings.LocalExposureContrastReduction = 1.0f;
+			FinalPostProcessSettings.LocalExposureContrastScale = 1.0f;
 			FinalPostProcessSettings.LocalExposureDetailStrength = 1.0f;
 		}
 	}
@@ -1964,7 +1964,7 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 
 	if (!Family->EngineShowFlags.LocalExposure)
 	{
-		FinalPostProcessSettings.LocalExposureContrastReduction = 1.0f;
+		FinalPostProcessSettings.LocalExposureContrastScale = 1.0f;
 		FinalPostProcessSettings.LocalExposureDetailStrength = 1.0f;
 	}
 

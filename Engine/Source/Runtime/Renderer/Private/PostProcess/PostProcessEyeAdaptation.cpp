@@ -430,7 +430,7 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	Parameters.HistogramScale = HistogramScale;
 	Parameters.HistogramBias = HistogramBias;
 	Parameters.LuminanceMin = LuminanceMin;
-	Parameters.LocalExposureContrastReduction = Settings.LocalExposureContrastReduction;
+	Parameters.LocalExposureContrastScale = Settings.LocalExposureContrastScale;
 	Parameters.LocalExposureDetailStrength = Settings.LocalExposureDetailStrength;
 	Parameters.LocalExposureBlurredLuminanceBlend = Settings.LocalExposureBlurredLuminanceBlend;
 	Parameters.LocalExposureMiddleGreyExposureCompensation = LocalExposureMiddleGreyExposureCompensation;

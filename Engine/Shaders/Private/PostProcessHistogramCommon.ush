@@ -16,7 +16,7 @@ float EyeAdaptation_ExposureSpeedDown;
 float EyeAdaptation_HistogramScale;
 float EyeAdaptation_HistogramBias;
 float EyeAdaptation_LuminanceMin;
-float EyeAdaptation_LocalExposureContrastReduction;
+float EyeAdaptation_LocalExposureContrastScale;
 float EyeAdaptation_LocalExposureDetailStrength;
 float EyeAdaptation_LocalExposureBlurredLuminanceBlend;
 float EyeAdaptation_LocalExposureMiddleGreyExposureCompensation;
