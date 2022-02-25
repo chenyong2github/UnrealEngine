@@ -908,6 +908,15 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 		{
 			if (FClusterHandle* Handle = SolverParticleHandles[TransformGroupIndex])
 			{
+				// Sleeping Geometry Collections:
+				//   A sleeping geometry collection is dynamic internally, and then the top level
+				//   active clusters are set to sleeping. Sleeping is not propagated up from the 
+				//   leaf nodes like kinematic or dynamic clusters. 
+				if (!Handle->Disabled() && Parameters.ObjectType == EObjectStateTypeEnum::Chaos_Object_Sleeping)
+				{
+					RigidsSolver->GetEvolution()->SetParticleObjectState(Handle, Chaos::EObjectStateType::Sleeping);
+				}
+
 				RigidsSolver->GetEvolution()->DirtyParticle(*Handle);
 			}
 		}

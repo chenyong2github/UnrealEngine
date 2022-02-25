@@ -219,6 +219,7 @@ struct FSimulationParameters
 		, CacheBeginTime(Other.CacheBeginTime)
 		, ReverseCacheBeginTime(Other.ReverseCacheBeginTime)
 		, bClearCache(Other.bClearCache)
+		, ObjectType(Other.ObjectType)
 		, PhysicalMaterialHandle(Other.PhysicalMaterialHandle)
 		, bGenerateBreakingData(Other.bGenerateBreakingData)
 		, bGenerateCollisionData(Other.bGenerateCollisionData)

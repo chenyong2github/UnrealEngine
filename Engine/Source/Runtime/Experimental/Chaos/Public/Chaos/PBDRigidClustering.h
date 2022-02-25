@@ -53,11 +53,12 @@ class CHAOS_API FRigidClustering
 {
 public:
 
-	typedef FPBDRigidsEvolutionGBF                      FRigidEvolution;
-	typedef FPBDRigidParticleHandle*					FRigidHandle;
-	typedef TArray<FRigidHandle>						FRigidHandleArray;
-	typedef FPBDRigidClusteredParticleHandle*			FClusterHandle;
-	typedef TMap<FClusterHandle, FRigidHandleArray>	    FClusterMap;
+	typedef FPBDRigidsEvolutionGBF								FRigidEvolution;
+	typedef FPBDRigidParticleHandle*							FRigidHandle;
+	typedef TArray<FRigidHandle>								FRigidHandleArray;
+	typedef FPBDRigidClusteredParticleHandle*					FClusterHandle;
+	typedef TMap<FClusterHandle, FRigidHandleArray>				FClusterMap;
+	typedef TFunction<void(FRigidClustering&, FRigidHandle)>	FVisitorFunction;
 
 	FRigidClustering(FRigidEvolution& InEvolution, FPBDRigidClusteredParticles& InParticles);
 	~FRigidClustering();
@@ -174,6 +175,13 @@ public:
 	// Access
 	//
 
+	/**
+	*
+	*  Visitor
+	*   Walk all the decendents of the current cluster and execute FVisitorFunction.
+	*   FVisitorFunction = [](FRigidClustering& Clustering, FRigidHandle RigidHandle){}
+	*/
+	void Visitor(FClusterHandle Cluster, FVisitorFunction Function);
 
 	/*
 	*  GetActiveClusterIndex
@@ -260,6 +268,10 @@ public:
 
 	const TSet<Chaos::FPBDRigidClusteredParticleHandle*>& GetTopLevelClusterParents() const { return TopLevelClusterParents; }
 	TSet<Chaos::FPBDRigidClusteredParticleHandle*>& GetTopLevelClusterParents() { return TopLevelClusterParents; }
+
+	FRigidEvolution& GetEvolution() { return MEvolution; }
+	const FRigidEvolution& GetEvolution() const { return MEvolution; }
+
 
  protected:
 

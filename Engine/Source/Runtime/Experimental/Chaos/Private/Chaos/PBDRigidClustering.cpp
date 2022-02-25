@@ -256,8 +256,14 @@ namespace Chaos
 
 		if(ClusterUnionMap.Num())
 		{
+			struct FClusterGroup {
+				TArray<FPBDRigidParticleHandle*> Bodies = TArray < FPBDRigidParticleHandle*>();
+				bool bIsSleeping = true;
+			};
+
+
 			TMap<FPBDRigidParticleHandle*, FPBDRigidParticleHandle*> ChildToParentMap;
-			TMap<int32, TArray<FPBDRigidParticleHandle*>> NewClusterGroups;
+			TMap<int32, FClusterGroup> NewClusterGroups;
 
 			// Walk the list of registered cluster groups
 			for(TTuple<int32, TArray<FPBDRigidClusteredParticleHandle* >>& Group : ClusterUnionMap)
@@ -270,9 +276,10 @@ namespace Chaos
 					// First see if this is a new group
 					if(!NewClusterGroups.Contains(ClusterGroupID))
 					{
-						NewClusterGroups.Add(ClusterGroupID, TArray < FPBDRigidParticleHandle*>());
+						NewClusterGroups.Add(ClusterGroupID, FClusterGroup());
 					}
 
+					bool bIsSleeping = true;
 					TArray<FPBDRigidParticleHandle*> ClusterBodies;
 					for(FPBDRigidClusteredParticleHandle* ActiveCluster : Handles)
 					{
@@ -281,13 +288,16 @@ namespace Chaos
 							// If this is an external cluster (from the rest collection) we release its children and append them to the current group
 							TSet<FPBDRigidParticleHandle*> Children;
 							
+							// let sleeping clusters stay asleep
+							bIsSleeping &= ActiveCluster->ObjectState() == EObjectStateType::Sleeping;
+
 							{
 								// First disable breaking data generation - this is not a break we're just reclustering under a dynamic parent.
 								TGuardValue<bool> BreakFlagGuard(DoGenerateBreakingData, false);
 								Children = ReleaseClusterParticles(ActiveCluster, nullptr, true);
 							}
 
-							NewClusterGroups[ClusterGroupID].Append(Children.Array());
+							NewClusterGroups[ClusterGroupID].Bodies.Append(Children.Array());
 							
 							for(FPBDRigidParticleHandle* Child : Children)
 							{
@@ -295,20 +305,28 @@ namespace Chaos
 							}
 						}
 					}
+					NewClusterGroups[ClusterGroupID].bIsSleeping = bIsSleeping;
 				}
 			}
 
 			// For new cluster groups, create an internal cluster parent.
-			for(TTuple<int32, TArray<FPBDRigidParticleHandle* >>& Group : NewClusterGroups)
+			for(TTuple<int32, FClusterGroup>& Group : NewClusterGroups)
 			{
 				int32 ClusterGroupID = FMath::Abs(Group.Key);
 
-				TArray<FPBDRigidParticleHandle*> ActiveCluster = Group.Value;
+				TArray<FPBDRigidParticleHandle*> ActiveCluster = Group.Value.Bodies;
 
 				FClusterCreationParameters Parameters(0.3f, 100, false, !!UnionsHaveCollisionParticles);
 				Parameters.ConnectionMethod = MClusterUnionConnectionType;
-				TPBDRigidClusteredParticleHandleImp<FReal, 3, true>* Handle = CreateClusterParticle(-ClusterGroupID, MoveTemp(Group.Value), Parameters, TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>());
+				TPBDRigidClusteredParticleHandleImp<FReal, 3, true>* Handle = 
+					CreateClusterParticle(-ClusterGroupID, MoveTemp(Group.Value.Bodies), Parameters, 
+						TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>());
 				Handle->SetInternalCluster(true);
+
+				if (Group.Value.bIsSleeping)
+				{
+					MEvolution.SetParticleObjectState(Handle, Chaos::EObjectStateType::Sleeping);
+				}
 
 				MEvolution.SetPhysicsMaterial(Handle, MEvolution.GetPhysicsMaterial(ActiveCluster[0]));
 
@@ -1013,6 +1031,47 @@ namespace Chaos
 		}
 
 		return AllActivatedChildren;
+	}
+
+
+	DECLARE_CYCLE_STAT(TEXT("FRigidClustering::Visitor"), STAT_ClusterVisitor, STATGROUP_Chaos);
+	void FRigidClustering::Visitor(FClusterHandle Cluster, FVisitorFunction Function)
+	{
+		if (Cluster)
+		{
+			if (MChildren.Contains(Cluster) && MChildren[Cluster].Num())
+			{
+				SCOPE_CYCLE_COUNTER(STAT_ClusterVisitor);
+
+				// TQueue is a linked list, which has no preallocator.
+				TQueue<FRigidHandle> Queue;
+				for (Chaos::FPBDRigidParticleHandle* Child : MChildren[Cluster])
+				{
+					Queue.Enqueue(Child);
+				}
+
+				FRigidHandle CurrentHandle = nullptr;
+				while (Queue.Dequeue(CurrentHandle))
+				{
+					if (FClusterHandle CurrentClusterHandle = CurrentHandle->CastToClustered())
+					{
+						// @question : Maybe we should just store the leaf node bodies in a
+						// map, that will require Memory(n*log(n))
+						if (MChildren.Contains(CurrentClusterHandle))
+						{
+							for (Chaos::FPBDRigidParticleHandle* Child : MChildren[CurrentClusterHandle])
+							{
+								Queue.Enqueue(Child);
+							}
+						}
+					}
+					if (CurrentHandle)
+					{
+						Function(*this, CurrentHandle);
+					}
+				}
+			}
+		}
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::GetActiveClusterIndex"), STAT_GetActiveClusterIndex, STATGROUP_Chaos);
