@@ -753,7 +753,7 @@ void UBlackmagicMediaCapture::OutputAudio_RenderingThread(const FCaptureBaseData
 		float FrameTimeRatio = CurrentFrameTime / TargetFrametime;
 
 		uint32_t NumSamplesToPull = FrameTimeRatio * AudioOutput->NumSamplesPerFrame;
-		NumSamplesToPull = FMath::Clamp(NumSamplesToPull, 0, AudioOutput->NumSamplesPerFrame);
+		NumSamplesToPull = FMath::Clamp<uint32_t>(NumSamplesToPull, 0, AudioOutput->NumSamplesPerFrame);
 
 		BlackmagicDesign::FAudioSamplesDescriptor AudioSamples;
 		AudioSamples.Timecode = InTimecode;
