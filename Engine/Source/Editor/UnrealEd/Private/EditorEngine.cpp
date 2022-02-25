@@ -4273,8 +4273,7 @@ void UEditorEngine::CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, 
 
 	if(bForceInitialized)
 	{
-		// Cleanup the world, but with bCleanupResources=false so that we don't try to remove the world and dependent packages from memory and break future saving
-		World->CleanupWorld(true /* bSessionEnded=default */, false /* bCleanupResources */);
+		World->CleanupWorld(true, true, World);
 	}
 
 	World->SetPhysicsScene(nullptr);
