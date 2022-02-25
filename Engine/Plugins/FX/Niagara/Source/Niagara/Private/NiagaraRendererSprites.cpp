@@ -16,14 +16,7 @@
 #include "Renderer/Private/ScenePrivate.h"
 #include "NiagaraCullProxyComponent.h"
 
-DECLARE_CYCLE_STAT(TEXT("Generate Sprite Dynamic Data [GT]"), STAT_NiagaraGenSpriteDynamicData, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Sprites [RT]"), STAT_NiagaraRenderSprites, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("Render Sprites - CPU Sim Copy[RT]"), STAT_NiagaraRenderSpritesCPUSimCopy, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("Render Sprites - CPU Sim Memcopy[RT]"), STAT_NiagaraRenderSpritesCPUSimMemCopy, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("Render Sprites - Sorting[RT]"), STAT_NiagaraRenderSpritesSorting, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("Render Sprites - GlobalSortCPU[RT]"), STAT_NiagaraRenderSpritesGlobalSortCPU, STATGROUP_Niagara);
-
-DECLARE_CYCLE_STAT(TEXT("Genereate GPU Buffers"), STAT_NiagaraGenSpriteGpuBuffers, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumSprites"), STAT_NiagaraNumSprites, STATGROUP_Niagara);
 
 static int32 GbEnableNiagaraSpriteRendering = 1;
@@ -328,8 +321,6 @@ void FNiagaraRendererSprites::PrepareParticleRenderBuffers(FParticleSpriteRender
 	{
 		if ( SimTarget == ENiagaraSimTarget::CPUSim )
 		{
-			SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderSpritesCPUSimCopy);
-
 			// For CPU simulations we do not gather int parameters inside TransferDataToGPU currently so we need to copy off
 			// integrate attributes if we are culling on the GPU.
 			TArray<uint32, TInlineAllocator<1>> IntParamsToCopy;
@@ -1185,8 +1176,6 @@ FNiagaraDynamicDataBase *FNiagaraRendererSprites::GenerateDynamicData(const FNia
 				return nullptr;
 			}
 		}
-
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraGenSpriteDynamicData);
 
 		FNiagaraDataBuffer* DataToRender = Emitter->GetData().GetCurrentData();
 		if(SimTarget == ENiagaraSimTarget::GPUComputeSim || (DataToRender != nullptr &&  (SourceMode == ENiagaraRendererSourceDataMode::Emitter || (SourceMode == ENiagaraRendererSourceDataMode::Particles && DataToRender->GetNumInstances() > 0))))
