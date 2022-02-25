@@ -29,6 +29,8 @@
 
 static UWorldPartitionLevelStreamingDynamic* CreateLevelStreamingFromHLODActor(AWorldPartitionHLOD* InHLODActor, bool& bOutDirty)
 {
+	UPackage::WaitForAsyncFileWrites();
+
 	bOutDirty = false;
 	UWorld* World = InHLODActor->GetWorld();
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
