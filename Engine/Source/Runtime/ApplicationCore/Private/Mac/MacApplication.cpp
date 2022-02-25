@@ -1255,7 +1255,8 @@ bool FMacApplication::OnWindowDestroyed(TSharedRef<FMacWindow> DestroyedWindow)
 	const bool bDestroyingMainWindow = DestroyedWindow == ActiveWindow;
 
 	const bool bAllowMainWindow = WindowHandle.AllowMainWindow;
-	
+	const EWindowType WindowType =WindowHandle.Type;
+    
 	if (bDestroyingMainWindow)
 	{
 		OnWindowActivationChanged(DestroyedWindow, EWindowActivation::Deactivate);
@@ -1298,9 +1299,43 @@ bool FMacApplication::OnWindowDestroyed(TSharedRef<FMacWindow> DestroyedWindow)
 		}
 	}
 
-	if (WindowToActivate.IsValid() && bAllowMainWindow)
+	if (WindowToActivate.IsValid())
 	{
-		WindowToActivate->SetWindowFocus();
+		if (bAllowMainWindow)
+		{
+			WindowToActivate->SetWindowFocus();
+		}
+		
+		FCocoaWindow* ActivateWindowHandle = WindowToActivate->GetWindowHandle();
+		bool bActivateAllowMainWindow = ActivateWindowHandle.AllowMainWindow;
+				
+		if (WindowType == EWindowType::Menu && bActivateAllowMainWindow)
+		{
+			// For some reason when submenus are getting closed a main window is getting activated rather then the previous menu.  I think a
+			// better solution would be to investigate the ordering of Windows[], or possibly just enumerating the NSWindows via z-order.
+			// I'm worried about the consequences of that kind of change so I'm opting for this since it seems less risky.  We count all
+			// the open menus and only activate a normal window if the menu closing is the last one.
+
+			int32 NumMenus=0;
+			for (int32 Index = 0; Index < Windows.Num(); ++Index)
+			{
+				TSharedPtr<FMacWindow> IsMenuWindowRef = Windows[Index];
+				if (IsMenuWindowRef.IsValid())
+				{
+					if (IsMenuWindowRef->GetWindowHandle().Type == EWindowType::Menu)
+					{
+						++NumMenus;
+					}
+				}
+			}
+			
+			if (NumMenus<=0)
+			{
+				GameThreadCall(^{
+					OnWindowActivationChanged(WindowToActivate.ToSharedRef(), EWindowActivation::Activate);
+				}, @[ NSDefaultRunLoopMode, UnrealResizeEventMode, UnrealShowEventMode, UnrealFullscreenEventMode, UnrealCloseEventMode ], true);
+			}
+		}
 	}
 
 	MessageHandler->OnCursorSet();

@@ -579,4 +579,18 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 }
 #endif
 
+- (BOOL)AllowMainWindow
+{
+	switch (self.Type)
+	{
+		case EWindowType::Menu:
+		case EWindowType::ToolTip:
+		case EWindowType::Notification:
+		case EWindowType::CursorDecorator:
+			return false;
+		default:
+			return true;
+	}
+}
+
 @end
