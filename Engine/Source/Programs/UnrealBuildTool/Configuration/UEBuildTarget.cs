@@ -3905,6 +3905,15 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("USE_CHECKS_IN_SHIPPING=0");
 			}
 
+			if (Rules.bTCHARIsUTF8)
+			{
+				GlobalCompileEnvironment.Definitions.Add("USE_UTF8_TCHARS=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("USE_UTF8_TCHARS=0");
+			}
+
 			if (Rules.bUseEstimatedUtcNow)
 			{
 				GlobalCompileEnvironment.Definitions.Add("USE_ESTIMATED_UTCNOW=1");

@@ -859,6 +859,12 @@ namespace UnrealBuildTool
 		public bool bUseChecksInShipping = false;
 
 		/// <summary>
+		/// Whether to turn on UTF-8 mode, mapping TCHAR to UTF8CHAR.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bTCHARIsUTF8 = false;
+
+		/// <summary>
 		/// Whether to use the EstimatedUtcNow or PlatformUtcNow.  EstimatedUtcNow is appropriate in
 		/// cases where PlatformUtcNow can be slow.
 		/// </summary>
@@ -2469,6 +2475,11 @@ namespace UnrealBuildTool
 		public bool bUseChecksInShipping
 		{
 			get { return Inner.bUseChecksInShipping; }
+		}
+
+		public bool bTCHARIsUTF8
+		{
+			get { return Inner.bTCHARIsUTF8; }
 		}
 
 		public bool bUseEstimatedUtcNow
