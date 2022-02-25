@@ -186,12 +186,12 @@ protected:
 	bool bAutoRestoreFocus = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input | ActionDomain", meta = (InlineEditConditionToggle))
-	bool bInheritActionDomain = true;
+	bool bOverrideActionDomain = false;
 
 	/**
-	 * Disable to inherit from owning CommonActivatableWidget.
+	 * Enable to override the inheritd ActionDomain from owning CommonActivatableWidget.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input | ActionDomain", meta = (EditCondition = "!bInheritActionDomain", DisplayName = "Override ActionDomain"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input | ActionDomain", meta = (EditCondition = "bOverrideActionDomain", DisplayName = "Override ActionDomain"))
 	TSoftObjectPtr<UCommonInputActionDomain> ActionDomain;
 
 private:
@@ -232,6 +232,8 @@ private:
 	mutable FSimpleMulticastDelegate OnDeactivatedEvent;
 	mutable FSimpleMulticastDelegate OnSlateReleasedEvent;
 	mutable FSimpleMulticastDelegate OnRequestRefreshFocusEvent;
+
+	TSoftObjectPtr<UCommonInputActionDomain> CalculatedActionDomainCache;
 
 protected:
 	

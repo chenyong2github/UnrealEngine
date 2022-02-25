@@ -6,6 +6,7 @@
 #include "Input/CommonUIInputTypes.h"
 #include "Input/UIActionRouterTypes.h"
 #include "ICommonInputModule.h"
+#include "Slate/SObjectWidget.h"
 
 UCommonActivatableWidget::FActivatableWidgetRebuildEvent UCommonActivatableWidget::OnRebuilding;
 
@@ -149,20 +150,42 @@ void UCommonActivatableWidget::ClearActiveHoldInputs()
 
 TObjectPtr<UCommonInputActionDomain> UCommonActivatableWidget::GetCalculatedActionDomain()
 {
-	if (!bInheritActionDomain)
+	if (CalculatedActionDomainCache.IsValid())
 	{
+		return CalculatedActionDomainCache.Get();
+	}
+
+	if (bOverrideActionDomain)
+	{
+		CalculatedActionDomainCache = ActionDomain;
 		return ActionDomain.Get();
 	}
 
-	const UCommonActivatableWidget* CurrentWidget = this;
-	while (CurrentWidget && CurrentWidget->bInheritActionDomain)
+	const FName SObjectWidgetName = TEXT("SObjectWidget");
+	const ULocalPlayer* OwningLocalPlayer = GetOwningLocalPlayer();
+	TSharedPtr<SWidget> CurrentWidget = GetCachedWidget();
+	while (CurrentWidget)
 	{
-		CurrentWidget = UCommonUIActionRouterBase::FindOwningActivatable(CurrentWidget->GetCachedWidget(), GetOwningLocalPlayer());
-	}
+		CurrentWidget = CurrentWidget->GetParentWidget();
+		if (CurrentWidget && CurrentWidget->GetType().IsEqual(SObjectWidgetName))
+		{
+			const TSharedPtr<ICommonInputActionDomainMetaData> Metadata = CurrentWidget->GetMetaData<ICommonInputActionDomainMetaData>();
+			if (Metadata.IsValid())
+			{
+				CalculatedActionDomainCache = Metadata->ActionDomain.Get();
+				return CalculatedActionDomainCache.Get();
+			}
 
-	if (CurrentWidget && !CurrentWidget->bInheritActionDomain)
-	{
-		return CurrentWidget->ActionDomain.Get();
+			if (UCommonActivatableWidget* CurrentActivatable = Cast<UCommonActivatableWidget>(StaticCastSharedPtr<SObjectWidget>(CurrentWidget)->GetWidgetObject()))
+			{
+				if (CurrentActivatable->bOverrideActionDomain)
+				{
+					UCommonInputActionDomain* CurrentActionDomain = CurrentActivatable->GetOwningLocalPlayer() == OwningLocalPlayer ? CurrentActivatable->ActionDomain.Get() : nullptr;
+					CalculatedActionDomainCache = CurrentActionDomain;
+					return CalculatedActionDomainCache.Get();
+				}
+			}
+		}
 	}
 
 	return nullptr;

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/DataAsset.h"
+#include "Types/ISlateMetaData.h"
 
 #include "CommonInputActionDomain.generated.h"
 
@@ -11,6 +12,19 @@ enum class ECommonInputEventFlowBehavior {
 	BlockIfActive,
 	BlockIfHandled,
 	NeverBlock,
+};
+
+/** Slate meta data to store the owning Action Domain */
+class ICommonInputActionDomainMetaData : public ISlateMetaData
+{
+public:
+	SLATE_METADATA_TYPE(ICommonInputActionDomainMetaData, ISlateMetaData);
+
+	explicit ICommonInputActionDomainMetaData(const TWeakObjectPtr<UCommonInputActionDomain> InActionDomain)
+		: ActionDomain(InActionDomain)
+	{}
+
+	TWeakObjectPtr<UCommonInputActionDomain> ActionDomain;
 };
 
 /**
@@ -24,7 +38,6 @@ class COMMONINPUT_API UCommonInputActionDomain : public UDataAsset
 	GENERATED_BODY()
 
 public:
-
 	// Behavior of an input event between Action Domains, i.e., how an event flows into the next Action Domain
 	UPROPERTY(EditDefaultsOnly, Category = "Default")
 	ECommonInputEventFlowBehavior Behavior = ECommonInputEventFlowBehavior::BlockIfActive;
@@ -33,6 +46,10 @@ public:
 	// within the same Action Domain
 	UPROPERTY(EditDefaultsOnly, Category = "Default")
 	ECommonInputEventFlowBehavior InnerBehavior = ECommonInputEventFlowBehavior::BlockIfHandled;
+
+	// The first Action Domain marked as default will be used when a widget doesn't have any action domain defined in its hierarchie
+	UPROPERTY(EditDefaultsOnly, Category = "Default")
+	bool bIsDefaultActionDomain = false;
 
 	bool ShouldBreakInnerEventFlow(bool bInputEventHandled) const;
 
@@ -51,4 +68,10 @@ public:
 	// Domains will receive events in ascending index order
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")
 	TArray<UCommonInputActionDomain*> ActionDomains;
+
+	// Cache of the first default action domain found in the table
+	UPROPERTY(Transient)
+	TObjectPtr<UCommonInputActionDomain> DefaultActionDomainCache;
+
+	virtual void PostLoad() override;
 };

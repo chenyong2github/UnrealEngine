@@ -43,3 +43,17 @@ bool UCommonInputActionDomain::ShouldBreakEventFlow(bool bDomainHadActiveRoots, 
 
 	return false;
 }
+
+void UCommonInputActionDomainTable::PostLoad()
+{
+	for (UCommonInputActionDomain* ActionDomain : ActionDomains)
+	{
+		if (ActionDomain && ActionDomain->bIsDefaultActionDomain)
+		{
+			DefaultActionDomainCache = ActionDomain;
+			break;
+		}
+	}
+
+	Super::PostLoad();
+}

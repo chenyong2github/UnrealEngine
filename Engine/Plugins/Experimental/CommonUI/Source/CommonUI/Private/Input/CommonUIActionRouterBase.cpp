@@ -35,7 +35,7 @@ bool bEnableActionDomainRouting = false;
 static const FAutoConsoleVariableRef CVarEnableActionDomainRouting(
 	TEXT("CommonUI.EnableActionDomainRouting"),
 	bEnableActionDomainRouting,
-	TEXT(""));
+	TEXT("Enables the routing of UI inputs based on the action domain instead of the active root node."));
 
 //@todo DanH: TEMP LOCATION
 FGlobalUITags FGlobalUITags::GUITags;
@@ -663,7 +663,15 @@ void UCommonUIActionRouterBase::AddToActionDomain(FActivatableTreeRootRef RootNo
 	}
 	else
 	{
-		UE_LOG(LogUIActionRouter, Error, TEXT("ActionDomain of CommonActivatableWidget could not be resolved. Widget: %s"), *RootNode->GetWidget()->GetName());
+		UCommonInputSubsystem& CommonInputSubsystem = GetInputSubsystem();
+		UCommonInputActionDomainTable* ActionDomainTable = CommonInputSubsystem.GetActionDomainTable();
+		if (!ActionDomainTable->DefaultActionDomainCache)
+		{
+			UE_LOG(LogUIActionRouter, Error, TEXT("ActionDomain of CommonActivatableWidget could not be resolved. Widget: %s"), *RootNode->GetWidget()->GetName());
+			return;
+		}
+
+		ActionDomainRootNodes.FindOrAdd(ActionDomainTable->DefaultActionDomainCache).Add(RootNode);
 	}
 }
 
@@ -671,18 +679,17 @@ void UCommonUIActionRouterBase::RemoveFromActionDomain(FActivatableTreeRootRef R
 {
 	UCommonInputActionDomain* ActionDomain = RootNode->GetWidget()->GetCalculatedActionDomain();
 
-	if (ActionDomain)
+	if (!ActionDomain)
 	{
-		FActionDomainSortedRootList* ActionDomainRootList = ActionDomainRootNodes.Find(ActionDomain);
-
-		if (ensure(ActionDomainRootList))
-		{
-			verify(ActionDomainRootList->Remove(RootNode) != INDEX_NONE);
-		}
+		UCommonInputSubsystem& CommonInputSubsystem = GetInputSubsystem();
+		UCommonInputActionDomainTable* ActionDomainTable = CommonInputSubsystem.GetActionDomainTable();
+		ActionDomain = ActionDomainTable ? ActionDomainTable->DefaultActionDomainCache : nullptr;
 	}
-	else
+
+	FActionDomainSortedRootList* ActionDomainRootList = ActionDomainRootNodes.Find(ActionDomain);
+	if (ensure(ActionDomainRootList))
 	{
-		UE_LOG(LogUIActionRouter, Error, TEXT("ActionDomain of CommonActivatableWidget could not be resolved. Widget: %s"), *RootNode->GetWidget()->GetName());
+		verify(ActionDomainRootList->Remove(RootNode) != INDEX_NONE);
 	}
 }
 
