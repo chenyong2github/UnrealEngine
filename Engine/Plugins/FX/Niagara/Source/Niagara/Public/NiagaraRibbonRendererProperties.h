@@ -177,6 +177,10 @@ namespace ENiagaraRibbonVFLayout
 		V0RangeOverride,
 		U1Override,
 		V1RangeOverride,
+		PrevPosition,
+		PrevRibbonWidth,
+		PrevRibbonFacing,
+		PrevRibbonTwist,
 		Num,
 	};
 };
@@ -213,6 +217,8 @@ public:
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) override;
 	virtual void FixMaterial(UMaterial* Material);
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
+	virtual void GetAdditionalVariables(TArray<FNiagaraVariableBase>& OutArray) const override;
+	virtual FNiagaraVariable GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const override;
 	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const override;
@@ -414,6 +420,23 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	TArray<FNiagaraMaterialAttributeBinding> MaterialParameterBindings;
 
+	/** Implicit binding for previous position */
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevPositionBinding;
+
+	/** Implicit binding for previous ribbon width */
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevRibbonWidthBinding;
+
+	/** Implicit binding for previous ribbon facing */
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevRibbonFacingBinding;
+
+	/** Implicit binding for previous ribbon twist */
+	UPROPERTY(Transient)
+	FNiagaraVariableAttributeBinding PrevRibbonTwistBinding;
+
+
 	bool								bSortKeyDataSetAccessorIsAge = false;
 	FNiagaraDataSetAccessor<float>		SortKeyDataSetAccessor;
 	FNiagaraDataSetAccessor<FNiagaraPosition>	PositionDataSetAccessor;
@@ -437,6 +460,7 @@ public:
 
 protected:
 	void InitBindings();
+	void SetPreviousBindings(const UNiagaraEmitter* SrcEmitter);
 
 	void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit);
 

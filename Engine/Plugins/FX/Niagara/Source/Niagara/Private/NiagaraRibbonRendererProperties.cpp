@@ -83,6 +83,11 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	AttributeBindings.Add(&V0RangeOverrideBinding);
 	AttributeBindings.Add(&U1OverrideBinding);
 	AttributeBindings.Add(&V1RangeOverrideBinding);
+
+	AttributeBindings.Add(&PrevPositionBinding);
+	AttributeBindings.Add(&PrevRibbonWidthBinding);
+	AttributeBindings.Add(&PrevRibbonFacingBinding);
+	AttributeBindings.Add(&PrevRibbonTwistBinding);
 }
 
 FNiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)
@@ -250,6 +255,16 @@ void UNiagaraRibbonRendererProperties::InitBindings()
 		U1OverrideBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE);
 		V1RangeOverrideBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE);
 	}
+
+	SetPreviousBindings(nullptr);
+}
+
+void UNiagaraRibbonRendererProperties::SetPreviousBindings(const UNiagaraEmitter* SrcEmitter)
+{
+	PrevPositionBinding.SetAsPreviousValue(PositionBinding, SrcEmitter, ENiagaraRendererSourceDataMode::Particles);
+	PrevRibbonWidthBinding.SetAsPreviousValue(RibbonWidthBinding, SrcEmitter, ENiagaraRendererSourceDataMode::Particles);
+	PrevRibbonFacingBinding.SetAsPreviousValue(RibbonFacingBinding, SrcEmitter, ENiagaraRendererSourceDataMode::Particles);
+	PrevRibbonTwistBinding.SetAsPreviousValue(RibbonTwistBinding, SrcEmitter, ENiagaraRendererSourceDataMode::Particles);
 }
 
 void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
@@ -319,6 +334,14 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 	MaterialParamValidMask |= RendererLayout.SetVariableFromBinding(CompiledData, DynamicMaterial1Binding, ENiagaraRibbonVFLayout::MaterialParam1) ? 2 : 0;
 	MaterialParamValidMask |= RendererLayout.SetVariableFromBinding(CompiledData, DynamicMaterial2Binding, ENiagaraRibbonVFLayout::MaterialParam2) ? 4 : 0;
 	MaterialParamValidMask |= RendererLayout.SetVariableFromBinding(CompiledData, DynamicMaterial3Binding, ENiagaraRibbonVFLayout::MaterialParam3) ? 8 : 0;
+
+	if (NeedsPreciseMotionVectors())
+	{
+		RendererLayout.SetVariableFromBinding(CompiledData, PrevPositionBinding, ENiagaraRibbonVFLayout::PrevPosition);
+		RendererLayout.SetVariableFromBinding(CompiledData, PrevRibbonWidthBinding, ENiagaraRibbonVFLayout::PrevRibbonWidth);
+		RendererLayout.SetVariableFromBinding(CompiledData, PrevRibbonFacingBinding, ENiagaraRibbonVFLayout::PrevRibbonFacing);
+		RendererLayout.SetVariableFromBinding(CompiledData, PrevRibbonTwistBinding, ENiagaraRibbonVFLayout::PrevRibbonTwist);
+	}
 	RendererLayout.Finalize();
 }
 
@@ -374,6 +397,34 @@ const TArray<FNiagaraVariable>& UNiagaraRibbonRendererProperties::GetOptionalAtt
 	return Attrs;
 }
 
+void UNiagaraRibbonRendererProperties::GetAdditionalVariables(TArray<FNiagaraVariableBase>& OutArray) const
+{
+	if (NeedsPreciseMotionVectors())
+	{
+		OutArray.Append({
+				PrevPositionBinding.GetParamMapBindableVariable(),
+				PrevRibbonWidthBinding.GetParamMapBindableVariable(),
+				PrevRibbonFacingBinding.GetParamMapBindableVariable(),
+				PrevRibbonTwistBinding.GetParamMapBindableVariable()
+		});
+	}
+}
+
+FNiagaraVariable UNiagaraRibbonRendererProperties::GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const
+{
+	if (!NeedsPreciseMotionVectors())
+	{
+		if ((Binding == &PrevPositionBinding)
+			|| (Binding == &PrevRibbonWidthBinding)
+			|| (Binding == &PrevRibbonFacingBinding)
+			|| (Binding == &PrevRibbonTwistBinding))
+		{
+			return FNiagaraVariable();
+		}
+	}
+
+	return Super::GetBoundAttribute(Binding);
+}
 
 void UNiagaraRibbonRendererProperties::GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
 {

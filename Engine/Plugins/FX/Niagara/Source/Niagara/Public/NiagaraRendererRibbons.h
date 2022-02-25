@@ -118,6 +118,7 @@ private:
 	bool bCustomUseConstantFactor;
 	float CustomTessellationMinAngle;
 	bool bCustomUseScreenSpace;
+	bool bNeedsPreciseMotionVectors;
 
 
 	uint32 MaterialParamValidMask;

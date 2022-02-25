@@ -203,6 +203,7 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	, bCustomUseConstantFactor(false)
 	, CustomTessellationMinAngle(15.f * PI / 180.f)
 	, bCustomUseScreenSpace(true)
+	, bNeedsPreciseMotionVectors(false)
 {
 	const UNiagaraRibbonRendererProperties* Properties = CastChecked<const UNiagaraRibbonRendererProperties>(InProps);
 	FacingMode = Properties->FacingMode;
@@ -224,6 +225,7 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	bCustomUseScreenSpace = Properties->bScreenSpaceTessellation;
 	MaterialParamValidMask = Properties->MaterialParamValidMask;
 	RendererLayout = &Properties->RendererLayout;
+	bNeedsPreciseMotionVectors = Properties->NeedsPreciseMotionVectors();
 }
 
 FNiagaraRendererRibbons::~FNiagaraRendererRibbons()
@@ -1182,6 +1184,7 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 	VFLooseParams.SortedIndicesOffset = CollectorResources.VertexFactory.GetSortedIndicesOffset();
 	VFLooseParams.FacingMode = static_cast<uint32>(FacingMode);
 	VFLooseParams.Shape = static_cast<uint32>(Shape);
+	VFLooseParams.NeedsPreciseMotionVectors = bNeedsPreciseMotionVectors;
 
 	// Collector.AllocateOneFrameResource uses default ctor, initialize the vertex factory
 	CollectorResources.VertexFactory.SetParticleFactoryType(NVFT_Ribbon);
@@ -1401,10 +1404,13 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 
 	TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
 	PerViewUniformParameters.PositionDataOffset = VFVariables[ENiagaraRibbonVFLayout::Position].GetGPUOffset();
+	PerViewUniformParameters.PrevPositionDataOffset = VFVariables[ENiagaraRibbonVFLayout::PrevPosition].GetGPUOffset();
 	PerViewUniformParameters.VelocityDataOffset = VFVariables[ENiagaraRibbonVFLayout::Velocity].GetGPUOffset();
 	PerViewUniformParameters.ColorDataOffset = VFVariables[ENiagaraRibbonVFLayout::Color].GetGPUOffset();
 	PerViewUniformParameters.WidthDataOffset = VFVariables[ENiagaraRibbonVFLayout::Width].GetGPUOffset();
+	PerViewUniformParameters.PrevWidthDataOffset = VFVariables[ENiagaraRibbonVFLayout::PrevRibbonWidth].GetGPUOffset();
 	PerViewUniformParameters.TwistDataOffset = VFVariables[ENiagaraRibbonVFLayout::Twist].GetGPUOffset();
+	PerViewUniformParameters.PrevTwistDataOffset = VFVariables[ENiagaraRibbonVFLayout::PrevRibbonTwist].GetGPUOffset();
 	PerViewUniformParameters.NormalizedAgeDataOffset = VFVariables[ENiagaraRibbonVFLayout::NormalizedAge].GetGPUOffset();
 	PerViewUniformParameters.MaterialRandomDataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialRandom].GetGPUOffset();
 	PerViewUniformParameters.MaterialParamDataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialParam0].GetGPUOffset();
@@ -1424,6 +1430,7 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 
 	bool bShouldDoFacing = FacingMode == ENiagaraRibbonFacingMode::Custom || FacingMode == ENiagaraRibbonFacingMode::CustomSideVector;
 	PerViewUniformParameters.FacingDataOffset = bShouldDoFacing ? VFVariables[ENiagaraRibbonVFLayout::Facing].GetGPUOffset() : -1;
+	PerViewUniformParameters.PrevFacingDataOffset = bShouldDoFacing ? VFVariables[ENiagaraRibbonVFLayout::PrevRibbonFacing].GetGPUOffset() : -1;
 
 	PerViewUniformParameters.U0DistributionMode = (int32)UV0Settings.DistributionMode;
 	PerViewUniformParameters.U1DistributionMode = (int32)UV1Settings.DistributionMode;
