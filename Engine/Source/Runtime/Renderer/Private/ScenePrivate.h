@@ -1045,6 +1045,7 @@ public:
 
 	// Keeps track of the internal path tracer state
 	TPimplPtr<FPathTracingState> PathTracingState;
+	uint32 PathTracingInvalidationCounter = 0;
 
 	// IES light profiles
 	FIESLightProfileResource IESLightProfileResources;
@@ -2800,8 +2801,8 @@ public:
 	/** True if a change to SkyLight / Lighting has occurred that requires static draw lists to be updated. */
 	bool bScenesPrimitivesNeedStaticMeshElementUpdate;
 
-	/** True if a change to the scene that requires to invalidate the path tracer buffers has happened. */
-	TAtomic<bool> bPathTracingNeedsInvalidation;
+	/** This counter will be incremented anytime something about the scene changed that should invalidate the path traced accumulation buffers. */
+	TAtomic<uint32> PathTracingInvalidationCounter;
 
 #if RHI_RAYTRACING
 	/** What mode where the cached RT commands prepared for last? */

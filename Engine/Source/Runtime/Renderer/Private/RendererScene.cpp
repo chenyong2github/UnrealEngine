@@ -1146,7 +1146,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	World(InWorld)
 ,	FXSystem(nullptr)
 ,	bScenesPrimitivesNeedStaticMeshElementUpdate(false)
-,	bPathTracingNeedsInvalidation(true)
+,   PathTracingInvalidationCounter(0)
 #if RHI_RAYTRACING
 ,   CachedRayTracingMeshCommandsMode(ERayTracingMeshCommandsMode::RAY_TRACING)
 #endif
@@ -1966,6 +1966,7 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 	{
 		RayTracedLights.Add(LightSceneInfo);
 	}
+	InvalidatePathTracedOutput();
 #endif 
 
 	// Add the light to the scene.
@@ -2926,7 +2927,7 @@ void FScene::InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureCompone
 void FScene::InvalidatePathTracedOutput()
 {
 	// NOTE: this is an atomic, so this function is ok to call from any thread
-	bPathTracingNeedsInvalidation = true;
+	++PathTracingInvalidationCounter;
 }
 
 void FScene::FlushDirtyRuntimeVirtualTextures()
@@ -3072,7 +3073,7 @@ void FScene::UpdateLightColorAndBrightness(ULightComponent* Light)
 		{
 			 NewParameters.NewColor *= FLinearColor::MakeFromColorTemperature(Light->Temperature);
 		}
-	
+
 		FScene* Scene = this;
 		FLightSceneInfo* LightSceneInfo = Light->SceneProxy->GetLightSceneInfo();
 		ENQUEUE_RENDER_COMMAND(UpdateLightColorAndBrightness)(
@@ -3088,6 +3089,9 @@ void FScene::UpdateLightColorAndBrightness(ULightComponent* Light)
 						( Scene->GetShadingPath() == EShadingPath::Mobile 
 						&& NewParameters.NewColor.IsAlmostBlack() != LightSceneInfo->Proxy->GetColor().IsAlmostBlack() );
 
+					// Path Tracing: something about the light has changed, restart path traced accumulation
+					Scene->InvalidatePathTracedOutput();
+
 					LightSceneInfo->Proxy->SetColor(NewParameters.NewColor);
 					LightSceneInfo->Proxy->IndirectLightingScale = NewParameters.NewIndirectLightingScale;
 					LightSceneInfo->Proxy->VolumetricScatteringIntensity = NewParameters.NewVolumetricScatteringIntensity;
@@ -3097,7 +3101,6 @@ void FScene::UpdateLightColorAndBrightness(ULightComponent* Light)
 					{
 						Scene->Lights[ LightSceneInfo->Id ].Color = NewParameters.NewColor;
 					}
-
 					LightSceneInfo->Proxy->SetMobileMovablePointLightUniformBufferNeedsUpdate(true);
 				}
 			});
@@ -3195,6 +3198,8 @@ void FScene::RemoveLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 		{
 			OverflowingDynamicShadowedLights.Remove(LightSceneInfo->Proxy->GetOwnerNameOrLabel());
 		}
+
+		InvalidatePathTracedOutput();
 	}
 	else
 	{
@@ -4898,9 +4903,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 					VelocityData.UpdateTransform(PrimitiveSceneInfo, PrimitiveTransforms[PrimitiveIndex], PrimitiveTransforms[PrimitiveIndex]);
 				}
 
-				// Invalidate PathTraced image because we added something to the scene
-				bPathTracingNeedsInvalidation = true;
-
 				DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
 				LumenSceneData->AddPrimitive(PrimitiveSceneInfo);
 
@@ -4912,6 +4914,11 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 				// Update scene LOD tree
 				SceneLODHierarchy.UpdateNodeSceneInfo(PrimitiveSceneInfo->PrimitiveComponentId, PrimitiveSceneInfo);
+			}
+			if (StartIndex < AddedLocalPrimitiveSceneInfos.Num())
+			{
+				// Invalidate PathTraced image because we added something to the scene
+				InvalidatePathTracedOutput();
 			}
 			AddedLocalPrimitiveSceneInfos.RemoveAt(StartIndex, AddedLocalPrimitiveSceneInfos.Num() - StartIndex, false);
 		}
@@ -5196,9 +5203,11 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			// free the primitive scene proxy.
 			delete PrimitiveSceneInfo->Proxy;
 			delete PrimitiveSceneInfo;
-
+		}
+		if (DeletedSceneInfos.Num() > 0)
+		{
 			// Invalidate PathTraced image because we removed something from the scene
-			bPathTracingNeedsInvalidation = true;
+			InvalidatePathTracedOutput();
 		}
 	}
 	UpdatedAttachmentRoots.Empty();

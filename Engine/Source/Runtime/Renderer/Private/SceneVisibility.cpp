@@ -3570,6 +3570,12 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 	bool bFreezeTemporalSequences = bFreezeTemporalHistories || CVarFreezeTemporalSequences.GetValueOnRenderThread() != 0;
 #endif
 
+	// Load this field once so it has a consistent value for all views (and to avoid the atomic load in the loop).
+	// While the value may not be perfectly in sync when we render other view families, this is ok as this
+	// invalidation mechanism is only used for interactive rendering where we expect to be constantly drawing the scene.
+	// Therefore it is acceptable for some view families to be a frame or so behind others.
+	uint32 CurrentPathTracingInvalidationCounter = Scene->PathTracingInvalidationCounter.Load();
+
 	// Setup motion blur parameters (also check for camera movement thresholds)
 	for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 	{
@@ -3858,11 +3864,10 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 			{
 				// for interactive usage - any movement or scene change should restart the path tracer
 
-				// We use an atomic to signal path tracer invalidation easily from other threads (like the game thread). This means
-				// we need to be very careful to read and reset the atomic flag in a single step to avoid missing anything. This is
-				// also why we check this field first before looking at the other conditions.
-				bool bNeedsInvalidation = true;
-				if (Scene->bPathTracingNeedsInvalidation.CompareExchange(bNeedsInvalidation, false) ||
+				// For each view, we remember what the invalidation counter was set to last time we were here so we can catch all changes
+				bool bNeedsInvalidation = ViewState->PathTracingInvalidationCounter != CurrentPathTracingInvalidationCounter;
+				ViewState->PathTracingInvalidationCounter = CurrentPathTracingInvalidationCounter;
+				if (bNeedsInvalidation ||
 					bResetCamera ||
 					bIsProjMatrixDifferent ||
 					bIsCameraMove ||

@@ -786,6 +786,15 @@ void USceneComponent::PropagateTransformUpdate(bool bTransformChanged, EUpdateTr
 
 			// Flag render transform as dirty
 			MarkRenderTransformDirty();
+
+			// Invalidate the path tracer because we know something has changed about the transform which most likely
+			// has invalidated the image. If we hooked into these updates at a deeper level, we would also be notified
+			// when the transforms are marked dirty even when they haven't changed.
+			const UWorld* World = GetWorld();
+			if (World != nullptr && World->Scene != nullptr)
+			{
+				World->Scene->InvalidatePathTracedOutput();
+			}
 		}
 		
 		{
