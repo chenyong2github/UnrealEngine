@@ -1091,6 +1091,10 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 		{
 			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("NumDynamicParticles", "Dynamic Particles: {0}"), NumDynamicParticles));
 		}
+		if (const int32 NumIterations = ClothingSimulation->GetNumIterations())
+		{
+			TextValue = ConcatenateLine(TextValue, FText::Format(LOCTEXT("NumIterations", "Iterations: {0}"), NumIterations));
+		}
 		if (const float SimulationTime = ClothingSimulation->GetSimulationTime())
 		{
 			FNumberFormattingOptions NumberFormatOptions;

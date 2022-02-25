@@ -44,6 +44,7 @@ static bool bClothSolverParallelClothPreUpdate = true;
 static bool bClothSolverParallelClothUpdate = true;
 static bool bClothSolverParallelClothPostUpdate = true;
 static bool bClothSolverUseImprovedTimeStepSmoothing = true;
+static bool bClothSolverDisableTimeDependentNumIterations = false;
 
 #if !UE_BUILD_SHIPPING
 static int32 ClothSolverDebugHitchLength = 0;
@@ -60,12 +61,14 @@ FAutoConsoleVariableRef CVarClothSolverDisableCollision(TEXT("p.ChaosCloth.Solve
 #endif
 
 FAutoConsoleVariableRef CVarClothSolverUseImprovedTimeStepSmoothing(TEXT("p.ChaosCloth.Solver.UseImprovedTimeStepSmoothing"), bClothSolverUseImprovedTimeStepSmoothing, TEXT("Use the time step smoothing on input forces only rather than on the entire cloth solver, in order to avoid miscalculating velocities."));
+FAutoConsoleVariableRef CVarClothSolverDisableTimeDependentNumIterations(TEXT("p.ChaosCloth.Solver.DisableTimeDependentNumIterations"), bClothSolverDisableTimeDependentNumIterations, TEXT("Make the number of iterations independent from the time step."));
 
 namespace ClothingSimulationSolverDefault
 {
 	static const Softs::FSolverVec3 Gravity((Softs::FSolverReal)0., (Softs::FSolverReal)0., (Softs::FSolverReal)-980.665);  // cm/s^2
 	static const Softs::FSolverVec3 WindVelocity((Softs::FSolverReal)0.);
 	static const int32 NumIterations = 1;
+	static const int32 MaxNumIterations = 10;
 	static const int32 NumSubsteps = 1;
 	static const FRealSingle SelfCollisionThickness = 2.f;
 	static const FRealSingle CollisionThickness = 1.2f;
@@ -86,6 +89,7 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 	, Time(0.)
 	, DeltaTime(ClothingSimulationSolverConstant::StartDeltaTime)
 	, NumIterations(ClothingSimulationSolverDefault::NumIterations)
+	, MaxNumIterations(ClothingSimulationSolverDefault::MaxNumIterations)
 	, NumSubsteps(ClothingSimulationSolverDefault::NumSubsteps)
 	, CollisionParticlesOffset(0)
 	, CollisionParticlesSize(0)
@@ -101,7 +105,7 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 			MoveTemp(LocalParticles),
 			MoveTemp(RigidParticles),
 			{}, // CollisionTriangles
-			ClothingSimulationSolverDefault::NumIterations,
+			FMath::Min(ClothingSimulationSolverDefault::NumIterations, ClothingSimulationSolverDefault::MaxNumIterations),
 			(Softs::FSolverReal)ClothingSimulationSolverDefault::CollisionThickness,
 			(Softs::FSolverReal)ClothingSimulationSolverDefault::SelfCollisionThickness,
 			(Softs::FSolverReal)ClothingSimulationSolverDefault::FrictionCoefficient,
@@ -948,9 +952,17 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdateSolverStep);
 		SCOPE_CYCLE_COUNTER(STAT_ClothInternalSolve);
 
-		Evolution->SetIterations(NumIterations);
+		// Update solver time dependent parameters
+		constexpr Softs::FSolverReal SolverFrequency = 60.f;  // TODO: This could become a solver property
 
-		const FReal SubstepDeltaTime = DeltaTime / (FReal)NumSubsteps;
+		const int32 TimeDependentNumIterations = bClothSolverDisableTimeDependentNumIterations ?
+			NumIterations :
+			(int32)(SolverFrequency * DeltaTime * (Softs::FSolverReal)NumIterations);
+
+		Evolution->SetIterations(FMath::Clamp(TimeDependentNumIterations, 1, MaxNumIterations));
+
+		// Advance substeps
+		const Softs::FSolverReal SubstepDeltaTime = DeltaTime / (Softs::FSolverReal)NumSubsteps;
 	
 		for (int32 i = 0; i < NumSubsteps; ++i)
 		{
@@ -976,6 +988,11 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 
 	// Save old space location for next update
 	OldLocalSpaceLocation = LocalSpaceLocation;
+}
+
+int32 FClothingSimulationSolver::GetNumUsedIterations() const
+{
+	return Evolution->GetIterations();
 }
 
 FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const

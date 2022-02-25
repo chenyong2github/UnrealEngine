@@ -143,6 +143,11 @@ public:
 	 */
 	virtual void SetNumIterations(int32 /*NumIterations*/) {}
 	/**
+	 * Set the maximum number of iterations used by the solver.
+	 * Implementation is not considered thread safe, and therefore this function must be called at a synchronization point.
+	 */
+	virtual void SetMaxNumIterations(int32 /*MaxNumIterations*/) {}
+	/**
 	 * Set the number of substeps used by the solver.
 	 * Implementation is not considered thread safe, and therefore this function must be called at a synchronization point.
 	 */

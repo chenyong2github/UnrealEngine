@@ -44,6 +44,8 @@ namespace Chaos
 
 		void SetNumIterations(int32 InNumIterations) { NumIterations = InNumIterations; }
 		int32 GetNumIterations() const { return NumIterations; }
+		void SetMaxNumIterations(int32 InMaxNumIterations) { MaxNumIterations = InMaxNumIterations; }
+		int32 GetMaxNumIterations() const { return MaxNumIterations; }
 		void SetNumSubsteps(int32 InNumSubsteps) { NumSubsteps = InNumSubsteps; }
 		int32 GetNumSubsteps() const { return NumSubsteps; }
 		// ---- End of the animatable property setters ----
@@ -62,6 +64,9 @@ namespace Chaos
 		// Update solver properties before simulation.
 		void Update(FSolverReal InDeltaTime);
 
+		// Return the actual of number of iterations used by the Evolution solver after the update (different from the number of iterations, depends on frame rate)
+		int32 GetNumUsedIterations() const;
+
 		FBoxSphereBounds CalculateBounds() const;
 		// ---- End of the object management functions ----
 
@@ -71,7 +76,7 @@ namespace Chaos
 
 		void ResetStartPose(int32 Offset, int32 NumParticles);
 
-		// Get the currrent solver time
+		// Get the current solver time
 		FSolverReal GetTime() const { return Time; }
 		void SetParticleMassUniform(int32 Offset, FRealSingle UniformMass, FRealSingle MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
 		void SetParticleMassFromTotalMass(int32 Offset, FRealSingle TotalMass, FRealSingle MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
@@ -207,6 +212,7 @@ namespace Chaos
 		FSolverReal Time;
 		FSolverReal DeltaTime;
 		int32 NumIterations;
+		int32 MaxNumIterations;
 		int32 NumSubsteps;
 
 		// Solver colliders offset

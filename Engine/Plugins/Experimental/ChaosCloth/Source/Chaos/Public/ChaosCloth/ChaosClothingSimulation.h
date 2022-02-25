@@ -70,6 +70,7 @@ namespace Chaos
 
 		// IClothingSimulation interface
 		virtual void SetNumIterations(int32 NumIterations) override;
+		virtual void SetMaxNumIterations(int32 MaxNumIterations) override;
 		virtual void SetNumSubsteps(int32 NumSubsteps) override;
 		virtual int32 GetNumCloths() const override { return NumCloths; }
 		virtual int32 GetNumKinematicParticles() const override { return NumKinematicParticles; }

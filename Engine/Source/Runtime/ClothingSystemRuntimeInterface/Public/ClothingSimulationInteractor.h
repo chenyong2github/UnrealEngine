@@ -81,10 +81,15 @@ public:
 	virtual void DisableGravityOverride()
 	PURE_VIRTUAL(UClothingSimulationInteractor::DisableGravityOverride, );
 
-	/** Set the number of solver iterations. */
+	/** Set the number of time dependent solver iterations. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual void SetNumIterations(int32 NumIterations = 2)
+	virtual void SetNumIterations(int32 NumIterations = 1)
 	PURE_VIRTUAL(UClothingSimulationInteractor::SetNumIterations, );
+
+	/** Set the maximum number of solver iterations. */
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	virtual void SetMaxNumIterations(int32 MaxNumIterations = 10)
+	PURE_VIRTUAL(UClothingSimulationInteractor::SetMaxNumIterations, );
 
 	/** Set the number of substeps or subdivisions. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation, Meta = (Keywords = "Subdivisions"))

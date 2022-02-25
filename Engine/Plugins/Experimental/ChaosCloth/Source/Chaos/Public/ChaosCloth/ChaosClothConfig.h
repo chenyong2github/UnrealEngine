@@ -392,13 +392,25 @@ public:
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent) override;
 #endif
 
-	// The number of solver iterations.
-	// This will increase the stiffness of all constraints but will increase the CPU cost.
-	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "1", UIMax = "10", ClampMin = "0", ClampMax = "100"))
-	int32 IterationCount = 2;
+	/**
+	 * The number of time step dependent solver iterations. This sets iterations at 60fps. 
+	 * This will increase the stiffness of all constraints but will increase the CPU cost.
+	 * If the frame rate is higher, the actual number of iterations used by the solver might be less, if the frame rate is lower it might be more.
+	 */
+	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "1", UIMax = "10", ClampMin = "1", ClampMax = "100"))
+	int32 IterationCount = 1;
 
-	// The number of solver substeps.
-	// This will increase the precision of the collision inputs and help with constraint resolutions but will increase the CPU cost.
+	/**
+	 * The maximum number of solver iterations.
+	 * This is the upper limit of the number of iterations set in solver, when the frame rate is lower than 60fps.
+	 */
+	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "1", UIMax = "10", ClampMin = "1", ClampMax = "100"))
+	int32 MaxIterationCount = 10;
+
+	/**
+	 * The number of solver substeps.
+	 * This will increase the precision of the collision inputs and help with constraint resolutions but will increase the CPU cost.
+	 */
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "1", UIMax = "10", ClampMin = "1", ClampMax = "100"))
 	int32 SubdivisionCount = 1;
 

@@ -219,7 +219,8 @@ UChaosClothSharedSimConfig::~UChaosClothSharedSimConfig()
 void UChaosClothSharedSimConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 {
 #if WITH_EDITORONLY_DATA
-	IterationCount = FMath::Clamp(int32(ClothConfig.SolverFrequency / 60.f), 1, 100);
+	IterationCount = FMath::Clamp(int32(ClothConfig.SolverFrequency / 120.f), 1, 100);
+	MaxIterationCount = FMath::Clamp(int32(ClothConfig.SolverFrequency / 30.f), 1, 100);
 
 	bUseDampingOverride_DEPRECATED = false;  // Damping is migrated to per cloth configs
 #endif

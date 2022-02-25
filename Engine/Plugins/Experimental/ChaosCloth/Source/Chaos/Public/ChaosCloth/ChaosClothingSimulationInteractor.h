@@ -85,7 +85,8 @@ public:
 	virtual void SetAnimDriveSpringStiffness(float Stiffness) override;
 	virtual void EnableGravityOverride(const FVector& Gravity) override;
 	virtual void DisableGravityOverride() override;
-	virtual void SetNumIterations(int32 NumIterations = 2) override;
+	virtual void SetNumIterations(int32 NumIterations = 1) override;
+	virtual void SetMaxNumIterations(int32 MaxNumIterations = 10) override;
 	virtual void SetNumSubsteps(int32 NumSubsteps = 1) override;
 
 protected:

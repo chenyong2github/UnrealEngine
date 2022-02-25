@@ -479,12 +479,18 @@ void FClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		// Set common simulation parameters
 		Solver->SetNumSubsteps(ClothSharedSimConfig->SubdivisionCount);
 		Solver->SetNumIterations(ClothSharedSimConfig->IterationCount);
+		Solver->SetMaxNumIterations(ClothSharedSimConfig->MaxIterationCount);
 	}
 }
 
 void FClothingSimulation::SetNumIterations(int32 InNumIterations)
 {
 	Solver->SetNumIterations(InNumIterations);
+}
+
+void FClothingSimulation::SetMaxNumIterations(int32 MaxNumIterations)
+{
+	Solver->SetMaxNumIterations(MaxNumIterations);
 }
 
 void FClothingSimulation::SetNumSubsteps(int32 InNumSubsteps)
@@ -554,6 +560,9 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 		// Step the simulation
 		Solver->Update((Softs::FSolverReal)Context->DeltaSeconds);
+
+		// Keep the actual used number of iterations for the stats
+		NumIterations = Solver->GetNumUsedIterations();
 
 		// Update simulation time in ms (and provide an instant average instead of the value in real-time)
 		const float CurrSimulationTime = (float)((FPlatformTime::Seconds() - StartTime) * 1000.);

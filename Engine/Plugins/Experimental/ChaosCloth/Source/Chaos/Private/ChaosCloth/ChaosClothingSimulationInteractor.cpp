@@ -219,19 +219,27 @@ void UChaosClothingSimulationInteractor::DisableGravityOverride()
 	}));
 }
 
-void UChaosClothingSimulationInteractor::SetNumIterations(int32 InNumIterations)
+void UChaosClothingSimulationInteractor::SetNumIterations(int32 NumIterations)
 {
-	Commands.Add(FChaosClothingSimulationInteractorCommand::CreateLambda([InNumIterations](Chaos::FClothingSimulation* Simulation, Chaos::FClothingSimulationContext* /*Context*/)
+	Commands.Add(FChaosClothingSimulationInteractorCommand::CreateLambda([NumIterations](Chaos::FClothingSimulation* Simulation, Chaos::FClothingSimulationContext* /*Context*/)
 	{
-		Simulation->SetNumIterations(InNumIterations);
+		Simulation->SetNumIterations(NumIterations);
 	}));
 }
 
-void UChaosClothingSimulationInteractor::SetNumSubsteps(int32 InNumSubsteps)
+void UChaosClothingSimulationInteractor::SetMaxNumIterations(int32 MaxNumIterations)
 {
-	Commands.Add(FChaosClothingSimulationInteractorCommand::CreateLambda([InNumSubsteps](Chaos::FClothingSimulation* Simulation, Chaos::FClothingSimulationContext* /*Context*/)
+	Commands.Add(FChaosClothingSimulationInteractorCommand::CreateLambda([MaxNumIterations](Chaos::FClothingSimulation* Simulation, Chaos::FClothingSimulationContext* /*Context*/)
 	{
-		Simulation->SetNumSubsteps(InNumSubsteps);
+		Simulation->SetMaxNumIterations(MaxNumIterations);
+	}));
+}
+
+void UChaosClothingSimulationInteractor::SetNumSubsteps(int32 NumSubsteps)
+{
+	Commands.Add(FChaosClothingSimulationInteractorCommand::CreateLambda([NumSubsteps](Chaos::FClothingSimulation* Simulation, Chaos::FClothingSimulationContext* /*Context*/)
+	{
+		Simulation->SetNumSubsteps(NumSubsteps);
 	}));
 }
 
