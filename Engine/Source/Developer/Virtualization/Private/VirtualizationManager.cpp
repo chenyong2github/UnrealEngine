@@ -363,8 +363,9 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 
 		if ((int64)Request.Payload.GetCompressedSize() < MinPayloadLength)
 		{
-			UE_LOG(	LogVirtualization, Verbose, TEXT("Attempting to push a payload (id: %s) that is smaller (%" UINT64_FMT ") than the MinPayloadLength (%" INT64_FMT ")"),
+			UE_LOG(	LogVirtualization, Verbose, TEXT("Pushing payload (id: %s) with context ('%s') was prevented as it is smaller (%" UINT64_FMT ") than the MinPayloadLength (%" INT64_FMT ")"),
 					*LexToString(Request.Identifier),
+					*Request.Context,
 					Request.Payload.GetCompressedSize(),
 					MinPayloadLength);
 

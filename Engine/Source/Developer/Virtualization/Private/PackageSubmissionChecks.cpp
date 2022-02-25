@@ -359,7 +359,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 					PackageInfo.bWasTrailerUpdated = true;
 				}
 				else
-					{
+				{
 					FText Message = FText::Format(	LOCTEXT("Virtualization_UpdateStatusFailed", "Unable to update the status for the payload '{0}' in the package '{1}'"),
 													FText::FromString(LexToString(Request.Identifier)),
 													FText::FromString(PackageInfo.Path.GetDebugName()));
@@ -381,13 +381,6 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		{
 			continue;
 		}
-
-		// TODO: Implement/test mixed package trailer support
-		// At the moment we assume that all the payloads in a package will virtualized or none of them will. If none of the payloads have virtualized then
-		// the package won't have made it this far so we should check that no package at this point has a local payload.
-		// We should be able to support mixed packages (to support more advanced filtering and min payload sizes etc) but it hasn't been tested yet so I'd
-		// rather prevent this condition from occurring until it is properly tested.
-		check(PackageInfo.Trailer.GetNumPayloads(EPayloadFilter::Local) == 0);
 
 		const FPackagePath& PackagePath = PackageInfo.Path; // No need to validate path, we checked this earlier
 
