@@ -90,6 +90,11 @@ FUploadingVirtualTexture::~FUploadingVirtualTexture()
 			Codec.Reset();
 		}
 	}
+
+#if WITH_EDITOR
+	// Need to flush DDC tasks in case they reference any chunks from this.
+	GetVirtualTextureChunkDDCCache()->WaitFlushRequests_AnyThread();
+#endif
 }
 
 uint32 FUploadingVirtualTexture::GetLocalMipBias(uint8 vLevel, uint32 vAddress) const
