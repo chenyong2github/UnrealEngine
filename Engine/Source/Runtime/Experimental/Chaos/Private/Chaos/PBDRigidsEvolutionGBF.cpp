@@ -528,8 +528,10 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 			}
 		});
 
+#if CSV_PROFILER
 		FPerIslandStats FlattenedStats = FPerIslandStats::Flatten(PerIslandStats);
 		FlattenedStats.ReportStats();
+#endif
 	}
 
 	{
