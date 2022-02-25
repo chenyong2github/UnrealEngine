@@ -12,11 +12,6 @@
 #include "IHeadMountedDisplayModule.h"
 #include "IHeadMountedDisplayVulkanExtensions.h"
 
-
-// On Android swapchain may include more images than we have requested
-// and rendering to those images does not work correctly, so we just ignore them
-#define VULKAN_IGNORE_SWAPCHAIN_EXTRA_IMAGES (PLATFORM_ANDROID)
-
 #if PLATFORM_ANDROID
 // this path crashes within libvulkan during vkDestroySwapchainKHR on some versions of Android. See FORT-250079
 int32 GVulkanKeepSwapChain = 0;
@@ -28,6 +23,19 @@ static FAutoConsoleVariableRef CVarVulkanKeepSwapChain(
 	GVulkanKeepSwapChain,
 	TEXT("Whether to keep old swap chain to pass through when creating the next one"),
 	ECVF_RenderThreadSafe
+);
+
+#if PLATFORM_ANDROID
+// On Android swapchain may include more images than we have requested and rendering to those images does not work correctly, so we just ignore them
+int32 GVulkanSwapChainIgnoreExtraImages = 1;
+#else
+int32 GVulkanSwapChainIgnoreExtraImages = 0;
+#endif
+static FAutoConsoleVariableRef CVarVulkanSwapChainIgnoreExtraImages(
+	TEXT("r.Vulkan.SwapChainIgnoreExtraImages"),
+	GVulkanSwapChainIgnoreExtraImages,
+	TEXT("Whether to ignore extra images created in swapchain and stick with a requested number of images"),
+	ECVF_ReadOnly
 );
 
 int32 GShouldCpuWaitForFence = 1;
@@ -560,9 +568,10 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 	uint32 NumSwapChainImages;
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkGetSwapchainImagesKHR(Device.GetInstanceHandle(), SwapChain, &NumSwapChainImages, nullptr));
 
-#if VULKAN_IGNORE_SWAPCHAIN_EXTRA_IMAGES
-	NumSwapChainImages = DesiredNumBuffers;
-#endif
+	if (GVulkanSwapChainIgnoreExtraImages != 0)
+	{
+		NumSwapChainImages = DesiredNumBuffers;
+	}
 
 	OutImages.AddUninitialized(NumSwapChainImages);
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkGetSwapchainImagesKHR(Device.GetInstanceHandle(), SwapChain, &NumSwapChainImages, OutImages.GetData()));
