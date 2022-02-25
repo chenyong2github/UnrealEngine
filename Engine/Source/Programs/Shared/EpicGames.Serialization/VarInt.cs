@@ -60,7 +60,7 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public static int Measure(int Value)
 		{
-			return Measure((uint)Value);
+			return Measure((ulong)(long)Value);
 		}
 
 		/// <summary>

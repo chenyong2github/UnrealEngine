@@ -38,6 +38,7 @@ namespace EpicGames.Serialization.Converters
 		public DynamicMethod ReadConcreteMethod { get; }
 		public DynamicMethod WriteConcreteContentsMethod { get; }
 
+		static Dictionary<PropertyInfo, CbClassConverterMethods> PropertyToMethods = new Dictionary<PropertyInfo, CbClassConverterMethods>();
 		static Dictionary<Type, CbClassConverterMethods> TypeToMethods = new Dictionary<Type, CbClassConverterMethods>();
 
 		public static CbClassConverterMethods Create(Type ClassType)
@@ -252,7 +253,7 @@ namespace EpicGames.Serialization.Converters
 				}
 				else
 				{
-					ICbConverterMethods Methods = CbConverterMethods.Get(PropertyType);
+					ICbConverterMethods Methods = CbConverterMethods.Get(Property);
 					WriteMethod = Methods.WriteNamedMethod;
 				}
 
@@ -370,7 +371,7 @@ namespace EpicGames.Serialization.Converters
 				}
 				else
 				{
-					ReadMethod = CbConverterMethods.Get(Property.PropertyType).ReadMethod;
+					ReadMethod = CbConverterMethods.Get(Property).ReadMethod;
 				}
 
 				// if(!CbReflectedTypeInfo<Type>.MatchName(Stack(0), Idx)) goto SkipPropertyLabel

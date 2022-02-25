@@ -14,7 +14,7 @@ namespace EpicGames.Serialization
 	/// <summary>
 	/// Attribute declaring the converter to use for a type
 	/// </summary>
-	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property)]
 	public class CbConverterAttribute : Attribute
 	{
 		/// <summary>
@@ -114,9 +114,9 @@ namespace EpicGames.Serialization
 	/// </summary>
 	public static class CbConverterMethods
 	{
-		class CbConverterMethodsWrapper<T> : ICbConverterMethods
+		class CbConverterMethodsWrapper<TConverter, T> : ICbConverterMethods where TConverter : class, ICbConverter<T>
 		{
-			static ICbConverter<T> StaticConverter = null!;
+			static TConverter StaticConverter = null!;
 
 			static T Read(CbField Field) => StaticConverter.Read(Field);
 			static void Write(CbWriter Writer, T Value) => StaticConverter.Write(Writer, Value);
@@ -126,7 +126,7 @@ namespace EpicGames.Serialization
 			public MethodInfo WriteMethod { get; } = GetMethodInfo(() => Write(null!, default!));
 			public MethodInfo WriteNamedMethod { get; } = GetMethodInfo(() => WriteNamed(null!, null!, default!));
 
-			public CbConverterMethodsWrapper(ICbConverter<T> Converter)
+			public CbConverterMethodsWrapper(TConverter Converter)
 			{
 				StaticConverter = Converter;
 			}
@@ -137,12 +137,30 @@ namespace EpicGames.Serialization
 			}
 		}
 
+		static Dictionary<PropertyInfo, ICbConverterMethods> PropertyToMethods = new Dictionary<PropertyInfo, ICbConverterMethods>();
 		static Dictionary<Type, ICbConverterMethods> TypeToMethods = new Dictionary<Type, ICbConverterMethods>();
 
 		static ICbConverterMethods CreateWrapper(Type Type, ICbConverter Converter)
 		{
-			Type ConverterType = typeof(CbConverterMethodsWrapper<>).MakeGenericType(Type);
-			return (ICbConverterMethods)Activator.CreateInstance(ConverterType, new object[] { Converter })!;
+			Type ConverterMethodsType = typeof(CbConverterMethodsWrapper<,>).MakeGenericType(Converter.GetType(), Type);
+			return (ICbConverterMethods)Activator.CreateInstance(ConverterMethodsType, new object[] { Converter })!;
+		}
+
+		/// <summary>
+		/// Gets a <see cref="ICbConverterMethods"/> interface for the given type
+		/// </summary>
+		/// <param name="Type"></param>
+		/// <returns></returns>
+		public static ICbConverterMethods Get(PropertyInfo Property)
+		{
+			ICbConverterMethods? Methods;
+			if (!PropertyToMethods.TryGetValue(Property, out Methods))
+			{
+				ICbConverter Converter = CbConverter.GetConverter(Property);
+				Methods = (Converter as ICbConverterMethods) ?? CreateWrapper(Property.PropertyType, Converter);
+				PropertyToMethods.Add(Property, Methods);
+			}
+			return Methods;
 		}
 
 		/// <summary>
@@ -210,6 +228,11 @@ namespace EpicGames.Serialization
 		/// Object used for locking access to shared objects
 		/// </summary>
 		static object LockObject = new object();
+
+		/// <summary>
+		/// Cache of property to converter
+		/// </summary>
+		static Dictionary<PropertyInfo, ICbConverter> PropertyToConverter = new Dictionary<PropertyInfo, ICbConverter>();
 
 		/// <summary>
 		/// Cache of type to converter
@@ -284,6 +307,31 @@ namespace EpicGames.Serialization
 				/// <inheritdoc/>
 				public override void WriteNamed(CbWriter Writer, Utf8String Name, T Value) => Inner.WriteNamedObject(Writer, Name, Value);
 			}
+		}
+
+		/// <summary>
+		/// Gets the converter for a particular property
+		/// </summary>
+		/// <param name="Property"></param>
+		/// <returns></returns>
+		public static ICbConverter GetConverter(PropertyInfo Property)
+		{
+			CbConverterAttribute? ConverterAttribute = Property.GetCustomAttribute<CbConverterAttribute>();
+			if (ConverterAttribute != null)
+			{
+				Type ConverterType = ConverterAttribute.ConverterType;
+				lock (LockObject)
+				{
+					ICbConverter? Converter;
+					if (!PropertyToConverter.TryGetValue(Property, out Converter))
+					{
+						Converter = (ICbConverter?)Activator.CreateInstance(ConverterType)!;
+						PropertyToConverter.Add(Property, Converter);
+					}
+					return Converter;
+				}
+			}
+			return GetConverter(Property.PropertyType);
 		}
 
 		/// <summary>

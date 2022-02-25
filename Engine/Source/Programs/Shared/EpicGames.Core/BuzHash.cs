@@ -39,8 +39,27 @@ namespace EpicGames.Core
 			0xf9c18d66, 0x593ade65, 0xd95ddf11,
 		};
 
-		ulong Count = 0;
-		uint State = 0;
+		int Count;
+		uint State;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BuzHash()
+			: this(0, 0)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Count"></param>
+		/// <param name="State"></param>
+		public BuzHash(int Count, uint State)
+		{
+			this.Count = Count;
+			this.State = State;
+		}
 
 		/// <summary>
 		/// Resets the state of the 
@@ -57,8 +76,44 @@ namespace EpicGames.Core
 		/// <param name="Value">New value to append to the window</param>
 		public void Add(byte Value)
 		{
-			State = Rol32(State, 1) ^ Table[Value];
+			State = Add(State, Value);
 			Count++;
+		}
+
+		/// <summary>
+		/// Add a byte to the window and update the hash
+		/// </summary>
+		/// <param name="Value">New value to append to the window</param>
+		public void Add(ReadOnlySpan<byte> Span)
+		{
+			State = Add(State, Span);
+			Count += Span.Length;
+		}
+
+		/// <summary>
+		/// Static method for updating a hash given a particular byte value
+		/// </summary>
+		/// <param name="State">The current hash value</param>
+		/// <param name="Value">Byte to add to the hash</param>
+		/// <returns>New hash value</returns>
+		public static uint Add(uint State, byte Value)
+		{
+			return Rol32(State, 1) ^ Table[Value];
+		}
+
+		/// <summary>
+		/// Static method for appending a range of data to a hash value
+		/// </summary>
+		/// <param name="State">The current hash value</param>
+		/// <param name="Data">Data to append to the hash</param>
+		/// <returns>New hash value</returns>
+		public static uint Add(uint State, ReadOnlySpan<byte> Data)
+		{
+			for (int Idx = 0; Idx < Data.Length; Idx++)
+			{
+				State = Add(State, Data[Idx]);
+			}
+			return State;
 		}
 
 		/// <summary>
