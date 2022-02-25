@@ -84,9 +84,7 @@ UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 {
 	bRequiresStopFade = true;
 	NumChannels = 1;
-	Duration = INDEFINITELY_LOOPING_DURATION;
-	bLooping = true;
-	
+
 	// todo: ensure that we have a method so that the audio engine can be authoritative over the sample rate the UMetaSoundSource runs at.
 	SampleRate = 48000.f;
 
@@ -255,6 +253,14 @@ FText UMetaSoundSource::GetDisplayName() const
 {
 	FString TypeName = UMetaSoundSource::StaticClass()->GetName();
 	return FMetasoundAssetBase::GetDisplayName(MoveTemp(TypeName));
+}
+
+void UMetaSoundSource::PostLoad()
+{
+	Super::PostLoad();
+
+	Duration = GetDuration();
+	bLooping = IsLooping();
 }
 
 void UMetaSoundSource::SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InNodeInfo)
@@ -483,9 +489,6 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	using namespace Metasound::Engine;
 
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundSource::CreateSoundGenerator);
-
-	Duration = INDEFINITELY_LOOPING_DURATION;
-	bLooping = true;
 
 	SampleRate = InParams.SampleRate;
 	FOperatorSettings InSettings = GetOperatorSettings(static_cast<FSampleRate>(SampleRate));

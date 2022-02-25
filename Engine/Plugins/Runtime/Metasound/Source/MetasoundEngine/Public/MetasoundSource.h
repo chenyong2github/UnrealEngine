@@ -78,6 +78,10 @@ public:
 	UPROPERTY(AssetRegistrySearchable)
 	int32 RegistryVersionMinor = 0;
 
+	//~ Begin UObject Interface.
+	virtual void PostLoad() override;
+	//~ End UObject Interface.
+
 	// Sets Asset Registry Metadata associated with this MetaSoundSource
 	virtual void SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InNodeInfo) override;
 
