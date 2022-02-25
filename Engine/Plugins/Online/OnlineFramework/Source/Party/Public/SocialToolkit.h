@@ -199,6 +199,9 @@ protected:
 	bool bQueryBlockedPlayersOnStartup = true;
 	bool bQueryRecentPlayersOnStartup = true;
 
+	/** Whether we allow other users to send us invites */
+	virtual const bool IsInviteAllowedFromUser(const USocialUser& User, const TSharedRef<const IOnlinePartyJoinInfo>& InviteRef) const;
+
 private:
 	void QueueUserDependentActionInternal(const FUniqueNetIdRepl& SubsystemId, ESocialSubsystem SubsystemType, TFunction<void(USocialUser&)>&& UserActionFunc, bool bExecutePostInit = true);
 

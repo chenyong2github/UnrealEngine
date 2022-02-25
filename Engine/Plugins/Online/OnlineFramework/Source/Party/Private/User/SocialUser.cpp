@@ -1083,6 +1083,11 @@ void USocialUser::HandleRequestToJoinRemoved(const IOnlinePartyRequestToJoinInfo
 	NotifyRequestToJoinRemoved(Request, Reason);
 }
 
+void USocialUser::RequestToJoinParty()
+{
+	return GetOwningToolkit().RequestToJoinParty(*this);
+}
+
 void USocialUser::AcceptRequestToJoinParty() const
 {
 	if (USocialParty* Party = GetOwningToolkit().GetSocialManager().GetParty(IOnlinePartySystem::GetPrimaryPartyTypeId()))

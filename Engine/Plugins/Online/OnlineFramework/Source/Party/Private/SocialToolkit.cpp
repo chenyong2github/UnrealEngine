@@ -1028,6 +1028,11 @@ void USocialToolkit::HandleAcceptFriendInviteComplete(int32 LocalUserNum, bool b
 	OnAcceptFriendInviteComplete(InviterUserId, bWasSuccessful, ErrorStr);
 }
 
+const bool USocialToolkit::IsInviteAllowedFromUser(const USocialUser& User, const TSharedRef<const IOnlinePartyJoinInfo>& InvitePtr) const
+{
+  return User.IsFriend(ESocialSubsystem::Primary);
+}
+
 void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, const IOnlinePartyJoinInfo& Invite)
 {
 	if (LocalUserId == GetLocalUserNetId(ESocialSubsystem::Primary))
@@ -1038,7 +1043,7 @@ void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, 
 		QueueUserDependentActionInternal(Invite.GetSourceUserId(), ESocialSubsystem::Primary,
 			[this, Invite = Invite.AsShared()] (USocialUser& User)
 			{
-				if (User.IsFriend(ESocialSubsystem::Primary))
+				if (IsInviteAllowedFromUser(User, Invite))
 				{
 #if PARTY_PLATFORM_INVITE_PERMISSIONS
 					CanReceiveInviteFrom(User, Invite, [this, Invite, UserId = User.GetUserId(ESocialSubsystem::Primary)](const bool bResult)
