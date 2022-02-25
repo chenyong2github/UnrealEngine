@@ -1066,6 +1066,10 @@ struct FPreviousViewInfo
 
 	// Mobile ambient occlusion texture used for next frame.
 	TRefCountPtr<IPooledRenderTarget> MobileAmbientOcclusion = nullptr;
+
+	// Scene color used for reprojecting next frame to verify the motion vector reprojects correctly.
+	TRefCountPtr<IPooledRenderTarget> VisualizeMotionVectors;
+	FIntRect VisualizeMotionVectorsRect;
 };
 
 class FViewCommands

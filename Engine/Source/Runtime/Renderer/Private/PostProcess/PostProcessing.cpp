@@ -39,6 +39,7 @@
 #include "PostProcess/PostProcessFFTBloom.h"
 #include "PostProcess/PostProcessStreamingAccuracyLegend.h"
 #include "PostProcess/PostProcessSubsurface.h"
+#include "PostProcess/VisualizeMotionVectors.h"
 #include "Rendering/MotionVectorSimulation.h"
 #include "ShaderPrint.h"
 #include "HighResScreenshot.h"
@@ -276,6 +277,7 @@ void AddPostProcessingPasses(
 		VisualizeLumenSceneOverview,
 		VisualizeHDR,
 		VisualizeLocalExposure,
+		VisualizeMotionVectors,
 		PixelInspector,
 		HMDDistortion,
 		HighResolutionScreenshotMask,
@@ -322,6 +324,7 @@ void AddPostProcessingPasses(
 		TEXT("VisualizeLumenSceneOverview"),
 		TEXT("VisualizeHDR"),
 		TEXT("VisualizeLocalExposure"),
+		TEXT("VisualizeMotionVectors"),
 		TEXT("PixelInspector"),
 		TEXT("HMDDistortion"),
 		TEXT("HighResolutionScreenshotMask"),
@@ -359,6 +362,7 @@ void AddPostProcessingPasses(
 	PassSequence.SetEnabled(EPass::VisualizeGBufferOverview, bVisualizeGBufferOverview || bVisualizeGBufferDumpToFile || bVisualizeGBufferDumpToPIpe);
 	PassSequence.SetEnabled(EPass::VisualizeLumenSceneOverview, VisualizeMode == VISUALIZE_MODE_OVERVIEW && bPostProcessingEnabled);
 	PassSequence.SetEnabled(EPass::VisualizeHDR, EngineShowFlags.VisualizeHDR);
+	PassSequence.SetEnabled(EPass::VisualizeMotionVectors, EngineShowFlags.VisualizeMotionVectors);
 #if WITH_EDITOR
 	PassSequence.SetEnabled(EPass::PixelInspector, View.bUsePixelInspector);
 #else
@@ -1220,6 +1224,17 @@ void AddPostProcessingPasses(
 		PassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
 
 		SceneColor = AddVisualizeLocalExposurePass(GraphBuilder, View, PassInputs);
+	}
+
+	if (PassSequence.IsEnabled(EPass::VisualizeMotionVectors))
+	{
+		FVisualizeMotionVectorsInputs PassInputs;
+		PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeMotionVectors, PassInputs.OverrideOutput);
+		PassInputs.SceneColor = SceneColor;
+		PassInputs.SceneDepth = SceneDepth;
+		PassInputs.SceneVelocity = Velocity;
+
+		SceneColor = AddVisualizeMotionVectorsPass(GraphBuilder, View, PassInputs);
 	}
 
 #if WITH_EDITOR

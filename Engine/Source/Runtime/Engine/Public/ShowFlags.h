@@ -384,6 +384,7 @@ private:
 		SetVertexColors(false);
 		SetPhysicalMaterialMasks(false);
 		SetVisualizeMotionBlur(false);
+		SetVisualizeMotionVectors(false);
 		SetEditingLevelInstance(false);
 		SetSelectionOutline(false);
 		SetDebugAI(false);
