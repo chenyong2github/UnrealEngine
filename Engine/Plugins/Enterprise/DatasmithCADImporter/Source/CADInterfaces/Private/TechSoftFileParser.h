@@ -6,25 +6,6 @@
 #include "CADData.h"
 #include "CADFileParser.h"
 #include "TechSoftInterface.h"
-#include "TUniqueTechSoftObj.h"
-
-typedef void A3DAsmModelFile;
-typedef void A3DAsmPartDefinition;
-typedef void A3DAsmProductOccurrence;
-typedef void A3DEntity;
-typedef void A3DGraphics;
-typedef void A3DMiscAttribute;
-typedef void A3DMiscCartesianTransformation;
-typedef void A3DMiscCartesianTransformation;
-typedef void A3DMiscGeneralTransformation;
-typedef void A3DRiBrepModel;
-typedef void A3DRiCoordinateSystem;
-typedef void A3DRiPolyBrepModel;
-typedef void A3DRiRepresentationItem;
-typedef void A3DRiSet;
-typedef void A3DTess3D;
-typedef void A3DTessBase;
-typedef void A3DTopoBrepData;
 
 namespace CADLibrary
 {
@@ -36,7 +17,6 @@ class FArchiveInstance;
 class FArchiveMaterial;
 class FArchiveUnloadedComponent;
 class FCADFileData;
-class FTechSoftInterface;
 
 struct FEntityMetaData;
 
@@ -68,8 +48,28 @@ public:
 #else
 	virtual ECADParsingResult Process() override;
 
-private:
+	double GetFileUnit()
+	{
+		return FileUnit;
+	}
 
+	void ExtractMetaData(const A3DEntity* Entity, FEntityMetaData& OutMetaData);
+
+protected:
+
+	virtual A3DStatus AdaptBRepModel()
+	{
+		return A3DStatus::A3D_SUCCESS;
+	}
+
+	virtual void SewModel();
+
+	// Tessellation methods
+	virtual void GenerateBodyMeshes();
+	virtual void GenerateBodyMesh(A3DRiRepresentationItem* Representation, FArchiveBody& Body);
+
+
+private:
 	// Methods to parse a first time the file to count the number of components
 	// Needed to reserve CADFileData
 	// Start with CountUnderModel
@@ -96,22 +96,19 @@ private:
 	FCadId TraverseOccurrence(const A3DAsmProductOccurrence* Occurrence);
 	void ProcessPrototype(const A3DAsmProductOccurrence* InPrototype, FEntityMetaData& OutMetaData, A3DMiscTransformation** OutLocation);
 	void TraversePartDefinition(const A3DAsmPartDefinition* PartDefinition, FArchiveComponent& Component);
-	FCadId TraverseRepresentationSet(const A3DRiSet* pSet, FEntityMetaData& PartMetaData);
-	FCadId TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, FEntityMetaData& PartMetaData);
-	FCadId TraverseBRepModel(A3DRiBrepModel* BrepModel, FEntityMetaData& PartMetaData);
-	FCadId TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalBrepModel, FEntityMetaData& PartMetaData);
+	FCadId TraverseRepresentationSet(const A3DRiSet* pSet, const FEntityMetaData& PartMetaData);
+	FCadId TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, const FEntityMetaData& PartMetaData);
+	FCadId TraverseBRepModel(A3DRiBrepModel* BrepModel, const FEntityMetaData& PartMetaData);
+	FCadId TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalBrepModel, const FEntityMetaData& PartMetaData);
 
-	// Tessellation methods
-	void GenerateBodyMeshes();
 
 	// MetaData
-	void ExtractMetaData(const A3DEntity* Entity, FEntityMetaData& OutMetaData);
 	void ExtractSpecificMetaData(const A3DAsmProductOccurrence* Occurrence, FEntityMetaData& OutMetaData);
 
-	void BuildInstanceName(TMap<FString, FString>& MetaData);
-	void BuildReferenceName(TMap<FString, FString>& MetaData);
-	void BuildPartName(TMap<FString, FString>& MetaData);
-	void BuildBodyName(TMap<FString, FString>& MetaData);
+	void BuildInstanceName(FEntityMetaData& MetaData);
+	void BuildReferenceName(FEntityMetaData& MetaData);
+	void BuildPartName(FEntityMetaData& MetaData);
+	void BuildBodyName(FEntityMetaData& MetaData, const FEntityMetaData& PartMetaData, bool bIsSolid);
 
 	// Graphic properties
 	void ExtractGraphicProperties(const A3DGraphics* Graphics, FEntityMetaData& OutMetaData);
@@ -121,7 +118,6 @@ private:
 	 * This method update the value ColorName or MaterialName accordingly of the GraphStyleData type (material or color)
 	 */
 	void ExtractGraphStyleProperties(uint32 StyleIndex, FCADUUID& ColorName, FCADUUID& MaterialName);
-	void ExtractMaterialProperties(const A3DEntity* Entity);
 	FArchiveColor& FindOrAddColor(uint32 ColorIndex, uint8 Alpha);
 	FArchiveMaterial& FindOrAddMaterial(uint32 MaterialId, const A3DGraphStyleData& GraphStyleData);
 
@@ -136,10 +132,10 @@ private:
 	}
 
 	// Transform
-	FMatrix TraverseCoordinateSystem(const A3DRiCoordinateSystem* CoordinateSystem);
-	FMatrix TraverseTransformation(const A3DMiscTransformation* Transformation3d);
-	FMatrix TraverseGeneralTransformation(const A3DMiscTransformation* GeneralTransformation);
-	FMatrix TraverseTransformation3D(const A3DMiscTransformation* CartesianTransformation);
+	FMatrix ExtractCoordinateSystem(const A3DRiCoordinateSystem* CoordinateSystem);
+	FMatrix ExtractTransformation(const A3DMiscTransformation* Transformation3d);
+	FMatrix ExtractGeneralTransformation(const A3DMiscTransformation* GeneralTransformation);
+	FMatrix ExtractTransformation3D(const A3DMiscTransformation* CartesianTransformation);
 
 	// Archive methods
 	FArchiveInstance& AddInstance(FEntityMetaData& InstanceMetaData);
@@ -150,7 +146,7 @@ private:
 	int32 AddBody(FEntityMetaData& BodyMetaData, const FMatrix& Matrix);
 #endif
 
-private:
+protected:
 
 	FUniqueTechSoftModelFile ModelFile;
 
@@ -159,14 +155,13 @@ private:
 
 	FCADFileData& CADFileData;
 	FTechSoftInterface& TechSoftInterface;
-
 	ECADFormat Format;
 
 	EModellerType ModellerType;
 	double FileUnit = 1;
+
 	FCadId LastEntityId = 1;
 
-	// 
 	TMap<A3DRiRepresentationItem*, int32> RepresentationItemsCache;
 };
 

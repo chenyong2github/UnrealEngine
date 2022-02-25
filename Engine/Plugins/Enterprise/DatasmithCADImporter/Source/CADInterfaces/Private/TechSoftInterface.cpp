@@ -40,7 +40,7 @@ bool FTechSoftInterface::InitializeKernel(const TCHAR* InEnginePluginsPath)
 #ifdef CADKERNEL_DEV
 	FString TechSoftDllPath = EnginePluginsPath;
 #else
-	FString TechSoftDllPath = FPaths::Combine(EnginePluginsPath, TEXT("Enterprise/DatasmithCADImporter"), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory(), "TechSoft");
+	FString TechSoftDllPath = FPaths::Combine(EnginePluginsPath, TEXT("Enterprise/DatasmithCADImporter"), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory(), TEXT("TechSoft"));
 #endif
 
 	TechSoftDllPath = FPaths::ConvertRelativePathToFull(TechSoftDllPath);
