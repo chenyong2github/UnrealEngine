@@ -358,6 +358,7 @@ public:
 	virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
 	{
 		bool bAllowed= !InClass->HasAnyClassFlags(DisallowedClassFlags)
+			&& InClass->CanCreateAssetOfClass()
 			&& InFilterFuncs->IfInChildOfClassesSet(AllowedChildrenOfClasses, InClass) != EFilterReturn::Failed;
 
 		if (bAllowed && bDisallowBlueprintBase)

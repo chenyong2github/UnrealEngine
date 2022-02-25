@@ -3091,6 +3091,14 @@ public:
 	virtual void SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const {}
 
 	/**
+	 * Some classes may not support creating assets of their type
+	 */
+	virtual bool CanCreateAssetOfClass() const
+	{
+		return true;
+	}
+
+	/**
 	 * Get the name of the CDO for the this class
 	 * @return The name of the CDO
 	 */
