@@ -253,6 +253,12 @@ public:
 	/** Get the text that is currently being searched for (if any) */
 	FText GetSearchText() const;
 
+	/** Get the index of the search result (0 if none) */
+	int32 GetSearchResultIndex() const;
+
+	/** Get the total number of search results (0 if none) */
+	int32 GetNumSearchResults() const;
+
 	/** See attribute TextStyle */
 	void SetTextStyle(const FTextBlockStyle* InTextStyle);
 
@@ -344,6 +350,9 @@ public:
 
 	/** Get the currently selected text */
 	FText GetSelectedText() const;
+
+	/** Get the current selection */
+	FTextSelection GetSelection() const;
 
 	/** Insert the given text at the current cursor position, correctly taking into account new line characters */
 	void InsertTextAtCursor(const FText& InText);

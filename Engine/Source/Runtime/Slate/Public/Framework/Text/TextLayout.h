@@ -123,6 +123,11 @@ public:
 	int32 GetOffset() const { return Offset; }
 	bool IsValid() const { return LineIndex != INDEX_NONE && Offset != INDEX_NONE; }
 
+	friend FORCEINLINE uint32 GetTypeHash(const FTextLocation& InSubject)
+	{
+		return HashCombine(InSubject.LineIndex, InSubject.Offset);
+	}
+
 private:
 	int32 LineIndex;
 	int32 Offset;

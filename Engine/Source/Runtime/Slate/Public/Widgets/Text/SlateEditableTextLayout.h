@@ -45,6 +45,12 @@ public:
 
 	void SetSearchText(const TAttribute<FText>& InSearchText);
 	FText GetSearchText() const;
+	
+	/** Get the index of the search result (0 if none) */
+	int32 GetSearchResultIndex() const;
+	
+	/** Get the total number of search results (0 if none) */
+	int32 GetNumSearchResults() const;
 
 	void SetTextStyle(const FTextBlockStyle& InTextStyle);
 	const FTextBlockStyle& GetTextStyle() const;
@@ -81,6 +87,9 @@ public:
 	/** Get the currently selected text */
 	FText GetSelectedText() const;
 
+	/** Get the current selection*/
+	FTextSelection GetSelection() const;
+	
 	/** Set the text shaping method that the internal text layout should use */
 	void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
 
@@ -539,6 +548,12 @@ private:
 
 	/** The case-sensitivity of the active search (set from BeginSearch) */
 	ESearchCase::Type SearchCase;
+
+	/** The map to look up the index of each search result (key is the starting location of each matched string)*/
+	TMap<FTextLocation, int32> SearchResultToIndexMap;
+
+	/** The active search result index */ 
+	int32 CurrentSearchResultIndex;
 
 	/** Whether text wraps onto a new line when it's length exceeds this width; if this value is zero or negative, no wrapping occurs. */
 	TAttribute<float> WrapTextAt;

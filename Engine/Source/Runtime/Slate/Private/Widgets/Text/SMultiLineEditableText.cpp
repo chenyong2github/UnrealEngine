@@ -139,6 +139,16 @@ FText SMultiLineEditableText::GetSearchText() const
 	return EditableTextLayout->GetSearchText();
 }
 
+int32 SMultiLineEditableText::GetSearchResultIndex() const
+{
+	return EditableTextLayout->GetSearchResultIndex();
+}
+
+int32 SMultiLineEditableText::GetNumSearchResults() const
+{
+	return EditableTextLayout->GetNumSearchResults();
+}
+
 void SMultiLineEditableText::SetTextStyle(const FTextBlockStyle* InTextStyle)
 {
 	if (InTextStyle)
@@ -468,6 +478,11 @@ void SMultiLineEditableText::ClearSelection()
 FText SMultiLineEditableText::GetSelectedText() const
 {
 	return EditableTextLayout->GetSelectedText();
+}
+
+FTextSelection SMultiLineEditableText::GetSelection() const
+{
+	return EditableTextLayout->GetSelection();
 }
 
 void SMultiLineEditableText::InsertTextAtCursor(const FText& InText)
