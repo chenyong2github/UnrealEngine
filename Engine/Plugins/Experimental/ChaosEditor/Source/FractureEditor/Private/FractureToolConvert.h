@@ -32,6 +32,14 @@ public:
 	/** Whether to center the pivot for each mesh, or use the pivot from the geometry collection */
 	UPROPERTY(EditAnywhere, Category = GeometrySettings)
 	bool bCenterPivots = false;
+
+	/** Whether to place new static mesh actors in the level */
+	UPROPERTY(EditAnywhere, Category = ActorSettings)
+	bool bPlaceInWorld = true;
+
+	/** Whether to select new static mesh actors */
+	UPROPERTY(EditAnywhere, Category = ActorSettings, meta = (EditCondition = "bPlaceInWorld"))
+	bool bSelectNewActors = false;
 };
 
 

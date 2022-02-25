@@ -1385,6 +1385,11 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 
 void FFractureEditorModeToolkit::SetBoneSelection(UGeometryCollectionComponent* InRootComponent, const TArray<int32>& InSelectedBones, bool bClearCurrentSelection)
 {
+	if (InSelectedBones.Num() > 0 && !InRootComponent->IsSelected())
+	{
+		GEditor->SelectComponent(InRootComponent, true, true);
+	}
+
 	OutlinerView->SetBoneSelection(InRootComponent, InSelectedBones, bClearCurrentSelection);
 	HistogramView->SetBoneSelection(InRootComponent, InSelectedBones, bClearCurrentSelection);
 
