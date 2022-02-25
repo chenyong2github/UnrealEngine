@@ -1232,7 +1232,6 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	float MeanTransmittance = dot(TransmittanceToView.MATSUF, 1.0f / 3.0f);
 
 	float3 FogSampleTranslatedWorldPosition = RayTranslatedWorldOriginKm + tAP * Raydir;
-	FLWCVector3 FogSampleWorldPosition = LWCSubtract(LWCPromote(FogSampleTranslatedWorldPosition), PrimaryView.PreViewTranslation);
 	float4 ClipPos = mul(float4(FogSampleTranslatedWorldPosition, 1.0f), PrimaryView.TranslatedWorldToClip);
 
 	if (RenderVolumetricCloudParameters.EnableAerialPerspectiveSampling && tAPWeightsSum > 0.0f)
@@ -1241,7 +1240,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		// This allows to apply AP only once per pixel instead of per sample.
 		float4 AerialPerspective = GetAerialPerspectiveLuminanceTransmittance(
 			ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
-			ClipPos, LWCHackToFloat(FogSampleWorldPosition) * CM_TO_SKY_UNIT, LWCHackToFloat(ResolvedView.WorldCameraOrigin) * CM_TO_SKY_UNIT,
+			ClipPos, (FogSampleTranslatedWorldPosition - ResolvedView.TranslatedWorldCameraOrigin) * CM_TO_SKY_UNIT,
 			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,

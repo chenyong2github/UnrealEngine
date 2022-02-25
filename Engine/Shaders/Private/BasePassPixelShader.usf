@@ -1514,7 +1514,7 @@ void FPixelShaderInOut_MainPS(
 		// Sample the aerial perspective (AP).
 		Fogging = GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 			ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
-			NDCPosition, LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition)*CM_TO_SKY_UNIT, LWCHackToFloat(ResolvedView.WorldCameraOrigin)*CM_TO_SKY_UNIT,
+			NDCPosition, MaterialParameters.WorldPosition_CamRelative * CM_TO_SKY_UNIT,
 			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,

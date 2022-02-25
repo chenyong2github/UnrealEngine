@@ -208,8 +208,6 @@ half4 GetExponentialHeightFog(float3 WorldPositionRelativeToCamera, float Exclud
 
 half4 CalculateHeightFog(float3 WorldPositionRelativeToCamera)
 {
-	float3 WorldPosition = WorldPositionRelativeToCamera + ResolvedView.TranslatedWorldCameraOrigin - LWCHackToFloat(ResolvedView.PreViewTranslation);
-	
 	float ExcludeDistance = 0;
 
 #if PERMUTATION_SUPPORT_VOLUMETRIC_FOG

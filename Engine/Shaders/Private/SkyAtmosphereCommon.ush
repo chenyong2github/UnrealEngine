@@ -33,7 +33,7 @@ float2 FromSubUvsToUnit(float2 uv, float4 SizeAndInvSize) { return (uv - 0.5f * 
 
 float4 GetAerialPerspectiveLuminanceTransmittance(
 	bool ViewIsRealTimeReflectionCapture, float4 CameraAerialPerspectiveVolumeSizeAndInvSize,
-	float4 NDC, float3 SampledWorldPos, float3 CameraWorldPos, 
+	float4 NDC, float3 WorldPositionRelativeToCamera,
 	Texture3D<float4> AerialPerspectiveVolumeTexture, SamplerState AerialPerspectiveVolumeTextureSampler,
 	float AerialPerspectiveVolumeDepthResolutionInv,
 	float AerialPerspectiveVolumeDepthResolution,
@@ -44,7 +44,7 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 {
 	float2 ScreenUv = (NDC.xy / NDC.ww) * float2(0.5f, -0.5f) + 0.5f;
 
-	float tDepth = max(0.0f, length(SampledWorldPos - CameraWorldPos) - AerialPerspectiveVolumeStartDepth);
+	float tDepth = max(0.0f, length(WorldPositionRelativeToCamera) - AerialPerspectiveVolumeStartDepth);
 
 	float LinearSlice = tDepth * AerialPerspectiveVolumeDepthSliceLengthKmInv;
 	float LinearW = LinearSlice * AerialPerspectiveVolumeDepthResolutionInv; // Depth slice coordinate in [0,1]
@@ -64,7 +64,7 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 	{
 		// We modify ScreenUv to sample the correct AP accordign to 360 reflection AP LUT.
 		// This is the inverse of what is in RenderCameraAerialPerspectiveVolumeCS.
-		float3 WorldDir = normalize(SampledWorldPos - CameraWorldPos);
+		float3 WorldDir = normalize(WorldPositionRelativeToCamera);
 
 		float SinPhi = WorldDir.z;
 		float CosPhi = sqrt(1.0f - SinPhi * SinPhi);
@@ -101,7 +101,7 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 
 float4 GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 	bool ViewIsRealTimeReflectionCapture, float4 CameraAerialPerspectiveVolumeSizeAndInvSize,
-	float4 NDC, float3 SampledWorldPos, float3 CameraWorldPos,
+	float4 NDC, float3 WorldPositionRelativeToCamera,
 	Texture3D<float4> AerialPerspectiveVolumeTexture, SamplerState AerialPerspectiveVolumeTextureSampler,
 	float AerialPerspectiveVolumeDepthResolutionInv,
 	float AerialPerspectiveVolumeDepthResolution,
@@ -112,7 +112,7 @@ float4 GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 {
 	float4 AP = GetAerialPerspectiveLuminanceTransmittance(
 		ViewIsRealTimeReflectionCapture, CameraAerialPerspectiveVolumeSizeAndInvSize,
-		NDC, SampledWorldPos, CameraWorldPos,
+		NDC, WorldPositionRelativeToCamera,
 		AerialPerspectiveVolumeTexture, AerialPerspectiveVolumeTextureSampler,
 		AerialPerspectiveVolumeDepthResolutionInv,
 		AerialPerspectiveVolumeDepthResolution,
