@@ -19,7 +19,7 @@ public:
 		: Super(ObjInit)
 		, NumberPlanarCuts(1) {}
 
-	/** Number of Cutting Planes (Note: Only applicable if interactive placement gizmo is not in use) */
+	/** Number of cutting planes. Only used when "Use Gizmo" is disabled */
 	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Number of Cuts", UIMin = "1", UIMax = "20", ClampMin = "1", EditCondition = "bCanCutWithMultiplePlanes", HideEditConditionToggle))
 	int32 NumberPlanarCuts;
 

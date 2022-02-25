@@ -25,23 +25,23 @@ public:
 		, SliceOffsetVariation(0.0f)
 	{}
 
-	/** Num Slices X axis - Slicing Method */
+	/** Number of slices along the X axis */
 	UPROPERTY(EditAnywhere, Category = Slicing, meta = (UIMin = "0"))
 	int32 SlicesX;
 
-	/** Num Slices Y axis - Slicing Method */
+	/** Number of slices along the Y axis */
 	UPROPERTY(EditAnywhere, Category = Slicing, meta = (UIMin = "0"))
 	int32 SlicesY;
 
-	/** Num Slices Z axis - Slicing Method */
+	/** Number of slices along the Z axis */
 	UPROPERTY(EditAnywhere, Category = Slicing, meta = (UIMin = "0"))
 	int32 SlicesZ;
 
-	/** Slicing Angle Variation - Slicing Method [0..1] */
+	/** Maximum angle (in degrees) to randomly rotate each slicing plane */
 	UPROPERTY(EditAnywhere, Category = Slicing, meta = (DisplayName = "Random Angle Variation", UIMin = "0.0", UIMax = "90.0"))
 	float SliceAngleVariation;
 
-	/** Slicing Offset Variation - Slicing Method [0..1] */
+	/** Maximum distance (in cm) to randomly shift each slicing plane */
 	UPROPERTY(EditAnywhere, Category = Slicing, meta = (DisplayName = "Random Offset Variation", UIMin = "0.0"))
 	float SliceOffsetVariation;
 };

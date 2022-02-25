@@ -36,7 +36,7 @@ FSlateIcon UFractureToolResample::GetToolIcon() const
 
 void UFractureToolResample::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Resample", "Resmpl", "Resample to add collision particles in large flat regions that otherwise might have poor collision response.", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Resample", "Resmpl", "Resample to add collision particles in large flat regions that otherwise might have poor collision response. Only useful to help improve Particle-Implicit collisions.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Resample = UICommandInfo;
 }
 
@@ -104,9 +104,7 @@ int32 UFractureToolResample::ExecuteFracture(const FFractureToolContext& Fractur
 {
 	if (FractureContext.IsValid())
 	{
-		const UFractureCollisionSettings* LocalCutSettings = CollisionSettings;
-
-		return AddCollisionSampleVertices(LocalCutSettings->PointSpacing, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection());
+		return AddCollisionSampleVertices(CollisionSettings->GetPointSpacing(), *FractureContext.GetGeometryCollection(), FractureContext.GetSelection());
 	}
 
 	return INDEX_NONE;

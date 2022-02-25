@@ -40,9 +40,9 @@ void UFractureToolUniform::RegisterUICommand( FFractureEditorCommands* BindingCo
 TArray<UObject*> UFractureToolUniform::GetSettingsObjects() const 
 { 
 	TArray<UObject*> AllSettings; 
+	AllSettings.Add(UniformSettings);
 	AllSettings.Add(CutterSettings);
 	AllSettings.Add(CollisionSettings);
-	AllSettings.Add(UniformSettings);
 	return AllSettings;
 }
 

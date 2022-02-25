@@ -20,7 +20,7 @@ FText UFractureToolSelectAll::GetDisplayText() const
 
 FText UFractureToolSelectAll::GetTooltipText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolSelectAllTooltip", "Selects all Bones in the GeometryCollection"));
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectAllTooltip", "Selects all bones in the Geometry Collection"));
 }
 
 FSlateIcon UFractureToolSelectAll::GetToolIcon() const
@@ -30,7 +30,7 @@ FSlateIcon UFractureToolSelectAll::GetToolIcon() const
 
 void UFractureToolSelectAll::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectAll", "All", "Selects all Bones in the GeometryCollection.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::A));
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectAll", "All", "Selects all bones in the Geometry Collection", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::A));
 	BindingContext->SelectAll = UICommandInfo;
 }
 
@@ -97,7 +97,7 @@ FText UFractureToolSelectNone::GetDisplayText() const
 
 FText UFractureToolSelectNone::GetTooltipText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolSelectNoneTooltip", "Deselects all Bones in the GeometryCollection."));
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectNoneTooltip", "Deselects all bones in the Geometry Collection"));
 }
 
 FSlateIcon UFractureToolSelectNone::GetToolIcon() const
@@ -107,7 +107,7 @@ FSlateIcon UFractureToolSelectNone::GetToolIcon() const
 
 void UFractureToolSelectNone::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectNone", "None", "Deselects all Bones in the GeometryCollection.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::D));
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectNone", "None", "Deselects all bones in the Geometry Collection", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::D));
 	BindingContext->SelectNone = UICommandInfo;
 }
 

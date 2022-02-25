@@ -26,18 +26,18 @@ public:
 		, Variability(0.0f)
 	{}
 
-	/** Center of generated pattern.  Only used when "Use Gizmo" is disabled. */
+	/** Center of generated pattern. Only used when "Use Gizmo" is disabled */
 	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (EditCondition = "!bPositionedByGizmo", HideEditConditionToggle))
 	FVector Center;
 
-	/** Normal to plane in which sites are generated.  Only used when "Use Gizmo" is disabled. */
+	/** Normal to plane in which sites are generated. Only used when "Use Gizmo" is disabled */
 	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (EditCondition = "!bPositionedByGizmo", HideEditConditionToggle))
 	FVector Normal;
 
 	UPROPERTY()
 	bool bPositionedByGizmo = true;
 
-	/** Pattern radius */
+	/** Pattern radius (in cm) */
 	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Radius", UIMin = "0.0", ClampMin = "0.0"))
 	float Radius;
 
@@ -49,11 +49,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Radial Steps", UIMin = "1", UIMax = "50", ClampMin = "1"))
 	int RadialSteps;
 
-	/** Angle offset at each radial step */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Angle Offset", UIMin = "0.0", ClampMin = "0.0"))
+	/** Angle offset at each radial step (in degrees) */
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Angle Offset"))
 	float AngleOffset;
 
-	/** Randomness of sites distribution */
+	/** Amount to randomly displace each Voronoi site (in cm) */
 	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Variability", UIMin = "0.0", ClampMin = "0.0"))
 	float Variability;
 };

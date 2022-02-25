@@ -21,37 +21,44 @@ public:
 		, NumberClustersMax(8)
 		, SitesPerClusterMin(2)
 		, SitesPerClusterMax(30)
-		, ClusterRadiusPercentageMin(0.1)
-		, ClusterRadiusPercentageMax(0.2)
-		, ClusterRadius(0.0f)
+		, ClusterRadiusFractionMin(0.1)
+		, ClusterRadiusFractionMax(0.2)
+		, ClusterRadiusOffset(0.0f)
 	{}
 
-	/** Number of Clusters - Cluster Voronoi Method */
-	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Minimum Cluster Sites", UIMin = "1", UIMax = "200", ClampMin = "1"))
+	/** Minimum number of clusters of Voronoi sites to create. The amount of clusters created will be chosen at random between Min and Max */
+	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Min Num Clusters", UIMin = "1", UIMax = "200", ClampMin = "1"))
 	int32 NumberClustersMin;
 
-	/** Number of Clusters - Cluster Voronoi Method */
-	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Maximum Cluster Sites", UIMin = "1", UIMax = "200", ClampMin = "1"))
+	/** Maximum number of clusters of Voronoi sites to create. The amount of clusters created will be chosen at random between Min and Max */
+	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Max Num Clusters", UIMin = "1", UIMax = "200", ClampMin = "1"))
 	int32 NumberClustersMax;
 
-	/** Sites per # of Clusters - Cluster Voronoi Method */
-	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Minimum Sites Per Cluster", UIMin = "0", UIMax = "200", ClampMin = "0"))
+	/** Minimum number of Voronoi sites per cluster. The amount of sites in each cluster will be chosen at random between Min and Max */
+	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Min Sites Per Cluster", UIMin = "0", UIMax = "200", ClampMin = "0"))
 	int32 SitesPerClusterMin;
 
-	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Maximum Sites Per Cluster", UIMin = "0", UIMax = "200", ClampMin = "0"))
+	/** Maximum number of Voronoi sites per cluster. The amount of sites in each cluster will be chosen at random between Min and Max */
+	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Max Sites Per Cluster", UIMin = "0", UIMax = "200", ClampMin = "0"))
 	int32 SitesPerClusterMax;
 
-	/** Cluster's Radius - Cluster Voronoi Method */
-	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Minimum distance from center as part of bounds max extent", UIMin = "0.0", UIMax = "1.0"))
-	float ClusterRadiusPercentageMin;
+	/**
+	 * Minimum cluster radius (as fraction of the overall Voronoi diagram size). Cluster Radius Offset will be added to this
+	 * Each Voronoi site will be placed at least this far (plus the Cluster Radius Offset) from its cluster center
+	 */
+	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Min Dist from Center (as Frac of Bounds)", UIMin = "0.0", UIMax = "1.0"))
+	float ClusterRadiusFractionMin;
 
-	/** Cluster's Radius - Cluster Voronoi Method */
-	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Maximum distance from center as part of bounds max extent", UIMin = "0.0", UIMax = "1.0"))
-	float ClusterRadiusPercentageMax;
+	/**
+	 * Maximum cluster radius (as fraction of the overall Voronoi diagram size). Cluster Radius Offset will be added to this
+	 * Each Voronoi site will be placed at most this far (plus the Cluster Radius Offset) from its cluster center
+	 */
+	UPROPERTY(EditAnywhere, Category = ClusterVoronoi, meta = (DisplayName = "Max Dist from Center (as Frac of Bounds)", UIMin = "0.0", UIMax = "1.0"))
+	float ClusterRadiusFractionMax;
 
-	/** Cluster's Radius - Cluster Voronoi Method */
+	/** Cluster radius offset (in cm). This offset will be added to the 'Min/Max Dist from Center' distance */
 	UPROPERTY(EditAnywhere, Category = ClusterVoronoi)
-	float ClusterRadius;
+	float ClusterRadiusOffset;
 };
 
 

@@ -31,19 +31,19 @@ public:
 		, bDrawDiagram(true)
 		, Amplitude(0.0f)
 		, Frequency(0.1f)
-		, Lacunarity(2.0f)
 		, Persistence(0.5f)
+		, Lacunarity(2.0f)
 		, OctaveNumber(4)
-		, SurfaceResolution(10)
+		, PointSpacing(10)
 	{}
 
 	void TransferNoiseSettings(FNoiseSettings& NoiseSettingsOut);
 
-	/** Random number generator seed for repeatability */
+	/** Random number generator seed for repeatability. If the value is -1, a different random seed will be used every time, otherwise the specified seed will always be used */
 	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Random Seed", UIMin = "-1", UIMax = "1000", ClampMin = "-1"))
 	int32 RandomSeed;
 
-	/** Chance to shatter each selected bone.  */
+	/** Chance to fracture each selected bone. If 0, no bones will fracture; if 1, all bones will fracture. */
 	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Chance To Fracture Per Bone", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float ChanceToFracture;
 
@@ -71,29 +71,32 @@ public:
 	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (UIMin = "0.0", ClampMin = "0.0"))
 	float Grout = 0.0f;
 
-	/** Size of the noise displacement in centimeters */
+	/** Size of the Perlin noise displacement (in cm). If 0, no noise will be applied */
 	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "0.0"))
 	float Amplitude;
 
-	/** Period of the Perlin noise.  Smaller values will create noise faces that are smoother */
+	/** Period of the Perlin noise.  Smaller values will create a smoother noise pattern */
 	UPROPERTY(EditAnywhere, Category = Noise)
 	float Frequency;
 
-	/** Lacunarity of the Perlin noise.  Controls how the frequency scales per octave. */
-	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "1.0", UIMax = "4.0"))
-	float Lacunarity;
-
-	/** Persistence of the Perlin noise.  Controls how the amplitude scales per octave. */
+	/** Persistence of the layers of Perlin noise. At each layer (octave) after the first, the amplitude of the Perlin noise is scaled by this factor */
 	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "0.01", UIMax = "1.0"))
 	float Persistence;
 
-	/** Number of fractal layers of Perlin noise to apply.  Smaller values (1 or 2) will create noise that looks like gentle rolling hills, while larger values (> 4) will tend to look more like craggy mountains */
+	/** Lacunarity of the layers of Perlin noise. At each layer (octave) after the first, the frequency of the Perlin noise is scaled by this factor */
+	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "1.0", UIMax = "4.0"))
+	float Lacunarity;
+
+	/** 
+	 * Number of fractal layers of Perlin noise to apply. Each layer is additive, with Amplitude and Frequency parameters scaled by Persistence and Lacunarity
+	 * Smaller values (1 or 2) will create noise that looks like gentle rolling hills, while larger values (> 4) will tend to look more like craggy mountains
+	 */
 	UPROPERTY(EditAnywhere, Category = Noise, meta = (ClampMin = "1", UIMax = "8"))
 	int32 OctaveNumber;
 
-	/** Spacing between vertices on cut surfaces, where noise is added.  Larger spacing between vertices will create more efficient meshes with fewer triangles, but less resolution to see the shape of the added noise  */
+	/** Distance (in cm) between vertices on cut surfaces where noise is added.  Larger spacing between vertices will create more efficient meshes with fewer triangles, but less resolution to see the shape of the added noise  */
 	UPROPERTY(EditAnywhere, Category = Noise, meta = (DisplayName = "Point Spacing", UIMin = "1", ClampMin = "0.1"))
-	float SurfaceResolution;
+	float PointSpacing;
 
 	/// Get the maximum distance a vertex could be moved by a combination of grout and noise
 	float GetMaxVertexMovement()
@@ -118,9 +121,27 @@ public:
 	UFractureCollisionSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit) {}
 
-	/** Target spacing between collision samples on the mesh surface. */
-	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "1", ClampMin = "0.1"))
+	/**
+	 * If enabled, add extra vertices (without triangles) to the geometry in regions where vertices are spaced too far apart (e.g. across large triangles)
+	 * These extra vertices will be used as collision samples in particle-implicit collisions, and can help the physics system detect collisions more accurately
+	 * 
+	 * Note this is *only* useful for simulations that use particle-implicit collisions
+	 */
+	UPROPERTY(EditAnywhere, Category = Collision)
+	bool bAddSamplesForCollision = false;
+
+	/**
+	 * The number of centimeters to allow between vertices on the mesh surface: If there are gaps larger than this, add additional vertices (without triangles) to help support particle-implicit collisions
+	 * Only used if Add Samples For Collision is enabled
+	 */
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (UIMin = "1", ClampMin = "0.1", EditCondition = "bAddSamplesForCollision"))
 	float PointSpacing = 50.0f;
+
+	// Get point spacing or the special value of 0 if adding collision samples is disabled
+	float GetPointSpacing()
+	{
+		return bAddSamplesForCollision ? PointSpacing : 0.0f;
+	}
 
 	// TODO: add remeshing options here as well
 };

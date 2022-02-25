@@ -39,9 +39,9 @@ void UFractureToolClusterCutter::RegisterUICommand( FFractureEditorCommands* Bin
 TArray<UObject*> UFractureToolClusterCutter::GetSettingsObjects() const
 {
 	TArray<UObject*> ReturnSettings;
+	ReturnSettings.Add(ClusterSettings);
 	ReturnSettings.Add(CutterSettings);
 	ReturnSettings.Add(CollisionSettings);
-	ReturnSettings.Add(ClusterSettings);
 	return ReturnSettings;
 }
 
@@ -69,7 +69,7 @@ void UFractureToolClusterCutter::GenerateVoronoiSites(const FFractureToolContext
 		{
 			FVector V(RandStream.VRand());
 			V.Normalize();
-			V *= ClusterSettings->ClusterRadius + (RandStream.FRandRange(ClusterSettings->ClusterRadiusPercentageMin, ClusterSettings->ClusterRadiusPercentageMax) * Bounds.GetExtent().GetAbsMax());
+			V *= ClusterSettings->ClusterRadiusOffset + (RandStream.FRandRange(ClusterSettings->ClusterRadiusFractionMin, ClusterSettings->ClusterRadiusFractionMax) * Bounds.GetExtent().GetAbsMax());
 			V += CenterSites[kk];
 			Sites.Emplace(V);
 		}

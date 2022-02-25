@@ -108,8 +108,8 @@ TArray<UObject*> UFractureToolCustomVoronoi::GetSettingsObjects() const
 { 
 	TArray<UObject*> Settings;
 	Settings.Add(CustomVoronoiSettings);
-	Settings.Add(CutterSettings);
 	Settings.Add(GizmoSettings);
+	Settings.Add(CutterSettings);
 	Settings.Add(CollisionSettings);
 	return Settings;
 }

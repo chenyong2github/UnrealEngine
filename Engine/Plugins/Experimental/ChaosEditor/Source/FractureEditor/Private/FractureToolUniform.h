@@ -20,12 +20,12 @@ public:
 		, NumberVoronoiSitesMax(20)
 	{}
 
-	/** Minimum Number of Voronoi sites - A random number will be chosen between the Min and Max for each bone you have selected */
-	UPROPERTY(EditAnywhere, Category = UniformVoronoi, meta = (DisplayName = "Minimum Voronoi Sites", UIMin = "1", UIMax = "5000", ClampMin = "1"))
+	/** Minimum Number of Voronoi sites. The amount of sites per Voronoi diagram will be chosen at random between Min and Max */
+	UPROPERTY(EditAnywhere, Category = UniformVoronoi, meta = (DisplayName = "Min Voronoi Sites", UIMin = "1", UIMax = "5000", ClampMin = "1"))
 	int32 NumberVoronoiSitesMin;
 
-	/** Maximum Number of Voronoi sites - A random number will be chosen between the Min and Max for each bone you have selected */
-	UPROPERTY(EditAnywhere, Category = UniformVoronoi, meta = (DisplayName = "Maximum Voronoi Sites", UIMin = "1", UIMax = "5000", ClampMin = "1"))
+	/** Maximum Number of Voronoi sites. The amount of sites per Voronoi diagram will be chosen at random between Min and Max */
+	UPROPERTY(EditAnywhere, Category = UniformVoronoi, meta = (DisplayName = "Max Voronoi Sites", UIMin = "1", UIMax = "5000", ClampMin = "1"))
 	int32 NumberVoronoiSitesMax;
 
 };

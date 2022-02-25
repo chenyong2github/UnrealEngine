@@ -9,7 +9,6 @@
 
 #include "Chaos/TriangleMesh.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
-#include "Chaos/MassProperties.h"
 #include "Chaos/Particles.h"
 #include "Chaos/Vector.h"
 
@@ -40,7 +39,7 @@ FText UFractureToolClusterMagnet::GetDisplayText() const
 
 FText UFractureToolClusterMagnet::GetTooltipText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolClusterMagnetToolTip", "Builds clusters at local level by collecting bones adjacent to clusters or bones with highest mass."));
+	return FText(NSLOCTEXT("Fracture", "FractureToolClusterMagnetToolTip", "Builds clusters by grouping the selected bones with their adjacent, neighboring bones. Can iteratively expand to a larger set of neighbors-of-neighbors."));
 }
 
 FText UFractureToolClusterMagnet::GetApplyText() const
@@ -63,7 +62,7 @@ TArray<UObject*> UFractureToolClusterMagnet::GetSettingsObjects() const
 
 void UFractureToolClusterMagnet::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "ClusterMagnet", "Magnet", "Builds clusters at local level by collecting bones adjacent to clusters or bones with highest mass.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "ClusterMagnet", "Magnet", "Builds clusters by grouping the selected bones with their adjacent, neighboring bones. Can iteratively expand to a larger set of neighbors-of-neighbors.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	BindingContext->ClusterMagnet = UICommandInfo;
 }
 
@@ -219,8 +218,6 @@ void UFractureToolClusterMagnet::SeparateClusterMagnets(
 	TArray<FClusterMagnet>& OutClusterMagnets,
 	TSet<int32>& OutRemainingPool) const
 {
-	// Push any top nodes over the mass threshold into cluster magnets.
-	
 	OutClusterMagnets.Reserve(TopNodes.Num());
 	OutRemainingPool.Reserve(TopNodes.Num());
 	

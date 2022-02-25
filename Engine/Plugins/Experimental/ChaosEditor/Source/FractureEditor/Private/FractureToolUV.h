@@ -40,13 +40,17 @@ enum class ETextureType
 UENUM()
 enum class ETargetMaterialIDs
 {
+	// Target faces with odd-numbered material IDs (corresponding to internal fracture faces)
 	OddIDs,
+	// Target faces with material IDs matching a custom list, as well as those with odd-numbered IDs (corresponding to internal fracture faces)
 	OddAndSelectedIDs,
+	// Target faces with material IDs matching a custom list
 	SelectedIDs,
+	// Target all faces
 	AllIDs
 };
 
-/** Settings specifically related to the one-time destructive fracturing of a mesh **/
+/** Settings for UV layout and texture baking on the geometry collection **/
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureAutoUVSettings : public UFractureToolSettings
 {
@@ -60,6 +64,7 @@ public:
 		SetNumUVChannels(1);
 	}
 
+	/** Which UV channel to use for layout and baking */
 	UPROPERTY(EditAnywhere, Category = UVChannel, meta = (DisplayName = "UV Channel", GetOptions = GetUVChannelNamesFunc))
 	FString UVChannel;
 
@@ -75,12 +80,14 @@ public:
 	void SetNumUVChannels(int32 NumUVChannels);
 	int32 GetSelectedChannelIndex(bool bForceToZeroOnFailure = true);
 
+	/** Add a UV channel to the Geometry Collection */
 	UFUNCTION(CallInEditor, Category = UVChannel, meta = (DisplayName = "Add UV Channel"))
 	void AddUVChannel()
 	{
 		ChangeNumUVChannels(1);
 	}
 
+	/** Remove the last UV channel from the Geometry Collection */
 	UFUNCTION(CallInEditor, Category = UVChannel, meta = (DisplayName = "Delete UV Channel"))
 	void DeleteUVChannel()
 	{
@@ -89,17 +96,33 @@ public:
 
 	void ChangeNumUVChannels(int32 Delta);
 
+	/** Immediately layout and update the UVs of the selected Geometry Collection, for faces with the Target Material IDs */
 	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayName = "Layout UVs", DisplayPriority = 1))
 	void LayoutUVs();
 
+	/** Bake a new texture with the chosen attributes, aligned to the current UV layout */
 	UFUNCTION(CallInEditor, Category = Operations, meta = (DisplayName = "Bake Texture", DisplayPriority = 2))
 	void BakeTexture();
 
+	/** Disable "Show Bone Colors" on the selected Geometry Collection Components, so textures are visible. This setting can also be toggled directly on the Component itself */
+	UFUNCTION(CallInEditor, Category = Operations)
+	void DisableBoneColors();
+
+	/** The scale factor to use for UV box projection */
 	UPROPERTY(EditAnywhere, Category = Unwrap)
 	FVector ProjectionScale = FVector(100, 100, 100);
 
+	/** Immediately perform a box projection to update the internal UVs of the selected Geometry Collection */
 	UFUNCTION(CallInEditor, Category = Unwrap, meta = (DisplayName = "Box Project UVs"))
 	void BoxProjectUVs();
+
+	/** Choose whether to texture only faces with odd material IDs (corresponding to internal faces) or a custom selection */
+	UPROPERTY(EditAnywhere, Category = MapSettings)
+	ETargetMaterialIDs TargetMaterialIDs;
+
+	/** Custom selection of material IDs to target for texturing */
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (EditCondition = "TargetMaterialIDs != ETargetMaterialIDs::OddIDs && TargetMaterialIDs != ETargetMaterialIDs::AllIDs", EditConditionHides))
+	TArray<int32> MaterialIDs;
 
 	/** The pixel resolution of the generated map */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
@@ -113,15 +136,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = MapSettings)
 	TObjectPtr<UTexture2D> Result;
 
-	/** Choose whether to texture only odd material IDs (corresponding to internal faces) or a custom selection */
-	UPROPERTY(EditAnywhere, Category = MapSettings)
-	ETargetMaterialIDs TargetMaterialIDs;
-
-	/** Custom selection of material IDs to target for texturing */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (EditCondition = "TargetMaterialIDs != ETargetMaterialIDs::OddIDs", EditConditionHides))
-	TArray<int32> MaterialIDs;
-
-	/** Whether to prompt user for an asset name for each generated texture, or automatically place them next to the source geometry collections */
+	/** Whether to prompt user for an asset name for each generated texture, or automatically place them next to the source Geometry Collections */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
 	bool bPromptToSave = true;
 
@@ -143,10 +158,11 @@ public:
 
 	/**
 	 * Bake a smoothed curvature metric to a texture channel (blue)
-	 * Specifically, this is the mean curvature of a smoothed copy of each fractured piece, baked back to the respective fracture piece.
+	 * Specifically, this is the mean curvature of a smoothed copy of each fractured piece, baked back to the respective fracture piece
+	 * Note that this attribute is relatively expensive to compute
 	 */
 	UPROPERTY(EditAnywhere, Category = AttributesToBake, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes", EditConditionHides))
-	bool bSmoothedCurvature = true;
+	bool bSmoothedCurvature = false;
 
 	/** Max distance to search for the outer mesh surface */
 	UPROPERTY(EditAnywhere, Category = DistToOuterSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bDistToOuter", EditConditionHides, UIMin = "1", UIMax = "100", ClampMin = ".01", ClampMax = "1000"))
@@ -176,7 +192,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bSmoothedCurvature", EditConditionHides, UIMin = "2", UIMax = "10.0", ClampMin = "1", ClampMax = "100.0"))
 	double ThicknessFactor = 4;
 
-	/** Curvatures in the range [-MaxCurvature, MaxCurvature] will be mapped from [0,1]. Values outside that range will be clamped. */
+	/** Curvatures in the range [-MaxCurvature, MaxCurvature] will be mapped from [0,1]. Values outside that range will be clamped */
 	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bSmoothedCurvature", EditConditionHides, UIMin = ".01", UIMax = "1", ClampMin = ".0001", ClampMax = "10"))
 	double MaxCurvature = .1;
 
@@ -199,7 +215,7 @@ public:
 	virtual FText GetDisplayText() const override;
 	virtual FText GetTooltipText() const override;
 	/** This is the Text that will appear on the button to execute the fracture **/
-	virtual FText GetApplyText() const override { return FText(NSLOCTEXT("AutoUV", "ExecuteAutoUV", "AutoUV")); }
+	virtual FText GetApplyText() const override { return FText(NSLOCTEXT("AutoUV", "ExecuteAutoUV", "Layout & Bake")); }
 	virtual FSlateIcon GetToolIcon() const override;
 	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
 	virtual TArray<UObject*> GetSettingsObjects() const override;
@@ -224,6 +240,8 @@ public:
 
 	// Create new UV islands via box projection for the selected geometry collections
 	void BoxProjectUVs();
+
+	void DisableBoneColors();
 	
 	void LayoutUVs();
 	void BakeTexture();

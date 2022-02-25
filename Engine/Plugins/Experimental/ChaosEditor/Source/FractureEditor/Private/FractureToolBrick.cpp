@@ -40,16 +40,16 @@ FSlateIcon UFractureToolBrick::GetToolIcon() const
 
 void UFractureToolBrick::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Brick", "Brick", "Fracture with a customizable brick pattern.", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Brick", "Brick", "Fracture with a customizable brick pattern. Note: Currently only supports fracturing with at least some (non-zero) Grout.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Brick = UICommandInfo;
 }
 
 TArray<UObject*> UFractureToolBrick::GetSettingsObjects() const 
 { 
-	TArray<UObject*> Settings; 
+	TArray<UObject*> Settings;
+	Settings.Add(BrickSettings);
 	Settings.Add(CutterSettings);
 	Settings.Add(CollisionSettings);
-	Settings.Add(BrickSettings);
 	return Settings;
 }
 
@@ -417,7 +417,7 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 		// Proximity is invalidated.
 		ClearProximity(FractureContext.GetGeometryCollection().Get());
 
-		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), 0, CollisionSettings->PointSpacing, FractureContext.GetSeed(), FractureContext.GetTransform());
+		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), 0, CollisionSettings->GetPointSpacing(), FractureContext.GetSeed(), FractureContext.GetTransform());
 	}
 
 	return INDEX_NONE;

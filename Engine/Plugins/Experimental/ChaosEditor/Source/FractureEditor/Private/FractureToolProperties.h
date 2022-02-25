@@ -10,9 +10,9 @@ UENUM(BlueprintType)
 enum class EDynamicStateOverrideEnum : uint8
 {
 	NoOverride = 0										  UMETA(DisplayName = "No Override"),
-	Sleeping = 1 /*Chaos::EObjectStateType::Sleeping*/    UMETA(DisplayName = "Sleeping"),
-	Kinematic = 2 /*Chaos::EObjectStateType::Kinematic*/  UMETA(DisplayName = "Kinematic"),
-	Static = 3    /*Chaos::EObjectStateType::Static*/     UMETA(DisplayName = "Static")
+	Sleeping = 1 /*~Chaos::EObjectStateType::Sleeping*/    UMETA(DisplayName = "Sleeping"),
+	Kinematic = 2 /*~Chaos::EObjectStateType::Kinematic*/  UMETA(DisplayName = "Kinematic"),
+	Static = 3    /*~Chaos::EObjectStateType::Static*/     UMETA(DisplayName = "Static")
 };
 
 /** Settings specifically related to the one-time destructive fracturing of a mesh **/
@@ -28,7 +28,7 @@ public:
 		, InitialDynamicState(EDynamicStateOverrideEnum::Kinematic)
 	{}
 
-	/** Random number generator seed for repeatability */
+	/** Simulation state to be set on selected bones */
 	UPROPERTY(EditAnywhere, Category = SetInitialDynamicState, meta = (DisplayName = "Initial Dynamic State"))
 	EDynamicStateOverrideEnum InitialDynamicState;
 

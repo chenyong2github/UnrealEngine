@@ -29,7 +29,7 @@ public:
 	UFractureMeshCutSettings(const FObjectInitializer& ObjInit)
 		: Super(ObjInit) {}
 
-	/** Static mesh actor to be used as a cutting surface; should be a closed, watertight mesh */
+	/** Static Mesh Actor to be used as a cutting surface. For best results, use a closed, watertight mesh */
 	UPROPERTY(EditAnywhere, Category = MeshCut, meta = (DisplayName = "Cutting Actor"))
 	TLazyObjectPtr<AStaticMeshActor> CuttingActor;
 
@@ -61,24 +61,27 @@ public:
 	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "Variability", EditCondition = "CutDistribution == EMeshCutDistribution::Grid", EditConditionHides, UIMin = "0.0", ClampMin = "0.0"))
 	float Variability = 0.0f;
 
+	/** Minimum scale factor to apply to cutting meshes. A random scale will be chosen between Min and Max */
 	UPROPERTY(EditAnywhere, Category = Distribution, meta = (ClampMin = "0.001", EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut", EditConditionHides))
 	float MinScaleFactor = .5;
 
+	/** Maximum scale factor to apply to cutting meshes. A random scale will be chosen between Min and Max */
 	UPROPERTY(EditAnywhere, Category = Distribution, meta = (ClampMin = "0.001", EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut", EditConditionHides))
 	float MaxScaleFactor = 1.5;
 
+	/** Whether to randomly vary the orientation of the cutting meshes */
 	UPROPERTY(EditAnywhere, Category = Distribution, meta = (EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut", EditConditionHides))
 	bool bRandomOrientation = true;
 
-	/** Roll will be chosen between -Range to +Range */
+	/** Roll will be chosen between -Range and +Range */
 	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Roll Range", EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut && bRandomOrientation", EditConditionHides, ClampMin = "0", ClampMax = "180"))
 	float RollRange = 180;
 
-	/** Pitch will be chosen between -Range to +Range */
+	/** Pitch will be chosen between -Range and +Range */
 	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Pitch Range", EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut && bRandomOrientation", EditConditionHides, ClampMin = "0", ClampMax = "180"))
 	float PitchRange = 180;
 
-	/** Yaw will be chosen between -Range to +Range */
+	/** Yaw will be chosen between -Range and +Range */
 	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Yaw Range", EditCondition = "CutDistribution != EMeshCutDistribution::SingleCut && bRandomOrientation", EditConditionHides, ClampMin = "0", ClampMax = "180"))
 	float YawRange = 180;
 };

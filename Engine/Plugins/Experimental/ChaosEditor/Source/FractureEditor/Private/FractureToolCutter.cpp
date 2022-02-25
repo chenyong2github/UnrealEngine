@@ -118,7 +118,7 @@ void UFractureCutterSettings::TransferNoiseSettings(FNoiseSettings& NoiseSetting
 	NoiseSettingsOut.Lacunarity = Lacunarity;
 	NoiseSettingsOut.Persistence = Persistence;
 	NoiseSettingsOut.Octaves = OctaveNumber;
-	NoiseSettingsOut.PointSpacing = SurfaceResolution;
+	NoiseSettingsOut.PointSpacing = PointSpacing;
 }
 
 UFractureToolCutterBase::UFractureToolCutterBase(const FObjectInitializer& ObjInit)
@@ -368,7 +368,7 @@ int32 UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext
 		// Proximity is invalidated.
 		ClearProximity(FractureContext.GetGeometryCollection().Get());
 
-		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *(FractureContext.GetGeometryCollection()), FractureContext.GetSelection(), CutterSettings->Grout, CollisionSettings->PointSpacing, FractureContext.GetSeed(), FractureContext.GetTransform());
+		return CutMultipleWithPlanarCells(VoronoiPlanarCells, *(FractureContext.GetGeometryCollection()), FractureContext.GetSelection(), CutterSettings->Grout, CollisionSettings->GetPointSpacing(), FractureContext.GetSeed(), FractureContext.GetTransform());
 	}
 
 	return INDEX_NONE;

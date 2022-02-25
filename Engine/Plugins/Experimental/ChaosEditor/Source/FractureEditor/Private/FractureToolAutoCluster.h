@@ -6,7 +6,7 @@
 
 #include "FractureToolAutoCluster.generated.h"
 
-
+// Note: Only Voronoi-based auto-clustering is currently supported
 UENUM()
 enum class EFractureAutoClusterMode : uint8
 {
@@ -37,9 +37,11 @@ public:
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Simplified interface now only supports Voronoi clustering."))
 	EFractureAutoClusterMode AutoClusterMode_DEPRECATED;
 
+	/** Use a Voronoi diagram with this many Voronoi sites as a guide for deciding cluster boundaries */
 	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (DisplayName = "Cluster Sites", UIMin = "1", UIMax = "5000", ClampMin = "1"))
-	uint32 SiteCount=1;
+	uint32 SiteCount=10;
 
+	/** If true, bones will only be added to the same cluster if they are physically connected (either directly, or via other bones in the same cluster) */
 	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (DisplayName = "Enforce Cluster Connectivity"))
 	bool bEnforceConnectivity=true;
 };

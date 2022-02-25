@@ -53,11 +53,11 @@ void UFractureToolRadial::RegisterUICommand( FFractureEditorCommands* BindingCon
 
 TArray<UObject*> UFractureToolRadial::GetSettingsObjects() const 
 { 
-	TArray<UObject*> Settings; 
-	Settings.Add(CutterSettings);
-	Settings.Add(GizmoSettings);
-	Settings.Add(CollisionSettings);
+	TArray<UObject*> Settings;
 	Settings.Add(RadialSettings);
+	Settings.Add(GizmoSettings);
+	Settings.Add(CutterSettings);
+	Settings.Add(CollisionSettings);
 	return Settings;
 }
 
@@ -87,7 +87,7 @@ void UFractureToolRadial::GenerateVoronoiSites(const FFractureToolContext& Conte
 	FVector::FReal Len = RadialStep * .5;
 	for (int32 ii = 0; ii < RadialSettings->RadialSteps; ++ii, Len += RadialStep)
 	{
-		FVector::FReal Angle = RadialSettings->AngleOffset;
+		FVector::FReal Angle = FMath::DegreesToRadians(RadialSettings->AngleOffset);
 		for (int32 kk = 0; kk < RadialSettings->AngularSteps; ++kk, Angle += AngularStep)
 		{
 			FVector RotatingOffset = Len * (FMath::Cos(Angle) * BasisX + FMath::Sin(Angle) * BasisY);

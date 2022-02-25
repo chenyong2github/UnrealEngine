@@ -12,7 +12,7 @@ class FFractureToolContext;
 UENUM()
 enum class EVoronoiPattern
 {
-	// Add a single site centered on the gizmo
+	// Add a single site centered on the gizmo (or multiple if Variability is > 0)
 	Centered,
 	// Add uniform-random sites
 	Uniform,
@@ -54,7 +54,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = LiveVoronoiSites, meta = (EditCondition = "VoronoiPattern == EVoronoiPattern::MeshVertices || VoronoiPattern == EVoronoiPattern::SelectedBones"))
 	float NormalOffset = 0.0f;
 
-	/** Randomness of sites distribution */
+	/** Amount to randomly displace each Voronoi site (in cm) */
 	UPROPERTY(EditAnywhere, Category = LiveVoronoiSites, meta = (DisplayName = "Variability", UIMin = "0.0", ClampMin = "0.0"))
 	float Variability = 0.0f;
 

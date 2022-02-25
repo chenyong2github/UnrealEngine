@@ -116,10 +116,10 @@ void UFractureToolPlaneCut::Render(const FSceneView* View, FViewport* Viewport, 
 TArray<UObject*> UFractureToolPlaneCut::GetSettingsObjects() const
  {
 	TArray<UObject*> Settings;
-	Settings.Add(CutterSettings);
-	Settings.Add(GizmoSettings);
-	Settings.Add(CollisionSettings);
 	Settings.Add(PlaneCutSettings);
+	Settings.Add(GizmoSettings);
+	Settings.Add(CutterSettings);
+	Settings.Add(CollisionSettings);
 	return Settings;
 }
 
@@ -197,7 +197,7 @@ int32 UFractureToolPlaneCut::ExecuteFracture(const FFractureToolContext& Fractur
 		// Proximity is invalidated.
 		ClearProximity(FractureContext.GetGeometryCollection().Get());
 
-		return CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), CutterSettings->Grout, CollisionSettings->PointSpacing, FractureContext.GetSeed(), FractureContext.GetTransform());
+		return CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), CutterSettings->Grout, CollisionSettings->GetPointSpacing(), FractureContext.GetSeed(), FractureContext.GetTransform());
 	}
 
 	return INDEX_NONE;

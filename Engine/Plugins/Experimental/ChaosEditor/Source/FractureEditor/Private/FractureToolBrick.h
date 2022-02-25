@@ -9,18 +9,19 @@
 
 class FFractureToolContext;
 
-/** Brick Projection Directions*/
-UENUM()
-enum class EFractureBrickProjection: uint8
-{
-	X UMETA(DisplayName = "X"),
+// TODO: this enum was unused in the brick generation code; consider whether we want to keep + use it or not
+///** Brick Projection Directions*/
+//UENUM()
+//enum class EFractureBrickProjection: uint8
+//{
+//	X UMETA(DisplayName = "X"),
+//
+//	Y UMETA(DisplayName = "Y"),
+//
+//	Z UMETA(DisplayName = "Z")
+//};
 
-	Y UMETA(DisplayName = "Y"),
-
-	Z UMETA(DisplayName = "Z")
-};
-
-/** Brick Projection Directions*/
+/** Brick Stacking Pattern */
 UENUM()
 enum class EFractureBrickBond : uint8
 {
@@ -45,34 +46,32 @@ public:
 	UFractureBrickSettings(const FObjectInitializer& ObjInit)
 		: Super(ObjInit)
 		, Bond(EFractureBrickBond::Stretcher)
-		, Forward(EFractureBrickProjection::X)
-		, Up(EFractureBrickProjection::Z)
 		, BrickLength(194.f)
 		, BrickHeight(57.f)
 		, BrickDepth(92.f)
 	{}
 
-	/** Forward Direction to project brick pattern. */
+	/** The brick bond pattern defines how the bricks are arranged */
 	UPROPERTY(EditAnywhere, Category = Brick)
 	EFractureBrickBond Bond;
 
-	/** Forward Direction to project brick pattern. */
-	UPROPERTY(EditAnywhere, Category = Brick)
-	EFractureBrickProjection Forward;
+	// Note: These Forward and Up parameters were unused in the actual brick generation; TODO: consider if we want to actually keep + use these parameters or not
+	///** Forward Direction to project brick pattern. */
+	//UPROPERTY(EditAnywhere, Category = Brick)
+	//EFractureBrickProjection Forward = EFractureBrickProjection::X;
+	///** Up Direction for vertical brick slices. */
+	//UPROPERTY(EditAnywhere, Category = Brick)
+	//EFractureBrickProjection Up = EFractureBrickProjection::Z;
 
-	/** Up Direction for vertical brick slices. */
-	UPROPERTY(EditAnywhere, Category = Brick)
-	EFractureBrickProjection Up;
-
-	/** Brick Length */
+	/** Brick length (in cm) */
 	UPROPERTY(EditAnywhere, Category = Brick, meta = (UIMin = "0.1", UIMax = "500.0", ClampMin = "0.001"))
 	float BrickLength;
 
-	/** Brick Height */
+	/** Brick height (in cm) */
 	UPROPERTY(EditAnywhere, Category = Brick, meta = (UIMin = "0.1", UIMax = "500.0", ClampMin = "0.001"))
 	float BrickHeight;
 
-	/** Brick Depth */
+	/** Brick depth (in cm) */
 	UPROPERTY(EditAnywhere, Category = Brick, meta = (UIMin = "0.1", UIMax = "500.0", ClampMin = "0.001"))
 	float BrickDepth;
 };

@@ -45,9 +45,9 @@ void UFractureToolMeshCut::RegisterUICommand( FFractureEditorCommands* BindingCo
 TArray<UObject*> UFractureToolMeshCut::GetSettingsObjects() const
  {
 	TArray<UObject*> Settings;
+	Settings.Add(MeshCutSettings);
 	//Settings.Add(CutterSettings); // TODO: add cutter settings if/when we support noise and grout
 	Settings.Add(CollisionSettings);
-	Settings.Add(MeshCutSettings);
 	return Settings;
 }
 
@@ -213,7 +213,7 @@ int32 UFractureToolMeshCut::ExecuteFracture(const FFractureToolContext& Fracture
 		// (Note: noise and grout not currently supported)
 		if (LocalCutSettings->CutDistribution == EMeshCutDistribution::SingleCut)
 		{
-			return CutWithMesh(MeshDescription, ActorTransform, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), CollisionSettings->PointSpacing, FractureContext.GetTransform());
+			return CutWithMesh(MeshDescription, ActorTransform, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), CollisionSettings->GetPointSpacing(), FractureContext.GetTransform());
 		}
 		else
 		{
@@ -238,7 +238,7 @@ int32 UFractureToolMeshCut::ExecuteFracture(const FFractureToolContext& Fracture
 			for (const FTransform& ScatterTransform : MeshTransforms)
 			{
 				EnterProgressFrame(1);
-				int32 Index = CutWithMesh(MeshDescription, ScatterTransform, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), BonesToCut, CollisionSettings->PointSpacing, FractureContext.GetTransform());
+				int32 Index = CutWithMesh(MeshDescription, ScatterTransform, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), BonesToCut, CollisionSettings->GetPointSpacing(), FractureContext.GetTransform());
 				if (FirstIndex == -1)
 				{
 					FirstIndex = Index;

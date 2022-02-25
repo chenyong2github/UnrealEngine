@@ -60,6 +60,12 @@ void UFractureAutoUVSettings::ChangeNumUVChannels(int32 Delta)
 	}
 }
 
+void UFractureAutoUVSettings::DisableBoneColors()
+{
+	UFractureToolAutoUV* AutoUVTool = Cast<UFractureToolAutoUV>(OwnerTool.Get());
+	AutoUVTool->DisableBoneColors();
+}
+
 void UFractureAutoUVSettings::BoxProjectUVs()
 {
 	UFractureToolAutoUV* AutoUVTool = Cast<UFractureToolAutoUV>(OwnerTool.Get());
@@ -152,8 +158,7 @@ void UFractureToolAutoUV::UpdateUVChannels(int32 TargetNumUVChannels)
 			// but if we're increasing the number of channels, some geometry collections may have more channels already and we leave those alone
 			if (NumChannels < TargetNumUVChannels || !bIsIncreasing)
 			{
-				FGeometryCollectionEdit Edit(GeometryCollectionComponent, GeometryCollection::EEditUpdate::None);
-				Edit.GetRestCollection()->Modify();
+				FGeometryCollectionEdit Edit(GeometryCollectionComponent, GeometryCollection::EEditUpdate::Rest, true);
 				GeometryCollectionComponent->GetRestCollection()->GetGeometryCollection()->SetNumUVLayers(TargetNumUVChannels);
 				if (bIsIncreasing)
 				{
@@ -177,6 +182,20 @@ void UFractureToolAutoUV::UpdateUVChannels(int32 TargetNumUVChannels)
 	AutoUVSettings->SetNumUVChannels(MinUVChannels);
 }
 
+void UFractureToolAutoUV::DisableBoneColors()
+{
+	TSet<UGeometryCollectionComponent*> GeomCompSelection;
+	GetSelectedGeometryCollectionComponents(GeomCompSelection);
+
+	FScopedTransaction Transaction(LOCTEXT("DisableBoneColors", "Disable Bone Colors"), !GeomCompSelection.IsEmpty());
+	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+	{
+		GeometryCollectionComponent->Modify();
+		GeometryCollectionComponent->SetShowBoneColors(false);
+		GeometryCollectionComponent->MarkRenderStateDirty();
+	}
+}
+
 void UFractureToolAutoUV::BoxProjectUVs()
 {
 	int32 UVLayer = AutoUVSettings->GetSelectedChannelIndex();
@@ -192,8 +211,7 @@ void UFractureToolAutoUV::BoxProjectUVs()
 	FScopedTransaction Transaction(LOCTEXT("BoxProjectUVs", "Box Project UVs"), !GeomCompSelection.IsEmpty());
 	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
 	{
-		FGeometryCollectionEdit Edit(GeometryCollectionComponent, GeometryCollection::EEditUpdate::None);
-		Edit.GetRestCollection()->Modify();
+		FGeometryCollectionEdit Edit(GeometryCollectionComponent, GeometryCollection::EEditUpdate::Rest, true);
 		UE::PlanarCut::BoxProjectUVs(UVLayer,
 			*GeometryCollectionComponent->GetRestCollection()->GetGeometryCollection(),
 			(FVector3d)AutoUVSettings->ProjectionScale,
