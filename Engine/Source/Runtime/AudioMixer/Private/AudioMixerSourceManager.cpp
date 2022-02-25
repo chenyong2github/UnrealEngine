@@ -744,7 +744,6 @@ namespace Audio
 		PitchMod.UpdateModulator(InitParams.ModulationSettings.PitchModulationDestination.Modulator);
 
 		FModulationDestination HighpassMod;
-		PitchMod.Init(MixerDevice->DeviceID, FName("Pitch"), false /* bInIsBuffered */);
 		HighpassMod.Init(MixerDevice->DeviceID, FName("HPFCutoffFrequency"), false /* bInIsBuffered */);
 		HighpassMod.UpdateModulator(InitParams.ModulationSettings.HighpassModulationDestination.Modulator);
 

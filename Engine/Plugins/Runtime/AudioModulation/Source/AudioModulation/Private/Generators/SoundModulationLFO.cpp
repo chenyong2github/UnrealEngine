@@ -86,14 +86,15 @@ namespace AudioModulation
 				AudioRenderThreadCommand([this, NewGenerator = MoveTemp(InGenerator)]()
 				{
 					const FLFOGenerator* Generator = static_cast<const FLFOGenerator*>(NewGenerator.Get());
+					Params = Generator->Params;
 
-					LFO.SetGain(Generator->Params.Amplitude);
-					LFO.SetFrequency(Generator->Params.Frequency);
+					LFO.SetGain(Params.Amplitude);
+					LFO.SetFrequency(Params.Frequency);
 
 					static_assert(static_cast<int32>(ESoundModulationLFOShape::COUNT) == static_cast<int32>(Audio::ELFO::Type::NumLFOTypes), "LFOShape/ELFO Type mismatch");
-					LFO.SetType(static_cast<Audio::ELFO::Type>(Generator->Params.Shape));
+					LFO.SetType(static_cast<Audio::ELFO::Type>(Params.Shape));
 
-					Audio::ELFOMode::Type NewMode = Generator->Params.bLooping ? Audio::ELFOMode::Type::Sync : Audio::ELFOMode::OneShot;
+					Audio::ELFOMode::Type NewMode = Params.bLooping ? Audio::ELFOMode::Type::Sync : Audio::ELFOMode::OneShot;
 					const bool bModeUpdated = NewMode != LFO.GetMode();
 					if (bModeUpdated)
 					{
