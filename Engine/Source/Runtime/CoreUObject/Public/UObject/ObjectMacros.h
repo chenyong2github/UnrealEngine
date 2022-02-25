@@ -887,11 +887,11 @@ namespace UF
 		NetMulticast,
 
 		/// Replication of calls to this function should be done on a reliable channel.
-		/// Only valid when used in conjunction with Client or Server
+		/// Only valid when used in conjunction with Client, Server, or NetMulticast
 		Reliable,
 
 		/// Replication of calls to this function can be done on an unreliable channel.
-		/// Only valid when used in conjunction with Client or Server
+		/// Only valid when used in conjunction with Client, Server, or NetMulticast
 		Unreliable,
 
 		/// This function fulfills a contract of producing no side effects, and additionally implies BlueprintCallable.
