@@ -21,7 +21,9 @@ FRigUnit_GetTransform_Execute()
 			case EControlRigState::Init:
 			{
 				CachedIndex.Reset();
-				break;
+				// there is no "break;" here because an old node, Transform Constrtaint,
+				// still caches data during init stage. Thus, if a it takes a GetTransform
+				// as input, that GetTransform needs to execute and output a valid transform					
 			}
 			case EControlRigState::Update:
 			{
