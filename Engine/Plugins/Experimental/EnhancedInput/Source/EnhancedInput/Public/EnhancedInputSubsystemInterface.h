@@ -80,6 +80,18 @@ public:
 	virtual void InjectInputForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
 
 	/**
+	 * Input simulation via injection. Runs modifiers and triggers delegates as if the input had come through the underlying input system as FKeys.
+	 * Applies action modifiers and triggers on top.
+	 *
+	 * @param Action		The Input Action to set inject input for
+	 * @param Value			The value to set the action to (the type will be controlled by the Action)
+	 * @param Modifiers		The modifiers to apply to the injected input.
+	 * @param Triggers		The triggers to apply to the injected input.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Input", meta=(AutoCreateRefTerm="Modifiers,Triggers"))
+	virtual void InjectInputVectorForAction(const UInputAction* Action, FVector Value, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
+
+	/**
 	 * Remove all applied mapping contexts.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input")

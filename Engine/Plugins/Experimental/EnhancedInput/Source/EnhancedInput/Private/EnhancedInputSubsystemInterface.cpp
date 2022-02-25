@@ -36,6 +36,12 @@ void IEnhancedInputSubsystemInterface::InjectInputForAction(const UInputAction* 
 	}
 }
 
+void IEnhancedInputSubsystemInterface::InjectInputVectorForAction(const UInputAction* Action, FVector Value, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
+{
+	FInputActionValue RawValue((Action != nullptr) ? Action->ValueType : EInputActionValueType::Boolean, Value);
+	InjectInputForAction(Action, RawValue, Modifiers, Triggers);
+}
+
 void IEnhancedInputSubsystemInterface::ClearAllMappings()
 {
 	if (UEnhancedPlayerInput* PlayerInput = GetPlayerInput())
