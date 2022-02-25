@@ -23,6 +23,7 @@ struct FDIPhysicsFieldContext
 	int ClipmapCount;
 	int TargetCount;
 	int4 FieldTargets[MAX_PHYSICS_FIELD_TARGETS];
+	float3 SystemLWCTile;
 };
 
 #define DIPhysicsField_DECLARE_CONSTANTS(NAME)\
@@ -34,6 +35,7 @@ int ClipmapExponent_##NAME;\
 int ClipmapCount_##NAME;\
 int TargetCount_##NAME;\
 int4 FieldTargets_##NAME[MAX_PHYSICS_FIELD_TARGETS];\
+float3 SystemLWCTile_##NAME;\
 
 #define DIPhysicsField_MAKE_CONTEXT(NAME)\
 FDIPhysicsFieldContext DIContext; \
@@ -45,21 +47,31 @@ DIContext.ClipmapExponent = ClipmapExponent_##NAME;\
 DIContext.ClipmapCount = ClipmapCount_##NAME;\
 DIContext.TargetCount = TargetCount_##NAME;\
 DIContext.FieldTargets = FieldTargets_##NAME;\
+DIContext.SystemLWCTile = SystemLWCTile##NAME;\
 
 float3 DIPhysicsField_SamplePhysicsVectorField(in FDIPhysicsFieldContext DIContext, in float3 WorldPosition, in int VectorTarget)
 {
-	return PhysicsField_SamplePhysicsVectorField(WorldPosition, VectorTarget, DIContext.FieldTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance, 
+	// LWC_TODO: fix this when the physics field functions are lwc ready
+	FLWCVector3 SamplePos = MakeLWCVector3(DIContext.SystemLWCTile, WorldPosition);
+	
+	return PhysicsField_SamplePhysicsVectorField(LWCHackToFloat(SamplePos), VectorTarget, DIContext.FieldTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance, 
 				DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapBuffer);
 }
 
 float DIPhysicsField_SamplePhysicsScalarField(in FDIPhysicsFieldContext DIContext, in float3 WorldPosition, in int ScalarTarget)
 {
-	return PhysicsField_SamplePhysicsScalarField(WorldPosition, ScalarTarget, DIContext.FieldTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance,
+	// LWC_TODO: fix this when the physics field functions are lwc ready
+	FLWCVector3 SamplePos = MakeLWCVector3(DIContext.SystemLWCTile, WorldPosition);
+	
+	return PhysicsField_SamplePhysicsScalarField(LWCHackToFloat(SamplePos), ScalarTarget, DIContext.FieldTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance,
 				DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapBuffer);
 }
 
 int DIPhysicsField_SamplePhysicsIntegerField(in FDIPhysicsFieldContext DIContext, in float3 WorldPosition, in int IntegerTarget)
 {
-	return PhysicsField_SamplePhysicsIntegerField(WorldPosition, IntegerTarget, DIContext.FieldTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance,
+	// LWC_TODO: fix this when the physics field functions are lwc ready
+	FLWCVector3 SamplePos = MakeLWCVector3(DIContext.SystemLWCTile, WorldPosition);
+	
+	return PhysicsField_SamplePhysicsIntegerField(LWCHackToFloat(SamplePos), IntegerTarget, DIContext.FieldTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance,
 				DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapBuffer);
 }

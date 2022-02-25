@@ -270,7 +270,7 @@ class NIAGARA_API UNiagaraDataInterface : public UNiagaraDataInterfaceBase
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual ~UNiagaraDataInterface();
+	virtual ~UNiagaraDataInterface() override;
 
 	// UObject Interface
 	virtual void PostLoad() override;

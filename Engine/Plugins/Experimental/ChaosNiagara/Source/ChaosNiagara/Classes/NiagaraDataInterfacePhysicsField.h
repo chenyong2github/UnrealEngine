@@ -36,6 +36,8 @@ struct FNDIPhysicsFieldData
 
 	/** Time in seconds*/
 	float TimeSeconds = 0.0;
+	
+	FNiagaraLWCConverter LWCConverter;
 };
 
 /** Data Interface for the strand base */
@@ -69,6 +71,7 @@ public:
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 #endif
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
@@ -96,6 +99,7 @@ public:
 	static const FString ClipmapCountName;
 	static const FString TargetCountName;
 	static const FString FieldTargetsName;
+	static const FString SystemLWCTileName;
 
 protected:
 	/** Copy one niagara DI to this */

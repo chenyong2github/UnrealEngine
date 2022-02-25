@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceWater.h"
+
+#include "NiagaraSystemInstance.h"
 #include "WaterBodyComponent.h"
 #include "WaterSplineComponent.h"
 #include "WaterModule.h"
@@ -14,6 +16,18 @@ namespace WaterFunctionNames
 
 	const FName GetWaveParamLookupTableName(TEXT("GetWaveParamLookupTableOffset"));
 }
+
+struct FNiagaraWaterDIFunctionVersion
+{
+	enum Type
+	{
+		InitialVersion = 0,
+		LargeWorldCoordinates = 1,
+
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+};
 
 void UNiagaraDataInterfaceWater::PostInitProperties()
 {
@@ -33,18 +47,17 @@ void UNiagaraDataInterfaceWater::GetFunctions(TArray<FNiagaraFunctionSignature>&
 		Sig.Name = WaterFunctionNames::GetWaterDataAtPointName;
 
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Water")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("WorldPosition")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("WorldPosition")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Time")));
 
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("WaveHeight")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Depth")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SurfacePosition")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("SurfacePosition")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SurfaceNormal")));
 
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
-		//Sig.Owner = *GetName();
 		Sig.bExperimental = true;
 		Sig.SetDescription(LOCTEXT("DataInterfaceWater_GetWaterDataAtPoint", "Get the water data at the provided world position and time"));
 		OutFunctions.Add(Sig);
@@ -60,7 +73,6 @@ void UNiagaraDataInterfaceWater::GetFunctions(TArray<FNiagaraFunctionSignature>&
 
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
-		//Sig.Owner = *GetName();
 		Sig.bExperimental = true;
 		Sig.SetDescription(LOCTEXT("DataInterfaceWater_GetWaveParamLookupTableOffset", "Get the lookup table offset into the wave data texture for the data interface's water body"));
 		OutFunctions.Add(Sig);
@@ -74,11 +86,11 @@ struct FNDIWater_InstanceData
 {
 	//Cached ptr to component we sample from. 
 	TWeakObjectPtr<UWaterBodyComponent> WaterBodyComponent;
+	FNiagaraLWCConverter LWCConverter;
 };
 
 void UNiagaraDataInterfaceWater::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
-	FNDIWater_InstanceData* InstData = (FNDIWater_InstanceData*)InstanceData;
 	if (BindingInfo.Name == WaterFunctionNames::GetWaterDataAtPointName)
 	{
 		if(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 11)
@@ -93,7 +105,6 @@ void UNiagaraDataInterfaceWater::GetVMExternalFunction(const FVMExternalFunction
 			NDI_FUNC_BINDER(UNiagaraDataInterfaceWater, GetWaveParamLookupTableOffset)::Bind(this, OutFunc);
 		}
 	}
-
 }
 
 bool UNiagaraDataInterfaceWater::Equals(const UNiagaraDataInterface* Other) const
@@ -106,9 +117,9 @@ bool UNiagaraDataInterfaceWater::Equals(const UNiagaraDataInterface* Other) cons
 	return OtherTyped->SourceBodyComponent == SourceBodyComponent;
 }
 
-bool UNiagaraDataInterfaceWater::CopyTo(UNiagaraDataInterface* Destination) const
+bool UNiagaraDataInterfaceWater::CopyToInternal(UNiagaraDataInterface* Destination) const
 {
-	if (!Super::CopyTo(Destination))
+	if (!Super::CopyToInternal(Destination))
 	{
 		return false;
 	}
@@ -129,20 +140,21 @@ bool UNiagaraDataInterfaceWater::InitPerInstanceData(void* PerInstanceData, FNia
 	FNDIWater_InstanceData* InstData = new (PerInstanceData) FNDIWater_InstanceData();
 
 	InstData->WaterBodyComponent = SourceBodyComponent;
+	InstData->LWCConverter = SystemInstance->GetLWCConverter();
 
 	return true;
 }
 
 void UNiagaraDataInterfaceWater::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
-	FNDIWater_InstanceData* InstData = (FNDIWater_InstanceData*)PerInstanceData;
+	FNDIWater_InstanceData* InstData = static_cast<FNDIWater_InstanceData*>(PerInstanceData);
 	InstData->~FNDIWater_InstanceData();
 }
 
 bool UNiagaraDataInterfaceWater::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
 	check(SystemInstance);
-	FNDIWater_InstanceData* InstData = (FNDIWater_InstanceData*)PerInstanceData;
+	FNDIWater_InstanceData* InstData = static_cast<FNDIWater_InstanceData*>(PerInstanceData);
 
 	if (InstData->WaterBodyComponent != SourceBodyComponent)
 	{
@@ -152,34 +164,42 @@ bool UNiagaraDataInterfaceWater::PerInstanceTick(void* PerInstanceData, FNiagara
 	return false;
 }
 
+#if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceWater::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+{
+	bool bChanged = false;
+	
+	// upgrade from lwc changes, only parameter types changed there
+	if (FunctionSignature.FunctionVersion < FNiagaraWaterDIFunctionVersion::LargeWorldCoordinates)
+	{
+		if (FunctionSignature.Name == WaterFunctionNames::GetWaterDataAtPointName && ensure(FunctionSignature.Inputs.Num() == 3) && ensure(FunctionSignature.Outputs.Num() == 5))
+		{
+			FunctionSignature.Inputs[1].SetType(FNiagaraTypeDefinition::GetPositionDef());
+			FunctionSignature.Outputs[3].SetType(FNiagaraTypeDefinition::GetPositionDef());
+			bChanged = true;
+		}
+	}
+
+	return bChanged;
+}
+#endif
+
 void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMExternalFunctionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(NiagaraDataInterfaceWater_GetWaterDataAtPoint);
 
 	VectorVM::FUserPtrHandler<FNDIWater_InstanceData> InstData(Context);
-
+	
 	// Inputs
-	VectorVM::FExternalFuncInputHandler<float> WorldX(Context);
-	VectorVM::FExternalFuncInputHandler<float> WorldY(Context);
-	VectorVM::FExternalFuncInputHandler<float> WorldZ(Context);
-	VectorVM::FExternalFuncInputHandler<float> Time(Context);
+	FNDIInputParam<FNiagaraPosition> WorldPos(Context);
+	FNDIInputParam<float> Time(Context);
 
 	// Outputs
-	VectorVM::FExternalFuncRegisterHandler<float> OutHeight(Context);
-
-	VectorVM::FExternalFuncRegisterHandler<float> OutDepth(Context);
-
-	VectorVM::FExternalFuncRegisterHandler<float> OutVelocityX(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutVelocityY(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutVelocityZ(Context);
-
-	VectorVM::FExternalFuncRegisterHandler<float> OutSurfaceX(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutSurfaceY(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutSurfaceZ(Context);
-
-	VectorVM::FExternalFuncRegisterHandler<float> OutSurfaceNormalX(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutSurfaceNormalY(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutSurfaceNormalZ(Context);
+	FNDIOutputParam<float> OutHeight(Context);
+	FNDIOutputParam<float> OutDepth(Context);
+	FNDIOutputParam<FVector3f> OutVelocity(Context);
+	FNDIOutputParam<FNiagaraPosition> OutSurfacePos(Context);
+	FNDIOutputParam<FVector3f> OutSurfaceNormal(Context);
 
 	UWaterBodyComponent* Component = InstData->WaterBodyComponent.Get();
 	if (Component == nullptr)
@@ -194,8 +214,8 @@ void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMExternalFunctionCo
 		bool bIsValid = false;
 		if (Component != nullptr)
 		{
-			FVector WorldPos(WorldX.Get(), WorldY.Get(), WorldZ.Get());
-			QueryResult = Component->QueryWaterInfoClosestToWorldLocation(WorldPos,
+			FVector QueryPos = InstData->LWCConverter.ConvertSimulationPositionToWorld(WorldPos.GetAndAdvance());
+			QueryResult = Component->QueryWaterInfoClosestToWorldLocation(QueryPos,
 				EWaterBodyQueryFlags::ComputeLocation
 				| EWaterBodyQueryFlags::ComputeVelocity
 				| EWaterBodyQueryFlags::ComputeNormal
@@ -204,29 +224,17 @@ void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMExternalFunctionCo
 			bIsValid = !QueryResult.IsInExclusionVolume();
 		}
 
-		*OutHeight.GetDestAndAdvance() = bIsValid ? QueryResult.GetWaveInfo().Height : 0.0f;
-		*OutDepth.GetDestAndAdvance() = bIsValid ? QueryResult.GetWaterSurfaceDepth() : 0.0f;
-
-		const FVector& Velocity = bIsValid ? QueryResult.GetVelocity() : FVector::ZeroVector;
-		*OutVelocityX.GetDestAndAdvance() = Velocity.X;
-		*OutVelocityY.GetDestAndAdvance() = Velocity.Y;
-		*OutVelocityZ.GetDestAndAdvance() = Velocity.Z;
+		OutHeight.SetAndAdvance(bIsValid ? QueryResult.GetWaveInfo().Height : 0.0f);
+		OutDepth.SetAndAdvance(bIsValid ? QueryResult.GetWaterSurfaceDepth() : 0.0f);
+		OutVelocity.SetAndAdvance( bIsValid ? QueryResult.GetVelocity() : FVector::ZeroVector);
 
 		// Note we assume X and Y are in water by the time this is queried
 		const FVector& AdjustedSurfaceLoc = bIsValid ? QueryResult.GetWaterSurfaceLocation() : FVector::ZeroVector;
-		*OutSurfaceX.GetDestAndAdvance() =  AdjustedSurfaceLoc.X;
-		*OutSurfaceY.GetDestAndAdvance() =  AdjustedSurfaceLoc.Y;
-		*OutSurfaceZ.GetDestAndAdvance() =  AdjustedSurfaceLoc.Z;
+		OutSurfacePos.SetAndAdvance( InstData->LWCConverter.ConvertWorldToSimulationPosition(AdjustedSurfaceLoc));
 
-		const FVector& Normal = bIsValid ? QueryResult.GetWaterSurfaceNormal() : FVector::UpVector;
-		*OutSurfaceNormalX.GetDestAndAdvance() = Normal.X;
-		*OutSurfaceNormalY.GetDestAndAdvance() = Normal.Y;
-		*OutSurfaceNormalZ.GetDestAndAdvance() = Normal.Z;
+		OutSurfaceNormal.SetAndAdvance(bIsValid ? QueryResult.GetWaterSurfaceNormal() : FVector::UpVector);
 
-		WorldX.Advance();
-		WorldY.Advance();
-		WorldZ.Advance();
-		Time.Advance();
+		Time.GetAndAdvance();
 	}
 }
 

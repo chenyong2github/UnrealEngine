@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Renderer/Private/DistanceFieldLightingShared.h"
 
 class FDistanceFieldParameters
 {

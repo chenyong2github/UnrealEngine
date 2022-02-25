@@ -156,7 +156,7 @@ struct FNDIRigidMeshCollisionData
 	TArray<AActor*> Actors;
 };
 
-/** Data Interface for the Collisions */
+/** Data Interface used to collide against static meshes - whether it is the mesh distance field or a physics asset's collision primitive */
 UCLASS(EditInlineNew, Category = "Collision", meta = (DisplayName = "Rigid Mesh Collision Query"))
 class UNiagaraDataInterfaceRigidMeshCollisionQuery : public UNiagaraDataInterface
 {
@@ -198,6 +198,7 @@ public:
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 
 	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif

@@ -20,7 +20,7 @@ struct CQDIPerInstanceData
 };
 
 
-/** Data Interface allowing sampling of color curves. */
+/** Data Interface that can be used to query collision related data, like geometry traces or sampling the depth buffer. */
 UCLASS(EditInlineNew, Category = "Collision", meta = (DisplayName = "Collision Query"))
 class NIAGARA_API UNiagaraDataInterfaceCollisionQuery : public UNiagaraDataInterface
 {
