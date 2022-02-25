@@ -351,6 +351,12 @@ public:
 	 */
 	FSimpleMulticastDelegate OnFaceSelectionPreviewChanged;
 
+	/**
+	 * When true, the selection mechanic is currently tracking a marquee rectangle drag, and acting
+	 * on the selection may be unwise until it is over (and an OnSelectionChanged event is fired).
+	 */
+	bool IsCurrentlyMarqueeDragging() { return bCurrentlyMarqueeDragging; }
+
 	// TODO: Is it worth issuing separate callbacks in normal selection changes and in FChange ones, to
 	// allow the user to bundle in some FChanges into the normal callback?
 
@@ -410,6 +416,7 @@ protected:
 	FGroupTopologySelection LastUpdateRectangleSelection;
 	FGroupTopologySelector::FSelectionSettings PreDragTopoSelectorSettings;
 	TMap<int32, bool> TriIsOccludedCache;
+	bool bCurrentlyMarqueeDragging = false;
 
 	FVector3d LastClickedHitPosition;
 	FVector3d LastClickedHitNormal;

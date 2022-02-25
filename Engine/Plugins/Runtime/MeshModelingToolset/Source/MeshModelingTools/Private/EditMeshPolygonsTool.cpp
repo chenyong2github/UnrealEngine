@@ -659,6 +659,15 @@ void UEditMeshPolygonsTool::RegisterActions(FInteractiveToolActionSet& ActionSet
 
 void UEditMeshPolygonsTool::RequestAction(EEditMeshPolygonsToolActions ActionType)
 {
+	if (SelectionMechanic && SelectionMechanic->IsCurrentlyMarqueeDragging())
+	{
+		PendingAction = EEditMeshPolygonsToolActions::NoAction;
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("CannotActDuringMarquee", "Cannot perform action while marquee selecting"), 
+			EToolMessageLevel::UserWarning);
+		return;
+	}
+
 	if (PendingAction != EEditMeshPolygonsToolActions::NoAction)
 	{
 		return;
