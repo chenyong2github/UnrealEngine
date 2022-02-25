@@ -12,6 +12,12 @@
 class CORE_API FRunnable;
 class CORE_API FRunnableThread;
 
+enum class EForkProcessRole : uint8
+{
+	Parent,
+	Child,
+};
+
 /**
  * Helper functions for processes that fork in order to share memory pages.
  *

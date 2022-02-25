@@ -3,6 +3,7 @@
 // Core includes.
 #include "Misc/CoreDelegates.h"
 #include "Math/Vector.h"
+#include "Misc/Fork.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -243,3 +244,7 @@ void RegisterEncryptionKeyCallback(TEncryptionKeyFunc InCallback)
 	});
 }
 
+FSimpleMulticastDelegate FCoreDelegates::OnParentBeginFork;
+FSimpleMulticastDelegate FCoreDelegates::OnParentPreFork;
+FCoreDelegates::FProcessForkDelegate FCoreDelegates::OnPostFork;
+FSimpleMulticastDelegate FCoreDelegates::OnChildEndFramePostFork;

@@ -1323,6 +1323,8 @@ void FUnixPlatformProcess::TerminateProc( FProcHandle & ProcessHandle, bool Kill
 	}
 }
 
+static FDelegateHandle OnEndFrameHandle;
+
 /*
  * WaitAndFork on Unix
  *
@@ -1400,6 +1402,8 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 		UE_LOG(LogHAL, Log, TEXT("WaitAndFork setting WaitAndForkResponseTimeout to %0.2f seconds."), WaitAndForkResponseTimeout);
 	}
 
+	FCoreDelegates::OnParentBeginFork.Broadcast();
+
 	// Set up a signal handler for the signal to fork()
 	{
 		struct sigaction Action;
@@ -1460,6 +1464,8 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 			uint16 ChildIdx = SignalData.SignalValue & 0xffff;
 
 			FDateTime SignalReceived = FDateTime::FromUnixTimestamp(FMath::FloorToInt64(SignalData.TimeSeconds));
+
+			FCoreDelegates::OnParentPreFork.Broadcast();
 
 			UE_LOG(LogHAL, Log, TEXT("[Parent] WaitAndFork processing child request %04hx-%04hx received at: %s"), Cookie, ChildIdx, *SignalReceived.ToString());
 
@@ -1579,6 +1585,9 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 				UE_LOG(LogHAL, Log, TEXT("[Child] WaitAndFork child process %04hx-%04hx has started with pid %d."), Cookie, ChildIdx, GetCurrentProcessId());
 				FApp::PrintStartupLogMessages();
 
+				OnEndFrameHandle = FCoreDelegates::OnEndFrame.AddStatic(FUnixPlatformProcess::OnChildEndFramePostFork);
+				FCoreDelegates::OnPostFork.Broadcast(EForkProcessRole::Child);
+
 				// Children break out of the loop and return
 				RetVal = EWaitAndForkResult::Child;
 				break;
@@ -1590,6 +1599,8 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 
 				// Parent
 				AllChildren.Emplace(ChildPID, SignalData.SignalValue);
+
+				FCoreDelegates::OnPostFork.Broadcast(EForkProcessRole::Parent);
 
 				UE_LOG(LogHAL, Log, TEXT("[Parent] WaitAndFork Successfully processed request %04hx-%04hx, made a child with pid %d! Total number of children: %d."), Cookie, ChildIdx, ChildPID, AllChildren.Num());
 			}
@@ -2040,4 +2051,12 @@ void FUnixPlatformProcess::CeaseBeingFirstInstance()
 		GFileLockDescriptor = -1;
 	}
 #endif
+}
+
+void FUnixPlatformProcess::OnChildEndFramePostFork()
+{
+	FCoreDelegates::OnEndFrame.Remove(OnEndFrameHandle);
+	OnEndFrameHandle.Reset();
+
+	FCoreDelegates::OnChildEndFramePostFork.Broadcast();
 }

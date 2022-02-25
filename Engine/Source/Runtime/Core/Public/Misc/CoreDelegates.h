@@ -15,6 +15,7 @@
 class AActor;
 class Error;
 class IPakFile;
+enum class EForkProcessRole : uint8;
 
 // delegates for hotfixes
 namespace EHotfixDelegates
@@ -636,6 +637,17 @@ public:
 
 	DECLARE_DELEGATE_RetVal(TSharedPtr<class IPackageStore>, FCreatePackageStore);
 	static FCreatePackageStore CreatePackageStore;
+
+	// Called immediately before the parent process will start responding to signals to fork
+	static FSimpleMulticastDelegate OnParentBeginFork;
+	// Called each time immediately before the parent process forks itself
+	static FSimpleMulticastDelegate OnParentPreFork;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FProcessForkDelegate, EForkProcessRole /* ProcessRole */);
+	// Called immediately after the process spawned a fork
+	static FProcessForkDelegate OnPostFork;
+	// Called at the end of the frame where the process spawned a fork
+	static FSimpleMulticastDelegate OnChildEndFramePostFork;
 
 private:
 

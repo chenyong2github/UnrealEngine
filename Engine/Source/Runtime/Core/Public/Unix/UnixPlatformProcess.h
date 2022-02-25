@@ -297,6 +297,7 @@ struct CORE_API FUnixPlatformProcess : public FGenericPlatformProcess
 	static void ExploreFolder( const TCHAR* FilePath );
 	static bool LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms = NULL, ELaunchVerb::Type Verb = ELaunchVerb::Open, bool bPromptToOpenOnFailure = true);
 	static bool IsFirstInstance();
+	static void OnChildEndFramePostFork();
 
 	/**
 	 * @brief Releases locks that we held for IsFirstInstance check
