@@ -156,6 +156,10 @@ struct FMassVisualizationLODParameters : public FMassSharedFragment
 	/** Once visible how much further than DistanceToFrustum does the entities need to be before being cull again */
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
 	float DistanceToFrustumHysteresis = 0.0f;
+
+	/** Filter these settings with specified tag */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (BaseStruct = "MassTag"))
+	UScriptStruct* FilterTag;
 };
 
 USTRUCT()
@@ -168,4 +172,7 @@ struct FMassVisualizationLODSharedFragment : public FMassSharedFragment
 
 	TMassLODCalculator<FMassRepresentationLODLogic> LODCalculator;
 	bool bHasAdjustedDistancesFromCount = false;
+
+	UPROPERTY(Transient)
+	const UScriptStruct* FilterTag = nullptr;
 };

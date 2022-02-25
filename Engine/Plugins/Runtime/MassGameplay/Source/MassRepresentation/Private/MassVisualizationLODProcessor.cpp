@@ -61,9 +61,12 @@ void UMassVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsyst
 		TRACE_CPUPROFILER_EVENT_SCOPE(PrepareExecution)
 		check(LODSubsystem);
 		const TArray<FViewerInfo>& Viewers = LODSubsystem->GetViewers();
-		EntitySubsystem.ForEachSharedFragment<FMassVisualizationLODSharedFragment>([&Viewers](FMassVisualizationLODSharedFragment& LODSharedFragment)
+		EntitySubsystem.ForEachSharedFragment<FMassVisualizationLODSharedFragment>([this, &Viewers](FMassVisualizationLODSharedFragment& LODSharedFragment)
 		{
-			LODSharedFragment.LODCalculator.PrepareExecution(Viewers);
+			if (FilterTag == LODSharedFragment.FilterTag)
+			{
+				LODSharedFragment.LODCalculator.PrepareExecution(Viewers);
+			}
 		});
 	}
 
@@ -83,9 +86,12 @@ void UMassVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsyst
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AdjustDistanceAndLODFromCount)
-		EntitySubsystem.ForEachSharedFragment<FMassVisualizationLODSharedFragment>([](FMassVisualizationLODSharedFragment& LODSharedFragment)
+		EntitySubsystem.ForEachSharedFragment<FMassVisualizationLODSharedFragment>([this](FMassVisualizationLODSharedFragment& LODSharedFragment)
 		{
-			LODSharedFragment.bHasAdjustedDistancesFromCount = LODSharedFragment.LODCalculator.AdjustDistancesFromCount();
+			if (FilterTag == LODSharedFragment.FilterTag)
+			{
+				LODSharedFragment.bHasAdjustedDistancesFromCount = LODSharedFragment.LODCalculator.AdjustDistancesFromCount();
+			}
 		});
 
 		CloseEntityAdjustDistanceQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)

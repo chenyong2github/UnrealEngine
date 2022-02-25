@@ -41,4 +41,7 @@ protected:
 	FMassEntityQuery DebugEntityQuery;
 
 	bool bForceOFFLOD = false;
+
+	UPROPERTY(Transient)
+	const UScriptStruct* FilterTag = nullptr;
 };
