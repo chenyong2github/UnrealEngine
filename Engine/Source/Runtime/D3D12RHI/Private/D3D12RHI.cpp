@@ -361,21 +361,30 @@ IRHIComputeContext* FD3D12DynamicRHI::RHIGetDefaultAsyncComputeContext()
 	return DefaultAsyncComputeContext;
 }
 
-void FD3D12DynamicRHI::UpdateBuffer(FD3D12Resource* Dest, uint32 DestOffset, FD3D12Resource* Source, uint32 SourceOffset, uint32 NumBytes)
+void FD3D12DynamicRHI::UpdateBuffer(FD3D12ResourceLocation* Dest, uint32 DestOffset, FD3D12ResourceLocation* Source, uint32 SourceOffset, uint32 NumBytes)
 {
-	FD3D12Device* Device = Dest->GetParentDevice();
+	FD3D12Resource* SourceResource = Source->GetResource();
+	uint32 SourceFullOffset = Source->GetOffsetFromBaseOfResource() + SourceOffset;
+
+	FD3D12Resource* DestResource = Dest->GetResource();
+	uint32 DestFullOffset = Dest->GetOffsetFromBaseOfResource() + DestOffset;
+
+	FD3D12Device* Device = DestResource->GetParentDevice();
 
 	FD3D12CommandContext& DefaultContext = Device->GetDefaultCommandContext();
 	FD3D12CommandListHandle& hCommandList = DefaultContext.CommandListHandle;
+	
+	// Clear the resource if still bound to make sure the SRVs are rebound again on next operation (and get correct resource transitions enqueued)
+	DefaultContext.ConditionalClearShaderResource(Dest);
 
-	FScopedResourceBarrier ScopeResourceBarrierDest(hCommandList, Dest, D3D12_RESOURCE_STATE_COPY_DEST, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
+	FScopedResourceBarrier ScopeResourceBarrierDest(hCommandList, DestResource, D3D12_RESOURCE_STATE_COPY_DEST, 0, FD3D12DynamicRHI::ETransitionMode::Apply);
 	// Don't need to transition upload heaps
 
 	DefaultContext.numCopies++;
 	hCommandList.FlushResourceBarriers();
-	hCommandList->CopyBufferRegion(Dest->GetResource(), DestOffset, Source->GetResource(), SourceOffset, NumBytes);
-	hCommandList.UpdateResidency(Dest);
-	hCommandList.UpdateResidency(Source);
+	hCommandList->CopyBufferRegion(DestResource->GetResource(), DestFullOffset, SourceResource->GetResource(), SourceFullOffset, NumBytes);
+	hCommandList.UpdateResidency(DestResource);
+	hCommandList.UpdateResidency(SourceResource);
 	
 	DefaultContext.ConditionalFlushCommandList();
 
