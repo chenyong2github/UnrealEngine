@@ -65,10 +65,14 @@ public:
 	USkeletalMesh* GetTargetSkeletalMesh() const;
 
 	/** get current chain pose */
-	FTransform GetTargetBoneGlobalTransform(const int32& TargetBoneIndex) const;
-	FTransform GetTargetBoneLocalTransform(const int32& TargetBoneIndex) const;
+	FTransform GetTargetBoneGlobalTransform(const UIKRetargetProcessor* RetargetProcessor, const int32& TargetBoneIndex) const;
+	FTransform GetTargetBoneLocalTransform(const UIKRetargetProcessor* RetargetProcessor, const int32& TargetBoneIndex) const;
 	/** get the line segments to draw from this bone to each child */
-	bool GetTargetBoneLineSegments(const int32& TargetBoneIndex, FVector& OutStart, TArray<FVector>& OutChildren) const;
+	bool GetTargetBoneLineSegments(
+		const UIKRetargetProcessor* RetargetProcessor,
+		const int32& TargetBoneIndex,
+		FVector& OutStart,
+		TArray<FVector>& OutChildren) const;
 
 	/** get the retargeter that is running in the viewport (which is a duplicate of the source asset) */
 	const UIKRetargetProcessor* GetRetargetProcessor() const;

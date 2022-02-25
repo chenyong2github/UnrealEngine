@@ -106,13 +106,11 @@ USkeletalMesh* FIKRetargetEditorController::GetTargetSkeletalMesh() const
 	return AssetController->GetTargetPreviewMesh();
 }
 
-FTransform FIKRetargetEditorController::GetTargetBoneGlobalTransform(const int32& TargetBoneIndex) const
+FTransform FIKRetargetEditorController::GetTargetBoneGlobalTransform(
+	const UIKRetargetProcessor* RetargetProcessor,
+	const int32& TargetBoneIndex) const
 {
-	UIKRetargetAnimInstance* AnimInstance = TargetAnimInstance.Get();
-	check(AnimInstance);
-
-	const UIKRetargetProcessor* RetargetProcessor = AnimInstance->GetRetargetProcessor();
-	check(RetargetProcessor)
+	check(RetargetProcessor && RetargetProcessor->IsInitialized())
 
 	// get transform of bone
 	FTransform BoneTransform = RetargetProcessor->GetTargetBoneRetargetPoseGlobalTransform(TargetBoneIndex);
@@ -124,28 +122,26 @@ FTransform FIKRetargetEditorController::GetTargetBoneGlobalTransform(const int32
 	return BoneTransform;
 }
 
-FTransform FIKRetargetEditorController::GetTargetBoneLocalTransform(const int32& TargetBoneIndex) const
+FTransform FIKRetargetEditorController::GetTargetBoneLocalTransform(
+	const UIKRetargetProcessor* RetargetProcessor,
+	const int32& TargetBoneIndex) const
 {
-	UIKRetargetAnimInstance* AnimInstance = TargetAnimInstance.Get();
-	check(AnimInstance);
-
-	const UIKRetargetProcessor* RetargetProcessor = AnimInstance->GetRetargetProcessor();
-	check(RetargetProcessor)
+	check(RetargetProcessor && RetargetProcessor->IsInitialized())
 
 	return RetargetProcessor->GetTargetBoneRetargetPoseLocalTransform(TargetBoneIndex);
 }
 
 bool FIKRetargetEditorController::GetTargetBoneLineSegments(
+	const UIKRetargetProcessor* RetargetProcessor,
 	const int32& TargetBoneIndex,
 	FVector& OutStart,
 	TArray<FVector>& OutChildren) const
 {
 	// get the runtime processor
-	const UIKRetargetProcessor* Processor = GetRetargetProcessor();
-	check(Processor && Processor->IsInitialized())
+	check(RetargetProcessor && RetargetProcessor->IsInitialized())
 	
 	// get the target skeleton we want to draw
-	const FTargetSkeleton& TargetSkeleton = Processor->GetTargetSkeleton();
+	const FTargetSkeleton& TargetSkeleton = RetargetProcessor->GetTargetSkeleton();
 	check(TargetSkeleton.BoneNames.IsValidIndex(TargetBoneIndex))
 
 	// get the origin of the bone chain
