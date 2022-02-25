@@ -101,7 +101,20 @@ StrataLobeStatistic StrataGetTransmittedLobe(StrataLobeStatistic WiLobe, float3 
 	return WoLobe;
 }
 
-StrataLobeStatistic StrataHorizontalMixLobe(StrataLobeStatistic A, StrataLobeStatistic B, float Mix)
+StrataLobeStatistic StrataWeightLobe(StrataLobeStatistic A, float Weight)
+{
+	// We simple weight the lob properties so that they progressively disapear as a function of coverage.
+	// This is not entirely correct though because if matter coverage is reduced there should be two lobe: 
+	//	- this lobe with visibility = coverage
+	//	- a dirac lobe with visibility = 1 - coverage
+	StrataLobeStatistic WoLobe = A;
+	WoLobe.E *= Weight;
+	WoLobe.Mu *= Weight;
+	WoLobe.Sigma *= Weight;
+	return WoLobe;
+}
+
+StrataLobeStatistic StrataHorizontalMixLobes(StrataLobeStatistic A, StrataLobeStatistic B, float Mix)
 {
 	StrataLobeStatistic WoLobe;
 	WoLobe.E = lerp(A.E, B.E, Mix);

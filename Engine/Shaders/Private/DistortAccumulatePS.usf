@@ -96,31 +96,25 @@ void Main(
 	StrataPixelHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount;
 	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
 
-	const float3 V = MaterialParameters.CameraVector;
-	const float3 DummyL = float3(1, 0, 0);
-
-
-	// The current way rough refraction are evaluated is
-	//  1- start with the dirac view Lobe
-	//	2- refract/scatter/transmit that Lobe though all BSDF of a layer. Compute the mean of all the resulting Lobes.
-	//  3- Use that new Lobe as input (pointing away from the surface) for the next layer until done.
-	StrataLobeStatistic WiLobe = StrataGetViewDiracLobe(V);
-
-	StrataLobeStatistic AccumulatedLayerLobes = StrataGetNullLobe();
-	float AccumulatedLayerLobesWeights = 0.0f;
-
+	// Retrieve rough refraction variance
+	float Sigma = 0.0f;
 	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
 	if (StrataTree.BSDFCount > 0)
 	{
+		const float3 V = MaterialParameters.CameraVector;
+		const float3 DummyL = float3(1, 0, 0);
+
 		// Update tree (coverage/transmittance/luminace weights)
 		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, DummyL, false /*bRoughDiffuseEnabled*/);
 
-		WiLobe = StrataTree.Operators[StrataData.OperatorIndex].LobeStat;
+		StrataLobeStatistic WiLobe = StrataTree.Operators[StrataData.OperatorIndex].LobeStat;
 		//half3 LobeWorldDir = normalize(TransformWorldVectorToView(WiLobe.Mu));
+
+		Sigma = WiLobe.Sigma;
 	}
 
-	// Not write out variance (as this is more linear to accumulate than roughness)
-	OutVariance = float4(WiLobe.Sigma, 0.0f, 0.0f, 0.0f);
+	// Write out variance (as this is more linear to accumulate than roughness)
+	OutVariance = float4(Sigma, 0.0f, 0.0f, 0.0f);
 
 	// Only allow clipping if roughness is close to 0.
 	const bool TryToClip = OutVariance.x < 0.01f;

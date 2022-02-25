@@ -97,6 +97,9 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	StrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataGetViewDiracLobe(-V), EnergyTerms.E, Roughness, InterfaceEta12);
 	// Account for transmittance of the medium (but ignoring scattering for now)
 	RefractedLobe.E *= CurrentBSDFTransmittance;
+	// Account for coverate
+	RefractedLobe = StrataWeightLobe(RefractedLobe, CurrentBSDFCoverage);
+	
 
 	StrataTree.Operators[CurrentBSDF.OperatorIndex].LobeStat = RefractedLobe;
 
@@ -121,7 +124,7 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		Op.Coverage = Weight * OpA.Coverage;
 		Op.Transmittance = OpA.Transmittance;
 
-		Op.LobeStat.E *= Weight;
+		Op.LobeStat = StrataWeightLobe(OpA.LobeStat, Weight);
 		break;
 	}
 
@@ -156,8 +159,9 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		Op.VerticalTopTransmittance = OpA.Transmittance;
 
 		// Project top lob into bottom layer
-		Op.LobeStat = StrataGetRefractedLobe(OpA.LobeStat, /*InterfaceFDG*/1.0f, StrataLobeVarianceToRoughness(OpA.LobeStat.Sigma), /*InterfaceEta12*/1.0f);
-		Op.LobeStat.E *= OpB.LobeStat.E; // Combine with botton layer medium and specular transmittance
+		const float InterfaceEta12 = 1.0f; // STRATA_TODO We assume layers all have the same IOR. But we should take into account the material later.
+		Op.LobeStat = StrataGetRefractedLobe(OpA.LobeStat, /*InterfaceFDG*/0.0f, StrataLobeVarianceToRoughness(OpB.LobeStat.Sigma), InterfaceEta12);
+		Op.LobeStat.E *= OpB.LobeStat.E * saturate(Op.VerticalTopTransmittance + (1.0f - Op.VerticalTopCoverage)); // Combine with botton layer medium and specular transmittance
 		break;
 	}
 
@@ -170,7 +174,7 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		Op.Coverage = AMix * OpA.Coverage + BMix * OpB.Coverage;
 		Op.Transmittance = (AMix * OpA.Coverage * OpA.Transmittance + BMix * OpB.Coverage * OpB.Transmittance) / max(STRATA_EPSILON, AMix * OpA.Coverage + BMix * OpB.Coverage);
 
-		Op.LobeStat = StrataHorizontalMixLobe(OpA.LobeStat, OpB.LobeStat, BMix);
+		Op.LobeStat = StrataHorizontalMixLobes(OpA.LobeStat, OpB.LobeStat, BMix);
 		break;
 	}
 
@@ -183,7 +187,7 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		Op.Coverage = saturate(OpA.Coverage + OpB.Coverage);
 		Op.Transmittance = lerp(OpB.Transmittance, OpA.Transmittance, AMixFactor);
 
-		Op.LobeStat = StrataHorizontalMixLobe(OpA.LobeStat, OpB.LobeStat, 0.5f);
+		Op.LobeStat = StrataHorizontalMixLobes(OpA.LobeStat, OpB.LobeStat, 0.5f);
 		break;
 	}
 
