@@ -1146,7 +1146,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 			PassParameters->GlobalDistanceFieldParameters = SetupGlobalDistanceFieldParameters(View.GlobalDistanceFieldInfo.ParameterData);
 
 			FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
-			FRDGTexture* LightScatteringHistoryRDGTexture = BlackDummyTexture;
+			FRDGTexture* LightScatteringHistoryRDGTexture = VolumetricBlackDummyTexture;
 			if (bUseTemporalReprojection && View.ViewState->LightScatteringHistory.IsValid())
 			{
 				LightScatteringHistoryRDGTexture = GraphBuilder.RegisterExternalTexture(View.ViewState->LightScatteringHistory);
