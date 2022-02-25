@@ -19,7 +19,7 @@
 	[
 		{
 			"Name": "AnimationModifierLibrary",
-			"Type": "Editor",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		}
 	]

@@ -23,7 +23,7 @@
 		},
 		{
 			"Name": "AnimationLocomotionLibraryEditor",
-			"Type": "Editor",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		}
 	]
