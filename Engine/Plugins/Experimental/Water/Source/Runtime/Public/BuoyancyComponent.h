@@ -97,7 +97,7 @@ public:
 	void GetLastWaterSurfaceInfo(FVector& OutWaterPlaneLocation, FVector& OutWaterPlaneNormal,
 	FVector& OutWaterSurfacePosition, float& OutWaterDepth, int32& OutWaterBodyIdx, FVector& OutWaterVelocity);
 
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
+	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = Buoyancy)
 	FBuoyancyData BuoyancyData;
 
 protected:

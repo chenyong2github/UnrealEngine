@@ -20,7 +20,7 @@ struct FSphericalPontoon
 {
 	GENERATED_BODY()
 
-	/** The socket to center this pontoon on */
+	/** The socket to center this pontoon on. Also used as the name of the pontoon for effects */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Buoyancy)
 	FName CenterSocket;
 
@@ -31,6 +31,10 @@ struct FSphericalPontoon
 	/** The radius of the pontoon */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Buoyancy)
 	float Radius;
+
+	/** Should this pontoon be considered as a candidate location for visual/audio effects upon entering water for burst cues? To be implemented by user*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Buoyancy)
+	bool bFXEnabled = true;
 
 	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
 	FVector LocalForce;
@@ -70,6 +74,9 @@ struct FSphericalPontoon
 	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
 	int32 WaterBodyIndex;
 
+	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
+	bool bIsInWater;
+	
 	FTransform SocketTransform;
 
 	TMap<const UWaterBodyComponent*, float> SplineInputKeys;
@@ -78,7 +85,6 @@ struct FSphericalPontoon
 	TMap<const FSolverSafeWaterBodyData*, float> SolverSplineInputKeys;
 	TMap<const FSolverSafeWaterBodyData*, float> SolverSplineSegments;
 
-	uint8 bIsInWater : 1;
 	uint8 bEnabled : 1;
 	uint8 bUseCenterSocket : 1;
 
@@ -103,8 +109,8 @@ struct FSphericalPontoon
 		, WaterSurfacePosition(FVector::ZeroVector)
 		, WaterVelocity(FVector::ZeroVector)
 		, WaterBodyIndex(0)
-		, SocketTransform(FTransform::Identity)
 		, bIsInWater(false)
+		, SocketTransform(FTransform::Identity)
 		, bEnabled(true)
 		, bUseCenterSocket(false)
 		, CurrentWaterBodyComponent(nullptr)
@@ -159,14 +165,12 @@ struct FSphericalPontoon
 		Ar << WaterSurfacePosition;
 		Ar << WaterVelocity;
 		Ar << WaterBodyIndex;
+		Ar << bIsInWater;
 		Ar << SocketTransform;
-		uint8 IsInWater = bIsInWater;
 		uint8 Enabled = bEnabled;
 		uint8 UseCenterSocket = bUseCenterSocket;
-		Ar << IsInWater;
 		Ar << Enabled;
 		Ar << UseCenterSocket;
-		bIsInWater = IsInWater;
 		bEnabled = Enabled;
 		bUseCenterSocket = UseCenterSocket;
 	}

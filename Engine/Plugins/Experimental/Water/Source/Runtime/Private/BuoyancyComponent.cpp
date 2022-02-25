@@ -71,7 +71,7 @@ void UBuoyancyComponent::BeginPlay()
 	{
 		for (FSphericalPontoon& Pontoon : BuoyancyData.Pontoons)
 		{
-			if (Pontoon.CenterSocket != NAME_None)
+			if (Pontoon.CenterSocket != NAME_None && SimulatingComponent->DoesSocketExist(Pontoon.CenterSocket))
 			{
 				Pontoon.bUseCenterSocket = true;
 				Pontoon.SocketTransform = SimulatingComponent->GetSocketTransform(Pontoon.CenterSocket, RTS_Actor);
