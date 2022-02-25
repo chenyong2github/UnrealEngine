@@ -77,7 +77,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 				if (RadiosityTexel.bHeightfield)
 				{
 					float3 TranslatedWorldCameraOrigin = PrimaryView.TranslatedWorldCameraOrigin;
-					CalculateDistanceBasedHeightfieldBias(HeightfieldSurfaceBias, WorldPosition, WorldCameraOrigin);
+					CalculateDistanceBasedHeightfieldBias(HeightfieldSurfaceBias, TranslatedWorldPosition, TranslatedWorldCameraOrigin);
 				}
 				else
 				{
