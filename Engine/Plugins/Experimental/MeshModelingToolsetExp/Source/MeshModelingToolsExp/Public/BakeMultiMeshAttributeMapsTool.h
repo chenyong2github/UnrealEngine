@@ -196,7 +196,7 @@ protected:
 protected:
 	friend class FMultiMeshMapBakerOp;
 
-	UE::Geometry::FMeshSceneAdapter DetailMeshScene;
+	TSharedPtr<UE::Geometry::FMeshSceneAdapter, ESPMode::ThreadSafe> DetailMeshScene;
 
 	void UpdateOnModeChange();
 
