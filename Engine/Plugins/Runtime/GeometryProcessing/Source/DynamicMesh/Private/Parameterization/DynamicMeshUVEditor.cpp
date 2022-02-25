@@ -586,7 +586,7 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromFreeBoundaryConformal(const TArray<
 			if (DistSqr > MaxDistSqr)
 			{
 				MaxDistSqr = DistSqr;
-				MaxDistPair = FIndex2i(i, j);
+				MaxDistPair = FIndex2i(ConstrainLoop[i], ConstrainLoop[j]);
 			}
 		}
 	}
