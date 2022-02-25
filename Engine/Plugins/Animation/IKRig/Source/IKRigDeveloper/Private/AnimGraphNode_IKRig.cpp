@@ -464,7 +464,7 @@ void UAnimGraphNode_IKRig::SetPinDefaultValue(UEdGraphPin* InPin, const FName& I
 
 		// fallback to default behaviour 
 		FString DefaultValue;
-		InProperty->ExportTextItem(DefaultValue, Memory, nullptr, nullptr, PPF_None);
+		InProperty->ExportTextItem_Direct(DefaultValue, Memory, nullptr, nullptr, PPF_None);
 		return DefaultValue;
 	};
 	

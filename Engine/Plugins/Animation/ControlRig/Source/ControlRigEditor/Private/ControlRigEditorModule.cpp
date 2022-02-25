@@ -278,7 +278,7 @@ void FControlRigEditorModule::StartupModule()
 					}
 
 					TArray<FRigVMReferenceNodeData> ReferenceNodeDatas;
-					ReferenceNodeDataProperty->ImportText(*ReferenceNodeDataString, &ReferenceNodeDatas, EPropertyPortFlags::PPF_None, nullptr);
+					ReferenceNodeDataProperty->ImportText_Direct(*ReferenceNodeDataString, &ReferenceNodeDatas, nullptr, EPropertyPortFlags::PPF_None);
 
 					for(const FRigVMReferenceNodeData& ReferenceNodeData : ReferenceNodeDatas)
 					{
