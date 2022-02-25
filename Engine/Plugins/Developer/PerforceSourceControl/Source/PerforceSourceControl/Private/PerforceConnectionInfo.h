@@ -27,4 +27,7 @@ struct FPerforceConnectionInfo
 
 	/** Changelist number */
 	FString ChangelistNumber;
+
+	/** Use P4USER, P4PORT and P4CLIENT from P4 environment if set*/
+	bool bUseP4Config = false;
 };

@@ -4,9 +4,9 @@
 #include "PerforceSourceControlPrivate.h"
 #include "Widgets/Views/STableRow.h"
 #include "Modules/ModuleManager.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboBox.h"
 #include "EditorStyleSet.h"
 #include "ISourceControlModule.h"
@@ -57,6 +57,15 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 		.Padding(FMargin(0.0f, 0.0f, 16.0f, 0.0f))
 		[
 			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("UseP4ConfigLabel", "Use P4 Config"))
+				.ToolTipText( LOCTEXT("UseP4Config_Tooltip", "Read the P4USER, P4PORT, P4CLIENT from Perforce environment variables and P4CONFIG file rather than the UE project settings files") )
+			]
 			+SVerticalBox::Slot()
 			.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
 			.VAlign(VAlign_Center)
@@ -122,11 +131,20 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 			.VAlign(VAlign_Center)
 			.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
 			[
+				SNew(SCheckBox)
+				.IsChecked(this, &SPerforceSourceControlSettings::IsP4ConfigChecked)
+				.OnCheckStateChanged(this, &SPerforceSourceControlSettings::OnP4ConfigCheckStatusChanged)
+			]
+			+SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
+			[
 				SNew(SEditableTextBox)
 				.Text(this, &SPerforceSourceControlSettings::GetPortText)
 				.ToolTipText( LOCTEXT("PortLabel_Tooltip", "The server and port for your Perforce server. Usage ServerName:1234.") )
-				.OnTextCommitted(this, &SPerforceSourceControlSettings::OnPortTextCommited)
-				.OnTextChanged(this, &SPerforceSourceControlSettings::OnPortTextCommited, ETextCommit::Default)
+				.OnTextCommitted(this, &SPerforceSourceControlSettings::OnPortTextCommitted)
+				.OnTextChanged(this, &SPerforceSourceControlSettings::OnPortTextCommitted, ETextCommit::Default)
+				.IsEnabled(this, &SPerforceSourceControlSettings::IsP4ConfigDisabled)
 			]
 			+SVerticalBox::Slot()
 			.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
@@ -135,8 +153,9 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 				SNew(SEditableTextBox)
 				.Text(this, &SPerforceSourceControlSettings::GetUserNameText)
 				.ToolTipText( LOCTEXT("UserNameLabel_Tooltip", "Perforce username.") )
-				.OnTextCommitted(this, &SPerforceSourceControlSettings::OnUserNameTextCommited)
-				.OnTextChanged(this, &SPerforceSourceControlSettings::OnUserNameTextCommited, ETextCommit::Default)
+				.OnTextCommitted(this, &SPerforceSourceControlSettings::OnUserNameTextCommitted)
+				.OnTextChanged(this, &SPerforceSourceControlSettings::OnUserNameTextCommitted, ETextCommit::Default)
+				.IsEnabled(this, &SPerforceSourceControlSettings::IsP4ConfigDisabled)
 			]
 			+SVerticalBox::Slot()
 			.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
@@ -145,8 +164,9 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 				SNew(SEditableTextBox)
 				.Text(this, &SPerforceSourceControlSettings::GetWorkspaceText)
 				.ToolTipText( LOCTEXT("WorkspaceLabel_Tooltip", "Perforce workspace.") )
-				.OnTextCommitted(this, &SPerforceSourceControlSettings::OnWorkspaceTextCommited)
-				.OnTextChanged(this, &SPerforceSourceControlSettings::OnWorkspaceTextCommited, ETextCommit::Default)
+				.OnTextCommitted(this, &SPerforceSourceControlSettings::OnWorkspaceTextCommitted)
+				.OnTextChanged(this, &SPerforceSourceControlSettings::OnWorkspaceTextCommitted, ETextCommit::Default)
+				.IsEnabled(this, &SPerforceSourceControlSettings::IsP4ConfigDisabled)
 			]
 			+SVerticalBox::Slot()
 			.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
@@ -156,6 +176,7 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 				.OnGetMenuContent(this, &SPerforceSourceControlSettings::OnGetMenuContent)
 				.ContentPadding(1)
 				.ToolTipText( LOCTEXT("AutoWorkspaces_Tooltip", "Choose from a list of available workspaces. Requires a server and username before use.") )
+				.IsEnabled(this, &SPerforceSourceControlSettings::IsP4ConfigDisabled)
 				.ButtonContent()
 				[
 					SNew( STextBlock )
@@ -170,8 +191,8 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 				.Visibility(bAllowP4NonTicketBasedLogins ? EVisibility::Visible : EVisibility::Collapsed)
 				.Text(this, &SPerforceSourceControlSettings::GetHostText)
 				.ToolTipText(LOCTEXT("HostLabel_Tooltip", "If you wish to impersonate a particular host, enter this here. This is not normally needed."))
-				.OnTextCommitted(this, &SPerforceSourceControlSettings::OnHostTextCommited)
-				.OnTextChanged(this, &SPerforceSourceControlSettings::OnHostTextCommited, ETextCommit::Default)
+				.OnTextCommitted(this, &SPerforceSourceControlSettings::OnHostTextCommitted)
+				.OnTextChanged(this, &SPerforceSourceControlSettings::OnHostTextCommitted, ETextCommit::Default)
 			]
 			+ SVerticalBox::Slot()
 			.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
@@ -209,13 +230,32 @@ void SPerforceSourceControlSettings::Tick( const FGeometry& AllottedGeometry, co
 	return SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime );
 }
 
+ECheckBoxState SPerforceSourceControlSettings::IsP4ConfigChecked() const
+{
+	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
+	return PerforceSourceControl.AccessSettings().GetUseP4Config() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SPerforceSourceControlSettings::OnP4ConfigCheckStatusChanged(ECheckBoxState NewState) const
+{
+	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
+	PerforceSourceControl.AccessSettings().SetUseP4Config(NewState == ECheckBoxState::Checked);
+	PerforceSourceControl.SaveSettings();
+}
+
+bool SPerforceSourceControlSettings::IsP4ConfigDisabled() const
+{
+	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
+	return !PerforceSourceControl.AccessSettings().GetUseP4Config();
+}
+
 FText SPerforceSourceControlSettings::GetPortText() const
 {
 	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
 	return FText::FromString(PerforceSourceControl.AccessSettings().GetPort());
 }
 
-void SPerforceSourceControlSettings::OnPortTextCommited(const FText& InText, ETextCommit::Type InCommitType) const
+void SPerforceSourceControlSettings::OnPortTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const
 {
 	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
 	PerforceSourceControl.AccessSettings().SetPort(InText.ToString());
@@ -228,7 +268,7 @@ FText SPerforceSourceControlSettings::GetUserNameText() const
 	return FText::FromString(PerforceSourceControl.AccessSettings().GetUserName());
 }
 
-void SPerforceSourceControlSettings::OnUserNameTextCommited(const FText& InText, ETextCommit::Type InCommitType) const
+void SPerforceSourceControlSettings::OnUserNameTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const
 {
 	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
 	PerforceSourceControl.AccessSettings().SetUserName(InText.ToString());
@@ -241,7 +281,7 @@ FText SPerforceSourceControlSettings::GetWorkspaceText() const
 	return FText::FromString(PerforceSourceControl.AccessSettings().GetWorkspace());
 }
 
-void SPerforceSourceControlSettings::OnWorkspaceTextCommited(const FText& InText, ETextCommit::Type InCommitType) const
+void SPerforceSourceControlSettings::OnWorkspaceTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const
 {
 	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
 	PerforceSourceControl.AccessSettings().SetWorkspace(InText.ToString());
@@ -254,7 +294,7 @@ FText SPerforceSourceControlSettings::GetHostText() const
 	return FText::FromString(PerforceSourceControl.AccessSettings().GetHostOverride());
 }
 
-void SPerforceSourceControlSettings::OnHostTextCommited(const FText& InText, ETextCommit::Type InCommitType) const
+void SPerforceSourceControlSettings::OnHostTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const
 {
 	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
 	PerforceSourceControl.AccessSettings().SetHostOverride(InText.ToString());
@@ -269,7 +309,7 @@ void SPerforceSourceControlSettings::QueryWorkspaces()
 		CurrentWorkspace = FString();
 
 		// fire off the workspace query
-		ISourceControlModule& SourceControl = FModuleManager::LoadModuleChecked<ISourceControlModule>( "SourceControl" );
+		const ISourceControlModule& SourceControl = FModuleManager::LoadModuleChecked<ISourceControlModule>( "SourceControl" );
 		ISourceControlProvider& Provider = SourceControl.GetProvider();
 		GetWorkspacesOperation = ISourceControlOperation::Create<FGetWorkspaces>();
 		Provider.Execute(GetWorkspacesOperation.ToSharedRef(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SPerforceSourceControlSettings::OnSourceControlOperationComplete) );
@@ -373,7 +413,7 @@ EVisibility SPerforceSourceControlSettings::GetWorkspaceListVisibility() const
 	return State == ESourceControlOperationState::Queried && Workspaces.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-TSharedRef<ITableRow> SPerforceSourceControlSettings::OnGenerateWorkspaceRow(TSharedRef<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SPerforceSourceControlSettings::OnGenerateWorkspaceRow(TSharedRef<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable) const
 {
 	return
 		SNew(SComboRow< TSharedRef<FString> >, OwnerTable)
@@ -404,11 +444,11 @@ FText SPerforceSourceControlSettings::OnGetButtonText() const
 	return FText::FromString(CurrentWorkspace);
 }
 
-FReply SPerforceSourceControlSettings::OnCancelWorkspacesRequest()
+FReply SPerforceSourceControlSettings::OnCancelWorkspacesRequest() const
 {
 	if(GetWorkspacesOperation.IsValid())
 	{
-		ISourceControlModule& SourceControl = FModuleManager::LoadModuleChecked<ISourceControlModule>( "SourceControl" );
+		const ISourceControlModule& SourceControl = FModuleManager::LoadModuleChecked<ISourceControlModule>( "SourceControl" );
 		SourceControl.GetProvider().CancelOperation(GetWorkspacesOperation.ToSharedRef());
 	}
 	return FReply::Handled();

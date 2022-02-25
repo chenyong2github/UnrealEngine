@@ -65,29 +65,38 @@ private:
 	/** Fire off a source control operation to see what workspaces we have */
 	void QueryWorkspaces();
 
+	/** Delegate to check if we should use P4 Config from settings */
+	ECheckBoxState IsP4ConfigChecked() const;
+
+	/** Delegate to enable or disable P4 Config */
+	void OnP4ConfigCheckStatusChanged(ECheckBoxState NewState) const;
+
+	/** Delegate to enable Port, Username and input when P4 Config is not used */
+	bool IsP4ConfigDisabled() const;
+
 	/** Delegate to get port text from settings */
 	FText GetPortText() const;
 
 	/** Delegate to commit port text to settings */
-	void OnPortTextCommited(const FText& InText, ETextCommit::Type InCommitType) const;
+	void OnPortTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 
 	/** Delegate to get user name text from settings */
 	FText GetUserNameText() const;
 
 	/** Delegate to commit user name text to settings */
-	void OnUserNameTextCommited(const FText& InText, ETextCommit::Type InCommitType) const;
+	void OnUserNameTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 
 	/** Delegate to get workspace text from settings */
 	FText GetWorkspaceText() const;
 
 	/** Delegate to commit workspace text to settings */
-	void OnWorkspaceTextCommited(const FText& InText, ETextCommit::Type InCommitType) const;
+	void OnWorkspaceTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 
 	/** Delegate to get host text from settings */
 	FText GetHostText() const;
 
 	/** Delegate to commit host text to settings */
-	void OnHostTextCommited(const FText& InText, ETextCommit::Type InCommitType) const;
+	void OnHostTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 
 	/** Delegate called when a source control operation has completed */
 	void OnSourceControlOperationComplete(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult);
@@ -105,7 +114,7 @@ private:
 	EVisibility GetWorkspaceListVisibility() const;
 
 	/** Delegate to generate a row in the workspace list */
-	TSharedRef<class ITableRow> OnGenerateWorkspaceRow(TSharedRef<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<class ITableRow> OnGenerateWorkspaceRow(TSharedRef<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable) const;
 
 	/** Delegate for when a workspace item is clicked */
 	void OnWorkspaceSelected(TSharedPtr<FString> InItem, ESelectInfo::Type InSelectInfo);
@@ -114,7 +123,7 @@ private:
 	FText OnGetButtonText() const;
 
 	/** Delegate that cancels the workspace request in progress */
-	FReply OnCancelWorkspacesRequest();
+	FReply OnCancelWorkspacesRequest() const;
 
 	/** Get the image to display on the advanced pulldown */
 	const FSlateBrush* GetAdvancedPulldownImage() const;

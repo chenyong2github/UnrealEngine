@@ -37,6 +37,11 @@ public:
 
 	void SetChangelistNumber(const FString& InString);
 
+	/* Import the P4USER, P4PORT, P4CLIENT from the P4 environment if set. */
+	bool GetUseP4Config() const;
+
+	void SetUseP4Config(bool bInUseP4Config);
+
 	/** Load settings from ini file */
 	void LoadSettings();
 
@@ -47,6 +52,9 @@ public:
 	FPerforceConnectionInfo GetConnectionInfo() const;
 
 private:
+
+	void ImportP4Config();
+	
 	/** A critical section for settings access */
 	mutable FCriticalSection CriticalSection;
 
