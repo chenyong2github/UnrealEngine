@@ -3665,9 +3665,7 @@ void FLightmapRenderer::RenderIrradianceCacheVisualization(FPostOpaqueRenderPara
 	FRDGBuilder& GraphBuilder = *Parameters.GraphBuilder;
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FVisualizeIrradianceCachePS::FParameters>();
-	TUniformBufferRef<FViewUniformShaderParameters> Ref;
-	*Ref.GetInitReference() = Parameters.ViewUniformBuffer;
-	PassParameters->View = Ref;
+	PassParameters->View = Parameters.View->ViewUniformBuffer;
 	PassParameters->SceneTextures = Parameters.SceneTexturesUniformParams;
 	PassParameters->IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(Parameters.ColorTexture, ERenderTargetLoadAction::ELoad);

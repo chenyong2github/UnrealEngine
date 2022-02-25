@@ -34,6 +34,7 @@ class FShader;
 class FShaderMapPointerTable;
 class FRDGBuilder;
 class FMaterialRenderProxy;
+class FViewInfo;
 template<typename ShaderType, typename PointerTableType> class TShaderRefBase;
 
 namespace Nanite
@@ -625,6 +626,7 @@ public:
 	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTexturesUniformParams = nullptr;
 	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParams = nullptr;
 	void* Uid = nullptr; // A unique identifier for the view.
+	const FViewInfo* View = nullptr; 
 };
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostOpaqueRender, class FPostOpaqueRenderParameters&);
 typedef FOnPostOpaqueRender::FDelegate FPostOpaqueRenderDelegate;
