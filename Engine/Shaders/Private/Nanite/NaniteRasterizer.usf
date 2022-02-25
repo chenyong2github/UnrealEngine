@@ -1241,6 +1241,7 @@ void HWRasterizePS(VSOut In)
 
 #if CLUSTER_PER_PAGE
 	PixelPos += In.ViewRect.xy;
+	In.Position.xy += In.ViewRect.xy;
 	if (all(PixelPos < In.ViewRect.zw))
 #elif NANITE_MULTI_VIEW
 	// In multi-view mode every view has its own scissor, so we have to scissor manually.
