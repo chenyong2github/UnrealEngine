@@ -1091,7 +1091,8 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 			.SetGlassImage(IMAGE_BRUSH_SVG("Starship/Common/search", Icon16x16))
 			.SetClearImage(IMAGE_BRUSH_SVG("Starship/Common/close", Icon16x16))
 			.SetImagePadding(FMargin(3.f, 0.f, 0.f, 0.f))
-			.SetLeftAlignButtons(true)
+			.SetLeftAlignSearchResultButtons(true)
+			.SetLeftAlignGlassImageAndClearButton(true)
 		);
 	}
 

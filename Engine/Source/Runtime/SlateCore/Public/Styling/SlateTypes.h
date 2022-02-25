@@ -1207,9 +1207,19 @@ struct SLATECORE_API FSearchBoxStyle : public FSlateWidgetStyle
 	FSearchBoxStyle& SetImagePadding(const FMargin& InImagePadding){ ImagePadding = InImagePadding; return *this; }
 
 	/** If true, buttons appear to the left of the search text */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage="Use LeftAlignSearchResultButtons and LeftAlignGlassImageAndClearButton instead"))
+	bool bLeftAlignButtons_DEPRECATED;
+	FSearchBoxStyle& SetLeftAlignButtons(bool bInLeftAlignButtons);
+
+	/** If true, search result buttons appear to the left of the search text */
 	UPROPERTY(EditAnywhere, Category = Appearance)
-	bool bLeftAlignButtons;
-	FSearchBoxStyle& SetLeftAlignButtons(bool bInLeftAlignButtons){ bLeftAlignButtons = bInLeftAlignButtons; return *this; }
+	bool bLeftAlignSearchResultButtons;
+	FSearchBoxStyle& SetLeftAlignSearchResultButtons(bool bInLeftAlignSearchResultButtons){ bLeftAlignSearchResultButtons = bInLeftAlignSearchResultButtons; return *this; }
+	
+	/** If true, glass image and clear button appear to the left of the search text */
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	bool bLeftAlignGlassImageAndClearButton;
+	FSearchBoxStyle& SetLeftAlignGlassImageAndClearButton(bool bInLeftAlignGlassImageAndClearButton){ bLeftAlignGlassImageAndClearButton = bInLeftAlignGlassImageAndClearButton; return *this; }
 };
 
 

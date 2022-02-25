@@ -377,7 +377,9 @@ const FExpandableAreaStyle& FExpandableAreaStyle::GetDefault()
 
 
 FSearchBoxStyle::FSearchBoxStyle()
-	: bLeftAlignButtons(false)
+	: bLeftAlignButtons_DEPRECATED(false)
+	, bLeftAlignSearchResultButtons(false)
+	, bLeftAlignGlassImageAndClearButton(false)
 {
 }
 
@@ -406,6 +408,16 @@ const FSearchBoxStyle& FSearchBoxStyle::GetDefault()
 {
 	static FSearchBoxStyle Default;
 	return Default;
+}
+
+FSearchBoxStyle& FSearchBoxStyle::SetLeftAlignButtons(bool bInLeftAlignButtons)
+{
+	bLeftAlignButtons_DEPRECATED = bInLeftAlignButtons;
+	
+	bLeftAlignSearchResultButtons = bInLeftAlignButtons;
+	bLeftAlignGlassImageAndClearButton= bInLeftAlignButtons;
+
+	return *this;
 }
 
 FSliderStyle::FSliderStyle()
