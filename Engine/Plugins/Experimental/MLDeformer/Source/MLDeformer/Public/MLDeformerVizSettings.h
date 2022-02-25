@@ -95,7 +95,7 @@ public:
 	TObjectPtr<UGeometryCache> GroundTruth = nullptr;
 
 	/** The scale factor of the ML deformer deltas being applied on top of the linear skinned results. */
-	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0.0", ClampMax = "5.0"))
+	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float VertexDeltaMultiplier = 1.0f;
 
 	/** The play speed factor of the test anim sequence. */
