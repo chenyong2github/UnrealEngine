@@ -7,19 +7,20 @@ import typing
 from datetime import datetime
 from zipfile import ZipFile
 
-from PySide2 import QtWidgets
+from PySide2 import QtCore, QtGui, QtWidgets
 
 from switchboard.config import Config
 from switchboard.devices.device_base import DeviceStatus
 from switchboard.devices.unreal.plugin_unreal import DeviceUnreal
-from ..switchboard_logging import DEFAULT_LOG_PATH, LOGGER
-
-from ..switchboard_utils import explore_path
+from ..switchboard_logging import LOGGER
 
 
 def open_logs_folder():
-    explore_path(DeviceUnreal.get_log_download_dir())
-    
+    path = DeviceUnreal.get_log_download_dir()
+    if path and path.is_dir():
+        url = QtCore.QUrl.fromLocalFile(str(path))
+        QtGui.QDesktopServices.openUrl(url)
+
 
 def execute_zip_logs_workflow(config: Config, devices: typing.List[DeviceUnreal]):
     """ Zip up all important log files asking the user about preferences in certain edge cases. """
@@ -40,7 +41,7 @@ def execute_zip_logs_workflow(config: Config, devices: typing.List[DeviceUnreal]
 
             return True if continue_answer == QtWidgets.QMessageBox.No else False
         return False
-    
+
     def ask_log_zip_name():
         modtime = datetime.now()
         default_name = f"Logs-{modtime.strftime('%Y.%m.%d-%H.%M.%S')}"
@@ -59,7 +60,7 @@ def execute_zip_logs_workflow(config: Config, devices: typing.List[DeviceUnreal]
         if not file_path.endswith(".zip"):
             file_path += ".zip"
         return file_path
-    
+
     if should_skip_because_running_devices():
         return
 
@@ -80,7 +81,7 @@ def zip_logs(zip_destination: str, config: Config, devices: typing.List[DeviceUn
             return
         else:
             zip_file.write(abs_file_path, zip_path_name)
-        
+
     def copy_db_file(abs_file_path: str, zip_path_name: str, zip_file: ZipFile):
         copy_path = os.path.join(os.path.dirname(zip_destination), os.path.basename(zip_path_name))
         try:
@@ -94,7 +95,7 @@ def zip_logs(zip_destination: str, config: Config, devices: typing.List[DeviceUn
             LOGGER.error(f"Failed to access database file {abs_file_path}")
         except (OSError, IOError): 
             LOGGER.error(f"Failed to create temporary file {copy_path} while backing up original {abs_file_path}")
-    
+
     files_to_remove = []
     with ZipFile(zip_destination, "w") as zip_file:
         iterate_log_files(
@@ -102,19 +103,19 @@ def zip_logs(zip_destination: str, config: Config, devices: typing.List[DeviceUn
             devices,
             lambda abs_file_path, zip_path_name, zip_file=zip_file: process_log_file(abs_file_path, zip_path_name, zip_file)
         )
-        
+
     for file_to_remove in files_to_remove:
         os.remove(file_to_remove)
-        
-        
+
+
 def iterate_log_files(config: Config, devices: typing.List[DeviceUnreal], consumer: typing.Callable[[str, str], None]):
-    """ 
+    """
         Passes the abolute files paths of all important log files:
         - all latest .log files in Switchboard log folder
         - all latest .utrace files in Switchboard log folder
         - all multiuser session files in Programs/UnrealMultiUserServerIntermediateMultiUser
         - multiuser log file ProgramsUnrealMultiUserServerSavedLogsUnrealMultiUserServer.log
-        
+
         The arguments of the consumer:
             1 The absolute file path of the file
             2 A short unique relative file path (includes file name), useful for zipping
@@ -123,7 +124,7 @@ def iterate_log_files(config: Config, devices: typing.List[DeviceUnreal], consum
         for file_path in files:
             if os.path.isfile(file_path):
                 consumer(file_path, os.path.join("Devices", os.path.basename(file_path))) 
-                
+
     def iterate_mu_session_files():
         for current_dir, _, files in os.walk(config.multiuser_server_session_directory_path()):
             for file in files:
@@ -140,5 +141,5 @@ def iterate_log_files(config: Config, devices: typing.List[DeviceUnreal], consum
 
     iterate_mu_session_files()
     consumer(config.multiuser_server_log_path(), os.path.join("MultiUserServer", "UnrealMultiUserServer.log"))
-    
+
     consumer(LOGGER.save_log_file(), "Switchboard.log")

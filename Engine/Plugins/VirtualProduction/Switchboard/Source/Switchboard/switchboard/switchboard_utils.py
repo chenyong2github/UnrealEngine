@@ -1,20 +1,13 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-import typing
+import datetime
+from enum import Enum
+import os
+import pathlib
+import subprocess
+import sys
+import threading
 
 from .switchboard_logging import LOGGER
-
-from enum import Enum
-
-from os import listdir
-from os.path import isfile, join
-from zipfile import ZipFile
-
-import datetime
-import subprocess
-import os
-import threading
-import sys
-import pathlib
 
 
 class PriorityModifier(Enum):
@@ -162,6 +155,7 @@ def remove_prefix(str, prefix):
         return str[len(prefix):]
     return str
 
+
 def expand_endpoint(
         endpoint: str, default_addr: str = '0.0.0.0',
         default_port: int = 0) -> str:
@@ -178,37 +172,3 @@ def expand_endpoint(
         port_str = str(default_port)
 
     return f'{addr_str}:{port_str}'
-
-def explore_path(path:str):
-    ''' Opens the os file browser at the specified folder path '''
-
-    if sys.platform.startswith('win'):
-        subprocess.Popen(f'explorer {path}')
-    elif sys.platform.startswith('linux'):
-        subprocess.Popen(f'xdg-open {path}')
-    elif sys.platform.startswith('darwin'):
-        subprocess.Popen(f'open {path}')
-    else:
-        LOGGER.error(f"explore_path not supported in platform '{sys.platform}'")
-        
-
-def copy2clipboard(text:str):
-    if sys.platform.startswith('win'):
-        subprocess.Popen(f'echo[{text.strip()}|clip', shell=True)
-    else:
-        LOGGER.error(f"copy2clipboard not supported in platform '{sys.platform}'")
-
-def openfile_with_default_app(path:str):
-
-    if not pathlib.Path(path).is_file():
-        LOGGER.error(f"openfile_with_default_app could not find '{path}'")
-        return
-
-    if sys.platform.startswith('win'):
-        os.startfile(path)
-    elif sys.platform.startswith('linux'):
-        subprocess.Popen(f'xdg-open {path}')
-    elif sys.platform.startswith('darwin'):
-        subprocess.Popen(f'open {path}')
-    else:
-        LOGGER.error(f"openfile_with_default_app not supported in platform '{sys.platform}'")

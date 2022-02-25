@@ -17,6 +17,7 @@ from typing import Callable, List, Optional, Set
 import uuid
 
 from PySide2 import QtCore
+from PySide2 import QtGui
 from PySide2 import QtWidgets
 
 from switchboard import config_osc as osc
@@ -24,7 +25,7 @@ from switchboard import message_protocol
 from switchboard import switchboard_application
 from switchboard import switchboard_utils as sb_utils
 from switchboard.config import CONFIG, BoolSetting, DirectoryPathSetting, \
-    IntSetting, MultiOptionSetting, OptionSetting, StringSetting, FileSystemPathSetting, \
+    FilePathSetting, IntSetting, MultiOptionSetting, OptionSetting, StringSetting, \
     SETTINGS, DEFAULT_MAP_TEXT, StringListSetting, migrate_comma_separated_string_to_list
 from switchboard.devices.device_base import Device, DeviceStatus, \
     PluginHeaderWidgets
@@ -505,24 +506,24 @@ class DeviceUnreal(Device):
         self.last_launch_command = StringSetting(
             attr_name="last_launch_command",
             nice_name="Last Launch Command",
-            value=kwargs.get("last_launch_command",''),
+            value=kwargs.get("last_launch_command", ''),
             show_ui=False
         )
 
-        self.last_log_path = FileSystemPathSetting(
+        self.last_log_path = FilePathSetting(
             attr_name="last_log_path",
             nice_name="Last Log Path",
-            value=kwargs.get("last_log_path",''),
+            value=kwargs.get("last_log_path", ''),
             show_ui=False
         )
 
-        self.last_trace_path = FileSystemPathSetting(
+        self.last_trace_path = FilePathSetting(
             attr_name="last_trace_path",
             nice_name="Last Insights Trace Path",
-            value=kwargs.get("last_trace_path",''),
+            value=kwargs.get("last_trace_path", ''),
             show_ui=False
         )
-        
+
         self.exclude_from_build = BoolSetting(
             attr_name="exclude_from_build",
             nice_name="Exclude from build",
@@ -2125,7 +2126,10 @@ class DeviceUnreal(Device):
 
     def on_open_last_log(self):
         ''' Opens the last log in your preferred editor '''
-        sb_utils.openfile_with_default_app(self.last_log_path.get_value())
+        path_str = self.last_log_path.get_value()
+        if path_str and pathlib.Path(path_str).is_file():
+            url = QtCore.QUrl.fromLocalFile(path_str)
+            QtGui.QDesktopServices.openUrl(url)
 
     def on_open_last_trace(self):
         ''' Opens the last unreal insights trace '''
@@ -2141,7 +2145,8 @@ class DeviceUnreal(Device):
 
     def on_copy_last_launch_command(self):
         ''' Copies the last launch command to the clipboard'''
-        sb_utils.copy2clipboard(self.last_launch_command.get_value())
+        QtGui.QGuiApplication.clipboard().setText(
+            self.last_launch_command.get_value())
 
 def parse_unreal_tag_file(file_content):
     tags = []
