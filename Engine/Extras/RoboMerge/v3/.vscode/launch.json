@@ -91,7 +91,7 @@
                 "ROBO_VAULT_PATH": "./vault",
                 "EPIC_ENV": "dev",
                 "EPIC_DEPLOYMENT": "local",
-                "BOTNAME": "3lateral,anim,build,core,DevVR,engine,fortnite,mcp,mms,ocean,ogs,partner,portal,release,rendering,solaris,wex",
+                "BOTNAME": "bot1,bot2",
                 "ROBO_RUNBOTS": "no"
             },
             "smartStep": true,
