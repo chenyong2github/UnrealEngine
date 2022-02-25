@@ -163,6 +163,7 @@ FDatasmithMaterialIDElementImpl::FDatasmithMaterialIDElementImpl(const TCHAR* In
 FDatasmithHierarchicalInstancedStaticMeshActorElementImpl::FDatasmithHierarchicalInstancedStaticMeshActorElementImpl(const TCHAR* InName)
 	: FDatasmithMeshActorElementImpl< IDatasmithHierarchicalInstancedStaticMeshActorElement >(InName, EDatasmithElementType::HierarchicalInstanceStaticMesh)
 {
+	Store.RegisterParameter(Instances, "Instaces");
 }
 
 FDatasmithHierarchicalInstancedStaticMeshActorElementImpl::~FDatasmithHierarchicalInstancedStaticMeshActorElementImpl()
@@ -171,34 +172,34 @@ FDatasmithHierarchicalInstancedStaticMeshActorElementImpl::~FDatasmithHierarchic
 
 int32 FDatasmithHierarchicalInstancedStaticMeshActorElementImpl::GetInstancesCount() const
 {
-	return Instances.Num();
+	return Instances.Get().Num();
 }
 
 void FDatasmithHierarchicalInstancedStaticMeshActorElementImpl::ReserveSpaceForInstances(int32 NumIntances)
 {
-	Instances.Reserve(NumIntances);
+	Instances.Get().Reserve(NumIntances);
 }
 
 int32 FDatasmithHierarchicalInstancedStaticMeshActorElementImpl::AddInstance(const FTransform& Transform)
 {
-	Instances.Add(Transform);
-	return Instances.Num() - 1;
+	Instances.Get().Add(Transform);
+	return Instances.Get().Num() - 1;
 }
 
 FTransform FDatasmithHierarchicalInstancedStaticMeshActorElementImpl::GetInstance(int32 InstanceIndex) const
 {
-	if (Instances.IsValidIndex(InstanceIndex))
+	if (Instances.Get().IsValidIndex(InstanceIndex))
 	{
-		return Instances[InstanceIndex];
+		return Instances.Get()[InstanceIndex];
 	}
 	return FTransform();
 }
 
 void FDatasmithHierarchicalInstancedStaticMeshActorElementImpl::RemoveInstance(int32 InstanceIndex)
 {
-	if (Instances.IsValidIndex(InstanceIndex))
+	if (Instances.Get().IsValidIndex(InstanceIndex))
 	{
-		Instances.RemoveAtSwap(InstanceIndex);
+		Instances.Get().RemoveAtSwap(InstanceIndex);
 	}
 }
 

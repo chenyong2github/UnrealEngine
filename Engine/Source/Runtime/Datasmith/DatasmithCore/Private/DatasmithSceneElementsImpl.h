@@ -402,9 +402,9 @@ private:
 template< typename InterfaceType = IDatasmithMeshActorElement >
 class FDatasmithMeshActorElementImpl : public FDatasmithActorElementImpl< InterfaceType >
 {
+public:
 	using FDatasmithElementImpl< InterfaceType >::Store;
 
-public:
 	explicit FDatasmithMeshActorElementImpl(const TCHAR* InName);
 
 	virtual void AddMaterialOverride(const TCHAR* InMaterialName, int32 Id) override;
@@ -429,16 +429,15 @@ private:
 
 template < typename InterfaceType >
 FDatasmithMeshActorElementImpl< InterfaceType >::FDatasmithMeshActorElementImpl(const TCHAR* InName)
-	: FDatasmithActorElementImpl< InterfaceType >(InName, EDatasmithElementType::StaticMeshActor)
-{
-	this->RegisterReferenceProxy(Materials, "Materials");
-	Store.RegisterParameter(StaticMeshPathName, "StaticMeshPathName");
-}
+	: FDatasmithMeshActorElementImpl< InterfaceType >(InName, EDatasmithElementType::None)
+{}
 
 template < typename InterfaceType >
 FDatasmithMeshActorElementImpl< InterfaceType >::FDatasmithMeshActorElementImpl(const TCHAR* InName, EDatasmithElementType ElementType)
 	: FDatasmithActorElementImpl< InterfaceType >(InName, EDatasmithElementType::StaticMeshActor | ElementType)
 {
+	this->RegisterReferenceProxy(Materials, "Materials");
+	Store.RegisterParameter(StaticMeshPathName, "StaticMeshPathName");
 }
 
 template < typename InterfaceType >
@@ -531,7 +530,7 @@ public:
 	virtual void RemoveInstance(int32 InstanceIndex) override;
 
 private:
-	TArray<FTransform> Instances;// #ue_directlink_reflect
+	TReflected<TArray<FTransform>> Instances;
 };
 
 enum class LightActorFlags : uint8
