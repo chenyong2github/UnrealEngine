@@ -6,8 +6,10 @@
 #include "FractureToolContext.h"
 #include "InteractiveToolsContext.h"
 #include "EditorModeManager.h"
+#include "FractureEditorMode.h"
 #include "ToolSetupUtil.h"
 #include "BaseGizmos/GizmoBaseComponent.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
@@ -76,12 +78,13 @@ void UFractureTransformGizmoSettings::TransformChanged(UTransformProxy* Proxy, F
 void UFractureTransformGizmoSettings::Setup(UFractureToolCutterBase* Cutter, ETransformGizmoSubElements GizmoElements)
 {
 	AttachedCutter = Cutter;
-	UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
-	if (ensure(Context && AttachedCutter))
+	UFractureEditorMode* Mode = Cast<UFractureEditorMode>(GLevelEditorModeTools().GetActiveScriptableMode(UFractureEditorMode::EM_FractureEditorModeId));
+	UsedToolsContext = Mode->GetInteractiveToolsContext();
+	if (ensure(UsedToolsContext && AttachedCutter))
 	{
-		UInteractiveGizmoManager* GizmoManager = Context->GizmoManager;
+		UInteractiveGizmoManager* GizmoManager = UsedToolsContext->GizmoManager;
 		TransformProxy = NewObject<UTransformProxy>(this);
-		TransformGizmo = GizmoManager->CreateCustomTransformGizmo(GizmoElements, this);
+		TransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GizmoManager, GizmoElements, this);
 		// TODO: Stop setting bUseEditorCompositing on gizmo components like this, once gizmo rendering is improved
 		// This is a hack to make gizmos more visible when the translucent fracture bone selection material is on screen
 		// This hack unfortunately makes the gizmos dithered when they're behind objects, but at least they're relatively visible
@@ -102,10 +105,10 @@ void UFractureTransformGizmoSettings::Setup(UFractureToolCutterBase* Cutter, ETr
 
 void UFractureTransformGizmoSettings::Shutdown()
 {
-	UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
-	if (Context)
+	if (UsedToolsContext)
 	{
-		Context->GizmoManager->DestroyAllGizmosByOwner(this);
+		UsedToolsContext->GizmoManager->DestroyAllGizmosByOwner(this);
+		UsedToolsContext = nullptr;
 	}
 	TransformGizmo = nullptr;
 	TransformProxy = nullptr;

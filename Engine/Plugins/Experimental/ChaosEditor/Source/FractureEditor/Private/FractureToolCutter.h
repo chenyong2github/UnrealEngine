@@ -304,6 +304,11 @@ public:
 
 protected:
 
+	UPROPERTY()
 	TObjectPtr<UFractureToolCutterBase> AttachedCutter = nullptr;
+
+	// the tools context responsible for the gizmo
+	UPROPERTY()
+	TObjectPtr<UInteractiveToolsContext> UsedToolsContext = nullptr;
 };
 

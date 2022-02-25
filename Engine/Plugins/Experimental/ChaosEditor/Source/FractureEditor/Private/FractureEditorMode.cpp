@@ -26,6 +26,7 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
+#include "Snapping/ModelingSceneSnappingManager.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
 
@@ -63,6 +64,9 @@ void UFractureEditorMode::Enter()
 	FCoreUObjectDelegates::OnPackageReloaded.AddUObject(this, &UFractureEditorMode::HandlePackageReloaded);
 
 	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(GetInteractiveToolsContext());
+
+	// register snapping manager
+	UE::Geometry::RegisterSceneSnappingManager(GetInteractiveToolsContext());
 	
 	// Get initial geometry component selection from currently selected actors when we enter the mode
 	USelection* SelectedActors = GEditor->GetSelectedActors();
@@ -87,6 +91,8 @@ void UFractureEditorMode::Exit()
 	// TODO: cannot deregister currently because if another mode is also registering, its Enter()
 	// will be called before our Exit(); add the below line back after this bug is fixed
 	//FractureGizmoHelper->DeregisterGizmosWithManager(ToolsContext->ToolManager);
+
+	UE::Geometry::DeregisterSceneSnappingManager(GetInteractiveToolsContext());
 
 	// Empty the geometry component selection set
 	TArray<UObject*> SelectedObjects;

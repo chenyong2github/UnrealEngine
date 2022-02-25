@@ -248,6 +248,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<URectangleMarqueeManager> RectangleMarqueeManager = nullptr;
 
+	// the tools context responsible for the selection input router
+	UPROPERTY()
+	TObjectPtr<UInteractiveToolsContext> UsedToolsContext = nullptr;
+
 	// Support for Shift and Ctrl toggle
 	bool bShiftToggle = false;
 	bool bCtrlToggle = false;

@@ -1284,6 +1284,8 @@ void FFractureEditorModeToolkit::ShutdownActiveTool()
 	{
 		ActiveTool->Shutdown();
 		ActiveTool->OnPropertyModifiedDirectlyByTool.RemoveAll(this);
+
+		ActiveTool = nullptr;
 	}
 }
 

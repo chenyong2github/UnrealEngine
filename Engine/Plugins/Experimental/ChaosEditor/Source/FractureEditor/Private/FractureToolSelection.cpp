@@ -73,6 +73,12 @@ void UFractureToolSelection::RegisterUICommand( FFractureEditorCommands* Binding
 
 void UFractureToolSelection::CreateRectangleSelectionBehavior()
 {
+	UFractureEditorMode* Mode = Cast<UFractureEditorMode>(GLevelEditorModeTools().GetActiveScriptableMode(UFractureEditorMode::EM_FractureEditorModeId));
+	if (!Mode)
+	{
+		return;
+	}
+
 	// Set things up for being able to add behaviors to live preview.
 	SelectionBehaviorSet = NewObject<UInputBehaviorSet>();
 	SelectionBehaviorSource = NewObject<ULocalInputBehaviorSource>();
@@ -94,18 +100,18 @@ void UFractureToolSelection::CreateRectangleSelectionBehavior()
 	ClickOrDragBehavior->Modifiers.RegisterModifier(CtrlModifierID, FInputDeviceState::IsCtrlKeyDown);
 	SelectionBehaviorSet->Add(ClickOrDragBehavior, this);
 
-	UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
-	Context->InputRouter->RegisterSource(SelectionBehaviorSource);
+	UsedToolsContext = Mode->GetInteractiveToolsContext();
+	UsedToolsContext->InputRouter->RegisterSource(SelectionBehaviorSource);
 }
 
 void UFractureToolSelection::DestroyRectangleSelectionBehavior()
 {
-	if (SelectionBehaviorSource)
+	if (SelectionBehaviorSource && UsedToolsContext)
 	{
-		UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
-		Context->InputRouter->DeregisterSource(SelectionBehaviorSource);
+		UsedToolsContext->InputRouter->DeregisterSource(SelectionBehaviorSource);
 	}
 
+	UsedToolsContext = nullptr;
 	SelectionBehaviorSet = nullptr;
 	SelectionBehaviorSource = nullptr;
 	RectangleMarqueeManager = nullptr;
@@ -139,7 +145,6 @@ void UFractureToolSelection::OnDragRectangleChanged(const FCameraRectangle& Rect
 
 void UFractureToolSelection::OnClicked(const FInputDeviceRay& ClickPos)
 {
-	UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
 	UFractureEditorMode* Mode = Cast<UFractureEditorMode>(GLevelEditorModeTools().GetActiveScriptableMode(UFractureEditorMode::EM_FractureEditorModeId));
 	if (!Mode)
 	{
@@ -313,6 +318,7 @@ void URectangleMarqueeManager::DrawHUD(FCanvas* Canvas, bool bThisViewHasFocus)
 void UFractureToolSelection::Shutdown()
 {
 	DestroyRectangleSelectionBehavior();
+	Super::Shutdown();
 }
 
 void UFractureToolSelection::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
