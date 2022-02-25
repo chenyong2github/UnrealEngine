@@ -7,6 +7,9 @@
 #include "CADFileParser.h"
 #include "TechSoftInterface.h"
 
+typedef void A3DAsmProductOccurrence;
+typedef void A3DRiRepresentationItem;
+
 namespace CADLibrary
 {
 
