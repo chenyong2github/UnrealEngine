@@ -8,7 +8,7 @@
 
 class UBlackboardComponent;
 
-UCLASS(EditInlineNew, meta=(DisplayName="Real", ToolTip="Blackboard Key Type Real"))
+UCLASS(EditInlineNew, meta=(DisplayName="Float"))
 class AIMODULE_API UBlackboardKeyType_Float : public UBlackboardKeyType
 {
 	GENERATED_UCLASS_BODY()
