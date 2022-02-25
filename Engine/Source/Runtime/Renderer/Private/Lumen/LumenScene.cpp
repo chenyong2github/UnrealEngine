@@ -1030,8 +1030,8 @@ void FLumenCard::GetMipMapDesc(int32 ResLevel, FLumenMipMapDesc& Desc) const
 	check(ResLevel >= Lumen::MinResLevel && ResLevel <= Lumen::MaxResLevel);
 
 	const FIntPoint ResLevelBias = ResLevelToResLevelXYBias();
-	Desc.ResLevelX = FMath::Clamp<int32>(ResLevel - ResLevelBias.X, Lumen::MinResLevel, Lumen::MaxResLevel);
-	Desc.ResLevelY = FMath::Clamp<int32>(ResLevel - ResLevelBias.Y, Lumen::MinResLevel, Lumen::MaxResLevel);
+	Desc.ResLevelX = FMath::Clamp<int32>(ResLevel - ResLevelBias.X, (int32)Lumen::MinResLevel, (int32)Lumen::MaxResLevel);
+	Desc.ResLevelY = FMath::Clamp<int32>(ResLevel - ResLevelBias.Y, (int32)Lumen::MinResLevel, (int32)Lumen::MaxResLevel);
 
 	// Allocations which exceed a physical page are aligned to multiples of a virtual page to maximize atlas usage
 	if (Desc.ResLevelX > Lumen::SubAllocationResLevel || Desc.ResLevelY > Lumen::SubAllocationResLevel)

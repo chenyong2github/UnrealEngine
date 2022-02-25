@@ -10,6 +10,7 @@
 
 RWTexture3D<float> RWMipTexture;
 uint ClipmapMipResolution;
+float OneOverClipmapMipResolution;
 float MipInfluenceRadius;
 Texture3D<uint> PageTableTexture;
 Texture3D PageAtlasTexture;
@@ -50,7 +51,7 @@ float LoadPrevDistanceFieldValue(int3 MipCoord, int3 Offset)
 
 #if READ_PAGES
 	// Reverse clipmap scroll offset as coarse clipmap is always centered around camera
-	float3 ScrolledClipmapUV = (MipCoord + 0.5f) / ClipmapMipResolution;
+	float3 ScrolledClipmapUV = (MipCoord + 0.5f) * OneOverClipmapMipResolution;
 	ScrolledClipmapUV = frac(ScrolledClipmapUV + ClipmapUVScrollOffset); // wraparound addressing
 	ScrolledClipmapUV = frac(ScrolledClipmapUV); // apply frac twice to prevent UV == 1.0f because frac(-0.00...001f) = 1.0f
 

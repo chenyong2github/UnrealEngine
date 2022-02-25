@@ -1539,6 +1539,7 @@ class FPropagateMipDistanceCS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, GlobalDistanceFieldInvPageAtlasSize)
 		SHADER_PARAMETER(uint32, GlobalDistanceFieldClipmapSizeInPages)
 		SHADER_PARAMETER(uint32, ClipmapMipResolution)
+		SHADER_PARAMETER(float, OneOverClipmapMipResolution)
 		SHADER_PARAMETER(uint32, ClipmapIndex)
 		SHADER_PARAMETER(uint32, PrevClipmapOffsetZ)
 		SHADER_PARAMETER(uint32, ClipmapOffsetZ)
@@ -2300,6 +2301,7 @@ void UpdateGlobalDistanceFieldVolume(
 								PassParameters->GlobalDistanceFieldClipmapSizeInPages = GlobalDistanceField::GetPageTableTextureResolution(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance).X;
 								PassParameters->PrevMipTexture = PrevTexture;
 								PassParameters->ClipmapMipResolution = ClipmapMipResolution;
+								PassParameters->OneOverClipmapMipResolution = 1.0f / ClipmapMipResolution;
 								PassParameters->ClipmapIndex = ClipmapIndex;
 								PassParameters->PrevClipmapOffsetZ = PrevClipmapOffsetZ;
 								PassParameters->ClipmapOffsetZ = NextClipmapOffsetZ;

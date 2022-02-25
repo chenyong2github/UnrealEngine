@@ -14,8 +14,8 @@ float FirstClipmapWorldExtentRcp;
 uint FrameNumber;
 RWStructuredBuffer<uint> RWPriorityHistogram;
 StructuredBuffer<uint> PriorityHistogram;
-RWStructuredBuffer<uint> RWMaxUpdateBucket;
-StructuredBuffer<uint> MaxUpdateBucket;
+RWBuffer<uint> RWMaxUpdateBucket; // Not a StructuredBuffer as of Feb 21, 2022 there was an AMD driver DX11 bug breaking AllocateProbeTracesCS
+Buffer<uint> MaxUpdateBucket;
 RWStructuredBuffer<uint> RWProbesToUpdateTraceCost;
 StructuredBuffer<uint> ProbesToUpdateTraceCost;
 

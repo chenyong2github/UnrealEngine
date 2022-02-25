@@ -125,9 +125,9 @@ float3 ComputeGlobalMipUV(float3 WorldPosition, uint ClipmapIndex)
 	float3 MipUV = saturate(WorldPosition * GlobalDistanceFieldMipWorldToUVScale[ClipmapIndex].xyz + GlobalDistanceFieldMipWorldToUVBias[ClipmapIndex].xyz);
 
 	// Clamp MipUV.z to a valid bilinear region to prevent filtering across clipmaps
-	float MinUVMinZ = GlobalDistanceFieldMipWorldToUVScale[ClipmapIndex].w;
-	float MinUVMaxZ = GlobalDistanceFieldMipWorldToUVBias[ClipmapIndex].w;
-	MipUV.z = clamp(MipUV.z, MinUVMinZ, MinUVMaxZ);
+	float MipUVMinZ = GlobalDistanceFieldMipWorldToUVScale[ClipmapIndex].w;
+	float MipUVMaxZ = GlobalDistanceFieldMipWorldToUVBias[ClipmapIndex].w;
+	MipUV.z = clamp(MipUV.z, MipUVMinZ, MipUVMaxZ);
 
 	return MipUV;
 }
