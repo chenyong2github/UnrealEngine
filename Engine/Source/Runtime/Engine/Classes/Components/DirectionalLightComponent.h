@@ -24,28 +24,28 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	* A value of 1 scales shadow bias based on each cascade size (Default).
 	* A value of 0 scales shadow bias uniformly accross all cacascade.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = Light, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1"))
 	float ShadowCascadeBiasDistribution;
 
 	/** Whether to occlude fog and atmosphere inscattering with screenspace blurred occlusion from this light. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=LightShafts, meta=(DisplayName = "Light Shaft Occlusion"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=LightShafts, meta=(DisplayName = "Light Shaft Occlusion"))
 	uint32 bEnableLightShaftOcclusion:1;
 
 	/** 
 	 * Controls how dark the occlusion masking is, a value of 1 results in no darkening term.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=LightShafts, meta=(UIMin = "0", UIMax = "1"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=LightShafts, meta=(UIMin = "0", UIMax = "1"))
 	float OcclusionMaskDarkness;
 
 	/** Everything closer to the camera than this distance will occlude light shafts. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=LightShafts, meta=(UIMin = "0", UIMax = "500000"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=LightShafts, meta=(UIMin = "0", UIMax = "500000"))
 	float OcclusionDepthRange;
 
 	/** 
 	 * Can be used to make light shafts come from somewhere other than the light's actual direction. 
 	 * This will only be used when non-zero.  It does not have to be normalized.
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=LightShafts)
+	UPROPERTY(EditAnywhere, interp, AdvancedDisplay, BlueprintReadOnly, Category=LightShafts)
 	FVector LightShaftOverrideDirection;
 
 	UPROPERTY()
@@ -55,28 +55,28 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	 * How far Cascaded Shadow Map dynamic shadows will cover for a movable light, measured from the camera.
 	 * A value of 0 disables the dynamic shadow.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=CascadedShadowMaps, meta=(UIMin = "0", UIMax = "20000", DisplayName = "Dynamic Shadow Distance MovableLight"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=CascadedShadowMaps, meta=(UIMin = "0", UIMax = "20000", DisplayName = "Dynamic Shadow Distance MovableLight"))
 	float DynamicShadowDistanceMovableLight;
 
 	/** 
 	 * How far Cascaded Shadow Map dynamic shadows will cover for a stationary light, measured from the camera.
 	 * A value of 0 disables the dynamic shadow.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=CascadedShadowMaps, meta=(UIMin = "0", UIMax = "20000", DisplayName = "Dynamic Shadow Distance StationaryLight"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=CascadedShadowMaps, meta=(UIMin = "0", UIMax = "20000", DisplayName = "Dynamic Shadow Distance StationaryLight"))
 	float DynamicShadowDistanceStationaryLight;
 
 	/** 
 	 * Number of cascades to split the view frustum into for the whole scene dynamic shadow.  
 	 * More cascades result in better shadow resolution, but adds significant rendering cost.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=CascadedShadowMaps, meta=(UIMin = "0", UIMax = "4", DisplayName = "Num Dynamic Shadow Cascades"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=CascadedShadowMaps, meta=(UIMin = "0", UIMax = "4", DisplayName = "Num Dynamic Shadow Cascades"))
 	int32 DynamicShadowCascades;
 
 	/** 
 	 * Controls whether the cascades are distributed closer to the camera (larger exponent) or further from the camera (smaller exponent).
 	 * An exponent of 1 means that cascade transitions will happen at a distance proportional to their resolution.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=CascadedShadowMaps, meta=(UIMin = "1", UIMax = "4", DisplayName = "Distribution Exponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=CascadedShadowMaps, meta=(UIMin = "1", UIMax = "4", DisplayName = "Distribution Exponent"))
 	float CascadeDistributionExponent;
 
 	/** 
@@ -88,14 +88,14 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	 * Ideal values are the smallest possible which still hide the transition.
 	 * An increased fade region size causes an increase in shadow rendering cost.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=CascadedShadowMaps, meta=(UIMin = "0", UIMax = "0.3", DisplayName = "Transition Fraction"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=CascadedShadowMaps, meta=(UIMin = "0", UIMax = "0.3", DisplayName = "Transition Fraction"))
 	float CascadeTransitionFraction;
 
 	/** 
 	 * Controls the size of the fade out region at the far extent of the dynamic shadow's influence.  
 	 * This is specified as a fraction of DynamicShadowDistance. 
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=CascadedShadowMaps, meta=(UIMin = "0", UIMax = "1.0", DisplayName = "Distance Fadeout Fraction"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=CascadedShadowMaps, meta=(UIMin = "0", UIMax = "1.0", DisplayName = "Distance Fadeout Fraction"))
 	float ShadowDistanceFadeoutFraction;
 
 	/** 
@@ -279,14 +279,29 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetShadowDistanceFadeoutFraction(float NewValue);
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void SetShadowCascadeBiasDistribution(float NewValue);
+
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetEnableLightShaftOcclusion(bool bNewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetOcclusionMaskDarkness(float NewValue);
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void SetOcclusionDepthRange(float NewValue);
+
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetLightShaftOverrideDirection(FVector NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void SetLightSourceAngle(float NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void SetLightSourceSoftAngle(float NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void SetShadowSourceAngleFactor(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetShadowAmount(float NewValue);

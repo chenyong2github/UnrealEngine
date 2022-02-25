@@ -40,21 +40,21 @@ class ENGINE_API UPointLightComponent : public ULocalLightComponent
 	 * Radius of light source shape.
 	 * Note that light sources shapes which intersect shadow casting geometry can cause shadowing artifacts.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(ShouldShowInViewport = true))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Light, meta=(ShouldShowInViewport = true))
 	float SourceRadius;
 
 	/**
 	* Soft radius of light source shape.
 	* Note that light sources shapes which intersect shadow casting geometry can cause shadowing artifacts.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = Light)
 	float SoftSourceRadius;
 
 	/** 
 	 * Length of light source shape.
 	 * Note that light sources shapes which intersect shadow casting geometry can cause shadowing artifacts.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Light)
 	float SourceLength;
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
