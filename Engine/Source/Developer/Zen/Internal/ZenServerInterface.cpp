@@ -411,7 +411,7 @@ ReadCbLockFile(FStringView FileName, FCbObject& OutLockObject)
 	}
 	if (FullFileNameBuilder.Len() >= MAX_PATH)
 	{
-		FullFileNameBuilder.Prepend(TEXT("\\\\?\\"_SV));
+		FullFileNameBuilder.Prepend(TEXTVIEW("\\\\?\\"));
 	}
 	HANDLE Handle = CreateFileW(FullFileNameBuilder.ToString(), Access, WinFlags, NULL, Create, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (Handle != INVALID_HANDLE_VALUE)
@@ -691,7 +691,7 @@ FZenServiceInstance::IsServiceReady()
 		TStringBuilder<128> ZenDomain;
 		ZenDomain << HostName << TEXT(":") << Port;
 		Zen::FZenHttpRequest Request(ZenDomain.ToString(), false);
-		Zen::FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXT("health/ready"_SV), nullptr, Zen::EContentType::Text);
+		Zen::FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXTVIEW("health/ready"), nullptr, Zen::EContentType::Text);
 		
 		if (Result == Zen::FZenHttpRequest::Result::Success && Zen::IsSuccessCode(Request.GetResponseCode()))
 		{
@@ -1065,7 +1065,7 @@ FZenServiceInstance::GetStats( FZenStats& stats ) const
 	Request.Reset();
 
 	TArray64<uint8> GetBuffer;
-	FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXT("/stats/z$"_SV), &GetBuffer, Zen::EContentType::CbObject);
+	FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXTVIEW("/stats/z$"), &GetBuffer, Zen::EContentType::CbObject);
 
 	if (Result == Zen::FZenHttpRequest::Result::Success && Request.GetResponseCode() == 200)
 	{

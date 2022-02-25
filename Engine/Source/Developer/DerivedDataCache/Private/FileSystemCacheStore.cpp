@@ -94,7 +94,7 @@ void BuildPathForCachePackage(const FCacheKey& CacheKey, FStringBuilderBase& Pat
 	const FIoHash::ByteArray& Bytes = CacheKey.Hash.GetBytes();
 	Path.Appendf(TEXT("%s/%hs/%02x/%02x/"), GBucketsDirectoryName, CacheKey.Bucket.ToCString(), Bytes[0], Bytes[1]);
 	UE::String::BytesToHexLower(MakeArrayView(Bytes).RightChop(2), Path);
-	Path << TEXT(".udd"_SV);
+	Path << TEXTVIEW(".udd");
 }
 
 void BuildPathForCacheContent(const FIoHash& RawHash, FStringBuilderBase& Path)
@@ -102,7 +102,7 @@ void BuildPathForCacheContent(const FIoHash& RawHash, FStringBuilderBase& Path)
 	const FIoHash::ByteArray& Bytes = RawHash.GetBytes();
 	Path.Appendf(TEXT("%s/%02x/%02x/"), GContentDirectoryName, Bytes[0], Bytes[1]);
 	UE::String::BytesToHexLower(MakeArrayView(Bytes).RightChop(2), Path);
-	Path << TEXT(".udd"_SV);
+	Path << TEXTVIEW(".udd");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

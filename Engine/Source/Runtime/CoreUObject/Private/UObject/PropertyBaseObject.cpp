@@ -313,7 +313,7 @@ bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UO
 		return false;
 	}
 
-	if ( Temp == TEXT("None"_SV) )
+	if ( Temp == TEXTVIEW("None") )
 	{
 		out_ResolvedValue = nullptr;
 	}

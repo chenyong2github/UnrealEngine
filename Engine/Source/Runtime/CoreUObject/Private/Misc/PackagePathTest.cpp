@@ -41,7 +41,7 @@ public:
 		auto TestExtension = [this](EPackageExtension Extension)
 		{
 			TStringBuilder<64> Path;
-			const FStringView PathWithoutExtension = TEXT("d:\\Root\\Dir\\Filename"_SV);
+			const FStringView PathWithoutExtension = TEXTVIEW("d:\\Root\\Dir\\Filename");
 			Path << PathWithoutExtension << LexToString(Extension);
 			int32 ExtensionStart;
 			EPackageExtension ParsedExtension = FPackagePath::ParseExtension(Path, &ExtensionStart);
@@ -65,7 +65,7 @@ public:
 		// Test Custom
 		{
 			TStringBuilder<64> Path;
-			const FStringView PathWithoutExtension = TEXT("d:\\Root\\Dir\\Filename"_SV);
+			const FStringView PathWithoutExtension = TEXTVIEW("d:\\Root\\Dir\\Filename");
 			Path << PathWithoutExtension << TEXT(".SomeOtherExtension");
 			int32 ExtensionStart;
 			EPackageExtension ParsedExtension = FPackagePath::ParseExtension(Path, &ExtensionStart);

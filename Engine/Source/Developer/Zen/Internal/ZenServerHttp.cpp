@@ -17,7 +17,7 @@
 #endif
 
 #if !defined(PLATFORM_CURL_INCLUDE)
-	#include "curl/curl.h"
+#include "curl/curl.h"
 #endif
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
@@ -123,7 +123,7 @@ namespace UE::Zen {
 	void FZenHttpRequest::AddHeader(FStringView Header, FStringView Value)
 	{
 		TStringBuilder<128> Sb;
-		Sb << Header << TEXT(": "_SV) << Value;
+		Sb << Header << TEXTVIEW(": ") << Value;
 		Headers.Emplace(Sb.ToString());
 	}
 
@@ -137,7 +137,7 @@ namespace UE::Zen {
 		curl_easy_setopt(Curl, CURLOPT_READDATA, this);
 		curl_easy_setopt(Curl, CURLOPT_READFUNCTION, &FZenHttpRequest::FStatics::StaticReadFn);
 
-		AddHeader(TEXT("Content-Type"_SV), GetMimeType(ContentType));
+		AddHeader(TEXTVIEW("Content-Type"), GetMimeType(ContentType));
 
 		ReadDataView = &Buffer;
 
@@ -274,12 +274,12 @@ namespace UE::Zen {
 		return PerformBlockingPost(Uri, Out.GetView(), EContentType::CbPackage, AcceptType);
 	}
 
-	FZenHttpRequest::Result FZenHttpRequest::PerformRpc(FStringView Uri, FCbObjectView Request, FCbPackage& OutResponse)
+	FZenHttpRequest::Result FZenHttpRequest::PerformRpc(FStringView Uri, FCbObjectView Request, FCbPackage &OutResponse)
 	{
 		return ParseRpcResponse(
 			PerformBlockingPost(Uri, Request, EContentType::CbPackage), OutResponse);
 	}
-
+		
 	FZenHttpRequest::Result FZenHttpRequest::PerformRpc(FStringView Uri, const FCbPackage& Request, FCbPackage& OutResponse)
 	{
 		return ParseRpcResponse(
@@ -379,11 +379,11 @@ namespace UE::Zen {
 		curl_easy_setopt(Curl, CURLOPT_READDATA, this);
 		curl_easy_setopt(Curl, CURLOPT_READFUNCTION, &FZenHttpRequest::FStatics::StaticReadFn);
 
-		AddHeader(TEXT("Content-Type"_SV), GetMimeType(ContentType));
+		AddHeader(TEXTVIEW("Content-Type"), GetMimeType(ContentType));
 		if (AcceptType != EContentType::UnknownContentType)
 		{
-			AddHeader(TEXT("Accept"_SV), GetMimeType(EContentType::CbPackage));
-		}
+			AddHeader(TEXTVIEW("Accept"), GetMimeType(EContentType::CbPackage));
+	}
 
 		ContentLength = Payload.GetSize();
 
@@ -398,7 +398,7 @@ namespace UE::Zen {
 		curl_easy_setopt(Curl, CURLOPT_HTTPGET, 1L);
 		WriteDataBufferPtr = Buffer;
 		
-		AddHeader(TEXT("Accept"_SV), GetMimeType(AcceptType));
+		AddHeader(TEXTVIEW("Accept"), GetMimeType(AcceptType));
 
 		return PerformBlocking(Uri, RequestVerb::Get, 0u);
 	}
@@ -408,7 +408,7 @@ namespace UE::Zen {
 		curl_easy_setopt(Curl, CURLOPT_HTTPGET, 1L);
 		OutPackage.Reset();
 
-		AddHeader(TEXT("Accept"_SV), GetMimeType(EContentType::CbPackage));
+		AddHeader(TEXTVIEW("Accept"), GetMimeType(EContentType::CbPackage));
 
 		// TODO: When PackageBytes can be written in segments directly, set the WritePtr to the OutPackage and use that
 		TArray64<uint8> PackageBytes;
@@ -426,7 +426,7 @@ namespace UE::Zen {
 	{
 		curl_easy_setopt(Curl, CURLOPT_NOBODY, 1L);
 		
-		AddHeader(TEXT("Accept"_SV), GetMimeType(AcceptType));
+		AddHeader(TEXTVIEW("Accept"), GetMimeType(AcceptType));
 
 		return PerformBlocking(Uri, RequestVerb::Head, 0u);
 	}

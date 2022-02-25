@@ -850,7 +850,7 @@ void FZenCacheStore::Get(
 		{
 			LLM_SCOPE_BYTAG(UntaggedDDCResult);
 			Zen::FZenScopedRequestPtr Request(RequestPool.Get());
-			HttpResult = Request->PerformRpc(TEXT("/z$/$rpc"_SV), BatchRequest.Save().AsObject(), BatchResponse);
+			HttpResult = Request->PerformRpc(TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), BatchResponse);
 		}
 
 		int32 RequestIndex = 0;
@@ -1225,7 +1225,7 @@ void FZenCacheStore::GetChunks(
 		{
 			LLM_SCOPE_BYTAG(UntaggedDDCResult);
 			Zen::FZenScopedRequestPtr Request(RequestPool.Get());
-			HttpResult = Request->PerformRpc(TEXT("/z$/$rpc"_SV), BatchRequest.Save().AsObject(), BatchResponse);
+			HttpResult = Request->PerformRpc(TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), BatchResponse);
 		}
 
 		int32 RequestIndex = 0;

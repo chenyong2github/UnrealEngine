@@ -934,14 +934,14 @@ class CORE_API FWindowsPlatformFile : public IPhysicalPlatformFile
 		}
 
 		// Remove duplicate slashes
-		const bool bIsUNCPath = Path.ToView().StartsWith(TEXT("//"_SV));
+		const bool bIsUNCPath = Path.ToView().StartsWith(TEXTVIEW("//"));
 		
 		FPathViews::RemoveDuplicateSlashes(Path);
 
 		if (bIsUNCPath)
 		{
 			// Keep // at the beginning.  If There are more than two / at the beginning, replace them with just //.
-			Path.Prepend(TEXT("/"_SV));
+			Path.Prepend(TEXTVIEW("/"));
 		}
 
 		// We now have a canonical, strict-valid, absolute Unreal Path.  Convert it to a Windows Path.
@@ -958,11 +958,11 @@ class CORE_API FWindowsPlatformFile : public IPhysicalPlatformFile
 		{
 			if (bIsUNCPath)
 			{
-				Path.ReplaceAt(0, 1, TEXT("\\\\?\\UNC"_SV));
+				Path.ReplaceAt(0, 1, TEXTVIEW("\\\\?\\UNC"));
 			}
 			else
 			{
-				Path.Prepend(TEXT("\\\\?\\"_SV));
+				Path.Prepend(TEXTVIEW("\\\\?\\"));
 			}
 		}
 	}
@@ -1461,7 +1461,7 @@ public:
 	// Outline to reduce stack space usage since IterateDirectoryCommon might be recursive
 	FORCENOINLINE static HANDLE FindFirstFileWithWildcard(const TCHAR* Directory, WIN32_FIND_DATAW& OutData)
 	{
-		return FindFirstFileW(*(FNormalizedFilename(Directory, TEXT("*.*"_SV))), &OutData);
+		return FindFirstFileW(*(FNormalizedFilename(Directory, TEXTVIEW("*.*"))), &OutData);
 	}
 
 	bool IterateDirectoryCommon(const TCHAR* Directory, const TFunctionRef<bool(const WIN32_FIND_DATAW&)>& Visitor)

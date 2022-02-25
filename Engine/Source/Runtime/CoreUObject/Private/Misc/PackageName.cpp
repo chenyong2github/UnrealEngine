@@ -2353,7 +2353,7 @@ bool FPackageName::IsLocalizedPackage(FStringView InPackageName)
 	// Are we part of the L10N folder?
 	FStringView Remaining(CurChar, UE_PTRDIFF_TO_INT32(EndChar - CurChar));
 	// Is "L10N" or StartsWith "L10N/" 
-	return Remaining.StartsWith(TEXT("L10N"_SV), ESearchCase::IgnoreCase) && (Remaining.Len() == 4 || Remaining[4] == '/');
+	return Remaining.StartsWith(TEXTVIEW("L10N"), ESearchCase::IgnoreCase) && (Remaining.Len() == 4 || Remaining[4] == '/');
 }
 
 FString FPackageName::FormatErrorAsString(FStringView InPath, EErrorCode ErrorCode)

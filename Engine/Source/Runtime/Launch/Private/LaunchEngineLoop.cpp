@@ -685,7 +685,7 @@ void LaunchFixProjectPathCase()
 			const FStringView CurrentPathComponent = FPathViews::GetCleanFilename(PendingFix);
 
 			// Skip over all segments that are either empty or contain relative transforms or start with the volume separator, they should remain as-is
-			const bool bIsIgnoredSegment = CurrentPathComponent.IsEmpty() || CurrentPathComponent.Equals(TEXT("."_SV)) || CurrentPathComponent.Equals(TEXT(".."_SV)) || CurrentPathComponent.EndsWith(TEXT(':'));
+			const bool bIsIgnoredSegment = CurrentPathComponent.IsEmpty() || CurrentPathComponent.Equals(TEXTVIEW(".")) || CurrentPathComponent.Equals(TEXTVIEW("..")) || CurrentPathComponent.EndsWith(TEXT(':'));
 			if (!bIsIgnoredSegment)
 			{
 				// Temporarily null-terminate the current path component for the system call

@@ -333,7 +333,7 @@ bool FSoftObjectPath::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObj
 		return false;
 	}
 	Buffer = NewBuffer;
-	if (ImportedPath == TEXT("None"_SV))
+	if (ImportedPath == TEXTVIEW("None"))
 	{
 		Reset();
 	}

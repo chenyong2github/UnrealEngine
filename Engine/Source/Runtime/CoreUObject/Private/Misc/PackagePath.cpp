@@ -137,31 +137,31 @@ EPackageExtension FPackagePath::ParseExtension(FStringView Filename, int32* OutE
 	{
 		return EPackageExtension::Unspecified;
 	}
-	if (Extension.Equals(TEXT(".uasset"_SV), ESearchCase::IgnoreCase))
+	if (Extension.Equals(TEXTVIEW(".uasset"), ESearchCase::IgnoreCase))
 	{
 		return EPackageExtension::Asset;
 	}
-	if (Extension.Equals(TEXT(".umap"_SV), ESearchCase::IgnoreCase))
+	if (Extension.Equals(TEXTVIEW(".umap"), ESearchCase::IgnoreCase))
 	{
 		return EPackageExtension::Map;
 	}
-	if (Extension.Equals(TEXT(".utxt"_SV), ESearchCase::IgnoreCase))
+	if (Extension.Equals(TEXTVIEW(".utxt"), ESearchCase::IgnoreCase))
 	{
 		return EPackageExtension::TextAsset;
 	}
-	if (Extension.Equals(TEXT(".utxtmap"_SV), ESearchCase::IgnoreCase))
+	if (Extension.Equals(TEXTVIEW(".utxtmap"), ESearchCase::IgnoreCase))
 	{
 		return EPackageExtension::TextMap;
 	}
-	if (Extension.Equals(TEXT(".uexp"_SV), ESearchCase::IgnoreCase))
+	if (Extension.Equals(TEXTVIEW(".uexp"), ESearchCase::IgnoreCase))
 	{
 		return EPackageExtension::Exports;
 	}
-	if (Extension.Equals(TEXT(".ubulk"_SV), ESearchCase::IgnoreCase))
+	if (Extension.Equals(TEXTVIEW(".ubulk"), ESearchCase::IgnoreCase))
 	{
 		// .m.ubulk
 		// .ubulk
-		FStringView MemoryMappedExtension(TEXT(".m"_SV));
+		FStringView MemoryMappedExtension(TEXTVIEW(".m"));
 		if (FPathViews::GetExtension(Filename.LeftChop(Extension.Len()), true /* bIncludeDot */).Equals(MemoryMappedExtension, ESearchCase::IgnoreCase))
 		{
 			if (OutExtensionStart)
@@ -175,11 +175,11 @@ EPackageExtension FPackagePath::ParseExtension(FStringView Filename, int32* OutE
 			return EPackageExtension::BulkDataDefault;
 		}
 	}
-	if (Extension.Equals(TEXT(".uptnl"_SV), ESearchCase::IgnoreCase))
+	if (Extension.Equals(TEXTVIEW(".uptnl"), ESearchCase::IgnoreCase))
 	{
 		return EPackageExtension::BulkDataOptional;
 	}
-	if (Extension.Equals(TEXT(".upayload"_SV), ESearchCase::IgnoreCase))
+	if (Extension.Equals(TEXTVIEW(".upayload"), ESearchCase::IgnoreCase))
 	{
 		return EPackageExtension::PayloadSidecar;
 	}
