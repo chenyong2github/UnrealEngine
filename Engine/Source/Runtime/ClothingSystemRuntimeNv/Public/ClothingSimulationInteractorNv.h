@@ -30,6 +30,7 @@ public:
 
 	// TODO: These new functions are currently unimplemented
 	virtual void SetNumIterations(int32 /*NumIterations*/) override {}
+	virtual void SetMaxNumIterations(int32 /*MaxNumIterations*/) override {}
 	virtual void SetNumSubsteps(int32 /*NumSubsteps*/) override {}
 	//////////////////////////////////////////////////////////////////////////
 
