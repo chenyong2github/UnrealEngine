@@ -283,6 +283,8 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	InitInReliable		( 0 )
 ,	EngineNetworkProtocolVersion( FNetworkVersion::GetEngineNetworkProtocolVersion() )
 ,	GameNetworkProtocolVersion( FNetworkVersion::GetGameNetworkProtocolVersion() )
+,	PackageVersionUE( GPackageFileUEVersion )
+,	PackageVersionLicenseeUE( GPackageFileLicenseeUEVersion )
 ,	ResendAllDataState( EResendAllDataState::None )
 #if !UE_BUILD_SHIPPING
 ,	ReceivedRawPacketDel()
@@ -1583,8 +1585,7 @@ void UNetConnection::ReceivedRawPacket( void* InData, int32 Count )
 			FBitReader Reader(Data, BitSize);
 
 			// Set the network version on the reader
-			Reader.SetEngineNetVer( EngineNetworkProtocolVersion );
-			Reader.SetGameNetVer( GameNetworkProtocolVersion );
+			SetNetVersionsOnArchive(Reader);
 
 			if (Handler.IsValid())
 			{
@@ -4900,6 +4901,17 @@ void UNetConnection::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChanne
 	{
 		ConnectionDriver->NotifyActorChannelCleanedUp(Channel);
 	}
+}
+
+void UNetConnection::SetNetVersionsOnArchive(FArchive& Ar) const
+{
+	Ar.SetEngineNetVer(EngineNetworkProtocolVersion);
+	Ar.SetGameNetVer(GameNetworkProtocolVersion);
+	Ar.SetUEVer(PackageVersionUE);
+	Ar.SetLicenseeUEVer(PackageVersionLicenseeUE);
+	// Base archives only store FEngineVersionBase, but net connections store FEngineVersion.
+	// This will slice off the branch name and anything else stored in FEngineVersion.
+	Ar.SetEngineVer(EngineVersion);
 }
 
 /*-----------------------------------------------------------------------------

@@ -84,6 +84,11 @@ void FReplayHelper::SetPlaybackNetworkVersions(FArchive& Ar)
 {
 	Ar.SetEngineNetVer(PlaybackDemoHeader.EngineNetworkProtocolVersion);
 	Ar.SetGameNetVer(PlaybackDemoHeader.GameNetworkProtocolVersion);
+	Ar.SetUEVer(PlaybackDemoHeader.PackageVersionUE);
+	Ar.SetLicenseeUEVer(PlaybackDemoHeader.PackageVersionLicenseeUE);
+	// Base archives only store FEngineVersionBase, but the header stores FEngineVersion.
+	// This will slice off the branch name and anything else stored in FEngineVersion.
+	Ar.SetEngineVer(PlaybackDemoHeader.EngineVersion);
 }
 
 void FReplayHelper::SetPlaybackNetworkVersions(UNetConnection* Connection)
@@ -92,6 +97,9 @@ void FReplayHelper::SetPlaybackNetworkVersions(UNetConnection* Connection)
 	{
 		Connection->EngineNetworkProtocolVersion = PlaybackDemoHeader.EngineNetworkProtocolVersion;
 		Connection->GameNetworkProtocolVersion = PlaybackDemoHeader.GameNetworkProtocolVersion;
+		Connection->SetPackageVersionUE(PlaybackDemoHeader.PackageVersionUE);
+		Connection->SetPackageVersionLicenseeUE(PlaybackDemoHeader.PackageVersionLicenseeUE);
+		Connection->SetEngineVersion(PlaybackDemoHeader.EngineVersion);
 	}
 }
 

@@ -1750,7 +1750,7 @@ private:
 		FReceivingRepState* RESTRICT RepState, 
 		FGuidReferencesMap* GuidReferencesMap,
 		UObject* OriginalObject,
-		UPackageMap* PackageMap, 
+		UNetConnection* Connection,
 		FRepShadowDataBuffer ShadowData, 
 		FRepObjectDataBuffer Data, 
 		const int32 MaxAbsOffset,

@@ -225,6 +225,9 @@ protected:
 	int64 Num;
 	int64 Pos;
 
+	/** Copies version information used for network compatibility from Source to this archive */
+	void SetNetVersionsFromArchive(FArchive& Source);
+
 private:
 
 	FORCEINLINE uint8 Shift(uint8 Cnt)

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectVersion.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/NetworkGuid.h"
 #include "Misc/NetworkVersion.h"
@@ -87,21 +88,22 @@ struct FLevelNameAndTime
 enum ENetworkVersionHistory
 {
 	HISTORY_REPLAY_INITIAL = 1,
-	HISTORY_SAVE_ABS_TIME_MS = 2,			// We now save the abs demo time in ms for each frame (solves accumulation errors)
-	HISTORY_INCREASE_BUFFER = 3,			// Increased buffer size of packets, which invalidates old replays
+	HISTORY_SAVE_ABS_TIME_MS = 2,				// We now save the abs demo time in ms for each frame (solves accumulation errors)
+	HISTORY_INCREASE_BUFFER = 3,				// Increased buffer size of packets, which invalidates old replays
 	HISTORY_SAVE_ENGINE_VERSION = 4,			// Now saving engine net version + InternalProtocolVersion
-	HISTORY_EXTRA_VERSION = 5,			// We now save engine/game protocol version, checksum, and changelist
-	HISTORY_MULTIPLE_LEVELS = 6,			// Replays support seamless travel between levels
-	HISTORY_MULTIPLE_LEVELS_TIME_CHANGES = 7,			// Save out the time that level changes happen
+	HISTORY_EXTRA_VERSION = 5,					// We now save engine/game protocol version, checksum, and changelist
+	HISTORY_MULTIPLE_LEVELS = 6,				// Replays support seamless travel between levels
+	HISTORY_MULTIPLE_LEVELS_TIME_CHANGES = 7,	// Save out the time that level changes happen
 	HISTORY_DELETED_STARTUP_ACTORS = 8,			// Save DeletedNetStartupActors inside checkpoints
-	HISTORY_HEADER_FLAGS = 9,			// Save out enum flags with demo header
+	HISTORY_HEADER_FLAGS = 9,					// Save out enum flags with demo header
 	HISTORY_LEVEL_STREAMING_FIXES = 10,			// Optional level streaming fixes.
-	HISTORY_SAVE_FULL_ENGINE_VERSION = 11,			// Now saving the entire FEngineVersion including branch name
-	HISTORY_HEADER_GUID = 12,			// Save guid to demo header
+	HISTORY_SAVE_FULL_ENGINE_VERSION = 11,		// Now saving the entire FEngineVersion including branch name
+	HISTORY_HEADER_GUID = 12,					// Save guid to demo header
 	HISTORY_CHARACTER_MOVEMENT = 13,			// Change to using replicated movement and not interpolation
-	HISTORY_CHARACTER_MOVEMENT_NOINTERP = 14,			// No longer recording interpolated movement samples
+	HISTORY_CHARACTER_MOVEMENT_NOINTERP = 14,	// No longer recording interpolated movement samples
 	HISTORY_GUID_NAMETABLE = 15,				// Added a string table for exported guids
 	HISTORY_GUIDCACHE_CHECKSUMS = 16,			// Removing guid export checksums from saved data, they are ignored during playback
+	HISTORY_SAVE_PACKAGE_VERSION_UE = 17,		// Save engine and licensee package version as well, in case serialization functions need them for compatibility
 
 	// -----<new versions can be added before this line>-------------------------------------------------
 	HISTORY_PLUS_ONE,
@@ -130,6 +132,8 @@ struct FNetworkDemoHeader
 	EReplayHeaderFlags HeaderFlags;					// Replay flags
 	TArray<FLevelNameAndTime> LevelNamesAndTimes;	// Name and time changes of levels loaded for demo
 	TArray<FString> GameSpecificData;				// Area for subclasses to write stuff
+	FPackageFileVersion PackageVersionUE;			// Engine package version on which the replay was recorded
+	int32 PackageVersionLicenseeUE;					// Licensee package version on which the replay was recorded
 
 	FNetworkDemoHeader() :
 		Magic(NETWORK_DEMO_MAGIC),
@@ -139,7 +143,9 @@ struct FNetworkDemoHeader
 		GameNetworkProtocolVersion(FNetworkVersion::GetGameNetworkProtocolVersion()),
 		Guid(),
 		EngineVersion(FEngineVersion::Current()),
-		HeaderFlags(EReplayHeaderFlags::None)
+		HeaderFlags(EReplayHeaderFlags::None),
+		PackageVersionUE(GPackageFileUEVersion),
+		PackageVersionLicenseeUE(GPackageFileLicenseeUEVersion)
 	{
 	}
 
@@ -188,6 +194,38 @@ struct FNetworkDemoHeader
 			{
 				// We don't have any valid information except the changelist.
 				Header.EngineVersion.Set(0, 0, 0, Changelist, FString());
+			}
+		}
+
+		if (Header.Version >= HISTORY_SAVE_PACKAGE_VERSION_UE)
+		{
+			Ar << Header.PackageVersionUE;
+			Ar << Header.PackageVersionLicenseeUE;
+		}
+		else
+		{
+			if (Ar.IsLoading())
+			{
+				// Fix up for LWC compatibility.
+				// Vectors were using operator<< to serialize in some network cases (instead of
+				// the NetSerialize function), but this operator uses EUnrealEngineObjectUE5Version
+				// and not EEngineNetworkVersionHistory for versioning. Therefore, pre-LWC replays
+				// that did not save the EUnrealEngineObjectUE5Version will try to read doubles
+				// from these vectors instead of floats.
+				//
+				// However, EEngineNetworkVersionHistory::HISTORY_SERIALIZE_DOUBLE_VECTORS_AS_DOUBLES was
+				// added around the same time as EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES,
+				// so we use the network version as an approximation the package version to allow
+				// most pre-LWC replays to play back correctly. The compromise is that any replays recorded
+				// between when HISTORY_SERIALIZE_DOUBLE_VECTORS_AS_DOUBLES and LARGE_WORLD_COORDINATES
+				// were added won't play back correctly since they didn't store accurate version information.
+				if (Header.EngineNetworkProtocolVersion < HISTORY_SERIALIZE_DOUBLE_VECTORS_AS_DOUBLES)
+				{
+					// If the replay was recorded before vectors were serialized with LWC, and before replays
+					// saved the UE package version, set the package version to one before LARGE_WORLD_COORDINATES
+					// so that vectors will be read properly by operator<<.
+					Header.PackageVersionUE = FPackageFileVersion(VER_LATEST_ENGINE_UE4, EUnrealEngineObjectUE5Version::OPTIONAL_RESOURCES);
+				}
 			}
 		}
 

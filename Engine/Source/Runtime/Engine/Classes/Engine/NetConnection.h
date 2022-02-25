@@ -10,6 +10,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "Serialization/BitWriter.h"
+#include "Misc/EngineVersion.h"
 #include "Misc/NetworkGuid.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "GameFramework/UpdateLevelVisibilityLevelInfo.h"
@@ -674,8 +675,27 @@ private:
 
 	UReplicationConnectionDriver* ReplicationConnectionDriver;
 
+	/** Engine package version for compatibility */
+	FPackageFileVersion PackageVersionUE;
+
+	/** Licensee package version for compatibility */
+	int32 PackageVersionLicenseeUE;
+
+	/** Engine version information for compatibility */
+	FEngineVersion EngineVersion;
 
 public:
+	/** Sets the UE package version for compatibility purposes */
+	void SetPackageVersionUE(FPackageFileVersion InPackageVersionUE) { PackageVersionUE = InPackageVersionUE; }
+	
+	/** Sets the licensee package version for compatibility purposes */
+	void SetPackageVersionLicenseeUE(int32 InPackageVersionLicenseeUE) { PackageVersionLicenseeUE = InPackageVersionLicenseeUE; }
+
+	/** Sets engine version information for compatibility purposes */
+	void SetEngineVersion(const FEngineVersion& InEngineVersion) { EngineVersion = InEngineVersion; }
+
+	/** Set version information on an archive that can be used for compatibility checks */
+	void SetNetVersionsOnArchive(FArchive& Ar) const;
 
 	void AddDestructionInfo(FActorDestructionInfo* DestructionInfo)
 	{

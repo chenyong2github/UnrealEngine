@@ -40,8 +40,7 @@ FInBunch::FInBunch( UNetConnection* InConnection, uint8* Src, int64 CountBits )
 	SetByteSwapping(Connection->bNeedsByteSwapping);
 
 	// Copy network version info
-	this->SetEngineNetVer(InConnection->EngineNetworkProtocolVersion);
-	this->SetGameNetVer(InConnection->GameNetworkProtocolVersion);
+	Connection->SetNetVersionsOnArchive(*this);
 }
 
 /** Copy constructor but with optional parameter to not copy buffer */
@@ -66,8 +65,7 @@ FInBunch::FInBunch( FInBunch &InBunch, bool CopyBuffer )
 	CloseReason = InBunch.CloseReason;
 
 	// Copy network version info
-	this->SetEngineNetVer(InBunch.EngineNetVer());
-	this->SetGameNetVer(InBunch.GameNetVer());
+	SetNetVersionsFromArchive(InBunch);
 
 	PackageMap = InBunch.PackageMap;
 
