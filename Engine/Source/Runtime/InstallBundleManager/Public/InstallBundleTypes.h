@@ -335,3 +335,10 @@ struct FInstallBundleCacheStats
 	uint64 ReservedSize = 0;
 	uint64 FreeSize = 0;
 };
+
+enum class EInstallBundleCacheDumpToLog : int8
+{
+	None = 0,
+	Default,
+	CSV
+};
