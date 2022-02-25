@@ -937,6 +937,14 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bMobileEnableMovableLightCSMShaderCulling : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = MobileShaderPermutationReduction, meta = (
+		ConsoleVariable = "r.Mobile.EnableNoPrecomputedLightingCSMShader",
+		DisplayName = "Support CSM on levels with Force No Precomputed Lighting enabled",
+		EditCondition = "bAllowStaticLighting",
+		ToolTip = "When Allow Static Lighting is enabled, shaders to support CSM without any precomputed lighting are not normally generated. This setting allows CSM for this case at the cost of extra shader permutations. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+		uint32 bMobileEnableNoPrecomputedLightingCSMShader : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = MobileShaderPermutationReduction, meta = (
 		ConsoleVariable = "r.Mobile.AllowDistanceFieldShadows",
 		DisplayName = "Support Pre-baked Distance Field Shadow Maps",
 		ToolTip = "Generate shaders for static primitives render Lightmass-baked distance field shadow maps from stationary directional lights. Changing this setting requires restarting the editor.",

@@ -222,7 +222,7 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 	{
 		const FReadOnlyCVARCache& ReadOnlyCVARCache = FReadOnlyCVARCache::Get();
 
-		if (!ReadOnlyCVARCache.bAllowStaticLighting)
+		if (!ReadOnlyCVARCache.bAllowStaticLighting || (ReadOnlyCVARCache.bMobileEnableNoPrecomputedLightingCSMShader && Scene && Scene->GetForceNoPrecomputedLighting()))
 		{
 			if (!IsTranslucentBlendMode(BlendMode))
 			{

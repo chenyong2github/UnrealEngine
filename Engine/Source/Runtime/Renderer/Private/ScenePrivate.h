@@ -3379,6 +3379,11 @@ public:
 	 */
 	inline int32 GetMaxPersistentPrimitiveIndex() const { return PersistentPrimitiveIdAllocator.GetMaxSize(); }
 
+	bool GetForceNoPrecomputedLighting() const
+	{
+		return bForceNoPrecomputedLighting;
+	}
+
 protected:
 
 private:
@@ -3534,6 +3539,9 @@ private:
 
 	/** Frame number incremented per-family viewing this scene. */
 	uint32 SceneFrameNumber;
+
+	/** Whether world settings has bForceNoPrecomputedLighting set */
+	bool bForceNoPrecomputedLighting;
 };
 
 inline bool ShouldIncludeDomainInMeshPass(EMaterialDomain Domain)

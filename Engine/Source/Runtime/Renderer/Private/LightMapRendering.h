@@ -492,8 +492,11 @@ struct FMobileDirectionalLightAndCSMPolicy
 		}
 		
 		static auto* CVarAllowStaticLighting = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+		static auto* CVarEnableNoPrecomputedLightingCSMShader = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EnableNoPrecomputedLightingCSMShader"));
 		const bool bAllowStaticLighting = CVarAllowStaticLighting->GetValueOnAnyThread() != 0;
-		return !bAllowStaticLighting && 
+		const bool bEnableNoPrecomputedLightingCSMShader = CVarEnableNoPrecomputedLightingCSMShader && CVarEnableNoPrecomputedLightingCSMShader->GetValueOnAnyThread() != 0;
+
+		return (!bAllowStaticLighting || bEnableNoPrecomputedLightingCSMShader) &&
 			Parameters.MaterialParameters.ShadingModels.IsLit() && 
 			!IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode);
 	}
