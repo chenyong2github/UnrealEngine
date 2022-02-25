@@ -159,10 +159,9 @@ void FSpatialHashStreamingGrid::GetCells(const FWorldPartitionStreamingQuerySour
 		{
 			Helper.ForEachIntersectingCells(Shape, [&](const FIntVector& Coords)
 			{
-				if (const int32* LayerCellIndexPtr = GridLevels[Coords.Z].LayerCellsMapping.Find(Coords.Y * Helper.Levels[Coords.Z].GridSize + Coords.X))
+				if (const FSpatialHashStreamingGridLayerCell* LayerCell = GetLayerCell(Coords))
 				{
-					const FSpatialHashStreamingGridLayerCell& LayerCell = GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
-					for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
+					for (const UWorldPartitionRuntimeCell* Cell : LayerCell->GridCells)
 					{
 						if (ShouldAddCell(Cell, QuerySource))
 						{
@@ -192,6 +191,9 @@ void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSo
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSpatialHashStreamingGrid::GetCells);
 	
+	typedef TMap<FIntVector, TArray<UWorldPartitionRuntimeCell::FStreamingSourceInfo>> FIntersectingCells;
+	FIntersectingCells AllActivatedCells;
+
 	const float GridLoadingRange = GetLoadingRange();
 	const FSquare2DGridHelper& Helper = GetGridHelper();
 	for (const FWorldPartitionStreamingSource& Source : Sources)
@@ -201,15 +203,15 @@ void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSo
 			UWorldPartitionRuntimeCell::FStreamingSourceInfo Info(Source, Shape);
 
 			Helper.ForEachIntersectingCells(Shape, [&](const FIntVector& Coords)
-			{ 
+			{
+				bool bAddedActivatedCell = false;
 #if !UE_BUILD_SHIPPING
 				if ((GFilterRuntimeSpatialHashGridLevel == INDEX_NONE) || (GFilterRuntimeSpatialHashGridLevel == Coords.Z))
 #endif
 				{
-					if (const int32* LayerCellIndexPtr = GridLevels[Coords.Z].LayerCellsMapping.Find(Coords.Y * Helper.Levels[Coords.Z].GridSize + Coords.X))
+					if (const FSpatialHashStreamingGridLayerCell* LayerCell = GetLayerCell(Coords))
 					{
-						const FSpatialHashStreamingGridLayerCell& LayerCell = GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
-						for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
+						for (const UWorldPartitionRuntimeCell* Cell : LayerCell->GridCells)
 						{
 							if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInEffectiveRuntimeState(Cell->GetDataLayers(), EDataLayerRuntimeState::Activated)))
 							{
@@ -221,6 +223,7 @@ void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSo
 								{
 									check(Source.TargetState == EStreamingSourceTargetState::Activated);
 									OutActivateCells.AddCell(Cell, Info);
+									bAddedActivatedCell = (!GRuntimeSpatialHashUseAlignedGridLevels);
 								}
 							}
 							else if (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInEffectiveRuntimeState(Cell->GetDataLayers(), EDataLayerRuntimeState::Loaded))
@@ -230,11 +233,94 @@ void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSo
 						}
 					}
 				}
+				if (bAddedActivatedCell)
+				{
+					AllActivatedCells.FindOrAdd(Coords).Add(Info);
+				}
 			});
 		});
 	}
 
 	GetAlwaysLoadedCells(DataLayerSubsystem, OutActivateCells.GetCells(), OutLoadCells.GetCells());
+
+	if (!GRuntimeSpatialHashUseAlignedGridLevels)
+	{
+		auto FindIntersectingParents = [&Helper, this](const FIntersectingCells& InAllCells, const FIntersectingCells& InTestCells, FIntersectingCells& OutIntersectingCells)
+		{
+			bool bFound = false;
+			const int32 AlwaysLoadedLevel = Helper.Levels.Num() - 1;
+			for (const auto& InTestCell : InTestCells)
+			{
+				const FIntVector& TestCell = InTestCell.Key;
+				int32 CurrentLevelIndex = TestCell.Z;
+				int32 ParentLevelIndex = CurrentLevelIndex + 1;
+				// Only test with Parent Level if it's below the AlwaysLoaded Level
+				if (ParentLevelIndex < AlwaysLoadedLevel)
+				{
+					FBox2D CurrentLevelCellBounds;
+					Helper.Levels[CurrentLevelIndex].GetCellBounds(FIntVector2(TestCell.X, TestCell.Y), CurrentLevelCellBounds);
+					FBox Box(FVector(CurrentLevelCellBounds.Min, 0), FVector(CurrentLevelCellBounds.Max, 0));
+
+					Helper.ForEachIntersectingCells(Box, [&](const FIntVector& IntersectingCoords)
+					{
+						check(IntersectingCoords.Z >= ParentLevelIndex);
+						if (!InAllCells.Contains(IntersectingCoords))
+						{
+							if (!OutIntersectingCells.Contains(IntersectingCoords))
+							{
+								OutIntersectingCells.Add(IntersectingCoords, InTestCell.Value);
+								bFound = true;
+							}
+						}
+					}, ParentLevelIndex);
+				}
+			}
+			return bFound;
+		};
+	
+		FIntersectingCells AllParentCells;
+		FIntersectingCells TestCells = AllActivatedCells;
+		FIntersectingCells IntersectingCells;
+		bool bFound = false;
+		do
+		{
+			bFound = FindIntersectingParents(AllActivatedCells, TestCells, IntersectingCells);
+			if (bFound)
+			{
+				AllActivatedCells.Append(IntersectingCells);
+				AllParentCells.Append(IntersectingCells);
+				TestCells = MoveTemp(IntersectingCells);
+				check(IntersectingCells.IsEmpty());
+			}
+		} while (bFound);
+
+		for (const auto& ParentCell : AllParentCells)
+		{
+			if (const FSpatialHashStreamingGridLayerCell* LayerCell = GetLayerCell(ParentCell.Key))
+			{
+				for (const UWorldPartitionRuntimeCell* Cell : LayerCell->GridCells)
+				{
+					if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInEffectiveRuntimeState(Cell->GetDataLayers(), EDataLayerRuntimeState::Activated)))
+					{
+						for (const auto& Info : ParentCell.Value)
+						{
+							OutActivateCells.AddCell(Cell, Info);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+const FSpatialHashStreamingGridLayerCell* FSpatialHashStreamingGrid::GetLayerCell(const FIntVector& Coords) const
+{
+	check(GridLevels.IsValidIndex(Coords.Z));
+	if (const int32* LayerCellIndexPtr = GridLevels[Coords.Z].LayerCellsMapping.Find(Coords.Y * GetGridHelper().Levels[Coords.Z].GridSize + Coords.X))
+	{
+		return &GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
+	}
+	return nullptr;
 }
 
 void FSpatialHashStreamingGrid::GetAlwaysLoadedCells(const UDataLayerSubsystem* DataLayerSubsystem, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const

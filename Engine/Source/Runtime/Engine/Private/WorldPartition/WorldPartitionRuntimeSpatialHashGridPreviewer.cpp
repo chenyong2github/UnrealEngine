@@ -2,6 +2,7 @@
 
 #include "WorldPartition/WorldPartitionRuntimeSpatialHashGridPreviewer.h"
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
+#include "WorldPartition/RuntimeSpatialHash/RuntimeSpatialHashGridHelper.h"
 #include "Engine/PostProcessVolume.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
@@ -72,6 +73,13 @@ void FWorldPartitionRuntimeSpatialHashGridPreviewer::Draw(UWorld* World, const T
 					{
 						MID->SetVectorParameterValue(*FString::Printf(TEXT("Grid%d_Color"), i), Grid.DebugColor);
 						CachedParameters.GridColor = Grid.DebugColor;
+					}
+
+					FVector GridOffset = GRuntimeSpatialHashUseAlignedGridLevels ? FVector(0.5 * Grid.CellSize) : FVector::ZeroVector;
+					if (CachedParameters.GridOffset != GridOffset)
+					{
+						MID->SetVectorParameterValue(*FString::Printf(TEXT("Grid%d_Offset"), i), GridOffset);
+						CachedParameters.GridOffset = GridOffset;
 					}
 				}
 			}

@@ -10,6 +10,8 @@
 #include "WorldPartition/WorldPartitionActorCluster.h"
 #include "WorldPartition/DataLayer/DataLayersID.h"
 
+extern ENGINE_API bool GRuntimeSpatialHashUseAlignedGridLevels;
+
 /**
   * Square 2D grid helper
   */
@@ -445,21 +447,21 @@ struct FSquare2DGridHelper
 	 *
 	 * @return the number of intersecting cells
 	 */
-	int32 ForEachIntersectingCells(const FBox& InBox, TFunctionRef<void(const FIntVector&)> InOperation) const;
+	int32 ForEachIntersectingCells(const FBox& InBox, TFunctionRef<void(const FIntVector&)> InOperation, int32 InStartLevel = 0) const;
 
 	/**
 	 * Runs a function on all intersecting cells for the provided sphere
 	 *
 	 * @return the number of intersecting cells
 	 */
-	int32 ForEachIntersectingCells(const FSphere& InSphere, TFunctionRef<void(const FIntVector&)> InOperation) const;
+	int32 ForEachIntersectingCells(const FSphere& InSphere, TFunctionRef<void(const FIntVector&)> InOperation, int32 InStartLevel = 0) const;
 
 	/**
 	 * Runs a function on all intersecting cells for the provided spherical sector
 	 *
 	 * @return the number of intersecting cells
 	 */
-	int32 ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FIntVector&)> InOperation) const;
+	int32 ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FIntVector&)> InOperation, int32 InStartLevel = 0) const;
 
 #if WITH_EDITOR
 	// Validates that actor is not referenced by multiple cells

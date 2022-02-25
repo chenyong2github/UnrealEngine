@@ -4,6 +4,12 @@
 #include "Algo/Transform.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
+bool GRuntimeSpatialHashUseAlignedGridLevels = true;
+static FAutoConsoleVariableRef CVarUseGrow(
+	TEXT("wp.Runtime.RuntimeSpatialHashUseAlignedGridLevels"),
+	GRuntimeSpatialHashUseAlignedGridLevels,
+	TEXT("Set RuntimeSpatialHashUseAlignedGridLevels to false to help break the pattern caused by world partition promotion of actors to upper grid levels that are always aligned on child levels."));
+
 FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVector& InOrigin, int32 InCellSize)
 	: WorldBounds(InWorldBounds)
 	, Origin(InOrigin)
@@ -40,12 +46,17 @@ FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVecto
 	int32 CurrentGridSize = GridSize;
 	for (int32 Level = 0; Level < GridLevelCount; ++Level)
 	{
-		// Except for top level, adding 1 to CurrentGridSize (which is always a power of 2) breaks the pattern of perfectly aligned cell edges between grid level cells.
-		// This will prevent weird artefact during actor promotion when an actor is placed using its bounds and which overlaps multiple cells.
-		// In this situation, the algorithm will try to find a cell that encapsulates completely the actor's bounds by searching in the upper levels, until it finds one.
-		// Also note that, the default origin of each level will always be centered at the middle of the bounds of (level's cellsize * level's grid size).
-		int32 LevelGridSize = (Level == GridLevelCount-1) ? CurrentGridSize : CurrentGridSize + 1;
-		
+		int32 LevelGridSize = CurrentGridSize;
+
+		if (!GRuntimeSpatialHashUseAlignedGridLevels)
+		{
+			// Except for top level, adding 1 to CurrentGridSize (which is always a power of 2) breaks the pattern of perfectly aligned cell edges between grid level cells.
+			// This will prevent weird artefact during actor promotion when an actor is placed using its bounds and which overlaps multiple cells.
+			// In this situation, the algorithm will try to find a cell that encapsulates completely the actor's bounds by searching in the upper levels, until it finds one.
+			// Also note that, the default origin of each level will always be centered at the middle of the bounds of (level's cellsize * level's grid size).
+			LevelGridSize = (Level == GridLevelCount - 1) ? CurrentGridSize : CurrentGridSize + 1;
+		}
+
 		Levels.Emplace(FVector2D(InOrigin), CurrentCellSize, LevelGridSize, Level);
 
 		CurrentCellSize <<= 1;
@@ -71,11 +82,11 @@ void FSquare2DGridHelper::ForEachCells(TFunctionRef<void(const FSquare2DGridHelp
 }
 #endif
 
-int32 FSquare2DGridHelper::ForEachIntersectingCells(const FBox& InBox, TFunctionRef<void(const FIntVector&)> InOperation) const
+int32 FSquare2DGridHelper::ForEachIntersectingCells(const FBox& InBox, TFunctionRef<void(const FIntVector&)> InOperation, int32 InStartLevel) const
 {
 	int32 NumCells = 0;
 
-	for (int32 Level = 0; Level < Levels.Num(); Level++)
+	for (int32 Level = InStartLevel; Level < Levels.Num(); Level++)
 	{
 		NumCells += Levels[Level].ForEachIntersectingCells(InBox, [InBox, Level, InOperation](const FIntVector2& Coord) { InOperation(FIntVector(Coord.X, Coord.Y, Level)); });
 	}
@@ -83,11 +94,11 @@ int32 FSquare2DGridHelper::ForEachIntersectingCells(const FBox& InBox, TFunction
 	return NumCells;
 }
 
-int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphere& InSphere, TFunctionRef<void(const FIntVector&)> InOperation) const
+int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphere& InSphere, TFunctionRef<void(const FIntVector&)> InOperation, int32 InStartLevel) const
 {
 	int32 NumCells = 0;
 
-	for (int32 Level = 0; Level < Levels.Num(); Level++)
+	for (int32 Level = InStartLevel; Level < Levels.Num(); Level++)
 	{
 		NumCells += Levels[Level].ForEachIntersectingCells(InSphere, [InSphere, Level, InOperation](const FIntVector2& Coord) { InOperation(FIntVector(Coord.X, Coord.Y, Level)); });
 	}
@@ -95,11 +106,11 @@ int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphere& InSphere, TFu
 	return NumCells;
 }
 
-int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FIntVector&)> InOperation) const
+int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphericalSector& InShape, TFunctionRef<void(const FIntVector&)> InOperation, int32 InStartLevel) const
 {
 	int32 NumCells = 0;
 
-	for (int32 Level = 0; Level < Levels.Num(); Level++)
+	for (int32 Level = InStartLevel; Level < Levels.Num(); Level++)
 	{
 		NumCells += Levels[Level].ForEachIntersectingCells(InShape, [Level, InOperation](const FIntVector2& Coord) { InOperation(FIntVector(Coord.X, Coord.Y, Level)); });
 	}
@@ -160,7 +171,6 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		}
 	}
 
-	const float CellArea = PartitionedActors.GetLowestLevel().CellSize * PartitionedActors.GetLowestLevel().CellSize;
 	for (const FActorClusterInstance* ClusterInstance : GridActors)
 	{
 		const FActorCluster* ActorCluster = ClusterInstance->Cluster;
@@ -170,36 +180,24 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 
 		if (ActorCluster->bIsSpatiallyLoaded)
 		{
-			if (ClusterBounds.GetArea() <= CellArea)
-			{
-				// Find grid level cell that copntains the actor cluster pivot and put actors in it.
-				FIntVector2 CellCoords;
-				if (PartitionedActors.GetLowestLevel().GetCellCoords(ClusterBounds.GetCenter(), CellCoords))
-				{
-					GridCell = &PartitionedActors.GetLowestLevel().GetCell(CellCoords);
-				}
-			}
-			else
-			{
-				// Find grid level cell that encompasses the actor cluster bounding box and put actors in it.
-				const FVector2D ClusterSize = ClusterBounds.GetSize();
-				const float MinRequiredCellExtent = FMath::Max(ClusterSize.X, ClusterSize.Y);
-				const int32 FirstPotentialGridLevel = FMath::Max(FMath::CeilToFloat(FMath::Log2(MinRequiredCellExtent / (float)PartitionedActors.CellSize)), 0);
+			// Find grid level cell that encompasses the actor cluster bounding box and put actors in it.
+			const FVector2D ClusterSize = ClusterBounds.GetSize();
+			const float MinRequiredCellExtent = FMath::Max(ClusterSize.X, ClusterSize.Y);
+			const int32 FirstPotentialGridLevel = FMath::Max(FMath::CeilToFloat(FMath::Log2(MinRequiredCellExtent / (float)PartitionedActors.CellSize)), 0);
 
-				for (int32 GridLevelIndex = FirstPotentialGridLevel; GridLevelIndex < PartitionedActors.Levels.Num(); GridLevelIndex++)
-				{
-					FSquare2DGridHelper::FGridLevel& GridLevel = PartitionedActors.Levels[GridLevelIndex];
+			for (int32 GridLevelIndex = FirstPotentialGridLevel; GridLevelIndex < PartitionedActors.Levels.Num(); GridLevelIndex++)
+			{
+				FSquare2DGridHelper::FGridLevel& GridLevel = PartitionedActors.Levels[GridLevelIndex];
 
-					if (GridLevel.GetNumIntersectingCells(ClusterInstance->Bounds) == 1)
+				if (GridLevel.GetNumIntersectingCells(ClusterInstance->Bounds) == 1)
+				{
+					GridLevel.ForEachIntersectingCells(ClusterInstance->Bounds, [&GridLevel, ActorCluster, ClusterInstance, &GridCell](const FIntVector2& Coords)
 					{
-						GridLevel.ForEachIntersectingCells(ClusterInstance->Bounds, [&GridLevel, ActorCluster, ClusterInstance, &GridCell](const FIntVector2& Coords)
-						{
-							check(!GridCell);
-							GridCell = &GridLevel.GetCell(Coords);
-						});
+						check(!GridCell);
+						GridCell = &GridLevel.GetCell(Coords);
+					});
 
-						break;
-					}
+					break;
 				}
 			}
 		}
