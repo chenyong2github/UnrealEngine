@@ -292,7 +292,7 @@ namespace CADLibrary
 	}
 
 
-	uint32 FCADKernelTools::GetFaceTessellation(CADKernel::FFaceMesh& FaceMesh, FBodyMesh& OutBodyMesh)
+	uint32 FCADKernelTools::GetFaceTessellation(CADKernel::FFaceMesh& FaceMesh, FBodyMesh& OutBodyMesh, FObjectDisplayDataId FaceMaterial)
 	{
 		// Something wrong happened, either an error or no data to collect
 		if (FaceMesh.TrianglesVerticesIndex.Num() == 0)
@@ -311,16 +311,34 @@ namespace CADLibrary
 		Tessellation.NormalArray = MoveTemp(FaceMesh.Normals);
 		Tessellation.TexCoordArray = MoveTemp(FaceMesh.UVMap);
 
+		if (FaceMaterial.Color)
+		{
+			Tessellation.ColorName = FaceMaterial.Color;
+			OutBodyMesh.ColorSet.Add(FaceMaterial.Color);
+		}
+
+		if (FaceMaterial.Material)
+		{
+			Tessellation.MaterialName = FaceMaterial.Material;
+			OutBodyMesh.MaterialSet.Add(FaceMaterial.Material);
+		}
+
 		return Tessellation.VertexIndices.Num() / 3;
 	}
 
 	void GetDisplayDataIds(const CADKernel::FTopologicalShapeEntity& ShapeEntity, FObjectDisplayDataId& DisplayDataId)
 	{
-		DisplayDataId.Color = ShapeEntity.GetColorId();
-		DisplayDataId.Material = ShapeEntity.GetMaterialId();
+		if (ShapeEntity.GetColorId() != 0)
+		{
+			DisplayDataId.Color = ShapeEntity.GetColorId();
+		}
+		if (ShapeEntity.GetMaterialId() != 0)
+		{
+			DisplayDataId.Material = ShapeEntity.GetMaterialId();
+		}
 	}
 
-	void FCADKernelTools::GetBodyTessellation(const CADKernel::FModelMesh& ModelMesh, const CADKernel::FBody& Body, FBodyMesh& OutBodyMesh, uint32 DefaultMaterialHash, TFunction<void(FObjectDisplayDataId, FObjectDisplayDataId, int32)> SetFaceMainMaterial)
+	void FCADKernelTools::GetBodyTessellation(const CADKernel::FModelMesh& ModelMesh, const CADKernel::FBody& Body, FBodyMesh& OutBodyMesh)
 	{
 		ModelMesh.GetNodeCoordinates(OutBodyMesh.VertexArray);
 
@@ -332,12 +350,11 @@ namespace CADLibrary
 		OutBodyMesh.MaterialSet.Reserve(FaceSize);
 
 		FObjectDisplayDataId BodyMaterial;
-		BodyMaterial.DefaultMaterialName = DefaultMaterialHash;
 
 		GetDisplayDataIds(Body, BodyMaterial);
+		BodyMaterial.DefaultMaterialName = BodyMaterial.Material != 0 ? BodyMaterial.Material : BodyMaterial.Color;
 
 		// Loop through the face of bodies and collect all tessellation data
-		int32 FaceIndex = 0;
 		for (const TSharedPtr<CADKernel::FShell>& Shell : Body.GetShells())
 		{
 			if (!Shell.IsValid())
@@ -360,23 +377,11 @@ namespace CADLibrary
 					continue;
 				}
 
-				FObjectDisplayDataId FaceMaterial;
+				FObjectDisplayDataId FaceMaterial = ShellMaterial;
 				GetDisplayDataIds(*Face.Entity, FaceMaterial);
 
-				uint32 TriangleNum = GetFaceTessellation(*Face.Entity->GetMesh(), OutBodyMesh);
-
-				if (TriangleNum == 0)
-				{
-					continue;
-				}
-
+				uint32 TriangleNum = GetFaceTessellation(*Face.Entity->GetMesh(), OutBodyMesh, FaceMaterial);
 				OutBodyMesh.TriangleCount += TriangleNum;
-
-				if (SetFaceMainMaterial)
-				{
-					SetFaceMainMaterial(FaceMaterial, ShellMaterial, FaceIndex);
-				}
-				FaceIndex++;
 			}
 		}
 	}

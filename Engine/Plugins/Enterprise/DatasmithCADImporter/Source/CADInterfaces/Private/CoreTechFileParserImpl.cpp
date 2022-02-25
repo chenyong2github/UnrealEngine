@@ -276,7 +276,7 @@ namespace CADLibrary
 				CT_LIST_IO ObjectList;
 				ObjectList.PushBack(MainId);
 
-				CT_IO_ERROR SaveResult = CT_KERNEL_IO::SaveFile(ObjectList, *CacheFilePath, L"Ct");
+				CT_IO_ERROR SaveResult = CT_KERNEL_IO::SaveFile(ObjectList, *CacheFilePath, TEXT("Ct"));
 			}
 		}
 
@@ -660,7 +660,7 @@ namespace CADLibrary
 			CT_LIST_IO ObjectList;
 			ObjectList.PushBack(BodyId);
 			FString BodyFile = CADFileData.GetBodyCachePath(Body.MeshActorName);
-			CT_KERNEL_IO::SaveFile(ObjectList, *BodyFile, L"Ct");
+			CT_KERNEL_IO::SaveFile(ObjectList, *BodyFile, TEXT("Ct"));
 		}
 
 		FObjectDisplayDataId BodyMaterial;
@@ -759,13 +759,7 @@ namespace CADLibrary
 			CADKernel::FParametricMesher Mesher(*CADKernelModelMesh);
 			Mesher.MeshEntity(CADKernelModel);
 
-			TFunction<void(FObjectDisplayDataId, FObjectDisplayDataId, int32)> ProcessFace;
-			ProcessFace = [&](FObjectDisplayDataId FaceMaterial, FObjectDisplayDataId BodyMaterial, int32 Index)
-			{
-				SetFaceMainMaterial(FaceMaterial, BodyMaterial, BodyMesh, Index);
-			};
-
-			FCADKernelTools::GetBodyTessellation(*CADKernelModelMesh, *CADKernelBody, BodyMesh, DefaultMaterialHash, ProcessFace);
+			FCADKernelTools::GetBodyTessellation(*CADKernelModelMesh, *CADKernelBody, BodyMesh);
 
 			CADKernelSession.Clear();
 		}
@@ -808,13 +802,7 @@ namespace CADLibrary
 		CADKernel::FParametricMesher Mesher(*CADKernelModelMesh);
 		Mesher.MeshEntity(CADKernelBody);
 
-		TFunction<void(FObjectDisplayDataId, FObjectDisplayDataId, int32)> ProcessFace;
-		ProcessFace = [&](FObjectDisplayDataId FaceMaterial, FObjectDisplayDataId BodyMaterial, int32 Index)
-		{
-			SetFaceMainMaterial(FaceMaterial, BodyMaterial, BodyMesh, Index);
-		};
-
-		FCADKernelTools::GetBodyTessellation(CADKernelModelMesh.Get(), CADKernelBody, BodyMesh, DefaultMaterialHash, ProcessFace);
+		FCADKernelTools::GetBodyTessellation(CADKernelModelMesh.Get(), CADKernelBody, BodyMesh);
 
 		ArchiveBody.ColorFaceSet = BodyMesh.ColorSet;
 		ArchiveBody.MaterialFaceSet = BodyMesh.MaterialSet;
