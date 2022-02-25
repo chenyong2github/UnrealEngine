@@ -349,7 +349,7 @@ namespace Audio
 
 #if !WITH_BINK_AUDIO
 		// Some SDL platforms don't yet support bink, so fall back to ADPCM
-		if (InRuntimeFormat == Audio::NAME_BINKA)
+		if (RuntimeFormat == Audio::NAME_BINKA)
 		{
 			return Audio::NAME_ADPCM;
 		}
