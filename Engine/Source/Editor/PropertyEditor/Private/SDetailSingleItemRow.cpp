@@ -662,6 +662,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 		SNew( SBorder )
 		.BorderImage(FAppStyle::Get().GetBrush("DetailsView.GridLine"))
 		.Padding(FMargin(0,0,0,1))
+		.Clipping(EWidgetClipping::ClipToBounds)
 		[
 			SNew(SBox)
 			.MinDesiredHeight(PropertyEditorConstants::PropertyRowHeight)
@@ -679,7 +680,6 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 						.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
 						.BorderBackgroundColor(this, &SDetailSingleItemRow::GetOuterBackgroundColor)
 						.Padding(0)
-						.Clipping(EWidgetClipping::ClipToBounds)
 						[
 							Widget
 						]
