@@ -652,9 +652,18 @@ public:
 
 		if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
-			TSharedRef<FOpenNurbsBRepToCoretechConverter> OpenNurbsBRepToCoretechConverter = MakeShared<FOpenNurbsBRepToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
-			CADModelConverter = OpenNurbsBRepToCoretechConverter;
-			OpenNurbsBRepConverter = OpenNurbsBRepToCoretechConverter;
+			if (CADLibrary::FImportParameters::GCADLibrary == TEXT("TechSoft"))
+			{
+				TSharedRef<FOpenNurbsBRepToTechSoftConverter> OpenNurbsBRepToCoretechConverter = MakeShared<FOpenNurbsBRepToTechSoftConverter>(ImportParameters);
+				CADModelConverter = OpenNurbsBRepToCoretechConverter;
+				OpenNurbsBRepConverter = OpenNurbsBRepToCoretechConverter;
+			}
+			else if (CADLibrary::FImportParameters::GCADLibrary == TEXT("KernelIO"))
+			{
+				TSharedRef<FOpenNurbsBRepToCoretechConverter> OpenNurbsBRepToCoretechConverter = MakeShared<FOpenNurbsBRepToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
+				CADModelConverter = OpenNurbsBRepToCoretechConverter;
+				OpenNurbsBRepConverter = OpenNurbsBRepToCoretechConverter;
+			}
 		}
 		else
 		{
