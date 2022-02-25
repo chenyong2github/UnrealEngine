@@ -617,6 +617,7 @@ const TCHAR* FArrayProperty::ImportText_Internal(const TCHAR* Buffer, void* Cont
 		{
 			InitializeValue(TempArrayStorage);
 		}
+		ArrayPtr = TempArrayStorage;
 	}
 	else
 	{

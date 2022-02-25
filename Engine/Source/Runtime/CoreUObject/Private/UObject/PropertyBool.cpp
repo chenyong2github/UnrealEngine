@@ -348,15 +348,16 @@ void FBoolProperty::ExportText_Internal( FString& ValueStr, const void* Containe
 {
 	check(FieldSize != 0);
 	uint8 LocalByteValue = 0;
+	bool bValue = false;
 	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
 	{
-		GetValue_InContainer(ContainerOrPropertyPtr, &LocalByteValue);
+		GetValue_InContainer(ContainerOrPropertyPtr, &bValue);
 	}
 	else
 	{
 		LocalByteValue = *((uint8*)PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType) + ByteOffset);
+		bValue = 0 != (LocalByteValue & FieldMask);
 	}
-	const bool bValue = 0 != (LocalByteValue & FieldMask);
 	const TCHAR* Temp = nullptr;
 	if (0 != (PortFlags & PPF_ExportCpp))
 	{
@@ -381,7 +382,9 @@ const TCHAR* FBoolProperty::ImportText_Internal( const TCHAR* Buffer, void* Cont
 	uint8 LocalByteValue = 0;
 	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
 	{
-		GetValue_InContainer(ContainerOrPropertyPtr, &LocalByteValue);
+		bool bValue = false;
+		GetValue_InContainer(ContainerOrPropertyPtr, &bValue);
+		LocalByteValue = bValue ? FieldMask : 0;
 	}
 	else
 	{
@@ -406,7 +409,8 @@ const TCHAR* FBoolProperty::ImportText_Internal( const TCHAR* Buffer, void* Cont
 
 	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
 	{
-		SetValue_InContainer(ContainerOrPropertyPtr, &LocalByteValue);
+		bool bValue = 0 != (LocalByteValue & FieldMask);
+		SetValue_InContainer(ContainerOrPropertyPtr, &bValue);
 	}
 	else
 	{

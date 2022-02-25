@@ -1595,6 +1595,10 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 		{
 			return FString::Printf(TEXT("TObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		}
+		else if ((CPPExportFlags & CPPF_ArgumentOrReturnValue) == CPPF_ArgumentOrReturnValue)
+		{
+			return FString::Printf(TEXT("%s%s*"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
+		}
 		else
 		{
 			return FString::Printf(TEXT("TObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
