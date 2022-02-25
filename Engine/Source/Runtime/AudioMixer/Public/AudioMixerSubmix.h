@@ -203,6 +203,8 @@ namespace Audio
 		void ProcessAudio(FAlignedFloatBuffer& OutAudio);
 		void ProcessAudio(ISoundfieldAudioPacket& OutputAudio);
 
+		void SendAudioToSubmixBufferListeners(FAlignedFloatBuffer& OutAudioBuffer);
+
 		// This should be called if this submix doesn't send it's audio to a parent submix,
 		// but rather an external endpoint.
 		void ProcessAudioAndSendToEndpoint();
