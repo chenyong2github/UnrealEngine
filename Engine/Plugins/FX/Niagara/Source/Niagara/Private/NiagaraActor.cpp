@@ -60,6 +60,9 @@ ANiagaraActor::ANiagaraActor(const FObjectInitializer& ObjectInitializer)
 			ArrowComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Effects;
 			ArrowComponent->SetupAttachment(NiagaraComponent);
 			ArrowComponent->SetUsingAbsoluteScale(true);
+		#if WITH_EDITOR
+			ArrowComponent->SetIgnoreBoundsForEditorFocus(true);
+		#endif
 		}
 	}
 #endif // WITH_EDITORONLY_DATA

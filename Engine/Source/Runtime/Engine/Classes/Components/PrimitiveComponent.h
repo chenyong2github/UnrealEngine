@@ -617,6 +617,10 @@ protected:
 	UPROPERTY()
 	uint8 bHasNoStreamableTextures : 1;
 
+#if WITH_EDITOR
+	bool bIgnoreBoundsForEditorFocus = false;
+#endif
+
 public:
 	/** If true then DoCustomNavigableGeometryExport will be called to collect navigable geometry of this component. */
 	UPROPERTY()
@@ -1129,7 +1133,12 @@ public:
 	 * Whether or not the bounds of this component should be considered when focusing the editor camera to an actor with this component in it.
 	 * Useful for debug components which need a bounds for rendering but don't contribute to the visible part of the mesh in a meaningful way
 	 */
-	virtual bool IgnoreBoundsForEditorFocus() const { return false; }
+	virtual bool IgnoreBoundsForEditorFocus() const { return bIgnoreBoundsForEditorFocus; }
+	
+	/**
+	 * Set if we should ignore bounds when focusing the editor camera.
+	*/
+	void SetIgnoreBoundsForEditorFocus(bool bIgnore) { bIgnoreBoundsForEditorFocus = bIgnore; }
 #endif
 
 	/** Update current physics volume for this component, if bShouldUpdatePhysicsVolume is true. Overridden to use the overlaps to find the physics volume. */

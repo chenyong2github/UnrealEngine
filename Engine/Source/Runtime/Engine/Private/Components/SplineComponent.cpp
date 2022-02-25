@@ -1846,7 +1846,7 @@ FBoxSphereBounds USplineComponent::CalcBounds(const FTransform& LocalToWorld) co
 bool USplineComponent::IgnoreBoundsForEditorFocus() const
 {
 	// Cannot compute proper bounds when there's no point so don't participate to editor focus if that's the case : 
-	return SplineCurves.Position.Points.Num() == 0;
+	return Super::IgnoreBoundsForEditorFocus() || SplineCurves.Position.Points.Num() == 0;
 }
 #endif // WITH_EDITOR
 
