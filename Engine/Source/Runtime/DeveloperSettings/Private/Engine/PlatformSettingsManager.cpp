@@ -51,6 +51,7 @@ UPlatformSettings* UPlatformSettingsManager::CreateSettingsObjectForPlatform(TSu
 {
 	const FString PlatformSettingsName = SettingsClass->GetName() + TEXT("_") + TargetIniPlatformName.ToString();
 	UPlatformSettings* PlatformSettingsForThisClass = NewObject<UPlatformSettings>(GetTransientPackage(), SettingsClass, FName(*PlatformSettingsName));
+	PlatformSettingsForThisClass->AddToRoot();
 	PlatformSettingsForThisClass->ConfigPlatformName = TargetIniPlatformName;
 	PlatformSettingsForThisClass->ConfigPlatformNameStr = TargetIniPlatformName.ToString();
 
