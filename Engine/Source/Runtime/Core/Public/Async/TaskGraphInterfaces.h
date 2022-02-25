@@ -456,7 +456,7 @@ struct FTaskGraphBlockAllocationTag : FDefaultBlockAllocationTag
 	static constexpr bool AllowOversizedBlocks = false;
 	static constexpr bool RequiresAccurateSize = false;
 	static constexpr bool InlineBlockAllocation = true;
-	static constexpr const TCHAR* TagName = TEXT("TaskGraphLinear");
+	static constexpr const char* TagName = "TaskGraphLinear";
 
 	using Allocator = TBlockAllocationCache<BlockSize, FAlignedAllocator>;
 };

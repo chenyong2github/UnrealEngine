@@ -15,7 +15,7 @@ namespace LowLevelTasks
 		static constexpr bool AllowOversizedBlocks = true;
 		static constexpr bool RequiresAccurateSize = false;
 		static constexpr bool InlineBlockAllocation = true;
-		static constexpr const TCHAR* TagName = TEXT("LowLevelTasksLinear");
+		static constexpr const char* TagName = "LowLevelTasksLinear";
 
 		using Allocator = TBlockAllocationCache<BlockSize, FAlignedAllocator>;
 	};
