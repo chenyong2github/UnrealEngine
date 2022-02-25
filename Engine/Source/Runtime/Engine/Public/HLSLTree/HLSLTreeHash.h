@@ -59,6 +59,11 @@ inline void AppendHash(FHasher& Hasher, FStringView Value)
 	Hasher.AppendData(Value.GetData(), Value.Len() * sizeof(TCHAR));
 }
 
+inline void AppendHash(FHasher& Hasher, const TCHAR* Value)
+{
+	Hasher.AppendData(Value, FCString::Strlen(Value) * sizeof(TCHAR));
+}
+
 inline void AppendHash(FHasher& Hasher, const FCustomHLSLInput& Value)
 {
 	AppendHash(Hasher, Value.Name);
@@ -87,6 +92,14 @@ inline void AppendHashes(FHasher& Hasher, const T& Value, ArgTypes&&... Args)
 {
 	AppendHash(Hasher, Value);
 	AppendHashes(Hasher, Forward<ArgTypes>(Args)...);
+}
+
+template<typename T>
+inline FXxHash64 HashValue(const T& Value)
+{
+	FHasher Hasher;
+	AppendHash(Hasher, Value);
+	return Hasher.Finalize();
 }
 
 } // namespace HLSLTree

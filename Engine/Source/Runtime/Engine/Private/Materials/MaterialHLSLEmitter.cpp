@@ -11,6 +11,7 @@
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialHLSLTree.h"
 #include "MaterialHLSLGenerator.h"
 #include "ShaderCore.h"
 #include "HLSLTree/HLSLTree.h"
@@ -55,6 +56,8 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 {
 	using namespace UE::HLSLTree;
 
+	const Material::FEmitData& EmitMaterialData = EmitContext.FindData<Material::FEmitData>();
+
 	FString MaterialTemplateSource;
 	LoadShaderSourceFileChecked(TEXT("/Engine/Private/MaterialTemplate.ush"), ShaderPlatform, MaterialTemplateSource);
 
@@ -80,9 +83,9 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 	FLazyPrintf LazyPrintf(*MaterialTemplateSource);
 
 	uint32 NumTexCoords = 0u;
-	for (int32 TexCoordIndex = UE::HLSLTree::MaxNumTexCoords - 1; TexCoordIndex >= 0; --TexCoordIndex)
+	for (int32 TexCoordIndex = Material::MaxNumTexCoords - 1; TexCoordIndex >= 0; --TexCoordIndex)
 	{
-		if (EmitContext.IsExternalInputUsed(SF_Pixel, MakeInputTexCoord(TexCoordIndex)))
+		if (EmitMaterialData.IsExternalInputUsed(SF_Pixel, Material::MakeInputTexCoord(TexCoordIndex)))
 		{
 			NumTexCoords = TexCoordIndex + 1;
 			break;
@@ -310,9 +313,9 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 		EvaluateMaterialDeclaration += TEXT("    FMaterialAttributes Result = EvaluateVertexMaterialAttributesInternal(Parameters);" LINE_TERMINATOR);
 		for (uint32 TexCoordIndex = 0; TexCoordIndex < NumTexCoords; ++TexCoordIndex)
 		{
-			const EExternalInput TexCoordInput = MakeInputTexCoord(TexCoordIndex);
+			const Material::EExternalInput TexCoordInput = Material::MakeInputTexCoord(TexCoordIndex);
 
-			if (EmitContext.IsExternalInputUsed(SF_Pixel, TexCoordInput) && !EmitContext.IsExternalInputUsed(SF_Vertex, TexCoordInput))
+			if (EmitMaterialData.IsExternalInputUsed(SF_Pixel, TexCoordInput) && !EmitMaterialData.IsExternalInputUsed(SF_Vertex, TexCoordInput))
 			{
 				const FString AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName((EMaterialProperty)(MP_CustomizedUVs0 + TexCoordIndex));
 				EvaluateMaterialDeclaration += FString::Printf(TEXT("    Result.%s = Parameters.TexCoords[%d];") LINE_TERMINATOR, *AttributeName, TexCoordIndex);
@@ -404,6 +407,10 @@ static void GetMaterialEnvironment(EShaderPlatform InPlatform,
 	const FMaterialCompilationOutput& MaterialCompilationOutput,
 	FShaderCompilerEnvironment& OutEnvironment)
 {
+	using namespace UE::HLSLTree;
+
+	const Material::FEmitData& EmitMaterialData = EmitContext.FindData<Material::FEmitData>();
+
 	bool bMaterialRequestsDualSourceBlending = false;
 
 	OutEnvironment.SetDefine(TEXT("ENABLE_NEW_HLSL_GENERATOR"), 1);
@@ -450,7 +457,7 @@ static void GetMaterialEnvironment(EShaderPlatform InPlatform,
 		OutEnvironment.SetDefine(TEXT("USE_PARTICLE_SUBUVS"), TEXT("1"));
 	}
 
-	if (EmitContext.ExternalInputMask[SF_Pixel][(int32)UE::HLSLTree::EExternalInput::LightmapTexCoord])
+	if (EmitMaterialData.ExternalInputMask[SF_Pixel][(int32)Material::EExternalInput::LightmapTexCoord])
 	{
 		OutEnvironment.SetDefine(TEXT("LIGHTMAP_UV_ACCESS"), TEXT("1"));
 	}
@@ -496,7 +503,7 @@ static void GetMaterialEnvironment(EShaderPlatform InPlatform,
 	// @todo MetalMRT: Remove this hack and implement proper atmospheric-fog solution for Metal MRT...
 	OutEnvironment.SetDefine(TEXT("MATERIAL_ATMOSPHERIC_FOG"), false);// !IsMetalMRTPlatform(InPlatform) ? bUsesAtmosphericFog : 0);
 	OutEnvironment.SetDefine(TEXT("MATERIAL_SKY_ATMOSPHERE"), false);// bUsesSkyAtmosphere);
-	OutEnvironment.SetDefine(TEXT("INTERPOLATE_VERTEX_COLOR"), EmitContext.bUsesVertexColor);
+	OutEnvironment.SetDefine(TEXT("INTERPOLATE_VERTEX_COLOR"), EmitMaterialData.bUsesVertexColor);
 	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_COLOR"), false);// bUsesParticleColor);
 	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_LOCAL_TO_WORLD"), false);// bUsesParticleLocalToWorld);
 	OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_WORLD_TO_LOCAL"), false);// bUsesParticleWorldToLocal);
@@ -553,10 +560,10 @@ static void GetMaterialEnvironment(EShaderPlatform InPlatform,
 	// If the material gets its shading model from the material expressions, then we use the result from the compilation (assuming it's valid).
 	// This result will potentially be tighter than what GetShadingModels() returns, because it only picks up the shading models from the expressions that get compiled for a specific feature level and quality level
 	// For example, the material might have shading models behind static switches. GetShadingModels() will return both the true and the false paths from that switch, whereas the shading model field from the compilation will only contain the actual shading model selected 
-	if (InMaterial.IsShadingModelFromMaterialExpression() && EmitContext.ShadingModelsFromCompilation.IsValid())
+	if (InMaterial.IsShadingModelFromMaterialExpression() && EmitMaterialData.ShadingModelsFromCompilation.IsValid())
 	{
 		// Shading models fetched from the compilation of the expression graph
-		ShadingModels = EmitContext.ShadingModelsFromCompilation;
+		ShadingModels = EmitMaterialData.ShadingModelsFromCompilation;
 	}
 	ensure(ShadingModels.IsValid());
 
@@ -810,8 +817,10 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 
 	FEmitContext EmitContext(Allocator, Generator.GetErrors(), TypeRegistry);
 	EmitContext.Material = &InOutMaterial;
-	EmitContext.StaticParameters = &InStaticParameters;
 	EmitContext.MaterialCompilationOutput = &OutCompilationOutput;
+
+	Material::FEmitData& EmitMaterialData = EmitContext.AcquireData<Material::FEmitData>();
+	EmitMaterialData.StaticParameters = &InStaticParameters;
 
 	const FStructField* NormalField = Generator.GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(MP_Normal));
 	check(NormalField);
@@ -853,7 +862,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 			bUsesPixelDepthOffset = true;
 		}
 
-		if (!EmitContext.bReadMaterialNormal)
+		if (!EmitMaterialData.bReadMaterialNormal)
 		{
 			// No access to material normal, can execute everything in phase0
 			RequestedPixelAttributesType.SetFieldRequested(NormalField);
@@ -951,8 +960,8 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		};
 		const TCHAR* InputPixelCodePhase1[2] =
 		{
-			EmitContext.bReadMaterialNormal ? PixelCodePhase1[0]->ToString() : nullptr,
-			EmitContext.bReadMaterialNormal ? PixelCodePhase1[1]->ToString() : nullptr,
+			EmitMaterialData.bReadMaterialNormal ? PixelCodePhase1[0]->ToString() : nullptr,
+			EmitMaterialData.bReadMaterialNormal ? PixelCodePhase1[1]->ToString() : nullptr,
 		};
 		MaterialTemplateSource = GenerateMaterialTemplateHLSL(InCompilerTarget.ShaderPlatform,
 			InOutMaterial,

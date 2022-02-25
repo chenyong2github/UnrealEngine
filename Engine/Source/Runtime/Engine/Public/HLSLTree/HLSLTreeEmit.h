@@ -7,23 +7,20 @@
 #include "Containers/StringView.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/MemStack.h"
+#include "Misc/GeneratedTypeName.h"
 #include "RHIDefinitions.h"
 #include "HLSLTree/HLSLTreeTypes.h"
 #include "HLSLTree/HLSLTreeHash.h"
 
 class FMaterial;
 class FMaterialCompilationOutput;
-struct FStaticParameterSet;
 
-namespace UE
-{
-
-namespace Shader
+namespace UE::Shader
 {
 class FPreshaderData;
-} // namespace Shader
+}
 
-namespace HLSLTree
+namespace UE::HLSLTree
 {
 
 class FErrorHandlerInterface;
@@ -36,9 +33,6 @@ class FPreparedType;
 class FEmitScope;
 class FEmitShaderExpression;
 class FEmitShaderStatement;
-
-// TODO - remove dependency
-enum class EExternalInput : uint8;
 
 struct FEmitPreshaderScope;
 
@@ -256,6 +250,37 @@ public:
 	explicit FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& InErrors, const Shader::FStructTypeRegistry& InTypeRegistry);
 	~FEmitContext();
 
+	template<typename T>
+	T& AcquireData()
+	{
+		const FXxHash64 TypeHash = HashValue(GetGeneratedTypeName<T>());
+		TCustomDataWrapper<T>* Wrapper = static_cast<TCustomDataWrapper<T>*>(InternalFindData(TypeHash));
+		if (!Wrapper)
+		{
+			Wrapper = new TCustomDataWrapper<T>;
+			InternalRegisterData(TypeHash, Wrapper);
+		}
+		return Wrapper->Data;
+	}
+
+	template<typename T>
+	const T& FindData() const
+	{
+		const FXxHash64 TypeHash = HashValue(GetGeneratedTypeName<T>());
+		TCustomDataWrapper<T>* Wrapper = static_cast<TCustomDataWrapper<T>*>(InternalFindData(TypeHash));
+		check(Wrapper);
+		return Wrapper->Data;
+	}
+
+	template<typename T>
+	T& FindData()
+	{
+		const FXxHash64 TypeHash = HashValue(GetGeneratedTypeName<T>());
+		TCustomDataWrapper<T>* Wrapper = static_cast<TCustomDataWrapper<T>*>(InternalFindData(TypeHash));
+		check(Wrapper);
+		return Wrapper->Data;
+	}
+
 	void EmitDeclarationsCode(FStringBuilderBase& OutCode);
 
 	FPreparedType PrepareExpression(FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType);
@@ -426,6 +451,22 @@ public:
 	/** FStringViews passed to this method are expected to reference persistent memory */
 	FEmitShaderExpression* EmitCustomHLSL(FEmitScope& Scope, FStringView DeclarationCode, FStringView FunctionCode, TConstArrayView<FCustomHLSLInput> Inputs, const Shader::FStructType* OutputType);
 
+	class FCustomDataWrapper
+	{
+	public:
+		virtual ~FCustomDataWrapper() {}
+	};
+
+	template<typename T>
+	class TCustomDataWrapper : public FCustomDataWrapper
+	{
+	public:
+		T Data;
+	};
+
+	void InternalRegisterData(FXxHash64 Hash, FCustomDataWrapper* Data);
+	FCustomDataWrapper* InternalFindData(FXxHash64 Hash) const;
+
 	FMemStackBase* Allocator = nullptr;
 	FErrorHandlerInterface* Errors = nullptr;
 	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
@@ -442,28 +483,19 @@ public:
 	TMap<FXxHash64, FEmitCustomHLSL> EmitCustomHLSLMap;
 	TArray<struct FPreshaderLoopScope*> PreshaderLoopScopes;
 	TArray<const FPreshaderLocalPHIScope*> PreshaderLocalPHIScopes;
+	TMap<FXxHash64, FCustomDataWrapper*> CustomDataMap;
 	int32 PreshaderStackPosition = 0;
-
-	// TODO - remove preshader material dependency
-	const FMaterial* Material = nullptr;
-	const FStaticParameterSet* StaticParameters = nullptr;
-	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
-	TMap<Shader::FValue, uint32> DefaultUniformValues;
-	uint32 UniformPreshaderOffset = 0u;
-	uint32 CurrentBoolUniformOffset = ~0u;
-	uint32 CurrentNumBoolComponents = 32u;
-	bool bReadMaterialNormal = false;
-	bool bUsesVertexColor = false;
-	bool bNeedsParticlePosition = false;
-	bool bUsesParticleColor = false;
-	TBitArray<> ExternalInputMask[SF_NumFrequencies];
-	FMaterialShadingModelField ShadingModelsFromCompilation;
-
-	bool IsExternalInputUsed(EShaderFrequency Frequency, EExternalInput Input) const { return ExternalInputMask[Frequency][(uint8)Input]; }
 
 	int32 NumExpressionLocals = 0;
 	int32 NumExpressionLocalPHIs = 0;
+
+	// TODO - Material values required for preshaders, need to decouple preshaders from material system
+	const FMaterial* Material = nullptr;
+	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
+	uint32 UniformPreshaderOffset = 0u;
+	uint32 CurrentBoolUniformOffset = ~0u;
+	uint32 CurrentNumBoolComponents = 32u;
 };
 
-} // namespace HLSLTree
-} // namespace UE
+} // namespace UE::HLSLTree
+

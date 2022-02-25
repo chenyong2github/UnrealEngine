@@ -9,6 +9,7 @@
 #include "Containers/List.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/MemStack.h"
+#include "Misc/GeneratedTypeName.h"
 #include "Hash/xxhash.h"
 #include "HLSLTree/HLSLTreeTypes.h"
 #include "HLSLTree/HLSLTreeHash.h"
@@ -17,10 +18,7 @@ class FMaterial;
 class FMaterialCompilationOutput;
 struct FStaticParameterSet;
 
-namespace UE
-{
-
-namespace Shader
+namespace UE::Shader
 {
 class FPreshaderData;
 }
@@ -30,7 +28,7 @@ class FPreshaderData;
  * This allows C++ to procedurally define an HLSL program.  The structure of the tree is designed to be flexible, to facilitate incremental generation from a material node graph
  * Once the tree is complete, HLSL source code may be generated
  */
-namespace HLSLTree
+namespace UE::HLSLTree
 {
 
 class FNode;
@@ -490,20 +488,6 @@ private:
 	int32 NestedLevel = 0;
 };
 
-namespace Private
-{
-uint64 GetNextTypeHash();
-template<typename T>
-struct TTypeHasher
-{
-	static uint64 GetHash()
-	{
-		static uint64 Hash = GetNextTypeHash();
-		return Hash;
-	}
-};
-}
-
 /**
  * The HLSL AST.  Basically a wrapper around the root scope, with some helper methods
  */
@@ -527,7 +511,7 @@ public:
 	inline FExpression* NewExpression(ArgTypes&&... Args)
 	{
 		FHasher Hasher;
-		AppendHash(Hasher, Private::TTypeHasher<T>::GetHash());
+		AppendHash(Hasher, GetGeneratedTypeName<T>());
 		AppendHashes(Hasher, Forward<ArgTypes>(Args)...);
 		const FXxHash64 Hash = Hasher.Finalize();
 		FExpression* Expression = FindExpression(Hash);
@@ -622,5 +606,5 @@ private:
 	friend class FExpressionLocalPHI;
 };
 
-} // namespace HLSLTree
-} // namespace UE
+} // namespace UE::HLSLTree
+

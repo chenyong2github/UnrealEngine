@@ -12,6 +12,7 @@
 #include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
 #include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialHLSLTree.h"
 #include "ShaderCore.h"
 #include "HLSLTree/HLSLTree.h"
 #include "HLSLTree/HLSLTreeCommon.h"
@@ -458,7 +459,8 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewConstant(const UE::Shader:
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewTexCoord(int32 Index)
 {
-	return HLSLTree->NewExpression<UE::HLSLTree::FExpressionExternalInput>(UE::HLSLTree::MakeInputTexCoord(Index));
+	using namespace UE::HLSLTree::Material;
+	return HLSLTree->NewExpression<FExpressionExternalInput>(MakeInputTexCoord(Index));
 }
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewSwizzle(const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input)
@@ -633,7 +635,7 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateMaterialParameter(EMa
 		}
 	}
 
-	return HLSLTree->NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(InType, GetParameterInfo(InParameterName), DefaultValue);
+	return HLSLTree->NewExpression<UE::HLSLTree::Material::FExpressionParameter>(InType, GetParameterInfo(InParameterName), DefaultValue);
 }
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSLTree::FScope& Scope,

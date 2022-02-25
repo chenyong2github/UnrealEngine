@@ -7,12 +7,7 @@
 #include "Shader/ShaderTypes.h"
 #include "Shader/Preshader.h"
 
-// TODO - M_ForLoop doesn't work yet
-// FPreparedType::GetEvaluation takes scope, checks loop scope automatically
-
-namespace UE
-{
-namespace HLSLTree
+namespace UE::HLSLTree
 {
 
 enum ELocalPHIChainType : uint8
@@ -1317,12 +1312,6 @@ UObject* FOwnerContext::GetCurrentOwner() const
 	return (OwnerStack.Num() > 0) ? OwnerStack.Last() : nullptr;
 }
 
-uint64 Private::GetNextTypeHash()
-{
-	static uint64 Hash = 1;
-	return Hash++;
-}
-
 void FTree::ResetNodes()
 {
 	FNode* Node = Nodes;
@@ -1542,5 +1531,5 @@ FFunction* FTree::NewFunction()
 	return NewFunction;
 }
 
-} // namespace HLSLTree
-} // namespace UE
+} // namespace UE::HLSLTree
+

@@ -9,9 +9,7 @@
 #include "MaterialShared.h" // TODO - split preshader out into its own module
 #include "Misc/LargeWorldRenderPosition.h"
 
-namespace UE
-{
-namespace HLSLTree
+namespace UE::HLSLTree
 {
 
 FEmitShaderNode::FEmitShaderNode(FEmitScope& InScope, TArrayView<FEmitShaderNode*> InDependencies)
@@ -199,14 +197,25 @@ FEmitContext::FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& I
 	, Errors(&InErrors)
 	, TypeRegistry(&InTypeRegistry)
 {
-	for (int32 Index = 0; Index < SF_NumFrequencies; ++Index)
-	{
-		ExternalInputMask[Index].Init(false, 256);
-	}
 }
 
 FEmitContext::~FEmitContext()
 {
+	for (auto& It : CustomDataMap)
+	{
+		delete It.Value;
+	}
+}
+
+void FEmitContext::InternalRegisterData(FXxHash64 Hash, FCustomDataWrapper* Data)
+{
+	CustomDataMap.Add(Hash, Data);
+}
+
+FEmitContext::FCustomDataWrapper* FEmitContext::InternalFindData(FXxHash64 Hash) const
+{
+	FCustomDataWrapper* const* PrevData = CustomDataMap.Find(Hash);
+	return PrevData ? *PrevData : nullptr;
 }
 
 namespace Private
@@ -1215,5 +1224,5 @@ void FEmitContext::Finalize()
 	MaterialCompilationOutput->UniformExpressionSet.UniformPreshaderBufferSize = (UniformPreshaderOffset + 3u) / 4u;
 }
 
-} // namespace HLSLTree
-} // namespace UE
+} // namespace UE::HLSLTree
+

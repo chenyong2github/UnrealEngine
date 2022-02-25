@@ -3,11 +3,6 @@
 
 #if WITH_EDITOR
 
-#include "MaterialHLSLGenerator.h"
-#include "Misc/MemStackUtility.h"
-#include "HLSLTree/HLSLTree.h"
-#include "HLSLTree/HLSLTreeCommon.h"
-
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/MaterialExpressionExecEnd.h"
@@ -136,10 +131,15 @@
 #include "Materials/MaterialExpressionForLoop.h"
 #include "Materials/MaterialExpressionWhileLoop.h"
 #include "Materials/MaterialFunctionInterface.h"
+#include "Materials/MaterialHLSLTree.h"
+#include "HLSLTree/HLSLTree.h"
+#include "HLSLTree/HLSLTreeCommon.h"
 #include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Font.h"
 #include "RenderUtils.h"
+#include "Misc/MemStackUtility.h"
+#include "MaterialHLSLGenerator.h"
 
 bool UMaterialExpression::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
@@ -207,8 +207,8 @@ bool UMaterialExpressionConstantBiasScale::GenerateHLSLExpression(FMaterialHLSLG
 
 bool UMaterialExpressionShadingModel::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
-	OutExpression = Generator.GetTree().NewExpression<FExpressionMaterialShadingModel>(ShadingModel);
+	using namespace UE::HLSLTree::Material;
+	OutExpression = Generator.GetTree().NewExpression<FExpressionShadingModel>(ShadingModel);
 	return true;
 }
 
@@ -328,14 +328,14 @@ bool UMaterialExpressionStaticSwitchParameter::GenerateHLSLExpression(FMaterialH
 
 bool UMaterialExpressionPixelDepth::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::PixelDepth);
 	return true;
 }
 
 bool UMaterialExpressionWorldPosition::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 
 	EExternalInput InputType = EExternalInput::None;
 	switch (WorldPositionShaderOffset)
@@ -353,21 +353,21 @@ bool UMaterialExpressionWorldPosition::GenerateHLSLExpression(FMaterialHLSLGener
 
 bool UMaterialExpressionCameraPositionWS::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::CameraWorldPosition);
 	return true;
 }
 
 bool UMaterialExpressionCameraVectorWS::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::CameraVector);
 	return true;
 }
 
 bool UMaterialExpressionViewProperty::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 
 	const bool bRequestedRcp = (OutputIndex == 1);
 	bool bApplyRcp = false;
@@ -412,7 +412,7 @@ bool UMaterialExpressionViewProperty::GenerateHLSLExpression(FMaterialHLSLGenera
 
 bool UMaterialExpressionTime::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 
 	if (bOverride_Period && Period == 0.0f)
 	{
@@ -431,13 +431,14 @@ bool UMaterialExpressionTime::GenerateHLSLExpression(FMaterialHLSLGenerator& Gen
 
 bool UMaterialExpressionDeltaTime::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionExternalInput>(UE::HLSLTree::EExternalInput::DeltaTime);
+	using namespace UE::HLSLTree::Material;
+	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::DeltaTime);
 	return true;
 }
 
 bool UMaterialExpressionScreenPosition::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	const EExternalInput InputType = (OutputIndex == 1) ? EExternalInput::PixelPosition : EExternalInput::ViewportUV;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(InputType);
 	return true;
@@ -445,7 +446,7 @@ bool UMaterialExpressionScreenPosition::GenerateHLSLExpression(FMaterialHLSLGene
 
 bool UMaterialExpressionSceneTexelSize::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 
 	// To make sure any material that were correctly handling BufferUV != ViewportUV, we just lie to material
 	// to make it believe ViewSize == BufferSize, so they are still compatible with SceneTextureLookup().
@@ -455,21 +456,21 @@ bool UMaterialExpressionSceneTexelSize::GenerateHLSLExpression(FMaterialHLSLGene
 
 bool UMaterialExpressionViewSize::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::ViewSize);
 	return true;
 }
 
 bool UMaterialExpressionTwoSidedSign::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::TwoSidedSign);
 	return true;
 }
 
 bool UMaterialExpressionReflectionVectorWS::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	check(!CustomWorldNormal.GetTracedInput().Expression); // TODO
 
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::WorldReflection);
@@ -478,35 +479,35 @@ bool UMaterialExpressionReflectionVectorWS::GenerateHLSLExpression(FMaterialHLSL
 
 bool UMaterialExpressionActorPositionWS::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::ActorWorldPosition);
 	return true;
 }
 
 bool UMaterialExpressionPixelNormalWS::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::WorldNormal);
 	return true;
 }
 
 bool UMaterialExpressionVertexColor::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::VertexColor);
 	return true;
 }
 
 bool UMaterialExpressionVertexNormalWS::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::WorldVertexNormal);
 	return true;
 }
 
 bool UMaterialExpressionVertexTangentWS::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::WorldVertexTangent);
 	return true;
 }
@@ -536,21 +537,21 @@ bool UMaterialExpressionTextureCoordinate::GenerateHLSLExpression(FMaterialHLSLG
 
 bool UMaterialExpressionLightmapUVs::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::LightmapTexCoord);
 	return true;
 }
 
 bool UMaterialExpressionParticleColor::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::ParticleColor);
 	return true;
 }
 
 bool UMaterialExpressionParticlePositionWS::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::ParticleTranslatedWorldPosition);
 	OutExpression = Generator.GetTree().NewSub(OutExpression, Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::PreViewTranslation));
 	return true;
@@ -558,7 +559,7 @@ bool UMaterialExpressionParticlePositionWS::GenerateHLSLExpression(FMaterialHLSL
 
 bool UMaterialExpressionParticleRadius::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
 	OutExpression = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::ParticleRadius);
 	OutExpression = Generator.GetTree().NewMax(OutExpression, Generator.NewConstant(0.0f));
 	return true;
@@ -730,7 +731,7 @@ bool UMaterialExpressionSceneTexture::GenerateHLSLExpression(FMaterialHLSLGenera
 		{
 			ExpressionTexCoord = Coordinates.AcquireHLSLExpression(Generator, Scope);
 		}
-		OutExpression = Generator.GetTree().NewExpression<FExpressionMaterialSceneTexture>(ExpressionTexCoord, SceneTextureId, bFiltered);
+		OutExpression = Generator.GetTree().NewExpression<Material::FExpressionSceneTexture>(ExpressionTexCoord, SceneTextureId, bFiltered);
 		return true;
 	}
 	else if (OutputIndex == 1 || OutputIndex == 2)
@@ -754,11 +755,11 @@ bool UMaterialExpressionNoise::GenerateHLSLExpression(FMaterialHLSLGenerator& Ge
 	FExpression* ExpressionPosition = Position.TryAcquireHLSLExpression(Generator, Scope);
 	if (!ExpressionPosition)
 	{
-		ExpressionPosition = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::WorldPosition);
+		ExpressionPosition = Generator.GetTree().NewExpression<Material::FExpressionExternalInput>(Material::EExternalInput::WorldPosition);
 	}
 	FExpression* ExpressionFilterWidth = FilterWidth.AcquireHLSLExpressionOrConstant(Generator, Scope, 0.0f);
 
-	FMaterialNoiseParameters NoiseParameters;
+	Material::FNoiseParameters NoiseParameters;
 	NoiseParameters.Quality = Quality;
 	// to limit performance problems due to values outside reasonable range
 	NoiseParameters.Levels = FMath::Clamp(Levels, 1, 10);
@@ -771,7 +772,7 @@ bool UMaterialExpressionNoise::GenerateHLSLExpression(FMaterialHLSLGenerator& Ge
 	NoiseParameters.bTiling = bTiling;
 	NoiseParameters.bTurbulence = bTurbulence;
 
-	OutExpression = Generator.GetTree().NewExpression<FExpressionMaterialNoise>(NoiseParameters, ExpressionPosition, ExpressionFilterWidth);
+	OutExpression = Generator.GetTree().NewExpression<Material::FExpressionNoise>(NoiseParameters, ExpressionPosition, ExpressionFilterWidth);
 	return true;
 }
 
@@ -1596,6 +1597,8 @@ static UE::HLSLTree::FExpression* TransformBase(UE::HLSLTree::FTree& Tree,
 	bool bWComponent)
 {
 	using namespace UE::HLSLTree;
+	using namespace UE::HLSLTree::Material;
+
 	if (!Input)
 	{
 		// unable to compile
@@ -1873,10 +1876,10 @@ bool UMaterialExpressionFresnel::GenerateHLSLExpression(FMaterialHLSLGenerator& 
 	FExpression* ExpressionNormal = Normal.TryAcquireHLSLExpression(Generator, Scope);
 	if (!ExpressionNormal)
 	{
-		ExpressionNormal = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::WorldNormal);
+		ExpressionNormal = Generator.GetTree().NewExpression<Material::FExpressionExternalInput>(Material::EExternalInput::WorldNormal);
 	}
 
-	FExpression* ExpressionNdotV = Generator.GetTree().NewDot(ExpressionNormal, Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::CameraVector));
+	FExpression* ExpressionNdotV = Generator.GetTree().NewDot(ExpressionNormal, Generator.GetTree().NewExpression<Material::FExpressionExternalInput>(Material::EExternalInput::CameraVector));
 	FExpression* ExpressionMax = Generator.GetTree().NewMax(Generator.NewConstant(0.0f), ExpressionNdotV);
 	FExpression* ExpressionMinus = Generator.GetTree().NewSub(Generator.NewConstant(1.0f), ExpressionMax);
 
@@ -1973,7 +1976,7 @@ bool UMaterialExpressionPanner::GenerateHLSLExpression(FMaterialHLSLGenerator& G
 	FExpression* ExpressionTime = Time.TryAcquireHLSLExpression(Generator, Scope);
 	if (!ExpressionTime)
 	{
-		ExpressionTime = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::GameTime);
+		ExpressionTime = Generator.GetTree().NewExpression<Material::FExpressionExternalInput>(Material::EExternalInput::GameTime);
 	}
 	FExpression* ExpressionSpeed = Speed.AcquireHLSLExpressionOrConstant(Generator, Scope, FVector2f(SpeedX, SpeedY));
 	FExpression* ExpressionOffset = Generator.GetTree().NewMul(ExpressionSpeed, ExpressionTime);
@@ -1998,7 +2001,7 @@ bool UMaterialExpressionRotator::GenerateHLSLExpression(FMaterialHLSLGenerator& 
 	FExpression* ExpressionTime = Time.TryAcquireHLSLExpression(Generator, Scope);
 	if (!ExpressionTime)
 	{
-		ExpressionTime = Generator.GetTree().NewExpression<FExpressionExternalInput>(EExternalInput::GameTime);
+		ExpressionTime = Generator.GetTree().NewExpression<Material::FExpressionExternalInput>(Material::EExternalInput::GameTime);
 	}
 	ExpressionTime = Generator.GetTree().NewMul(ExpressionTime, Generator.NewConstant(Speed));
 

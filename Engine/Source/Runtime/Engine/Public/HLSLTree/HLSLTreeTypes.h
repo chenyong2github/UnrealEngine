@@ -7,15 +7,12 @@
 
 class UTexture;
 
-namespace UE
-{
-
-namespace Shader
+namespace UE::Shader
 {
 enum class EPreshaderOpcode : uint8;
-} // namespace Shader
+}
 
-namespace HLSLTree
+namespace UE::HLSLTree
 {
 
 class FNode;
@@ -142,5 +139,5 @@ struct FCustomHLSLInput
 	FExpression* Expression = nullptr;
 };
 
-} // namespace HLSLTree
-} // namespace UE
+} // namespace UE::HLSLTree
+
