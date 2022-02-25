@@ -76,7 +76,7 @@ public:
 	// End of UObject interface
 
 	virtual FSlateIcon GetNodeTitleIcon() const { return FSlateIcon(); }
-
+	virtual FName GetCornerIcon() const { return FName(); }
 	virtual bool CanAddInputPin() const
 	{
 		return false;
@@ -249,12 +249,17 @@ public:
 	UPROPERTY()
 	UMetasoundEditorGraphVariable* Variable;
 
+	// Variables do not have titles to distinguish more visually from vertex types
+	virtual void CacheTitle() override { }
+
 	virtual UMetasoundEditorGraphMember* GetMember() const override;
 	virtual bool EnableInteractWidgets() const override;
 	virtual FMetasoundFrontendClassName GetClassName() const override;
 	virtual FGuid GetNodeID() const override;
-	
+	virtual FName GetCornerIcon() const override;
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
+
+	virtual EMetasoundFrontendClassType GetClassType() const;
 
 protected:
 	virtual FLinearColor GetNodeTitleColor() const override;

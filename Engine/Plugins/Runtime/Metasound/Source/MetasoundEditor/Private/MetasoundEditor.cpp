@@ -11,17 +11,21 @@
 #include "EdGraphUtilities.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "GenericPlatform/GenericApplication.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
+#include "GraphEditorDragDropAction.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "IAudioExtensionPlugin.h"
 #include "IDetailsView.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "Logging/TokenizedMessage.h"
 #include "Metasound.h"
 #include "MetasoundEditorCommands.h"
@@ -46,6 +50,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
+#include "SGraphPanel.h"
 #include "SMetasoundActionMenu.h"
 #include "SMetasoundPalette.h"
 #include "SNodePanel.h"
@@ -56,6 +61,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/SWindow.h"
 #include "Stats/Stats.h"
 
 struct FGraphActionNode;
@@ -146,6 +152,261 @@ namespace Metasound
 				return false;
 			}
 		};
+
+		class FMetaSoundDragDropMemberAction : public FGraphSchemaActionDragDropAction
+		{
+			TSharedPtr<FEditor> Editor;
+			TWeakObjectPtr<UMetasoundEditorGraphMember> GraphMember;
+
+		public:
+			FMetaSoundDragDropMemberAction(TSharedPtr<FEditor> InEditor, UMetasoundEditorGraphMember* InGraphMember)
+				: Editor(InEditor)
+				, GraphMember(InGraphMember)
+			{
+				Construct();
+			}
+
+			DRAG_DROP_OPERATOR_TYPE(FMetaSoundDragDropMemberAction, FGraphSchemaActionDragDropAction)
+
+			virtual FReply DroppedOnPanel(const TSharedRef<SWidget>& InPanel, FVector2D InScreenPosition, FVector2D InGraphPosition, UEdGraph& InGraph) override
+			{
+				using namespace Frontend;
+
+				if (!GraphMember.IsValid() || &InGraph != GraphMember->GetOwningGraph())
+				{
+					return FReply::Unhandled();
+				}
+
+				UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(&InGraph);
+				UObject& ParentMetasound = MetasoundGraph->GetMetasoundChecked();
+
+				if (UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GraphMember.Get()))
+				{
+					const FScopedTransaction Transaction(LOCTEXT("DropAddNewInputNode", "Drop New MetaSound Input Node"));
+					ParentMetasound.Modify();
+					MetasoundGraph->Modify();
+					Input->Modify();
+
+					if (UMetasoundEditorGraphInputNode* NewGraphNode = FGraphBuilder::AddInputNode(ParentMetasound, Input->GetNodeHandle(), InGraphPosition))
+					{
+						NewGraphNode->Modify();
+						FGraphBuilder::RegisterGraphWithFrontend(ParentMetasound);
+						return FReply::Handled();
+					}
+				}
+
+				if (UMetasoundEditorGraphOutput* Output = Cast<UMetasoundEditorGraphOutput>(GraphMember.Get()))
+				{
+					TArray<UMetasoundEditorGraphNode*> Nodes = Output->GetNodes();
+					if (Nodes.IsEmpty())
+					{
+						const FScopedTransaction Transaction(LOCTEXT("DropAddNewOutputNode", "Drop New MetaSound Output Node"));
+						ParentMetasound.Modify();
+						MetasoundGraph->Modify();
+						Output->Modify();
+
+						FNodeHandle OutputHandle = Output->GetNodeHandle();
+						if (UMetasoundEditorGraphOutputNode* NewGraphNode = FGraphBuilder::AddOutputNode(ParentMetasound, OutputHandle, InGraphPosition))
+						{
+							NewGraphNode->Modify();
+							FGraphBuilder::RegisterGraphWithFrontend(ParentMetasound);
+							return FReply::Handled();
+						}
+					}
+					else
+					{
+						if (Editor.IsValid())
+						{
+							Editor->JumpToNodes(Nodes);
+							return FReply::Handled();
+						}
+					}
+				}
+
+				if (UMetasoundEditorGraphVariable* Variable = Cast<UMetasoundEditorGraphVariable>(GraphMember.Get()))
+				{
+					const FScopedTransaction Transaction(LOCTEXT("DropAddNewVariableNode", "Drop New MetaSound Variable Node"));
+					ParentMetasound.Modify();
+					MetasoundGraph->Modify();
+					Variable->Modify();
+
+					FVariableHandle VariableHandle = Variable->GetVariableHandle();
+					FMetasoundFrontendClass VariableClass;
+
+					const bool bMakeOrJumpToMutator = FSlateApplication::Get().GetModifierKeys().AreModifersDown(EModifierKey::Shift);
+					if (bMakeOrJumpToMutator)
+					{
+						FConstNodeHandle MutatorNodeHandle = Variable->GetConstVariableHandle()->FindMutatorNode();
+						if (MutatorNodeHandle->IsValid())
+						{
+							if (Editor.IsValid())
+							{
+								auto IsMutatorNode = [&MutatorNodeHandle](const UMetasoundEditorGraphNode* Node)
+								{
+									return Node->GetNodeID() == MutatorNodeHandle->GetID();
+								};
+								TArray<UMetasoundEditorGraphNode*> Nodes = Variable->GetNodes();
+								if (UMetasoundEditorGraphNode** MutatorNode = Nodes.FindByPredicate(IsMutatorNode))
+								{
+									check(*MutatorNode);
+									Editor->JumpToNodes({ *MutatorNode });
+									return FReply::Handled();
+								}
+							}
+						}
+						else
+						{
+							ensure(IDataTypeRegistry::Get().GetFrontendVariableMutatorClass(Variable->GetDataType(), VariableClass));
+						}
+					}
+					else
+					{
+						const bool bJumpToGetters = FSlateApplication::Get().GetModifierKeys().AreModifersDown(EModifierKey::Control);
+						if (bJumpToGetters)
+						{
+							TArray<UMetasoundEditorGraphNode*> Nodes = Variable->GetNodes();
+							for (int32 i = Nodes.Num() - 1; i >= 0; --i)
+							{
+								const UMetasoundEditorGraphVariableNode* VariableNode = CastChecked<UMetasoundEditorGraphVariableNode>(Nodes[i]);
+								const EMetasoundFrontendClassType ClassType = VariableNode->GetClassType();
+								if (ClassType != EMetasoundFrontendClassType::VariableAccessor
+									&& ClassType != EMetasoundFrontendClassType::VariableDeferredAccessor)
+								{
+									constexpr bool bAllowShrinking = false;
+									Nodes.RemoveAtSwap(i, 1, bAllowShrinking);
+								}
+							}
+							Editor->JumpToNodes(Nodes);
+							return FReply::Handled();
+						}
+						else
+						{
+							const bool bMakeGetDeferred = FSlateApplication::Get().GetModifierKeys().AreModifersDown(EModifierKey::Alt);
+							if (bMakeGetDeferred)
+							{
+								ensure(IDataTypeRegistry::Get().GetFrontendVariableDeferredAccessorClass(Variable->GetDataType(), VariableClass));
+							}
+							else
+							{
+								ensure(IDataTypeRegistry::Get().GetFrontendVariableAccessorClass(Variable->GetDataType(), VariableClass));
+							}
+						}
+					}
+
+					const FNodeClassName ClassName = VariableClass.Metadata.GetClassName().ToNodeClassName();
+					FNodeHandle NodeHandle = FGraphBuilder::AddVariableNodeHandle(ParentMetasound, Variable->GetVariableID(), ClassName);
+					if (UMetasoundEditorGraphVariableNode* NewGraphNode = FGraphBuilder::AddVariableNode(ParentMetasound, NodeHandle, InGraphPosition))
+					{
+						NewGraphNode->Modify();
+						FGraphBuilder::RegisterGraphWithFrontend(ParentMetasound);
+						return FReply::Handled();
+					}
+				}
+
+				return FReply::Unhandled();
+			}
+			virtual FReply DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphPosition) override { return FReply::Unhandled(); }
+			virtual FReply DroppedOnPin(FVector2D ScreenPosition, FVector2D GraphPosition) override { return FReply::Unhandled(); }
+			virtual FReply DroppedOnAction(TSharedRef<FEdGraphSchemaAction> Action) { return FReply::Unhandled(); }
+			virtual FReply DroppedOnCategory(FText Category) override { return FReply::Unhandled(); }
+			virtual void HoverTargetChanged() override
+			{
+				using namespace Frontend;
+
+				bDropTargetValid = true;
+
+				const FSlateBrush* PrimarySymbol = nullptr;
+				const FSlateBrush* SecondarySymbol = nullptr;
+				FSlateColor PrimaryColor;
+				FSlateColor SecondaryColor;
+				GetDefaultStatusSymbol(PrimarySymbol, PrimaryColor, SecondarySymbol, SecondaryColor);
+
+				FText Message;
+				if (GraphMember.IsValid())
+				{
+					Message = GraphMember->GetDisplayName();
+					if (GetHoveredGraph() == GraphMember->GetOwningGraph())
+					{
+						if (UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GraphMember.Get()))
+						{
+							if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+							{
+								PrimarySymbol = MetasoundStyle->GetBrush("MetasoundEditor.Graph.Node.Class.Input");
+								SecondarySymbol = nullptr;
+							}
+
+							if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+							{
+								PrimaryColor = EditorSettings->InputNodeTitleColor;
+								SecondaryColor = EditorSettings->InputNodeTitleColor;
+							}
+						}
+
+						if (UMetasoundEditorGraphOutput* Output = Cast<UMetasoundEditorGraphOutput>(GraphMember.Get()))
+						{
+							if (!Output->GetNodes().IsEmpty())
+							{
+								PrimarySymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ShowNode"));
+								SecondarySymbol = nullptr;
+								Message = FText::Format(LOCTEXT("DropTargetShowOutput", "Show '{0}' (One per graph)"), GraphMember->GetDisplayName());
+							}
+							else
+							{
+								if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+								{
+									PrimarySymbol = MetasoundStyle->GetBrush("MetasoundEditor.Graph.Node.Class.Output");
+									SecondarySymbol = nullptr;
+								}
+
+								if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+								{
+									PrimaryColor = EditorSettings->OutputNodeTitleColor;
+									SecondaryColor = EditorSettings->OutputNodeTitleColor;
+								}
+							}
+						}
+
+						if (UMetasoundEditorGraphVariable* Variable = Cast<UMetasoundEditorGraphVariable>(GraphMember.Get()))
+						{
+							PrimarySymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ShowNode"));
+
+							if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+							{
+								PrimarySymbol = MetasoundStyle->GetBrush("MetasoundEditor.Graph.Node.Class.Variable");
+								SecondarySymbol = nullptr;
+							}
+
+							if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+							{
+								PrimaryColor = EditorSettings->VariableNodeTitleColor;
+								SecondaryColor = EditorSettings->VariableNodeTitleColor;
+							}
+
+							const FText DisplayName = GraphMember->GetDisplayName();
+							const FText GetterToolTip = FText::Format(LOCTEXT("DropTargetGetterVariableToolTipFormat", "{0}\nAdd:\n* Get (Drop)\n* Get Delayed (Alt+Drop)\n"), DisplayName);
+							static const FText GetShowToolTip = LOCTEXT("ShowGettersToolTip", "Get (Ctrl+Drop)");
+							static const FText AddOrShowSetToolTip = LOCTEXT("AddOrShowSetToolTip", "");
+							FConstNodeHandle MutatorNodeHandle = Variable->GetConstVariableHandle()->FindMutatorNode();
+							if (MutatorNodeHandle->IsValid())
+							{
+								Message = FText::Format(LOCTEXT("DropTargetVariableShowFormat", "{0}\nShow:\n* {1}\n* Set (Shift+Drop, One per graph)"), GetterToolTip, GetShowToolTip);
+							}
+							else
+							{
+								Message = FText::Format(LOCTEXT("DropTargetVariableAddSetShowGetFormat", "{0}* Set (Shift+Drop)\n\nShow:\n* {1}"), GetterToolTip, GetShowToolTip);
+							}
+						}
+					}
+				}
+				else
+				{
+					bDropTargetValid = false;
+				}
+
+				SetSimpleFeedbackMessage(PrimarySymbol, PrimaryColor, Message, SecondarySymbol, SecondaryColor);
+			}
+		};
+
 
 		class SMetaSoundGraphPaletteItem : public SGraphPaletteItem
 		{
@@ -680,7 +941,7 @@ namespace Metasound
 
 			SAssignNew(MetasoundInterfaceMenu, SGraphActionMenu, false)
 				.AlphaSortItems(true)
-// 				.OnActionDoubleClicked(this, &FEditor::OnActionDoubleClicked)
+				.OnActionDoubleClicked(this, &FEditor::OnMemberActionDoubleClicked)
 				.OnActionDragged(this, &FEditor::OnActionDragged)
 				.OnActionMatchesName(this, &FEditor::HandleActionMatchesName)
 				.OnActionSelected(this, &FEditor::OnActionSelected)
@@ -1468,6 +1729,10 @@ namespace Metasound
 						const TArray<UObject*> GraphMembersToSelect { NextToSelect };
 						SetSelection(GraphMembersToSelect);
 					}
+				}
+				else
+				{
+					MetasoundAsset->SetUpdateDetailsOnSynchronization();
 				}
 			}
 
@@ -2401,10 +2666,76 @@ namespace Metasound
 			return false;
 		}
 
-		// TODO: Implement
 		FReply FEditor::OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent)
 		{
+			if (!MetasoundGraphEditor.IsValid() || InActions.IsEmpty())
+			{
+				return FReply::Unhandled();
+			}
+
+			TSharedPtr<FEdGraphSchemaAction> DragAction = InActions.Last();
+			if (FMetasoundGraphMemberSchemaAction* MemberAction = static_cast<FMetasoundGraphMemberSchemaAction*>(DragAction.Get()))
+			{
+				if (UEdGraph* ActionGraph = MemberAction->Graph)
+				{
+					if (&GetMetaSoundGraphChecked() == ActionGraph)
+					{
+						TSharedPtr<FEditor> ThisEditor = StaticCastSharedRef<FEditor>(AsShared());
+						return FReply::Handled().BeginDragDrop(MakeShared<FMetaSoundDragDropMemberAction>(ThisEditor, MemberAction->GetGraphMember()));
+					}
+				}
+			}
+
 			return FReply::Unhandled();
+		}
+
+		void FEditor::OnMemberActionDoubleClicked(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions)
+		{
+			if (!MetasoundGraphEditor.IsValid() || InActions.IsEmpty())
+			{
+				return;
+			}
+
+			TSharedPtr<FMetasoundGraphMemberSchemaAction> MemberAction = StaticCastSharedPtr<FMetasoundGraphMemberSchemaAction>(InActions.Last());
+			if (UMetasoundEditorGraphMember* Member = MemberAction->GetGraphMember())
+			{
+				JumpToNodes(Member->GetNodes());
+			}
+		}
+
+		void FEditor::JumpToNodes(const TArray<UMetasoundEditorGraphNode*>& InNodes)
+		{
+			if (!MetasoundGraphEditor.IsValid())
+			{
+				return;
+			}
+
+			MetasoundGraphEditor->ClearSelectionSet();
+			const UMetasoundEditorGraph& Graph = GetMetaSoundGraphChecked();
+			if (!InNodes.IsEmpty())
+			{
+				if (SGraphPanel* GraphPanel = MetasoundGraphEditor->GetGraphPanel())
+				{
+					FVector2D BottomLeft = { TNumericLimits<float>::Max(), TNumericLimits<float>::Max() };
+					FVector2D TopRight = { TNumericLimits<float>::Min(), TNumericLimits<float>::Min() };
+					for (UMetasoundEditorGraphNode* Node : InNodes)
+					{
+						if (!Node || Node->GetGraph() != &Graph)
+						{
+							continue;
+						}
+
+						constexpr bool bSelected = true;
+						MetasoundGraphEditor->SetNodeSelection(Node, bSelected);
+						BottomLeft.X = FMath::Min(BottomLeft.X, Node->NodePosX);
+						BottomLeft.Y = FMath::Min(BottomLeft.Y, Node->NodePosY);
+						TopRight.X = FMath::Max(TopRight.X, Node->NodePosX + Node->EstimateNodeWidth());
+						TopRight.Y = FMath::Max(TopRight.Y, Node->NodePosY);
+					}
+
+					GraphPanel->JumpToRect(BottomLeft, TopRight);
+				}
+			}
 		}
 
 		FActionMenuContent FEditor::OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed)

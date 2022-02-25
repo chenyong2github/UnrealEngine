@@ -1623,6 +1623,12 @@ bool UMetasoundEditorGraph::RemoveMember(UMetasoundEditorGraphMember& InGraphMem
 		bSuccess = false;
 	}
 
+	// Required to ensure member is removed from the editor views on next tick when refreshing details.
+	if (NumRemoved > 0)
+	{
+		InGraphMember.MarkAsGarbage();
+	}
+
 	bSuccess = bSuccess && (NumRemoved > 0);
 
 	return bSuccess;

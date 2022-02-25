@@ -1013,9 +1013,24 @@ FMetasoundFrontendClassName UMetasoundEditorGraphVariableNode::GetClassName() co
 	return ClassName;
 }
 
+EMetasoundFrontendClassType UMetasoundEditorGraphVariableNode::GetClassType() const
+{
+	return ClassType;
+}
+
 FGuid UMetasoundEditorGraphVariableNode::GetNodeID() const
 {
 	return NodeID;
+}
+
+FName UMetasoundEditorGraphVariableNode::GetCornerIcon() const
+{
+	if (ClassType == EMetasoundFrontendClassType::VariableDeferredAccessor)
+	{
+		return TEXT("Graph.Latent.LatentIcon");
+	}
+
+	return Super::GetCornerIcon();
 }
 
 void UMetasoundEditorGraphVariableNode::PinDefaultValueChanged(UEdGraphPin* Pin)
@@ -1068,7 +1083,7 @@ FLinearColor UMetasoundEditorGraphVariableNode::GetNodeTitleColor() const
 
 FSlateIcon UMetasoundEditorGraphVariableNode::GetNodeTitleIcon() const
 {
-	return FSlateIcon("MetaSoundStyle", "MetasoundEditor.Graph.Node.Class.Variable");
+	return FSlateIcon();
 }
 
 void UMetasoundEditorGraphVariableNode::SetNodeID(FGuid InNodeID)

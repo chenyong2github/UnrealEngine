@@ -181,7 +181,9 @@ namespace Metasound
 			Info.ClassName = VariableNames::GetVariableNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
+
 #if WITH_EDITOR
+			Info.DisplayStyle.bShowName = false;
 			Info.Description = LOCTEXT("Metasound_InitVariableNodeDescription", "Initialize a variable of a MetaSound graph.");
 			Info.CategoryHierarchy = { LOCTEXT("Metasound_VariableCategory", "Variable") };
 #endif // WITH_EDITOR
@@ -331,6 +333,7 @@ namespace Metasound
 			Info.MinorVersion = 0;
 
 #if WITH_EDITOR
+			Info.DisplayStyle.bShowName = false;
 			Info.DisplayName = LOCTEXT("Metasound_VariableMutatorNodeDisplayName", "Set");
 			Info.Description = LOCTEXT("Metasound_VariableMutatorNodeDescription", "Set variable on MetaSound graph.");
 			Info.CategoryHierarchy = { LOCTEXT("Metasound_VariableCategory", "Variable") };
@@ -441,6 +444,7 @@ namespace Metasound
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 #if WITH_EDITOR
+			Info.DisplayStyle.bShowName = false;
 			Info.DisplayName = LOCTEXT("Metasound_VariableDeferredAccessorNodeDisplayName", "Get Delayed");
 			Info.Description = LOCTEXT("Metasound_VariableDeferredAccessorNodeDescription", "Get a delayed variable on MetaSound graph.");
 			Info.CategoryHierarchy = { LOCTEXT("Metasound_VariableCategory", "Variable") };
@@ -550,6 +554,7 @@ namespace Metasound
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 #if WITH_EDITOR
+			Info.DisplayStyle.bShowName = false;
 			Info.DisplayName = LOCTEXT("Metasound_VariableAccessorNodeDisplayName", "Get");
 			Info.Description = LOCTEXT("Metasound_VariableAccessorNodeDescription", "Get variable on MetaSound graph.");
 #endif // WITH_EDITOR

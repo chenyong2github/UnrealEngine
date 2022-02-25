@@ -71,6 +71,29 @@ namespace Metasound
 			}
 		}
 
+		bool SMetaSoundGraphNode::IsVariableAccessor() const
+		{
+			const EMetasoundFrontendClassType ClassType = GetMetaSoundNode().GetNodeHandle()->GetClassMetadata().GetType();
+			return ClassType == EMetasoundFrontendClassType::VariableAccessor
+				|| ClassType == EMetasoundFrontendClassType::VariableDeferredAccessor;
+		}
+
+		bool SMetaSoundGraphNode::IsVariableMutator() const
+		{
+			const EMetasoundFrontendClassType ClassType = GetMetaSoundNode().GetNodeHandle()->GetClassMetadata().GetType();
+			return ClassType == EMetasoundFrontendClassType::VariableMutator;
+		}
+
+		const FSlateBrush* SMetaSoundGraphNode::GetShadowBrush(bool bSelected) const
+		{
+			if (IsVariableAccessor() || IsVariableMutator())
+			{
+				return bSelected ? FEditorStyle::GetBrush(TEXT("Graph.VarNode.ShadowSelected")) : FEditorStyle::GetBrush(TEXT("Graph.VarNode.Shadow"));
+			}
+
+			return SGraphNode::GetShadowBrush(bSelected);
+		}
+
 		void SMetaSoundGraphNode::Construct(const FArguments& InArgs, class UEdGraphNode* InNode)
 		{
 			GraphNode = InNode;
@@ -381,6 +404,24 @@ namespace Metasound
 			return TitleBoxWidget.ToSharedRef();
 		}
 
+		void SMetaSoundGraphNode::GetOverlayBrushes(bool bSelected, const FVector2D WidgetSize, TArray<FOverlayBrushInfo>& Brushes) const
+		{
+			FName CornerIcon = GetMetaSoundNode().GetCornerIcon();
+			if (CornerIcon != NAME_None)
+			{
+
+				if (const FSlateBrush* Brush = FEditorStyle::GetBrush(CornerIcon))
+				{
+					FOverlayBrushInfo OverlayInfo = { Brush };
+
+					// Logic copied from SGraphNodeK2Base
+					OverlayInfo.OverlayOffset.X = (WidgetSize.X - (OverlayInfo.Brush->ImageSize.X / 2.f)) - 3.f;
+					OverlayInfo.OverlayOffset.Y = (OverlayInfo.Brush->ImageSize.Y / -2.f) + 2.f;
+					Brushes.Add(MoveTemp(OverlayInfo));
+				}
+			}
+		}
+
 		FLinearColor SMetaSoundGraphNode::GetNodeTitleColorOverride() const
 		{
 			FLinearColor ReturnTitleColor = GraphNode->IsDeprecated() ? FLinearColor::Red : GetNodeObj()->GetNodeTitleColor();
@@ -475,21 +516,29 @@ namespace Metasound
 
 		const FSlateBrush* SMetaSoundGraphNode::GetNodeBodyBrush() const
 		{
-		// 	if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
-		// 	{
-		// 		if (GetMetaSoundNode().GetNodeHandle()->GetClassType() == EMetasoundFrontendClassType::Input)
-		// 		{
-		// 			if (const FSlateBrush* InputBrush = MetasoundStyle->GetBrush("MetasoundEditor.Graph.Node.Body.Input"))
-		// 			{
-		// 				return InputBrush;
-		// 			}
-		// 		}
-		// 
-		// 		if (const FSlateBrush* DefaultBrush = MetasoundStyle->GetBrush("MetasoundEditor.Graph.Node.Body.Default"))
-		// 		{
-		// 			return DefaultBrush;
-		// 		}
-		// 	}
+			// TODO: Add tweak & add custom bodies
+			if (GraphNode)
+			{
+				const EMetasoundFrontendClassType ClassType = GetMetaSoundNode().GetNodeHandle()->GetClassMetadata().GetType();
+				switch (ClassType)
+				{
+					case EMetasoundFrontendClassType::Variable:
+					case EMetasoundFrontendClassType::VariableAccessor:
+					case EMetasoundFrontendClassType::VariableDeferredAccessor:
+					case EMetasoundFrontendClassType::VariableMutator:
+					{
+						return FEditorStyle::GetBrush("Graph.VarNode.Body");
+					}
+					break;
+
+					case EMetasoundFrontendClassType::Input:
+					case EMetasoundFrontendClassType::Output:
+					default:
+					{
+					}
+					break;
+				}
+			}
 
 			return FEditorStyle::GetBrush("Graph.Node.Body");
 		}
@@ -786,46 +835,46 @@ namespace Metasound
 				}
 			}
 	
-			if (StyleDisplay.ImageName.IsNone())
-			{
-				ContentBox->AddSlot()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Top)
-					.AutoWidth()
-					[
-						SAssignNew(LeftNodeBox, SVerticalBox)
-					];
-			}
-			else
-			{
-				ContentBox->AddSlot()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Top)
-					.AutoWidth()
-					[
-						SAssignNew(LeftNodeBox, SVerticalBox)
-					];
+			static const float GrabPadding = 28.0f;
 
+			// Gives more space for user to grab a bit easier as variables do not have any title area nor icon
+			const float LeftNodeGrabPadding = IsVariableMutator() ? GrabPadding : 0.0f;
+			ContentBox->AddSlot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Top)
+			.AutoWidth()
+			.Padding(0.0f, 0.0f, LeftNodeGrabPadding, 0.0f)
+			[
+				SAssignNew(LeftNodeBox, SVerticalBox)
+			];
+
+			if (!StyleDisplay.ImageName.IsNone())
+			{
 				if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
 				{
-					const FSlateBrush* ImageBrush = MetasoundStyle->GetBrush(StyleDisplay.ImageName);
-					ContentBox->AddSlot()
-					.AutoWidth()
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SImage)
-						.Image(ImageBrush)
-						.ColorAndOpacity(FSlateColor::UseForeground())
-						.DesiredSizeOverride(FVector2D(20, 20))
-					];
+					if (const FSlateBrush* ImageBrush = MetasoundStyle->GetBrush(StyleDisplay.ImageName))
+					{
+						ContentBox->AddSlot()
+						.AutoWidth()
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						[
+							SNew(SImage)
+							.Image(ImageBrush)
+							.ColorAndOpacity(FSlateColor::UseForeground())
+							.DesiredSizeOverride(FVector2D(20, 20))
+						];
+					}
 				}
 			}
 
+			// Gives more space for user to grab a bit easier as variables do not have any title area nor icon
+			const float RightNodeGrabPadding = IsVariableAccessor() ? GrabPadding : 0.0f;
 			ContentBox->AddSlot()
 				.AutoWidth()
 				.HAlign(HAlign_Right)
 				.VAlign(VAlign_Center)
+				.Padding(RightNodeGrabPadding, 0.0f, 0.0f, 0.0f)
 				[
 					SAssignNew(RightNodeBox, SVerticalBox)
 				];

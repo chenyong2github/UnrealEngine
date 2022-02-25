@@ -37,8 +37,11 @@ namespace Metasound
 			void Construct(const FArguments& InArgs, class UEdGraphNode* InNode);
 
 		protected:
+			bool IsVariableAccessor() const;
+			bool IsVariableMutator() const;
 
 			// SGraphNode Interface
+			virtual const FSlateBrush* GetShadowBrush(bool bSelected) const override;
 			virtual void CreateInputSideAddButton(TSharedPtr<SVerticalBox> InputBox) override;
 			virtual void CreateOutputSideAddButton(TSharedPtr<SVerticalBox> OutputBox) override;
 			virtual TSharedPtr<SGraphPin> CreatePinWidget(UEdGraphPin* InPin) const override;
@@ -51,6 +54,7 @@ namespace Metasound
 			virtual FReply OnAddPin() override;
 			virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true) override;
 			virtual void SetDefaultTitleAreaWidget(TSharedRef<SOverlay> DefaultTitleAreaWidget) override;
+			virtual void GetOverlayBrushes(bool bSelected, const FVector2D WidgetSize, TArray<FOverlayBrushInfo>& Brushes) const override;
 
 			FLinearColor GetNodeTitleColorOverride() const;
 

@@ -39,6 +39,7 @@ class SVerticalBox;
 class UEdGraphNode;
 class UMetaSound;
 class UMetasoundEditorGraph;
+class UMetasoundEditorGraphNode;
 
 struct FGraphActionNode;
 struct FMeterResults;
@@ -157,6 +158,9 @@ namespace Metasound
 			/** Destroys analyzers */
 			void DestroyAnalyzers();
 
+			/** Jumps to the given nodes on the graph */
+			void JumpToNodes(const TArray<UMetasoundEditorGraphNode*>& InNodes);
+
 		protected:
 			// Callbacks for action tree
 			bool CanRenameOnActionNode(TWeakPtr<FGraphActionNode> InSelectedNode) const;
@@ -167,6 +171,7 @@ namespace Metasound
 			FText GetFilterText() const;
 			bool HandleActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const;
 			FReply OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent);
+			void OnMemberActionDoubleClicked(const TArray< TSharedPtr<FEdGraphSchemaAction> >& InActions);
 			FActionMenuContent OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
 			void OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, ESelectInfo::Type InSelectionType);
 			FReply OnAddButtonClickedOnSection(int32 InSectionID);
@@ -201,9 +206,6 @@ namespace Metasound
 
 			/** Cut the currently selected nodes */
 			void CutSelectedNodes();
-
-			/** Copy the currently selected nodes to the given string */
-			void CopySelectedNodes(FString& OutString) const;
 
 			/** Copy the currently selected nodes */
 			void CopySelectedNodes() const;
