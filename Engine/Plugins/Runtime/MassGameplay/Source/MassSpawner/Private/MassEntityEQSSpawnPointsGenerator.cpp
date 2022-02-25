@@ -14,6 +14,12 @@ UMassEntityEQSSpawnPointsGenerator::UMassEntityEQSSpawnPointsGenerator()
 
 void UMassEntityEQSSpawnPointsGenerator::Generate(UObject& QueryOwner, TConstArrayView<FMassSpawnedEntityType> EntityTypes, const int32 Count, FFinishedGeneratingSpawnDataSignature& FinishedGeneratingSpawnPointsDelegate) const
 {
+	if (Count <= 0)
+	{
+		FinishedGeneratingSpawnPointsDelegate.Execute(TArray<FMassEntitySpawnDataGeneratorResult>());
+		return;
+	}
+	
 	// Need to copy the request as it is called inside a CDO and CDO states cannot be changed.
 	FEQSParametrizedQueryExecutionRequest EQSRequestInstanced = EQSRequest;
 	if (EQSRequestInstanced.IsValid() == false)

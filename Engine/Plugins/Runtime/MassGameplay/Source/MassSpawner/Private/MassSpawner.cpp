@@ -269,12 +269,6 @@ void AMassSpawner::RegisterEntityTemplates()
 
 void AMassSpawner::DoSpawning()
 {
-	const int32 TotalSpawnCount = GetSpawnCount();
-	if (TotalSpawnCount <= 0)
-	{
-		return;
-	}
-	
 	// no spawn point generators configured. Let user know and fall back to the spawner's location
 	if (SpawnDataGenerators.Num() == 0)
 	{
@@ -309,23 +303,21 @@ void AMassSpawner::DoSpawning()
 	TArray<FSoftObjectPath> AssetsToLoad;
 	for (const FMassSpawnedEntityType& EntityType : EntityTypes)
 	{
-		const int32 EntityCount = int32(TotalSpawnCount * EntityType.Proportion / TotalProportion);
-		if (EntityCount > 0)
+		if (!EntityType.IsLoaded())
 		{
-			if (!EntityType.IsLoaded())
-			{
-				AssetsToLoad.Add(EntityType.EntityConfig.ToSoftObjectPath());
-			}
+			AssetsToLoad.Add(EntityType.EntityConfig.ToSoftObjectPath());
 		}
 	}
-
+	
+	const int32 TotalSpawnCount = GetSpawnCount();
+	
 	auto GenerateSpawningPoints = [this, TotalSpawnCount, TotalProportion]()
 	{
 		int32 SpawnCountRemaining = TotalSpawnCount;
 		float ProportionRemaining = TotalProportion;
 		for (FMassSpawnDataGenerator& Generator : SpawnDataGenerators)
 		{
-			if (Generator.Proportion == 0.0f || ProportionRemaining <= 0.0f || SpawnCountRemaining <= 0)
+			if (Generator.Proportion == 0.0f || ProportionRemaining <= 0.0f)
 			{
 				// If there's nothing to spawn, mark the generator done as OnSpawnDataGenerationFinished() will wait for all generators to complete before the actual spawning.
 				Generator.bDataGenerated = true;
@@ -336,13 +328,11 @@ void AMassSpawner::DoSpawning()
 			{
 				const float ProportionRatio = FMath::Min(Generator.Proportion / ProportionRemaining, 1.0f);
 				const int32 SpawnCount = FMath::CeilToInt(SpawnCountRemaining * ProportionRatio);
-				if (SpawnCount > 0)
-				{
-					FFinishedGeneratingSpawnDataSignature Delegate = FFinishedGeneratingSpawnDataSignature::CreateUObject(this, &AMassSpawner::OnSpawnDataGenerationFinished, &Generator);
-					Generator.GeneratorInstance->Generate(*this, EntityTypes, SpawnCount, Delegate);
-					SpawnCountRemaining -= SpawnCount;
-					ProportionRemaining -= Generator.Proportion;
-				}
+				
+				FFinishedGeneratingSpawnDataSignature Delegate = FFinishedGeneratingSpawnDataSignature::CreateUObject(this, &AMassSpawner::OnSpawnDataGenerationFinished, &Generator);
+				Generator.GeneratorInstance->Generate(*this, EntityTypes, SpawnCount, Delegate);
+				SpawnCountRemaining -= SpawnCount;
+				ProportionRemaining -= Generator.Proportion;
 			}
 		}
 	};
