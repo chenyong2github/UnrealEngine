@@ -16,6 +16,34 @@
 #include "LumenSurfaceCacheFeedback.h"
 #include "LumenVisualizationData.h"
 
+// Must be in sync with VISUALIZE_MODE_* in LumenVisualize.h
+int32 GLumenVisualize = 0;
+FAutoConsoleVariableRef CVarLumenVisualize(
+	TEXT("r.Lumen.Visualize"),
+	GLumenVisualize,
+	TEXT("Lumen scene visualization mode.\n")
+	TEXT("0 - Disable\n")
+	TEXT("1 - Final lighting\n")
+	TEXT("2 - Reflection View\n")
+	TEXT("3 - Surface Cache Coverage\n")
+	TEXT("4 - Overview\n")
+	TEXT("5 - Albedo\n")
+	TEXT("6 - Geometry normals\n")
+	TEXT("7 - Normals\n")
+	TEXT("8 - Emissive\n")
+	TEXT("9 - Opacity\n")
+	TEXT("10 - Card weights\n")
+	TEXT("11 - Direct lighting\n")
+	TEXT("12 - Indirect lighting\n")
+	TEXT("13 - Local Position (hardware ray-tracing only)\n")
+	TEXT("14 - Velocity (hardware ray-tracing only)\n")
+	TEXT("15 - Direct lighting updates\n")
+	TEXT("16 - Indirect lighting updates\n")
+	TEXT("17 - Last used pages\n")
+	TEXT("18 - Last used high res pages"),
+	ECVF_RenderThreadSafe
+);
+
 int32 GVisualizeLumenSceneGridPixelSize = 32;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneGridPixelSize(
 	TEXT("r.Lumen.Visualize.GridPixelSize"),
@@ -69,34 +97,6 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneHiResSurface(
 	TEXT("r.Lumen.Visualize.HiResSurface"),
 	GVisualizeLumenSceneHiResSurface,
 	TEXT("Whether visualization should sample highest available surface data or use lowest res always resident pages."),
-	ECVF_RenderThreadSafe
-);
-
-// Must be in sync with VISUALIZE_MODE_* in LumenVisualize.h
-int32 GLumenVisualizeMode = 0;
-FAutoConsoleVariableRef CVarLumenVisualizeMode(
-	TEXT("r.Lumen.Visualize.Mode"),
-	GLumenVisualizeMode,
-	TEXT("Lumen scene visualization mode.\n")
-	TEXT("0 - Disable\n")
-	TEXT("1 - Final lighting\n")
-	TEXT("2 - Reflection View\n")
-	TEXT("3 - Surface Cache Coverage\n")
-	TEXT("4 - Overview\n")
-	TEXT("5 - Albedo\n")
-	TEXT("6 - Geometry normals\n")
-	TEXT("7 - Normals\n")
-	TEXT("8 - Emissive\n")
-	TEXT("9 - Opacity\n")
-	TEXT("10 - Card weights\n")
-	TEXT("11 - Direct lighting\n")
-	TEXT("12 - Indirect lighting\n")
-	TEXT("13 - Local Position (hardware ray-tracing only)\n")
-	TEXT("14 - Velocity (hardware ray-tracing only)\n")
-	TEXT("15 - Direct lighting updates\n")
-	TEXT("16 - Indirect lighting updates\n")
-	TEXT("17 - Last used pages\n")
-	TEXT("18 - Last used high res pages"),
 	ECVF_RenderThreadSafe
 );
 
@@ -276,7 +276,7 @@ FAutoConsoleVariableRef CVarCardInterpolateInfluenceRadius(
 
 bool Lumen::ShouldVisualizeScene(const FSceneViewFamily& ViewFamily)
 {
-	return ViewFamily.EngineShowFlags.VisualizeLumen || GLumenVisualizeMode > 0;
+	return ViewFamily.EngineShowFlags.VisualizeLumen || GLumenVisualize > 0;
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenVisualizeSceneSoftwareRayTracingParameters, )
@@ -844,7 +844,7 @@ void VisualizeLumenScene(
 int32 GetLumenVisualizeMode(const FViewInfo& View)
 {
 	const FLumenVisualizationData& VisualizationData = GetLumenVisualizationData();
-	const int32 VisualizeMode = GLumenVisualizeMode > 0 ? GLumenVisualizeMode : VisualizationData.GetModeID(View.CurrentLumenVisualizationMode);
+	const int32 VisualizeMode = GLumenVisualize > 0 ? GLumenVisualize : VisualizationData.GetModeID(View.CurrentLumenVisualizationMode);
 	return VisualizeMode;
 }
 

@@ -9,7 +9,7 @@
 
 static FLumenVisualizationData GLumenVisualizationData;
 
-// Must match appropriate values in r.Lumen.Visualize.Mode
+// Must match appropriate values in r.Lumen.Visualize
 #define LUMEN_VISUALIZE_LUMEN_SCENE		1
 #define LUMEN_VISUALIZE_REFLECTION_VIEW	2
 #define LUMEN_VISUALIZE_SURFACE_CACHE	3

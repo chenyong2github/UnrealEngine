@@ -60,7 +60,7 @@ public:
 	/** Return the console command name for enabling single mode visualization. */
 	static const TCHAR* GetVisualizeConsoleCommandName()
 	{
-		return TEXT("r.Lumen.Visualize");
+		return TEXT("r.Lumen.Visualize.ViewMode");
 	}
 
 private:

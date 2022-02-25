@@ -67,7 +67,6 @@ namespace Lumen
 	uint32 GetRadiosityAtlasDownsampleFactor();
 
 	// Surface cache
-	float GetSurfaceCacheOffscreenShadowingMaxTraceDistance(float LumenMaxTraceDistance);
 	bool IsSurfaceCacheFrozen();
 	bool IsSurfaceCacheUpdateFrameFrozen();
 
