@@ -532,7 +532,7 @@ void FIOSInputInterface::SendControllerEvents()
         {
             GCController* Cont = Controller.Controller;
             GCMicroGamepad* MicroGamepad = [Cont capture].microGamepad;
-            if (MicroGamepad != nil)
+            if (MicroGamepad != nil && Controller.PlayerIndex != PlayerIndex::PlayerUnset)
             {
                 const GCMicroGamepad* PreviousMicroGamepad = Controller.PreviousMicroGamepad;
 

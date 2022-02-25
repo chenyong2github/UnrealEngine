@@ -16,7 +16,8 @@ enum ControllerType
 	SiriRemote,
 	ExtendedGamepad,
 	XboxGamepad,
-	DualShockGamepad
+	DualShockGamepad,
+    DualSenseGamepad
 };
 
 enum PlayerIndex

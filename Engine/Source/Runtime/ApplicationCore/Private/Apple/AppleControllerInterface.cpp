@@ -114,6 +114,11 @@ void FAppleControllerInterface::SetControllerType(uint32 ControllerIndex)
     {
         Controllers[ControllerIndex].ControllerType = ControllerType::XboxGamepad;
     }
+    else if ([Controller.productCategory isEqualToString:@"DualSense"])
+    {
+        Controllers[ControllerIndex].ControllerType = ControllerType::DualSenseGamepad;
+    }
+
     else if (Controller.extendedGamepad != nil)
     {
         Controllers[ControllerIndex].ControllerType = ControllerType::ExtendedGamepad;
@@ -447,6 +452,7 @@ bIsPressed = Gamepad.GCButton.pressed; \
         case ControllerType::ExtendedGamepad:
         case ControllerType::DualShockGamepad:
         case ControllerType::XboxGamepad:
+        case ControllerType::DualSenseGamepad:
             
             ExtendedGamepad = Cont.extendedGamepad;
             ExtendedPreviousGamepad = Controllers[ControllerIndex].PreviousExtendedGamepad;
@@ -508,6 +514,7 @@ void FAppleControllerInterface::HandleAnalogGamepad(const FGamepadKeyNames::Type
         case ControllerType::ExtendedGamepad:
         case ControllerType::DualShockGamepad:
         case ControllerType::XboxGamepad:
+        case ControllerType::DualSenseGamepad:
             
             if (UEAxis == FGamepadKeyNames::LeftAnalogX){if ((ExtendedPreviousGamepad != nil && ExtendedGamepad.leftThumbstick.xAxis.value != ExtendedPreviousGamepad.leftThumbstick.xAxis.value) ||
                                                              (ExtendedGamepad.leftThumbstick.xAxis.value < -RepeatDeadzone || ExtendedGamepad.leftThumbstick.xAxis.value > RepeatDeadzone)){axisValue = ExtendedGamepad.leftThumbstick.xAxis.value;}}
