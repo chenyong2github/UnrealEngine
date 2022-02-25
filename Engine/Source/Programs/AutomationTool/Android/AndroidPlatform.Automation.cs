@@ -12,6 +12,7 @@ using UnrealBuildTool;
 using Ionic.Zip;
 using EpicGames.Core;
 using UnrealBuildBase;
+using AutomationUtils.Automation;
 using System.Text.RegularExpressions;
 using AutomationScripts;
 
@@ -546,6 +547,86 @@ public class AndroidPlatform : Platform
 		return PluginExtras;
 	}
 
+	private bool UsingAndroidFileServer(DeploymentContext SC, out bool bEnablePlugin, out string AFSToken, out bool bIsShipping, out bool bIncludeInShipping, out bool bAllowExternalStartInShipping)
+	{
+		UnrealTargetConfiguration TargetConfiguration = SC.StageTargetConfigurations[0];
+		bIsShipping = TargetConfiguration == UnrealTargetConfiguration.Shipping;
+
+		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(SC.RawProjectPath), SC.StageTargetPlatform.PlatformType);
+		bEnablePlugin = true;
+		AFSToken = "";
+		bIncludeInShipping = false;
+		bAllowExternalStartInShipping = false;
+		Ini.GetBool("/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings", "bEnablePlugin", out bEnablePlugin);
+		Ini.GetString("/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings", "SecurityToken", out AFSToken);
+		Ini.GetBool("/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings", "bIncludeInShipping", out bIncludeInShipping);
+		Ini.GetBool("/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings", "bAllowExternalStartInShipping", out bAllowExternalStartInShipping);
+
+		if (bIsShipping && !(bIncludeInShipping && bAllowExternalStartInShipping))
+		{
+			return false;
+		}
+		return bEnablePlugin;
+	}
+
+	enum EConnectionType
+	{
+		USBOnly,
+		NetworkOnly,
+		Combined
+	}
+
+	private EConnectionType GetAndroidFileServerNetworkConfig(DeploymentContext SC, out bool bUseCompression, out bool bLogFiles, out bool bReportStats, out bool bUseManualIPAddress, out string ManualIPAddress)
+	{
+		EConnectionType ConnectionType = EConnectionType.USBOnly;
+
+		UnrealTargetConfiguration TargetConfiguration = SC.StageTargetConfigurations[0];
+		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(SC.RawProjectPath), SC.StageTargetPlatform.PlatformType);
+
+		string ConnectionString = "";
+		Ini.GetString("/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings", "ConnectionType", out ConnectionString);
+		switch (ConnectionString)
+		{
+			case "USBOnly":
+				ConnectionType = EConnectionType.USBOnly;
+				break;
+			case "NetworkOnly":
+				ConnectionType = EConnectionType.NetworkOnly;
+				break;
+			case "Combined":
+				ConnectionType = EConnectionType.Combined;
+				break;
+			default:
+				ConnectionType = EConnectionType.USBOnly;
+				break;
+		}
+
+		bUseCompression = false;
+		bLogFiles = false;
+		bReportStats = false;
+		bUseManualIPAddress = false;
+		ManualIPAddress = "";
+		bool bAllowNetworkConnection = true;
+
+		Ini.GetBool("/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings", "bUseCompression", out bUseCompression);
+		Ini.GetBool("/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings", "bLogFiles", out bLogFiles);
+		Ini.GetBool("/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings", "bReportStats", out bReportStats);
+		Ini.GetBool("/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings", "bUseManualIPAddress", out bUseManualIPAddress);
+		if (!Ini.GetString("/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings", "ManualIPAddress", out ManualIPAddress))
+		{
+			ManualIPAddress = "127.0.0.1";
+		}
+
+		Ini.GetBool("/Script/AndroidFileServerEditor.AndroidFileServerRuntimeSettings", "bAllowNetworkConnection", out bAllowNetworkConnection);
+		if (!bAllowNetworkConnection && ConnectionType != EConnectionType.USBOnly)
+		{
+			Log.TraceWarning("AFS will only use USB connection due to network connection disabled");
+			ConnectionType = EConnectionType.USBOnly;
+		}
+
+		return ConnectionType;
+	}
+
 	private bool BuildWithHiddenSymbolVisibility(DeploymentContext SC)
 	{
 		UnrealTargetConfiguration TargetConfiguration = SC.StageTargetConfigurations[0];
@@ -682,6 +763,26 @@ public class AndroidPlatform : Platform
 
 		var Deploy = AndroidExports.CreateDeploymentHandler(Params.RawProjectPath, Params.ForcePackageData);
 		bool bPackageDataInsideApk = Deploy.GetPackageDataInsideApk();
+
+		bool bUseAFS = false;
+		bool bUseAFSProject = false;
+
+		bool bAFSEnablePlugin;
+		string AFSToken;
+		bool bIsShipping;
+		bool bAFSIncludeInShipping;
+		bool bAFSAllowExternalStartInShipping;
+		UsingAndroidFileServer(SC, out bAFSEnablePlugin, out AFSToken, out bIsShipping, out bAFSIncludeInShipping, out bAFSAllowExternalStartInShipping);
+
+		if (bAFSEnablePlugin)
+		{
+			bUseAFS = true;
+			// AFSProject APK should be used if shipping and AFS wasn't included
+			if (bIsShipping && !(bAFSIncludeInShipping && bAFSAllowExternalStartInShipping))
+			{
+				bUseAFSProject = true;
+			}
+		}
 
 		string BaseApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, "");
 		LogInformation("BaseApkName = {0}", BaseApkName);
@@ -1029,7 +1130,7 @@ public class AndroidPlatform : Platform
 				string PackageName = GetPackageInfo(ApkName, SC, false);
 				string BatchName = GetFinalBatchName(ApkName, SC, bMakeSeparateApks ? Architecture : "", false, EBatchType.Install, Target);
 				string[] BatchLines = GenerateInstallBatchFile(bPackageDataInsideApk, PackageName, ApkName, Params, ObbName, DeviceObbName, false, PatchName, DevicePatchName, false, 
-					Overflow1Name, DeviceOverflow1Name, false, Overflow2Name, DeviceOverflow2Name, false, bIsPC, Params.Distribution, TargetSDKVersion > 22, bDisablePerfHarden);
+					Overflow1Name, DeviceOverflow1Name, false, Overflow2Name, DeviceOverflow2Name, false, bIsPC, Params.Distribution, TargetSDKVersion > 22, bDisablePerfHarden, bUseAFS, bUseAFSProject, AFSToken, Target);
 				if (bHaveAPK)
 				{
 					// make a batch file that can be used to install the .apk and .obb files
@@ -1049,7 +1150,7 @@ public class AndroidPlatform : Platform
 					UniversalBatchName = GetFinalBatchName(UniversalApkName, SC, "", false, EBatchType.Install, Target);
 					// make a batch file that can be used to install the .apk
 					string[] UniversalBatchLines = GenerateInstallBatchFile(bPackageDataInsideApk, PackageName, UniversalApkName, Params, ObbName, DeviceObbName, false, PatchName, DevicePatchName, false,
-						Overflow1Name, DeviceOverflow1Name, false, Overflow2Name, DeviceOverflow2Name, false, bIsPC, Params.Distribution, TargetSDKVersion > 22, bDisablePerfHarden);
+						Overflow1Name, DeviceOverflow1Name, false, Overflow2Name, DeviceOverflow2Name, false, bIsPC, Params.Distribution, TargetSDKVersion > 22, bDisablePerfHarden, bUseAFS, bUseAFSProject, AFSToken, Target);
 					File.WriteAllText(UniversalBatchName, string.Join(LineEnding, UniversalBatchLines) + LineEnding);
 				}
 
@@ -1111,9 +1212,27 @@ public class AndroidPlatform : Platform
 		PrintRunTime();
 	}
 
-    private string[] GenerateInstallBatchFile(bool bPackageDataInsideApk, string PackageName, string ApkName, ProjectParams Params, string ObbName, string DeviceObbName, bool bNoObbInstall,
+	string GetAFSExecutable(UnrealTargetPlatform Target)
+	{
+		if (Target == UnrealTargetPlatform.Win64)
+		{
+			return "win-x64/UnrealAndroidFileTool.exe";
+		}
+		if (Target == UnrealTargetPlatform.Mac)
+		{
+			return "osx-x64/UnrealAndroidFileTool";
+		}
+		if (Target == UnrealTargetPlatform.Linux)
+		{
+			return "linux-x64/UnrealAndroidFileTool";
+		}
+		Log.TraceWarning("GetAFSExecutable unsupported target, assuming Win64");
+		return "win-x64/UnrealAndroidFileTool.exe";
+	}
+
+	private string[] GenerateInstallBatchFile(bool bPackageDataInsideApk, string PackageName, string ApkName, ProjectParams Params, string ObbName, string DeviceObbName, bool bNoObbInstall,
 		string PatchName, string DevicePatchName, bool bNoPatchInstall, string Overflow1Name, string DeviceOverflow1Name, bool bNoOverflow1Install, string Overflow2Name, string DeviceOverflow2Name, bool bNoOverflow2Install,
-		bool bIsPC, bool bIsDistribution, bool bRequireRuntimeStoragePermission, bool bDisablePerfHarden)
+		bool bIsPC, bool bIsDistribution, bool bRequireRuntimeStoragePermission, bool bDisablePerfHarden, bool bUseAFS, bool bUseAFSProject, string AFSToken, UnrealTargetPlatform Target)
     {
         string[] BatchLines = null;
         string ReadPermissionGrantCommand = "shell pm grant " + PackageName + " android.permission.READ_EXTERNAL_STORAGE";
@@ -1125,26 +1244,56 @@ public class AndroidPlatform : Platform
 		bool bNeedGrantStoragePermission = bRequireRuntimeStoragePermission && !bIsDistribution;
 
 		// We can't always push directly to Android/obb so uploads to Download then moves it
-		bool bDontMoveOBB = bPackageDataInsideApk || !bIsDistribution;
+		bool bDontMoveOBB = bUseAFS ? true : (bPackageDataInsideApk || !bIsDistribution);
 
 		bool bHavePatch = (PatchName != "");
 		bool bHaveOverflow1 = (Overflow1Name != "");
 		bool bHaveOverflow2 = (Overflow2Name != "");
 
+		string AFSExecutable = GetAFSExecutable(Target);
+		string AFSCommonArg = "-p " + PackageName;
+		if (AFSToken != "")
+		{
+			AFSCommonArg += " -k " + AFSToken;
+		}
+
 		if (!bIsPC)
         {
+			string APKInstallCommand = "$ADB $DEVICE install " + Path.GetFileName(ApkName);
+			string APKReinstallCommand = "";
+
 			// If it is a distribution build, push to $STORAGE/Android/obb folder instead of $STORAGE/obb folder.
 			// Note that $STORAGE/Android/obb will be the folder that contains the obb if you download the app from playstore.
-			string OBBInstallCommand = bNoObbInstall ? "shell 'rm -r $EXTERNAL_STORAGE/" + DeviceObbName + "'" : "push " + Path.GetFileName(ObbName) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DeviceObbName;
-			string PatchInstallCommand = bNoPatchInstall ? "shell 'rm -r $EXTERNAL_STORAGE/" + DevicePatchName + "'" : "push " + Path.GetFileName(PatchName) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DevicePatchName;
-			string Overflow1InstallCommand = bNoOverflow1Install ? "shell 'rm -r $EXTERNAL_STORAGE/" + DeviceOverflow1Name + "'" : "push " + Path.GetFileName(Overflow1Name) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DeviceOverflow1Name;
-			string Overflow2InstallCommand = bNoOverflow2Install ? "shell 'rm -r $EXTERNAL_STORAGE/" + DeviceOverflow2Name + "'" : "push " + Path.GetFileName(Overflow2Name) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DeviceOverflow2Name;
+			string OBBInstallCommand = bNoObbInstall ? "\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/" + DeviceObbName + "'" : "\t$ADB $DEVICE push " + Path.GetFileName(ObbName) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DeviceObbName;
+			string PatchInstallCommand = bNoPatchInstall ? "\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/" + DevicePatchName + "'" : "\t$ADB $DEVICE push " + Path.GetFileName(PatchName) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DevicePatchName;
+			string Overflow1InstallCommand = bNoOverflow1Install ? "\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/" + DeviceOverflow1Name + "'" : "\t$ADB $DEVICE push " + Path.GetFileName(Overflow1Name) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DeviceOverflow1Name;
+			string Overflow2InstallCommand = bNoOverflow2Install ? "\t$ADB $DEVICE shell 'rm -r $EXTERNAL_STORAGE/" + DeviceOverflow2Name + "'" : "\t$ADB $DEVICE push " + Path.GetFileName(Overflow2Name) + (bIsDistribution ? " " + TargetAndroidTemp : " $STORAGE/") + DeviceOverflow2Name;
+
+			if (bUseAFS)
+			{
+				if (bUseAFSProject)
+				{
+					APKInstallCommand = "$ADB $DEVICE install AFS_" + Path.GetFileName(ApkName);
+					APKReinstallCommand = "$ADB $DEVICE install -r " + Path.GetFileName(ApkName);
+				}
+				else
+				{
+					// stop the fileserver (not needed on reinstall above
+					APKReinstallCommand = "$AFS $DEVICE " + AFSCommonArg + " stop-all";
+				}
+				string AFSCommand = "\t$AFS $DEVICE " + AFSCommonArg; 
+				OBBInstallCommand = bNoObbInstall ? AFSCommand + " deletefile '^mainobb'" : AFSCommand + " push " + Path.GetFileName(ObbName) + " '^mainobb'";
+				PatchInstallCommand = bNoPatchInstall ? AFSCommand + " deletefile '^patchobb'" : AFSCommand + " push " + Path.GetFileName(PatchName) + " '^patchobb'";
+				Overflow1InstallCommand = bNoOverflow1Install ? AFSCommand + " deletefile '^overflow1obb'" : AFSCommand + " push " + Path.GetFileName(Overflow1Name) + " '^overflow1obb'";
+				Overflow1InstallCommand = bNoOverflow2Install ? AFSCommand + " deletefile '^overflow2obb'" : AFSCommand + " push " + Path.GetFileName(Overflow2Name) + " '^overflow2obb'";
+			}
 
 			LogInformation("Writing shell script for install with {0}", bPackageDataInsideApk ? "data in APK" : "separate obb");
             BatchLines = new string[] {
 						"#!/bin/sh",
 						"cd \"`dirname \"$0\"`\"",
-                        "ADB=",
+						"AFS=./" + AFSExecutable,
+						"ADB=",
 						"if [ \"$ANDROID_HOME\" != \"\" ]; then ADB=$ANDROID_HOME/platform-tools/adb; else ADB=" +Environment.GetEnvironmentVariable("ANDROID_HOME") + "/platform-tools/adb; fi",
 						"DEVICE=",
 						"if [ \"$1\" != \"\" ]; then DEVICE=\"-s $1\"; fi",
@@ -1153,9 +1302,10 @@ public class AndroidPlatform : Platform
 						"$ADB $DEVICE uninstall " + PackageName,
 						"echo",
 						"echo Installing existing application. Failures here indicate a problem with the device \\(connection or storage permissions\\) and are fatal.",
-						"$ADB $DEVICE install " + Path.GetFileName(ApkName),
+						APKInstallCommand,
 						"if [ $? -eq 0 ]; then",
                         "\techo",
+						"\t$ADB $DEVICE shell pm list packages " + PackageName,
 						bNeedGrantStoragePermission ? "\techo Grant READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE to the apk for reading OBB or game file in external storage." : "",
 						bNeedGrantStoragePermission ? "\t$ADB $DEVICE " + ReadPermissionGrantCommand : "",
 						bNeedGrantStoragePermission ? "\t$ADB $DEVICE " + WritePermissionGrantCommand : "",
@@ -1170,14 +1320,15 @@ public class AndroidPlatform : Platform
 						bPackageDataInsideApk ? "" : "\techo",
 						bPackageDataInsideApk ? "" : "\techo Installing new data. Failures here indicate storage problems \\(missing SD card or bad permissions\\) and are fatal.",
 						bPackageDataInsideApk ? "" : "\tSTORAGE=$(echo \"`$ADB $DEVICE shell 'echo $EXTERNAL_STORAGE'`\" | cat -v | tr -d '^M')",
-						bPackageDataInsideApk ? "" : "\t$ADB $DEVICE " + OBBInstallCommand,
+						bPackageDataInsideApk ? "" : OBBInstallCommand,
 						bPackageDataInsideApk ? "if [ 1 ]; then" : "\tif [ $? -eq 0 ]; then",
-						!bHavePatch ? "" : (bPackageDataInsideApk ? "" : "\t$ADB $DEVICE " + PatchInstallCommand),
-						!bHaveOverflow1 ? "" : (bPackageDataInsideApk ? "" : "\t$ADB $DEVICE " + Overflow1InstallCommand),
-						!bHaveOverflow2 ? "" : (bPackageDataInsideApk ? "" : "\t$ADB $DEVICE " + Overflow2InstallCommand),
+						!bHavePatch ? "" : (bPackageDataInsideApk ? "" : PatchInstallCommand),
+						!bHaveOverflow1 ? "" : (bPackageDataInsideApk ? "" : Overflow1InstallCommand),
+						!bHaveOverflow2 ? "" : (bPackageDataInsideApk ? "" : Overflow2InstallCommand),
 						bDontMoveOBB ? "" : "\t\t$ADB $DEVICE shell mkdir $STORAGE/Android/" + TargetAndroidLocation + PackageName, // don't check for error since installing may create the obb directory
 						bDontMoveOBB ? "" : "\t\t$ADB $DEVICE shell mv " + TargetAndroidTemp + TargetAndroidLocation + PackageName + " $STORAGE/Android/" + TargetAndroidLocation,
 						bDontMoveOBB ? "" : "\t\t$ADB $DEVICE shell rm -r " + TargetAndroidTemp + TargetAndroidLocation,
+						APKReinstallCommand,
 						"\t\techo",
 						"\t\techo Installation successful",
 						"\t\texit 0",
@@ -1195,10 +1346,32 @@ public class AndroidPlatform : Platform
         }
         else
         {
-			string OBBInstallCommand = bNoObbInstall ? "shell rm -r %STORAGE%/" + DeviceObbName : "push " + Path.GetFileName(ObbName) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DeviceObbName;
-			string PatchInstallCommand = bNoPatchInstall ? "shell rm -r %STORAGE%/" + DevicePatchName : "push " + Path.GetFileName(PatchName) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DevicePatchName;
-			string Overflow1InstallCommand = bNoOverflow1Install ? "shell rm -r %STORAGE%/" + DeviceOverflow1Name : "push " + Path.GetFileName(Overflow1Name) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DeviceOverflow1Name;
-			string Overflow2InstallCommand = bNoOverflow2Install ? "shell rm -r %STORAGE%/" + DeviceOverflow2Name : "push " + Path.GetFileName(Overflow2Name) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DeviceOverflow2Name;
+			string APKInstallCommand = "%ADB% %DEVICE% install " + Path.GetFileName(ApkName);
+			string APKReinstallCommand = "";
+
+			string OBBInstallCommand = bNoObbInstall ? "%ADB% %DEVICE% shell rm -r %STORAGE%/" + DeviceObbName : "%ADB% %DEVICE% push " + Path.GetFileName(ObbName) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DeviceObbName;
+			string PatchInstallCommand = bNoPatchInstall ? "%ADB% %DEVICE% shell rm -r %STORAGE%/" + DevicePatchName : "%ADB% %DEVICE% push " + Path.GetFileName(PatchName) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DevicePatchName;
+			string Overflow1InstallCommand = bNoOverflow1Install ? "%ADB% %DEVICE% shell rm -r %STORAGE%/" + DeviceOverflow1Name : "%ADB% %DEVICE% push " + Path.GetFileName(Overflow1Name) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DeviceOverflow1Name;
+			string Overflow2InstallCommand = bNoOverflow2Install ? "%ADB% %DEVICE% shell rm -r %STORAGE%/" + DeviceOverflow2Name : "%ADB% %DEVICE% push " + Path.GetFileName(Overflow2Name) + (bIsDistribution ? " " + TargetAndroidTemp : " %STORAGE%/") + DeviceOverflow2Name;
+
+			if (bUseAFS)
+			{
+				if (bUseAFSProject)
+				{
+					APKInstallCommand = "%ADB% %DEVICE% install AFS_" + Path.GetFileName(ApkName);
+					APKReinstallCommand = "%ADB% %DEVICE% install -r " + Path.GetFileName(ApkName);
+				}
+				else
+				{
+					// stop the fileserver (not needed on reinstall above
+					APKReinstallCommand = "%AFS% %DEVICE% " + AFSCommonArg + " stop-all";
+				}
+				string AFSCommand = "\t%AFS% %DEVICE% " + AFSCommonArg;
+				OBBInstallCommand = bNoObbInstall ? AFSCommand + " deletefile \"^mainobb\"" : AFSCommand + " push " + Path.GetFileName(ObbName) + " \"^mainobb\"";
+				PatchInstallCommand = bNoPatchInstall ? AFSCommand + " deletefile \"^patchobb\"" : AFSCommand + " push " + Path.GetFileName(PatchName) + " \"^patchobb\"";
+				Overflow1InstallCommand = bNoOverflow1Install ? AFSCommand + " deletefile \"^overflow1obb\"" : AFSCommand + " push " + Path.GetFileName(Overflow1Name) + " \"^overflow1obb\"";
+				Overflow1InstallCommand = bNoOverflow2Install ? AFSCommand + " deletefile \"^overflow2obb\"" : AFSCommand + " push " + Path.GetFileName(Overflow2Name) + " \"^overflow2obb\"";
+			}
 
 			LogInformation("Writing bat for install with {0}", bPackageDataInsideApk ? "data in APK" : "separate OBB");
             BatchLines = new string[] {
@@ -1207,6 +1380,7 @@ public class AndroidPlatform : Platform
 						"set ANDROIDHOME=%ANDROID_HOME%",		
 						"if \"%ANDROIDHOME%\"==\"\" set ANDROIDHOME="+Environment.GetEnvironmentVariable("ANDROID_HOME"),
 						"set ADB=%ANDROIDHOME%\\platform-tools\\adb.exe",
+						"set AFS=.\\" + AFSExecutable.Replace("/", "\\"),
 						"set DEVICE=",
                         "if not \"%1\"==\"\" set DEVICE=-s %1",
                         "for /f \"delims=\" %%A in ('%ADB% %DEVICE% " + GetStorageQueryCommand(true) +"') do @set STORAGE=%%A",
@@ -1215,27 +1389,30 @@ public class AndroidPlatform : Platform
 						"%ADB% %DEVICE% uninstall " + PackageName,
 						"@echo.",
 						"@echo Installing existing application. Failures here indicate a problem with the device (connection or storage permissions) and are fatal.",
-						"%ADB% %DEVICE% install " + Path.GetFileName(ApkName),
+						APKInstallCommand,
 						"@if \"%ERRORLEVEL%\" NEQ \"0\" goto Error",
-                        "%ADB% %DEVICE% shell rm -r %STORAGE%/UnrealGame/" + Params.ShortProjectName,
+						"%ADB% %DEVICE% shell pm list packages " + PackageName,
+						"%ADB% %DEVICE% shell rm -r %STORAGE%/UnrealGame/" + Params.ShortProjectName,
 						"%ADB% %DEVICE% shell rm -r %STORAGE%/UnrealGame/UECommandLine.txt", // we need to delete the commandline in UnrealGame or it will mess up loading
 						"%ADB% %DEVICE% shell rm -r %STORAGE%/" + TargetAndroidLocation + PackageName,
 						"%ADB% %DEVICE% shell rm -r %STORAGE%/Android/" + TargetAndroidLocation + PackageName,
 						"%ADB% %DEVICE% shell rm -r %STORAGE%/Download/" + TargetAndroidLocation + PackageName,
 						bPackageDataInsideApk ? "" : "@echo.",
 						bPackageDataInsideApk ? "" : "@echo Installing new data. Failures here indicate storage problems (missing SD card or bad permissions) and are fatal.",
-						bPackageDataInsideApk ? "" : "%ADB% %DEVICE% " + OBBInstallCommand,
+						bPackageDataInsideApk ? "" : OBBInstallCommand,
 						bPackageDataInsideApk ? "" : "if \"%ERRORLEVEL%\" NEQ \"0\" goto Error",
-						!bHavePatch ? "" : (bPackageDataInsideApk ? "" : "%ADB% %DEVICE% " + PatchInstallCommand),
+						!bHavePatch ? "" : (bPackageDataInsideApk ? "" : PatchInstallCommand),
 						!bHavePatch ? "" : (bPackageDataInsideApk ? "" : "if \"%ERRORLEVEL%\" NEQ \"0\" goto Error"),
-						!bHaveOverflow1 ? "" : (bPackageDataInsideApk ? "" : "%ADB% %DEVICE% " + Overflow1InstallCommand),
+						!bHaveOverflow1 ? "" : (bPackageDataInsideApk ? "" : Overflow1InstallCommand),
 						!bHaveOverflow1 ? "" : (bPackageDataInsideApk ? "" : "if \"%ERRORLEVEL%\" NEQ \"0\" goto Error"),
-						!bHaveOverflow2 ? "" : (bPackageDataInsideApk ? "" : "%ADB% %DEVICE% " + Overflow2InstallCommand),
+						!bHaveOverflow2 ? "" : (bPackageDataInsideApk ? "" : Overflow2InstallCommand),
 						!bHaveOverflow2 ? "" : (bPackageDataInsideApk ? "" : "if \"%ERRORLEVEL%\" NEQ \"0\" goto Error"),
 						bDontMoveOBB ? "" : "%ADB% %DEVICE% shell mkdir %STORAGE%/Android/" + TargetAndroidLocation + PackageName, // don't check for error since installing may create the obb directory
 						bDontMoveOBB ? "" : "%ADB% %DEVICE% shell mv " + TargetAndroidTemp + TargetAndroidLocation + PackageName + " %STORAGE%/Android/" + TargetAndroidLocation,
 						bDontMoveOBB ? "" : "if \"%ERRORLEVEL%\" NEQ \"0\" goto Error",
 						bDontMoveOBB ? "" : "%ADB% %DEVICE% shell rm -r " + TargetAndroidTemp + TargetAndroidLocation,
+						APKReinstallCommand,
+						bUseAFSProject ? "if \"%ERRORLEVEL%\" NEQ \"0\" goto Error" : "",
 						"@echo.",
 						bNeedGrantStoragePermission ? "@echo Grant READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE to the apk for reading OBB file or game file in external storage." : "",
 						bNeedGrantStoragePermission ? "%ADB% %DEVICE% " + ReadPermissionGrantCommand : "",
@@ -1372,6 +1549,14 @@ public class AndroidPlatform : Platform
 		bool bMakeSeparateApks = UnrealBuildTool.AndroidExports.ShouldMakeSeparateApks();
 		bool bPackageDataInsideApk = UnrealBuildTool.AndroidExports.CreateDeploymentHandler(Params.RawProjectPath, Params.ForcePackageData).GetPackageDataInsideApk();
 
+		bool bAFSEnablePlugin;
+		string AFSToken;
+		bool bIsShipping;
+		bool bAFSIncludeInShipping;
+		bool bAFSAllowExternalStartInShipping;
+		UsingAndroidFileServer(SC, out bAFSEnablePlugin, out AFSToken, out bIsShipping, out bAFSIncludeInShipping, out bAFSAllowExternalStartInShipping);
+		bool bUseAFS = bAFSEnablePlugin && !bPackageDataInsideApk;
+
 		List<string> AddedObbFiles = new List<string>();
 		foreach (string Architecture in Architectures)
 		{
@@ -1440,6 +1625,13 @@ public class AndroidPlatform : Platform
 					bHaveUniversal = true;
 					SC.ArchiveFiles(APKDirectory, Path.GetFileName(UniversalApkName));
 				}
+			}
+
+			// copy optional AFSProject apk if exists
+			string AFSApkName = Path.Combine(APKDirectory, "AFS_" + APKNameWithoutExtension + ".apk");
+			if (FileExists(AFSApkName))
+			{
+				SC.ArchiveFiles(APKDirectory, Path.GetFileName(AFSApkName));
 			}
 
 			// verify the files exist
@@ -1539,6 +1731,10 @@ public class AndroidPlatform : Platform
 				{
 					string SymbolizeBatchName = GetFinalBatchName(ApkName, SC, Architecture, false, EBatchType.Symbolize, Target);
 					SC.ArchiveFiles(Path.GetDirectoryName(SymbolizeBatchName), Path.GetFileName(SymbolizeBatchName));
+				}
+				if (bUseAFS && (bHaveAPK || bHaveUniversal))
+				{
+					SC.ArchiveFiles(Path.Combine(SC.EngineRoot.FullName, "Binaries", "DotNet", "Android", "UnrealAndroidFileTool"), GetAFSExecutable(Target));
 				}
 				//SC.ArchiveFiles(Path.GetDirectoryName(NoOBBBatchName), Path.GetFileName(NoOBBBatchName));
 			}
@@ -1705,8 +1901,92 @@ public class AndroidPlatform : Platform
 	}
 	*/
 
+	private bool RetrieveDeployedManifestsAFS(ProjectParams Params, DeploymentContext SC, string DeviceName, out List<string> UFSManifests, out List<string> NonUFSManifests, string AFSToken)
+	{
+		UFSManifests = null;
+		NonUFSManifests = null;
+
+		string DeviceArchitecture = GetBestDeviceArchitecture(Params, DeviceName);
+		string ApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, DeviceArchitecture);
+		string PackageName = GetPackageInfo(ApkName, SC, false);
+
+		AndroidFileClient client = new AndroidFileClient(DeviceName);
+		if (!client.OpenConnection())
+		{
+			if (PackageName == null || PackageName == "")
+			{
+				Log.TraceInformation("Retrieve Manifests: Unable to start file server without package name, ignoring manifests");
+				return false;
+			}
+			Log.TraceInformation("Retrieve Manifests: Trying to start file server {0}", PackageName);
+			if (!client.StartServer(PackageName, AFSToken))
+			{
+				Log.TraceInformation("Retrieve Manifests: Failed to start server, ignoring manifests");
+				return false;
+			}
+		}
+
+		// verify connection to the correct server
+		string DevicePackageName = client.Query("^packagename");
+		if (DevicePackageName != PackageName)
+		{
+			if (PackageName == null || PackageName == "")
+			{
+				Log.TraceInformation("Retrieve Manifests: Unable to start file server without package name, ignoring manifests");
+				client.CloseConnection();
+				return false;
+			}
+
+			Log.TraceInformation("Connected to wrong server {0}, trying again", DevicePackageName);
+			client.TerminateServer();
+
+			Log.TraceInformation("Retrieve Manifests: Trying to start file server {0}", PackageName);
+			if (!client.StartServer(PackageName, AFSToken))
+			{
+				Log.TraceInformation("Retrieve Manifests: Failed to start server, ignoring manifests");
+				return false;
+			}
+		}
+
+		// Try retrieving the UFS files manifest files from the device
+		string UFSManifestFileName = CombinePaths(SC.StageDirectory.FullName, SC.GetUFSDeployedManifestFileName(DeviceName));
+		if (!client.FileRead("^project/" + SC.GetUFSDeployedManifestFileName(null), UFSManifestFileName))
+		{
+			return false;
+		}
+
+		// Try retrieving the non UFS files manifest files from the device
+		string NonUFSManifestFileName = CombinePaths(SC.StageDirectory.FullName, SC.GetNonUFSDeployedManifestFileName(DeviceName));
+		if (!client.FileRead("^project/" + SC.GetNonUFSDeployedManifestFileName(null), NonUFSManifestFileName))
+		{
+			return false;
+		}
+
+		client.CloseConnection();
+
+		// Return the manifest files
+		UFSManifests = new List<string>();
+		UFSManifests.Add(UFSManifestFileName);
+		NonUFSManifests = new List<string>();
+		NonUFSManifests.Add(NonUFSManifestFileName);
+
+		Log.TraceInformation("Retrieve Manifests: Success!!");
+
+		return true;
+	}
+
 	public override bool RetrieveDeployedManifests(ProjectParams Params, DeploymentContext SC, string DeviceName, out List<string> UFSManifests, out List<string> NonUFSManifests)
 	{
+		bool bAFSEnablePlugin;
+		string AFSToken;
+		bool bIsShipping;
+		bool bAFSIncludeInShipping;
+		bool bAFSAllowExternalStartInShipping;
+		if (UsingAndroidFileServer(SC, out bAFSEnablePlugin, out AFSToken, out bIsShipping, out bAFSIncludeInShipping, out bAFSAllowExternalStartInShipping))
+		{
+			return RetrieveDeployedManifestsAFS(Params, SC, DeviceName, out UFSManifests, out NonUFSManifests, AFSToken);
+		}
+
 		UFSManifests = null;
 		NonUFSManifests = null;
 
@@ -1770,7 +2050,592 @@ public class AndroidPlatform : Platform
 		}
 	}
 
-    public override void Deploy(ProjectParams Params, DeploymentContext SC)
+	private void DeployAndroidFileServer(ProjectParams Params, DeploymentContext SC, string AFSToken)
+	{
+		var AppArchitectures = AndroidExports.CreateToolChain(Params.RawProjectPath).GetAllArchitectures();
+
+		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Params.RawProjectPath), UnrealTargetPlatform.Android);
+		bool bDisablePerfHarden = false;
+		Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bEnableMaliPerfCounters", out bDisablePerfHarden);
+
+		bool bUseCompression = false;
+		bool bLogFiles = false;
+		bool bReportStats = false;
+		bool bUseManualIPAddress = false;
+		string ManualIPAddress = "";
+		EConnectionType ConnectionType = GetAndroidFileServerNetworkConfig(SC, out bUseCompression, out bLogFiles, out bReportStats, out bUseManualIPAddress, out ManualIPAddress);
+
+		AndroidFileClient.OptimalADB adb = new AndroidFileClient.OptimalADB();
+
+		foreach (var DeviceName in Params.DeviceNames)
+		{
+			string DeviceArchitecture = GetBestDeviceArchitecture(Params, DeviceName);
+			string ApkName = GetFinalApkName(Params, SC.StageExecutables[0], true, DeviceArchitecture);
+
+			// make sure APK is up to date (this is fast if so)
+			var Deploy = AndroidExports.CreateDeploymentHandler(Params.RawProjectPath, Params.ForcePackageData);
+			if (!Params.Prebuilt)
+			{
+				string CookFlavor = SC.FinalCookPlatform.IndexOf("_") > 0 ? SC.FinalCookPlatform.Substring(SC.FinalCookPlatform.IndexOf("_")) : "";
+				string SOName = GetSONameWithoutArchitecture(Params, SC.StageExecutables[0]);
+				Deploy.SetAndroidPluginData(AppArchitectures, CollectPluginDataPaths(SC));
+				Deploy.PrepForUATPackageOrDeploy(Params.RawProjectPath, Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, SC.StageTargets[0].Receipt.Configuration, true, false);
+			}
+
+			// now we can use the apk to get more info
+			string PackageName = GetPackageInfo(ApkName, SC, false);
+
+			// start up AFS connection (allowed to fail here.. may not be a server installed yet)
+			AndroidFileClient client = new AndroidFileClient(DeviceName);
+			AndroidFileClient client2 = null;
+			string IPAddress = bUseManualIPAddress ? ManualIPAddress : "127.0.0.1";
+			if (!client.OpenConnection(IPAddress))
+			{
+				if (!client.StartServer(PackageName, AFSToken, IPAddress))
+				{
+				}
+			}
+
+			// Try to get IP address from device if we connected
+			string DeviceIPAddress = client.Query("^ip");
+
+			// Setup the OBB name and add the storage path (queried from the device) to it
+			string QueryStorageResult = adb.Shell(DeviceName, "echo $EXTERNAL_STORAGE");
+			string StorageLocation = QueryStorageResult.Trim() + "/Android";  // "mnt/sdcard"
+			string DeviceObbName = StorageLocation + "/" + GetDeviceObbName(ApkName, SC);
+			string DevicePatchName = StorageLocation + "/" + GetDevicePatchName(ApkName, SC);
+			string DeviceOverflow1Name = StorageLocation + "/" + GetDeviceOverflowName(ApkName, SC, 1);
+			string DeviceOverflow2Name = StorageLocation + "/" + GetDeviceOverflowName(ApkName, SC, 2);
+			string RemoteDir = client.Query("^project", true);
+			if (RemoteDir == null)
+			{
+				RemoteDir = StorageLocation + "/data/" + PackageName + "/files/UnrealGame/" + Params.ShortProjectName;
+			}
+			string ExtFiles = StorageLocation + "/data/" + PackageName + "/files";
+
+			if (bDisablePerfHarden)
+			{
+				adb.Shell(DeviceName, "setprop security.perf_harden 0");
+			}
+
+			// close connection to since uninstall/reinstall will reset server
+			client.CloseConnection();
+
+			// determine if APK out of date
+			string APKLastUpdateTime = new FileInfo(ApkName).LastWriteTime.ToString();
+			bool bNeedAPKInstall = true;
+			bool bFreshInstall = false;
+			bool bFastDeploy = false;
+			if (Params.IterativeDeploy)
+			{
+				// Check for apk installed with this package name on the device
+				String InstalledResult = adb.Shell(DeviceName, "pm list packages " + PackageName);
+				if (InstalledResult.Contains(PackageName))
+				{
+					Log.TraceInformation("{0} already installed!", PackageName);
+					// already installed so enable --fast-deploy option if need to update apk
+					bFastDeploy = true;
+
+					// See if apk is up to date on device
+					InstalledResult = adb.Shell(DeviceName, "cat " + ExtFiles + "/APKFileStamp.txt");
+					if (InstalledResult.StartsWith("APK: "))
+					{
+						Log.TraceInformation("Found APKFileStamp.txt! {0}", InstalledResult);
+						if (InstalledResult.Substring(5).Trim() == APKLastUpdateTime)
+							bNeedAPKInstall = false;
+
+						if (InstalledResult.Substring(5).Trim() != APKLastUpdateTime)
+						{
+							Log.TraceInformation("{0} != {1}", InstalledResult.Substring(5).Trim(), APKLastUpdateTime);
+						}
+
+						// Stop the previously running copy (uninstall/install did this before)
+						InstalledResult = adb.Shell(DeviceName, "am force-stop " + PackageName);
+						if (InstalledResult.Contains("Error"))
+						{
+							// force-stop not supported (Android < 3.0) so check if package is actually running
+							// Note: cannot use grep here since it may not be installed on device
+							InstalledResult = adb.Shell(DeviceName, "ps");
+							if (InstalledResult.Contains(PackageName))
+							{
+								// it is actually running so use the slow way to kill it (uninstall and reinstall)
+								bNeedAPKInstall = true;
+							}
+						}
+					}
+				}
+				else
+				{
+					// If not already installed we must do a full deploy
+					bFreshInstall = true;
+				}
+			}
+
+			// install new APK if needed
+			if (bNeedAPKInstall)
+			{
+				// try reinstall the apk to preserve data
+				int SuccessCode = 0;
+				string InstallCommandline = "install -r " + (bFastDeploy ? "--fastdeploy \"" : "\"") + ApkName + "\"";
+				string InstallOutput = RunAndLogAdbCommand(Params, DeviceName, InstallCommandline, out SuccessCode);
+				int FailureIndex = InstallOutput.IndexOf("Failure");
+				// adb install doesn't always return an error code on failure, and instead prints "Failure", followed by an error code.
+				if (SuccessCode != 0 || FailureIndex != -1)
+				{
+					string ErrorMessage = string.Format("Installation of apk '{0}' failed", ApkName);
+					if (FailureIndex != -1)
+					{
+						string FailureString = InstallOutput.Substring(FailureIndex + 7).Trim();
+						if (FailureString != "")
+						{
+							ErrorMessage += ": " + FailureString;
+						}
+					}
+					if (ErrorMessage.Contains("OLDER_SDK"))
+					{
+						LogError("minSdkVersion is higher than Android version installed on device, possibly due to NDK API Level");
+						throw new AutomationException(ExitCode.Error_AppInstallFailed, ErrorMessage);
+					}
+
+					// try uninstalling an old app with the same identifier.
+					// NOTE: uninstall -k will preserve data/cache.. consider using instead?
+					bFreshInstall = true;
+					SuccessCode = 0;
+					adb.Shell(DeviceName, "pm uninstall " + PackageName);
+
+					// install the apk
+					InstallCommandline = "install \"" + ApkName + "\"";
+					InstallOutput = RunAndLogAdbCommand(Params, DeviceName, InstallCommandline, out SuccessCode);
+					FailureIndex = InstallOutput.IndexOf("Failure");
+
+					// adb install doesn't always return an error code on failure, and instead prints "Failure", followed by an error code.
+					if (SuccessCode != 0 || FailureIndex != -1)
+					{
+						ErrorMessage = string.Format("Installation of apk '{0}' failed", ApkName);
+						if (FailureIndex != -1)
+						{
+							string FailureString = InstallOutput.Substring(FailureIndex + 7).Trim();
+							if (FailureString != "")
+							{
+								ErrorMessage += ": " + FailureString;
+							}
+						}
+						if (ErrorMessage.Contains("OLDER_SDK"))
+						{
+							LogError("minSdkVersion is higher than Android version installed on device, possibly due to NDK API Level");
+						}
+						throw new AutomationException(ExitCode.Error_AppInstallFailed, ErrorMessage);
+					}
+				}
+
+				// giving EXTERNAL_STORAGE_WRITE permission to the apk for API23+
+				// without this permission apk can't access to the assets put into the device
+				string ReadPermissionCommandLine = "pm grant " + PackageName + " android.permission.READ_EXTERNAL_STORAGE";
+				string WritePermissionCommandLine = "pm grant " + PackageName + " android.permission.WRITE_EXTERNAL_STORAGE";
+				adb.Shell(DeviceName, ReadPermissionCommandLine);
+				adb.Shell(DeviceName, WritePermissionCommandLine);
+
+				// time for receivers to be registered by pm after install
+				Thread.Sleep(350);
+			}
+
+			// reopen file server connection (either USB or Network)
+			IPAddress = (ConnectionType == EConnectionType.NetworkOnly) ? (bUseManualIPAddress ? ManualIPAddress : (DeviceIPAddress != null ? DeviceIPAddress : "127.0.0.1")) : "127.0.0.1";
+			Log.TraceInformation("Attempting to connect to file server [{0}]", (IPAddress == "127.0.0.1" ? "USB" : IPAddress));
+			if (!client.OpenConnection(IPAddress))
+			{
+				Log.TraceInformation("Not connected, attempting to start file server");
+				if (!client.StartServer(PackageName, AFSToken, IPAddress))
+				{
+					// try one more time with longer delay
+					Log.TraceInformation("Trying again");
+					Thread.Sleep(1000);
+					if (!client.StartServer(PackageName, AFSToken, IPAddress))
+					{
+						Log.TraceWarning("Failed to start Android file server for {0}, skipping deploy for {1}", PackageName, DeviceName);
+						continue;
+					}
+				}
+			}
+
+			// verify we connected to the right server
+			string DevicePackageName = client.Query("^packagename");
+			if (DevicePackageName != PackageName)
+			{
+				Log.TraceInformation("Connected to wrong server {0}, trying again", DevicePackageName);
+				client.TerminateServer();
+
+				Log.TraceInformation("Trying to start file server {0}", PackageName);
+				if (!client.StartServer(PackageName, AFSToken, IPAddress))
+				{
+					// try one more time with longer delay
+					Log.TraceInformation("Trying again");
+					Thread.Sleep(1000);
+					if (!client.StartServer(PackageName, AFSToken, IPAddress))
+					{
+						Log.TraceWarning("Failed to start Android file server for {0}, skipping deploy for {1}", PackageName, DeviceName);
+						continue;
+					}
+				}
+			}
+
+			if (ConnectionType == EConnectionType.Combined)
+			{
+				IPAddress = (bUseManualIPAddress ? ManualIPAddress : client.Query("^ip"));
+				client2 = new AndroidFileClient(DeviceName);
+
+				Log.TraceInformation("Attempting to connect to file server [{0}]", IPAddress);
+				if (!client2.OpenConnection(IPAddress))
+				{
+					Log.TraceInformation("Not connected, attempting to start file server");
+					if (!client2.StartServer(PackageName, AFSToken, IPAddress, false))
+					{
+						Log.TraceWarning("Failed to start Android file server for {0}, only using one connection for {1}", PackageName, DeviceName);
+						client2 = null;
+					}
+				}
+
+				// verify we connected to the right server
+				DevicePackageName = client2.Query("^packagename");
+				if (DevicePackageName != PackageName)
+				{
+					Log.TraceInformation("Connected to wrong server {0} for [{1}], not using network", DevicePackageName, IPAddress, DeviceName);
+					client2.CloseConnection();
+					client2 = null;
+				}
+			}
+
+			// get RemoteDir again (should be valid now after install / restart)
+			RemoteDir = client.Query("^project", true);
+
+			// write new timestamp for APK (do it here since RemoteDir now available)
+			if (bNeedAPKInstall)
+			{
+				client.FileWriteString("APK: " + APKLastUpdateTime + "\n", "^ext/APKFileStamp.txt");
+			}
+
+			// update the uecommandline.txt
+			// update and deploy uecommandline.txt
+			// always delete the existing commandline text file, so it doesn't reuse an old one
+			FileReference IntermediateCmdLineFile = FileReference.Combine(SC.StageDirectory, "UECommandLine.txt");
+			Project.WriteStageCommandline(IntermediateCmdLineFile, Params, SC);
+
+			// copy files to device if we were staging
+			if (SC.Stage)
+			{
+				HashSet<string> EntriesToDeploy = new HashSet<string>();
+
+				// Fresh install always needs full deploy
+				if (Params.IterativeDeploy && !bFreshInstall)
+				{
+					// always send UECommandLine.txt (it was written above after delta checks applied)
+					EntriesToDeploy.Add(IntermediateCmdLineFile.FullName);
+
+					// Add non UFS files if any to deploy
+					String NonUFSManifestPath = SC.GetNonUFSDeploymentDeltaPath(DeviceName);
+					if (File.Exists(NonUFSManifestPath))
+					{
+						string NonUFSFiles = File.ReadAllText(NonUFSManifestPath);
+						foreach (string Filename in NonUFSFiles.Split('\n'))
+						{
+							if (!string.IsNullOrEmpty(Filename) && !string.IsNullOrWhiteSpace(Filename))
+							{
+								EntriesToDeploy.Add(CombinePaths(SC.StageDirectory.FullName, Filename.Trim()));
+							}
+						}
+					}
+
+					// Add UFS files if any to deploy
+					String UFSManifestPath = SC.GetUFSDeploymentDeltaPath(DeviceName);
+					if (File.Exists(UFSManifestPath))
+					{
+						string UFSFiles = File.ReadAllText(UFSManifestPath);
+						foreach (string Filename in UFSFiles.Split('\n'))
+						{
+							if (!string.IsNullOrEmpty(Filename) && !string.IsNullOrWhiteSpace(Filename))
+							{
+								EntriesToDeploy.Add(CombinePaths(SC.StageDirectory.FullName, Filename.Trim()));
+							}
+						}
+					}
+
+					// For now, if too many files may be better to just push them all
+					if (EntriesToDeploy.Count > 500)
+					{
+						// make sure device is at a clean state
+						client.DirDeleteRecurse(RemoteDir);
+
+						EntriesToDeploy.Clear();
+						EntriesToDeploy.TrimExcess();
+						EntriesToDeploy.Add(SC.StageDirectory.FullName);
+					}
+					else
+					{
+						// Discover & remove any files on device that are not in staging
+
+						// get listing of remote directory from device
+						string CommandResult = client.DirListFlat(RemoteDir);
+
+						if (CommandResult == null)
+						{
+							Log.TraceWarning("Failed to read remote dir: {0}", RemoteDir);
+							RemoteDir = client.Query("^project", true);
+							CommandResult = client.DirListFlat(RemoteDir);
+							if (CommandResult == null)
+							{
+								Log.TraceWarning("Failed to read remote dir again: {0}", RemoteDir);
+							}
+						}
+
+						{
+							// listing output is of the form
+							// [Samsung]                 [Google]
+							//
+							// RemoteDir/RestOfPath:     RemoteDir/RestOfPath:
+							// - File1.png               File1.png
+							// - File2.txt               File2.txt
+							// d SubDir1                 SubDir1/
+							// d SubDir2                 Subdir2/
+							//
+							// RemoteDir/RestOfPath/SubDir1:
+
+							HashSet<string> DirsToDeleteFromDevice = new HashSet<string>();
+							List<string> FilesToDeleteFromDevice = new List<string>();
+
+							using (var reader = new StringReader(CommandResult))
+							{
+								string ProjectSaved = Params.ShortProjectName + "/Saved";
+								string ProjectConfig = Params.ShortProjectName + "/Config";
+								const string EngineSaved = "Engine/Saved"; // is this safe to use, or should we use SC.EngineRoot.GetDirectoryName()?
+								const string EngineConfig = "Engine/Config";
+								LogWarning("Excluding {0} {1} {2} {3} from clean during deployment.", ProjectSaved, ProjectConfig, EngineSaved, EngineConfig);
+
+								string CurrentDir = "";
+								bool SkipFiles = false;
+								for (string Line = reader.ReadLine(); Line != null; Line = reader.ReadLine())
+								{
+									if (String.IsNullOrWhiteSpace(Line))
+									{
+										continue; // ignore blank lines
+									}
+
+									if (Line.EndsWith(":"))
+									{
+										// RemoteDir/RestOfPath:
+										//      keep ^--------^
+										CurrentDir = Line.Substring(RemoteDir.Length + 1, Math.Max(0, Line.Length - RemoteDir.Length - 2));
+										// Max is there for the case of base "RemoteDir:" --> ""
+
+										// We want to keep config & logs between deployments.
+										if (CurrentDir.StartsWith(ProjectSaved) || CurrentDir.StartsWith(ProjectConfig) || CurrentDir.StartsWith(EngineSaved) || CurrentDir.StartsWith(EngineConfig))
+										{
+											SkipFiles = true;
+											continue;
+										}
+
+										bool DirExistsInStagingArea = Directory.Exists(Path.Combine(SC.StageDirectory.FullName, CurrentDir));
+										if (DirExistsInStagingArea)
+										{
+											SkipFiles = false;
+										}
+										else
+										{
+											// delete directory from device
+											SkipFiles = true;
+											DirsToDeleteFromDevice.Add(CurrentDir);
+										}
+									}
+									else
+									{
+										if (SkipFiles)
+										{
+											continue;
+										}
+
+										string FileName = GetFileNameFromListing(Line);
+										if (FileName != null)
+										{
+											bool FileExistsInStagingArea = File.Exists(Path.Combine(SC.StageDirectory.FullName, CurrentDir, FileName));
+											if (FileExistsInStagingArea)
+											{
+												// keep or overwrite
+											}
+											else if (FileName == "APKFileStamp.txt")
+											{
+												// keep it
+											}
+											else
+											{
+												// delete file from device
+												string FilePath = CurrentDir.Length == 0 ? FileName : (CurrentDir + "/" + FileName); // use / for Android target, no matter the development system
+												LogWarning("Deleting {0} from device; not found in staging area", FilePath);
+												FilesToDeleteFromDevice.Add(FilePath);
+											}
+										}
+										// We ignore subdirs here as each will have its own "RemoteDir/CurrentDir/SubDir:" entry.
+									}
+								}
+							}
+
+							// delete directories
+							foreach (var DirToDelete in DirsToDeleteFromDevice)
+							{
+								// if a whole tree is to be deleted, don't spend extra commands deleting its branches
+								int FinalSlash = DirToDelete.LastIndexOf('/');
+								string ParentDir = FinalSlash >= 0 ? DirToDelete.Substring(0, FinalSlash) : "";
+								bool ParentMarkedForDeletion = DirsToDeleteFromDevice.Contains(ParentDir);
+								if (!ParentMarkedForDeletion)
+								{
+									LogWarning("Deleting {0} and its contents from device; not found in staging area", DirToDelete);
+									client.DirDeleteRecurse(RemoteDir + "/" + DirToDelete);
+								}
+							}
+
+							// delete loose files
+							foreach (var FileToDelete in FilesToDeleteFromDevice)
+							{
+								client.FileDelete(RemoteDir + "/" + FileToDelete);
+							}
+						}
+					}
+				}
+				else
+				{
+					// make sure device is at a clean state
+					client.DirDeleteRecurse(RemoteDir);
+
+					// Copy UFS files..
+					string[] Files = Directory.GetFiles(SC.StageDirectory.FullName, "*", SearchOption.AllDirectories);
+					System.Array.Sort(Files);
+
+					// Find all the files we exclude from copying. And include
+					// the directories we need to individually copy.
+					HashSet<string> ExcludedFiles = new HashSet<string>();
+					SortedSet<string> IndividualCopyDirectories
+						= new SortedSet<string>((IComparer<string>)new LongestFirst());
+					foreach (string Filename in Files)
+					{
+						bool Exclude = false;
+						// Don't push the apk, we install it
+						Exclude |= Path.GetExtension(Filename).Equals(".apk", StringComparison.InvariantCultureIgnoreCase);
+						// For excluded files we add the parent dirs to our
+						// tracking of stuff to individually copy.
+						if (Exclude)
+						{
+							ExcludedFiles.Add(Filename);
+							// We include all directories up to the stage root in having
+							// to individually copy the files.
+							for (string FileDirectory = Path.GetDirectoryName(Filename);
+								!FileDirectory.Equals(SC.StageDirectory);
+								FileDirectory = Path.GetDirectoryName(FileDirectory))
+							{
+								if (!IndividualCopyDirectories.Contains(FileDirectory))
+								{
+									IndividualCopyDirectories.Add(FileDirectory);
+								}
+							}
+							if (!IndividualCopyDirectories.Contains(SC.StageDirectory.FullName))
+							{
+								IndividualCopyDirectories.Add(SC.StageDirectory.FullName);
+							}
+						}
+					}
+
+					// The directories are sorted above in "deepest" first. We can
+					// therefore start copying those individual dirs which will
+					// recreate the tree. As the subtrees will get copied at each
+					// possible individual level.
+					foreach (string DirectoryName in IndividualCopyDirectories)
+					{
+						string[] Entries
+							= Directory.GetFileSystemEntries(DirectoryName, "*", SearchOption.TopDirectoryOnly);
+						foreach (string Entry in Entries)
+						{
+							// We avoid excluded files and the individual copy dirs
+							// (the individual copy dirs will get handled as we iterate).
+							if (ExcludedFiles.Contains(Entry) || IndividualCopyDirectories.Contains(Entry))
+							{
+								continue;
+							}
+							else
+							{
+								EntriesToDeploy.Add(Entry);
+							}
+						}
+					}
+
+					if (EntriesToDeploy.Count == 0)
+					{
+						EntriesToDeploy.Add(SC.StageDirectory.FullName);
+					}
+				}
+
+				// delete the .obb file, since it will cause nothing we deploy to be used
+				client.FileDelete(DeviceObbName);
+				client.FileDelete(DevicePatchName);
+				client.FileDelete(DeviceOverflow1Name);
+				client.FileDelete(DeviceOverflow2Name);
+
+				// We now have a minimal set of file & dir entries we need
+				// to deploy. Files we deploy will get individually copied
+				// and dirs will get the tree copies by default (that's
+				// what ADB does, too).
+				Log.TraceInformation("Deploying files using AFS");
+				string SourceDir = SC.StageDirectory.FullName;
+				client.Deploy(EntriesToDeploy, SourceDir, RemoteDir, bUseCompression, bLogFiles, bReportStats, client2);
+			}
+			else if (SC.Archive)
+			{
+				// deploy the obb if there is one
+				string ObbPath = Path.Combine(SC.StageDirectory.FullName, GetFinalObbName(ApkName, SC));
+				if (File.Exists(ObbPath))
+				{
+					client.FileWrite(ObbPath, DeviceObbName);
+				}
+
+				// deploy the patch if there is one
+				string PatchPath = Path.Combine(SC.StageDirectory.FullName, GetFinalPatchName(ApkName, SC));
+				if (File.Exists(PatchPath))
+				{
+					client.FileWrite(PatchPath, DevicePatchName);
+				}
+
+				// deploy the overflow1 if there is one
+				string Overflow1Path = Path.Combine(SC.StageDirectory.FullName, GetFinalOverflowName(ApkName, SC, 1));
+				if (File.Exists(Overflow1Path))
+				{
+					client.FileWrite(Overflow1Path, DeviceOverflow1Name);
+				}
+
+				// deploy the overflow2 if there is one
+				string Overflow2Path = Path.Combine(SC.StageDirectory.FullName, GetFinalOverflowName(ApkName, SC, 2));
+				if (File.Exists(Overflow2Path))
+				{
+					client.FileWrite(Overflow2Path, DeviceOverflow2Name);
+				}
+			}
+			else
+			{
+				// cache some strings
+				string RemoteFilename = IntermediateCmdLineFile.FullName.Replace(SC.StageDirectory.FullName, RemoteDir).Replace("\\", "/");
+				client.FileWrite(IntermediateCmdLineFile.FullName, RemoteFilename);
+			}
+
+			// terminate server and close AFS connections
+			if (client != null)
+			{
+				client.TerminateServer();
+				client.CloseConnection();
+			}
+			if (client2 != null)
+			{
+				client2.TerminateServer();
+				client2.CloseConnection();
+			}
+		}
+	}
+
+	private void DeployADB(ProjectParams Params, DeploymentContext SC)
     {
 		var AppArchitectures = AndroidExports.CreateToolChain(Params.RawProjectPath).GetAllArchitectures();
 
@@ -2039,6 +2904,10 @@ public class AndroidPlatform : Platform
 										{
 											// keep or overwrite
 										}
+										else if (FileName == "APKFileStamp.txt")
+										{
+											// keep it
+										}
 										else
 										{
 											// delete file from device
@@ -2261,6 +3130,25 @@ public class AndroidPlatform : Platform
             }
         }
     }
+
+	public override void Deploy(ProjectParams Params, DeploymentContext SC)
+	{
+		bool bAFSEnablePlugin;
+		string AFSToken;
+		bool bIsShipping;
+		bool bAFSIncludeInShipping;
+		bool bAFSAllowExternalStartInShipping;
+
+		// Pick the proper deploy method
+		if (UsingAndroidFileServer(SC, out bAFSEnablePlugin, out AFSToken, out bIsShipping, out bAFSIncludeInShipping, out bAFSAllowExternalStartInShipping))
+		{
+			DeployAndroidFileServer(Params, SC, AFSToken);
+		}
+		else
+		{
+			DeployADB(Params, SC);
+		}
+	}
 
 	/** Internal usage for GetPackageName */
 	private static string PackageLine = null;
