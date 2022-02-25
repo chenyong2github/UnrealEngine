@@ -443,11 +443,97 @@ UDynamicMesh* UGeometryScriptLibrary_MeshModelingFunctions::ApplyMeshPolygroupBe
 	{
 		UE::Geometry::FGroupTopology Topology(&EditMesh, true);
 
+		TArray<int32> BevelGroupEdges;
+		if (Options.bApplyFilterBox)
+		{
+			FAxisAlignedBox3d QueryBox(Options.FilterBox);
+			FTransformSRT3d InvTransform(Options.FilterBoxTransform.Inverse());
+			TSet<int32> FoundEdges;
+
+			// find all mesh edges inside filter shape
+			// TODO: this is hardcoded for what is supported in 5.0, ie only 3D boxes, but should be generalized
+			FDynamicMeshAABBTree3 Spatial(&EditMesh, true);
+			FDynamicMeshAABBTree3::FTreeTraversal EdgeTraversal;
+			EdgeTraversal.NextBoxF = [&QueryBox](const FAxisAlignedBox3d& Box, int Depth) { return Box.Intersects(QueryBox); };
+			EdgeTraversal.NextTriangleF = [&QueryBox, &InvTransform, &FoundEdges, &EditMesh, &Options](int TriangleID)
+			{
+				FIndex3i Edges = EditMesh.GetTriEdges(TriangleID);
+				for (int32 j = 0; j < 3; ++j)
+				{
+					if (FoundEdges.Contains(Edges[j]) == false && EditMesh.IsGroupBoundaryEdge(Edges[j]))
+					{
+						FVector3d A, B;
+						EditMesh.GetEdgeV(Edges[j], A, B);
+						A = InvTransform.TransformPosition(A);
+						B = InvTransform.TransformPosition(B);
+						bool bIntersects = (Options.bFullyContained) ?
+							(QueryBox.Contains(A) && QueryBox.Contains(B)) :
+							(QueryBox.Contains(A) || QueryBox.Contains(B));
+						if (bIntersects)
+						{
+							FoundEdges.Add(Edges[j]);
+						}
+					}
+				}
+			};
+			Spatial.DoTraversal(EdgeTraversal);
+
+			// convert mesh edges to group topology edges
+			TSet<int32> GroupEdges;
+			for (int32 MeshEdgeID : FoundEdges)
+			{
+				int32 GroupEdgeID = Topology.FindGroupEdgeID(MeshEdgeID);
+				if (GroupEdgeID >= 0)
+				{
+					GroupEdges.Add(GroupEdgeID);
+				}
+			}
+
+			// if exclusive was requested we need to check that the entire edge is inside the box
+			if (Options.bFullyContained)
+			{
+				for (int32 GroupEdgeID : GroupEdges)
+				{
+					const TArray<int>& EdgeIDs = Topology.GetGroupEdgeEdges(GroupEdgeID);
+					bool bFoundMissing = false;
+					for (int32 MeshEdgeID : EdgeIDs)
+					{
+						if (FoundEdges.Contains(MeshEdgeID) == false)
+						{
+							bFoundMissing = true;
+							break;
+						}
+					}
+					if (bFoundMissing == false)
+					{
+						BevelGroupEdges.Add(GroupEdgeID);
+					}
+				}
+			}
+			else
+			{
+				BevelGroupEdges = GroupEdges.Array();
+			}
+
+			if (BevelGroupEdges.Num() == 0)
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyMeshPolygroupBevel_FilterIsEmpty", "ApplyMeshPolygroupBevel: Filter box does not contain any Polygroup Edges, bevel will not be applied"));
+				return;
+			}
+		}
+
 		UE::Geometry::FMeshBevel Bevel;
 		Bevel.InsetDistance = Options.BevelDistance;
 		Bevel.MaterialIDMode = (Options.bInferMaterialID) ? FMeshBevel::EMaterialIDMode::InferMaterialID : FMeshBevel::EMaterialIDMode::ConstantMaterialID;
 		Bevel.SetConstantMaterialID = Options.SetMaterialID;
-		Bevel.InitializeFromGroupTopology(EditMesh, Topology);
+		if (BevelGroupEdges.Num() > 0)
+		{
+			Bevel.InitializeFromGroupTopologyEdges(EditMesh, Topology, BevelGroupEdges);
+		}
+		else
+		{
+			Bevel.InitializeFromGroupTopology(EditMesh, Topology);
+		}
 		Bevel.Apply(EditMesh, nullptr);
 
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);

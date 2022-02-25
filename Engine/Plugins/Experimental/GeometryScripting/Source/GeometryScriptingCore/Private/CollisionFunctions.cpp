@@ -324,6 +324,53 @@ UDynamicMesh* UGeometryScriptLibrary_CollisionFunctions::SetDynamicMeshCollision
 }
 
 
+void UGeometryScriptLibrary_CollisionFunctions::ResetDynamicMeshCollision(
+	UDynamicMeshComponent* DynamicMeshComponent,
+	bool bEmitTransaction,
+	UGeometryScriptDebug* Debug)
+{
+	if (DynamicMeshComponent == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ResetDynamicMeshCollision_InvalidInput2", "ResetDynamicMeshCollision: Component is Null"));
+		return;
+	}
+
+#if WITH_EDITOR
+	if (bEmitTransaction)
+	{
+		GEditor->BeginTransaction(LOCTEXT("ResetDynamicMeshCollisionTransaction", "Clear Simple Collision"));
+		DynamicMeshComponent->Modify();
+	}
+#endif
+
+	UBodySetup* BodySetup = DynamicMeshComponent->GetBodySetup();
+	if (BodySetup != nullptr)
+	{
+		// mark the BodySetup for modification. Do we need to modify the UStaticMesh??
+#if WITH_EDITOR
+		if (bEmitTransaction)
+		{
+			BodySetup->Modify();
+		}
+#endif
+
+		// clear existing simple collision. This will call BodySetup->InvalidatePhysicsData()
+		BodySetup->RemoveSimpleCollision();
+
+		// do we need to do a post edit change here??
+		DynamicMeshComponent->UpdateCollision(false);
+	}
+
+#if WITH_EDITOR
+	if (bEmitTransaction)
+	{
+		GEditor->EndTransaction();
+	}
+#endif
+
+}
+
+
 
 
 #undef LOCTEXT_NAMESPACE

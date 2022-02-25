@@ -127,4 +127,13 @@ public:
 		FGeometryScriptCollisionFromMeshOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Collision")
+	static void
+	ResetDynamicMeshCollision(
+		UDynamicMeshComponent* Component,
+		bool bEmitTransaction = false,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
 };

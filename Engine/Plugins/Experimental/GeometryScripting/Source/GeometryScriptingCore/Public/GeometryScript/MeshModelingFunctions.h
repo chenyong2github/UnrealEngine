@@ -70,6 +70,34 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	int SetMaterialID = 0;
+
+
+
+	/**
+	 * If true the set of beveled polygroup edges is limited to those that 
+	 * are fully or partially contained within the (transformed) FilterBox
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = FilterShape, AdvancedDisplay)
+	bool bApplyFilterBox = false;
+
+	/**
+	 * Bounding Box used for edge filtering
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = FilterShape, AdvancedDisplay)
+	FBox FilterBox = FBox(EForceInit::ForceInit);
+
+	/**
+	 * Transform applied to the FilterBox
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = FilterShape, AdvancedDisplay)
+	FTransform FilterBoxTransform = FTransform::Identity;
+
+	/**
+	 * If true, then only polygroup edges that are fully contained within the filter box will be beveled,
+	 * otherwise the edge will be beveled if any vertex is within the filter box.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = FilterShape, AdvancedDisplay)
+	bool bFullyContained = true;
 };
 
 
