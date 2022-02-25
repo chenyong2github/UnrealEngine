@@ -983,6 +983,7 @@ bool FLumenSceneData::UpdateAtlasSize()
 		PhysicalAtlasSize = GetDesiredPhysicalAtlasSize();
 		SurfaceCacheAllocator.Init(GetDesiredPhysicalAtlasSizeInPages());
 		UnlockedAllocationHeap.Clear();
+		LastCapturedPageHeap.Clear();
 
 		PhysicalAtlasCompression = NewCompression;
 		return true;
@@ -1045,6 +1046,8 @@ void FLumenCard::GetMipMapDesc(int32 ResLevel, FLumenMipMapDesc& Desc) const
 		Desc.SizeInPages.Y = 1u << (Desc.ResLevelY - Lumen::SubAllocationResLevel);
 		Desc.Resolution.X = Desc.SizeInPages.X * Lumen::VirtualPageSize;
 		Desc.Resolution.Y = Desc.SizeInPages.Y * Lumen::VirtualPageSize;
+		Desc.PageResolution.X = Lumen::PhysicalPageSize;
+		Desc.PageResolution.Y = Lumen::PhysicalPageSize;
 	}
 	else
 	{
@@ -1053,6 +1056,8 @@ void FLumenCard::GetMipMapDesc(int32 ResLevel, FLumenMipMapDesc& Desc) const
 		Desc.SizeInPages.Y = 1;
 		Desc.Resolution.X = 1 << Desc.ResLevelX;
 		Desc.Resolution.Y = 1 << Desc.ResLevelY;
+		Desc.PageResolution.X = Desc.Resolution.X;
+		Desc.PageResolution.Y = Desc.Resolution.Y;
 	}
 }
 
@@ -1115,6 +1120,8 @@ void FLumenSceneData::MapSurfaceCachePage(const FLumenSurfaceMipMap& MipMap, int
 			PageTableEntry.SampleCardResLevelX = MipMap.ResLevelX;
 			PageTableEntry.SampleCardResLevelY = MipMap.ResLevelY;
 
+			LastCapturedPageHeap.Add(GetSurfaceCacheUpdateFrameIndex(), PageTableIndex);
+
 			if (!MipMap.bLocked)
 			{
 				UnlockedAllocationHeap.Add(SurfaceCacheFeedback.GetFrameIndex(), PageTableIndex);
@@ -1129,6 +1136,8 @@ void FLumenSceneData::UnmapSurfaceCachePage(bool bLocked, FLumenPageTableEntry& 
 {
 	if (Page.IsMapped())
 	{
+		LastCapturedPageHeap.Remove(PageIndex);
+
 		if (!bLocked)
 		{
 			UnlockedAllocationHeap.Remove(PageIndex);

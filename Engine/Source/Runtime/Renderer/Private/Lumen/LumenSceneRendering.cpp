@@ -118,7 +118,15 @@ int32 GLumenSceneCardCaptureFactor = 64;
 FAutoConsoleVariableRef CVarLumenSceneCardCaptureFactor(
 	TEXT("r.LumenScene.SurfaceCache.CardCaptureFactor"),
 	GLumenSceneCardCaptureFactor,
-	TEXT("Controls how much texels can be captured per frame. Texels = SurfaceCacheTexels / Factor."),
+	TEXT("Controls how many texels can be captured per frame. Texels = SurfaceCacheTexels / Factor."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<float> CVarLumenSceneCardCaptureRefreshFraction(
+	TEXT("r.LumenScene.SurfaceCache.CardCaptureRefreshFraction"),
+	0.125f,
+	TEXT("Fraction of card capture budget allowed to be spent on re-capturing existing pages in order to refresh surface cache materials.\n")
+	TEXT("0 disables card refresh."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -1295,12 +1303,11 @@ bool UpdateStaticMeshes(FLumenPrimitiveGroup& PrimitiveGroup)
  * Process a throttled number of Lumen surface cache add requests
  * It will make virtual and physical allocations, and evict old pages as required
  */
-void ProcessLumenSurfaceCacheRequests(
+void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 	const FViewInfo& MainView,
 	FVector LumenSceneCameraOrigin,
 	float MaxCardUpdateDistanceFromCamera,
 	int32 MaxTileCapturesPerFrame,
-	FLumenSceneData& LumenSceneData,
 	FLumenCardRenderer& LumenCardRenderer,
 	const TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests)
 {
@@ -1312,7 +1319,7 @@ void ProcessLumenSurfaceCacheRequests(
 	TSparseUniqueList<int32, SceneRenderingAllocator> DirtyCards;
 
 	FLumenSurfaceCacheAllocator CaptureAtlasAllocator;
-	CaptureAtlasAllocator.Init(LumenSceneData.GetCardCaptureAtlasSizeInPages());
+	CaptureAtlasAllocator.Init(GetCardCaptureAtlasSizeInPages());
 
 	for (int32 RequestIndex = 0; RequestIndex < SurfaceCacheRequests.Num(); ++RequestIndex)
 	{
@@ -1321,7 +1328,7 @@ void ProcessLumenSurfaceCacheRequests(
 		if (Request.IsLockedMip())
 		{
 			// Update low-res locked (always resident) pages
-			FLumenCard& Card = LumenSceneData.Cards[Request.CardIndex];
+			FLumenCard& Card = Cards[Request.CardIndex];
 
 			if (Card.DesiredLockedResLevel != Request.ResLevel)
 			{
@@ -1329,11 +1336,11 @@ void ProcessLumenSurfaceCacheRequests(
 				bool bCanAlloc = true;
 
 				uint8 NewLockedAllocationResLevel = Request.ResLevel;
-				while (!LumenSceneData.IsPhysicalSpaceAvailable(Card, NewLockedAllocationResLevel, /*bSinglePage*/ false))
+				while (!IsPhysicalSpaceAvailable(Card, NewLockedAllocationResLevel, /*bSinglePage*/ false))
 				{
 					const int32 MaxFramesSinceLastUsed = 2;
 
-					if (!LumenSceneData.EvictOldestAllocation(/*MaxFramesSinceLastUsed*/ MaxFramesSinceLastUsed, DirtyCards))
+					if (!EvictOldestAllocation(/*MaxFramesSinceLastUsed*/ MaxFramesSinceLastUsed, DirtyCards))
 					{
 						bCanAlloc = false;
 						break;
@@ -1344,7 +1351,7 @@ void ProcessLumenSurfaceCacheRequests(
 				while (!bCanAlloc && NewLockedAllocationResLevel > Lumen::MinResLevel)
 				{
 					--NewLockedAllocationResLevel;
-					bCanAlloc = LumenSceneData.IsPhysicalSpaceAvailable(Card, NewLockedAllocationResLevel, /*bSinglePage*/ false);
+					bCanAlloc = IsPhysicalSpaceAvailable(Card, NewLockedAllocationResLevel, /*bSinglePage*/ false);
 				}
 
 				// Can we fit this card into the temporary card capture allocator?
@@ -1353,13 +1360,13 @@ void ProcessLumenSurfaceCacheRequests(
 					bCanAlloc = false;
 				}
 
-				const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
-				if (bCanAlloc && UpdateStaticMeshes(LumenSceneData.PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex]))
+				const FLumenMeshCards& MeshCardsElement = MeshCards[Card.MeshCardsIndex];
+				if (bCanAlloc && UpdateStaticMeshes(PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex]))
 				{
 					// Landscape traces card representation, so need to invalidate voxel vis buffer when it's ready for the first time
 					if (MeshCardsElement.bHeightfield && Card.DesiredLockedResLevel == 0)
 					{
-						LumenSceneData.PrimitiveModifiedBounds.Add(MeshCardsElement.GetWorldSpaceBounds());
+						PrimitiveModifiedBounds.Add(MeshCardsElement.GetWorldSpaceBounds());
 					}
 
 					Card.bVisible = true;
@@ -1368,25 +1375,25 @@ void ProcessLumenSurfaceCacheRequests(
 					const bool bResampleLastLighting = Card.IsAllocated();
 
 					// Free previous MinAllocatedResLevel
-					LumenSceneData.FreeVirtualSurface(Card, Card.MinAllocatedResLevel, Card.MinAllocatedResLevel);
+					FreeVirtualSurface(Card, Card.MinAllocatedResLevel, Card.MinAllocatedResLevel);
 
 					// Free anything lower res than the new res level
-					LumenSceneData.FreeVirtualSurface(Card, Card.MinAllocatedResLevel, NewLockedAllocationResLevel - 1);
+					FreeVirtualSurface(Card, Card.MinAllocatedResLevel, NewLockedAllocationResLevel - 1);
 
 
 					const bool bLockPages = true;
-					LumenSceneData.ReallocVirtualSurface(Card, Request.CardIndex, NewLockedAllocationResLevel, bLockPages);
+					ReallocVirtualSurface(Card, Request.CardIndex, NewLockedAllocationResLevel, bLockPages);
 
 					// Map and update all pages
 					FLumenSurfaceMipMap& MipMap = Card.GetMipMap(Card.MinAllocatedResLevel);
 					for (int32 LocalPageIndex = 0; LocalPageIndex < MipMap.SizeInPagesX * MipMap.SizeInPagesY; ++LocalPageIndex)
 					{
 						const int32 PageIndex = MipMap.GetPageTableIndex(LocalPageIndex);
-						FLumenPageTableEntry& PageTableEntry = LumenSceneData.GetPageTableEntry(PageIndex);
+						FLumenPageTableEntry& PageTableEntry = GetPageTableEntry(PageIndex);
 
 						if (!PageTableEntry.IsMapped())
 						{
-							LumenSceneData.MapSurfaceCachePage(MipMap, PageIndex);
+							MapSurfaceCachePage(MipMap, PageIndex);
 							check(PageTableEntry.IsMapped());
 
 							// Allocate space in temporary allocation atlas
@@ -1405,6 +1412,7 @@ void ProcessLumenSurfaceCacheRequests(
 								PageIndex,
 								bResampleLastLighting));
 
+							LastCapturedPageHeap.Update(GetSurfaceCacheUpdateFrameIndex(), PageIndex);
 							LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
 						}
 					}
@@ -1416,9 +1424,9 @@ void ProcessLumenSurfaceCacheRequests(
 		else
 		{
 			// Hi-Res
-			if (LumenSceneData.Cards.IsAllocated(Request.CardIndex))
+			if (Cards.IsAllocated(Request.CardIndex))
 			{
-				FLumenCard& Card = LumenSceneData.Cards[Request.CardIndex];
+				FLumenCard& Card = Cards[Request.CardIndex];
 
 				if (Card.bVisible && Card.MinAllocatedResLevel >= 0 && Request.ResLevel > Card.MinAllocatedResLevel)
 				{
@@ -1436,18 +1444,18 @@ void ProcessLumenSurfaceCacheRequests(
 	// Process hi-res optional pages after locked low res ones are done
 	for (const FVirtualPageIndex& VirtualPageIndex : HiResPagesToMap)
 	{
-		FLumenCard& Card = LumenSceneData.Cards[VirtualPageIndex.CardIndex];
+		FLumenCard& Card = Cards[VirtualPageIndex.CardIndex];
 
 		if (VirtualPageIndex.ResLevel > Card.MinAllocatedResLevel)
 		{
 			// Make room for new physical allocations
 			bool bCanAlloc = true;
-			while (!LumenSceneData.IsPhysicalSpaceAvailable(Card, VirtualPageIndex.ResLevel, /*bSinglePage*/ true))
+			while (!IsPhysicalSpaceAvailable(Card, VirtualPageIndex.ResLevel, /*bSinglePage*/ true))
 			{
 				// Don't want to evict pages which may be picked up a jittering tile feedback
 				const int32 MaxFramesSinceLastUsed = Lumen::GetFeedbackBufferTileSize() * Lumen::GetFeedbackBufferTileSize();
 
-				if (!LumenSceneData.EvictOldestAllocation(MaxFramesSinceLastUsed, DirtyCards))
+				if (!EvictOldestAllocation(MaxFramesSinceLastUsed, DirtyCards))
 				{
 					bCanAlloc = false;
 					break;
@@ -1460,21 +1468,21 @@ void ProcessLumenSurfaceCacheRequests(
 				bCanAlloc = false;
 			}
 
-			const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
-			if (bCanAlloc && UpdateStaticMeshes(LumenSceneData.PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex]))
+			const FLumenMeshCards& MeshCardsElement = MeshCards[Card.MeshCardsIndex];
+			if (bCanAlloc && UpdateStaticMeshes(PrimitiveGroups[MeshCardsElement.PrimitiveGroupIndex]))
 			{
 				const bool bLockPages = false;
 				const bool bResampleLastLighting = Card.IsAllocated();
 
-				LumenSceneData.ReallocVirtualSurface(Card, VirtualPageIndex.CardIndex, VirtualPageIndex.ResLevel, bLockPages);
+				ReallocVirtualSurface(Card, VirtualPageIndex.CardIndex, VirtualPageIndex.ResLevel, bLockPages);
 
 				FLumenSurfaceMipMap& MipMap = Card.GetMipMap(VirtualPageIndex.ResLevel);
 				const int32 PageIndex = MipMap.GetPageTableIndex(VirtualPageIndex.LocalPageIndex);
-				FLumenPageTableEntry& PageTableEntry = LumenSceneData.GetPageTableEntry(PageIndex);
+				FLumenPageTableEntry& PageTableEntry = GetPageTableEntry(PageIndex);
 
 				if (!PageTableEntry.IsMapped())
 				{
-					LumenSceneData.MapSurfaceCachePage(MipMap, PageIndex);
+					MapSurfaceCachePage(MipMap, PageIndex);
 					check(PageTableEntry.IsMapped());
 
 					// Allocate space in temporary allocation atlas
@@ -1493,9 +1501,67 @@ void ProcessLumenSurfaceCacheRequests(
 						PageIndex,
 						bResampleLastLighting));
 
+					LastCapturedPageHeap.Update(GetSurfaceCacheUpdateFrameIndex(), PageIndex);
 					LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
-
 					DirtyCards.Add(VirtualPageIndex.CardIndex);
+				}
+			}
+		}
+	}
+
+	// Finally process card refresh to capture any material updates
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SceneCardCaptureRefresh);
+
+		int32 NumTexelsLeftToRefresh = GetCardCaptureRefreshNumTexels();
+		int32 NumPagesLeftToRefesh = FMath::Min<int32>((int32)GetCardCaptureRefreshNumPages(), MaxTileCapturesPerFrame - CardPagesToRender.Num());
+
+		bool bCanCapture = true;
+		while (LastCapturedPageHeap.Num() > 0 && bCanCapture)
+		{
+			bCanCapture = false;
+
+			const uint32 PageTableIndex = LastCapturedPageHeap.Top();
+			const uint32 CapturedSurfaceCacheFrameIndex = LastCapturedPageHeap.GetKey(PageTableIndex);
+
+			const int32 FramesSinceLastUpdated = GetSurfaceCacheUpdateFrameIndex() - CapturedSurfaceCacheFrameIndex;
+			if (FramesSinceLastUpdated > 0)
+			{
+				FLumenPageTableEntry& PageTableEntry = GetPageTableEntry(PageTableIndex);
+				const FLumenCard& Card = Cards[PageTableEntry.CardIndex];
+				const FLumenMeshCards& MeshCardsElement = MeshCards[Card.MeshCardsIndex];
+
+				// Limit number of re-captured texels and pages per frame
+				FLumenMipMapDesc MipMapDesc;
+				Card.GetMipMapDesc(PageTableEntry.ResLevel, MipMapDesc);
+				NumTexelsLeftToRefresh -= MipMapDesc.PageResolution.X * MipMapDesc.PageResolution.Y;
+				NumPagesLeftToRefesh -= 1;
+
+				if (NumTexelsLeftToRefresh >= 0 && NumPagesLeftToRefesh >= 0)
+				{
+					// Can we fit this card into the temporary card capture allocator?
+					if (CaptureAtlasAllocator.IsSpaceAvailable(Card, PageTableEntry.ResLevel, /*bSinglePage*/ true))
+					{
+						// Allocate space in temporary allocation atlas
+						FLumenSurfaceCacheAllocator::FAllocation CardCaptureAllocation;
+						CaptureAtlasAllocator.Allocate(PageTableEntry, CardCaptureAllocation);
+						check(CardCaptureAllocation.PhysicalPageCoord.X >= 0);
+
+						CardPagesToRender.Add(FCardPageRenderData(
+							MainView,
+							Card,
+							PageTableEntry.CardUVRect,
+							CardCaptureAllocation.PhysicalAtlasRect,
+							PageTableEntry.PhysicalAtlasRect,
+							MeshCardsElement.PrimitiveGroupIndex,
+							PageTableEntry.CardIndex,
+							PageTableIndex,
+							/*bResampleLastLighting*/ true));
+
+						LastCapturedPageHeap.Update(GetSurfaceCacheUpdateFrameIndex(), PageTableIndex);
+						LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
+						bCanCapture = true;
+					}
 				}
 			}
 		}
@@ -1505,16 +1571,16 @@ void ProcessLumenSurfaceCacheRequests(
 	if (!Lumen::IsSurfaceCacheFrozen())
 	{
 		uint32 MaxFramesSinceLastUsed = FMath::Max(GSurfaceCacheNumFramesToKeepUnusedPages, 0);
-		while (LumenSceneData.EvictOldestAllocation(MaxFramesSinceLastUsed, DirtyCards))
+		while (EvictOldestAllocation(MaxFramesSinceLastUsed, DirtyCards))
 		{
 		}
 	}
 
 	for (int32 CardIndex : DirtyCards.Array)
 	{
-		FLumenCard& Card = LumenSceneData.Cards[CardIndex];
-		LumenSceneData.UpdateCardMipMapHierarchy(Card);
-		LumenSceneData.CardIndicesToUpdateInBuffer.Add(CardIndex);
+		FLumenCard& Card = Cards[CardIndex];
+		UpdateCardMipMapHierarchy(Card);
+		CardIndicesToUpdateInBuffer.Add(CardIndex);
 	}
 }
 
@@ -1961,12 +2027,11 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 				MaxCardUpdateDistanceFromCamera,
 				SurfaceCacheRequests);
 
-			ProcessLumenSurfaceCacheRequests(
+			LumenSceneData.ProcessLumenSurfaceCacheRequests(
 				View,
 				LumenSceneCameraOrigin,
 				MaxCardUpdateDistanceFromCamera,
 				MaxTileCapturesPerFrame,
-				LumenSceneData,
 				LumenCardRenderer,
 				SurfaceCacheRequests);
 		}
@@ -2195,6 +2260,31 @@ FIntPoint FLumenSceneData::GetCardCaptureAtlasSizeInPages() const
 FIntPoint FLumenSceneData::GetCardCaptureAtlasSize() const 
 {
 	return GetCardCaptureAtlasSizeInPages() * Lumen::PhysicalPageSize;
+}
+
+uint32 FLumenSceneData::GetCardCaptureRefreshNumTexels() const
+{
+	const float CardCaptureRefreshFraction = FMath::Clamp(CVarLumenSceneCardCaptureRefreshFraction.GetValueOnRenderThread(), 0.0f, 1.0f);
+	if (CardCaptureRefreshFraction > 0.0f)
+	{
+		// Allow to capture at least 1 full physical page
+		FIntPoint CardCaptureAtlasSize = GetCardCaptureAtlasSize();
+		return FMath::Max(CardCaptureAtlasSize.X * CardCaptureAtlasSize.Y * CardCaptureRefreshFraction, Lumen::PhysicalPageSize * Lumen::PhysicalPageSize);
+	}
+
+	return 0;
+}
+
+uint32 FLumenSceneData::GetCardCaptureRefreshNumPages() const
+{
+	const float CardCaptureRefreshFraction = FMath::Clamp(CVarLumenSceneCardCaptureRefreshFraction.GetValueOnRenderThread(), 0.0f, 1.0f);
+	if (CardCaptureRefreshFraction > 0.0f)
+	{
+		// Allow to capture at least 1 full physical page
+		return FMath::Clamp(GetMaxTileCapturesPerFrame() * CardCaptureRefreshFraction, 1, GetMaxTileCapturesPerFrame());
+	}
+
+	return 0;
 }
 
 void AllocateCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint CardCaptureAtlasSize, FCardCaptureAtlas& CardCaptureAtlas)

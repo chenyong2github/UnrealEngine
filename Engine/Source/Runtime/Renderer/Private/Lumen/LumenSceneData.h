@@ -28,6 +28,7 @@ class FLumenCardBuildData;
 class FLumenCardPassUniformParameters;
 class FPrimitiveSceneInfo;
 class FDistanceFieldSceneData;
+class FLumenCardRenderer;
 struct FLumenPageTableEntry;
 
 static constexpr uint32 MaxDistantCards = 8;
@@ -89,6 +90,7 @@ struct FLumenMipMapDesc
 {
 	FIntPoint Resolution;
 	FIntPoint SizeInPages;
+	FIntPoint PageResolution;
 	uint16 ResLevelX;
 	uint16 ResLevelY;
 	bool bSubAllocation;
@@ -520,9 +522,19 @@ public:
 	FIntPoint GetRadiosityAtlasSize() const;
 	FIntPoint GetCardCaptureAtlasSizeInPages() const;
 	FIntPoint GetCardCaptureAtlasSize() const;
+	uint32 GetCardCaptureRefreshNumTexels() const;
+	uint32 GetCardCaptureRefreshNumPages() const;
 	ESurfaceCacheCompression GetPhysicalAtlasCompression() const { return PhysicalAtlasCompression; }
 
 	void UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& MeshCardsUpdate);
+
+	void ProcessLumenSurfaceCacheRequests(
+		const FViewInfo& MainView,
+		FVector LumenSceneCameraOrigin,
+		float MaxCardUpdateDistanceFromCamera,
+		int32 MaxTileCapturesPerFrame,
+		FLumenCardRenderer& LumenCardRenderer,
+		const TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests);
 
 	FShaderResourceViewRHIRef GetPageTableBufferSRV() const { return PageTableBuffer.SRV;  };
 
@@ -552,7 +564,11 @@ private:
 	FRWBufferStructured LastCardBufferForResample;
 	FRWByteAddressBuffer LastPageTableBufferForResample;
 
-	// List of allocation which can be deallocated on demand, ordered by last used frame
+	// List of high res allocated physical pages which can be deallocated on demand, ordered by last used frame
 	// FeedbackFrameIndex, PageTableIndex
 	FBinaryHeap<uint32, uint32> UnlockedAllocationHeap;
+
+	// List of pages ordered by last captured frame used to periodically recapture pages
+	// CapturedSurfaceCacheFrameIndex, PageTableIndex
+	FBinaryHeap<uint32, uint32> LastCapturedPageHeap;
 };
