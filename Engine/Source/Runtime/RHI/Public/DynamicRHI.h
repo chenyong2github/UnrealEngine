@@ -80,42 +80,6 @@ struct FRHIFlipDetails
 	{}
 };
 
-/**
- * A type used only for printing a string for debugging/profiling.
- * Adds Number as a suffix to the printed string even if the base name includes a number, so may prints a string like: Base_1_1
- * This type will always store a numeric suffix explicitly inside itself and never in the name table so it will always be at least 12 bytes
- * regardless of the value of UE_FNAME_OUTLINE_NUMBER.
- * It is not comparable or convertible to other name types to encourage its use only for debugging and avoid using more storage than necessary
- * for the primary use cases of FName (names of objects, assets etc which are widely used and therefor deduped in the name table).
- */
-class RHI_API FDebugName
-{
-	DECLARE_INLINE_TYPE_LAYOUT(FDebugName, NonVirtual);
-
-public:
-	FDebugName();
-	FDebugName(FName InName);
-	FDebugName(FName InName, int32 InNumber);
-	FDebugName(FMemoryImageName InName, int32 InNumber);
-
-	FDebugName& operator=(FName Other);
-
-	FString ToString() const;
-	bool IsNone() const { return Name.IsNone() && Number == NAME_NO_NUMBER_INTERNAL; }
-	void AppendString(FStringBuilderBase& Builder) const;
-
-private:
-	LAYOUT_FIELD(FMemoryImageName, Name);
-	LAYOUT_FIELD(uint32, Number);
-};
-
-inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FDebugName& Name)
-{
-	Name.AppendString(Builder);
-	return Builder;
-}
-
-
 struct FShaderResourceViewInitializer
 {
 	struct FBufferShaderResourceViewInitializer
