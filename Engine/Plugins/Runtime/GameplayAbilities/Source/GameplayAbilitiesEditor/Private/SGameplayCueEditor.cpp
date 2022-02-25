@@ -1473,7 +1473,7 @@ FString SGameplayCueEditor::GetPathNameForGameplayCueTag(FString GameplayCueTagN
 	else
 	{
 		GameplayCueTagName = GameplayCueTagName.Replace(TEXT("GameplayCue."), TEXT(""), ESearchCase::IgnoreCase);
-		NewDefaultPathName = FString::Printf(TEXT("/Game/GC_%s"), *GameplayCueTagName);
+		NewDefaultPathName = FString::Printf(TEXT("/Game/GameplayCueNotifies/GC_%s"), *GameplayCueTagName);
 	}
 	NewDefaultPathName.ReplaceInline(TEXT("."), TEXT("_"));
 	return NewDefaultPathName;
