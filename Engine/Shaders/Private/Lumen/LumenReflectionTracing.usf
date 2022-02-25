@@ -403,8 +403,6 @@ void TraceMeshSDFs(
 	TraceInput.NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
 	TraceInput.MeshSDFStartOffset = GridCulledMeshSDFObjectStartOffsetArray[CardGridCellIndex];
 	TraceInput.CardInterpolateInfluenceRadius = 10;
-	//@todo - derive from card texel size
-	TraceInput.CardInterpolateDepthVisibilityRadius = 10;
 	// Only expand the SDF surface when the ray traversal is far enough away to not self-intersect
 	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = false;
 	TraceInput.InitialMaxDistance = 0;

@@ -280,7 +280,6 @@ struct FConeTraceInput
 	uint MeshSDFStartOffset;
 	uint MeshSDFBitmaskStartOffset;
 	float CardInterpolateInfluenceRadius;
-	float CardInterpolateDepthVisibilityRadius;
 
 	// Heightfield traces
 	uint NumHeightfields;
@@ -737,7 +736,7 @@ struct FTraceMeshSDFDerivedData
 	float3 HitNormal;
 	uint SceneInstanceIndex;
 	uint MeshCardsIndex;
-	float SurfaceCacheDepthTestBias;
+	float SurfaceCacheBias;
 	float3 WorldVelocity;
 };
 
@@ -767,7 +766,7 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	float3 WorldGradient = mul(VolumeNormal, transpose((float3x3)DFObjectData.WorldToVolume));
 	float WorldGradientLength = length(WorldGradient);
 	TraceSDFData.HitNormal = WorldGradientLength > 0.0f ? WorldGradient / WorldGradientLength : 0;
-	TraceSDFData.SurfaceCacheDepthTestBias = DFObjectData.bMostlyTwoSided ? 20.0f : 10.0f;
+	TraceSDFData.SurfaceCacheBias = DFObjectData.bMostlyTwoSided ? 40.0f : 20.0f;
 
 	if (bCalculateHitVelocity)
 	{
@@ -1024,7 +1023,7 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 		float3 SamplePosition = TraceInput.ConeOrigin + TraceInput.ConeDirection * TraceMeshHeightfieldResult.HitDistance;
 		float3 SampleNormal = float3(0, 0, 1);
 		float SampleRadius = max(TraceInput.ConeStartRadius + TraceInput.TanConeAngle * TraceMeshHeightfieldResult.HitDistance, TraceInput.MinSampleRadius);
-		float SurfaceCacheDepthTestBias = 20.0f;
+		float SurfaceCacheBias = 20.0f;
 		uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
 
 		if (bHitFrontFace)
@@ -1035,8 +1034,7 @@ FTraceMeshHeightfieldResult ConeTraceHeightfield(
 				SamplePosition,
 				SampleNormal,
 				SampleRadius,
-				SurfaceCacheDepthTestBias,
-				TraceInput.CardInterpolateDepthVisibilityRadius,
+				SurfaceCacheBias,
 				TraceInput.bHiResSurface,
 				AtlasId).Lighting;
 		}
@@ -1101,8 +1099,7 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 			InterpolatePosition,
 			TraceSDFData.HitNormal,
 			InterpolateRadius,
-			TraceSDFData.SurfaceCacheDepthTestBias,
-			TraceInput.CardInterpolateDepthVisibilityRadius,
+			TraceSDFData.SurfaceCacheBias,
 			TraceInput.bHiResSurface,
 			AtlasId).Lighting;
 		OutResult.Transparency = 0;
@@ -1174,6 +1171,9 @@ uint VoxelFaceFromStep(uint3 StepInc, int3 VoxelStep)
 	return dot(StepInc, uint3(0, 2, 4) + DirectionOffset);
 }
 
+/**
+ * Ray trace the Global Distance Field, compute hit point and hit normal, and fetch lighting from Voxel Lighting volume
+ */
 void ConeTraceVoxels(
 	FConeTraceInput TraceInput,
 	inout FConeTraceResult OutResult)

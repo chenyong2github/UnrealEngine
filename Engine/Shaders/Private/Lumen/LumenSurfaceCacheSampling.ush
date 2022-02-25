@@ -233,7 +233,7 @@ struct FSurfaceCacheSample
 	bool bValid;
 };
 
-FSurfaceCacheSample SampleSurfaceCache(FLumenCardSample CardSample, uint AtlasId)
+FSurfaceCacheSample SampleSurfaceCacheAtlas(FLumenCardSample CardSample, uint AtlasId)
 {
 	FSurfaceCacheSample SurfaceCacheSample;
 	SurfaceCacheSample.Lighting = 0.0f;
@@ -340,7 +340,7 @@ void SampleLumenCard(
 	float3 MeshCardsSpacePosition,
 	float3 MeshCardsSpaceNormal,
 	float SampleRadius,
-	float SurfaceCacheDepthTestBias,
+	float SurfaceCacheBias,
 	uint CardIndex,
 	bool bHiResSurface,
 	bool bHeightfield,
@@ -353,7 +353,7 @@ void SampleLumenCard(
 		if (LumenCardData.bVisible)
 		{
 			float3 CardSpacePosition = mul(MeshCardsSpacePosition - LumenCardData.MeshCardsOrigin, LumenCardData.MeshCardsToLocalRotation);
-			if (all(abs(CardSpacePosition) <= LumenCardData.LocalExtent))
+			if (all(abs(CardSpacePosition) <= LumenCardData.LocalExtent + 0.5f * SurfaceCacheBias))
 			{
 				CardSpacePosition.xy = clamp(CardSpacePosition.xy, -LumenCardData.LocalExtent.xy, LumenCardData.LocalExtent.xy);
 
@@ -366,9 +366,8 @@ void SampleLumenCard(
 					{
 						float2 DepthMoments = Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, CardSample.PhysicalAtlasUV, 0.0f).xy;
 
-						// Bias a bit as traces may not be accurate (due to SDF or proxy geometry)
-						const float RayBias = SurfaceCacheDepthTestBias;
-						float NormalizedDistanceToHit = (-(CardSpacePosition.z + RayBias) / LumenCardData.LocalExtent.z) * 0.5f + 0.5f;
+						const float RayDepthBias = SurfaceCacheBias;
+						float NormalizedDistanceToHit = (-(CardSpacePosition.z + RayDepthBias) / LumenCardData.LocalExtent.z) * 0.5f + 0.5f;
 
 						VisibilityWeight = 1.0f;
 						if (NormalizedDistanceToHit > DepthMoments.x)
@@ -395,7 +394,7 @@ void SampleLumenCard(
 					{
 						#if SURFACE_CACHE_SAMPLING_REFERENCE_MODE
 						{
-							FSurfaceCacheSample SurfaceCacheSample = SampleSurfaceCache(CardSample, AtlasId);
+							FSurfaceCacheSample SurfaceCacheSample = SampleSurfaceCacheAtlas(CardSample, AtlasId);
 							CardSampleAccumulator.Reference.LightingSum += SurfaceCacheSample.Lighting * SampleWeight;
 							CardSampleAccumulator.Reference.OpacitySum += SurfaceCacheSample.Opacity * SampleWeight;
 							CardSampleAccumulator.Reference.SampleWeightSum += SampleWeight;
@@ -428,7 +427,18 @@ void SampleLumenCard(
 	}
 }
 
-FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint MeshCardsIndex, float3 WorldSpacePosition, float3 WorldSpaceNormal, float SampleRadius, float SurfaceCacheDepthTestBias, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
+/**
+ * Sample surface cache
+ */
+FSurfaceCacheSample SampleLumenMeshCards(
+	uint2 ScreenCoord,
+	uint MeshCardsIndex, 
+	float3 WorldSpacePosition, 
+	float3 WorldSpaceNormal, 
+	float SampleRadius, 
+	float SurfaceCacheBias, // Card bounds and depth test bias in mesh space. Useful when traced geometry doesn't match the original mesh due to SDFs or geometry LOD
+	bool bHiResSurface, // Whether to allow to sample high res surface pages or use only the lowest quality ones (always resident)
+	uint AtlasId)
 {
 	FSurfaceCacheSample SurfaceCacheSample;
 	SurfaceCacheSample.Lighting = float3(0.0f, 0.0f, 0.0f);
@@ -482,7 +492,7 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint MeshCardsIndex,
 				uint CardIndex = MeshCardsData.CardOffset + NextBitIndex;
 				FLumenCardData LumenCardData = GetLumenCardData(CardIndex);
 
-				if (all(abs(MeshCardsSpacePosition - LumenCardData.MeshCardsOrigin) <= LumenCardData.MeshCardsExtent))
+				if (all(abs(MeshCardsSpacePosition - LumenCardData.MeshCardsOrigin) <= LumenCardData.MeshCardsExtent + 0.5f * SurfaceCacheBias))
 				{
 					CulledCardMask |= NextBitMask;
 				}
@@ -512,7 +522,7 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint MeshCardsIndex,
 					MeshCardsSpacePosition,
 					MeshCardsSpaceNormal,
 					SampleRadius,
-					SurfaceCacheDepthTestBias,
+					SurfaceCacheBias,
 					CardIndex,
 					bHiResSurface,
 					MeshCardsData.bHeightfield,
@@ -523,7 +533,7 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint MeshCardsIndex,
 
 		if (CardSampleAccumulator.CardSample.bValid)
 		{
-			SurfaceCacheSample = SampleSurfaceCache(CardSampleAccumulator.CardSample, AtlasId);
+			SurfaceCacheSample = SampleSurfaceCacheAtlas(CardSampleAccumulator.CardSample, AtlasId);
 		}
 
 		#if SURFACE_CACHE_SAMPLING_REFERENCE_MODE

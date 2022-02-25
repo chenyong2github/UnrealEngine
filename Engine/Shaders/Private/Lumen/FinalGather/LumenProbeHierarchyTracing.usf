@@ -120,8 +120,6 @@ void CardTraceProbeCS(
 		TraceInput.NumMeshSDFs = NumMeshSDFs;
 		TraceInput.MeshSDFStartOffset = MeshSDFStartOffset;
 		TraceInput.CardInterpolateInfluenceRadius = CardInterpolateInfluenceRadius;
-		//@todo - derive from card texel size
-		TraceInput.CardInterpolateDepthVisibilityRadius = 10;
 			
 		FConeTraceResult TraceResult;
 		TraceResult = (FConeTraceResult)0;

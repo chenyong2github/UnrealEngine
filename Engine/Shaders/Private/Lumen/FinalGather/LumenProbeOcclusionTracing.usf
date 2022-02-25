@@ -130,8 +130,6 @@ void TraceRay(
 		TraceInput.NumHeightfields = NumHeightfields;
 		TraceInput.HeightfieldStartOffset = HeightfieldStartOffset;
 		TraceInput.CardInterpolateInfluenceRadius = CardInterpolateInfluenceRadius;
-		//@todo - derive from card texel size
-		TraceInput.CardInterpolateDepthVisibilityRadius = 10;
 
 		FinalMaxTraceDistance = min(FinalMaxTraceDistance, MaxMeshSDFTraceDistance);
 	}

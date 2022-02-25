@@ -448,8 +448,6 @@ void TraceMeshSDFs(
 			TraceInput.NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
 			TraceInput.MeshSDFStartOffset = GridCulledMeshSDFObjectStartOffsetArray[CardGridCellIndex];
 			TraceInput.CardInterpolateInfluenceRadius = CardInterpolateInfluenceRadius;
-			//@todo - derive from card texel size
-			TraceInput.CardInterpolateDepthVisibilityRadius = 10;
 			TraceInput.bCalculateHitVelocity = true;
 
 			FConeTraceResult TraceResult;
