@@ -99,6 +99,7 @@ public:
 	void ExecuteAction(UFractureActionTool* InActionTool);
 	bool CanExecuteAction(UFractureActionTool* InActionTool) const;
 
+	bool CanSetModalTool(UFractureModalTool* InActiveTool) const;
 	void SetActiveTool(UFractureModalTool* InActiveTool);
 	UFractureModalTool* GetActiveTool() const;
 	bool IsActiveTool(UFractureModalTool* InActiveTool);
@@ -201,6 +202,9 @@ private:
 
 private:
 	UFractureModalTool* ActiveTool;
+
+	// called when PIE is about to start, shuts down active tools
+	FDelegateHandle BeginPIEDelegateHandle;
 
 	TSharedPtr<IDetailsView> DetailsView;
 	TSharedPtr<IDetailsView> ViewSettingsDetailsView;

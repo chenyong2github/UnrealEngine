@@ -209,6 +209,11 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditorModule.OnMapChanged().AddRaw(this, &FFractureEditorModeToolkit::HandleMapChanged);
 
+	BeginPIEDelegateHandle = FEditorDelegates::BeginPIE.AddLambda([this](bool bSimulating)
+	{
+		SetActiveTool(nullptr);
+	});
+
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bAllowSearch = false;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
@@ -870,7 +875,7 @@ void FFractureEditorModeToolkit::BindCommands()
 				ToolkitCommands->MapAction(
 					FractureTool->GetUICommandInfo(),
 					FExecuteAction::CreateSP(this, &FFractureEditorModeToolkit::SetActiveTool, FractureTool),
-					FCanExecuteAction(),
+					FCanExecuteAction::CreateSP(this, &FFractureEditorModeToolkit::CanSetModalTool, FractureTool),
 					FIsActionChecked::CreateSP(this, &FFractureEditorModeToolkit::IsActiveTool, FractureTool)
 				);
 			}
@@ -1257,6 +1262,12 @@ void FFractureEditorModeToolkit::InvalidateHitProxies()
 
 bool FFractureEditorModeToolkit::CanExecuteAction(UFractureActionTool* InActionTool) const
 {
+	// Disallow fracture actions when playing in editor or simulating.
+	if (GEditor->PlayWorld || GIsPlayInEditorWorld)
+	{
+		return false;
+	}
+
 	if (InActionTool)
 	{
 		return InActionTool->CanExecute();
@@ -1274,6 +1285,17 @@ void FFractureEditorModeToolkit::ShutdownActiveTool()
 		ActiveTool->Shutdown();
 		ActiveTool->OnPropertyModifiedDirectlyByTool.RemoveAll(this);
 	}
+}
+
+bool FFractureEditorModeToolkit::CanSetModalTool(UFractureModalTool* InActiveTool) const
+{
+	// Disallow fracture modal tools when playing in editor or simulating.
+	if (GEditor->PlayWorld || GIsPlayInEditorWorld)
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void FFractureEditorModeToolkit::SetActiveTool(UFractureModalTool* InActiveTool)
@@ -1311,6 +1333,8 @@ void FFractureEditorModeToolkit::InvalidateCachedDetailPanelState(UObject* Chang
 void FFractureEditorModeToolkit::Shutdown()
 {
 	ShutdownActiveTool();
+
+	FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
 }
 
 
@@ -1423,6 +1447,10 @@ FReply FFractureEditorModeToolkit::OnModalClicked()
 
 bool FFractureEditorModeToolkit::CanExecuteModal() const
 {
+	if (GEditor->PlayWorld || GIsPlayInEditorWorld)
+	{
+		return false;
+	}
 
 	if (!IsSelectedActorsInEditorWorld())
 	{
