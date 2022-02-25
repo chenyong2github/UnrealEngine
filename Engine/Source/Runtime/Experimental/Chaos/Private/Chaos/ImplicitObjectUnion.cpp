@@ -234,22 +234,8 @@ void FImplicitObjectUnionClustered::FindAllIntersectingClusteredObjects(TArray<F
 		for (int32 Idx : Overlaps)
 		{
 			const FImplicitObject* Obj = LargeUnionData->GeomParticles.Geometry(Idx).Get();
-			const FShapesArray& ShapesArray = LargeUnionData->GeomParticles.ShapesArray(Idx);
-
-			// If implicit is union return shapes array of its particle, otherwise retrieve single shape.
-			FShapeOrShapesArray Shapes;
-			if (Obj->IsUnderlyingUnion())
-			{
-				Shapes = FShapeOrShapesArray(&ShapesArray);
-			}
-			else
-			{
-				Shapes = FShapeOrShapesArray(ShapesArray[0].Get());
-			}
-			
-
 			const FBVHParticles* Simplicial = MOriginalParticleLookupHack.IsValidIndex(Idx) ? MOriginalParticleLookupHack[Idx]->CollisionParticles().Get() : nullptr;
-			Out.Add(FLargeUnionClusteredImplicitInfo(Obj,FRigidTransform3(LargeUnionData->GeomParticles.X(Idx), LargeUnionData->GeomParticles.R(Idx)), Simplicial, Shapes));
+			Out.Add(FLargeUnionClusteredImplicitInfo(Obj,FRigidTransform3(LargeUnionData->GeomParticles.X(Idx), LargeUnionData->GeomParticles.R(Idx)), Simplicial));
 		}
 	}
 	else
@@ -269,18 +255,9 @@ void FImplicitObjectUnionClustered::FindAllIntersectingClusteredObjects(TArray<F
 		for (int32 Idx = 0; Idx < LocalOut.Num(); ++Idx)
 		{
 			auto& OutElem = LocalOut[Idx];
+			const FBVHParticles* Simplicial = MOriginalParticleLookupHack.IsValidIndex(Idxs[Idx]) ? MOriginalParticleLookupHack[Idxs[Idx]]->CollisionParticles().Get() : nullptr;
 
-			FShapeOrShapesArray Shapes;
-			const FBVHParticles* Simplicial = nullptr;
-
-			if (ensure(MOriginalParticleLookupHack.IsValidIndex(Idxs[Idx])))
-			{
-				FPBDRigidParticleHandle* Handle = MOriginalParticleLookupHack[Idxs[Idx]];
-				Shapes = FShapeOrShapesArray(Handle);
-				Simplicial = Handle->CollisionParticles().Get();
-			}
-
-			Out.Add(FLargeUnionClusteredImplicitInfo(OutElem.First, OutElem.Second, Simplicial, Shapes));
+			Out.Add(FLargeUnionClusteredImplicitInfo(OutElem.First, OutElem.Second, Simplicial));
 		}
 	}
 }

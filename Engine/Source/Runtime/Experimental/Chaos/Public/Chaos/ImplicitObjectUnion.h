@@ -216,18 +216,16 @@ protected:
 
 struct FLargeUnionClusteredImplicitInfo
 {
-	FLargeUnionClusteredImplicitInfo(const FImplicitObject* InImplicit, const FRigidTransform3& InTransform, const FBVHParticles* InBVHParticles, const FShapeOrShapesArray& InShapes)
+	FLargeUnionClusteredImplicitInfo(const FImplicitObject* InImplicit, const FRigidTransform3& InTransform, const FBVHParticles* InBVHParticles)
 		: Implicit(InImplicit)
 		, Transform(InTransform)
 		, BVHParticles(InBVHParticles)
-		, Shapes(InShapes)
 	{
 	}
 
 	const FImplicitObject* Implicit;
 	FRigidTransform3 Transform;
 	const FBVHParticles* BVHParticles;
-	FShapeOrShapesArray Shapes;
 };
 
 class CHAOS_API FImplicitObjectUnionClustered: public FImplicitObjectUnion

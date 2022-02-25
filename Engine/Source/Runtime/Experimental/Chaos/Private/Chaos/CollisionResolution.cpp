@@ -2340,7 +2340,8 @@ namespace Chaos
 
 					for (const FLargeUnionClusteredImplicitInfo& Child0 : Children)
 					{
-						LegacyConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.Implicit, Child0.Shapes, Child0.BVHParticles, Implicit1, Shapes1, Simplicial1, ParticleWorldTransform0, Child0.Transform * LocalTransform0, ParticleWorldTransform1, LocalTransform1, CullDistance, Dt, Context);
+						// Provide no shape for clustered child implicits, these use their parent's filter data, which was already tested when generating shape pair in midphase.
+						LegacyConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.Implicit, FShapeOrShapesArray(), Child0.BVHParticles, Implicit1, Shapes1, Simplicial1, ParticleWorldTransform0, Child0.Transform * LocalTransform0, ParticleWorldTransform1, LocalTransform1, CullDistance, Dt, Context);
 					}
 				}
 				else
@@ -2349,10 +2350,8 @@ namespace Chaos
 					{
 						const TPBDRigidParticleHandle<FReal, 3>* OriginalParticle = Union0->FindParticleForImplicitObject(Child0.Get());
 
-						if (ensure(OriginalParticle))
-						{
-							LegacyConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.Get(), FShapeOrShapesArray(OriginalParticle), OriginalParticle->CollisionParticles().Get(), Implicit1, Shapes1, Simplicial1, ParticleWorldTransform0, LocalTransform0, ParticleWorldTransform1, LocalTransform1, CullDistance, Dt, Context);
-						}
+						// Provide no shape for clustered child implicits, these use their parent's filter data, which was already tested when generating shape pair in midphase.
+						LegacyConstructConstraints<T_TRAITS>(Particle0, Particle1, Child0.Get(), FShapeOrShapesArray(), OriginalParticle ? OriginalParticle->CollisionParticles().Get() : Simplicial0, Implicit1, Shapes1, Simplicial1, ParticleWorldTransform0, LocalTransform0, ParticleWorldTransform1, LocalTransform1, CullDistance, Dt, Context);
 					}
 				}
 				return;
@@ -2401,7 +2400,8 @@ namespace Chaos
 
 					for (const FLargeUnionClusteredImplicitInfo& Child1 : Children)
 					{
-						LegacyConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Shapes0, Simplicial0, Child1.Implicit, Child1.Shapes, Child1.BVHParticles, ParticleWorldTransform0, LocalTransform0, ParticleWorldTransform1, Child1.Transform * LocalTransform1, CullDistance, Dt, Context);
+						// Provide no shape for clustered child implicits, these use their parent's filter data, which was already tested when generating shape pair in midphase.
+						LegacyConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Shapes0, Simplicial0, Child1.Implicit, FShapeOrShapesArray(), Child1.BVHParticles, ParticleWorldTransform0, LocalTransform0, ParticleWorldTransform1, Child1.Transform * LocalTransform1, CullDistance, Dt, Context);
 					}
 				}
 				else
@@ -2409,10 +2409,9 @@ namespace Chaos
 					for (const TUniquePtr<FImplicitObject>& Child1 : Union1->GetObjects())
 					{
 						const TPBDRigidParticleHandle<FReal, 3>* OriginalParticle = Union1->FindParticleForImplicitObject(Child1.Get());
-						if (ensure(OriginalParticle))
-						{
-							LegacyConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Shapes0, Simplicial0, Child1.Get(), FShapeOrShapesArray(OriginalParticle), OriginalParticle->CollisionParticles().Get(), ParticleWorldTransform0, LocalTransform0, ParticleWorldTransform1, LocalTransform1, CullDistance, Dt, Context);
-						}
+
+						// Provide no shape for clustered child implicits, these use their parent's filter data, which was already tested when generating shape pair in midphase.
+						LegacyConstructConstraints<T_TRAITS>(Particle0, Particle1, Implicit0, Shapes0, Simplicial0, Child1.Get(), FShapeOrShapesArray(), OriginalParticle ? OriginalParticle->CollisionParticles().Get() : Simplicial1, ParticleWorldTransform0, LocalTransform0, ParticleWorldTransform1, LocalTransform1, CullDistance, Dt, Context);
 					}
 				}
 				return;
