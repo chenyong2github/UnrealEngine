@@ -98,6 +98,7 @@ void Main(
 
 	// Retrieve rough refraction variance
 	float Sigma = 0.0f;
+	float3 RefractionWorldNormal = MaterialParameters.CameraVector;
 	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
 	if (StrataTree.BSDFCount > 0)
 	{
@@ -107,10 +108,11 @@ void Main(
 		// Update tree (coverage/transmittance/luminace weights)
 		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, DummyL, false /*bRoughDiffuseEnabled*/);
 
-		StrataLobeStatistic WiLobe = StrataTree.Operators[StrataData.OperatorIndex].LobeStat;
-		//half3 LobeWorldDir = normalize(TransformWorldVectorToView(WiLobe.Mu));
+		RefractionWorldNormal = StrataTree.Operators[StrataData.OperatorIndex].RefractionWorldNormal;
 
-		Sigma = WiLobe.Sigma;
+		StrataLobeStatistic RefractionLobeStat = StrataTree.Operators[StrataData.OperatorIndex].RefractionLobeStat;
+
+		Sigma = RefractionLobeStat.Sigma;
 	}
 
 	// Write out variance (as this is more linear to accumulate than roughness)
@@ -122,7 +124,7 @@ void Main(
 	// Compute UV distortion
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
 		MaterialParameters, PixelMaterialInputs, ResolvedView,
-		MaterialParameters.WorldNormal, DistortionParams, ScreenUV, Refraction, TryToClip, EyeIndex);
+		RefractionWorldNormal, DistortionParams, ScreenUV, Refraction, TryToClip, EyeIndex);
 
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;
