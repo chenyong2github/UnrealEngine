@@ -354,6 +354,11 @@ struct FGuidAndActor
 
 static void CalculateFramesToSnap(ISequencer* InSequencer, UMovieScene* MovieScene, FFrameNumber StartFrame, FFrameNumber EndFrame, TArray<FFrameNumber>& OutFrames)
 {
+	if(StartFrame > EndFrame)
+	{
+		Swap(StartFrame, EndFrame);
+	}
+	
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayResolution = MovieScene->GetDisplayRate();
 
