@@ -54,10 +54,10 @@ TAutoConsoleVariable<float> CVarTSRTranslucencyHighlightLuminance(
 	TEXT("Sets the liminance at which translucency is considered an highlights (default=-1.0)."),
 	ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarTSRTranslucencyPreviousFrameRejection(
-	TEXT("r.TSR.Translucency.PreviousFrameRejection"), 1,
-	TEXT("Enable heuristic to reject Separate translucency based on previous frame translucency."),
-	ECVF_RenderThreadSafe);
+//TAutoConsoleVariable<int32> CVarTSRTranslucencyPreviousFrameRejection(
+//	TEXT("r.TSR.Translucency.PreviousFrameRejection"), 0,
+//	TEXT("Enable heuristic to reject Separate translucency based on previous frame translucency."),
+//	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRTranslucencySeparateTemporalAccumulation(
 	TEXT("r.TSR.Translucency.SeparateTemporalAccumulation"), 1,
@@ -594,7 +594,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 	bool bIsSeperateTranslucyTexturesValid = PassInputs.PostDOFTranslucencyResources.IsValid();
 
-	bool bRejectSeparateTranslucency = bIsSeperateTranslucyTexturesValid && CVarTSRTranslucencyPreviousFrameRejection.GetValueOnRenderThread() != 0;
+	const bool bRejectSeparateTranslucency = false; // bIsSeperateTranslucyTexturesValid && CVarTSRTranslucencyPreviousFrameRejection.GetValueOnRenderThread() != 0;
 
 	bool bAccumulateSeparateTranslucency = bIsSeperateTranslucyTexturesValid && CVarTSRTranslucencySeparateTemporalAccumulation.GetValueOnRenderThread() != 0;
 

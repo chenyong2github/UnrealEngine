@@ -40,10 +40,10 @@
 #if DIM_SEPARATE_TRANSLUCENCY == 1
 	#define CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY 1
 	#define CONFIG_VFX_SURVIVAL 0
-	#define CONFIG_REJECT_TRAMSLUCENCY_ON_RESPONSIVE_AA_ONLY 1
+	#define CONFIG_REJECT_TRAMSLUCENCY_ON_RESPONSIVE_AA_ONLY 0
 #else
 	#define CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY 0
-	#define CONFIG_VFX_SURVIVAL 1
+	#define CONFIG_VFX_SURVIVAL 0
 	#define CONFIG_REJECT_TRAMSLUCENCY_ON_RESPONSIVE_AA_ONLY 0
 #endif
 
@@ -57,6 +57,8 @@
 #endif
 
 #define CONFIG_RESPONSIVE_STENCIL 1
+#define CONFIG_TAA_RESPONSIVE_BEHAVIOR 1
+#define CONFIG_LOAD_TRANSLUCENCY_REJECTION 0
 
 #if CONFIG_COMPILE_FP16 && !CONFIG_SCENE_COLOR_APLHA
 	#define CONFIG_MANUAL_LDS_SPILL 1
@@ -1258,7 +1260,15 @@ void MainCS(
 		}
 		#endif
 		
-		BlendFinal = max(BlendFinal, (tsr_half(1.0) - TranslucencyRejection));
+		#if CONFIG_TAA_RESPONSIVE_BEHAVIOR
+			// Responsive forces 1/4 of new frame.
+			BlendFinal[0] = bIsResponsiveAAPixel[0] ? tsr_half(1.0/4.0) : BlendFinal[0];
+			BlendFinal[1] = bIsResponsiveAAPixel[1] ? tsr_half(1.0/4.0) : BlendFinal[1];
+		#endif
+		
+		#if CONFIG_LOAD_TRANSLUCENCY_REJECTION
+			BlendFinal = max(BlendFinal, (tsr_half(1.0) - TranslucencyRejection));
+		#endif
 		
 		FLATTEN
 		if (bCameraCut)
