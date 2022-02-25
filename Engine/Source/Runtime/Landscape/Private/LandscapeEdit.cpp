@@ -6443,7 +6443,7 @@ void ULandscapeComponent::GenerateMobileWeightmapLayerAllocations()
 	}));
 }
 
-void ULandscapeComponent::GeneratePlatformPixelData()
+void ULandscapeComponent::GeneratePlatformPixelData(bool bIsCooking, const ITargetPlatform* TargetPlatform)
 {
 	check(!IsTemplate());
 
@@ -6606,6 +6606,12 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 			// Find or set a matching MIC in the Landscape's map.
 			MobileCombinationMaterialInstances[MaterialIndex] = GetCombinationMaterial(nullptr, MobileWeightmapLayerAllocations, MaterialLOD, true);
 			check(MobileCombinationMaterialInstances[MaterialIndex] != nullptr);
+
+			if (bIsCooking)
+			{
+				// If we are cooking ensure we are caching shader maps.
+				MobileCombinationMaterialInstances[MaterialIndex]->BeginCacheForCookedPlatformData(TargetPlatform);
+			}
 
 			UMaterialInstanceConstant* NewMobileMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(this);
 

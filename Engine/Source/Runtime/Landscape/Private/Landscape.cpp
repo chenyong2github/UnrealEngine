@@ -338,7 +338,7 @@ void ULandscapeComponent::CheckGenerateLandscapePlatformData(bool bIsCooking, co
 
 	if (bRegeneratePixelData)
 	{
-		GeneratePlatformPixelData();
+		GeneratePlatformPixelData(bIsCooking, TargetPlatform);
 	}
 
 	MobileDataSourceHash = NewSourceHash;

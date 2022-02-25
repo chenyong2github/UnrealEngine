@@ -860,7 +860,7 @@ public:
 	// Generates mobile platform data for this component
 	void GenerateMobileWeightmapLayerAllocations();
 	void GeneratePlatformVertexData(const ITargetPlatform* TargetPlatform);
-	void GeneratePlatformPixelData();
+	void GeneratePlatformPixelData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
 
 	/** Generate mobile data if it's missing or outdated */
 	void CheckGenerateLandscapePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
