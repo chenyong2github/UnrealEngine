@@ -20,7 +20,8 @@ void FPhysicsManipulationEdModeFactory::OnSelectionChanged(FEditorModeTools& Too
 		if (SelectedActor != NULL)
 		{
 			UPrimitiveComponent* PC = Cast<UPrimitiveComponent>(SelectedActor->GetRootComponent());
-			if (PC != NULL && PC->BodyInstance.bSimulatePhysics)
+			// Note the physics handle to be grabbed will be accessed via the GetBodyInstance() function, not via direct access to the BodyInstance member
+			if (PC != NULL && PC->GetBodyInstance() != nullptr && PC->BodyInstance.bSimulatePhysics)
 			{
 				Tools.ActivateMode(FBuiltinEditorModes::EM_Physics);
 				return;
