@@ -3361,7 +3361,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 {
-	if (!IsRayTracingEnabled() || Scene == nullptr)
+	if (!IsRayTracingEnabled() || Scene == nullptr || !View.bAllowRayTracing)
 	{
 		return false;
 	}
