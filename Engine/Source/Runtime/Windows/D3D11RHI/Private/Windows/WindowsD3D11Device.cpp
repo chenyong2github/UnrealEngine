@@ -1382,7 +1382,7 @@ void FD3D11DynamicRHI::StartIntelExtensions()
 	}
 
 	// Workaround for C6385, if we pass in SupportedExtensionsVersionCount again, the static analyzer thinks it may be different from the first call
-	uint32_t DummyCount = 0;
+	uint32_t DummyCount = SupportedExtensionsVersionCount;
 	if (SUCCEEDED(INTC_D3D11_GetSupportedVersions(Direct3DDevice, SupportedExtensionsVersions, &DummyCount)) && SupportedExtensionsVersions != nullptr)
 	{
 		check(SupportedExtensionsVersionCount == DummyCount);
