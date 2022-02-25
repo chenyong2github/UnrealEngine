@@ -675,3 +675,5 @@ void ULODManagerTool::RemoveUnreferencedMaterials()
 	GetToolManager()->EndUndoTransaction();
 	bLODInfoValid = false;
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -274,4 +274,4 @@ namespace Metasound
 	} // namespace Frontend
 } // namespace Metasound
 
-#define LOCTEXT_NAMESPACE "Metasound"
+#undef LOCTEXT_NAMESPACE

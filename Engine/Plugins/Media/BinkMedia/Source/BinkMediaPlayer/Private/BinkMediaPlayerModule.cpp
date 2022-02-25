@@ -6,6 +6,8 @@
 
 DEFINE_LOG_CATEGORY(LogBink);
 
+#define LOCTEXT_NAMESPACE "BinkMediaPlayerModule"
+
 TSharedPtr<FBinkMovieStreamer, ESPMode::ThreadSafe> MovieStreamer;
 
 #if BINKPLUGIN_UE4_EDITOR
@@ -287,6 +289,8 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 #endif
 	bool bPluginInitialized = false;
 };
+
+#undef LOCTEXT_NAMESPACE
 
 IMPLEMENT_MODULE( FBinkMediaPlayerModule, BinkMediaPlayer )
 

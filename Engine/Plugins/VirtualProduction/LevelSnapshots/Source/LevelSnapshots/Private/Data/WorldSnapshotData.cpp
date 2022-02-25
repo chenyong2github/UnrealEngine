@@ -100,3 +100,5 @@ void FWorldSnapshotData::PostSerialize(const FArchive& Ar)
 		SnapshotVersionInfo.Initialize(bWithoutSnapshotVersion);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

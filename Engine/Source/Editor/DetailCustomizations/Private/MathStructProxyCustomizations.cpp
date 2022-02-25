@@ -111,8 +111,6 @@ FText FMathStructProxyCustomization::OnGetValueToolTip(TWeakPtr<IPropertyHandle>
 	return FText::GetEmpty();
 }
 
-#define LOCTEXT_NAMESPACE "MatrixStructCustomization"
-
 TSharedRef<IPropertyTypeCustomization> FMatrixStructCustomization::MakeInstance()
 {
 	return MakeShareable( new FMatrixStructCustomization );
@@ -500,8 +498,6 @@ bool FMatrixStructCustomization::FlushValues( TWeakPtr<IPropertyHandle> Property
 	return true;
 }
 
-#undef LOCTEXT_NAMESPACE
-
 TSharedRef<IPropertyTypeCustomization> FTransformStructCustomization::MakeInstance() 
 {
 	return MakeShareable( new FTransformStructCustomization );
@@ -798,3 +794,4 @@ bool FQuatStructCustomization::FlushValues(TWeakPtr<IPropertyHandle> PropertyHan
 	return true;
 }
 
+#undef LOCTEXT_NAMESPACE

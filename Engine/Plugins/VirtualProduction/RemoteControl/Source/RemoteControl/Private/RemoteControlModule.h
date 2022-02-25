@@ -149,6 +149,4 @@ private:
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-#undef LOCTEXT_NAMESPACE
-
 IMPLEMENT_MODULE(FRemoteControlModule, RemoteControl);

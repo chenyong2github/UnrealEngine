@@ -202,3 +202,5 @@ void FDerivedDataEditorModule::OnSettingsDialogClosed(const TSharedRef<SWindow>&
 	SettingsWindow = nullptr;
 	SettingsDialog = nullptr;
 }
+
+#undef LOCTEXT_NAMESPACE

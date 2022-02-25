@@ -124,3 +124,5 @@ void FUnrealInsightsLauncher::StartUnrealInsights(const FString& Path)
 		ReportMessageLog.Notify();
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

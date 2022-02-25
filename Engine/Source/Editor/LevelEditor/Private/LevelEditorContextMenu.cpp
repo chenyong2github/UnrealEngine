@@ -230,7 +230,7 @@ void FLevelEditorContextMenu::AddPlayFromHereSubMenu(FToolMenuSection& Section)
 {
 	if(FLevelEditorActionCallbacks::PlayFromHere_IsVisible())
 	{
-		Section.AddSubMenu("PlayFromHere", LOCTEXT("PlayFromHere", "Play From Here"), LOCTEXT("", ""), FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		Section.AddSubMenu("PlayFromHere", LOCTEXT("PlayFromHere", "Play From Here"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 		{
 			FToolMenuSection& NewSection = InMenu->AddSection("Section");
 			FUIAction PlayFromHere(FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::PlayFromHere_Clicked, false));

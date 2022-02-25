@@ -2326,3 +2326,5 @@ FName FDebuggerViewCreator::GetName() const
 }
 
 } // namespace UE::PoseSearch
+
+#undef LOCTEXT_NAMESPACE

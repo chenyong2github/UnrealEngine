@@ -74,6 +74,3 @@ private:
 	/** The splitter offset to align the group splitter with the other row's splitters. */
 	static constexpr float SplitterOffset = 0.008f;
 };
-
-
-#undef LOCTEXT_NAMESPACE /*RemoteControlPanelNode*/
