@@ -85,7 +85,7 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	.OnItemSelected(this, &SNiagaraParameterPanel::OnParameterItemSelected)
 	.OnItemsDragged(this, &SNiagaraParameterPanel::OnParameterItemsDragged)
 	.OnItemActivated(this, &SNiagaraParameterPanel::OnParameterItemActived)
-	.AllowMultiselect(false)
+	.AllowMultiselect(true)
 	.ClearSelectionOnClick(true)
 	.CategoryRowStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Parameters.TableRow")
 	.OnGetCategoryBackgroundImage(this, &SNiagaraParameterPanel::GetCategoryBackgroundImage)
@@ -508,10 +508,7 @@ bool SNiagaraParameterPanel::GetCanAddParametersToCategory(FNiagaraParameterPane
 
 void SNiagaraParameterPanel::DeleteSelectedItems() const
 {
-	for (const FNiagaraParameterPanelItem& Item : ItemSelector->GetSelectedItems())
-	{
-		ParameterPanelViewModel->DeleteParameter(Item);
-	}
+	ParameterPanelViewModel->DeleteParameters(ItemSelector->GetSelectedItems());
 }
 
 bool SNiagaraParameterPanel::CanDeleteSelectedItems() const

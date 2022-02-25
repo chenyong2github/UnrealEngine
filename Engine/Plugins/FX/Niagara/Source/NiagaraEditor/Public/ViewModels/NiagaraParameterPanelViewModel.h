@@ -158,7 +158,7 @@ public:
 
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const = 0;
 
-	virtual void DeleteParameter(const FNiagaraParameterPanelItem& ItemToDelete) const = 0;
+	virtual void DeleteParameters(const TArray<FNiagaraParameterPanelItem>& ItemsToDelete) const = 0;
 
 	virtual void RenameParameter(const FNiagaraParameterPanelItem& ItemToRename, const FName NewName) const = 0;
 
@@ -189,15 +189,15 @@ public:
 
 	virtual bool GetCanDeleteParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToDelete, FText& OutCanDeleteParameterToolTip) const;
 
-	virtual void ChangeParameterType(const FNiagaraParameterPanelItem ItemToModify, const FNiagaraTypeDefinition NewType) const;
-	virtual bool GetCanChangeParameterType(const FNiagaraParameterPanelItem ItemToChange, FText& OutTooltip) const;
-	virtual void GetChangeTypeSubMenu(FMenuBuilder& MenuBuilder, FNiagaraParameterPanelItem Item) const;
+	virtual void ChangeParameterType(const TArray<FNiagaraParameterPanelItem> ItemsToModify, const FNiagaraTypeDefinition NewType) const;
+	virtual bool GetCanChangeParameterType(const TArray<FNiagaraParameterPanelItem>& ItemToChange, FText& OutTooltip) const;
+	virtual void GetChangeTypeSubMenu(FMenuBuilder& MenuBuilder, TArray<FNiagaraParameterPanelItem> Item) const;
 
 	virtual void PasteParameterMetaData(const TArray<FNiagaraParameterPanelItem> SelectedItems);
 	virtual bool GetCanPasteParameterMetaDataAndToolTip(FText& OutCanPasteToolTip);
 
-	virtual void DuplicateParameter(const FNiagaraParameterPanelItem ItemToDuplicate) const;
-	virtual bool GetCanDuplicateParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToDuplicate, FText& OutCanDuplicateParameterToolTip) const;
+	virtual void DuplicateParameters(const TArray<FNiagaraParameterPanelItem> ItemToDuplicate) const;
+	virtual bool GetCanDuplicateParameterAndToolTip(const TArray<FNiagaraParameterPanelItem>& ItemsToDuplicate, FText& OutCanDuplicateParameterToolTip) const;
 
 	virtual bool GetCanRenameParameterAndToolTip(const FNiagaraParameterPanelItem& ItemToRename, const FText& NewVariableNameText, bool bCheckEmptyNameText, FText& OutCanRenameParameterToolTip) const;
 
@@ -287,7 +287,7 @@ public:
 
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
 
-	virtual void DeleteParameter(const FNiagaraParameterPanelItem& ItemToDelete) const override;
+	virtual void DeleteParameters(const TArray<FNiagaraParameterPanelItem>& ItemsToDelete) const override;
 
 	virtual void RenameParameter(const FNiagaraParameterPanelItem& ItemToRename, const FName NewName) const override;
 
@@ -387,13 +387,13 @@ public:
 
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
 
-	virtual void DeleteParameter(const FNiagaraParameterPanelItem& ItemToDelete) const override;
+	virtual void DeleteParameters(const TArray<FNiagaraParameterPanelItem>& ItemToDelete) const override;
 
 	virtual void RenameParameter(const FNiagaraParameterPanelItem& ItemToRename, const FName NewName) const override;
 	
-	virtual void ChangeParameterType(const FNiagaraParameterPanelItem ItemToModify, const FNiagaraTypeDefinition NewType) const override;
+	virtual void ChangeParameterType(const TArray<FNiagaraParameterPanelItem> ItemsToModify, const FNiagaraTypeDefinition NewType) const override;
 
-	virtual void DuplicateParameter(const FNiagaraParameterPanelItem ItemToDuplicate) const override;
+	virtual void DuplicateParameters(const TArray<FNiagaraParameterPanelItem> ItemsToDuplicate) const override;
 
 	virtual void SetParameterIsSubscribedToLibrary(const UNiagaraScriptVariable* ScriptVarToModify, const bool bSubscribed) const override;
 
@@ -487,7 +487,7 @@ public:
 
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
 
-	virtual void DeleteParameter(const FNiagaraParameterPanelItem& ItemToDelete) const override;
+	virtual void DeleteParameters(const TArray<FNiagaraParameterPanelItem>& ItemToDelete) const override;
 
 	virtual void RenameParameter(const FNiagaraParameterPanelItem& ItemToRename, const FName NewName) const override;
 

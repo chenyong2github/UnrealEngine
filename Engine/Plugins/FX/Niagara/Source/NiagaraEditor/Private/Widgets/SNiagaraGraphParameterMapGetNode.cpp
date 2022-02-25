@@ -79,85 +79,142 @@ void SNiagaraGraphParameterMapGetNode::CreatePinWidgets()
 	SGraphNode::CreatePinWidgets();
 	
 	UNiagaraNodeParameterMapGet* GetNode = Cast<UNiagaraNodeParameterMapGet>(GraphNode);
+	
+	TSet<TSharedRef<SGraphPin>> AddedPins;
 
-
-	// Deferred pin adding to line up input/output pins by name.
-	for (int32 i = 0; i < OutputPins.Num() + 1; i++)
+	auto AddRowWidgetToNode = [this](TSharedPtr<SWidget> RowWidget)
 	{
-		// Get nodes have an unequal number of pins. 
-		TSharedPtr<SWidget> Widget;
-		if (i == 0)
-		{
-
-			SAssignNew(Widget, SHorizontalBox)
-				.Visibility(EVisibility::Visible)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.FillWidth(1.0f)
-				.Padding(Settings->GetInputPinPadding())
-				[
-					(InputPins.Num() > 0 ? InputPins[0] : SNullWidget::NullWidget)
-				]
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Right)
-				.Padding(Settings->GetOutputPinPadding())
-				[
-					SNullWidget::NullWidget
-				];
-		}
-		else
-		{
-			TSharedRef<SGraphPin> OutputPin = OutputPins[i - 1];
-			UEdGraphPin* SrcOutputPin = OutputPin->GetPinObj();
-
-			UEdGraphPin* MatchingInputPin = GetNode->GetDefaultPin(SrcOutputPin);
-
-			TSharedPtr<SWidget> InputPin = SNullWidget::NullWidget;
-			for (TSharedRef<SGraphPin> Pin : InputPins)
-			{
-				UEdGraphPin* SrcInputPin = Pin->GetPinObj();
-				if (SrcInputPin == MatchingInputPin)
-				{
-					InputPin = Pin;
-					Pin->SetShowLabel(false);
-				}
-			}
-
-			SAssignNew(Widget, SHorizontalBox)
-				.Visibility(EVisibility::Visible)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.FillWidth(1.0f)
-				.Padding(Settings->GetInputPinPadding())
-				[
-					InputPin.ToSharedRef()
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Right)
-				.Padding(Settings->GetOutputPinPadding())
-				[
-					OutputPin
-				];
-		}
-
 		TSharedRef<SBorder> Border = SNew(SBorder)
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.Padding(FMargin(0, 3))
 			//.OnMouseButtonDown(this, &SNiagaraGraphParameterMapGetNode::OnBorderMouseButtonDown, i)
 			[
-				Widget.ToSharedRef()
+				RowWidget.ToSharedRef()
 			];
-		Border->SetBorderImage(TAttribute<const FSlateBrush*>::Create(TAttribute<const FSlateBrush*>::FGetter::CreateRaw(this, &SNiagaraGraphParameterMapGetNode::GetBackgroundBrush, Widget)));
-
+		
+		Border->SetBorderImage(TAttribute<const FSlateBrush*>::Create(TAttribute<const FSlateBrush*>::FGetter::CreateRaw(this, &SNiagaraGraphParameterMapGetNode::GetBackgroundBrush, RowWidget)));
 
 		PinContainerRoot->AddSlot()
-			.AutoHeight()
+		.AutoHeight()
+		[
+			Border
+		];
+	};
+	
+	// add the source pin on the first row
+	TSharedPtr<SGraphPin> SourcePin = nullptr;
+	if(InputPins.Num() > 0)
+	{
+		SourcePin = InputPins[0];
+	}
+		
+	TSharedPtr<SWidget> SourceRowWidget = SNew(SHorizontalBox)
+		.Visibility(EVisibility::Visible)
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.FillWidth(1.0f)
+		.Padding(Settings->GetInputPinPadding())
+		[
+			(SourcePin.IsValid() ? SourcePin.ToSharedRef() : SNullWidget::NullWidget)
+		]
+	+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Right)
+		.Padding(Settings->GetOutputPinPadding())
+		[
+			SNullWidget::NullWidget
+		];
+
+	if(SourcePin.IsValid())
+	{
+		AddedPins.Add(InputPins[0]);
+	}
+
+	AddRowWidgetToNode(SourceRowWidget);
+	
+	// Deferred pin adding to line up input/output pins by name.
+	for (int32 i = 0; i < OutputPins.Num(); i++)
+	{
+		TSharedRef<SGraphPin> OutputPin = OutputPins[i];
+		UEdGraphPin* SrcOutputPin = OutputPin->GetPinObj(); 
+
+		UEdGraphPin* MatchingInputPin = GetNode->GetDefaultPin(SrcOutputPin);
+
+		TSharedPtr<SGraphPin> InputPin = nullptr;
+		for (TSharedRef<SGraphPin> Pin : InputPins)
+		{
+			UEdGraphPin* SrcInputPin = Pin->GetPinObj();
+			if (SrcInputPin == MatchingInputPin)
+			{
+				InputPin = Pin;
+				Pin->SetShowLabel(false);
+			}
+		}
+
+		TSharedPtr<SWidget> ParameterRow = SNew(SHorizontalBox)
+			.Visibility(EVisibility::Visible)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.FillWidth(1.0f)
+			.Padding(Settings->GetInputPinPadding())
 			[
-				Border
+				(InputPin.IsValid() ? InputPin.ToSharedRef() : SNullWidget::NullWidget)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			.Padding(Settings->GetOutputPinPadding())
+			[
+				OutputPin
 			];
+
+		if(InputPin.IsValid())
+		{
+			AddedPins.Add(InputPin.ToSharedRef());
+		}
+		AddedPins.Add(OutputPin);
+
+		AddRowWidgetToNode(ParameterRow);
+	}
+
+	// for each unadded input pin (for example orphaned pins), we add them back at the bottom
+	for (int32 i = 0; i < InputPins.Num(); i++)
+	{
+		if(!AddedPins.Contains(InputPins[i]))
+		{
+			TSharedRef<SGraphPin> UnaddedInputPin = InputPins[i];
+			// since we don't want to waste space, we look for some output pin we also haven't added yet
+			TSharedRef<SGraphPin>* SomeUnaddedOutputPin = OutputPins.FindByPredicate([&](TSharedRef<SGraphPin> Pin)
+			{
+				return !AddedPins.Contains(Pin);
+			});
+
+			TSharedPtr<SWidget> LeftoverPinContainer = SNew(SHorizontalBox)
+				.Visibility(EVisibility::Visible)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.FillWidth(1.0f)
+				.Padding(Settings->GetInputPinPadding())
+				[
+					UnaddedInputPin
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Right)
+				.Padding(Settings->GetOutputPinPadding())
+				[
+					(SomeUnaddedOutputPin != nullptr ? (*SomeUnaddedOutputPin) : SNullWidget::NullWidget)
+				];
+
+			AddedPins.Add(UnaddedInputPin);
+			if(SomeUnaddedOutputPin != nullptr)
+			{
+				AddedPins.Add(*SomeUnaddedOutputPin);
+			}
+			
+			AddRowWidgetToNode(LeftoverPinContainer);
+		}
 	}
 }
 

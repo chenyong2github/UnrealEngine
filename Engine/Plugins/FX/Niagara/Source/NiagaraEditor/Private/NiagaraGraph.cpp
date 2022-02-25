@@ -467,68 +467,168 @@ void UNiagaraGraph::PostLoad()
 	InvalidateCachedParameterData();
 }
 
-void UNiagaraGraph::ChangeParameterType(const FNiagaraVariable& CurrentParameter, const FNiagaraTypeDefinition& NewType)
+void UNiagaraGraph::ChangeParameterType(const TArray<FNiagaraVariable>& ParametersToChange, const FNiagaraTypeDefinition& NewType, bool bAllowOrphanedPins)
 {
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 	TArray<UNiagaraNodeParameterMapBase*> NiagaraParameterNodes;
 	GetNodesOfClass<UNiagaraNodeParameterMapBase>(NiagaraParameterNodes);
-	for (UNiagaraNodeParameterMapBase* NiagaraNode : NiagaraParameterNodes)
-	{
-		for (UEdGraphPin* Pin : NiagaraNode->Pins)
-		{
-			if (NiagaraNode->IsAddPin(Pin))
-			{
-				continue;
-			}
-			FNiagaraVariable Variable = FNiagaraVariable(NiagaraSchema->PinToTypeDefinition(Pin), Pin->PinName);
-			if (Variable == CurrentParameter)
-			{
-				Pin->Modify();
-				Pin->PinType = NiagaraSchema->TypeDefinitionToPinType(NewType);
-				Pin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
 
-				// fix default pin types if necessary
-				if (UNiagaraNodeParameterMapGet* GetNode = Cast<UNiagaraNodeParameterMapGet>(NiagaraNode))
+	TMap<UEdGraphPin*, FNiagaraTypeDefinition> OldTypesCache;
+	
+	auto TryCreateOrphanedPin = [&](UNiagaraNode* Node, FName OrphanedPinName, UEdGraphPin* OriginalPin)
+	{
+		// We check pin connections for type to determine if we want to keep a connection or discard it
+		TSet<UEdGraphPin*> PinConnectionsToKeep;
+		for (UEdGraphPin* ConnectedPin : OriginalPin->LinkedTo)
+		{
+			// we might have already visited and changed the connected pin, so we test against its old type cache if available
+			FNiagaraTypeDefinition CurrentPinType = UEdGraphSchema_Niagara::PinToTypeDefinition(ConnectedPin);
+			FNiagaraVariable ConnectedVariable(OldTypesCache.Contains(ConnectedPin) ? OldTypesCache[ConnectedPin] : CurrentPinType, ConnectedPin->PinName);
+			
+			// keep it if the connected pin has a matching type already or will have a matching type after type conversion is done
+			if((ConnectedPin->PinType.PinSubCategory == UNiagaraNodeParameterMapBase::ParameterPinSubCategory && ParametersToChange.Contains(ConnectedVariable))
+				|| CurrentPinType == NewType)
+			{
+				PinConnectionsToKeep.Add(ConnectedPin);
+			}						
+		}
+
+		// in case we are keeping all connections, all previously existing connections are parameter pins of the same type or will be of the same type after this operation is done
+		if(PinConnectionsToKeep.Num() != OriginalPin->LinkedTo.Num())
+		{
+			ensure(OldTypesCache.Contains(OriginalPin));
+			
+			UEdGraphPin* NewOrphanedPin = Node->CreatePin(OriginalPin->Direction, OriginalPin->PinType.PinCategory, OrphanedPinName);
+			NewOrphanedPin->PinType = UEdGraphSchema_Niagara::TypeDefinitionToPinType(OldTypesCache[OriginalPin]);
+			NewOrphanedPin->PersistentGuid = FGuid::NewGuid();
+			NewOrphanedPin->bNotConnectable = true;
+			NewOrphanedPin->bOrphanedPin = true;
+			
+			TSet<UEdGraphPin*> PinsToDisconnect;
+			for (UEdGraphPin* PinConnection : OriginalPin->LinkedTo)
+			{
+				// wire up the new orphaned pin with previous connections if we aren't keeping the connection
+				if(!PinConnectionsToKeep.Contains(PinConnection))
 				{
-					UEdGraphPin* DefaultPin = GetNode->GetDefaultPin(Pin);
-					if (Pin->Direction == EGPD_Output && DefaultPin && DefaultPin->PinType != Pin->PinType)
-					{
-						DefaultPin->PinType = Pin->PinType;
-					}
+					NewOrphanedPin->LinkedTo.Add(PinConnection);
+					PinConnection->LinkedTo.Add(NewOrphanedPin);
+
+					PinsToDisconnect.Add(PinConnection);
+				}
+			}
+
+			// disconnect the previous connections from the original pin
+			for (UEdGraphPin* PinToDisconnect : PinsToDisconnect)
+			{
+				PinToDisconnect->LinkedTo.Remove(OriginalPin);
+				OriginalPin->LinkedTo.Remove(PinToDisconnect);
+			}							
+		}
+	};
+
+	// for every parameter, we loop over every node and every pin until we encounter a pin representing the parameter
+	for(const FNiagaraVariable& CurrentParameter : ParametersToChange)
+	{
+		// a safe guard so we only look for pins that actually represent parameters and not just any pin name with the same name as a parameter
+		if(!VariableToScriptVariable.Contains(CurrentParameter))
+		{
+			continue;
+		}
+		
+		for (UNiagaraNodeParameterMapBase* NiagaraNode : NiagaraParameterNodes)
+		{
+			TSet<UEdGraphPin*> NewOrphanedPins;
+			for (UEdGraphPin* Pin : NiagaraNode->Pins)
+			{
+				if (NiagaraNode->IsAddPin(Pin) || Pin->bOrphanedPin)
+				{
+					continue;
 				}
 
-				NiagaraNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
-				break;
+				FNiagaraVariable PinVariable = FNiagaraVariable(UEdGraphSchema_Niagara::PinToTypeDefinition(Pin), Pin->PinName);
+				if (PinVariable == CurrentParameter)
+				{
+					// we cache off the old type before changing it as we might encounter a pin we already changed later on in connections
+					if(!OldTypesCache.Contains(Pin))
+					{
+						OldTypesCache.Add(Pin, PinVariable.GetType());					
+					}
+					
+					Pin->Modify();
+					Pin->PinType = NiagaraSchema->TypeDefinitionToPinType(NewType);
+					Pin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
+
+					// we only want to create an additional orphaned pin if there is at least one pin connection or if the pin value differs from the 'default' pin value
+					if(bAllowOrphanedPins)
+					{
+						bool bCreateOrphanedPin = (Pin->bDefaultValueIsIgnored == false && Pin->DefaultValue != Pin->AutogeneratedDefaultValue) || Pin->LinkedTo.Num() > 0;
+						if(bCreateOrphanedPin)
+						{
+							TryCreateOrphanedPin(NiagaraNode, Pin->PinName, Pin);
+						}
+					}
+
+					// fix default pin types if necessary. We don't support orphaned pins for default types so we just disconnect the pin
+					if (UNiagaraNodeParameterMapGet* GetNode = Cast<UNiagaraNodeParameterMapGet>(NiagaraNode))
+					{
+						UEdGraphPin* DefaultPin = GetNode->GetDefaultPin(Pin);
+						if (Pin->Direction == EGPD_Output && DefaultPin && Pin->PinType != DefaultPin->PinType)
+						{
+							ensure(OldTypesCache.Contains(Pin));
+							
+							if(!OldTypesCache.Contains(DefaultPin))
+							{
+								OldTypesCache.Add(DefaultPin, UEdGraphSchema_Niagara::PinToTypeDefinition(DefaultPin));					
+							}
+							
+							DefaultPin->Modify();
+							DefaultPin->PinType = Pin->PinType;
+
+							if(bAllowOrphanedPins)
+							{
+								bool bCreateOrphanedPin = DefaultPin->LinkedTo.Num() > 0;
+
+								if(bCreateOrphanedPin)
+								{
+									TryCreateOrphanedPin(NiagaraNode, Pin->PinName, DefaultPin);
+								}
+							}
+						}
+					}
+
+					NiagaraNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
+					break;
+				}			
 			}
 		}
-	}
-	
-	TObjectPtr<UNiagaraScriptVariable>* ScriptVariablePtr = VariableToScriptVariable.Find(CurrentParameter);
-	if (ScriptVariablePtr != nullptr && !ScriptVariablePtr->IsNull())
-	{
-		UNiagaraScriptVariable& ScriptVar = *ScriptVariablePtr->Get();
-		ScriptVar.Modify();
-		ScriptVar.Variable.SetType(NewType);
-		VariableToScriptVariable.Remove(CurrentParameter);
-
-		FNiagaraVariable NewVarType(NewType, CurrentParameter.GetName());
-		VariableToScriptVariable.Add(NewVarType, TObjectPtr<UNiagaraScriptVariable>(&ScriptVar));
-		ScriptVariableChanged(NewVarType);
-	}
-
-	// Also fix stale parameter reference map entries. This should usually happen in RefreshParameterReferences, but since we just changed VariableToScriptVariable we need to fix that as well. 
-	FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(CurrentParameter);
-	if (ReferenceCollection != nullptr)
-	{
-		if (ReferenceCollection->ParameterReferences.Num() > 0)
+		
+		TObjectPtr<UNiagaraScriptVariable>* ScriptVariablePtr = VariableToScriptVariable.Find(CurrentParameter);
+		if (ScriptVariablePtr != nullptr && !ScriptVariablePtr->IsNull())
 		{
+			UNiagaraScriptVariable& ScriptVar = *ScriptVariablePtr->Get();
+			ScriptVar.Modify();
+			ScriptVar.Variable.SetType(NewType);
+			VariableToScriptVariable.Remove(CurrentParameter);
+
 			FNiagaraVariable NewVarType(NewType, CurrentParameter.GetName());
-			FNiagaraGraphParameterReferenceCollection NewReferenceCollection = *ReferenceCollection;
-			ParameterToReferencesMap.Add(NewVarType, NewReferenceCollection);
+			VariableToScriptVariable.Add(NewVarType, TObjectPtr<UNiagaraScriptVariable>(&ScriptVar));
+			ScriptVariableChanged(NewVarType);
 		}
-		ParameterToReferencesMap.Remove(CurrentParameter);
-	}
-	InvalidateCachedParameterData();
+
+		// Also fix stale parameter reference map entries. This should usually happen in RefreshParameterReferences, but since we just changed VariableToScriptVariable we need to fix that as well. 
+		FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(CurrentParameter);
+		if (ReferenceCollection != nullptr)
+		{
+			if (ReferenceCollection->ParameterReferences.Num() > 0)
+			{
+				FNiagaraVariable NewVarType(NewType, CurrentParameter.GetName());
+				FNiagaraGraphParameterReferenceCollection NewReferenceCollection = *ReferenceCollection;
+				ParameterToReferencesMap.Add(NewVarType, NewReferenceCollection);
+			}
+			ParameterToReferencesMap.Remove(CurrentParameter);
+		}
+		InvalidateCachedParameterData();
+	}	
 }
 
 TArray<UEdGraphPin*> UNiagaraGraph::FindParameterMapDefaultValuePins(const FName VariableName) const

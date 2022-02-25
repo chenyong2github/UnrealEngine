@@ -91,7 +91,7 @@ UEdGraphPin* UNiagaraNodeParameterMapGet::CreateDefaultPin(UEdGraphPin* OutputPi
 	{
 		return nullptr;
 	}
-
+	
 	UEdGraphPin* DefaultPin = CreatePin(EEdGraphPinDirection::EGPD_Input, OutputPin->PinType, TEXT(""));
 
 	// make sure the new pin name is legal
@@ -294,7 +294,7 @@ void UNiagaraNodeParameterMapGet::PostLoad()
 	for (int32 i = 0; i < OutputPins.Num(); i++)
 	{
 		UEdGraphPin* OutputPin = OutputPins[i];
-		if (IsAddPin(OutputPin))
+		if (IsAddPin(OutputPin) || OutputPin->bOrphanedPin)
 		{
 			continue;
 		}

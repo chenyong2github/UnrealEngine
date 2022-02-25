@@ -656,5 +656,5 @@ void UNiagaraScriptSource::ChangedLinkedInputTypes(const FNiagaraVariable& Param
 	{
 		return;
 	}
-	NodeGraph->ChangeParameterType(ParametersToChange, NewType);
+	NodeGraph->ChangeParameterType({ParametersToChange}, NewType);
 }

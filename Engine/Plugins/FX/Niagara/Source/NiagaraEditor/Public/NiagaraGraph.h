@@ -309,8 +309,12 @@ class UNiagaraGraph : public UEdGraph
 	/** Rename a pin inline in a graph. If this is the only instance used in the graph, then rename them all, otherwise make a duplicate. */
 	bool RenameParameterFromPin(const FNiagaraVariable& Parameter, FName NewName, UEdGraphPin* InPin);
 
-	/** Changes the type of an existing graph variable. This is an unsafe operation, usually guarded by a cvar and not directly exposed to users. */
-	void ChangeParameterType(const FNiagaraVariable& CurrentParameter, const FNiagaraTypeDefinition& NewType);
+	/** Changes the type of existing graph parameters.
+	 *  Optionally creates orphaned pins for any connection that won't be kept, but tries to keep connections as long as types are matching.
+	 *  Changing multiple parameters at once helps with maintaining connections.
+	 *  CAUTION: Do not allow orphaned pins in the stack graphs, as they aren't user facing.
+	 */
+	void ChangeParameterType(const TArray<FNiagaraVariable>& ParametersToChange, const FNiagaraTypeDefinition& NewType, bool bAllowOrphanedPins = false);
 
 	/** Gets a delegate which is called whenever a contained data interfaces changes. */
 	FOnDataInterfaceChanged& OnDataInterfaceChanged();

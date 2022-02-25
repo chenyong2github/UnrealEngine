@@ -343,7 +343,7 @@ void UNiagaraNodeParameterMapSet::PostLoad()
 			Pin->PersistentGuid = FGuid::NewGuid();
 		}
 
-		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && Pin->GetFName() != UNiagaraNodeParameterMapBase::SourcePinName && !IsAddPin(Pin))
+		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && Pin->GetFName() != UNiagaraNodeParameterMapBase::SourcePinName && !IsAddPin(Pin) && !Pin->bOrphanedPin)
 		{
 			Pin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
 		}
