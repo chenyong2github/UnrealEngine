@@ -252,7 +252,12 @@ void ASmartObjectCollection::ValidateDefinitions()
 {
 	for (const USmartObjectDefinition* Definition : Definitions)
 	{
-		if (ensureMsgf(Definition != nullptr, TEXT("Collection is expected to contain only valid definition entries")))
+
+		UE_CVLOG_UELOG(Definition == nullptr, this, LogSmartObject, Warning
+			, TEXT("Null definition found at index (%d) in collection '%s'. Collection needs to be rebuilt and saved.")
+			, Definitions.IndexOfByKey(Definition)
+			,*GetFullName());
+		if (Definition != nullptr)
 		{
 			Definition->Validate();
 		}

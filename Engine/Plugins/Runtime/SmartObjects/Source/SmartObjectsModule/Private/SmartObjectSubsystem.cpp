@@ -272,6 +272,13 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 		{
 			const bool bIsNewEntry = MainCollection->AddSmartObject(SmartObjectComponent);
 
+#if WITH_EDITOR
+			if (bIsNewEntry)
+			{
+				OnMainCollectionDirtied.Broadcast();
+			}
+#endif
+
 			// At runtime we only add new collection entries to the simulation. All existing entries were added on WorldBeginPlay
 			if (World.IsGameWorld() && bInitialCollectionAddedToSimulation && bIsNewEntry)
 			{
@@ -931,8 +938,6 @@ ESmartObjectCollectionRegistrationResult USmartObjectSubsystem::RegisterCollecti
 		MainCollection = &InCollection;
 
 #if WITH_EDITOR
-		OnMainCollectionChanged.Broadcast();
-
 		// For a collection that is automatically updated, it gets rebuilt on registration in the Edition world.
 		const UWorld& World = GetWorldRef();
 		if (!World.IsGameWorld() &&
@@ -941,6 +946,9 @@ ESmartObjectCollectionRegistrationResult USmartObjectSubsystem::RegisterCollecti
 		{
 			RebuildCollection(InCollection);
 		}
+
+		// Broadcast after rebuilding so listeners will be able to access up-to-date data
+		OnMainCollectionChanged.Broadcast();
 #endif // WITH_EDITOR
 
 		InCollection.OnRegistered();

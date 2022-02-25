@@ -131,7 +131,13 @@ protected:
 	FDelegateHandle OnAnnotationSettingsChangedHandle;
 	FDelegateHandle OnGraphDataChangedHandle;
 	FDelegateHandle OnMainCollectionChangedHandle;
+	FDelegateHandle OnMainCollectionDirtiedHandle;
 #endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+	virtual void Serialize(FArchive& Ar) override;
+	bool bRebuildAllGraphsRequested = false;
+#endif
 
 	/** Cached SmartObjectSubsystem */
 	UPROPERTY(Transient)

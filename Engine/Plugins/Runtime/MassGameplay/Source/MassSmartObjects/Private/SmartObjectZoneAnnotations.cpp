@@ -29,6 +29,19 @@ void USmartObjectZoneAnnotations::PostSubsystemsInitialized()
 				RebuildForAllGraphs();
 			}
 		});
+
+		OnMainCollectionDirtiedHandle = SmartObjectSubsystem->OnMainCollectionDirtied.AddLambda([this]()
+		{
+			const UWorld* World = GetWorld();
+			if (World != nullptr && !World->IsGameWorld())
+			{
+				// Simply queue a rebuild request until we serialize the annotations.
+				// This is to avoid large amount of rebuild triggered from SmartObjectComponents being constantly
+				// unregistered/registered when modifying their properties (e.g. dragging the actor(s) in the level)
+				bRebuildAllGraphsRequested = true;
+				MarkPackageDirty();
+	}
+		});
 	}
 
 	const UMassSmartObjectSettings* MassSmartObjectSettings = GetDefault<UMassSmartObjectSettings>();
@@ -45,7 +58,7 @@ void USmartObjectZoneAnnotations::PostSubsystemsInitialized()
 	{
 		RebuildForAllGraphs();
 	});
-#endif
+#endif // WITH_EDITOR
 
 	// Update our cached members before calling base class since it might call
 	// PostZoneGraphDataAdded and we need to be all set.
@@ -209,9 +222,34 @@ void USmartObjectZoneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* Debu
 }
 #endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 
+#if WITH_EDITORONLY_DATA
+void USmartObjectZoneAnnotations::Serialize(FArchive& Ar)
+{
+	if (bRebuildAllGraphsRequested
+		&& Ar.IsSaving()
+		&& Ar.IsPersistent()	// saving archive for persistent storage (package)
+		&& !Ar.IsTransacting()	// do not rebuild for transactions (i.e. undo/redo)
+		)
+	{
+		RebuildForAllGraphs();
+	}
+
+	Super::Serialize(Ar);
+}
+#endif // WITH_EDITORONLY_DATA
+
 #if WITH_EDITOR
 void USmartObjectZoneAnnotations::OnUnregister()
 {
+	if (SmartObjectSubsystem != nullptr)
+	{
+		SmartObjectSubsystem->OnMainCollectionChanged.Remove(OnMainCollectionChangedHandle);
+		OnMainCollectionChangedHandle.Reset();
+
+		SmartObjectSubsystem->OnMainCollectionDirtied.Remove(OnMainCollectionDirtiedHandle);
+		OnMainCollectionDirtiedHandle.Reset();
+	}
+
 	GetDefault<UMassSmartObjectSettings>()->OnAnnotationSettingsChanged.Remove(OnAnnotationSettingsChangedHandle);
 	OnAnnotationSettingsChangedHandle.Reset();
 
@@ -278,7 +316,7 @@ void USmartObjectZoneAnnotations::RebuildForSingleGraph(FSmartObjectAnnotationDa
 	for (const FSmartObjectCollectionEntry& Entry : Collection->GetEntries())
 	{
 		FSmartObjectHandle Handle = Entry.GetHandle();
-		const FVector& ObjectLocation = Entry.GetComponent()->GetComponentLocation();
+		const FVector& ObjectLocation = Entry.GetTransform().GetLocation();
 		const FBox QueryBounds(ObjectLocation - SearchExtent, ObjectLocation + SearchExtent);
 
 		FZoneGraphLaneLocation LaneLocation;
@@ -326,6 +364,8 @@ void USmartObjectZoneAnnotations::RebuildForSingleGraph(FSmartObjectAnnotationDa
 
 void USmartObjectZoneAnnotations::RebuildForAllGraphs()
 {
+	bRebuildAllGraphsRequested = false;
+
 	UZoneGraphSubsystem* ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(GetWorld());
 	if (!ZoneGraphSubsystem)
 	{

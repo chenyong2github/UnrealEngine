@@ -15,8 +15,8 @@ class ASmartObjectSubsystemRenderingActor;
 class FDebugRenderSceneProxy;
 
 #if WITH_EDITOR
-/** Called when main collection changed. */
-DECLARE_MULTICAST_DELEGATE(FOnMainCollectionChanged);
+/** Called when an event related to the main collection occured. */
+DECLARE_MULTICAST_DELEGATE(FOnMainCollectionEvent);
 #endif
 
 /**
@@ -389,7 +389,8 @@ public:
 #endif
 
 #if WITH_EDITOR
-	mutable FOnMainCollectionChanged OnMainCollectionChanged;
+	mutable FOnMainCollectionEvent OnMainCollectionChanged;
+	mutable FOnMainCollectionEvent OnMainCollectionDirtied;
 #endif
 
 protected:
