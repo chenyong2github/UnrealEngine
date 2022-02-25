@@ -474,8 +474,8 @@ private:
 	TMap<int32, TArray<ReadUserListInfo>> CachedReadUserListInfoForLocalUserMap;
 
 	/** Identifier for the external UI notification callback */
-	EOS_NotificationId DisplaySettingsUpdatedId;
-	FCallbackBase* DisplaySettingsUpdatedCallback;
+	EOS_NotificationId DisplaySettingsUpdatedId = EOS_INVALID_NOTIFICATIONID;
+	FCallbackBase* DisplaySettingsUpdatedCallback = nullptr;
 
 	/** Last Login Credentials used for a login attempt */
 	TMap<int32, TSharedRef<FOnlineAccountCredentials>> LocalUserNumToLastLoginCredentials;
