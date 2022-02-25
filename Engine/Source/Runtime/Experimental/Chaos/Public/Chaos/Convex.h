@@ -914,6 +914,22 @@ namespace Chaos
 			return FVec3(0);
 		}
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+		// See PerParticlePBDCollisionConstraint.cpp
+		// ISPC code has matching structs for interpreting FImplicitObjects.
+		// This is used to verify that the structs stay the same.
+		struct FISPCDataVerifier
+		{
+			static constexpr int32 OffsetOfPlanes() { return offsetof(FConvex, Planes); }
+			static constexpr int32 SizeOfPlanes() { return sizeof(FConvex::Planes); }
+			static constexpr int32 OffsetOfVertices() { return offsetof(FConvex, Vertices); }
+			static constexpr int32 SizeOfVertices() { return sizeof(FConvex::Vertices); }
+			static constexpr int32 OffsetOfStructureData() { return offsetof(FConvex, StructureData); }
+			static constexpr int32 SizeOfStructureData() { return sizeof(FConvex::StructureData); }
+		};
+		friend FISPCDataVerifier;
+#endif // #if INTEL_ISPC && !UE_BUILD_SHIPPING
+
 	private:
 		TArray<FPlaneType> Planes;
 		TArray<FVec3Type> Vertices; //copy of the vertices that are just on the convex hull boundary

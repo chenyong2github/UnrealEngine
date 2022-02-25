@@ -330,6 +330,26 @@ namespace Chaos
 			return HashCombine(PlaneHashes, PropertyHash);
 		}
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+		// See PerParticlePBDCollisionConstraint.cpp
+		// ISPC code has matching structs for interpreting FImplicitObjects.
+		// This is used to verify that the structs stay the same.
+		struct FISPCDataVerifier
+		{
+			static constexpr int32 OffsetOfMPlane1() { return offsetof(FTaperedCylinder, MPlane1); }
+			static constexpr int32 SizeOfMPlane1() { return sizeof(FTaperedCylinder::MPlane1); }
+			static constexpr int32 OffsetOfMPlane2() { return offsetof(FTaperedCylinder, MPlane2); }
+			static constexpr int32 SizeOfMPlane2() { return sizeof(FTaperedCylinder::MPlane2); }
+			static constexpr int32 OffsetOfMHeight() { return offsetof(FTaperedCylinder, MHeight); }
+			static constexpr int32 SizeOfMHeight() { return sizeof(FTaperedCylinder::MHeight); }
+			static constexpr int32 OffsetOfMRadius1() { return offsetof(FTaperedCylinder, MRadius1); }
+			static constexpr int32 SizeOfMRadius1() { return sizeof(FTaperedCylinder::MRadius1); }
+			static constexpr int32 OffsetOfMRadius2() { return offsetof(FTaperedCylinder, MRadius2); }
+			static constexpr int32 SizeOfMRadius2() { return sizeof(FTaperedCylinder::MRadius2); }
+		};
+		friend FISPCDataVerifier;
+#endif // #if INTEL_ISPC && !UE_BUILD_SHIPPING
+
 	private:
 		//Phi is distance from closest point on plane1
 		FReal GetRadius(const FReal& Phi) const
@@ -338,7 +358,7 @@ namespace Chaos
 			return MRadius1 * (static_cast<FReal>(1.) - Alpha) + MRadius2 * Alpha;
 		}
 
-		TPlane<FReal, 3> MPlane1, MPlane2;
+		TPlaneConcrete<FReal, 3> MPlane1, MPlane2;
 		FReal MHeight, MRadius1, MRadius2;
 		FAABB3 MLocalBoundingBox;
 	};

@@ -253,6 +253,20 @@ namespace Chaos
 			return Ar;
 		}
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+		// See PerParticlePBDCollisionConstraint.cpp
+		// ISPC code has matching structs for interpreting FImplicitObjects.
+		// This is used to verify that the structs stay the same.
+		struct FISPCDataVerifier
+		{
+			static constexpr int32 OffsetOfData() { return offsetof(FConvexStructureData, Data); }
+			static constexpr int32 SizeOfData() { return sizeof(FConvexStructureData::Data); }
+			static constexpr int32 OffsetOfIndexType() { return offsetof(FConvexStructureData, IndexType); }
+			static constexpr int32 SizeOfIndexType() { return sizeof(FConvexStructureData::IndexType); }
+		};
+		friend FISPCDataVerifier;
+#endif // #if INTEL_ISPC && !UE_BUILD_SHIPPING
+
 	private:
 
 		// Load data from an asset saved before we had a proper half-edge data structure

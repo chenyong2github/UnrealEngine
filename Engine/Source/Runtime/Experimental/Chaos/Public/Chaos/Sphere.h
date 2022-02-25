@@ -372,6 +372,18 @@ namespace Chaos
 			return  TUniquePtr<FImplicitObject>(new TSphere<T, d>(Center * Scale, GetRadius() * Scale.Min()));
 		}
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+		// See PerParticlePBDCollisionConstraint.cpp
+		// ISPC code has matching structs for interpreting FImplicitObjects.
+		// This is used to verify that the structs stay the same.
+		struct FISPCDataVerifier
+		{
+			static constexpr int32 OffsetOfCenter() { return offsetof(TSphere, Center); }
+			static constexpr int32 SizeOfCenter() { return sizeof(TSphere::Center); }
+		};
+		friend FISPCDataVerifier;
+#endif // #if INTEL_ISPC && !UE_BUILD_SHIPPING
+
 	private:
 		void SetRadius(FReal InRadius) { SetMargin(InRadius); }
 

@@ -30,13 +30,14 @@ class FImplicitObject;
 
 using FAABB3 = TAABB<FReal, 3>;
 using FParticles = TParticles<FReal, 3>;
+using FSphere = TSphere<FReal, 3>; // warning: code assumes that FImplicitObjects with type ImplicitObjectType::Sphere are FSpheres, but all TSpheres will think they have ImplicitObjectType::Sphere.
 
 namespace ImplicitObjectType
 {
 	enum
 	{
 		//Note: add entries in order to avoid serialization issues (but before IsInstanced)
-		Sphere = 0,
+		Sphere = 0, // warning: code assumes that this is an FSphere, but all TSpheres will think this is their type.
 		Box,
 		Plane,
 		Capsule,

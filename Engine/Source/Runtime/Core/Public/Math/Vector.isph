@@ -2637,7 +2637,12 @@ inline uniform FVector VectorAbs(const uniform FVector& A)
 	return *((uniform FVector *uniform)&Result);
 }
 
-inline bool IsVectorEqual(const FVector &A, const FVector &B)
+inline bool IsVectorEqual(const FVector3d &A, const FVector3d &B)
+{
+	return A.V[0] == B.V[0] && A.V[1] == B.V[1] && A.V[2] == B.V[2];
+}
+
+inline bool IsVectorEqual(const FVector3f &A, const FVector3f &B)
 {
 	return A.V[0] == B.V[0] && A.V[1] == B.V[1] && A.V[2] == B.V[2];
 }
@@ -3467,9 +3472,15 @@ inline varying float VectorDot( const varying FVector3f &Vec1, const varying FVe
 	return Temp.V[0] + Temp.V[1] + Temp.V[2];
 }
 
-inline varying FReal VectorDot( const varying FVector &Vec1, const uniform FVector &Vec2 )
+inline varying double VectorDot( const varying FVector3d &Vec1, const uniform FVector3d &Vec2 )
 {
-	const varying FVector Temp = Vec1 * Vec2;
+	const varying FVector3d Temp = Vec1 * Vec2;
+	return Temp.V[0] + Temp.V[1] + Temp.V[2];
+}
+
+inline varying float VectorDot( const varying FVector3f &Vec1, const uniform FVector3f &Vec2 )
+{
+	const varying FVector3f Temp = Vec1 * Vec2;
 	return Temp.V[0] + Temp.V[1] + Temp.V[2];
 }
 

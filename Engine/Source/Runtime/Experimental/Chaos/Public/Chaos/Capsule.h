@@ -566,6 +566,18 @@ namespace Chaos
 		// Used for manifold generation
 		int32 NumPlanes() const { return 0; }
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+		// See PerParticlePBDCollisionConstraint.cpp
+		// ISPC code has matching structs for interpreting FImplicitObjects.
+		// This is used to verify that the structs stay the same.
+		struct FISPCDataVerifier
+		{
+			static constexpr int32 OffsetOfMSegment() { return offsetof(FCapsule, MSegment); }
+			static constexpr int32 SizeOfMSegment() { return sizeof(FCapsule::MSegment); }
+		};
+		friend FISPCDataVerifier;
+#endif // #if INTEL_ISPC && !UE_BUILD_SHIPPING
+
 	private:
 		void SetRadius(FReal InRadius) { SetMargin(InRadius); }
 

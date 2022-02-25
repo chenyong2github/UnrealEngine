@@ -171,6 +171,18 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		return new FImplicitObjectUnion(MoveTemp(NewObjects));
 	}
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+	// See PerParticlePBDCollisionConstraint.cpp
+	// ISPC code has matching structs for interpreting FImplicitObjects.
+	// This is used to verify that the structs stay the same.
+	struct FISPCDataVerifier
+	{
+		static constexpr int32 OffsetOfMObjects() { return offsetof(FImplicitObjectUnion, MObjects); }
+		static constexpr int32 SizeOfMObjects() { return sizeof(FImplicitObjectUnion::MObjects); }
+	};
+	friend FISPCDataVerifier;
+#endif // #if INTEL_ISPC && !UE_BUILD_SHIPPING
+
 protected:
 	virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
 	{

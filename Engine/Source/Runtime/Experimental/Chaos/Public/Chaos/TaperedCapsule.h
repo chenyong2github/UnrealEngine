@@ -3,6 +3,7 @@
 
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Core.h"
+#include "Chaos/TaperedCylinder.h"
 
 namespace Chaos
 {
@@ -216,6 +217,26 @@ namespace Chaos
 
 			return HashCombine(OriginAxisHash, PropertyHash);
 		}
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+		// See PerParticlePBDCollisionConstraint.cpp
+		// ISPC code has matching structs for interpreting FImplicitObjects.
+		// This is used to verify that the structs stay the same.
+		struct FISPCDataVerifier
+		{
+			static constexpr int32 OffsetOfOrigin() { return offsetof(FTaperedCapsule, Origin); }
+			static constexpr int32 SizeOfOrigin() { return sizeof(FTaperedCapsule::Origin); }
+			static constexpr int32 OffsetOfAxis() { return offsetof(FTaperedCapsule, Axis); }
+			static constexpr int32 SizeOfAxis() { return sizeof(FTaperedCapsule::Axis); }
+			static constexpr int32 OffsetOfHeight() { return offsetof(FTaperedCapsule, Height); }
+			static constexpr int32 SizeOfHeight() { return sizeof(FTaperedCapsule::Height); }
+			static constexpr int32 OffsetOfRadius1() { return offsetof(FTaperedCapsule, Radius1); }
+			static constexpr int32 SizeOfRadius1() { return sizeof(FTaperedCapsule::Radius1); }
+			static constexpr int32 OffsetOfRadius2() { return offsetof(FTaperedCapsule, Radius2); }
+			static constexpr int32 SizeOfRadius2() { return sizeof(FTaperedCapsule::Radius2); }
+		};
+		friend FISPCDataVerifier;
+#endif // #if INTEL_ISPC && !UE_BUILD_SHIPPING
 
 	private:
 		//Phi is distance from closest point on plane1

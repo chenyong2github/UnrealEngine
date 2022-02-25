@@ -124,7 +124,7 @@ void FClothingSimulationCollider::FLODData::Add(
 			{
 				// Sphere
 				Solver->SetCollisionGeometry(CapsuleOffset, Index,
-					MakeUnique<TSphere<FReal, 3>>(Center, MaxRadius));
+					MakeUnique<FSphere>(Center, MaxRadius));
 			}
 			else if (MaxRadius - MinRadius < KINDA_SMALL_NUMBER)
 			{
@@ -147,9 +147,9 @@ void FClothingSimulationCollider::FLODData::Add(
 					Objects.Add(TUniquePtr<FImplicitObject>(
 						new FTaperedCylinder(P0, P1, Radius0, Radius1)));
 					Objects.Add(TUniquePtr<FImplicitObject>(
-						new TSphere<FReal, 3>(P0, Radius0)));
+						new FSphere(P0, Radius0)));
 					Objects.Add(TUniquePtr<FImplicitObject>(
-						new TSphere<FReal, 3>(P1, Radius1)));
+						new FSphere(P1, Radius1)));
 					Solver->SetCollisionGeometry(CapsuleOffset, Index,
 						MakeUnique<FImplicitObjectUnion>(MoveTemp(Objects)));
 				}
@@ -181,7 +181,7 @@ void FClothingSimulationCollider::FLODData::Add(
 			BaseTransforms[Index] = Softs::FSolverRigidTransform3::Identity;
 
 			Solver->SetCollisionGeometry(SphereOffset, Index,
-				MakeUnique<TSphere<FReal, 3>>(
+				MakeUnique<FSphere>(
 					Sphere.LocalPosition * InScale,
 					Sphere.Radius * InScale));
 
@@ -264,7 +264,7 @@ void FClothingSimulationCollider::FLODData::Add(
 			else
 			{
 				UE_LOG(LogChaosCloth, Warning, TEXT("Replacing invalid convex collision by a default unit sphere."));
-				Solver->SetCollisionGeometry(ConvexOffset, Index, MakeUnique<TSphere<FReal, 3>>(FVec3(0.0f), 1.0f));  // Default to a unit sphere to replace the faulty convex
+				Solver->SetCollisionGeometry(ConvexOffset, Index, MakeUnique<FSphere>(FVec3(0.0f), 1.0f));  // Default to a unit sphere to replace the faulty convex
 			}
 		}
 	}
