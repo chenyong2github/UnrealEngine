@@ -372,7 +372,7 @@ namespace RHIValidation
 	}
 }
 
-void* FValidationRHI::RHILockBuffer(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+void FValidationRHI::LockBufferValidate(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, EResourceLockMode LockMode)
 {
 	using namespace RHIValidation;
 
@@ -390,8 +390,20 @@ void* FValidationRHI::RHILockBuffer(class FRHICommandListImmediate& RHICmdList, 
 		}
 		RHI_VALIDATION_CHECK(!bIsInsideRenderPass, *GetReasonString_LockBufferInsideRenderPass(Buffer));
 	}
+}
+
+void* FValidationRHI::RHILockBuffer(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+{
+	LockBufferValidate(RHICmdList, Buffer, LockMode);
 
 	return RHI->RHILockBuffer(RHICmdList, Buffer, Offset, SizeRHI, LockMode);
+}
+
+void* FValidationRHI::RHILockBufferMGPU(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 GPUIndex, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+{
+	LockBufferValidate(RHICmdList, Buffer, LockMode);
+
+	return RHI->RHILockBufferMGPU(RHICmdList, Buffer, GPUIndex, Offset, SizeRHI, LockMode);
 }
 
 void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)

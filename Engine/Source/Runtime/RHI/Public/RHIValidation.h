@@ -391,11 +391,16 @@ public:
 
 	// FlushType: Flush RHI Thread
 	virtual void* RHILockBuffer(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final;
+	virtual void* RHILockBufferMGPU(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 GPUIndex, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode) override final;
 
 	// FlushType: Flush RHI Thread
 	virtual void RHIUnlockBuffer(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer) override final
 	{
 		RHI->RHIUnlockBuffer(RHICmdList, Buffer);
+	}
+	virtual void RHIUnlockBufferMGPU(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 GPUIndex) override final
+	{
+		RHI->RHIUnlockBufferMGPU(RHICmdList, Buffer, GPUIndex);
 	}
 
 	/** Creates an unordered access view of the given structured buffer. */
@@ -1750,6 +1755,9 @@ private:
 	static FCriticalSection		SeenFailureHashesMutex;
 
 	void ValidatePipeline(const FGraphicsPipelineStateInitializer& Initializer);
+
+	// Shared validation logic, called from RHILockBuffer / RHILockBufferMGPU
+	void LockBufferValidate(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, EResourceLockMode LockMode);
 };
 
 #endif	// ENABLE_RHI_VALIDATION
