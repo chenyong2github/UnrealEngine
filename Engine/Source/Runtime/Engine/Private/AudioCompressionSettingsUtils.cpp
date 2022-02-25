@@ -109,39 +109,33 @@ void CacheAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides, const TC
 		OutOverrides.SoundCueCookQualityIndex = SoundCueQualityIndex;
 	}
 
-//	PlatformFile.GetBool(*CategoryName, TEXT("bUseAudioStreamCaching"), OutOverrides.bUseStreamCaching);
-	OutOverrides.bUseStreamCaching = true;
-
 	GConfig->GetBool(*CategoryName, TEXT("bInlineStreamedAudioChunks"), OutOverrides.bInlineStreamedAudioChunks, GEngineIni);
 
 	/** Memory Load On Demand Settings */
-	if (OutOverrides.bUseStreamCaching)
+	// Cache size:
+	const int32 DefaultCacheSize = 64 * 1024;
+	int32 RetrievedCacheSize = DefaultCacheSize;
+	int32 RetrievedChunkSizeOverride = INDEX_NONE;
+
+	PlatformFile.GetInt(*CategoryName, TEXT("CacheSizeKB"), RetrievedCacheSize);
+	if (!RetrievedCacheSize)
 	{
-		// Cache size:
-		const int32 DefaultCacheSize = 64 * 1024;
-		int32 RetrievedCacheSize = DefaultCacheSize;
-		int32 RetrievedChunkSizeOverride = INDEX_NONE;
-
-		PlatformFile.GetInt(*CategoryName, TEXT("CacheSizeKB"), RetrievedCacheSize);
-		if (!RetrievedCacheSize)
-		{
-			PlatformFile.SetInt64(*CategoryName, TEXT("CacheSizeKB"), DefaultCacheSize);
-			RetrievedCacheSize = DefaultCacheSize;
-		}
-
-		OutOverrides.StreamCachingSettings.CacheSizeKB = RetrievedCacheSize;
-
-		PlatformFile.GetInt(*CategoryName, TEXT("MaxChunkSizeOverrideKB"), RetrievedChunkSizeOverride);
-		OutOverrides.StreamCachingSettings.MaxChunkSizeOverrideKB = RetrievedChunkSizeOverride;
-
-		bool bForceLegacyStreamChunking = false;
-		PlatformFile.GetBool(*CategoryName, TEXT("bForceLegacyStreamChunking"), bForceLegacyStreamChunking);
-		OutOverrides.StreamCachingSettings.bForceLegacyStreamChunking = bForceLegacyStreamChunking;
-
-		int32 ZerothChunkSizeForLegacyStreamChunking = 0;
-		PlatformFile.GetInt(*CategoryName, TEXT("ZerothChunkSizeForLegacyStreamChunking"), ZerothChunkSizeForLegacyStreamChunking);
-		OutOverrides.StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB = ZerothChunkSizeForLegacyStreamChunking;
+		PlatformFile.SetInt64(*CategoryName, TEXT("CacheSizeKB"), DefaultCacheSize);
+		RetrievedCacheSize = DefaultCacheSize;
 	}
+
+	OutOverrides.StreamCachingSettings.CacheSizeKB = RetrievedCacheSize;
+
+	PlatformFile.GetInt(*CategoryName, TEXT("MaxChunkSizeOverrideKB"), RetrievedChunkSizeOverride);
+	OutOverrides.StreamCachingSettings.MaxChunkSizeOverrideKB = RetrievedChunkSizeOverride;
+
+	bool bForceLegacyStreamChunking = false;
+	PlatformFile.GetBool(*CategoryName, TEXT("bForceLegacyStreamChunking"), bForceLegacyStreamChunking);
+	OutOverrides.StreamCachingSettings.bForceLegacyStreamChunking = bForceLegacyStreamChunking;
+
+	int32 ZerothChunkSizeForLegacyStreamChunking = 0;
+	PlatformFile.GetInt(*CategoryName, TEXT("ZerothChunkSizeForLegacyStreamChunking"), ZerothChunkSizeForLegacyStreamChunking);
+	OutOverrides.StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB = ZerothChunkSizeForLegacyStreamChunking;
 
 	PlatformFile.GetBool(*CategoryName, TEXT("bResampleForDevice"), OutOverrides.bResampleForDevice);
 
@@ -359,8 +353,6 @@ const FPlatformAudioCookOverrides* FPlatformCompressionUtilities::GetCookOverrid
 
 bool FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching()
 {
-// 	const FPlatformAudioCookOverrides* Settings = GetCookOverrides();
-// 	return Settings && Settings->bUseStreamCaching;
 	return true;
 }
 

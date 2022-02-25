@@ -2904,13 +2904,8 @@ bool USoundWave::IsStreaming(const FPlatformAudioCookOverrides& Overrides) const
 	}
 
 	// For stream caching, the auto streaming threshold is used to force sounds to be inlined:
-	const bool bUsesStreamCache = Overrides.bUseStreamCaching;
-	const bool bOverAutoStreamingThreshold = (Overrides.AutoStreamingThreshold > SMALL_NUMBER && Duration > Overrides.AutoStreamingThreshold);
-
-	const bool Result = bUsesStreamCache || bOverAutoStreamingThreshold;
-
-	SoundWaveDataPtr->bIsStreaming = Result;
-	return Result;
+	SoundWaveDataPtr->bIsStreaming = (Overrides.AutoStreamingThreshold > SMALL_NUMBER && Duration > Overrides.AutoStreamingThreshold);
+	return SoundWaveDataPtr->bIsStreaming;
 }
 
 bool USoundWave::ShouldUseStreamCaching() const

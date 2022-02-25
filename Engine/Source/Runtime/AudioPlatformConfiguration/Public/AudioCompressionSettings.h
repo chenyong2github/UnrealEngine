@@ -74,9 +74,6 @@ struct FPlatformAudioCookOverrides
 	// If StreamCaching is set to true, this will be used 
 	float AutoStreamingThreshold;
 
-	// Whether to use the experimental Load on Demand feature, which uses as little memory at runtime as possible.
-	bool bUseStreamCaching;
-
 	// Whether to put streamed audio chunks inline in the Pak file or not (only matters if bUseStreamCaching is true)
 	bool bInlineStreamedAudioChunks;
 
@@ -87,7 +84,6 @@ struct FPlatformAudioCookOverrides
 		: bResampleForDevice(false)
 		, CompressionQualityModifier(1.0f)
 		, AutoStreamingThreshold(0.0f)
-		, bUseStreamCaching(false)
 		, bInlineStreamedAudioChunks(false)
 	{
 		PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Max, 48000);
@@ -111,23 +107,20 @@ struct FPlatformAudioCookOverrides
 		int32 AutoStreamingThresholdHash = FMath::FloorToInt(InOverrides->AutoStreamingThreshold * 100.0f);
 		OutSuffix.AppendInt(AutoStreamingThresholdHash);
 
-		if (InOverrides->bUseStreamCaching)
+		OutSuffix.Append(TEXT("_StreamCache_Ver"));
+		OutSuffix.AppendInt(GetStreamCachingVersion());
+		OutSuffix.AppendChar('_');
+
+		// cache info:
+		OutSuffix.Append(TEXT("MEM_"));
+		OutSuffix.AppendInt(InOverrides->StreamCachingSettings.CacheSizeKB);
+		OutSuffix.Append(TEXT("MaxChnkSize_"));
+		OutSuffix.AppendInt(InOverrides->StreamCachingSettings.MaxChunkSizeOverrideKB);
+
+		if (InOverrides->StreamCachingSettings.bForceLegacyStreamChunking)
 		{
-			OutSuffix.Append(TEXT("_StreamCache_Ver"));
-			OutSuffix.AppendInt(GetStreamCachingVersion());
-			OutSuffix.AppendChar('_');
-
-			// cache info:
-			OutSuffix.Append(TEXT("MEM_"));
-			OutSuffix.AppendInt(InOverrides->StreamCachingSettings.CacheSizeKB);
-			OutSuffix.Append(TEXT("MaxChnkSize_"));
-			OutSuffix.AppendInt(InOverrides->StreamCachingSettings.MaxChunkSizeOverrideKB);
-
-			if (InOverrides->StreamCachingSettings.bForceLegacyStreamChunking)
-			{
-				OutSuffix.Append(TEXT("_LegacyChunking_"));
-				OutSuffix.AppendInt(InOverrides->StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB);
-			}
+			OutSuffix.Append(TEXT("_LegacyChunking_"));
+			OutSuffix.AppendInt(InOverrides->StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB);
 		}
 		
 

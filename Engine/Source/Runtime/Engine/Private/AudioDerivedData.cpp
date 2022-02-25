@@ -331,7 +331,6 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 				int32 FirstChunkSize = MaxChunkSizeForCurrentWave;
 
 				const int32 MinimumChunkSize = AudioFormat->GetMinimumSizeForInitialChunk(AudioFormatName, CompressedBuffer);
-				const bool bUseStreamCaching = CompressionOverrides && CompressionOverrides->bUseStreamCaching;
 				const bool bForceLegacyStreamChunking = SoundWave.bStreaming && CompressionOverrides && CompressionOverrides->StreamCachingSettings.bForceLegacyStreamChunking;
 
 				// If the initial chunk  for this sound wave was overridden, use that:
@@ -339,7 +338,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 				{
 					FirstChunkSize = FMath::Max(MinimumChunkSize, SoundWave.InitialChunkSize);
 				}
-				else if (bUseStreamCaching)
+				else
 				{
 					// Ensure that the minimum chunk size is nonzero if our compressed buffer is not empty.
 					checkf(CompressedBuffer.Num() == 0 || MinimumChunkSize != 0, TEXT("To use Load On Demand, please override GetMinimumSizeForInitialChunk"));
@@ -362,7 +361,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 					}
 				}
 
-				if (bUseStreamCaching && !bForceLegacyStreamChunking)
+				if (!bForceLegacyStreamChunking)
 				{
 					// Use the chunk size for this duration:
 					MaxChunkSizeForCurrentWave = FPlatformCompressionUtilities::GetMaxChunkSizeForCookOverrides(CompressionOverrides);
@@ -420,7 +419,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 
 						int32 ZeroPadBytes = 0;
 
-						if (!bUseStreamCaching || bForceLegacyStreamChunking)
+						if (bForceLegacyStreamChunking)
 						{
 							// padding when stream caching is enabled will significantly bloat the amount of space soundwaves take up on disk.
 							ZeroPadBytes = FMath::Max(MaxChunkSizeForCurrentWave - AudioDataSize, 0);
