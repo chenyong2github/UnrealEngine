@@ -143,7 +143,7 @@ FAutoConsoleVariableRef CVarLumenScreenProbeHistoryDistanceThreshold(
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.DistanceThreshold"),
 	GLumenScreenProbeHistoryDistanceThreshold,
 	TEXT("Relative distance threshold needed to discard last frame's lighting results.  Lower values reduce ghosting from characters when near a wall but increase flickering artifacts."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GLumenScreenProbeFractionOfLightingMovingForFastUpdateMode = .1f;
@@ -151,7 +151,7 @@ FAutoConsoleVariableRef CVarLumenScreenProbeFractionOfLightingMovingForFastUpdat
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.FractionOfLightingMovingForFastUpdateMode"),
 	GLumenScreenProbeFractionOfLightingMovingForFastUpdateMode,
 	TEXT(""),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GLumenScreenProbeTemporalMaxFastUpdateModeAmount = .9f;
@@ -159,7 +159,7 @@ FAutoConsoleVariableRef CVarLumenScreenProbeTemporalMaxFastUpdateModeAmount(
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxFastUpdateModeAmount"),
 	GLumenScreenProbeTemporalMaxFastUpdateModeAmount,
 	TEXT("Maximum amount of fast-responding temporal filter to use when traces hit a moving object.  Values closer to 1 cause more noise, but also faster reaction to scene changes."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GLumenScreenProbeTemporalFastUpdateModeUseNeighborhoodClamp = 0;
@@ -167,7 +167,7 @@ FAutoConsoleVariableRef CVarLumenScreenProbeTemporalFastUpdateModeUseNeighborhoo
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.FastUpdateModeUseNeighborhoodClamp"),
 	GLumenScreenProbeTemporalFastUpdateModeUseNeighborhoodClamp,
 	TEXT("Whether to clamp history values to the current frame's screen space neighborhood, in areas around moving objects."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GLumenScreenProbeTemporalRejectBasedOnNormal = 1;
@@ -183,7 +183,7 @@ FAutoConsoleVariableRef CVarLumenScreenProbeRelativeSpeedDifferenceToConsiderLig
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.RelativeSpeedDifferenceToConsiderLightingMoving"),
 	GLumenScreenProbeRelativeSpeedDifferenceToConsiderLightingMoving,
 	TEXT(""),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 float GLumenScreenProbeTemporalMaxFramesAccumulated = 10.0f;
@@ -207,7 +207,7 @@ FAutoConsoleVariableRef CVarLumenScreenProbeScreenTracesThicknessScaleWhenNoFall
 	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.ThicknessScaleWhenNoFallback"),
 	GLumenScreenProbeScreenTracesThicknessScaleWhenNoFallback,
 	TEXT("Larger scales effectively treat depth buffer surfaces as thicker for screen traces when there is no Distance Field present to resume the occluded ray."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GLumenScreenProbeSpatialFilter = 1;
@@ -255,7 +255,7 @@ FAutoConsoleVariableRef CVarRadianceCache(
 	TEXT("r.Lumen.ScreenProbeGather.RadianceCache"),
 	GLumenRadianceCache,
 	TEXT("Whether to enable the Persistent world space Radiance Cache"),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
 int32 GLumenScreenProbeIrradianceFormat = 1;
@@ -265,7 +265,7 @@ FAutoConsoleVariableRef CVarLumenScreenProbeIrradianceFormat(
 	TEXT("Prefilter irradiance format\n")
 	TEXT("0 - SH3 slower\n")
 	TEXT("1 - Octahedral probe. Faster, but reverts to SH3 when ScreenSpaceBentNormal.ApplyDuringIntegration is enabled"),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GLumenScreenProbeStochasticInterpolation = 1;
@@ -273,7 +273,7 @@ FAutoConsoleVariableRef CVarLumenScreenProbeStochasticInterpolation(
 	TEXT("r.Lumen.ScreenProbeGather.StochasticInterpolation"),
 	GLumenScreenProbeStochasticInterpolation,
 	TEXT("Where to interpolate screen probes stochastically (1 sample) or bilinearly (4 samples)"),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 namespace LumenScreenProbeGather 
@@ -355,6 +355,11 @@ namespace LumenScreenProbeGather
 		}
 
 		return (EScreenProbeIrradianceFormat)FMath::Clamp(GLumenScreenProbeIrradianceFormat, 0, 1);
+	}
+
+	float GetScreenProbeFullResolutionJitterWidth(const FViewInfo& View)
+	{
+		return GLumenScreenProbeFullResolutionJitterWidth * (View.FinalPostProcessSettings.LumenFinalGatherQuality >= 4.0f ? .5f : 1.0f);
 	}
 }
 
@@ -1083,7 +1088,7 @@ void InterpolateAndIntegrate(
 			PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-			PassParameters->FullResolutionJitterWidth = GLumenScreenProbeFullResolutionJitterWidth;
+			PassParameters->FullResolutionJitterWidth = LumenScreenProbeGather::GetScreenProbeFullResolutionJitterWidth(View);
 			extern float GLumenReflectionMaxRoughnessToTrace;
 			extern float GLumenReflectionRoughnessFadeLength;
 			PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
@@ -1126,7 +1131,7 @@ void InterpolateAndIntegrate(
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-		PassParameters->FullResolutionJitterWidth = GLumenScreenProbeFullResolutionJitterWidth;
+		PassParameters->FullResolutionJitterWidth = LumenScreenProbeGather::GetScreenProbeFullResolutionJitterWidth(View);
 		extern float GLumenReflectionMaxRoughnessToTrace;
 		extern float GLumenReflectionRoughnessFadeLength;
 		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;

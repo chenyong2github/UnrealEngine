@@ -1034,9 +1034,12 @@ void ScreenProbeIntegrateCS(
 				#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
 				{
 					FThreeBandSHVectorRGB LightingSH = GetScreenProbeSH(ScreenProbeSample.AtlasCoord[0], ScreenProbeSample.Weights.x);
-					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[1], ScreenProbeSample.Weights.y));
-					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[2], ScreenProbeSample.Weights.z));
-					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[3], ScreenProbeSample.Weights.w));
+
+					#if !STOCHASTIC_PROBE_INTERPOLATION
+						LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[1], ScreenProbeSample.Weights.y));
+						LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[2], ScreenProbeSample.Weights.z));
+						LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[3], ScreenProbeSample.Weights.w));
+					#endif
 
 					float3 ProbeLightingNormal = GBufferData.WorldNormal;
 
@@ -1053,9 +1056,12 @@ void ScreenProbeIntegrateCS(
 					float2 IrradianceProbeUV = UnitVectorToOctahedron(GBufferData.WorldNormal) * 0.5f + 0.5f;
 
 					float3 Irradiance = GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[0], IrradianceProbeUV) * ScreenProbeSample.Weights.x;
-					Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[1], IrradianceProbeUV) * ScreenProbeSample.Weights.y;
-					Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[2], IrradianceProbeUV) * ScreenProbeSample.Weights.z;
-					Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[3], IrradianceProbeUV) * ScreenProbeSample.Weights.w;
+
+					#if !STOCHASTIC_PROBE_INTERPOLATION
+						Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[1], IrradianceProbeUV) * ScreenProbeSample.Weights.y;
+						Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[2], IrradianceProbeUV) * ScreenProbeSample.Weights.z;
+						Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[3], IrradianceProbeUV) * ScreenProbeSample.Weights.w;
+					#endif
 
 					DiffuseLighting += Irradiance;
 				}
@@ -1106,7 +1112,7 @@ void ScreenProbeIntegrateCS(
 			}
 #endif
 #if INTEGRATE_TILE_CLASSIFICATION_MODE == TILE_CLASSIFICATION_DISABLED
-			else
+			else if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_NUMERICAL_INTEGRAL)
 			{
 				float TotalWeight = 0;
 				const float InvScreenProbeResolution = 1.0f / ScreenProbeGatherOctahedronResolution;

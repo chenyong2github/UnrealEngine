@@ -80,6 +80,16 @@ void Main(
 
 	EnvBRDFApproxFullyRough(DiffuseColor, SpecularColor);
 
+	uint ShadingModel = GetMaterialShadingModel(PixelMaterialInputs);
+
+#if MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_CLOTH || MATERIAL_SHADINGMODEL_EYE
+	if (ShadingModel == SHADINGMODELID_SUBSURFACE || ShadingModel == SHADINGMODELID_PREINTEGRATED_SKIN || ShadingModel == SHADINGMODELID_SUBSURFACE_PROFILE || ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE || ShadingModel == SHADINGMODELID_CLOTH || ShadingModel == SHADINGMODELID_EYE)
+	{
+		float4 SubsurfaceData = GetMaterialSubsurfaceData(PixelMaterialInputs);
+		DiffuseColor += SubsurfaceData.rgb;
+	}
+#endif
+
 	// Normals are stored in local card space
 	float3 CardSpaceNormal = mul(float4(MaterialParameters.WorldNormal, 0.0f), ResolvedView.TranslatedWorldToView).xyz;
 

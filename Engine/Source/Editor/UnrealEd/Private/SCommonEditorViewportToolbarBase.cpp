@@ -669,7 +669,7 @@ FText SCommonEditorViewportToolbarBase::GetScalabilityWarningLabel() const
 EVisibility SCommonEditorViewportToolbarBase::GetScalabilityWarningVisibility() const
 {
 	//This method returns magic numbers. 3 means epic
-	return GetDefault<UEditorPerformanceSettings>()->bEnableScalabilityWarningIndicator && GetShowScalabilityMenu() && Scalability::GetQualityLevels().GetMinQualityLevel() < 3 ? EVisibility::Visible : EVisibility::Collapsed;
+	return GetDefault<UEditorPerformanceSettings>()->bEnableScalabilityWarningIndicator && GetShowScalabilityMenu() && Scalability::GetQualityLevels().GetMinQualityLevel() != 3 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GetScalabilityWarningMenuContent() const

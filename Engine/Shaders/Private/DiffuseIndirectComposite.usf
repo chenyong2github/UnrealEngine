@@ -303,7 +303,10 @@ void MainPS(
 			}
 			else
 			{
-				if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
+				if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE 
+					|| GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN 
+					// We can't afford to gather light from both sides so just add the reflectiveness to diffuse
+					|| GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
 				{
 					float3 SubsurfaceColor = ExtractSubsurfaceColor(GBuffer);
 					// Add subsurface energy to diffuse

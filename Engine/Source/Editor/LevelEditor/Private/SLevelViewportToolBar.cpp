@@ -1751,7 +1751,7 @@ FText SLevelViewportToolBar::GetScalabilityWarningLabel() const
 EVisibility SLevelViewportToolBar::GetScalabilityWarningVisibility() const
 {
 	//This method returns magic numbers. 3 means epic
-	return GetDefault<UEditorPerformanceSettings>()->bEnableScalabilityWarningIndicator && Scalability::GetQualityLevels().GetMinQualityLevel() < 3 ? EVisibility::Visible : EVisibility::Collapsed;
+	return GetDefault<UEditorPerformanceSettings>()->bEnableScalabilityWarningIndicator && Scalability::GetQualityLevels().GetMinQualityLevel() != 3 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 TSharedRef<SWidget> SLevelViewportToolBar::GetScalabilityWarningMenuContent() const

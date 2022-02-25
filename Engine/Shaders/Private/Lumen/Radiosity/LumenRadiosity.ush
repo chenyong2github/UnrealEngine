@@ -35,6 +35,8 @@ uint HemisphereProbeResolution;
 // HemisphereProbeResolution * HemisphereProbeResolution
 uint NumTracesPerProbe;
 
+uint UseProbeOcclusion;
+
 // When >= 0, specifies a fixed temporal index for debugging
 int FixedJitterIndex;
 

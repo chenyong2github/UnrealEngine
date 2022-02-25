@@ -334,6 +334,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenRadiosityTexelTraceParameters, )
 	SHADER_PARAMETER(uint32, RadiosityTileSize)
 	SHADER_PARAMETER(uint32, HemisphereProbeResolution)
 	SHADER_PARAMETER(uint32, NumTracesPerProbe)
+	SHADER_PARAMETER(uint32, UseProbeOcclusion)
 	SHADER_PARAMETER(int32, FixedJitterIndex)
 	SHADER_PARAMETER(uint32, MaxFramesAccumulated)
 END_SHADER_PARAMETER_STRUCT()
@@ -632,12 +633,25 @@ void LumenRadiosity::AddRadiosityPass(
 		RadiosityProbeTracingAtlasSize, 
 		PF_FloatRGB);
 
-	FRDGTextureRef TraceHitDistanceAtlas = RegisterOrCreateRadiosityAtlas(
-		GraphBuilder, 
-		LumenSceneData.RadiosityTraceHitDistanceAtlas, 
-		TEXT("Lumen.Radiosity.TraceHitDistanceAtlas"), 
-		RadiosityProbeTracingAtlasSize, 
-		PF_R16F);
+	const bool bUseProbeOcclusion = GRadiosityFilteringProbeOcclusion != 0 
+		// Self intersection from grazing angle traces causes noise that breaks probe occlusion
+		&& Lumen::UseHardwareRayTracedRadiosity(*View.Family);
+
+	FRDGTextureRef TraceHitDistanceAtlas = nullptr;
+	
+	if (bUseProbeOcclusion)
+	{
+		TraceHitDistanceAtlas = RegisterOrCreateRadiosityAtlas(
+			GraphBuilder, 
+			LumenSceneData.RadiosityTraceHitDistanceAtlas, 
+			TEXT("Lumen.Radiosity.TraceHitDistanceAtlas"), 
+			RadiosityProbeTracingAtlasSize, 
+			PF_R16F);
+	}
+	else
+	{
+		TraceHitDistanceAtlas = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Dummy"));
+	}
 
 	const uint32 MaxCardTilesX = FMath::DivideAndRoundUp<uint32>(LumenSceneData.GetPhysicalAtlasSize().X, Lumen::CardTileSize);
 	const uint32 MaxCardTilesY = FMath::DivideAndRoundUp<uint32>(LumenSceneData.GetPhysicalAtlasSize().Y, Lumen::CardTileSize);
@@ -660,6 +674,7 @@ void LumenRadiosity::AddRadiosityPass(
 		RadiosityTexelTraceParameters.RadiosityTileSize = RadiosityTileSize;
 		RadiosityTexelTraceParameters.HemisphereProbeResolution = HemisphereProbeResolution;
 		RadiosityTexelTraceParameters.NumTracesPerProbe = HemisphereProbeResolution * HemisphereProbeResolution;
+		RadiosityTexelTraceParameters.UseProbeOcclusion = bUseProbeOcclusion ? 1 : 0;
 		RadiosityTexelTraceParameters.FixedJitterIndex = GLumenRadiosityFixedJitterIndex;
 		RadiosityTexelTraceParameters.MaxFramesAccumulated = LumenRadiosity::UseTemporalAccumulation() ? GLumenRadiosityTemporalMaxFramesAccumulated : 1;
 	}
@@ -821,10 +836,6 @@ void LumenRadiosity::AddRadiosityPass(
 		TEXT("Lumen.Radiosity.ProbeSHBlueAtlas"), 
 		RadiosityProbeAtlasSize, 
 		PF_FloatRGBA);
-
-	const bool bUseProbeOcclusion = GRadiosityFilteringProbeOcclusion != 0 
-		// Self intersection from grazing angle traces causes noise that breaks probe occlusion
-		&& Lumen::UseHardwareRayTracedRadiosity(*View.Family);
 
 	if (GLumenRadiositySpatialFilterProbes && GLumenRadiositySpatialFilterProbesKernelSize > 0)
 	{

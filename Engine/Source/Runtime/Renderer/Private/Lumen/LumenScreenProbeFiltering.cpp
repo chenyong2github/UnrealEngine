@@ -243,11 +243,7 @@ class FScreenProbeConvertToIrradianceCS : public FGlobalShader
 
 	static uint32 GetThreadGroupSize(uint32 GatherResolution)
 	{
-		if (GatherResolution <= 4)
-		{
-			return 4;
-		}
-		else if (GatherResolution <= 8)
+		if (GatherResolution <= 8)
 		{
 			return 8;
 		}
@@ -261,7 +257,7 @@ class FScreenProbeConvertToIrradianceCS : public FGlobalShader
 		}
 	}
 
-	class FThreadGroupSize : SHADER_PERMUTATION_SPARSE_INT("THREADGROUP_SIZE", 4, 8, 16);
+	class FThreadGroupSize : SHADER_PERMUTATION_SPARSE_INT("THREADGROUP_SIZE", 8, 16);
 	class FWaveOps : SHADER_PERMUTATION_BOOL("WAVE_OPS");
 	class FProbeIrradianceFormat : SHADER_PERMUTATION_ENUM_CLASS("PROBE_IRRADIANCE_FORMAT", EScreenProbeIrradianceFormat);
 	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize, FWaveOps, FProbeIrradianceFormat>;
@@ -595,9 +591,15 @@ void FilterScreenProbes(
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
+		const bool bUseWaveOps = GLumenScreenProbeFilteringWaveOps != 0 
+			&& GRHISupportsWaveOperations 
+			&& GRHIMinimumWaveSize >= 32 
+			&& RHISupportsWaveOperations(View.GetShaderPlatform())
+			&& ConvertToSHThreadGroupSize * ConvertToSHThreadGroupSize <= (uint32)GRHIMaximumWaveSize;
+
 		FScreenProbeConvertToIrradianceCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeConvertToIrradianceCS::FThreadGroupSize >(ConvertToSHThreadGroupSize);
-		PermutationVector.Set< FScreenProbeConvertToIrradianceCS::FWaveOps >(GLumenScreenProbeFilteringWaveOps != 0 && GRHISupportsWaveOperations && GRHIMinimumWaveSize >= 32 && RHISupportsWaveOperations(View.GetShaderPlatform()));
+		PermutationVector.Set< FScreenProbeConvertToIrradianceCS::FWaveOps >(bUseWaveOps);
 		PermutationVector.Set< FScreenProbeConvertToIrradianceCS::FProbeIrradianceFormat >(ScreenProbeIrradianceFormat);
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeConvertToIrradianceCS>(PermutationVector);
 

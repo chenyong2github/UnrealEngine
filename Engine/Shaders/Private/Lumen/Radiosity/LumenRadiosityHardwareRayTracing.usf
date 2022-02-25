@@ -137,7 +137,11 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 			FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
 			uint2 RadiosityProbeTracingAtlasCoord = GetRadiosityProbeAtlasCoord(CardPage, CardTile, CoordInCardTile) * HemisphereProbeResolution + TraceTexelCoord;
 			RWTraceRadianceAtlas[RadiosityProbeTracingAtlasCoord] = Radiance;
-			RWTraceHitDistanceAtlas[RadiosityProbeTracingAtlasCoord] = TraceHitDistance;
+
+			if (UseProbeOcclusion > 0)
+			{
+				RWTraceHitDistanceAtlas[RadiosityProbeTracingAtlasCoord] = TraceHitDistance;
+			}
 		}
 	}
 }
