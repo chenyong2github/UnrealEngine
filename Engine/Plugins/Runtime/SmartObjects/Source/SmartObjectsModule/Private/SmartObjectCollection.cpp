@@ -96,7 +96,7 @@ bool ASmartObjectCollection::RegisterWithSubsystem(const FString& Context)
 {
 	if (bRegistered)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("'%s' %s - Failed: already registered"), *GetFullName(), *Context);
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Failed: already registered"), *GetFullName(), *Context);
 		return false;
 	}
 
