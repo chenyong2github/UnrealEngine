@@ -42,6 +42,7 @@
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorData.h"
 #include "NiagaraGraphDataCache.h"
+#include "NiagaraSettings.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - StackGraphUtilities - RelayoutGraph"), STAT_NiagaraEditor_StackGraphUtilities_RelayoutGraph, STATGROUP_NiagaraEditor);
@@ -1369,6 +1370,7 @@ UEdGraphPin* FNiagaraStackGraphUtilities::GetLinkedValueHandleForFunctionInput(c
 void FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(UEdGraphPin& OverridePin, FNiagaraParameterHandle LinkedParameterHandle, ENiagaraDefaultMode DesiredDefaultMode, const FGuid& NewNodePersistentId)
 {
 	checkf(OverridePin.LinkedTo.Num() == 0, TEXT("Can't set a linked value handle when the override pin already has a value."));
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 
 	UNiagaraNodeParameterMapSet* OverrideNode = CastChecked<UNiagaraNodeParameterMapSet>(OverridePin.GetOwningNode());
 	UNiagaraGraph* Graph = OverrideNode->GetNiagaraGraph();
@@ -1387,11 +1389,25 @@ void FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(UEdGraphP
 
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 	FNiagaraTypeDefinition InputType = NiagaraSchema->PinToTypeDefinition(&OverridePin);
-	UEdGraphPin* GetOutputPin = GetNode->RequestNewTypedPin(EGPD_Output, InputType, LinkedParameterHandle.GetParameterHandleString());
+
+	FNiagaraVariable ParameterToRead(InputType, LinkedParameterHandle.GetParameterHandleString());
+	if (Settings->bEnforceStrictStackTypes == false && (InputType == FNiagaraTypeDefinition::GetVec3Def() || InputType == FNiagaraTypeDefinition::GetPositionDef()))
+	{
+		// see if the requested input exists or if we can use one of the equivalent loose types
+		FNiagaraTypeDefinition AlternateType = InputType == FNiagaraTypeDefinition::GetVec3Def() ? FNiagaraTypeDefinition::GetPositionDef() : FNiagaraTypeDefinition::GetVec3Def();
+		FNiagaraVariable ParameterAlternative(AlternateType, LinkedParameterHandle.GetParameterHandleString());
+		const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& ReferenceMap = Graph->GetParameterReferenceMap();
+		if (ReferenceMap.Contains(ParameterToRead) == false && ReferenceMap.Contains(ParameterAlternative))
+		{
+			ParameterToRead = ParameterAlternative;
+		}
+	}
+	
+	UEdGraphPin* GetOutputPin = GetNode->RequestNewTypedPin(EGPD_Output, ParameterToRead.GetType(), LinkedParameterHandle.GetParameterHandleString());
 	MakeLinkTo(GetInputPin, PreviousStackNodeOutputPin);
 	MakeLinkTo(GetOutputPin, &OverridePin);
 
-	UNiagaraScriptVariable* ScriptVar = Graph->AddParameter(FNiagaraVariable(InputType, LinkedParameterHandle.GetParameterHandleString()), true);
+	UNiagaraScriptVariable* ScriptVar = Graph->AddParameter(ParameterToRead, false);
 	if (ScriptVar)
 	{
 		ScriptVar->DefaultMode = DesiredDefaultMode; 

@@ -30,6 +30,7 @@
 #include "NiagaraScriptMergeManager.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScriptVariable.h"
+#include "NiagaraSettings.h"
 #include "NiagaraSystemScriptViewModel.h"
 #include "ScopedTransaction.h"
 #include "EdGraph/EdGraphPin.h"
@@ -1351,7 +1352,7 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 	// Engine Handles.
 	for (const FNiagaraVariable& SystemVariable : FNiagaraConstants::GetEngineConstants())
 	{
-		if (SystemVariable.GetType() == InputType)
+		if (FNiagaraEditorUtilities::AreTypesAssignable(SystemVariable.GetType(), InputType))
 		{
 			AvailableParameterHandles.Add(FNiagaraParameterHandle::CreateEngineParameterHandle(SystemVariable));
 		}
@@ -1366,7 +1367,7 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 	GetSystemViewModel()->GetSystem().GetExposedParameters().GetParameters(ExposedVars);
 	for (const FNiagaraVariable& ExposedVar : ExposedVars)
 	{
-		if (ExposedVar.GetType() == InputType)
+		if (FNiagaraEditorUtilities::AreTypesAssignable(ExposedVar.GetType(), InputType))
 		{
 			AvailableParameterHandles.Add(FNiagaraParameterHandle::CreateEngineParameterHandle(ExposedVar));
 		}
@@ -1445,7 +1446,7 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 
 						if (bWritten)
 						{
-							if (HistoryVariable.GetType() == InputType)
+							if (FNiagaraEditorUtilities::AreTypesAssignable(HistoryVariable.GetType(), InputType))
 							{
 								AvailableParameterHandles.AddUnique(AvailableHandle);
 								AvailableParameterHandlesForThisOutput.AddUnique(AvailableHandle);
@@ -1501,7 +1502,7 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 		{
 			for (const FNiagaraVariable& CollectionParam : Collection->GetParameters())
 			{
-				if (CollectionParam.GetType() == InputType)
+				if (FNiagaraEditorUtilities::AreTypesAssignable(CollectionParam.GetType(), InputType))
 				{
 					AvailableParameterHandles.AddUnique(FNiagaraParameterHandle(CollectionParam.GetName()));
 				}

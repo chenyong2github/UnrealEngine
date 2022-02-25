@@ -1011,13 +1011,18 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 				{
 					return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Types are not compatible"));
 				}
-				else if (FNiagaraTypeDefinition::IsLossyConversion(PinToTypeDefinition(InputPin), PinToTypeDefinition(OutputPin)))
+				else if (FNiagaraTypeDefinition::IsLossyConversion(PinTypeInput, PinTypeOutput))
 				{
-					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, FString::Printf(TEXT("Convert %s to %s. Be aware that this can be a lossy conversion."), *(PinToTypeDefinition(OutputPin).GetNameText().ToString()), *(PinToTypeDefinition(InputPin).GetNameText().ToString())));
+					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, FString::Printf(TEXT("Convert %s to %s. Be aware that this can be a lossy conversion."), *(PinTypeOutput.GetNameText().ToString()), *(PinTypeInput.GetNameText().ToString())));
 				}
 				else
 				{
-					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, FString::Printf(TEXT("Convert %s to %s"), *(PinToTypeDefinition(OutputPin).GetNameText().ToString()), *(PinToTypeDefinition(InputPin).GetNameText().ToString())));
+					const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+					if (Settings->bEnforceStrictStackTypes == false && ((PinTypeInput == FNiagaraTypeDefinition::GetPositionDef() && PinTypeOutput == FNiagaraTypeDefinition::GetVec3Def()) || (PinTypeOutput == FNiagaraTypeDefinition::GetPositionDef() && PinTypeInput == FNiagaraTypeDefinition::GetVec3Def())))
+					{
+						return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, FString());
+					}
+					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, FString::Printf(TEXT("Convert %s to %s"), *(PinTypeOutput.GetNameText().ToString()), *(PinTypeInput.GetNameText().ToString())));
 				}
 			}
 		}

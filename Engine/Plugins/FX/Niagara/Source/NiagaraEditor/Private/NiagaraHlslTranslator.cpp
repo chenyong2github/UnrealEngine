@@ -10,7 +10,6 @@
 #include "NiagaraComponent.h"
 #include "NiagaraConstants.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraDataInterfaceCurve.h"
 #include "NiagaraDataInterfaceVector2DCurve.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorSettings.h"
@@ -35,6 +34,7 @@
 #include "NiagaraParameterCollection.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScriptVariable.h"
+#include "NiagaraSettings.h"
 #include "NiagaraShared.h"
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraTrace.h"
@@ -570,6 +570,8 @@ FHlslNiagaraTranslator::FHlslNiagaraTranslator()
 	, ActiveStageIdx(-1)
 	, bInitializedDefaults(false)
 {
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	bEnforceStrictTypesValidations = Settings->bEnforceStrictStackTypes;
 }
 
 
@@ -6245,7 +6247,10 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 				if ((ExistingVar->GetType() == FNiagaraTypeDefinition::GetVec3Def() && Var.GetType() == FNiagaraTypeDefinition::GetPositionDef())
 					|| (ExistingVar->GetType() == FNiagaraTypeDefinition::GetPositionDef() && Var.GetType() == FNiagaraTypeDefinition::GetVec3Def()))
 				{
-					Warning(FText::Format(LOCTEXT("MismatchedPositionTypes", "Variable {0} was defined both as position and vector, please check your modules and linked values for compatibility."), FText::FromName(Var.GetName())), ErrorNode, nullptr);
+					if (bEnforceStrictTypesValidations)
+					{
+						Warning(FText::Format(LOCTEXT("MismatchedPositionTypes", "Variable {0} was defined both as position and vector, please check your modules and linked values for compatibility."), FText::FromName(Var.GetName())), ErrorNode, nullptr);
+					}
 				}
 				else
 				{
@@ -6704,7 +6709,7 @@ void FHlslNiagaraTranslator::Operation(class UNiagaraNodeOp* Operation, TArray<i
 	}
 
 	FText ValidationError;
-	if (OpInfo && OpInfo->InputTypeValidationFunction.IsBound() && OpInfo->InputTypeValidationFunction.Execute(InputTypes, ValidationError) == false)
+	if (bEnforceStrictTypesValidations && OpInfo && OpInfo->InputTypeValidationFunction.IsBound() && OpInfo->InputTypeValidationFunction.Execute(InputTypes, ValidationError) == false)
 	{
 		Warning(ValidationError, Operation, OutputPins[0], TEXT("Invalid op types"), true);
 	}

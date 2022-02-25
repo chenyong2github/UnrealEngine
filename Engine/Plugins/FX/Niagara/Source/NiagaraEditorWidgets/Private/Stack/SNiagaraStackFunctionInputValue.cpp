@@ -834,7 +834,8 @@ FReply SNiagaraStackFunctionInputValue::OnFunctionInputDrop(const FGeometry& InG
 		if (Action.IsValid())
 		{
 			FNiagaraTypeDefinition FromType = Action->GetParameter().GetType();
-			if (FromType == FunctionInput->GetInputType())
+			FNiagaraTypeDefinition ToType = FunctionInput->GetInputType();
+			if (FNiagaraEditorUtilities::AreTypesAssignable(FromType, ToType))
 			{
 				// the types are the same, so we can just link the value directly
 				FunctionInput->SetLinkedValueHandle(FNiagaraParameterHandle(Action->GetParameter().GetName()));
@@ -863,15 +864,16 @@ bool SNiagaraStackFunctionInputValue::OnFunctionInputAllowDrop(TSharedPtr<FDragD
 		TSharedPtr<FNiagaraParameterDragOperation> InputDragDropOperation = StaticCastSharedPtr<FNiagaraParameterDragOperation>(DragDropOperation);
 		TSharedPtr<FNiagaraParameterAction> Action = StaticCastSharedPtr<FNiagaraParameterAction>(InputDragDropOperation->GetSourceAction());
 		bool bAllowedInExecutionCategory = FNiagaraStackGraphUtilities::ParameterAllowedInExecutionCategory(Action->GetParameter().GetName(), FunctionInput->GetExecutionCategoryName());
-
+		FNiagaraTypeDefinition DropType = Action->GetParameter().GetType();
+		
 		// check if we can simply link the input directly
-		if (bAllowedInExecutionCategory && Action->GetParameter().GetType() == FunctionInput->GetInputType())
+		if (bAllowedInExecutionCategory && FNiagaraEditorUtilities::AreTypesAssignable(DropType, FunctionInput->GetInputType()))
 		{
 			return true;
 		}
 
 		// check if we can use a conversion script
-		if (bAllowedInExecutionCategory && FunctionInput->GetPossibleConversionScripts(Action->GetParameter().GetType()).Num() > 0)
+		if (bAllowedInExecutionCategory && FunctionInput->GetPossibleConversionScripts(DropType).Num() > 0)
 		{
 			return true;
 		}

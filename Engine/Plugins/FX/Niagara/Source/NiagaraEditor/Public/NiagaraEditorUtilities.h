@@ -163,6 +163,8 @@ namespace FNiagaraEditorUtilities
 
 	FText GetTypeDefinitionCategory(const FNiagaraTypeDefinition& TypeDefinition);
 
+	NIAGARAEDITOR_API bool AreTypesAssignable(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB);
+
 	void MarkDependentCompilableAssetsDirty(TArray<UObject*> InObjects);
 
 	void ResolveNumerics(UNiagaraGraph* SourceGraph, bool bForceParametersToResolveNumerics, TArray<FNiagaraVariable>& ChangedNumericParams);

@@ -27,6 +27,7 @@
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNodeStaticSwitch.h"
+#include "NiagaraSettings.h"
 #include "ScopedTransaction.h"
 
 
@@ -406,6 +407,7 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 			return false;
 		}
 		const UEdGraphSchema_Niagara* NiagaraSchema = Graph->GetNiagaraSchema();
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 		
 		// find out which inputs the module offers
 		TSet<const UEdGraphPin*> HiddenModulePins;
@@ -463,7 +465,7 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 				}
 
 				// when changing the module input type to position, changes the linked value pin as well
-				if (InputVar.GetType() == FNiagaraTypeDefinition::GetPositionDef() && OverridePin->PinType != LinkedValuePin->PinType)
+				if (InputVar.GetType() == FNiagaraTypeDefinition::GetPositionDef() && OverridePin->PinType != LinkedValuePin->PinType && Settings->bEnforceStrictStackTypes)
 				{
 					LinkedValuePin->PinType = OverridePin->PinType;
 					bNodeChanged = true;

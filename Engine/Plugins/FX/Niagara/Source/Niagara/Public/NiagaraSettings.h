@@ -101,6 +101,13 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = ( ConfigRestartRequired = true ))
 	bool bSystemsSupportLargeWorldCoordinates = true;
 
+	/**
+	 If set to true, types like positions and vectors cannot be assigned to each other without an explicit conversion step.
+	 If false, type checks are loosened and some types can be implicitly converted into each other.
+	 It is recommended to not disable this when working with large world coordinates. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = ( DisplayName = "Enforce strict type checks in the graph" ))
+	bool bEnforceStrictStackTypes = true;
+
 	/** Default effect type to use for effects that don't define their own. Can be null. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "NiagaraEffectType"))
 	FSoftObjectPath DefaultEffectType;

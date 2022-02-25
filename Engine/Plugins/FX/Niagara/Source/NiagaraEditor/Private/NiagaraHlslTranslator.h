@@ -854,6 +854,7 @@ private:
 	TArray<FHlslNiagaraTranslationStage> TranslationStages;
 	int32 ActiveStageIdx;
 	bool bInitializedDefaults;
+	bool bEnforceStrictTypesValidations;
 
 	TArray<const UEdGraphPin*> CurrentDefaultPinTraversal;
 	// Variables that need to be initialized based on some other variable's value at the end of spawn.
