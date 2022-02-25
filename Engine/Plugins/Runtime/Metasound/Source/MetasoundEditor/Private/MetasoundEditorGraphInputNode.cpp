@@ -15,6 +15,7 @@
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendLiteral.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundPrimitives.h"
 #include "Misc/Guid.h"
 #include "Sound/SoundWave.h"
@@ -71,6 +72,43 @@ FSlateIcon UMetasoundEditorGraphInputNode::GetNodeTitleIcon() const
 {
 	static const FName NativeIconName = "MetasoundEditor.Graph.Node.Class.Input";
 	return FSlateIcon("MetaSoundStyle", NativeIconName);
+}
+
+bool UMetasoundEditorGraphInputNode::Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult)
+{
+#if WITH_EDITOR
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	OutResult = CreateNewValidationResult();
+
+	FNodeHandle NodeHandle = GetNodeHandle();
+	const FMetasoundFrontendClassMetadata& Metadata = NodeHandle->GetClassMetadata();
+
+	const FMetasoundFrontendVersion& MetasoundFrontendVersion = NodeHandle->GetInterfaceVersion();
+
+	FName InterfaceNameToValidate = MetasoundFrontendVersion.Name;
+	FMetasoundFrontendInterface InterfaceToValidate;
+	if (ISearchEngine::Get().FindInterfaceWithHighestVersion(InterfaceNameToValidate, InterfaceToValidate))
+	{
+		const FName& NodeName = NodeHandle->GetNodeName();
+		FText RequiredText;
+		if (InterfaceToValidate.IsMemberInputRequired(NodeName, RequiredText))
+		{
+			TArray<FConstInputHandle> InputHandles = NodeHandle->GetConstInputs();
+			if (ensure(!InputHandles.IsEmpty()))
+			{
+				const FConstInputHandle& InputHandle = InputHandles.Last();
+				if (!InputHandle->IsConnected())
+				{
+					GraphNode::SetMessage(*this, EMessageSeverity::Warning, *RequiredText.ToString());
+					return false;
+				}
+			}
+		}
+	}
+#endif // #if WITH_EDITOR
+	return true;
 }
 
 void UMetasoundEditorGraphInputNode::SetNodeID(FGuid InNodeID)

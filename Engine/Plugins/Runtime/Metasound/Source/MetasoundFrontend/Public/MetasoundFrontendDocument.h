@@ -792,6 +792,12 @@ struct FMetasoundFrontendInterfaceStyle
 	UPROPERTY()
 	TArray<int32> DefaultSortOrder;
 
+#if WITH_EDITORONLY_DATA
+	// Map of member names with FText to be used as warnings if not hooked up
+	UPROPERTY()
+	TMap<FName, FText> RequiredMembers;
+#endif // #if WITH_EDITORONLY_DATA
+
 	template <typename HandleType>
 	TArray<HandleType> SortDefaults(const TArray<HandleType>& InHandles) const
 	{
@@ -832,6 +838,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassInterface
 	GENERATED_BODY()
 
 private:
+
 	// Style info for inputs.
 	UPROPERTY()
 	FMetasoundFrontendInterfaceStyle InputStyle;
@@ -841,6 +848,7 @@ private:
 	FMetasoundFrontendInterfaceStyle OutputStyle;
 
 public:
+
 	// Generates class interface intended to be used as a registry descriptor from FNodeClassMetadata.
 	// Does not initialize a change ID as it is not considered to be transactional.
 	static FMetasoundFrontendClassInterface GenerateClassInterface(const Metasound::FVertexInterface& InVertexInterface);
@@ -883,6 +891,39 @@ public:
 		OutputStyle = InOutputStyle;
 		ChangeID = FGuid::NewGuid();
 	}
+
+#if WITH_EDITORONLY_DATA
+	void AddRequiredInputToStyle(const FName& InInputName, const FText& InRequiredText)
+	{
+		InputStyle.RequiredMembers.Add(InInputName, InRequiredText);
+	}
+
+	void AddRequiredOutputToStyle(const FName& InOutputName, const FText& InRequiredText)
+	{
+		OutputStyle.RequiredMembers.Add(InOutputName, InRequiredText);
+	}
+
+	bool IsMemberInputRequired(const FName& InInputName, FText& OutRequiredText)
+	{
+		if (FText* RequiredText = InputStyle.RequiredMembers.Find(InInputName))
+		{
+			OutRequiredText = *RequiredText;
+			return true;
+		}
+		return false;
+	}
+
+	bool IsMemberOutputRequired(const FName& InOutputName, FText& OutRequiredText)
+	{
+		if (FText* RequiredText = OutputStyle.RequiredMembers.Find(InOutputName))
+		{
+			OutRequiredText = *RequiredText;
+			return true;
+		}
+		return false;
+	}
+#endif // #if WITH_EDITORONLY_DATA
+
 
 	const FGuid& GetChangeID() const
 	{

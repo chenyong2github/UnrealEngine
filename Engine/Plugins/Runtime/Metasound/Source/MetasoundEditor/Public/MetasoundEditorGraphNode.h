@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
+#include "MetasoundEditorGraphValidation.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
@@ -32,6 +33,11 @@ namespace Metasound
 
 		// Map of class names to sorted array of registered version numbers
 		using FSortedClassVersionMap = TMap<FName, TArray<FMetasoundFrontendVersionNumber>>;
+
+		namespace GraphNode
+		{
+			void SetMessage(UEdGraphNode& InNode, EMessageSeverity::Type InSeverity, const FString& InMessage);
+		}
 	} // namespace Editor
 } // namespace Metasound
 
@@ -99,9 +105,11 @@ public:
 	virtual FGuid GetNodeID() const { return FGuid(); }
 	virtual FText GetDisplayName() const;
 	virtual void CacheTitle();
+	virtual bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult);
 
 	// Mark node for refresh
 	void SyncChangeIDs();
+
 
 	FText GetCachedTitle() const { return CachedTitle; }
 
@@ -143,6 +151,10 @@ public:
 	{
 		return true;
 	}
+
+protected:
+	// Utility to construct a new validaton result for child classes
+	Metasound::Editor::FGraphNodeValidationResult CreateNewValidationResult();
 };
 
 /** Node that represents a graph output */
@@ -169,6 +181,8 @@ public:
 
 	// Disables interact widgets (ex. sliders, knobs) when input is connected
 	virtual bool EnableInteractWidgets() const override;
+
+	virtual bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult) override;
 
 protected:
 	virtual FLinearColor GetNodeTitleColor() const override;
@@ -210,7 +224,7 @@ public:
 	bool CanAutoUpdate() const;
 
 	// Validates node and returns whether or not the node is valid.
-	bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult);
+	virtual bool Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult) override;
 
 
 protected:

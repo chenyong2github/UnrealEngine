@@ -65,9 +65,21 @@ namespace Metasound
 			TArray<FVertexPair> PairedInputs;
 			TArray<FVertexPair> PairedOutputs;
 
-			TArray<FMetasoundFrontendClassInput> InputsToAdd;
+			struct FInputData
+			{
+				FMetasoundFrontendClassInput Input;
+				const FMetasoundFrontendInterface* InputInterface = nullptr;
+			};
+
+			struct FOutputData
+			{
+				FMetasoundFrontendClassOutput Output;
+				const FMetasoundFrontendInterface* OutputInterface = nullptr;
+			};
+
+			TArray<FInputData> InputsToAdd;
 			TArray<FMetasoundFrontendClassInput> InputsToRemove;
-			TArray<FMetasoundFrontendClassOutput> OutputsToAdd;
+			TArray<FOutputData> OutputsToAdd;
 			TArray<FMetasoundFrontendClassOutput> OutputsToRemove;
 
 		};

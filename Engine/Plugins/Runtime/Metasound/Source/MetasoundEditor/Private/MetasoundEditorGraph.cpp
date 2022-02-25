@@ -1588,6 +1588,9 @@ bool UMetasoundEditorGraph::ValidateInternal(Metasound::Editor::FGraphValidation
 			bMarkDirty |= NodeResult.bIsDirty;
 		}
 
+		bIsValid &= Node->Validate(NodeResult);
+		bMarkDirty |= NodeResult.bIsDirty;
+
 		OutResults.NodeResults.Add(NodeResult);
 	}
 

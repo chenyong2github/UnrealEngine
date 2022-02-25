@@ -29,6 +29,7 @@ namespace Audio
 			const FName DataType;
 
 			const FAudioParameter InitValue;
+			const FText RequiredText;
 		};
 
 		struct FOutput
@@ -38,6 +39,7 @@ namespace Audio
 			const FName DataType;
 
 			const FName ParamName;
+			const FText RequiredText = FText();
 			const EAudioParameterType ParamType = EAudioParameterType::None;
 		};
 

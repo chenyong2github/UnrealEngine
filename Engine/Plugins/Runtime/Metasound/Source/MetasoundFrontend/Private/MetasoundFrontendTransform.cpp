@@ -77,16 +77,38 @@ namespace Metasound
 				InputsToRemove.Append(FromInterface.Inputs);
 				OutputsToRemove.Append(FromInterface.Outputs);
 			}
+
+			// This function combines all the inputs of all interfaces into one input list and ptrs to their originating interfaces.
+			// The interface ptr will be used to query the interface for required validations on inputs. Interfaces define required inputs (and possibly other validation requirements).
 			for (const FMetasoundFrontendInterface& ToInterface : InterfacesToAdd)
 			{
-				InputsToAdd.Append(ToInterface.Inputs);
-				OutputsToAdd.Append(ToInterface.Outputs);
+				TArray<FInputData> NewInputDataArray;
+				for (const FMetasoundFrontendClassInput& Input : ToInterface.Inputs)
+				{
+					FInputData NewData;
+					NewData.Input = Input;
+					NewData.InputInterface = &ToInterface;
+					NewInputDataArray.Add(NewData);
+				}
+
+				InputsToAdd.Append(NewInputDataArray);
+
+				TArray<FOutputData> NewOutputDataArray;
+				for (const FMetasoundFrontendClassOutput& Output : ToInterface.Outputs)
+				{
+					FOutputData NewData;
+					NewData.Output = Output;
+					NewData.OutputInterface = &ToInterface;
+					NewOutputDataArray.Add(NewData);
+				}
+
+				OutputsToAdd.Append(NewOutputDataArray);
 			}
 
 			// Iterate in reverse to allow removal from `InputsToAdd`
 			for (int32 AddIndex = InputsToAdd.Num() - 1; AddIndex >= 0; AddIndex--)
 			{
-				const FMetasoundFrontendClassVertex& VertexToAdd = InputsToAdd[AddIndex];
+				const FMetasoundFrontendClassVertex& VertexToAdd = InputsToAdd[AddIndex].Input;
 
 				const int32 RemoveIndex = InputsToRemove.IndexOfByPredicate([&](const FMetasoundFrontendClassVertex& VertexToRemove)
 				{
@@ -111,7 +133,7 @@ namespace Metasound
 
 				if (INDEX_NONE != RemoveIndex)
 				{
-					PairedInputs.Add(FVertexPair{InputsToRemove[RemoveIndex], InputsToAdd[AddIndex]});
+					PairedInputs.Add(FVertexPair{InputsToRemove[RemoveIndex], InputsToAdd[AddIndex].Input});
 					InputsToRemove.RemoveAtSwap(RemoveIndex);
 					InputsToAdd.RemoveAtSwap(AddIndex);
 				}
@@ -120,7 +142,7 @@ namespace Metasound
 			// Iterate in reverse to allow removal from `OutputsToAdd`
 			for (int32 AddIndex = OutputsToAdd.Num() - 1; AddIndex >= 0; AddIndex--)
 			{
-				const FMetasoundFrontendClassVertex& VertexToAdd = OutputsToAdd[AddIndex];
+				const FMetasoundFrontendClassVertex& VertexToAdd = OutputsToAdd[AddIndex].Output;
 
 				const int32 RemoveIndex = OutputsToRemove.IndexOfByPredicate([&](const FMetasoundFrontendClassVertex& VertexToRemove)
 				{
@@ -145,11 +167,11 @@ namespace Metasound
 
 				if (INDEX_NONE != RemoveIndex)
 				{
-					PairedOutputs.Add(FVertexPair{OutputsToRemove[RemoveIndex], OutputsToAdd[AddIndex]});
+					PairedOutputs.Add(FVertexPair{OutputsToRemove[RemoveIndex], OutputsToAdd[AddIndex].Output});
 					OutputsToRemove.RemoveAtSwap(RemoveIndex);
 					OutputsToAdd.RemoveAtSwap(AddIndex);
 				}
-			}
+			}			
 		}
 
 		bool FModifyRootGraphInterfaces::Transform(FDocumentHandle InDocument) const
@@ -229,33 +251,43 @@ namespace Metasound
 #if WITH_EDITOR
 			auto FindLowestNodeLocationOfClassType = [](EMetasoundFrontendClassType ClassType, FGraphHandle Graph, FName DataType, TFunctionRef<bool(FConstNodeHandle, FName)> NodeDataTypeFilter)
 			{
-				FVector2D LowestLocation;
+				FVector2D LowestLocation = { TNumericLimits<float>::Min(), TNumericLimits<float>::Min() };
+				bool bFoundLocation = false;
+
 				Graph->IterateConstNodes([&](FConstNodeHandle NodeHandle)
 				{
-					for (const TPair<FGuid, FVector2D>& Pair : NodeHandle->GetNodeStyle().Display.Locations)
+					const TMap<FGuid, FVector2D>& Locations = NodeHandle->GetNodeStyle().Display.Locations;
+					for (const TPair<FGuid, FVector2D>& Pair : Locations)
 					{
 						if (Pair.Value.Y > LowestLocation.Y)
 						{
-							if (NodeDataTypeFilter(NodeHandle, DataType))
-							{
-								LowestLocation = Pair.Value;
-							}
+							LowestLocation = Pair.Value;
+							bFoundLocation = true;
 						}
 					}
 				}, ClassType);
+
+				if (!bFoundLocation)
+				{
+					LowestLocation = { DisplayStyle::NodeLayout::DefaultOffsetX.X * 2.0f, 0.0f };
+				}
 
 				return LowestLocation;
 			};
 #endif // WITH_EDITOR
 
 			// Add missing inputs
-			for (const FMetasoundFrontendClassInput& InputToAdd : InputsToAdd)
+			for (const FInputData& InputData : InputsToAdd)
 			{
 				bDidEdit = true;
+				const FMetasoundFrontendClassInput& InputToAdd = InputData.Input;
 				FNodeHandle NewInputNode = GraphHandle->AddInputVertex(InputToAdd);
 
 #if WITH_EDITOR
-				if (bSetDefaultNodeLocations)
+				FName InputName = InputToAdd.Name;
+				bool bRequiredInput = InputData.InputInterface->GetInputStyle().RequiredMembers.Contains(InputName);
+
+				if (bSetDefaultNodeLocations || bRequiredInput)
 				{
 					FMetasoundFrontendNodeStyle Style = NewInputNode->GetNodeStyle();
 					const FVector2D LastOutputLocation = FindLowestNodeLocationOfClassType(EMetasoundFrontendClassType::Input, GraphHandle, InputToAdd.TypeName, InputDataTypeCompareFilter);
@@ -266,13 +298,17 @@ namespace Metasound
 			}
 
 			// Add missing outputs
-			for (const FMetasoundFrontendClassOutput& OutputToAdd : OutputsToAdd)
+			for (const FOutputData& OutputData : OutputsToAdd)
 			{
 				bDidEdit = true;
+				const FMetasoundFrontendClassOutput& OutputToAdd = OutputData.Output;
 				FNodeHandle NewOutputNode = GraphHandle->AddOutputVertex(OutputToAdd);
 
 #if WITH_EDITOR
-				if (bSetDefaultNodeLocations)
+				FName OutputName = OutputToAdd.Name;
+				bool bRequiredOutput = OutputData.OutputInterface->GetOutputStyle().RequiredMembers.Contains(OutputName);
+
+				if (bSetDefaultNodeLocations || bRequiredOutput)
 				{
 					FMetasoundFrontendNodeStyle Style = NewOutputNode->GetNodeStyle();
 					const FVector2D LastOutputLocation = FindLowestNodeLocationOfClassType(EMetasoundFrontendClassType::Output, GraphHandle, OutputToAdd.TypeName, OutputDataTypeCompareFilter);

@@ -5,6 +5,7 @@
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphNode.h"
 
+class UMetasoundEditorGraphNode;
 
 namespace Metasound
 {

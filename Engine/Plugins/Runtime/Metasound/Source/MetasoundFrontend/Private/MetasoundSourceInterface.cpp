@@ -43,7 +43,8 @@ namespace Metasound
 								LOCTEXT("OnFinished", "On Finished"),
 								LOCTEXT("OnFinishedDescription", "Trigger executed to initiate stopping the source."),
 								GetMetasoundDataTypeName<FTrigger>(),
-								Outputs::OnFinished
+								Outputs::OnFinished,								
+								LOCTEXT("OnFinishedWarning", "\"On Finished\" should be connected for OneShot MetaSound sources. For sources with undefined duration (e.g. looping), remove the OneShot interface and use an audio component to avoid leaking the source."),
 							}
 						};
 					}

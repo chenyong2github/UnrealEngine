@@ -29,29 +29,45 @@
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
-
 namespace Metasound
 {
 	namespace Editor
 	{
-		namespace GraphNodePrivate
+		void GraphNode::SetMessage(UEdGraphNode& InNode, EMessageSeverity::Type InSeverity, const FString& InMessage)
 		{
-			void SetGraphNodeMessage(UEdGraphNode& InNode, EMessageSeverity::Type InSeverity, const FString& InMessage)
+			InNode.bHasCompilerMessage = true;
+			InNode.ErrorMsg = InMessage;
+			InNode.ErrorType = InSeverity;
+
+			if (InSeverity == EMessageSeverity::Error)
 			{
-				InNode.bHasCompilerMessage = true;
-				InNode.ErrorMsg = InMessage;
-				InNode.ErrorType = InSeverity;
-
-				if (InSeverity == EMessageSeverity::Error)
-				{
-					UE_LOG(LogMetasoundEditor, Error, TEXT("%s"), *InMessage);
-				}
+				UE_LOG(LogMetasoundEditor, Error, TEXT("%s"), *InMessage);
 			}
-		} // namespace GraphNodePrivate
-	} // namespace Editor
-} // namespace Metasound
+		}
+	}
+}
 
+Metasound::Editor::FGraphNodeValidationResult UMetasoundEditorGraphMemberNode::CreateNewValidationResult()
+{
+	using namespace Metasound::Editor;
 
+	FGraphNodeValidationResult OutResult = FGraphNodeValidationResult(*this);
+
+	// Reset the node validation state
+	if (ErrorType != EMessageSeverity::Info)
+	{
+		ErrorType = EMessageSeverity::Info;
+		OutResult.bIsDirty = true;
+	}
+
+	if (bHasCompilerMessage)
+	{
+		bHasCompilerMessage = false;
+		ErrorMsg.Reset();
+		OutResult.bIsDirty = true;
+	}
+	return OutResult;
+}
 UMetasoundEditorGraphNode::UMetasoundEditorGraphNode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -190,6 +206,13 @@ void UMetasoundEditorGraphNode::CacheTitle()
 
 	FConstNodeHandle NodeHandle = GetNodeHandle();
 	CachedTitle = NodeHandle->GetDisplayTitle();
+}
+
+bool UMetasoundEditorGraphNode::Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult)
+{
+	// Do no validation by default
+	OutResult = Metasound::Editor::FGraphNodeValidationResult(*this);
+	return true;
 }
 
 bool UMetasoundEditorGraphNode::ContainsMetadataChange() const
@@ -580,6 +603,43 @@ bool UMetasoundEditorGraphOutputNode::EnableInteractWidgets() const
 	return bEnabled;
 }
 
+bool UMetasoundEditorGraphOutputNode::Validate(Metasound::Editor::FGraphNodeValidationResult& OutResult) 
+{
+#if WITH_EDITOR
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	OutResult = CreateNewValidationResult();
+
+	// 2. Check if node is invalid, version is missing and cache if interface changes exist between the document's records and the registry
+	FNodeHandle NodeHandle = GetNodeHandle();
+	const FMetasoundFrontendVersion& MetasoundFrontendVersion = NodeHandle->GetInterfaceVersion();
+
+	FName InterfaceNameToValidate = MetasoundFrontendVersion.Name;
+	FMetasoundFrontendInterface InterfaceToValidate;
+	if (ISearchEngine::Get().FindInterfaceWithHighestVersion(InterfaceNameToValidate, InterfaceToValidate))
+	{
+		const FName& NodeName = NodeHandle->GetNodeName();
+		FText RequiredText;
+		if (InterfaceToValidate.IsMemberOutputRequired(NodeName, RequiredText))
+		{
+			TArray<FConstInputHandle> InputHandles = NodeHandle->GetConstInputs();
+			if (ensure(!InputHandles.IsEmpty()))
+			{
+				bool bIsConnected = InputHandles.Last()->IsConnected();
+				if (!bIsConnected)
+				{
+					GraphNode::SetMessage(*this, EMessageSeverity::Warning, *RequiredText.ToString());
+					return false;
+				}
+			}
+		}
+	}
+#endif // #if WITH_EDITOR
+
+	return true;
+}
+
 FMetasoundFrontendClassName UMetasoundEditorGraphOutputNode::GetClassName() const
 {
 	if (ensure(Output))
@@ -770,19 +830,19 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 				*PromptIfMissing->ToString()
 			});
 
-			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error, NewErrorMsg);
+			GraphNode::SetMessage(*this, EMessageSeverity::Error, NewErrorMsg);
 		}
 		else
 		{
 			if (bIsClassNative)
 			{
-				GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error, FString::Format(
+				GraphNode::SetMessage(*this, EMessageSeverity::Error, FString::Format(
 					TEXT("Class '{0}' definition missing for last known natively defined node."),
 					{ *ClassName.ToString() }));
 			}
 			else
 			{
-				GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error,
+				GraphNode::SetMessage(*this, EMessageSeverity::Error,
 					FString::Format(TEXT("Class definition missing for asset with guid '{0}': Asset is either missing or invalid"),
 					{ *ClassName.Name.ToString() }));
 			}
@@ -853,7 +913,7 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 		if (RegisteredClass.Metadata.GetIsDeprecated())
 		{
 			constexpr bool bIncludeNamespace = true;
-			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Warning,
+			GraphNode::SetMessage(*this, EMessageSeverity::Warning,
 				FString::Format(TEXT("Class '{0} {1}' is deprecated."),
 				{
 					*FGraphBuilder::GetDisplayName(RegisteredClass.Metadata, { }, bIncludeNamespace).ToString(),
@@ -867,7 +927,7 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 	const TArray<FMetasoundFrontendClass> SortedClasses = ISearchEngine::Get().FindClassesWithName(NodeClassName, true /* bSortByVersion */);
 	if (SortedClasses.IsEmpty())
 	{
-		GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error,
+		GraphNode::SetMessage(*this, EMessageSeverity::Error,
 			FString::Format(TEXT("Class '{0} {1}' not registered."),
 			{
 				*Metadata.GetClassName().ToString(),
@@ -912,14 +972,14 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 				OutResult.bIsInvalid = true;
 			}
 
-			GraphNodePrivate::SetGraphNodeMessage(*this, Severity, NodeMsg);
+			GraphNode::SetMessage(*this, Severity, NodeMsg);
 			OutResult.bIsDirty = true;
 		}
 		else if (HighestRegistryClass.Metadata.GetVersion() == CurrentVersion)
 		{
 			if (InterfaceUpdates.ContainsChanges())
 			{
-				GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error,
+				GraphNode::SetMessage(*this, EMessageSeverity::Error,
 				FString::Format(TEXT("Node & registered class interface mismatch: '{0} {1}'. Class either versioned improperly, class key collision exists, or AutoUpdate disabled in 'MetaSound' Developer Settings."),
 				{
 					*Metadata.GetClassName().ToString(),
@@ -931,7 +991,7 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 		}
 		else
 		{
-			GraphNodePrivate::SetGraphNodeMessage(*this, EMessageSeverity::Error,
+			GraphNode::SetMessage(*this, EMessageSeverity::Error,
 				FString::Format(TEXT("Node with class '{0} {1}' interface version higher than that of highest minor revision ({2}) in class registry."),
 				{
 					*Metadata.GetClassName().ToString(),

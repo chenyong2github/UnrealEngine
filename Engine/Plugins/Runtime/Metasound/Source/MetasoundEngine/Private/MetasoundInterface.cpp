@@ -134,6 +134,15 @@ namespace Metasound
 
 			Algo::Transform(Interface->GetInputs(), FrontendInterface.Inputs, [&](const Audio::FParameterInterface::FInput& Input)
 			{
+				// Setup required inputs by telling the style that the input is required
+				// This will later be validated against.
+#if WITH_EDITOR
+				if (!Input.RequiredText.IsEmpty())
+				{
+					FrontendInterface.AddRequiredInputToStyle(Input.InitValue.ParamName, Input.RequiredText);
+				}
+#endif // #if WITH_EDITOR
+
 				FMetasoundFrontendClassInput ClassInput;
 				ClassInput.Name = Input.InitValue.ParamName;
 				ClassInput.DefaultLiteral = FMetasoundFrontendLiteral(Input.InitValue);
@@ -154,6 +163,15 @@ namespace Metasound
 
 			Algo::Transform(Interface->GetOutputs(), FrontendInterface.Outputs, [&](const Audio::FParameterInterface::FOutput& Output)
 			{
+				// Setup required outputs by telling the style that the output is required
+				// This will later be validated against.
+#if WITH_EDITOR
+				if (!Output.RequiredText.IsEmpty())
+				{
+					FrontendInterface.AddRequiredOutputToStyle(Output.ParamName, Output.RequiredText);
+				}
+#endif // #if WITH_EDITOR
+
 				FMetasoundFrontendClassOutput ClassOutput;
 				ClassOutput.Name = Output.ParamName;
 				ClassOutput.TypeName = ResolveMemberDataType(Output.DataType, Output.ParamType);
@@ -205,6 +223,8 @@ namespace Metasound
 
 				RegisterInterface(SourceInterface::CreateInterface(*UMetaSoundSource::StaticClass()), MakeUnique<SourceInterface::FUpdateInterface>(), bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
 				RegisterInterface(OutputFormatMonoInterface::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
+
+				RegisterInterface(SourceOneShotInterface::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, true, IDataReference::RouterName);
 			}
 
 			// Register Non-Default Internal Interfaces (Not managed directly by end-user & not added by default when creating new MetaSound assets).
@@ -226,9 +246,7 @@ namespace Metasound
 				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatMonoV1_1::GetInterface(), MakeUnique<MetasoundOutputFormatMonoV1_1::FUpdateInterface>(), bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
 				RegisterInterface<UMetaSoundSource>(MetasoundOutputFormatMonoV1_2::GetInterface(), MakeUnique<MetasoundOutputFormatMonoV1_2::FUpdateInterface>(), bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
 
-				RegisterInterface(OutputFormatStereoInterface::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);
-				
-				RegisterInterface(SourceOneShotInterface::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, true, IDataReference::RouterName);
+				RegisterInterface(OutputFormatStereoInterface::CreateInterface(*UMetaSoundSource::StaticClass()), nullptr, bIsDefault, bEditorCanAddOrRemove, IDataReference::RouterName);			
 			}
 
 			// Register External Interfaces (Interfaces defined externally & can be managed directly by end-user).
