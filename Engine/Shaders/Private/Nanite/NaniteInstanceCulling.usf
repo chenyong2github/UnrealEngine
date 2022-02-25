@@ -80,7 +80,6 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags)
 {
 	const bool bForceHidden						= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_FORCE_HIDDEN) != 0u;
-	const bool bVisibleInRaster					= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER) != 0u;
 	const bool bVisibleInGame					= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_GAME) != 0u;
 	const bool bVisibleInEditor					= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_EDITOR) != 0u;
 	const bool bVisibleInReflectionCaptures		= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_REFLECTION_CAPTURES) != 0u;
@@ -92,19 +91,12 @@ bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags)
 	const bool bIsSceneCapture					= (RenderFlags & NANITE_RENDER_FLAG_IS_SCENE_CAPTURE) != 0u;
 	const bool bIsReflectionCapture				= (RenderFlags & NANITE_RENDER_FLAG_IS_REFLECTION_CAPTURE) != 0u;
 	const bool bIsGameView						= (RenderFlags & NANITE_RENDER_FLAG_IS_GAME_VIEW) != 0u;
-	const bool bIgnoreVisibleInRaster			= (RenderFlags & NANITE_RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER) != 0u;
 	const bool bEditorShowFlag					= (RenderFlags & NANITE_RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED) != 0u;
 	const bool bGameShowFlag					= (RenderFlags & NANITE_RENDER_FLAG_GAME_SHOW_FLAG_ENABLED) != 0u;
 
 	if (bForceHidden)
 	{
 		// Primitive is forcibly hidden
-		return false;
-	}
-
-	// Special logic for HLOD, which need to be hidden in views, except render into Lumen
-	if (!bVisibleInRaster && !bIgnoreVisibleInRaster)
-	{
 		return false;
 	}
 

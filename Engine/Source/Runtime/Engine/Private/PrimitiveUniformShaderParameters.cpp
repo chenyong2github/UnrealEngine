@@ -162,7 +162,6 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.VisibleInRealTimeSkyCaptures(Proxy->IsVisibleInRealTimeSkyCaptures())
 		.VisibleInRayTracing(Proxy->IsVisibleInRayTracing())
 		.VisibleInSceneCaptureOnly(Proxy->IsVisibleInSceneCaptureOnly())
-		.VisibleInRaster(Proxy->IsVisibleInRaster())
 		.HiddenInSceneCapture(Proxy->IsHiddenInSceneCapture())
 		.ForceHidden(Proxy->IsForceHidden())
 		.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)

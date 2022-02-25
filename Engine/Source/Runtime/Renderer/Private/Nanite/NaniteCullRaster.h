@@ -98,7 +98,6 @@ struct FCullingContext
 		uint32 bForceHWRaster : 1;
 		uint32 bPrimaryContext : 1;
 		uint32 bDrawOnlyVSMInvalidatingGeometry : 1;
-		uint32 bIgnoreVisibleInRaster : 1;
 		uint32 bIsSceneCapture : 1;
 		uint32 bIsReflectionCapture : 1;
 		uint32 bIsGameView : 1;

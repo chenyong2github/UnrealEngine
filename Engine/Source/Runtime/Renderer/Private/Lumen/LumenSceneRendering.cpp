@@ -2574,9 +2574,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				CullingConfig.bForceHWRaster			= RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 				CullingConfig.SetViewFlags(*SharedView);
 
-				// Far field can be marked as invisible in raster, but we want to capture it into surface cache
-				CullingConfig.bIgnoreVisibleInRaster	= true;
-
 				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 					GraphBuilder,
 					SharedContext,
