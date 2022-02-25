@@ -378,6 +378,10 @@ TArray<FColor>* FScreenshotRequest::GetHighresScreenshotMaskColorArray()
 	return &HighresScreenshotMaskColorArray;
 }
 
+FIntPoint& FScreenshotRequest::GetHighresScreenshotMaskExtents()
+{
+	return HighresScreenshotMaskExtents;
+}
 
 // @param bAutoType true: automatically choose GB/MB/KB/... false: always use MB for easier comparisons
 FString GetMemoryString( const double Value, const bool bAutoType )
@@ -409,6 +413,7 @@ FString FScreenshotRequest::Filename;
 FString FScreenshotRequest::NextScreenshotName;
 bool FScreenshotRequest::bShowUI = false;
 TArray<FColor> FScreenshotRequest::HighresScreenshotMaskColorArray;
+FIntPoint FScreenshotRequest::HighresScreenshotMaskExtents;
 
 static TAutoConsoleVariable<int32> CVarFullSizeUnitGraph(
 	TEXT("FullSizeUnitGraph"),

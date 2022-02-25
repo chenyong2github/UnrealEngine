@@ -5738,7 +5738,7 @@ bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 			// Get the results of the mask rendering pass and insert into the alpha channel of the screenshot.
 			if (GIsHighResScreenshot && HighResScreenshotConfig.bMaskEnabled)
 			{
-				bWriteAlpha = HighResScreenshotConfig.MergeMaskIntoAlpha(Bitmap);
+				bWriteAlpha = HighResScreenshotConfig.MergeMaskIntoAlpha(Bitmap, CaptureRect);
 			}
 
 			// Clip the bitmap to just the capture region if valid

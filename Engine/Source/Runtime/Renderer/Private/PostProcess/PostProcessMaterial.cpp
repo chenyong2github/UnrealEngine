@@ -787,7 +787,7 @@ FScreenPassTexture AddPostProcessMaterialChain(
 	return Outputs;
 }
 
-extern void AddDumpToColorArrayPass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, TArray<FColor>* OutputColorArray);
+extern void AddDumpToColorArrayPass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, TArray<FColor>* OutputColorArray, FIntPoint* OutputExtents);
 
 bool IsHighResolutionScreenshotMaskEnabled(const FViewInfo& View)
 {
@@ -860,7 +860,7 @@ FScreenPassTexture AddHighResolutionScreenshotMaskPass(
 		PassInputs.bAllowSceneColorInputAsOutput = false;
 
 		FScreenPassTexture MaskOutput = AddPostProcessMaterialPass(GraphBuilder, View, PassInputs, Inputs.MaskMaterial);
-		AddDumpToColorArrayPass(GraphBuilder, MaskOutput, FScreenshotRequest::GetHighresScreenshotMaskColorArray());
+		AddDumpToColorArrayPass(GraphBuilder, MaskOutput, FScreenshotRequest::GetHighresScreenshotMaskColorArray(), &FScreenshotRequest::GetHighresScreenshotMaskExtents());
 
 		// The mask material pass is actually outputting to system memory. If we're the last pass in the chain
 		// and the override output is valid, we need to perform a copy of the input to the output. Since we can't

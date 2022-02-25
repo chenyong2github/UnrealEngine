@@ -1947,7 +1947,7 @@ bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 				// global variables associated with the screenshot feature, as the application may be taking its own screenshots.
 				if (!bIsUI)
 				{
-					GetHighResScreenshotConfig().MergeMaskIntoAlpha(Bitmap);
+					GetHighResScreenshotConfig().MergeMaskIntoAlpha(Bitmap, FIntRect(0,0,0,0));
 				}
 
 				FIntRect SourceRect(0, 0, GScreenshotResolutionX, GScreenshotResolutionY);

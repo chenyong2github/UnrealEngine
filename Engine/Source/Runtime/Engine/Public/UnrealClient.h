@@ -192,6 +192,11 @@ struct ENGINE_API FScreenshotRequest
 	 */
 	static TArray<FColor>* GetHighresScreenshotMaskColorArray();
 
+	/**
+	 * Extents of array returned by function above
+	 */
+	static FIntPoint& GetHighresScreenshotMaskExtents();
+
 	static FOnScreenshotRequestProcessed& OnScreenshotRequestProcessed()
 	{
 		return ScreenshotProcessedDelegate;
@@ -210,6 +215,7 @@ private:
 	static FString Filename;
 	static bool bShowUI;
 	static TArray<FColor> HighresScreenshotMaskColorArray;
+	static FIntPoint HighresScreenshotMaskExtents;
 };
 
 // @param bAutoType true: automatically choose GB/MB/KB/... false: always use MB for easier comparisons

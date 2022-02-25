@@ -288,12 +288,12 @@ void AddDumpToFilePass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, cons
 	});
 }
 
-void AddDumpToColorArrayPass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, TArray<FColor>* OutputColorArray)
+void AddDumpToColorArrayPass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input, TArray<FColor>* OutputColorArray, FIntPoint* OutputExtents)
 {
 	check(Input.IsValid());
 	check(OutputColorArray);
 	AddReadbackTexturePass(GraphBuilder, RDG_EVENT_NAME("DumpToPipe(%s)", Input.Texture->Name), Input.Texture,
-		[Input, OutputColorArray](FRHICommandListImmediate& RHICmdList)
+		[Input, OutputColorArray, OutputExtents](FRHICommandListImmediate& RHICmdList)
 	{
 		// By design, we want the whole surface, not the view rectangle, as this code is used for generating a screenshot
 		// mask surface that needs to match the corresponding screenshot color surface.  The scene may render as a viewport
@@ -305,6 +305,7 @@ void AddDumpToColorArrayPass(FRDGBuilder& GraphBuilder, FScreenPassTexture Input
 		WholeSurfaceRect.Max = Input.Texture->Desc.Extent;
 
 		RHICmdList.ReadSurfaceData(Input.Texture->GetRHI(), WholeSurfaceRect, *OutputColorArray, FReadSurfaceDataFlags());
+		*OutputExtents = Input.Texture->Desc.Extent;
 	});
 }
 

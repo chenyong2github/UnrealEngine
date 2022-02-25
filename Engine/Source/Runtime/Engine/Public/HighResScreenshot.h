@@ -54,7 +54,7 @@ struct ENGINE_API FHighResScreenshotConfig
 	/** Utility function for merging the mask buffer into the alpha channel of the supplied bitmap, if masking is enabled.
 	  * Returns true if the mask was written, and false otherwise.
 	**/
-	bool MergeMaskIntoAlpha(TArray<FColor>& InBitmap);
+	bool MergeMaskIntoAlpha(TArray<FColor>& InBitmap, const FIntRect& ViewRect);
 
 	/** Enable/disable HDR capable captures **/
 	void SetHDRCapture(bool bCaptureHDRIN);
