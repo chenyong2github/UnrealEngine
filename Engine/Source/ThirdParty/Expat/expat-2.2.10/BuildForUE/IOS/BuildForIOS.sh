@@ -11,6 +11,15 @@ if [ -d "${BUILD_DIR}" ]; then
 fi
 mkdir -pv "${BUILD_DIR}"
 
+VERSION=$(xcodebuild -version 2>&1 | head -n 1)
+
+if [[ ${VERSION} != "Xcode 12.5" ]]; then
+	echo Please use Xcode 12.5
+	exit 1
+fi
+
+echo Building with ${VERSION}
+
 cd "${BUILD_DIR}"
 ../../../../../../Extras/ThirdPartyNotUE/CMake/bin/cmake -G "Xcode" -DEXPAT_BUILD_TOOLS=0 -DEXPAT_BUILD_EXAMPLES=0 -DEXPAT_BUILD_TESTS=0 -DEXPAT_SHARED_LIBS=0 -DCMAKE_XCODE_ATTRIBUTE_SDKROOT=iphoneos -DCMAKE_XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET=8.0 -DCMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH=NO -DCMAKE_XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY=1,2 "${SCRIPT_DIR}/../.."
 

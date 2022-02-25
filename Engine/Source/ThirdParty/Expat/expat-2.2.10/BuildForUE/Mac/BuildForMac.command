@@ -54,7 +54,8 @@ UE_C_CXX_LD_FLAGS="-isysroot ${UE_SYSROOT} -mmacosx-version-min=10.14 -gdwarf-2"
 
 # x86_64
 pwd
-./configure --prefix=${TMPDIR}/x86_64 \
+./configure --disable-dependency-tracking \
+            --prefix=${TMPDIR}/x86_64 \
               --host=x86_64-apple-darwin19.6.0 \
               CFLAGS="-arch x86_64 ${UE_C_CXX_LD_FLAGS}" \
             CXXFLAGS="-arch x86_64 ${UE_C_CXX_LD_FLAGS}" \
@@ -69,7 +70,8 @@ if [ "$BUILD_UNIVERSAL" = true ] ; then
     make distclean
 
     # arm64
-    ./configure --prefix=${TMPDIR}/arm64 \
+    ./configure --disable-dependency-tracking \
+                --prefix=${TMPDIR}/arm64 \
                   --host=aarch64-apple-darwin19.6.0 \
                   CFLAGS="-arch arm64 ${UE_C_CXX_LD_FLAGS}" \
                 CXXFLAGS="-arch arm64 ${UE_C_CXX_LD_FLAGS}" \
