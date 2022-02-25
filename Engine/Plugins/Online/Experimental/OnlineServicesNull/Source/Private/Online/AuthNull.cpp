@@ -206,7 +206,7 @@ FOnlineAccountIdHandle FOnlineAccountIdRegistryNull::Find(int32 UserId) const
 
 const FOnlineAccountIdString* FOnlineAccountIdRegistryNull::GetInternal(const FOnlineAccountIdHandle& Handle) const
 {
-	if(Handle.GetOnlineServicesType() == EOnlineServices::Null && Handle.GetHandle() <= (uint32)Ids.Num())
+	if(Handle.IsValid() && Handle.GetOnlineServicesType() == EOnlineServices::Null && Handle.GetHandle() <= (uint32)Ids.Num())
 	{
 		return &Ids[Handle.GetHandle()-1];
 	}
