@@ -127,8 +127,33 @@ namespace Chaos
 
 			return *this;
 		}
+		
+		void CopyFrom(const FConvexStructureData& Other)
+		{
+			DestroyDataContainer();
 
+			check(Data.Ptr == nullptr);
+			check(IndexType == EIndexType::None);
 
+			if (Other.IndexType == EIndexType::Large)
+			{
+				check(Other.Data.DataL);
+				Data.DataL = new FConvexStructureDataLarge(*Other.Data.DataL);
+			}
+			else if (Other.IndexType == EIndexType::Medium)
+			{
+				check(Other.Data.DataM);
+				Data.DataM = new FConvexStructureDataMedium(*Other.Data.DataM);
+			}
+			else if (Other.IndexType == EIndexType::Small)
+			{
+				check(Other.Data.DataS);
+				Data.DataS = new FConvexStructureDataSmall(*Other.Data.DataS);
+			}
+
+			IndexType = Other.IndexType;
+		}
+		
 		inline bool IsValid() const
 		{
 			return (Data.Ptr != nullptr);
