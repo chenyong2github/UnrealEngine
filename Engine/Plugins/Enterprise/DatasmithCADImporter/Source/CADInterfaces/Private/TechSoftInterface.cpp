@@ -113,6 +113,14 @@ FUniqueTechSoftModelFile LoadModelFileFromPrcFile(const A3DUTF8Char* CADFileName
 	return FUniqueTechSoftModelFile(ModelFile);
 }
 
+A3DStatus AdaptBRepInModelFile(A3DAsmModelFile* ModelFile, const A3DCopyAndAdaptBrepModelData& Setting, int32& ErrorCount, A3DCopyAndAdaptBrepModelErrorData** Errors)
+{
+	A3DUns32 NbErrors;
+	A3DStatus Status = A3DAdaptAndReplaceAllBrepInModelFileAdvanced(ModelFile, &Setting, &NbErrors, Errors);
+	ErrorCount = NbErrors;
+	return Status;
+}
+
 A3DStatus DeleteModelFile(A3DAsmModelFile* ModelFile)
 {
 	return A3DAsmModelFileDelete(ModelFile);
@@ -1415,8 +1423,8 @@ template<>
 const A3DEntity* TUniqueTSObj<A3DTopoUniqueVertexData>::GetDefaultIndexerValue() const { return nullptr; }
 template<>
 const A3DEntity* TUniqueTSObj<A3DTopoWireEdgeData>::GetDefaultIndexerValue() const { return nullptr; }
-template<>
 
+template<>
 uint32 TUniqueTSObjFromIndex<A3DGraphMaterialData>::GetDefaultIndexerValue() const { return A3D_DEFAULT_MATERIAL_INDEX; }
 template<>
 uint32 TUniqueTSObjFromIndex<A3DGraphPictureData>::GetDefaultIndexerValue() const { return A3D_DEFAULT_PICTURE_INDEX; }

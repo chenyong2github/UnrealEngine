@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 
+#include "CADData.h"
 #include "TechSoftInterface.h"
 
 #define JSON_ENTRY_FILE_UNIT		TEXT("FileUnit")
@@ -31,6 +32,16 @@ namespace TechSoftInterface
 class FTechSoftInterface;
 }
 
+struct FEntityMetaData
+{
+	TMap<FString, FString> MetaData;
+	bool bRemoved = false;
+	bool bShow = true;
+	bool bUnloaded = false;
+	FCADUUID ColorName = 0;
+	FCADUUID MaterialName = 0;
+	FFileDescriptor ExternalFile;
+};
 
 namespace TechSoftUtils
 {

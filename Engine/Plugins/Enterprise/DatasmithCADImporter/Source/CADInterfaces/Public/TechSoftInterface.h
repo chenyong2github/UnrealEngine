@@ -80,6 +80,8 @@ CADINTERFACES_API FString GetTechSoftVersion();
 CADINTERFACES_API FUniqueTechSoftModelFile LoadModelFileFromFile(const A3DImport& Import, A3DStatus& Status);
 CADINTERFACES_API FUniqueTechSoftModelFile LoadModelFileFromPrcFile(const A3DUTF8Char* CADFileName, A3DRWParamsPrcReadHelper** ReadHelper);
 
+CADINTERFACES_API A3DStatus AdaptBRepInModelFile(A3DAsmModelFile* ModelFile, const A3DCopyAndAdaptBrepModelData& Setting, int32& ErrorCount, A3DCopyAndAdaptBrepModelErrorData** Errors);
+
 CADINTERFACES_API A3DStatus DeleteModelFile(A3DAsmModelFile* ModelFile);
 CADINTERFACES_API A3DStatus DeleteEntity(A3DEntity* pEntity);
 
@@ -205,6 +207,61 @@ public:
 
 private:
 	A3DAsmModelFile* ModelFile;
+};
+
+enum EModellerType : uint32
+{
+	ModellerUnknown = 0,              /*!< User modeller. */
+	ModellerCatia = 2,                /*!< CATIA modeller. */
+	ModellerCatiaV5 = 3,              /*!< CATIA V5 modeller. */
+	ModellerCadds = 4,                /*!< CADDS modeller. */
+	ModellerUnigraphics = 5,          /*!< Unigraphics modeller. */
+	ModellerParasolid = 6,            /*!< Parasolid modeller. */
+	ModellerEuclid = 7,               /*!< Euclid modeller. */
+	ModellerIges = 9,                 /*!< IGES modeller. */
+	ModellerUnisurf = 10,             /*!< Unisurf modeller. */
+	ModellerVda = 11,                 /*!< VDA modeller. */
+	ModellerStl = 12,                 /*!< STL modeller. */
+	ModellerWrl = 13,                 /*!< WRL modeller. */
+	ModellerDxf = 14,                 /*!< DXF modeller. */
+	ModellerAcis = 15,                /*!< ACIS modeller. */
+	ModellerProE = 16,                /*!< Pro/E modeller. */
+	ModellerStep = 18,                /*!< STEP modeller. */
+	ModellerIdeas = 19,               /*!< I-DEAS modeller. */
+	ModellerJt = 20,                  /*!< JT modeller. */
+	ModellerSlw = 22,                 /*!< SolidWorks modeller. */
+	ModellerCgr = 23,                 /*!< CGR modeller. */
+	ModellerPrc = 24,                 /*!< PRC modeller. */
+	ModellerXvl = 25,                 /*!< XVL modeller. */
+	ModellerHpgl = 26,                /*!< HPGL modeller. */
+	ModellerTopSolid = 27,            /*!< TopSolid modeller. */
+	ModellerOneSpaceDesigner = 28,    /*!< OneSpace designer modeller. */
+	Modeller3dxml = 29,               /*!< 3DXML modeller. */
+	ModellerInventor = 30,            /*!< Inventor modeller. */
+	ModellerPostScript = 31,          /*!< Postscript modeller. */
+	ModellerPDF = 32,                 /*!< PDF modeller. */
+	ModellerU3D = 33,                 /*!< U3D modeller. */
+	ModellerIFC = 34,                 /*!< IFC modeller. */
+	ModellerDWG = 35,                 /*!< DWG modeller. */
+	ModellerDWF = 36,                 /*!< DWF modeller. */
+	ModellerSE = 37,                  /*!< SolidEdge modeller. */
+	ModellerOBJ = 38,                 /*!< OBJ modeller. */
+	ModellerKMZ = 39,                 /*!< KMZ modeller. */
+	ModellerDAE = 40,                 /*!< COLLADA modeller. */
+	Modeller3DS = 41,                 /*!< 3DS modeller. */
+	ModellerRhino = 43,               /*!< Rhino modeller. */
+	ModellerXML = 44,                 /*!< XML modeller. */
+	Modeller3mf = 45,                 /*!< 3MF modeller. */
+	ModellerScs = 46,                 /*!< SCS modeller. */
+	Modeller3dHtml = 47,              /*!< 3DHTML modeller. */
+	ModellerHsf = 48,                 /*!< Hsf modeller. */
+	ModellerGltf = 49,                /*!< GL modeller. */
+	ModellerRevit = 50,               /*!< Revit modeller. */
+	ModellerFBX = 51,                 /*!< FBX modeller. */
+	ModellerStepXML = 52,             /*!< StepXML modeller. */
+	ModellerPLMXML = 53,              /*!< PLMXML modeller. */
+	ModellerNavisworks = 54,			/*!< For Future Use: Navisworks modeller. */
+	ModellerLast
 };
 
 } // CADLibrary

@@ -3,11 +3,13 @@
 #include "TechSoftFileParser.h"
 
 #include "CADOptions.h"
+#include "CADFileData.h"
 
 #ifdef USE_TECHSOFT_SDK
 
 #include "TechSoftInterface.h"
 #include "TechSoftUtils.h"
+#include "TechSoftUtilsPrivate.h"
 
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
@@ -32,94 +34,6 @@ inline void RemoveUnwantedChar(FString& StringToClean, TCHAR UnwantedChar)
 		}
 	}
 	StringToClean = MoveTemp(NewString);
-}
-
-FString CleanSdkName(const FString& Name)
-{
-	int32 Index;
-	if (Name.FindLastChar(TEXT('['), Index))
-	{
-		return Name.Left(Index);
-	}
-	return Name;
-}
-
-FString CleanCatiaInstanceSdkName(const FString& Name)
-{
-	int32 Index;
-	if (Name.FindChar(TEXT('('), Index))
-	{
-		FString NewName = Name.RightChop(Index + 1);
-		if (NewName.FindLastChar(TEXT(')'), Index))
-		{
-			NewName = NewName.Left(Index);
-		}
-		return NewName;
-	}
-	return Name;
-}
-
-FString Clean3dxmlReferenceSdkName(const FString& Name)
-{
-	int32 Index;
-	if (Name.FindChar(TEXT('('), Index))
-	{
-		FString NewName = Name.Left(Index);
-		return NewName;
-	}
-	return Name;
-}
-
-FString CleanSwInstanceSdkName(const FString& Name)
-{
-	int32 Position;
-	if (Name.FindLastChar(TEXT('-'), Position))
-	{
-		FString NewName = Name.Left(Position) + TEXT("<") + Name.RightChop(Position + 1) + TEXT(">");
-		return NewName;
-	}
-	return Name;
-}
-
-FString CleanSwReferenceSdkName(const FString& Name)
-{
-	int32 Position;
-	if (Name.FindLastChar(TEXT('-'), Position))
-	{
-		FString NewName = Name.Left(Position);
-		return NewName;
-	}
-	return Name;
-}
-
-FString CleanCatiaReferenceName(const FString& Name)
-{
-	int32 Position;
-	if (Name.FindLastChar(TEXT('.'), Position))
-	{
-		FString Indice = Name.RightChop(Position + 1);
-		if (Indice.IsNumeric())
-		{
-			FString NewName = Name.Left(Position);
-			return NewName;
-		}
-	}
-	return Name;
-}
-
-FString CleanNameByRemoving_prt(const FString& Name)
-{
-	int32 Position;
-	if (Name.FindLastChar(TEXT('.'), Position))
-	{
-		FString Extension = Name.RightChop(Position);
-		if (Extension.Equals(TEXT("prt"), ESearchCase::IgnoreCase))
-		{
-			FString NewName = Name.Left(Position);
-			return NewName;
-		}
-	}
-	return Name;
 }
 
 bool CheckIfNameExists(TMap<FString, FString>& MetaData)
@@ -1281,7 +1195,7 @@ void FTechSoftFileParser::ExtractMetaData(const A3DEntity* Entity, FEntityMetaDa
 		if (MetaData->m_pcName && MetaData->m_pcName[0] != '\0')
 		{
 			FString SDKName = UTF8_TO_TCHAR(MetaData->m_pcName);
-			SDKName = TechSoftFileParserImpl::CleanSdkName(SDKName);
+			SDKName = TechSoftUtils::CleanSdkName(SDKName);
 			OutMetaData.MetaData.Emplace(TEXT("SDKName"), SDKName);
 		}
 
@@ -1323,7 +1237,7 @@ void FTechSoftFileParser::BuildReferenceName(TMap<FString, FString>& MetaData)
 		Name = *NamePtr;
 		if (Format == ECADFormat::CATIA)
 		{
-			Name = TechSoftFileParserImpl::CleanCatiaReferenceName(Name);
+			Name = TechSoftUtils::CleanCatiaReferenceName(Name);
 		}
 		return;
 	}
@@ -1354,11 +1268,11 @@ void FTechSoftFileParser::BuildReferenceName(TMap<FString, FString>& MetaData)
 		switch (Format)
 		{
 		case ECADFormat::CATIA_3DXML:
-			SdkName = TechSoftFileParserImpl::Clean3dxmlReferenceSdkName(SdkName);
+			SdkName = TechSoftUtils::Clean3dxmlReferenceSdkName(SdkName);
 			break;
 
 		case ECADFormat::SOLIDWORKS:
-			SdkName = TechSoftFileParserImpl::CleanSwReferenceSdkName(SdkName);
+			SdkName = TechSoftUtils::CleanSwReferenceSdkName(SdkName);
 			break;
 
 		default:
@@ -1397,11 +1311,11 @@ void FTechSoftFileParser::BuildInstanceName(TMap<FString, FString>& MetaData)
 		{
 		case ECADFormat::CATIA:
 		case ECADFormat::CATIA_3DXML:
-			SdkName = TechSoftFileParserImpl::CleanCatiaInstanceSdkName(SdkName);
+			SdkName = TechSoftUtils::CleanCatiaInstanceSdkName(SdkName);
 			break;
 
 		case ECADFormat::SOLIDWORKS:
-			SdkName = TechSoftFileParserImpl::CleanSwInstanceSdkName(SdkName);
+			SdkName = TechSoftUtils::CleanSwInstanceSdkName(SdkName);
 			break;
 
 		default:
@@ -1461,7 +1375,7 @@ void FTechSoftFileParser::BuildBodyName(TMap<FString, FString>& MetaData)
 		FString SdkName = *NamePtr;
 		if (Format == ECADFormat::CREO)
 		{
-			SdkName = TechSoftFileParserImpl::CleanNameByRemoving_prt(SdkName);
+			SdkName = TechSoftUtils::CleanNameByRemoving_prt(SdkName);
 		}
 
 		FString& Name = MetaData.FindOrAdd(TEXT("Name"));

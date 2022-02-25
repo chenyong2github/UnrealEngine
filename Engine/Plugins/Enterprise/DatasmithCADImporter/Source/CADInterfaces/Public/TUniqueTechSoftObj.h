@@ -645,17 +645,17 @@ CADINTERFACES_API const A3DEntity* TUniqueTSObj<A3DTopoWireEdgeData>::GetDefault
 // TUniqueTSObjFromIndex -----------------------------------
 
 template<>
-CADINTERFACES_API void TUniqueTSObj<A3DGraphMaterialData>::InitializeData();
+CADINTERFACES_API void TUniqueTSObjFromIndex<A3DGraphMaterialData>::InitializeData();
 template<>
-CADINTERFACES_API void TUniqueTSObj<A3DGraphPictureData>::InitializeData();
+CADINTERFACES_API void TUniqueTSObjFromIndex<A3DGraphPictureData>::InitializeData();
 template<>
-CADINTERFACES_API void TUniqueTSObj<A3DGraphRgbColorData>::InitializeData();
+CADINTERFACES_API void TUniqueTSObjFromIndex<A3DGraphRgbColorData>::InitializeData();
 template<>
-CADINTERFACES_API void TUniqueTSObj<A3DGraphStyleData>::InitializeData();
+CADINTERFACES_API void TUniqueTSObjFromIndex<A3DGraphStyleData>::InitializeData();
 template<>
-CADINTERFACES_API void TUniqueTSObj<A3DGraphTextureApplicationData>::InitializeData();
+CADINTERFACES_API void TUniqueTSObjFromIndex<A3DGraphTextureApplicationData>::InitializeData();
 template<>
-CADINTERFACES_API void TUniqueTSObj<A3DGraphTextureDefinitionData>::InitializeData();
+CADINTERFACES_API void TUniqueTSObjFromIndex<A3DGraphTextureDefinitionData>::InitializeData();
 
 template<>
 CADINTERFACES_API A3DStatus TUniqueTSObjFromIndex<A3DGraphMaterialData>::GetData(const uint32 InEntityIndex);

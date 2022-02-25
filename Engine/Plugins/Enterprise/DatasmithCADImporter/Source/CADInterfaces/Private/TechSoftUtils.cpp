@@ -582,7 +582,9 @@ A3DCrvNurbs* CreateTrimNurbsCurve(A3DCrvNurbs* CurveNurbsPtr, double UMin, doubl
 
 	return CADLibrary::TechSoftInterface::CreateCurveNurbs(*TransformedNurbsData);
 }
+#endif
 
+#ifdef USE_TECHSOFT_SDK
 void ExtractAttribute(const A3DMiscAttributeData& AttributeData, TMap<FString, FString>& OutMetaData)
 {
 	FString AttributeName;
@@ -605,16 +607,13 @@ void ExtractAttribute(const A3DMiscAttributeData& AttributeData, TMap<FString, F
 		case kA3DModellerAttributeTypeTime:
 		case kA3DModellerAttributeTypeInt:
 		{
-			A3DInt32 Value;
-			memcpy(&Value, AttributeData.m_asSingleAttributesData[Index].m_pcData, sizeof(A3DInt32));
+			A3DInt32 Value = *reinterpret_cast<A3DInt32*>(AttributeData.m_asSingleAttributesData[Index].m_pcData);
 			AttributeValue = FString::Printf(TEXT("%d"), Value);
 			break;
 		}
-
 		case kA3DModellerAttributeTypeReal:
 		{
-			A3DDouble Value;
-			memcpy(&Value, AttributeData.m_asSingleAttributesData[Index].m_pcData, sizeof(A3DDouble));
+			A3DDouble Value = *reinterpret_cast<A3DDouble*>(AttributeData.m_asSingleAttributesData[Index].m_pcData);
 			AttributeValue = FString::Printf(TEXT("%f"), Value);
 			break;
 		}
@@ -645,6 +644,7 @@ void ExtractAttribute(const A3DMiscAttributeData& AttributeData, TMap<FString, F
 		}
 	}
 }
+#endif
 
 FString CleanSdkName(const FString& Name)
 {
@@ -718,7 +718,6 @@ FString CleanCatiaReferenceName(const FString& Name)
 	}
 	return Name;
 }
-
 FString CleanNameByRemoving_prt(const FString& Name)
 {
 	int32 Position;
@@ -733,7 +732,6 @@ FString CleanNameByRemoving_prt(const FString& Name)
 	}
 	return Name;
 }
-
 bool CheckIfNameExists(TMap<FString, FString>& MetaData)
 {
 	FString* NamePtr = MetaData.Find(TEXT("Name"));
@@ -743,7 +741,6 @@ bool CheckIfNameExists(TMap<FString, FString>& MetaData)
 	}
 	return false;
 }
-
 bool ReplaceOrAddNameValue(TMap<FString, FString>& MetaData, const TCHAR* Key)
 {
 	FString* NamePtr = MetaData.Find(Key);
@@ -756,7 +753,6 @@ bool ReplaceOrAddNameValue(TMap<FString, FString>& MetaData, const TCHAR* Key)
 	return false;
 }
 
-#endif
 
 } // NS TechSoftUtils
 

@@ -72,6 +72,25 @@ namespace CADKernel
 		 * Mandatory: all entity have to have a defined ID
 		 * Use SpawnEntityIdent if needed
 		 */
+		void SaveDatabase(const TCHAR* FileName, const TArray<FEntity*>& Entities);
+
+		/**
+		 * Save a selection and all the dependencies as a FAchive in a file
+		 * Mandatory: all entity have to have a defined ID
+		 * Use SpawnEntityIdent if needed
+		 */
+		void SaveDatabase(const TCHAR* FileName, FEntity& Entity)
+		{
+			TArray<FEntity*> Entities;
+			Entities.Emplace(&Entity);
+			SaveDatabase(FileName, Entities);
+		}
+
+		/**
+		 * Save a selection and all the dependencies as a FAchive in a file
+		 * Mandatory: all entity have to have a defined ID
+		 * Use SpawnEntityIdent if needed
+		 */
 		void SaveDatabase(const TCHAR* FileName, const TSharedPtr<FEntity> Entity)
 		{
 			TArray<TSharedPtr<FEntity>> Entities;

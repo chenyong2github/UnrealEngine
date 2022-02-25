@@ -28,6 +28,24 @@ FModel& FSession::GetModel()
 	return Database.GetModel();
 }
 
+void FSession::SaveDatabase(const TCHAR* FileName, const TArray<FEntity*>& SelectedEntities)
+{
+	TArray<FIdent> EntityIds;
+	EntityIds.Reserve(SelectedEntities.Num());
+
+	SpawnEntityIdents(SelectedEntities, true);
+
+	for (const FEntity* Entity : SelectedEntities)
+	{
+		EntityIds.Add(Entity->GetId());
+	}
+
+	TSharedPtr<FCADKernelArchive> Archive = FCADKernelArchive::CreateArchiveWriter(*this, FileName);
+
+	Database.SerializeSelection(*Archive.Get(), EntityIds);
+	Archive->Close();
+}
+
 void FSession::SaveDatabase(const TCHAR* FileName, const TArray<TSharedPtr<FEntity>>& SelectedEntities)
 {
 	TArray<FIdent> EntityIds;
