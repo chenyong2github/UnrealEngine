@@ -75,6 +75,7 @@ namespace Audio
 		, NumChannels(InArgs.Buffer->NumChannels)
 		, BufferType(InArgs.Buffer->GetType())
 		, NumPrecacheFrames(InArgs.SoundWave->NumPrecacheFrames)
+		, AuioDeviceID(InArgs.AudioDeviceID)
 		, bInitialized(false)
 		, bBufferFinished(false)
 		, bPlayedCachedBuffer(false)
@@ -353,7 +354,7 @@ namespace Audio
 				NewTaskData.NumSamples = MaxSamples;
 				NewTaskData.NumChannels = NumChannels;
 				check(!AsyncRealtimeAudioTask);
-				AsyncRealtimeAudioTask = CreateAudioTask(NewTaskData);
+				AsyncRealtimeAudioTask = CreateAudioTask(AuioDeviceID, NewTaskData);
 			}
 
 			return false;
@@ -391,7 +392,7 @@ namespace Audio
 
 		FScopeLock Lock(&DecodeTaskCritSec);
 		check(!AsyncRealtimeAudioTask);
-		AsyncRealtimeAudioTask = CreateAudioTask(NewTaskData);
+		AsyncRealtimeAudioTask = CreateAudioTask(AuioDeviceID, NewTaskData);
 
 		return false;
 	}

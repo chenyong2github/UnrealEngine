@@ -19,6 +19,14 @@ FAutoConsoleVariableRef CVarForceSyncAudioDecodes(
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
+static int32 ForceSynchronizedAudioTaskKickCvar = 0;
+FAutoConsoleVariableRef CVarForceSynchronizedAudioTaskKick(
+	TEXT("au.ForceSynchronizedAudioTaskKick"),
+	ForceSynchronizedAudioTaskKickCvar,
+	TEXT("Force all Audio Tasks created in one \"audio render frame\" to be queued until they can all be \"kicked\" at once at the end of the frame.\n")
+	TEXT("0: Don't Force, 1: Force"),
+	ECVF_Default);
+
 namespace Audio
 {
 
@@ -287,6 +295,168 @@ public:
 	}
 };
 
+class FSynchronizedProceduralDecodeHandle : public FDecodeHandleBase
+{
+public:
+	FSynchronizedProceduralDecodeHandle(const FProceduralAudioTaskData& InJobData, AudioTaskQueueId InQueueId)
+	{
+		Task = new FAsyncTask<FAsyncDecodeWorker>(InJobData);
+		QueueId = InQueueId; 
+		{
+			FScopeLock Lock(&SynchronizationQuequesLockCs);
+			TArray<FAsyncTask<FAsyncDecodeWorker>*>* Queue = ProceduralRenderingSynchronizationQueues.Find(QueueId);
+			if (Queue)
+			{
+				Queue->Add(Task);
+				return;
+			}
+		}
+
+		// failed to queue it up, so do a normal start...
+		QueueId = 0;
+		if (ForceSyncAudioDecodesCvar || InJobData.bForceSyncDecode)
+		{
+			Task->StartSynchronousTask();
+			return;
+		}
+		Task->StartBackgroundTask();
+	}
+
+	virtual EAudioTaskType GetType() const override
+	{
+		return EAudioTaskType::Procedural;
+	}
+
+	virtual bool IsDone() const override
+	{
+		if (IsQueued())
+		{
+			return false;
+		}
+		return FDecodeHandleBase::IsDone();
+	}
+
+	bool IsQueued() const
+	{
+		if (!QueueId)
+		{
+			return false;
+		}
+		FScopeLock Lock(&SynchronizationQuequesLockCs);
+		TArray<FAsyncTask<FAsyncDecodeWorker>*>* Queue = ProceduralRenderingSynchronizationQueues.Find(QueueId);
+		return (Queue && Queue->Find(Task) != INDEX_NONE);
+	}
+
+	bool Dequeue(bool Run)
+	{
+		FScopeLock Lock(&SynchronizationQuequesLockCs);
+		TArray<FAsyncTask<FAsyncDecodeWorker>*>* Queue = ProceduralRenderingSynchronizationQueues.Find(QueueId);
+		if (!Queue)
+		{
+			return false;
+		}
+		int NumRemoved = Queue->Remove(Task);
+		if (NumRemoved > 0)
+		{
+			if (Run)
+			{
+				Task->StartBackgroundTask();
+			}
+			return true;
+		}
+		return false;
+	}
+
+	virtual void EnsureCompletion() override
+	{
+		{
+			FScopeLock Lock(&SynchronizationQuequesLockCs);
+			// For now, if this is in the queue still (not kicked)
+			// we're going to pull it out of the queue and run it now.
+			// This seems to only happen when first starting a sound as 
+			// the system tries to decode the first chunk of audio 
+			// asynchronously to the audio thread. 
+			Dequeue(/* Run */ true);
+			// Now we can wait on it to complete...
+		}
+		if (Task)
+		{
+			Task->EnsureCompletion(/*bIsLatencySensitive =*/ true);
+		}
+	}
+
+	virtual void CancelTask() override
+	{
+		{
+			FScopeLock Lock(&SynchronizationQuequesLockCs);
+			// If we dequeue it then it never ran and we are done. Otherwise...
+			if (!Dequeue(/* Run */ false))
+			{
+				FDecodeHandleBase::CancelTask();
+			}
+		}
+	}
+
+	virtual void GetResult(FProceduralAudioTaskResults& OutResult) override
+	{
+		Task->EnsureCompletion();
+		const FAsyncDecodeWorker& DecodeWorker = Task->GetTask();
+		OutResult = DecodeWorker.ProceduralResult;
+	}
+
+	static void CreateSynchronizedRenderQueued(AudioTaskQueueId QueueId)
+	{
+		FScopeLock Lock(&SynchronizationQuequesLockCs);
+		TArray<FAsyncTask<FAsyncDecodeWorker>*>* Queue = ProceduralRenderingSynchronizationQueues.Find(QueueId);
+		if (!Queue)
+		{
+			ProceduralRenderingSynchronizationQueues.Add(QueueId);
+			ProceduralRenderingSynchronizationQueues[QueueId].Reserve(128);
+		}
+	}
+
+	static void DestroySynchronizedRenderQueued(AudioTaskQueueId QueueId, bool RunCurrentQueue = false)
+	{
+		FScopeLock Lock(&SynchronizationQuequesLockCs);
+		
+		if (RunCurrentQueue)
+		{
+			KickQueuedTasks(QueueId);
+		}
+
+		TArray<FAsyncTask<FAsyncDecodeWorker>*>* Queue = ProceduralRenderingSynchronizationQueues.Find(QueueId);
+		if (Queue)
+		{
+			ProceduralRenderingSynchronizationQueues.Remove(QueueId);
+		}
+	}
+
+	static int KickQueuedTasks(AudioTaskQueueId QueueId)
+	{
+		FScopeLock Lock(&SynchronizationQuequesLockCs);
+		int NumStarted = 0;
+		TArray<FAsyncTask<FAsyncDecodeWorker>*>* Queue = ProceduralRenderingSynchronizationQueues.Find(QueueId);
+		if (Queue)
+		{
+			for (auto Task : *Queue)
+			{ 
+				Task->StartBackgroundTask();
+			}
+			NumStarted = Queue->Num();
+			Queue->Empty();
+		}
+		return NumStarted;
+	}
+private:
+	AudioTaskQueueId QueueId = 0;
+
+	static TMap <AudioTaskQueueId, TArray<FAsyncTask<FAsyncDecodeWorker>*>> ProceduralRenderingSynchronizationQueues;
+	static FCriticalSection SynchronizationQuequesLockCs;
+};
+
+TMap <AudioTaskQueueId, TArray<FAsyncTask<FAsyncDecodeWorker>*>> FSynchronizedProceduralDecodeHandle::ProceduralRenderingSynchronizationQueues;
+FCriticalSection FSynchronizedProceduralDecodeHandle::SynchronizationQuequesLockCs;
+
 class FDecodeHandle : public FDecodeHandleBase
 {
 public:
@@ -316,19 +486,47 @@ public:
 	}
 };
 
-IAudioTask* CreateAudioTask(const FProceduralAudioTaskData& InJobData)
+IAudioTask* CreateAudioTask(Audio::FDeviceId InDeviceId, const FProceduralAudioTaskData& InJobData)
 {
+	if (ForceSynchronizedAudioTaskKickCvar || (InJobData.SoundGenerator && InJobData.SoundGenerator->GetSynchronizedRenderQueueId()))
+	{
+		AudioTaskQueueId QueueId = InJobData.SoundGenerator->GetSynchronizedRenderQueueId();
+		if (!QueueId)
+		{
+			// Only use the audio device ID as the task queue id if both 
+			// ForceSynchronizedAudioTaskKickCvar is true AND the caller has
+			// not specified a specific task queue id in their SoundGenerator.
+			QueueId = (AudioTaskQueueId)InDeviceId;
+		}
+		return new FSynchronizedProceduralDecodeHandle(InJobData, QueueId);
+	}
+
 	return new FProceduralDecodeHandle(InJobData);
 }
 
-IAudioTask* CreateAudioTask(const FHeaderParseAudioTaskData& InJobData)
+IAudioTask* CreateAudioTask(Audio::FDeviceId InDeviceId, const FHeaderParseAudioTaskData& InJobData)
 {
 	return new FHeaderDecodeHandle(InJobData);
 }
 
-IAudioTask* CreateAudioTask(const FDecodeAudioTaskData& InJobData)
+IAudioTask* CreateAudioTask(Audio::FDeviceId InDeviceId, const FDecodeAudioTaskData& InJobData)
 {
 	return new FDecodeHandle(InJobData);
+}
+
+void CreateSynchronizedAudioTaskQueue(AudioTaskQueueId QueueId)
+{
+	FSynchronizedProceduralDecodeHandle::CreateSynchronizedRenderQueued(QueueId);
+}
+
+void DestroySynchronizedAudioTaskQueue(AudioTaskQueueId QueueId, bool RunCurrentQueue)
+{
+	FSynchronizedProceduralDecodeHandle::DestroySynchronizedRenderQueued(QueueId, RunCurrentQueue);
+}
+
+int KickQueuedTasks(AudioTaskQueueId QueueId)
+{
+	return FSynchronizedProceduralDecodeHandle::KickQueuedTasks(QueueId);
 }
 
 }

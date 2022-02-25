@@ -398,7 +398,7 @@ namespace Audio
 			NewTaskData.SoundWave = InWave;
 
 			check(Buffer->RealtimeAsyncHeaderParseTask == nullptr);
-			Buffer->RealtimeAsyncHeaderParseTask = CreateAudioTask(NewTaskData);
+			Buffer->RealtimeAsyncHeaderParseTask = CreateAudioTask(AudioDevice->DeviceID, NewTaskData);
 
 			Buffer->NumChannels = InWave->NumChannels;
 		}

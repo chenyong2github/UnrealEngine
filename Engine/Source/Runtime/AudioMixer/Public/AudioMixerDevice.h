@@ -6,6 +6,7 @@
 #include "AudioMixer.h"
 #include "AudioDevice.h"
 #include "Sound/SoundSubmix.h"
+#include "Sound/SoundGenerator.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/MultithreadedPatching.h"
 #include "Quartz/AudioMixerClockManager.h"
@@ -431,6 +432,20 @@ namespace Audio
 
 		/** Whether or not initialization of the submix system is underway and submixes can be registered */
 		bool bSubmixRegistrationDisabled;
+
+	public:
+
+		// Creates a queue for audio decode requests with a specific Id. Tasks
+		// created with this Id will not be started immediately upon creation,
+		// but will instead be queued up to await a start "kick" later.
+		static void CreateSynchronizedAudioTaskQueue(AudioTaskQueueId QueueId);
+
+		// Destroys an audio decode task queue. Tasks currently queued up are 
+		// optionally started.
+		static void DestroySynchronizedAudioTaskQueue(AudioTaskQueueId QueueId, bool RunCurrentQueue = false);
+
+		// "Kicks" all of the audio decode tasks currentlyt in the queue.
+		static int KickQueuedTasks(AudioTaskQueueId QueueId);
 	};
 }
 

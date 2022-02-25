@@ -7,6 +7,10 @@
 #include "Containers/Queue.h"
 #include "Templates/Function.h"
 
+namespace Audio
+{
+	using AudioTaskQueueId = uint32;
+}
 
 // Parameters used for constructing a new ISoundGenerator.
 struct FSoundGeneratorInitParams
@@ -43,6 +47,8 @@ public:
 
 	// Retrieves the next buffer of audio from the generator, called from the audio mixer
 	int32 GetNextBuffer(float* OutAudio, int32 NumSamples, bool bRequireNumberSamples = false);
+
+	virtual Audio::AudioTaskQueueId GetSynchronizedRenderQueueId() const { return 0; }
 
 protected:
 

@@ -4,6 +4,7 @@
 
 #include "AudioMixerSource.h"
 #include "AudioMixerSourceManager.h"
+#include "AudioMixerSourceDecode.h"
 #include "AudioMixerSubmix.h"
 #include "AudioMixerSourceVoice.h"
 #include "AudioPluginUtilities.h"
@@ -461,6 +462,9 @@ namespace Audio
 				AudioThreadTimingData.AudioThreadTime = 0.0;
 				AudioThreadTimingData.AudioRenderThreadTime = 0.0;
 
+				// Create synchronized Audio Task Queue for this device...
+				CreateSynchronizedAudioTaskQueue((Audio::AudioTaskQueueId)DeviceID);
+
 				// Start streaming audio
 				return AudioMixerPlatform->StartAudioStream();
 			}
@@ -499,6 +503,9 @@ namespace Audio
 			{
 				UnregisterSoundSubmix(*It);
 			}
+			
+			// Destroy the synchronized Audio Task Queue for this device
+			DestroySynchronizedAudioTaskQueue((Audio::AudioTaskQueueId)DeviceID);
 		}
 		
 		// reset all the sound effect presets loaded
@@ -819,6 +826,7 @@ namespace Audio
 		// notify interested parties
 		NotifyAudioDevicePostRender(RenderInfo);
 
+		KickQueuedTasks((Audio::AudioTaskQueueId)DeviceID);
 		return true;
 	}
 
@@ -2693,6 +2701,21 @@ namespace Audio
 				}
 			}
 		}
+	}
+
+	void FMixerDevice::CreateSynchronizedAudioTaskQueue(AudioTaskQueueId QueueId)
+	{
+		Audio::CreateSynchronizedAudioTaskQueue(QueueId);
+	}
+
+	void FMixerDevice::DestroySynchronizedAudioTaskQueue(AudioTaskQueueId QueueId, bool RunCurrentQueue)
+	{
+		Audio::DestroySynchronizedAudioTaskQueue(QueueId, RunCurrentQueue);
+	}
+
+	int FMixerDevice::KickQueuedTasks(AudioTaskQueueId QueueId)
+	{
+		return Audio::KickQueuedTasks(QueueId);
 	}
 
 }

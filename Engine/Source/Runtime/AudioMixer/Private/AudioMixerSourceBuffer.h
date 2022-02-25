@@ -139,6 +139,7 @@ namespace Audio
 		int32 NumChannels;
 		Audio::EBufferType::Type BufferType;
 		int32 NumPrecacheFrames;
+		Audio::FDeviceId AuioDeviceID;
 		TArray<uint8> CachedRealtimeFirstBuffer;
 
 		mutable FCriticalSection SoundWaveCritSec;
