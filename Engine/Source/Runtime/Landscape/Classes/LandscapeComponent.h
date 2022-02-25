@@ -746,7 +746,10 @@ public:
 	virtual TArray<URuntimeVirtualTexture*> const& GetRuntimeVirtualTextures() const override;
 	virtual ERuntimeVirtualTextureMainPassType GetVirtualTextureRenderPassType() const override;
 
+	// Returns the heightmap for this component. If InReturnEditingHeightmap is passed, returns the currently active edit layer's heightmap : 
 	LANDSCAPE_API UTexture2D* GetHeightmap(bool InReturnEditingHeightmap = false) const;
+	// Returns the heightmap for this component and the edit layer specified by InLayerGuid. If InLayerGuid is invalid, returns the final (base) heightmap : 
+	LANDSCAPE_API UTexture2D* GetHeightmap(const FGuid& InLayerGuid) const;
 	LANDSCAPE_API TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnEditingWeightmap = false) const;
 	LANDSCAPE_API TArray<UTexture2D*>& GetWeightmapTextures(const FGuid& InLayerGuid);

@@ -3869,6 +3869,10 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 
 	struct FTextureResolveInfo
 	{
+		// Size of the entire texture that needs resolving :
+		FIntPoint TextureSize = FIntPoint(ForceInitToZero);
+		// Number of mips corresponding to that size : 
+		int32 NumMips = 0;
 		// Texture that was updated and needs resolving : 
 		FTexture2DResource* Texture = nullptr;
 		// CPU readback utility to bring back the result on the CPU : 
@@ -3923,17 +3927,17 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 
 	public:
 		// Number of vertices per component
-		FIntPoint ComponentSizeVerts;
+		FIntPoint ComponentSizeVerts = FIntPoint(ForceInitToZero);
 
-		// Size of each heigthmap (one heightmap can contain multiple components due to heightmap sharing)
-		FIntPoint HeightmapSize;
+		// Maximum size of all heigthmaps (one heightmap can contain multiple components due to heightmap sharing)
+		FIntPoint MaxHeightmapSize = FIntPoint(ForceInitToZero);
+
+		// Maximum number of mips of all heightmaps (which can be of different sizes) :
+		int32 MaxHeightmapNumMips = 0;
 
 		// Heightmap pixel to world scale factor
-		FVector LandscapeGridScale;
+		FVector LandscapeGridScale = FVector::ZeroVector;
 		
-		// Number of mips for the final heightmaps
-		int32 NumMips = 0;
-
 		// Maximum number of visible edit layers that have to be merged for a single FComponentRenderInfo : 
 		int32 MaxNumEditLayersTexturesToMerge = 0;
 
@@ -4215,11 +4219,11 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 			const FLandscapeRDGTrackedTexture* TrackedTexture = InTrackedTextures.Find(TextureResolveInfo.Texture);
 			check((TrackedTexture != nullptr) && (TrackedTexture->ScratchTextureRef != nullptr));
 
-			check(InLocalMergeInfo.NumMips == TrackedTexture->ScratchTextureRef->Desc.NumMips);
-			check(TrackedTexture->ScratchTextureMipsSRVRefs.Num() == InLocalMergeInfo.NumMips);
+			check(TextureResolveInfo.NumMips == TrackedTexture->ScratchTextureRef->Desc.NumMips);
+			check(TrackedTexture->ScratchTextureMipsSRVRefs.Num() == TextureResolveInfo.NumMips);
 
 			FIntPoint CurrentMipSubregionSize = InLocalMergeInfo.ComponentSizeVerts;
-			for (int32 MipLevel = 1; MipLevel < InLocalMergeInfo.NumMips; ++MipLevel)
+			for (int32 MipLevel = 1; MipLevel < TextureResolveInfo.NumMips; ++MipLevel)
 			{
 				CurrentMipSubregionSize.X >>= 1;
 				CurrentMipSubregionSize.Y >>= 1;
@@ -4246,7 +4250,7 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 
 			FRHICopyTextureInfo CopyTextureInfo;
 			// We want to copy all mips : 
-			CopyTextureInfo.NumMips = InLocalMergeInfo.NumMips;
+			CopyTextureInfo.NumMips = TextureResolveInfo.NumMips;
 
 			AddCopyTexturePass(GraphBuilder, TrackedTexture->ScratchTextureRef, TrackedTexture->ExternalTextureRef, CopyTextureInfo);
 		}
@@ -4258,12 +4262,13 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 		const uint16 HeightValue = LandscapeDataAccess::GetTexHeight(0.0f);
 		FLinearColor ClearHeightColor((float)((HeightValue - (HeightValue & 255)) >> 8) / 255.0f, (float)(HeightValue & 255) / 255.0f, 0.0f, 0.0f);
 
+		// Even if we have heightmaps of different sizes to handle, we only need one empty heightmap to copy from (whose size is MaxHeightmapSize) :
 		// TODO [jonathan.bard] : change to PF_R8G8 once edit layers heightmaps are stored as such :
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(InLocalMergeInfo.HeightmapSize, PF_B8G8R8A8, FClearValueBinding(ClearHeightColor), TexCreate_ShaderResource | TexCreate_RenderTargetable, InLocalMergeInfo.NumMips, /*InNumSamples = */1);
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(InLocalMergeInfo.MaxHeightmapSize, PF_B8G8R8A8, FClearValueBinding(ClearHeightColor), TexCreate_ShaderResource | TexCreate_RenderTargetable, InLocalMergeInfo.MaxHeightmapNumMips, /*InNumSamples = */1);
 		FRDGTextureRef EmptyTexture = GraphBuilder.CreateTexture(Desc, TEXT("LandscapeEditLayersEmptyHeightmap"));
 
 		FRDGTextureClearInfo ClearInfo;
-		ClearInfo.NumMips = InLocalMergeInfo.NumMips;
+		ClearInfo.NumMips = InLocalMergeInfo.MaxHeightmapNumMips;
 		AddClearRenderTargetPass(GraphBuilder, EmptyTexture, ClearInfo);
 
 		return EmptyTexture;
@@ -4288,7 +4293,10 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 
 			FRHICopyTextureInfo CopyTextureInfo;
 			// We want to copy all mips : 
-			CopyTextureInfo.NumMips = InLocalMergeInfo.NumMips;
+			CopyTextureInfo.NumMips = TextureResolveInfo.NumMips;
+			// We need specify the size since the empty texture might be of higher size :
+			check(EmptyTexture->Desc.GetSize().X >= TextureResolveInfo.TextureSize.X);
+			CopyTextureInfo.Size = FIntVector(TextureResolveInfo.TextureSize.X, TextureResolveInfo.TextureSize.X, 0);
 
 			AddCopyTexturePass(GraphBuilder, EmptyTexture, DestinationTexture, CopyTextureInfo);
 		}
@@ -4342,10 +4350,15 @@ void ALandscape::PrepareLayersHeightmapsLocalMergeRenderThreadData(const FUpdate
 			ComponentToComponentRenderInfoIndex.Add(Component, OutRenderThreadData.ComponentToRenderInfos.Num() - 1);
 
 			UTexture2D* ComponentHeightmap = Component->GetHeightmap();
-			OutRenderThreadData.HeightmapSize = FIntPoint(ComponentHeightmap->Source.GetSizeX(), ComponentHeightmap->Source.GetSizeY());
+			int32 TextureSize = ComponentHeightmap->Source.GetSizeX();
+			if (ComponentHeightmap->Source.GetSizeX() > OutRenderThreadData.MaxHeightmapSize.X)
+			{
+				OutRenderThreadData.MaxHeightmapSize = FIntPoint(TextureSize, TextureSize);
+				OutRenderThreadData.MaxHeightmapNumMips = FMath::CeilLogTwo(TextureSize) + 1;
+			}
 
-			const int32 HeightmapOffsetX = Component->HeightmapScaleBias.Z * (float)OutRenderThreadData.HeightmapSize.X;
-			const int32 HeightmapOffsetY = Component->HeightmapScaleBias.W * (float)OutRenderThreadData.HeightmapSize.Y;
+			const int32 HeightmapOffsetX = Component->HeightmapScaleBias.Z * (float)TextureSize;
+			const int32 HeightmapOffsetY = Component->HeightmapScaleBias.W * (float)TextureSize;
 			// Effective area of the texture affecting this component (because of texture sharing) :
 			const FIntRect ComponentTextureSubregion(FIntPoint(HeightmapOffsetX, HeightmapOffsetY), FIntPoint(HeightmapOffsetX, HeightmapOffsetY) + OutRenderThreadData.ComponentSizeVerts);
 
@@ -4429,6 +4442,8 @@ void ALandscape::PrepareLayersHeightmapsLocalMergeRenderThreadData(const FUpdate
 				check((CPUReadback != nullptr) && (*CPUReadback != nullptr));
 
 				FTextureResolveInfo NewTextureResolveInfo;
+				NewTextureResolveInfo.TextureSize = FIntPoint(ComponentHeightmap->Source.GetSizeX(), ComponentHeightmap->Source.GetSizeX());
+				NewTextureResolveInfo.NumMips = FMath::CeilLogTwo(NewTextureResolveInfo.TextureSize.X) + 1;
 				NewTextureResolveInfo.Texture = NewComponentResolveInfo.Heightmap.Texture;
 				NewTextureResolveInfo.CPUReadback = *CPUReadback;
 				OutRenderThreadData.TextureToResolveInfos.Add(NewTextureResolveInfo);
@@ -4505,9 +4520,6 @@ void ALandscape::PrepareLayersHeightmapsLocalMergeRenderThreadData(const FUpdate
 
 		// We'll only ever need this amount of edit layers textures for any MergeEditLayers operation :
 		OutRenderThreadData.MaxNumEditLayersTexturesToMerge = OutRenderThreadData.VisibleEditLayerInfos.Num();
-
-		check(OutRenderThreadData.HeightmapSize != FIntPoint::ZeroValue);
-		OutRenderThreadData.NumMips = FMath::CeilLogTwo(OutRenderThreadData.HeightmapSize.X) + 1;
 	}
 }
 

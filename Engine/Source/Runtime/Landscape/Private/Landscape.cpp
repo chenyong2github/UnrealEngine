@@ -1559,6 +1559,21 @@ UTexture2D* ULandscapeComponent::GetHeightmap(bool InReturnEditingHeightmap) con
 	return HeightmapTexture;
 }
 
+UTexture2D* ULandscapeComponent::GetHeightmap(const FGuid& InLayerGuid) const
+{
+#if WITH_EDITORONLY_DATA
+	if (InLayerGuid.IsValid())
+	{
+		if (const FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid))
+		{
+			return LayerData->HeightmapData.Texture;
+		}
+	}
+#endif
+
+	return HeightmapTexture;
+}
+
 const TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA

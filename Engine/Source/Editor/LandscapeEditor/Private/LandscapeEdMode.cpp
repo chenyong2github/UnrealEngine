@@ -3157,24 +3157,57 @@ void FEdModeLandscape::DeleteLandscapeComponents(ULandscapeInfo* LandscapeInfo, 
 			}
 		}
 
-		UTexture2D* HeightmapTexture = Component->GetHeightmap();
-
-		if (HeightmapTexture)
 		{
-			HeightmapTexture->SetFlags(RF_Transactional);
-			HeightmapTexture->Modify();
-			HeightmapTexture->MarkPackageDirty();
-			HeightmapTexture->ClearFlags(RF_Standalone); // Remove when there is no reference for this Heightmap...
+			TSet<UTexture2D*> OldHeightmapTextures;
+			OldHeightmapTextures.Add(Component->GetHeightmap(FGuid()));
+			// Also process all edit layers heightmaps :
+			Component->ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
+			{
+				OldHeightmapTextures.Add(Component->GetHeightmap(LayerGuid));
+			});
+
+			for (UTexture2D* HeightmapTexture : OldHeightmapTextures)
+			{
+				check(HeightmapTexture != nullptr);
+				HeightmapTexture->SetFlags(RF_Transactional);
+				HeightmapTexture->Modify();
+				HeightmapTexture->MarkPackageDirty();
+				HeightmapTexture->ClearFlags(RF_Standalone); // Remove when there is no reference for this Heightmap...
+			}
 		}
 
-		const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures();
-
-		for (UTexture2D* WeightmapTexture : ComponentWeightmapTextures)
 		{
-			WeightmapTexture->SetFlags(RF_Transactional);
-			WeightmapTexture->Modify();
-			WeightmapTexture->MarkPackageDirty();
-			WeightmapTexture->ClearFlags(RF_Standalone);
+			TArray<UTexture2D*> OldWeightmapTextures = Component->GetWeightmapTextures(FGuid());
+			// Also process all edit layers weightmaps :
+			Component->ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
+			{
+				OldWeightmapTextures.Append(Component->GetWeightmapTextures(LayerGuid));
+			});
+
+			for (UTexture2D* WeightmapTexture : OldWeightmapTextures)
+			{
+				check(WeightmapTexture != nullptr);
+				WeightmapTexture->SetFlags(RF_Transactional);
+				WeightmapTexture->Modify();
+				WeightmapTexture->MarkPackageDirty();
+				WeightmapTexture->ClearFlags(RF_Standalone);
+			}
+		}
+
+		{
+			// The shared weightmap usages also need to be cleaned up, otherwise, one might still think these textures apply to deleted components :
+			TArray<ULandscapeWeightmapUsage*> ComponentWeightmapTexturesUsage = Component->GetWeightmapTexturesUsage(FGuid());
+			// Also process all edit layers weightmap textures usages :
+			Component->ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
+			{
+				ComponentWeightmapTexturesUsage.Append(Component->GetWeightmapTexturesUsage(LayerGuid));
+			});
+
+			for (ULandscapeWeightmapUsage* Usage : ComponentWeightmapTexturesUsage)
+			{
+				// Make sure these usages don't reference this component anymore :
+				Usage->ClearUsage(Component);
+			}
 		}
 
 		if (Component->XYOffsetmapTexture)

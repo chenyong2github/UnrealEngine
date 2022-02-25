@@ -4473,12 +4473,17 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToProxy(const TArray<ULandscapeCo
 		}
 	}
 
-	// Check which ones are need for height map change
+	// Check which heightmap will need to be renewed :
 	TSet<UTexture2D*> OldHeightmapTextures;
 	for (ULandscapeComponent* Component : TargetSelectedComponents)
 	{
 		Component->Modify();
 		OldHeightmapTextures.Add(Component->GetHeightmap());
+		// Also process all edit layers heightmaps :
+		Component->ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
+		{
+			OldHeightmapTextures.Add(Component->GetHeightmap(LayerGuid));
+		});
 	}
 
 	// Need to split all the component which share Heightmap with selected components
@@ -4528,9 +4533,10 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToProxy(const TArray<ULandscapeCo
 		ALandscape::SplitHeightmap(HeightmapUpdateComponentPair.Key, HeightmapUpdateComponentPair.Value ? LandscapeProxy : nullptr);
 	}
 
-	// Delete if it is no referenced textures...
+	// Delete if textures are not referenced anymore...
 	for (UTexture2D* Texture : OldHeightmapTextures)
 	{
+		check(Texture != nullptr);
 		Texture->SetFlags(RF_Transactional);
 		Texture->Modify();
 		Texture->MarkPackageDirty();
@@ -4569,7 +4575,7 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToProxy(const TArray<ULandscapeCo
 			Landscape->RequestLayersContentUpdateForceAll();
 		}
 
-		// Need to Repacking all the Weight map (to make it packed well...)
+		// Need to re-pack all the Weight map (to have it optimally re-packed...)
 		for (ALandscapeProxy* Proxy : SelectProxies)
 		{
 			Proxy->RemoveInvalidWeightmaps();
