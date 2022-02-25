@@ -731,6 +731,7 @@ public:
 	*/
 	ENGINE_API virtual float GetOpacityMaskClipValue() const;
 	ENGINE_API virtual bool GetCastDynamicShadowAsMasked() const;
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
 	ENGINE_API virtual EBlendMode GetBlendMode() const;
 	ENGINE_API virtual EStrataBlendMode GetStrataBlendMode() const;
 	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const;
