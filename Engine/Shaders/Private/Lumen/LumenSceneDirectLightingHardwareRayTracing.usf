@@ -63,6 +63,7 @@ float3 FarFieldReferencePos;
 
 float HardwareRayTracingShadowRayBias;
 float HeightfieldShadowReceiverBias;
+float HeightfieldProjectionBiasSearchRadius;
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 StructuredBuffer<FHitGroupRootConstants> HitGroupData;
@@ -130,7 +131,16 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 				bool bIsValid = GenerateOcclusionRay(LumenLight.Type, LightParameters, WorldPosition, WorldNormal, RandSample,
 					Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
 #else
-				const float ReceiverBias = Card.bHeightfield ? HeightfieldShadowReceiverBias : 0.0f;
+
+				float ReceiverBias = 0.0f;
+				#if !ENABLE_HEIGHTFIELD_PROJECTION_BIAS
+				if (Card.bHeightfield)
+				{
+					float3 WorldCameraOrigin = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+					ReceiverBias = CalculateDistanceBasedHeightfieldBias(HeightfieldShadowReceiverBias, WorldPosition, WorldCameraOrigin);
+				}
+				#endif
+
 				Ray.Origin = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, HardwareRayTracingShadowRayBias + ReceiverBias) + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
 				Ray.Direction = L;
 #endif
@@ -176,7 +186,32 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						Context.bSkipClosestHitShader = false;
 					}
 #endif // ENABLE_FAR_FIELD_TRACING
-					
+
+#if ENABLE_HEIGHTFIELD_PROJECTION_BIAS
+					// Find the heightfield intersection that corresponds to the given card position.
+					if (Card.bHeightfield && !IsRayOccluded(MinimalRayResult))
+					{
+						float SearchRadius = HeightfieldProjectionBiasSearchRadius;
+						float3 SearchDirection = float3(0.0, 0.0, 1.0);
+
+						RayDesc ProjectedRay;
+						ProjectedRay.Origin = Ray.Origin - SearchDirection * SearchRadius;
+						ProjectedRay.Direction = SearchDirection;
+						ProjectedRay.TMin = 0.0f;
+						ProjectedRay.TMax = 2.0f * SearchRadius;
+						Context.CullingMode = RAY_FLAG_CULL_FRONT_FACING_TRIANGLES;
+
+						FLumenMinimalPayload SearchPayload;
+						FLumenMinimalRayResult SearchResult = TraceLumenMinimalRay(ProjectedRay, Context, SearchPayload);
+
+						if (IsRayOccluded(SearchResult))
+						{
+							float Epsilon = 0.01;
+							Ray.Origin = ProjectedRay.Origin + ProjectedRay.Direction * SearchPayload.HitT + SearchPayload.GetWorldNormal() * Epsilon;
+						}
+					}
+#endif // ENABLE_HEIGHTFIELD_PROJECTION_BIAS
+
 					if (!IsRayOccluded(MinimalRayResult))
 					{
 						Ray.TMin = 0;

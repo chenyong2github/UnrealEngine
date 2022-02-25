@@ -216,7 +216,6 @@ namespace LumenSceneDirectLighting
 	float GetHeightfieldShadowRayBias();
 	float GetGlobalSDFShadowRayBias();
 	float GetHardwareRayTracingShadowRayBias();
-	float GetHeightfieldShadowReceiverBias();
 	bool UseVirtualShadowMaps();
 }
 

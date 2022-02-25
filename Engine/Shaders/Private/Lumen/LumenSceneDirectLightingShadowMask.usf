@@ -128,7 +128,12 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 				bool bVSMValid = false;
 
 				const float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), LWCHackToFloat(PrimaryView.WorldToClip));
-				const float ReceiverBias = Card.bHeightfield ? HeightfieldShadowReceiverBias : 0.0f;
+				float ReceiverBias = 0.0f;
+				if (Card.bHeightfield)
+				{
+					float3 WorldCameraOrigin = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+					ReceiverBias = CalculateDistanceBasedHeightfieldBias(HeightfieldShadowReceiverBias, WorldPosition, WorldCameraOrigin);
+				}
 
 				// Shadow maps are culled so only query points inside the view frustum are valid
 				if (all(PostProjectionPosition.xy < PostProjectionPosition.w && PostProjectionPosition.xy > -PostProjectionPosition.w))

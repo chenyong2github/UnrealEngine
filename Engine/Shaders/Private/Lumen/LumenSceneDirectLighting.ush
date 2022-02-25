@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "LumenSceneLighting.ush"
+
 // Must match ELumenLightType in LumenSceneDirectLighting.cpp
 #define LIGHT_TYPE_DIRECTIONAL 0
 #define LIGHT_TYPE_POINT 1
@@ -223,11 +225,4 @@ FLumenLight LoadLumenLight(uint LightIndex)
 	LumenLight.VirtualShadowMapId = PackedLight.VirtualShadowMapId;
 	LumenLight.Type = PackedLight.LightType;
 	return LumenLight;
-}
-
-float3 GetCardWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float BiasValue)
-{
-	float SurfaceBias = BiasValue;
-	float SlopeScaledSurfaceBias = 2.0f * BiasValue;
-	return WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal)));
 }

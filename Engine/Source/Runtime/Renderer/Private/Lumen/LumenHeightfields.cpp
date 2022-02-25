@@ -22,6 +22,12 @@ static TAutoConsoleVariable<int32> CVarLumenSceneHeightfieldMaxTracingSteps(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarLumenSceneHeightfieldReceiverBias(
+	TEXT("r.LumenScene.Heightfield.ReceiverBias"),
+	0.01f,
+	TEXT("Extra bias for Landscape surface points. Helps to fix mismatching LOD artifacts between fixed LOD in Surface Cache and Landscape CLOD."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 bool Lumen::UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSceneData)
 {
@@ -40,6 +46,11 @@ bool Lumen::UseHeightfieldTracing(const FSceneViewFamily& ViewFamily, const FLum
 int32 Lumen::GetHeightfieldMaxTracingSteps()
 {
 	return FMath::Clamp(CVarLumenSceneHeightfieldMaxTracingSteps.GetValueOnRenderThread(), 1, 256);
+}
+
+float Lumen::GetHeightfieldReceiverBias()
+{
+	return FMath::Clamp(CVarLumenSceneHeightfieldReceiverBias.GetValueOnRenderThread(), 0.001, 100.0);
 }
 
 void FLumenHeightfieldGPUData::FillData(const FLumenHeightfield& RESTRICT Heightfield, const TSparseSpanArray<FLumenMeshCards>& MeshCards, FVector4f* RESTRICT OutData)

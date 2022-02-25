@@ -18,3 +18,19 @@
 
 // [NumAllocatedTiles; NumAllocatedTilesInLastBucket]
 #define CARD_PAGE_TILE_ALLOCATOR_STRIDE 2
+
+float CalculateDistanceBasedHeightfieldBias(float SurfaceBias, float3 WorldPosition, float3 WorldCameraOrigin)
+{
+		float DistanceBasedHeightfieldBias = SurfaceBias;
+		float WorldPositionDistanceToCamera = length(WorldPosition - WorldCameraOrigin);
+		DistanceBasedHeightfieldBias = SurfaceBias * WorldPositionDistanceToCamera;
+
+		return clamp(DistanceBasedHeightfieldBias, 0.01, 100.0);
+}
+
+float3 GetCardWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float BiasValue)
+{
+	float SurfaceBias = BiasValue;
+	float SlopeScaledSurfaceBias = 2.0f * BiasValue;
+	return WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal)));
+}

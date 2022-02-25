@@ -40,6 +40,20 @@ static TAutoConsoleVariable<int> CVarLumenSceneDirectLightingHardwareRayTracingG
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int> CVarLumenSceneDirectLightingHardwareRayTracingHeightfieldProjectionBias(
+	TEXT("r.LumenScene.DirectLighting.HardwareRayTracing.HeightfieldProjectionBias"),
+	0,
+	TEXT("Applies a projection bias such that an occlusion ray starts on the ray-tracing heightfield representation.\n"),
+	ECVF_RenderThreadSafe | ECVF_Scalability
+);
+
+static TAutoConsoleVariable<float> CVarLumenSceneDirectLightingHardwareRayTracingHeightfieldProjectionBiasSearchRadius(
+	TEXT("r.LumenScene.DirectLighting.HardwareRayTracing.HeightfieldProjectionBiasSearchRadius"),
+	256,
+	TEXT("Determines the search radius for heightfield projection bias. Larger search radius corresponds to increased traversal cost (default = 256).\n"),
+	ECVF_RenderThreadSafe | ECVF_Scalability
+);
+
 #endif // RHI_RAYTRACING
 
 namespace Lumen
@@ -64,8 +78,9 @@ class FLumenDirectLightingHardwareRayTracingBatchedRGS : public FLumenHardwareRa
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenDirectLightingHardwareRayTracingBatchedRGS, FLumenHardwareRayTracingRGS)
 
 	class FEnableFarFieldTracing : SHADER_PERMUTATION_BOOL("ENABLE_FAR_FIELD_TRACING");
+	class FEnableHeightfieldProjectionBias : SHADER_PERMUTATION_BOOL("ENABLE_HEIGHTFIELD_PROJECTION_BIAS");
 	class FIndirectDispatchDim : SHADER_PERMUTATION_BOOL("DIM_INDIRECT_DISPATCH");
-	using FPermutationDomain = TShaderPermutationDomain<FEnableFarFieldTracing, FIndirectDispatchDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FEnableFarFieldTracing, FEnableHeightfieldProjectionBias, FIndirectDispatchDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
@@ -85,6 +100,7 @@ class FLumenDirectLightingHardwareRayTracingBatchedRGS : public FLumenHardwareRa
 
 		SHADER_PARAMETER(float, HardwareRayTracingShadowRayBias)
 		SHADER_PARAMETER(float, HeightfieldShadowReceiverBias)
+		SHADER_PARAMETER(float, HeightfieldProjectionBiasSearchRadius)
 
 		// Output
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWShadowMaskTiles)
@@ -105,8 +121,9 @@ class FLumenDirectLightingHardwareRayTracingBatchedCS : public FLumenHardwareRay
 	SHADER_USE_PARAMETER_STRUCT(FLumenDirectLightingHardwareRayTracingBatchedCS, FLumenHardwareRayTracingCS)
 
 	class FEnableFarFieldTracing : SHADER_PERMUTATION_BOOL("ENABLE_FAR_FIELD_TRACING");
+	class FEnableHeightfieldProjectionBias : SHADER_PERMUTATION_BOOL("ENABLE_HEIGHTFIELD_PROJECTION_BIAS");
 	class FIndirectDispatchDim : SHADER_PERMUTATION_BOOL("DIM_INDIRECT_DISPATCH");
-	using FPermutationDomain = TShaderPermutationDomain<FEnableFarFieldTracing, FIndirectDispatchDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FEnableFarFieldTracing, FEnableHeightfieldProjectionBias, FIndirectDispatchDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenDirectLightingHardwareRayTracingBatchedRGS::FParameters, CommonParameters)
@@ -167,12 +184,18 @@ bool IsHardwareRayTracedDirectLightingIndirectDispatch()
 	return GRHISupportsRayTracingDispatchIndirect && (CVarLumenSceneDirectLightingHardwareRayTracingIndirect.GetValueOnRenderThread() == 1);
 }
 
+float GetHeightfieldProjectionBiasSearchRadius()
+{
+	return FMath::Max(CVarLumenSceneDirectLightingHardwareRayTracingHeightfieldProjectionBiasSearchRadius.GetValueOnRenderThread(), 0);
+}
+
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingDirectLightingLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	if (Lumen::UseHardwareRayTracedDirectLighting())
 	{
 		FLumenDirectLightingHardwareRayTracingBatchedRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableFarFieldTracing>(Lumen::UseFarField(*View.Family));
+		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableHeightfieldProjectionBias>(CVarLumenSceneDirectLightingHardwareRayTracingHeightfieldProjectionBias.GetValueOnRenderThread() != 0);
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FIndirectDispatchDim>(IsHardwareRayTracedDirectLightingIndirectDispatch());
 		TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>(PermutationVector);
 		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
@@ -213,7 +236,8 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 	Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 	
 	Parameters->HardwareRayTracingShadowRayBias = LumenSceneDirectLighting::GetHardwareRayTracingShadowRayBias();
-	Parameters->HeightfieldShadowReceiverBias = LumenSceneDirectLighting::GetHeightfieldShadowReceiverBias();
+	Parameters->HeightfieldShadowReceiverBias = Lumen::GetHeightfieldReceiverBias();
+	Parameters->HeightfieldProjectionBiasSearchRadius = GetHeightfieldProjectionBiasSearchRadius();
 
 	// Output
 	Parameters->RWShadowMaskTiles = ShadowMaskTilesUAV;
@@ -273,6 +297,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 
 		FLumenDirectLightingHardwareRayTracingBatchedCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedCS::FEnableFarFieldTracing>(Lumen::UseFarField(*View.Family));
+		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedCS::FEnableHeightfieldProjectionBias>(CVarLumenSceneDirectLightingHardwareRayTracingHeightfieldProjectionBias.GetValueOnRenderThread() != 0);
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedCS::FIndirectDispatchDim>(IsHardwareRayTracedDirectLightingIndirectDispatch());
 		TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedCS> ComputeShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedCS>(PermutationVector);
 
@@ -327,6 +352,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 
 		FLumenDirectLightingHardwareRayTracingBatchedRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableFarFieldTracing>(Lumen::UseFarField(*View.Family));
+		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableHeightfieldProjectionBias>(CVarLumenSceneDirectLightingHardwareRayTracingHeightfieldProjectionBias.GetValueOnRenderThread() != 0);
 		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FIndirectDispatchDim>(IsHardwareRayTracedDirectLightingIndirectDispatch());
 		TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>(PermutationVector);
 

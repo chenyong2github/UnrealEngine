@@ -108,13 +108,6 @@ static TAutoConsoleVariable<float> CVarLumenDirectLightingHeightfieldShadowRayBi
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarLumenDirectLightingHeightfieldShadowReceiverBias(
-	TEXT("r.LumenScene.DirectLighting.Heightfield.ShadowReceiverBias"),
-	50.0f,
-	TEXT("Extra bias for Landscape surface points. Helps to fix mismatching LOD artifacts between fixed LOD in Surface Cache and Landscape CLOD."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<float> CVarLumenDirectLightingGlobalSDFShadowRayBias(
 	TEXT("r.LumenScene.DirectLighting.GlobalSDF.ShadowRayBias"),
 	15.0f,
@@ -157,11 +150,6 @@ float LumenSceneDirectLighting::GetGlobalSDFShadowRayBias()
 float LumenSceneDirectLighting::GetHardwareRayTracingShadowRayBias()
 {
 	return FMath::Max(CVarLumenDirectLightingHardwareRayTracingShadowRayBias.GetValueOnRenderThread(), 0.0f);
-}
-
-float LumenSceneDirectLighting::GetHeightfieldShadowReceiverBias()
-{
-	return FMath::Max(CVarLumenDirectLightingHeightfieldShadowReceiverBias.GetValueOnRenderThread(), 0.0f);
 }
 
 bool LumenSceneDirectLighting::UseVirtualShadowMaps()
@@ -1047,7 +1035,7 @@ void SampleShadowMap(
 		PassParameters->StepFactor = FMath::Clamp(GOffscreenShadowingTraceStepFactor, .1f, 10.0f);
 		PassParameters->ShadowMapSamplingBias = LumenSceneDirectLighting::GetShadowMapSamplingBias();
 		PassParameters->VirtualShadowMapSamplingBias = LumenSceneDirectLighting::GetVirtualShadowMapSamplingBias();
-		PassParameters->HeightfieldShadowReceiverBias = LumenSceneDirectLighting::GetHeightfieldShadowReceiverBias();
+		PassParameters->HeightfieldShadowReceiverBias = Lumen::GetHeightfieldReceiverBias();
 		PassParameters->ForceOffscreenShadowing = (GLumenDirectLightingReuseShadowMaps == 0 || !View.Family->EngineShowFlags.LumenReuseShadowMaps) ? 1 : 0;
 		PassParameters->ForceShadowMaps = GLumenDirectLightingForceForceShadowMaps;
 	}

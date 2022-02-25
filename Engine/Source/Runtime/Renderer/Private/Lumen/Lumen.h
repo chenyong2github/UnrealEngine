@@ -112,6 +112,7 @@ namespace Lumen
 	float GetFarFieldDitheredStartDistanceFactor();
 	FVector GetFarFieldReferencePos();
 
+	float GetHeightfieldReceiverBias();
 	void Shutdown();
 };
 

@@ -85,6 +85,7 @@ void UnswizzleTexelTraceCoords(
 struct FRadiosityTexel
 {
 	bool bInsideAtlas;
+	bool bHeightfield;
 
 	float Opacity;
 	float3 WorldPosition;
@@ -100,6 +101,7 @@ FRadiosityTexel GetRadiosityTexel(FLumenCardPageData CardPage, uint2 CoordInCard
 	FRadiosityTexel RadiosityTexel = (FRadiosityTexel)0;
 	RadiosityTexel.Opacity = 0.0f;
 	RadiosityTexel.bInsideAtlas = false;
+	RadiosityTexel.bHeightfield = false;
 	RadiosityTexel.WorldPosition = float3(0.0f, 0.0f, 0.0f);
 	RadiosityTexel.WorldNormal = float3(0.0f, 0.0f, 0.0f);
 
@@ -110,6 +112,7 @@ FRadiosityTexel GetRadiosityTexel(FLumenCardPageData CardPage, uint2 CoordInCard
 	if (all(CoordInCardPage < (uint2)CardPage.SizeInTexels))
 	{
 		RadiosityTexel.bInsideAtlas = true;
+		RadiosityTexel.bHeightfield = Card.bHeightfield;
 		RadiosityTexel.AtlasCoord = AtlasUV * RadiosityAtlasSize;
 		RadiosityTexel.IndirectLightingTemporalIndex = CardPage.IndirectLightingTemporalIndex;
 		RadiosityTexel.WorldToLocalRotation = Card.WorldToLocalRotation;
