@@ -4211,6 +4211,25 @@ static bool ShouldPrimitiveOutputVelocity(const FPrimitiveSceneProxy* Proxy, con
 	return bPlatformSupportsVelocityRendering && bShouldPrimitiveOutputVelocity;
 }
 
+void FScene::UpdatePrimitiveVelocityState_RenderThread(FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bIsBeingMoved)
+{
+	if (bIsBeingMoved)
+	{
+		if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy, GetShaderPlatform()))
+		{
+			PrimitiveSceneInfo->bRegisteredWithVelocityData = true;
+			// We must register the initial LocalToWorld with the velocity state. 
+			int32 PrimitiveIndex = PrimitiveSceneInfo->PackedIndex;
+			VelocityData.UpdateTransform(PrimitiveSceneInfo, PrimitiveTransforms[PrimitiveIndex], PrimitiveTransforms[PrimitiveIndex]);
+		}
+	}
+	else if (PrimitiveSceneInfo->bRegisteredWithVelocityData)
+	{
+		PrimitiveSceneInfo->bRegisteredWithVelocityData = false;
+		VelocityData.RemoveFromScene(PrimitiveSceneInfo->PrimitiveComponentId);
+	}
+}
+
 #if RHI_RAYTRACING
 void FScene::UpdateRayTracingGroupBounds_AddPrimitives(const Experimental::TRobinHoodHashSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos)
 {

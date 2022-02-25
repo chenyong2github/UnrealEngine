@@ -249,6 +249,9 @@ public:
 	/** Updates the selected state values that might be cached inside the renderer */
 	virtual void UpdatePrimitiveSelectedState_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bIsSelected) {}
 
+	/** Updates the velocity state values that might be cached inside the renderer */
+	virtual void UpdatePrimitiveVelocityState_RenderThread(FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bIsBeingMoved) {}
+
 	/** 
 	 * Adds a new exponential height fog component to the scene
 	 * 

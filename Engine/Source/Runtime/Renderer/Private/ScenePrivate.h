@@ -3170,6 +3170,7 @@ public:
 
 	/** Updates PrimitivesSelected array for this PrimitiveSceneInfo */
 	virtual void UpdatePrimitiveSelectedState_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bIsSelected) override;
+	virtual void UpdatePrimitiveVelocityState_RenderThread(FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bIsBeingMoved) override;
 
 	virtual void Release() override;
 	virtual UWorld* GetWorld() const override { return World; }
