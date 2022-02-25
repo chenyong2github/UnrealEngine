@@ -606,8 +606,6 @@ void FPBDJointCachedSolver::ApplyPointPositionConstraint()
 		// Calculate constraint correction
 		const FVec3 DX = SolverStiffness * PointConstraints.ConstraintStiffness * Utilities::Multiply(PointConstraints.ConstraintIM, CX);
 
-		ChaosSolverEnsure(!DX.ContainsNaN());
-
 		// Apply constraint correction
 		if( Body(0).IsDynamic())
 		{

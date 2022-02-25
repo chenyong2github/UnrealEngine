@@ -184,7 +184,6 @@ namespace Chaos
 		SolverBodies[1].Reset();
 	}
 
-
 	void FPBDJointSolver::Update(
 		const FReal Dt,
 		const FPBDJointSolverSettings& SolverSettings,
@@ -193,6 +192,16 @@ namespace Chaos
 		UpdateDerivedState();
 
 		UpdateIsActive(Dt, SolverSettings, JointSettings);
+	}
+
+	void FPBDJointSolver::UpdateMasses(
+		const FReal InvMScale0,
+		const FReal InvMScale1)
+	{
+		InvMScales[0] = InvMScale0;
+		InvMScales[1] = InvMScale1;
+		UpdateMass0();
+		UpdateMass1();
 	}
 
 	void FPBDJointSolver::UpdateMass0()
@@ -295,40 +304,20 @@ namespace Chaos
 		// @todo(chaos): We can also apply velocity drives here rather than in the Pbd pass
 	}
 
-
-	void FPBDJointSolver::ApplyProjections(
+	void FPBDJointSolver::ApplyPositionProjection(
 		const FReal Dt,
-		const FReal InSolverStiffness,
 		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings)
+		const FPBDJointSettings& JointSettings,
+		FVec3& DP1,
+		FVec3& DR1)
 	{
-		// @todo(chaos): We need to handle parent/child being the other way round
-		if (!IsDynamic(1))
-		{
-			// If child is kinematic, return. 
-			return;
-		}
-
-		SolverStiffness = InSolverStiffness;
-
-		const FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
-		const FReal AngularProjection = FPBDJointUtilities::GetAngularProjection(SolverSettings, JointSettings);
-
-		FVec3 DP1 = FVec3(0);
-		FVec3 DR1 = FVec3(0);
-
 		// Position Projection
+		const FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
 		const bool bLinearSoft = FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings);
 		const bool bLinearProjectionEnabled = (bLinearSoft && JointSettings.bSoftProjectionEnabled) || (!bLinearSoft && JointSettings.bProjectionEnabled);
 		const TVec3<EJointMotionType>& LinearMotion = JointSettings.LinearMotionTypes;
-		const bool bLinearLocked =
-			(LinearMotion[0] == EJointMotionType::Locked)
-			&& (LinearMotion[1] == EJointMotionType::Locked)
-			&& (LinearMotion[2] == EJointMotionType::Locked);
-		const bool bLinearLimited =
-			(LinearMotion[0] == EJointMotionType::Limited)
-			&& (LinearMotion[1] == EJointMotionType::Limited)
-			&& (LinearMotion[2] == EJointMotionType::Limited);
+		const bool bLinearLocked = (LinearMotion[0] == EJointMotionType::Locked) && (LinearMotion[1] == EJointMotionType::Locked) && (LinearMotion[2] == EJointMotionType::Locked);
+		const bool bLinearLimited = (LinearMotion[0] == EJointMotionType::Limited) && (LinearMotion[1] == EJointMotionType::Limited) && (LinearMotion[2] == EJointMotionType::Limited);
 		if (bLinearProjectionEnabled && (LinearProjection > 0))
 		{
 			if (bLinearLocked)
@@ -341,6 +330,18 @@ namespace Chaos
 			}
 			// @todo(ccaulfield): support mixed linear projection
 		}
+	}
+
+	void FPBDJointSolver::ApplyRotationProjection(
+		const FReal Dt,
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings,
+		FVec3& DP1,
+		FVec3& DR1)
+	{
+		const FReal AngularProjection = FPBDJointUtilities::GetAngularProjection(SolverSettings, JointSettings);
+		const TVec3<EJointMotionType>& LinearMotion = JointSettings.LinearMotionTypes;
+		const bool bLinearLocked = (LinearMotion[0] == EJointMotionType::Locked) && (LinearMotion[1] == EJointMotionType::Locked) && (LinearMotion[2] == EJointMotionType::Locked);
 
 		// Twist projection
 		const bool bTwistSoft = FPBDJointUtilities::GetSoftTwistLimitEnabled(SolverSettings, JointSettings);
@@ -396,10 +397,46 @@ namespace Chaos
 				ApplySingleLockedSwingProjection(Dt, SolverSettings, JointSettings, EJointAngularConstraintIndex::Swing2, AngularProjection, bLinearLocked, DP1, DR1);
 			}
 		}
+	}
+
+	void FPBDJointSolver::ApplyProjections(
+		const FReal Dt,
+		const FReal InSolverStiffness,
+		const FPBDJointSolverSettings& SolverSettings,
+		const FPBDJointSettings& JointSettings)
+	{
+		// @todo(chaos): We need to handle parent/child being the other way round
+		if (!IsDynamic(1))
+		{
+			// If child is kinematic, return. 
+			return;
+		}
+
+		SolverStiffness = InSolverStiffness;
+
+
+		FVec3 DP1 = FVec3(0);
+		FVec3 DR1 = FVec3(0);
+
+		if (SolverSettings.bSolvePositionLast)
+		{
+			ApplyRotationProjection(Dt, SolverSettings, JointSettings, DP1, DR1);
+			ApplyPositionProjection(Dt, SolverSettings, JointSettings, DP1, DR1);
+		}
+		else
+		{
+			ApplyPositionProjection(Dt, SolverSettings, JointSettings, DP1, DR1);
+			ApplyRotationProjection(Dt, SolverSettings, JointSettings, DP1, DR1);
+		}
 
 		// Final position fixup
+		const TVec3<EJointMotionType>& LinearMotion = JointSettings.LinearMotionTypes;
+		const bool bLinearLocked = (LinearMotion[0] == EJointMotionType::Locked) && (LinearMotion[1] == EJointMotionType::Locked) && (LinearMotion[2] == EJointMotionType::Locked);
 		if (bLinearLocked)
 		{
+			const FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
+			const bool bLinearSoft = FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings);
+			const bool bLinearProjectionEnabled = (bLinearSoft && JointSettings.bSoftProjectionEnabled) || (!bLinearSoft && JointSettings.bProjectionEnabled);
 			if (bLinearProjectionEnabled && (LinearProjection > 0))
 			{
 				ApplyTranslateProjection(Dt, SolverSettings, JointSettings, LinearProjection, DP1, DR1);

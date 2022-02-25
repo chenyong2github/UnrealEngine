@@ -173,6 +173,12 @@ namespace Chaos
 		// Recalculate the velocities of all bodies based on their transform deltas
 		void SetImplicitVelocities(FReal Dt);
 
+		// Apply accumulated transform deltas to the body transforms
+		void ApplyCorrections();
+
+		// Can be called after ApplyCorrections to update inertia to match the current transform
+		void UpdateRotationDependentState();
+
 	private:
 		int32 AddParticle(FGenericParticleHandle InParticle);
 

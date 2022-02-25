@@ -3,6 +3,7 @@
 
 #include "Chaos/Core.h"
 #include "Chaos/ArrayCollectionArray.h"
+#include "Chaos/Collision/CollisionApplyType.h"
 #include "Chaos/Evolution/SimulationSpace.h"
 #include "Chaos/Evolution/SolverDatas.h"
 #include "Chaos/ParticleHandleFwd.h"
@@ -38,6 +39,11 @@ namespace Chaos
 
 		void Advance(const FReal StepDt, const int32 NumSteps, const FReal RewindDt);
 		void AdvanceOneTimeStep(const FReal Dt, const FReal StepFraction);
+
+		void SetSolverType(const EConstraintSolverType InSolverType)
+		{
+			SolverType = InSolverType;
+		}
 
 		void SetNumIterations(const int32 NumIts)
 		{
@@ -123,6 +129,7 @@ namespace Chaos
 		TArray<FSimpleConstraintRule*> PrioritizedConstraintRules;
 		FPBDIslandSolverData SolverData;
 
+		EConstraintSolverType SolverType;
 		int32 NumApplyIterations;
 		int32 NumApplyPushOutIterations;
 		FReal BoundsExtension;

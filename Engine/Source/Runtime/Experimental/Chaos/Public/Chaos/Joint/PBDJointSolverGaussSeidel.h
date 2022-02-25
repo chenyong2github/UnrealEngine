@@ -158,6 +158,10 @@ namespace Chaos
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 
+		void UpdateMasses(
+			const FReal InvMassScale0,
+			const FReal InvMassScale1);
+
 		// Run the position solve for the constraints
 		void ApplyConstraints(
 			const FReal Dt,
@@ -436,6 +440,19 @@ namespace Chaos
 			const FReal DeltaPos,
 			const FReal DeltaVel);
 
+		void ApplyPositionProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			FVec3& DP1,
+			FVec3& DR1);
+
+		void ApplyRotationProjection(
+			const FReal Dt,
+			const FPBDJointSolverSettings& SolverSettings,
+			const FPBDJointSettings& JointSettings,
+			FVec3& DP1,
+			FVec3& DR1);
 
 		void ApplyPointProjection(
 			const FReal Dt,

@@ -182,14 +182,16 @@ namespace Chaos
 					FVec3 DP0 = Body0.InvM() * DX;
 					FVec3 DR0 = Utilities::Multiply(FMatrix33(Body0.InvI()), FVec3::CrossProduct(VectorToPoint0, DX));
 					Body0.ApplyTransformDelta(DP0, DR0);
-					//Body0.UpdateRotationDependentState();
+					Body0.ApplyCorrections();
+					Body0.UpdateRotationDependentState();
 				}
 				if (Body1.IsDynamic())
 				{
 					FVec3 DP1 = Body1.InvM() * -DX;
 					FVec3 DR1 = Utilities::Multiply(FMatrix33(Body1.InvI()), FVec3::CrossProduct(VectorToPoint1, -DX));
 					Body1.ApplyTransformDelta(DP1, DR1);
-					//Body1.UpdateRotationDependentState();
+					Body1.ApplyCorrections();
+					Body1.UpdateRotationDependentState();
 				}
 
 				return DX;
@@ -205,7 +207,7 @@ namespace Chaos
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
 				// Update the contact information based on current particles' positions
-				if (!Constraint.GetUseManifold() || (Constraint.GetManifoldPoints().Num() == 0))
+				if (Constraint.GetUseIncrementalCollisionDetection() || (Constraint.GetManifoldPoints().Num() == 0))
 				{
 					Collisions::Update(Constraint, IterationParameters.Dt);
 				}

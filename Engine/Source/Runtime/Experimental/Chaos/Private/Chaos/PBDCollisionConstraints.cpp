@@ -632,7 +632,7 @@ namespace Chaos
 	bool FPBDCollisionConstraints::LegacyApplyPhase2Serial(const FReal Dt, const int32 Iterations, const int32 NumIterations, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
 	{
 		bool bNeedsAnotherIteration = false;
-		if (MApplyPairIterations > 0)
+		if (MApplyPushOutPairIterations > 0)
 		{
 			const Collisions::FContactParticleParameters ParticleParameters = GetContactParticleParameters(Dt);
 			const Collisions::FContactIterationParameters IterationParameters = GetContactIterationParameters(Dt, Iterations, NumIterations, MApplyPushOutPairIterations, bNeedsAnotherIteration);

@@ -994,11 +994,12 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_Joints_Apply);
 
 		int32 NumActive = 0;
-		if (Settings.ApplyPairIterations > 0)
+		const int32 NumPairIts = (SolverType == EConstraintSolverType::QuasiPbd) ? 1 : Settings.ApplyPairIterations;
+		if (NumPairIts > 0)
 		{
 			for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
 			{
-				NumActive += ApplyPhase1Single(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
+				NumActive += ApplyPhase1Single(Dt, ConstraintIndex, NumPairIts, It, NumIts);
 			}
 		}
 		return (NumActive > 0);
@@ -1010,12 +1011,13 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_Joints_ApplyPushOut);
 
 		int32 NumActive = 0;
-		if (Settings.ApplyPairIterations > 0)
+		const int32 NumPairIts = (SolverType == EConstraintSolverType::QuasiPbd) ? 1 : Settings.ApplyPushOutPairIterations;
+		if (NumPairIts > 0)
 		{
 			// UpdateConstraintProjection(It, NumIts, SolverData);
 			for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
 			{
-				NumActive += ApplyPhase2Single(Dt, ConstraintIndex, Settings.ApplyPairIterations, It, NumIts);
+				NumActive += ApplyPhase2Single(Dt, ConstraintIndex, NumPairIts, It, NumIts);
 			}
 		}
 		return (NumActive > 0);
@@ -1113,6 +1115,21 @@ namespace Chaos
 		return true;
 	}
 
+	// @todo(chaos): ShockPropagation needs to handle the parent/child being in opposite order
+	FReal FPBDJointConstraints::CalculateShockPropagationInvMassScale(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FPBDJointSettings& JointSettings, const int32 It, const int32 NumIts) const
+	{
+		// Shock propagation is only enabled for the last iteration, and only for the QPBD solver.
+		// The standard PBD solver runs projection in the second solver phase which is mostly the same thing.
+		if ((It >= (NumIts - Settings.NumShockPropagationIterations)) && (SolverType == EConstraintSolverType::QuasiPbd))
+		{
+			if (Body0.IsDynamic() && Body1.IsDynamic())
+			{
+				return FPBDJointUtilities::GetShockPropagationInvMassScale(Settings, JointSettings);
+			}
+		}
+		return FReal(1);
+	}
+
 	// This position solver iterates over each of the inner constraints (position, twist, swing) and solves them independently.
 	// This will converge slowly in some cases, particularly where resolving angular constraints violates position constraints and vice versa.
 	bool FPBDJointConstraints::ApplyPhase1Single(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
@@ -1147,9 +1164,8 @@ namespace Chaos
 			const bool bWasActive = Solver.GetIsActive();
 			Solver.Update(Dt, Settings, JointSettings);
 
-			// Set parent inverser mass scale based on current shock propagation state
-			// @todo(chaos): needs to handle the parent/child being in opposite order
-			const FReal ShockPropagationInvMassScale = FPBDJointUtilities::GetShockPropagationInvMassScale(SolverType, It, NumIts, Settings, JointSettings);
+			// Set parent inverse mass scale based on current shock propagation state
+			const FReal ShockPropagationInvMassScale = CalculateShockPropagationInvMassScale(Solver.Body0(), Solver.Body1(), JointSettings, It, NumIts);
 			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1), Dt);
 
 			if (!bWasActive && !Solver.GetIsActive() && bChaos_Joint_EarlyOut_Enabled)
@@ -1208,23 +1224,42 @@ namespace Chaos
 			const bool bWasActive = Solver.GetIsActive();
 			Solver.Update(Dt, Settings, JointSettings);
 
-			// Set parent inverser mass scale based on current shock propagation state
-			// @todo(chaos): needs to handle the parent/child being in opposite order
-			const FReal ShockPropagationInvMassScale = FPBDJointUtilities::GetShockPropagationInvMassScale(SolverType, It, NumIts, Settings, JointSettings);
-			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
-
 			if (!bWasActive && !Solver.GetIsActive() && bChaos_Joint_EarlyOut_Enabled)
 			{
 				return false;
 			}
+
+			// Set parent inverse mass scale based on current shock propagation state
+			const FReal ShockPropagationInvMassScale = CalculateShockPropagationInvMassScale(Solver.Body0(), Solver.Body1(), JointSettings, It, NumIts);
 
 			const FReal IterationStiffness = CalculateIterationStiffness(It, NumIts);
 			for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
 			{
 				UE_LOG(LogChaosJoint, VeryVerbose, TEXT("  Pair Iteration %d / %d"), PairIt, NumPairIts);
 
+				if (SolverType == EConstraintSolverType::StandardPbd)
+				{
+					Solver.UpdateMasses(ShockPropagationInvMassScale, FReal(1));
+				}
+
+				Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
+
 				// This is the same position solver for all SolverTypes (which makes it wrong for the GbfPbd solver which should be a pbd-esque velocity solve)
 				Solver.ApplyConstraints(Dt, IterationStiffness, Settings, JointSettings);
+
+				if (SolverType == EConstraintSolverType::StandardPbd)
+				{
+					if (Solver.Body0().IsDynamic())
+					{
+						Solver.Body0().SolverBody().ApplyCorrections();
+						Solver.Body0().UpdateRotationDependentState();
+					}
+					if (Solver.Body1().IsDynamic())
+					{
+						Solver.Body1().SolverBody().ApplyCorrections();
+						Solver.Body1().UpdateRotationDependentState();
+					}
+				}
 
 				if (!Solver.GetIsActive() && bChaos_Joint_EarlyOut_Enabled)
 				{
@@ -1282,9 +1317,8 @@ namespace Chaos
 			const bool bWasActive = Solver.GetIsActive();
 			Solver.Update(Dt, Settings, JointSettings);
 			
-			// Set parent inverser mass scale based on current shock propagation state
-			// @todo(chaos): needs to handle the parent/child being in opposite order
-			const FReal ShockPropagationInvMassScale = FPBDJointUtilities::GetShockPropagationInvMassScale(SolverType, It, NumIts, Settings, JointSettings);
+			// Set parent inverse mass scale based on current shock propagation state
+			const FReal ShockPropagationInvMassScale = CalculateShockPropagationInvMassScale(Solver.Body0(), Solver.Body1(), JointSettings, It, NumIts);
 			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1), Dt);
 
 			// For quasipbd, we may still need to stabilize velocities and solve for restitution.
@@ -1340,16 +1374,14 @@ namespace Chaos
 			const bool bWasActive = Solver.GetIsActive();
 			Solver.Update(Dt, Settings, JointSettings);
 
-			// Set parent inverser mass scale based on current shock propagation state
-			// @todo(chaos): needs to handle the parent/child being in opposite order
-			const FReal ShockPropagationInvMassScale = FPBDJointUtilities::GetShockPropagationInvMassScale(SolverType, It, NumIts, Settings, JointSettings);
-			Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
-
 			// For quasipbd, we may still need to stabilize velocities and solve for restitution.
 			if (!bWasActive && !Solver.GetIsActive() && SolverType != EConstraintSolverType::QuasiPbd && bChaos_Joint_EarlyOut_Enabled)
 			{
 				return false;
 			}
+
+			// Set parent inverse mass scale based on current shock propagation state
+			const FReal ShockPropagationInvMassScale = CalculateShockPropagationInvMassScale(Solver.Body0(), Solver.Body1(), JointSettings, It, NumIts);
 
 			const FReal IterationStiffness = CalculateIterationStiffness(It, NumIts);
 			for (int32 PairIt = 0; PairIt < NumPairIts; ++PairIt)
@@ -1360,9 +1392,11 @@ namespace Chaos
 					break;
 				case EConstraintSolverType::GbfPbd:
 				case EConstraintSolverType::StandardPbd:
+					Solver.UpdateMasses(ShockPropagationInvMassScale, FReal(1));
 					Solver.ApplyProjections(Dt, IterationStiffness, Settings, JointSettings);
 					break;
 				case EConstraintSolverType::QuasiPbd:
+					Solver.SetInvMassScales(ShockPropagationInvMassScale, FReal(1));
 					Solver.ApplyVelocityConstraints(Dt, IterationStiffness, Settings, JointSettings);
 					break;
 				}

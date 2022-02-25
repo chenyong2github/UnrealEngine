@@ -602,20 +602,14 @@ namespace Chaos
 	}
 
 	FReal FPBDJointUtilities::GetShockPropagationInvMassScale(
-		EConstraintSolverType SolverType,
-		int32 It,
-		int32 NumIts,
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		// Shock propagation is only enabled for the last iteration, and only for the QPBD solver
-		const bool bEnableShockPropagation = JointSettings.bProjectionEnabled && (It >= NumIts - SolverSettings.NumShockPropagationIterations) && (SolverType == EConstraintSolverType::QuasiPbd);
-
-		if (bEnableShockPropagation)
+		if (JointSettings.bProjectionEnabled)
 		{
-			return (SolverSettings.ShockPropagationOverride >= 0.0f) ? SolverSettings.ShockPropagationOverride : JointSettings.ShockPropagation;
+			// ShockProagation setting is a alpha. For an alpha of 0 we want an invmass scale of 1, and vice-versa
+			return (SolverSettings.ShockPropagationOverride >= FReal(0)) ? (FReal(1) - SolverSettings.ShockPropagationOverride) : (FReal(1) - JointSettings.ShockPropagation);
 		}
-
 		return FReal(1);
 	}
 

@@ -2191,6 +2191,8 @@ namespace Chaos
 		{
 			const FRigidTransform3 WorldTransform0 = Constraint.GetShapeRelativeTransform0() * ParticleWorldTransform0;
 			const FRigidTransform3 WorldTransform1 = Constraint.GetShapeRelativeTransform1() * ParticleWorldTransform1;
+			Constraint.SetShapeWorldTransforms(WorldTransform0, WorldTransform1);
+
 			UpdateConstraintFromGeometryImpl<UpdateType>(Constraint, WorldTransform0, WorldTransform1, Dt);
 		}
 
@@ -2199,6 +2201,8 @@ namespace Chaos
 		{
 			const FRigidTransform3 WorldTransform0 = Constraint.GetShapeRelativeTransform0() * ParticleWorldTransform0;
 			const FRigidTransform3 WorldTransform1 = Constraint.GetShapeRelativeTransform1() * ParticleWorldTransform1;
+			Constraint.SetShapeWorldTransforms(WorldTransform0, WorldTransform1);
+
 			return UpdateConstraintFromGeometrySweptImpl<UpdateType>(Constraint, WorldTransform0, WorldTransform1, Dt);
 		}
 

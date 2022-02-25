@@ -79,4 +79,20 @@ namespace Chaos
 		}
 	}
 
+	void FSolverBodyContainer::ApplyCorrections()
+	{
+		for (FSolverBodyAdapter& SolverBody : SolverBodies)
+		{
+			SolverBody.GetSolverBody().ApplyCorrections();
+		}
+	}
+
+	void FSolverBodyContainer::UpdateRotationDependentState()
+	{
+		for (FSolverBodyAdapter& SolverBody : SolverBodies)
+		{
+			SolverBody.GetSolverBody().UpdateRotationDependentState();
+		}
+	}
+
 }

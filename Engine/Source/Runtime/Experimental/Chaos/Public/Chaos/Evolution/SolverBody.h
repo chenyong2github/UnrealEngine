@@ -5,15 +5,29 @@
 #include "Math/Quat.h"
 
 
-#if DO_CHECK && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-#define ChaosSolverEnsure( condition )		ensure( condition )
-#else
-#define ChaosSolverEnsure(...)
+// Set to 1 to enable extra NaN tests in the constraint solver
+// NOTE: These will cause slowness!
+#ifndef CHAOS_CONSTRAINTSOLVER_NAN_DIAGNOSTIC
+#define CHAOS_CONSTRAINTSOLVER_NAN_DIAGNOSTIC ((DO_CHECK && UE_BUILD_DEBUG) || ENABLE_NAN_DIAGNOSTIC)
 #endif
-
 
 // Set to 1 to force single precision in the constraint solver, even if the default numeric type is double
 #define CHAOS_CONSTRAINTSOLVER_LOWPRECISION 1
+
+
+// Add some NaN checking when CHAOS_CONSTRAINTSOLVER_NAN_DIAGNOSTIC is defined
+#if CHAOS_CONSTRAINTSOLVER_NAN_DIAGNOSTIC
+inline void ChaosSolverCheckNaN(const Chaos::FRealSingle& V) { ensure(!FMath::IsNaN(V)); }
+inline void ChaosSolverCheckNaN(const Chaos::TVec3<Chaos::FRealSingle>& V) { ensure(!V.ContainsNaN()); }
+inline void ChaosSolverCheckNaN(const Chaos::TRotation3<Chaos::FRealSingle>& V) { ensure(!V.ContainsNaN()); }
+
+inline void ChaosSolverCheckNaN(const Chaos::FRealDouble& V) { ensure(!FMath::IsNaN(V)); }
+inline void ChaosSolverCheckNaN(const Chaos::TVec3<Chaos::FRealDouble>& V) { ensure(!V.ContainsNaN()); }
+inline void ChaosSolverCheckNaN(const Chaos::TRotation3<Chaos::FRealDouble>& V) { ensure(!V.ContainsNaN()); }
+#else
+#define ChaosSolverCheckNaN(...)
+#endif
+
 
 namespace Chaos
 {
@@ -31,12 +45,11 @@ namespace Chaos
 	using FSolverVec3 = TVec3<FSolverReal>;
 	using FSolverMatrix33 = TMatrix33<FSolverReal>;
 
-
 	class FSolverBody;
 	class FSolverBodyContainer;
 
 
-	// A pair of pointers so solver bodies
+	// A pair of pointers to solver bodies
 	// @note Pointers are only valid for the Constraint Solving phase of the tick
 	using FSolverBodyPtrPair = TVector<FSolverBody*, 2>;
 
@@ -49,7 +62,7 @@ namespace Chaos
 	 * This avoids the sqrt which is a massively dominating cost especially with doubles
 	 * when we do not have a fast reciproical sqrt (AVX2)
 	 *
-	 * This uses the first order Pade apprimant instead of a Taylor expansion
+	 * This uses the first order Pade approximation instead of a Taylor expansion
 	 * to get more accurate results for small quaternion deltas (i.e., where
 	 * Q.SizeSquared() is already near 1). 
 	 *
@@ -100,8 +113,8 @@ namespace Chaos
 			if (IsDynamic() && (Dt != FReal(0)))
 			{
 				const FSolverReal InvDt = FSolverReal(1) / FSolverReal(Dt);
-				State.V += FVec3(State.DP * InvDt);
-				SetW(State.W + State.DQ * InvDt);
+				SetV(State.V + FVec3(State.DP * InvDt));
+				SetW(State.W + FVec3(State.DQ * InvDt));
 			}
 		}
 
@@ -157,7 +170,7 @@ namespace Chaos
 		inline const FRotation3& R() const { return State.R; }
 		inline void SetR(const FRotation3& InR)
 		{
-			ChaosSolverEnsure(!InR.ContainsNaN());
+			ChaosSolverCheckNaN(InR);
 			State.R = InR;
 		}
 
@@ -176,8 +189,8 @@ namespace Chaos
 		*/
 		inline const FRotation3& Q() const { return State.Q; }
 		inline void SetQ(const FRotation3& InQ)
-		{
-			ChaosSolverEnsure(!InQ.ContainsNaN());
+		{ 
+			ChaosSolverCheckNaN(InQ);
 			State.Q = InQ;
 		}
 
@@ -185,7 +198,11 @@ namespace Chaos
 		 * @brief World-space center of mass velocity
 		*/
 		inline const FVec3& V() const { return State.V; }
-		inline void SetV(const FVec3& InV) { State.V = InV; }
+		inline void SetV(const FVec3& InV)
+		{ 
+			ChaosSolverCheckNaN(InV);
+			State.V = InV;
+		}
 
 		/**
 		 * @brief World-space center of mass angular velocity
@@ -193,7 +210,7 @@ namespace Chaos
 		inline const FVec3& W() const { return State.W; }
 		inline void SetW(const FVec3& InW)
 		{
-			ChaosSolverEnsure(!InW.ContainsNaN());
+			ChaosSolverCheckNaN(InW);
 			State.W = InW;
 		}
 
@@ -223,7 +240,7 @@ namespace Chaos
 		 * @brief World-space rotation after applying the net correction DQ()
 		 * @note Calculated on demand from Q() and DQ() (requires quaternion multiply and normalization)
 		*/
-		inline FRotation3 CorrectedQ() const { return IsDynamic() ? FRotation3::IntegrateRotationWithAngularVelocity(State.Q, FVec3(State.DQ), FReal(1)) : State.Q; }
+		inline FRotation3 CorrectedQ() const { return (IsDynamic() && !State.DQ.IsZero()) ? FRotation3::IntegrateRotationWithAngularVelocity(State.Q, FVec3(State.DQ), FReal(1)) : State.Q; }
 
 		/**
 		 * @brief Apply the accumulated position and rotation corrections to the predicted P and Q
@@ -276,6 +293,7 @@ namespace Chaos
 		*/
 		inline void ApplyPositionDelta(const FSolverVec3& DP)
 		{
+			ChaosSolverCheckNaN(DP);
 			State.DP += DP;
 		}
 
@@ -284,6 +302,7 @@ namespace Chaos
 		*/
 		inline void ApplyRotationDelta(const FSolverVec3& DR)
 		{
+			ChaosSolverCheckNaN(DR);
 			State.DQ += DR;
 		}
 
@@ -301,6 +320,7 @@ namespace Chaos
 		*/
 		inline void ApplyLinearVelocityDelta(const FSolverVec3& DV)
 		{
+			ChaosSolverCheckNaN(DV);
 			State.V += FVec3(DV);
 		}
 
@@ -309,6 +329,7 @@ namespace Chaos
 		*/
 		inline void ApplyAngularVelocityDelta(const FSolverVec3& DW)
 		{
+			ChaosSolverCheckNaN(DW);
 			SetW(State.W + DW);
 		}
 

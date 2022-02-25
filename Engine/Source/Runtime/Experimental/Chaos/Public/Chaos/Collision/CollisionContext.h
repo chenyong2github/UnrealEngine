@@ -17,6 +17,7 @@ namespace Chaos
 			: bFilteringEnabled(true)
 			, bDeferUpdate(false)
 			, bAllowManifolds(false)
+			, bAllowManifoldReuse(false)
 			, bForceDisableCCD(false)
 			, CollisionAllocator(nullptr)
 		{
@@ -30,8 +31,11 @@ namespace Chaos
 		// which could be undesirable in some cases (destruction?).
 		bool bDeferUpdate;
 
-		// Whether to use manifolds where supported [default: false]
+		// Whether to use one-shot manifolds where supported [default: false]
 		bool bAllowManifolds;
+
+		// Whether we can reuse manifolds between frames if contacts have not moved far [default: false]
+		bool bAllowManifoldReuse;
 
 		// Force disable CCD
 		bool bForceDisableCCD;

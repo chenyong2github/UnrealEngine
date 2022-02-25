@@ -268,9 +268,6 @@ namespace Chaos
 			const FPBDJointSettings& JointSettings);
 
 		static FReal GetShockPropagationInvMassScale(
-			EConstraintSolverType SolverType,
-			int32 It,
-			int32 NumIts,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
 

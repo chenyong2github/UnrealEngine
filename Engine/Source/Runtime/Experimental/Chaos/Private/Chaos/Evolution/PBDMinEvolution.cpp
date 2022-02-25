@@ -135,6 +135,7 @@ namespace Chaos
 		, CollisionDetector(InCollisionDetector)
 		, ParticlePrevXs(InPrevX)
 		, ParticlePrevRs(InPrevR)
+		, SolverType(EConstraintSolverType::QuasiPbd)
 		, NumApplyIterations(0)
 		, NumApplyPushOutIterations(0)
 		, BoundsExtension(InBoundsExtension)
@@ -516,7 +517,22 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_UpdateVelocites);
 
-		SolverData.GetBodyContainer().SetImplicitVelocities(Dt);
+		// @todo(chaos): clean this up - the two solvers calculate implicit velocity differently because 
+		// QPBD accumulates transform deltas and the StandardPBD applies transform changes directly
+		if (SolverType == EConstraintSolverType::StandardPbd)
+		{
+			for (FSolverBodyAdapter& SolverBody : SolverData.GetBodyContainer().GetBodies())
+			{
+				const FVec3 V = FVec3::CalculateVelocity(SolverBody.GetSolverBody().X(), SolverBody.GetSolverBody().P(), Dt);
+				const FVec3 W = FRotation3::CalculateAngularVelocity(SolverBody.GetSolverBody().R(), SolverBody.GetSolverBody().Q(), Dt);
+				SolverBody.GetSolverBody().SetV(V);
+				SolverBody.GetSolverBody().SetW(W);
+			}
+		}
+		else
+		{ 
+			SolverData.GetBodyContainer().SetImplicitVelocities(Dt);
+		}
 	}
 
 	void FPBDMinEvolution::ApplyConstraintsPhase2(FReal Dt)

@@ -370,8 +370,14 @@ namespace Chaos
 		FReal GetCullDistance() const { return CullDistance; }
 		void SetCullDistance(FReal InCullDistance) { CullDistance = InCullDistance; }
 
+		// Whether we are using manifolds (either one-shot or incremental)
 		bool GetUseManifold() const { return Flags.bUseManifold; }
-		
+
+		// Whether we can use incremental manifolds (updated each iteration)
+		bool GetUseIncrementalManifold() const { return Flags.bUseIncrementalManifold; }
+
+		// Whether we run collision detection every iteration (true if we are not using one shot manifolds)
+		// NOTE: This is initially set based on whether are allowing incremental manifolds
 		bool GetUseIncrementalCollisionDetection() const { return !Flags.bUseManifold || Flags.bUseIncrementalManifold; }
 
 		/**
@@ -401,6 +407,9 @@ namespace Chaos
 				{
 					ClosestManifoldPointIndex = ManifoldPointIndex;
 				}
+
+				// If we can use a one-shot manifold with this shape pair, disable the incremental flag
+				// to prevent calling collision detection again
 				Flags.bUseIncrementalManifold = false;
 			}
 		}

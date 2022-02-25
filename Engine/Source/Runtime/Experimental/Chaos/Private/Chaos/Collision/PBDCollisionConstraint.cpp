@@ -245,8 +245,12 @@ namespace Chaos
 
 		CullDistance = InCullDistance;
 
+		// Are we allowing manifolds? If manifolds are enabled, we will build a one-shot manifold
+		// if supported by the shape pair, otherwise an incremental manifold will be created and
+		// we call collision detection every iteration to add new points (this is expensive).
+		// NOTE: bUseIncrementalManifold will get set to false later if we add a one-shot manifold
 		Flags.bUseManifold = bInUseManifold;
-		Flags.bUseIncrementalManifold = true;	// This will get changed later if we call AddOneShotManifoldContact
+		Flags.bUseIncrementalManifold = bInUseManifold;
 
 		const FReal Margin0 = GetImplicit0()->GetMargin();
 		const FReal Margin1 = GetImplicit1()->GetMargin();
@@ -511,10 +515,13 @@ namespace Chaos
 	{
 		if (ManifoldPoints.IsFull())
 		{
+			// @todo(chaos): we should remove a contact here if we try to add a new point
+			// For now just update the existing ones to select the deepest
+			UpdateManifoldContacts();
 			return;
 		}
 
-		if (Flags.bUseManifold)
+		if (Flags.bUseIncrementalManifold)
 		{
 			// See if the manifold point already exists
 			int32 ManifoldPointIndex = FindManifoldPoint(ContactPoint);
@@ -529,10 +536,9 @@ namespace Chaos
 				ManifoldPointIndex = AddManifoldPoint(ContactPoint);
 			}
 
-			if (ManifoldPoints[ManifoldPointIndex].ContactPoint.Phi < GetPhi())
-			{
-				ClosestManifoldPointIndex = ManifoldPointIndex;
-			}
+			// If collision detection did its job, this contact is the deepest
+			// NOTE: other contact Phis will be out of date at the current iteration's transforms
+			ClosestManifoldPointIndex = ManifoldPointIndex;
 		}
 		else 
 		{
@@ -544,8 +550,6 @@ namespace Chaos
 
 			ClosestManifoldPointIndex = 0;
 		}
-
-		Flags.bUseIncrementalManifold = true;
 	}
 
 	void FPBDCollisionConstraint::ResetManifold()

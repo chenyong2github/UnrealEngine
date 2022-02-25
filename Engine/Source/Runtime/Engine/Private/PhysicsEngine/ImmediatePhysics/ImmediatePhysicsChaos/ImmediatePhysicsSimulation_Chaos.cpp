@@ -364,6 +364,7 @@ namespace ImmediatePhysics_Chaos
 		Implementation->NarrowPhase.GetContext().bFilteringEnabled = false;
 		Implementation->NarrowPhase.GetContext().bDeferUpdate = true;
 		Implementation->NarrowPhase.GetContext().bAllowManifolds = false;
+		Implementation->NarrowPhase.GetContext().bAllowManifoldReuse = false;
 	}
 
 	FSimulation::~FSimulation()
@@ -813,7 +814,7 @@ namespace ImmediatePhysics_Chaos
 			JointsSettings.LinearDriveDampingOverride = ChaosImmediate_Joint_LinearDriveDamping;
 			JointsSettings.AngularDriveStiffnessOverride = ChaosImmediate_Joint_AngularDriveStiffness;
 			JointsSettings.AngularDriveDampingOverride = ChaosImmediate_Joint_AngularDriveDamping;
-			JointsSettings.bUseLinearSolver = bChaosImmediate_Joint_UseLinearSolver;
+			JointsSettings.bUseLinearSolver = bChaosImmediate_Joint_UseLinearSolver && ((EConstraintSolverType)ChaosImmediate_SolverType == EConstraintSolverType::QuasiPbd);
 			Implementation->Joints.SetSettings(JointsSettings);
 
 			Implementation->Collisions.SetRestitutionEnabled(ChaosImmediate_Collision_RestitutionEnabled != 0);
@@ -826,7 +827,9 @@ namespace ImmediatePhysics_Chaos
 			Implementation->NarrowPhase.SetBoundsExpansion(ChaosImmediate_Collision_CullDistance);
 			Implementation->NarrowPhase.GetContext().bDeferUpdate = (ChaosImmediate_Collision_DeferNarrowPhase != 0);
 			Implementation->NarrowPhase.GetContext().bAllowManifolds = (ChaosImmediate_Collision_UseManifolds != 0);
+			Implementation->NarrowPhase.GetContext().bAllowManifoldReuse = false;
 
+			Implementation->Evolution.SetSolverType((EConstraintSolverType)ChaosImmediate_SolverType);
 			Implementation->Collisions.SetSolverType((EConstraintSolverType)ChaosImmediate_SolverType);
 			Implementation->Joints.SetSolverType((EConstraintSolverType)ChaosImmediate_SolverType);
 
