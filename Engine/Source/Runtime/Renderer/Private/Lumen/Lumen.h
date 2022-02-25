@@ -82,6 +82,7 @@ namespace Lumen
 	bool UseHardwareRayTracedScreenProbeGather();
 	bool UseHardwareRayTracedRadianceCache();
 	bool UseHardwareRayTracedRadiosity(const FSceneViewFamily& ViewFamily);
+	int32 GetMaxTranslucentSkipCount();
 
 	bool UseHardwareInlineRayTracing();
 

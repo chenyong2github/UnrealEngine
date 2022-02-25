@@ -59,6 +59,13 @@ static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingMaxIterations(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingMaxTranslucentSkipCount(
+	TEXT("r.Lumen.HardwareRayTracing.MaxTranslucentSkipCount"),
+	2,
+	TEXT("Determines the maximum number of translucent surfaces skipped during ray traversal (Default = 2)"),
+	ECVF_RenderThreadSafe
+);
+
 bool Lumen::UseHardwareRayTracing()
 {
 #if RHI_RAYTRACING
@@ -68,6 +75,11 @@ bool Lumen::UseHardwareRayTracing()
 #else
 	return false;
 #endif
+}
+
+int32 Lumen::GetMaxTranslucentSkipCount()
+{
+	return CVarLumenHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 }
 
 Lumen::EHardwareRayTracingLightingMode Lumen::GetHardwareRayTracingLightingMode(const FViewInfo& View)

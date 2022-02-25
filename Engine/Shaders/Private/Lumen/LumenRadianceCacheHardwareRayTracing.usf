@@ -81,6 +81,7 @@ void LumenRadianceCacheHardwareRayTracingIndirectArgsCS()
 
 #if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING
 
+#define ENABLE_TRANSLUCENT_SKIP_COUNT 1
 #include "LumenHardwareRayTracingCommon.ush"
 
 #ifndef DIM_LIGHTING_MODE

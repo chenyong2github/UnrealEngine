@@ -46,6 +46,7 @@ void FLumenReflectionHardwareRayTracingIndirectArgsCS()
 
 float3 FarFieldReferencePos;
 
+#define ENABLE_TRANSLUCENT_SKIP_COUNT 1
 #include "LumenHardwareRayTracingCommon.ush"
 
 RaytracingAccelerationStructure TLAS;
@@ -142,13 +143,22 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 			Ray.TMax = FarFieldMaxTraceDistance;
 		}
 		const float Epsilon = 0.5;
-		Ray.TMin = TraceData.TraceDistance - Epsilon;
+		Ray.TMin = max(TraceData.TraceDistance - Epsilon, 0.0f);
 
 		int LightingMode = (TraceData.bIsFarField || !TraceData.bIsRadianceCompleted) ?
-			EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING :
+			EVALUATE_MATERIAL_AND_DIRECT_LIGHTING :
 			NearFieldLightingMode;
-		LightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING;
+
 		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, LightingMode, TraceData.Bookmark);
+
+		#define DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS 0
+		#if DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS
+			if (TraceData.bIsHit && !Result.bIsHit)
+			{
+				Result.Radiance = float3(10, 0, 10);
+				Result.bIsHit = true;
+			}
+		#endif
 
 #else // DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
 

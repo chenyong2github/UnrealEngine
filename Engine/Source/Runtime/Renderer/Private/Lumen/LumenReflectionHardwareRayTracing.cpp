@@ -32,13 +32,6 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingIndirec
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount(
-	TEXT("r.Lumen.Reflections.HardwareRayTracing.MaxTranslucentSkipCount"),
-	2,
-	TEXT("Determines the maximum number of translucent surfaces skipped during ray traversal (Default = 2)"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingDefaultThreadCount(
 	TEXT("r.Lumen.Reflections.HardwareRayTracing.Default.ThreadCount"),
 	32768,
@@ -411,7 +404,7 @@ void SetLumenHardwareRayTracingReflectionParameters(
 	Parameters->FarFieldDitheredStartDistanceFactor = LumenReflections::UseFarFieldForReflections(*View.Family) ? Lumen::GetFarFieldDitheredStartDistanceFactor() : 1.0;
 	Parameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 	Parameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
-	Parameters->MaxTranslucentSkipCount = CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+	Parameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
 	Parameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 	Parameters->ApplySkyLight = bApplySkyLight;
 
@@ -685,7 +678,7 @@ void RenderLumenHardwareRayTracingReflections(
 	FRDGBufferRef TraceTexelDataPackedBufferCached = CompactedTraceParameters.CompactedTraceTexelData->Desc.Buffer;
 
 	const bool bIsForceHitLighting = LumenReflections::IsHitLightingForceEnabled(View);
-	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing();
+	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing() && !bIsForceHitLighting;
 	const bool bUseFarFieldForReflections = LumenReflections::UseFarFieldForReflections(*View.Family);
 
 	// Default tracing of near-field, extract surface cache and material-id
@@ -703,8 +696,6 @@ void RenderLumenHardwareRayTracingReflections(
 
 		if (bInlineRayTracing)
 		{
-			check(!bIsForceHitLighting);
-
 			DispatchComputeShader(GraphBuilder, SceneTextures, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
 				ToComputePermutationVector(PermutationVector), MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache,
 				RayAllocatorBufferCached, TraceTexelDataPackedBufferCached, TraceDataPackedBufferCached);

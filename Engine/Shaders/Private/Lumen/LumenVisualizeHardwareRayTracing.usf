@@ -10,6 +10,7 @@
 #include "LumenVisualize.ush"
 
 #if LUMEN_HARDWARE_RAYTRACING
+#define ENABLE_TRANSLUCENT_SKIP_COUNT 1
 #include "LumenHardwareRayTracingCommon.ush"
 #endif
 
@@ -19,6 +20,10 @@
 
 #ifndef THREADGROUP_SIZE_1D
 #define THREADGROUP_SIZE_1D THREADGROUP_SIZE_2D * THREADGROUP_SIZE_2D
+#endif
+
+#ifndef DISPATCH_GROUP_SIZE_X
+#define DISPATCH_GROUP_SIZE_X 0
 #endif
 
 struct FTileData
@@ -127,6 +132,7 @@ FRayData UnpackRayData(FRayDataPacked RayDataPacked)
 	return RayData;
 }
 
+Buffer<uint> TileAllocator;
 StructuredBuffer<FTileDataPacked> TileDataPacked;
 float MaxTraceDistance;
 
@@ -139,31 +145,36 @@ groupshared FRayDataPacked SharedRayDataPacked[THREADGROUP_SIZE_1D];
 
 [numthreads(THREADGROUP_SIZE_1D, 1, 1)]
 void FLumenVisualizeCreateRaysCS(
-	uint GroupId : SV_GroupID,
-	uint GroupThreadId : SV_GroupThreadID,
-	uint DispatchThreadId : SV_DispatchThreadID)
+	uint2 GroupId : SV_GroupID,
+	uint GroupThreadId : SV_GroupThreadID)
 {
 	SharedRayAllocator = 0;
 	GroupMemoryBarrierWithGroupSync();
 
-	uint2 ThreadIndex = uint2(GroupThreadId % THREADGROUP_SIZE_2D, GroupThreadId / THREADGROUP_SIZE_2D);
-	FTileData TileData = UnpackTileData(TileDataPacked[GroupId]);
-	uint2 TraceCoord = TileData.TileCoord * THREADGROUP_SIZE_2D + ThreadIndex;
-	if (all(TraceCoord < OutputViewSize))
+	uint LinearGroupId = GroupId.y * DISPATCH_GROUP_SIZE_X + GroupId.x;
+
+	if (LinearGroupId < TileAllocator[0])
 	{
-		float2 ViewportUV = (TraceCoord + 0.5f) / OutputViewSize;
-		uint2 InputScreenCoord = ViewportUV * InputViewSize + InputViewOffset;
-
-		bool bIsRayValid = true;
-
-		if (bIsRayValid)
+		uint2 ThreadIndex = uint2(GroupThreadId % THREADGROUP_SIZE_2D, GroupThreadId / THREADGROUP_SIZE_2D);
+		FTileData TileData = UnpackTileData(TileDataPacked[LinearGroupId]);
+		uint2 TraceCoord = TileData.TileCoord * THREADGROUP_SIZE_2D + ThreadIndex;
+		if (all(TraceCoord < OutputViewSize))
 		{
-			uint ThreadOffset;
-			InterlockedAdd(SharedRayAllocator, 1, ThreadOffset);
+			float2 ViewportUV = (TraceCoord + 0.5f) / OutputViewSize;
+			uint2 InputScreenCoord = ViewportUV * InputViewSize + InputViewOffset;
 
-			SharedRayDataPacked[ThreadOffset] = PackRayData(CreateRayData(TraceCoord));
+			bool bIsRayValid = true;
+
+			if (bIsRayValid)
+			{
+				uint ThreadOffset;
+				InterlockedAdd(SharedRayAllocator, 1, ThreadOffset);
+
+				SharedRayDataPacked[ThreadOffset] = PackRayData(CreateRayData(TraceCoord));
+			}
 		}
 	}
+	
 	GroupMemoryBarrierWithGroupSync();
 
 	if (GroupThreadId == 0)
@@ -460,9 +471,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 			HitLightingMode = LightingMode;
 		}
 		const float Epsilon = 0.5;
-		//float TraceDistance = UnpackTraceData(TraceDataPacked[RayIndex]).TraceDistance;
-		Ray.TMin = TraceData.TraceDistance - Epsilon;
-		Ray.TMax = TraceData.TraceDistance + Epsilon;
+		Ray.TMin = max(TraceData.TraceDistance - Epsilon, 0);
 #elif DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
 		Ray.TMin = UnpackTraceData(TraceDataPacked[RayIndex]).TraceDistance;
 #endif // DIM_TRACE_MODE
@@ -493,6 +502,15 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 #else
 		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, HitLightingMode);
+
+		#define DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS 0
+		#if DEBUG_VISUAL_ASSERT_ON_RETRACE_MISS && DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
+			if (TraceData.bIsHit && !Result.bIsHit)
+			{
+				Result.Radiance = float3(10, 0, 10);
+				Result.bIsHit = true;
+			}
+		#endif
 #endif // DIM_TRACE_MODE
 
 		// Trace segmentation visualization

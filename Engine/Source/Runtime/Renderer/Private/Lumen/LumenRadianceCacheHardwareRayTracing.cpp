@@ -56,13 +56,6 @@ static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracingIndir
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracingMaxTranslucentSkipCount(
-	TEXT("r.Lumen.RadianceCache.HardwareRayTracing.MaxTranslucentSkipCount"),
-	2,
-	TEXT("Determines the maximum number of translucent surfaces skipped during ray traversal (Default = 2)"),
-	ECVF_RenderThreadSafe
-);
-
 #endif // RHI_RAYTRACING
 
 namespace Lumen
@@ -434,7 +427,7 @@ void SetLumenHardwareRayTracingRadianceCacheParameters(
 	PassParameters->RayTracingCullingRadius = GetRayTracingCullingRadius();
 	PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 	PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
-	PassParameters->MaxTranslucentSkipCount = CVarLumenRadianceCacheHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+	PassParameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
 	PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 	PassParameters->ApplySkyLight = bApplySkyLight;
 

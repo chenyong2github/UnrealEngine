@@ -518,7 +518,6 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 	Result.TraceHitDistance = Ray.TMax;
 
 	uint RayFlags = 0;
-	bool bEnableSkyLightContribution = LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING;
 
 	FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
 	Payload.SetLumenPayload();

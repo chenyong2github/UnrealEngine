@@ -44,13 +44,6 @@ static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingDeferredM
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount(
-	TEXT("r.Lumen.Visualize.HardwareRayTracing.MaxTranslucentSkipCount"),
-	2,
-	TEXT("Determines the maximum number of translucent surfaces skipped during ray traversal (Default = 2)"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingThreadCount(
 	TEXT("r.Lumen.Visualize.HardwareRayTracing.ThreadCount"),
 	64,
@@ -191,6 +184,8 @@ class FLumenVisualizeCreateTilesCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FLumenVisualizeCreateTilesCS, "/Engine/Private/Lumen/LumenVisualizeHardwareRayTracing.usf", "FLumenVisualizeCreateTilesCS", SF_Compute);
 
+const int32 VisualizeCreateRaysDispatchSizeX = 128;
+
 class FLumenVisualizeCreateRaysCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FLumenVisualizeCreateRaysCS)
@@ -201,6 +196,7 @@ class FLumenVisualizeCreateRaysCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenVisualizeSceneParameters, VisualizeParameters)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenVisualize::FTileDataPacked>, TileDataPacked)
 		SHADER_PARAMETER(float, MaxTraceDistance)
 
@@ -220,6 +216,7 @@ class FLumenVisualizeCreateRaysCS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("ENABLE_VISUALIZE_MODE"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_1D"), GetThreadGroupSize1D());
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_2D"), GetThreadGroupSize2D());
+		OutEnvironment.SetDefine(TEXT("DISPATCH_GROUP_SIZE_X"), VisualizeCreateRaysDispatchSizeX);
 	}
 
 	static int32 GetThreadGroupSize1D() { return GetThreadGroupSize2D() * GetThreadGroupSize2D(); }
@@ -540,6 +537,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTextures = SceneTextures;
 			PassParameters->VisualizeParameters = VisualizeParameters;
+			PassParameters->TileAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TileAllocatorBuffer, PF_R32_UINT));
 			PassParameters->TileDataPacked = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TileDataPackedStructuredBuffer));
 			PassParameters->MaxTraceDistance = FarFieldMaxTraceDistance;
 
@@ -550,7 +548,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 
 		TShaderRef<FLumenVisualizeCreateRaysCS> ComputeShader = View.ShaderMap->GetShader<FLumenVisualizeCreateRaysCS>();
 
-		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(RayCount, FLumenVisualizeCreateRaysCS::GetThreadGroupSize1D()), 1, 1);
+		const FIntVector GroupSize(VisualizeCreateRaysDispatchSizeX, FMath::DivideAndRoundUp<int32>(RayCount, FLumenVisualizeCreateRaysCS::GetThreadGroupSize1D() * VisualizeCreateRaysDispatchSizeX), 1);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("FLumenVisualizeCreateRaysCS"),
@@ -578,7 +576,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 
 			PassParameters->ThreadCount = RayGenThreadCount;
 			PassParameters->GroupCount = RayGenGroupCount;
-			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+			PassParameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
 			PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
@@ -750,13 +748,14 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->ThreadCount = RayGenThreadCount;
 			PassParameters->GroupCount = RayGenGroupCount;
 			PassParameters->LightingMode = (int32)Lumen::GetHardwareRayTracingLightingMode(View);
-			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+			PassParameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
 			PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
 			PassParameters->FarFieldDitheredStartDistanceFactor = 1.0;
-			PassParameters->ApplySkylightStage = 0;
+			// Even though the retrace should only be processing hits, which don't need skylight, the retrace may miss as it uses a different FRayTracingPipelineState
+			PassParameters->ApplySkylightStage = 1;
 
 			// Output
 			PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);
@@ -851,7 +850,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 			PassParameters->ThreadCount = RayGenThreadCount;
 			PassParameters->GroupCount = RayGenGroupCount;
 			PassParameters->LightingMode = (int32)Lumen::GetHardwareRayTracingLightingMode(View);
-			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+			PassParameters->MaxTranslucentSkipCount = Lumen::GetMaxTranslucentSkipCount();
 			PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 			PassParameters->MaxTraceDistance = FarFieldMaxTraceDistance;
 			PassParameters->FarFieldReferencePos = (FVector3f)Lumen::GetFarFieldReferencePos();
