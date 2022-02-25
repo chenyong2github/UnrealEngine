@@ -31,7 +31,7 @@ static const FAutoConsoleVariableRef CVarAlwaysShowCursor(
 	bAlwaysShowCursor,
 	TEXT(""));
 
-bool bEnableActionDomainRouting = true;
+bool bEnableActionDomainRouting = false;
 static const FAutoConsoleVariableRef CVarEnableActionDomainRouting(
 	TEXT("CommonUI.EnableActionDomainRouting"),
 	bEnableActionDomainRouting,
