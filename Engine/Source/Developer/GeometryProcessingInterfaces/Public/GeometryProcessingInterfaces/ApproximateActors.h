@@ -142,6 +142,7 @@ public:
 		ESimplificationPolicy MeshSimplificationPolicy = ESimplificationPolicy::FixedTriangleCount;
 		int32 FixedTriangleCount = 5000;
 		double SimplificationTargetMetric = 0.1;		// interpretation varies depending on MeshSimplificationPolicy
+		bool bEnableFastSimplifyPrePass = false;		// enable pre-simplify "fast-collapse" pass, using a relatively aggressive tolerance based on WorldSpaceApproximationAccuracyMeters
 
 		EGroundPlanePolicy GroundPlanePolicy = EGroundPlanePolicy::NoGroundPlane;
 		double GroundPlaneZHeight = 0.0;
@@ -167,6 +168,7 @@ public:
 		double FieldOfViewDegrees = 45.0;
 		double NearPlaneDist = 1.0;
 
+		bool bMaximizeBakeParallelism = true;		// if true, photocapture is computed at the same time as mesh generation. Faster but requires more memory.
 
 		//
 		// Material output settings

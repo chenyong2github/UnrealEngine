@@ -149,8 +149,9 @@ public:
 	 * @param MinEdgeLength collapse any edge longer than this
 	 * @param Rounds number of collapse rounds
 	 * @param MeshIsClosedHint if you know the mesh is closed, this pass this true to avoid some precomputes
+	 * @param MinTriangleCount halt fast collapse if mesh falls below this triangle count
 	 */
-	virtual void FastCollapsePass(double MinEdgeLength, int Rounds = 1, bool bMeshIsClosedHint = false);
+	virtual void FastCollapsePass(double MinEdgeLength, int Rounds = 1, bool bMeshIsClosedHint = false, uint32 MinTriangleCount = 0);
 
 	
 

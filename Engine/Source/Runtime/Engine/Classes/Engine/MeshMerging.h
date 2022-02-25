@@ -908,7 +908,13 @@ struct FMeshApproximationSettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = PerformanceSettings)
 	bool bUseRenderLODMeshes = false;
 
+	/** If true, a faster mesh simplfication strategy will be used. This can significantly reduce computation time and memory usage, but potentially at the cost of lower quality output. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = PerformanceSettings)
+	bool bEnableSimplifyPrePass = true;
 
+	/** If false, texture capture and baking will be done serially after mesh generation, rather than in parallel when possible. This will reduce the maximum memory requirements of the process.  */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = PerformanceSettings)
+	bool bEnableParallelBaking = true;
 
 	//
 	// Debug Output Settings

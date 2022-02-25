@@ -1044,9 +1044,9 @@ void TMeshSimplification<QuadricErrorType>::SimplifyToMinimalPlanar(
 
 
 template <typename QuadricErrorType>
-void TMeshSimplification<QuadricErrorType>::FastCollapsePass(double fMinEdgeLength, int nRounds, bool MeshIsClosedHint)
+void TMeshSimplification<QuadricErrorType>::FastCollapsePass(double fMinEdgeLength, int nRounds, bool MeshIsClosedHint, uint32 MinTriangleCount)
 {
-	if (Mesh->TriangleCount() == 0)    // badness if we don't catch this...
+	if ((uint32)Mesh->TriangleCount() <= MinTriangleCount)    // badness if we don't catch this...
 	{
 		return;
 	}
@@ -1084,6 +1084,10 @@ void TMeshSimplification<QuadricErrorType>::FastCollapsePass(double fMinEdgeLeng
 			{
 				continue;
 			}
+			if ((uint32)Mesh->TriangleCount() <= MinTriangleCount)
+			{
+				break;
+			}
 			if (Cancelled())
 			{
 				return;
@@ -1106,7 +1110,7 @@ void TMeshSimplification<QuadricErrorType>::FastCollapsePass(double fMinEdgeLeng
 			}
 		}
 
-		if (num_last_pass == 0)     // converged
+		if (num_last_pass == 0 || (uint32)Mesh->TriangleCount() <= MinTriangleCount)     // converged
 		{
 			break;
 		}

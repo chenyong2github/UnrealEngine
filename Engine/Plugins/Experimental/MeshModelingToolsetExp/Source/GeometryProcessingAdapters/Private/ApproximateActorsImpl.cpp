@@ -510,20 +510,31 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 			FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(*CurResultMesh);
 			double MeshAreaMeterSqr = VolArea.Y * 0.0001;
 			int32 AreaBaseTargetTriCount = MeshAreaMeterSqr * Options.SimplificationTargetMetric;
-			Simplifier.SimplifyToTriangleCount(AreaBaseTargetTriCount);
+
+			// do initial fast-collapse pass if enabled
+			if (Options.bEnableFastSimplifyPrePass && CurResultMesh->TriangleCount() > 10 * AreaBaseTargetTriCount)
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Simplification_PrePass);
+				Simplifier.FastCollapsePass(ApproxAccuracy, 10, false, 5 * AreaBaseTargetTriCount);
+			}
+
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Simplification_Pass1);
+				Simplifier.SimplifyToTriangleCount(AreaBaseTargetTriCount);
+			}
 		}
 		else if (Options.MeshSimplificationPolicy == IGeometryProcessing_ApproximateActors::ESimplificationPolicy::GeometricTolerance)
 		{
 			double UseTargetTolerance = Options.SimplificationTargetMetric * 100.0;		// convert to cm (UE Units)
 
-			// first do fast collapse
-			// (this does not seem to help perf and probably makes the results slightly worse)
-			//{
-			//	TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Simplification_PrePass);
-			//	Simplifier.FastCollapsePass(ApproxAccuracy, 5);
-			//}
+			// do initial fast-collapse pass if enabled
+			if (Options.bEnableFastSimplifyPrePass && CurResultMesh->TriangleCount() > 1000000)
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Simplification_PrePass);
+				Simplifier.FastCollapsePass(ApproxAccuracy, 10, false, 1000000);
+			}
 
-			// now simplify down to a reasonable tri count, as geometric metric is (relatively) expensive
+			// simplify down to a reasonable tri count, as geometric metric is (relatively) expensive
 			// (still, this is all incredibly cheap compared to the cost of the rest of this method in practice)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Simplification_Pass1);
@@ -545,6 +556,14 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 		}
 		else
 		{
+			// do initial fast-collapse pass if enabled
+			int32 FastCollapseThresh = FMath::Max(1000000, 2 * BaseTargeTriCount);
+			if (Options.bEnableFastSimplifyPrePass && CurResultMesh->TriangleCount() > FastCollapseThresh)
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Simplification_PrePass);
+				Simplifier.FastCollapsePass(ApproxAccuracy, 10, false, FastCollapseThresh);
+			}
+
 			Simplifier.SimplifyToTriangleCount(BaseTargeTriCount);
 		}
 
@@ -931,6 +950,7 @@ IGeometryProcessing_ApproximateActors::FOptions FApproximateActorsImpl::Construc
 	{
 		Options.MeshSimplificationPolicy = IGeometryProcessing_ApproximateActors::ESimplificationPolicy::FixedTriangleCount;
 	}
+	Options.bEnableFastSimplifyPrePass = UseSettings.bEnableSimplifyPrePass;
 
 	Options.UVPolicy = IGeometryProcessing_ApproximateActors::EUVGenerationPolicy::PreferXAtlas;
 	if (UseSettings.UVGenerationMethod == EMeshApproximationUVGenerationPolicy::PreferUVAtlas)
@@ -956,6 +976,8 @@ IGeometryProcessing_ApproximateActors::FOptions FApproximateActorsImpl::Construc
 		Options.TextureImageSize : UseSettings.RenderCaptureResolution;
 	Options.FieldOfViewDegrees = UseSettings.CaptureFieldOfView;
 	Options.NearPlaneDist = UseSettings.NearPlaneDist;
+
+	Options.bMaximizeBakeParallelism = UseSettings.bEnableParallelBaking;
 
 	Options.bVerbose = UseSettings.bPrintDebugMessages;
 	Options.bWriteDebugMesh = UseSettings.bEmitFullDebugMesh;
@@ -1082,28 +1104,41 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 
 	// Pass ownership of the Scene to GenerateApproximationMesh() so that it can delete it as soon
 	// as possible (because it is often very large, memory-wise)
-	TSharedPtr<FApproximationMeshData> ApproximationMeshData = GenerateApproximationMesh( MoveTemp(Scene), Options, ApproxAccuracy);
+	TFuture<TSharedPtr<FApproximationMeshData>> GenerateMeshFuture = Async(EAsyncExecution::ThreadPool, [&Scene, Options, ApproxAccuracy]()
+	{
+		return GenerateApproximationMesh( MoveTemp(Scene), Options, ApproxAccuracy);
+	});
+	
+	FDynamicMesh3 FinalMesh;
+	FMeshTangentsd FinalMeshTangents;
+	auto WaitForMeshAvailable = [&]()
+	{
+		TSharedPtr<FApproximationMeshData> ApproximationMeshData = GenerateMeshFuture.Get();
+		ResultsOut.ResultCode = ApproximationMeshData->ResultCode;
+		FinalMesh = MoveTemp(ApproximationMeshData->Mesh);
+		FinalMeshTangents = MoveTemp(ApproximationMeshData->Tangents);
+	};
 
 	// if we are only generating collision mesh, we are done now
 	if (Options.BasePolicy == IGeometryProcessing_ApproximateActors::EApproximationPolicy::CollisionMesh)
 	{
-		ResultsOut.ResultCode = ApproximationMeshData->ResultCode;
+		WaitForMeshAvailable();
 		if (ResultsOut.ResultCode == EResultCode::Success)
 		{
-			EmitGeneratedMeshAsset(Actors, Options, ResultsOut, &ApproximationMeshData->Mesh, nullptr, WriteDebugMesh);
+			EmitGeneratedMeshAsset(Actors, Options, ResultsOut, &FinalMesh, nullptr, WriteDebugMesh);
 		}
 		return;
 	}
 
-
-	if (ApproximationMeshData->ResultCode != EResultCode::Success)
+	// if parallel capture is not allowed, force mesh computation to finish now
+	if (Options.bMaximizeBakeParallelism == false)
 	{
-		ResultsOut.ResultCode = ApproximationMeshData->ResultCode;
-		return;
+		WaitForMeshAvailable();
+		if (ResultsOut.ResultCode != EResultCode::Success)
+		{
+			return;
+		}
 	}
-	FDynamicMesh3 FinalMesh = MoveTemp(ApproximationMeshData->Mesh);
-	FMeshTangentsd FinalMeshTangents = MoveTemp(ApproximationMeshData->Tangents);
-
 
 	//
 	// create a set of spatially located render captures of the scene ("photo set").
@@ -1113,6 +1148,15 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 
 	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = CapturePhotoSet(Actors, Options);
 
+	// if parallel capture was allowed, need to force the mesh compute to finish now to be able to proceed
+	if (Options.bMaximizeBakeParallelism == true)
+	{
+		WaitForMeshAvailable();
+		if (ResultsOut.ResultCode != EResultCode::Success)
+		{
+			return;
+		}
+	}
 
 	//
 	// bake textures onto the generated approximation mesh by projecting/sampling
