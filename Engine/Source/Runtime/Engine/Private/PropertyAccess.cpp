@@ -619,8 +619,6 @@ namespace PropertyAccess
 
 	void ProcessCopies(UObject* InObject, const FPropertyAccessLibrary& InLibrary, const FCopyBatchId& InBatchId)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(PropertyAccess_ProcessCopies);
-
 		::FPropertyAccessSystem::ProcessCopies(InObject->GetClass(), InObject, InLibrary, InBatchId.Id);
 	}
 

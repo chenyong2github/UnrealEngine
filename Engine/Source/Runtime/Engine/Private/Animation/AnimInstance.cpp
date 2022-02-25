@@ -1704,6 +1704,11 @@ FName UAnimInstance::GetCurrentStateName(int32 MachineIndex)
 
 void UAnimInstance::Montage_UpdateWeight(float DeltaSeconds)
 {
+	if (MontageInstances.IsEmpty())
+	{
+		return;
+	}
+
 	SCOPE_CYCLE_COUNTER(STAT_Montage_UpdateWeight);
 
 	// go through all montage instances, and update them
@@ -1719,10 +1724,15 @@ void UAnimInstance::Montage_UpdateWeight(float DeltaSeconds)
 
 void UAnimInstance::Montage_Advance(float DeltaSeconds)
 {
-	SCOPE_CYCLE_COUNTER(STAT_Montage_Advance);
-
 	// We're about to tick montages, queue their events to they're triggered after batched anim notifies.
 	bQueueMontageEvents = true;
+
+	if (MontageInstances.IsEmpty())
+	{
+		return;
+	}
+
+	SCOPE_CYCLE_COUNTER(STAT_Montage_Advance);
 
 	// go through all montage instances, and update them
 	// and make sure their weight is updated properly
