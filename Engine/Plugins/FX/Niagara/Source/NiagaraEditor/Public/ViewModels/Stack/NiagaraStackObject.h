@@ -10,6 +10,7 @@
 class IPropertyRowGenerator;
 class UNiagaraNode;
 class IDetailTreeNode;
+class INiagaraMessage;
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraStackObject : public UNiagaraStackItemContent, public FNotifyHook
@@ -47,6 +48,7 @@ protected:
 
 private:
 	void PropertyRowsRefreshed();
+	void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
 
 private:
 	struct FRegisteredClassCustomization
@@ -69,4 +71,8 @@ private:
 	TArray<FRegisteredPropertyCustomization> RegisteredPropertyCustomizations;
 	TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator;
 	bool bIsRefresingDataInterfaceErrors;
+
+	FGuid MessageManagerRegistrationKey;
+	TArray<FStackIssue> MessageManagerIssues;
+	FGuid MessageLogGuid;
 };

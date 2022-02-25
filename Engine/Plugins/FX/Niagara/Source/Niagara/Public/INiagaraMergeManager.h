@@ -2,6 +2,8 @@
 
 #pragma once
 
+class UNiagaraMessageDataBase;
+
 class INiagaraMergeManager
 {
 public:
@@ -18,6 +20,7 @@ public:
 	{
 		FMergeEmitterResults()
 			: MergeResult(EMergeEmitterResult::None)
+			, MergeNiagaraMessage(nullptr)
 			, bModifiedGraph(false)
 			, MergedInstance(nullptr)
 		{
@@ -25,6 +28,7 @@ public:
 
 		EMergeEmitterResult MergeResult;
 		TArray<FText> ErrorMessages;
+		UNiagaraMessageDataBase* MergeNiagaraMessage;
 		bool bModifiedGraph;
 		UNiagaraEmitter* MergedInstance;
 

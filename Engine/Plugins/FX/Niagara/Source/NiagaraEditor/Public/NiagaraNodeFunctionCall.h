@@ -181,7 +181,12 @@ public:
 	NIAGARAEDITOR_API FSimpleDelegate& OnCustomNotesChanged() { return OnCustomNotesChangedDelegate; }
 	void RemoveCustomNoteViaDelegate(const FGuid MessageKey);
 
+	/** Adds a static switch pin to this function call node by variable id and sets it's default value using the supplied data and marks it as
+		orphaned. This allows a previously available static switch value to be retained on the node even if the the switch is no longer exposed. */
+	void AddOrphanedStaticSwitchPinForDataRetention(FNiagaraVariableBase StaticSwitchVariable, const FString& StaticSwitchPinDefault);
+
 protected:
+	UEdGraphPin* AddStaticSwitchInputPin(FNiagaraVariable Input);
 
 	virtual bool GetValidateDataInterfaces() const { return true; };
 

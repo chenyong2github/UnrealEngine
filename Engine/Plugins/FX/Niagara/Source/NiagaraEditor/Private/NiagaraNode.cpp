@@ -300,7 +300,7 @@ bool UNiagaraNode::ReallocatePins(bool bMarkNeedsResynchronizeOnChange)
 	for (UEdGraphPin* OldPin : OldPins)
 	{
 		// we exclude pins from being added as orphaned pins if they were set to pending kill already
-		if (OldPin->bOrphanedPin && OldPin->LinkedTo.Num() > 0 && !OldPin->IsPendingKill())
+		if (OldPin->bOrphanedPin && !OldPin->IsPendingKill())
 		{
 			// Add orphaned pins back in at the end so that the user can fix them.
 			Pins.Add(OldPin);

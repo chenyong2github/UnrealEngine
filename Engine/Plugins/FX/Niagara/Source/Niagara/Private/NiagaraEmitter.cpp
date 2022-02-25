@@ -25,6 +25,8 @@
 const FName UNiagaraEmitter::PrivateMemberNames::EventHandlerScriptProps = GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, EventHandlerScriptProps);
 
 const FString InitialNotSynchronizedReason("Emitter created");
+
+const FGuid UNiagaraEmitter::EmitterMergeMessageId(0xDAF26E73, 0x4D1B416B, 0x815FA6C2, 0x6D5D0A75);
 #endif
 
 static int32 GbForceNiagaraCompileOnLoad = 0;
@@ -284,6 +286,12 @@ INiagaraMergeManager::FMergeEmitterResults UNiagaraEmitter::MergeChangesFromPare
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("Failed to merge changes for parent emitter.  Emitter: %s  Parent Emitter: %s  Error Message: %s"),
 			*GetPathName(), Parent != nullptr ? *Parent->GetPathName() : TEXT("(null)"), *MergeResults.GetErrorMessagesString());
+	}
+
+	RemoveMessage(EmitterMergeMessageId);
+	if (MergeResults.MergeNiagaraMessage != nullptr)
+	{
+		AddMessage(EmitterMergeMessageId, CastChecked<UNiagaraMessageDataBase>(StaticDuplicateObject(MergeResults.MergeNiagaraMessage, this)));
 	}
 
 	return MergeResults;
@@ -2017,6 +2025,17 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 	UNiagaraEditorDataBase* NewEditorData = MergedEmitter->GetEditorData();
 	ReouterMergedObject(this, NewEditorData);
 	SetEditorData(NewEditorData);
+
+	// Update messages
+	for (const TPair<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& Message : MergedEmitter->GetMessages())
+	{
+		TObjectPtr<UNiagaraMessageDataBase>& MessageData = MessageKeyToMessageMap.FindOrAdd(Message.Key);
+		if (Message.Value != nullptr)
+		{
+			ReouterMergedObject(this, Message.Value);
+			MessageData = Message.Value;
+		}
+	}
 
 	// Update the change id since we don't know what's changed.
 	UpdateChangeId(TEXT("Updated from merged copy"));

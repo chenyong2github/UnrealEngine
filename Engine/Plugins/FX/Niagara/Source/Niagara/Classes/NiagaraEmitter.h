@@ -331,6 +331,7 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
 	TArray<FString> AttributesToPreserve;
 
+	const static FGuid EmitterMergeMessageId;
 #endif
 
 	UPROPERTY(EditAnywhere, Category = "Emitter")

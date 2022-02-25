@@ -1173,6 +1173,7 @@ void FNiagaraSystemViewModel::RefreshAll()
 	CurveSelectionViewModel->Refresh();
 	SystemStackViewModel->InitializeWithViewModels(this->AsShared(), TSharedPtr<FNiagaraEmitterHandleViewModel>(), FNiagaraStackViewModelOptions(true, false));
 	SelectionViewModel->Refresh();
+	bPendingAssetMessagesChanged = true;
 }
 
 void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType)
