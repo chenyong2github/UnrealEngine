@@ -321,7 +321,7 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 
 		if (!ExecutorClass)
 		{
-			UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("No class set in Python Host Executor. This does nothing without setting a class via \"unreal.get_default_object(unreal.MoviePipelinePythonHostExecutor).executor_class = self.get_class(), or passing -ExecutorPythonClass=...\"."));
+			UE_LOG(LogMovieRenderPipeline, Fatal, TEXT("No class set in Python Host Executor. This does nothing without setting a class via \"unreal.get_default_object(unreal.MoviePipelinePythonHostExecutor).executor_class = self.get_class()\", or passing \"-ExecutorPythonClass=/Engine/PythonTypes.MoviePipelineExampleRuntimeExecutor\" on the command line!"));
 			return MoviePipelineErrorCodes::Critical;
 		}
 	}

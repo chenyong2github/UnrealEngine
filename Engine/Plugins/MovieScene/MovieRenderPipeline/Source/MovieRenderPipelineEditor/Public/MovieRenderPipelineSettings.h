@@ -33,7 +33,7 @@ public:
 	/**
 	* What was the last configuration preset the user used? Can be null.
 	*/
-	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
+	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movie Render Pipeline")
 	TSoftObjectPtr<UMoviePipelineMasterConfig> LastPresetOrigin;
 	
 	/**
@@ -42,8 +42,8 @@ public:
 	* which does different logic. See UMoviePipelineExecutorBase for more information. This is used for
 	* the Render button on the UI.
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category="Movie Render Pipeline")
-	TSubclassOf<UMoviePipelineExecutorBase> DefaultLocalExecutor;
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "MoviePipelineExecutorBase"), Category="Movie Render Pipeline")
+	FSoftClassPath DefaultLocalExecutor;
 
 	/**
 	* When the user uses the UI to request we render a movie remotely, which implementation should we use
@@ -51,24 +51,24 @@ public:
 	* which does different logic. See UMoviePipelineExecutorBase for more information. This is used for
 	* the Render Remotely button on the UI.
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline")
-	TSubclassOf<UMoviePipelineExecutorBase> DefaultRemoteExecutor;
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "MoviePipelineExecutorBase"), Category = "Movie Render Pipeline")
+	FSoftClassPath DefaultRemoteExecutor;
 	
 	/**
 	* Which Job class should we create by default when adding a job? This allows you to make custom jobs
 	* that will have editable properties in the UI for special handling with your executor. This can be
 	* made dynamic if you add jobs to the queue programatically instead of through the UI.
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category="Movie Render Pipeline")
-	TSubclassOf<UMoviePipelineExecutorJob> DefaultExecutorJob;
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "MoviePipelineExecutorJob"), Category="Movie Render Pipeline")
+	FSoftClassPath DefaultExecutorJob;
 	
 	/**
 	* This allows you to implement your own Pipeline to handle timing and rendering of a movie. Changing
 	* this will allow you to re-use the existing UI/Executors while providing your own logic for producing
 	* a single render.
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category="Movie Render Pipeline")
-	TSubclassOf<UMoviePipeline> DefaultPipeline;
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "MoviePipeline"), Category="Movie Render Pipeline")
+	FSoftClassPath DefaultPipeline;
 
 	/**
 	* The settings specified here will automatically be added to a Movie Pipeline Master Configuration when using the UI. 
@@ -78,6 +78,6 @@ public:
 	*
 	* This only applies to jobs created via the UI. If you do not use the UI (ie: Scripting/Python) you will need to
 	* add settings by hand for each job you create. */
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline", DisplayName = "Default Job Settings Classes")
-	TArray<TSubclassOf<UMoviePipelineSetting>> DefaultClasses;
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline", meta = (MetaClass = "MoviePipelineSetting"), DisplayName = "Default Job Settings Classes")
+	TArray<FSoftClassPath> DefaultClasses;
 };

@@ -178,7 +178,13 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 	// Allow the user to have overridden which Pipeline is actually run. This is an unlikely scenario but allows
 	// the user to create their own implementation while still re-using the rest of our UI and infrastructure.
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
-	TSubclassOf<UMoviePipeline> PipelineClass = ProjectSettings->DefaultPipeline;
+	TSubclassOf<UMoviePipeline> PipelineClass = ProjectSettings->DefaultPipeline.TryLoadClass<UMoviePipeline>();
+	if (!PipelineClass)
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to load project specified MoviePipeline class type!"));
+		OnExecutorFinishedImpl();
+		return;
+	}
 
 	// This Pipeline belongs to the world being created so that they have context for things they execute.
 	ActiveMoviePipeline = NewObject<UMoviePipeline>(ExecutingWorld, PipelineClass);

@@ -265,9 +265,11 @@ FReply SMoviePipelineQueuePanel::OnRenderLocalRequested()
 	check(Subsystem);
 
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
-	check(ProjectSettings->DefaultLocalExecutor != nullptr);
+	TSubclassOf<UMoviePipelineExecutorBase> ExecutorClass = ProjectSettings->DefaultLocalExecutor.TryLoadClass<UMoviePipelineExecutorBase>();
 
-	Subsystem->RenderQueueWithExecutor(ProjectSettings->DefaultLocalExecutor);
+	// OnRenderLocalRequested should only get called if IsRenderLocalEnabled() returns true, meaning there's a valid class.
+	check(ExecutorClass != nullptr);
+	Subsystem->RenderQueueWithExecutor(ExecutorClass);
 	return FReply::Handled();
 }
 
@@ -277,7 +279,7 @@ bool SMoviePipelineQueuePanel::IsRenderLocalEnabled() const
 	check(Subsystem);
 
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
-	const bool bHasExecutor = ProjectSettings->DefaultLocalExecutor != nullptr;
+	const bool bHasExecutor = ProjectSettings->DefaultLocalExecutor.TryLoadClass<UMoviePipelineExecutorBase>() != nullptr;
 	const bool bNotRendering = !Subsystem->IsRendering();
 	const bool bConfigWindowIsOpen = WeakEditorWindow.IsValid();
 
@@ -301,9 +303,12 @@ FReply SMoviePipelineQueuePanel::OnRenderRemoteRequested()
 	check(Subsystem);
 
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
-	check(ProjectSettings->DefaultRemoteExecutor != nullptr);
+	TSubclassOf<UMoviePipelineExecutorBase> ExecutorClass = ProjectSettings->DefaultRemoteExecutor.TryLoadClass<UMoviePipelineExecutorBase>();
 
-	Subsystem->RenderQueueWithExecutor(ProjectSettings->DefaultRemoteExecutor);
+	// OnRenderRemoteRequested should only get called if IsRenderRemoteEnabled() returns true, meaning there's a valid class.
+	check(ExecutorClass != nullptr);
+
+	Subsystem->RenderQueueWithExecutor(ExecutorClass);
 	return FReply::Handled();
 }
 
@@ -313,7 +318,7 @@ bool SMoviePipelineQueuePanel::IsRenderRemoteEnabled() const
 	check(Subsystem);
 
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
-	const bool bHasExecutor = ProjectSettings->DefaultRemoteExecutor != nullptr;
+	const bool bHasExecutor = ProjectSettings->DefaultRemoteExecutor.TryLoadClass<UMoviePipelineExecutorBase>() != nullptr;
 	const bool bNotRendering = !Subsystem->IsRendering();
 	const bool bConfigWindowIsOpen = WeakEditorWindow.IsValid();
 
