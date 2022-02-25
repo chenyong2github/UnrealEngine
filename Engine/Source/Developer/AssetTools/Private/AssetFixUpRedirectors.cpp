@@ -23,6 +23,7 @@
 #include "Logging/MessageLog.h"
 #include "AssetTools.h"
 #include "Engine/Blueprint.h"
+#include "SourceControlHelpers.h"
 
 #define LOCTEXT_NAMESPACE "AssetFixUpRedirectors"
 
@@ -362,11 +363,14 @@ void FAssetFixUpRedirectors::SaveReferencingPackages(const TArray<UPackage*>& Re
 {
 	if ( ReferencingPackagesToSave.Num() > 0 )
 	{
+		// Get the list of filenames before calling save because some of the saved packages can get GCed if they are empty packages
+		const TArray<FString> Filenames = USourceControlHelpers::PackageFilenames(ReferencingPackagesToSave);
+
 		const bool bCheckDirty = false;
 		const bool bPromptToSave = false;
 		FEditorFileUtils::PromptForCheckoutAndSave(ReferencingPackagesToSave, bCheckDirty, bPromptToSave, &OutFailedToSave);
 
-		ISourceControlModule::Get().QueueStatusUpdate(ReferencingPackagesToSave);
+		ISourceControlModule::Get().QueueStatusUpdate(Filenames);
 	}
 }
 
