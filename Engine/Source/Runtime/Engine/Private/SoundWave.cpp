@@ -2895,16 +2895,11 @@ bool USoundWave::IsStreaming(const FPlatformAudioCookOverrides& Overrides) const
 	if (bIsForceInline || bProcedural)
 	{
 		SoundWaveDataPtr->bIsStreaming = false;
-		return false;
 	}
-	else if (bStreaming)
+	else
 	{
 		SoundWaveDataPtr->bIsStreaming = true;
-		return true;
 	}
-
-	// For stream caching, the auto streaming threshold is used to force sounds to be inlined:
-	SoundWaveDataPtr->bIsStreaming = (Overrides.AutoStreamingThreshold > SMALL_NUMBER && Duration > Overrides.AutoStreamingThreshold);
 	return SoundWaveDataPtr->bIsStreaming;
 }
 
