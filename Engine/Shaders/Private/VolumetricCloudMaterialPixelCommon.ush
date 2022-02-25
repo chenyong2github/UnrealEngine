@@ -41,11 +41,10 @@ FCloudLayerParameters GetCloudLayerParams(
 
 // Function to update the material parameter structure for an evaluation
 void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
-	float3 AbsoluteWorldPosition, in ViewState InputView, in FCloudLayerParameters CloudLayerParams,
+	FLWCVector3 AbsoluteWorldPosition, in ViewState InputView, in FCloudLayerParameters CloudLayerParams,
 	in float ShadowSampleDistance)
 {
-	// TODO LWC
-	MaterialParameters.AbsoluteWorldPosition = LWCPromote(AbsoluteWorldPosition);
+	MaterialParameters.AbsoluteWorldPosition = AbsoluteWorldPosition;
 	MaterialParameters.WorldPosition_CamRelative = LWCToFloat(LWCAdd(MaterialParameters.AbsoluteWorldPosition, InputView.PreViewTranslation));
 	//MaterialParameters.WorldPosition_NoOffsets;				// TODO
 	//MaterialParameters.WorldPosition_NoOffsets_CamRelative;	// TODO

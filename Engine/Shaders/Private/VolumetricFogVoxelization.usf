@@ -311,9 +311,7 @@ void VoxelizePS(
 		VoxelizeVolumePass.RenderVolumetricCloudParametersCloudLayerCenterKm, VoxelizeVolumePass.RenderVolumetricCloudParametersPlanetRadiusKm,
 		VoxelizeVolumePass.RenderVolumetricCloudParametersBottomRadiusKm, VoxelizeVolumePass.RenderVolumetricCloudParametersTopRadiusKm);
 	const float NotShadowSample = 0.0f;
-	float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
-	float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
-	float3 AbsoluteWorldPosition = TranslatedWorldPosition.xyz - LWCHackToFloat(ResolvedView.PreViewTranslation);
+	FLWCVector3 AbsoluteWorldPosition = SvPositionToWorld(SvPosition);
 	UpdateMaterialCloudParam(MaterialParameters, AbsoluteWorldPosition, ResolvedView, CloudLayerParams, NotShadowSample);
 #endif
 
