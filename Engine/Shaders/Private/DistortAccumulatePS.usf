@@ -112,25 +112,8 @@ void Main(
 	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
 	if (StrataTree.BSDFCount > 0)
 	{
-		const bool bRoughDiffuseEnabled = false;
-	#if STRATA_USES_CONVERSION_FROM_LEGACY==0
-		//
-		// Update the coverage/transmittance of each leaves (==BSDFs) of the strata tree.
-		//
-		UpdateAllBSDFsOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, bRoughDiffuseEnabled, NullStrataAddressing, V, DummyL);
-
-		//
-		// Propagate up the coverage/transmittance of each node in the strata tree.
-		//
-		UpdateAllOperatorsCoverageTransmittance(StrataTree);
-
-		//
-		// Update the luminance weight of each BSDF according to the operators it has to traverse up to the strata tree root node.
-		//
-		UpdateAllBSDFWithBottomUpOperatorVisit(StrataTree);
-	#else
-		LegacyUpdateBSDFsOperators(StrataPixelHeader, StrataTree, bRoughDiffuseEnabled, NullStrataAddressing, V, DummyL);
-	#endif
+		// Update tree (coverage/transmittance/luminace weights)
+		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, DummyL, false /*bRoughDiffuseEnabled*/);
 
 		WiLobe = StrataTree.Operators[StrataData.OperatorIndex].LobeStat;
 		//half3 LobeWorldDir = normalize(TransformWorldVectorToView(WiLobe.Mu));

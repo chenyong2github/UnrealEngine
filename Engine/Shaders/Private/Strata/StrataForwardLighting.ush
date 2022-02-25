@@ -258,30 +258,8 @@ float3 StrataForwardLighting(
 	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
 	if (StrataTree.BSDFCount > 0)
 	{
-#if STRATA_USES_CONVERSION_FROM_LEGACY==0
-		//
-		// Update the coverage/transmittance of each leaves (==BSDFs) of the strata tree.
-		//
-		UpdateAllBSDFsOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, bRoughDiffuseEnabled, NullStrataAddressing, V, L);
-
-		//
-		// Propagate up the coverage/transmittance of each node in the strata tree.
-		//
-		UpdateAllOperatorsCoverageTransmittance(StrataTree);
-
-		//
-		// Update the luminance weight of each BSDF according to the operators it has to traverse up to the strata tree root node.
-		//
-		UpdateAllBSDFWithBottomUpOperatorVisit(StrataTree);
-#else
-		LegacyUpdateBSDFsOperators(StrataPixelHeader, StrataTree, bRoughDiffuseEnabled, NullStrataAddressing, V, L);
-#endif
-
-		//
-		// TODO the top root node now contains the coverage and transmittance of the entire material (used for blending and fog on transparent_.
-		//
-		OutCoverage = saturate(StrataTree.Operators[StrataData.OperatorIndex].Coverage);
-		OutTransmittancePreCoverage = saturate(StrataTree.Operators[StrataData.OperatorIndex].Transmittance);
+		// Update tree (coverage/transmittance/luminace weights)
+		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, L, bRoughDiffuseEnabled, OutCoverage, OutTransmittancePreCoverage);
 
 		//
 		// Forward lighting
