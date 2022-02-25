@@ -37,7 +37,7 @@ class FCachedOSVeryLargePageAllocator
 	// we make the address space twice as big as we need and use the 1st have for small pool allocations, the 2nd half is used for other allocations that are still == SizeOfSubPage
 #if UE_VERYLARGEPAGEALLOCATOR_TAKEONALL64KBALLOCATIONS
 	static constexpr uint64 AddressSpaceToReserve = ((1024LL * 1024LL * 1024LL) * UE_VERYLARGEPAGEALLOCATOR_RESERVED_SIZE_IN_GB * 2LL);
-	static constexpr uint64 AddressSpaceToReserveForSmallPool = AddressSpaceToReserve/2;
+	static constexpr uint64 AddressSpaceToReserveForSmallPool = AddressSpaceToReserve / 2;
 #else
 	static constexpr uint64 AddressSpaceToReserve = ((1024 * 1024 * 1024LL) * UE_VERYLARGEPAGEALLOCATOR_RESERVED_SIZE_IN_GB);
 	static constexpr uint64 AddressSpaceToReserveForSmallPool = AddressSpaceToReserve;
@@ -48,12 +48,11 @@ class FCachedOSVeryLargePageAllocator
 	static constexpr uint64 NumberOfSubPagesPerLargePage = (SizeOfLargePage / SizeOfSubPage);
 public:
 
-	FCachedOSVeryLargePageAllocator(bool bUseOSLargePages = true)
+	FCachedOSVeryLargePageAllocator()
 		: bEnabled(true)
 		, CachedFree(0)
-		, FallbackAllocator(nullptr)
 	{
-		Init(bUseOSLargePages);
+		Init();
 	}
 
 	~FCachedOSVeryLargePageAllocator()
@@ -78,13 +77,12 @@ public:
 		{
 			return true;
 		}
-
-		return (FallbackAllocator != nullptr) ? FallbackAllocator->IsPartOf(Ptr) : false;
+		return false;
 	}
 
 private:
 
-	void Init(bool bUseOSLargePages);
+	void Init();
 
 	bool bEnabled;
 	uintptr_t	AddressSpaceReserved;
@@ -93,8 +91,6 @@ private:
 	uint64		CachedFree;
 
 	FPlatformMemory::FPlatformVirtualMemoryBlock Block;
-
-	FCachedOSVeryLargePageAllocator* FallbackAllocator;
 
 	struct FLargePage : public TIntrusiveLinkedList<FLargePage>
 	{
@@ -132,11 +128,11 @@ private:
 		}
 	};
 
-	FLargePage*	FreeLargePagesHead[FMemory::AllocationHints::Max];				// no backing store
+	FLargePage* FreeLargePagesHead[FMemory::AllocationHints::Max];				// no backing store
 
-	FLargePage*	UsedLargePagesHead[FMemory::AllocationHints::Max];				// has backing store and is full
+	FLargePage* UsedLargePagesHead[FMemory::AllocationHints::Max];				// has backing store and is full
 
-	FLargePage*	UsedLargePagesWithSpaceHead[FMemory::AllocationHints::Max];	// has backing store and still has room
+	FLargePage* UsedLargePagesWithSpaceHead[FMemory::AllocationHints::Max];	// has backing store and still has room
 
 	FLargePage	LargePagesArray[NumberOfLargePages];
 
