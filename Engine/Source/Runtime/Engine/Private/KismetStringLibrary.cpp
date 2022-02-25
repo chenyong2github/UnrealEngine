@@ -151,6 +151,11 @@ float UKismetStringLibrary::Conv_StringToFloat(const FString& InString)
 	return FCString::Atof(*InString);
 }
 
+double UKismetStringLibrary::Conv_StringToDouble(const FString& InString)
+{
+	return FCString::Atod(*InString);
+}
+
 void UKismetStringLibrary::Conv_StringToVector(const FString& InString, FVector& OutConvertedVector, bool& OutIsValid)
 {
 	OutIsValid = OutConvertedVector.InitFromString(InString);
@@ -178,14 +183,19 @@ void UKismetStringLibrary::Conv_StringToColor(const FString& InString, FLinearCo
 
 FString UKismetStringLibrary::BuildString_Float(const FString& AppendTo, const FString& Prefix, float InFloat, const FString& Suffix)
 {
-	// faster, preallocating method
-	FString const FloatStr = FString::SanitizeFloat(InFloat);
+	return BuildString_Double(AppendTo, Prefix, InFloat, Suffix);
+}
+
+FString UKismetStringLibrary::BuildString_Double(const FString& AppendTo, const FString& Prefix, double InDouble, const FString& Suffix)
+{
+	// despite the name, SanitizeFloat takes a double parameter
+	const FString DoubleStr = FString::SanitizeFloat(InDouble);
 
 	FString StringResult;
-	StringResult.Empty(AppendTo.Len()+Prefix.Len()+FloatStr.Len()+Suffix.Len()+1); // adding one for the string terminator
+	StringResult.Empty(AppendTo.Len() + Prefix.Len() + DoubleStr.Len() + Suffix.Len() + 1);
 	StringResult += AppendTo;
 	StringResult += Prefix;
-	StringResult += FloatStr;
+	StringResult += DoubleStr;
 	StringResult += Suffix;
 
 	return StringResult;
@@ -194,7 +204,7 @@ FString UKismetStringLibrary::BuildString_Float(const FString& AppendTo, const F
 FString UKismetStringLibrary::BuildString_Int(const FString& AppendTo, const FString& Prefix, int32 InInt, const FString& Suffix)
 {
 	// faster, preallocating method
-	FString const IntStr = FString::Printf(TEXT("%d"), InInt);
+	const FString IntStr = FString::Printf(TEXT("%d"), InInt);
 
 	FString StringResult;
 	StringResult.Empty(AppendTo.Len()+Prefix.Len()+IntStr.Len()+Suffix.Len()+1); // adding one for the string terminator
@@ -209,7 +219,7 @@ FString UKismetStringLibrary::BuildString_Int(const FString& AppendTo, const FSt
 FString UKismetStringLibrary::BuildString_Bool(const FString& AppendTo, const FString& Prefix, bool InBool, const FString& Suffix)
 {
 	// faster, preallocating method
-	FString const BoolStr = InBool ? TEXT("true") : TEXT("false");	
+	const FString BoolStr = InBool ? TEXT("true") : TEXT("false");	
 
 	FString StringResult;
 	StringResult.Empty(AppendTo.Len()+Prefix.Len()+BoolStr.Len()+Suffix.Len()+1); // adding one for the string terminator
@@ -224,7 +234,7 @@ FString UKismetStringLibrary::BuildString_Bool(const FString& AppendTo, const FS
 FString UKismetStringLibrary::BuildString_Vector(const FString& AppendTo, const FString& Prefix, FVector InVector, const FString& Suffix)
 {
 	// faster, preallocating method
-	FString const VecStr = InVector.ToString();
+	const FString VecStr = InVector.ToString();
 
 	FString StringResult;
 	StringResult.Empty(AppendTo.Len()+Prefix.Len()+VecStr.Len()+Suffix.Len()+1); // adding one for the string terminator
@@ -239,7 +249,7 @@ FString UKismetStringLibrary::BuildString_Vector(const FString& AppendTo, const 
 FString UKismetStringLibrary::BuildString_IntVector(const FString& AppendTo, const FString& Prefix, FIntVector InIntVector, const FString& Suffix)
 {
 	// faster, preallocating method
-	FString const VecStr = InIntVector.ToString();
+	const FString VecStr = InIntVector.ToString();
 
 	FString StringResult;
 	StringResult.Empty(AppendTo.Len() + Prefix.Len() + VecStr.Len() + Suffix.Len() + 1); // adding one for the string terminator
@@ -254,7 +264,7 @@ FString UKismetStringLibrary::BuildString_IntVector(const FString& AppendTo, con
 FString UKismetStringLibrary::BuildString_Vector2d(const FString& AppendTo, const FString& Prefix, FVector2D InVector2d, const FString& Suffix)
 {
 	// faster, preallocating method
-	FString const VecStr = InVector2d.ToString();
+	const FString VecStr = InVector2d.ToString();
 
 	FString StringResult;
 	StringResult.Empty(AppendTo.Len()+Prefix.Len()+VecStr.Len()+Suffix.Len()+1); // adding one for the string terminator
@@ -269,7 +279,7 @@ FString UKismetStringLibrary::BuildString_Vector2d(const FString& AppendTo, cons
 FString UKismetStringLibrary::BuildString_Rotator(const FString& AppendTo, const FString& Prefix, FRotator InRot, const FString& Suffix)
 {
 	// faster, preallocating method
-	FString const RotStr = InRot.ToString();
+	const FString RotStr = InRot.ToString();
 
 	FString StringResult;
 	StringResult.Empty(AppendTo.Len()+Prefix.Len()+RotStr.Len()+Suffix.Len()+1); // adding one for the string terminator
@@ -284,7 +294,7 @@ FString UKismetStringLibrary::BuildString_Rotator(const FString& AppendTo, const
 FString UKismetStringLibrary::BuildString_Object(const FString& AppendTo, const FString& Prefix, class UObject* InObj, const FString& Suffix)
 {
 	// faster, preallocating method
-	FString const ObjStr = (InObj != NULL) ? InObj->GetName() : FString(TEXT("None"));
+	const FString ObjStr = (InObj != NULL) ? InObj->GetName() : FString(TEXT("None"));
 
 	FString StringResult;
 	StringResult.Empty(AppendTo.Len()+Prefix.Len()+ObjStr.Len()+Suffix.Len()+1); // adding one for the string terminator
@@ -299,7 +309,7 @@ FString UKismetStringLibrary::BuildString_Object(const FString& AppendTo, const 
 FString UKismetStringLibrary::BuildString_Color(const FString& AppendTo, const FString& Prefix, FLinearColor InColor, const FString& Suffix)
 {
 	// faster, preallocating method
-	FString const ColorStr = InColor.ToString();
+	const FString ColorStr = InColor.ToString();
 
 	FString StringResult;
 	StringResult.Empty(AppendTo.Len()+Prefix.Len()+ColorStr.Len()+Suffix.Len()+1); // adding one for the string terminator
@@ -314,7 +324,7 @@ FString UKismetStringLibrary::BuildString_Color(const FString& AppendTo, const F
 FString UKismetStringLibrary::BuildString_Name(const FString& AppendTo, const FString& Prefix, FName InName, const FString& Suffix)
 {
 	// faster, preallocating method
-	FString const NameStr = InName.ToString();
+	const FString NameStr = InName.ToString();
 
 	FString StringResult;
 	StringResult.Empty(AppendTo.Len()+Prefix.Len()+NameStr.Len()+Suffix.Len()+1); // adding one for the string terminator

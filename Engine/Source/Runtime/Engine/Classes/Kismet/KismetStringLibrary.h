@@ -13,11 +13,11 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	GENERATED_UCLASS_BODY()
 
 	/** Converts a float value to a string */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "To String (Float)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
+	UE_DEPRECATED(5.0, "This method has been deprecated and will be removed. Please use FString::SanitizeFloat() or LexToSanitzedString instead.")
 	static FString Conv_FloatToString(float InFloat);
 
 	/** Converts a double value to a string */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "To String (Double)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "To String (Float)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
 	static FString Conv_DoubleToString(double InDouble);
 
 	/** Converts an integer value to a string */
@@ -89,9 +89,13 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	static int32 Conv_StringToInt(const FString& InString);
 
 	/** Converts a string to a float value */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "String To Float", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
+	UE_DEPRECATED(5.0, "This method has been deprecated and will be removed. Please use LexFromString instead.")
 	static float Conv_StringToFloat(const FString& InString);
-	
+
+	/** Converts a string to a double value */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "String To Float", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
+	static double Conv_StringToDouble(const FString& InString);
+
 	/** Convert String Back To Vector. IsValid indicates whether or not the string could be successfully converted. */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "String To Vector", CompactNodeTitle = "->"), Category="Utilities|String")
 	static void Conv_StringToVector(const FString& InString, FVector& OutConvertedVector, bool& OutIsValid);
@@ -120,8 +124,19 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	 * @param Suffix - A suffix to append to the end of the conversion string
 	 * @return A new string built from the passed parameters
 	 */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "Build String (Float)"), Category="Utilities|String")
+	UE_DEPRECATED(5.0, "This method has been deprecated and will be removed. Please use FString::Printf instead.")
 	static FString BuildString_Float(const FString& AppendTo, const FString& Prefix, float InFloat, const FString& Suffix);
+
+	/**
+	 * Converts a double->string, create a new string in the form AppendTo+Prefix+InDouble+Suffix
+	 * @param AppendTo - An existing string to use as the start of the conversion string
+	 * @param Prefix - A string to use as a prefix, after the AppendTo string
+	 * @param InDouble - The double value to convert
+	 * @param Suffix - A suffix to append to the end of the conversion string
+	 * @return A new string built from the passed parameters
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Build String (Float)"), Category = "Utilities|String")
+	static FString BuildString_Double(const FString& AppendTo, const FString& Prefix, double InDouble, const FString& Suffix);
 
 	/** 
 	 * Converts a int->string, creating a new string in the form AppendTo+Prefix+InInt+Suffix
