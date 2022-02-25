@@ -1477,14 +1477,8 @@ void FMetalStateCache::SetShaderResourceView(FMetalContext* Context, EMetalShade
 			Tex = SRV->GetLinearTexture(false);
 			
 			SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample));
-			if (VB)
-            {
-				SetShaderBuffer(ShaderStage, VB->GetCurrentBufferOrNil(), VB->Data, SRV->Offset, VB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
-            }
-            else if (IB)
-            {
-                SetShaderBuffer(ShaderStage, IB->GetCurrentBufferOrNil(), nil, SRV->Offset, IB->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
-            }
+			
+			// Removed the binding of the underlying buffer for SRVs as we are now using texture buffers here
 		}
 		else if (VB)
 		{

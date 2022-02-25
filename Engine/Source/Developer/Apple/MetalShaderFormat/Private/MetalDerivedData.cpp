@@ -635,23 +635,6 @@ bool DoCompileMetalShader(
 					CCHeaderWriter.WriteUniformBlock(*Name, SetIndex);
 				}
 				
-				for (auto const& Binding : ReflectionBindings.TBufferSRVs)
-				{
-					check(TextureIndices);
-					uint32 Index = FPlatformMath::CountTrailingZeros(TextureIndices);
-					
-					// No support for 3-component types in dxc/SPIRV/MSL - need to expose my workarounds there too
-					BufferIndices &= ~(1ull << (uint64)Index);
-					TextureIndices &= ~(1ull << uint64(Index));
-					
-					OutputData.TypedBuffers |= (1 << Index);
-					
-					CCHeaderWriter.WriteSRV(UTF8_TO_TCHAR(Binding->name), Index);
-					
-					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
-					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				}
-				
 				for (auto const& Binding : ReflectionBindings.SBufferSRVs)
 				{
 					check(BufferIndices);
@@ -713,6 +696,20 @@ bool DoCompileMetalShader(
 						// Regular uniform buffer - we only care about the binding index
 						CCHeaderWriter.WriteUniformBlock(UTF8_TO_TCHAR(Binding->name), Index);
 					}
+					
+					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
+					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				}
+				
+				for (auto const& Binding : ReflectionBindings.TBufferSRVs)
+				{
+					check(TextureIndices);
+					uint32 Index = FPlatformMath::CountTrailingZeros64(TextureIndices);
+					TextureIndices &= ~(1ull << uint64(Index));
+					
+					OutputData.TypedBuffers |= (1 << Index);
+					
+					CCHeaderWriter.WriteSRV(UTF8_TO_TCHAR(Binding->name), Index);
 					
 					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
