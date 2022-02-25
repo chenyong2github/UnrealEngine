@@ -12,7 +12,6 @@
 	"SupportURL" : "",
 	"EnabledByDefault" : true,
 	"CanContainContent" : true,
-	"IsBetaVersion" : true,
 	"Installed" : false,
 	"Plugins":
 	[
