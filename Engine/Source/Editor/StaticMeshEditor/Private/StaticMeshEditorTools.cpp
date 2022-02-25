@@ -3320,11 +3320,37 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 	.Visibility(GEngine->UseStaticMeshMinLODPerQualityLevels ? EVisibility::Visible : EVisibility::Collapsed)
 	.RowTag("QualityLevelMinLOD")
 	.IsEnabled(IsQualityLevelLODEnabled)
+	.EditCondition(IsQualityLevelLODEnabled, NULL)
 	.NameContent()
 		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(LOCTEXT("QualityLevelMinLOD", "Quality Level Min LOD"))
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.Padding(0.0f, 4.0f)
+			.HAlign(HAlign_Left)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Text(LOCTEXT("QualityLevelMinLOD", "Quality Level Min LOD"))
+			]
+			+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.Padding(50.0f, 0.0f)
+				.AutoWidth()
+			[
+				SNew(SButton)
+				.OnClicked(this, &FLevelOfDetailSettingsLayout::ResetToDefault)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ToolTipText(LOCTEXT("QualityLevelMinLodToolTip", "Clear MinLOD conversion data"))
+				.ForegroundColor(FSlateColor::UseForeground())
+				.IsEnabled(TAttribute<bool>::CreateLambda([this]() { return GetMinLOD().PerPlatform.Num() != 0 || GetMinLOD().Default != 0; }))
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("Icons.Delete"))
+				]
+			]
 		]
 		.ValueContent()
 		.MinDesiredWidth((float)(StaticMesh->GetQualityLevelMinLOD().PerQuality.Num() + 1)*125.0f)
@@ -3346,7 +3372,7 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 			.Font(IDetailLayoutBuilder::GetDetailFont())
 			.Text(LOCTEXT("NoRefStreamingLODBias", "NoRef Streaming LOD Bias"))
 		]
-	.ValueContent()
+		.ValueContent()
 		.MinDesiredWidth(float(StaticMesh->GetNoRefStreamingLODBias().PerQuality.Num() + 1) * 125.f)
 		.MaxDesiredWidth(float((int32)QualityLevelProperty::EQualityLevels::Num + 1) * 125.f)
 		[
@@ -4278,6 +4304,14 @@ int32 FLevelOfDetailSettingsLayout::GetMinLOD(FName Platform) const
 	return (ValuePtr != nullptr) ? *ValuePtr : StaticMesh->GetMinLOD().Default;
 }
 
+FPerPlatformInt FLevelOfDetailSettingsLayout::GetMinLOD() const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh);
+
+	return StaticMesh->GetMinLOD();
+}
+
 void FLevelOfDetailSettingsLayout::OnMinLODChanged(int32 NewValue, FName Platform)
 {
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
@@ -4507,6 +4541,22 @@ void FLevelOfDetailSettingsLayout::OnNoRefStreamingLODBiasChanged(int32 NewValue
 		StaticMesh->Modify();
 	}
 	StaticMeshEditor.RefreshViewport();
+}
+
+FReply FLevelOfDetailSettingsLayout::ResetToDefault()
+{
+	if (GEngine->UseStaticMeshMinLODPerQualityLevels)
+	{
+		UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+		check(StaticMesh);
+
+		FPerPlatformInt PlatformMinLOD;
+		StaticMesh->SetMinLOD(MoveTemp(PlatformMinLOD));
+		StaticMesh->Modify();
+
+		StaticMeshEditor.RefreshTool();
+	}
+	return FReply::Handled();
 }
 
 void FLevelOfDetailSettingsLayout::OnNoRefStreamingLODBiasCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName QualityLevel)

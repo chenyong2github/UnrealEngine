@@ -198,6 +198,7 @@ int32 USkeletalMeshLODSettings::SetLODSettingsToMesh(USkeletalMesh* InMesh) cons
 	if (InMesh)
 	{
 		InMesh->SetMinLod(MinLod);
+		InMesh->SetQualityLevelMinLod(MinQualityLevelLod);
 		InMesh->SetDisableBelowMinLodStripping(DisableBelowMinLodStripping);
 #if WITH_EDITORONLY_DATA
 		InMesh->SetOverrideLODStreamingSettings(bOverrideLODStreamingSettings);
@@ -224,6 +225,7 @@ int32 USkeletalMeshLODSettings::SetLODSettingsFromMesh(USkeletalMesh* InMesh)
 	if (InMesh)
 	{
 		MinLod = InMesh->GetMinLod();
+		MinQualityLevelLod = InMesh->GetQualityLevelMinLod();
 		DisableBelowMinLodStripping = InMesh->GetDisableBelowMinLodStripping();
 #if WITH_EDITORONLY_DATA
 		bOverrideLODStreamingSettings = InMesh->GetOverrideLODStreamingSettings();

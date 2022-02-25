@@ -595,6 +595,16 @@ private:
 	TArray<FName> GetNoRefStreamingLODBiasOverrideNames() const;
 	FText GetNoRefStreamingLODBiasTooltip() const;
 
+	void OnMinQualityLevelLodChanged(int32 NewValue, FName QualityLevel);
+	void OnMinQualityLevelLodCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName QualityLevel);
+	int32 GetMinQualityLevelLod(FName QualityLevel) const;
+	TSharedRef<SWidget> GetMinQualityLevelLodWidget(FName QualityLevelName) const;
+	bool AddMinLodQualityLevelOverride(FName QualityLevelName);
+	bool RemoveMinLodQualityLevelOverride(FName QualityLevelName);
+	TArray<FName> GetMinQualityLevelLodOverrideNames() const;
+	FReply ResetToDefault();
+	FPerPlatformInt GetMinLod();
+
 	/** apply LOD changes if the user modified LOD reduction settings */
 	FReply OnApplyChanges();
 	/** regenerate one specific LOD Index no dependencies*/
@@ -797,6 +807,8 @@ private:
 
 	/** LOD Info editing is enabled? LODIndex == -1, then it just verifies if the asset exists */
 	bool IsLODInfoEditingEnabled(int32 LODIndex) const;
+	bool IsMinLodEnable() const;
+	bool IsQualityLevelMinLodEnable() const;
 	void ModifyMeshLODSettings(int32 LODIndex);
 
 	TMap<int32, TSharedPtr<FSkeletalMeshBuildSettingsLayout>> BuildSettingsWidgetsPerLOD;

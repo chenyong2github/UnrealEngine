@@ -76,6 +76,7 @@ struct ENGINE_API FPerQualityLevelProperty
 	}
 
 #if WITH_EDITOR
+	int32 GetValueForPlatform(const ITargetPlatform* TargetPlatform) const;
 	FSupportedQualityLevelArray GetSupportedQualityLevels(const TCHAR* InPlatformName = nullptr) const;
 	void StripQualtiyLevelForCooking(const TCHAR* InPlatformName = nullptr);
 	bool IsQualityLevelValid(int32 QualityLevel) const;
@@ -163,6 +164,8 @@ struct ENGINE_API FPerQualityLevelInt
 	{
 		Default = InDefaultValue;
 	}
+
+	FString ToString() const;
 };
 
 extern template ENGINE_API FArchive& operator<<(FArchive&, FPerQualityLevelProperty<FPerQualityLevelInt, int32, NAME_IntProperty>&);

@@ -3234,10 +3234,65 @@ void FPersonaMeshDetails::CustomizeLODSettingsCategories(IDetailLayoutBuilder& D
 		.EntryNames(this, &FPersonaMeshDetails::GetNoRefStreamingLODBiasOverrideNames)
 	];
 
+	TAttribute<bool> IsQualityLevelLodEnabled = TAttribute<bool>::CreateLambda([this]() { return FPersonaMeshDetails::IsQualityLevelMinLodEnable(); });
+	TAttribute<bool> IsPerPlatformMinLodEnabled = TAttribute<bool>::CreateLambda([this]() { return FPersonaMeshDetails::IsMinLodEnable(); });
+
 	TSharedPtr<IPropertyHandle> MinLODPropertyHandle = DetailLayout.GetProperty(USkeletalMesh::GetMinLodMemberName(), USkeletalMesh::StaticClass());
 	IDetailPropertyRow& MinLODRow = LODSettingsCategory.AddProperty(MinLODPropertyHandle);
-	MinLODRow.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FPersonaMeshDetails::IsLODInfoEditingEnabled, -1)));
+	MinLODRow.EditCondition(IsPerPlatformMinLodEnabled, NULL);
 	DetailLayout.HideProperty(MinLODPropertyHandle);
+
+	TSharedRef<IPropertyHandle> LODInfoProperty = DetailLayout.GetProperty(FName("LODInfo"), USkeletalMesh::StaticClass());
+	DetailLayout.HideProperty(LODInfoProperty);
+
+	TSharedPtr<IPropertyHandle> QualityLevelMinLODPropertyHandle = DetailLayout.GetProperty(USkeletalMesh::GetQualityLevelMinLodMemberName(), USkeletalMesh::StaticClass());
+	DetailLayout.HideProperty(QualityLevelMinLODPropertyHandle);
+
+	LODSettingsCategory.AddCustomRow(LOCTEXT("QualityLevelMinLOD", "Quality Level Min LOD"))
+		.RowTag("QualityLevelMinLOD")
+		.IsEnabled(IsQualityLevelLodEnabled)
+		.EditCondition(IsQualityLevelLodEnabled, NULL)
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.Padding(0.0f, 4.0f)
+			.HAlign(HAlign_Left)
+			.AutoWidth()
+			[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("QualityLevelMinLOD", "Quality Level Min LOD"))
+			]
+		+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.Padding(50.0f, 0.0f)
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.OnClicked(this, &FPersonaMeshDetails::ResetToDefault)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ToolTipText(LOCTEXT("QualityLevelMinLodToolTip", "Clear MinLOD conversion data"))
+				.ForegroundColor(FSlateColor::UseForeground())
+				.IsEnabled(TAttribute<bool>::CreateLambda([this]() { return GetMinLod().PerPlatform.Num() != 0 || GetMinLod().Default != 0; }))
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("Icons.Delete"))
+				]
+			]
+		]
+		.ValueContent()
+		.MinDesiredWidth((float)(SkelMesh->GetQualityLevelMinLod().PerQuality.Num() + 1) * 125.0f)
+		.MaxDesiredWidth((float)((int32)QualityLevelProperty::EQualityLevels::Num + 1) * 125.0f)
+		[
+			SNew(SPerQualityLevelPropertiesWidget)
+			.OnGenerateWidget(this, &FPersonaMeshDetails::GetMinQualityLevelLodWidget)
+			.OnAddEntry(this, &FPersonaMeshDetails::AddMinLodQualityLevelOverride)
+			.OnRemoveEntry(this, &FPersonaMeshDetails::RemoveMinLodQualityLevelOverride)
+			.EntryNames(this, &FPersonaMeshDetails::GetMinQualityLevelLodOverrideNames)
+		];
 
 	TSharedPtr<IPropertyHandle> DisableBelowMinLodStrippingPropertyHandle = DetailLayout.GetProperty(USkeletalMesh::GetDisableBelowMinLodStrippingMemberName(), USkeletalMesh::StaticClass());
 	IDetailPropertyRow& DisableBelowMinLodStrippingRow = LODSettingsCategory.AddProperty(DisableBelowMinLodStrippingPropertyHandle);
@@ -3329,6 +3384,16 @@ void FPersonaMeshDetails::OnLODSettingsSelected(const FAssetData& AssetData)
 			SelectedSettingsAsset->SetLODSettingsToMesh(SkelMesh);
 		}
 	}
+}
+
+bool FPersonaMeshDetails::IsQualityLevelMinLodEnable() const
+{
+	return GEngine->UseSkeletalMeshMinLODPerQualityLevels;
+}
+
+bool FPersonaMeshDetails::IsMinLodEnable() const
+{
+	return !GEngine->UseSkeletalMeshMinLODPerQualityLevels;
 }
 
 bool FPersonaMeshDetails::IsLODInfoEditingEnabled(int32 LODIndex) const
@@ -3527,6 +3592,140 @@ TArray<FName> FPersonaMeshDetails::GetNoRefStreamingLODBiasOverrideNames() const
 FText FPersonaMeshDetails::GetNoRefStreamingLODBiasTooltip() const
 {
 	return LOCTEXT("NoRefStreamingLODBiasTooltip", "LOD bias for preloading no-ref mesh LODs. To use platform default, set to -1.");
+}
+
+FPerPlatformInt FPersonaMeshDetails::GetMinLod() 
+{
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+
+	return SkelMesh->GetMinLod();
+}
+
+int32 FPersonaMeshDetails::GetMinQualityLevelLod(FName QualityLevel) const
+{
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+
+	int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevel);
+	const int32* ValuePtr = (QualityLevel == NAME_None) ? nullptr : SkelMesh->GetQualityLevelMinLod().PerQuality.Find(QLKey);
+	return (ValuePtr != nullptr) ? *ValuePtr : SkelMesh->GetQualityLevelMinLod().Default;
+}
+
+void FPersonaMeshDetails::OnMinQualityLevelLodChanged(int32 NewValue, FName QualityLevel)
+{
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+
+	{
+		FSkinnedMeshComponentRecreateRenderStateContext ReregisterContext(SkelMesh);
+		NewValue = FMath::Clamp<int32>(NewValue, 0, MAX_STATIC_MESH_LODS - 1);
+		FPerQualityLevelInt MinLOD = SkelMesh->GetQualityLevelMinLod();
+		int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevel);
+		if (QualityLevel == NAME_None || QLKey == INDEX_NONE)
+		{
+			MinLOD.Default = NewValue;
+		}
+		else
+		{
+			int32* ValuePtr = MinLOD.PerQuality.Find(QLKey);
+			if (ValuePtr != nullptr)
+			{
+				*ValuePtr = NewValue;
+			}
+		}
+		SkelMesh->SetQualityLevelMinLod(MoveTemp(MinLOD));
+		SkelMesh->Modify();
+	}
+	RefreshMeshDetailLayout();
+}
+
+void FPersonaMeshDetails::OnMinQualityLevelLodCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName QualityLevel)
+{
+	OnMinQualityLevelLodChanged(InValue, QualityLevel);
+}
+
+TSharedRef<SWidget> FPersonaMeshDetails::GetMinQualityLevelLodWidget(FName QualityLevelName) const
+{
+	return SNew(SSpinBox<int32>)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Value(this, &FPersonaMeshDetails::GetMinQualityLevelLod, QualityLevelName)
+		.OnValueChanged(const_cast<FPersonaMeshDetails*>(this), &FPersonaMeshDetails::OnMinQualityLevelLodChanged, QualityLevelName)
+		.OnValueCommitted(const_cast<FPersonaMeshDetails*>(this), &FPersonaMeshDetails::OnMinQualityLevelLodCommitted, QualityLevelName)
+		.MinValue(0)
+		.MaxValue(MAX_STATIC_MESH_LODS)
+		.ToolTipText(LOCTEXT("QualityLevelMinLodTooltip", "The minimum quality level LOD to use for rendering.  This can be overridden in components."))
+		.IsEnabled(FPersonaMeshDetails::GetLODCount() > 1);
+}
+
+bool FPersonaMeshDetails::AddMinLodQualityLevelOverride(FName QualityLevelName)
+{
+	FScopedTransaction Transaction(LOCTEXT("AddMinLODQualityLevelOverride", "Add Min LOD Quality Level Override"));
+	
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+	SkelMesh->Modify();
+	int32 QLKey = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
+	if (SkelMesh->GetQualityLevelMinLod().PerQuality.Find(QLKey) == nullptr)
+	{
+		FPerQualityLevelInt MinLOD = SkelMesh->GetQualityLevelMinLod();
+		float Value = MinLOD.Default;
+		MinLOD.PerQuality.Add(QLKey, Value);
+		SkelMesh->SetQualityLevelMinLod(MoveTemp(MinLOD));
+		OnMinQualityLevelLodChanged(Value, QualityLevelName);
+		return true;
+	}
+	return false;
+}
+
+bool FPersonaMeshDetails::RemoveMinLodQualityLevelOverride(FName QualityLevelName)
+{
+	FScopedTransaction Transaction(LOCTEXT("RemoveMinLODQualityLevelOverride", "Remove Min LOD Quality Level Override"));
+	
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+	SkelMesh->Modify();
+
+	FPerQualityLevelInt MinLOD = SkelMesh->GetQualityLevelMinLod();
+	int32 QL = QualityLevelProperty::FNameToQualityLevel(QualityLevelName);
+	if (QL != INDEX_NONE && MinLOD.PerQuality.Remove(QL) != 0)
+	{
+		float Value = MinLOD.Default;
+		SkelMesh->SetQualityLevelMinLod(MoveTemp(MinLOD));
+		OnMinQualityLevelLodChanged(Value, QualityLevelName);
+		return true;
+	}
+	return false;
+}
+
+TArray<FName> FPersonaMeshDetails::GetMinQualityLevelLodOverrideNames() const
+{
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+
+	TArray<FName> OverrideNames;
+	for (const TPair<int32, int32>& Pair : SkelMesh->GetQualityLevelMinLod().PerQuality)
+	{
+		OverrideNames.Add(QualityLevelProperty::QualityLevelToFName(Pair.Key));
+	}
+	OverrideNames.Sort(FNameLexicalLess());
+	return OverrideNames;
+}
+
+FReply FPersonaMeshDetails::ResetToDefault()
+{
+	if (FPersonaMeshDetails::IsQualityLevelMinLodEnable())
+	{
+		USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+		check(SkelMesh);
+
+		FPerPlatformInt PlatformMinLOD;
+		SkelMesh->SetMinLod(MoveTemp(PlatformMinLOD));
+		SkelMesh->Modify();
+
+		RefreshMeshDetailLayout();
+	}
+	return FReply::Handled();
 }
 
 FReply FPersonaMeshDetails::OnApplyChanges()
@@ -6384,5 +6583,4 @@ bool FPersonaMeshDetails::FilterOutBakePose(const FAssetData& AssetData, USkelet
 {
 	return !(Skeleton && Skeleton->IsCompatibleSkeletonByAssetData(AssetData));
 }
-
 #undef LOCTEXT_NAMESPACE

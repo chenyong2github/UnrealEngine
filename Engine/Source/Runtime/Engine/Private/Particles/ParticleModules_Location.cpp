@@ -2750,7 +2750,7 @@ void UParticleModuleLocationSkelVertSurface::GetSkeletalMeshComponentSource(FPar
 		if (NewSkelMeshComp && NewSkelMeshComp->GetScene() && NewSkelMeshComp->SkeletalMesh)
 		{
 			FSkeletalMeshRenderData* SkelMeshResource = NewSkelMeshComp->GetSkeletalMeshRenderData();
-			MinLOD = SkelMeshResource->GetFirstValidLODIdx(NewSkelMeshComp->SkeletalMesh->GetMinLod().GetValue());
+			MinLOD = SkelMeshResource->GetFirstValidLODIdx(NewSkelMeshComp->SkeletalMesh->GetMinLodIdx());
 
 			if (MinLOD != INDEX_NONE)
 			{

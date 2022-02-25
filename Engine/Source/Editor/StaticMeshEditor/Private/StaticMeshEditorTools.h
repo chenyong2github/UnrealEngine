@@ -549,6 +549,7 @@ private:
 	void OnMinLODChanged(int32 NewValue, FName Platform);
 	void OnMinLODCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName Platform);
 	int32 GetMinLOD(FName Platform) const;
+	FPerPlatformInt GetMinLOD() const;
 	TSharedRef<SWidget> GetMinLODWidget(FName PlatformGroupName) const;
 	bool AddMinLODPlatformOverride(FName PlatformGroupName);
 	bool RemoveMinLODPlatformOverride(FName PlatformGroupName);
@@ -561,6 +562,7 @@ private:
 	bool AddMinLODQualityLevelOverride(FName QualityLevelName);
 	bool RemoveMinLODQualityLevelOverride(FName QualityLevelName);
 	TArray<FName> GetMinQualityLevelLODOverrideNames() const;
+	FReply ResetToDefault();
 
 	void OnNoRefStreamingLODBiasChanged(int32 NewValue, FName QualityLevel);
 	void OnNoRefStreamingLODBiasCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName QualityLevel);

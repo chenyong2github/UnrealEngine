@@ -1459,6 +1459,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = PerQualityLevelProperty, AdvancedDisplay)
 	bool UseStaticMeshMinLODPerQualityLevels;
 
+	UPROPERTY(config, EditAnywhere, Category = PerQualityLevelProperty, AdvancedDisplay)
+	bool UseSkeletalMeshMinLODPerQualityLevels;
+
 	/** The state of the current map transition.  */
 	UPROPERTY()
 	ETransitionType TransitionType;

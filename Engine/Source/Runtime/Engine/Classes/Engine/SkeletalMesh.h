@@ -31,6 +31,7 @@
 #include "Animation/SkinWeightProfile.h"
 #include "Animation/MorphTarget.h"
 #include "Engine/StreamableRenderAsset.h"
+#include "PerQualityLevelProperties.h"
 
 #include "SkeletalMesh.generated.h"
 
@@ -1217,6 +1218,40 @@ private:
 #endif
 
 public:
+	UPROPERTY(EditAnywhere, Category = LODSettings, meta = (DisplayName = "Quality Level Minimum LOD"))
+	FPerQualityLevelInt MinQualityLevelLOD;
+
+	static FName GetQualityLevelMinLodMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(USkeletalMesh, MinQualityLevelLOD);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	const FPerQualityLevelInt& GetQualityLevelMinLod() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			return MinQualityLevelLOD;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	void SetQualityLevelMinLod(FPerQualityLevelInt InMinLod)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			MinQualityLevelLOD = MoveTemp(InMinLod);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	/** Check the QualitLevel property is enabled for MinLod. */
+	bool IsMinLodQualityLevelEnable() const;
+
+	static void OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable);
+
+	/*Choose either PerPlatform or PerQuality override. Note: Enable PerQuality override in the Project Settings/ General Settings/ UseSkeletalMeshMinLODPerQualityLevels*/
+	int32 GetMinLodIdx() const;
+	int32 GetDefaultMinLod() const;
+	void SetMinLodIdx(int32 InMinLOD);
+
 	/** Minimum LOD to render. Can be overridden per component as well as set here for all mesh instances here */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMinLod() or USkeletalMesh::SetMinLod().")
 	UPROPERTY(EditAnywhere, Category = LODSettings, meta = (DisplayName = "Minimum LOD"))

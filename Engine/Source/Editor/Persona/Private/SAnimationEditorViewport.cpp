@@ -2456,7 +2456,7 @@ void SAnimationEditorViewportTabBody::AddMinLODNotification()
 
 	auto GetMinLODNotificationVisibility = [this]()
 	{
-		if (GetPreviewScene()->GetPreviewMesh() && GetPreviewScene()->GetPreviewMesh()->GetMinLod().Default != 0)
+		if (GetPreviewScene()->GetPreviewMesh() && GetPreviewScene()->GetPreviewMesh()->GetDefaultMinLod() != 0)
 		{
 			return EVisibility::Visible;
 		}

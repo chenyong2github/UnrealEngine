@@ -120,6 +120,32 @@ static FCriticalSection GCookCriticalSection;
 
 
 template<typename _StructType, typename _ValueType, EName _BasePropertyName>
+int32 FPerQualityLevelProperty<_StructType, _ValueType, _BasePropertyName>::GetValueForPlatform(const ITargetPlatform* TargetPlatform) const
+{
+	const _StructType* This = StaticCast<const _StructType*>(this);
+	// get all supported quality level from scalability + engine ini files
+	FSupportedQualityLevelArray SupportedQualityLevels = GetSupportedQualityLevels(*TargetPlatform->GetPlatformInfo().IniPlatformName.ToString());
+
+	// loop through all the supported quality level to find the min lod index
+	int32 MinLodIdx = MAX_int32;
+	for (int32& QL : SupportedQualityLevels)
+	{
+		// check if have data for the supported quality level
+		if (IsQualityLevelValid(QL))
+		{
+			MinLodIdx = FMath::Min(GetValueForQualityLevel(QL), MinLodIdx);
+		}
+	}
+
+	if (MinLodIdx == MAX_int32)
+	{
+		MinLodIdx = This->Default;
+	}
+
+	return MinLodIdx;
+}
+
+template<typename _StructType, typename _ValueType, EName _BasePropertyName>
 FSupportedQualityLevelArray FPerQualityLevelProperty<_StructType, _ValueType, _BasePropertyName>::GetSupportedQualityLevels(const TCHAR* InPlatformName) const
 {
 	const FString PlatformNameStr = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(FName(InPlatformName)).IniPlatformName.ToString();
@@ -274,7 +300,26 @@ template ENGINE_API FArchive& operator<<(FArchive&, FPerQualityLevelProperty<FPe
 template ENGINE_API void operator<<(FStructuredArchive::FSlot Slot, FPerQualityLevelProperty<FPerQualityLevelInt, int32, NAME_IntProperty>&);
 
 #if WITH_EDITOR
+template int32 FPerQualityLevelProperty<FPerQualityLevelInt, int32, NAME_IntProperty>::GetValueForPlatform(const ITargetPlatform* TargetPlatform) const;
 template FSupportedQualityLevelArray FPerQualityLevelProperty<FPerQualityLevelInt, int32, NAME_IntProperty>::GetSupportedQualityLevels(const TCHAR* InPlatformName) const;
 template void FPerQualityLevelProperty<FPerQualityLevelInt, int32, NAME_IntProperty>::StripQualtiyLevelForCooking(const TCHAR* InPlatformName);
 template bool FPerQualityLevelProperty<FPerQualityLevelInt, int32, NAME_IntProperty>::IsQualityLevelValid(int32 QualityLevel) const;
 #endif
+
+FString FPerQualityLevelInt::ToString() const
+{
+	FString Result = FString::FromInt(Default);
+
+#if WITH_EDITORONLY_DATA
+	TArray<int32> QualityLevels;
+	PerQuality.GetKeys(QualityLevels);
+	QualityLevels.Sort();
+
+	for (int32 QL : QualityLevels)
+	{
+		Result = FString::Printf(TEXT("%s, %s=%d"), *Result, *QualityLevelProperty::QualityLevelToFName(QL).ToString(), PerQuality.FindChecked(QL));
+	}
+#endif
+
+	return Result;
+}

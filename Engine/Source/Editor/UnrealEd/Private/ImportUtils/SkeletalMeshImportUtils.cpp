@@ -317,6 +317,7 @@ TSharedPtr<FExistingSkelMeshData> SkeletalMeshImportUtils::SaveExistingSkelMeshD
 	}
 	ExistingMeshDataPtr->UseMaterialNameSlotWorkflow = InternalImportUtils::IsUsingMaterialSlotNameWorkflow(SourceSkeletalMesh->GetAssetImportData());
 	ExistingMeshDataPtr->MinLOD = SourceSkeletalMesh->GetMinLod();
+	ExistingMeshDataPtr->QualityLevelMinLOD = SourceSkeletalMesh->GetQualityLevelMinLod();
 	ExistingMeshDataPtr->DisableBelowMinLodStripping = SourceSkeletalMesh->GetDisableBelowMinLodStripping();
 	ExistingMeshDataPtr->bOverrideLODStreamingSettings = SourceSkeletalMesh->GetOverrideLODStreamingSettings();
 	ExistingMeshDataPtr->bSupportLODStreaming = SourceSkeletalMesh->GetSupportLODStreaming();
@@ -616,6 +617,7 @@ void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const
 
 	int32 SafeReimportLODIndex = ReimportLODIndex < 0 ? 0 : ReimportLODIndex;
 	SkeletalMesh->SetMinLod(MeshData->MinLOD);
+	SkeletalMesh->SetQualityLevelMinLod(MeshData->QualityLevelMinLOD);
 	SkeletalMesh->SetDisableBelowMinLodStripping(MeshData->DisableBelowMinLodStripping);
 	SkeletalMesh->SetOverrideLODStreamingSettings(MeshData->bOverrideLODStreamingSettings);
 	SkeletalMesh->SetSupportLODStreaming(MeshData->bSupportLODStreaming);

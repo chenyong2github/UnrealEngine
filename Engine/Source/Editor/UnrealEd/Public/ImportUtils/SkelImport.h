@@ -90,6 +90,7 @@ struct FExistingSkelMeshData
 
 	FSkeletalMeshSamplingInfo				ExistingSamplingInfo;
 	FPerPlatformInt							MinLOD;
+	FPerQualityLevelInt						QualityLevelMinLOD;
 	FPerPlatformBool						DisableBelowMinLodStripping;
 	bool									bOverrideLODStreamingSettings;
 	FPerPlatformBool						bSupportLODStreaming;

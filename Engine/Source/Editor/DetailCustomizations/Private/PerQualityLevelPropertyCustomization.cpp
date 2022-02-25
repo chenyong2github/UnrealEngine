@@ -45,8 +45,8 @@ TSharedRef<SWidget> FPerQualityLevelPropertyCustomization<OverrideType>::GetWidg
 					TSharedPtr<IPropertyHandle> KeyProperty = ChildProperty->GetKeyHandle();
 					if (KeyProperty.IsValid())
 					{
-						FName KeyName;
-						if (KeyProperty->GetValue(KeyName) == FPropertyAccess::Success && KeyName == InQualityLevelName)
+						int32 InQualityLevelNameToInt = INDEX_NONE;
+						if (KeyProperty->GetValue(InQualityLevelNameToInt) == FPropertyAccess::Success && InQualityLevelNameToInt == QualityLevelProperty::FNameToQualityLevel(InQualityLevelName))
 						{
 							EditProperty = ChildProperty;
 							break;
@@ -100,7 +100,7 @@ float FPerQualityLevelPropertyCustomization<OverrideType>::CalcDesiredWidth(TSha
 		MapProperty->AccessRawData(RawData);
 		for (const void* Data : RawData)
 		{
-			const TMap<FName, typename OverrideType::ValueType>* PerQualityLevelMap = (const TMap<FName, typename OverrideType::ValueType>*)(Data);
+			const TMap<int32, typename OverrideType::ValueType>* PerQualityLevelMap = (const TMap<int32, typename OverrideType::ValueType>*)(Data);
 			NumOverrides = FMath::Max<int32>(PerQualityLevelMap->Num(), NumOverrides);
 		}
 	}
@@ -112,6 +112,8 @@ bool FPerQualityLevelPropertyCustomization<OverrideType>::AddOverride(FName InQu
 {
 	FScopedTransaction Transaction(LOCTEXT("AddOverride", "Add Quality Level Override"));
 
+	bool bSucces = false;
+
 	TSharedPtr<IPropertyHandle>	PerQualityLevelProperty = StructPropertyHandle->GetChildHandle(FName("PerQuality"));
 	TSharedPtr<IPropertyHandle>	DefaultProperty = StructPropertyHandle->GetChildHandle(FName("Default"));
 	if (PerQualityLevelProperty.IsValid() && DefaultProperty.IsValid())
@@ -119,41 +121,32 @@ bool FPerQualityLevelPropertyCustomization<OverrideType>::AddOverride(FName InQu
 		TSharedPtr<IPropertyHandleMap> MapProperty = PerQualityLevelProperty->AsMap();
 		if (MapProperty.IsValid())
 		{
-			MapProperty->AddItem();
-			uint32 NumChildren = 0;
-			PerQualityLevelProperty->GetNumChildren(NumChildren);
-			for (uint32 ChildIdx = 0; ChildIdx < NumChildren; ChildIdx++)
+			// get the Tmap containing the Key,value
+			TArray<const void*> RawData;
+			PerQualityLevelProperty->AccessRawData(RawData);
+
+			if (!RawData.IsEmpty())
 			{
-				TSharedPtr<IPropertyHandle> ChildProperty = PerQualityLevelProperty->GetChildHandle(ChildIdx);
-				if (ChildProperty.IsValid())
+				TMap<int32, typename OverrideType::ValueType>* PerQualityLevelMap = (TMap<int32, typename OverrideType::ValueType>*)(RawData[0]);
+				check(PerQualityLevelMap);
+
+				int32 InQualityLevelNameToInt = QualityLevelProperty::FNameToQualityLevel(InQualityLevelName);
+				if (PerQualityLevelMap->Find(InQualityLevelNameToInt) == nullptr)
 				{
-					TSharedPtr<IPropertyHandle> KeyProperty = ChildProperty->GetKeyHandle();
-					if (KeyProperty.IsValid())
+					typename OverrideType::ValueType DefaultValue;
+					DefaultProperty->GetValue(DefaultValue);
+
+					PerQualityLevelMap->Add(InQualityLevelNameToInt, DefaultValue);
+					if (PropertyUtilities.IsValid())
 					{
-						FName KeyName;
-						if (KeyProperty->GetValue(KeyName) == FPropertyAccess::Success && KeyName == NAME_None)
-						{
-							// Set Key
-							KeyProperty->SetValue(InQualityLevelName);
-
-							// Set Value
-							typename OverrideType::ValueType DefaultValue;
-							DefaultProperty->GetValue(DefaultValue);
-							ChildProperty->SetValue(DefaultValue);
-
-							if (PropertyUtilities.IsValid())
-							{
-								PropertyUtilities.Pin()->ForceRefresh();
-							}
-
-							return true;
-						}
+						PropertyUtilities.Pin()->ForceRefresh();
 					}
+					bSucces = true;
 				}
 			}
 		}
 	}
-	return false;
+	return bSucces;
 }
 
 template<typename OverrideType>
@@ -169,17 +162,16 @@ bool FPerQualityLevelPropertyCustomization<OverrideType>::RemoveOverride(FName I
 		MapProperty->AccessRawData(RawData);
 		for (const void* Data : RawData)
 		{
-			TMap<FName, typename OverrideType::ValueType>* PerQualityLevelMap = (TMap<FName, typename OverrideType::ValueType>*)(Data);
+			TMap<int32, typename OverrideType::ValueType>* PerQualityLevelMap = (TMap<int32, typename OverrideType::ValueType>*)(Data);
 			check(PerQualityLevelMap);
-			TArray<FName> KeyArray;
+			TArray<int32> KeyArray;
 			PerQualityLevelMap->GenerateKeyArray(KeyArray);
-			for (FName QualityLevelName : KeyArray)
+			int32 InQualityLevelNameToInt = QualityLevelProperty::FNameToQualityLevel(InQualityLevelName);
+			for (int32 QL : KeyArray)
 			{
-				if (QualityLevelName == InQualityLevelName)
+				if (QL == InQualityLevelNameToInt)
 				{
-
-					PerQualityLevelMap->Remove(InQualityLevelName);
-
+					PerQualityLevelMap->Remove(InQualityLevelNameToInt);
 					if (PropertyUtilities.IsValid())
 					{
 						PropertyUtilities.Pin()->ForceRefresh();
@@ -205,13 +197,13 @@ TArray<FName> FPerQualityLevelPropertyCustomization<OverrideType>::GetOverrideNa
 		MapProperty->AccessRawData(RawData);
 		for (const void* Data : RawData)
 		{
-			const TMap<FName, typename OverrideType::ValueType>* PerQualityLevelMap = (const TMap<FName, typename OverrideType::ValueType>*)(Data);
+			const TMap<int32, typename OverrideType::ValueType>* PerQualityLevelMap = (const TMap<int32, typename OverrideType::ValueType>*)(Data);
 			check(PerQualityLevelMap);
-			TArray<FName> KeyArray;
+			TArray<int32> KeyArray;
 			PerQualityLevelMap->GenerateKeyArray(KeyArray);
-			for (FName QualityLevelName : KeyArray)
+			for (int32 QL : KeyArray)
 			{
-				QualityLevelOverrideNames.AddUnique(QualityLevelName);
+				QualityLevelOverrideNames.AddUnique(QualityLevelProperty::QualityLevelToFName(QL));
 			}
 		}
 

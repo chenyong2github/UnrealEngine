@@ -151,6 +151,16 @@ static TAutoConsoleVariable<int32> CVarRayTracingSkeletalMeshLODBias(
 	TEXT("Final LOD level to use in ray tracing is the sum of this global bias and the bias set on each skeletal mesh asset."),
 	ECVF_RenderThreadSafe);
 
+const TCHAR* GSkeletalMeshMinLodQualityLevelCVarName = TEXT("r.SkeletalMesh.MinLodQualityLevel");
+const TCHAR* GSkeletalMeshMinLodQualityLevelScalabilitySection = TEXT("ViewDistanceQuality");
+int32 GSkeletalMeshMinLodQualityLevel = -1;
+static FAutoConsoleVariableRef CVarMinLodQualityLevel(
+	GSkeletalMeshMinLodQualityLevelCVarName,
+	GSkeletalMeshMinLodQualityLevel,
+	TEXT("The quality level for the Min stripping LOD. \n"),
+	FConsoleVariableDelegate::CreateStatic(&USkeletalMesh::OnLodStrippingQualityLevelChanged),
+	ECVF_Scalability);
+	
 #if WITH_APEX_CLOTHING
 /*-----------------------------------------------------------------------------
 	utility functions for apex clothing 
@@ -550,6 +560,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	SetMaxNumOptionalLODs(FPerPlatformInt(0));
 #endif
 	SetMinLod(FPerPlatformInt(0));
+	SetQualityLevelMinLod(0);
+	MinQualityLevelLOD.Init(GSkeletalMeshMinLodQualityLevelCVarName, GSkeletalMeshMinLodQualityLevelScalabilitySection);
 	SetDisableBelowMinLodStripping(FPerPlatformBool(false));
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bSupportRayTracing = true;
@@ -1008,7 +1020,7 @@ void USkeletalMesh::InitResources()
 
 		{
 			const int32 NumLODs = SkelMeshRenderData->LODRenderData.Num();
-			const int32 MinFirstLOD = GetMinLod().GetValue();
+			const int32 MinFirstLOD = GetMinLodIdx();
 
 			CachedSRRState.NumNonStreamingLODs = SkelMeshRenderData->NumInlinedLODs;
 			CachedSRRState.NumNonOptionalLODs = SkelMeshRenderData->NumNonOptionalLODs;
@@ -3651,6 +3663,74 @@ void USkeletalMesh::FinishPostLoadInternal(FSkeletalMeshPostLoadContext& Context
 	}
 #endif
 
+#if WITH_EDITORONLY_DATA
+	FPerPlatformInt PerPlatformData = GetMinLod();
+	FPerQualityLevelInt PerQualityLevelData = GetQualityLevelMinLod();
+
+	// Convert PerPlatForm data to PerQuality if perQuality data have not been serialized.
+	// Also test default value, since PerPLatformData can have Default !=0 and no PerPlaform data overrides.
+	bool bConvertMinLODData = (PerQualityLevelData.PerQuality.Num() == 0 && PerQualityLevelData.Default == 0) && (PerPlatformData.PerPlatform.Num() != 0 || PerPlatformData.Default != 0);
+
+	if (GEngine && GEngine->UseStaticMeshMinLODPerQualityLevels && bConvertMinLODData)
+	{
+		// get the platform groups
+		const TArray<FName>& PlatformGroupNameArray = PlatformInfo::GetAllPlatformGroupNames();
+
+		// Make sure all platforms and groups are known before updating any of them. Missing platforms would not properly be converted to PerQuality if some of them were known and others were not.
+		bool bAllPlatformsKnown = true;
+		for (const TPair<FName, int32>& Pair : PerPlatformData.PerPlatform)
+		{
+			const bool bIsPlatformGroup = PlatformGroupNameArray.Contains(Pair.Key);
+			const bool bIsKnownPlatform = (FDataDrivenPlatformInfoRegistry::GetPlatformInfo(Pair.Key).IniPlatformName.IsNone() == false);
+			if (!bIsPlatformGroup && !bIsKnownPlatform)
+			{
+				bAllPlatformsKnown = false;
+				break;
+			}
+		}
+
+		if (bAllPlatformsKnown)
+		{
+			//assign the default value
+			PerQualityLevelData.Default = PerPlatformData.Default;
+
+			// iterate over all platform and platform group entry: ex: XBOXONE = 2, CONSOLE=1, MOBILE = 3
+			if (PerQualityLevelData.PerQuality.Num() == 0)
+			{
+				TMap<FName, int32> SortedPerPlatforms = PerPlatformData.PerPlatform;
+				SortedPerPlatforms.KeySort([&](const FName& A, const FName& B) { return (PlatformGroupNameArray.Contains(A) > PlatformGroupNameArray.Contains(B)); });
+
+				for (const TPair<FName, int32>& Pair : SortedPerPlatforms)
+				{
+					FSupportedQualityLevelArray QualityLevels;
+					FString PlatformEntry = Pair.Key.ToString();
+
+					QualityLevels = QualityLevelProperty::PerPlatformOverrideMapping(PlatformEntry);
+
+					// we now have a range of quality levels supported on that platform or from that group
+					// note: 
+					// -platform group overrides will be applied first
+					// -platform override sharing the same quality level will take the smallest MinLOD value between them
+					// -ex: if XboxOne and PS4 maps to high and XboxOne MinLOD = 2 and PS4 MINLOD = 1, MINLOD 1 will be selected
+					for (int32& QLKey : QualityLevels)
+					{
+						int32* Value = PerQualityLevelData.PerQuality.Find(QLKey);
+						if (Value != nullptr)
+						{
+							*Value = FMath::Min(Pair.Value, *Value);
+						}
+						else
+						{
+							PerQualityLevelData.PerQuality.Add(QLKey, Pair.Value);
+						}
+					}
+				}
+			}
+			SetQualityLevelMinLod(PerQualityLevelData);
+		}
+	}
+#endif
+
 	ReleaseAsyncProperty();
 }
 
@@ -4616,7 +4696,7 @@ void USkeletalMesh::ValidateBoneWeights(const ITargetPlatform* TargetPlatform)
 		FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
 
 		int32 NumLODs = GetLODInfoArray().Num();
-		int32 MinFirstLOD = GetMinLod().GetValue();
+		int32 MinFirstLOD = GetMinLodIdx();
 		int32 MaxNumLODs = FMath::Clamp<int32>(NumLODs - MinFirstLOD, SkelMeshRenderData->NumInlinedLODs, NumLODs);
 
 		for (int32 LODIndex = 0; LODIndex < GetLODNum(); ++LODIndex)
@@ -5648,6 +5728,63 @@ TArray<FString> USkeletalMesh::K2_GetAllMorphTargetNames() const
 		Names.Add(MorphTarget->GetFName().ToString());
 	}
 	return Names;
+}
+
+int32 USkeletalMesh::GetMinLodIdx() const
+{
+	if (IsMinLodQualityLevelEnable())
+	{
+		return GetQualityLevelMinLod().GetValue(GSkeletalMeshMinLodQualityLevel);
+	}
+	else
+	{
+		return GetMinLod().GetValue();
+	}
+}
+
+int32 USkeletalMesh::GetDefaultMinLod() const
+{
+	if (IsMinLodQualityLevelEnable())
+	{
+		return GetQualityLevelMinLod().Default;
+	}
+	else
+	{
+		return GetMinLod().Default;
+	}
+}
+
+void USkeletalMesh::SetMinLodIdx(int32 InMinLOD)
+{
+	if (IsMinLodQualityLevelEnable())
+	{
+		SetQualityLevelMinLod(InMinLOD);
+	}
+	else
+	{
+		SetMinLod(InMinLOD);
+	}
+}
+
+bool USkeletalMesh::IsMinLodQualityLevelEnable() const
+{
+	return (GEngine && GEngine->UseSkeletalMeshMinLODPerQualityLevels);
+}
+
+void USkeletalMesh::OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable) {
+#ifdef WITH_EDITOR
+	if (GEngine && GEngine->UseStaticMeshMinLODPerQualityLevels)
+	{
+		for (TObjectIterator<USkeletalMesh> It; It; ++It)
+		{
+			USkeletalMesh* SkeletalMesh = *It;
+			if (SkeletalMesh && SkeletalMesh->GetQualityLevelMinLod().PerQuality.Num() > 0)
+			{
+				FSkinnedMeshComponentRecreateRenderStateContext Context(SkeletalMesh, false);
+			}
+		}
+	}
+#endif
 }
 
 /*-----------------------------------------------------------------------------

@@ -9,6 +9,7 @@
 #include "SkeletalMeshReductionSettings.h"
 #include "DataAsset.h"
 #include "PerPlatformProperties.h"
+#include "PerQualityLevelProperties.h"
 #include "SkeletalMeshLODSettings.generated.h"
 
 UENUM()
@@ -119,8 +120,11 @@ class USkeletalMeshLODSettings : public UDataAsset
 {
 	GENERATED_UCLASS_BODY()
 protected:
+	/** Minimum Quality Level LOD to render. Can be overridden per mesh as well as set here for all mesh instances */
+	UPROPERTY(globalconfig, EditAnywhere, Category = LODGroups, meta = (DisplayName = "Quality Level Minimum LOD"))
+	FPerQualityLevelInt MinQualityLevelLod;
 
-	/** Minimum LOD to render. Can be overridden per component as well as set here for all mesh instances here */
+	/** Minimum LOD to render. Can be overridden per mesh as well as set here for all mesh instances */
 	UPROPERTY(globalconfig, EditAnywhere, Category=LODGroups, meta = (DisplayName = "Minimum LOD"))
 	FPerPlatformInt MinLod;
 

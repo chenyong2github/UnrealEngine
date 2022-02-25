@@ -1057,7 +1057,7 @@ void USkinnedMeshComponent::SetCPUSkinningEnabled(bool bEnable, bool bRecreateRe
 
 		SkeletalMesh->WaitForPendingInitOrStreaming();
 
-		check(SkeletalMesh->GetResourceForRendering()->CurrentFirstLODIdx <= SkeletalMesh->GetMinLod().Default);
+		check(SkeletalMesh->GetResourceForRendering()->CurrentFirstLODIdx <= SkeletalMesh->GetDefaultMinLod());
 
 		SkeletalMesh->UnlinkStreaming();
 		SkeletalMesh->bForceMiplevelsToBeResident = bOriginalForcedFullyLoad;
@@ -3063,7 +3063,7 @@ void USkinnedMeshComponent::SetMinLOD(int32 InNewMinLOD)
 
 int32 USkinnedMeshComponent::ComputeMinLOD() const
 {
-	int32 MinLodIndex = bOverrideMinLod ? MinLodModel : SkeletalMesh->GetMinLod().GetValue();
+	int32 MinLodIndex = bOverrideMinLod ? MinLodModel : SkeletalMesh->GetMinLodIdx();
 	int32 NumLODs = GetNumLODs();
 	// want to make sure MinLOD stays within the valid range
 	MinLodIndex = FMath::Min(MinLodIndex, NumLODs - 1);

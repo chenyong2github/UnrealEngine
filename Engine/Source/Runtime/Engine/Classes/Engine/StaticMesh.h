@@ -733,6 +733,13 @@ public:
 	/* Allow more flexibility to set various values driven by the Scalability or Device Profile.*/
 	FPerQualityLevelInt MinQualityLevelLOD;
 
+	static FName GetQualityLevelMinLODMemberName()
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return GET_MEMBER_NAME_CHECKED(UStaticMesh, MinQualityLevelLOD);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	const FPerQualityLevelInt& GetQualityLevelMinLOD() const
 	{
 		return MinQualityLevelLOD;

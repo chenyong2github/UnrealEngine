@@ -459,8 +459,16 @@ int32 FSkeletalMeshLODRenderData::GetPlatformMinLODIdx(const ITargetPlatform* Ta
 {
 #if WITH_EDITOR
 	check(TargetPlatform && SkeletalMesh);
-	const FName IniPlatformName = TargetPlatform->GetPlatformInfo().IniPlatformName;
-	return  SkeletalMesh->GetMinLod().GetValueForPlatform(IniPlatformName);
+
+	if(SkeletalMesh->IsMinLodQualityLevelEnable())
+	{
+		// get all supported quality level from scalability + engine ini files
+		return SkeletalMesh->GetQualityLevelMinLod().GetValueForPlatform(TargetPlatform);
+	}
+	else
+	{
+		return SkeletalMesh->GetMinLod().GetValueForPlatform(*TargetPlatform->IniPlatformName());
+	}
 #else
 	return 0;
 #endif
@@ -476,7 +484,7 @@ uint8 FSkeletalMeshLODRenderData::GenerateClassStripFlags(FArchive& Ar, const US
 	bool bMeshDisablesMinLodStrip = false;
 	if (bIsCook)
 	{
-		MinMeshLod = OwnerMesh ? OwnerMesh->GetMinLod().GetValueForPlatform(CookTarget->GetPlatformInfo().IniPlatformName) : 0;
+		MinMeshLod = OwnerMesh ? GetPlatformMinLODIdx(Ar.CookingTarget(), OwnerMesh) : 0;
 		bMeshDisablesMinLodStrip = OwnerMesh ? OwnerMesh->GetDisableBelowMinLodStripping().GetValueForPlatform(CookTarget->GetPlatformInfo().IniPlatformName) : false;
 	}
 	const bool bWantToStripBelowMinLod = bIsCook && GStripSkeletalMeshLodsDuringCooking != 0 && MinMeshLod > LODIdx && !bMeshDisablesMinLodStrip;

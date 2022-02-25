@@ -316,25 +316,7 @@ int32 FStaticMeshLODResources::GetPlatformMinLODIdx(const ITargetPlatform* Targe
 	if (StaticMesh->IsMinLodQualityLevelEnable())
 	{
 		// get all supported quality level from scalability + engine ini files
-		FSupportedQualityLevelArray SupportedQualityLevels = StaticMesh->GetQualityLevelMinLOD().GetSupportedQualityLevels(*TargetPlatform->GetPlatformInfo().IniPlatformName.ToString());
-		
-		// loop through all the supported quality level to find the min lod index
-		int32 MinLodIdx = MAX_int32;
-		for (int32& QL : SupportedQualityLevels)
-		{
-			// check if have data for the supported quality level
-			if (StaticMesh->GetQualityLevelMinLOD().IsQualityLevelValid(QL))
-			{
-				MinLodIdx = FMath::Min(StaticMesh->GetQualityLevelMinLOD().GetValueForQualityLevel(QL), MinLodIdx);
-			}
-		}
-
-		if (MinLodIdx == MAX_int32)
-		{
-			MinLodIdx = StaticMesh->GetQualityLevelMinLOD().Default;
-		}
-
-		return MinLodIdx;
+		return StaticMesh->GetQualityLevelMinLOD().GetValueForPlatform(TargetPlatform);
 	}
 	else
 	{
@@ -1620,7 +1602,14 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 				&& CVarStripMinLodDataDuringCooking.GetValueOnAnyThread() != 0
 				&& CVarStaticMeshKeepMobileMinLODSettingOnDesktop.GetValueOnAnyThread() != 0)
 			{
-				MinMobileLODIdx = Owner->GetMinLOD().GetValueForPlatform(TEXT("Mobile")) - FStaticMeshLODResources::GetPlatformMinLODIdx(Ar.CookingTarget(), Owner);
+				if (Owner->IsMinLodQualityLevelEnable())
+				{
+					MinMobileLODIdx = Owner->GetQualityLevelMinLOD().GetValueForQualityLevel(0/*Low*/) - FStaticMeshLODResources::GetPlatformMinLODIdx(Ar.CookingTarget(), Owner);
+				}
+				else
+				{
+					MinMobileLODIdx = Owner->GetMinLOD().GetValueForPlatform(TEXT("Mobile")) - FStaticMeshLODResources::GetPlatformMinLODIdx(Ar.CookingTarget(), Owner);
+				}
 				MinMobileLODIdx = FMath::Clamp(MinMobileLODIdx, 0, 255); // Will be cast to uint8 when applying LOD bias. Also, make sure it's not < 0,
 																		 // which can happen if the desktop min LOD is higher than the mobile setting
 			}
@@ -4279,6 +4268,7 @@ void UStaticMesh::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	OutTags.Add(FAssetRegistryTag("CollisionPrims", FString::FromInt(NumCollisionPrims), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("LODs", FString::FromInt(NumLODs), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("MinLOD", GetMinLOD().ToString(), FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("QualityLevelMinLOD", GetQualityLevelMinLOD().ToString(), FAssetRegistryTag::TT_Alphabetical));
 	OutTags.Add(FAssetRegistryTag("SectionsWithCollision", FString::FromInt(NumSectionsWithCollision), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("DefaultCollision", DefaultCollisionName.ToString(), FAssetRegistryTag::TT_Alphabetical));
 	OutTags.Add(FAssetRegistryTag("CollisionComplexity", ComplexityString, FAssetRegistryTag::TT_Alphabetical));
