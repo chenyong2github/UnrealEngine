@@ -20,16 +20,16 @@ struct IKRIG_API FAnimNode_RetargetPoseFromMesh : public FAnimNode_Base
 	TWeakObjectPtr<USkeletalMeshComponent> SourceMeshComponent = nullptr;
 
 	/* If SourceMeshComponent is not valid, and if this is true, it will look for attached parent as a source */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta = (NeverAsPin))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(NeverAsPin))
 	bool bUseAttachedParent = true;
 	
 	/** Retarget asset to use. Must define a Source and Target IK Rig compatible with the SourceMeshComponent and current anim instance.*/
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta=(PinHiddenByDefault))
 	TObjectPtr<UIKRetargeter> IKRetargeterAsset = nullptr;
 
 #if WITH_EDITOR
 	/** when true, will copy all setting from target IK Rig asset each tick (for live preview) */
-	bool bDriveTargetIKRigWithAsset = false;
+	bool bDriveWithAsset = false;
 #endif
 	
 	// FAnimNode_Base interface
@@ -50,13 +50,11 @@ struct IKRIG_API FAnimNode_RetargetPoseFromMesh : public FAnimNode_Base
 	const UIKRetargetProcessor* GetRetargetProcessor() const;
 
 private:
-	
-	void EnsureInitialized(const UAnimInstance* InAnimInstance);
+
+	/** returns true if processor is setup and ready to go, false otherwise */
+	bool EnsureProcessorIsInitialized(const TObjectPtr<USkeletalMeshComponent> TargetMeshComponent);
 	void CopyBoneTransformsFromSource(USkeletalMeshComponent* TargetMeshComponent);
-	
-	// source mesh references, cached during init so that we can compare and see if it has changed
-	TWeakObjectPtr<USkeletalMesh> CurrentlyUsedSourceMesh;
-	TWeakObjectPtr<USkeletalMesh> CurrentlyUsedTargetMesh;
+	TObjectPtr<USkeletalMeshComponent> GetComponentToCopyPoseFrom() const;
 
 	/** the runtime processor used to run the retarget and generate new poses */
 	UPROPERTY(Transient)

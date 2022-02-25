@@ -1486,7 +1486,25 @@ FTransform UIKRetargetProcessor::GetTargetBoneRetargetPoseLocalTransform(const i
 	return TargetSkeleton.RetargetLocalPose[TargetBoneIndex];
 }
 
+bool UIKRetargetProcessor::WasInitializedWithTheseAssets(
+	const TObjectPtr<USkeletalMesh> InSourceMesh,
+	const TObjectPtr<USkeletalMesh> InTargetMesh,
+	const TObjectPtr<UIKRetargeter> InRetargetAsset)
+{
+	if (!IsInitialized())
+	{
+		return false;
+	}
+
+	const bool bSourceMatches = InSourceMesh == GetSourceSkeleton().SkeletalMesh;
+	const bool bTargetMatches = InTargetMesh == GetTargetSkeleton().SkeletalMesh;
+	const bool bAssetMatches = InRetargetAsset == RetargeterAsset;
+	
+	return bSourceMatches && bTargetMatches && bAssetMatches;
+}
+
 #if WITH_EDITOR
+
 void UIKRetargetProcessor::SetNeedsInitialized()
 {
 	bIsInitialized = false;

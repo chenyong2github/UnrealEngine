@@ -50,7 +50,7 @@ void FIKRetargetAnimInstanceProxy::SetRetargetAssetAndSourceComponent(
 	IKRetargetNode->IKRetargeterAsset = InIKRetargetAsset;
 	IKRetargetNode->bUseAttachedParent = false;
 	IKRetargetNode->SourceMeshComponent = InSourceMeshComponent;
-	IKRetargetNode->bDriveTargetIKRigWithAsset = true;
+	IKRetargetNode->bDriveWithAsset = true;
 	IKRetargetNode->SetProcessorNeedsInitialized();
 }
 

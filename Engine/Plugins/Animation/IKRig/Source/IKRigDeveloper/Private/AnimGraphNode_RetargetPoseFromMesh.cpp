@@ -57,7 +57,21 @@ void UAnimGraphNode_RetargetPoseFromMesh::ValidateAnimNodeDuringCompilation(USke
 	// validate IK Rig asset has been assigned
 	if (!Node.IKRetargeterAsset)
 	{
-		MessageLog.Warning(TEXT("@@ is missing an IKRetargeter asset."), this);
+		UEdGraphPin* Pin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RetargetPoseFromMesh, IKRetargeterAsset));
+		if (Pin == nullptr)
+		{
+			// retarget asset unassigned
+			MessageLog.Warning(TEXT("@@ is missing an IKRetargeter asset."), this);
+			return;	
+		}
+		
+		if (!IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RetargetPoseFromMesh, IKRetargeterAsset)))
+		{
+			// retarget asset pin not connected to an asset
+			MessageLog.Warning(TEXT("@@ has a IKRetargeter asset pin that is not connected to a valid asset."), this);
+			return;	
+		}
+
 		return;
 	}
 

@@ -451,6 +451,12 @@ public:
 	/** Get whether this processor is ready to call RunRetargeter() and generate new poses. */
 	bool IsInitialized() const { return bIsInitialized; };
 
+	/** Get whether this processor was initialized with these skeletal meshes and retarget asset*/
+	bool WasInitializedWithTheseAssets(
+		const TObjectPtr<USkeletalMesh> InSourceMesh,
+		const TObjectPtr<USkeletalMesh> InTargetMesh,
+		const TObjectPtr<UIKRetargeter> InRetargetAsset);
+
 	/** Get the currently running IK Rig processor for the target */
 	UIKRigProcessor* GetTargetIKRigProcessor() const { return IKRigProcessor; };
 
