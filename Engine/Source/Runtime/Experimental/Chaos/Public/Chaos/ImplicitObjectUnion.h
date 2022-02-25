@@ -202,6 +202,22 @@ protected:
 	TUniquePtr<FLargeImplicitObjectUnionData> LargeUnionData;	//only needed when there are many objects
 };
 
+struct FLargeUnionClusteredImplicitInfo
+{
+	FLargeUnionClusteredImplicitInfo(const FImplicitObject* InImplicit, const FRigidTransform3& InTransform, const FBVHParticles* InBVHParticles, const FShapeOrShapesArray& InShapes)
+		: Implicit(InImplicit)
+		, Transform(InTransform)
+		, BVHParticles(InBVHParticles)
+		, Shapes(InShapes)
+	{
+	}
+
+	const FImplicitObject* Implicit;
+	FRigidTransform3 Transform;
+	const FBVHParticles* BVHParticles;
+	FShapeOrShapesArray Shapes;
+};
+
 class CHAOS_API FImplicitObjectUnionClustered: public FImplicitObjectUnion
 {
 public:
@@ -216,7 +232,7 @@ public:
 		return ImplicitObjectType::UnionClustered;
 	}
 
-	void FindAllIntersectingClusteredObjects(TArray<Pair<Pair<const FImplicitObject*, const FBVHParticles*>, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
+	void FindAllIntersectingClusteredObjects(TArray<FLargeUnionClusteredImplicitInfo>& Out, const FAABB3& LocalBounds) const;
 	TArray<FPBDRigidParticleHandle*> FindAllIntersectingChildren(const FAABB3& LocalBounds) const;
 
 #if CHAOS_PARTICLEHANDLE_TODO

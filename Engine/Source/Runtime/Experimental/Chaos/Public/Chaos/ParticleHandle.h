@@ -666,11 +666,6 @@ public:
 		GeometryParticles->SetHandle(ParticleIdx, this);
 	}
 
-	const FPerShapeData* GetImplicitShape(const FImplicitObject* InObject) const
-	{
-		return GeometryParticles->GetImplicitShape(ParticleIdx, InObject);
-	}
-
 	FWeakParticleHandle& WeakParticleHandle()
 	{
 		return GeometryParticles->WeakParticleHandle(ParticleIdx);
@@ -1891,11 +1886,6 @@ public:
 		{
 			UpdateShapeBounds();
 		}
-
-		if(Ar.IsLoading())
-		{
-			MapImplicitShapes();
-		}
 	}
 
 	virtual bool IsParticleValid() const
@@ -2038,7 +2028,6 @@ public:
 	{
 		ensure(InShapesArray.Num() == MShapesArray.Num());
 		MShapesArray = MoveTemp(InShapesArray);
-		MapImplicitShapes();
 	}
 
 	void MergeShapesArray(FShapesArray&& OtherShapesArray)
@@ -2049,7 +2038,6 @@ public:
 			ensure(Idx < MShapesArray.Num());
 			MShapesArray[Idx++] = MoveTemp(Shape);
 		}
-		MapImplicitShapes();
 	}
 
 	void SetIgnoreAnalyticCollisionsImp(FImplicitObject* Implicit, bool bIgnoreAnalyticCollisions);
@@ -2140,16 +2128,6 @@ public:
 		return nullptr;
 	}
 
-	const FPerShapeData* GetImplicitShape(const FImplicitObject* InImplicit) const
-	{
-		const int32* ShapeIndex = ImplicitShapeMap.Find(InImplicit);
-		if(ShapeIndex)
-		{
-			return MShapesArray[*ShapeIndex].Get();
-		}
-
-		return nullptr;
-	}
 
 	void SyncRemoteData(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData, const TArray<int32>& ShapeDataIndices, FShapeDirtyData* ShapesRemoteData) const
 	{
@@ -2240,8 +2218,6 @@ private:
 	void* MUserData;
 
 	FShapesArray MShapesArray;
-	TMap<const FImplicitObject*, int32> ImplicitShapeMap;
-
 
 public:
 	// Ryan: FGeometryCollectionPhysicsProxy needs access to GeometrySharedLowLevel(), 
@@ -2267,7 +2243,6 @@ protected:
 	void UpdateShapesArray()
 	{
 		UpdateShapesArrayFromGeometry(MShapesArray, MakeSerializable(MNonFrequentData.Read().Geometry()), FRigidTransform3(X(), R()), Proxy);
-		MapImplicitShapes();
 	}
 
 	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData) const
@@ -2275,8 +2250,6 @@ protected:
 		MXR.SyncRemote(Manager, DataIdx, RemoteData);
 		MNonFrequentData.SyncRemote(Manager, DataIdx, RemoteData);
 	}
-
-	CHAOS_API void MapImplicitShapes();
 };
 
 template <typename T, int d>

@@ -131,9 +131,9 @@ namespace Chaos
 
 						const FImplicitObject* Implicit0 = Constraint.GetImplicit0();
 						const FImplicitObject* Implicit1 = Constraint.GetImplicit1();
-
-						const FPerShapeData* Shape0 = Particle0->GetImplicitShape(Implicit0);
-						const FPerShapeData* Shape1 = Particle1->GetImplicitShape(Implicit1);
+	
+						const FPerShapeData* Shape0 = Constraint.GetShape0();
+						const FPerShapeData* Shape1 = Constraint.GetShape1();
 
 						// If we don't have a filter - allow the notify, otherwise obey the filter flag
 						const bool bFilter0Notify = Shape0 ? Shape0->GetSimData().HasFlag(EFilterFlags::ContactNotify) : true;
@@ -184,8 +184,8 @@ namespace Chaos
 						Data.Proxy1 = Particle0 ? const_cast<IPhysicsProxyBase*>(Particle0->PhysicsProxy()) : nullptr;
 						Data.Proxy2 = Particle1 ? const_cast<IPhysicsProxyBase*>(Particle1->PhysicsProxy()) : nullptr;
 
-						const FPerShapeData* Shape0 = Particle0 ? Particle0->GetImplicitShape(Constraint.GetImplicit0()) : nullptr;
-						const FPerShapeData* Shape1 = Particle1 ? Particle1->GetImplicitShape(Constraint.GetImplicit1()) : nullptr;
+						const FPerShapeData* Shape0 = Constraint.GetShape0();
+						const FPerShapeData* Shape1 = Constraint.GetShape1();
 
 						Data.Mat1 = ResolveMaterial(Shape0, Constraint);
 						Data.Mat2 = ResolveMaterial(Shape1, Constraint);

@@ -27,6 +27,9 @@ namespace Chaos
 	class FConstraintHandle;
 	class FParticleCollisions;
 
+	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
+	using FConstraintHandleArray = TArray<FConstraintHandle*>;
+
 	/** Data that is associated with geometry. If a union is used an entry is created per internal geometry */
 	class CHAOS_API FPerShapeData
 	{
@@ -298,15 +301,65 @@ namespace Chaos
 		const FImplicitObject* LeafGeometry;
 	};
 
+	/**
+	* Union between shape and shapes array pointers, used for passing around shapes with
+	* implicit that could be single implicit or union.
+	*/
+	class FShapeOrShapesArray
+	{
+	public:
+
+		// Store particle's shape array if particle has union geometry, otherwise individual shape.
+		FShapeOrShapesArray(const FGeometryParticleHandle* Particle);
+
+		FShapeOrShapesArray()
+			: Shape(nullptr)
+			, bIsSingleShape(true)
+		{}
+
+		FShapeOrShapesArray(const FPerShapeData* InShape)
+			: Shape(InShape)
+			, bIsSingleShape(true)
+		{}
+
+		FShapeOrShapesArray(const FShapesArray* InShapeArray)
+			: ShapeArray(InShapeArray)
+			, bIsSingleShape(false)
+		{}
+
+		bool IsSingleShape() const { return bIsSingleShape; }
+
+		bool IsValid() const { return Shape != nullptr; }
+
+		// Do not call without checking IsSingleShape().
+		const FPerShapeData* GetShape() const
+		{
+			check(bIsSingleShape);
+			return Shape;
+		}
+
+		// Do not call without checking IsSingleShape().
+		const FShapesArray* GetShapesArray() const
+		{
+			check(!bIsSingleShape);
+			return ShapeArray;
+		}
+
+	private:
+		union
+		{
+			const FPerShapeData* Shape;
+			const FShapesArray* ShapeArray;
+		};
+
+		bool bIsSingleShape;
+	};
+
 	inline FChaosArchive& operator<<(FChaosArchive& Ar, FPerShapeData& Shape)
 	{
 		Shape.Serialize(Ar);
 		return Ar;
 	}
-
-	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
-
-	using FConstraintHandleArray = TArray<FConstraintHandle*>;
 
 	void CHAOS_API UpdateShapesArrayFromGeometry(FShapesArray& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM, IPhysicsProxyBase* Proxy);
 
@@ -383,7 +436,6 @@ namespace Chaos
 			TArrayCollection::AddArray(&MParticleIDs);
 			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
-			TArrayCollection::AddArray(&ImplicitShapeMap);
 			TArrayCollection::AddArray(&MLocalBounds);
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
@@ -423,7 +475,6 @@ namespace Chaos
 			, MPhysicsProxy(MoveTemp(Other.MPhysicsProxy))
 			, MHasCollision(MoveTemp(Other.MHasCollision))
 			, MShapesArray(MoveTemp(Other.MShapesArray))
-			, ImplicitShapeMap(MoveTemp(Other.ImplicitShapeMap))
 			, MLocalBounds(MoveTemp(Other.MLocalBounds))
 			, MWorldSpaceInflatedBounds(MoveTemp(Other.MWorldSpaceInflatedBounds))
 			, MHasBounds(MoveTemp(Other.MHasBounds))
@@ -450,7 +501,6 @@ namespace Chaos
 			TArrayCollection::AddArray(&MDynamicGeometry);
 			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
-			TArrayCollection::AddArray(&ImplicitShapeMap);
 			TArrayCollection::AddArray(&MLocalBounds);
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
@@ -493,7 +543,6 @@ namespace Chaos
 			TArrayCollection::AddArray(&MDynamicGeometry);
 			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
-			TArrayCollection::AddArray(&ImplicitShapeMap);
 			TArrayCollection::AddArray(&MLocalBounds);
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
@@ -579,7 +628,6 @@ namespace Chaos
 			MGeometry[Index] = InGeometry;
 
 			UpdateShapesArray(Index);
-			MapImplicitShapes(Index);
 
 			MHasBounds[Index] = (InGeometry && InGeometry->HasBoundingBox());
 			if (MHasBounds[Index])
@@ -757,11 +805,6 @@ public:
 			if (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::PerShapeData)
 			{
 				Ar << MShapesArray;
-
-				if(Ar.IsLoading())
-				{
-					MapImplicitShapes();
-				}
 			}
 
 			if (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::SerializeGTGeometryParticles)
@@ -816,22 +859,6 @@ public:
 
 		FORCEINLINE EParticleType ParticleType() const { return MParticleType; }
 
-		CHAOS_API const FPerShapeData* GetImplicitShape(int32 Index, const FImplicitObject* InObject)
-		{
-			checkSlow(Index >= 0 && Index < ImplicitShapeMap.Num());
-			TMap<const FImplicitObject*, int32>& Mapping = ImplicitShapeMap[Index];
-			FShapesArray& ShapeArray = MShapesArray[Index];
-			int32* ShapeIndex = Mapping.Find(InObject);
-
-			if(ShapeIndex && ShapeArray.IsValidIndex(*ShapeIndex))
-			{
-				return ShapeArray[*ShapeIndex].Get();
-			}
-
-			return nullptr;
-		}
-
-
 		FORCEINLINE TArray<TRotation<T, d>>& AllR() { return MR; }
 		FORCEINLINE TArray<TAABB<T, d>>& AllLocalBounds() { return MLocalBounds; }
 		FORCEINLINE TArray<TAABB<T, d>>& AllWorldSpaceInflatedBounds() { return MWorldSpaceInflatedBounds; }
@@ -857,7 +884,6 @@ public:
 		TArrayCollectionArray<IPhysicsProxyBase*> MPhysicsProxy;
 		TArrayCollectionArray<bool> MHasCollision;
 		TArrayCollectionArray<FShapesArray> MShapesArray;
-		TArrayCollectionArray<TMap<const FImplicitObject*, int32>> ImplicitShapeMap;
 		TArrayCollectionArray<TAABB<T,d>> MLocalBounds;
 		TArrayCollectionArray<TAABB<T, d>> MWorldSpaceInflatedBounds;
 		TArrayCollectionArray<bool> MHasBounds;
@@ -874,12 +900,7 @@ public:
 		void UpdateShapesArray(const int32 Index)
 		{
 			UpdateShapesArrayFromGeometry(MShapesArray[Index], MGeometry[Index], FRigidTransform3(X(Index), R(Index)), nullptr);
-			MapImplicitShapes(Index);
 		}
-
-		CHAOS_API void MapImplicitShapes();
-
-		CHAOS_API void MapImplicitShapes(int32 Index);
 
 		template <typename T2, int d2, EGeometryParticlesSimType SimType2>
 		friend class TGeometryParticlesImp;

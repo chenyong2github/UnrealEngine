@@ -62,23 +62,25 @@ namespace Chaos
 		const FBVHParticles* BVHParticles1 = FConstGenericParticleHandle(Particle1)->CollisionParticles().Get();
 		const FRigidTransform3& ShapeRelativeTransform1 = (FRigidTransform3)InShape1->GetLeafRelativeTransform();
 
-		return FPBDCollisionConstraint::Make(Particle0, Implicit0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
+		return FPBDCollisionConstraint::Make(Particle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
 	}
 
 	TUniquePtr<FPBDCollisionConstraint> CreateImplicitPairConstraint(
 		FGeometryParticleHandle* Particle0,
 		const FImplicitObject* Implicit0,
+		const FPerShapeData* Shape0,
 		const FBVHParticles* BVHParticles0,
 		const FRigidTransform3& ShapeRelativeTransform0,
 		FGeometryParticleHandle* Particle1,
 		const FImplicitObject* Implicit1,
+		const FPerShapeData* Shape1,
 		const FBVHParticles* BVHParticles1,
 		const FRigidTransform3& ShapeRelativeTransform1,
 		const FReal CullDistance,
 		const EContactShapesType ShapePairType,
 		const bool bUseManifold)
 	{
-		return FPBDCollisionConstraint::Make(Particle0, Implicit0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
+		return FPBDCollisionConstraint::Make(Particle0, Implicit0, Shape0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, Shape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
 	}
 
 
@@ -479,8 +481,10 @@ namespace Chaos
 			Particle0,
 			Particle1,
 			Implicit0,
+			Shape0,
 			BVHParticles0,
 			Implicit1,
+			Shape1,
 			BVHParticles1,
 			ParticleWorldTransform0,
 			ShapeRelativeTransform0,
@@ -503,10 +507,12 @@ namespace Chaos
 	FPBDCollisionConstraint* FMultiShapePairCollisionDetector::FindOrCreateConstraint(
 		FGeometryParticleHandle* InParticle0,
 		const FImplicitObject* Implicit0,
+		const FPerShapeData* InShape0,
 		const FBVHParticles* BVHParticles0,
 		const FRigidTransform3& ShapeRelativeTransform0,
 		FGeometryParticleHandle* InParticle1,
 		const FImplicitObject* Implicit1,
+		const FPerShapeData* InShape1,
 		const FBVHParticles* BVHParticles1,
 		const FRigidTransform3& ShapeRelativeTransform1,
 		const FReal CullDistance,
@@ -542,7 +548,7 @@ namespace Chaos
 		if (Constraint == nullptr)
 		{
 			// NOTE: Using InParticle0 and InParticle1 here because the order may be different to what we have stored
-			Constraint = CreateConstraint(InParticle0, Implicit0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold, Key);
+			Constraint = CreateConstraint(InParticle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold, Key);
 		}
 
 		// @todo(chaos): we already have the shape world transforms at the calling site - pass them in
@@ -560,17 +566,19 @@ namespace Chaos
 	FPBDCollisionConstraint* FMultiShapePairCollisionDetector::FindOrCreateSweptConstraint(
 		FGeometryParticleHandle* InParticle0,
 		const FImplicitObject* Implicit0,
+		const FPerShapeData* InShape0,
 		const FBVHParticles* BVHParticles0,
 		const FRigidTransform3& ShapeRelativeTransform0,
 		FGeometryParticleHandle* InParticle1,
 		const FImplicitObject* Implicit1,
+		const FPerShapeData* InShape1,
 		const FBVHParticles* BVHParticles1,
 		const FRigidTransform3& ShapeRelativeTransform1,
 		const FReal CullDistance,
 		const EContactShapesType ShapePairType)
 	{
 		const bool bUseManifold = true;
-		FPBDCollisionConstraint* Constraint = FindOrCreateConstraint(InParticle0, Implicit0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold);
+		FPBDCollisionConstraint* Constraint = FindOrCreateConstraint(InParticle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold);
 		if (Constraint != nullptr)
 		{
 			Constraint->SetCCDEnabled(true);
@@ -591,10 +599,12 @@ namespace Chaos
 	FPBDCollisionConstraint* FMultiShapePairCollisionDetector::CreateConstraint(
 		FGeometryParticleHandle* InParticle0,
 		const FImplicitObject* Implicit0,
+		const FPerShapeData* InShape0,
 		const FBVHParticles* BVHParticles0,
 		const FRigidTransform3& ShapeRelativeTransform0,
 		FGeometryParticleHandle* InParticle1,
 		const FImplicitObject* Implicit1,
+		const FPerShapeData* InShape1,
 		const FBVHParticles* BVHParticles1,
 		const FRigidTransform3& ShapeRelativeTransform1,
 		const FReal CullDistance,
@@ -603,7 +613,7 @@ namespace Chaos
 		const FCollisionParticlePairConstraintKey& Key)
 	{
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_CreateConstraint);
-		TUniquePtr<FPBDCollisionConstraint> Constraint = CreateImplicitPairConstraint(InParticle0, Implicit0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold);
+		TUniquePtr<FPBDCollisionConstraint> Constraint = CreateImplicitPairConstraint(InParticle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold);
 
 		Constraint->GetContainerCookie().MidPhase = &MidPhase;
 		Constraint->GetContainerCookie().bIsMultiShapePair = true;
@@ -885,9 +895,8 @@ namespace Chaos
 	{
 		if (!Constraint.GetContainerCookie().bIsMultiShapePair)
 		{
-			// @todo(chaos): remove GetImplicitShape - we should store the shape in the constraint
-			const FPerShapeData* Shape0 = Constraint.GetParticle0()->GetImplicitShape(Constraint.GetImplicit0());
-			const FPerShapeData* Shape1 = Constraint.GetParticle1()->GetImplicitShape(Constraint.GetImplicit1());
+			const FPerShapeData* Shape0 = Constraint.GetShape0();
+			const FPerShapeData* Shape1 = Constraint.GetShape1();
 
 			// @todo(chaos): fix O(N) search for shape pair - store the index in the cookie (it will be the same
 			// as long as the ShapesArray on each particle has not changed)

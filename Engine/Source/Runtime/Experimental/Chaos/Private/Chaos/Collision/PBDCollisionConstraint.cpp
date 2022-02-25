@@ -103,10 +103,12 @@ namespace Chaos
 	void FPBDCollisionConstraint::MakeInline(
 		FGeometryParticleHandle* Particle0,
 		const FImplicitObject* Implicit0,
+		const FPerShapeData* Shape0,
 		const FBVHParticles* Simplicial0,
 		const FRigidTransform3& ImplicitLocalTransform0,
 		FGeometryParticleHandle* Particle1,
 		const FImplicitObject* Implicit1,
+		const FPerShapeData* Shape1,
 		const FBVHParticles* Simplicial1,
 		const FRigidTransform3& ImplicitLocalTransform1,
 		const FReal InCullDistance,
@@ -118,6 +120,8 @@ namespace Chaos
 		OutConstraint.Particle[1] = Particle1;
 		OutConstraint.Implicit[0] = Implicit0;
 		OutConstraint.Implicit[1] = Implicit1;
+		OutConstraint.Shape[0] = Shape0;
+		OutConstraint.Shape[1] = Shape1;
 		OutConstraint.Simplicial[0] = Simplicial0;
 		OutConstraint.Simplicial[1] = Simplicial1;
 
@@ -127,17 +131,19 @@ namespace Chaos
 	TUniquePtr<FPBDCollisionConstraint> FPBDCollisionConstraint::Make(
 		FGeometryParticleHandle* Particle0,
 		const FImplicitObject* Implicit0,
+		const FPerShapeData* Shape0,
 		const FBVHParticles* Simplicial0,
 		const FRigidTransform3& ImplicitLocalTransform0,
 		FGeometryParticleHandle* Particle1,
 		const FImplicitObject* Implicit1,
+		const FPerShapeData* Shape1,
 		const FBVHParticles* Simplicial1,
 		const FRigidTransform3& ImplicitLocalTransform1,
 		const FReal InCullDistance,
 		const bool bInUseManifold,
 		const EContactShapesType ShapesType)
 	{
-		FPBDCollisionConstraint* Constraint = new FPBDCollisionConstraint(Particle0, Implicit0, Simplicial0, Particle1, Implicit1, Simplicial1);
+		FPBDCollisionConstraint* Constraint = new FPBDCollisionConstraint(Particle0, Implicit0, Shape0, Simplicial0, Particle1, Implicit1, Shape1, Simplicial1);
 		
 		Constraint->Setup(ECollisionCCDType::Disabled, ShapesType, ImplicitLocalTransform0, ImplicitLocalTransform1, InCullDistance, bInUseManifold);
 
@@ -168,6 +174,7 @@ namespace Chaos
 		: ImplicitTransform{ FRigidTransform3(), FRigidTransform3() }
 		, Particle{ nullptr, nullptr }
 		, Implicit{ nullptr, nullptr }
+		, Shape{ nullptr, nullptr }
 		, Simplicial{ nullptr, nullptr }
 		, Manifold()
 		, Stiffness(1)
@@ -196,13 +203,16 @@ namespace Chaos
 	FPBDCollisionConstraint::FPBDCollisionConstraint(
 		FGeometryParticleHandle* Particle0,
 		const FImplicitObject* Implicit0,
+		const FPerShapeData* Shape0,
 		const FBVHParticles* Simplicial0,
 		FGeometryParticleHandle* Particle1,
 		const FImplicitObject* Implicit1,
+		const FPerShapeData* Shape1,
 		const FBVHParticles* Simplicial1)
 		: ImplicitTransform{ FRigidTransform3(), FRigidTransform3() }
 		, Particle{ Particle0, Particle1 }
 		, Implicit{ Implicit0, Implicit1 }
+		, Shape{ Shape0, Shape1 }
 		, Simplicial{ Simplicial0, Simplicial1 }
 		, Manifold()
 		, Stiffness(1)

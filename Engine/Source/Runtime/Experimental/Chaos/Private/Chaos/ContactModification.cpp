@@ -426,6 +426,11 @@ namespace Chaos
 		return { Constraint->GetParticle0(), Constraint->GetParticle1() };
 	}
 
+	TVec2<const FPerShapeData*> FContactPairModifier::GetShapePair() const
+	{
+		return { Constraint->GetShape0(), Constraint->GetShape1() };
+	}
+
 	void FContactPairModifierIterator::SeekValidContact()
 	{
 		// Not valid to call from end.

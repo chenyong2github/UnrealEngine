@@ -28,6 +28,7 @@ namespace Chaos
 	class FSolverBody;
 	class FSolverBodyContainer;
 	class FPBDCollisionSolverContainer;
+	class FPerShapeData;
 
 	UE_DEPRECATED(4.27, "Use FPBDCollisionConstraint instead")
 	typedef FPBDCollisionConstraint FRigidBodyPointContactConstraint;
@@ -220,10 +221,12 @@ namespace Chaos
 		static void MakeInline(
 			FGeometryParticleHandle* Particle0,
 			const FImplicitObject* Implicit0,
+			const FPerShapeData* Shape0,
 			const FBVHParticles* Simplicial0,
 			const FRigidTransform3& ImplicitLocalTransform0,
 			FGeometryParticleHandle* Particle1,
 			const FImplicitObject* Implicit1,
+			const FPerShapeData* Shape1,
 			const FBVHParticles* Simplicial1,
 			const FRigidTransform3& ImplicitLocalTransform1,
 			const FReal InCullDistance,
@@ -239,10 +242,12 @@ namespace Chaos
 		static TUniquePtr<FPBDCollisionConstraint> Make(
 			FGeometryParticleHandle* Particle0,
 			const FImplicitObject* Implicit0,
+			const FPerShapeData* Shape0,
 			const FBVHParticles* Simplicial0,
 			const FRigidTransform3& ImplicitLocalTransform0,
 			FGeometryParticleHandle* Particle1,
 			const FImplicitObject* Implicit1,
+			const FPerShapeData* Shape1,
 			const FBVHParticles* Simplicial1,
 			const FRigidTransform3& ImplicitLocalTransform1,
 			const FReal InCullDistance,
@@ -301,6 +306,10 @@ namespace Chaos
 		const FImplicitObject* GetImplicit0() const { return Implicit[0]; }
 		const FImplicitObject* GetImplicit1() const { return Implicit[1]; }
 		const FImplicitObject* GetImplicit(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Implicit[ParticleIndex]; }
+
+		const FPerShapeData* GetShape0() const { return Shape[0]; }
+		const FPerShapeData* GetShape1() const { return Shape[1]; }
+		const FPerShapeData* GetShape(const int32 ParticleIndex) const { check((ParticleIndex >= 0) && (ParticleIndex < 2)); return Shape[ParticleIndex]; }
 
 		const FBVHParticles* GetCollisionParticles0() const { return Simplicial[0]; }
 		const FBVHParticles* GetCollisionParticles1() const { return Simplicial[1]; }
@@ -550,9 +559,11 @@ namespace Chaos
 		FPBDCollisionConstraint(
 			FGeometryParticleHandle* Particle0,
 			const FImplicitObject* Implicit0,
+			const FPerShapeData* Shape0,
 			const FBVHParticles* Simplicial0,
 			FGeometryParticleHandle* Particle1,
 			const FImplicitObject* Implicit1,
+			const FPerShapeData* Shape1,
 			const FBVHParticles* Simplicial1);
 
 		// Set all the data not initialized in the constructor
@@ -604,6 +615,7 @@ namespace Chaos
 		
 		FGeometryParticleHandle* Particle[2];
 		const FImplicitObject* Implicit[2];
+		const FPerShapeData* Shape[2];
 		const FBVHParticles* Simplicial[2];
 		FCollisionContact Manifold;// @todo(chaos): rename to FCollisionMaterial or something
 		FReal Stiffness;

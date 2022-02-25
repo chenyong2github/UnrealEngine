@@ -11,6 +11,7 @@ namespace Chaos
 	class FPBDCollisionConstraints;
 	class FCollisionContactModifier;
 	class FContactPairModifier;
+	class FPerShapeData;
 
 	class CHAOS_API FContactPairModifier
 	{
@@ -201,6 +202,11 @@ namespace Chaos
 		* Retrieve physics handles for particles in contact pair.
 		*/
 		TVec2<FGeometryParticleHandle*> GetParticlePair() const;
+
+		/*
+		* Get shape pair from constraint.
+		*/
+		TVec2<const FPerShapeData*> GetShapePair() const;
 
 	private:
 		/**

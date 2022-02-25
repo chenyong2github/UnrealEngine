@@ -26,64 +26,6 @@ namespace Chaos
 		}
 	}
 
-	template <typename T, int d>
-	void Chaos::TGeometryParticle<T, d>::MapImplicitShapes()
-	{
-		ImplicitShapeMap.Reset();
-
-		for (int32 ShapeIndex = 0; ShapeIndex < MShapesArray.Num(); ++ ShapeIndex)
-		{
-			const FImplicitObject* ImplicitObject = MShapesArray[ShapeIndex]->GetGeometry().Get();
-			ImplicitShapeMap.Add(ImplicitObject, ShapeIndex);
-
-			const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(ImplicitObject);
-			if (ImplicitChildObject != ImplicitObject)
-			{
-				ImplicitShapeMap.Add(ImplicitChildObject, ShapeIndex);
-			}
-		}
-
-		auto Geometry = MNonFrequentData.Read().Geometry();
-		if (Geometry)
-		{
-			int32 CurrentShapeIndex = INDEX_NONE;
-			if (const auto* Union = Geometry->template GetObject<FImplicitObjectUnion>())
-			{
-				for (const TUniquePtr<FImplicitObject>& ImplicitObject : Union->GetObjects())
-				{
-					if (ImplicitObject.Get())
-					{
-						if (const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(ImplicitObject.Get()))
-						{
-							if (ImplicitShapeMap.Contains(ImplicitObject.Get()))
-							{
-								ImplicitShapeMap.Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[ImplicitObject.Get()]));
-							}
-							else if (ImplicitShapeMap.Contains(ImplicitChildObject))
-							{
-								ImplicitShapeMap.Add(ImplicitObject.Get(), CopyTemp(ImplicitShapeMap[ImplicitChildObject]));
-							}
-						}
-					}
-				}
-			}
-			else 
-			{
-				if (const FImplicitObject* ImplicitChildObject = Utilities::ImplicitChildHelper(Geometry.Get()))
-				{
-					if (ImplicitShapeMap.Contains(Geometry.Get()))
-					{
-						ImplicitShapeMap.Add(ImplicitChildObject, CopyTemp(ImplicitShapeMap[Geometry.Get()]));
-					}
-					else if (ImplicitShapeMap.Contains(ImplicitChildObject))
-					{
-						ImplicitShapeMap.Add(Geometry.Get(), CopyTemp(ImplicitShapeMap[ImplicitChildObject]));
-					}
-				}
-			}
-		}
-	}
-
 	inline FImplicitObject* GetInstancedImplicitHelper(FImplicitObject* Implicit0)
 	{
 		EImplicitObjectType Implicit0OuterType = Implicit0->GetType();
@@ -187,11 +129,17 @@ namespace Chaos
 		}
 		else
 		{
-			if (const auto* PerShapeData = GetImplicitShape(Implicit))
+
+			// Find our shape and see if sim is enabled.
+			for (const TUniquePtr<FPerShapeData>& Shape : ShapesArray())
 			{
-				if (!PerShapeData->GetSimEnabled())
+				if (Shape->GetGeometry().Get() == Implicit)
 				{
-					return;
+					if (!Shape->GetSimEnabled())
+					{
+						return;
+					}
+					break;
 				}
 			}
 			if (bIgnoreAnalyticCollisions)
