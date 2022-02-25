@@ -801,6 +801,7 @@ bool UNiagaraDataInterfacePhysicsField::UpgradeFunctionCall(FNiagaraFunctionSign
 			bChanged = true;
 		}
 	}
+	FunctionSignature.FunctionVersion = FNiagaraPhysicsFieldDIFunctionVersion::LatestVersion;
 
 	return bChanged;
 }

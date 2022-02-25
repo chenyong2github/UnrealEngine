@@ -179,6 +179,7 @@ bool UNiagaraDataInterfaceWater::UpgradeFunctionCall(FNiagaraFunctionSignature& 
 			bChanged = true;
 		}
 	}
+	FunctionSignature.FunctionVersion = FNiagaraWaterDIFunctionVersion::LatestVersion;
 
 	return bChanged;
 }
