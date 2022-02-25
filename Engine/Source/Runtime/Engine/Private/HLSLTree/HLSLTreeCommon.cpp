@@ -308,7 +308,7 @@ void FExpressionMaterialParameter::EmitValueShader(FEmitContext& Context, FEmitS
 			TextureTypeName = TEXT("ExternalTexture");
 
 			FMaterialExternalTextureParameterInfo TextureParameterInfo;
-			TextureParameterInfo.ParameterName = NameToScriptName(ParameterName);
+			TextureParameterInfo.ParameterName = NameToScriptName(ParameterInfo.Name);
 			TextureParameterInfo.ExternalTextureGuid = TextureValue->ExternalTextureGuid;
 			if (TextureValue->Texture)
 			{
@@ -352,7 +352,7 @@ void FExpressionMaterialParameter::EmitValueShader(FEmitContext& Context, FEmitS
 			}
 
 			FMaterialTextureParameterInfo TextureParameterInfo;
-			TextureParameterInfo.ParameterInfo = ParameterName;
+			TextureParameterInfo.ParameterInfo = ParameterInfo;
 			TextureParameterInfo.TextureIndex = Context.Material->GetReferencedTextures().Find(TextureValue->Texture);
 			TextureParameterInfo.SamplerSource = SSM_FromTextureAsset; // TODO - Is this needed?
 			check(TextureParameterInfo.TextureIndex != INDEX_NONE);
@@ -371,7 +371,6 @@ void FExpressionMaterialParameter::EmitValuePreshader(FEmitContext& Context, FEm
 	OutResult.Type = GetShaderValueType(ParameterType);
 	if (ParameterType == EMaterialParameterType::StaticSwitch)
 	{
-		const FMaterialParameterInfo ParameterInfo(ParameterName);
 		Shader::FValue Value = DefaultValue;
 		for (const FStaticSwitchParameter& Parameter : Context.StaticParameters->StaticSwitchParameters)
 		{
@@ -396,7 +395,7 @@ void FExpressionMaterialParameter::EmitValuePreshader(FEmitContext& Context, FEm
 			DefaultOffset = Context.MaterialCompilationOutput->UniformExpressionSet.AddDefaultParameterValue(DefaultValue);
 			Context.DefaultUniformValues.Add(DefaultValue, DefaultOffset);
 		}
-		const int32 ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddNumericParameter(ParameterType, ParameterName, DefaultOffset);
+		const int32 ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddNumericParameter(ParameterType, ParameterInfo, DefaultOffset);
 		check(ParameterIndex >= 0 && ParameterIndex <= 0xffff);
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Parameter).Write((uint16)ParameterIndex);
 	}

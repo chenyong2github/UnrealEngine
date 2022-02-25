@@ -2,6 +2,7 @@
 #pragma once
 
 #include "HLSLTree/HLSLTree.h"
+#include "Materials/MaterialLayersFunctions.h" // TODO - split material expressions into separate file/module
 
 enum class EMaterialParameterType : uint8;
 
@@ -39,15 +40,22 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
+inline void AppendHash(FHasher& Hasher, const FMaterialParameterInfo& Value)
+{
+	AppendHash(Hasher, Value.Name);
+	AppendHash(Hasher, Value.Index);
+	AppendHash(Hasher, Value.Association);
+}
+
 class FExpressionMaterialParameter : public FExpression
 {
 public:
-	explicit FExpressionMaterialParameter(EMaterialParameterType InType, const FName& InName, const Shader::FValue& InDefaultValue)
-		: ParameterName(InName), DefaultValue(InDefaultValue), ParameterType(InType)
+	explicit FExpressionMaterialParameter(EMaterialParameterType InType, const FMaterialParameterInfo& InParameterInfo, const Shader::FValue& InDefaultValue)
+		: ParameterInfo(InParameterInfo), DefaultValue(InDefaultValue), ParameterType(InType)
 	{
 	}
 
-	FName ParameterName;
+	FMaterialParameterInfo ParameterInfo;
 	Shader::FValue DefaultValue;
 	EMaterialParameterType ParameterType;
 

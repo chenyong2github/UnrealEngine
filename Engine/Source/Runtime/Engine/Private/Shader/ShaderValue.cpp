@@ -418,6 +418,23 @@ bool FValue::AsBoolScalar() const
 	return false;
 }
 
+bool FValue::IsZero() const
+{
+	bool bIsZero = Type.IsNumeric();
+	if (bIsZero)
+	{
+		for (const FValueComponent& Comp : Component)
+		{
+			if (Comp.Packed)
+			{
+				bIsZero = false;
+				break;
+			}
+		}
+	}
+	return bIsZero;
+}
+
 const FTextureValue* FValue::AsTexture() const
 {
 	if (Type.IsTexture() && Component.Num() > 0)

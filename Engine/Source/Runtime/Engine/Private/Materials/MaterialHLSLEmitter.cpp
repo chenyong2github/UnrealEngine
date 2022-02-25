@@ -799,7 +799,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	FStructTypeRegistry TypeRegistry(Allocator);
 	FTree* HLSLTree = FTree::Create(Allocator);
 
-	FMaterialHLSLGenerator Generator(InCompilerTarget, InOutMaterial, TypeRegistry, *HLSLTree);
+	FMaterialHLSLGenerator Generator(InCompilerTarget, InStaticParameters, InOutMaterial, TypeRegistry, *HLSLTree);
 	if (!Generator.Generate())
 	{
 		return false;
@@ -912,6 +912,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		RequestedVertexAttributesType.SetFieldRequested(Generator.GetMaterialAttributesType()->FindFieldByName(TEXT("PrevWorldPositionOffset")));
 
 		EmitContext.ShaderFrequency = SF_Vertex;
+		EmitContext.bUseAnalyticDerivatives = false;
 		FEmitScope* EmitResultScope = EmitContext.PrepareScope(&Generator.GetResultStatement()->GetParentScope());
 
 		const FPreparedType VertexResultType = EmitContext.PrepareExpression(Generator.GetResultExpression(), *EmitResultScope, RequestedVertexAttributesType);

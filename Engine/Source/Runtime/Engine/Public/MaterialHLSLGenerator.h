@@ -10,12 +10,14 @@
 #include "Misc/EnumClassFlags.h"
 #include "Templates/RefCounting.h"
 #include "RHIDefinitions.h"
+#include "Materials/MaterialLayersFunctions.h"
 #include "HLSLTree/HLSLTree.h"
 
 class FMaterial;
 class FMaterialCompilationOutput;
 struct FSharedShaderCompilerEnvironment;
 struct FMaterialCompileTargetParameters;
+struct FMaterialParameterMetadata;
 class UMaterial;
 class UMaterialFunctionInterface;
 class UMaterialExpression;
@@ -24,6 +26,7 @@ class UMaterialExpressionFunctionOutput;
 class UMaterialExpressionCustomOutput;
 struct FFunctionExpressionInput;
 class ITargetPlatform;
+enum class EMaterialParameterType : uint8;
 
 namespace UE
 {
@@ -68,11 +71,13 @@ class FMaterialHLSLGenerator
 {
 public:
 	FMaterialHLSLGenerator(const FMaterialCompileTargetParameters& InCompilerTarget,
+		const FStaticParameterSet& InStaticParameters,
 		FMaterial& InOutMaterial,
 		UE::Shader::FStructTypeRegistry& InOutTypeRegistry,
 		UE::HLSLTree::FTree& InOutTree);
 
 	const FMaterialCompileTargetParameters& GetCompileTarget() const { return CompileTarget; }
+	const FStaticParameterSet& GetStaticParameters() const { return StaticParameters; }
 	
 	bool Generate();
 
@@ -110,7 +115,14 @@ public:
 
 	bool GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression);
 
-	UE::HLSLTree::FExpression* GenerateFunctionCall(UE::HLSLTree::FScope& Scope, UMaterialFunctionInterface* Function, TArrayView<const FFunctionExpressionInput> ConnectedInputs, int32 OutputIndex);
+	UE::HLSLTree::FExpression* GenerateMaterialParameter(EMaterialParameterType InType, FName InParameterName, const UE::Shader::FValue& InDefaultValue);
+
+	UE::HLSLTree::FExpression* GenerateFunctionCall(UE::HLSLTree::FScope& Scope,
+		UMaterialFunctionInterface* Function,
+		EMaterialParameterAssociation ParameterAssociation,
+		int32 ParameterIndex,
+		TArrayView<UE::HLSLTree::FExpression*> ConnectedInputs,
+		int32 OutputIndex);
 
 	template<typename T, typename... ArgTypes>
 	T* NewExpressionData(const UMaterialExpression* MaterialExpression, ArgTypes... Args)
@@ -140,6 +152,9 @@ public:
 
 	const UE::Shader::FStructType* GetMaterialAttributesType() const { return MaterialAttributesType; }
 	const UE::Shader::FValue& GetMaterialAttributesDefaultValue() const { return MaterialAttributesDefaultValue; }
+
+	bool GetParameterOverrideValueForCurrentFunction(EMaterialParameterType ParameterType, FName ParameterName, FMaterialParameterMetadata& OutResult) const;
+	FMaterialParameterInfo GetParameterInfo(const FName& ParameterName) const;
 
 private:
 	static constexpr int32 MaxNumPreviousScopes = UE::HLSLTree::MaxNumPreviousScopes;
@@ -173,6 +188,8 @@ private:
 		FFunctionInputArray FunctionInputs;
 		FFunctionOutputArray FunctionOutputs;
 		FConnectedInputArray ConnectedInputs;
+		EMaterialParameterAssociation ParameterAssociation = GlobalParameter;
+		int32 ParameterIndex = INDEX_NONE;
 		bool bGeneratedResult = false;
 	};
 
@@ -186,6 +203,7 @@ private:
 	void* InternalFindExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression);
 
 	const FMaterialCompileTargetParameters& CompileTarget;
+	const FStaticParameterSet& StaticParameters;
 	UMaterial* TargetMaterial = nullptr;
 	FMaterialHLSLErrorHandler Errors;
 

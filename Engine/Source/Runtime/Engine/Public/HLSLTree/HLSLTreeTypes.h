@@ -61,6 +61,11 @@ inline bool IsLoopEvaluation(EExpressionEvaluation Evaluation)
 	return Evaluation == EExpressionEvaluation::PreshaderLoop || Evaluation == EExpressionEvaluation::ConstantLoop;
 }
 
+inline bool IsRequestedEvaluation(EExpressionEvaluation Evaluation)
+{
+	return Evaluation != EExpressionEvaluation::None && Evaluation != EExpressionEvaluation::ConstantZero;
+}
+
 enum class EOperation : uint8
 {
 	None,

@@ -81,10 +81,12 @@ void FMaterialHLSLErrorHandler::AddErrorInternal(UObject* InOwner, FStringView I
 }
 
 FMaterialHLSLGenerator::FMaterialHLSLGenerator(const FMaterialCompileTargetParameters& InCompileTarget,
+	const FStaticParameterSet& InStaticParameters,
 	FMaterial& InOutMaterial,
 	UE::Shader::FStructTypeRegistry& InOutTypeRegistry,
 	UE::HLSLTree::FTree& InOutTree)
 	: CompileTarget(InCompileTarget)
+	, StaticParameters(InStaticParameters)
 	, Errors(InOutMaterial)
 	, HLSLTree(&InOutTree)
 	, TypeRegistry(&InOutTypeRegistry)
@@ -612,7 +614,34 @@ bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMa
 	return bResult;
 }
 
-UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSLTree::FScope& Scope, UMaterialFunctionInterface* MaterialFunction, TArrayView<const FFunctionExpressionInput> ConnectedInputs, int32 OutputIndex)
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateMaterialParameter(EMaterialParameterType InType, FName InParameterName, const UE::Shader::FValue& InDefaultValue)
+{
+	UE::Shader::FValue DefaultValue(InDefaultValue);
+
+	FMaterialParameterMetadata Meta;
+	if (GetParameterOverrideValueForCurrentFunction(InType, InParameterName, Meta))
+	{
+		if (DefaultValue.Type.IsTexture())
+		{
+			UE::Shader::FTextureValue TextureValue(*DefaultValue.AsTexture());
+			TextureValue.Texture = Meta.Value.Texture;
+			DefaultValue = AcquireTextureValue(TextureValue);
+		}
+		else
+		{
+			DefaultValue = Meta.Value.AsShaderValue();
+		}
+	}
+
+	return HLSLTree->NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(InType, GetParameterInfo(InParameterName), DefaultValue);
+}
+
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSLTree::FScope& Scope,
+	UMaterialFunctionInterface* MaterialFunction,
+	EMaterialParameterAssociation InParameterAssociation,
+	int32 InParameterIndex,
+	TArrayView<UE::HLSLTree::FExpression*> ConnectedInputs,
+	int32 OutputIndex)
 {
 	using namespace UE::HLSLTree;
 
@@ -639,28 +668,40 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSL
 		return nullptr;
 	}
 
-	const bool bInlineFunction = !MaterialFunction->IsUsingControlFlow();
-
-	FSHA1 Hasher;
-	Hasher.Update((uint8*)&MaterialFunction, sizeof(UMaterialFunctionInterface*));
-
-	FFunctionInputArray LocalFunctionInputs;
-	FConnectedInputArray LocalConnectedInputs;
-	for (int32 InputIndex = 0; InputIndex < ConnectedInputs.Num(); ++InputIndex)
+	EMaterialParameterAssociation ParameterAssociation = InParameterAssociation;
+	int32 ParameterIndex = InParameterIndex;
+	if (InParameterAssociation == GlobalParameter)
 	{
-		// FunctionInputs are the inputs from the UMaterialFunction object
-		const FFunctionExpressionInput& FunctionInput = FunctionInputs[InputIndex];
-
-		// ConnectedInputs are the inputs from the UMaterialFunctionCall object
-		// We want to connect the UMaterialExpressionFunctionInput from the UMaterialFunction to whatever UMaterialExpression is passed to the UMaterialFunctionCall
-		FExpression* ConnectedInput = ConnectedInputs[InputIndex].Input.TryAcquireHLSLExpression(*this, Scope);
-
-		LocalFunctionInputs.Add(FunctionInput.ExpressionInput);
-		LocalConnectedInputs.Add(ConnectedInput);
-		Hasher.Update((uint8*)&ConnectedInput, sizeof(ConnectedInput));
+		// If this is a global function, inherit the parameter association from the previous function
+		const FFunctionCallEntry* PrevFunctionEntry = FunctionCallStack.Last();
+		ParameterAssociation = PrevFunctionEntry->ParameterAssociation;
+		ParameterIndex = PrevFunctionEntry->ParameterIndex;
 	}
-	const FSHAHash Hash = Hasher.Finalize();
 
+	FSHAHash Hash;
+	FFunctionInputArray LocalFunctionInputs;
+	{
+		FSHA1 Hasher;
+		Hasher.Update((uint8*)&MaterialFunction, sizeof(UMaterialFunctionInterface*));
+		Hasher.Update((uint8*)&ParameterAssociation, sizeof(EMaterialParameterAssociation));
+		Hasher.Update((uint8*)&ParameterIndex, sizeof(int32));
+
+		for (int32 InputIndex = 0; InputIndex < ConnectedInputs.Num(); ++InputIndex)
+		{
+			// FunctionInputs are the inputs from the UMaterialFunction object
+			const FFunctionExpressionInput& FunctionInput = FunctionInputs[InputIndex];
+
+			// ConnectedInputs are the inputs from the UMaterialFunctionCall object
+			// We want to connect the UMaterialExpressionFunctionInput from the UMaterialFunction to whatever UMaterialExpression is passed to the UMaterialFunctionCall
+			FExpression* ConnectedInput = ConnectedInputs[InputIndex];
+
+			LocalFunctionInputs.Add(FunctionInput.ExpressionInput);
+			Hasher.Update((uint8*)&ConnectedInput, sizeof(ConnectedInput));
+		}
+		Hash = Hasher.Finalize();
+	}
+
+	const bool bInlineFunction = !MaterialFunction->IsUsingControlFlow();
 	FFunctionCallEntry** ExistingFunctionCall = FunctionCallMap.Find(Hash);
 	FFunctionCallEntry* FunctionCall = ExistingFunctionCall ? *ExistingFunctionCall : nullptr;
 	if (!FunctionCall)
@@ -669,9 +710,11 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSL
 		FFunction* HLSLFunction = !bInlineFunction ? HLSLTree->NewFunction() : nullptr;
 		FunctionCall = new(HLSLTree->GetAllocator()) FFunctionCallEntry();
 		FunctionCall->MaterialFunction = MaterialFunction;
+		FunctionCall->ParameterAssociation = ParameterAssociation;
+		FunctionCall->ParameterIndex = ParameterIndex;
 		FunctionCall->HLSLFunction = HLSLFunction;
 		FunctionCall->FunctionInputs = MoveTemp(LocalFunctionInputs);
-		FunctionCall->ConnectedInputs = MoveTemp(LocalConnectedInputs);
+		FunctionCall->ConnectedInputs = ConnectedInputs;
 		FunctionCall->FunctionOutputs.Reserve(FunctionOutputs.Num());
 		for (const FFunctionExpressionOutput& Output : FunctionOutputs)
 		{
@@ -713,6 +756,41 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSL
 	verify(FunctionCallStack.Pop() == FunctionCall);
 
 	return Result;
+}
+
+bool FMaterialHLSLGenerator::GetParameterOverrideValueForCurrentFunction(EMaterialParameterType ParameterType, FName ParameterName, FMaterialParameterMetadata& OutResult) const
+{
+	bool bResult = false;
+	if (!ParameterName.IsNone())
+	{
+		// Give every function in the callstack on opportunity to override the parameter value
+		// Parameters in outer functions take priority
+		// For example, if a layer instance calls a function instance that includes an overriden parameter, we want to use the value from the layer instance rather than the function instance
+		for (const FFunctionCallEntry* FunctionEntry : FunctionCallStack)
+		{
+			const UMaterialFunctionInterface* CurrentFunction = FunctionEntry->MaterialFunction;
+			if (CurrentFunction)
+			{
+				if (CurrentFunction->GetParameterOverrideValue(ParameterType, ParameterName, OutResult))
+				{
+					bResult = true;
+					break;
+				}
+			}
+		}
+	}
+	return bResult;
+}
+
+FMaterialParameterInfo FMaterialHLSLGenerator::GetParameterInfo(const FName& ParameterName) const
+{
+	if (ParameterName.IsNone())
+	{
+		return FMaterialParameterInfo();
+	}
+
+	const FFunctionCallEntry* FunctionEntry = FunctionCallStack.Last();
+	return FMaterialParameterInfo(ParameterName, FunctionEntry->ParameterAssociation, FunctionEntry->ParameterIndex);
 }
 
 void FMaterialHLSLGenerator::InternalRegisterExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression, void* Data)

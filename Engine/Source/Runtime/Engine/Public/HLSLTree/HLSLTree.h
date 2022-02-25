@@ -239,6 +239,7 @@ struct FPreparedComponent
 	FPreparedComponent(EExpressionEvaluation InEvaluation) : Evaluation(InEvaluation) {}
 
 	inline bool IsNone() const { return Evaluation == EExpressionEvaluation::None; }
+	inline bool IsRequested() const { return IsRequestedEvaluation(Evaluation); }
 
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
 
@@ -291,10 +292,12 @@ public:
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const;
 	EExpressionEvaluation GetFieldEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType, int32 ComponentIndex, int32 NumComponents) const;
-	Shader::FComponentBounds GetComponentBounds(int32 Index) const;
 	Shader::FComponentBounds GetBounds(const FRequestedType& RequestedType) const;
 	FPreparedComponent GetMergedComponent() const;
+
 	FPreparedComponent GetComponent(int32 Index) const;
+	EExpressionEvaluation GetComponentEvaluation(int32 Index) const { return GetComponent(Index).Evaluation; }
+	Shader::FComponentBounds GetComponentBounds(int32 Index) const;
 
 	void SetComponent(int32 Index, const FPreparedComponent& InComponent);
 	void SetComponentBounds(int32 Index, const Shader::FComponentBounds Bounds);

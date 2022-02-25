@@ -24,6 +24,7 @@
 #include "Materials/MaterialExpressionDoubleVectorParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionStaticBoolParameter.h"
+#include "Materials/MaterialExpressionStaticSwitchParameter.h"
 #include "Materials/MaterialExpressionPixelDepth.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
 #include "Materials/MaterialExpressionCameraPositionWS.h"
@@ -58,6 +59,8 @@
 #include "Materials/MaterialExpressionFunctionInput.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
+#include "Materials/MaterialExpressionMaterialAttributeLayers.h"
+#include "Materials/MaterialExpressionBlendMaterialAttributes.h"
 #include "Materials/MaterialExpressionStaticSwitch.h"
 #include "Materials/MaterialExpressionFeatureLevelSwitch.h"
 #include "Materials/MaterialExpressionShadingPathSwitch.h"
@@ -286,25 +289,40 @@ bool UMaterialExpressionGetLocal::GenerateHLSLExpression(FMaterialHLSLGenerator&
 
 bool UMaterialExpressionVectorParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::Vector, ParameterName, DefaultValue);
+	OutExpression = Generator.GenerateMaterialParameter(EMaterialParameterType::Vector, ParameterName, DefaultValue);
 	return true;
 }
 
 bool UMaterialExpressionDoubleVectorParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::DoubleVector, ParameterName, DefaultValue);
+	OutExpression = Generator.GenerateMaterialParameter(EMaterialParameterType::DoubleVector, ParameterName, DefaultValue);
 	return true;
 }
 
 bool UMaterialExpressionScalarParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::Scalar, ParameterName, DefaultValue);
+	OutExpression = Generator.GenerateMaterialParameter(EMaterialParameterType::Scalar, ParameterName, DefaultValue);
 	return true;
 }
 
 bool UMaterialExpressionStaticBoolParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::StaticSwitch, ParameterName, (bool)DefaultValue);
+	OutExpression = Generator.GenerateMaterialParameter(EMaterialParameterType::StaticSwitch, ParameterName, (bool)DefaultValue);
+	return true;
+}
+
+bool UMaterialExpressionStaticSwitchParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	FExpression* ExpressionA = A.AcquireHLSLExpression(Generator, Scope);
+	FExpression* ExpressionB = B.AcquireHLSLExpression(Generator, Scope);
+	if (!ExpressionA || !ExpressionB)
+	{
+		return false;
+	}
+
+	FExpression* ExpressionSwitch = Generator.GenerateMaterialParameter(EMaterialParameterType::StaticSwitch, ParameterName, (bool)DefaultValue);
+	OutExpression = Generator.GetTree().NewExpression <FExpressionSelect>(ExpressionSwitch, ExpressionA, ExpressionB);
 	return true;
 }
 
@@ -551,7 +569,7 @@ bool UMaterialExpressionTextureObject::GenerateHLSLExpression(FMaterialHLSLGener
 	using namespace UE::HLSLTree;
 	using namespace UE::Shader;
 	const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
-	OutExpression = Generator.GetTree().NewExpression<FExpressionMaterialParameter>(EMaterialParameterType::Texture, FName(), TextureValue);
+	OutExpression = Generator.GenerateMaterialParameter(EMaterialParameterType::Texture, FName(), TextureValue);
 	return true;
 }
 
@@ -560,7 +578,7 @@ bool UMaterialExpressionTextureObjectParameter::GenerateHLSLExpression(FMaterial
 	using namespace UE::HLSLTree;
 	using namespace UE::Shader;
 	const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
-	OutExpression = Generator.GetTree().NewExpression<FExpressionMaterialParameter>(EMaterialParameterType::Texture, ParameterName, TextureValue);
+	OutExpression = Generator.GenerateMaterialParameter(EMaterialParameterType::Texture, ParameterName, TextureValue);
 	return true;
 }
 
@@ -617,7 +635,7 @@ bool UMaterialExpressionTextureSample::GenerateHLSLExpression(FMaterialHLSLGener
 	else if (Texture)
 	{
 		const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
-		TextureExpression = Generator.GetTree().NewExpression<FExpressionMaterialParameter>(EMaterialParameterType::Texture, FName(), TextureValue);
+		TextureExpression = Generator.GenerateMaterialParameter(EMaterialParameterType::Texture, FName(), TextureValue);
 	}
 
 	return GenerateHLSLExpressionBase(Generator, Scope, TextureExpression, OutExpression);
@@ -635,7 +653,7 @@ bool UMaterialExpressionTextureSampleParameter::GenerateHLSLExpression(FMaterial
 	else if (Texture)
 	{
 		const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, SamplerType));
-		TextureExpression = Generator.GetTree().NewExpression<FExpressionMaterialParameter>(EMaterialParameterType::Texture, ParameterName, TextureValue);
+		TextureExpression = Generator.GenerateMaterialParameter(EMaterialParameterType::Texture, ParameterName, TextureValue);
 	}
 
 	return GenerateHLSLExpressionBase(Generator, Scope, TextureExpression, OutExpression);
@@ -643,12 +661,12 @@ bool UMaterialExpressionTextureSampleParameter::GenerateHLSLExpression(FMaterial
 
 UE::HLSLTree::FExpression* UMaterialExpressionFontSample::GenerateHLSLTextureExpression(FMaterialHLSLGenerator& Generator, const UE::Shader::FTextureValue* TextureValue)
 {
-	return Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::Texture, FName(), TextureValue);
+	return Generator.GenerateMaterialParameter(EMaterialParameterType::Texture, FName(), TextureValue);
 }
 
 UE::HLSLTree::FExpression* UMaterialExpressionFontSampleParameter::GenerateHLSLTextureExpression(FMaterialHLSLGenerator& Generator, const UE::Shader::FTextureValue* TextureValue)
 {
-	return Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::Texture, ParameterName, TextureValue);
+	return Generator.GenerateMaterialParameter(EMaterialParameterType::Texture, ParameterName, TextureValue);
 }
 
 bool UMaterialExpressionFontSample::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
@@ -1391,7 +1409,183 @@ bool UMaterialExpressionFunctionInput::GenerateHLSLExpression(FMaterialHLSLGener
 
 bool UMaterialExpressionMaterialFunctionCall::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	OutExpression = Generator.GenerateFunctionCall(Scope, MaterialFunction, FunctionInputs, OutputIndex);
+	using namespace UE::HLSLTree;
+	TArray<FExpression*, TInlineAllocator<16>> ConnectedInputs;
+	ConnectedInputs.Reserve(FunctionInputs.Num());
+	for (int32 InputIndex = 0; InputIndex < FunctionInputs.Num(); ++InputIndex)
+	{
+		// ConnectedInputs are the inputs from the UMaterialFunctionCall object
+		// We want to connect the UMaterialExpressionFunctionInput from the UMaterialFunction to whatever UMaterialExpression is passed to the UMaterialFunctionCall
+		FExpression* ConnectedInput = FunctionInputs[InputIndex].Input.TryAcquireHLSLExpression(Generator, Scope);
+		ConnectedInputs.Add(ConnectedInput);
+	}
+
+	OutExpression = Generator.GenerateFunctionCall(Scope, MaterialFunction, GlobalParameter, INDEX_NONE, ConnectedInputs, OutputIndex);
+	return true;
+}
+
+bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+
+	const FStaticParameterSet& StaticParameters = Generator.GetStaticParameters();
+	const FMaterialLayersFunctions& MaterialLayers = StaticParameters.bHasMaterialLayers ? StaticParameters.MaterialLayers : DefaultLayers;
+	if (MaterialLayers.Layers.Num() == 0)
+	{
+		return Generator.GetErrors().AddError(TEXT("No layers"));
+	}
+
+	TArray<FFunctionExpressionInput> FunctionInputs;
+	TArray<FFunctionExpressionOutput> FunctionOutputs;
+
+	FExpression* ExpressionLayerInput = Input.AcquireHLSLExpressionOrConstant(Generator, Scope, Generator.GetMaterialAttributesDefaultValue());
+	TArray<FExpression*, TInlineAllocator<1>> LayerInputExpressions;
+
+	TArray<FExpression*, TInlineAllocator<16>> LayerExpressions;
+	LayerExpressions.Reserve(MaterialLayers.Layers.Num());
+	for (int32 LayerIndex = 0; LayerIndex < MaterialLayers.Layers.Num(); ++LayerIndex)
+	{
+		UMaterialFunctionInterface* LayerFunction = MaterialLayers.Layers[LayerIndex];
+		FExpression* LayerExpression = nullptr;
+		if (LayerFunction && MaterialLayers.LayerStates[LayerIndex])
+		{
+			const EMaterialFunctionUsage Usage = LayerFunction->GetMaterialFunctionUsage();
+			if (Usage != EMaterialFunctionUsage::MaterialLayer)
+			{
+				return Generator.GetErrors().AddErrorf(TEXT("Layer function %s is not a UMaterialFunctionMaterialLayer"),
+					*LayerFunction->GetName());
+			}
+
+			FunctionInputs.Reset();
+			FunctionOutputs.Reset();
+			LayerFunction->GetInputsAndOutputs(FunctionInputs, FunctionOutputs);
+			if (FunctionInputs.Num() > 1 || FunctionOutputs.Num() != 1)
+			{
+				return Generator.GetErrors().AddErrorf(TEXT("Layer function %s expected to have 0 or 1 inputs and 1 output, found %d inputs and %d outputs"),
+					*LayerFunction->GetName(), FunctionInputs.Num(), FunctionOutputs.Num());
+			}
+
+			LayerInputExpressions.Empty(1);
+			if (FunctionInputs.Num() == 1)
+			{
+				LayerInputExpressions.Add(ExpressionLayerInput);
+			}
+			LayerExpression = Generator.GenerateFunctionCall(Scope, LayerFunction, LayerParameter, LayerIndex, LayerInputExpressions, 0);
+		}
+		LayerExpressions.Add(LayerExpression);
+	}
+
+	FExpression* BottomLayerExpression = LayerExpressions[0];
+	if (!BottomLayerExpression)
+	{
+		return Generator.GetErrors().AddError(TEXT("No layers"));
+	}
+
+	TArray<FExpression*, TInlineAllocator<2>> BlendInputExpressions;
+	for (int32 BlendIndex = 0; BlendIndex < MaterialLayers.Blends.Num(); ++BlendIndex)
+	{
+		const int32 LayerIndex = BlendIndex + 1;
+		if (!MaterialLayers.Layers.IsValidIndex(LayerIndex))
+		{
+			return Generator.GetErrors().AddErrorf(TEXT("Invalid number of layers (%d) and blends (%d)"), MaterialLayers.Layers.Num(), MaterialLayers.Blends.Num());
+		}
+
+		if (MaterialLayers.Layers[LayerIndex] && MaterialLayers.LayerStates[LayerIndex])
+		{
+			FExpression* LayerExpression = LayerExpressions[LayerIndex];
+			if (!LayerExpression)
+			{
+				return Generator.GetErrors().AddErrorf(TEXT("Missing layer %d"), LayerIndex);
+			}
+
+			UMaterialFunctionInterface* BlendFunction = MaterialLayers.Blends[BlendIndex];
+			if (BlendFunction)
+			{
+				const EMaterialFunctionUsage Usage = BlendFunction->GetMaterialFunctionUsage();
+				if (Usage != EMaterialFunctionUsage::MaterialLayerBlend)
+				{
+					return Generator.GetErrors().AddErrorf(TEXT("Blend function %s is not a UMaterialFunctionMaterialBlend"),
+						*BlendFunction->GetName());
+				}
+
+				FunctionInputs.Reset();
+				FunctionOutputs.Reset();
+				BlendFunction->GetInputsAndOutputs(FunctionInputs, FunctionOutputs);
+				if (FunctionInputs.Num() != 2 || FunctionOutputs.Num() != 1)
+				{
+					return Generator.GetErrors().AddErrorf(TEXT("Blend function %s expected to have 2 inputs and 1 output, found %d inputs and %d outputs"),
+						*BlendFunction->GetName(), FunctionInputs.Num(), FunctionOutputs.Num());
+				}
+
+				BlendInputExpressions.Empty(2);
+				BlendInputExpressions.Add(BottomLayerExpression);
+				BlendInputExpressions.Add(LayerExpression);
+				BottomLayerExpression = Generator.GenerateFunctionCall(Scope, BlendFunction, BlendParameter, BlendIndex, BlendInputExpressions, 0);
+			}
+			else
+			{
+				BottomLayerExpression = LayerExpression;
+			}
+		}
+	}
+
+	OutExpression = BottomLayerExpression;
+	return true;
+}
+
+bool UMaterialExpressionBlendMaterialAttributes::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
+
+	FExpression* ExpressionA = A.AcquireHLSLExpressionOrConstant(Generator, Scope, Generator.GetMaterialAttributesDefaultValue());
+	FExpression* ExpressionB = B.AcquireHLSLExpressionOrConstant(Generator, Scope, Generator.GetMaterialAttributesDefaultValue());
+	FExpression* ExpressionAlpha = Alpha.AcquireHLSLExpression(Generator, Scope);
+	if (!ExpressionA || !ExpressionB || !ExpressionAlpha)
+	{
+		return false;
+	}
+
+	const UE::Shader::FStructType* MaterialAttributesType = Generator.GetMaterialAttributesType();
+
+	FExpression* ExpressionResult = Generator.GetTree().NewConstant(Generator.GetMaterialAttributesDefaultValue());
+	const TArray<FGuid>& OrderedVisibleAttributes = FMaterialAttributeDefinitionMap::GetOrderedVisibleAttributeList();
+	for (const FGuid& AttributeID : OrderedVisibleAttributes)
+	{
+		const FString& FieldName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
+		const FStructField* Field = MaterialAttributesType->FindFieldByName(*FieldName);
+		if (!Field)
+		{
+			continue;
+		}
+
+		const EShaderFrequency AttributeFrequency = FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID);
+		EMaterialAttributeBlend::Type AttributeBlend = EMaterialAttributeBlend::Blend;
+		switch (AttributeFrequency)
+		{
+		case SF_Vertex: AttributeBlend = VertexAttributeBlendType; break;
+		default: AttributeBlend = PixelAttributeBlendType; break;
+		}
+
+		FExpression* ExpressionFieldResult = nullptr;
+		if (AttributeBlend == EMaterialAttributeBlend::UseA)
+		{
+			ExpressionFieldResult = Generator.GetTree().NewExpression<FExpressionGetStructField>(MaterialAttributesType, Field, ExpressionA);
+		}
+		else if (AttributeBlend == EMaterialAttributeBlend::UseB)
+		{
+			ExpressionFieldResult = Generator.GetTree().NewExpression<FExpressionGetStructField>(MaterialAttributesType, Field, ExpressionB);
+		}
+		else
+		{
+			FExpression* ExpressionFieldA = Generator.GetTree().NewExpression<FExpressionGetStructField>(MaterialAttributesType, Field, ExpressionA);
+			FExpression* ExpressionFieldB = Generator.GetTree().NewExpression<FExpressionGetStructField>(MaterialAttributesType, Field, ExpressionB);
+			ExpressionFieldResult = Generator.GetTree().NewLerp(ExpressionFieldA, ExpressionFieldB, ExpressionAlpha);
+		}
+		ExpressionResult = Generator.GetTree().NewExpression<FExpressionSetStructField>(MaterialAttributesType, Field, ExpressionResult, ExpressionFieldResult);
+	}
+
+	OutExpression = ExpressionResult;
 	return true;
 }
 

@@ -683,11 +683,9 @@ int32 FPreparedType::GetNumComponents() const
 	}
 	else if (ValueComponentType != Shader::EValueComponentType::Void)
 	{
-		const int32 MaxComponentIndex = PreparedComponents.FindLastByPredicate([](const FPreparedComponent& InComponent) { return InComponent.Evaluation != EExpressionEvaluation::None; });
-		if (MaxComponentIndex != INDEX_NONE)
-		{
-			return MaxComponentIndex + 1;
-		}
+		auto Predicate = [](const FPreparedComponent& InComponent) { return InComponent.IsRequested(); };
+		const int32 MaxComponentIndex = PreparedComponents.FindLastByPredicate(Predicate);
+		return (MaxComponentIndex != INDEX_NONE) ? MaxComponentIndex + 1 : 1;
 	}
 	return 0;
 }
@@ -708,17 +706,13 @@ Shader::FType FPreparedType::GetType() const
 
 FRequestedType FPreparedType::GetRequestedType() const
 {
-	const int32 NumComponents = GetNumComponents();
 	FRequestedType Result;
-	if (NumComponents > 0)
+	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
 	{
-		for (int32 Index = 0; Index < NumComponents; ++Index)
+		const FPreparedComponent& Component = PreparedComponents[Index];
+		if (Component.IsRequested())
 		{
-			const FPreparedComponent Component = GetComponent(Index);
-			if (!Component.IsNone())
-			{
-				Result.SetComponentRequest(Index);
-			}
+			Result.SetComponentRequest(Index);
 		}
 	}
 	return Result;
@@ -737,6 +731,10 @@ FPreparedType FPreparedType::GetTypeForRequest(const FRequestedType& RequestedTy
 		if (RequestedType.IsComponentRequested(Index))
 		{
 			Result.SetComponent(Index, GetComponent(Index));
+		}
+		else
+		{
+			Result.SetComponent(Index, EExpressionEvaluation::ConstantZero);
 		}
 	}
 	return Result;

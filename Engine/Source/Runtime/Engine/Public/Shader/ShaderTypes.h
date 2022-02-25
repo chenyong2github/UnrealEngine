@@ -514,6 +514,8 @@ struct FValue
 	float AsFloatScalar() const;
 	bool AsBoolScalar() const;
 
+	bool IsZero() const;
+
 	const TCHAR* ToString(EValueStringFormat Format, FStringBuilderBase& OutString) const;
 
 	FType Type;
