@@ -68,30 +68,7 @@ struct FAxisConstraintDatas
 	bool bSoftLimit[3];
 	EJointMotionType MotionType[3];
 };
-
-/** Cached point joint datas that will be used during the apply */
-struct FPointConstraintDatas
-{
-	/** Init the point joint datas with stiffness / damping */
-	void InitDatas(
-		const FReal PointStiffness);
-
-	/** Update the point joint datas with axis, limits, arms... */
-	void UpdateDatas(
-		const FVec3& DatasCX,
-		const FVec3& DatasArm0,
-		const FVec3& DatasArm1);
 	
-	bool bValidDatas = false;
-	
-	FReal ConstraintStiffness;
-	FVec3 ConstraintArms[2];
-	
-	FVec3 ConstraintCX;
-	FMatrix33 ConstraintIM;
-	FVec3 ConstraintLambda;
-};
-
 	/**
 	 * Calculate new positions and rotations for a pair of bodies connected by a joint.
 	 *
@@ -294,50 +271,16 @@ struct FPointConstraintDatas
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings);
-		
-		void InitPointPositionConstraint(const FReal Dt);
-
-		void InitPointPositionMass();
-		
-		void InitPositionConstraintDatas(
-			const int32 ConstraintIndex,
-			const FVec3& ConstraintAxis,
-			const FReal& ConstraintDelta,
-			const FReal ConstraintRestitution,
-			const FReal Dt,
-			const FReal ConstraintLimit,
-			const EJointMotionType JointType);
 
 		void InitPositionDatasMass(
 			FAxisConstraintDatas& PositionDatas,
 			const int32 ConstraintIndex,
 			const FReal Dt);
-
-		void InitSphericalPositionConstraint(
-			const FPBDJointSettings& JointSettings,
-			const FReal Dt);
-
-		void InitCylindricalPositionConstraint(
-			const FPBDJointSettings& JointSettings,
-			const FReal Dt,
-			const int32 AxisIndex,
-			const EJointMotionType AxialMotion,
-			const EJointMotionType RadialMotion);
-
-		void InitPlanarPositionConstraint(
-			const FPBDJointSettings& JointSettings,
-			const FReal Dt,
-			const int32 AxisIndex,
-			const EJointMotionType AxialMotion);
 		
 		/** Apply Position constraints */
 
 		void ApplyPositionConstraints(
 			const FReal Dt);
-		
-		void ApplyPointPositionConstraint();
-		
-		FVec3 ComputePointCX(const bool bLinearCompute);
 		
 		void ApplyAxisPositionConstraint(
 			const int32 ConstraintIndex,
@@ -345,7 +288,8 @@ struct FPointConstraintDatas
 		
 		void SolvePositionConstraintDelta(
 			const int32 ConstraintIndex, 
-			const FReal DeltaLambda);
+			const FReal DeltaLambda,
+			const FAxisConstraintDatas& ConstraintDatas);
 
 		void SolvePositionConstraintHard(
 			const int32 ConstraintIndex,
@@ -360,8 +304,6 @@ struct FPointConstraintDatas
 		/** Apply Linear Velocity constraints */
 		
 		void ApplyLinearVelocityConstraints();
-
-		void ApplyPointVelocityConstraint();
 
 		void ApplyAxisVelocityConstraint(
 			const int32 ConstraintIndex);
@@ -441,7 +383,9 @@ struct FPointConstraintDatas
 
 		void SolveRotationConstraintDelta(
 			const int32 ConstraintIndex, 
-			const FReal DeltaLambda);
+			const FReal DeltaLambda,
+			const bool bIsSoftConstraint,
+			const FAxisConstraintDatas& ConstraintDatas);
 
 		void SolveRotationConstraintHard(
 			const int32 ConstraintIndex,
@@ -611,8 +555,6 @@ struct FPointConstraintDatas
 		FVec3 InitConstraintAxisAngularVelocities; // Angular velocities along the constraint axes at the begining of the frame, used by restitution
 		int32 NumActiveConstraints;					// The number of active constraints and drives in the last iteration (-1 initial value)
 		bool bIsActive;								// Whether any constraints actually moved any bodies in last iteration
-		
-		FPointConstraintDatas PointConstraints;
 		
 		FAxisConstraintDatas PositionConstraints;
 		FAxisConstraintDatas RotationConstraints;
