@@ -20,7 +20,7 @@ namespace Audio
 		~FMixerPlatformAndroid();
 
 		//~ Begin IAudioMixerPlatformInterface
-		virtual EAudioMixerPlatformApi::Type GetPlatformApi() const override { return EAudioMixerPlatformApi::OpenSLES; }
+		virtual FString GetPlatformApi() const override { return TEXT("OpenSLES"); }
 		virtual bool InitializeHardware() override;
 		virtual bool TeardownHardware() override;
 		virtual bool IsInitialized() const override;

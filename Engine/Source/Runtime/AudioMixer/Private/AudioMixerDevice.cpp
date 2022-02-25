@@ -344,11 +344,11 @@ namespace Audio
 	
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
-		// Log that we're inside the audio mixer
-		UE_LOG(LogAudioMixer, Display, TEXT("Initializing audio mixer."));
 
 		if (AudioMixerPlatform && AudioMixerPlatform->InitializeHardware())
 		{
+			UE_LOG(LogAudioMixer, Display, TEXT("Initializing audio mixer using platform API: '%s'"), *AudioMixerPlatform->GetPlatformApi());
+
 			const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
 			MonoChannelUpmixMethod = AudioSettings->MonoChannelUpmixMethod;
 			PanningMethod = AudioSettings->PanningMethod;
@@ -404,7 +404,7 @@ namespace Audio
 			{
 				// Get the platform device info we're using
 				PlatformInfo = AudioMixerPlatform->GetPlatformDeviceInfo();
-				UE_LOG(LogAudioMixer, Display, TEXT("Using Audio Device %s"), *PlatformInfo.Name);
+				UE_LOG(LogAudioMixer, Display, TEXT("Using Audio Hardware Device %s"), *PlatformInfo.Name);
 
 				// Initialize some data that depends on speaker configuration, etc.
 				InitializeChannelAzimuthMap(PlatformInfo.NumChannels);
@@ -467,7 +467,7 @@ namespace Audio
 		}
 		else if (AudioMixerPlatform)
 		{
-			UE_LOG(LogAudioMixer, Warning, TEXT("Failed to Open audio stream"));
+			UE_LOG(LogAudioMixer, Warning, TEXT("Failed to initialize audio mixer for platform API: '%s'"), *AudioMixerPlatform->GetPlatformApi());
 		}
 
 		return false;

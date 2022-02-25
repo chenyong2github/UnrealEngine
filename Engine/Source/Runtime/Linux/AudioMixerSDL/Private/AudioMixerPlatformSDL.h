@@ -21,7 +21,7 @@ namespace Audio
 		virtual ~FMixerPlatformSDL();
 
 		//~ Begin IAudioMixerPlatformInterface Interface
-		EAudioMixerPlatformApi::Type GetPlatformApi() const override { return EAudioMixerPlatformApi::SDL2; }
+		FString GetPlatformApi() const override { return TEXT("SDL2"); }
 		bool InitializeHardware() override;
 		bool TeardownHardware() override;
 		bool IsInitialized() const override;

@@ -20,7 +20,7 @@ namespace Audio
 		~FMixerPlatformCoreAudio();
 
 		//~ Begin IAudioMixerPlatformInterface
-		virtual EAudioMixerPlatformApi::Type GetPlatformApi() const override { return EAudioMixerPlatformApi::CoreAudio; }
+		virtual FString GetPlatformApi() const override { return TEXT("CoreAudio"); }
 		virtual bool InitializeHardware() override;
 		virtual bool CheckAudioDeviceChange() override;
 		virtual bool TeardownHardware() override;

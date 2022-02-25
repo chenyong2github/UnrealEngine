@@ -63,7 +63,7 @@ namespace Audio
 		~FMixerPlatformXAudio2();
 
 		//~ Begin IAudioMixerPlatformInterface
-		virtual EAudioMixerPlatformApi::Type GetPlatformApi() const override { return EAudioMixerPlatformApi::XAudio2; }
+		virtual FString GetPlatformApi() const override { return TEXT("XAudio2"); }
 		virtual bool InitializeHardware() override;
 		virtual bool CheckAudioDeviceChange() override;
 		virtual bool TeardownHardware() override;

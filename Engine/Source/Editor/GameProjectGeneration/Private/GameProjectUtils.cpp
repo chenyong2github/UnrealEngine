@@ -91,71 +91,10 @@
 TWeakPtr<SNotificationItem> GameProjectUtils::UpdateGameProjectNotification = NULL;
 TWeakPtr<SNotificationItem> GameProjectUtils::WarningProjectNameNotification = NULL;
 
-bool GameProjectUtils::bUseAudioMixerForAllPlatforms = false;
-
 constexpr const TCHAR GameProjectUtils::IncludePathFormatString[];
-
-struct FAudioDefaultPlatformSettings
-{
-	FString Name;
-	FAudioPlatformSettings Settings;
-	const TCHAR* ConfigSectionName;
-	bool bUseAudioMixer;
-	FString HardwareOcclusionPlugin;
-	FString HardwareReverbPlugin;
-	FString HardwareSpatializationPlugin;
-
-	FAudioDefaultPlatformSettings(const TCHAR* InConfigSectionName)
-		: ConfigSectionName(InConfigSectionName)
-		, bUseAudioMixer(false)
-	{
-	}
-};
 
 namespace
 {
-	TMap<FString, FAudioDefaultPlatformSettings> GetAudioPlatformProjectDefaultSettings()
-	{
-		TMap<FString, FAudioDefaultPlatformSettings> DefaultProjectSettings;
-
-		// If bUseAudioMixerForAllPlatforms is set to false, uncomment the following line to enable
-		// the new audio mixer on specific platform. Ex. for Windows:
-		// WindowsSettings.bUseAudioMixer = true;
-
-		FAudioDefaultPlatformSettings AndroidSettings(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"));
-		AndroidSettings.Settings.MaxChannels = 12;
-		DefaultProjectSettings.Add(TEXT("Android"), AndroidSettings);
-
-		FAudioDefaultPlatformSettings IOSSettings(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"));
-		IOSSettings.Settings.MaxChannels = 16;
-		DefaultProjectSettings.Add(TEXT("IOS"), IOSSettings);
-
-		FAudioDefaultPlatformSettings LinuxSettings(TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings"));
-		LinuxSettings.Settings.MaxChannels = 16;
-		DefaultProjectSettings.Add(TEXT("Linux"), LinuxSettings);
-
-		FAudioDefaultPlatformSettings MacSettings(TEXT("/Script/MacTargetPlatform.MacTargetSettings"));
-		DefaultProjectSettings.Add(TEXT("Mac"), MacSettings);
-
-		FAudioDefaultPlatformSettings PS4Settings(TEXT("/Script/PS4PlatformEditor.PS4TargetSettings"));
-		PS4Settings.Settings.CallbackBufferFrameSize = 256;
-		PS4Settings.Settings.NumBuffers = 7;
-		PS4Settings.Settings.NumSourceWorkers = 4;
-		PS4Settings.HardwareSpatializationPlugin = TEXT("Audio3D");
-		DefaultProjectSettings.Add(TEXT("PS4"), PS4Settings);
-
-		FAudioDefaultPlatformSettings SwitchSettings(TEXT("/Script/SwitchRuntimeSettings.SwitchRuntimeSettings"));
-		SwitchSettings.Settings.MaxChannels = 16;
-		DefaultProjectSettings.Add(TEXT("Switch"), SwitchSettings);
-
-		FAudioDefaultPlatformSettings WindowsSettings(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"));
-		WindowsSettings.Settings.CallbackBufferFrameSize = 256;
-		WindowsSettings.Settings.NumBuffers = 7;
-		DefaultProjectSettings.Add(TEXT("Windows"), WindowsSettings);
-
-		return MoveTemp(DefaultProjectSettings);
-	}
-
 	// @todo: This is currently not called from anywhere as this approach does not work for binary builds.
 	/** Set the state of XR plugins in OutProject based on the flags in InProjectInfo. */
 	void SetXRPluginStates(const FProjectInformation& InProjectInfo, FProjectDescriptor& OutProject)
@@ -2094,12 +2033,9 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 		const FString DefaultEngineIniFilename = ProjectConfigPath / TEXT("DefaultEngine.ini");
 		FString FileContents;
 
-		if(bUseAudioMixerForAllPlatforms)
-		{
-			FileContents += LINE_TERMINATOR;
-			FileContents += TEXT("[Audio]") LINE_TERMINATOR;
-			FileContents += TEXT("UseAudioMixer=True") LINE_TERMINATOR;
-		}
+		FileContents += LINE_TERMINATOR;
+		FileContents += TEXT("[Audio]") LINE_TERMINATOR;
+		FileContents += TEXT("UseAudioMixer=True") LINE_TERMINATOR;
 
 		if (InProjectInfo.bForceExtendedLuminanceRange)
 		{
@@ -2202,71 +2138,6 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 
 bool GameProjectUtils::GeneratePlatformConfigFiles(const FProjectInformation& InProjectInfo, FText& OutFailReason)
 {
-	TMap<FString, FAudioDefaultPlatformSettings> ProjectDefaults = GetAudioPlatformProjectDefaultSettings();
-
-	static const FAudioPlatformSettings DefaultSettings;
-
-	for (TPair<FString, FAudioDefaultPlatformSettings>& SettingsPair : ProjectDefaults)
-	{
-		FString FileContents;
-
-		if (bUseAudioMixerForAllPlatforms || SettingsPair.Value.bUseAudioMixer)
-		{
-			FileContents += TEXT("[Audio]") LINE_TERMINATOR;
-			FileContents += TEXT("UseAudioMixer=True") LINE_TERMINATOR;
-			FileContents += LINE_TERMINATOR;
-		}
-
-		const FString& PlatformName = SettingsPair.Key;
-		const FAudioPlatformSettings& PlatformSettings = SettingsPair.Value.Settings;
-
-		FileContents += TEXT("[") + FString(SettingsPair.Value.ConfigSectionName) + TEXT("]") + LINE_TERMINATOR;
-
-		if (DefaultSettings.SampleRate == PlatformSettings.SampleRate)
-		{
-			FileContents += TEXT(";");
-		}
-		FileContents += TEXT("AudioSampleRate=") + FString::Printf(TEXT("%d"), PlatformSettings.SampleRate) + LINE_TERMINATOR;
-
-		if (DefaultSettings.MaxChannels == PlatformSettings.MaxChannels)
-		{
-			FileContents += TEXT(";");
-		}
-		FileContents += TEXT("AudioMaxChannels=") + FString::Printf(TEXT("%d"), PlatformSettings.MaxChannels) + LINE_TERMINATOR;
-
-		if (DefaultSettings.CallbackBufferFrameSize == PlatformSettings.CallbackBufferFrameSize)
-		{
-			FileContents += TEXT(";");
-		}
-		FileContents += TEXT("AudioCallbackBufferFrameSize=") + FString::Printf(TEXT("%d"), PlatformSettings.CallbackBufferFrameSize) + LINE_TERMINATOR;
-
-		if (DefaultSettings.NumBuffers == PlatformSettings.NumBuffers)
-		{
-			FileContents += TEXT(";");
-		}
-		FileContents += TEXT("AudioNumBuffersToEnqueue=") + FString::Printf(TEXT("%d"), PlatformSettings.NumBuffers) + LINE_TERMINATOR;
-
-		if (DefaultSettings.NumSourceWorkers == PlatformSettings.NumSourceWorkers)
-		{
-			FileContents += TEXT(";");
-		}
-		FileContents += TEXT("AudioNumSourceWorkers=") + FString::Printf(TEXT("%d"), PlatformSettings.NumSourceWorkers) + LINE_TERMINATOR;
-
-		FileContents += LINE_TERMINATOR;
-		FileContents += TEXT("; Audio Plugins (must be enabled in .uproject") LINE_TERMINATOR;
-		FileContents += TEXT("; ReverbPlugin=") + SettingsPair.Value.HardwareReverbPlugin + LINE_TERMINATOR;
-		FileContents += TEXT("; OcclusionPlugin=") + SettingsPair.Value.HardwareOcclusionPlugin + LINE_TERMINATOR;
-		FileContents += TEXT("; SpatializationPlugin=") + SettingsPair.Value.HardwareSpatializationPlugin + LINE_TERMINATOR;
-
-		const FString NewProjectFolder = FPaths::GetPath(InProjectInfo.ProjectFilename);
-		const FString ProjectConfigPath = NewProjectFolder / TEXT("Platforms") / PlatformName / TEXT("Config");
-		const FString PlatformEngineIniFilename = ProjectConfigPath / PlatformName + TEXT("Engine.ini");
-		if (!WriteOutputFile(PlatformEngineIniFilename, FileContents, OutFailReason))
-		{
-			return false;
-		}
-	}
-
 	return true;
 }
 

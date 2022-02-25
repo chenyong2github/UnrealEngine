@@ -6,22 +6,6 @@
 
 namespace Audio {
 
-	namespace EAudioMixerPlatformApi
-	{
-		enum Type
-		{
-			XAudio2, 	// Windows, XBoxOne
-			AudioOut, 	// PS4
-			CoreAudio, 	// Mac
-			AudioUnit, 	// iOS
-			SDL2,		// Linux
-			OpenSLES, 	// Android
-			Switch, 	// Switch
-			Other,      // Generic output type.
-			Null		// Unknown/not Supported
-		};
-	}
-
 	namespace EAudioMixerStreamDataFormat
 	{
 		enum Type
@@ -126,7 +110,7 @@ struct AUDIOMIXERCORE_API FAudioPlatformSettings
 		: SampleRate(48000)
 		, CallbackBufferFrameSize(1024)
 		, NumBuffers(2)
-		, MaxChannels(32)
+		, MaxChannels(0) // This needs to be 0 to indicate it's not overridden from the audio settings object, which is the default used on all platforms
 		, NumSourceWorkers(0)
 	{
 	}

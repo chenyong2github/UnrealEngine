@@ -417,8 +417,8 @@ namespace Audio
 		/** Virtual destructor. */
 		virtual ~IAudioMixerPlatformInterface();
 
-		/** Returns the platform API enumeration. */
-		virtual EAudioMixerPlatformApi::Type GetPlatformApi() const = 0;
+		/** Returns the platform API name. */
+		virtual FString GetPlatformApi() const = 0;
 
 		/** Initialize the hardware. */
 		virtual bool InitializeHardware() = 0;
