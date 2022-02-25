@@ -213,8 +213,8 @@ public:
 	/** Copies bytes from the input view into this view, and returns the remainder of this view. */
 	inline TMemoryView CopyFrom(FMemoryView InView) const
 	{
-		checkf(InView.Size <= Size, TEXT("Failed to copy from a view of %" UINT64_FMT " bytes ")
-			TEXT("to a view of %" UINT64_FMT " bytes."), InView.Size, Size);
+		checkf(InView.Size <= Size, TEXT("Failed to copy from a view of %" UINT64_FMT " bytes "
+			"to a view of %" UINT64_FMT " bytes."), InView.Size, Size);
 		FMemory::Memcpy(Data, InView.Data, InView.Size);
 		return RightChop(InView.Size);
 	}
