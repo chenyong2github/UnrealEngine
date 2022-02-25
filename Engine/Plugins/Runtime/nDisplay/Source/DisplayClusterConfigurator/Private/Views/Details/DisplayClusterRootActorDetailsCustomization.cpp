@@ -206,7 +206,7 @@ bool FDisplayClusterRootActorDetailsCustomization::RebuildNodeIdOptionsList()
 
 	// Make sure we've got at least one cluster node in the config
 	// (None+node or None+All+node1+node2+...)
-	return NodeIdOptions.Num() >= 3;
+	return NodeIdOptions.Num() >= 2;
 }
 
 void FDisplayClusterRootActorDetailsCustomization::UpdateNodeIdSelection()

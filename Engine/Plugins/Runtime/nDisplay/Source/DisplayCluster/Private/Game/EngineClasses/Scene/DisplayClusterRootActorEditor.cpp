@@ -772,9 +772,6 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 		return;
 	}
 
-	// Render new preview
-	PreviewClusterNodeIndex = 0;
-
 	ImplUpdatePreviewConfiguration_Editor(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll);
 
 	TArray<UDisplayClusterPreviewComponent*> IteratedPreviewComponents;
@@ -798,6 +795,9 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 					check(PreviewComp);
 
 					PreviewComponents.Emplace(PreviewCompId, PreviewComp);
+
+					// Refresh preview when new component created
+					PreviewClusterNodeIndex = 0;
 				}
 
 				if (GetWorld() && !PreviewComp->IsRegistered())

@@ -184,7 +184,7 @@ float DisplayClusterViewportHelpers::GetValidSizeMultiplier(const FIntPoint& InS
 			}
 			else
 			{
-				const int32 MinDimension = MinScaledSize.GetMin();
+				const int32 MinDimension = MinScaledSize.GetMax();
 				const int32 MaxDimension = GetMaxTextureDimension();
 
 				// Get the maximum allowed multiplier value
