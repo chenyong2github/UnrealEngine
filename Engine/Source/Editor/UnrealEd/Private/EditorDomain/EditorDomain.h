@@ -73,6 +73,26 @@ struct FPackageDigest
 	FName StatusArg;
 };
 
+/**
+ * An interface to cache repeated calls to GetPackageDigest. This would be just a global TMap without an interface,
+ * except that EditorDomain if enabled needs to store other data along with the digest so it takes over the cache duty
+ * using its own storage.
+ */
+class IPackageDigestCache
+{
+public:
+	virtual ~IPackageDigestCache() {}
+	/**
+	 * Calculate the PackageDigest for the given PackageName.
+	 * Callable from any thread, but will return !IsSuccessful digest if game-thread data is required and not cached.
+	 */
+	virtual FPackageDigest GetPackageDigest(FName PackageName) = 0;
+
+	static IPackageDigestCache* Get();
+	static void Set(IPackageDigestCache* Cache);
+	static void SetDefault();
+};
+
 }
 
 extern FString LexToString(UE::EditorDomain::FPackageDigest::EStatus Status, FName StatusArg);
@@ -93,7 +113,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomain, Log, All);
  * the WorkspaceDomain (through ordinary IFileManager operations on the Root/Game/Content folders) and creates
  * the EditorDomain version for next time.
  */
-class FEditorDomain : public IPackageResourceManager, public FTickableEditorObject
+class FEditorDomain : public IPackageResourceManager, public FTickableEditorObject, public UE::EditorDomain::IPackageDigestCache
 {
 public:
 	/** Different options for which domain a package comes from. */
@@ -143,14 +163,12 @@ public:
 	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
 	virtual TStatId GetStatId() const override { return TStatId(); }
 
+	// IPackageDigestCache interface
+	virtual UE::EditorDomain::FPackageDigest GetPackageDigest(FName PackageDigest) override;
+
 	// EditorDomain interface
 	/** Fetch data from game-thread sources that is required to calculate the PackageDigest of the given PackageName. */
 	void PrecachePackageDigest(FName PackageName);
-	/**
-	 * Calculate the PackageDigest for the given PackageName.
-	 * Callable from any thread, but will fail if game-thread data is required and not cached.
-	 */
-	UE::EditorDomain::FPackageDigest GetPackageDigest(FName PackageDigest);
 
 	/** Request the download of the given packages from the upstream DDC server. */
 	void BatchDownload(TArrayView<FName> PackageNames);

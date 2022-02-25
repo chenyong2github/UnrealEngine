@@ -32,7 +32,11 @@
 
 DEFINE_LOG_CATEGORY(LogEditorDomain);
 
-/** Add a hook to the PackageResourceManager's startup delegate to use the EditorDomain as the IPackageResourceManager */
+/**
+ * A pre-Main global registration struct that decides whether to create the EditorDomain, and initializes EditorDomainUtils
+ * for usage by any system that needs PackageDigests, with or without FEditorDomain.
+ * If the EditorDomain is enabled, also sets PackageResourceManager to use the EditorDomain as the IPackageResourceManager
+ */
 class FEditorDomainRegisterAsPackageResourceManager
 {
 public:
@@ -43,27 +47,31 @@ public:
 
 	static IPackageResourceManager* SetPackageResourceManager()
 	{
+		using namespace UE::EditorDomain;
+
 		bool bEditorDomainEnabled = IsEditorDomainEnabled();
 		if (GIsEditor)
 		{
 			UE_LOG(LogEditorDomain, Display, TEXT("EditorDomain is %s"), bEditorDomainEnabled ? TEXT("Enabled") : TEXT("Disabled"));
 		}
+		UtilsInitialize();
 		if (bEditorDomainEnabled)
 		{
-			UE::EditorDomain::UtilsInitialize();
 			UE::TargetDomain::UtilsInitialize(bEditorDomainEnabled);
-			if (bEditorDomainEnabled)
-			{
-				// Set values for config settings EditorDomain depends on
-				GAllowUnversionedContentInEditor = 1;
+			// Set values for config settings EditorDomain depends on
+			GAllowUnversionedContentInEditor = 1;
 
-				// Create the editor domain and return it as the package resource manager
-				check(FEditorDomain::RegisteredEditorDomain == nullptr);
-				FEditorDomain::RegisteredEditorDomain = new FEditorDomain();
-				return FEditorDomain::RegisteredEditorDomain;
-			}
+			// Create the editor domain, register it as the IPackageDigestCache, and return it as the package resource manager
+			check(FEditorDomain::RegisteredEditorDomain == nullptr);
+			FEditorDomain::RegisteredEditorDomain = new FEditorDomain();
+			IPackageDigestCache::Set(FEditorDomain::RegisteredEditorDomain);
+			return FEditorDomain::RegisteredEditorDomain;
 		}
-		return nullptr;
+		else
+		{
+			IPackageDigestCache::SetDefault();
+			return nullptr;
+		}
 	}
 } GRegisterAsPackageResourceManager;
 
@@ -124,6 +132,10 @@ FEditorDomain::~FEditorDomain()
 	if (RegisteredEditorDomain == this)
 	{
 		RegisteredEditorDomain = nullptr;
+	}
+	if (UE::EditorDomain::IPackageDigestCache::Get() == this)
+	{
+		UE::EditorDomain::IPackageDigestCache::Set(nullptr);
 	}
 }
 

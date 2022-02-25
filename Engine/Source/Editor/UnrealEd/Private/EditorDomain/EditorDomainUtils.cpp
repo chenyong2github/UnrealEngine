@@ -8,6 +8,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "DerivedDataBuildDefinition.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheKey.h"
@@ -16,6 +17,7 @@
 #include "DerivedDataValue.h"
 #include "Editor.h"
 #include "Engine/StaticMesh.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/FileManager.h"
 #include "Hash/Blake3.h"
 #include "Memory/SharedBuffer.h"
@@ -944,6 +946,59 @@ TMultiMap<FName, FName> ConstructConstructClasses()
 FDelegateHandle GUtilsPostInitDelegate;
 void UtilsPostEngineInit();
 
+/** A default implementation of IPackageDigestCache that stores the Digests in a TMap. */
+class FDefaultPackageDigestCache : public IPackageDigestCache
+{
+public:
+	virtual ~FDefaultPackageDigestCache()
+	{
+		if (this == IPackageDigestCache::Get())
+		{
+			IPackageDigestCache::Set(nullptr);
+		}
+	}
+
+	virtual UE::EditorDomain::FPackageDigest GetPackageDigest(FName PackageName) override
+	{
+		uint32 TypeHash = GetTypeHash(PackageName);
+		{
+			FReadScopeLock ScopeLock(Lock);
+			if (FPackageDigest* PackageDigest = PackageDigests.FindByHash(TypeHash, PackageName))
+			{
+				return *PackageDigest;
+			}
+		}
+		FPackageDigest PackageDigest = CalculatePackageDigest(*IAssetRegistry::Get(), PackageName);
+		{
+			FWriteScopeLock ScopeLock(Lock);
+			PackageDigests.AddByHash(TypeHash, PackageName, PackageDigest);
+		}
+		return PackageDigest;
+	}
+
+private:
+	FRWLock Lock;
+	TMap<FName, FPackageDigest> PackageDigests;
+};
+static TOptional<FDefaultPackageDigestCache> GDefaultPackageDigestCache;
+static IPackageDigestCache* GPackageDigestCache = nullptr;
+IPackageDigestCache* IPackageDigestCache::Get()
+{
+	return GPackageDigestCache;
+}
+
+void IPackageDigestCache::Set(IPackageDigestCache* Cache)
+{
+	// Set is called only before Main or after Main, during single-threaded startup/shutdown, so we do not need a lock
+	GPackageDigestCache = Cache;
+}
+
+void IPackageDigestCache::SetDefault()
+{
+	GDefaultPackageDigestCache.Emplace();
+	Set(GDefaultPackageDigestCache.GetPtrOrNull());
+}
+
 void UtilsInitialize()
 {
 	GClassBlockedUses = ConstructClassBlockedUses();
@@ -1761,14 +1816,10 @@ bool TrySavePackage(UPackage* Package)
 
 void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, TUniqueFunction<void(FSharedBuffer Buffer)>&& Callback)
 {
-	FEditorDomain* EditorDomain = FEditorDomain::Get();
-	if (!EditorDomain)
-	{
-		Callback(FSharedBuffer());
-		return;
-	}
-
-	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
+	IPackageDigestCache* DigestCache = IPackageDigestCache::Get();
+	FPackageDigest PackageDigest = DigestCache
+		? DigestCache->GetPackageDigest(PackageName)
+		: CalculatePackageDigest(*IAssetRegistry::Get(), PackageName);
 	if (!PackageDigest.IsSuccessful())
 	{
 		Callback(FSharedBuffer());
@@ -1793,13 +1844,10 @@ void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, T
 
 void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 {
-	FEditorDomain* EditorDomain = FEditorDomain::Get();
-	if (!EditorDomain)
-	{
-		return;
-	}
-
-	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
+	IPackageDigestCache* DigestCache = IPackageDigestCache::Get();
+	FPackageDigest PackageDigest = DigestCache
+		? DigestCache->GetPackageDigest(PackageName)
+		: CalculatePackageDigest(*IAssetRegistry::Get(), PackageName);
 	if (!PackageDigest.IsSuccessful())
 	{
 		return;
@@ -1830,14 +1878,10 @@ FIoHash GetPackageAndGuidHash(FIoHash& EditorDomainHash, const FGuid& BulkDataId
 void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::DerivedData::IRequestOwner& Owner,
 	TUniqueFunction<void(FSharedBuffer Buffer)>&& Callback)
 {
-	FEditorDomain* EditorDomain = FEditorDomain::Get();
-	if (!EditorDomain)
-	{
-		Callback(FSharedBuffer());
-		return;
-	}
-
-	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
+	IPackageDigestCache* DigestCache = IPackageDigestCache::Get();
+	FPackageDigest PackageDigest = DigestCache
+		? DigestCache->GetPackageDigest(PackageName)
+		: CalculatePackageDigest(*IAssetRegistry::Get(), PackageName);
 	if (!PackageDigest.IsSuccessful())
 	{
 		Callback(FSharedBuffer());
@@ -1864,13 +1908,10 @@ void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::Derive
 
 void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuffer Buffer)
 {
-	FEditorDomain* EditorDomain = FEditorDomain::Get();
-	if (!EditorDomain)
-	{
-		return;
-	}
-
-	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
+	IPackageDigestCache* DigestCache = IPackageDigestCache::Get();
+	FPackageDigest PackageDigest = DigestCache
+		? DigestCache->GetPackageDigest(PackageName)
+		: CalculatePackageDigest(*IAssetRegistry::Get(), PackageName);
 	if (!PackageDigest.IsSuccessful())
 	{
 		return;
