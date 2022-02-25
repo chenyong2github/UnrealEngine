@@ -36,9 +36,10 @@
 
 #include "Kismet2/BlueprintEditorUtils.h"
 
+#include "DragAndDrop/AssetDragDropOp.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "DragDrop/WidgetTemplateDragDropOp.h"
-#include "DragAndDrop/AssetDragDropOp.h"
+#include "DragDrop/SelectedWidgetDragDropOp.h"
 
 #include "Templates/WidgetTemplateBlueprintClass.h"
 #include "Templates/WidgetTemplateImageClass.h"
@@ -186,115 +187,6 @@ public:
 	{
 	}
 };
-
-
-class FSelectedWidgetDragDropOp : public FDecoratedDragDropOp
-{
-public:
-	DRAG_DROP_OPERATOR_TYPE(FSelectedWidgetDragDropOp, FDecoratedDragDropOp)
-
-	virtual ~FSelectedWidgetDragDropOp();
-
-	struct FDraggingWidgetReference
-	{
-		FWidgetReference Widget;
-
-		FVector2D DraggedOffset;
-	};
-
-	struct FItem
-	{
-		/** The slot properties for the old slot the widget was in, is used to attempt to reapply the same layout information */
-		TMap<FName, FString> ExportedSlotProperties;
-
-		/** The widget being dragged */
-		UWidget* Template;
-
-		/** The preview widget being dragged */
-		UWidget* Preview;
-
-		/** Can the drag drop change the widget's parent? */
-		bool bStayingInParent;
-
-		/** The original parent of the widget. */
-		FWidgetReference ParentWidget;
-
-		/** The offset of the original click location, as a percentage of the widget's size. */
-		FVector2D DraggedOffset;
-	};
-
-	TArray<FItem> DraggedWidgets;
-
-	bool bShowingMessage;
-
-	IUMGDesigner* Designer;
-
-	static TSharedRef<FSelectedWidgetDragDropOp> New(TSharedPtr<FWidgetBlueprintEditor> Editor, IUMGDesigner* InDesigner, const TArray<FDraggingWidgetReference>& InWidgets);
-};
-
-FSelectedWidgetDragDropOp::~FSelectedWidgetDragDropOp()
-{
-	if ( bShowingMessage )
-	{
-		Designer->PopDesignerMessage();
-	}
-}
-
-TSharedRef<FSelectedWidgetDragDropOp> FSelectedWidgetDragDropOp::New(TSharedPtr<FWidgetBlueprintEditor> Editor, IUMGDesigner* InDesigner, const TArray<FDraggingWidgetReference>& InWidgets)
-{
-	TSharedRef<FSelectedWidgetDragDropOp> Operation = MakeShareable(new FSelectedWidgetDragDropOp());
-	Operation->bShowingMessage = false;
-	Operation->Designer = InDesigner;
-
-	for (const FDraggingWidgetReference& InDraggedWidget : InWidgets)
-	{
-		FItem DraggedWidget;
-		DraggedWidget.bStayingInParent = false;
-
-		if (UPanelWidget* PanelTemplate = InDraggedWidget.Widget.GetTemplate()->GetParent())
-		{
-			DraggedWidget.ParentWidget = Editor->GetReferenceFromTemplate(PanelTemplate);
-			DraggedWidget.bStayingInParent = PanelTemplate->LockToPanelOnDrag() || GetDefault<UWidgetDesignerSettings>()->bLockToPanelOnDragByDefault;
-
-			if ( DraggedWidget.bStayingInParent )
-			{
-				Operation->bShowingMessage = true;
-			}
-		}
-
-		// Cache the preview and template, it's not safe to query the preview/template while dragging the widget as it no longer
-		// exists in the tree.
-		DraggedWidget.Preview = InDraggedWidget.Widget.GetPreview();
-		DraggedWidget.Template = InDraggedWidget.Widget.GetTemplate();
-
-		DraggedWidget.DraggedOffset = InDraggedWidget.DraggedOffset;
-
-		FWidgetBlueprintEditorUtils::ExportPropertiesToText(InDraggedWidget.Widget.GetTemplate()->Slot, DraggedWidget.ExportedSlotProperties);
-
-		Operation->DraggedWidgets.Add(DraggedWidget);
-	}
-
-	// Set the display text based on whether we're dragging a single or multiple widgets
-	if (InWidgets.Num() == 1)
-	{
-		FText DisplayText = InWidgets[0].Widget.GetTemplate()->GetLabelText();
-
-		Operation->DefaultHoverText = DisplayText;
-		Operation->CurrentHoverText = DisplayText;
-	}
-	else
-	{
-		Operation->CurrentHoverText = Operation->DefaultHoverText = LOCTEXT("DragMultipleWidgets", "Multiple Widgets");
-	}
-
-	if ( Operation->bShowingMessage )
-	{
-		InDesigner->PushDesignerMessage(LOCTEXT("PressAltToMoveFromParent", "Press [Alt] to move the widget out of the current parent"));
-	}
-
-	Operation->Construct();
-	return Operation;
-}
 
 //////////////////////////////////////////////////////////////////////////
 

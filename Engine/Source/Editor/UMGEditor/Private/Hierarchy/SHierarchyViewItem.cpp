@@ -24,10 +24,9 @@
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "DragAndDrop/ClassDragDropOp.h"
 #include "DragDrop/WidgetTemplateDragDropOp.h"
+#include "DragDrop/SelectedWidgetDragDropOp.h"
+
 #include "WidgetTemplate.h"
-
-
-
 
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
@@ -159,6 +158,12 @@ TOptional<EItemDropZone> ProcessHierarchyDragDrop(const FDragDropEvent& DragDrop
 		}
 	}
 
+	// We do not support to dragging a Widget from the Viewport to the Hierarchy panel
+	if (TSharedPtr<FSelectedWidgetDragDropOp> SelectedWidgetDragDropOp = DragDropEvent.GetOperationAs<FSelectedWidgetDragDropOp>())
+	{
+		return TOptional<EItemDropZone>();
+	}
+
 	if ( TargetTemplate && ( DropZone == EItemDropZone::AboveItem || DropZone == EItemDropZone::BelowItem ) )
 	{
 		if ( UPanelWidget* TargetParentTemplate = TargetTemplate->GetParent() )
@@ -208,8 +213,10 @@ TOptional<EItemDropZone> ProcessHierarchyDragDrop(const FDragDropEvent& DragDrop
 
 				Blueprint->WidgetTree->SetFlags(RF_Transactional);
 				Blueprint->WidgetTree->Modify();
-
-				Blueprint->WidgetTree->RootWidget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
+				if (UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp))
+				{
+					Blueprint->WidgetTree->RootWidget = Widget;
+				}
 				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 			}
 
@@ -241,20 +248,21 @@ TOptional<EItemDropZone> ProcessHierarchyDragDrop(const FDragDropEvent& DragDrop
 					
 					Parent->SetFlags(RF_Transactional);
 					Parent->Modify();
-					UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
-
-					UPanelSlot* NewSlot = nullptr;
-					if (Index.IsSet())
+					if (UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp))
 					{
-						NewSlot = Parent->InsertChildAt(Index.GetValue(), Widget);
-					}
-					else
-					{
-						NewSlot = Parent->AddChild(Widget);
-					}
-					check(NewSlot);
+						UPanelSlot* NewSlot = nullptr;
+						if (Index.IsSet())
+						{
+							NewSlot = Parent->InsertChildAt(Index.GetValue(), Widget);
+						}
+						else
+						{
+							NewSlot = Parent->AddChild(Widget);
+						}
+						check(NewSlot);
 
-					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+						FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+					}
 				}
 
 				if (DecoratedDragDropOp.IsValid())
@@ -749,11 +757,12 @@ TOptional<EItemDropZone> FHierarchyRoot::HandleCanAcceptDrop(const FDragDropEven
 	TSharedPtr<FDragDropOperation> DragDropOp = DragDropEvent.GetOperation();
 	if (DragDropOp.IsValid())
 	{
-		UWidgetBlueprint* Blueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
-		if(Blueprint)
+		if(UWidgetBlueprint* Blueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj())
 		{
-			UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
-			bIsFreeFromCircularReferences = !HasCircularReferences(Blueprint, Widget, DragDropOp);
+			if (UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp))
+			{
+				bIsFreeFromCircularReferences = !HasCircularReferences(Blueprint, Widget, DragDropOp);
+			}
 		}
 	}
 
@@ -908,14 +917,15 @@ TOptional<EItemDropZone> FNamedSlotModel::HandleCanAcceptDrop(const FDragDropEve
 				return TOptional<EItemDropZone>();
 			}
 
-			UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
-			bool bIsFreeFromCircularReferences = !HasCircularReferences(Blueprint, Widget, DragDropOp);
-
-			if (DecoratedDragDropOp.IsValid())
+			if (UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp))
 			{
-				DecoratedDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+				bool bIsFreeFromCircularReferences = !HasCircularReferences(Blueprint, Widget, DragDropOp);
+				if (DecoratedDragDropOp.IsValid())
+				{
+					DecoratedDragDropOp->CurrentIconBrush = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
+				}
+				return bIsFreeFromCircularReferences ? EItemDropZone::OntoItem : TOptional<EItemDropZone>();
 			}
-			return bIsFreeFromCircularReferences ? EItemDropZone::OntoItem : TOptional<EItemDropZone>();
 		}
 	}
 
@@ -982,11 +992,15 @@ FReply FNamedSlotModel::HandleAcceptDrop(FDragDropEvent const& DragDropEvent, EI
 		Blueprint->WidgetTree->SetFlags(RF_Transactional);
 		Blueprint->WidgetTree->Modify();
 
-		UWidget* DroppingWidget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
-
-		DoDrop(SlotHostWidget, DroppingWidget);
-
-		return FReply::Handled();
+		if (UWidget* DroppingWidget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp))
+		{
+			DoDrop(SlotHostWidget, DroppingWidget);
+			return FReply::Handled();
+		}
+		else
+		{
+			return FReply::Unhandled();
+		}
 	}
 
 	TSharedPtr<FHierarchyWidgetDragDropOp> HierarchyDragDropOp = DragDropEvent.GetOperationAs<FHierarchyWidgetDragDropOp>();
@@ -1150,8 +1164,10 @@ TOptional<EItemDropZone> FHierarchyWidget::HandleCanAcceptDrop(const FDragDropEv
 		UWidgetBlueprint* Blueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
 		if (Blueprint)
 		{
-			UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp);
-			bIsFreeFromCircularReferences = !HasCircularReferences(Blueprint, Widget, DragDropOp);
+			if (UWidget* Widget = FWidgetBlueprintEditorUtils::GetWidgetTemplateFromDragDrop(Blueprint, Blueprint->WidgetTree, DragDropOp))
+			{
+				bIsFreeFromCircularReferences = !HasCircularReferences(Blueprint, Widget, DragDropOp);
+			}
 		}
 	}
 	bool bIsDrop = false;
