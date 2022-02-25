@@ -219,8 +219,8 @@ void FDisplayClusterConfiguratorKismetCompilerContext::CopyTermDefaultsToDefault
 					void* PropertyValue = Property->ContainerPtrToValuePtr<void*>(OldSubObject);
 			
 					FString Value;
-					Property->ExportTextItem(Value, PropertyValue, nullptr, nullptr, 0, nullptr);
-					Property->ImportText(*Value, PropertyValue, 0, OldSubObject);
+					Property->ExportTextItem_Direct(Value, PropertyValue, nullptr, nullptr, 0, nullptr);
+					Property->ImportText_Direct(*Value, PropertyValue, OldSubObject, 0);
 				}
 			}
 		}

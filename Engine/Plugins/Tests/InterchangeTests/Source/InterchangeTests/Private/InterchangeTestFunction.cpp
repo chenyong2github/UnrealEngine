@@ -26,7 +26,7 @@ void FInterchangeTestFunction::ImportParameter(FStructOnScope& ParamData, FPrope
 	if (const FString* ParamValue = Parameters.Find(ParamName))
 	{
 		// Read param value from bound params
-		ParamProperty->ImportText(**ParamValue, ParamData.GetStructMemory() + Offset, 0, nullptr);
+		ParamProperty->ImportText_InContainer(**ParamValue, ParamData.GetStructMemory() + Offset, nullptr, 0);
 	}
 	else
 	{
@@ -35,7 +35,7 @@ void FInterchangeTestFunction::ImportParameter(FStructOnScope& ParamData, FPrope
 		if (CheckFunction->HasMetaData(MetadataKey))
 		{
 			FString DefaultValue = CheckFunction->GetMetaData(MetadataKey);
-			ParamProperty->ImportText(*DefaultValue, ParamData.GetStructMemory() + Offset, 0, nullptr);
+			ParamProperty->ImportText_InContainer(*DefaultValue, ParamData.GetStructMemory() + Offset, nullptr, 0);
 		}
 	}
 }
@@ -55,7 +55,7 @@ void FInterchangeTestFunction::ExportParameters()
 		int32 Offset = ParamProperty->GetOffset_ForUFunction();
 
 		FString ExportedText;
-		ParamProperty->ExportTextItem(ExportedText, ParamData->GetStructMemory() + Offset, nullptr, nullptr, 0);
+		ParamProperty->ExportTextItem_InContainer(ExportedText, ParamData->GetStructMemory() + Offset, nullptr, nullptr, 0);
 		Parameters.Add(ParamName, ExportedText);
 	}
 #endif

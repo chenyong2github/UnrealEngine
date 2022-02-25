@@ -596,6 +596,6 @@ void UDetailsViewWrapperObject::SetContentForPin(URigVMPin* InPin)
 	{
 		FDetailsViewWrapperObjectImportErrorContext ErrorPipe;
 		uint8* DataPtr = Property->ContainerPtrToValuePtr<uint8>(this);
-		Property->ImportText(*DefaultValue, DataPtr, EPropertyPortFlags::PPF_None, nullptr, &ErrorPipe);		
+		Property->ImportText_InContainer(*DefaultValue, DataPtr, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe);		
 	}
 }
