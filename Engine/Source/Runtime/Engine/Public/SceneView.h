@@ -1723,6 +1723,13 @@ public:
 
 	/** Whether this view is one of multiple view families rendered in a single frame.  Affects occlusion query synchronization logic. */
 	bool bIsMultipleViewFamily = false;
+	
+	/** 
+	* Whether this view is the first of multiple view families rendered in a single frame.
+	* Setting this correctly helps make better and more consistent streaming decisions.
+	* This should be a temporary workaround until we have an API for executing code before/after all view rendering.
+	*/
+	bool bIsFirstViewInMultipleViewFamily = true;
 
 	/** 
 	 * Which component of the scene rendering should be output to the final render target.

@@ -412,6 +412,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 
 	//Experimental code from render team, now always disabled
 	const bool bIsRenderedImmediatelyAfterAnotherViewFamily = false;
+	bool bIsFirstViewInMultipleViewFamily = true;
 
 	for (FDisplayClusterRenderFrame::FFrameRenderTarget& DCRenderTarget : RenderFrame.RenderTargets)
 	{
@@ -745,6 +746,8 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				{
 					ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily = bIsRenderedImmediatelyAfterAnotherViewFamily;
 					ViewFamily.bIsMultipleViewFamily = true;
+					ViewFamily.bIsFirstViewInMultipleViewFamily = bIsFirstViewInMultipleViewFamily;
+					bIsFirstViewInMultipleViewFamily = false;
 
 					GetRendererModule().BeginRenderingViewFamily(SceneCanvas, &ViewFamily);
 

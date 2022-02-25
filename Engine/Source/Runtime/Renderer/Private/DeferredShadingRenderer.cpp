@@ -1968,11 +1968,19 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
 
+	bool bUpdateNaniteStreaming = false;
 	bool bVisualizeNanite = false;
 	if (bNaniteEnabled)
 	{
 		Nanite::GGlobalResources.Update(GraphBuilder);
-		Nanite::GStreamingManager.BeginAsyncUpdate(GraphBuilder);
+
+		// Only update Nanite streaming residency for the first view when multiple view rendering (nDisplay) is enabled.
+		// Streaming requests are still accumulated from the remaining views.
+		bUpdateNaniteStreaming =  !ViewFamily.bIsMultipleViewFamily || ViewFamily.bIsFirstViewInMultipleViewFamily;
+		if(bUpdateNaniteStreaming)
+		{
+			Nanite::GStreamingManager.BeginAsyncUpdate(GraphBuilder);
+		}
 
 		FNaniteVisualizationData& NaniteVisualization = GetNaniteVisualizationData();
 		if (Views.Num() > 0)
@@ -2292,7 +2300,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		Nanite::ListStatFilters(this);
 
 		// Must happen before any Nanite rendering in the frame
-		Nanite::GStreamingManager.EndAsyncUpdate(GraphBuilder);
+		if (bUpdateNaniteStreaming)
+		{
+			Nanite::GStreamingManager.EndAsyncUpdate(GraphBuilder);
+		}
 	}
 
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
@@ -2779,7 +2790,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 	// End shadow and fog after base pass
 
-	if (bNaniteEnabled)
+	if (bUpdateNaniteStreaming)
 	{
 		Nanite::GStreamingManager.SubmitFrameStreamingRequests(GraphBuilder);
 	}
