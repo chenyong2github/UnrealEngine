@@ -68,7 +68,7 @@ namespace MovieSceneAudioSectionPrivate
 			FMovieSceneChannelMetaData Data;
 			FText TextName = FText::FromName(InName);	
 			Data.SetIdentifiers(InName, TextName, TextName);
-			InChannelProxyData.Add(const_cast<ChannelType&>(InChannel), Data, TMovieSceneExternalValue<ValueType>());
+			InChannelProxyData.Add(const_cast<ChannelType&>(InChannel), Data, TMovieSceneExternalValue<ValueType>::Make());
 #else //WITH_EDITOR
 			InChannelProxyData.Add(const_cast<ChannelType&>(InChannel));
 #endif //WITH_EDITOR
@@ -129,6 +129,7 @@ EMovieSceneChannelProxyType  UMovieSceneAudioSection::CacheChannelProxy()
 	AddInputChannels<FMovieSceneBoolChannel, bool>(this, Channels);
 	AddInputChannels<FMovieSceneIntegerChannel, int32>(this, Channels);
 	AddInputChannels<FMovieSceneStringChannel, FString>(this, Channels);
+	AddInputChannels<FMovieSceneAudioTriggerChannel, bool>(this, Channels);
 
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
 
@@ -148,17 +149,34 @@ void UMovieSceneAudioSection::SetupSoundInputParameters(const USoundBase* InSoun
 			switch(Param.ParamType)
 			{
 			case EAudioParameterType::Float:
+			{
 				Inputs_Float.FindOrAdd(Param.ParamName, FMovieSceneFloatChannel{}).SetDefault(Param.FloatParam);
 				break;
+			}
 			case EAudioParameterType::Boolean:
-				Inputs_Bool.FindOrAdd(Param.ParamName, FMovieSceneBoolChannel{}).SetDefault(Param.BoolParam);
+			{
+				// Triggers are fundamentally just booleans outside of Metasound.
+				static const FName TriggerName = FName(TEXT("Trigger")); // MOVE ME.
+				if (Param.TypeName == TriggerName)
+				{
+					Inputs_Trigger.FindOrAdd(Param.ParamName, FMovieSceneAudioTriggerChannel{});
+				}
+				else
+				{
+					Inputs_Bool.FindOrAdd(Param.ParamName, FMovieSceneBoolChannel{}).SetDefault(Param.BoolParam);
+				}
 				break;
+			}
 			case EAudioParameterType::Integer:
+			{
 				Inputs_Int.FindOrAdd(Param.ParamName, FMovieSceneIntegerChannel{}).SetDefault(Param.IntParam);
 				break;
+			}
 			case EAudioParameterType::String:
+			{
 				Inputs_String.FindOrAdd(Param.ParamName, FMovieSceneStringChannel{}).SetDefault(Param.StringParam);
 				break;
+			}
 			default:
 				// Not supported yet.
 				break;

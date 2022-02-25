@@ -227,7 +227,8 @@ struct AUDIOEXTENSIONS_API FAudioParameter
 		, ArrayObjectParam(MoveTemp(InParameter.ArrayObjectParam))
 		, ArrayStringParam(MoveTemp(InParameter.ArrayStringParam))
 		, ParamType(MoveTemp(InParameter.ParamType))
-		, ObjectProxies(MoveTemp(InParameter.ObjectProxies))
+		, TypeName(MoveTemp(InParameter.TypeName))
+		, ObjectProxies(MoveTemp(InParameter.ObjectProxies))		
 	{
 	}
 
@@ -244,6 +245,7 @@ struct AUDIOEXTENSIONS_API FAudioParameter
 		, ArrayObjectParam(InParameter.ArrayObjectParam)
 		, ArrayStringParam(InParameter.ArrayStringParam)
 		, ParamType(InParameter.ParamType)
+		, TypeName(InParameter.TypeName)
 	{
 		ObjectProxies.Reset();
 		for (const Audio::IProxyDataPtr& DataPtr : InParameter.ObjectProxies)
@@ -266,6 +268,7 @@ struct AUDIOEXTENSIONS_API FAudioParameter
 		ArrayObjectParam = InParameter.ArrayObjectParam;
 		ArrayStringParam = InParameter.ArrayStringParam;
 		ParamType = InParameter.ParamType;
+		TypeName = InParameter.TypeName;
 
 		ObjectProxies.Reset();
 		for (const Audio::IProxyDataPtr& DataPtr : InParameter.ObjectProxies)
@@ -290,6 +293,7 @@ struct AUDIOEXTENSIONS_API FAudioParameter
 		ArrayObjectParam = MoveTemp(InParameter.ArrayObjectParam);
 		ArrayStringParam = MoveTemp(InParameter.ArrayStringParam);
 		ParamType = MoveTemp(InParameter.ParamType);
+		TypeName = MoveTemp(InParameter.TypeName);
 
 		ObjectProxies = MoveTemp(InParameter.ObjectProxies);
 
@@ -342,6 +346,10 @@ struct AUDIOEXTENSIONS_API FAudioParameter
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Type"), Category = AudioParameter)
 	EAudioParameterType ParamType = EAudioParameterType::None;
+
+	// Optional TypeName used to describe what constructed type this parameter should be initializing.
+	UPROPERTY()
+	FName TypeName;
 
 	// Object proxies to be generated when parameter is passed to the AudioThread to represent ObjectParam/ArrayObjectParam safely
 	TArray<Audio::IProxyDataPtr> ObjectProxies;

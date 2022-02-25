@@ -12,6 +12,7 @@
 #include "Channels/MovieSceneBoolChannel.h"
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Sections/MovieSceneActorReferenceSection.h"
+#include "Channels/MovieSceneAudioTriggerChannel.h"
 #include "MovieSceneAudioSection.generated.h"
 
 class USoundBase;
@@ -167,6 +168,7 @@ public:
 	void ForEachInput(TFunction<void(FName, const FMovieSceneStringChannel&)> InFunction) const { ForEachInternal(InFunction, Inputs_String); }
 	void ForEachInput(TFunction<void(FName, const FMovieSceneIntegerChannel&)> InFunction) const  { ForEachInternal(InFunction, Inputs_Int); }
 	void ForEachInput(TFunction<void(FName, const FMovieSceneFloatChannel&)> InFunction) const { ForEachInternal(InFunction, Inputs_Float); }
+	void ForEachInput(TFunction<void(FName, const FMovieSceneAudioTriggerChannel&)> InFunction) const { ForEachInternal(InFunction, Inputs_Trigger); }
 
 public:
 
@@ -233,6 +235,8 @@ private:
 	TMap<FName, FMovieSceneBoolChannel> Inputs_Bool;
 	UPROPERTY()
 	TMap<FName, FMovieSceneIntegerChannel> Inputs_Int;
+	UPROPERTY()
+	TMap<FName, FMovieSceneAudioTriggerChannel> Inputs_Trigger;
 
 	UPROPERTY()
 	FMovieSceneActorReferenceData AttachActorData;

@@ -17,6 +17,7 @@
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "IMovieScenePlayer.h"
 #include "GameFramework/WorldSettings.h"
+#include "Channels/MovieSceneAudioTriggerChannel.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Audio Track Evaluate"), MovieSceneEval_AudioTrack_Evaluate, STATGROUP_MovieSceneEval);
@@ -100,6 +101,8 @@ struct FDestroyAudioPreAnimatedToken : IMovieScenePreAnimatedToken
 
 struct FCachedAudioTrackData : IPersistentEvaluationData
 {
+	TMap<FName, FMoveSceneAudioTriggerState> TriggerStateMap;
+
 	TMap<FObjectKey, TMap<FObjectKey, TWeakObjectPtr<UAudioComponent>>> AudioComponentsByActorKey;
 	
 	FCachedAudioTrackData()
@@ -395,6 +398,22 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 		});
 	}
 
+	void EvaluateAllAndFireTriggers(IAudioParameterControllerInterface& InParamaterInterface, const FMovieSceneContext& InContext, FCachedAudioTrackData& InPersistentData) const
+	{
+		AudioSection->ForEachInput([&InParamaterInterface, &InContext, &InPersistentData](FName InName, const FMovieSceneAudioTriggerChannel& InChannel)
+		{
+			bool OutValue = false;
+			FMoveSceneAudioTriggerState& TriggerState = InPersistentData.TriggerStateMap.FindOrAdd(InName);
+			if(InChannel.EvaluatePossibleTriggers(InContext, TriggerState, OutValue))
+			{
+				if(OutValue)
+				{
+					InParamaterInterface.SetTriggerParameter(InName);
+				}
+			}
+		});
+	}
+
 	void EnsureAudioIsPlaying(UAudioComponent& AudioComponent, FPersistentEvaluationData& PersistentData, const FMovieSceneContext& Context, bool bAllowSpatialization, IMovieScenePlayer& Player) const
 	{
 		Player.SavePreAnimatedState(AudioComponent, FStopAudioPreAnimatedToken::GetAnimTypeID(), FStopAudioPreAnimatedToken::FProducer());
@@ -553,6 +572,11 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 		{
 			// While scrubbing, play the sound for a short time and then cut it.
 			AudioComponent.StopDelayed(AudioTrackConstants::ScrubDuration);
+		}
+
+		if(AudioComponent.IsPlaying())
+		{
+			EvaluateAllAndFireTriggers(AudioComponent, Context, TrackData);
 		}
 
 		if (bAllowSpatialization)

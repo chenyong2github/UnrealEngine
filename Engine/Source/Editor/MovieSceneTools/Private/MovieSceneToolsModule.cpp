@@ -73,6 +73,7 @@
 #include "Channels/MovieSceneCameraShakeSourceTriggerChannel.h"
 #include "Channels/EventChannelCurveModel.h"
 #include "Channels/SCurveEditorEventChannelView.h"
+#include "Channels/MovieSceneAudioTriggerChannel.h"
 #include "Sections/MovieSceneEventSection.h"
 
 #include "MovieSceneEventUtils.h"
@@ -164,6 +165,8 @@ void FMovieSceneToolsModule::StartupModule()
 		SequencerModule.RegisterChannelInterface<FMovieSceneActorReferenceData>();
 		SequencerModule.RegisterChannelInterface<FMovieSceneEventSectionData>();
 		SequencerModule.RegisterChannelInterface<FMovieSceneObjectPathChannel>();
+
+		SequencerModule.RegisterChannelInterface<FMovieSceneAudioTriggerChannel>();
 
 		SequencerModule.RegisterChannelInterface<FMovieSceneEventChannel>();
 

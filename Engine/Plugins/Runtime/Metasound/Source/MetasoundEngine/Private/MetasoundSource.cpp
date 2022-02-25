@@ -265,8 +265,30 @@ void UMetaSoundSource::SetRegistryAssetClassInfo(const Metasound::Frontend::FNod
 
 void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToInit, FName InFeatureName)
 {
-	auto Sanitize = [](FAudioParameter& Parameter)
+	TMap<FName, const FMetasoundFrontendClassInput*> TransmittableInputMap;
+	const TArray<const FMetasoundFrontendClassInput*> TransmittableInputs = GetTransmittableClassInputs();
+	Algo::Transform(TransmittableInputs, TransmittableInputMap, [](const FMetasoundFrontendClassInput* Input)
 	{
+		return TPair<FName, const FMetasoundFrontendClassInput*>(Input->Name, Input);
+	});
+	
+	// Removes values that are not explicitly defined by the ParamType and returns
+	// whether or not the parameter is a valid input and should be included.
+	auto Sanitize = [&TransmittableInputMap](FAudioParameter& Parameter) -> bool
+	{
+		if (const FMetasoundFrontendClassInput* Input = TransmittableInputMap.FindRef(Parameter.ParamName))
+		{
+			// Only remove if parameter typename is specified and does not match
+			if (Parameter.TypeName != FName() && Parameter.TypeName != Input->TypeName)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			return false;
+		}
+
 		switch (Parameter.ParamType)
 		{
 			case EAudioParameterType::Boolean:
@@ -339,6 +361,8 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 			default:
 			break;
 		}
+
+		return true;
 	};
 
 	auto ConstructProxies = [this, FeatureName = InFeatureName](FAudioParameter& OutParamToInit)
@@ -392,17 +416,24 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 		return TPair<FName, FName>(Input.Name, Input.TypeName);
 	});
 
-	for (FAudioParameter& Parameter : InParametersToInit)
+	for (int32 i = InParametersToInit.Num() - 1; i >= 0; --i)
 	{
-		Sanitize(Parameter);
-
-		if (IsParameterValid(Parameter, InputNameTypeMap))
+		FAudioParameter& Parameter = InParametersToInit[i];
+		if (Sanitize(Parameter))
 		{
-			ConstructProxies(Parameter);
+			if (IsParameterValid(Parameter, InputNameTypeMap))
+			{
+				ConstructProxies(Parameter);
+			}
+			else
+			{
+				UE_LOG(LogMetaSound, Error, TEXT("Failed to set invalid parameter '%s': Either does not exist or is unsupported type"), *Parameter.ParamName.ToString());
+			}
 		}
 		else
 		{
-			UE_LOG(LogMetaSound, Error, TEXT("Failed to set invalid parameter '%s': Either does not exist or is unsupported type"), *Parameter.ParamName.ToString());
+			constexpr bool bAllowShrinking = false;
+			InParametersToInit.RemoveAtSwap(i, 1, bAllowShrinking);
 		}
 	}
 }
@@ -492,6 +523,7 @@ bool UMetaSoundSource::GetAllDefaultParameters(TArray<FAudioParameter>& OutParam
 
 		FAudioParameter Params;
 		Params.ParamName = Input->Name;
+		Params.TypeName = Input->TypeName;
 
 		switch (Input->DefaultLiteral.GetType())
 		{
