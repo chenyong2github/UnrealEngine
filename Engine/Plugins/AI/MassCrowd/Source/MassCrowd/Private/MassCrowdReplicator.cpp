@@ -51,7 +51,8 @@ void UMassCrowdReplicator::ProcessClientReplication(FMassExecutionContext& Conte
 
 		FMassCrowdClientBubbleHandler& Bubble = CrowdBubbleInfo.GetCrowdSerializer().Bubble;
 
-		PathHandler.ModifyEntity<FCrowdFastArrayItem>(Handle, EntityIdx, Bubble.GetPathHandlerMutable());
+		const bool bLastClient = RepSharedFrag->CachedClientHandles.Last() == ClientHandle;
+		PathHandler.ModifyEntity<FCrowdFastArrayItem>(Handle, EntityIdx, Bubble.GetPathHandlerMutable(), bLastClient);
 
 		// Don't call the PositionYawHandler here as we currently only replicate the position and yaw when we add an entity to Mass
 	};

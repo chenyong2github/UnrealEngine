@@ -214,9 +214,10 @@ public:
 	 * @param Handle to the agent in the TMassClientBubbleHandler (that TMassClientBubblePathHandler is a member variable of).
 	 * @param EntityIdx the index of the entity in fragment views that have been cached.
 	 * @param BubblePathHandler handler to actually set the data in the client bubble
+	 * @param bLastClient means it safe to reset any dirtiness
 	 */
 	template<typename AgentArrayItem>
-	void ModifyEntity(const FMassReplicatedAgentHandle Handle, const int32 EntityIdx, TMassClientBubblePathHandler<AgentArrayItem>& BubblePathHandler);
+	void ModifyEntity(const FMassReplicatedAgentHandle Handle, const int32 EntityIdx, TMassClientBubblePathHandler<AgentArrayItem>& BubblePathHandler, bool bLastClient);
 
 	TArrayView<FMassZoneGraphPathRequestFragment> PathRequestList;
 	TArrayView<FMassMoveTargetFragment> MoveTargetList;
@@ -224,7 +225,7 @@ public:
 };
 
 template<typename AgentArrayItem>
-void FMassReplicationProcessorPathHandler::ModifyEntity(const FMassReplicatedAgentHandle Handle, const int32 EntityIdx, TMassClientBubblePathHandler<AgentArrayItem>& BubblePathHandler)
+void FMassReplicationProcessorPathHandler::ModifyEntity(const FMassReplicatedAgentHandle Handle, const int32 EntityIdx, TMassClientBubblePathHandler<AgentArrayItem>& BubblePathHandler, bool bLastClient)
 {
 	const FMassZoneGraphPathRequestFragment& PathRequest = PathRequestList[EntityIdx];
 	FMassMoveTargetFragment& MoveTargetFragment = MoveTargetList[EntityIdx];
@@ -233,6 +234,9 @@ void FMassReplicationProcessorPathHandler::ModifyEntity(const FMassReplicatedAge
 	if (MoveTargetFragment.GetNetDirty())
 	{
 		BubblePathHandler.SetBubblePathData(Handle, PathRequest, MoveTargetFragment, LaneLocationFragment);
-		MoveTargetFragment.ResetNetDirty();
+		if (bLastClient)
+		{
+			MoveTargetFragment.ResetNetDirty();
+		}
 	}
 }
