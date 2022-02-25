@@ -129,6 +129,9 @@ namespace
 // Choose the default from DefaultGraphicsRHI or TargetedRHIs. DefaultGraphicsRHI has precedence.
 static WindowsRHI ChooseDefaultRHI()
 {
+	// Make sure the DDSPI is initialized before we try and read from it
+	FGenericDataDrivenShaderPlatformInfo::Initialize();
+
 	WindowsRHI DefaultRHI = WindowsRHI::D3D11;
 
 	// Default graphics RHI is the main project setting that governs the choice, so it takes the priority
@@ -166,9 +169,6 @@ static WindowsRHI ChooseDefaultRHI()
 		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("TargetedRHIs"), TargetedShaderFormats, GEngineIni);
 		if (TargetedShaderFormats.Num() > 0)
 		{
-			// Make sure the DDSPI is initialized before we try and read from it
-			FGenericDataDrivenShaderPlatformInfo::Initialize();
-
 			// Pick the first one
 			FName ShaderFormatName(*TargetedShaderFormats[0]);
 			EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
