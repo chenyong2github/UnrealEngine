@@ -7,6 +7,8 @@
 #include "Engine/EngineTypes.h"
 #include "InterchangeTestFunction.generated.h"
 
+class FStructOnScope;
+
 
 USTRUCT()
 struct FInterchangeTestFunctionResult

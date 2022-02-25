@@ -2,6 +2,7 @@
 
 #include "InterchangeTestFunction.h"
 #include "ImportTestFunctions/ImportTestFunctionsBase.h"
+#include "UObject/StructOnScope.h"
 
 
 TSharedPtr<FStructOnScope> FInterchangeTestFunction::ImportParameters()
@@ -26,7 +27,7 @@ void FInterchangeTestFunction::ImportParameter(FStructOnScope& ParamData, FPrope
 	if (const FString* ParamValue = Parameters.Find(ParamName))
 	{
 		// Read param value from bound params
-		ParamProperty->ImportText_Direct(**ParamValue, ParamData.GetStructMemory() + Offset, nullptr, 0);
+		ParamProperty->ImportText_Direct(**ParamValue, ParamData.GetStructMemory() + Offset, nullptr, PPF_None);
 	}
 	else
 	{
@@ -35,7 +36,7 @@ void FInterchangeTestFunction::ImportParameter(FStructOnScope& ParamData, FPrope
 		if (CheckFunction->HasMetaData(MetadataKey))
 		{
 			FString DefaultValue = CheckFunction->GetMetaData(MetadataKey);
-			ParamProperty->ImportText_Direct(*DefaultValue, ParamData.GetStructMemory() + Offset, nullptr, 0);
+			ParamProperty->ImportText_Direct(*DefaultValue, ParamData.GetStructMemory() + Offset, nullptr, PPF_None);
 		}
 	}
 }
