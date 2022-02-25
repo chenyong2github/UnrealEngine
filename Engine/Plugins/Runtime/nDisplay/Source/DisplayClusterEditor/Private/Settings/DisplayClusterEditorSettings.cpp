@@ -2,6 +2,7 @@
 
 #include "DisplayClusterEditorSettings.h"
 #include "DisplayClusterEditorEngine.h"
+#include "HAL/PlatformFileManager.h"
 #include "Misc/ConfigCacheIni.h"
 
 
