@@ -145,6 +145,16 @@ void SMenuAnchor::Tick( const FGeometry& AllottedGeometry, const double InCurren
 		// passed down in FGeometry, along with the window DPI Scale, as one extra value code can take into account if it needs to.
 		const FVector2D NewSize = PopupGeometry.GetDrawSize() / ( AllottedGeometry.GetAccumulatedLayoutTransform().GetScale() / PopupWindow->GetLocalToWindowTransform().GetScale() );
 
+		// When in a ComboBox, we want the submenu to be at minimum the size of the combo box, so we update the Popupwindow minimum size.
+		const EMenuPlacement PlacementMode = Placement.Get();
+		if (PlacementMode == MenuPlacement_ComboBox)
+		{
+			// Set the new size limits
+			FWindowSizeLimits SizeLimits = PopupWindow->GetSizeLimits();
+			SizeLimits.SetMinWidth(NewSize.X);
+			PopupWindow->SetSizeLimits(SizeLimits);
+		}
+
 		// We made a window for showing the popup.
 		// Update the window's position!
 		PopupWindow->ReshapeWindow(NewPosition, NewSize);

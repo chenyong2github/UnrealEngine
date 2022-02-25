@@ -709,6 +709,11 @@ FWindowSizeLimits SWindow::GetSizeLimits() const
 	return SizeLimits;
 }
 
+void SWindow::SetSizeLimits(const FWindowSizeLimits& InSizeLimits)
+{
+	SizeLimits = InSizeLimits;
+}
+
 void SWindow::SetAllowFastUpdate(bool bInAllowFastUpdate)
 {
 	if (bAllowFastUpdate != bInAllowFastUpdate)

@@ -1058,6 +1058,9 @@ public:
 	/** Optional constraints on min and max sizes that this window can be. */
 	FWindowSizeLimits GetSizeLimits() const;
 
+	/** Set optional constraints on min and max sizes that this window can be. */
+	void SetSizeLimits(const FWindowSizeLimits& InSizeLimits);
+
 	void SetAllowFastUpdate(bool bInAllowFastUpdate);
 public:
 
