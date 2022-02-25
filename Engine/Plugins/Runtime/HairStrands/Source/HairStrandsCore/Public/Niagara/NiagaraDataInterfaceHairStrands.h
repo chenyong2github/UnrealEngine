@@ -114,6 +114,7 @@ struct FNDIHairStrandsData
 		PreviousBoneAngularVelocity = FVector3f::Zero();
 		
 		GlobalInterpolation = false;
+		bSkinningTransfer = false;
 		HairGroupInstance = nullptr;
 
 		TickCount = 0;
@@ -180,6 +181,7 @@ struct FNDIHairStrandsData
 			PreviousBoneAngularVelocity = OtherDatas->PreviousBoneAngularVelocity;
 
 			GlobalInterpolation = OtherDatas->GlobalInterpolation;
+			bSkinningTransfer = OtherDatas->bSkinningTransfer;
 			BindingType = OtherDatas->BindingType;
 			HairGroupInstance = OtherDatas->HairGroupInstance;
 
@@ -256,6 +258,9 @@ struct FNDIHairStrandsData
 
 	/** Global Interpolation */
 	bool GlobalInterpolation;
+	
+	/** Skinning transfer from a source to a target skelmesh */
+    bool bSkinningTransfer;
 
 	/** Number of strands*/
 	int32 NumStrands;
