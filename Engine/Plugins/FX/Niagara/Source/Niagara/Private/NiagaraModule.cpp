@@ -942,22 +942,23 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	ENiagaraTypeRegistryFlags VarFlags = ENiagaraTypeRegistryFlags::AllowAnyVariable;
 	ENiagaraTypeRegistryFlags ParamFlags = VarFlags | ENiagaraTypeRegistryFlags::AllowParameter;
 	ENiagaraTypeRegistryFlags PayloadFlags = VarFlags | ENiagaraTypeRegistryFlags::AllowPayload;
+
 	FNiagaraTypeRegistry::Register(CollisionEventDef, PayloadFlags);
 
 	FNiagaraTypeRegistry::Register(ParameterMapDef, ParamFlags);
-	FNiagaraTypeRegistry::Register(IDDef, ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(RandInfoDef, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(IDDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(RandInfoDef, ParamFlags);
 	FNiagaraTypeRegistry::Register(NumericDef, ParamFlags);
-	FNiagaraTypeRegistry::Register(FloatDef, ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(HalfDef, ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(IntDef, ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(BoolDef, ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(Vec2Def, ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(Vec3Def, ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(Vec4Def, ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(ColorDef, ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(PositionDef, ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(QuatDef, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(FloatDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(HalfDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(IntDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(BoolDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(Vec2Def, ParamFlags);
+	FNiagaraTypeRegistry::Register(Vec3Def, ParamFlags);
+	FNiagaraTypeRegistry::Register(Vec4Def, ParamFlags);
+	FNiagaraTypeRegistry::Register(ColorDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(PositionDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(QuatDef, ParamFlags);
 	FNiagaraTypeRegistry::Register(Matrix4Def, ParamFlags);
 
 	// Register static versions
@@ -968,10 +969,10 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	// @todo wildcard shouldn't be available for parameters etc., so just don't register here?
 	//FNiagaraTypeRegistry::Register(WildcardDef, VarFlags);
 
-	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateEnum), ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(CoordinateSpaceEnum), ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(OrientationAxisEnum), ParamFlags | PayloadFlags);
-	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateSourceEnum), ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateEnum), ParamFlags);
+	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(CoordinateSpaceEnum), ParamFlags);
+	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(OrientationAxisEnum), ParamFlags);
+	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateSourceEnum), ParamFlags);
 
 	UScriptStruct* SpawnInfoStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraSpawnInfo"));
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(SpawnInfoStruct), ParamFlags);
@@ -981,7 +982,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(UTextureDef, VarFlags);
 	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, VarFlags);
 	FNiagaraTypeRegistry::Register(UStaticMeshDef, VarFlags);
-	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), ParamFlags);
 
 	
 	if (!IsRunningCommandlet())
@@ -1051,8 +1052,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 				UE_LOG(LogNiagara, Warning, TEXT("Could not find additional parameter/payload type: %s"), *AssetRef.ToString());
 			}
 		}
-
-
+		
 		for (FSoftObjectPath AssetRef : Settings->AdditionalParameterEnums)
 		{
 			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
@@ -1070,20 +1070,11 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 
 			if (Obj != nullptr)
 			{
-				const FSoftObjectPath* ParamRefFound = Settings->AdditionalParameterEnums.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
-				const FSoftObjectPath* PayloadRefFound = nullptr;
 				UEnum* Enum = Cast<UEnum>(Obj);
 				if (Enum != nullptr)
 				{
-					ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable;
-					if (ParamRefFound)
-					{
-						Flags |= ENiagaraTypeRegistryFlags::AllowParameter;
-					}
-					if (PayloadRefFound)
-					{
-						Flags |= ENiagaraTypeRegistryFlags::AllowPayload;
-					}
+					ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter;
+					
 					FNiagaraTypeDefinition Def(Enum);
 					FNiagaraTypeRegistry::Register(Def, Flags);
 					FNiagaraTypeRegistry::Register(Def.ToStaticDef(), StaticParamFlags);

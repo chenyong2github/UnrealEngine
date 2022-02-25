@@ -498,33 +498,40 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 	if (bAllowEventNodes && bModuleGraph)
 	{
 		const FText MenuCat = LOCTEXT("NiagaraEventMenuCat", "Events");
-		const TArray<FNiagaraTypeDefinition>& RegisteredTypes = FNiagaraTypeRegistry::GetRegisteredPayloadTypes();
-		for (const FNiagaraTypeDefinition& Type : RegisteredTypes)
+		TArray<FString> ReadCategories = {MenuCat.ToString(), LOCTEXT("NiagaraEventCategory_Read", "Read").ToString()};
+		TArray<FString> WriteCategories = {MenuCat.ToString(), LOCTEXT("NiagaraEventCategory_Write", "Write").ToString()};
+
+		const TArray<FNiagaraTypeDefinition>& PayloadTypes = FNiagaraTypeRegistry::GetRegisteredPayloadTypes();
+		for (const FNiagaraTypeDefinition& PayloadType : PayloadTypes)
 		{
-			if (Type.IsInternalType())
+			if (PayloadType.IsInternalType())
 			{
 				continue;
 			}
 
-			if (Type.GetStruct() && !Type.GetStruct()->IsA(UNiagaraDataInterface::StaticClass()))
+			if (PayloadType.GetStruct() && !PayloadType.GetStruct()->IsChildOf(UNiagaraDataInterface::StaticClass()))
 			{
 				{
-					const FText MenuDescFmt = LOCTEXT("AddEventReadFmt", "Add {0} Event Read");
-					const FText DisplayName = FText::Format(MenuDescFmt, Type.GetNameText());
-				
+					const FText DisplayNameFormat = LOCTEXT("AddEventReadFmt", "Add {0} Event Read");
+					FString NameString = PayloadType.GetNameText().ToString();
+					NameString = NameString.Replace(TEXT(" Event"), TEXT(""), ESearchCase::IgnoreCase);
+					const FText DisplayName = FText::Format(DisplayNameFormat, FText::FromString(NameString));
+					
 					UNiagaraNodeReadDataSet* EventReadNode = NewObject<UNiagaraNodeReadDataSet>(OwnerOfTemporaries);
-					EventReadNode->InitializeFromStruct(Type.GetStruct());
+					EventReadNode->InitializeFromStruct(PayloadType.GetStruct());
 
-					AddNewNodeMenuAction(NewActions, EventReadNode, DisplayName, ENiagaraMenuSections::General, {MenuCat.ToString()}, FText::GetEmpty(), FText::GetEmpty());
+					AddNewNodeMenuAction(NewActions, EventReadNode, DisplayName, ENiagaraMenuSections::General, ReadCategories, FText::GetEmpty(), FText::GetEmpty());
 				}
 				{
-					const FText MenuDescFmt = LOCTEXT("AddEventWriteFmt", "Add {0} Event Write");
-					const FText DisplayName = FText::Format(MenuDescFmt, Type.GetNameText());
-
-					UNiagaraNodeWriteDataSet* EventWriteNode = NewObject<UNiagaraNodeWriteDataSet>(OwnerOfTemporaries);
-					EventWriteNode->InitializeFromStruct(Type.GetStruct());
+					const FText DisplayNameFormat = LOCTEXT("AddEventWriteFmt", "Add {0} Event Write");
+					FString NameString = PayloadType.GetNameText().ToString();
+					NameString = NameString.Replace(TEXT("Event"), TEXT(""), ESearchCase::IgnoreCase);
+					const FText DisplayName = FText::Format(DisplayNameFormat, FText::FromString(NameString));
 					
-					AddNewNodeMenuAction(NewActions, EventWriteNode, DisplayName, ENiagaraMenuSections::General, {MenuCat.ToString()}, FText::GetEmpty(), FText::GetEmpty());
+					UNiagaraNodeWriteDataSet* EventWriteNode = NewObject<UNiagaraNodeWriteDataSet>(OwnerOfTemporaries);
+					EventWriteNode->InitializeFromStruct(PayloadType.GetStruct());
+					
+					AddNewNodeMenuAction(NewActions, EventWriteNode, DisplayName, ENiagaraMenuSections::General, WriteCategories, FText::GetEmpty(), FText::GetEmpty());
 				}
 			}
 		}

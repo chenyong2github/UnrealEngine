@@ -1405,8 +1405,7 @@ void UNiagaraDataInterfaceStaticMesh::PostInitProperties()
 		// Still some issues with using custom structs. Convert node for example throws a wobbler. TODO after GDC.
 		ENiagaraTypeRegistryFlags CoordFlags =
 			ENiagaraTypeRegistryFlags::AllowAnyVariable |
-			ENiagaraTypeRegistryFlags::AllowParameter |
-			ENiagaraTypeRegistryFlags::AllowPayload;
+			ENiagaraTypeRegistryFlags::AllowParameter;
 		FNiagaraTypeRegistry::Register(FMeshTriCoordinate::StaticStruct(), CoordFlags);
 	}
 }
