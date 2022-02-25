@@ -86,6 +86,8 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 
 	if(!GIsRHIInitialized || !CVarValue || (GRHIVendorId == 0) || FApp::IsUnattended())
 	{
+		UE_LOG(LogRHI, Log, TEXT("Skipping Driver Check: RHI%s initialized, WarnOfBadDrivers=%d, VendorId=0x%x, is%s unattended"), 
+			GIsRHIInitialized ? TEXT("") : TEXT(" NOT"), CVarValue, GRHIVendorId, FApp::IsUnattended() ? TEXT("") : TEXT(" NOT"));
 		return;
 	}
 
