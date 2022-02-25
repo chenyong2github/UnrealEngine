@@ -1248,37 +1248,36 @@ void FProjectedShadowInfo::GetShadowTypeNameForDrawEvent(FString& TypeName) cons
 }
 
 #if WITH_MGPU
-FRHIGPUMask FSceneRenderer::GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedShadowInfo) const
+// Shadows that are cached need to be copied to other GPUs after they render
+bool FSceneRenderer::IsShadowCached(FProjectedShadowInfo* ProjectedShadowInfo) const
 {
-	// Preshadows that are going to be cached this frame should render on all GPUs.
+	// Preshadows that are going to be cached this frame should be copied to other GPUs.
 	if (ProjectedShadowInfo->bPreShadow)
 	{
-		// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
-		// wasted for any shadows that re-cache on consecutive frames.
-		return !ProjectedShadowInfo->bDepthsCached && ProjectedShadowInfo->bAllocatedInPreshadowCache ? FRHIGPUMask::All() : AllViewsGPUMask;
+		return !ProjectedShadowInfo->bDepthsCached && ProjectedShadowInfo->bAllocatedInPreshadowCache;
 	}
-	// SDCM_StaticPrimitivesOnly shadows don't update every frame so we need to render
-	// their depths on all possible GPUs.
+	// SDCM_StaticPrimitivesOnly shadows don't update every frame so we need to copy
+	// their depths to all possible GPUs.
 	else if (!ProjectedShadowInfo->IsWholeSceneDirectionalShadow() && ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly)
 	{
 		// Cached whole scene shadows shouldn't be view dependent.
 		checkSlow(ProjectedShadowInfo->DependentView == nullptr);
 
-		// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
-		// wasted for any shadows that re-cache on consecutive frames.
-		return FRHIGPUMask::All();
+		return true;
+	}
+	return false;
+}
+
+FRHIGPUMask FSceneRenderer::GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedShadowInfo) const
+{
+	// View dependent shadows only need to render depths on their view's GPUs.
+	if (ProjectedShadowInfo->DependentView != nullptr)
+	{
+		return ProjectedShadowInfo->DependentView->GPUMask;
 	}
 	else
 	{
-		// View dependent shadows only need to render depths on their view's GPUs.
-		if (ProjectedShadowInfo->DependentView != nullptr)
-		{
-			return ProjectedShadowInfo->DependentView->GPUMask;
-		}
-		else
-		{
-			return AllViewsGPUMask;
-		}
+		return AllViewsGPUMask;
 	}
 }
 #endif // WITH_MGPU
@@ -1489,10 +1488,6 @@ bool IsParallelDispatchEnabled(const FProjectedShadowInfo* ProjectedShadowInfo, 
 
 void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 {
-	// Perform setup work on all GPUs in case any cached shadows are being updated this
-	// frame. We revert to the AllViewsGPUMask for uncached shadows.
-	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
-
 	const bool bNaniteEnabled = 
 		UseNanite(ShaderPlatform) &&
 		ViewFamily.EngineShowFlags.NaniteMeshes &&
@@ -1820,13 +1815,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 	// the previous batching scope. Also flushes the culling views registered during the setup (in InitViewsAfterPrepass) that are referenced in the shadow view
 	// culling.
 	InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
-
-	// Perform setup work on all GPUs in case any cached shadows are being updated this
-	// frame. We revert to the AllViewsGPUMask for uncached shadows.
-#if WITH_MGPU
-	ensure(GraphBuilder.RHICmdList.GetGPUMask() == AllViewsGPUMask);
-#endif
-	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 	const bool bNaniteEnabled = 
 		UseNanite(ShaderPlatform) &&

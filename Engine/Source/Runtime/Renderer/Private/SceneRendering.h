@@ -2028,6 +2028,7 @@ protected:
 
 #if WITH_MGPU
 	FRHIGPUMask AllViewsGPUMask;
+	bool IsShadowCached(FProjectedShadowInfo* ProjectedShadowInfo) const;
 	FRHIGPUMask GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedShadowInfo) const;
 #endif
 

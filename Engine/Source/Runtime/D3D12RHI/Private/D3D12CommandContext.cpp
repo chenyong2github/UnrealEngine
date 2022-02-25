@@ -1128,6 +1128,8 @@ void FD3D12CommandContextRedirector::RHITransferResources(const TArrayView<const
 		}
 
 		FD3D12DynamicRHI::TransitionResource(SrcContext->CommandListHandle, SrcResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Validate);
+		FD3D12DynamicRHI::TransitionResource(SrcContext->CommandListHandle, DestResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_DEST, 0, FD3D12DynamicRHI::ETransitionMode::Validate);
+		FD3D12DynamicRHI::TransitionResource(DestContext->CommandListHandle, SrcResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, 0, FD3D12DynamicRHI::ETransitionMode::Validate);
 		FD3D12DynamicRHI::TransitionResource(DestContext->CommandListHandle, DestResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_DEST, 0, FD3D12DynamicRHI::ETransitionMode::Validate);
 	}
 
