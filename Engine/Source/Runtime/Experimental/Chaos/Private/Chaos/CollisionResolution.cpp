@@ -1785,6 +1785,7 @@ namespace Chaos
 				case EContactShapesType::CapsuleBox:
 				case EContactShapesType::CapsuleConvex:
 				case EContactShapesType::BoxBox:
+				case EContactShapesType::BoxConvex:
 				case EContactShapesType::BoxPlane:
 				case EContactShapesType::GenericConvexConvex:
 					UpdateGenericConvexConvexConstraintSwept(Particle0, Implicit0, WorldTransform0, Particle1, Implicit1, WorldTransform1, DirCCD, LengthCCD, Dt, Constraint);
@@ -1837,12 +1838,14 @@ namespace Chaos
 					}
 					return true;
 				}
+				case EContactShapesType::BoxHeightField:
 				case EContactShapesType::ConvexHeightField:
 				{
 					const FHeightField* Object1 = Implicit1.template GetObject<const FHeightField >();
 					UpdateConvexHeightFieldConstraintSwept(Particle0, Implicit0, WorldTransform0, *Object1, WorldTransform1, DirCCD, LengthCCD, Dt, Constraint);
 					return true;
 				}
+				case EContactShapesType::BoxTriMesh:
 				case EContactShapesType::ConvexTriMesh:
 					if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = Implicit1.template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 					{
@@ -1857,6 +1860,9 @@ namespace Chaos
 						ensure(false);
 					}
 					return true;
+				default:
+					ensure(false);
+					break;
 				}
 			}
 
