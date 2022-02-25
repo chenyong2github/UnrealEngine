@@ -33,6 +33,10 @@ namespace EpicGames.Horde.Auth
 	{
 		ITokenAuthOptions Options;
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Options"></param>
 		public TokenHandler(ITokenAuthOptions Options)
 		{
 			this.Options = Options;

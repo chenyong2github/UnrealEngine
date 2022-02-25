@@ -196,6 +196,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="TaskRefId">Ref describing the request</param>
 		/// <param name="RequirementsHash">Requirements of the task to execute</param>
 		/// <param name="SkipCacheLookup">Whether to skip the lookup of cached output for this task</param>
+		/// <param name="CancellationToken">Cancellation token for the operation</param>
 		public static Task AddTaskAsync(this IComputeClient ComputeClient, ClusterId ClusterId, ChannelId ChannelId, RefId TaskRefId, IoHash RequirementsHash, bool SkipCacheLookup, CancellationToken CancellationToken = default)
 		{
 			return ComputeClient.AddTasksAsync(ClusterId, ChannelId, new[] { TaskRefId }, RequirementsHash, SkipCacheLookup, CancellationToken);

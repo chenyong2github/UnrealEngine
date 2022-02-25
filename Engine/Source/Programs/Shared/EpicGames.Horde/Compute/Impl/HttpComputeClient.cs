@@ -18,6 +18,9 @@ namespace EpicGames.Horde.Compute.Impl
 {
 	#region Requests / Responses
 
+	/// <summary>
+	/// Information about a compute cluster
+	/// </summary>
 	public class GetComputeClusterInfo : IComputeClusterInfo
 	{
 		/// <inheritdoc/>
@@ -76,19 +79,27 @@ namespace EpicGames.Horde.Compute.Impl
 	/// </summary>
 	public class AddTasksRequest
 	{
-		/// <inheritdoc cref="AddTasksRpcRequest.ChannelId"/>
+		/// <summary>
+		/// Channel to post the new tasks to. This should be a unique identifier (eg. a GUID) synthesized by the client to distinguish it from other clients, and used for querying status later.
+		/// </summary>
 		[CbField("c")]
 		public ChannelId ChannelId { get; set; }
 
-		/// <inheritdoc cref="AddTasksRpcRequest.TaskHashes"/>
+		/// <summary>
+		/// Refs for tasks to be executed
+		/// </summary>
 		[Required, CbField("t")]
 		public List<RefId> TaskRefIds { get; set; } = new List<RefId>();
 
-		/// <inheritdoc cref="AddTasksRpcRequest.RequirementsHash"/>
+		/// <summary>
+		/// Requirements for agents executing the tasks
+		/// </summary>
 		[CbField("r")]
 		public CbObjectAttachment RequirementsHash { get; set; }
 
-		/// <inheritdoc cref="AddTasksRpcRequest.DoNotCache"/>
+		/// <summary>
+		/// If set, prevents data being cached.
+		/// </summary>
 		[CbField("nc")]
 		public bool DoNotCache { get; set; }
 	}
@@ -107,10 +118,17 @@ namespace EpicGames.Horde.Compute.Impl
 
 	#endregion
 
+	/// <summary>
+	/// Implementation of <see cref="IComputeClient"/> which uses HTTP to communicate with a Horde Storage server
+	/// </summary>
 	public class HttpComputeClient : IComputeClient
 	{
 		HttpClient HttpClient;
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="HttpClient"></param>
 		public HttpComputeClient(HttpClient HttpClient)
 		{
 			this.HttpClient = HttpClient;

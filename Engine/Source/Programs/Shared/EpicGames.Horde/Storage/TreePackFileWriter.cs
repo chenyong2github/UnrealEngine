@@ -13,7 +13,11 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	public class TreePackFileWriter
 	{
+		/// <summary>
+		/// 
+		/// </summary>
 		public TreePack TreePack { get; }
+
 		int MinBlockSize;
 		int MaxBlockSize;
 		uint WindowHashThreshold;

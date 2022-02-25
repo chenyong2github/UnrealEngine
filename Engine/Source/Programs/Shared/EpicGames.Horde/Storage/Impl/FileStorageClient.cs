@@ -34,6 +34,9 @@ namespace EpicGames.Horde.Storage.Impl
 			}
 		}
 
+		/// <summary>
+		/// Base directory for storing files
+		/// </summary>
 		public DirectoryReference BaseDir { get; }
 		ILogger Logger;
 

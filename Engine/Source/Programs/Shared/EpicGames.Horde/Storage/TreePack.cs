@@ -105,7 +105,7 @@ namespace EpicGames.Horde.Storage
 	public class TreePackObjectImport
 	{
 		/// <summary>
-		/// Imported object. The <see cref="Nodes"/> field contains a flat array of hashes imported from the object.
+		/// Imported object. The <see cref="Keys"/> field contains a flat array of hashes imported from the object.
 		/// </summary>
 		[CbField("object")]
 		public CbObjectAttachment Object { get; set; }
@@ -123,8 +123,7 @@ namespace EpicGames.Horde.Storage
 	public class TreePackBinaryImport
 	{
 		/// <summary>
-		/// Imported binary. Binary objects do not have a compact binary header, and effectively consist solely of the <see cref="TreePack.Data"/> field. 
-		/// The <see cref="Nodes"/> field contains encoded a list of encoded entry objects.
+		/// Imported binary.
 		/// </summary>
 		[CbField("binary")]
 		public CbBinaryAttachment Binary { get; set; }
@@ -630,6 +629,9 @@ namespace EpicGames.Horde.Storage
 		IStorageClient StorageClient { get; }
 		NamespaceId NamespaceId { get; }
 
+		/// <summary>
+		/// 
+		/// </summary>
 		public TreePackOptions Options { get; }
 		Dictionary<IoHash, NodeInfo> Nodes = new Dictionary<IoHash, NodeInfo>();
 		Dictionary<IoHash, BlobInfo> Blobs = new Dictionary<IoHash, BlobInfo>();
@@ -658,7 +660,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Adds a root blob to the pack
 		/// </summary>
-		/// <param name="Data"></param>
+		/// <param name="Ref"></param>
 		/// <returns>Hash of the root node</returns>
 		public ReadOnlyMemory<byte> AddRootBlob(IRef Ref) => AddRootBlob(Ref.Value.GetView());
 
@@ -679,7 +681,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Adds a root blob to the pack
 		/// </summary>
-		/// <param name="Data"></param>
+		/// <param name="Object"></param>
 		/// <returns>Hash of the root node</returns>
 		public void AddRootObject(TreePackObject Object)
 		{
@@ -748,7 +750,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Adds information about an object to the store
 		/// </summary>
-		/// <param name="Object"></param>
+		/// <param name="RootObject"></param>
 		public void AddNodes(TreePackObject RootObject)
 		{
 			RegisterObject(RootObject, null);
@@ -821,7 +823,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Gets data for the given node
 		/// </summary>
-		/// <param name="Key"></param>
+		/// <param name="Hash"></param>
 		/// <returns></returns>
 		public ValueTask<ReadOnlyMemory<byte>> GetDataAsync(IoHash Hash)
 		{
@@ -832,7 +834,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Gets data for the given node
 		/// </summary>
-		/// <param name="Key"></param>
+		/// <param name="Node"></param>
 		/// <returns></returns>
 		private async ValueTask<ReadOnlyMemory<byte>> GetDataAsync(NodeInfo Node)
 		{
@@ -1196,7 +1198,6 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <inheritdoc cref="GetCostHeuristic(int, TimeSpan)"/>
-		/// <param name="Index">Index to calculate the heuristic for</param>
 		double GetCostHeuristic(BlobInfo Info, DateTime UtcNow) => GetCostHeuristic(Info.Length, UtcNow - Info.Time);
 
 		/// <summary>
@@ -1204,6 +1205,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="Nodes">The full list of nodes</param>
 		/// <param name="CollapseBlobs">Set of blobs that should be collapsed</param>
+		/// <param name="UtcNow">The current time</param>
 		/// <returns></returns>
 		double GetNewCostHeuristic(List<NodeInfo> Nodes, HashSet<BlobInfo> CollapseBlobs, DateTime UtcNow)
 		{
@@ -1277,6 +1279,13 @@ namespace EpicGames.Horde.Storage
 			return Probability * (DownloadInit + (Size / DownloadRate));
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="RootHash"></param>
+		/// <param name="Directory"></param>
+		/// <param name="Logger"></param>
+		/// <returns></returns>
 		public async Task WriteTreeSummaryAsync(IoHash RootHash, DirectoryReference Directory, ILogger Logger)
 		{
 			DirectoryReference.CreateDirectory(Directory);
@@ -1313,6 +1322,11 @@ namespace EpicGames.Horde.Storage
 			}
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="File"></param>
+		/// <param name="Object"></param>
 		public static void WriteSummary(FileReference File, TreePackObject Object)
 		{
 			Dictionary<IoHash, string> HashToLocator = new Dictionary<IoHash, string>();

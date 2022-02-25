@@ -20,6 +20,9 @@ namespace EpicGames.Horde.Auth
 	/// </summary>
 	public class AuthenticationException : Exception
 	{
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		public AuthenticationException(string Message, Exception? InnerException)
 			: base(Message, InnerException)
 		{
@@ -75,6 +78,11 @@ namespace EpicGames.Horde.Auth
 		string CachedAccessToken = String.Empty;
 		DateTime ExpiresAt = DateTime.MinValue;
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Client"></param>
+		/// <param name="Options"></param>
 		public OAuthHandler(HttpClient Client, IOAuthOptions Options)
 		{
 			this.Client = Client;

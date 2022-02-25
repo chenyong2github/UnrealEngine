@@ -17,6 +17,9 @@ namespace EpicGames.Horde.Storage
 		Dictionary<Utf8String, TreePackDirEntry> NameToEntry = new Dictionary<Utf8String, TreePackDirEntry>();
 		Dictionary<Utf8String, TreePackDirWriter> NameToSubDir = new Dictionary<Utf8String, TreePackDirWriter>();
 
+		/// <summary>
+		/// 
+		/// </summary>
 		public IEnumerable<TreePackDirEntry> Entries => NameToEntry.Values;
 
 		/// <summary>

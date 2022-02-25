@@ -15,7 +15,7 @@ namespace EpicGames.Horde.Compute
 	public class Requirements
 	{
 		/// <summary>
-		/// Condition string to be evaluated against the machine spec, eg. cpu-cores >= 10 && ram.mb >= 200 && pool == 'worker'
+		/// Condition string to be evaluated against the machine spec, eg. cpu-cores >= 10 &amp;&amp; ram.mb >= 200 &amp;&amp; pool == 'worker'
 		/// </summary>
 		[CbField("c")]
 		public Condition? Condition { get; set; }
@@ -48,6 +48,7 @@ namespace EpicGames.Horde.Compute
 			this.Condition = Condition;
 		}
 
+		/// <inheritdoc/>
 		public override string ToString()
 		{
 			List<string> List = new List<string>();

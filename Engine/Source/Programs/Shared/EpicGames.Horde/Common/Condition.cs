@@ -325,7 +325,14 @@ namespace EpicGames.Horde.Common
 			}
 		}
 
+		/// <summary>
+		/// The condition text
+		/// </summary>
 		public string Text { get; }
+
+		/// <summary>
+		/// Error produced when parsing the condition
+		/// </summary>
 		public string? Error { get; private set; }
 		List<Token> Tokens = new List<Token>();
 		List<string> Strings = new List<string>();
@@ -350,10 +357,22 @@ namespace EpicGames.Horde.Common
 			}
 		}
 
+		/// <summary>
+		/// Determines if the condition is empty
+		/// </summary>
+		/// <returns>True if the condition is empty</returns>
 		public bool IsEmpty() => Tokens.Count == 0 && IsValid();
 
+		/// <summary>
+		/// Checks if the condition has been parsed correctly
+		/// </summary>
 		public bool IsValid() => Error == null;
 
+		/// <summary>
+		/// Parse the given text as a condition
+		/// </summary>
+		/// <param name="Text">Condition text to parse</param>
+		/// <returns>The new condition object</returns>
 		public static Condition Parse(string Text)
 		{
 			Condition Condition = new Condition(Text);
@@ -364,6 +383,11 @@ namespace EpicGames.Horde.Common
 			return Condition;
 		}
 
+		/// <summary>
+		/// Attempts to parse the given text as a condition
+		/// </summary>
+		/// <param name="Text">Condition to parse</param>
+		/// <returns>The parsed condition. Does not validate whether the parse completed successfully; call <see cref="Condition.IsValid"/> to verify.</returns>
 		public static Condition TryParse(string Text)
 		{
 			return new Condition(Text);
@@ -487,6 +511,11 @@ namespace EpicGames.Horde.Common
 			}
 		}
 
+		/// <summary>
+		/// Evaluate the condition using the given callback to retreive property values
+		/// </summary>
+		/// <param name="GetPropertyValues"></param>
+		/// <returns></returns>
 		public bool Evaluate(Func<string, IEnumerable<string>> GetPropertyValues)
 		{
 			if (IsEmpty())
@@ -581,6 +610,10 @@ namespace EpicGames.Horde.Common
 			}
 		}
 
+		/// <summary>
+		/// Implicit conversion from string to conditions
+		/// </summary>
+		/// <param name="Text"></param>
 		[return: NotNullIfNotNull("Text")]
 		public static implicit operator Condition?(string? Text)
 		{
@@ -594,6 +627,7 @@ namespace EpicGames.Horde.Common
 			}
 		}
 
+		/// <inheritdoc/>
 		public override string ToString() => (Error != null) ? $"[Error] {Text}" : Text;
 	}
 
