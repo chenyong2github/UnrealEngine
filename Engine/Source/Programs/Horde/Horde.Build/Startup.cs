@@ -258,6 +258,8 @@ namespace HordeServer
 			ServerSettings Settings = new ServerSettings();
 			ConfigSection.Bind(Settings);
 
+			Settings.Validate();
+			
 			Services.Configure<CommitServiceOptions>(ConfigSection.GetSection("Replication"));
 
 			if (Settings.GlobalThreadPoolMinSize != null)

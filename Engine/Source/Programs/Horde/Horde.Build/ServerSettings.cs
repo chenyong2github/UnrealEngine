@@ -90,6 +90,11 @@ namespace HordeServer
 	public enum RunMode
 	{
 		/// <summary>
+		/// Default no-op value (ASP.NET config will default to this for enums that cannot be parsed)
+		/// </summary> 
+		None,
+		
+		/// <summary>
 		/// Handle and respond to incoming external requests, such as HTTP REST and gRPC calls.
 		/// These requests are time-sensitive and short-lived, typically less than 5 secs.
 		/// If processes handling requests are unavailable, it will be very visible for users.
@@ -541,6 +546,18 @@ namespace HordeServer
 		{
 			if (RunModes == null) return true;
 			return RunModes.Contains(Mode);
+		}
+
+		/// <summary>
+		/// Validate the settings object does not contain any invalid fields
+		/// </summary>
+		/// <exception cref="ArgumentException"></exception>
+		public void Validate()
+		{
+			if (IsRunModeActive(RunMode.None))
+			{
+				throw new ArgumentException($"Settings key '{nameof(RunModes)}' contains one or more invalid entries");
+			}
 		}
 	}
 }
