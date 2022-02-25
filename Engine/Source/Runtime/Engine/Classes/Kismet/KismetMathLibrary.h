@@ -12,7 +12,6 @@
 #include "UObject/ScriptMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Misc/QualifiedFrameTime.h"
-#include "Engine/NetSerialization.h"
 
 #include "KismetMathLibrary.generated.h"
 
@@ -1015,11 +1014,14 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 
 	/** Makes a 2d vector {X, Y} */
 	UFUNCTION(BlueprintPure, Category = "Math|Vector2D", meta = (Keywords = "construct build", NativeMakeFunc))
-	static FVector2D MakeVector2D(float X, float Y);
+	static FVector2D MakeVector2D(double X, double Y);
+
+	UE_DEPRECATED(5.0, "This method has been deprecated and will be removed. Use the double version instead.")
+	static void BreakVector2D(FVector2D InVec, float& X, float& Y);
 
 	/** Breaks a 2D vector apart into X, Y. */
 	UFUNCTION(BlueprintPure, Category = "Math|Vector2D", meta = (NativeBreakFunc))
-	static void BreakVector2D(FVector2D InVec, float& X, float& Y);
+	static void BreakVector2D(FVector2D InVec, double& X, double& Y);
 
 	/** Convert a Vector2D to a Vector */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Vector (Vector2D)", CompactNodeTitle = "->", ScriptMethod = "Vector", Keywords = "cast convert", BlueprintAutocast), Category = "Math|Conversions")
@@ -1310,8 +1312,8 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	//
 
 	/** Makes a vector {X, Y, Z} */
-	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(Keywords="construct build", NativeMakeFunc))
-	static FVector MakeVector(float X, float Y, float Z);
+	UFUNCTION(BlueprintPure, Category = "Math|Vector", meta = (Keywords = "construct build", NativeMakeFunc))
+	static FVector MakeVector(double X, double Y, double Z);
 
 	/** Creates a directional vector from rotation values {Pitch, Yaw} supplied in degrees with specified Length*/	
 	UFUNCTION(BlueprintPure, Category = "Math|Vector", meta = (Keywords = "rotation rotate"))
@@ -1335,9 +1337,12 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod = "Set"), Category = "Math|Vector")
 	static void Vector_Set(UPARAM(ref) FVector& A, float X, float Y, float Z);
 
+	UE_DEPRECATED(5.0, "This method has been deprecated and will be removed. Use the double version instead.")
+	static void BreakVector(FVector InVec, float& X, float& Y, float& Z);
+
 	/** Breaks a vector apart into X, Y, Z */
 	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeBreakFunc))
-	static void BreakVector(FVector InVec, float& X, float& Y, float& Z);
+	static void BreakVector(FVector InVec, double& X, double& Y, double& Z);
 
 	UFUNCTION(BlueprintPure, Category = "Math|Vector", meta = (NativeBreakFunc))
 	static void BreakVector3f(FVector3f InVec, float& X, float& Y, float& Z);
@@ -2052,11 +2057,14 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 
 	/** Makes a 4D vector {X, Y, Z, W} */
 	UFUNCTION(BlueprintPure, meta = (Keywords = "construct build", NativeMakeFunc), Category = "Math|Vector4")
-	static FVector4 MakeVector4(float X, float Y, float Z, float W);
+	static FVector4 MakeVector4(double X, double Y, double Z, double W);
+
+	UE_DEPRECATED(5.0, "This method has been deprecated and will be removed. Use the double version instead.")
+	static void BreakVector4(const FVector4& InVec, float& X, float& Y, float& Z, float& W);
 
 	/** Breaks a 4D vector apart into X, Y, Z, W. */
 	UFUNCTION(BlueprintPure, meta = (NativeBreakFunc), Category = "Math|Vector4")
-	static void BreakVector4(const FVector4& InVec, float& X, float& Y, float& Z, float& W);
+	static void BreakVector4(const FVector4& InVec, double& X, double& Y, double& Z, double& W);
 
 	/** Convert a Vector4 to a Vector (dropping the W element) */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Vector (Vector4)", CompactNodeTitle = "->", ScriptMethod = "Vector", Keywords = "cast convert", BlueprintAutocast), Category = "Math|Conversions")
@@ -4268,27 +4276,6 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintPure, Category="Math|Smoothing", meta=(DisplayName="Dynamic Weighted Moving Average Rotator"))
 	static FRotator DynamicWeightedMovingAverage_FRotator(FRotator CurrentSample, FRotator PreviousSample, float MaxDistance, float MinWeight, float MaxWeight);
-
-
-	// NetQuantized vector make/breaks
-	// LWC_TODO: These can be removed once blueprints support FReal
-	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeMakeFunc))
-	static FVector_NetQuantize MakeVector_NetQuantize(float X, float Y, float Z) { return FVector_NetQuantize(X, Y, Z); }
-	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeMakeFunc))
-	static FVector_NetQuantize10 MakeVector_NetQuantize10(float X, float Y, float Z) { return FVector_NetQuantize10(X, Y, Z); }
-	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeMakeFunc))
-	static FVector_NetQuantize100 MakeVector_NetQuantize100(float X, float Y, float Z) { return FVector_NetQuantize100(X, Y, Z); }
-	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeMakeFunc))
-	static FVector_NetQuantizeNormal MakeVector_NetQuantizeNormal(float X, float Y, float Z) { return FVector_NetQuantizeNormal(X, Y, Z); }
-	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeBreakFunc))
-	static void BreakVector_NetQuantize(FVector_NetQuantize InVec, float& X, float& Y, float& Z) { BreakVector((FVector)InVec, X, Y, Z); }
-	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeBreakFunc))
-	static void BreakVector_NetQuantize10(FVector_NetQuantize10 InVec, float& X, float& Y, float& Z) { BreakVector((FVector)InVec, X, Y, Z); }
-	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeBreakFunc))
-	static void BreakVector_NetQuantize100(FVector_NetQuantize100 InVec, float& X, float& Y, float& Z) { BreakVector((FVector)InVec, X, Y, Z); }
-	UFUNCTION(BlueprintPure, Category="Math|Vector", meta=(NativeBreakFunc))
-	static void BreakVector_NetQuantizeNormal(FVector_NetQuantizeNormal InVec, float& X, float& Y, float& Z) { BreakVector((FVector)InVec, X, Y, Z); }
-
 	
 private:
 

@@ -413,12 +413,12 @@ void UK2Node_BreakStruct::ConvertDeprecatedNode(UEdGraph* Graph, bool bOnlySafeC
 		}
 		else if (StructType == TBaseStructure<FVector>::Get())
 		{
-			BreakNodeFunction = UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetMathLibrary, BreakVector));
+			BreakNodeFunction = UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED_FourParams(UKismetMathLibrary, BreakVector, FVector, double&, double&, double&));
 			OldPinToNewPinMap.Add(TEXT("Vector"), TEXT("InVec"));
 		}
 		else if (StructType == TBaseStructure<FVector2D>::Get())
 		{
-			BreakNodeFunction = UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetMathLibrary, BreakVector2D));
+			BreakNodeFunction = UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED_ThreeParams(UKismetMathLibrary, BreakVector2D, FVector2D, double&, double&));
 			OldPinToNewPinMap.Add(TEXT("Vector2D"), TEXT("InVec"));
 		}
 		else

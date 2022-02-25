@@ -1125,13 +1125,20 @@ FVector2D UKismetMathLibrary::Vector2D_Zero()
 }
 
 KISMET_MATH_FORCEINLINE
-FVector2D UKismetMathLibrary::MakeVector2D(float X, float Y)
+FVector2D UKismetMathLibrary::MakeVector2D(double X, double Y)
 {
 	return FVector2D(X, Y);
 }
 
 KISMET_MATH_FORCEINLINE
 void UKismetMathLibrary::BreakVector2D(FVector2D InVec, float& X, float& Y)
+{
+	X = InVec.X;
+	Y = InVec.Y;
+}
+
+KISMET_MATH_FORCEINLINE
+void UKismetMathLibrary::BreakVector2D(FVector2D InVec, double& X, double& Y)
 {
 	X = InVec.X;
 	Y = InVec.Y;
@@ -1438,9 +1445,9 @@ FVector UKismetMathLibrary::Vector_Left()
 }
 
 KISMET_MATH_FORCEINLINE
-FVector UKismetMathLibrary::MakeVector(float X, float Y, float Z)
+FVector UKismetMathLibrary::MakeVector(double X, double Y, double Z)
 {
-	return FVector(X,Y,Z);
+	return FVector(X, Y, Z);
 }
 
 KISMET_MATH_FORCEINLINE
@@ -1457,6 +1464,14 @@ void UKismetMathLibrary::Vector_Set(FVector& A, float X, float Y, float Z)
 
 KISMET_MATH_FORCEINLINE
 void UKismetMathLibrary::BreakVector(FVector InVec, float& X, float& Y, float& Z)
+{
+	X = InVec.X;
+	Y = InVec.Y;
+	Z = InVec.Z;
+}
+
+KISMET_MATH_FORCEINLINE
+void UKismetMathLibrary::BreakVector(FVector InVec, double& X, double& Y, double& Z)
 {
 	X = InVec.X;
 	Y = InVec.Y;
@@ -2035,15 +2050,23 @@ FVector4 UKismetMathLibrary::Vector4_Zero()
 	return FVector4(ForceInitToZero);
 }
 
-
 KISMET_MATH_FORCEINLINE
-FVector4 UKismetMathLibrary::MakeVector4(float X, float Y, float Z, float W)
+FVector4 UKismetMathLibrary::MakeVector4(double X, double Y, double Z, double W)
 {
 	return FVector4(X, Y, Z, W);
 }
 
 KISMET_MATH_FORCEINLINE
 void UKismetMathLibrary::BreakVector4(const FVector4& InVec, float& X, float& Y, float& Z, float& W)
+{
+	X = InVec.X;
+	Y = InVec.Y;
+	Z = InVec.Z;
+	W = InVec.W;
+}
+
+KISMET_MATH_FORCEINLINE
+void UKismetMathLibrary::BreakVector4(const FVector4& InVec, double& X, double& Y, double& Z, double& W)
 {
 	X = InVec.X;
 	Y = InVec.Y;
