@@ -88,14 +88,6 @@ public:
 		return Format;
 	}
 
-	virtual FName GetVirtualTextureLayerFormat(
-		int32 SourceFormat,
-		bool bAllowCompression, bool bNoAlpha,
-		bool bSupportDX11TextureFormats, int32 Settings) const override
-	{
-		return FName();
-	}
-
 	virtual bool SupportsLQCompressionTextureFormat() const override { return true; };
 
 #endif //WITH_ENGINE

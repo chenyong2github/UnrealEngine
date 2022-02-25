@@ -2491,10 +2491,14 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	{
 		if (TextureFormatName == NameBC6H)
 		{
+			UE_LOG(LogTexture, Display, TEXT("BC6H Texture expanded to uncompressed RGBA16F because !SupportDX11 : %s"), *Texture->GetPathName());
+
 			TextureFormatName = NameRGBA16F;
 		}
 		else if (TextureFormatName == NameBC7)
 		{
+			UE_LOG(LogTexture, Display, TEXT("BC7 Texture expanded to uncompressed BGRA8 because !SupportDX11 : %s"), *Texture->GetPathName());
+
 			TextureFormatName = NameBGRA8;
 		}
 	}
