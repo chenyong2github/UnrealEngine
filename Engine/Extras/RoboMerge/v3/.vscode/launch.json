@@ -39,38 +39,6 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Fortnite Bot (All Start Paused) (single process)",
-            "program": "${workspaceFolder}/dist/robo/robo.js",
-            "runtimeArgs": ["--require", "source-map-support/register"],
-            "preLaunchTask": "tsc: build - tsconfig.json",
-            "outFiles": [
-                "${workspaceFolder}/dist/**/*.js"
-            ],
-            "console": "integratedTerminal",
-            "outputCapture": "std",
-            "args": [
-                "-noIPC", "-noTLS"
-            ],
-            "env": {
-                "ROBO_DEV_MODE": "true",
-                "ROBO_EXTERNAL_URL": "http://localhost:8877",
-                "NODE_ENV": "development",
-                "ROBO_BRANCHSPECS_DIRECTORY": "./debugdata",
-                "ROBO_VAULT_PATH": "./vault",
-                "EPIC_ENV": "dev",
-                "EPIC_DEPLOYMENT": "local",
-                "BOTNAME": "fortnite",
-                "ROBO_RUNBOTS": "no"
-            },
-            "smartStep": true,
-            "skipFiles": [
-                "<node_internals>/**",
-                "${workspaceFolder}/node_modules/**/*.js"
-            ]
-        },
-        {
-            "type": "node",
-            "request": "launch",
             "name": "Launch All Bots (All Start Paused) (single process)",
             "program": "${workspaceFolder}/dist/robo/robo.js",
             "runtimeArgs": ["--require", "source-map-support/register"],
