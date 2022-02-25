@@ -53,17 +53,7 @@ void UMetaSound::PostDuplicate(EDuplicateMode::Type InDuplicateMode)
 void UMetaSound::PostEditUndo()
 {
 	Super::PostEditUndo();
-
-	if (Graph)
-	{
-		Graph->RegisterGraphWithFrontend();
-	}
-}
-
-void UMetaSound::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
-{
-	Super::PostEditChangeProperty(InEvent);
-	Metasound::PostEditChangeProperty(*this, InEvent);
+	Metasound::PostEditUndo(*this);
 }
 #endif // WITHEDITOR
 

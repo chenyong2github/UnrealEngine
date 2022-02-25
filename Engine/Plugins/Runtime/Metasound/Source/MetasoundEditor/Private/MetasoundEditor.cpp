@@ -1450,7 +1450,7 @@ namespace Metasound
 				UMetasoundEditorGraphMember* NextToSelect = Graph.FindAdjacentMember(*GraphMember);
 
 				{
-					const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorDeleteSelectedNode1", "Delete MetaSound Graph Member"));
+					const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorDeleteSelectedMember", "Delete MetaSound Graph Member"));
 					Metasound->Modify();
 					Graph.Modify();
 					Graph.RemoveMember(*GraphMember);
@@ -1520,6 +1520,16 @@ namespace Metasound
 								}
 								else
 								{
+									if (MetasoundDetails.IsValid())
+									{
+										if (MetasoundDetails->GetSelectedObjects().Contains(GraphMember))
+										{
+											FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+											check(MetasoundAsset);
+											MetasoundAsset->SetUpdateDetailsOnSynchronization();
+										}
+									}
+
 									ActionToDelete = MetasoundAction;
 									break;
 								}
@@ -1544,6 +1554,10 @@ namespace Metasound
 
 			const FGraphPanelSelectionSet SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
 			MetasoundGraphEditor->ClearSelectionSet();
+
+			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+			check(MetasoundAsset);
+			MetasoundAsset->SetUpdateDetailsOnSynchronization();
 
 			const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorDeleteSelectedNode2", "Delete Selected MetaSound Node(s)"));
 			check(Metasound);

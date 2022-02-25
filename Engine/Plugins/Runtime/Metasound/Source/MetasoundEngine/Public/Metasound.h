@@ -50,8 +50,13 @@ namespace Metasound
 
 #if WITH_EDITOR
 	template <typename TMetaSoundObject>
-	void PostEditChangeProperty(TMetaSoundObject& InMetaSound, FPropertyChangedEvent& InEvent)
+	void PostEditUndo(TMetaSoundObject& InMetaSound)
 	{
+		InMetaSound.SetSynchronizationRequired();
+		if (UMetasoundEditorGraphBase* Graph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
+		{
+			Graph->RegisterGraphWithFrontend();
+		}
 	}
 #endif // WITH_EDITOR
 
@@ -230,7 +235,6 @@ public:
 #if WITH_EDITOR
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	virtual void PostEditUndo() override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
 #endif // WITH_EDITOR
 
 	virtual void BeginDestroy() override;
