@@ -84,7 +84,6 @@ public:
 	void DeleteConvexFromSelected();
 	void PromoteChildren();
 	void ClearCustomConvex();
-	void AutoComputeConvex(const FFractureToolContext& FractureContext);
 
 
 protected:
