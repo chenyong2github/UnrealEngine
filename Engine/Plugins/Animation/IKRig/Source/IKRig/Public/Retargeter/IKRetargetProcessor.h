@@ -58,6 +58,10 @@ struct IKRIG_API FRetargetSkeleton
 		TArray<FTransform>& OutLocalPose,
 		const TArray<FTransform>& InGlobalPose) const;
 
+	FTransform GetGlobalRefPoseOfSingleBone(
+		const int32 BoneIndex,
+		const TArray<FTransform>& InGlobalPose) const;
+
 	void GetChildrenIndices(const int32 BoneIndex, TArray<int32>& OutChildren) const;
 };
 
@@ -131,7 +135,7 @@ struct FRootRetargeter
 	FRootSource Source;
 	
 	FRootTarget Target;
-	
+
 	float GlobalScale = 1.0f;
 
 	void Reset();
@@ -148,10 +152,12 @@ struct FRootRetargeter
 struct FRetargetChainSettings
 {
 	FName TargetChainName;
-	
+
 	bool CopyPoseUsingFK = true;
+	ERetargetRotationMode RotationMode;
+	float RotationAlpha = 1.0f;
 	ERetargetTranslationMode TranslationMode;
-	float TranslationMultiplier = 1.0f;
+	float TranslationAlpha = 1.0f;
 
 	bool DriveIKGoal = true;
 	FVector StaticOffset;
@@ -166,10 +172,12 @@ public:
 	void CopySettingsFromAsset(const URetargetChainSettings* AssetChainSettings)
 	{
 		TargetChainName = AssetChainSettings->TargetChain;
-		
+
 		CopyPoseUsingFK = AssetChainSettings->CopyPoseUsingFK;
+		RotationMode = AssetChainSettings->RotationMode;
+		RotationAlpha = AssetChainSettings->RotationAlpha;
 		TranslationMode = AssetChainSettings->TranslationMode;
-		TranslationMultiplier = AssetChainSettings->TranslationMultiplier;
+		TranslationAlpha = AssetChainSettings->TranslationAlpha;
 		
 		DriveIKGoal = AssetChainSettings->DriveIKGoal;
 		Extension = AssetChainSettings->Extension;
@@ -184,26 +192,52 @@ public:
 
 struct FChainFK
 {
-	TArray<FTransform> InitialBoneTransforms;
+	TArray<FTransform> InitialGlobalTransforms;
 
-	TArray<FTransform> CurrentBoneTransforms;
+	TArray<FTransform> InitialLocalTransforms;
+
+	TArray<FTransform> CurrentGlobalTransforms;
 
 	TArray<float> Params;
 
+	int32 ChainParentBoneIndex;
+	FTransform ChainParentInitialGlobalTransform;
+
 	bool Initialize(
+		const FRetargetSkeleton& Skeleton,
 		const TArray<int32>& BoneIndices,
 		const TArray<FTransform> &InitialGlobalPose);
 
 private:
 	
-	bool CalculateBoneParameters();	
+	bool CalculateBoneParameters();
+
+protected:
+
+	static void FillTransformsWithLocalSpaceOfChain(
+		const FRetargetSkeleton& Skeleton,
+		const TArray<FTransform>& InGlobalPose,
+		const TArray<int32>& BoneIndices,
+		TArray<FTransform>& OutLocalTransforms);
+
+	void PutCurrentTransformsInRefPose(
+		const TArray<int32>& BoneIndices,
+		const FRetargetSkeleton& Skeleton,
+		const TArray<FTransform>& InCurrentGlobalPose);
 };
 
 struct FChainEncoderFK : public FChainFK
 {
+	TArray<FTransform> CurrentLocalTransforms;
+
+	FTransform ChainParentCurrentGlobalTransform;
+	
 	void EncodePose(
+		const FRetargetSkeleton& SourceSkeleton,
 		const TArray<int32>& SourceBoneIndices,
-		const TArray<FTransform> &InputGlobalPose);
+		const TArray<FTransform> &InSourceGlobalPose);
+
+	void TransformCurrentChainTransforms(const FTransform& NewParentTransform);
 };
 
 struct FChainDecoderFK : public FChainFK
@@ -217,7 +251,7 @@ struct FChainDecoderFK : public FChainFK
 		const FRootRetargeter& RootRetargeter,
 		const FRetargetChainSettings& Settings,
 		const TArray<int32>& TargetBoneIndices,
-		const FChainEncoderFK& SourceChain,
+		FChainEncoderFK& SourceChain,
 		const FTargetSkeleton& TargetSkeleton,
 		TArray<FTransform> &InOutGlobalPose);
 
