@@ -205,6 +205,12 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld*
 
 	// Mark the level as a runtime cell
 	NewLevel->bIsWorldPartitionRuntimeCell = true;
+	
+	// Mark the level package as fully loaded
+	CellPackage->MarkAsFullyLoaded();
+
+	// Mark the level package as containing a map
+	CellPackage->ThisContainsMap();
 
 	// Set the guids on the constructed level to something based on the generator rather than allowing indeterminism by
 	// constructing new Guids on every cook

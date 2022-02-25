@@ -3480,10 +3480,21 @@ bool FNetGUIDCache::ShouldIgnoreWhenMissing( const FNetworkGUID& NetGUID ) const
 			// Outer is pending, don't warn
 			return true;
 		}
-		// Sometimes, other systems async load packages, which we don't track, but still must be aware of
-		if ( OutermostCacheObject->Object != NULL && !OutermostCacheObject->Object->GetOutermost()->IsFullyLoaded() )
+
+		if ( OutermostCacheObject->Object != NULL )
 		{
-			return true;
+#if WITH_EDITOR
+			// Ignore if the package is a dynamic PIE package with pending external objects still loading
+			if ( !OutermostCacheObject->Object->GetOutermost()->IsDynamicPIEPackagePending() )
+			{
+				return true;
+			}
+#endif
+			// Sometimes, other systems async load packages, which we don't track, but still must be aware of
+			if ( !OutermostCacheObject->Object->GetOutermost()->IsFullyLoaded() )
+			{
+				return true;
+			}
 		}
 	}
 

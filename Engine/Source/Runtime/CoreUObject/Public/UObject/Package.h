@@ -169,6 +169,9 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** True if this package is only referenced by editor-only properties */
 	uint8 bLoadedByEditorPropertiesOnly:1;
+
+	/** True if this package is a dynamic PIE package with external objects still loading */
+	uint8 bIsDynamicPIEPackagePending:1;
 #endif
 
 public:
@@ -301,6 +304,11 @@ public:
 	void SetLoadedByEditorPropertiesOnly(bool bIsEditorOnly, bool bRecursive = false);
 	/** returns true when the package is only referenced by editor-only flag */
 	bool IsLoadedByEditorPropertiesOnly() const { return bLoadedByEditorPropertiesOnly; }
+
+	/** Sets the bIsDynamicPIEPackagePending flag */
+	void SetDynamicPIEPackagePending(bool bInIsDynamicPIEPackagePending) { bIsDynamicPIEPackagePending = bInIsDynamicPIEPackagePending; }
+	/** returns the bIsDynamicPIEPackagePending flag */
+	bool IsDynamicPIEPackagePending() const { return bIsDynamicPIEPackagePending; }
 #endif
 
 	/**

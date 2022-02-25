@@ -127,11 +127,12 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
 	const UWorld* World = GetWorld();
 	check(World && (World->IsGameWorld() || GetShouldBeVisibleInEditor()));
 
-	// Create streaming cell Level package (make sure this package isn't discoverable until it is fully loaded)
-	const FString WorldAssetPath = GetWorldAsset().ToString();
-	const FString WorldAssetPackageName = FPackageName::ObjectPathToPackageName(WorldAssetPath) + TEXT("_AsyncLoad.") + FPackageName::ObjectPathToObjectName(WorldAssetPath);
-	RuntimeLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(World, WorldAssetPackageName);
+	// Create streaming cell Level package
+	RuntimeLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(World, GetWorldAsset().ToString());
 	check(RuntimeLevel);
+
+	UPackage* RuntimeLevelPackage = RuntimeLevel->GetPackage();
+	check(RuntimeLevelPackage);
 
 	// Propagate ActorFolder flag to the runtime level and prepare its ActorFolders list
 	if (World->PersistentLevel->IsUsingActorFolders() && ActorFolders.Num())
@@ -148,6 +149,9 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
 
 	// Set flag here as this level isn't async loaded
 	RuntimeLevel->bClientOnlyVisible = bClientOnlyVisible;
+
+	// Mark this package as a dynamic PIE package with pending external actors
+	RuntimeLevelPackage->SetDynamicPIEPackagePending(true);
 
 	// Attach ourself to Level cleanup to do our own cleanup
 	OnCleanupLevelDelegateHandle = RuntimeLevel->OnCleanupLevel.AddUObject(this, &UWorldPartitionLevelStreamingDynamic::OnCleanupLevel);
@@ -381,14 +385,6 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 	UWorld* OuterWorld = RuntimeLevel->GetTypedOuter<UWorld>();
 	OuterWorld->bIsNameStableForNetworking = true;
 
-	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
-	RuntimePackage->MarkAsFullyLoaded();
-
-	// Now that the loading is done, rename it so this level is discoverable
-	const FString WorldAssetPath = GetWorldAsset().ToString();
-	const FString WorldAssetPackageName = FPackageName::ObjectPathToPackageName(WorldAssetPath);
-	RuntimePackage->Rename(*WorldAssetPackageName, nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty);
-
 	if (StreamingCell.IsValid() && !StreamingCell->GetIsHLOD())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FixupIDs);
@@ -425,6 +421,9 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 	// Make sure this level will start to render only when it will be fully added to the world
 	check(ShouldRequireFullVisibilityToRender());
 	RuntimeLevel->bRequireFullVisibilityToRender = true;
+
+	// Mark this package as fully loaded with regards to external objects
+	RuntimeLevel->GetPackage()->SetDynamicPIEPackagePending(false);
 }
 
 /**
