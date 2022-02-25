@@ -268,7 +268,7 @@ void FSlateRHIRenderer::Destroy()
 }
 
 /** Returns a draw buffer that can be used by Slate windows to draw window elements */
-FSlateDrawBuffer& FSlateRHIRenderer::GetDrawBuffer()
+FSlateDrawBuffer& FSlateRHIRenderer::AcquireDrawBuffer()
 {
 	FreeBufferIndex = (FreeBufferIndex + 1) % NumDrawBuffers;
 
@@ -302,6 +302,30 @@ FSlateDrawBuffer& FSlateRHIRenderer::GetDrawBuffer()
 	Buffer->ClearBuffer();
 	Buffer->UpdateResourceVersion(ResourceVersion);
 	return *Buffer;
+}
+
+void FSlateRHIRenderer::ReleaseDrawBuffer(FSlateDrawBuffer& InWindowDrawBuffer)
+{
+#if DO_CHECK
+	bool bFound = false;
+	for (int32 Index = 0; Index < NumDrawBuffers; ++Index)
+	{
+		if (&DrawBuffers[Index] == &InWindowDrawBuffer)
+		{
+			bFound = true;
+			break;
+		}
+	}
+	ensureMsgf(bFound, TEXT("It release a DrawBuffer that is not a member of the SlateRHIRenderer"));
+#endif
+
+	FSlateDrawBuffer* DrawBuffer = &InWindowDrawBuffer;
+	ENQUEUE_RENDER_COMMAND(SlateReleaseDrawBufferCommand)(
+		[DrawBuffer](FRHICommandListImmediate& RHICmdList)
+		{
+			FSlateReleaseDrawBufferCommand::ReleaseDrawBuffer(RHICmdList, DrawBuffer);
+		}
+	);
 }
 
 void FSlateRHIRenderer::CreateViewport(const TSharedRef<SWindow> Window)
@@ -1858,7 +1882,6 @@ FSlateEndDrawingWindowsCommand::FSlateEndDrawingWindowsCommand(FSlateRHIRenderin
 
 void FSlateEndDrawingWindowsCommand::Execute(FRHICommandListBase& CmdList)
 {
-	DrawBuffer->Unlock();
 	Policy.EndDrawingWindows();
 }
 
@@ -1871,6 +1894,28 @@ void FSlateEndDrawingWindowsCommand::EndDrawingWindows(FRHICommandListImmediate&
 	else
 	{
 		FSlateEndDrawingWindowsCommand Cmd(Policy, DrawBuffer);
+		Cmd.Execute(RHICmdList);
+	}
+}
+
+FSlateReleaseDrawBufferCommand::FSlateReleaseDrawBufferCommand(FSlateDrawBuffer* InDrawBuffer)
+	: DrawBuffer(InDrawBuffer)
+{}
+
+void FSlateReleaseDrawBufferCommand::Execute(FRHICommandListBase& CmdList)
+{
+	DrawBuffer->Unlock();
+}
+
+void FSlateReleaseDrawBufferCommand::ReleaseDrawBuffer(FRHICommandListImmediate& RHICmdList, FSlateDrawBuffer* DrawBuffer)
+{
+	if (!RHICmdList.Bypass())
+	{
+		ALLOC_COMMAND_CL(RHICmdList, FSlateReleaseDrawBufferCommand)(DrawBuffer);
+	}
+	else
+	{
+		FSlateReleaseDrawBufferCommand Cmd(DrawBuffer);
 		Cmd.Execute(RHICmdList);
 	}
 }

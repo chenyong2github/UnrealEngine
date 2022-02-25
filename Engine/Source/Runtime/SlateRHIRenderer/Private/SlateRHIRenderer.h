@@ -177,7 +177,8 @@ public:
 	/** FSlateRenderer interface */
 	virtual bool Initialize() override;
 	virtual void Destroy() override;
-	virtual FSlateDrawBuffer& GetDrawBuffer() override;
+	virtual FSlateDrawBuffer& AcquireDrawBuffer() override;
+	virtual void ReleaseDrawBuffer(FSlateDrawBuffer& InWindowDrawBuffer) override;
 	virtual void OnWindowDestroyed( const TSharedRef<SWindow>& InWindow ) override;
 	virtual void OnWindowFinishReshaped(const TSharedPtr<SWindow>& InWindow) override;
 	virtual void RequestResize( const TSharedPtr<SWindow>& Window, uint32 NewWidth, uint32 NewHeight ) override;
@@ -214,7 +215,7 @@ public:
 	virtual void AddWidgetRendererUpdate(const struct FRenderThreadUpdateContext& Context, bool bDeferredRenderTargetUpdate) override;
 
 	/** Draws windows from a FSlateDrawBuffer on the render thread */
-	void DrawWindow_RenderThread(FRHICommandListImmediate& RHICmdList, FViewportInfo& ViewportInfo, FSlateWindowElementList& WindowElementList, const struct FSlateDrawWindowCommandParams& DrawParams);
+	void DrawWindow_RenderThread(FRHICommandListImmediate& RHICmdList, FViewportInfo& ViewportInfo, FSlateWindowElementList& WindowElementList, const struct FSlateDrawWindowCommandParams& DrawCommandParams);
 
 	/**
 	 * Reloads texture resources from disk                   
@@ -324,4 +325,19 @@ struct FSlateEndDrawingWindowsCommand final : public FRHICommand < FSlateEndDraw
 	void Execute(FRHICommandListBase& CmdList);
 
 	static void EndDrawingWindows(FRHICommandListImmediate& RHICmdList, FSlateDrawBuffer* DrawBuffer, FSlateRHIRenderingPolicy& Policy);
+};
+
+struct FSlateReleaseDrawBufferCommandString
+{
+	static const TCHAR* TStr() { return TEXT("FSlateReleaseDrawBufferCommand"); }
+};
+struct FSlateReleaseDrawBufferCommand final : public FRHICommand < FSlateReleaseDrawBufferCommand, FSlateReleaseDrawBufferCommandString >
+{
+	FSlateDrawBuffer* DrawBuffer;
+
+	FSlateReleaseDrawBufferCommand(FSlateDrawBuffer* InDrawBuffer);
+
+	void Execute(FRHICommandListBase& CmdList);
+
+	static void ReleaseDrawBuffer(FRHICommandListImmediate& RHICmdList, FSlateDrawBuffer* DrawBuffer);
 };

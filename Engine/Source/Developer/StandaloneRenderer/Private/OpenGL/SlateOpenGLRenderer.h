@@ -146,7 +146,8 @@ public:
 	~FSlateOpenGLRenderer();
 
 	/** FSlateRenderer interface */
-	virtual FSlateDrawBuffer& GetDrawBuffer() override;
+	virtual FSlateDrawBuffer& AcquireDrawBuffer() override;
+	virtual void ReleaseDrawBuffer( FSlateDrawBuffer& InWindowDrawBuffer ) override;
 	virtual bool Initialize() override;
 	virtual void Destroy() override {}
 	virtual void DrawWindows( FSlateDrawBuffer& InWindowDrawBuffer ) override;

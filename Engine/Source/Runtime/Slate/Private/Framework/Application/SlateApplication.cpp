@@ -1291,67 +1291,70 @@ void FSlateApplication::PrivateDrawWindows( TSharedPtr<SWindow> DrawOnlyThisWind
 	// Prepass the window
 	DrawPrepass( DrawOnlyThisWindow );
 
-	FDrawWindowArgs DrawWindowArgs( Renderer->GetDrawBuffer(), WidgetsToVisualizeUnderCursor);
-
 	{
-		SCOPE_CYCLE_COUNTER( STAT_SlateDrawWindowTime );
+		FSlateRenderer::FScopedAcquireDrawBuffer ScopedDrawBuffer{ *Renderer };
+		FDrawWindowArgs DrawWindowArgs( ScopedDrawBuffer.GetDrawBuffer(), WidgetsToVisualizeUnderCursor);
+		ensureMsgf(DrawWindowArgs.OutDrawBuffer.IsLocked(), TEXT("The buffer should be lock by GetDrawBuffer."));
 
-		TSharedPtr<SWindow> ActiveModalWindow = GetActiveModalWindow(); 
-
-		if (ActiveModalWindow.IsValid())
 		{
-			DrawWindowAndChildren( ActiveModalWindow.ToSharedRef(), DrawWindowArgs );
+			SCOPE_CYCLE_COUNTER( STAT_SlateDrawWindowTime );
 
-			for( TArray< TSharedRef<SWindow> >::TConstIterator CurrentWindowIt( SlateWindows ); CurrentWindowIt; ++CurrentWindowIt )
+			TSharedPtr<SWindow> ActiveModalWindow = GetActiveModalWindow(); 
+
+			if (ActiveModalWindow.IsValid())
 			{
-				const TSharedRef<SWindow>& CurrentWindow = *CurrentWindowIt;
-				if ( CurrentWindow->GetType() == EWindowType::ToolTip )
+				DrawWindowAndChildren( ActiveModalWindow.ToSharedRef(), DrawWindowArgs );
+
+				for( TArray< TSharedRef<SWindow> >::TConstIterator CurrentWindowIt( SlateWindows ); CurrentWindowIt; ++CurrentWindowIt )
 				{
-					DrawWindowAndChildren(CurrentWindow, DrawWindowArgs);
+					const TSharedRef<SWindow>& CurrentWindow = *CurrentWindowIt;
+					if ( CurrentWindow->GetType() == EWindowType::ToolTip )
+					{
+						DrawWindowAndChildren(CurrentWindow, DrawWindowArgs);
+					}
+				}
+
+				TArray< TSharedRef<SWindow> > NotificationWindows;
+				FSlateNotificationManager::Get().GetWindows(NotificationWindows);
+				for( auto CurrentWindowIt( NotificationWindows.CreateIterator() ); CurrentWindowIt; ++CurrentWindowIt )
+				{
+					DrawWindowAndChildren(*CurrentWindowIt, DrawWindowArgs);
+				}	
+			}
+			else if( DrawOnlyThisWindow.IsValid() )
+			{
+				DrawWindowAndChildren( DrawOnlyThisWindow.ToSharedRef(), DrawWindowArgs );
+			}
+			else
+			{
+				// Draw all windows
+				// Use of an old-style iterator is intentional here, as SlateWindows 
+				// array may be mutated by user logic in draw calls. The iterator 
+				// prevents us from reading off the end and only keeps an index 
+				// internally:
+				for( TArray< TSharedRef<SWindow> >::TConstIterator CurrentWindowIt( SlateWindows ); CurrentWindowIt; ++CurrentWindowIt )
+				{
+					TSharedRef<SWindow> CurrentWindow = *CurrentWindowIt;
+					// Only draw visible windows or in off-screen rendering mode
+					if (bRenderOffScreen || CurrentWindow->IsVisible() )
+					{
+						DrawWindowAndChildren( CurrentWindow, DrawWindowArgs );
+					}
 				}
 			}
-
-			TArray< TSharedRef<SWindow> > NotificationWindows;
-			FSlateNotificationManager::Get().GetWindows(NotificationWindows);
-			for( auto CurrentWindowIt( NotificationWindows.CreateIterator() ); CurrentWindowIt; ++CurrentWindowIt )
-			{
-				DrawWindowAndChildren(*CurrentWindowIt, DrawWindowArgs);
-			}	
 		}
-		else if( DrawOnlyThisWindow.IsValid() )
+
+		// This is potentially dangerous on the movie playback thread that slate sometimes runs on
+		if(!IsInSlateThread())
 		{
-			DrawWindowAndChildren( DrawOnlyThisWindow.ToSharedRef(), DrawWindowArgs );
+			// Some windows may have been destroyed/removed.
+			// Do not attempt to draw any windows that have been removed.
+			TArray<SWindow*> AllWindows = GatherAllDescendants(SlateWindows);
+			DrawWindowArgs.OutDrawBuffer.RemoveUnusedWindowElement(AllWindows);
 		}
-		else
-		{
-			// Draw all windows
-			// Use of an old-style iterator is intentional here, as SlateWindows 
-			// array may be mutated by user logic in draw calls. The iterator 
-			// prevents us from reading off the end and only keeps an index 
-			// internally:
-			for( TArray< TSharedRef<SWindow> >::TConstIterator CurrentWindowIt( SlateWindows ); CurrentWindowIt; ++CurrentWindowIt )
-			{
-				TSharedRef<SWindow> CurrentWindow = *CurrentWindowIt;
-				// Only draw visible windows or in off-screen rendering mode
-				if (bRenderOffScreen || CurrentWindow->IsVisible() )
-				{
-					DrawWindowAndChildren( CurrentWindow, DrawWindowArgs );
-				}
-			}
-		}
+
+		Renderer->DrawWindows( DrawWindowArgs.OutDrawBuffer );
 	}
-
-	// This is potentially dangerous on the movie playback thread that slate sometimes runs on
-	if(!IsInSlateThread())
-	{
-		// Some windows may have been destroyed/removed.
-		// Do not attempt to draw any windows that have been removed.
-		TArray<SWindow*> AllWindows = GatherAllDescendants(SlateWindows);
-		DrawWindowArgs.OutDrawBuffer.RemoveUnusedWindowElement(AllWindows);
-	}
-
-
-	Renderer->DrawWindows( DrawWindowArgs.OutDrawBuffer );
 }
 
 void FSlateApplication::PollGameDeviceState()

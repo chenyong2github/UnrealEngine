@@ -208,10 +208,21 @@ bool FSlateD3DRenderer::CreateDevice()
 	return bResult;
 }
 
-FSlateDrawBuffer& FSlateD3DRenderer::GetDrawBuffer()
+FSlateDrawBuffer& FSlateD3DRenderer::AcquireDrawBuffer()
 {
+	ensureMsgf(!DrawBuffer.IsLocked(), TEXT("The DrawBuffer is already locked. Make sure to call ReleaseDrawBuffer to release the DrawBuffer"));
+	DrawBuffer.Lock();
+
+	// Clear out the buffer each time its accessed
 	DrawBuffer.ClearBuffer();
+
 	return DrawBuffer;
+}
+
+void FSlateD3DRenderer::ReleaseDrawBuffer(FSlateDrawBuffer& InWindowDrawBuffer)
+{
+	ensureMsgf(&DrawBuffer == &InWindowDrawBuffer, TEXT("It release a DrawBuffer that is not a member of the SlateD3DRenderer"));
+	InWindowDrawBuffer.Unlock();
 }
 
 void FSlateD3DRenderer::LoadStyleResources( const ISlateStyle& Style )
@@ -355,7 +366,18 @@ void FSlateD3DRenderer::Private_CreateViewport( TSharedRef<SWindow> InWindow, co
 
 	CreateBackBufferResources(Viewport.D3DSwapChain, Viewport.BackBufferTexture, Viewport.RenderTargetView);
 
-	Viewport.ProjectionMatrix = CreateProjectionMatrixD3D(Width, Height);
+	if (Width > 0 && Height > 0)
+	{
+		Viewport.ProjectionMatrix = CreateProjectionMatrixD3D(Width, Height);
+	}
+	else
+	{
+		Viewport.ProjectionMatrix.SetIdentity();
+	}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	ensure(!Viewport.ProjectionMatrix.ContainsNaN());
+#endif
 
 	WindowToViewportMap.Add(&InWindow.Get(), Viewport);
 }
@@ -421,7 +443,19 @@ void FSlateD3DRenderer::Private_ResizeViewport( const TSharedRef<SWindow> InWind
 		Viewport->ViewportInfo.Width = Width;
 		Viewport->ViewportInfo.Height = Height;
 		Viewport->bFullscreen = bFullscreen;
-		Viewport->ProjectionMatrix = CreateProjectionMatrixD3D( Width, Height );
+
+		if (Width > 0 && Height > 0)
+		{
+			Viewport->ProjectionMatrix = CreateProjectionMatrixD3D( Width, Height );
+		}
+		else
+		{
+			Viewport->ProjectionMatrix.SetIdentity();
+		}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		ensure(!Viewport->ProjectionMatrix.ContainsNaN());
+#endif
 
 		DXGI_SWAP_CHAIN_DESC Desc;
 		HRESULT Hr = Viewport->D3DSwapChain->GetDesc( &Desc );

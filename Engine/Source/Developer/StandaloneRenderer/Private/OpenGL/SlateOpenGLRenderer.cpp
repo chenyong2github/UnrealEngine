@@ -79,11 +79,21 @@ FSlateOpenGLRenderer::~FSlateOpenGLRenderer()
 }
 
 /** Returns a draw buffer that can be used by Slate windows to draw window elements */
-FSlateDrawBuffer& FSlateOpenGLRenderer::GetDrawBuffer()
+FSlateDrawBuffer& FSlateOpenGLRenderer::AcquireDrawBuffer()
 {
+	ensureMsgf(!DrawBuffer.IsLocked(), TEXT("The DrawBuffer is already locked. Make sure to ReleaseDrawBuffer the DrawBuffer"));
+	DrawBuffer.Lock();
+
 	// Clear out the buffer each time its accessed
 	DrawBuffer.ClearBuffer();
+
 	return DrawBuffer;
+}
+
+void FSlateOpenGLRenderer::ReleaseDrawBuffer(FSlateDrawBuffer& InWindowDrawBuffer)
+{
+	ensureMsgf(&DrawBuffer == &InWindowDrawBuffer, TEXT("It release a DrawBuffer that is not a member of the SlateNullRenderer"));
+	InWindowDrawBuffer.Unlock();
 }
 
 bool FSlateOpenGLRenderer::Initialize()

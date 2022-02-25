@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateNullRenderer.h"
+#include "Rendering/DrawElements.h"
 #include "Rendering/SlateDrawBuffer.h"
 
-static TUniquePtr<FSlateDrawBuffer> StaticDrawBuffer;
 
 FSlateNullRenderer::FSlateNullRenderer(const TSharedRef<FSlateFontServices>& InSlateFontServices, const TSharedRef<FSlateShaderResourceManager>& InResourceManager)
 	: FSlateRenderer(InSlateFontServices)
 	, ResourceManager(InResourceManager)
+	, DrawBuffer(MakeUnique<FSlateDrawBuffer>())
 {
 }
 
@@ -18,18 +19,24 @@ bool FSlateNullRenderer::Initialize()
 
 void FSlateNullRenderer::Destroy()
 {
-	StaticDrawBuffer = nullptr;
+	DrawBuffer.Reset();
 }
 
-FSlateDrawBuffer& FSlateNullRenderer::GetDrawBuffer()
+FSlateDrawBuffer& FSlateNullRenderer::AcquireDrawBuffer()
 {
-	if (!StaticDrawBuffer.IsValid())
-	{
-		StaticDrawBuffer = MakeUnique<FSlateDrawBuffer>();
-	}
+	ensureMsgf(!DrawBuffer->IsLocked(), TEXT("The DrawBuffer is already locked. Make sure to call ReleaseDrawBuffer to release the DrawBuffer"));
+	DrawBuffer->Lock();
 
-	StaticDrawBuffer->ClearBuffer();
-	return *StaticDrawBuffer;
+	// Clear out the buffer each time its accessed
+	DrawBuffer->ClearBuffer();
+
+	return *DrawBuffer;
+}
+
+void FSlateNullRenderer::ReleaseDrawBuffer(FSlateDrawBuffer& InWindowDrawBuffer)
+{
+	ensureMsgf(DrawBuffer.Get() == &InWindowDrawBuffer, TEXT("It release a DrawBuffer that is not a member of the SlateNullRenderer"));
+	InWindowDrawBuffer.Unlock();
 }
 
 void FSlateNullRenderer::CreateViewport( const TSharedRef<SWindow> Window )

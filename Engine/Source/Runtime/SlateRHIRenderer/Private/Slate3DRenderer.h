@@ -23,7 +23,8 @@ public:
 	virtual void SetUseGammaCorrection(bool bUseGammaCorrection) override;
 	virtual void SetApplyColorDeficiencyCorrection(bool bApplyColorCorrection) override;
 
-	virtual FSlateDrawBuffer& GetDrawBuffer() override;
+	virtual FSlateDrawBuffer& AcquireDrawBuffer() override;
+	virtual void ReleaseDrawBuffer(FSlateDrawBuffer& DrawBuffer) override;
 	virtual void DrawWindow_GameThread(FSlateDrawBuffer& DrawBuffer) override;
 	virtual void DrawWindowToTarget_RenderThread(FRHICommandListImmediate& RHICmdList, const struct FRenderThreadUpdateContext& Context) override;
 

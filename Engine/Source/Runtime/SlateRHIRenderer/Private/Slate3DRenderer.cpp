@@ -56,7 +56,7 @@ void FSlate3DRenderer::SetApplyColorDeficiencyCorrection(bool bApplyColorCorrect
 	RenderTargetPolicy->SetApplyColorDeficiencyCorrection(bApplyColorCorrection);
 }
 
-FSlateDrawBuffer& FSlate3DRenderer::GetDrawBuffer()
+FSlateDrawBuffer& FSlate3DRenderer::AcquireDrawBuffer()
 {
 	FreeBufferIndex = (FreeBufferIndex + 1) % NUM_DRAW_BUFFERS;
 	FSlateDrawBuffer* Buffer = &DrawBuffers[FreeBufferIndex];
@@ -74,6 +74,30 @@ FSlateDrawBuffer& FSlate3DRenderer::GetDrawBuffer()
 	Buffer->ClearBuffer();
 
 	return *Buffer;
+}
+
+void FSlate3DRenderer::ReleaseDrawBuffer(FSlateDrawBuffer& InWindowDrawBuffer)
+{
+#if DO_CHECK
+	bool bFound = false;
+	for (int32 Index = 0; Index < NUM_DRAW_BUFFERS; ++Index)
+	{
+		if (&DrawBuffers[Index] == &InWindowDrawBuffer)
+		{
+			bFound = true;
+			break;
+		}
+	}
+	ensureMsgf(bFound, TEXT("It release a DrawBuffer that is not a member of the Slate3DRenderer"));
+#endif
+
+	FSlateDrawBuffer* DrawBuffer = &InWindowDrawBuffer;
+	ENQUEUE_RENDER_COMMAND(SlateReleaseDrawBufferCommand)(
+		[DrawBuffer](FRHICommandListImmediate& RHICmdList)
+		{
+			FSlateReleaseDrawBufferCommand::ReleaseDrawBuffer(RHICmdList, DrawBuffer);
+		}
+	);
 }
 
 void FSlate3DRenderer::DrawWindow_GameThread(FSlateDrawBuffer& DrawBuffer)

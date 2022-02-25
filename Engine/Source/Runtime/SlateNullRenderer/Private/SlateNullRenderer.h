@@ -20,7 +20,8 @@ public:
 	/** FSlateRenderer interface */
 	virtual bool Initialize() override;
 	virtual void Destroy() override;
-	virtual FSlateDrawBuffer& GetDrawBuffer() override;
+	virtual FSlateDrawBuffer& AcquireDrawBuffer() override;
+	virtual void ReleaseDrawBuffer(FSlateDrawBuffer& InWindowDrawBuffer) override;
 	virtual void OnWindowDestroyed( const TSharedRef<SWindow>& InWindow ) override;
 	virtual void RequestResize( const TSharedPtr<SWindow>& Window, uint32 NewWidth, uint32 NewHeight ) override;
 	virtual void CreateViewport( const TSharedRef<SWindow> Window ) override;
@@ -44,5 +45,6 @@ public:
 
 private:
 	TSharedPtr<FSlateShaderResourceManager> ResourceManager;
+	TUniquePtr<FSlateDrawBuffer> DrawBuffer;
 	FCriticalSection ResourceCriticalSection;
 };

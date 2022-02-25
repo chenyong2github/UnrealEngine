@@ -972,8 +972,6 @@ void FSlateWindowElementList::ResetElementList()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(Slate_ResetElementList);
 
-	check(IsThreadSafeForSlateRendering());
-
 	DeferredPaintList.Reset();
 
 	BatchData.ResetData();

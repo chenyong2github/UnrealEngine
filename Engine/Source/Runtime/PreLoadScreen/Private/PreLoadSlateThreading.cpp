@@ -80,29 +80,30 @@ void FPreLoadSlateWidgetRenderer::DrawWindow(float DeltaTime)
 		HittestGrid->SetHittestArea(VirtualRenderWindow->GetPositionInScreen(), VirtualRenderWindow->GetViewportSize());
 		HittestGrid->Clear();
 
-		// Get the free buffer & add our virtual window
-		FSlateDrawBuffer& DrawBuffer = SlateRenderer->GetDrawBuffer();
-		FSlateWindowElementList& WindowElementList = DrawBuffer.AddWindowElementList(VirtualRenderWindow);
-
-		WindowElementList.SetRenderTargetWindow(MainWindow);
-
-		int32 MaxLayerId = 0;
 		{
-			FPaintArgs PaintArgs(nullptr, *HittestGrid, FVector2D::ZeroVector, FSlateApplication::Get().GetCurrentTime(), FSlateApplication::Get().GetDeltaTime());
+			// Get the free buffer & add our virtual window
+			FSlateRenderer::FScopedAcquireDrawBuffer ScopedDrawBuffer{ *SlateRenderer };
+			FSlateWindowElementList& WindowElementList = ScopedDrawBuffer.GetDrawBuffer().AddWindowElementList(VirtualRenderWindow);
 
-			// Paint the window
-			MaxLayerId = VirtualRenderWindow->Paint(
-				PaintArgs,
-				WindowGeometry, ClipRect,
-				WindowElementList,
-				0,
-				FWidgetStyle(),
-				VirtualRenderWindow->IsEnabled());
+			WindowElementList.SetRenderTargetWindow(MainWindow);
+
+			int32 MaxLayerId = 0;
+			{
+				FPaintArgs PaintArgs(nullptr, *HittestGrid, FVector2D::ZeroVector, FSlateApplication::Get().GetCurrentTime(), FSlateApplication::Get().GetDeltaTime());
+
+				// Paint the window
+				MaxLayerId = VirtualRenderWindow->Paint(
+					PaintArgs,
+					WindowGeometry, ClipRect,
+					WindowElementList,
+					0,
+					FWidgetStyle(),
+					VirtualRenderWindow->IsEnabled());
+			}
+
+			SlateRenderer->DrawWindows(ScopedDrawBuffer.GetDrawBuffer());
+			ScopedDrawBuffer.GetDrawBuffer().ViewOffset = FVector2D::ZeroVector;
 		}
-
-		SlateRenderer->DrawWindows(DrawBuffer);
-
-		DrawBuffer.ViewOffset = FVector2D::ZeroVector;
 	}
 }
 

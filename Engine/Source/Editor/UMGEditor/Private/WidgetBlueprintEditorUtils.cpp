@@ -2029,18 +2029,20 @@ int32 FWidgetBlueprintEditorUtils::UpdateHittestGrid(FHittestGrid& HitTestGrid, 
 	bool bUseGammaSpace = false;
 	TSharedPtr<ISlate3DRenderer, ESPMode::ThreadSafe> Renderer = FModuleManager::Get().LoadModuleChecked<ISlateRHIRendererModule>("SlateRHIRenderer")
 		.CreateSlate3DRenderer(bUseGammaSpace);
-	FSlateDrawBuffer& DrawBuffer = Renderer->GetDrawBuffer();
-	FSlateWindowElementList& WindowElementList = DrawBuffer.AddWindowElementList(Window);
 
-	int32 MaxLayerId = Window->Paint(
+	int32 MaxLayerId = 0;
+	{
+		ISlate3DRenderer::FScopedAcquireDrawBuffer ScopedDrawBuffer{ *Renderer };
+		FSlateWindowElementList& WindowElementList = ScopedDrawBuffer.GetDrawBuffer().AddWindowElementList(Window);
+
+		MaxLayerId = Window->Paint(
 			PaintArgs,
 			WindowGeometry, WindowClipRect,
 			WindowElementList,
 			0,
 			FWidgetStyle(),
 			Window->IsEnabled());
-
-	DrawBuffer.Unlock();
+	}
 
 	FSlateApplication::Get().InvalidateAllWidgets(false);
 

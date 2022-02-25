@@ -176,9 +176,44 @@ public:
 	virtual ~FSlateRenderer();
 
 public:
+	/** Acquire the draw buffer and release it at the end of the scope. */
+	struct FScopedAcquireDrawBuffer
+	{
+		FScopedAcquireDrawBuffer(FSlateRenderer& InSlateRenderer)
+			: SlateRenderer(InSlateRenderer)
+			, DrawBuffer(InSlateRenderer.AcquireDrawBuffer())
+		{
+		}
+		~FScopedAcquireDrawBuffer()
+		{
+			SlateRenderer.ReleaseDrawBuffer(DrawBuffer);
+		}
+		FScopedAcquireDrawBuffer(const FScopedAcquireDrawBuffer&) = delete;
+		FScopedAcquireDrawBuffer& operator=(const FScopedAcquireDrawBuffer&) = delete;
+
+		FSlateDrawBuffer& GetDrawBuffer()
+		{
+			return DrawBuffer;
+		}
+
+	private:
+		FSlateRenderer& SlateRenderer;
+		FSlateDrawBuffer& DrawBuffer;
+	};
+
+public:
+	/** Returns a draw buffer that can be used by Slate windows to draw window elements */
+	UE_DEPRECATED(5.1, "Use FSlateRenderer::AcquireDrawBuffer instead and release the draw buffer.")
+	virtual FSlateDrawBuffer& GetDrawBuffer()
+	{
+		return AcquireDrawBuffer();
+	}
 
 	/** Returns a draw buffer that can be used by Slate windows to draw window elements */
-	virtual FSlateDrawBuffer& GetDrawBuffer() = 0;
+	virtual FSlateDrawBuffer& AcquireDrawBuffer() = 0;
+
+	/** Return the previously acquired buffer. */
+	virtual void ReleaseDrawBuffer( FSlateDrawBuffer& InWindowDrawBuffer ) = 0;
 
 	virtual bool Initialize() = 0;
 
