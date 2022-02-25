@@ -50,12 +50,27 @@ void MainVS(
 #endif
 
 #if NIAGARA_DEBUGDRAW_DRAWLINE_PS
+
+Texture2D<float> DepthTexture;
+SamplerState DepthSampler;
+float2 OutputInvResolution; 
+float2 OriginalViewRectMin;
+float2 OriginalViewSize;
+float2 OriginalBufferInvSize;
+
 void MainPS (
 	in float4 Position	: SV_POSITION,
 	in float4 Color		: TEXCOORD0,
 	out float4 OutColor	: SV_Target0
 )
 {
-	OutColor = Color;
+	uint2 PixelCoord		= Position.xy;
+	const float2 ViewportUV = float2(PixelCoord) * OutputInvResolution;
+	const float2 DepthUV	= (ViewportUV * OriginalViewSize.xy + OriginalViewRectMin) * OriginalBufferInvSize;
+	const float Depth		= DepthTexture.SampleLevel(DepthSampler, DepthUV, 0);
+	const bool bIsHidden	= Position.z < Depth; // Reverse-Z
+
+	const float ColorScale = bIsHidden ? 0.1f : 1;
+	OutColor = Color * ColorScale;
 }
 #endif
