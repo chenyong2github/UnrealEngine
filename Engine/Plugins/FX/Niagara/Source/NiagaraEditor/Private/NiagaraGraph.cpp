@@ -1260,9 +1260,13 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy(const TArray<ENiagaraScriptU
 					{
 						check(LinkedPin->Direction == EGPD_Output);
 						LinkedPin = CastChecked<UNiagaraNodeReroute>(OwningNode)->GetTracedOutputPin(LinkedPin, false);
-						OwningNode = LinkedPin->GetOwningNode();
-						NewNodePtr = DuplicationMapping.Find(OwningNode);
-						bAddReciprocalLink = true;
+						// reroute nodes can return nullptr for the traced output if they are not connected to anything
+						if (LinkedPin != nullptr)
+						{
+							OwningNode = LinkedPin->GetOwningNode();
+							NewNodePtr = DuplicationMapping.Find(OwningNode);
+							bAddReciprocalLink = true;
+						}
 					}
 				}
 
