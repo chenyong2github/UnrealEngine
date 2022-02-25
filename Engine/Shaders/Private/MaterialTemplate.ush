@@ -1071,6 +1071,19 @@ float GetPerInstanceCustomData(FMaterialVertexParameters Parameters, int Index, 
 	return DefaultValue;
 }
 
+/** Per Instance Custom Data Getter (Pixel Shader Variant - Visibility Buffer) */
+/** Get the per-instance custom data when instancing */
+MaterialFloat3 GetPerInstanceCustomData3Vector(FMaterialPixelParameters Parameters, int Index, MaterialFloat3 DefaultValue)
+{
+#if IS_NANITE_PASS && USES_PER_INSTANCE_CUSTOM_DATA
+	return float3(GetPerInstanceCustomData(Parameters, Index + 0, DefaultValue.x),
+				  GetPerInstanceCustomData(Parameters, Index + 1, DefaultValue.y),
+				  GetPerInstanceCustomData(Parameters, Index + 2, DefaultValue.z));
+#endif
+
+	return DefaultValue;
+}
+
 // Per Instance Custom Data Getter (Vertex Shader Only)
 /** Get the per-instance custom data when instancing */
 MaterialFloat3 GetPerInstanceCustomData3Vector(FMaterialVertexParameters Parameters, int Index, MaterialFloat3 DefaultValue)
