@@ -2842,9 +2842,6 @@ FMaterialShaderMap* FMaterialShaderMap::AcquireFinalizedClone()
 	Clone->bCompiledSuccessfully = bCompiledSuccessfully;
 	Clone->bIsPersistent = bIsPersistent;
 	Clone->AssignCopy(*this);
-	ensureMsgf(reinterpret_cast<uint64>(Clone->GetMaterialPath()) > reinterpret_cast<uint64>(Clone->GetContent()), TEXT("String embedded in memory image is located outside of it (image start %p > string %p). Pointer/offset overflow while freezing?"),
-		Clone->GetContent(), Clone->GetMaterialPath()
-		);
 #if WITH_EDITOR
 	Clone->AssociateWithAssets(GetAssociatedAssets());
 #endif
