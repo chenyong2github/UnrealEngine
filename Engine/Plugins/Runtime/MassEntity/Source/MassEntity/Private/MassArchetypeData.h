@@ -304,6 +304,6 @@ protected:
 	void BindSharedFragmentRequirements(FMassExecutionContext& RunContext, const FMassFragmentIndicesMapping& ChunkFragmentsMapping);
 
 private:
-	int32 AddEntityInternal(FMassEntityHandle Entity, const bool bInitializeFragments);
-	void RemoveEntityInternal(const int32 AbsoluteIndex, const bool bDestroyFragments);
+	int32 AddEntityInternal(FMassEntityHandle Entity);
+	void RemoveEntityInternal(const int32 AbsoluteIndex);
 };
