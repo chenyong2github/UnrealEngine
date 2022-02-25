@@ -297,13 +297,20 @@ struct FRepSerializedPropertyInfo
 struct FRepSerializationSharedInfo
 {
 	FRepSerializationSharedInfo():
-		SerializedProperties(MakeUnique<FNetBitWriter>(0)),
 		bIsValid(false)
 	{}
 
 	void SetValid()
 	{
 		bIsValid = true;
+	}
+
+	void Init()
+	{
+		if (!SerializedProperties.IsValid())
+		{
+			SerializedProperties.Reset(new FNetBitWriter(0));
+		}
 	}
 
 	bool IsValid() const

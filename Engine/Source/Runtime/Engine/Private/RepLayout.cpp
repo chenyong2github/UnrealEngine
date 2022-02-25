@@ -2610,7 +2610,6 @@ void FRepSerializationSharedInfo::CountBytes(FArchive& Ar) const
 	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("SerializedProperties",
 		if (FNetBitWriter const* const LocalSerializedProperties = SerializedProperties.Get())
 		{
-			Ar.CountBytes(sizeof(FNetBitWriter), sizeof(FNetBitWriter));
 			LocalSerializedProperties->CountMemory(Ar);
 		}
 	);
@@ -2646,6 +2645,8 @@ const FRepSerializedPropertyInfo* FRepSerializationSharedInfo::WriteSharedProper
 		return (Info.PropertyKey == PropertyKey);
 	}));
 #endif
+
+	check(SerializedProperties.IsValid());
 
 	FRepSerializedPropertyInfo& SharedPropInfo = SharedPropertyInfo.Emplace_GetRef();
 
@@ -2763,6 +2764,8 @@ void FRepLayout::SendProperties_r(
 		// Use shared serialization if was found
 		if (SharedPropInfo)
 		{
+			check(SharedInfo->SerializedProperties.IsValid());
+
 			UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
 			UE_NET_TRACE_SCOPE(Shared, Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
 
@@ -6522,6 +6525,8 @@ void FRepLayout::SerializeProperties_r(
 		// Not concerned with unmapped guids because object references can't be shared
 		if (SharedPropInfo)
 		{
+			check(SharedInfo.SerializedProperties.IsValid());
+
 			GNumSharedSerializationHit++;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			if ((GNetVerifyShareSerializedData != 0) && Ar.IsSaving())
@@ -6654,6 +6659,8 @@ void FRepLayout::BuildSharedSerialization(
 	FChangelistIterator ChangelistIterator(Changed, 0);
 	FRepHandleIterator HandleIterator(Owner, ChangelistIterator, Cmds, BaseHandleToCmdIndex, 0, 1, 0, Cmds.Num() - 1);
 
+	SharedInfo.Init();
+
 	BuildSharedSerialization_r(HandleIterator, Data, bWriteHandle, bDoChecksum, 0, SharedInfo);
 
 	SharedInfo.SetValid();
@@ -6769,6 +6776,7 @@ void FRepLayout::BuildSharedSerializationForRPC(const FConstRepObjectDataBuffer 
 {
 	if ((GNetSharedSerializedData != 0) && !SharedInfoRPC.IsValid())
 	{
+		SharedInfoRPC.Init();
 		SharedInfoRPCParentsChanged.Init(false, Parents.Num());
 
 		for (int32 i = 0; i < Parents.Num(); i++)
