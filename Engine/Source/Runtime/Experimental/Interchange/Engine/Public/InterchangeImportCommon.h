@@ -20,11 +20,11 @@ namespace UE
 		 * All the code we cannot put in the base factory class because of dependencies (like Engine dep)
 		 * Will be available here.
 		 */
-		class FFactoryCommon
+		class INTERCHANGEENGINE_API FFactoryCommon
 		{
 		public:
 
-			struct FUpdateImportAssetDataParameters
+			struct INTERCHANGEENGINE_API FUpdateImportAssetDataParameters
 			{
 				UObject* AssetImportDataOuter = nullptr;
 				UAssetImportData* AssetImportData = nullptr;
@@ -57,7 +57,7 @@ namespace UE
 			static UAssetImportData* UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters, TFunctionRef<void(UInterchangeAssetImportData*)> CustomFileSourceUpdate);
 
 #if WITH_EDITORONLY_DATA
-			struct FSetImportAssetDataParameters : public FUpdateImportAssetDataParameters
+			struct INTERCHANGEENGINE_API FSetImportAssetDataParameters : public FUpdateImportAssetDataParameters
 			{
 				// Allow the factory to provide is own list of source files.
 				TArray<FAssetImportInfo::FSourceFile> SourceFiles;
