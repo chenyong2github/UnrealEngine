@@ -310,21 +310,24 @@ namespace Chaos
 										}
 										// Calculate the range of indices for this color as a set of independent contacts
 										TPair<int32, int32> ColorConstrainSet(ConstraintSetEnd, ConstraintSetEnd);
-										InnerPhysicsParallelFor(OffsetEnd - OffsetBegin, [&](int32 Index)
+										InnerPhysicsParallelForRange(OffsetEnd - OffsetBegin, [&](int32 StartIndex, int32 EndIndex)
 										{
-											int32 ConstraintIndex = Index + OffsetBegin;
-											FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];
-											if (Constraint->IsEnabled())
+											for (int32 Index = StartIndex; Index < EndIndex; ++Index)
 											{
-												// Levels that should be assigned to the bodies for shock propagation
-												// @todo(chaos): optimize the lookup
-												const TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstrainedParticles = Constraint->GetConstrainedParticles();
-												const int32 Particle0Level = GetParticleLevel(ConstrainedParticles[0]);
-												const int32 Particle1Level = GetParticleLevel(ConstrainedParticles[1]);
+												int32 ConstraintIndex = Index + OffsetBegin;
+												FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];
+												if (Constraint->IsEnabled())
+												{
+													// Levels that should be assigned to the bodies for shock propagation
+													// @todo(chaos): optimize the lookup
+													const TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstrainedParticles = Constraint->GetConstrainedParticles();
+													const int32 Particle0Level = GetParticleLevel(ConstrainedParticles[0]);
+													const int32 Particle1Level = GetParticleLevel(ConstrainedParticles[1]);
 
-												// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
-												// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
-												Constraint->GatherInput(Dt, Particle0Level, Particle1Level, *IslandGroup, false);
+													// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
+													// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
+													Constraint->GatherInput(Dt, Particle0Level, Particle1Level, *IslandGroup, false);
+												}
 											}
 										});
 										for (int32 ConstraintIndex = OffsetBegin; ConstraintIndex < OffsetEnd; ++ConstraintIndex)
