@@ -6,6 +6,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Logging/LogMacros.h"
+#include "Misc/App.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SWindow.h"
 #include "WorkspaceMenuStructure.h"
