@@ -1518,7 +1518,11 @@ void FGeometryCollectionPhysicsProxy::SetClusteredParticleKinematicTarget(Chaos:
 	{
 		Chaos::TKinematicTarget<Chaos::FReal, 3> NewKinematicTarget;
 		NewKinematicTarget.SetTargetMode(NewWorldTransform);
-		Handle->SetKinematicTarget(NewKinematicTarget);
+
+		if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+		{
+			RBDSolver->GetEvolution()->SetParticleKinematicTarget(Handle, NewKinematicTarget);
+		}
 	}
 }
 void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolver* CurrentSolver, Chaos::FDirtyGeometryCollectionData& BufferData)
