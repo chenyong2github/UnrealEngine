@@ -49,10 +49,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Default")
 	ECommonInputEventFlowBehavior InnerBehavior = ECommonInputEventFlowBehavior::BlockIfHandled;
 
-	// The first Action Domain marked as default will be used when a widget doesn't have any action domain defined in its hierarchie
-	UPROPERTY(EditDefaultsOnly, Category = "Default")
-	bool bIsDefaultActionDomain = false;
-
 	bool ShouldBreakInnerEventFlow(bool bInputEventHandled) const;
 
 	bool ShouldBreakEventFlow(bool bDomainHadActiveRoots, bool bInputEventHandledAtLeastOnce) const;
@@ -70,10 +66,4 @@ public:
 	// Domains will receive events in ascending index order
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")
 	TArray<UCommonInputActionDomain*> ActionDomains;
-
-	// Cache of the first default action domain found in the table
-	UPROPERTY(Transient)
-	TObjectPtr<UCommonInputActionDomain> DefaultActionDomainCache;
-
-	virtual void PostLoad() override;
 };
