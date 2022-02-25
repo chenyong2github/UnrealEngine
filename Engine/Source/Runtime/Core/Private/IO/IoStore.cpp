@@ -2137,6 +2137,7 @@ public:
 		uint64 UncompressedDestinationOffset = 0;
 		uint64 OffsetInBlock = ResolvedOffset % CompressionBlockSize;
 		uint64 RemainingSize = ResolvedSize;
+		TArray<uint8> TempBuffer;
 		for (int32 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; ++BlockIndex)
 		{
 			const FIoStoreTocCompressedBlockEntry& CompressionBlock = TocResource.CompressionBlocks[BlockIndex];
@@ -2165,15 +2166,14 @@ public:
 			const uint32 UncompressedSize = CompressionBlock.GetUncompressedSize();
 			if (CompressionMethod.IsNone())
 			{
-				check(UncompressedDestination + UncompressedSize - OffsetInBlock <= UncompressedBuffer.Data() + UncompressedBuffer.DataSize());
-				FMemory::Memcpy(UncompressedDestination, CompressedBuffer.GetData() + OffsetInBlock, UncompressedSize - OffsetInBlock);
+				uint64 CopySize = FMath::Min<uint64>(UncompressedSize - OffsetInBlock, RemainingSize);
+				FMemory::Memcpy(UncompressedDestination, CompressedBuffer.GetData() + OffsetInBlock, CopySize);
 			}
 			else
 			{
 				bool bUncompressed;
 				if (OffsetInBlock || RemainingSize < UncompressedSize)
 				{
-					TArray<uint8> TempBuffer;
 					TempBuffer.SetNumUninitialized(UncompressedSize);
 					bUncompressed = FCompression::UncompressMemory(CompressionMethod, TempBuffer.GetData(), UncompressedSize, CompressedBuffer.GetData(), CompressionBlock.GetCompressedSize());
 					uint64 CopySize = FMath::Min<uint64>(UncompressedSize - OffsetInBlock, RemainingSize);
