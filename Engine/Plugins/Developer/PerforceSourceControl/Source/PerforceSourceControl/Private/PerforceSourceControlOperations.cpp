@@ -2947,6 +2947,8 @@ bool FPerforceCreateWorkspaceWorker::Execute(class FPerforceSourceControlCommand
 			ClientDesc << Mapping.Value << TEXT("\n");
 		}
 
+		AddType(*Operation, ClientDesc);
+
 		InCommand.bCommandSuccessful = Connection.CreateWorkspace(	ClientDesc,
 																	FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled),
 																	InCommand.ResultInfo.ErrorMessages);
@@ -2954,6 +2956,29 @@ bool FPerforceCreateWorkspaceWorker::Execute(class FPerforceSourceControlCommand
 	
 	return InCommand.bCommandSuccessful;
 }
+
+void FPerforceCreateWorkspaceWorker::AddType(const FCreateWorkspace& Operation, FStringBuilderBase& ClientDesc)
+{
+	ClientDesc << TEXT("Type:\t");
+
+	switch (Operation.GetType())
+	{
+		case FCreateWorkspace::EType::Writeable:
+			ClientDesc << TEXT("writeable");
+			break;
+		case FCreateWorkspace::EType::ReadOnly:
+			ClientDesc << TEXT("readonly");
+			break;
+		case FCreateWorkspace::EType::Partitioned:
+			ClientDesc << TEXT("partitioned");
+			break;
+		default:
+			checkNoEntry();
+	}
+
+	ClientDesc << TEXT("\n");
+}
+
 
 bool FPerforceCreateWorkspaceWorker::UpdateStates() const
 {
