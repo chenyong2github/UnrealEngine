@@ -924,15 +924,6 @@ void SSceneOutliner::AddUnfilteredItemToTree(FSceneOutlinerTreeItemRef Item)
 		RootTreeItems.Add(Item);
 	}
 
-	// If there are any pending operations involving this item before it was added, update them
-	for (int i = 0; i < PendingOperations.Num(); i++)
-	{
-		if (PendingOperations[i].Item->GetID() == Item->GetID())
-		{
-			PendingOperations[i].Item = Item;
-		}
-	}
-
 	// keep track of the number of active folders
 	if (Item->IsA<FFolderTreeItem>())
 	{
