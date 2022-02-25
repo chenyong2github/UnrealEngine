@@ -8,9 +8,11 @@
 #include "Text3DPrivate.h"
 #include "TextShaper.h"
 #include "Algo/Count.h"
+#include "Async/Async.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
+#include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "UObject/ConstructorHelpers.h"
 
