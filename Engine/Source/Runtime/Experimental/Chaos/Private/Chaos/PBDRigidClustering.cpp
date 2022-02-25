@@ -1053,21 +1053,24 @@ namespace Chaos
 				FRigidHandle CurrentHandle = nullptr;
 				while (Queue.Dequeue(CurrentHandle))
 				{
-					if (FClusterHandle CurrentClusterHandle = CurrentHandle->CastToClustered())
-					{
-						// @question : Maybe we should just store the leaf node bodies in a
-						// map, that will require Memory(n*log(n))
-						if (MChildren.Contains(CurrentClusterHandle))
-						{
-							for (Chaos::FPBDRigidParticleHandle* Child : MChildren[CurrentClusterHandle])
-							{
-								Queue.Enqueue(Child);
-							}
-						}
-					}
 					if (CurrentHandle)
 					{
-						Function(*this, CurrentHandle);
+						if (FClusterHandle CurrentClusterHandle = CurrentHandle->CastToClustered())
+						{
+							// @question : Maybe we should just store the leaf node bodies in a
+							// map, that will require Memory(n*log(n))
+							if (MChildren.Contains(CurrentClusterHandle))
+							{
+								for (Chaos::FPBDRigidParticleHandle* Child : MChildren[CurrentClusterHandle])
+								{
+									Queue.Enqueue(Child);
+								}
+							}
+						}
+						if (CurrentHandle)
+						{
+							Function(*this, CurrentHandle);
+						}
 					}
 				}
 			}
