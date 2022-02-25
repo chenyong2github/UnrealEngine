@@ -1541,6 +1541,9 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 			);
 		}
 
+		// Call PostTick to adjust bounds, etc
+		PostTick();
+
 		// Need to call post-tick, which calls the copy to previous for interpolated spawning
 		SpawnExecContext.PostTick();
 		UpdateExecContext.PostTick();
@@ -1550,13 +1553,6 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		{
 			EventContext.PostTick();
 		}
-
-		CachedBounds = CachedEmitter->FixedBounds;
-
-		/*if (CachedEmitter->SpawnScriptProps.Script->GetComputedVMCompilationId().HasInterpolatedParameters())
-		{
-			GPUExecContext.CombinedParamStore.CopyCurrToPrev();
-		}*/
 
 		return;
 	}
