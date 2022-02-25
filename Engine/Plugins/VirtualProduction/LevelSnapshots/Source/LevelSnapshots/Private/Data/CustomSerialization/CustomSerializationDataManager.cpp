@@ -116,12 +116,12 @@ int32 UE::LevelSnapshots::Private::FCustomSerializationDataReader::AddSubobjectS
 
 TSharedPtr<UE::LevelSnapshots::ISnapshotSubobjectMetaData> UE::LevelSnapshots::Private::FCustomSerializationDataReader::GetSubobjectMetaData(int32 Index)
 {
-	return CachedSubobjectMetaData[Index];
+	return ensure(CachedSubobjectMetaData.IsValidIndex(Index)) ? CachedSubobjectMetaData[Index] : nullptr;
 }
 
 const TSharedPtr<UE::LevelSnapshots::ISnapshotSubobjectMetaData> UE::LevelSnapshots::Private::FCustomSerializationDataReader::GetSubobjectMetaData(int32 Index) const
 {
-	return CachedSubobjectMetaData[Index];
+	return ensure(CachedSubobjectMetaData.IsValidIndex(Index)) ? CachedSubobjectMetaData[Index] : nullptr;
 }
 
 int32 UE::LevelSnapshots::Private::FCustomSerializationDataReader::GetNumSubobjects() const
@@ -167,8 +167,11 @@ void UE::LevelSnapshots::Private::FCustomSerializationDataWriter::WriteObjectAnn
 
 int32 UE::LevelSnapshots::Private::FCustomSerializationDataWriter::AddSubobjectSnapshot(UObject* Subobject)
 {
-	if (!ensure(Subobject && Subobject->IsIn(SerializedObject)))
+	if (!ensure(Subobject) || !ensure(Subobject->IsIn(SerializedObject)))
 	{
+		const FString SubobjectPath = Subobject ? Subobject->GetPathName() : FString("None");
+		const FString SerializedObjectPath = SerializedObject ? SerializedObject->GetPathName() : FString("None");
+		UE_LOG(LogLevelSnapshots, Error, TEXT("%s is not in %s!"), *SubobjectPath, *SerializedObjectPath);
 		return INDEX_NONE;
 	}
 
@@ -180,16 +183,14 @@ int32 UE::LevelSnapshots::Private::FCustomSerializationDataWriter::AddSubobjectS
 		return Data.ObjectPathIndex == ObjectIndex;
 	});
 
-	if (ObjectIndex != INDEX_NONE)
+	if (!ensure(ObjectIndex == INDEX_NONE))
 	{
-		UE_LOG(LogLevelSnapshots, Error, TEXT("You tried to register an object which was already found by standard Level Snapshot serialisation. Is your subobject referenced by an property with a CPF_Edit flag?"));
-		UE_DEBUG_BREAK();
+		UE_LOG(LogLevelSnapshots, Error, TEXT("You tried to register an object (%s) which was already found by standard Level Snapshot serialisation. Is your subobject referenced by an property with a CPF_Edit flag?"), *Subobject->GetPathName());
 		return ExistingSubobjectIndex;
 	}
-	if (ExistingSubobjectIndex != INDEX_NONE)
+	if (!ensure(ExistingSubobjectIndex == INDEX_NONE))
 	{
-		UE_LOG(LogLevelSnapshots, Error, TEXT("You tried to register the same subobject twice."));
-		UE_DEBUG_BREAK();
+		UE_LOG(LogLevelSnapshots, Error, TEXT("You tried to register the same subobject (%s) twice."), *Subobject->GetPathName());
 		return ExistingSubobjectIndex;
 	}
 

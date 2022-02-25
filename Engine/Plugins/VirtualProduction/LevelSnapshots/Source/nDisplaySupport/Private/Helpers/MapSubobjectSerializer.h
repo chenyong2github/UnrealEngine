@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LevelSnapshotsLog.h"
 #include "Interfaces/ICustomObjectSnapshotSerializer.h"
 #include "Params/ObjectSnapshotSerializationData.h"
 #include "UObject/UnrealType.h"
@@ -87,13 +88,20 @@ namespace UE::LevelSnapshots::nDisplay::Private
 				if (ensure(IsValid(Value)))
 				{
 					const int32 ViewportIndex = DataStorage.AddSubobjectSnapshot(Value);
-					DataStorage.GetSubobjectMetaData(ViewportIndex)
-						->WriteObjectAnnotation(FObjectAnnotator::CreateLambda([&Key](FArchive& Writer)
+					TSharedPtr<ISnapshotSubobjectMetaData> MetaData = DataStorage.GetSubobjectMetaData(ViewportIndex);
+					if (ensureMsgf(MetaData, TEXT("AddSubobjectSnapshot failed unexpectingly")))
+					{
+						MetaData->WriteObjectAnnotation(FObjectAnnotator::CreateLambda([&Key](FArchive& Writer)
 						{
 							FString ViewportKey = Key;
 							Writer << ViewportKey;
 						}));
+						
+						continue;
+					}
 				}
+
+				UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to save %s that is supposed to be a subobject of %s"), *Value->GetPathName(), *EditorObject->GetPathName());
 			}
 		}
 		virtual UObject* FindOrRecreateSubobjectInSnapshotWorld(UObject* SnapshotObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
