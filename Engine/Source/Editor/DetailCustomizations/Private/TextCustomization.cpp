@@ -22,12 +22,12 @@ namespace
 
 		virtual bool IsMultiLineText() const override
 		{
-			return PropertyHandle->IsValidHandle() && PropertyHandle->GetMetaDataProperty()->GetBoolMetaData("MultiLine");
+			return PropertyHandle->IsValidHandle() && PropertyHandle->GetBoolMetaData("MultiLine");
 		}
 
 		virtual bool IsPassword() const override
 		{
-			return PropertyHandle->IsValidHandle() && PropertyHandle->GetMetaDataProperty()->GetBoolMetaData("PasswordField");
+			return PropertyHandle->IsValidHandle() && PropertyHandle->GetBoolMetaData("PasswordField");
 		}
 
 		virtual bool IsReadOnly() const override

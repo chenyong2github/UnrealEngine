@@ -12,9 +12,9 @@ void SPropertyEditorText::Construct( const FArguments& InArgs, const TSharedRef<
 	PropertyEditor = InPropertyEditor;
 
 	bIsFNameProperty = InPropertyEditor->PropertyIsA(FNameProperty::StaticClass());
-	bIsMultiLine = InPropertyEditor->GetPropertyHandle()->GetMetaDataProperty()->GetBoolMetaData("MultiLine");
+	bIsMultiLine = InPropertyEditor->GetPropertyHandle()->GetBoolMetaData("MultiLine");
 
-	const bool bIsPassword = InPropertyEditor->GetPropertyHandle()->GetMetaDataProperty()->GetBoolMetaData("PasswordField");
+	const bool bIsPassword = InPropertyEditor->GetPropertyHandle()->GetBoolMetaData("PasswordField");
 	
 	TSharedPtr<SHorizontalBox> HorizontalBox;
 	if(bIsMultiLine)
