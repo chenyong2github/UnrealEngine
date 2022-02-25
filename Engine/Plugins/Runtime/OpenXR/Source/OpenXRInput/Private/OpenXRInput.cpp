@@ -742,6 +742,17 @@ void FOpenXRInputPlugin::FOpenXRInput::SetChannelValues(int32 ControllerId, cons
 		rightHaptics);
 }
 
+bool FOpenXRInputPlugin::FOpenXRInput::SupportsForceFeedback(int32 ControllerId)
+{
+	if (!bActionsBound || OpenXRHMD == nullptr)
+	{
+		return false;
+	}
+
+	XrSession Session = OpenXRHMD->GetSession();
+	return Session != XR_NULL_HANDLE;
+}
+
 void FOpenXRInputPlugin::FOpenXRInput::SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property)
 {
 	if (OpenXRHMD == nullptr)

@@ -876,6 +876,33 @@ void FOculusInput::SetChannelValues( int32 ControllerId, const FForceFeedbackVal
 	}
 }
 
+bool FOculusInput::SupportsForceFeedback(int32 ControllerId)
+{
+	for (FOculusControllerPair& ControllerPair : ControllerPairs)
+	{
+		if (ControllerPair.UnrealControllerIndex == ControllerId)
+		{
+			const FOculusTouchControllerState& ControllerStateLeft = ControllerPair.TouchControllerStates[(int32)EControllerHand::Left];
+			const FOculusTouchControllerState& ControllerStateRight = ControllerPair.TouchControllerStates[(int32)EControllerHand::Right];
+
+			if (!(ControllerStateLeft.bIsConnected || ControllerStateRight.bIsConnected))
+			{
+				// neither hand connected, won't be receiving force feedback
+				continue;
+			}
+
+			if (IOculusHMDModule::IsAvailable() && FOculusHMDModule::GetPluginWrapper().GetInitialized())
+			{
+				// available so could receive feedback
+				return true;
+			}
+		}
+	}
+
+	// not handling force feedback
+	return false;
+}
+
 void FOculusInput::UpdateForceFeedback( const FOculusControllerPair& ControllerPair, const EControllerHand Hand )
 {
 	const FOculusTouchControllerState& ControllerState = ControllerPair.TouchControllerStates[ (int32)Hand ];
