@@ -18,8 +18,8 @@ void FModularFeatures::LockModularFeatureList()
 
 void FModularFeatures::UnlockModularFeatureList()
 {
-	ModularFeaturesMapCriticalSection.Unlock();
 	bModularFeatureListLocked = false;
+	ModularFeaturesMapCriticalSection.Unlock();
 }
 
 int32 FModularFeatures::GetModularFeatureImplementationCount( const FName Type )
