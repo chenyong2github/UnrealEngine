@@ -48,11 +48,12 @@ class FCachedOSVeryLargePageAllocator
 	static constexpr uint64 NumberOfSubPagesPerLargePage = (SizeOfLargePage / SizeOfSubPage);
 public:
 
-	FCachedOSVeryLargePageAllocator()
+	FCachedOSVeryLargePageAllocator(bool bUseOSLargePages = true)
 		: bEnabled(true)
 		, CachedFree(0)
+		, FallbackAllocator(nullptr)
 	{
-		Init();
+		Init(bUseOSLargePages);
 	}
 
 	~FCachedOSVeryLargePageAllocator()
@@ -77,12 +78,13 @@ public:
 		{
 			return true;
 		}
-		return false;
+
+		return (FallbackAllocator != nullptr) ? FallbackAllocator->IsPartOf(Ptr) : false;
 	}
 
 private:
 
-	void Init();
+	void Init(bool bUseOSLargePages);
 
 	bool bEnabled;
 	uintptr_t	AddressSpaceReserved;
@@ -91,6 +93,8 @@ private:
 	uint64		CachedFree;
 
 	FPlatformMemory::FPlatformVirtualMemoryBlock Block;
+
+	FCachedOSVeryLargePageAllocator* FallbackAllocator;
 
 	struct FLargePage : public TIntrusiveLinkedList<FLargePage>
 	{

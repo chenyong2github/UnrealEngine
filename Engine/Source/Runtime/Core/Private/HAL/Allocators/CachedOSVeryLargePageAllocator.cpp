@@ -8,10 +8,17 @@
 
 #if UE_USE_VERYLARGEPAGEALLOCATOR
 
+static int32 GVeryLargePageAllocatorUseFallback = 1;
+static FAutoConsoleVariableRef CVarVeryLargePageAllocatorUseFallback(
+	TEXT("VeryLargePageAllocator.UseFallback"),
+	GVeryLargePageAllocatorUseFallback,
+	TEXT("Whether very large page allocator to use fallback allocator using small OS pages (default is 1)"));
+
+
 CORE_API bool GEnableVeryLargePageAllocator = true;
-void FCachedOSVeryLargePageAllocator::Init()
+void FCachedOSVeryLargePageAllocator::Init(bool bUseOSLargePages)
 {
-	Block = FPlatformMemory::FPlatformVirtualMemoryBlock::AllocateVirtual(AddressSpaceToReserve);
+	Block = FPlatformMemory::FPlatformVirtualMemoryBlock::AllocateVirtual(AddressSpaceToReserve, FPlatformMemory::FPlatformVirtualMemoryBlock::GetVirtualSizeAlignment(), FPlatformMemory::EVirtualMemoryPlatformType::OrdinaryCPU, false, bUseOSLargePages);
 	AddressSpaceReserved = (uintptr_t)Block.GetVirtualPointer();
 	AddressSpaceReservedEnd = AddressSpaceReserved + AddressSpaceToReserve;
 #if UE_VERYLARGEPAGEALLOCATOR_TAKEONALL64KBALLOCATIONS
@@ -45,6 +52,12 @@ void FCachedOSVeryLargePageAllocator::Init()
 	}
 #endif
 
+	if (bUseOSLargePages)
+	{
+		void* FAllbackAllocatorMemory = FPlatformMemory::BinnedAllocFromOS(sizeof(FCachedOSVeryLargePageAllocator));
+		FallbackAllocator = new (FAllbackAllocatorMemory) FCachedOSVeryLargePageAllocator(false);
+	}
+
 	if (!GEnableVeryLargePageAllocator)
 	{
 		bEnabled = false;
@@ -76,7 +89,34 @@ void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, uint32 AllocationHi
 						FScopeUnlock FScopeUnlock(Mutex);
 #endif
 						LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
-						Block.Commit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
+
+						if (GVeryLargePageAllocatorUseFallback != 1)
+						{
+							Block.Commit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage, true);
+						}
+						else
+						{
+							if (FallbackAllocator == nullptr)
+							{
+								Block.Commit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage, true);
+							}
+							else if (!Block.Commit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage, false))
+							{
+								// Allocation failed, use the fallback allocator
+#if UE_ALLOW_OSMEMORYLOCKFREE
+								if (Mutex)
+								{
+									FScopeLock FScopeLock(Mutex);
+
+									LargePage->LinkHead(FreeLargePagesHead[LargePage->AllocationHint]);
+									return FallbackAllocator->Allocate(Size, AllocationHint, Mutex);
+								}
+#endif
+
+								LargePage->LinkHead(FreeLargePagesHead[LargePage->AllocationHint]);
+								return FallbackAllocator->Allocate(Size, AllocationHint, Mutex);
+							}
+						}
 					}
 					LargePage->LinkHead(UsedLargePagesWithSpaceHead[AllocationHint]);
 					CachedFree += SizeOfLargePage;
@@ -192,6 +232,11 @@ void FCachedOSVeryLargePageAllocator::Free(void* Ptr, SIZE_T Size, FCriticalSect
 			}
 #endif
 		}
+	}
+	else if (FallbackAllocator != nullptr)
+	{
+		// Allocation might have came from fallback allocator. Free it from there
+		FallbackAllocator->Free(Ptr, Size, Mutex, ThreadIsTimeCritical);
 	}
 	else
 	{
