@@ -244,6 +244,11 @@ void FScene::ValidateSkyLightRealTimeCapture(
 	FRDGTextureRef SceneColorTexture)
 {
 #if WITH_EDITOR
+	if (!GAreScreenMessagesEnabled)
+	{
+		return;
+	}
+
 	bool bSkyMeshInMainPassExist = false;
 	bool bSkyMeshInRealTimeSkyCaptureExtist = false;
 
