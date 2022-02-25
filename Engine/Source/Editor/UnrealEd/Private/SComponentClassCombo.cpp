@@ -57,8 +57,10 @@ void SComponentClassCombo::Construct(const FArguments& InArgs)
 
 	ComponentClassFilterData.InitOptions = MakeShared<FClassViewerInitializationOptions>();
 	ComponentClassFilterData.InitOptions->ClassFilters.Append(InArgs._CustomClassFilters);
-	ComponentClassFilterData.ClassFilter = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassFilter(*ComponentClassFilterData.InitOptions);
-	ComponentClassFilterData.FilterFuncs = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateFilterFuncs();
+	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
+	ComponentClassFilterData.ClassFilter = ClassViewerModule.CreateClassFilter(*ComponentClassFilterData.InitOptions);
+	ComponentClassFilterData.FilterFuncs = ClassViewerModule.CreateFilterFuncs();
+	ClassViewerModule.GetOnGlobalClassViewerFilterModified().AddRaw(this, &SComponentClassCombo::UpdateComponentClassList);
 
 	FComponentTypeRegistry::Get().SubscribeToComponentList(ComponentClassList).AddRaw(this, &SComponentClassCombo::UpdateComponentClassList);
 
@@ -142,6 +144,11 @@ void SComponentClassCombo::Construct(const FArguments& InArgs)
 SComponentClassCombo::~SComponentClassCombo()
 {
 	FComponentTypeRegistry::Get().GetOnComponentTypeListChanged().RemoveAll(this);
+	
+	if (FClassViewerModule* ClassViewerModule = FModuleManager::Get().GetModulePtr<FClassViewerModule>("ClassViewer"))
+	{
+		ClassViewerModule->GetOnGlobalClassViewerFilterModified().RemoveAll(this);
+	}
 }
 
 void SComponentClassCombo::ClearSelection()

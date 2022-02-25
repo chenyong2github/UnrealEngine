@@ -109,6 +109,7 @@ TSharedRef<FClassViewerFilterFuncs> FClassViewerModule::CreateFilterFuncs()
 void FClassViewerModule::RegisterGlobalClassViewerFilter(const TSharedRef<IClassViewerFilter>& Filter)
 {
 	GlobalClassViewerFilter = Filter;
+	OnGlobalClassViewerFilterModified.Broadcast();
 }
 
 const TSharedPtr<IClassViewerFilter>& FClassViewerModule::GetGlobalClassViewerFilter()

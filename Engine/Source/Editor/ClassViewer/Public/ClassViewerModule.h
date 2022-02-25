@@ -199,7 +199,11 @@ public:
 	/** Returns the global filter that affects all class viewer instances */
 	virtual const TSharedPtr<IClassViewerFilter>& GetGlobalClassViewerFilter();
 
+	FSimpleMulticastDelegate& GetOnGlobalClassViewerFilterModified() { return OnGlobalClassViewerFilterModified; }
+
 private:
 
 	TSharedPtr<IClassViewerFilter> GlobalClassViewerFilter;
+
+	FSimpleMulticastDelegate OnGlobalClassViewerFilterModified;
 };
