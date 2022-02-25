@@ -84,6 +84,56 @@ private:
 		TMap<FString, FParsedStringTableEntryMetaDataMap, FDefaultSetAllocator, FLocKeyMapFuncs<FParsedStringTableEntryMetaDataMap>> MetaDataEntries;
 	};
 
+	class FMacroArgumentGatherer
+	{
+	public:
+		FMacroArgumentGatherer() {};
+
+		bool Gather(const TCHAR* Arg, int32 Count);
+		bool EndArgument();
+
+		// Return the number of argument that are completely resolved.
+		int32 GetNumberOfArguments() const;
+
+		void ExtractArguments(TArray<FString>& Arguments);
+		
+		void OpenDoubleQuotes()
+		{
+			bInDblQuotes = true;
+		}
+
+		void CloseDoubleQuotes()
+		{
+			bInDblQuotes = false;
+		}
+
+		bool IsInDoubleQuotes()  const
+		{
+			return bInDblQuotes;
+		};
+		
+		void OpenSingleQuotes() 
+		{
+			bInSglQuotes = true;
+		}
+
+		void CloseSingleQuotes()
+		{
+			bInSglQuotes = false;
+		}
+
+		bool IsInSingleQuotes()  const
+		{
+			return bInSglQuotes;
+		};
+
+	private:
+		TArray<FString> Args;
+		FString CurrentArgument;
+		bool bInDblQuotes = false;
+		bool bInSglQuotes = false;
+	};
+
 	struct FSourceFileParseContext
 	{
 		bool AddManifestText( const FString& Token, const FString& Namespace, const FString& SourceText, const FManifestContext& Context );
@@ -275,8 +325,8 @@ private:
 
 	protected:
 		bool ParseArgsFromMacro(const FString& Text, TArray<FString>& Args, FSourceFileParseContext& Context) const;
-		bool ParseArgsFromNextLines(TArray<FString>& Args, int32& BracketStack, FSourceFileParseContext& Context) const;
-		bool ParseArgumentString(const FString& Text, const int32 OpenBracketIdx, int32& BracketStack, const FSourceFileParseContext& Context, TArray<FString>& Args) const;
+		bool ParseArgsFromNextLines(FMacroArgumentGatherer& ArgsGatherer, int32& BracketStack, FSourceFileParseContext& Context) const;
+		bool ParseArgumentString(const FString& Text, const int32 OpenBracketIdx, int32& BracketStack, const FSourceFileParseContext& Context, FMacroArgumentGatherer& ArgsGatherer) const;
 
 		static bool PrepareArgument(FString& Argument, bool IsAutoText, const FString& IdentForLogging, bool& OutHasQuotes);
 
