@@ -4456,7 +4456,7 @@ static void GetNonSequencerActorWorldTransforms(IMovieScenePlayer* Player, UMovi
 		do
 		{
 			FGuid ActorHandle = GetHandleToObject(Actor, InSequence, Player, Template,false);
-			if (Frames.Num() > 0)
+			if (ActorHandle.IsValid() && Frames.Num() > 0)
 			{
 				if (InSequence->GetMovieScene()->FindTrack<UMovieScene3DTransformTrack>(ActorHandle))
 				{
