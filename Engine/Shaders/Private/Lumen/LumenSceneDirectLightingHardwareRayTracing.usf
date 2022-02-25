@@ -51,7 +51,7 @@ RaytracingAccelerationStructure TLAS;
 Buffer<uint2> ShadowTraceTileData;
 Buffer<int> VirtualShadowMapIds;
 
-uint TranslucentSkipCount;
+uint MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 uint GroupCount;
 uint LightOffset;
@@ -144,7 +144,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						CoordInCardTile,
 						CoordInCardTile.x, // dummy coordinate
 						CullingMode,
-						TranslucentSkipCount,
+						MaxTranslucentSkipCount,
 						MaxTraversalIterations);
 
 					// Shadows don't need closest hit distance
@@ -182,7 +182,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						Ray.TMin = 0;
 						Ray.TMax = NearFieldTMax;
 						Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
-						MinimalRayResult = TraceLumenMinimalRay(Ray, Context, Payload);
+						FLumenRayHitBookmark UnusedBookmark;
+						MinimalRayResult = TraceLumenMinimalRayWithRetries(Ray, Context, Payload, UnusedBookmark);
 					}
 
 					ShadowMaskRay.ShadowFactor = IsRayOccluded(MinimalRayResult) ? 0.0f : 1.0f;

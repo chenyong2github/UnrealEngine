@@ -32,6 +32,7 @@ float AvoidSelfIntersectionTraceDistance;
 float MaxRayIntensity;
 uint NumThreadsToDispatch;
 float TanRadiosityRayConeHalfAngle;
+uint MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
@@ -80,7 +81,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 
 				const uint LinearCoord = CoordInCardTile.y * CARD_TILE_SIZE + CoordInCardTile.x;
 				const uint OriginalCullingMode = 0;
-				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, CoordInCardTile, LinearCoord, OriginalCullingMode, MaxTraversalIterations);
+				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, CoordInCardTile, LinearCoord, OriginalCullingMode, MaxTranslucentSkipCount, MaxTraversalIterations);
 
 #if DIM_AVOID_SELF_INTERSECTION_TRACE
 				// First trace - short distance with backface culling enabled to avoid self intersecting in cases where the traced geometry doesn't match what's in the GBuffer (Nanite, Ray Tracing LODs, etc)

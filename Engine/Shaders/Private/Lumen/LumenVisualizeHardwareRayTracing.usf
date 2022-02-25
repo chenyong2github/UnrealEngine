@@ -10,7 +10,6 @@
 #include "LumenVisualize.ush"
 
 #if LUMEN_HARDWARE_RAYTRACING
-#define ENABLE_TRANSLUCENT_SKIP_COUNT 1
 #include "LumenHardwareRayTracingCommon.ush"
 #endif
 

@@ -42,7 +42,7 @@ float3 CalcPrevTranslatedWorldPositionFromGPUSceneInstanceIndex(float3 Translate
 #endif // ENABLE_NEAR_FIELD_TRACING
 
 #ifndef ENABLE_TRANSLUCENT_SKIP_COUNT
-#define ENABLE_TRANSLUCENT_SKIP_COUNT 0
+#define ENABLE_TRANSLUCENT_SKIP_COUNT 1
 #endif // ENABLE_TRANSLUCENT_SKIP_COUNT
 
 #ifndef LUMEN_HARDWARE_INLINE_RAYTRACING
@@ -164,20 +164,6 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	uint MaxTraversalIterations
 )
 {
-	bool bHiResSurface = false;
-	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, CullingMode, TranslucentSkipCountMax, MaxTraversalIterations, bHiResSurface);
-}
-
-FRayTracedLightingContext CreateRayTracedLightingContext(
-	in RaytracingAccelerationStructure TLAS,
-	in FRayCone RayCone,
-	in uint2 TraceCoord,
-	in uint LinearCoord,
-	in uint CullingMode,
-	uint MaxTraversalIterations
-)
-{
-	int TranslucentSkipCountMax = 0;
 	bool bHiResSurface = false;
 	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, CullingMode, TranslucentSkipCountMax, MaxTraversalIterations, bHiResSurface);
 }
@@ -339,6 +325,30 @@ FLumenMinimalRayResult TraceLumenMinimalRay(
 {
 	FLumenRayHitBookmark Bookmark;
 	return TraceLumenMinimalRay(Ray, Context, Payload, Bookmark);
+}
+
+FLumenMinimalRayResult TraceLumenMinimalRayWithRetries(
+	RayDesc Ray,
+	inout FRayTracedLightingContext Context,
+	inout FLumenMinimalPayload Payload,
+	inout FLumenRayHitBookmark Bookmark)
+{
+	FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRay(Ray, Context, Payload, Bookmark);
+
+#if ENABLE_TRANSLUCENT_SKIP_COUNT
+	int TranslucentSkipCount = 0;
+	while (MinimalRayResult.bHit && Payload.IsTranslucent() && TranslucentSkipCount < Context.TranslucentSkipCountMax)
+	{
+		float Epsilon = 0.01;
+		Ray.TMin = Payload.HitT + Epsilon;
+
+		MinimalRayResult = TraceLumenMinimalRay(Ray, Context, Payload, Bookmark);
+
+		TranslucentSkipCount++;
+	}
+#endif // ENABLE_TRANSLUCENT_SKIP_COUNT
+
+	return MinimalRayResult;
 }
 
 float3 CalculateSurfaceCacheLighting(
@@ -573,25 +583,10 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 
 #if ENABLE_NEAR_FIELD_TRACING
 	{
-		FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRay(Ray, Context, Payload, Result.Bookmark);
+		FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRayWithRetries(Ray, Context, Payload, Result.Bookmark);
 		Result.bIsHit = MinimalRayResult.bHit;
 		Result.bIsCompleted = MinimalRayResult.bCompleted;
 	}
-
-#if ENABLE_TRANSLUCENT_SKIP_COUNT
-	int TranslucentSkipCount = 0;
-	while (Result.bIsHit && Payload.IsTranslucent() && TranslucentSkipCount < Context.TranslucentSkipCountMax)
-	{
-		float Epsilon = 0.01;
-		Ray.TMin = Payload.HitT + Epsilon;
-
-		FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRay(Ray, Context, Payload, Result.Bookmark);
-		Result.bIsHit = MinimalRayResult.bHit;
-		Result.bIsCompleted = MinimalRayResult.bCompleted;
-
-		TranslucentSkipCount++;
-	}
-#endif // ENABLE_TRANSLUCENT_SKIP_COUNT
 
 	if (Result.bIsHit)
 	{

@@ -19,6 +19,7 @@
 #include "LumenTranslucencyVolumeLightingShared.ush"
 
 #if LUMEN_HARDWARE_RAYTRACING
+#define ENABLE_TRANSLUCENT_SKIP_COUNT 0
 #include "LumenHardwareRayTracingCommon.ush"
 
 #ifndef DIM_LIGHTING_MODE
@@ -86,7 +87,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS)
 
 			const uint LinearCoord = GridCoordinate.y * TranslucencyGIGridSize.x + GridCoordinate.x;
 			const uint CullingMode = 0;
-			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, GridCoordinate.xy, LinearCoord, CullingMode, MaxTraversalIterations);
+			int TranslucentSkipCountMax = 0;
+			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, GridCoordinate.xy, LinearCoord, CullingMode, TranslucentSkipCountMax, MaxTraversalIterations);
 
 			#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
 				{

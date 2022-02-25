@@ -46,7 +46,6 @@ void FLumenReflectionHardwareRayTracingIndirectArgsCS()
 
 float3 FarFieldReferencePos;
 
-#define ENABLE_TRANSLUCENT_SKIP_COUNT 1
 #include "LumenHardwareRayTracingCommon.ush"
 
 RaytracingAccelerationStructure TLAS;

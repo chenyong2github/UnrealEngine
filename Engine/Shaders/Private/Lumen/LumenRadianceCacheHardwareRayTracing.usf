@@ -81,7 +81,6 @@ void LumenRadianceCacheHardwareRayTracingIndirectArgsCS()
 
 #if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING
 
-#define ENABLE_TRANSLUCENT_SKIP_COUNT 1
 #include "LumenHardwareRayTracingCommon.ush"
 
 #ifndef DIM_LIGHTING_MODE
@@ -231,7 +230,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 
 			const uint LinearCoord = ProbeTexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + ProbeTexelCoord.x;
 			const uint CullingMode = 0;
-			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ProbeTexelCoord, LinearCoord, CullingMode, MaxTraversalIterations);
+			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ProbeTexelCoord, LinearCoord, CullingMode, MaxTranslucentSkipCount, MaxTraversalIterations);
 
 			// Set far-field context specialization
 			Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
