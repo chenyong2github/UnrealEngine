@@ -475,8 +475,8 @@ void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, cons
 	// mz@todo to be removed
 	RunContext.SetCurrentArchetypesTagBitSet(GetTagBitSet());
 
-	BindConstSharedFragmentRequirements(RunContext, RequirementMapping.ChunkFragments);
-	BindSharedFragmentRequirements(RunContext, RequirementMapping.ChunkFragments);
+	BindConstSharedFragmentRequirements(RunContext, RequirementMapping.ConstSharedFragments);
+	BindSharedFragmentRequirements(RunContext, RequirementMapping.SharedFragments);
 
 	for (FMassArchetypeChunkIterator ChunkIterator(SubChunkContainer); ChunkIterator; ++ChunkIterator)
 	{

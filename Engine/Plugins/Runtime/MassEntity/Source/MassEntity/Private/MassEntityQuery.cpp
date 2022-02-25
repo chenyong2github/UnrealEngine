@@ -119,7 +119,9 @@ bool FMassEntityQuery::DoesArchetypeMatchRequirements(const FMassArchetypeHandle
 		&& (RequiredAnyTags.IsEmpty() || ArchetypeComposition.Tags.HasAny(RequiredAnyTags))
 		&& ArchetypeComposition.Tags.HasNone(RequiredNoneTags)
 		&& ArchetypeComposition.ChunkFragments.HasAll(RequiredAllChunkFragments)
-		&& ArchetypeComposition.ChunkFragments.HasNone(RequiredNoneChunkFragments);
+		&& ArchetypeComposition.ChunkFragments.HasNone(RequiredNoneChunkFragments)
+		&& ArchetypeComposition.SharedFragments.HasAll(RequiredAllSharedFragments)
+		&& ArchetypeComposition.SharedFragments.HasNone(RequiredNoneSharedFragments);
 }
 
 void FMassEntityQuery::ForEachEntityChunk(const FMassArchetypeSubChunks& Chunks, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
