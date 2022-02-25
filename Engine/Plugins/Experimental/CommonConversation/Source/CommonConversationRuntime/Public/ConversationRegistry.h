@@ -107,9 +107,9 @@ private:
 
 	void GameFeatureStateModified();
 
-	virtual void OnGameFeatureActivating(const UGameFeatureData* GameFeatureData) override;
+	virtual void OnGameFeatureActivating(const UGameFeatureData* GameFeatureData, const FString& PluginURL) override;
 
-	virtual void OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, FGameFeatureDeactivatingContext& Context) override;
+	virtual void OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, FGameFeatureDeactivatingContext& Context, const FString& PluginURL) override;
 
 private:
 	TMap<FSoftObjectPath, TArray<FSoftObjectPath>> RuntimeDependencyGraph;

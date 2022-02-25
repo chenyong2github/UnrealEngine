@@ -178,12 +178,12 @@ void UConversationRegistry::GameFeatureStateModified()
 	}
 }
 
-void UConversationRegistry::OnGameFeatureActivating(const UGameFeatureData* GameFeatureData)
+void UConversationRegistry::OnGameFeatureActivating(const UGameFeatureData* GameFeatureData, const FString& PluginURL)
 {
 	GameFeatureStateModified();
 }
 
-void UConversationRegistry::OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, FGameFeatureDeactivatingContext& Context)
+void UConversationRegistry::OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, FGameFeatureDeactivatingContext& Context, const FString& PluginURL)
 {
 	GameFeatureStateModified();
 }

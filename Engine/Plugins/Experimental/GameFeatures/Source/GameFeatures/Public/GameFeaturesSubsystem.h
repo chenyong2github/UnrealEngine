@@ -315,19 +315,19 @@ private:
 	void OnGameFeatureCheckingStatus(const FString& PluginURL);
 	friend struct FGameFeaturePluginState_UnknownStatus;
 
-	void OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName);
+	void OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL);
 	friend struct FGameFeaturePluginState_Registering;
 
-	void OnGameFeatureUnregistering(const UGameFeatureData* GameFeatureData, const FString& PluginName);
+	void OnGameFeatureUnregistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL);
 	friend struct FGameFeaturePluginState_Unregistering;
 
-	void OnGameFeatureActivating(const UGameFeatureData* GameFeatureData, const FString& PluginName, FGameFeatureActivatingContext& Context);
+	void OnGameFeatureActivating(const UGameFeatureData* GameFeatureData, const FString& PluginName, FGameFeatureActivatingContext& Context, const FString& PluginURL);
 	friend struct FGameFeaturePluginState_Activating;
 
-	void OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, const FString& PluginName, FGameFeatureDeactivatingContext& Context);
+	void OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, const FString& PluginName, FGameFeatureDeactivatingContext& Context, const FString& PluginURL);
 	friend struct FGameFeaturePluginState_Deactivating;
 
-	void OnGameFeatureLoading(const UGameFeatureData* GameFeatureData);
+	void OnGameFeatureLoading(const UGameFeatureData* GameFeatureData, const FString& PluginURL);
 	friend struct FGameFeaturePluginState_Loading;
 
 	void OnAssetManagerCreated();

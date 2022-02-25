@@ -1110,7 +1110,7 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 		if (StateProperties.GameFeatureData)
 		{
 			const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
-			UGameFeaturesSubsystem::Get().OnGameFeatureUnregistering(StateProperties.GameFeatureData, PluginName);
+			UGameFeaturesSubsystem::Get().OnGameFeatureUnregistering(StateProperties.GameFeatureData, PluginName, StateProperties.PluginURL);
 			UGameFeaturesSubsystem::Get().UnloadGameFeatureData(StateProperties.GameFeatureData);
 		}
 
@@ -1173,7 +1173,7 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 			StateProperties.GameFeatureData->InitializeBasePluginIniFile(StateProperties.PluginInstalledFilename);
 			StateStatus.SetTransition(EGameFeaturePluginState::Registered);
 
-			UGameFeaturesSubsystem::Get().OnGameFeatureRegistering(StateProperties.GameFeatureData, PluginName);
+			UGameFeaturesSubsystem::Get().OnGameFeatureRegistering(StateProperties.GameFeatureData, PluginName, StateProperties.PluginURL);
 		}
 		else
 		{
@@ -1228,7 +1228,7 @@ struct FGameFeaturePluginState_Loading : public FGameFeaturePluginState
 			BundleHandle->WaitUntilComplete(0.0f, false);
 		}
 
-		UGameFeaturesSubsystem::Get().OnGameFeatureLoading(StateProperties.GameFeatureData);
+		UGameFeaturesSubsystem::Get().OnGameFeatureLoading(StateProperties.GameFeatureData, StateProperties.PluginURL);
 
 		StateStatus.SetTransition(EGameFeaturePluginState::Loaded);
 	}
@@ -1313,7 +1313,7 @@ struct FGameFeaturePluginState_Deactivating : public FGameFeaturePluginState
 			// Deactivate
 			FGameFeatureDeactivatingContext Context(FSimpleDelegate::CreateRaw(this, &FGameFeaturePluginState_Deactivating::OnPauserCompleted));
 			const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
-			UGameFeaturesSubsystem::Get().OnGameFeatureDeactivating(StateProperties.GameFeatureData, PluginName, Context);
+			UGameFeaturesSubsystem::Get().OnGameFeatureDeactivating(StateProperties.GameFeatureData, PluginName, Context, StateProperties.PluginURL);
 			NumExpectedPausers = Context.NumPausers;
 		}
 
@@ -1344,7 +1344,7 @@ struct FGameFeaturePluginState_Activating : public FGameFeaturePluginState
 		StateProperties.GameFeatureData->InitializeHierarchicalPluginIniFiles(StateProperties.PluginInstalledFilename);
 
 		const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
-		UGameFeaturesSubsystem::Get().OnGameFeatureActivating(StateProperties.GameFeatureData, PluginName, Context);
+		UGameFeaturesSubsystem::Get().OnGameFeatureActivating(StateProperties.GameFeatureData, PluginName, Context, StateProperties.PluginURL);
 
 		StateStatus.SetTransition(EGameFeaturePluginState::Active);
 	}
