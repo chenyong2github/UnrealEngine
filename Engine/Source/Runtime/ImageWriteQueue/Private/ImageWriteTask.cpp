@@ -146,10 +146,11 @@ bool FImageWriteTask::WriteBitmap()
 
 void FImageWriteTask::PreProcess()
 {
-	FImagePixelData* Data = PixelData.Get();
 	for (const FPixelPreProcessor& PreProcessor : PixelPreProcessors)
 	{
-		// PreProcessors are assumed to be valid.
+		// PreProcessors are assumed to be valid. Fetch the Data pointer each time
+		// in case a pre-processor changes our pixel data.
+		FImagePixelData* Data = PixelData.Get();
 		PreProcessor(Data);
 	}
 }

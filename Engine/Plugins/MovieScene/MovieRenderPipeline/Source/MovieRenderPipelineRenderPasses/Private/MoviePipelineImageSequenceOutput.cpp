@@ -25,6 +25,24 @@
 
 DECLARE_CYCLE_STAT(TEXT("ImgSeqOutput_RecieveImageData"), STAT_ImgSeqRecieveImageData, STATGROUP_MoviePipeline);
 
+struct FAsyncImageQuantization
+{
+	FAsyncImageQuantization(FImageWriteTask* InWriteTask, const bool bInApplysRGB)
+		: ParentWriteTask(InWriteTask)
+		, bApplysRGB(bInApplysRGB)
+	{}
+
+	void operator()(FImagePixelData* PixelData)
+	{
+		// Convert the incoming data to 8-bit, potentially with sRGB applied.
+		TUniquePtr<FImagePixelData> QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(PixelData, 8, nullptr,  bApplysRGB);
+		ParentWriteTask->PixelData = MoveTemp(QuantizedPixelData);
+	}
+
+	FImageWriteTask* ParentWriteTask;
+	bool bApplysRGB;
+};
+
 UMoviePipelineImageSequenceOutputBase::UMoviePipelineImageSequenceOutputBase()
 {
 	if (!HasAnyFlags(RF_ArchetypeObject))
@@ -118,27 +136,6 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 		case EImageFormat::EXR: Extension = TEXT("exr"); break;
 		}
 
-		TUniquePtr<FImagePixelData> QuantizedPixelData = nullptr;
-		
-
-		switch (PreferredOutputFormat)
-		{
-		case EImageFormat::PNG:
-		case EImageFormat::JPEG:
-		case EImageFormat::BMP:
-		{
-			// All three of these formats only support 8 bit data, so we need to take the incoming buffer type,
-			// copy it into a new 8-bit array and optionally apply a little noise to the data to help hide gradient banding.
-			QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(RenderPassData.Value.Get(), 8, nullptr, !(ColorSetting && ColorSetting->OCIOConfiguration.bIsEnabled));
-			break;
-		}
-		case EImageFormat::EXR:
-			// No quantization required, just copy the data as we will move it into the image write task.
-			QuantizedPixelData = RenderPassData.Value->CopyImageData();
-			break;
-		default:
-			check(false);
-		}
 
 		// We need to resolve the filename format string. We combine the folder and file name into one long string first
 		MoviePipeline::FMoviePipelineOutputFutureData OutputData;
@@ -198,6 +195,32 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 		TileImageTask->CompressionQuality = 100;
 		TileImageTask->Filename = OutputData.FilePath;
 
+		TUniquePtr<FImagePixelData> QuantizedPixelData = RenderPassData.Value->CopyImageData();
+		EImagePixelType QuantizedPixelType = QuantizedPixelData->GetType();
+
+		switch (PreferredOutputFormat)
+		{
+		case EImageFormat::PNG:
+		case EImageFormat::JPEG:
+		case EImageFormat::BMP:
+		{
+			// All three of these formats only support 8 bit data, so we need to take the incoming buffer type,
+			// copy it into a new 8-bit array and apply a little noise to the data to help hide gradient banding.
+			const bool bApplysRGB = !(ColorSetting && ColorSetting->OCIOConfiguration.bIsEnabled);
+			TileImageTask->PixelPreProcessors.Add(FAsyncImageQuantization(TileImageTask.Get(), bApplysRGB));
+
+			// The pixel type will get changed by this pre-processor so future calculations below need to know the correct type they'll be editing.
+			QuantizedPixelType = EImagePixelType::Color; 
+			break;
+		}
+		case EImageFormat::EXR:
+			// No quantization required, just copy the data as we will move it into the image write task.
+			break;
+		default:
+			check(false);
+		}
+
+
 		// We composite before flipping the alpha so that it is consistent for all formats.
 		if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("FinalImage")))
 		{
@@ -205,7 +228,7 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 			{
 				// We don't need to copy the data here (even though it's being passed to a async system) because we already made a unique copy of the
 				// burn in/widget data when we decided to composite it.
-				switch (QuantizedPixelData->GetType())
+				switch (QuantizedPixelType)
 				{
 				case EImagePixelType::Color:
 					TileImageTask->PixelPreProcessors.Add(TAsyncCompositeImage<FColor>(CompositePass.PixelData->MoveImageDataToNew()));

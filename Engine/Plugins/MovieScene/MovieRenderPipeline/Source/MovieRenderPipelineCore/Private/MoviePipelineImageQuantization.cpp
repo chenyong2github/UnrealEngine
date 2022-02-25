@@ -5,7 +5,7 @@
 #include "Stats/Stats2.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "Math/NumericLimits.h"
-
+#include "Async/ParallelFor.h"
 
 namespace UE
 {
@@ -160,10 +160,21 @@ static TArray<FColor> ConvertLinearTosRGB8bppViaLookupTable(FFloat16Color* InCol
 {
 	TArray<float> sRGBTable = GenerateSRGBTableFloat16toFloat();
 
-	static FRandomStream RandStream(GFrameCounter);
-
 	// This quantization uses a table of float values from 0.0-255.0, and does the proper rounding for each pixel.
 	// The proper rounding is done by adding a random value from 0.0-1.0 instead of 0.5 to each value returned from the table.
+	static FRandomStream RandStream(GFrameCounter);
+
+	// FRandomStream is too slow to call 30,000,000 times (4k image) so instead
+	// we pre-calculate a reasonable number of offsets into a table, and then 
+	// each pixel in the output image takes a offset. Some care needs to be taken
+	// that the table doesn't introduce an obvious repeating pattern in dithering.
+	TArray<float> RandStreamTable;
+	int32 TableSize = (1024 * 1024) + 7; // Arbitrarily picked for now
+	RandStreamTable.SetNumUninitialized(TableSize);
+	for (int32 Index = 0; Index < TableSize; Index++)
+	{
+		RandStreamTable[Index] = RandStream.GetFraction();
+	}
 	// Convert all of our pixels.
 	TArray<FColor> OutsRGBData;
 	OutsRGBData.SetNumUninitialized(InCount);
@@ -172,17 +183,28 @@ static TArray<FColor> ConvertLinearTosRGB8bppViaLookupTable(FFloat16Color* InCol
 	FColor* OutData = static_cast<FColor*>(OutsRGBData.GetData());
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ImageQuant_ApplysRGB);
-	for (int32 PixelIndex = 0; PixelIndex < InCount; PixelIndex++)
-	{
-		// Avoid the bounds checking of TArray[]
-		FColor* OutColor = &OutData[PixelIndex];
-		OutColor->R = (uint8)FMath::FloorToInt(sRGBTableData[InColor[PixelIndex].R.Encoded] + RandStream.GetFraction());
-		OutColor->G = (uint8)FMath::FloorToInt(sRGBTableData[InColor[PixelIndex].G.Encoded] + RandStream.GetFraction());
-		OutColor->B = (uint8)FMath::FloorToInt(sRGBTableData[InColor[PixelIndex].B.Encoded] + RandStream.GetFraction());
 
-		// Alpha doesn't get sRGB conversion, it just gets linearly converted to 8 bit. Flooring avoids an extra branch for Round.
-		OutColor->A = (uint8)FMath::Clamp(FMath::FloorToInt((InColor[PixelIndex].A * 255.f) + RandStream.GetFraction()), 0, 255);
-	}
+	int32 BatchSize = 64 * 1024 * 8; // Arbitrarily picked for now.
+	const uint32 Loops = FMath::CeilToInt((float)InCount / BatchSize);
+	ParallelFor(Loops,
+		[&](int32 LoopIndex)
+		{
+			const int32 Start = LoopIndex * BatchSize;
+			const int32 End = FMath::Min((LoopIndex + 1) * BatchSize, InCount);
+
+
+			for (int32 PixelIndex = Start; PixelIndex < End; PixelIndex++)
+			{
+				// Avoid the bounds checking of TArray[]
+				FColor* OutColor = &OutData[PixelIndex];
+				OutColor->R = (uint8)FMath::FloorToInt(sRGBTableData[InColor[PixelIndex].R.Encoded] + RandStreamTable[(PixelIndex + 0) % TableSize]);
+				OutColor->G = (uint8)FMath::FloorToInt(sRGBTableData[InColor[PixelIndex].G.Encoded] + RandStreamTable[(PixelIndex + 1) % TableSize]);
+				OutColor->B = (uint8)FMath::FloorToInt(sRGBTableData[InColor[PixelIndex].B.Encoded] + RandStreamTable[(PixelIndex + 2) % TableSize]);
+	
+				// Alpha doesn't get sRGB conversion, it just gets linearly converted to 8 bit. Flooring avoids an extra branch for Round.
+				OutColor->A = (uint8)FMath::Clamp(FMath::FloorToInt((InColor[PixelIndex].A * 255.f) + RandStreamTable[(PixelIndex + 3) % TableSize]), 0, 255);
+			}
+		});
 
 	return OutsRGBData;
 }
