@@ -141,8 +141,8 @@ uint GetCulledNumObjects()
 }
 
 // In float4's.  Must match equivalent C++ variables.
-#define DF_OBJECT_BOUNDS_STRIDE 2
-#define DF_OBJECT_DATA_STRIDE 9
+#define DF_OBJECT_BOUNDS_STRIDE 3
+#define DF_OBJECT_DATA_STRIDE 10
 #define HEIGHTFIELD_OBJECT_BOUNDS_STRIDE 2
 #define HEIGHTFIELD_OBJECT_DATA_STRIDE 6
 
@@ -170,13 +170,18 @@ FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 	FDFObjectBounds Bounds;
 
 	float4 Vector0 = SceneObjectBounds[ObjectIndex * DF_OBJECT_BOUNDS_STRIDE + 0];
-	Bounds.Center = Vector0.xyz;
-	Bounds.SphereRadius = Vector0.w;
+	float3 TilePosition = Vector0.xyz;
 
 	float4 Vector1 = SceneObjectBounds[ObjectIndex * DF_OBJECT_BOUNDS_STRIDE + 1];
-	Bounds.BoxExtent = Vector1.xyz;
+	float3 RelativeWorldPosition = Vector1.xyz;
 
-	uint Flags = asuint(Vector1.w);
+	Bounds.Center = LWCHackToFloat(MakeLWCVector3(TilePosition, RelativeWorldPosition)); // DF_LWC_TODO
+	Bounds.SphereRadius = Vector1.w;
+
+	float4 Vector2 = SceneObjectBounds[ObjectIndex * DF_OBJECT_BOUNDS_STRIDE + 2];
+	Bounds.BoxExtent = Vector2.xyz;
+
+	uint Flags = asuint(Vector2.w);
 	Bounds.OftenMoving = Flags & 1U;
 	Bounds.bCastShadow = (Flags & 2U) != 0U;
 	Bounds.bIsNaniteMesh = (Flags & 4U) != 0U;
@@ -239,29 +244,35 @@ struct FDFObjectData
 
 FDFObjectData LoadDFObjectDataFromBuffer(StructuredBuffer<float4> SourceBuffer, uint ObjectIndex)
 {
+	float3 TilePosition = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 0].xyz;
+
 	FDFObjectData Data;
 
-	float4 V0 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 0];
-	float4 V1 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 1];
-	float4 V2 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 2];
-	Data.WorldToVolume = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	float4 V0 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 1];
+	float4 V1 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 2];
+	float4 V2 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 3];
+	float4x4 RelativeWorldToVolume = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	float4 Vector3 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 3];
+	Data.WorldToVolume = LWCHackToFloat(MakeLWCInverseMatrix4x3(TilePosition, RelativeWorldToVolume)); // DF_LWC_TODO
+
+	float4 Vector3 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 4];
 	Data.VolumePositionExtent = Vector3.xyz;
 	Data.VolumeSurfaceBias = abs(Vector3.w);
 	Data.bMostlyTwoSided = Vector3.w < 0.0f;
 
-	float4 Vector4 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 4];
+	float4 Vector4 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 5];
 	Data.MinMaxDrawDistance2 = Vector4.xy;
 	Data.SelfShadowBias = Vector4.z;
 	Data.GPUSceneInstanceIndex = asuint(Vector4.w);
 	
-	V0 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 5];
-	V1 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 6];
-	V2 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 7];
-	Data.VolumeToWorld = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	V0 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 6];
+	V1 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 7];
+	V2 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 8];
+	float4x4 VolumeToRelativeWorld = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	float4 Vector8 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 8];
+	Data.VolumeToWorld = LWCHackToFloat(MakeLWCMatrix(TilePosition, VolumeToRelativeWorld)); // DF_LWC_TODO
+
+	float4 Vector8 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 9];
 	Data.VolumeToWorldScale = Vector8.xyz;
 	Data.VolumeScale = min(Data.VolumeToWorldScale.x, min(Data.VolumeToWorldScale.y, Data.VolumeToWorldScale.z));
 	Data.AssetIndex = asuint(Vector8.w);

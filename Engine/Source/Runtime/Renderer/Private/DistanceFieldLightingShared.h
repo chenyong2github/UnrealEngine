@@ -44,8 +44,8 @@ enum EDistanceFieldPrimitiveType
 };
 
 // Must match equivalent shader defines
-static const int32 GDistanceFieldObjectDataStride = 9;
-static const int32 GDistanceFieldObjectBoundsStride = 2;
+static const int32 GDistanceFieldObjectDataStride = 10;
+static const int32 GDistanceFieldObjectBoundsStride = 3;
 
 static const int32 GHeightFieldObjectDataStride = 6;
 static const int32 GHeightFieldObjectBoundsStride = 2;

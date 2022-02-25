@@ -715,23 +715,29 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									const FBox LocalSpaceMeshBounds = DistanceFieldData->LocalSpaceMeshBounds;
 			
 									const FMatrix LocalToWorld = PrimAndInst.LocalToWorld;
-									const FBox WorldSpaceMeshBounds = LocalSpaceMeshBounds.TransformBy(LocalToWorld);
 
-									const FVector4f ObjectBoundingSphere((FVector3f)WorldSpaceMeshBounds.GetCenter(), WorldSpaceMeshBounds.GetExtent().Size());
-									
-									UploadObjectBounds[0] = ObjectBoundingSphere;
+									{
+										const FBox WorldSpaceMeshBounds = LocalSpaceMeshBounds.TransformBy(LocalToWorld);
 
-									const FGlobalDFCacheType CacheType = PrimitiveSceneProxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
-									const uint32 bOftenMoving = CacheType == GDF_Full;
-									const uint32 bCastShadow = PrimitiveSceneProxy->CastsDynamicShadow();
-									const uint32 bIsNaniteMesh = PrimitiveSceneProxy->IsNaniteMesh() ? 1U : 0U;
-									const uint32 bEmissiveLightSource = PrimitiveSceneProxy->IsEmissiveLightSource();
+										const FLargeWorldRenderPosition AbsoluteWorldPosition(WorldSpaceMeshBounds.GetCenter());
 
-									const uint32 Flags = bOftenMoving | (bCastShadow << 1U) | (bIsNaniteMesh << 2U) | (bEmissiveLightSource << 4U);
+										const FVector4f ObjectBoundingSphere(AbsoluteWorldPosition.GetOffset(), WorldSpaceMeshBounds.GetExtent().Size());
 
-									FVector4f ObjectWorldExtentAndFlags((FVector3f)WorldSpaceMeshBounds.GetExtent(), 0.0f);
-									ObjectWorldExtentAndFlags.W = *(const float*)&Flags;
-									UploadObjectBounds[1] = ObjectWorldExtentAndFlags;
+										UploadObjectBounds[0] = AbsoluteWorldPosition.GetTile();
+										UploadObjectBounds[1] = ObjectBoundingSphere;
+
+										const FGlobalDFCacheType CacheType = PrimitiveSceneProxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
+										const uint32 bOftenMoving = CacheType == GDF_Full;
+										const uint32 bCastShadow = PrimitiveSceneProxy->CastsDynamicShadow();
+										const uint32 bIsNaniteMesh = PrimitiveSceneProxy->IsNaniteMesh() ? 1U : 0U;
+										const uint32 bEmissiveLightSource = PrimitiveSceneProxy->IsEmissiveLightSource();
+
+										const uint32 Flags = bOftenMoving | (bCastShadow << 1U) | (bIsNaniteMesh << 2U) | (bEmissiveLightSource << 4U);
+
+										FVector4f ObjectWorldExtentAndFlags((FVector3f)WorldSpaceMeshBounds.GetExtent(), 0.0f);
+										ObjectWorldExtentAndFlags.W = *(const float*)&Flags;
+										UploadObjectBounds[2] = ObjectWorldExtentAndFlags;
+									}
 
 									// Uniformly scale our Volume space to lie within [-1, 1] at the max extent
 									// This is mirrored in the SDF encoding
@@ -739,13 +745,22 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 									const FMatrix VolumeToWorld = FScaleMatrix(1.0f / LocalToVolumeScale) * FTranslationMatrix(LocalSpaceMeshBounds.GetCenter()) * LocalToWorld;
 
-									const FVector VolumePositionExtent = LocalSpaceMeshBounds.GetExtent() * LocalToVolumeScale;
+									const FLargeWorldRenderPosition WorldPosition(VolumeToWorld.GetOrigin());
+									const FVector TilePositionOffset = WorldPosition.GetTileOffset();
 
-									const FMatrix44f WorldToVolumeT = FMatrix44f(VolumeToWorld.Inverse().GetTransposed()); // DF_LWC_TODO
+									// Inverse on FMatrix44f can generate NaNs if the source matrix contains large scaling, so do it in double precision.
+									FMatrix LocalToRelativeWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrixDouble(TilePositionOffset, VolumeToWorld);
+
+									// TilePosition
+									UploadObjectData[0] = WorldPosition.GetTile();
+
+									const FMatrix44f WorldToVolumeT = FMatrix44f(LocalToRelativeWorld.Inverse().GetTransposed());
 									// WorldToVolumeT
-									UploadObjectData[0] = (*(FVector4f*)&WorldToVolumeT.M[0]);
-									UploadObjectData[1] = (*(FVector4f*)&WorldToVolumeT.M[1]);
-									UploadObjectData[2] = (*(FVector4f*)&WorldToVolumeT.M[2]);
+									UploadObjectData[1] = (*(FVector4f*)&WorldToVolumeT.M[0]);
+									UploadObjectData[2] = (*(FVector4f*)&WorldToVolumeT.M[1]);
+									UploadObjectData[3] = (*(FVector4f*)&WorldToVolumeT.M[2]);
+
+									const FVector VolumePositionExtent = LocalSpaceMeshBounds.GetExtent() * LocalToVolumeScale;
 
 									// Minimal surface bias which increases chance that ray hit will a surface located between two texels
 									float ExpandSurfaceDistance = (GMeshSDFSurfaceBiasExpand * VolumePositionExtent / FVector(DistanceFieldData->Mips[0].IndirectionDimensions * DistanceField::UniqueDataBrickSize)).Size();
@@ -756,7 +771,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									}
 
 									const float WSign = DistanceFieldData->bMostlyTwoSided ? -1 : 1;
-									UploadObjectData[3] = FVector4f((FVector3f)VolumePositionExtent, WSign * ExpandSurfaceDistance);
+									UploadObjectData[4] = FVector4f((FVector3f)VolumePositionExtent, WSign * ExpandSurfaceDistance);
 
 									const int32 PrimIdx = PrimAndInst.Primitive->GetIndex();
 									const FPrimitiveBounds& PrimBounds = PrimitiveBounds[PrimIdx];
@@ -775,12 +790,12 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									Vector4.Y = MaxDrawDist * MaxDrawDist;
 									Vector4.Z = SelfShadowBias;
 									Vector4.W = *(const float*)&GPUSceneInstanceIndex;
-									UploadObjectData[4] = Vector4;
+									UploadObjectData[5] = Vector4;
 
-									const FMatrix44f VolumeToWorldT = FMatrix44f(VolumeToWorld.GetTransposed()); // DF_LWC_TODO
-									UploadObjectData[5] = *(FVector4f*)&VolumeToWorldT.M[0];
-									UploadObjectData[6] = *(FVector4f*)&VolumeToWorldT.M[1];
-									UploadObjectData[7] = *(FVector4f*)&VolumeToWorldT.M[2];
+									const FMatrix44f VolumeToWorldT = FMatrix44f(LocalToRelativeWorld.GetTransposed());
+									UploadObjectData[6] = *(FVector4f*)&VolumeToWorldT.M[0];
+									UploadObjectData[7] = *(FVector4f*)&VolumeToWorldT.M[1];
+									UploadObjectData[8] = *(FVector4f*)&VolumeToWorldT.M[2];
 
 									FVector4f FloatVector8(VolumeToWorld.GetScaleVector(), 0.0f);
 
@@ -790,7 +805,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									const int32 AssetStateInt = AssetStateSetId.AsInteger();
 									FloatVector8.W = *(const float*)&AssetStateInt;
 									
-									UploadObjectData[8] = FloatVector8;
+									UploadObjectData[9] = FloatVector8;
 								}
 							}
 						},
