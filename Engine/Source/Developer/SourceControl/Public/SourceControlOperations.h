@@ -857,11 +857,17 @@ public:
 	/**
 	 * Constructor
 	 * 
-	 * @param InWorkspaceName	The name of the workspace to create
-	 * @param InWorkspaceRoom	The file path to the workspace root (can be relative to the project)
+	 * @param WorkspaceName	The name of the workspace to create
+	 * @param WorkspaceRoom	The file path to the workspace root (can be relative to the project)
 	 */
-	SOURCECONTROL_API FCreateWorkspace(FStringView InWorkspaceName, FStringView InWorkspaceRoot);
+	SOURCECONTROL_API FCreateWorkspace(FStringView WorkspaceName, FStringView WorkspaceRoot);
 	
+	/** Set the description to be used by the workspace, if left unset then the default description will be used */
+	void SetDescription(FStringView Desciption)
+	{
+		WorkspaceDescription = Desciption;
+	}
+
 	/**
 	 * Add a new mapping for the client spec in the native format of the current source control provider.
 	 * These will be written to the client spec in the order that they are added.
@@ -874,6 +880,7 @@ public:
 		ClientView.Emplace(DepotPath, ClientPath);
 	}
 
+	/** Set the type of workspace to be created. @see FCreateWorkspace::EType */
 	void SetType(EType InType)
 	{
 		Type = InType;
@@ -887,6 +894,11 @@ public:
 	const FString& GetWorkspaceRoot() const
 	{
 		return WorkspaceRoot;
+	}
+
+	const FString& GetWorkspaceDescription() const
+	{
+		return WorkspaceDescription;
 	}
 
 	const TArray<FClientViewMapping> GetClientView() const
@@ -915,6 +927,8 @@ protected:
 
 	FString WorkspaceName;
 	FString WorkspaceRoot;
+
+	FString WorkspaceDescription;
 
 	EType Type = EType::Writeable;
 

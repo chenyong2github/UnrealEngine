@@ -2937,6 +2937,12 @@ bool FPerforceCreateWorkspaceWorker::Execute(class FPerforceSourceControlCommand
 
 		ClientDesc << TEXT("Client:\t") << Operation->GetWorkspaceName() << TEXT("\n\n");
 		ClientDesc << TEXT("Owner:\t") << Connection.GetUser() << TEXT("\n\n");
+
+		if (!Operation->GetWorkspaceDescription().IsEmpty())
+		{
+			ClientDesc << TEXT("Description:\t") << Operation->GetWorkspaceDescription() << TEXT("\n\n");
+		}
+
 		ClientDesc << TEXT("Root:\t") << Operation->GetWorkspaceRoot() << TEXT("\n\n");
 		ClientDesc << TEXT("View:\t\n\n");
 
