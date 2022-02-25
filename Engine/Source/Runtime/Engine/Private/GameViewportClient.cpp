@@ -1281,14 +1281,6 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 		return;
 	}
 
-	// Force path tracing view mode, and extern code set path tracer show flags
-	const bool bForcePathTracing = InViewport->GetClient()->GetEngineShowFlags()->PathTracing;
-	if (bForcePathTracing)
-	{
-		EngineShowFlags.SetPathTracing(true);
-		ViewModeIndex = VMI_PathTracing;
-	}
-
 	// create the view family for rendering the world scene to the viewport's render target
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		InViewport,
