@@ -639,45 +639,45 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	if (!bSkipPostProcess)
 	{
-		AddDrawScreenPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("PostProcessMaterial"),
-			View,
-			OutputViewport,
-			SceneColorViewport,
-			FScreenPassPipelineState(VertexShader, PixelShader, BlendState, DepthStencilState, MaterialStencilRef),
-			PostProcessMaterialParameters,
-			ScreenPassFlags,
-			[&View, VertexShader, PixelShader, MaterialRenderProxy, Material, PostProcessMaterialParameters, MaterialStencilRef](FRHICommandList& RHICmdList)
-			{
-				FPostProcessMaterialVS::SetParameters(RHICmdList, VertexShader, View, MaterialRenderProxy, *Material, *PostProcessMaterialParameters);
-				FPostProcessMaterialPS::SetParameters(RHICmdList, PixelShader, View, MaterialRenderProxy, *Material, *PostProcessMaterialParameters);
-			});
+	AddDrawScreenPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("PostProcessMaterial"),
+		View,
+		OutputViewport,
+		SceneColorViewport,
+		FScreenPassPipelineState(VertexShader, PixelShader, BlendState, DepthStencilState, MaterialStencilRef),
+		PostProcessMaterialParameters,
+		ScreenPassFlags,
+		[&View, VertexShader, PixelShader, MaterialRenderProxy, Material, PostProcessMaterialParameters, MaterialStencilRef](FRHICommandList& RHICmdList)
+	{
+		FPostProcessMaterialVS::SetParameters(RHICmdList, VertexShader, View, MaterialRenderProxy, *Material, *PostProcessMaterialParameters);
+		FPostProcessMaterialPS::SetParameters(RHICmdList, PixelShader, View, MaterialRenderProxy, *Material, *PostProcessMaterialParameters);
+	});
 
-		if (bForceIntermediateTarget && !bCompositeWithInputAndDecode)
+	if (bForceIntermediateTarget && !bCompositeWithInputAndDecode)
+	{
+		if (!Inputs.bFlipYAxis)
 		{
-			if (!Inputs.bFlipYAxis)
+			// We shouldn't get here unless we had an override target.
+			check(Inputs.OverrideOutput.IsValid());
+			AddDrawTexturePass(GraphBuilder, View, Output.Texture, Inputs.OverrideOutput.Texture);
+			Output = Inputs.OverrideOutput;
+		}
+		else
+		{
+			FScreenPassRenderTarget TempTarget = Output;
+			if (Inputs.OverrideOutput.IsValid())
 			{
-				// We shouldn't get here unless we had an override target.
-				check(Inputs.OverrideOutput.IsValid());
-				AddDrawTexturePass(GraphBuilder, View, Output.Texture, Inputs.OverrideOutput.Texture);
 				Output = Inputs.OverrideOutput;
 			}
 			else
 			{
-				FScreenPassRenderTarget TempTarget = Output;
-				if (Inputs.OverrideOutput.IsValid())
-				{
-					Output = Inputs.OverrideOutput;
-				}
-				else
-				{
-					Output = FScreenPassRenderTarget(SceneColor, ERenderTargetLoadAction::ENoAction);
-				}
-
-				AddCopyAndFlipTexturePass(GraphBuilder, View, TempTarget.Texture, Output.Texture);
+				Output = FScreenPassRenderTarget(SceneColor, ERenderTargetLoadAction::ENoAction);
 			}
+
+			AddCopyAndFlipTexturePass(GraphBuilder, View, TempTarget.Texture, Output.Texture);
 		}
+	}
 	}
 
 	return MoveTemp(Output);
