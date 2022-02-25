@@ -58,9 +58,9 @@ public:
 	bool				HasTrace(uint32 Id) const;
 	FNewTrace			CreateTrace();
 	FAsioReadable*		OpenTrace(uint32 Id);
+	class				FDirWatcher;
 
 private:
-	class				FDirWatcher;
 	FTrace*				GetTrace(uint32 Id) const;
 	FTrace*				AddTrace(const TCHAR* Path);
 	void				ClearTraces();
