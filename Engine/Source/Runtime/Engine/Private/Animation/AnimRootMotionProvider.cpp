@@ -14,20 +14,16 @@ const IAnimRootMotionProvider* IAnimRootMotionProvider::Get()
 {
 	if (IsAvailable())
 	{
-		IModularFeatures::Get().LockModularFeatureList();
-		const IAnimRootMotionProvider* AnimRootMotionProvider = &IModularFeatures::Get().GetModularFeature<const IAnimRootMotionProvider>(ModularFeatureName);
-		IModularFeatures::Get().UnlockModularFeatureList();
-		return AnimRootMotionProvider;
+		IModularFeatures::FScopedLockModularFeatureList ScopedLockModularFeatureList;
+		return &IModularFeatures::Get().GetModularFeature<const IAnimRootMotionProvider>(ModularFeatureName);
 	}
 	return nullptr;
 }
 
 bool IAnimRootMotionProvider::IsAvailable()
 {
-	IModularFeatures::Get().LockModularFeatureList();
-	const bool bIsAvailable = IModularFeatures::Get().IsModularFeatureAvailable(ModularFeatureName);
-	IModularFeatures::Get().UnlockModularFeatureList();
-	return bIsAvailable;
+	IModularFeatures::FScopedLockModularFeatureList ScopedLockModularFeatureList;
+	return IModularFeatures::Get().IsModularFeatureAvailable(ModularFeatureName);
 }
 
 }}; // namespace UE::Anim

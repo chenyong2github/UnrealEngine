@@ -72,9 +72,18 @@ bool WriteArray(IFileHandle* FileHandle, const ArrayType& Array)
 
 static IEngineCrypto* GetEngineCrypto()
 {
-	IModularFeatures::Get().LockModularFeatureList();
-	static TArray<IEngineCrypto*> Features = IModularFeatures::Get().GetModularFeatureImplementations<IEngineCrypto>(IEngineCrypto::GetFeatureName());
-	IModularFeatures::Get().UnlockModularFeatureList();
+	static bool bFeaturesInitialized = false;
+	static TArray<IEngineCrypto*> Features;
+	if (!bFeaturesInitialized)
+	{
+		IModularFeatures::FScopedLockModularFeatureList ScopedLockModularFeatureList;
+		// bFeaturesInitialized is not atomic so it can have potentially become true since we last checked (except now we're under a lock: IModularFeatures::FScopedLockModularFeatureList, so it will be fine now):
+		if (!bFeaturesInitialized)
+		{
+		    Features = IModularFeatures::Get().GetModularFeatureImplementations<IEngineCrypto>(IEngineCrypto::GetFeatureName());
+		    bFeaturesInitialized = true;
+		}
+	}
 	checkf(Features.Num() > 0, TEXT("RSA functionality was used but no modular feature was registered to provide it. Please make sure your project has the PlatformCrypto plugin enabled!"));
 	return Features[0];
 }

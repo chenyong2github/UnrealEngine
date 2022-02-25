@@ -28,6 +28,8 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
+		// This function is accessible from the render and RHI threads, so lock the list of modular features before calling GetModularFeature
+		IModularFeatures::FScopedLockModularFeatureList ScopedLockModularFeatureList;
 		return IModularFeatures::Get().IsModularFeatureAvailable(GetModularFeatureName());
 	}
 
@@ -39,6 +41,8 @@ public:
 	 */
 	static inline IRenderCaptureProvider& Get()
 	{
+		// This function is accessible from the render and RHI threads, so lock the list of modular features before calling GetModularFeature
+		IModularFeatures::FScopedLockModularFeatureList ScopedLockModularFeatureList;
 		return IModularFeatures::Get().GetModularFeature<IRenderCaptureProvider>(GetModularFeatureName());
 	}
 

@@ -85,6 +85,18 @@ public:
 	/** Unlock modular features when finished accessing from another thread */
 	virtual void UnlockModularFeatureList() = 0;
 
+	struct FScopedLockModularFeatureList
+	{
+		inline FScopedLockModularFeatureList() { IModularFeatures::Get().LockModularFeatureList(); }
+		inline ~FScopedLockModularFeatureList() { IModularFeatures::Get().UnlockModularFeatureList(); }
+
+		// Non-copyable :
+		FScopedLockModularFeatureList(const FScopedLockModularFeatureList&) = delete;
+		FScopedLockModularFeatureList(FScopedLockModularFeatureList&&) = delete;
+		FScopedLockModularFeatureList& operator = (const FScopedLockModularFeatureList&) = delete;
+		FScopedLockModularFeatureList& operator = (FScopedLockModularFeatureList&&) = delete;
+	};
+
 	/**
 	 * Returns the number of registered implementations of the specified feature type.
 	 *
