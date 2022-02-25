@@ -877,6 +877,12 @@ public:
 	/** Returns description string. */
 	const FString& GetDescription() const { return UserDescription.IsEmpty() ? AutoDescription : UserDescription; };
 
+	//** Gets the explicit list of all unique gameplay tags referenced by the query. */
+	void GetGameplayTagArray(TArray<FGameplayTag>& OutGameplayTags) const
+	{
+		OutGameplayTags = TagDictionary;
+	}
+
 #if WITH_EDITOR
 	/** Creates this query based on the given EditableQuery object */
 	void BuildFromEditableQuery(class UEditableGameplayTagQuery& EditableQuery); 
