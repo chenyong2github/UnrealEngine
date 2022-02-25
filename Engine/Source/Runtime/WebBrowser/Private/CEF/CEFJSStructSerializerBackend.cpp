@@ -125,7 +125,7 @@ void FCEFJSStructSerializerBackend::BeginStructure(const FStructSerializerState&
 	if (State.KeyProperty != nullptr)
 	{
 		FString KeyString;
-		State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+		State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 
 		CefRefPtr<CefDictionaryValue> DictionaryValue = CefDictionaryValue::Create();
 		Stack.Push(StackItem(KeyString, DictionaryValue));

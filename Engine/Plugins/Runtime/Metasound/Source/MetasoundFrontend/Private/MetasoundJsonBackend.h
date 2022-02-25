@@ -131,7 +131,7 @@ namespace Metasound
 			else if (State.KeyProperty != nullptr)
 			{
 				FString KeyString;
-				State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+				State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 				JsonWriter->WriteValue(KeyString, Value);
 			}
 			else
@@ -153,7 +153,7 @@ namespace Metasound
 			else if (State.KeyProperty != nullptr)
 			{
 				FString KeyString;
-				State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+				State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 				JsonWriter->WriteNull(KeyString);
 			}
 			else
@@ -212,7 +212,7 @@ namespace Metasound
 			else if (State.KeyProperty != nullptr)
 			{
 				FString KeyString;
-				State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+				State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 				JsonWriter->WriteArrayStart(KeyString);
 			}
 			else
@@ -232,7 +232,7 @@ namespace Metasound
 				else if (State.KeyProperty != nullptr)
 				{
 					FString KeyString;
-					State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+					State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 					JsonWriter->WriteObjectStart(KeyString);
 				}
 				else

@@ -127,7 +127,7 @@ void FConfigPropertyHelperDetails::AddEditablePropertyForConfig(IDetailLayoutBui
 	FString PropertyName = ConfigEditorCopyOfEditProperty->GetName();
 	if (GConfig->GetString(*SectionName, *PropertyName, ExistingConfigEntryValue, ConfigFilePropertyRowObj->ConfigFileName))
 	{
-		ConfigEditorCopyOfEditProperty->ImportText(*ExistingConfigEntryValue, ConfigEditorCopyOfEditProperty->ContainerPtrToValuePtr<uint8>(ConfigEntryObject), 0, nullptr);
+		ConfigEditorCopyOfEditProperty->ImportText_InContainer(*ExistingConfigEntryValue, ConfigEntryObject, nullptr, 0);
 	}
 
 	// Cache a reference for future usage.

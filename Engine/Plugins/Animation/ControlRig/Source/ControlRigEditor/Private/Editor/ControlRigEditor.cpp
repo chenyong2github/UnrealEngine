@@ -2694,7 +2694,7 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 								{
 									const FProperty* TargetProperty = WrapperObject->GetClass()->FindPropertyByName(RootPin->GetFName());
 									uint8* PropertyStorage = TargetProperty->ContainerPtrToValuePtr<uint8>(WrapperObject);
-									TargetProperty->ImportText(*DefaultValue, PropertyStorage, PPF_None, nullptr);
+									TargetProperty->ImportText_Direct(*DefaultValue, PropertyStorage, nullptr, PPF_None);
 								}
 							}
 						}

@@ -172,7 +172,7 @@ void UAnimGraphNode_ControlRig::CreateCustomPins(TArray<UEdGraphPin*>* OldPins)
 							FString DefaultValue;
 							
 							// Variable.Memory here points to the corresponding property in the Control Rig BP CDO, it was initialized in UAnimGraphNode_ControlRig::RebuildExposedProperties 
-							PropertyIt->ExportTextItem(DefaultValue, Variable.Memory, nullptr, nullptr, PPF_None, nullptr);
+							PropertyIt->ExportTextItem_Direct(DefaultValue, Variable.Memory, nullptr, nullptr, PPF_None, nullptr);
 							
 							if (!DefaultValue.IsEmpty())
 							{

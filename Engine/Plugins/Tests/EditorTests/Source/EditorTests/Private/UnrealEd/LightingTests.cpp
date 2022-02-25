@@ -101,7 +101,7 @@ namespace LightingTestHelpers
 			TargetObject->Modify();
 
 			TargetObject->PreEditChange(FoundProperty);
-			FoundProperty->ImportText(*NewValueString, FoundProperty->ContainerPtrToValuePtr<uint8>(TargetObject), 0, TargetObject);
+			FoundProperty->ImportText_Direct(*NewValueString, FoundProperty->ContainerPtrToValuePtr<uint8>(TargetObject), TargetObject, 0);
 			FPropertyChangedEvent PropertyChangedEvent(FoundProperty, EPropertyChangeType::ValueSet);
 			TargetObject->PostEditChangeProperty(PropertyChangedEvent);
 		}

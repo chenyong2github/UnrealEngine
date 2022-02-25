@@ -390,7 +390,7 @@ AActor* FDatasmithActorImporter::ImportCustomActor(FDatasmithImportContext& Impo
 
 		if ( Property )
 		{
-			Property->ImportText( KeyValueProperty->GetValue(), Property->ContainerPtrToValuePtr< uint8 >( Actor ), PPF_None, nullptr );
+			Property->ImportText_InContainer( KeyValueProperty->GetValue(), Actor, nullptr, PPF_None );
 		}
 	}
 

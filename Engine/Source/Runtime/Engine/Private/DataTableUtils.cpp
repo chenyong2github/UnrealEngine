@@ -30,7 +30,7 @@ void AssignStringToPropertyDirect(const FString& InString, const FProperty* InPr
 {
 	auto DoImportText = [&](const FString& InStringToImport)
 	{
-		InProp->ImportText(*InStringToImport, InData, InPortFlags, nullptr, &OutImportError);
+		InProp->ImportText_Direct(*InStringToImport, InData, nullptr, InPortFlags, &OutImportError);
 	};
 
 	bool bNeedsImport = true;

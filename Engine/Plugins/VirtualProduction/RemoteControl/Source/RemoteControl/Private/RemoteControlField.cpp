@@ -549,7 +549,7 @@ void FRemoteControlFunction::AssignDefaultFunctionArguments()
 				const FString& PropertyDefaultValue = Function->GetMetaData(DefaultPropertyKey);
 				if (!PropertyDefaultValue.IsEmpty())
 				{
-					It->ImportText(*PropertyDefaultValue, It->ContainerPtrToValuePtr<uint8>(FunctionArguments->GetStructMemory()), PPF_None, NULL);
+					It->ImportText_Direct(*PropertyDefaultValue, It->ContainerPtrToValuePtr<uint8>(FunctionArguments->GetStructMemory()), NULL, PPF_None);
 				}
 			}
 		}

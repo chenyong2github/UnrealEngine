@@ -49,7 +49,7 @@ void FCborStructSerializerBackend::BeginArray(const FStructSerializerState& Stat
 	else if (State.KeyProperty != nullptr)
 	{
 		FString KeyString;
-		State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+		State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 		CborWriter.WriteValue(KeyString);
 	}
 	// Array nested in Object
@@ -80,7 +80,7 @@ void FCborStructSerializerBackend::BeginStructure(const FStructSerializerState& 
 		else if (State.KeyProperty != nullptr)
 		{
 			FString KeyString;
-			State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+			State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 			CborWriter.WriteValue(KeyString);
 			CborWriter.WriteContainerStart(ECborCode::Map, -1/*Indefinite*/);
 		}
@@ -141,7 +141,7 @@ namespace CborStructSerializerBackend
 		else if (State.KeyProperty != nullptr)
 		{
 			FString KeyString;
-			State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+			State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 			CborWriter.WriteValue(KeyString);
 			CborWriter.WriteValue(Value);
 		}
@@ -167,7 +167,7 @@ namespace CborStructSerializerBackend
 		else if (State.KeyProperty != nullptr)
 		{
 			FString KeyString;
-			State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+			State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 			CborWriter.WriteValue(KeyString);
 			CborWriter.WriteNull();
 		}

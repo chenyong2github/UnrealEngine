@@ -286,12 +286,32 @@ FString FStructProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
 	return TEXT("STRUCT");
 }
 
-void FStructProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FStructProperty::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
-	Struct->ExportText(ValueStr, PropertyValue, DefaultValue, Parent, PortFlags, ExportRootScope, true);
+	void* StructData = nullptr;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		int32 RequiredAllocSize = Struct->GetStructureSize();
+		StructData = FMemory::Malloc(RequiredAllocSize);
+		Struct->InitializeStruct(StructData);
+		GetValue_InContainer(PropertyValueOrContainer, StructData);
+	}
+	else
+	{
+		StructData = PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType);
+	}
+
+	Struct->ExportText(ValueStr, StructData, DefaultValue, Parent, PortFlags, ExportRootScope, true);
+
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		Struct->DestroyStruct(StructData);
+		FMemory::Free(StructData);
+		StructData = nullptr;
+	}
 }
 
-const TCHAR* FStructProperty::ImportText_Internal(const TCHAR* InBuffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText) const
+const TCHAR* FStructProperty::ImportText_Internal(const TCHAR* InBuffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText) const
 {
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	FScopedPlaceholderPropertyTracker ImportPropertyTracker(this);
@@ -310,13 +330,34 @@ const TCHAR* FStructProperty::ImportText_Internal(const TCHAR* InBuffer, void* D
 		StructLinker->LoadFlags |= OldFlags | PropagatedLoadFlags;
 	}
 #endif 
-	const TCHAR* Result = Struct->ImportText(InBuffer, Data, Parent, PortFlags, ErrorText, [this]() { return GetName(); }, true);
+	void* StructData = nullptr;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+	{
+		int32 RequiredAllocSize = Struct->GetStructureSize();
+		StructData = FMemory::Malloc(RequiredAllocSize);
+		Struct->InitializeStruct(StructData);
+		GetValue_InContainer(ContainerOrPropertyPtr, StructData);
+	}
+	else
+	{
+		StructData = PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
+	}
+
+	const TCHAR* Result = Struct->ImportText(InBuffer, StructData, Parent, PortFlags, ErrorText, [this]() { return GetName(); }, true);
+
+	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+	{
+		SetValue_InContainer(ContainerOrPropertyPtr, StructData);
+		Struct->DestroyStruct(StructData);
+		FMemory::Free(StructData);
+		StructData = nullptr;
+	}
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	if (StructLinker)
 	{
 		StructLinker->LoadFlags = OldFlags;
-}
+	}
 #endif
 
 	return Result;

@@ -6719,7 +6719,7 @@ FString URigVMController::GetPinInitialDefaultValueFromStruct(UScriptStruct* Scr
 		if (Memory)
 		{
 			check(Property);
-			Property->ExportTextItem(DefaultValue, Memory, nullptr, nullptr, PPF_None);
+			Property->ExportTextItem_Direct(DefaultValue, Memory, nullptr, nullptr, PPF_None);
 		}
 	}
 

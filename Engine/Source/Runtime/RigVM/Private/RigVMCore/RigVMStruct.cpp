@@ -407,7 +407,7 @@ FString FRigVMStruct::ExportToFullyQualifiedText(FProperty* InMemberProperty, co
 	}
 	else
 	{
-		InMemberProperty->ExportTextItem(DefaultValue, InMemberMemoryPtr, nullptr, nullptr, PPF_None);
+		InMemberProperty->ExportTextItem_Direct(DefaultValue, InMemberMemoryPtr, nullptr, nullptr, PPF_None);
 
 		if (CastField<FNameProperty>(InMemberProperty) != nullptr ||
 			CastField<FStrProperty>(InMemberProperty) != nullptr)

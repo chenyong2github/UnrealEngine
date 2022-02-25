@@ -245,7 +245,7 @@ FString UOptimusNodePin::GetValueAsString() const
 	const uint8 *ValueData = GetPropertyValuePtr();
 	if (Property && ValueData)
 	{
-		Property->ExportTextItem(ValueString, ValueData, nullptr, GetOwningNode(), PPF_None);
+		Property->ExportTextItem_Direct(ValueString, ValueData, nullptr, GetOwningNode(), PPF_None);
 	}
 
 	return ValueString;
@@ -278,7 +278,7 @@ bool UOptimusNodePin::SetValueFromStringDirect(const FString& InStringValue)
 
 		// FIXME: We need a way to sanitize the input. Trying and failing is not good, since
 		// it's unknown whether this may leave the property in an indeterminate state.
-		bSuccess = Property->ImportText(*InStringValue, ValueData, PPF_None, Node) != nullptr;
+		bSuccess = Property->ImportText_Direct(*InStringValue, ValueData, Node, PPF_None) != nullptr;
 
 #if WITH_EDITOR
 		// We notify that the value change occurred, whether that's true or not. This way

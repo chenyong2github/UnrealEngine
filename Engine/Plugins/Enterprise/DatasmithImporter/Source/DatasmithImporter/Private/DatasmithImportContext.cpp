@@ -151,7 +151,7 @@ void FDatasmithImportOptionHelper::LoadOptions(const TArray<UObject*>& ImportOpt
 					FString PropertyValue = OptionDataJsonObject->GetStringField((*It)->GetNameCPP());
 					uint8* PropertyAddr = (*It)->ContainerPtrToValuePtr<uint8>(Object);
 
-					(*It)->ImportText(*PropertyValue, PropertyAddr, 0, Object);
+					(*It)->ImportText_Direct(*PropertyValue, PropertyAddr, Object, 0);
 				}
 			}
 		}

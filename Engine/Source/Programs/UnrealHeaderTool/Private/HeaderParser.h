@@ -626,6 +626,12 @@ private:
 	// Check to see if the declaration is a serialize
 	static bool CheckForSerialize(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration);
 
+	// Check to see if the declaration is a property getter function
+	bool CheckForPropertyGetterFunction(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration);
+
+	// Check to see if the declaration is a property setter function
+	bool CheckForPropertySetterFunction(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration);
+
 	// Names that cannot be used enums, UStructs, or UClasses
 	static TArray<FString> ReservedTypeNames;
 

@@ -227,7 +227,7 @@ bool UImportDialogueScriptCommandlet::ImportDialogueScriptForCulture(FLocTextHel
 		// Parse the SpokenDialogue data
 		{
 			const TCHAR* const CellData = RowData[SpokenDialogueColumnIndex];
-			if (SpokenDialogueProperty->ImportText(CellData, SpokenDialogueProperty->ContainerPtrToValuePtr<void>(&ParsedScriptEntry), PPF_None, nullptr) == nullptr)
+			if (SpokenDialogueProperty->ImportText_InContainer(CellData, &ParsedScriptEntry, nullptr, PPF_None) == nullptr)
 			{
 				UE_LOG(LogImportDialogueScriptCommandlet, Error, TEXT("Failed to parse the required column '%s' for row '%d' for culture '%s'."), *SpokenDialogueProperty->GetName(), RowIndex, *InCultureName);
 				continue;
@@ -237,7 +237,7 @@ bool UImportDialogueScriptCommandlet::ImportDialogueScriptForCulture(FLocTextHel
 		// Parse the LocalizationKeys data
 		{
 			const TCHAR* const CellData = RowData[LocalizationKeysColumnIndex];
-			if (LocalizationKeysProperty->ImportText(CellData, LocalizationKeysProperty->ContainerPtrToValuePtr<void>(&ParsedScriptEntry), PPF_None, nullptr) == nullptr)
+			if (LocalizationKeysProperty->ImportText_InContainer(CellData, &ParsedScriptEntry, nullptr, PPF_None) == nullptr)
 			{
 				UE_LOG(LogImportDialogueScriptCommandlet, Error, TEXT("Failed to parse the required column '%s' for row '%d' for culture '%s'."), *LocalizationKeysProperty->GetName(), RowIndex, *InCultureName);
 				continue;

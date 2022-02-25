@@ -269,7 +269,7 @@ FString UEdGraphNode::GetPropertyNameAndValueForDiff(const FProperty* Prop, cons
 	}
 	else
 	{
-		Prop->ExportTextItem(ExportedStringValue, PropertyAddr, NULL, NULL, PPF_PropertyWindow, NULL);
+		Prop->ExportTextItem_Direct(ExportedStringValue, PropertyAddr, NULL, NULL, PPF_PropertyWindow, NULL);
 	}
 
 	const bool bIsBool = Prop->IsA(FBoolProperty::StaticClass());

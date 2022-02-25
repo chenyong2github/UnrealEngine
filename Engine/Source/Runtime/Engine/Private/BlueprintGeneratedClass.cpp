@@ -2075,7 +2075,7 @@ void UBlueprintGeneratedClass::GetEditorTags(FEditorTags& Tags) const
 			const FProperty* Property = FindFieldChecked<FProperty>(UBlueprint::StaticClass(), PropertyName);
 			const uint8* PropertyAddr = PropertyValueOverride ? PropertyValueOverride : Property->ContainerPtrToValuePtr<uint8>(BP);
 			FString PropertyValueAsText;
-			Property->ExportTextItem(PropertyValueAsText, PropertyAddr, PropertyAddr, nullptr, PPF_None);
+			Property->ExportTextItem_Direct(PropertyValueAsText, PropertyAddr, PropertyAddr, nullptr, PPF_None);
 			if (!PropertyValueAsText.IsEmpty())
 			{
 				Tags.Add(TagName, MoveTemp(PropertyValueAsText));

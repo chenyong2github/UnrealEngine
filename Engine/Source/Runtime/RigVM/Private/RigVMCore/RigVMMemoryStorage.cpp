@@ -377,7 +377,7 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 		const FProperty* Property = LinkedProperties[PropertyIndex];
 		uint8* ValuePtr = Property->ContainerPtrToValuePtr<uint8>(CDO);
 
-		Property->ImportText(*DefaultValue, ValuePtr, EPropertyPortFlags::PPF_None, nullptr);
+		Property->ImportText_Direct(*DefaultValue, ValuePtr, nullptr, EPropertyPortFlags::PPF_None);
 	}
 
 	return Class;
@@ -641,7 +641,7 @@ FString URigVMMemoryStorage::GetDataAsString(int32 InPropertyIndex, int32 PortFl
 	const uint8* Data = GetData<uint8>(InPropertyIndex);
 
 	FString Value;
-	GetProperties()[InPropertyIndex]->ExportTextItem(Value, Data, nullptr, nullptr, PortFlags);
+	GetProperties()[InPropertyIndex]->ExportTextItem_Direct(Value, Data, nullptr, nullptr, PortFlags);
 	return Value;
 }
 
@@ -696,7 +696,7 @@ bool URigVMMemoryStorage::SetDataFromString(int32 InPropertyIndex, const FString
 	uint8* Data = GetData<uint8>(InPropertyIndex);
 	
 	FRigVMMemoryStorageImportErrorContext ErrorPipe;
-	GetProperties()[InPropertyIndex]->ImportText(*InValue, Data, EPropertyPortFlags::PPF_None, nullptr, &ErrorPipe);
+	GetProperties()[InPropertyIndex]->ImportText_Direct(*InValue, Data, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe);
 	return ErrorPipe.NumErrors == 0;
 }
 

@@ -48,7 +48,7 @@ void SGameplayTagQueryGraphPin::ParseDefaultValueData()
 	if (TQProperty)
 	{
 		FGameplayTagQuery* const TQ = TagQuery.Get();
-		TQProperty->ImportText(*TagQueryString, TQ, 0, nullptr, GLog);
+		TQProperty->ImportText_Direct(*TagQueryString, TQ, nullptr, 0, GLog);
 	}
 }
 

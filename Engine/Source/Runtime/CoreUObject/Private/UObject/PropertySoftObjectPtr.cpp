@@ -92,9 +92,18 @@ bool FSoftObjectProperty::NetSerializeItem(FArchive& Ar, UPackageMap* Map, void*
 	return true;
 }
 
-void FSoftObjectProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FSoftObjectProperty::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
-	FSoftObjectPtr& SoftObjectPtr = *(FSoftObjectPtr*)PropertyValue;
+	FSoftObjectPtr SoftObjectPtr;
+	
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		GetValue_InContainer(PropertyValueOrContainer, &SoftObjectPtr);
+	}
+	else
+	{
+		SoftObjectPtr = *(FSoftObjectPtr*)PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType);
+	}
 
 	FSoftObjectPath SoftObjectPath;
 	UObject *Object = SoftObjectPtr.Get();
@@ -118,10 +127,8 @@ void FSoftObjectProperty::ExportTextItem( FString& ValueStr, const void* Propert
 	SoftObjectPath.ExportTextItem(ValueStr, SoftObjectPath, Parent, PortFlags, ExportRootScope);
 }
 
-const TCHAR* FSoftObjectProperty::ImportText_Internal( const TCHAR* InBuffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FSoftObjectProperty::ImportText_Internal( const TCHAR* InBuffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText ) const
 {
-	FSoftObjectPtr& SoftObjectPtr = *(FSoftObjectPtr*)Data;
-
 	FSoftObjectPath SoftObjectPath;
 
 	bool bImportTextSuccess = false;
@@ -139,13 +146,30 @@ const TCHAR* FSoftObjectProperty::ImportText_Internal( const TCHAR* InBuffer, vo
 
 	if (bImportTextSuccess)
 	{
-		SoftObjectPtr = SoftObjectPath;
+		if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+		{
+			FSoftObjectPtr SoftObjectPtr(SoftObjectPath);
+			SetValue_InContainer(ContainerOrPropertyPtr, SoftObjectPtr);
+		}
+		else
+		{
+			FSoftObjectPtr& SoftObjectPtr = *(FSoftObjectPtr*)PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
+			SoftObjectPtr = SoftObjectPath;
+		}
 		return InBuffer;
 	}
-
 	else
 	{
-		SoftObjectPtr = nullptr;
+		if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+		{
+			FSoftObjectPtr NullPtr(nullptr);
+			SetValue_InContainer(ContainerOrPropertyPtr, NullPtr);
+		}
+		else
+		{
+			FSoftObjectPtr& SoftObjectPtr = *(FSoftObjectPtr*)PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
+			SoftObjectPtr = nullptr;
+		}
 		return nullptr;
 	}
 }

@@ -553,7 +553,7 @@ FString FSetProperty::GetCPPTypeForwardDeclaration() const
 	return ElementProp->GetCPPTypeForwardDeclaration();
 }
 
-void FSetProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
+void FSetProperty::ExportText_Internal(FString& ValueStr, const void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
 	if (0 != (PortFlags & PPF_ExportCpp))
 	{
@@ -563,7 +563,34 @@ void FSetProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 
 	checkSlow(ElementProp);
 
-	FScriptSetHelper SetHelper(this, PropertyValue);
+	uint8* TempSetStorage = nullptr;
+	void* PropertyValuePtr = nullptr;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		// Allocate temporary map as we first need to initialize it with the value provided by the getter function and then export it
+		TempSetStorage = (uint8*)FMemory::MallocZeroed(GetSize());
+		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
+		{
+			InitializeValue(TempSetStorage);
+		}
+		PropertyValuePtr = TempSetStorage;
+		FProperty::GetValue_InContainer(ContainerOrPropertyPtr, PropertyValuePtr);
+	}
+	else
+	{
+		PropertyValuePtr = PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
+	}
+
+	ON_SCOPE_EXIT
+	{
+		if (TempSetStorage)
+		{
+			DestroyValue(TempSetStorage);
+			FMemory::Free(TempSetStorage);
+		}
+	};
+
+	FScriptSetHelper SetHelper(this, PropertyValuePtr);
 
 	if (SetHelper.Num() == 0)
 	{
@@ -624,7 +651,7 @@ void FSetProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 					PropDefault = PropData;
 				}
 
-				ElementProp->ExportTextItem(ValueStr, PropData, PropDefault, Parent, PortFlags | PPF_Delimited, ExportRootScope);
+				ElementProp->ExportTextItem_Direct(ValueStr, PropData, PropDefault, Parent, PortFlags | PPF_Delimited, ExportRootScope);
 
 				--Count;
 			}
@@ -656,7 +683,7 @@ void FSetProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 					PropDefault = PropData;
 				}
 
-				ElementProp->ExportTextItem(ValueStr, PropData, PropDefault, Parent, PortFlags | PPF_Delimited, ExportRootScope);
+				ElementProp->ExportTextItem_Direct(ValueStr, PropData, PropDefault, Parent, PortFlags | PPF_Delimited, ExportRootScope);
 
 				--Count;
 			}
@@ -666,11 +693,49 @@ void FSetProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 	}
 }
 
-const TCHAR* FSetProperty::ImportText_Internal(const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText) const
+const TCHAR* FSetProperty::ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText) const
 {
 	checkSlow(ElementProp);
 
-	FScriptSetHelper SetHelper(this, Data);
+	FScriptSetHelper SetHelper(this, PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType));
+	uint8* TempSetStorage = nullptr;
+	uint8* TempElementStorage = nullptr;
+	bool bSuccess = true;
+
+	ON_SCOPE_EXIT
+	{
+		FMemory::Free(TempElementStorage);
+
+		// If we are returning because of an error, remove any already-added elements from the map before returning
+		// to ensure we're not left with a partial state.
+		if (!bSuccess)
+		{
+			SetHelper.EmptyElements();
+		}
+
+		if (TempSetStorage)
+		{
+			// TempSet is used by property setter so if it was allocated call the setter now
+			FProperty::SetValue_InContainer(ContainerOrPropertyPtr, TempSetStorage);
+
+			// Destroy and free the temp set used by property setter
+			DestroyValue(TempSetStorage);
+			FMemory::Free(TempSetStorage);
+		}
+	};
+
+	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+	{
+		// Allocate temporary set as we first need to initialize it with the parsed items and then use the setter to update the property
+		TempSetStorage = (uint8*)FMemory::MallocZeroed(GetSize());
+		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
+		{
+			InitializeValue(TempSetStorage);
+		}
+		// Reinitialize the set helper with the temp value
+		SetHelper = FScriptSetHelper(this, TempSetStorage);
+	}
+
 	SetHelper.EmptyElements();
 
 	// If we export an empty array we export an empty string, so ensure that if we're passed an empty string
@@ -686,21 +751,11 @@ const TCHAR* FSetProperty::ImportText_Internal(const TCHAR* Buffer, void* Data, 
 		return Buffer + 1;
 	}
 
-	uint8* TempElementStorage = (uint8*)FMemory::Malloc(ElementProp->ElementSize);
+	TempElementStorage = (uint8*)FMemory::Malloc(ElementProp->ElementSize);
+	// From this point failure should empty the set
+	bSuccess = false;
 
-	bool bSuccess = false;
-	ON_SCOPE_EXIT
-	{
-		FMemory::Free(TempElementStorage);
-
-		// If we are returning because of an error, remove any already-added elements from the map before returning
-		// to ensure we're not left with a partial state.
-		if (!bSuccess)
-		{
-			SetHelper.EmptyElements();
-		}
-	};
-
+	check(ElementProp->GetOffset_ForInternal() == 0);
 	for (;;)
 	{
 		ElementProp->InitializeValue(TempElementStorage);
@@ -710,7 +765,7 @@ const TCHAR* FSetProperty::ImportText_Internal(const TCHAR* Buffer, void* Data, 
 		};
 
 		// Read key into temporary storage
-		Buffer = ElementProp->ImportText(Buffer, TempElementStorage, PortFlags | PPF_Delimited, Parent, ErrorText);
+		Buffer = ElementProp->ImportText_Direct(Buffer, TempElementStorage, Parent, PortFlags | PPF_Delimited, ErrorText);
 		if (!Buffer)
 		{
 			return nullptr;

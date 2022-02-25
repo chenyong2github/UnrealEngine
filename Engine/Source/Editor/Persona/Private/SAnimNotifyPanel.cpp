@@ -308,7 +308,7 @@ struct FNotifyNodeInterface : public INodeObjectInterface
 		uint8* PropertyData = Seq->FindNotifyPropertyData(Index, ArrayProperty);
 		if (PropertyData && ArrayProperty)
 		{
-			ArrayProperty->Inner->ExportTextItem(StrValue, PropertyData, PropertyData, Seq, PPF_Copy);
+			ArrayProperty->Inner->ExportTextItem_Direct(StrValue, PropertyData, PropertyData, Seq, PPF_Copy);
 		}
 	}
 
@@ -418,7 +418,7 @@ struct FSyncMarkerNodeInterface : public INodeObjectInterface
 			uint8* PropertyData = Seq->FindSyncMarkerPropertyData(Index, ArrayProperty);
 			if (PropertyData && ArrayProperty)
 			{
-				ArrayProperty->Inner->ExportTextItem(StrValue, PropertyData, PropertyData, Seq, PPF_Copy);
+				ArrayProperty->Inner->ExportTextItem_Direct(StrValue, PropertyData, PropertyData, Seq, PPF_Copy);
 			}
 		}
 	}
@@ -2486,7 +2486,7 @@ FAnimNotifyEvent& SAnimNotifyTrack::CreateNewNotify(FString NewNotifyName, UClas
 				if( Asset )
 				{
 					uint8* Offset = (*PropIt)->ContainerPtrToValuePtr<uint8>(NewEvent.Notify);
-					(*PropIt)->ImportText( *Asset->GetAsset()->GetPathName(), Offset, 0, NewEvent.Notify );
+					(*PropIt)->ImportText_Direct( *Asset->GetAsset()->GetPathName(), Offset, NewEvent.Notify, 0 );
 					break;
 				}
 			}
@@ -3553,7 +3553,7 @@ void SAnimNotifyTrack::PasteSingleNotify(FString& NotifyString, float PasteTime)
 
 	if(PropertyData && ArrayProperty)
 	{
-		ArrayProperty->Inner->ImportText(*NotifyString, PropertyData, PPF_Copy, NULL);
+		ArrayProperty->Inner->ImportText_Direct(*NotifyString, PropertyData, NULL, PPF_Copy);
 
 		FAnimNotifyEvent& NewNotify = Sequence->Notifies[NewIdx];
 
@@ -3629,7 +3629,7 @@ void SAnimNotifyTrack::PasteSingleSyncMarker(FString& MarkerString, float PasteT
 
 		if (PropertyData && ArrayProperty)
 		{
-			ArrayProperty->Inner->ImportText(*MarkerString, PropertyData, PPF_Copy, NULL);
+			ArrayProperty->Inner->ImportText_Direct(*MarkerString, PropertyData, NULL, PPF_Copy);
 
 			FAnimSyncMarker& SyncMarker = AnimSeq->AuthoredSyncMarkers[NewIdx];
 

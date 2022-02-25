@@ -9159,7 +9159,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 							for( int32 i=0; i<FMath::Min(ArrayHelper.Num(),100); i++ )
 							{
 								Value.Empty();
-								ArrayProp->Inner->ExportTextItem( Value, ArrayHelper.GetRawPtr(i), ArrayHelper.GetRawPtr(i), Obj, PPF_IncludeTransient );
+								ArrayProp->Inner->ExportTextItem_Direct( Value, ArrayHelper.GetRawPtr(i), ArrayHelper.GetRawPtr(i), Obj, PPF_IncludeTransient );
 								Ar.Logf(TEXT("  %s(%i)=%s"), *ArrayProp->GetName(), i, *Value);
 							}
 
@@ -13197,7 +13197,7 @@ void UEngine::SpawnServerActors(UWorld *World)
 						if(	FCString::Stricmp(*It->GetName(),Str)==0
 							&&	(It->PropertyFlags & CPF_Config) )
 						{
-							It->ImportText( Value, It->ContainerPtrToValuePtr<uint8>(Actor), 0, Actor );
+							It->ImportText_InContainer( Value, Actor, Actor, 0 );
 						}
 					}
 				}

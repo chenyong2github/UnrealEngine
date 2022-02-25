@@ -252,7 +252,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 					int32 PairIndex = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
 					uint8* PairPtr = MapHelper.GetPairPtr(PairIndex);
 
-					MapProperty->KeyProp->ImportText(*PropertyName, PairPtr, PPF_None, nullptr);
+					MapProperty->KeyProp->ImportText_Direct(*PropertyName, PairPtr, nullptr, PPF_None);
 
 					if (!Backend.ReadProperty(Property, CurrentState.Property, PairPtr, CurrentState.ArrayIndex))
 					{
@@ -362,7 +362,7 @@ bool FStructDeserializer::Deserialize( void* OutStruct, UStruct& TypeInfo, IStru
 					NewState.Data = PairPtr + MapHelper.MapLayout.ValueOffset;
 					NewState.Property = MapProperty->ValueProp;
 
-					MapProperty->KeyProp->ImportText(*PropertyName, PairPtr, PPF_None, nullptr);
+					MapProperty->KeyProp->ImportText_Direct(*PropertyName, PairPtr, nullptr, PPF_None);
 				}
 				else
 				{

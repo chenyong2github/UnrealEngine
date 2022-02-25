@@ -169,7 +169,8 @@ public:
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		ElementProp->InitializeValue(StorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(StorageSpace);
 		void* ItemPtr = StorageSpace;
 
@@ -360,7 +361,8 @@ public:
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		ElementProp->InitializeValue(StorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(StorageSpace);
 		void* ItemToFindPtr = StorageSpace;
 

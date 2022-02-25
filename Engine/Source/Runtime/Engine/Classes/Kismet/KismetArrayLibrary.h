@@ -311,7 +311,8 @@ public:
  		void* StorageSpace = FMemory_Alloca(PropertySize);
  		InnerProp->InitializeValue(StorageSpace);
  
- 		Stack.MostRecentPropertyAddress = NULL;
+ 		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
  		Stack.StepCompiledIn<FProperty>(StorageSpace);
  
  		P_FINISH;
@@ -340,7 +341,8 @@ public:
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(StorageSpace);
 
 		P_FINISH;
@@ -447,7 +449,8 @@ public:
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(StorageSpace);
 
 		P_GET_PROPERTY(FIntProperty, Index);
@@ -496,7 +499,8 @@ public:
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(StorageSpace);
 		void* ItemPtr = StorageSpace;
 
@@ -653,7 +657,8 @@ public:
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(StorageSpace);
 		const FFieldClass* InnerPropClass = InnerProp->GetClass();
 		const FFieldClass* MostRecentPropClass = Stack.MostRecentProperty->GetClass();
@@ -695,7 +700,8 @@ public:
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(StorageSpace);
 
 		P_GET_UBOOL(bSizeToFit);
@@ -749,7 +755,8 @@ public:
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(StorageSpace);
 		void* ItemToFindPtr = StorageSpace;
 
@@ -783,7 +790,8 @@ public:
 		void* StorageSpace = FMemory_Alloca(PropertySize);
 		InnerProp->InitializeValue(StorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(StorageSpace);
 		void* ItemToFindPtr = StorageSpace;
 

@@ -106,11 +106,12 @@ void FClassProperty::AddReferencedObjects(FReferenceCollector& Collector)
 	Super::AddReferencedObjects( Collector );
 }
 
-const TCHAR* FClassProperty::ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FClassProperty::ImportText_Internal( const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText ) const
 {
-	const TCHAR* Result = FObjectProperty::ImportText_Internal( Buffer, Data, PortFlags, Parent, ErrorText );
+	const TCHAR* Result = FObjectProperty::ImportText_Internal( Buffer, ContainerOrPropertyPtr, PropertyPointerType, Parent, PortFlags, ErrorText );
 	if( Result )
 	{
+		void* Data = PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
 		if (UClass* AssignedPropertyClass = dynamic_cast<UClass*>(GetObjectPropertyValue(Data)))
 		{
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
@@ -135,7 +136,15 @@ const TCHAR* FClassProperty::ImportText_Internal( const TCHAR* Buffer, void* Dat
 			{
 				// the object we imported doesn't implement our interface class
 				ErrorText->Logf(TEXT("Invalid object '%s' specified for property '%s'"), *AssignedPropertyClass->GetFullName(), *GetName());
-				SetObjectPropertyValue(Data, NULL);
+				UObject* NullObj = nullptr;
+				if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+				{
+					SetValue_InContainer(ContainerOrPropertyPtr, NullObj);
+				}
+				else
+				{
+					SetObjectPropertyValue(PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType), NullObj);
+				}
 				Result = NULL;
 			}
 		}

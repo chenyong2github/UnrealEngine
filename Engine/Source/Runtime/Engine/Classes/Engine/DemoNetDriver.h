@@ -295,9 +295,6 @@ private:
 	/** Does the actual work of TickFlush, either on the main thread or in a task thread in parallel with Slate. */
 	void TickFlushInternal(float DeltaSeconds);
 
-	/** Returns either CheckpointSaveMaxMSPerFrame or the value of demo.CheckpointSaveMaxMSPerFrameOverride if it's >= 0. */
-	float GetCheckpointSaveMaxMSPerFrame() const;
-
 	/** Returns the last checkpoint time in integer milliseconds. */
 	uint32 GetLastCheckpointTimeInMS() const { return ReplayHelper.GetLastCheckpointTimeInMS(); }
 

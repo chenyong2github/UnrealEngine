@@ -59,6 +59,9 @@ struct FUHTConfig
 	EPointerMemberBehavior NonEngineNativePointerMemberBehavior = EPointerMemberBehavior::AllowSilently;
 	EPointerMemberBehavior NonEngineObjectPtrMemberBehavior = EPointerMemberBehavior::AllowSilently;
 
+	/** If true setters and getters will be automatically (without specifying their function names on a property) parsed and generated if a function with matching signature is found */
+	bool bAllowAutomaticSettersAndGetters = false;
+
 private:
 	FUHTConfig();
 };

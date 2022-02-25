@@ -157,7 +157,7 @@ void UPropertyValueSoftObject::ApplyViaFunctionSetter(UObject* TargetObject)
 		FString* Defaults = PropertySetterParameterDefaults.Find(PropertyParam->GetName());
 		if (Defaults)
 		{
-			const TCHAR* Result = PropertyParam->ImportText( **Defaults, PropertyParam->ContainerPtrToValuePtr<uint8>(Parms), ExportFlags, NULL );
+			const TCHAR* Result = PropertyParam->ImportText_Direct( **Defaults, PropertyParam->ContainerPtrToValuePtr<uint8>(Parms), NULL, ExportFlags );
 			if (!Result)
 			{
 				UE_LOG(LogVariantContent, Error, TEXT("Failed at applying the default value for parameter '%s' of PropertyValue '%s'"), *PropertyParam->GetName(), *GetFullDisplayString());

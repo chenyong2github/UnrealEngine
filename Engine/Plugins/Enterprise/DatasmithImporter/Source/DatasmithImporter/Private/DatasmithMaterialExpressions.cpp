@@ -3019,7 +3019,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( IDa
 			{
 				if ( Property )
 				{
-					Property->ImportText( KeyValueProperty->GetValue(), Property->ContainerPtrToValuePtr< void >( MaterialExpression ), PPF_None, nullptr );
+					Property->ImportText_Direct( KeyValueProperty->GetValue(), Property->ContainerPtrToValuePtr< void >( MaterialExpression ), nullptr, PPF_None);
 				}
 			}
 		}

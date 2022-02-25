@@ -2378,8 +2378,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 									for (FProperty* Prop : TFieldRange<FProperty>(Object->GetClass()))
 									{
 										FString PropState;
-										const void* PropAddr = Prop->ContainerPtrToValuePtr<void>(Object);
-										Prop->ExportTextItem(PropState, PropAddr, nullptr, Object, PPF_None);
+										Prop->ExportTextItem_InContainer(PropState, Object, nullptr, Object, PPF_None);
 
 										Result.Emplace(Prop, MoveTemp(PropState));
 									}

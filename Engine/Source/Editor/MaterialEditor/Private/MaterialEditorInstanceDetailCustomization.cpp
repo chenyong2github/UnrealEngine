@@ -1086,8 +1086,7 @@ void FMaterialInstanceParameterDetails::OnPasteParameterValues(int32 ParameterGr
 						FProperty* ParameterValueProperty = Parameter->GetClass()->FindPropertyByName("ParameterValue");
 						if (ParameterValueProperty != nullptr)
 						{
-							void* ParameterValuePtr = ParameterValueProperty->ContainerPtrToValuePtr<void>(Parameter);
-							ParameterValueProperty->ImportText(*ParsedValueString, ParameterValuePtr, PPF_Copy, Parameter);
+							ParameterValueProperty->ImportText_InContainer(*ParsedValueString, Parameter, Parameter, PPF_Copy);
 						}
 					}
 				}

@@ -1380,7 +1380,7 @@ private:
 	TArray<TObjectPtr<class ULevel>>						Levels;
 
 	/** Array of level collections currently in this world. */
-	UPROPERTY(Transient, NonTransactional)
+	UPROPERTY(Transient, NonTransactional, Setter = None, Getter = None)
 	TArray<FLevelCollection>					LevelCollections;
 
 	/** Index of the level collection that's currently ticking. */

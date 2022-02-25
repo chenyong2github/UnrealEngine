@@ -35,6 +35,7 @@ DEFINE_FUNCTION(UDataRegistrySubsystem::execGetCachedItemBP)
 	P_GET_STRUCT(FDataRegistryId, ItemId);
 
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(nullptr);
 
 	void* OutItemDataPtr = Stack.MostRecentPropertyAddress;
@@ -80,6 +81,7 @@ DEFINE_FUNCTION(UDataRegistrySubsystem::execFindCachedItemBP)
 	P_GET_ENUM_REF(EDataRegistrySubsystemGetItemResult, OutResult)
 
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(nullptr);
 
 	void* OutItemDataPtr = Stack.MostRecentPropertyAddress;
@@ -123,6 +125,7 @@ DEFINE_FUNCTION(UDataRegistrySubsystem::execGetCachedItemFromLookupBP)
 	P_GET_STRUCT_REF(FDataRegistryLookup, ResolvedLookup);
 
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(nullptr);
 
 	void* OutItemDataPtr = Stack.MostRecentPropertyAddress;

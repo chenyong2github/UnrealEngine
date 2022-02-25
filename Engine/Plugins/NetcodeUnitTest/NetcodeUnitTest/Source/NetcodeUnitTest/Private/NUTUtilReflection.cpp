@@ -1337,7 +1337,7 @@ TValueOrError<FString, FString> FVMReflection::GetValueAsString()
 		{
 			FString Result;
 
-			Prop->ExportTextItem(Result, FieldAddress, FieldAddress, Obj, PPF_None);
+			Prop->ExportTextItem_Direct(Result, FieldAddress, FieldAddress, Obj, PPF_None);
 
 			ReturnVal = MakeValue(Result);
 		}
@@ -1515,7 +1515,7 @@ FString NUTUtilRefl::FunctionParmsToString(UFunction* InFunction, void* Parms)
 		FString CurPropText;
 
 		// Set PortFlags to maximize property coverage
-		It->ExportTextItem(CurPropText, It->ContainerPtrToValuePtr<void>(Parms), nullptr, nullptr,
+		It->ExportTextItem_Direct(CurPropText, It->ContainerPtrToValuePtr<void>(Parms), nullptr, nullptr,
 							PPF_IncludeTransient | PPF_DuplicateForPIE);
 
 		if (ReturnVal.Len() > 0)

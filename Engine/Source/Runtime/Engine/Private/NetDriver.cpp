@@ -3880,13 +3880,13 @@ bool FPacketSimulationSettings::LoadEmulationProfile(const TCHAR* ProfileName)
 			}
 			else if (FProperty* StructProperty = ThisStruct->FindPropertyByName(FName(*VarName, FNAME_Find)))
 			{
-				StructProperty->ImportText(*VarValue, StructProperty->ContainerPtrToValuePtr<void>(this), 0, nullptr);
-	}
+				StructProperty->ImportText_InContainer(*VarValue, this, nullptr, 0);
+			}
 			else
-	{
+			{
 				UE_LOG(LogNet, Warning, TEXT("FPacketSimulationSettings::LoadEmulationProfile could not find property named %s"), *VarName);
 			}
-	}
+		}
 	}
 	
 	ValidateSettings();

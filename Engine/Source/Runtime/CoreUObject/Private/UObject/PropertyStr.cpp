@@ -158,9 +158,18 @@ FString FStrProperty::ExportCppHardcodedText(const FString& InSource, const FStr
 	return Result.ToString();
 }
 
-void FStrProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FStrProperty::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
-	FString& StringValue = *(FString*)PropertyValue;
+	FString StringValue;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		GetValue_InContainer(PropertyValueOrContainer, &StringValue);
+	}
+	else
+	{
+		StringValue = *(FString*)PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType);
+	}
+
 	if (0 != (PortFlags & PPF_ExportCpp))
 	{
 		ValueStr += FString::Printf(TEXT("FString(%s)"), *ExportCppHardcodedText(StringValue, FString()));
@@ -178,11 +187,12 @@ void FStrProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue,
 		ValueStr += TEXT("\"\"");
 	}
 }
-const TCHAR* FStrProperty::ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FStrProperty::ImportText_Internal( const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText ) const
 {
+	FString ImportedText;
 	if( !(PortFlags & PPF_Delimited) )
 	{
-		*(FString*)Data = Buffer;
+		ImportedText = Buffer;
 
 		// in order to indicate that the value was successfully imported, advance the buffer past the last character that was imported
 		Buffer += FCString::Strlen(Buffer);
@@ -207,7 +217,15 @@ const TCHAR* FStrProperty::ImportText_Internal( const TCHAR* Buffer, void* Data,
 			ErrorText->Logf(TEXT("Missing terminating '\"' in string property value: %s"), Start);
 			return NULL;
 		}
-		*(FString*)Data = MoveTemp(Temp);
+		ImportedText = MoveTemp(Temp);
+	}
+	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+	{
+		SetValue_InContainer(ContainerOrPropertyPtr, ImportedText);
+	}
+	else
+	{
+		*(FString*)PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType) = MoveTemp(ImportedText);
 	}
 	return Buffer;
 }

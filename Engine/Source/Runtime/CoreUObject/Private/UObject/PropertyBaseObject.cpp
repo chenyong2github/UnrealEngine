@@ -228,9 +228,18 @@ FString FObjectPropertyBase::GetExportPath(const UObject* Object, const UObject*
 	return FString::Printf( TEXT("%s'%s'"), *Object->GetClass()->GetName(), *PathName );
 }
 
-void FObjectPropertyBase::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FObjectPropertyBase::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
-	UObject* Temp = GetObjectPropertyValue(PropertyValue);
+	UObject* Temp = nullptr;
+
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		GetValue_InContainer(PropertyValueOrContainer, &Temp);
+	}
+	else
+	{
+		Temp = GetObjectPropertyValue(PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType));
+	}
 
 	if (0 != (PortFlags & PPF_ExportCpp))
 	{
@@ -365,7 +374,7 @@ bool FObjectPropertyBase::ParseObjectPropertyValue(const FProperty* Property, UO
 	return true;
 }
 
-const TCHAR* FObjectPropertyBase::ImportText_Internal( const TCHAR* InBuffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FObjectPropertyBase::ImportText_Internal( const TCHAR* InBuffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText ) const
 {
 	const TCHAR* Buffer = InBuffer;
 	UObject* Result = nullptr;
@@ -395,7 +404,14 @@ const TCHAR* FObjectPropertyBase::ImportText_Internal( const TCHAR* InBuffer, vo
 		}
 	}
 
-	SetObjectPropertyValue(Data, Result);
+	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+	{
+		SetValue_InContainer(ContainerOrPropertyPtr, &Result); // @todo: need to make sure SetValue follows whatever SetObjectPropertyValue does for object properties
+	}
+	else
+	{
+		SetObjectPropertyValue(PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType), Result);
+	}
 	return Buffer;
 }
 

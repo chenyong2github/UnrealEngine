@@ -23,7 +23,7 @@ FString UInterchangeResult::ToJson()
 		FProperty* Field = *FieldIterator;
 		FString PropertyName = Field->GetNameCPP();
 		FString PropertyValue;
-		Field->ExportTextItem(PropertyValue, Field->ContainerPtrToValuePtr<uint8>(this), nullptr, this, 0);
+		Field->ExportTextItem_InContainer(PropertyValue, this, nullptr, this, 0);
 
 		TSharedPtr<FJsonObject> Property = MakeShared<FJsonObject>();
 		Property->SetStringField(TEXT("Name"), PropertyName);
@@ -90,7 +90,7 @@ UInterchangeResult* UInterchangeResult::FromJson(const FString& JsonString)
 		}
 
 		FProperty* Field = ClassToImport->FindPropertyByName(FName(*PropertyName));
-		Field->ImportText(*PropertyValue, Field->ContainerPtrToValuePtr<uint8>(Result), 0, Result);
+		Field->ImportText_InContainer(*PropertyValue, Result, Result, 0);
 	}
 
 	return Result;

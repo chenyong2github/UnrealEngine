@@ -1076,16 +1076,17 @@ bool FProperty::ExportText_Direct
 	const void*	Data,
 	const void*	Delta,
 	UObject*	Parent,
-	int32			PortFlags,
+	int32		PortFlags,
 	UObject*	ExportRootScope
 	) const
 {
 	if( Data==Delta || !Identical(Data,Delta,PortFlags) )
 	{
-		ExportTextItem
+		ExportText_Internal
 			(
 			ValueStr,
 			(uint8*)Data,
+			EPropertyPointerType::Direct,
 			(uint8*)Delta,
 			Parent,
 			PortFlags,
@@ -1548,7 +1549,7 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 				{
 					int32	Index = ArrayHelper.AddValue();
 
-					const TCHAR* Result = ArrayProperty->Inner->ImportText(Str, ArrayHelper.GetRawPtr(Index), PortFlags, SubobjectOuter, Warn);
+					const TCHAR* Result = ArrayProperty->Inner->ImportText_Direct(Str, ArrayHelper.GetRawPtr(Index), SubobjectOuter, PortFlags, Warn);
 					if ( Result == NULL || Result == Str )
 					{
 						Warn->Logf(ELogVerbosity::Warning, TEXT("Unable to parse parameter value '%s' in defaultproperties array operation: %s"), Str, Start);
@@ -1567,7 +1568,7 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 					ArrayProperty->Inner->InitializeValue(Temp);
 							
 					// export the value specified to a temporary buffer
-					const TCHAR* Result = ArrayProperty->Inner->ImportText(Str, Temp, PortFlags, SubobjectOuter, Warn);
+					const TCHAR* Result = ArrayProperty->Inner->ImportText_Direct(Str, Temp, SubobjectOuter, PortFlags, Warn);
 					if ( Result == NULL || Result == Str )
 					{
 						Warn->Logf(ELogVerbosity::Error, TEXT("Unable to parse parameter value '%s' in defaultproperties array operation: %s"), Str, Start);
@@ -1687,7 +1688,7 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 					ArrayHelper.ExpandForIndex(Index);
 
 					FStringOutputDevice ImportError;
-					const TCHAR* Result = ArrayProperty->Inner->ImportText(Str, ArrayHelper.GetRawPtr(Index), PortFlags, SubobjectOuter, &ImportError);
+					const TCHAR* Result = ArrayProperty->Inner->ImportText_Direct(Str, ArrayHelper.GetRawPtr(Index), SubobjectOuter, PortFlags, &ImportError);
 					// Spit any error we had while importing property
 					if (ImportError.Len() > 0)
 					{
@@ -1718,7 +1719,7 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 
 					FStringOutputDevice ImportError;
 
-					const TCHAR* Result = Property->ImportText(Str, Property->ContainerPtrToValuePtr<void>(DestData, Index), PortFlags, SubobjectOuter, &ImportError);
+					const TCHAR* Result = Property->ImportText_Direct(Str, Property->ContainerPtrToValuePtr<void>(DestData, Index), SubobjectOuter, PortFlags, &ImportError);
 					
 					// Spit any error we had while importing property
 					if (ImportError.Len() > 0)
@@ -1826,9 +1827,9 @@ UPropertyWrapper* FProperty::GetUPropertyWrapper()
 }
 #endif //  WITH_EDITORONLY_DATA
 
-void FFloatProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
+void FFloatProperty::ExportText_Internal(FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
-	Super::ExportTextItem(ValueStr, PropertyValue, DefaultValue, Parent, PortFlags, ExportRootScope);
+	Super::ExportText_Internal(ValueStr, PropertyValueOrContainer, PropertyPointerType, DefaultValue, Parent, PortFlags, ExportRootScope);
 
 	if (0 != (PortFlags & PPF_ExportCpp))
 	{

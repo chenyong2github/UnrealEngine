@@ -359,7 +359,7 @@ FString UExportDialogueScriptCommandlet::GenerateCSVRow(const FDialogueScriptEnt
 		}
 
 		FString PropertyValue;
-		PropertyIt->ExportTextItem(PropertyValue, PropertyIt->ContainerPtrToValuePtr<void>(&InDialogueScriptEntry), nullptr, nullptr, PPF_None);
+		PropertyIt->ExportTextItem_InContainer(PropertyValue, &InDialogueScriptEntry, nullptr, nullptr, PPF_None);
 
 		CSVRow += TEXT("\"");
 		CSVRow += PropertyValue.Replace(TEXT("\""), TEXT("\"\""));

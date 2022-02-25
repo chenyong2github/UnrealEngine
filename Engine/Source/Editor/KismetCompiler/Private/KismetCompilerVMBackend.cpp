@@ -935,7 +935,7 @@ public:
 				FProperty* InnerProp = ArrayPropr->Inner;
 				ensure(InnerProp);
 				FScriptArray ScriptArray;
-				ArrayPropr->ImportText(*Term->Name, &ScriptArray, 0, NULL, GLog);
+				ArrayPropr->ImportText_Direct(*Term->Name, &ScriptArray, NULL, 0, GLog);
 
 				FScriptArrayHelper ScriptArrayHelper(ArrayPropr, &ScriptArray);
 				int32 ElementNum = ScriptArrayHelper.Num();
@@ -956,7 +956,7 @@ public:
 				ensure(InnerProp);
 
 				FScriptSet ScriptSet;
-				SetPropr->ImportText(*Term->Name, &ScriptSet, 0, NULL, GLog);
+				SetPropr->ImportText_Direct(*Term->Name, &ScriptSet, NULL, 0, GLog);
 				int32 ElementNum = ScriptSet.Num();
 
 				FScriptSetHelper ScriptSetHelper(SetPropr, &ScriptSet);
@@ -984,7 +984,7 @@ public:
 				ensure(KeyProp && ValProp);
 
 				FScriptMap ScriptMap;
-				MapPropr->ImportText(*Term->Name, &ScriptMap, 0, NULL, GLog);
+				MapPropr->ImportText_Direct(*Term->Name, &ScriptMap, NULL, 0, GLog);
 				int32 ElementNum = ScriptMap.Num();
 
 				FScriptMapHelper ScriptMapHelper(MapPropr, &ScriptMap);
@@ -1135,7 +1135,7 @@ public:
 		StructProperty->InitializeValue(StructData);
 
 		// Assume that any errors on the import of the name string have been caught in the function call generation
-		StructProperty->ImportText(*Term->Name, StructData, 0, NULL, GLog);
+		StructProperty->ImportText_Direct(*Term->Name, StructData, NULL, 0, GLog);
 
 		Writer << EX_StructConst;
 		Writer << LatentInfoStruct;

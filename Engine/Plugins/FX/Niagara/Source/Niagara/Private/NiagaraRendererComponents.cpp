@@ -145,7 +145,7 @@ void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uin
 				const FString* DefaultValue = SetterDefaultValues.Find(Property->GetName());
 				if (DefaultValue)
 				{
-					Property->ImportText(**DefaultValue, Property->ContainerPtrToValuePtr<uint8>(Params), PPF_None, InRuntimeObject);
+					Property->ImportText_Direct(**DefaultValue, Property->ContainerPtrToValuePtr<uint8>(Params), InRuntimeObject, PPF_None);
 				}
 				else
 				{

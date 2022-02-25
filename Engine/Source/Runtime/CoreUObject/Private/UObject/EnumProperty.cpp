@@ -250,7 +250,7 @@ FString FEnumProperty::GetCPPType(FString* ExtendedTypeText, uint32 CPPExportFla
 	return EnumName;
 }
 
-void FEnumProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
+void FEnumProperty::ExportText_Internal(FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
 	if (Enum == nullptr)
 	{
@@ -265,7 +265,19 @@ void FEnumProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue,
 
 	check(UnderlyingProp);
 
+	int64 LocalValue = 0;
+	void* PropertyValue = nullptr;
 	FNumericProperty* LocalUnderlyingProp = UnderlyingProp;
+
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		PropertyValue = &LocalValue;
+		GetValue_InContainer(PropertyValueOrContainer, PropertyValue);
+	}
+	else
+	{
+		PropertyValue = PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType);
+	}
 
 	if (PortFlags & PPF_ExportCpp)
 	{
@@ -291,7 +303,7 @@ void FEnumProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue,
 
 	if (PortFlags & PPF_ConsoleVariable)
 	{
-		UnderlyingProp->ExportTextItem(ValueStr, PropertyValue, DefaultValue, Parent, PortFlags, ExportRootScope);
+		UnderlyingProp->ExportText_Internal(ValueStr, PropertyValue, EPropertyPointerType::Direct, DefaultValue, Parent, PortFlags, ExportRootScope);
 		return;
 	}
 
@@ -320,7 +332,7 @@ void FEnumProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue,
 	}
 }
 
-const TCHAR* FEnumProperty::ImportText_Internal(const TCHAR* InBuffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText) const
+const TCHAR* FEnumProperty::ImportText_Internal(const TCHAR* InBuffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText) const
 {
 	check(Enum);
 	check(UnderlyingProp);
@@ -339,7 +351,15 @@ const TCHAR* FEnumProperty::ImportText_Internal(const TCHAR* InBuffer, void* Dat
 			}
 			if (EnumIndex != INDEX_NONE)
 			{
-				UnderlyingProp->SetIntPropertyValue(Data, Enum->GetValueByIndex(EnumIndex));
+				int64 EnumValue = Enum->GetValueByIndex(EnumIndex);
+				if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+				{
+					SetValue_InContainer(ContainerOrPropertyPtr, &EnumValue);
+				}
+				else
+				{
+					UnderlyingProp->SetIntPropertyValue(PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType), EnumValue);
+				}
 				return Buffer;
 			}
 
@@ -359,7 +379,8 @@ const TCHAR* FEnumProperty::ImportText_Internal(const TCHAR* InBuffer, void* Dat
 		}
 	}
 
-	const TCHAR* Result = UnderlyingProp->ImportText(InBuffer, Data, PortFlags, Parent, ErrorText);
+	// UnderlyingProp has a 0 offset so we need to make sure we convert the container pointer to the actual value pointer
+	const TCHAR* Result = UnderlyingProp->ImportText_Internal(InBuffer, PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType), EPropertyPointerType::Direct, Parent, PortFlags, ErrorText);
 	return Result;
 }
 

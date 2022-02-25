@@ -864,7 +864,7 @@ void UMaterialGraphSchema::GetMaterialFunctionActions(FGraphActionMenuBuilder& A
 						if (FArrayProperty* LibraryCategoriesProperty = FindFieldChecked<FArrayProperty>(UMaterialFunction::StaticClass(), TEXT("LibraryCategories")))
 						{
 							uint8* DestAddr = (uint8*)(&LibraryCategories);
-							LibraryCategoriesProperty->ImportText(*LibraryCategoriesString, DestAddr, PPF_None, NULL, GWarn);
+							LibraryCategoriesProperty->ImportText_Direct(*LibraryCategoriesString, DestAddr, NULL, PPF_None, GWarn);
 						}
 					}
 				}
@@ -875,7 +875,7 @@ void UMaterialGraphSchema::GetMaterialFunctionActions(FGraphActionMenuBuilder& A
 					{
 						FArrayProperty* LibraryCategoriesProperty = FindFieldChecked<FArrayProperty>(UMaterialFunction::StaticClass(), GET_MEMBER_NAME_CHECKED(UMaterialFunction, LibraryCategoriesText));
 						uint8* DestAddr = (uint8*)(&LibraryCategoriesText);
-						LibraryCategoriesProperty->ImportText(*LibraryCategoriesString, DestAddr, PPF_None, NULL, GWarn);
+						LibraryCategoriesProperty->ImportText_Direct(*LibraryCategoriesString, DestAddr, NULL, PPF_None, GWarn);
 					}
 
 					for (const FString& Category : LibraryCategories)

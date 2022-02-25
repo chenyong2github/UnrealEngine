@@ -293,7 +293,7 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 		FString PathString;
 		if (JsonValue->TryGetString(PathString))
 		{
-			Property->ImportText(*PathString, DataPtr, 0, Owner);
+			Property->ImportText_Direct(*PathString, DataPtr, Owner, 0);
 		}
 	}
 	else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
@@ -371,7 +371,7 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 			for (const TPair<FString, TSharedPtr<FJsonValue>>& JsonPair : (*JsonObjectValue)->Values)
 			{
 				KeyProperty->InitializeValue(TempKey.GetData());
-				KeyProperty->ImportText(*JsonPair.Key, TempKey.GetData(), 0, Owner);
+				KeyProperty->ImportText_Direct(*JsonPair.Key, TempKey.GetData(), Owner, 0);
 
 				ValueProperty->InitializeValue(TempValue.GetData());
 				ReadValue(JsonPair.Value, ValueProperty, TempValue.GetData(), Owner); 
@@ -512,7 +512,7 @@ TSharedPtr<FJsonValue> FEditorConfig::WriteValue(const FProperty* Property, cons
 	else if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 	{
 		FString ObjectPath;
-		ObjectProperty->ExportTextItem(ObjectPath, DataPtr, nullptr, nullptr, PPF_None, nullptr);
+		ObjectProperty->ExportTextItem_Direct(ObjectPath, DataPtr, nullptr, nullptr, PPF_None, nullptr);
 		ResultValue = MakeShared<FJsonValueString>(ObjectPath);
 	}
 	else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))

@@ -1440,6 +1440,11 @@ public:
 	 */
 	uint8* GetPropertyDefaultAddress() const { return PropertyDefaultAddress; }
 
+	/**
+	 * @return The address of the property's owner object.
+	 */
+	uint8* GetPropertyRootAddress() const { return PropertyValueRoot.ValueAddress; }
+
 private:
 		/**
 	 * Determines whether the property bound to this struct exists in the owning object's archetype.
@@ -2077,7 +2082,7 @@ FString FPropertyNode::GetDefaultValueAsStringForObject( FPropertyItemValueDataT
 			else
 			{
 				// Port flags will cause enums to display correctly
-				InProperty->ExportTextItem( DefaultValue, ValueTracker.GetPropertyDefaultAddress(), ValueTracker.GetPropertyDefaultAddress(), nullptr, PortFlags, nullptr );
+				InProperty->ExportTextItem_InContainer( DefaultValue, ValueTracker.GetPropertyRootAddress(), ValueTracker.GetPropertyDefaultAddress(), nullptr, PortFlags, nullptr );
 			}
 		}
 	}
@@ -3329,15 +3334,15 @@ void FPropertyNode::PropagatePropertyChange( UObject* ModifiedObject, const TCHA
 					// This ensures that shared state keeps the correct value, even if the destination property itself isn't imported (or only partly imported, as is the case with arrays/maps/sets)
 					FString CurrentValue;
 					ComplexProperty->ExportText_Direct(CurrentValue, ModifiedComplexPropAddr, ModifiedComplexPropAddr, ModifiedObject, PPF_None);
-					ComplexProperty->ImportText(*PreviousValue, TempComplexPropAddr, PPF_None, ModifiedObject);
+					ComplexProperty->ImportText_Direct(*PreviousValue, TempComplexPropAddr, ModifiedObject, PPF_None);
 					bShouldImport = ComplexProperty->Identical(DestComplexPropAddr, TempComplexPropAddr, PPF_DeepComparison);
-					ComplexProperty->ImportText(*CurrentValue, TempComplexPropAddr, PPF_None, ModifiedObject);
+					ComplexProperty->ImportText_Direct(*CurrentValue, TempComplexPropAddr, ModifiedObject, PPF_None);
 				}
 
 				// Only import if the value matches the previous value of the property that changed
 				if (bShouldImport)
 				{
-					Prop->ImportText(NewValue, DestSimplePropAddr, PPF_InstanceSubobjects, ActualObjToChange);
+					Prop->ImportText_Direct(NewValue, DestSimplePropAddr, ActualObjToChange, PPF_InstanceSubobjects);
 				}
 			}
 		}

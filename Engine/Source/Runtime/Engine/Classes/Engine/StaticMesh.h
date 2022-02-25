@@ -625,12 +625,12 @@ public:
 private:
 	/** Imported raw mesh bulk data. */
 	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
-	UPROPERTY()
+	UPROPERTY(Setter = None, Getter = None)
 	TArray<FStaticMeshSourceModel> SourceModels;
 
 	/** Optional hi-res source data */
 	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
-	UPROPERTY()
+	UPROPERTY(Setter = None, Getter = None)
 	FStaticMeshSourceModel HiResSourceModel;
 
 	void SetLightmapUVVersion(int32 InLightmapUVVersion)

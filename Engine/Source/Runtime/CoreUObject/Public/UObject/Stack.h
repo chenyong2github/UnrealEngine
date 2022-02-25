@@ -94,6 +94,7 @@ public:
 
 	FProperty* MostRecentProperty;
 	uint8* MostRecentPropertyAddress;
+	uint8* MostRecentPropertyContainer;
 
 	/** The execution flow stack for compiled Kismet code */
 	FlowStackType FlowStack;
@@ -224,12 +225,13 @@ inline FFrame::FFrame( UObject* InObject, UFunction* InNode, void* InLocals, FFr
 	, Object(InObject)
 	, Code(InNode->Script.GetData())
 	, Locals((uint8*)InLocals)
-	, MostRecentProperty(NULL)
-	, MostRecentPropertyAddress(NULL)
+	, MostRecentProperty(nullptr)
+	, MostRecentPropertyAddress(nullptr)
+	, MostRecentPropertyContainer(nullptr)
 	, PreviousFrame(InPreviousFrame)
 	, OutParms(NULL)
 	, PropertyChainForCompiledIn(InPropertyChainForCompiledIn)
-	, CurrentNativeFunction(NULL)
+	, CurrentNativeFunction(nullptr)
 	, bArrayContextFailed(false)
 #if PER_FUNCTION_SCRIPT_STATS
 	, DepthCounter(0)
@@ -379,7 +381,8 @@ FORCEINLINE_DEBUGGABLE void FFrame::StepCompiledIn(void* Result, const FFieldCla
 template<class TProperty, typename TNativeType>
 FORCEINLINE_DEBUGGABLE TNativeType& FFrame::StepCompiledInRef(void*const TemporaryBuffer)
 {
-	MostRecentPropertyAddress = NULL;
+	MostRecentPropertyAddress = nullptr;
+	MostRecentPropertyContainer = nullptr;
 
 	if (Code)
 	{

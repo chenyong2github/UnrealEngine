@@ -1893,7 +1893,7 @@ void FWidgetBlueprintEditorUtils::ImportPropertiesFromText(UObject* Object, cons
 				PropertyChain.AddHead(Property);
 				Object->PreEditChange(PropertyChain);
 
-				Property->ImportText(*Entry.Value, Property->ContainerPtrToValuePtr<uint8>(Object), 0, Object);
+				Property->ImportText_InContainer(*Entry.Value, Object, Object, 0);
 
 				FPropertyChangedEvent ChangedEvent(Property);
 				Object->PostEditChangeProperty(ChangedEvent);

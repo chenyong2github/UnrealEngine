@@ -535,7 +535,7 @@ struct ENGINE_API FDataTableCategoryHandle
 		// check each row to see if the value in the Property element is the one we're looking for (RowContents). If it is, add the row to OutRows
 		uint8* RowContentsAsBinary = (uint8*)FMemory_Alloca(Property->GetSize());
 		Property->InitializeValue(RowContentsAsBinary);
-		if (Property->ImportText(*RowContents.ToString(), RowContentsAsBinary, PPF_None, nullptr) == nullptr)
+		if (Property->ImportText_Direct(*RowContents.ToString(), RowContentsAsBinary, nullptr, PPF_None) == nullptr)
 		{
 			Property->DestroyValue(RowContentsAsBinary);
 			return;

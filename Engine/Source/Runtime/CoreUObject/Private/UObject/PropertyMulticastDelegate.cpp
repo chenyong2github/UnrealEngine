@@ -184,7 +184,7 @@ FString FMulticastDelegateProperty::GetCPPTypeForwardDeclaration() const
 }
 
 
-void FMulticastDelegateProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FMulticastDelegateProperty::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
 	if (0 != (PortFlags & PPF_ExportCpp))
 	{
@@ -192,13 +192,24 @@ void FMulticastDelegateProperty::ExportTextItem( FString& ValueStr, const void* 
 		return;
 	}
 
-	const FMulticastScriptDelegate::FInvocationList& InvocationList = GetInvocationList(PropertyValue);
+	const FMulticastScriptDelegate::FInvocationList* InvocationList = nullptr;
+	
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		FMulticastScriptDelegate Delegate;
+		GetValue_InContainer(PropertyValueOrContainer, &Delegate);
+		InvocationList = &GetInvocationList(&Delegate);
+	}
+	else
+	{
+		InvocationList = &GetInvocationList(PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType));
+	}
 
 	// Start delegate array with open paren
 	ValueStr += TEXT( "(" );
 
 	bool bIsFirstFunction = true;
-	for (FMulticastScriptDelegate::FInvocationList::TConstIterator CurInvocation(InvocationList); CurInvocation; ++CurInvocation)
+	for (FMulticastScriptDelegate::FInvocationList::TConstIterator CurInvocation(*InvocationList); CurInvocation; ++CurInvocation)
 	{
 		if (CurInvocation->IsBound())
 		{
@@ -406,10 +417,24 @@ void FMulticastInlineDelegateProperty::SerializeItem(FStructuredArchive::FSlot S
 	Ar << *GetPropertyValuePtr(Value);
 }
 
-const TCHAR* FMulticastInlineDelegateProperty::ImportText_Internal(const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText) const
+const TCHAR* FMulticastInlineDelegateProperty::ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText) const
 {
-	FMulticastScriptDelegate& MulticastDelegate = (*(FMulticastScriptDelegate*)PropertyValue);
-	return ImportDelegateFromText(MulticastDelegate, Buffer, Parent, ErrorText);
+	const TCHAR* Result = nullptr;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+	{
+		FMulticastScriptDelegate MulticastDelegate;		
+		Result = ImportDelegateFromText(MulticastDelegate, Buffer, Parent, ErrorText);
+		if (Result)
+		{
+			SetValue_InContainer(ContainerOrPropertyPtr, MulticastDelegate);
+		}
+	}
+	else
+	{
+		FMulticastScriptDelegate& MulticastDelegate = *(FMulticastScriptDelegate*)PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
+		Result = ImportDelegateFromText(MulticastDelegate, Buffer, Parent, ErrorText);
+	}
+	return Result;	
 }
 
 void ResolveDelegateReference(const FMulticastInlineDelegateProperty* InlineProperty, UObject*& Parent, void*& PropertyValue)
@@ -559,25 +584,32 @@ void FMulticastSparseDelegateProperty::SerializeItemInternal(FArchive& Ar, void*
 	}
 }
 
-const TCHAR* FMulticastSparseDelegateProperty::ImportText_Internal(const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText) const
+const TCHAR* FMulticastSparseDelegateProperty::ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText) const
 {
 	FMulticastScriptDelegate Delegate;
 	const TCHAR* Result = ImportDelegateFromText(Delegate, Buffer, Parent, ErrorText);
 
 	if (Result)
 	{
-		FSparseDelegate& SparseDelegate = *(FSparseDelegate*)PropertyValue;
-		USparseDelegateFunction* SparseDelegateFunc = CastChecked<USparseDelegateFunction>(SignatureFunction);
-
-		if (Delegate.IsBound())
+		if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
 		{
-			FSparseDelegateStorage::SetMulticastDelegate(Parent, SparseDelegateFunc->DelegateName, MoveTemp(Delegate));
-			SparseDelegate.bIsBound = true;
+			FProperty::SetValue_InContainer(ContainerOrPropertyPtr, &Delegate);
 		}
 		else
 		{
-			FSparseDelegateStorage::Clear(Parent, SparseDelegateFunc->DelegateName);
-			SparseDelegate.bIsBound = false;
+			FSparseDelegate& SparseDelegate = *(FSparseDelegate*)PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
+			USparseDelegateFunction* SparseDelegateFunc = CastChecked<USparseDelegateFunction>(SignatureFunction);
+
+			if (Delegate.IsBound())
+			{
+				FSparseDelegateStorage::SetMulticastDelegate(Parent, SparseDelegateFunc->DelegateName, MoveTemp(Delegate));
+				SparseDelegate.bIsBound = true;
+			}
+			else
+			{
+				FSparseDelegateStorage::Clear(Parent, SparseDelegateFunc->DelegateName);
+				SparseDelegate.bIsBound = false;
+			}
 		}
 	}
 

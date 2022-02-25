@@ -87,9 +87,18 @@ void FFieldPathProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Val
 	Slot << *FieldPtr;
 }
 
-void FFieldPathProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FFieldPathProperty::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
-	const FFieldPath& Value = GetPropertyValue(PropertyValue);
+	FFieldPath Value;
+	
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		GetValue_InContainer(PropertyValueOrContainer, &Value);
+	}
+	else
+	{
+		Value = GetPropertyValue(PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType));
+	}
 
 	if (PortFlags & PPF_ExportCpp)
 	{
@@ -116,11 +125,10 @@ void FFieldPathProperty::ExportTextItem( FString& ValueStr, const void* Property
 	}
 }
 
-const TCHAR* FFieldPathProperty::ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FFieldPathProperty::ImportText_Internal( const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText ) const
 {
 	check(Buffer);
-	FFieldPath* PathPtr = GetPropertyValuePtr(Data);
-	check(PathPtr);
+	FFieldPath ImportedPath;
 	FString PathName;
 
 	if (!(PortFlags & PPF_Delimited))
@@ -157,8 +165,17 @@ const TCHAR* FFieldPathProperty::ImportText_Internal( const TCHAR* Buffer, void*
 			}
 			PathName = MoveTemp(UnquotedPathName);
 		}
-		PathPtr->Generate(*PathName);
-	}
+		ImportedPath.Generate(*PathName);
+		if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+		{
+			SetValue_InContainer(ContainerOrPropertyPtr, ImportedPath);
+		}
+		else
+		{
+			FFieldPath* PathPtr = GetPropertyValuePtr(PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType));
+			*PathPtr = ImportedPath;
+		}
+	}	
 
 	return Buffer;
 }

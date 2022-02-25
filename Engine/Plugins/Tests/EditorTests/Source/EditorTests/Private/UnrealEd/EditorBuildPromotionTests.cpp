@@ -382,7 +382,7 @@ namespace EditorBuildPromotionTestUtils
 		{
 			FString ValueString;
 			const uint8* PropertyAddr = FoundProperty->ContainerPtrToValuePtr<uint8>(TargetObject);
-			FoundProperty->ExportTextItem(ValueString, PropertyAddr, NULL, NULL, PPF_None);
+			FoundProperty->ExportTextItem_Direct(ValueString, PropertyAddr, NULL, NULL, PPF_None);
 			return ValueString;
 		}
 		return TEXT("");

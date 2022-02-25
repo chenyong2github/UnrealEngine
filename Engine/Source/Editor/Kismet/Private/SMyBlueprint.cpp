@@ -3357,7 +3357,7 @@ void SMyBlueprint::OnMoveToParent()
 						{
 							// If there is a property for variable, it means the original default value was already copied, so it can be safely overridden
 							VarDesc.DefaultValue.Empty();
-							TargetProperty->ExportTextItem(VarDesc.DefaultValue, OldPropertyAddr, OldPropertyAddr, nullptr, PPF_SerializedAsImportText);
+							TargetProperty->ExportTextItem_Direct(VarDesc.DefaultValue, OldPropertyAddr, OldPropertyAddr, nullptr, PPF_SerializedAsImportText);
 						}
 					}
 				}
@@ -3449,7 +3449,7 @@ void SMyBlueprint::OnCopy()
 				void* OldPropertyAddr = TargetProperty->ContainerPtrToValuePtr<void>(GeneratedCDO);
 				if (OldPropertyAddr)
 				{
-					TargetProperty->ExportTextItem(Description.DefaultValue, OldPropertyAddr, OldPropertyAddr, nullptr, PPF_SerializedAsImportText);
+					TargetProperty->ExportTextItem_Direct(Description.DefaultValue, OldPropertyAddr, OldPropertyAddr, nullptr, PPF_SerializedAsImportText);
 				}
 			}
 

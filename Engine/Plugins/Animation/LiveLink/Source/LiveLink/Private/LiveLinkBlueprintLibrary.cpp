@@ -374,6 +374,7 @@ DEFINE_FUNCTION(ULiveLinkBlueprintLibrary::execEvaluateLiveLinkFrame)
 	P_GET_STRUCT(FLiveLinkSubjectRepresentation, SubjectRepresentation);
 
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(NULL);
 	void* OutBlueprintDataPtr = Stack.MostRecentPropertyAddress;
 	FStructProperty* BlueprintDataStructProp = CastField<FStructProperty>(Stack.MostRecentProperty);
@@ -392,6 +393,7 @@ DEFINE_FUNCTION(ULiveLinkBlueprintLibrary::execEvaluateLiveLinkFrameWithSpecific
 	Stack.StepCompiledIn<FClassProperty>(&RoleClass);
 
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(NULL);
 	void* OutBlueprintDataPtr = Stack.MostRecentPropertyAddress;
 	FStructProperty* BlueprintDataStructProp = CastField<FStructProperty>(Stack.MostRecentProperty);
@@ -414,6 +416,7 @@ DEFINE_FUNCTION(ULiveLinkBlueprintLibrary::execEvaluateLiveLinkFrameAtWorldTimeO
 	Stack.StepCompiledIn<FFloatProperty>(&WorldTimeOffset);
 
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(NULL);
 	void* OutBlueprintDataPtr = Stack.MostRecentPropertyAddress;
 	FStructProperty* BlueprintDataStructProp = CastField<FStructProperty>(Stack.MostRecentProperty);
@@ -433,6 +436,7 @@ DEFINE_FUNCTION(ULiveLinkBlueprintLibrary::execEvaluateLiveLinkFrameAtSceneTime)
 	P_GET_STRUCT(FTimecode, SceneTime);
 
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(NULL);
 	void* OutBlueprintDataPtr = Stack.MostRecentPropertyAddress;
 	FStructProperty* BlueprintDataStructProp = CastField<FStructProperty>(Stack.MostRecentProperty);

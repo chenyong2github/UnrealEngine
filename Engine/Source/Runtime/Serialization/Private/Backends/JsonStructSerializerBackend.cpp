@@ -19,7 +19,7 @@ void FJsonStructSerializerBackend::BeginArray(const FStructSerializerState& Stat
 	else if (State.KeyProperty != nullptr)
 	{
 		FString KeyString;
-		State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+		State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 		JsonWriter->WriteArrayStart(KeyString);
 	}
 	else
@@ -44,7 +44,7 @@ void FJsonStructSerializerBackend::BeginStructure(const FStructSerializerState& 
 		else if (State.KeyProperty != nullptr)
 		{
 			FString KeyString;
-			State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+			State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 			JsonWriter->WriteObjectStart(KeyString);
 		}
 		else

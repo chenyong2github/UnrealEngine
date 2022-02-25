@@ -461,7 +461,7 @@ FString FArrayProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
 	ExtendedTypeText = Inner->GetCPPType();
 	return TEXT("TARRAY");
 }
-void FArrayProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FArrayProperty::ExportText_Internal( FString& ValueStr, const void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
 	checkSlow(Inner);
 
@@ -473,7 +473,34 @@ void FArrayProperty::ExportTextItem( FString& ValueStr, const void* PropertyValu
 		return;
 	}
 
-	FScriptArrayHelper ArrayHelper(this, PropertyValue);
+	uint8* TempArrayStorage = nullptr;
+	void* PropertyValuePtr = nullptr;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		// Allocate temporary map as we first need to initialize it with the value provided by the getter function and then export it
+		TempArrayStorage = (uint8*)FMemory::MallocZeroed(GetSize());
+		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
+		{
+			InitializeValue(TempArrayStorage);
+		}
+		PropertyValuePtr = TempArrayStorage;
+		FProperty::GetValue_InContainer(ContainerOrPropertyPtr, PropertyValuePtr);
+	}
+	else
+	{
+		PropertyValuePtr = PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
+	}
+
+	ON_SCOPE_EXIT
+	{
+		if (TempArrayStorage)
+		{
+			DestroyValue(TempArrayStorage);
+			FMemory::Free(TempArrayStorage);
+		}
+	};
+
+	FScriptArrayHelper ArrayHelper(this, PropertyValuePtr);
 
 	int32 DefaultSize = 0;
 	if (DefaultValue)
@@ -551,7 +578,7 @@ void FArrayProperty::ExportTextInnerItem(FString& ValueStr, const FProperty* Inn
 			}
 		}
 
-		Inner->ExportTextItem( ValueStr, PropData, PropDefault, Parent, PortFlags|PPF_Delimited, ExportRootScope );
+		Inner->ExportTextItem_Direct( ValueStr, PropData, PropDefault, Parent, PortFlags|PPF_Delimited, ExportRootScope );
 	}
 
 	if ((Count > 0) && !bReadableForm)
@@ -565,11 +592,39 @@ void FArrayProperty::ExportTextInnerItem(FString& ValueStr, const FProperty* Inn
 	}
 }
 
-const TCHAR* FArrayProperty::ImportText_Internal(const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* OwnerObject, FOutputDevice* ErrorText) const
+const TCHAR* FArrayProperty::ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* OwnerObject, int32 PortFlags, FOutputDevice* ErrorText) const
 {
-	FScriptArrayHelper ArrayHelper(this, Data);
+	uint8* TempArrayStorage = nullptr;
+	ON_SCOPE_EXIT
+	{
+		if (TempArrayStorage)
+		{
+			// TempArrayStorage is used by property setter so if it was allocated call the setter now
+			FProperty::SetValue_InContainer(ContainerOrPropertyPtr, TempArrayStorage);
 
-	return ImportTextInnerItem(Buffer, Inner, Data, PortFlags, OwnerObject, &ArrayHelper, ErrorText);
+			// Destroy and free the temp array used by property setter
+			DestroyValue(TempArrayStorage);
+			FMemory::Free(TempArrayStorage);
+		}
+	};
+
+	void* ArrayPtr = nullptr;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+	{
+		// Allocate temporary map as we first need to initialize it with the parsed items and then use the setter to update the property
+		TempArrayStorage = (uint8*)FMemory::MallocZeroed(GetSize());
+		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
+		{
+			InitializeValue(TempArrayStorage);
+		}
+	}
+	else
+	{
+		ArrayPtr = PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
+	}
+
+	FScriptArrayHelper ArrayHelper(this, ArrayPtr);
+	return ImportTextInnerItem(Buffer, Inner, ArrayPtr, PortFlags, OwnerObject, &ArrayHelper, ErrorText);
 }
 
 const TCHAR* FArrayProperty::ImportTextInnerItem( const TCHAR* Buffer, const FProperty* Inner, void* Data, int32 PortFlags, UObject* Parent, FScriptArrayHelper* ArrayHelper, FOutputDevice* ErrorText )
@@ -609,7 +664,8 @@ const TCHAR* FArrayProperty::ImportTextInnerItem( const TCHAR* Buffer, const FPr
 		{
 			uint8* Address = ArrayHelper ? ArrayHelper->GetRawPtr(Index) : ((uint8*)Data + Inner->ElementSize * Index);
 			// Parse the item
-			Buffer = Inner->ImportText(Buffer, Address, PortFlags | PPF_Delimited, Parent, ErrorText);
+			check(Inner->GetOffset_ForInternal() == 0);
+			Buffer = Inner->ImportText_Direct(Buffer, Address, Parent, PortFlags | PPF_Delimited, ErrorText);
 
 			if(!Buffer)
 			{

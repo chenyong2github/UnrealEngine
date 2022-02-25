@@ -728,13 +728,12 @@ void FConcertLogger::LogEntry(FConcertLog& Log)
 		}
 
 		// Skip exporting the MessageOrderIndex value for unreliable messages as they add a lot of noise to the log
-		const void* PropertyValuePtr = PropertyIt->ContainerPtrToValuePtr<void>(&Log);
 		const bool bExportValue = bIsReliable || PropertyIt->GetFName() != MessageOrderIndexPropertyName;
 
 		FString PropertyValue;
 		if (bExportValue)
 		{
-			PropertyIt->ExportTextItem(PropertyValue, PropertyValuePtr, nullptr, nullptr, PPF_None);
+			PropertyIt->ExportTextItem_InContainer(PropertyValue, &Log, nullptr, nullptr, PPF_None);
 		}
 		PropertyValue.ReplaceInline(TEXT("\""), TEXT("\"\""));
 

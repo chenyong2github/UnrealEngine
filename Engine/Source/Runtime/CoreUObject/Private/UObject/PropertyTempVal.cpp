@@ -29,5 +29,5 @@ void FPropertyTempVal::Serialize(FArchive& Ar, const void* Defaults)
 
 void FPropertyTempVal::ExportText(FString& ValueStr, const void* Defaults, UObject* Parent, int32 PortFlags, UObject* ExportRootScope)
 {
-	Prop->ExportTextItem(ValueStr, Value, Defaults, Parent, PortFlags, ExportRootScope);
+	Prop->ExportTextItem_Direct(ValueStr, Value, Defaults, Parent, PortFlags, ExportRootScope);
 }

@@ -190,7 +190,7 @@ bool UStatePerObjectConfig::LoadStructConfig(FStructOnScope& OutStruct, const TC
 					{
 						if (CurProp->HasAllPropertyFlags(CPF_Config))
 						{
-							CurProp->ImportText(*Value, CurProp->ContainerPtrToValuePtr<void>(OutStruct.GetStructMemory()), 0, nullptr);
+							CurProp->ImportText_InContainer(*Value, OutStruct.GetStructMemory(), nullptr, 0);
 						}
 						else
 						{
@@ -230,9 +230,7 @@ void UStatePerObjectConfig::DebugDump() const
 		for (TFieldIterator<FProperty> It(GetClass()); It; ++It)
 		{
 			FString TextValue;
-			const uint8* PropAddr = It->ContainerPtrToValuePtr<uint8>(this);
-
-			It->ExportTextItem(TextValue, PropAddr, nullptr, nullptr, PPF_DebugDump, nullptr);
+			It->ExportTextItem_InContainer(TextValue, this, nullptr, nullptr, PPF_DebugDump, nullptr);
 
 			UE_LOG(LogNetCore, Log, TEXT(" - %s: %s"), ToCStr(It->GetName()), ToCStr(TextValue));
 		}
@@ -268,9 +266,7 @@ void UStatePerObjectConfig::DebugDump() const
 					if (It->GetName() != TEXT("StateName"))
 					{
 						FString TextValue;
-						const uint8* PropAddr = It->ContainerPtrToValuePtr<uint8>(CurStateConfig.Get());
-
-						It->ExportTextItem(TextValue, PropAddr, nullptr, nullptr, PPF_DebugDump, nullptr);
+						It->ExportTextItem_InContainer(TextValue, CurStateConfig.Get(), nullptr, nullptr, PPF_DebugDump, nullptr);
 
 						UE_LOG(LogNetCore, Log, TEXT("   - %s: %s"), ToCStr(It->GetName()), ToCStr(TextValue));
 					}

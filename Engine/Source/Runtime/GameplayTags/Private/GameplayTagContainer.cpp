@@ -1642,7 +1642,7 @@ FString UEditableGameplayTagQuery::GetTagQueryExportText(FGameplayTagQuery const
 	FProperty* const TQProperty = FindFProperty<FProperty>(GetClass(), TEXT("TagQueryExportText_Helper"));
 
 	FString OutString;
-	TQProperty->ExportTextItem(OutString, (void*)&TagQueryExportText_Helper, (void*)&TagQueryExportText_Helper, this, 0);
+	TQProperty->ExportTextItem_Direct(OutString, (void*)&TagQueryExportText_Helper, (void*)&TagQueryExportText_Helper, this, 0);
 	return OutString;
 }
 

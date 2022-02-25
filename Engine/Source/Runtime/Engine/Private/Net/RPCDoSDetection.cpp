@@ -235,7 +235,7 @@ bool FRPCDoSStateConfig::LoadStructConfig(const TCHAR* SectionName, const TCHAR*
 				{
 					if (CurProp->HasAllPropertyFlags(CPF_Config))
 					{
-						CurProp->ImportText(*Value, CurProp->ContainerPtrToValuePtr<void>(this), 0, nullptr);
+						CurProp->ImportText_InContainer(*Value, this, nullptr, 0);
 					}
 					else
 					{

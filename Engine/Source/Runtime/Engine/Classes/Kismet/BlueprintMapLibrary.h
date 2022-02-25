@@ -136,7 +136,8 @@ public:
 		void* KeyStorageSpace = FMemory_Alloca(KeyPropertySize);
 		CurrKeyProp->InitializeValue(KeyStorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(KeyStorageSpace);
 		
 		const FProperty* CurrValueProp = MapProperty->ValueProp;
@@ -144,7 +145,8 @@ public:
 		void* ValueStorageSpace = FMemory_Alloca(ValuePropertySize);
 		CurrValueProp->InitializeValue(ValueStorageSpace);
 		
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(ValueStorageSpace);
 
 		P_FINISH;
@@ -175,7 +177,8 @@ public:
 		void* KeyStorageSpace = FMemory_Alloca(KeyPropertySize);
 		CurrKeyProp->InitializeValue(KeyStorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(KeyStorageSpace);
 		
 		P_FINISH;
@@ -204,7 +207,8 @@ public:
 		void* KeyStorageSpace = FMemory_Alloca(KeyPropertySize);
 		CurrKeyProp->InitializeValue(KeyStorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(KeyStorageSpace);
 		
 		const FProperty* CurrValueProp = MapProperty->ValueProp;
@@ -212,7 +216,8 @@ public:
 		void* ValueStorageSpace = FMemory_Alloca(ValuePropertySize);
 		CurrValueProp->InitializeValue(ValueStorageSpace);
 		
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(ValueStorageSpace);
 		const FFieldClass* CurrValuePropClass = CurrValueProp->GetClass();
 		const FFieldClass* MostRecentPropClass = Stack.MostRecentProperty->GetClass();
@@ -312,7 +317,8 @@ public:
 		void* KeyStorageSpace = FMemory_Alloca(KeyPropertySize);
 		CurrKeyProp->InitializeValue(KeyStorageSpace);
 
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		Stack.StepCompiledIn<FProperty>(KeyStorageSpace);
 
 		P_FINISH;

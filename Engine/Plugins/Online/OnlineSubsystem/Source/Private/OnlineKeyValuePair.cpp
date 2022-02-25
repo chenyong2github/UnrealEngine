@@ -1476,7 +1476,7 @@ bool FVariantDataConverter::ConvertScalarVariantToFProperty(const FVariantData* 
 				if (!TheCppStructOps->ImportTextItem(ImportTextPtr, OutValue, PPF_None, nullptr, (FOutputDevice*)GWarn))
 				{
 					// Fall back to trying the tagged property approach if custom ImportTextItem couldn't get it done
-					Property->ImportText(ImportTextPtr, OutValue, PPF_None, nullptr);
+					Property->ImportText_Direct(ImportTextPtr, OutValue, nullptr, PPF_None);
 				}
 			}
 			else
@@ -1505,7 +1505,7 @@ bool FVariantDataConverter::ConvertScalarVariantToFProperty(const FVariantData* 
 		{
 			FString StrValue;
 			Variant->GetValue(StrValue);
-			if (Property->ImportText(*StrValue, OutValue, 0, nullptr) == nullptr)
+			if (Property->ImportText_Direct(*StrValue, OutValue, nullptr, 0) == nullptr)
 			{
 				UE_LOG_ONLINE(Error, TEXT("ConvertScalarVariantToFProperty - Unable import property type %s from string value for property %s"), *Property->GetClass()->GetName(), *Property->GetNameCPP());
 				return false;
@@ -1670,7 +1670,7 @@ bool FVariantDataConverter::ConvertScalarFPropertyToVariant(FProperty* Property,
 	{
 		// Default to export as string for everything else
 		FString StringValue;
-		Property->ExportTextItem(StringValue, Value, nullptr, nullptr, PPF_None);
+		Property->ExportTextItem_Direct(StringValue, Value, nullptr, nullptr, PPF_None);
 		OutVariantData.SetValue(StringValue);
 	}
 

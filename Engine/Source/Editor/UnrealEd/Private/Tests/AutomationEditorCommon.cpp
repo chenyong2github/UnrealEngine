@@ -243,7 +243,7 @@ void FAutomationEditorCommonUtils::ApplyCustomFactorySetting(UObject* InObject, 
 	{
 		if (PropertyChain.Num() == 0)
 		{
-			TargetProperty->ImportText(*Value, TargetProperty->ContainerPtrToValuePtr<uint8>(InObject), 0, InObject);
+			TargetProperty->ImportText_InContainer(*Value, InObject, InObject, 0);
 		}
 		else
 		{

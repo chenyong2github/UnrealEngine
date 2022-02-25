@@ -1884,7 +1884,7 @@ static void GetAssetRegistryTagFromProperty(const void* BaseMemoryLocation, cons
 		else
 		{
 			FString PropertyStr;
-			Prop->ExportTextItem(PropertyStr, Bundles, Bundles, nullptr, PPF_None);
+			Prop->ExportTextItem_Direct(PropertyStr, Bundles, Bundles, nullptr, PPF_None);
 			OutTags.Add(UObject::FAssetRegistryTag(GAssetBundleDataName, MoveTemp(PropertyStr), UObject::FAssetRegistryTag::ETagType::TT_Alphabetical));
 		}
 	}
@@ -1926,7 +1926,7 @@ static void GetAssetRegistryTagFromProperty(const void* BaseMemoryLocation, cons
 
 		FString PropertyStr;
 		const uint8* PropertyAddr = Prop->ContainerPtrToValuePtr<uint8>(BaseMemoryLocation);
-		Prop->ExportTextItem(PropertyStr, PropertyAddr, PropertyAddr, nullptr, PPF_None);
+		Prop->ExportTextItem_Direct(PropertyStr, PropertyAddr, PropertyAddr, nullptr, PPF_None);
 
 		OutTags.Add(UObject::FAssetRegistryTag(Prop->GetFName(), MoveTemp(PropertyStr), TagType));
 	}
@@ -2504,7 +2504,7 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 
 				if (bFoundValue)
 				{
-					if (Property->ImportText(*Value, Property->ContainerPtrToValuePtr<uint8>(this, i), PortFlags, this) == NULL)
+					if (Property->ImportText_Direct(*Value, Property->ContainerPtrToValuePtr<uint8>(this, i), this, PortFlags) == NULL)
 					{
 						// this should be an error as the properties from the .ini / .int file are not correctly being read in and probably are affecting things in subtle ways
 						UE_LOG(LogObj, Error, TEXT("LoadConfig (%s): import failed for %s in: %s"), *GetPathName(), *Property->GetName(), *Value);
@@ -2553,7 +2553,7 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 					ArrayHelper.EmptyAndAddValues(List.Num());
 					for( int32 i=List.Num()-1,c=0; i>=0; i--,c++ )
 					{
-						Array->Inner->ImportText( *List[i].GetValue(), ArrayHelper.GetRawPtr(c), PortFlags, this );
+						Array->Inner->ImportText_Direct( *List[i].GetValue(), ArrayHelper.GetRawPtr(c), this, PortFlags );
 					}
 				}
 				else
@@ -2578,7 +2578,7 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 						{
 							// expand the array if necessary so that Index is a valid element
 							ArrayHelper.ExpandForIndex(Index);
-							Array->Inner->ImportText(*ElementValue->GetValue(), ArrayHelper.GetRawPtr(Index), PortFlags, this);
+							Array->Inner->ImportText_Direct(*ElementValue->GetValue(), ArrayHelper.GetRawPtr(Index), this, PortFlags);
 						}
 
 						Index++;
@@ -2719,7 +2719,7 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 					for( int32 i=0; i<ArrayHelper.Num(); i++ )
 					{
 						FString	Buffer;
-						Array->Inner->ExportTextItem( Buffer, ArrayHelper.GetRawPtr(i), ArrayHelper.GetRawPtr(i), this, PortFlags );
+						Array->Inner->ExportTextItem_Direct( Buffer, ArrayHelper.GetRawPtr(i), ArrayHelper.GetRawPtr(i), this, PortFlags );
 						Sec->Add(*CompleteKey, *Buffer);
 					}
 				}
@@ -3216,7 +3216,7 @@ void UObject::ParseParms( const TCHAR* Parms )
 			FString Value;
 			if( FParse::Value(Parms,*(FString(*It->GetName())+TEXT("=")),Value) )
 			{
-				It->ImportText( *Value, It->ContainerPtrToValuePtr<uint8>(this), 0, this );
+				It->ImportText_InContainer( *Value, this, this, 0 );
 			}
 		}
 	}
@@ -3360,7 +3360,7 @@ static void PerformSetCommand( const TCHAR* Str, FOutputDevice& Ar, bool bNotify
 						Object->PreEditChange(Property);
 					}
 #endif // WITH_EDITOR
-					Property->ImportText(Str, Property->ContainerPtrToValuePtr<uint8>(Object), 0, Object);
+					Property->ImportText_InContainer(Str, Object, Object, 0);
 #if WITH_EDITOR
 					if (!Object->HasAnyFlags(RF_ClassDefaultObject) && bNotifyObjectOfChange)
 					{
@@ -3778,7 +3778,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 									{
 										FString ResultStr;
 										uint8* ElementData = BaseData + ArrayIndex * ElementSize;
-										ExportProperty->ExportTextItem(ResultStr, ElementData, NULL, CurrentObject, PPF_IncludeTransient);
+										ExportProperty->ExportTextItem_Direct(ResultStr, ElementData, NULL, CurrentObject, PPF_IncludeTransient);
 
 										if (bShowDetailedInfo)
 										{

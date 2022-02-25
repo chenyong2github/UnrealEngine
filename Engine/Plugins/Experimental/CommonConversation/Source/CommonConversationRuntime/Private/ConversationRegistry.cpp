@@ -416,7 +416,7 @@ void UConversationRegistry::BuildDependenciesGraph()
 			TArray<FConversationEntryList> EntryTags;
 
 			FArrayProperty* ArrayProperty = FindFProperty<FArrayProperty>(UConversationDatabase::StaticClass(), GET_MEMBER_NAME_CHECKED(UConversationDatabase, EntryTags));
-			ArrayProperty->ImportText(*EntryTagsString, &EntryTags, 0, nullptr);
+			ArrayProperty->ImportText_Direct(*EntryTagsString, &EntryTags, nullptr, 0);
 
 			for (const FConversationEntryList& Entry : EntryTags)
 			{
@@ -431,7 +431,7 @@ void UConversationRegistry::BuildDependenciesGraph()
 			TArray<FGuid> NodeIds;
 
 			FArrayProperty* ArrayProperty = FindFProperty<FArrayProperty>(UConversationDatabase::StaticClass(), GET_MEMBER_NAME_CHECKED(UConversationDatabase, InternalNodeIds));
-			ArrayProperty->ImportText(*InternalNodeIds, &NodeIds, 0, nullptr);
+			ArrayProperty->ImportText_Direct(*InternalNodeIds, &NodeIds, nullptr, 0);
 
 			for (FGuid& NodeId : NodeIds)
 			{
@@ -468,7 +468,7 @@ void UConversationRegistry::BuildDependenciesGraph()
 			TArray<FGuid> NodeIds;
 
 			FArrayProperty* ArrayProperty = FindFProperty<FArrayProperty>(UConversationDatabase::StaticClass(), GET_MEMBER_NAME_CHECKED(UConversationDatabase, LinkedToNodeIds));
-			ArrayProperty->ImportText(*LinkedToNodeIds, &NodeIds, 0, nullptr);
+			ArrayProperty->ImportText_Direct(*LinkedToNodeIds, &NodeIds, nullptr, 0);
 
 			//@TODO: CONVERSATION: Register that we need to link to other graphs here.
 		}

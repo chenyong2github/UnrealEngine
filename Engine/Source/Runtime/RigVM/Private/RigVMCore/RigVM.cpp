@@ -2220,7 +2220,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 					else
 					{
 						FString Value;
-						ElementPropertyA->ExportTextItem(Value, ArrayHelperA.GetRawPtr(Index), nullptr, nullptr, PPF_None);
+						ElementPropertyA->ExportTextItem_Direct(Value, ArrayHelperA.GetRawPtr(Index), nullptr, nullptr, PPF_None);
 						HashValue = TextKeyUtil::HashString(Value);
 					}
 					
@@ -2239,7 +2239,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 					else
 					{
 						FString Value;
-						ElementPropertyB->ExportTextItem(Value, ArrayHelperB.GetRawPtr(Index), nullptr, nullptr, PPF_None);
+						ElementPropertyB->ExportTextItem_Direct(Value, ArrayHelperB.GetRawPtr(Index), nullptr, nullptr, PPF_None);
 						HashValue = TextKeyUtil::HashString(Value);
 					}
 					if(!HashB.Contains(HashValue))

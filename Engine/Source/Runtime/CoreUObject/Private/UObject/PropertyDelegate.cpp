@@ -143,7 +143,7 @@ FString FDelegateProperty::GetCPPTypeForwardDeclaration() const
 	return FString();
 }
 
-void FDelegateProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FDelegateProperty::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
 	if (0 != (PortFlags & PPF_ExportCpp))
 	{
@@ -151,18 +151,45 @@ void FDelegateProperty::ExportTextItem( FString& ValueStr, const void* PropertyV
 		return;
 	}
 
-	FScriptDelegate* ScriptDelegate = (FScriptDelegate*)PropertyValue;
-	check(ScriptDelegate != NULL);
-	bool bDelegateHasValue = ScriptDelegate->GetFunctionName() != NAME_None;
-	ValueStr += FString::Printf( TEXT("%s.%s"),
-		ScriptDelegate->GetUObject() != NULL ? *ScriptDelegate->GetUObject()->GetName() : TEXT("(null)"),
-		*ScriptDelegate->GetFunctionName().ToString() );
+	auto ExportDelegateAsText = [&ValueStr](FScriptDelegate* ScriptDelegate)
+	{
+		check(ScriptDelegate != NULL);
+		bool bDelegateHasValue = ScriptDelegate->GetFunctionName() != NAME_None;
+		ValueStr += FString::Printf(TEXT("%s.%s"),
+			ScriptDelegate->GetUObject() != NULL ? *ScriptDelegate->GetUObject()->GetName() : TEXT("(null)"),
+			*ScriptDelegate->GetFunctionName().ToString());
+	};
+	
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		FScriptDelegate LocalScriptDelegate;
+		GetValue_InContainer(PropertyValueOrContainer, &LocalScriptDelegate);
+		ExportDelegateAsText(&LocalScriptDelegate);
+	}
+	else
+	{
+		FScriptDelegate* ScriptDelegate = (FScriptDelegate*)PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType);
+		ExportDelegateAsText(ScriptDelegate);
+	}
 }
 
 
-const TCHAR* FDelegateProperty::ImportText_Internal( const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FDelegateProperty::ImportText_Internal( const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText ) const
 {
-	return DelegatePropertyTools::ImportDelegateFromText( *(FScriptDelegate*)PropertyValue, SignatureFunction, Buffer, Parent, ErrorText );
+	const TCHAR* Result = nullptr;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+	{
+		FScriptDelegate LocalScriptDelegate;
+		Result = DelegatePropertyTools::ImportDelegateFromText(*(FScriptDelegate*)&LocalScriptDelegate, SignatureFunction, Buffer, Parent, ErrorText);
+		SetValue_InContainer(ContainerOrPropertyPtr, LocalScriptDelegate);
+	}
+	else
+	{
+		void* PropertyValue = PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
+		Result = DelegatePropertyTools::ImportDelegateFromText(*(FScriptDelegate*)PropertyValue, SignatureFunction, Buffer, Parent, ErrorText);
+	}
+
+	return Result;
 }
 
 void FDelegateProperty::Serialize( FArchive& Ar )

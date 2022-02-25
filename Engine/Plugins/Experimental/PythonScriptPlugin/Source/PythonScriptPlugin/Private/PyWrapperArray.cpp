@@ -342,7 +342,7 @@ FPyWrapperArray* FPyWrapperArray::CastPyObject(PyObject* InPyObject, PyTypeObjec
 					return nullptr;
 				}
 
-				if (!NewArray->ArrayProp->Inner->ImportText(*ExportedEntry, NewScriptArrayHelper.GetRawPtr(ElementIndex), PPF_None, nullptr))
+				if (!NewArray->ArrayProp->Inner->ImportText_Direct(*ExportedEntry, NewScriptArrayHelper.GetRawPtr(ElementIndex), nullptr, PPF_None))
 				{
 					PyUtil::SetPythonError(PyExc_Exception, Self, *FString::Printf(TEXT("Failed to import text '%s' element for property '%s' (%s) at index %d"), *ExportedEntry, *NewArray->ArrayProp->Inner->GetName(), *NewArray->ArrayProp->Inner->GetClass()->GetName(), ElementIndex));
 					return nullptr;

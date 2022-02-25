@@ -40,7 +40,7 @@ bool FTextPropertyTest::RunTest (const FString& Parameters)
 		// Test ExportText - Export text should provide the localized form of the text.
 		{
 			FString ExportedStringValue;
-			DefaultedTextProperty->ExportTextItem(ExportedStringValue, &(NewUObject->DefaultedText), NULL, NULL, 0, NULL);
+			DefaultedTextProperty->ExportTextItem_Direct(ExportedStringValue, &(NewUObject->DefaultedText), nullptr, nullptr, 0, nullptr);
 			FText ExportedTextValue;
 			FTextStringHelper::ReadFromBuffer(*ExportedStringValue, ExportedTextValue);
 			if (ExportedTextValue.ToString() != NewUObject->DefaultedText.ToString())
@@ -52,7 +52,7 @@ bool FTextPropertyTest::RunTest (const FString& Parameters)
 		// Test ImportText - Import text should set the source string to the input string.
 		{
 			FString ImportedStringValue = TEXT("ImportValue");
-			DefaultedTextProperty->ImportText(*ImportedStringValue, &(NewUObject->DefaultedText), 0, NULL);
+			DefaultedTextProperty->ImportText_Direct(*ImportedStringValue, &(NewUObject->DefaultedText), nullptr, 0);
 			const FString* const SourceString = FTextInspector::GetSourceString(NewUObject->DefaultedText);
 			if( !SourceString || ImportedStringValue != *SourceString )
 			{

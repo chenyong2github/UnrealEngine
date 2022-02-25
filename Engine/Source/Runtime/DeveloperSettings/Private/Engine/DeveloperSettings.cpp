@@ -120,7 +120,7 @@ void UDeveloperSettings::ImportConsoleVariableValues()
 			IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*CVarName);
 			if (CVar)
 			{
-				if (Property->ImportText(*CVar->GetString(), Property->ContainerPtrToValuePtr<uint8>(this, 0), PPF_ConsoleVariable, this) == NULL)
+				if (Property->ImportText_InContainer(*CVar->GetString(), this, this, PPF_ConsoleVariable) == NULL)
 				{
 					UE_LOG(LogTemp, Error, TEXT("%s import failed for %s on console variable %s (=%s)"), *GetClass()->GetName(), *Property->GetName(), *CVarName, *CVar->GetString());
 				}

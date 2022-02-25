@@ -180,7 +180,7 @@ namespace PropertyPathHelpersInternal
 						ReturnProperty->InitializeValue(TempBuffer.GetData());
 
 						InContainer->ProcessEvent(InFunction, TempBuffer.GetData());
-						ReturnProperty->ExportTextItem(OutValue, TempBuffer.GetData(), nullptr, nullptr, 0);
+						ReturnProperty->ExportTextItem_Direct(OutValue, TempBuffer.GetData(), nullptr, nullptr, 0);
 						return true;
 					}
 				}
@@ -209,17 +209,17 @@ namespace PropertyPathHelpersInternal
 				if ( ArrayHelper.IsValidIndex(ArrayIndex) )
 				{
 					OutProperty = ArrayProp->Inner;
-					OutProperty->ExportTextItem(OutValue, static_cast<void*>(ArrayHelper.GetRawPtr(ArrayIndex)), nullptr, nullptr, 0);
+					OutProperty->ExportTextItem_Direct(OutValue, static_cast<void*>(ArrayHelper.GetRawPtr(ArrayIndex)), nullptr, nullptr, 0);
 					return true;
 				}
 			}
 			else
 			{
 				// No index, so assume we want the array property itself
-				if ( void* ValuePtr = ArrayProp->ContainerPtrToValuePtr<void>(InContainer) )
+				if ( !!ArrayProp->ContainerPtrToValuePtr<void>(InContainer) )
 				{
 					OutProperty = ArrayProp;
-					OutProperty->ExportTextItem(OutValue, ValuePtr, nullptr, nullptr, 0);
+					OutProperty->ExportTextItem_InContainer(OutValue, InContainer, nullptr, nullptr, 0);
 					return true;
 				}
 			}
@@ -236,7 +236,7 @@ namespace PropertyPathHelpersInternal
 				if ( void* ValuePtr = Property->ContainerPtrToValuePtr<void>(InContainer, ArrayIndex) )
 				{
 					OutProperty = Property;
-					OutProperty->ExportTextItem(OutValue, ValuePtr, nullptr, nullptr, 0);
+					OutProperty->ExportTextItem_InContainer(OutValue, InContainer, nullptr, nullptr, 0);
 					return true;
 				}
 			}
@@ -275,7 +275,7 @@ namespace PropertyPathHelpersInternal
 						TempBuffer.AddUninitialized(ParamProperty->ElementSize);
 						ParamProperty->InitializeValue(TempBuffer.GetData());
 
-						ParamProperty->ImportText(*InValue, TempBuffer.GetData(), 0, nullptr);
+						ParamProperty->ImportText_Direct(*InValue, TempBuffer.GetData(), nullptr, 0);
 						InContainer->ProcessEvent(InFunction, TempBuffer.GetData());
 						return true;
 					}
@@ -304,16 +304,16 @@ namespace PropertyPathHelpersInternal
 				FScriptArrayHelper_InContainer ArrayHelper(ArrayProp, InContainer);
 				if ( ArrayHelper.IsValidIndex(ArrayIndex) )
 				{
-					ArrayProp->Inner->ImportText(*InValue, static_cast<void*>(ArrayHelper.GetRawPtr(ArrayIndex)), 0, nullptr);
+					ArrayProp->Inner->ImportText_Direct(*InValue, static_cast<void*>(ArrayHelper.GetRawPtr(ArrayIndex)), nullptr, 0);
 					return true;
 				}
 			}
 			else
 			{
 				// No index, so assume we want the array property itself
-				if ( void* ValuePtr = ArrayProp->ContainerPtrToValuePtr<void>(InContainer) )
+				if ( !!ArrayProp->ContainerPtrToValuePtr<void>(InContainer) )
 				{
-					ArrayProp->ImportText(*InValue, ValuePtr, 0, nullptr);
+					ArrayProp->ImportText_InContainer(*InValue, InContainer, nullptr, 0);
 					return true;
 				}
 			}
@@ -329,7 +329,7 @@ namespace PropertyPathHelpersInternal
 			{
 				if ( void* ValuePtr = Property->ContainerPtrToValuePtr<void>(InContainer, ArrayIndex) )
 				{
-					Property->ImportText(*InValue, ValuePtr, 0, nullptr);
+					Property->ImportText_Direct(*InValue, ValuePtr, nullptr, 0);
 					return true;
 				}
 			}

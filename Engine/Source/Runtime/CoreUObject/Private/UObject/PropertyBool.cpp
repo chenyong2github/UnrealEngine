@@ -344,11 +344,19 @@ void FBoolProperty::AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) con
 #endif
 
 
-void FBoolProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FBoolProperty::ExportText_Internal( FString& ValueStr, const void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
 	check(FieldSize != 0);
-	const uint8* ByteValue = (uint8*)PropertyValue + ByteOffset;
-	const bool bValue = 0 != ((*ByteValue) & FieldMask);
+	uint8 LocalByteValue = 0;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		GetValue_InContainer(ContainerOrPropertyPtr, &LocalByteValue);
+	}
+	else
+	{
+		LocalByteValue = *((uint8*)PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType) + ByteOffset);
+	}
+	const bool bValue = 0 != (LocalByteValue & FieldMask);
 	const TCHAR* Temp = nullptr;
 	if (0 != (PortFlags & PPF_ExportCpp))
 	{
@@ -360,7 +368,7 @@ void FBoolProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue
 	}
 	ValueStr += FString::Printf( TEXT("%s"), Temp );
 }
-const TCHAR* FBoolProperty::ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FBoolProperty::ImportText_Internal( const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText ) const
 {
 	FString Temp; 
 	Buffer = FPropertyHelpers::ReadToken( Buffer, Temp );
@@ -370,23 +378,41 @@ const TCHAR* FBoolProperty::ImportText_Internal( const TCHAR* Buffer, void* Data
 	}
 
 	check(FieldSize != 0);
-	uint8* ByteValue = (uint8*)Data + ByteOffset;
+	uint8 LocalByteValue = 0;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		GetValue_InContainer(ContainerOrPropertyPtr, &LocalByteValue);
+	}
+	else
+	{
+		LocalByteValue = *((uint8*)PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType) + ByteOffset);
+	}
 
 	const FCoreTexts& CoreTexts = FCoreTexts::Get();
 	if( Temp==TEXT("1") || Temp==TEXT("True") || Temp==*CoreTexts.True.ToString() || Temp == TEXT("Yes") || Temp == *CoreTexts.Yes.ToString() )
 	{
-		*ByteValue |= ByteMask;
+		LocalByteValue |= ByteMask;
 	}
 	else 
 	if( Temp==TEXT("0") || Temp==TEXT("False") || Temp==*CoreTexts.False.ToString() || Temp == TEXT("No") || Temp == *CoreTexts.No.ToString() )
 	{
-		*ByteValue &= ~FieldMask;
+		LocalByteValue &= ~FieldMask;
 	}
 	else
 	{
 		//UE_LOG(LogProperty, Log,  "Import: Failed to get bool" );
 		return NULL;
 	}
+
+	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+	{
+		SetValue_InContainer(ContainerOrPropertyPtr, &LocalByteValue);
+	}
+	else
+	{
+		*((uint8*)PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType) + ByteOffset) = LocalByteValue;
+	}
+
 	return Buffer;
 }
 bool FBoolProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const

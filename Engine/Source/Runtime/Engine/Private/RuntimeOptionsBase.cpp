@@ -55,12 +55,10 @@ void URuntimeOptionsBase::ApplyCommandlineOverrides()
 	{
 		const FString FullyQualifiedName = FString::Printf(TEXT("%s.%s"), *OptionCommandPrefix, *Property->GetName());
 
-		uint8* DataPtr = Property->ContainerPtrToValuePtr<uint8>(this, 0);
-
 		FString CommandLineOverride;
 		if (FParse::Value(FCommandLine::Get(), *FString::Printf(TEXT("%s="), *FullyQualifiedName), /*out*/ CommandLineOverride))
 		{
-			Property->ImportText(*CommandLineOverride, DataPtr, PPF_None, this);
+			Property->ImportText_InContainer(*CommandLineOverride, this, this, PPF_None);
 		}
 	}
 #endif

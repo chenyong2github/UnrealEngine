@@ -205,7 +205,7 @@ namespace PackFactoryHelper
 				if (SettingPair.Key.ToString().Contains("ActionMappings"))
 				{
 					FInputActionKeyMapping ActionKeyMapping;
-					ActionMappingsProp->Inner->ImportText(*SettingPair.Value.GetValue(), &ActionKeyMapping, PPF_None, nullptr);
+					ActionMappingsProp->Inner->ImportText_Direct(*SettingPair.Value.GetValue(), &ActionKeyMapping, nullptr, PPF_None);
 
 					if (!InputSettingsCDO->DoesActionExist(ActionKeyMapping.ActionName))
 					{
@@ -215,7 +215,7 @@ namespace PackFactoryHelper
 				else if (SettingPair.Key.ToString().Contains("AxisMappings"))
 				{
 					FInputAxisKeyMapping AxisKeyMapping;
-					AxisMappingsProp->Inner->ImportText(*SettingPair.Value.GetValue(), &AxisKeyMapping, PPF_None, nullptr);
+					AxisMappingsProp->Inner->ImportText_Direct(*SettingPair.Value.GetValue(), &AxisKeyMapping, nullptr, PPF_None);
 
 					if (!InputSettingsCDO->DoesAxisExist(AxisKeyMapping.AxisName))
 					{

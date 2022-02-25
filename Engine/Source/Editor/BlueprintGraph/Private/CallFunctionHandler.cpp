@@ -211,7 +211,7 @@ void FKCHandler_CallFunction::CreateFunctionCallStatement(FKismetFunctionContext
 
 											// Import the literal text to a dummy struct to verify it's well-formed
 											FImportTextErrorContext ErrorPipe(CompilerContext.MessageLog, Node);
-											StructProperty->ImportText(*((*Term)->Name), StructData, 0, nullptr, &ErrorPipe);
+											StructProperty->ImportText_Direct(*((*Term)->Name), StructData, nullptr, 0, &ErrorPipe);
 											if(ErrorPipe.NumErrors > 0)
 											{
 												bMatchedAllParams = false;

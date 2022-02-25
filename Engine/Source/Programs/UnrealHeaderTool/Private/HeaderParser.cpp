@@ -783,6 +783,7 @@ FUHTConfig::FUHTConfig()
 	const FName EngineObjectPtrMemberBehaviorKey(TEXT("EngineObjectPtrMemberBehavior"));
 	const FName NonEngineNativePointerMemberBehaviorKey(TEXT("NonEngineNativePointerMemberBehavior"));
 	const FName NonEngineObjectPtrMemberBehaviorKey(TEXT("NonEngineObjectPtrMemberBehavior"));
+	const FName AutomaticSettersAndGettersKey(TEXT("AutomaticSettersAndGetters"));
 
 	FConfigSection* ConfigSection = GConfig->GetSectionPrivate(TEXT("UnrealHeaderTool"), false, true, GEngineIni);
 	if (ConfigSection)
@@ -830,6 +831,10 @@ FUHTConfig::FUHTConfig()
 			else if (It.Key() == NonEngineObjectPtrMemberBehaviorKey)
 			{
 				NonEngineObjectPtrMemberBehavior = ToPointerMemberBehavior(It.Value().GetValue());
+			}
+			else if (It.Key() == AutomaticSettersAndGettersKey)
+			{
+				bAllowAutomaticSettersAndGetters = It.Value().GetValue().ToBool();
 			}
 		}
 	}
@@ -2609,8 +2614,6 @@ void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClas
 			return nullptr;
 		};
 
-		FPropertyBase& PropertyToken = PropertyDef->GetPropertyBase();
-
 		TGuardValue<int32> GuardedInputPos(InputPos, PropertyDef->GetParsePosition());
 		TGuardValue<int32> GuardedInputLine(InputLine, PropertyDef->GetLineNumber());
 
@@ -2650,6 +2653,23 @@ void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClas
 						LogError(TEXT("Blueprint Property setter function %s not found"), *SetterFuncName);
 					}
 				}
+			}
+		}
+
+		// Verify if native property setter and getter functions could actually be found while parsing class header
+		FPropertyBase& PropertyToken = PropertyDef->GetPropertyBase();
+		if (!PropertyToken.SetterName.IsEmpty())
+		{
+			if (PropertyToken.SetterName != TEXT("None") && !PropertyToken.bSetterFunctionFound)
+			{
+				LogError(TEXT("Property %s setter function %s not found"), *PropertyDef->GetName(), *PropertyToken.SetterName);
+			}
+		}
+		if (!PropertyToken.GetterName.IsEmpty())
+		{
+			if (PropertyToken.GetterName != TEXT("None") && !PropertyToken.bGetterFunctionFound)
+			{
+				LogError(TEXT("Property %s getter function %s not found"), *PropertyDef->GetName(), *PropertyToken.GetterName);
 			}
 		}
 	}
@@ -2819,6 +2839,8 @@ void FHeaderParser::GetVarType(
 	FUnrealScriptStructDefinitionInfo* OwnerScriptStructDef = UHTCast<FUnrealScriptStructDefinitionInfo>(OwnerStructDef);
 	FUnrealClassDefinitionInfo* OwnerClassDef = UHTCast<FUnrealClassDefinitionInfo>(OwnerStructDef);
 	FName RepCallbackName = FName(NAME_None);
+	FString SetterName;
+	FString GetterName;
 
 	// Get flags.
 	EPropertyFlags Flags        = CPF_None;
@@ -3240,6 +3262,18 @@ void FHeaderParser::GetVarType(
 				case EVariableSpecifier::SkipSerialization:
 				{
 					Flags |= CPF_SkipSerialization;
+				}
+				break;
+
+				case EVariableSpecifier::Setter:
+				{
+					SetterName = RequireExactlyOneSpecifierValue(*this, Specifier);
+				}
+				break;
+
+				case EVariableSpecifier::Getter:
+				{
+					GetterName = RequireExactlyOneSpecifierValue(*this, Specifier);
 				}
 				break;
 
@@ -4332,6 +4366,9 @@ void FHeaderParser::GetVarType(
 		}
 	}
 
+	VarProperty.SetterName = SetterName;
+	VarProperty.GetterName = GetterName;
+
 	// Perform some more specific validation on the property flags
 	if (VarProperty.PropertyFlags & CPF_PersistentInstance)
 	{
@@ -4916,6 +4953,12 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 			if (CheckForSerialize(StructDef, Declaration))
 			{
 			}
+			else if (CheckForPropertySetterFunction(StructDef, Declaration))
+			{
+			}
+			else if (CheckForPropertyGetterFunction(StructDef, Declaration))
+			{
+			}
 		}
 	}
 	return Result;
@@ -5189,6 +5232,390 @@ static const TArray<FStringView> GSkipDeclarationWarningStrings =
 	//TEXT("UPROPERTY"),
 	//TEXT("USTRUCT"),
 };
+
+static bool ParseAccessorType(FString& OutAccessorType, FTokenReplay& Tokens)
+{
+	FToken Token;
+	Tokens.GetToken(Token);
+	if (!Token.IsIdentifier())
+	{
+		return false;
+	}
+	if (Token.IsIdentifier(TEXT("const"), ESearchCase::CaseSensitive))
+	{
+		// skip const. We allow const in paramater and return values even if the property is not const
+		Tokens.GetToken(Token);
+		if (!Token.IsIdentifier())
+		{
+			return false;
+		}
+	}
+
+	OutAccessorType = Token.Value;
+
+	Tokens.GetToken(Token);
+	if (Token.IsSymbol(TEXT("<"), ESearchCase::CaseSensitive))
+	{
+		// template type - add everything until the matching '>' into the type string
+		OutAccessorType += Token.Value;
+		int32 TemplateNestCount = 1;
+		while (TemplateNestCount > 0)
+		{
+			Tokens.GetToken(Token);
+			if (Token.TokenType == ETokenType::None)
+			{
+				return false;
+			}
+
+			OutAccessorType += Token.Value;
+			if (Token.IsSymbol(TEXT("<"), ESearchCase::CaseSensitive))
+			{
+				TemplateNestCount++;
+			}
+			else if (Token.IsSymbol(TEXT(">"), ESearchCase::CaseSensitive))
+			{
+				TemplateNestCount--;
+			}
+		}
+		Tokens.GetToken(Token);
+	}
+	// Skip '&' and add any '*'
+	for (; !Token.IsIdentifier(); Tokens.GetToken(Token))
+	{
+		if (Token.TokenType == ETokenType::None)
+		{
+			return false;
+		}
+
+		// Support for passing values by ref for setters
+		if (!Token.IsSymbol(TEXT("&"), ESearchCase::CaseSensitive))
+		{
+			OutAccessorType += Token.Value;
+		}
+	}
+	// Return the last token since it's either ')' in case of setters or the getter name which will be parsed by the caller
+	Tokens.UngetToken(Token);
+
+	return true;
+}
+
+bool FHeaderParser::CheckForPropertySetterFunction(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration)
+{
+	FTokenReplay Tokens(Declaration.Tokens);
+	FUnrealClassDefinitionInfo& ClassDef = StructDef.AsClassChecked();
+
+	FToken Token;
+	if (!Tokens.GetToken(Token))
+	{
+		return false;
+	}
+
+	// Skip virtual keyword or any API macros
+	while (Token.IsIdentifier(TEXT("virtual"), ESearchCase::CaseSensitive) || Token.Value.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
+	{
+		Tokens.GetToken(Token);
+	}
+
+	// Setters can only return void
+	if (!Token.IsIdentifier(TEXT("void"), ESearchCase::CaseSensitive))
+	{
+		return false;
+	}
+
+	FToken SetterNameToken;
+	Tokens.GetToken(SetterNameToken);
+	if (!SetterNameToken.IsIdentifier())
+	{
+		return false;
+	}
+
+	if (SetterNameToken.Value.Compare(TEXT("SetHardwareCursors"), ESearchCase::CaseSensitive) == 0)
+	{
+		static volatile int32 xx = 0;
+		xx++;
+	}
+
+	FUnrealPropertyDefinitionInfo* PropertyWithSetter = nullptr;
+	FString SetterFunctionName;
+	TArray<TSharedRef<FUnrealPropertyDefinitionInfo>>& Properties = ClassDef.GetProperties();
+	bool bExplicitSetter = false;
+
+	// First check if there are any properties that already specify this function name as a setter
+	for (TSharedRef<FUnrealPropertyDefinitionInfo>& Prop : Properties)
+	{
+		FPropertyBase& BaseProp = Prop->GetPropertyBase();
+		if (!BaseProp.bSetterFunctionFound && !BaseProp.SetterName.IsEmpty() && BaseProp.SetterName != TEXT("None"))
+		{
+			if (SetterNameToken.Value.Compare(Prop->GetPropertyBase().SetterName, ESearchCase::CaseSensitive) == 0)
+			{
+				SetterFunctionName = Prop->GetPropertyBase().SetterName;
+				PropertyWithSetter = &Prop.Get();
+				bExplicitSetter = true;
+				break;
+			}
+		}
+	}
+
+	// If not, try with autogenerated setter names
+	if (!PropertyWithSetter && FUHTConfig::Get().bAllowAutomaticSettersAndGetters && SetterNameToken.ValueStartsWith(TEXT("Set"), ESearchCase::CaseSensitive))
+	{
+		for (TSharedRef<FUnrealPropertyDefinitionInfo>& Prop : Properties)
+		{
+			FPropertyBase& BaseProp = Prop->GetPropertyBase();
+			if (!BaseProp.bSetterFunctionFound && BaseProp.SetterName.IsEmpty())
+			{
+				SetterFunctionName.Reset();
+				SetterFunctionName += TEXT("Set");
+				SetterFunctionName += Prop->GetName();
+
+				if (SetterNameToken.Value.Compare(SetterFunctionName, ESearchCase::CaseSensitive) == 0)
+				{
+					// We found a matching function name so we can move onto verifying if the declaration matches
+					PropertyWithSetter = &Prop.Get();
+					break;
+				}
+			}
+		}
+	}
+
+	if (!PropertyWithSetter)
+	{
+		return false;
+	}
+
+	Tokens.GetToken(Token);
+	if (!Token.IsSymbol(TEXT('(')))
+	{
+		if (bExplicitSetter)
+		{
+			LogError(TEXT("Expected '(' when parsing property %s setter function %s"), *PropertyWithSetter->GetName(), *SetterFunctionName);
+		}
+		return false;
+	}
+
+	FString ParameterType;
+	if (!ParseAccessorType(ParameterType, Tokens))
+	{
+		if (bExplicitSetter)
+		{
+			LogError(TEXT("Error when parsing parameter type for property %s setter function %s"), *PropertyWithSetter->GetName(), *SetterFunctionName);
+		}
+		return false;
+	}
+
+	// Skip parameter name
+	Tokens.GetToken(Token);
+	if (!Token.IsIdentifier())
+	{
+		if (bExplicitSetter)
+		{
+			LogError(TEXT("Expected parameter name when parsing property %s setter function %s"), *PropertyWithSetter->GetName(), *SetterFunctionName);
+		}
+		return false;
+	}
+
+	// Setter has only one parameter
+	Tokens.GetToken(Token);
+	if (!Token.IsSymbol(TEXT(')')))
+	{
+		if (bExplicitSetter)
+		{
+			LogError(TEXT("Expected ')' when parsing property %s setter function %s"), *PropertyWithSetter->GetName(), *SetterFunctionName);
+		}
+		return false;
+	}
+
+	// Parameter type and property type must match
+	FString ExtendedPropertyType;
+	FString PropertyType = PropertyWithSetter->GetCPPType(&ExtendedPropertyType, CPPF_Implementation | CPPF_ArgumentOrReturnValue | CPPF_NoRef);
+	ExtendedPropertyType.RemoveSpacesInline();
+	PropertyType += ExtendedPropertyType;
+	if (ParameterType.Compare(PropertyType, ESearchCase::CaseSensitive) != 0)
+	{
+		if (bExplicitSetter)
+		{
+			LogError(TEXT("Paramater type %s unsupported for property %s setter function %s (expected: %s)"),
+				*ParameterType, *PropertyWithSetter->GetName(), *SetterFunctionName, *PropertyType);
+		}
+		return false;
+	}
+
+	if ((GetCurrentCompilerDirective() & ECompilerDirective::WithEditor) != 0)
+	{
+		if (bExplicitSetter)
+		{
+			LogError(TEXT("Property %s setter function %s cannot be declared within WITH_EDITOR block. Use WITH_EDITORONLY_DATA instead."),
+				*PropertyWithSetter->GetName(), *SetterFunctionName);
+		}
+		return false;
+	}
+
+	if ((GetCurrentCompilerDirective() & ECompilerDirective::WithEditorOnlyData) != 0 && (PropertyWithSetter->GetPropertyFlags() & CPF_EditorOnly) == 0)
+	{
+		if (bExplicitSetter)
+		{
+			LogError(TEXT("Property %s is not editor-only but its setter function %s is."),
+				*PropertyWithSetter->GetName(), *SetterFunctionName);
+		}
+		return false;
+	}
+
+	PropertyWithSetter->GetPropertyBase().SetterName = *SetterFunctionName;
+	PropertyWithSetter->GetPropertyBase().bSetterFunctionFound = true;
+
+	return true;
+}
+
+bool FHeaderParser::CheckForPropertyGetterFunction(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration)
+{
+	FTokenReplay Tokens(Declaration.Tokens);
+	FUnrealClassDefinitionInfo& ClassDef = StructDef.AsClassChecked();
+
+	FToken Token;
+	if (!Tokens.GetToken(Token))
+	{
+		return false;
+	}
+
+	// Skip virtual keyword and any API macros
+	while (Token.IsIdentifier(TEXT("virtual"), ESearchCase::CaseSensitive) || Token.Value.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
+	{
+		Tokens.GetToken(Token);
+	}
+
+	Tokens.UngetToken(Token);
+	FString GetterType;
+	if (!ParseAccessorType(GetterType, Tokens))
+	{
+		// Unable to print a meaningful error before parsing the Getter name
+		return false;
+	}
+
+	FToken GetterNameToken;
+	Tokens.GetToken(GetterNameToken);
+	if (!GetterNameToken.IsIdentifier())
+	{
+		// Unable to print a meaningful error before parsing the Getter name
+		return false;
+	}
+
+	FUnrealPropertyDefinitionInfo* PropertyWithGetter = nullptr;
+	TArray<TSharedRef<FUnrealPropertyDefinitionInfo>>& Properties = ClassDef.GetProperties();
+	FString GetterFunctionName;
+	bool bExplicitGetter = false;
+
+	// First check if there are any properties that already specify this function name as a getter
+	for (TSharedRef<FUnrealPropertyDefinitionInfo>& Prop : Properties)
+	{
+		FPropertyBase& BaseProp = Prop->GetPropertyBase();
+		if (!BaseProp.bGetterFunctionFound && !BaseProp.GetterName.IsEmpty() && BaseProp.GetterName != TEXT("None"))
+		{
+			if (GetterNameToken.Value.Compare(Prop->GetPropertyBase().GetterName, ESearchCase::CaseSensitive) == 0)
+			{
+				GetterFunctionName = Prop->GetPropertyBase().GetterName;
+				PropertyWithGetter = &Prop.Get();
+				bExplicitGetter = true;
+				break;
+			}
+		}
+	}
+
+	// If not, try with autogenerated getter names
+	if (!PropertyWithGetter && FUHTConfig::Get().bAllowAutomaticSettersAndGetters && GetterNameToken.ValueStartsWith(TEXT("Get"), ESearchCase::CaseSensitive))
+	{
+		for (TSharedRef<FUnrealPropertyDefinitionInfo>& Prop : Properties)
+		{
+			FPropertyBase& BaseProp = Prop->GetPropertyBase();			
+			if (!BaseProp.bGetterFunctionFound && BaseProp.GetterName != TEXT("None"))
+			{
+				GetterFunctionName.Reset();
+				GetterFunctionName += TEXT("Get");
+				GetterFunctionName += Prop->GetName();
+				if (GetterNameToken.Value.Compare(GetterFunctionName, ESearchCase::CaseSensitive) == 0)
+				{
+					PropertyWithGetter = &Prop.Get();
+					break;
+				}
+			}
+		}
+	}
+
+	if (!PropertyWithGetter)
+	{
+		return false;
+	}
+
+	FString ExtendedPropertyType;
+	FString PropertyType = PropertyWithGetter->GetCPPType(&ExtendedPropertyType, CPPF_Implementation | CPPF_ArgumentOrReturnValue);
+	PropertyType += ExtendedPropertyType;
+	if (GetterType.Compare(PropertyType, ESearchCase::CaseSensitive) != 0)
+	{
+		if (bExplicitGetter)
+		{
+			LogError(TEXT("Paramater type %s unsupported for property %s getter function %s (expected: %s)"),
+				*GetterType, *PropertyWithGetter->GetName(), *GetterFunctionName, *PropertyType);
+		}
+		return false;
+	}
+
+	// Getter is a function that takes no arguments
+	Tokens.GetToken(Token);
+	if (!Token.IsSymbol(TEXT('(')))
+	{
+		if (bExplicitGetter)
+		{
+			LogError(TEXT("Expected '(' when parsing property %s getter function %s"), *PropertyWithGetter->GetName(), *GetterFunctionName);
+		}
+		return false;
+	}
+
+	Tokens.GetToken(Token);
+	if (!Token.IsSymbol(TEXT(')')))
+	{
+		if (bExplicitGetter)
+		{
+			LogError(TEXT("Expected ')' when parsing property %s getter function %s"), *PropertyWithGetter->GetName(), *GetterFunctionName);
+		}
+		return false;
+	}
+
+	// Getters should be const functions
+	Tokens.GetToken(Token);
+	if (!Token.IsIdentifier(TEXT("const"), ESearchCase::CaseSensitive))
+	{
+		if (bExplicitGetter)
+		{
+			LogError(TEXT("Property %s getter function %s must be const"), *PropertyWithGetter->GetName(), *GetterFunctionName);
+		}
+		return false;
+	}
+
+	if ((GetCurrentCompilerDirective() & ECompilerDirective::WithEditor) != 0)
+	{
+		if (bExplicitGetter)
+		{
+			LogError(TEXT("Property %s setter function %s cannot be declared within WITH_EDITOR block. Use WITH_EDITORONLY_DATA instead."),
+				*PropertyWithGetter->GetName(), *GetterFunctionName);
+		}
+		return false;
+	}
+
+	if ((GetCurrentCompilerDirective() & ECompilerDirective::WithEditorOnlyData) != 0 && (PropertyWithGetter->GetPropertyFlags() & CPF_EditorOnly) == 0)
+	{
+		if (bExplicitGetter)
+		{
+			LogError(TEXT("Property %s is not editor-only but its getter function %s is."),
+				*PropertyWithGetter->GetName(), *GetterFunctionName);
+		}
+		return false;
+	}
+
+	PropertyWithGetter->GetPropertyBase().GetterName = GetterFunctionName;
+	PropertyWithGetter->GetPropertyBase().bGetterFunctionFound = true;
+
+	return true;
+}
+
 
 bool FHeaderParser::SkipDeclaration(FToken& Token)
 {

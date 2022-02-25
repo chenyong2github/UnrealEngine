@@ -640,7 +640,7 @@ FString FMapProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
 	return TEXT("TMAP");
 }
 
-void FMapProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
+void FMapProperty::ExportText_Internal(FString& ValueStr, const void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
 {
 	if (0 != (PortFlags & PPF_ExportCpp))
 	{
@@ -651,7 +651,34 @@ void FMapProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 	checkSlow(KeyProp);
 	checkSlow(ValueProp);
 
-	FScriptMapHelper MapHelper(this, PropertyValue);
+	uint8* TempMapStorage = nullptr;
+	void* PropertyValuePtr = nullptr;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		// Allocate temporary map as we first need to initialize it with the value provided by the getter function and then export it
+		TempMapStorage = (uint8*)FMemory::MallocZeroed(GetSize());
+		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
+		{
+			InitializeValue(TempMapStorage);
+		}
+		PropertyValuePtr = TempMapStorage;
+		FProperty::GetValue_InContainer(ContainerOrPropertyPtr, PropertyValuePtr);
+	}
+	else
+	{
+		PropertyValuePtr = PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
+	}
+
+	ON_SCOPE_EXIT
+	{
+		if (TempMapStorage)
+		{
+			DestroyValue(TempMapStorage);
+			FMemory::Free(TempMapStorage);
+		}
+	};
+
+	FScriptMapHelper MapHelper(this, PropertyValuePtr);
 
 	if (MapHelper.Num() == 0)
 	{
@@ -703,7 +730,7 @@ void FMapProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 				}
 
 				ValueStr += TEXT("[");
-				KeyProp->ExportTextItem(ValueStr, PropData, nullptr, Parent, PortFlags | PPF_Delimited, ExportRootScope);
+				KeyProp->ExportText_Internal(ValueStr, PropData, EPropertyPointerType::Direct, nullptr, Parent, PortFlags | PPF_Delimited, ExportRootScope);
 				ValueStr += TEXT("] ");
 
 				// Always use struct defaults if the inner is a struct, for symmetry with the import of array inner struct defaults
@@ -715,7 +742,7 @@ void FMapProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 					PropDefault = PropData;
 				}
 
-				ValueProp->ExportTextItem(ValueStr, PropData + MapLayout.ValueOffset, PropDefault + MapLayout.ValueOffset, Parent, PortFlags | PPF_Delimited, ExportRootScope);
+				ValueProp->ExportText_Internal(ValueStr, PropData + MapLayout.ValueOffset, EPropertyPointerType::Direct, PropDefault + MapLayout.ValueOffset, Parent, PortFlags | PPF_Delimited, ExportRootScope);
 
 				--Count;
 			}
@@ -741,7 +768,7 @@ void FMapProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 
 				ValueStr += TEXT("(");
 
-				KeyProp->ExportTextItem(ValueStr, PropData, nullptr, Parent, PortFlags | PPF_Delimited, ExportRootScope);
+				KeyProp->ExportText_Internal(ValueStr, PropData, EPropertyPointerType::Direct, nullptr, Parent, PortFlags | PPF_Delimited, ExportRootScope);
 
 				ValueStr += TEXT(", ");
 
@@ -754,7 +781,7 @@ void FMapProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 					PropDefault = PropData;
 				}
 
-				ValueProp->ExportTextItem(ValueStr, PropData + MapLayout.ValueOffset, PropDefault + MapLayout.ValueOffset, Parent, PortFlags | PPF_Delimited, ExportRootScope);
+				ValueProp->ExportText_Internal(ValueStr, PropData + MapLayout.ValueOffset, EPropertyPointerType::Direct, PropDefault + MapLayout.ValueOffset, Parent, PortFlags | PPF_Delimited, ExportRootScope);
 
 				ValueStr += TEXT(")");
 
@@ -766,12 +793,39 @@ void FMapProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 	}
 }
 
-const TCHAR* FMapProperty::ImportText_Internal(const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText) const
+const TCHAR* FMapProperty::ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText) const
 {
 	checkSlow(KeyProp);
 	checkSlow(ValueProp);
 
-	FScriptMapHelper MapHelper(this, Data);
+	FScriptMapHelper MapHelper(this, PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType));
+	uint8* TempMapStorage = nullptr;
+
+	ON_SCOPE_EXIT
+	{
+		if (TempMapStorage)
+		{
+			// TempMap is used by property setter so if it was allocated call the setter now
+			FProperty::SetValue_InContainer(ContainerOrPropertyPtr, TempMapStorage);
+
+			// Destroy and free the temp map used by property setter
+			DestroyValue(TempMapStorage);
+			FMemory::Free(TempMapStorage);
+		}
+	};
+
+	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+	{
+		// Allocate temporary map as we first need to initialize it with the parsed items and then use the setter to update the property
+		TempMapStorage = (uint8*)FMemory::MallocZeroed(GetSize());
+		if (!HasAnyPropertyFlags(CPF_ZeroConstructor)) // this stuff is already zero
+		{
+			InitializeValue(TempMapStorage);
+		}
+		// Reinitialize the map helper with the temp value
+		MapHelper = FScriptMapHelper(this, TempMapStorage);
+	}
+
 	MapHelper.EmptyValues();
 
 	// If we export an empty array we export an empty string, so ensure that if we're passed an empty string
@@ -819,7 +873,7 @@ const TCHAR* FMapProperty::ImportText_Internal(const TCHAR* Buffer, void* Data, 
 
 		// Parse the key
 		SkipWhitespace(Buffer);
-		Buffer = KeyProp->ImportText(Buffer, TempPairStorage, PortFlags | PPF_Delimited, Parent, ErrorText);
+		Buffer = KeyProp->ImportText_Internal(Buffer, TempPairStorage, EPropertyPointerType::Direct, Parent, PortFlags | PPF_Delimited, ErrorText);
 		if (!Buffer)
 		{
 			return nullptr;
@@ -836,7 +890,7 @@ const TCHAR* FMapProperty::ImportText_Internal(const TCHAR* Buffer, void* Data, 
 
 		// Parse the value
 		SkipWhitespace(Buffer);
-		Buffer = ValueProp->ImportText(Buffer, TempPairStorage + MapLayout.ValueOffset, PortFlags | PPF_Delimited, Parent, ErrorText);
+		Buffer = ValueProp->ImportText_Internal(Buffer, TempPairStorage + MapLayout.ValueOffset, EPropertyPointerType::Direct, Parent, PortFlags | PPF_Delimited, ErrorText);
 		if (!Buffer)
 		{
 			return nullptr;

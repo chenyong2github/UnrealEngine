@@ -146,7 +146,7 @@ TSharedPtr<SWidget> LevelSnapshotsEditorCustomWidgetGenerator::GenerateGenericPr
 	if (ensure(InPropertyValue && InObject))
 	{
 		FString ValueText;
-		InProperty->ExportTextItem(ValueText, InPropertyValue, 0, InObject, PPF_None);
+		InProperty->ExportTextItem_Direct(ValueText, InPropertyValue, 0, InObject, PPF_None);
 
 		if (InWidgetTextEditLambda)
 		{

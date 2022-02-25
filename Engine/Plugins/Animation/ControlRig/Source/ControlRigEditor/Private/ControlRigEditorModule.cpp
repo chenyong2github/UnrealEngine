@@ -1159,7 +1159,7 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 			}
 
 			TArray<FControlRigPublicFunctionData> PublicFunctions;
-			PublicFunctionsProperty->ImportText(*PublicFunctionsString, &PublicFunctions, EPropertyPortFlags::PPF_None, nullptr);
+			PublicFunctionsProperty->ImportText_Direct(*PublicFunctionsString, &PublicFunctions, nullptr, EPropertyPortFlags::PPF_None);
 
 			for(const FControlRigPublicFunctionData& PublicFunction : PublicFunctions)
 			{

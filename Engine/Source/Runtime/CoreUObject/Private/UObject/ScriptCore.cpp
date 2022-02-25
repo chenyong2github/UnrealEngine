@@ -437,12 +437,21 @@ void FFrame::StepExplicitProperty(void*const Result, FProperty* Property)
 			checkSlow(Out);
 		}
 		MostRecentPropertyAddress = Out->PropAddr;
+		MostRecentPropertyContainer = nullptr;
 		// no need to copy property value, since the caller is just looking for MostRecentPropertyAddress
 	}
 	else
 	{
 		MostRecentPropertyAddress = Property->ContainerPtrToValuePtr<uint8>(Locals);
-		Property->CopyCompleteValueToScriptVM(Result, MostRecentPropertyAddress);
+		MostRecentPropertyContainer = Locals;
+		if (Property->HasGetter())
+		{
+			Property->GetValue_InContainer(MostRecentPropertyContainer, Result);
+		}
+		else
+		{
+			Property->CopyCompleteValueToScriptVM(Result, MostRecentPropertyAddress);
+		}
 	}
 }
 
@@ -756,7 +765,8 @@ void UObject::SkipFunction(FFrame& Stack, RESULT_DECL, UFunction* Function)
 	FMemory::Memzero(Frame, Function->PropertiesSize);
 	for (FProperty* Property = (FProperty*)(Function->ChildProperties); *Stack.Code != EX_EndFunctionParms; Property = (FProperty*)(Property->Next))
 	{
-		Stack.MostRecentPropertyAddress = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		// evaluate the expression into our temporary memory space
 		// it'd be nice to be able to skip the copy, but most native functions assume a non-NULL Result pointer
 		// so we can only do that if we know the expression is an l-value (out parameter)
@@ -841,8 +851,9 @@ void ProcessScriptFunction(UObject* Context, UFunction* Function, FFrame& Stack,
 	{
 		checkfSlow(Property, TEXT("NULL Property in Function %s"), *Function->GetPathName()); 
 
-		Stack.MostRecentPropertyAddress = NULL;
-			
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
+
 		// Skip the return parameter case, as we've already handled it above
 		const bool bIsReturnParam = ((Property->PropertyFlags & CPF_ReturnParm) != 0);
 		if( bIsReturnParam )
@@ -1262,7 +1273,7 @@ bool UObject::CallFunctionByNameWithArguments(const TCHAR* Str, FOutputDevice& A
 			{
 				bFoundDefault = true;
 
-				const TCHAR* Result = It->ImportText( *PropertyDefaultValue, It->ContainerPtrToValuePtr<uint8>(Parms), ExportFlags, NULL );
+				const TCHAR* Result = It->ImportText_InContainer(*PropertyDefaultValue, Parms, nullptr, ExportFlags);
 				bFailedImport = (Result == nullptr);
 			}
 		}
@@ -1278,7 +1289,7 @@ bool UObject::CallFunctionByNameWithArguments(const TCHAR* Str, FOutputDevice& A
 				ArgStr = FString(RemainingStr).TrimStart();
 			}
 
-			const TCHAR* Result = It->ImportText(*ArgStr, It->ContainerPtrToValuePtr<uint8>(Parms), ExportFlags, NULL );
+			const TCHAR* Result = It->ImportText_InContainer(*ArgStr, Parms, nullptr, ExportFlags);
 			bFailedImport = (Result == nullptr);
 		}
 		
@@ -2044,14 +2055,23 @@ DEFINE_FUNCTION(UObject::execLocalVariable)
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 
 		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 	}
 	else
 	{
 		Stack.MostRecentPropertyAddress = VarProperty->ContainerPtrToValuePtr<uint8>(Stack.Locals);
+		Stack.MostRecentPropertyContainer = Stack.Locals;
 
 		if (RESULT_PARAM)
 		{
-			VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+			if (VarProperty->HasGetter())
+			{
+				VarProperty->GetValue_InContainer(Stack.MostRecentPropertyContainer, RESULT_PARAM);
+			}
+			else
+			{
+				VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+			}
 		}
 	}
 }
@@ -2068,14 +2088,22 @@ DEFINE_FUNCTION(UObject::execInstanceVariable)
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 
 		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 	}
 	else
 	{
 		Stack.MostRecentPropertyAddress = VarProperty->ContainerPtrToValuePtr<uint8>(P_THIS);
-
+		Stack.MostRecentPropertyContainer = (uint8*)P_THIS;
 		if (RESULT_PARAM)
 		{
-			VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+			if (VarProperty->HasGetter())
+			{
+				VarProperty->GetValue_InContainer(Stack.MostRecentPropertyContainer, RESULT_PARAM);
+			}
+			else
+			{
+				VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+			}
 		}
 	}
 
@@ -2094,15 +2122,24 @@ DEFINE_FUNCTION(UObject::execClassSparseDataVariable)
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 
 		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 	}
 	else
 	{
 		void* SparseDataBaseAddress = const_cast<void*>(P_THIS->GetClass()->GetSparseClassData(EGetSparseClassDataMethod::ArchetypeIfNull));
 		Stack.MostRecentPropertyAddress = VarProperty->ContainerPtrToValuePtr<uint8>(SparseDataBaseAddress);
+		Stack.MostRecentPropertyContainer = (uint8*)SparseDataBaseAddress;
 
 		if (RESULT_PARAM)
 		{
-			VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+			if (VarProperty->HasGetter())
+			{
+				VarProperty->GetValue_InContainer(Stack.MostRecentPropertyContainer, RESULT_PARAM);
+			}
+			else
+			{
+				VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+			}
 		}
 	}
 }
@@ -2113,6 +2150,7 @@ DEFINE_FUNCTION(UObject::execDefaultVariable)
 	FProperty* VarProperty = (FProperty*)Stack.ReadObject();
 	Stack.MostRecentProperty = VarProperty;
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 
 	UObject* DefaultObject = nullptr;
 	if (P_THIS->HasAnyFlags(RF_ClassDefaultObject))
@@ -2134,9 +2172,18 @@ DEFINE_FUNCTION(UObject::execDefaultVariable)
 		if(DefaultObject != nullptr)
 		{
 			Stack.MostRecentPropertyAddress = VarProperty->ContainerPtrToValuePtr<uint8>(DefaultObject);
+			Stack.MostRecentPropertyContainer = (uint8*)DefaultObject;
+
 			if(RESULT_PARAM)
 			{
-				VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+				if (VarProperty->HasGetter())
+				{
+					VarProperty->GetValue_InContainer(Stack.MostRecentPropertyContainer, RESULT_PARAM);
+				}
+				else
+				{
+					VarProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+				}
 			}
 		}
 		else
@@ -2226,8 +2273,9 @@ DEFINE_FUNCTION(UObject::execClassContext)
 		FProperty* RValueProperty = nullptr;
 		const VariableSizeType bSize = Stack.ReadVariableSize(&RValueProperty); // Code += sizeof(ScriptPointerType) + sizeof(uint8)
 		Stack.Code += wSkip;
-		Stack.MostRecentPropertyAddress = NULL;
-		Stack.MostRecentProperty = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
+		Stack.MostRecentProperty = nullptr;
 
 		if (RESULT_PARAM && RValueProperty)
 		{
@@ -2473,8 +2521,9 @@ IMPLEMENT_VM_FUNCTION( EX_PopExecutionFlowIfNot, execPopExecutionFlowIfNot );
 DEFINE_FUNCTION(UObject::execLetValueOnPersistentFrame)
 {
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
-	Stack.MostRecentProperty = NULL;
-	Stack.MostRecentPropertyAddress = NULL;
+	Stack.MostRecentProperty = nullptr;
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 
 	FProperty* DestProperty = Stack.ReadProperty();
 	checkSlow(DestProperty);
@@ -2498,6 +2547,7 @@ DEFINE_FUNCTION(UObject::execSwitchValue)
 
 	Stack.MostRecentProperty = nullptr;
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.Step(Stack.Object, nullptr);
 
 	FProperty* IndexProperty = Stack.MostRecentProperty;
@@ -2562,7 +2612,8 @@ IMPLEMENT_VM_FUNCTION(EX_SwitchValue, execSwitchValue);
 DEFINE_FUNCTION(UObject::execArrayGetByRef)
 {
 	// Get variable address.
-	Stack.MostRecentPropertyAddress = NULL;
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.Step( Stack.Object, NULL ); // Evaluate variable.
 
 	if (Stack.MostRecentPropertyAddress == NULL)
@@ -2590,6 +2641,7 @@ DEFINE_FUNCTION(UObject::execArrayGetByRef)
 	if (ArrayHelper.IsValidIndex(ArrayIndex))
 	{
 		Stack.MostRecentPropertyAddress = ArrayHelper.GetRawPtr(ArrayIndex);
+		Stack.MostRecentPropertyContainer = nullptr;
 
 		if (RESULT_PARAM)
 		{
@@ -2600,6 +2652,7 @@ DEFINE_FUNCTION(UObject::execArrayGetByRef)
 	{
 		// clear so other methods don't try to use a stale value (depends on this method succeeding)
 		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
 		// sometimes other exec functions guard on MostRecentProperty, and expect 
 		// MostRecentPropertyAddress to be filled out; since this was a failure
 		// clear this too (so all reliant execs can properly detect)
@@ -2627,9 +2680,12 @@ DEFINE_FUNCTION(UObject::execLet)
 	// Get variable address.
 	Stack.MostRecentProperty = nullptr;
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.Step(Stack.Object, nullptr); // Evaluate variable.
 
 	uint8* LocalTempResult = nullptr;
+	uint8* PreviousPropertyAddress = nullptr;
+
 	if (Stack.MostRecentPropertyAddress == nullptr)
 	{
 		FBlueprintExceptionInfo ExceptionInfo(
@@ -2649,13 +2705,31 @@ DEFINE_FUNCTION(UObject::execLet)
 			FMemory::Memzero(Stack.MostRecentPropertyAddress, sizeof(FString));
 		}
 	}
+	else if (LocallyKnownProperty && LocallyKnownProperty->HasSetter())
+	{
+		// We can't assign a value directly to a property if it's got a setter or getter
+		LocalTempResult = (uint8*)FMemory_Alloca_Aligned(LocallyKnownProperty->GetSize(), LocallyKnownProperty->GetMinAlignment());
+		LocallyKnownProperty->InitializeValue(LocalTempResult);
+		PreviousPropertyAddress = Stack.MostRecentPropertyAddress;
+		Stack.MostRecentPropertyAddress = LocalTempResult;
+	}
 
 	// Evaluate expression into variable.
 	Stack.Step(Stack.Object, Stack.MostRecentPropertyAddress);
 
-	if (LocalTempResult && LocallyKnownProperty)
+	if (LocallyKnownProperty)
 	{
-		LocallyKnownProperty->DestroyValue(LocalTempResult);
+		if (LocallyKnownProperty->HasSetter())
+		{
+			check(Stack.MostRecentPropertyContainer != nullptr);
+			LocallyKnownProperty->SetValue_InContainer(Stack.MostRecentPropertyContainer, LocalTempResult);
+			Stack.MostRecentPropertyAddress = PreviousPropertyAddress;
+		}
+
+		if (LocalTempResult)
+		{
+			LocallyKnownProperty->DestroyValue(LocalTempResult);
+		}
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_Let, execLet );
@@ -2663,7 +2737,8 @@ IMPLEMENT_VM_FUNCTION( EX_Let, execLet );
 DEFINE_FUNCTION(UObject::execLetObj)
 {
 	// Get variable address.
-	Stack.MostRecentPropertyAddress = NULL;
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.Step( Stack.Object, NULL ); // Evaluate variable.
 
 	if (Stack.MostRecentPropertyAddress == NULL)
@@ -2692,7 +2767,15 @@ DEFINE_FUNCTION(UObject::execLetObj)
 	if (ObjAddr)
 	{
 		checkSlow(ObjectProperty);
-		ObjectProperty->SetObjectPropertyValue(ObjAddr, NewValue);
+		if (ObjectProperty->HasSetter())
+		{
+			check(Stack.MostRecentPropertyContainer != nullptr);
+			ObjectProperty->SetValue_InContainer(Stack.MostRecentPropertyContainer, &NewValue);
+		}
+		else
+		{
+			ObjectProperty->SetObjectPropertyValue(ObjAddr, NewValue);
+		}
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_LetObj, execLetObj );
@@ -2700,7 +2783,8 @@ IMPLEMENT_VM_FUNCTION( EX_LetObj, execLetObj );
 DEFINE_FUNCTION(UObject::execLetWeakObjPtr)
 {
 	// Get variable address.
-	Stack.MostRecentPropertyAddress = NULL;
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.Step( Stack.Object, NULL ); // Evaluate variable.
 
 	if (Stack.MostRecentPropertyAddress == NULL)
@@ -2729,15 +2813,25 @@ DEFINE_FUNCTION(UObject::execLetWeakObjPtr)
 	if (ObjAddr)
 	{
 		checkSlow(ObjectProperty);
-		ObjectProperty->SetObjectPropertyValue(ObjAddr, NewValue);
+		if (ObjectProperty->HasSetter())
+		{
+			check(Stack.MostRecentPropertyContainer != nullptr);
+			FWeakObjectPtr NewWeakPtrValue(NewValue);
+			ObjectProperty->SetValue_InContainer(Stack.MostRecentPropertyContainer, &NewWeakPtrValue);
+		}
+		else
+		{
+			ObjectProperty->SetObjectPropertyValue(ObjAddr, NewValue);
+		}
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_LetWeakObjPtr, execLetWeakObjPtr );
 
 DEFINE_FUNCTION(UObject::execLetBool)
 {
-	Stack.MostRecentPropertyAddress = NULL;
-	Stack.MostRecentProperty = NULL;
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.MostRecentProperty = nullptr;
 
 	// Get the variable and address to place the data.
 	Stack.Step( Stack.Object, NULL );
@@ -2773,7 +2867,15 @@ DEFINE_FUNCTION(UObject::execLetBool)
 	if( BoolAddr )
 	{
 		checkSlow(CastField<FBoolProperty>(BoolProperty));
-		BoolProperty->SetPropertyValue( BoolAddr, NewValue );
+		if (BoolProperty->HasSetter())
+		{
+			check(Stack.MostRecentPropertyContainer != nullptr);
+			BoolProperty->SetValue_InContainer(Stack.MostRecentPropertyContainer, &NewValue);
+		}
+		else
+		{
+			BoolProperty->SetPropertyValue(BoolAddr, NewValue);
+		}
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_LetBool, execLetBool );
@@ -2782,8 +2884,9 @@ IMPLEMENT_VM_FUNCTION( EX_LetBool, execLetBool );
 DEFINE_FUNCTION(UObject::execLetDelegate)
 {
 	// Get variable address.
-	Stack.MostRecentPropertyAddress = NULL;
-	Stack.MostRecentProperty = NULL;
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.MostRecentProperty = nullptr;
 	Stack.Step( Stack.Object, NULL ); // Variable.
 
 	FScriptDelegate* DelegateAddr = (FScriptDelegate*)Stack.MostRecentPropertyAddress;
@@ -2801,8 +2904,9 @@ IMPLEMENT_VM_FUNCTION( EX_LetDelegate, execLetDelegate );
 DEFINE_FUNCTION(UObject::execLetMulticastDelegate)
 {
 	// Get variable address.
-	Stack.MostRecentPropertyAddress = NULL;
-	Stack.MostRecentProperty = NULL;
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.MostRecentProperty = nullptr;
 	Stack.Step( Stack.Object, NULL ); // Variable.
 
 	FMulticastDelegateProperty* DelegateProp = CastFieldCheckedNullAllowed<FMulticastDelegateProperty>(Stack.MostRecentProperty);
@@ -2919,8 +3023,9 @@ void UObject::ProcessContextOpcode( FFrame& Stack, RESULT_DECL, bool bCanFailSil
 		FProperty* RValueProperty = nullptr;
 		const VariableSizeType bSize = Stack.ReadVariableSize(&RValueProperty); // Code += sizeof(ScriptPointerType) + sizeof(uint8)
 		Stack.Code += wSkip;
-		Stack.MostRecentPropertyAddress = NULL;
-		Stack.MostRecentProperty = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
+		Stack.MostRecentProperty = nullptr;
 
 		if (RESULT_PARAM && RValueProperty)
 		{
@@ -2936,20 +3041,29 @@ DEFINE_FUNCTION(UObject::execStructMemberContext)
 	checkSlow(StructProperty);
 
 	// Evaluate an expression leading to the struct.
-	Stack.MostRecentProperty = NULL;
-	Stack.MostRecentPropertyAddress = NULL;
-	Stack.Step(Stack.Object, NULL);
+	Stack.MostRecentProperty = nullptr;
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.Step(Stack.Object, nullptr);
 
-	if (Stack.MostRecentProperty != NULL)
+	if (Stack.MostRecentProperty != nullptr)
 	{
 		// Offset into the specific member
-		Stack.MostRecentPropertyAddress = StructProperty->ContainerPtrToValuePtr<uint8>(Stack.MostRecentPropertyAddress);
+		Stack.MostRecentPropertyContainer = Stack.MostRecentPropertyAddress;
+		Stack.MostRecentPropertyAddress = StructProperty->ContainerPtrToValuePtr<uint8>(Stack.MostRecentPropertyAddress);		
 		Stack.MostRecentProperty = StructProperty;
 
 		// Handle variable reads
 		if (RESULT_PARAM)
 		{
-			StructProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+			if (StructProperty->HasGetter())
+			{
+				StructProperty->GetValue_InContainer(Stack.MostRecentPropertyContainer, RESULT_PARAM);
+			}
+			else
+			{
+				StructProperty->CopyCompleteValueToScriptVM(RESULT_PARAM, Stack.MostRecentPropertyAddress);
+			}
 		}
 	}
 	else
@@ -2964,8 +3078,9 @@ DEFINE_FUNCTION(UObject::execStructMemberContext)
 		);
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 
-		Stack.MostRecentPropertyAddress = NULL;
-		Stack.MostRecentProperty = NULL;
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
+		Stack.MostRecentProperty = nullptr;
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_StructMemberContext, execStructMemberContext );
@@ -3005,9 +3120,10 @@ public:
 	{
 		//Get delegate
 		UFunction* SignatureFunction = CastChecked<UFunction>(Stack.ReadObject());
-		Stack.MostRecentPropertyAddress = NULL;
-		Stack.MostRecentProperty = NULL;
-		Stack.Step( Stack.Object, NULL );
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
+		Stack.MostRecentProperty = nullptr;
+		Stack.Step( Stack.Object, nullptr );
 		FMulticastDelegateProperty* DelegateProp = CastFieldCheckedNullAllowed<FMulticastDelegateProperty>(Stack.MostRecentProperty);
 		const FMulticastScriptDelegate* DelegateAddr = (DelegateProp ? DelegateProp->GetMulticastDelegate(Stack.MostRecentPropertyAddress) : nullptr);
 
@@ -3016,7 +3132,8 @@ public:
 		FMemory::Memzero(Parameters, SignatureFunction->ParmsSize);
 		for (FProperty* Property = (FProperty*)SignatureFunction->ChildProperties; *Stack.Code != EX_EndFunctionParms; Property = (FProperty*)Property->Next)
 		{
-			Stack.MostRecentPropertyAddress = NULL;
+			Stack.MostRecentPropertyAddress = nullptr;
+			Stack.MostRecentPropertyContainer = nullptr;
 			if (Property->PropertyFlags & CPF_OutParm)
 			{
 				Stack.Step(Stack.Object, NULL);
@@ -3060,9 +3177,10 @@ IMPLEMENT_VM_FUNCTION( EX_CallMulticastDelegate, execCallMulticastDelegate );
 DEFINE_FUNCTION(UObject::execAddMulticastDelegate)
 {
 	// Get variable address.
-	Stack.MostRecentPropertyAddress = NULL;
-	Stack.MostRecentProperty = NULL;
-	Stack.Step( Stack.Object, NULL ); // Variable.
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.MostRecentProperty = nullptr;
+	Stack.Step( Stack.Object, nullptr ); // Variable.
 
 	FMulticastDelegateProperty* DelegateProp = CastFieldCheckedNullAllowed<FMulticastDelegateProperty>(Stack.MostRecentProperty);
 	void* DelegateAddr = Stack.MostRecentPropertyAddress;
@@ -3080,9 +3198,10 @@ IMPLEMENT_VM_FUNCTION( EX_AddMulticastDelegate, execAddMulticastDelegate );
 DEFINE_FUNCTION(UObject::execRemoveMulticastDelegate)
 {
 	// Get variable address.
-	Stack.MostRecentPropertyAddress = NULL;
-	Stack.MostRecentProperty = NULL;
-	Stack.Step( Stack.Object, NULL ); // Variable.
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.MostRecentProperty = nullptr;
+	Stack.Step( Stack.Object, nullptr ); // Variable.
 
 	FMulticastDelegateProperty* DelegateProp = CastFieldCheckedNullAllowed<FMulticastDelegateProperty>(Stack.MostRecentProperty);
 	void* DelegateAddr = Stack.MostRecentPropertyAddress;
@@ -3100,9 +3219,10 @@ IMPLEMENT_VM_FUNCTION( EX_RemoveMulticastDelegate, execRemoveMulticastDelegate )
 DEFINE_FUNCTION(UObject::execClearMulticastDelegate)
 {
 	// Get the delegate address
-	Stack.MostRecentPropertyAddress = NULL;
-	Stack.MostRecentProperty = NULL;
-	Stack.Step( Stack.Object, NULL );
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.MostRecentProperty = nullptr;
+	Stack.Step( Stack.Object, nullptr );
 
 	FMulticastDelegateProperty* DelegateProp = CastFieldCheckedNullAllowed<FMulticastDelegateProperty>(Stack.MostRecentProperty);
 	void* DelegateAddr = Stack.MostRecentPropertyAddress;
@@ -3285,9 +3405,10 @@ DEFINE_FUNCTION(UObject::execBindDelegate)
 	FName FunctionName = Stack.ReadName();
 
 	// Get delegate address.
-	Stack.MostRecentPropertyAddress = NULL;
-	Stack.MostRecentProperty = NULL;
-	Stack.Step( Stack.Object, NULL ); // Variable.
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.MostRecentProperty = nullptr;
+	Stack.Step( Stack.Object, nullptr ); // Variable.
 
 	FScriptDelegate* DelegateAddr = (FScriptDelegate*)Stack.MostRecentPropertyAddress;
 
@@ -3398,9 +3519,10 @@ IMPLEMENT_VM_FUNCTION( EX_StructConst, execStructConst );
 DEFINE_FUNCTION(UObject::execSetArray)
 {
 	// Get the array address
-	Stack.MostRecentPropertyAddress = NULL;
-	Stack.MostRecentProperty = NULL;
-	Stack.Step( Stack.Object, NULL ); // Array to set
+	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
+	Stack.MostRecentProperty = nullptr;
+	Stack.Step( Stack.Object, nullptr ); // Array to set
 	
 	FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(Stack.MostRecentProperty);
  	FScriptArrayHelper ArrayHelper(ArrayProperty, Stack.MostRecentPropertyAddress);
@@ -3422,6 +3544,7 @@ DEFINE_FUNCTION(UObject::execSetSet)
 {
 	// Get the set address
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.MostRecentProperty = nullptr;
 	Stack.Step( Stack.Object, nullptr ); // Set to set
 	const int32 Num = Stack.ReadInt<int32>();
@@ -3455,6 +3578,7 @@ DEFINE_FUNCTION(UObject::execSetMap)
 {
 	// Get the map address
 	Stack.MostRecentPropertyAddress = nullptr;
+	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.MostRecentProperty = nullptr;
 	Stack.Step( Stack.Object, nullptr ); // Map to set
 	const int32 Num = Stack.ReadInt<int32>();

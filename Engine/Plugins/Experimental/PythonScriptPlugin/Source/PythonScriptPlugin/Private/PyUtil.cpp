@@ -520,7 +520,7 @@ void ImportDefaultValue(const FProperty* InProp, void* InPropValue, const FStrin
 			}
 		}
 
-		InProp->ImportText(*InDefaultValue, InPropValue, PPF_None, nullptr);
+		InProp->ImportText_Direct(*InDefaultValue, InPropValue, nullptr, PPF_None);
 	}
 }
 
@@ -1184,7 +1184,7 @@ FString GetFriendlyPropertyValue(const FProperty* InProp, const void* InPropValu
 	}
 	
 	FString FriendlyPropertyValue;
-	InProp->ExportTextItem(FriendlyPropertyValue, InPropValue, InPropValue, nullptr, InPortFlags, nullptr);
+	InProp->ExportTextItem_Direct(FriendlyPropertyValue, InPropValue, InPropValue, nullptr, InPortFlags, nullptr);
 	return FriendlyPropertyValue;
 }
 

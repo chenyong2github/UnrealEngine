@@ -294,7 +294,7 @@ namespace FObjectEditorUtils
 			FString ExportedTextString;
 			if ( InSourceProperty->ExportText_InContainer(0, ExportedTextString, InSourcePtr, InSourcePtr, SourceObject, PPF_Copy, SourceObject) )
 			{
-				InDestinationProperty->ImportText(*ExportedTextString, InDestinationProperty->ContainerPtrToValuePtr<void>(InTargetPtr), 0, InDestinationObject);
+				InDestinationProperty->ImportText_InContainer(*ExportedTextString, InTargetPtr, InDestinationObject, 0);
 			}
 		}
 	}

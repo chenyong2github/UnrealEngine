@@ -114,9 +114,17 @@ void FTextProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, v
 	Slot << *TextPtr;
 }
 
-void FTextProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
+void FTextProperty::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
-	const FText& TextValue = GetPropertyValue(PropertyValue);
+	FText TextValue;
+	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
+	{
+		GetValue_InContainer(PropertyValueOrContainer, &TextValue);
+	}
+	else
+	{
+		TextValue = GetPropertyValue(PointerToValuePtr(PropertyValueOrContainer, PropertyPointerType));
+	}
 
 	if (PortFlags & PPF_ExportCpp)
 	{
@@ -141,9 +149,9 @@ void FTextProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue
 	}
 }
 
-const TCHAR* FTextProperty::ImportText_Internal( const TCHAR* Buffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const
+const TCHAR* FTextProperty::ImportText_Internal( const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* Parent, int32 PortFlags, FOutputDevice* ErrorText ) const
 {
-	FText* TextPtr = GetPropertyValuePtr(Data);
+	FText ImportedText;
 
 	FString TextNamespace;
 	if (Parent && HasAnyPropertyFlags(CPF_Config))
@@ -181,7 +189,20 @@ const TCHAR* FTextProperty::ImportText_Internal( const TCHAR* Buffer, void* Data
 	}
 #endif // USE_STABLE_LOCALIZATION_KEYS
 
-	return FTextStringHelper::ReadFromBuffer(Buffer, *TextPtr, *TextNamespace, *PackageNamespace, !!(PortFlags & PPF_Delimited));
+	const TCHAR* Result = FTextStringHelper::ReadFromBuffer(Buffer, ImportedText, *TextNamespace, *PackageNamespace, !!(PortFlags & PPF_Delimited));
+	if (Result)
+	{
+		if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
+		{
+			SetValue_InContainer(ContainerOrPropertyPtr, ImportedText);
+		}
+		else
+		{
+			FText* TextPtr = GetPropertyValuePtr(PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType));
+			*TextPtr = ImportedText;
+		}
+	}
+	return Result;
 }
 
 FString FTextProperty::GenerateCppCodeForTextValue(const FText& InValue, const FString& Indent)

@@ -64,6 +64,7 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTracking.h"
+#include "UObject/PropertyWithSetterAndGetter.h"
 
 DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 
@@ -458,7 +459,7 @@ void GlobalSetProperty( const TCHAR* Value, UClass* Class, FProperty* Property, 
 						Object->PreEditChange(Property);
 					}
 #endif // WITH_EDITOR
-					Property->ImportText( Value, Property->ContainerPtrToValuePtr<uint8>(Object), 0, Object );
+					Property->ImportText_InContainer(Value, Object, Object, 0);
 #if WITH_EDITOR
 					if( !Object->HasAnyFlags(RF_ClassDefaultObject) && bNotifyObjectOfChange )
 					{
@@ -4667,7 +4668,16 @@ namespace UECodeGen_Private
 	PropertyType* NewFProperty(FFieldVariant Outer, const FPropertyParamsBase& PropBase)
 	{
 		const PropertyParamsType& Prop = (const PropertyParamsType&)PropBase;
-		PropertyType* NewProp = new PropertyType(Outer, Prop);
+		PropertyType* NewProp = nullptr;
+
+		if (Prop.SetterFunc || Prop.GetterFunc)
+		{
+			NewProp = new TPropertyWithSetterAndGetter<PropertyType>(Outer, Prop);
+		}
+		else
+		{
+			NewProp = new PropertyType(Outer, Prop);
+		}
 
 #if WITH_METADATA
 		if (Prop.NumMetaData)

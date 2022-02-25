@@ -32,7 +32,7 @@ void FNativeJSStructSerializerBackend::WriteUObject(const FStructSerializerState
 	else if (State.KeyProperty != nullptr)
 	{
 		FString KeyString;
-		State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+		State.KeyProperty->ExportTextItem_Direct(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
 		GetWriter()->WriteRawJSONValue(KeyString, RawValue);
 	}
 	else
