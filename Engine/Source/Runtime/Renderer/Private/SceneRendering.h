@@ -1696,7 +1696,7 @@ private:
 	void CalcTranslucencyLightingVolumeBounds(FBox* InOutCascadeBoundsArray, int32 NumCascades) const;
 
 	/** Instanced view uniform buffer held on the primary view. */
-	mutable TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedViewUniformBuffer;
+	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedViewUniformBuffer;
 };
 
 

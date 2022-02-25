@@ -1992,6 +1992,23 @@ void FViewInfo::InitRHIResources()
 		*CachedViewUniformShaderParameters);
 
 	ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+	if (bShouldBindInstancedViewUB)
+	{
+		if (const FViewInfo* InstancedView = GetInstancedView())
+		{
+			checkf(InstancedView->CachedViewUniformShaderParameters.IsValid(), TEXT("Instanced view should have had its RHI resources initialized first. Check InitViews order."));
+			InstancedViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
+				reinterpret_cast<FInstancedViewUniformShaderParameters&>(*InstancedView->CachedViewUniformShaderParameters),
+				UniformBuffer_SingleFrame);
+		}
+		else
+		{
+			// If we don't render this view in stereo, we simply initialize with the existing contents.
+			InstancedViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
+				reinterpret_cast<FInstancedViewUniformShaderParameters&>(*CachedViewUniformShaderParameters),
+				UniformBuffer_SingleFrame);
+		}
+	}
 
 	const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
 
@@ -2014,23 +2031,6 @@ void FViewInfo::BeginRenderView() const
 	{
 		Extension->BeginRenderView(this, bShouldWaitForPersistentViewUniformBufferExtensionsJobs);
 	}
-
-	if (!InstancedViewUniformBuffer)
-	{
-		if (const FViewInfo* InstancedView = GetInstancedView())
-		{
-			InstancedViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
-				reinterpret_cast<FInstancedViewUniformShaderParameters&>(*InstancedView->CachedViewUniformShaderParameters),
-				UniformBuffer_SingleFrame);
-		}
-		else
-		{
-			// If we don't render this view in stereo, we simply initialize with the existing contents.
-			InstancedViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
-				reinterpret_cast<FInstancedViewUniformShaderParameters&>(*CachedViewUniformShaderParameters),
-				UniformBuffer_SingleFrame);
-		}
-	}
 }
 
 FViewShaderParameters FViewInfo::GetShaderParameters() const
@@ -2038,6 +2038,8 @@ FViewShaderParameters FViewInfo::GetShaderParameters() const
 	FViewShaderParameters Parameters;
 	Parameters.View = ViewUniformBuffer;
 	Parameters.InstancedView = InstancedViewUniformBuffer;
+	// if we're a part of the stereo pair, make sure that the pointer isn't bogus
+	checkf(InstancedViewUniformBuffer.IsValid() || !bShouldBindInstancedViewUB, TEXT("A view that is a part of the stereo pair has bogus state for InstancedView."));
 	return Parameters;
 }
 

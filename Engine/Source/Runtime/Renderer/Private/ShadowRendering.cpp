@@ -1980,7 +1980,9 @@ void FSceneRenderer::RenderShadowProjections(
 		{
 			continue;
 		}
-		
+
+		View.BeginRenderView();
+
 		// Sanity check
 		if (bSubPixelShadow)
 		{
