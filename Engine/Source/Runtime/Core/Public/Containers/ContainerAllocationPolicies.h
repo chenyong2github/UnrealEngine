@@ -469,7 +469,7 @@ template <> struct TBitsToSizeType<32> { using Type = int32; };
 template <> struct TBitsToSizeType<64> { using Type = int64; };
 
 /** The indirect allocation policy always allocates the elements indirectly. */
-template <int IndexSize>
+template <int IndexSize, typename BaseMallocType = FMemory>
 class TSizedHeapAllocator
 {
 public:
@@ -480,7 +480,7 @@ public:
 
 	class ForAnyElementType
 	{
-		template <int>
+		template <int, typename>
 		friend class TSizedHeapAllocator;
 
 	public:
@@ -502,7 +502,7 @@ public:
 
 			if (Data)
 			{
-				FMemory::Free(Data);
+				BaseMallocType::Free(Data);
 			}
 
 			Data = Other.Data;
@@ -526,7 +526,7 @@ public:
 		{
 			if(Data)
 			{
-				FMemory::Free(Data);
+				BaseMallocType::Free(Data);
 			}
 		}
 
@@ -541,7 +541,7 @@ public:
 			if (Data || NumElements)
 			{
 				//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
-				Data = (FScriptContainerElement*)FMemory::Realloc( Data, NumElements*NumBytesPerElement );
+				Data = (FScriptContainerElement*)BaseMallocType::Realloc( Data, NumElements*NumBytesPerElement );
 			}
 		}
 		FORCEINLINE void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement, uint32 AlignmentOfElement)
@@ -550,7 +550,7 @@ public:
 			if (Data || NumElements)
 			{
 				//checkSlow(((uint64)NumElements*(uint64)ElementTypeInfo.GetSize() < (uint64)INT_MAX));
-				Data = (FScriptContainerElement*)FMemory::Realloc( Data, NumElements*NumBytesPerElement, AlignmentOfElement );
+				Data = (FScriptContainerElement*)BaseMallocType::Realloc( Data, NumElements*NumBytesPerElement, AlignmentOfElement );
 			}
 		}
 		FORCEINLINE SizeType CalculateSlackReserve(SizeType NumElements, SIZE_T NumBytesPerElement) const

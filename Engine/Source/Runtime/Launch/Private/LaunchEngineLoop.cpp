@@ -240,6 +240,7 @@ class FFeedbackContext;
 	#if ENABLE_VISUAL_LOG
 		#include "VisualLogger/VisualLogger.h"
 	#endif
+	#include "FramePro/FrameProProfiler.h"
 	#include "ProfilingDebugging/CsvProfiler.h"
 	#include "ProfilingDebugging/TracingProfiler.h"
 #endif
@@ -2413,6 +2414,9 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FTracingProfiler::Get()->Init();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
+#if WITH_ENGINE && FRAMEPRO_ENABLED
+	FFrameProProfiler::Initialize();
+#endif // FRAMEPRO_ENABLED
 
 	// Start the application
 	{
@@ -4597,6 +4601,10 @@ void FEngineLoop::Exit()
 	RHIExit();
 
 	FPlatformMisc::ShutdownTaggedStorage();
+
+#if WITH_ENGINE && FRAMEPRO_ENABLED
+	FFrameProProfiler::TearDown();
+#endif // FRAMEPRO_ENABLED
 }
 
 

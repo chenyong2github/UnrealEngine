@@ -12,9 +12,44 @@
 #include "Misc/App.h"
 #include "HAL/MallocTimer.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "FramePro/FrameProProfiler.h"
+
 #if CSV_PROFILER
 CSV_DEFINE_CATEGORY_MODULE(CORE_API, FMemory, true);
 #endif
+
+#if FRAMEPRO_ENABLED
+/** Pushes a profiler scope if it's safe to do so without any new allocations. */
+class FNoAllocScopeCycleCounter
+{
+public:
+	FORCEINLINE FNoAllocScopeCycleCounter(const ANSICHAR* InStatString)
+		: bPop(false)
+		, StatString(InStatString)
+	{
+		if (FFrameProProfiler::IsThreadContextReady() && GCycleStatsShouldEmitNamedEvents)
+		{
+			bPop = true;
+			FFrameProProfiler::PushEvent(StatString);
+		}
+	}
+
+	FORCEINLINE ~FNoAllocScopeCycleCounter()
+	{
+		if (bPop)
+		{
+			FFrameProProfiler::PopEvent(StatString);
+		}
+	}
+private:
+	bool bPop;
+	const ANSICHAR* StatString;
+};
+#define NOALLOC_SCOPE_CYCLE_COUNTER(Stat) FNoAllocScopeCycleCounter NoAllocCycleCounter_##Stat(#Stat)
+#else
+#define NOALLOC_SCOPE_CYCLE_COUNTER(Stat)
+#endif // FRAMEPRO_ENABLED
+
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
@@ -573,6 +608,7 @@ struct FMallocBinned2::Private
 	}
 	static void RegisterThreadFreeBlockLists( FPerThreadFreeBlockLists* FreeBlockLists )
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_RegisterThreadFreeBlockLists);
 		FScopeLock Lock(&GetFreeBlockListsRegistrationMutex());
 #if BINNED2_ALLOCATOR_STATS_VALIDATION
 		++RecursionCounter;
@@ -584,6 +620,7 @@ struct FMallocBinned2::Private
 	}
 	static void UnregisterThreadFreeBlockLists( FPerThreadFreeBlockLists* FreeBlockLists )
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_UnregisterThreadFreeBlockLists);
 		FScopeLock Lock(&GetFreeBlockListsRegistrationMutex());
 #if BINNED2_ALLOCATOR_STATS_VALIDATION
 		++RecursionCounter;
@@ -836,6 +873,8 @@ void* FMallocBinned2::MallocExternalSmall(SIZE_T Size, uint32 Alignment)
 		}
 	}
 
+	NOALLOC_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_MallocExternalSmall);
+
 	FScopeLock Lock(&Mutex);
 
 	// Allocate from small object pool.
@@ -896,6 +935,8 @@ void* FMallocBinned2::MallocExternalLarge(SIZE_T Size, uint32 Alignment)
 	FPoolInfo* Pool;
 	void*      Result;
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_MallocExternalLarge);
+
 		FScopeLock Lock(&Mutex);
 
 		// Use OS for non-pooled allocations.
@@ -965,6 +1006,8 @@ void* FMallocBinned2::ReallocExternal(void* Ptr, SIZE_T NewSize, uint32 Alignmen
 		return Result;
 	}
 
+	NOALLOC_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_ReallocExternal);
+
 	// Allocated from OS.
 	Mutex.Lock();
 	FPoolInfo* Pool = Private::FindPoolInfo(*this, Ptr);
@@ -1019,6 +1062,8 @@ void* FMallocBinned2::ReallocExternal(void* Ptr, SIZE_T NewSize, uint32 Alignmen
 
 void FMallocBinned2::FreeExternal(void* Ptr)
 {
+	NOALLOC_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_FreeExternal);
+
 	if (!IsOSAllocation(Ptr))
 	{
 		check(Ptr); // null is 64k aligned so we should not be here
@@ -1106,6 +1151,7 @@ bool FMallocBinned2::GetAllocationSizeExternal(void* Ptr, SIZE_T& SizeOut)
 
 	FPoolInfo* Pool;
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_GetAllocationSizeExternal);
 		FScopeLock Lock(&Mutex);
 		Pool = Private::FindPoolInfo(*this, Ptr);
 	}
@@ -1147,6 +1193,7 @@ void FMallocBinned2::FPoolList::ValidateExhaustedPools()
 
 bool FMallocBinned2::ValidateHeap()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_ValidateHeap);
 	FScopeLock Lock(&Mutex);
 
 	for (FPoolTable& Table : SmallPoolTables)
@@ -1237,6 +1284,8 @@ void FMallocBinned2::Trim(bool bTrimThreadCaches)
 
 void FMallocBinned2::SetupTLSCachesOnCurrentThread()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_SetupTLSCachesOnCurrentThread);
+
 	if (!BINNED2_ALLOW_RUNTIME_TWEAKING && !GMallocBinned2PerThreadCaches)
 	{
 		return;
@@ -1251,6 +1300,7 @@ void FMallocBinned2::SetupTLSCachesOnCurrentThread()
 
 void FMallocBinned2::ClearAndDisableTLSCachesOnCurrentThread()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_ClearTLSCachesOnCurrentThread);
 	FlushCurrentThreadCache();
 	FPerThreadFreeBlockLists::ClearTLS();
 }
@@ -1370,6 +1420,7 @@ void FMallocBinned2::CanaryFail(const FFreeBlock* Block) const
 #if BINNED2_ALLOCATOR_STATS
 int64 FMallocBinned2::GetTotalAllocatedSmallPoolMemory() const
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_GetTotalAllocatedSmallPoolMemory);
 	int64 FreeBlockAllocatedMemory = 0;
 	{
 		FScopeLock Lock(&Private::GetFreeBlockListsRegistrationMutex());
@@ -1387,6 +1438,7 @@ int64 FMallocBinned2::GetTotalAllocatedSmallPoolMemory() const
 void FMallocBinned2::GetAllocatorStats( FGenericMemoryStats& OutStats )
 {
 #if BINNED2_ALLOCATOR_STATS
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMallocBinned2_GetAllocatorStats);
 
 	int64  TotalAllocatedSmallPoolMemory           = GetTotalAllocatedSmallPoolMemory();
 	int64  LocalAllocatedOSSmallPoolMemory         = AllocatedOSSmallPoolMemory.Load(EMemoryOrder::Relaxed);

@@ -10,6 +10,9 @@
 class CORE_API FFrameProProfiler
 {
 public:
+	static void Initialize();
+	static void TearDown();
+
 	/** Called to mark the start of each frame  */
 	static void FrameStart();
 
@@ -28,6 +31,7 @@ public:
 	static void StopFrameProRecording();
 
 	static bool IsFrameProRecording();
+	static bool IsThreadContextReady();
 };
 
 #endif // FRAMEPRO_ENABLED
