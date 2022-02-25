@@ -1752,12 +1752,10 @@ void FLumenSceneData::CopyBuffersForResample(FRDGBuilder& GraphBuilder, FShaderR
 	{
 		LastPageTableBufferForResample.Initialize(TEXT("Lumen.LastPageBufferForResample"), PageTableBuffer.NumBytes);
 	}
-	else
-	{
-		GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(LastPageTableBufferForResample.UAV, ERHIAccess::Unknown, ERHIAccess::UAVMask));
-	}
 
 	{
+		GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(LastPageTableBufferForResample.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+
 		FMemcpyResourceParams MemcpyParams;
 		MemcpyParams.Count = PageTableBuffer.NumBytes;
 		MemcpyParams.SrcOffset = 0;
@@ -1773,7 +1771,7 @@ void FLumenSceneData::CopyBuffersForResample(FRDGBuilder& GraphBuilder, FShaderR
 	}
 	else
 	{
-		GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(LastCardBufferForResample.UAV, ERHIAccess::Unknown, ERHIAccess::UAVMask));
+		GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(LastCardBufferForResample.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 	}
 
 	//@todo - copy just the needed cards, instead of the entire scene
