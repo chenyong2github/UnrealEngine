@@ -636,12 +636,10 @@ void FAudioThread::StartAudioThread()
 
 void FAudioThread::StopAudioThread()
 {
-	if (!bUseThreadedAudio)
+	if (!IsAudioThreadRunning())
 	{
 		return;
 	}
-
-	check(IsAudioThreadRunning());
 
 	GAudioAsyncBatcher.Flush();
 	GAudioAsyncBatcher.LastBatch.Wait();
