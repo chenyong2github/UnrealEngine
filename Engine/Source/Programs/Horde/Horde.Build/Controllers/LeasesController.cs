@@ -21,6 +21,8 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace HordeServer.Controllers
 {
@@ -108,18 +110,21 @@ namespace HordeServer.Controllers
 
 			List<object> Responses = new List<object>();
 
-			Dictionary<AgentId, double?> CachedAgentRates = new Dictionary<AgentId, double?>();
-			foreach (ILease Lease in Leases)
+			using (IScope _ = GlobalTracer.Instance.BuildSpan($"GenerateResponses").StartActive())
 			{
-				double? AgentRate = null;
-				if (IncludeCosts && !CachedAgentRates.TryGetValue(Lease.AgentId, out AgentRate))
+				Dictionary<AgentId, double?> CachedAgentRates = new Dictionary<AgentId, double?>();
+				foreach (ILease Lease in Leases)
 				{
-					AgentRate = await AgentService.GetRateAsync(Lease.AgentId);
-					CachedAgentRates.Add(Lease.AgentId, AgentRate);
-				}
+					double? AgentRate = null;
+					if (IncludeCosts && !CachedAgentRates.TryGetValue(Lease.AgentId, out AgentRate))
+					{
+						AgentRate = await AgentService.GetRateAsync(Lease.AgentId);
+						CachedAgentRates.Add(Lease.AgentId, AgentRate);
+					}
 
-				Dictionary<string, string>? Details = AgentService.GetPayloadDetails(Lease.Payload);
-				Responses.Add(PropertyFilter.Apply(new GetAgentLeaseResponse(Lease, Details, AgentRate), Filter));
+					Dictionary<string, string>? Details = AgentService.GetPayloadDetails(Lease.Payload);
+					Responses.Add(PropertyFilter.Apply(new GetAgentLeaseResponse(Lease, Details, AgentRate), Filter));
+				}
 			}
 
 			return Responses;

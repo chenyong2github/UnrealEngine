@@ -22,6 +22,8 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace HordeServer.Services
 {
@@ -748,6 +750,13 @@ namespace HordeServer.Services
 		/// <returns>List of leases matching the given criteria</returns>
 		public Task<List<ILease>> FindLeasesAsync(AgentId? AgentId, SessionId? SessionId, DateTime? StartTime, DateTime? FinishTime, int Index, int Count)
 		{
+			using IScope Scope = GlobalTracer.Instance.BuildSpan($"{nameof(AgentService)}.{nameof(FindLeasesAsync)}").StartActive();
+			Scope.Span.SetTag("AgentId", AgentId?.ToString());
+			Scope.Span.SetTag("SessionId", SessionId?.ToString());
+			Scope.Span.SetTag("StartTime", StartTime?.ToString());
+			Scope.Span.SetTag("FinishTime", FinishTime?.ToString());
+			Scope.Span.SetTag("Index", Index);
+			Scope.Span.SetTag("Count", Count);
 			return Leases.FindLeasesAsync(AgentId, SessionId, StartTime, FinishTime, Index, Count);
 		}
 
