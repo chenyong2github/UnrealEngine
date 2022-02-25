@@ -347,7 +347,8 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 
 	// Only support static lighting with SH integrator at the moment
 	const bool bUseVolumetricLightmap = Scene && Scene->VolumetricLightmapSceneData.HasData();
-	const bool bHasStaticLighting = AllowStaticLighting() && bUseVolumetricLightmap && View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod != EDynamicGlobalIlluminationMethod::Lumen && IntegrationType == EHairLightingIntegrationType::SH;
+	const bool bLumenActive = ShouldRenderLumenDiffuseGI(Scene, View);
+	const bool bHasStaticLighting = AllowStaticLighting() && bUseVolumetricLightmap && !bLumenActive && IntegrationType == EHairLightingIntegrationType::SH;
 
 	// Sanity check
 	if (bHasStaticLighting) { check(LightingType != EHairLightingSourceType::Lumen); }

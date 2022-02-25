@@ -553,6 +553,7 @@ bool GetBasePassShaders<FUniformLightMapPolicy>(
 void SetupSharedBasePassParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	bool bLumenGIEnabled,
 	FSharedBasePassUniformParameters& SharedParameters)
 {
 	SharedParameters.Forward = *View.ForwardLightingResources.ForwardLightData;
@@ -579,7 +580,7 @@ void SetupSharedBasePassParameters(
 
 	// Skip base pass skylight if Lumen GI is enabled, as Lumen handles the skylight.
 	// Ideally we would choose a different shader permutation to skip skylight, but Lumen GI is only known per-view
-	SharedParameters.UseBasePassSkylight = View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen ? 0 : 1;
+	SharedParameters.UseBasePassSkylight = bLumenGIEnabled ? 0 : 1;
 }
 
 TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUniformBuffer(
@@ -588,10 +589,11 @@ TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUnifo
 	const int32 ViewIndex,
 	const FForwardBasePassTextures& ForwardBasePassTextures,
 	const FDBufferTextures& DBufferTextures,
-	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures)
+	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures,
+	bool bLumenGIEnabled)
 {
 	FOpaqueBasePassUniformParameters& BasePassParameters = *GraphBuilder.AllocParameters<FOpaqueBasePassUniformParameters>();
-	SetupSharedBasePassParameters(GraphBuilder, View, BasePassParameters.Shared);
+	SetupSharedBasePassParameters(GraphBuilder, View, bLumenGIEnabled, BasePassParameters.Shared);
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
@@ -1245,13 +1247,15 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 				View.BeginRenderView();
 
+				const bool bLumenGIEnabled = GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
+
 				FMeshPassProcessorRenderState DrawRenderState;
 				SetupBasePassState(BasePassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity, DrawRenderState);
 
 				FOpaqueBasePassParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassParameters>();
 				PassParameters->View = View.GetShaderParameters();
 				PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
-				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, nullptr);
+				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, nullptr, bLumenGIEnabled);
 				PassParameters->RenderTargets = BasePassRenderTargets;
 
 				const bool bShouldRenderView = View.ShouldRenderView();
@@ -1309,13 +1313,15 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 				View.BeginRenderView();
 
+				const bool bLumenGIEnabled = GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
+
 				FMeshPassProcessorRenderState DrawRenderState;
 				SetupBasePassState(BasePassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity, DrawRenderState);
 
 				FOpaqueBasePassParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueBasePassParameters>();
 				PassParameters->View = View.GetShaderParameters();
 				PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
-				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, nullptr);
+				PassParameters->BasePass = CreateOpaqueBasePassUniformBuffer(GraphBuilder, View, ViewIndex, ForwardBasePassTextures, DBufferTextures, nullptr, bLumenGIEnabled);
 				PassParameters->RenderTargets = BasePassRenderTargets;
 
 				const bool bShouldRenderView = View.ShouldRenderView();

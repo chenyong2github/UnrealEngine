@@ -133,6 +133,7 @@ DECLARE_GPU_DRAWCALL_STAT_EXTERN(Basepass);
 extern void SetupSharedBasePassParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	bool bLumenGIEnabled,
 	FSharedBasePassUniformParameters& BasePassParameters);
 
 extern TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUniformBuffer(
@@ -141,7 +142,8 @@ extern TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePa
 	const int32 ViewIndex = 0,
 	const FForwardBasePassTextures& ForwardBasePassTextures = {},
 	const FDBufferTextures& DBufferTextures = {},
-	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures = nullptr);
+	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures = nullptr,
+	bool bLumenGIEnabled = false);
 
 extern TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,
@@ -150,7 +152,8 @@ extern TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslu
 	const int32 ViewIndex = 0,
 	const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures = {},
 	FRDGTextureRef SceneColorCopyTexture = nullptr,
-	const ESceneTextureSetupMode SceneTextureSetupMode = ESceneTextureSetupMode::None);
+	const ESceneTextureSetupMode SceneTextureSetupMode = ESceneTextureSetupMode::None,
+	bool bLumenGIEnabled = false);
 
 /** Parameters for computing forward lighting. */
 class FForwardLightingParameters

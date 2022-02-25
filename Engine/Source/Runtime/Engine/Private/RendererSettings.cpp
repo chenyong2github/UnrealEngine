@@ -302,6 +302,12 @@ bool URendererSettings::CanEditChange(const FProperty* InProperty) const
 		return bSupportSkyAtmosphere;
 	}
 
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, DynamicGlobalIllumination)
+		|| InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, Reflections))
+	{
+		return !bForwardShading;
+	}
+
 	return true;
 }
 #endif // #if WITH_EDITOR

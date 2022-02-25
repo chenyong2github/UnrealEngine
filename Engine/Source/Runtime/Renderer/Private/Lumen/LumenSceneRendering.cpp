@@ -317,26 +317,28 @@ namespace Lumen
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 	{
 #if RHI_RAYTRACING
-		if (GAllowLumenDiffuseIndirect != 0
-			&& View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen
+
+		const bool bLumenGI = ShouldRenderLumenDiffuseGI(Scene, View);
+		const bool bLumenReflections = ShouldRenderLumenReflections(View);
+
+		if (bLumenGI
 			&& (UseHardwareRayTracedScreenProbeGather() || UseHardwareRayTracedRadianceCache() || UseHardwareRayTracedDirectLighting()))
 		{
 			return true;
 		}
 
-		if (GAllowLumenReflections != 0
-			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
+		if (bLumenReflections
 			&& UseHardwareRayTracedReflections())
 		{
 			return true;
 		}
 
-		if (Lumen::ShouldVisualizeHardwareRayTracing(*View.Family))
+		if ((bLumenGI || bLumenReflections) && Lumen::ShouldVisualizeHardwareRayTracing(*View.Family))
 		{
 			return true;
 		}
 
-		if (Lumen::UseHardwareRayTracedRadiosity(*View.Family))
+		if ((bLumenGI || bLumenReflections) && Lumen::UseHardwareRayTracedRadiosity(*View.Family))
 		{
 			return true;
 		}
