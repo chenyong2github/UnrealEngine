@@ -7,6 +7,8 @@
 
 #include "CommonInputActionDomain.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogUIActionDomain, Log, All);
+
 UENUM()
 enum class ECommonInputEventFlowBehavior {
 	BlockIfActive,

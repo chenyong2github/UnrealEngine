@@ -31,7 +31,7 @@ static const FAutoConsoleVariableRef CVarAlwaysShowCursor(
 	bAlwaysShowCursor,
 	TEXT(""));
 
-bool bEnableActionDomainRouting = false;
+bool bEnableActionDomainRouting = true;
 static const FAutoConsoleVariableRef CVarEnableActionDomainRouting(
 	TEXT("CommonUI.EnableActionDomainRouting"),
 	bEnableActionDomainRouting,
@@ -681,13 +681,15 @@ void UCommonUIActionRouterBase::RemoveFromActionDomain(FActivatableTreeRootRef R
 
 	if (!ActionDomain)
 	{
-		UCommonInputSubsystem& CommonInputSubsystem = GetInputSubsystem();
-		UCommonInputActionDomainTable* ActionDomainTable = CommonInputSubsystem.GetActionDomainTable();
-		ActionDomain = ActionDomainTable ? ActionDomainTable->DefaultActionDomainCache : nullptr;
+		if (UCommonInputSubsystem* InputSubsytem = GetLocalPlayerChecked()->GetSubsystem<UCommonInputSubsystem>())
+		{
+			UCommonInputActionDomainTable* ActionDomainTable = InputSubsytem->GetActionDomainTable();
+			ActionDomain = ActionDomainTable ? ActionDomainTable->DefaultActionDomainCache : nullptr;
+		}
 	}
 
 	FActionDomainSortedRootList* ActionDomainRootList = ActionDomainRootNodes.Find(ActionDomain);
-	if (ensure(ActionDomainRootList))
+	if (ActionDomainRootList)
 	{
 		verify(ActionDomainRootList->Remove(RootNode) != INDEX_NONE);
 	}

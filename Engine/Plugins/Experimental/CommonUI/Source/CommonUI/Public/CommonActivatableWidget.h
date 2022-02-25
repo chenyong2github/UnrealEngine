@@ -189,10 +189,10 @@ protected:
 	bool bOverrideActionDomain = false;
 
 	/**
-	 * Enable to override the inheritd ActionDomain from owning CommonActivatableWidget.
+	 * Enable to override the inherited ActionDomain from owning CommonActivatableWidget.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input | ActionDomain", meta = (EditCondition = "bOverrideActionDomain", DisplayName = "Override ActionDomain"))
-	TSoftObjectPtr<UCommonInputActionDomain> ActionDomain;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input | ActionDomain", meta = (EditCondition = "bOverrideActionDomain"))
+	TSoftObjectPtr<UCommonInputActionDomain> ActionDomainOverride;
 
 private:
 	/** See BindVisibilityToMultipleActivations */
@@ -233,7 +233,7 @@ private:
 	mutable FSimpleMulticastDelegate OnSlateReleasedEvent;
 	mutable FSimpleMulticastDelegate OnRequestRefreshFocusEvent;
 
-	TSoftObjectPtr<UCommonInputActionDomain> CalculatedActionDomainCache;
+	TOptional<TSoftObjectPtr<UCommonInputActionDomain>> CalculatedActionDomainCache;
 
 protected:
 	

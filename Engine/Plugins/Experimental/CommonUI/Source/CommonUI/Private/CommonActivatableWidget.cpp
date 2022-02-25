@@ -150,15 +150,9 @@ void UCommonActivatableWidget::ClearActiveHoldInputs()
 
 TObjectPtr<UCommonInputActionDomain> UCommonActivatableWidget::GetCalculatedActionDomain()
 {
-	if (CalculatedActionDomainCache.IsValid())
+	if (CalculatedActionDomainCache.IsSet())
 	{
-		return CalculatedActionDomainCache.Get();
-	}
-
-	if (bOverrideActionDomain)
-	{
-		CalculatedActionDomainCache = ActionDomain;
-		return ActionDomain.Get();
+		return CalculatedActionDomainCache.GetValue().Get();
 	}
 
 	const FName SObjectWidgetName = TEXT("SObjectWidget");
@@ -166,28 +160,31 @@ TObjectPtr<UCommonInputActionDomain> UCommonActivatableWidget::GetCalculatedActi
 	TSharedPtr<SWidget> CurrentWidget = GetCachedWidget();
 	while (CurrentWidget)
 	{
-		CurrentWidget = CurrentWidget->GetParentWidget();
-		if (CurrentWidget && CurrentWidget->GetType().IsEqual(SObjectWidgetName))
+		if (CurrentWidget->GetType().IsEqual(SObjectWidgetName))
 		{
 			const TSharedPtr<ICommonInputActionDomainMetaData> Metadata = CurrentWidget->GetMetaData<ICommonInputActionDomainMetaData>();
 			if (Metadata.IsValid())
 			{
-				CalculatedActionDomainCache = Metadata->ActionDomain.Get();
-				return CalculatedActionDomainCache.Get();
+				UCommonInputActionDomain* ActionDomain = Metadata->ActionDomain.Get();
+				CalculatedActionDomainCache = ActionDomain;
+				return ActionDomain;
 			}
 
 			if (UCommonActivatableWidget* CurrentActivatable = Cast<UCommonActivatableWidget>(StaticCastSharedPtr<SObjectWidget>(CurrentWidget)->GetWidgetObject()))
 			{
 				if (CurrentActivatable->bOverrideActionDomain)
 				{
-					UCommonInputActionDomain* CurrentActionDomain = CurrentActivatable->GetOwningLocalPlayer() == OwningLocalPlayer ? CurrentActivatable->ActionDomain.Get() : nullptr;
+					UCommonInputActionDomain* CurrentActionDomain = CurrentActivatable->GetOwningLocalPlayer() == OwningLocalPlayer ? CurrentActivatable->ActionDomainOverride.Get() : nullptr;
 					CalculatedActionDomainCache = CurrentActionDomain;
-					return CalculatedActionDomainCache.Get();
+					return CurrentActionDomain;
 				}
 			}
 		}
+
+		CurrentWidget = CurrentWidget->GetParentWidget();
 	}
 
+	CalculatedActionDomainCache = nullptr;
 	return nullptr;
 }
 

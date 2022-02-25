@@ -2,6 +2,8 @@
 
 #include "CommonInputActionDomain.h"
 
+DEFINE_LOG_CATEGORY(LogUIActionDomain);
+
 bool UCommonInputActionDomain::ShouldBreakInnerEventFlow(bool bInputEventHandled) const
 {
 	switch (InnerBehavior)
@@ -53,6 +55,11 @@ void UCommonInputActionDomainTable::PostLoad()
 			DefaultActionDomainCache = ActionDomain;
 			break;
 		}
+	}
+
+	if (DefaultActionDomainCache.IsNull())
+	{
+		UE_LOG(LogUIActionDomain, Error, TEXT("No default action domain defined"));
 	}
 
 	Super::PostLoad();
