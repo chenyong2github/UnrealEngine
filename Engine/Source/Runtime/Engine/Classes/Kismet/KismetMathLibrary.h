@@ -12,6 +12,7 @@
 #include "UObject/ScriptMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Misc/QualifiedFrameTime.h"
+#include "Engine/NetSerialization.h"
 
 #include "KismetMathLibrary.generated.h"
 
