@@ -13,6 +13,8 @@
 #include "AndroidOpenGLPrivate.h"
 #include "Android/AndroidPlatformMisc.h"
 #include "Android/AndroidPlatformFramePacer.h"
+#include "Android/AndroidJNI.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 PFNeglPresentationTimeANDROID eglPresentationTimeANDROID_p = NULL;
 PFNeglGetNextFrameIdANDROID eglGetNextFrameIdANDROID_p = NULL;
@@ -90,6 +92,78 @@ extern bool AndroidThunkCpp_IsOculusMobileApplication();
 #define GL_DEBUG_TOOL_EXT	0x6789
 static bool bRunningUnderRenderDoc = false;
 
+
+#if UE_BUILD_SHIPPING
+#define CHECK_JNI_EXCEPTIONS(env)  env->ExceptionClear();
+#else
+#define CHECK_JNI_EXCEPTIONS(env)  if (env->ExceptionCheck()) {env->ExceptionDescribe();env->ExceptionClear();}
+#endif
+
+struct FOpenGLRemoteGLProgramCompileJNI
+{
+	jclass OGLServiceAccessor = 0;
+	jmethodID DispatchProgramLink = 0;
+	jmethodID StartOGLRemoteProgramLink = 0;
+	jmethodID StopOGLRemoteProgramLink = 0;
+	jclass ProgramResponseClass = 0;
+	jfieldID ProgramResponse_SuccessField = 0;
+	jfieldID ProgramResponse_ErrorField = 0;
+	jfieldID ProgramResponse_CompiledBinaryField = 0;
+	bool bAllFound = false;
+
+	void Init(JNIEnv* Env)
+	{
+		// class JNIProgramLinkResponse
+		// {
+		// 	boolean bCompileSuccess;
+		// 	String ErrorMessage;
+		// 	byte[] CompiledProgram;
+		// };
+		// JNIProgramLinkResponse AndroidThunkJava_OGLRemoteProgramLink(...):
+
+
+		check(OGLServiceAccessor == 0);
+		OGLServiceAccessor = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/unreal/oglservices/OGLProgramServiceAccessor");
+		CHECK_JNI_EXCEPTIONS(Env);
+		if(OGLServiceAccessor)
+		{
+			DispatchProgramLink = FJavaWrapper::FindStaticMethod(Env, OGLServiceAccessor, "AndroidThunkJava_OGLRemoteProgramLink", "([BLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/epicgames/unreal/oglservices/OGLProgramServiceAccessor$JNIProgramLinkResponse;", false);
+			CHECK_JNI_EXCEPTIONS(Env);
+			StartOGLRemoteProgramLink = FJavaWrapper::FindStaticMethod(Env, OGLServiceAccessor, "AndroidThunkJava_StartOGLRemoteProgramLink", "(I)Z", false);
+			CHECK_JNI_EXCEPTIONS(Env);
+			StopOGLRemoteProgramLink = FJavaWrapper::FindStaticMethod(Env, OGLServiceAccessor, "AndroidThunkJava_StopOGLRemoteProgramLink", "()V", false);
+			CHECK_JNI_EXCEPTIONS(Env);
+			ProgramResponseClass = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/unreal/oglservices/OGLProgramServiceAccessor$JNIProgramLinkResponse");
+			CHECK_JNI_EXCEPTIONS(Env);
+			ProgramResponse_SuccessField = FJavaWrapper::FindField(Env, ProgramResponseClass, "bCompileSuccess", "Z", true);
+			CHECK_JNI_EXCEPTIONS(Env);
+			ProgramResponse_CompiledBinaryField = FJavaWrapper::FindField(Env, ProgramResponseClass, "CompiledProgram", "[B", true);
+			CHECK_JNI_EXCEPTIONS(Env);
+			ProgramResponse_ErrorField = FJavaWrapper::FindField(Env, ProgramResponseClass, "ErrorMessage", "Ljava/lang/String;", true);
+			CHECK_JNI_EXCEPTIONS(Env);
+		}
+
+		bAllFound = OGLServiceAccessor && DispatchProgramLink && StartOGLRemoteProgramLink && StopOGLRemoteProgramLink && ProgramResponseClass && ProgramResponse_SuccessField && ProgramResponse_CompiledBinaryField && ProgramResponse_ErrorField;
+		UE_CLOG(!bAllFound, LogRHI, Error, TEXT("Failed to find JNI GL remote program compiler."));
+	}
+}OpenGLRemoteGLProgramCompileJNI;
+
+static bool AreAndroidOpenGLRemoteCompileServicesAvailable()
+{
+	static int RemoteCompileService = -1;
+	if (RemoteCompileService == -1)
+	{
+		const FString* ConfigRulesDisableProgramCompileServices = FAndroidMisc::GetConfigRulesVariable(TEXT("DisableProgramCompileServices"));
+		bool bConfigRulesDisableProgramCompileServices = ConfigRulesDisableProgramCompileServices && ConfigRulesDisableProgramCompileServices->Equals("true", ESearchCase::IgnoreCase);
+		static const auto CVarProgramLRU = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.EnableProgramLRUCache"));
+		static const auto CVarNumRemoteProgramCompileServices = IConsoleManager::Get().FindConsoleVariable(TEXT("Android.OpenGL.NumRemoteProgramCompileServices"));
+
+		RemoteCompileService = !bConfigRulesDisableProgramCompileServices && OpenGLRemoteGLProgramCompileJNI.bAllFound && (CVarProgramLRU->GetInt() != 0) && (CVarNumRemoteProgramCompileServices->GetInt() > 0);
+		FGenericCrashContext::SetEngineData(TEXT("Android.OGLService"), RemoteCompileService == 0? TEXT("disabled") : TEXT("enabled"));
+	}
+	return RemoteCompileService;
+}
+
 void FPlatformOpenGLDevice::Init()
 {
 	// Initialize frame pacer
@@ -114,6 +188,12 @@ void FPlatformOpenGLDevice::Init()
 	InitDebugContext();
 
 	AndroidEGL::GetInstance()->InitBackBuffer(); //can be done only after context is made current.
+
+	OpenGLRemoteGLProgramCompileJNI.Init(FAndroidApplication::GetJavaEnv());
+
+	// AsyncPipelinePrecompile can be enabled on android GL, precompiles are compiled via separate processes and the result is stored in GL's LRU cache as an evicted binary.
+	// The lru cache is a requirement as the precompile produces binary program data only.
+	GRHISupportsAsyncPipelinePrecompile = AreAndroidOpenGLRemoteCompileServicesAvailable();
 }
 
 FPlatformOpenGLDevice* PlatformCreateOpenGLDevice()
@@ -1023,5 +1103,99 @@ void FAndroidAppEntry::ReleaseEGL()
 		EGL->Terminate();
 	}
 }
+
+static bool GRemoteCompileServicesActive = false;
+
+bool AreAndroidOpenGLRemoteCompileServicesActive()
+{
+	return GRemoteCompileServicesActive && AreAndroidOpenGLRemoteCompileServicesAvailable();
+}
+
+bool FAndroidOpenGL::AreRemoteCompileServicesActive()
+{
+	return AreAndroidOpenGLRemoteCompileServicesActive();
+}
+
+bool FAndroidOpenGL::StartAndWaitForRemoteCompileServices(int NumServices)
+{
+	bool bResult = false;
+	JNIEnv* Env = FAndroidApplication::GetJavaEnv();
+
+	if (Env && AreAndroidOpenGLRemoteCompileServicesAvailable())
+	{
+		bResult = (bool)Env->CallStaticBooleanMethod(OpenGLRemoteGLProgramCompileJNI.OGLServiceAccessor, OpenGLRemoteGLProgramCompileJNI.StartOGLRemoteProgramLink, (jint)NumServices);
+		GRemoteCompileServicesActive = bResult;
+	}
+
+	return bResult;
+}
+
+void FAndroidOpenGL::StopRemoteCompileServices()
+{
+	GRemoteCompileServicesActive = false;
+	JNIEnv* Env = FAndroidApplication::GetJavaEnv();
+
+	if (Env && ensure(AreAndroidOpenGLRemoteCompileServicesAvailable()))
+	{
+		Env->CallStaticVoidMethod(OpenGLRemoteGLProgramCompileJNI.OGLServiceAccessor, OpenGLRemoteGLProgramCompileJNI.StopOGLRemoteProgramLink);
+	}
+}
+
+namespace AndroidOGLService
+{
+	std::atomic<bool> bOneTimeErrorEncountered = false;
+}
+
+TArray<uint8> FAndroidOpenGL::DispatchAndWaitForRemoteGLProgramCompile(const TArrayView<uint8> ContextData, const TArray<ANSICHAR>& VertexGlslCode, const TArray<ANSICHAR>& PixelGlslCode, const TArray<ANSICHAR>& ComputeGlslCode, FString& FailureMessageOUT)
+{
+	bool bResult = false;
+	JNIEnv* Env = FAndroidApplication::GetJavaEnv();
+	TArray<uint8> CompiledProgramBinary;
+	FString ErrorMessage;
+
+	if (Env && ensure(GRemoteCompileServicesActive) && ensure(AreAndroidOpenGLRemoteCompileServicesAvailable()))
+	{
+		// todo: double conversion :(
+		auto jVS = NewScopedJavaObject(Env, Env->NewStringUTF(TCHAR_TO_UTF8(ANSI_TO_TCHAR(VertexGlslCode.IsEmpty() ? "" : VertexGlslCode.GetData()))));
+		auto jPS = NewScopedJavaObject(Env, Env->NewStringUTF(TCHAR_TO_UTF8(ANSI_TO_TCHAR(PixelGlslCode.IsEmpty() ? "" : PixelGlslCode.GetData()))));
+		auto jCS = NewScopedJavaObject(Env, Env->NewStringUTF(TCHAR_TO_UTF8(ANSI_TO_TCHAR(ComputeGlslCode.IsEmpty() ? "" : ComputeGlslCode.GetData()))));
+		auto ProgramKeyBuffer = NewScopedJavaObject(Env, Env->NewByteArray(ContextData.Num()));
+		Env->SetByteArrayRegion(*ProgramKeyBuffer, 0, ContextData.Num(), reinterpret_cast<const jbyte*>(ContextData.GetData()));
+		auto ProgramResponseObj = NewScopedJavaObject(Env, Env->CallStaticObjectMethod(OpenGLRemoteGLProgramCompileJNI.OGLServiceAccessor, OpenGLRemoteGLProgramCompileJNI.DispatchProgramLink, *ProgramKeyBuffer, *jVS, *jPS, *jCS));
+ 		CHECK_JNI_EXCEPTIONS(Env);
+
+		if(*ProgramResponseObj)
+		{
+			bool bSucceeded = (bool)Env->GetBooleanField(*ProgramResponseObj, OpenGLRemoteGLProgramCompileJNI.ProgramResponse_SuccessField);
+			if (bSucceeded)
+			{
+				auto ProgramResult = NewScopedJavaObject(Env, (jbyteArray)Env->GetObjectField(*ProgramResponseObj, OpenGLRemoteGLProgramCompileJNI.ProgramResponse_CompiledBinaryField));
+				int len = Env->GetArrayLength(*ProgramResult);
+				CompiledProgramBinary.SetNumUninitialized(len);
+				Env->GetByteArrayRegion(*ProgramResult, 0, len, reinterpret_cast<jbyte*>(CompiledProgramBinary.GetData()));
+			}
+			else
+			{
+				if (AndroidOGLService::bOneTimeErrorEncountered.exchange(true) == false)
+				{
+					FGenericCrashContext::SetEngineData(TEXT("Android.OGLService"), TEXT("ec"));
+				}
+
+				FailureMessageOUT = FJavaHelper::FStringFromLocalRef(Env, (jstring)Env->GetObjectField(*ProgramResponseObj, OpenGLRemoteGLProgramCompileJNI.ProgramResponse_ErrorField));
+				check(!FailureMessageOUT.IsEmpty());
+			}
+		}
+		else
+		{
+			if (AndroidOGLService::bOneTimeErrorEncountered.exchange(true) == false)
+			{
+				FGenericCrashContext::SetEngineData(TEXT("Android.OGLService"), TEXT("es"));
+			}
+			FailureMessageOUT = TEXT("Remote compiler failed.");
+		}
+	}
+	return CompiledProgramBinary;
+}
+
 
 #endif

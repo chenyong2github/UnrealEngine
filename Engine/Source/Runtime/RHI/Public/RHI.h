@@ -760,6 +760,9 @@ extern RHI_API bool GRHISupportsMapWriteNoOverwrite;
 /** Tables of all MSAA sample offset for all MSAA supported. Use GetMSAASampleOffsets() to read it. */
 extern RHI_API FVector2f GRHIDefaultMSAASampleOffsets[1 + 2 + 4 + 8 + 16];
 
+/** True if the RHI supports pipeline precompiling from any thread. */
+extern RHI_API bool GRHISupportsAsyncPipelinePrecompile;
+
 // Calculate the index of the sample in GRHIDefaultMSAASampleOffsets
 extern RHI_API int32 CalculateMSAASampleArrayIndex(int32 NumSamples, int32 SampleIndex);
 

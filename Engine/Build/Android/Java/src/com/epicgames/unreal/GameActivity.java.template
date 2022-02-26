@@ -213,6 +213,7 @@ import android.widget.TextView.OnEditorActionListener;
 import android.content.BroadcastReceiver;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.FileProvider;
+import com.epicgames.unreal.oglservices.OGLProgramServiceAccessor;
 //$${gameActivityImportAdditions}$$
 
 //$${gameActivityPostImportAdditions}$$
@@ -483,6 +484,11 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public boolean bSupportsFloatingPointRenderTargets = false;
 	private String EGLErrorStatus = "UNSET";
 	
+	private OGLProgramServiceAccessor mOGLProgramServiceAccessor = new OGLProgramServiceAccessor();
+
+	static final private AtomicBoolean bIsActivityPaused = new AtomicBoolean(true);
+	static public boolean IsActivityPaused() { return bIsActivityPaused.get();}
+
 	/** Flag for not officially supported devices */
 	public static boolean bSupportedDevice = true;
 
@@ -3175,7 +3181,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 //$${gameActivityOnCreateAdditions}$$
 //$${gameActivityOnCreateFinalAdditions}$$
-		
+		mOGLProgramServiceAccessor.Init(this);
+
 		Log.debug("==============> GameActive.onCreate complete!");
 	}
 
@@ -3348,6 +3355,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public void onResume()
 	{
 		super.onResume();
+		bIsActivityPaused.set(false);
 
 		// start memory reporter timer (runs every 10 seconds)
 		synchronized(this)
@@ -3495,6 +3503,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	@Override
 	protected void onPause()
 	{
+		bIsActivityPaused.set(true);
+
 		// stop memory reporter timer if running
 		synchronized(this)
 		{

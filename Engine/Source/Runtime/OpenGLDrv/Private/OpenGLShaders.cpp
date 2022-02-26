@@ -290,34 +290,108 @@ static bool VerifyProgramPipeline(GLuint Program)
 
 // ============================================================================================================================
 
-class FOpenGLCompiledShaderKey
+class FOpenGLCompiledShaderValue
 {
+	const FName CompressionMethod = NAME_Oodle;
+
 public:
-	FOpenGLCompiledShaderKey(
-		GLenum InTypeEnum,
-		uint32 InCodeSize,
-		uint32 InCodeCRC
-		)
-		: TypeEnum(InTypeEnum)
-		, CodeSize(InCodeSize)
-		, CodeCRC(InCodeCRC)
-	{}
-
-	friend bool operator ==(const FOpenGLCompiledShaderKey& A,const FOpenGLCompiledShaderKey& B)
+	FOpenGLCompiledShaderValue(GLuint ResourceIN, const TArray<ANSICHAR>& GlslCodeIN)
+		: Resource(ResourceIN)
 	{
-		return A.TypeEnum == B.TypeEnum && A.CodeSize == B.CodeSize && A.CodeCRC == B.CodeCRC;
+		CompressShader(GlslCodeIN);
+	}
+	~FOpenGLCompiledShaderValue()
+	{
+		StatTotalStoredSize -= GlslCode.Num();
+		StatTotalUncompressedSize -= UncompressedSize == -1 ? GlslCode.Num() : UncompressedSize;
 	}
 
-	friend uint32 GetTypeHash(const FOpenGLCompiledShaderKey &Key)
+	GLuint Resource = 0;
+
+	TArray<ANSICHAR>  GetUncompressedShader() const
 	{
-		return GetTypeHash(Key.TypeEnum) ^ GetTypeHash(Key.CodeSize) ^ GetTypeHash(Key.CodeCRC);
+		TArray<ANSICHAR> OutGlslCode;
+
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_glUncompressShader);
+
+		if (UncompressedSize != -1)
+		{
+			OutGlslCode.Empty(UncompressedSize);
+			OutGlslCode.SetNum(UncompressedSize);
+
+			bool bResult = FCompression::UncompressMemory(
+				CompressionMethod,
+				(void*)OutGlslCode.GetData(),
+				UncompressedSize,
+				(void*)GlslCode.GetData(),
+				GlslCode.Num());
+
+			check(bResult);
+		}
+		else
+		{
+			OutGlslCode = GlslCode;
+		}
+		return OutGlslCode;
 	}
 
+	static TAtomic<uint32> StatTotalStoredSize;
+	static TAtomic<uint32> StatTotalUncompressedSize;
+	bool bHasCompiled = false;
 private:
-	GLenum TypeEnum;
-	uint32 CodeSize;
-	uint32 CodeCRC;
+	TArray<ANSICHAR> GlslCode;
+	int32 UncompressedSize = -1;
+
+	void CompressShader(const TArray<ANSICHAR>& InGlslCode)
+	{
+		static_assert(sizeof(InGlslCode[0]) == sizeof(uint8), "expecting shader code type to be byte.");
+		check(GlslCode.IsEmpty());
+
+		UncompressedSize = InGlslCode.Num();
+		int32 CompressedSize = FCompression::CompressMemoryBound(CompressionMethod, UncompressedSize);
+
+		GlslCode.Empty(CompressedSize);
+		GlslCode.SetNumUninitialized(CompressedSize);
+
+		bool bCompressed = FCompression::CompressMemory(
+			CompressionMethod,
+			(void*)GlslCode.GetData(),
+			CompressedSize,
+			(void*)InGlslCode.GetData(),
+			UncompressedSize,
+			COMPRESS_BiasMemory);
+
+		if (bCompressed)
+		{
+			// shrink buffer
+			GlslCode.SetNum(CompressedSize, true);
+		}
+		else
+		{
+			GlslCode = InGlslCode;
+			UncompressedSize = -1;
+		}
+
+		StatTotalStoredSize += GlslCode.Num();
+		StatTotalUncompressedSize += UncompressedSize == -1 ? GlslCode.Num() : UncompressedSize;
+
+ 		//UE_LOG(LogRHI, Warning, TEXT("Shader sizes: %d %d"), StatTotalStoredSize.Load(EMemoryOrder::Relaxed), StatTotalUncompressedSize.Load(EMemoryOrder::Relaxed));
+	}
+
 };
+
+TAtomic<uint32> FOpenGLCompiledShaderValue::StatTotalStoredSize = 0;
+TAtomic<uint32> FOpenGLCompiledShaderValue::StatTotalUncompressedSize = 0;
+
+typedef TMap<FOpenGLCompiledShaderKey, TSharedPtr<FOpenGLCompiledShaderValue> > FOpenGLCompiledShaderCache;
+
+static FCriticalSection GCompiledShaderCacheCS;
+
+static FOpenGLCompiledShaderCache& GetOpenGLCompiledShaderCache()
+{
+	static FOpenGLCompiledShaderCache CompiledShaderCache;
+	return CompiledShaderCache;
+}
 
 struct FLibraryShaderCacheValue
 {
@@ -337,15 +411,6 @@ typedef TMap<FSHAHash, FLibraryShaderCacheValue> FOpenGLCompiledLibraryShaderCac
 static FOpenGLCompiledLibraryShaderCache& GetOpenGLCompiledLibraryShaderCache()
 {
 	static FOpenGLCompiledLibraryShaderCache CompiledShaderCache;
-	return CompiledShaderCache;
-}
-
-
-typedef TMap<FOpenGLCompiledShaderKey,GLuint> FOpenGLCompiledShaderCache;
-
-static FOpenGLCompiledShaderCache& GetOpenGLCompiledShaderCache()
-{
-	static FOpenGLCompiledShaderCache CompiledShaderCache;
 	return CompiledShaderCache;
 }
 
@@ -588,14 +653,33 @@ static typename TEnableIf<!TPointerIsConvertibleFromTo<TRHIType, const FRHIShade
 	checkNoEntry();
 }
 
+static const FOpenGLShaderDeviceCapabilities& GetOpenGLShaderDeviceCapabilities()
+{
+	static bool bInitialized = false;
 
+	static FOpenGLShaderDeviceCapabilities Capabilities;
+	if( !bInitialized )
+	{
+		GetCurrentOpenGLShaderDeviceCapabilities(Capabilities);
+		bInitialized = true;
+	}
+	return Capabilities;
+}
+
+static void GLSLToPlatform(const FOpenGLCodeHeader& Header, GLenum TypeEnum, FAnsiCharArray& GlslCodeOriginal, FAnsiCharArray& GlslPlatformCodeOUT)
+{
+	const FOpenGLShaderDeviceCapabilities& Capabilities = GetOpenGLShaderDeviceCapabilities();
+
+	// get a modified version of the shader based on device capabilities to compile (destructive to GlslCodeOriginal copy)
+	GLSLToDeviceCompatibleGLSL(GlslCodeOriginal, Header.ShaderName, TypeEnum, Capabilities, GlslPlatformCodeOUT);
+}
 
 /**
  * Compiles an OpenGL shader using the given GLSL microcode.
  * @returns the compiled shader upon success.
  */
-template <typename ShaderType>
-ShaderType* CompileOpenGLShader(TArrayView<const uint8> InShaderCode, const FSHAHash& LibraryHash, FRHIShader* RHIShader = nullptr)
+template <typename ShaderType, typename TRHIType>
+ShaderType* CompileOpenGLShader(const FOpenGLCodeHeader& Header, const FOpenGLCompiledShaderKey& SourceKey, const FSHAHash& LibraryHash, TRHIType* RHIShader)
 {
 	SCOPE_CYCLE_COUNTER(STAT_OpenGLShaderCompileTime);
 	VERIFY_GL_SCOPE();
@@ -631,115 +715,53 @@ ShaderType* CompileOpenGLShader(TArrayView<const uint8> InShaderCode, const FSHA
 			return Shader;
 		}
 	}
-
-	FShaderCodeReader ShaderCode(InShaderCode);
-
-	const GLenum TypeEnum = ShaderType::TypeEnum;
-	FMemoryReaderView Ar(InShaderCode, true);
-
-	Ar.SetLimitSize(ShaderCode.GetActualShaderCodeSize());
-
-	FOpenGLCodeHeader Header = { 0 };
-
-	Ar << Header;
-	// Suppress static code analysis warning about a potential comparison of two constants
-	CA_SUPPRESS(6326);
-	if (Header.GlslMarker != 0x474c534c
-		|| (TypeEnum == GL_VERTEX_SHADER && Header.FrequencyMarker != 0x5653)
-		|| (TypeEnum == GL_FRAGMENT_SHADER && Header.FrequencyMarker != 0x5053)
-		|| (TypeEnum == GL_GEOMETRY_SHADER && Header.FrequencyMarker != 0x4753)
-		|| (TypeEnum == GL_COMPUTE_SHADER && Header.FrequencyMarker != 0x4353)
-		)
-	{
-		UE_LOG(LogRHI,Fatal,
-			TEXT("Corrupt shader bytecode. GlslMarker=0x%08x FrequencyMarker=0x%04x"),
-			Header.GlslMarker,
-			Header.FrequencyMarker
-			);
-		return nullptr;
-	}
-
-	int32 CodeOffset = Ar.Tell();
-
-	// The code as given to us.
-	FAnsiCharArray GlslCodeOriginal;
-	AppendCString(GlslCodeOriginal, (ANSICHAR*)InShaderCode.GetData() + CodeOffset);
-	uint32 GlslCodeOriginalCRC = FCrc::MemCrc_DEPRECATED(GlslCodeOriginal.GetData(), GlslCodeOriginal.Num());
-
-	// The amended code we actually compile.
-	FAnsiCharArray GlslCode;
-
 	// Find the existing compiled shader in the cache.
-	FOpenGLCompiledShaderKey Key(TypeEnum, GlslCodeOriginal.Num(), GlslCodeOriginalCRC);
-	GLuint Resource = GetOpenGLCompiledShaderCache().FindRef(Key);
-	if (!Resource)
+	FScopeLock Lock(&GCompiledShaderCacheCS);
+	TSharedPtr<FOpenGLCompiledShaderValue> FoundShader = GetOpenGLCompiledShaderCache().FindRef(SourceKey);
+	check(FoundShader);
+	GLuint Resource = FoundShader->Resource;
+
+	if (Resource == 0)
 	{
-#if CHECK_FOR_GL_SHADERS_TO_REPLACE
-		{
-			// 1. Check for specific file
-			FString PotentialShaderFileName = FString::Printf(TEXT("%s-%d-0x%x.txt"), ShaderNameFromShaderType(TypeEnum), GlslCodeOriginal.Num(), GlslCodeOriginalCRC);
-			FString PotentialShaderFile = FPaths::ProfilingDir();
-			PotentialShaderFile *= PotentialShaderFileName;
-
-			UE_LOG( LogRHI, Log, TEXT("Looking for shader file '%s' for potential replacement."), *PotentialShaderFileName );
-
-			int64 FileSize = IFileManager::Get().FileSize(*PotentialShaderFile);
-			if( FileSize > 0 )
-			{
-				FArchive* Ar = IFileManager::Get().CreateFileReader(*PotentialShaderFile);
-				if( Ar != NULL )
-				{
-					UE_LOG(LogRHI, Log, TEXT("Replacing %s shader with length %d and CRC 0x%x with the one from a file."), (TypeEnum == GL_VERTEX_SHADER) ? TEXT("vertex") : ((TypeEnum == GL_FRAGMENT_SHADER) ? TEXT("fragment") : TEXT("geometry")), GlslCodeOriginal.Num(), GlslCodeOriginalCRC);
-
-					// read in the file
-					GlslCodeOriginal.Empty();
-					GlslCodeOriginal.AddUninitialized(FileSize + 1);
-					Ar->Serialize(GlslCodeOriginal.GetData(), FileSize);
-					delete Ar;
-					GlslCodeOriginal[FileSize] = 0;
-				}
-			}
-		}
-#endif
-
+		const GLenum TypeEnum = ShaderType::TypeEnum;
 		Resource = FOpenGL::CreateShader(TypeEnum);
-
-		// get a modified version of the shader based on device capabilities to compile (destructive to GlslCodeOriginal copy)
-		FOpenGLShaderDeviceCapabilities Capabilities;
-		GetCurrentOpenGLShaderDeviceCapabilities(Capabilities);
-		GLSLToDeviceCompatibleGLSL(GlslCodeOriginal, Header.ShaderName, TypeEnum, Capabilities, GlslCode);
+		const FOpenGLShaderDeviceCapabilities& Capabilities = GetOpenGLShaderDeviceCapabilities();
 
 		// Save the code and defer compilation if our device supports program binaries and we're not checking for shader compatibility.
-		const bool bDeferredCompilation = FOpenGLProgramBinaryCache::DeferShaderCompilation(Resource, GlslCode);
+		const bool bDeferredCompilation = FOpenGLProgramBinaryCache::IsEnabled() && !Capabilities.bSupportsSeparateShaderObjects;
 		// deferred compilation is not supported for SeparateShaderObjects
 		check(!bDeferredCompilation || !Capabilities.bSupportsSeparateShaderObjects);
 
-		if (!bDeferredCompilation)
+		if (bDeferredCompilation)
 		{
-			const bool bSuccessfullyCompiled = CompileCurrentShader(Resource, GlslCode);
-			
+			// do nothing...
+		}
+		else
+		{
+			const FAnsiCharArray glslPlatformCode = FoundShader->GetUncompressedShader();
+
+			const bool bSuccessfullyCompiled = CompileCurrentShader(Resource, glslPlatformCode);
+
 			if (Capabilities.bSupportsSeparateShaderObjects && bSuccessfullyCompiled)
 			{
-				ANSICHAR Buf[32] = {0};
+				ANSICHAR Buf[32] = { 0 };
 				// Create separate shader program
 				GLuint SeparateResource = FOpenGL::CreateProgram();
-				FOpenGL::ProgramParameter( SeparateResource, GL_PROGRAM_SEPARABLE, GL_TRUE );
+				FOpenGL::ProgramParameter(SeparateResource, GL_PROGRAM_SEPARABLE, GL_TRUE);
 				glAttachShader(SeparateResource, Resource);
-				
+
 				glLinkProgram(SeparateResource);
 				VerifyLinkedProgram(SeparateResource);
-			
-	#if ENABLE_UNIFORM_BUFFER_LAYOUT_VERIFICATION
+
+#if ENABLE_UNIFORM_BUFFER_LAYOUT_VERIFICATION
 				void VerifyUniformBufferLayouts(GLuint Program);
 				VerifyUniformBufferLayouts(SeparateResource);
-	#endif // #if ENABLE_UNIFORM_BUFFER_LAYOUT_VERIFICATION
-			
+#endif // #if ENABLE_UNIFORM_BUFFER_LAYOUT_VERIFICATION
+
 				Resource = SeparateResource;
 			}
 		}
-
-		// Cache it; (always caching will prevent multiple attempts to compile a failed shader)
-		GetOpenGLCompiledShaderCache().Add(Key, Resource);
+		FoundShader->Resource = Resource;
 	}
 
 	Shader = new ShaderType();
@@ -767,7 +789,8 @@ ShaderType* CompileOpenGLShader(TArrayView<const uint8> InShaderCode, const FSHA
 	{
 		FSHAHash Hash;
 		// Just use the CRC - if it isn't being cached & logged we'll be dependent on the CRC alone anyway
-		FMemory::Memcpy(Hash.Hash, &GlslCodeOriginalCRC, sizeof(uint32));
+		uint32 Crc = SourceKey.GetCodeCRC();
+		FMemory::Memcpy(Hash.Hash, &Crc, sizeof(uint32));
 		if (RHIShader)
 		{
 			SetShaderHash(Hash, RHIShader);
@@ -778,16 +801,12 @@ ShaderType* CompileOpenGLShader(TArrayView<const uint8> InShaderCode, const FSHA
 		}
 	}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (RHIShader)
-	{
-		RHIShader->ShaderName = ShaderCode.FindOptionalData(FShaderCodeName::Key);
-	}
-#endif
-
 #if DEBUG_GL_SHADERS
-	Shader->GlslCode = GlslCode;
-	Shader->GlslCodeString = (ANSICHAR*)Shader->GlslCode.GetData();
+	{
+		const FAnsiCharArray glslPlatformCode = FoundShader->GetUncompressedShader();
+		Shader->GlslCode = glslPlatformCode;
+		Shader->GlslCodeString = (ANSICHAR*)Shader->GlslCode.GetData();
+	}
 #endif
 	if (LibraryHash != FSHAHash() && !GetOpenGLCompiledLibraryShaderCache().Contains(LibraryHash))
 	{
@@ -795,10 +814,10 @@ ShaderType* CompileOpenGLShader(TArrayView<const uint8> InShaderCode, const FSHA
 		Val.GLShader = Resource;
 		Val.Header = new FOpenGLCodeHeader;
 		*Val.Header = Header;
-		Val.ShaderCrc = GlslCodeOriginalCRC;
+		Val.ShaderCrc = SourceKey.GetCodeCRC();
 		Val.StaticSlots = Shader->StaticSlots;
 #if DEBUG_GL_SHADERS
-		Val.GlslCode = GlslCode;
+		Val.GlslCode = FoundShader->GetUncompressedShader();
 		Val.GlslCodeString = (ANSICHAR*)Shader->GlslCode.GetData();
 #endif
 		GetOpenGLCompiledLibraryShaderCache().Add(LibraryHash, Val);
@@ -1029,41 +1048,145 @@ static ANSICHAR* SetIndex(ANSICHAR* Str, int32 Offset, int32 Index)
 	return Str;
 }
 
-template<typename RHIType, typename TOGLProxyType>
+template<typename RHIType>
 RHIType* CreateProxyShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
+	typedef typename TOpenGLResourceTraits<RHIType>::TConcreteType TOGLProxyType;
+
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	FShaderCodeReader ShaderCode(Code);
+
+	const GLenum TypeEnum = TOGLProxyType::ContainedGLType::TypeEnum;
+	FMemoryReaderView Ar(Code, true);
+
+	Ar.SetLimitSize(ShaderCode.GetActualShaderCodeSize());
+
+	FOpenGLCodeHeader Header = { 0 };
+	Ar << Header;
+	// Suppress static code analysis warning about a potential comparison of two constants
+	CA_SUPPRESS(6326);
+	if (Header.GlslMarker != 0x474c534c
+		|| (TypeEnum == GL_VERTEX_SHADER && Header.FrequencyMarker != 0x5653)
+		|| (TypeEnum == GL_FRAGMENT_SHADER && Header.FrequencyMarker != 0x5053)
+		|| (TypeEnum == GL_GEOMETRY_SHADER && Header.FrequencyMarker != 0x4753)
+		|| (TypeEnum == GL_COMPUTE_SHADER && Header.FrequencyMarker != 0x4353)
+		)
+	{
+		UE_LOG(LogRHI, Fatal,
+			TEXT("Corrupt shader bytecode. GlslMarker=0x%08x FrequencyMarker=0x%04x"),
+			Header.GlslMarker,
+			Header.FrequencyMarker
+		);
+		return nullptr;
+	}
+
+	int32 CodeOffset = Ar.Tell();
+
+	// The code as given to us.
+
+	// put back the 'original code crc' in to cache key
+	// pull back out the modified glsl.
+
+ 	FAnsiCharArray GlslCodeOriginal;
+ 	AppendCString(GlslCodeOriginal, (ANSICHAR*)Code.GetData() + CodeOffset);
+	uint32 CodeCRC = FCrc::MemCrc32(GlslCodeOriginal.GetData(), GlslCodeOriginal.Num());
+	FOpenGLCompiledShaderKey ShaderCodeKey(TypeEnum, GlslCodeOriginal.Num(), CodeCRC);
+
+#if CHECK_FOR_GL_SHADERS_TO_REPLACE
+	{
+		// 1. Check for specific file
+		FString PotentialShaderFileName = FString::Printf(TEXT("%s-%d-0x%x.txt"), ShaderNameFromShaderType(TypeEnum), glslPlatformCode.Num(), CodeCRC);
+		FString PotentialShaderFile = FPaths::ProfilingDir();
+		PotentialShaderFile *= PotentialShaderFileName;
+
+		UE_LOG(LogRHI, Log, TEXT("Looking for shader file '%s' for potential replacement."), *PotentialShaderFileName);
+
+		int64 FileSize = IFileManager::Get().FileSize(*PotentialShaderFile);
+		if (FileSize > 0)
+		{
+			FArchive* Ar = IFileManager::Get().CreateFileReader(*PotentialShaderFile);
+			if (Ar != NULL)
+			{
+				UE_LOG(LogRHI, Log, TEXT("Replacing %s shader with length %d and CRC 0x%x with the one from a file."), (TypeEnum == GL_VERTEX_SHADER) ? TEXT("vertex") : ((TypeEnum == GL_FRAGMENT_SHADER) ? TEXT("fragment") : TEXT("geometry")), GlslCodeOriginal.Num(), GlslCodeOriginalCRC);
+
+				// read in the file
+				GlslCodeOriginal.Empty();
+				GlslCodeOriginal.AddUninitialized(FileSize + 1);
+				Ar->Serialize(GlslCodeOriginal.GetData(), FileSize);
+				delete Ar;
+				GlslCodeOriginal[FileSize] = 0;
+			}
+		}
+	}
+#endif
+
+	{
+		FScopeLock Lock(&GCompiledShaderCacheCS);
+
+		TSharedPtr<FOpenGLCompiledShaderValue> FoundShader = GetOpenGLCompiledShaderCache().FindRef(ShaderCodeKey);
+		if (!FoundShader)
+		{
+			FAnsiCharArray Finalglsl;
+			GLSLToPlatform(Header, TypeEnum, GlslCodeOriginal, Finalglsl);
+			GetOpenGLCompiledShaderCache().Add(ShaderCodeKey, MakeShareable(new FOpenGLCompiledShaderValue(0, Finalglsl)));
+		}
+#if (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT)
+		else
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_GLCheckShaderCodeCRC);
+			FAnsiCharArray Finalglsl;
+			GLSLToPlatform(Header, TypeEnum, GlslCodeOriginal, Finalglsl);
+			TArray<ANSICHAR> FoundShaderCode = FoundShader->GetUncompressedShader();
+			if (FoundShaderCode.Num() != Finalglsl.Num()
+				|| FMemory::Memcmp(FoundShaderCode.GetData(), Finalglsl.GetData(), FoundShaderCode.Num())
+				)
+			{
+				UE_LOG(LogRHI, Fatal, TEXT("SHADER CRC CLASH!"));
+			}
+		}
+#endif
+	}
+
+	RHIType* RHIShader = nullptr;
 	if (ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
 	{
-		return new TOGLProxyType([&](RHIType* OwnerRHI)
+		RHIShader = new TOGLProxyType(ShaderCodeKey, [&](RHIType* OwnerRHI)
 		{
-			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Code, Hash, OwnerRHI);
+			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Header, ShaderCodeKey, Hash, OwnerRHI);
 		});
 	}
 	else
 	{
 		// take a copy of the code for RHIT version.
-		TArray<uint8> CodeCopy(Code);
-		return new TOGLProxyType([Code = MoveTemp(CodeCopy), Hash](RHIType* OwnerRHI)
+		RHIShader = new TOGLProxyType(ShaderCodeKey, [Header = Header, ShaderCodeKey= ShaderCodeKey, Hash](RHIType* OwnerRHI)
 		{
-			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Code, Hash, OwnerRHI);
+			return CompileOpenGLShader<typename TOGLProxyType::ContainedGLType>(Header, ShaderCodeKey, Hash, OwnerRHI);
 		});
 	}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (RHIShader)
+	{
+		RHIShader->ShaderName = ShaderCode.FindOptionalData(FShaderCodeName::Key);
+	}
+#endif
+
+	return RHIShader;
 }
 
 FVertexShaderRHIRef FOpenGLDynamicRHI::RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return CreateProxyShader<FRHIVertexShader, FOpenGLVertexShaderProxy>(Code, Hash);
+	return CreateProxyShader<FRHIVertexShader>(Code, Hash);
 }
 
 FPixelShaderRHIRef FOpenGLDynamicRHI::RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return CreateProxyShader<FRHIPixelShader, FOpenGLPixelShaderProxy>(Code, Hash);
+	return CreateProxyShader<FRHIPixelShader>(Code, Hash);
 }
 
 FGeometryShaderRHIRef FOpenGLDynamicRHI::RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return CreateProxyShader<FRHIGeometryShader, FOpenGLGeometryShaderProxy>(Code, Hash);
+	return CreateProxyShader<FRHIGeometryShader>(Code, Hash);
 }
 
 static void MarkShaderParameterCachesDirty(FOpenGLShaderParameterCache* ShaderParameters, bool UpdateCompute)
@@ -1536,32 +1659,40 @@ static bool GetUncompressedProgramBinaryFromGLProgram(GLuint Program, TArray<uin
 	return false;
 }
 
+static void CompressProgramBinary(const TArray<uint8>& UncompressedProgramBinary, TArray<uint8>& ProgramBinaryOUT)
+{
+	check(CVarStoreCompressedBinaries.GetValueOnAnyThread());		
+	check(ProgramBinaryOUT.IsEmpty());
+
+	int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, UncompressedProgramBinary.Num());
+	uint32 CompressedHeaderSize = sizeof(FCompressedProgramBinaryHeader);
+	ProgramBinaryOUT.AddUninitialized(CompressedSize + CompressedHeaderSize);
+	bool bSuccess = FCompression::CompressMemory(NAME_Zlib, ProgramBinaryOUT.GetData() + CompressedHeaderSize, CompressedSize, UncompressedProgramBinary.GetData(), UncompressedProgramBinary.Num());
+	if (bSuccess)
+	{
+		ProgramBinaryOUT.SetNum(CompressedSize + CompressedHeaderSize);
+		ProgramBinaryOUT.Shrink();
+		FCompressedProgramBinaryHeader* Header = (FCompressedProgramBinaryHeader*)ProgramBinaryOUT.GetData();
+		Header->UncompressedSize = UncompressedProgramBinary.Num();
+	}
+	else
+	{
+		// failed, store the uncompressed version.
+		UE_LOG(LogRHI, Log, TEXT("Storing binary program uncompressed (%d, %d, %d)"), UncompressedProgramBinary.Num(), ProgramBinaryOUT.Num(), CompressedSize);
+		ProgramBinaryOUT.SetNumUninitialized(UncompressedProgramBinary.Num() + CompressedHeaderSize);
+		FCompressedProgramBinaryHeader* Header = (FCompressedProgramBinaryHeader*)ProgramBinaryOUT.GetData();
+		Header->UncompressedSize = FCompressedProgramBinaryHeader::NotCompressed;
+		FMemory::Memcpy(ProgramBinaryOUT.GetData() + sizeof(FCompressedProgramBinaryHeader), UncompressedProgramBinary.GetData(), UncompressedProgramBinary.Num());
+	}
+}
+
 static bool GetCompressedProgramBinaryFromGLProgram(GLuint Program, TArray<uint8>& ProgramBinaryOUT)
 {
 	// get uncompressed binary
 	TArray<uint8> UncompressedProgramBinary;
 	if (GetUncompressedProgramBinaryFromGLProgram(Program, UncompressedProgramBinary))
 	{
-		int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, UncompressedProgramBinary.Num());
-		uint32 CompressedHeaderSize = sizeof(FCompressedProgramBinaryHeader);
-		ProgramBinaryOUT.AddUninitialized(CompressedSize + CompressedHeaderSize);
-		bool bSuccess = FCompression::CompressMemory(NAME_Zlib, ProgramBinaryOUT.GetData() + CompressedHeaderSize, CompressedSize, UncompressedProgramBinary.GetData(), UncompressedProgramBinary.Num());
-		if(bSuccess)
-		{
-			ProgramBinaryOUT.SetNum(CompressedSize + CompressedHeaderSize);
-			ProgramBinaryOUT.Shrink();
-			FCompressedProgramBinaryHeader* Header = (FCompressedProgramBinaryHeader*)ProgramBinaryOUT.GetData();
-			Header->UncompressedSize = UncompressedProgramBinary.Num();
-		}
-		else
-		{
-			// failed, store the uncompressed version.
-			UE_LOG(LogRHI, Log, TEXT("Storing binary program uncompressed (%d, %d, %d)"), UncompressedProgramBinary.Num(), ProgramBinaryOUT.Num(), CompressedSize);
-			ProgramBinaryOUT.SetNumUninitialized(UncompressedProgramBinary.Num() + CompressedHeaderSize);
-			FCompressedProgramBinaryHeader* Header = (FCompressedProgramBinaryHeader*)ProgramBinaryOUT.GetData();
-			Header->UncompressedSize = FCompressedProgramBinaryHeader::NotCompressed;
-			FMemory::Memcpy(ProgramBinaryOUT.GetData() + sizeof(FCompressedProgramBinaryHeader), UncompressedProgramBinary.GetData(), UncompressedProgramBinary.Num());
-		}
+		CompressProgramBinary(UncompressedProgramBinary, ProgramBinaryOUT);
 		return true;
 	}
 	return false;
@@ -2666,6 +2797,7 @@ static FOpenGLLinkedProgram* LinkProgram( const FOpenGLLinkedProgramConfiguratio
 
 	if (Program == 0)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_glGenProgramPipelines);
 		FOpenGL::GenProgramPipelines(1, &Program);
 	}
 
@@ -2746,6 +2878,7 @@ static bool LinkComputeShader(FRHIComputeShader* ComputeShaderRHI, FOpenGLComput
 	Config.Shaders[CrossCompiler::SHADER_STAGE_COMPUTE].Resource = ComputeShader->Resource;
 	Config.Shaders[CrossCompiler::SHADER_STAGE_COMPUTE].Bindings = ComputeShader->Bindings;
 	Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_COMPUTE] = ComputeShaderRHI->GetHash();
+	Config.Shaders[CrossCompiler::SHADER_STAGE_COMPUTE].ShaderKey = FOpenGLDynamicRHI::ResourceCastProxy(ComputeShaderRHI)->GetCompiledShaderKey();
 
 	ComputeShader->LinkedProgram = GetOpenGLProgramsCache().Find(Config.ProgramKey, true);
 
@@ -2813,7 +2946,7 @@ FOpenGLLinkedProgram* FOpenGLDynamicRHI::GetLinkedComputeProgram(FRHIComputeShad
 
 FComputeShaderRHIRef FOpenGLDynamicRHI::RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	return CreateProxyShader<FRHIComputeShader, FOpenGLComputeShaderProxy>(Code, Hash);
+	return CreateProxyShader<FRHIComputeShader>(Code, Hash);
 }
 
 template<class TOpenGLStage>
@@ -2863,10 +2996,17 @@ static FOpenGLSeparateShaderObjectCache& GetOpenGLSeparateShaderObjectCache()
 	return SeparateShaderObjectCache;
 }
 
-template<class TOpenGLStage0, class TOpenGLStage1>
-static void BindShaderStage(FOpenGLLinkedProgramConfiguration& Config, CrossCompiler::EShaderStage NextStage, TOpenGLStage0* NextStageShader, const FSHAHash& NextStageHash, CrossCompiler::EShaderStage PrevStage, TOpenGLStage1* PrevStageShader)
+template<class TOpenGLStage0RHI, class TOpenGLStage1RHI>
+static void BindShaderStage(FOpenGLLinkedProgramConfiguration& Config, CrossCompiler::EShaderStage NextStage, TOpenGLStage0RHI* NextStageShaderIn, CrossCompiler::EShaderStage PrevStage, TOpenGLStage1RHI* PrevStageShaderIn)
 {
+	auto* PrevStageShader = FOpenGLDynamicRHI::ResourceCast(PrevStageShaderIn);
+	auto* NextStageShader = FOpenGLDynamicRHI::ResourceCast(NextStageShaderIn);
+
 	check(NextStageShader && PrevStageShader);
+
+	typedef typename TOpenGLResourceTraits<TOpenGLStage0RHI>::TConcreteType::ContainedGLType TOpenGLStage0;
+	typedef typename TOpenGLResourceTraits<TOpenGLStage1RHI>::TConcreteType::ContainedGLType TOpenGLStage1;
+
 	FOpenGLLinkedProgramConfiguration::ShaderInfo& ShaderInfo = Config.Shaders[NextStage];
 	FOpenGLLinkedProgramConfiguration::ShaderInfo& PrevInfo = Config.Shaders[PrevStage];
 
@@ -3041,9 +3181,9 @@ static void BindShaderStage(FOpenGLLinkedProgramConfiguration& Config, CrossComp
 						Chars.Append(TCHAR_TO_ANSI(*NewPrevSource), Len);
 						Ar.Serialize(Chars.GetData(), Chars.Num());
 						
-						TRefCountPtr<TOpenGLStage1> NewPrev(CompileOpenGLShader<TOpenGLStage1>(Bytes, FSHAHash()));
+						TRefCountPtr<TOpenGLStage1RHI> NewPrev = CreateProxyShader<TOpenGLStage1RHI>(Bytes, FSHAHash());
 						PrevInfo.Bindings = Header.Bindings;
-						PrevInfo.Resource = NewPrev->Resource;
+						PrevInfo.Resource = FOpenGLDynamicRHI::ResourceCast(NewPrev.GetReference())->Resource;
 					}
 					
 					bInterpolatorMatches = (OutputElimination.Num() == 0 && VaryingMapping.Num() == 0);
@@ -3071,11 +3211,149 @@ static void BindShaderStage(FOpenGLLinkedProgramConfiguration& Config, CrossComp
 	
 	ShaderInfo.Bindings = NextStageBindings;
 	ShaderInfo.Resource = NextStageResource;
-	Config.ProgramKey.ShaderHashes[NextStage] = NextStageHash;
 }
 
 // ============================================================================================================================
 static FCriticalSection GProgramBinaryCacheCS;
+
+
+
+static FOpenGLLinkedProgramConfiguration CreateConfig(FRHIVertexShader* VertexShaderRHI, FRHIPixelShader* PixelShaderRHI, FRHIGeometryShader* GeometryShaderRHI )
+{
+	FOpenGLVertexShader* VertexShader = FOpenGLDynamicRHI::ResourceCast(VertexShaderRHI);
+	FOpenGLPixelShader* PixelShader = FOpenGLDynamicRHI::ResourceCast(PixelShaderRHI);
+	FOpenGLGeometryShader* GeometryShader = FOpenGLDynamicRHI::ResourceCast(GeometryShaderRHI);
+
+	FOpenGLLinkedProgramConfiguration Config;
+
+	check(VertexShaderRHI);
+	check(PixelShaderRHI);
+
+	// Fill-in the configuration
+	Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].Bindings = VertexShader->Bindings;
+	Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].Resource = VertexShader->Resource;
+	Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].ShaderKey = FOpenGLDynamicRHI::ResourceCastProxy(VertexShaderRHI)->GetCompiledShaderKey();
+	Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_VERTEX] = VertexShaderRHI->GetHash();
+
+	if (GeometryShaderRHI)
+	{
+		check(VertexShader);
+		BindShaderStage(Config, CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShaderRHI, CrossCompiler::SHADER_STAGE_VERTEX, VertexShaderRHI);
+		Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_GEOMETRY] = GeometryShaderRHI->GetHash();
+		Config.Shaders[CrossCompiler::SHADER_STAGE_GEOMETRY].ShaderKey = FOpenGLDynamicRHI::ResourceCastProxy(GeometryShaderRHI)->GetCompiledShaderKey();
+	}
+
+	check(GeometryShaderRHI || VertexShaderRHI);
+	if (GeometryShaderRHI)
+	{
+		BindShaderStage(Config, CrossCompiler::SHADER_STAGE_PIXEL, PixelShaderRHI, CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShaderRHI);
+	}
+	else
+	{
+		BindShaderStage(Config, CrossCompiler::SHADER_STAGE_PIXEL, PixelShaderRHI, CrossCompiler::SHADER_STAGE_VERTEX, VertexShaderRHI);
+	}
+	Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_PIXEL] = PixelShaderRHI->GetHash();
+	Config.Shaders[CrossCompiler::SHADER_STAGE_PIXEL].ShaderKey = FOpenGLDynamicRHI::ResourceCastProxy(PixelShaderRHI)->GetCompiledShaderKey();
+
+
+	return Config;
+};
+
+
+static bool CanCreateExternally(bool bIsFromPSO)
+{
+#if PLATFORM_ANDROID
+	if (bIsFromPSO && FOpenGLProgramBinaryCache::IsBuildingCache() && FAndroidOpenGL::AreRemoteCompileServicesActive())
+	{
+		return true;
+	}
+#endif
+	return false;
+}
+
+void FOpenGLDynamicRHI::PrepareGFXBoundShaderState(const FGraphicsPipelineStateInitializer& Initializer)
+{
+#if PLATFORM_ANDROID
+	if (CanCreateExternally(Initializer.bFromPSOFileCache))
+	{
+		FRHIVertexShader* VertexShaderRHI = Initializer.BoundShaderState.GetVertexShader();
+		FRHIPixelShader* PixelShaderRHI = Initializer.BoundShaderState.GetPixelShader();
+
+		if (!PixelShaderRHI)
+		{
+			// use special null pixel shader when PixelShader was set to NULL
+			PixelShaderRHI = TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
+		}
+	
+		FOpenGLProgramKey ProgramKey;
+		ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_VERTEX] = VertexShaderRHI->GetHash();
+		ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_PIXEL] = PixelShaderRHI->GetHash();
+
+		// add it to the runtime container. (this prevents createboundshader state from adding it to the binary cache.)
+		{
+			FScopeLock Lock(&GProgramBinaryCacheCS);
+			check(GetOpenGLProgramsCache().IsUsingLRU());
+			if (GetOpenGLProgramsCache().Find(ProgramKey, false) != nullptr)
+			{
+				//already done?
+				UE_LOG(LogRHI, Warning, TEXT("PrepareGFXBoundShaderState Already done? %s is pso %d "), *ProgramKey.ToString(), Initializer.bFromPSOFileCache ? 1 : 0);
+				return;
+			}
+		}
+
+		// compile externally, sit and wait for the linked result	
+		const FOpenGLCompiledShaderKey& VSKey = ResourceCastProxy(VertexShaderRHI)->GetCompiledShaderKey();
+		const FOpenGLCompiledShaderKey& PSKey = ResourceCastProxy(PixelShaderRHI)->GetCompiledShaderKey();
+
+		TArray<ANSICHAR> VSCode;
+		TArray<ANSICHAR> PSCode;
+		TArray<ANSICHAR> ComputeGlslCode; 
+		{
+			FScopeLock Lock(&GCompiledShaderCacheCS);
+			VSCode = GetOpenGLCompiledShaderCache().FindRef(VSKey)->GetUncompressedShader();
+			PSCode = GetOpenGLCompiledShaderCache().FindRef(PSKey)->GetUncompressedShader();
+		}
+
+		FString FailLog;
+		TArray<uint8> CompiledProgramResult = FAndroidOpenGL::DispatchAndWaitForRemoteGLProgramCompile(TArrayView<uint8>((uint8*)&ProgramKey, sizeof(ProgramKey)), VSCode, PSCode, ComputeGlslCode, FailLog);
+
+		if(FailLog.IsEmpty())
+		{
+			GLenum glFormat = *(GLenum*)CompiledProgramResult.GetData();		
+			if (CVarStoreCompressedBinaries.GetValueOnAnyThread())
+			{
+				
+				TArray<uint8> CompressedCompiledProgramResult;
+				CompressProgramBinary(CompiledProgramResult, CompressedCompiledProgramResult);
+				CompiledProgramResult = MoveTemp(CompressedCompiledProgramResult);
+			}
+
+			// add it to the binary file.
+			FOpenGLProgramBinaryCache::CacheProgramBinary(ProgramKey, CompiledProgramResult);
+
+			// add it to the runtime container. (this prevents createboundshader state from adding it to the binary cache.)
+			{
+				FScopeLock Lock(&GProgramBinaryCacheCS);
+				check(GetOpenGLProgramsCache().IsUsingLRU());
+				if (GetOpenGLProgramsCache().Find(ProgramKey, false) == nullptr)
+				{
+					GetOpenGLProgramsCache().AddAsEvicted(ProgramKey, MoveTemp(CompiledProgramResult));
+				}
+				else
+				{
+					// beaten to it by another thread.
+					UE_LOG(LogRHI, Warning, TEXT("PrepareGFXBoundShaderState skipped add. %s is pso %d "), *ProgramKey.ToString(), Initializer.bFromPSOFileCache ? 1 : 0);
+				}
+			}
+
+		}
+		else
+		{
+			UE_LOG(LogRHI, Error, TEXT("External compile of program %s failed: %s "), *ProgramKey.ToString(), *FailLog);
+		}
+	}
+#endif
+}
 
 FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThread(
 	FRHIVertexDeclaration* VertexDeclarationRHI,
@@ -3099,39 +3377,7 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 		PixelShaderRHI = TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
 	}
 
-	auto CreateConfig = [VertexShaderRHI, PixelShaderRHI, GeometryShaderRHI]()
-	{
-		FOpenGLVertexShader* VertexShader = ResourceCast(VertexShaderRHI);
-		FOpenGLPixelShader* PixelShader = ResourceCast(PixelShaderRHI);
-		FOpenGLGeometryShader* GeometryShader = ResourceCast(GeometryShaderRHI);
 
-		FOpenGLLinkedProgramConfiguration Config;
-
-		check(VertexShader);
-		check(PixelShader);
-
-		// Fill-in the configuration
-		Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].Bindings = VertexShader->Bindings;
-		Config.Shaders[CrossCompiler::SHADER_STAGE_VERTEX].Resource = VertexShader->Resource;
-		Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_VERTEX] = VertexShaderRHI->GetHash();
-
-		if (GeometryShader)
-			{
-				check(VertexShader);
-			BindShaderStage(Config, CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShader, GeometryShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_VERTEX, VertexShader);
-		}
-
-		check(GeometryShader || VertexShader);
-		if (GeometryShader)
-		{
-			BindShaderStage(Config, CrossCompiler::SHADER_STAGE_PIXEL, PixelShader, PixelShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShader);
-		}
-		else
-		{
-			BindShaderStage(Config, CrossCompiler::SHADER_STAGE_PIXEL, PixelShader, PixelShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_VERTEX, VertexShader);
-		}
-		return Config;
-	};
 
 	// Check for an existing bound shader state which matches the parameters
 	FCachedBoundShaderStateLink* CachedBoundShaderStateLink = GetCachedBoundShaderState(
@@ -3151,7 +3397,7 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 		if (!LinkedProgram->bConfigIsInitalized)
 		{
 			// touch has unevicted the program, set it up.
-			FOpenGLLinkedProgramConfiguration Config = CreateConfig();
+			FOpenGLLinkedProgramConfiguration Config = CreateConfig(VertexShaderRHI, PixelShaderRHI, GeometryShaderRHI );
 			LinkedProgram->SetConfig(Config);
 			// We now have the config for this program, we must configure the program for use.
 			ConfigureGLProgramStageStates(LinkedProgram);
@@ -3160,7 +3406,7 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 	}
 	else
 	{
-		FOpenGLLinkedProgramConfiguration Config = CreateConfig();
+		FOpenGLLinkedProgramConfiguration Config = CreateConfig(VertexShaderRHI, PixelShaderRHI, GeometryShaderRHI);
 
 		// Check if we already have such a program in released programs cache. Use it, if we do.
 		FOpenGLLinkedProgram* LinkedProgram = 0;
@@ -3280,10 +3526,11 @@ void DestroyShadersAndPrograms()
 	StaticLastReleasedProgramsIndex = 0;
 
 	{
+		FScopeLock Lock(&GCompiledShaderCacheCS);
 		FOpenGLCompiledShaderCache& ShaderCache = GetOpenGLCompiledShaderCache();
 		for (FOpenGLCompiledShaderCache::TIterator It(ShaderCache); It; ++It)
 		{
-			FOpenGL::DeleteShader(It.Value());
+			FOpenGL::DeleteShader(It.Value()->Resource);
 		}
 		ShaderCache.Empty();
 	}
@@ -3994,18 +4241,41 @@ void FOpenGLProgramBinaryCache::Initialize()
 	CachePtr->OnShaderPipelineCachePrecompilationCompleteDelegate = FShaderPipelineCache::GetPrecompilationCompleteDelegate().AddRaw(CachePtr, &FOpenGLProgramBinaryCache::OnShaderPipelineCachePrecompilationComplete);
 }
 
+#if PLATFORM_ANDROID
+static int32 GNumRemoteProgramCompileServices = 4;
+static FAutoConsoleVariableRef CVarNumRemoteProgramCompileServices(
+	TEXT("Android.OpenGL.NumRemoteProgramCompileServices"),
+	GNumRemoteProgramCompileServices,
+	TEXT("The number of separate processes to make available to compile opengl programs.\n")
+	TEXT("0 to disable use of separate processes to precompile PSOs\n")
+	TEXT("valid range is 1-8 (4 default).")
+	,
+	ECVF_RenderThreadSafe|ECVF_ReadOnly
+);
+#endif
+
 void FOpenGLProgramBinaryCache::OnShaderPipelineCacheOpened(FString const& Name , EShaderPlatform Platform, uint32 Count, const FGuid& VersionGuid, FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext)
 {
 	UE_LOG(LogRHI, Log, TEXT("Scanning Binary program cache, using Shader Pipeline Cache version %s"), *VersionGuid.ToString());
 	ScanProgramCacheFile(VersionGuid);
 	if(IsBuildingCache_internal())
 	{
+#if PLATFORM_ANDROID
+		if(GNumRemoteProgramCompileServices)
+		{
+			FAndroidOpenGL::StartAndWaitForRemoteCompileServices(GNumRemoteProgramCompileServices);
+		}
+#endif
 		ShaderCachePrecompileContext.SetPrecompilationIsSlowTask();
 	}
 }
 
 void FOpenGLProgramBinaryCache::OnShaderPipelineCachePrecompilationComplete(uint32 Count, double Seconds, const FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext)
 {
+#if PLATFORM_ANDROID
+	FAndroidOpenGL::StopRemoteCompileServices();
+#endif
+	
 	UE_LOG(LogRHI, Log, TEXT("OnShaderPipelineCachePrecompilationComplete: %d shaders"), Count);
 	
 	// Want to ignore any subsequent Shader Pipeline Cache opening/closing, eg when loading modules
@@ -4413,11 +4683,11 @@ void FOpenGLProgramBinaryCache::AppendGLProgramToBinaryCache(const FOpenGLProgra
 
 	FScopeLock Lock(&GProgramBinaryCacheCS);
 
-	AddUniqueGLProgramToBinaryCache(BinaryCacheWriteFileHandle, ProgramKey, Program, CachedProgramBinaryOUT);
+	AddUniqueGLProgramToBinaryCache(ProgramKey, Program, CachedProgramBinaryOUT);
 }
 
 // Add the program to the binary cache if it does not already exist.
-void FOpenGLProgramBinaryCache::AddUniqueGLProgramToBinaryCache(FArchive* FileWriter, const FOpenGLProgramKey& ProgramKey, GLuint Program, TArray<uint8>& CachedProgramBinaryOUT)
+void FOpenGLProgramBinaryCache::AddUniqueGLProgramToBinaryCache(const FOpenGLProgramKey& ProgramKey, GLuint Program, TArray<uint8>& CachedProgramBinaryOUT)
 {
 	// Add to runtime and disk.
 	const FOpenGLProgramKey& ProgramHash = ProgramKey;
@@ -4430,7 +4700,7 @@ void FOpenGLProgramBinaryCache::AddUniqueGLProgramToBinaryCache(FArchive* FileWr
 		FOpenGLProgramKey SerializedProgramKey = ProgramKey;
 		if (ensure(GetProgramBinaryFromGLProgram(Program, CachedProgramBinaryOUT)))
 		{
-			AddProgramBinaryDataToBinaryCache(*FileWriter, CachedProgramBinaryOUT, ProgramKey);
+			AddProgramBinaryDataToBinaryCache(CachedProgramBinaryOUT, ProgramKey);
 		}
 		else
 		{
@@ -4444,9 +4714,29 @@ void FOpenGLProgramBinaryCache::AddUniqueGLProgramToBinaryCache(FArchive* FileWr
 	}
 }
 
-// Serialize out the program binary data and add to runtime structures.
-void FOpenGLProgramBinaryCache::AddProgramBinaryDataToBinaryCache(FArchive& Ar, TArray<uint8>& BinaryProgramData, const FOpenGLProgramKey& ProgramKey)
+void FOpenGLProgramBinaryCache::CacheProgramBinary(const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinary)
 {
+	if (CachePtr)
+	{
+		if (CachePtr->IsBuildingCache_internal() == false)
+		{
+			return;
+		}
+
+		FScopeLock Lock(&GProgramBinaryCacheCS);
+
+		if (!CachePtr->ProgramToBinaryMap.Contains(ProgramKey))
+		{
+			CachePtr->AddProgramBinaryDataToBinaryCache(CachedProgramBinary, ProgramKey);
+		}
+	}
+}
+
+// Serialize out the program binary data and add to runtime structures.
+void FOpenGLProgramBinaryCache::AddProgramBinaryDataToBinaryCache(TArray<uint8>& BinaryProgramData, const FOpenGLProgramKey& ProgramKey)
+{
+	FScopeLock Lock(&GProgramBinaryCacheCS);
+	FArchive& Ar = *BinaryCacheWriteFileHandle;
 	// Serialize to output file:
 	FOpenGLProgramKey SerializedProgramKey = ProgramKey;
 	uint32 ProgramBinarySize = (uint32)BinaryProgramData.Num();
@@ -4494,18 +4784,6 @@ void FOpenGLProgramBinaryCache::Shutdown()
 		delete CachePtr;
 		CachePtr = nullptr;
 	}
-}
-
-bool FOpenGLProgramBinaryCache::DeferShaderCompilation(GLuint Shader, const TArray<ANSICHAR>& GlslCode)
-{
-	if (CachePtr)
-	{
-		FPendingShaderCode PendingShaderCode;
-		CompressShader(GlslCode, PendingShaderCode);
-		CachePtr->ShadersPendingCompilation.Add(Shader, MoveTemp(PendingShaderCode));
-		return true;
-	}
-	return false;
 }
 
 void FOpenGLProgramBinaryCache::CacheProgram(GLuint Program, const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinaryOUT)
@@ -4584,7 +4862,7 @@ bool FOpenGLProgramBinaryCache::UseCachedProgram_internal(GLuint& ProgramOUT, co
 			}
 			SetNewProgramStats(ProgramOUT);
 			// Now write to new cache, we're returning true here so no attempt will be made to add it back to the cache later.
-			AddProgramBinaryDataToBinaryCache(*BinaryCacheWriteFileHandle, CachedProgramBinaryOUT, ProgramKey);
+			AddProgramBinaryDataToBinaryCache(CachedProgramBinaryOUT, ProgramKey);
 
 			PreviousBinaryCacheInfo.NumberOfOldEntriesReused++;
 			return true;
@@ -4595,19 +4873,18 @@ bool FOpenGLProgramBinaryCache::UseCachedProgram_internal(GLuint& ProgramOUT, co
 
 void FOpenGLProgramBinaryCache::CompilePendingShaders(const FOpenGLLinkedProgramConfiguration& Config)
 {
-	if (CachePtr)
+	VERIFY_GL_SCOPE();
+
+	// Find the existing compiled shader in the cache.
+	FScopeLock Lock(&GCompiledShaderCacheCS);
+	for (int32 StageIdx = 0; StageIdx < UE_ARRAY_COUNT(Config.Shaders); ++StageIdx)
 	{
-		for (int32 StageIdx = 0; StageIdx < UE_ARRAY_COUNT(Config.Shaders); ++StageIdx)
+		TSharedPtr<FOpenGLCompiledShaderValue> FoundShader = GetOpenGLCompiledShaderCache().FindRef(Config.Shaders[StageIdx].ShaderKey);
+		if (FoundShader && FoundShader->bHasCompiled == false)
 		{
-			GLuint ShaderResource = Config.Shaders[StageIdx].Resource;
-			FPendingShaderCode* PendingShaderCodePtr = CachePtr->ShadersPendingCompilation.Find(ShaderResource);
-			if (PendingShaderCodePtr)
-			{
-				TArray<ANSICHAR> GlslCode;
-				UncompressShader(*PendingShaderCodePtr, GlslCode);
-				CompileCurrentShader(ShaderResource, GlslCode);
-				CachePtr->ShadersPendingCompilation.Remove(ShaderResource);
-			}
+			TArray<ANSICHAR> GlslCode = FoundShader->GetUncompressedShader();
+			CompileCurrentShader(Config.Shaders[StageIdx].Resource, GlslCode);
+			FoundShader->bHasCompiled = true;
 		}
 	}
 }
@@ -4616,64 +4893,6 @@ FString FOpenGLProgramBinaryCache::GetProgramBinaryCacheFilePath() const
 {
 	FString ProgramFilename = CachePath + TEXT("/") + CacheFilename;
 	return ProgramFilename;
-}
-
-void FOpenGLProgramBinaryCache::CompressShader(const TArray<ANSICHAR>& InGlslCode, FPendingShaderCode& OutCompressedShader)
-{
-	check(InGlslCode.GetTypeSize() == sizeof(uint8));
-	check(OutCompressedShader.GlslCode.GetTypeSize() == sizeof(uint8));
-	
-	int32 UncompressedSize = InGlslCode.Num();
-	int32 CompressedSize = UncompressedSize * 4.f / 3.f;
-	OutCompressedShader.GlslCode.Empty(CompressedSize);
-	OutCompressedShader.GlslCode.SetNum(CompressedSize);
-
-	OutCompressedShader.bCompressed = FCompression::CompressMemory(
-		NAME_Zlib,
-		(void*)OutCompressedShader.GlslCode.GetData(),
-		CompressedSize,
-		(void*)InGlslCode.GetData(),
-		UncompressedSize,
-		COMPRESS_BiasMemory);
-
-	if (OutCompressedShader.bCompressed)
-	{
-		// shrink buffer
-		OutCompressedShader.GlslCode.SetNum(CompressedSize, true);
-	}
-	else
-	{
-		OutCompressedShader.GlslCode = InGlslCode;
-	}
-	
-	OutCompressedShader.UncompressedSize = UncompressedSize;
-	
-}
-
-void FOpenGLProgramBinaryCache::UncompressShader(const FPendingShaderCode& InCompressedShader, TArray<ANSICHAR>& OutGlslCode)
-{
-	check(OutGlslCode.GetTypeSize() == sizeof(uint8));
-	check(InCompressedShader.GlslCode.GetTypeSize() == sizeof(uint8));
-
-	if (InCompressedShader.bCompressed)
-	{
-		int32 UncompressedSize = InCompressedShader.UncompressedSize;
-		OutGlslCode.Empty(UncompressedSize);
-		OutGlslCode.SetNum(UncompressedSize);
-
-		bool bResult = FCompression::UncompressMemory(
-			NAME_Zlib,
-			(void*)OutGlslCode.GetData(),
-			UncompressedSize,
-			(void*)InCompressedShader.GlslCode.GetData(),
-			InCompressedShader.GlslCode.Num());
-
-		check(bResult);
-	}
-	else
-	{
-		OutGlslCode = InCompressedShader.GlslCode;
-	}
 }
 
 void FOpenGLProgramBinaryCache::CheckPendingGLProgramCreateRequests()

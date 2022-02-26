@@ -1472,6 +1472,8 @@ bool GRHISupportsShaderTimestamp = false;
 
 bool GRHISupportsEfficientUploadOnResourceCreation = false;
 
+bool GRHISupportsAsyncPipelinePrecompile = true;
+
 bool GRHISupportsMapWriteNoOverwrite = false;
 
 FVertexElementTypeSupportInfo GVertexElementTypeSupport;

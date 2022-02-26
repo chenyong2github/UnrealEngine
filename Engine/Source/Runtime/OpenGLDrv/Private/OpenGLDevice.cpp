@@ -1050,6 +1050,11 @@ FOpenGLDynamicRHI::FOpenGLDynamicRHI()
 	GRHINeedsExtraDeletionLatency = CVarGLExtraDeletionLatency.GetValueOnAnyThread() == 1;
 #endif
 
+	// Ogl must have all programs created on the context owning thread.
+	// when GRHISupportsAsyncPipelinePrecompile is true pipelinefilecache will call RHICreateGraphicsPipelineState from any thread and
+	// RHISetGraphicsPipelineState will not be called for precompiled programs.
+	GRHISupportsAsyncPipelinePrecompile = false;
+
 	PlatformInitOpenGL();
 	PlatformDevice = PlatformCreateOpenGLDevice();
 	VERIFY_GL_SCOPE();

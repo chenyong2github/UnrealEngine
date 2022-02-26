@@ -330,10 +330,27 @@ private:
 	bool bQueuedCreation;
 };
 
-typedef TOpenGLResourceProxy<FRHIVertexShader, FOpenGLVertexShader> FOpenGLVertexShaderProxy;
-typedef TOpenGLResourceProxy<FRHIPixelShader, FOpenGLPixelShader> FOpenGLPixelShaderProxy;
-typedef TOpenGLResourceProxy<FRHIGeometryShader, FOpenGLGeometryShader> FOpenGLGeometryShaderProxy;
-typedef TOpenGLResourceProxy<FRHIComputeShader, FOpenGLComputeShader> FOpenGLComputeShaderProxy;
+
+template<typename TRHIType, typename TOGLResourceType>
+class TOpenGLShaderProxy : public TOpenGLResourceProxy< TRHIType, TOGLResourceType>
+{
+public:
+	TOpenGLShaderProxy(const FOpenGLCompiledShaderKey& InKey, TFunction<TOGLResourceType* (TRHIType*)> CreateFunc)
+		: TOpenGLResourceProxy< TRHIType, TOGLResourceType>(CreateFunc), Key(InKey)
+	{
+	}
+	
+	const FOpenGLCompiledShaderKey& GetCompiledShaderKey() const { return Key; }
+
+private:
+
+	FOpenGLCompiledShaderKey Key;
+};
+
+typedef TOpenGLShaderProxy<FRHIVertexShader, FOpenGLVertexShader> FOpenGLVertexShaderProxy;
+typedef TOpenGLShaderProxy<FRHIPixelShader, FOpenGLPixelShader> FOpenGLPixelShaderProxy;
+typedef TOpenGLShaderProxy<FRHIGeometryShader, FOpenGLGeometryShader> FOpenGLGeometryShaderProxy;
+typedef TOpenGLShaderProxy<FRHIComputeShader, FOpenGLComputeShader> FOpenGLComputeShaderProxy;
 
 
 template <typename T>
@@ -344,6 +361,12 @@ struct TIsGLProxyObject
 
 template<typename TRHIType, typename TOGLResourceType>
 struct TIsGLProxyObject<TOpenGLResourceProxy<TRHIType, TOGLResourceType>>
+{
+	enum { Value = true };
+};
+
+template<typename TRHIType, typename TOGLResourceType>
+struct TIsGLProxyObject<TOpenGLShaderProxy<TRHIType, TOGLResourceType>>
 {
 	enum { Value = true };
 };

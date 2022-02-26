@@ -319,6 +319,44 @@ public:
 };
 
 
+class FOpenGLCompiledShaderKey
+{
+public:
+	FOpenGLCompiledShaderKey()
+		: TypeEnum(0)
+		, CodeSize(0)
+		, CodeCRC(0)
+	{
+	}
+
+	FOpenGLCompiledShaderKey(
+		GLenum InTypeEnum,
+		uint32 InCodeSize,
+		uint32 InCodeCRC
+	)
+		: TypeEnum(InTypeEnum)
+		, CodeSize(InCodeSize)
+		, CodeCRC(InCodeCRC)
+	{
+	}
+
+	friend bool operator ==(const FOpenGLCompiledShaderKey& A, const FOpenGLCompiledShaderKey& B)
+	{
+		return A.TypeEnum == B.TypeEnum && A.CodeSize == B.CodeSize && A.CodeCRC == B.CodeCRC;
+	}
+
+	friend uint32 GetTypeHash(const FOpenGLCompiledShaderKey& Key)
+	{
+		return GetTypeHash(Key.TypeEnum) ^ GetTypeHash(Key.CodeSize) ^ GetTypeHash(Key.CodeCRC);
+	}
+
+	uint32 GetCodeCRC() const { return CodeCRC; }
+
+private:
+	GLenum TypeEnum;
+	uint32 CodeSize;
+	uint32 CodeCRC;
+};
 
 /**
  * Caching of OpenGL uniform parameters.
@@ -441,6 +479,8 @@ public:
 	{
 		FOpenGLShaderBindings Bindings;
 		GLuint Resource;
+
+		FOpenGLCompiledShaderKey ShaderKey; // This is the key to the shader within FOpenGLCompiledShader container
 	}
 	Shaders[CrossCompiler::NUM_SHADER_STAGES];
 	FOpenGLProgramKey ProgramKey;
@@ -478,18 +518,20 @@ public:
 	static void Shutdown();
 
 	static bool IsEnabled();
-	
-	/** Defer shader compilation until we link a program, so we will have a chance to load cached binary and skip compilation  */
-	static bool DeferShaderCompilation(GLuint Shader, const TArray<ANSICHAR>& GlslCode);
-	
+
 	/** Compile required shaders for a program, only in case binary program was not found in the cache   */
 	static void CompilePendingShaders(const FOpenGLLinkedProgramConfiguration& Config);
 	
 	/** Try to find and load program binary from cache */
 	static bool UseCachedProgram(GLuint& ProgramOUT, const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinaryOUT);
 	
-	/** Store program binary on disk in case ProgramBinaryCache is enabled */
+	/** Extract the program binary from GL and store on disk. Only when ProgramBinaryCache is enabled */
 	static void CacheProgram(GLuint Program, const FOpenGLProgramKey& ProgramKey, TArray<uint8>& CachedProgramBinaryOUT);
+
+	/** Take an existing program binary and store on disk. Only when ProgramBinaryCache is enabled
+	* CachedProgramBinary should be const, cant be due to serialize api
+	*/
+	static void CacheProgramBinary(const FOpenGLProgramKey& ProgramKey, /*const*/ TArray<uint8>& CachedProgramBinary); 
 
 	static void OnShaderLibraryRequestShaderCode(const FSHAHash& Hash, FArchive* Ar);
 
@@ -514,9 +556,6 @@ private:
 		int32 UncompressedSize;
 		bool bCompressed;
 	};
-
-	static void CompressShader(const TArray<ANSICHAR>& InGlslCode, FPendingShaderCode& OutCompressedShader);
-	static void UncompressShader(const FPendingShaderCode& InCompressedShader, TArray<ANSICHAR>& OutGlslCode);
 	
 private:
 	static TAutoConsoleVariable<int32> CVarPBCEnable;
@@ -550,9 +589,9 @@ private:
 	void CloseWriteHandle();
 
 	void AppendGLProgramToBinaryCache(const FOpenGLProgramKey& ProgramKey, GLuint Program, TArray<uint8>& CachedProgramBinaryOUT);
-	void AddUniqueGLProgramToBinaryCache(FArchive* FileWriter, const FOpenGLProgramKey& ProgramKey, GLuint Program, TArray<uint8>& CachedProgramBinaryOUT);
+	void AddUniqueGLProgramToBinaryCache(const FOpenGLProgramKey& ProgramKey, GLuint Program, TArray<uint8>& CachedProgramBinaryOUT);
 
-	void AddProgramBinaryDataToBinaryCache(FArchive& Ar, TArray<uint8>& BinaryProgramData, const FOpenGLProgramKey& ProgramKey);
+	void AddProgramBinaryDataToBinaryCache(TArray<uint8>& BinaryProgramData, const FOpenGLProgramKey& ProgramKey);
 
 	void ReleaseGLProgram_internal(FOpenGLLinkedProgramConfiguration& Config, GLuint Program);
 

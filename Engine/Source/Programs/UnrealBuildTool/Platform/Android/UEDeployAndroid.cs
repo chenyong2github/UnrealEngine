@@ -2831,6 +2831,15 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Declare the 8 OpenGL program compiling services.
+			Text.AppendLine(@"		<service android:name=""com.epicgames.unreal.oglservices.OGLProgramService"" android:process="":oglprogramservice"" />");
+			// Declare the remaining 7 OpenGL program compiling services. (all derived from OGLProgramService)
+			for(int i = 1; i<8;i++)
+			{
+				String serviceLine = String.Format("		<service android:name=\"com.epicgames.unreal.oglservices.OGLProgramService{0}\" android:process=\":oglprogramservice{0}\" />",i);
+				Text.AppendLine(serviceLine);
+			}
+
 			// Required for OBB download support
 			Text.AppendLine("\t\t<service android:name=\"OBBDownloaderService\" />");
 			Text.AppendLine("\t\t<receiver android:name=\"AlarmReceiver\" />");

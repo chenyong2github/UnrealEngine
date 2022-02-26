@@ -317,6 +317,12 @@ public:
 	}
 
 	template<typename TRHIType>
+	static FORCEINLINE typename TEnableIf<TIsGLProxyObject<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>::Value, typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>::Type ResourceCastProxy(TRHIType* Resource)
+	{
+		return static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource);
+	}
+
+	template<typename TRHIType>
 	static FORCEINLINE typename TEnableIf<!TIsGLProxyObject<typename TOpenGLResourceTraits<TRHIType>::TConcreteType>::Value, typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>::Type ResourceCast(TRHIType* Resource)
 	{
 		CheckRHITFence(static_cast<typename TOpenGLResourceTraits<TRHIType>::TConcreteType*>(Resource));
@@ -924,26 +930,15 @@ public:
 		RHITHREAD_GLCOMMAND_EPILOGUE();
 	}
 
-	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, uint32 StencilRef, bool bApplyAdditionalState) final override;
 
-	FBoundShaderStateRHIRef RHICreateBoundShaderState_internal(
-		FRHIVertexDeclaration* VertexDeclarationRHI,
-		FRHIVertexShader* VertexShaderRHI,
-		FRHIPixelShader* PixelShaderRHI,
-		FRHIGeometryShader* GeometryShaderRHI,
-		bool FromPSOFileCache
-	)
+	virtual FGraphicsPipelineStateRHIRef RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer)
 	{
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		PrepareGFXBoundShaderState(Initializer);
 
-		RHITHREAD_GLCOMMAND_PROLOGUE()
-			return RHICreateBoundShaderState_OnThisThread(VertexDeclarationRHI,
-				VertexShaderRHI,
-				PixelShaderRHI,
-				GeometryShaderRHI,
-				FromPSOFileCache);
-		RHITHREAD_GLCOMMAND_EPILOGUE_RETURN(FBoundShaderStateRHIRef);
+		return new FRHIGraphicsPipelineStateFallBack(Initializer);
 	}
+
+	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, uint32 StencilRef, bool bApplyAdditionalState) final override;
 
 	virtual FBoundShaderStateRHIRef RHICreateBoundShaderState(
 		FRHIVertexDeclaration* VertexDeclarationRHI,
@@ -974,6 +969,27 @@ public:
 	GLuint GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTargets, FOpenGLTextureBase** RenderTargets, const uint32* ArrayIndices, const uint32* MipmapLevels, FOpenGLTextureBase* DepthStencilTarget);
 	
 private:
+
+	FBoundShaderStateRHIRef RHICreateBoundShaderState_internal(
+		FRHIVertexDeclaration* VertexDeclarationRHI,
+		FRHIVertexShader* VertexShaderRHI,
+		FRHIPixelShader* PixelShaderRHI,
+		FRHIGeometryShader* GeometryShaderRHI,
+		bool FromPSOFileCache
+	)
+	{
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+		RHITHREAD_GLCOMMAND_PROLOGUE()
+			return RHICreateBoundShaderState_OnThisThread(VertexDeclarationRHI,
+				VertexShaderRHI,
+				PixelShaderRHI,
+				GeometryShaderRHI,
+				FromPSOFileCache);
+		RHITHREAD_GLCOMMAND_EPILOGUE_RETURN(FBoundShaderStateRHIRef);
+	}
+
+	void PrepareGFXBoundShaderState(const FGraphicsPipelineStateInitializer& Initializer);
 
 	/** Counter incremented each time RHIBeginScene is called. */
 	uint32 SceneFrameCounter;

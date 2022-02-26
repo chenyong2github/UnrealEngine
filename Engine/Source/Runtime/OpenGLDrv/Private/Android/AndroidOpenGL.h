@@ -186,6 +186,12 @@ struct FAndroidOpenGL : public FOpenGLES
 
 	/** Type of image external supported */
 	static EImageExternalType ImageExternalType;
+
+	/* interface to remote GLES program compiler */
+	static TArray<uint8> DispatchAndWaitForRemoteGLProgramCompile(const TArrayView<uint8> ContextData, const TArray<ANSICHAR>& VertexGlslCode, const TArray<ANSICHAR>& PixelGlslCode, const TArray<ANSICHAR>& ComputeGlslCode, FString& FailureMessageOUT);
+	static bool AreRemoteCompileServicesActive();
+	static bool StartAndWaitForRemoteCompileServices(int NumServices);
+	static void StopRemoteCompileServices();
 };
 
 typedef FAndroidOpenGL FOpenGL;
