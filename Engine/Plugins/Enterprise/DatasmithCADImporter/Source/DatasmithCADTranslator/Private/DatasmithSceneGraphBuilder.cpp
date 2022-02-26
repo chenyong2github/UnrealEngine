@@ -478,6 +478,11 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildBody(in
 
 	CADLibrary::FArchiveBody& Body = SceneGraph->Bodies[BodyIndex];
 
+	if (Body.ParentId == 0 || Body.MeshActorName == 0)
+	{
+		return TSharedPtr<IDatasmithActorElement>();
+	}
+
 	FString BodyUUID;
 	FString BodyLabel;
 	GetNodeUUIDAndName(InstanceNodeMetaDataMap, Body.MetaData, BodyIndex, ParentData.Uuid, BodyUUID, BodyLabel);

@@ -80,7 +80,8 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FArchiveBody& C);
 
 public:
-	FCADUUID MeshActorName;
+	FCadId ParentId = 0;
+	FCADUUID MeshActorName = 0;
 
 	TSet<FMaterialId> MaterialFaceSet;
 	TSet<FColorId> ColorFaceSet;

@@ -420,7 +420,9 @@ int32 FShell::Orient()
 	{
 		if (SubshellSwappedFaceCount > (SubshellFaceCount / 2))
 		{
+#ifdef CADERNEL_DEV
 			FMessage::Printf(Log, TEXT("the open shell %s (Id %d) is badly oriented. Its orientation is swapped"), *GetName(), GetId());
+#endif
 			SwapSubshellOrientation();
 			ShellSwappedFaceCount += (SubshellFaceCount - SubshellSwappedFaceCount);
 		}
@@ -460,7 +462,9 @@ int32 FShell::Orient()
 
 		if (bHasWrongOrientation)
 		{
+#ifdef CADERNEL_DEV
 			FMessage::Printf(Log, TEXT("The closed shell %s (Id %d) is badly oriented. Its orientation is swapped"), *GetName(), GetId());
+#endif
 			SwapSubshellOrientation();
 			ShellSwappedFaceCount += (SubshellFaceCount - SubshellSwappedFaceCount);
 		}

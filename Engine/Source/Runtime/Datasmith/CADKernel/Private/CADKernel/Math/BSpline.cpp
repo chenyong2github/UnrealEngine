@@ -815,6 +815,10 @@ namespace CADKernel
 
 		TSharedPtr<FNURBSCurve> DuplicateNurbsCurveWithHigherDegree(int32 Degre, const FNURBSCurve& InCurve)
 		{
+			// To avoid crashes while waiting for the fix (jira UETOOL-5046)
+			return TSharedPtr<FNURBSCurve>();
+
+#ifdef UETOOL_5046_WIP
 			TArray<FPoint> NewPoles;
 			TArray<double> NewNodalVector;
 			TArray<double> NewWeights;
@@ -825,6 +829,7 @@ namespace CADKernel
 				return TSharedPtr<FNURBSCurve>();
 			}
 			return FEntity::MakeShared<FNURBSCurve>(Degre, NewNodalVector, NewPoles, NewWeights, InCurve.GetDimension());
+#endif
 		}
 
 
@@ -1537,6 +1542,7 @@ namespace CADKernel
 
 			if (newPoles.Num() + newN - 1 != newNodalVector.Num())
 			{
+				// To avoid crashes while waiting for the fix (jira UETOOL-5046)
 				newPoles.Empty();
 				return;
 			}

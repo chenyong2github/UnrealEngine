@@ -215,7 +215,6 @@ ECADParsingResult FTechSoftFileParser::Process()
 
 	// Add specific options according to format
 	Format = File.GetFileFormat();
-	bool bForceSew = false;
 	TechSoftFileParserImpl::UpdateIOOptionAccordingToFormat(Format, Import, bForceSew);
 
 	A3DStatus LoadStatus = A3DStatus::A3D_SUCCESS;
@@ -690,11 +689,12 @@ FArchiveComponent& FTechSoftFileParser::AddOccurence(FEntityMetaData& InstanceMe
 	return Prototype;
 }
 
-int32 FTechSoftFileParser::AddBody(FEntityMetaData& BodyMetaData, const FMatrix& Matrix)
+int32 FTechSoftFileParser::AddBody(FEntityMetaData& BodyMetaData, const FMatrix& Matrix, const FCadId ParentId)
 {
 	FCadId BodyId = LastEntityId++;
 	int32 BodyIndex = CADFileData.AddBody(BodyId);
 	FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
+	Body.ParentId = ParentId;
 	Body.TransformMatrix = Matrix;
 	Body.MetaData = MoveTemp(BodyMetaData.MetaData);
 	if (BodyMetaData.ColorName != 0)
@@ -1023,7 +1023,7 @@ void FTechSoftFileParser::TraversePartDefinition(const A3DAsmPartDefinition* Par
 	{
 		for (unsigned int Index = 0; Index < PartData->m_uiRepItemsSize; ++Index)
 		{
-			int32 ChildId = TraverseRepresentationItem(PartData->m_ppRepItems[Index], PartMetaData);
+			int32 ChildId = TraverseRepresentationItem(PartData->m_ppRepItems[Index], PartMetaData, Part.ObjectId);
 			Part.Children.Add(ChildId);
 		}
 	}
@@ -1044,7 +1044,7 @@ void FTechSoftFileParser::CountUnderPartDefinition(const A3DAsmPartDefinition* P
 	}
 }
 
-FCadId FTechSoftFileParser::TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, const FEntityMetaData& PartMetaData)
+FCadId FTechSoftFileParser::TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, const FEntityMetaData& PartMetaData, const FCadId ParentId)
 {
 	A3DEEntityType Type;
 	A3DEntityGetType(RepresentationItem, &Type);
@@ -1054,9 +1054,9 @@ FCadId FTechSoftFileParser::TraverseRepresentationItem(A3DRiRepresentationItem* 
 	case kA3DTypeRiSet:
 		return TraverseRepresentationSet(RepresentationItem, PartMetaData);
 	case kA3DTypeRiBrepModel:
-		return TraverseBRepModel(RepresentationItem, PartMetaData);
+		return TraverseBRepModel(RepresentationItem, PartMetaData, ParentId);
 	case kA3DTypeRiPolyBrepModel:
-		return TraversePolyBRepModel(RepresentationItem, PartMetaData);
+		return TraversePolyBRepModel(RepresentationItem, PartMetaData, ParentId);
 	default:
 		break;
 	}
@@ -1104,7 +1104,7 @@ FCadId FTechSoftFileParser::TraverseRepresentationSet(const A3DRiSet* Representa
 
 	for (A3DUns32 Index = 0; Index < RepresentationSetData->m_uiRepItemsSize; ++Index)
 	{
-		int32 ChildId = TraverseRepresentationItem(RepresentationSetData->m_ppRepItems[Index], RepresentationSetMetaData);
+		int32 ChildId = TraverseRepresentationItem(RepresentationSetData->m_ppRepItems[Index], RepresentationSetMetaData, RepresentationSet.ObjectId);
 		RepresentationSet.Children.Add(ChildId);
 	}
 	return RepresentationSetId;
@@ -1125,7 +1125,7 @@ void FTechSoftFileParser::CountUnderRepresentationSet(const A3DRiSet* Representa
 	}
 }
 
-FCadId FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, const FEntityMetaData& PartMetaData)
+FCadId FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, const FEntityMetaData& PartMetaData, const FCadId ParentId)
 {
 	if (!BRepModelPtr)
 	{
@@ -1157,7 +1157,7 @@ FCadId FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, cons
 		Matrix = ExtractCoordinateSystem(RepresentationData->m_pCoordinateSystem);
 	}
 
-	int32 BodyIndex = AddBody(BRepMetaData, Matrix);
+	int32 BodyIndex = AddBody(BRepMetaData, Matrix, ParentId);
 	FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
 
 	RepresentationItemsCache.Add(BRepModelPtr, BodyIndex);
@@ -1165,7 +1165,7 @@ FCadId FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, cons
 	return Body.ObjectId;
 }
 
-FCadId FTechSoftFileParser::TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalPtr, const FEntityMetaData& PartMetaData)
+FCadId FTechSoftFileParser::TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalPtr, const FEntityMetaData& PartMetaData, const FCadId ParentId)
 {
 	if (!PolygonalPtr)
 	{
@@ -1197,7 +1197,7 @@ FCadId FTechSoftFileParser::TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalP
 		Matrix = ExtractCoordinateSystem(RepresentationData->m_pCoordinateSystem);
 	}
 
-	int32 BodyIndex = AddBody(BRepMetaData, Matrix);
+	int32 BodyIndex = AddBody(BRepMetaData, Matrix, ParentId);
 	FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
 
 	RepresentationItemsCache.Add(PolygonalPtr, BodyIndex);

@@ -19,14 +19,14 @@ class ON_BrepTrim;
 class ON_NurbsSurface;
 class ON_3dVector;
 
- namespace CADKernel
- {
-	 class FShell;
-	 class FSurface;
-	 class FTopologicalEdge;
-	 class FTopologicalFace;
-	 class FTopologicalLoop;
- }
+namespace CADKernel
+{
+class FShell;
+class FSurface;
+class FTopologicalEdge;
+class FTopologicalFace;
+class FTopologicalLoop;
+}
 
 class FOpenNurbsBRepToCADKernelConverter : public FCADModelToCADKernelConverterBase, public IOpenNurbsBRepConverter
 {
@@ -43,10 +43,10 @@ public:
 	 * Set BRep to tessellate, offsetting it prior to tessellation(used to set mesh pivot at the center of the surface bounding box)
 	 *
 	 * @param  Brep	a brep to tessellate
-	 * @param  Offset translate brep by this value before tessellating 
+	 * @param  Offset translate brep by this value before tessellating
 	 */
 	bool AddBRep(ON_Brep& Brep, const ON_3dVector& Offset);
-	
+
 	static TSharedPtr<FOpenNurbsBRepToCADKernelConverter> GetSharedSession();
 
 private:
@@ -60,7 +60,7 @@ private:
 	 * This is to avoid to link an edge with another and then to delete it...
 	 */
 	void LinkEdgesLoop(const ON_BrepLoop& OpenNurbsLoop, CADKernel::FTopologicalLoop& Loop);
-	
+
 	TSharedPtr<CADKernel::FTopologicalEdge> AddEdge(const ON_BrepTrim& OpenNurbsTrim, TSharedRef<CADKernel::FSurface>& CarrierSurface);
 
 protected:

@@ -44,6 +44,7 @@ FArchive& operator<<(FArchive& Ar, FArchiveBody& Body)
 	Ar << (FCADArchiveObject&) Body;
 	Ar << Body.MaterialFaceSet;
 	Ar << Body.ColorFaceSet;
+	Ar << Body.ParentId;
 	Ar << Body.MeshActorName;
 	return Ar;
 }

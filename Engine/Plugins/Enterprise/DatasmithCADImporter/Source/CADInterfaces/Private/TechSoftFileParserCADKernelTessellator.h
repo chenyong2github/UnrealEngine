@@ -36,8 +36,12 @@ private:
 	}
 
 	// Tessellation methods
+	virtual void GenerateBodyMeshes() override;
 	virtual void GenerateBodyMesh(A3DRiRepresentationItem* Representation, FArchiveBody& Body) override;
 	void MeshAndGetTessellation(CADKernel::FSession& CADKernelSession, FArchiveBody& ArchiveBody, CADKernel::FBody& CADKernelBody);
+
+	void SewAndGenerateBodyMeshes();
+	void SewAndMesh(TArray<A3DRiRepresentationItem*>& Representations);
 
 #endif
 

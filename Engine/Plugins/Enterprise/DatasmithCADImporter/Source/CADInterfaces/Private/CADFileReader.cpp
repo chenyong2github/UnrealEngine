@@ -13,6 +13,7 @@
 
 #ifdef USE_TECHSOFT_SDK
 #include "TechSoftFileParser.h"
+#include "TechSoftFileParserCADKernelTessellator.h"
 #endif
 
 namespace CADLibrary
@@ -32,7 +33,14 @@ namespace CADLibrary
 #ifdef USE_TECHSOFT_SDK
 		if (FImportParameters::GCADLibrary == TEXT("TechSoft"))
 		{
-			CADParser = MakeUnique<FTechSoftFileParser>(CADFileData, EnginePluginsPath);
+			if (FImportParameters::bGDisableCADKernelTessellation)
+			{
+				CADParser = MakeUnique<FTechSoftFileParser>(CADFileData, EnginePluginsPath);
+			}
+			else
+			{
+				CADParser = MakeUnique<FTechSoftFileParserCADKernelTessellator>(CADFileData, EnginePluginsPath);
+			}
 		}
 #endif
 	}
