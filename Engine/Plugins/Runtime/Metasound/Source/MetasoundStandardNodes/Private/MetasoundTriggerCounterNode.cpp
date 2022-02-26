@@ -133,6 +133,8 @@ namespace Metasound
 				*OutCount = CurrentTriggerCount = 0;
 				*OutValue = *StartValue;
 
+				bIsFirstTrigger = true;
+
 				TriggerOnReset->TriggerFrame(StartFrame);
 			}
 		);
