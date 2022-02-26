@@ -65,6 +65,7 @@ public:
 	FName GetActorLabelOrName() const;
 
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
+	virtual const FGuid& GetSceneOutlinerParent() const { return GetParentActor(); }
 
 	bool operator==(const FWorldPartitionActorDesc& Other) const
 	{

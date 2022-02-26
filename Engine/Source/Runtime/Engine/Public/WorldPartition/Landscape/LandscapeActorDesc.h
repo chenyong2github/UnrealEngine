@@ -14,9 +14,14 @@ class ENGINE_API FLandscapeActorDesc : public FPartitionActorDesc
 #if WITH_EDITOR
 public:
 	virtual void Init(const AActor* InActor) override;
+	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual void Unload() override;
+	virtual const FGuid& GetSceneOutlinerParent() const override;
 
 protected:
 	virtual void Serialize(FArchive& Ar) override;
+
+private:
+	FGuid LandscapeActorGuid;
 #endif
 };

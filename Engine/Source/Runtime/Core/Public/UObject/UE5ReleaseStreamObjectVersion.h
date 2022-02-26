@@ -108,6 +108,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Add faster damping calculations to the cloth simulation and rename previous Damping parameter to LocalDamping.
 		ChaosClothFasterDamping,
 
+		// Serialize LandscapeActorGuid in FLandscapeActorDesc sub class.
+		WorldPartitionLandscapeActorDescSerializeLandscapeActorGuid,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

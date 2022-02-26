@@ -278,6 +278,41 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOu
 					return bCreate ? Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(FFolder(FolderPath), RepresentingWorld.Get()), true) : nullptr;
 				}
 			}
+
+			// Parent Actor (Actor attachement / parenting)
+			const FGuid& ParentActorGuid = ActorDesc->GetSceneOutlinerParent();
+			if (ParentActorGuid.IsValid())
+			{
+				if (UWorldPartition* WorldPartition = RepresentingWorld->GetWorldPartition())
+				{
+					if (const FWorldPartitionActorDesc* ParentActorDesc = WorldPartition->GetActorDesc(ParentActorGuid))
+					{
+						// If parent actor is loaded
+						if (AActor* ParentActor = ParentActorDesc->GetActor())
+						{
+							// Find loaded parent actor node (from the object ptr)
+							if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ParentActor))
+							{
+								return *ParentItem;
+							}
+							else
+							{
+								return bCreate ? Mode->CreateItemFor<FActorTreeItem>(ParentActor, true) : nullptr;
+							}
+						}
+
+						// Find unloaded parent actor node (from the guid)
+						if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ParentActorGuid))
+						{
+							return *ParentItem;
+						}
+						else
+						{
+							return bCreate ? Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ParentActorGuid, WorldPartition)) : nullptr;
+						}
+					}
+				}
+			}
 		}
 	}
 
