@@ -75,25 +75,13 @@ namespace PluginSystemDefs
 		return PluginCount;
 	}
 
-	// TODO: This processing happens too early to actually get picked up by ExecCmds,
-	// so it has to be reset in code when A/B testing. May be fine for INI settings though,
-	// otherwise, we might need a command line setting instead?
-	static bool GbCacheIniFilesForProcessing = true;
-	static FAutoConsoleVariableRef CVarCacheIniFilesForProcessing(
-		TEXT("c.CacheIniFilesForProcessing"),
-		GbCacheIniFilesForProcessing,
-		TEXT("When enabled, we'll scrape top level known directories for INI files and use that instead of system calls when processing plugins. Can decrease startup times.")
-	);
 
 	bool IsCachingIniFilesForProcessing()
 	{
 #if WITH_EDITOR
-		if (FParse::Param(FCommandLine::Get(), TEXT("SkipAssetScan")))
-		{
-			return false;
-		}
+		return false;
 #endif
-		return GbCacheIniFilesForProcessing;
+		return true;
 	}
 }
 
