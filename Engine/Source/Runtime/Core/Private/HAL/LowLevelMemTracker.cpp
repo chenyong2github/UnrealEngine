@@ -76,7 +76,7 @@ FAutoConsoleCommand LLMSnapshot(
 FAutoConsoleCommand DumpLLM(
 	TEXT("DumpLLM"),
 	TEXT("Logs out the current and peak sizes of all tracked LLM tags"),
-	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([&](const TArray<FString>& Args, UWorld* InWorld, FOutputDevice& Ar)
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* InWorld, FOutputDevice& Ar)
 	{
 		const float InvToMb = 1.0 / (1024 * 1024);
 
