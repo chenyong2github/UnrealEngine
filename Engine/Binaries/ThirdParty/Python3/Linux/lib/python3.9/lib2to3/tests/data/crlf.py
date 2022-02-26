@@ -1,3 +1,3 @@
-print "hi"
-
-print "Like bad Windows newlines?"
+print "hi"
+
+print "Like bad Windows newlines?"
