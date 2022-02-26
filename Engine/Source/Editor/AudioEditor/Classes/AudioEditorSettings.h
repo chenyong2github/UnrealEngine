@@ -14,7 +14,7 @@ class AUDIOEDITOR_API UAudioEditorSettings : public UDeveloperSettings
 public:
 	/** Whether to pin the Sound Cue asset type when creating new assets. */
 	UPROPERTY(EditAnywhere, config, Category = AssetMenu)
-	bool bPinSoundCueInAssetMenu = false;
+	bool bPinSoundCueInAssetMenu = true;
 
 	/** Whether to pin the Sound Cue Template asset type when creating new assets. */
 	UPROPERTY(EditAnywhere, config, Category = AssetMenu)
