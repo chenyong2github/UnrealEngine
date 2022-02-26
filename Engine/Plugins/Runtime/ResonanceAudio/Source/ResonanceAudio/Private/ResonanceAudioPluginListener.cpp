@@ -9,6 +9,17 @@
 #include "Components/BrushComponent.h"
 #include "Model.h"
 
+namespace ResonanceAudioConsoleVariables
+{
+	int32 bUsingReverb = 1;
+	FAutoConsoleVariableRef CVarUsingReverb(
+		TEXT("au.Resonance.UsingReverb"),
+		bUsingReverb,
+		TEXT("Allows Resonance to Query AudioVolumes for reverb effects.\n0: Disable, 1: Enable (default)"),
+		ECVF_Default);
+
+} // namespace ResonanceAudioConsoleVariables
+
 namespace ResonanceAudio
 {
 	FResonanceAudioPluginListener::FResonanceAudioPluginListener()
@@ -103,32 +114,35 @@ namespace ResonanceAudio
 
 	void FResonanceAudioPluginListener::OnTick(UWorld* InWorld, const int32 ViewportIndex, const FTransform& ListenerTransform, const float InDeltaSeconds)
 	{
-		if (ReverbPtr != nullptr && InWorld->AudioVolumes.Num() > 0)
+		if (ResonanceAudioConsoleVariables::bUsingReverb != 0)
 		{
-			AAudioVolume* CurrentVolume = InWorld->GetAudioSettings(ListenerTransform.GetLocation(), nullptr, nullptr);
-			if (CurrentVolume != nullptr)
+			if (ReverbPtr != nullptr && InWorld->AudioVolumes.Num() > 0)
 			{
-				UResonanceAudioReverbPluginPreset* Preset = Cast<UResonanceAudioReverbPluginPreset>(CurrentVolume->GetReverbSettings().ReverbPluginEffect);
-				if (Preset != nullptr && Preset->UseAudioVolumeTransform())
+				AAudioVolume* CurrentVolume = InWorld->GetAudioSettings(ListenerTransform.GetLocation(), nullptr, nullptr);
+				if (CurrentVolume != nullptr)
 				{
-					// Obtain Resonance Audio room transform from the Unreal Audio Volume transform.
-					const FVector CurrentVolumePosition = CurrentVolume->GetActorLocation();
-					Preset->SetRoomPosition(CurrentVolumePosition);
-					const FQuat CurrentVolumeRotation = CurrentVolume->GetActorQuat();
-					Preset->SetRoomRotation(CurrentVolumeRotation);
-					const FVector CurrentVolumeDimensions = CurrentVolume->GetActorScale3D();
-					const FVector CurrentBrushShapeExtents = 2.0f * CurrentVolume->GetBrushComponent()->Brush->Bounds.BoxExtent;
-					const FVector RoomDimensions = CurrentVolumeDimensions * CurrentBrushShapeExtents;
-					// The default Audio Volume cube size is 200cm, please see UCubeBuilder constructor for initialization details.
-					Preset->SetRoomDimensions(RoomDimensions);
+					UResonanceAudioReverbPluginPreset* Preset = Cast<UResonanceAudioReverbPluginPreset>(CurrentVolume->GetReverbSettings().ReverbPluginEffect);
+					if (Preset != nullptr && Preset->UseAudioVolumeTransform())
+					{
+						// Obtain Resonance Audio room transform from the Unreal Audio Volume transform.
+						const FVector CurrentVolumePosition = CurrentVolume->GetActorLocation();
+						Preset->SetRoomPosition(CurrentVolumePosition);
+						const FQuat CurrentVolumeRotation = CurrentVolume->GetActorQuat();
+						Preset->SetRoomRotation(CurrentVolumeRotation);
+						const FVector CurrentVolumeDimensions = CurrentVolume->GetActorScale3D();
+						const FVector CurrentBrushShapeExtents = 2.0f * CurrentVolume->GetBrushComponent()->Brush->Bounds.BoxExtent;
+						const FVector RoomDimensions = CurrentVolumeDimensions * CurrentBrushShapeExtents;
+						// The default Audio Volume cube size is 200cm, please see UCubeBuilder constructor for initialization details.
+						Preset->SetRoomDimensions(RoomDimensions);
+					}
+					// Activate this preset or no room effects if nullptr.
+					ReverbPtr->SetPreset(Preset);
 				}
-				// Activate this preset or no room effects if nullptr.
-				ReverbPtr->SetPreset(Preset);
-			}
-			else
-			{
-				ReverbPtr->SetPreset(nullptr);
-				UE_LOG(LogResonanceAudio, Verbose, TEXT("Set reverb preset to nullptr"));
+				else
+				{
+					ReverbPtr->SetPreset(nullptr);
+					UE_LOG(LogResonanceAudio, Verbose, TEXT("Set reverb preset to nullptr"));
+				}
 			}
 		}
 	}
