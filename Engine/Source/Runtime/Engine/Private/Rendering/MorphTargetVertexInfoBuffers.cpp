@@ -442,9 +442,14 @@ void FMorphTargetVertexInfoBuffers::InitMorphResources(EShaderPlatform ShaderPla
 
 	// Append bitstream data
 	MorphData.Append(BitstreamData);
-	MorphData.Add(0u);	// Pad to make sure it is always safe to access the data with load4s.
-	MorphData.Add(0u);
-	MorphData.Add(0u);
+	
+	if(MorphData.Num() > 0)
+	{
+		// Pad to make sure it is always safe to access the data with load4s.
+		MorphData.Add(0u);
+		MorphData.Add(0u);
+		MorphData.Add(0u);
+	}
 
 	// UE_LOG(LogStaticMesh, Log, TEXT("Morph compression time: [%.2fs]"), FPlatformTime::ToMilliseconds(FPlatformTime::Cycles() - StartTime) / 1000.0f);
 
