@@ -136,7 +136,7 @@ public:
 	float CompressionQualityModifier;
 
 	/** When set to anything beyond 0, this will ensure any SoundWaves longer than this value, in seconds, to stream directly off of the disk. */
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Audio|CookOverrides", meta = (DisplayName = "Stream All Soundwaves Longer Than: "))
+	UPROPERTY(GlobalConfig)
 	float AutoStreamingThreshold;
 
 	/** Quality Level to COOK SoundCues at (if set, all other levels will be stripped by the cooker). */
