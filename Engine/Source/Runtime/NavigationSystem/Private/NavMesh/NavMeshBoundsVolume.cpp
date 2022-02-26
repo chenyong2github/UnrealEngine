@@ -18,6 +18,10 @@ ANavMeshBoundsVolume::ANavMeshBoundsVolume(const FObjectInitializer& ObjectIniti
 	SupportedAgents.MarkInitialized();
 
 	bColored = true;
+
+#if WITH_EDITORONLY_DATA
+	bIsSpatiallyLoaded = false;
+#endif
 }
 
 #if WITH_EDITOR
