@@ -918,7 +918,7 @@ bool FEOSVoiceChatUser::AddLobbyRoom(const FString& LobbyId)
 
 	EOS_Lobby_GetRTCRoomNameOptions GetRoomNameOptions = {};
 	GetRoomNameOptions.ApiVersion = EOS_LOBBY_GETRTCROOMNAME_API_LATEST;
-	static_assert(EOS_LOBBY_GETRTCROOMNAME_API_LATEST == 1, "EOS_Lobby_GetLobbyRTCRoomNameOptions updated, check new fields");
+	static_assert(EOS_LOBBY_GETRTCROOMNAME_API_LATEST == 1, "EOS_Lobby_GetRTCRoomNameOptions updated, check new fields");
 	GetRoomNameOptions.LobbyId = Utf8LobbyId.Get();
 	GetRoomNameOptions.LocalUserId = LoginSession.LocalUserProductUserId;
 	char Utf8RoomName[256];
@@ -1315,7 +1315,7 @@ void FEOSVoiceChatUser::BindChannelCallbacks(FChannelSession& ChannelSession)
 	{
 		EOS_RTC_AddNotifyParticipantStatusChangedOptions ParticipantStatusChangedOptions = {};
 		ParticipantStatusChangedOptions.ApiVersion = EOS_RTC_ADDNOTIFYPARTICIPANTSTATUSCHANGED_API_LATEST;
-		static_assert(EOS_RTC_ADDNOTIFYPARTICIPANTSTATUSCHANGED_API_LATEST == 1, "EOS_RTC_AddNotifyParticipantJoinedOptions updated, check new fields");
+		static_assert(EOS_RTC_ADDNOTIFYPARTICIPANTSTATUSCHANGED_API_LATEST == 1, "EOS_RTC_AddNotifyParticipantStatusChangedOptions updated, check new fields");
 		ParticipantStatusChangedOptions.LocalUserId = LoginSession.LocalUserProductUserId;
 		ParticipantStatusChangedOptions.RoomName = Utf8RoomName.Get();
 		ChannelSession.OnParticipantStatusChangedNotificationId = EOS_RTC_AddNotifyParticipantStatusChanged(GetRtcInterface(), &ParticipantStatusChangedOptions, this, &FEOSVoiceChatUser::OnChannelParticipantStatusChangedStatic);
