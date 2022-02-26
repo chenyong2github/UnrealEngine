@@ -403,10 +403,10 @@ int64 UKismetMathLibrary::Abs_Int64(int64 A)
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::MultiplyMultiply_FloatFloat(float Base, float Exp)
+double UKismetMathLibrary::MultiplyMultiply_FloatFloat(double Base, double Exp)
 {
 	return FMath::Pow(Base, Exp);
-}	
+}
 
 KISMET_MATH_FORCEINLINE
 float UKismetMathLibrary::Multiply_FloatFloat(float A, float B)
@@ -415,7 +415,7 @@ float UKismetMathLibrary::Multiply_FloatFloat(float A, float B)
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Multiply_IntFloat(int32 A, float B)
+double UKismetMathLibrary::Multiply_IntFloat(int32 A, double B)
 {
 	return A * B;
 }	
@@ -458,13 +458,7 @@ int32 UKismetMathLibrary::Percent_IntInt(int32 A, int32 B)
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::GenericDivide_FloatFloat(float A, float B)
-{
-	return A / B;
-}	
-
-KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Fraction(float A)
+double UKismetMathLibrary::Fraction(double A)
 {
 	return FMath::Fractional(A);
 }
@@ -488,11 +482,23 @@ double UKismetMathLibrary::Multiply_DoubleDouble(double A, double B)
 }
 
 KISMET_MATH_FORCEINLINE
+float UKismetMathLibrary::Divide_FloatFloat(float A, float B)
+{
+	if (B == 0.f)
+	{
+		ReportError_Divide_FloatFloat();
+		return 0.f;
+	}
+	return A / B;
+}
+
+KISMET_MATH_FORCEINLINE
 double UKismetMathLibrary::Divide_DoubleDouble(double A, double B)
 {
-	if(B == 0.0)
+	if (B == 0.0)
 	{
 		ReportError_Divide_DoubleDouble();
+		return 0.0;
 	}
 	return A / B;
 }
@@ -570,7 +576,7 @@ bool UKismetMathLibrary::EqualEqual_FloatFloat(float A, float B)
 }	
 
 KISMET_MATH_FORCEINLINE
-bool UKismetMathLibrary::NearlyEqual_FloatFloat(float A, float B, float ErrorTolerance)
+bool UKismetMathLibrary::NearlyEqual_FloatFloat(double A, double B, double ErrorTolerance)
 {
 	return FMath::IsNearlyEqual(A, B, ErrorTolerance);
 }
@@ -588,221 +594,221 @@ bool UKismetMathLibrary::NotEqual_DoubleDouble(double A, double B)
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::GridSnap_Float(float Location, float GridSize)
+double UKismetMathLibrary::GridSnap_Float(double Location, double GridSize)
 {
 	return FMath::GridSnap(Location, GridSize);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::GetPI()
+double UKismetMathLibrary::GetPI()
 {
-	return PI;
+	return DOUBLE_PI;
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::GetTAU()
+double UKismetMathLibrary::GetTAU()
 {
-	return 2.f * PI;
+	return 2.0 * DOUBLE_PI;
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::DegreesToRadians(float A)
+double UKismetMathLibrary::DegreesToRadians(double A)
 {
 	return FMath::DegreesToRadians(A);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::RadiansToDegrees(float A)
+double UKismetMathLibrary::RadiansToDegrees(double A)
 {
 	return FMath::RadiansToDegrees(A);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Abs(float A)
+double UKismetMathLibrary::Abs(double A)
 {
 	return FMath::Abs(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Sin(float A)
+double UKismetMathLibrary::Sin(double A)
 {
 	return FMath::Sin(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Asin(float A)
+double UKismetMathLibrary::Asin(double A)
 {
 	return FMath::Asin(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Cos(float A)
+double UKismetMathLibrary::Cos(double A)
 {
 	return FMath::Cos(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Acos(float A)
+double UKismetMathLibrary::Acos(double A)
 {
 	return FMath::Acos(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Tan(float A)
+double UKismetMathLibrary::Tan(double A)
 {
 	return FMath::Tan(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Atan(float A)
+double UKismetMathLibrary::Atan(double A)
 {
 	return FMath::Atan(A);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Atan2(float Y, float X)
+double UKismetMathLibrary::Atan2(double Y, double X)
 {
 	return FMath::Atan2(Y, X);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::DegSin(float A)
+double UKismetMathLibrary::DegSin(double A)
 {
-	return FMath::Sin(PI/(180.f) * A);
+	return FMath::Sin(DOUBLE_PI/(180.0) * A);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::DegAsin(float A)
+double UKismetMathLibrary::DegAsin(double A)
 {
-	return (180.f)/PI * FMath::Asin(A);
+	return (180.0)/DOUBLE_PI * FMath::Asin(A);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::DegCos(float A)
+double UKismetMathLibrary::DegCos(double A)
 {
-	return FMath::Cos(PI/(180.f) * A);
+	return FMath::Cos(DOUBLE_PI/(180.0) * A);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::DegAcos(float A)
+double UKismetMathLibrary::DegAcos(double A)
 {
-	return (180.f)/PI * FMath::Acos(A);
+	return (180.0)/DOUBLE_PI * FMath::Acos(A);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::DegTan(float A)
+double UKismetMathLibrary::DegTan(double A)
 {
-	return FMath::Tan(PI/(180.f) * A);
+	return FMath::Tan(DOUBLE_PI/(180.0) * A);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::DegAtan(float A)
+double UKismetMathLibrary::DegAtan(double A)
 {
-	return (180.f)/PI * FMath::Atan(A);
+	return (180.0)/DOUBLE_PI * FMath::Atan(A);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::DegAtan2(float Y, float X)
+double UKismetMathLibrary::DegAtan2(double Y, double X)
 {
-	return (180.f)/PI * FMath::Atan2(Y, X);
+	return (180.0)/DOUBLE_PI * FMath::Atan2(Y, X);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::ClampAngle(float AngleDegrees, float MinAngleDegrees, float MaxAngleDegrees)
+double UKismetMathLibrary::ClampAngle(double AngleDegrees, double MinAngleDegrees, double MaxAngleDegrees)
 {
 	return FMath::ClampAngle(AngleDegrees, MinAngleDegrees, MaxAngleDegrees);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Exp(float A)
+double UKismetMathLibrary::Exp(double A)
 {
 	return FMath::Exp(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Loge(float A)
+double UKismetMathLibrary::Loge(double A)
 {
 	return FMath::Loge(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Sqrt(float A)
+double UKismetMathLibrary::Sqrt(double A)
 {
-	if (A >= 0.f)
+	if (A >= 0.0)
 	{
 		return FMath::Sqrt(A);
 	}
 	else
 	{
 		ReportError_Sqrt();
-		return 0.f;
+		return 0.0;
 	}
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Square(float A)
+double UKismetMathLibrary::Square(double A)
 {
 	return FMath::Square(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-int32 UKismetMathLibrary::Round(float A)
+int32 UKismetMathLibrary::Round(double A)
 {
 	return FMath::RoundToInt(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-int32 UKismetMathLibrary::FFloor(float A)
+int32 UKismetMathLibrary::FFloor(double A)
 {
 	return FMath::FloorToInt(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-int32 UKismetMathLibrary::FTrunc(float A)
+int32 UKismetMathLibrary::FTrunc(double A)
 {
 	return FMath::TruncToInt(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-int64 UKismetMathLibrary::Round64(float A)
+int64 UKismetMathLibrary::Round64(double A)
 {
 	return (int64)FMath::RoundToDouble(A);
 }
 
 KISMET_MATH_FORCEINLINE
-int64 UKismetMathLibrary::FFloor64(float A)
+int64 UKismetMathLibrary::FFloor64(double A)
 {
 	return (int64)FMath::FloorToDouble(A);
 }
 
 KISMET_MATH_FORCEINLINE
-int64 UKismetMathLibrary::FTrunc64(float A)
+int64 UKismetMathLibrary::FTrunc64(double A)
 {
 	return (int64)A;
 }
 
 KISMET_MATH_FORCEINLINE
-int64 UKismetMathLibrary::FCeil64(float A)
+int64 UKismetMathLibrary::FCeil64(double A)
 {
 	return (int64)FMath::CeilToDouble(A);
 }
 
 KISMET_MATH_FORCEINLINE
-int32 UKismetMathLibrary::FCeil(float A)
+int32 UKismetMathLibrary::FCeil(double A)
 {
 	return FMath::CeilToInt(A);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::SignOfFloat(float A)
+double UKismetMathLibrary::SignOfFloat(double A)
 {
-	return FMath::Sign<float>(A);
+	return FMath::Sign<double>(A);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::MultiplyByPi(float Value)
+double UKismetMathLibrary::MultiplyByPi(double Value)
 {
-	return Value * PI;
+	return Value * DOUBLE_PI;
 }
 
 KISMET_MATH_FORCEINLINE
@@ -812,55 +818,55 @@ float UKismetMathLibrary::FixedTurn(float InCurrent, float InDesired, float InDe
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::RandomFloat()
+double UKismetMathLibrary::RandomFloat()
 {
-	return FMath::FRand();
+	return FMath::FRand(); // LWC_todo: add and switch to double version.
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::RandomFloatInRange(float Min, float Max)
+double UKismetMathLibrary::RandomFloatInRange(double Min, double Max)
 {
 	return FMath::FRandRange(Min, Max);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::FMin(float A, float B)
+double UKismetMathLibrary::FMin(double A, double B)
 {
 	return FMath::Min(A, B);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::FMax(float A, float B)
+double UKismetMathLibrary::FMax(double A, double B)
 {
 	return FMath::Max(A, B);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::FClamp(float V, float A, float B)
+double UKismetMathLibrary::FClamp(double V, double A, double B)
 {
 	return FMath::Clamp(V, A, B);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::FWrap(float Value, float Min, float Max)
+double UKismetMathLibrary::FWrap(double Value, double Min, double Max)
 {
 	return FMath::Wrap(Value, Min, Max);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Lerp(float A, float B, float V)
+double UKismetMathLibrary::Lerp(double A, double B, double V)
 {
 	return A + V*(B-A);
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::FInterpTo(float Current, float Target, float DeltaTime, float InterpSpeed)
+double UKismetMathLibrary::FInterpTo(double Current, double Target, double DeltaTime, double InterpSpeed)
 {
 	return FMath::FInterpTo(Current, Target, DeltaTime, InterpSpeed);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::FInterpTo_Constant(float Current, float Target, float DeltaTime, float InterpSpeed)
+double UKismetMathLibrary::FInterpTo_Constant(double Current, double Target, double DeltaTime, double InterpSpeed)
 {
 	return FMath::FInterpConstantTo(Current, Target, DeltaTime, InterpSpeed);
 }
@@ -1169,7 +1175,7 @@ FVector2D UKismetMathLibrary::Subtract_Vector2DVector2D(FVector2D A, FVector2D B
 }
 
 KISMET_MATH_FORCEINLINE
-FVector2D UKismetMathLibrary::Multiply_Vector2DFloat(FVector2D A, float B)
+FVector2D UKismetMathLibrary::Multiply_Vector2DFloat(FVector2D A, double B)
 {
 	return A * B;
 }
@@ -1181,7 +1187,7 @@ FVector2D UKismetMathLibrary::Multiply_Vector2DVector2D(FVector2D A, FVector2D B
 }
 
 KISMET_MATH_FORCEINLINE
-FVector2D UKismetMathLibrary::Divide_Vector2DFloat(FVector2D A, float B)
+FVector2D UKismetMathLibrary::Divide_Vector2DFloat(FVector2D A, double B)
 {
 	if (B == 0.f)
 	{
@@ -1205,13 +1211,13 @@ FVector2D UKismetMathLibrary::Divide_Vector2DVector2D(FVector2D A, FVector2D B)
 }
 
 KISMET_MATH_FORCEINLINE
-FVector2D UKismetMathLibrary::Add_Vector2DFloat(FVector2D A, float B)
+FVector2D UKismetMathLibrary::Add_Vector2DFloat(FVector2D A, double B)
 {
 	return A+B;
 }
 
 KISMET_MATH_FORCEINLINE
-FVector2D UKismetMathLibrary::Subtract_Vector2DFloat(FVector2D A, float B)
+FVector2D UKismetMathLibrary::Subtract_Vector2DFloat(FVector2D A, double B)
 {
 	return A-B;
 }
@@ -1247,37 +1253,37 @@ FVector2D UKismetMathLibrary::Negated2D(const FVector2D& A)
 }
 
 KISMET_MATH_FORCEINLINE
-void UKismetMathLibrary::Set2D(FVector2D& A, float X, float Y)
+void UKismetMathLibrary::Set2D(FVector2D& A, double X, double Y)
 {
 	A.Set(X, Y);
 }
 
 KISMET_MATH_FORCEINLINE
-FVector2D UKismetMathLibrary::ClampAxes2D(FVector2D A, float MinAxisVal, float MaxAxisVal)
+FVector2D UKismetMathLibrary::ClampAxes2D(FVector2D A, double MinAxisVal, double MaxAxisVal)
 {
 	return A.ClampAxes(MinAxisVal, MaxAxisVal);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::CrossProduct2D(FVector2D A, FVector2D B)
+double UKismetMathLibrary::CrossProduct2D(FVector2D A, FVector2D B)
 {
 	return FVector2D::CrossProduct(A, B);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Distance2D(FVector2D V1, FVector2D V2)
+double UKismetMathLibrary::Distance2D(FVector2D V1, FVector2D V2)
 {
 	return FVector2D::Distance(V1, V2);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::DistanceSquared2D(FVector2D V1, FVector2D V2)
+double UKismetMathLibrary::DistanceSquared2D(FVector2D V1, FVector2D V2)
 {
 	return FVector2D::DistSquared(V1, V2);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::DotProduct2D(FVector2D A, FVector2D B)
+double UKismetMathLibrary::DotProduct2D(FVector2D A, FVector2D B)
 {
 	return FVector2D::DotProduct(A, B);
 }
@@ -1289,19 +1295,19 @@ FVector2D UKismetMathLibrary::GetAbs2D(FVector2D A)
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::GetAbsMax2D(FVector2D A)
+double UKismetMathLibrary::GetAbsMax2D(FVector2D A)
 {
 	return A.GetAbsMax();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::GetMax2D(FVector2D A)
+double UKismetMathLibrary::GetMax2D(FVector2D A)
 {
 	return A.GetMax();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::GetMin2D(FVector2D A)
+double UKismetMathLibrary::GetMin2D(FVector2D A)
 {
 	return A.GetMin();
 }
@@ -1369,6 +1375,12 @@ void UKismetMathLibrary::ToDirectionAndLength2D(FVector2D A, FVector2D &OutDir, 
 }
 
 KISMET_MATH_FORCEINLINE
+void UKismetMathLibrary::ToDirectionAndLength2D(FVector2D A, FVector2D& OutDir, double& OutLength)
+{
+	A.ToDirectionAndLength(OutDir, OutLength);
+}
+
+KISMET_MATH_FORCEINLINE
 FVector2D UKismetMathLibrary::ToRounded2D(FVector2D A)
 {
 	return A.RoundToVector();
@@ -1381,13 +1393,13 @@ FVector2D UKismetMathLibrary::ToSign2D(FVector2D A)
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::VSize2D(FVector2D A)
+double UKismetMathLibrary::VSize2D(FVector2D A)
 {
 	return A.Size();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::VSize2DSquared(FVector2D A)
+double UKismetMathLibrary::VSize2DSquared(FVector2D A)
 {
 	return A.SizeSquared();
 }
@@ -1457,7 +1469,7 @@ void UKismetMathLibrary::Vector_Assign(FVector& A, const FVector& InVector)
 }
 
 KISMET_MATH_FORCEINLINE
-void UKismetMathLibrary::Vector_Set(FVector& A, float X, float Y, float Z)
+void UKismetMathLibrary::Vector_Set(FVector& A, double X, double Y, double Z)
 {
 	A.Set(X, Y, Z);
 }
@@ -1523,7 +1535,7 @@ FTransform UKismetMathLibrary::Conv_VectorToTransform(FVector InTranslation)
 }
 
 KISMET_MATH_FORCEINLINE
-FVector UKismetMathLibrary::Multiply_VectorFloat(FVector A, float B)
+FVector UKismetMathLibrary::Multiply_VectorFloat(FVector A, double B)
 {
 	return A * B;
 }
@@ -1541,7 +1553,7 @@ FVector UKismetMathLibrary::Multiply_VectorVector(FVector A, FVector B)
 }	
 
 KISMET_MATH_FORCEINLINE
-FVector UKismetMathLibrary::Divide_VectorFloat(FVector A, float B)
+FVector UKismetMathLibrary::Divide_VectorFloat(FVector A, double B)
 {
 	if (B == 0.f)
 	{
@@ -1583,7 +1595,7 @@ FVector UKismetMathLibrary::Add_VectorVector(FVector A, FVector B)
 }	
 
 KISMET_MATH_FORCEINLINE
-FVector UKismetMathLibrary::Add_VectorFloat(FVector A, float B)
+FVector UKismetMathLibrary::Add_VectorFloat(FVector A, double B)
 {
 	return A + B;
 }	
@@ -1601,7 +1613,7 @@ FVector UKismetMathLibrary::Subtract_VectorVector(FVector A, FVector B)
 }	
 
 KISMET_MATH_FORCEINLINE
-FVector UKismetMathLibrary::Subtract_VectorFloat(FVector A, float B)
+FVector UKismetMathLibrary::Subtract_VectorFloat(FVector A, double B)
 {
 	return A - B;
 }
@@ -1655,55 +1667,55 @@ FVector UKismetMathLibrary::Cross_VectorVector(FVector A, FVector B)
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Dot_VectorVector(FVector A, FVector B)
+double UKismetMathLibrary::Dot_VectorVector(FVector A, FVector B)
 {
 	return FVector::DotProduct(A, B);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector_Distance(FVector V1, FVector V2)
+double UKismetMathLibrary::Vector_Distance(FVector V1, FVector V2)
 {
 	return FVector::Distance(V1, V2);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector_DistanceSquared(FVector V1, FVector V2)
+double UKismetMathLibrary::Vector_DistanceSquared(FVector V1, FVector V2)
 {
 	return FVector::DistSquared(V1, V2);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector_Distance2D(FVector V1, FVector V2)
+double UKismetMathLibrary::Vector_Distance2D(FVector V1, FVector V2)
 {
 	return FVector::DistXY(V1, V2);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector_Distance2DSquared(FVector V1, FVector V2)
+double UKismetMathLibrary::Vector_Distance2DSquared(FVector V1, FVector V2)
 {
 	return FVector::DistSquaredXY(V1, V2);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::VSize(FVector A)
+double UKismetMathLibrary::VSize(FVector A)
 {
 	return A.Size();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::VSizeSquared(FVector A)
+double UKismetMathLibrary::VSizeSquared(FVector A)
 {
 	return A.SizeSquared();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::VSizeXY(FVector A)
+double UKismetMathLibrary::VSizeXY(FVector A)
 {
 	return A.Size2D();
 }	
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::VSizeXYSquared(FVector A)
+double UKismetMathLibrary::VSizeXYSquared(FVector A)
 {
 	return A.SizeSquared2D();
 }	
@@ -1919,49 +1931,49 @@ void UKismetMathLibrary::Vector_UnwindEuler(FVector& A)
 }
 
 KISMET_MATH_FORCEINLINE
-FVector UKismetMathLibrary::ClampVectorSize(FVector A, float Min, float Max)
+FVector UKismetMathLibrary::ClampVectorSize(FVector A, double Min, double Max)
 {
 	return A.GetClampedToSize(Min, Max);
 }
 
 KISMET_MATH_FORCEINLINE
-FVector UKismetMathLibrary::Vector_ClampSize2D(FVector A, float Min, float Max)
+FVector UKismetMathLibrary::Vector_ClampSize2D(FVector A, double Min, double Max)
 {
 	return A.GetClampedToSize2D(Min, Max);
 }
 
 KISMET_MATH_FORCEINLINE
-FVector UKismetMathLibrary::Vector_ClampSizeMax(FVector A, float Max)
+FVector UKismetMathLibrary::Vector_ClampSizeMax(FVector A, double Max)
 {
 	return A.GetClampedToMaxSize(Max);
 }
 
 KISMET_MATH_FORCEINLINE
-FVector UKismetMathLibrary::Vector_ClampSizeMax2D(FVector A, float Max)
+FVector UKismetMathLibrary::Vector_ClampSizeMax2D(FVector A, double Max)
 {
 	return A.GetClampedToMaxSize2D(Max);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::GetMinElement(FVector A)
+double UKismetMathLibrary::GetMinElement(FVector A)
 {
 	return A.GetMin();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::GetMaxElement(FVector A)
+double UKismetMathLibrary::GetMaxElement(FVector A)
 {
 	return A.GetMax();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector_GetAbsMax(FVector A)
+double UKismetMathLibrary::Vector_GetAbsMax(FVector A)
 {
 	return A.GetAbsMax();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector_GetAbsMin(FVector A)
+double UKismetMathLibrary::Vector_GetAbsMin(FVector A)
 {
 	return A.GetAbsMin();
 }
@@ -1997,13 +2009,13 @@ FVector UKismetMathLibrary::Vector_GetProjection(FVector A)
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector_HeadingAngle(FVector A)
+double UKismetMathLibrary::Vector_HeadingAngle(FVector A)
 {
 	return A.HeadingAngle();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector_CosineAngle2D(FVector A, FVector B)
+double UKismetMathLibrary::Vector_CosineAngle2D(FVector A, FVector B)
 {
 	return A.CosineAngle2D(B);
 }
@@ -2159,7 +2171,7 @@ void UKismetMathLibrary::Vector4_Assign(FVector4& A, const FVector4& InVector)
 }
 
 KISMET_MATH_FORCEINLINE
-void UKismetMathLibrary::Vector4_Set(FVector4& A, float X, float Y, float Z, float W)
+void UKismetMathLibrary::Vector4_Set(FVector4& A, double X, double Y, double Z, double W)
 {
 	A.Set(X, Y, Z, W);
 }
@@ -2171,13 +2183,13 @@ FVector4 UKismetMathLibrary::Vector4_CrossProduct3(const FVector4& A, const FVec
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector4_DotProduct(const FVector4& A, const FVector4& B)
+double UKismetMathLibrary::Vector4_DotProduct(const FVector4& A, const FVector4& B)
 {
 	return Dot4(A, B);
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector4_DotProduct3(const FVector4& A, const FVector4& B)
+double UKismetMathLibrary::Vector4_DotProduct3(const FVector4& A, const FVector4& B)
 {
 	return Dot3(A, B);
 }
@@ -2201,25 +2213,25 @@ bool UKismetMathLibrary::Vector4_IsZero(const FVector4& A)
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector4_Size(const FVector4& A)
+double UKismetMathLibrary::Vector4_Size(const FVector4& A)
 {
 	return A.Size();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector4_SizeSquared(const FVector4& A)
+double UKismetMathLibrary::Vector4_SizeSquared(const FVector4& A)
 {
 	return A.SizeSquared();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector4_Size3(const FVector4& A)
+double UKismetMathLibrary::Vector4_Size3(const FVector4& A)
 {
 	return A.Size3();
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::Vector4_SizeSquared3(const FVector4& A)
+double UKismetMathLibrary::Vector4_SizeSquared3(const FVector4& A)
 {
 	return A.SizeSquared3();
 }
@@ -2985,7 +2997,7 @@ FMatrix UKismetMathLibrary::Add_MatrixMatrix(const FMatrix& A, const FMatrix& B)
 }
 
 KISMET_MATH_FORCEINLINE
-FMatrix UKismetMathLibrary::Multiply_MatrixFloat(const FMatrix& A, float B)
+FMatrix UKismetMathLibrary::Multiply_MatrixFloat(const FMatrix& A, double B)
 {
 	return A * B;
 }
@@ -3763,7 +3775,7 @@ int32 UKismetMathLibrary::SelectInt(int32 A, int32 B, bool bSelectA)
 }
 
 KISMET_MATH_FORCEINLINE
-float UKismetMathLibrary::SelectFloat(float A, float B, bool bSelectA)
+double UKismetMathLibrary::SelectFloat(double A, double B, bool bSelectA)
 {
 	return bSelectA ? A : B;
 }

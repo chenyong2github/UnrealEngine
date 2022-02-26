@@ -13,23 +13,24 @@
 #define LOCTEXT_NAMESPACE "UKismetMathLibrary"
 
 /** Interpolate a linear alpha value using an ease mode and function. */
-float EaseAlpha(float InAlpha, uint8 EasingFunc, float BlendExp, int32 Steps)
+template<typename FloatType, TEMPLATE_REQUIRES(TIsFloatingPoint<FloatType>::Value)>
+FloatType EaseAlpha(FloatType InAlpha, uint8 EasingFunc, FloatType BlendExp, int32 Steps)
 {
 	switch (EasingFunc)
 	{
-	case EEasingFunc::Step:					return FMath::InterpStep<float>(0.f, 1.f, InAlpha, Steps);
-	case EEasingFunc::SinusoidalIn:			return FMath::InterpSinIn<float>(0.f, 1.f, InAlpha);
-	case EEasingFunc::SinusoidalOut:		return FMath::InterpSinOut<float>(0.f, 1.f, InAlpha);
-	case EEasingFunc::SinusoidalInOut:		return FMath::InterpSinInOut<float>(0.f, 1.f, InAlpha);
-	case EEasingFunc::EaseIn:				return FMath::InterpEaseIn<float>(0.f, 1.f, InAlpha, BlendExp);
-	case EEasingFunc::EaseOut:				return FMath::InterpEaseOut<float>(0.f, 1.f, InAlpha, BlendExp);
-	case EEasingFunc::EaseInOut:			return FMath::InterpEaseInOut<float>(0.f, 1.f, InAlpha, BlendExp);
-	case EEasingFunc::ExpoIn:				return FMath::InterpExpoIn<float>(0.f, 1.f, InAlpha);
-	case EEasingFunc::ExpoOut:				return FMath::InterpExpoOut<float>(0.f, 1.f, InAlpha);
-	case EEasingFunc::ExpoInOut:			return FMath::InterpExpoInOut<float>(0.f, 1.f, InAlpha);
-	case EEasingFunc::CircularIn:			return FMath::InterpCircularIn<float>(0.f, 1.f, InAlpha);
-	case EEasingFunc::CircularOut:			return FMath::InterpCircularOut<float>(0.f, 1.f, InAlpha);
-	case EEasingFunc::CircularInOut:		return FMath::InterpCircularInOut<float>(0.f, 1.f, InAlpha);
+	case EEasingFunc::Step:					return FMath::InterpStep<FloatType>(0.f, 1.f, InAlpha, Steps);
+	case EEasingFunc::SinusoidalIn:			return FMath::InterpSinIn<FloatType>(0.f, 1.f, InAlpha);
+	case EEasingFunc::SinusoidalOut:		return FMath::InterpSinOut<FloatType>(0.f, 1.f, InAlpha);
+	case EEasingFunc::SinusoidalInOut:		return FMath::InterpSinInOut<FloatType>(0.f, 1.f, InAlpha);
+	case EEasingFunc::EaseIn:				return FMath::InterpEaseIn<FloatType>(0.f, 1.f, InAlpha, BlendExp);
+	case EEasingFunc::EaseOut:				return FMath::InterpEaseOut<FloatType>(0.f, 1.f, InAlpha, BlendExp);
+	case EEasingFunc::EaseInOut:			return FMath::InterpEaseInOut<FloatType>(0.f, 1.f, InAlpha, BlendExp);
+	case EEasingFunc::ExpoIn:				return FMath::InterpExpoIn<FloatType>(0.f, 1.f, InAlpha);
+	case EEasingFunc::ExpoOut:				return FMath::InterpExpoOut<FloatType>(0.f, 1.f, InAlpha);
+	case EEasingFunc::ExpoInOut:			return FMath::InterpExpoInOut<FloatType>(0.f, 1.f, InAlpha);
+	case EEasingFunc::CircularIn:			return FMath::InterpCircularIn<FloatType>(0.f, 1.f, InAlpha);
+	case EEasingFunc::CircularOut:			return FMath::InterpCircularOut<FloatType>(0.f, 1.f, InAlpha);
+	case EEasingFunc::CircularInOut:		return FMath::InterpCircularInOut<FloatType>(0.f, 1.f, InAlpha);
 	}
 	return InAlpha;
 }
@@ -85,7 +86,12 @@ void UKismetMathLibrary::ReportError_Divide_IntInt()
 
 void UKismetMathLibrary::ReportError_Divide_DoubleDouble()
 {
-	FFrame::KismetExecutionMessage(TEXT("Divide by zero: ReportError_Divide_DoubleDouble"), ELogVerbosity::Warning, DivideByZeroWarning);
+	FFrame::KismetExecutionMessage(TEXT("Divide by zero: Divide_DoubleDouble"), ELogVerbosity::Warning, DivideByZeroWarning);
+}
+
+void UKismetMathLibrary::ReportError_Divide_FloatFloat()
+{
+	FFrame::KismetExecutionMessage(TEXT("Divide by zero: Divide_FloatFloat"), ELogVerbosity::Warning, DivideByZeroWarning);
 }
 
 void UKismetMathLibrary::ReportError_Divide_Int64Int64()
@@ -187,47 +193,40 @@ bool UKismetMathLibrary::RandomBoolWithWeightFromStream(float Weight, const FRan
 
 }
 
-/* This function is custom thunked, the real function is GenericDivide_FloatFloat */
-float UKismetMathLibrary::Divide_FloatFloat(float A, float B)
-{
-	check(0);
-	return 0;
-}
-
 /* This function is custom thunked, the real function is GenericPercent_FloatFloat */
-float UKismetMathLibrary::Percent_FloatFloat(float A, float B)
+double UKismetMathLibrary::Percent_FloatFloat(double A, double B)
 {
 	check(0);
 	return 0;
 }
 
-float UKismetMathLibrary::GenericPercent_FloatFloat(float A, float B)
+double UKismetMathLibrary::GenericPercent_FloatFloat(double A, double B)
 {
-	return (B != 0.f) ? FMath::Fmod(A, B) : 0.f;
+	return (B != 0.0) ? FMath::Fmod(A, B) : 0.0;
 }
 
-bool UKismetMathLibrary::InRange_FloatFloat(float Value, float Min, float Max, bool InclusiveMin, bool InclusiveMax)
+bool UKismetMathLibrary::InRange_FloatFloat(double Value, double Min, double Max, bool InclusiveMin, bool InclusiveMax)
 {
 	return ((InclusiveMin ? (Value >= Min) : (Value > Min)) && (InclusiveMax ? (Value <= Max) : (Value < Max)));
 }
 
-float UKismetMathLibrary::Hypotenuse(float Width, float Height)
+double UKismetMathLibrary::Hypotenuse(double Width, double Height)
 {
 	// This implementation avoids overflow/underflow caused by squaring width and height:
-	float Min = FMath::Abs(Width);
-	float Max = FMath::Abs(Height);
+	double Min = FMath::Abs(Width);
+	double Max = FMath::Abs(Height);
 
 	if (Min > Max)
 	{
 		Swap(Min, Max);
 	}
 
-	return (FMath::IsNearlyZero(Max) ? 0.f : Max * FMath::Sqrt(1.f + FMath::Square(Min/Max)));
+	return (FMath::IsNearlyZero(Max) ? 0.0 : Max * FMath::Sqrt(1.0 + FMath::Square(Min/Max)));
 }
 
-float UKismetMathLibrary::Log(float A, float Base)
+double UKismetMathLibrary::Log(double A, double Base)
 {
-	float Result = 0.f;
+	double Result = 0.f;
 	if(Base <= 0.f)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Divide by zero: Log"), ELogVerbosity::Warning, DivideByZeroWarning);
@@ -259,7 +258,47 @@ int32 UKismetMathLibrary::FMod(float Dividend, float Divisor, float& Remainder)
 	return Result;
 }
 
-float UKismetMathLibrary::NormalizeToRange(float Value, float RangeMin, float RangeMax)
+int32 UKismetMathLibrary::FMod(double Dividend, double Divisor, double& Remainder)
+{
+	int32 Result;
+	if (Divisor != 0.f)
+	{
+		const double Quotient = Dividend / Divisor;
+		Result = (Quotient < 0.f ? -1 : 1) * FMath::FloorToInt(FMath::Abs(Quotient));
+		Remainder = FMath::Fmod(Dividend, Divisor);
+	}
+	else
+	{
+		FFrame::KismetExecutionMessage(TEXT("Attempted modulo 0 - returning 0."), ELogVerbosity::Warning, DivideByZeroWarning);
+
+		Result = 0;
+		Remainder = 0.f;
+	}
+
+	return Result;
+}
+
+int64 UKismetMathLibrary::FMod64(double Dividend, double Divisor, double& Remainder)
+{
+	int64 Result;
+	if (Divisor != 0.f)
+	{
+		const double Quotient = Dividend / Divisor;
+		Result = (Quotient < 0.f ? -1 : 1) * FMath::FloorToInt64(FMath::Abs(Quotient));
+		Remainder = FMath::Fmod(Dividend, Divisor);
+	}
+	else
+	{
+		FFrame::KismetExecutionMessage(TEXT("Attempted modulo 0 - returning 0."), ELogVerbosity::Warning, DivideByZeroWarning);
+
+		Result = 0;
+		Remainder = 0.f;
+	}
+
+	return Result;
+}
+
+double UKismetMathLibrary::NormalizeToRange(double Value, double RangeMin, double RangeMax)
 {
 	if (RangeMin == RangeMax)
 	{
@@ -280,19 +319,19 @@ float UKismetMathLibrary::NormalizeToRange(float Value, float RangeMin, float Ra
 	return (Value - RangeMin) / (RangeMax - RangeMin);
 }
 
-float UKismetMathLibrary::MapRangeUnclamped(float Value, float InRangeA, float InRangeB, float OutRangeA, float OutRangeB)
+double UKismetMathLibrary::MapRangeUnclamped(double Value, double InRangeA, double InRangeB, double OutRangeA, double OutRangeB)
 {
-	return FMath::GetMappedRangeValueUnclamped(FVector2f(InRangeA, InRangeB), FVector2f(OutRangeA, OutRangeB), Value);
+	return FMath::GetMappedRangeValueUnclamped(FVector2D(InRangeA, InRangeB), FVector2D(OutRangeA, OutRangeB), Value);
 }
 
-float UKismetMathLibrary::MapRangeClamped(float Value, float InRangeA, float InRangeB, float OutRangeA, float OutRangeB)
+double UKismetMathLibrary::MapRangeClamped(double Value, double InRangeA, double InRangeB, double OutRangeA, double OutRangeB)
 {
-	return FMath::GetMappedRangeValueClamped(FVector2f(InRangeA, InRangeB), FVector2f(OutRangeA, OutRangeB), Value);
+	return FMath::GetMappedRangeValueClamped(FVector2D(InRangeA, InRangeB), FVector2D(OutRangeA, OutRangeB), Value);
 }
 
-float UKismetMathLibrary::FInterpEaseInOut(float A, float B, float Alpha, float Exponent)
+double UKismetMathLibrary::FInterpEaseInOut(double A, double B, double Alpha, double Exponent)
 {
-	return FMath::InterpEaseInOut<float>(A, B, Alpha, Exponent);
+	return FMath::InterpEaseInOut<double>(A, B, Alpha, Exponent);
 }
 
 float UKismetMathLibrary::MakePulsatingValue(float InCurrentTime, float InPulsesPerSecond, float InPhase)
@@ -300,7 +339,7 @@ float UKismetMathLibrary::MakePulsatingValue(float InCurrentTime, float InPulses
 	return FMath::MakePulsatingValue((double)InCurrentTime, InPulsesPerSecond, InPhase);
 }
 
-float UKismetMathLibrary::SafeDivide(float A, float B)
+double UKismetMathLibrary::SafeDivide(double A, double B)
 {
 	return (B != 0.0f) ? (A / B) : 0.0f;
 }
@@ -373,7 +412,7 @@ float UKismetMathLibrary::InverseLerp(float A, float B, float Value)
 	return NormalizeToRange(Value, A, B);
 }
 
-float UKismetMathLibrary::Ease(float A, float B, float Alpha, TEnumAsByte<EEasingFunc::Type> EasingFunc, float BlendExp, int32 Steps)
+double UKismetMathLibrary::Ease(double A, double B, double Alpha, TEnumAsByte<EEasingFunc::Type> EasingFunc, double BlendExp, int32 Steps)
 {
 	return Lerp(A, B, EaseAlpha(Alpha, EasingFunc, BlendExp, Steps));
 }
