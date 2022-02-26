@@ -525,7 +525,7 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 			if (ShaderCompiler::IsJobCacheEnabled())
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(ShaderCompiler.GetInputHash);
-				ParallelFor( TEXT("ShaderCompiler.GetInputHash.PF"), InJobs.Num(),1, [&InJobs](int32 Index) { InJobs[Index]->GetInputHash(); });
+				ParallelFor( TEXT("ShaderCompiler.GetInputHash.PF"), InJobs.Num(),1, [&InJobs](int32 Index) { InJobs[Index]->GetInputHash(); }, EParallelForFlags::Unbalanced);
 			}
 
 			FWriteScopeLock Locker(Lock);
@@ -7528,32 +7528,81 @@ FShaderCommonCompileJob::FInputHash FShaderCompileJob::GetInputHash()
 		checkf(Archive.IsSaving() && !Archive.IsLoading(), TEXT("A loading archive is passed to FShaderCompileJob::GetInputHash(), this is not supported as it may corrupt its data"));
 
 		Archive << Input;
-		Archive << Input.Environment;
+		Input.Environment.SerializeEverythingButFiles(Archive);
 
 		// hash the source file so changes to files during the development are picked up
 		const FSHAHash& SourceHash = GetShaderFileHash(*Input.VirtualSourceFilePath, Input.Target.GetPlatform());
 		Archive << const_cast<FSHAHash&>(SourceHash);
 
+		// unroll the included files for the parallel processing.
+		// These are temporary arrays that only exist for the ParallelFor
+		TArray<const TCHAR*> IncludeVirtualPaths;
+		TArray<const FString*> Contents;
+		TArray<bool> OnlyHashIncludes;
+		TArray<FBlake3Hash> Hashes;
+
+		// while the contents of this is already hashed (included in Environment's operator<<()), we still need to account for includes in the generated files and hash them, too
+		for (TMap<FString, FString>::TConstIterator It(Input.Environment.IncludeVirtualPathToContentsMap); It; ++It)
+		{
+			const FString& VirtualPath = It.Key();
+			IncludeVirtualPaths.Add(*VirtualPath);
+			Contents.Add(&It.Value());
+			OnlyHashIncludes.Add(true);	// not hashing contents of the file itself, as it was included in Environment's operator<<()
+			Hashes.AddDefaulted();
+		}
+
 		for (TMap<FString, FThreadSafeSharedStringPtr>::TConstIterator It(Input.Environment.IncludeVirtualPathToExternalContentsMap); It; ++It)
 		{
 			const FString& VirtualPath = It.Key();
-			Archive << const_cast<FString&>(VirtualPath);
+			IncludeVirtualPaths.Add(*VirtualPath);
 			check(It.Value());
-			FString& Contents = *It.Value();
-			Archive << Contents;
+			Contents.Add(&(*It.Value()));
+			OnlyHashIncludes.Add(false);
+			Hashes.AddDefaulted();
 		}
 
 		if (Input.SharedEnvironment)
 		{
-			Archive << *Input.SharedEnvironment;
+			Input.SharedEnvironment->SerializeEverythingButFiles(Archive);
+
+			for (TMap<FString, FString>::TConstIterator It(Input.SharedEnvironment->IncludeVirtualPathToContentsMap); It; ++It)
+			{
+				const FString& VirtualPath = It.Key();
+				IncludeVirtualPaths.Add(*VirtualPath);
+				Contents.Add(&It.Value());
+				OnlyHashIncludes.Add(true);	// not hashing contents of the file itself, as it was included in Environment's operator<<()
+				Hashes.AddDefaulted();
+			}
+
 			for (TMap<FString, FThreadSafeSharedStringPtr>::TConstIterator It(Input.SharedEnvironment->IncludeVirtualPathToExternalContentsMap); It; ++It)
 			{
 				const FString& VirtualPath = It.Key();
-				Archive << const_cast<FString&>(VirtualPath);
+				IncludeVirtualPaths.Add(*VirtualPath);
 				check(It.Value());
-				FString& Contents = *It.Value();
-				Archive << Contents;
+				Contents.Add(&(*It.Value()));
+				OnlyHashIncludes.Add(false);
+				Hashes.AddDefaulted();
 			}
+		}
+
+		check(IncludeVirtualPaths.Num() == Contents.Num());
+		check(Contents.Num() == OnlyHashIncludes.Num());
+		check(OnlyHashIncludes.Num() == Hashes.Num());
+
+		EShaderPlatform Platform = Input.Target.GetPlatform();
+		ParallelFor(Contents.Num(), [&IncludeVirtualPaths, &Contents, &OnlyHashIncludes, &Hashes, &Platform](int32 FileIndex)
+			{ 
+				FMemoryHasherBlake3 MemHasher;
+				HashShaderFileWithIncludes(MemHasher, IncludeVirtualPaths[FileIndex], *Contents[FileIndex], Platform, OnlyHashIncludes[FileIndex]);
+				Hashes[FileIndex] = MemHasher.Finalize();
+			},
+			EParallelForFlags::Unbalanced
+		);
+
+		// include the hashes in the main hash (consider sorting them if includes are found to have a random order)
+		for (int32 HashIndex = 0, NumHashes = Hashes.Num(); HashIndex < NumHashes; ++HashIndex)
+		{
+			Archive << Hashes[HashIndex];
 		}
 	};
 

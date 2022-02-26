@@ -1031,11 +1031,8 @@ static const TCHAR* FindFirstInclude(const TCHAR* Text)
 /**
  * Recursively populates IncludeFilenames with the unique include filenames found in the shader file named Filename.
  */
-static void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHAR* VirtualFilePath, TArray<FString>& IncludeVirtualFilePaths, EShaderPlatform ShaderPlatform, uint32 DepthLimit, bool AddToIncludeFile)
+static void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHAR* VirtualFilePath, const FString& FileContents, TArray<FString>& IncludeVirtualFilePaths, EShaderPlatform ShaderPlatform, uint32 DepthLimit, bool AddToIncludeFile)
 {
-	FString FileContents;
-	LoadShaderSourceFile(VirtualFilePath, ShaderPlatform, &FileContents, nullptr);
-
 	//avoid an infinite loop with a 0 length string
 	if (FileContents.Len() > 0)
 	{
@@ -1103,7 +1100,9 @@ static void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHA
 					{
 						if (!IncludeVirtualFilePaths.Contains(ExtractedIncludeFilename))
 						{
-							GetShaderIncludes(EntryPointVirtualFilePath, *ExtractedIncludeFilename, IncludeVirtualFilePaths, ShaderPlatform, DepthLimit - 1, true);
+							FString IncludedFileContents;
+							LoadShaderSourceFile(*ExtractedIncludeFilename, ShaderPlatform, &IncludedFileContents, nullptr);
+							GetShaderIncludes(EntryPointVirtualFilePath, *ExtractedIncludeFilename, IncludedFileContents, IncludeVirtualFilePaths, ShaderPlatform, DepthLimit - 1, true);
 						}
 					}
 				}
@@ -1131,9 +1130,76 @@ static void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHA
 	}
 }
 
+/**
+ * Recursively populates IncludeFilenames with the unique include filenames found in the shader file named Filename.
+ */
+static void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHAR* VirtualFilePath, TArray<FString>& IncludeVirtualFilePaths, EShaderPlatform ShaderPlatform, uint32 DepthLimit, bool AddToIncludeFile)
+{
+	FString FileContents;
+	LoadShaderSourceFile(VirtualFilePath, ShaderPlatform, &FileContents, nullptr);
+
+	GetShaderIncludes(EntryPointVirtualFilePath, VirtualFilePath, FileContents, IncludeVirtualFilePaths, ShaderPlatform, DepthLimit, AddToIncludeFile);
+}
+
 void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHAR* VirtualFilePath, TArray<FString>& IncludeVirtualFilePaths, EShaderPlatform ShaderPlatform, uint32 DepthLimit)
 {
 	GetShaderIncludes(EntryPointVirtualFilePath, VirtualFilePath, IncludeVirtualFilePaths, ShaderPlatform, DepthLimit, false);
+}
+
+void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHAR* VirtualFilePath, const FString& FileContents, TArray<FString>& IncludeVirtualFilePaths, EShaderPlatform ShaderPlatform, uint32 DepthLimit)
+{
+	GetShaderIncludes(EntryPointVirtualFilePath, VirtualFilePath, FileContents, IncludeVirtualFilePaths, ShaderPlatform, DepthLimit, false);
+}
+
+void HashShaderFileWithIncludes(FArchive& HashingArchive, const TCHAR* VirtualFilePath, const FString& FileContents, EShaderPlatform ShaderPlatform, bool bOnlyHashIncludedFiles)
+{
+	auto HashSingleFile = [](FArchive& HashingArchive, const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform, const FString& FileContents)
+	{
+		// first, a "soft" check
+		bool bFoundInCache = false;
+		{
+			FScopeLock ShaderHashAccessLock(&GShaderHashAccessGuard);
+			FSHAHash* CachedHash = GShaderHashCache.FindHash(ShaderPlatform, VirtualFilePath);
+			// If a hash for this filename has been cached, use that
+			if (CachedHash)
+			{
+				bFoundInCache = true;
+				HashingArchive << *CachedHash;
+			}
+		}
+
+		// outside of the lock scope because we don't need the lock and hashing can take time
+		if (!bFoundInCache)
+		{			
+			// if the file isn't generated, add it to the cache now
+			bool bGenerated = FCString::Strstr(VirtualFilePath, TEXT("Generated")) != nullptr;
+			if (!bGenerated)
+			{
+				// this function fails hard if it cannot load
+				const FSHAHash& FileHash = GetShaderFileHash(VirtualFilePath, ShaderPlatform);
+				HashingArchive << const_cast<FSHAHash&>(FileHash);
+			}
+			else
+			{
+				// note, it is legal for some generated files to have empty contents, so hash both the name and their contents
+				HashingArchive.Serialize(reinterpret_cast<void*>(const_cast<TCHAR*>(VirtualFilePath)), FCString::Strlen(VirtualFilePath));
+				HashingArchive << const_cast<FString&>(FileContents);
+			}
+		}
+	};
+
+	// First, always hash the file itself
+	HashSingleFile(HashingArchive, VirtualFilePath, ShaderPlatform, FileContents);
+
+	// Get the list of includes this file contains
+	TArray<FString> IncludeVirtualFilePaths;
+	GetShaderIncludes(VirtualFilePath, VirtualFilePath, FileContents, IncludeVirtualFilePaths, ShaderPlatform);
+
+	for (int32 IncludeIndex = 0; IncludeIndex < IncludeVirtualFilePaths.Num(); IncludeIndex++)
+	{
+		// Here, we assume that all includes can be found in cache. This also means that generated files won't include other generated files.
+		HashSingleFile(HashingArchive, *IncludeVirtualFilePaths[IncludeIndex], ShaderPlatform, FString());
+	}
 }
 
 static void UpdateSingleShaderFilehash(FSHA1& InOutHashState, const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform)

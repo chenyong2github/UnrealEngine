@@ -529,6 +529,19 @@ struct FShaderCompilerEnvironment
 		RenderTargetOutputFormatsMap.Add(RenderTargetIndex, UE_PIXELFORMAT_TO_UINT8(PixelFormat));
 	}
 
+	/** This "core" serialization is also used for the hashing the compiler job (where files are handled differently). Should stay in sync with the ShaderCompileWorker. */
+	inline void SerializeEverythingButFiles(FArchive& Ar)
+	{
+		Ar << Definitions;
+		Ar << CompilerFlags;
+		Ar << RenderTargetOutputFormatsMap;
+		Ar << ResourceTableMap;
+		Ar << UniformBufferMap;
+		Ar << RemoteServerData;
+		Ar << ShaderFormatCVars;
+		Ar << FullPrecisionInPS;
+	}
+
 	friend FArchive& operator<<(FArchive& Ar,FShaderCompilerEnvironment& Environment)
 	{
 		// Note: this serialize is used to pass between UE and the shader compile worker, recompile both when modifying
@@ -536,15 +549,7 @@ struct FShaderCompilerEnvironment
 
 		// Note: skipping Environment.IncludeVirtualPathToExternalContentsMap, which is handled by FShaderCompileUtilities::DoWriteTasks in order to maintain sharing
 
-		Ar << Environment.Definitions;
-		Ar << Environment.CompilerFlags;
-		Ar << Environment.RenderTargetOutputFormatsMap;
-		Ar << Environment.ResourceTableMap;
-		Ar << Environment.UniformBufferMap;
-		Ar << Environment.RemoteServerData;
-		Ar << Environment.ShaderFormatCVars;
-		Ar << Environment.FullPrecisionInPS;
-
+		Environment.SerializeEverythingButFiles(Ar);
 		return Ar;
 	}
 	
@@ -998,6 +1003,7 @@ extern RENDERCORE_API void LoadShaderSourceFileChecked(const TCHAR* VirtualFileP
  * Recursively populates IncludeFilenames with the include filenames from Filename
  */
 extern RENDERCORE_API void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHAR* VirtualFilePath, TArray<FString>& IncludeVirtualFilePaths, EShaderPlatform ShaderPlatform, uint32 DepthLimit=100);
+extern RENDERCORE_API void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHAR* VirtualFilePath, const FString& FileContents, TArray<FString>& IncludeVirtualFilePaths, EShaderPlatform ShaderPlatform, uint32 DepthLimit = 100);
 
 /**
  * Calculates a Hash for the given filename if it does not already exist in the Hash cache.
@@ -1005,6 +1011,16 @@ extern RENDERCORE_API void GetShaderIncludes(const TCHAR* EntryPointVirtualFileP
  * @param ShaderPlatform - shader platform to Hash
  */
 extern RENDERCORE_API const class FSHAHash& GetShaderFileHash(const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform);
+
+/**
+ * Calculates a hash for the given source file and all files included from it.
+ * @param HashingArchive - hash to update
+ * @param VirtualFilePath - name of this source code path (won't be loaded, as it is expected to be generated)
+ * @param FileContents - shader source code to Hash (included files will be hashed, too)
+ * @param ShaderPlatform - shader platform to Hash
+ * @param bOnlyHashIncludedFiles - skip hashing contents of the file itself (useful if it was already hashed outside of this function)
+ */
+extern RENDERCORE_API void HashShaderFileWithIncludes(FArchive& HashingArchive, const TCHAR* VirtualFilePath, const FString& FileContents, EShaderPlatform ShaderPlatform, bool bOnlyHashIncludedFiles);
 
 /**
  * Calculates a Hash for the list of filenames if it does not already exist in the Hash cache.
