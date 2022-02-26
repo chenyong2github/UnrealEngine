@@ -222,6 +222,38 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::GetO
 }
 
 #if WITH_EDITOR
+TArray<FDisplayClusterViewport*> FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewGetRenderedInCameraViewports(ADisplayClusterRootActor& InRootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent, bool bGetChromakey)
+{
+	TArray<FDisplayClusterViewport*> OutViewports;
+
+	// Search for rendered camera viewport on other cluster nodes
+	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(InRootActor);
+	if (ViewportManager != nullptr)
+	{
+		const FString ICVFXCameraId = InCameraComponent.GetCameraUniqueId();
+		const EDisplayClusterViewportRuntimeICVFXFlags InMask = bGetChromakey ? ViewportRuntime_ICVFXChromakey : ViewportRuntime_ICVFXIncamera;
+		const FString ViewportTypeId = bGetChromakey ? DisplayClusterViewportStrings::icvfx::chromakey : DisplayClusterViewportStrings::icvfx::camera;
+
+		for (FDisplayClusterViewport* ViewportIt : ViewportManager->ImplGetWholeClusterViewports_Editor())
+		{
+			if (ViewportIt != nullptr
+				&& (ViewportIt->RenderSettingsICVFX.RuntimeFlags & InMask) != 0
+				&& (ViewportIt->InputShaderResources.Num() > 0 && ViewportIt->InputShaderResources[0] != nullptr && ViewportIt->Contexts.Num() > 0)
+				&& (ViewportIt->RenderSettings.OverrideViewportId.IsEmpty()))
+			{
+				// this is incamera viewport. Check by name
+				const FString RequiredViewportId = ImplGetNameICVFX(ViewportIt->GetClusterNodeId(), ICVFXCameraId, ViewportTypeId);
+				if (RequiredViewportId.Equals(ViewportIt->GetId()))
+				{
+					OutViewports.Add(ViewportIt);
+				}
+			}
+		}
+	}
+
+	return OutViewports;
+}
+
 void FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewReuseInnerFrustumViewportWithinClusterNodes_Editor(FDisplayClusterViewport& InCameraViewport, ADisplayClusterRootActor& InRootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
 {
 	if (!IsPreviewEnableReuseViewportInCluster_EditorImpl(InRootActor))
@@ -239,33 +271,15 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewReuseInnerFrustum
 		return;
 	}
 
-	const FString ICVFXCameraId = InCameraComponent.GetCameraUniqueId();
-
-	// Search for rendered camera viewport on other cluster nodes
-	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(InRootActor);
-	if (ViewportManager != nullptr)
+	for (FDisplayClusterViewport* ViewportIt : PreviewGetRenderedInCameraViewports(InRootActor, InCameraComponent, false))
 	{
-		for (FDisplayClusterViewport* ViewportIt : ViewportManager->ImplGetWholeClusterViewports_Editor())
+		if (ViewportIt && ViewportIt->GetClusterNodeId() != InCameraViewport.GetClusterNodeId()
+			&& FDisplayClusterViewportConfigurationHelpers_OpenColorIO::IsInnerFrustumViewportSettingsEqual_Editor(*ViewportIt, InCameraViewport, InCameraComponent)
+			&& FDisplayClusterViewportConfigurationHelpers_Postprocess::IsInnerFrustumViewportSettingsEqual_Editor(*ViewportIt, InCameraViewport, InCameraComponent))
 		{
-			if (ViewportIt != nullptr
-			&& (ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXIncamera) != 0 
-			&& (ViewportIt->InputShaderResources.Num() > 0 && ViewportIt->InputShaderResources[0] != nullptr && ViewportIt->Contexts.Num() > 0)
-			&& (ViewportIt->RenderSettings.OverrideViewportId.IsEmpty())
-			&& (ViewportIt->GetClusterNodeId() != InCameraViewport.GetClusterNodeId()))
-			{
-				// this is incamera viewport. Check by name
-				const FString RequiredViewportId = ImplGetNameICVFX(ViewportIt->GetClusterNodeId(), ICVFXCameraId, DisplayClusterViewportStrings::icvfx::camera);
-				if (RequiredViewportId.Equals(ViewportIt->GetId()))
-				{
-					if (FDisplayClusterViewportConfigurationHelpers_OpenColorIO::IsInnerFrustumViewportSettingsEqual_Editor(*ViewportIt, InCameraViewport, InCameraComponent)
-					&&  FDisplayClusterViewportConfigurationHelpers_Postprocess::IsInnerFrustumViewportSettingsEqual_Editor(*ViewportIt, InCameraViewport, InCameraComponent))
-					{
-						// Reuse exist viewport:
-						InCameraViewport.RenderSettings.OverrideViewportId = ViewportIt->GetId();
-						return;
-					}
-				}
-			}
+			// Reuse exist viewport:
+			InCameraViewport.RenderSettings.OverrideViewportId = ViewportIt->GetId();
+			return;
 		}
 	}
 }
@@ -287,29 +301,13 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewReuseChromakeyVie
 		return;
 	}
 
-	const FString ICVFXCameraId = InCameraComponent.GetCameraUniqueId();
-
-	// Search for rendered camera viewport on other cluster nodes
-	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(InRootActor);
-	if (ViewportManager != nullptr)
+	for (FDisplayClusterViewport* ViewportIt : PreviewGetRenderedInCameraViewports(InRootActor, InCameraComponent, true))
 	{
-		for (FDisplayClusterViewport* ViewportIt : ViewportManager->ImplGetWholeClusterViewports_Editor())
+		if (ViewportIt && ViewportIt->GetClusterNodeId() != InChromakeyViewport.GetClusterNodeId())
 		{
-			if (ViewportIt != nullptr
-				&& (ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXChromakey) != 0
-				&& (ViewportIt->InputShaderResources.Num() > 0 && ViewportIt->InputShaderResources[0] != nullptr && ViewportIt->Contexts.Num() > 0)
-				&& (ViewportIt->RenderSettings.OverrideViewportId.IsEmpty())
-				&& (ViewportIt->GetClusterNodeId() != InChromakeyViewport.GetClusterNodeId()))
-			{
-				// this is chromakey viewport. Check by name
-				const FString RequiredViewportId = ImplGetNameICVFX(ViewportIt->GetClusterNodeId(), ICVFXCameraId, DisplayClusterViewportStrings::icvfx::chromakey);
-				if (RequiredViewportId.Equals(ViewportIt->GetId()))
-				{
-					// Reuse exist viewport:
-					InChromakeyViewport.RenderSettings.OverrideViewportId = ViewportIt->GetId();
-					return;
-				}
-			}
+			// Reuse exist viewport from other node
+			InChromakeyViewport.RenderSettings.OverrideViewportId = ViewportIt->GetId();
+			return;
 		}
 	}
 }

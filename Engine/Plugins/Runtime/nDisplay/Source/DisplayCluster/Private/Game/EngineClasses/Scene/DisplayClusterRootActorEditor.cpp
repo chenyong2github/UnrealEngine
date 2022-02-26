@@ -514,11 +514,10 @@ void ADisplayClusterRootActor::ImplRenderPreviewFrustums_Editor()
 				UDisplayClusterICVFXCameraComponent* CineCameraComponent = Cast<UDisplayClusterICVFXCameraComponent>(ActorComponentIt);
 				if (CineCameraComponent && CineCameraComponent->IsICVFXEnabled())
 				{
-					const FString InnerFrustumID = CineCameraComponent->GetCameraUniqueId();
-					FDisplayClusterViewport* IncameraViewport = FDisplayClusterViewportConfigurationHelpers_ICVFX::ImplFindViewport(*this, InnerFrustumID, DisplayClusterViewportStrings::icvfx::camera);
-					if (IncameraViewport != nullptr)
+					// Iterate over rendered incamera viewports (whole cluster)
+					for (FDisplayClusterViewport* InCameraViewportIt : FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewGetRenderedInCameraViewports(*this, *CineCameraComponent))
 					{
-						FrustumPreviewViewports.Add(IncameraViewport);
+						FrustumPreviewViewports.Add(InCameraViewportIt);
 					}
 				}
 			}

@@ -212,6 +212,22 @@ void FDisplayClusterViewport::SetupSceneView(uint32 ContextNum, class UWorld* Wo
 		InOutView.bAllowCrossGPUTransfer = (Contexts[ContextNum].bAllowGPUTransferOptimization == false);
 	}
 
+	// Disable raytracing for lightcard and chromakey
+#if RHI_RAYTRACING
+	switch (RenderSettings.CaptureMode)
+	{
+	case EDisplayClusterViewportCaptureMode::Chromakey:
+	case EDisplayClusterViewportCaptureMode::Lightcard:
+	case EDisplayClusterViewportCaptureMode::Lightcard_OCIO:
+
+		InOutView.bAllowRayTracing = false;
+		break;
+
+	default:
+		break;
+	}
+#endif // RHI_RAYTRACING
+
 	// Apply visibility settigns to view
 	VisibilitySettings.SetupSceneView(World, InOutView);
 
