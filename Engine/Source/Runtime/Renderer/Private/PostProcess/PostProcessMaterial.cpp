@@ -128,40 +128,6 @@ FRHIBlendState* GetMaterialBlendState(const FMaterial* Material)
 	return BlendStates[Material->GetBlendMode()];
 }
 
-bool PostProcessStencilTest(uint32 StencilValue, uint32 StencilComp, uint32 StencilRef)
-{
-	bool bStencilTestPassed = true;
-
-	switch (StencilComp)
-	{
-	case EMaterialStencilCompare::MSC_Less:
-		bStencilTestPassed = (StencilValue < StencilRef);
-		break;
-	case EMaterialStencilCompare::MSC_LessEqual:
-		bStencilTestPassed = (StencilValue <= StencilRef);
-		break;
-	case EMaterialStencilCompare::MSC_GreaterEqual:
-		bStencilTestPassed = (StencilValue >= StencilRef);
-		break;
-	case EMaterialStencilCompare::MSC_Equal:
-		bStencilTestPassed = (StencilValue == StencilRef);
-		break;
-	case EMaterialStencilCompare::MSC_Greater:
-		bStencilTestPassed = (StencilValue > StencilRef);
-		break;
-	case EMaterialStencilCompare::MSC_NotEqual:
-		bStencilTestPassed = (StencilValue != StencilRef);
-		break;
-	case EMaterialStencilCompare::MSC_Never:
-		bStencilTestPassed = false;
-		break;
-	default:
-		break;
-	}
-
-	return !bStencilTestPassed;
-}
-
 class FPostProcessMaterialShader : public FMaterialShader
 {
 public:
@@ -610,8 +576,6 @@ FScreenPassTexture AddPostProcessMaterialPass(
 		ScreenPassFlags |= EScreenPassDrawFlags::FlipYAxis;
 	}
 
-	// check if we can skip that draw call in case if all pixels will fail the stencil test of the material
-	bool bSkipPostProcess = false;
 
 	if (Material->IsStencilTestEnabled() && IsPostProcessStencilTestAllowed())
 	{
