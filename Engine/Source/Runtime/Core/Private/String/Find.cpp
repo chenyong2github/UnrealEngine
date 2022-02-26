@@ -336,7 +336,7 @@ static inline int32 FindLastOfAnyChar(TStringView<CharType> View, TConstArrayVie
 namespace UE::String
 {
 
-int32 FindFirst(FAnsiStringView View, FAnsiStringView Search, ESearchCase::Type SearchCase)
+int32 FindFirst(FUtf8StringView View, FUtf8StringView Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindFirst(View, Search, SearchCase);
 }
@@ -346,7 +346,7 @@ int32 FindFirst(FWideStringView View, FWideStringView Search, ESearchCase::Type 
 	return Private::FindFirst(View, Search, SearchCase);
 }
 
-int32 FindLast(FAnsiStringView View, FAnsiStringView Search, ESearchCase::Type SearchCase)
+int32 FindLast(FUtf8StringView View, FUtf8StringView Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindLast(View, Search, SearchCase);
 }
@@ -356,7 +356,7 @@ int32 FindLast(FWideStringView View, FWideStringView Search, ESearchCase::Type S
 	return Private::FindLast(View, Search, SearchCase);
 }
 
-int32 FindFirstOfAny(FAnsiStringView View, TConstArrayView<FAnsiStringView> Search, ESearchCase::Type SearchCase)
+int32 FindFirstOfAny(FUtf8StringView View, TConstArrayView<FUtf8StringView> Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindFirstOfAny(View, Search, SearchCase);
 }
@@ -366,7 +366,7 @@ int32 FindFirstOfAny(FWideStringView View, TConstArrayView<FWideStringView> Sear
 	return Private::FindFirstOfAny(View, Search, SearchCase);
 }
 
-int32 FindLastOfAny(FAnsiStringView View, TConstArrayView<FAnsiStringView> Search, ESearchCase::Type SearchCase)
+int32 FindLastOfAny(FUtf8StringView View, TConstArrayView<FUtf8StringView> Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindLastOfAny(View, Search, SearchCase);
 }
@@ -376,7 +376,7 @@ int32 FindLastOfAny(FWideStringView View, TConstArrayView<FWideStringView> Searc
 	return Private::FindLastOfAny(View, Search, SearchCase);
 }
 
-int32 FindFirstChar(FAnsiStringView View, ANSICHAR Search, ESearchCase::Type SearchCase)
+int32 FindFirstChar(FUtf8StringView View, UTF8CHAR Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindFirstChar(View, Search, SearchCase);
 }
@@ -386,7 +386,7 @@ int32 FindFirstChar(FWideStringView View, WIDECHAR Search, ESearchCase::Type Sea
 	return Private::FindFirstChar(View, Search, SearchCase);
 }
 
-int32 FindLastChar(FAnsiStringView View, ANSICHAR Search, ESearchCase::Type SearchCase)
+int32 FindLastChar(FUtf8StringView View, UTF8CHAR Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindLastChar(View, Search, SearchCase);
 }
@@ -396,7 +396,7 @@ int32 FindLastChar(FWideStringView View, WIDECHAR Search, ESearchCase::Type Sear
 	return Private::FindLastChar(View, Search, SearchCase);
 }
 
-int32 FindFirstOfAnyChar(FAnsiStringView View, TConstArrayView<ANSICHAR> Search, ESearchCase::Type SearchCase)
+int32 FindFirstOfAnyChar(FUtf8StringView View, TConstArrayView<UTF8CHAR> Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindFirstOfAnyChar(View, Search, SearchCase);
 }
@@ -406,7 +406,7 @@ int32 FindFirstOfAnyChar(FWideStringView View, TConstArrayView<WIDECHAR> Search,
 	return Private::FindFirstOfAnyChar(View, Search, SearchCase);
 }
 
-int32 FindLastOfAnyChar(FAnsiStringView View, TConstArrayView<ANSICHAR> Search, ESearchCase::Type SearchCase)
+int32 FindLastOfAnyChar(FUtf8StringView View, TConstArrayView<UTF8CHAR> Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindLastOfAnyChar(View, Search, SearchCase);
 }
