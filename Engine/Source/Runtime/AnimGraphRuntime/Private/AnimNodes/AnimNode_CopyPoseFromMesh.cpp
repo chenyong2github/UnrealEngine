@@ -73,10 +73,20 @@ void FAnimNode_CopyPoseFromMesh::RefreshMeshComponent(USkeletalMeshComponent* Ta
 	{
 		if (TargetMeshComponent)
 		{
-			USkeletalMeshComponent* ParentComponent = Cast<USkeletalMeshComponent>(TargetMeshComponent->GetAttachParent());
-			if (ParentComponent)
+			// Walk up the attachment chain until we find a skeletal mesh component
+			USkeletalMeshComponent* ParentMeshComponent = nullptr;
+			for (USceneComponent* AttachParentComp = TargetMeshComponent->GetAttachParent(); AttachParentComp != nullptr; AttachParentComp = AttachParentComp->GetAttachParent())
 			{
-				ResetMeshComponent(ParentComponent, TargetMeshComponent);
+				ParentMeshComponent = Cast<USkeletalMeshComponent>(AttachParentComp);
+				if (ParentMeshComponent)
+				{
+					break;
+				}
+			}
+
+			if (ParentMeshComponent)
+			{
+				ResetMeshComponent(ParentMeshComponent, TargetMeshComponent);
 			}
 			else
 			{

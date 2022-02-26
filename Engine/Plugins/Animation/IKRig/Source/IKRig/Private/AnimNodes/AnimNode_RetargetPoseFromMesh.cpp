@@ -161,7 +161,17 @@ bool FAnimNode_RetargetPoseFromMesh::EnsureProcessorIsInitialized(const TObjectP
 	// if user hasn't explicitly connected a source mesh, optionally use the parent mesh component (if there is one) 
 	if (!SourceMeshComponent.IsValid() && bUseAttachedParent)
 	{
-		const TObjectPtr<USkeletalMeshComponent> ParentComponent = Cast<USkeletalMeshComponent>(TargetMeshComponent->GetAttachParent());
+		// Walk up the attachment chain until we find a skeletal mesh component
+		USkeletalMeshComponent* ParentComponent = nullptr;
+		for (USceneComponent* AttachParentComp = TargetMeshComponent->GetAttachParent(); AttachParentComp != nullptr; AttachParentComp = AttachParentComp->GetAttachParent())
+		{
+			ParentComponent = Cast<USkeletalMeshComponent>(AttachParentComp);
+			if (ParentComponent)
+			{
+				break;
+			}
+		}
+
 		if (ParentComponent)
 		{
 			SourceMeshComponent = ParentComponent;
