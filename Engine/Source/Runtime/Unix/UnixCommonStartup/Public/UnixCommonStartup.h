@@ -23,8 +23,5 @@ int UNIXCOMMONSTARTUP_API CommonUnixMain(int argc, char *argv[], int (*RealMain)
  * We honestly leak so much this output is not super useful, so lets disable by default but if you want to re-enable disable
  * this DEFINE in LinuxToolchain.cs area
  */
-extern "C" const char* UNIXCOMMONSTARTUP_API __asan_default_options()
-{
-	return "detect_leaks=0";
-}
+extern "C" const char* UNIXCOMMONSTARTUP_API __asan_default_options();
 #endif
