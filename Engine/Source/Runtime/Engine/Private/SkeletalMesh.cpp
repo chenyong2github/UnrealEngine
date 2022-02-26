@@ -154,7 +154,7 @@ static TAutoConsoleVariable<int32> CVarRayTracingSkeletalMeshLODBias(
 const TCHAR* GSkeletalMeshMinLodQualityLevelCVarName = TEXT("r.SkeletalMesh.MinLodQualityLevel");
 const TCHAR* GSkeletalMeshMinLodQualityLevelScalabilitySection = TEXT("ViewDistanceQuality");
 int32 GSkeletalMeshMinLodQualityLevel = -1;
-static FAutoConsoleVariableRef CVarMinLodQualityLevel(
+static FAutoConsoleVariableRef CVarSkeletalMeshMinLodQualityLevel(
 	GSkeletalMeshMinLodQualityLevelCVarName,
 	GSkeletalMeshMinLodQualityLevel,
 	TEXT("The quality level for the Min stripping LOD. \n"),

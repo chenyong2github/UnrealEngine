@@ -153,7 +153,7 @@ static TAutoConsoleVariable<int32> CVarStripDistanceFieldDataDuringLoad(
 const TCHAR* GMinLodQualityLevelCVarName = TEXT("r.StaticMesh.MinLodQualityLevel");
 const TCHAR* GMinLodQualityLevelScalabilitySection = TEXT("ViewDistanceQuality");
 int32 GMinLodQualityLevel = -1;
-static FAutoConsoleVariableRef CVarMinLodQualityLevel(
+static FAutoConsoleVariableRef CVarStaticMeshMinLodQualityLevel(
 	GMinLodQualityLevelCVarName,
 	GMinLodQualityLevel,
 	TEXT("The quality level for the Min stripping LOD. \n"),
