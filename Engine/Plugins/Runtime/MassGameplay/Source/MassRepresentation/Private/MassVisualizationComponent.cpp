@@ -219,12 +219,11 @@ void UMassVisualizationComponent::EndVisualChanges()
 			const int32 NewNumInstances = SharedData.StaticMeshInstanceTransforms.Num();
 
 			// Update PerInstanceSMData transforms
-			// @Todo reenable when new UpdateInstances code is in main branch
-// 			if ((bool)UE::MassRepresentation::GCallUpdateInstances)
-// 			{
-// 				InstancedStaticMeshComponent->UpdateInstances(SharedData.UpdateInstanceIds, SharedData.StaticMeshInstanceTransforms, SharedData.StaticMeshInstancePrevTransforms, NumCustomDataFloats, SharedData.StaticMeshInstanceCustomFloats);
-// 			}
-// 			else
+			if ((bool)UE::MassRepresentation::GCallUpdateInstances)
+			{
+				InstancedStaticMeshComponent->UpdateInstances(SharedData.UpdateInstanceIds, SharedData.StaticMeshInstanceTransforms, SharedData.StaticMeshInstancePrevTransforms, NumCustomDataFloats, SharedData.StaticMeshInstanceCustomFloats);
+			}
+			else
 			{
 				// Update NumCustomDataFloats
 				InstancedStaticMeshComponent->NumCustomDataFloats = NumCustomDataFloats;
