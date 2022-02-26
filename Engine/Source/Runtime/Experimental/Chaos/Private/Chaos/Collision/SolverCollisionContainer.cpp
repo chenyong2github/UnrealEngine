@@ -520,11 +520,11 @@ namespace Chaos
 		}
 		else if (bApplyStaticFriction)
 		{
-			return SolvePositionWithFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut);
+			return SolvePositionWithFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut, bParallel);
 		}
 		else
 		{
-			return SolvePositionNoFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut);
+			return SolvePositionNoFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut, bParallel);
 		}
 	}
 
@@ -557,31 +557,47 @@ namespace Chaos
 	}
 
 	// Solve position with friction (last few iterations each tick)
-	bool FPBDCollisionSolverContainer::SolvePositionWithFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut)
+	bool FPBDCollisionSolverContainer::SolvePositionWithFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut, const bool bParallel)
 	{
+		if (EndIndex == BeginIndex)
+		{
+			return false;
+		}
 		const FSolverReal Dt = FSolverReal(InDt);
 		const FSolverReal MaxPushOut = FSolverReal(InMaxPushOut);
 
-		bool bNeedsAnotherIteration = false;
-		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+		InnerPhysicsParallelForRange(EndIndex - BeginIndex, [&](int32 StartRangeIndex, int32 EndRangeIndex)
 		{
-			bNeedsAnotherIteration |= CollisionSolvers[SolverIndex].GetSolver().SolvePositionWithFriction(Dt, MaxPushOut);
-		}
-		return bNeedsAnotherIteration;
+			int32 LocalStartIndex = StartRangeIndex + BeginIndex;
+			int32 LocalEndIndex = EndRangeIndex + BeginIndex;
+			for (int32 SolverIndex = LocalStartIndex; SolverIndex < LocalEndIndex; ++SolverIndex)
+			{
+				CollisionSolvers[SolverIndex].GetSolver().SolvePositionWithFriction(Dt, MaxPushOut);
+			}
+		}, 100, !bParallel);
+		return true;
 	}
 
 	// Solve position without friction (first few iterations each tick)
-	bool FPBDCollisionSolverContainer::SolvePositionNoFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut)
+	bool FPBDCollisionSolverContainer::SolvePositionNoFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut, const bool bParallel)
 	{
+		if (EndIndex == BeginIndex)
+		{
+			return false;
+		}
 		const FSolverReal Dt = FSolverReal(InDt);
 		const FSolverReal MaxPushOut = FSolverReal(InMaxPushOut);
 
-		bool bNeedsAnotherIteration = false;
-		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+		InnerPhysicsParallelForRange(EndIndex - BeginIndex, [&](int32 StartRangeIndex, int32 EndRangeIndex)
 		{
-			bNeedsAnotherIteration |= CollisionSolvers[SolverIndex].GetSolver().SolvePositionNoFriction(Dt, MaxPushOut);
-		}
-		return bNeedsAnotherIteration;
+			int32 LocalStartIndex = StartRangeIndex + BeginIndex;
+			int32 LocalEndIndex = EndRangeIndex + BeginIndex;
+			for (int32 SolverIndex = LocalStartIndex; SolverIndex < LocalEndIndex; ++SolverIndex)
+			{
+				CollisionSolvers[SolverIndex].GetSolver().SolvePositionNoFriction(Dt, MaxPushOut);
+			}
+		}, 100, !bParallel);
+		return true;
 	}
 
 	bool FPBDCollisionSolverContainer::SolveVelocityImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings, const bool bParallel)
@@ -620,11 +636,20 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Scatter);
 		check(BeginIndex >= 0);
 		check(EndIndex <= CollisionSolvers.Num());
-
-		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+		if (EndIndex == BeginIndex)
 		{
-			CollisionSolvers[SolverIndex].ScatterOutput(Dt);
+			return;
 		}
+
+		InnerPhysicsParallelForRange(EndIndex - BeginIndex, [&](int32 LocalStartIndex, int32 LocalEndIndex)
+		{
+			int32 LoopStartIndex = LocalStartIndex + BeginIndex;
+			int32 LoopEndIndex = LocalEndIndex + BeginIndex;
+			for (int32 SolverIndex = LoopStartIndex; SolverIndex < LoopEndIndex; ++SolverIndex)
+			{
+				CollisionSolvers[SolverIndex].ScatterOutput(Dt);
+			}
+		}, 100);
 	}
 
 }

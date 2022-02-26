@@ -10,8 +10,8 @@ namespace Chaos
 {
 	CHAOS_API int32 GSingleThreadedPhysics = 0;
 	CHAOS_API int32 InnerParallelForBatchSize = 0;
-	CHAOS_API int32 MinRangeBatchSize = 10;
-	CHAOS_API int32 MaxRangeBatchWorkers = 100;
+	CHAOS_API int32 MinRangeBatchSize = 0;
+	CHAOS_API int32 MaxNumWorkers = 100;
 	
 #if !UE_BUILD_SHIPPING
 	CHAOS_API bool bDisablePhysicsParallelFor = false;
@@ -23,7 +23,7 @@ namespace Chaos
 	FAutoConsoleVariableRef CVarDisableCollisionParallelFor(TEXT("p.Chaos.DisableCollisionParallelFor"), bDisableCollisionParallelFor, TEXT("Disable parallel execution for Chaos Collisions (also disabled by DisableParticleParallelFor)"));
 	FAutoConsoleVariableRef CVarInnerPhysicsBatchSize(TEXT("p.Chaos.InnerParallelForBatchSize"), InnerParallelForBatchSize, TEXT("Set the batch size threshold for inner parallel fors"));
 	FAutoConsoleVariableRef CVarMinRangeBatchSize(TEXT("p.Chaos.MinRangeBatchSize"), MinRangeBatchSize, TEXT("Set the min range batch size for parallel for"));
-	FAutoConsoleVariableRef CVarMaxRangeBatchWorkers(TEXT("p.Chaos.MaxRangeBatchWorkers"), MaxRangeBatchWorkers, TEXT("Set the max range batch num workers for parallel for"));
+	FAutoConsoleVariableRef CVarMaxRangeBatchWorkers(TEXT("p.Chaos.MaxNumWorkers"), MaxNumWorkers, TEXT("Set the max number of workers for physics"));
 #endif
 }
 
@@ -34,11 +34,11 @@ void Chaos::InnerPhysicsParallelFor(int32 Num, TFunctionRef<void(int32)> InCalla
 	PhysicsParallelFor(Num, InCallable, (BatchSize > InnerParallelForBatchSize) ? bForceSingleThreaded : true);
 }
 
-void Chaos::InnerPhysicsParallelForRange(int32 InNum, TFunctionRef<void(int32, int32)> InCallable, bool bForceSingleThreaded)
+void Chaos::InnerPhysicsParallelForRange(int32 InNum, TFunctionRef<void(int32, int32)> InCallable, const int32 InMinBatchSize, bool bForceSingleThreaded)
 {
 	int32 NumWorkers = int32(LowLevelTasks::FScheduler::Get().GetNumWorkers());
 	int32 BatchSize = FMath::DivideAndRoundUp<int32>(InNum, NumWorkers);
-	PhysicsParallelForRange(InNum, InCallable, (BatchSize > InnerParallelForBatchSize) ? bForceSingleThreaded : true);
+	PhysicsParallelForRange(InNum, InCallable, InMinBatchSize, (BatchSize > InnerParallelForBatchSize) ? bForceSingleThreaded : true);
 }
 
 void Chaos::PhysicsParallelFor(int32 InNum, TFunctionRef<void(int32)> InCallable, bool bForceSingleThreaded)
@@ -66,7 +66,7 @@ void Chaos::PhysicsParallelFor(int32 InNum, TFunctionRef<void(int32)> InCallable
 	::ParallelFor(InNum, PassThrough, !!GSingleThreadedPhysics || bDisablePhysicsParallelFor || bForceSingleThreaded);
 }
 
-void Chaos::PhysicsParallelForRange(int32 InNum, TFunctionRef<void(int32, int32)> InCallable, bool bForceSingleThreaded)
+void Chaos::PhysicsParallelForRange(int32 InNum, TFunctionRef<void(int32, int32)> InCallable, const int32 InMinBatchSize, bool bForceSingleThreaded)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Chaos_PhysicsParallelFor);
 	using namespace Chaos;
@@ -87,18 +87,19 @@ void Chaos::PhysicsParallelForRange(int32 InNum, TFunctionRef<void(int32, int32)
 		NumWorkers++; //named threads help with the work
 	}
 	NumWorkers = FMath::Min(NumWorkers, InNum);
-	NumWorkers = FMath::Min(NumWorkers, MaxRangeBatchWorkers);
+	NumWorkers = FMath::Min(NumWorkers, MaxNumWorkers);
 	check(NumWorkers > 0);
 	int32 BatchSize = FMath::DivideAndRoundUp<int32>(InNum, NumWorkers);
+	int32 MinBatchSize = FMath::Max(InMinBatchSize, MinRangeBatchSize);
 	// @todo(mlentine): Find a better batch size in this case
-	if (InNum < MinRangeBatchSize)
+	if (InNum < MinBatchSize)
 	{
 		NumWorkers = 1;
 		BatchSize = InNum;
 	}
 	else
 	{
-		while (BatchSize < MinRangeBatchSize && NumWorkers > 1)
+		while (BatchSize < MinBatchSize && NumWorkers > 1)
 		{
 			NumWorkers /= 2;
 			BatchSize = FMath::DivideAndRoundUp<int32>(InNum, NumWorkers);
