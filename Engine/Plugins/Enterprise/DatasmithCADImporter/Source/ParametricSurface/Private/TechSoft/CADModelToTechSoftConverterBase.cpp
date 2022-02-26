@@ -30,11 +30,6 @@ bool FCADModelToTechSoftConverterBase::RepairTopology()
 		{
 			RiRepresentationItems.Add(OutNewBReps[Index]);
 		}
-
-		if (OutNewBRepCount != 0)
-		{
-			delete OutNewBReps;
-		}
 	}
 #endif
 	return true;
