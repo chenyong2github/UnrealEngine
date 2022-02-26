@@ -109,7 +109,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 
 	FCoreDelegates::OnExit.Broadcast();
 
-	FPlatformMisc::RequestExit(false);
+	FPlatformMisc::RequestExit(true);
 
 	return Result;
 }
