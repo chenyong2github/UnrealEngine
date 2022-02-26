@@ -60,6 +60,8 @@ public:
 	//~ End UObject Interface
 
 	void AddParameter(const FNiagaraVariable& NewVariable);
+	bool HasParameter(const FNiagaraVariable& Variable);
+	void FindOrAddParameter(const FNiagaraVariable& Variable);
 	void RemoveParameter(const FNiagaraVariable& VariableToRemove);
 	void RenameParameter(const FNiagaraVariable& VariableToRename, const FName NewName);
 	const TArray<UNiagaraScriptVariable*>& GetParametersConst() const;

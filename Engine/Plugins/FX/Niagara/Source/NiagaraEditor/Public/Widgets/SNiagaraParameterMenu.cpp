@@ -122,7 +122,8 @@ FText SNiagaraParameterMenu::GetNamespaceCategoryText(const FGuid& NamespaceId)
 
 void SNiagaraAddParameterFromPanelMenu::Construct(const FArguments& InArgs)
 {
-	this->OnAddParameter = InArgs._OnAddParameter;
+	this->OnSpecificParameterRequested = InArgs._OnSpecificParameterRequested;
+	this->OnNewParameterRequested = InArgs._OnNewParameterRequested;
 	this->OnAddScriptVar = InArgs._OnAddScriptVar;
 	this->OnAllowMakeType = InArgs._OnAllowMakeType;
 	this->OnAddParameterDefinitions = InArgs._OnAddParameterDefinitions;
@@ -153,8 +154,7 @@ void SNiagaraAddParameterFromPanelMenu::CollectMakeNew(FNiagaraMenuActionCollect
 	{
 		return;
 	}
-
-	TArray<FNiagaraVariable> Variables;
+	
 	TConstArrayView<FNiagaraTypeDefinition> SectionTypes;
 	if(InNamespaceId == FNiagaraEditorGuids::UserNamespaceMetaDataGuid) 
 	{
@@ -177,6 +177,7 @@ void SNiagaraAddParameterFromPanelMenu::CollectMakeNew(FNiagaraMenuActionCollect
 		SectionTypes = MakeArrayView(FNiagaraTypeRegistry::GetRegisteredTypes());
 	}
 
+	TArray<FNiagaraTypeDefinition> TypeDefinitions;
 	for (const FNiagaraTypeDefinition& RegisteredType : SectionTypes)
 	{
 		bool bAllowType = true;
@@ -187,13 +188,11 @@ void SNiagaraAddParameterFromPanelMenu::CollectMakeNew(FNiagaraMenuActionCollect
 
 		if (bAllowType)
 		{
-			FNiagaraVariable Var(RegisteredType, FName(*RegisteredType.GetNameText().ToString()));
-			FNiagaraEditorUtilities::ResetVariableToDefaultValue(Var);
-			Variables.Add(Var);
+			TypeDefinitions.Add(RegisteredType);
 		}
 	}
 
-	AddParameterGroup(Collector, Variables, InNamespaceId,
+	AddMakeNewGroup(Collector, TypeDefinitions,  InNamespaceId,
 		LOCTEXT("MakeNewCat", "Make New"), 1,
 		bShowNamespaceCategory ? GetNamespaceCategoryText(InNamespaceId).ToString() : FString());
 }
@@ -204,8 +203,7 @@ void SNiagaraAddParameterFromPanelMenu::AddParameterGroup(
 	const FGuid& InNamespaceId /*= FGuid()*/,
 	const FText& Category /*= FText::GetEmpty()*/,
 	int32 SortOrder /*= 0*/,
-	const FString& RootCategory /*= FString()*/,
-	const bool bCreateUniqueName /*= true*/)
+	const FString& RootCategory /*= FString()*/)
 {
 	for (const FNiagaraVariable& Variable : Variables)
 	{
@@ -228,12 +226,47 @@ void SNiagaraAddParameterFromPanelMenu::AddParameterGroup(
 		FText SubCategory = FNiagaraEditorUtilities::GetVariableTypeCategory(Variable);
 		FText FullCategory = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);
 		TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(FullCategory, DisplayName, Tooltip, 0, FText(),
-			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterFromPanelMenu::ParameterSelected, Variable, bCreateUniqueName, InNamespaceId)));
+			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterFromPanelMenu::ParameterSelected, Variable, InNamespaceId)));
 		Action->SetParameterVariable(Variable);
 
 		if (Variable.IsDataInterface())
 		{
 			if (const UClass* DataInterfaceClass = Variable.GetType().GetClass())
+			{
+				Action->IsExperimental = DataInterfaceClass->GetMetaData("DevelopmentStatus") == TEXT("Experimental");
+			}
+		}
+
+		Collector.AddAction(Action, SortOrder, RootCategory);
+	}
+}
+
+void SNiagaraAddParameterFromPanelMenu::AddMakeNewGroup(FNiagaraMenuActionCollector& Collector,
+	TArray<FNiagaraTypeDefinition>& TypeDefinitions, const FGuid& InNamespaceId, const FText& Category, int32 SortOrder,
+	const FString& RootCategory)
+{
+	for (const FNiagaraTypeDefinition& TypeDefinition : TypeDefinitions)
+	{
+		const FText DisplayName = TypeDefinition.GetNameText();
+		FText Tooltip = FText::GetEmpty();
+
+
+		if (const UStruct* VariableStruct = TypeDefinition.GetStruct())
+		{
+			Tooltip = VariableStruct->GetToolTipText(true);
+		}
+
+		FText SubCategory = FNiagaraEditorUtilities::GetTypeDefinitionCategory(TypeDefinition);
+		FText FullCategory = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);
+		TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(FullCategory, DisplayName, Tooltip, 0, FText(),
+			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterFromPanelMenu::NewParameterSelected, TypeDefinition, InNamespaceId)));
+		FNiagaraVariable PrototypeVariable(TypeDefinition, TypeDefinition.GetFName());
+
+		Action->SetParameterVariable(PrototypeVariable);
+
+		if (TypeDefinition.IsDataInterface())
+		{
+			if (const UClass* DataInterfaceClass = TypeDefinition.GetClass())
 			{
 				Action->IsExperimental = DataInterfaceClass->GetMetaData("DevelopmentStatus") == TEXT("Experimental");
 			}
@@ -256,7 +289,7 @@ void SNiagaraAddParameterFromPanelMenu::CollectParameterCollectionsActions(FNiag
 		UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset());
 		if (Collection)
 		{
-			AddParameterGroup(Collector, Collection->GetParameters(), FNiagaraEditorGuids::ParameterCollectionNamespaceMetaDataGuid, Category, 10, FString(), false); //TODO
+			AddParameterGroup(Collector, Collection->GetParameters(), FNiagaraEditorGuids::ParameterCollectionNamespaceMetaDataGuid, Category, 10, FString()); //TODO
 		}
 	}
 }
@@ -269,15 +302,13 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 		TArray<FNiagaraVariable> Variables = FNiagaraConstants::GetEngineConstants();
 		const FText CategoryText = bShowNamespaceCategory ? GetNamespaceCategoryText(NamespaceMetaData) : LOCTEXT("EngineConstantNamespaceCategory", "Add Engine Constant");
 		const FString RootCategoryStr = FString();
-		const bool bMakeNameUnique = false;
 		AddParameterGroup(
 			Collector,
 			Variables,
 			FNiagaraEditorGuids::EngineNamespaceMetaDataGuid,
 			CategoryText,
 			4,
-			RootCategoryStr,
-			bMakeNameUnique
+			RootCategoryStr
 		);
 	};
 	auto CollectEmitterNamespaceParameterActions = [this, &Collector]() {
@@ -285,15 +316,13 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 		TArray<FNiagaraVariable> Variables = FNiagaraConstants::GetEngineConstants().FilterByPredicate([](const FNiagaraVariable& Var) { return Var.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString); });
 		const FText CategoryText = bShowNamespaceCategory ? GetNamespaceCategoryText(NamespaceMetaData) : LOCTEXT("EmitterConstantNamespaceCategory", "Add Emitter Constant");
 		const FString RootCategoryStr = FString();
-		const bool bMakeNameUnique = false;
 		AddParameterGroup(
 			Collector,
 			Variables,
 			FNiagaraEditorGuids::EngineNamespaceMetaDataGuid,
 			CategoryText,
 			4,
-			RootCategoryStr,
-			bMakeNameUnique
+			RootCategoryStr
 		);
 	};
 
@@ -381,7 +410,7 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 	{
 		TArray<FNiagaraVariable> Variables;
 		Variables.Add(SYS_PARAM_INSTANCE_ALIVE);
-		AddParameterGroup(Collector, Variables, FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid, FText(), 3, FString(), false);
+		AddParameterGroup(Collector, Variables, FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid, FText(), 3, FString());
 	}
 	// No NamespaceId set but still collecting engine namespace parameters (e.g. map get/set node menu.)
 	else if (NamespaceId.IsValid() == false && bForceCollectEngineNamespaceParameterActions)
@@ -392,7 +421,7 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 		// Special case; collect DataInstance.Alive so that it is an option if we are selecting a parameter from a map node in a script.
 		TArray<FNiagaraVariable> Variables;
 		Variables.Add(SYS_PARAM_INSTANCE_ALIVE);
-		AddParameterGroup(Collector, Variables, FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid, FText(), 3, FString(), false);
+		AddParameterGroup(Collector, Variables, FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid, FText(), 3, FString());
 	}
 
 	// Any other "unreserved" namespace
@@ -677,9 +706,15 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 	Collector.AddAllActionsTo(OutAllActions);
 }
 
-void SNiagaraAddParameterFromPanelMenu::ParameterSelected(FNiagaraVariable NewVariable, const bool bCreateUniqueName /*= false*/, const FGuid InNamespaceId /*= FGuid()*/)
+void SNiagaraAddParameterFromPanelMenu::ParameterSelected(FNiagaraVariable NewVariable, const FGuid InNamespaceId /*= FGuid()*/)
+{	
+	OnSpecificParameterRequested.ExecuteIfBound(NewVariable);
+}
+
+void SNiagaraAddParameterFromPanelMenu::NewParameterSelected(FNiagaraTypeDefinition NewParameterType, const FGuid InNamespaceId)
 {
-	auto GetNamespaceMetaData = [this, &InNamespaceId]()->const FNiagaraNamespaceMetadata {
+	auto GetNamespaceMetaData = [this, &InNamespaceId]()->const FNiagaraNamespaceMetadata
+	{
 		if (InNamespaceId.IsValid() == false)
 		{
 			if (bIsParameterReadNode) // Map Get
@@ -693,51 +728,49 @@ void SNiagaraAddParameterFromPanelMenu::ParameterSelected(FNiagaraVariable NewVa
 		}
 		return FNiagaraEditorUtilities::GetNamespaceMetaDataForId(InNamespaceId);
 	};
-
-	if (bCreateUniqueName)
+	
+	FString TypeDisplayName;
+	if (NewParameterType.GetEnum() != nullptr)
 	{
-		FString TypeDisplayName;
-		if (NewVariable.GetType().GetEnum() != nullptr)
-		{
-			TypeDisplayName = ((UField*)NewVariable.GetType().GetEnum())->GetDisplayNameText().ToString();
-		}
-		else if (NewVariable.GetType().GetStruct() != nullptr)
-		{
-			TypeDisplayName = NewVariable.GetType().GetNameText().ToString();
-		}
-		else if (NewVariable.GetType().GetClass() != nullptr)
-		{
-			TypeDisplayName = NewVariable.GetType().GetClass()->GetDisplayNameText().ToString();
-		}
-		const FString NewVariableDefaultName = TypeDisplayName.IsEmpty()
-			? TEXT("New Variable")
-			: TEXT("New ") + TypeDisplayName;
-
-		TArray<FString> NameParts;
-
-		const FNiagaraNamespaceMetadata NamespaceMetaData = GetNamespaceMetaData();
-		checkf(NamespaceMetaData.IsValid(), TEXT("Failed to get valid namespace metadata when creating unique name for parameter menu add parameter action!"));
-		for (const FName Namespace : NamespaceMetaData.Namespaces)
-		{
-			NameParts.Add(Namespace.ToString());
-		}
-
-		if (NamespaceMetaData.RequiredNamespaceModifier != NAME_None)
-		{
-			NameParts.Add(NamespaceMetaData.RequiredNamespaceModifier.ToString());
-		}
-
-		NameParts.Add(NewVariableDefaultName);
-		const FString ResultName = FString::Join(NameParts, TEXT("."));
-		NewVariable.SetName(FName(*ResultName));
+		TypeDisplayName = ((UField*)NewParameterType.GetEnum())->GetDisplayNameText().ToString();
+	}
+	else if (NewParameterType.GetStruct() != nullptr)
+	{
+		TypeDisplayName = NewParameterType.GetNameText().ToString();
+	}
+	else if (NewParameterType.GetClass() != nullptr)
+	{
+		TypeDisplayName = NewParameterType.GetClass()->GetDisplayNameText().ToString();
 	}
 
-	OnAddParameter.ExecuteIfBound(NewVariable);
+	const FString NewVariableDefaultName = TypeDisplayName.IsEmpty()
+		? TEXT("New Variable")
+		: TEXT("New ") + TypeDisplayName;
+
+	TArray<FString> NameParts;
+
+	const FNiagaraNamespaceMetadata NamespaceMetaData = GetNamespaceMetaData();
+	checkf(NamespaceMetaData.IsValid(), TEXT("Failed to get valid namespace metadata when creating unique name for parameter menu add parameter action!"));
+	for (const FName Namespace : NamespaceMetaData.Namespaces)
+	{
+		NameParts.Add(Namespace.ToString());
+	}
+
+	if (NamespaceMetaData.RequiredNamespaceModifier != NAME_None)
+	{
+		NameParts.Add(NamespaceMetaData.RequiredNamespaceModifier.ToString());
+	}
+
+	NameParts.Add(NewVariableDefaultName);
+	const FString ResultName = FString::Join(NameParts, TEXT("."));
+
+	FNiagaraVariable NewVariable(NewParameterType, FName(ResultName));
+	OnNewParameterRequested.ExecuteIfBound(NewVariable);
 }
 
 void SNiagaraAddParameterFromPanelMenu::ParameterSelected(FNiagaraVariable NewVariable)
 {
-	ParameterSelected(NewVariable, false, FGuid());
+	ParameterSelected(NewVariable, FGuid());
 }
 
 void SNiagaraAddParameterFromPanelMenu::ScriptVarFromParameterDefinitionsSelected(const UNiagaraScriptVariable* NewScriptVar, UNiagaraParameterDefinitions* SourceParameterDefinitions)

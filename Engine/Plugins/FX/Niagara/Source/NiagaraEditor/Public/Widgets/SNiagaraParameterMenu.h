@@ -58,7 +58,7 @@ private:
 class SNiagaraAddParameterFromPanelMenu : public SNiagaraParameterMenu
 {
 public:
-	DECLARE_DELEGATE_OneParam(FOnAddParameter, FNiagaraVariable);
+	DECLARE_DELEGATE_OneParam(FOnParameterRequested, FNiagaraVariable);
 	DECLARE_DELEGATE_OneParam(FOnAddScriptVar, const UNiagaraScriptVariable*);
 	DECLARE_DELEGATE_OneParam(FOnAddParameterDefinitions, UNiagaraParameterDefinitions*);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnAllowMakeType, const FNiagaraTypeDefinition&);
@@ -76,7 +76,8 @@ public:
 		, _AssignmentNode(nullptr)
 	{}
 		//~ Begin Required Events
-		SLATE_EVENT(FOnAddParameter, OnAddParameter)
+		SLATE_EVENT(FOnParameterRequested, OnSpecificParameterRequested)
+		SLATE_EVENT(FOnParameterRequested, OnNewParameterRequested)
 		SLATE_EVENT(FOnAddScriptVar, OnAddScriptVar)
 		SLATE_EVENT(FOnAddParameterDefinitions, OnAddParameterDefinitions)
 		//~ End Required Events
@@ -106,8 +107,15 @@ public:
 		const FGuid& InNamespaceId = FGuid(),
 		const FText& Category = FText::GetEmpty(),
 		int32 SortOrder = 0,
-		const FString& RootCategory = FString(),
-		const bool bCreateUniqueName = true);
+		const FString& RootCategory = FString());
+
+	void AddMakeNewGroup(
+		FNiagaraMenuActionCollector& Collector,
+		TArray<FNiagaraTypeDefinition>& TypeDefinitions,
+		const FGuid& InNamespaceId = FGuid(),
+		const FText& Category = FText::GetEmpty(),
+		int32 SortOrder = 0,
+		const FString& RootCategory = FString());
 
 	void CollectParameterCollectionsActions(FNiagaraMenuActionCollector& Collector);
 	void CollectMakeNew(FNiagaraMenuActionCollector& Collector, const FGuid& InNamespaceId);
@@ -117,15 +125,20 @@ protected:
 
 private:
 	void ParameterSelected(FNiagaraVariable NewVariable);
-	void ParameterSelected(FNiagaraVariable NewVariable, const bool bCreateUniqueName, const FGuid InNamespaceId);
+	void ParameterSelected(FNiagaraVariable NewVariable, const FGuid InNamespaceId);
+	void NewParameterSelected(FNiagaraTypeDefinition NewParameterType, const FGuid InNamespaceId);
+	
 	void ScriptVarFromParameterDefinitionsSelected(const UNiagaraScriptVariable* NewScriptVar, UNiagaraParameterDefinitions* SourceParameterDefinitions);
 	TSet<FName> GetAllGraphParameterNames() const;
 
 	static FText GetSectionTitle(int32 SectionId);
 
 private:
+	/** Delegate to handle adding an existing parameter as an FNiagaraVariable. */
+	FOnParameterRequested OnSpecificParameterRequested;
+
 	/** Delegate to handle adding a parameter as an FNiagaraVariable. */
-	FOnAddParameter OnAddParameter;
+	FOnParameterRequested OnNewParameterRequested;
 
 	/** Delegate to handle adding a parameter as a UNiagaraScriptVariable. */
 	FOnAddScriptVar OnAddScriptVar;

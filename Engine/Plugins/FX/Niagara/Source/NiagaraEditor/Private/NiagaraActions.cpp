@@ -387,13 +387,19 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnNode(FVector2D ScreenPositi
 		{
 			if (UNiagaraNodeParameterMapGet* GetMapNode = Cast<UNiagaraNodeParameterMapGet>(GetHoveredNode()))
 			{
-				FScopedTransaction AddNewPinTransaction(LOCTEXT("Drop Onto Get Pin", "Drop parameter onto Get node"));
-				FNiagaraStackGraphUtilities::AddNewVariableToParameterMapNode(GetMapNode, false, ScriptVar);
+				if(!GetMapNode->DoesParameterExistOnNode(ScriptVar->Variable))
+				{
+					FScopedTransaction AddNewPinTransaction(LOCTEXT("Drop Onto Get Pin", "Drop parameter onto Get node"));
+					FNiagaraStackGraphUtilities::AddNewVariableToParameterMapNode(GetMapNode, false, ScriptVar);
+				}
 			}
 			else if (UNiagaraNodeParameterMapSet* SetMapNode = Cast<UNiagaraNodeParameterMapSet>(GetHoveredNode()))
 			{
-				FScopedTransaction AddNewPinTransaction(LOCTEXT("Drop Onto Set Pin", "Drop parameter onto Set node"));
-				FNiagaraStackGraphUtilities::AddNewVariableToParameterMapNode(SetMapNode, true, ScriptVar);
+				if(!SetMapNode->DoesParameterExistOnNode(ScriptVar->Variable))
+				{
+					FScopedTransaction AddNewPinTransaction(LOCTEXT("Drop Onto Set Pin", "Drop parameter onto Set node"));
+					FNiagaraStackGraphUtilities::AddNewVariableToParameterMapNode(SetMapNode, true, ScriptVar);
+				}
 			}
 		}
 

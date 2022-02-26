@@ -156,6 +156,8 @@ public:
 
 	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename, const bool bMakeUniqueName) const = 0;
 
+	virtual void FindOrAddParameter(FNiagaraVariable Variable, const FNiagaraParameterPanelCategory Category) const = 0;
+	
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const = 0;
 
 	virtual void DeleteParameters(const TArray<FNiagaraParameterPanelItem>& ItemsToDelete) const = 0;
@@ -285,6 +287,8 @@ public:
 	//~ Begin INiagaraParameterPanelViewModel interface
 	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename, const bool bMakeUniqueName) const override;
 
+	virtual void FindOrAddParameter(FNiagaraVariable Variable, const FNiagaraParameterPanelCategory Category) const override;
+
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
 
 	virtual void DeleteParameters(const TArray<FNiagaraParameterPanelItem>& ItemsToDelete) const override;
@@ -385,6 +389,8 @@ public:
 	//~ Begin INiagaraParameterPanelViewModel interface
 	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename, const bool bMakeUniqueName) const override;
 
+	virtual void FindOrAddParameter(FNiagaraVariable Variable, const FNiagaraParameterPanelCategory Category) const override;
+
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
 
 	virtual void DeleteParameters(const TArray<FNiagaraParameterPanelItem>& ItemToDelete) const override;
@@ -484,6 +490,8 @@ public:
 
 	//~ Begin INiagaraParameterPanelViewModel interface
 	virtual void AddParameter(FNiagaraVariable NewVariable, const FNiagaraParameterPanelCategory Category, const bool bRequestRename, const bool bMakeUniqueName) const override;
+
+	virtual void FindOrAddParameter(FNiagaraVariable Variable, const FNiagaraParameterPanelCategory Category) const override;
 
 	virtual bool GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const override;
 

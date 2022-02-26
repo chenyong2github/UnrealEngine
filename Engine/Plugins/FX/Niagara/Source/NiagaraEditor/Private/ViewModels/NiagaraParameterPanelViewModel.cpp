@@ -1063,6 +1063,45 @@ void FNiagaraSystemToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable
 	}
 }
 
+void FNiagaraSystemToolkitParameterPanelViewModel::FindOrAddParameter(FNiagaraVariable Variable, const FNiagaraParameterPanelCategory Category) const
+{
+	TGuardValue<bool> AddParameterRefreshGuard(bIsAddingParameter, true);
+	bool bSuccess = false;
+	UNiagaraSystem& System = SystemViewModel->GetSystem();
+
+	FScopedTransaction AddTransaction(LOCTEXT("FindOrAddAddSystemParameterTransaction", "Add parameter to script."));
+	const FGuid NamespaceId = FNiagaraEditorUtilities::GetNamespaceMetaDataForVariableName(Variable.GetName()).GetGuid();
+	if (NamespaceId == FNiagaraEditorGuids::UserNamespaceMetaDataGuid)
+	{
+		if(System.GetExposedParameters().FindParameterVariable(Variable) == nullptr)
+		{
+			AddParameter(Variable, Category, false, false);
+		}
+	}
+	else
+	{
+		UNiagaraEditorParametersAdapter* EditorParametersAdapter = SystemViewModel->GetEditorOnlyParametersAdapter();
+		TArray<UNiagaraScriptVariable*>& EditorOnlyScriptVars = EditorParametersAdapter->GetParameters();
+		bool bNewScriptVarAlreadyExists = EditorOnlyScriptVars.ContainsByPredicate([&Variable](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Variable == Variable; });
+		
+		if (bNewScriptVarAlreadyExists == false)
+		{
+			AddParameter(Variable, Category, false, false);
+		}
+	}
+
+	if (bSuccess)
+	{
+		Refresh();
+	}
+	else
+	{
+		AddTransaction.Cancel();
+	}
+	
+	SelectParameterItemByName(Variable.GetName(), false);
+}
+
 bool FNiagaraSystemToolkitParameterPanelViewModel::GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const
 {
 	return GetEditableGraphsConst().Num() > 0 && Category.NamespaceMetaData.GetGuid() != FNiagaraEditorGuids::StaticSwitchNamespaceMetaDataGuid;
@@ -1345,7 +1384,8 @@ FMenuAndSearchBoxWidgets FNiagaraSystemToolkitParameterPanelViewModel::GetParame
 		.Graphs(GetEditableGraphsConst())
 		.AvailableParameterDefinitions(SystemViewModel->GetAvailableParameterDefinitions(bSkipSubscribedLibraries))
 		.SubscribedParameterDefinitions(SystemViewModel->GetSubscribedParameterDefinitions())
-		.OnAddParameter(this, &FNiagaraSystemToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename, bMakeUniqueName)
+		.OnNewParameterRequested(this, &FNiagaraSystemToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename, bMakeUniqueName)
+		.OnSpecificParameterRequested(this, &FNiagaraSystemToolkitParameterPanelViewModel::FindOrAddParameter, Category)
 		.OnAddScriptVar(this, &FNiagaraSystemToolkitParameterPanelViewModel::AddScriptVariable)
 		.OnAddParameterDefinitions(this, &FNiagaraSystemToolkitParameterPanelViewModel::AddParameterDefinitions)
 		.OnAllowMakeType_Static(&INiagaraParameterPanelViewModel::CanMakeNewParameterOfType)
@@ -1487,7 +1527,7 @@ TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateAddParam
 		.Graphs(InGraphs)
 		.AvailableParameterDefinitions(SystemViewModel->GetAvailableParameterDefinitions(bSkipSubscribedLibraries))
 		.SubscribedParameterDefinitions(SystemViewModel->GetSubscribedParameterDefinitions())
-		.OnAddParameter_Lambda(AddParameterLambda)
+		.OnNewParameterRequested_Lambda(AddParameterLambda)
 		.OnAddScriptVar_Lambda(AddScriptVarLambda)
 		.OnAddParameterDefinitions(this, &FNiagaraSystemToolkitParameterPanelViewModel::AddParameterDefinitions)
 		.OnAllowMakeType_Static(&INiagaraParameterPanelViewModel::CanMakeNewParameterOfType)
@@ -2252,6 +2292,33 @@ void FNiagaraScriptToolkitParameterPanelViewModel::AddParameter(FNiagaraVariable
 	}
 }
 
+void FNiagaraScriptToolkitParameterPanelViewModel::FindOrAddParameter(FNiagaraVariable Variable, const FNiagaraParameterPanelCategory Category) const
+{
+	TGuardValue<bool> AddParameterRefreshGuard(bIsAddingParameter, true);
+	bool bSuccess = false;
+
+	FScopedTransaction AddTransaction(LOCTEXT("FindOrAddScriptParameterTransaction", "Add parameter to script."));
+	for (UNiagaraGraph* Graph : GetEditableGraphs())
+	{
+		Graph->Modify();
+		const UNiagaraScriptVariable* NewScriptVar = Graph->AddParameter(Variable);
+		bSuccess = true;
+
+		// Check if the new parameter has the same name and type as an existing parameter definition, and if so, link to the definition automatically.
+		SubscribeParameterToLibraryIfMatchingDefinition(NewScriptVar, NewScriptVar->Variable.GetName());
+	}
+
+	if (bSuccess)
+	{
+		Refresh();
+		SelectParameterItemByName(Variable.GetName(), false);
+	}
+	else
+	{
+		AddTransaction.Cancel();
+	}
+}
+
 bool FNiagaraScriptToolkitParameterPanelViewModel::GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const
 {
 	return GetEditableGraphsConst().Num() > 0 && Category.NamespaceMetaData.GetGuid() != FNiagaraEditorGuids::StaticSwitchNamespaceMetaDataGuid;
@@ -2623,7 +2690,8 @@ FMenuAndSearchBoxWidgets FNiagaraScriptToolkitParameterPanelViewModel::GetParame
 		.Graphs(GetEditableGraphsConst())
 		.AvailableParameterDefinitions(ScriptViewModel->GetAvailableParameterDefinitions(bSkipSubscribedLibraries))
  		.SubscribedParameterDefinitions(ScriptViewModel->GetSubscribedParameterDefinitions())
-		.OnAddParameter(this, &FNiagaraScriptToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename, bMakeUniqueName)
+		.OnNewParameterRequested(this, &FNiagaraScriptToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename, bMakeUniqueName)
+		.OnSpecificParameterRequested(this, &FNiagaraScriptToolkitParameterPanelViewModel::FindOrAddParameter, Category)
 		.OnAddScriptVar(this, &FNiagaraScriptToolkitParameterPanelViewModel::AddScriptVariable)
 		.OnAddParameterDefinitions(this, &FNiagaraScriptToolkitParameterPanelViewModel::AddParameterDefinitions)
 		.OnAllowMakeType_Static(&INiagaraParameterPanelViewModel::CanMakeNewParameterOfType)
@@ -2973,10 +3041,21 @@ void FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::AddParameter(FN
 		const FName NewUniqueName = FNiagaraUtilities::GetUniqueName(NewVariable.GetName(), Names);
 		NewVariable.SetName(NewUniqueName);
 	}
-
-	FScopedTransaction AddTransaction(LOCTEXT("ParameterDefinitionsToolkitParameterPanelViewModel_AddParameter", "Add Parameter"));
+	
 	ParameterDefinitionsWeak.Get()->AddParameter(NewVariable);
 	SelectParameterItemByName(NewVariable.GetName(), bRequestRename);
+}
+
+void FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::FindOrAddParameter(FNiagaraVariable Variable, const FNiagaraParameterPanelCategory Category) const
+{
+	TGuardValue<bool> AddParameterRefreshGuard(bIsAddingParameter, true);
+
+	if(!ParameterDefinitionsWeak.Get()->HasParameter(Variable))
+	{
+		ParameterDefinitionsWeak.Get()->FindOrAddParameter(Variable);
+	}
+	
+	SelectParameterItemByName(Variable.GetName(), false);
 }
 
 bool FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::GetCanAddParametersToCategory(FNiagaraParameterPanelCategory Category) const
@@ -3200,7 +3279,8 @@ FMenuAndSearchBoxWidgets FNiagaraParameterDefinitionsToolkitParameterPanelViewMo
 	const bool bMakeUniqueName = true;
 
 	TSharedPtr<SNiagaraAddParameterFromPanelMenu> MenuWidget = SAssignNew(ParameterMenuWidget, SNiagaraAddParameterFromPanelMenu)
-	.OnAddParameter(this, &FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename, bMakeUniqueName)
+	.OnNewParameterRequested(this, &FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::AddParameter, Category, bRequestRename, bMakeUniqueName)
+	.OnSpecificParameterRequested(this, &FNiagaraParameterDefinitionsToolkitParameterPanelViewModel::FindOrAddParameter, Category)
 	.OnAllowMakeType_Static(&INiagaraParameterPanelViewModel::CanMakeNewParameterOfType)
 	.NamespaceId(Category.NamespaceMetaData.GetGuid())
 	.ShowNamespaceCategory(false)

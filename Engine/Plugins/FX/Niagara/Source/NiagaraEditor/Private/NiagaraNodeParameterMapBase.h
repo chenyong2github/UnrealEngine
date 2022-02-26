@@ -32,7 +32,6 @@ public:
 	void PinDescriptionTextCommitted(const FText& Text, ETextCommit::Type CommitType, UEdGraphPin* Pin);
 
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
-	virtual void CollectAddPinActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin) override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 
 	virtual bool IncludeParentNodeContextMenu() const { return true; }
@@ -53,12 +52,13 @@ public:
 
 	bool HandleDropOperation(TSharedPtr<FDragDropOperation> DropOperation);
 
+	bool DoesParameterExistOnNode(FNiagaraVariable Parameter);
 protected:
 	void GetChangeNamespaceSubMenuForPin(UToolMenu* Menu, UEdGraphPin* InPin);
 	void ChangeNamespaceForPin(UEdGraphPin* InPin, FNiagaraNamespaceMetadata NewNamespaceMetadata);
 
 	virtual void SelectParameterFromPin(const UEdGraphPin* InPin);
-
+	
 	void GetChangeNamespaceModifierSubMenuForPin(UToolMenu* Menu, UEdGraphPin* InPin);
 
 	FText GetSetNamespaceModifierForPinToolTip(const UEdGraphPin* InPin, FName InNamespaceModifier) const;

@@ -6,6 +6,8 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraScriptVariable.h"
 
+#define LOCTEXT_NAMESPACE "NiagaraParameterDefinitions"
+
 UNiagaraParameterDefinitions::UNiagaraParameterDefinitions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -43,12 +45,36 @@ void UNiagaraParameterDefinitions::PostEditChangeProperty(struct FPropertyChange
 
 void UNiagaraParameterDefinitions::AddParameter(const FNiagaraVariable& NewVariable)
 {
+	FScopedTransaction AddTransaction(LOCTEXT("AddParameter", "Add Parameter"));
 	Modify();
 	TObjectPtr<UNiagaraScriptVariable>& NewScriptVariable = ScriptVariables.Add_GetRef(NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional));
 	NewScriptVariable->Init(NewVariable, FNiagaraVariableMetaData());
 	NewScriptVariable->SetIsStaticSwitch(false);
 	NewScriptVariable->SetIsSubscribedToParameterDefinitions(true);
 	NotifyParameterDefinitionsChanged();
+}
+
+bool UNiagaraParameterDefinitions::HasParameter(const FNiagaraVariable& Variable)
+{
+	TObjectPtr<UNiagaraScriptVariable>* NewScriptVariable = ScriptVariables.FindByPredicate([Variable](TObjectPtr<UNiagaraScriptVariable> ScriptVariable)
+	{
+		return ScriptVariable->Variable == Variable;
+	});
+
+	return NewScriptVariable != nullptr;
+}
+
+void UNiagaraParameterDefinitions::FindOrAddParameter(const FNiagaraVariable& Variable)
+{
+	TObjectPtr<UNiagaraScriptVariable>* NewScriptVariable = ScriptVariables.FindByPredicate([Variable](TObjectPtr<UNiagaraScriptVariable> ScriptVariable)
+	{
+		return ScriptVariable->Variable == Variable;
+	});
+
+	if(NewScriptVariable == nullptr)
+	{
+		AddParameter(Variable);
+	}
 }
 
 void UNiagaraParameterDefinitions::RemoveParameter(const FNiagaraVariable& VariableToRemove)
@@ -251,3 +277,5 @@ void UNiagaraParameterDefinitions::NotifyParameterDefinitionsChanged()
 {
 	OnParameterDefinitionsChangedDelegate.Broadcast();
 }
+
+#undef LOCTEXT_NAMESPACE

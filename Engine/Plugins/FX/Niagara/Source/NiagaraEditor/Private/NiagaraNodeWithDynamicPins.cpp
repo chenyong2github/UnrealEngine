@@ -294,35 +294,6 @@ void UNiagaraNodeWithDynamicPins::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 	}
 }
 
-void UNiagaraNodeWithDynamicPins::CollectAddPinActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin)
-{
-	TArray<FNiagaraTypeDefinition> Types(FNiagaraTypeRegistry::GetRegisteredTypes());
-	Types.Sort([](const FNiagaraTypeDefinition& A, const FNiagaraTypeDefinition& B) { return (A.GetNameText().ToLower().ToString() < B.GetNameText().ToLower().ToString()); });
-
-	for (const FNiagaraTypeDefinition& RegisteredType : Types)
-	{
-		bool bAllowType = false;
-		bAllowType = AllowNiagaraTypeForAddPin(RegisteredType);
-
-		if (bAllowType)
-		{
-			FNiagaraVariable Var(RegisteredType, FName(*RegisteredType.GetName()));
-			FNiagaraEditorUtilities::ResetVariableToDefaultValue(Var);
-
-			FText Category = FNiagaraEditorUtilities::GetVariableTypeCategory(Var);
-			const FText DisplayName = RegisteredType.GetNameText();
-			const FText Tooltip = FText::Format(LOCTEXT("AddButtonTypeEntryToolTipFormat", "Add a new {0} pin"), RegisteredType.GetNameText());
-			TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
-				Category, DisplayName, Tooltip, 0, FText::GetEmpty(),
-				FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(this, &UNiagaraNodeWithDynamicPins::AddParameter, Var, (const UEdGraphPin*)Pin)));
-
-			OutActions.AddAction(Action);
-		}
-	}
-
-	bOutCreateRemainingActions = false;
-}
-
 void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, const UEdGraphPin* AddPin)
 {
 	if (this->IsA<UNiagaraNodeParameterMapBase>())
@@ -365,6 +336,25 @@ void UNiagaraNodeWithDynamicPins::AddParameter(const UNiagaraScriptVariable* Scr
 		Graph->Modify();
 		Graph->AddParameter(ScriptVar);
 
+		Modify();
+		UEdGraphPin* Pin = this->RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
+	}
+	else
+	{
+		RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
+	}
+}
+
+void UNiagaraNodeWithDynamicPins::AddExistingParameter(FNiagaraVariable Parameter, const UEdGraphPin* AddPin)
+{
+	if (this->IsA<UNiagaraNodeParameterMapBase>())
+	{
+		// Parameter map type nodes create new parameters when adding pins.
+		FScopedTransaction AddNewPinTransaction(LOCTEXT("AddNewPinTransaction", "Add pin to node"));
+		
+		UNiagaraGraph* Graph = GetNiagaraGraph();
+		checkf(Graph != nullptr, TEXT("Failed to get niagara graph when adding pin!"));
+		
 		Modify();
 		UEdGraphPin* Pin = this->RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
 	}

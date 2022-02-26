@@ -101,11 +101,6 @@ void UNiagaraNodeParameterMapBase::PinDescriptionTextCommitted(const FText& Text
 	Graph->SetMetaData(Var, NewMetaData);
 }
 
-void UNiagaraNodeParameterMapBase::CollectAddPinActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin)
-{
-	bOutCreateRemainingActions = true;
-}
-
 void UNiagaraNodeParameterMapBase::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const
 {
 	FText Text;
@@ -206,7 +201,21 @@ bool UNiagaraNodeParameterMapBase::CanHandleDropOperation(TSharedPtr<FDragDropOp
 	{
 		if (StaticCastSharedPtr<FNiagaraParameterGraphDragOperation>(DragDropOperation)->IsCurrentlyHoveringNode(this))
 		{
-			// The FNiagaraParameterGraphDragOperation handles the drop action itself so just return true here and let it handle it when it's executed.
+			TSharedPtr<FNiagaraParameterGraphDragOperation> ParameterDragDropOperation = StaticCastSharedPtr<FNiagaraParameterGraphDragOperation>(DragDropOperation);
+			
+			if(ParameterDragDropOperation->GetSourceAction().IsValid())
+			{
+				if(TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(ParameterDragDropOperation->GetSourceAction()))
+				{
+					FNiagaraVariable Parameter = ParameterAction->GetParameter();
+					// if the parameter already exists on a node, we won't allow a drop
+					if(DoesParameterExistOnNode(Parameter))
+					{
+						return false;
+					}
+				}				
+			}
+			
 			return true;
 		}
 	}
@@ -374,6 +383,24 @@ void UNiagaraNodeParameterMapBase::SelectParameterFromPin(const UEdGraphPin* InP
 			}
 		}
 	}
+}
+
+bool UNiagaraNodeParameterMapBase::DoesParameterExistOnNode(FNiagaraVariable Parameter)
+{
+	for(UEdGraphPin* Pin : Pins)
+	{
+		if(Pin->PinType.PinSubCategory == ParameterPinSubCategory)
+		{
+			FNiagaraVariable CandidateVariable = UEdGraphSchema_Niagara::PinToNiagaraVariable(Pin);
+
+			if(CandidateVariable == Parameter)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 void UNiagaraNodeParameterMapBase::GetChangeNamespaceModifierSubMenuForPin(UToolMenu* Menu, UEdGraphPin* InPin)
