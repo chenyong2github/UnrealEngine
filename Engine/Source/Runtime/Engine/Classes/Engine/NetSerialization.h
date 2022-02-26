@@ -401,7 +401,7 @@ bool SerializeFixedVector(FVector3d &Vector, FArchive& Ar)
  *	Note: this is the historical UE format for vector net serialization
  *
  */
-USTRUCT()
+USTRUCT(meta = (HasNativeMake = "Engine.KismetMathLibrary.MakeVector_NetQuantize", HasNativeBreak = "Engine.KismetMathLibrary.BreakVector_NetQuantize"))
 struct FVector_NetQuantize : public FVector
 {
 	GENERATED_USTRUCT_BODY()
@@ -413,7 +413,7 @@ struct FVector_NetQuantize : public FVector
 	: FVector(E)
 	{}
 
-	FORCEINLINE FVector_NetQuantize( float InX, float InY, float InZ )
+	FORCEINLINE FVector_NetQuantize(double InX, double InY, double InZ)
 	: FVector(InX, InY, InZ)
 	{}
 
@@ -447,7 +447,7 @@ struct TStructOpsTypeTraits< FVector_NetQuantize > : public TStructOpsTypeTraits
  *	Valid range: 2^24 / 10 = +/- 1,677,721.6
  *
  */
-USTRUCT()
+USTRUCT(meta = (HasNativeMake = "Engine.KismetMathLibrary.MakeVector_NetQuantize10", HasNativeBreak = "Engine.KismetMathLibrary.BreakVector_NetQuantize10"))
 struct FVector_NetQuantize10 : public FVector
 {
 	GENERATED_USTRUCT_BODY()
@@ -459,7 +459,7 @@ struct FVector_NetQuantize10 : public FVector
 	: FVector(E)
 	{}
 
-	FORCEINLINE FVector_NetQuantize10( float InX, float InY, float InZ )
+	FORCEINLINE FVector_NetQuantize10(double InX, double InY, double InZ)
 	: FVector(InX, InY, InZ)
 	{}
 
@@ -493,7 +493,7 @@ struct TStructOpsTypeTraits< FVector_NetQuantize10 > : public TStructOpsTypeTrai
  *	Valid range: 2^30 / 100 = +/- 10,737,418.24
  *
  */
-USTRUCT()
+USTRUCT(meta = (HasNativeMake = "Engine.KismetMathLibrary.MakeVector_NetQuantize100", HasNativeBreak = "Engine.KismetMathLibrary.BreakVector_NetQuantize100"))
 struct FVector_NetQuantize100 : public FVector
 {
 	GENERATED_USTRUCT_BODY()
@@ -505,7 +505,7 @@ struct FVector_NetQuantize100 : public FVector
 	: FVector(E)
 	{}
 
-	FORCEINLINE FVector_NetQuantize100( float InX, float InY, float InZ )
+	FORCEINLINE FVector_NetQuantize100(double InX, double InY, double InZ)
 	: FVector(InX, InY, InZ)
 	{}
 
@@ -535,7 +535,7 @@ struct TStructOpsTypeTraits< FVector_NetQuantize100 > : public TStructOpsTypeTra
  *	16 bits per component
  *	Valid range: -1..+1 inclusive
  */
-USTRUCT()
+USTRUCT(meta = (HasNativeMake = "Engine.KismetMathLibrary.MakeVector_NetQuantizeNormal", HasNativeBreak = "Engine.KismetMathLibrary.BreakVector_NetQuantizeNormal"))
 struct FVector_NetQuantizeNormal : public FVector
 {
 	GENERATED_USTRUCT_BODY()
@@ -547,7 +547,7 @@ struct FVector_NetQuantizeNormal : public FVector
 	: FVector(E)
 	{}
 
-	FORCEINLINE FVector_NetQuantizeNormal( float InX, float InY, float InZ )
+	FORCEINLINE FVector_NetQuantizeNormal(double InX, double InY, double InZ)
 	: FVector(InX, InY, InZ)
 	{}
 
