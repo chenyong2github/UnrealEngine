@@ -547,22 +547,41 @@ public:
 	void RegisterPlatformTag(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag = -1);
 	void RegisterProjectTag(int32 Tag, const TCHAR* Name, FName StatName, FName SummaryStatName, int32 ParentTag = -1);
     
+	// Get all tags being tracked
+	TArray<const UE::LLMPrivate::FTagData*> GetTrackedTags();
+
+	// Get all tags being tracked by the given tracker
+	TArray<const UE::LLMPrivate::FTagData*> GetTrackedTags(ELLMTracker Tracker);
+
 	// look up the ELLMTag associated with the given display name
-	bool FindTagByName( const TCHAR* Name, uint64& OutTag ) const;
+	bool FindTagByName(const TCHAR* Name, uint64& OutTag) const;
 
 	UE_DEPRECATED(4.27, "Use FindTagDisplayName instead")
 	const TCHAR* FindTagName(uint64 Tag) const;
+
 	// get the display name for the given ELLMTag
 	FName FindTagDisplayName(uint64 Tag) const;
 
+	// Get the display name for the given FTagData
+	FName GetTagDisplayName(const UE::LLMPrivate::FTagData* TagData) const;
+
+	// Get the path name for the given FTagData from a chain of its parents' display names
+	FString GetTagDisplayPathName(const UE::LLMPrivate::FTagData* TagData) const;
+
+	// Get the unique identifier name for the given FTagData
+	FName GetTagUniqueName(const UE::LLMPrivate::FTagData* TagData) const;
+
 	// Get the amount of memory for an ELLMTag from the given tracker
-	int64 GetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag);
+	int64 GetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, bool bPeakAmount = false);
+
+	// Get the amount of memory for a FTagData from the given tracker
+	int64 GetTagAmountForTracker(ELLMTracker Tracker, const UE::LLMPrivate::FTagData* TagData, bool bPeakAmount = false);
 
 	// Set the amount of memory for an ELLMTag for a given tracker, optionally updating the total tracked memory too
-	void SetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, int64 Amount, bool bAddToTotal );
+	void SetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, int64 Amount, bool bAddToTotal);
 
 	// Dump the display name of the current TagData for the given tracker to the output
-	uint64 DumpTag( ELLMTracker Tracker, const char* FileName, int LineNumber );
+	uint64 DumpTag(ELLMTracker Tracker, const char* FileName, int LineNumber);
 
 	// Publishes the active LLM stats in the active frame, useful for single targeted LLM snapshots
 	void PublishDataSingleFrame();
