@@ -636,6 +636,16 @@ public:
 	{
 		RemoveClusteredParticle(ClusteredParticle);
 		InsertClusteredParticle(ClusteredParticle);
+
+		if (ClusteredParticle->ObjectState() != EObjectStateType::Dynamic)
+		{
+			RemoveFromActiveArray(ClusteredParticle->CastToRigidParticle(), /*bStillDirty=*/true);
+		}
+		else
+		{
+			AddToActiveArray(ClusteredParticle->CastToRigidParticle());
+		}
+		
 		UpdateViews();
 	}
 
@@ -1064,7 +1074,6 @@ private:
 			{
 				{&ActiveParticlesMapArray.GetArray()},
 				//	{&DynamicClusteredMapArray.GetArray()},  Cluster particles appear in the ActiveParticlesArray
-				{&StaticGeometryCollectionArray},
 				{&KinematicGeometryCollectionArray},
 				{&DynamicGeometryCollectionArray},
 				{&FellAsleepGeometryCollectionArray.GetArray()},
