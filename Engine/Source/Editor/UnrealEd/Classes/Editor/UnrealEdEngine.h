@@ -98,8 +98,12 @@ struct FTemplateMapInfo
 	FSoftObjectPath Map;
 
 	/** Optional display name override for this map template  */
-	UPROPERTY()
+	UPROPERTY(config)
 	FText DisplayName;
+
+	/* Optional category used for sorting */
+	UPROPERTY(config)
+	FString Category;
 
 	FTemplateMapInfo()
 	{

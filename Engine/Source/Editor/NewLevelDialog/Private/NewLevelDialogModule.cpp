@@ -47,6 +47,7 @@ struct FNewLevelTemplateItem
 {
 	FTemplateMapInfo TemplateMapInfo;
 	FText Name;
+	FString Category;
 	TUniquePtr<FSlateBrush> ThumbnailBrush;
 	UTexture2D* ThumbnailAsset = nullptr;
 
@@ -353,6 +354,7 @@ private:
 			Item->TemplateMapInfo = TemplateMapInfo;
 			Item->Type = FNewLevelTemplateItem::NewLevelType::Template;
 			Item->Name = TemplateMapInfo.DisplayName;
+			Item->Category = TemplateMapInfo.Category;
 
 			UTexture2D* ThumbnailTexture = nullptr;
 			if (TemplateMapInfo.Thumbnail.IsValid())
@@ -429,18 +431,40 @@ private:
 		NewItem->ThumbnailBrush->DrawAs = ESlateBrushDrawType::RoundedBox;
 		TemplateItems.Add(NewItem);
 
+		const FString& OpenWorldCategory = TEXT("OpenWorld");
+
 		if (bShowPartitionedTemplates)
 		{
 			// Add an extra item for creating a new, blank level
 			TSharedPtr<FNewLevelTemplateItem> NewItemWP = MakeShareable(new FNewLevelTemplateItem());
 			NewItemWP->Type = FNewLevelTemplateItem::NewLevelType::EmptyWorldPartition;
 			NewItemWP->Name = LOCTEXT("NewWPLevelItemLabel", "Empty Open World");
+			NewItemWP->Category = OpenWorldCategory;
 			NewItemWP->ThumbnailBrush = MakeUnique<FSlateBrush>(*FEditorStyle::GetBrush("NewLevelDialog.BlankWP"));
 			NewItemWP->ThumbnailBrush->OutlineSettings.CornerRadii = FVector4(4, 4, 0, 0);
 			NewItemWP->ThumbnailBrush->OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
 			NewItemWP->ThumbnailBrush->DrawAs = ESlateBrushDrawType::RoundedBox;
 			TemplateItems.Add(NewItemWP);
 		}
+
+		// OpenWorld category always first, If Categories are the same compares Type which will put Templates before Empty maps
+		TemplateItems.Sort([&OpenWorldCategory](const TSharedPtr<FNewLevelTemplateItem>& LHS, const TSharedPtr<FNewLevelTemplateItem>& RHS)
+		{
+			if (LHS->Category == RHS->Category)
+			{
+				return LHS->Type > RHS->Type;
+			}
+			else if (LHS->Category == OpenWorldCategory)
+			{
+				return true;
+			}
+			else if (RHS->Category == OpenWorldCategory)
+			{
+				return false;
+			}
+
+			return LHS->Category > RHS->Category;
+		});
 
 		return TemplateItems;
 	}
