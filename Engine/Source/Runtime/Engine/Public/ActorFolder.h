@@ -38,6 +38,10 @@ public:
 	void SetLabel(const FString& InFolderLabel);
 	FString GetLabel() const { return FolderLabel; }
 
+	// Control whether the folder is initially expanded or not
+	void SetIsInitiallyExpanded(bool bInFolderInitiallyExpanded);
+	bool IsInitiallyExpanded() const { return bFolderInitiallyExpanded; }
+
 	const FGuid& GetGuid() const { return FolderGuid; }
 	FName GetPath() const;
 	FString GetDisplayName() const;
@@ -73,6 +77,9 @@ private:
 
 	UPROPERTY()
 	FString FolderLabel;
+
+	UPROPERTY()
+	bool bFolderInitiallyExpanded = true;
 
 	UPROPERTY()
 	bool bIsDeleted;

@@ -38,6 +38,7 @@ UActorFolder* UActorFolder::Create(ULevel* InLevel, const FString& InFolderLabel
 	ActorFolder->FolderGuid = NewFolderGuid;
 	ActorFolder->SetLabel(InFolderLabel);
 	ActorFolder->SetParent(InParent);
+	ActorFolder->SetIsInitiallyExpanded(true);
 
 	FLevelActorFoldersHelper::AddActorFolder(InLevel, ActorFolder, bShouldDirtyLevel);
 	return ActorFolder;
@@ -55,6 +56,7 @@ namespace ActorFolder
 	static const FName NAME_FolderGuid(TEXT("FolderGuid"));
 	static const FName NAME_ParentFolderGuid(TEXT("ParentFolderGuid"));
 	static const FName NAME_FolderLabel(TEXT("FolderLabel"));
+	static const FName NAME_FolderInitiallyExpanded(TEXT("FolderInitiallyExpanded"));
 	static const FName NAME_FolderIsDeleted(TEXT("FolderIsDeleted"));
 	static const FName NAME_OuterPackageName(TEXT("OuterPackageName"));
 };
@@ -64,6 +66,7 @@ void UActorFolder::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) cons
 	OutTags.Add(FAssetRegistryTag(ActorFolder::NAME_FolderGuid, *FolderGuid.ToString(), FAssetRegistryTag::TT_Hidden));
 	OutTags.Add(FAssetRegistryTag(ActorFolder::NAME_ParentFolderGuid, *ParentFolderGuid.ToString(), FAssetRegistryTag::TT_Hidden));
 	OutTags.Add(FAssetRegistryTag(ActorFolder::NAME_FolderLabel, *FolderLabel, FAssetRegistryTag::TT_Hidden));
+	OutTags.Add(FAssetRegistryTag(ActorFolder::NAME_FolderInitiallyExpanded, bFolderInitiallyExpanded ? TEXT("1") : TEXT("0"), FAssetRegistryTag::TT_Hidden));
 	OutTags.Add(FAssetRegistryTag(ActorFolder::NAME_FolderIsDeleted, bIsDeleted ? TEXT("1") : TEXT("0"), FAssetRegistryTag::TT_Hidden));
 	OutTags.Add(FAssetRegistryTag(ActorFolder::NAME_OuterPackageName, *GetOuterULevel()->GetPackage()->GetName(), FAssetRegistryTag::TT_Hidden));
 }
@@ -94,6 +97,10 @@ FActorFolderDesc UActorFolder::GetAssetRegistryInfoFromPackage(FName ActorFolder
 			{
 				ActorFolderDesc.FolderLabel = Value;
 			}
+			if (Asset.GetTagValue(ActorFolder::NAME_FolderInitiallyExpanded, Value))
+			{
+				ActorFolderDesc.bFolderInitiallyExpanded = (Value == TEXT("1"));
+			}
 			if (Asset.GetTagValue(ActorFolder::NAME_FolderIsDeleted, Value))
 			{
 				ActorFolderDesc.bFolderIsDeleted = (Value == TEXT("1"));
@@ -114,6 +121,16 @@ void UActorFolder::SetLabel(const FString& InFolderLabel)
 	{
 		Modify();
 		FolderLabel = InFolderLabel;
+	}
+}
+
+void UActorFolder::SetIsInitiallyExpanded(bool bInFolderInitiallyExpanded)
+{
+	check(IsValid());
+	if (bFolderInitiallyExpanded != bInFolderInitiallyExpanded)
+	{
+		Modify();
+		bFolderInitiallyExpanded = bInFolderInitiallyExpanded;
 	}
 }
 

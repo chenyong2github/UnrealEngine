@@ -15,7 +15,8 @@
   */
 
 FActorFolderDesc::FActorFolderDesc()
-	: bFolderIsDeleted(false)
+	: bFolderInitiallyExpanded(true)
+	, bFolderIsDeleted(false)
 {}
 
 FString FActorFolderDesc::GetDisplayName() const

@@ -330,6 +330,8 @@ bool UWorldPartitionHLODsBuilder::SetupHLODActors()
 {
 	auto ActorFolderAddedDelegateHandle = GEngine->OnActorFolderAdded().AddLambda([this](UActorFolder* InActorFolder)
 	{
+		// We don't want the HLOD folders to be expanded by default
+		InActorFolder->SetIsInitiallyExpanded(false);
 		SourceControlHelper->Save(InActorFolder->GetPackage());
 	});
 	
