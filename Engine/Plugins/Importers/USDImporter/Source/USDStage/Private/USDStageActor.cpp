@@ -603,7 +603,9 @@ struct FRecompilationTracker
 
 	static void OnCompilationStarted( UBlueprint* BP )
 	{
+		// We don't care if a BP is compiling on first load: It only matters to use if we're compiling one that already has loaded instances on the level
 		if ( !BP ||
+			 BP->bIsRegeneratingOnLoad ||
 			 !BP->GeneratedClass ||
 			 !BP->GeneratedClass->IsChildOf( AUsdStageActor::StaticClass() ) ||
 			 RecompilingBlueprints.Contains( BP ) )
@@ -1534,7 +1536,7 @@ void AUsdStageActor::OnObjectsReplaced( const TMap<UObject*, UObject*>& ObjectRe
 		// twins from the old actor, which is what the reinstantiation process should have done instead anyway. Note that only
 		// later will the components and actors being pointed to by this duplicated prim twin be moved to the PIE world, so those
 		// references would be updated correctly.
-		if ( RootUsdTwin->GetOuter() == this )
+		if ( RootUsdTwin && RootUsdTwin->GetOuter() == this )
 		{
 			NewActor->RootUsdTwin = DuplicateObject( RootUsdTwin, NewActor );
 		}
