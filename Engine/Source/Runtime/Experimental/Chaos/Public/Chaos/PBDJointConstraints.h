@@ -279,6 +279,7 @@ namespace Chaos
 		bool ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
 		bool ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
 		bool ApplyPhase3Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
+		void PreparePhase3Serial(const FReal Dt, const int32 It, FPBDIslandSolverData& SolverData);
 
 		/**
 		 * Set the solver method to use

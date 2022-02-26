@@ -1024,11 +1024,38 @@ namespace Chaos
 		}
 		return (NumActive > 0);
 	}
+	
+	void FPBDJointConstraints::PreparePhase3Serial(const FReal Dt, const int32 It, FPBDIslandSolverData& SolverData)
+	{
+		CSV_SCOPED_TIMING_STAT(Chaos, ProjectJointConstraints);
+		SCOPE_CYCLE_COUNTER(STAT_Joints_ApplyProjection);
+
+		if(It == 0 && Settings.bUseLinearSolver)
+		{
+			for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
+			{
+				const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
+				FPBDJointCachedSolver& Solver = CachedConstraintSolvers[ConstraintIndex];
+				
+				if ((FMath::IsNearlyZero(Solver.InvM(0)) && FMath::IsNearlyZero(Solver.InvM(1))))
+				{
+					return;
+				}
+				Solver.InitProjection(
+					Dt,
+					Settings,
+					JointSettings);
+			}
+		}
+	}
 
 	bool FPBDJointConstraints::ApplyPhase3Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData)
 	{
 		CSV_SCOPED_TIMING_STAT(Chaos, ProjectJointConstraints);
 		SCOPE_CYCLE_COUNTER(STAT_Joints_ApplyProjection);
+
+		// Prepare phase 3 for the linear solver in order to partially re-init the solver
+		PreparePhase3Serial(Dt, It, SolverData);
 
 		// UpdateConstraintProjection(It, NumIts, SolverData);
 		for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
@@ -1038,7 +1065,6 @@ namespace Chaos
 
 		return true;
 	}
-
 
 	void FPBDJointConstraints::UpdateConstraintProjection(const int32 It, const int32 NumIts, const FPBDIslandSolverData& SolverData)
 	{
@@ -1363,12 +1389,8 @@ namespace Chaos
 				return false;
 			}
 
-			// @todo(chaos): rebuild the joint state at the latest (post-solve) transforms
-			//Solver.Update(Dt, Settings, JointSettings);
-			//Solver.UpdateMasses(FReal(0), FReal(1));
-
 			const FReal IterationStiffness = CalculateIterationStiffness(It, NumIts);
-			Solver.ApplyProjections(Dt, IterationStiffness, Settings, JointSettings);
+			Solver.ApplyProjections(Dt, IterationStiffness, Settings, JointSettings, (It==(NumIts-1)));
 		}
 		else
 		{
