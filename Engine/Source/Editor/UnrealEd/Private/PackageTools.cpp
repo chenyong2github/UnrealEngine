@@ -1376,6 +1376,20 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		return SanitizedName;
 	}
 
+	FString UPackageTools::PackageNameToFilename(const FString& InPackageName, const FString& Extension)
+	{
+		FString Result;
+		FPackageName::TryConvertLongPackageNameToFilename(InPackageName, Result, Extension);
+		return Result;
+	}
+
+	FString UPackageTools::FilenameToPackageName(const FString& InFilename)
+	{
+		FString Result;
+    	FPackageName::TryConvertFilenameToLongPackageName(InFilename, Result);
+    	return Result;
+	}
+
 	UPackage* UPackageTools::FindOrCreatePackageForAssetType(const FName LongPackageName, UClass* AssetClass)
 	{
 		if (AssetClass)
