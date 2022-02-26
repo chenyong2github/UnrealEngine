@@ -13,6 +13,7 @@ namespace Chaos
 	//void CHAOS_API PhysicsParallelFor_RecursiveDivide(int32 InNum, TFunctionRef<void(int32)> InCallable, bool bForceSingleThreaded = false);
 
 
+	CHAOS_API extern int32 MaxNumWorkers;
 #if UE_BUILD_SHIPPING
 	const bool bDisablePhysicsParallelFor = false;
 	const bool bDisableParticleParallelFor = false;
@@ -21,6 +22,5 @@ namespace Chaos
 	CHAOS_API extern bool bDisablePhysicsParallelFor;
 	CHAOS_API extern bool bDisableParticleParallelFor;
 	CHAOS_API extern bool bDisableCollisionParallelFor;
-	CHAOS_API extern int32 MaxNumWorkers;
 #endif
 }
