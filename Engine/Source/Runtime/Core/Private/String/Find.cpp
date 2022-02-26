@@ -376,6 +376,11 @@ int32 FindLastOfAny(FWideStringView View, TConstArrayView<FWideStringView> Searc
 	return Private::FindLastOfAny(View, Search, SearchCase);
 }
 
+int32 FindFirstChar(FUtf8StringView View, ANSICHAR Search, ESearchCase::Type SearchCase)
+{
+	return Private::FindFirstChar(View, UTF8CHAR(Search), SearchCase);
+}
+
 int32 FindFirstChar(FUtf8StringView View, UTF8CHAR Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindFirstChar(View, Search, SearchCase);
@@ -384,6 +389,11 @@ int32 FindFirstChar(FUtf8StringView View, UTF8CHAR Search, ESearchCase::Type Sea
 int32 FindFirstChar(FWideStringView View, WIDECHAR Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindFirstChar(View, Search, SearchCase);
+}
+
+int32 FindLastChar(FUtf8StringView View, ANSICHAR Search, ESearchCase::Type SearchCase)
+{
+	return Private::FindLastChar(View, UTF8CHAR(Search), SearchCase);
 }
 
 int32 FindLastChar(FUtf8StringView View, UTF8CHAR Search, ESearchCase::Type SearchCase)
@@ -396,6 +406,11 @@ int32 FindLastChar(FWideStringView View, WIDECHAR Search, ESearchCase::Type Sear
 	return Private::FindLastChar(View, Search, SearchCase);
 }
 
+int32 FindFirstOfAnyChar(FUtf8StringView View, TConstArrayView<ANSICHAR> Search, ESearchCase::Type SearchCase)
+{
+	return Private::FindFirstOfAnyChar(View, MakeArrayView((const UTF8CHAR*)Search.GetData(), Search.Num()), SearchCase);
+}
+
 int32 FindFirstOfAnyChar(FUtf8StringView View, TConstArrayView<UTF8CHAR> Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindFirstOfAnyChar(View, Search, SearchCase);
@@ -404,6 +419,11 @@ int32 FindFirstOfAnyChar(FUtf8StringView View, TConstArrayView<UTF8CHAR> Search,
 int32 FindFirstOfAnyChar(FWideStringView View, TConstArrayView<WIDECHAR> Search, ESearchCase::Type SearchCase)
 {
 	return Private::FindFirstOfAnyChar(View, Search, SearchCase);
+}
+
+int32 FindLastOfAnyChar(FUtf8StringView View, TConstArrayView<ANSICHAR> Search, ESearchCase::Type SearchCase)
+{
+	return Private::FindLastOfAnyChar(View, MakeArrayView((const UTF8CHAR*)Search.GetData(), Search.Num()), SearchCase);
 }
 
 int32 FindLastOfAnyChar(FUtf8StringView View, TConstArrayView<UTF8CHAR> Search, ESearchCase::Type SearchCase)
