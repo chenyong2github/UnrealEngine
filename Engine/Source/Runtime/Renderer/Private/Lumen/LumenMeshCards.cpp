@@ -10,10 +10,9 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "LumenHeightfields.h"
 
-float GLumenMeshCardsMinSize = 30.0f;
-FAutoConsoleVariableRef CVarLumenMeshCardsMinSize(
+TAutoConsoleVariable<float> CVarLumenMeshCardsMinSize(
 	TEXT("r.LumenScene.SurfaceCache.MeshCardsMinSize"),
-	GLumenMeshCardsMinSize,
+	10.0f,
 	TEXT("Minimum mesh cards world space size to be included in Lumen Scene."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
 	{
@@ -151,6 +150,12 @@ FVector3f LumenMeshCards::GetAxisAlignedDirection(uint32 AxisAlignedDirectionInd
 	FVector3f Direction(0.0f, 0.0f, 0.0f);
 	Direction[AxisIndex] = AxisAlignedDirectionIndex & 1 ? 1.0f : -1.0f;
 	return Direction;
+}
+
+float LumenMeshCards::GetCardMinSurfaceArea(bool bEmissiveLightSource)
+{
+	const float MeshCardsMinSize = CVarLumenMeshCardsMinSize.GetValueOnRenderThread();
+	return MeshCardsMinSize * MeshCardsMinSize * (bEmissiveLightSource ? 0.2f : 1.0f);
 }
 
 class FLumenCardGPUData
@@ -814,7 +819,7 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 	const FVector3f ScaledBoundSize = (FVector3f)MeshCardsBuildData.Bounds.GetSize() * LocalToWorldScale;
 	const FVector3f FaceSurfaceArea(ScaledBoundSize.Y * ScaledBoundSize.Z, ScaledBoundSize.X * ScaledBoundSize.Z, ScaledBoundSize.Y * ScaledBoundSize.X);
 	const float LargestFaceArea = FaceSurfaceArea.GetMax();
-	const float MinFaceSurfaceArea = GLumenMeshCardsMinSize * GLumenMeshCardsMinSize * (PrimitiveGroup.bEmissiveLightSource ? .1f : 1.0f);
+	const float MinFaceSurfaceArea = LumenMeshCards::GetCardMinSurfaceArea(PrimitiveGroup.bEmissiveLightSource);
 	const int32 LODLevel = FMath::Clamp(GLumenMeshCardsMaxLOD, 0, MeshCardsBuildData.MaxLODLevel);
 
 	if (LargestFaceArea > MinFaceSurfaceArea

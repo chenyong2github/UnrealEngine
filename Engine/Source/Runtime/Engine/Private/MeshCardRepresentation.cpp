@@ -134,7 +134,7 @@ FCardRepresentationAsyncQueue* GCardRepresentationAsyncQueue = NULL;
 #if WITH_EDITOR
 
 // DDC key for card representation data, must be changed when modifying the generation code or data format
-#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("E75C4BB2-3C39-464A-ACA8-67FF69F47553")
+#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("B7D0E3B0-440D-4C33-82C7-B2117F14A692")
 
 FString BuildCardRepresentationDerivedDataKey(const FString& InMeshKey, int32 MaxLumenMeshCards)
 {

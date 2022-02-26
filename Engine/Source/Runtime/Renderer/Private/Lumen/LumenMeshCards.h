@@ -70,3 +70,8 @@ public:
 	uint32 NumCards = 0;
 	uint32 CardLookup[Lumen::NumAxisAlignedDirections];
 };
+
+namespace LumenMeshCards
+{
+	float GetCardMinSurfaceArea(bool bEmissiveLightSource);
+};

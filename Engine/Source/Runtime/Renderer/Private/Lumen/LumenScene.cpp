@@ -555,9 +555,7 @@ bool TrackPrimitiveInstanceForLumenScene(const FMatrix& LocalToWorld, const FBox
 	const FVector FaceSurfaceArea(ScaledBoundSize.Y * ScaledBoundSize.Z, ScaledBoundSize.X * ScaledBoundSize.Z, ScaledBoundSize.Y * ScaledBoundSize.X);
 	const float LargestFaceArea = FaceSurfaceArea.GetMax();
 
-	extern float GLumenMeshCardsMinSize;
-	const float MinFaceSurfaceArea = GLumenMeshCardsMinSize * GLumenMeshCardsMinSize * (bEmissiveLightSource ? .1f : 1.0f);
-
+	const float MinFaceSurfaceArea = LumenMeshCards::GetCardMinSurfaceArea(bEmissiveLightSource);
 	return LargestFaceArea > MinFaceSurfaceArea;
 }
 

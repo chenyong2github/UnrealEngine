@@ -25,8 +25,6 @@ namespace MeshCardGen
 {
 	int32 constexpr NumAxisAlignedDirections = 6;
 	int32 constexpr MaxCardsPerMesh = 32;
-	int32 constexpr NumSurfelSamples = 16;
-	int32 constexpr MinSurfelSamples = 2;
 };
 
 class FGenerateCardMeshContext
@@ -346,34 +344,33 @@ void FSurfelCluster::UpdateWeightedCoverage(const TArray<FSurfel>& Surfels)
 	}
 }
 
-struct FSurfelCandidate
+struct FSurfelSample
 {
 	FVector3f Position;
 	FVector3f Normal;
 	int32 MinRayZ;
-};
-
-struct FSurfelCandidateCell
-{
-	TArray<FSurfelCandidate, TFixedAllocator<MeshCardGen::NumSurfelSamples>> Candidates;
+	int32 CellZ;
 };
 
 // Trace rays over the hemisphere and discard surfels which mostly hit back faces
 bool CheckIfSurfelIsValid(
 	const FGenerateCardMeshContext& Context,
-	const TArray<FSurfelCandidate, TFixedAllocator<MeshCardGen::NumSurfelSamples>>& Candidates,
+	const TArray<FSurfelSample>& SurfelSamples,
+	uint32 SurfelSamplesOffset,
+	uint32 SurfelSamplesNum,
 	const TArray<FVector3f>& RayDirectionsOverHemisphere,
 	FLumenCardBuildDebugData& DebugData)
 {
-	uint32 CandidateIndex = 0;
+	uint32 SurfelSampleIndex = 0;
 	uint32 NumHits = 0;
 	uint32 NumBackFaceHits = 0;
 	const float SurfaceRayBias = 0.1f;
 
 	for (int32 RayIndex = 0; RayIndex < RayDirectionsOverHemisphere.Num(); ++RayIndex)
 	{
-		const FMatrix44f SurfaceBasis = MeshRepresentation::GetTangentBasisFrisvad(Candidates[CandidateIndex].Normal);
-		const FVector3f RayOrigin = Candidates[CandidateIndex].Position;
+		const FSurfelSample& SurfelSample = SurfelSamples[SurfelSampleIndex + SurfelSamplesOffset];
+		const FMatrix44f SurfaceBasis = MeshRepresentation::GetTangentBasisFrisvad(SurfelSample.Normal);
+		const FVector3f RayOrigin = SurfelSample.Position;
 		const FVector3f RayDirection = SurfaceBasis.TransformVector(RayDirectionsOverHemisphere[RayIndex]);
 
 		FEmbreeRay EmbreeRay;
@@ -407,43 +404,54 @@ bool CheckIfSurfelIsValid(
 		SurfelRay.bHit = EmbreeRay.ray.tfar < FLT_MAX;
 #endif
 
-		CandidateIndex = (CandidateIndex + 1) % Candidates.Num();
+		SurfelSampleIndex = (SurfelSampleIndex + 1) % SurfelSamplesNum;
 	}
 
 	const bool bInsideGeometry = NumHits > 0 && NumBackFaceHits > RayDirectionsOverHemisphere.Num() * 0.2f;
 	return !bInsideGeometry;
 }
 
+/**
+ * Voxelize mesh by casting multiple rays per cell
+ */
 void GenerateSurfelsForDirection(
 	const FGenerateCardMeshContext& Context,
 	const FAxisAlignedDirectionBasis& ClusterBasis,	
 	const TArray<FVector3f>& RayDirectionsOverHemisphere,
-	float VoxelSize,
+	const FClusteringParams& ClusteringParams,
 	FSurfelScenePerDirection& SurfelScenePerDirection)
 {
 	const float NormalWeightTreshold = MeshCardRepresentation::GetNormalTreshold();
 	const FVector3f RayDirection = ClusterBasis.LocalToWorldRotation.GetScaledAxis(EAxis::Type::Z);
 
-	TArray<FSurfelCandidateCell> SurfelCandidateCells;
-	SurfelCandidateCells.SetNum(ClusterBasis.VolumeSize.Z);
+	const uint32 NumSurfelSamples = 32;
+	const uint32 MinSurfelSamples = 1;
+
+	TArray<FSurfelSample> SurfelSamples;
+	TArray<uint32> NumSurfelSamplesPerCell;
+	TArray<uint32> SurfelSamplesOffsetPerCell;
 
 	for (int32 CoordY = 0; CoordY < ClusterBasis.VolumeSize.Y; ++CoordY)
 	{
 		for (int32 CoordX = 0; CoordX < ClusterBasis.VolumeSize.X; ++CoordX)
 		{
+			SurfelSamples.Reset();
+			NumSurfelSamplesPerCell.SetNum(ClusterBasis.VolumeSize.Z);
+			SurfelSamplesOffsetPerCell.SetNum(ClusterBasis.VolumeSize.Z);
 			for (int32 CoordZ = 0; CoordZ < ClusterBasis.VolumeSize.Z; ++CoordZ)
 			{
-				SurfelCandidateCells[CoordZ].Candidates.Reset();
+				NumSurfelSamplesPerCell[CoordZ] = 0;
+				SurfelSamplesOffsetPerCell[CoordZ] = 0;
 			}
 
 			// Trace multiple rays per cell and mark cells which need to spawn a surfel
-			for (uint32 SampleIndex = 0; SampleIndex < MeshCardGen::NumSurfelSamples; ++SampleIndex)
+			for (uint32 SampleIndex = 0; SampleIndex < NumSurfelSamples; ++SampleIndex)
 			{
 				FVector3f Jitter;
-				Jitter.X = (SampleIndex + 0.5f) / MeshCardGen::NumSurfelSamples;
+				Jitter.X = (SampleIndex + 0.5f) / NumSurfelSamples;
 				Jitter.Y = (double)ReverseBits(SampleIndex) / (double)0x100000000LL;
 
-				FVector3f RayOrigin = ClusterBasis.LocalToWorldRotation.TransformPosition(FVector3f(CoordX + Jitter.X, CoordY + Jitter.Y, 0.0f)) * VoxelSize + ClusterBasis.LocalToWorldOffset;
+				FVector3f RayOrigin = ClusterBasis.LocalToWorldRotation.TransformPosition(FVector3f(CoordX + Jitter.X, CoordY + Jitter.Y, 0.0f)) * ClusteringParams.VoxelSize + ClusterBasis.LocalToWorldOffset;
 
 				int32 LastHitCoordZ = -2;
 				while (LastHitCoordZ < ClusterBasis.VolumeSize.Z)
@@ -455,7 +463,7 @@ void GenerateSurfelsForDirection(
 					EmbreeRay.ray.dir_x = RayDirection.X;
 					EmbreeRay.ray.dir_y = RayDirection.Y;
 					EmbreeRay.ray.dir_z = RayDirection.Z;
-					EmbreeRay.ray.tnear = (LastHitCoordZ + 1) * VoxelSize;
+					EmbreeRay.ray.tnear = (LastHitCoordZ + 1) * ClusteringParams.VoxelSize;
 					EmbreeRay.ray.tfar = FLT_MAX;
 
 					FEmbreeIntersectionContext EmbreeContext;
@@ -464,7 +472,7 @@ void GenerateSurfelsForDirection(
 
 					if (EmbreeRay.hit.geomID != RTC_INVALID_GEOMETRY_ID && EmbreeRay.hit.primID != RTC_INVALID_GEOMETRY_ID)
 					{
-						const int32 HitCoordZ = FMath::Clamp(EmbreeRay.ray.tfar / VoxelSize, 0, ClusterBasis.VolumeSize.Z);
+						const int32 HitCoordZ = FMath::Clamp(EmbreeRay.ray.tfar / ClusteringParams.VoxelSize, 0, ClusterBasis.VolumeSize.Z - 1);
 
 						FVector SurfaceNormal = (FVector)EmbreeRay.GetHitNormal();
 						float NdotD = FVector::DotProduct((FVector)-RayDirection, SurfaceNormal);
@@ -479,14 +487,15 @@ void GenerateSurfelsForDirection(
 						const bool bPassProjectionTest = NdotD >= NormalWeightTreshold;
 						if (bPassProjectionTest && HitCoordZ > LastHitCoordZ + 1 && HitCoordZ < ClusterBasis.VolumeSize.Z)
 						{
-							FSurfelCandidate& SurfelCandidate = SurfelCandidateCells[HitCoordZ].Candidates.AddDefaulted_GetRef();
-							SurfelCandidate.Position = RayOrigin + RayDirection * EmbreeRay.ray.tfar;
-							SurfelCandidate.Normal = (FVector3f)SurfaceNormal;
+							FSurfelSample& SurfelSample = SurfelSamples.AddDefaulted_GetRef();
+							SurfelSample.Position = RayOrigin + RayDirection * EmbreeRay.ray.tfar;
+							SurfelSample.Normal = (FVector3f)SurfaceNormal;
+							SurfelSample.CellZ = HitCoordZ;
+							SurfelSample.MinRayZ = 0;
 
-							SurfelCandidate.MinRayZ = 0;
 							if (LastHitCoordZ >= 0)
 							{
-								SurfelCandidate.MinRayZ = FMath::Max(SurfelCandidate.MinRayZ, LastHitCoordZ + 1);
+								SurfelSample.MinRayZ = FMath::Max(SurfelSample.MinRayZ, LastHitCoordZ + 1);
 							}
 						}
 
@@ -499,34 +508,59 @@ void GenerateSurfelsForDirection(
 				}
 			}
 
+			// Sort surfel candidates and compact arrays
+			{
+				struct FSortByZ
+				{
+					FORCEINLINE bool operator()(const FSurfelSample& A, const FSurfelSample& B) const
+					{
+						if (A.CellZ != B.CellZ)
+						{
+							return A.CellZ < B.CellZ;
+						}
+
+						return A.MinRayZ > B.MinRayZ;
+					}
+				};
+
+				SurfelSamples.Sort(FSortByZ());
+
+				for (int32 SampleIndex = 0; SampleIndex < SurfelSamples.Num(); ++SampleIndex)
+				{
+					const FSurfelSample& SurfelSample = SurfelSamples[SampleIndex];
+					++NumSurfelSamplesPerCell[SurfelSample.CellZ];
+				}
+
+				for (int32 CoordZ = 1; CoordZ < ClusterBasis.VolumeSize.Z; ++CoordZ)
+				{
+					SurfelSamplesOffsetPerCell[CoordZ] = SurfelSamplesOffsetPerCell[CoordZ - 1] + NumSurfelSamplesPerCell[CoordZ - 1];
+				}
+			}
+
 			// Convert surfel candidates into actual surfels
 			for (int32 CoordZ = 0; CoordZ < ClusterBasis.VolumeSize.Z; ++CoordZ)
 			{
-				FSurfelCandidateCell& SurfelCandidateCell = SurfelCandidateCells[CoordZ];
-				if (SurfelCandidateCell.Candidates.Num() >= MeshCardGen::MinSurfelSamples)
+				const uint32 CellNumSurfelSamples = NumSurfelSamplesPerCell[CoordZ];
+				const uint32 CellSurfelSamplesOffset = SurfelSamplesOffsetPerCell[CoordZ];
+
+				if (CellNumSurfelSamples >= MinSurfelSamples)
 				{
 					const bool bValidSurfel = CheckIfSurfelIsValid(
 						Context,
-						SurfelCandidateCell.Candidates,
+						SurfelSamples,
+						CellSurfelSamplesOffset,
+						CellNumSurfelSamples,
 						RayDirectionsOverHemisphere,
 						SurfelScenePerDirection.DebugData);
 
 					if (bValidSurfel)
 					{
-						struct FSortByMinZ
-						{
-							FORCEINLINE bool operator()(const FSurfelCandidate& A, const FSurfelCandidate& B) const
-							{
-								return A.MinRayZ > B.MinRayZ;
-							}
-						};
-
-						SurfelCandidateCell.Candidates.Sort(FSortByMinZ());
-						const int32 MedianMinRayZ = SurfelCandidateCell.Candidates[SurfelCandidateCell.Candidates.Num() / 2].MinRayZ;
+						const int32 MedianMinRayZ = SurfelSamples[CellSurfelSamplesOffset + CellNumSurfelSamples / 2].MinRayZ;
 
 						FSurfel& Surfel = SurfelScenePerDirection.Surfels.AddDefaulted_GetRef();
 						Surfel.Coord = FIntVector(CoordX, CoordY, CoordZ);
 						Surfel.MinRayZ = MedianMinRayZ;
+						check(Surfel.Coord.Z > Surfel.MinRayZ || Surfel.MinRayZ == 0);
 					}
 
 #if DEBUG_MESH_CARD_VISUALIZATION
@@ -548,7 +582,7 @@ void GenerateSurfels(
 	const FGenerateCardMeshContext& Context,
 	const FBox& MeshCardsBounds,
 	FSurfelScene& SurfelScene,
-	FClusteringParams& ClusteringParams)
+	const FClusteringParams& ClusteringParams)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateSurfels);
 
@@ -559,81 +593,6 @@ void GenerateSurfels(
 	if (NumSourceTriangles == 0)
 	{
 		return;
-	}
-
-	const float TargetVoxelSize = 20.0f;
-	const int32 MaxVoxels = 64;
-
-	const FVector3f MeshCardsBoundsSize = 2.0f * (FVector3f)MeshCardsBounds.GetExtent();
-	const float MaxMeshCardsBounds = MeshCardsBoundsSize.GetMax();
-	const float MaxSizeInVoxels = FMath::Clamp(MaxMeshCardsBounds / TargetVoxelSize + 0.5f, 1, MaxVoxels);
-	const float VoxelSize = FMath::Max(TargetVoxelSize, MaxMeshCardsBounds / MaxSizeInVoxels);
-
-	FIntVector SizeInVoxels;
-	SizeInVoxels.X = FMath::Clamp(FMath::CeilToFloat(MeshCardsBoundsSize.X / VoxelSize), 1, MaxVoxels);
-	SizeInVoxels.Y = FMath::Clamp(FMath::CeilToFloat(MeshCardsBoundsSize.Y / VoxelSize), 1, MaxVoxels);
-	SizeInVoxels.Z = FMath::Clamp(FMath::CeilToFloat(MeshCardsBoundsSize.Z / VoxelSize), 1, MaxVoxels);
-
-	const FVector3f VoxelBoundsCenter = (FVector3f)MeshCardsBounds.GetCenter();
-	const FVector3f VoxelBoundsExtent = FVector3f(SizeInVoxels) * VoxelSize * 0.5f;
-	const FVector3f VoxelBoundsMin = VoxelBoundsCenter - VoxelBoundsExtent;
-	const FVector3f VoxelBoundsMax = VoxelBoundsCenter + VoxelBoundsExtent;
-
-	for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < MeshCardGen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
-	{
-		FAxisAlignedDirectionBasis& ClusterBasis = ClusteringParams.ClusterBasis[AxisAlignedDirectionIndex];
-		ClusterBasis.VoxelSize = VoxelSize;
-
-		FVector3f XAxis = FVector3f(1.0f, 0.0f, 0.0f);
-		FVector3f YAxis = FVector3f(0.0f, 1.0f, 0.0f);
-		switch (AxisAlignedDirectionIndex / 2)
-		{
-		case 0:
-			XAxis = FVector3f(0.0f, 1.0f, 0.0f);
-			YAxis = FVector3f(0.0f, 0.0f, 1.0f);
-			break;
-
-		case 1:
-			XAxis = FVector3f(1.0f, 0.0f, 0.0f);
-			YAxis = FVector3f(0.0f, 0.0f, 1.0f);
-			break;
-
-		case 2:
-			XAxis = FVector3f(1.0f, 0.0f, 0.0f);
-			YAxis = FVector3f(0.0f, 1.0f, 0.0f);
-			break;
-		}
-
-		FVector3f ZAxis = AxisAlignedDirectionIndexToNormal(AxisAlignedDirectionIndex);
-
-		ClusterBasis.LocalToWorldRotation = FMatrix44f(XAxis, YAxis, -ZAxis, FVector3f::ZeroVector);
-
-		ClusterBasis.LocalToWorldOffset = VoxelBoundsMin;
-		if (AxisAlignedDirectionIndex & 1)
-		{
-			ClusterBasis.LocalToWorldOffset[AxisAlignedDirectionIndex / 2] = VoxelBoundsMax[AxisAlignedDirectionIndex / 2];
-		}
-
-		switch (AxisAlignedDirectionIndex / 2)
-		{
-		case 0:
-			ClusterBasis.VolumeSize.X = SizeInVoxels.Y;
-			ClusterBasis.VolumeSize.Y = SizeInVoxels.Z;
-			ClusterBasis.VolumeSize.Z = SizeInVoxels.X;
-			break;
-
-		case 1:
-			ClusterBasis.VolumeSize.X = SizeInVoxels.X;
-			ClusterBasis.VolumeSize.Y = SizeInVoxels.Z;
-			ClusterBasis.VolumeSize.Z = SizeInVoxels.Y;
-			break;
-
-		case 2:
-			ClusterBasis.VolumeSize.X = SizeInVoxels.X;
-			ClusterBasis.VolumeSize.Y = SizeInVoxels.Y;
-			ClusterBasis.VolumeSize.Z = SizeInVoxels.Z;
-			break;
-		}
 	}
 
 	// Generate random ray directions over a hemisphere
@@ -658,18 +617,11 @@ void GenerateSurfels(
 					Context,
 					ClusteringParams.ClusterBasis[AxisAlignedDirectionIndex],
 					RayDirectionsOverHemisphere,
-					VoxelSize,
+					ClusteringParams,
 					SurfelScenePerDirection
 				);
 			}			
 		}, bSingleThreaded? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
-
-	ClusteringParams.VoxelSize = VoxelSize;
-	ClusteringParams.MaxSurfelDistanceXY = MeshCardRepresentation::GetMaxSurfelDistanceXY();
-	ClusteringParams.MaxSurfelDistanceZ = MeshCardRepresentation::GetMaxSurfelDistanceZ();
-	ClusteringParams.SurfelDistanceZMult = ClusteringParams.MaxSurfelDistanceXY / float(ClusteringParams.MaxSurfelDistanceZ);
-	ClusteringParams.MinSurfelsPerCluster = 20;
-	ClusteringParams.MinDensityPerCluster = MeshCardRepresentation::GetMinDensity();
 
 #if DEBUG_MESH_CARD_VISUALIZATION
 	for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < MeshCardGen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
@@ -860,7 +812,9 @@ void UpdateLODLevelCoverage(const FSurfelScene& SurfelScene, const FClusteringPa
 	}
 }
 
-// Cluster only by direction
+/** 
+ * Cluster only by direction, trying to represent mesh by up to 6 axis aligned projections (like a cubemap)
+ */
 void BuildMeshCardsLOD0(const FBox& MeshBounds, const FGenerateCardMeshContext& Context, const FSurfelScene& SurfelScene, const FClusteringParams& ClusteringParams, FMeshCardsLODLevel& LODLevel)
 {
 	for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < MeshCardGen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
@@ -1168,96 +1122,93 @@ void SerializeLOD(
 
 		for (const FSurfelCluster& Cluster : Clusters)
 		{
-			if (Cluster.IsValid(ClusteringParams))
-			{
-				// Clamp to mesh bounds
-				FVector3f ClusterBoundsMin = (FVector3f(Cluster.Bounds.Min) - FVector3f(0.0f, 0.0f, 0.5f)) * ClusteringParams.VoxelSize;
-				FVector3f ClusterBoundsMax = (FVector3f(Cluster.Bounds.Max) + FVector3f(1.0f, 1.0f, 1.0f)) * ClusteringParams.VoxelSize;
-				ClusterBoundsMin = FVector3f::Max(ClusterBoundsMin, LocalMeshCardsBounds.Min);
-				ClusterBoundsMax = FVector3f::Min(ClusterBoundsMax, LocalMeshCardsBounds.Max);
+			// Clamp to mesh bounds
+			FVector3f ClusterBoundsMin = (FVector3f(Cluster.Bounds.Min) - FVector3f(0.0f, 0.0f, 0.5f)) * ClusteringParams.VoxelSize;
+			FVector3f ClusterBoundsMax = (FVector3f(Cluster.Bounds.Max) + FVector3f(1.0f, 1.0f, 1.0f)) * ClusteringParams.VoxelSize;
+			ClusterBoundsMin = FVector3f::Max(ClusterBoundsMin, LocalMeshCardsBounds.Min);
+			ClusterBoundsMax = FVector3f::Min(ClusterBoundsMax, LocalMeshCardsBounds.Max);
 
-				const FVector3f ClusterBoundsOrigin = (ClusterBoundsMax + ClusterBoundsMin) * 0.5f;
-				const FVector3f ClusterBoundsExtent = (ClusterBoundsMax - ClusterBoundsMin) * 0.5f;
-				const FVector3f MeshClusterBoundsOrigin = ClusterBasis.LocalToWorldRotation.TransformPosition(ClusterBoundsOrigin) + ClusterBasis.LocalToWorldOffset;
+			const FVector3f ClusterBoundsOrigin = (ClusterBoundsMax + ClusterBoundsMin) * 0.5f;
+			const FVector3f ClusterBoundsExtent = (ClusterBoundsMax - ClusterBoundsMin) * 0.5f;
+			const FVector3f MeshClusterBoundsOrigin = ClusterBasis.LocalToWorldRotation.TransformPosition(ClusterBoundsOrigin) + ClusterBasis.LocalToWorldOffset;
 
-				FLumenCardBuildData BuiltData;
-				BuiltData.OBB.Origin = MeshClusterBoundsOrigin;
-				BuiltData.OBB.Extent = ClusterBoundsExtent;
-				BuiltData.OBB.AxisX = ClusterBasis.LocalToWorldRotation.GetScaledAxis(EAxis::X);
-				BuiltData.OBB.AxisY = ClusterBasis.LocalToWorldRotation.GetScaledAxis(EAxis::Y);
-				BuiltData.OBB.AxisZ = -ClusterBasis.LocalToWorldRotation.GetScaledAxis(EAxis::Z);
-				BuiltData.LODLevel = LODLevelIndex;
-				BuiltData.AxisAlignedDirectionIndex = AxisAlignedDirectionIndex;
-				MeshCardsBuildData.CardBuildData.Add(BuiltData);
+			FLumenCardBuildData BuiltData;
+			BuiltData.OBB.Origin = MeshClusterBoundsOrigin;
+			BuiltData.OBB.Extent = ClusterBoundsExtent;
+			BuiltData.OBB.AxisX = ClusterBasis.LocalToWorldRotation.GetScaledAxis(EAxis::X);
+			BuiltData.OBB.AxisY = ClusterBasis.LocalToWorldRotation.GetScaledAxis(EAxis::Y);
+			BuiltData.OBB.AxisZ = -ClusterBasis.LocalToWorldRotation.GetScaledAxis(EAxis::Z);
+			BuiltData.LODLevel = LODLevelIndex;
+			BuiltData.AxisAlignedDirectionIndex = AxisAlignedDirectionIndex;
+			MeshCardsBuildData.CardBuildData.Add(BuiltData);
 
 #if DEBUG_MESH_CARD_VISUALIZATION
-				DebugSurfelInCluster.Reset();
-				DebugSurfelInCluster.Add(false, Surfels.Num());
+			DebugSurfelInCluster.Reset();
+			DebugSurfelInCluster.Add(false, Surfels.Num());
 
-				FLumenCardBuildDebugData::FSurfelCluster& DebugCluster = MeshCardsBuildData.DebugData.Clusters.AddDefaulted_GetRef();
-				DebugCluster.Surfels.Reserve(DebugCluster.Surfels.Num() + Surfels.Num());
+			FLumenCardBuildDebugData::FSurfelCluster& DebugCluster = MeshCardsBuildData.DebugData.Clusters.AddDefaulted_GetRef();
+			DebugCluster.Surfels.Reserve(DebugCluster.Surfels.Num() + Surfels.Num());
 
-				// Cluster seed
+			// Cluster seed
+			{
+				FLumenCardBuildDebugData::FSurfel DebugSurfel;
+				DebugSurfel.Position = ClusterBasis.TransformSurfel(Surfels[Cluster.SurfelIndices[0]].Coord);
+				DebugSurfel.Normal = AxisAlignedDirectionIndexToNormal(AxisAlignedDirectionIndex);
+				DebugSurfel.SourceSurfelIndex = SourceSurfelOffset + Cluster.SurfelIndices[0];
+				DebugSurfel.Type = FLumenCardBuildDebugData::ESurfelType::Seed;
+				DebugCluster.Surfels.Add(DebugSurfel);
+			}
+
+			{
+				const FSurfelIndex AverageSurfelIndex = FindBestSeed(ClusteringParams, SurfelScenePerDirection, Cluster);
+
+				FLumenCardBuildDebugData::FSurfel DebugSurfel;
+				DebugSurfel.Position = ClusterBasis.TransformSurfel(Surfels[AverageSurfelIndex].Coord);
+				DebugSurfel.Normal = AxisAlignedDirectionIndexToNormal(AxisAlignedDirectionIndex);
+				DebugSurfel.SourceSurfelIndex = SourceSurfelOffset + AverageSurfelIndex;
+				DebugSurfel.Type = FLumenCardBuildDebugData::ESurfelType::Seed2;
+				DebugCluster.Surfels.Add(DebugSurfel);
+			}
+
+			for (FSurfelIndex SurfelIndex : Cluster.SurfelIndices)
+			{
+				FLumenCardBuildDebugData::FSurfel DebugSurfel;
+				DebugSurfel.Position = ClusterBasis.TransformSurfel(Surfels[SurfelIndex].Coord);
+				DebugSurfel.Normal = AxisAlignedDirectionIndexToNormal(AxisAlignedDirectionIndex);
+				DebugSurfel.SourceSurfelIndex = SourceSurfelOffset + SurfelIndex;
+				DebugSurfel.Type = FLumenCardBuildDebugData::ESurfelType::Cluster;
+				DebugCluster.Surfels.Add(DebugSurfel);
+
+				const int32 SurfelMinRayZ = Surfels[SurfelIndex].MinRayZ;
+				if (SurfelMinRayZ > 0)
 				{
-					FLumenCardBuildDebugData::FSurfel DebugSurfel;
-					DebugSurfel.Position = ClusterBasis.TransformSurfel(Surfels[Cluster.SurfelIndices[0]].Coord);
-					DebugSurfel.Normal = AxisAlignedDirectionIndexToNormal(AxisAlignedDirectionIndex);
-					DebugSurfel.SourceSurfelIndex = SourceSurfelOffset + Cluster.SurfelIndices[0];
-					DebugSurfel.Type = FLumenCardBuildDebugData::ESurfelType::Seed;
-					DebugCluster.Surfels.Add(DebugSurfel);
+					FIntVector MinRayZCoord = Surfels[SurfelIndex].Coord;
+					MinRayZCoord.Z = SurfelMinRayZ;
+
+					FLumenCardBuildDebugData::FRay DebugRay;
+					DebugRay.RayStart = DebugSurfel.Position;
+					DebugRay.RayEnd = ClusterBasis.TransformSurfel(MinRayZCoord);
+					DebugRay.bHit = false;
+					DebugCluster.Rays.Add(DebugRay);
 				}
 
-				{
-					const FSurfelIndex AverageSurfelIndex = FindBestSeed(ClusteringParams, SurfelScenePerDirection, Cluster);
+				DebugSurfelInAnyCluster[SurfelIndex] = true;
+				DebugSurfelInCluster[SurfelIndex] = true;
+			}
 
-					FLumenCardBuildDebugData::FSurfel DebugSurfel;
-					DebugSurfel.Position = ClusterBasis.TransformSurfel(Surfels[AverageSurfelIndex].Coord);
-					DebugSurfel.Normal = AxisAlignedDirectionIndexToNormal(AxisAlignedDirectionIndex);
-					DebugSurfel.SourceSurfelIndex = SourceSurfelOffset + AverageSurfelIndex;
-					DebugSurfel.Type = FLumenCardBuildDebugData::ESurfelType::Seed2;
-					DebugCluster.Surfels.Add(DebugSurfel);
-				}
-
-				for (FSurfelIndex SurfelIndex : Cluster.SurfelIndices)
+			for (FSurfelIndex SurfelIndex = 0; SurfelIndex < Surfels.Num(); ++SurfelIndex)
+			{
+				if (!DebugSurfelInCluster[SurfelIndex])
 				{
 					FLumenCardBuildDebugData::FSurfel DebugSurfel;
 					DebugSurfel.Position = ClusterBasis.TransformSurfel(Surfels[SurfelIndex].Coord);
 					DebugSurfel.Normal = AxisAlignedDirectionIndexToNormal(AxisAlignedDirectionIndex);
 					DebugSurfel.SourceSurfelIndex = SourceSurfelOffset + SurfelIndex;
-					DebugSurfel.Type = FLumenCardBuildDebugData::ESurfelType::Cluster;
+					DebugSurfel.Type = DebugSurfelInAnyCluster[SurfelIndex] ? FLumenCardBuildDebugData::ESurfelType::Used : FLumenCardBuildDebugData::ESurfelType::Idle;
 					DebugCluster.Surfels.Add(DebugSurfel);
-
-					const int32 SurfelMinRayZ = Surfels[SurfelIndex].MinRayZ;
-					if (SurfelMinRayZ > 0)
-					{
-						FIntVector MinRayZCoord = Surfels[SurfelIndex].Coord;
-						MinRayZCoord.Z = SurfelMinRayZ;
-
-						FLumenCardBuildDebugData::FRay DebugRay;
-						DebugRay.RayStart = DebugSurfel.Position;
-						DebugRay.RayEnd = ClusterBasis.TransformSurfel(MinRayZCoord);
-						DebugRay.bHit = false;
-						DebugCluster.Rays.Add(DebugRay);
-					}
-
-					DebugSurfelInAnyCluster[SurfelIndex] = true;
-					DebugSurfelInCluster[SurfelIndex] = true;
 				}
-
-				for (FSurfelIndex SurfelIndex = 0; SurfelIndex < Surfels.Num(); ++SurfelIndex)
-				{
-					if (!DebugSurfelInCluster[SurfelIndex])
-					{
-						FLumenCardBuildDebugData::FSurfel DebugSurfel;
-						DebugSurfel.Position = ClusterBasis.TransformSurfel(Surfels[SurfelIndex].Coord);
-						DebugSurfel.Normal = AxisAlignedDirectionIndexToNormal(AxisAlignedDirectionIndex);
-						DebugSurfel.SourceSurfelIndex = SourceSurfelOffset + SurfelIndex;
-						DebugSurfel.Type = DebugSurfelInAnyCluster[SurfelIndex] ? FLumenCardBuildDebugData::ESurfelType::Used : FLumenCardBuildDebugData::ESurfelType::Idle;
-						DebugCluster.Surfels.Add(DebugSurfel);
-					}
-				}
-#endif
 			}
+#endif
 		}
 
 		SourceSurfelOffset += Surfels.Num();
@@ -1274,6 +1225,94 @@ void SerializeLOD(
 #endif
 }
 
+void InitClusteringParams(FClusteringParams& ClusteringParams, const FBox& MeshCardsBounds, int32 MaxLumenMeshCards, int32 MinSurfelsPerCluster)
+{
+	const float TargetVoxelSize = 20.0f;
+	const int32 MaxVoxels = 64;
+
+	const FVector3f MeshCardsBoundsSize = 2.0f * (FVector3f)MeshCardsBounds.GetExtent();
+	const float MaxMeshCardsBounds = MeshCardsBoundsSize.GetMax();
+
+	// Target object space detail size
+	const float MaxSizeInVoxels = FMath::Clamp(MaxMeshCardsBounds / TargetVoxelSize + 0.5f, 1, MaxVoxels);
+	const float VoxelSize = FMath::Max(TargetVoxelSize, MaxMeshCardsBounds / MaxSizeInVoxels);
+
+	FIntVector SizeInVoxels;
+	SizeInVoxels.X = FMath::Clamp(FMath::CeilToFloat(MeshCardsBoundsSize.X / VoxelSize), 1, MaxVoxels);
+	SizeInVoxels.Y = FMath::Clamp(FMath::CeilToFloat(MeshCardsBoundsSize.Y / VoxelSize), 1, MaxVoxels);
+	SizeInVoxels.Z = FMath::Clamp(FMath::CeilToFloat(MeshCardsBoundsSize.Z / VoxelSize), 1, MaxVoxels);
+
+	const FVector3f VoxelBoundsCenter = (FVector3f)MeshCardsBounds.GetCenter();
+	const FVector3f VoxelBoundsExtent = FVector3f(SizeInVoxels) * VoxelSize * 0.5f;
+	const FVector3f VoxelBoundsMin = VoxelBoundsCenter - VoxelBoundsExtent;
+	const FVector3f VoxelBoundsMax = VoxelBoundsCenter + VoxelBoundsExtent;
+
+	for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < MeshCardGen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
+	{
+		FAxisAlignedDirectionBasis& ClusterBasis = ClusteringParams.ClusterBasis[AxisAlignedDirectionIndex];
+		ClusterBasis.VoxelSize = VoxelSize;
+
+		FVector3f XAxis = FVector3f(1.0f, 0.0f, 0.0f);
+		FVector3f YAxis = FVector3f(0.0f, 1.0f, 0.0f);
+		switch (AxisAlignedDirectionIndex / 2)
+		{
+		case 0:
+			XAxis = FVector3f(0.0f, 1.0f, 0.0f);
+			YAxis = FVector3f(0.0f, 0.0f, 1.0f);
+			break;
+
+		case 1:
+			XAxis = FVector3f(1.0f, 0.0f, 0.0f);
+			YAxis = FVector3f(0.0f, 0.0f, 1.0f);
+			break;
+
+		case 2:
+			XAxis = FVector3f(1.0f, 0.0f, 0.0f);
+			YAxis = FVector3f(0.0f, 1.0f, 0.0f);
+			break;
+		}
+
+		FVector3f ZAxis = AxisAlignedDirectionIndexToNormal(AxisAlignedDirectionIndex);
+
+		ClusterBasis.LocalToWorldRotation = FMatrix44f(XAxis, YAxis, -ZAxis, FVector3f::ZeroVector);
+
+		ClusterBasis.LocalToWorldOffset = VoxelBoundsMin;
+		if (AxisAlignedDirectionIndex & 1)
+		{
+			ClusterBasis.LocalToWorldOffset[AxisAlignedDirectionIndex / 2] = VoxelBoundsMax[AxisAlignedDirectionIndex / 2];
+		}
+
+		switch (AxisAlignedDirectionIndex / 2)
+		{
+		case 0:
+			ClusterBasis.VolumeSize.X = SizeInVoxels.Y;
+			ClusterBasis.VolumeSize.Y = SizeInVoxels.Z;
+			ClusterBasis.VolumeSize.Z = SizeInVoxels.X;
+			break;
+
+		case 1:
+			ClusterBasis.VolumeSize.X = SizeInVoxels.X;
+			ClusterBasis.VolumeSize.Y = SizeInVoxels.Z;
+			ClusterBasis.VolumeSize.Z = SizeInVoxels.Y;
+			break;
+
+		case 2:
+			ClusterBasis.VolumeSize.X = SizeInVoxels.X;
+			ClusterBasis.VolumeSize.Y = SizeInVoxels.Y;
+			ClusterBasis.VolumeSize.Z = SizeInVoxels.Z;
+			break;
+		}
+	}
+
+	ClusteringParams.VoxelSize = VoxelSize;
+	ClusteringParams.MaxSurfelDistanceXY = MeshCardRepresentation::GetMaxSurfelDistanceXY();
+	ClusteringParams.MaxSurfelDistanceZ = MeshCardRepresentation::GetMaxSurfelDistanceZ();
+	ClusteringParams.SurfelDistanceZMult = ClusteringParams.MaxSurfelDistanceXY / float(ClusteringParams.MaxSurfelDistanceZ);
+	ClusteringParams.MinSurfelsPerCluster = MinSurfelsPerCluster;
+	ClusteringParams.MinDensityPerCluster = MeshCardRepresentation::GetMinDensity();
+	ClusteringParams.MaxLumenMeshCards = MaxLumenMeshCards;
+}
+
 void BuildMeshCards(const FBox& MeshBounds, const FGenerateCardMeshContext& Context, int32 MaxLumenMeshCards, FCardRepresentationData& OutData)
 {
 	// Make sure BBox isn't empty and we can generate card representation for it. This handles e.g. infinitely thin planes.
@@ -1281,14 +1320,14 @@ void BuildMeshCards(const FBox& MeshBounds, const FGenerateCardMeshContext& Cont
 	const FVector MeshCardsBoundsExtent = FVector::Max(MeshBounds.GetExtent() + 1.0f, FVector(5.0f));
 	const FBox MeshCardsBounds(MeshCardsBoundsCenter - MeshCardsBoundsExtent, MeshCardsBoundsCenter + MeshCardsBoundsExtent);
 
+	FClusteringParams ClusteringParamsLOD0;
+	FClusteringParams ClusteringParamsLOD1;
+	InitClusteringParams(ClusteringParamsLOD0, MeshCardsBounds, MaxLumenMeshCards, /*MinSurfelsPerCluster*/ 1);
+	InitClusteringParams(ClusteringParamsLOD1, MeshCardsBounds, MaxLumenMeshCards, /*MinSurfelsPerCluster*/ 20);
+
 	// Prepare a list of surfels for cluster fitting
 	FSurfelScene SurfelScene;
-	FClusteringParams ClusteringParamsLOD1;
-	ClusteringParamsLOD1.MaxLumenMeshCards = MaxLumenMeshCards;
 	GenerateSurfels(Context, MeshCardsBounds, SurfelScene, ClusteringParamsLOD1);
-
-	FClusteringParams ClusteringParamsLOD0 = ClusteringParamsLOD1;
-	ClusteringParamsLOD0.MinSurfelsPerCluster /= 2;
 
 	FMeshCardsLODLevel MeshCardsLOD0;
 	BuildMeshCardsLOD0(MeshBounds, Context, SurfelScene, ClusteringParamsLOD0, MeshCardsLOD0);
@@ -1300,13 +1339,13 @@ void BuildMeshCards(const FBox& MeshBounds, const FGenerateCardMeshContext& Cont
 	OutData.MeshCardsBuildData.MaxLODLevel = 0;
 	OutData.MeshCardsBuildData.CardBuildData.Reset();
 
-	SerializeLOD(Context, ClusteringParamsLOD0, SurfelScene, MeshCardsLOD0, 0, MeshCardsBounds, OutData.MeshCardsBuildData);
+	SerializeLOD(Context, ClusteringParamsLOD0, SurfelScene, MeshCardsLOD0, /*LODLevelIndex*/ 0, MeshCardsBounds, OutData.MeshCardsBuildData);
 
 	// Optionally serialize LOD1 if it's of higher quality without exceeding the budget
 	if (MeshCardsLOD1.NumClusters <= MeshCardGen::MaxCardsPerMesh
 		&& MeshCardsLOD1.WeightedSurfaceCoverage > MeshCardsLOD0.WeightedSurfaceCoverage)
 	{
-		SerializeLOD(Context, ClusteringParamsLOD1, SurfelScene, MeshCardsLOD1, 1, MeshCardsBounds, OutData.MeshCardsBuildData);
+		SerializeLOD(Context, ClusteringParamsLOD1, SurfelScene, MeshCardsLOD1, /*LODLevelIndex*/ 1, MeshCardsBounds, OutData.MeshCardsBuildData);
 	}
 }
 
