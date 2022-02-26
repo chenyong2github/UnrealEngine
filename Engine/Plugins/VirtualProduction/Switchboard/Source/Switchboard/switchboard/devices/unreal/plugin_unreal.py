@@ -1482,7 +1482,7 @@ class DeviceUnreal(Device):
 
         self.compute_runtime_str()
         engine_path, args = self.generate_unreal_command_line(map_name)
-        LOGGER.info(f"Launching UE4: {engine_path} {args}")
+        LOGGER.info(f"Launching Unreal: {engine_path} {args}")
 
         priority_modifier_str = self.csettings['priority_modifier'].get_value(
             self.name)

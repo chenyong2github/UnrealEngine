@@ -544,7 +544,7 @@ class AddConfigDialog(QtWidgets.QDialog):
         self.update_button_box()
 
     def on_browse_engine_dir(self):
-        self.engine_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select UE4 engine directory")
+        self.engine_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select UE 'Engine' directory")
         self.engine_dir = os.path.normpath(self.engine_dir)
         self.engine_dir_line_edit.setText(self.engine_dir)
 

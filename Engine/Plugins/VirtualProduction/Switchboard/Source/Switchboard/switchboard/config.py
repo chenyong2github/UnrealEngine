@@ -2021,7 +2021,7 @@ class Config(object):
                 "engine_dir",
                 "Engine Directory",
                 data.get('engine_dir', ''),
-                tool_tip="Path to UE4 engine directory"
+                tool_tip="Path to UE 'Engine' directory"
             ),
             "build_engine": BoolSetting(
                 "build_engine",
@@ -2084,13 +2084,13 @@ class Config(object):
                 "p4_sync_path",
                 "Perforce Project Path",
                 data.get("p4_sync_path", ''),
-                placeholder_text="//UE4/Project"
+                placeholder_text="//UE/Project"
             ),
             "p4_engine_path": PerforcePathSetting(
                 "p4_engine_path",
                 "Perforce Engine Path",
                 data.get("p4_engine_path", ''),
-                placeholder_text="//UE4/Project/Engine"
+                placeholder_text="//UE/Project/Engine"
             )
         }
 
