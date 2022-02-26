@@ -52,13 +52,15 @@ void SWorldPartitionEditor::Refresh()
 	GridView->Refresh();
 }
 
+void SWorldPartitionEditor::Reconstruct()
+{
+	ContentParent->SetContent(ConstructContentWidget());
+}
+
 void SWorldPartitionEditor::OnBrowseWorld(UWorld* InWorld)
 {
 	World = InWorld;
-	ContentParent->SetContent(ConstructContentWidget());
-
-	// No need to unregister as the previous UWorldPartitionSubsystem is already destroyed
-	WorldPartitionChangedDelegateHandle.Reset();
+	Reconstruct();
 }
 
 TSharedRef<SWidget> SWorldPartitionEditor::ConstructContentWidget()

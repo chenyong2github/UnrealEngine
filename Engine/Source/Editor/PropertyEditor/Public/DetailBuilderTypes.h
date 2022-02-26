@@ -13,6 +13,7 @@ struct FAddPropertyParams
 {
 	FAddPropertyParams()
 		: bForceShowProperty(false)
+		, bHideRootObjectNode(false)
 	{}
 
 
@@ -57,6 +58,15 @@ struct FAddPropertyParams
 
 
 	/**
+	 * Override whether the root object node should be shown for external object properties. This only applies when adding an entire uobject's properties to the details panel rather than an individual row or struct
+	 */
+	FAddPropertyParams& HideRootObjectNode(bool bInHideRootObjectNode)
+	{
+		bHideRootObjectNode = bInHideRootObjectNode;
+		return *this;
+	}
+
+	/**
 	 * Check whether to forcibly show the property, even if it does not have CPF_Edit
 	 */
 	bool ShouldForcePropertyVisible() const
@@ -64,6 +74,7 @@ struct FAddPropertyParams
 		return bForceShowProperty;
 	}
 
+	bool ShouldHideRootObjectNode() const { return bHideRootObjectNode; }
 
 	/**
 	 * Conditionally overwrites the specified boolean with a value specifying whether to allow child properties or not.
@@ -103,6 +114,9 @@ private:
 
 	/** When true, the property will be forcefully shown, even if it does not have CPF_Edit. When false the property will only be created if it has CPF_Edit. */
 	bool bForceShowProperty : 1;
+
+	/** When true any root ObjectPropertyNode generated from an external UObject being added will be hidden from view and only its children are shown */
+	bool bHideRootObjectNode : 1;
 
 	/** Tristate override for allowing children - if value is true: Allow Children, false: Disallow Children, unset: no override */
 	TOptional<bool> bAllowChildrenOverride;

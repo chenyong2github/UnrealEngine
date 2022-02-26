@@ -200,57 +200,8 @@ void FWorldSettingsDetails::AddWorldCustomization(IDetailLayoutBuilder& DetailBu
 						]
 					]
 				];
-
-			WorldPartitionCategory.AddCustomRow(LOCTEXT("WorldPartitionEditorCellSizeRow", "WorldPartitionEditorCellSize"), true)
-				.NameContent()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("WorldPartitionCellSize", "World Partition Editor Cell Size"))
-					.ToolTipText(LOCTEXT("WorldPartitionEditorCellSize_ToolTip", "Set the world partition editor cell size, will take effect on the next world reload."))
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.IsEnabled(bIsPartitionedWorld)
-				]
-				.ValueContent()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						SNew(SNumericEntryBox<uint32>)
-						.AllowSpin(false)
-						.MinSliderValue(100)
-						.MaxSliderValue(100000)
-						.OnValueChanged(this, &FWorldSettingsDetails::HandlWorldPartitionEditorCellSizeChanged)
-						.Value(this, &FWorldSettingsDetails::HandleWorldPartitionEditorCellSizeValue)
-					]
-				];
 		}
 	}
-}
-
-void FWorldSettingsDetails::HandlWorldPartitionEditorCellSizeChanged(uint32 NewValue)
-{
-	if (SelectedWorldSettings.IsValid())
-	{
-		if (UWorldPartition* WorldPartition = SelectedWorldSettings->GetWorldPartition())
-		{
-			WorldPartition->SetEditorWantedCellSize(NewValue);
-		}
-	}
-}
-
-TOptional<uint32> FWorldSettingsDetails::HandleWorldPartitionEditorCellSizeValue() const
-{
-	if (SelectedWorldSettings.IsValid())
-	{
-		if (UWorldPartition* WorldPartition = SelectedWorldSettings->GetWorldPartition())
-		{
-			return WorldPartition->GetWantedEditorCellSize();
-		}
-	}
-
-	return TOptional<uint32>();
 }
 
 void FWorldSettingsDetails::OnUseActorFoldersChanged(ECheckBoxState BoxState, ULevel* Level)

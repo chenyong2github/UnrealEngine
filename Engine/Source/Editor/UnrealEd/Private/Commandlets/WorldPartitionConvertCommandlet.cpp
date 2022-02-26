@@ -215,11 +215,17 @@ ULevel* UWorldPartitionConvertCommandlet::InitWorld(UWorld* World)
 	return World->PersistentLevel;
 }
 
-UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSettings* MainWorldSettings) const
+UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSettings* MainWorldSettings)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::CreateWorldPartition);
 
 	UWorldPartition* WorldPartition = UWorldPartition::CreateOrRepairWorldPartition(MainWorldSettings, EditorHashClass, RuntimeHashClass);
+
+	if (bDisableStreaming)
+	{
+		WorldPartition->bEnableStreaming = false;
+		WorldPartition->bStreamingWasEnabled = false;
+	}
 		
 	// Read the conversion config file
 	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*LevelConfigFilename))
@@ -227,6 +233,18 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 		WorldPartition->EditorHash->LoadConfig(*EditorHashClass, *LevelConfigFilename);
 		WorldPartition->RuntimeHash->LoadConfig(*RuntimeHashClass, *LevelConfigFilename);
 		WorldPartition->DefaultHLODLayer = HLODLayers.FindRef(DefaultHLODLayerName);
+	}
+
+	if ((WorldPartition->DefaultHLODLayer == UHLODLayer::GetEngineDefaultHLODLayersSetup()) && !bDisableStreaming)
+	{
+		WorldPartition->DefaultHLODLayer = UHLODLayer::DuplicateHLODLayersSetup(UHLODLayer::GetEngineDefaultHLODLayersSetup(), WorldPartition->GetPackage()->GetName(), WorldPartition->GetWorld()->GetName());
+
+		UHLODLayer* CurrentHLODLayer = WorldPartition->DefaultHLODLayer;
+		while (CurrentHLODLayer)
+		{
+			PackagesToSave.Add(CurrentHLODLayer->GetPackage());
+			CurrentHLODLayer = Cast<UHLODLayer>(CurrentHLODLayer->GetParentLayer().Get());
+		}
 	}
 
 	WorldPartition->EditorHash->Initialize();
@@ -692,6 +710,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	bGenerateIni = Switches.Contains(TEXT("GenerateIni"));
 	bReportOnly = bGenerateIni || Switches.Contains(TEXT("ReportOnly"));
 	bVerbose = Switches.Contains(TEXT("Verbose"));
+	bDisableStreaming = Switches.Contains(TEXT("DisableStreaming"));
 	ConversionSuffix = GetConversionSuffix(bOnlyMergeSubLevels);
 
 	FString* FoliageTypePathValue = Arguments.Find(TEXT("FoliageTypePath"));

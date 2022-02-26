@@ -9,6 +9,8 @@
 #include "WorldPartition/SWorldPartitionEditor.h"
 #include "WorldPartition/SWorldPartitionEditorGridSpatialHash.h"
 
+#include "WorldPartition/Customizations/WorldPartitionDetailsCustomization.h"
+
 #include "WorldPartition/SWorldPartitionConvertDialog.h"
 #include "WorldPartition/WorldPartitionConvertOptions.h"
 #include "WorldPartition/WorldPartitionEditorSettings.h"
@@ -31,6 +33,7 @@
 #include "ContentBrowserModule.h"
 #include "EditorDirectories.h"
 #include "AssetRegistryModule.h"
+#include "PropertyEditorModule.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
 #include "Framework/Docking/LayoutExtender.h"
@@ -126,6 +129,9 @@ void FWorldPartitionEditorModule::StartupModule()
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	HLODLayerAssetTypeActions = MakeShareable(new FHLODLayerAssetTypeActions);
 	AssetTools.RegisterAssetTypeActions(HLODLayerAssetTypeActions.ToSharedRef());
+
+	FPropertyEditorModule& PropertyEditor = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyEditor.RegisterCustomClassLayout("WorldPartition", FOnGetDetailCustomizationInstance::CreateStatic(&FWorldPartitionDetails::MakeInstance));
 }
 
 void FWorldPartitionEditorModule::ShutdownModule()
@@ -151,20 +157,21 @@ void FWorldPartitionEditorModule::ShutdownModule()
 		UToolMenus::UnregisterOwner(this);
 	}
 
-	IAssetTools* AssetToolsModule = nullptr;
-	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
-	{
-		AssetToolsModule = &FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	}
-
 	// Unregister the HLODLayer asset type actions
 	if (HLODLayerAssetTypeActions.IsValid())
 	{
-		if (AssetToolsModule)
+		if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
 		{
-			AssetToolsModule->UnregisterAssetTypeActions(HLODLayerAssetTypeActions.ToSharedRef());
+			IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
+			AssetTools.UnregisterAssetTypeActions(HLODLayerAssetTypeActions.ToSharedRef());
 		}
 		HLODLayerAssetTypeActions.Reset();
+	}
+
+	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+	{
+		FPropertyEditorModule& PropertyEditor = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyEditor.UnregisterCustomClassLayout("WorldPartition");
 	}
 }
 

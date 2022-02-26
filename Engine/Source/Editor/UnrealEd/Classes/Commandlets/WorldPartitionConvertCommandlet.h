@@ -56,7 +56,7 @@ protected:
 	virtual void OnWorldLoaded(UWorld* World);
 	virtual void ReadAdditionalTokensAndSwitches(const TArray<FString>& Tokens, const TArray<FString>& Switches) {}
 
-	UWorldPartition* CreateWorldPartition(class AWorldSettings* MainWorldSettings) const;
+	UWorldPartition* CreateWorldPartition(class AWorldSettings* MainWorldSettings);
 	UWorld* LoadWorld(const FString& LevelToLoad);
 	ULevel* InitWorld(UWorld* World);
 
@@ -94,6 +94,7 @@ protected:
 	bool bReportOnly;
 	bool bVerbose;
 	bool bConversionSuffix;
+	bool bDisableStreaming;
 	FString ConversionSuffix;
 
 	UPROPERTY(Config)

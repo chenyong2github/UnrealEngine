@@ -11,6 +11,7 @@
 #include "Serialization/ArchiveCrc32.h"
 
 #include "Engine/World.h"
+#include "Misc/ConfigCacheIni.h"
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
@@ -92,6 +93,60 @@ bool UHLODLayer::DoesRequireWarmup() const
 	return false;
 }
 
+UHLODLayer* UHLODLayer::GetEngineDefaultHLODLayersSetup()
+{
+	UHLODLayer* Result = nullptr;
+
+	if (FConfigFile* EngineConfig = GConfig->FindConfigFileWithBaseName(TEXT("Engine")))
+	{
+		FString DefaultHLODLayerName;
+		if (EngineConfig->GetString(TEXT("/Script/Engine.Engine"), TEXT("DefaultWorldPartitionHLODLayer"), DefaultHLODLayerName))
+		{
+			FSoftObjectPath DefaultHLODLayerPath(*DefaultHLODLayerName);
+			TSoftObjectPtr<UHLODLayer> EngineHLODLayerPath(DefaultHLODLayerPath);
+
+			if (UHLODLayer* EngineHLODLayer = EngineHLODLayerPath.LoadSynchronous())
+			{
+				Result = EngineHLODLayer;
+			}
+		}
+	}
+
+	return Result;
+}
+
+UHLODLayer* UHLODLayer::DuplicateHLODLayersSetup(UHLODLayer* HLODLayer, const FString& DestinationPath, const FString& Prefix)
+{
+	UHLODLayer* Result = nullptr;
+
+	UHLODLayer* LastHLODLayer = nullptr;
+	UHLODLayer* CurrentHLODLayer = HLODLayer;
+
+	while (CurrentHLODLayer)
+	{
+		const FString PackageName = DestinationPath + TEXT("_") + CurrentHLODLayer->GetName();
+		UPackage* Package = CreatePackage(*PackageName);
+
+		FString NewHLODLayerName = Prefix + TEXT("_") + CurrentHLODLayer->GetName();
+		UHLODLayer* NewHLODLayer = CastChecked<UHLODLayer>(StaticDuplicateObject(CurrentHLODLayer, Package, *NewHLODLayerName));
+		check(NewHLODLayer);
+
+		if (LastHLODLayer)
+		{
+			LastHLODLayer->SetParentLayer(NewHLODLayer);
+		}
+		else
+		{
+			Result = NewHLODLayer;
+		}
+
+		LastHLODLayer = NewHLODLayer;
+		CurrentHLODLayer = Cast<UHLODLayer>(CurrentHLODLayer->GetParentLayer().LoadSynchronous());
+	}
+
+	return Result;
+}
+
 void UHLODLayer::PostLoad()
 {
 	Super::PostLoad();
@@ -146,4 +201,9 @@ const TSoftObjectPtr<UHLODLayer>& UHLODLayer::GetParentLayer() const
 	return !IsSpatiallyLoaded() ? NullLayer : ParentLayer;
 }
 
-#endif // WITH_EDITOR
+const void UHLODLayer::SetParentLayer(const TSoftObjectPtr<UHLODLayer>& InParentLayer)
+{
+	ParentLayer = InParentLayer;
+}
+
+#endif // WITH_EDITORONLY_DATA

@@ -22,6 +22,7 @@ public:
 
 	// IWorldPartitionEditor interface
 	virtual void Refresh() override;
+	virtual void Reconstruct() override;
 
 private:
 	void OnBrowseWorld(UWorld* InWorld);
@@ -30,7 +31,6 @@ private:
 
 	FText GetMouseLocationText() const;
 
-	FDelegateHandle WorldPartitionChangedDelegateHandle;
 	TSharedPtr<SBorder>	ContentParent;
 	TSharedPtr<class SWorldPartitionEditorGrid> GridView;
 	TWeakObjectPtr<UWorld> World;

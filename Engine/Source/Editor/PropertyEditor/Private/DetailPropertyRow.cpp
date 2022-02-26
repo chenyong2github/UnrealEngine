@@ -171,7 +171,7 @@ bool FDetailPropertyRow::HasColumns() const
 
 bool FDetailPropertyRow::ShowOnlyChildren() const
 {
-	return PropertyTypeLayoutBuilder.IsValid() && CustomPropertyWidget.IsValid() && !CustomPropertyWidget->HasAnyContent();
+	return bForceShowOnlyChildren || (PropertyTypeLayoutBuilder.IsValid() && CustomPropertyWidget.IsValid() && !CustomPropertyWidget->HasAnyContent());
 }
 
 bool FDetailPropertyRow::RequiresTick() const

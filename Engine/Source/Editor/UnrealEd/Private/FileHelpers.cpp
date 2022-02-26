@@ -77,6 +77,7 @@
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
+#include "WorldPartition/HLOD/HLODLayer.h"
 #include "PackageSourceControlHelper.h"
 #include "ActorFolder.h"
 #include "InterchangeManager.h"
@@ -285,29 +286,6 @@ static bool ConfirmPackageBranchCheckOutStatus(const TArray<UPackage*>& Packages
 			const FText Title = SourceControlState->IsModifiedInOtherBranch() ? FText::FromString("Package Branch Modifications") : FText::FromString("Package Branch Checkouts");
 
 			return FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title) == EAppReturnType::Yes;
-		}
-	}
-
-	return true;
-}
-
-static bool SaveExternalPackages(UPackage* Package, bool bCheckDirty)
-{
-	TArray<UPackage*> PackagesToSave;
-	for (UPackage* ExternalPackage : Package->GetExternalPackages())
-	{
-		if (!FPackageName::IsTempPackage(ExternalPackage->GetName()))
-		{
-			PackagesToSave.Add(ExternalPackage);
-		}
-	}
-
-	if (PackagesToSave.Num() > 0)
-	{
-		if (!UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, bCheckDirty))
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_FailedToSaveExternalActorPackages", "Failed to save external packages"));
-			return false;
 		}
 	}
 
@@ -690,6 +668,7 @@ static bool SaveWorld(UWorld* World,
 	const FString OriginalPackageName = Package->GetName();
 	const FString NewWorldAssetName = FPackageName::GetLongPackageAssetName(NewPackageName);
 	const bool bNewPackageExists = FPackageName::DoesPackageExist(NewPackageName);
+	const bool bIsTempPackage = FPackageName::IsTempPackage(World->GetPackage()->GetName());
 	bool bValidWorldName = true;
 	bool bPackageNeedsRename = false;
 	bool bWorldNeedsRename = false;
@@ -753,6 +732,9 @@ static bool SaveWorld(UWorld* World,
 		// Save Loaded cells
 		TArray<FName> LoadedEditorCells;
 
+		// Other packages to save
+		TArray<UPackage*> PackagesToSave;
+
 		// Initialize Physics Scene for save if needed here so that external packages don't get dirtied during the Saving of the map package
 		bool bForceInitializedWorld = false;
 		
@@ -767,11 +749,28 @@ static bool SaveWorld(UWorld* World,
 				}
 
 				RenamedWorldPartition = World->GetWorldPartition();
+
 				// Load all unloaded actors before rename. If this is causing issues (oom or other) map will need to be renamed through a provided builder commandlet
 				if (RenamedWorldPartition)
 				{
 					LoadedEditorCells = RenamedWorldPartition->GetUserLoadedEditorGridCells();
 					RenamedWorldPartition->LoadAllActors(ActorReferences);
+
+					if (bIsTempPackage)
+					{
+						if (UHLODLayer* CurrentHLODLayer = RenamedWorldPartition->DefaultHLODLayer)
+						{
+							CurrentHLODLayer = UHLODLayer::DuplicateHLODLayersSetup(CurrentHLODLayer, NewPackageName, NewWorldAssetName);
+							
+							RenamedWorldPartition->DefaultHLODLayer = CurrentHLODLayer;
+
+							while (CurrentHLODLayer)
+							{
+								PackagesToSave.Add(CurrentHLODLayer->GetPackage());
+								CurrentHLODLayer = Cast<UHLODLayer>(CurrentHLODLayer->GetParentLayer().Get());
+							}
+						}
+					}
 				}
 
 				// If we are doing a SaveAs on a world that already exists on disk, we need to duplicate it:
@@ -847,11 +846,25 @@ static bool SaveWorld(UWorld* World,
 				
 		if(!bAutosaving)
 		{
-			// This will save external actors
 			if (bSuccess)
 			{
-				// Do not check dirty flag if world is newly created
-				bSuccess = SaveExternalPackages(Package, /*bCheckDirty*/!bNewlyCreated);
+				// Gather external actors to save
+				for (UPackage* ExternalPackage : Package->GetExternalPackages())
+				{
+					if (!FPackageName::IsTempPackage(ExternalPackage->GetName()))
+					{
+						PackagesToSave.Add(ExternalPackage);
+					}
+				}
+
+				if (PackagesToSave.Num())
+				{
+					if (!UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, /*bCheckDirty*/!bNewlyCreated))
+					{
+						FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_FailedToSaveHLODLayersPackages", "Failed to save dependant map packages"));
+						bSuccess = false;
+					}
+				}
 			}
 		}
 				

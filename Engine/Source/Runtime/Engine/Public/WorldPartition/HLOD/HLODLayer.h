@@ -41,6 +41,12 @@ public:
 	static UHLODLayer* GetHLODLayer(const AActor* InActor);
 	static UHLODLayer* GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc, const UWorldPartition* InWorldPartition);
 	static UHLODLayer* GetHLODLayer(const FWorldPartitionActorDescView& InActorDescView, const UWorldPartition* InWorldPartition);
+
+	/** Get the default engine HLOD layers setup */
+	static UHLODLayer* GetEngineDefaultHLODLayersSetup();
+
+	/** Duplicate the provided HLOD layers setup */
+	static UHLODLayer* DuplicateHLODLayersSetup(UHLODLayer* HLODLayer, const FString& DestinationPath, const FString& Prefix);
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -52,6 +58,7 @@ public:
 	int32 GetCellSize() const { return !bIsSpatiallyLoaded ? 0 : CellSize; }
 	float GetLoadingRange() const { return !bIsSpatiallyLoaded ? WORLD_MAX : LoadingRange; }
 	const TSoftObjectPtr<UHLODLayer>& GetParentLayer() const;
+	const void SetParentLayer(const TSoftObjectPtr<UHLODLayer>& InParentLayer);
 	bool IsSpatiallyLoaded() const { return bIsSpatiallyLoaded; }
 	void SetIsSpatiallyLoaded(bool bInIsSpatiallyLoaded) { bIsSpatiallyLoaded = bInIsSpatiallyLoaded; }
 

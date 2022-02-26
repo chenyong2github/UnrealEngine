@@ -52,6 +52,7 @@ enum class EWorldPartitionInitState
 struct ENGINE_API IWorldPartitionEditor
 {
 	virtual void Refresh() {}
+	virtual void Reconstruct() {}
 };
 
 class ENGINE_API ISourceControlHelper
@@ -121,6 +122,10 @@ private:
 
 public:
 	//~ Begin UObject Interface
+#if WITH_EDITOR
+	virtual void PostLoad() override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) override;
 	//~ End UObject Interface
 
@@ -200,11 +205,19 @@ public:
 	IWorldPartitionEditor* WorldPartitionEditor;
 
 	/** Class of WorldPartitionStreamingPolicy to be used to manage world partition streaming. */
-	UPROPERTY(EditAnywhere, Category=WorldPartition, NoClear, meta = (NoResetToDefault))
+	UPROPERTY()
 	TSubclassOf<UWorldPartitionStreamingPolicy> WorldPartitionStreamingPolicyClass;
+
+	/** Enables streaming for this world. */
+	UPROPERTY(EditAnywhere, Category=WorldPartition)
+	bool bEnableStreaming;
+
+	/** Used to know if it's the first time streaming is enabled on this world */
+	UPROPERTY()
+	bool bStreamingWasEnabled;
 #endif
 
-	UPROPERTY(EditAnywhere, Category=WorldPartition, NoClear, meta = (NoResetToDefault), Instanced)
+	UPROPERTY()
 	TObjectPtr<UWorldPartitionRuntimeHash> RuntimeHash;
 
 #if WITH_EDITOR
@@ -215,7 +228,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	// Default HLOD layer
-	UPROPERTY(EditAnywhere, Category=WorldPartition, meta = (DisplayName = "Default HLOD Layer"))
+	UPROPERTY(EditAnywhere, Category=WorldPartition, meta = (DisplayName = "Default HLOD Layer", EditCondition="bEnableStreaming", EditConditionHides, HideEditConditionToggle))
 	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
 
 	TArray<FWorldPartitionReference> LoadedSubobjects;

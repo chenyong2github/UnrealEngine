@@ -44,7 +44,7 @@ public:
 	// SPanel interface
 	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override
 	{
-		if (!WorldPartition)
+		if (IsDisabled())
 		{
 			SCompoundWidget::OnArrangeChildren(AllottedGeometry, ArrangedChildren);
 		}
@@ -52,12 +52,12 @@ public:
 
 	virtual FVector2D ComputeDesiredSize(float Scale) const override
 	{
-		return !WorldPartition ? FVector2D(100.0f, 100.0f) : SCompoundWidget::ComputeDesiredSize(Scale);
+		return IsDisabled() ? FVector2D(100.0f, 100.0f) : SCompoundWidget::ComputeDesiredSize(Scale);
 	}
 
 	virtual FChildren* GetChildren() override
 	{
-		return !WorldPartition ? &ChildSlot : (FChildren*)&FNoChildren::NoChildrenInstance;
+		return IsDisabled() ? &ChildSlot : (FChildren*)&FNoChildren::NoChildrenInstance;
 	}
 	
 	bool GetPlayerView(FVector& Location, FRotator& Rotation) const;
@@ -70,4 +70,7 @@ public:
 
 protected:
 	static TMap<FName, PartitionEditorGridCreateInstanceFunc> PartitionEditorGridCreateInstanceFactory;
+
+private:
+	bool IsDisabled() const;
 };

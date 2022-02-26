@@ -559,8 +559,8 @@ protected:
 
 public:
 #if WITH_EDITORONLY_DATA
-	/** Size of the grid for instanced foliage actors */
-	UPROPERTY(EditAnywhere, Category = WorldPartition)
+	/** Size of the grid for instanced foliage actors, only used for partitioned worlds */
+	UPROPERTY(EditAnywhere, Category = Foliage)
 	uint32 InstancedFoliageGridSize;
 
 	/** Size of the grid for navigation data chunk actors */

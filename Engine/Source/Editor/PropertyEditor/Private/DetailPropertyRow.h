@@ -67,6 +67,12 @@ public:
 	/** @return Gets the custom name that should be used to save and restore this nodes expansion state */
 	FName GetCustomExpansionId() const { return CustomExpansionIdName; }
 
+	/** 
+	 * Sets whether or not we force only children to be shown regardless of what the customization wants.
+	 * Typically used when this row is only for organizational purposes and doesnt have anything valid to show (like external object nodes)
+	 */
+	void SetForceShowOnlyChildren(bool bInForceShowOnlyChildren) { bForceShowOnlyChildren = bInForceShowOnlyChildren; }
+
 	/**
 	 * Called when the owner node is initialized
 	 *
@@ -225,4 +231,6 @@ private:
 	bool bForceAutoExpansion;
 	/** True if we've already attempted to fill out our CustomTypeInterface (no need to rerun the query) */
 	bool bCachedCustomTypeInterface;
+	/** True if this row is only for organizational purposes and doesnt have anything valid to show itself*/
+	bool bForceShowOnlyChildren = false;
 };

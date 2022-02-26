@@ -47,7 +47,7 @@ public:
 	inline UClass* GetActorClass() const { return ActorClass; }
 	inline FVector GetOrigin() const { return GetBounds().GetCenter(); }
 	inline FName GetRuntimeGrid() const { return RuntimeGrid; }
-	inline bool GetIsSpatiallyLoaded() const { return bIsSpatiallyLoaded; }
+	inline bool GetIsSpatiallyLoaded() const { return bForceAlwaysLoaded ? false : bIsSpatiallyLoaded; }
 	inline bool GetActorIsEditorOnly() const { return bActorIsEditorOnly; }
 	inline bool GetLevelBoundsRelevant() const { return bLevelBoundsRelevant; }
 	inline bool GetActorIsHLODRelevant() const { return bActorIsHLODRelevant; }
@@ -196,5 +196,8 @@ public:
 	// Tagging
 	mutable uint32					Tag;
 	static uint32					GlobalTag;
+
+	// Temp
+	static bool						bForceAlwaysLoaded;
 #endif
 };

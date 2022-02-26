@@ -20,6 +20,7 @@
 
 #if WITH_EDITOR
 uint32 FWorldPartitionActorDesc::GlobalTag = 0;
+bool FWorldPartitionActorDesc::bForceAlwaysLoaded = false;
 
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	: SoftRefCount(0)
