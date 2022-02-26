@@ -334,9 +334,9 @@ namespace Chaos
 					{
 						if (CCDConstraint->FastMovingKinematicIndex != INDEX_NONE)
 						{
-							const FConstGenericParticleHandle Particle1 = FGenericParticleHandle(CCDConstraint->SweptConstraint->GetParticle(CCDConstraint->FastMovingKinematicIndex));
+							const FConstGenericParticleHandle KinematicParticle = FGenericParticleHandle(CCDConstraint->SweptConstraint->GetParticle(CCDConstraint->FastMovingKinematicIndex));
 							const FVec3 Normal = CCDConstraint->SweptConstraint->CalculateWorldContactNormal();
-							const FVec3 Offset = FVec3::DotProduct(Particle1->V() * ((1.f - IslandTOI) * Dt), Normal) * Normal;
+							const FVec3 Offset = FVec3::DotProduct(KinematicParticle->V() * ((1.f - IslandTOI) * Dt), Normal) * Normal;
 							ClipParticleP(CCDConstraintParticles[0], Offset);
 						}
 						else
@@ -347,7 +347,17 @@ namespace Chaos
 					}
 					if (CCDConstraintParticles[1])
 					{
-						ClipParticleP(CCDConstraintParticles[1]);
+						if (CCDConstraint->FastMovingKinematicIndex != INDEX_NONE)
+						{
+							const FConstGenericParticleHandle KinematicParticle = FGenericParticleHandle(CCDConstraint->SweptConstraint->GetParticle(CCDConstraint->FastMovingKinematicIndex));
+							const FVec3 Normal = CCDConstraint->SweptConstraint->CalculateWorldContactNormal();
+							const FVec3 Offset = FVec3::DotProduct(KinematicParticle->V() * ((1.f - IslandTOI) * Dt), Normal) * Normal;
+							ClipParticleP(CCDConstraintParticles[1], Offset);
+						}
+						else
+						{
+							ClipParticleP(CCDConstraintParticles[1]);
+						}
 						CCDConstraintParticles[1]->Done = true;
 					}
 				}

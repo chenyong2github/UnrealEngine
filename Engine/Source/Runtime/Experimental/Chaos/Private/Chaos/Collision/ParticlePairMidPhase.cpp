@@ -361,13 +361,16 @@ namespace Chaos
 			Constraint->ResetManifold();
 			Constraint->ResetActiveManifoldContacts();
 
+			FConstGenericParticleHandle P0 = Particle0;
+			FConstGenericParticleHandle P1 = Particle1;
+			// For kinematic particles, X = P (at TOI=1), we need to compute P-V*dt to get position at TOI=0. 
+			const FVec3 StartX0 = P0->ObjectState() == EObjectStateType::Kinematic ? P0->P() - P0->V() * Dt : P0->X();
+			const FVec3 StartX1 = P1->ObjectState() == EObjectStateType::Kinematic ? P1->P() - P1->V() * Dt : P1->X();
 			// Note: It is unusual that we are mixing X and Q. 
 			// This is due to how CCD rewinds the position (not rotation) and then sweeps to find the first contact at the most recent orientation Q
 			// NOTE: These are actor transforms, not CoM transforms
-			FConstGenericParticleHandle P0 = Particle0;
-			FConstGenericParticleHandle P1 = Particle1;
-			const FRigidTransform3 CCDParticleWorldTransform0 = FRigidTransform3(P0->CCDEnabled() ? P0->X() : P0->P(), P0->Q());
-			const FRigidTransform3 CCDParticleWorldTransform1 = FRigidTransform3(P1->CCDEnabled() ? P1->X() : P1->P(), P1->Q());
+			const FRigidTransform3 CCDParticleWorldTransform0 = FRigidTransform3(StartX0, P0->Q());
+			const FRigidTransform3 CCDParticleWorldTransform1 = FRigidTransform3(StartX1, P1->Q());
 			const FRigidTransform3 CCDShapeWorldTransform0 = Constraint->ImplicitTransform[0] * CCDParticleWorldTransform0;
 			const FRigidTransform3 CCDShapeWorldTransform1 = Constraint->ImplicitTransform[1] * CCDParticleWorldTransform1;
 			Collisions::UpdateConstraintSwept(*Constraint.Get(), CCDShapeWorldTransform0, CCDShapeWorldTransform1, Dt);
