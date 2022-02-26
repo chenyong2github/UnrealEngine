@@ -355,6 +355,11 @@ public:
 
 	const TSharedPtr<FEdGraphSchemaAction>& GetSourceAction() const { return SourceAction; }
 
+	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
+
+	void SetAdditionalText(FText InAdditionalText) { CurrentHoverText = InAdditionalText; }
+	EVisibility IsTextVisible() const;
 private:
 	TSharedPtr<FEdGraphSchemaAction> SourceAction;
+	TOptional<FNiagaraVariable> TargetParameter;
 };

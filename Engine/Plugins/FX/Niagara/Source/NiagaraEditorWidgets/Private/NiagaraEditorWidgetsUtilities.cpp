@@ -492,7 +492,7 @@ TOptional<EItemDropZone> FNiagaraStackEditorWidgetsUtilities::RequestDropForStac
 		{
 			if (DecoratedDragDropOp.IsValid() && Response.GetValue().DropMessage.IsEmptyOrWhitespace() == false)
 			{
-				DecoratedDragDropOp->CurrentHoverText = FText::Format(LOCTEXT("DropFormat", "{0} - {1}"), DecoratedDragDropOp->GetDefaultHoverText(), Response.GetValue().DropMessage);
+				DecoratedDragDropOp->CurrentHoverText = Response.GetValue().DropMessage;
 			}
 
 			if (Response.GetValue().DropZone.IsSet())

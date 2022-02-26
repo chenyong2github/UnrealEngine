@@ -2279,9 +2279,14 @@ bool UNiagaraStackFunctionInput::GetShouldPassFilterForVisibleCondition() const
 
 TArray<UNiagaraScript*> UNiagaraStackFunctionInput::GetPossibleConversionScripts(const FNiagaraTypeDefinition& FromType) const
 {
+	return GetPossibleConversionScripts(FromType, InputType);
+}
+
+TArray<UNiagaraScript*> UNiagaraStackFunctionInput::GetPossibleConversionScripts(const FNiagaraTypeDefinition& FromType, const FNiagaraTypeDefinition& ToType)
+{
     FPinCollectorArray InputPins;
     TArray<UNiagaraNodeOutput*> OutputNodes;
-    auto MatchesTypeConversion = [this, &InputPins, &OutputNodes, &FromType](UNiagaraScript* Script)
+    auto MatchesTypeConversion = [&InputPins, &OutputNodes, &FromType, &ToType](UNiagaraScript* Script)
     {
 	    OutputNodes.Reset();
 	    UNiagaraGraph* NodeGraph = Cast<UNiagaraScriptSource>(Script->GetLatestSource())->NodeGraph;
@@ -2307,7 +2312,7 @@ TArray<UNiagaraScript*> UNiagaraStackFunctionInput::GetPossibleConversionScripts
     		{
     			const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
     			FNiagaraTypeDefinition PinTypeIn = NiagaraSchema->PinToTypeDefinition(InputPins[0]);
-    			if (PinTypeIn == InputType)
+    			if (PinTypeIn == ToType)
     			{
     				return true;
     			}

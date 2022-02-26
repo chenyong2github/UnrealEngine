@@ -51,6 +51,7 @@
 #include "NiagaraNodeAssignment.h"
 #include "NiagaraCommon.h"
 #include "NiagaraSettings.h"
+#include "SNiagaraParameterDropTarget.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -71,7 +72,11 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 		SAssignNew(ChildrenBox, SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		[
-			SNew(SDropTarget)
+			SNew(SNiagaraParameterDropTarget)
+			.TypeToTestAgainst(FunctionInput->GetInputType())
+			.ExecutionCategory(FunctionInput->GetExecutionCategoryName())
+			.TargetParameter(FNiagaraVariable(FunctionInput->GetInputType(), FunctionInput->GetInputParameterHandle().GetParameterHandleString()))
+			.DropTargetArgs(SDropTarget::FArguments()
 			.OnAllowDrop(this, &SNiagaraStackFunctionInputValue::OnFunctionInputAllowDrop)
 			.OnDropped(this, &SNiagaraStackFunctionInputValue::OnFunctionInputDrop)
 			.HorizontalImage(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.DropTarget.BorderHorizontal"))
@@ -185,7 +190,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 						.ColorAndOpacity(FSlateColor(FLinearColor::Green))
 					]
 				]			
-			]
+			])
 		]
 	];
 

@@ -3530,7 +3530,7 @@ bool FNiagaraParameterUtilities::TestCanRenameWithMessage(FName ParameterName, F
 	return false;
 }
 
-TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariable Variable, bool bShowValue)
+TSharedRef<SWidget> FNiagaraParameterUtilities::GetParameterWidget(FNiagaraVariable Variable, bool bShowValue)
 {
 	FNiagaraTypeDefinition Type = Variable.GetType();
 	const FLinearColor TypeColor = UEdGraphSchema_Niagara::GetTypeColor(Type);
@@ -3543,12 +3543,12 @@ TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariab
 	FSlateBrush const* SecondaryIconBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));
 	FSlateColor        SecondaryIconColor = IconColor;
 
-
-	TSharedRef<SVerticalBox> TooltipContent = SNew(SVerticalBox)
+	TSharedPtr<SHorizontalBox> ParameterContainer;
+	TSharedRef<SVerticalBox> ParameterWidget = SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SNew(SHorizontalBox)
+			SAssignNew(ParameterContainer, SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.HAlign(HAlign_Center)
@@ -3579,7 +3579,7 @@ TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariab
 	{
 		const FText ValueText = TypeUtilities->GetStackDisplayText(Variable);
 
-		TooltipContent->AddSlot()
+		ParameterWidget->AddSlot()
 		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
@@ -3603,14 +3603,57 @@ TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariab
 			]
 		];
 	}
-	
-	
+
+	return ParameterWidget;
+}
+
+TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariable Variable, bool bShowValue, TSharedPtr<SWidget> AdditionalVerticalWidget,  TSharedPtr<SWidget> AdditionalHorizontalWidget)
+{
+	FNiagaraTypeDefinition Type = Variable.GetType();
+	const FLinearColor TypeColor = UEdGraphSchema_Niagara::GetTypeColor(Type);
+	TSharedPtr<INiagaraEditorTypeUtilities> TypeUtilities = FNiagaraEditorModule::Get().GetTypeUtilities(Type);
+
+	FText			   IconToolTip = FText::GetEmpty();
+	FSlateBrush const* IconBrush = FAppStyle::Get().GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+	FSlateColor        IconColor = FSlateColor(TypeColor);
+	FString			   IconDocLink, IconDocExcerpt;
+	FSlateBrush const* SecondaryIconBrush = FEditorStyle::GetBrush(TEXT("NoBrush"));
+	FSlateColor        SecondaryIconColor = IconColor;
+
+	TSharedPtr<SHorizontalBox> ParameterContainer;
+	TSharedRef<SWidget> TooltipContent = GetParameterWidget(Variable, bShowValue);
+
+	TSharedPtr<SVerticalBox> InnerContainer;
 	// we construct a tooltip widget that shows the parameter the value is associated with
 	TSharedRef<SToolTip> TooltipWidget = SNew(SToolTip)
 	.Content()
 	[
-		TooltipContent
+		SAssignNew(InnerContainer, SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			TooltipContent
+		]
 	];
+
+	// if we specified an additional widget, add it here
+	if(AdditionalVerticalWidget.IsValid())
+	{
+		InnerContainer->AddSlot()
+		.AutoHeight()
+		[
+			AdditionalVerticalWidget.ToSharedRef()
+		];
+	}
+
+	if(AdditionalHorizontalWidget.IsValid())
+	{
+		ParameterContainer->AddSlot()
+		.AutoWidth()
+		[
+			AdditionalHorizontalWidget.ToSharedRef()	
+		];
+	}
 
 	return TooltipWidget;
 }

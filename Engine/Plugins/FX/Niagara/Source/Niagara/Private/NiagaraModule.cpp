@@ -1101,7 +1101,7 @@ bool FNiagaraTypeDefinition::IsScalarDefinition(const FNiagaraTypeDefinition& Ty
 	return ScalarStructs.Contains(Type.GetScriptStruct()) || (Type.GetScriptStruct() == IntStruct && Type.GetEnum() != nullptr);
 }
 
-bool FNiagaraTypeDefinition::TypesAreAssignable(const FNiagaraTypeDefinition& TypeInput, const FNiagaraTypeDefinition& TypeOutput)
+bool FNiagaraTypeDefinition::TypesAreAssignable(const FNiagaraTypeDefinition& TypeInput, const FNiagaraTypeDefinition& TypeOutput, bool bAllowLossyLWCConversions)
 {
 	if (const UClass* AClass = TypeInput.GetClass())
 	{
@@ -1152,7 +1152,9 @@ bool FNiagaraTypeDefinition::TypesAreAssignable(const FNiagaraTypeDefinition& Ty
 	}
 	else
 	{
-		bIsSupportedConversion = (TypeInput == ColorDef && TypeOutput == Vec4Def) || (TypeOutput == ColorDef && TypeInput == Vec4Def);
+		bIsSupportedConversion = (TypeInput == ColorDef && TypeOutput == Vec4Def) || (TypeOutput == ColorDef && TypeInput == Vec4Def)
+			// we only allow direct assignments between vec <-> position if we are allowing lossy conversions
+			|| (bAllowLossyLWCConversions && ((TypeOutput == PositionDef && TypeInput == Vec3Def) || (TypeOutput == Vec3Def && TypeInput == PositionDef)));
 	}
 
 	if (bIsSupportedConversion)
@@ -1167,12 +1169,15 @@ bool FNiagaraTypeDefinition::TypesAreAssignable(const FNiagaraTypeDefinition& Ty
 		(TypeOutput == NumericDef && (TypeInput.GetStruct() == GetIntStruct()) && TypeInput.GetEnum() != nullptr);
 }
 
-bool FNiagaraTypeDefinition::IsLossyConversion(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB)
+bool FNiagaraTypeDefinition::IsLossyConversion(const FNiagaraTypeDefinition& FromType, const FNiagaraTypeDefinition& ToType)
 {
-	return (TypeA.IsSameBaseDefinition(IntDef) && TypeB.IsSameBaseDefinition(FloatDef))
-		|| (TypeB.IsSameBaseDefinition(IntDef) && TypeA.IsSameBaseDefinition(FloatDef))
-		|| (TypeA.IsSameBaseDefinition(BoolDef) && TypeB.IsSameBaseDefinition(FloatDef))
-		|| (TypeB.IsSameBaseDefinition(BoolDef) && TypeA.IsSameBaseDefinition(FloatDef));
+	// @todo this should be unidirectional, same with TypesAreAssignable
+	return (FromType.IsSameBaseDefinition(IntDef) && ToType.IsSameBaseDefinition(FloatDef))
+		|| (ToType.IsSameBaseDefinition(IntDef) && FromType.IsSameBaseDefinition(FloatDef))
+		|| (FromType.IsSameBaseDefinition(BoolDef) && ToType.IsSameBaseDefinition(FloatDef))
+		|| (ToType.IsSameBaseDefinition(BoolDef) && FromType.IsSameBaseDefinition(FloatDef))
+		|| (FromType == PositionDef && ToType == Vec3Def)
+		|| (FromType == Vec3Def && ToType == PositionDef);
 }
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::GetNumericOutputType(const TArray<FNiagaraTypeDefinition> TypeDefinintions, ENiagaraNumericOutputTypeSelectionMode SelectionMode)

@@ -1010,25 +1010,29 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 			{
 				return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Types are not compatible"));
 			}
-
-			else if (FNiagaraTypeDefinition::TypesAreAssignable(PinTypeInput, PinTypeOutput) == false)
+			else if (FNiagaraTypeDefinition::TypesAreAssignable(PinTypeInput, PinTypeOutput, GetDefault<UNiagaraSettings>()->bEnforceStrictStackTypes == false))
+			{
+				// if we have a lossy conversion but are assignable, let the user connect but inform him
+				if(FNiagaraTypeDefinition::IsLossyConversion(PinTypeOutput, PinTypeInput))
+				{
+					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, FString::Printf(TEXT("Convert %s to %s implicitly. Be aware that this can be a lossy conversion."), *(PinTypeOutput.GetNameText().ToString()), *(PinTypeInput.GetNameText().ToString())));
+				}
+				// if we are assignable and not lossy, we simply allow the connection
+				else
+				{
+					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, FString());
+				}
+			}
+			// if the types are not directly assignable at all, give the user a chance to use a conversion node
+			else
 			{
 				//Do some limiting on auto conversions here?
 				if (PinTypeInput.GetClass() || PinTypeInput.IsStatic() || PinTypeOutput.IsStatic())
 				{
 					return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Types are not compatible"));
 				}
-				else if (FNiagaraTypeDefinition::IsLossyConversion(PinTypeInput, PinTypeOutput))
-				{
-					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, FString::Printf(TEXT("Convert %s to %s. Be aware that this can be a lossy conversion."), *(PinTypeOutput.GetNameText().ToString()), *(PinTypeInput.GetNameText().ToString())));
-				}
 				else
 				{
-					const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-					if (Settings->bEnforceStrictStackTypes == false && ((PinTypeInput == FNiagaraTypeDefinition::GetPositionDef() && PinTypeOutput == FNiagaraTypeDefinition::GetVec3Def()) || (PinTypeOutput == FNiagaraTypeDefinition::GetPositionDef() && PinTypeInput == FNiagaraTypeDefinition::GetVec3Def())))
-					{
-						return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, FString());
-					}
 					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE, FString::Printf(TEXT("Convert %s to %s"), *(PinTypeOutput.GetNameText().ToString()), *(PinTypeInput.GetNameText().ToString())));
 				}
 			}
