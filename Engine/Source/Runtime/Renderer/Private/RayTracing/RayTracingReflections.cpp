@@ -401,7 +401,7 @@ bool ShouldRenderRayTracingReflections(const FViewInfo& View)
 
 	const bool bReflectionPassEnabled = bReflectionsCvarEnabled && (GetRayTracingReflectionsSamplesPerPixel(View) > 0) && !View.bIsReflectionCapture;
 		
-	return ShouldRenderRayTracingEffect(bReflectionPassEnabled, ERayTracingPipelineCompatibilityFlags::FullPipeline);
+	return ShouldRenderRayTracingEffect(bReflectionPassEnabled, ERayTracingPipelineCompatibilityFlags::FullPipeline, &View);
 }
 
 static bool ShouldRayTracedReflectionsUseHybridReflections()

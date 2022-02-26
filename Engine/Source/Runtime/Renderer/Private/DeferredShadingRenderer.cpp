@@ -633,7 +633,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	DirtyCachedRayTracingPrimitives.Reserve(Scene->PrimitiveSceneProxies.Num());
 
 	int32 VisiblePrimitives = 0;
-	bool bPerformRayTracing = View.State != nullptr && !View.bIsReflectionCapture;
+	bool bPerformRayTracing = View.State != nullptr && !View.bIsReflectionCapture && View.bAllowRayTracing;
 	if (bPerformRayTracing)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_RelevantPrimitives);
@@ -3361,7 +3361,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 {
-	if (!IsRayTracingEnabled() || Scene == nullptr || !View.bAllowRayTracing)
+	if (!IsRayTracingEnabled() || Scene == nullptr)
 	{
 		return false;
 	}
@@ -3378,9 +3378,9 @@ bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 		|| HasRayTracedOverlay(*View.Family);
 }
 
-bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompatibilityFlags CompatibilityFlags)
+bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompatibilityFlags CompatibilityFlags, const FSceneView* View)
 {
-	if (!IsRayTracingEnabled())
+	if (!IsRayTracingEnabled() || (View && !View->bAllowRayTracing))
 	{
 		return false;
 	}

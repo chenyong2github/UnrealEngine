@@ -54,7 +54,7 @@ ENUM_CLASS_FLAGS(ERayTracingPipelineCompatibilityFlags);
 #if RHI_RAYTRACING
 
 // Whether a particular effect should be used, taking into account debug override
-extern bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompatibilityFlags CompatibilityFlags);
+extern bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompatibilityFlags CompatibilityFlags, const FSceneView* View);
 
 extern bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 extern bool AnyInlineRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
@@ -80,7 +80,7 @@ extern bool CanUseRayTracingAMDHitToken();
 
 #else // RHI_RAYTRACING
 
-FORCEINLINE bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompatibilityFlags CompatibilityFlags)
+FORCEINLINE bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompatibilityFlags CompatibilityFlags, const FSceneView* View)
 {
 	return false;
 }
@@ -159,5 +159,5 @@ FORCEINLINE bool CanUseRayTracingAMDHitToken()
 
 FORCEINLINE bool ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags CompatibilityFlags)
 {
-	return ShouldRenderRayTracingEffect(true, CompatibilityFlags);
+	return ShouldRenderRayTracingEffect(true, CompatibilityFlags, nullptr);
 }

@@ -395,7 +395,7 @@ bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View)
 		? CVarRayTracingGlobalIlluminationValue > 0
 		: View.FinalPostProcessSettings.RayTracingGIType > ERayTracingGlobalIlluminationType::Disabled;
 
-	return ShouldRenderRayTracingEffect(bEnabled, ERayTracingPipelineCompatibilityFlags::FullPipeline);
+	return ShouldRenderRayTracingEffect(bEnabled, ERayTracingPipelineCompatibilityFlags::FullPipeline, &View);
 }
 
 bool IsFinalGatherEnabled(const FViewInfo& View)
