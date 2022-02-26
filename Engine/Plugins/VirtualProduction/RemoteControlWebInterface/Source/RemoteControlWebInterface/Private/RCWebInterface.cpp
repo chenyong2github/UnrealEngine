@@ -17,6 +17,15 @@
 
 #define LOCTEXT_NAMESPACE "FRemoteControlWebInterfaceModule"
 
+
+static TAutoConsoleVariable<int32> CVarRCWebInterfaceRunWebApp(
+	TEXT("RemoteControlWebInterface.RunWebApp"),
+	1,
+	TEXT("Run / Stop Remote Control Web App"));
+
+static FAutoConsoleVariableSink CVarRCWebInterfaceRunWebAppSink(FConsoleCommandDelegate::CreateStatic(&FRemoteControlWebInterfaceModule::OnCVarChanged));
+
+
 namespace RCWebInterface
 {
 	bool IsWebInterfaceEnabled()
@@ -33,14 +42,14 @@ namespace RCWebInterface
 
 void FRemoteControlWebInterfaceModule::StartupModule()
 {
+	WebApp = MakeShared<FRemoteControlWebInterfaceProcess>();
+
 	if (!RCWebInterface::IsWebInterfaceEnabled())
 	{
 		UE_LOG(LogRemoteControlWebInterface, Display, TEXT("Remote Control Web Interface is disabled by default when running outside the editor. Use the -RCWebInterfaceEnable flag when launching in order to use it."));
 		return;
 	}
 	
-	WebApp = MakeShared<FRemoteControlWebInterfaceProcess>();
-
 	TSharedPtr<FRemoteControlWebInterfaceProcess> WebAppLocal = WebApp;
 
 	FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([WebAppLocal]()
@@ -85,6 +94,30 @@ void FRemoteControlWebInterfaceModule::ShutdownModule()
 	if (IWebRemoteControlModule* WebRemoteControlModule = FModuleManager::GetModulePtr<IWebRemoteControlModule>("WebRemoteControl"))
 	{
 		WebRemoteControlModule->OnWebSocketServerStarted().Remove(WebSocketServerStartedDelegate);
+	}
+}
+
+void FRemoteControlWebInterfaceModule::OnCVarChanged()
+{
+	FRemoteControlWebInterfaceModule& RCWebInf = FRemoteControlWebInterfaceModule::Get();
+	FRemoteControlWebInterfaceProcess::EStatus WebAppStatus = RCWebInf.WebApp->GetStatus();
+
+	bool bIsCurrentlyRunning = (
+		WebAppStatus == FRemoteControlWebInterfaceProcess::EStatus::Running ||
+		WebAppStatus == FRemoteControlWebInterfaceProcess::EStatus::Launching
+		);
+
+	bool bRunWebApp = CVarRCWebInterfaceRunWebApp.GetValueOnGameThread() != 0;
+	if (bRunWebApp != bIsCurrentlyRunning)
+	{
+		if (bRunWebApp)
+		{
+			RCWebInf.WebApp->Start();
+		}
+		else
+		{
+			RCWebInf.WebApp->Shutdown();
+		}
 	}
 }
 

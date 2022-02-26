@@ -79,21 +79,25 @@ namespace RCWebInterface
 			{
 				if (Struct->IsChildOf(TBaseStructure<FVector>::Get()))
 				{
-					Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Sliders") };
+					Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Sliders"), TEXT("Dials") };
 				}
 				else if (Struct->IsChildOf(TBaseStructure<FVector2D>::Get()))
 				{
-					Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Sliders") };
+					Widgets = { TEXT("Vector"), TEXT("Joystick"), TEXT("Sliders"), TEXT("Dials") };
 				}
 				else if (Struct->IsChildOf(TBaseStructure<FRotator>::Get()))
 				{
-					Widgets = { TEXT("Vector"), TEXT("Sliders") };
+					Widgets = { TEXT("Vector"), TEXT("Sliders"), TEXT("Dials") };
 				}
 				else if (Struct->IsChildOf(TBaseStructure<FVector4>::Get()) || Struct->IsChildOf(TBaseStructure<FColor>::Get()) || Struct->IsChildOf(TBaseStructure<FLinearColor>::Get()))
 				{
 					Widgets = { TEXT("Color Picker"), TEXT("Mini Color Picker") };
 				}
 			}
+		}
+		else if (Property->IsA<FObjectPropertyBase>())
+		{
+			Widgets = { TEXT("Asset") };
 		}
 
 		return Widgets;
