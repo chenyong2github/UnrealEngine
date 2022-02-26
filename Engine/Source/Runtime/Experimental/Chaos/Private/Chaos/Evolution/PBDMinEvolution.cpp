@@ -44,8 +44,9 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraintsPhase1"), STAT_MinEvolution_ApplyConstraintsPhase1, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdateVelocities"), STAT_MinEvolution_UpdateVelocites, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraintsPhase2"), STAT_MinEvolution_ApplyConstraintsPhase2, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyCorrections"), STAT_MinEvolution_ApplyCorrections, STATGROUP_ChaosMinEvolution);
+	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraintsPhase3"), STAT_MinEvolution_ApplyConstraintsPhase3, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::DetectCollisions"), STAT_MinEvolution_DetectCollisions, STATGROUP_ChaosMinEvolution);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdatePositions"), STAT_MinEvolution_UpdatePositions, STATGROUP_ChaosMinEvolution);
 
 	//
 	//
@@ -138,6 +139,9 @@ namespace Chaos
 		, SolverType(EConstraintSolverType::QuasiPbd)
 		, NumApplyIterations(0)
 		, NumApplyPushOutIterations(0)
+		, NumPositionIterations(0)
+		, NumVelocityIterations(0)
+		, NumProjectionIterations(0)
 		, BoundsExtension(InBoundsExtension)
 		, Gravity(FVec3(0))
 		, SimulationSpaceSettings()
@@ -228,9 +232,11 @@ namespace Chaos
 				PostApplyPushOutCallback();
 			}
 
-			ScatterOutput(Dt);
+			ApplyCorrections(Dt);
 
-			UpdatePositions(Dt);
+			ApplyConstraintsPhase3(Dt);
+
+			ScatterOutput(Dt);
 		}
 	}
 
@@ -492,18 +498,28 @@ namespace Chaos
 		}
 
 		SolverData.GetBodyContainer().ScatterOutput();
+	
+		for (auto& Particle : Particles.GetActiveParticlesView())
+		{
+			Particle.Handle()->AuxilaryValue(ParticlePrevXs) = Particle.X();
+			Particle.Handle()->AuxilaryValue(ParticlePrevRs) = Particle.R();
+			Particle.X() = Particle.P();
+			Particle.R() = Particle.Q();
+		}
 	}
 
 	void FPBDMinEvolution::ApplyConstraintsPhase1(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase1);
 
-		for (int32 i = 0; i < NumApplyIterations; ++i)
+		const int32 NumIterationsPhase1 = (SolverType == EConstraintSolverType::QuasiPbd) ? NumPositionIterations : NumApplyIterations;
+
+		for (int32 i = 0; i < NumIterationsPhase1; ++i)
 		{
 			bool bNeedsAnotherIteration = Chaos_MinEvolution_ForceMaxConstraintIterations;
 			for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
 			{
-				bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, i, NumApplyIterations);
+				bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, i, NumIterationsPhase1);
 			}
 
 			if (!bNeedsAnotherIteration)
@@ -539,12 +555,14 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase2);
 
-		for (int32 It = 0; It < NumApplyPushOutIterations; ++It)
+		const int32 NumIterationsPhase2 = (SolverType == EConstraintSolverType::QuasiPbd) ? NumVelocityIterations : 0;
+
+		for (int32 It = 0; It < NumIterationsPhase2; ++It)
 		{
 			bool bNeedsAnotherIteration = false;
 			for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
 			{
-				bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, It, NumApplyPushOutIterations);
+				bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, It, NumIterationsPhase2);
 			}
 
 			if (!bNeedsAnotherIteration)
@@ -554,16 +572,32 @@ namespace Chaos
 		}
 	}
 
-	void FPBDMinEvolution::UpdatePositions(FReal Dt)
+	void FPBDMinEvolution::ApplyCorrections(FReal Dt)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_UpdatePositions);
-		for (auto& Particle : Particles.GetActiveParticlesView())
-		{
-			Particle.Handle()->AuxilaryValue(ParticlePrevXs) = Particle.X();
-			Particle.Handle()->AuxilaryValue(ParticlePrevRs) = Particle.R();
-			Particle.X() = Particle.P();
-			Particle.R() = Particle.Q();
-		}
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyCorrections);
+
+		SolverData.GetBodyContainer().ApplyCorrections();
+		SolverData.GetBodyContainer().UpdateRotationDependentState();
 	}
 
+	void FPBDMinEvolution::ApplyConstraintsPhase3(FReal Dt)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase3);
+
+		const int32 NumIterationsPhase3 = (SolverType == EConstraintSolverType::QuasiPbd) ? NumProjectionIterations : NumApplyPushOutIterations;
+
+		for (int32 It = 0; It < NumIterationsPhase3; ++It)
+		{
+			bool bNeedsAnotherIteration = false;
+			for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
+			{
+				bNeedsAnotherIteration |= ConstraintRule->ApplyProjection(Dt, It, NumIterationsPhase3);
+			}
+
+			if (!bNeedsAnotherIteration)
+			{
+				break;
+			}
+		}
+	}
 }

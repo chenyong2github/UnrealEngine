@@ -39,6 +39,7 @@ void FPhysicsAssetEditorAnimInstanceProxy::Initialize(UAnimInstance* InAnimInsta
 	UPhysicsAsset* PhysicsAsset = InAnimInstance->GetSkelMeshComponent()->GetPhysicsAsset();
 	if (PhysicsAsset != nullptr)
 	{
+		SolverSettings = PhysicsAsset->SolverSettings;
 		SolverIterations = PhysicsAsset->SolverIterations;
 	}
 
@@ -83,8 +84,15 @@ bool FPhysicsAssetEditorAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Outpu
 	ImmediatePhysics::FSimulation* Simulation = RagdollNode.GetSimulation();
 	if (Simulation != nullptr)
 	{
-		Simulation->SetSolverIterations(
-			SolverIterations.FixedTimeStep,
+		Simulation->SetSolverSettings(
+			SolverSettings.FixedTimeStep,
+			SolverSettings.CullDistance,
+			SolverSettings.MaxDepenetrationVelocity,
+			SolverSettings.PositionIterations,
+			SolverSettings.VelocityIterations,
+			SolverSettings.ProjectionIterations);
+
+		Simulation->SetLegacySolverSettings(
 			SolverIterations.SolverIterations,
 			SolverIterations.JointIterations,
 			SolverIterations.CollisionIterations,

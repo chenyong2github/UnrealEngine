@@ -186,6 +186,15 @@ namespace Chaos
 		// Iteration count cvars
 		// These override the engine config if >= 0
 
+		int32 ChaosSolverCollisionPositionFrictionIterations = -1;
+		int32 ChaosSolverCollisionVelocityFrictionIterations = -1;
+		int32 ChaosSolverCollisionPositionShockPropagationIterations = -1;
+		int32 ChaosSolverCollisionVelocityShockPropagationIterations = -1;
+		FAutoConsoleVariableRef CVarChaosSolverCollisionPositionFrictionIterations(TEXT("p.Chaos.Solver.Collision.PositionFrictionIterations"), ChaosSolverCollisionPositionFrictionIterations, TEXT("Override number of position iterations where friction is applied (if >= 0)"));
+		FAutoConsoleVariableRef CVarChaosSolverCollisionVelocityFrictionIterations(TEXT("p.Chaos.Solver.Collision.VelocityFrictionIterations"), ChaosSolverCollisionVelocityFrictionIterations, TEXT("Override number of velocity iterations where friction is applied (if >= 0)"));
+		FAutoConsoleVariableRef CVarChaosSolverCollisionPositionShockPropagationIterations(TEXT("p.Chaos.Solver.Collision.PositionShockPropagationIterations"), ChaosSolverCollisionPositionShockPropagationIterations, TEXT("Override number of position iterations where shock propagation is applied (if >= 0)"));
+		FAutoConsoleVariableRef CVarChaosSolverCollisionVelocityShockPropagationIterations(TEXT("p.Chaos.Solver.Collision.VelocityShockPropagationIterations"), ChaosSolverCollisionVelocityShockPropagationIterations, TEXT("Override number of velocity iterations where shock propagation is applied (if >= 0)"));
+
 		int32 ChaosSolverIterations = -1;
 		FAutoConsoleVariableRef CVarChaosSolverIterations(TEXT("p.Chaos.Solver.Iterations"), ChaosSolverIterations, TEXT("Override number of solver iterations (-1 to use config)"));
 
@@ -832,6 +841,22 @@ namespace Chaos
 			GetEvolution()->GetCollisionConstraints().SetSolverType((EConstraintSolverType)ChaosSolver_SolverType);
 			GetJointConstraints().SetSolverType((EConstraintSolverType)ChaosSolver_SolverType);
 
+			if (ChaosSolverCollisionPositionFrictionIterations >= 0)
+			{
+				MEvolution->GetCollisionConstraints().SetPositionFrictionIterations(ChaosSolverCollisionPositionFrictionIterations);
+			}
+			if (ChaosSolverCollisionVelocityFrictionIterations >= 0)
+			{
+				MEvolution->GetCollisionConstraints().SetVelocityFrictionIterations(ChaosSolverCollisionVelocityFrictionIterations);
+			}
+			if (ChaosSolverCollisionPositionShockPropagationIterations >= 0)
+			{
+				MEvolution->GetCollisionConstraints().SetPositionShockPropagationIterations(ChaosSolverCollisionPositionShockPropagationIterations);
+			}
+			if (ChaosSolverCollisionVelocityShockPropagationIterations >= 0)
+			{
+				MEvolution->GetCollisionConstraints().SetVelocityShockPropagationIterations(ChaosSolverCollisionVelocityShockPropagationIterations);
+			}
 			if (ChaosSolverIterations >= 0)
 			{
 				SetIterations(ChaosSolverIterations);

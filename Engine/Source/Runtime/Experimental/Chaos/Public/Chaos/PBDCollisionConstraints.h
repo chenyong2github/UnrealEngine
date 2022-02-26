@@ -159,6 +159,7 @@ public:
 
 	bool ApplyPhase1(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
 	bool ApplyPhase2(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
+	bool ApplyPhase3(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return false; }
 
 	//
 	// Island Rule API
@@ -265,7 +266,27 @@ public:
 
 	void SetMaxPushOutVelocity(const FReal InMaxPushOutVelocity)
 	{
-		MaxPushOutVelocity = InMaxPushOutVelocity;
+		SolverSettings.MaxPushOutVelocity = InMaxPushOutVelocity;
+	}
+
+	void SetPositionFrictionIterations(const int32 InNumIterations)
+	{
+		SolverSettings.NumPositionFrictionIterations = InNumIterations;
+	}
+
+	void SetVelocityFrictionIterations(const int32 InNumIterations)
+	{
+		SolverSettings.NumVelocityFrictionIterations = InNumIterations;
+	}
+
+	void SetPositionShockPropagationIterations(const int32 InNumIterations)
+	{
+		SolverSettings.NumPositionShockPropagationIterations = InNumIterations;
+	}
+
+	void SetVelocityShockPropagationIterations(const int32 InNumIterations)
+	{
+		SolverSettings.NumVelocityShockPropagationIterations = InNumIterations;
 	}
 
 	int32 NumConstraints() const
@@ -338,7 +359,8 @@ private:
 	FVec3 GravityDirection;
 	FReal GravitySize;
 
-	FReal MaxPushOutVelocity;
+	// Settings for the low-level collision solvers
+	FPBDCollisionSolverSettings SolverSettings;
 
 	EConstraintSolverType SolverType;
 };

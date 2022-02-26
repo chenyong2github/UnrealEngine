@@ -45,11 +45,28 @@ namespace Chaos
 			SolverType = InSolverType;
 		}
 
+		void SetNumPositionIterations(const int32 NumIts)
+		{
+			NumPositionIterations = NumIts;
+		}
+
+		void SetNumVelocityIterations(const int32 NumIts)
+		{
+			NumVelocityIterations = NumIts;
+		}
+
+		void SetNumProjectionIterations(const int32 NumIts)
+		{
+			NumProjectionIterations = NumIts;
+		}
+
+		// Legacy
 		void SetNumIterations(const int32 NumIts)
 		{
 			NumApplyIterations = NumIts;
 		}
 
+		// Legacy
 		void SetNumPushOutIterations(const int32 NumIts)
 		{
 			NumApplyPushOutIterations = NumIts;
@@ -117,7 +134,8 @@ namespace Chaos
 		void ApplyConstraintsPhase1(FReal Dt);
 		void UpdateVelocities(FReal Dt);
 		void ApplyConstraintsPhase2(FReal Dt);
-		void UpdatePositions(FReal Dt);
+		void ApplyCorrections(FReal Dt);
+		void ApplyConstraintsPhase3(FReal Dt);
 
 		FRigidParticleSOAs& Particles;
 		FCollisionDetector& CollisionDetector;
@@ -132,6 +150,9 @@ namespace Chaos
 		EConstraintSolverType SolverType;
 		int32 NumApplyIterations;
 		int32 NumApplyPushOutIterations;
+		int32 NumPositionIterations;
+		int32 NumVelocityIterations;
+		int32 NumProjectionIterations;
 		FReal BoundsExtension;
 		FVec3 Gravity;
 		FSimulationSpaceSettings SimulationSpaceSettings;

@@ -1289,12 +1289,13 @@ void FChaosEngineInterface::SetProjectionEnabled_AssumesLocked(const FPhysicsCon
 	}
 }
 
-void FChaosEngineInterface::SetShockPropagationAlpha_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float InShockPropagationAlpha)
+void FChaosEngineInterface::SetShockPropagationEnabled_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, bool bInShockPropagationEnabled, float InShockPropagationAlpha)
 {
 	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
 		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
+			Constraint->SetShockPropagationEnabled(bInShockPropagationEnabled);
 			Constraint->SetShockPropagationAlpha(InShockPropagationAlpha);
 		}
 	}

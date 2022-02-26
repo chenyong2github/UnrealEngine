@@ -27,22 +27,26 @@ struct ENGINE_API FConstraintProfileProperties
 	GENERATED_USTRUCT_BODY()
 
 	/** [PhysX only] Linear tolerance value in world units. If the distance error exceeds this tolerence limit, the body will be projected. */
-	UPROPERTY(EditAnywhere, Category = Projection, meta = (editcondition = "bEnableProjection", ClampMin = "0.0"))
+	UPROPERTY()
 	float ProjectionLinearTolerance;
 
 	/** [PhysX only] Angular tolerance value in world units. If the distance error exceeds this tolerence limit, the body will be projected. */
-	UPROPERTY(EditAnywhere, Category = Projection, meta = (editcondition = "bEnableProjection", ClampMin = "0.0"))
+	UPROPERTY()
 	float ProjectionAngularTolerance;
 
-	/** [Chaos Only] How much linear projection to apply [0-1]. Projection fixes any post-solve position error in the constraint. */
+	/**  How much linear projection to apply [0-1] */
 	UPROPERTY(EditAnywhere, Category = Projection, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ProjectionLinearAlpha;
 
-	/** [Chaos Only] How much angular projection to apply [0-1]. Projection fixes any post-solve angle error in the constraint. */
+	/** How much angular projection to apply [0-1] */
 	UPROPERTY(EditAnywhere, Category = Projection, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ProjectionAngularAlpha;
 
-	/** How much shock propagation to apply [0-1] */
+	/** 
+	 * How much shock propagation to apply [0-1]. Shock propagation increases the mass of the parent body for the last iteration of the
+	 * position and velocity solve phases. This can help stiffen up joint chains, but is also prone to introducing energy down the chain
+	 * especially at high alpha.
+	 */
 	UPROPERTY(EditAnywhere, Category = Projection, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ShockPropagationAlpha;
 
@@ -90,27 +94,46 @@ struct ENGINE_API FConstraintProfileProperties
 	uint8 bParentDominates : 1;
 
 	/**
-	* [PhysX] If distance error between bodies exceeds 0.1 units, or rotation error exceeds 10 degrees, body will be projected to fix this.
-	* For example a chain spinning too fast will have its elements appear detached due to velocity, this will project all bodies so they still appear attached to each other.
+	* NOTE: RigidBody AnimNode only. Projection is not applied to ragdoll physics in the main scene. For Ragdolls, ShockPropagation has a similar effect
+	* and is more compatible with the world solver.
+	* 
+	* Projection is a post-solve position and angular fixup where the parent body in the constraint is treated as having infinite mass and the child body is
+	* translated and rotated to resolve any remaining errors using a semi-physical correction. This can be used to make constraint chains significantly stiffer 
+	* at lower iteration counts. Increasing iterations would have the same effect, but be much more expensive. Projection only works well if the chain is not 
+	* interacting with other objects (e.g., through collisions) because the projection of the bodies in the chain will cause other constraints to be violated. 
+	* Likewise, if a body is influenced by multiple constraints, then enabling projection on more than one constraint may lead to unexpected results - the 
+	* "last" constraint would win but the order in which constraints are solved cannot be directly controlled.
+	* 
+	* Projection is fairly expensive compared to a single position iteration, so if you can get the behaviour you need by adding a couple iterations, that
+	* is probably a better approach.
 	*
-	* [Chaos] Chaos applies a post-solve position and angular fixup where the parent body in the constraint is treated as having infinite mass and the child body is 
-	* translated and rotated to resolve any remaining errors. This can be used to make constraint chains significantly stiffer at lower iteration counts. Increasing
-	* iterations would have the same effect, but be much more expensive. Projection only works well if the chain is not interacting with other objects (e.g.,
-	* through collisions) because the projection of the bodies in the chain will cause other constraints to be violated. Likewise, if a body is influenced by multiple
-	* constraints, then enabling projection on more than one constraint may lead to unexpected results - the "last" constraint would win but the order in which constraints
-	* are solved cannot be directly controlled.
 	*
-	* Note: projection will not be applied to constraints with soft limits.
+	* Note: projection is only applied to hard-limit constraints, anf not applied to constraints with soft limits.
 	*/
 	UPROPERTY(EditAnywhere, Category = Projection)
-	uint8 bEnableProjection : 1;
+	uint8 bEnableLinearProjection : 1;
 
 	/**
-	 * [Chaos Only] Apply projection to constraints with soft limits. This can be used to stiffen up soft joints at low iteration counts, but the projection will
-	 * override a lot of the spring-damper behaviour of the soft limits. E.g., if you have soft projection enabled and ProjectionAngularAlpha = 1.0,
-	 * the joint will act as if it is a hard limit.
+	 * NOTE: RigidBody AnimNode only. See coments on bEnableLinearProjection
+	*/
+	UPROPERTY(EditAnywhere, Category = Projection)
+	uint8 bEnableAngularProjection : 1;
+
+	/**
+	 * Shock propagation increases the mass of the parent body for the last iteration of the position and velocity solve phases. 
+	 * This can help stiffen up joint chains, but is also prone to introducing energy down the chain especially at high alpha.
+	 * 
+	 * NOTE: This is intended to be used for world constraints, not RigidBody AnimNodes which have the Projection system.
 	 */
 	UPROPERTY(EditAnywhere, Category = Projection)
+	uint8 bEnableShockPropagation : 1;
+
+	// HIDDEN - TO BE DEPRECATED
+	UPROPERTY()
+	uint8 bEnableProjection : 1;
+
+	// HIDDEN - TO BE DEPRECATED
+	UPROPERTY()
 	uint8 bEnableSoftProjection : 1;
 
 	/** Whether it is possible to break the joint with angular force. */
@@ -905,15 +928,13 @@ public:
 	void DisableProjection();
 
 	/** Set projection parameters */
-	void SetProjectionParams(bool bEnableProjection, float ProjectionLinearAlphaOrTolerance, float ProjectionAngularAlphaOrTolerance);
+	void SetProjectionParams(bool bEnableLinearProjection, bool bEnableAngularProjection, float ProjectionLinearAlphaOrTolerance, float ProjectionAngularAlphaOrTolerance);
 
-	/** Get projection parameters 
-	* Chaos returns alphas, PhysX returns tolerances
-	*/
+	/** Get projection parameters */
 	void GetProjectionAlphasOrTolerances(float& ProjectionLinearAlphaOrTolerance, float& ProjectionAngularAlphaOrTolerance) const;
 
 	/** Set the shock propagation amount [0, 1] */
-	void SetShockPropagationParams(float ShockPropagationAlpha);
+	void SetShockPropagationParams(bool bEnableShockPropagation, float ShockPropagationAlpha);
 
 	/** Get the shock propagation amount [0, 1] */
 	float GetShockPropagationAlpha() const;

@@ -605,12 +605,8 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		if (JointSettings.bProjectionEnabled)
-		{
-			// ShockProagation setting is a alpha. For an alpha of 0 we want an invmass scale of 1, and vice-versa
-			return (SolverSettings.ShockPropagationOverride >= FReal(0)) ? (FReal(1) - SolverSettings.ShockPropagationOverride) : (FReal(1) - JointSettings.ShockPropagation);
-		}
-		return FReal(1);
+		// ShockProagation setting is a alpha. For an alpha of 0 we want an invmass scale of 1, and vice-versa
+		return (SolverSettings.ShockPropagationOverride >= FReal(0)) ? (FReal(1) - SolverSettings.ShockPropagationOverride) : (FReal(1) - JointSettings.ShockPropagation);
 	}
 
 

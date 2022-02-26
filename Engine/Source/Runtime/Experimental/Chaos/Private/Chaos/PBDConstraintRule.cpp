@@ -101,7 +101,13 @@ namespace Chaos
 	{
 		return SolverData ? Constraints.ApplyPhase2(Dt, It, NumIts, *SolverData) : false;
 	}
-	
+
+	template<class ConstraintType>
+	bool TSimpleConstraintRule<ConstraintType>::ApplyProjection(const FReal Dt, const int32 It, const int32 NumIts)
+	{
+		return SolverData ? Constraints.ApplyPhase3(Dt, It, NumIts, *SolverData) : false;
+	}
+
 	template<class ConstraintType>
 	TPBDConstraintGraphRuleImpl<ConstraintType>::TPBDConstraintGraphRuleImpl(FConstraints& InConstraints, int32 InPriority)
 		: FPBDConstraintGraphRule(InPriority)
@@ -326,7 +332,7 @@ namespace Chaos
 
 													// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
 													// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
-													Constraint->GatherInput(Dt, Particle0Level, Particle1Level, *IslandGroup, false);
+													Constraint->GatherInput(Dt, Particle0Level, Particle1Level, *IslandGroup);
 												}
 											}
 										});

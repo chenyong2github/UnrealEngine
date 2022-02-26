@@ -56,7 +56,7 @@ void UConstraintInstanceBlueprintLibrary::SetProjectionParams(
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
 		Accessor.Modify();
-		ConstraintInstance->SetProjectionParams(bEnableProjection, ProjectionLinearAlpha, ProjectionAngularAlpha);
+		ConstraintInstance->SetProjectionParams(bEnableProjection, bEnableProjection, ProjectionLinearAlpha, ProjectionAngularAlpha);
 	}
 }
 

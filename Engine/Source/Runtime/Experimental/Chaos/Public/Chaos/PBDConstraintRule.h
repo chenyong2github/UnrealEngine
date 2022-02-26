@@ -62,6 +62,7 @@ namespace Chaos
 		virtual void ScatterSolverOutput(const FReal Dt) {}
 		virtual bool ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) { return false; }
 		virtual bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts) { return false; }
+		virtual bool ApplyProjection(const FReal Dt, const int32 It, const int32 NumIts) { return false; }
 	protected:
 		/** Solver datas that are coming from the evolution */
 		FPBDIslandSolverData* SolverData = nullptr;
@@ -93,6 +94,8 @@ namespace Chaos
 		virtual bool ApplyConstraints(const FReal Dt, const int32 It, const int32 NumIts) override;
 
 		virtual bool ApplyPushOut(const FReal Dt, const int32 It, const int32 NumIts) override;
+
+		virtual bool ApplyProjection(const FReal Dt, const int32 It, const int32 NumIts) override;
 
 	private:
 		FConstraints& Constraints;

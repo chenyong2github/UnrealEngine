@@ -47,6 +47,7 @@ private:
 
 	FAnimNode_RigidBody RagdollNode;
  	FAnimNode_ConvertComponentToLocalSpace ComponentToLocalSpace;
+	FPhysicsAssetSolverSettings SolverSettings;
 	FSolverIterations SolverIterations;
 
 	ImmediatePhysics::FActorHandle* TargetActor;

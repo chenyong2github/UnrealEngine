@@ -15,47 +15,96 @@
 class FMeshElementCollector;
 class USkeletalBodySetup;
 
+
 /**
- * [Chaos Only]
+ * Solver iterations settings for use by RigidBody AnimNode (RBAN) in the Anim Graph. Each RBAN node runs its own solver with these settings.
+ *
+ * @note These settings have no effect when the Physics Asset is used in a world simulation (i.e., as a ragdoll on a SkeletalMeshComponent).
+ */
+USTRUCT(BlueprintType)
+struct ENGINE_API FPhysicsAssetSolverSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	FPhysicsAssetSolverSettings();
+
+	/**
+	 * The number of position iterations to run. The position solve is responsible for depenetration and friction.
+	 * Increasing this will improve simulation stability, but increase the cost.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings)
+	int32 PositionIterations;
+
+	/**
+	 * The number of velocity iterations to run. The velocity solve is responsible for restitution.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings)
+	int32 VelocityIterations;
+
+	/**
+	 * The number of projection iterations to run. The projection phase is a final pass over the constraints, applying
+	 * a semi-physical correction to any joint errors remaining after the position and velocity solves. It can be
+	 * very helpful to stabilize joint chains, but can cause issues with collision response. The projection magnitude
+	 * can be controlled per-constraint in the constraint settings (assuming ProjectionIteration is not zero).
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings)
+	int32 ProjectionIterations;
+
+	/**
+	 * The distance at which collisions are ignored. In general you need this to be a bit larger than the typical relative body
+	 * movement in your simulation, but small enough so that we don't have to speculatively create too many unused collisions.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMin = 0))
+	float CullDistance;
+
+	/**
+	 * When bodies are penetrating, this is the maximum velocity delta that can be applied in one frame.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMin = 0))
+	float MaxDepenetrationVelocity;
+
+	/**
+	 * The recommended fixed timestep for the RBAN solver. Set to 0 to run with variable timestep (default).
+	 * NOTE: If this value is non-zero and less than the current frame time, the simulation will step multiple times
+	 * which increases the cost.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMin = 0))
+	float FixedTimeStep;
+};
+
+
+/**
+ * Solver settings for use by the Legacy RigidBody AnimNode (RBAN) solver.
+ * Thse settings are no longer used by default and will eventually be deprecated and then removed.
+ * 
+ * @note These settings have no effect when the Physics Asset is used in a world simulation (ragdoll).
  */
 USTRUCT(BlueprintType)
 struct ENGINE_API FSolverIterations
 {
 	GENERATED_USTRUCT_BODY()
 
-		FSolverIterations();
+	FSolverIterations();
 
 	/**
-	 * [Chaos Only]
-	 * The recommended fixed timestep for the solver if supported (e.g., in RigidBody Anim Node). 0 to run with variable timestep.
-	 * NOTE: If this value is non-zero and less than the current frame time, physics will step multiple times.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMin = 0))
-		float FixedTimeStep;
-
-	/**
-	 * [Chaos Only]
 	 * The recommended number of solver iterations. Increase this if collision and joints are fighting, or joint chains are stretching.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))
 		int32 SolverIterations;
 
 	/**
-	 * [Chaos Only]
 	 * The recommended number of joint sub-iterations. Increasing this can help with chains of long-thin bodies.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))
 		int32 JointIterations;
 
 	/**
-	 * [Chaos Only]
 	 * The recommended number of collision sub-iterations. Increasing this can help with collision jitter.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))
 		int32 CollisionIterations;
 
 	/**
-	 * [Chaos Only]
 	 * The recommended number of solver push-out iterations. Increasing this can help with collision penetration problems.
 	 */
 	 /** Increase this if bodies remain penetrating */
@@ -63,19 +112,20 @@ struct ENGINE_API FSolverIterations
 		int32 SolverPushOutIterations;
 
 	/**
-	 * [Chaos Only]
 	 * The recommended number of joint sub-push-out iterations.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))
 		int32 JointPushOutIterations;
 
 	/**
-	 * [Chaos Only]
 	 * The recommended number of joint sub-push-out iterations. Increasing this can help with collision penetration problems.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMax = 50))
 		int32 CollisionPushOutIterations;
 };
+
+
+
 
 UENUM()
 enum class EPhysicsAssetSolverType: uint8
@@ -144,13 +194,28 @@ class UPhysicsAsset : public UObject, public IInterface_PreviewMeshProvider
 
 public:
 
-	/** [Chaos Only] Recommended solver settings. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = SolverSettings, Config)
+	/** 
+	 * Solver settings when the asset is used with a RigidBody Anim Node (RBAN).
+	 */
+	UPROPERTY(EditAnywhere, Category = SolverSettings, Config)
+	FPhysicsAssetSolverSettings SolverSettings;
+
+	/** 
+	 * Solver settings for RBAN simulations with the legacy RBAN solver.
+	 * These are only used for the legacy solver and are hidden by default.
+	 * They will eventually be deprecated and removed.
+	*/
+	UPROPERTY(Config)	// (EditAnywhere, Category = LegacySolverSettings, Config)
 	FSolverIterations SolverIterations;
 
-	/** [Chaos Only] Solver type used in physics asset editor. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = SolverSettings)
+	/** 
+	 * Solver type used in physics asset editor. This can be used to make what you see in the asset editror more closely resembles what you
+	 * see in game (though there will be differences owing to framerate variation etc). If your asset will primarily be used as a ragdoll 
+	 * select "World", but if it will be used in the AnimGraph select "RBAN".
+	*/
+	UPROPERTY(EditAnywhere, Category = SolverSettings)
 	EPhysicsAssetSolverType SolverType;
+
 
 	/** If true, we skip instancing bodies for this PhysicsAsset on dedicated servers */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Physics)

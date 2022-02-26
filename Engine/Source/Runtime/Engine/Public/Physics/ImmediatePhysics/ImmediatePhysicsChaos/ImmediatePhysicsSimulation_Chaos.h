@@ -76,10 +76,17 @@ namespace ImmediatePhysics_Chaos
 			const FReal MasterAlpha, 
 			const FVector& ExternalLinearEtherDrag);
 
-
-		/** Set new iteration counts. A negative value with leave that iteration count unchanged */
-		void SetSolverIterations(
+		/** Set settings. Invalid (negative) values with leave that value unchanged from defaults */
+		void SetSolverSettings(
 			const FReal FixedDt,
+			const FReal CullDistance,
+			const FReal MaxDepenetrationVelocity,
+			const int32 PositionIts,
+			const int32 VelocityIts,
+			const int32 ProjectionIts);
+
+		/** Set iteration counts for the legacy solver. A negative value with leave that iteration count unchanged */
+		void SetLegacySolverSettings(
 			const int32 SolverIts,
 			const int32 JointIts,
 			const int32 CollisionIts,

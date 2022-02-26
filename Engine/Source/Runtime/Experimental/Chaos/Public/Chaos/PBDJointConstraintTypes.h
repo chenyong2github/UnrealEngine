@@ -129,13 +129,14 @@ namespace Chaos
 		FTransformPair ConnectorTransforms;
 
 		FReal Stiffness;
-		FReal LinearProjection;			// @chaos(todo): remove - old PBD solver only
-		FReal AngularProjection;		// @chaos(todo): remove - old PBD solver only
+		FReal LinearProjection;
+		FReal AngularProjection;
 		FReal ShockPropagation;
 		FReal ParentInvMassScale;
 
 		bool bCollisionEnabled;
-		bool bProjectionEnabled;		// @chaos(todo): remove - old PBD solver only
+		bool bProjectionEnabled;		// @chaos(todo): remove - implied by alpha
+		bool bShockPropagationEnabled;	// @chaos(todo): remove - implied by alpha
 		bool bSoftProjectionEnabled;	// @chaos(todo): remove - old PBD solver only
 
 		TVector<EJointMotionType, 3> LinearMotionTypes;

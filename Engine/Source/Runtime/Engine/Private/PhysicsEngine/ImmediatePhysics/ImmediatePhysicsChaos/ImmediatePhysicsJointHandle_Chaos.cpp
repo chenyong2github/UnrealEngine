@@ -45,11 +45,12 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing1Limit());
 		ConstraintSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] = FMath::DegreesToRadians(ConstraintInstance->GetAngularSwing2Limit());
 
-		ConstraintSettings.bProjectionEnabled = Profile.bEnableProjection;
-		ConstraintSettings.bSoftProjectionEnabled = Profile.bEnableSoftProjection;
+		ConstraintSettings.bProjectionEnabled = Profile.bEnableLinearProjection || Profile.bEnableAngularProjection;
+		ConstraintSettings.bShockPropagationEnabled = Profile.bEnableShockPropagation;
 
-		ConstraintSettings.LinearProjection = Profile.ProjectionLinearAlpha;
-		ConstraintSettings.AngularProjection = Profile.ProjectionAngularAlpha;
+		ConstraintSettings.LinearProjection = Profile.bEnableLinearProjection ? Profile.ProjectionLinearAlpha : 0.0f;
+		ConstraintSettings.AngularProjection = Profile.bEnableAngularProjection ? Profile.ProjectionAngularAlpha : 0.0f;
+		ConstraintSettings.ShockPropagation = Profile.bEnableShockPropagation ? Profile.ShockPropagationAlpha : 0.0f;
 		ConstraintSettings.ParentInvMassScale = Profile.bParentDominates ? (FReal)0 : (FReal)1;
 
 		ConstraintSettings.bSoftLinearLimitsEnabled = ConstraintInstance->GetIsSoftLinearLimit();

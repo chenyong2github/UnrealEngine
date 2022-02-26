@@ -25,9 +25,18 @@
 bool bUseRBANForDefaultPhysicsAssetSolverType = false;
 FAutoConsoleVariableRef CVarUseRBANForDefaultPhysicsAssetSolverType(TEXT("p.Chaos.UseRBANForDefaultPhysicsAssetSolverType"), bUseRBANForDefaultPhysicsAssetSolverType, TEXT("Boolean to use RBAN for default physics asset solver type (false by default)"));
 
+FPhysicsAssetSolverSettings::FPhysicsAssetSolverSettings()
+	: PositionIterations(6)
+	, VelocityIterations(1)
+	, ProjectionIterations(1)
+	, CullDistance(3.0f)
+	, MaxDepenetrationVelocity(0.0f)
+	, FixedTimeStep(0.0f)
+{
+}
+
 FSolverIterations::FSolverIterations()
-	: FixedTimeStep(0)
-	, SolverIterations(3)
+	: SolverIterations(3)
 	, JointIterations(2)
 	, CollisionIterations(2)
 	, SolverPushOutIterations(1)
