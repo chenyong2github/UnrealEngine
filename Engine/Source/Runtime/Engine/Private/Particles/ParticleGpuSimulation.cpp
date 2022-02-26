@@ -4740,7 +4740,7 @@ void FFXSystem::SimulateGPUParticles(
 		[&](FRHITexture* TextureToTransfer)
 		{
 			const bool bPullData = false;
-			const bool bLockStep = true;
+			const bool bLockStep = false;
 
 			const FRHIGPUMask GPUMask = RHICmdList.GetGPUMask();
 			for (uint32 GPUIndex : FRHIGPUMask::All())

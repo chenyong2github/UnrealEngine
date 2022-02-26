@@ -2169,7 +2169,7 @@ void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRHICommandList& RHICm
 	if (bCrossGPUTransferEnabled && bRequiredForRendering)
 	{
 		const bool bPullData = false;
-		const bool bLockStep = true;
+		const bool bLockStep = false;
 
 		const FRHIGPUMask GPUMask = RHICmdList.GetGPUMask();
 		for (uint32 GPUIndex : FRHIGPUMask::All())
@@ -2197,7 +2197,7 @@ void FNiagaraGpuComputeDispatch::AddCrossGPUTransfer(FRHICommandList& RHICmdList
 	if (Buffer)
 	{
 		const bool bPullData = false;
-		const bool bLockStep = true;
+		const bool bLockStep = false;
 
 		const FRHIGPUMask GPUMask = RHICmdList.GetGPUMask();
 		for (uint32 GPUIndex : FRHIGPUMask::All())
