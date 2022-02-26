@@ -7277,8 +7277,8 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 		{
 			if (Token.StartsWith(ViewNamespace, ESearchCase::CaseSensitive))
 			{
-				FStringView TokenMemberName = FStringView(Token).Mid(ViewNamespace.Len());
-				FStringView TokenPostfix;
+				FString TokenMemberName = FString(Token).Mid(ViewNamespace.Len());
+				FString TokenPostfix;
 
 				int32 MemberEnd = INDEX_NONE;
 				if (TokenMemberName.FindChar(TCHAR('.'), MemberEnd))
