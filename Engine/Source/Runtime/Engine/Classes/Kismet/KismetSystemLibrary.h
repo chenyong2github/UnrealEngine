@@ -829,7 +829,7 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	static void SetBytePropertyByName(UObject* Object, FName PropertyName, uint8 Value);
 
 	/** Set a float property by name */
-	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "true"))
+	UE_DEPRECATED(5.0, "This method has been deprecated and will be removed. Use the double version instead.")
 	static void SetFloatPropertyByName(UObject* Object, FName PropertyName, float Value);
 
 	/** Set a double property by name */

@@ -2549,11 +2549,35 @@ bool UEdGraphSchema_K2::SearchForAutocastFunction(const FEdGraphPinType& OutputP
 	// Try looking for a marked up autocast if we've not found a built-in one that works
 	if (TargetFunction == NAME_None)
 	{
-		const FAutocastFunctionMap& AutocastFunctionMap = FAutocastFunctionMap::Get();
-		if (UFunction* Func = AutocastFunctionMap.Find(OutputPinType, InputPinType))
+		auto FindAndSetCastFunction = [&TargetFunction, &FunctionOwner](const FEdGraphPinType& OutputPinType, const FEdGraphPinType& InputPinType)
 		{
-			TargetFunction = Func->GetFName();
-			FunctionOwner = Func->GetOwnerClass();
+			const FAutocastFunctionMap& AutocastFunctionMap = FAutocastFunctionMap::Get();
+			if (const UFunction* Func = AutocastFunctionMap.Find(OutputPinType, InputPinType))
+			{
+				TargetFunction = Func->GetFName();
+				FunctionOwner = Func->GetOwnerClass();
+				return true;
+			}
+			return false;
+		};
+
+		const FAutocastFunctionMap& AutocastFunctionMap = FAutocastFunctionMap::Get();
+		if (!FindAndSetCastFunction(OutputPinType, InputPinType))
+		{
+			// Since single-precision float interfaces have been deprecated,
+			// we should try to find a double-precision equivalent.
+			if (OutputPinType.PinSubCategory == PC_Float)
+			{
+				FEdGraphPinType PinTypeCopy(OutputPinType);
+				PinTypeCopy.PinSubCategory = PC_Double;
+				FindAndSetCastFunction(PinTypeCopy, InputPinType);
+			}
+			else if (InputPinType.PinSubCategory == PC_Float)
+			{
+				FEdGraphPinType PinTypeCopy(InputPinType);
+				PinTypeCopy.PinSubCategory = PC_Double;
+				FindAndSetCastFunction(OutputPinType, PinTypeCopy);
+			}
 		}
 	}
 
@@ -5187,7 +5211,6 @@ namespace FSetVariableByNameFunctionNames
 	static const FName SetIntName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetIntPropertyByName));
 	static const FName SetInt64Name(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetInt64PropertyByName));
 	static const FName SetByteName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetBytePropertyByName));
-	static const FName SetFloatName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetFloatPropertyByName));
 	static const FName SetDoubleName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetDoublePropertyByName));
 	static const FName SetBoolName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetBoolPropertyByName));
 	static const FName SetObjectName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetObjectPropertyByName));

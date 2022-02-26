@@ -994,10 +994,16 @@ void UKismetSystemLibrary::SetDoublePropertyByName(UObject* Object, FName Proper
 {
 	if (Object != nullptr)
 	{
-		FDoubleProperty* DoubleProp = FindFProperty<FDoubleProperty>(Object->GetClass(), PropertyName);
-		if (DoubleProp != nullptr)
+		if (FDoubleProperty* DoubleProp = FindFProperty<FDoubleProperty>(Object->GetClass(), PropertyName))
 		{
 			DoubleProp->SetPropertyValue_InContainer(Object, Value);
+		}
+		// It's entirely possible that the property refers to a native float property,
+		// so we need to make that check here.
+		else if (FFloatProperty* FloatProp = FindFProperty<FFloatProperty>(Object->GetClass(), PropertyName))
+		{
+			float floatValue = static_cast<float>(Value);
+			FloatProp->SetPropertyValue_InContainer(Object, floatValue);
 		}
 	}
 }
