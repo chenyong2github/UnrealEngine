@@ -1,4 +1,5 @@
-﻿#include "SOptimusShaderTextDocumentSubTab.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+#include "SOptimusShaderTextDocumentSubTab.h"
 
 #include "SOptimusShaderTextSearchWidget.h"
 

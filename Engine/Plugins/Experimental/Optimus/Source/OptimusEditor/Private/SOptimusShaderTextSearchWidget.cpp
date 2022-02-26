@@ -1,4 +1,5 @@
-﻿#include "SOptimusShaderTextSearchWidget.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+#include "SOptimusShaderTextSearchWidget.h"
 
 #include "OptimusEditorStyle.h"
 
