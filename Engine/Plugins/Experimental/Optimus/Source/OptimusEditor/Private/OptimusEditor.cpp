@@ -605,6 +605,8 @@ void FOptimusEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 
 	// Bring the node details tab into the open.
 	GetTabManager()->TryInvokeTab(FPersonaTabs::DetailsID);
+
+	SelectedNodesChangedEvent.Broadcast(SelectedObjects);
 }
 
 

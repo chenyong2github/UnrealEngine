@@ -2,12 +2,15 @@
 
 #include "OptimusEditorTabSummoners.h"
 
+#include "Widgets/Docking/SDockTab.h"
+
 #include "GraphEditor.h"
 #include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "OptimusEditor.h"
 #include "SOptimusEditorGraphExplorer.h"
 #include "SOptimusNodePalette.h"
+#include "SOptimusShaderTextEditor.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorTabSummoners"
 
@@ -15,6 +18,7 @@ const FName FOptimusEditorNodePaletteTabSummoner::TabId("OptimusEditor_Palette")
 const FName FOptimusEditorExplorerTabSummoner::TabId("OptimusEditor_Explorer");
 const FName FOptimusEditorGraphTabSummoner::TabId("OptimusEditor_Graph"); 
 const FName FOptimusEditorCompilerOutputTabSummoner::TabId("OptimusEditor_Output"); 
+const FName FOptimusEditorShaderTextEditorTabSummoner::TabId("OptimusEditor_ShaderTextEditor");
 
 
 FOptimusEditorNodePaletteTabSummoner::FOptimusEditorNodePaletteTabSummoner(
@@ -112,5 +116,29 @@ TSharedRef<SWidget> FOptimusEditorCompilerOutputTabSummoner::CreateTabBody(const
 	return MessageLogModule.CreateLogListingWidget(EditorPtr.Pin()->GetMessageLog());
 }
 
+
+FOptimusEditorShaderTextEditorTabSummoner::FOptimusEditorShaderTextEditorTabSummoner(
+	TSharedRef<FOptimusEditor> InEditorApp
+	) :
+	FWorkflowTabFactory(TabId, InEditorApp),
+	EditorPtr(InEditorApp)
+{
+	TabLabel = LOCTEXT("ShaderTextEditorTab_TabLabel", "Shader Text Editor");
+	
+	ViewMenuDescription = LOCTEXT("ShaderTextEditorTab_MenuLabel", "Shader Text Editor");
+	ViewMenuTooltip = LOCTEXT("ShaderTextEditorTab_MenuLabel_Tooltip", "Show the Shader Text Editor Tab");	
+}
+
+
+TSharedRef<SDockTab> FOptimusEditorShaderTextEditorTabSummoner::OnSpawnTab(const FSpawnTabArgs& SpawnArgs,
+	TWeakPtr<FTabManager> WeakTabManager) const
+{
+	TSharedRef<SDockTab> ShaderTextEditorTab = FWorkflowTabFactory::OnSpawnTab(SpawnArgs, WeakTabManager);
+
+	const TSharedRef<SOptimusShaderTextEditor> ShaderTextEditorWidget = SNew(SOptimusShaderTextEditor, EditorPtr.Pin(), ShaderTextEditorTab);
+	ShaderTextEditorTab->SetContent(ShaderTextEditorWidget);
+
+	return ShaderTextEditorTab;
+}
 
 #undef LOCTEXT_NAMESPACE

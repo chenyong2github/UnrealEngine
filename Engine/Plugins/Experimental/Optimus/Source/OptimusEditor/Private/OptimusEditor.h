@@ -165,6 +165,12 @@ private:
 	bool OnVerifyNodeTextCommit(const FText& NewText, UEdGraphNode* NodeBeingChanged, FText& OutErrorMessage);
 	FReply OnSpawnGraphNodeByShortcut(FInputChord InChord, const FVector2D& InPosition, UEdGraph* InGraph);
 
+public:
+	// ----------------------------------------------------------------------------------------
+	// Broadcast Graph Event
+	DECLARE_EVENT_OneParam( FOptimusEditor, FOnSelectedNodesChanged, const TArray<TWeakObjectPtr<UObject>>&);
+	FOnSelectedNodesChanged& OnSelectedNodesChanged() { return SelectedNodesChangedEvent; }
+
 private:
 	// Toolbar and command helpers
 	void RegisterToolbar();
@@ -234,4 +240,5 @@ private:
 	TArray<FCapsuleInfo> CapsuleInfos;
 
 	FOnRefreshEvent RefreshEvent;
+	FOnSelectedNodesChanged SelectedNodesChangedEvent;
 };

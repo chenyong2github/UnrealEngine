@@ -27,7 +27,8 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 			.SetColorAndOpacity(FLinearColor::White)
 			.SetShadowOffset(FVector2D::ZeroVector)
 			.SetShadowColorAndOpacity(FLinearColor::Black)
-			.SetHighlightColor(FLinearColor(0.02f, 0.3f, 0.0f))
+			.SetSelectedBackgroundColor(FLinearColor::Blue)
+			.SetHighlightColor(FLinearColor::Yellow)
 			.SetHighlightShape(BOX_BRUSH("Images/TextBlockHighlightShape", FMargin(3.f / 8.f)));
 
 		const FVector2D Icon8x8(8.0f, 8.0f);
@@ -57,6 +58,12 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 			.SetBackgroundImageReadOnly( FSlateNoResource() );
 		
 		Set("TextEditor.EditableTextBox", EditableTextBoxStyle);
+
+		FSearchBoxStyle SearchBoxStyle = FCoreStyle::Get().GetWidgetStyle<FSearchBoxStyle>("SearchBox");
+		SearchBoxStyle.SetLeftAlignGlassImageAndClearButton(true);
+		SearchBoxStyle.SetLeftAlignSearchResultButtons(false);
+		Set("TextEditor.SearchBoxStyle", SearchBoxStyle);
+
 	}
 
 	// Graph styles

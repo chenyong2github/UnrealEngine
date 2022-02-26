@@ -5,6 +5,7 @@
 #include "OptimusDataDomain.h"
 #include "OptimusNode_ComputeKernelBase.h"
 #include "OptimusShaderText.h"
+#include "IOptimusShaderTextProvider.h"
 
 #include "OptimusNode_CustomComputeKernel.generated.h"
 
@@ -14,7 +15,8 @@ enum class EOptimusNodePinDirection : uint8;
 
 UCLASS()
 class UOptimusNode_CustomComputeKernel :
-	public UOptimusNode_ComputeKernelBase
+	public UOptimusNode_ComputeKernelBase,
+	public IOptimusShaderTextProvider
 {
 	GENERATED_BODY()
 
@@ -37,6 +39,17 @@ public:
 	void SetCompilationDiagnostics(
 		const TArray<FOptimusCompilerDiagnostic>& InDiagnostics
 		) override;
+
+	// IOptimusShaderTextProvider overrides
+	virtual FString GetNameForShaderTextEditor() const override;
+	
+	virtual FString GetDeclarations() const override;
+	
+	virtual FString GetShaderText() const override;
+
+	virtual void SetShaderText(const FString& NewText) override;
+
+	virtual const TArray<FOptimusCompilerDiagnostic>& GetCompilationDiagnostics() const override;
 
 	// FIXME: Use drop-down with a preset list + allow custom entry.
 	UPROPERTY(EditAnywhere, Category=Settings)
@@ -64,6 +77,10 @@ public:
 	FOptimusShaderText ShaderSource;
 
 #if WITH_EDITOR
+	// IOptimusShaderTextProvider overrides
+	FOnDiagnosticsUpdated OnDiagnosticsUpdatedEvent;
+	virtual FOnDiagnosticsUpdated& OnDiagnosticsUpdated() override {return OnDiagnosticsUpdatedEvent; };
+	
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 

@@ -21,6 +21,7 @@ FOptimusEditorMode::FOptimusEditorMode(TSharedRef<FOptimusEditor> InEditorApp) :
 	TabFactories.RegisterFactory(MakeShared<FOptimusEditorExplorerTabSummoner>(InEditorApp));
 	TabFactories.RegisterFactory(MakeShared<FOptimusEditorGraphTabSummoner>(InEditorApp));
 	TabFactories.RegisterFactory(MakeShared<FOptimusEditorCompilerOutputTabSummoner>(InEditorApp));
+	TabFactories.RegisterFactory(MakeShared<FOptimusEditorShaderTextEditorTabSummoner>(InEditorApp));
 	
 	TSharedRef<FWorkflowCentricApplication> WorkflowCentricApp = StaticCastSharedRef<FWorkflowCentricApplication>(InEditorApp);
 	

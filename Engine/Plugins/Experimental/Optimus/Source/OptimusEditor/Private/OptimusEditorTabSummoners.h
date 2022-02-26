@@ -61,3 +61,22 @@ struct FOptimusEditorCompilerOutputTabSummoner :
 protected:
 	TWeakPtr<FOptimusEditor> EditorPtr;
 };
+
+
+
+struct FOptimusEditorShaderTextEditorTabSummoner :
+	public FWorkflowTabFactory
+{
+	static const FName TabId;
+	
+	explicit FOptimusEditorShaderTextEditorTabSummoner(TSharedRef<FOptimusEditor> InEditorApp);
+
+	/** Callback function for spawning the tab */
+	virtual TSharedRef<SDockTab> OnSpawnTab(const FSpawnTabArgs& SpawnArgs, TWeakPtr<FTabManager> WeakTabManager) const override;
+	
+protected:
+	TWeakPtr<FOptimusEditor> EditorPtr;
+};
+
+
+

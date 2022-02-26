@@ -53,7 +53,35 @@ void UOptimusNode_CustomComputeKernel::SetCompilationDiagnostics(
 		FPropertyChangedEvent PropertyChangedEvent(DiagnosticsProperty, EPropertyChangeType::ValueSet, {this});
 		PostEditChangeProperty(PropertyChangedEvent);
 	}
+
+	OnDiagnosticsUpdatedEvent.Broadcast();
 #endif
+}
+
+FString UOptimusNode_CustomComputeKernel::GetNameForShaderTextEditor() const
+{
+	return KernelName;
+}
+
+FString UOptimusNode_CustomComputeKernel::GetDeclarations() const
+{
+	return ShaderSource.Declarations;
+}
+
+FString UOptimusNode_CustomComputeKernel::GetShaderText() const
+{
+	return ShaderSource.ShaderText;
+}
+
+void UOptimusNode_CustomComputeKernel::SetShaderText(const FString& NewText) 
+{
+	Modify();
+	ShaderSource.ShaderText = NewText;
+}
+
+const TArray<FOptimusCompilerDiagnostic>& UOptimusNode_CustomComputeKernel::GetCompilationDiagnostics() const
+{
+	return ShaderSource.Diagnostics;
 }
 
 
