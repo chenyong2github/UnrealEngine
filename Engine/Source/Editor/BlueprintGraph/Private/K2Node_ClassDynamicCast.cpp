@@ -82,14 +82,16 @@ FText UK2Node_ClassDynamicCast::GetTooltipText() const
 {
 	if (TargetType && TargetType->IsChildOf(UInterface::StaticClass()))
 	{
-		return LOCTEXT("CastToInterfaceTooltip", "Tries to access class as an interface it may implement.");
+		return FText::Format(LOCTEXT("CastToInterfaceTooltip", "Tries to access class as an interface '{0}' it may implement."), FText::FromString(TargetType->GetName()));
 	}
 	UBlueprint* CastToBP = UBlueprint::GetBlueprintFromClass(TargetType);
 	if (CastToBP)
 	{
-		return LOCTEXT("CastToBPTooltip", "Tries to access class as a blueprint class it may inherit from.\n\nNOTE: This will cause the blueprint to always be loaded, which can be expensive.");
+		return FText::Format(LOCTEXT("CastToBPTooltip", "Tries to access class as a blueprint class '{0}' it may inherit from.\n\nNOTE: This will cause the blueprint to always be loaded, which can be expensive."), FText::FromString(CastToBP->GetName()));
 	}
-	return LOCTEXT("CastToNativeTooltip", "Tries to access class as one it may inherit from.");
+	
+	const FString ClassName = TargetType ? TargetType->GetName() : TEXT("");
+	return FText::Format(LOCTEXT("CastToNativeTooltip", "Tries to access class '{0}' as one it may inherit from."), FText::FromString(ClassName));
 }
 
 UEdGraphPin* UK2Node_ClassDynamicCast::GetCastSourcePin() const
