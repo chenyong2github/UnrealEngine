@@ -25,7 +25,7 @@ void FLevelEditorModesCommands::RegisterCommands()
 			FInputBindingManager::Get().FindCommandInContext(GetContextName(), EditorModeCommandName);
 
 		// If a command isn't yet registered for this mode, we need to register one.
-		if ( !EditorModeCommand.IsValid() )
+		if (!EditorModeCommand.IsValid() && Mode.IsVisible())
 		{
 			FFormatNamedArguments Args;
 			FText ModeName = Mode.Name;
