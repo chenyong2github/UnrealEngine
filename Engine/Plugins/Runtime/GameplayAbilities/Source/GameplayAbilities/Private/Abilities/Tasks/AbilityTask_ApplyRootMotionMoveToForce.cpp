@@ -8,16 +8,6 @@
 #include "AbilitySystemGlobals.h"
 #include "Net/UnrealNetwork.h"
 
-UAbilityTask_ApplyRootMotionMoveToForce::UAbilityTask_ApplyRootMotionMoveToForce(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
-{
-	bSetNewMovementMode = false;
-	NewMovementMode = EMovementMode::MOVE_Walking;
-	PreviousMovementMode = EMovementMode::MOVE_None;
-	bRestrictSpeedToExpected = false;
-	PathOffsetCurve = nullptr;
-}
-
 UAbilityTask_ApplyRootMotionMoveToForce* UAbilityTask_ApplyRootMotionMoveToForce::ApplyRootMotionMoveToForce(UGameplayAbility* OwningAbility, FName TaskInstanceName, FVector TargetLocation, float Duration, bool bSetNewMovementMode, EMovementMode MovementMode, bool bRestrictSpeedToExpected, UCurveVector* PathOffsetCurve, ERootMotionFinishVelocityMode VelocityOnFinishMode, FVector SetVelocityOnFinish, float ClampVelocityOnFinish)
 {
 	UAbilitySystemGlobals::NonShipping_ApplyGlobalAbilityScaler_Duration(Duration);
@@ -61,6 +51,7 @@ void UAbilityTask_ApplyRootMotionMoveToForce::SharedInitAndApply()
 			if (bSetNewMovementMode)
 			{
 				PreviousMovementMode = MovementComponent->MovementMode;
+				PreviousCustomMovementMode = MovementComponent->CustomMovementMode;
 				MovementComponent->SetMovementMode(NewMovementMode);
 			}
 
@@ -169,7 +160,7 @@ void UAbilityTask_ApplyRootMotionMoveToForce::OnDestroy(bool AbilityIsEnding)
 
 		if (bSetNewMovementMode)
 		{
-			MovementComponent->SetMovementMode(PreviousMovementMode);
+ 			MovementComponent->SetMovementMode(PreviousMovementMode, PreviousCustomMovementMode);
 		}
 	}
 
