@@ -18,11 +18,6 @@ static FString GSavedCommandLine;
 extern int32 GuardedMain( const TCHAR* CmdLine );
 extern void LaunchStaticShutdownAfterError();
 
-const char* __asan_default_options()
-{
-	return "detect_leaks=0";
-}
-
 /**
  * Game-specific crash reporter
  */
