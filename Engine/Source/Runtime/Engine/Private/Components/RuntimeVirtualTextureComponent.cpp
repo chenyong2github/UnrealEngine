@@ -140,6 +140,7 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 		uint64 PackedValue;
 		struct
 		{
+			uint32 PackedSettingsVersion : 4;
 			uint32 MaterialType : 4;
 			uint32 TileSize : 12;
 			uint32 TileBorderSize : 4;
@@ -149,11 +150,13 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 			uint32 EnableCompressCrunch : 1;
 			uint32 ContinuousUpdate : 1;
 			uint32 bUseLowQualityCompression : 1;
+			uint32 LossyCompressionAmount : 4;
 		};
 	};
 
 	FPackedSettings Settings;
 	Settings.PackedValue = 0;
+	Settings.PackedSettingsVersion = 1;
 	Settings.MaterialType = (uint32)VirtualTexture->GetMaterialType();
 	Settings.TileSize = (uint32)VirtualTexture->GetTileSize();
 	Settings.TileBorderSize = (uint32)VirtualTexture->GetTileBorderSize();
@@ -161,8 +164,9 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 	Settings.CompressTextures = (uint32)VirtualTexture->GetCompressTextures();
 	Settings.ContinuousUpdate = (uint32)VirtualTexture->GetContinuousUpdate();
 	Settings.SinglePhysicalSpace = (uint32)VirtualTexture->GetSinglePhysicalSpace();
-	Settings.EnableCompressCrunch = (uint32)bEnableCompressCrunch;
 	Settings.bUseLowQualityCompression = (uint32)VirtualTexture->GetLQCompression();
+	Settings.EnableCompressCrunch = (uint32)bEnableCompressCrunch;
+	Settings.LossyCompressionAmount = (uint32) LossyCompressionAmount.GetValue();
 
 	return Settings.PackedValue;
 }
@@ -243,6 +247,7 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 		BuildDesc.TileBorderSize = VirtualTexture->GetTileBorderSize();
 		BuildDesc.LODGroup = VirtualTexture->GetLODGroup();
 		BuildDesc.bCrunchCompressed = bEnableCompressCrunch;
+		BuildDesc.LossyCompressionAmount = LossyCompressionAmount;
 
 		BuildDesc.LayerCount = VirtualTexture->GetLayerCount();
 		check(BuildDesc.LayerCount <= RuntimeVirtualTexture::MaxTextureLayers);

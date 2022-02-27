@@ -23,6 +23,8 @@ struct FVirtualTextureBuildDesc
 	TEnumAsByte<enum TextureGroup> LODGroup;
 
 	bool bCrunchCompressed = false;
+	ETextureLossyCompressionAmount LossyCompressionAmount = TLCA_Default;
+
 	bool bContinuousUpdate = false;
 	bool bSinglePhysicalSpace = false;
 
