@@ -2,6 +2,8 @@
 
 #include "ImportTestFunctions/SkeletalMeshImportTestFunctions.h"
 #include "InterchangeTestFunction.h"
+
+#include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshRenderData.h"

@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InterchangeTestFunctionLayout.h"
+#include "InterchangeTestFunction.h"
+
 #include "IDetailChildrenBuilder.h"
 #include "IPropertyUtilities.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
+#include "Editor.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SComboBox.h"
-#include "InterchangeTestFunction.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "InterchangeTestFunctionLayout"
 
