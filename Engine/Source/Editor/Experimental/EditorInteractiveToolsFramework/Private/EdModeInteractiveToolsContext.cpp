@@ -562,6 +562,7 @@ void UEditorInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 	FEdModeTempRenderContext RenderContext(View, Viewport, ViewportClient, PDI, InteractionState);
 	ToolManager->Render(&RenderContext);
 	GizmoManager->Render(&RenderContext);
+	OnRender.Broadcast(&RenderContext);
 }
 
 void UEditorInteractiveToolsContext::DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas)
@@ -581,6 +582,7 @@ void UEditorInteractiveToolsContext::DrawHUD(FViewportClient* ViewportClient,FVi
 	FEdModeTempRenderContext RenderContext(View, Viewport, EditorViewportClient, nullptr /*PDI*/, InteractionState);
 	ToolManager->DrawHUD(Canvas, &RenderContext);
 	GizmoManager->DrawHUD(Canvas, &RenderContext);
+	OnDrawHUD.Broadcast(Canvas, &RenderContext);
 }
 
 
