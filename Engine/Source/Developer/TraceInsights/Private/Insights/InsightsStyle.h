@@ -53,6 +53,11 @@ public:
 
 		// Styles inherited from the parent style
 		FTextBlockStyle NormalText;
+		FButtonStyle Button;
+		FSlateColor SelectorColor;
+		FSlateColor SelectionColor;
+		FSlateColor SelectionColor_Inactive;
+		FSlateColor SelectionColor_Pressed;
 	};
 
 private:
