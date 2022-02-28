@@ -3840,7 +3840,7 @@ void UNiagaraSystem::FixupPositionUserParameters()
 {
 	TArray<FNiagaraVariable> UserParameters;
 	ExposedParameters.GetUserParameters(UserParameters);
-	UserParameters.FilterByPredicate([](const FNiagaraVariable& Var) { return Var.GetType() == FNiagaraTypeDefinition::GetVec3Def(); });
+	UserParameters = UserParameters.FilterByPredicate([](const FNiagaraVariable& Var) { return Var.GetType() == FNiagaraTypeDefinition::GetVec3Def(); });
 
 	if (UserParameters.Num() == 0)
 	{
