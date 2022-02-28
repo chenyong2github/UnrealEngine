@@ -343,8 +343,8 @@ public:
 	static FOnConfigSectionRead OnConfigSectionRead;
 	static FOnConfigSectionRead OnConfigSectionNameRead;
 
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConfigSectionChanged, const TCHAR* /*IniFilename*/, const TCHAR* /*SectionName*/);
-	static FOnConfigSectionChanged OnConfigSectionChanged;
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConfigSectionsChanged, const FString& /*IniFilename*/, const TSet<FString>& /*SectionNames*/);
+	static FOnConfigSectionsChanged OnConfigSectionsChanged;
 
 	DECLARE_MULTICAST_DELEGATE_FourParams(FOnApplyCVarFromIni, const TCHAR* /*SectionName*/, const TCHAR* /*IniFilename*/, uint32 /*SetBy*/, bool /*bAllowCheating*/);
 	static FOnApplyCVarFromIni OnApplyCVarFromIni;

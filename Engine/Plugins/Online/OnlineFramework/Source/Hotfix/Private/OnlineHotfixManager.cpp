@@ -977,7 +977,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 
 				if (bIsEngineIni)
 				{
-					// TODO replace all of this with bindees to FCoreDelegates::OnConfigSectionChanged
+					// TODO replace all of this with bindees to FCoreDelegates::OnConfigSectionsChanged
 					const TCHAR* LogConfigSection = TEXT("[Core.Log]");
 					const TCHAR* ConsoleVariableSection = TEXT("[ConsoleVariables]");
 					const TCHAR* HttpSection = TEXT("[HTTP"); // note "]" omitted on purpose since we want a partial match
@@ -1102,10 +1102,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 	}
 
 	const FString ConfigFileName = ConfigFile->Name.ToString();
-	for (const FString& SectionName : UpdatedSectionNames)
-	{
-		FCoreDelegates::OnConfigSectionChanged.Broadcast(*ConfigFileName, *SectionName);
-	}
+	FCoreDelegates::OnConfigSectionsChanged.Broadcast(ConfigFileName, UpdatedSectionNames);
 
 	// Reload log suppression if configs changed
 	if (bUpdateLogSuppression)

@@ -194,7 +194,7 @@ EOS_EResult FEOSSDKManager::Initialize()
 		{
 			bInitialized = true;
 
-			FCoreDelegates::OnConfigSectionChanged.AddRaw(this, &FEOSSDKManager::OnConfigSectionChanged);
+			FCoreDelegates::OnConfigSectionsChanged.AddRaw(this, &FEOSSDKManager::OnConfigSectionsChanged);
 			LoadConfig();
 
 #if !NO_LOGGING
@@ -250,9 +250,9 @@ IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(EOS_Platform_Options& Platf
 	return SharedPlatform;
 }
 
-void FEOSSDKManager::OnConfigSectionChanged(const TCHAR* IniFilename, const TCHAR* SectionName)
+void FEOSSDKManager::OnConfigSectionsChanged(const FString& IniFilename, const TSet<FString>& SectionNames)
 {
-	if (!FCString::Strcmp(IniFilename, *GEngineIni) && !FCString::Strcmp(SectionName, TEXT("EOSSDK")))
+	if (IniFilename == GEngineIni && SectionNames.Contains(TEXT("EOSSDK")))
 	{
 		LoadConfig();
 	}
@@ -380,7 +380,7 @@ void FEOSSDKManager::Shutdown()
 			ReleaseReleasedPlatforms();
 		}
 
-		FCoreDelegates::OnConfigSectionChanged.RemoveAll(this);
+		FCoreDelegates::OnConfigSectionsChanged.RemoveAll(this);
 
 #if !NO_LOGGING
 		FCoreDelegates::OnLogVerbosityChanged.RemoveAll(this);

@@ -40,7 +40,7 @@ protected:
 private:
 	friend struct FEOSPlatformHandle;
 
-	void OnConfigSectionChanged(const TCHAR* IniFilename, const TCHAR* SectionName);
+	void OnConfigSectionsChanged(const FString& IniFilename, const TSet<FString>& SectionName);
 	void LoadConfig();
 	void ReleasePlatform(EOS_HPlatform PlatformHandle);
 	void ReleaseReleasedPlatforms();
