@@ -9,24 +9,25 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"Concert",
 					"Core",
 					"CoreUObject",
-					"Slate",
 					"EditorStyle",
-					"Concert"
+					"Slate",
 				}
 			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"SlateCore",
-					"InputCore",
-					"Projects",
 					"Concert",
 					"ConcertTransport",
 					"ConcertSyncCore",
-					"UndoHistory"
+					"InputCore",
+					"Projects",
+					"SlateCore",
+					"UndoHistory",
+					"ToolWidgets"
 				}
 			);
 		}

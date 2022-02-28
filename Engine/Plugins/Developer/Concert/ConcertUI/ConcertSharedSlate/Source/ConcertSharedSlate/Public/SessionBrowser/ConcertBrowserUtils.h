@@ -7,6 +7,8 @@
 #include "ConcertMessageData.h"
 
 #include "EditorFontGlyphs.h"
+#include "SNegativeActionButton.h"
+#include "SPositiveActionButton.h"
 #include "Styling/AppStyle.h"
 #include "Internationalization/Regex.h"
 #include "Layout/Visibility.h"
@@ -33,34 +35,13 @@ namespace ConcertBrowserUtils
 	// The awesome font used to pick the icon displayed in the session list view 'Icon' column.
 	static const FName IconColumnFontName(TEXT("FontAwesome.9"));
 
-	/** Utility function used to create buttons displaying only an icon (using FontAwesome). */
-	inline TSharedRef<SButton> MakeIconButton(const FName& ButtonStyle, const TAttribute<FText>& GlyphIcon, const TAttribute<FText>& Tooltip, const TAttribute<bool>& EnabledAttribute, const FOnClicked& OnClicked,
-		const FSlateColor& ForegroundColor, const TAttribute<EVisibility>& Visibility = EVisibility::Visible, const TAttribute<FMargin>& ContentPadding = FMargin(3.0, 2.0), const FName FontStyle = IconColumnFontName)
-	{
-		return SNew(SButton)
-			.ButtonStyle(FAppStyle::Get(), ButtonStyle)
-			.OnClicked(OnClicked)
-			.ToolTipText(Tooltip)
-			.ContentPadding(ContentPadding)
-			.Visibility(Visibility)
-			.IsEnabled(EnabledAttribute)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Font(FAppStyle::Get().GetFontStyle(FontStyle))
-				.Text(GlyphIcon)
-			];
-	}
-
 	/** Utility function used to create buttons displaying only an icon (using a brush) */
-	inline TSharedRef<SButton> MakeIconButton(const FName& ButtonStyle, const TAttribute<const FSlateBrush*>& Icon, const TAttribute<FText>& Tooltip, const TAttribute<bool>& EnabledAttribute, const FOnClicked& OnClicked, const TAttribute<EVisibility>& Visibility = EVisibility::Visible)
+	inline TSharedRef<SWidget> MakeIconButton(const TAttribute<const FSlateBrush*>& Icon, const TAttribute<FText>& Tooltip, const TAttribute<bool>& EnabledAttribute, const FOnClicked& OnClicked, const TAttribute<EVisibility>& Visibility = EVisibility::Visible)
 	{
 		return SNew(SButton)
-			.ButtonStyle(FAppStyle::Get(), ButtonStyle)
 			.OnClicked(OnClicked)
+			.ButtonStyle(FAppStyle::Get(), TEXT("SimpleButton"))
 			.ToolTipText(Tooltip)
-			.ContentPadding(FMargin(0, 0))
 			.Visibility(Visibility)
 			.IsEnabled(EnabledAttribute)
 			.VAlign(VAlign_Center)
@@ -70,6 +51,28 @@ namespace ConcertBrowserUtils
 				.Image(Icon)
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			];
+	}
+
+	/** Utility function used to create buttons displaying a positive action*/
+	inline TSharedRef<SWidget> MakePositiveActionButton(const TAttribute<const FSlateBrush*>& Icon, const TAttribute<FText>& Tooltip, const TAttribute<bool>& EnabledAttribute, const FOnClicked& OnClicked, const TAttribute<EVisibility>& Visibility = EVisibility::Visible)
+	{
+		return SNew(SPositiveActionButton)
+			.OnClicked(OnClicked)
+			.ToolTipText(Tooltip)
+			.Visibility(Visibility)
+			.IsEnabled(EnabledAttribute)
+			.Icon(Icon);
+	}
+
+	/** Utility function used to create buttons displaying a negative action */
+	inline TSharedRef<SWidget> MakeNegativeActionButton(const TAttribute<const FSlateBrush*>& Icon, const TAttribute<FText>& Tooltip, const TAttribute<bool>& EnabledAttribute, const FOnClicked& OnClicked, const TAttribute<EVisibility>& Visibility = EVisibility::Visible)
+	{
+		return SNew(SNegativeActionButton)
+			.OnClicked(OnClicked)
+			.ToolTipText(Tooltip)
+			.Visibility(Visibility)
+			.IsEnabled(EnabledAttribute)
+			.Icon(Icon);
 	}
 
 	/** Returns the tooltip shown when hovering the triangle with an exclamation icon when a server doesn't validate the version requirements. */

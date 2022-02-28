@@ -95,7 +95,7 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 														.FillWidth(80.0f)
 
 													+ SHeaderRow::Column("JumpToButton")
-														.FixedWidth(30.0f)
+														.FixedWidth(50.0f)
 												)
 										]
 								]

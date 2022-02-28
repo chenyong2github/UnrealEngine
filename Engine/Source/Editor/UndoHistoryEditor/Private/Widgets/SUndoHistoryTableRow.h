@@ -19,6 +19,7 @@
 #include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "EditorStyleSet.h"
+#include "SPositiveActionButton.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Input/SButton.h"
 
@@ -82,23 +83,11 @@ public:
 	{
 		if (ColumnName == "JumpToButton")
 		{
-			return SNew(SButton)
+			return SNew(SPositiveActionButton)
 				.ToolTipText(FText::FromString("Jump to this transaction"))
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-				.ForegroundColor(FLinearColor::White)
-				.ContentPadding(FMargin(2.f, 2.f))
+				.Icon(FEditorStyle::GetBrush("Icons.CircleArrowRight"))
 				.OnClicked_Lambda([this]() { OnGotoTransactionClicked.ExecuteIfBound(TransactionId); return FReply::Handled(); })
-				.Visibility_Lambda([this]() { return this->IsHovered() ? EVisibility::Visible : EVisibility::Hidden; })
-				[
-					SNew(SBox)
-						.HAlign(HAlign_Center)
-						[
-							SNew(STextBlock)
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-								.Text(FText::FromString(TEXT("\xf138"))) /*fa-chevron-circle-right*/
-								.Justification(ETextJustify::Center)
-						]
-				];
+				.Visibility_Lambda([this]() { return this->IsHovered() ? EVisibility::Visible : EVisibility::Hidden; });
 		}
 		else if (ColumnName == "Title")
 		{

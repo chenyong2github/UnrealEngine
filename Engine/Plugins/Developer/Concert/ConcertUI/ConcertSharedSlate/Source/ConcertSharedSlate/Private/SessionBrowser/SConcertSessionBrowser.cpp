@@ -272,7 +272,6 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar(const FArguments& InAr
 	// New Session
 	RowBuilder.AddWidget(
 		ConcertBrowserUtils::MakeIconButton(
-			TEXT("SimpleButton"),
 			FConcertFrontendStyle::Get()->GetBrush("Concert.NewSession"),
 			LOCTEXT("NewButtonTooltip", "Create a new session"),
 			TAttribute<bool>(this, &SConcertSessionBrowser::IsNewButtonEnabledInternal),
@@ -287,7 +286,6 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar(const FArguments& InAr
 	// Restore (Share the same slot as Join)
 	RowBuilder.AddWidget(
 		ConcertBrowserUtils::MakeIconButton(
-			TEXT("SimpleButton"),
 			FConcertFrontendStyle::Get()->GetBrush("Concert.RestoreSession"),
 			LOCTEXT("RestoreButtonTooltip", "Restore the selected session"),
 			TAttribute<bool>(this, &SConcertSessionBrowser::IsRestoreButtonEnabledInternal),
@@ -297,13 +295,13 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar(const FArguments& InAr
 	);
 	// Archive.
 	RowBuilder.AddWidget(
-		ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.ArchiveSession"), LOCTEXT("ArchiveButtonTooltip", "Archive the selected session"),
+		ConcertBrowserUtils::MakeIconButton(FConcertFrontendStyle::Get()->GetBrush("Concert.ArchiveSession"), LOCTEXT("ArchiveButtonTooltip", "Archive the selected session"),
 			TAttribute<bool>(this, &SConcertSessionBrowser::IsArchiveButtonEnabledInternal),
 			FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnArchiveButtonClicked))
 	);
 	// Delete.
 	RowBuilder.AddWidget(
-		ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.DeleteSession"), LOCTEXT("DeleteButtonTooltip", "Delete the selected session if permitted"),
+		ConcertBrowserUtils::MakeIconButton(FConcertFrontendStyle::Get()->GetBrush("Concert.DeleteSession"), LOCTEXT("DeleteButtonTooltip", "Delete the selected session if permitted"),
 			TAttribute<bool>(this, &SConcertSessionBrowser::IsDeleteButtonEnabledInternal),
 			FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnDeleteButtonClicked))
 	);

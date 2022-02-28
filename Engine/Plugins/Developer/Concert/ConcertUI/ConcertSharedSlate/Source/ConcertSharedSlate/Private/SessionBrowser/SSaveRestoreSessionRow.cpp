@@ -6,6 +6,7 @@
 #include "SessionBrowser/ConcertSessionItem.h"
 
 #include "EditorFontGlyphs.h"
+#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Internationalization/Regex.h"
 #include "Styling/AppStyle.h"
@@ -130,25 +131,21 @@ TSharedRef<SWidget> SSaveRestoreSessionRow::GenerateWidgetForColumn(const FName&
 			// 'Accept' button
 			+SUniformGridPanel::Slot(0, 0)
 			[
-				ConcertBrowserUtils::MakeIconButton(
-					TEXT("FlatButton.Success"),
-					FEditorFontGlyphs::Check,
+				ConcertBrowserUtils::MakePositiveActionButton(
+					FEditorStyle::GetBrush("Icons.Check"),
 					ItemPin->Type == FConcertSessionItem::EType::RestoreSession ? LOCTEXT("RestoreCheckIconTooltip", "Restore the session") : LOCTEXT("ArchiveCheckIconTooltip", "Archive the session"),
 					TAttribute<bool>::Create([this]() { return !EditableSessionName->GetText().IsEmpty(); }), // Enabled?
-					FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnAccept),
-					FSlateColor(FLinearColor::White))
+					FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnAccept))
 			]
 
 			// 'Cancel' button
 			+SUniformGridPanel::Slot(1, 0)
 			[
-				ConcertBrowserUtils::MakeIconButton(
-					TEXT("FlatButton.Danger"),
-					FEditorFontGlyphs::Times,
+				ConcertBrowserUtils::MakeNegativeActionButton(
+					FEditorStyle::GetBrush("Icons.X"),
 					LOCTEXT("CancelTooltip", "Cancel"),
 					true, // Enabled?
-					FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnDecline),
-					FSlateColor(FLinearColor::White))
+					FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnDecline))
 			]
 		];
 	}

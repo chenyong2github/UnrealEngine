@@ -22,6 +22,7 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"Slate",
 					"SlateCore",
+					"ToolWidgets",
 					"UndoHistory",
 					"UnrealEd",
 				}

@@ -6,6 +6,7 @@
 #include "SessionBrowser/ConcertSessionItem.h"
 
 #include "EditorFontGlyphs.h"
+#include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -108,25 +109,21 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 				// 'Accept' button
 				+SUniformGridPanel::Slot(0, 0)
 				[
-					ConcertBrowserUtils::MakeIconButton(
-						TEXT("FlatButton.Success"),
-						FEditorFontGlyphs::Check,
+					ConcertBrowserUtils::MakePositiveActionButton(
+						FEditorStyle::GetBrush("Icons.Check"),
 						LOCTEXT("CreateCheckIconTooltip", "Create the session"),
 						TAttribute<bool>::Create([this]() { return !EditableSessionName->GetText().IsEmpty(); }),
-						FOnClicked::CreateRaw(this, &SNewSessionRow::OnAccept),
-						FSlateColor(FLinearColor::White))
+						FOnClicked::CreateRaw(this, &SNewSessionRow::OnAccept))
 				]
 
 				// 'Decline' button
 				+SUniformGridPanel::Slot(1, 0)
 				[
-					ConcertBrowserUtils::MakeIconButton(
-						TEXT("FlatButton.Danger"),
-						FEditorFontGlyphs::Times,
+					ConcertBrowserUtils::MakeNegativeActionButton(
+						FEditorStyle::GetBrush("Icons.X"),
 						LOCTEXT("CancelIconTooltip", "Cancel"),
 						true, // Always enabled.
-						FOnClicked::CreateRaw(this, &SNewSessionRow::OnDecline),
-						FSlateColor(FLinearColor::White))
+						FOnClicked::CreateRaw(this, &SNewSessionRow::OnDecline))
 				]
 			];
 	}

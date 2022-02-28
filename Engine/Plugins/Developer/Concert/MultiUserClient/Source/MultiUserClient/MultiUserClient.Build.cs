@@ -32,7 +32,8 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"SourceControl",
-					"ToolMenus"
+					"ToolMenus",
+					"ToolWidgets"
 				}
 			);
 

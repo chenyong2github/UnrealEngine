@@ -1202,7 +1202,7 @@ void SConcertClientSessionBrowser::ExtendControlButtons(FExtender& Extender)
 				// Launch server.
 				+SOverlay::Slot()
 				[
-					ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"),
+					ConcertBrowserUtils::MakeIconButton(
 						FConcertFrontendStyle::Get()->GetBrush("Concert.NewServer"),
 						LOCTEXT("LaunchServerTooltip", "Launch a Multi-User server on your computer unless one is already running.\nThe editor UDP messaging settings will be passed to the launching server.\nThe server will use the server port found in Multi-User client settings if non 0 or use the editor udp messaging port number + 1, if non 0."),
 						TAttribute<bool>(this, &SConcertClientSessionBrowser::IsLaunchServerButtonEnabled),
@@ -1213,7 +1213,6 @@ void SConcertClientSessionBrowser::ExtendControlButtons(FExtender& Extender)
 				+SOverlay::Slot()
 				[
 					ConcertBrowserUtils::MakeIconButton(
-						TEXT("SimpleButton"),
 						FConcertFrontendStyle::Get()->GetBrush("Concert.CloseServer"),
 						LOCTEXT("ShutdownServerTooltip", "Shutdown the Multi-User server running on this computer."),
 						true, // Always enabled, but might be collapsed.
@@ -1256,7 +1255,7 @@ void SConcertClientSessionBrowser::ExtendControlButtons(FExtender& Extender)
 				// Auto-join
 				+SOverlay::Slot()
 				[
-					ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"),
+					ConcertBrowserUtils::MakeIconButton(
 						FConcertFrontendStyle::Get()->GetBrush("Concert.JoinDefaultSession"),
 						AutoJoinTooltip,
 						TAttribute<bool>(this, &SConcertClientSessionBrowser::IsAutoJoinButtonEnabled),
@@ -1269,7 +1268,7 @@ void SConcertClientSessionBrowser::ExtendControlButtons(FExtender& Extender)
 				// Cancel auto join.
 				+SOverlay::Slot()
 				[
-					ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"),
+					ConcertBrowserUtils::MakeIconButton(
 						FConcertFrontendStyle::Get()->GetBrush("Concert.CancelAutoJoin"),
 						CancelAutoJoinTooltip,
 						TAttribute<bool>(this, &SConcertClientSessionBrowser::IsCancelAutoJoinButtonEnabled),
@@ -1281,7 +1280,7 @@ void SConcertClientSessionBrowser::ExtendControlButtons(FExtender& Extender)
 
 			// Join
 			Builder.AddWidget(
-				ConcertBrowserUtils::MakeIconButton(TEXT("SimpleButton"), FConcertFrontendStyle::Get()->GetBrush("Concert.JoinSession"), LOCTEXT("JoinButtonTooltip", "Join the selected session"),
+				ConcertBrowserUtils::MakeIconButton(FConcertFrontendStyle::Get()->GetBrush("Concert.JoinSession"), LOCTEXT("JoinButtonTooltip", "Join the selected session"),
 					TAttribute<bool>(this, &SConcertClientSessionBrowser::IsJoinButtonEnabled),
 					FOnClicked::CreateSP(this, &SConcertClientSessionBrowser::OnJoinButtonClicked),
 					TAttribute<EVisibility>::Create([this]() { return !SessionBrowser->IsRestoreButtonEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })) // Default button shown if both join/restore are disabled.

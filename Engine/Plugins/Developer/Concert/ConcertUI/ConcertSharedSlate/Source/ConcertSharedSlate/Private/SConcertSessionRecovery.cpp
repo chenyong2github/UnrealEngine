@@ -13,6 +13,8 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "SConcertSessionActivities.h"
+#include "SNegativeActionButton.h"
+#include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "SConcertSessionRecovery"
 
@@ -125,36 +127,19 @@ void SConcertSessionRecovery::Construct(const FArguments& InArgs)
 
 				+SUniformGridPanel::Slot(0, 0)
 				[
-					SNew(SButton)
-					.ForegroundColor(FLinearColor::White)
-					.ButtonStyle(FEditorStyle::Get(), TEXT("FlatButton.Success"))
+					SNew(SPositiveActionButton)
 					.ToolTipText(this, &SConcertSessionRecovery::GetRecoverAllButtonTooltip)
+					.Text(LOCTEXT("RecoverAll", "Recover All"))
+					.Icon(FEditorStyle::GetBrush("Icons.CircleArrowRight"))
 					.OnClicked(this, &SConcertSessionRecovery::OnRecoverAllClicked)
-					.HAlign(HAlign_Center)
-					.ContentPadding(FMargin(14, 3))
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("RecoverAll", "Recover All"))
-						.Font( FEditorStyle::GetFontStyle("BoldFont"))
-						.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
-					]
 				]
 
 				+SUniformGridPanel::Slot(1, 0)
 				[
-					SNew(SButton)
-					.ForegroundColor(FLinearColor::White)
-					.ButtonStyle(FEditorStyle::Get(), TEXT("FlatButton.Danger"))
+					SNew(SNegativeActionButton)
 					.ToolTipText(LOCTEXT("CancelRecoveryTooltip", "Discard any recoverable data for your assets and continue with their last saved state"))
+					.Text(LOCTEXT("Cancel", "Cancel"))
 					.OnClicked(this, &SConcertSessionRecovery::OnCancelRecoveryClicked)
-					.HAlign(HAlign_Center)
-					.ContentPadding(FMargin(14, 3))
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("Cancel", "Cancel"))
-						.Font( FEditorStyle::GetFontStyle("BoldFont"))
-						.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
-					]
 				]
 			]
 		]
@@ -173,18 +158,11 @@ TSharedPtr<SWidget> SConcertSessionRecovery::MakeRecoverThroughWidget(TWeakPtr<F
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			[
-				SNew(SButton)
-				.ForegroundColor(FLinearColor::White)
-				.ButtonStyle(FEditorStyle::Get(), TEXT("FlatButton.Success"))
+				SNew(SPositiveActionButton)
 				.Visibility_Lambda([this, Activity](){ return GetRecoverThroughButtonVisibility(Activity.Pin()); })
 				.OnClicked_Lambda([this, Activity](){ RecoverThrough(Activity.Pin()); return FReply::Handled(); })
 				.ToolTipText(this, &SConcertSessionRecovery::GetRecoverThroughButtonTooltip)
-				.ContentPadding(FMargin(20, 0))
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-					.Text(FEditorFontGlyphs::Arrow_Circle_O_Right)
-				]
+				.Icon(FEditorStyle::GetBrush("Icons.CircleArrowRight"))
 			];
 		}
 	}
