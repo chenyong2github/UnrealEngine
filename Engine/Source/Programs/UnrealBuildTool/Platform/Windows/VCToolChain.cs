@@ -1024,6 +1024,18 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// for monolithic editor builds, add the PDBPAGESIZE option, (VS 16.11, VC toolchain 14.29.30133), but the pdb will be too large without this
+			// some monolithic game builds could be too large as well, but they can be added in a .Target.cs with:
+			//   			WindowsPlatform.AdditionalLinkerOptions = "/PDBPAGESIZE:8192";
+			if (Target.LinkType == TargetLinkType.Monolithic && Target.Type == TargetType.Editor)
+			{
+				if (EnvVars.CompilerVersion < VersionNumber.Parse("14.29.30133"))
+				{
+					throw new BuildException($"Monolithic editors now require VC Toolchain 14.29.30133 (the toolchain for Visual Studio 16.11) ({EnvVars.CompilerVersion} < {VersionNumber.Parse("14.29.30133")})");
+				}
+				Arguments.Add("/PDBPAGESIZE:8192");
+			}
+
 			//
 			//	Shipping & LTCG
 			//

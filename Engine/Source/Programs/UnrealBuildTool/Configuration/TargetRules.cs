@@ -1801,9 +1801,6 @@ namespace UnrealBuildTool
 		protected void SetDefaultsForCookedEditor(bool bIsCookedCooker, bool bIsForExternalUse)
 		{
 			LinkType = TargetLinkType.Monolithic;
-			// enable > 4gb pdb file support, which needs an up-to-date compiler and can make pdbs a little bigger, so we 
-			// only enable it when needed
-			WindowsPlatform.AdditionalLinkerOptions = "/PDBPAGESIZE:8192";
 
 			if (!bIsCookedCooker)
 			{
