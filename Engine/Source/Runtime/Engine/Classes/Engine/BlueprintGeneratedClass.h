@@ -608,14 +608,14 @@ struct FBPComponentClassOverride
 
 	/** The class to use when constructing the component. */
 	UPROPERTY()
-	TObjectPtr<UClass> ComponentClass;
+	TObjectPtr<const UClass> ComponentClass;
 
 	FBPComponentClassOverride()
 		: ComponentClass(nullptr)
 	{
 	}
 
-	FBPComponentClassOverride(FName InComponentName, UClass* InComponentClass)
+	FBPComponentClassOverride(FName InComponentName, const UClass* InComponentClass)
 		: ComponentName(InComponentName)
 		, ComponentClass(InComponentClass)
 	{

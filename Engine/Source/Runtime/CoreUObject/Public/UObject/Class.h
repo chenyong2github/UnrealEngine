@@ -3136,9 +3136,9 @@ public:
 	UObject* GetDefaultSubobjectByName(FName ToFind);
 
 	/** Adds a new default instance map item **/
-	void AddDefaultSubobject(UObject* NewSubobject, UClass* BaseClass)
+	void AddDefaultSubobject(UObject* NewSubobject, const UClass* BaseClass)
 	{
-		// this compoonent must be a derived class of the base class
+		// this component must be a derived class of the base class
 		check(NewSubobject->IsA(BaseClass));
 		// the outer of the component must be of my class or some superclass of me
 		check(IsChildOf(NewSubobject->GetOuter()->GetClass()));
@@ -3486,7 +3486,7 @@ public:
 	TArray<UObject*> Timelines;
 
 	/** Array of blueprint overrides of component classes in parent classes */
-	TArray<TPair<FName, UClass*>> ComponentClassOverrides;
+	TArray<TPair<FName, const UClass*>> ComponentClassOverrides;
 
 	/** IAnimClassInterface (UAnimClassData) or null */
 	UObject* AnimClassImplementation;

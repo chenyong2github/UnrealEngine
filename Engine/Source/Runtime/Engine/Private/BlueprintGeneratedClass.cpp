@@ -1534,7 +1534,7 @@ void UBlueprintGeneratedClass::GetDefaultObjectPreloadDependencies(TArray<UObjec
 		{
 			if (Override.ComponentClass)
 			{
-				OutDeps.Add(Override.ComponentClass);
+				OutDeps.Add(const_cast<UClass*>(Override.ComponentClass.Get()));
 			}
 		}
 	}

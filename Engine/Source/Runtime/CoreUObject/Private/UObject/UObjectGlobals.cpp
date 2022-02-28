@@ -3586,7 +3586,7 @@ void FObjectInitializer::InitProperties(UObject* Obj, UClass* DefaultsClass, UOb
 	}
 }
 
-void FObjectInitializer::FOverrides::Add(FName InComponentName, UClass* InComponentClass, const TArrayView<const FName>* InFullComponentPath)
+void FObjectInitializer::FOverrides::Add(FName InComponentName, const UClass* InComponentClass, const TArrayView<const FName>* InFullComponentPath)
 {
 	auto GetSubobjectPath = [InComponentName, InFullComponentPath]()
 	{
@@ -3650,7 +3650,7 @@ void FObjectInitializer::FOverrides::Add(FName InComponentName, UClass* InCompon
 	}
 }
 
-void FObjectInitializer::FOverrides::Add(FStringView InComponentPath, UClass* InComponentClass)
+void FObjectInitializer::FOverrides::Add(FStringView InComponentPath, const UClass* InComponentClass)
 {
 	TArray<FName> ComponentPath;
 
@@ -3666,7 +3666,7 @@ void FObjectInitializer::FOverrides::Add(FStringView InComponentPath, UClass* In
 	Add(PathArrayView, InComponentClass, &PathArrayView);
 }
 
-void FObjectInitializer::FOverrides::Add(TArrayView<const FName> InComponentPath, UClass* InComponentClass, const TArrayView<const FName>* InFullComponentPath)
+void FObjectInitializer::FOverrides::Add(TArrayView<const FName> InComponentPath, const UClass* InComponentClass, const TArrayView<const FName>* InFullComponentPath)
 {
 	if (InComponentPath.Num() > 1)
 	{
@@ -3690,7 +3690,7 @@ void FObjectInitializer::FOverrides::Add(TArrayView<const FName> InComponentPath
 }
 
 /**  Retrieve an override, or TClassToConstructByDefault::StaticClass or nullptr if this was removed by a derived class **/
-FObjectInitializer::FOverrides::FOverrideDetails FObjectInitializer::FOverrides::Get(FName InComponentName, UClass* ReturnType, UClass* ClassToConstructByDefault, bool bOptional) const
+FObjectInitializer::FOverrides::FOverrideDetails FObjectInitializer::FOverrides::Get(FName InComponentName, const UClass* ReturnType, const UClass* ClassToConstructByDefault, bool bOptional) const
 {
 	FOverrideDetails Result;
 
@@ -4466,7 +4466,7 @@ UScriptStruct* GetFallbackStruct()
 	return TBaseStructure<FFallbackStruct>::Get();
 }
 
-UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient) const
+UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, const UClass* ReturnType, const UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient) const
 {
 	UE_CLOG(!FUObjectThreadContext::Get().IsInConstructor, LogUObjectGlobals, Fatal, TEXT("Subobjects cannot be created outside of UObject constructors. UObject constructing subobjects cannot be created using new or placement new operator."));
 	if (SubobjectFName == NAME_None)
@@ -4476,7 +4476,7 @@ UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName Subobj
 
 	UObject* Result = nullptr;
 	FOverrides::FOverrideDetails ComponentOverride = SubobjectOverrides.Get(SubobjectFName, ReturnType, ClassToCreateByDefault, !bIsRequired);
-	UClass* OverrideClass = ComponentOverride.Class;
+	const UClass* OverrideClass = ComponentOverride.Class;
 	if (OverrideClass)
 	{
 		check(OverrideClass->IsChildOf(ReturnType));
@@ -4555,7 +4555,7 @@ UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName Subobj
 	}
 	return Result;
 }
-UObject* FObjectInitializer::CreateEditorOnlyDefaultSubobject(UObject* Outer, FName SubobjectName, UClass* ReturnType, bool bTransient /*= false*/) const
+UObject* FObjectInitializer::CreateEditorOnlyDefaultSubobject(UObject* Outer, FName SubobjectName, const UClass* ReturnType, bool bTransient /*= false*/) const
 {
 #if WITH_EDITOR
 	if (GIsEditor)

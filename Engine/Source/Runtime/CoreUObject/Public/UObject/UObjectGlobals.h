@@ -920,7 +920,7 @@ public:
 	template<class TReturnType>
 	TReturnType* CreateEditorOnlyDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const
 	{
-		UClass* ReturnType = TReturnType::StaticClass();
+		const UClass* ReturnType = TReturnType::StaticClass();
 		return static_cast<TReturnType*>(CreateEditorOnlyDefaultSubobject(Outer, SubobjectName, ReturnType, bTransient));
 	}
 
@@ -931,7 +931,7 @@ public:
 	* @param	ReturnType					type of the new component
 	* @param	bTransient					true if the component is being assigned to a transient property
 	*/
-	UObject* CreateEditorOnlyDefaultSubobject(UObject* Outer, FName SubobjectName, UClass* ReturnType, bool bTransient = false) const;
+	UObject* CreateEditorOnlyDefaultSubobject(UObject* Outer, FName SubobjectName, const UClass* ReturnType, bool bTransient = false) const;
 
 	/**
 	 * Create a component or subobject
@@ -942,14 +942,14 @@ public:
 	 * @param	bIsRequired                 true if the component is required and will always be created even if DoNotCreateDefaultSubobject was specified.
 	 * @param	bIsTransient                true if the component is being assigned to a transient property
 	 */
-	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired = true, bool bIsTransient = false) const;
+	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, const UClass* ReturnType, const UClass* ClassToCreateByDefault, bool bIsRequired = true, bool bIsTransient = false) const;
 
 	/**
 	 * Sets the class to use for a subobject defined in a base class, the class must be a subclass of the class used by the base class.
 	 * @param	SubobjectName	name of the new component or subobject
 	 * @param	Class			The class to use for the specified subobject or component.
 	 */
-	const FObjectInitializer& SetDefaultSubobjectClass(FName SubobjectName, UClass* Class) const
+	const FObjectInitializer& SetDefaultSubobjectClass(FName SubobjectName, const UClass* Class) const
 	{
 		AssertIfSubobjectSetupIsNotAllowed(SubobjectName);
 		SubobjectOverrides.Add(SubobjectName, Class);
@@ -982,7 +982,7 @@ public:
 	 * @param	SubobjectName	path to the new component or subobject
 	 * @param	Class			The class to use for the specified subobject or component.
 	 */
-	const FObjectInitializer& SetNestedDefaultSubobjectClass(FStringView SubobjectName, UClass* Class) const
+	const FObjectInitializer& SetNestedDefaultSubobjectClass(FStringView SubobjectName, const UClass* Class) const
 	{
 		AssertIfSubobjectSetupIsNotAllowed(SubobjectName);
 		SubobjectOverrides.Add(SubobjectName, Class);
@@ -994,7 +994,7 @@ public:
 	 * @param	SubobjectName	path to the new component or subobject
 	 * @param	Class			The class to use for the specified subobject or component.
 	 */
-	const FObjectInitializer& SetNestedDefaultSubobjectClass(TArrayView<const FName> SubobjectNames, UClass* Class) const
+	const FObjectInitializer& SetNestedDefaultSubobjectClass(TArrayView<const FName> SubobjectNames, const UClass* Class) const
 	{
 		AssertIfSubobjectSetupIsNotAllowed(SubobjectNames);
 		SubobjectOverrides.Add(SubobjectNames, Class);
@@ -1112,22 +1112,22 @@ private:
 	struct FOverrides
 	{
 		/**  Add an override, make sure it is legal **/
-		void Add(FName InComponentName, UClass* InComponentClass, const TArrayView<const FName>* FullPath = nullptr);
+		void Add(FName InComponentName, const UClass* InComponentClass, const TArrayView<const FName>* FullPath = nullptr);
 
 		/**  Add a potentially nested override, make sure it is legal **/
-		void Add(FStringView InComponentPath, UClass* InComponentClass);
+		void Add(FStringView InComponentPath, const UClass* InComponentClass);
 
 		/**  Add a potentially nested override, make sure it is legal **/
-		void Add(TArrayView<const FName> InComponentPath, UClass* InComponentClass, const TArrayView<const FName>* FullPath = nullptr);
+		void Add(TArrayView<const FName> InComponentPath, const UClass* InComponentClass, const TArrayView<const FName>* FullPath = nullptr);
 
 		struct FOverrideDetails
 		{
-			UClass* Class = nullptr;
+			const UClass* Class = nullptr;
 			FOverrides* SubOverrides = nullptr;
 		};
 
 		/**  Retrieve an override, or TClassToConstructByDefault::StaticClass or nullptr if this was removed by a derived class **/
-		FOverrideDetails Get(FName InComponentName, UClass* ReturnType, UClass* ClassToConstructByDefault, bool bOptional) const;
+		FOverrideDetails Get(FName InComponentName, const UClass* ReturnType, const UClass* ClassToConstructByDefault, bool bOptional) const;
 
 	private:
 		static bool IsLegalOverride(const UClass* DerivedComponentClass, const UClass* BaseComponentClass);
@@ -1148,7 +1148,7 @@ private:
 		struct FOverride
 		{
 			FName ComponentName;
-			UClass* ComponentClass = nullptr;
+			const UClass* ComponentClass = nullptr;
 			TUniquePtr<FOverrides> SubOverrides;
 			bool bDoNotCreate = false;
 			FOverride(FName InComponentName)
