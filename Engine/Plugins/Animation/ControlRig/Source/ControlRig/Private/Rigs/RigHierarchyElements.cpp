@@ -2,6 +2,7 @@
 
 #include "Rigs/RigHierarchyElements.h"
 #include "Rigs/RigHierarchy.h"
+#include "Rigs/RigControlHierarchy.h"
 #include "Units/RigUnitContext.h"
 #include "ControlRigObjectVersion.h"
 #include "ControlRigGizmoLibrary.h"
@@ -513,6 +514,15 @@ void FRigControlSettings::Load(FArchive& Ar)
 	Ar << bShapeEnabled;
 	Ar << bShapeVisible;
 	Ar << ShapeName;
+
+	if(Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RenameGizmoToShape)
+	{
+		if(ShapeName == FRigControl().GizmoName)
+		{
+			ShapeName = FControlRigShapeDefinition().ShapeName; 
+		}
+	}
+	
 	Ar << ShapeColor;
 	Ar << bIsTransientControl;
 	Ar << ControlEnumPathName;

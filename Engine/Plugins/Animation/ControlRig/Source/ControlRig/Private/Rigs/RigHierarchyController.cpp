@@ -1262,6 +1262,11 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(con
 		Settings.ShapeColor = Control.GizmoColor;
 		Settings.ControlEnum = Control.ControlEnum;
 
+		if(Settings.ShapeName == FRigControl().GizmoName)
+		{
+			Settings.ShapeName = FControlRigShapeDefinition().ShapeName; 
+		}
+
 		FRigControlValue InitialValue = Control.InitialValue;
 		if(!InitialValue.IsValid())
 		{
