@@ -106,7 +106,6 @@ namespace LumenRadianceCache
 {
 	// Must match LumenRadianceCacheCommon.ush
 	constexpr uint32 PRIORITY_HISTOGRAM_SIZE = 128;
-	constexpr uint32 MAX_UPDATE_BUCKET_STRIDE = 2;
 	constexpr uint32 PROBES_TO_UPDATE_TRACE_COST_STRIDE = 2;
 
 	FRadianceCacheInputs GetDefaultRadianceCacheInputs()
@@ -363,7 +362,8 @@ class FClearRadianceCacheUpdateResourcesCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeTraceAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWPriorityHistogram)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWMaxUpdateBucket)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWMaxUpdateBucket)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWMaxTracesFromMaxUpdateBucket)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWProbesToUpdateTraceCost)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -447,7 +447,8 @@ class FAllocateProbeTracesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeTraceAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, RWProbeTraceData)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, RWProbeFreeListAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, MaxUpdateBucket)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MaxUpdateBucket)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MaxTracesFromMaxUpdateBucket)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeLastUsedFrame)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeFreeList)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -487,7 +488,8 @@ class FSelectMaxPriorityBucketCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWMaxUpdateBucket)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWMaxUpdateBucket)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWMaxTracesFromMaxUpdateBucket)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PriorityHistogram)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeTraceAllocator)
 		SHADER_PARAMETER(uint32, NumProbesToTraceBudget)
@@ -523,7 +525,8 @@ class FRadianceCacheUpdateStatsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PriorityHistogram)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, MaxUpdateBucket)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MaxUpdateBucket)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MaxTracesFromMaxUpdateBucket)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ProbesToUpdateTraceCost)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeTraceAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeAllocator)
@@ -1381,7 +1384,8 @@ void RenderRadianceCache(
 		FRDGBufferUAVRef ProbeTraceAllocatorUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeTraceAllocator, PF_R32_UINT));
 
 		FRDGBufferRef PriorityHistogram = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), LumenRadianceCache::PRIORITY_HISTOGRAM_SIZE), TEXT("Lumen.RadianceCache.PriorityHistogram"));
-		FRDGBufferRef MaxUpdateBucket = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), LumenRadianceCache::MAX_UPDATE_BUCKET_STRIDE), TEXT("Lumen.RadianceCache.MaxUpdateBucket"));
+		FRDGBufferRef MaxUpdateBucket = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Lumen.RadianceCache.MaxUpdateBucket"));
+		FRDGBufferRef MaxTracesFromMaxUpdateBucket = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Lumen.RadianceCache.MaxTracesFromMaxUpdateBucket"));
 		FRDGBufferRef ProbesToUpdateTraceCost = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), LumenRadianceCache::PROBES_TO_UPDATE_TRACE_COST_STRIDE), TEXT("Lumen.RadianceCache.ProbesToUpdateTraceCost"));
 
 		// Batch clear all resources required for the subsequent radiance cache probe update pass
@@ -1389,7 +1393,8 @@ void RenderRadianceCache(
 			FClearRadianceCacheUpdateResourcesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearRadianceCacheUpdateResourcesCS::FParameters>();
 			PassParameters->RWProbeTraceAllocator = ProbeTraceAllocatorUAV;
 			PassParameters->RWPriorityHistogram = GraphBuilder.CreateUAV(PriorityHistogram);
-			PassParameters->RWMaxUpdateBucket = GraphBuilder.CreateUAV(MaxUpdateBucket, PF_R32_UINT);
+			PassParameters->RWMaxUpdateBucket = GraphBuilder.CreateUAV(MaxUpdateBucket);
+			PassParameters->RWMaxTracesFromMaxUpdateBucket = GraphBuilder.CreateUAV(MaxTracesFromMaxUpdateBucket);
 			PassParameters->RWProbesToUpdateTraceCost = GraphBuilder.CreateUAV(ProbesToUpdateTraceCost);
 
 			auto ComputeShader = View.ShaderMap->GetShader<FClearRadianceCacheUpdateResourcesCS>();
@@ -1439,7 +1444,8 @@ void RenderRadianceCache(
 		// Selected max priority bucket
 		{
 			FSelectMaxPriorityBucketCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectMaxPriorityBucketCS::FParameters>();
-			PassParameters->RWMaxUpdateBucket = GraphBuilder.CreateUAV(MaxUpdateBucket, PF_R32_UINT);
+			PassParameters->RWMaxUpdateBucket = GraphBuilder.CreateUAV(MaxUpdateBucket);
+			PassParameters->RWMaxTracesFromMaxUpdateBucket = GraphBuilder.CreateUAV(MaxTracesFromMaxUpdateBucket);
 			PassParameters->PriorityHistogram = GraphBuilder.CreateSRV(PriorityHistogram);
 			PassParameters->ProbeTraceAllocator = GraphBuilder.CreateSRV(ProbeTraceAllocator, PF_R32_UINT);
 			PassParameters->NumProbesToTraceBudget = GRadianceCacheForceFullUpdate ? UINT32_MAX : RadianceCacheInputs.NumProbesToTraceBudget;
@@ -1465,6 +1471,7 @@ void RenderRadianceCache(
 			PassParameters->RWProbeTraceData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeTraceData, PF_A32B32G32R32F));
 			PassParameters->RWProbeFreeListAllocator = bPersistentCache ? ProbeFreeListAllocatorUAV : nullptr;
 			PassParameters->MaxUpdateBucket = GraphBuilder.CreateSRV(MaxUpdateBucket, PF_R32_UINT);
+			PassParameters->MaxTracesFromMaxUpdateBucket = GraphBuilder.CreateSRV(MaxTracesFromMaxUpdateBucket);
 			PassParameters->ProbeLastUsedFrame = GraphBuilder.CreateSRV(ProbeLastUsedFrame, PF_R32_UINT);
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->ProbeFreeList = bPersistentCache ? GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeFreeList, PF_R32_UINT)) : nullptr;
@@ -1866,7 +1873,8 @@ void RenderRadianceCache(
 			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintUniformBuffer);
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->PriorityHistogram = GraphBuilder.CreateSRV(PriorityHistogram);
-			PassParameters->MaxUpdateBucket = GraphBuilder.CreateSRV(MaxUpdateBucket, PF_R32_UINT);
+			PassParameters->MaxUpdateBucket = GraphBuilder.CreateSRV(MaxUpdateBucket);
+			PassParameters->MaxTracesFromMaxUpdateBucket = GraphBuilder.CreateSRV(MaxTracesFromMaxUpdateBucket);
 			PassParameters->ProbesToUpdateTraceCost = GraphBuilder.CreateSRV(ProbesToUpdateTraceCost);
 			PassParameters->ProbeTraceAllocator = GraphBuilder.CreateSRV(ProbeTraceAllocator, PF_R32_UINT);
 			PassParameters->ProbeAllocator = GraphBuilder.CreateSRV(ProbeAllocator, PF_R32_UINT);

@@ -14,8 +14,10 @@ float FirstClipmapWorldExtentRcp;
 uint FrameNumber;
 RWStructuredBuffer<uint> RWPriorityHistogram;
 StructuredBuffer<uint> PriorityHistogram;
-RWBuffer<uint> RWMaxUpdateBucket; // Not a StructuredBuffer as of Feb 21, 2022 there was an AMD driver DX11 bug breaking AllocateProbeTracesCS
-Buffer<uint> MaxUpdateBucket;
+RWStructuredBuffer<uint> RWMaxUpdateBucket;
+StructuredBuffer<uint> MaxUpdateBucket;
+RWStructuredBuffer<uint> RWMaxTracesFromMaxUpdateBucket;
+StructuredBuffer<uint> MaxTracesFromMaxUpdateBucket;
 RWStructuredBuffer<uint> RWProbesToUpdateTraceCost;
 StructuredBuffer<uint> ProbesToUpdateTraceCost;
 
@@ -48,9 +50,14 @@ void ClearRadianceCacheUpdateResourcesCS(
 		RWProbeTraceAllocator[ElementIndex] = 0;
 	}
 
-	if (ElementIndex < MAX_UPDATE_BUCKET_STRIDE)
+	if (ElementIndex < 1)
 	{
 		RWMaxUpdateBucket[ElementIndex] = 0;
+	}
+
+	if (ElementIndex < 1)
+	{
+		RWMaxTracesFromMaxUpdateBucket[ElementIndex] = 0;
 	}
 
 	if (ElementIndex < PROBES_TO_UPDATE_TRACE_COST_STRIDE)
@@ -201,7 +208,7 @@ void SelectMaxPriorityBucketCS(
 		}
 
 		RWMaxUpdateBucket[0] = PriorityBucketIndex;
-		RWMaxUpdateBucket[1] = NumTracesFromPriorityBucket;
+		RWMaxTracesFromMaxUpdateBucket[0] = NumTracesFromPriorityBucket;
 	}
 }
 
@@ -225,7 +232,7 @@ void AllocateProbeTracesCS(
 		if (ProbeIndex < MaxNumProbes)
 		{
 			const uint MaxUpdateBucketIndex = MaxUpdateBucket[0];
-			const uint TraceCostFromMaxUpdateBucket = MaxUpdateBucket[1];
+			const uint LocalMaxTracesFromMaxUpdateBucket = MaxTracesFromMaxUpdateBucket[0];
 
 			const uint ProbeTraceCost = GetProbeTraceCost(ProbeWorldPosition);
 			const uint LastTracedFrameIndex = RWProbeLastTracedFrame[ProbeIndex];
@@ -236,14 +243,15 @@ void AllocateProbeTracesCS(
 
 			bool bTraceProbe = PriorityBucketIndex <= MaxUpdateBucketIndex;
 
-			// Can't trace more than NumTracesFromMaxUpdateBucket from the last bucket
+			// Can't trace more than MaxTracesFromMaxUpdateBucket from the last bucket
 			// Make an exception for the first bucket, as it contains probes without valid data
 			if (bTraceProbe && PriorityBucketIndex == MaxUpdateBucketIndex && MaxUpdateBucketIndex > 0)
 			{
+				// Accumulate allocated probe trace cost for the last bucket
 				uint ProbeTraceAllocatedFromMaxUpdateBucket = 0;
 				InterlockedAdd(RWProbesToUpdateTraceCost[1], ProbeTraceCost, ProbeTraceAllocatedFromMaxUpdateBucket);
 
-				if (ProbeTraceAllocatedFromMaxUpdateBucket + ProbeTraceCost > TraceCostFromMaxUpdateBucket)
+				if (ProbeTraceAllocatedFromMaxUpdateBucket + ProbeTraceCost > LocalMaxTracesFromMaxUpdateBucket)
 				{
 					bTraceProbe = false;
 				}

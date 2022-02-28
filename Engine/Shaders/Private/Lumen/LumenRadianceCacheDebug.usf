@@ -10,8 +10,8 @@
 
 uint MaxNumProbes;
 StructuredBuffer<uint> PriorityHistogram;
-Buffer<uint> MaxUpdateBucket;
-StructuredBuffer<uint> TraceCostFromMaxUpdateBucket;
+StructuredBuffer<uint> MaxUpdateBucket;
+StructuredBuffer<uint> MaxTracesFromMaxUpdateBucket;
 StructuredBuffer<uint> ProbesToUpdateTraceCost;
 Buffer<uint> ProbeTraceAllocator;
 Buffer<uint> ProbeFreeListAllocator;
@@ -47,15 +47,15 @@ void RadianceCacheUpdateStatsCS(
 	}
 
 	const uint MaxUpdateBucketIndex = MaxUpdateBucket[0];
-	const uint TraceCostFromMaxUpdateBucket = MaxUpdateBucket[1];
+	const uint LocalMaxTracesFromMaxUpdateBucket = MaxTracesFromMaxUpdateBucket[0];
 
 	TextPos = ShaderPrintNewline(TextPos);
 	TextPos = ShaderPrintText(TextPos, TEXT("MaxBucket "));
 	TextPos = ShaderPrint(TextPos, MaxUpdateBucketIndex);
 
 	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("TraceCostFromMaxUpdateBucket "));
-	TextPos = ShaderPrint(TextPos, TraceCostFromMaxUpdateBucket);
+	TextPos = ShaderPrintText(TextPos, TEXT("MaxTracesFromMaxUpdateBucket "));
+	TextPos = ShaderPrint(TextPos, LocalMaxTracesFromMaxUpdateBucket);
 
 	TextPos = ShaderPrintNewline(TextPos);
 	TextPos = ShaderPrintText(TextPos, TEXT("Out "));
