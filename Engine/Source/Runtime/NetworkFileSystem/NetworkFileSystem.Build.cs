@@ -19,6 +19,7 @@ namespace UnrealBuildTool.Rules
 					"Projects",
 					"SandboxFile",
 					"TargetPlatform",
+					"DesktopPlatform",
 				});
 
 			PublicIncludePaths.AddRange(
