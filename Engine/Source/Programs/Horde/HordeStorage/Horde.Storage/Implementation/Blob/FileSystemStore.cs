@@ -199,7 +199,7 @@ namespace Horde.Storage.Implementation
             return true;
         }
 
-        public async Task<List<BlobIdentifier>> Cleanup(CancellationToken cancellationToken)
+        public async Task<ulong> Cleanup(CancellationToken cancellationToken)
         {
             return await CleanupInternal(cancellationToken);
         }
@@ -212,17 +212,17 @@ namespace Horde.Storage.Implementation
         /// <param name="cancellationToken">Cancellation token</param>
         /// <param name="batchSize">Number of files to scan for clean up. A higher number is recommended since blob store can contain many small blobs</param>
         /// <returns></returns>
-        public async Task<List<BlobIdentifier>> CleanupInternal(CancellationToken cancellationToken, int batchSize = 100000)
+        public async Task<ulong> CleanupInternal(CancellationToken cancellationToken, int batchSize = 100000)
         {
             long size = await CalculateDiskSpaceUsed();
             ulong maxSizeBytes = _settings.CurrentValue.MaxSizeBytes;
             long triggerSize = (long) (maxSizeBytes * _settings.CurrentValue.TriggerThresholdPercentage);
             long targetSize = (long) (maxSizeBytes * _settings.CurrentValue.TargetThresholdPercentage); // Target to shrink to if triggered
-            List<BlobIdentifier> blobsRemoved = new List<BlobIdentifier>(batchSize);
+            ulong countOfBlobsRemoved = 0;
 
             if (size < triggerSize)
             {
-                return blobsRemoved;
+                return 0;
             }
 
             // Perform a maximum of 5 clean up runs
@@ -231,7 +231,7 @@ namespace Horde.Storage.Implementation
                 size = await CalculateDiskSpaceUsed();
                 if (size <= targetSize)
                 {
-                    return blobsRemoved;
+                    return countOfBlobsRemoved;
                 }
                 
                 IEnumerable<FileInfo> fileInfos = GetLeastRecentlyAccessedObjects(maxResults: batchSize);
@@ -245,12 +245,12 @@ namespace Horde.Storage.Implementation
                     {
                         totalBytesDeleted += fi.Length;
                         fi.Delete();
-                        blobsRemoved.Add(new BlobIdentifier(fi.Name));
+                        ++countOfBlobsRemoved;
 
                         long currentSize = size - totalBytesDeleted;
                         if (currentSize <= targetSize || cancellationToken.IsCancellationRequested)
                         {
-                            return blobsRemoved;
+                            return countOfBlobsRemoved;
                         }
                     }
                     catch (FileNotFoundException)
@@ -261,11 +261,11 @@ namespace Horde.Storage.Implementation
 
                 if (!hadFiles)
                 {
-                    return blobsRemoved;
+                    return countOfBlobsRemoved;
                 }
             }
             
-            return blobsRemoved;
+            return countOfBlobsRemoved;
         }
 
         /// <summary>

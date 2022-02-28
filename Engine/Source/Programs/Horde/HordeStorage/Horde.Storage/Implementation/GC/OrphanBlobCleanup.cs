@@ -21,7 +21,7 @@ namespace Horde.Storage.Implementation
     public interface IBlobCleanup
     {
         bool ShouldRun();
-        Task<List<BlobIdentifier>> Cleanup(CancellationToken none);
+        Task<ulong> Cleanup(CancellationToken none);
     }
 
     public class OrphanBlobCleanup : IBlobCleanup
@@ -78,12 +78,12 @@ namespace Horde.Storage.Implementation
             return true;
         }
 
-        public async Task<List<BlobIdentifier>> Cleanup(CancellationToken cancellationToken)
+        public async Task<ulong> Cleanup(CancellationToken cancellationToken)
         {
             if (!_leaderElection.IsThisInstanceLeader())
             {
                 _logger.Information("Skipped orphan blob cleanup run as this instance is not the leader");
-                return new List<BlobIdentifier>();
+                return 0;
             }
 
             List<NamespaceId> namespaces = await ListNamespaces().Where(NamespaceShouldBeCleaned).ToListAsync();
@@ -94,8 +94,8 @@ namespace Horde.Storage.Implementation
                 perNamespaceRoots.TryAdd(ns, gcRootState);
             }, cancellationToken);
 
+            ulong countOfBlobsRemoved = 0;
             List<BlobIdentifier> blobsToRemove = new List<BlobIdentifier>();
-            List<BlobIdentifier> removedBlobs = new List<BlobIdentifier>();
 
             // enumerate all namespaces, and check if the old blob is valid in any of them to allow for a blob store to just store them in a single pile if it wants to
             foreach (NamespaceId @namespace in namespaces)
@@ -158,11 +158,11 @@ namespace Horde.Storage.Implementation
                 }
                 if (deleted)
                 {
-                    removedBlobs.Add(blob);
+                    ++countOfBlobsRemoved;
                 }
             }
 
-            return removedBlobs;
+            return countOfBlobsRemoved;
         }
 
         private bool NamespaceShouldBeCleaned(NamespaceId ns)

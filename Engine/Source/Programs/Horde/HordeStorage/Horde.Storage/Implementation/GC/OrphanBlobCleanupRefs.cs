@@ -50,19 +50,19 @@ namespace Horde.Storage.Implementation
             return true;
         }
 
-        public async Task<List<BlobIdentifier>> Cleanup(CancellationToken cancellationToken)
+        public async Task<ulong> Cleanup(CancellationToken cancellationToken)
         {
             if (!_leaderElection.IsThisInstanceLeader())
             {
                 _logger.Information("Skipped orphan blob (refs) cleanup run as this instance is not the leader");
-                return new List<BlobIdentifier>();
+                return 0;
             }
 
             List<NamespaceId> namespaces = await ListNamespaces().Where(NamespaceShouldBeCleaned).ToListAsync();
           
 
             // enumerate all namespaces, and check if the old blob is valid in any of them to allow for a blob store to just store them in a single pile if it wants to
-            List<BlobIdentifier> removedBlobs = new List<BlobIdentifier>();
+            ulong countOfBlobsRemoved = 0;
             foreach (NamespaceId @namespace in namespaces)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -122,12 +122,12 @@ namespace Horde.Storage.Implementation
                         using IScope removeBlobScope = Tracer.Instance.StartActive("gc.blob.remove-blob");
                         removeBlobScope.Span.ResourceName = blob.ToString();
                         await RemoveBlob(@namespace, blob);
-                        removedBlobs.Add(blob);
+                        ++countOfBlobsRemoved;
                     }
                 }
             }
 
-            return removedBlobs;
+            return countOfBlobsRemoved;
         }
 
         private async Task RemoveBlob(NamespaceId ns, BlobIdentifier blob)

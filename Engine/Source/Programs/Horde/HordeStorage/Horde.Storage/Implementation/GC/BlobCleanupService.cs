@@ -77,7 +77,7 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        public async Task<List<BlobIdentifier>> Cleanup(BlobCleanupState state, CancellationToken cancellationToken)
+        public async Task Cleanup(BlobCleanupState state, CancellationToken cancellationToken)
         {
             List<BlobIdentifier> removedBlobs = new List<BlobIdentifier>();
             
@@ -94,17 +94,14 @@ namespace Horde.Storage.Implementation
                 _logger.Information("Attempting to run Blob Cleanup {BlobCleanup}. ", type);
                 try
                 {
-                    List<BlobIdentifier> tempBlobs = await blobCleanup.Cleanup(cancellationToken);
-                    _logger.Information("Ran blob cleanup {BlobCleanup}. Deleted {CountBlobRecords}", type, tempBlobs.Count);
-                    removedBlobs.AddRange(tempBlobs);
+                    ulong countOfBlobsCleaned = await blobCleanup.Cleanup(cancellationToken);
+                    _logger.Information("Ran blob cleanup {BlobCleanup}. Deleted {CountBlobRecords}", type, countOfBlobsCleaned);
                 }
                 catch (Exception e)
                 {
                     _logger.Error(e, "Exception running Blob Cleanup {BlobCleanup} .", type);
                 }
             }
-
-            return removedBlobs;
         }
     }
 }

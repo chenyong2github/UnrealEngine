@@ -180,14 +180,8 @@ namespace Horde.Storage.FunctionalTests.GC
             Assert.AreEqual(1, namespaces.Count);
 
             CancellationTokenSource cts = new CancellationTokenSource();
-            List<BlobIdentifier> removedBlobs = await cleanup.Cleanup(cts.Token);
-            Assert.AreEqual(4, removedBlobs.Count);
-            
-            BlobIdentifier[] expectedIdentifiers = {object1id, object2id, object4id, object5id};
-            foreach (BlobIdentifier removedBlob in removedBlobs)
-            {
-                Assert.IsTrue(expectedIdentifiers.Contains(removedBlob));
-            }
+            ulong removedBlobsCount = await cleanup.Cleanup(cts.Token);
+            Assert.AreEqual(4, removedBlobsCount);
             
             _callistoBlobMock.Verify();
             _callistoBlobMock.VerifyNoOtherCalls();
@@ -336,11 +330,18 @@ namespace Horde.Storage.FunctionalTests.GC
             Assert.IsNotNull(cleanup);
 
             CancellationTokenSource cts = new CancellationTokenSource();
-            List<BlobIdentifier> removedBlobs = await cleanup.Cleanup(cts.Token);
-            Assert.AreEqual(3, removedBlobs.Count);
-            
-            BlobIdentifier[] expectedIdentifiers = {object1id, object4id, object5id};
-            CollectionAssert.AreEquivalent(removedBlobs, expectedIdentifiers);
+            ulong countOfRemovedBlobs = await cleanup.Cleanup(cts.Token);
+            Assert.AreEqual(3u, countOfRemovedBlobs);
+
+            foreach (BlobIdentifier blob in new BlobIdentifier[] {object1id, object4id, object5id})
+            {
+                Assert.IsFalse(await _blobService!.Exists(TestNamespace, blob));
+            }
+
+            foreach (BlobIdentifier blob in new BlobIdentifier[] {object2id, object3id, object6id})
+            {
+                Assert.IsTrue(await _blobService!.Exists(TestNamespace, blob));
+            }
         }
     }
 }

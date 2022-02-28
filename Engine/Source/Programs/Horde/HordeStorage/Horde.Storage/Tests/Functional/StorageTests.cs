@@ -244,13 +244,13 @@ namespace Horde.Storage.FunctionalTests.Storage
             Assert.IsNotNull(fsStore);
 
             CancellationTokenSource cts = new CancellationTokenSource();
-            Assert.IsTrue((await fsStore.CleanupInternal(cts.Token, batchSize: 2)).Count == 0); // No garbage to collect, should return false
+            Assert.IsTrue(await fsStore.CleanupInternal(cts.Token, batchSize: 2) == 0); // No garbage to collect, should return false
             
             FileInfo[] fooFiles = CreateFilesInNamespace(FooNamespace, 10);
 
             Assert.AreEqual(10 * 100, await fsStore.CalculateDiskSpaceUsed());
 
-            Assert.IsTrue((await fsStore.CleanupInternal(cts.Token, batchSize: 2)).Count > 0);
+            Assert.IsTrue(await fsStore.CleanupInternal(cts.Token, batchSize: 2) > 0);
 
             Assert.AreEqual(5 * 100, await fsStore.CalculateDiskSpaceUsed());
 
