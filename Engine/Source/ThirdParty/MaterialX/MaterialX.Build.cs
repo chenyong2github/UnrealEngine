@@ -61,8 +61,20 @@ public class MaterialX : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			// Not yet supported
-			/*
+			// Note that since we no longer support OpenGL on
+			// Linux, we do not build the MaterialXRender
+			// libraries, since MaterialX does not offer a way to
+			// disable only MaterialXRenderGlsl, which requires
+			// linking against OpenGL.
+			MaterialXLibraries = new string[] {
+				"MaterialXCore",
+				"MaterialXFormat",
+				"MaterialXGenGlsl",
+				"MaterialXGenMdl",
+				"MaterialXGenOsl",
+				"MaterialXGenShader"
+			};
+
 			string LibDirectory = Path.Combine(
 				DeploymentDirectory,
 				"Unix",
@@ -71,11 +83,10 @@ public class MaterialX : ModuleRules
 
 			foreach (string MaterialXLibrary in MaterialXLibraries)
 			{
-				string StaticLibName = MaterialXLibrary + LibPostfix + ".a";
+				string StaticLibName = "lib" + MaterialXLibrary + LibPostfix + ".a";
 				PublicAdditionalLibraries.Add(
 					Path.Combine(LibDirectory, StaticLibName));
 			}
-			*/
 		}
 	}
 }
