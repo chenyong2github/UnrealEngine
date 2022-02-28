@@ -114,7 +114,11 @@ namespace {
 
 inline std::unique_ptr<char[]> StrDup(const std::string& input) {
   auto buf = std::make_unique<char[]>(input.size() + 1);
+#if !defined(PLATFORM_SCARLET) // WITH_UE: Code not for PLATFORM_SCARLET
   strncpy(buf.get(), input.c_str(), input.size());
+#else // WITH_UE
+  strncpy_s(buf.get(), input.size() + 1, input.c_str(), input.size());
+#endif // WITH_UE
   buf[input.size()] = 0;
   return buf;
 }
