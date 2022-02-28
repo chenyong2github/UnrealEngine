@@ -216,6 +216,7 @@ class FVoxelAllocatePageIndexCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float, CPUPageWorldSize)
 		SHADER_PARAMETER(float, CPUVoxelWorldSize)
+		SHADER_PARAMETER(uint32, bUseCPUVoxelWorldSize)
 		SHADER_PARAMETER(uint32, TotalPageIndexCount)
 		SHADER_PARAMETER(uint32, PageResolution)
 		SHADER_PARAMETER(uint32, MacroGroupCount)
@@ -393,6 +394,7 @@ class FVoxelAddNodeDescCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(FIntVector, CPU_PageIndexResolution)
 		SHADER_PARAMETER(float, CPU_VoxelWorldSize)
+		SHADER_PARAMETER(uint32, bUseCPUVoxelWorldSize)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GPU_VoxelWorldSize)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MacroGroupAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MacroGroupVoxelSizeBuffer)
@@ -628,6 +630,7 @@ static void AddAllocateVoxelPagesPass(
 	AddClearUAVPass(GraphBuilder, PageIndexGlobalCounterUAV, 0u);
 
 	const FRDGBufferSRVRef CurrGPUMinVoxelSizeSRV = GraphBuilder.CreateSRV(CurrGPUMinVoxelSize, PF_R16F);
+	const bool bAdaptiveVoxelEnable = IsHairStrandsAdaptiveVoxelAllocationEnable();
 
 	// Allocate page index for all instance group
 //	if (bIsGPUDriven)
@@ -644,6 +647,7 @@ static void AddAllocateVoxelPagesPass(
 		FVoxelAllocatePageIndexCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelAllocatePageIndexCS::FParameters>();
 		Parameters->CPUPageWorldSize = CPUPageWorldSize;
 		Parameters->CPUVoxelWorldSize = CPUMinVoxelWorldSize;
+		Parameters->bUseCPUVoxelWorldSize = bAdaptiveVoxelEnable ? 0u : 1u;
 		Parameters->TotalPageIndexCount = OutTotalPageIndexCount;
 		Parameters->PageResolution = PageResolution;
 		Parameters->MacroGroupCount = MacroGroupCount;
@@ -850,6 +854,7 @@ static void AddAllocateVoxelPagesPass(
 			Parameters->CPU_PageIndexOffset = CPUAllocationDesc.PageIndexOffset;
 			Parameters->CPU_VoxelWorldSize = CPUMinVoxelWorldSize;
 			Parameters->GPU_VoxelWorldSize = CurrGPUMinVoxelSizeSRV;
+			Parameters->bUseCPUVoxelWorldSize = bAdaptiveVoxelEnable ? 0u : 1u;
 			Parameters->MacroGroupVoxelSizeBuffer = GraphBuilder.CreateSRV(MacroGroupResources.MacroGroupVoxelSizeBuffer, PF_R16F);
 			Parameters->OutNodeDescBuffer = GraphBuilder.CreateUAV(NodeDescBuffer);
 
@@ -921,7 +926,6 @@ static void AddAllocateVoxelPagesPass(
 	}
 
 	// Feedback allocation for next frame
-	const bool bAdaptiveVoxelEnable = IsHairStrandsAdaptiveVoxelAllocationEnable();
 	if (bAdaptiveVoxelEnable)
 	{
 		// Store the total requested page allocation (for feedback purpose)

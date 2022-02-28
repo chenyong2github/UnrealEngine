@@ -12,6 +12,7 @@
 
 float				CPUPageWorldSize;
 float				CPUVoxelWorldSize;
+uint				bUseCPUVoxelWorldSize;	// When adaptive voxel size is disabled, we use CPU voxel size value
 uint				TotalPageIndexCount; 	// This is the max page index count;
 uint				PageResolution; 		// Resolution of a page
 uint				MacroGroupCount;
@@ -52,7 +53,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		const bool bSupportVoxelization = (bDoesMacroGroupSupportVoxelization >> MacroGroupId) & 0x1;
 		Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
-		const float VoxelWorldSize = max(GPUVoxelWorldSize[0], MacroGroupVoxelSizeBuffer[MacroGroupId]);
+		const float VoxelWorldSize = bUseCPUVoxelWorldSize ? CPUVoxelWorldSize : max(GPUVoxelWorldSize[0], MacroGroupVoxelSizeBuffer[MacroGroupId]);
 		PageWorldSize = VoxelWorldSize * PageResolution;
 
 		if (any(Bound.Min > Bound.Max) || !bSupportVoxelization)
@@ -652,6 +653,7 @@ float3 CPU_TranslatedWorldMaxAABB;
 uint CPU_PageIndexOffset;
 int3 CPU_PageIndexResolution;
 float CPU_VoxelWorldSize;
+uint bUseCPUVoxelWorldSize; // When adaptive voxel size is disabled, we use CPU voxel size value
 
 Buffer<float> GPU_VoxelWorldSize;
 Buffer<int> MacroGroupAABBBuffer;
@@ -673,7 +675,7 @@ void AddDescCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Disp
 	Node.TranslatedWorldMaxAABB = TranslatedWorldBound.Max;
 	Node.PageIndexResolution = PageIndexResolutionAndOffset.xyz;
 	Node.PageIndexOffset = PageIndexResolutionAndOffset.w;
-	Node.VoxelWorldSize = max(GPU_VoxelWorldSize[0], VoxelWorldSize);
+	Node.VoxelWorldSize = bUseCPUVoxelWorldSize ? CPU_VoxelWorldSize : max(GPU_VoxelWorldSize[0], VoxelWorldSize);
 #else
 	Node.TranslatedWorldMinAABB = CPU_TranslatedWorldMinAABB;
 	Node.TranslatedWorldMaxAABB = CPU_TranslatedWorldMaxAABB;
