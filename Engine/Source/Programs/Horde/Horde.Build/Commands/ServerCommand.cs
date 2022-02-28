@@ -61,13 +61,6 @@ namespace Horde.Build.Commands
 			}
 		}
 
-		// Used by WebApplicationFactory in controller tests. Uses reflection to call this exact function signature.
-		public static IHostBuilder CreateHostBuilder(string[] Args)
-		{
-			ServerSettings HordeSettings = new ServerSettings();
-			return CreateHostBuilderWithCert(Args, new ConfigurationBuilder().Build(), HordeSettings, null);
-		}
-
 		static IHostBuilder CreateHostBuilderWithCert(string[] Args, IConfiguration Config, ServerSettings ServerSettings, X509Certificate2? SslCert)
 		{
 			return Host.CreateDefaultBuilder(Args)
@@ -133,5 +126,11 @@ namespace Horde.Build.Commands
 				return new X509Certificate2(FileReference.ReadAllBytes(ServerPrivateCert));
 			}
 		}
-	}
+
+		public static IHostBuilder CreateHostBuilderForTesting(string[] Args)
+		{
+			ServerSettings HordeSettings = new ServerSettings();
+			return CreateHostBuilderWithCert(Args, new ConfigurationBuilder().Build(), HordeSettings, null);
+		}
+}
 }

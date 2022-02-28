@@ -202,6 +202,9 @@ namespace HordeServer
 #pragma warning restore ASP0000 // Do not call 'IServiceCollection.BuildServiceProvider' in 'ConfigureServices'
 		}
 
+		// Used by WebApplicationFactory in controller tests. Uses reflection to call this exact function signature.
+		public static IHostBuilder CreateHostBuilder(string[] Args) => ServerCommand.CreateHostBuilderForTesting(Args);
+
 		/// <summary>
 		/// Get the application directory
 		/// </summary>
