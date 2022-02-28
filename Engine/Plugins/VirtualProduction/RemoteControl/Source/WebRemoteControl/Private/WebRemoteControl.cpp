@@ -277,6 +277,8 @@ void FWebRemoteControlModule::StartupModule()
 	{
 		StartWebSocketServer();
 	}
+
+	StageAppBeaconReceiver.Startup();
 }
 
 void FWebRemoteControlModule::ShutdownModule()
@@ -291,12 +293,14 @@ void FWebRemoteControlModule::ShutdownModule()
 	{
 		return;
 	}
-	
+
+	StageAppBeaconReceiver.Shutdown();
 	EditorRoutes.UnregisterRoutes(this);
 	WebSocketHandler->UnregisterRoutes(this);
 	StopHttpServer();
 	StopWebSocketServer();
 	UnregisterConsoleCommands();
+
 #if WITH_EDITOR
 	UnregisterSettings();
 #endif
