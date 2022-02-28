@@ -2,6 +2,7 @@
 
 #include "NiagaraParameterDefinitions.h"
 
+#include "ScopedTransaction.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraScriptVariable.h"
