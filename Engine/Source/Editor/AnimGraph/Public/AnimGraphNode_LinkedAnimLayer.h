@@ -72,7 +72,6 @@ protected:
 	// Begin UAnimGraphNode_CustomProperty
 	virtual FAnimNode_CustomProperty* GetCustomPropertyNode() override { return &Node;  }
 	virtual const FAnimNode_CustomProperty* GetCustomPropertyNode() const override { return &Node; }
-	virtual bool NeedsToSpecifyValidTargetClass() const override { return false; }
 	virtual UClass* GetTargetSkeletonClass() const override;
 
 	// Begin UAnimGraphNode_LinkedAnimGraphBase

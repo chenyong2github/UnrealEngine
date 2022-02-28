@@ -111,7 +111,7 @@ protected:
 	void ReinitializeLinkedAnimInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewAnimInstance = nullptr);
 
 	// Shutdown the currently running instance
-	void TeardownInstance();
+	void TeardownInstance(const UAnimInstance* InOwningAnimInstance);
 
 	// Get Target Class
 	virtual UClass* GetTargetClass() const override 

@@ -206,7 +206,7 @@ void FAnimNode_LinkedAnimGraph::OnInitializeAnimInstance(const FAnimInstanceProx
 	else if(InstanceToRun)
 	{
 		// We have an instance but no instance class
-		TeardownInstance();
+		TeardownInstance(InAnimInstance);
 	}
 
 	if(InstanceToRun)
@@ -215,12 +215,23 @@ void FAnimNode_LinkedAnimGraph::OnInitializeAnimInstance(const FAnimInstanceProx
 	}
 }
 
-void FAnimNode_LinkedAnimGraph::TeardownInstance()
+void FAnimNode_LinkedAnimGraph::TeardownInstance(const UAnimInstance* InOwningAnimInstance)
 {
 	UAnimInstance* InstanceToRun = GetTargetInstance<UAnimInstance>();
 	if (InstanceToRun)
 	{
-		InstanceToRun->UninitializeAnimation();
+		DynamicUnlink(const_cast<UAnimInstance*>(InOwningAnimInstance));
+		// Never delete the owning animation instance
+		if (InstanceToRun != InOwningAnimInstance)
+		{
+			USkeletalMeshComponent* MeshComp = InOwningAnimInstance->GetSkelMeshComponent();
+			check(MeshComp);
+			MeshComp->GetLinkedAnimInstances().Remove(InstanceToRun);
+			// Only call UninitializeAnimation if we are not the owning anim instance
+			InstanceToRun->UninitializeAnimation();
+			InstanceToRun->MarkAsGarbage();
+		}
+
 		InstanceToRun = nullptr;
 	}
 
@@ -233,25 +244,13 @@ void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstan
 
 	IAnimClassInterface* PriorAnimBPClass = InstanceToRun ? IAnimClassInterface::GetFromClass(InstanceToRun->GetClass()) : nullptr;
 
+	// Full reinit, kill old instances
+	TeardownInstance(InOwningAnimInstance);
+
 	if(*InstanceClass || InNewAnimInstance)
 	{
 		USkeletalMeshComponent* MeshComp = InOwningAnimInstance->GetSkelMeshComponent();
 		check(MeshComp);
-		// Full reinit, kill old instances
-		if(InstanceToRun)
-		{
-			DynamicUnlink(const_cast<UAnimInstance*>(InOwningAnimInstance));
-
-			// Never delete the owning animation instance
-			if (InstanceToRun != InOwningAnimInstance)
-			{
-				MeshComp->GetLinkedAnimInstances().Remove(InstanceToRun);
-				// Only call UninitializeAnimation if we are not the owning anim instance
-				InstanceToRun->UninitializeAnimation();
-				InstanceToRun->MarkAsGarbage();
-			}
-			InstanceToRun = nullptr;
-		}
 
 		// Need an instance to run, so create it now
 		InstanceToRun = InNewAnimInstance ? InNewAnimInstance : NewObject<UAnimInstance>(MeshComp, InstanceClass);
@@ -283,11 +282,6 @@ void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstan
 		IAnimClassInterface* NewAnimBPClass = IAnimClassInterface::GetFromClass(InstanceToRun->GetClass());
 
 		RequestBlend(PriorAnimBPClass, NewAnimBPClass);
-	}
-	else if(InstanceToRun)
-	{
-		// We have an instance but no instance class
-		TeardownInstance();
 	}
 }
 
