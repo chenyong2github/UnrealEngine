@@ -90,8 +90,8 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ChunkNode(Bundle Owner, ChunkOptions Options)
-			: this(Owner, null, 0, Options)
+		public ChunkNode(Bundle Owner, BundleNode? Parent)
+			: this(Owner, Parent, 0, new ChunkOptions())
 		{
 		}
 
@@ -202,8 +202,42 @@ namespace EpicGames.Horde.Bundles.Nodes
 		{
 			using (MemoryStream Stream = new MemoryStream())
 			{
-				await CopyToAsync(Stream);
+				await CopyToStreamAsync(Stream);
 				return Stream.ToArray();
+			}
+		}
+
+		/// <summary>
+		/// Copy data from the given stream into this chunk node
+		/// </summary>
+		/// <param name="InputStream"></param>
+		/// <param name="Options"></param>
+		/// <returns></returns>
+		public async Task CopyFromStreamAsync(Stream InputStream, ChunkOptions Options)
+		{
+			byte[] Buffer = new byte[64 * 1024];
+			for (; ; )
+			{
+				int ReadSize = await InputStream.ReadAsync(Buffer);
+				if(ReadSize == 0)
+				{
+					break;
+				}
+				Append(Buffer.AsMemory(0, ReadSize), Options);
+			}
+		}
+
+		/// <summary>
+		/// Copies the contents of this file from disk
+		/// </summary>
+		/// <param name="File"></param>
+		/// <param name="Options"></param>
+		/// <returns></returns>
+		public async Task CopyFromFileAsync(FileInfo File, ChunkOptions Options)
+		{
+			using (FileStream Stream = File.OpenRead())
+			{
+				await CopyFromStreamAsync(Stream, Options);
 			}
 		}
 
@@ -211,19 +245,32 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// Copies the contents of this node and its children to the given output stream
 		/// </summary>
 		/// <param name="OutputStream">The output stream to receive the data</param>
-		public async Task CopyToAsync(Stream OutputStream)
+		public async Task CopyToStreamAsync(Stream OutputStream)
 		{
 			if (Depth > 0)
 			{
 				for (int Idx = 0; Idx < GetChildCount(); Idx++)
 				{
 					ChunkNode Node = await GetChildNodeAsync(Idx);
-					await Node.CopyToAsync(OutputStream);
+					await Node.CopyToStreamAsync(OutputStream);
 				}
 			}
 			else
 			{
 				await OutputStream.WriteAsync(Payload);
+			}
+		}
+
+		/// <summary>
+		/// Extracts the contents of this node to a file
+		/// </summary>
+		/// <param name="File">File to write with the contents of this node</param>
+		/// <returns></returns>
+		public async Task CopyToFileAsync(FileInfo File)
+		{
+			using (FileStream Stream = File.OpenWrite())
+			{
+				await CopyToStreamAsync(Stream);
 			}
 		}
 
@@ -390,7 +437,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				ChunkNode? LastNode = ChildNodes[^1];
 				if (LastNode != null && LastNode.WriteBuffer != null)
 				{
-					Span<byte> LastHashSpan = WriteBuffer.AsSpan(Payload.Length - IoHash.NumBytes);
+					Span<byte> LastHashSpan = WriteBuffer.AsSpan(Data.Length - IoHash.NumBytes);
 					IoHash LastHash = LastNode.Serialize();
 					LastHash.CopyTo(LastHashSpan);
 				}
@@ -420,7 +467,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <inheritdoc/>
 		public override ChunkNode CreateRoot(Bundle Bundle)
 		{
-			return new ChunkNode(Bundle, new ChunkOptions());
+			return new ChunkNode(Bundle, null);
 		}
 
 		/// <inheritdoc/>

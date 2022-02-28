@@ -88,7 +88,15 @@ namespace EpicGames.Horde.Storage
 		/// <inheritdoc/>
 		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value)
 		{
-			return new RefId(IoHash.Parse((string)Value));
+			IoHash Hash;
+			if (IoHash.TryParse((string)Value, out Hash))
+			{
+				return new RefId(Hash);
+			}
+			else
+			{
+				return new RefId((string)Value);
+			}
 		}
 	}
 

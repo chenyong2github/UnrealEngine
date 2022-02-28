@@ -41,18 +41,25 @@ namespace HordeServer.Commands
 		public bool Content { get; set; }
 
 		[CommandLine]
+		public string Filter { get; set; } = "//...";
+
+		[CommandLine]
 		public DirectoryReference? OutputDir { get; set; }
 
 		IConfiguration Configuration;
+		ILoggerProvider LoggerProvider;
 
-		public ReplicateCommand(IConfiguration Configuration)
+		public ReplicateCommand(IConfiguration Configuration, ILoggerProvider LoggerProvider)
 		{
 			this.Configuration = Configuration;
+			this.LoggerProvider = LoggerProvider;
 		}
 
 		public override async Task<int> ExecuteAsync(ILogger Logger)
 		{
 			IServiceCollection Services = new ServiceCollection();
+			Services.AddLogging(Builder => Builder.AddProvider(LoggerProvider));
+
 			Startup.AddServices(Services, Configuration);
 
 			OutputDir ??= DirectoryReference.Combine(Program.DataDir, "Storage");
@@ -77,7 +84,16 @@ namespace HordeServer.Commands
 			CommitTree? BaseTree = null; 
 			if (BaseChange != 0)
 			{
-				BaseTree = await CommitService.ReadTreeAsync(Stream.Id, BaseChange);
+				ICommit? Commit = await CommitCollection.GetCommitAsync(Stream.Id, BaseChange);
+				if (Commit == null)
+				{
+					throw new InvalidOperationException($"Unable to find existing commit for {StreamId} @ CL {BaseChange}");
+				}
+				if (Commit.TreeRefId == null)
+				{
+					throw new InvalidOperationException($"No tree for commit {StreamId} @ CL {BaseChange}");
+				}
+				BaseTree = new CommitTree(Commit.StreamId, Commit.Change, Commit.TreeRefId.Value);
 			}
 
 			await foreach (NewCommit NewCommit in CommitService.FindCommitsForClusterAsync(Stream.ClusterName, StreamToFirstChange).Take(Count))
@@ -88,8 +104,7 @@ namespace HordeServer.Commands
 
 				if (Content)
 				{
-					BaseTree = await CommitService.FindCommitTreeAsync(Stream, NewCommit.Change, BaseTree);
-					await CommitService.WriteTreeAsync(Stream.Id, BaseTree);
+					BaseTree = await CommitService.FindCommitTreeAsync(Stream, NewCommit.Change, BaseTree, Filter);
 				}
 			}
 

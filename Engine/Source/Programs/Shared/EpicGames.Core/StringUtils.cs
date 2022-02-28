@@ -342,7 +342,8 @@ namespace EpicGames.Core
 		{
 			if((Text.Length & 1) != 0)
 			{
-				throw new FormatException("Length of hex string must be a multiple of two characters");
+				OutBytes = null;
+				return false;
 			}
 
 			byte[] Bytes = new byte[Text.Length / 2];
@@ -369,7 +370,8 @@ namespace EpicGames.Core
 		{
 			if ((Text.Length & 1) != 0)
 			{
-				throw new FormatException("Length of hex string must be a multiple of two characters");
+				OutBytes = null;
+				return false;
 			}
 
 			byte[] Bytes = new byte[Text.Length / 2];

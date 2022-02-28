@@ -2,9 +2,11 @@
 
 using EpicGames.Core;
 using EpicGames.Serialization;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -196,8 +198,82 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// Adds a new directory with the given name
 		/// </summary>
 		/// <param name="Name">Name of the new directory</param>
+		/// <param name="Flags">Flags for the new file</param>
 		/// <returns>The new directory object</returns>
-		public ValueTask<DirectoryNode> AddDirectoryAsync(Utf8String Name)
+		public ChunkNode CreateFile(Utf8String Name, DirectoryEntryFlags Flags)
+		{
+			if((Flags & DirectoryEntryFlags.Directory) != 0)
+			{
+				throw new ArgumentException("Directory flag cannot be specified for new file");
+			}
+
+			ChunkNode NewNode = new ChunkNode(Owner, this);
+
+			DirectoryEntry Entry = new DirectoryEntry(this, Name, Flags | DirectoryEntryFlags.File, NewNode);
+			NameToEntry[Name] = Entry;
+			MarkAsDirty();
+
+			return NewNode;
+		}
+
+		/// <summary>
+		/// Finds or adds a file with the given path
+		/// </summary>
+		/// <param name="Path">Path to the file</param>
+		/// <param name="Flags">Flags for the new file</param>
+		/// <returns>The new directory object</returns>
+		public async ValueTask<ChunkNode> CreateFileByPathAsync(Utf8String Path, DirectoryEntryFlags Flags)
+		{
+			DirectoryNode Directory = this;
+
+			Utf8String RemainingPath = Path;
+			for (; ; )
+			{
+				int Length = RemainingPath.IndexOf('/');
+				if (Length == -1)
+				{
+					return Directory.CreateFile(RemainingPath, Flags);
+				}
+				if (Length > 0)
+				{
+					Directory = await Directory.FindOrAddDirectoryAsync(RemainingPath.Slice(0, Length));
+				}
+				RemainingPath = RemainingPath.Slice(Length + 1);
+			}
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="Path"></param>
+		/// <returns></returns>
+		public async ValueTask DeleteFileByPathAsync(Utf8String Path)
+		{
+			DirectoryNode Directory = this;
+
+			Utf8String RemainingPath = Path;
+			for (; ; )
+			{
+				int Length = RemainingPath.IndexOf('/');
+				if (Length == -1)
+				{
+					Directory.Delete(RemainingPath);
+					return;
+				}
+				if (Length > 0)
+				{
+					Directory = await Directory.FindOrAddDirectoryAsync(RemainingPath.Slice(0, Length));
+				}
+				RemainingPath = RemainingPath.Slice(Length + 1);
+			}
+		}
+
+		/// <summary>
+		/// Adds a new directory with the given name
+		/// </summary>
+		/// <param name="Name">Name of the new directory</param>
+		/// <returns>The new directory object</returns>
+		public DirectoryNode AddDirectory(Utf8String Name)
 		{
 			DirectoryNode NewNode = new DirectoryNode(Owner, this);
 
@@ -205,7 +281,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			NameToEntry.Add(Name, Entry);
 			MarkAsDirty();
 
-			return new ValueTask<DirectoryNode>(NewNode);
+			return NewNode;
 		}
 
 		/// <summary>
@@ -233,7 +309,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		public async ValueTask<DirectoryNode> FindOrAddDirectoryAsync(Utf8String Name)
 		{
 			DirectoryNode? Node = await FindDirectoryAsync(Name);
-			return Node ?? await AddDirectoryAsync(Name);
+			return Node ?? AddDirectory(Name);
 		}
 
 		/// <summary>
@@ -310,6 +386,59 @@ namespace EpicGames.Horde.Bundles.Nodes
 				Node.NameToEntry[Name] = new DirectoryEntry(Node, Name, Flags, EntryHash);
 			}
 			return Node;
+		}
+
+		/// <summary>
+		/// Adds files from a directory on disk
+		/// </summary>
+		/// <param name="DirectoryInfo"></param>
+		/// <param name="Options">Options for chunking file content</param>
+		/// <param name="Logger"></param>
+		/// <returns></returns>
+		public async Task CopyFromDirectoryAsync(DirectoryInfo DirectoryInfo, ChunkOptions Options, ILogger Logger)
+		{
+			foreach (DirectoryInfo SubDirectoryInfo in DirectoryInfo.EnumerateDirectories())
+			{
+				Logger.LogInformation("Adding {Directory}", SubDirectoryInfo.FullName);
+				DirectoryNode SubDirectoryNode = AddDirectory(SubDirectoryInfo.Name);
+				await SubDirectoryNode.CopyFromDirectoryAsync(SubDirectoryInfo, Options, Logger);
+			}
+			foreach (FileInfo FileInfo in DirectoryInfo.EnumerateFiles())
+			{
+				Logger.LogInformation("Adding {File}", FileInfo.FullName);
+				ChunkNode FileNode = CreateFile(FileInfo.Name, DirectoryEntryFlags.File);
+ 				await FileNode.CopyFromFileAsync(FileInfo, Options);
+			}
+		}
+
+		/// <summary>
+		/// Utility function to allow extracting a packed directory to disk
+		/// </summary>
+		/// <param name="DirectoryInfo"></param>
+		/// <param name="Logger"></param>
+		/// <returns></returns>
+		public async Task CopyToDirectoryAsync(DirectoryInfo DirectoryInfo, ILogger Logger)
+		{
+			DirectoryInfo.Create();
+
+			List<Task> Tasks = new List<Task>();
+			foreach (DirectoryEntry Entry in Entries)
+			{
+				if ((Entry.Flags & DirectoryEntryFlags.Directory) != 0)
+				{
+					DirectoryInfo SubDirectoryInfo = DirectoryInfo.CreateSubdirectory(Entry.Name.ToString());
+					DirectoryNode SubDirectoryNode = await Entry.GetDirectoryAsync();
+					Tasks.Add(Task.Run(() => SubDirectoryNode.CopyToDirectoryAsync(SubDirectoryInfo, Logger)));
+				}
+				else
+				{
+					FileInfo FileInfo = new FileInfo(Path.Combine(DirectoryInfo.FullName, Entry.Name.ToString()));
+					ChunkNode FileNode = await Entry.GetFileAsync();
+					Tasks.Add(Task.Run(() => FileNode.CopyToFileAsync(FileInfo)));
+				}
+			}
+
+			await Task.WhenAll(Tasks);
 		}
 	}
 

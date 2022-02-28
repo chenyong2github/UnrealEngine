@@ -103,6 +103,48 @@ namespace EpicGames.Core
 			return new IoHash(StringUtils.ParseHexString(Text));
 		}
 
+		/// <summary>
+		/// Parses a digest from the given hex string
+		/// </summary>
+		/// <param name="Text"></param>
+		/// <param name="Hash">Receives the hash on success</param>
+		/// <returns></returns>
+		public static bool TryParse(string Text, out IoHash Hash)
+		{
+			byte[]? Bytes;
+			if (StringUtils.TryParseHexString(Text, out Bytes) && Bytes.Length == IoHash.NumBytes)
+			{
+				Hash = new IoHash(Bytes);
+				return true;
+			}
+			else
+			{
+				Hash = default;
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Parses a digest from the given hex string
+		/// </summary>
+		/// <param name="Text"></param>
+		/// <param name="Hash">Receives the hash on success</param>
+		/// <returns></returns>
+		public static bool TryParse(ReadOnlySpan<byte> Text, out IoHash Hash)
+		{
+			byte[]? Bytes;
+			if (StringUtils.TryParseHexString(Text, out Bytes) && Bytes.Length == IoHash.NumBytes)
+			{
+				Hash = new IoHash(Bytes);
+				return true;
+			}
+			else
+			{
+				Hash = default;
+				return false;
+			}
+		}
+
 		/// <inheritdoc cref="IComparable{T}.CompareTo(T)"/>
 		public int CompareTo(IoHash Other)
 		{

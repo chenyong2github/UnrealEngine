@@ -218,7 +218,7 @@ namespace EpicGames.Horde.Bundles
 		{
 			if(!Blob.Mounted)
 			{
-				BundleObject Object = await StorageClient.ReadObjectAsync<BundleObject>(NamespaceId, Blob.Hash);
+				BundleObject Object = await GetObjectAsync(Blob.Hash);
 				RegisterObject(Blob, Object, ReadOnlyMemory<byte>.Empty);
 				Blob.Mounted = true;
 			}
@@ -571,6 +571,9 @@ namespace EpicGames.Horde.Bundles
 				Object.ImportObjects.Add(ImportObject);
 			}
 
+			// Size of data currently stored in the block buffer
+			int BlockSize = 0;
+
 			// Compress all the nodes into the encoded buffer
 			BundleCompressionPacket Packet = new BundleCompressionPacket(0);
 			foreach (NodeInfo Node in Nodes)
@@ -578,10 +581,11 @@ namespace EpicGames.Horde.Bundles
 				ReadOnlyMemory<byte> NodeData = await GetDataAsync(Node);
 
 				// If we can't fit this data into the current block, flush the contents of it first
-				if (Packet.DecodedLength + NodeData.Length > Options.MinCompressionPacketSize)
+				if (BlockSize > 0 && BlockSize + NodeData.Length > Options.MinCompressionPacketSize)
 				{
-					FlushPacket(Packet);
+					FlushPacket(BlockBuffer.AsMemory(0, BlockSize), Packet);
 					Packet = new BundleCompressionPacket(Packet.Offset + Packet.EncodedLength);
+					BlockSize = 0;
 				}
 
 				// Create the export for this node
@@ -593,18 +597,18 @@ namespace EpicGames.Horde.Bundles
 				int Offset = Packet.EncodedLength;
 				if (NodeData.Length < Options.MinCompressionPacketSize)
 				{
-					int RequiredSize = Math.Max(Packet.DecodedLength + NodeData.Length, (int)(Options.MaxBlobSize * 1.2));
-					CreateFreeSpace(ref BlockBuffer, Packet.DecodedLength, RequiredSize);
-					NodeData.CopyTo(BlockBuffer.AsMemory(Packet.DecodedLength));
-					Packet.DecodedLength += NodeData.Length;
+					int RequiredSize = Math.Max(BlockSize + NodeData.Length, (int)(Options.MaxBlobSize * 1.2));
+					CreateFreeSpace(ref BlockBuffer, BlockSize, RequiredSize);
+					NodeData.CopyTo(BlockBuffer.AsMemory(BlockSize));
+					BlockSize += NodeData.Length;
 				}
 				else
 				{
-					FlushPacket(Packet);
+					FlushPacket(NodeData, Packet);
 					Packet = new BundleCompressionPacket(Packet.Offset + Packet.EncodedLength);
 				}
 			}
-			FlushPacket(Packet);
+			FlushPacket(BlockBuffer.AsMemory(0, BlockSize), Packet);
 
 			// Flush the data
 			Object.Data = EncodedBuffer.AsSpan(0, Packet.Offset + Packet.EncodedLength).ToArray();
@@ -612,17 +616,20 @@ namespace EpicGames.Horde.Bundles
 			return Object;
 		}
 
-		void FlushPacket(BundleCompressionPacket Packet)
+		void FlushPacket(ReadOnlyMemory<byte> InputData, BundleCompressionPacket Packet)
 		{
-			if (Packet.DecodedLength > 0)
+			if (InputData.Length > 0)
 			{
-				int MinFreeSpace = LZ4Codec.MaximumOutputSize(Packet.DecodedLength);
+				int MinFreeSpace = LZ4Codec.MaximumOutputSize(InputData.Length);
 				CreateFreeSpace(ref EncodedBuffer, Packet.Offset, Packet.Offset + MinFreeSpace);
 
-				ReadOnlySpan<byte> InputSpan = BlockBuffer.AsSpan(0, Packet.DecodedLength);
+				ReadOnlySpan<byte> InputSpan = InputData.Span;
 				Span<byte> OutputSpan = EncodedBuffer.AsSpan(Packet.Offset);
 
+				Packet.DecodedLength = InputData.Length;
 				Packet.EncodedLength = LZ4Codec.Encode(InputSpan, OutputSpan);
+
+				Debug.Assert(Packet.EncodedLength >= 0);
 			}
 		}
 

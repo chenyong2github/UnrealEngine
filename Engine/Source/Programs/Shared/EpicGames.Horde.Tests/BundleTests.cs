@@ -89,8 +89,8 @@ namespace HordeServerTests
 		public async Task BasicTestDirectory()
 		{
 			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new BundleOptions(), null);
-			DirectoryNode Node = await Bundle.Root.AddDirectoryAsync("hello");
-			DirectoryNode Node2 = await Node.AddDirectoryAsync("world");
+			DirectoryNode Node = Bundle.Root.AddDirectory("hello");
+			DirectoryNode Node2 = Node.AddDirectory("world");
 
 			RefId RefId = new RefId("testref");
 			await Bundle.WriteAsync(BucketId, RefId, false, DateTime.MinValue);
@@ -121,11 +121,6 @@ namespace HordeServerTests
 			Assert.AreEqual(0, OutputNode2!.Entries.Count);
 		}
 
-
-
-		// caching
-		// hierarchical chunking
-
 		[TestMethod]
 		public async Task DedupTests()
 		{
@@ -135,9 +130,9 @@ namespace HordeServerTests
 
 			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, Options, null);
 
-			await Bundle.Root.AddDirectoryAsync("node1");
-			await Bundle.Root.AddDirectoryAsync("node2");
-			await Bundle.Root.AddDirectoryAsync("node3");
+			Bundle.Root.AddDirectory("node1");
+			Bundle.Root.AddDirectory("node2");
+			Bundle.Root.AddDirectory("node3");
 
 			RefId RefId = new RefId("ref");
 			await Bundle.WriteAsync(BucketId, RefId, false, DateTime.UtcNow);
@@ -155,10 +150,10 @@ namespace HordeServerTests
 
 			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, Options, null);
 
-			DirectoryNode Node1 = await Bundle.Root.AddDirectoryAsync("node1");
-			DirectoryNode Node2 = await Node1.AddDirectoryAsync("node2");
-			DirectoryNode Node3 = await Node2.AddDirectoryAsync("node3");
-			DirectoryNode Node4 = await Node3.AddDirectoryAsync("node4");
+			DirectoryNode Node1 = Bundle.Root.AddDirectory("node1");
+			DirectoryNode Node2 = Node1.AddDirectory("node2");
+			DirectoryNode Node3 = Node2.AddDirectory("node3");
+			DirectoryNode Node4 = Node3.AddDirectory("node4");
 
 			RefId RefId = new RefId("ref");
 			await Bundle.WriteAsync(BucketId, RefId, false, DateTime.UtcNow);
@@ -193,10 +188,10 @@ namespace HordeServerTests
 
 			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, Options, null);
 
-			DirectoryNode Node1 = await Bundle.Root.AddDirectoryAsync("node1");
-			DirectoryNode Node2 = await Node1.AddDirectoryAsync("node2");
-			DirectoryNode Node3 = await Node2.AddDirectoryAsync("node3");
-			DirectoryNode Node4 = await Bundle.Root.AddDirectoryAsync("node4"); // same contents as node 3
+			DirectoryNode Node1 = Bundle.Root.AddDirectory("node1");
+			DirectoryNode Node2 = Node1.AddDirectory("node2");
+			DirectoryNode Node3 = Node2.AddDirectory("node3");
+			DirectoryNode Node4 = Bundle.Root.AddDirectory("node4"); // same contents as node 3
 
 			RefId RefId1 = new RefId("ref1");
 			await Bundle.WriteAsync(BucketId, RefId1, false, Time);
