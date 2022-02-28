@@ -764,12 +764,17 @@ bool SKismetInspector::IsStructViewPropertyReadOnly(const struct FPropertyAndPar
 	return false;
 }
 
-bool SKismetInspector::IsAnyParentContainerSelected(const FPropertyAndParent& PropertyAndParent) const
+bool SKismetInspector::IsAnyParentOrContainerSelected(const FPropertyAndParent& PropertyAndParent) const
 {
 	for (const FProperty* CurrentProperty : PropertyAndParent.ParentProperties)
 	{
-		const FProperty* CurrentOuter = CurrentProperty->GetOwner<FProperty>();
+		if (SelectedObjectProperties.Find(const_cast<FProperty*>(CurrentProperty)))
+		{
+			return true;
+		}
 
+		// the property might be the Inner property of an array (or Key/Value of a map), so check if the outer property is selected
+		const FProperty* CurrentOuter = CurrentProperty->GetOwner<FProperty>();
 		if (CurrentOuter != nullptr && SelectedObjectProperties.Find(const_cast<FProperty*>(CurrentOuter)))
 		{
 			return true;
@@ -850,14 +855,7 @@ bool SKismetInspector::IsPropertyVisible( const FPropertyAndParent& PropertyAndP
 	}
 	else if ( PropertyAndParent.ParentProperties.Num() > 0 && SelectedObjectProperties.Num() > 0 )
 	{
-		const FProperty* ParentProperty = PropertyAndParent.ParentProperties[0];
-
-		if ( SelectedObjectProperties.Find( const_cast<FProperty*>( ParentProperty ) ) )
-		{
-			// If its parent is selected, it should be visible
-			return true;
-		}
-		else if ( IsAnyParentContainerSelected(PropertyAndParent) )
+		if (IsAnyParentOrContainerSelected(PropertyAndParent))
 		{
 			return true;
 		}
