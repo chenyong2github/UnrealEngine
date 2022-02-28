@@ -91,6 +91,12 @@ namespace HordeServer.Services.Impl
 						}
 					}
 				}
+
+				if (StartRequest.InstanceIds.Count < Count)
+				{
+					Logger.LogInformation("Unable to expand pool with the requested number of instances. " +
+					                      "Num requested instances to add {RequestedCount}. Actual instances started {InstancesStarted}", Count, StartRequest.InstanceIds.Count);
+				}
 			}
 		}
 
