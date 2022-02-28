@@ -151,7 +151,7 @@ void FSkeletalMeshDeformerHelpers::UpdateRayTracingGeometry(
 		VertexBufffers[SectionIndex] = PositionBuffer->GetRHI();
 	}
 
-	MeshObjectGPU->UpdateRayTracingGeometry(LODModel, VertexBufffers);
+	MeshObjectGPU->UpdateRayTracingGeometry(LODModel, LODIndex, VertexBufffers);
 }
 
 #endif // RHI_RAYTRACING

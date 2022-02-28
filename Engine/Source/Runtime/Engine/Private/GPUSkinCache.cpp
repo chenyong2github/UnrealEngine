@@ -752,12 +752,12 @@ void FGPUSkinCache::Cleanup()
 
 	while (Entries.Num() > 0)
 	{
-		ReleaseSkinCacheEntry(Entries.Last());
+		Release(Entries.Last());
 	}
 	ensure(Allocations.Num() == 0);
 }
 
-void FGPUSkinCache::TransitionAllToReadable(FRHICommandList& RHICmdList)
+void FGPUSkinCache::TransitionAllToReadable(FRHICommandList& RHICmdList, const TSet<FSkinCacheRWBuffer*>& BuffersToTransitionToRead)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FGPUSkinCache::TransitionAllToReadable);
 
@@ -771,8 +771,6 @@ void FGPUSkinCache::TransitionAllToReadable(FRHICommandList& RHICmdList)
 			UAVs.Add((*SetIt)->UpdateAccessState(ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask));
 		}
 		RHICmdList.Transition(UAVs);
-
-		BuffersToTransitionToRead.Empty(BuffersToTransitionToRead.Num());
 	}
 }
 
@@ -1207,6 +1205,8 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 		MakeBufferTransitions(RHICmdList, BuffersToTransitionForSkinning, ERHIAccess::UAVCompute);
 	}
 
+	TSet<FSkinCacheRWBuffer*> BuffersToTransitionToRead;
+
 	TArray<FRHIUnorderedAccessView*> SkinningBuffersToOverlap;
 	GetBufferUAVs(BuffersToTransitionForSkinning, SkinningBuffersToOverlap);
 	RHICmdList.BeginUAVOverlap(SkinningBuffersToOverlap);
@@ -1215,7 +1215,7 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 		for (int32 i = 0; i < BatchCount; ++i)
 		{
 			FDispatchEntry& DispatchItem = BatchDispatches[i];
-			DispatchUpdateSkinning(RHICmdList, DispatchItem.SkinCacheEntry, DispatchItem.Section, DispatchItem.RevisionNumber);
+			DispatchUpdateSkinning(RHICmdList, DispatchItem.SkinCacheEntry, DispatchItem.Section, DispatchItem.RevisionNumber, BuffersToTransitionToRead);
 		}
 	}
 	RHICmdList.EndUAVOverlap(SkinningBuffersToOverlap);
@@ -1294,6 +1294,8 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 		FDispatchEntry& DispatchItem = BatchDispatches[i];
 		DispatchItem.SkinCacheEntry->UpdateVertexFactoryDeclaration(DispatchItem.Section);
 	}
+
+	TransitionAllToReadable(RHICmdList, BuffersToTransitionToRead);
 }
 
 void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, int32 Section, int32 RevisionNumber)
@@ -1305,6 +1307,8 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCac
 
 	INC_DWORD_STAT(STAT_GPUSkinCache_TotalNumChunks);
 
+	TSet<FSkinCacheRWBuffer*> BuffersToTransitionToRead;
+
 	TArray<FSkinCacheRWBuffer*> BuffersToTransitionForSkinning;
 	PrepareUpdateSkinning(SkinCacheEntry, Section, RevisionNumber, &BuffersToTransitionForSkinning);
 	MakeBufferTransitions(RHICmdList, BuffersToTransitionForSkinning, ERHIAccess::UAVCompute);
@@ -1313,7 +1317,7 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCac
 	GetBufferUAVs(BuffersToTransitionForSkinning, SkinningBuffersToOverlap);
 	RHICmdList.BeginUAVOverlap(SkinningBuffersToOverlap);
 	{
-	DispatchUpdateSkinning(RHICmdList, SkinCacheEntry, Section, RevisionNumber);
+		DispatchUpdateSkinning(RHICmdList, SkinCacheEntry, Section, RevisionNumber, BuffersToTransitionToRead);
 	}
 	RHICmdList.EndUAVOverlap(SkinningBuffersToOverlap);
 
@@ -1343,6 +1347,8 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCac
 	}
 
 	SkinCacheEntry->UpdateVertexFactoryDeclaration(Section);
+
+	TransitionAllToReadable(RHICmdList, BuffersToTransitionToRead);
 }
 
 bool FGPUSkinCache::ProcessEntry(
@@ -1547,12 +1553,20 @@ bool FGPUSkinCache::ProcessEntry(
 
 	if (bShouldBatchDispatches)
 	{
-		BatchDispatches.Add({ InOutEntry, &LodData, RevisionNumber, uint32(Section) });
+		BatchDispatches.Add({ InOutEntry, RevisionNumber, uint32(Section) });
 	}
 	else
 	{
 		DoDispatch(RHICmdList, InOutEntry, Section, RevisionNumber);
 	}
+
+#if RHI_RAYTRACING
+	if (!Skin->ShouldUseSeparateSkinCacheEntryForRayTracing() || Mode == EGPUSkinCacheEntryMode::RayTracing)
+	{
+		// This is a RT skin cache entry
+		PendingProcessRTGeometryEntries.Add(InOutEntry);
+	}
+#endif
 
 	return true;
 }
@@ -1570,20 +1584,19 @@ bool FGPUSkinCache::IsGPUSkinCacheRayTracingSupported()
 
 #if RHI_RAYTRACING
 
-void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, FSkeletalMeshLODRenderData& LODModel)
+void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry)
 {
 	if (IsGPUSkinCacheRayTracingSupported() && SkinCacheEntry && SkinCacheEntry->GPUSkin && SkinCacheEntry->GPUSkin->bSupportRayTracing)
 	{
-		if (SkinCacheEntry->GPUSkin->bRequireRecreatingRayTracingGeometry)
-		{
-			// We will need to build a new BVH so flush pending skin cache resource barriers.
-			TransitionAllToReadable(RHICmdList);
-		}
-
  		TArray<FBufferRHIRef> VertexBufffers;
  		SkinCacheEntry->GetRayTracingSegmentVertexBuffers(VertexBufffers);
 
- 		SkinCacheEntry->GPUSkin->UpdateRayTracingGeometry(LODModel, VertexBufffers);
+		const int32 LODIndex = SkinCacheEntry->LOD;
+		FSkeletalMeshRenderData& SkelMeshRenderData = SkinCacheEntry->GPUSkin->GetSkeletalMeshRenderData();
+		check(LODIndex < SkelMeshRenderData.LODRenderData.Num());
+		FSkeletalMeshLODRenderData& LODModel = SkelMeshRenderData.LODRenderData[LODIndex];
+
+ 		SkinCacheEntry->GPUSkin->UpdateRayTracingGeometry(LODModel, LODIndex, VertexBufffers);
 	}
 }
 
@@ -1605,31 +1618,12 @@ void FGPUSkinCache::EndBatchDispatch(FRHICommandListImmediate& RHICmdList)
 #if RHI_RAYTRACING
 	if (IsGPUSkinCacheRayTracingSupported())
 	{
-		TSet<FGPUSkinCacheEntry*> SkinCacheEntriesProcessed;
-
-		// Process batched dispatches in reverse order to filter out duplicated ones and keep the last one
-		for (int32 Index = BatchDispatches.Num() - 1; Index >= 0; Index--)
+		for (FGPUSkinCacheEntry* SkinCacheEntry : PendingProcessRTGeometryEntries)
 		{
-			FDispatchEntry& DispatchItem = BatchDispatches[Index];
-
-			FGPUSkinCacheEntry* SkinCacheEntry = DispatchItem.SkinCacheEntry;
-
-			if (SkinCacheEntry->GPUSkin->ShouldUseSeparateSkinCacheEntryForRayTracing() && SkinCacheEntry->Mode != EGPUSkinCacheEntryMode::RayTracing)
-			{
-				continue;
-			}
-
-			FSkeletalMeshLODRenderData& LODModel = *DispatchItem.LODModel;
-
-			if (SkinCacheEntriesProcessed.Contains(SkinCacheEntry))
-			{
-				continue;
-			}
-
-			SkinCacheEntriesProcessed.Add(SkinCacheEntry);
-
-			ProcessRayTracingGeometryToUpdate(RHICmdList, SkinCacheEntry, LODModel);
+			ProcessRayTracingGeometryToUpdate(RHICmdList, SkinCacheEntry);
 		}
+
+		PendingProcessRTGeometryEntries.Reset();
 	}
 #endif
 
@@ -1641,6 +1635,10 @@ void FGPUSkinCache::Release(FGPUSkinCacheEntry*& SkinCacheEntry)
 {
 	if (SkinCacheEntry)
 	{
+		FGPUSkinCache* SkinCache = SkinCacheEntry->SkinCache;
+		check(SkinCache);
+		SkinCache->PendingProcessRTGeometryEntries.Remove(SkinCacheEntry);
+
 		ReleaseSkinCacheEntry(SkinCacheEntry);
 		SkinCacheEntry = nullptr;
 	}
@@ -1746,7 +1744,7 @@ void FGPUSkinCache::PrepareUpdateSkinning(FGPUSkinCacheEntry* Entry, int32 Secti
 	check(DispatchData.PreviousPositionBuffer != DispatchData.PositionBuffer);
 }
 
-void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 Section, uint32 RevisionNumber)
+void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 Section, uint32 RevisionNumber, TSet<FSkinCacheRWBuffer*>& BuffersToTransitionToRead)
 {
 	FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->DispatchData[Section];
 	FGPUBaseSkinVertexFactory::FShaderDataType& ShaderData = DispatchData.SourceVertexFactory->GetShaderData();
@@ -1949,7 +1947,6 @@ void FGPUSkinCache::ReleaseSkinCacheEntry(FGPUSkinCacheEntry* SkinCacheEntry)
 		DEC_MEMORY_STAT_BY(STAT_GPUSkinCache_TotalMemUsed, RequiredMemInBytes);
 
 		SkinCache->Allocations.Remove(PositionAllocation);
-		PositionAllocation->RemoveAllFromTransitionArray(SkinCache->BuffersToTransitionToRead);
 
 		delete PositionAllocation;
 

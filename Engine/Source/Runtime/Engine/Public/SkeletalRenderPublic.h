@@ -251,7 +251,6 @@ public:
 	bool bHasBeenUpdatedAtLeastOnce;
 
 #if RHI_RAYTRACING
-	bool bRequireRecreatingRayTracingGeometry;
 	bool bSupportRayTracing;
 	bool bHiddenMaterialVisibilityDirtyForRayTracing;
 	int32 RayTracingMinLOD;

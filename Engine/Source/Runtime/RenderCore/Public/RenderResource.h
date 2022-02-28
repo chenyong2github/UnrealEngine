@@ -730,6 +730,9 @@ public:
 	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
 	bool bRequiresBuild = false;
 
+	/** LOD of the mesh associated with this ray tracing geometry object (-1 if unknown) */
+	int8 LODIndex = -1;
+
 	void SetInitializer(const FRayTracingGeometryInitializer& InInitializer)
 	{
 		Initializer = InInitializer;

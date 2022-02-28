@@ -1021,10 +1021,6 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates& SendAllEndOfFr
 				// Once all the individual components have received their DoDeferredRenderUpdates_Concurrent()
 				// allow the GPU Skin Cache system to update.
 				GPUSkinCache->EndBatchDispatch(RHICmdList);
-
-				// Flush any remaining pending resource barriers.
-				GPUSkinCache->TransitionAllToReadable(RHICmdList);
-
 			}
 
 			if (ComputeTaskWorkers.Num() > 0)

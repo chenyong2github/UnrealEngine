@@ -5262,21 +5262,3 @@ void FSceneRenderer::UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHIC
 	RHICmdList.Transition(FRHITransitionInfo(Scene->SkyIrradianceEnvironmentMap.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 }
 
-void RunGPUSkinCacheTransition(FRHICommandList& RHICmdList, FScene* Scene, EGPUSkinCacheTransition Type)
-{
-	// * When hair strands is disabled, the skin cache sync point run later 
-	//   during the deferred render pass
-	// * When hair strands is enabled, the skin cache sync point is run earlier, during 
-	//   the init views pass, as the output of the skin cached is used by Niagara
-	const bool bHairStrandsEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform());
-	const bool bRun = 
-		(bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup == Type) || 
-		(!bHairStrandsEnabled && EGPUSkinCacheTransition::FrameSetup != Type);
-	if (bRun)
-	{
-		if (FGPUSkinCache* GPUSkinCache = Scene->GetGPUSkinCache())
-		{
-			GPUSkinCache->TransitionAllToReadable(RHICmdList);
-		}
-	}
-}

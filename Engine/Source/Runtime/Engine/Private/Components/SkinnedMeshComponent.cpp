@@ -784,6 +784,9 @@ void USkinnedMeshComponent::ClearMotionVector()
 
 		++CurrentBoneTransformRevisionNumber;
 		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None);  // send to rendering thread
+
+		// Skin cache may need updating
+		MarkForNeededEndOfFrameUpdate();
 	}
 }
 
@@ -800,6 +803,9 @@ void USkinnedMeshComponent::ForceMotionVector()
 
 		++CurrentBoneTransformRevisionNumber;
 		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None);
+
+		// Skin cache may need updating
+		MarkForNeededEndOfFrameUpdate();
 	}
 }
 

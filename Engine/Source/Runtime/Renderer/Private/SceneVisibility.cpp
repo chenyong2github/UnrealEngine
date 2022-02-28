@@ -47,6 +47,7 @@
 #include "RayTracing/RayTracingInstanceCulling.h"
 #include "RendererModule.h"
 
+
 /*------------------------------------------------------------------------------
 	Globals
 ------------------------------------------------------------------------------*/
@@ -3494,12 +3495,6 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 			FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, SceneInfos, EUpdateStaticMeshFlags::AllCommands, false);
 		}
 	}
-
-	AddPass(GraphBuilder, RDG_EVENT_NAME("GPUSkinCache::Transitions"), [this](FRHICommandList& InRHICmdList)
-	{
-		RunGPUSkinCacheTransition(InRHICmdList, Scene, EGPUSkinCacheTransition::FrameSetup);
-	});
-
 
 	if (Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 	{

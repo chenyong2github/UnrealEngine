@@ -2581,8 +2581,7 @@ enum class EGPUSkinCacheTransition
 
 extern bool IsStaticLightingAllowed();
 
-/* Run GPU skin cache resource transitions */
-void RunGPUSkinCacheTransition(class FRHICommandList& RHICmdList, class FScene* Scene, EGPUSkinCacheTransition Type);/** Resolves the view rect of scene color or depth using either a custom resolve or hardware resolve. */
+/** Resolves the view rect of scene color or depth using either a custom resolve or hardware resolve. */
 void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureMSAA SceneColor);
 void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureMSAA SceneDepth);
 

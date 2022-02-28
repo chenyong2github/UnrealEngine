@@ -39,7 +39,6 @@ FSkeletalMeshObject::FSkeletalMeshObject(USkinnedMeshComponent* InMeshComponent,
 ,	WorkingMaxDistanceFactor(0.f)
 ,   bHasBeenUpdatedAtLeastOnce(false)
 #if RHI_RAYTRACING
-, bRequireRecreatingRayTracingGeometry(false)
 , bSupportRayTracing(IsSkeletalMeshRayTracingSupported() && InMeshComponent->SkeletalMesh->GetSupportRayTracing())
 , bHiddenMaterialVisibilityDirtyForRayTracing(false)
 , RayTracingMinLOD(InMeshComponent->SkeletalMesh->GetRayTracingMinLOD())

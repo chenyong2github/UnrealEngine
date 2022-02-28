@@ -441,10 +441,10 @@ void FSkeletalMeshObjectGPUSkin::Update(int32 LODIndex,USkinnedMeshComponent* In
 	// queue a call to update this data
 	FSkeletalMeshObjectGPUSkin* MeshObject = this;
 	ENQUEUE_RENDER_COMMAND(SkelMeshObjectUpdateDataCommand)(
-		[MeshObject, FrameNumberToPrepare, RevisionNumber, NewDynamicData, GPUSkinCache, bIsGameWorld = (InMeshComponent && InMeshComponent->GetWorld() != nullptr && InMeshComponent->GetWorld()->IsGameWorld())](FRHICommandListImmediate& RHICmdList)
+		[MeshObject, FrameNumberToPrepare, RevisionNumber, NewDynamicData, GPUSkinCache](FRHICommandListImmediate& RHICmdList)
 		{
 			FScopeCycleCounter Context(MeshObject->GetStatId());
-			MeshObject->UpdateDynamicData_RenderThread(GPUSkinCache, RHICmdList, NewDynamicData, nullptr, bIsGameWorld, FrameNumberToPrepare, RevisionNumber);
+			MeshObject->UpdateDynamicData_RenderThread(GPUSkinCache, RHICmdList, NewDynamicData, nullptr, FrameNumberToPrepare, RevisionNumber);
 		}
 	);
 }
@@ -507,7 +507,7 @@ FORCEINLINE bool IsDeferredSkeletalDynamicDataUpdateEnabled()
 	return CVarDeferSkeletalDynamicDataUpdateUntilGDME.GetValueOnRenderThread() > 0 && !bIsHairPluginEnable;
 }
 
-void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* GPUSkinCache, FRHICommandListImmediate& RHICmdList, FDynamicSkelMeshObjectDataGPUSkin* InDynamicData, FSceneInterface* Scene, bool bIsGameWorld, uint32 FrameNumberToPrepare, uint32 RevisionNumber)
+void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* GPUSkinCache, FRHICommandListImmediate& RHICmdList, FDynamicSkelMeshObjectDataGPUSkin* InDynamicData, FSceneInterface* Scene, uint32 FrameNumberToPrepare, uint32 RevisionNumber)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GPUSkin::UpdateDynamicData_RT);
 
@@ -522,29 +522,6 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 		(DynamicData ? (DynamicData->LODIndex != InDynamicData->LODIndex ||
 		!DynamicData->ActiveMorphTargetsEqual(InDynamicData->ActiveMorphTargets, InDynamicData->MorphTargetWeights))
 		: true);
-
-#if RHI_RAYTRACING
-	// When switching to a higher detailed LOD, skin cache destroys the old entry, if there isn't enough memory to create the new entry because higher LOD costs more memory, SkinCacheEntry becomes null.
-	// So make sure to set bRequireRecreatingRayTracingGeometry to true to account for this, so RT geometry is updated correctly.
-	bRequireRecreatingRayTracingGeometry = (DynamicData == nullptr || RayTracingGeometry.Initializer.Segments.Num() == 0 || // Newly created
-		(DynamicData != nullptr && DynamicData->RayTracingLODIndex != InDynamicData->RayTracingLODIndex) || // LOD level changed
-		bHiddenMaterialVisibilityDirtyForRayTracing ||
-		(DynamicData->bIsSkinCacheAllowed && GetSkinCacheEntryForRayTracing() == nullptr));
-
-	bHiddenMaterialVisibilityDirtyForRayTracing = false;
-	
-	if (!bRequireRecreatingRayTracingGeometry)
-	{
-		for (FRayTracingGeometrySegment& Segment : RayTracingGeometry.Initializer.Segments)
-		{
-			if (Segment.VertexBuffer == nullptr)
-			{
-				bRequireRecreatingRayTracingGeometry = true;
-				break;
-			}
-		}
-	}
-#endif // RHI_RAYTRACING
 
 	WaitForRHIThreadFenceForDynamicData();
 	if (DynamicData)
@@ -567,12 +544,8 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 	#if RHI_RAYTRACING
 		if (ShouldUseSeparateSkinCacheEntryForRayTracing() && FGPUSkinCache::IsGPUSkinCacheRayTracingSupported() && GPUSkinCache && SkeletalMeshRenderData->bSupportRayTracing)
 		{
-			// When in game, updates not sent in UWorld::SendAllEndOfFrameUpdates() (implied by IsBatchingDispatch()) are ignored.
-			if (!bIsGameWorld || GPUSkinCache->IsBatchingDispatch())
-			{
-				// Morph delta is updated in raster pass above, no need to update again for ray tracing
-				ProcessUpdatedDynamicData(EGPUSkinCacheEntryMode::RayTracing, GPUSkinCache, RHICmdList, FrameNumberToPrepare, RevisionNumber, /*bMorphNeedsUpdate=*/false, DynamicData->RayTracingLODIndex);
-			}
+			// Morph delta is updated in raster pass above, no need to update again for ray tracing
+			ProcessUpdatedDynamicData(EGPUSkinCacheEntryMode::RayTracing, GPUSkinCache, RHICmdList, FrameNumberToPrepare, RevisionNumber, /*bMorphNeedsUpdate=*/false, DynamicData->RayTracingLODIndex);
 		}
 		else
 		{
@@ -583,20 +556,11 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 	}
 
 #if RHI_RAYTRACING
-	// Immediate update path. Only used in the editor as the world can be not ticking. When in game, updates not sent in UWorld::SendAllEndOfFrameUpdates() are ignored.
-	if (!bIsGameWorld && FGPUSkinCache::IsGPUSkinCacheRayTracingSupported() && GPUSkinCache && SkeletalMeshRenderData->bSupportRayTracing && !GPUSkinCache->IsBatchingDispatch())
+	if (FGPUSkinCache::IsGPUSkinCacheRayTracingSupported() && SkeletalMeshRenderData->bSupportRayTracing && !GetSkinCacheEntryForRayTracing() && !DynamicData->bHasMeshDeformer)
 	{
-		if (GetSkinCacheEntryForRayTracing())
-		{
-			FSkeletalMeshLODRenderData& LODModel = this->SkeletalMeshRenderData->LODRenderData[DynamicData->RayTracingLODIndex];
-			GPUSkinCache->ProcessRayTracingGeometryToUpdate(RHICmdList, GetSkinCacheEntryForRayTracing(), LODModel);
-		}
-		else
-		{
-			// When SkinCacheEntry is gone, clear geometry
-			RayTracingGeometry.ReleaseRHI();
-			RayTracingGeometry.SetInitializer(FRayTracingGeometryInitializer {});
-		}		
+		// When SkinCacheEntry is gone, clear geometry
+		RayTracingGeometry.ReleaseRHI();
+		RayTracingGeometry.SetInitializer(FRayTracingGeometryInitializer{});
 	}
 #endif
 }
@@ -809,13 +773,27 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 
 #if RHI_RAYTRACING
 
-void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRenderData& LODModel, TArray<FBufferRHIRef>& VertexBufffers)
+void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRenderData& LODModel, uint32 LODIndex, TArray<FBufferRHIRef>& VertexBufffers)
 {
 	check(IsInRenderingThread());
 
 	if (IsRayTracingEnabled() && bSupportRayTracing)
 	{
 		const bool bAnySegmentUsesWorldPositionOffset = DynamicData != nullptr ? DynamicData->bAnySegmentUsesWorldPositionOffset : false;
+
+		bool bRequireRecreatingRayTracingGeometry = (LODIndex != RayTracingGeometry.LODIndex || bHiddenMaterialVisibilityDirtyForRayTracing);
+		if (!bRequireRecreatingRayTracingGeometry)
+		{
+			for (FRayTracingGeometrySegment& Segment : RayTracingGeometry.Initializer.Segments)
+			{
+				if (Segment.VertexBuffer == nullptr)
+				{
+					bRequireRecreatingRayTracingGeometry = true;
+					break;
+				}
+			}
+		}
+		bHiddenMaterialVisibilityDirtyForRayTracing = false;
 
 		if (bRequireRecreatingRayTracingGeometry)
 		{
@@ -856,7 +834,6 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 			Initializer.bAllowUpdate = true;
 
 			Initializer.Segments.Reserve(LODModel.RenderSections.Num());
-			const int32 LODIndex = GetLOD();
 
 			for (int32 SectionIndex = 0; SectionIndex < LODModel.RenderSections.Num(); ++SectionIndex)
 			{
@@ -888,6 +865,8 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 			}
 
 			Initializer.SourceGeometry = LODModel.SourceRayTracingGeometry.RayTracingGeometryRHI;
+
+			RayTracingGeometry.LODIndex = LODIndex;
 
 			// Update the new init data
 			RayTracingGeometry.SetInitializer(Initializer);
