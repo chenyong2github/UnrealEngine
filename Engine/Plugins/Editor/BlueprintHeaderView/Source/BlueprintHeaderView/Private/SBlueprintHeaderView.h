@@ -46,6 +46,12 @@ protected:
 	 */
 	static void FormatCommentString(FString InComment, FString& OutRawString, FString& OutRichString);
 
+	/** 
+	 * returns a string representing the full C++ typename for the given property, 
+	 * including template params for container types
+	 */
+	static FString GetCPPTypenameForProperty(const FProperty* InProperty);
+
 protected:
 	/** A rich text representation of the item, including syntax highlighting and errors */
 	FString RichTextString;
@@ -86,6 +92,9 @@ private:
 
 	/** Adds items to the list view representing all functions present in the given blueprint */
 	void PopulateFunctionItems(const UBlueprint* Blueprint);
+
+	/** Adds items to the list view representing all variables present in the given blueprints */
+	void PopulateVariableItems(const UBlueprint* Blueprint);
 private:
 	/** The blueprint currently being displayed by the header view */
 	TWeakObjectPtr<UBlueprint> SelectedBlueprint;

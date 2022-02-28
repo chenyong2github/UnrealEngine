@@ -1869,7 +1869,7 @@ public:
 	virtual COREUOBJECT_API FGuid GetCustomGuid() const;
 	
 	/** Returns the (native, c++) name of the struct */
-	virtual COREUOBJECT_API FString GetStructCPPName() const;
+	virtual COREUOBJECT_API FString GetStructCPPName(uint32 CPPExportFlags = 0) const;
 
 	/**
 	 * Initializes this structure to its default values

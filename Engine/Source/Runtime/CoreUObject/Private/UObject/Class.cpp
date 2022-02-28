@@ -3266,7 +3266,7 @@ FGuid UScriptStruct::GetCustomGuid() const
 	return FGuid();
 }
 
-FString UScriptStruct::GetStructCPPName() const
+FString UScriptStruct::GetStructCPPName(uint32 CPPExportFlags/*=0*/) const
 {
 	return FString::Printf(TEXT("F%s"), *GetName());
 }

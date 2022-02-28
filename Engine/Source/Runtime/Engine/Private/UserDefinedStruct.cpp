@@ -356,9 +356,16 @@ ENGINE_API FString GetPathPostfix(const UObject* ForObject)
 	return FString::Printf(TEXT("%u"), GetTypeHash(FullAssetName));
 }
 
-FString UUserDefinedStruct::GetStructCPPName() const
+FString UUserDefinedStruct::GetStructCPPName(uint32 CPPExportFlags) const
 {
-	return ::UnicodeToCPPIdentifier(*GetName(), false, GetPrefixCPP()) + GetPathPostfix(this);
+	if (CPPExportFlags & CPPF_BlueprintCppBackend)
+	{
+		return ::UnicodeToCPPIdentifier(*GetName(), false, GetPrefixCPP()) + GetPathPostfix(this);
+	}
+	else
+	{
+		return Super::GetStructCPPName(CPPExportFlags);
+	}
 }
 
 uint32 UUserDefinedStruct::GetUserDefinedStructTypeHash(const void* Src, const UScriptStruct* Type)

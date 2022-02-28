@@ -266,7 +266,7 @@ bool FStructProperty::HasNoOpConstructor() const
 
 FString FStructProperty::GetCPPType( FString* ExtendedTypeText/*=NULL*/, uint32 CPPExportFlags/*=0*/ ) const
 {
-	return Struct->GetStructCPPName();
+	return Struct->GetStructCPPName(CPPExportFlags);
 }
 
 FString FStructProperty::GetCPPTypeForwardDeclaration() const

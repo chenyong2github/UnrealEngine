@@ -117,8 +117,10 @@ void FHeaderViewFunctionListItem::AppendFunctionParameters(const UFunction* Sign
 
 		if (ParmIt->HasAnyPropertyFlags(CPF_OutParm | CPF_ReferenceParm))
 		{
-			RawItemString.Append(FString::Printf(TEXT("%s& %s"), *ParmIt->GetCPPType(), *ParmIt->GetAuthoredName()));
-			RichTextString.Append(FString::Printf(TEXT("<%s>%s</>& <%s>%s</>"), *HeaderViewSyntaxDecorators::TypenameDecorator, *ParmIt->GetCPPType(), *HeaderViewSyntaxDecorators::IdentifierDecorator, *ParmIt->GetAuthoredName()));
+			const FString Typename = GetCPPTypenameForProperty(*ParmIt);
+			const FString ParmName = ParmIt->GetAuthoredName();
+			RawItemString.Append(FString::Printf(TEXT("%s& %s"), *Typename, *ParmName));
+			RichTextString.Append(FString::Printf(TEXT("<%s>%s</>& <%s>%s</>"), *HeaderViewSyntaxDecorators::TypenameDecorator, *Typename, *HeaderViewSyntaxDecorators::IdentifierDecorator, *ParmName));
 		}
 		else
 		{

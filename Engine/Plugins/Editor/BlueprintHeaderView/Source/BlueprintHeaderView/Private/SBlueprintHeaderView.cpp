@@ -12,6 +12,7 @@
 #include "Framework/Text/SlateTextRun.h"
 #include "HeaderViewClassListItem.h"
 #include "HeaderViewFunctionListItem.h"
+#include "HeaderViewVariableListItem.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_FunctionEntry.h"
 #include "EditorStyleSet.h"
@@ -150,6 +151,19 @@ void FHeaderViewListItem::FormatCommentString(FString InComment, FString& OutRaw
 	OutRichString = FString::Printf(TEXT("<%s>%s</>"), *HeaderViewSyntaxDecorators::CommentDecorator, *InComment);
 }
 
+FString FHeaderViewListItem::GetCPPTypenameForProperty(const FProperty* InProperty)
+{
+	if (InProperty)
+	{
+		FString ExtendedTypeText;
+		return InProperty->GetCPPType(&ExtendedTypeText) + ExtendedTypeText;
+	}
+	else
+	{
+		return TEXT("");
+	}
+}
+
 // SBlueprintHeaderView ///////////////////////////////////////////////////////
 
 void SBlueprintHeaderView::Construct(const FArguments& InArgs)
@@ -270,6 +284,8 @@ void SBlueprintHeaderView::RepopulateListView()
 
 		PopulateFunctionItems(Blueprint);
 
+		PopulateVariableItems(Blueprint);
+
 		// Add the closing brace of the class
 		ListItems.Add(FHeaderViewListItem::Create(TEXT("};"), TEXT("};")));
 	}
@@ -298,6 +314,7 @@ void SBlueprintHeaderView::PopulateFunctionItems(const UBlueprint* Blueprint)
 					{
 						switch (AccessSpecifier)
 						{
+						default: //< Blueprint OnRep functions don't have one of these flags set, default to public in this case and others like it
 						case FUNC_Public:
 							ListItems.Add(FHeaderViewListItem::Create(TEXT("public:"), FString::Printf(TEXT("<%s>public</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
 							break;
@@ -319,6 +336,46 @@ void SBlueprintHeaderView::PopulateFunctionItems(const UBlueprint* Blueprint)
 
 					ListItems.Add(FHeaderViewFunctionListItem::Create(EntryNodes[0]));
 				}
+			}
+		}
+	}
+}
+
+void SBlueprintHeaderView::PopulateVariableItems(const UBlueprint* Blueprint)
+{
+	if (Blueprint)
+	{
+		const int32 Private = 2;
+		const int32 Public = 1;
+
+		// We should only add an access specifier line if the previous variable was a different one
+		int32 PrevAccessSpecifier = 0;
+		for (const FBPVariableDescription& VariableDesc : Blueprint->NewVariables)
+		{
+			if (const FProperty* VarProperty = Blueprint->SkeletonGeneratedClass->FindPropertyByName(VariableDesc.VarName))
+			{
+				const int32 AccessSpecifier = VarProperty->GetBoolMetaData(FBlueprintMetadata::MD_Private) ? Private : Public;
+				if (AccessSpecifier != PrevAccessSpecifier)
+				{
+					switch (AccessSpecifier)
+					{
+					case Public:
+						ListItems.Add(FHeaderViewListItem::Create(TEXT("public:"), FString::Printf(TEXT("<%s>public</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
+						break;
+					case Private:
+						ListItems.Add(FHeaderViewListItem::Create(TEXT("private:"), FString::Printf(TEXT("<%s>private</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
+						break;
+					}
+
+					PrevAccessSpecifier = AccessSpecifier;
+				}
+				else
+				{
+					// add an empty line to space variables out
+					ListItems.Add(FHeaderViewListItem::Create(TEXT(""), TEXT("")));
+				}
+
+				ListItems.Add(FHeaderViewVariableListItem::Create(VariableDesc, *VarProperty));
 			}
 		}
 	}
