@@ -60,6 +60,8 @@
 #include "IO/IoContainerHeader.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "IO/IoStore.h"
+#include "ZenFileSystemManifest.h"
+#include "IPlatformFileSandboxWrapper.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -4737,6 +4739,25 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 	return 0;
 }
 
+int32 GenerateZenFileSystemManifest(ITargetPlatform* TargetPlatform)
+{
+	FString OutputDirectory = FPaths::Combine(*FPaths::ProjectDir(), TEXT("Saved"), TEXT("Cooked"), TEXT("[Platform]"));
+	OutputDirectory = FPaths::ConvertRelativePathToFull(OutputDirectory);
+	FPaths::NormalizeDirectoryName(OutputDirectory);
+	TUniquePtr<FSandboxPlatformFile> LocalSandboxFile = FSandboxPlatformFile::Create(false);
+	LocalSandboxFile->Initialize(&FPlatformFileManager::Get().GetPlatformFile(), *FString::Printf(TEXT("-sandbox=\"%s\""), *OutputDirectory));
+	const FString RootPathSandbox = LocalSandboxFile->ConvertToAbsolutePathForExternalAppForWrite(*FPaths::RootDir());
+	FString MetadataPathSandbox = LocalSandboxFile->ConvertToAbsolutePathForExternalAppForWrite(*(FPaths::ProjectDir() / TEXT("Metadata")));
+	const FString PlatformString = TargetPlatform->PlatformName();
+	const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
+	const FString ResolvedMetadataPath = MetadataPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
+
+	FZenFileSystemManifest ZenFileSystemManifest(*TargetPlatform, ResolvedRootPath);
+	ZenFileSystemManifest.Generate();
+	ZenFileSystemManifest.Save(*FPaths::Combine(ResolvedMetadataPath, TEXT("zenfs.manifest")));
+	return 0;
+}
+
 bool ExtractFilesFromIoStoreContainer(
 	const TCHAR* InContainerFilename,
 	const TCHAR* InDestPath,
@@ -5409,6 +5430,19 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 	LoadKeyChain(FCommandLine::Get(), Arguments.KeyChain);
 	
+	ITargetPlatform* TargetPlatform = nullptr;
+	FString TargetPlatformName;
+	if (FParse::Value(FCommandLine::Get(), TEXT("TargetPlatform="), TargetPlatformName))
+	{
+		ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
+		TargetPlatform = TPM.FindTargetPlatform(TargetPlatformName);
+		if (!TargetPlatform)
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Invalid TargetPlatform: '%s'"), *TargetPlatformName);
+			return 1;
+		}
+	}
+
 	FString ArgumentValue;
 	if (FParse::Value(FCommandLine::Get(), TEXT("List="), ArgumentValue))
 	{
@@ -5478,19 +5512,6 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	}
 	else if (FParse::Param(FCommandLine::Get(), TEXT("Staged2Zen")))
 	{
-		ITargetPlatform* TargetPlatform = nullptr;
-		FString TargetPlatformName;
-		if (FParse::Value(FCommandLine::Get(), TEXT("TargetPlatform="), TargetPlatformName))
-		{
-			ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-			TargetPlatform = TPM.FindTargetPlatform(TargetPlatformName);
-			if (!TargetPlatform)
-			{
-				UE_LOG(LogIoStore, Error, TEXT("Invalid TargetPlatform: '%s'"), *TargetPlatformName);
-				return 1;
-			}
-		}
-
 		FString BuildPath;
 		FString ProjectName;
 		if (!FParse::Value(FCommandLine::Get(), TEXT("BuildPath="), BuildPath) ||
@@ -5498,6 +5519,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			!TargetPlatform)
 		{
 			UE_LOG(LogIoStore, Error, TEXT("Incorrect arguments. Expected: -Staged2Zen -BuildPath=<Path> -ProjectName=<ProjectName> -TargetPlatform=<Platform>"));
+			return -1;
 		}
 		return Staged2Zen(BuildPath, Arguments.KeyChain, ProjectName, TargetPlatform);
 	}
@@ -5518,6 +5540,15 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 
 		return CreateContentPatch(Arguments, WriterSettings);
+	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("GenerateZenFileSystemManifest")))
+	{
+		if (!TargetPlatform)
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Incorrect arguments. Expected: -GenerateZenFileSystemManifest -TargetPlatform=<Platform>"));
+			return -11;
+		}
+		return GenerateZenFileSystemManifest(TargetPlatform);
 	}
 	else if (FParse::Value(FCommandLine::Get(), TEXT("CreateDLCContainer="), Arguments.DLCPluginPath))
 	{

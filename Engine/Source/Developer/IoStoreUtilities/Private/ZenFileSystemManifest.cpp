@@ -7,6 +7,10 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Misc/PathViews.h"
+#include "Settings/ProjectPackagingSettings.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogZenFileSystemManifest, Display, All);
 
 const FZenFileSystemManifest::FManifestEntry FZenFileSystemManifest::InvalidEntry = FManifestEntry();
 
@@ -20,49 +24,104 @@ FZenFileSystemManifest::FZenFileSystemManifest(const ITargetPlatform& InTargetPl
 	FPaths::NormalizeDirectoryName(ServerRoot);
 }
 
+void FZenFileSystemManifest::GetExtensionDirs(TArray<FString>& OutExtensionDirs, const TCHAR* BaseDir, const TCHAR* SubDir, const TArray<FString>& PlatformDirectoryNames)
+{
+	auto AddIfDirectoryExists = [&OutExtensionDirs](FString&& Dir)
+	{
+		if (FPaths::DirectoryExists(Dir))
+		{
+			OutExtensionDirs.Emplace(MoveTemp(Dir));
+		}
+	};
+	
+	AddIfDirectoryExists(FPaths::Combine(BaseDir, SubDir));
+
+	FString PlatformExtensionBaseDir = FPaths::Combine(BaseDir, TEXT("Platforms"));
+	for (const FString& PlatformDirectoryName : PlatformDirectoryNames)
+	{
+		AddIfDirectoryExists(FPaths::Combine(PlatformExtensionBaseDir, PlatformDirectoryName, SubDir));
+	}
+
+	FString RestrictedBaseDir = FPaths::Combine(BaseDir, TEXT("Restricted"));
+	IFileManager::Get().IterateDirectory(*RestrictedBaseDir, [&OutExtensionDirs, SubDir, &PlatformDirectoryNames](const TCHAR* FilenameOrDirectory, bool bIsDirectory) -> bool
+		{
+			if (bIsDirectory)
+			{
+				GetExtensionDirs(OutExtensionDirs, FilenameOrDirectory, SubDir, PlatformDirectoryNames);
+			}
+			return true;
+		});
+}
+
 int32 FZenFileSystemManifest::Generate()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateStorageServerFileSystemManifest);
 
-	struct FFileFilter
+	class FFileFilter
 	{
-		bool IncludeDirectory(const TCHAR* Path) const
+	public:
+		FFileFilter& ExcludeDirectory(const TCHAR* Name)
 		{
-			if (FCString::Stristr(Path, TEXT("/Intermediate")))
+			DirectoryExclusionFilter.Emplace(Name);
+			return *this;
+		}
+
+		FFileFilter& ExcludeExtension(const TCHAR* Extension)
+		{
+			ExtensionExclusionFilter.Emplace(Extension);
+			return *this;
+		}
+
+		FFileFilter& IncludeExtension(const TCHAR* Extension)
+		{
+			ExtensionInclusionFilter.Emplace(Extension);
+			return *this;
+		}
+
+		bool FilterDirectory(FStringView Name) const
+		{
+			for (const FString& ExcludedDirectory : DirectoryExclusionFilter)
 			{
-				return false;
-			}
-			if (FCString::Stristr(Path, TEXT("/Binaries")))
-			{
-				return false;
-			}
-			if (FCString::Stristr(Path, TEXT("/Source")))
-			{
-				return false;
+				if (Name == ExcludedDirectory)
+				{
+					return false;
+				}
 			}
 			return true;
 		}
 
-		bool IncludeFile(const TCHAR* Path) const
+		bool FilterFile(FStringView Extension)
 		{
-			if (FCString::Stristr(Path, TEXT("/Content/")))
+			if (!ExtensionExclusionFilter.IsEmpty())
 			{
-				const TCHAR* Extension = FCString::Strrchr(Path, '.');
-				if (Extension)
+				for (const FString& ExcludedExtension : ExtensionExclusionFilter)
 				{
-					if (!FCString::Stricmp(Extension, TEXT(".uasset")) ||
-						!FCString::Stricmp(Extension, TEXT(".umap")) ||
-						!FCString::Stricmp(Extension, TEXT(".uexp")) ||
-						!FCString::Stricmp(Extension, TEXT(".ubulk")))
+					if (Extension == ExcludedExtension)
 					{
 						return false;
 					}
 				}
 			}
+			if (!ExtensionInclusionFilter.IsEmpty())
+			{
+				for (const FString& IncludedExtension : ExtensionInclusionFilter)
+				{
+					if (Extension == IncludedExtension)
+					{
+						return true;
+					}
+				}
+				return false;
+			}
 			return true;
 		}
-	} Filter;
-	
+
+	private:
+		TArray<FString> DirectoryExclusionFilter;
+		TArray<FString> ExtensionExclusionFilter;
+		TArray<FString> ExtensionInclusionFilter;
+	};
+
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 	FString RootDir = FPaths::RootDir();
@@ -71,94 +130,190 @@ int32 FZenFileSystemManifest::Generate()
 	FString ProjectDir = FPaths::ProjectDir();
 	FPaths::NormalizeDirectoryName(ProjectDir);
 
+	FFileFilter BaseFilter = FFileFilter()
+		.ExcludeDirectory(TEXT("Binaries"))
+		.ExcludeDirectory(TEXT("Intermediate"))
+		.ExcludeDirectory(TEXT("Saved"))
+		.ExcludeDirectory(TEXT("Source"));
 	auto AddFilesFromDirectory =
-		[this, &PlatformFile, &RootDir]
-		(const FString& ClientDirectory, const FString& LocalDirectory, bool bIncludeSubdirs, FFileFilter* Filter = nullptr)
+		[this, &PlatformFile, &RootDir, &BaseFilter]
+		(const FString& ClientDirectory, const FString& LocalDirectory, bool bIncludeSubdirs, FFileFilter* AdditionalFilter = nullptr)
 		{
+			//TRACE_BOOKMARK(TEXT("AddFilesFromDirectory: %s"), *ClientDirectory);
 			FString ServerRelativeDirectory = LocalDirectory;
 			FPaths::MakePathRelativeTo(ServerRelativeDirectory, *RootDir);
 			ServerRelativeDirectory = TEXT("/") + ServerRelativeDirectory;
 
 			TArray<FString> DirectoriesToVisit;
 			auto VisitorFunc =
-				[this, &DirectoriesToVisit, &RootDir, &ClientDirectory, &LocalDirectory, &ServerRelativeDirectory, bIncludeSubdirs, Filter]
+				[this, &DirectoriesToVisit, &RootDir, &ClientDirectory, &LocalDirectory, &ServerRelativeDirectory, bIncludeSubdirs, &BaseFilter, AdditionalFilter]
 				(const TCHAR* InnerFileNameOrDirectory, bool bIsDirectory)
 				{
-					if (Filter)
+					if (bIsDirectory)
 					{
-						if ((bIsDirectory && !Filter->IncludeDirectory(InnerFileNameOrDirectory)) ||
-							(!bIsDirectory && !Filter->IncludeFile(InnerFileNameOrDirectory)))
+						if (!bIncludeSubdirs)
 						{
 							return true;
 						}
-					}
-					if (bIsDirectory)
-					{
-						if (bIncludeSubdirs)
+						FStringView DirectoryName = FPathViews::GetPathLeaf(InnerFileNameOrDirectory);
+						if (!BaseFilter.FilterDirectory(DirectoryName))
 						{
-							DirectoriesToVisit.Add(InnerFileNameOrDirectory);
+							return true;
 						}
+						if (AdditionalFilter && !AdditionalFilter->FilterDirectory(DirectoryName))
+						{
+							return true;
+						}
+						DirectoriesToVisit.Add(InnerFileNameOrDirectory);
+						return true;
 					}
-					else
+					FStringView Extension = FPathViews::GetExtension(InnerFileNameOrDirectory);
+					if (!BaseFilter.FilterFile(Extension))
 					{
-						FStringView RelativePath = InnerFileNameOrDirectory;
-						RelativePath.RightChopInline(LocalDirectory.Len() + 1);
-						FString ClientPath = FPaths::Combine(ClientDirectory, RelativePath.GetData());
-						const FIoChunkId FileChunkId = CreateExternalFileChunkId(ClientPath);
-
-						AddManifestEntry(
-							FileChunkId,
-							FPaths::Combine(ServerRelativeDirectory, RelativePath.GetData()),
-							MoveTemp(ClientPath));
+						return true;
 					}
-
+					if (AdditionalFilter && !AdditionalFilter->FilterFile(Extension))
+					{
+						return true;
+					}
+					//TRACE_CPUPROFILER_EVENT_SCOPE(AddManifestEntry);
+					FStringView RelativePath = InnerFileNameOrDirectory;
+					RelativePath.RightChopInline(LocalDirectory.Len() + 1);
+					FString ClientPath = FPaths::Combine(ClientDirectory, RelativePath.GetData());
+					const FIoChunkId FileChunkId = CreateExternalFileChunkId(ClientPath);
+					AddManifestEntry(
+						FileChunkId,
+						FPaths::Combine(ServerRelativeDirectory, RelativePath.GetData()),
+						MoveTemp(ClientPath));
 					return true;
 				};
 
 			DirectoriesToVisit.Push(LocalDirectory);
 			while (!DirectoriesToVisit.IsEmpty())
 			{
-				PlatformFile.IterateDirectory(*DirectoriesToVisit.Pop(), VisitorFunc);
+				PlatformFile.IterateDirectory(*DirectoriesToVisit.Pop(false), VisitorFunc);
+			}
+		};
+
+	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+
+	TArray<FString> PlatformDirectoryNames;
+	const FDataDrivenPlatformInfo& PlatformInfo = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(TargetPlatform.IniPlatformName());
+	PlatformDirectoryNames.Reserve(PlatformInfo.IniParentChain.Num() + PlatformInfo.AdditionalRestrictedFolders.Num() + 1);
+	PlatformDirectoryNames.Add(TargetPlatform.IniPlatformName());
+	for (const FString& PlatformName : PlatformInfo.AdditionalRestrictedFolders)
+	{
+		PlatformDirectoryNames.AddUnique(PlatformName);
+	}
+	for (const FString& PlatformName : PlatformInfo.IniParentChain)
+	{
+		PlatformDirectoryNames.AddUnique(PlatformName);
+	}
+	auto AddFilesFromExtensionDirectories = [&AddFilesFromDirectory, &EngineDir, &ProjectDir, &PlatformDirectoryNames](const TCHAR* ExtensionSubDir, FFileFilter* AdditionalFilter = nullptr)
+		{
+			TArray<FString> ExtensionDirs;
+			GetExtensionDirs(ExtensionDirs, *EngineDir, ExtensionSubDir, PlatformDirectoryNames);
+			for (const FString& Dir : ExtensionDirs)
+			{
+				//AddFilesFromDirectory(Dir.Replace(*EngineDir, TEXT("/{engine}")), Dir, true, AdditionalFilter);
+				AddFilesFromDirectory(Dir.Replace(*EngineDir, TEXT("/{engine}")), Dir, true, AdditionalFilter);
+			}
+			ExtensionDirs.Reset();
+			GetExtensionDirs(ExtensionDirs, *ProjectDir, ExtensionSubDir, PlatformDirectoryNames);
+			for (const FString& Dir : ExtensionDirs)
+			{
+				AddFilesFromDirectory(Dir.Replace(*ProjectDir, TEXT("/{project}")), Dir, true, AdditionalFilter);
 			}
 		};
 
 	const int32 PreviousEntryCount = NumEntries();
 
-	AddFilesFromDirectory(TEXT("/{engine}"), FPaths::Combine(CookDirectory, TEXT("Engine")), true);
-	AddFilesFromDirectory(TEXT("/{project}"), FPaths::Combine(CookDirectory, FApp::GetProjectName()), true);
+	FFileFilter CookedFilter = FFileFilter()
+		.ExcludeDirectory(TEXT("Metadata"))
+		.ExcludeExtension(TEXT("json"))
+		.ExcludeExtension(TEXT("uasset"))
+		.ExcludeExtension(TEXT("ubulk"))
+		.ExcludeExtension(TEXT("uexp"))
+		.ExcludeExtension(TEXT("umap"))
+		.ExcludeExtension(TEXT("uregs"));
+	AddFilesFromDirectory(TEXT("/{engine}"), FPaths::Combine(CookDirectory, TEXT("Engine")), true, &CookedFilter);
+	AddFilesFromDirectory(TEXT("/{project}"), FPaths::Combine(CookDirectory, FApp::GetProjectName()), true, &CookedFilter);
+	
 	AddFilesFromDirectory(TEXT("/{project}"), ProjectDir, false);
-	AddFilesFromDirectory(TEXT("/{engine}/Config"), FPaths::Combine(EngineDir, TEXT("Config")), true);
-	AddFilesFromDirectory(TEXT("/{project}/Config"), FPaths::Combine(ProjectDir, TEXT("Config")), true);
-	AddFilesFromDirectory(TEXT("/{engine}/Plugins"), FPaths::Combine(EngineDir, TEXT("Plugins")), true, &Filter);
-	AddFilesFromDirectory(TEXT("/{project}/Plugins"), FPaths::Combine(ProjectDir, TEXT("Plugins")), true, &Filter);
-	AddFilesFromDirectory(TEXT("/{engine}/Restricted"), FPaths::Combine(EngineDir, TEXT("Restricted")), true, &Filter);
-	AddFilesFromDirectory(TEXT("/{project}/Restricted"), FPaths::Combine(ProjectDir, TEXT("Restricted")), true, &Filter);
-	AddFilesFromDirectory(TEXT("/{engine}/Content/Internationalization"), FPaths::Combine(EngineDir, TEXT("Content"), TEXT("Internationalization")), true);
-	AddFilesFromDirectory(TEXT("/{engine}/Content/Localization"), FPaths::Combine(EngineDir, TEXT("Content"), TEXT("Localization")), true);
-	AddFilesFromDirectory(TEXT("/{project}/Content/Localization"), FPaths::Combine(ProjectDir, TEXT("Content"), TEXT("Localization")), true);
-	AddFilesFromDirectory(TEXT("/{engine}/Content/Slate"), FPaths::Combine(EngineDir, TEXT("Content"), TEXT("Slate")), true);
-	AddFilesFromDirectory(TEXT("/{project}/Content/Slate"), FPaths::Combine(ProjectDir, TEXT("Content"), TEXT("Slate")), true);
-	AddFilesFromDirectory(TEXT("/{engine}/Content/Movies"), FPaths::Combine(EngineDir, TEXT("Content"), TEXT("Movies")), true);
-	AddFilesFromDirectory(TEXT("/{project}/Content/Movies"), FPaths::Combine(ProjectDir, TEXT("Content"), TEXT("Movies")), true);
+	
+	FFileFilter ConfigFilter = FFileFilter()
+		.IncludeExtension(TEXT("ini"));
+	AddFilesFromExtensionDirectories(TEXT("Config"), &ConfigFilter);
 
-	const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(TargetPlatform.IniPlatformName());
+	FFileFilter PluginFilter = FFileFilter()
+		.IncludeExtension(TEXT("ini"))
+		.IncludeExtension(TEXT("locmeta"))
+		.IncludeExtension(TEXT("locres"))
+		.IncludeExtension(TEXT("uplugin"));
+	AddFilesFromExtensionDirectories(TEXT("Plugins"), &PluginFilter);
 
-	TArray<FString> PlatformDirectories;
-	PlatformDirectories.Reserve(Info.IniParentChain.Num() + Info.AdditionalRestrictedFolders.Num() + 1);
-	PlatformDirectories.Add(TargetPlatform.IniPlatformName());
-	for (const FString& PlatformName : Info.AdditionalRestrictedFolders)
+	FString InternationalizationPresetAsString = UEnum::GetValueAsString(PackagingSettings->InternationalizationPreset);
+	const TCHAR* InternationalizationPresetPath = FCString::Strrchr(*InternationalizationPresetAsString, ':');
+	if (InternationalizationPresetPath)
 	{
-		PlatformDirectories.AddUnique(PlatformName);
+		++InternationalizationPresetPath;
 	}
-	for (const FString& PlatformName : Info.IniParentChain)
+	else
 	{
-		PlatformDirectories.AddUnique(PlatformName);
+		UE_LOG(LogZenFileSystemManifest, Warning, TEXT("Failed reading internationalization preset setting, defaulting to English"));
+		InternationalizationPresetPath = TEXT("English");
 	}
+	const TCHAR* ICUDataVersion = TEXT("icudt64l"); // TODO: Could this go into datadriven platform info? But it's basically always this.
+	AddFilesFromDirectory(*FPaths::Combine(TEXT("/{engine}"), TEXT("Content"), TEXT("Internationalization"), ICUDataVersion), FPaths::Combine(EngineDir, TEXT("Content"), TEXT("Internationalization"), InternationalizationPresetPath, ICUDataVersion), true);
+	
+	FFileFilter LocalizationFilter = FFileFilter()
+		.IncludeExtension(TEXT("locmeta"))
+		.IncludeExtension(TEXT("locres"));
+	AddFilesFromExtensionDirectories(TEXT("Content/Localization"), &LocalizationFilter);
 
-	for (const FString& PlatformDirectory : PlatformDirectories)
+	FFileFilter ContentFilter = FFileFilter()
+		.ExcludeExtension(TEXT("uasset"))
+		.ExcludeExtension(TEXT("ubulk"))
+		.ExcludeExtension(TEXT("uexp"))
+		.ExcludeExtension(TEXT("umap"));
+	AddFilesFromDirectory(TEXT("/{engine}/Content/Slate"), FPaths::Combine(EngineDir, TEXT("Content"), TEXT("Slate")), true, &ContentFilter);
+	AddFilesFromDirectory(TEXT("/{project}/Content/Slate"), FPaths::Combine(ProjectDir, TEXT("Content"), TEXT("Slate")), true, &ContentFilter);
+	AddFilesFromDirectory(TEXT("/{engine}/Content/Movies"), FPaths::Combine(EngineDir, TEXT("Content"), TEXT("Movies")), true, &ContentFilter);
+	AddFilesFromDirectory(TEXT("/{project}/Content/Movies"), FPaths::Combine(ProjectDir, TEXT("Content"), TEXT("Movies")), true, &ContentFilter);
+	
+	FFileFilter ShaderCacheFilter = FFileFilter()
+		.IncludeExtension(TEXT("ushadercache"))
+		.IncludeExtension(TEXT("upipelinecache"));
+	AddFilesFromDirectory(TEXT("/{project}/Content"), FPaths::Combine(ProjectDir, TEXT("Content")), false, &ShaderCacheFilter);
+	AddFilesFromDirectory(FPaths::Combine(TEXT("/{project}"), TEXT("Content"), TEXT("PipelineCaches"), TargetPlatform.IniPlatformName()), FPaths::Combine(ProjectDir, TEXT("Content"), TEXT("PipelineCaches"), TargetPlatform.IniPlatformName()), false, &ShaderCacheFilter);
+
+	auto AddAdditionalFilesFromConfig = [&AddFilesFromDirectory , &ContentFilter, &ProjectDir, &EngineDir](const FString& RelativeDirToStage)
 	{
-		AddFilesFromDirectory(FPaths::Combine(TEXT("/{engine}/Platforms"), PlatformDirectory), FPaths::Combine(EngineDir, TEXT("Platforms"), PlatformDirectory), true, &Filter);
-		AddFilesFromDirectory(FPaths::Combine(TEXT("/{project}/Platforms"), PlatformDirectory), FPaths::Combine(ProjectDir, TEXT("Platforms"), PlatformDirectory), true, &Filter);
+		FString AbsoluteDirToStage = FPaths::ConvertRelativePathToFull(FPaths::Combine(ProjectDir, TEXT("Content"), RelativeDirToStage));
+		FPaths::NormalizeDirectoryName(AbsoluteDirToStage);
+		FString AbsoluteEngineDir = FPaths::ConvertRelativePathToFull(EngineDir);
+		FString AbsoluteProjectDir = FPaths::ConvertRelativePathToFull(ProjectDir);
+		FStringView RelativeToKnownRootView;
+		if (FPathViews::TryMakeChildPathRelativeTo(AbsoluteDirToStage, AbsoluteProjectDir, RelativeToKnownRootView))
+		{
+			AddFilesFromDirectory(FPaths::Combine(TEXT("/{project}"), RelativeToKnownRootView.GetData()), FPaths::Combine(ProjectDir, RelativeToKnownRootView.GetData()), true, &ContentFilter);
+		}
+		else if (FPathViews::TryMakeChildPathRelativeTo(AbsoluteDirToStage, AbsoluteEngineDir, RelativeToKnownRootView))
+		{
+			AddFilesFromDirectory(FPaths::Combine(TEXT("/{engine}"), RelativeToKnownRootView.GetData()), FPaths::Combine(EngineDir, RelativeToKnownRootView.GetData()), true, &ContentFilter);
+		}
+		else
+		{
+			UE_LOG(LogZenFileSystemManifest, Warning, TEXT("Ignoring additional folder to stage that is not relative to the engine or project directory: %s"), *RelativeDirToStage);
+		}
+	};
+	for (const FDirectoryPath& AdditionalFolderToStage : PackagingSettings->DirectoriesToAlwaysStageAsUFS)
+	{
+		AddAdditionalFilesFromConfig(AdditionalFolderToStage.Path);
+	}
+	for (const FDirectoryPath& AdditionalFolderToStage : PackagingSettings->DirectoriesToAlwaysStageAsUFSServer)
+	{
+		AddAdditionalFilesFromConfig(AdditionalFolderToStage.Path);
 	}
 
 	const int32 CurrentEntryCount = NumEntries();

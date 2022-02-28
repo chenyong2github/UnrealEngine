@@ -40,6 +40,8 @@ public:
 	}
 
 private:
+	static void GetExtensionDirs(TArray<FString>& OutExtensionDirs, const TCHAR* BaseDir, const TCHAR* SubDir, const TArray<FString>& PlatformDirectoryNames);
+
 	const ITargetPlatform& TargetPlatform;
 	FString CookDirectory;
 	FString ServerRoot;

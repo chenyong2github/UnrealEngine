@@ -27,5 +27,7 @@ public class IoStoreUtilities : ModuleRules
 		PrivateDependencyModuleNames.Add("PakFile");
         PrivateDependencyModuleNames.Add("Json");
         PrivateDependencyModuleNames.Add("RSA");
+        PrivateDependencyModuleNames.Add("DeveloperToolSettings");
+        PrivateDependencyModuleNames.Add("SandboxFile");
 	}
 }
