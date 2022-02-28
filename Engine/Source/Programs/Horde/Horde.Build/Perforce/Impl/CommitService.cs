@@ -62,7 +62,7 @@ namespace HordeServer.Commits.Impl
 		/// <summary>
 		/// Whether to mirror content to Horde storage
 		/// </summary>
-		public bool Content { get; set; }
+		public bool Content { get; set; } = true;
 
 		/// <summary>
 		/// List of streams for which content mirroring should be enabled
