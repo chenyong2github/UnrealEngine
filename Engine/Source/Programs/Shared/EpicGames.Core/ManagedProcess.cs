@@ -1064,7 +1064,7 @@ namespace EpicGames.Core
 			for (; ; )
 			{
 				// Skip any '\n' that's part of a '\r\n' sequence
-				if (bCarriageReturn && BufferPos < Buffer.Length)
+				if (bCarriageReturn && BufferPos < BufferLen)
 				{
 					if (Buffer[BufferPos] == '\n')
 					{
