@@ -102,9 +102,6 @@ namespace DetailLayoutHelpers
 				// Children of arrays are not visible directly,
 				bVisibleByDefault &= !bIsChildOfContainer;
 
-				FPropertyAndParent PropertyAndParent(ChildNodePtr.ToSharedRef());
-				const bool bIsUserVisible = InUpdateArgs.IsPropertyVisible(PropertyAndParent);
-
 				// Inners of customized in structs should not be taken into consideration for customizing.  They are not designed to be individually customized when their parent is already customized
 				if (!bIsChildOfCustomizedStruct && !LocalUpdateFavoriteSystemOnly)
 				{
@@ -145,7 +142,7 @@ namespace DetailLayoutHelpers
 					PropertyNodeMap.Add(Property->GetFName(), ChildNodePtr);
 				}
 
-				if (bVisibleByDefault && bIsUserVisible && !bPushOutStructProps)
+				if (bVisibleByDefault && !bPushOutStructProps)
 				{
 					FName CategoryName = CurCategory;
 					// For properties inside a struct, add them to their own category unless they just take the name of the parent struct.  
@@ -158,11 +155,6 @@ namespace DetailLayoutHelpers
 
 					if (!LocalUpdateFavoriteSystemOnly)
 					{
-						if (InUpdateArgs.IsPropertyReadOnly(PropertyAndParent))
-						{
-							ChildNode.SetNodeFlags(EPropertyNodeFlags::IsReadOnly, true);
-						}
-
 						// Add a property to the default category
 						FDetailCategoryImpl& CategoryImpl = DetailLayout.DefaultCategory(CategoryName);
 						CategoryImpl.AddPropertyNode(ChildNodePtr.ToSharedRef(), InstanceName);
@@ -178,19 +170,12 @@ namespace DetailLayoutHelpers
 
 							if (LocalUpdateFavoriteSystemOnly)
 							{
-								if (InUpdateArgs.IsPropertyReadOnly(PropertyAndParent))
+								//If the parent has a condition that is not met, mark the child as read-only
+								FDetailLayoutCustomization ParentTmpCustomization;
+								ParentTmpCustomization.PropertyRow = MakeShared<FDetailPropertyRow>(InNode.AsShared(), FavoritesCategory.AsShared());
+								if (ParentTmpCustomization.PropertyRow->GetPropertyEditor()->IsPropertyEditingEnabled() == false)
 								{
 									ChildNode.SetNodeFlags(EPropertyNodeFlags::IsReadOnly, true);
-								}
-								else
-								{
-									//If the parent has a condition that is not met, mark the child as read-only
-									FDetailLayoutCustomization ParentTmpCustomization;
-									ParentTmpCustomization.PropertyRow = MakeShared<FDetailPropertyRow>(InNode.AsShared(), FavoritesCategory.AsShared());
-									if (ParentTmpCustomization.PropertyRow->GetPropertyEditor()->IsPropertyEditingEnabled() == false)
-									{
-										ChildNode.SetNodeFlags(EPropertyNodeFlags::IsReadOnly, true);
-									}
 								}
 							}
 
@@ -220,7 +205,6 @@ namespace DetailLayoutHelpers
 					&& !bIsCustomizedStruct // Don't recurse into customized structs
 					&& !bIsChildOfContainer // Don't recurse into containers, the children are drawn by the container property parent
 					&& !bIsEditInlineNew // Edit inline new children are not supported for customization yet
-					&&	bIsUserVisible // Properties must be allowed to be visible by a user if they are not then their children are not visible either
 					&& (!bIsStruct || bPushOutStructProps); //  Only recurse into struct properties if they are going to be displayed as standalone properties in categories instead of inside an expandable area inside a category
 
 				if (bRecurseIntoChildren || LocalUpdateFavoriteSystemOnly)

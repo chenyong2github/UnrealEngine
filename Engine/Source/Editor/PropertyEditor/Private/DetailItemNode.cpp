@@ -786,18 +786,26 @@ TAttribute<bool> FDetailItemNode::IsPropertyEditingEnabled() const
 
 bool FDetailItemNode::IsPropertyEditingEnabledImpl() const
 {
-	const bool IsParentEnabledValue = IsParentEnabled.Get(true);
-	if (Customization.HasCustomWidget())
+	bool bIsEnabled = IsParentEnabled.Get(true);
+
+	IDetailsViewPrivate* DetailsView = GetDetailsView();
+	if (DetailsView)
 	{
-		IDetailsViewPrivate* DetailsView = GetDetailsView();
-		if (DetailsView)
+		if (Customization.HasPropertyNode())
 		{
-			return IsParentEnabledValue &&
-				!DetailsView->IsCustomRowReadOnly(FName(*Customization.WidgetDecl->FilterTextString.ToString()), FName(*GetParentCategory()->GetDisplayName().ToString()));
+			TSharedPtr<FPropertyNode> PropertyNode = Customization.GetPropertyNode();
+			if (PropertyNode->GetProperty() != nullptr)
+			{
+				bIsEnabled &= !DetailsView->IsPropertyReadOnly(FPropertyAndParent(PropertyNode.ToSharedRef()));
+			}
+		}
+		else if (Customization.HasCustomWidget())
+		{
+			bIsEnabled &= !DetailsView->IsCustomRowReadOnly(Customization.GetName(), GetParentCategory()->GetCategoryName());
 		}
 	}
 	
-	return IsParentEnabledValue;
+	return bIsEnabled;
 }
 
 TSharedPtr<FPropertyNode> FDetailItemNode::GetPropertyNode() const

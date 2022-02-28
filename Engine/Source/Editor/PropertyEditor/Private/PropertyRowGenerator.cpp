@@ -666,8 +666,6 @@ void FPropertyRowGenerator::UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyN
 
 	LayoutArgs.LayoutData = &LayoutData;
 	LayoutArgs.InstancedPropertyTypeToDetailLayoutMap = &InstancedTypeToLayoutMap;
-	LayoutArgs.IsPropertyReadOnly = [this](const FPropertyAndParent& PropertyAndParent) { return false; };
-	LayoutArgs.IsPropertyVisible = [this](const FPropertyAndParent& PropertyAndParent) { return true; };
 	LayoutArgs.bEnableFavoriteSystem = false;
 	LayoutArgs.bUpdateFavoriteSystemOnly = false;
 

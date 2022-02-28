@@ -14,8 +14,6 @@ namespace DetailLayoutHelpers
 	{
 		FDetailLayoutData* LayoutData;
 		FCustomPropertyTypeLayoutMap* InstancedPropertyTypeToDetailLayoutMap;
-		TFunction<bool(const FPropertyAndParent&)> IsPropertyVisible;
-		TFunction<bool(const FPropertyAndParent&)> IsPropertyReadOnly;
 		bool bEnableFavoriteSystem;
 		bool bUpdateFavoriteSystemOnly;
 	};
