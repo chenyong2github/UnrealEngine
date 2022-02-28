@@ -9,10 +9,13 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace UnrealGameSync
 {
+	[JsonConverter(typeof(ConfigObjectJsonConverter))]
 	public class ConfigObject
 	{
 		const string ConfigSeparatorCharacters = "(),= \t\"";
@@ -295,6 +298,25 @@ namespace UnrealGameSync
 		public override string ToString()
 		{
 			return ToString(null);
+		}
+	}
+
+	public class ConfigObjectJsonConverter : JsonConverter<ConfigObject>
+	{
+		public override ConfigObject Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		{
+			ConfigObject Object = new ConfigObject();
+			return Object;
+		}
+
+		public override void Write(Utf8JsonWriter Writer, ConfigObject Value, JsonSerializerOptions Options)
+		{
+			Writer.WriteStartObject();
+			foreach (KeyValuePair<string, string> Pair in Value.Pairs)
+			{
+				Writer.WriteString(Pair.Key, Pair.Value);
+			}
+			Writer.WriteEndObject();
 		}
 	}
 

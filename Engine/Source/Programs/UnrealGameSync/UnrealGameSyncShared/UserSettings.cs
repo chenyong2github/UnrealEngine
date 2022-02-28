@@ -497,9 +497,44 @@ namespace UnrealGameSync
 
 	public class UserProjectSettings
 	{
+		[JsonIgnore]
+		public FileReference ConfigFile { get; private set; } = null!;
+
 		public List<ConfigObject> BuildSteps { get; set; } = new List<ConfigObject>();
 		public FilterType FilterType { get; set; }
 		public HashSet<string> FilterBadges { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+		static object SyncRoot = new object();
+
+		private UserProjectSettings()
+		{
+		}
+
+		public UserProjectSettings(FileReference ConfigFile)
+		{
+			this.ConfigFile = ConfigFile;
+		}
+
+		public static bool TryLoad(FileReference ConfigFile, [NotNullWhen(true)] out UserProjectSettings? Settings)
+		{
+			if (FileReference.Exists(ConfigFile))
+			{
+				Settings = Utility.LoadJson<UserProjectSettings>(ConfigFile);
+				Settings.ConfigFile = ConfigFile;
+				return true;
+			}
+
+			Settings = null;
+			return false;
+		}
+
+		public void Save()
+		{
+			lock (SyncRoot)
+			{
+				Utility.SaveJson(ConfigFile, this);
+			}
+		}
 	}
 
 	public class UserSettings : GlobalSettingsFile
@@ -1011,13 +1046,11 @@ namespace UnrealGameSync
 			}
 		}
 
-		public override UserProjectSettings FindOrAddProjectSettings(ProjectInfo ProjectInfo)
+		protected override void ImportProjectSettings(ProjectInfo ProjectInfo, UserProjectSettings CurrentProject)
 		{
 			string ClientProjectFileName = Regex.Replace(ProjectInfo.ClientFileName, "^//[^/]+/", "");
 
 			// Read the project settings
-			UserProjectSettings CurrentProject = new UserProjectSettings();
-	
 			ConfigSection ProjectSection = ConfigFile.FindOrAddSection(ClientProjectFileName);
 			CurrentProject.BuildSteps.AddRange(ProjectSection.GetValues("BuildStep", new string[0]).Select(x => new ConfigObject(x)));
 
@@ -1029,8 +1062,6 @@ namespace UnrealGameSync
 
 			CurrentProject.FilterType = FilterType;
 			CurrentProject.FilterBadges.UnionWith(ProjectSection.GetValues("FilterBadges", new string[0]));
-
-			return CurrentProject;
 		}
 
 		public override void Save()

@@ -306,7 +306,7 @@ namespace UnrealGameSync
 			Settings = InSettings;
 			this.WorkspaceSettings = OpenProjectInfo.WorkspaceSettings;
 			this.WorkspaceState = OpenProjectInfo.WorkspaceState;
-			ProjectSettings = InSettings.FindOrAddProjectSettings(OpenProjectInfo.ProjectInfo);
+			ProjectSettings = InSettings.FindOrAddProjectSettings(OpenProjectInfo.ProjectInfo, OpenProjectInfo.WorkspaceSettings);
 
 			DesiredTaskbarState = Tuple.Create(TaskbarState.NoProgress, 0.0f);
 
@@ -2104,7 +2104,7 @@ namespace UnrealGameSync
 				LayoutInfo.BuildBadges = CreateBuildBadges(Change.Number, Summary);
 				LayoutInfo.CustomBadges = CreateCustomBadges(Change.Number, Summary);
 
-				ChangeNumberToLayoutInfo.Add(Change.Number, LayoutInfo);
+				ChangeNumberToLayoutInfo[Change.Number] = LayoutInfo;
 			}
 			return LayoutInfo;
 		}
@@ -5263,7 +5263,7 @@ namespace UnrealGameSync
 
 				// Save the settings
 				ProjectSettings.BuildSteps = ModifiedBuildSteps;
-				Settings.Save();
+				ProjectSettings.Save();
 
 				// Update the custom tools menu, because we might have changed it
 				UpdateBuildSteps();
@@ -5901,7 +5901,7 @@ namespace UnrealGameSync
 		{
 			ProjectSettings.FilterBadges.Clear();
 			ProjectSettings.FilterType = FilterType.None;
-			Settings.Save();
+			ProjectSettings.Save();
 
 			Settings.bShowAutomatedChanges = false;
 			Settings.Save();
@@ -5993,7 +5993,7 @@ namespace UnrealGameSync
 		private void FilterContextMenu_Type_ShowAll_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.None;
-			Settings.Save();
+			ProjectSettings.Save();
 
 			UpdateBuildListFilter();
 		}
@@ -6001,7 +6001,7 @@ namespace UnrealGameSync
 		private void FilterContextMenu_Type_Code_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.Code;
-			Settings.Save();
+			ProjectSettings.Save();
 
 			UpdateBuildListFilter();
 		}
@@ -6009,7 +6009,7 @@ namespace UnrealGameSync
 		private void FilterContextMenu_Type_Content_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.Content;
-			Settings.Save();
+			ProjectSettings.Save();
 
 			UpdateBuildListFilter();
 		}

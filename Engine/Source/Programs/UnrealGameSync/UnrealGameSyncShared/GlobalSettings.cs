@@ -59,9 +59,30 @@ namespace UnrealGameSync
 		public FileReference File { get; }
 		public GlobalSettings Global { get; }
 
-		public virtual UserProjectSettings FindOrAddProjectSettings(ProjectInfo ProjectInfo)
+		public UserProjectSettings FindOrAddProjectSettings(ProjectInfo ProjectInfo, UserWorkspaceSettings Settings)
 		{
-			return new UserProjectSettings();
+			FileReference ConfigFile;
+			if (ProjectInfo.LocalFileName.HasExtension(".uprojectdirs"))
+			{
+				ConfigFile = FileReference.Combine(UserSettings.GetConfigDir(Settings.RootDir), "project.json");
+			}
+			else
+			{
+				ConfigFile = FileReference.Combine(UserSettings.GetConfigDir(Settings.RootDir), $"project_{ProjectInfo.LocalFileName.GetFileNameWithoutExtension()}.json");
+			}
+
+			UserProjectSettings? ProjectSettings;
+			if (!UserProjectSettings.TryLoad(ConfigFile, out ProjectSettings))
+			{
+				ProjectSettings = new UserProjectSettings(ConfigFile);
+				ImportProjectSettings(ProjectInfo, ProjectSettings);
+				ProjectSettings.Save();
+			}
+			return ProjectSettings;
+		}
+
+		protected virtual void ImportProjectSettings(ProjectInfo ProjectInfo, UserProjectSettings ProjectSettings)
+		{
 		}
 
 		protected virtual void ImportWorkspaceSettings(DirectoryReference RootDir, string ClientName, string BranchPath, UserWorkspaceSettings WorkspaceSettings)
