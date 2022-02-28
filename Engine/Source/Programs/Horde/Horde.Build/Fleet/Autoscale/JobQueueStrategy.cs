@@ -17,6 +17,46 @@ namespace Horde.Build.Fleet.Autoscale
 	using StreamId = StringId<IStream>;
 	
 	/// <summary>
+	/// Job queue sizing settings for a pool
+	/// </summary>
+	public class JobQueueSettings
+	{
+		/// <summary>
+		/// Minimum number of jobs in queue for scale-out logic to activate
+		///
+		/// Useful to avoid a very small queue size triggering any scaling. 
+		/// </summary>
+		public int MinQueueSizeForScaleOut { get; set; }
+
+		/// <summary>
+		/// Factor translating queue size to additional agents to grow the pool with
+		///
+		/// Example: if there are 20 jobs in queue, a factor 0.25 will result in 5 new agents being added (20 * 0.25)
+		/// </summary>
+		public double ScaleOutFactor { get; set;  } = 0.25;
+		
+		/// <summary>
+		/// Factor by which to shrink the pool size with when queue is empty
+		///
+		/// Example: when the queue size is zero, a default value of 0.9 will shrink the pool by 10% (current agent count * 0.9)
+		/// </summary>
+		public double ScaleInFactor { get; set; } = 0.9;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="MinQueueSizeForScaleOut"></param>
+		/// <param name="ScaleOutFactor"></param>
+		/// <param name="ScaleInFactor"></param>
+		public JobQueueSettings(int? MinQueueSizeForScaleOut = null, double? ScaleOutFactor = null, double? ScaleInFactor = null)
+		{
+			this.MinQueueSizeForScaleOut = MinQueueSizeForScaleOut.GetValueOrDefault(this.MinQueueSizeForScaleOut);
+			this.ScaleOutFactor = ScaleOutFactor.GetValueOrDefault(this.ScaleOutFactor);
+			this.ScaleInFactor = ScaleInFactor.GetValueOrDefault(this.ScaleInFactor);
+		}
+	}
+	
+	/// <summary>
 	/// Calculate pool size by observing the number of jobs in waiting state
 	///
 	/// Allows for more proactive scaling compared to LeaseUtilizationStrategy.
@@ -28,7 +68,7 @@ namespace Horde.Build.Fleet.Autoscale
 		private readonly IGraphCollection Graphs;
 		private readonly StreamService StreamService;
 		private readonly IClock Clock;
-			
+		
 		/// <summary>
 		/// How far back in time to look for job batches (that potentially are in the queue)
 		/// </summary>
@@ -41,27 +81,8 @@ namespace Horde.Build.Fleet.Autoscale
 		/// This threshold will help ensure only batches that have been waiting longer than this value will be considered.
 		/// </summary>
 		internal readonly TimeSpan ReadyTimeThreshold = TimeSpan.FromSeconds(45.0);
-		
-		/// <summary>
-		/// Minimum number of jobs in queue for scale-out logic to activate
-		///
-		/// Useful to avoid a very small queue size triggering any scaling. 
-		/// </summary>
-		private readonly int MinQueueSizeForScaleOut = 0;
 
-		/// <summary>
-		/// Factor translating queue size to additional agents to grow the pool with
-		///
-		/// Example: if there are 20 jobs in queue, a factor 0.25 will result in 5 new agents being added (20 * 0.25)
-		/// </summary>
-		private readonly double ScaleOutFactor = 0.25;
-		
-		/// <summary>
-		/// Factor by which to shrink the pool size with when queue is empty
-		///
-		/// Example: when the queue size is zero, a default value of 0.9 will shrink the pool by 10% (current agent count * 0.9)
-		/// </summary>
-		private readonly double ScaleInFactor = 0.9;
+		private readonly JobQueueSettings DefaultPoolSettings = new();
 
 		/// <summary>
 		/// Constructor
@@ -143,10 +164,11 @@ namespace Horde.Build.Fleet.Autoscale
 
 			return Pools.Select(Current =>
 			{
+				JobQueueSettings Settings = Current.Pool.JobQueueSettings ?? DefaultPoolSettings;
 				PoolQueueSizes.TryGetValue(Current.Pool.Id, out var QueueSize);
 				if (QueueSize > 0)
 				{
-					int AdditionalAgentCount = (int)Math.Round(QueueSize * ScaleOutFactor);
+					int AdditionalAgentCount = (int)Math.Round(QueueSize * Settings.ScaleOutFactor);
 
 					int NumAgentsEnabled = Current.Agents.Count(x => x.Enabled);
 					if (NumAgentsEnabled == 0)
@@ -157,7 +179,7 @@ namespace Horde.Build.Fleet.Autoscale
 						AdditionalAgentCount = Math.Max(AdditionalAgentCount, 1);	
 					}
 					
-					if (QueueSize < MinQueueSizeForScaleOut)
+					if (QueueSize < Settings.MinQueueSizeForScaleOut)
 						AdditionalAgentCount = 0;
 
 					int DesiredAgentCount = Current.Agents.Count + AdditionalAgentCount;
@@ -165,7 +187,7 @@ namespace Horde.Build.Fleet.Autoscale
 				}
 				else
 				{
-					int DesiredAgentCount = (int)(Current.Agents.Count * ScaleInFactor);
+					int DesiredAgentCount = (int)(Current.Agents.Count * Settings.ScaleInFactor);
 					return new PoolSizeData(Current.Pool, Current.Agents, DesiredAgentCount, "Empty job queue");
 				}
 			}).ToList();

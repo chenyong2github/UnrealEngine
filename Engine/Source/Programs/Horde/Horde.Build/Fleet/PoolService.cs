@@ -2,14 +2,9 @@
 
 using EpicGames.Horde.Common;
 using HordeCommon;
-using HordeServer.Api;
 using HordeServer.Collections;
 using HordeServer.Models;
 using HordeServer.Utilities;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using MongoDB.Bson;
-using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -68,11 +63,13 @@ namespace HordeServer.Services
 		/// <param name="MinAgents">Minimum number of agents in the pool</param>
 		/// <param name="NumReserveAgents">Minimum number of idle agents to maintain</param>
 		/// <param name="SizeStrategy">Pool sizing strategy</param>
+		/// <param name="LeaseUtilizationSettings">Settings for lease utilization strategy</param>
+		/// <param name="JobQueueSettings">Settings for job queue strategy</param>
 		/// <param name="Properties">Properties for the new pool</param>
 		/// <returns>The new pool document</returns>
-		public Task<IPool> CreatePoolAsync(string Name, Condition? Condition = null, bool? EnableAutoscaling = null, int? MinAgents = null, int? NumReserveAgents = null, PoolSizeStrategy? SizeStrategy = null, Dictionary<string, string>? Properties = null)
+		public Task<IPool> CreatePoolAsync(string Name, Condition? Condition = null, bool? EnableAutoscaling = null, int? MinAgents = null, int? NumReserveAgents = null, PoolSizeStrategy? SizeStrategy = null, LeaseUtilizationSettings? LeaseUtilizationSettings = null, JobQueueSettings? JobQueueSettings = null, Dictionary<string, string>? Properties = null)
 		{
-			return Pools.AddAsync(PoolId.Sanitize(Name), Name, Condition, EnableAutoscaling, MinAgents, NumReserveAgents, SizeStrategy, Properties);
+			return Pools.AddAsync(PoolId.Sanitize(Name), Name, Condition, EnableAutoscaling, MinAgents, NumReserveAgents, SizeStrategy, LeaseUtilizationSettings, JobQueueSettings, Properties);
 		}
 
 		/// <summary>

@@ -1,15 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Horde.Common;
-using HordeServer.Api;
 using HordeServer.Utilities;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Security.Permissions;
-using System.Threading.Tasks;
 using Horde.Build.Fleet.Autoscale;
 
 namespace HordeServer.Models
@@ -80,6 +74,16 @@ namespace HordeServer.Models
 		/// Pool sizing strategy to be used for this pool
 		/// </summary>
 		public PoolSizeStrategy? SizeStrategy { get; }
+		
+		/// <summary>
+		/// Settings for lease utilization pool sizing strategy (if used)
+		/// </summary>
+		public LeaseUtilizationSettings? LeaseUtilizationSettings { get; }
+		
+		/// <summary>
+		/// Settings for job queue pool sizing strategy (if used)
+		/// </summary>
+		public JobQueueSettings? JobQueueSettings { get; }
 
 		/// <summary>
 		/// Update index for this document

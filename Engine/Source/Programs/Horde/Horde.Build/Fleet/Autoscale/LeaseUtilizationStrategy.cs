@@ -17,6 +17,13 @@ using OpenTracing.Util;
 namespace Horde.Build.Fleet.Autoscale
 {
 	using PoolId = StringId<IPool>;
+
+	/// <summary>
+	/// Lease utilization sizing settings for a pool
+	/// </summary>
+	public class LeaseUtilizationSettings
+	{
+	}
 	
 	/// <summary>
 	/// Calculate pool size by looking at previously finished leases

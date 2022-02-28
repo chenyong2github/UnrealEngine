@@ -60,7 +60,10 @@ namespace HordeServer.Controllers
 				return Forbid(AclAction.CreatePool);
 			}
 
-			IPool NewPool = await PoolService.CreatePoolAsync(Create.Name, Create.Condition, Create.EnableAutoscaling, Create.MinAgents, Create.NumReserveAgents, Create.SizeStrategy, Create.Properties);
+			Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings? LuSettings = Create.LeaseUtilizationSettings?.Convert();
+			Horde.Build.Fleet.Autoscale.JobQueueSettings? JqSettings = Create.JobQueueSettings?.Convert();
+
+			IPool NewPool = await PoolService.CreatePoolAsync(Create.Name, Create.Condition, Create.EnableAutoscaling, Create.MinAgents, Create.NumReserveAgents, Create.SizeStrategy, LuSettings, JqSettings, Create.Properties);
 			return new CreatePoolResponse(NewPool.Id.ToString());
 		}
 
