@@ -2,6 +2,7 @@
 
 #include "AnimDataController.h"
 #include "AnimDataControllerActions.h"
+#include "MovieSceneTimeHelpers.h"
 
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimData/CurveIdentifier.h"
@@ -1557,6 +1558,193 @@ bool UAnimDataController::SetBoneTrackKeys(FName BoneName, const TArray<FVector3
 	return false;
 }
 
+int32 DiscreteInclusiveLower(const TRange<int32>& InRange)
+{
+	check(!InRange.GetLowerBound().IsOpen());
+
+	// Add one for exclusive lower bounds since they start on the next subsequent frame
+	static const int32 Offsets[]   = { 0, 1 };
+	const int32        OffsetIndex = (int32)InRange.GetLowerBound().IsExclusive();
+
+	return InRange.GetLowerBound().GetValue() + Offsets[OffsetIndex];
+}
+
+int32 DiscreteExclusiveUpper(const TRange<int32>& InRange)
+{
+	check(!InRange.GetUpperBound().IsOpen());
+
+	// Add one for inclusive upper bounds since they finish on the next subsequent frame
+	static const int32 Offsets[]   = { 0, 1 };
+	const int32        OffsetIndex = (int32)InRange.GetUpperBound().IsInclusive();
+
+	return InRange.GetUpperBound().GetValue() + Offsets[OffsetIndex];
+}
+
+bool UAnimDataController::UpdateBoneTrackKeys(FName BoneName, const FInt32Range& KeyRangeToSet, const TArray<FVector3f>& PositionalKeys, const TArray<FQuat4f>& RotationalKeys, const TArray<FVector3f>& ScalingKeys, bool bShouldTransact)
+{	
+	if (!CheckOuterClass(UAnimSequence::StaticClass()))
+	{
+		return false;
+	}
+
+	CONDITIONAL_TRANSACTION(LOCTEXT("SetTrackKeysRangeTransaction", "Setting Animation Data Track keys"));
+
+	// Validate key format
+	const int32 MaxNumKeys = FMath::Max(FMath::Max(PositionalKeys.Num(), RotationalKeys.Num()), ScalingKeys.Num());
+	const int32 RangeMin = DiscreteInclusiveLower(KeyRangeToSet);
+	const int32 RangeMax = DiscreteExclusiveUpper(KeyRangeToSet);
+	if (MaxNumKeys > 0)
+	{
+		const bool bValidPosKeys = PositionalKeys.Num() == MaxNumKeys;
+		const bool bValidRotKeys = RotationalKeys.Num() == MaxNumKeys;
+		const bool bValidScaleKeys = ScalingKeys.Num() == MaxNumKeys;
+
+		if (bValidPosKeys && bValidRotKeys && bValidScaleKeys)
+		{
+			const int32 NumKeysToSet = RangeMax - RangeMin;
+			if (NumKeysToSet == MaxNumKeys)
+			{
+				if (FBoneAnimationTrack* TrackPtr = Model->FindMutableBoneTrackByName(BoneName))
+				{
+					const FInt32Range TrackKeyRange(0, TrackPtr->InternalTrackData.PosKeys.Num());
+					if(TrackKeyRange.Contains(KeyRangeToSet))
+					{
+						FRawAnimSequenceTrack& InternalTrackData = TrackPtr->InternalTrackData;
+						TArray<FVector3f>& TrackPosKeys = InternalTrackData.PosKeys;
+						TArray<FQuat4f>& TrackRotKeys = InternalTrackData.RotKeys;
+						TArray<FVector3f>& TrackScaleKeys = InternalTrackData.ScaleKeys;
+
+						CONDITIONAL_ACTION(UE::Anim::FSetTrackKeysAction, *TrackPtr);
+
+						int32 KeyIndex = 0;
+						for (int32 FrameIndex = RangeMin; FrameIndex < RangeMax; ++FrameIndex, ++KeyIndex)
+						{
+							TrackPosKeys[FrameIndex] = PositionalKeys[KeyIndex];
+							TrackRotKeys[FrameIndex] = RotationalKeys[KeyIndex];
+							TrackScaleKeys[FrameIndex] = ScalingKeys[KeyIndex];
+						}
+
+						FAnimationTrackChangedPayload Payload;
+						Payload.Name = BoneName;
+
+						Model->Notify(EAnimDataModelNotifyType::TrackChanged, Payload);
+
+						return true;
+					}
+					else
+					{
+						ReportWarningf(LOCTEXT("InvalidTrackSetFrameRange", "Range of to-be-set bone track (with name {0}) keys does not overlap existing range"), FText::FromName(BoneName));
+					}
+				}
+				else
+				{
+					ReportWarningf(LOCTEXT("InvalidTrackNameWarning", "Track with name {0} does not exist"), FText::FromName(BoneName));
+				}
+			}
+			else
+			{
+				ReportErrorf(LOCTEXT("InvalidKeyIndexRangeError",
+								 "Invalid key index range bound [{0}, {1}], expected to equal the size of the positional, rotational and scaling keys {2}"),
+								 FText::AsNumber(RangeMin),
+								 FText::AsNumber(RangeMax),
+								 FText::AsNumber(MaxNumKeys));
+			}	
+		}
+		else
+		{
+			ReportErrorf(LOCTEXT("InvalidTrackKeyDataError", "Invalid track key data, expected uniform data: number of positional keys {0}, number of rotational keys {1}, number of scaling keys {2}"), FText::AsNumber(PositionalKeys.Num()), FText::AsNumber(RotationalKeys.Num()), FText::AsNumber(ScalingKeys.Num()));
+		}
+	}
+	else
+	{
+		ReportErrorf(LOCTEXT("MissingTrackKeyDataError", "Missing track key data, expected uniform data: number of positional keys {0}, number of rotational keys {1}, number of scaling keys {2}"), FText::AsNumber(PositionalKeys.Num()), FText::AsNumber(RotationalKeys.Num()), FText::AsNumber(ScalingKeys.Num()));
+	}
+
+	return false;
+}
+
+bool UAnimDataController::UpdateBoneTrackKeys(FName BoneName, const FInt32Range& KeyRangeToSet, const TArray<FVector>& PositionalKeys, const TArray<FQuat>& RotationalKeys, const TArray<FVector>& ScalingKeys, bool bShouldTransact)
+{
+	if (!CheckOuterClass(UAnimSequence::StaticClass()))
+	{
+		return false;
+	}
+
+	CONDITIONAL_TRANSACTION(LOCTEXT("SetTrackKeysTransaction", "Setting Animation Data Track keys"));
+
+	// Validate key format
+	const int32 MaxNumKeys = FMath::Max(FMath::Max(PositionalKeys.Num(), RotationalKeys.Num()), ScalingKeys.Num());
+	const int32 RangeMin = DiscreteInclusiveLower(KeyRangeToSet);
+	const int32 RangeMax = DiscreteExclusiveUpper(KeyRangeToSet);
+	if (MaxNumKeys > 0)
+	{
+		const bool bValidPosKeys = PositionalKeys.Num() == MaxNumKeys;
+		const bool bValidRotKeys = RotationalKeys.Num() == MaxNumKeys;
+		const bool bValidScaleKeys = ScalingKeys.Num() == MaxNumKeys;
+
+		if (bValidPosKeys && bValidRotKeys && bValidScaleKeys)
+		{
+			const int32 NumKeysToSet = RangeMax - RangeMin;
+			if (NumKeysToSet == MaxNumKeys)
+			{
+				if (FBoneAnimationTrack* TrackPtr = Model->FindMutableBoneTrackByName(BoneName))
+				{
+					const FInt32Range TrackKeyRange(0, TrackPtr->InternalTrackData.PosKeys.Num());
+					if(TrackKeyRange.Contains(KeyRangeToSet))
+					{
+						FRawAnimSequenceTrack& InternalTrackData = TrackPtr->InternalTrackData;
+						TArray<FVector3f>& TrackPosKeys = InternalTrackData.PosKeys;
+						TArray<FQuat4f>& TrackRotKeys = InternalTrackData.RotKeys;
+						TArray<FVector3f>& TrackScaleKeys = InternalTrackData.ScaleKeys;
+
+						CONDITIONAL_ACTION(UE::Anim::FSetTrackKeysAction, *TrackPtr);
+
+						int32 KeyIndex = 0;
+						for (int32 FrameIndex = RangeMin; FrameIndex < RangeMax; ++FrameIndex, ++KeyIndex)
+						{
+							TrackPosKeys[FrameIndex] = FVector3f(PositionalKeys[KeyIndex]);
+							TrackRotKeys[FrameIndex] = FQuat4f(RotationalKeys[KeyIndex]);
+							TrackScaleKeys[FrameIndex] = FVector3f(ScalingKeys[KeyIndex]);
+						}
+
+						FAnimationTrackChangedPayload Payload;
+						Payload.Name = BoneName;
+
+						Model->Notify(EAnimDataModelNotifyType::TrackChanged, Payload);
+
+						return true;
+					}
+					else
+					{
+						ReportWarningf(LOCTEXT("InvalidTrackSetFrameRange", "Range of to-be-set bone track (with name {0}) keys does not overlap existing range"), FText::FromName(BoneName));
+					}
+				}
+				else
+				{
+					ReportWarningf(LOCTEXT("InvalidTrackNameWarning", "Track with name {0} does not exist"), FText::FromName(BoneName));
+				}
+			}
+			else
+			{
+				ReportErrorf(LOCTEXT("InvalidKeyIndexRangeError",
+								 "Invalid key index range bound [{0}, {1}], expected to equal the size of the positional, rotational and scaling keys {2}"),
+								 FText::AsNumber(KeyRangeToSet.GetLowerBoundValue()),
+								 FText::AsNumber(KeyRangeToSet.GetUpperBoundValue()),
+								 FText::AsNumber(MaxNumKeys));
+			}	
+		}
+		else
+		{
+			ReportErrorf(LOCTEXT("InvalidTrackKeyDataError", "Invalid track key data, expected uniform data: number of positional keys {0}, number of rotational keys {1}, number of scaling keys {2}"), FText::AsNumber(PositionalKeys.Num()), FText::AsNumber(RotationalKeys.Num()), FText::AsNumber(ScalingKeys.Num()));
+		}
+	}
+	else
+	{
+		ReportErrorf(LOCTEXT("MissingTrackKeyDataError", "Missing track key data, expected uniform data: number of positional keys {0}, number of rotational keys {1}, number of scaling keys {2}"), FText::AsNumber(PositionalKeys.Num()), FText::AsNumber(RotationalKeys.Num()), FText::AsNumber(ScalingKeys.Num()));
+	}
+
+	return false;
+}
 
 void UAnimDataController::ResizeCurves(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact /*= true*/)
 {

@@ -36,6 +36,7 @@ struct FAnimCompressContext;
 struct FAnimSequenceDecompressionContext;
 struct FCompactPose;
 
+namespace UE { namespace Anim { namespace Compression { struct FScopedCompressionGuard; } } }
 
 // These two always should go together, but it is not right now. 
 // I wonder in the future, we change all compressed to be inside as well, so they all stay together
@@ -1110,6 +1111,6 @@ public:
 	friend class UAnimationBlueprintLibrary;
 	friend class UAnimBoneCompressionSettings;
 	friend class FCustomAttributeCustomization;
-	friend class UAnimationBlueprintLibrary;
 	friend class FAnimSequenceTestBase;
+	friend struct UE::Anim::Compression::FScopedCompressionGuard;
 };

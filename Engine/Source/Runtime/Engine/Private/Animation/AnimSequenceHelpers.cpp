@@ -716,6 +716,22 @@ void Compression::SanitizeRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack)
 }
 
 #if WITH_EDITOR
+Compression::FScopedCompressionGuard::FScopedCompressionGuard(UAnimSequence* InAnimSequence) : AnimSequence(InAnimSequence)
+{
+	if(AnimSequence)
+	{
+		AnimSequence->bBlockCompressionRequests = true;		
+	}
+}
+
+Compression::FScopedCompressionGuard::~FScopedCompressionGuard()
+{
+	if(AnimSequence)
+	{
+		AnimSequence->bBlockCompressionRequests = false;		
+	}
+}
+
 bool AnimationData::AddLoopingInterpolation(UAnimSequence* InSequence)
 {
 	const UAnimDataModel* DataModel = InSequence->GetDataModel();

@@ -198,6 +198,18 @@ namespace Anim {
 		* @param	RawTrack			Individual track to sanitize
 		*/
 		ENGINE_API void SanitizeRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack);
+
+#if WITH_EDITOR
+		// RAII helper to temporarily block Animation compression requests for specified AnimationSequence
+		struct ENGINE_API FScopedCompressionGuard
+		{
+			FScopedCompressionGuard() = delete;
+			FScopedCompressionGuard(UAnimSequence* InAnimSequence);
+			~FScopedCompressionGuard();
+		protected:
+			TObjectPtr<UAnimSequence> AnimSequence;
+		};
+#endif // WITH_EDITOR
 	}
 
 	namespace Retargeting
