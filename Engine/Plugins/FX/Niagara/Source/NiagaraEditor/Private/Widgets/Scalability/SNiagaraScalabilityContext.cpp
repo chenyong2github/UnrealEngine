@@ -83,16 +83,19 @@ void SNiagaraScalabilityContext::UpdateScalabilityContent()
 	if(SelectedNodes.Num() > 0)
 	{
 		UObject* Object = SelectedNodes.Array()[0];
-		UNiagaraOverviewNode* OverviewNode = CastChecked<UNiagaraOverviewNode>(Object);
-		if(FNiagaraEmitterHandle* Handle = OverviewNode->TryGetEmitterHandle())
+		UNiagaraOverviewNode* OverviewNode = Cast<UNiagaraOverviewNode>(Object);
+		if(OverviewNode)
 		{
-			SetObject(Handle->GetInstance());
-			return;
-		}
-		else
-		{
-			SetObject(OverviewNode->GetOwningSystem());
-			return;
+			if(FNiagaraEmitterHandle* Handle = OverviewNode->TryGetEmitterHandle())
+			{
+				SetObject(Handle->GetInstance());
+				return;
+			}
+			else
+			{
+				SetObject(OverviewNode->GetOwningSystem());
+				return;
+			}
 		}
 	}
 }

@@ -217,30 +217,42 @@ void SNiagaraSystemResolvedScalabilitySettings::RebuildWidget()
 {
 	ResolvedScalabilityContainer->ClearChildren();
 	
-	const TSet<UObject*>& SelectedNodes = SystemViewModel->GetOverviewGraphViewModel()->GetNodeSelection()->GetSelectedObjects();
+	TSet<UNiagaraOverviewNode*> SelectedOverviewNodes;
 
-	if(SelectedNodes.Num() > 0)
+	for(UObject* SelectedNode : SystemViewModel->GetOverviewGraphViewModel()->GetNodeSelection()->GetSelectedObjects())
 	{
-		for(UObject* SelectedNode : SelectedNodes)
+		UNiagaraOverviewNode* OverviewNode = Cast<UNiagaraOverviewNode>(SelectedNode);
+		if(OverviewNode)
 		{
-			UNiagaraOverviewNode* OverviewNode = CastChecked<UNiagaraOverviewNode>(SelectedNode);
-			if(FNiagaraEmitterHandle* Handle = OverviewNode->TryGetEmitterHandle())
+			SelectedOverviewNodes.Add(OverviewNode);
+		}
+	}
+	
+	if(SelectedOverviewNodes.Num() > 0)
+	{
+		for(UObject* SelectedNode : SelectedOverviewNodes)
+		{
+			UNiagaraOverviewNode* OverviewNode = Cast<UNiagaraOverviewNode>(SelectedNode);
+			if(OverviewNode)
 			{
-				Handle->GetInstance()->OnPropertiesChanged().RemoveAll(this);
-				Handle->GetInstance()->OnPropertiesChanged().AddSP(this, &SNiagaraSystemResolvedScalabilitySettings::RebuildWidget);
-				ResolvedScalabilityContainer->AddSlot()
-				.AutoHeight()
-				[
-					GenerateResolvedScalabilityTable(Handle->GetInstance())
-				];
-			}
-			else
-			{
-				ResolvedScalabilityContainer->AddSlot()
-				.AutoHeight()
-				[
-					GenerateResolvedScalabilityTable(OverviewNode->GetOwningSystem())
-				];
+				if(FNiagaraEmitterHandle* Handle = OverviewNode->TryGetEmitterHandle())
+				{
+					Handle->GetInstance()->OnPropertiesChanged().RemoveAll(this);
+					Handle->GetInstance()->OnPropertiesChanged().AddSP(this, &SNiagaraSystemResolvedScalabilitySettings::RebuildWidget);
+					ResolvedScalabilityContainer->AddSlot()
+					.AutoHeight()
+					[
+						GenerateResolvedScalabilityTable(Handle->GetInstance())
+					];
+				}
+				else
+				{
+					ResolvedScalabilityContainer->AddSlot()
+					.AutoHeight()
+					[
+						GenerateResolvedScalabilityTable(OverviewNode->GetOwningSystem())
+					];
+				}
 			}
 		}
 	}
