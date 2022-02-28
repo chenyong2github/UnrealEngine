@@ -13,34 +13,34 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Bundles.Nodes
 {
 	/// <summary>
-	/// Options for creating chunk nodes
+	/// Options for creating file nodes
 	/// </summary>
-	public class ChunkOptions
+	public class ChunkingOptions
 	{
 		/// <summary>
 		/// Options for creating leaf nodes
 		/// </summary>
-		public TypedChunkOptions LeafOptions { get; set; }
+		public ChunkingOptionsForNodeType LeafOptions { get; set; }
 
 		/// <summary>
 		/// Options for creating interior nodes
 		/// </summary>
-		public TypedChunkOptions InteriorOptions { get; set; }
+		public ChunkingOptionsForNodeType InteriorOptions { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ChunkOptions()
+		public ChunkingOptions()
 		{
-			LeafOptions = new TypedChunkOptions(32 * 1024, 256 * 1024, 64 * 1024);
-			InteriorOptions = new TypedChunkOptions(32 * 1024, 256 * 1024, 64 * 1024);
+			LeafOptions = new ChunkingOptionsForNodeType(32 * 1024, 256 * 1024, 64 * 1024);
+			InteriorOptions = new ChunkingOptionsForNodeType(32 * 1024, 256 * 1024, 64 * 1024);
 		}
 	}
 
 	/// <summary>
-	/// Options for creating a specific type of chunk nodes
+	/// Options for creating a specific type of file nodes
 	/// </summary>
-	public class TypedChunkOptions
+	public class ChunkingOptionsForNodeType
 	{
 		/// <summary>
 		/// Minimum chunk size
@@ -60,7 +60,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public TypedChunkOptions(int MinSize, int MaxSize, int TargetSize)
+		public ChunkingOptionsForNodeType(int MinSize, int MaxSize, int TargetSize)
 		{
 			this.MinSize = MinSize;
 			this.MaxSize = MaxSize;
@@ -73,8 +73,8 @@ namespace EpicGames.Horde.Bundles.Nodes
 	/// Chunks are pushed into a tree hierarchy as data is appended to the root, with nodes of the tree also split along content-aware boundaries with <see cref="IoHash.NumBytes"/> granularity.
 	/// Once a chunk has been written to storage, it is treated as immutable.
 	/// </summary>
-	[BundleNodeFactory(typeof(ChunkNodeFactory))]
-	public sealed class ChunkNode : BundleNode
+	[BundleNodeFactory(typeof(FileNodeFactory))]
+	public sealed class FileNode : BundleNode
 	{
 		const byte TypeId = (byte)'c';
 
@@ -85,29 +85,29 @@ namespace EpicGames.Horde.Bundles.Nodes
 		// In-memory state
 		uint Hash;
 		byte[]? WriteBuffer; // Null if the node is complete and does not support writes
-		List<ChunkNode?>? ChildNodes;
+		List<FileNode?>? ChildNodes;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ChunkNode(Bundle Owner, BundleNode? Parent)
-			: this(Owner, Parent, 0, new ChunkOptions())
+		public FileNode(Bundle Owner, BundleNode? Parent)
+			: this(Owner, Parent, 0, new ChunkingOptions())
 		{
 		}
 
 		/// <summary>
-		/// Create a writable chunk node
+		/// Create a writable file node
 		/// </summary>
-		private ChunkNode(Bundle Owner, BundleNode? Parent, int Depth, ChunkOptions Options)
+		private FileNode(Bundle Owner, BundleNode? Parent, int Depth, ChunkingOptions Options)
 			: base(Owner, Parent)
 		{
 			MakeWritable(Depth, Options);
 		}
 
 		/// <summary>
-		/// Create a chunk node from deserialized data
+		/// Create a file node from deserialized data
 		/// </summary>
-		public ChunkNode(Bundle Owner, BundleNode? Parent, IoHash Hash, ReadOnlyMemory<byte> Data)
+		public FileNode(Bundle Owner, BundleNode? Parent, IoHash Hash, ReadOnlyMemory<byte> Data)
 			: base(Owner, Parent, Hash)
 		{
 			ReadOnlySpan<byte> Span = Data.Span;
@@ -124,12 +124,12 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 			if (Depth > 0)
 			{
-				ChildNodes = new List<ChunkNode?>(Payload.Length / IoHash.NumBytes);
-				ChildNodes.AddRange(Enumerable.Repeat<ChunkNode?>(null, Payload.Length / IoHash.NumBytes));
+				ChildNodes = new List<FileNode?>(Payload.Length / IoHash.NumBytes);
+				ChildNodes.AddRange(Enumerable.Repeat<FileNode?>(null, Payload.Length / IoHash.NumBytes));
 			}
 		}
 
-		private void MakeWritable(int Depth, ChunkOptions Options)
+		private void MakeWritable(int Depth, ChunkingOptions Options)
 		{
 			int WriteBufferSize = 1 + VarInt.Measure(Depth);
 			if (Depth == 0)
@@ -151,7 +151,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			this.Data = WriteBuffer.AsMemory(0, HeaderLength);
 			this.Hash = 0;
 			this.WriteBuffer = WriteBuffer;
-			this.ChildNodes = (Depth > 0) ? new List<ChunkNode?>() : null;
+			this.ChildNodes = (Depth > 0) ? new List<FileNode?>() : null;
 		}
 
 		/// <summary>
@@ -164,19 +164,19 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// </summary>
 		/// <param name="Index">Index of the child node</param>
 		/// <returns>Node containing data for the given child</returns>
-		public async ValueTask<ChunkNode> GetChildNodeAsync(int Index)
+		public async ValueTask<FileNode> GetChildNodeAsync(int Index)
 		{
 			if(ChildNodes == null)
 			{
 				throw new InvalidOperationException("Node does not contain any children");
 			}
 
-			ChunkNode? ChildNode = ChildNodes[Index];
+			FileNode? ChildNode = ChildNodes[Index];
 			if (ChildNode == null)
 			{
 				IoHash Hash = new IoHash(Payload.Span.Slice(Index * IoHash.NumBytes));
 				ReadOnlyMemory<byte> Data = await Owner.GetDataAsync(Hash);
-				ChildNode = new ChunkNode(Owner, this, Hash, Data);
+				ChildNode = new FileNode(Owner, this, Hash, Data);
 				ChildNodes[Index] = ChildNode;
 			}
 			return ChildNode;
@@ -186,7 +186,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// Enumerate the children from this node
 		/// </summary>
 		/// <returns></returns>
-		public async IAsyncEnumerable<ChunkNode> GetChildNodesAsync()
+		public async IAsyncEnumerable<FileNode> GetChildNodesAsync()
 		{
 			for (int Idx = 0; Idx < GetChildCount(); Idx++)
 			{
@@ -208,12 +208,12 @@ namespace EpicGames.Horde.Bundles.Nodes
 		}
 
 		/// <summary>
-		/// Copy data from the given stream into this chunk node
+		/// Copy data from the given stream into this file node
 		/// </summary>
 		/// <param name="InputStream"></param>
 		/// <param name="Options"></param>
 		/// <returns></returns>
-		public async Task CopyFromStreamAsync(Stream InputStream, ChunkOptions Options)
+		public async Task CopyFromStreamAsync(Stream InputStream, ChunkingOptions Options)
 		{
 			byte[] Buffer = new byte[64 * 1024];
 			for (; ; )
@@ -233,7 +233,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <param name="File"></param>
 		/// <param name="Options"></param>
 		/// <returns></returns>
-		public async Task CopyFromFileAsync(FileInfo File, ChunkOptions Options)
+		public async Task CopyFromFileAsync(FileInfo File, ChunkingOptions Options)
 		{
 			using (FileStream Stream = File.OpenRead())
 			{
@@ -251,7 +251,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			{
 				for (int Idx = 0; Idx < GetChildCount(); Idx++)
 				{
-					ChunkNode Node = await GetChildNodeAsync(Idx);
+					FileNode Node = await GetChildNodeAsync(Idx);
 					await Node.CopyToStreamAsync(OutputStream);
 				}
 			}
@@ -279,11 +279,11 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// </summary>
 		/// <param name="Input">The data to write</param>
 		/// <param name="Options">Settings for chunking the data</param>
-		public void Append(ReadOnlyMemory<byte> Input, ChunkOptions Options)
+		public void Append(ReadOnlyMemory<byte> Input, ChunkingOptions Options)
 		{
-			if (Parent is ChunkNode)
+			if (Parent is FileNode)
 			{
-				throw new InvalidOperationException("Data may only be appended to the root of a tree of chunk nodes.");
+				throw new InvalidOperationException("Data may only be appended to the root of a tree of file nodes.");
 			}
 
 			for (; ; )
@@ -296,12 +296,12 @@ namespace EpicGames.Horde.Bundles.Nodes
 				}
 
 				// Increase the height of the tree by pushing the contents of this node into a new child node
-				ChunkNode NewNode = new ChunkNode(Owner, this, IoHash.Zero, Data);
+				FileNode NewNode = new FileNode(Owner, this, IoHash.Zero, Data);
 				if (ChildNodes != null)
 				{
 					for (int Idx = 0; Idx < ChildNodes.Count; Idx++)
 					{
-						ChunkNode? ChildNode = ChildNodes[Idx];
+						FileNode? ChildNode = ChildNodes[Idx];
 						if (ChildNode != null)
 						{
 							ChildNode.Parent = NewNode;
@@ -316,7 +316,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			}
 		}
 
-		private ReadOnlyMemory<byte> AppendToNode(ReadOnlyMemory<byte> Data, ChunkOptions Options)
+		private ReadOnlyMemory<byte> AppendToNode(ReadOnlyMemory<byte> Data, ChunkingOptions Options)
 		{
 			if (WriteBuffer == null || Data.Length == 0)
 			{
@@ -333,7 +333,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			}
 		}
 
-		private ReadOnlyMemory<byte> AppendToLeafNode(ReadOnlyMemory<byte> NewData, ChunkOptions Options)
+		private ReadOnlyMemory<byte> AppendToLeafNode(ReadOnlyMemory<byte> NewData, ChunkingOptions Options)
 		{
 			ReadOnlySpan<byte> NewSpan = NewData.Span;
 
@@ -355,7 +355,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			return ReadOnlyMemory<byte>.Empty;
 		}
 
-		private ReadOnlyMemory<byte> AppendToInteriorNode(ReadOnlyMemory<byte> NewData, ChunkOptions Options)
+		private ReadOnlyMemory<byte> AppendToInteriorNode(ReadOnlyMemory<byte> NewData, ChunkingOptions Options)
 		{
 			for (; ; )
 			{
@@ -364,7 +364,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				// Try to write to the last node
 				if (ChildNodes.Count > 0)
 				{
-					ChunkNode? LastNode = ChildNodes[^1];
+					FileNode? LastNode = ChildNodes[^1];
 					if (LastNode != null)
 					{
 						NewData = LastNode.AppendToNode(NewData, Options);
@@ -395,12 +395,12 @@ namespace EpicGames.Horde.Bundles.Nodes
 				}
 
 				// Create a new child node
-				ChunkNode NewNode = new ChunkNode(Owner, this, Depth - 1, Options);
+				FileNode NewNode = new FileNode(Owner, this, Depth - 1, Options);
 				AddChildNode(NewNode);
 			}
 		}
 
-		void AddChildNode(ChunkNode NewNode)
+		void AddChildNode(FileNode NewNode)
 		{
 			Debug.Assert(ChildNodes != null);
 			ChildNodes.Add(NewNode);
@@ -434,7 +434,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			// If we're still writing to the last node, flush it to the write buffer
 			if (ChildNodes != null && ChildNodes.Count > 0)
 			{
-				ChunkNode? LastNode = ChildNodes[^1];
+				FileNode? LastNode = ChildNodes[^1];
 				if (LastNode != null && LastNode.WriteBuffer != null)
 				{
 					Span<byte> LastHashSpan = WriteBuffer.AsSpan(Data.Length - IoHash.NumBytes);
@@ -460,20 +460,20 @@ namespace EpicGames.Horde.Bundles.Nodes
 	}
 
 	/// <summary>
-	/// Factory class for chunk nodes
+	/// Factory class for file nodes
 	/// </summary>
-	public class ChunkNodeFactory : BundleNodeFactory<ChunkNode>
+	public class FileNodeFactory : BundleNodeFactory<FileNode>
 	{
 		/// <inheritdoc/>
-		public override ChunkNode CreateRoot(Bundle Bundle)
+		public override FileNode CreateRoot(Bundle Bundle)
 		{
-			return new ChunkNode(Bundle, null);
+			return new FileNode(Bundle, null);
 		}
 
 		/// <inheritdoc/>
-		public override ChunkNode ParseRoot(Bundle Bundle, IoHash Hash, ReadOnlyMemory<byte> Data)
+		public override FileNode ParseRoot(Bundle Bundle, IoHash Hash, ReadOnlyMemory<byte> Data)
 		{
-			return new ChunkNode(Bundle, null, Hash, Data);
+			return new FileNode(Bundle, null, Hash, Data);
 		}
 	}
 }

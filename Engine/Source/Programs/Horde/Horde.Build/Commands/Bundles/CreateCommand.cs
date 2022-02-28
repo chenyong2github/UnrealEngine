@@ -49,7 +49,7 @@ namespace HordeServer.Commands.Bundles
 			IStorageClient StorageClient = base.CreateStorageClient(Logger);
 
 			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new BundleOptions(), null);
-			await Bundle.Root.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkOptions(), Logger);
+			await Bundle.Root.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), Logger);
 			await Bundle.WriteAsync(BucketId, RefId, false, DateTime.UtcNow);
 
 			return 0;

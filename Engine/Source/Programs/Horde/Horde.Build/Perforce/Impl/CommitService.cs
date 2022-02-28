@@ -87,7 +87,7 @@ namespace HordeServer.Commits.Impl
 		/// <summary>
 		/// Options for how objects are sliced
 		/// </summary>
-		public ChunkOptions Chunking { get; set; } = new ChunkOptions();
+		public ChunkingOptions Chunking { get; set; } = new ChunkingOptions();
 	}
 
 	/// <summary>
@@ -909,7 +909,7 @@ namespace HordeServer.Commits.Impl
 					}
 
 					string Path = SyncRecord.Path.Substring(ClientInfo.Client.Root.Length).Replace('\\', '/');
-					ChunkNode File = await Contents.CreateFileByPathAsync(Path, DirectoryEntryFlags.PerforceDepotPathAndRevision);
+					FileNode File = await Contents.CreateFileByPathAsync(Path, DirectoryEntryFlags.PerforceDepotPathAndRevision);
 
 					byte[] Data = Encoding.UTF8.GetBytes($"{SyncRecord.DepotFile}#{SyncRecord.Revision}");
 					File.Append(Data, Options.Chunking);
@@ -917,7 +917,7 @@ namespace HordeServer.Commits.Impl
 			}
 			else
 			{
-				Dictionary<int, ChunkNode> Files = new Dictionary<int, ChunkNode>();
+				Dictionary<int, FileNode> Files = new Dictionary<int, FileNode>();
 				await foreach (PerforceResponse Response in Perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { $"{QueryPath}@{Change}" }, null, typeof(SyncRecord), true, default))
 				{
 					PerforceIo? Io = Response.Io;
@@ -930,7 +930,7 @@ namespace HordeServer.Commits.Impl
 						}
 						else if (Io.Command == PerforceIoCommand.Write)
 						{
-							ChunkNode File = Files[Io.File];
+							FileNode File = Files[Io.File];
 							File.Append(Io.Payload, Options.Chunking);
 						}
 						else if (Io.Command == PerforceIoCommand.Close)

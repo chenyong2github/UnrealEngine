@@ -119,7 +119,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// Gets the file associated with this entry
 		/// </summary>
 		/// <returns>File object associated with this entry</returns>
-		public async ValueTask<ChunkNode> GetFileAsync()
+		public async ValueTask<FileNode> GetFileAsync()
 		{
 			if ((Flags & DirectoryEntryFlags.File) == 0)
 			{
@@ -128,9 +128,9 @@ namespace EpicGames.Horde.Bundles.Nodes
 			if (Node == null)
 			{
 				ReadOnlyMemory<byte> Data = await Directory.Owner.GetDataAsync(Hash);
-				Node = new ChunkNode(Directory.Owner, Directory, Hash, Data);
+				Node = new FileNode(Directory.Owner, Directory, Hash, Data);
 			}
-			return (ChunkNode)Node;
+			return (FileNode)Node;
 		}
 
 		/// <summary>
@@ -200,14 +200,14 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <param name="Name">Name of the new directory</param>
 		/// <param name="Flags">Flags for the new file</param>
 		/// <returns>The new directory object</returns>
-		public ChunkNode CreateFile(Utf8String Name, DirectoryEntryFlags Flags)
+		public FileNode CreateFile(Utf8String Name, DirectoryEntryFlags Flags)
 		{
 			if((Flags & DirectoryEntryFlags.Directory) != 0)
 			{
 				throw new ArgumentException("Directory flag cannot be specified for new file");
 			}
 
-			ChunkNode NewNode = new ChunkNode(Owner, this);
+			FileNode NewNode = new FileNode(Owner, this);
 
 			DirectoryEntry Entry = new DirectoryEntry(this, Name, Flags | DirectoryEntryFlags.File, NewNode);
 			NameToEntry[Name] = Entry;
@@ -222,7 +222,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <param name="Path">Path to the file</param>
 		/// <param name="Flags">Flags for the new file</param>
 		/// <returns>The new directory object</returns>
-		public async ValueTask<ChunkNode> CreateFileByPathAsync(Utf8String Path, DirectoryEntryFlags Flags)
+		public async ValueTask<FileNode> CreateFileByPathAsync(Utf8String Path, DirectoryEntryFlags Flags)
 		{
 			DirectoryNode Directory = this;
 
@@ -395,7 +395,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <param name="Options">Options for chunking file content</param>
 		/// <param name="Logger"></param>
 		/// <returns></returns>
-		public async Task CopyFromDirectoryAsync(DirectoryInfo DirectoryInfo, ChunkOptions Options, ILogger Logger)
+		public async Task CopyFromDirectoryAsync(DirectoryInfo DirectoryInfo, ChunkingOptions Options, ILogger Logger)
 		{
 			foreach (DirectoryInfo SubDirectoryInfo in DirectoryInfo.EnumerateDirectories())
 			{
@@ -406,7 +406,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			foreach (FileInfo FileInfo in DirectoryInfo.EnumerateFiles())
 			{
 				Logger.LogInformation("Adding {File}", FileInfo.FullName);
-				ChunkNode FileNode = CreateFile(FileInfo.Name, DirectoryEntryFlags.File);
+				FileNode FileNode = CreateFile(FileInfo.Name, DirectoryEntryFlags.File);
  				await FileNode.CopyFromFileAsync(FileInfo, Options);
 			}
 		}
@@ -433,7 +433,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				else
 				{
 					FileInfo FileInfo = new FileInfo(Path.Combine(DirectoryInfo.FullName, Entry.Name.ToString()));
-					ChunkNode FileNode = await Entry.GetFileAsync();
+					FileNode FileNode = await Entry.GetFileAsync();
 					Tasks.Add(Task.Run(() => FileNode.CopyToFileAsync(FileInfo)));
 				}
 			}

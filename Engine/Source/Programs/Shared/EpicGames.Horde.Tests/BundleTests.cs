@@ -252,9 +252,9 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task FixedSizeChunkingTests()
 		{
-			ChunkOptions Options = new ChunkOptions();
-			Options.LeafOptions = new TypedChunkOptions(64, 64, 64);
-			Options.InteriorOptions = new TypedChunkOptions(IoHash.NumBytes * 4, IoHash.NumBytes * 4, IoHash.NumBytes * 4);
+			ChunkingOptions Options = new ChunkingOptions();
+			Options.LeafOptions = new ChunkingOptionsForNodeType(64, 64, 64);
+			Options.InteriorOptions = new ChunkingOptionsForNodeType(IoHash.NumBytes * 4, IoHash.NumBytes * 4, IoHash.NumBytes * 4);
 
 			await ChunkingTests(Options);
 		}
@@ -262,14 +262,14 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task VariableSizeChunkingTests()
 		{
-			ChunkOptions Options = new ChunkOptions();
-			Options.LeafOptions = new TypedChunkOptions(32, 64, 96);
-			Options.InteriorOptions = new TypedChunkOptions(IoHash.NumBytes * 1, IoHash.NumBytes * 4, IoHash.NumBytes * 12);
+			ChunkingOptions Options = new ChunkingOptions();
+			Options.LeafOptions = new ChunkingOptionsForNodeType(32, 64, 96);
+			Options.InteriorOptions = new ChunkingOptionsForNodeType(IoHash.NumBytes * 1, IoHash.NumBytes * 4, IoHash.NumBytes * 12);
 
 			await ChunkingTests(Options);
 		}
 
-		async Task ChunkingTests(ChunkOptions Options)
+		async Task ChunkingTests(ChunkingOptions Options)
 		{
 			byte[] Data = new byte[4096];
 			new Random(0).NextBytes(Data);
@@ -279,7 +279,7 @@ namespace HordeServerTests
 				Data[Idx] = (byte)Idx;
 			}
 
-			Bundle<ChunkNode> Bundle = new Bundle<ChunkNode>(StorageClient, NamespaceId, new BundleOptions(), null);
+			Bundle<FileNode> Bundle = new Bundle<FileNode>(StorageClient, NamespaceId, new BundleOptions(), null);
 
 			const int NumIterations = 100;
 			for (int Idx = 0; Idx < NumIterations; Idx++)
@@ -299,7 +299,7 @@ namespace HordeServerTests
 			await CheckSizes(Bundle.Root, Options, true);
 		}
 
-		async Task CheckSizes(ChunkNode Node, ChunkOptions Options, bool Rightmost)
+		async Task CheckSizes(FileNode Node, ChunkingOptions Options, bool Rightmost)
 		{
 			if (Node.Depth == 0)
 			{
@@ -314,7 +314,7 @@ namespace HordeServerTests
 				int ChildCount = Node.GetChildCount();
 				for (int Idx = 0; Idx < ChildCount; Idx++)
 				{
-					ChunkNode ChildNode = await Node.GetChildNodeAsync(Idx);
+					FileNode ChildNode = await Node.GetChildNodeAsync(Idx);
 					await CheckSizes(ChildNode, Options, Idx == ChildCount - 1);
 				}
 			}
