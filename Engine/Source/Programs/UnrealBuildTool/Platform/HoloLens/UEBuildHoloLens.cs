@@ -720,6 +720,16 @@ namespace UnrealBuildTool
 		{
 			return new HoloLensToolChain(Target);
 		}
+
+		/// <summary>
+		/// Check for the build requirement due to platform requirements
+		/// return true if the project requires a build
+		/// </summary>
+		public override bool RequiresBuild(UnrealTargetPlatform Platform, DirectoryReference ProjectDirectoryName)
+		{
+			// Hololens requires UBT run before packaging so that HoloLensDeploy PrepTargetForDeployment will create the Multi.target file which is used in hololens packaging.
+			return true;
+		}
 	}
 
 
