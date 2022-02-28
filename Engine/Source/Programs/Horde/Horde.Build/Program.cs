@@ -195,6 +195,7 @@ namespace HordeServer
 			Services.AddCommandsFromAssembly(Assembly.GetExecutingAssembly());
 			Services.AddLogging(Builder => Builder.AddSerilog());
 			Services.AddSingleton<IConfiguration>(Config);
+			Services.AddSingleton<ServerSettings>(HordeSettings);
 
 #pragma warning disable ASP0000 // Do not call 'IServiceCollection.BuildServiceProvider' in 'ConfigureServices'
 			IServiceProvider ServiceProvider = Services.BuildServiceProvider();

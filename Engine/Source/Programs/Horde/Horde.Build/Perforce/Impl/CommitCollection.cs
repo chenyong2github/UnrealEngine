@@ -50,7 +50,7 @@ namespace HordeServer.Commits.Impl
 			[BsonElement("p")]
 			public string BasePath { get; set; } = String.Empty;
 
-			[BsonElement("r")]
+			[BsonElement("rid")]
 			public RefId? TreeRefId { get; set; }
 
 			[BsonElement("t")]
