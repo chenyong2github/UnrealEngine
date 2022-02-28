@@ -149,8 +149,8 @@ namespace UnrealGameSync
 
 		private bool IsAutomaticallyRunAtStartup()
 		{
-			RegistryKey Key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
-			return (Key.GetValue("UnrealGameSync") != null);
+			RegistryKey? Key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
+			return (Key?.GetValue("UnrealGameSync") != null);
 		}
 
 		private void OkBtn_Click(object sender, EventArgs e)

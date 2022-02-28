@@ -200,7 +200,7 @@ namespace UnrealGameSync
 
 		public static int GetPortNumber()
 		{
-			object PortValue = Registry.GetValue("HKEY_CURRENT_USER\\Software\\Epic Games\\UnrealGameSync", "AutomationPort", null);
+			object? PortValue = Registry.GetValue("HKEY_CURRENT_USER\\Software\\Epic Games\\UnrealGameSync", "AutomationPort", null);
 			if (PortValue != null && PortValue is int)
 			{
 				return (int)PortValue;

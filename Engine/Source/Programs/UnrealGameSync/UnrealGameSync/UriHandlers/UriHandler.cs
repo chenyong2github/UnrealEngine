@@ -324,7 +324,7 @@ namespace UnrealGameSync
 				{
 					foreach (IGrouping<string, RegistrySetting> KeyNameGroup in RootKeyGroup.GroupBy(x => x.KeyName))
 					{
-						using (RegistryKey RegistryKey = RootKeyGroup.Key.OpenSubKey(KeyNameGroup.Key))
+						using (RegistryKey? RegistryKey = RootKeyGroup.Key.OpenSubKey(KeyNameGroup.Key))
 						{
 							if (RegistryKey == null)
 							{

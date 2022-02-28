@@ -14,7 +14,7 @@ namespace UnrealGameSync
 	{
 		public static void ReadGlobalPerforceSettings(ref string? ServerAndPort, ref string? UserName, ref string? DepotPath)
 		{
-			using (RegistryKey Key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Epic Games\\UnrealGameSync", false))
+			using (RegistryKey? Key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Epic Games\\UnrealGameSync", false))
 			{
 				if (Key != null)
 				{
@@ -38,7 +38,7 @@ namespace UnrealGameSync
 
 		public static void DeleteRegistryKey(RegistryKey RootKey, string KeyName, string ValueName)
 		{
-			using (RegistryKey Key = RootKey.OpenSubKey(KeyName, true))
+			using (RegistryKey? Key = RootKey.OpenSubKey(KeyName, true))
 			{
 				if (Key != null)
 				{
