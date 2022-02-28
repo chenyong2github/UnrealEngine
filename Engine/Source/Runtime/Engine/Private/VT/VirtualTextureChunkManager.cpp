@@ -7,7 +7,6 @@
 #include "UploadingVirtualTexture.h"
 #include "VirtualTextureBuiltData.h"
 #include "BlockCodingHelpers.h"
-#include "CrunchCompression.h"
 #include "FileCache/FileCache.h"
 #include "Containers/LruCache.h"
 

@@ -4,8 +4,9 @@
 
 #include "CoreMinimal.h"
 
+// WITH_CRUNCH=1 is set by the build.cs
 #ifndef WITH_CRUNCH
-#define WITH_CRUNCH 1
+#define WITH_CRUNCH 0
 #endif
 
 /** Crunch compression lib is currently only built for Windows */

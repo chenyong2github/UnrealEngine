@@ -6,8 +6,10 @@ namespace UnrealBuildTool.Rules
 	{
 		public CrunchCompression(ReadOnlyTargetRules Target) : base(Target)
 		{
-           // PrivateIncludePaths.Add("Runtime/CrunchCompression/Private");
-            PublicIncludePaths.Add("Runtime/CrunchCompression/Public");
+			PublicDefinitions.Add("WITH_CRUNCH=1");
+
+			// PrivateIncludePaths.Add("Runtime/CrunchCompression/Private");
+			PublicIncludePaths.Add("Runtime/CrunchCompression/Public");
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

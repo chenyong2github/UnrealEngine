@@ -5,7 +5,6 @@
 #include "VirtualTextureDataBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleManager.h"
-#include "CrunchCompression.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Async/ParallelFor.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
@@ -598,96 +597,12 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 	const int32 TileSize = BuildSettingsLayer0.VirtualTextureTileSize;
 	const int32 BorderSize = BuildSettingsLayer0.VirtualTextureBorderSize;
 	const int32 PhysicalTileSize = TileSize + BorderSize * 2;
+	
+	UE_LOG(LogVirtualTexturing, Verbose, TEXT("VT BuildTiles LayerIndex=%d TileList.Num=%d Pixels=%lld"), LayerIndex, TileList.Num(), (int64)PhysicalTileSize*PhysicalTileSize*TileList.Num() );
 
 	FThreadSafeBool bCompressionError = false;
 	EPixelFormat CompressedFormat = PF_Unknown;
 
-#if WITH_CRUNCH_COMPRESSION
-	if (LayerData.bUseCrunch)
-	{
-		check(LayerData.ImageFormat == ERawImageFormat::BGRA8);
-
-		FCrunchEncodeParameters CrunchParameters;
-		CrunchParameters.ImageWidth = PhysicalTileSize;
-		CrunchParameters.ImageHeight = PhysicalTileSize;
-		CrunchParameters.bIsGammaCorrected = LayerData.GammaSpace != EGammaSpace::Linear;
-		CrunchParameters.OutputFormat = LayerData.TextureFormatName;
-		switch (BuildSettingsLayer0.LossyCompressionAmount)
-		{
-		// map Default to Lowest
-		//	(this used to be done outside in the Engine)
-		case TLCA_Default:
-		case TLCA_Lowest: CrunchParameters.CompressionAmmount = 0.0f; break;
-		case TLCA_Low: CrunchParameters.CompressionAmmount = 0.25f; break;
-		case TLCA_Medium: CrunchParameters.CompressionAmmount = 0.5f; break;
-		case TLCA_High: CrunchParameters.CompressionAmmount = 0.75f; break;
-		case TLCA_Highest: CrunchParameters.CompressionAmmount = 1.0f; break;
-		default: checkNoEntry(); CrunchParameters.CompressionAmmount = 0.0f; break;
-		}
-		
-		UE_LOG(LogVirtualTexturing, Verbose, TEXT("Crunch LCA=%d CompressionAmmount=%f"), (int)BuildSettingsLayer0.LossyCompressionAmount, CrunchParameters.CompressionAmmount);
-
-		// We can't split crunch compression into multiple tasks/threads, since all tiles need to compress together in order to generate the codec payload
-		// Instead we rely on internal Crunch threading to make this efficient
-		// Might be worth modifying Crunch to expose threading callbacks, so this can use UE task graph instead of Crunch's internal threadpool
-		if (bAllowAsync && FApp::ShouldUseThreadingForPerformance())
-		{
-			CrunchParameters.NumWorkerThreads = FTaskGraphInterface::Get().GetNumWorkerThreads();
-		}
-
-		CrunchParameters.RawImagesRGBA.Reserve(TileList.Num());
-		for (const FVTSourceTileEntry& Tile : TileList)
-		{
-			const FTextureSourceBlockData& Block = SourceBlocks[Tile.BlockIndex];
-			const FImage& SourceMip = Block.MipsPerLayer[LayerIndex][Tile.MipIndexInBlock];
-			check(SourceMip.Format == LayerData.ImageFormat);
-
-			FPixelDataRectangle SourceData(LayerData.SourceFormat,
-				SourceMip.SizeX,
-				SourceMip.SizeY,
-				const_cast<uint8*>(SourceMip.RawData.GetData()));
-
-			TArray<uint32>& RawImage = CrunchParameters.RawImagesRGBA.AddDefaulted_GetRef();
-			RawImage.AddUninitialized(PhysicalTileSize * PhysicalTileSize);
-			FPixelDataRectangle TileData(LayerData.SourceFormat, PhysicalTileSize, PhysicalTileSize, (uint8*)RawImage.GetData());
-
-			TileData.Clear();
-			TileData.CopyRectangleBordered(0, 0, SourceData,
-				Tile.TileInBlockX * TileSize - BorderSize,
-				Tile.TileInBlockY * TileSize - BorderSize,
-				PhysicalTileSize,
-				PhysicalTileSize,
-				(TextureAddress)BuildSettingsLayer0.VirtualAddressingModeX,
-				(TextureAddress)BuildSettingsLayer0.VirtualAddressingModeY);
-
-			// Convert input image to the format expected by Crunch library
-			for (int32 PixelIndex = 0u; PixelIndex < RawImage.Num(); ++PixelIndex)
-			{
-				const FColor Color(RawImage[PixelIndex]);
-				RawImage[PixelIndex] = Color.ToPackedABGR();
-			}
-		}
-
-		if (CrunchCompression::Encode(CrunchParameters, GeneratedData.CodecPayload, GeneratedData.TilePayload))
-		{
-			static FName NameDXT1(TEXT("DXT1"));
-			static FName NameDXT5(TEXT("DXT5"));
-			static FName NameBC4(TEXT("BC4"));
-			static FName NameBC5(TEXT("BC5"));
-			GeneratedData.Codec = EVirtualTextureCodec::Crunch;
-			if (LayerData.TextureFormatName == NameDXT1) CompressedFormat = PF_DXT1;
-			else if (LayerData.TextureFormatName == NameDXT5) CompressedFormat = PF_DXT5;
-			else if (LayerData.TextureFormatName == NameBC4) CompressedFormat = PF_BC4;
-			else if (LayerData.TextureFormatName == NameBC5) CompressedFormat = PF_BC5;
-			else CompressedFormat = PF_Unknown;
-		}
-		else
-		{
-			bCompressionError = true;
-		}
-	}
-	else
-#endif // WITH_CRUNCH_COMPRESSION
 	{
 		// Create settings for building the tile. These should be simple, "clean" settings
 		// just compressing the style to a GPU format not adding things like colour correction, ... 
@@ -762,7 +677,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 #endif // SAVE_TILES
 
 			// give each tile a unique DebugTexturePathName for DebugDump option :
-			FString DebugTilePathName = FString::Printf(TEXT("%s_VT%04d"), *DebugTexturePathName, TileIndex);
+			FString DebugTilePathName = FString::Printf(TEXT("%s_L%d_VT%04d"), *DebugTexturePathName, LayerIndex, TileIndex);
 
 			TArray<FCompressedImage2D> CompressedMip;
 			TArray<FImage> EmptyList;
@@ -781,32 +696,11 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 			CompressedFormat = (EPixelFormat)CompressedMip[0].PixelFormat;
 
 			const uint32 SizeRaw = CompressedMip[0].RawData.Num() * CompressedMip[0].RawData.GetTypeSize();
-			if (BuildSettingsLayer0.bVirtualTextureEnableCompressZlib)
-			{
-				TArray<uint8>& TilePayload = GeneratedData.TilePayload[TileIndex];
-				int32 CompressedTileSize = FCompression::CompressMemoryBound(NAME_Zlib, SizeRaw);
-				TilePayload.AddUninitialized(CompressedTileSize);
-				verify(FCompression::CompressMemory(NAME_Zlib, TilePayload.GetData(), CompressedTileSize, CompressedMip[0].RawData.GetData(), SizeRaw));
-				check(CompressedTileSize <= TilePayload.Num());
-
-				// Set the correct size of the compressed tile, but avoid reallocating/copying memory
-				TilePayload.SetNum(CompressedTileSize, false);
-			}
-			else
-			{
-				GeneratedData.TilePayload[TileIndex] = MoveTemp(CompressedMip[0].RawData);
-			}
+			GeneratedData.TilePayload[TileIndex] = MoveTemp(CompressedMip[0].RawData);
 		}, 
 		(bIsSingleThreaded ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None));
 
-		if (BuildSettingsLayer0.bVirtualTextureEnableCompressZlib)
-		{
-			GeneratedData.Codec = EVirtualTextureCodec::ZippedGPU;
-		}
-		else
-		{
-			GeneratedData.Codec = EVirtualTextureCodec::RawGPU;
-		}
+		GeneratedData.Codec = EVirtualTextureCodec::RawGPU;
 	}
 
 	if (OutData.LayerTypes[LayerIndex] == EPixelFormat::PF_Unknown)
@@ -824,6 +718,17 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		GeneratedData.CodecPayload.Empty();
 		GeneratedData.Codec = EVirtualTextureCodec::Max;
 		UE_LOG(LogVirtualTexturing, Fatal, TEXT("Failed build tile"));
+	}
+	else
+	{
+		int CodecPayloadSize = GeneratedData.CodecPayload.Num();
+		int64 TilePayloadTotalSize = 0;
+		for(int i=0;i<GeneratedData.TilePayload.Num();i++)
+		{
+			TilePayloadTotalSize += GeneratedData.TilePayload[i].Num();
+		}
+
+		UE_LOG(LogVirtualTexturing, Verbose, TEXT("VT CodecPayloadSize = %d TilePayloadTotalSize = %lld"), CodecPayloadSize, TilePayloadTotalSize );
 	}
 }
 
@@ -1303,56 +1208,13 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			}
 		}
 
-		bool bUseCrunch = false;
-#if WITH_CRUNCH_COMPRESSION
-		if ( SettingsPerLayer[0].bVirtualTextureEnableCompressCrunch &&
-			SettingsPerLayer[0].LossyCompressionAmount != TLCA_None )
-		{
-			if ( ! CrunchCompression::IsValidFormat(TextureFormatName) )
-			{
-				UE_LOG(LogVirtualTexturing, Warning, TEXT("VT Format invalid for Crunch, disabled") );				
-			}
-			else if ( OutData.Width * OutData.Height > FMath::Square(8u * 1024u) )
-			{
-				// Crunch compressor crashes if given size larger than 8k by 8k, needs to be updated to use 64bit sizes/offsets in various places
-				UE_LOG(LogVirtualTexturing, Warning, TEXT("VT too big for Crunch, disabled") );
-			}
-			else
-			{
-				bUseCrunch = true;
-			}
-		}
-#endif // WITH_CRUNCH_COMPRESSION
-
-		if (bUseCrunch // NOTE: Crunch expects a format with no prefixes. See GetCrnFormat().
-			|| TextureFormatPrefix.IsNone())
+		if ( TextureFormatPrefix.IsNone())
 		{
 			LayerData.TextureFormatName = TextureFormatName;
 		}
 		else
 		{
 			LayerData.TextureFormatName = *(TextureFormatPrefix.ToString() + TextureFormatName.ToString());
-		}
-		LayerData.bUseCrunch = bUseCrunch;
-
-		if (bUseCrunch && LayerData.ImageFormat != ERawImageFormat::BGRA8)
-		{
-			// Crunch input data must be in BGRA8 format
-			LayerData.FormatName = "BGRA8";
-			LayerData.PixelFormat = PF_B8G8R8A8;
-			LayerData.SourceFormat = TSF_BGRA8;
-			LayerData.ImageFormat = ERawImageFormat::BGRA8;
-			LayerData.GammaSpace = BuildSettingsForLayer.GetGammaSpace();
-
-			FImage ConvertedMip;
-			for(FTextureSourceBlockData& SourceBlockData : SourceBlocks)
-			{
-				for (FImage& SourceMip : SourceBlockData.MipsPerLayer[LayerIndex])
-				{
-					SourceMip.CopyTo(ConvertedMip, ERawImageFormat::BGRA8, LayerData.GammaSpace);
-					SourceMip = MoveTemp(ConvertedMip);
-				}
-			}
 		}
 	}
 }

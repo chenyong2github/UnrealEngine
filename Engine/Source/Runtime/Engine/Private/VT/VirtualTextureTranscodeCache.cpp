@@ -4,7 +4,6 @@
 
 #include "BlockCodingHelpers.h"
 #include "EngineModule.h"
-#include "CrunchCompression.h"
 #include "RendererInterface.h"
 #include "UploadingVirtualTexture.h"
 #include "VirtualTextureChunkManager.h"
@@ -102,8 +101,7 @@ struct FTranscodeTask
 
 		// Used to allocate any temp memory needed to decode tile
 		// Inline allocator hopefully avoids heap allocation in most cases
-		// Most common allocation need here is to linearize compressed Crunch source tile
-		// 136x136 DXT5 tile is 18k uncompressed, so will generally be around 2-4k when compressed with Crunch
+		// 136x136 DXT5 tile is 18k uncompressed
 		// TaskGraph threads currently look to be created with 384k of stack space
 		TArray<uint8, TInlineAllocator<16u * 1024>> TempBuffer;
 
@@ -170,32 +168,12 @@ struct FTranscodeTask
 					}
 				}
 				break;
-			case EVirtualTextureCodec::Crunch:
+			case EVirtualTextureCodec::Crunch_DEPRECATED:
 			{
-#if WITH_CRUNCH
-				// See if we can access compressed tile as a single contiguous block of memory
-				int64 DataReadSize = 0;
-				const void* CompressedTile = Params.Data->Read(DataReadSize, DataOffset, TileLayerSize);
-				if (DataReadSize < TileLayerSize)
-				{
-					// Couldn't access the full block, need to allocate temp block of contiguous memory
-					TempBuffer.SetNumUninitialized(TileLayerSize, false);
-					Params.Data->CopyTo(TempBuffer.GetData(), DataOffset, TileLayerSize);
-					CompressedTile = TempBuffer.GetData();
-				}
-
-				check(Params.Codec);
-				const uint32 StagingBufferSize = StagingBufferForLayer.Stride * TileHeightInBlocks;
-				check(StagingBufferSize <= StagingBufferForLayer.MemorySize);
-				bDecodeResult = CrunchCompression::Decode(Params.Codec->Contexts[LayerIndex],
-					CompressedTile, TileLayerSize,
-					StagingBufferForLayer.Memory, StagingBufferSize, StagingBufferForLayer.Stride);
-#else
 				bDecodeResult = false;
-#endif
 				break;
 			}
-			case EVirtualTextureCodec::ZippedGPU:
+			case EVirtualTextureCodec::ZippedGPU_DEPRECATED:
 				if (StagingBufferForLayer.Stride == PackedStride)
 				{
 					// output buffer is tightly packed, can decompress directly

@@ -174,7 +174,7 @@ namespace RuntimeVirtualTexture
 
 		// Spin up slow task UI
 		const float TaskWorkRender = NumTilesX * NumTilesY;
-		const float TextureBuildTaskMultiplier = InComponent->IsCrunchCompressed() ? 3.f : .25f; // Crunch compression is slow.
+		const float TextureBuildTaskMultiplier = 0.25f;
 		const float TaskWorkBuildBulkData = TaskWorkRender * TextureBuildTaskMultiplier;
 		FScopedSlowTask Task(TaskWorkRender + TaskWorkBuildBulkData, FText::AsCultureInvariant(InComponent->GetStreamingTexture()->GetName()));
 		Task.MakeDialog(true);

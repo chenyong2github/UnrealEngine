@@ -127,7 +127,6 @@ public class Engine : ModuleRules
 				"AudioMixer",
 				"AudioMixerCore",
 				"SignalProcessing",
-				"CrunchCompression",
 				"IntelISPC",
 				"TraceLog",
 				"ColorManagement",

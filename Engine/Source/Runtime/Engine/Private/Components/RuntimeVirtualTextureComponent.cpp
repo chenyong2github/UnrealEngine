@@ -147,7 +147,6 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 			uint32 LODGroup : 8;
 			uint32 CompressTextures : 1;
 			uint32 SinglePhysicalSpace : 1;
-			uint32 EnableCompressCrunch : 1;
 			uint32 ContinuousUpdate : 1;
 			uint32 bUseLowQualityCompression : 1;
 			uint32 LossyCompressionAmount : 4;
@@ -156,7 +155,7 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 
 	FPackedSettings Settings;
 	Settings.PackedValue = 0;
-	Settings.PackedSettingsVersion = 1;
+	Settings.PackedSettingsVersion = 2;
 	Settings.MaterialType = (uint32)VirtualTexture->GetMaterialType();
 	Settings.TileSize = (uint32)VirtualTexture->GetTileSize();
 	Settings.TileBorderSize = (uint32)VirtualTexture->GetTileBorderSize();
@@ -165,8 +164,7 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 	Settings.ContinuousUpdate = (uint32)VirtualTexture->GetContinuousUpdate();
 	Settings.SinglePhysicalSpace = (uint32)VirtualTexture->GetSinglePhysicalSpace();
 	Settings.bUseLowQualityCompression = (uint32)VirtualTexture->GetLQCompression();
-	Settings.EnableCompressCrunch = (uint32)bEnableCompressCrunch;
-	Settings.LossyCompressionAmount = (uint32) LossyCompressionAmount.GetValue();
+	Settings.LossyCompressionAmount = (uint32) VirtualTexture->GetLossyCompressionAmount();
 
 	return Settings.PackedValue;
 }
@@ -246,8 +244,7 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 		BuildDesc.TileSize = VirtualTexture->GetTileSize();
 		BuildDesc.TileBorderSize = VirtualTexture->GetTileBorderSize();
 		BuildDesc.LODGroup = VirtualTexture->GetLODGroup();
-		BuildDesc.bCrunchCompressed = bEnableCompressCrunch;
-		BuildDesc.LossyCompressionAmount = LossyCompressionAmount;
+		BuildDesc.LossyCompressionAmount = VirtualTexture->GetLossyCompressionAmount();
 
 		BuildDesc.LayerCount = VirtualTexture->GetLayerCount();
 		check(BuildDesc.LayerCount <= RuntimeVirtualTexture::MaxTextureLayers);
@@ -279,10 +276,6 @@ bool URuntimeVirtualTextureComponent::CanEditChange(const FProperty* InProperty)
 	if (InProperty->GetFName() == TEXT("bUseStreamingLowMipsInEditor"))
 	{
 		bCanEdit &= GetVirtualTexture() != nullptr && GetStreamingTexture() != nullptr;
-	}
-	else if (InProperty->GetFName() == TEXT("bEnableCompressCrunch"))
-	{
-		bCanEdit &= GetVirtualTexture() != nullptr && GetVirtualTexture()->GetCompressTextures();
 	}
 	else if (InProperty->GetFName() == TEXT("bBuildDebugStreamingMips"))
 	{

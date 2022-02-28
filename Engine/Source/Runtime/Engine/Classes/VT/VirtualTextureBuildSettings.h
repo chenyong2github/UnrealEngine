@@ -17,12 +17,6 @@ struct FVirtualTextureBuildSettings
 	UPROPERTY()
 	int32 TileBorderSize = 0;
 
-	UPROPERTY()
-	bool bEnableCompressCrunch = false;
-
-	UPROPERTY()
-	bool bEnableCompressZlib = false;
-
 	/** Initialize with the default build settings. These are defined by the current project setup. */
 	ENGINE_API void Init();
 };

@@ -473,7 +473,7 @@ bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext
 					const uint32 PackedStride = TileWidthInBlocks * GPixelFormats[LayerFormat].BlockBytes;
 					const size_t PackedOutputSize = PackedStride * TileHeightInBlocks;
 
-					if (VTCodec == EVirtualTextureCodec::ZippedGPU)
+					if (VTCodec == EVirtualTextureCodec::ZippedGPU_DEPRECATED)
 					{
 						const uint32 TileOffset = GetTileOffset_Legacy(ChunkIndex, TileIndex);
 						const uint32 NextTileOffset = GetTileOffset_Legacy(ChunkIndex, TileIndex + 1);

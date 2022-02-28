@@ -62,17 +62,6 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "View in Editor"))
 	bool bUseStreamingLowMipsInEditor = false;
 
-	/** Enable Crunch texture compression for the streaming low mips. Generic ZLib compression is used when Crunch is disabled. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "Enable Crunch"))
-	bool bEnableCompressCrunch = false;
-	
-	/** How aggressively should any relevant lossy compression be applied. For compressors that support EncodeSpeed (i.e. Oodle), this is only
-	*	applied if enabled (see Project Settings -> Texture Encoding). Note that this is *in addition* to any
-	*	unavoidable loss due to the target format - selecting "No Lossy Compression" will not result in zero distortion for BCn formats.
-	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild)
-	TEnumAsByte<ETextureLossyCompressionAmount> LossyCompressionAmount = TLCA_Default;
-
 	/** Build the streaming low mips using debug coloring. This can help show where streaming mips are being used. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Transient, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "Build Debug"))
 	bool bBuildDebugStreamingMips = false;
@@ -120,9 +109,6 @@ public:
 
 	/** Get if we want to use any streaming low mips on this component. */
 	bool IsStreamingLowMips() const;
-
-	/** Public getter for crunch compression flag. */
-	bool IsCrunchCompressed() const { return bEnableCompressCrunch; }
 
 	/** Public getter for debug streaming mips flag. */
 	bool IsBuildDebugStreamingMips() { return bBuildDebugStreamingMips; }

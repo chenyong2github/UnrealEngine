@@ -187,8 +187,9 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		TempByte = Settings.VirtualAddressingModeY; Ar << TempByte;
 		TempUint32 = Settings.VirtualTextureTileSize; Ar << TempUint32;
 		TempUint32 = Settings.VirtualTextureBorderSize; Ar << TempUint32;
-		TempByte = Settings.bVirtualTextureEnableCompressZlib; Ar << TempByte;
-		TempByte = Settings.bVirtualTextureEnableCompressCrunch; Ar << TempByte;
+		// compresion options removed: keep serializing them as "off" to keep the key the same:
+		TempByte = 0; Ar << TempByte;
+		TempByte = 0; Ar << TempByte;
 		TempByte = Settings.LossyCompressionAmount; Ar << TempByte; // Lossy compression currently only used by VT
 		TempByte = Settings.bApplyYCoCgBlockScale; Ar << TempByte; // YCoCg currently only used by VT
 	}
@@ -841,8 +842,6 @@ static void GetTextureBuildSettings(
 
 		FVirtualTextureBuildSettings VirtualTextureBuildSettings;
 		Texture.GetVirtualTextureBuildSettings(VirtualTextureBuildSettings);
-		OutBuildSettings.bVirtualTextureEnableCompressZlib = VirtualTextureBuildSettings.bEnableCompressZlib;
-		OutBuildSettings.bVirtualTextureEnableCompressCrunch = VirtualTextureBuildSettings.bEnableCompressCrunch;
 		OutBuildSettings.VirtualTextureTileSize = FMath::RoundUpToPowerOfTwo(VirtualTextureBuildSettings.TileSize);
 
 		// Apply any LOD group tile size bias here
@@ -865,8 +864,6 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.VirtualAddressingModeY = TA_Wrap;
 		OutBuildSettings.VirtualTextureTileSize = 0;
 		OutBuildSettings.VirtualTextureBorderSize = 0;
-		OutBuildSettings.bVirtualTextureEnableCompressZlib = false;
-		OutBuildSettings.bVirtualTextureEnableCompressCrunch = false;
 	}
 
 	// By default, initialize settings for layer0

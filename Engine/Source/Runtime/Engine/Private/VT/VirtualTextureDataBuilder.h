@@ -40,7 +40,6 @@ struct FVirtualTextureSourceLayerData
 
 	EGammaSpace GammaSpace;
 	bool bHasAlpha;
-	bool bUseCrunch;
 };
 
 /**

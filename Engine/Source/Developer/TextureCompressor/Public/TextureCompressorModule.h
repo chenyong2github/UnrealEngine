@@ -200,10 +200,6 @@ struct FTextureBuildSettings
 	int32 VirtualTextureTileSize;
 	/** Size in pixels of border on virtual texture tile */
 	int32 VirtualTextureBorderSize;
-	/** Is zlib compression enabled */
-	uint32 bVirtualTextureEnableCompressZlib : 1;
-	/** Is crunch compression enabled */
-	uint32 bVirtualTextureEnableCompressCrunch : 1;
 
 	// Which encode speed this build settings represents.
 	// This is not sent to the build worker, it is used to
@@ -274,8 +270,6 @@ struct FTextureBuildSettings
 		, VirtualAddressingModeY(0)
 		, VirtualTextureTileSize(0)
 		, VirtualTextureBorderSize(0)
-		, bVirtualTextureEnableCompressZlib(false)
-		, bVirtualTextureEnableCompressCrunch(false)
 	{
 	}
 

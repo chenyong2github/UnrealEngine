@@ -5,7 +5,6 @@
 #include "VirtualTexturing.h"
 #include "SceneUtils.h"
 #include "FileCache/FileCache.h"
-#include "CrunchCompression.h"
 #include "VirtualTextureChunkDDCCache.h"
 #include "UObject/PackageResourceManager.h"
 #include "Misc/PackageSegment.h"
@@ -218,18 +217,6 @@ void FVirtualTextureCodec::Init(IMemoryReadStreamRef& HeaderData)
 				CodecPayload = TempBuffer.GetData();
 			}
 		}
-
-		switch (Chunk.CodecType[LayerIndex])
-		{
-		case EVirtualTextureCodec::Crunch:
-#if WITH_CRUNCH
-			Contexts[LayerIndex] = CrunchCompression::InitializeDecoderContext(CodecPayload, CodecPayloadSize);
-#endif // WITH_CRUNCH
-			check(Contexts[LayerIndex]);
-			break;
-		default:
-			break;
-		}
 	}
 }
 
@@ -259,24 +246,6 @@ FVirtualTextureCodec::~FVirtualTextureCodec()
 		checkf(AllTranscodeTasksComplete(), TEXT("Codec is being released while there are tasks that still reference it."));
 
 		check(!IsLinked());
-
-		const FVirtualTextureBuiltData* VTData = Owner->GetVTData();
-		const FVirtualTextureDataChunk& Chunk = VTData->Chunks[ChunkIndex];
-		const uint32 NumLayers = VTData->GetNumLayers();
-		for (uint32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
-		{
-			switch (Chunk.CodecType[LayerIndex])
-			{
-			case EVirtualTextureCodec::Crunch:
-#if WITH_CRUNCH
-				check(Contexts[LayerIndex]);
-				CrunchCompression::DestroyDecoderContext(Contexts[LayerIndex]);
-#endif // WITH_CRUNCH
-				break;
-			default:
-				break;
-			}
-		}
 
 		check(NumCodecs > 0u);
 		--NumCodecs;

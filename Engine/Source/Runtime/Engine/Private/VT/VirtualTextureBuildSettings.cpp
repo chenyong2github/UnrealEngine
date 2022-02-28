@@ -20,6 +20,4 @@ void FVirtualTextureBuildSettings::Init()
 {
 	TileSize = CVarVTTileSize.GetValueOnAnyThread();
 	TileBorderSize = CVarVTTileBorderSize.GetValueOnAnyThread();
-	bEnableCompressCrunch = false;
-	bEnableCompressZlib = false;
 }
