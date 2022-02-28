@@ -64,7 +64,9 @@ public:
 
 
 
-
+// Although the class name indicates StaticMeshFunctions, that was a naming mistake that is difficult
+// to correct. This class is intended to serve as a generic asset utils function library. The naming
+// issue is only visible at the C++ level. It is not visible in Python or BP.
 UCLASS(meta = (ScriptName = "GeometryScript_AssetUtils"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_StaticMeshFunctions : public UBlueprintFunctionLibrary
 {
@@ -101,6 +103,28 @@ public:
 		FGeometryScriptMeshReadLOD RequestedLOD,
 		TArray<UMaterialInterface*>& MaterialList,
 		TArray<int32>& MaterialIndex,
+		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|SkeletalMesh", meta = (ExpandEnumAsExecs = "Outcome"))
+	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
+	CopyMeshFromSkeletalMesh(
+		USkeletalMesh* FromSkeletalMeshAsset, 
+		UDynamicMesh* ToDynamicMesh,
+		FGeometryScriptCopyMeshFromAssetOptions AssetOptions,
+		FGeometryScriptMeshReadLOD RequestedLOD,
+		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|SkeletalMesh", meta = (ExpandEnumAsExecs = "Outcome"))
+	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
+	CopyMeshToSkeletalMesh(
+		UDynamicMesh* FromDynamicMesh, 
+		USkeletalMesh* ToSkeletalMeshAsset,
+		FGeometryScriptCopyMeshToAssetOptions Options,
+		FGeometryScriptMeshWriteLOD TargetLOD,
 		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 };

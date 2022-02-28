@@ -42,6 +42,7 @@ public class GeometryScriptingCore : ModuleRules
 				"Engine",
 				"MeshDescription",
 				"StaticMeshDescription",
+				"SkeletalMeshDescription",
 				"MeshConversion",
 				"GeometryAlgorithms",
 				"ModelingOperators",
