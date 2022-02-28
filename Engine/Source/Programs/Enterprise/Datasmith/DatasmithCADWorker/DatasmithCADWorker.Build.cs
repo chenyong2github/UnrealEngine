@@ -23,7 +23,5 @@ public class DatasmithCADWorker : ModuleRules
 				"CADTools",
 			}
 		);
-
-		PublicDelayLoadDLLs.Add("kernel_io.dll");
 	}
 }
