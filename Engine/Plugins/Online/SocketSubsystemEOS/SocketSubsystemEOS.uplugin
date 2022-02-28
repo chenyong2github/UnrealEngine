@@ -15,10 +15,10 @@
 			"Name": "SocketSubsystemEOS",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostConfigInit",
-			"PlatformDenyList": [
-				"LinuxArm64",
-				"Hololens",
-				"TVOS"
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Android"
 			]
 		}
 	],
