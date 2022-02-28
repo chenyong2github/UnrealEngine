@@ -7,8 +7,10 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Mime;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
 using Datadog.Trace;
@@ -24,7 +26,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Serilog;
 using ContentHash = Jupiter.Implementation.ContentHash;
@@ -42,7 +43,6 @@ namespace Horde.Storage.Controllers
     {
         private readonly IDiagnosticContext _diagnosticContext;
         private readonly IAuthorizationService _authorizationService;
-        private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
         private readonly FormatResolver _formatResolver;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
         private readonly IReferenceResolver _referenceResolver;
@@ -51,13 +51,12 @@ namespace Horde.Storage.Controllers
         private readonly IObjectService _objectService;
         private readonly IBlobService _blobStore;
 
-        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, IOptionsMonitor<JupiterSettings> jupiterSettings, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver)
+        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver)
         {
             _objectService = objectService;
             _blobStore = blobStore;
             _diagnosticContext = diagnosticContext;
             _authorizationService = authorizationService;
-            _jupiterSettings = jupiterSettings;
             _formatResolver = formatResolver;
             _bufferedPayloadFactory = bufferedPayloadFactory;
             _referenceResolver = referenceResolver;
@@ -398,13 +397,12 @@ namespace Horde.Storage.Controllers
             return Ok();
         }
 
-        [HttpPost("{ns}/exists")]
+        [HttpGet("{ns}/exists")]
         [Authorize("Object.read")]
         [ProducesDefaultResponseType]
         public async Task<IActionResult> ExistsMultiple(
             [FromRoute] [Required] NamespaceId ns,
-            [FromRoute] [Required] BucketId bucket,
-            [FromQuery] [Required] List<IoHashKey> names)
+            [FromQuery] [Required] List<string> names)
         {
             AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -413,14 +411,26 @@ namespace Horde.Storage.Controllers
                 return Forbid();
             }
 
-            ConcurrentBag<IoHashKey> missingObject = new ConcurrentBag<IoHashKey>();
+            ConcurrentBag<(BucketId, IoHashKey)> missingObject = new ();
 
-            IEnumerable<Task> tasks = names.Select(async name =>
+            List<(BucketId, IoHashKey)> requestedNames = new List<(BucketId, IoHashKey)>();
+            foreach (string name in names)
             {
+                int separatorIndex = name.IndexOf(".", StringComparison.Ordinal);
+                if (separatorIndex == -1)
+                    return BadRequest(new ProblemDetails() { Title = $"Key {name} did not contain a '.' separator" });
+                BucketId bucket = new BucketId(name.Substring(0, separatorIndex));
+                IoHashKey key = new IoHashKey(name.Substring(separatorIndex + 1));
+                requestedNames.Add((bucket, key));
+            }
+
+            IEnumerable<Task> tasks = requestedNames.Select(async pair =>
+            {
+                (BucketId bucket, IoHashKey key) = pair;
                 try
                 {
                     (ObjectRecord record, BlobContents? blob) =
-                        await _objectService.Get(ns, bucket, name, new string[] { "blobIdentifier" });
+                        await _objectService.Get(ns, bucket, key, new string[] { "blobIdentifier" });
 
                     blob ??= await _blobStore.GetObject(ns, record.BlobIdentifier);
 
@@ -434,15 +444,15 @@ namespace Horde.Storage.Controllers
                 }
                 catch (ObjectNotFoundException)
                 {
-                    missingObject.Add(name);
+                    missingObject.Add((bucket, key));
                 }
                 catch (PartialReferenceResolveException)
                 {
-                    missingObject.Add(name);
+                    missingObject.Add((bucket, key));
                 }
                 catch (ReferenceIsMissingBlobsException)
                 {
-                    missingObject.Add(name);
+                    missingObject.Add((bucket, key));
                 }
             });
             await Task.WhenAll(tasks);
@@ -578,7 +588,167 @@ namespace Horde.Storage.Controllers
         }
 
 
-        
+        [HttpPost("{ns}")]
+        [Consumes(CustomMediaTypeNames.UnrealCompactBinary)]
+        [Produces(CustomMediaTypeNames.UnrealCompactBinary)]
+        public async Task<IActionResult> Batch(
+            [FromRoute] [Required] NamespaceId ns,
+            [FromBody] [Required] BatchOps ops)
+        {
+            {
+                using IScope _ = Tracer.Instance.StartActive("authorize");
+                AuthorizationResult authorizationResult =
+                    await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
+
+                if (!authorizationResult.Succeeded)
+                {
+                    return Forbid();
+                }
+            }
+
+            ConcurrentDictionary<uint, (CbObject, HttpStatusCode)> results = new();
+
+            async Task<(CbObject, HttpStatusCode)> BatchGetOp(BatchOps.BatchOp op)
+            {
+                try
+                {
+                    (ObjectRecord objectRecord, BlobContents? blob) = await _objectService.Get(ns, op.Bucket, op.Key, Array.Empty<string>());
+
+                    if (!objectRecord.IsFinalized)
+                    {
+                        throw new Exception("Object is not finalized");
+                    }
+
+                    if (blob == null)
+                        throw new Exception();
+
+                    CbObject cb = new CbObject(await blob.Stream.ToByteArray());
+                    return (cb, HttpStatusCode.OK);
+                }
+                catch (ObjectNotFoundException e)
+                {
+                    return ToErrorResult(e, HttpStatusCode.NotFound);
+                }
+                catch (Exception e)
+                {
+                    return ToErrorResult(e);
+                }
+            }
+
+            async Task<(CbObject, HttpStatusCode)> BatchHeadOp(BatchOps.BatchOp op)
+            {
+                try
+                {
+                    (ObjectRecord record, BlobContents? blob) = await _objectService.Get(ns, op.Bucket, op.Key, new string[] { "blobIdentifier" });
+
+                    if (!record.IsFinalized)
+                    {
+                        return (CbObject.Build(writer => writer.WriteBool("exists", false)), HttpStatusCode.NotFound);
+                    }
+
+                    blob ??= await _blobStore.GetObject(ns, record.BlobIdentifier);
+
+                    // we have to verify the blobs are available locally, as the record of the key is replicated a head of the content
+                    // TODO: Once we support inline replication this step is not needed as at least one region as this blob, just maybe not this current one
+                    byte[] blobContents = await blob.Stream.ToByteArray();
+                    CbObject cb = new CbObject(blobContents);
+                    // the reference resolver will throw if any blob is missing, so no need to do anything other then process each reference
+                    IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, cb);
+                    List<BlobIdentifier>? _ = await references.ToListAsync();
+
+                    if (blob == null)
+                        throw new Exception();
+
+                    return (CbObject.Build(writer => writer.WriteBool("exists", true)), HttpStatusCode.OK);
+                }
+                catch (Exception ex) when( ex is ObjectNotFoundException || ex is PartialReferenceResolveException || ex is ReferenceIsMissingBlobsException)
+                {
+                    return (CbObject.Build(writer => writer.WriteBool("exists", false)), HttpStatusCode.NotFound);
+                }
+                catch (Exception e)
+                {
+                    return ToErrorResult(e);
+                }
+            }
+
+            async Task<(CbObject, HttpStatusCode)> BatchPutOp(BatchOps.BatchOp op)
+            {
+                try
+                {
+                    if (op.Payload == null || op.Payload.Equals(CbObject.Empty))
+                    {
+                        throw new Exception($"Missing payload for operation: {op.OpId}");
+                    }
+
+                    if (op.PayloadHash == null)
+                    {
+                        throw new Exception($"Missing payload hash for operation: {op.OpId}");
+                    }
+                    BlobIdentifier headerHash = BlobIdentifier.FromContentHash(op.PayloadHash);
+                    BlobIdentifier objectHash = BlobIdentifier.FromBlob(op.Payload.GetView().ToArray());
+
+                    if (!headerHash.Equals(objectHash))
+                    {
+                        throw new HashMismatchException(headerHash, objectHash);
+                    }
+
+                    (ContentId[] missingReferences, BlobIdentifier[] missingBlobs) = await _objectService.Put(ns, op.Bucket, op.Key, objectHash, op.Payload);
+                    List<ContentHash> missingHashes = new List<ContentHash>(missingReferences);
+
+                    return (CbSerializer.Serialize(new PutObjectResponse(missingHashes.ToArray())), HttpStatusCode.OK);
+                }
+                catch (Exception e)
+                {
+                    return ToErrorResult(e);
+                }
+            }
+
+            await Parallel.ForEachAsync(ops.Ops, CancellationToken.None, async (op, token) =>
+            {
+                switch (op.Op)
+                {
+                    case BatchOps.BatchOp.Operation.GET:
+                        results.TryAdd(op.OpId, await BatchGetOp(op));
+                        break;
+                    case BatchOps.BatchOp.Operation.PUT:
+                        results.TryAdd(op.OpId, await BatchPutOp(op));
+                        break;
+                    case BatchOps.BatchOp.Operation.HEAD:
+                        results.TryAdd(op.OpId, await BatchHeadOp(op));
+                        break;
+                    case BatchOps.BatchOp.Operation.INVALID:
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                await Task.CompletedTask;
+            });
+
+            return Ok(new BatchOpsResponse()
+            {
+                Results = results.Select(result =>
+                {
+                    return new BatchOpsResponse.OpResponses()
+                    {
+                        OpId = result.Key,
+                        Response = result.Value.Item1,
+                        StatusCode = (int)result.Value.Item2
+                    };
+                }).ToList()
+            });
+        }
+
+        private (CbObject, HttpStatusCode) ToErrorResult(Exception exception, HttpStatusCode statusCode = HttpStatusCode.InternalServerError)
+        {
+            Exception e = exception;
+            CbWriter writer = new CbWriter();
+            writer.BeginObject();
+            writer.WriteString("title", e.Message);
+            writer.WriteInteger("status", (int)statusCode);
+            writer.EndObject();
+            return (writer.ToObject(), statusCode);
+        }
+
         /// <summary>
         /// Drop all refs records in the namespace
         /// </summary>
@@ -709,6 +879,91 @@ namespace Horde.Storage.Controllers
         public long CountOfDeletedRecords { get; set; }
     }
 
+    public class BatchOps
+    {
+        public BatchOps()
+        {
+            Ops = Array.Empty<BatchOp>();
+        }
+
+        public class BatchOp
+        {
+            public BatchOp()
+            {
+                Payload = null;
+                PayloadHash = null;
+            }
+
+            public enum Operation
+            {
+                INVALID,
+                GET,
+                PUT,
+                HEAD,
+            }
+
+            [Required]
+            [CbField("opId")]
+            public uint OpId { get; set; }
+
+
+            [CbField("op")]
+            [JsonIgnore]
+            public string OpString
+            {
+                get { return Op.ToString(); }
+                set { Op = Enum.Parse<Operation>(value); }
+            }
+
+            [Required]
+            public Operation Op { get; set; } = Operation.INVALID;
+
+            [Required]
+            [CbField("bucket")]
+            public BucketId Bucket { get; set; }
+
+            [Required]
+            [CbField("key")]
+            public IoHashKey Key { get; set; }
+
+            [CbField("payload")]
+            public CbObject? Payload { get; set; } = null;
+
+            [CbField("payloadHash")] 
+            public ContentHash? PayloadHash { get; set; } = null;
+        }
+
+        [CbField("ops")]
+        public BatchOp[] Ops { get; set; }
+    }
+
+    public class BatchOpsResponse
+    {
+        public BatchOpsResponse()
+        {
+
+        }
+
+        public class OpResponses
+        {
+            public OpResponses()
+            {
+
+            }
+            [CbField("opId")]
+            public uint OpId { get; set; }
+
+            [CbField("response")]
+            public CbObject Response { get; set; } = null!;
+
+            [CbField("statusCode")]
+            public int StatusCode { get; set; }
+        }
+
+        [CbField("results")]
+        public List<OpResponses> Results { get; set; } = new List<OpResponses>();
+    }
+
     public class RefMetadataResponse
     {
         public RefMetadataResponse()
@@ -780,16 +1035,35 @@ namespace Horde.Storage.Controllers
 
     public class ExistCheckMultipleRefsResponse
     {
-        public ExistCheckMultipleRefsResponse(List<IoHashKey> missingNames)
+        public ExistCheckMultipleRefsResponse(List<(BucketId,IoHashKey)> missingNames)
         {
-            Needs = missingNames;
-            Names = missingNames;
+            Missing = missingNames.Select(pair =>
+            {
+                (BucketId bucketId, IoHashKey ioHashKey) = pair;
+                return new MissingReference()
+                {
+                    Bucket = bucketId,
+                    Key = ioHashKey,
+                };
+            }).ToList();
         }
 
-        [CbField("needs")]
-        public List<IoHashKey> Needs { get; set; }
+        [JsonConstructor]
+        public ExistCheckMultipleRefsResponse(List<MissingReference> missingNames)
+        {
+            Missing = missingNames;
+        }
 
-        [CbField("names")]
-        public List<IoHashKey> Names { get; set; }
+        [CbField("missing")]
+        public List<MissingReference> Missing { get; set; }
+
+        public class MissingReference
+        {
+            [CbField("bucket")]
+            public BucketId Bucket { get; set; }
+
+            [CbField("key")]
+            public IoHashKey Key { get; set; }
+        }
     }
 }

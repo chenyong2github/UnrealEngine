@@ -8,6 +8,8 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
+using EpicGames.Serialization;
 
 namespace EpicGames.Horde.Storage
 {
@@ -16,6 +18,7 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	[JsonConverter(typeof(BucketIdJsonConverter))]
 	[TypeConverter(typeof(BucketIdTypeConverter))]
+	[CbConverter(typeof(BucketIdCbConverter))]
 	public struct BucketId : IEquatable<BucketId>
 	{
 		/// <summary>
@@ -73,5 +76,16 @@ namespace EpicGames.Horde.Storage
 
 		/// <inheritdoc/>
 		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value) => new BucketId((string)Value);
+	}
+
+	sealed class BucketIdCbConverter : CbConverterBase<BucketId>
+	{
+		public override BucketId Read(CbField field) => new BucketId(field.AsString());
+
+		/// <inheritdoc/>
+		public override void Write(CbWriter writer, BucketId value) => writer.WriteStringValue(value.ToString());
+
+		/// <inheritdoc/>
+		public override void WriteNamed(CbWriter writer, Utf8String name, BucketId value) => writer.WriteString(name, value.ToString());
 	}
 }

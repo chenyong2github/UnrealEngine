@@ -4,12 +4,16 @@ using System;
 using System.ComponentModel;
 using System.Globalization;
 using System.Text;
+using EpicGames.Core;
+using EpicGames.Serialization;
 using Newtonsoft.Json;
+using JsonWriter = Newtonsoft.Json.JsonWriter;
 
 namespace Jupiter.Implementation
 {
     [JsonConverter(typeof(IoHashKeyJsonConverter))]
     [TypeConverter(typeof(IoHashKeyTypeConverter))]
+    [CbConverter(typeof(IoHashKeyCbConverter))]
 
     public readonly struct IoHashKey: IEquatable<IoHashKey>
     {
@@ -116,6 +120,17 @@ namespace Jupiter.Implementation
 
             return base.ConvertFrom(context, culture, value);  
         }
+    }
+
+    sealed class IoHashKeyCbConverter : CbConverterBase<IoHashKey>
+    {
+        public override IoHashKey Read(CbField field) => new IoHashKey(field.AsString());
+
+        /// <inheritdoc/>
+        public override void Write(CbWriter writer, IoHashKey value) => writer.WriteStringValue(value.ToString());
+
+        /// <inheritdoc/>
+        public override void WriteNamed(CbWriter writer, Utf8String name, IoHashKey value) => writer.WriteString(name, value.ToString());
     }
 }
 

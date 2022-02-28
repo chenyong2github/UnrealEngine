@@ -134,8 +134,7 @@ public class BlobService : IBlobService
         return await putObjectTask;
     }
 
-    public async Task<BlobIdentifier> PutObjectKnownHash(NamespaceId ns, IBufferedPayload content,
-        BlobIdentifier identifier)
+    public async Task<BlobIdentifier> PutObjectKnownHash(NamespaceId ns, IBufferedPayload content, BlobIdentifier identifier)
     {
         using IScope _ = Tracer.Instance.StartActive("put_blob");
         Task<BlobIdentifier> putObjectTask = PutObjectToStores(ns, content, identifier);

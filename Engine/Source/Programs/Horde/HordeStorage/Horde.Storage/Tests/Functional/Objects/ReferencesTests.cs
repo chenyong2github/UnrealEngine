@@ -29,6 +29,7 @@ using Serilog;
 using Logger = Serilog.Core.Logger;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
+using ContentHash = Jupiter.Implementation.ContentHash;
 
 namespace Horde.Storage.FunctionalTests.References
 {
@@ -632,6 +633,40 @@ namespace Horde.Storage.FunctionalTests.References
                 Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
             }
         }
+
+        [TestMethod]
+        public async Task ExistsChecksMultiple()
+        {
+            BucketId bucket = new BucketId("bucket");
+            IoHashKey existingObject = IoHashKey.FromName("existingObject");
+
+            const string objectContents = "This is treated as a opaque blob";
+            byte[] data = Encoding.ASCII.GetBytes(objectContents);
+            BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
+            HttpContent requestContent = new ByteArrayContent(data);
+            requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
+            requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
+
+            {
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{existingObject}", requestContent);
+                result.EnsureSuccessStatusCode();
+            }
+
+            IoHashKey missingObject = IoHashKey.FromName("missingObject");
+
+            string queryString = $"?names={bucket}.{existingObject}&names={bucket}.{missingObject}";
+
+            {
+                HttpResponseMessage result = await _httpClient!.GetAsync(requestUri: $"api/v1/refs/{TestNamespace}/exists" + queryString);
+                result.EnsureSuccessStatusCode();
+                ExistCheckMultipleRefsResponse response = await result.Content.ReadAsAsync<ExistCheckMultipleRefsResponse>();
+
+                Assert.AreEqual(1, response.Missing.Count);
+                Assert.AreEqual(bucket, response.Missing[0].Bucket);
+                Assert.AreEqual(missingObject, response.Missing[0].Key);
+            }
+        }
+
 
 
         [TestMethod]
@@ -1345,6 +1380,522 @@ namespace Horde.Storage.FunctionalTests.References
             Assert.IsNotNull(oldRecord);
             Assert.AreEqual(key, oldRecord.Value.Item2);
             Assert.AreEqual("bucket", oldRecord.Value.Item1.ToString());
+        }
+
+        
+        [TestMethod]
+        public async Task BatchJsonRequest()
+        {
+            // verifies that json request against the batch endpoint will fail
+            {
+                HttpContent requestContent = new StringContent("{}");
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Json);
+
+                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+
+                Assert.AreEqual(HttpStatusCode.UnsupportedMediaType, result.StatusCode);
+            }
+        }
+
+        [TestMethod]
+        public async Task BatchErrorOperations()
+        {
+            // seed some data
+            BucketId bucket = new BucketId("bucket");
+            IoHashKey newBlobObjectKey = IoHashKey.FromName("thisObjectDoesNotExist");
+
+            IoHashKey putObjectKey = IoHashKey.FromName("putObjectFail");
+            CbObject ref1 = CbObject.Empty;
+
+            CbWriter getObjectOp = new CbWriter();
+            getObjectOp.BeginObject();
+            getObjectOp.WriteInteger( "opId",0);
+            getObjectOp.WriteString("op", BatchOps.BatchOp.Operation.GET.ToString());
+            getObjectOp.WriteString("bucket", bucket.ToString());
+            getObjectOp.WriteString("key", newBlobObjectKey.ToString());
+            getObjectOp.EndObject();
+
+            CbWriter putObjectOp = new CbWriter();
+            putObjectOp.BeginObject();
+            putObjectOp.WriteInteger("opId", 1);
+            putObjectOp.WriteString("op", BatchOps.BatchOp.Operation.PUT.ToString());
+            putObjectOp.WriteString("bucket", bucket.ToString());
+            putObjectOp.WriteString("key", putObjectKey.ToString());
+            putObjectOp.WriteObject("payload", ref1);
+            // omit the hash for a error object1.WriteHash("payloadHash", IoHash.Compute(ref1.GetView().Span));
+            putObjectOp.EndObject();
+
+            CbObject[] ops = new[]
+            {
+                getObjectOp.ToObject(),
+                putObjectOp.ToObject(),
+            };
+
+            CbWriter batchRequestWriter = new CbWriter();
+            batchRequestWriter.BeginObject();
+            batchRequestWriter.BeginUniformArray("ops", CbFieldType.Object);
+            foreach (CbObject o in ops)
+            {
+                batchRequestWriter.WriteObject(o);
+            }
+            batchRequestWriter.EndUniformArray();
+            batchRequestWriter.EndObject();
+            byte[] batchRequestData = batchRequestWriter.ToByteArray();
+
+            {
+                HttpContent requestContent = new ByteArrayContent(batchRequestData);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+
+                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+                result.EnsureSuccessStatusCode();
+
+                await using MemoryStream ms = new MemoryStream();
+                await result.Content.CopyToAsync(ms);
+                byte[] roundTrippedBuffer = ms.ToArray();
+
+                BatchOpsResponse response = CbSerializer.Deserialize<BatchOpsResponse>(roundTrippedBuffer);
+                Assert.AreEqual(2, response.Results.Count);
+                
+                BatchOpsResponse.OpResponses op0 = response.Results.First(r => r.OpId == 0);
+                Assert.IsNotNull(op0.Response);
+                Assert.AreEqual(404, op0.StatusCode);
+                Assert.IsTrue(!op0.Response["title"].Equals(CbField.Empty));
+                Assert.AreEqual("Object not found 29911b58b3c970ba39d9690f2dca66839dd6f5d9 in bucket bucket namespace test-namespace", op0.Response["title"].AsString());
+
+                BatchOpsResponse.OpResponses op1 = response.Results.First(r => r.OpId == 1);
+                Assert.IsNotNull(op1.Response);
+                Assert.AreEqual(500, op1.StatusCode);
+                Assert.IsTrue(!op1.Response["title"].Equals(CbField.Empty));
+                Assert.AreEqual("Missing payload for operation: 1", op1.Response["title"].AsString());
+            }
+        }
+
+
+        [TestMethod]
+        public async Task BatchGetOperations()
+        {
+            // seed some data
+            BucketId bucket = new BucketId("bucket");
+            IoHashKey newBlobObjectKey = IoHashKey.FromName("newBlobObject");
+            CbObject newBlobObject = CbObject.Build(writer => writer.WriteString("String", "this-has-contents"));
+
+            {
+                byte[] cbObjectBytes = newBlobObject.GetView().ToArray();
+                BlobIdentifier blobHash = BlobIdentifier.FromBlob(cbObjectBytes);
+
+                HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
+
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{newBlobObjectKey}.uecb", requestContent);
+                result.EnsureSuccessStatusCode();
+                byte[] content = await result.Content.ReadAsByteArrayAsync();
+                PutObjectResponse? response = CbSerializer.Deserialize<PutObjectResponse?>(content);
+                Assert.IsNotNull(response);
+                Assert.IsTrue(response.Needs.Length == 0);
+            }
+
+            byte[] blobContents = Encoding.ASCII.GetBytes("This is a attached blob");
+            CbObject newReferenceObject = CbObject.Build(writer => writer.WriteBinaryAttachment("Attachment", IoHash.Compute(blobContents)));
+            IoHashKey newReferenceObjectKey = IoHashKey.FromName("newReferenceObject");
+
+            {
+                BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobContents);
+
+                HttpContent requestContent = new ByteArrayContent(blobContents);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
+
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/blobs/{TestNamespace}/{blobHash}", requestContent);
+                result.EnsureSuccessStatusCode();
+            }
+
+            {
+                byte[] cbObjectBytes = newReferenceObject.GetView().ToArray();
+                BlobIdentifier blobHash = BlobIdentifier.FromBlob(cbObjectBytes);
+
+                HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
+
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{newReferenceObjectKey}.uecb", requestContent);
+                result.EnsureSuccessStatusCode();
+
+                result.EnsureSuccessStatusCode();
+                byte[] content = await result.Content.ReadAsByteArrayAsync();
+                PutObjectResponse response = CbSerializer.Deserialize<PutObjectResponse>(content);
+                Assert.IsTrue(response.Needs.Length == 0);
+            }
+            CbWriter getObjectOp = new CbWriter();
+            getObjectOp.BeginObject();
+            getObjectOp.WriteInteger( "opId",0);
+            getObjectOp.WriteString("op", BatchOps.BatchOp.Operation.GET.ToString());
+            getObjectOp.WriteString("bucket", bucket.ToString());
+            getObjectOp.WriteString("key", newBlobObjectKey.ToString());
+            getObjectOp.EndObject();
+
+            CbWriter getObjectOp2 = new CbWriter();
+            getObjectOp2.BeginObject();
+            getObjectOp2.WriteInteger("opId", 1);
+            getObjectOp2.WriteString("op", BatchOps.BatchOp.Operation.GET.ToString());
+            getObjectOp2.WriteString("bucket", bucket.ToString());
+            getObjectOp2.WriteString("key", newReferenceObjectKey.ToString());
+            getObjectOp2.EndObject();
+
+            CbObject[] ops = new[]
+            {
+                getObjectOp.ToObject(),
+                getObjectOp2.ToObject(),
+            };
+
+            CbWriter batchRequestWriter = new CbWriter();
+            batchRequestWriter.BeginObject();
+            batchRequestWriter.BeginUniformArray("ops", CbFieldType.Object);
+            foreach (CbObject o in ops)
+            {
+                batchRequestWriter.WriteObject(o);
+            }
+            batchRequestWriter.EndUniformArray();
+            batchRequestWriter.EndObject();
+            byte[] batchRequestData = batchRequestWriter.ToByteArray();
+
+            {
+                HttpContent requestContent = new ByteArrayContent(batchRequestData);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+
+                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+                result.EnsureSuccessStatusCode();
+
+                await using MemoryStream ms = new MemoryStream();
+                await result.Content.CopyToAsync(ms);
+                byte[] roundTrippedBuffer = ms.ToArray();
+
+                BatchOpsResponse response = CbSerializer.Deserialize<BatchOpsResponse>(roundTrippedBuffer);
+                Assert.AreEqual(2, response.Results.Count);
+                
+                BatchOpsResponse.OpResponses op0 = response.Results.First(r => r.OpId == 0);
+                Assert.IsNotNull(op0.Response);
+                Assert.AreEqual(200, op0.StatusCode);
+                Assert.AreEqual(newBlobObject, op0.Response);
+
+                BatchOpsResponse.OpResponses op1 = response.Results.First(r => r.OpId == 1);
+                Assert.IsNotNull(op1.Response);
+                Assert.AreEqual(200, op1.StatusCode);
+                Assert.AreEqual(newReferenceObject, op1.Response);
+            }
+        }
+
+        [TestMethod]
+        public async Task BatchHeadOperations()
+        {
+            // seed some data
+            BucketId bucket = new BucketId("bucket");
+            IoHashKey newBlobObjectKey = IoHashKey.FromName("newBlobObject");
+            CbObject newBlobObject = CbObject.Build(writer => writer.WriteString("String", "this-has-contents"));
+
+            {
+                byte[] cbObjectBytes = newBlobObject.GetView().ToArray();
+                BlobIdentifier blobHash = BlobIdentifier.FromBlob(cbObjectBytes);
+
+                HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
+
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{newBlobObjectKey}.uecb", requestContent);
+                result.EnsureSuccessStatusCode();
+                byte[] content = await result.Content.ReadAsByteArrayAsync();
+                PutObjectResponse? response = CbSerializer.Deserialize<PutObjectResponse?>(content);
+                Assert.IsNotNull(response);
+                Assert.IsTrue(response.Needs.Length == 0);
+            }
+
+            byte[] blobContents = Encoding.ASCII.GetBytes("This is a attached blob");
+            CbObject newReferenceObject = CbObject.Build(writer => writer.WriteBinaryAttachment("Attachment", IoHash.Compute(blobContents)));
+            IoHashKey newReferenceObjectKey = IoHashKey.FromName("newReferenceObject");
+
+            {
+                BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobContents);
+
+                HttpContent requestContent = new ByteArrayContent(blobContents);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
+
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/blobs/{TestNamespace}/{blobHash}", requestContent);
+                result.EnsureSuccessStatusCode();
+            }
+
+            {
+                byte[] cbObjectBytes = newReferenceObject.GetView().ToArray();
+                BlobIdentifier blobHash = BlobIdentifier.FromBlob(cbObjectBytes);
+
+                HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
+
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{newReferenceObjectKey}.uecb", requestContent);
+                result.EnsureSuccessStatusCode();
+
+                result.EnsureSuccessStatusCode();
+                byte[] content = await result.Content.ReadAsByteArrayAsync();
+                PutObjectResponse response = CbSerializer.Deserialize<PutObjectResponse>(content);
+                Assert.IsTrue(response.Needs.Length == 0);
+            }
+            CbWriter getObjectOp = new CbWriter();
+            getObjectOp.BeginObject();
+            getObjectOp.WriteInteger( "opId",0);
+            getObjectOp.WriteString("op", BatchOps.BatchOp.Operation.HEAD.ToString());
+            getObjectOp.WriteString("bucket", bucket.ToString());
+            getObjectOp.WriteString("key", newBlobObjectKey.ToString());
+            getObjectOp.EndObject();
+
+            CbWriter getObjectOp2 = new CbWriter();
+            getObjectOp2.BeginObject();
+            getObjectOp2.WriteInteger("opId", 1);
+            getObjectOp2.WriteString("op", BatchOps.BatchOp.Operation.HEAD.ToString());
+            getObjectOp2.WriteString("bucket", bucket.ToString());
+            getObjectOp2.WriteString("key", newReferenceObjectKey.ToString());
+            getObjectOp2.EndObject();
+
+            CbObject[] ops = new[]
+            {
+                getObjectOp.ToObject(),
+                getObjectOp2.ToObject(),
+            };
+
+            CbWriter batchRequestWriter = new CbWriter();
+            batchRequestWriter.BeginObject();
+            batchRequestWriter.BeginUniformArray("ops", CbFieldType.Object);
+            foreach (CbObject o in ops)
+            {
+                batchRequestWriter.WriteObject(o);
+            }
+            batchRequestWriter.EndUniformArray();
+            batchRequestWriter.EndObject();
+            byte[] batchRequestData = batchRequestWriter.ToByteArray();
+            
+            {
+                HttpContent requestContent = new ByteArrayContent(batchRequestData);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+
+                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+                result.EnsureSuccessStatusCode();
+
+                await using MemoryStream ms = new MemoryStream();
+                await result.Content.CopyToAsync(ms);
+                byte[] roundTrippedBuffer = ms.ToArray();
+
+                BatchOpsResponse response = CbSerializer.Deserialize<BatchOpsResponse>(roundTrippedBuffer);
+                Assert.AreEqual(2, response.Results.Count);
+                
+                BatchOpsResponse.OpResponses op0 = response.Results.First(r => r.OpId == 0);
+                Assert.IsNotNull(op0.Response);
+                Assert.AreEqual(200, op0.StatusCode);
+                Assert.IsTrue(!op0.Response["exists"].Equals(CbField.Empty));
+                Assert.IsTrue(op0.Response["exists"].AsBool());
+
+                BatchOpsResponse.OpResponses op1 = response.Results.First(r => r.OpId == 1);
+                Assert.IsNotNull(op1.Response);
+                Assert.AreEqual(200, op1.StatusCode);
+                Assert.IsTrue(!op1.Response["exists"].Equals(CbField.Empty));
+                Assert.IsTrue(op1.Response["exists"].AsBool());
+            }
+        }
+
+        [TestMethod]
+        public async Task BatchPutOperations()
+        {
+            BucketId bucket = new BucketId("bucket");
+            IoHashKey ref0name = IoHashKey.FromName("putRef0");
+            CbObject ref0 = CbObject.Build(writer => writer.WriteString("foo", "bar"));
+
+            IoHashKey ref1name = IoHashKey.FromName("putRef1");
+            CbObject ref1 = CbObject.Build(writer => writer.WriteInteger("baz", 1337));
+
+            CbWriter object0 = new CbWriter();
+            object0.BeginObject();
+            object0.WriteInteger( "opId",0);
+            object0.WriteString("op", BatchOps.BatchOp.Operation.PUT.ToString());
+            object0.WriteString("bucket", bucket.ToString());
+            object0.WriteString("key", ref0name.ToString());
+            object0.WriteObject("payload", ref0);
+            object0.WriteHash("payloadHash", IoHash.Compute(ref0.GetView().Span));
+            object0.EndObject();
+
+            CbWriter object1 = new CbWriter();
+            object1.BeginObject();
+            object1.WriteInteger("opId", 1);
+            object1.WriteString("op", BatchOps.BatchOp.Operation.PUT.ToString());
+            object1.WriteString("bucket", bucket.ToString());
+            object1.WriteString("key", ref1name.ToString());
+            object1.WriteObject("payload", ref1);
+            object1.WriteHash("payloadHash", IoHash.Compute(ref1.GetView().Span));
+            object1.EndObject();
+
+            CbObject[] ops = new[]
+            {
+                object0.ToObject(),
+                object1.ToObject(),
+            };
+
+            CbWriter batchRequestWriter = new CbWriter();
+            batchRequestWriter.BeginObject();
+            batchRequestWriter.BeginUniformArray("ops", CbFieldType.Object);
+            foreach (CbObject o in ops)
+            {
+                batchRequestWriter.WriteObject(o);
+            }
+            batchRequestWriter.EndUniformArray();
+            batchRequestWriter.EndObject();
+            byte[] batchRequestData = batchRequestWriter.ToByteArray();
+
+            {
+                HttpContent requestContent = new ByteArrayContent(batchRequestData);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+
+                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+                result.EnsureSuccessStatusCode();
+
+                await using MemoryStream ms = new MemoryStream();
+                await result.Content.CopyToAsync(ms);
+                byte[] roundTrippedBuffer = ms.ToArray();
+
+                BatchOpsResponse response = CbSerializer.Deserialize<BatchOpsResponse>(roundTrippedBuffer);
+                Assert.AreEqual(2, response.Results.Count);
+                
+                BatchOpsResponse.OpResponses op0 = response.Results.First(r => r.OpId == 0);
+                Assert.IsNotNull(op0.Response);
+                Assert.AreEqual(200, op0.StatusCode);
+                Assert.IsTrue(!op0.Response["needs"].Equals(CbField.Empty));
+                CollectionAssert.AreEqual(Array.Empty<IoHash>(), op0.Response["needs"].ToArray());
+
+                BatchOpsResponse.OpResponses op1 = response.Results.First(r => r.OpId == 1);
+                Assert.IsNotNull(op1.Response);
+                Assert.AreEqual(200, op1.StatusCode);
+                Assert.IsTrue(!op1.Response["needs"].Equals(CbField.Empty));
+                CollectionAssert.AreEqual(Array.Empty<IoHash>(), op1.Response["needs"].ToArray());
+            }
+        }
+
+        [TestMethod]
+        public async Task BatchMixedOperations()
+        {
+            // seed some data
+            BucketId bucket = new BucketId("bucket");
+            IoHashKey getObjectKey = IoHashKey.FromName("getBlobObject");
+            CbObject getObject = CbObject.Build(writer => writer.WriteString("String", "this-has-contents"));
+
+            IoHashKey putObjectKey = IoHashKey.FromName("putBlobObject");
+            CbObject putObject = CbObject.Build(writer => writer.WriteString("String", "this-has-contents"));
+
+            IoHashKey missingObjectKey = IoHashKey.FromName("thisKeyDoesNotExist");
+
+            {
+                byte[] cbObjectBytes = getObject.GetView().ToArray();
+                BlobIdentifier blobHash = BlobIdentifier.FromBlob(cbObjectBytes);
+
+                HttpContent requestContent = new ByteArrayContent(cbObjectBytes);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+                requestContent.Headers.Add(CommonHeaders.HashHeaderName, blobHash.ToString());
+
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/{bucket}/{getObjectKey}.uecb", requestContent);
+                result.EnsureSuccessStatusCode();
+                byte[] content = await result.Content.ReadAsByteArrayAsync();
+                PutObjectResponse? response = CbSerializer.Deserialize<PutObjectResponse?>(content);
+                Assert.IsNotNull(response);
+                Assert.IsTrue(response.Needs.Length == 0);
+            }
+
+            CbWriter getObjectOp = new CbWriter();
+            getObjectOp.BeginObject();
+            getObjectOp.WriteInteger( "opId",0);
+            getObjectOp.WriteString("op", BatchOps.BatchOp.Operation.GET.ToString());
+            getObjectOp.WriteString("bucket", bucket.ToString());
+            getObjectOp.WriteString("key", getObjectKey.ToString());
+            getObjectOp.EndObject();
+
+            CbWriter putObjectOp = new CbWriter();
+            putObjectOp.BeginObject();
+            putObjectOp.WriteInteger("opId", 1);
+            putObjectOp.WriteString("op", BatchOps.BatchOp.Operation.PUT.ToString());
+            putObjectOp.WriteString("bucket", bucket.ToString());
+            putObjectOp.WriteString("key", putObjectKey.ToString());
+            putObjectOp.WriteObject("payload", putObject);
+            putObjectOp.WriteHash("payloadHash", IoHash.Compute(putObject.GetView().Span));
+            putObjectOp.EndObject();
+
+            CbWriter errorObjectOp = new CbWriter();
+            errorObjectOp.BeginObject();
+            errorObjectOp.WriteInteger( "opId",2);
+            errorObjectOp.WriteString("op", BatchOps.BatchOp.Operation.GET.ToString());
+            errorObjectOp.WriteString("bucket", bucket.ToString());
+            errorObjectOp.WriteString("key", missingObjectKey.ToString());
+            errorObjectOp.EndObject();
+
+            CbWriter headObjectOp = new CbWriter();
+            headObjectOp.BeginObject();
+            headObjectOp.WriteInteger("opId", 3);
+            headObjectOp.WriteString("op", BatchOps.BatchOp.Operation.HEAD.ToString());
+            headObjectOp.WriteString("bucket", bucket.ToString());
+            headObjectOp.WriteString("key", getObjectKey.ToString());
+            headObjectOp.EndObject();
+
+            CbObject[] ops = new[]
+            {
+                getObjectOp.ToObject(),
+                putObjectOp.ToObject(),
+                errorObjectOp.ToObject(),
+                headObjectOp.ToObject(),
+            };
+
+            CbWriter batchRequestWriter = new CbWriter();
+            batchRequestWriter.BeginObject();
+            batchRequestWriter.BeginUniformArray("ops", CbFieldType.Object);
+            foreach (CbObject o in ops)
+            {
+                batchRequestWriter.WriteObject(o);
+            }
+            batchRequestWriter.EndUniformArray();
+            batchRequestWriter.EndObject();
+            byte[] batchRequestData = batchRequestWriter.ToByteArray();
+            
+            {
+                HttpContent requestContent = new ByteArrayContent(batchRequestData);
+                requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+
+                HttpResponseMessage result = await _httpClient!.PostAsync(requestUri: $"api/v1/refs/{TestNamespace}", requestContent);
+                result.EnsureSuccessStatusCode();
+
+                await using MemoryStream ms = new MemoryStream();
+                await result.Content.CopyToAsync(ms);
+                byte[] roundTrippedBuffer = ms.ToArray();
+
+                BatchOpsResponse response = CbSerializer.Deserialize<BatchOpsResponse>(roundTrippedBuffer);
+                Assert.AreEqual(4, response.Results.Count);
+                
+                BatchOpsResponse.OpResponses getOp = response.Results.First(r => r.OpId == 0);
+                Assert.IsNotNull(getOp.Response);
+                Assert.AreEqual(200, getOp.StatusCode);
+                Assert.AreEqual(getObject, getOp.Response);
+
+                BatchOpsResponse.OpResponses putOp = response.Results.First(r => r.OpId == 1);
+                Assert.IsNotNull(putOp.Response);
+                Assert.AreEqual(200, putOp.StatusCode);
+                Assert.IsTrue(!putOp.Response["needs"].Equals(CbField.Empty));
+                CollectionAssert.AreEqual(Array.Empty<IoHash>(), putOp.Response["needs"].ToArray());
+
+                BatchOpsResponse.OpResponses errorOp = response.Results.First(r => r.OpId == 2);
+                Assert.IsNotNull(errorOp.Response);
+                Assert.AreEqual(404, errorOp.StatusCode);
+                Assert.IsTrue(!errorOp.Response["title"].Equals(CbField.Empty));
+                Assert.AreEqual("Object not found cbc3db15b9c8253f6106158962325c8fd848daef in bucket bucket namespace test-namespace", errorOp.Response["title"].AsString());
+                Assert.AreEqual(404, errorOp.Response["status"].AsInt32());
+
+                BatchOpsResponse.OpResponses headOp = response.Results.First(r => r.OpId == 3);
+                Assert.IsNotNull(headOp.Response);
+                Assert.AreEqual(200, headOp.StatusCode);
+                Assert.IsTrue(!headOp.Response["exists"].Equals(CbField.Empty));
+                Assert.IsTrue(headOp.Response["exists"].AsBool());
+            }
         }
     }
 }
