@@ -35,13 +35,17 @@ namespace Horde.Storage.Implementation
         }
 
 
-        public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId)
+        public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId, bool mustBeContentId)
         {
             using IScope scope = Tracer.Instance.StartActive("ScyllaContentIdStore.ResolveContentId");
             scope.Span.ResourceName = contentId.ToString();
 
             BlobIdentifier contentIdBlob = contentId.AsBlobIdentifier();
-            Task<bool> blobStoreExistsTask = _blobStore.Exists(ns, contentIdBlob);
+            Task<bool>? blobStoreExistsTask = null;
+            if (!mustBeContentId)
+            {
+                blobStoreExistsTask = _blobStore.Exists(ns, contentIdBlob);
+            }
 
             // lower content_weight means its a better candidate to resolve to
             foreach (ScyllaContentId? resolvedContentId in await _mapper.FetchAsync<ScyllaContentId>("WHERE content_id = ? ORDER BY content_weight DESC", new ScyllaBlobIdentifier(contentId)))
@@ -61,11 +65,14 @@ namespace Horde.Storage.Implementation
                 // blobs are missing continue testing with the next content id in the weighted list as that might exist
             }
 
-            // if no content id is found, but we have a blob that matches the content id (so a unchunked and uncompressed version of the data) we use that instead
-            bool contentIdBlobExists = await blobStoreExistsTask;
+            if (!mustBeContentId)
+            {
+                // if no content id is found, but we have a blob that matches the content id (so a unchunked and uncompressed version of the data) we use that instead
+                bool contentIdBlobExists = await blobStoreExistsTask!;
 
-            if (contentIdBlobExists)
-                return new[] { contentIdBlob };
+                if (contentIdBlobExists)
+                    return new[] { contentIdBlob };
+            }
             
             // unable to resolve the content id
             return null;

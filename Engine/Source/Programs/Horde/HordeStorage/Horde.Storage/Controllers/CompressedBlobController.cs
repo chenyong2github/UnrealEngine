@@ -93,7 +93,7 @@ namespace Horde.Storage.Controllers
             {
                 return Forbid();
             }
-            BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, id);
+            BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, id, mustBeContentId: true);
             if (chunks == null || chunks.Length == 0)
             {
                 return NotFound();
@@ -136,7 +136,7 @@ namespace Horde.Storage.Controllers
 
             IEnumerable<Task> tasks = id.Select(async blob =>
             {
-                BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, blob);
+                BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, blob, mustBeContentId: true);
 
                 if (chunks == null)
                 {
@@ -163,7 +163,7 @@ namespace Horde.Storage.Controllers
 
         private async Task<BlobContents> GetImpl(NamespaceId ns, ContentId contentId)
         {
-            BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, contentId);
+            BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, contentId, mustBeContentId: true);
             if (chunks == null || chunks.Length == 0)
             {
                 throw new ContentIdResolveException(contentId);

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
+using System;
+using System.Threading.Tasks;
 
 namespace Horde.Storage.Implementation
 {
@@ -14,8 +14,9 @@ namespace Horde.Storage.Implementation
         /// </summary>
         /// <param name="ns">The namespace to operate in</param>
         /// <param name="contentId">The identifier for the content id</param>
+        /// <param name="mustBeContentId"></param>
         /// <returns></returns>
-        Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId);
+        Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId, bool mustBeContentId = false);
 
         /// <summary>
         /// Add a mapping from contentId to blobIdentifier
@@ -32,7 +33,7 @@ namespace Horde.Storage.Implementation
     {
         public InvalidContentIdException(ContentId contentId) : base($"Unknown content id {contentId}")
         {
-            
+
         }
     }
 
@@ -40,7 +41,7 @@ namespace Horde.Storage.Implementation
     {
         public ContentId ContentId { get; }
 
-        public ContentIdResolveException(ContentId contentId): base($"Unable to find any mapping of contentId {contentId} that has all blobs present")
+        public ContentIdResolveException(ContentId contentId) : base($"Unable to find any mapping of contentId {contentId} that has all blobs present")
         {
             ContentId = contentId;
         }

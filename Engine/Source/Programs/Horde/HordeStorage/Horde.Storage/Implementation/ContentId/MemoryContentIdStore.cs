@@ -18,7 +18,7 @@ namespace Horde.Storage.Implementation
             _blobStore = blobStore;
         }
 
-        public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId)
+        public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId, bool mustBeContentId)
         {
             if (_contentIds.TryGetValue(ns, out ConcurrentDictionary<ContentId, SortedList<int, BlobIdentifier[]>>? contentIdsForNamespace))
             {
@@ -36,7 +36,7 @@ namespace Horde.Storage.Implementation
 
             BlobIdentifier uncompressedBlobIdentifier = contentId.AsBlobIdentifier();
             // if no content id is found, but we have a blob that matches the content id (so a unchunked and uncompressed version of the data) we use that instead
-            if (await _blobStore.Exists(ns, uncompressedBlobIdentifier))
+            if (!mustBeContentId && await _blobStore.Exists(ns, uncompressedBlobIdentifier))
                 return new[] { uncompressedBlobIdentifier };
 
             return null;

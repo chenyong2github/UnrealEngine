@@ -17,7 +17,7 @@ namespace Horde.Storage.Implementation
         {
         }
 
-        public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId)
+        public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId, bool mustBeContentId)
         {
             HttpRequestMessage getContentIdRequest = BuildHttpRequest(HttpMethod.Get, $"api/v1/content-id/{ns}/{contentId}");
             HttpResponseMessage response = await HttpClient.SendAsync(getContentIdRequest);

@@ -50,7 +50,7 @@ namespace Horde.Storage.Controllers
                     return Forbid();
                 }
             }
-            BlobIdentifier[]? blobs = await _contentIdStore.Resolve(ns, contentId);
+            BlobIdentifier[]? blobs = await _contentIdStore.Resolve(ns, contentId, mustBeContentId: true);
 
             if (blobs == null)
             {

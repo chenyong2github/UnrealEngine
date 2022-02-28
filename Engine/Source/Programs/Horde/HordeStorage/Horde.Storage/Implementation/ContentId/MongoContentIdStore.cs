@@ -36,7 +36,7 @@ namespace Horde.Storage.Implementation
             AddIndexFor<MongoContentIdModelV0>().CreateOne(indexModel);
         }
 
-        public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId)
+        public async Task<BlobIdentifier[]?> Resolve(NamespaceId ns, ContentId contentId, bool mustBeContentId)
         {
             IMongoCollection<MongoContentIdModelV0> collection = GetCollection<MongoContentIdModelV0>();
 
@@ -62,7 +62,7 @@ namespace Horde.Storage.Implementation
 
             BlobIdentifier contentIdAsBlobIdentifier = contentId.AsBlobIdentifier();
             // no content id where all blobs are present, check if its present in the blob store as a uncompressed version of the blob
-            if (await _blobStore.Exists(ns, contentIdAsBlobIdentifier))
+            if (!mustBeContentId && await _blobStore.Exists(ns, contentIdAsBlobIdentifier))
             {
                 return new[] { contentIdAsBlobIdentifier };
             }
