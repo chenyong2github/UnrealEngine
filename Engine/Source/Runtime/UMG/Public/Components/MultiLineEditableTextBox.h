@@ -66,25 +66,6 @@ public:
 	UPROPERTY(EditAnywhere, Category=Behavior, AdvancedDisplay)
 	EVirtualKeyboardDismissAction VirtualKeyboardDismissAction;
 
-	UPROPERTY()
-	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
-
-	/** Font color and opacity (overrides Style) */
-	UPROPERTY()
-	FSlateFontInfo Font_DEPRECATED;
-
-	/** Text color and opacity (overrides Style) */
-	UPROPERTY()
-	FLinearColor ForegroundColor_DEPRECATED;
-
-	/** The color of the background/border around the editable text (overrides Style) */
-	UPROPERTY()
-	FLinearColor BackgroundColor_DEPRECATED;
-
-	/** Text color and opacity when read-only (overrides Style) */
-	UPROPERTY()
-	FLinearColor ReadOnlyForegroundColor_DEPRECATED;
-
 	/** Called whenever the text is changed programmatically or interactively by the user */
 	UPROPERTY(BlueprintAssignable, Category="Widget Event", meta=(DisplayName="OnTextChanged (Multi-Line Text Box)"))
 	FOnMultiLineEditableTextBoxChangedEvent OnTextChanged;
@@ -142,10 +123,6 @@ public:
 	//~ Begin UVisual Interface
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
-
-	//~ Begin UObject Interface
-	virtual void PostLoad() override;
-	//~ End UObject Interface
 
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;

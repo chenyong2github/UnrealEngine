@@ -299,14 +299,6 @@ void UBorder::PostLoad()
 {
 	Super::PostLoad();
 
-#if WITH_EDITORONLY_DATA
-	if ( GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_ASSETS && Brush_DEPRECATED != nullptr )
-	{
-		Background = Brush_DEPRECATED->Brush;
-		Brush_DEPRECATED = nullptr;
-	}
-#endif
-
 	if ( GetChildrenCount() > 0 )
 	{
 		//TODO UMG Pre-Release Upgrade, now have slots of their own.  Convert existing slot to new slot.

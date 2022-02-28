@@ -208,17 +208,6 @@ void UButton::PostLoad()
 			}
 		}
 	}
-
-	if( GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_ASSETS && Style_DEPRECATED != nullptr )
-	{
-		const FButtonStyle* StylePtr = Style_DEPRECATED->GetStyle<FButtonStyle>();
-		if(StylePtr != nullptr)
-		{
-			WidgetStyle = *StylePtr;
-		}
-
-		Style_DEPRECATED = nullptr;
-	}
 }
 
 FReply UButton::SlateHandleClicked()

@@ -28,21 +28,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Content Layout")
 	FVector2D InnerSlotPadding;
 
-#if WITH_EDITORONLY_DATA
-	/** DEPRECATED value replaced by WrapSize, When this width is exceeded, elements will start appearing on the next line. */
-	UPROPERTY()
-	float WrapWidth_DEPRECATED;
-#endif
-
 	/** When this size is exceeded, elements will start appearing on the next line. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Content Layout", meta=(EditCondition = "bExplicitWrapSize"))
 	float WrapSize;
-
-#if WITH_EDITORONLY_DATA
-	/** DEPRECATED value replaced by bExplicitWrapSize, Use explicit wrap width whenever possible. It greatly simplifies layout calculations and reduces likelihood of "wiggling UI" */
-	UPROPERTY()
-	bool bExplicitWrapWidth_DEPRECATED;
-#endif
 
 	/** Use explicit wrap size whenever possible. It greatly simplifies layout calculations and reduces likelihood of "wiggling UI" */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Content Layout")
@@ -64,10 +52,6 @@ public:
 	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
 
 public:
-
-	UE_DEPRECATED(4.22, "Deprecated, please use AddChildToWrapBox() instead")
-	UWrapBoxSlot* AddChildWrapBox(UWidget* Content);
-
 	UFUNCTION(BlueprintCallable, Category="Panel")
 	UWrapBoxSlot* AddChildToWrapBox(UWidget* Content);
 
@@ -76,8 +60,6 @@ public:
 	virtual const FText GetPaletteCategory() override;
 	// End UWidget interface
 #endif
-
-	virtual void PostLoad() override;
 
 protected:
 

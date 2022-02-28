@@ -78,7 +78,6 @@ UUserWidget::UUserWidget(const FObjectInitializer& ObjectInitializer)
 	ViewportAnchors = FAnchors(0, 0, 1, 1);
 	Visibility = ESlateVisibility::SelfHitTestInvisible;
 
-	bSupportsKeyboardFocus_DEPRECATED = true;
 	bIsFocusable = false;
 	ColorAndOpacity = FLinearColor::White;
 	ForegroundColor = FSlateColor::UseForeground();
@@ -458,11 +457,6 @@ void UUserWidget::DisableAnimations()
 			Player->RemoveEvaluationData();
 		}
 	}
-}
-
-void UUserWidget::Invalidate()
-{
-	Invalidate(EInvalidateWidgetReason::LayoutAndVolatility);
 }
 
 void UUserWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
@@ -1916,21 +1910,6 @@ void UUserWidget::PostLoad()
 		bHasScriptImplementedPaint = DefaultWidget->bHasScriptImplementedPaint;
 	}
 #endif
-}
-
-void UUserWidget::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
-
-	if ( Ar.IsLoading() )
-	{
-		if ( Ar.UEVer() < VER_UE4_USERWIDGET_DEFAULT_FOCUSABLE_FALSE )
-		{
-			bIsFocusable = bSupportsKeyboardFocus_DEPRECATED;
-		}
-	}
 }
 
 /////////////////////////////////////////////////////

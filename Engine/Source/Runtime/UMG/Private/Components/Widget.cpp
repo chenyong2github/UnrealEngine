@@ -686,12 +686,6 @@ void UWidget::SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRu
 	}
 }
 
-void UWidget::SetNavigationRule(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus)
-{
-	SetNavigationRuleInternal(Direction, Rule, WidgetToFocus);
-	BuildNavigation();
-}
-
 void UWidget::SetNavigationRuleBase(EUINavigation Direction, EUINavigationRule Rule)
 {
 	if (Rule == EUINavigationRule::Explicit || Rule == EUINavigationRule::Custom || Rule == EUINavigationRule::CustomBoundary)

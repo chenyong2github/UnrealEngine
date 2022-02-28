@@ -36,12 +36,6 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = ObjectListEntry)
 	void OnListItemObjectSet(UObject* ListItemObject);
 
-	UE_DEPRECATED(4.23, "Implementers of IUserObjectListEntry no longer need to manually implement the GetListItemObject method.")
-	virtual UObject* GetListItemObject_Implementation() const { return nullptr; }
-
-	UE_DEPRECATED(4.23, "Renamed to NativeOnListItemObjectSet, as caching the item object is no longer a hard requirement.")
-	virtual void SetListItemObjectInternal(UObject* InObject) {}
-
 private:
 	UObject* GetListItemObjectInternal() const;
 	

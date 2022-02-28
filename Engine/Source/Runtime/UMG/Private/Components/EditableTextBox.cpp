@@ -21,20 +21,9 @@ static FEditableTextBoxStyle* EditorEditableTextBoxStyle = nullptr;
 UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	ForegroundColor_DEPRECATED = FLinearColor::Black;
-	BackgroundColor_DEPRECATED = FLinearColor::White;
-	ReadOnlyForegroundColor_DEPRECATED = FLinearColor::Black;
-
-	if (!IsRunningDedicatedServer())
-	{
-		static ConstructorHelpers::FObjectFinder<UFont> RobotoFontObj(*UWidget::GetDefaultFontName());
-		Font_DEPRECATED = FSlateFontInfo(RobotoFontObj.Object, 12, FName("Bold"));
-	}
-
 	IsReadOnly = false;
 	IsPassword = false;
 	MinimumDesiredWidth = 0.0f;
-	Padding_DEPRECATED = FMargin(0, 0, 0, 0);
 	IsCaretMovedWhenGainFocus = true;
 	SelectAllTextWhenFocused = false;
 	RevertTextOnEscape = false;
@@ -243,55 +232,6 @@ void UEditableTextBox::HandleOnTextCommitted(const FText& InText, ETextCommit::T
 {
 	Text = InText;
 	OnTextCommitted.Broadcast(InText, CommitMethod);
-}
-
-void UEditableTextBox::PostLoad()
-{
-	Super::PostLoad();
-
-	if ( GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_ASSETS )
-	{
-		if ( Style_DEPRECATED != nullptr )
-		{
-			const FEditableTextBoxStyle* StylePtr = Style_DEPRECATED->GetStyle<FEditableTextBoxStyle>();
-			if ( StylePtr != nullptr )
-			{
-				WidgetStyle = *StylePtr;
-			}
-
-			Style_DEPRECATED = nullptr;
-		}
-	}
-
-	if (GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_OVERRIDES)
-	{
-		if (Font_DEPRECATED.HasValidFont())
-		{
-			WidgetStyle.Font = Font_DEPRECATED;
-			Font_DEPRECATED = FSlateFontInfo();
-		}
-
-		WidgetStyle.Padding = Padding_DEPRECATED;
-		Padding_DEPRECATED = FMargin(0);
-
-		if (ForegroundColor_DEPRECATED != FLinearColor::Black)
-		{
-			WidgetStyle.ForegroundColor = ForegroundColor_DEPRECATED;
-			ForegroundColor_DEPRECATED = FLinearColor::Black;
-		}
-
-		if (BackgroundColor_DEPRECATED != FLinearColor::White)
-		{
-			WidgetStyle.BackgroundColor = BackgroundColor_DEPRECATED;
-			BackgroundColor_DEPRECATED = FLinearColor::White;
-		}
-
-		if (ReadOnlyForegroundColor_DEPRECATED != FLinearColor::Black)
-		{
-			WidgetStyle.ReadOnlyForegroundColor = ReadOnlyForegroundColor_DEPRECATED;
-			ReadOnlyForegroundColor_DEPRECATED = FLinearColor::Black;
-		}
-	}
 }
 
 #if WITH_ACCESSIBILITY

@@ -400,26 +400,6 @@ void USpinBox::HandleOnEndSliderMovement(float InValue)
 	}
 }
 
-void USpinBox::PostLoad()
-{
-	Super::PostLoad();
-
-	if ( GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_ASSETS )
-	{
-		if ( Style_DEPRECATED != nullptr )
-		{
-			const FSpinBoxStyle* StylePtr = Style_DEPRECATED->GetStyle<FSpinBoxStyle>();
-			if ( StylePtr != nullptr )
-			{
-				WidgetStyle = *StylePtr;
-			}
-
-			Style_DEPRECATED = nullptr;
-		}
-	}
-}
-
-
 #if WITH_EDITOR
 
 const FText USpinBox::GetPaletteCategory()

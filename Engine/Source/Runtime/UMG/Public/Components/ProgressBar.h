@@ -28,22 +28,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=( DisplayName="Style" ))
 	FProgressBarStyle WidgetStyle;
 
-	/** Style used for the progress bar */
-	UPROPERTY()
-	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
-
-	/** The brush to use as the background of the progress bar */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> BackgroundImage_DEPRECATED;
-	
-	/** The brush to use as the fill image */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> FillImage_DEPRECATED;
-	
-	/** The brush to use as the marquee image */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> MarqueeImage_DEPRECATED;
-
 	/** Used to determine the fill position of the progress bar ranging 0..1 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Progress, meta=( UIMin = "0", UIMax = "1" ))
 	float Percent;
@@ -99,10 +83,6 @@ public:
 	//~ Begin UVisual Interface
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
-
-	//~ Begin UObject Interface
-	virtual void PostLoad() override;
-	//~ End UObject Interface
 
 #if WITH_EDITOR
 	//~ Begin UWidget Interface

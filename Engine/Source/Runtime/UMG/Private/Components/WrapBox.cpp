@@ -19,25 +19,6 @@ UWrapBox::UWrapBox(const FObjectInitializer& ObjectInitializer)
 	Orientation = EOrientation::Orient_Horizontal;
 }
 
-void UWrapBox::PostLoad()
-{
-	Super::PostLoad();
-
-#if WITH_EDITORONLY_DATA
-	if (WrapWidth_DEPRECATED != 0.0f)
-	{
-		WrapSize = WrapWidth_DEPRECATED;
-		WrapWidth_DEPRECATED = 0.0f;
-	}
-
-	if (bExplicitWrapWidth_DEPRECATED)
-	{
-		bExplicitWrapSize = bExplicitWrapWidth_DEPRECATED;
-		bExplicitWrapWidth_DEPRECATED = false;
-	}
-#endif
-}
-
 void UWrapBox::ReleaseSlateResources(bool bReleaseChildren)
 {
 	Super::ReleaseSlateResources(bReleaseChildren);
@@ -70,11 +51,6 @@ void UWrapBox::OnSlotRemoved(UPanelSlot* InSlot)
 			MyWrapBox->RemoveSlot(Widget.ToSharedRef());
 		}
 	}
-}
-
-UWrapBoxSlot* UWrapBox::AddChildWrapBox(UWidget* Content)
-{
-	return AddChildToWrapBox(Content);
 }
 
 UWrapBoxSlot* UWrapBox::AddChildToWrapBox(UWidget* Content)

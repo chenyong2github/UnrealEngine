@@ -22,19 +22,6 @@ UImage::UImage(const FObjectInitializer& ObjectInitializer)
 {
 }
 
-#if WITH_EDITORONLY_DATA
-void UImage::PostLoad()
-{
-	Super::PostLoad();
-
-	if ( GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_ASSETS && Image_DEPRECATED != nullptr )
-	{
-		Brush = Image_DEPRECATED->Brush;
-		Image_DEPRECATED = nullptr;
-	}
-}
-#endif
-
 void UImage::ReleaseSlateResources(bool bReleaseChildren)
 {
 	Super::ReleaseSlateResources(bReleaseChildren);

@@ -53,30 +53,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance, meta=(DisplayName="Style", ShowOnlyInnerProperties))
 	FEditableTextStyle WidgetStyle;
 
-	/** Text style */
-	UPROPERTY()
-	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
-
-	/** Background image for the selected text (overrides Style) */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> BackgroundImageSelected_DEPRECATED;
-
-	/** Background image for the composing text (overrides Style) */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> BackgroundImageComposing_DEPRECATED;
-
-	/** Image brush used for the caret (overrides Style) */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> CaretImage_DEPRECATED;
-
-	/** Font color and opacity (overrides Style) */
-	UPROPERTY()
-	FSlateFontInfo Font_DEPRECATED;
-
-	/** Text color and opacity (overrides Style) */
-	UPROPERTY()
-	FSlateColor ColorAndOpacity_DEPRECATED;
-
 	/** Sets whether this text box can actually be modified interactively by the user */
 	UPROPERTY(EditAnywhere, Category=Appearance)
 	bool IsReadOnly;
@@ -193,10 +169,6 @@ public:
 	//~ Begin UVisual Interface
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
-
-	//~ Begin UObject Interface
-	virtual void PostLoad() override;
-	//~ End UObject Interface
 
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;

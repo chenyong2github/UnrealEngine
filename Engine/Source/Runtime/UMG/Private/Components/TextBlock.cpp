@@ -23,7 +23,6 @@ UTextBlock::UTextBlock(const FObjectInitializer& ObjectInitializer)
 	ShadowOffset = FVector2D(1.0f, 1.0f);
 	ColorAndOpacity = FLinearColor::White;
 	ShadowColorAndOpacity = FLinearColor::Transparent;
-	bAutoWrapText_DEPRECATED = false;
 	TextTransformPolicy = ETextTransformPolicy::None;
 	TextOverflowPolicy = ETextOverflowPolicy::Clip;
 
@@ -37,17 +36,6 @@ UTextBlock::UTextBlock(const FObjectInitializer& ObjectInitializer)
 	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
 	bCanChildrenBeAccessible = false;
 #endif
-}
-
-void UTextBlock::PostLoad()
-{
-	Super::PostLoad();
-
-	if (bAutoWrapText_DEPRECATED)
-	{
-		AutoWrapText = bAutoWrapText_DEPRECATED;
-		bAutoWrapText_DEPRECATED = false;
-	}
 }
 
 void UTextBlock::ReleaseSlateResources(bool bReleaseChildren)

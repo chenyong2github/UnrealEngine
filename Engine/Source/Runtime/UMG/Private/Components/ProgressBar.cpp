@@ -113,43 +113,6 @@ void UProgressBar::SetPercent(float InPercent)
 	}
 }
 
-void UProgressBar::PostLoad()
-{
-	Super::PostLoad();
-
-	if (GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_ASSETS)
-	{
-		if (Style_DEPRECATED != nullptr)
-		{
-			const FProgressBarStyle* StylePtr = Style_DEPRECATED->GetStyle<FProgressBarStyle>();
-			if (StylePtr != nullptr)
-			{
-				WidgetStyle = *StylePtr;
-			}
-
-			Style_DEPRECATED = nullptr;
-		}
-
-		if (BackgroundImage_DEPRECATED != nullptr)
-		{
-			WidgetStyle.BackgroundImage = BackgroundImage_DEPRECATED->Brush;
-			BackgroundImage_DEPRECATED = nullptr;
-		}
-
-		if (FillImage_DEPRECATED != nullptr)
-		{
-			WidgetStyle.FillImage = FillImage_DEPRECATED->Brush;
-			FillImage_DEPRECATED = nullptr;
-		}
-
-		if (MarqueeImage_DEPRECATED != nullptr)
-		{
-			WidgetStyle.MarqueeImage = MarqueeImage_DEPRECATED->Brush;
-			MarqueeImage_DEPRECATED = nullptr;
-		}
-	}
-}
-
 #if WITH_EDITOR
 
 const FText UProgressBar::GetPaletteCategory()

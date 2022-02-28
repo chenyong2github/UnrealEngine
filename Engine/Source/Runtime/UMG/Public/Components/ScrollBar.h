@@ -22,9 +22,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=( DisplayName="Style" ))
 	FScrollBarStyle WidgetStyle;
 
-	UPROPERTY()
-	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
-
 	/**  */
 	UPROPERTY(EditAnywhere, Category="Behavior")
 	bool bAlwaysShowScrollbar;
@@ -84,7 +81,6 @@ public:
 	//~ Begin UObject Interface
 #if WITH_EDITORONLY_DATA
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
 #endif // if WITH_EDITORONLY_DATA
 	//~ End UObject Interface
 

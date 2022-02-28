@@ -119,20 +119,6 @@ void UCircularThrobber::SetRadius(float InRadius)
 	}
 }
 
-void UCircularThrobber::PostLoad()
-{
-	Super::PostLoad();
-
-	if ( GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_ASSETS )
-	{
-		if ( PieceImage_DEPRECATED != nullptr )
-		{
-			Image = PieceImage_DEPRECATED->Brush;
-			PieceImage_DEPRECATED = nullptr;
-		}
-	}
-}
-
 #if WITH_EDITOR
 
 const FText UCircularThrobber::GetPaletteCategory()

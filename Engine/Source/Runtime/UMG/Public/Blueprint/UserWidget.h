@@ -216,7 +216,6 @@ public:
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual void BeginDestroy() override;
 	virtual void PostLoad() override;
-	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 
 	void DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree);
@@ -921,21 +920,6 @@ public:
 	UUMGSequencePlayer* PlayAnimation(UWidgetAnimation* InAnimation, float StartAtTime = 0.0f, int32 NumLoopsToPlay = 1, EUMGSequencePlayMode::Type PlayMode = EUMGSequencePlayMode::Forward, float PlaybackSpeed = 1.0f, bool bRestoreState = false);
 
 	/**
-	 * Plays an animation in this widget a specified number of times
-	 * 
-	 * @param InAnimation The animation to play
-	 * @param StartAtTime The time in the animation from which to start playing, relative to the start position. For looped animations, this will only affect the first playback of the animation.
-	 * @param NumLoopsToPlay The number of times to loop this animation (0 to loop indefinitely)
-	 * @param PlaybackSpeed The speed at which the animation should play
-	 * @param PlayMode Specifies the playback mode
-	 */
-	UE_DEPRECATED(4.22, "Short lived attempt to clarify what the default PlayAnimation function does, but going to just keep the default one to make things simple by default.")
-	UUMGSequencePlayer* PlayAnimationAtTime(UWidgetAnimation* InAnimation, float StartAtTime = 0.0f, int32 NumLoopsToPlay = 1, EUMGSequencePlayMode::Type PlayMode = EUMGSequencePlayMode::Forward, float PlaybackSpeed = 1.0f)
-	{
-		return PlayAnimation(InAnimation, StartAtTime, NumLoopsToPlay, PlayMode, PlaybackSpeed);
-	}
-
-	/**
 	 * Plays an animation in this widget a specified number of times stopping at a specified time
 	 * 
 	 * @param InAnimation The animation to play
@@ -1220,9 +1204,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	int32 Priority;
 
-	UPROPERTY()
-	uint8 bSupportsKeyboardFocus_DEPRECATED:1;
-
 	/** Setting this flag to true, allows this widget to accept focus when clicked, or when navigated to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction")
 	uint8 bIsFocusable : 1;
@@ -1269,11 +1250,7 @@ protected:
 	virtual void NativePreConstruct();
 	virtual void NativeConstruct();
 	virtual void NativeDestruct();
-
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime);
-
-	UE_DEPRECATED(4.20, "Please override the other version of NativePaint that accepts all the parameters, not just the paint context.")
-	virtual void NativePaint(FPaintContext& InContext) const { }
 
 	/**
 	 * Native implemented paint function for the Widget
@@ -1321,8 +1298,6 @@ protected:
 	virtual FReply NativeOnTouchForceChanged(const FGeometry& MyGeometry, const FPointerEvent& TouchEvent);
 	virtual FCursorReply NativeOnCursorQuery( const FGeometry& InGeometry, const FPointerEvent& InCursorEvent );
 	virtual FNavigationReply NativeOnNavigation(const FGeometry& InGeometry, const FNavigationEvent& InNavigationEvent);
-	UE_DEPRECATED(4.20, "Please use NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)")
-	void NativeOnMouseCaptureLost() {}
 	virtual void NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent);
 
 protected:
@@ -1341,9 +1316,6 @@ protected:
 	void TearDownAnimations();
 
 	void DisableAnimations();
-
-	UE_DEPRECATED(4.21, "You now need to provide the reason you're invalidating.")
-	void Invalidate();
 
 	void Invalidate(EInvalidateWidgetReason InvalidateReason);
 	

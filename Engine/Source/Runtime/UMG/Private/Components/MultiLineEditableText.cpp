@@ -62,9 +62,7 @@ UMultiLineEditableText::UMultiLineEditableText(const FObjectInitializer& ObjectI
 	if (!IsRunningDedicatedServer())
 	{
 		static ConstructorHelpers::FObjectFinder<UFont> RobotoFontObj(*UWidget::GetDefaultFontName());
-		Font_DEPRECATED = FSlateFontInfo(RobotoFontObj.Object, 12, FName("Bold"));
-
-		WidgetStyle.SetFont(Font_DEPRECATED);
+		WidgetStyle.SetFont(FSlateFontInfo(RobotoFontObj.Object, 12, FName("Bold")));
 	}
 }
 
@@ -204,20 +202,6 @@ void UMultiLineEditableText::HandleOnTextChanged(const FText& InText)
 void UMultiLineEditableText::HandleOnTextCommitted(const FText& InText, ETextCommit::Type CommitMethod)
 {
 	OnTextCommitted.Broadcast(InText, CommitMethod);
-}
-
-void UMultiLineEditableText::PostLoad()
-{
-	Super::PostLoad();
-
-	if (GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_OVERRIDES)
-	{
-		if (Font_DEPRECATED.HasValidFont())
-		{
-			WidgetStyle.Font = Font_DEPRECATED;
-			Font_DEPRECATED = FSlateFontInfo();
-		}
-	}
 }
 
 #if WITH_EDITOR

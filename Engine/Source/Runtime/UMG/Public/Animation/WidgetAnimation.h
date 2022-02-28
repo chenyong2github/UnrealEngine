@@ -66,16 +66,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Animation")
 	UMG_API float GetEndTime() const;
 
-#if WITH_EDITORONLY_DATA
-	/** Fires when the widget animation starts playing. */
-	UPROPERTY()
-	FOnWidgetAnimationPlaybackStatusChanged OnAnimationStarted_DEPRECATED;
-
-	/** Fires when the widget animation is finished. */
-	UPROPERTY()
-	FOnWidgetAnimationPlaybackStatusChanged OnAnimationFinished_DEPRECATED;
-#endif
-
 	// These animation binding functions were added so that we could cleanly upgrade assets
 	// from before animation sharing, they don't actually modify the animation, they just pipe
 	// through to the UUserWidget.  If we didn't put the functions here, it would be much more

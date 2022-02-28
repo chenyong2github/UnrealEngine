@@ -40,10 +40,6 @@ public:
 	/** Reverses a running animation */
 	void Reverse();
 
-	/** Gets the current time position in the player (in seconds). */
-	UE_DEPRECATED(4.20, "Please use GetCurrentTime instead.")
-	double GetTimeCursorPosition() const { return GetCurrentTime().AsSeconds(); }
-
 	void SetCurrentTime(float InTime) { TimeCursorPosition = AnimationResolution.AsFrameTime(InTime); }
 	FQualifiedFrameTime GetCurrentTime() const { return FQualifiedFrameTime(TimeCursorPosition, AnimationResolution); }
 

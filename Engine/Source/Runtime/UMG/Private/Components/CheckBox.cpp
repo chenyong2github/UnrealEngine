@@ -52,9 +52,6 @@ UCheckBox::UCheckBox(const FObjectInitializer& ObjectInitializer)
 	CheckedState = ECheckBoxState::Unchecked;
 
 	HorizontalAlignment = HAlign_Fill;
-	Padding_DEPRECATED = FMargin(0, 0, 0, 0);
-
-	BorderBackgroundColor_DEPRECATED = FLinearColor::White;
 
 	ClickMethod = EButtonClickMethod::DownAndUp;
 	TouchMethod = EButtonTouchMethod::DownAndUp;
@@ -201,91 +198,6 @@ void UCheckBox::SlateOnCheckStateChangedCallback(ECheckBoxState NewState)
 	//@TODO: Choosing to treat Undetermined as Checked
 	const bool bWantsToBeChecked = NewState != ECheckBoxState::Unchecked;
 	OnCheckStateChanged.Broadcast(bWantsToBeChecked);
-}
-
-void UCheckBox::PostLoad()
-{
-	Super::PostLoad();
-
-	if ( GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_ASSETS )
-	{
-		if ( Style_DEPRECATED != nullptr )
-		{
-			const FCheckBoxStyle* StylePtr = Style_DEPRECATED->GetStyle<FCheckBoxStyle>();
-			if ( StylePtr != nullptr )
-			{
-				WidgetStyle = *StylePtr;
-			}
-
-			Style_DEPRECATED = nullptr;
-		}
-
-		if ( UncheckedImage_DEPRECATED != nullptr )
-		{
-			WidgetStyle.UncheckedImage = UncheckedImage_DEPRECATED->Brush;
-			UncheckedImage_DEPRECATED = nullptr;
-		}
-
-		if ( UncheckedHoveredImage_DEPRECATED != nullptr )
-		{
-			WidgetStyle.UncheckedHoveredImage = UncheckedHoveredImage_DEPRECATED->Brush;
-			UncheckedHoveredImage_DEPRECATED = nullptr;
-		}
-
-		if ( UncheckedPressedImage_DEPRECATED != nullptr )
-		{
-			WidgetStyle.UncheckedPressedImage = UncheckedPressedImage_DEPRECATED->Brush;
-			UncheckedPressedImage_DEPRECATED = nullptr;
-		}
-
-		if ( CheckedImage_DEPRECATED != nullptr )
-		{
-			WidgetStyle.CheckedImage = CheckedImage_DEPRECATED->Brush;
-			CheckedImage_DEPRECATED = nullptr;
-		}
-
-		if ( CheckedHoveredImage_DEPRECATED != nullptr )
-		{
-			WidgetStyle.CheckedHoveredImage = CheckedHoveredImage_DEPRECATED->Brush;
-			CheckedHoveredImage_DEPRECATED = nullptr;
-		}
-
-		if ( CheckedPressedImage_DEPRECATED != nullptr )
-		{
-			WidgetStyle.CheckedPressedImage = CheckedPressedImage_DEPRECATED->Brush;
-			CheckedPressedImage_DEPRECATED = nullptr;
-		}
-
-		if ( UndeterminedImage_DEPRECATED != nullptr )
-		{
-			WidgetStyle.UndeterminedImage = UndeterminedImage_DEPRECATED->Brush;
-			UndeterminedImage_DEPRECATED = nullptr;
-		}
-
-		if ( UndeterminedHoveredImage_DEPRECATED != nullptr )
-		{
-			WidgetStyle.UndeterminedHoveredImage = UndeterminedHoveredImage_DEPRECATED->Brush;
-			UndeterminedHoveredImage_DEPRECATED = nullptr;
-		}
-
-		if ( UndeterminedPressedImage_DEPRECATED != nullptr )
-		{
-			WidgetStyle.UndeterminedPressedImage = UndeterminedPressedImage_DEPRECATED->Brush;
-			UndeterminedPressedImage_DEPRECATED = nullptr;
-		}
-	}
-
-	if (GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_OVERRIDES)
-	{
-		WidgetStyle.Padding = Padding_DEPRECATED;
-		Padding_DEPRECATED = FMargin(0);
-
-		if (BorderBackgroundColor_DEPRECATED != FLinearColor::White)
-		{
-			WidgetStyle.BorderBackgroundColor = BorderBackgroundColor_DEPRECATED;
-			BorderBackgroundColor_DEPRECATED = FLinearColor::White;
-		}
-	}
 }
 
 #if WITH_ACCESSIBILITY

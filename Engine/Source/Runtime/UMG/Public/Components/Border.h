@@ -197,12 +197,5 @@ protected:
 	/** Translates the bound brush data and assigns it to the cached brush used by this widget. */
 	const FSlateBrush* ConvertImage(TAttribute<FSlateBrush> InImageAsset) const;
 
-#if WITH_EDITORONLY_DATA
-protected:
-	/** Image to use for the border */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> Brush_DEPRECATED;
-#endif
-
 	PROPERTY_BINDING_IMPLEMENTATION(FLinearColor, ContentColorAndOpacity)
 };

@@ -45,57 +45,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=( DisplayName="Style" ))
 	FCheckBoxStyle WidgetStyle;
 
-	/** Style of the check box */
-	UPROPERTY()
-	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
-
-	/** Image to use when the checkbox is unchecked */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> UncheckedImage_DEPRECATED;
-	
-	/** Image to use when the checkbox is unchecked and hovered */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> UncheckedHoveredImage_DEPRECATED;
-	
-	/** Image to use when the checkbox is unchecked and pressed */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> UncheckedPressedImage_DEPRECATED;
-	
-	/** Image to use when the checkbox is checked */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> CheckedImage_DEPRECATED;
-	
-	/** Image to use when the checkbox is checked and hovered */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> CheckedHoveredImage_DEPRECATED;
-	
-	/** Image to use when the checkbox is checked and pressed */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> CheckedPressedImage_DEPRECATED;
-	
-	/** Image to use when the checkbox is in an ambiguous state and hovered */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> UndeterminedImage_DEPRECATED;
-	
-	/** Image to use when the checkbox is checked and hovered */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> UndeterminedHoveredImage_DEPRECATED;
-	
-	/** Image to use when the checkbox is in an ambiguous state and pressed */
-	UPROPERTY()
-	TObjectPtr<USlateBrushAsset> UndeterminedPressedImage_DEPRECATED;
-
 	/** How the content of the toggle button should align within the given space */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
-
-	/** Spacing between the check box image and its content */
-	UPROPERTY()
-	FMargin Padding_DEPRECATED;
-
-	/** The color of the background border */
-	UPROPERTY()
-	FSlateColor BorderBackgroundColor_DEPRECATED;
 
 	/** The type of mouse action required by the user to trigger the buttons 'Click' */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", AdvancedDisplay)
@@ -159,10 +111,6 @@ public:
 	//~ Begin UVisual Interface
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
-
-	//~ Begin UObject Interface
-	virtual void PostLoad() override;
-	//~ End UObject Interface
 
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;

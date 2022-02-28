@@ -39,15 +39,9 @@ public:
 	UPROPERTY( BlueprintReadOnly, Category = "Key Selection" )
 	FInputChord SelectedKey;
 
-	UPROPERTY()
-	FSlateFontInfo Font_DEPRECATED;
-
 	/** The amount of blank space around the text used to display the currently selected key. */
 	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = Appearance )
 	FMargin Margin;
-
-	UPROPERTY()
-	FLinearColor ColorAndOpacity_DEPRECATED;
 
 	/** Sets the text which is displayed while selecting keys. */
 	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = Appearance )
@@ -123,7 +117,6 @@ public:
 
 protected:
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 

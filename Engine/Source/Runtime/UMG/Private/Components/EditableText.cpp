@@ -50,14 +50,6 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	}
 #endif // WITH_EDITOR
 
-	ColorAndOpacity_DEPRECATED = FLinearColor::Black;
-
-	if (!IsRunningDedicatedServer())
-	{
-		static ConstructorHelpers::FObjectFinder<UFont> RobotoFontObj(*UWidget::GetDefaultFontName());
-		Font_DEPRECATED = FSlateFontInfo(RobotoFontObj.Object, 12, FName("Bold"));
-	}
-
 	IsReadOnly = false;
 	IsPassword = false;
 	MinimumDesiredWidth = 0.0f;
@@ -211,58 +203,6 @@ void UEditableText::HandleOnTextChanged(const FText& InText)
 void UEditableText::HandleOnTextCommitted(const FText& InText, ETextCommit::Type CommitMethod)
 {
 	OnTextCommitted.Broadcast(InText, CommitMethod);
-}
-
-void UEditableText::PostLoad()
-{
-	Super::PostLoad();
-
-	if ( GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_ASSETS )
-	{
-		if ( Style_DEPRECATED != nullptr )
-		{
-			const FEditableTextStyle* StylePtr = Style_DEPRECATED->GetStyle<FEditableTextStyle>();
-			if ( StylePtr != nullptr )
-			{
-				WidgetStyle = *StylePtr;
-			}
-
-			Style_DEPRECATED = nullptr;
-		}
-
-		if ( BackgroundImageSelected_DEPRECATED != nullptr )
-		{
-			WidgetStyle.BackgroundImageSelected = BackgroundImageSelected_DEPRECATED->Brush;
-			BackgroundImageSelected_DEPRECATED = nullptr;
-		}
-
-		if ( BackgroundImageComposing_DEPRECATED != nullptr )
-		{
-			WidgetStyle.BackgroundImageComposing = BackgroundImageComposing_DEPRECATED->Brush;
-			BackgroundImageComposing_DEPRECATED = nullptr;
-		}
-
-		if ( CaretImage_DEPRECATED != nullptr )
-		{
-			WidgetStyle.CaretImage = CaretImage_DEPRECATED->Brush;
-			CaretImage_DEPRECATED = nullptr;
-		}
-	}
-
-	if (GetLinkerUEVersion() < VER_UE4_DEPRECATE_UMG_STYLE_OVERRIDES)
-	{
-		if (Font_DEPRECATED.HasValidFont())
-		{
-			WidgetStyle.Font = Font_DEPRECATED;
-			Font_DEPRECATED = FSlateFontInfo();
-		}
-
-		if (ColorAndOpacity_DEPRECATED != FLinearColor::Black)
-		{
-			WidgetStyle.ColorAndOpacity = ColorAndOpacity_DEPRECATED;
-			ColorAndOpacity_DEPRECATED = FLinearColor::Black;
-		}
-	}
 }
 
 #if WITH_ACCESSIBILITY

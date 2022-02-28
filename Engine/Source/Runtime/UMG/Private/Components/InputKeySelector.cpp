@@ -90,17 +90,6 @@ void UInputKeySelector::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 }
 
-void UInputKeySelector::PostLoad()
-{
-	Super::PostLoad();
-
-	if (GetLinkerCustomVersion(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::InputKeySelectorTextStyle)
-	{
-		TextStyle.Font = Font_DEPRECATED;
-		TextStyle.ColorAndOpacity = ColorAndOpacity_DEPRECATED;
-	}
-}
-
 void UInputKeySelector::SetSelectedKey( const FInputChord& InSelectedKey )
 {
 	if ( MyInputKeySelector.IsValid() )

@@ -31,12 +31,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=( DisplayName="Bar Style" ))
 	FScrollBarStyle WidgetBarStyle;
 
-	UPROPERTY()
-	TObjectPtr<USlateWidgetStyleAsset> Style_DEPRECATED;
-
-	UPROPERTY()
-	TObjectPtr<USlateWidgetStyleAsset> BarStyle_DEPRECATED;
-
 	/** The orientation of the scrolling and stacking in the box. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scroll")
 	TEnumAsByte<EOrientation> Orientation;
@@ -191,7 +185,6 @@ public:
 	//~ Begin UObject Interface
 #if WITH_EDITORONLY_DATA
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
 #endif // if WITH_EDITORONLY_DATA
 	//~ End UObject Interface
 

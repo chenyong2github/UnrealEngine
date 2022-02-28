@@ -638,16 +638,6 @@ public:
 	void SetAllNavigationRules(EUINavigationRule Rule, FName WidgetToFocus);
 
 	/**
-	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree.
-	 *	@param Direction
-	 *	@param Rule The rule to use when navigation is taking place
-	 *	@param WidgetToFocus When using the Explicit rule, focus on this widget
-	 */
-	UE_DEPRECATED(4.23, "SetNavigationRule is deprecated. Please use either SetNavigationRuleBase or SetNavigationRuleExplicit or SetNavigationRuleCustom or SetNavigationRuleCustomBoundary.")
-	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetNavigationRule(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus);
-
-	/**
 	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for non Explicit, non Custom and non CustomBoundary Rules.
 	 *	@param Direction
 	 *	@param Rule The rule to use when navigation is taking place
@@ -1000,8 +990,6 @@ protected:
 
 	/** Function called after the underlying SWidget is constructed. */
 	virtual void OnWidgetRebuilt();
-	
-#if WITH_EDITOR
 	virtual TSharedRef<SWidget> RebuildDesignWidget(TSharedRef<SWidget> Content);
 
 	TSharedRef<SWidget> CreateDesignerOutline(TSharedRef<SWidget> Content) const;
