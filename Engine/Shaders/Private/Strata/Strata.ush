@@ -728,8 +728,8 @@ struct FStrataOperator
 	float3 VerticalTopTransmittance;	// Only used by vertical layering operators. It represent the transmittance of matter of the top layer (from the left sub tree).
 
 	// Rough refraction
-	float3				RefractionWorldNormal;
-	StrataLobeStatistic RefractionLobeStat;
+	float3				 RefractionWorldNormal;
+	FStrataLobeStatistic RefractionLobeStat;
 };
 
 FStrataOperator GetInitialisedStrataOperator()

@@ -110,7 +110,7 @@ void Main(
 
 		RefractionWorldNormal = StrataTree.Operators[StrataData.OperatorIndex].RefractionWorldNormal;
 
-		StrataLobeStatistic RefractionLobeStat = StrataTree.Operators[StrataData.OperatorIndex].RefractionLobeStat;
+		FStrataLobeStatistic RefractionLobeStat = StrataTree.Operators[StrataData.OperatorIndex].RefractionLobeStat;
 
 		Sigma = RefractionLobeStat.Sigma;
 	}

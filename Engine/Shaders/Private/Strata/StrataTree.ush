@@ -80,7 +80,7 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 
 	// We multiply this weight with coverage:
 	//  - Because when coming from parameter blending, we need to scale the output down according to coverage resulting from parameter blending.
-	//  - That will be applied on emissive and reflected light, so we do not ned to apply that anywhere else.
+	//  - That will be applied on emissive and reflected light, so we do not need to apply that anywhere else.
 	//  - When coming from non parameter blending, this is equal identity 1 and the operator parsing will continue to correctly weight the BSDF according to the tree.
 	CurrentBSDF.LuminanceWeight = float3(1.0f, 1.0f, 1.0f) * CurrentBSDFCoverage;
 
@@ -94,7 +94,7 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	const float Roughness = StrataGetBSDFRoughness(CurrentBSDF);
 	const FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(Roughness, StrataBSDFContext.SatNoV, StrataGetBSDFSpecularColor(CurrentBSDF), StrataGetBSDFSpecularF90(CurrentBSDF));
 	const float InterfaceEta12 = CurrentBSDF.bIsTop ? 1.0f / 1.33f : 1.0f; // STRATA_TODO Use Refraction.x in IOR mode? Or even the material IOR corresponding to F0?
-	StrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataGetViewDiracLobe(-V), EnergyTerms.E, Roughness, InterfaceEta12);
+	FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataGetViewDiracLobe(-V), EnergyTerms.E, Roughness, InterfaceEta12);
 	// Account for transmittance of the medium (but ignoring scattering for now)
 	RefractedLobe.E *= CurrentBSDFTransmittance;
 	// Account for coverate
