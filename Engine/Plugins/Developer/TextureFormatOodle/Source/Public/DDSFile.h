@@ -235,7 +235,7 @@ namespace OodleDDS
 	};
 
 	// Returns the name of a DXGI format
-	const char *DXGIFormatGetName(EDXGIFormat InFormat);
+	const TCHAR *DXGIFormatGetName(EDXGIFormat InFormat);
 
 	// Returns whether a given pixel format is sRGB
 	bool DXGIFormatIsSRGB(EDXGIFormat InFormat);

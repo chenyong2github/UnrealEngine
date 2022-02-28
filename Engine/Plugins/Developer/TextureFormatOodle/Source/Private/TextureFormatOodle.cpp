@@ -910,7 +910,8 @@ public:
 			size_t MipCopySize = FMath::Min(PixelDataSize,(size_t)DDS->Mips[0].DataSize);
 			FMemory::Memcpy(DDS->Mips[0].Data, PixelData, MipCopySize);
 
-			FString FileName = FString::Printf(TEXT("%.*s_%dx%d_S%d_%s.dds"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), SizeX, SizeY, Slice, InOrOut);
+			const TCHAR * FormatStr = DXGIFormatGetName(DebugFormat);
+			FString FileName = FString::Printf(TEXT("%.*s_%s_%dx%d_S%d_%s.dds"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), FormatStr, SizeX, SizeY, Slice, InOrOut);
 
 			// Object paths a) can contain slashes as its a path, and we dont want a hierarchy and b) can have random characters we don't want
 			FileName = FPaths::MakeValidFileName(FileName, TEXT('_'));
@@ -1342,7 +1343,16 @@ public:
 			
 			if (bImageDump)
 			{
-				DebugDumpDDS(DebugTexturePathName,InSurf.width,InSurf.height,Slice,
+				// put RDO lambda on the debug name :
+				FStringView DebugNameOut = DebugTexturePathName;
+				FString Scratch;
+				if ( RDOLambda != 0 )
+				{
+					Scratch = FString::Printf(TEXT("%.*s_RDO%d"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), RDOLambda);
+					DebugNameOut = Scratch;
+				}
+
+				DebugDumpDDS(DebugNameOut,InSurf.width,InSurf.height,Slice,
 					DXGIFormatFromOodleBC(OodleBCN),TEXT("OUT"),
 					OutSlicePtr, OutBytesPerSlice);
 			}

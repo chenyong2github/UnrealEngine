@@ -85,16 +85,16 @@ struct FDDSHeaderDX10
 struct FDXGIFormatName 
 {
 	EDXGIFormat Format;
-	const char* Name;
+	const TCHAR* Name;
 };
 
-const char* DXGIFormatGetName(EDXGIFormat fmt) 
+const TCHAR * DXGIFormatGetName(EDXGIFormat fmt) 
 {
 	static const FDXGIFormatName FormatList[] = 
 	{
-#define RGBFMT(name,id,bypu) { EDXGIFormat::name, #name },
-#define BCNFMT(name,id,bypu) { EDXGIFormat::name, #name },
-#define ODDFMT(name,id) { EDXGIFormat::name, #name },
+#define RGBFMT(name,id,bypu) { EDXGIFormat::name, TEXT(#name) },
+#define BCNFMT(name,id,bypu) { EDXGIFormat::name, TEXT(#name) },
+#define ODDFMT(name,id) { EDXGIFormat::name, TEXT(#name) },
 		OODLE_DXGI_FORMAT_LIST
 #undef RGBFMT
 #undef BCNFMT
