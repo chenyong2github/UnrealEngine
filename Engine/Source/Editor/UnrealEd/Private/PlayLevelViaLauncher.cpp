@@ -45,15 +45,15 @@ static void HandleOutputReceived(const FString& InMessage)
 {
 	if (InMessage.Contains(TEXT("Error:")))
 	{
-		UE_LOG(LogPlayLevel, Error, TEXT("%s"), *InMessage);
+		UE_LOG(LogPlayLevel, Error, TEXT("UAT: %s"), *InMessage);
 	}
 	else if (InMessage.Contains(TEXT("Warning:")))
 	{
-		UE_LOG(LogPlayLevel, Warning, TEXT("%s"), *InMessage);
+		UE_LOG(LogPlayLevel, Warning, TEXT("UAT: %s"), *InMessage);
 	}
 	else
 	{
-		UE_LOG(LogPlayLevel, Log, TEXT("%s"), *InMessage);
+		UE_LOG(LogPlayLevel, Log, TEXT("UAT: %s"), *InMessage);
 	}
 }
 
@@ -429,7 +429,10 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	TWeakPtr<SNotificationItem> NotificationItemPtr(NotificationItem);
 	if (GEditor->LauncherWorker.IsValid() && GEditor->LauncherWorker->GetStatus() != ELauncherWorkerStatus::Completed)
 	{
-		GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileStart_Cue.CompileStart_Cue"));
+		if (EditorPlaySettings->EnablePIEEnterAndExitSounds)
+		{
+			GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileStart_Cue.CompileStart_Cue"));
+		}
 		GEditor->LauncherWorker->OnOutputReceived().AddStatic(HandleOutputReceived);
 		GEditor->LauncherWorker->OnStageStarted().AddUObject(this, &UEditorEngine::HandleStageStarted, NotificationItemPtr);
 		GEditor->LauncherWorker->OnStageCompleted().AddUObject(this, &UEditorEngine::HandleStageCompleted, LauncherSessionInfo->bPlayUsingLauncherHasCode, NotificationItemPtr);
@@ -439,7 +442,10 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	else
 	{
 		GEditor->LauncherWorker.Reset();
-		GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
+		if (EditorPlaySettings->EnablePIEEnterAndExitSounds)
+		{
+			GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
+		}
 
 		NotificationItem->SetText(LOCTEXT("LauncherTaskFailedNotification", "Failed to launch task!"));
 		NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
@@ -513,13 +519,17 @@ public:
 	{
 		if (NotificationItemPtr.IsValid())
 		{
-			if (CompletionState == SNotificationItem::CS_Fail)
+			const ULevelEditorPlaySettings* EditorPlaySettings = GetDefault<ULevelEditorPlaySettings>();
+			if (EditorPlaySettings->EnablePIEEnterAndExitSounds)
 			{
-				GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
-			}
-			else if (CompletionState == SNotificationItem::CS_Success)
-			{
-				GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileSuccess_Cue.CompileSuccess_Cue"));
+				if (CompletionState == SNotificationItem::CS_Fail)
+				{
+					GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
+				}
+				else if (CompletionState == SNotificationItem::CS_Success)
+				{
+					GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileSuccess_Cue.CompileSuccess_Cue"));
+				}
 			}
 
 			TSharedPtr<SNotificationItem> NotificationItem = NotificationItemPtr.Pin();
