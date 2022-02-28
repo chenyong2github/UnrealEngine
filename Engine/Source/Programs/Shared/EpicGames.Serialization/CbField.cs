@@ -1041,7 +1041,15 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as an int32. Returns the provided default on error.
 		/// </summary>
-		public uint AsUInt32(uint Default = 0)
+		public uint AsUInt32()
+		{
+			return AsUInt32(0);
+		}
+
+		/// <summary>
+		/// Access the field as an int32. Returns the provided default on error.
+		/// </summary>
+		public uint AsUInt32(uint Default)
 		{
 			return (uint)AsInteger(Default, 32, false);
 		}
@@ -1049,7 +1057,15 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as an int64. Returns the provided default on error.
 		/// </summary>
-		public ulong AsUInt64(ulong Default = 0)
+		public ulong AsUInt64()
+		{
+			return AsUInt64(0);
+		}
+
+		/// <summary>
+		/// Access the field as an int64. Returns the provided default on error.
+		/// </summary>
+		public ulong AsUInt64(ulong Default)
 		{
 			return (ulong)AsInteger(Default, 64, false);
 		}
