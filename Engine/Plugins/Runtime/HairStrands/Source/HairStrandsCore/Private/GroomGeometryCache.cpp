@@ -13,6 +13,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "SkeletalRenderPublic.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
+#include "RenderGraphUtils.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
