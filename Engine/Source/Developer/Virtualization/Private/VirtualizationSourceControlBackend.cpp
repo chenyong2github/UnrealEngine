@@ -167,6 +167,8 @@ FCompressedBuffer FSourceControlBackend::PullData(const FIoHash& Id)
 	TStringBuilder<512> DepotPath;
 	CreateDepotPath(Id, DepotPath);
 
+	UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Attempting to pull '%s' from source control"), *GetDebugName(), *DepotPath);
+
 	ISourceControlProvider& SCCProvider = ISourceControlModule::Get().GetProvider();
 
 #if IS_SOURCE_CONTROL_THREAD_SAFE
