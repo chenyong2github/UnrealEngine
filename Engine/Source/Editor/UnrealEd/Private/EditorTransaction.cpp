@@ -763,6 +763,11 @@ void FTransaction::FObjectRecord::AddReferencedObjects( FReferenceCollector& Col
 	AddSerializedObjectReferences(SerializedObject);
 	AddSerializedObjectReferences(SerializedObjectFlip);
 	AddSerializedObjectReferences(SerializedObjectSnapshot);
+
+	if (CustomChange.IsValid())
+	{
+		CustomChange->AddReferencedObjects(Collector);
+	}
 }
 
 bool FTransaction::FObjectRecord::ContainsPieObject() const
