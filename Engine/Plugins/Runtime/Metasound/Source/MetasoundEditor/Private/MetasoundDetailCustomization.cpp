@@ -76,181 +76,6 @@ namespace Metasound
 			});
 		}
 
-		void FMetasoundDetailCustomization::CustomizeInterfaces(IDetailLayoutBuilder& DetailLayout)
-		{
-			UpdateInterfaceNames();
-
-			SAssignNew(InterfaceComboBox, SSearchableComboBox)
-				.OptionsSource(&AddableInterfaceNames)
-				.OnGenerateWidget_Lambda([](TSharedPtr<FString> InItem)
-				{
-					return SNew(STextBlock)
-						.Text(FText::FromString(*InItem));
-				})
-				.OnSelectionChanged_Lambda([this](TSharedPtr<FString> NameToAdd, ESelectInfo::Type InSelectInfo)
-				{
-					using namespace Metasound;
-					using namespace Metasound::Frontend;
-
-					FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get());
-					if (!ensure(MetaSoundAsset))
-					{
-						return;
-					}
-
-					if (InSelectInfo != ESelectInfo::OnNavigation)
-					{
-						FMetasoundFrontendInterface InterfaceToAdd;
-						if (ensure(ISearchEngine::Get().FindInterfaceWithHighestVersion(FName(*NameToAdd.Get()), InterfaceToAdd)))
-						{
-							FScopedTransaction(LOCTEXT("AddInterfaceTransaction", "Add MetaSound Interface"));
-							MetaSound.Get()->Modify();
-							MetaSoundAsset->GetGraphChecked().Modify();
-
-							FDocumentHandle DocumentHandle = MetaSoundAsset->GetDocumentHandle();
-							FModifyRootGraphInterfaces ModifyTransform({ }, { InterfaceToAdd });
-							ModifyTransform.SetDefaultNodeLocations(false); // Don't automatically add nodes to ed graph
-							ModifyTransform.Transform(DocumentHandle);
-							MetaSoundAsset->SetUpdateDetailsOnSynchronization();
-						}
-
-						UpdateInterfaceNames();
-						InterfaceComboBox->RefreshOptions();
-						MetaSoundAsset->SetSynchronizationRequired();
-					}
-				})
-				.Content()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("UpdateInterfaceAction", "Add Interface..."))
-					.IsEnabled(IsGraphEditableAttribute)
-				];
-
-			TSharedRef<SWidget> InterfaceUtilities = SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f)
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				InterfaceComboBox->AsShared()
-			]
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f)
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				PropertyCustomizationHelpers::MakeDeleteButton(FSimpleDelegate::CreateLambda([this]()
-				{
-					using namespace Frontend;
-
-					FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get());
-					if (!ensure(MetaSoundAsset))
-					{
-						return;
-					}
-
-					TArray<FMetasoundFrontendInterface> ImplementedInterfaces;
-					Algo::Transform(ImplementedInterfaceNames, ImplementedInterfaces, [](const FName& Name)
-					{
-						FMetasoundFrontendInterface Interface;
-						ISearchEngine::Get().FindInterfaceWithHighestVersion(Name, Interface);
-						return Interface;
-					});
-
-					{
-						FScopedTransaction(LOCTEXT("RemoveAllInterfacesTransaction", "Remove All MetaSound Interfaces"));
-						MetaSound.Get()->Modify();
-						MetaSoundAsset->GetGraphChecked().Modify();
-
-						FDocumentHandle DocumentHandle = MetaSoundAsset->GetDocumentHandle();
-						FModifyRootGraphInterfaces({ ImplementedInterfaces }, { }).Transform(DocumentHandle);
-					}
-
-					UpdateInterfaceNames();
-					InterfaceComboBox->RefreshOptions();
-					MetaSoundAsset->SetUpdateDetailsOnSynchronization();
-					MetaSoundAsset->SetSynchronizationRequired();
-				}), LOCTEXT("RemoveInterfaceTooltip1", "Removes all interfaces from the given MetaSound."))
-			];
-
-			const FText HeaderName = LOCTEXT("InterfacesGroupDisplayName", "Interfaces");
-			IDetailCategoryBuilder& InterfaceCategory = DetailLayout.EditCategory("Interfaces", HeaderName);
-
-			InterfaceCategory.AddCustomRow(HeaderName)
-			.ValueContent()
-			[
-				InterfaceUtilities
-			];
-
-			auto CreateInterfaceEntryWidget = [&](FName InInterfaceName) -> TSharedPtr<SWidget>
-			{
-				using namespace Frontend;
-
-				FMetasoundFrontendInterface InterfaceEntry;
-				if (!ensure(ISearchEngine::Get().FindInterfaceWithHighestVersion(InInterfaceName, InterfaceEntry)))
-				{
-					return SNullWidget::NullWidget;
-				}
-
-				TSharedRef<SWidget> RemoveButtonWidget = PropertyCustomizationHelpers::MakeDeleteButton(FSimpleDelegate::CreateLambda([this, InterfaceEntry]()
-				{
-					using namespace Frontend;
-
-					FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get());
-					if (!ensure(MetaSoundAsset))
-					{
-						return;
-					}
-
-					{
-						FScopedTransaction(LOCTEXT("RemoveInterfaceTransaction", "Remove MetaSound Interface"));
-						MetaSound.Get()->Modify();
-						MetaSoundAsset->GetGraphChecked().Modify();
-
-						FDocumentHandle DocumentHandle = MetaSoundAsset->GetDocumentHandle();
-						FModifyRootGraphInterfaces({ InterfaceEntry }, { }).Transform(DocumentHandle);
-					}
-
-					UpdateInterfaceNames();
-					InterfaceComboBox->RefreshOptions();
-					MetaSoundAsset->SetUpdateDetailsOnSynchronization();
-					MetaSoundAsset->SetSynchronizationRequired();
-				}), LOCTEXT("RemoveInterfaceTooltip2", "Removes the associated interface from the MetaSound."));
-
-				return SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.Padding(2.0f)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.Text(FText::FromName(InterfaceEntry.Version.Name))
-					]
-					+ SHorizontalBox::Slot()
-					.Padding(2.0f)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						RemoveButtonWidget
-					];
-			};
-
-			TArray<FName> InterfaceNames = ImplementedInterfaceNames.Array();
-			InterfaceNames.Sort([](const FName& A, const FName& B) { return A.LexicalLess(B); });
-			for (const FName& InterfaceName : InterfaceNames)
-			{
-				InterfaceCategory.AddCustomRow(FText::FromName(InterfaceName))
-				.ValueContent()
-				[
-					CreateInterfaceEntryWidget(InterfaceName)->AsShared()
-				];
-			}
-		}
-
 		FName FMetasoundDetailCustomization::GetInterfaceVersionsPath() const
 		{
 			return Metasound::Editor::BuildChildPath(DocumentPropertyName, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendDocument, Interfaces));
@@ -265,47 +90,6 @@ namespace Metasound
 		{
 			const FName RootClass = FName(GetMetadataRootClassPath());
 			return Metasound::Editor::BuildChildPath(RootClass, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClass, Metadata));
-		}
-
-		void FMetasoundDetailCustomization::UpdateInterfaceNames()
-		{
-			using namespace Frontend;
-
-			AddableInterfaceNames.Reset();
-			ImplementedInterfaceNames.Reset();
-
-			if (const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get()))
-			{
-				auto GetVersionName = [](const FMetasoundFrontendVersion& Version) { return Version.Name; };
-				auto CanAddOrRemoveInterface = [](const FMetasoundFrontendVersion& Version)
-				{
-					using namespace Metasound::Frontend;
-
-					const FInterfaceRegistryKey Key = GetInterfaceRegistryKey(Version);
-					if (const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(Key))
-					{
-						return Entry->EditorCanAddOrRemove();
-					}
-
-					return false;
-				};
-
-				const TSet<FMetasoundFrontendVersion>& ImplementedInterfaces = MetaSoundAsset->GetDocumentChecked().Interfaces;
-				Algo::TransformIf(ImplementedInterfaces, ImplementedInterfaceNames, CanAddOrRemoveInterface, GetVersionName);
-
-				TArray<FMetasoundFrontendInterface> Interfaces = ISearchEngine::Get().FindAllInterfaces();
-				for (const FMetasoundFrontendInterface& Interface : Interfaces)
-				{
-					if (!ImplementedInterfaceNames.Contains(Interface.Version.Name))
-					{
-						if (CanAddOrRemoveInterface(Interface.Version))
-						{
-							FString Name = Interface.Version.Name.ToString();
-							AddableInterfaceNames.Add(MakeShared<FString>(MoveTemp(Name)));
-						}
-					}
-				}
-			}
 		}
 
 		void FMetasoundDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
@@ -463,9 +247,6 @@ namespace Metasound
 					GeneralCategoryBuilder.AddProperty(CategoryHierarchyHandle);
 					GeneralCategoryBuilder.AddProperty(KeywordsHandle);
 
-					CustomizeInterfaces(DetailLayout);
-
-
 					DetailLayout.HideCategory("Attenuation");
 					DetailLayout.HideCategory("Effects");
 					DetailLayout.HideCategory("Loading");
@@ -520,6 +301,250 @@ namespace Metasound
 			DetailLayout.HideCategory("Subtitles");
 			DetailLayout.HideCategory("Analysis");
 			DetailLayout.HideCategory("Advanced");
+		}
+
+		FMetasoundInterfacesDetailCustomization::FMetasoundInterfacesDetailCustomization()
+		{
+			IsGraphEditableAttribute = TAttribute<bool>::Create([this]()
+			{
+				using namespace Metasound;
+				using namespace Metasound::Frontend;
+				if (const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get()))
+				{
+					FConstGraphHandle GraphHandle = MetaSoundAsset->GetRootGraphHandle();
+					return GraphHandle->GetGraphStyle().bIsGraphEditable;
+				}
+
+				return false;
+			});
+		}
+
+		void FMetasoundInterfacesDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
+		{
+			TArray<TWeakObjectPtr<UObject>> Objects;
+			DetailLayout.GetObjectsBeingCustomized(Objects);
+
+			// Only support modifying a single MetaSound at a time (Multiple
+			// MetaSound editing will be covered most likely by separate tool).
+			if (Objects.Num() > 1)
+			{
+				return;
+			}
+			if (UMetasoundInterfacesView* InterfacesView = CastChecked<UMetasoundInterfacesView>(Objects.Last()))
+			{
+				MetaSound = InterfacesView->GetMetasound();
+			}
+
+			UpdateInterfaceNames();
+
+			SAssignNew(InterfaceComboBox, SSearchableComboBox)
+				.OptionsSource(&AddableInterfaceNames)
+				.OnGenerateWidget_Lambda([](TSharedPtr<FString> InItem)
+				{
+					return SNew(STextBlock)
+						.Text(FText::FromString(*InItem));
+				})
+				.OnSelectionChanged_Lambda([this](TSharedPtr<FString> NameToAdd, ESelectInfo::Type InSelectInfo)
+				{
+					using namespace Metasound;
+					using namespace Metasound::Frontend;
+
+					FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get());
+					if (!ensure(MetaSoundAsset))
+					{
+						return;
+					}
+
+					if (InSelectInfo != ESelectInfo::OnNavigation)
+					{
+						FMetasoundFrontendInterface InterfaceToAdd;
+						if (ensure(ISearchEngine::Get().FindInterfaceWithHighestVersion(FName(*NameToAdd.Get()), InterfaceToAdd)))
+						{
+							FScopedTransaction(LOCTEXT("AddInterfaceTransaction", "Add MetaSound Interface"));
+							MetaSound.Get()->Modify();
+							MetaSoundAsset->GetGraphChecked().Modify();
+
+							FDocumentHandle DocumentHandle = MetaSoundAsset->GetDocumentHandle();
+							FModifyRootGraphInterfaces ModifyTransform({ }, { InterfaceToAdd });
+							ModifyTransform.SetDefaultNodeLocations(false); // Don't automatically add nodes to ed graph
+							ModifyTransform.Transform(DocumentHandle);
+							MetaSoundAsset->SetUpdateDetailsOnSynchronization();
+						}
+
+						UpdateInterfaceNames();
+						InterfaceComboBox->RefreshOptions();
+						MetaSoundAsset->SetSynchronizationRequired();
+					}
+				})
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("UpdateInterfaceAction", "Add Interface..."))
+					.IsEnabled(IsGraphEditableAttribute)
+				];
+
+			TSharedRef<SWidget> InterfaceUtilities = SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(2.0f)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					InterfaceComboBox->AsShared()
+				]
+			+ SHorizontalBox::Slot()
+				.Padding(2.0f)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					PropertyCustomizationHelpers::MakeDeleteButton(FSimpleDelegate::CreateLambda([this]()
+					{
+						using namespace Frontend;
+
+						FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get());
+						if (!ensure(MetaSoundAsset))
+						{
+							return;
+						}
+
+						TArray<FMetasoundFrontendInterface> ImplementedInterfaces;
+						Algo::Transform(ImplementedInterfaceNames, ImplementedInterfaces, [](const FName& Name)
+						{
+							FMetasoundFrontendInterface Interface;
+							ISearchEngine::Get().FindInterfaceWithHighestVersion(Name, Interface);
+							return Interface;
+						});
+
+						{
+							FScopedTransaction(LOCTEXT("RemoveAllInterfacesTransaction", "Remove All MetaSound Interfaces"));
+							MetaSound.Get()->Modify();
+							MetaSoundAsset->GetGraphChecked().Modify();
+
+							FDocumentHandle DocumentHandle = MetaSoundAsset->GetDocumentHandle();
+							FModifyRootGraphInterfaces({ ImplementedInterfaces }, { }).Transform(DocumentHandle);
+						}
+
+						UpdateInterfaceNames();
+						InterfaceComboBox->RefreshOptions();
+						MetaSoundAsset->SetUpdateDetailsOnSynchronization();
+						MetaSoundAsset->SetSynchronizationRequired();
+					}), LOCTEXT("RemoveInterfaceTooltip1", "Removes all interfaces from the given MetaSound."))
+				];
+
+			const FText HeaderName = LOCTEXT("InterfacesGroupDisplayName", "Interfaces");
+			IDetailCategoryBuilder& InterfaceCategory = DetailLayout.EditCategory("Interfaces", HeaderName);
+
+			InterfaceCategory.AddCustomRow(HeaderName)
+			[
+				InterfaceUtilities
+			];
+
+			auto CreateInterfaceEntryWidget = [&](FName InInterfaceName) -> TSharedPtr<SWidget>
+			{
+				using namespace Frontend;
+
+				FMetasoundFrontendInterface InterfaceEntry;
+				if (!ensure(ISearchEngine::Get().FindInterfaceWithHighestVersion(InInterfaceName, InterfaceEntry)))
+				{
+					return SNullWidget::NullWidget;
+				}
+
+				TSharedRef<SWidget> RemoveButtonWidget = PropertyCustomizationHelpers::MakeDeleteButton(FSimpleDelegate::CreateLambda([this, InterfaceEntry]()
+				{
+					using namespace Frontend;
+
+					FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get());
+					if (!ensure(MetaSoundAsset))
+					{
+						return;
+					}
+
+					{
+						FScopedTransaction(LOCTEXT("RemoveInterfaceTransaction", "Remove MetaSound Interface"));
+						MetaSound.Get()->Modify();
+						MetaSoundAsset->GetGraphChecked().Modify();
+
+						FDocumentHandle DocumentHandle = MetaSoundAsset->GetDocumentHandle();
+						FModifyRootGraphInterfaces({ InterfaceEntry }, { }).Transform(DocumentHandle);
+					}
+
+					UpdateInterfaceNames();
+					InterfaceComboBox->RefreshOptions();
+					MetaSoundAsset->SetUpdateDetailsOnSynchronization();
+					MetaSoundAsset->SetSynchronizationRequired();
+				}), LOCTEXT("RemoveInterfaceTooltip2", "Removes the associated interface from the MetaSound."));
+
+				return SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.Padding(2.0f)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(FText::FromName(InterfaceEntry.Version.Name))
+					]
+				+ SHorizontalBox::Slot()
+					.Padding(2.0f)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						RemoveButtonWidget
+					];
+			};
+
+			TArray<FName> InterfaceNames = ImplementedInterfaceNames.Array();
+			InterfaceNames.Sort([](const FName& A, const FName& B) { return A.LexicalLess(B); });
+			for (const FName& InterfaceName : InterfaceNames)
+			{
+				InterfaceCategory.AddCustomRow(FText::FromName(InterfaceName))
+				[
+					CreateInterfaceEntryWidget(InterfaceName)->AsShared()
+				];
+			}
+		}
+
+		void FMetasoundInterfacesDetailCustomization::UpdateInterfaceNames()
+		{
+			using namespace Frontend;
+
+			AddableInterfaceNames.Reset();
+			ImplementedInterfaceNames.Reset();
+
+			if (const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSound.Get()))
+			{
+				auto GetVersionName = [](const FMetasoundFrontendVersion& Version) { return Version.Name; };
+				auto CanAddOrRemoveInterface = [](const FMetasoundFrontendVersion& Version)
+				{
+					using namespace Metasound::Frontend;
+
+					const FInterfaceRegistryKey Key = GetInterfaceRegistryKey(Version);
+					if (const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(Key))
+					{
+						return Entry->EditorCanAddOrRemove();
+					}
+
+					return false;
+				};
+
+				const TSet<FMetasoundFrontendVersion>& ImplementedInterfaces = MetaSoundAsset->GetDocumentChecked().Interfaces;
+				Algo::TransformIf(ImplementedInterfaces, ImplementedInterfaceNames, CanAddOrRemoveInterface, GetVersionName);
+
+				TArray<FMetasoundFrontendInterface> Interfaces = ISearchEngine::Get().FindAllInterfaces();
+				for (const FMetasoundFrontendInterface& Interface : Interfaces)
+				{
+					if (!ImplementedInterfaceNames.Contains(Interface.Version.Name))
+					{
+						if (CanAddOrRemoveInterface(Interface.Version))
+						{
+							FString Name = Interface.Version.Name.ToString();
+							AddableInterfaceNames.Add(MakeShared<FString>(MoveTemp(Name)));
+						}
+					}
+				}
+			}
 		}
 	} // namespace Editor
 } // namespace Metasound

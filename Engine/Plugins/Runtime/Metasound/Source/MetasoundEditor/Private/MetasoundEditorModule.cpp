@@ -59,6 +59,8 @@ FAutoConsoleVariableRef CVarMetaSoundEditorAsyncRegistrationEnabled(
 	TEXT("0: Disabled, !0: Enabled (default)"),
 	ECVF_Default);
 
+// Forward declarations 
+class UMetasoundInterfacesView;
 
 namespace Metasound
 {
@@ -624,6 +626,10 @@ namespace Metasound
 				PropertyModule.RegisterCustomClassLayout(
 					UMetaSoundSource::StaticClass()->GetFName(),
 					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(UMetaSoundSource::GetDocumentPropertyName()); }));
+
+				PropertyModule.RegisterCustomClassLayout(
+					UMetasoundInterfacesView::StaticClass()->GetFName(),
+					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInterfacesDetailCustomization>(); }));
 
 				PropertyModule.RegisterCustomClassLayout(
 					UMetasoundEditorGraphInput::StaticClass()->GetFName(),

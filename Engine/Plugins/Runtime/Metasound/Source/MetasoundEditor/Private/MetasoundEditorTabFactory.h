@@ -24,10 +24,11 @@ namespace Metasound
 			namespace Names
 			{
 				const FName Analyzers = "MetasoundEditor_Analyzers";
-				const FName Inspector = "MetasoundEditor_Inspector";
+				const FName Details = "MetasoundEditor_Details";
 				const FName GraphCanvas = "MetasoundEditor_GraphCanvas";
-				const FName Metasound = "MetasoundEditor_Metasound";
+				const FName Members = "MetasoundEditor_Members";
 				const FName Palette = "MetasoundEditor_Palette";
+				const FName Interfaces = "MetasoundEditor_Interfaces";
 			}
 
 			TSharedRef<SDockTab> CreateAnalyzersTab(TSharedPtr<SWidget> InAnalyzerWidget, const FSpawnTabArgs& Args)
@@ -56,23 +57,23 @@ namespace Metasound
 				return SpawnedTab;
 			}
 
-			TSharedRef<SDockTab> CreateInspectorTab(TSharedPtr<IDetailsView> DetailsView, const FSpawnTabArgs& Args)
+			TSharedRef<SDockTab> CreateDetailsTab(TSharedPtr<IDetailsView> DetailsView, const FSpawnTabArgs& Args)
 			{
-				check(Args.GetTabId() == Names::Inspector);
+				check(Args.GetTabId() == Names::Details);
 
 				return SNew(SDockTab)
-					.Label(LOCTEXT("MetaSoundInspectorTitle", "Inspector"))
+					.Label(LOCTEXT("MetaSoundDetailsTitle", "Details"))
 					[
 						DetailsView.ToSharedRef()
 					];
 			}
 
-			TSharedRef<SDockTab> CreateMetasoundTab(TSharedPtr<SGraphActionMenu> GraphActionMenu, const FSpawnTabArgs& Args)
+			TSharedRef<SDockTab> CreateMembersTab(TSharedPtr<SGraphActionMenu> GraphActionMenu, const FSpawnTabArgs& Args)
 			{
-				check(Args.GetTabId() == Names::Metasound);
+				check(Args.GetTabId() == Names::Members);
 
 				TSharedRef<SDockTab> NewTab = SNew(SDockTab)
-				.Label(LOCTEXT("MetaSoundGeneralTitle", "MetaSound"))
+				.Label(LOCTEXT("GraphMembersMenulTitle", "Members"))
 				[
 					GraphActionMenu.ToSharedRef()
 				];
@@ -93,6 +94,17 @@ namespace Metasound
 					.Label(LOCTEXT("MetaSoundPaletteTitle", "Palette"))
 					[
 						Palette.ToSharedRef()
+					];
+			}
+
+			TSharedRef<SDockTab> CreateInterfacesTab(TSharedPtr<IDetailsView> InInterfacesDetails, const FSpawnTabArgs& Args)
+			{
+				check(Args.GetTabId() == Names::Interfaces);
+
+				return SNew(SDockTab)
+					.Label(LOCTEXT("MetasoundInterfacesDetailsTitle", "Interfaces"))
+					[
+						InInterfacesDetails.ToSharedRef()
 					];
 			}
 		}

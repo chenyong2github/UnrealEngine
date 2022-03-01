@@ -26,6 +26,8 @@
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
 
+#include "MetasoundEditor.generated.h"
+
 
 // Forward Declarations
 class FTabManager;
@@ -45,6 +47,20 @@ struct FGraphActionNode;
 struct FMeterResults;
 struct FPropertyChangedEvent;
 
+
+// Simple class for the interfaces details tab to keep track of its corresponding Metasound 
+UCLASS(MinimalAPI)
+class UMetasoundInterfacesView : public UObject
+{
+	GENERATED_BODY()
+public:
+	UMetasoundInterfacesView() = default;
+
+	void SetMetasound(UObject* InMetasound) { Metasound = InMetasound; }
+	const TWeakObjectPtr<UObject> GetMetasound() { return Metasound; }
+private:
+	TWeakObjectPtr<UObject> Metasound;
+};
 
 namespace Metasound
 {
@@ -179,6 +195,7 @@ namespace Metasound
 			FText GetSectionTitle(ENodeSection InSection) const;
 			FText OnGetSectionTitle(int32 InSectionID);
 			TSharedRef<SWidget> OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData);
+			TSharedPtr<SWidget> OnContextMenuOpening();
 
 			/** Called when the selection changes in the GraphEditor */
 			void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
@@ -204,6 +221,9 @@ namespace Metasound
 			/** Delete the currently selected nodes */
 			void DeleteSelectedNodes();
 
+			/** Delete the currently selected interface items */
+			void DeleteSelectedInterfaceItems();
+
 			/** Cut the currently selected nodes */
 			void CutSelectedNodes();
 
@@ -219,14 +239,26 @@ namespace Metasound
 			/** Whether the currently selected node(s) can be deleted */
 			bool CanDeleteNodes() const;
 
+			/** Whether the currently selected interface item(s) can be deleted */
+			bool CanDeleteInterfaceItems() const;
+
 			/** Whether at least one of the currently selected node(s) can be renamed. */
 			bool CanRenameSelectedNodes() const;
 
 			/** Rename selected node (currently applies to comments and member nodes). */
 			void RenameSelectedNode();
 
+			/** Whether at least one of the currently selected interface item(s) can be renamed. */
+			bool CanRenameSelectedInterfaceItems() const;
+
 			/** Rename selected interface item. */
-			void RenameInterfaceItem(TSharedPtr<FMetasoundGraphMemberSchemaAction> ActionToDelete);
+			void RenameSelectedInterfaceItem();
+
+			/** Whether there are nodes to jump to for the currently selected interface item. */
+			bool CanJumpToNodesForSelectedInterfaceItem() const;
+
+			/** Jumps to the nodes corresponding to the first valid currently selected interface item. */
+			void JumpToNodesForSelectedInterfaceItem();
 
 			/** Called to undo the last action */
 			void UndoGraphAction();
@@ -277,10 +309,10 @@ namespace Metasound
 			/** Converts the MetaSound from a preset to a fully modifiable MetaSound. */
 			void ConvertFromPreset();
 
-			/** Show the Metasound object's Source settings in the Inspector */
+			/** Show the Metasound object's Source settings in the Details panel */
 			void EditSourceSettings();
 
-			/** Show the Metasound object's settings in the Inspector */
+			/** Show the Metasound object's settings in the Details panel */
 			void EditMetasoundSettings();
 
 			/** Add an input to the currently selected node */
@@ -323,8 +355,12 @@ namespace Metasound
 			/** Details tab */
 			TSharedPtr<IDetailsView> MetasoundDetails;
 
-			/** Metasound Interface menu */
-			TSharedPtr<SGraphActionMenu> MetasoundInterfaceMenu;
+			/** Interfaces tab */
+			TSharedPtr<IDetailsView> InterfacesDetails;
+			TStrongObjectPtr<UMetasoundInterfacesView> InterfacesView;
+
+			/** Metasound graph members menu */
+			TSharedPtr<SGraphActionMenu> GraphMembersMenu;
 
 			/** Meter used in the analyzer tab for auditioning preview output. */
 			TSharedPtr<FEditorMeter> OutputMeter;

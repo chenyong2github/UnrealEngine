@@ -28,12 +28,27 @@ namespace Metasound
 			// End of IDetailCustomization interface
 
 		private:
-			void CustomizeInterfaces(IDetailLayoutBuilder& DetailLayout);
-
 			FName GetInterfaceVersionsPath() const;
 			FName GetMetadataRootClassPath() const;
 			FName GetMetadataPropertyPath() const;
 
+			TAttribute<bool> IsGraphEditableAttribute;
+
+			TWeakObjectPtr<UObject> MetaSound;
+
+			FName DocumentPropertyName;
+		};
+
+		class FMetasoundInterfacesDetailCustomization : public IDetailCustomization
+		{
+		public:
+			FMetasoundInterfacesDetailCustomization();
+
+			// IDetailCustomization interface
+			virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
+			// End of IDetailCustomization interface
+
+		private:
 			void UpdateInterfaceNames();
 
 			TArray<TSharedPtr<FString>> AddableInterfaceNames;
@@ -43,8 +58,6 @@ namespace Metasound
 			TAttribute<bool> IsGraphEditableAttribute;
 
 			TWeakObjectPtr<UObject> MetaSound;
-
-			FName DocumentPropertyName;
 		};
 	} // namespace Editor
 } // namespace Metasound
