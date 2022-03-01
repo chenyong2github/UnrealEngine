@@ -285,6 +285,8 @@ struct OodleScratchBuffers
 	
 	int64 OodleDecode(const void * InCompBuf, int64 InCompBufSize64, void * OutRawBuf, int64 InRawLen64) 
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Oodle.Decode);
+
 		OO_SINTa InCompBufSize = IntCastChecked<OO_SINTa>(InCompBufSize64);
 		OO_SINTa InRawLen = IntCastChecked<OO_SINTa>(InRawLen64);
 
@@ -370,6 +372,8 @@ struct OodleScratchBuffers
 								ECompressor Compressor,
 								ECompressionLevel Level)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Oodle.Encode);
+
 		OodleLZ_Compressor LZCompressor = CompressorToOodleLZ_Compressor(Compressor);
 		OodleLZ_CompressionLevel LZLevel = CompressionLevelToOodleLZ_CompressionLevel(Level);
 
