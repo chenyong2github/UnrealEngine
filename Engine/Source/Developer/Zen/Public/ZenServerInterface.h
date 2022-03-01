@@ -14,6 +14,10 @@
 #include "ZenGlobals.h"
 #include "ZenServerHttp.h"
 
+#if UE_WITH_ZEN
+#	include "ZenStatistics.h"
+#endif
+
 #define UE_API ZEN_API
 
 namespace UE::Zen
@@ -51,11 +55,9 @@ private:
 	bool TryApplyAutoLaunchOverride();
 };
 
-};
+}
 
 #if UE_WITH_ZEN
-
-#include "ZenStatistics.h"
 
 namespace UE::Zen
 {
