@@ -780,9 +780,13 @@ namespace HordeServer.Commits.Impl
 				}
 
 				// Log any error during the update
-				if (InternalTask.Exception != null)
+				if (InternalTask.IsFaulted)
 				{
 					Logger.LogError(InternalTask.Exception, "Exception while updating stream content for {StreamId}", StreamId);
+				}
+				else
+				{
+					Logger.LogInformation("Finished update for {StreamId}", StreamId);
 				}
 
 				// Remove this stream from the dirty list if it's empty
