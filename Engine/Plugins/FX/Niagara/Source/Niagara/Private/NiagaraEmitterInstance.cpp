@@ -174,11 +174,6 @@ FNiagaraEmitterInstance::~FNiagaraEmitterInstance()
 	}
 }
 
-FBox FNiagaraEmitterInstance::GetBounds() const
-{
-	return CachedBounds;
-}
-
 TArrayView<FNiagaraScriptExecutionContext> FNiagaraEmitterInstance::GetEventExecutionContexts()
 {
 	if (EventInstanceData.IsValid())
@@ -531,6 +526,7 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 	EmitterAge = 0;
 	TickCount = 0;
 	InstanceSeed = FGenericPlatformMath::Rand();
+	bCachedBoundsDynamic = false;
 	CachedBounds.Init();
 	ParticlesWithComponents.Empty();
 
@@ -1002,6 +998,7 @@ void FNiagaraEmitterInstance::CalculateFixedBounds(const FTransform& ToWorldSpac
 		CachedEmitter->FixedBounds = Bounds.TransformBy(ToWorldSpace);
 	}
 
+	bCachedBoundsDynamic = false;
 	CachedBounds = Bounds;
 }
 #endif
@@ -1024,6 +1021,7 @@ void FNiagaraEmitterInstance::PostTick()
 		}
 	}
 
+	bCachedBoundsDynamic = false;
 	CachedBounds.Init();
 	{
 		// Read lock can be smaller in scope, but probably not necessary
@@ -1045,6 +1043,7 @@ void FNiagaraEmitterInstance::PostTick()
 			FBox DynamicBounds = InternalCalculateDynamicBounds(ParticleDataSet->GetCurrentDataChecked().GetNumInstances());
 			if (DynamicBounds.IsValid)
 			{
+				bCachedBoundsDynamic = true;
 				if (CachedEmitter->bLocalSpace)
 				{
 					CachedBounds = DynamicBounds;
@@ -1056,7 +1055,7 @@ void FNiagaraEmitterInstance::PostTick()
 			}
 			else
 			{
-				CachedBounds = CachedEmitter->FixedBounds;
+				CachedBounds.IsValid = false;
 			}
 		}
 	}

@@ -124,7 +124,8 @@ public:
 	ENiagaraExecutionState NIAGARA_API GetExecutionState() { return ExecutionState; }
 	void NIAGARA_API SetExecutionState(ENiagaraExecutionState InState);
 
-	FBox GetBounds() const;
+	bool AreBoundsDynamic() const { return bCachedBoundsDynamic; }
+	FBox GetBounds() const { return CachedBounds; }
 
 	FNiagaraScriptExecutionContext& GetSpawnExecutionContext() { return SpawnExecContext; }
 	FNiagaraScriptExecutionContext& GetUpdateExecutionContext() { return UpdateExecContext; }
@@ -200,6 +201,9 @@ private:
 
 	/** A parameter store which contains the data interfaces parameters which were defined by the scripts. */
 	FNiagaraParameterStore ScriptDefinedDataInterfaceParameters;
+
+	/* Are the cached emitter bounds dynamic */
+	bool bCachedBoundsDynamic = false;
 
 	/* Emitter bounds */
 	FBox CachedBounds;

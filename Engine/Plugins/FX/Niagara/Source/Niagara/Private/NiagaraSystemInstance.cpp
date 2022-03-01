@@ -65,11 +65,29 @@ static FAutoConsoleVariableRef CVarNiagaraForceLastTickGroup(
 	ECVF_Default
 );
 
-static float GNiagaraBoundsExpandByPercent = 0.1f;
-static FAutoConsoleVariableRef CVarNiagaraBoundsExpandByPercent(
-	TEXT("fx.Niagara.BoundsExpandByPercent"),
-	GNiagaraBoundsExpandByPercent,
-	TEXT("The percentage we expand the bounds to avoid updating every frame."),
+static float GNiagaraEmitterBoundsDynamicSnapValue = 0.0f;
+static FAutoConsoleVariableRef CVarNiagaraEmitterBoundsDynamicSnapValue(
+	TEXT("fx.Niagara.EmitterBounds.DynamicSnapValue"),
+	GNiagaraEmitterBoundsDynamicSnapValue,
+	TEXT("The value used to snap (round up) dynamic bounds calculations to.")
+	TEXT("For example, a snap of 128 and a value of 1 would result in 128"),
+	ECVF_Default
+);
+
+static float GNiagaraEmitterBoundsDynamicExpandMultiplier = 1.1f;
+static FAutoConsoleVariableRef CVarNiagaraEmitterBoundsDynamicExpandMultiplier(
+	TEXT("fx.Niagara.EmitterBounds.DynamicExpandMultiplier"),
+	GNiagaraEmitterBoundsDynamicExpandMultiplier,
+	TEXT("Multiplier used on dynamic bounds gathering, i.e. 1 means no change, 1.1 means increase by 10%.\n")
+	TEXT("This value is applied after we calculate any dynamic bounds snapping."),
+	ECVF_Default
+);
+
+static float GNiagaraEmitterBoundsFixedExpandMultiplier = 1.0f;
+static FAutoConsoleVariableRef CVarNiagaraEmitterBoundsFixedExpandMultiplier(
+	TEXT("fx.Niagara.EmitterBounds.FixedExpandMultiplier"),
+	GNiagaraEmitterBoundsFixedExpandMultiplier,
+	TEXT("Multiplier used on fixed bounds gathering, i.e. 1 means no change, 1.1 means increase by 10%."),
 	ECVF_Default
 );
 
@@ -2403,19 +2421,39 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 	}
 	else
 	{
-		FBox NewLocalBounds(EForceInit::ForceInit);
+		FBox NewDynamicBounds(EForceInit::ForceInit);
+		FBox NewFixedBounds(EForceInit::ForceInit);
 		for (const auto& Emitter : Emitters)
 		{
-			NewLocalBounds += Emitter->GetBounds();
+			if (Emitter->AreBoundsDynamic())
+			{
+				NewDynamicBounds += Emitter->GetBounds();
+			}
+			else
+			{
+				NewFixedBounds += Emitter->GetBounds();
+			}
 		}
 
-		if (NewLocalBounds.IsValid)
+		LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
+		if (NewDynamicBounds.IsValid)
 		{
-			LocalBounds = NewLocalBounds.ExpandBy(NewLocalBounds.GetExtent() * GNiagaraBoundsExpandByPercent);
+			FVector Center = NewDynamicBounds.GetCenter();
+			FVector Extent = NewDynamicBounds.GetExtent();
+			if (GNiagaraEmitterBoundsDynamicSnapValue > 1.0f)
+			{
+				Extent.X = FMath::CeilToDouble(Extent.X / GNiagaraEmitterBoundsDynamicSnapValue) * GNiagaraEmitterBoundsDynamicSnapValue;
+				Extent.Y = FMath::CeilToDouble(Extent.Y / GNiagaraEmitterBoundsDynamicSnapValue) * GNiagaraEmitterBoundsDynamicSnapValue;
+				Extent.Z = FMath::CeilToDouble(Extent.Z / GNiagaraEmitterBoundsDynamicSnapValue) * GNiagaraEmitterBoundsDynamicSnapValue;
+			}
+			Extent = Extent * GNiagaraEmitterBoundsDynamicExpandMultiplier;
+			LocalBounds += FBox(Center - Extent, Center + Extent);
 		}
-		else
+		if (NewFixedBounds.IsValid)
 		{
-			LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
+			const FVector Center = NewFixedBounds.GetCenter();
+			const FVector Extent = NewFixedBounds.GetExtent() * GNiagaraEmitterBoundsFixedExpandMultiplier;
+			LocalBounds += FBox(Center - Extent, Center + Extent);
 		}
 	}
 
