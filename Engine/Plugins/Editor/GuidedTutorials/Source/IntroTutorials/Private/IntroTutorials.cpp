@@ -391,10 +391,6 @@ void FIntroTutorials::HandleSDKNotInstalled(const FString& PlatformName, const F
 			LaunchTutorialByName(InTutorialAsset);
 		}
 	}
-	else
-	{
-		IDocumentation::Get()->Open(InTutorialAsset);
-	}
 }
 
 void FIntroTutorials::HandleRequestResource(const FString& Category, const FString& InTutorialAsset)

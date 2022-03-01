@@ -47,4 +47,6 @@ private:
 private:
 
 	TMap< FString, TWeakPtr< IDocumentationPage > > LoadedPages;
+
+	void HandleSDKNotInstalled(const FString& PlatformName, const FString& InDocumentationPage);
 };

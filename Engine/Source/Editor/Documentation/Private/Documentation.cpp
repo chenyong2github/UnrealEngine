@@ -14,6 +14,7 @@
 #include "DocumentationLink.h"
 #include "SDocumentationToolTip.h"
 #include "Interfaces/IAnalyticsProvider.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "EngineAnalytics.h"
 
 #define LOCTEXT_NAMESPACE "DocumentationActor"
@@ -25,7 +26,8 @@ TSharedRef< IDocumentation > FDocumentation::Create()
 
 FDocumentation::FDocumentation() 
 {
-
+	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+	MainFrameModule.OnMainFrameSDKNotInstalled().AddRaw(this, &FDocumentation::HandleSDKNotInstalled);
 }
 
 FDocumentation::~FDocumentation() 
@@ -266,5 +268,15 @@ TSharedRef< class SToolTip > FDocumentation::CreateToolTip(const TAttribute<FTex
 			DocToolTip
 		];
 }
+
+void FDocumentation::HandleSDKNotInstalled(const FString& PlatformName, const FString& InDocumentationPage)
+{
+	if (FPackageName::IsValidLongPackageName(InDocumentationPage, true))
+	{
+		return;
+	}
+	IDocumentation::Get()->Open(InDocumentationPage);
+}
+
 
 #undef LOCTEXT_NAMESPACE

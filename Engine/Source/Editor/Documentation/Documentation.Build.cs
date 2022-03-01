@@ -22,6 +22,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
+					"MainFrame"
 					// ... add other public dependencies that you statically link with here ...
 				}
 			);
