@@ -244,6 +244,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, bNotifyBreaks(false)
 	, bNotifyCollisions(false)
 	, bNotifyRemovals(false)
+	, bStoreVelocities(false)
 	, bShowBoneColors(false)
 	, bEnableReplication(false)
 	, bEnableAbandonAfterLevel(false)
@@ -846,7 +847,7 @@ UPhysicalMaterial* UGeometryCollectionComponent::GetPhysicalMaterial() const
 	// Pull material from first mesh element to grab physical material. Prefer an override if one exists
 	UPhysicalMaterial* PhysMatToUse = BodyInstance.GetSimplePhysicalMaterial();
 
-	if(!PhysMatToUse)
+	if(!PhysMatToUse || PhysMatToUse->GetFName() == "DefaultPhysicalMaterial")
 	{
 		// No override, try render materials
 		const int32 NumMaterials = GetNumMaterials();
@@ -1022,6 +1023,19 @@ void UGeometryCollectionComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
 
+	if (bStoreVelocities || bNotifyTrailing)
+	{
+		if (!DynamicCollection->FindAttributeTyped<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup))
+		{
+			DynamicCollection->AddAttribute<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
+		}
+
+		if (!DynamicCollection->FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup))
+		{
+			DynamicCollection->AddAttribute<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
+		}
+	}
+
 	AActor* Owner = GetOwner();
 
 	if(!Owner)
@@ -1041,8 +1055,15 @@ void UGeometryCollectionComponent::InitializeComponent()
 			// As we're the authority we need to track velocities in the dynamic collection so we
 			// can send them over to the other clients to correctly set their state. Attach this now.
 			// The physics proxy will pick them up and populate them as needed
-			DynamicCollection->AddAttribute<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
-			DynamicCollection->AddAttribute<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
+			if (!DynamicCollection->FindAttributeTyped<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup))
+			{
+				DynamicCollection->AddAttribute<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
+			}
+
+			if (!DynamicCollection->FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup))
+			{
+				DynamicCollection->AddAttribute<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
+			}
 
 			// We also need to track our control of particles if that control can be shared between server and client
 			if(bEnableAbandonAfterLevel)

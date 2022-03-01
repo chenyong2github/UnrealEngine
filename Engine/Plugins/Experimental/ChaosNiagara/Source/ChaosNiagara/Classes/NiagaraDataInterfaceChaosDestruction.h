@@ -443,6 +443,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Spawn Settings - Thresholds to Spawn", meta = (DisplayName = "Min/Max LocationZ To Spawn Particles", UIMin = 0.0))
 	FVector2D LocationZToSpawnMinMax;
 
+	/* Min Linear Speed to generate trailing particles */
+	UPROPERTY(EditAnywhere, Category = "Spawn Settings - Trailing - Thresholds to Spawn", meta = (DisplayName = "Min Speed To Spawn Trailing Particles", UIMin = 0.0))
+	float TrailMinSpeedToSpawn;
+
 	/**
 	* Sorting method to sort the collision data
 	*/
@@ -474,19 +478,19 @@ public:
 	int32 MaxDataPerCell;
 
 	/* Materials Filter */
-	UPROPERTY(EditAnywhere, Category = "Breaking Data Settings", meta = (DisplayName = "Apply Materials Filter"))
+	UPROPERTY(EditAnywhere, Category = "Data Settings", meta = (DisplayName = "Apply Materials Filter"))
 	bool bApplyMaterialsFilter;
 
 	/* TODO: Explanatory comment */
-	UPROPERTY(EditAnywhere, Category = "Breaking Data Settings", meta = (DisplayName = "Collision/Breaking Filtered Materials", EditCondition = bApplyMaterialsFilter))
+	UPROPERTY(EditAnywhere, Category = "Data Settings", meta = (DisplayName = "Filtered Materials", EditCondition = bApplyMaterialsFilter))
 	TSet<TObjectPtr<UPhysicalMaterial>> ChaosBreakingMaterialSet;
 
 	/* TODO: Explanatory comment */
-	UPROPERTY(EditAnywhere, Category = "Breaking Data Settings", meta = (DisplayName = "Get External Breaking Mesh and Physical Data"))
+	UPROPERTY(EditAnywhere, Category = "Data Settings", meta = (DisplayName = "Get External Breaking Mesh and Physical Data"))
 	bool bGetExternalBreakingData;
 
 	/* TODO: Explanatory comment */
-	UPROPERTY(VisibleAnywhere, Category = "Trailing Data Settings", meta = (DisplayName = "Get External Trailing Mesh and Physical Data"))
+	UPROPERTY(VisibleAnywhere, Category = "Data Settings", meta = (DisplayName = "Get External Trailing Mesh and Physical Data"))
 	bool bGetExternalTrailingData;
 
 	/* Random displacement value for the particle spawn position */
@@ -758,6 +762,9 @@ protected:
 	TArray<Chaos::FCollidingDataExt> CollisionEvents;
 	TArray<Chaos::FBreakingDataExt> BreakingEvents;
 	TArray<Chaos::FTrailingDataExt> TrailingEvents;
+
+	// Saving GeometryCollectionComponents from breaking for trailing
+	TSet<UGeometryCollectionComponent*> GeometryCollectionComponentsFromBreaking;
 };
 
 struct FNiagaraDataInterfaceProxyChaosDestruction : public FNiagaraDataInterfaceProxy

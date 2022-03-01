@@ -92,6 +92,7 @@ UNiagaraDataInterfaceChaosDestruction::UNiagaraDataInterfaceChaosDestruction(FOb
 	, LocationYToSpawnMinMax(FVector2D(0.f, 0.f))
 	, LocationZToSpawn(ELocationZToSpawnEnum::ChaosNiagara_LocationZToSpawn_None)
 	, LocationZToSpawnMinMax(FVector2D(0.f, 0.f))
+	, TrailMinSpeedToSpawn(50.f)
 	, DataSortingType(EDataSortTypeEnum::ChaosNiagara_DataSortType_NoSorting)
 	, bGetExternalCollisionData(false)
 	, DoSpatialHash(false)
@@ -768,59 +769,45 @@ void UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents(const Chaos::F
 
 		if (GeometryCollectionComponent)
 		{
-			Material = GeometryCollectionComponent->GetMaterial(MaterialID);
-		}
-#endif
-		if (Material)
-		{
-			PhysicalMaterial = Material->GetPhysicalMaterial();
+			PhysicalMaterial = GeometryCollectionComponent->GetPhysicalMaterial();
 			ensure(PhysicalMaterial);
 			if (PhysicalMaterial)
 			{
 				CopyData.SurfaceType1 = PhysicalMaterial->SurfaceType;
+				CopyData.PhysicalMaterialName1 = PhysicalMaterial->GetFName();
+			}
+			else
+			{
+				CopyData.PhysicalMaterialName1 = FName();
 			}
 		}
 
-		if (PhysicalMaterial)
-		{
-			CopyData.PhysicalMaterialName1 = PhysicalMaterial->GetFName();
-		}
-		else
-		{
-			CopyData.PhysicalMaterialName1 = FName();
-		}
-
-#if INCLUDE_CHAOS
 		for (auto& Solver : Solvers)
 		{
-			GeometryCollectionComponent = Solver.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(DataIn.Proxy2);
-			if (GeometryCollectionComponent)
-				break;
+			if (Solver.PhysScene)
+			{
+				GeometryCollectionComponent = Solver.PhysScene->GetOwningComponent<UGeometryCollectionComponent>(DataIn.Proxy2);
+				if (GeometryCollectionComponent)
+					break;
+			}
 		}
+
 		if (GeometryCollectionComponent)
 		{
-			Material = GeometryCollectionComponent->GetMaterial(MaterialID);
-		}
-#endif
-		if (Material)
-		{
-			PhysicalMaterial = Material->GetPhysicalMaterial();
+			PhysicalMaterial = GeometryCollectionComponent->GetPhysicalMaterial();
 			ensure(PhysicalMaterial);
 			if (PhysicalMaterial)
 			{
 				CopyData.SurfaceType2 = PhysicalMaterial->SurfaceType;
+				CopyData.PhysicalMaterialName2 = PhysicalMaterial->GetFName();
+			}
+			else
+			{
+				CopyData.PhysicalMaterialName2 = FName();
 			}
 		}
+#endif
 
-		if (PhysicalMaterial)
-		{
-			CopyData.PhysicalMaterialName2 = PhysicalMaterial->GetFName();
-		}
-		else
-		{
-			CopyData.PhysicalMaterialName2 = FName();
-		}
-		
 		CopyData.BoundingboxVolume = 1000000.f;
 		CopyData.BoundingboxExtentMin = 100.f;
 		CopyData.BoundingboxExtentMax = 100.f;
@@ -1367,29 +1354,25 @@ void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FB
 						break;
 				}
 			}
+
 			if (GeometryCollectionComponent)
 			{
-				Material = GeometryCollectionComponent->GetMaterial(MaterialID);
-			}
-#endif
-			if (Material)
-			{
-				PhysicalMaterial = Material->GetPhysicalMaterial();
+				PhysicalMaterial = GeometryCollectionComponent->GetPhysicalMaterial();
 				ensure(PhysicalMaterial);
 				if (PhysicalMaterial)
 				{
 					CopyData.SurfaceType = PhysicalMaterial->SurfaceType;
+					CopyData.PhysicalMaterialName = PhysicalMaterial->GetFName();
 				}
-			}
+				else
+				{
+					CopyData.PhysicalMaterialName = FName();
+				}
 
-			if (PhysicalMaterial)
-			{
-				CopyData.PhysicalMaterialName = PhysicalMaterial->GetFName();
+				// Save GeometryCollectionComponent for trailing
+				GeometryCollectionComponentsFromBreaking.Add(GeometryCollectionComponent);
 			}
-			else
-			{
-				CopyData.PhysicalMaterialName = FName();
-			}
+#endif
 		}
 		else
 		{
@@ -1887,37 +1870,93 @@ bool UNiagaraDataInterfaceChaosDestruction::BreakingCallback(FNDIChaosDestructio
 void UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents(const Chaos::FTrailingEventData& Event)
 {
 	ensure(IsInGameThread());
-	Chaos::FTrailingDataArray const& TrailingDataIn = Event.TrailingData.AllTrailingsArray;
 
 	TrailingEvents.Reset();
 
-	// Copy data from Event
-	TrailingEvents.AddUninitialized(Event.TrailingData.AllTrailingsArray.Num());
+	float TrailMinSpeedToSpawnSquared = TrailMinSpeedToSpawn * TrailMinSpeedToSpawn;
+	UPhysicalMaterial* PhysicalMaterial = nullptr;
 
-	int32 Idx = 0;
-	for (Chaos::FTrailingData const& DataIn : TrailingDataIn)
+	auto IsMaterialInFilter = [&](const FName& InMaterialName) 
 	{
-		auto& CopyData = TrailingEvents[Idx];
-		CopyData = DataIn;
+		if (!InMaterialName.IsValid())
+		{
+			return false;
+		}
 
-		// #GM: Disable this for now for perf
-		/*
-		GetMeshExtData(SolverData,
-			AllTrailingsArray[Idx].ParticleIndexMesh == INDEX_NONE ? AllTrailingsArray[Idx].ParticleIndex : AllTrailingsArray[Idx].ParticleIndexMesh,
-			PhysicsProxyReverseMappingArray,
-			ParticleIndexReverseMappingArray,
-			AllTrailingsArray[Idx].BoundingboxVolume,
-			AllTrailingsArray[Idx].BoundingboxExtentMin,
-			AllTrailingsArray[Idx].BoundingboxExtentMax,
-			AllTrailingsArray[Idx].SurfaceType);
-		*/
+		for (const UPhysicalMaterial* Material : ChaosBreakingMaterialSet)
+		{
+			if (!Material)
+			{
+				continue;
+			}
 
-		CopyData.BoundingboxVolume = 1000000.f;
-		CopyData.BoundingboxExtentMin = 100.f;
-		CopyData.BoundingboxExtentMax = 100.f;
-		CopyData.SurfaceType = 0;
+			if (Material->GetFName() == InMaterialName)
+			{
+				return true;
+			}
+		}
 
-		Idx++;
+		return false;
+	};
+
+	if (GeometryCollectionComponentsFromBreaking.Num() > 0)
+	{
+		for (auto& GeometryCollectionComponent : GeometryCollectionComponentsFromBreaking)
+		{
+			if (GeometryCollectionComponent && GeometryCollectionComponent->GetNotifyTrailing())
+			{
+				PhysicalMaterial = GeometryCollectionComponent->GetPhysicalMaterial();
+				ensure(PhysicalMaterial);
+				if (PhysicalMaterial)
+				{
+					if (!(bApplyMaterialsFilter && IsMaterialInFilter(PhysicalMaterial->GetFName())))
+					{
+						continue;
+					}
+				}
+
+				const TArray<FMatrix>& GlobalMatrices = GeometryCollectionComponent->GetGlobalMatrices();
+				const FTransform ActorTransform = GeometryCollectionComponent->GetComponentToWorld();
+
+				const FGeometryDynamicCollection* DynamicCollection = GeometryCollectionComponent->GetDynamicCollection();
+
+				if (DynamicCollection)
+				{
+					const TManagedArray<FVector3f>* LinearVelocity = DynamicCollection->FindAttributeTyped<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
+					const TManagedArray<FVector3f>* AngularVelocity = DynamicCollection->FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
+
+					if (!LinearVelocity || !AngularVelocity)
+					{
+						continue;
+					}
+
+					ensure(DynamicCollection->Active.Num() == (*LinearVelocity).Num());
+					ensure(DynamicCollection->Active.Num() == (*AngularVelocity).Num());
+
+					for (int Idx = 0; Idx < DynamicCollection->Active.Num(); ++Idx)
+					{
+						if (DynamicCollection->Active[Idx] && (*LinearVelocity)[Idx].SquaredLength() >= TrailMinSpeedToSpawnSquared)
+						{
+							Chaos::FTrailingDataExt TrailingData;
+
+							FTransform CurrTransform = FTransform(GlobalMatrices[Idx] * ActorTransform.ToMatrixWithScale());
+							TrailingData.Location = CurrTransform.GetTranslation();
+
+							TrailingData.Velocity = (*LinearVelocity)[Idx];
+							TrailingData.AngularVelocity = (*AngularVelocity)[Idx];
+
+							TrailingData.Mass = 1.f;
+							TrailingData.BoundingboxVolume = 1000000.f;
+							TrailingData.BoundingboxExtentMin = 100.f;
+							TrailingData.BoundingboxExtentMax = 100.f;
+							TrailingData.SurfaceType = 0;
+
+							TrailingEvents.Add(TrailingData);
+						}
+					}
+				}				
+			}
+		}
 	}
 }
 
