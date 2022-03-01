@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
 #include "StageAppBeaconReceiver.generated.h"
 
 class FArrayReader;
@@ -46,6 +48,9 @@ class FStageAppBeaconReceiver
 public:
 	/** Creates and initializes a new beacon receiver. */
 	FStageAppBeaconReceiver();
+
+	/** Destroy the beacon receiver. */
+	virtual ~FStageAppBeaconReceiver() {};
 
 	/** Open a socket and start a thread listening for beacon messages. */
 	void Startup();

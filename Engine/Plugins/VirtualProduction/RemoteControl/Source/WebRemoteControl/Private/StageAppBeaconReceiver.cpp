@@ -6,6 +6,8 @@
 #include "IRemoteControlModule.h"
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
+#include "Misc/App.h"
+#include "Misc/CommandLine.h"
 #include "RemoteControlSettings.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
