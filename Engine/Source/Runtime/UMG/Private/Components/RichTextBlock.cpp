@@ -159,7 +159,12 @@ void URichTextBlock::RebuildStyleInstance()
 	}
 }
 
-void URichTextBlock::SetTextStyleSet(class UDataTable* NewTextStyleSet)
+UDataTable* URichTextBlock::GetTextStyleSet() const
+{
+	return TextStyleSet;
+}
+
+void URichTextBlock::SetTextStyleSet(UDataTable* NewTextStyleSet)
 {
 	if (TextStyleSet != NewTextStyleSet)
 	{
