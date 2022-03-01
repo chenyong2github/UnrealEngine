@@ -20,6 +20,8 @@ namespace UnrealBuildTool.Rules
 				throw new BuildException("InterchangeFbxParser module do not support target platform {0}.", Target.Platform.ToString());
 			}
 
+			bEnableExceptions = true;
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
