@@ -157,7 +157,10 @@ public:
 	void Construct(const FArguments& InArgs, TSharedPtr<FSequencerPlaylistRowData> InRowData, const TSharedRef<STableViewBase>& OwnerTableView);
 
 	const TSharedPtr<FSequencerPlaylistRowData>& GetRowData() { return RowData; }
+	TSharedPtr<const FSequencerPlaylistRowData> GetRowData() const { return RowData; }
+
 	USequencerPlaylistItem* GetItem() { return GetRowData() ? GetRowData()->WeakItem.Get() : nullptr; }
+	const USequencerPlaylistItem* GetItem() const { return GetRowData() ? GetRowData()->WeakItem.Get() : nullptr; }
 
 	//~ Begin STableRow
 	void ConstructChildren(ETableViewMode::Type InOwnerTableMode, const TAttribute<FMargin>& InPadding, const TSharedRef<SWidget>& InContent) override;
@@ -179,6 +182,7 @@ private:
 
 	EVisibility GetRowDimmingVisibility() const;
 	EVisibility GetPlayModeTransportVisibility() const;
+	TOptional<int32> GetItemLengthDisplayFrames() const;
 
 	TSharedRef<SWidget> EnsureSelectedAndBuildContextMenu();
 	TSharedRef<SWidget> BuildContextMenu(const TArray<UObject*>& SelectedItems);

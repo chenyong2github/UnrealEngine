@@ -103,7 +103,6 @@ TSharedRef<SDockTab> FSequencerPlaylistsModule::OnSpawnPluginTab(const FSpawnTab
 {
 	return SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
-		.Label(LOCTEXT("TabLabel", "Playlist"))
 		[
 			SNew(SSequencerPlaylistPanel, DefaultPlayer.Get())
 		];

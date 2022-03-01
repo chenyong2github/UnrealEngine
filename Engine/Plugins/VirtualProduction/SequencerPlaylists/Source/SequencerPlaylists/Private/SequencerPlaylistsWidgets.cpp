@@ -18,8 +18,10 @@
 #include "IContentBrowserSingleton.h"
 #include "ISinglePropertyView.h"
 #include "LevelEditor.h"
+#include "LevelSequence.h"
 #include "Misc/FileHelper.h"
 #include "Misc/TextFilter.h"
+#include "MovieScene.h"
 #include "ScopedTransaction.h"
 #include "SlateOptMacros.h"
 #include "SPositiveActionButton.h"
@@ -51,7 +53,6 @@ const FName SSequencerPlaylistPanel::ColumnName_Loop(TEXT("Loop"));
 const FName SSequencerPlaylistPanel::ColumnName_HoverDetails(TEXT("HoverDetails"));
 
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SSequencerPlaylistPanel::Construct(const FArguments& InArgs, USequencerPlaylistPlayer* InPlayer)
 {
 	check(InPlayer);
@@ -172,10 +173,8 @@ void SSequencerPlaylistPanel::Construct(const FArguments& InArgs, USequencerPlay
 
 	RegenerateRows();
 }
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_LeftToolbar()
 {
 	FSequencerPlaylistsModule& Module = static_cast<FSequencerPlaylistsModule&>(ISequencerPlaylistsModule::Get());
@@ -226,10 +225,8 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_LeftToolbar()
 
 	return ToolBarBuilder.MakeWidget();
 }
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_RightToolbar()
 {
 	FSequencerPlaylistsModule& Module = static_cast<FSequencerPlaylistsModule&>(ISequencerPlaylistsModule::Get());
@@ -258,10 +255,8 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_RightToolbar()
 
 	return ToolBarBuilder.MakeWidget();
 }
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_Transport()
 {
 	return SNew(SHorizontalBox)
@@ -314,10 +309,8 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_Transport()
 			]
 		];
 }
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_AddSearchRow()
 {
 	return SNew(SHorizontalBox)
@@ -340,10 +333,8 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_AddSearchRow()
 			.DelayChangeNotificationsWhileTyping(true)
 		];
 }
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_ItemListView()
 {
 	return SAssignNew(ItemListView, SListView<TSharedPtr<FSequencerPlaylistRowData>>)
@@ -398,7 +389,6 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_ItemListView()
 				.VAlignCell(VAlign_Center)
 		);
 }
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
 USequencerPlaylist* SSequencerPlaylistPanel::GetCheckedPlaylist()
@@ -1047,7 +1037,6 @@ void SSequencerPlaylistItemWidget::ConstructChildren(ETableViewMode::Type InOwne
 }
 
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const FName& ColumnName)
 {
 	USequencerPlaylistItem* Item = GetItem();
@@ -1139,20 +1128,46 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 
 	if (ColumnName == SSequencerPlaylistPanel::ColumnName_Offset)
 	{
-		TSharedPtr<ISinglePropertyView> StartOffsetPropView = PropertyEditorModule.CreateSingleProperty(
-			Item, GET_MEMBER_NAME_CHECKED(USequencerPlaylistItem, StartFrameOffset), SinglePropParams);
-
-		TSharedPtr<ISinglePropertyView> EndOffsetPropView = PropertyEditorModule.CreateSingleProperty(
-			Item, GET_MEMBER_NAME_CHECKED(USequencerPlaylistItem, EndFrameOffset), SinglePropParams);
-
 		return SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
 			[
-				StartOffsetPropView.ToSharedRef()
+				SNew(SNumericEntryBox<int32>)
+				.AllowSpin(true)
+				.ToolTipText(LOCTEXT("StartFrameOffsetTooltip", "Number of frames by which to clip the in point of sections played from this item. Will also affect the first frame for hold."))
+				.MaxSliderValue(this, &SSequencerPlaylistItemWidget::GetItemLengthDisplayFrames)
+				.Value(TAttribute<TOptional<int32>>::CreateLambda([WeakItem]() { return WeakItem.IsValid() ? WeakItem->StartFrameOffset : TOptional<int32>(); }))
+				.OnValueChanged_Lambda([WeakItem](int32 NewValue) {
+					if (WeakItem.IsValid())
+					{
+						WeakItem->StartFrameOffset = NewValue;
+					}
+				})
+				.OnValueCommitted_Lambda([WeakItem](int32 NewValue, ETextCommit::Type) {
+					if (WeakItem.IsValid())
+					{
+						WeakItem->StartFrameOffset = NewValue;
+					}
+				})
 			]
 			+ SVerticalBox::Slot()
 			[
-				EndOffsetPropView.ToSharedRef()
+				SNew(SNumericEntryBox<int32>)
+				.AllowSpin(true)
+				.ToolTipText(LOCTEXT("EndFrameOffsetTooltip", "Number of frames by which to clip the out point of sections played from this item."))
+				.MaxSliderValue(this, &SSequencerPlaylistItemWidget::GetItemLengthDisplayFrames)
+				.Value(TAttribute<TOptional<int32>>::CreateLambda([WeakItem]() { return WeakItem.IsValid() ? WeakItem->EndFrameOffset : TOptional<int32>(); }))
+				.OnValueChanged_Lambda([WeakItem](int32 NewValue) {
+					if (WeakItem.IsValid())
+					{
+						WeakItem->EndFrameOffset = NewValue;
+					}
+				})
+				.OnValueCommitted_Lambda([WeakItem](int32 NewValue, ETextCommit::Type) {
+					if (WeakItem.IsValid())
+					{
+						WeakItem->EndFrameOffset = NewValue;
+					}
+				})
 			];
 	}
 
@@ -1161,7 +1176,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 		TSharedRef<SWidget> HoldToggle = SNew(SCheckBox)
 			.Padding(FMargin(4.0f, 2.0f))
 			.HAlign(HAlign_Center)
-			.ToolTipText(LOCTEXT("ToggleHoldTooltip", "Enables or disables hold. Hold will infinitely hold the first frame of this item until manually played. Items are put into a hold state at the start of a take, or manually by hitting \"Reset.\""))
+			.ToolTipText(LOCTEXT("ToggleHoldTooltip", "Enable or disable hold. Hold will infinitely hold the first frame of this item until manually played. Items are put into a hold state at the start of a take, or manually by hitting \"Reset.\""))
 			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
 			.IsChecked_Lambda([WeakItem]() { return (WeakItem.IsValid() && WeakItem->bHoldAtFirstFrame) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 			.OnCheckStateChanged_Lambda([WeakItem](ECheckBoxState InState) {
@@ -1193,11 +1208,12 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 		TSharedRef<SWidget> LoopModeCombo = SNew(SComboButton)
 			.ContentPadding(0)
 			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+			.ToolTipText(LOCTEXT("LoopModeComboTooltip", "Toggle between looping a specified number of times or not looping."))
 			.OnGetMenuContent_Lambda([this]() {
 				FMenuBuilder MenuBuilder(true, nullptr);
 				MenuBuilder.AddMenuEntry(
-					LOCTEXT("LoopModeNone", "Don't Loop"),
-					LOCTEXT("LoopModeNoneTooltip", "Don't Loop"),
+					LOCTEXT("LoopModeNone", "No Loop"),
+					LOCTEXT("LoopModeNoneTooltip", "No Loop"),
 					FSlateIcon(FSequencerPlaylistsStyle::Get().GetStyleSetName(), "SequencerPlaylists.Loop.Disabled"),
 					FUIAction(
 						FExecuteAction::CreateLambda([this]() { SetLoopMode(ELoopMode::None); }),
@@ -1208,8 +1224,9 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 					EUserInterfaceActionType::Check
 				);
 				MenuBuilder.AddMenuEntry(
-					LOCTEXT("LoopModeFinite", "Loop N Times"),
-					LOCTEXT("LoopModeFiniteTooltip", "Loop N Times"),
+					// U+1D62F = "Mathematical Sans-Serif Italic Small N"
+					LOCTEXT("LoopModeFinite", "Loop [\U0001D62F] Times"),
+					LOCTEXT("LoopModeFiniteTooltip", "Loop [\U0001D62F] Times"),
 					FSlateIcon(FSequencerPlaylistsStyle::Get().GetStyleSetName(), "SequencerPlaylists.Loop.Finite"),
 					FUIAction(
 						FExecuteAction::CreateLambda([this]() { SetLoopMode(ELoopMode::Finite); }),
@@ -1258,6 +1275,12 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 					.ToolTipText(LOCTEXT("LoopCountTooltip", "Number of times to loop before stopping. A value of 1 will result in a sequence playing twice before stopping."))
 					.Value(TAttribute<TOptional<int32>>::CreateLambda([WeakItem]() { return WeakItem.IsValid() ? WeakItem->NumLoops : TOptional<int32>(); }))
 					.Visibility_Lambda([this]() { return LoopMode == ELoopMode::Finite ? EVisibility::Visible : EVisibility::Hidden; })
+					.OnValueChanged_Lambda([WeakItem](int32 NewValue) {
+						if (WeakItem.IsValid())
+						{
+							WeakItem->NumLoops = NewValue;
+						}
+					})
 					.OnValueCommitted_Lambda([WeakItem](int32 NewValue, ETextCommit::Type) {
 						if (WeakItem.IsValid())
 						{
@@ -1301,7 +1324,6 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 
 	return SNullWidget::NullWidget;
 }
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
 FReply SSequencerPlaylistItemWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -1374,6 +1396,27 @@ EVisibility SSequencerPlaylistItemWidget::GetPlayModeTransportVisibility() const
 	}
 
 	return EVisibility::Hidden;
+}
+
+
+TOptional<int32> SSequencerPlaylistItemWidget::GetItemLengthDisplayFrames() const
+{
+	if (const USequencerPlaylistItem_Sequence* SequenceItem = Cast<const USequencerPlaylistItem_Sequence>(GetItem()))
+	{
+		if (SequenceItem->Sequence && SequenceItem->Sequence->GetMovieScene())
+		{
+			UMovieScene* MovieScene = SequenceItem->Sequence->GetMovieScene();
+			TRange<FFrameNumber> Range = MovieScene->GetPlaybackRange();
+			if (Range.GetLowerBound().IsClosed() && Range.GetUpperBound().IsClosed())
+			{
+				return ConvertFrameTime(Range.Size<FFrameTime>(),
+					MovieScene->GetTickResolution(),
+					MovieScene->GetDisplayRate()).FloorToFrame().Value;
+			}
+		}
+	}
+
+	return TOptional<int32>();
 }
 
 

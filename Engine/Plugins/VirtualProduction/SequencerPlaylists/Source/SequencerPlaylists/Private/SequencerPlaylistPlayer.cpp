@@ -64,9 +64,9 @@ bool USequencerPlaylistPlayer::PlayItem(USequencerPlaylistItem* Item)
 		return false;
 	}
 
-	EnterUnboundedPlayIfNotRecording();
-
 	FScopedTransaction Transaction(FText::Format(LOCTEXT("PlayItemTransaction", "Begin playback of {0}"), Item->GetDisplayName()));
+
+	EnterUnboundedPlayIfNotRecording();
 
 	if (GetCheckedItemPlayer(Item)->Play(Item))
 	{
@@ -125,6 +125,11 @@ bool USequencerPlaylistPlayer::ResetItem(USequencerPlaylistItem* Item)
 bool USequencerPlaylistPlayer::IsPlaying(USequencerPlaylistItem* Item)
 {
 	if (!Item)
+	{
+		return false;
+	}
+
+	if (!WeakSequencer.IsValid())
 	{
 		return false;
 	}
@@ -258,11 +263,12 @@ bool USequencerPlaylistPlayer::PlayAll()
 		return false;
 	}
 
+	FScopedTransaction Transaction(LOCTEXT("PlayAllTransaction", "Begin playback of all Playlist items"));
+
 	EnterUnboundedPlayIfNotRecording();
 
 	bool bAnyChange = false;
 
-	FScopedTransaction Transaction(LOCTEXT("PlayAllTransaction", "Begin playback of all Playlist items"));
 	for (USequencerPlaylistItem* Item : Playlist->Items)
 	{
 		if (Item->bMute)
