@@ -9,7 +9,7 @@
 #include "Misc/App.h"
 #include "HAL/FileManager.h"
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_UNIX || PLATFORM_MAC
 
 #include "Async/Async.h"
 #include "HAL/PlatformFileManager.h"
@@ -604,7 +604,7 @@ FZenStoreHttpClient::EndBuildPass(FCbPackage OpEntry)
 
 } // UE
 
-#else // not PLATFORM_WINDOWS, dummy implementation stub for now
+#else // not desktop platform
 
 namespace UE {
 namespace Zen {
@@ -690,7 +690,7 @@ TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetFiles()
 
 }
 
-#endif // PLATFORM_WINDOWS
+#endif // desktop platform
 
 namespace UE
 {
