@@ -26,6 +26,7 @@ public:
 	virtual FBox GetBounds() const override;
 	virtual FBox GetStrictBounds() const override;
 	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
+	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const;
 	//~End UPCGSpatialData interface
 
 	//~Begin UPCGSpatialDataWithPointCache interface

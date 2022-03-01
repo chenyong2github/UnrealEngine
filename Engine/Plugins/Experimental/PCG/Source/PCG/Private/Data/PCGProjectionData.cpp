@@ -53,7 +53,7 @@ FBox UPCGProjectionData::ProjectBounds(const FBox& InBounds) const
 
 	for (int Corner = 0; Corner < 8; ++Corner)
 	{
-		Bounds += TransformPosition(
+		Bounds += Target->TransformPosition(
 			FVector(
 				(Corner / 4) ? InBounds.Max.X : InBounds.Min.X,
 				((Corner / 2) % 2) ? InBounds.Max.Y : InBounds.Min.Y,
@@ -72,13 +72,13 @@ float UPCGProjectionData::GetDensityAtPosition(const FVector& InPosition) const
 FVector UPCGProjectionData::TransformPosition(const FVector& InPosition) const
 {
 	// TODO: improve projection/unprojection mechanism
-	return Target->TransformPosition(InPosition);
+	return Target->TransformPosition(Source->TransformPosition(InPosition));
 }
 
 FPCGPoint UPCGProjectionData::TransformPoint(const FPCGPoint& InPoint) const
 {
 	// TODO: improve projection/unprojection mechanism
-	return Target->TransformPoint(InPoint);
+	return Target->TransformPoint(Source->TransformPoint(InPoint));
 }
 
 bool UPCGProjectionData::HasNonTrivialTransform() const
@@ -101,7 +101,7 @@ const UPCGPointData* UPCGProjectionData::CreatePointData() const
 	Points.Reserve(SourcePoints.Num());
 	for (const FPCGPoint& SourcePoint : SourcePoints)
 	{
-		FPCGPoint ProjectedPoint = TransformPoint(SourcePoint);
+		FPCGPoint ProjectedPoint = Target->TransformPoint(SourcePoint);
 #if WITH_EDITORONLY_DATA
 		if(ProjectedPoint.Density > 0 || bKeepZeroDensityPoints)
 #else

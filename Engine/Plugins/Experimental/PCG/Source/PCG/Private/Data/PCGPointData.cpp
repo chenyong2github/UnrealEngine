@@ -9,7 +9,7 @@
 
 namespace PCGPointHelpers
 {
-	float ManhattanDensity(const FPCGPoint& InPoint, const FVector& InPosition)
+	bool GetDistanceRatios(const FPCGPoint& InPoint, const FVector& InPosition, FVector& OutRatios)
 	{
 		FVector LocalPosition = InPoint.Transform.InverseTransformPosition(InPosition);
 		LocalPosition /= InPoint.Extents;
@@ -17,12 +17,12 @@ namespace PCGPointHelpers
 		// ]-2+s, 2-s] is the valid range of values
 		const FVector::FReal LowerBound = InPoint.Steepness - 2;
 		const FVector::FReal HigherBound = 2 - InPoint.Steepness;
-		
+
 		if (LocalPosition.X <= LowerBound || LocalPosition.X > HigherBound ||
 			LocalPosition.Y <= LowerBound || LocalPosition.Y > HigherBound ||
 			LocalPosition.Z <= LowerBound || LocalPosition.Z > HigherBound)
 		{
-			return 0;
+			return false;
 		}
 
 		// [-s, +s] is the range where the density is 1 on that axis
@@ -32,9 +32,36 @@ namespace PCGPointHelpers
 
 		const FVector::FReal DistanceScale = FMath::Max(2 - 2 * InPoint.Steepness, KINDA_SMALL_NUMBER);
 
-		//Note: for euclidean, we could do 1 - (dist / scale)^2
-		//Note: for maximum norm, we could do density * max(x factor, y factor, z factor)
-		return InPoint.Density * (1 - XDist/DistanceScale) * (1 - YDist/DistanceScale) * (1 - ZDist/DistanceScale);
+		OutRatios.X = XDist / DistanceScale;
+		OutRatios.Y = YDist / DistanceScale;
+		OutRatios.Z = ZDist / DistanceScale;
+		return true;
+	}
+
+	float ManhattanDensity(const FPCGPoint& InPoint, const FVector& InPosition)
+	{
+		FVector Ratios;
+		if (GetDistanceRatios(InPoint, InPosition, Ratios))
+		{
+			return InPoint.Density * (1 - Ratios.X) * (1 - Ratios.Y) * (1 - Ratios.Z);
+		}
+		else
+		{
+			return 0;
+		}
+	}
+
+	float InverseEuclidianDistance(const FPCGPoint& InPoint, const FVector& InPosition)
+	{
+		FVector Ratios;
+		if (GetDistanceRatios(InPoint, InPosition, Ratios))
+		{
+			return 1 - Ratios.Length();
+		}
+		else
+		{
+			return 0;
+		}
 	}
 }
 
@@ -148,6 +175,65 @@ const FPCGPoint* UPCGPointData::GetPointAtPosition(const FVector& InPosition) co
 	});
 
 	return BestPoint;
+}
+
+FPCGPoint UPCGPointData::TransformPoint(const FPCGPoint& InPoint) const
+{
+	if (bOctreeIsDirty)
+	{
+		RebuildOctree();
+	}
+
+	FPCGPoint Point = InPoint;
+
+	TArray<TPair<const FPCGPoint*, float>> Contributions;
+	const FVector PointPosition = InPoint.Transform.GetLocation();
+
+	Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(PointPosition, FVector::Zero()), [&PointPosition, &Contributions](const FPCGPointRef& InPointRef) {
+		Contributions.Emplace(InPointRef.Point, PCGPointHelpers::InverseEuclidianDistance(*InPointRef.Point, PointPosition));
+	});
+
+	float SumContrib = 0;
+	for (const auto& Contribution : Contributions)
+	{
+		SumContrib += Contribution.Value;
+	}
+
+	if (SumContrib <= 0)
+	{
+		return InPoint;
+	}
+
+	FVector WeightedScale = FVector::Zero();
+	FRotator WeightedRotator(0);
+	float WeightedDensity = 0;
+	FVector WeightedExtents = FVector::Zero();
+	FVector WeightedColor = FVector::Zero();
+	float WeightedSteepness = 0;
+
+	for (const auto& Contribution : Contributions)
+	{
+		const FPCGPoint& SourcePoint = *Contribution.Key;
+		float Weight = Contribution.Value / SumContrib;
+
+		WeightedRotator += (SourcePoint.Transform.Rotator() * Weight); // TODO: This is wonky
+		WeightedScale += (SourcePoint.Transform.GetScale3D() * Weight);
+		WeightedDensity += PCGPointHelpers::ManhattanDensity(SourcePoint, PointPosition);
+		WeightedColor += SourcePoint.Color * Weight;
+		WeightedSteepness += SourcePoint.Steepness * Weight;
+	}
+
+	// Finally, apply changes to point
+	FQuat PointRotation = (Point.Transform.Rotator() + WeightedRotator).Quaternion();
+
+	Point.Transform.SetRotation(PointRotation);
+	Point.Transform.NormalizeRotation();
+	Point.Transform.SetScale3D(Point.Transform.GetScale3D() * WeightedScale);	
+	Point.Density *= WeightedDensity;
+	Point.Color *= WeightedColor;
+	Point.Steepness *= WeightedSteepness;
+
+	return Point;
 }
 
 float UPCGPointData::GetDensityAtPosition(const FVector& InPosition) const

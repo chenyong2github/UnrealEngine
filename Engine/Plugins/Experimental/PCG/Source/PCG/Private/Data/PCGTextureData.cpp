@@ -85,6 +85,27 @@ float UPCGBaseTextureData::GetDensityAtPosition(const FVector& InPosition) const
 	return PCGTextureSampling::Sample<float>(Position2D, Surface, Width, Height, [this](int32 Index) { return PCGTextureSampling::SampleFloatChannel(ColorData[Index], ColorChannel); });
 }
 
+FPCGPoint UPCGBaseTextureData::TransformPoint(const FPCGPoint& InPoint) const
+{
+	FPCGPoint Point = InPoint;
+
+	// Update point location: put it on the surface plane
+	FVector PointPositionInLocalSpace = TransformPosition(InPoint.Transform.GetLocation());
+	PointPositionInLocalSpace.Z = 0;
+	Point.Transform.SetLocation(Transform.TransformPosition(PointPositionInLocalSpace));
+
+	// Set/Update density & color
+	FVector2D Position2D(PointPositionInLocalSpace.X, PointPositionInLocalSpace.Y);
+	FBox2D Surface(FVector2D(-1.0f, -1.0f), FVector2D(1.0f, 1.0f));
+
+	FLinearColor Color = PCGTextureSampling::Sample<FLinearColor>(Position2D, Surface, Width, Height, [this](int32 Index) { return ColorData[Index]; });
+
+	Point.Color = Color;
+	Point.Density *= PCGTextureSampling::SampleFloatChannel(Color, ColorChannel);
+
+	return Point;
+}
+
 const UPCGPointData* UPCGBaseTextureData::CreatePointData() const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGBaseTextureData::CreatePointData);
@@ -116,9 +137,10 @@ const UPCGPointData* UPCGBaseTextureData::CreatePointData() const
 #endif
 			{
 				FVector LocalPosition(X * XScale + Bias.X, Y * YScale + Bias.Y, 0);
-				Points.Emplace(FTransform(Transform.TransformPosition(LocalPosition)),
+				FPCGPoint& Point = Points.Emplace_GetRef(FTransform(Transform.TransformPosition(LocalPosition)),
 					Density,
 					PCGHelpers::ComputeSeed(X, Y));
+				Point.Color = ColorData[X + Y * Width];
 			}
 		}
 	}
