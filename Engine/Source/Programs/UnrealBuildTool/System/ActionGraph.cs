@@ -330,7 +330,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Executes a list of actions.
 		/// </summary>
-		public static void ExecuteActions(BuildConfiguration BuildConfiguration, List<LinkedAction> ActionsToExecute)
+		public static void ExecuteActions(BuildConfiguration BuildConfiguration, List<LinkedAction> ActionsToExecute, List<TargetDescriptor> TargetDescriptors)
 		{
 			if (ActionsToExecute.Count == 0)
 			{
@@ -342,7 +342,7 @@ namespace UnrealBuildTool
 				ActionExecutor Executor;
 				if (BuildConfiguration.bAllowHybridExecutor && HybridExecutor.IsAvailable())
 				{
-					Executor = new HybridExecutor(BuildConfiguration.MaxParallelActions);
+					Executor = new HybridExecutor(TargetDescriptors, BuildConfiguration.MaxParallelActions);
 				}
 				else if (BuildConfiguration.bAllowXGE && XGE.IsAvailable())
 				{
@@ -354,7 +354,7 @@ namespace UnrealBuildTool
 				}
 				else if (BuildConfiguration.bAllowSNDBS && SNDBS.IsAvailable())
 				{
-					Executor = new SNDBS();
+					Executor = new SNDBS(TargetDescriptors);
 				}
 				else
 				{

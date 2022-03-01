@@ -58,7 +58,8 @@ namespace UnrealBuildTool
 			// Execute the actions
 			using (GlobalTracer.Instance.BuildSpan("ActionGraph.ExecuteActions()").StartActive())
 			{
-				ActionGraph.ExecuteActions(BuildConfiguration, Actions);
+				List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, false, false, false);
+				ActionGraph.ExecuteActions(BuildConfiguration, Actions, TargetDescriptors);
 			}
 
 			return 0;

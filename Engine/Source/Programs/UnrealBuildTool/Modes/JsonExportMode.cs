@@ -67,7 +67,7 @@ namespace UnrealBuildTool
 						if (PrerequisiteActions.Count > 0)
 						{
 							Log.TraceInformation("Exeucting actions that produce source files...");
-							ActionGraph.ExecuteActions(BuildConfiguration, PrerequisiteActions);
+							ActionGraph.ExecuteActions(BuildConfiguration, PrerequisiteActions, new List<TargetDescriptor> { TargetDescriptor });
 						}
 					}
 				}
