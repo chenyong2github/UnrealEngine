@@ -31,6 +31,7 @@ public class MessageLog : ModuleRules
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"Documentation",
+					"MainFrame"
 				}
 			);		
 		}

@@ -15,6 +15,7 @@
 
 #if WITH_EDITOR
 	#include "IDocumentation.h"
+	#include "Interfaces/IMainFrameModule.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "SMessageLogMessageListRow"
@@ -102,7 +103,8 @@ private:
 
 	void HandleTutorialHyperlinkNavigate( FString TutorialAssetName )
 	{
-		//IIntroTutorials::Get().LaunchTutorial(TutorialAssetName);
+		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+		MainFrameModule.BroadcastMainFrameRequestResource("Tutorial", TutorialAssetName);
 	}
 #endif
 

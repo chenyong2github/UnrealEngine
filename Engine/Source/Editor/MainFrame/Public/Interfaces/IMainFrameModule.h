@@ -183,6 +183,13 @@ public:
 	virtual void BroadcastMainFrameSDKNotInstalled(const FString& PlatformName, const FString& DocLink) = 0;
 
 	/**
+	 * Delegate for making an open-ended request for a resource or link.
+	 */
+	DECLARE_EVENT_TwoParams(IMainFrameModule, FMainFrameRequestResource, const FString&, const FString&);
+	virtual FMainFrameRequestResource& OnMainFrameRequestResource() = 0;
+	virtual void BroadcastMainFrameRequestResource(const FString& Category, const FString& ResourceName) = 0;
+
+	/**
 	 * Enable external control of when main frame is shown
 	 */
 	virtual void EnableDelayedShowMainFrame() = 0;

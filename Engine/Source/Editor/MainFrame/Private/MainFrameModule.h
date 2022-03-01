@@ -122,6 +122,16 @@ public:
 		return MainFrameSDKNotInstalled.Broadcast(PlatformName, DocLink);
 	}
 
+	DECLARE_DERIVED_EVENT(FMainFrameModule, IMainFrameModule::FMainFrameRequestResource, FMainFrameRequestResource);
+	virtual FMainFrameRequestResource& OnMainFrameRequestResource() override
+	{
+		return MainFrameRequestResource;
+	}
+	void BroadcastMainFrameRequestResource(const FString& Category, const FString& ResourceName) override
+	{
+		return MainFrameRequestResource.Broadcast(Category, ResourceName);
+	}
+
 	virtual void EnableDelayedShowMainFrame() override
 	{
 		bDelayedShowMainFrame = true;
@@ -234,6 +244,9 @@ private:
 
 	/// Event to be called when the editor tried to use a platform, but it wasn't installed
 	FMainFrameSDKNotInstalled MainFrameSDKNotInstalled;
+
+	/// Event to be called to make an open-ended request for a resource from any registered listeners
+	FMainFrameRequestResource MainFrameRequestResource;
 
 	// Commands used by main frame in menus and key bindings.
 	TSharedPtr<class FMainFrameCommands> MainFrameActions;

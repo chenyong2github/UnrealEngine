@@ -100,6 +100,9 @@ private:
 	/** Events to call when SDK isn't installed */
 	void HandleSDKNotInstalled(const FString& PlatformName, const FString& InTutorialAsset);
 
+	/** Handles calls to MainFrameRequestResource that specify a tutorial asset and "Tutorial" category. */
+	void HandleRequestResource(const FString& Category, const FString& InTutorialName);
+
 	bool MaybeOpenWelcomeTutorial();
 	void ResetWelcomeTutorials() const;
 
