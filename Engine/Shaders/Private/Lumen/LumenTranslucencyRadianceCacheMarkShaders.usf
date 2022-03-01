@@ -7,10 +7,15 @@
 #include "../Common.ush"
 #include "../BRDF.ush"
 
+// Material pass reroutes
+#define SceneTexturesStruct LumenTranslucencyRadianceCacheMarkPass.SceneTextures
+#define EyeAdaptationStruct LumenTranslucencyRadianceCacheMarkPass
+#define StrataStruct LumenTranslucencyRadianceCacheMarkPass.Strata
+
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
-// Pass reroutes
+// Lumen specific pass reroutes
 #define RadianceCacheMark LumenTranslucencyRadianceCacheMarkPass
 #define RWRadianceProbeIndirectionTexture LumenTranslucencyRadianceCacheMarkPass.RWRadianceProbeIndirectionTexture
 
