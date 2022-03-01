@@ -12,7 +12,7 @@
 #include "Serialization/JsonWriter.h"
 #include "Templates/UniquePtr.h"
 #include "ZenGlobals.h"
-#include "ZenServerHttp.h"
+#include "Async/Future.h"
 
 #if UE_WITH_ZEN
 #	include "ZenStatistics.h"
@@ -120,7 +120,7 @@ public:
 	inline const TCHAR* GetHostName() const { return *HostName; }
 	inline uint16 GetPort() const { return Port; }
 	inline const FServiceSettings& GetServiceSettings() const { return Settings; }
-	UE_API bool GetStats(FZenStats& stats) const;
+	UE_API bool GetStats(FZenStats& Stats);
 	UE_API bool IsServiceRunning();
 	UE_API bool IsServiceReady();
 	UE_API bool IsServiceRunningLocally() const { return bIsRunningLocally; }
@@ -134,7 +134,7 @@ private:
 	FString ConditionalUpdateLocalInstall();
 	static bool AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FString&& ExecutablePath, FString& OutHostName, uint16& OutPort);
 
-	mutable TOptional<FZenHttpRequest> StatsRequest;
+	mutable TFuture<FZenStats> StatsRequest;
 	mutable FZenStats LastStats;
 	mutable uint64 LastStatsTime = 0;
 

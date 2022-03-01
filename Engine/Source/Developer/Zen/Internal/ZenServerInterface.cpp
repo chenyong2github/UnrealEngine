@@ -4,6 +4,7 @@
 
 #include "ZenBackendUtils.h"
 #include "ZenSerialization.h"
+#include "ZenServerHttp.h"
 
 #include "Dom/JsonValue.h"
 #include "HAL/FileManager.h"
@@ -11,6 +12,7 @@
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
+#include "Async/Async.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
@@ -1044,116 +1046,134 @@ FZenServiceInstance::AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FS
 }
 
 bool 
-FZenServiceInstance::GetStats( FZenStats& stats ) const
+FZenServiceInstance::GetStats(FZenStats& Stats)
 {
 	check(IsInGameThread());
 
-	const uint64 CurrentCycles = FPlatformTime::Cycles64();
-	if (StatsRequest.IsSet() && FPlatformTime::ToSeconds(CurrentCycles - LastStatsTime) < 0.5)
+	// If we've already requested a stats and they are ready then grab them
+	if ( StatsRequest.IsReady() == true )
 	{
-		stats = LastStats;
-		return true;
+		LastStats		= StatsRequest.Get();
+		LastStatsTime	= FPlatformTime::Cycles64();
+
+		StatsRequest.Reset();
 	}
+	
+	// Make a copy of the last updated stats
+	Stats = LastStats;
 
-	TStringBuilder<128> ZenDomain;
-	ZenDomain << HostName << TEXT(":") << Port;
-	if (!StatsRequest.IsSet())
+	const uint64 CurrentTime = FPlatformTime::Cycles64();
+	const float MinTimeBetweenRequestsInSeconds = 0.5f;
+	const float DeltaTimeInSeconds = FPlatformTime::ToSeconds(CurrentTime - LastStatsTime);
+
+	if ( StatsRequest.IsValid()==false && DeltaTimeInSeconds > MinTimeBetweenRequestsInSeconds)
 	{
-		StatsRequest.Emplace(ZenDomain.ToString(), false);
-	}
-	UE::Zen::FZenHttpRequest& Request = StatsRequest.GetValue();
-	Request.Reset();
-
-	TArray64<uint8> GetBuffer;
-	FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXTVIEW("/stats/z$"), &GetBuffer, Zen::EContentType::CbObject);
-
-	if (Result == Zen::FZenHttpRequest::Result::Success && Request.GetResponseCode() == 200)
-	{
-		FCbObjectView RootObjectView(GetBuffer.GetData());
-
-		FCbObjectView RequestsObjectView = RootObjectView["requests"].AsObjectView();
-		FZenRequestStats& RequestStats = stats.RequestStats;
-		
-		RequestStats.Count = RequestsObjectView["count"].AsInt64();
-		RequestStats.RateMean = RequestsObjectView["rate_mean"].AsDouble();
-		RequestStats.TAverage = RequestsObjectView["t_avg"].AsDouble();
-		RequestStats.TMin = RequestsObjectView["t_min"].AsDouble();
-		RequestStats.TMax = RequestsObjectView["t_max"].AsDouble();
-
-		FCbObjectView CacheObjectView = RootObjectView["cache"].AsObjectView();
-		FZenCacheStats& CacheStats = stats.CacheStats;
-
-		CacheStats.Hits = CacheObjectView["hits"].AsInt64();
-		CacheStats.Misses = CacheObjectView["misses"].AsInt64();
-		CacheStats.HitRatio = CacheObjectView["hit_ratio"].AsDouble();
-		CacheStats.UpstreamHits = CacheObjectView["upstream_hits"].AsInt64();
-		CacheStats.UpstreamRatio = CacheObjectView["upstream_ratio"].AsDouble();
-
-		FCbObjectView CacheSizeObjectView = CacheObjectView["size"].AsObjectView();
-		FZenCacheSizeStats& CacheSizeStats = CacheStats.Size;
-		CacheSizeStats.Disk = CacheSizeObjectView["disk"].AsDouble();
-		CacheSizeStats.Memory = CacheSizeObjectView["memory"].AsDouble();
-
-		FCbObjectView UpstreamObjectView = RootObjectView["upstream"].AsObjectView();
-		FZenUpstreamStats& UpstreamStats = stats.UpstreamStats;
-
-		UpstreamStats.Reading = UpstreamObjectView["reading"].AsBool();
-		UpstreamStats.Writing = UpstreamObjectView["writing"].AsBool();
-		UpstreamStats.WorkerThreads = UpstreamObjectView["worker_threads"].AsInt64();
-		UpstreamStats.QueueCount = UpstreamObjectView["queue_count"].AsInt64();
-		UpstreamStats.TotalUploadedMB = 0.0;
-		UpstreamStats.TotalDownloadedMB = 0.0;
-
-		FCbObjectView UpstreamRequestObjectView = RootObjectView["upstream_gets"].AsObjectView();
-		FZenRequestStats& UpstreamRequestStats = stats.UpstreamRequestStats;
-
-		UpstreamRequestStats.Count = UpstreamRequestObjectView["count"].AsInt64();
-		UpstreamRequestStats.RateMean = UpstreamRequestObjectView["rate_mean"].AsDouble();
-		UpstreamRequestStats.TAverage = UpstreamRequestObjectView["t_avg"].AsDouble();
-		UpstreamRequestStats.TMin = UpstreamRequestObjectView["t_min"].AsDouble();
-		UpstreamRequestStats.TMax = UpstreamRequestObjectView["t_max"].AsDouble();
-
-		FCbArrayView EndpPointArrayView = UpstreamObjectView["endpoints"].AsArrayView();
-
-		for (FCbFieldView FieldView : EndpPointArrayView)
-		{
-			FCbObjectView EndPointView = FieldView.AsObjectView();
-			FZenEndPointStats EndPointStats;
-
-			EndPointStats.Name = FString(EndPointView["name"].AsString());
-			EndPointStats.Url = FString(EndPointView["url"].AsString());
-			EndPointStats.Health = FString(EndPointView["state"].AsString());
-
-			if (FCbObjectView Cache = EndPointView["cache"].AsObjectView())
+#if WITH_EDITOR
+		EAsyncExecution ThreadPool = EAsyncExecution::LargeThreadPool;
+#else
+		EAsyncExecution ThreadPool = EAsyncExecution::ThreadPool;
+#endif
+		// We've not got any requests in flight and we've met a given time requirement for requests
+		StatsRequest = Async(ThreadPool, [this]
 			{
-				EndPointStats.HitRatio = Cache["hit_ratio"].AsDouble();
-				EndPointStats.UploadedMB = Cache["put_bytes"].AsDouble() / 1024.0 / 1024.0;
-				EndPointStats.DownloadedMB = Cache["get_bytes"].AsDouble() / 1024.0 / 1024.0;
-				EndPointStats.ErrorCount = Cache["error_count"].AsInt64();
-			}
-			
-			UpstreamStats.TotalUploadedMB += EndPointStats.UploadedMB;
-			UpstreamStats.TotalDownloadedMB += EndPointStats.DownloadedMB;
+				TStringBuilder<128> ZenDomain;
+				ZenDomain << HostName << TEXT(":") << Port;
+				UE::Zen::FZenHttpRequest Request(ZenDomain.ToString(), false);
 
-			UpstreamStats.EndPointStats.Push(EndPointStats);
-		}
+				TArray64<uint8> GetBuffer;
+				FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXT("/stats/z$"_SV), &GetBuffer, Zen::EContentType::CbObject);
 
-		FCbObjectView CASObjectView = RootObjectView["cas"].AsObjectView();	
-		FCbObjectView CASSizeObjectView = CASObjectView["size"].AsObjectView();
+				FZenStats Stats;
 
-		FZenCASSizeStats& CASSizeStats = stats.CASStats.Size;
+				if (Result == Zen::FZenHttpRequest::Result::Success && Request.GetResponseCode() == 200)
+				{
+					FCbObjectView RootObjectView(GetBuffer.GetData());
 
-		CASSizeStats.Tiny = CASSizeObjectView["tiny"].AsInt64();
-		CASSizeStats.Small = CASSizeObjectView["small"].AsInt64();
-		CASSizeStats.Large = CASSizeObjectView["large"].AsInt64();
-		CASSizeStats.Total = CASSizeObjectView["total"].AsInt64();
+					FCbObjectView RequestsObjectView = RootObjectView["requests"].AsObjectView();
+					FZenRequestStats& RequestStats = Stats.RequestStats;
 
-		LastStats = stats;
-		LastStatsTime = CurrentCycles;
-		return true;
+					RequestStats.Count = RequestsObjectView["count"].AsInt64();
+					RequestStats.RateMean = RequestsObjectView["rate_mean"].AsDouble();
+					RequestStats.TAverage = RequestsObjectView["t_avg"].AsDouble();
+					RequestStats.TMin = RequestsObjectView["t_min"].AsDouble();
+					RequestStats.TMax = RequestsObjectView["t_max"].AsDouble();
+
+					FCbObjectView CacheObjectView = RootObjectView["cache"].AsObjectView();
+					FZenCacheStats& CacheStats = Stats.CacheStats;
+
+					CacheStats.Hits = CacheObjectView["hits"].AsInt64();
+					CacheStats.Misses = CacheObjectView["misses"].AsInt64();
+					CacheStats.HitRatio = CacheObjectView["hit_ratio"].AsDouble();
+					CacheStats.UpstreamHits = CacheObjectView["upstream_hits"].AsInt64();
+					CacheStats.UpstreamRatio = CacheObjectView["upstream_ratio"].AsDouble();
+
+					FCbObjectView CacheSizeObjectView = CacheObjectView["size"].AsObjectView();
+					FZenCacheSizeStats& CacheSizeStats = CacheStats.Size;
+					CacheSizeStats.Disk = CacheSizeObjectView["disk"].AsDouble();
+					CacheSizeStats.Memory = CacheSizeObjectView["memory"].AsDouble();
+
+					FCbObjectView UpstreamObjectView = RootObjectView["upstream"].AsObjectView();
+					FZenUpstreamStats& UpstreamStats = Stats.UpstreamStats;
+
+					UpstreamStats.Reading = UpstreamObjectView["reading"].AsBool();
+					UpstreamStats.Writing = UpstreamObjectView["writing"].AsBool();
+					UpstreamStats.WorkerThreads = UpstreamObjectView["worker_threads"].AsInt64();
+					UpstreamStats.QueueCount = UpstreamObjectView["queue_count"].AsInt64();
+					UpstreamStats.TotalUploadedMB = 0.0;
+					UpstreamStats.TotalDownloadedMB = 0.0;
+
+					FCbObjectView UpstreamRequestObjectView = RootObjectView["upstream_gets"].AsObjectView();
+					FZenRequestStats& UpstreamRequestStats = Stats.UpstreamRequestStats;
+
+					UpstreamRequestStats.Count = UpstreamRequestObjectView["count"].AsInt64();
+					UpstreamRequestStats.RateMean = UpstreamRequestObjectView["rate_mean"].AsDouble();
+					UpstreamRequestStats.TAverage = UpstreamRequestObjectView["t_avg"].AsDouble();
+					UpstreamRequestStats.TMin = UpstreamRequestObjectView["t_min"].AsDouble();
+					UpstreamRequestStats.TMax = UpstreamRequestObjectView["t_max"].AsDouble();
+
+					FCbArrayView EndpPointArrayView = UpstreamObjectView["endpoints"].AsArrayView();
+
+					for (FCbFieldView FieldView : EndpPointArrayView)
+					{
+						FCbObjectView EndPointView = FieldView.AsObjectView();
+						FZenEndPointStats EndPointStats;
+
+						EndPointStats.Name = FString(EndPointView["name"].AsString());
+						EndPointStats.Url = FString(EndPointView["url"].AsString());
+						EndPointStats.Health = FString(EndPointView["state"].AsString());
+
+						if (FCbObjectView Cache = EndPointView["cache"].AsObjectView())
+						{
+							EndPointStats.HitRatio = Cache["hit_ratio"].AsDouble();
+							EndPointStats.UploadedMB = Cache["put_bytes"].AsDouble() / 1024.0 / 1024.0;
+							EndPointStats.DownloadedMB = Cache["get_bytes"].AsDouble() / 1024.0 / 1024.0;
+							EndPointStats.ErrorCount = Cache["error_count"].AsInt64();
+						}
+
+						UpstreamStats.TotalUploadedMB += EndPointStats.UploadedMB;
+						UpstreamStats.TotalDownloadedMB += EndPointStats.DownloadedMB;
+
+						UpstreamStats.EndPointStats.Push(EndPointStats);
+					}
+
+					FCbObjectView CASObjectView = RootObjectView["cas"].AsObjectView();
+					FCbObjectView CASSizeObjectView = CASObjectView["size"].AsObjectView();
+
+					FZenCASSizeStats& CASSizeStats = Stats.CASStats.Size;
+
+					CASSizeStats.Tiny = CASSizeObjectView["tiny"].AsInt64();
+					CASSizeStats.Small = CASSizeObjectView["small"].AsInt64();
+					CASSizeStats.Large = CASSizeObjectView["large"].AsInt64();
+					CASSizeStats.Total = CASSizeObjectView["total"].AsInt64();
+
+					Stats.IsValid = true;
+				}
+
+				return Stats;
+			});
 	}
 
-	return false;
+	return Stats.IsValid;
 }
 
 #endif // UE_WITH_ZEN

@@ -73,7 +73,7 @@ namespace UE::Zen {
 		FZenUpstreamStats UpstreamStats;
 		FZenRequestStats UpstreamRequestStats;
 		FZenCASStats CASStats;
-
+		bool IsValid = false;
 	};
 
 } // namespace UE::Zen
