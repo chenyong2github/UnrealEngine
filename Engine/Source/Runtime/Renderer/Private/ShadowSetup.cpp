@@ -2094,6 +2094,7 @@ void FProjectedShadowInfo::FinalizeAddSubjectPrimitive(
 bool FProjectedShadowInfo::HasSubjectPrims() const
 {
 	return DynamicSubjectPrimitives.Num() > 0
+		|| SubjectTranslucentPrimitives.Num() > 0
 		|| ShadowDepthPass.HasAnyDraw()
 		|| SubjectMeshCommandBuildRequests.Num() > 0
 		|| ShadowDepthPassVisibleCommands.Num() > 0
