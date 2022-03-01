@@ -146,6 +146,7 @@ public:
 
 	/** IDetailLayoutRow interface */
 	virtual FName GetRowName() const override { return RowTagName; }
+	virtual TOptional<FResetToDefaultOverride> GetCustomResetToDefault() const override { return CustomResetToDefault; }
 
 	/**
 	 * Assigns content to the entire row

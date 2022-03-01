@@ -644,7 +644,7 @@ bool FDetailPropertyRow::GetEnabledState() const
 		{
 			Result = Result && CustomEditConditionValue.Get();
 		}
-		else
+		else if (PropertyEditor.IsValid())
 		{
 			Result = Result && PropertyEditor->IsEditConditionMet();
 		}
@@ -696,7 +696,7 @@ void FDetailPropertyRow::SetWidgetRowProperties(FDetailWidgetRow& Row) const
 {
 	// set edit condition handlers - use customized if provided
 	TAttribute<bool> EditConditionValue = CustomEditConditionValue;
-	if (!EditConditionValue.IsSet())
+	if (!EditConditionValue.IsSet() && PropertyEditor.IsValid())
 	{
 		EditConditionValue = TAttribute<bool>(PropertyEditor.ToSharedRef(), &FPropertyEditor::IsEditConditionMet);
 	}
@@ -707,7 +707,7 @@ void FDetailPropertyRow::SetWidgetRowProperties(FDetailWidgetRow& Row) const
 		TWeakPtr<FPropertyEditor> PropertyEditorWeak = PropertyEditor;
 		OnEditConditionValueChanged = FOnBooleanValueChanged::CreateStatic(&ExecuteCustomEditConditionToggle, CustomEditConditionValueChanged, PropertyEditorWeak);
 	}
-	else if (PropertyEditor->SupportsEditConditionToggle())
+	else if (PropertyEditor.IsValid() && PropertyEditor->SupportsEditConditionToggle())
 	{
 		TWeakPtr<FPropertyEditor> PropertyEditorWeak = PropertyEditor;
 		OnEditConditionValueChanged = FOnBooleanValueChanged::CreateStatic(&TogglePropertyEditorEditCondition, PropertyEditorWeak);

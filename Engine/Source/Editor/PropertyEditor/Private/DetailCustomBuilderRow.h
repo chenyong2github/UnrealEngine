@@ -21,6 +21,7 @@ public:
 
 	/** IDetailLayoutRow interface */
 	virtual FName GetRowName() const override { return GetCustomBuilderName(); }
+	virtual TOptional<FResetToDefaultOverride> GetCustomResetToDefault() const override;
 
 	void Tick( float DeltaTime );
 	bool RequiresTick() const;
@@ -32,7 +33,7 @@ public:
 	TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
 	void OnGenerateChildren( FDetailNodeList& OutChildren );
 	bool IsInitiallyCollapsed() const;
-	FDetailWidgetRow GetWidgetRow();
+	TSharedPtr<FDetailWidgetRow> GetWidgetRow() const;
 	bool AreChildCustomizationsHidden() const;
 	void SetOriginalPath(FStringView Path) { OriginalPath = Path; }
 	const FString& GetOriginalPath() const { return OriginalPath; }

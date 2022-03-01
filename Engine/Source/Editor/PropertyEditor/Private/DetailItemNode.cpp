@@ -593,6 +593,12 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 			return FString();
 		}
 	};
+	
+	auto IsCustomResetToDefaultVisible = [ItemNode, &InCustomization]()
+	{
+		TOptional<FResetToDefaultOverride> CustomResetToDefault = InCustomization.GetCustomResetToDefault();
+		return CustomResetToDefault.IsSet() && CustomResetToDefault.GetValue().IsResetToDefaultVisible(ItemNode->CreatePropertyHandle());
+	};
 
 	bool bPassesAllFilters = true;
 
@@ -609,13 +615,6 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 		const bool bPassesCategoryFilter = !bSearchFilterIsEmpty && InFilter.bShowAllChildrenIfCategoryMatches ? Local::StringPassesFilter(InFilter, InCategoryName) : false;
 		const bool bPassesValueFilter = !bSearchFilterIsEmpty && Local::StringPassesFilter(InFilter, Local::GetPropertyNodeValueFilterString(InCustomization, PropertyNodePin));
 
-		const FDetailWidgetRow WidgetRow = InCustomization.GetWidgetRow();
-		bool bIsCustomResetToDefaultVisible = false;
-		if (InFilter.bShowOnlyModified && WidgetRow.CustomResetToDefault.IsSet())
-		{
-			bIsCustomResetToDefaultVisible = WidgetRow.CustomResetToDefault.GetValue().IsResetToDefaultVisible(ItemNode->CreatePropertyHandle());
-		}
-
 		bPassesAllFilters = false;
 		if( PropertyNodePin.IsValid() && !PropertyNodePin->AsCategoryNode())
 		{
@@ -624,7 +623,13 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 			const bool bIsParentSeenDueToFiltering = PropertyNodePin->HasNodeFlags(EPropertyNodeFlags::IsParentSeenDueToFiltering) != 0;
 
 			const bool bPassesSearchFilter = bPassesCategoryFilter || bPassesValueFilter || bSearchFilterIsEmpty || ( bIsNotBeingFiltered || bIsSeenDueToFiltering || bIsParentSeenDueToFiltering );
-			const bool bPassesModifiedFilter = bPassesSearchFilter && (InFilter.bShowOnlyModified == false || PropertyNodePin->GetDiffersFromDefault() == true || bIsCustomResetToDefaultVisible);
+
+			bool bPassesModifiedFilter = true;
+			if (bPassesSearchFilter && InFilter.bShowOnlyModified)
+			{
+				bPassesModifiedFilter = PropertyNodePin->GetDiffersFromDefault() || IsCustomResetToDefaultVisible();
+			}
+
 			const bool bPassesAllowListFilter = InFilter.bShowOnlyAllowed ? InFilter.PropertyAllowList.Contains(*FPropertyNode::CreatePropertyPath(PropertyNodePin.ToSharedRef())) : true;
 
 			bool bPassesKeyableFilter = true;
@@ -648,18 +653,18 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 		}
 		else if (InCustomization.HasCustomWidget())
 		{
-			const bool bPassesTextFilter = bPassesCategoryFilter || bPassesValueFilter || Local::StringPassesFilter(InFilter, WidgetRow.FilterTextString.ToString());
+			const bool bPassesTextFilter = bPassesCategoryFilter || bPassesValueFilter || Local::StringPassesFilter(InFilter, InCustomization.WidgetDecl->FilterTextString.ToString());
 			//@todo we need to support custom widgets for keyable, animated, in particular for transforms(ComponentTransformDetails).
-			const bool bPassesModifiedFilter = (InFilter.bShowOnlyModified == false || WidgetRow.EditConditionValue.Get(false) || bIsCustomResetToDefaultVisible);
+			const bool bPassesModifiedFilter = (InFilter.bShowOnlyModified == false || InCustomization.WidgetDecl->EditConditionValue.Get(false) || IsCustomResetToDefaultVisible());
 			const bool bPassesKeyableFilter = (InFilter.bShowOnlyKeyable == false);
 			const bool bPassesAnimatedFilter = (InFilter.bShowOnlyAnimated == false);
 			bPassesAllFilters = bPassesTextFilter && bPassesModifiedFilter && bPassesKeyableFilter && bPassesAnimatedFilter;
 		}
 		else if (InCustomization.HasCustomBuilder())
 		{
-			const bool bPassesTextFilter = bPassesCategoryFilter || bPassesValueFilter || Local::StringPassesFilter(InFilter, WidgetRow.FilterTextString.ToString());
+			const bool bPassesTextFilter = bPassesCategoryFilter || bPassesValueFilter || Local::StringPassesFilter(InFilter, InCustomization.CustomBuilderRow->GetWidgetRow()->FilterTextString.ToString());
 			//@todo we need to support custom builders for modified, keyable, animated, in particular for transforms(ComponentTransformDetails).
-			const bool bPassesModifiedFilter = (InFilter.bShowOnlyModified == false || bIsCustomResetToDefaultVisible);
+			const bool bPassesModifiedFilter = (InFilter.bShowOnlyModified == false || IsCustomResetToDefaultVisible());
 			const bool bPassesKeyableFilter = (InFilter.bShowOnlyKeyable == false);
 			const bool bPassesAnimatedFilter = (InFilter.bShowOnlyAnimated == false);
 			bPassesAllFilters = bPassesTextFilter && bPassesModifiedFilter && bPassesKeyableFilter && bPassesAnimatedFilter;

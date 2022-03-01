@@ -93,7 +93,7 @@ FDetailWidgetRow FDetailLayoutCustomization::GetWidgetRow() const
 	}
 	else if (HasCustomBuilder())
 	{
-		return CustomBuilderRow->GetWidgetRow();
+		return *CustomBuilderRow->GetWidgetRow();
 	}
 	else if (HasPropertyNode())
 	{
@@ -105,25 +105,43 @@ FDetailWidgetRow FDetailLayoutCustomization::GetWidgetRow() const
 	}
 }
 
-FName FDetailLayoutCustomization::GetName() const
+const IDetailLayoutRow* FDetailLayoutCustomization::GetDetailLayoutRow() const
 {
 	if (HasCustomWidget())
 	{
-		return WidgetDecl->GetRowName();
+		return WidgetDecl.Get();
 	}
 	else if (HasCustomBuilder())
 	{
-		return CustomBuilderRow->GetRowName();
+		return CustomBuilderRow.Get();
 	}
 	else if (HasGroup())
 	{
-		return DetailGroup->GetRowName();
+		return DetailGroup.Get();
 	}
-	else if (GetPropertyNode())
+	else if (PropertyRow.IsValid())
 	{
-		return PropertyRow->GetRowName();
+		return PropertyRow.Get();
+	}
+	return nullptr;
+}
+
+FName FDetailLayoutCustomization::GetName() const
+{
+	if (const IDetailLayoutRow* LayoutRow = GetDetailLayoutRow())
+	{
+		return LayoutRow->GetRowName();
 	}
 	return NAME_None;
+}
+
+TOptional<FResetToDefaultOverride> FDetailLayoutCustomization::GetCustomResetToDefault() const
+{
+	if (const IDetailLayoutRow* LayoutRow = GetDetailLayoutRow())
+	{
+		return LayoutRow->GetCustomResetToDefault();
+	}
+	return TOptional<FResetToDefaultOverride>();
 }
 
 FDetailCategoryImpl::FDetailCategoryImpl(FName InCategoryName, TSharedRef<FDetailLayoutBuilderImpl> InDetailLayout)

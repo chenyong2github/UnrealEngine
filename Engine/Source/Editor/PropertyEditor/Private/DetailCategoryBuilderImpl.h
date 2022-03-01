@@ -60,8 +60,12 @@ struct FDetailLayoutCustomization
 	bool bAdvanced { false };
 	/** Whether or not this customization is custom or a default one. */
 	bool bCustom { false };
+	/** @return The current layout row that this customization represents. May be null if IsValidCustomization() is false. */
+	const IDetailLayoutRow* GetDetailLayoutRow() const;
 	/** @return The name of the row depending on which type of customization this is, then the name of the property node, then NAME_None. */
 	FName GetName() const;
+	/** @return The custom reset to default if one is available. */
+	TOptional<FResetToDefaultOverride> GetCustomResetToDefault() const;
 };
 
 class FDetailLayout

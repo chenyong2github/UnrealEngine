@@ -11,6 +11,15 @@ FDetailCustomBuilderRow::FDetailCustomBuilderRow( TSharedRef<IDetailCustomNodeBu
 {
 }
 
+TOptional<FResetToDefaultOverride> FDetailCustomBuilderRow::GetCustomResetToDefault() const
+{
+	if (HeaderRow.IsValid())
+	{
+		return HeaderRow->GetCustomResetToDefault();
+	}
+	return TOptional<FResetToDefaultOverride>();
+}
+
 void FDetailCustomBuilderRow::Tick( float DeltaTime ) 
 {
 	return CustomNodeBuilder->Tick( DeltaTime );
@@ -79,9 +88,9 @@ bool FDetailCustomBuilderRow::IsInitiallyCollapsed() const
 	return CustomNodeBuilder->InitiallyCollapsed();
 }
 
-FDetailWidgetRow FDetailCustomBuilderRow::GetWidgetRow()
+TSharedPtr<FDetailWidgetRow> FDetailCustomBuilderRow::GetWidgetRow() const
 {
-	return *HeaderRow;
+	return HeaderRow;
 }
 
 bool FDetailCustomBuilderRow::AreChildCustomizationsHidden() const

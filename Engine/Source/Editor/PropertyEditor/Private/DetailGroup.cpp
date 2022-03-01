@@ -102,6 +102,15 @@ bool FDetailGroup::GetExpansionState() const
 	return false;
 }
 
+TOptional<FResetToDefaultOverride> FDetailGroup::GetCustomResetToDefault() const
+{
+	if (HeaderCustomization.IsValid())
+	{
+		return HeaderCustomization->PropertyRow->GetCustomResetToDefault();
+	}
+	return TOptional<FResetToDefaultOverride>();
+}
+
 TSharedPtr<FDetailPropertyRow> FDetailGroup::GetHeaderPropertyRow() const
 {
 	return HeaderCustomization.IsValid() ? HeaderCustomization->PropertyRow : nullptr;

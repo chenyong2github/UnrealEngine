@@ -32,6 +32,7 @@ public:
 
 	/** IDetailLayoutRow interface */
 	virtual FName GetRowName() const override { return GetGroupName(); }
+	virtual TOptional<FResetToDefaultOverride> GetCustomResetToDefault() const override;
 
 	TSharedPtr<FDetailPropertyRow> GetHeaderPropertyRow() const;
 	TSharedPtr<FPropertyNode> GetHeaderPropertyNode() const;

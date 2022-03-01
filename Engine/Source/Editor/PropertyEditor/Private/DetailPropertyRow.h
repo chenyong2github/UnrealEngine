@@ -48,6 +48,8 @@ public:
 
 	/** IDetailLayoutRow interface */
 	virtual FName GetRowName() const override;
+	virtual TOptional<FResetToDefaultOverride> GetCustomResetToDefault() const override { return CustomResetToDefault; }
+
 
 	/** @return true if this row has widgets with columns */
 	bool HasColumns() const;
