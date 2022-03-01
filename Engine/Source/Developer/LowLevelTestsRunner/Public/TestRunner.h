@@ -21,9 +21,9 @@
 #endif
 
 static bool bCatchIsRunning = false;
-static bool bGAllowLogging = true;
-static bool bMultithreaded = true;
-static bool bDebug = false;
+static bool bGAllowLogging = false;
+static bool bGMultithreaded = false;
+static bool bGDebug = false;
 
 #if __cplusplus
 	extern "C" const char* GetProcessExecutablePath();

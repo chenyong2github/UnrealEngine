@@ -5,6 +5,7 @@ using Gauntlet;
 using System;
 using System.IO;
 using System.Linq;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 namespace LowLevelTests
@@ -125,7 +126,20 @@ namespace LowLevelTests
 
 			if (StdOut == null || string.IsNullOrEmpty(StdOut.Trim()))
 			{
-				Log.Warning("No StdOut returned from low level test app.");
+				Log.Error("No StdOut returned from low level test app.");
+			}
+			else // Save artifact
+			{
+				string LogDir = Path.Combine(Unreal.EngineDirectory.FullName, "Programs", "AutomationTool", "Saved", "Logs");
+				
+				const string ClientLogFile = "ClientOutput.log";
+				string ClientOutputLog = Path.Combine(ArtifactPath, ClientLogFile);
+				
+				using (var ClientOutputWriter = File.CreateText(ClientOutputLog))
+				{
+					ClientOutputWriter.Write(StdOut);
+				}
+				File.Copy(ClientOutputLog, Path.Combine(LogDir, ClientLogFile));
 			}
 
 			LowLevelTestsLogParser LowLevelTestsLogParser = new LowLevelTestsLogParser(StdOut);

@@ -7,19 +7,14 @@
 #include "Modules/ModuleManager.h"
 #include "HAL/PlatformTLS.h"
 
-#include "CommonEngineInit.inl"
-
-// TODO: Implement global initialization via flags
-#if WITH_ENGINE || WITH_EDITOR || WITH_APPLICATION_CORE || WITH_COREUOBJECT
-#define USE_GLOBAL_ENGINE_SETUP
-#endif
+#include "TestCommon/CoreUtilities.h"
 
 // Test run interceptor
 struct TestRunListener : public Catch::TestEventListenerBase {
 	using TestEventListenerBase::TestEventListenerBase; // inherit constructor
 public:
 	void testCaseStarting(Catch::TestCaseInfo  const& TestInfo) override {
-		if (bDebug)
+		if (bGDebug)
 		{
 			std::cout << TestInfo.lineInfo.file << ":" << TestInfo.lineInfo.line << " with tags " << TestInfo.tagsAsString() << std::endl;
 		}
@@ -27,37 +22,6 @@ public:
 };
 
 CATCH_REGISTER_LISTENER(TestRunListener);
-
-void GlobalSetup()
-{
-	if (bGAllowLogging)
-	{
-		FCommandLine::Set(TEXT(""));
-	}
-	else
-	{
-		FCommandLine::Set(TEXT(R"(-LogCmds="global off")"));
-		FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
-	}
-	InitThreadPool();
-	InitAsyncQueues();
-	InitTaskGraph();
-	InitOutputDevices();
-	InitRendering();
-	InitDerivedDataCache();
-	InitSlate();
-	InitForWithEditorOnlyData();
-	InitEditor();
-	InitCoreUObject();
-}
-
-void GlobalTeardown()
-{
-	CleanupCoreUObject();
-	CleanupThreadPool();
-	CleanupTaskGraph();
-	CleanupPlatform();
-}
 
 void LoadBaseTestModule(FString BaseModuleName)
 {
@@ -74,7 +38,6 @@ void UnloadBaseTestModule(FString BaseModuleName)
 		FModuleManager::Get().UnloadModule(*BaseModuleName);
 	}
 }
-
 
 int RunTests(int argc, const char* argv[])
 {
@@ -133,11 +96,11 @@ int RunTests(int argc, const char* argv[])
 		}
 		if (std::strcmp(argv[i], "--no-mt") == 0)
 		{
-			bMultithreaded = false;
+			bGMultithreaded = false;
 		}
 		if (std::strcmp(argv[i], "--debug") == 0)
 		{
-			bDebug = true;
+			bGDebug = true;
 		}
 		// If we have --base-global-module parse proceeding argument as its option-value
 		if (std::strcmp(argv[i], "--base-global-module") == 0 &&
@@ -147,11 +110,6 @@ int RunTests(int argc, const char* argv[])
 			++i;
 		}
 	}
-
-// Global initialization
-#ifdef USE_GLOBAL_ENGINE_SETUP
-	GlobalSetup();
-#endif
 
 	LoadBaseTestModule(LoadModuleName);
 
@@ -164,10 +122,8 @@ int RunTests(int argc, const char* argv[])
 
 	UnloadBaseTestModule(LoadModuleName);
 
-// Global cleanup
-#if defined(USE_GLOBAL_ENGINE_SETUP)
-	GlobalTeardown();
-#endif
+	// Required, will crash on exit otherwise...
+	CleanupPlatform();
 
 #if PLATFORM_DESKTOP
 	if (bWaitForInputToTerminate)

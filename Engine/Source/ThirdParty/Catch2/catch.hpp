@@ -80,9 +80,6 @@
 #elif defined(linux) || defined(__linux) || defined(__linux__)
 #  define CATCH_PLATFORM_LINUX
 
-#elif defined(CATCH_PLATFORM_XBOX) || defined(CATCH_PLATFORM_SONY) || defined(CATCH_PLATFORM_NINTENDO)
-// NOOP - this was defined in a .build.cs
-
 #elif defined(WIN32) || defined(__WIN32__) || defined(_WIN32) || defined(_MSC_VER) || defined(__MINGW32__)
 #  define CATCH_PLATFORM_WINDOWS
 #endif
@@ -188,7 +185,7 @@ namespace Catch {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Assume that non-Windows platforms support posix signals by default
-#if !defined(CATCH_PLATFORM_WINDOWS) && !defined(CATCH_PLATFORM_SONY) && !defined(CATCH_PLATFORM_NINTENDO) && !defined(CATCH_PLATFORM_XBOX)
+#if !defined(CATCH_PLATFORM_WINDOWS) && !defined(CATCH_PLATFORM_NO_POSIX_SIGNALS)
     #define CATCH_INTERNAL_CONFIG_POSIX_SIGNALS
 #endif
 
@@ -214,19 +211,6 @@ namespace Catch {
 // Not all Windows environments support SEH properly
 #if defined(__MINGW32__)
 #    define CATCH_INTERNAL_CONFIG_NO_WINDOWS_SEH
-#endif
-
-////////////////////////////////////////////////////////////////////////////////
-// Sony or Switch
-#if defined(CATCH_PLATFORM_SONY) || defined(CATCH_PLATFORM_NINTENDO)
-#    define CATCH_INTERNAL_CONFIG_NO_NEW_CAPTURE
-#    define CATCH_CONFIG_COLOUR_NONE
-#endif
-
-////////////////////////////////////////////////////////////////////////////////
-// XBox platforms
-#if defined(CATCH_PLATFORM_XBOX)
-#    define CATCH_CONFIG_COLOUR_NONE
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -258,7 +242,7 @@ namespace Catch {
 // Or console colours (or console at all...)
 #  if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
 #    define CATCH_CONFIG_COLOUR_NONE
-#  elif !defined(CATCH_PLATFORM_XBOX)
+#  elif !defined(CATCH_PLATFORM_NO_SEH)
 #    define CATCH_INTERNAL_CONFIG_WINDOWS_SEH
 #  endif
 
@@ -10375,7 +10359,7 @@ namespace Catch {
         }
     }
 
-#elif defined(CATCH_PLATFORM_WINDOWS) || defined(CATCH_PLATFORM_XBOX)
+#elif defined(CATCH_PLATFORM_WINDOWS) || defined(CATCH_PLATFORM_DEBUGAPI)
 
 #include "catch_debugapi.h"
 
@@ -13510,7 +13494,7 @@ namespace Catch {
         m_config.reset();
     }
 
-#if !defined(PLATFORM_SWITCH) || !PLATFORM_SWITCH
+#if !defined(CATCH_PLATFORM_USEGETCHAR)
 	using std::getchar;
 #endif
 
@@ -13745,7 +13729,7 @@ namespace Catch {
 
     auto makeStream( StringRef const &filename ) -> IStream const* {
         if( filename.empty() )
-#if defined(CATCH_PLATFORM_XBOX)
+#if defined(CATCH_PLATFORM_DEBUGSTREAM)
 			return new Detail::DebugOutStream();
 #else
             return new Detail::CoutStream();
