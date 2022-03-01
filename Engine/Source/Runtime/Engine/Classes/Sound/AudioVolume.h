@@ -26,10 +26,10 @@ class USoundSubmix;
 UENUM(BlueprintType)
 enum class EAudioVolumeLocationState : uint8
 {
-	// A send based on linear interpolation between a distance range and send-level range
+	// Used for when the listener is located inside the Audio Volume
 	InsideTheVolume,
 
-	// A send based on a supplied curve
+	// Used for when the listener is located outside the Audio Volume
 	OutsideTheVolume,
 };
 
@@ -46,7 +46,7 @@ struct ENGINE_API FAudioVolumeSubmixSendSettings
 	UPROPERTY()
 	EAudioVolumeLocationState SourceLocationState_DEPRECATED = EAudioVolumeLocationState::InsideTheVolume;
 
-	// Submix send array for sounds that are outside the audio volume when the listener is inside the volume
+	// Submix send array for sounds that are in the ListenerLocationState at the same time as the listener
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioVolumeSubmixSends)
 	TArray<FSoundSubmixSendInfo> SubmixSends;
 };

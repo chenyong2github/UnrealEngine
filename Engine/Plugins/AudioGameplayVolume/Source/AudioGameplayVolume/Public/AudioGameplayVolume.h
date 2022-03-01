@@ -10,7 +10,11 @@ class UAudioGameplayVolumeProxyComponent;
 class UAudioGameplayVolumeSubsystem;
 
 /**
- * AudioGameplayVolume
+ * AudioGameplayVolume - A spatial volume used to notify audio gameplay systems when the nearest audio listener
+   enters or exits the volume. Additionally, these volumes can influence audio sources depending on the relative
+   position of the listener.
+
+   NOTE: Will only impact audio sources that have "apply ambient volumes" set on their sound class.
  */
 UCLASS(Blueprintable, hidecategories = (Advanced, Attachment, Collision, Volume))
 class AUDIOGAMEPLAYVOLUME_API AAudioGameplayVolume : public AVolume
@@ -32,6 +36,7 @@ public:
 
 	bool GetEnabled() const { return bEnabled; }
 	
+	/** Sets whether the volume is enabled */
 	UFUNCTION(BlueprintCallable, Category = "AudioGameplay")
 	void SetEnabled(bool bEnable);
 
