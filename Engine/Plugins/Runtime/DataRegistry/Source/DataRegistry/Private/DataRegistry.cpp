@@ -921,6 +921,10 @@ void UDataRegistry::RefreshRuntimeSources()
 		{
 			if (IsInitialized() && !Source->IsInitialized())
 			{
+				if (GUObjectArray.IsDisregardForGC(this))
+				{
+					Source->AddToRoot();
+				}
 				Source->Initialize();
 			}
 
@@ -936,6 +940,10 @@ void UDataRegistry::RefreshRuntimeSources()
 		if (OldSource && OldSource->IsInitialized() && !RuntimeSources.Contains(OldSource))
 		{
 			OldSource->Deinitialize();
+			if (GUObjectArray.IsDisregardForGC(this))
+			{
+				OldSource->RemoveFromRoot();
+			}
 		}
 	}
 

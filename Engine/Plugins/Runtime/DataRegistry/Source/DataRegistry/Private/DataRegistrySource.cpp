@@ -253,6 +253,10 @@ void UMetaDataRegistrySource::RefreshRuntimeSources()
 			UDataRegistrySource* NewSource = CreateTransientSource(GetChildSourceClass());
 			SetDataForChild(SourceName, NewSource);
 			RuntimeChildren.Add(SourceName, NewSource);
+			if (GUObjectArray.IsDisregardForGC(this))
+			{
+				NewSource->AddToRoot();
+			}
 
 			NewSource->Initialize();
 		}
@@ -266,6 +270,10 @@ void UMetaDataRegistrySource::RefreshRuntimeSources()
 			if (MapIt.Value())
 			{
 				MapIt.Value()->Deinitialize();
+				if (GUObjectArray.IsDisregardForGC(this))
+				{
+					MapIt.Value()->RemoveFromRoot();
+				}
 			}
 			MapIt.RemoveCurrent();
 		}
