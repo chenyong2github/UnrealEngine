@@ -9,7 +9,6 @@
 
 // Material pass reroutes
 #define SceneTexturesStruct LumenTranslucencyRadianceCacheMarkPass.SceneTextures
-#define EyeAdaptationStruct LumenTranslucencyRadianceCacheMarkPass
 #define StrataStruct LumenTranslucencyRadianceCacheMarkPass.Strata
 
 #include "/Engine/Generated/Material.ush"
