@@ -29,6 +29,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "WorkflowOrientedApp/SModeWidget.h"
 
@@ -268,7 +269,7 @@ namespace Metasound
 			virtual TSharedRef<SWidget> CreateStructureWidget(TSharedPtr<IPropertyHandle>& StructPropertyHandle) const override;
 		};
 
-		class FMetasoundDataTypeSelector : public TSharedFromThis<FMetasoundDataTypeSelector>
+		class FMetasoundDataTypeSelector
 		{
 		public:
 			void AddDataTypeSelector(IDetailLayoutBuilder& InDetailLayoutBuilder, const FText& InRowName, TWeakObjectPtr<UMetasoundEditorGraphMember> InGraphMember, bool bInIsInterfaceMember);
@@ -291,178 +292,29 @@ namespace Metasound
 			FName ArrayTypeName;
 		};
 
-		template <typename TMemberType>
-		class TMetasoundGraphMemberDetailCustomization : public IDetailCustomization
+		class FMetasoundMemberDetailCustomization : public IDetailCustomization
 		{
 		public:
-			TMetasoundGraphMemberDetailCustomization()
-				: IDetailCustomization()
-			{
-				DataTypeSelector = MakeShared<FMetasoundDataTypeSelector>();
-			}
-
-			virtual ~TMetasoundGraphMemberDetailCustomization()
+			virtual ~FMetasoundMemberDetailCustomization()
 			{
 				RenameRequestedHandle.Reset();
 			}
 
 		protected:
-			TWeakObjectPtr<TMemberType> GraphMember;
-			TSharedPtr<SEditableTextBox> NameEditableTextBox;
-			TSharedPtr<FMetasoundDataTypeSelector> DataTypeSelector;
-
-			bool bIsNameInvalid = false;
-
 			static IDetailCategoryBuilder& GetDefaultCategoryBuilder(IDetailLayoutBuilder& InDetailLayout)
 			{
 				return InDetailLayout.EditCategory("DefaultValue");
 			}
 
-			void UpdateRenameDelegate(UMetasoundEditorGraphMemberDefaultLiteral& InMemberDefaultLiteral)
+			static IDetailCategoryBuilder& GetGeneralCategoryBuilder(IDetailLayoutBuilder& InDetailLayout)
 			{
-				if (UMetasoundEditorGraphMember* Member = InMemberDefaultLiteral.GetParentMember())
-				{
-					if (Member->CanRename())
-					{
-						if (!RenameRequestedHandle.IsValid())
-						{
-							Member->OnRenameRequested.Clear();
-							RenameRequestedHandle = Member->OnRenameRequested.AddLambda([this]()
-							{
-								FSlateApplication::Get().SetKeyboardFocus(NameEditableTextBox.ToSharedRef(), EFocusCause::SetDirectly);
-							});
-						}
-					}
-				}
+				return InDetailLayout.EditCategory("General");
 			}
 
-			void CacheMemberData(IDetailLayoutBuilder& InDetailLayout)
-			{
-				TArray<TWeakObjectPtr<UObject>> Objects;
-				InDetailLayout.GetObjectsBeingCustomized(Objects);
-				if (!Objects.IsEmpty())
-				{
-					GraphMember = Cast<TMemberType>(Objects.Last().Get());
-
-					TSharedPtr<IPropertyHandle> LiteralHandle = InDetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(TMemberType, Literal));
-					if (ensure(GraphMember.IsValid()) && ensure(LiteralHandle.IsValid()))
-					{
-						// Always hide, even if no customization (LiteralObject isn't found) as this is the case
-						// where the default object is not required (i.e. Default Member is default constructed)
-						LiteralHandle->MarkHiddenByCustomization();
-
-						UObject* LiteralObject = nullptr;
-						if (LiteralHandle->GetValue(LiteralObject) == FPropertyAccess::Success)
-						{
-							MemberDefaultLiteral = Cast<UMetasoundEditorGraphMemberDefaultLiteral>(LiteralObject);
-						}
-					}
-				}
-			}
-
-			void CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout)
-			{
-				IDetailCategoryBuilder& CategoryBuilder = InDetailLayout.EditCategory("General");
-
-				const bool bIsInterfaceMember = IsInterfaceMember();
-				const bool bIsGraphEditable = IsGraphEditable();
-
-				NameEditableTextBox = SNew(SEditableTextBox)
-					.Text(this, &TMetasoundGraphMemberDetailCustomization::GetName)
-					.OnTextChanged(this, &TMetasoundGraphMemberDetailCustomization::OnNameChanged)
-					.OnTextCommitted(this, &TMetasoundGraphMemberDetailCustomization::OnNameCommitted)
-					.IsReadOnly(bIsInterfaceMember || !bIsGraphEditable)
-					.SelectAllTextWhenFocused(true)
-					.Font(IDetailLayoutBuilder::GetDetailFont());
-
-				static const FText MemberNameToolTipFormat = LOCTEXT("GraphMember_NameDescriptionFormat", "Name used within the MetaSounds editor(s) and transacting systems (ex. Blueprints) if applicable to reference the given {0}.");
-				CategoryBuilder.AddCustomRow(LOCTEXT("GraphMember_NameProperty", "Name"))
-					.EditCondition(!bIsInterfaceMember && bIsGraphEditable, nullptr)
-					.NameContent()
-					[
-						SNew(STextBlock)
-						.Font(IDetailLayoutBuilder::GetDetailFontBold())
-						.Text(GraphMember->GetGraphMemberLabel())
-						.ToolTipText(FText::Format(MemberNameToolTipFormat, GraphMember->GetGraphMemberLabel()))
-					]
-					.ValueContent()
-					[
-						NameEditableTextBox.ToSharedRef()
-					];
-
-				static const FText MemberDisplayNameText = LOCTEXT("GraphMember_DisplayNameProperty", "Display Name");
-				static const FText MemberDisplayNameToolTipFormat = LOCTEXT("GraphMember_DisplayNameDescriptionFormat", "Optional, localized name used within the MetaSounds editor(s) to describe the given {0}.");
-				const FText MemberDisplayNameTooltipText = FText::Format(MemberDisplayNameToolTipFormat, GraphMember->GetGraphMemberLabel());
-				CategoryBuilder.AddCustomRow(MemberDisplayNameText)
-					.EditCondition(!bIsInterfaceMember && bIsGraphEditable, nullptr)
-					.NameContent()
-					[
-						SNew(STextBlock)
-						.Font(IDetailLayoutBuilder::GetDetailFontBold())
-						.Text(MemberDisplayNameText)
-						.ToolTipText(MemberDisplayNameTooltipText)
-					]
-					.ValueContent()
-					[
-						SNew(STextPropertyEditableTextBox, MakeShared<FGraphMemberEditableTextDisplayName>(GraphMember, MemberDisplayNameTooltipText))
-						.WrapTextAt(500)
-						.MinDesiredWidth(25.0f)
-						.MaxDesiredHeight(200)
-					];
-
-				static const FText MemberDescriptionText = LOCTEXT("Member_DescriptionPropertyName", "Description");
-				static const FText MemberDescriptionToolTipFormat = LOCTEXT("Member_DescriptionToolTipFormat", "Description for {0}. For example, used as a tooltip when displayed on another graph's referencing node.");
-				const FText MemberDescriptionToolTipText = FText::Format(MemberDescriptionToolTipFormat, GraphMember->GetGraphMemberLabel());
-				CategoryBuilder.AddCustomRow(MemberDescriptionText)
-					.EditCondition(!bIsInterfaceMember && bIsGraphEditable, nullptr)
-					.NameContent()
-					[
-						SNew(STextBlock)
-						.Font(IDetailLayoutBuilder::GetDetailFontBold())
-						.Text(MemberDescriptionText)
-						.ToolTipText(MemberDescriptionToolTipText)
-					]
-					.ValueContent()
-					[
-						SNew(STextPropertyEditableTextBox, MakeShared<FGraphMemberEditableTextDescription>(GraphMember, MemberDescriptionToolTipText))
-						.WrapTextAt(500)
-						.MinDesiredWidth(25.0f)
-						.MaxDesiredHeight(200)
-					];
-
-				DataTypeSelector->AddDataTypeSelector(InDetailLayout, MemberCustomizationStyle::DataTypeNameText, GraphMember, !bIsInterfaceMember && bIsGraphEditable);
-			}
-
-			TArray<IDetailPropertyRow*> CustomizeDefaultCategory(IDetailLayoutBuilder& InDetailLayout)
-			{
-				TArray<IDetailPropertyRow*> DefaultPropertyRows;
-
-				if (MemberDefaultLiteral.IsValid())
-				{
-					UpdateRenameDelegate(*MemberDefaultLiteral);
-
-					UClass* MemberClass = MemberDefaultLiteral->GetClass();
-					check(MemberClass);
-
-					IDetailCategoryBuilder& DefaultCategoryBuilder = GetDefaultCategoryBuilder(InDetailLayout);
-					IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-					TUniquePtr<FMetasoundDefaultLiteralCustomizationBase> LiteralCustomization = EditorModule.CreateMemberDefaultLiteralCustomization(*MemberClass, DefaultCategoryBuilder);
-					if (LiteralCustomization.IsValid())
-					{
-						DefaultPropertyRows = LiteralCustomization->CustomizeLiteral(*MemberDefaultLiteral, InDetailLayout);
-					}
-					else
-					{
-						IDetailPropertyRow* DefaultPropertyRow = DefaultCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ MemberDefaultLiteral.Get() }), "Default");
-						ensureMsgf(DefaultPropertyRow, TEXT("Class '%s' missing expected 'Default' member."
-							"Either add/rename default member or register customization to display default value/opt out appropriately."),
-							*MemberClass->GetName());
-						DefaultPropertyRows.Add(DefaultPropertyRow);
-					}
-				}
-
-				return DefaultPropertyRows;
-			}
+			void UpdateRenameDelegate(UMetasoundEditorGraphMemberDefaultLiteral& InMemberDefaultLiteral);
+			void CacheMemberData(IDetailLayoutBuilder& InDetailLayout);
+			virtual void CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout);
+			virtual TArray<IDetailPropertyRow*> CustomizeDefaultCategory(IDetailLayoutBuilder& InDetailLayout);
 
 			virtual bool IsDefaultEditable() const
 			{
@@ -475,141 +327,47 @@ namespace Metasound
 			}
 
 			// IDetailCustomization interface
-			virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override
-			{
-				CacheMemberData(InDetailLayout);
-				if (GraphMember.IsValid())
-				{
-					CustomizeGeneralCategory(InDetailLayout);
-					CustomizeDefaultCategory(InDetailLayout);
-				}
-			}
+			virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override;
 			// End of IDetailCustomization interface
 
-			void OnNameChanged(const FText& InNewName)
-			{
-				using namespace Frontend;
-
-				bIsNameInvalid = false;
-				NameEditableTextBox->SetError(FText::GetEmpty());
-
-				if (!ensure(GraphMember.IsValid()))
-				{
-					return;
-				}
-
-				FText Error;
-				if (!GraphMember->CanRename(InNewName, Error))
-				{
-					bIsNameInvalid = true;
-					NameEditableTextBox->SetError(Error);
-				}
-			}
-
-			FText GetName() const
-			{
-				if (GraphMember.IsValid())
-				{
-					return FText::FromName(GraphMember->GetMemberName());
-				}
-
-				return FText::GetEmpty();
-			}
-
-			bool IsGraphEditable() const
-			{
-				if (GraphMember.IsValid())
-				{
-					if (const UMetasoundEditorGraph* OwningGraph = GraphMember->GetOwningGraph())
-					{
-						return OwningGraph->IsEditable();
-					}
-				}
-
-				return false;
-			}
-
-			FText GetDisplayName() const
-			{
-				using namespace Frontend;
-
-				if (GraphMember.IsValid())
-				{
-					return GraphMember->GetDisplayName();
-				}
-
-				return FText::GetEmpty();
-			}
-
-			void OnTooltipCommitted(const FText& InNewText, ETextCommit::Type InTextCommit)
-			{
-				using namespace Frontend;
-
-				if (GraphMember.IsValid())
-				{
-					constexpr bool bPostTransaction = true;
-					GraphMember->SetDescription(InNewText, bPostTransaction);
-				}
-			}
-
-			FText GetTooltip() const
-			{
-				if (GraphMember.IsValid())
-				{
-					return GraphMember->GetDescription();
-				}
-
-				return FText::GetEmpty();
-			}
-
-			void OnNameCommitted(const FText& InNewName, ETextCommit::Type InTextCommit)
-			{
-				using namespace Frontend;
-
-				if (!bIsNameInvalid && GraphMember.IsValid())
-				{
-					const FText TransactionLabel = FText::Format(LOCTEXT("RenameGraphMember_Format", "Set MetaSound {0}'s Name"), GraphMember->GetGraphMemberLabel());
-					const FScopedTransaction Transaction(TransactionLabel);
-
-					constexpr bool bPostTransaction = false;
-					GraphMember->SetDisplayName(FText::GetEmpty(), bPostTransaction);
-					GraphMember->SetMemberName(*InNewName.ToString(), bPostTransaction);
-				}
-
-				NameEditableTextBox->SetError(FText::GetEmpty());
-				bIsNameInvalid = false;
-			}
-
-			ECheckBoxState OnGetPrivateCheckboxState() const
-			{
-				if (GraphMember.IsValid())
-				{
-					return GraphMember->GetNodeHandle()->GetNodeStyle().bIsPrivate ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-				}
-
-				return ECheckBoxState::Unchecked;
-			}
+			void OnNameChanged(const FText& InNewName);
+			FText GetName() const;
+			bool IsGraphEditable() const;
+			FText GetDisplayName() const;
+			void OnTooltipCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
+			FText GetTooltip() const;
+			void OnNameCommitted(const FText& InNewName, ETextCommit::Type InTextCommit);
 
 		protected:
-			TWeakObjectPtr<UMetasoundEditorGraphMemberDefaultLiteral> MemberDefaultLiteral;
+			TWeakObjectPtr<UMetasoundEditorGraphMember> GraphMember;
+
+			TSharedPtr<SEditableTextBox> NameEditableTextBox;
+			FMetasoundDataTypeSelector DataTypeSelector;
+
+			bool bIsNameInvalid = false;
 
 			FDelegateHandle RenameRequestedHandle;
 		};
 
-		class FMetasoundInputDetailCustomization : public TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphInput>
+		using FMetasoundVariableDetailCustomization = FMetasoundMemberDetailCustomization;
+
+		class FMetasoundVertexDetailCustomization : public FMetasoundMemberDetailCustomization
 		{
 		public:
-			FMetasoundInputDetailCustomization()
-				: TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphInput>()
-			{
-			}
+			virtual ~FMetasoundVertexDetailCustomization() = default;
 
+		protected:
+			virtual void CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout) override;
+		};
+
+		class FMetasoundInputDetailCustomization : public FMetasoundVertexDetailCustomization
+		{
+		public:
 			virtual ~FMetasoundInputDetailCustomization() = default;
 
 			virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override;
 			virtual bool IsDefaultEditable() const override;
 			virtual bool IsInterfaceMember() const override;
-			static const FText MemberNameText;
 
 		private:
 			Frontend::FDocumentHandle GetDocumentHandle() const;
@@ -618,16 +376,9 @@ namespace Metasound
 			void ClearInputInheritsDefault();
 		};
 
-		class FMetasoundOutputDetailCustomization : public TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphOutput>
+		class FMetasoundOutputDetailCustomization : public FMetasoundVertexDetailCustomization
 		{
 		public:
-			static const FText MemberNameText;
-
-			FMetasoundOutputDetailCustomization()
-				: TMetasoundGraphMemberDetailCustomization<UMetasoundEditorGraphOutput>()
-			{
-			}
-
 			virtual ~FMetasoundOutputDetailCustomization() = default;
 
 			virtual bool IsInterfaceMember() const override;

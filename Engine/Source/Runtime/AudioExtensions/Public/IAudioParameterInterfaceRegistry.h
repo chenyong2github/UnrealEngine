@@ -30,6 +30,8 @@ namespace Audio
 
 			const FAudioParameter InitValue;
 			const FText RequiredText;
+
+			const int32 SortOrderIndex = 0;
 		};
 
 		struct FOutput
@@ -41,6 +43,8 @@ namespace Audio
 			const FName ParamName;
 			const FText RequiredText = FText();
 			const EAudioParameterType ParamType = EAudioParameterType::None;
+
+			const int32 SortOrderIndex = 0;
 		};
 
 		struct FEnvironmentVariable

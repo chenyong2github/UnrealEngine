@@ -623,6 +623,12 @@ namespace Metasound
 			// Sets graph style.
 			virtual void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) = 0;
 
+			// Sets the input style for the graph.
+			virtual void SetInputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) = 0;
+
+			// Sets the output style for the graph.
+			virtual void SetOutputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) = 0;
+
 			/** Return the display name of the graph. */
 			virtual FText GetDisplayName() const = 0;
 #endif // WITH_EDITOR
@@ -874,6 +880,18 @@ namespace Metasound
 
 			/** Set the description for the output with the given name. */
 			virtual void SetOutputDescription(const FVertexName& InName, const FText& InDescription) = 0;
+
+			/** Returns the sort order index for the input with the given name. Returns 0 if not found or unset. */
+			virtual int32 GetSortOrderIndexForInput(const FVertexName& InName) const = 0;
+
+			/** Returns the sort order index for the input with the given name. Returns 0 if not found or unset. */
+			virtual int32 GetSortOrderIndexForOutput(const FVertexName& InName) const = 0;
+
+			/** Sets the sort order index for the input with the given name. No-ops if input not found. */
+			virtual void SetSortOrderIndexForInput(const FVertexName& InName, int32 InSortOrderIndex) = 0;
+
+			/** Sets the sort order index for the output with the given name. No-ops if output not found. */
+			virtual void SetSortOrderIndexForOutput(const FVertexName& InName, int32 InSortOrderIndex) = 0;
 #endif // WITH_EDITOR
 
 			/**

@@ -227,9 +227,6 @@ public:
 
 
 protected:
-	// Refreshes all Pin Metadata from the associated Frontend node's default class interface.
-	bool RefreshPinMetadata();
-
 	virtual void SetNodeID(FGuid InNodeID) override
 	{
 		NodeID = InNodeID;

@@ -3,6 +3,7 @@
 #include "MetasoundAssetBase.h"
 
 #include "Algo/AnyOf.h"
+#include "Algo/ForEach.h"
 #include "Algo/Transform.h"
 #include "Containers/Set.h"
 #include "HAL/FileManager.h"
@@ -175,7 +176,6 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 		{
 			return nullptr;
 		}
-
 
 		virtual const FMetasoundFrontendClass& GetFrontendClass() const override
 		{
@@ -429,6 +429,13 @@ void FMetasoundAssetBase::CacheRegistryMetadata()
 	}
 
 	// 2. Copy metadata for inputs/outputs managed by interfaces, removing them from maps generated
+	auto CacheInterfaceMetadata = [](const FMetasoundFrontendVertexMetadata & InRegistryMetadata, FMetasoundFrontendVertexMetadata& OutMetadata)
+	{
+		const int32 CachedSortOrderIndex = OutMetadata.SortOrderIndex;
+		OutMetadata = InRegistryMetadata;
+		OutMetadata.SortOrderIndex = CachedSortOrderIndex;
+	};
+
 	for (const FMetasoundFrontendVersion& Version : InterfaceVersions)
 	{
 		const FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(Version);
@@ -440,8 +447,7 @@ void FMetasoundAssetBase::CacheRegistryMetadata()
 				const FNameDataTypePair NameDataTypePair = FNameDataTypePair(InterfaceInput.Name, InterfaceInput.TypeName);
 				if (FMetasoundFrontendClassInput* Input = Inputs.FindRef(NameDataTypePair))
 				{
-					// Interface members are set to not serialize text and thus is handled by copy, so explicit call omitted.
-					Input->Metadata = InterfaceInput.Metadata;
+					CacheInterfaceMetadata(InterfaceInput.Metadata, Input->Metadata);
 					Inputs.Remove(NameDataTypePair);
 				}
 			}
@@ -451,8 +457,7 @@ void FMetasoundAssetBase::CacheRegistryMetadata()
 				const FNameDataTypePair NameDataTypePair = FNameDataTypePair(InterfaceOutput.Name, InterfaceOutput.TypeName);
 				if (FMetasoundFrontendClassOutput* Output = Outputs.FindRef(NameDataTypePair))
 				{
-					// Interface members are set to not serialize text and thus is handled by copy, so explicit call omitted.
-					Output->Metadata = InterfaceOutput.Metadata;
+					CacheInterfaceMetadata(InterfaceOutput.Metadata, Output->Metadata);
 					Outputs.Remove(NameDataTypePair);
 				}
 			}
@@ -471,7 +476,26 @@ void FMetasoundAssetBase::CacheRegistryMetadata()
 		Pair.Value->Metadata.SetSerializeText(true);
 	}
 
-	// 4. Cache registry data on document dependencies
+	// 4. Refresh style as order of members could've changed
+	{
+		FMetasoundFrontendInterfaceStyle InputStyle;
+		Algo::ForEach(RootGraphClassInterface.Inputs, [&InputStyle](const FMetasoundFrontendClassInput& Input)
+		{
+			InputStyle.DefaultSortOrder.Add(Input.Metadata.SortOrderIndex);
+		});
+		RootGraphClassInterface.SetInputStyle(InputStyle);
+	}
+
+	{
+		FMetasoundFrontendInterfaceStyle OutputStyle;
+		Algo::ForEach(RootGraphClassInterface.Outputs, [&OutputStyle](const FMetasoundFrontendClassOutput& Output)
+		{
+			OutputStyle.DefaultSortOrder.Add(Output.Metadata.SortOrderIndex);
+		});
+		RootGraphClassInterface.SetOutputStyle(OutputStyle);
+	}
+
+	// 5. Cache registry data on document dependencies
 	for (FMetasoundFrontendClass& Dependency : Document->Dependencies)
 	{
 		if (!FMetasoundFrontendClass::CacheGraphDependencyMetadataFromRegistry(Dependency))

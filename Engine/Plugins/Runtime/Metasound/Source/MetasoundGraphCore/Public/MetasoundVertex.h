@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/SortedMap.h"
 #include "MetasoundDataFactory.h"
 #include "MetasoundDataReference.h"
@@ -729,7 +728,7 @@ namespace Metasound
 				return Vertices.Find(InKey);
 			}
 
-			int32 GetOrderIndex(const FVertexName& InKey) const
+			int32 GetSortOrderIndex(const FVertexName& InKey) const
 			{
 				int32 OutIndex = INDEX_NONE;
 				OrderedKeys.Find(InKey, OutIndex);

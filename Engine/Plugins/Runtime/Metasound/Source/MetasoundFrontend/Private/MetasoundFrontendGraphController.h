@@ -99,6 +99,8 @@ namespace Metasound
 #if WITH_EDITOR
 			const FMetasoundFrontendGraphStyle& GetGraphStyle() const override;
 			void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) override;
+			void SetInputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) override;
+			void SetOutputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) override;
 #endif // WITH_EDITOR
 
 			bool ContainsInputVertex(const FVertexName& InName, const FName& InTypeName) const override;
@@ -154,6 +156,11 @@ namespace Metasound
 
 			// Set the display name for the output with the given name
 			void SetOutputDisplayName(const FVertexName& InName, const FText& InDisplayName) override;
+
+			int32 GetSortOrderIndexForInput(const FVertexName& InName) const override;
+			int32 GetSortOrderIndexForOutput(const FVertexName& InName) const override;
+			void SetSortOrderIndexForInput(const FVertexName& InName, int32 InSortOrderIndex) override;
+			void SetSortOrderIndexForOutput(const FVertexName& InName, int32 InSortOrderIndex) override;
 #endif // WITH_EDITOR
 
 			// This can be used to clear the current literal for a given input.

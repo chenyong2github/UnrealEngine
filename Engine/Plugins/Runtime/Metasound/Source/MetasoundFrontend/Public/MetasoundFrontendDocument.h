@@ -2,15 +2,16 @@
 
 #pragma once
 
+#include "Algo/Transform.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "IAudioParameterInterfaceRegistry.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAccessPtr.h"
 #include "MetasoundFrontendLiteral.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundVertex.h"
 #include "Misc/Guid.h"
-#include "IAudioParameterInterfaceRegistry.h"
 #include "Templates/TypeHash.h"
 
 #include "MetasoundFrontendDocument.generated.h"
@@ -560,13 +561,9 @@ private:
 	FText DescriptionTransient;
 
 public:
-	// Keywords associated with the vertex
+	// Order index of vertex member when shown as a node.
 	UPROPERTY()
-	TArray<FString> Keywords;
-
-	// Vertexes of the same group are generally placed together. 
-	UPROPERTY()
-	FString Group;
+	int32 SortOrderIndex = 0;
 
 	// If true, vertex is shown for advanced display.
 	UPROPERTY()
@@ -769,68 +766,51 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassEnvironmentVariable
 	bool bIsRequired = true;
 };
 
-// Layout mode for an interface.
-UENUM()
-enum class EMetasoundFrontendStyleInterfaceLayoutMode : uint8
-{
-	Default,
-	Inherited
-};
-
-
 // Style info of an interface.
 USTRUCT()
 struct FMetasoundFrontendInterfaceStyle
 {
 	GENERATED_BODY()
 
-	// Interface layout mode
-	UPROPERTY()
-	EMetasoundFrontendStyleInterfaceLayoutMode LayoutMode = EMetasoundFrontendStyleInterfaceLayoutMode::Inherited;
-
+#if WITH_EDITORONLY_DATA
 	// Default vertex sort order, where array index mirrors array interface index and value is display sort index.
 	UPROPERTY()
 	TArray<int32> DefaultSortOrder;
 
-#if WITH_EDITORONLY_DATA
 	// Map of member names with FText to be used as warnings if not hooked up
 	UPROPERTY()
 	TMap<FName, FText> RequiredMembers;
-#endif // #if WITH_EDITORONLY_DATA
 
 	template <typename HandleType>
-	TArray<HandleType> SortDefaults(const TArray<HandleType>& InHandles) const
+	void SortDefaults(TArray<HandleType>& OutHandles) const
 	{
-		TArray<HandleType> SortedHandles = InHandles;
-
-		// TODO: Hack for assets which aren't getting sort order set for inputs/outputs. Fix this & remove size check.
-		if (DefaultSortOrder.Num() > 0)
+		TMap<FGuid, int32> NodeIDToSortIndex;
+		int32 HighestSortOrder = TNumericLimits<int32>::Min();
+		for (int32 i = 0; i < OutHandles.Num(); ++i)
 		{
-			if (SortedHandles.Num() == DefaultSortOrder.Num())
+			const FGuid& HandleID = OutHandles[i]->GetID();
+			int32 SortIndex = 0;
+			if (DefaultSortOrder.IsValidIndex(i))
 			{
-				TMap<FGuid, int32> HandleIDToSortIndex;
-				for (int32 i = 0; i < DefaultSortOrder.Num(); ++i)
-				{
-					if (InHandles.IsValidIndex(i))
-					{
-						const int32 SortIndex = DefaultSortOrder[i];
-						HandleIDToSortIndex.Add(InHandles[i]->GetID(), SortIndex);
-					}
-				}
-
-				SortedHandles.Sort([&](const HandleType& HandleA, const HandleType& HandleB)
-				{
-					const FGuid HandleAID = HandleA->GetID();
-					const FGuid HandleBID = HandleB->GetID();
-					return HandleIDToSortIndex[HandleAID] < HandleIDToSortIndex[HandleBID];
-				});
+				SortIndex = DefaultSortOrder[i];
+				HighestSortOrder = FMath::Max(SortIndex, HighestSortOrder);
 			}
+			else
+			{
+				SortIndex = ++HighestSortOrder;
+			}
+			NodeIDToSortIndex.Add(HandleID, SortIndex);
 		}
 
-		return SortedHandles;
+		OutHandles.Sort([&NodeIDToSortIndex](const HandleType& HandleA, const HandleType& HandleB)
+		{
+			const FGuid HandleAID = HandleA->GetID();
+			const FGuid HandleBID = HandleB->GetID();
+			return NodeIDToSortIndex[HandleAID] < NodeIDToSortIndex[HandleBID];
+		});
 	}
+#endif // #if WITH_EDITORONLY_DATA
 };
-
 
 USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendClassInterface

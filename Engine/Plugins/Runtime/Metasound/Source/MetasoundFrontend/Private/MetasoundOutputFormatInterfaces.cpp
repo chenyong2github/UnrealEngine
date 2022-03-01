@@ -40,7 +40,10 @@ namespace Metasound
 								LOCTEXT("GeneratedAudioDisplayName", "Out Mono"),
 								LOCTEXT("GeneratedAudioDescription", "The resulting mono output from this source."),
 								GetMetasoundDataTypeName<FAudioBuffer>(),
-								Outputs::MonoOut
+								Outputs::MonoOut,
+								FText::GetEmpty(), // RequiredText
+								EAudioParameterType::None,
+								100
 							}
 						};
 					}
@@ -79,13 +82,19 @@ namespace Metasound
 								LOCTEXT("OutputFormatStereoInterface_GeneratedLeftDisplayName", "Out Left"),
 								LOCTEXT("OutputFormatStereoInterface_GeneratedLeftDescription", "The resulting left channel output audio from this source."),
 								GetMetasoundDataTypeName<FAudioBuffer>(),
-								Outputs::LeftOut
+								Outputs::LeftOut,
+								FText::GetEmpty(), // RequiredText
+								EAudioParameterType::None,
+								100
 							},
 							{
 								LOCTEXT("OutputFormatStereoInterface_GeneratedRightDisplayName", "Out Right"),
 								LOCTEXT("OutputFormatStereoInterface_GeneratedRightDescription", "The resulting right channel output audio from this source."),
 								GetMetasoundDataTypeName<FAudioBuffer>(),
-								Outputs::RightOut
+								Outputs::RightOut,
+								FText::GetEmpty(), // RequiredText
+								EAudioParameterType::None,
+								101
 							}
 						};
 					}

@@ -194,6 +194,22 @@ namespace Metasound
 				GraphClass->Graph.Style = InStyle;
 			}
 		}
+
+		void FGraphController::SetInputStyle(const FMetasoundFrontendInterfaceStyle& InStyle)
+		{
+			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+			{
+				GraphClass->Interface.SetInputStyle(InStyle);
+			}
+		}
+
+		void FGraphController::SetOutputStyle(const FMetasoundFrontendInterfaceStyle& InStyle)
+		{
+			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+			{
+				GraphClass->Interface.SetOutputStyle(InStyle);
+			}
+		}
 #endif // WITH_EDITOR
 
 		TArray<FNodeHandle> FGraphController::GetOutputNodes()
@@ -1174,6 +1190,26 @@ namespace Metasound
 			return FText::GetEmpty();
 		}
 
+		int32 FGraphController::GetSortOrderIndexForInput(const FVertexName& InName) const
+		{
+			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
+			{
+				return Desc->Metadata.SortOrderIndex;
+			}
+
+			return 0;
+		}
+
+		int32 FGraphController::GetSortOrderIndexForOutput(const FVertexName& InName) const
+		{
+			if (const FMetasoundFrontendClassOutput* Desc = FindOutputDescriptionWithName(InName))
+			{
+				return Desc->Metadata.SortOrderIndex;
+			}
+
+			return 0;
+		}
+
 		void FGraphController::SetInputDisplayName(const FVertexName& InName, const FText& InDisplayName)
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
@@ -1203,6 +1239,42 @@ namespace Metasound
 			if (FMetasoundFrontendClassOutput* Desc = FindOutputDescriptionWithName(InName))
 			{
 				Desc->Metadata.SetDescription(InDescription);
+			}
+		}
+
+		void FGraphController::SetSortOrderIndexForInput(const FVertexName& InName, int32 InSortOrderIndex)
+		{
+			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+			{
+				FMetasoundFrontendInterfaceStyle Style = GraphClass->Interface.GetInputStyle();
+				Style.DefaultSortOrder.Reset();
+				for (FMetasoundFrontendClassInput& Input : GraphClass->Interface.Inputs)
+				{
+					if (Input.Name == InName)
+					{
+						Input.Metadata.SortOrderIndex = InSortOrderIndex;
+					}
+					Style.DefaultSortOrder.Add(Input.Metadata.SortOrderIndex);
+				}
+				GraphClass->Interface.SetInputStyle(Style);
+			}
+		}
+
+		void FGraphController::SetSortOrderIndexForOutput(const FVertexName& InName, int32 InSortOrderIndex)
+		{
+			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+			{
+				FMetasoundFrontendInterfaceStyle Style = GraphClass->Interface.GetOutputStyle();
+				Style.DefaultSortOrder.Reset();
+				for (FMetasoundFrontendClassOutput& Output : GraphClass->Interface.Outputs)
+				{
+					if (Output.Name == InName)
+					{
+						Output.Metadata.SortOrderIndex = InSortOrderIndex;
+					}
+					Style.DefaultSortOrder.Add(Output.Metadata.SortOrderIndex);
+				}
+				GraphClass->Interface.SetOutputStyle(Style);
 			}
 		}
 #endif // WITH_EDITOR

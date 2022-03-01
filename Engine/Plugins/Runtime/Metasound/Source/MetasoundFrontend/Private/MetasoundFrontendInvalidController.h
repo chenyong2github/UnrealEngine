@@ -333,6 +333,8 @@ namespace Metasound
 #if WITH_EDITOR
 			virtual const FMetasoundFrontendGraphStyle& GetGraphStyle() const override { return Invalid::GetInvalidGraphStyle(); }
 			virtual void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) override { }
+			virtual void SetInputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) override { }
+			virtual void SetOutputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) override { }
 #endif // WITH_EDITOR
 
 			virtual void ClearGraph() override { };
@@ -385,6 +387,11 @@ namespace Metasound
 			virtual void SetOutputDescription(const FVertexName& InName, const FText& InDescription) override { }
 			virtual void SetInputDisplayName(const FVertexName& InName, const FText& InDisplayName) override { }
 			virtual void SetOutputDisplayName(const FVertexName& InName, const FText& InDisplayName) override { }
+
+			virtual int32 GetSortOrderIndexForInput(const FVertexName& InName) const { return 0; }
+			virtual int32 GetSortOrderIndexForOutput(const FVertexName& InName) const { return 0; }
+			virtual void SetSortOrderIndexForInput(const FVertexName& InName, int32 InSortOrderIndex) { }
+			virtual void SetSortOrderIndexForOutput(const FVertexName& InName, int32 InSortOrderIndex) { }
 #endif // WITH_EDITOR
 
 			// This can be used to clear the current literal for a given input.

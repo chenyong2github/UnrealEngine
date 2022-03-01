@@ -691,59 +691,6 @@ FSlateIcon UMetasoundEditorGraphOutputNode::GetNodeTitleIcon() const
 	return FSlateIcon("MetaSoundStyle", "MetasoundEditor.Graph.Node.Class.Output");
 }
 
-bool UMetasoundEditorGraphExternalNode::RefreshPinMetadata()
-{
-	using namespace Metasound::Frontend;
-
-	bool bModified = false;
-
-	FConstNodeHandle NodeHandle = GetConstNodeHandle();
-	const FMetasoundFrontendClassInterface& ClassInterface = NodeHandle->GetClassInterface();
-	TArray<FMetasoundFrontendClassInput> Inputs = ClassInterface.Inputs;
-	TArray<FMetasoundFrontendClassOutput> Outputs = ClassInterface.Outputs;
-
-	for (UEdGraphPin* Pin : Pins)
-	{
-		check(Pin);
-
-		if (Pin->Direction == EGPD_Input)
-		{
-			// Remove valid class inputs on iteration to avoid additional
-			// incurred look-up cost on subsequent tooltip update.
-			auto RemoveValidEntry = [&](const FMetasoundFrontendClassInput& Entry)
-			{
-				if (Entry.Name == Pin->GetFName())
-				{
-					Metasound::Editor::FGraphBuilder::RefreshPinMetadata(*Pin, Entry.Metadata);
-					return true;
-				}
-
-				return false;
-			};
-			bModified |= Inputs.RemoveAllSwap(RemoveValidEntry) > 0;
-		}
-
-		if (Pin->Direction == EGPD_Output)
-		{
-			// Remove valid class inputs on iteration to avoid additional
-			// incurred look-up cost on subsequent tooltip update.
-			auto RemoveValidEntry = [&](const FMetasoundFrontendClassOutput& Entry)
-			{
-				if (Entry.Name == Pin->GetFName())
-				{
-					Metasound::Editor::FGraphBuilder::RefreshPinMetadata(*Pin, Entry.Metadata);
-					return true;
-				}
-
-				return false;
-			};
-			bModified |= Outputs.RemoveAllSwap(RemoveValidEntry) > 0;
-		}
-	}
-
-	return bModified;
-}
-
 void UMetasoundEditorGraphExternalNode::ReconstructNode()
 {
 	using namespace Metasound::Editor;

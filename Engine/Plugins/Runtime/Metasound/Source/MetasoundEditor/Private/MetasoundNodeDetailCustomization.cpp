@@ -828,18 +828,320 @@ namespace Metasound
 			}
 		}
 
-		const FText FMetasoundInputDetailCustomization::MemberNameText = LOCTEXT("InputGraphMemberLabel", "Input");
+		void FMetasoundMemberDetailCustomization::UpdateRenameDelegate(UMetasoundEditorGraphMemberDefaultLiteral& InMemberDefaultLiteral)
+		{
+			if (UMetasoundEditorGraphMember* Member = InMemberDefaultLiteral.GetParentMember())
+			{
+				if (Member->CanRename())
+				{
+					if (!RenameRequestedHandle.IsValid())
+					{
+						Member->OnRenameRequested.Clear();
+						RenameRequestedHandle = Member->OnRenameRequested.AddLambda([this]()
+							{
+								FSlateApplication::Get().SetKeyboardFocus(NameEditableTextBox.ToSharedRef(), EFocusCause::SetDirectly);
+							});
+					}
+				}
+			}
+		}
+
+		void FMetasoundMemberDetailCustomization::CacheMemberData(IDetailLayoutBuilder& InDetailLayout)
+		{
+			TArray<TWeakObjectPtr<UObject>> Objects;
+			InDetailLayout.GetObjectsBeingCustomized(Objects);
+			if (!Objects.IsEmpty())
+			{
+				GraphMember = Cast<UMetasoundEditorGraphMember>(Objects.Last().Get());
+
+				TSharedPtr<IPropertyHandle> LiteralHandle = InDetailLayout.GetProperty(UMetasoundEditorGraphMember::GetLiteralPropertyName());
+				if (ensure(GraphMember.IsValid()) && ensure(LiteralHandle.IsValid()))
+				{
+					// Always hide, even if no customization (LiteralObject isn't found) as this is the case
+					// where the default object is not required (i.e. Default Member is default constructed)
+					LiteralHandle->MarkHiddenByCustomization();
+				}
+			}
+		}
+
+		TArray<IDetailPropertyRow*> FMetasoundMemberDetailCustomization::CustomizeDefaultCategory(IDetailLayoutBuilder& InDetailLayout)
+		{
+			TArray<IDetailPropertyRow*> DefaultPropertyRows;
+
+			if (!GraphMember.IsValid())
+			{
+				return DefaultPropertyRows;
+			}
+
+			if (UMetasoundEditorGraphMemberDefaultLiteral* MemberDefaultLiteral = GraphMember->GetLiteral())
+			{
+				UpdateRenameDelegate(*MemberDefaultLiteral);
+
+				UClass* MemberClass = MemberDefaultLiteral->GetClass();
+				check(MemberClass);
+
+				IDetailCategoryBuilder& DefaultCategoryBuilder = GetDefaultCategoryBuilder(InDetailLayout);
+				IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+				TUniquePtr<FMetasoundDefaultLiteralCustomizationBase> LiteralCustomization = EditorModule.CreateMemberDefaultLiteralCustomization(*MemberClass, DefaultCategoryBuilder);
+				if (LiteralCustomization.IsValid())
+				{
+					DefaultPropertyRows = LiteralCustomization->CustomizeLiteral(*MemberDefaultLiteral, InDetailLayout);
+				}
+				else
+				{
+					IDetailPropertyRow* DefaultPropertyRow = DefaultCategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ MemberDefaultLiteral }), "Default");
+					ensureMsgf(DefaultPropertyRow, TEXT("Class '%s' missing expected 'Default' member."
+						"Either add/rename default member or register customization to display default value/opt out appropriately."),
+						*MemberClass->GetName());
+					DefaultPropertyRows.Add(DefaultPropertyRow);
+				}
+			}
+
+			return DefaultPropertyRows;
+		}
+
+		void FMetasoundMemberDetailCustomization::CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout)
+		{
+			const bool bIsInterfaceMember = IsInterfaceMember();
+			const bool bIsGraphEditable = IsGraphEditable();
+			
+			IDetailCategoryBuilder& CategoryBuilder = GetGeneralCategoryBuilder(InDetailLayout);
+
+			NameEditableTextBox = SNew(SEditableTextBox)
+				.Text(this, &FMetasoundMemberDetailCustomization::GetName)
+				.OnTextChanged(this, &FMetasoundMemberDetailCustomization::OnNameChanged)
+				.OnTextCommitted(this, &FMetasoundMemberDetailCustomization::OnNameCommitted)
+				.IsReadOnly(bIsInterfaceMember || !bIsGraphEditable)
+				.SelectAllTextWhenFocused(true)
+				.Font(IDetailLayoutBuilder::GetDetailFont());
+
+			static const FText MemberNameToolTipFormat = LOCTEXT("GraphMember_NameDescriptionFormat", "Name used within the MetaSounds editor(s) and transacting systems (ex. Blueprints) if applicable to reference the given {0}.");
+			CategoryBuilder.AddCustomRow(LOCTEXT("GraphMember_NameProperty", "Name"))
+				.EditCondition(!bIsInterfaceMember && bIsGraphEditable, nullptr)
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					.Text(GraphMember->GetGraphMemberLabel())
+					.ToolTipText(FText::Format(MemberNameToolTipFormat, GraphMember->GetGraphMemberLabel()))
+				]
+				.ValueContent()
+				[
+					NameEditableTextBox.ToSharedRef()
+				];
+
+			static const FText MemberDisplayNameText = LOCTEXT("GraphMember_DisplayNameProperty", "Display Name");
+			static const FText MemberDisplayNameToolTipFormat = LOCTEXT("GraphMember_DisplayNameDescriptionFormat", "Optional, localized name used within the MetaSounds editor(s) to describe the given {0}.");
+			const FText MemberDisplayNameTooltipText = FText::Format(MemberDisplayNameToolTipFormat, GraphMember->GetGraphMemberLabel());
+			CategoryBuilder.AddCustomRow(MemberDisplayNameText)
+				.EditCondition(!bIsInterfaceMember && bIsGraphEditable, nullptr)
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					.Text(MemberDisplayNameText)
+					.ToolTipText(MemberDisplayNameTooltipText)
+				]
+				.ValueContent()
+				[
+					SNew(STextPropertyEditableTextBox, MakeShared<FGraphMemberEditableTextDisplayName>(GraphMember, MemberDisplayNameTooltipText))
+					.WrapTextAt(500)
+					.MinDesiredWidth(25.0f)
+					.MaxDesiredHeight(200)
+				];
+
+			static const FText MemberDescriptionText = LOCTEXT("Member_DescriptionPropertyName", "Description");
+			static const FText MemberDescriptionToolTipFormat = LOCTEXT("Member_DescriptionToolTipFormat", "Description for {0}. For example, used as a tooltip when displayed on another graph's referencing node.");
+			const FText MemberDescriptionToolTipText = FText::Format(MemberDescriptionToolTipFormat, GraphMember->GetGraphMemberLabel());
+			CategoryBuilder.AddCustomRow(MemberDescriptionText)
+				.EditCondition(!bIsInterfaceMember && bIsGraphEditable, nullptr)
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					.Text(MemberDescriptionText)
+					.ToolTipText(MemberDescriptionToolTipText)
+				]
+				.ValueContent()
+				[
+					SNew(STextPropertyEditableTextBox, MakeShared<FGraphMemberEditableTextDescription>(GraphMember, MemberDescriptionToolTipText))
+					.WrapTextAt(500)
+					.MinDesiredWidth(25.0f)
+					.MaxDesiredHeight(200)
+				];
+
+			DataTypeSelector.AddDataTypeSelector(InDetailLayout, MemberCustomizationStyle::DataTypeNameText, GraphMember, !bIsInterfaceMember && bIsGraphEditable);
+		}
+
+		void FMetasoundMemberDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
+		{
+			CacheMemberData(InDetailLayout);
+			if (GraphMember.IsValid())
+			{
+				CustomizeGeneralCategory(InDetailLayout);
+				CustomizeDefaultCategory(InDetailLayout);
+			}
+		}
+
+		void FMetasoundMemberDetailCustomization::OnNameChanged(const FText& InNewName)
+		{
+			using namespace Frontend;
+
+			bIsNameInvalid = false;
+			NameEditableTextBox->SetError(FText::GetEmpty());
+
+			if (!ensure(GraphMember.IsValid()))
+			{
+				return;
+			}
+
+			FText Error;
+			if (!GraphMember->CanRename(InNewName, Error))
+			{
+				bIsNameInvalid = true;
+				NameEditableTextBox->SetError(Error);
+			}
+		}
+
+		FText FMetasoundMemberDetailCustomization::GetName() const
+		{
+			if (GraphMember.IsValid())
+			{
+				return FText::FromName(GraphMember->GetMemberName());
+			}
+
+			return FText::GetEmpty();
+		}
+
+		bool FMetasoundMemberDetailCustomization::IsGraphEditable() const
+		{
+			if (GraphMember.IsValid())
+			{
+				if (const UMetasoundEditorGraph* OwningGraph = GraphMember->GetOwningGraph())
+				{
+					return OwningGraph->IsEditable();
+				}
+			}
+
+			return false;
+		}
+
+		FText FMetasoundMemberDetailCustomization::GetDisplayName() const
+		{
+			using namespace Frontend;
+
+			if (GraphMember.IsValid())
+			{
+				return GraphMember->GetDisplayName();
+			}
+
+			return FText::GetEmpty();
+		}
+
+		void FMetasoundMemberDetailCustomization::OnTooltipCommitted(const FText& InNewText, ETextCommit::Type InTextCommit)
+		{
+			using namespace Frontend;
+
+			if (GraphMember.IsValid())
+			{
+				constexpr bool bPostTransaction = true;
+				GraphMember->SetDescription(InNewText, bPostTransaction);
+			}
+		}
+
+		FText FMetasoundMemberDetailCustomization::GetTooltip() const
+		{
+			if (GraphMember.IsValid())
+			{
+				return GraphMember->GetDescription();
+			}
+
+			return FText::GetEmpty();
+		}
+
+		void FMetasoundMemberDetailCustomization::OnNameCommitted(const FText& InNewName, ETextCommit::Type InTextCommit)
+		{
+			using namespace Frontend;
+
+			if (!bIsNameInvalid && GraphMember.IsValid())
+			{
+				const FText TransactionLabel = FText::Format(LOCTEXT("RenameGraphMember_Format", "Set MetaSound {0}'s Name"), GraphMember->GetGraphMemberLabel());
+				const FScopedTransaction Transaction(TransactionLabel);
+
+				constexpr bool bPostTransaction = false;
+				GraphMember->SetDisplayName(FText::GetEmpty(), bPostTransaction);
+				GraphMember->SetMemberName(*InNewName.ToString(), bPostTransaction);
+			}
+
+			NameEditableTextBox->SetError(FText::GetEmpty());
+			bIsNameInvalid = false;
+		}
+
+		void FMetasoundVertexDetailCustomization::CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout)
+		{
+			FMetasoundMemberDetailCustomization::CustomizeGeneralCategory(InDetailLayout);
+
+			IDetailCategoryBuilder& CategoryBuilder = FMetasoundMemberDetailCustomization::GetGeneralCategoryBuilder(InDetailLayout);
+			UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(GraphMember.Get());
+			if (ensure(Vertex))
+			{
+				TWeakObjectPtr<UMetasoundEditorGraphVertex> VertexPtr = Vertex;
+				static const FText SortOrderText = LOCTEXT("Vertex_SortOrderPropertyName", "Sort Order");
+				static const FText SortOrderToolTipFormat = LOCTEXT("Vertex_SortOrderToolTipFormat", "Sort Order for {0}. Used to organize pins in node view. The higher the number, the lower in the list.");
+				const FText SortOrderToolTipText = FText::Format(SortOrderToolTipFormat, GraphMember->GetGraphMemberLabel());
+				CategoryBuilder.AddCustomRow(SortOrderText)
+					.EditCondition(IsGraphEditable(), nullptr)
+					.NameContent()
+					[
+						SNew(STextBlock)
+						.Font(IDetailLayoutBuilder::GetDetailFontBold())
+						.Text(SortOrderText)
+						.ToolTipText(SortOrderToolTipText)
+					]
+					.ValueContent()
+					[
+						SNew(SNumericEntryBox<int32>)
+						.Value_Lambda([VertexPtr]() { return VertexPtr->GetSortOrderIndex(); })
+						.AllowSpin(false)
+						.UndeterminedString(LOCTEXT("Vertex_SortOrder_MultipleValues", "Multiple"))
+						.OnValueCommitted_Lambda([VertexPtr](int32 NewValue, ETextCommit::Type CommitInfo)
+						{
+							if (!VertexPtr.IsValid())
+							{
+								return;
+							}
+
+							const FText TransactionTitle = FText::Format(LOCTEXT("SetVertexSortOrderFormat", "Set MetaSound Graph {0} '{1}' SortOrder to {2}"),
+								VertexPtr->GetGraphMemberLabel(),
+								VertexPtr->GetDisplayName(),
+								FText::AsNumber(NewValue));
+							FScopedTransaction Transaction(TransactionTitle);
+
+							UObject* MetaSoundObject = VertexPtr->GetOutermostObject();
+							FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSoundObject);
+							check(MetaSoundAsset);
+
+							MetaSoundObject->Modify();
+							MetaSoundAsset->GetGraphChecked().Modify();
+							VertexPtr->Modify();
+
+							VertexPtr->SetSortOrderIndex(NewValue);
+
+							constexpr bool bInForceViewSynchronization = true;
+							FGraphBuilder::RegisterGraphWithFrontend(*MetaSoundObject, bInForceViewSynchronization);
+						})
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					];
+			}
+		}
 
 		Frontend::FDocumentHandle FMetasoundInputDetailCustomization::GetDocumentHandle() const
 		{
-			if (MemberDefaultLiteral.IsValid())
+			if (GraphMember.IsValid())
 			{
-				if (UMetasoundEditorGraphMember* Parent = MemberDefaultLiteral->GetParentMember())
+				if (UMetasoundEditorGraph* Graph = GraphMember->GetOwningGraph())
 				{
-					if (UMetasoundEditorGraph* Graph = Parent->GetOwningGraph())
-					{
-						return Graph->GetDocumentHandle();
-					}
+					return Graph->GetDocumentHandle();
 				}
 			}
 
@@ -848,15 +1150,10 @@ namespace Metasound
 
 		bool FMetasoundInputDetailCustomization::GetInputInheritsDefault() const
 		{
-			if (!MemberDefaultLiteral.IsValid())
-			{
-				return false;
-			}
-
-			if (const UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(MemberDefaultLiteral->GetParentMember()))
+			if (UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GraphMember.Get()))
 			{
 				const TSet<FName>& InputsInheritingDefault = GetDocumentHandle()->GetRootGraph()->GetInputsInheritingDefault();
-				FName NodeName = Vertex->GetConstNodeHandle()->GetNodeName();
+				FName NodeName = Input->GetConstNodeHandle()->GetNodeName();
 				return InputsInheritingDefault.Contains(NodeName);
 			}
 
@@ -865,59 +1162,55 @@ namespace Metasound
 
 		void FMetasoundInputDetailCustomization::SetInputInheritsDefault()
 		{
-			if (!MemberDefaultLiteral.IsValid())
+			if (UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GraphMember.Get()))
 			{
-				return;
-			}
-
-			if (UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(MemberDefaultLiteral->GetParentMember()))
-			{
-				FScopedTransaction(LOCTEXT("SetPresetInputOverrideTransaction", "Set MetaSound Preset Input Overridden"));
-
-				Vertex->GetOutermost()->Modify();
-				Vertex->Modify();
-				MemberDefaultLiteral->Modify();
-
-				constexpr bool bDefaultIsInherited = true;
-				const FName NodeName = Vertex->GetConstNodeHandle()->GetNodeName();
-				GetDocumentHandle()->GetRootGraph()->SetInputInheritsDefault(NodeName, bDefaultIsInherited);
-
-				if (UObject* Metasound = Vertex->GetOutermostObject())
+				if (UMetasoundEditorGraphMemberDefaultLiteral* MemberDefaultLiteral = Input->GetLiteral())
 				{
-					FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
+					FScopedTransaction Transaction(LOCTEXT("SetPresetInputOverrideTransaction", "Set MetaSound Preset Input Overridden"));
+
+					Input->GetOutermost()->Modify();
+					Input->Modify();
+					MemberDefaultLiteral->Modify();
+
+					constexpr bool bDefaultIsInherited = true;
+					const FName NodeName = Input->GetConstNodeHandle()->GetNodeName();
+					GetDocumentHandle()->GetRootGraph()->SetInputInheritsDefault(NodeName, bDefaultIsInherited);
+
+					if (UObject* Metasound = Input->GetOutermostObject())
+					{
+						FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
+					}
 				}
 			}
 		}
 
 		void FMetasoundInputDetailCustomization::ClearInputInheritsDefault()
 		{
-			if (!MemberDefaultLiteral.IsValid())
+			if (UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GraphMember.Get()))
 			{
-				return;
-			}
-
-			if (UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(MemberDefaultLiteral->GetParentMember()))
-			{
-				FScopedTransaction(LOCTEXT("ClearPresetInputOverrideTransaction", "Clear MetaSound Preset Input Overridden"));
-
-				Vertex->GetOutermost()->Modify();
-				Vertex->Modify();
-				MemberDefaultLiteral->Modify();
-
-				constexpr bool bDefaultIsInherited = false;
-				const FName NodeName = Vertex->GetConstNodeHandle()->GetNodeName();
-				GetDocumentHandle()->GetRootGraph()->SetInputInheritsDefault(NodeName, bDefaultIsInherited);
-
-				Vertex->UpdateFrontendDefaultLiteral(false /* bPostTransaction */);
-
-				if (UMetasoundEditorGraphMemberDefaultLiteral* Literal = Vertex->GetLiteral())
+				if (UMetasoundEditorGraphMemberDefaultLiteral* MemberDefaultLiteral = Input->GetLiteral())
 				{
-					Literal->ForceRefresh();
-				}
+					FScopedTransaction Transaction(LOCTEXT("ClearPresetInputOverrideTransaction", "Clear MetaSound Preset Input Overridden"));
 
-				if (UObject* Metasound = Vertex->GetOutermostObject())
-				{
-					FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
+					Input->GetOutermost()->Modify();
+					Input->Modify();
+					MemberDefaultLiteral->Modify();
+
+					constexpr bool bDefaultIsInherited = false;
+					const FName NodeName = Input->GetConstNodeHandle()->GetNodeName();
+					GetDocumentHandle()->GetRootGraph()->SetInputInheritsDefault(NodeName, bDefaultIsInherited);
+
+					Input->UpdateFrontendDefaultLiteral(false /* bPostTransaction */);
+
+					if (UMetasoundEditorGraphMemberDefaultLiteral* Literal = Input->GetLiteral())
+					{
+						Literal->ForceRefresh();
+					}
+
+					if (UObject* Metasound = Input->GetOutermostObject())
+					{
+						FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
+					}
 				}
 			}
 		}
@@ -932,7 +1225,8 @@ namespace Metasound
 
 			CustomizeGeneralCategory(InDetailLayout);
 
-			if (!MemberDefaultLiteral.IsValid())
+			UMetasoundEditorGraphMemberDefaultLiteral* MemberDefaultLiteral = GraphMember->GetLiteral();
+			if (!MemberDefaultLiteral)
 			{
 				return;
 			}
@@ -1012,8 +1306,6 @@ namespace Metasound
 
 			return false;
 		}
-
-		const FText FMetasoundOutputDetailCustomization::MemberNameText = LOCTEXT("OutputGraphMemberLabel", "Output");
 
 		bool FMetasoundOutputDetailCustomization::IsInterfaceMember() const
 		{

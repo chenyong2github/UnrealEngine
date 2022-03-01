@@ -10,6 +10,7 @@
 #include "MetasoundFrontendLiteral.h"
 #include "MetasoundSource.h"
 #include "MetasoundUObjectRegistry.h"
+#include "Misc/AssertionMacros.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/ScriptInterface.h"
@@ -21,6 +22,8 @@
 struct FMetasoundFrontendDocument;
 struct FPropertyChangedChainEvent;
 struct FPropertyChangedEvent;
+
+class FMetasoundAssetBase;
 class ITargetPlatform;
 class UMetasoundEditorGraphInputNode;
 class UMetasoundEditorGraphNode;
@@ -159,11 +162,17 @@ public:
 	/** Returns the current data type */
 	FName GetDataType() const;
 
-	/** Returns literal associated with the given member */
-	virtual UMetasoundEditorGraphMemberDefaultLiteral* GetLiteral() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetLiteral, return nullptr; );
+	static FName GetLiteralPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMember, Literal);
+	}
 
+	/** Returns literal associated with the given member */
+	UMetasoundEditorGraphMemberDefaultLiteral* GetLiteral() const { return Literal; }
 protected:
-	virtual void SetLiteral(UMetasoundEditorGraphMemberDefaultLiteral* InLiteral) PURE_VIRTUAL (UMetasoundEditorGraphMember::SetLiteral, );
+	/** Default literal value of member */
+	UPROPERTY()
+	UMetasoundEditorGraphMemberDefaultLiteral* Literal;
 
 	/** Conforms literal object type to member's DataType */
 	void ConformLiteralDataType();
@@ -218,7 +227,13 @@ public:
 	virtual bool IsInterfaceMember() const;
 
 	/** Returns the Metasound class type of the associated node */
-	virtual EMetasoundFrontendClassType GetClassType() const { return EMetasoundFrontendClassType::Invalid; }
+	virtual EMetasoundFrontendClassType GetClassType() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetClassType, return EMetasoundFrontendClassType::Invalid; )
+
+	/** Returns the SortOrderIndex assigned to this member. */
+	virtual int32 GetSortOrderIndex() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetSortOrderIndex, return 0; )
+
+	/** Sets the SortOrderIndex assigned to this member. */
+	virtual void SetSortOrderIndex(int32 InSortOrderIndex) PURE_VIRTUAL(UMetasoundEditorGraphMember::SetSortOrderIndex, )
 
 	/** Returns the node handle associated with the vertex. */
 	Metasound::Frontend::FNodeHandle GetNodeHandle();
@@ -226,12 +241,7 @@ public:
 	/** Returns the node handle associated with the vertex. */
 	Metasound::Frontend::FConstNodeHandle GetConstNodeHandle() const;
 
-	virtual UMetasoundEditorGraphMemberDefaultLiteral* GetLiteral() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetLiteral, return nullptr; );
-
 	virtual bool CanRename() const override;
-
-protected:
-	virtual void SetLiteral(UMetasoundEditorGraphMemberDefaultLiteral* InLiteral) PURE_VIRTUAL (UMetasoundEditorGraphMember::SetLiteral, );
 };
 
 UCLASS()
@@ -240,19 +250,15 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInput : public UMetasoundEditorGr
 	GENERATED_BODY()
 
 public:
-	/** Default literal value of member */
-	UPROPERTY(VisibleAnywhere, Category = DefaultValue)
-	UMetasoundEditorGraphMemberDefaultLiteral* Literal;
+	virtual int32 GetSortOrderIndex() const override;
+	virtual void SetSortOrderIndex(int32 InSortOrderIndex) override;
 
 	virtual const FText& GetGraphMemberLabel() const override;
 	virtual void ResetToClassDefault() override;
 	virtual void SetMemberName(const FName& InNewName, bool bPostTransaction) override;
 	virtual void UpdateFrontendDefaultLiteral(bool bPostTransaction) override;
 
-	virtual UMetasoundEditorGraphMemberDefaultLiteral* GetLiteral() const { return Literal; }
-
 protected:
-	virtual void SetLiteral(UMetasoundEditorGraphMemberDefaultLiteral* InLiteral) { Literal = InLiteral; }
 	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, FName InDataType) override;
 	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Input; }
 	virtual Metasound::Editor::ENodeSection GetSectionID() const override;
@@ -265,18 +271,13 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphOutput : public UMetasoundEditorG
 	GENERATED_BODY()
 
 public:
-	/** Default literal value of member */
-	UPROPERTY(VisibleAnywhere, Category = DefaultValue)
-	UMetasoundEditorGraphMemberDefaultLiteral* Literal;
-
+	virtual int32 GetSortOrderIndex() const override;
+	virtual void SetSortOrderIndex(int32 InSortOrderIndex) override;
 	virtual const FText& GetGraphMemberLabel() const override;
 	virtual void ResetToClassDefault() override;
 	virtual void UpdateFrontendDefaultLiteral(bool bPostTransaction) override;
 
-	virtual UMetasoundEditorGraphMemberDefaultLiteral* GetLiteral() const { return Literal; }
-
 protected:
-	virtual void SetLiteral(UMetasoundEditorGraphMemberDefaultLiteral* InLiteral) { Literal = InLiteral; }
 	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, FName InDataType) override;
 	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Output; }
 	virtual Metasound::Editor::ENodeSection GetSectionID() const override;
@@ -291,10 +292,6 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphVariable : public UMetasoundEdito
 	FGuid VariableID;
 
 public:
-	/** Default literal value of member */
-	UPROPERTY(VisibleAnywhere, Category = DefaultValue)
-	UMetasoundEditorGraphMemberDefaultLiteral* Literal;
-
 	void InitMember(FName InDataType, const FMetasoundFrontendLiteral& InDefaultLiteral, FGuid InVariableID);
 
 	/* ~Begin UMetasoundEditorGraphMember interface */
@@ -325,12 +322,7 @@ public:
 	Metasound::Frontend::FVariableHandle GetVariableHandle();
 	Metasound::Frontend::FConstVariableHandle GetConstVariableHandle() const;
 
-	virtual UMetasoundEditorGraphMemberDefaultLiteral* GetLiteral() const { return Literal; }
-
 	virtual bool CanRename() const override;
-
-protected:
-	virtual void SetLiteral(UMetasoundEditorGraphMemberDefaultLiteral* InLiteral) { Literal = InLiteral; }
 
 private:
 	struct FVariableEditorNodes

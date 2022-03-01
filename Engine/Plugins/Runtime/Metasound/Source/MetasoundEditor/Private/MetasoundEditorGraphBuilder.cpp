@@ -1333,7 +1333,7 @@ namespace Metasound
 			}
 
 			TArray<FInputHandle> InputHandles = NodeHandle->GetInputs();
-			InputHandles = NodeHandle->GetInputStyle().SortDefaults(InputHandles);
+			NodeHandle->GetInputStyle().SortDefaults(InputHandles);
 			for (const FInputHandle& InputHandle : InputHandles)
 			{
 				// Only add pins of the node if the connection is user modifiable. 
@@ -1345,7 +1345,7 @@ namespace Metasound
 			}
 
 			TArray<FOutputHandle> OutputHandles = NodeHandle->GetOutputs();
-			OutputHandles = NodeHandle->GetOutputStyle().SortDefaults(OutputHandles);
+			NodeHandle->GetOutputStyle().SortDefaults(OutputHandles);
 			for (const FOutputHandle& OutputHandle : OutputHandles)
 			{
 				// Only add pins of the node if the connection is user modifiable. 
@@ -1923,16 +1923,21 @@ namespace Metasound
 
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
 
-			TArray<Frontend::FConstInputHandle> InputHandles = InNode->GetConstInputs();
-			TArray<Frontend::FConstOutputHandle> OutputHandles = InNode->GetConstOutputs();
-			TArray<UEdGraphPin*> EditorPins = InEditorNode.Pins;
+			TArray<Frontend::FConstInputHandle> InputHandles;
+			TArray<Frontend::FConstOutputHandle> OutputHandles;
+			auto GetUserModifiableHandles = [InNode](TArray<Frontend::FConstInputHandle>& InHandles, TArray<Frontend::FConstOutputHandle>& OutHandles)
+			{
+				InHandles = InNode->GetConstInputs();
+				OutHandles = InNode->GetConstOutputs();
 
-
-			// Remove input and output handles which are not user modifiable
-			InputHandles.RemoveAll([](const Frontend::FConstInputHandle& FrontendInput) { return !FrontendInput->IsConnectionUserModifiable(); });
-			OutputHandles.RemoveAll([](const Frontend::FConstOutputHandle& FrontendOutput) { return !FrontendOutput->IsConnectionUserModifiable(); });
+				// Remove input and output handles which are not user modifiable
+				InHandles.RemoveAll([](const Frontend::FConstInputHandle& FrontendInput) { return !FrontendInput->IsConnectionUserModifiable(); });
+				OutHandles.RemoveAll([](const Frontend::FConstOutputHandle& FrontendOutput) { return !FrontendOutput->IsConnectionUserModifiable(); });
+			};
+			GetUserModifiableHandles(InputHandles, OutputHandles);
 
 			// Filter out pins which are not paired.
+			TArray<UEdGraphPin*> EditorPins = InEditorNode.Pins;
 			for (int32 i = EditorPins.Num() - 1; i >= 0; i--)
 			{
 				UEdGraphPin* Pin = EditorPins[i];
@@ -1995,7 +2000,6 @@ namespace Metasound
 			if (!InputHandles.IsEmpty())
 			{
 				bIsNodeDirty = true;
-				InputHandles = InNode->GetInputStyle().SortDefaults(InputHandles);
 				for (Frontend::FConstInputHandle& InputHandle : InputHandles)
 				{
 					if (bLogChanges)
@@ -2012,7 +2016,6 @@ namespace Metasound
 			if (!OutputHandles.IsEmpty())
 			{
 				bIsNodeDirty = true;
-				OutputHandles = InNode->GetOutputStyle().SortDefaults(OutputHandles);
 				for (Frontend::FConstOutputHandle& OutputHandle : OutputHandles)
 				{
 					if (bLogChanges)
@@ -2023,6 +2026,58 @@ namespace Metasound
 						UE_LOG(LogMetasoundEditor, Verbose, TEXT("Synchronizing Node '%s' Pins: Adding missing Editor Output Pin '%s'"), *NodeDisplayName.ToString(), *OutputDisplayName.ToString());
 					}
 					AddPinToNode(InEditorNode, OutputHandle);
+				}
+			}
+
+			// Order pins
+			GetUserModifiableHandles(InputHandles, OutputHandles);
+			InNode->GetInputStyle().SortDefaults(InputHandles);
+			InNode->GetOutputStyle().SortDefaults(OutputHandles);
+
+			auto SwapAndDirty = [&](int32 IndexA, int32 IndexB)
+			{
+				const bool bRequiresSwap = IndexA != IndexB;
+				if (bRequiresSwap)
+				{
+					InEditorNode.Pins.Swap(IndexA, IndexB);
+					bIsNodeDirty |= bRequiresSwap;
+				}
+			};
+
+			for (int32 i = InEditorNode.Pins.Num() - 1; i >= 0; --i)
+			{
+				UEdGraphPin* Pin = InEditorNode.Pins[i];
+				if (Pin->Direction == EGPD_Input)
+				{
+					if (!InputHandles.IsEmpty())
+					{
+						constexpr bool bAllowShrinking = false;
+						Frontend::FConstInputHandle InputHandle = InputHandles.Pop(bAllowShrinking);
+						for (int32 j = i; j >= 0; --j)
+						{
+							if (IsMatchingInputHandleAndPin(InputHandle, *InEditorNode.Pins[j]))
+							{
+								SwapAndDirty(i, j);
+								break;
+							}
+						}
+					}
+				}
+				else /* Pin->Direction == EGPD_Output */
+				{
+					if (!OutputHandles.IsEmpty())
+					{
+						constexpr bool bAllowShrinking = false;
+						Frontend::FConstOutputHandle OutputHandle = OutputHandles.Pop(bAllowShrinking);
+						for (int32 j = i; j >= 0; --j)
+						{
+							if (IsMatchingOutputHandleAndPin(OutputHandle, *InEditorNode.Pins[j]))
+							{
+								SwapAndDirty(i, j);
+								break;
+							}
+						}
+					}
 				}
 			}
 

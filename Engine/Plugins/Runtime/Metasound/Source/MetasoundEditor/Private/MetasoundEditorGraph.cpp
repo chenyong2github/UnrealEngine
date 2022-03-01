@@ -75,11 +75,10 @@ void UMetasoundEditorGraphMember::ConformLiteralDataType()
 		LiteralClass = UMetasoundEditorGraphMemberDefaultLiteral::StaticClass();
 	}
 
-	const UMetasoundEditorGraphMemberDefaultLiteral* Literal = GetLiteral();
 	if (!Literal || Literal->GetClass() != LiteralClass)
 	{
 		UMetasoundEditorGraphMemberDefaultLiteral* NewLiteral = NewObject<UMetasoundEditorGraphMemberDefaultLiteral>(this, LiteralClass, FName(), RF_Transactional);
-		SetLiteral(NewLiteral);
+		Literal = NewLiteral;
 	}
 }
 
@@ -128,7 +127,6 @@ void UMetasoundEditorGraphVertex::InitMember(FName InDataType, const FMetasoundF
 
 	ConformLiteralDataType();
 
-	UMetasoundEditorGraphMemberDefaultLiteral* Literal = GetLiteral();
 	if (ensure(Literal))
 	{
 		Literal->SetFromLiteral(InDefaultLiteral);
@@ -480,6 +478,34 @@ const FText& UMetasoundEditorGraphInput::GetGraphMemberLabel() const
 	return Label;
 }
 
+int32 UMetasoundEditorGraphInput::GetSortOrderIndex() const
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	const UMetasoundEditorGraph* MetaSoundGraph = GetOwningGraph();
+	FConstGraphHandle GraphHandle = MetaSoundGraph->GetGraphHandle();
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
+	const Metasound::FVertexName& NodeName = NodeHandle->GetNodeName();
+	return GraphHandle->GetSortOrderIndexForInput(NodeName);
+}
+
+void UMetasoundEditorGraphInput::SetSortOrderIndex(int32 InSortOrderIndex)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	UMetasoundEditorGraph* MetaSoundGraph = GetOwningGraph();
+	check(MetaSoundGraph);
+
+	FGraphHandle GraphHandle = MetaSoundGraph->GetGraphHandle();
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
+	const Metasound::FVertexName& NodeName = NodeHandle->GetNodeName();
+
+	GraphHandle->SetSortOrderIndexForInput(NodeName, InSortOrderIndex);
+	MetaSoundGraph->SetSynchronizationRequired();
+}
+
 void UMetasoundEditorGraphInput::ResetToClassDefault()
 {
 	using namespace Metasound::Editor;
@@ -487,7 +513,7 @@ void UMetasoundEditorGraphInput::ResetToClassDefault()
 
 	UMetasoundEditorGraph* MetaSoundGraph = GetOwningGraph();
 	FGraphHandle GraphHandle = MetaSoundGraph->GetGraphHandle();
-	FNodeHandle NodeHandle = GraphHandle->GetNodeWithID(NodeID);
+	FConstNodeHandle NodeHandle = GraphHandle->GetNodeWithID(NodeID);
 
 	FMetasoundFrontendLiteral DefaultLiteral;
 	DefaultLiteral.SetFromLiteral(IDataTypeRegistry::Get().CreateDefaultLiteral(GetDataType()));
@@ -506,9 +532,7 @@ void UMetasoundEditorGraphInput::ResetToClassDefault()
 
 		if (TScriptInterface<IAudioParameterControllerInterface> ParamInterface = PreviewComponent)
 		{
-			Metasound::Frontend::FConstNodeHandle ConstNodeHandle = GetConstNodeHandle();
-			Metasound::FVertexName VertexKey = NodeHandle->GetNodeName();
-			Literal->UpdatePreviewInstance(VertexKey, ParamInterface);
+			Literal->UpdatePreviewInstance(NodeName, ParamInterface);
 		}
 	}
 
@@ -591,6 +615,34 @@ Metasound::Frontend::FNodeHandle UMetasoundEditorGraphOutput::AddNodeHandle(cons
 	UObject& Metasound = Graph->GetMetasoundChecked();
 	FNodeHandle NewNodeHandle = FGraphBuilder::AddOutputNodeHandle(Metasound, InDataType, &InName);
 	return NewNodeHandle;
+}
+
+int32 UMetasoundEditorGraphOutput::GetSortOrderIndex() const
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	const UMetasoundEditorGraph* MetaSoundGraph = GetOwningGraph();
+	FConstGraphHandle GraphHandle = MetaSoundGraph->GetGraphHandle();
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
+	const Metasound::FVertexName& NodeName = NodeHandle->GetNodeName();
+	return GraphHandle->GetSortOrderIndexForOutput(NodeName);
+}
+
+void UMetasoundEditorGraphOutput::SetSortOrderIndex(int32 InSortOrderIndex)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	UMetasoundEditorGraph* MetaSoundGraph = GetOwningGraph();
+	check(MetaSoundGraph);
+
+	FGraphHandle GraphHandle = MetaSoundGraph->GetGraphHandle();
+	FConstNodeHandle NodeHandle = GetConstNodeHandle();
+	const Metasound::FVertexName& NodeName = NodeHandle->GetNodeName();
+
+	GraphHandle->SetSortOrderIndexForOutput(NodeName, InSortOrderIndex);
+	MetaSoundGraph->SetSynchronizationRequired();
 }
 
 const FText& UMetasoundEditorGraphOutput::GetGraphMemberLabel() const
@@ -676,10 +728,9 @@ void UMetasoundEditorGraphVariable::InitMember(FName InDataType, const FMetasoun
 
 	ConformLiteralDataType();
 
-	UMetasoundEditorGraphMemberDefaultLiteral* MemberDefault = GetLiteral();
-	if (ensure(MemberDefault))
+	if (ensure(Literal))
 	{
-		MemberDefault->SetFromLiteral(InDefaultLiteral);
+		Literal->SetFromLiteral(InDefaultLiteral);
 	}
 }
 

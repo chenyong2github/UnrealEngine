@@ -2,6 +2,7 @@
 
 #include "MetasoundFrontendDocument.h"
 
+#include "Algo/AnyOf.h"
 #include "Algo/ForEach.h"
 #include "Algo/Transform.h"
 #include "IAudioParameterInterfaceRegistry.h"
@@ -215,12 +216,12 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 			ClassInput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
 
 			// Advanced display items are pushed to bottom of sort order
-			int32 OrderIndex = InputInterface.GetOrderIndex(InputTuple.Key);
+			ClassInput.Metadata.SortOrderIndex = InputInterface.GetSortOrderIndex(InputTuple.Key);
 			if (ClassInput.Metadata.bIsAdvancedDisplay)
 			{
-				OrderIndex += InputInterface.Num();
+				ClassInput.Metadata.SortOrderIndex += InputInterface.Num();
 			}
-			InputStyle.DefaultSortOrder.Add(OrderIndex);
+			InputStyle.DefaultSortOrder.Add(ClassInput.Metadata.SortOrderIndex);
 #endif // WITH_EDITOR
 
 			FLiteral DefaultLiteral = InputVertex.GetDefaultLiteral();
@@ -267,12 +268,12 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 			ClassOutput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
 
 			// Advanced display items are pushed to bottom below non-advanced
-			int32 OrderIndex = OutputInterface.GetOrderIndex(OutputTuple.Key);
+			ClassOutput.Metadata.SortOrderIndex = OutputInterface.GetSortOrderIndex(OutputTuple.Key);
 			if (ClassOutput.Metadata.bIsAdvancedDisplay)
 			{
-				OrderIndex += OutputInterface.Num();
+				ClassOutput.Metadata.SortOrderIndex += OutputInterface.Num();
 			}
-			OutputStyle.DefaultSortOrder.Add(OrderIndex);
+			OutputStyle.DefaultSortOrder.Add(ClassOutput.Metadata.SortOrderIndex);
 #endif // WITH_EDITOR
 
 			ClassInterface.Outputs.Add(MoveTemp(ClassOutput));
@@ -415,34 +416,41 @@ bool FMetasoundFrontendClass::CacheGraphDependencyMetadataFromRegistry(FMetasoun
 			InOutDependency.Style = RegistryClass.Style;
 
 			using FNameTypeKey = TPair<FName, FName>;
-			TMap<FNameTypeKey, const FMetasoundFrontendVertexMetadata*> InterfaceMembers;
-
+			using FVertexMetadataMap = TMap<FNameTypeKey, const FMetasoundFrontendVertexMetadata*>;
 			auto MakePairFromVertex = [](const FMetasoundFrontendClassVertex& InVertex)
 			{
 				const FNameTypeKey Key(InVertex.Name, InVertex.TypeName);
 				return TPair<FNameTypeKey, const FMetasoundFrontendVertexMetadata*> { Key, &InVertex.Metadata };
 			};
 
-			auto CacheRegistryVertexMetadata = [&](FMetasoundFrontendClassVertex& OutVertex)
+			auto AddRegistryVertexMetadata = [](const FVertexMetadataMap& InInterfaceMembers, FMetasoundFrontendClassVertex& OutVertex, FMetasoundFrontendInterfaceStyle& OutNewStyle)
 			{
 				const FNameTypeKey Key(OutVertex.Name, OutVertex.TypeName);
-				if (const FMetasoundFrontendVertexMetadata* RegVertex = InterfaceMembers.FindRef(Key))
+				if (const FMetasoundFrontendVertexMetadata* RegVertex = InInterfaceMembers.FindRef(Key))
 				{
 					OutVertex.Metadata = *RegVertex;
 					OutVertex.Metadata.SetSerializeText(false);
 				}
+				OutNewStyle.DefaultSortOrder.Add(OutVertex.Metadata.SortOrderIndex);
 			};
 
-			Algo::Transform(RegistryClass.Interface.Inputs, InterfaceMembers, [&](const FMetasoundFrontendClassInput& Input) { return MakePairFromVertex(Input); });
-			Algo::ForEach(InOutDependency.Interface.Inputs, [&](FMetasoundFrontendClassInput& Input) { CacheRegistryVertexMetadata(Input); });
+			FMetasoundFrontendInterfaceStyle InputStyle;
+			FVertexMetadataMap InputMembers;
+			Algo::Transform(RegistryClass.Interface.Inputs, InputMembers, [&](const FMetasoundFrontendClassInput& Input) { return MakePairFromVertex(Input); });
+			Algo::ForEach(InOutDependency.Interface.Inputs, [&](FMetasoundFrontendClassInput& Input)
+			{
+				AddRegistryVertexMetadata(InputMembers, Input, InputStyle);
+			});
+			InOutDependency.Interface.SetInputStyle(InputStyle);
 
-			InterfaceMembers.Reset();
-
-			Algo::Transform(RegistryClass.Interface.Outputs, InterfaceMembers, [&](const FMetasoundFrontendClassOutput& Output) { return MakePairFromVertex(Output); });
-			Algo::ForEach(InOutDependency.Interface.Outputs, [&](FMetasoundFrontendClassOutput& Output) { CacheRegistryVertexMetadata(Output); });
-
-			InOutDependency.Interface.InputStyle = RegistryClass.Interface.InputStyle;
-			InOutDependency.Interface.OutputStyle = RegistryClass.Interface.OutputStyle;
+			FMetasoundFrontendInterfaceStyle OutputStyle;
+			FVertexMetadataMap OutputMembers;
+			Algo::Transform(RegistryClass.Interface.Outputs, OutputMembers, [&](const FMetasoundFrontendClassOutput& Output) { return MakePairFromVertex(Output); });
+			Algo::ForEach(InOutDependency.Interface.Outputs, [&](FMetasoundFrontendClassOutput& Output)
+			{
+				AddRegistryVertexMetadata(OutputMembers, Output, OutputStyle);
+			});
+			InOutDependency.Interface.SetOutputStyle(OutputStyle);
 
 			return true;
 		}

@@ -132,62 +132,74 @@ namespace Metasound
 			FMetasoundFrontendInterface FrontendInterface;
 			FrontendInterface.Version = { Interface->GetName(), FMetasoundFrontendVersionNumber { Interface->GetVersion().Major, Interface->GetVersion().Minor } };
 
-			Algo::Transform(Interface->GetInputs(), FrontendInterface.Inputs, [&](const Audio::FParameterInterface::FInput& Input)
+			// Transfer all input data from AudioExtension interface struct to FrontendInterface
 			{
-				// Setup required inputs by telling the style that the input is required
-				// This will later be validated against.
-#if WITH_EDITOR
-				if (!Input.RequiredText.IsEmpty())
+				FMetasoundFrontendInterfaceStyle InputStyle;
+				Algo::Transform(Interface->GetInputs(), FrontendInterface.Inputs, [&](const Audio::FParameterInterface::FInput& Input)
 				{
-					FrontendInterface.AddRequiredInputToStyle(Input.InitValue.ParamName, Input.RequiredText);
-				}
-#endif // #if WITH_EDITOR
-
-				FMetasoundFrontendClassInput ClassInput;
-				ClassInput.Name = Input.InitValue.ParamName;
-				ClassInput.DefaultLiteral = FMetasoundFrontendLiteral(Input.InitValue);
-				ClassInput.TypeName = ResolveMemberDataType(Input.DataType, Input.InitValue.ParamType);
+					FMetasoundFrontendClassInput ClassInput;
+					ClassInput.Name = Input.InitValue.ParamName;
+					ClassInput.DefaultLiteral = FMetasoundFrontendLiteral(Input.InitValue);
+					ClassInput.TypeName = ResolveMemberDataType(Input.DataType, Input.InitValue.ParamType);
 
 #if WITH_EDITOR
-				// Interfaces should never serialize text to avoid desync between
-				// copied versions serialized in assets and those defined in code.
-				ClassInput.Metadata.SetSerializeText(false);
-				ClassInput.Metadata.SetDisplayName(Input.DisplayName);
-				ClassInput.Metadata.SetDescription(Input.Description);
+					// Interfaces should never serialize text to avoid desync between
+					// copied versions serialized in assets and those defined in code.
+					ClassInput.Metadata.SetSerializeText(false);
+					ClassInput.Metadata.SetDisplayName(Input.DisplayName);
+					ClassInput.Metadata.SetDescription(Input.Description);
+					ClassInput.Metadata.SortOrderIndex = Input.SortOrderIndex;
+					
+					InputStyle.DefaultSortOrder.Add(Input.SortOrderIndex);
+
+					// Setup required inputs by telling the style that the input is required
+					// This will later be validated against.
+					if (!Input.RequiredText.IsEmpty())
+					{
+						FrontendInterface.AddRequiredInputToStyle(Input.InitValue.ParamName, Input.RequiredText);
+					}
 #endif // WITH_EDITOR
 
-				ClassInput.VertexID = FGuid::NewGuid();
+					ClassInput.VertexID = FGuid::NewGuid();
 
-				return ClassInput;
-			});
+					return ClassInput;
+				});
+				FrontendInterface.SetInputStyle(InputStyle);
+			}
 
-			Algo::Transform(Interface->GetOutputs(), FrontendInterface.Outputs, [&](const Audio::FParameterInterface::FOutput& Output)
+			// Transfer all output data from AudioExtension interface struct to FrontendInterface
 			{
-				// Setup required outputs by telling the style that the output is required
-				// This will later be validated against.
-#if WITH_EDITOR
-				if (!Output.RequiredText.IsEmpty())
+				FMetasoundFrontendInterfaceStyle OutputStyle;
+				Algo::Transform(Interface->GetOutputs(), FrontendInterface.Outputs, [&](const Audio::FParameterInterface::FOutput& Output)
 				{
-					FrontendInterface.AddRequiredOutputToStyle(Output.ParamName, Output.RequiredText);
-				}
-#endif // #if WITH_EDITOR
-
-				FMetasoundFrontendClassOutput ClassOutput;
-				ClassOutput.Name = Output.ParamName;
-				ClassOutput.TypeName = ResolveMemberDataType(Output.DataType, Output.ParamType);
+					FMetasoundFrontendClassOutput ClassOutput;
+					ClassOutput.Name = Output.ParamName;
+					ClassOutput.TypeName = ResolveMemberDataType(Output.DataType, Output.ParamType);
 
 #if WITH_EDITOR
-				// Interfaces should never serialize text to avoid desync between
-				// copied versions serialized in assets and those defined in code.
-				ClassOutput.Metadata.SetSerializeText(false);
-				ClassOutput.Metadata.SetDisplayName(Output.DisplayName);
-				ClassOutput.Metadata.SetDescription(Output.Description);
+					// Interfaces should never serialize text to avoid desync between
+					// copied versions serialized in assets and those defined in code.
+					ClassOutput.Metadata.SetSerializeText(false);
+					ClassOutput.Metadata.SetDisplayName(Output.DisplayName);
+					ClassOutput.Metadata.SetDescription(Output.Description);
+					ClassOutput.Metadata.SortOrderIndex = Output.SortOrderIndex;
+					
+					OutputStyle.DefaultSortOrder.Add(Output.SortOrderIndex);
+
+					// Setup required outputs by telling the style that the output is required
+					// This will later be validated against.
+					if (!Output.RequiredText.IsEmpty())
+					{
+						FrontendInterface.AddRequiredOutputToStyle(Output.ParamName, Output.RequiredText);
+					}
 #endif // WITH_EDITOR
 
-				ClassOutput.VertexID = FGuid::NewGuid();
+					ClassOutput.VertexID = FGuid::NewGuid();
 
-				return ClassOutput;
-			});
+					return ClassOutput;
+				});
+				FrontendInterface.SetOutputStyle(OutputStyle);
+			}
 
 			Algo::Transform(Interface->GetEnvironment(), FrontendInterface.Environment, [&](const Audio::FParameterInterface::FEnvironmentVariable& Environment)
 			{
