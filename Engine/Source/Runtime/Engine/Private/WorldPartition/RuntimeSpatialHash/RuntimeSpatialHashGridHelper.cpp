@@ -5,10 +5,22 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 
 bool GRuntimeSpatialHashUseAlignedGridLevels = true;
-static FAutoConsoleVariableRef CVarUseGrow(
+static FAutoConsoleVariableRef CVarRuntimeSpatialHashUseAlignedGridLevels(
 	TEXT("wp.Runtime.RuntimeSpatialHashUseAlignedGridLevels"),
 	GRuntimeSpatialHashUseAlignedGridLevels,
 	TEXT("Set RuntimeSpatialHashUseAlignedGridLevels to false to help break the pattern caused by world partition promotion of actors to upper grid levels that are always aligned on child levels."));
+
+bool GRuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevels = true;
+static FAutoConsoleVariableRef CVarRuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevels(
+	TEXT("wp.Runtime.RuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevels"),
+	GRuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevels,
+	TEXT("Set RuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevels to false to avoid snapping higher levels cells to child cells. Only used when GRuntimeSpatialHashUseAlignedGridLevels is false."));
+
+bool GRuntimeSpatialHashPlaceSmallActorsUsingLocation = false;
+static FAutoConsoleVariableRef CVarRuntimeSpatialHashPlaceSmallActorsUsingLocation(
+	TEXT("wp.Runtime.RuntimeSpatialHashPlaceSmallActorsUsingLocation"),
+	GRuntimeSpatialHashPlaceSmallActorsUsingLocation,
+	TEXT("Set RuntimeSpatialHashPlaceSmallActorsUsingLocation to true to place actors smaller than a cell size into their corresponding cell using their location instead of their bounding box."));
 
 FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVector& InOrigin, int32 InCellSize)
 	: WorldBounds(InWorldBounds)
@@ -171,6 +183,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		}
 	}
 
+	const float CellArea = PartitionedActors.GetLowestLevel().CellSize * PartitionedActors.GetLowestLevel().CellSize;
 	for (const FActorClusterInstance* ClusterInstance : GridActors)
 	{
 		const FActorCluster* ActorCluster = ClusterInstance->Cluster;
@@ -180,24 +193,36 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 
 		if (ActorCluster->bIsSpatiallyLoaded)
 		{
-			// Find grid level cell that encompasses the actor cluster bounding box and put actors in it.
-			const FVector2D ClusterSize = ClusterBounds.GetSize();
-			const float MinRequiredCellExtent = FMath::Max(ClusterSize.X, ClusterSize.Y);
-			const int32 FirstPotentialGridLevel = FMath::Max(FMath::CeilToFloat(FMath::Log2(MinRequiredCellExtent / (float)PartitionedActors.CellSize)), 0);
-
-			for (int32 GridLevelIndex = FirstPotentialGridLevel; GridLevelIndex < PartitionedActors.Levels.Num(); GridLevelIndex++)
+			if (GRuntimeSpatialHashPlaceSmallActorsUsingLocation && (ClusterBounds.GetArea() <= CellArea))
 			{
-				FSquare2DGridHelper::FGridLevel& GridLevel = PartitionedActors.Levels[GridLevelIndex];
-
-				if (GridLevel.GetNumIntersectingCells(ClusterInstance->Bounds) == 1)
+				// Find grid level cell that contains the actor cluster pivot and put actors in it.
+				FIntVector2 CellCoords;
+				if (PartitionedActors.GetLowestLevel().GetCellCoords(ClusterBounds.GetCenter(), CellCoords))
 				{
-					GridLevel.ForEachIntersectingCells(ClusterInstance->Bounds, [&GridLevel, ActorCluster, ClusterInstance, &GridCell](const FIntVector2& Coords)
-					{
-						check(!GridCell);
-						GridCell = &GridLevel.GetCell(Coords);
-					});
+					GridCell = &PartitionedActors.GetLowestLevel().GetCell(CellCoords);
+				}
+			}
+			else
+			{
+				// Find grid level cell that encompasses the actor cluster bounding box and put actors in it.
+				const FVector2D ClusterSize = ClusterBounds.GetSize();
+				const float MinRequiredCellExtent = FMath::Max(ClusterSize.X, ClusterSize.Y);
+				const int32 FirstPotentialGridLevel = FMath::Max(FMath::CeilToFloat(FMath::Log2(MinRequiredCellExtent / (float)PartitionedActors.CellSize)), 0);
 
-					break;
+				for (int32 GridLevelIndex = FirstPotentialGridLevel; GridLevelIndex < PartitionedActors.Levels.Num(); GridLevelIndex++)
+				{
+					FSquare2DGridHelper::FGridLevel& GridLevel = PartitionedActors.Levels[GridLevelIndex];
+
+					if (GridLevel.GetNumIntersectingCells(ClusterInstance->Bounds) == 1)
+					{
+						GridLevel.ForEachIntersectingCells(ClusterInstance->Bounds, [&GridLevel, ActorCluster, ClusterInstance, &GridCell](const FIntVector2& Coords)
+						{
+							check(!GridCell);
+							GridCell = &GridLevel.GetCell(Coords);
+						});
+
+						break;
+					}
 				}
 			}
 		}

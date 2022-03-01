@@ -11,6 +11,7 @@
 #include "WorldPartition/DataLayer/DataLayersID.h"
 
 extern ENGINE_API bool GRuntimeSpatialHashUseAlignedGridLevels;
+extern ENGINE_API bool GRuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevels;
 
 /**
   * Square 2D grid helper
