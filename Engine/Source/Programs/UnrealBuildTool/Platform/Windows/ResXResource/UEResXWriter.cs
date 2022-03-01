@@ -9,8 +9,14 @@ using System.Xml;
 
 namespace UnrealBuildTool
 {
-	class UEResXWriter
+	/// <summary>
+	/// Resource writer for VC app manifest generator
+	/// </summary>
+	public class UEResXWriter
 	{
+		/// <summary>
+		/// Create a new resource writer at the given path
+		/// </summary>
 		public UEResXWriter(string InPath)
 		{
 
@@ -26,11 +32,17 @@ namespace UnrealBuildTool
 			RootElement.AppendChild(CreateEntry("resheader", "writer", typeof(UEResXWriter).AssemblyQualifiedName!, null));
 		}
 
+		/// <summary>
+		/// Closes the writer
+		/// </summary>
 		public void Close()
 		{
 			Document.Save(Filename);
 		}
 
+		/// <summary>
+		/// Add the given resource reference
+		/// </summary>
 		public void AddResource(string InName, string InValue)
 		{
 			RootElement.AppendChild(CreateEntry("data", InName, InValue, "preserve"));
