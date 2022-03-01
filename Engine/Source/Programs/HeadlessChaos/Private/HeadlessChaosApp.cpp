@@ -176,6 +176,7 @@ TEST(RaycastTests, Raycast) {
 	ChaosTest::CapsuleRaycastMissWithEndPointOnBounds();
 	ChaosTest::TriangleRaycast();
 	ChaosTest::BoxRaycast();
+	ChaosTest::VectorizedAABBRaycast();
 	ChaosTest::ScaledRaycast();
 	//ChaosTest::TransformedRaycast();
 	//ChaosTest::UnionRaycast();

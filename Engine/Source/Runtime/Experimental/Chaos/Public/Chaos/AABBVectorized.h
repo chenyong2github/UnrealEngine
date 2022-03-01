@@ -58,9 +58,11 @@ public:
 
 		VectorRegister4Float LatestStartTime = VectorMax(Time1, VectorSwizzle(Time1, 1, 2, 0, 3));
 		LatestStartTime = VectorMax(LatestStartTime, VectorSwizzle(Time1, 2, 0, 1, 3));
+		LatestStartTime = VectorMax(LatestStartTime, VectorZero());
 
 		VectorRegister4Float EarliestEndTime = VectorMin(Time2, VectorSwizzle(Time2, 1, 2, 0, 3));
 		EarliestEndTime = VectorMin(EarliestEndTime, VectorSwizzle(Time2, 2, 0, 1, 3));
+		EarliestEndTime = VectorMin(EarliestEndTime, Length);
 
 		//Outside of slab before entering another
 		IsFalse = VectorCompareGT(LatestStartTime, EarliestEndTime);
