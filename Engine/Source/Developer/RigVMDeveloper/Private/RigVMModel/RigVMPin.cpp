@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMModel/RigVMPin.h"
+
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/RigVMLink.h"
 #include "RigVMModel/RigVMController.h"
-#include "RigVMModel/Nodes/RigVMPrototypeNode.h"
+#include "RigVMModel/Nodes/RigVMTemplateNode.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMCore/RigVMUnknownType.h"
@@ -538,7 +539,7 @@ bool URigVMPin::IsExecuteContext() const
 	return false;
 }
 
-bool URigVMPin::IsUnknownType() const
+bool URigVMPin::IsWildCard() const
 {
 	if (const UScriptStruct* ScriptStruct = GetScriptStruct())
 	{
@@ -1509,14 +1510,34 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		{
 			if(InSourcePin->IsArray() == InTargetPin->IsArray())
 			{
-				if(InSourcePin->IsUnknownType() && !InTargetPin->IsExecuteContext())
+				auto TemplateNodeSupportsType = [](URigVMPin* InPin, const FString& InCPPType, FString* OutFailureReason) -> bool
 				{
-					
+
+					if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode()))
+					{
+						if (TemplateNode->SupportsType(InPin, InCPPType))
+						{
+							if (OutFailureReason)
+							{
+								*OutFailureReason = FString();
+							}
+						}
+						else
+						{
+							return false;
+						}
+					}
 					return true;
+
+				};
+				
+				if(InSourcePin->IsWildCard() && !InTargetPin->IsExecuteContext())
+				{
+					return TemplateNodeSupportsType(InSourcePin, InTargetPin->GetCPPType(), OutFailureReason);
 				}
-				else if(InTargetPin->IsUnknownType() && !InSourcePin->IsExecuteContext())
+				else if(InTargetPin->IsWildCard() && !InSourcePin->IsExecuteContext())
 				{
-					return true;
+					return TemplateNodeSupportsType(InTargetPin, InSourcePin->GetCPPType(), OutFailureReason);
 				}
 			}
 		}
@@ -1527,54 +1548,7 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 			{
 				*OutFailureReason = TEXT("Source and target pin types are not compatible.");
 			}
-
-			// check if this might be a prototype node
-			if (InSourcePin->CPPType.IsEmpty())
-			{
-				if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(SourceNode))
-				{
-					if (PrototypeNode->SupportsType(InSourcePin, InTargetPin->CPPType))
-					{
-						if (OutFailureReason)
-						{
-							*OutFailureReason = FString();
-						}
-					}
-					else
-					{
-						return false;
-					}
-				}
-				else
-				{
-					return false;
-				}
-			}
-			else if (InTargetPin->CPPType.IsEmpty())
-			{
-				if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(TargetNode))
-				{
-					if (PrototypeNode->SupportsType(InTargetPin, InSourcePin->CPPType))
-					{
-						if (OutFailureReason)
-						{
-							*OutFailureReason = FString();
-						}
-					}
-					else
-					{
-						return false;
-					}
-				}
-				else
-				{
-					return false;
-				}
-			}
-			else
-			{
-				return false;
-			}
+			return false;
 		}
 	}
 

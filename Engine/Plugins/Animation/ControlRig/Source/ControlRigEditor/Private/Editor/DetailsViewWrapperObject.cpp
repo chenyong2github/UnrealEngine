@@ -205,7 +205,10 @@ UClass* UDetailsViewWrapperObject::GetClassForNodes(TArray<URigVMNode*> InNodes,
 	{
 		if(URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
 		{
-			UnitStructs.AddUnique(UnitNode->GetScriptStruct());
+			if(UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct())
+			{
+				UnitStructs.AddUnique(ScriptStruct);
+			}
 		}
 	}
 

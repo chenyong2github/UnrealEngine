@@ -588,21 +588,21 @@ bool FRigVMAddEnumNodeAction::Redo(URigVMController* InController)
 	return false;
 }
 
-FRigVMAddPrototypeNodeAction::FRigVMAddPrototypeNodeAction()
-	: PrototypeNotation(NAME_None)
+FRigVMAddTemplateNodeAction::FRigVMAddTemplateNodeAction()
+	: TemplateNotation(NAME_None)
 	, Position(FVector2D::ZeroVector)
 	, NodePath()
 {
 }
 
-FRigVMAddPrototypeNodeAction::FRigVMAddPrototypeNodeAction(URigVMPrototypeNode* InNode)
-	: PrototypeNotation(InNode->GetNotation())
+FRigVMAddTemplateNodeAction::FRigVMAddTemplateNodeAction(URigVMTemplateNode* InNode)
+	: TemplateNotation(InNode->GetNotation())
 	, Position(InNode->GetPosition())
 	, NodePath(InNode->GetNodePath())
 {
 }
 
-bool FRigVMAddPrototypeNodeAction::Undo(URigVMController* InController)
+bool FRigVMAddTemplateNodeAction::Undo(URigVMController* InController)
 {
 	if (!FRigVMBaseAction::Undo(InController))
 	{
@@ -611,10 +611,10 @@ bool FRigVMAddPrototypeNodeAction::Undo(URigVMController* InController)
 	return InController->RemoveNodeByName(*NodePath, false);
 }
 
-bool FRigVMAddPrototypeNodeAction::Redo(URigVMController* InController)
+bool FRigVMAddTemplateNodeAction::Redo(URigVMController* InController)
 {
 #if WITH_EDITOR
-	if (URigVMPrototypeNode* Node = InController->AddPrototypeNode(PrototypeNotation, Position, NodePath, false))
+	if (URigVMTemplateNode* Node = InController->AddTemplateNode(TemplateNotation, Position, NodePath, false))
 	{
 		return FRigVMBaseAction::Redo(InController);
 	}
@@ -714,9 +714,9 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 	{
 		InverseAction.AddAction(FRigVMAddSelectNodeAction(SelectNode));
 	}
-	else if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(InNode))
+	else if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddPrototypeNodeAction(PrototypeNode));
+		InverseAction.AddAction(FRigVMAddTemplateNodeAction(TemplateNode));
 	}
 	else if (URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(InNode))
 	{

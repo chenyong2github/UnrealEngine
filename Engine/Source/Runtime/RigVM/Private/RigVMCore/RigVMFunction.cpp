@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMCore/RigVMFunction.h"
+#include "RigVMCore/RigVMTemplate.h"
+#include "RigVMCore/RigVMRegistry.h"
 
 FName FRigVMFunction::GetMethodName() const
 {
@@ -42,3 +44,18 @@ FString FRigVMFunction::GetModuleRelativeHeaderPath() const
 	return FString();
 }
 
+const FRigVMTemplate* FRigVMFunction::GetTemplate() const
+{
+	if(TemplateIndex == INDEX_NONE)
+	{
+		return nullptr;
+	}
+
+	const FRigVMTemplate* Template = &FRigVMRegistry::Get().GetTemplates()[TemplateIndex];
+	if(Template->NumPermutations() <= 1)
+	{
+		return nullptr;
+	}
+
+	return Template;
+}

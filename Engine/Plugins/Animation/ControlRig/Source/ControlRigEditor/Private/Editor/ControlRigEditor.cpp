@@ -2693,8 +2693,11 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 								if(WrapperObject->GetOuter() == Pin->GetNode())
 								{
 									const FProperty* TargetProperty = WrapperObject->GetClass()->FindPropertyByName(RootPin->GetFName());
-									uint8* PropertyStorage = TargetProperty->ContainerPtrToValuePtr<uint8>(WrapperObject);
-									TargetProperty->ImportText_Direct(*DefaultValue, PropertyStorage, nullptr, PPF_None);
+									if(TargetProperty)
+									{
+										uint8* PropertyStorage = TargetProperty->ContainerPtrToValuePtr<uint8>(WrapperObject);
+										TargetProperty->ImportText_Direct(*DefaultValue, PropertyStorage, nullptr, PPF_None, nullptr);
+									}
 								}
 							}
 						}
@@ -3756,7 +3759,7 @@ void FControlRigEditor::SetPinControlNameListText(const FText& NewTypeInValue, E
 						URigVMNode* ControlledNode = ControlledPin->GetPinForLink()->GetNode();
 						if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ControlledNode))
 						{
-							if (const FString* Value = UnitNode->GetScriptStruct()->FindMetaData(TEXT("PrototypeName")))
+							if (const FString* Value = UnitNode->GetScriptStruct()->FindMetaData(FRigVMStruct::TemplateNameMetaName))
 							{
 								if (Value->Equals("VisualDebug"))
 								{

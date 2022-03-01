@@ -182,7 +182,7 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPTypePath(const FNa
 	}
 	else if (UEnum* Enum= URigVMPin::FindObjectFromCPPTypeObjectPath<UEnum>(CPPTypePath))
 	{
-		Variable.TypeName = *Enum->CppType;
+		Variable.TypeName = *CPPTypeFromEnum(Enum);
 		Variable.TypeObject = Enum;
 		Variable.Size = Enum->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal);
 	}
@@ -251,7 +251,7 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& 
 	}
 	else if (UEnum* Enum= URigVMPin::FindObjectFromCPPTypeObjectPath<UEnum>(CPPType))
 	{
-		Variable.TypeName = *Enum->CppType;
+		Variable.TypeName = *CPPTypeFromEnum(Enum);
 		Variable.TypeObject = Enum;
 		Variable.Size = Enum->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal);
 	}
@@ -486,6 +486,53 @@ FEdGraphPinType RigVMTypeUtils::SubPinType(const FEdGraphPinType& InPinType, con
 	return Result;
 }
 
+bool RigVMTypeUtils::CPPTypeFromPin(URigVMPin* InPin, FString& OutCPPType, UObject** OutCPPTypeObject, bool bGetBaseCPPType)
+{
+	check(InPin);
+	OutCPPType = InPin->GetCPPType();
+	if(bGetBaseCPPType && IsArrayType(OutCPPType))
+	{
+		OutCPPType = BaseTypeFromArrayType(OutCPPType);
+	}
+	if(OutCPPTypeObject)
+	{
+		*OutCPPTypeObject = InPin->GetCPPTypeObject();
+	}
+	return true;
+}
+
+bool RigVMTypeUtils::CPPTypeFromPin(URigVMPin* InPin, FString& OutCPPType, FName& OutCPPTypeObjectPath, bool bGetBaseCPPType)
+{
+	OutCPPType = FString();
+	OutCPPTypeObjectPath = NAME_None;
+	UObject* CPPTypeObject = nullptr;
+	if (RigVMTypeUtils::CPPTypeFromPin(InPin, OutCPPType, &CPPTypeObject, bGetBaseCPPType))
+	{
+		if (CPPTypeObject)
+		{
+			OutCPPTypeObjectPath = *CPPTypeObject->GetPathName();
+		}
+		return true;
+	}
+	return false;
+}
+
+bool RigVMTypeUtils::CPPTypeFromPin(URigVMPin* InPin, FString& OutCPPType, FString& OutCPPTypeObjectPath, bool bGetBaseCPPType)
+{
+	OutCPPType = FString();
+	OutCPPTypeObjectPath.Reset();
+	FName CPPTypeObjectPath(NAME_None);
+	if (RigVMTypeUtils::CPPTypeFromPin(InPin, OutCPPType, CPPTypeObjectPath, bGetBaseCPPType))
+	{
+		if (!CPPTypeObjectPath.IsNone())
+		{
+			OutCPPTypeObjectPath = CPPTypeObjectPath.ToString();
+		}
+		return true;
+	}
+	return false;
+}
+
 bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FString& OutCPPType, UObject** OutCPPTypeObject)
 {
 	FString Prefix = "";
@@ -598,6 +645,23 @@ bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FStrin
 			}
 		}
 
+		return true;
+	}
+
+	return false;
+}
+
+bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FString& OutCPPType, FString& OutCPPTypeObjectPath)
+{
+	OutCPPType = FString();
+	OutCPPTypeObjectPath.Reset();
+	FName CPPTypeObjectPath(NAME_None);
+	if (RigVMTypeUtils::CPPTypeFromPinType(InPinType, OutCPPType, CPPTypeObjectPath))
+	{
+		if(!CPPTypeObjectPath.IsNone())
+		{
+			OutCPPTypeObjectPath = CPPTypeObjectPath.ToString();
+		}
 		return true;
 	}
 

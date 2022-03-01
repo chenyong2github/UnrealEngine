@@ -773,6 +773,11 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		return INDEX_NONE;
 	}
 
+	if(UnitNode->GetScriptStruct() == nullptr)
+	{
+		return INDEX_NONE;
+	}
+
 	int32 InstructionIndex = INDEX_NONE;
 
 	if (WorkData.bSetupMemory)
@@ -2661,9 +2666,9 @@ bool URigVMCompiler::ValidateNode(URigVMNode* InNode)
 {
 	check(InNode);
 
-	if(InNode->HasUnknownTypePin())
+	if(InNode->HasWildCardPin())
 	{
-		static const FString UnknownTypeMessage = TEXT("Node @@ has unresolved pins of unknown type.");
+		static const FString UnknownTypeMessage = TEXT("Node @@ has unresolved pins of wildcard type.");
 		Settings.Report(EMessageSeverity::Error, InNode, UnknownTypeMessage);
 		return false;
 	}

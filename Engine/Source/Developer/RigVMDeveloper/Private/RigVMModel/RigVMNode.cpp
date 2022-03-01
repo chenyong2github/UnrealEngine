@@ -292,11 +292,11 @@ bool URigVMNode::IsMutable() const
 	return false;
 }
 
-bool URigVMNode::HasUnknownTypePin() const
+bool URigVMNode::HasWildCardPin() const
 {
 	for (const URigVMPin* Pin : GetPins())
 	{
-		if (Pin->IsUnknownType())
+		if (Pin->IsWildCard())
 		{
 			return true;
 		}

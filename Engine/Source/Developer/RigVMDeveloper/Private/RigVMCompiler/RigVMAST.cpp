@@ -1793,7 +1793,12 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 		}
 
 		FString PinHash = URigVMCompiler::GetPinHash(RootPin, RootVarExpr, false);
-		const FRigVMOperand& Operand = Operands.FindChecked(PinHash);
+		const FRigVMOperand* OperandPtr = Operands.Find(PinHash);
+		if(OperandPtr == nullptr)
+		{
+			continue;
+		}
+		const FRigVMOperand& Operand = *OperandPtr;
 
 		FString DefaultValue;
 		if(Operand.GetMemoryType() == ERigVMMemoryType::Work)

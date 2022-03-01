@@ -140,7 +140,7 @@ public:
 	virtual bool IsMutable() const;
 
 	// Returns true if this node has an unknown type pin
-	bool HasUnknownTypePin() const;
+	bool HasWildCardPin() const;
 
 	virtual bool ContributesToResult() const { return IsMutable(); }
 

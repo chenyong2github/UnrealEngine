@@ -151,6 +151,8 @@ public:
 
 	int32 GetInstructionIndex(bool bAsInput) const;
 
+	const FRigVMTemplate* GetTemplate() const;
+
 protected:
 
 	FLinearColor GetNodeProfilingColor() const;
@@ -219,8 +221,10 @@ private:
 
 	FNodeTitleDirtied NodeTitleDirtied;
 
+	mutable const FRigVMTemplate* CachedTemplate;
+
 	friend class SControlRigGraphNode;
 	friend class FControlRigArgumentLayout;
 	friend class FControlRigGraphDetails;
-	friend class UControlRigPrototypeNodeSpawner;
+	friend class UControlRigTemplateNodeSpawner;
 };

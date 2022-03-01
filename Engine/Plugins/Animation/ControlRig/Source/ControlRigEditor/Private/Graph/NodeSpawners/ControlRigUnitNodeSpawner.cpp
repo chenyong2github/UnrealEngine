@@ -37,17 +37,17 @@ UControlRigUnitNodeSpawner* UControlRigUnitNodeSpawner::CreateFromStruct(UScript
 	MenuSignature.Tooltip  = InTooltip;
 	MenuSignature.Category = InCategory;
 
-	FString KeywordsMetadata, PrototypeNameMetadata;
+	FString KeywordsMetadata, TemplateNameMetadata;
 	InStruct->GetStringMetaDataHierarchical(FRigVMStruct::KeywordsMetaName, &KeywordsMetadata);
-	if(!PrototypeNameMetadata.IsEmpty())
+	if(!TemplateNameMetadata.IsEmpty())
 	{
 		if(KeywordsMetadata.IsEmpty())
 		{
-			KeywordsMetadata = PrototypeNameMetadata;
+			KeywordsMetadata = TemplateNameMetadata;
 		}
 		else
 		{
-			KeywordsMetadata = KeywordsMetadata + TEXT(",") + PrototypeNameMetadata;
+			KeywordsMetadata = KeywordsMetadata + TEXT(",") + TemplateNameMetadata;
 		}
 	}
 	MenuSignature.Keywords = FText::FromString(KeywordsMetadata);
@@ -108,20 +108,6 @@ UEdGraphNode* UControlRigUnitNodeSpawner::Invoke(UEdGraph* ParentGraph, FBinding
 	return NewNode;
 }
 
-bool UControlRigUnitNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
-{
-	if (StructTemplate)
-	{
-		FString DeprecatedMetadata;
-		StructTemplate->GetStringMetaDataHierarchical(FRigVMStruct::DeprecatedMetaName, &DeprecatedMetadata);
-		if (!DeprecatedMetadata.IsEmpty())
-		{
-			return true;
-		}
-	}
-	return Super::IsTemplateNodeFilteredOut(Filter);
-}
-
 UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, UScriptStruct* StructTemplate, FVector2D const Location)
 {
 	UControlRigGraphNode* NewNode = nullptr;
@@ -133,7 +119,8 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 		bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
 		bool const bIsUserFacingNode = !bIsTemplateNode;
 
-		FName Name = bIsTemplateNode ? *StructTemplate->GetDisplayNameText().ToString() : FControlRigBlueprintUtils::ValidateName(RigBlueprint, StructTemplate->GetFName().ToString());
+		FName Name = bIsTemplateNode ? *StructTemplate->GetStructCPPName() : FControlRigBlueprintUtils::ValidateName(RigBlueprint, StructTemplate->GetFName().ToString());
+		
 		URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->GetController(ParentGraph);
 
 		if (!bIsTemplateNode)

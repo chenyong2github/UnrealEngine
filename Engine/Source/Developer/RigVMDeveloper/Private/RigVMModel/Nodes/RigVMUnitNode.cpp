@@ -158,18 +158,18 @@ FString URigVMUnitNode::GetStructDefaultValue() const
 
 TSharedPtr<FStructOnScope> URigVMUnitNode::ConstructStructInstance(bool bUseDefault) const
 {
-	if (ScriptStruct)
+	if (UScriptStruct* Struct = GetScriptStruct())
 	{
-		TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(ScriptStruct));
+		TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Struct));
 		FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
 		if (bUseDefault)
 		{
-			ScriptStruct->InitializeDefaultValue((uint8*)StructMemory);
+			Struct->InitializeDefaultValue((uint8*)StructMemory);
 		}
 		else
 		{
 			FString StructDefaultValue = GetStructDefaultValue();
-			ScriptStruct->ImportText(*StructDefaultValue, StructMemory, nullptr, PPF_None, nullptr, ScriptStruct->GetName());
+			Struct->ImportText(*StructDefaultValue, StructMemory, nullptr, PPF_None, nullptr, Struct->GetName());
 		}
 		return StructOnScope;
 	}

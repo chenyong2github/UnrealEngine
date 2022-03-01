@@ -16,6 +16,7 @@
 #include "UObject/StrongObjectPtr.h"
 #include "Misc/CoreMisc.h"
 #include "Algo/Sort.h"
+#include "Algo/Count.h"
 #include "RigVMPythonUtils.h"
 #include "RigVMTypeUtils.h"
 #include "Engine/UserDefinedStruct.h"
@@ -63,6 +64,7 @@ URigVMController::URigVMController()
 	, bReportWarningsAndErrors(true)
 	, bIgnoreRerouteCompactnessChanges(false)
 	, bIsRunningUnitTest(false)
+	, bIsFullyResolvingTemplateNode(false)
 {
 	SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
 }
@@ -666,13 +668,13 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 						*RigVMPythonUtils::Vector2DToPythonString(SelectNode->GetPosition()),
 						*NodeName));
 	}
-	else if (const URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(Node))
+	else if (const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
 	{
-		// add_prototype_node(notation, position=[0.0, 0.0], node_name='', undo=True)
-		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_prototype_node('%s', %s, '%s')"),
+		// add_template_node(notation, position=[0.0, 0.0], node_name='', undo=True)
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_template_node('%s', %s, '%s')"),
 						*GraphName,
-						*PrototypeNode->GetNotation().ToString(),
-						*RigVMPythonUtils::Vector2DToPythonString(PrototypeNode->GetPosition()),
+						*TemplateNode->GetNotation().ToString(),
+						*RigVMPythonUtils::Vector2DToPythonString(TemplateNode->GetPosition()),
 						*NodeName));
 	}
 	else if (const URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(Node))
@@ -823,11 +825,10 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	FString FunctionName = FString::Printf(TEXT("F%s::%s"), *InScriptStruct->GetName(), *InMethodName.ToString());
-	FRigVMFunctionPtr Function = FRigVMRegistry::Get().FindFunction(*FunctionName);
+	const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(InScriptStruct, *InMethodName.ToString());
 	if (Function == nullptr)
 	{
-		ReportErrorf(TEXT("RIGVM_METHOD '%s' cannot be found."), *FunctionName);
+		ReportErrorf(TEXT("RIGVM_METHOD '%s::%s' cannot be found."), *InScriptStruct->GetStructCPPName(), *InMethodName.ToString());
 		return nullptr;
 	}
 
@@ -837,6 +838,35 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 		ReportErrorf(TEXT("Failed to validate struct '%s': %s"), *InScriptStruct->GetName(), *StructureError);
 		return nullptr;
 	}
+
+#if UE_RIGVM_ENABLE_TEMPLATE_NODES
+
+	if(const FRigVMTemplate* Template = Function->GetTemplate())
+	{
+		if(bSetupUndoRedo)
+		{
+			OpenUndoBracket(FString::Printf(TEXT("Add %s Node"), *Template->GetName().ToString()));
+		}
+
+		const FString Name = GetValidNodeName(InNodeName.IsEmpty() ? InScriptStruct->GetName() : InNodeName);
+		URigVMTemplateNode* TemplateNode = AddTemplateNode(Template->GetNotation(), InPosition, Name, bSetupUndoRedo, bPrintPythonCommand);
+		if(TemplateNode == nullptr)
+		{
+			CancelUndoBracket();
+			return nullptr;
+		}
+
+		FullyResolveTemplateNode(TemplateNode, Function, bSetupUndoRedo);
+		
+		if(bSetupUndoRedo)
+		{
+			CloseUndoBracket();
+		}
+
+		return TemplateNode;
+	}
+
+#endif
 
 	FStructOnScope StructOnScope(InScriptStruct);
 	FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope.GetStructMemory();
@@ -1026,7 +1056,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 	if (!bIsGetter)
 	{
 		URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, FRigVMStruct::ExecuteContextName);
-		ExecutePin->CPPType = FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName());
+		ExecutePin->CPPType = ExecuteContextStruct->GetStructCPPName();
 		ExecutePin->CPPTypeObject = ExecuteContextStruct;
 		ExecutePin->CPPTypeObjectPath = *ExecutePin->CPPTypeObject->GetPathName();
 		ExecutePin->Direction = ERigVMPinDirection::IO;
@@ -1034,7 +1064,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 	}
 
 	URigVMPin* VariablePin = NewObject<URigVMPin>(Node, *URigVMVariableNode::VariableName);
-	VariablePin->CPPType = TEXT("FName");
+	VariablePin->CPPType = RigVMTypeUtils::FNameType;
 	VariablePin->Direction = ERigVMPinDirection::Hidden;
 	VariablePin->DefaultValue = InVariableName.ToString();
 	VariablePin->CustomWidgetName = TEXT("VariableName");
@@ -1561,6 +1591,77 @@ URigVMVariableNode* URigVMController::ReplaceParameterNodeWithVariable(const FNa
 	return nullptr;
 }
 
+URigVMTemplateNode* URigVMController::ReplaceUnitNodeWithTemplateNode(const FName& InNodeName, bool bSetupUndoRedo)
+{
+	if(!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(GetGraph()->FindNodeByName(InNodeName));
+	if(UnitNode == nullptr)
+	{
+		return nullptr;
+	}
+	if(UnitNode->IsA<URigVMTemplateNode>())
+	{
+		return Cast<URigVMTemplateNode>(UnitNode);
+	}
+
+	UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct();
+	if(ScriptStruct == nullptr)
+	{
+		return nullptr;
+	}
+	
+	const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(ScriptStruct, *UnitNode->GetMethodName().ToString());
+	if(Function == nullptr)
+	{
+		return nullptr;
+	}
+			
+	const FRigVMTemplate* Template = Function->GetTemplate();
+	if(Template == nullptr)
+	{
+		return nullptr;
+	}
+
+	FRigVMBaseAction Action;
+	if (bSetupUndoRedo)
+	{
+		Action.Title = FString::Printf(TEXT("Replace Unit with Template"));
+		ActionStack->BeginAction(Action);
+	}
+
+	const TMap<FString, FPinState> PinStates = GetPinStates(UnitNode);
+	TArray<URigVMLink*> Links = UnitNode->GetLinks();
+	DetachLinksFromPinObjects(&Links);
+
+	const FVector2D NodePosition = UnitNode->GetPosition();
+	RemoveNode(UnitNode, bSetupUndoRedo);
+	URigVMTemplateNode* TemplateNode = AddTemplateNode(Template->GetNotation(), NodePosition, InNodeName.ToString(), bSetupUndoRedo);
+	if(TemplateNode == nullptr)
+	{
+		if(bSetupUndoRedo)
+		{
+			ActionStack->CancelAction(Action);
+		}
+		return nullptr;
+	}
+
+	FullyResolveTemplateNode(TemplateNode, Function, bSetupUndoRedo);
+
+	ApplyPinStates(TemplateNode, PinStates);
+	ReattachLinksToPinObjects(false, &Links);
+
+	if(bSetupUndoRedo)
+	{
+		ActionStack->EndAction(Action);
+	}
+	
+	return TemplateNode;
+}
+
 URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameterName, const FString& InCPPType, UObject* InCPPTypeObject, bool bIsInput, const FString& InDefaultValue, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
@@ -1616,7 +1717,7 @@ URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameter
 	}
 
 	URigVMPin* ParameterPin = NewObject<URigVMPin>(Node, *URigVMParameterNode::ParameterName);
-	ParameterPin->CPPType = TEXT("FName");
+	ParameterPin->CPPType = RigVMTypeUtils::FNameType;
 	ParameterPin->Direction = ERigVMPinDirection::Visible;
 	ParameterPin->DefaultValue = InParameterName.ToString();
 	ParameterPin->CustomWidgetName = TEXT("ParameterName");
@@ -1655,7 +1756,7 @@ URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameter
 
 	if (bIsInput)
 	{
-		if (ValuePin->CPPType == TEXT("FName"))
+		if (ValuePin->CPPType == RigVMTypeUtils::FNameType)
 		{
 			ValuePin->bIsConstant = true;
 		}
@@ -6601,12 +6702,12 @@ FString URigVMController::GetPinInitialDefaultValue(const URigVMPin* InPin)
 	static const FString TObjectInitValue( TEXT("()") );
 	static const TMap<FString, FString> InitValues =
 	{
-		{ TEXT("bool"),	TEXT("False") },
-		{ TEXT("int32"),	TEXT("0") },
-		{ TEXT("float"),	TEXT("0.000000") },
-		{ TEXT("double"),	TEXT("0.000000") },
-		{ TEXT("FName"),	FName(NAME_None).ToString() },
-		{ TEXT("FString"),	TEXT("") }
+		{ RigVMTypeUtils::BoolType,	TEXT("False") },
+		{ RigVMTypeUtils::Int32Type,	TEXT("0") },
+		{ RigVMTypeUtils::FloatType,	TEXT("0.000000") },
+		{ RigVMTypeUtils::DoubleType,	TEXT("0.000000") },
+		{ RigVMTypeUtils::FNameType,	FName(NAME_None).ToString() },
+		{ RigVMTypeUtils::FStringType,	TEXT("") }
 	};
 
 	if (InPin->IsStruct())
@@ -7657,16 +7758,24 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	// resolve types on the pins if needed
 	if(InputPin->GetCPPTypeObject() != OutputPin->GetCPPTypeObject())
 	{
-		if(InputPin->GetCPPTypeObject() == FRigVMUnknownType::StaticStruct())
+		if(InputPin->IsWildCard())
 		{
 			Notify(ERigVMGraphNotifType::InteractionBracketOpened, nullptr);
-			ResolveUnknownTypePin(InputPin, OutputPin, bSetupUndoRedo);
+			ResolveWildCardPin(InputPin, OutputPin, bSetupUndoRedo);
 			Notify(ERigVMGraphNotifType::InteractionBracketClosed, nullptr);
 		}
-		else if(OutputPin->GetCPPTypeObject() == FRigVMUnknownType::StaticStruct())
+		else if(OutputPin->IsWildCard())
 		{
 			Notify(ERigVMGraphNotifType::InteractionBracketOpened, nullptr);
-			ResolveUnknownTypePin(OutputPin, InputPin, bSetupUndoRedo);
+			ResolveWildCardPin(OutputPin, InputPin, bSetupUndoRedo);
+			if(OutputPin->GetNode()->IsA<URigVMRerouteNode>())
+			{
+				SetPinDefaultValue(OutputPin, InputPin->GetDefaultValue(), true, bSetupUndoRedo, false, true);
+			}
+			if(InputPin->GetNode()->IsA<URigVMRerouteNode>())
+			{
+				SetPinDefaultValue(OutputPin, OutputPin->GetDefaultValue(), true, bSetupUndoRedo, false, true);
+			}
 			Notify(ERigVMGraphNotifType::InteractionBracketClosed, nullptr);
 		}
 	}
@@ -7714,10 +7823,6 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 		UpdateRerouteNodeAfterChangingLinks(OutputPin, bSetupUndoRedo);
 		UpdateRerouteNodeAfterChangingLinks(InputPin, bSetupUndoRedo);
 	}
-
-	//TArray<URigVMNode*> NodesVisited;
-	//PotentiallyResolvePrototypeNode(Cast<URigVMPrototypeNode>(InputPin->GetNode()), bSetupUndoRedo, NodesVisited);
-	//PotentiallyResolvePrototypeNode(Cast<URigVMPrototypeNode>(OutputPin->GetNode()), bSetupUndoRedo, NodesVisited);
 
 	if (bSetupUndoRedo)
 	{
@@ -8034,6 +8139,12 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 
 	if (CPPTypeObject)
 	{
+		if(CPPTypeObject == RigVMTypeUtils::GetWildCardCPPTypeObject())
+		{
+			ReportError(TEXT("Cannot expose pins of wildcard type."));
+			return NAME_None;
+		}
+		
 		if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
 		{
 			if (ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
@@ -9917,7 +10028,7 @@ URigVMBranchNode* URigVMController::AddBranchNode(const FVector2D& InPosition, c
 	AddNodePin(Node, ExecutePin);
 
 	URigVMPin* ConditionPin = NewObject<URigVMPin>(Node, *URigVMBranchNode::ConditionName);
-	ConditionPin->CPPType = TEXT("bool");
+	ConditionPin->CPPType = RigVMTypeUtils::BoolType;
 	ConditionPin->Direction = ERigVMPinDirection::Input;
 	AddNodePin(Node, ConditionPin);
 
@@ -9999,7 +10110,7 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 	Node->Position = InPosition;
 
 	URigVMPin* ConditionPin = NewObject<URigVMPin>(Node, *URigVMIfNode::ConditionName);
-	ConditionPin->CPPType = TEXT("bool");
+	ConditionPin->CPPType = RigVMTypeUtils::BoolType;
 	ConditionPin->Direction = ERigVMPinDirection::Input;
 	AddNodePin(Node, ConditionPin);
 
@@ -10115,7 +10226,7 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 	Node->Position = InPosition;
 
 	URigVMPin* IndexPin = NewObject<URigVMPin>(Node, *URigVMSelectNode::IndexName);
-	IndexPin->CPPType = TEXT("int32");
+	IndexPin->CPPType = RigVMTypeUtils::Int32Type;
 	IndexPin->Direction = ERigVMPinDirection::Input;
 	AddNodePin(Node, IndexPin);
 
@@ -10175,7 +10286,7 @@ URigVMSelectNode* URigVMController::AddSelectNodeFromStruct(UScriptStruct* InScr
 	return AddSelectNode(InScriptStruct->GetStructCPPName(), FName(InScriptStruct->GetPathName()), InPosition, InNodeName, bSetupUndoRedo);
 }
 
-URigVMPrototypeNode* URigVMController::AddPrototypeNode(const FName& InNotation, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
+URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
 	{
@@ -10187,28 +10298,28 @@ URigVMPrototypeNode* URigVMController::AddPrototypeNode(const FName& InNotation,
 
 	ensure(!InNotation.IsNone());
 
-	const FRigVMPrototype* Prototype = FRigVMRegistry::Get().FindPrototype(InNotation);
-	if (Prototype == nullptr)
+	const FRigVMTemplate* Template = FRigVMRegistry::Get().FindTemplate(InNotation);
+	if (Template == nullptr)
 	{
-		ReportErrorf(TEXT("Prototype '%s' cannot be found."), *InNotation.ToString());
+		ReportErrorf(TEXT("Template '%s' cannot be found."), *InNotation.ToString());
 		return nullptr;
 	}
 
-	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? Prototype->GetName().ToString() : InNodeName);
-	URigVMPrototypeNode* Node = NewObject<URigVMPrototypeNode>(Graph, *Name);
-	Node->PrototypeNotation = Prototype->GetNotation();
+	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? Template->GetName().ToString() : InNodeName);
+	URigVMTemplateNode* Node = NewObject<URigVMTemplateNode>(Graph, *Name);
+	Node->TemplateNotation = Template->GetNotation();
 	Node->Position = InPosition;
 
-	int32 FunctionIndex = INDEX_NONE;
-	FRigVMPrototype::FTypeMap Types;
-	Prototype->Resolve(Types, FunctionIndex);
+	int32 PermutationIndex = INDEX_NONE;
+	FRigVMTemplate::FTypeMap Types;
+	Template->FullyResolve(Types, PermutationIndex);
 
-	for (int32 ArgIndex = 0; ArgIndex < Prototype->NumArgs(); ArgIndex++)
+	for (int32 ArgIndex = 0; ArgIndex < Template->NumArguments(); ArgIndex++)
 	{
-		const FRigVMPrototypeArg* Arg = Prototype->GetArg(ArgIndex);
+		const FRigVMTemplateArgument* Arg = Template->GetArgument(ArgIndex);
 
 		URigVMPin* Pin = NewObject<URigVMPin>(Node, Arg->GetName());
-		const FRigVMPrototypeArg::FType& Type = Types.FindChecked(Arg->GetName());
+		const FRigVMTemplateArgument::FType& Type = Types.FindChecked(Arg->GetName());
 		Pin->CPPType = Type.CPPType;
 		Pin->CPPTypeObject = Type.CPPTypeObject;
 		if (Pin->CPPTypeObject)
@@ -10226,7 +10337,7 @@ URigVMPrototypeNode* URigVMController::AddPrototypeNode(const FName& InNotation,
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMAddPrototypeNodeAction(Node));
+		ActionStack->AddAction(FRigVMAddTemplateNodeAction(Node));
 	}
 
 	if (bPrintPythonCommand)
@@ -10238,6 +10349,8 @@ URigVMPrototypeNode* URigVMController::AddPrototypeNode(const FName& InNotation,
 				FString::Printf(TEXT("%s"), *Command));
 		}
 	}
+
+	ResolveTemplateNodeMetaData(Node);
 
 	return Node;
 }
@@ -10280,7 +10393,7 @@ URigVMEnumNode* URigVMController::AddEnumNode(const FName& InCPPTypeObjectPath, 
 	AddNodePin(Node, EnumValuePin);
 
 	URigVMPin* EnumIndexPin = NewObject<URigVMPin>(Node, *URigVMEnumNode::EnumIndexName);
-	EnumIndexPin->CPPType = TEXT("int32");
+	EnumIndexPin->CPPType = RigVMTypeUtils::Int32Type;
 	EnumIndexPin->Direction = ERigVMPinDirection::Output;
 	EnumIndexPin->DisplayName = TEXT("Result");
 	AddNodePin(Node, EnumIndexPin);
@@ -10434,32 +10547,32 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 
 		static URigVMPin* AddIndexPin(URigVMController* InController, URigVMNode* InNode, ERigVMPinDirection InDirection)
 		{
-			return AddPin(InController, InNode, *URigVMArrayNode::IndexName, InDirection, false, TEXT("int32"), nullptr);  
+			return AddPin(InController, InNode, *URigVMArrayNode::IndexName, InDirection, false, RigVMTypeUtils::Int32Type, nullptr);  
 		}
 
 		static URigVMPin* AddNumPin(URigVMController* InController, URigVMNode* InNode, ERigVMPinDirection InDirection)
 		{
-			return AddPin(InController, InNode, *URigVMArrayNode::NumName, InDirection, false, TEXT("int32"), nullptr);  
+			return AddPin(InController, InNode, *URigVMArrayNode::NumName, InDirection, false, RigVMTypeUtils::Int32Type, nullptr);  
 		}
 
 		static URigVMPin* AddCountPin(URigVMController* InController, URigVMNode* InNode, ERigVMPinDirection InDirection)
 		{
-			return AddPin(InController, InNode, *URigVMArrayNode::CountName, InDirection, false, TEXT("int32"), nullptr);  
+			return AddPin(InController, InNode, *URigVMArrayNode::CountName, InDirection, false, RigVMTypeUtils::Int32Type, nullptr);  
 		}
 
 		static URigVMPin* AddRatioPin(URigVMController* InController, URigVMNode* InNode)
 		{
-			return AddPin(InController, InNode, *URigVMArrayNode::RatioName, ERigVMPinDirection::Output, false, TEXT("float"), nullptr);  
+			return AddPin(InController, InNode, *URigVMArrayNode::RatioName, ERigVMPinDirection::Output, false, RigVMTypeUtils::FloatType, nullptr);  
 		}
 
 		static URigVMPin* AddContinuePin(URigVMController* InController, URigVMNode* InNode)
 		{
-			return AddPin(InController, InNode, *URigVMArrayNode::ContinueName, ERigVMPinDirection::Hidden, false, TEXT("bool"), nullptr);
+			return AddPin(InController, InNode, *URigVMArrayNode::ContinueName, ERigVMPinDirection::Hidden, false, RigVMTypeUtils::BoolType, nullptr);
 		}
 
 		static URigVMPin* AddSuccessPin(URigVMController* InController, URigVMNode* InNode)
 		{
-			return AddPin(InController, InNode, *URigVMArrayNode::SuccessName, ERigVMPinDirection::Output, false, TEXT("bool"), nullptr);  
+			return AddPin(InController, InNode, *URigVMArrayNode::SuccessName, ERigVMPinDirection::Output, false, RigVMTypeUtils::BoolType, nullptr);  
 		}
 	};
 
@@ -10640,7 +10753,7 @@ void URigVMController::ForEveryPinRecursively(URigVMNode* InNode, TFunction<void
 	}
 }
 
-void URigVMController::SetExecuteContextStruct(UStruct* InExecuteContextStruct)
+void URigVMController::SetExecuteContextStruct(UScriptStruct* InExecuteContextStruct)
 {
 	check(InExecuteContextStruct);
 	ensure(InExecuteContextStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()));
@@ -11290,7 +11403,7 @@ bool URigVMController::ShouldStructBeUnfolded(const UStruct* Struct)
 	{
 		return false;
 	}
-	if(Struct->IsChildOf(FRigVMUnknownType::StaticStruct()))
+	if(Struct->IsChildOf(RigVMTypeUtils::GetWildCardCPPTypeObject()))
 	{
 		return false;
 	}
@@ -11679,6 +11792,11 @@ void URigVMController::AddPinRedirector(bool bInput, bool bOutput, const FString
 
 bool URigVMController::ShouldRedirectPin(UScriptStruct* InOwningStruct, const FString& InOldRelativePinPath, FString& InOutNewRelativePinPath) const
 {
+	if(InOwningStruct == nullptr) // potentially a template node
+	{
+		return false;
+	}
+	
 	FControlRigStructPinRedirectorKey RedirectorKey(InOwningStruct, InOldRelativePinPath);
 	if (const FString* RedirectedPinPath = PinPathCoreRedirectors.Find(RedirectorKey))
 	{
@@ -11876,9 +11994,16 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	// step 2/3: clear pins on the node and repopulate the node with new pins
 	if (UnitNode != nullptr)
 	{
+		UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct();
+		if (ScriptStruct == nullptr)
+		{
+			// this may be an unresolved template node
+			// in that case there's nothing we can do here
+			return;
+		}
+
 		RemovePinsDuringRepopulate(UnitNode, UnitNode->Pins, bNotify, bSetupOrphanedPins);
 
-		UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct();
 		if (ScriptStruct == nullptr)
 		{
 			ReportWarningf(
@@ -12649,7 +12774,7 @@ FString URigVMController::PostProcessCPPType(const FString& InCPPType, UObject* 
 	}
 	else if (UEnum* Enum = Cast<UEnum>(InCPPTypeObject))
 	{
-		CPPType = Enum->CppType;
+		CPPType = RigVMTypeUtils::CPPTypeFromEnum(Enum);
 	}
 
 	if(CPPType != InCPPType)
@@ -12665,139 +12790,401 @@ FString URigVMController::PostProcessCPPType(const FString& InCPPType, UObject* 
 	return CPPType;
 }
 
-/*
-void URigVMController::PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bSetupUndoRedo)
-{
-	TArray<URigVMNode*> NodesVisited;
-	PotentiallyResolvePrototypeNode(InNode, bSetupUndoRedo, NodesVisited);
-}
-
-void URigVMController::PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bSetupUndoRedo, TArray<URigVMNode*>& NodesVisited)
+void URigVMController::ResolveTemplateNodePins(URigVMTemplateNode* InNode, bool bSetupUndoRedo)
 {
 	if (InNode == nullptr)
 	{
 		return;
 	}
 
-	if (NodesVisited.Contains(InNode))
-	{
-		return;
-	}
-	NodesVisited.Add(InNode);
-
-	// propagate types first
-	for (URigVMPin* Pin : InNode->GetPins())
-	{
-		if (Pin->CPPType.IsEmpty())
-		{
-			TArray<URigVMPin*> LinkedPins = Pin->GetLinkedSourcePins();
-			LinkedPins.Append(Pin->GetLinkedTargetPins());
-
-			for (URigVMPin* LinkedPin : LinkedPins)
-			{
-				if (!LinkedPin->CPPType.IsEmpty())
-				{
-					ChangePinType(Pin, LinkedPin->CPPType, LinkedPin->CPPTypeObjectPath, bSetupUndoRedo);
-					break;
-				}
-			}
-		}
-	}
+	InNode->ResolvedFunctionName.Reset();
 
 	// check if the node is resolved
-	FRigVMPrototype::FTypeMap ResolvedTypes;
-	int32 FunctionIndex = InNode->GetResolvedFunctionIndex(&ResolvedTypes);
-	if (FunctionIndex != INDEX_NONE)
+	TArray<int32> ResolvedPermutationIndices = InNode->GetResolvedPermutationIndices();
+	if(ResolvedPermutationIndices.Num() > 0)
 	{
-		// we have a valid node - let's replace this node... first let's find all 
-		// links and all default values
-		TMap<FString, FString> DefaultValues;
-		TArray<TPair<FString, FString>> LinkPaths;
-
+		TArray<URigVMPin*> ResolvedPins;
+		
 		for (URigVMPin* Pin : InNode->GetPins())
 		{
-			FString DefaultValue = Pin->GetDefaultValue();
-			if (!DefaultValue.IsEmpty())
+			if(!Pin->IsWildCard())
 			{
-				DefaultValues.Add(Pin->GetPinPath(), DefaultValue);
+				continue;
 			}
 
-			TArray<URigVMLink*> Links = Pin->GetSourceLinks(true);
-			Links.Append(Pin->GetTargetLinks(true));
-
-			for (URigVMLink* Link : Links)
+			const FRigVMTemplateArgument* Arg = InNode->GetTemplate()->FindArgument(Pin->GetFName());
+			if(Arg == nullptr)
 			{
-				LinkPaths.Add(TPair<FString, FString>(Link->GetSourcePin()->GetPinPath(), Link->GetTargetPin()->GetPinPath()));
-			}
-		}
-
-		const FRigVMFunction& Function = FRigVMRegistry::Get().GetFunctions()[FunctionIndex];
-		FString NodeName = InNode->GetName();
-		FVector2D NodePosition = InNode->GetPosition();
-
-		RemoveNode(InNode, bSetupUndoRedo);
-
-		if (URigVMNode* NewNode = AddUnitNode(Function.Struct, Function.GetMethodName(), NodePosition, NodeName, bSetupUndoRedo))
-		{
-			// set default values again
-			for (TPair<FString, FString> Pair : DefaultValues)
-			{
-				SetPinDefaultValue(Pair.Key, Pair.Value, true, bSetupUndoRedo, false);
+				continue;
 			}
 
-			// reestablish links
-			for (TPair<FString, FString> Pair : LinkPaths)
+			if(Arg->IsSingleton(ResolvedPermutationIndices))
 			{
-				AddLink(Pair.Key, Pair.Value, bSetupUndoRedo);
-			}
-		}
-
-		return;
-	}
-	else
-	{
-		// update all of the pins that might have changed now as well!
-		for (URigVMPin* Pin : InNode->GetPins())
-		{
-			if (Pin->CPPType.IsEmpty())
-			{
-				if (const FRigVMPrototypeArg::FType* Type = ResolvedTypes.Find(Pin->GetFName()))
+				const FRigVMTemplateArgument::FType ResolvedType = Arg->GetTypes()[ResolvedPermutationIndices[0]];
+				if(ChangePinType(Pin, ResolvedType.CPPType, ResolvedType.CPPTypeObject, bSetupUndoRedo, false, false, false))
 				{
-					if (!Type->CPPType.IsEmpty())
+					ResolvedPins.Add(Pin);
+					
+					if(Pin->IsArray())
 					{
-						ChangePinType(Pin, Type->CPPType, Type->GetCPPTypeObjectPath(), bSetupUndoRedo);
+						const FString BaseCPPType = RigVMTypeUtils::BaseTypeFromArrayType(ResolvedType.CPPType);
+						for(URigVMPin* SubPin : Pin->GetSubPins())
+						{
+							if(SubPin->IsWildCard())
+							{
+								ResolveWildCardPinImpl(SubPin, BaseCPPType, ResolvedType.CPPTypeObject, bSetupUndoRedo, false, false, true);
+							}
+						}
 					}
 				}
 			}
 		}
+
+		if(ResolvedPermutationIndices.Num() == 1)
+		{
+			const FRigVMFunction* ResolvedFunction = InNode->GetTemplate()->GetPermutation(ResolvedPermutationIndices[0]);
+			FullyResolveTemplateNode(InNode, ResolvedFunction, bSetupUndoRedo);
+		}
+
+		// resolve all wires on resolved pins
+		for(URigVMPin* ResolvedPin : ResolvedPins)
+		{
+			// we don't need to recurse since unknown type pins don't have sub pins
+			TArray<URigVMPin*> LinkedPins = ResolvedPin->GetLinkedSourcePins(false); 
+			LinkedPins.Append(ResolvedPin->GetLinkedTargetPins(false));
+
+			for(URigVMPin* LinkedPin : LinkedPins)
+			{
+				if(LinkedPin->IsWildCard())
+				{
+					ResolveWildCardPin(LinkedPin, ResolvedPin, bSetupUndoRedo);
+				}
+			}
+
+		}
 	}
 
-	// then recursively call
-	TArray<URigVMNode*> LinkedNodes = InNode->GetLinkedSourceNodes();
-	LinkedNodes.Append(InNode->GetLinkedTargetNodes());
-	for (URigVMNode* LinkedNode : LinkedNodes)
-	{
-		PotentiallyResolvePrototypeNode(Cast<URigVMPrototypeNode>(LinkedNode), bSetupUndoRedo, NodesVisited);
-	}
+	ResolveTemplateNodeMetaData(InNode);
 }
-*/
 
-void URigVMController::ResolveUnknownTypePin(URigVMPin* InPinToResolve, const URigVMPin* InTemplatePin,
-	bool bSetupUndoRedo, bool bTraverseNode, bool bTraverseParentPins, bool bTraverseLinks)
+void URigVMController::ResolveTemplateNodeMetaData(URigVMTemplateNode* InNode)
+{
+#if WITH_EDITOR
+	check(InNode);
+
+	const FLinearColor PreviousColor = InNode->NodeColor;
+	
+	const TArray<int32> ResolvedPermutationIndices = InNode->GetResolvedPermutationIndices();
+	InNode->NodeColor = InNode->GetTemplate()->GetColor(ResolvedPermutationIndices);
+
+	if(!InNode->NodeColor.Equals(PreviousColor, 0.01f))
+	{
+		Notify(ERigVMGraphNotifType::NodeColorChanged, InNode);
+	}
+#endif
+}
+
+bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, const FRigVMFunction* InFunctionToResolve, bool bSetupUndoRedo)
+{
+	if(bIsFullyResolvingTemplateNode)
+	{
+		return false;
+	}
+	TGuardValue<bool> ReentryGuard(bIsFullyResolvingTemplateNode, true);
+	
+	check(InNode);
+	check(InFunctionToResolve);
+
+	const FRigVMTemplate* Template = InNode->GetTemplate();
+
+	const int32 PermutationIndex = Template->FindPermutation(InFunctionToResolve);
+	if(PermutationIndex == INDEX_NONE)
+	{
+		ReportErrorf(TEXT("Template %s doesn't support function %s::%s."),
+			*Template->GetNotation().ToString(),
+			*InFunctionToResolve->Struct->GetStructCPPName(),
+			*InFunctionToResolve->GetMethodName().ToString()
+		);
+		return false;
+	}
+
+	const TArray<int32> PermutationIndices = {PermutationIndex};
+
+	// find all existing pins that we may need to change
+	TArray<FRigVMTemplateArgument> MissingPins;
+	TArray<URigVMPin*> PinsToRemove;
+	TMap<URigVMPin*, FRigVMTemplateArgument::FType> PinTypesToChange;
+	for(int32 ArgIndex = 0; ArgIndex < Template->NumArguments(); ArgIndex++)
+	{
+		const FRigVMTemplateArgument* Argument = Template->GetArgument(ArgIndex);
+		const FRigVMTemplateArgument::FType ResolvedType = Argument->GetSupportedTypes(PermutationIndices)[0];
+
+		URigVMPin* Pin = InNode->FindPin(Argument->GetName().ToString());
+		if(Pin == nullptr)
+		{
+			ReportErrorf(TEXT("Template node %s is missing a pin for argument %s"),
+				*InNode->GetNodePath(),
+				*Argument->GetName().ToString()
+			);
+			return false;
+		}
+
+		if(Pin->GetCPPType() != ResolvedType.CPPType)
+		{
+			PinTypesToChange.Add(Pin, ResolvedType);
+		}
+	}
+
+	// find all missing pins which are not arguments for the template
+	for (TFieldIterator<FProperty> It(InFunctionToResolve->Struct); It; ++It)
+	{
+		const FRigVMTemplateArgument ExpectedArgument(*It);
+		const FRigVMTemplateArgument::FType ExpectedType = ExpectedArgument.GetSupportedTypes()[0];
+
+		if(URigVMPin* Pin = InNode->FindPin(It->GetFName().ToString()))
+		{
+			if(Pin->GetCPPType() != ExpectedType.CPPType)
+			{
+				PinTypesToChange.Add(Pin, ExpectedType);
+			}
+		}
+		else
+		{
+			MissingPins.Add(ExpectedArgument);
+		}
+	}
+
+	// find all pins which don't have a matching arg on the function
+	for(URigVMPin* Pin : InNode->GetPins())
+	{
+		if(InFunctionToResolve->Struct->FindPropertyByName(Pin->GetFName()) == nullptr)
+		{
+			PinsToRemove.Add(Pin);
+		}
+	}
+
+	// update the cached resolved function name
+	InNode->ResolvedFunctionName = InFunctionToResolve->Name;
+
+	// exit out early if there's nothing to do
+	if(PinTypesToChange.IsEmpty() && MissingPins.IsEmpty() && PinsToRemove.IsEmpty())
+	{
+		ResolveTemplateNodeMetaData(InNode);
+		return true;
+	}
+
+	if(bSetupUndoRedo)
+	{
+		OpenUndoBracket(TEXT("Resolve Template Node"));
+	}
+
+	// update the incorrectly typed pins
+	for(const TPair<URigVMPin*, FRigVMTemplateArgument::FType>& Pair : PinTypesToChange)
+	{
+		URigVMPin* Pin = Pair.Key;
+		const FRigVMTemplateArgument::FType& ExpectedType = Pair.Value;
+		
+		if(!Pin->IsWildCard())
+		{
+			if((Pin->GetCPPType() != ExpectedType.CPPType) ||
+				(Pin->GetCPPTypeObject() != ExpectedType.CPPTypeObject))
+			{
+				const FString CPPType = Pin->IsArray() ? RigVMTypeUtils::GetWildCardArrayCPPType() : RigVMTypeUtils::GetWildCardCPPType();
+				if(!ChangePinType(Pin, CPPType, RigVMTypeUtils::GetWildCardCPPTypeObject(), bSetupUndoRedo, false, true, true))
+				{
+					if(bSetupUndoRedo)
+					{
+						CancelUndoBracket();
+					}
+					return false;
+				}
+			}
+		}
+		
+		if(Pin->IsWildCard())
+		{
+			if(!ResolveWildCardPinImpl(Pin, ExpectedType.CPPType, ExpectedType.CPPTypeObject, bSetupUndoRedo, false, true, true))
+			{
+				if(bSetupUndoRedo)
+				{
+					CancelUndoBracket();
+				}
+				return false;
+			}
+		}
+	}
+
+	// remove obsolete pins
+	for(URigVMPin* PinToRemove : PinsToRemove)
+	{
+		RemovePin(PinToRemove, false, true);
+	}
+
+	// add missing pins
+	for(const FRigVMTemplateArgument& MissingPin : MissingPins)
+	{
+		check(MissingPin.GetDirection() == ERigVMPinDirection::Hidden);
+		
+		FProperty* Property = InFunctionToResolve->Struct->FindPropertyByName(MissingPin.GetName());
+		check(Property);
+
+		URigVMPin* Pin = NewObject<URigVMPin>(Cast<UObject>(InNode), MissingPin.GetName());
+		ConfigurePinFromProperty(Property, Pin, MissingPin.GetDirection());
+
+		AddNodePin(InNode, Pin);
+		Notify(ERigVMGraphNotifType::PinAdded, Pin);
+
+		// we don't need to set the default value here since the pin is hidden
+	}
+
+	if (UnitNodeCreatedContext.IsValid())
+	{
+		if (TSharedPtr<FStructOnScope> StructScope = InNode->ConstructStructInstance())
+		{
+			TGuardValue<FName> NodeNameScope(UnitNodeCreatedContext.NodeName, InNode->GetFName());
+			FRigVMStruct* StructInstance = (FRigVMStruct*)StructScope->GetStructMemory();
+			StructInstance->OnUnitNodeCreated(UnitNodeCreatedContext);
+		}
+	}
+	
+	if(bSetupUndoRedo)
+	{
+		CloseUndoBracket();
+	}
+
+	return true;
+}
+
+bool URigVMController::ResolveWildCardPin(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	UObject* CPPTypeObject = nullptr;
+	if (!InCPPTypeObjectPath.IsNone())
+	{
+		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
+		if (CPPTypeObject == nullptr)
+		{
+			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath.ToString());
+			return false;
+		}
+	}
+
+	const FString CPPType = PostProcessCPPType(InCPPType, CPPTypeObject);
+
+	if (URigVMPin* Pin = Graph->FindPin(InPinPath))
+	{
+		if(Pin->IsWildCard())
+		{
+			FRigVMBaseAction Action;
+			if (bSetupUndoRedo)
+			{
+				Action.Title = TEXT("Resolve Wildcard Pin");
+				ActionStack->BeginAction(Action);
+			}
+			
+			if(ResolveWildCardPinImpl(Pin, CPPType, CPPTypeObject, bSetupUndoRedo))
+			{
+				if(bPrintPythonCommand)
+				{
+					const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
+					const FString SanitizedPinPath = GetSanitizedPinPath(Pin->GetPinPath());
+					const FString CPPObjectPath = CPPTypeObject ? FString::Printf(TEXT("'%s'"), *CPPTypeObject->GetPathName()) : TEXT("None");
+
+					RigVMPythonUtils::Print(GetGraphOuterName(), 
+						FString::Printf(TEXT("blueprint.get_controller_by_name('%s').resolve_wild_card_pin('%s', '%s', %s)"),
+									*GraphName,
+									*SanitizedPinPath,
+									*CPPType,
+									*CPPObjectPath));
+				}
+
+				if (bSetupUndoRedo)
+				{
+					ActionStack->EndAction(Action);
+				}
+				return true;
+			}
+
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+		}
+	}
+
+	return false;
+}
+
+bool URigVMController::ResolveWildCardPin(URigVMPin* InPinToResolve, URigVMPin* InTemplatePin,
+										  bool bSetupUndoRedo, bool bTraverseNode, bool bTraverseParentPins, bool bTraverseLinks)
+{
+	check(InTemplatePin);
+	check(!InTemplatePin->IsWildCard());
+	check(InPinToResolve != InTemplatePin);
+	check(InPinToResolve->GetRootPin() != InTemplatePin->GetRootPin());
+
+	FRigVMBaseAction Action;
+	if (bSetupUndoRedo)
+	{
+		Action.Title = TEXT("Resolve Wildcard Pin");
+		ActionStack->BeginAction(Action);
+	}
+
+	const bool bResult = ResolveWildCardPinImpl(InPinToResolve, InTemplatePin->GetCPPType(), InTemplatePin->GetCPPTypeObject(), bSetupUndoRedo, bTraverseNode, bTraverseParentPins, bTraverseLinks);
+	if(!bResult)
+	{
+		if(InPinToResolve->IsLinkedTo(InTemplatePin))
+		{
+			BreakLink(InPinToResolve, InTemplatePin, bSetupUndoRedo);
+			BreakLink(InTemplatePin, InPinToResolve, bSetupUndoRedo);
+		}
+	}
+
+	if (bSetupUndoRedo)
+	{
+		ActionStack->EndAction(Action);
+	}
+	
+	return bResult;
+}
+
+bool URigVMController::ResolveWildCardPinImpl(URigVMPin* InPinToResolve, const FString& InCPPType, UObject* InCPPTypeObject,
+                                             bool bSetupUndoRedo, bool bTraverseNode, bool bTraverseParentPins, bool bTraverseLinks)
 {
 	check(InPinToResolve);
-	check(InTemplatePin);
-	check(InPinToResolve->IsUnknownType());
-	check(!InTemplatePin->IsUnknownType());
+	check(InPinToResolve->IsWildCard());
+
+	// if we are trying to resolve a pin on the template node...
+	FString CPPType = InCPPType;
+	UObject* CPPTypeObject = InCPPTypeObject;
+	
+	if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPinToResolve->GetNode()))
+	{
+		const FString BaseCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
+		const FString TypeToResolveAgainst = InPinToResolve->GetRootPin()->IsArray() ? RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType) : BaseCPPType; 
+
+		if(!TemplateNode->SupportsType(InPinToResolve->GetRootPin(), TypeToResolveAgainst, &CPPType))
+		{
+			return false;
+		}
+	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	if(bTraverseParentPins)
 	{
 		URigVMPin* RootPin = InPinToResolve->GetRootPin();
-		if(RootPin != InPinToResolve && RootPin->IsUnknownType())
+		if(RootPin != InPinToResolve && RootPin->IsWildCard())
 		{
-			ResolveUnknownTypePin(RootPin, InTemplatePin, bSetupUndoRedo, bTraverseNode, false, bTraverseLinks);
-			return;
+			const FString BaseCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
+			const FString TypeToResolveAgainst = RootPin->IsArray() ? RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType) : BaseCPPType; 
+			return ResolveWildCardPinImpl(RootPin, TypeToResolveAgainst, CPPTypeObject, bSetupUndoRedo, bTraverseNode, false, bTraverseLinks);
 		}
 	}
 
@@ -12805,33 +13192,45 @@ void URigVMController::ResolveUnknownTypePin(URigVMPin* InPinToResolve, const UR
 	{
 		for(URigVMPin* SubPin : InPinToResolve->GetSubPins())
 		{
-			if(SubPin->IsUnknownType())
+			if(SubPin->IsWildCard())
 			{
-				ResolveUnknownTypePin(SubPin, InTemplatePin, bSetupUndoRedo, false, false, bTraverseLinks);
+				const FString BaseCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
+				const FString TypeToResolveAgainst = SubPin->IsArray() ? RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType) : BaseCPPType; 
+				ResolveWildCardPinImpl(SubPin, TypeToResolveAgainst, CPPTypeObject, bSetupUndoRedo, false, false, bTraverseLinks);
 			}
 		}
 	}
 
-	FString ResolvedCPPType = InTemplatePin->IsArray() ? InTemplatePin->GetArrayElementCppType() : InTemplatePin->GetCPPType();
+	FString ResolvedCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
 	if(InPinToResolve->IsArray())
 	{
 		ResolvedCPPType = RigVMTypeUtils::ArrayTypeFromBaseType(ResolvedCPPType);
 	}
 
-	if(!ChangePinType(InPinToResolve, ResolvedCPPType, InTemplatePin->GetCPPTypeObject(), bSetupUndoRedo, false, false, false))
+	if(ChangePinType(InPinToResolve, ResolvedCPPType, CPPTypeObject, bSetupUndoRedo, false, false, false))
 	{
-		return;
+		if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPinToResolve->GetNode()))
+		{
+			ResolveTemplateNodePins(TemplateNode, bSetupUndoRedo);
+		}
+	}
+	else
+	{
+		return false;
 	}
 
 	if(bTraverseNode)
 	{
 		if(const URigVMNode* Node = InPinToResolve->GetNode())
 		{
-			for(URigVMPin* Pin : Node->GetPins())
+			if(!Node->IsA<URigVMTemplateNode>())
 			{
-				if(Pin->IsUnknownType())
+				for(URigVMPin* Pin : Node->GetPins())
 				{
-					ResolveUnknownTypePin(Pin, InTemplatePin, bSetupUndoRedo, false, bTraverseParentPins, bTraverseLinks);
+					if(Pin->IsWildCard())
+					{
+						ResolveWildCardPin(Pin, InPinToResolve, bSetupUndoRedo, false, bTraverseParentPins, bTraverseLinks);
+					}
 				}
 			}
 		}
@@ -12845,12 +13244,17 @@ void URigVMController::ResolveUnknownTypePin(URigVMPin* InPinToResolve, const UR
 
 		for(URigVMPin* LinkedPin : LinkedPins)
 		{
-			if(LinkedPin->IsUnknownType())
+			if(LinkedPin->IsWildCard())
 			{
-				ResolveUnknownTypePin(LinkedPin, InTemplatePin, bSetupUndoRedo);
+				if(!ResolveWildCardPin(LinkedPin, InPinToResolve, bSetupUndoRedo))
+				{
+					return false;
+				}
 			}
 		}
 	}
+
+	return true;
 }
 
 bool URigVMController::ChangePinType(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins, bool bBreakLinks, bool bRemoveSubPins)
@@ -12916,6 +13320,19 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 		return false;
 	}
 
+	// only allow valid pin cpp types on template nodes
+	FString CPPType = InCPPType;
+	if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode()))
+	{
+		if(!TemplateNode->SupportsType(InPin, InCPPType, &CPPType))
+		{
+			return false;
+		}
+
+		const FString BaseCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
+		CPPType = InPin->IsArray() ? RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType) : BaseCPPType;
+	}
+
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	FRigVMBaseAction Action;
 	if (bSetupUndoRedo)
@@ -12935,7 +13352,7 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 			BreakAllLinksRecursive(InPin, true, false, true);
 			BreakAllLinksRecursive(InPin, false, false, true);
 		}
-		ActionStack->AddAction(FRigVMChangePinTypeAction(InPin, InCPPType, CPPTypeObjectPath, bSetupOrphanPins, bBreakLinks, bRemoveSubPins));
+		ActionStack->AddAction(FRigVMChangePinTypeAction(InPin, CPPType, CPPTypeObjectPath, bSetupOrphanPins, bBreakLinks, bRemoveSubPins));
 	}
 	
 	if(bSetupOrphanPins)
@@ -12970,11 +13387,17 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 		
 		InPin->SubPins.Reset();
 	}
+
+	// compute the number of remaining wildcard pins
+	auto WildCardPinCountPredicate = [](const URigVMPin* Pin) { return Pin->IsWildCard(); };
+	TArray<URigVMPin*> AllPins = InPin->GetNode()->GetAllPinsRecursively();
+	int32 RemainingWildCardPins = Algo::CountIf(AllPins, WildCardPinCountPredicate);
+	const bool bPinWasWildCard = InPin->IsWildCard();
 	
-	InPin->CPPType = InCPPType;
+	InPin->CPPType = CPPType;
 	InPin->CPPTypeObjectPath = CPPTypeObjectPath;
 	InPin->CPPTypeObject = InCPPTypeObject;
-	InPin->bIsDynamicArray = RigVMTypeUtils::IsArrayType(InCPPType);
+	InPin->bIsDynamicArray = RigVMTypeUtils::IsArrayType(CPPType);
 	// we might want to use GetPinInitialDefaultValue here for a better default value
 	InPin->DefaultValue = FString();
 
@@ -12983,15 +13406,156 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 		InPin->Direction = ERigVMPinDirection::IO;
 	}
 
-	if (InPin->IsStruct())
+	if (InPin->IsStruct() && !InPin->IsArray())
 	{
 		FString DefaultValue = InPin->DefaultValue;
-		CreateDefaultValueForStructIfRequired(InPin->GetScriptStruct(), DefaultValue);
+		if(!bPinWasWildCard)
+		{
+			CreateDefaultValueForStructIfRequired(InPin->GetScriptStruct(), DefaultValue);
+		}
 		AddPinsForStruct(InPin->GetScriptStruct(), InPin->GetNode(), InPin, InPin->Direction, DefaultValue, false, true);
+	}
+
+	// if this is a template clear its caches
+	if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode()))
+	{
+		TemplateNode->InvalidateCache();
 	}
 
 	Notify(ERigVMGraphNotifType::PinTypeChanged, InPin);
 	Notify(ERigVMGraphNotifType::PinDefaultValueChanged, InPin);
+
+	// let's see if this was the last resolved wildcard pin
+	if(RemainingWildCardPins > 0)
+	{
+		// compute the number of current wildcard pins
+		RemainingWildCardPins = 0;
+		if(InPin->GetNode()->IsA<URigVMTemplateNode>())
+		{
+			AllPins = InPin->GetNode()->GetAllPinsRecursively();
+			RemainingWildCardPins = Algo::CountIf(AllPins, WildCardPinCountPredicate);
+		}
+
+		// if this is the first time that there are no wild card pins left
+		if(RemainingWildCardPins == 0)
+		{
+			struct Local
+			{
+				static bool IsPinDefaultEmpty(URigVMPin* InPin)
+				{
+					const FString DefaultValue = InPin->GetDefaultValue();
+					static const FString EmptyBraces = TEXT("()");
+					return DefaultValue.IsEmpty() || DefaultValue == EmptyBraces;
+				}
+				
+				static void ApplyResolvedDefaultValue(
+					URigVMController* InController, 
+					URigVMPin* InPin, 
+					const FString& RemainingPinPath, 
+					const FString& InDefaultValue, 
+					bool bSetupUndoRedo)
+				{
+					if(InDefaultValue.IsEmpty())
+					{
+						return;
+					}
+					
+					if(RemainingPinPath.IsEmpty())
+					{
+						InController->SetPinDefaultValue(InPin, InDefaultValue, true, bSetupUndoRedo, false);
+						return;
+					}
+
+					FString PinName;
+					FString SubPinPath;
+					if(!URigVMPin::SplitPinPathAtStart(RemainingPinPath, PinName, SubPinPath))
+					{
+						PinName = RemainingPinPath;
+						SubPinPath.Empty();
+					}
+
+					TArray<FString> MemberValuePairs = URigVMPin::SplitDefaultValue(InDefaultValue);
+					for (const FString& MemberValuePair : MemberValuePairs)
+					{
+						FString MemberName, MemberValue;
+						if (MemberValuePair.Split(TEXT("="), &MemberName, &MemberValue))
+						{
+							if(MemberName.Equals(PinName))
+							{
+								ApplyResolvedDefaultValue(InController, InPin, SubPinPath, MemberValue, bSetupUndoRedo);
+								break;
+							}
+						}
+					}
+				}
+			};
+			
+			for(URigVMPin* Pin : AllPins)
+			{
+				// skip struct pins or array pins
+				if(Pin->GetSubPins().Num() > 0)
+				{
+					continue;
+				}
+				
+				if(!Local::IsPinDefaultEmpty(Pin))
+				{
+					continue;
+				}
+
+				if(URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Pin->GetNode()))
+				{
+					if(UnitNode->GetScriptStruct())
+					{
+						TSharedPtr<FStructOnScope> StructOnScope = UnitNode->ConstructStructInstance(true);
+						const FString StructDefaultValue = FRigVMStruct::ExportToFullyQualifiedText(UnitNode->GetScriptStruct(), StructOnScope->GetStructMemory());
+						Local::ApplyResolvedDefaultValue(this, Pin, Pin->GetSegmentPath(true), StructDefaultValue, bSetupUndoRedo);
+						if(!Local::IsPinDefaultEmpty(Pin))
+						{
+							continue;
+						}
+					}
+				}
+
+				// create the default value for the parent struct pin
+				if(Pin->IsStructMember())
+				{
+					const URigVMPin* ParentPin = Pin->GetParentPin();
+					TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(ParentPin->GetScriptStruct()));
+					ParentPin->GetScriptStruct()->InitializeDefaultValue((uint8*)StructOnScope->GetStructMemory());
+					const FString StructDefaultValue = FRigVMStruct::ExportToFullyQualifiedText(ParentPin->GetScriptStruct(), StructOnScope->GetStructMemory());
+					Local::ApplyResolvedDefaultValue(this, Pin, Pin->GetName(), StructDefaultValue, bSetupUndoRedo);
+				}
+				else
+				{
+					// plain types within an array or at the root
+					FString SimpleTypeDefaultValue;
+					if(Pin->GetCPPType() == RigVMTypeUtils::BoolType)
+					{
+						static const FString BoolDefaultValue = TEXT("False");
+						SimpleTypeDefaultValue = BoolDefaultValue;
+					}
+					else if(Pin->GetCPPType() == RigVMTypeUtils::FloatType || Pin->GetCPPType() == RigVMTypeUtils::DoubleType)
+					{
+						static const FString FloatingPointDefaultValue = TEXT("0.000000");
+						SimpleTypeDefaultValue = FloatingPointDefaultValue;
+					}
+					else if(Pin->GetCPPType() == RigVMTypeUtils::Int32Type)
+					{
+						static const FString IntegerDefaultValue = TEXT("0");
+						SimpleTypeDefaultValue = IntegerDefaultValue;
+					}
+					Local::ApplyResolvedDefaultValue(this, Pin, FString(), SimpleTypeDefaultValue, bSetupUndoRedo);
+				}
+			}
+			
+			// todo: update the default value for pins that don't have a default value
+		}
+	}
+
+	// since the resolved pin may affect the node title we need to let
+	// graph views know to invalidate the node title text widget
+	Notify(ERigVMGraphNotifType::NodeDescriptionChanged, InPin->GetNode());
 
 	// in cases were we are just changing the type we have to let the
 	// clients know that the links are still there

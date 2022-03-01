@@ -1000,12 +1000,8 @@ FReply FControlRigGraphDetails::OnAddNewInputClicked()
 						{
 							ArgumentName = *StrippedArgumentName;
 						}
-						
-						CPPType = LastPin->GetCPPType();
-						if (LastPin->GetCPPTypeObject())
-						{
-							CPPTypeObjectPath = *LastPin->GetCPPTypeObject()->GetPathName();
-						}
+
+						RigVMTypeUtils::CPPTypeFromPin(LastPin, CPPType, CPPTypeObjectPath);						
 						DefaultValue = LastPin->GetDefaultValue();
 					}
 				}
@@ -1831,6 +1827,7 @@ void FControlRigGraphMathTypeDetails::CustomizeHeader(TSharedRef<IPropertyHandle
 	do
 	{
 		PropertyChain.AddHead(ChainHandle->GetProperty());
+		PropertyArrayIndices.Insert(ChainHandle->GetIndexInArray(), 0);
 		ChainHandle = ChainHandle->GetParentHandle();
 
 		if(ChainHandle.IsValid())

@@ -596,14 +596,14 @@ int32 URigVM::AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InMeth
 		return FunctionIndex;
 	}
 
-	FRigVMFunctionPtr Function = FRigVMRegistry::Get().FindFunction(*FunctionKey);
+	const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*FunctionKey);
 	if (Function == nullptr)
 	{
 		return INDEX_NONE;
 	}
 
 	GetFunctionNames().Add(*FunctionKey);
-	return GetFunctions().Add(Function);
+	return GetFunctions().Add(Function->FunctionPtr);
 }
 
 FString URigVM::GetRigVMFunctionName(int32 InFunctionIndex) const
@@ -834,7 +834,11 @@ void URigVM::ResolveFunctionsIfRequired()
 
 		for (int32 FunctionIndex = 0; FunctionIndex < GetFunctionNames().Num(); FunctionIndex++)
 		{
-			GetFunctions()[FunctionIndex] = FRigVMRegistry::Get().FindFunction(*GetFunctionNames()[FunctionIndex].ToString());
+			GetFunctions()[FunctionIndex] = nullptr;
+			if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*GetFunctionNames()[FunctionIndex].ToString()))
+			{
+				GetFunctions()[FunctionIndex] = Function->FunctionPtr;
+			}
 			ensureMsgf(GetFunctions()[FunctionIndex], TEXT("Function %s is not valid"), *GetFunctionNames()[FunctionIndex].ToString());
 		}
 	}

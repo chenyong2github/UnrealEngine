@@ -188,7 +188,7 @@ public:
 	// Example: Icon="EditorStyle|GraphEditor.Sequence_16x"
 	static const FName IconMetaName;
 	static const FName KeywordsMetaName;
-	static const FName PrototypeNameMetaName;
+	static const FName TemplateNameMetaName;
 	static const FName ExpandPinByDefaultMetaName;
 	static const FName DefaultArraySizeMetaName;
 	static const FName VaryingMetaName;

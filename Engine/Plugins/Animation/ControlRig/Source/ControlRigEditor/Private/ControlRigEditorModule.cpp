@@ -52,7 +52,7 @@
 #include "Graph/NodeSpawners/ControlRigBranchNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigIfNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigSelectNodeSpawner.h"
-#include "Graph/NodeSpawners/ControlRigPrototypeNodeSpawner.h"
+#include "Graph/NodeSpawners/ControlRigTemplateNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigEnumNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigFunctionRefNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigArrayNodeSpawner.h"
@@ -128,7 +128,6 @@
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
 DEFINE_LOG_CATEGORY(LogControlRigEditor);
-
 
 void FControlRigEditorModule::StartupModule()
 {
@@ -1017,24 +1016,26 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		return;
 	}
 
-	/*
-	for (const FRigVMPrototype& Prototype : FRigVMRegistry::Get().GetPrototypes())
+#if UE_RIGVM_ENABLE_TEMPLATE_NODES
+	
+	for (const FRigVMTemplate& Template : FRigVMRegistry::Get().GetTemplates())
 	{
-		// ignore prototype that have only one function
-		if (Prototype.NumFunctions() <= 1)
+		// ignore templates that have only one permutation
+		if (Template.NumPermutations() <= 1)
 		{
 			continue;
 		}
 
-		FText NodeCategory = FText::FromString(Prototype.GetCategory());
-		FText MenuDesc = FText::FromName(Prototype.GetName());
-		FText ToolTip;
+		FText NodeCategory = FText::FromString(Template.GetCategory());
+		FText MenuDesc = FText::FromName(Template.GetName());
+		FText ToolTip = Template.GetTooltipText();
 
-		UBlueprintNodeSpawner* NodeSpawner = UControlRigPrototypeNodeSpawner::CreateFromNotation(Prototype.GetNotation(), MenuDesc, NodeCategory, ToolTip);
+		UBlueprintNodeSpawner* NodeSpawner = UControlRigTemplateNodeSpawner::CreateFromNotation(Template.GetNotation(), MenuDesc, NodeCategory, ToolTip);
 		check(NodeSpawner != nullptr);
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	};
-	*/
+
+#endif
 
 	// Add all rig units
 	for(const FRigVMFunction& Function : FRigVMRegistry::Get().GetFunctions())
@@ -1045,16 +1046,19 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 			continue;
 		}
 
-		// skip rig units which have a prototype
-		/*
-		if (Function.PrototypeIndex != INDEX_NONE)
+#if UE_RIGVM_ENABLE_TEMPLATE_NODES
+		// skip rig units which have a template
+		if (Function.GetTemplate())
 		{
-			if (FRigVMRegistry::Get().GetPrototypes()[Function.PrototypeIndex].NumFunctions() > 1)
-			{
-				continue;
-			}
+			continue;
 		}
-		*/
+#endif
+
+		// skip deprecated units
+		if(Function.Struct->HasMetaData(FRigVMStruct::DeprecatedMetaName))
+		{
+			continue;
+		}
 
 		FString CategoryMetadata, DisplayNameMetadata, MenuDescSuffixMetadata;
 		Struct->GetStringMetaDataHierarchical(FRigVMStruct::CategoryMetaName, &CategoryMetadata);
@@ -1248,22 +1252,34 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 		if (UEdGraphPin* InGraphPin = (UEdGraphPin* )Context->Pin)
 		{
 			UEdGraph* Graph = InGraphPin->GetOwningNode()->GetGraph();
-			
+
+			bool bIsExecutePin = false;
+			bool bIsUnknownPin = false;
+			if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InGraphPin->PinType.PinSubCategoryObject))
+			{
+				bIsExecutePin = ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct());
+				bIsUnknownPin = ScriptStruct->IsChildOf(RigVMTypeUtils::GetWildCardCPPTypeObject());
+			}
+			const bool bIsEditablePin = !bIsExecutePin && !bIsUnknownPin;
+
 			if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InGraphPin->GetOwningNode()))
 			{
-				// Add the watch pin / unwatch pin menu items
-				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
-				UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Context->Graph);
+				if(bIsEditablePin)
 				{
-					if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, InGraphPin))
+					// Add the watch pin / unwatch pin menu items
+					FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
+					UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Context->Graph);
 					{
-						Section.AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
+						if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, InGraphPin))
+						{
+							Section.AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
+						}
+						else
+						{
+							Section.AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
+						}
 					}
-					else
-					{
-						Section.AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
-					}
-				}				
+				}
 			}
 
 			// Add alphainterp menu entries
@@ -1273,7 +1289,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 				{
 					URigVMController* Controller = RigBlueprint->GetController(ModelPin->GetGraph());
 
-					if (ModelPin->IsArray())
+					if (ModelPin->IsArray() && !bIsExecutePin)
 					{
 						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinArrays", LOCTEXT("PinArrays", "Arrays"));
 						Section.AddMenuEntry(
@@ -1286,7 +1302,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							})
 						));
 		}
-					if(ModelPin->IsArrayElement())
+					if(ModelPin->IsArrayElement() && !bIsExecutePin)
 					{
 						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinArrays", LOCTEXT("PinArrays", "Arrays"));
 						Section.AddMenuEntry(
@@ -1310,7 +1326,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 					}
 
 					if (ModelPin->GetDirection() == ERigVMPinDirection::Input &&
-							!ModelPin->IsExecuteContext())
+							bIsEditablePin)
 					{
 						if (ModelPin->IsBoundToVariable())
 						{
@@ -1353,7 +1369,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						Cast<URigVMArrayNode>(ModelPin->GetNode()) != nullptr)
 					{
 						if (ModelPin->GetDirection() == ERigVMPinDirection::Input && 
-							!ModelPin->IsExecuteContext())
+							bIsEditablePin)
 						{
 							if (!ModelPin->IsBoundToVariable())
 							{
@@ -1431,12 +1447,12 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							bool bBoundToVariable = false;
 							for (URigVMInjectionInfo* Injection : ModelPin->GetInjectedNodes())
 							{
-								FString PrototypeName;
+								FString TemplateName;
 								if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Injection->Node))
 								{
-									if (UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
+									if (UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(FRigVMStruct::TemplateNameMetaName, &TemplateName))
 									{
-										if (PrototypeName == TEXT("AlphaInterp"))
+										if (TemplateName == TEXT("AlphaInterp"))
 										{
 											InterpNode = Injection->Node;
 											break;
@@ -1523,12 +1539,12 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							bool bBoundToVariable = false;
 							for (URigVMInjectionInfo* Injection : ModelPin->GetInjectedNodes())
 							{
-								FString PrototypeName;
+								FString TemplateName;
 								if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Injection->Node))
 								{
-									if (UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
+									if (UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(FRigVMStruct::TemplateNameMetaName, &TemplateName))
 									{
-										if (PrototypeName == TEXT("VisualDebug"))
+										if (TemplateName == TEXT("VisualDebug"))
 										{
 											VisualDebugNode = Injection->Node;
 											break;
@@ -1679,16 +1695,19 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelNode))
 						{
 							ScriptStruct = UnitNode->GetScriptStruct();
-							StructOnScope = UnitNode->ConstructStructInstance(false /* default */);
-							StructMemory = (FRigUnit*)StructOnScope->GetStructMemory();
+							if(ScriptStruct)
+							{
+								StructOnScope = UnitNode->ConstructStructInstance(false /* default */);
+								StructMemory = (FRigUnit*)StructOnScope->GetStructMemory();
 
-							FRigNameCache NameCache;
-							FRigUnitContext RigUnitContext;
-							RigUnitContext.Hierarchy = TemporaryHierarchy;
-							RigUnitContext.State = EControlRigState::Update;
-							RigUnitContext.NameCache = &NameCache;
-							
-							StructMemory->Execute(RigUnitContext);
+								FRigNameCache NameCache;
+								FRigUnitContext RigUnitContext;
+								RigUnitContext.Hierarchy = TemporaryHierarchy;
+								RigUnitContext.State = EControlRigState::Update;
+								RigUnitContext.NameCache = &NameCache;
+								
+								StructMemory->Execute(RigUnitContext);
+							}
 						}
 
 						const TArray<URigVMPin*> AllPins = ModelNode->GetAllPinsRecursively();

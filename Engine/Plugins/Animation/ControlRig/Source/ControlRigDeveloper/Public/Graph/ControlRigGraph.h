@@ -135,6 +135,8 @@ private:
 
 	TMap<URigVMNode*, TPair<int32, int32>> CachedInstructionIndices;
 
+	void RemoveAndDeleteNode(UEdGraphNode* InNode);
+
 #endif
 #if WITH_EDITORONLY_DATA
 
@@ -157,7 +159,7 @@ private:
 	friend class UControlRigBranchNodeSpawner;
 	friend class UControlRigIfNodeSpawner;
 	friend class UControlRigSelectNodeSpawner;
-	friend class UControlRigPrototypeNodeSpawner;
+	friend class UControlRigTemplateNodeSpawner;
 	friend class UControlRigEnumNodeSpawner;
 	friend class UControlRigFunctionRefNodeSpawner;
 	friend class UControlRigArrayNodeSpawner;

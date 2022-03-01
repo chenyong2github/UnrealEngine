@@ -643,7 +643,7 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 				}
 			}
 #endif
-			
+
 			return Controller->AddLink(PinA->GetName(), PinB->GetName(), true, true);
 		}
 	}
@@ -731,7 +731,7 @@ FLinearColor UControlRigGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinT
 				return FLinearColor::White;
 			}
 
-			if (Struct->IsChildOf(FRigVMUnknownType::StaticStruct()))
+			if (Struct->IsChildOf(RigVMTypeUtils::GetWildCardCPPTypeObject()))
 			{
 				return FLinearColor(FVector3f::OneVector * 0.25f);
 			}
@@ -771,7 +771,7 @@ void UControlRigGraphSchema::InsertAdditionalActions(TArray<UBlueprint*> InBluep
 		{
 			if(URigVMPin* ModelPin = RigNode->GetModelPinFromPinPath(EdGraphPins[0]->GetName()))
 			{
-				if(!ModelPin->IsExecuteContext() && !ModelPin->IsUnknownType())
+				if(!ModelPin->IsExecuteContext() && !ModelPin->IsWildCard())
 				{
 					if(!ModelPin->GetNode()->IsA<URigVMVariableNode>())
 					{
@@ -1524,38 +1524,51 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 		return false;
 	}
 
-	if (UControlRigGraphNode* GraphNode = Cast<UControlRigGraphNode>(PinB->GetOwningNode()))
-	{
-	}
-
-	// for reroute nodes - always allow it
-	if (PinA->PinType.PinCategory == TEXT("ANY_TYPE"))
-	{
-		UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
-		MutableThis->LastPinForCompatibleCheck = PinB;
-		MutableThis->bLastPinWasInput = PinB->Direction == EGPD_Input;
-		return true;
-	}
-	if (PinB->PinType.PinCategory == TEXT("ANY_TYPE"))
-	{
-		UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
-		MutableThis->LastPinForCompatibleCheck = PinA;
-		MutableThis->bLastPinWasInput = PinA->Direction == EGPD_Input;
-		return true;
-	}
-
 	// if we are looking at a polymorphic node
 	if((PinA->PinType.ContainerType == PinB->PinType.ContainerType) ||
 		(PinA->PinType.PinSubCategoryObject != PinB->PinType.PinSubCategoryObject))
 	{
-		if(PinA->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && PinA->PinType.PinSubCategoryObject == FRigVMUnknownType::StaticStruct())
+		auto IsPinCompatibleWithType = [](const UEdGraphPin* InPin, const FEdGraphPinType& InPinType) -> bool
 		{
-			bool bIsExecuteContext = false;
-			if(const UScriptStruct* ExecuteContextScriptStruct = Cast<UScriptStruct>(PinB->PinType.PinSubCategoryObject))
+			if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InPinType.PinSubCategoryObject))
 			{
-				bIsExecuteContext = ExecuteContextScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct());
+				if(ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+				{
+					return false;
+				}
 			}
-			if(!bIsExecuteContext)
+
+			if(const UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InPin->GetOwningNode()))
+			{
+				if(const FRigVMTemplate* Template = RigNode->GetTemplate())
+				{
+					FString CPPType;
+					UObject* CPPTypeObject = nullptr;
+					if(RigVMTypeUtils::CPPTypeFromPinType(InPinType, CPPType, &CPPTypeObject))
+					{
+						FString PinPath, PinName;
+						URigVMPin::SplitPinPathAtEnd(InPin->GetName(), PinPath, PinName);
+						
+						if((InPin->ParentPin != nullptr) &&
+							(InPin->ParentPin->ParentPin == nullptr) &&
+							(InPin->ParentPin->PinType.ContainerType == EPinContainerType::Array))
+						{
+							URigVMPin::SplitPinPathAtEnd(InPin->ParentPin->GetName(), PinPath, PinName);
+							CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
+						}
+						if(!Template->ArgumentSupportsType(*PinName, CPPType))
+						{
+							return false;
+						}
+					}
+				}
+			}
+			return true;
+		};
+		
+		if(PinA->PinType.PinSubCategoryObject == RigVMTypeUtils::GetWildCardCPPTypeObject())
+		{
+			if(IsPinCompatibleWithType(PinA, PinB->PinType))
 			{
 				UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
 				MutableThis->LastPinForCompatibleCheck = PinB;
@@ -1563,14 +1576,9 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 				return true;
 			}
 		}
- 		else if(PinB->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && PinB->PinType.PinSubCategoryObject == FRigVMUnknownType::StaticStruct())
+ 		else if(PinB->PinType.PinSubCategoryObject == RigVMTypeUtils::GetWildCardCPPTypeObject())
 		{
-			bool bIsExecuteContext = false;
- 			if(const UScriptStruct* ExecuteContextScriptStruct = Cast<UScriptStruct>(PinA->PinType.PinSubCategoryObject))
- 			{
- 				bIsExecuteContext = ExecuteContextScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct());
- 			}
- 			if(!bIsExecuteContext)
+ 			if(IsPinCompatibleWithType(PinB, PinA->PinType))
  			{
  				UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
  				MutableThis->LastPinForCompatibleCheck = PinA;
@@ -1591,51 +1599,6 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 			PinB->PinType.PinCategory == UEdGraphSchema_K2::PC_Float))
 		{
 			return true;
-		}
-	}
-
-	struct Local
-	{
-		static FString GetCPPTypeFromPinType(const FEdGraphPinType& InPinType)
-		{
-			return FString();
-		}
-	};
-
-	if (PinA->PinType.PinCategory.IsNone() && PinB->PinType.PinCategory.IsNone())
-	{
-		return true;
-	}
-	else if (PinA->PinType.PinCategory.IsNone() && !PinB->PinType.PinCategory.IsNone())
-	{
-		if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(PinA->GetOwningNode()))
-		{
-			if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(RigNode->GetModelNode()))
-			{
-				FString CPPType = Local::GetCPPTypeFromPinType(PinB->PinType);
-				FString Left, Right;
-				URigVMPin::SplitPinPathAtStart(PinA->GetName(), Left, Right);
-				if (URigVMPin* ModelPin = PrototypeNode->FindPin(Right))
-				{
-					return PrototypeNode->SupportsType(ModelPin, CPPType);
-				}
-			}
-		}
-	}
-	else if (!PinA->PinType.PinCategory.IsNone() && PinB->PinType.PinCategory.IsNone())
-	{
-		if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(PinB->GetOwningNode()))
-		{
-			if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(RigNode->GetModelNode()))
-			{
-				FString CPPType = Local::GetCPPTypeFromPinType(PinA->PinType);
-				FString Left, Right;
-				URigVMPin::SplitPinPathAtStart(PinB->GetName(), Left, Right);
-				if (URigVMPin* ModelPin = PrototypeNode->FindPin(Right))
-				{
-					return PrototypeNode->SupportsType(ModelPin, CPPType);
-				}
-			}
 		}
 	}
 

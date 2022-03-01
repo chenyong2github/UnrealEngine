@@ -46,6 +46,7 @@ UControlRigGraphNode::UControlRigGraphNode()
 #if WITH_EDITOR
 , bEnableProfiling(false)
 #endif
+, CachedTemplate(nullptr)
 {
 	bHasCompilerMessage = false;
 	ErrorType = (int32)EMessageSeverity::Info + 1;
@@ -424,6 +425,22 @@ int32 UControlRigGraphNode::GetInstructionIndex(bool bAsInput) const
 	return INDEX_NONE;
 }
 
+const FRigVMTemplate* UControlRigGraphNode::GetTemplate() const
+{
+	if(CachedTemplate == nullptr)
+	{
+		if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(GetModelNode()))
+		{
+			CachedTemplate = TemplateNode->GetTemplate();
+		}
+		else if(ModelNodePath.Contains(TEXT("::Execute(")))
+		{
+			CachedTemplate = FRigVMRegistry::Get().FindTemplate(*ModelNodePath); 
+		}
+	}
+	return CachedTemplate;
+}
+
 FLinearColor UControlRigGraphNode::GetNodeProfilingColor() const
 {
 #if WITH_EDITOR
@@ -768,6 +785,7 @@ bool UControlRigGraphNode::ShowPaletteIconOnNode() const
 			ModelNode->IsA<URigVMFunctionReturnNode>() ||
 			ModelNode->IsA<URigVMFunctionReferenceNode>() ||
 			ModelNode->IsA<URigVMCollapseNode>() ||
+			ModelNode->IsA<URigVMTemplateNode>() ||
 			ModelNode->IsLoopNode() ||
 			Cast<URigVMUnitNode>(ModelNode) != nullptr;
 	}
@@ -783,6 +801,7 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 	static FSlateIcon EntryReturnIcon("EditorStyle", "GraphEditor.Default_16x");
 	static FSlateIcon CollapsedNodeIcon("EditorStyle", "GraphEditor.SubGraph_16x");
 	static FSlateIcon ArrayNodeIteratorIcon("EditorStyle", "GraphEditor.Macro.ForEach_16x");
+	static FSlateIcon TemplateNodeIcon("ControlRigEditorStyle", "ControlRig.Template");
 
 	if (URigVMNode* ModelNode = GetModelNode())
 	{
@@ -815,16 +834,14 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 			}
 		}
 
+		if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
+		{
+			return TemplateNodeIcon;
+		}
+
 		if (URigVMUnitNode *UnitNode = Cast<URigVMUnitNode>(ModelNode))
 		{
-			ensure(UnitNode->GetScriptStruct());
-			
 			FString IconPath;
-
-			// icon path format: StyleSetName|StyleName|SmallStyleName|StatusOverlayStyleName
-			// the last two names are optional, see FSlateIcon() for reference
-			UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(FRigVMStruct::IconMetaName, &IconPath);
-
 			const int32 NumOfIconPathNames = 4;
 			
 			FName IconPathNames[NumOfIconPathNames] = {
@@ -834,26 +851,31 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 				NAME_None  // StatusOverlayStyleName
 			};
 
-			int32 NameIndex = 0;
-
-			while (!IconPath.IsEmpty() && NameIndex < NumOfIconPathNames)
+			if(UnitNode->GetScriptStruct())
 			{
-				FString Left;
-				FString Right;
+				// icon path format: StyleSetName|StyleName|SmallStyleName|StatusOverlayStyleName
+				// the last two names are optional, see FSlateIcon() for reference
+				UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(FRigVMStruct::IconMetaName, &IconPath);
 
-				if (!IconPath.Split(TEXT("|"), &Left, &Right))
+				int32 NameIndex = 0;
+
+				while (!IconPath.IsEmpty() && NameIndex < NumOfIconPathNames)
 				{
-					Left = IconPath;
+					FString Left;
+					FString Right;
+
+					if (!IconPath.Split(TEXT("|"), &Left, &Right))
+					{
+						Left = IconPath;
+					}
+
+					IconPathNames[NameIndex] = FName(*Left);
+
+					NameIndex++;
+					IconPath = Right;
 				}
-
-				IconPathNames[NameIndex] = FName(*Left);
-
-				NameIndex++;
-				IconPath = Right;
 			}
-
 			return FSlateIcon(IconPathNames[0], IconPathNames[1], IconPathNames[2], IconPathNames[3]);
-			
 		}
 	}
 
@@ -1105,8 +1127,22 @@ void UControlRigGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 
 	const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
 
+	// copying high level information into a local array since the try create connection below
+	// may cause the pin array to be destroyed / changed
+	TArray<TPair<FName, EEdGraphPinDirection>> PinsToVisit;
 	for(UEdGraphPin* Pin : Pins)
 	{
+		PinsToVisit.Emplace(Pin->GetFName(), Pin->Direction);
+	}
+
+	for(const TPair<FName, EEdGraphPinDirection>& PinToVisit : PinsToVisit)
+	{
+		UEdGraphPin* Pin = FindPin(PinToVisit.Key, PinToVisit.Value);
+		if(Pin == nullptr)
+		{
+			continue;
+		}
+		
 		if (Pin->ParentPin != nullptr)
 		{
 			continue;
@@ -1118,9 +1154,9 @@ void UControlRigGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 			if (Schema->TryCreateConnection(FromPin, Pin))
 			{
 				break;
-					}
-				}
+			}
 		}
+	}
 }
 
 bool UControlRigGraphNode::IsSelectedInEditor() const

@@ -461,6 +461,9 @@ void UControlRigBlueprint::PostLoad()
 		PatchVariableNodesWithIncorrectType();
 		PatchRigElementKeyCacheOnLoad();
 		PatchBoundVariables();
+#if UE_RIGVM_ENABLE_TEMPLATE_NODES
+		ConvertUnitNodesToTemplateNodes();
+#endif
 
 #if WITH_EDITOR
 
@@ -2303,7 +2306,7 @@ bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const F
 	}
 	else if (UEnum* Enum= URigVMPin::FindObjectFromCPPTypeObjectPath<UEnum>(CPPType))
 	{
-		Variable.TypeName = *Enum->CppType;
+		Variable.TypeName = *RigVMTypeUtils::CPPTypeFromEnum(Enum);
 		Variable.TypeObject = Enum;
 		Variable.Size = Enum->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal);
 	}
@@ -3604,9 +3607,10 @@ void UControlRigBlueprint::PatchRigElementKeyCacheOnLoad()
 				if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
 				{
 					UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct();
-					FString FunctionName = FString::Printf(TEXT("F%s::%s"), *ScriptStruct->GetName(), *UnitNode->GetMethodName().ToString());
-					FRigVMFunction Function = FRigVMRegistry::Get().FindFunctionInfo(*FunctionName);
-					for (TFieldIterator<FProperty> It(Function.Struct); It; ++It)
+					FString FunctionName = FString::Printf(TEXT("%s::%s"), *ScriptStruct->GetStructCPPName(), *UnitNode->GetMethodName().ToString());
+					const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*FunctionName);
+					check(Function);
+					for (TFieldIterator<FProperty> It(Function->Struct); It; ++It)
 					{
 						if (It->GetCPPType() == TEXT("FCachedRigElement"))
 						{
@@ -3730,6 +3734,21 @@ void UControlRigBlueprint::PatchVariableNodesWithIncorrectType()
 					}
 				}
 			}
+		}
+	}
+}
+
+void UControlRigBlueprint::ConvertUnitNodesToTemplateNodes()
+{
+	TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
+
+	for (URigVMGraph* Graph : GetAllModels())
+	{
+		URigVMController* Controller = GetOrCreateController(Graph);
+		TArray<URigVMNode*> Nodes = Graph->GetNodes();
+		for (URigVMNode* Node : Nodes)
+		{
+			Controller->ReplaceUnitNodeWithTemplateNode(Node->GetFName(), false);
 		}
 	}
 }

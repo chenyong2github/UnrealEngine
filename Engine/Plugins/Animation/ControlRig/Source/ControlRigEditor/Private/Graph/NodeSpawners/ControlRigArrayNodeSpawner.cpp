@@ -127,31 +127,7 @@ UEdGraphNode* UControlRigArrayNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindin
 	UControlRigGraphNode* NewNode = nullptr;
 
 	bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
-
-	if (bIsTemplateNode)
-	{
-		NewNode = NewObject<UControlRigGraphNode>(ParentGraph, TEXT("ArrayNode"));
-		ParentGraph->AddNode(NewNode, false);
-
-		NewNode->CreateNewGuid();
-		NewNode->PostPlacedNewNode();
-
-		UEdGraphPin* InputValuePin = UEdGraphPin::CreatePin(NewNode);
-		UEdGraphPin* OutputValuePin = UEdGraphPin::CreatePin(NewNode);
-		NewNode->Pins.Add(InputValuePin);
-		NewNode->Pins.Add(OutputValuePin);
-
-		InputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
-		OutputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
-		InputValuePin->Direction = EGPD_Input;
-		OutputValuePin->Direction = EGPD_Output;
-		NewNode->SetFlags(RF_Transactional);
-
-		return NewNode;
-	}
-
-
-	bool const bUndo = !bIsTemplateNode;
+	bool const bIsUserFacingNode = !bIsTemplateNode;
 
 	// First create a backing member for our node
 	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
@@ -159,27 +135,18 @@ UEdGraphNode* UControlRigArrayNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindin
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
 	check(RigBlueprint);
 
-	FString CPPType = FRigVMUnknownType::StaticStruct()->GetStructCPPName();
-	FString CPPTypeObjectPath = FRigVMUnknownType::StaticStruct()->GetPathName();
+	FString CPPType = RigVMTypeUtils::GetWildCardCPPType();
+	FString CPPTypeObjectPath = RigVMTypeUtils::GetWildCardCPPTypeObject()->GetPathName();
 
-	if (UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>((UEdGraphSchema*)ParentGraph->GetSchema()))
+	if(bIsUserFacingNode)
 	{
-		if (const UEdGraphPin* LastPin = RigSchema->LastPinForCompatibleCheck)
+		if (UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>((UEdGraphSchema*)ParentGraph->GetSchema()))
 		{
-			if (URigVMPin* ModelPin = RigBlueprint->GetModel(ParentGraph)->FindPin(LastPin->GetName()))
+			if (const UEdGraphPin* LastPin = RigSchema->LastPinForCompatibleCheck)
 			{
-				CPPType = ModelPin->GetCPPType();
-				if(ModelPin->IsArray())
+				if (URigVMPin* ModelPin = RigBlueprint->GetModel(ParentGraph)->FindPin(LastPin->GetName()))
 				{
-					CPPType = ModelPin->GetArrayElementCppType();
-				}
-				if (ModelPin->GetCPPTypeObject())
-				{
-					CPPTypeObjectPath = *ModelPin->GetCPPTypeObject()->GetPathName();
-				}
-				else
-				{
-					CPPTypeObjectPath = FString();
+					RigVMTypeUtils::CPPTypeFromPin(ModelPin, CPPType, CPPTypeObjectPath, true);
 				}
 			}
 		}
@@ -204,24 +171,28 @@ UEdGraphNode* UControlRigArrayNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindin
 		Controller->OpenUndoBracket(FString::Printf(TEXT("Add '%s' Node"), *Name.ToString()));
 	}
 
-	if (URigVMArrayNode* ModelNode = Controller->AddArrayNodeFromObjectPath(OpCode, CPPType, CPPTypeObjectPath, Location, Name.ToString(), bUndo, !bIsTemplateNode))
+	if (URigVMArrayNode* ModelNode = Controller->AddArrayNodeFromObjectPath(OpCode, CPPType, CPPTypeObjectPath, Location, Name.ToString(), bIsUserFacingNode, !bIsTemplateNode))
 	{
 		NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
 
-		if (NewNode && bUndo)
+		if (NewNode && bIsUserFacingNode)
 		{
 			Controller->ClearNodeSelection(true);
 			Controller->SelectNode(ModelNode, true, true);
 		}
 
-		if (bUndo)
+		if (bIsUserFacingNode)
 		{
 			Controller->CloseUndoBracket();
+		}
+		else
+		{
+			Controller->RemoveNode(ModelNode, false);
 		}
 	}
 	else
 	{
-		if (bUndo)
+		if (bIsUserFacingNode)
 		{
 			Controller->CancelUndoBracket();
 		}

@@ -34,6 +34,7 @@ UControlRigRerouteNodeSpawner* UControlRigRerouteNodeSpawner::CreateGeneric(cons
 	MenuSignature.Tooltip  = InTooltip;
 	MenuSignature.Category = InCategory;
 	MenuSignature.Keywords = FText::FromString(TEXT("Reroute,Elbow,Wire,Literal,Make Literal,Constant"));
+	MenuSignature.Icon = FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.RigUnit"));
 
 	return NodeSpawner;
 }
@@ -63,6 +64,7 @@ UEdGraphNode* UControlRigRerouteNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 	UControlRigGraphNode* NewNode = nullptr;
 
 	bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
+	bool const bIsUserFacingNode = !bIsTemplateNode;
 
 	// First create a backing member for our node
 	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
@@ -73,41 +75,24 @@ UEdGraphNode* UControlRigRerouteNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 	FName MemberName = NAME_None;
 
 #if WITH_EDITOR
-	if (GEditor && !bIsTemplateNode)
+	if (GEditor && bIsUserFacingNode)
 	{
 		GEditor->CancelTransaction(0);
 	}
 #endif
 
-	if (bIsTemplateNode)
+	URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->GetController(ParentGraph);
+
+	if(bIsUserFacingNode)
 	{
-		NewNode = NewObject<UControlRigGraphNode>(ParentGraph, TEXT("RerouteNode"));
-		ParentGraph->AddNode(NewNode, false);
-		
-		NewNode->CreateNewGuid();
-		NewNode->PostPlacedNewNode();
-
-		UEdGraphPin* InputValuePin = UEdGraphPin::CreatePin(NewNode);
-		UEdGraphPin* OutputValuePin = UEdGraphPin::CreatePin(NewNode);
-		NewNode->Pins.Add(InputValuePin);
-		NewNode->Pins.Add(OutputValuePin);
-
-		InputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
-		OutputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
-		InputValuePin->Direction = EGPD_Input;
-		OutputValuePin->Direction = EGPD_Output;
-		NewNode->SetFlags(RF_Transactional);
-
-		return NewNode;
-	}
-	else
-	{
-		URigVMController* Controller = RigBlueprint->GetController(ParentGraph);
 		Controller->OpenUndoBracket(TEXT("Added Reroute Node."));
+	}
 
-		FString PinPath;
-		bool bIsInput = false;
+	FString PinPath;
+	bool bIsInput = false;
 
+	if(bIsUserFacingNode)
+	{
 		if (UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>((UEdGraphSchema*)ParentGraph->GetSchema()))
 		{
 			bIsInput = RigSchema->bLastPinWasInput;
@@ -120,59 +105,48 @@ UEdGraphNode* UControlRigRerouteNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 				}
 			}
 		}
+	}
 
-		if (URigVMNode* ModelNode = Controller->AddRerouteNodeOnPin(PinPath, bIsInput, true, Location, FString(), true, true))
+	URigVMNode* ModelNode = nullptr;
+	if(!PinPath.IsEmpty())
+	{
+		ModelNode = Controller->AddRerouteNodeOnPin(PinPath, bIsInput, true, Location, FString(), bIsUserFacingNode, bIsUserFacingNode);
+	}
+	else
+	{
+		static const FString CPPType = RigVMTypeUtils::GetWildCardCPPType();
+		static const FName CPPTypeObjectPath = *RigVMTypeUtils::GetWildCardCPPTypeObject()->GetPathName();
+		ModelNode = Controller->AddFreeRerouteNode(true, CPPType, CPPTypeObjectPath, false, NAME_None, FString(), Location, FString(), bIsUserFacingNode);
+	}
+
+	if (ModelNode)
+	{
+		NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
+
+		if (NewNode)
 		{
-			for (UEdGraphNode* Node : ParentGraph->Nodes)
-			{
-				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
-				{
-					if (RigNode->GetModelNodeName() == ModelNode->GetFName())
-					{
-						NewNode = RigNode;
-						break;
-					}
-				}
-			}
+			Controller->ClearNodeSelection(bIsUserFacingNode);
+			Controller->SelectNode(ModelNode, true, bIsUserFacingNode);
+		}
 
-			if (NewNode)
-			{
-				Controller->ClearNodeSelection(true);
-				Controller->SelectNode(ModelNode, true, true);
-			}
+		if(bIsUserFacingNode)
+		{
 			Controller->CloseUndoBracket();
 		}
 		else
+		{
+			Controller->RemoveNode(ModelNode, false);
+		}
+	}
+	else
+	{
+		if(bIsUserFacingNode)
 		{
 			Controller->CancelUndoBracket();
 		}
 	}
 
 	return NewNode;
-}
-
-bool UControlRigRerouteNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
-{
-	for (UBlueprint* Blueprint : Filter.Context.Blueprints)
-	{
-		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint))
-		{
-			if (Filter.Context.Pins.Num() == 0)
-			{
-				return true;
-			}
-			for (UEdGraphPin* Pin : Filter.Context.Pins)
-			{
-				if (Pin->PinType.ContainerType != EPinContainerType::None && Pin->PinType.ContainerType != EPinContainerType::Array)
-				{
-					return true;
-				}
-			}
-
-			return false;
-		}
-	}
-	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

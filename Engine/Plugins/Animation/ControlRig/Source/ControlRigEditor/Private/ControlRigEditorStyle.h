@@ -97,6 +97,7 @@ public:
 			
 			// icons for control units
 			Set("ControlRig.RigUnit", new IMAGE_BRUSH("Slate/ControlRigUnit_16x", Icon16x16));
+			Set("ControlRig.Template", new IMAGE_BRUSH("Slate/Template_16x", Icon16x16));
 
 			Set("ControlRig.AutoCompileGraph", new IMAGE_BRUSH("Slate/AutoCompile", Icon20x20));
 			Set("ControlRig.AutoCompileGraph.Small", new IMAGE_BRUSH("Slate/AutoCompile", Icon20x20));

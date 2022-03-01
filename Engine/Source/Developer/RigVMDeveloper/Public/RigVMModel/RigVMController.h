@@ -12,13 +12,17 @@
 #include "RigVMModel/Nodes/RigVMBranchNode.h"
 #include "RigVMModel/Nodes/RigVMIfNode.h"
 #include "RigVMModel/Nodes/RigVMSelectNode.h"
-#include "RigVMModel/Nodes/RigVMPrototypeNode.h"
+#include "RigVMModel/Nodes/RigVMTemplateNode.h"
 #include "RigVMModel/Nodes/RigVMEnumNode.h"
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/Nodes/RigVMArrayNode.h"
 #include "RigVMModel/RigVMBuildData.h"
 #include "RigVMController.generated.h"
+
+#ifndef UE_RIGVM_ENABLE_TEMPLATE_NODES
+#define UE_RIGVM_ENABLE_TEMPLATE_NODES 0
+#endif
 
 class URigVMActionStack;
 
@@ -209,6 +213,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMVariableNode* ReplaceParameterNodeWithVariable(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo);
 
+	// Refreshes the unit node to be backed up by a template instead 
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMTemplateNode* ReplaceUnitNodeWithTemplateNode(const FName& InNodeName, bool bSetupUndoRedo);
+
 	// Adds a Parameter Node to the edited Graph.
 	// Parameters represent input or output arguments to the Graph / Function.
 	// Input Parameters are constant values / literals.
@@ -274,10 +282,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMSelectNode* AddSelectNodeFromStruct(UScriptStruct* InScriptStruct, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
 
-
-	// Adds a prototype node to the graph.
+	// Adds a template node to the graph.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMPrototypeNode* AddPrototypeNode(const FName& InNotation, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+	URigVMTemplateNode* AddTemplateNode(const FName& InNotation, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
+	// Resolves a wildcard pin on any node
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool ResolveWildCardPin(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Function / Struct Node to the edited Graph as an injected node
 	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
@@ -687,7 +698,7 @@ public:
 	TArray<FAssetData> GetAffectedAssets(ERigVMControllerBulkEditType InEditType, bool bForceLoad = false, bool bNotify = true);
 
 	// Sets the execute context struct type to use
-	void SetExecuteContextStruct(UStruct* InExecuteContextStruct);
+	void SetExecuteContextStruct(UScriptStruct* InExecuteContextStruct);
 
 	// A delegate that can be set to change the struct unfolding behaviour
 	FRigVMController_ShouldStructUnfoldDelegate UnfoldStructDelegate;
@@ -825,7 +836,7 @@ private:
 
 	// try to reconnect source and target pins after a node deletion
 	void RelinkSourceAndTargetPins(URigVMNode* RigNode, bool bSetupUndoRedo = true);
-	
+
 public:
 	bool AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo = true);
 	bool BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo = true);
@@ -871,11 +882,11 @@ private:
 	static void PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefaultValue);
 	static FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject);
 
-	/*
-	void PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bSetupUndoRedo);
-	void PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bSetupUndoRedo, TArray<URigVMNode*>& NodesVisited);
-	*/
-	void ResolveUnknownTypePin(URigVMPin* InPinToResolve, const URigVMPin* InTemplatePin, bool bSetupUndoRedo, bool bTraverseNode = true, bool bTraverseParentPins = true, bool bTraverseLinks = true);
+	bool ResolveWildCardPin(URigVMPin* InPinToResolve, URigVMPin* InTemplatePin, bool bSetupUndoRedo, bool bTraverseNode = true, bool bTraverseParentPins = true, bool bTraverseLinks = true);
+	bool ResolveWildCardPinImpl(URigVMPin* InPinToResolve, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bTraverseNode = true, bool bTraverseParentPins = true, bool bTraverseLinks = true);
+	void ResolveTemplateNodePins(URigVMTemplateNode* InNode, bool bSetupUndoRedo);
+	void ResolveTemplateNodeMetaData(URigVMTemplateNode* InNode);
+	bool FullyResolveTemplateNode(URigVMTemplateNode* InNode, const FRigVMFunction* InFunctionToResolve, bool bSetupUndoRedo);
 	bool ChangePinType(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true);
 	bool ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true);
 	bool ChangePinType(URigVMPin* InPin, const FString& InCPPType,UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bSetupOrphanPins = true, bool bBreakLinks = true, bool bRemoveSubPins = true);
@@ -918,7 +929,7 @@ private:
 	TArray<TObjectPtr<URigVMGraph>> Graphs;
 
 	UPROPERTY()
-	TObjectPtr<UStruct> ExecuteContextStruct;
+	TObjectPtr<UScriptStruct> ExecuteContextStruct;
 
 	UPROPERTY(transient)
 	TObjectPtr<URigVMActionStack> ActionStack;
@@ -969,6 +980,7 @@ private:
 	FRigVMUnitNodeCreatedContext UnitNodeCreatedContext;
 
 	bool bIsRunningUnitTest;
+	bool bIsFullyResolvingTemplateNode;
 
 	friend class URigVMGraph;
 	friend class URigVMPin;

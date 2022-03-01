@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "RigVMMemory.h"
 #include "RigVMFunction.h"
-#include "RigVMPrototype.h"
+#include "RigVMTemplate.h"
 
 /**
  * The FRigVMRegistry is used to manage all known function pointers
@@ -29,27 +29,24 @@ public:
 	// based on the names.
 	void Refresh();
 
-	// Returns a function pointer given its name
-	FRigVMFunctionPtr FindFunction(const TCHAR* InName) const;
+	// Returns the function given its name (or nullptr)
+	const FRigVMFunction* FindFunction(const TCHAR* InName) const;
 
-	// Returns a prototype pointer given its notation (or nullptr)
-	const FRigVMPrototype* FindPrototype(const FName& InNotation) const;
-
-	// Returns a prototype pointer given its notation (or nullptr)
-	const FRigVMPrototype* FindPrototype(UScriptStruct* InStruct, const FString& InPrototypeName) const;
-
-	// Returns registry info about a function given its name
-	FRigVMFunction FindFunctionInfo(const TCHAR* InName) const;
+	// Returns the function given its backing up struct and method name
+	const FRigVMFunction* FindFunction(UScriptStruct* InStruct, const TCHAR* InName) const;
 
 	// Returns all current rigvm functions
 	const TArray<FRigVMFunction>& GetFunctions() const;
 
+	// Returns a template pointer given its notation (or nullptr)
+	const FRigVMTemplate* FindTemplate(const FName& InNotation) const;
+
 	// Returns all current rigvm functions
-	const TArray<FRigVMPrototype>& GetPrototypes() const;
+	const TArray<FRigVMTemplate>& GetTemplates() const;
 
 private:
 
-	static const FName PrototypeNameMetaName;
+	static const FName TemplateNameMetaName;
 
 	// disable default constructor
 	FRigVMRegistry() {}
@@ -61,8 +58,15 @@ private:
 	// memory for all functions
 	TArray<FRigVMFunction> Functions;
 
-	// memory for all prototypes
-	TArray<FRigVMPrototype> Prototypes;
+	// memory for all templates
+	TArray<FRigVMTemplate> Templates;
+
+	// name lookup for functions
+	TMap<FName, int32> FunctionNameToIndex;
+
+	// name lookup for templates
+	TMap<FName, int32> TemplateNotationToIndex;
 
 	static FRigVMRegistry s_RigVMRegistry;
+	friend struct FRigVMStruct;
 };

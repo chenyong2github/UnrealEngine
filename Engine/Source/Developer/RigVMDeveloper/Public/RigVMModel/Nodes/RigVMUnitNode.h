@@ -33,11 +33,11 @@ public:
 	// Returns the UStruct for this unit node
 	// (the struct declaring the RIGVM_METHOD)
 	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)
-	UScriptStruct* GetScriptStruct() const;
+	virtual UScriptStruct* GetScriptStruct() const;
 
 	// Returns the name of the declared RIGVM_METHOD
 	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)
-	FName GetMethodName() const;
+	virtual FName GetMethodName() const;
 
 	// Returns the default value for the struct as text
 	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)

@@ -226,6 +226,30 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		ControlRigSchema->HandleModifiedEvent(InNotifType, InGraph, InSubject);
 	}
 
+	if(TemplateController)
+	{
+		switch(InNotifType)
+		{
+			case ERigVMGraphNotifType::NodeRemoved:
+			case ERigVMGraphNotifType::PinTypeChanged:
+			case ERigVMGraphNotifType::PinDefaultValueChanged:
+			case ERigVMGraphNotifType::PinRemoved:
+			case ERigVMGraphNotifType::PinRenamed:
+			case ERigVMGraphNotifType::VariableRemoved:
+			case ERigVMGraphNotifType::VariableRenamed:
+			case ERigVMGraphNotifType::ParameterRemoved:
+			case ERigVMGraphNotifType::ParameterRenamed:
+			case ERigVMGraphNotifType::GraphChanged:
+			{
+				return;
+			}
+			default:
+			{
+				break;
+			}
+		}
+	}
+
 	// increment the node topology version for any interaction
 	// with a node.
 	{
@@ -396,30 +420,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName(), false);
 				if (EdNode)
 				{
-					static UObject* NewOuter = GetTransientPackage();
-					
-					// Rename the soon to be deleted object to a unique name, so that other objects can use
-					// the old name
-					{
-						FString DeletedName;
-						UObject* ExistingObject = nullptr;
-						int32 Index = FMath::Rand();
-						do
-						{
-							DeletedName = FString::Printf(TEXT("%s_Deleted_%d"), *EdNode->GetName(), Index++); 
-							ExistingObject = StaticFindObject(/*Class=*/ NULL, NewOuter, *DeletedName, true);						
-						}
-						while (ExistingObject);
-						EdNode->Rename(*DeletedName, NewOuter, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-					}
-
-					// Remove the node and notify of the removal
-					{
-						Nodes.Remove(EdNode);
-						EdNode->BreakAllNodeLinks();
-						
-						NotifyGraphChanged();
-					}
+					RemoveAndDeleteNode(EdNode);
 				}
 			}
 			break;
@@ -452,6 +453,19 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			}
 			break;
 		}
+		case ERigVMGraphNotifType::NodeDescriptionChanged:
+		case ERigVMGraphNotifType::NodeCategoryChanged:
+		{
+			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
+			{
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
+				{
+					RigNode->InvalidateNodeTitle();
+					RigNode->ReconstructNode_Internal(true);
+				}
+			}
+			break;
+		}
 		case ERigVMGraphNotifType::RerouteCompactnessChanged:
 		{
 			if (URigVMRerouteNode* ModelNode = Cast<URigVMRerouteNode>(InSubject))
@@ -478,7 +492,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		{
 			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
 			{
-				if (ModelNode->IsA<URigVMLibraryNode>())
+				if (ModelNode->IsA<URigVMLibraryNode>() || ModelNode->IsA<URigVMTemplateNode>())
 				{
 					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
 					{
@@ -908,6 +922,34 @@ URigVMController* UControlRigGraph::GetController() const
 		return Blueprint->GetOrCreateController(this);
 	}
 	return nullptr;
+}
+
+void UControlRigGraph::RemoveAndDeleteNode(UEdGraphNode* InNode)
+{
+	static UObject* NewOuter = GetTransientPackage();
+					
+	// Rename the soon to be deleted object to a unique name, so that other objects can use
+	// the old name
+	{
+		FString DeletedName;
+		UObject* ExistingObject = nullptr;
+		static int32 DeletedIndex = FMath::Rand();
+		do
+		{
+			DeletedName = FString::Printf(TEXT("%s_Deleted_%d"), *InNode->GetName(), DeletedIndex++); 
+			ExistingObject = StaticFindObject(/*Class=*/ NULL, NewOuter, *DeletedName, true);						
+		}
+		while (ExistingObject);
+		InNode->Rename(*DeletedName, NewOuter, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+	}
+
+	// Remove the node and notify of the removal
+	{
+		Nodes.Remove(InNode);
+		InNode->BreakAllNodeLinks();
+						
+		NotifyGraphChanged();
+	}
 }
 
 URigVMController* UControlRigGraph::GetTemplateController()

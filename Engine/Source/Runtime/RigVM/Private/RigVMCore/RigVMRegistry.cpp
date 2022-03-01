@@ -5,7 +5,7 @@
 #include "UObject/UObjectIterator.h"
 
 FRigVMRegistry FRigVMRegistry::s_RigVMRegistry;
-const FName FRigVMRegistry::PrototypeNameMetaName = TEXT("PrototypeName");
+const FName FRigVMRegistry::TemplateNameMetaName = TEXT("PrototypeName");
 
 FRigVMRegistry& FRigVMRegistry::Get()
 {
@@ -23,13 +23,14 @@ void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionP
 		return;
 	}
 
-	FRigVMFunction Function(InName, InFunctionPtr, InStruct, Functions.Num());
+	const FRigVMFunction Function(InName, InFunctionPtr, InStruct, Functions.Num());
 	Functions.Add(Function);
+	FunctionNameToIndex.Add(InName, Function.Index);
 
 #if WITH_EDITOR
 	
-	FString PrototypeMetadata;
-	if (InStruct->GetStringMetaDataHierarchical(PrototypeNameMetaName, &PrototypeMetadata))
+	FString TemplateMetadata;
+	if (InStruct->GetStringMetaDataHierarchical(TemplateNameMetaName, &TemplateMetadata))
 	{
 		if(InStruct->HasMetaData(FRigVMStruct::DeprecatedMetaName))
 		{
@@ -39,25 +40,33 @@ void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionP
 		FString MethodName;
 		if (FString(InName).Split(TEXT("::"), nullptr, &MethodName))
 		{
-			FString PrototypeName = FString::Printf(TEXT("%s::%s"), *PrototypeMetadata, *MethodName);
-			FRigVMPrototype Prototype(InStruct, PrototypeName, Function.Index);
-			if (Prototype.IsValid())
+			const FString TemplateName = FString::Printf(TEXT("%s::%s"), *TemplateMetadata, *MethodName);
+			FRigVMTemplate Template(InStruct, TemplateName, Function.Index);
+			if (Template.IsValid())
 			{
 				bool bWasMerged = false;
-				for (FRigVMPrototype& ExistingPrototype : Prototypes)
+
+				const int32* ExistingTemplateIndexPtr = TemplateNotationToIndex.Find(Template.GetNotation());
+				if(ExistingTemplateIndexPtr)
 				{
-					if (ExistingPrototype.Merge(Prototype))
+					FRigVMTemplate& ExistingTemplate = Templates[*ExistingTemplateIndexPtr];
+					if (ExistingTemplate.Merge(Template))
 					{
-						Functions[Function.Index].PrototypeIndex = ExistingPrototype.Index;
+						Functions[Function.Index].TemplateIndex = ExistingTemplate.Index;
 						bWasMerged = true;
 					}
 				}
 
 				if (!bWasMerged)
 				{
-					Prototype.Index = Prototypes.Num();
-					Functions[Function.Index].PrototypeIndex = Prototype.Index;
-					Prototypes.Add(Prototype);
+					Template.Index = Templates.Num();
+					Functions[Function.Index].TemplateIndex = Template.Index;
+					Templates.Add(Template);
+
+					if(ExistingTemplateIndexPtr == nullptr)
+					{
+						TemplateNotationToIndex.Add(Template.GetNotation(), Template.Index);
+					}
 				}
 			}
 		}
@@ -66,55 +75,22 @@ void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionP
 #endif
 }
 
-FRigVMFunctionPtr FRigVMRegistry::FindFunction(const TCHAR* InName) const
+const FRigVMFunction* FRigVMRegistry::FindFunction(const TCHAR* InName) const
 {
-	for (const FRigVMFunction& Function : Functions)
+	if(const int32* FunctionIndexPtr = FunctionNameToIndex.Find(InName))
 	{
-		if (FCString::Strcmp(Function.Name, InName) == 0)
-		{
-			return Function.FunctionPtr;
-		}
+		return &Functions[*FunctionIndexPtr];
 	}
-
 	return nullptr;
 }
 
-const FRigVMPrototype* FRigVMRegistry::FindPrototype(const FName& InNotation) const
+const FRigVMFunction* FRigVMRegistry::FindFunction(UScriptStruct* InStruct, const TCHAR* InName) const
 {
-	if (InNotation.IsNone())
-	{
-		return nullptr;
-	}
-
-	for (const FRigVMPrototype& Prototype : Prototypes)
-	{
-		if (Prototype.GetNotation() == InNotation)
-		{
-			return &Prototype;
-		}
-	}
-
-	return nullptr;
-}
-
-// Returns a prototype pointer given its notation (or nullptr)
-const FRigVMPrototype* FRigVMRegistry::FindPrototype(UScriptStruct* InStruct, const FString& InPrototypeName) const
-{
-	FName Notation = FRigVMPrototype::GetNotationFromStruct(InStruct, InPrototypeName);
-	return FindPrototype(Notation);
-}
-
-FRigVMFunction FRigVMRegistry::FindFunctionInfo(const TCHAR* InName) const
-{
-	for (const FRigVMFunction& Function : Functions)
-	{
-		if (FCString::Strcmp(Function.Name, InName) == 0)
-		{
-			return Function;
-		}
-	} 
-
-	return FRigVMFunction();
+	check(InStruct);
+	check(InName);
+	
+	const FString FunctionName = FString::Printf(TEXT("%s::%s"), *InStruct->GetStructCPPName(), InName);
+	return FindFunction(*FunctionName);
 }
 
 const TArray<FRigVMFunction>& FRigVMRegistry::GetFunctions() const
@@ -122,9 +98,24 @@ const TArray<FRigVMFunction>& FRigVMRegistry::GetFunctions() const
 	return Functions;
 }
 
-const TArray<FRigVMPrototype>& FRigVMRegistry::GetPrototypes() const
+const FRigVMTemplate* FRigVMRegistry::FindTemplate(const FName& InNotation) const
 {
-	return Prototypes;
+	if (InNotation.IsNone())
+	{
+		return nullptr;
+	}
+
+	if(const int32* TemplateIndexPtr = TemplateNotationToIndex.Find(InNotation))
+	{
+		return &Templates[*TemplateIndexPtr];
+	}
+
+	return nullptr;
+}
+
+const TArray<FRigVMTemplate>& FRigVMRegistry::GetTemplates() const
+{
+	return Templates;
 }
 
 

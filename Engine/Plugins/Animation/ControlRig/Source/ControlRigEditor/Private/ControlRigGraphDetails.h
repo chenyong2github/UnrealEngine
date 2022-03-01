@@ -263,14 +263,40 @@ protected:
 
 	// extracts the value for a nested property (for Example Settings.WorldTransform) from an outer owner
 	template<typename ValueType>
-	FORCEINLINE ValueType& ContainerUObjectToValueRef(UObject* InOwner) const
+	FORCEINLINE_DEBUGGABLE ValueType& ContainerUObjectToValueRef(UObject* InOwner, ValueType& InDefault) const
 	{
 		FEditPropertyChain::TDoubleLinkedListNode* PropertyNode = PropertyChain.GetHead();
 		uint8* MemoryPtr = (uint8*)InOwner;
+		int32 ChainIndex = 0;
 		do
 		{
-			MemoryPtr = PropertyNode->GetValue()->ContainerPtrToValuePtr<uint8>(MemoryPtr);
+			const FProperty* Property = PropertyNode->GetValue();
+			MemoryPtr = Property->ContainerPtrToValuePtr<uint8>(MemoryPtr);
+
 			PropertyNode = PropertyNode->GetNextNode();
+			ChainIndex++;
+			
+			if(PropertyArrayIndices.IsValidIndex(ChainIndex))
+			{
+				const int32 ArrayIndex = PropertyArrayIndices[ChainIndex];
+				if(ArrayIndex != INDEX_NONE)
+				{
+					const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property->GetOwnerProperty());
+					check(ArrayProperty);
+					
+					FScriptArrayHelper ArrayHelper(ArrayProperty, MemoryPtr);
+					if(!ArrayHelper.IsValidIndex(ArrayIndex))
+					{
+						return InDefault;
+					}
+					MemoryPtr = ArrayHelper.GetRawPtr(ArrayIndex);
+
+					// skip to the next property node already
+					PropertyNode = PropertyNode->GetNextNode();
+					ChainIndex++;
+				}
+			}
+
 		}
 		while (PropertyNode);
 
@@ -290,7 +316,8 @@ protected:
 		{
 			if(InPropertyHandle->IsValidHandle())
 			{
-				const VectorType& Vector = ContainerUObjectToValueRef<VectorType>(Object);
+				static VectorType ZeroVector = VectorType();
+				const VectorType& Vector = ContainerUObjectToValueRef<VectorType>(Object, ZeroVector);
 				NumericType Component = Vector[InComponent];
 				if(Result.IsSet())
 				{
@@ -330,7 +357,8 @@ protected:
 			UObject* Object = ObjectsBeingCustomized[Index];
 			if(InPropertyHandle->IsValidHandle())
 			{
-				VectorType& Vector = ContainerUObjectToValueRef<VectorType>(Object);
+				static VectorType ZeroVector = VectorType();
+				VectorType& Vector = ContainerUObjectToValueRef<VectorType>(Object, ZeroVector);
 				VectorType PreviousVector = Vector;
 				Vector[InComponent] = InValue;
 					
@@ -415,7 +443,8 @@ protected:
 		{
 			if(InPropertyHandle->IsValidHandle())
 			{
-				const RotationType& Rotation = ContainerUObjectToValueRef<RotationType>(Object);
+				static RotationType ZeroRotation = RotationType();
+				const RotationType& Rotation = ContainerUObjectToValueRef<RotationType>(Object, ZeroRotation);
 				if(Result.IsSet())
 				{
 					if(!Rotation.Equals(Result.GetValue()))
@@ -454,7 +483,8 @@ protected:
 			UObject* Object = ObjectsBeingCustomized[Index];
 			if(InPropertyHandle->IsValidHandle())
 			{
-				RotationType& Rotation = ContainerUObjectToValueRef<RotationType>(Object);
+				static RotationType ZeroRotation = RotationType();
+				RotationType& Rotation = ContainerUObjectToValueRef<RotationType>(Object, ZeroRotation);
 				RotationType PreviousRotation = Rotation;
 				Rotation = InValue;
 					
@@ -516,7 +546,8 @@ protected:
 		WidgetArgs.AllowEditRotationRepresentation(true);
 		WidgetArgs.UseQuaternionForRotation(IsQuaternionBasedRotation<TransformType>());
 
-		TransformType DefaultValue = ContainerUObjectToValueRef<TransformType>(ObjectsBeingCustomized[0]->GetClass()->GetDefaultObject());
+		static TransformType Identity = TransformType::Identity;
+		TransformType DefaultValue = ContainerUObjectToValueRef<TransformType>(ObjectsBeingCustomized[0]->GetClass()->GetDefaultObject(), Identity);
 
 		WidgetArgs.DiffersFromDefault_Lambda([this, InPropertyHandle, DefaultValue](ESlateTransformComponent::Type InTransformComponent) -> bool
 		{
@@ -524,7 +555,7 @@ protected:
 			{
 				if(InPropertyHandle->IsValidHandle())
 				{
-					const TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object);
+					const TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object, Identity);
 
 					switch(InTransformComponent)
 					{
@@ -572,7 +603,7 @@ protected:
 			{
 				if(InPropertyHandle->IsValidHandle())
 				{
-					const TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object);
+					const TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object, Identity);
 					
 					TOptional<FReal> Value = SAdvancedTransformInputBox<TransformType>::GetNumericValueFromTransform(
 						Transform,
@@ -627,7 +658,7 @@ protected:
 				UObject* Object = ObjectsBeingCustomized[Index];
 				if(InPropertyHandle->IsValidHandle())
 				{
-					TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object);
+					TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object, Identity);
 					TransformType PreviousTransform = Transform;
 					
 					SAdvancedTransformInputBox<TransformType>::ApplyNumericValueChange(
@@ -690,7 +721,7 @@ protected:
 				UObject* Object = ObjectsBeingCustomized[Index];
 				if(InPropertyHandle->IsValidHandle())
 				{
-					TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object);
+					TransformType& Transform = ContainerUObjectToValueRef<TransformType>(Object, Identity);
 					TransformType PreviousTransform = Transform;
 
 					switch(InTransformComponent)
@@ -746,6 +777,7 @@ protected:
 	TArray<UObject*> ObjectsBeingCustomized;
 	TArrayView<const UObject* const> ObjectBeingCustomizedView;
 	FEditPropertyChain PropertyChain;
+	TArray<int32> PropertyArrayIndices;
 	bool bEnabled;
 };
 

@@ -216,7 +216,7 @@ public:
 
 	// Returns true if the C++ data type is unknown
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
-	bool IsUnknownType() const;
+	bool IsWildCard() const;
 
 	// Returns the default value of the Pin as a string.
 	// Note that this value is computed based on the Pin's

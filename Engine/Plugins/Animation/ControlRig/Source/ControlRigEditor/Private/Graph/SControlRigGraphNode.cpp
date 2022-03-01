@@ -1073,10 +1073,10 @@ TArray<FOverlayWidgetInfo> SControlRigGraphNode::GetOverlayWidgets(bool bSelecte
 				{
 					if (URigVMUnitNode* VisualDebugNode = Cast<URigVMUnitNode>(Injection->Node))
 					{
-						FString PrototypeName;
-					   if (VisualDebugNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
+						FString TemplateName;
+					   if (VisualDebugNode->GetScriptStruct()->GetStringMetaDataHierarchical(FRigVMStruct::TemplateNameMetaName, &TemplateName))
 					   {
-						   if (PrototypeName == TEXT("VisualDebug"))
+						   if (TemplateName == TEXT("VisualDebug"))
 						   {
 							   if (!bSetColor)
 							   {

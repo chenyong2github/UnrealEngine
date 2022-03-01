@@ -55,31 +55,7 @@ UEdGraphNode* UControlRigSelectNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 	UControlRigGraphNode* NewNode = nullptr;
 
 	bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
-
-	if (bIsTemplateNode)
-	{
-		NewNode = NewObject<UControlRigGraphNode>(ParentGraph, TEXT("SelectNode"));
-		ParentGraph->AddNode(NewNode, false);
-
-		NewNode->CreateNewGuid();
-		NewNode->PostPlacedNewNode();
-
-		UEdGraphPin* InputValuePin = UEdGraphPin::CreatePin(NewNode);
-		UEdGraphPin* OutputValuePin = UEdGraphPin::CreatePin(NewNode);
-		NewNode->Pins.Add(InputValuePin);
-		NewNode->Pins.Add(OutputValuePin);
-
-		InputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
-		OutputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
-		InputValuePin->Direction = EGPD_Input;
-		OutputValuePin->Direction = EGPD_Output;
-		NewNode->SetFlags(RF_Transactional);
-
-		return NewNode;
-	}
-
-
-	bool const bUndo = !bIsTemplateNode;
+	bool const bIsUserFacingNode = !bIsTemplateNode;
 
 	// First create a backing member for our node
 	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
@@ -87,29 +63,24 @@ UEdGraphNode* UControlRigSelectNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
 	check(RigBlueprint);
 
-	FString CPPType = FRigVMUnknownType::StaticStruct()->GetStructCPPName();
-	FName CPPTypeObjectPath = *FRigVMUnknownType::StaticStruct()->GetPathName();
+	FString CPPType = RigVMTypeUtils::GetWildCardCPPType();
+	FName CPPTypeObjectPath = *RigVMTypeUtils::GetWildCardCPPTypeObject()->GetPathName();
 	FString LastOutputPinPath;
 
-	if (UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>((UEdGraphSchema*)ParentGraph->GetSchema()))
+	if(bIsUserFacingNode)
 	{
-		if (const UEdGraphPin* LastPin = RigSchema->LastPinForCompatibleCheck)
+		if (UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>((UEdGraphSchema*)ParentGraph->GetSchema()))
 		{
-			if (URigVMPin* ModelPin = RigBlueprint->GetModel(ParentGraph)->FindPin(LastPin->GetName()))
+			if (const UEdGraphPin* LastPin = RigSchema->LastPinForCompatibleCheck)
 			{
-				if(LastPin->Direction == EGPD_Output)
+				if (URigVMPin* ModelPin = RigBlueprint->GetModel(ParentGraph)->FindPin(LastPin->GetName()))
 				{
-					LastOutputPinPath = ModelPin->GetPinPath();
-				}
-				
-				CPPType = ModelPin->GetCPPType();
-				if (ModelPin->GetCPPTypeObject())
-				{
-					CPPTypeObjectPath = *ModelPin->GetCPPTypeObject()->GetPathName();
-				}
-				else
-				{
-					CPPTypeObjectPath = NAME_None;
+					if(LastPin->Direction == EGPD_Output)
+					{
+						LastOutputPinPath = ModelPin->GetPinPath();
+					}
+					
+					RigVMTypeUtils::CPPTypeFromPin(ModelPin, CPPType, CPPTypeObjectPath, false);
 				}
 			}
 		}
@@ -118,7 +89,7 @@ UEdGraphNode* UControlRigSelectNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 	FName MemberName = NAME_None;
 
 #if WITH_EDITOR
-	if (GEditor && !bIsTemplateNode)
+	if (GEditor && bIsUserFacingNode)
 	{
 		GEditor->CancelTransaction(0);
 	}
@@ -128,16 +99,16 @@ UEdGraphNode* UControlRigSelectNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 
 	FName Name = *URigVMSelectNode::SelectName;
 
-	if (!bIsTemplateNode)
+	if (bIsUserFacingNode)
 	{
 		Controller->OpenUndoBracket(FString::Printf(TEXT("Add '%s' Node"), *Name.ToString()));
 	}
 
-	if (URigVMSelectNode* ModelNode = Controller->AddSelectNode(CPPType, CPPTypeObjectPath, Location, Name.ToString(), bUndo, !bIsTemplateNode))
+	if (URigVMSelectNode* ModelNode = Controller->AddSelectNode(CPPType, CPPTypeObjectPath, Location, Name.ToString(), bIsUserFacingNode, !bIsTemplateNode))
 	{
 		NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
 
-		if (NewNode && bUndo)
+		if (NewNode && bIsUserFacingNode)
 		{
 			if(!LastOutputPinPath.IsEmpty())
 			{
@@ -150,14 +121,18 @@ UEdGraphNode* UControlRigSelectNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 			Controller->SelectNode(ModelNode, true, true);
 		}
 
-		if (bUndo)
+		if (bIsUserFacingNode)
 		{
 			Controller->CloseUndoBracket();
+		}
+		else
+		{
+			Controller->RemoveNode(ModelNode, false);
 		}
 	}
 	else
 	{
-		if (bUndo)
+		if (bIsUserFacingNode)
 		{
 			Controller->CancelUndoBracket();
 		}

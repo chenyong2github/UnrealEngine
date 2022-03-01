@@ -12,6 +12,8 @@ typedef TArrayView<void*> FRigVMUserDataArray;
 
 typedef void (*FRigVMFunctionPtr)(FRigVMExecuteContext& RigVMExecuteContext, FRigVMMemoryHandleArray RigVMMemoryHandles);
 
+struct FRigVMTemplate;
+
 /**
  * The Pin Direction is used to differentiate different kinds of 
  * pins in the data flow graph - inputs, outputs etc.
@@ -37,14 +39,14 @@ struct RIGVM_API FRigVMFunction
 	UScriptStruct* Struct;
 	FRigVMFunctionPtr FunctionPtr;
 	int32 Index;
-	int32 PrototypeIndex;
+	int32 TemplateIndex;
 
 	FRigVMFunction()
 		: Name(nullptr)
 		, Struct(nullptr)
 		, FunctionPtr(nullptr)
 		, Index(INDEX_NONE)
-		, PrototypeIndex(INDEX_NONE)
+		, TemplateIndex(INDEX_NONE)
 	{
 	}
 
@@ -53,7 +55,7 @@ struct RIGVM_API FRigVMFunction
 		, Struct(InStruct)
 		, FunctionPtr(InFunctionPtr)
 		, Index(InIndex)
-		, PrototypeIndex(INDEX_NONE)
+		, TemplateIndex(INDEX_NONE)
 	{
 	}
 
@@ -61,4 +63,5 @@ struct RIGVM_API FRigVMFunction
 	FName GetMethodName() const;
 	FString GetModuleName() const;
 	FString GetModuleRelativeHeaderPath() const;
+	const FRigVMTemplate* GetTemplate() const;
 };

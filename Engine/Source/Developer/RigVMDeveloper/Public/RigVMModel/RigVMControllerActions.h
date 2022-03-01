@@ -596,23 +596,23 @@ public:
 };
 
 /**
- * An action adding a prototype node to the graph.
+ * An action adding a template node to the graph.
  */
 USTRUCT()
-struct FRigVMAddPrototypeNodeAction : public FRigVMBaseAction
+struct FRigVMAddTemplateNodeAction : public FRigVMBaseAction
 {
 	GENERATED_BODY()
 
 public:
 
-	FRigVMAddPrototypeNodeAction();
-	FRigVMAddPrototypeNodeAction(URigVMPrototypeNode* InNode);
-	virtual ~FRigVMAddPrototypeNodeAction() {};
+	FRigVMAddTemplateNodeAction();
+	FRigVMAddTemplateNodeAction(URigVMTemplateNode* InNode);
+	virtual ~FRigVMAddTemplateNodeAction() {};
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
 
 	UPROPERTY()
-	FName PrototypeNotation;
+	FName TemplateNotation;
 
 	UPROPERTY()
 	FVector2D Position;

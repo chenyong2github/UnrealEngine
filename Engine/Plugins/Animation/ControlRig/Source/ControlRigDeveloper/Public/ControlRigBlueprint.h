@@ -551,6 +551,7 @@ private:
 	void PatchRigElementKeyCacheOnLoad();
 	void PatchBoundVariables();
 	void PatchVariableNodesWithIncorrectType();
+	void ConvertUnitNodesToTemplateNodes();
 
 	TMap<FName, int32> AddedMemberVariableMap;
 	TArray<FBPVariableDescription> LastNewVariables;
