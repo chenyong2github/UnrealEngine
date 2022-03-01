@@ -247,3 +247,101 @@ void UMotionTrajectoryBlueprintLibrary::DebugDrawTrajectory(const AActor* Actor
 		);
 	}
 }
+
+bool UMotionTrajectoryBlueprintLibrary::IsStoppingTrajectory(
+	const FTrajectorySampleRange& Trajectory, 
+	float MoveMinSpeed,
+	float IdleMaxSpeed)
+{
+	if (Trajectory.Samples.Num() > 0)
+	{
+		const FVector LastLinearVelocity = Trajectory.Samples.Last().LinearVelocity;
+		const float SquaredLastLinearSpeed = LastLinearVelocity.SquaredLength();
+		
+		int StartIdx = 0;
+		const FTrajectorySample& PresentSample = FTrajectorySampleRange::IterSampleTrajectory(
+			Trajectory.Samples, 
+			ETrajectorySampleDomain::Time, 
+			0.0f, 
+			StartIdx);
+		const FVector PresenLinearVelocity = PresentSample.LinearVelocity;
+		const float SquaredPresentLinearSpeed = PresenLinearVelocity.SquaredLength();
+
+		const bool bIsStopping =
+			(SquaredPresentLinearSpeed >= (MoveMinSpeed * MoveMinSpeed)) &&
+			(SquaredLastLinearSpeed <= (IdleMaxSpeed * IdleMaxSpeed));
+
+		return bIsStopping;
+	}
+
+	return false;
+}
+
+bool UMotionTrajectoryBlueprintLibrary::IsStartingTrajectory(
+	const FTrajectorySampleRange& Trajectory, 
+	float MoveMinSpeed,
+	float IdleMaxSpeed)
+{
+	if (Trajectory.Samples.Num() > 0)
+	{
+		const FVector FirstLinearVelocity = Trajectory.Samples[0].LinearVelocity;
+		const float SquaredFirstLinearSpeed = FirstLinearVelocity.SquaredLength();
+
+		int StartIdx = 0;
+		const FTrajectorySample& PresentSample = FTrajectorySampleRange::IterSampleTrajectory(
+			Trajectory.Samples,
+			ETrajectorySampleDomain::Time,
+			0.0f,
+			StartIdx);
+		const FVector PresentLinearVelocity = PresentSample.LinearVelocity;
+		const float SquaredPresentLinearSpeed = PresentLinearVelocity.SquaredLength();
+
+		const bool IsStarting =
+			(SquaredPresentLinearSpeed >= (MoveMinSpeed * MoveMinSpeed)) &&
+			(SquaredFirstLinearSpeed <= (IdleMaxSpeed * IdleMaxSpeed));
+
+		return IsStarting;
+	}
+
+	return false;
+}
+
+
+bool UMotionTrajectoryBlueprintLibrary::IsConstantSpeedTrajectory(
+	const FTrajectorySampleRange& Trajectory,
+	float Speed,
+	float Tolerance)
+{
+	if (Trajectory.Samples.Num() > 0)
+	{
+		const float MinSpeed = FMath::Max(Speed - Tolerance, 0.0f);
+		const float SquaredMinSpeed = MinSpeed * MinSpeed;
+		const float MaxSpeed = FMath::Max(Speed + Tolerance, 0.0f);
+		const float SquaredMaxSpeed = MaxSpeed * MaxSpeed;
+
+		auto IsWithinLimit = [=](float SquaredSpeed)
+		{
+			return SquaredSpeed >= SquaredMinSpeed && SquaredSpeed <= SquaredMaxSpeed;
+		};
+
+		const FVector LastLinearVelocity = Trajectory.Samples.Last().LinearVelocity;
+		const float SquaredLastLinearSpeed = LastLinearVelocity.SquaredLength();
+		const bool LastSpeedWithinLimit = IsWithinLimit(SquaredLastLinearSpeed);
+
+		int StartIdx = 0;
+		const FTrajectorySample& PresentSample = FTrajectorySampleRange::IterSampleTrajectory(
+			Trajectory.Samples,
+			ETrajectorySampleDomain::Time,
+			0.0f,
+			StartIdx);
+		const FVector PresentLinearVelocity = PresentSample.LinearVelocity;
+		const float SquaredPresentLinearSpeed = PresentLinearVelocity.SquaredLength();
+		const bool PresentSpeedWithinLimit = IsWithinLimit(SquaredLastLinearSpeed);
+
+		const bool bIsAtSpeed = LastSpeedWithinLimit && PresentSpeedWithinLimit;
+
+		return bIsAtSpeed;
+	}
+
+	return false;
+}

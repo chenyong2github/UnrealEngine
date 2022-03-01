@@ -103,4 +103,28 @@ public:
 		, float ArrowSize = 40.f
 		, float ArrowThickness = 2.f
 	);
+
+	// Returns true if the furthest future sample, at the end of the trajectory, has velocity magnitude below 
+	// IdleMaxSpeed and present speed above MoveMinSpeed.
+	UFUNCTION(BlueprintPure, Category = "Motion Trajectory", meta = (BlueprintThreadSafe))
+	static bool IsStoppingTrajectory(
+		const FTrajectorySampleRange& Trajectory, 
+		float MoveMinSpeed = 1.0f,
+		float IdleMaxSpeed = 0.0f);
+
+	// Returns true if the furthest past sample, at the beginning of the trajectory, has velocity magnitude below 
+	// IdleMaxSpeed and present speed above MoveMinSpeed.
+	UFUNCTION(BlueprintPure, Category = "Motion Trajectory", meta = (BlueprintThreadSafe))
+	static bool IsStartingTrajectory(
+		const FTrajectorySampleRange& Trajectory, 
+		float MoveMinSpeed = 1.0f,
+		float IdleMaxSpeed = 0.0f);
+
+	// Returns true if the furthest future sample, at the end of the trajectory, and the present sample, have a velocity
+	// magnitude that is within Tolerance of Speed.
+	UFUNCTION(BlueprintPure, Category = "Motion Trajectory", meta = (BlueprintThreadSafe))
+	static bool IsConstantSpeedTrajectory(
+			const FTrajectorySampleRange& Trajectory,
+			float Speed = 0.0f,
+			float Tolerance = 0.001f);
 };
