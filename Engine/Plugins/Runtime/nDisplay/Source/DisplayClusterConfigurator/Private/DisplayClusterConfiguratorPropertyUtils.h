@@ -22,7 +22,7 @@ namespace DisplayClusterConfiguratorPropertyUtils
 	 *
 	 * @return A property handle created for this property.
 	 */
-	TSharedPtr<ISinglePropertyView> GetPropertyView(UObject* Owner, const FName& FieldName);
+	DISPLAYCLUSTERCONFIGURATOR_API TSharedPtr<ISinglePropertyView> GetPropertyView(UObject* Owner, const FName& FieldName);
 
 	/**
 	 * Set the value of a property handle for an object by the field name.
