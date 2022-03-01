@@ -10,7 +10,8 @@ public class WebRemoteControl : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"HTTPServer"
+				"HTTPServer",
+				"Serialization"
 			}
 		);
 
@@ -20,7 +21,6 @@ public class WebRemoteControl : ModuleRules
 				"Networking",
 				"RemoteControl",
 				"RemoteControlCommon",
-				"Serialization",
 				"Sockets",
 				"WebSocketNetworking"
 			}

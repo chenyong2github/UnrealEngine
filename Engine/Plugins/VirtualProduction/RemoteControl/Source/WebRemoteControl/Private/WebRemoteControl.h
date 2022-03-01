@@ -11,6 +11,7 @@
 #include "HttpServerRequest.h"
 #include "RemoteControlRequest.h"
 #include "RemoteControlRoute.h"
+#include "RemoteControlWebsocketRoute.h"
 #include "RemoteControlWebSocketServer.h"
 #include "StageAppBeaconReceiver.h"
 #include "WebRemoteControlEditorRoutes.h"
@@ -47,7 +48,12 @@ public:
 	virtual FSimpleMulticastDelegate& OnHttpServerStopped() override { return OnHttpServerStoppedDelegate; }
 	virtual FOnWebServerStarted& OnWebSocketServerStarted() override { return OnWebSocketServerStartedDelegate; }
 	virtual FSimpleMulticastDelegate& OnWebSocketServerStopped() override { return OnWebSocketServerStoppedDelegate; }
-	virtual void SetExternalRemoteWebSocketLoggerConnection(TSharedPtr<class INetworkingWebSocket> WebSocketLoggerConnection);
+	virtual FOnWebSocketConnectionClosed& OnWebSocketConnectionOpened() override { return WebSocketServer.OnConnectionOpened(); }
+	virtual FOnWebSocketConnectionClosed& OnWebSocketConnectionClosed() override { return WebSocketServer.OnConnectionClosed(); }
+	virtual void RegisterWebsocketRoute(const FRemoteControlWebsocketRoute& Route) override;
+	virtual void UnregisterWebsocketRoute(const FRemoteControlWebsocketRoute& Route) override;
+	virtual void SendWebsocketMessage(const FGuid& InTargetClientId, const TArray<uint8>& InUTF8Payload) override;
+	virtual void SetExternalRemoteWebSocketLoggerConnection(TSharedPtr<class INetworkingWebSocket> WebSocketLoggerConnection) override;
 	//~ End IWebRemoteControlModule Interface
 
 	/**
@@ -61,18 +67,6 @@ public:
 	 * @param Route The route to unregister.
 	 */
 	void UnregisterRoute(const FRemoteControlRoute& Route);
-
-	/**
-	 * Register a websocket route.
-	 * @param Route the route to register.
-	 */
-	void RegisterWebsocketRoute(const FRemoteControlWebsocketRoute& Route);
-
-	/**
-	 * Unregister a websocket route.
-	 * @param Route the route to unregister.
-	 */
-	void UnregisterWebsocketRoute(const FRemoteControlWebsocketRoute& Route);
 
 	/**
 	 * Start the web control server

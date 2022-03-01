@@ -10,7 +10,8 @@
 #include "RemoteControlRoute.h"
 #include "RemoteControlSettings.h"
 #include "RemoteControlPreset.h"
-#include "WebRemoteControlUtils.h"
+#include "RemoteControlWebsocketRoute.h"
+#include "WebRemoteControlInternalUtils.h"
 #include "WebRemoteControlExternalLogger.h"
 #include "WebSocketMessageHandler.h"
 
@@ -372,6 +373,11 @@ void FWebRemoteControlModule::UnregisterWebsocketRoute(const FRemoteControlWebso
 	WebSocketRouter->UnbindRoute(Route.MessageName);
 }
 
+void FWebRemoteControlModule::SendWebsocketMessage(const FGuid& InTargetClientId, const TArray<uint8>& InUTF8Payload)
+{
+	WebSocketServer.Send(InTargetClientId, InUTF8Payload);
+}
+
 void FWebRemoteControlModule::StartHttpServer()
 {
 	if (!HttpRouter)
@@ -701,7 +707,7 @@ void FWebRemoteControlModule::UnregisterConsoleCommands()
 
 bool FWebRemoteControlModule::HandleInfoRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok);
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok);
 
 	
 	bool bInPackaged = false;
@@ -716,16 +722,16 @@ bool FWebRemoteControlModule::HandleInfoRoute(const FHttpServerRequest& Request,
 #endif
 
 	FAPIInfoResponse RCResponse{RegisteredHttpRoutes.Array(), bInPackaged, ActivePreset};
-	WebRemoteControlUtils::SerializeResponse(MoveTemp(RCResponse), Response->Body);
+	WebRemoteControlUtils::SerializeMessage(MoveTemp(RCResponse), Response->Body);
 	OnComplete(MoveTemp(Response));
 	return true;
 }
 
 bool FWebRemoteControlModule::HandleBatchRequest(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
-	if (!WebRemoteControlUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
+	if (!WebRemoteControlInternalUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
 	{
 		return true;
 	}
@@ -733,7 +739,7 @@ bool FWebRemoteControlModule::HandleBatchRequest(const FHttpServerRequest& Reque
 	Response->Code = EHttpServerResponseCodes::Ok;
 
 	FRCBatchRequest BatchRequest;
-	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, BatchRequest))
+	if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, BatchRequest))
 	{
 		return true;
 	}
@@ -762,16 +768,16 @@ bool FWebRemoteControlModule::HandleBatchRequest(const FHttpServerRequest& Reque
 
 bool FWebRemoteControlModule::HandleOptionsRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	OnComplete(WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok));
+	OnComplete(WebRemoteControlInternalUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok));
 	return true;
 }
 
 bool FWebRemoteControlModule::HandleObjectCallRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FString ErrorText;
-	if (!WebRemoteControlUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
+	if (!WebRemoteControlInternalUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
 	{
 		return true;
 	}
@@ -785,7 +791,7 @@ bool FWebRemoteControlModule::HandleObjectCallRoute(const FHttpServerRequest& Re
 	// if we haven't resolved the object or function, return not found
 	if (!Call.IsValid())
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("The object or function was not found."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("The object or function was not found."), Response->Body);
 		Response->Code = EHttpServerResponseCodes::NotFound;
 		OnComplete(MoveTemp(Response));
 		return true;
@@ -811,9 +817,9 @@ bool FWebRemoteControlModule::HandleObjectCallRoute(const FHttpServerRequest& Re
 
 bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
-	if (!WebRemoteControlUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
+	if (!WebRemoteControlInternalUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
 	{
 		return true;
 	}
@@ -832,7 +838,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 	if (!ObjectRef.IsValid())
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to find the object."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to find the object."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -888,7 +894,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 
 bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FResolvePresetFieldArgs Args;
 	Args.PresetName = Request.PathParams.FindChecked(TEXT("preset"));
@@ -898,7 +904,7 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -908,13 +914,13 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 	if (!RCFunction || !RCFunction->GetFunction() || !RCFunction->FunctionArguments || !RCFunction->FunctionArguments->IsValid())
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset field."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset field."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
 
 	FRCPresetCallRequest CallRequest;
-	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, CallRequest))
+	if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, CallRequest))
 	{
 		return true;
 	}
@@ -1017,7 +1023,7 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 	}
 	else
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to call function %s."), *Args.FieldLabel), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to call function %s."), *Args.FieldLabel), Response->Body);
 	}
 
 	OnComplete(MoveTemp(Response));
@@ -1026,15 +1032,15 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 
 bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
-	if (!WebRemoteControlUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
+	if (!WebRemoteControlInternalUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
 	{
 		return true;
 	}
 
 	FRCPresetSetPropertyRequest SetPropertyRequest;
-	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, SetPropertyRequest))
+	if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, SetPropertyRequest))
 	{
 		return true;
 	}
@@ -1047,7 +1053,7 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -1057,7 +1063,7 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 	if (!RemoteControlProperty.IsValid())
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset field."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset field."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -1113,7 +1119,7 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 	}
 	else
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to modify property %s."), *Args.FieldLabel), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to modify property %s."), *Args.FieldLabel), Response->Body);
 	}
 
 	OnComplete(MoveTemp(Response));
@@ -1122,7 +1128,7 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 
 bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FResolvePresetFieldArgs Args;
 	Args.PresetName = Request.PathParams.FindChecked(TEXT("preset"));
@@ -1132,7 +1138,7 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -1142,7 +1148,7 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	if (!RemoteControlProperty)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the exposed entity."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the exposed entity."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -1150,7 +1156,7 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	if (!RemoteControlProperty->IsBound())
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Exposed entity was found but not bound to any object."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Exposed entity was found but not bound to any object."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -1166,14 +1172,14 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	{
 		FStructOnScope PropertyValueOnScope = WebRemoteControlStructUtils::CreatePropertyValueOnScope(RemoteControlProperty, ObjectRef);
 		FStructOnScope FinalStruct = WebRemoteControlStructUtils::CreateGetPropertyOnScope(RemoteControlProperty, ObjectRef, MoveTemp(PropertyValueOnScope));
-		WebRemoteControlUtils::SerializeStructOnScope(FinalStruct, Writer);
+		WebRemoteControlInternalUtils::SerializeStructOnScope(FinalStruct, Writer);
 
 		Response->Code = EHttpServerResponseCodes::Ok;
 		WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Response->Body);
 	}
 	else
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to read property %s."), *Args.FieldLabel), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to read property %s."), *Args.FieldLabel), Response->Body);
 	}
 
 	OnComplete(MoveTemp(Response));
@@ -1182,7 +1188,7 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 
 bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 	FString ActorRCLabel = Request.PathParams.FindChecked(TEXT("actor"));
@@ -1194,7 +1200,7 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertyRoute(const FHt
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -1211,7 +1217,7 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertyRoute(const FHt
 			if (IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Actor, FieldPath, ObjectRef))
 			{
 				FStructOnScope ActorPropertyOnScope = WebRemoteControlStructUtils::CreateActorPropertyOnScope(ObjectRef);
-				WebRemoteControlUtils::SerializeStructOnScope(ActorPropertyOnScope, Writer);
+				WebRemoteControlInternalUtils::SerializeStructOnScope(ActorPropertyOnScope, Writer);
 			
 				Response->Code = EHttpServerResponseCodes::Ok;
 				WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Response->Body);
@@ -1219,7 +1225,7 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertyRoute(const FHt
 			else
 			{
 				Response->Code = EHttpServerResponseCodes::NotFound;
-				WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to read property %s on actor %s."), *PropertyName, *ActorRCLabel), Response->Body);
+				WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to read property %s on actor %s."), *PropertyName, *ActorRCLabel), Response->Body);
 			}
 		}
 	}
@@ -1230,7 +1236,7 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertyRoute(const FHt
 
 bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertiesRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 	FString ActorRCLabel = Request.PathParams.FindChecked(TEXT("actor"));
@@ -1240,7 +1246,7 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertiesRoute(const F
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -1262,19 +1268,19 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertiesRoute(const F
 			else
 			{
 				Response->Code = EHttpServerResponseCodes::NotFound;
-				WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to serialize exposed actor " + ActorRCLabel), Response->Body);
+				WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to serialize exposed actor " + ActorRCLabel), Response->Body);
 			}
 		}
 		else
 		{
 			Response->Code = EHttpServerResponseCodes::NotFound;
-			WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve object path " + RCActor->Path.ToString()), Response->Body);
+			WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve object path " + RCActor->Path.ToString()), Response->Body);
 		}
 	}
 	else
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the exposed actor " + ActorRCLabel), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the exposed actor " + ActorRCLabel), Response->Body);
 	}
 
 	OnComplete(MoveTemp(Response));
@@ -1283,10 +1289,10 @@ bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertiesRoute(const F
 
 bool FWebRemoteControlModule::HandlePresetSetExposedActorPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FRCPresetSetPropertyRequest SetPropertyRequest;
-	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, SetPropertyRequest))
+	if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, SetPropertyRequest))
 	{
 		return true;
 	}
@@ -1300,7 +1306,7 @@ bool FWebRemoteControlModule::HandlePresetSetExposedActorPropertyRoute(const FHt
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -1344,13 +1350,13 @@ bool FWebRemoteControlModule::HandlePresetSetExposedActorPropertyRoute(const FHt
 		else
 		{
 			Response->Code = EHttpServerResponseCodes::NotFound;
-			WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve object path " + RCActor->Path.ToString()), Response->Body);
+			WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve object path " + RCActor->Path.ToString()), Response->Body);
 		}
 	}
 	else
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the exposed actor " + ActorRCLabel), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the exposed actor " + ActorRCLabel), Response->Body);
 	}
 
 	if (bSuccess)
@@ -1359,7 +1365,7 @@ bool FWebRemoteControlModule::HandlePresetSetExposedActorPropertyRoute(const FHt
 	}
 	else
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to modify property %s on actor %s."), *PropertyName, *ActorRCLabel), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to modify property %s on actor %s."), *PropertyName, *ActorRCLabel), Response->Body);
 	}
 
 	OnComplete(MoveTemp(Response));
@@ -1368,18 +1374,18 @@ bool FWebRemoteControlModule::HandlePresetSetExposedActorPropertyRoute(const FHt
 
 bool FWebRemoteControlModule::HandleGetPresetRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 
 	if (URemoteControlPreset* Preset = WebRemoteControl::GetPreset(PresetName))
 	{
-		WebRemoteControlUtils::SerializeResponse(FGetPresetResponse{ Preset }, Response->Body);
+		WebRemoteControlUtils::SerializeMessage(FGetPresetResponse{ Preset }, Response->Body);
 		Response->Code = EHttpServerResponseCodes::Ok;
 	}
 	else
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Preset %s could not be found."), *PresetName), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Preset %s could not be found."), *PresetName), Response->Body);
 		Response->Code = EHttpServerResponseCodes::NotFound;
 	}
 
@@ -1389,12 +1395,12 @@ bool FWebRemoteControlModule::HandleGetPresetRoute(const FHttpServerRequest& Req
 
 bool FWebRemoteControlModule::HandleGetPresetsRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok);
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse(EHttpServerResponseCodes::Ok);
 
 	TArray<FAssetData> PresetAssets;
 	IRemoteControlModule::Get().GetPresetAssets(PresetAssets);
 
-	WebRemoteControlUtils::SerializeResponse(FListPresetsResponse{ PresetAssets }, Response->Body);
+	WebRemoteControlUtils::SerializeMessage(FListPresetsResponse{ PresetAssets }, Response->Body);
 
 	OnComplete(MoveTemp(Response));
 	return true;
@@ -1402,10 +1408,10 @@ bool FWebRemoteControlModule::HandleGetPresetsRoute(const FHttpServerRequest& Re
 
 bool FWebRemoteControlModule::HandleDescribeObjectRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FDescribeObjectRequest DescribeRequest;
-	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, DescribeRequest))
+	if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, DescribeRequest))
 	{
 		return true;
 	}
@@ -1414,12 +1420,12 @@ bool FWebRemoteControlModule::HandleDescribeObjectRoute(const FHttpServerRequest
 	FString ErrorText;
 	if (IRemoteControlModule::Get().ResolveObject(ERCAccess::READ_ACCESS, DescribeRequest.ObjectPath, TEXT(""), Ref, &ErrorText) && Ref.Object.IsValid())
 	{
-		WebRemoteControlUtils::SerializeResponse(FDescribeObjectResponse{ Ref.Object.Get() }, Response->Body);
+		WebRemoteControlUtils::SerializeMessage(FDescribeObjectResponse{ Ref.Object.Get() }, Response->Body);
 		Response->Code = EHttpServerResponseCodes::Ok;
 	}
 	else
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(*ErrorText, Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(*ErrorText, Response->Body);
 		Response->Code = EHttpServerResponseCodes::NotFound;
 	}
 
@@ -1429,17 +1435,17 @@ bool FWebRemoteControlModule::HandleDescribeObjectRoute(const FHttpServerRequest
 
 bool FWebRemoteControlModule::HandleSearchActorRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::NotSupported);
-	WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Route not implemented."), Response->Body);
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse(EHttpServerResponseCodes::NotSupported);
+	WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Route not implemented."), Response->Body);
 	OnComplete(MoveTemp(Response));
 	return true;
 }
 
 bool FWebRemoteControlModule::HandleSearchAssetRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 	FSearchAssetRequest SearchAssetRequest;
-	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, SearchAssetRequest))
+	if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, SearchAssetRequest))
 	{
 		return true;
 	}
@@ -1481,7 +1487,7 @@ bool FWebRemoteControlModule::HandleSearchAssetRoute(const FHttpServerRequest& R
 		}
 	}
 
-	WebRemoteControlUtils::SerializeResponse(FSearchAssetResponse{ MoveTemp(FilteredAssets) }, Response->Body);
+	WebRemoteControlUtils::SerializeMessage(FSearchAssetResponse{ MoveTemp(FilteredAssets) }, Response->Body);
 	Response->Code = EHttpServerResponseCodes::Ok;
 
 	OnComplete(MoveTemp(Response));
@@ -1490,18 +1496,18 @@ bool FWebRemoteControlModule::HandleSearchAssetRoute(const FHttpServerRequest& R
 
 bool FWebRemoteControlModule::HandleGetMetadataRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 
 	if (URemoteControlPreset* Preset = WebRemoteControl::GetPreset(PresetName))
 	{
-		WebRemoteControlUtils::SerializeResponse(FGetMetadataResponse{Preset->Metadata}, Response->Body);
+		WebRemoteControlUtils::SerializeMessage(FGetMetadataResponse{Preset->Metadata}, Response->Body);
 		Response->Code = EHttpServerResponseCodes::Ok;
 	}
 	else
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Preset %s could not be found."), *PresetName), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Preset %s could not be found."), *PresetName), Response->Body);
 		Response->Code = EHttpServerResponseCodes::NotFound;
 	}
 
@@ -1511,7 +1517,7 @@ bool FWebRemoteControlModule::HandleGetMetadataRoute(const FHttpServerRequest& R
 
 bool FWebRemoteControlModule::HandleMetadataFieldOperationsRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 	FString MetadataField = Request.PathParams.FindChecked(TEXT("metadatafield"));
@@ -1522,18 +1528,18 @@ bool FWebRemoteControlModule::HandleMetadataFieldOperationsRoute(const FHttpServ
 		{
 			if (FString* MetadataValue = Preset->Metadata.Find(MetadataField))
 			{
-				WebRemoteControlUtils::SerializeResponse(FGetMetadataFieldResponse{ *MetadataValue }, Response->Body);
+				WebRemoteControlUtils::SerializeMessage(FGetMetadataFieldResponse{ *MetadataValue }, Response->Body);
 			}
 			else
 			{
-				WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Metadata field %s could not be found."), *MetadataField), Response->Body);
+				WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Metadata field %s could not be found."), *MetadataField), Response->Body);
 				Response->Code = EHttpServerResponseCodes::NotFound;
 			}
 		}
 		else if (Request.Verb == EHttpServerRequestVerbs::VERB_PUT)
 		{
 			FSetPresetMetadataRequest SetMetadataRequest;
-			if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, SetMetadataRequest))
+			if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, SetMetadataRequest))
 			{
 				return true;
 			}
@@ -1552,7 +1558,7 @@ bool FWebRemoteControlModule::HandleMetadataFieldOperationsRoute(const FHttpServ
 	}
 	else
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Preset %s could not be found."), *PresetName), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Preset %s could not be found."), *PresetName), Response->Body);
 		Response->Code = EHttpServerResponseCodes::NotFound;
 	}
 
@@ -1562,15 +1568,15 @@ bool FWebRemoteControlModule::HandleMetadataFieldOperationsRoute(const FHttpServ
 
 bool FWebRemoteControlModule::HandleSearchObjectRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::NotSupported);
-	WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Route not implemented."), Response->Body);
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse(EHttpServerResponseCodes::NotSupported);
+	WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Route not implemented."), Response->Body);
 	OnComplete(MoveTemp(Response));
 	return true;
 }
 
 bool FWebRemoteControlModule::HandleEntityMetadataOperationsRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 	FString Label = Request.PathParams.FindChecked(TEXT("label"));
@@ -1580,7 +1586,7 @@ bool FWebRemoteControlModule::HandleEntityMetadataOperationsRoute(const FHttpSer
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -1590,7 +1596,7 @@ bool FWebRemoteControlModule::HandleEntityMetadataOperationsRoute(const FHttpSer
 	if (!Entity.IsValid())
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset entity."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset entity."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -1599,23 +1605,23 @@ bool FWebRemoteControlModule::HandleEntityMetadataOperationsRoute(const FHttpSer
 	{
 		if (const FString* MetadataValue = Entity->GetMetadata().Find(*Key))
 		{
-			WebRemoteControlUtils::SerializeResponse(FGetMetadataFieldResponse{ *MetadataValue }, Response->Body);
+			WebRemoteControlUtils::SerializeMessage(FGetMetadataFieldResponse{ *MetadataValue }, Response->Body);
 		}
 		else
 		{
-			WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Metadata entry %s could not be found."), *Key), Response->Body);
+			WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Metadata entry %s could not be found."), *Key), Response->Body);
 			Response->Code = EHttpServerResponseCodes::NotFound;
 		}
 	}
 	else if (Request.Verb == EHttpServerRequestVerbs::VERB_PUT)
 	{
-		if (!WebRemoteControlUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
+		if (!WebRemoteControlInternalUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
 		{
 			return true;
 		}
 		
 		FSetEntityMetadataRequest SetMetadataRequest;
-		if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, SetMetadataRequest))
+		if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, SetMetadataRequest))
 		{
 			return true;
 		}
@@ -1643,12 +1649,12 @@ bool FWebRemoteControlModule::HandleEntityMetadataOperationsRoute(const FHttpSer
 
 bool FWebRemoteControlModule::HandleEntitySetLabelRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 
 	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
 	FString Label = Request.PathParams.FindChecked(TEXT("label"));
 	
-	if (!WebRemoteControlUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
+	if (!WebRemoteControlInternalUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
 	{
 		return true;
 	}
@@ -1657,7 +1663,7 @@ bool FWebRemoteControlModule::HandleEntitySetLabelRoute(const FHttpServerRequest
 	if (Preset == nullptr)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
@@ -1667,13 +1673,13 @@ bool FWebRemoteControlModule::HandleEntitySetLabelRoute(const FHttpServerRequest
 	if (!Entity.IsValid())
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset entity."), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset entity."), Response->Body);
 		OnComplete(MoveTemp(Response));
 		return true;
 	}
 
 	FSetEntityLabelRequest SetEntityLabelRequest;
-	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, SetEntityLabelRequest))
+	if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, SetEntityLabelRequest))
 	{
 		return true;
 	}
@@ -1685,7 +1691,7 @@ bool FWebRemoteControlModule::HandleEntitySetLabelRoute(const FHttpServerRequest
 	
 	FName AssignedLabel = Entity->Rename(*SetEntityLabelRequest.NewLabel);
 	
-	WebRemoteControlUtils::SerializeResponse(FSetEntityLabelResponse{ AssignedLabel.ToString() }, Response->Body);
+	WebRemoteControlUtils::SerializeMessage(FSetEntityLabelResponse{ AssignedLabel.ToString() }, Response->Body);
 	Response->Code = EHttpServerResponseCodes::Ok;
 
 	OnComplete(MoveTemp(Response));
@@ -1701,13 +1707,13 @@ void FWebRemoteControlModule::HandleWebSocketHttpMessage(const FRemoteControlWeb
 	//Early failure is http server not started
 	if (HttpRouter == nullptr)
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("HTTP server not started."), UTF8Response);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(TEXT("HTTP server not started."), UTF8Response);
 		WebSocketServer.Send(WebSocketMessage.ClientId, MoveTemp(UTF8Response));
 		return;
 	}
 
 	FRCRequestWrapper Wrapper;
-	if (!WebRemoteControlUtils::DeserializeWrappedRequestPayload(WebSocketMessage.RequestPayload, nullptr, Wrapper))
+	if (!WebRemoteControlInternalUtils::DeserializeWrappedRequestPayload(WebSocketMessage.RequestPayload, nullptr, Wrapper))
 	{
 		return;
 	}
@@ -1733,8 +1739,8 @@ void FWebRemoteControlModule::InvokeWrappedRequest(const FRCRequestWrapper& Wrap
 
 	if (!HttpRouter->Query(UnwrappedRequest, ResponseLambda))
 	{
-		TUniquePtr<FHttpServerResponse> InnerRouteResponse = WebRemoteControlUtils::CreateHttpResponse(EHttpServerResponseCodes::NotFound);
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Route %s could not be found."), *Wrapper.URL), InnerRouteResponse->Body);
+		TUniquePtr<FHttpServerResponse> InnerRouteResponse = WebRemoteControlInternalUtils::CreateHttpResponse(EHttpServerResponseCodes::NotFound);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Route %s could not be found."), *Wrapper.URL), InnerRouteResponse->Body);
 		ResponseLambda(MoveTemp(InnerRouteResponse));
 	}
 }

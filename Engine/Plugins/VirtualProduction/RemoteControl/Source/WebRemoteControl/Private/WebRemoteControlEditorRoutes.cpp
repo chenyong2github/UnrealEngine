@@ -3,7 +3,7 @@
 #include "WebRemoteControlEditorRoutes.h"
 
 #if WITH_EDITOR
-#include "WebRemoteControlUtils.h"
+#include "WebRemoteControlInternalUtils.h"
 #include "WebRemoteControl.h"
 
 // Http
@@ -68,27 +68,27 @@ void FWebRemoteControlEditorRoutes::UnregisterRoutes(FWebRemoteControlModule* We
 
 bool FWebRemoteControlEditorRoutes::HandleObjectEventRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	if (!WebRemoteControlUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
+	if (!WebRemoteControlInternalUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
 	{
 		return true;
 	}
 
 	FRemoteControlObjectEventHookRequest EventRequest;
-	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, EventRequest))
+	if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, EventRequest))
 	{
 		return true;
 	}
 
 	// Queue the request and complete the event when it triggers
-	AddPendingEvent(MoveTemp(EventRequest), WebRemoteControlUtils::CreateHttpResponse(), OnComplete);
+	AddPendingEvent(MoveTemp(EventRequest), WebRemoteControlInternalUtils::CreateHttpResponse(), OnComplete);
 	return true;
 };
 
 bool FWebRemoteControlEditorRoutes::HandleGetThumbnailRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 {
-	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlInternalUtils::CreateHttpResponse();
 	FGetObjectThumbnailRequest GetThumbnailRequest;
-	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, GetThumbnailRequest))
+	if (!WebRemoteControlInternalUtils::DeserializeRequest(Request, &OnComplete, GetThumbnailRequest))
 	{
 		return true;
 	}
@@ -137,7 +137,7 @@ bool FWebRemoteControlEditorRoutes::HandleGetThumbnailRoute(const FHttpServerReq
 		{
 			if (FObjectThumbnail* Thumbnail = ThumbnailMap.Find(ObjectFullName))
 			{
-				WebRemoteControlUtils::AddContentTypeHeaders(Response.Get(), TEXT("image/png"));
+				WebRemoteControlInternalUtils::AddContentTypeHeaders(Response.Get(), TEXT("image/png"));
 				IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
 				EImageFormat Format = ImageWrapperModule.DetectImageFormat((void*)Thumbnail->AccessCompressedImageData().GetData(), Thumbnail->AccessCompressedImageData().Num());
 				if (Format == EImageFormat::PNG)
@@ -161,7 +161,7 @@ bool FWebRemoteControlEditorRoutes::HandleGetThumbnailRoute(const FHttpServerReq
 				FName ResourceName = ThumbnailBrush->GetResourceName();
 				if (FFileHelper::LoadFileToArray(Response->Body, *ResourceName.ToString()))
 				{
-					WebRemoteControlUtils::AddContentTypeHeaders(Response.Get(), TEXT("image/png"));
+					WebRemoteControlInternalUtils::AddContentTypeHeaders(Response.Get(), TEXT("image/png"));
 					Response->Code = EHttpServerResponseCodes::Ok;
 				}
 			}
@@ -170,7 +170,7 @@ bool FWebRemoteControlEditorRoutes::HandleGetThumbnailRoute(const FHttpServerReq
 
 	if (!Response->Body.Num())
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Could not load thumbnail for object %s"), *GetThumbnailRequest.ObjectPath), Response->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Could not load thumbnail for object %s"), *GetThumbnailRequest.ObjectPath), Response->Body);
 		Response->Code = EHttpServerResponseCodes::NotFound;
 	}
 
@@ -193,7 +193,7 @@ void FWebRemoteControlEditorRoutes::AddPendingEvent(FRemoteControlObjectEventHoo
 	}
 	else
 	{
-		WebRemoteControlUtils::CreateUTF8ErrorMessage(ErrorText, InResponse->Body);
+		WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(ErrorText, InResponse->Body);
 		InResponse->Code = EHttpServerResponseCodes::BadRequest;
 		OnComplete(MoveTemp(InResponse));
 	}

@@ -5,6 +5,7 @@
 #include "WebSocketNetDriver.h"
 #include "UObject/StrongObjectPtr.h"
 #include "INetworkingWebSocket.h"
+#include "IWebRemoteControlModule.h"
 #include "IWebSocketServer.h"
 #include "RemoteControlRoute.h"
 #include "Containers/Ticker.h"
@@ -81,10 +82,12 @@ public:
 
 	/** Returns whether the server is currently listening for messages. */
 	bool IsRunning() const;
+
+	/** Callback when a socket is opened */
+	FOnWebSocketConnectionOpened& OnConnectionOpened() { return OnConnectionOpenedDelegate; }
 	
 	/** Callback when a socket is closed */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnConnectionClosed, FGuid /*ClientId*/);
-	FOnConnectionClosed& OnConnectionClosed() { return OnConnectionClosedDelegate; }
+	FOnWebSocketConnectionClosed& OnConnectionClosed() { return OnConnectionClosedDelegate; }
 
 private:
 	bool Tick(float DeltaTime);
@@ -154,6 +157,9 @@ private:
 	/** Holds the router responsible for dispatching messages received by this server. */
 	TSharedPtr<FWebsocketMessageRouter> Router;
 
+	/** Delegate triggered when a connection is opened */
+	FOnWebSocketConnectionOpened OnConnectionOpenedDelegate;
+
 	/** Delegate triggered when a connection is closed */
-	FOnConnectionClosed OnConnectionClosedDelegate;
+	FOnWebSocketConnectionClosed OnConnectionClosedDelegate;
 };

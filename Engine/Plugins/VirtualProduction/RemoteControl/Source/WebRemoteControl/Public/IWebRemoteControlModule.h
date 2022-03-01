@@ -7,6 +7,10 @@
 #include "Templates/SharedPointer.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWebServerStarted, uint32 /*Port*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnWebSocketConnectionOpened, FGuid /*ClientId*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnWebSocketConnectionClosed, FGuid /*ClientId*/);
+
+struct FRemoteControlWebsocketRoute;
 
 /**
  * A Remote Control module that allows exposing objects and properties from the editor.
@@ -49,6 +53,35 @@ public:
 	 * Event triggered when the websocket server stops.
 	 */
 	virtual FSimpleMulticastDelegate& OnWebSocketServerStopped() = 0;
+
+	/**
+	 * Event triggered when a connection to the websocket server is opened.
+	 */
+	virtual FOnWebSocketConnectionOpened& OnWebSocketConnectionOpened() = 0;
+	
+	/**
+	 * Event triggered when a connection to the websocket server is closed.
+	 */
+	virtual FOnWebSocketConnectionClosed& OnWebSocketConnectionClosed() = 0;
+	
+	/**
+	 * Register a websocket route.
+	 * @param The route to register.
+	 */
+	virtual void RegisterWebsocketRoute(const FRemoteControlWebsocketRoute& Route) = 0;
+	
+	/**
+	 * Unregister a websocket route.
+	 * @param The route to unregister.
+	 */
+	virtual void UnregisterWebsocketRoute(const FRemoteControlWebsocketRoute& Route) = 0;
+	
+	/**
+	 * Send a message through the websocket server.
+	 * @param InTargetClientId ID of the client to send the message to.
+	 * @param InUTF8Payload Payload to send with the message.
+	 */
+	virtual void SendWebsocketMessage(const FGuid& InTargetClientId, const TArray<uint8>&InUTF8Payload) = 0;
 
 	/**
 	 * Set Remote Web Socket Logger

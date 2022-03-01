@@ -2,13 +2,13 @@
 
 #include "RemoteControlWebSocketServer.h"
 #include "Containers/Ticker.h"
+#include "WebRemoteControlInternalUtils.h"
 #include "IPAddress.h"
 #include "IRemoteControlModule.h"
 #include "IWebSocketNetworkingModule.h"
 #include "RemoteControlRequest.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
-#include "WebRemoteControlUtils.h"
 #include "WebSocketNetworkingDelegates.h"
 
 #define LOCTEXT_NAMESPACE "RCWebSocketServer"
@@ -21,7 +21,7 @@ namespace RemoteControlWebSocketServer
 	TOptional<FRemoteControlWebSocketMessage> ParseWebsocketMessage(TArrayView<uint8> InPayload)
 	{
 		FRCWebSocketRequest Request;
-		bool bSuccess = WebRemoteControlUtils::DeserializeRequestPayload(InPayload, nullptr, Request);
+		bool bSuccess = WebRemoteControlInternalUtils::DeserializeRequestPayload(InPayload, nullptr, Request);
 
 		FString ErrorText;
 		if (Request.MessageName.IsEmpty())
@@ -179,6 +179,7 @@ void FRCWebSocketServer::OnWebSocketClientConnected(INetworkingWebSocket* Socket
 		CloseCallback.BindRaw(this, &FRCWebSocketServer::OnSocketClose, Socket);
 		Socket->SetSocketClosedCallBack(CloseCallback);
 
+		OnConnectionOpened().Broadcast(Connection.Id);
 		Connections.Add(MoveTemp(Connection));
 	}
 }

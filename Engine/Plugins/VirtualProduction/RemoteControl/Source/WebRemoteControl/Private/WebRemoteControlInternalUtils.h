@@ -13,6 +13,7 @@
 #include "StructSerializer.h"
 #include "RemoteControlRequest.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "WebRemoteControlUtils.h"
 
 
 namespace RemotePayloadSerializer
@@ -45,30 +46,9 @@ namespace RemotePayloadSerializer
 }
 
 
-namespace WebRemoteControlUtils
+namespace WebRemoteControlInternalUtils
 {
 	static const TCHAR* WrappedRequestHeader = TEXT("UE-Wrapped-Request");
-
-	/**
-	 * Convert a UTF-8 payload to a TCHAR payload.
-	 * @param InUTF8Payload The UTF-8 payload in binary format.
-	 * @param OutTCHARPayload The converted TCHAR output in binary format.
-	 */
-	void ConvertToTCHAR(TConstArrayView<uint8> InUTF8Payload, TArray<uint8>& OutTCHARPayload);
-
-	/**
-	 * Convert a TCHAR payload to UTF-8.
-	 * @param InTCHARPayload The TCHAR payload in binary format.
-	 * @param OutUTF8Payload The converted UTF-8 output in binary format.
-	 */
-	void ConvertToUTF8(TConstArrayView<uint8> InTCHARPayload, TArray<uint8>& OutUTF8Payload);
-
-	/**
-	 * Convert a FString to UTF-8.
-	 * @param InString The string to be converted.
-	 * @param OutUTF8Payload the converted UTF-8 output in binary format.
-	 */
-	void ConvertToUTF8(const FString& InString, TArray<uint8>& OutUTF8Payload);
 
 	/**
 	 * Construct a default http response with CORS headers.
@@ -251,25 +231,10 @@ namespace WebRemoteControlUtils
 		
 		if (!OutDeserializedRequest.TCHARBody.Num())
 		{
-			ConvertToTCHAR(InRequest.Body, OutDeserializedRequest.TCHARBody);
+			WebRemoteControlUtils::ConvertToTCHAR(InRequest.Body, OutDeserializedRequest.TCHARBody);
 		}
 
 		return DeserializeRequestPayload(OutDeserializedRequest.TCHARBody, InCompleteCallback, OutDeserializedRequest);
-	}
-
-	/**
-	 * Serialize a response object into a UTF-8 Payload.
-	 * @param InResponseObject the object to serialize.
-	 * @param OutResponsePayload the resulting UTF-8 payload.
-	 */
-	template <typename RequestType>
-	void SerializeResponse(const RequestType& InResponseObject, TArray<uint8>& OutResponsePayload)
-	{
-		TArray<uint8> WorkingBuffer;
-		FMemoryWriter Writer(WorkingBuffer);
-		FRCJsonStructSerializerBackend SerializeBackend{Writer, FRCJsonStructSerializerBackend::DefaultSerializerFlags};
-		FStructSerializer::Serialize(InResponseObject, SerializeBackend, FStructSerializerPolicies());
-		ConvertToUTF8(WorkingBuffer, OutResponsePayload);
 	}
 
 	/**

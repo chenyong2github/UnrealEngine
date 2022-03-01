@@ -13,8 +13,9 @@
 #include "RemoteControlResponse.h"
 #include "RemoteControlRoute.h"
 #include "RemoteControlReflectionUtils.h"
+#include "RemoteControlWebsocketRoute.h"
 #include "WebRemoteControl.h"
-#include "WebRemoteControlUtils.h"
+#include "WebRemoteControlInternalUtils.h"
 
 static TAutoConsoleVariable<int32> CVarWebRemoteControlFramesBetweenPropertyNotifications(TEXT("WebControl.FramesBetweenPropertyNotifications"), 5, TEXT("The number of frames between sending batches of property notifications."));
 
@@ -286,7 +287,7 @@ void FWebSocketMessageHandler::NotifyPropertyChangedRemotely(const FGuid& Origin
 void FWebSocketMessageHandler::HandleWebSocketPresetRegister(const FRemoteControlWebSocketMessage& WebSocketMessage)
 {
 	FRCWebSocketPresetRegisterBody Body;
-	if (!WebRemoteControlUtils::DeserializeRequestPayload(WebSocketMessage.RequestPayload, nullptr, Body))
+	if (!WebRemoteControlInternalUtils::DeserializeRequestPayload(WebSocketMessage.RequestPayload, nullptr, Body))
 	{
 		return;
 	}
@@ -338,7 +339,7 @@ void FWebSocketMessageHandler::HandleWebSocketPresetRegister(const FRemoteContro
 void FWebSocketMessageHandler::HandleWebSocketPresetUnregister(const FRemoteControlWebSocketMessage& WebSocketMessage)
 {
 	FRCWebSocketPresetRegisterBody Body;
-	if (!WebRemoteControlUtils::DeserializeRequestPayload(WebSocketMessage.RequestPayload, nullptr, Body))
+	if (!WebRemoteControlInternalUtils::DeserializeRequestPayload(WebSocketMessage.RequestPayload, nullptr, Body))
 	{
 		return;
 	}
@@ -604,7 +605,7 @@ void FWebSocketMessageHandler::OnEntitiesModified(URemoteControlPreset* Owner, c
 	}
 	
 	TArray<uint8> Payload;
-	WebRemoteControlUtils::SerializeResponse(FRCPresetEntitiesModifiedEvent{Owner, ModifiedEntities.Array()}, Payload);
+	WebRemoteControlUtils::SerializeMessage(FRCPresetEntitiesModifiedEvent{Owner, ModifiedEntities.Array()}, Payload);
 	BroadcastToListeners(Owner->GetPresetId(), Payload);
 }
 
@@ -695,7 +696,7 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 		}
 
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsAddedEvent{ Preset->GetFName(), Preset->GetPresetId(), AddedPropertiesDescription }, Payload);
+		WebRemoteControlUtils::SerializeMessage(FRCPresetFieldsAddedEvent{ Preset->GetFName(), Preset->GetPresetId(), AddedPropertiesDescription }, Payload);
 		BroadcastToListeners(Entry.Key, Payload);
 	}
 
@@ -720,7 +721,7 @@ void FWebSocketMessageHandler::ProcessRemovedProperties()
 		ensure(Entry.Value.Key.Num() == Entry.Value.Value.Num());
 		
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsRemovedEvent{ Preset->GetFName(), Preset->GetPresetId(), Entry.Value.Value, Entry.Value.Key }, Payload);
+		WebRemoteControlUtils::SerializeMessage(FRCPresetFieldsRemovedEvent{ Preset->GetFName(), Preset->GetPresetId(), Entry.Value.Value, Entry.Value.Key }, Payload);
 		BroadcastToListeners(Entry.Key, Payload);
 	}
 	
@@ -743,7 +744,7 @@ void FWebSocketMessageHandler::ProcessRenamedFields()
 		}
 
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsRenamedEvent{Preset->GetFName(), Preset->GetPresetId(), Entry.Value}, Payload);
+		WebRemoteControlUtils::SerializeMessage(FRCPresetFieldsRenamedEvent{Preset->GetFName(), Preset->GetPresetId(), Entry.Value}, Payload);
 		BroadcastToListeners(Entry.Key, Payload);
 	}
 
@@ -759,7 +760,7 @@ void FWebSocketMessageHandler::ProcessModifiedMetadata()
 			if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(Entry))
 			{
 				TArray<uint8> Payload;
-				WebRemoteControlUtils::SerializeResponse(FRCPresetMetadataModified{ Preset }, Payload);
+				WebRemoteControlUtils::SerializeMessage(FRCPresetMetadataModified{ Preset }, Payload);
 				BroadcastToListeners(Entry, Payload);
 			}
 		}
@@ -777,7 +778,7 @@ void FWebSocketMessageHandler::ProcessModifiedPresetLayouts()
 			if (URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(Entry))
 			{
 				TArray<uint8> Payload;
-				WebRemoteControlUtils::SerializeResponse(FRCPresetLayoutModified{ Preset }, Payload);
+				WebRemoteControlUtils::SerializeMessage(FRCPresetLayoutModified{ Preset }, Payload);
 				BroadcastToListeners(Entry, Payload);
 			}
 		}
@@ -826,7 +827,7 @@ bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPre
 		FStructOnScope FieldsChangedEventOnScope = WebSocketMessageHandlerStructUtils::CreatePresetFieldsChangedStructOnScope(InPreset, PropValuesOnScope);
 
 		FMemoryWriter Writer(OutBuffer);
-		WebRemoteControlUtils::SerializeStructOnScope(FieldsChangedEventOnScope, Writer);
+		WebRemoteControlInternalUtils::SerializeStructOnScope(FieldsChangedEventOnScope, Writer);
 	}
 
 	return bHasProperty;
@@ -864,7 +865,7 @@ bool FWebSocketMessageHandler::WriteActorPropertyChangePayload(URemoteControlPre
 	}
 
 	FStructOnScope ActorsModifedOnScope = WebSocketMessageHandlerStructUtils::CreateModifiedActorsStructOnScope(InPreset, ModifiedActorsOnScope);
-	WebRemoteControlUtils::SerializeStructOnScope(ActorsModifedOnScope, InWriter);
+	WebRemoteControlInternalUtils::SerializeStructOnScope(ActorsModifedOnScope, InWriter);
 
 	return bHasProperty;
 }

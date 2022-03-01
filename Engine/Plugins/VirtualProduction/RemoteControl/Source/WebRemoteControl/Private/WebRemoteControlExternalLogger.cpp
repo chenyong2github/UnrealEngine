@@ -2,7 +2,7 @@
 
 #include "WebRemoteControlExternalLogger.h"
 #include "WebSocketNetworkingDelegates.h"
-#include "WebRemoteControlUtils.h"
+#include "WebRemoteControlInternalUtils.h"
 #include "INetworkingWebSocket.h"
 
 
