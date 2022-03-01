@@ -25,16 +25,9 @@ public:
 	 * @param InName - The name of the task.
 	 * @param InDependency - An optional task that this task depends on.
 	 */
-	FLauncherTask( const FString& InName, const FString& InDesc, void* InReadPipe, void* InWritePipe)
+	FLauncherTask( const FString& InName, const FString& InDesc)
 		: Name(InName)
 		, Desc(InDesc)
-		, Status(ELauncherTaskStatus::Pending)
-		, bCancelling( false)
-		, ReadPipe(InReadPipe)
-		, WritePipe(InWritePipe)
-		, Result(0)
-		, ErrorCounter(0)
-		, WarningCounter(0)
 	{ }
 
 public:
@@ -208,12 +201,9 @@ public:
 		// this can be called by anyone
 		bCancelling = true;
 
-		if (Status == ELauncherTaskStatus::Pending || Status == ELauncherTaskStatus::Completed)
+		if (Status == ELauncherTaskStatus::Pending)
 		{
-			if (Status == ELauncherTaskStatus::Pending)
-			{
-				Status = ELauncherTaskStatus::Canceled;
-			}
+			Status = ELauncherTaskStatus::Canceled;
 		}
 		CancelContinuations();
 	}
@@ -335,30 +325,25 @@ private:
 	FDateTime StartTime;
 
 	// Holds the status of this task
-	ELauncherTaskStatus::Type Status;
+	ELauncherTaskStatus::Type Status = ELauncherTaskStatus::Pending;
 
 	// set if this should be cancelled
-	bool bCancelling;
-
+	bool bCancelling = false;
 
 	// Holds the thread that's running this task.
-	FRunnableThread* Thread;
+	FRunnableThread* Thread = nullptr;
 
 	// message delegates
 	FOnTaskStartedDelegate TaskStarted;
 	FOnTaskCompletedDelegate TaskCompleted;
 
 protected:
-	// read and write pipe
-	void* ReadPipe;
-	void* WritePipe;
-
 	// result
-	int32 Result;
+	int32 Result = 0;
 
 	// counters
-	uint32 ErrorCounter;
-	uint32 WarningCounter;
+	uint32 ErrorCounter = 0;
+	uint32 WarningCounter = 0;
 
 	// task counter, used to generate unique thread names for each task
 	static FThreadSafeCounter TaskCounter;

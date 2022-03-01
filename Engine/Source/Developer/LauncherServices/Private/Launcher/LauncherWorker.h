@@ -140,18 +140,18 @@ private:
 	ILauncherProfilePtr Profile;
 
 	// Holds the worker's current status.
-	volatile ELauncherWorkerStatus::Type Status;
+	volatile ELauncherWorkerStatus::Type Status = ELauncherWorkerStatus::Busy;
 
 	// Holds the first task in the task chain.
 	TSharedPtr<FLauncherTask> TaskChain;
 
 	// holds the read and write pipes and the running UAT process
-	void* ReadPipe;
-	void* WritePipe;
+	void* ReadPipe = nullptr;
+	void* WritePipe = nullptr;
 	FProcHandle ProcHandle;
 
-	double StageStartTime;
-	double LaunchStartTime;
+	double StageStartTime = 0.0;
+	double LaunchStartTime = 0.0;
 
 	// message delegate
 	FOutputMessageReceivedDelegate OutputMessageReceived;

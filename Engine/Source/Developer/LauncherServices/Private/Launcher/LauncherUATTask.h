@@ -18,14 +18,16 @@ class FLauncherUATTask
 public:
 
 	FLauncherUATTask( const FString& InCommandLine, const FString& InName, const FString& InDesc, void* InReadPipe, void* InWritePipe, const FString& InEditorExe, FProcHandle& InProcessHandle, ILauncherWorker* InWorker, const FString& InCommandEnd, const FString& InBuildCookRunPreCommand)
-		: FLauncherTask(InName, InDesc, InReadPipe, InWritePipe)
+		: FLauncherTask(InName, InDesc)
+
 		, CommandLine(InCommandLine)
+		, ReadPipe(InReadPipe)
+		, WritePipe(InWritePipe)
 		, EditorExe(InEditorExe)
 		, ProcessHandle(InProcessHandle)
 		, CommandText(InCommandEnd)
 		, PreCommand(InBuildCookRunPreCommand)
 	{
-		EndTextFound = false;
 		InWorker->OnOutputReceived().AddRaw(this, &FLauncherUATTask::HandleOutputReceived);
 	}
 
@@ -85,13 +87,6 @@ protected:
 
 		while (FPlatformProcess::IsProcRunning(ProcessHandle) && !EndTextFound)
 		{
-
-			if (IsCancelling())
-			{
-				FPlatformProcess::TerminateProc(ProcessHandle, true);
-				return false;
-			}
-
 			FPlatformProcess::Sleep(0.25);
 		}
 
@@ -122,6 +117,10 @@ private:
 	// Command line
 	FString CommandLine;
 
+	// read and write pipe
+	void* ReadPipe = nullptr;
+	void* WritePipe = nullptr;
+
 	// The editor executable that UAT should use
 	FString EditorExe;
 
@@ -134,6 +133,6 @@ private:
 	// a UAT command to run before BuildCookRun (in the same instance as the BuildCookRun)
 	FString PreCommand;
 
-	bool EndTextFound;
+	bool EndTextFound = false;
 };
 

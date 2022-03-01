@@ -16,7 +16,6 @@
 #include "Launcher/LauncherTaskChainState.h"
 #include "Launcher/LauncherTask.h"
 #include "Launcher/LauncherUATTask.h"
-#include "Launcher/LauncherVerifyProfileTask.h"
 #include "PlatformInfo.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Profiles/LauncherProfile.h"
@@ -38,7 +37,6 @@ FThreadSafeCounter FLauncherTask::TaskCounter;
 FLauncherWorker::FLauncherWorker(const TSharedRef<ITargetDeviceProxyManager>& InDeviceProxyManager, const ILauncherProfileRef& InProfile)
 	: DeviceProxyManager(InDeviceProxyManager)
 	, Profile(InProfile)
-	, Status(ELauncherWorkerStatus::Busy)
 {
 	CreateAndExecuteTasks(InProfile);
 }
@@ -59,6 +57,26 @@ uint32 FLauncherWorker::Run( )
 
 	LaunchStartTime = FPlatformTime::Seconds();
 
+	auto MessageReceived = [this](const FString& InMessage)
+	{
+		FStringView MessageView = InMessage;
+		{
+			FStringView PackageDevicePrefix = TEXTVIEW("Running Package@Device:");
+			if (MessageView.StartsWith(PackageDevicePrefix))
+			{
+				FStringView Value = MessageView.RightChop(PackageDevicePrefix.Len());
+				int32 SplitIndex;
+				if (Value.FindChar('@', SplitIndex))
+				{
+					FString Package(Value.SubStr(0, SplitIndex));
+					FString Device(Value.SubStr(SplitIndex + 1, Value.Len()));
+					AddDevicePackagePair(Device, Package);
+				}
+			}
+		}
+		OutputMessageReceived.Broadcast(InMessage);
+	};
+
 	// wait for tasks to be completed
 	while (Status == ELauncherWorkerStatus::Busy)
 	{
@@ -76,7 +94,7 @@ uint32 FLauncherWorker::Run( )
 				for (int32 Index = 0; Index < count-1; ++Index)
 				{
 					StringArray[Index].TrimEndInline();
-					OutputMessageReceived.Broadcast(StringArray[Index]);
+					MessageReceived(StringArray[Index]);
 				}
 				Line = StringArray[count-1];
 				if (NewLine.EndsWith(TEXT("\n")))
@@ -102,7 +120,7 @@ uint32 FLauncherWorker::Run( )
 					for (int32 Index = 0; Index < count-1; ++Index)
 					{
 						StringArray[Index].TrimEndInline();
-						OutputMessageReceived.Broadcast(StringArray[Index]);
+						MessageReceived(StringArray[Index]);
 					}
 					Line = StringArray[count-1];
 					if (NewLine.EndsWith(TEXT("\n")))
@@ -115,7 +133,7 @@ uint32 FLauncherWorker::Run( )
 			}
 
 			// fire off the last line
-			OutputMessageReceived.Broadcast(Line);
+			MessageReceived(Line);
 
 		}
 	}
@@ -167,6 +185,9 @@ void FLauncherWorker::Cancel( )
 	if (Status == ELauncherWorkerStatus::Busy)
 	{
 		Status = ELauncherWorkerStatus::Canceling;
+		// kill the uat process tree
+		FPlatformProcess::TerminateProc(ProcHandle, true);
+		// kill any lingering target processes left after killing uat
 		TerminateLaunchedProcess();
 	}
 }
@@ -931,7 +952,6 @@ void FLauncherWorker::CreateAndExecuteTasks( const ILauncherProfileRef& InProfil
 	FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
 
 	// create task chains
-	TaskChain = MakeShareable(new FLauncherVerifyProfileTask());
 	TArray<FString> Platforms;
 	if (InProfile->GetCookMode() == ELauncherProfileCookModes::ByTheBook || InProfile->ShouldBuild())
 	{
@@ -967,14 +987,30 @@ void FLauncherWorker::CreateAndExecuteTasks( const ILauncherProfileRef& InProfil
 	check( InProfile->GetCookMode() != ELauncherProfileCookModes::OnTheFlyInEditor );
 #endif
 
-	TSharedPtr<FLauncherTask> NextTask = TaskChain;
+	TSharedPtr<FLauncherTask> NextTask;
+	auto AddTask = [this, &NextTask](TSharedPtr<FLauncherTask> NewTask)
+	{
+		NewTask->OnStarted().AddRaw(this, &FLauncherWorker::OnTaskStarted);
+		NewTask->OnCompleted().AddRaw(this, &FLauncherWorker::OnTaskCompleted);
+
+		if (NextTask.IsValid())
+		{
+			NextTask->AddContinuation(NewTask);
+			NextTask = NewTask;
+		}
+		else
+		{
+			NextTask = TaskChain = NewTask;
+		}
+	};
+
 	if (InProfile->GetCookMode() == ELauncherProfileCookModes::ByTheBookInEditor)
 	{
 		// need a command which will wait for the cook to finish
 		class FWaitForCookInEditorToFinish : public FLauncherTask
 		{
 		public:
-			FWaitForCookInEditorToFinish() : FLauncherTask( FString(TEXT("Cooking in the editor")), FString(TEXT("Prepairing content to run on device")), NULL, NULL)
+			FWaitForCookInEditorToFinish() : FLauncherTask( FString(TEXT("Cooking in the editor")), FString(TEXT("Prepairing content to run on device")))
 			{
 			}
 			virtual bool PerformTask( FLauncherTaskChainState& ChainState ) override
@@ -992,10 +1028,7 @@ void FLauncherWorker::CreateAndExecuteTasks( const ILauncherProfileRef& InProfil
 			}
 		};
 		TSharedPtr<FLauncherTask> WaitTask = MakeShareable(new FWaitForCookInEditorToFinish());
-		WaitTask->OnStarted().AddRaw(this, &FLauncherWorker::OnTaskStarted);
-		WaitTask->OnCompleted().AddRaw(this, &FLauncherWorker::OnTaskCompleted);
-		NextTask->AddContinuation(WaitTask);
-		NextTask = WaitTask;
+		AddTask(WaitTask);
 	}
 	TArray<FCommandDesc> Commands;
 	FString StartString;
@@ -1008,24 +1041,25 @@ void FLauncherWorker::CreateAndExecuteTasks( const ILauncherProfileRef& InProfil
 		TurnkeyCommand = FString::Printf(TEXT("Turnkey -command=VerifySdk -type=Flash -device=%s -UpdateIfNeeded -utf8output -WaitForUATMutex %s"), *FString::Join(DeviceGroup->GetDeviceIDs(), TEXT("+")), *ITurnkeyIOModule::Get().GetUATParams());
 	}
 
-	TSharedPtr<FLauncherTask> BuildTask = MakeShareable(new FLauncherUATTask(UATCommand, TEXT("Build Task"), TEXT("Launching UAT..."), ReadPipe, WritePipe, InProfile->GetEditorExe(), ProcHandle, this, StartString, TurnkeyCommand));
-	BuildTask->OnStarted().AddRaw(this, &FLauncherWorker::OnTaskStarted);
-	BuildTask->OnCompleted().AddRaw(this, &FLauncherWorker::OnTaskCompleted);
-	NextTask->AddContinuation(BuildTask);
-	NextTask = BuildTask;
+	TSharedPtr<FLauncherTask> LaunchTask = MakeShareable(new FLauncherUATTask(UATCommand, TEXT("Launch Task"), TEXT("Launching UAT..."), ReadPipe, WritePipe, InProfile->GetEditorExe(), ProcHandle, this, StartString, TurnkeyCommand));
+	AddTask(LaunchTask);
 	for (int32 Index = 0; Index < Commands.Num(); ++Index)
 	{
 		class FLauncherWaitTask : public FLauncherTask
 		{
 		public:
 			FLauncherWaitTask( const FString& InCommandEnd, const FString& InName, const FString& InDesc, FProcHandle& InProcessHandle, ILauncherWorker* InWorker)
-				: FLauncherTask(InName, InDesc, 0, 0)
+				: FLauncherTask(InName, InDesc)
 				, CommandText(InCommandEnd)
 				, ProcessHandle(InProcessHandle)
 				, LauncherWorker(InWorker)
 			{
-				EndTextFound = false;
 				InWorker->OnOutputReceived().AddRaw(this, &FLauncherWaitTask::HandleOutputReceived);
+			}
+
+			virtual void Exit()
+			{
+				LauncherWorker->OnOutputReceived().RemoveAll(this);
 			}
 
 		protected:
@@ -1033,11 +1067,6 @@ void FLauncherWorker::CreateAndExecuteTasks( const ILauncherProfileRef& InProfil
 			{
 				while (FPlatformProcess::IsProcRunning(ProcessHandle) && !EndTextFound)
 				{
-					if (IsCancelling())
-					{
-						FPlatformProcess::TerminateProc(ProcessHandle, true);
-						return false;
-					}
 					FPlatformProcess::Sleep(0.25);
 				}
 				if (!EndTextFound && !FPlatformProcess::GetProcReturnCode(ProcessHandle, &Result))
@@ -1050,39 +1079,23 @@ void FLauncherWorker::CreateAndExecuteTasks( const ILauncherProfileRef& InProfil
 			void HandleOutputReceived(const FString& InMessage)
 			{
 				EndTextFound |= InMessage.Contains(CommandText);
-				const FString DevicePackagePairMessagePrefix = "Running Package@Device:";
-				if (InMessage.StartsWith(DevicePackagePairMessagePrefix))
-				{
-					FString DevicePackagePairMessage = InMessage;
-					DevicePackagePairMessage.RemoveFromStart(DevicePackagePairMessagePrefix);
-					TArray<FString> DevicePackagePair;
-					if (DevicePackagePairMessage.ParseIntoArray(DevicePackagePair, TEXT("@"), true) == 2)
-					{
-						LauncherWorker->AddDevicePackagePair(DevicePackagePair[1], DevicePackagePair[0]);
-					}
-				}
 			}
 
 		private:
 			FString CommandText;
 			FProcHandle& ProcessHandle;
-			bool EndTextFound;
-			ILauncherWorker* LauncherWorker;
+			ILauncherWorker* LauncherWorker = nullptr;
+			bool EndTextFound = false;
 		};			
 
 		TSharedPtr<FLauncherTask> WaitTask = MakeShareable(new FLauncherWaitTask(Commands[Index].EndText, Commands[Index].Name, Commands[Index].Desc, ProcHandle, this));
-		WaitTask->OnStarted().AddRaw(this, &FLauncherWorker::OnTaskStarted);
-		WaitTask->OnCompleted().AddRaw(this, &FLauncherWorker::OnTaskCompleted);
-		NextTask->AddContinuation(WaitTask);
-		NextTask = WaitTask;
+		AddTask(WaitTask);
 	}
 
 	// execute the chain
 	FLauncherTaskChainState ChainState;
-
 	ChainState.Profile = InProfile;
 	ChainState.SessionId = FGuid::NewGuid();
-
 	TaskChain->Execute(ChainState);
 }
 

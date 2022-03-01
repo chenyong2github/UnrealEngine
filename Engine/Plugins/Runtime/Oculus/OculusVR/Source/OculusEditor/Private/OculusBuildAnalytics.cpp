@@ -193,11 +193,11 @@ void FOculusBuildAnalytics::OnStageStarted(const FString& StageName)
 	{
 		CurrentBuildStage = COOK_IN_EDITOR_STAGE;
 	}
-	else if (StageName.Equals("Build Task") && CurrentBuildStage == LAUNCH_UAT_STAGE)
+	else if (StageName.Equals("Build Task"))
 	{
 		CurrentBuildStage = COMPILE_STAGE;
 	}
-	else if (StageName.Equals("Build Task"))
+	else if (StageName.Equals("Launch Task"))
 	{
 		CurrentBuildStage = LAUNCH_UAT_STAGE;
 	}
