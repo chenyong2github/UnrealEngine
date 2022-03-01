@@ -13,6 +13,7 @@
 #include "Nodes/InterchangeBaseNode.h"
 #include "PropertyEditorModule.h"
 
+#define LOCTEXT_NAMESPACE "InterchangeEditorPipelines"
 
 class FInterchangeEditorPipelinesModule : public IInterchangeEditorPipelinesModule
 {
@@ -20,18 +21,26 @@ class FInterchangeEditorPipelinesModule : public IInterchangeEditorPipelinesModu
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	TSharedRef<FPropertySection> RegisterPropertySection(FPropertyEditorModule& PropertyModule, FName ClassName, FName SectionName, FText DisplayName);
+	void RegisterPropertySectionMappings();
+	void UnregisterPropertySectionMappings();
+
 private:
 	/** Pointer to the style set to use for the UI. */
 	TSharedPtr<ISlateStyle> InterchangeEditorPipelineStyle = nullptr;
+
+	TMultiMap<FName, FName> RegisteredPropertySections;
 };
 
 IMPLEMENT_MODULE(FInterchangeEditorPipelinesModule, InterchangeEditorPipelines)
 
 void FInterchangeEditorPipelinesModule::StartupModule()
 {
-	auto RegisterItems = []()
+	auto RegisterItems = [this]()
 	{
 		UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+
+		RegisterPropertySectionMappings();
 	};
 
 	if (GEngine)
@@ -56,7 +65,6 @@ void FInterchangeEditorPipelinesModule::StartupModule()
 	}
 }
 
-
 void FInterchangeEditorPipelinesModule::ShutdownModule()
 {
 	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
@@ -68,8 +76,73 @@ void FInterchangeEditorPipelinesModule::ShutdownModule()
 		}
 	}
 
+	UnregisterPropertySectionMappings();
+
 	InterchangeEditorPipelineStyle = nullptr;
 }
 
+TSharedRef<FPropertySection> FInterchangeEditorPipelinesModule::RegisterPropertySection(FPropertyEditorModule& PropertyModule, FName ClassName, FName SectionName, FText DisplayName)
+{
+	TSharedRef<FPropertySection> PropertySection = PropertyModule.FindOrCreateSection(ClassName, SectionName, DisplayName);
+	RegisteredPropertySections.Add(ClassName, SectionName);
 
+	return PropertySection;
+}
+
+void FInterchangeEditorPipelinesModule::RegisterPropertySectionMappings()
+{
+	const FName PropertyEditorModuleName("PropertyEditor");
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditorModuleName);
+
+	// Assets
+	{
+		TSharedRef<FPropertySection> Section = RegisterPropertySection(PropertyModule, "InterchangeGenericAssetsPipeline", "General", LOCTEXT("General", "General"));
+		Section->AddCategory("Common");
+	}
+
+	// Materials
+	{
+		TSharedRef<FPropertySection> Section = RegisterPropertySection(PropertyModule, "InterchangeGenericMaterialPipeline", "Materials", LOCTEXT("Materials", "Materials"));
+		Section->AddCategory("Materials");
+	}
+
+	// Skeletal Meshes
+	{
+		TSharedRef<FPropertySection> Section = RegisterPropertySection(PropertyModule, "InterchangeGenericMeshPipeline", "SkeletalMeshes", LOCTEXT("Skeletal Meshes", "Skeletal Meshes"));
+		Section->AddCategory("Common Meshes");
+		Section->AddCategory("Skeletal Meshes");
+	}
+
+	// Static Meshes
+	{
+		TSharedRef<FPropertySection> Section = RegisterPropertySection(PropertyModule, "InterchangeGenericMeshPipeline", "StaticMeshes", LOCTEXT("Static Meshes", "Static Meshes"));
+		Section->AddCategory("Common Meshes");
+		Section->AddCategory("Static Meshes");
+	}
+
+	// Textures
+	{
+		TSharedRef<FPropertySection> Section = RegisterPropertySection(PropertyModule, "InterchangeGenericTexturePipeline", "Textures", LOCTEXT("Textures", "Textures"));
+		Section->AddCategory("Textures");
+	}
+}
+
+void FInterchangeEditorPipelinesModule::UnregisterPropertySectionMappings()
+{
+	const FName PropertyEditorModuleName("PropertyEditor");
+	FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>(PropertyEditorModuleName);
+
+	if (!PropertyModule)
+	{
+		return;
+	}
+
+	for (TMultiMap<FName, FName>::TIterator PropertySectionIterator = RegisteredPropertySections.CreateIterator(); PropertySectionIterator; ++PropertySectionIterator)
+	{
+		PropertyModule->RemoveSection(PropertySectionIterator->Key, PropertySectionIterator->Value);
+		PropertySectionIterator.RemoveCurrent();
+	}
+}
+
+#undef LOCTEXT_NAMESPACE
 

@@ -219,9 +219,12 @@ enum class EInterchangeNodeContainerType : uint8
 UENUM()
 enum class EReimportStrategyFlags : uint8
 {
-	ApplyNoProperties, //Do not apply any property when re-importing, simply change the source data
-	ApplyPipelineProperties, //Always apply all pipeline specified properties
-	ApplyEditorChangedProperties //Always apply all pipeline properties, but leave the properties modified in editor since the last import
+	//Do not apply any property when re-importing, simply change the source data
+	ApplyNoProperties,
+	//Always apply all pipeline specified properties
+	ApplyPipelineProperties,
+	//Always apply all pipeline properties, but leave the properties modified in editor since the last import
+	ApplyEditorChangedProperties
 };
 
 /**

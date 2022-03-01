@@ -518,12 +518,18 @@ void FPropertySection::RemoveCategory(FName CategoryName)
 
 bool FPropertySection::HasAddedCategory(FName CategoryName) const
 {
-	return AddedCategories.Contains(CategoryName);
+	FString CategoryString = CategoryName.ToString();
+	CategoryString.RemoveSpacesInline();
+
+	return AddedCategories.Contains(*CategoryString);
 }
 
 bool FPropertySection::HasRemovedCategory(FName CategoryName) const
 {
-	return RemovedCategories.Contains(CategoryName);
+	FString CategoryString = CategoryName.ToString();
+	CategoryString.RemoveSpacesInline();
+
+	return RemovedCategories.Contains(*CategoryString);
 }
 
 FClassSectionMapping::FClassSectionMapping(FName InClassName) :
