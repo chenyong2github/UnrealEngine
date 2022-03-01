@@ -1363,7 +1363,9 @@ static FString CreateGBufferDecodeFunctionVariation(const FGBufferInfo& BufferIn
 
 		if (FEATURE_LEVEL >= ERHIFeatureLevel::SM5)
 		{
-			FullStr += FString::Printf(TEXT("\tint2 IntUV = (int2)trunc(%s * View.BufferSizeAndInvSize.xy);\n"), CoordName.GetCharArray().GetData());
+			// BufferToSceneTextureScale is necessary when translucent materials are rendered in a render target 
+			// that has a different resolution than the scene color textures, e.g. r.SeparateTranslucencyScreenPercentage < 100.
+			FullStr += FString::Printf(TEXT("\tint2 IntUV = (int2)trunc(%s * View.BufferSizeAndInvSize.xy * View.BufferToSceneTextureScale.xy);\n"), CoordName.GetCharArray().GetData());
 			FullStr += TEXT("\tuint CustomStencil = SceneTexturesStruct.CustomStencilTexture.Load(int3(IntUV, 0)) STENCIL_COMPONENT_SWIZZLE;\n");
 		}
 		else

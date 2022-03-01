@@ -881,6 +881,8 @@ void SetupDownsampledTranslucencyViewParameters(
 	float ActualDownsampleX = float(ViewRect.Width()) / float(View.ViewRect.Width());
 	float ActualDownsampleY = float(ViewRect.Height()) / float(View.ViewRect.Height());
 	DownsampledTranslucencyViewParameters.LightProbeSizeRatioAndInvSizeRatio = FVector4f(ActualDownsampleX, ActualDownsampleY, 1.0f / ActualDownsampleX, 1.0f / ActualDownsampleY);
+
+	DownsampledTranslucencyViewParameters.BufferToSceneTextureScale = FVector2f(1.0f / ActualDownsampleX, 1.0f / ActualDownsampleY);
 }
 
 TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(

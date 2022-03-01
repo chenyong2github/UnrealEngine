@@ -779,7 +779,9 @@ FGBufferData GetGBufferData(float2 UV, bool bGetNormalizedNormal = true)
 	float4 GBufferD = Texture2DSampleLevel(SceneTexturesStruct.GBufferDTexture, SceneTexturesStruct_GBufferDTextureSampler, UV, 0);
 	float CustomNativeDepth = Texture2DSampleLevel(SceneTexturesStruct.CustomDepthTexture, SceneTexturesStruct_CustomDepthTextureSampler, UV, 0).r;
 
-	int2 IntUV = (int2)trunc(UV * View.BufferSizeAndInvSize.xy);
+	// BufferToSceneTextureScale is necessary when translucent materials are rendered in a render target 
+	// that has a different resolution than the scene color textures, e.g. r.SeparateTranslucencyScreenPercentage < 100.
+	int2 IntUV = (int2)trunc(UV * View.BufferSizeAndInvSize.xy * View.BufferToSceneTextureScale.xy);
 	uint CustomStencil = SceneTexturesStruct.CustomStencilTexture.Load(int3(IntUV, 0)) STENCIL_COMPONENT_SWIZZLE;
 
 	#if ALLOW_STATIC_LIGHTING
