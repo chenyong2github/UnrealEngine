@@ -1096,6 +1096,10 @@ void FSkeletalAnimationTrackEditor::OnInitialize()
 {
 	++FSkeletalAnimationTrackEditor::NumberActive;
 
+	// Activate the default mode in case FEditorModeTools::Tick isn't run before here. 
+	// This can be removed once a general fix for UE-143791 has been implemented.
+	GLevelEditorModeTools().ActivateDefaultMode();
+
 	GLevelEditorModeTools().ActivateMode(FSkeletalAnimationTrackEditMode::ModeName);
 	FSkeletalAnimationTrackEditMode* EditMode = static_cast<FSkeletalAnimationTrackEditMode*>(GLevelEditorModeTools().GetActiveMode(FSkeletalAnimationTrackEditMode::ModeName));
 	if (EditMode)

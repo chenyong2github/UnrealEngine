@@ -569,6 +569,10 @@ void FLevelEditorSequencerIntegration::ActivateSequencerEditorMode()
 	FName ResourceName("SequencerMode");
 	AcquiredResources.Release(ResourceName);
 
+	// Activate the default mode in case FEditorModeTools::Tick isn't run before here. 
+	// This can be removed once a general fix for UE-143791 has been implemented.
+	GLevelEditorModeTools().ActivateDefaultMode();
+
 	FEditorModeID ModeID = TEXT("SequencerToolsEditMode");
 	GLevelEditorModeTools().ActivateMode(ModeID);
 
