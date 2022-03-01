@@ -7,6 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FTabManager;
+class FSpawnTabArgs;
 class SDockTab;
 class SWindow;
 
