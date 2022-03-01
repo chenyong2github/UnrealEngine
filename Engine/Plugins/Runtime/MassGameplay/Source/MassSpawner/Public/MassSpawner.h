@@ -59,6 +59,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Spawning")
 	void DoDespawning();
 
+	/**
+	 * Despawn all mass agent that was spawned by this spawner, except EntitiesToIgnore.
+	 *
+	 * Any EntitiesToIgnore previously spawned by this spawner will remain spawned and tracked by this spawner.   
+	 */
+	void DoDespawning(TConstArrayView<FMassEntityHandle> EntitiesToIgnore);
+
 	UFUNCTION(BlueprintCallable, Category = "Spawning")
 	void ClearTemplates();
 
