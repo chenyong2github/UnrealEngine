@@ -279,10 +279,6 @@ struct FGfxPipelineDesc
 	FVulkanShaderHashes ShaderHashes;
 #endif
 
-#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
-	SIZE_T ImmutableSamplers[MaxImmutableSamplers] = { 0 };
-#endif
-
 	struct FRenderTargets
 	{
 		struct FAttachmentRef
@@ -425,16 +421,6 @@ struct FGfxPipelineDesc
 		if (0 != FMemory::Memcmp(ShaderKeys, In.ShaderKeys, sizeof(ShaderKeys)))
 		{
 			return false;
-		}
-#endif
-
-#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
-		for (uint32 Index = 0; Index < MaxImmutableSamplers; ++Index)
-		{
-			if (ImmutableSamplers[Index] != In.ImmutableSamplers[Index])
-			{
-				return false;
-			}
 		}
 #endif
 

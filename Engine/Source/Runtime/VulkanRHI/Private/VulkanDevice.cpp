@@ -806,26 +806,6 @@ void FVulkanDevice::SetupFormats()
 #endif
 }
 
-#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
-VkSamplerYcbcrConversion FVulkanDevice::CreateSamplerColorConversion(const VkSamplerYcbcrConversionCreateInfo& CreateInfo)
-{
-	const uint32 CreateInfoHash = FCrc::MemCrc32(&CreateInfo, sizeof(CreateInfo));
-	VkSamplerYcbcrConversion* const FindResult = SamplerColorConversionMap.Find(CreateInfoHash);
-	if (FindResult != nullptr)
-	{
-		return *FindResult;
-	}
-	else
-	{
-		VkSamplerYcbcrConversion NewConversion;
-		VERIFYVULKANRESULT(VulkanRHI::vkCreateSamplerYcbcrConversionKHR(GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &NewConversion));
-		SamplerColorConversionMap.Add(CreateInfoHash, NewConversion);
-		return NewConversion;
-	}
-}
-#endif
-
-
 const VkFormatProperties& FVulkanDevice::GetFormatProperties(VkFormat InFormat)
 {
 	if (InFormat >= 0 && InFormat < VK_FORMAT_RANGE_SIZE)
@@ -1492,14 +1472,6 @@ void FVulkanDevice::Destroy()
 
 	delete DefaultImage;
 	DefaultImage = nullptr;
-
-#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
-	for (const auto& Pair : SamplerColorConversionMap)
-	{
-		VulkanRHI::vkDestroySamplerYcbcrConversionKHR(GetInstanceHandle(), Pair.Value, VULKAN_CPU_ALLOCATOR);
-	}
-	SamplerColorConversionMap.Reset();
-#endif
 
 	for (int32 Index = CommandContexts.Num() - 1; Index >= 0; --Index)
 	{

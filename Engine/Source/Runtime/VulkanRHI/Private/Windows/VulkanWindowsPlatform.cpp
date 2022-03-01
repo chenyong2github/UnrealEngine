@@ -214,13 +214,6 @@ void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 #endif
 	}
 
-#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
-	// YCbCr requires BindMem2 and GetMemReqs2
-	OutExtensions.Add(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME);
-	OutExtensions.Add(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
-	OutExtensions.Add(VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME);
-#endif
-
 #if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
 	// Fullscreen requires Instance capabilities2
 	OutExtensions.Add(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);

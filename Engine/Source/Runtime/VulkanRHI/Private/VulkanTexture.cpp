@@ -1802,7 +1802,7 @@ void FVulkanDynamicRHI::InternalUpdateTexture3D(bool bFromRenderingThread, FRHIT
 }
 
 
-VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InImage, VkImageViewType ViewType, VkImageAspectFlags AspectFlags, EPixelFormat UEFormat, VkFormat Format, uint32 FirstMip, uint32 NumMips, uint32 ArraySliceIndex, uint32 NumArraySlices, bool bUseIdentitySwizzle, const FSamplerYcbcrConversionInitializer* ConversionInitializer)
+VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InImage, VkImageViewType ViewType, VkImageAspectFlags AspectFlags, EPixelFormat UEFormat, VkFormat Format, uint32 FirstMip, uint32 NumMips, uint32 ArraySliceIndex, uint32 NumArraySlices, bool bUseIdentitySwizzle)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
 	VkImageView OutView = VK_NULL_HANDLE;
@@ -1832,37 +1832,6 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 	{
 		ViewInfo.components = Device.GetFormatComponentMapping(UEFormat);
 	}
-
-#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
-	VkSamplerYcbcrConversionInfo ConversionInfo;
-	if (ConversionInitializer != nullptr)
-	{
-		VkSamplerYcbcrConversionCreateInfo ConversionCreateInfo;
-		FMemory::Memzero(&ConversionCreateInfo, sizeof(VkSamplerYcbcrConversionCreateInfo));
-		ConversionCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO;
-		ConversionCreateInfo.format = ConversionInitializer->Format;
-
-		ConversionCreateInfo.components.a = ConversionInitializer->Components.a;
-		ConversionCreateInfo.components.r = ConversionInitializer->Components.r;
-		ConversionCreateInfo.components.g = ConversionInitializer->Components.g;
-		ConversionCreateInfo.components.b = ConversionInitializer->Components.b;
-
-		ConversionCreateInfo.ycbcrModel = ConversionInitializer->Model;
-		ConversionCreateInfo.ycbcrRange = ConversionInitializer->Range;
-		ConversionCreateInfo.xChromaOffset = ConversionInitializer->XOffset;
-		ConversionCreateInfo.yChromaOffset = ConversionInitializer->YOffset;
-		ConversionCreateInfo.chromaFilter = VK_FILTER_NEAREST;
-		ConversionCreateInfo.forceExplicitReconstruction = VK_FALSE;
-
-		check(ConversionInitializer->Format != VK_FORMAT_UNDEFINED); // No support for VkExternalFormatANDROID yet.
-
-		FMemory::Memzero(&ConversionInfo, sizeof(VkSamplerYcbcrConversionInfo));
-		ConversionInfo.conversion = Device.CreateSamplerColorConversion(ConversionCreateInfo);
-		ConversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO;
-		ConversionInfo.pNext = ViewInfo.pNext;
-		ViewInfo.pNext = &ConversionInfo;
-	}
-#endif
 
 	ViewInfo.subresourceRange.aspectMask = AspectFlags;
 	ViewInfo.subresourceRange.baseMipLevel = FirstMip;
@@ -1935,18 +1904,7 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 
 void FVulkanTextureView::Create(FVulkanDevice& Device, VkImage InImage, VkImageViewType ViewType, VkImageAspectFlags AspectFlags, EPixelFormat UEFormat, VkFormat Format, uint32 FirstMip, uint32 NumMips, uint32 ArraySliceIndex, uint32 NumArraySlices, bool bUseIdentitySwizzle)
 {
-	View = StaticCreate(Device, InImage, ViewType, AspectFlags, UEFormat, Format, FirstMip, NumMips, ArraySliceIndex, NumArraySlices, bUseIdentitySwizzle, nullptr);
-	Image = InImage;
-	
-	if (UseVulkanDescriptorCache())
-	{
-		ViewId = ++GVulkanImageViewHandleIdCounter;
-	}
-}
-
-void FVulkanTextureView::Create(FVulkanDevice& Device, VkImage InImage, VkImageViewType ViewType, VkImageAspectFlags AspectFlags, EPixelFormat UEFormat, VkFormat Format, uint32 FirstMip, uint32 NumMips, uint32 ArraySliceIndex, uint32 NumArraySlices, FSamplerYcbcrConversionInitializer& ConversionInitializer, bool bUseIdentitySwizzle)
-{
-	View = StaticCreate(Device, InImage, ViewType, AspectFlags, UEFormat, Format, FirstMip, NumMips, ArraySliceIndex, NumArraySlices, bUseIdentitySwizzle, &ConversionInitializer);
+	View = StaticCreate(Device, InImage, ViewType, AspectFlags, UEFormat, Format, FirstMip, NumMips, ArraySliceIndex, NumArraySlices, bUseIdentitySwizzle);
 	Image = InImage;
 	
 	if (UseVulkanDescriptorCache())
@@ -2071,39 +2029,6 @@ FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType Re
 	{
 		PartialView = new FVulkanTextureView;
 		PartialView->Create(Device, Surface.Image, Surface.ViewType, Surface.PartialAspectMask, Surface.PixelFormat, Surface.ViewFormat, 0, FMath::Max(InNumMips, 1u), 0, bArray ? FMath::Max(1u, ArraySize) : FMath::Max(1u, SizeZ));
-	}
-}
-
-FVulkanTextureBase::FVulkanTextureBase(FVulkanDevice& Device, VkImageViewType ResourceType, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, VkImage InImage, VkDeviceMemory InMem, FSamplerYcbcrConversionInitializer& ConversionInitializer, ETextureCreateFlags UEFlags, const FRHIResourceCreateInfo& CreateInfo)
-	: Surface(Device, ResourceType, Format, SizeX, SizeY, SizeZ, ArraySize, NumMips, NumSamples, InImage, UEFlags, EImageOwnerType::ExternalOwner, CreateInfo)
-	, PartialView(nullptr)
-{
-	Surface.OwningTexture = this;
-	VULKAN_TRACK_OBJECT_CREATE(FVulkanTextureBase, this);
-
-	check(InMem == VK_NULL_HANDLE);
-	const bool bArray = ResourceType == VK_IMAGE_VIEW_TYPE_1D_ARRAY || ResourceType == VK_IMAGE_VIEW_TYPE_2D_ARRAY || ResourceType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
-
-	Surface.ViewFormat = ConversionInitializer.Format;
-	Surface.StorageFormat = ConversionInitializer.Format;
-
-	if (ResourceType != VK_IMAGE_VIEW_TYPE_MAX_ENUM && Surface.Image != VK_NULL_HANDLE)
-	{
-		DefaultView.Create(Device, Surface.Image, ResourceType, Surface.GetFullAspectMask(), Format, Surface.ViewFormat, 0, FMath::Max(Surface.NumMips, 1u), 0, bArray ? FMath::Max(1u, ArraySize) : FMath::Max(1u, SizeZ), ConversionInitializer);
-	}
-
-	// No MSAA support
-	check(NumSamples == 1);
-	check(!EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable));
-
-	if (Surface.FullAspectMask == Surface.PartialAspectMask)
-	{
-		PartialView = &DefaultView;
-	}
-	else
-	{
-		PartialView = new FVulkanTextureView;
-		PartialView->Create(Device, Surface.Image, Surface.ViewType, Surface.PartialAspectMask, Surface.PixelFormat, Surface.ViewFormat, 0, FMath::Max(NumMips, 1u), 0, bArray ? FMath::Max(1u, ArraySize) : FMath::Max(1u, SizeZ), ConversionInitializer);
 	}
 }
 
@@ -2303,12 +2228,6 @@ FVulkanTexture2D::FVulkanTexture2D(FVulkanDevice& Device, EPixelFormat InFormat,
 FVulkanTexture2D::FVulkanTexture2D(FVulkanDevice& Device, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Image, ETextureCreateFlags UEFlags, const FRHIResourceCreateInfo& CreateInfo)
 :	FRHITexture2D(SizeX, SizeY, NumMips, NumSamples, Format, UEFlags, CreateInfo.ClearValueBinding)
 ,	FVulkanTextureBase(Device, VK_IMAGE_VIEW_TYPE_2D, Format, SizeX, SizeY, 1, 1, NumMips, NumSamples, Image, VK_NULL_HANDLE, UEFlags, CreateInfo)
-{
-}
-
-FVulkanTexture2D::FVulkanTexture2D(FVulkanDevice& Device, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Image, FSamplerYcbcrConversionInitializer& ConversionInitializer, ETextureCreateFlags UEFlags, const FRHIResourceCreateInfo& CreateInfo)
-	: FRHITexture2D(SizeX, SizeY, NumMips, NumSamples, Format, UEFlags, CreateInfo.ClearValueBinding)
-	, FVulkanTextureBase(Device, VK_IMAGE_VIEW_TYPE_2D, Format, SizeX, SizeY, 1, 1, NumMips, NumSamples, Image, VK_NULL_HANDLE, ConversionInitializer, UEFlags, CreateInfo)
 {
 }
 

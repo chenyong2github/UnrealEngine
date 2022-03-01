@@ -1030,15 +1030,6 @@ FArchive& operator << (FArchive& Ar, FGfxPipelineDesc& Entry)
 #endif
 	Ar << Entry.RenderTargets;
 
-#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
-	for (uint32 Index = 0; Index < MaxImmutableSamplers; ++Index)
-	{
-		uint64 Sampler = (uint64)Entry.ImmutableSamplers[Index];
-		Ar << Sampler;
-		Entry.ImmutableSamplers[Index] = (SIZE_T)Sampler;
-	}
-#endif
-
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 	uint8 ShadingRate = static_cast<uint8>(Entry.ShadingRate);
 	uint8 Combiner = static_cast<uint8>(Entry.Combiner);
@@ -1621,14 +1612,6 @@ void FVulkanPipelineStateCacheManager::CreateGfxEntry(const FGraphicsPipelineSta
 	OutGfxEntry->ShaderHashes.Finalize();
 #endif
 	check(NumShaders > 0);
-
-#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
-	for (uint32 Index = 0; Index < MaxImmutableSamplers; ++Index)
-	{
-		OutGfxEntry->ImmutableSamplers[Index] = reinterpret_cast<SIZE_T>(PSOInitializer.ImmutableSamplerState.ImmutableSamplers[Index]);
-	}
-#endif
-
 
 	FVulkanRenderTargetLayout RTLayout(PSOInitializer);
 	OutGfxEntry->RenderTargets.ReadFrom(RTLayout);

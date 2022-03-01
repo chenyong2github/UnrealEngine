@@ -525,10 +525,6 @@ public:
 
 	void SetupPresentQueue(VkSurfaceKHR Surface);
 
-#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
-	VkSamplerYcbcrConversion CreateSamplerColorConversion(const VkSamplerYcbcrConversionCreateInfo& CreateInfo);
-#endif
-
 	inline const TArray<VkQueueFamilyProperties>& GetQueueFamilyProps()
 	{
 		return QueueFamilyProps;
@@ -642,9 +638,6 @@ private:
 	FVulkanCommandListContextImmediate* ImmediateContext;
 	FVulkanCommandListContext* ComputeContext;
 	TArray<FVulkanCommandListContext*> CommandContexts;
-#if VULKAN_SUPPORTS_COLOR_CONVERSIONS
-	TMap<uint32, VkSamplerYcbcrConversion> SamplerColorConversionMap;
-#endif
 
 	FVulkanDynamicRHI* RHI = nullptr;
 	bool bDebugMarkersFound = false;
