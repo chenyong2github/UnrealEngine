@@ -2631,11 +2631,11 @@ namespace Metasound
 			UMetasoundEditorGraph& EdGraph = GetMetaSoundGraphChecked();
 			Frontend::FConstGraphHandle FrontendGraph = MetasoundAsset->GetRootGraphHandle();
 
-			auto GetVertexCategory = [](const Frontend::FConstNodeHandle& NodeHandle)
+			auto GetMemberCategory = [](FName InFullCategoryName)
 			{
 				FName InterfaceName;
 				FName MemberName;
-				Audio::FParameterPath::SplitName(NodeHandle->GetNodeName(), InterfaceName, MemberName);
+				Audio::FParameterPath::SplitName(InFullCategoryName, InterfaceName, MemberName);
 
 				if (InterfaceName.IsNone())
 				{
@@ -2647,13 +2647,13 @@ namespace Metasound
 				return FText::FromString(CategoryString);
 			};
 
-			FrontendGraph->IterateConstNodes([this, &GetVertexCategory, &EdGraph, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Input)
+			FrontendGraph->IterateConstNodes([this, &GetMemberCategory, &EdGraph, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Input)
 			{
 				constexpr bool bIncludeNamespace = false;
 				const FText Tooltip = Input->GetDescription();
 				const FText MenuDesc = FGraphBuilder::GetDisplayName(*Input, bIncludeNamespace);
 				const FGuid NodeID = Input->GetID();
-				const FText Category = GetVertexCategory(Input);
+				const FText Category = GetMemberCategory(Input->GetNodeName());
 
 				TSharedPtr<FMetasoundGraphMemberSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphMemberSchemaAction>(Category, MenuDesc, Tooltip, 1, ENodeSection::Inputs);
 				NewFuncAction->Graph = &EdGraph;
@@ -2672,14 +2672,14 @@ namespace Metasound
 				}
 			}, EMetasoundFrontendClassType::Input);
 
-			FrontendGraph->IterateConstNodes([this, &GetVertexCategory, &EdGraph, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Output)
+			FrontendGraph->IterateConstNodes([this, &GetMemberCategory, &EdGraph, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Output)
 			{
 				constexpr bool bIncludeNamespace = false;
 
 				const FText Tooltip = Output->GetDescription();
 				const FText MenuDesc = FGraphBuilder::GetDisplayName(*Output, bIncludeNamespace);
 				const FGuid NodeID = Output->GetID();
-				const FText Category = GetVertexCategory(Output);
+				const FText Category = GetMemberCategory(Output->GetNodeName());
 
 				TSharedPtr<FMetasoundGraphMemberSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphMemberSchemaAction>(Category, MenuDesc, Tooltip, 1, ENodeSection::Outputs);
 				NewFuncAction->Graph = &EdGraph;
@@ -2702,8 +2702,9 @@ namespace Metasound
 			{
 				const FText MenuDesc = FGraphBuilder::GetDisplayName(*Variable);
 				const FGuid VariableID = Variable->GetID();
+				const FText Category = GetMemberCategory(Variable->GetName());
 
-				TSharedPtr<FMetasoundGraphMemberSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphMemberSchemaAction>(FText::GetEmpty(), MenuDesc, FText::GetEmpty(), 1, ENodeSection::Variables);
+				TSharedPtr<FMetasoundGraphMemberSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphMemberSchemaAction>(Category, MenuDesc, FText::GetEmpty(), 1, ENodeSection::Variables);
 				NewFuncAction->Graph = &EdGraph;
 				NewFuncAction->MemberID = VariableID; 
 				OutAllActions.AddAction(NewFuncAction);

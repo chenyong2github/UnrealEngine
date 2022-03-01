@@ -98,7 +98,7 @@ namespace Metasound
 
 			// Returns a display name for a variable. If the variable has an empty or whitespace
 			// only DisplayName, then the VariableName is used. 
-			static FText GetDisplayName(const Frontend::IVariableController& InFrontendVariable);
+			static FText GetDisplayName(const Frontend::IVariableController& InFrontendVariable, bool bInIncludeNamespace = false);
 
 			// Returns the PinName for an IOutputController.
 			static FName GetPinName(const Frontend::IOutputController& InFrontendOutput);

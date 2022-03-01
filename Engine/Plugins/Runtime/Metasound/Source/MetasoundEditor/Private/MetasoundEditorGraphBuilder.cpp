@@ -180,13 +180,22 @@ namespace Metasound
 			return DisplayName;
 		}
 
-		FText FGraphBuilder::GetDisplayName(const Frontend::IVariableController& InFrontendVariable)
+		FText FGraphBuilder::GetDisplayName(const Frontend::IVariableController& InFrontendVariable, bool bInIncludeNamespace)
 		{
 			FText DisplayName = InFrontendVariable.GetDisplayName();
 			if (DisplayName.IsEmptyOrWhitespace())
 			{
-				DisplayName = FText::FromName(InFrontendVariable.GetName());
+				FName Namespace;
+				FName ParameterName;
+				Audio::FParameterPath::SplitName(InFrontendVariable.GetName(), Namespace, ParameterName);
+
+				DisplayName = FText::FromName(ParameterName);
+				if (bInIncludeNamespace && !Namespace.IsNone())
+				{
+					return FText::Format(LOCTEXT("ClassMetadataDisplayNameWithNamespaceFormat", "{0} ({1})"), DisplayName, FText::FromName(Namespace));
+				}
 			}
+
 			return DisplayName;
 		}
 
