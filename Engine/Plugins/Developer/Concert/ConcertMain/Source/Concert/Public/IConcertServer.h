@@ -74,22 +74,34 @@ public:
 	virtual FConcertSessionInfo CreateSessionInfo() const = 0;
 
 	/**
-	 * Get the sessions information list
+	 * Get the live session information list
 	 */
-	virtual	TArray<FConcertSessionInfo> GetSessionsInfo() const = 0;
+	virtual	TArray<FConcertSessionInfo> GetLiveSessionInfos() const = 0;
 
 	/**
-	 * Get all server sessions
+	 * Gets the archived session information list
+	 */
+	virtual TArray<FConcertSessionInfo> GetArchivedSessionInfos() const = 0;
+
+	/**
+	 * Get all live server sessions
 	 * @return array of server sessions
 	 */
-	virtual TArray<TSharedPtr<IConcertServerSession>> GetSessions() const = 0;
+	virtual TArray<TSharedPtr<IConcertServerSession>> GetLiveSessions() const = 0;
 
 	/**
-	 * Get a server session
+	 * Get a live server session
 	 * @param SessionId The ID of the session we want
 	 * @return the server session or an invalid pointer if no session was found
 	 */
-	virtual TSharedPtr<IConcertServerSession> GetSession(const FGuid& SessionId) const = 0;
+	virtual TSharedPtr<IConcertServerSession> GetLiveSession(const FGuid& SessionId) const = 0;
+
+	/**
+	 * Gets an archived session info
+	 * @param SessionId The ID of the session we want
+	 * @return The info of the archived session if found
+	 */
+	virtual TOptional<FConcertSessionInfo> GetArchivedSessionInfo(const FGuid& SessionId) const = 0;
 
 	/** 
 	 * Create a new Concert server session based on the passed session info

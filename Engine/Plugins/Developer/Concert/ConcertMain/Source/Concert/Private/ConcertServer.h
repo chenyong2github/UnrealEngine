@@ -34,9 +34,11 @@ public:
 	virtual FGuid GetArchivedSessionIdByName(const FString& InName) const override;
 
 	virtual FConcertSessionInfo CreateSessionInfo() const override;
-	virtual TArray<FConcertSessionInfo> GetSessionsInfo() const override;
-	virtual TArray<TSharedPtr<IConcertServerSession>> GetSessions() const override;
-	virtual TSharedPtr<IConcertServerSession> GetSession(const FGuid& SessionId) const override;
+	virtual TArray<FConcertSessionInfo> GetLiveSessionInfos() const override;
+	virtual TArray<FConcertSessionInfo> GetArchivedSessionInfos() const override;
+	virtual TArray<TSharedPtr<IConcertServerSession>> GetLiveSessions() const override;
+	virtual TSharedPtr<IConcertServerSession> GetLiveSession(const FGuid& SessionId) const override;
+	virtual TOptional<FConcertSessionInfo> GetArchivedSessionInfo(const FGuid& SessionId) const override;
 	virtual TSharedPtr<IConcertServerSession> CreateSession(const FConcertSessionInfo& SessionInfo, FText& OutFailureReason) override;
 	virtual TSharedPtr<IConcertServerSession> RestoreSession(const FGuid& SessionId, const FConcertSessionInfo& SessionInfo, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason) override;
 	virtual TSharedPtr<IConcertServerSession> CopySession(const FGuid& SrcSessionId, const FConcertSessionInfo& NewSessionInfo, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason) override;

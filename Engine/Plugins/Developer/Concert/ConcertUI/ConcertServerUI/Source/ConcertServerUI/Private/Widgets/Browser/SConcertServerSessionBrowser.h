@@ -3,33 +3,33 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SessionBrowser/SConcertSessionBrowser.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class IConcertServerSessionBrowserController;
+class FConcertServerSessionBrowserController;
 class SSearchBox;
 
 /** Shows a list of server sessions */
 class SConcertServerSessionBrowser : public SCompoundWidget
 {
 public:
+	
 	SLATE_BEGIN_ARGS(SConcertServerSessionBrowser) { }
+		SLATE_EVENT(FSessionDelegate, DoubleClickSession)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TWeakPtr<IConcertServerSessionBrowserController> InController);
+	void Construct(const FArguments& InArgs, TSharedRef<IConcertSessionBrowserController> InController);
 
+	void RefreshSessionList() { SessionBrowser->RefreshSessionList(); }
+	
 private:
 
 	/** We can ask the controller about information and notify it about UI events. */
-	TWeakPtr<IConcertServerSessionBrowserController> Controller;
-	
-	TSharedPtr<SSearchBox> SearchBox;
-	
-	TSharedRef<SWidget> MakeControlBar();
-	TSharedRef<SWidget> MakeSessionTableView();
+	TWeakPtr<IConcertSessionBrowserController> Controller;
 
-	FReply OnNewSessionClicked();
-
-	void OnSearchTextChanged(const FText& InFilterText);
-	void OnSearchTextCommitted(const FText& InFilterText, ETextCommit::Type CommitType);
+	TSharedPtr<FText> SearchText;
+	TSharedPtr<SConcertSessionBrowser> SessionBrowser;
+	
+	TSharedRef<SWidget> MakeSessionTableView(const FArguments& InArgs);
 };

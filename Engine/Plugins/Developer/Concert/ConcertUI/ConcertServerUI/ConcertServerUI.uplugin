@@ -29,6 +29,10 @@
 			"Name": "ConcertMain",
 			"Enabled": true
 		},
+        {
+          "Name": "ConcertSharedSlate",
+          "Enabled": true
+        },
 		{
 			"Name": "ConcertSyncCore",
 			"Enabled": true

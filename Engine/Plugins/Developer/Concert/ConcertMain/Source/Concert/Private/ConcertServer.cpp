@@ -623,7 +623,7 @@ bool FConcertServer::DestroySession(const FGuid& SessionId, FText& OutFailureRea
 
 TArray<FConcertSessionClientInfo> FConcertServer::GetSessionClients(const FGuid& SessionId) const
 {
-	TSharedPtr<IConcertServerSession> ServerSession = GetSession(SessionId);
+	TSharedPtr<IConcertServerSession> ServerSession = GetLiveSession(SessionId);
 	if (ServerSession)
 	{
 		return ServerSession->GetSessionClients();
@@ -631,7 +631,7 @@ TArray<FConcertSessionClientInfo> FConcertServer::GetSessionClients(const FGuid&
 	return TArray<FConcertSessionClientInfo>();
 }
 
-TArray<FConcertSessionInfo> FConcertServer::GetSessionsInfo() const
+TArray<FConcertSessionInfo> FConcertServer::GetLiveSessionInfos() const
 {
 	TArray<FConcertSessionInfo> SessionsInfo;
 	SessionsInfo.Reserve(LiveSessions.Num());
@@ -642,7 +642,18 @@ TArray<FConcertSessionInfo> FConcertServer::GetSessionsInfo() const
 	return SessionsInfo;
 }
 
-TArray<TSharedPtr<IConcertServerSession>> FConcertServer::GetSessions() const
+TArray<FConcertSessionInfo> FConcertServer::GetArchivedSessionInfos() const
+{
+	TArray<FConcertSessionInfo> SessionsInfo;
+	SessionsInfo.Reserve(ArchivedSessions.Num());
+	for (auto& SessionPair : ArchivedSessions)
+	{
+		SessionsInfo.Add(SessionPair.Value);
+	}
+	return SessionsInfo;
+}
+
+TArray<TSharedPtr<IConcertServerSession>> FConcertServer::GetLiveSessions() const
 {
 	TArray<TSharedPtr<IConcertServerSession>> SessionsArray;
 	SessionsArray.Reserve(LiveSessions.Num());
@@ -653,9 +664,15 @@ TArray<TSharedPtr<IConcertServerSession>> FConcertServer::GetSessions() const
 	return SessionsArray;
 }
 
-TSharedPtr<IConcertServerSession> FConcertServer::GetSession(const FGuid& SessionId) const
+TSharedPtr<IConcertServerSession> FConcertServer::GetLiveSession(const FGuid& SessionId) const
 {
 	return LiveSessions.FindRef(SessionId);
+}
+
+TOptional<FConcertSessionInfo> FConcertServer::GetArchivedSessionInfo(const FGuid& SessionId) const
+{
+	const FConcertSessionInfo* SessionInfo = ArchivedSessions.Find(SessionId);
+	return SessionInfo ? *SessionInfo : TOptional<FConcertSessionInfo>{};
 }
 
 const FString& FConcertServer::GetSessionRepositoriesRootDir() const
@@ -1049,7 +1066,7 @@ TFuture<FConcertAdmin_SessionInfoResponse> FConcertServer::HandleFindSessionRequ
 	FConcertAdmin_SessionInfoResponse ResponseData;
 
 	// Find the session requested
-	TSharedPtr<IConcertServerSession> ServerSession = GetSession(Message->SessionId);
+	TSharedPtr<IConcertServerSession> ServerSession = GetLiveSession(Message->SessionId);
 	const TCHAR* ServerSessionNamePtr = ServerSession ? *ServerSession->GetName() : TEXT("<unknown>");
 	if (CanJoinSession(ServerSession, Message->SessionSettings, Message->VersionInfo, &ResponseData.Reason))
 	{
@@ -1110,7 +1127,7 @@ TFuture<FConcertAdmin_ArchiveSessionResponse> FConcertServer::HandleArchiveSessi
 	FConcertAdmin_ArchiveSessionResponse ResponseData;
 
 	// Find the session requested.
-	TSharedPtr<IConcertServerSession> ServerSession = GetSession(Message->SessionId);
+	TSharedPtr<IConcertServerSession> ServerSession = GetLiveSession(Message->SessionId);
 	ResponseData.SessionId = Message->SessionId;
 	ResponseData.SessionName = ServerSession ? ServerSession->GetName() : TEXT("<unknown>");
 	if (ServerSession)
@@ -1153,7 +1170,7 @@ FConcertAdmin_RenameSessionResponse FConcertServer::RenameSessionInternal(const 
 	ResponseData.SessionId = Request.SessionId;
 	ResponseData.ResponseCode = EConcertResponseCode::Failed;
 
-	if (TSharedPtr<IConcertServerSession> ServerSession = GetSession(Request.SessionId)) // Live session?
+	if (TSharedPtr<IConcertServerSession> ServerSession = GetLiveSession(Request.SessionId)) // Live session?
 	{
 		ResponseData.OldName = ServerSession->GetName();
 
@@ -1219,7 +1236,7 @@ FConcertAdmin_DeleteSessionResponse FConcertServer::DeleteSessionInternal(const 
 	ResponseData.SessionId = Request.SessionId;
 	ResponseData.ResponseCode = EConcertResponseCode::Failed;
 
-	if (TSharedPtr<IConcertServerSession> ServerSession = GetSession(Request.SessionId)) // Live session?
+	if (TSharedPtr<IConcertServerSession> ServerSession = GetLiveSession(Request.SessionId)) // Live session?
 	{
 		ResponseData.SessionName = ServerSession->GetName();
 
@@ -1273,7 +1290,7 @@ TFuture<FConcertAdmin_GetAllSessionsResponse> FConcertServer::HandleGetAllSessio
 	const FConcertAdmin_GetAllSessionsRequest* Message = Context.GetMessage<FConcertAdmin_GetAllSessionsRequest>();
 
 	FConcertAdmin_GetAllSessionsResponse ResponseData;
-	ResponseData.LiveSessions = GetSessionsInfo();
+	ResponseData.LiveSessions = GetLiveSessionInfos();
 	for (const auto& ArchivedSessionPair : ArchivedSessions)
 	{
 		ResponseData.ArchivedSessions.Add(ArchivedSessionPair.Value);
@@ -1287,7 +1304,7 @@ TFuture<FConcertAdmin_GetSessionsResponse> FConcertServer::HandleGetLiveSessions
 	const FConcertAdmin_GetLiveSessionsRequest* Message = Context.GetMessage<FConcertAdmin_GetLiveSessionsRequest>();
 
 	FConcertAdmin_GetSessionsResponse ResponseData;
-	ResponseData.Sessions = GetSessionsInfo();
+	ResponseData.Sessions = GetLiveSessionInfos();
 	
 	return FConcertAdmin_GetSessionsResponse::AsFuture(MoveTemp(ResponseData));
 }

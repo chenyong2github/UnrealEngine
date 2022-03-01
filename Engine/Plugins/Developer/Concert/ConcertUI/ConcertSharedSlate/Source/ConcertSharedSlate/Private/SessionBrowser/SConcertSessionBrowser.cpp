@@ -138,9 +138,9 @@ void SConcertSessionBrowser::RefreshSessionList()
 	Sessions.Reset();
 
 	// Populate the live sessions.
-	for (const TSharedPtr<IConcertSessionBrowserController::FActiveSessionInfo>& ActiveSession : GetController()->GetActiveSessions())
+	for (const IConcertSessionBrowserController::FActiveSessionInfo& ActiveSession : GetController()->GetActiveSessions())
 	{
-		FConcertSessionItem NewItem(FConcertSessionItem::EType::ActiveSession, ActiveSession->SessionInfo.SessionName, ActiveSession->SessionInfo.SessionId, ActiveSession->ServerInfo.ServerName, ActiveSession->ServerInfo.AdminEndpointId, ActiveSession->ServerInfo.ServerFlags);
+		FConcertSessionItem NewItem(FConcertSessionItem::EType::ActiveSession, ActiveSession.SessionInfo.SessionName, ActiveSession.SessionInfo.SessionId, ActiveSession.ServerInfo.ServerName, ActiveSession.ServerInfo.AdminEndpointId, ActiveSession.ServerInfo.ServerFlags);
 		if (!IsFilteredOut(NewItem))
 		{
 			Sessions.Emplace(MakeShared<FConcertSessionItem>(MoveTemp(NewItem)));
@@ -149,9 +149,9 @@ void SConcertSessionBrowser::RefreshSessionList()
 	}
 
 	// Populate the archived.
-	for (const TSharedPtr<IConcertSessionBrowserController::FArchivedSessionInfo>& ArchivedSession : GetController()->GetArchivedSessions())
+	for (const IConcertSessionBrowserController::FArchivedSessionInfo& ArchivedSession : GetController()->GetArchivedSessions())
 	{
-		FConcertSessionItem NewItem(FConcertSessionItem::EType::ArchivedSession, ArchivedSession->SessionInfo.SessionName, ArchivedSession->SessionInfo.SessionId, ArchivedSession->ServerInfo.ServerName, ArchivedSession->ServerInfo.AdminEndpointId, ArchivedSession->ServerInfo.ServerFlags);
+		FConcertSessionItem NewItem(FConcertSessionItem::EType::ArchivedSession, ArchivedSession.SessionInfo.SessionName, ArchivedSession.SessionInfo.SessionId, ArchivedSession.ServerInfo.ServerName, ArchivedSession.ServerInfo.AdminEndpointId, ArchivedSession.ServerInfo.ServerFlags);
 		if (!IsFilteredOut(NewItem))
 		{
 			Sessions.Emplace(MakeShared<FConcertSessionItem>(MoveTemp(NewItem)));
@@ -486,7 +486,7 @@ TSharedRef<ITableRow> SConcertSessionBrowser::OnGenerateSessionRowWidget(TShared
 
 TSharedRef<ITableRow> SConcertSessionBrowser::MakeActiveSessionRowWidget(const TSharedPtr<FConcertSessionItem>& ActiveItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	const FConcertSessionInfo* SessionInfo = GetController()->GetActiveSessionInfo(ActiveItem->ServerAdminEndpointId, ActiveItem->SessionId);
+	const TOptional<FConcertSessionInfo> SessionInfo = GetController()->GetActiveSessionInfo(ActiveItem->ServerAdminEndpointId, ActiveItem->SessionId);
 
 	// Add an 'Active Session' row. Clicking the row icon joins the session.
 	return SNew(SSessionRow, ActiveItem, OwnerTable)
@@ -505,7 +505,7 @@ TSharedRef<ITableRow> SConcertSessionBrowser::MakeActiveSessionRowWidget(const T
 
 TSharedRef<ITableRow> SConcertSessionBrowser::MakeArchivedSessionRowWidget(const TSharedPtr<FConcertSessionItem>& ArchivedItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	const FConcertSessionInfo* SessionInfo = GetController()->GetArchivedSessionInfo(ArchivedItem->ServerAdminEndpointId, ArchivedItem->SessionId);
+	const TOptional<FConcertSessionInfo> SessionInfo = GetController()->GetArchivedSessionInfo(ArchivedItem->ServerAdminEndpointId, ArchivedItem->SessionId);
 
 	// Add an 'Archived Session' row. Clicking the row icon adds a 'Restore as' row to the table.
 	return SNew(SSessionRow, ArchivedItem, OwnerTable)

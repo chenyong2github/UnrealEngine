@@ -117,22 +117,22 @@ public:
 	//~ Begin IConcertSessionBrowserController Interface
 	virtual TArray<FConcertServerInfo> GetServers() const override { return Servers; }
 	
-	virtual TArray<TSharedPtr<FActiveSessionInfo>> GetActiveSessions() const override
+	virtual TArray<FActiveSessionInfo> GetActiveSessions() const override
 	{
-		TArray<TSharedPtr<FActiveSessionInfo>> Result;
-		Algo::Transform(ActiveSessions, Result, [](TSharedPtr<FClientActiveSessionInfo> Info) { return Info; });
+		TArray<FActiveSessionInfo> Result;
+		Algo::Transform(ActiveSessions, Result, [](TSharedPtr<FClientActiveSessionInfo> Info) { return *Info; });
 		return Result;
 	}
 	
-	virtual TArray<TSharedPtr<FArchivedSessionInfo>> GetArchivedSessions() const override
+	virtual TArray<FArchivedSessionInfo> GetArchivedSessions() const override
 	{
-		TArray<TSharedPtr<FArchivedSessionInfo>> Result;
-		Algo::Transform(ArchivedSessions, Result, [](TSharedPtr<FClientArchivedSessionInfo> Info) { return Info; });
+		TArray<FArchivedSessionInfo> Result;
+		Algo::Transform(ArchivedSessions, Result, [](TSharedPtr<FClientArchivedSessionInfo> Info) { return *Info; });
 		return Result;
 	}
 	
-	virtual const FConcertSessionInfo* GetActiveSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const override;
-	virtual const FConcertSessionInfo* GetArchivedSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const override;
+	virtual TOptional<FConcertSessionInfo> GetActiveSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const override;
+	virtual TOptional<FConcertSessionInfo> GetArchivedSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const override;
 
 	virtual void CreateSession(const FGuid& ServerAdminEndpointId, const FString& SessionName) override;
 	virtual void ArchiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& ArchiveName, const FConcertSessionFilter& SessionFilter) override;
@@ -275,24 +275,24 @@ void FConcertClientSessionBrowserController::JoinSession(const FGuid& ServerAdmi
 	ConcertClient->JoinSession(ServerAdminEndpointId, SessionId);
 }
 
-const FConcertSessionInfo* FConcertClientSessionBrowserController::GetActiveSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const
+TOptional<FConcertSessionInfo> FConcertClientSessionBrowserController::GetActiveSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const
 {
 	const TSharedPtr<FClientActiveSessionInfo>* SessionInfo = ActiveSessions.FindByPredicate([&AdminEndpoint, &SessionId](const TSharedPtr<FActiveSessionInfo>& MatchCandidate)
 	{
 		return MatchCandidate->ServerInfo.AdminEndpointId == AdminEndpoint && MatchCandidate->SessionInfo.SessionId == SessionId;
 	});
 
-	return SessionInfo != nullptr ? &(*SessionInfo)->SessionInfo : nullptr;
+	return SessionInfo != nullptr ? (*SessionInfo)->SessionInfo : TOptional<FConcertSessionInfo>{};
 }
 
-const FConcertSessionInfo* FConcertClientSessionBrowserController::GetArchivedSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const
+TOptional<FConcertSessionInfo> FConcertClientSessionBrowserController::GetArchivedSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const
 {
 	const TSharedPtr<FClientArchivedSessionInfo>* SessionInfo = ArchivedSessions.FindByPredicate([&AdminEndpoint, &SessionId](const TSharedPtr<FArchivedSessionInfo>& MatchCandidate)
 	{
 		return MatchCandidate->ServerInfo.AdminEndpointId == AdminEndpoint && MatchCandidate->SessionInfo.SessionId == SessionId;
 	});
 
-	return SessionInfo != nullptr ? &(*SessionInfo)->SessionInfo : nullptr;
+	return SessionInfo != nullptr ? (*SessionInfo)->SessionInfo : TOptional<FConcertSessionInfo>{};
 }
 
 void FConcertClientSessionBrowserController::CreateSession(const FGuid& ServerAdminEndpointId, const FString& SessionName)
@@ -334,7 +334,7 @@ void FConcertClientSessionBrowserController::ArchiveSession(const FGuid& ServerA
 void FConcertClientSessionBrowserController::RestoreSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& RestoredName, const FConcertSessionFilter& SessionFilter)
 {
 	FString ArchivedSessionName;
-	if (const FConcertSessionInfo* SessionInfo = GetArchivedSessionInfo(ServerAdminEndpointId, SessionId))
+	if (const TOptional<FConcertSessionInfo> SessionInfo = GetArchivedSessionInfo(ServerAdminEndpointId, SessionId))
 	{
 		ArchivedSessionName = SessionInfo->SessionName;
 	}
@@ -1463,7 +1463,7 @@ TSharedRef<SWidget> SConcertClientSessionBrowser::MakeSessionDetails(TSharedPtr<
 
 TSharedRef<SWidget> SConcertClientSessionBrowser::MakeActiveSessionDetails(TSharedPtr<FConcertSessionItem> Item)
 {
-	const FConcertSessionInfo* SessionInfo = Controller->GetActiveSessionInfo(Item->ServerAdminEndpointId, Item->SessionId);
+	const TOptional<FConcertSessionInfo> SessionInfo = Controller->GetActiveSessionInfo(Item->ServerAdminEndpointId, Item->SessionId);
 	if (!SessionInfo)
 	{
 		return NoSessionSelectedPanel.ToSharedRef();
@@ -1576,7 +1576,7 @@ TSharedRef<SWidget> SConcertClientSessionBrowser::MakeActiveSessionDetails(TShar
 
 TSharedRef<SWidget> SConcertClientSessionBrowser::MakeArchivedSessionDetails(TSharedPtr<FConcertSessionItem> Item)
 {
-	const FConcertSessionInfo* SessionInfo = Controller->GetArchivedSessionInfo(Item->ServerAdminEndpointId, Item->SessionId);
+	const TOptional<FConcertSessionInfo> SessionInfo = Controller->GetArchivedSessionInfo(Item->ServerAdminEndpointId, Item->SessionId);
 	if (!SessionInfo)
 	{
 		return NoSessionSelectedPanel.ToSharedRef();

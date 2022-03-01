@@ -2,18 +2,22 @@
 
 #include "SConcertServerSessionBrowser.h"
 
+#include "SessionBrowser/SConcertSessionBrowser.h"
+#include "Widgets/Browser/ConcertServerSessionBrowserController.h"
+#include "Widgets/StatusBar/SConcertStatusBar.h"
+
 #include "SPositiveActionButton.h"
-#include "OutputLog/Public/OutputLogModule.h"
+#include "SessionBrowser/ConcertSessionItem.h"
 #include "Widgets/ConcertServerTabs.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/StatusBar/SConcertStatusBar.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 
-void SConcertServerSessionBrowser::Construct(const FArguments& InArgs, TWeakPtr<IConcertServerSessionBrowserController> InController)
+void SConcertServerSessionBrowser::Construct(const FArguments& InArgs, TSharedRef<IConcertSessionBrowserController> InController)
 {
+	Controller = InController;
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -22,18 +26,12 @@ void SConcertServerSessionBrowser::Construct(const FArguments& InArgs, TWeakPtr<
 		[
 			SNew(SVerticalBox)
 
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				MakeControlBar()
-			]
-
 			// Session list.
 			+SVerticalBox::Slot()
 			.FillHeight(1.0f)
 			.Padding(1.0f, 2.0f)
 			[
-				MakeSessionTableView()
+				MakeSessionTableView(InArgs)
 			]
 
 			+SVerticalBox::Slot()
@@ -47,53 +45,11 @@ void SConcertServerSessionBrowser::Construct(const FArguments& InArgs, TWeakPtr<
 	];
 }
 
-TSharedRef<SWidget> SConcertServerSessionBrowser::MakeControlBar()
+TSharedRef<SWidget> SConcertServerSessionBrowser::MakeSessionTableView(const FArguments& InArgs)
 {
-	return SNew(SHorizontalBox)
-
-		// + New Session
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SPositiveActionButton)
-				.OnClicked(this, &SConcertServerSessionBrowser::OnNewSessionClicked)
-				.Text(LOCTEXT("NewSession", "New Session"))
-		]
-
-		// The search text.
-		+SHorizontalBox::Slot()
-		.FillWidth(1.0)
-		.Padding(4.0f, 3.0f, 8.0f, 3.0f)
-		[
-			SAssignNew(SearchBox, SSearchBox)
-			.HintText(LOCTEXT("SearchHint", "Search sessions"))
-			.OnTextChanged(this, &SConcertServerSessionBrowser::OnSearchTextChanged)
-			.OnTextCommitted(this, &SConcertServerSessionBrowser::OnSearchTextCommitted)
-			.DelayChangeNotificationsWhileTyping(true)
-		]
-	;
-}
-
-TSharedRef<SWidget> SConcertServerSessionBrowser::MakeSessionTableView()
-{
-	//return FOutputLogModule::Get().MakeOutputLogDrawerWidget(FSimpleDelegate());
-	return SNullWidget::NullWidget;
-}
-
-FReply SConcertServerSessionBrowser::OnNewSessionClicked()
-{
-	// TODO:
-	return FReply::Handled();
-}
-
-void SConcertServerSessionBrowser::OnSearchTextChanged(const FText& InFilterText)
-{
-	// TODO:
-}
-
-void SConcertServerSessionBrowser::OnSearchTextCommitted(const FText& InFilterText, ETextCommit::Type CommitType)
-{
-	// TODO:
+	SearchText = MakeShared<FText>();
+	return SAssignNew(SessionBrowser, SConcertSessionBrowser, Controller.Pin().ToSharedRef(), SearchText)
+		.OnSessionDoubleClicked(InArgs._DoubleClickSession);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -3,6 +3,7 @@
 #include "IConcertServerUIModule.h"
 
 #include "ConcertConsoleCommandExecutor.h"
+#include "ConcertFrontendStyle.h"
 #include "ConcertServerStyle.h"
 #include "ConcertSyncServerLoopInitArgs.h"
 #include "Widgets/ConcertServerWindowController.h"
@@ -58,6 +59,7 @@ private:
 	{
 		FModuleManager::Get().LoadModuleChecked("EditorStyle");
 		FConcertServerStyle::Initialize();
+		FConcertFrontendStyle::Initialize();
 
 		// Log history must be initialized before MU server loop init prints any messages	
 		FModuleManager::Get().LoadModuleChecked("OutputLog");
@@ -73,6 +75,7 @@ private:
 		IModularFeatures::Get().RegisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), CommandExecutor.Get());
         
         WindowController = MakeShared<FConcertServerWindowController>(FConcertServerWindowInitParams{ SyncServer, MultiUserServerLayoutIni });
+		WindowController->CreateWindow();
 	}
 	
 	void TickSlate(double Tick)

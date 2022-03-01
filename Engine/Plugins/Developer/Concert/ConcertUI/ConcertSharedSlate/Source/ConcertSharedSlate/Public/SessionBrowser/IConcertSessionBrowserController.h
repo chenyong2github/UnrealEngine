@@ -20,9 +20,10 @@ public:
 		FConcertSessionInfo SessionInfo;
 		TArray<FConcertSessionClientInfo> Clients;
 
-		FActiveSessionInfo(FConcertServerInfo ServerInfo, FConcertSessionInfo SessionInfo)
+		FActiveSessionInfo(FConcertServerInfo ServerInfo, FConcertSessionInfo SessionInfo, TArray<FConcertSessionClientInfo> Clients = {})
 			: ServerInfo(MoveTemp(ServerInfo))
 			, SessionInfo(MoveTemp(SessionInfo))
+			, Clients(MoveTemp(Clients))
 		{}
 	};
 
@@ -43,21 +44,20 @@ public:
 	virtual TArray<FConcertServerInfo> GetServers() const = 0;
 
 	/** Returns the latest list of active sessions known to this controller. */
-	virtual TArray<TSharedPtr<FActiveSessionInfo>> GetActiveSessions() const = 0;
+	virtual TArray<FActiveSessionInfo> GetActiveSessions() const = 0;
 
 	/** Returns the latest list of archived sessions known to this controller. */
-	virtual TArray<TSharedPtr<FArchivedSessionInfo>> GetArchivedSessions() const = 0;
+	virtual TArray<FArchivedSessionInfo> GetArchivedSessions() const = 0;
 
 	/** Returns the active sessions info corresponding to the specified parameters. Used to display the sessions details. */
-	virtual const FConcertSessionInfo* GetActiveSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const = 0;
+	virtual TOptional<FConcertSessionInfo> GetActiveSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const = 0;
 
 	/** Returns the archived sessions info corresponding to the specified parameters. Used to display the sessions details. */
-	virtual const FConcertSessionInfo* GetArchivedSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const = 0;
+	virtual TOptional<FConcertSessionInfo> GetArchivedSessionInfo(const FGuid& AdminEndpoint, const FGuid& SessionId) const = 0;
 
 	virtual void CreateSession(const FGuid& ServerAdminEndpointId, const FString& SessionName) = 0;
 	virtual void ArchiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& ArchiveName, const FConcertSessionFilter& SessionFilter) = 0;
 	virtual void RestoreSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& RestoredName, const FConcertSessionFilter& SessionFilter) = 0;
-	virtual void JoinSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) = 0;
 	virtual void RenameActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName) = 0;
 	virtual void RenameArchivedSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName) = 0;
 	virtual bool CanRenameActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const = 0;
