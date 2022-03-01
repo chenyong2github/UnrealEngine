@@ -54,6 +54,13 @@ HttpError(std::wstring&& Context, int32 Code)
 }
 
 inline FError
+HttpError(std::string&& Context, int32 Code)
+{
+	extern std::wstring ConvertUtf8ToWide(std::string_view StringUtf8);
+	return HttpError(ConvertUtf8ToWide(Context), Code);
+}
+
+inline FError
 HttpError(int32 Code)
 {
 	return FError{.Code = Code, .Kind = EErrorKind::Http};

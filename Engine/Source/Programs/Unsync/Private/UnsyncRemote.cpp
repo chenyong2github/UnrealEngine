@@ -178,6 +178,27 @@ FRemoteDesc::FromUrl(std::string_view Url)
 	return ResultOk(Result);
 }
 
+FTlsClientSettings
+FRemoteDesc::GetTlsClientSettings() const
+{
+	FTlsClientSettings Result = {};
+	if (bTlsEnable)
+	{
+		Result.Subject			  = TlsSubject.empty() ? nullptr : TlsSubject.c_str();
+		Result.bVerifyCertificate = bTlsVerifyCertificate;
+		if (TlsCacert)
+		{
+			Result.CacertData = TlsCacert->Data();
+			Result.CacertSize = TlsCacert->Size();
+		}
+	}
+	else
+	{
+		Result.bVerifyCertificate = false;
+	}
+	return Result;
+}
+
 void
 TestParseRemote()
 {

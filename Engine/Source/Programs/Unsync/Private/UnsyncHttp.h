@@ -57,7 +57,7 @@ struct FHttpResponse
 
 struct FHttpConnection
 {
-	FHttpConnection(const std::string& InHostAddress, uint16 InPort, const FTlsClientSettings* TlsSettings = nullptr);
+	FHttpConnection(const std::string_view InHostAddress, uint16 InPort, const FTlsClientSettings* TlsSettings = nullptr);
 	FHttpConnection(const FHttpConnection& Other);
 
 	bool Open();

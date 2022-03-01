@@ -4,7 +4,7 @@
 
 #include "UnsyncCommon.h"
 #include "UnsyncError.h"
-#include "UnsyncRemote.h"
+#include "UnsyncSocket.h"
 
 #include <memory>
 #include <string>
@@ -53,6 +53,8 @@ struct FRemoteDesc
 	bool IsValid() const { return Protocol != EProtocolFlavor::Unknown && !HostAddress.empty() && HostPort != 0; }
 
 	static TResult<FRemoteDesc> FromUrl(std::string_view Url);
+
+	FTlsClientSettings GetTlsClientSettings() const;
 };
 
 }  // namespace unsync

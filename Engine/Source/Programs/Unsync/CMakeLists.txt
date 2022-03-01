@@ -41,6 +41,8 @@ set(src
 	Private/UnsyncCmdPatch.h
 	Private/UnsyncCmdPush.cpp
 	Private/UnsyncCmdPush.h
+	Private/UnsyncCmdQuery.cpp
+	Private/UnsyncCmdQuery.h
 	Private/UnsyncCmdSync.cpp
 	Private/UnsyncCmdSync.h
 	Private/UnsyncCommon.h
@@ -99,6 +101,8 @@ set(thirdparty
 	${blake3dir}/blake3.h
 	ThirdParty/md5-sse2.cpp
 	ThirdParty/md5-sse2.h
+	ThirdParty/json11.cpp
+	ThirdParty/json11.hpp
 )
 
 set(thirdparty ${thirdparty}

@@ -5,6 +5,7 @@
 #include "UnsyncCmdPatch.h"
 #include "UnsyncCmdPush.h"
 #include "UnsyncCmdSync.h"
+#include "UnsyncCmdQuery.h"
 #include "UnsyncCore.h"
 #include "UnsyncFile.h"
 #include "UnsyncMemory.h"
@@ -42,7 +43,7 @@ InnerMain(int Argc, char** Argv)
 	CLI::App Cli(AppDescription, "unsync");
 	Cli.allow_windows_style_options(true);
 
-	std::vector<CLI::App*> Subcommands;
+	std::vector<CLI::App*> SubCommands;
 
 	std::string				 InputFilenameUtf8;
 	std::string				 OutputFilenameUtf8;
@@ -62,6 +63,7 @@ InnerMain(int Argc, char** Argv)
 	std::string				 CacertFilenameUtf8;
 	std::string				 ProtocolName = "jupiter";
 	std::string				 HttpHeaderFilenameUtf8;
+	std::string				 QueryStringUtf8;
 	bool					 bForceOperation		= false;
 	bool					 bAllowInsecureTls		= false;
 	bool					 bUseTls				= false;
@@ -75,6 +77,15 @@ InnerMain(int Argc, char** Argv)
 	int32					 CompressionLevel		= 3;
 	uint32					 DiffBlockSize			= uint32(4_KB);
 	uint32					 HashOrSyncBlockSize	= uint32(64_KB);
+
+#if UNSYNC_USE_TLS
+	auto AddTlsOptions = [&CacertFilenameUtf8, &bUseTls, &bAllowInsecureTls](CLI::App* App)
+	{
+		App->add_option("--cacert", CacertFilenameUtf8, "Certificate authority file to use for TLS validation (.pem)");
+		App->add_flag("--tls", bUseTls, "Use TLS when connecting to remote server");
+		App->add_flag("--insecure", bAllowInsecureTls, "Skip remote server TLS certificate validation");
+	};
+#endif // UNSYNC_USE_TLS
 
 	CLI::App* SubHash = Cli.add_subcommand("hash", "Generate hash manifest for a file or directory");
 	SubHash->add_option("Input", InputFilenameUtf8, "Input file or directory path")->required();
@@ -98,7 +109,7 @@ InnerMain(int Argc, char** Argv)
 		"--update",
 		bIncrementalMode,
 		"Create a directory manifest incrementally, by updating an existing manifest if one exists (only process changed files)");
-	Subcommands.push_back(SubHash);
+	SubCommands.push_back(SubHash);
 
 	CLI::App* SubPush = Cli.add_subcommand("push", "Loads a manifest from a directory and uploads referenced blocks to the remote server");
 	SubPush->add_option("Input", InputFilenameUtf8, "Input file or directory path")->required();
@@ -113,12 +124,12 @@ InnerMain(int Argc, char** Argv)
 #if UNSYNC_USE_TLS
 	SubPush->add_flag("--insecure", bAllowInsecureTls, "Skip remote server TLS certificate validation");
 #endif
-	Subcommands.push_back(SubPush);
+	SubCommands.push_back(SubPush);
 
 	CLI::App* SubInfo = Cli.add_subcommand("info", "Display information about a manifest file or diff two manifests");
 	SubInfo->add_option("Input 1", InputFilenameUtf8, "Input manifest file or root directory")->required();
 	SubInfo->add_option("Input 2", InputFilename2Utf8, "Optional input manifest file or root directory");
-	Subcommands.push_back(SubInfo);
+	SubCommands.push_back(SubInfo);
 
 	CLI::App* SubDiff = Cli.add_subcommand("diff", "Compute difference required to transform BaseFile into SourceFile");
 	SubDiff->add_option("Base", BaseFilenameUtf8, "Base file name (local data)")->required();
@@ -126,7 +137,7 @@ InnerMain(int Argc, char** Argv)
 	SubDiff->add_option("-o", OutputFilenameUtf8, "Output patch file name (data required to transform base into source)");
 	SubDiff->add_option("--level", CompressionLevel, "ZSTD compression level (default=3)");
 	SubDiff->add_option("-b, --block", DiffBlockSize, "Block size in bytes (default=4KB)");
-	Subcommands.push_back(SubDiff);
+	SubCommands.push_back(SubDiff);
 
 	CLI::App* SubSync = Cli.add_subcommand("sync", "Synchronize files, transforming target file/directory into source");
 	SubSync
@@ -140,11 +151,9 @@ InnerMain(int Argc, char** Argv)
 						RemoteAddressUtf8,
 						"FProxy server address ([transport://]address[:port][/request][#namespace])");
 	SubSync->add_option("--dfs", PreferredDfsUtf8, "Preferred DFS mirror (matched by sub-string)");
-#if UNSYNC_USE_TLS
 	SubSync->add_option("--exclude", ExcludeFilterArrayUtf8, "Exclude filenames that contain specified words (comma separated)");
-	SubSync->add_option("--cacert", CacertFilenameUtf8, "Certificate authority file to use for TLS validation (.pem)");
-	SubSync->add_flag("--tls", bUseTls, "Use TLS when connecting to remote server");
-	SubSync->add_flag("--insecure", bAllowInsecureTls, "Skip remote server TLS certificate validation");
+#if UNSYNC_USE_TLS
+	AddTlsOptions(SubSync);
 #else
 	UNSYNC_UNUSED(bUseTls);
 #endif	// UNSYNC_USE_TLS
@@ -163,19 +172,29 @@ InnerMain(int Argc, char** Argv)
 					  "Allow computing file difference based on previous sync manifest and file timestamps");
 	SubSync->add_flag("--no-output-validation", bNoOutputValidation, "Skip final patched file block hash validation (DANGEROUS)");
 	SubSync->add_option("-b, --block", HashOrSyncBlockSize, "Block size in bytes (default=64KB)");
-	Subcommands.push_back(SubSync);
+	SubCommands.push_back(SubSync);
 
 	CLI::App* SubPatch = Cli.add_subcommand("patch", "Applies a patch generated with 'diff' on top of base file");
 	SubPatch->add_option("Base", BaseFilenameUtf8, "Base file name")->required();
 	SubPatch->add_option("Patch", PatchFilenameUtf8, "Patch file name")->required();
 	SubPatch->add_option("-o", OutputFilenameUtf8, "Output file name")->required();
-	Subcommands.push_back(SubPatch);
+	SubCommands.push_back(SubPatch);
 
 	CLI::App* SubTest = Cli.add_subcommand("test", "Run internal tests");
 	SubTest->add_option("--preset", PresetUtf8, "Test preset")->default_str(PresetUtf8);
-	Subcommands.push_back(SubTest);
+	SubCommands.push_back(SubTest);
 
-	for (CLI::App* Subcommand : Subcommands)
+	CLI::App* SubQuery = Cli.add_subcommand("query", "Run a query command on the remote server");
+	SubQuery->add_option("QueryString", QueryStringUtf8, "Query")->required();
+	SubQuery->add_option("--proxy, --remote",
+					RemoteAddressUtf8,
+					"FProxy server address ([transport://]address[:port][/request][#namespace])")->required();
+#if UNSYNC_USE_TLS
+	AddTlsOptions(SubQuery);
+#endif // UNSYNC_USE_TLS
+	SubCommands.push_back(SubQuery);
+
+	for (CLI::App* Subcommand : SubCommands)
 	{
 		Subcommand->add_flag("-d, --dry, --dry-run", GDryRun, "Don't write any outputs to disk");
 		Subcommand->add_flag("-v, --verbose", GLogVerbose, "Verbose logging");
@@ -467,6 +486,11 @@ InnerMain(int Argc, char** Argv)
 		}
 	}
 
+	if (bUseTls)
+	{
+		RemoteDesc.bTlsEnable = bUseTls;
+	}
+
 	if (bAllowInsecureTls)
 	{
 		RemoteDesc.bTlsVerifyCertificate = false;
@@ -557,6 +581,13 @@ InnerMain(int Argc, char** Argv)
 	else if (Cli.got_subcommand(SubInfo))
 	{
 		return CmdInfo(InputFilename, InputFilename2);
+	}
+	else if (Cli.got_subcommand(SubQuery))
+	{
+		FCmdQueryOptions QueryOptions;
+		QueryOptions.Query  = QueryStringUtf8;
+		QueryOptions.Remote = RemoteDesc;
+		return CmdQuery(QueryOptions);
 	}
 
 	return 0;

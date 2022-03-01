@@ -158,6 +158,8 @@ struct FHttpParser
 		return 0;
 	}
 
+	// Receives data from the socket and executes HTTP parser state machine.
+	// Returns true if more data is expected and this function should be called again.
 	bool Recv(FSocketBase& Socket)
 	{
 		int32 RecvSize = 0;
@@ -182,7 +184,14 @@ struct FHttpParser
 			TotalParsedBytes += ParsedBytes;
 		}
 
-		return RecvSize > 0 && ParsedBytes != 0 && Parser.http_errno == 0;
+		bool bShouldContinue = RecvSize > 0 && ParsedBytes != 0 && Parser.http_errno == 0;
+
+		if (!bShouldContinue && bHeaderComplete && !bComplete)
+		{
+			OnMsgComplete();
+		}
+
+		return bShouldContinue;
 	}
 
 	HttpMessageCallback ResponseCallback;
@@ -402,7 +411,7 @@ HttpRequestEnd(FHttpConnection& Connection)
 	return Result;
 }
 
-FHttpConnection::FHttpConnection(const std::string& InHostAddress, uint16 InPort, const FTlsClientSettings* InTlsSettings)
+FHttpConnection::FHttpConnection(const std::string_view InHostAddress, uint16 InPort, const FTlsClientSettings* InTlsSettings)
 : HostAddress(InHostAddress)
 , HostPort(InPort)
 , bUseTls(InTlsSettings != nullptr)
