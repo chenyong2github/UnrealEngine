@@ -323,7 +323,20 @@ private:
 	static TMap<FName, ECoreRedirectFlags> ConfigKeyMap;
 
 	/** Map from name of thing being mapped to full list. List must be filtered further */
-	static TMap<ECoreRedirectFlags, FRedirectNameMap> RedirectTypeMap;
+	struct FRedirectTypeMap
+	{
+	public:
+		FRedirectNameMap& FindOrAdd(ECoreRedirectFlags Key);
+		FRedirectNameMap* Find(ECoreRedirectFlags Key);
+		void Empty();
+
+		TArray<TPair<ECoreRedirectFlags, FRedirectNameMap>>::RangedForIteratorType begin() { return FastIterable.begin(); }
+		TArray<TPair<ECoreRedirectFlags, FRedirectNameMap>>::RangedForIteratorType end() { return FastIterable.end(); }
+	private:
+		TMap<ECoreRedirectFlags, FRedirectNameMap*> Map;
+		TArray<TPair<ECoreRedirectFlags, FRedirectNameMap>> FastIterable;
+	};
+	static FRedirectTypeMap RedirectTypeMap;
 
 	/**
 	 * Lock to protect multithreaded access to *KnownMissing functions, which can be called from the async loading threads. 
