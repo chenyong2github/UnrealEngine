@@ -146,7 +146,10 @@ UControlRigGraphNode* UControlRigTemplateNodeSpawner::SpawnNode(UEdGraph* Parent
 			}
 			else
 			{
-				NewNode->ModelNodePath = Template->GetNotation().ToString();
+				if(NewNode)
+				{
+					NewNode->ModelNodePath = Template->GetNotation().ToString();
+				}
 				Controller->RemoveNode(ModelNode, false);
 			}
 		}
