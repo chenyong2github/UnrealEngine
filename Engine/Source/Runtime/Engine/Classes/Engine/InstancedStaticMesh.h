@@ -255,7 +255,7 @@ struct FInstancedStaticMeshDataType
 /**
  * A vertex factory for instanced static meshes
  */
-struct FInstancedStaticMeshVertexFactory : public FLocalVertexFactory
+struct ENGINE_API FInstancedStaticMeshVertexFactory : public FLocalVertexFactory
 {
 	DECLARE_VERTEX_FACTORY_TYPE(FInstancedStaticMeshVertexFactory);
 public:
@@ -339,7 +339,7 @@ private:
 	TUniformBufferRef<FInstancedStaticMeshVertexFactoryUniformShaderParameters> UniformBuffer;
 };
 
-class FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFactoryShaderParametersBase
+class ENGINE_API FInstancedStaticMeshVertexFactoryShaderParameters : public FLocalVertexFactoryShaderParametersBase
 {
 	DECLARE_TYPE_LAYOUT(FInstancedStaticMeshVertexFactoryShaderParameters, NonVirtual);
 public:
@@ -525,7 +525,7 @@ private:
 	FInstancedStaticMeshSceneProxy
 -----------------------------------------------------------------------------*/
 
-class FInstancedStaticMeshSceneProxy : public FStaticMeshSceneProxy
+class ENGINE_API FInstancedStaticMeshSceneProxy : public FStaticMeshSceneProxy
 {
 public:
 	SIZE_T GetTypeHash() const override;
