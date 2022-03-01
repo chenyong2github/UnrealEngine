@@ -733,8 +733,11 @@ struct FStrataOperator
 
 	// Thickness
 	float				 ThicknessCm;					// The thickness of the layer
-
 	float				 VerticalTopThicknessCm;		// Only used by vertical layering operators. It represent the thickness that is used to drive the roughness propagation from top layers to sub layers.
+
+	// Topology information
+	bool				 bIsTop;
+
 	FStrataLobeStatistic VerticalTopRefractionLobeStat;	// Only used by vertical layering operators. It represent the lobe statistics of the top layer at its interface.
 };
 
