@@ -365,6 +365,10 @@ bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 					if (FNiagaraSystemInstance* Inst = InstController->GetSystemInstance_Unsafe())
 					{
 						InstData.TickGroup = Inst->CalculateTickGroup();
+						if (const FNiagaraSystemGpuComputeProxy* SystemInstanceComputeProxy = Inst->GetSystemGpuComputeProxy())
+						{
+							InstData.GpuTickStage = SystemInstanceComputeProxy->GetComputeTickStage();
+						}
 						InstData.LWCTile = Inst->GetLWCTile();
 						InstData.bIsSolo = Inst->IsSolo();
 						InstData.bRequiresDistanceFieldData = Inst->RequiresDistanceFieldData();

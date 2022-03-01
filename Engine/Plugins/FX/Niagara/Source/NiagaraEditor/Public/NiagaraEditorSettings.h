@@ -398,9 +398,15 @@ private:
 
 	UPROPERTY(config)
 	bool bShowEmitterExecutionOrder;
+
+	UPROPERTY(config)
+	bool bShowGpuTickInformation;
+
 public:
 	bool IsShowInstructionsCount() const;
 	void SetShowInstructionsCount(bool bShowInstructionsCount);
 	bool IsShowEmitterExecutionOrder() const;
 	void SetShowEmitterExecutionOrder(bool bShowEmitterExecutionOrder);
+	bool IsShowGpuTickInformation() const;
+	void SetShowGpuTickInformation(bool bShowGpuTickInformation);
 };

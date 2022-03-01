@@ -103,6 +103,9 @@ struct FNiagaraOutlinerSystemInstanceData
 	UPROPERTY(VisibleAnywhere, Category = "Ticking")
 	TEnumAsByte<ETickingGroup> TickGroup;
 
+	UPROPERTY(VisibleAnywhere, Category = "Ticking")
+	TEnumAsByte<ENiagaraGpuComputeTickStage::Type> GpuTickStage;
+
 	UPROPERTY(VisibleAnywhere, Category = "Gpu")
 	uint32 bIsSolo : 1;
 
@@ -125,6 +128,7 @@ struct FNiagaraOutlinerSystemInstanceData
 		: bPendingKill(false)
 		, bUsingCullProxy(false)
 		, TickGroup(0)
+		, GpuTickStage(ENiagaraGpuComputeTickStage::First)
 		, bIsSolo(false)
 		, bRequiresDistanceFieldData(false)
 		, bRequiresDepthBuffer(false)
@@ -132,10 +136,6 @@ struct FNiagaraOutlinerSystemInstanceData
 		, bRequiresViewUniformBuffer(false)
 		, bRequiresRayTracingScene(false)
 	{}
-
-	//TODO:
-	//Tick info, solo, tick group etc.
-	//Mem usage?
 };
 
 /** Wrapper for array of system instance outliner data so that it can be placed in a map. */

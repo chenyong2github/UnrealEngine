@@ -42,6 +42,7 @@ TSharedRef<SWidget> SNiagaraSystemViewportToolBar::GenerateShowMenu() const
 		ShowMenuBuilder.AddMenuEntry(Commands.ToggleInstructionCounts);
 		ShowMenuBuilder.AddMenuEntry(Commands.ToggleParticleCounts);
 		ShowMenuBuilder.AddMenuEntry(Commands.ToggleEmitterExecutionOrder);
+		ShowMenuBuilder.AddMenuEntry(Commands.ToggleGpuTickInformation);
 		//ShowMenuBuilder.AddMenuEntry(Commands.TogglePreviewBackground);
 	}
 

@@ -84,6 +84,7 @@ public:
 		InstructionCounts = 0x040,
 		ParticleCounts = 0x080,
 		EmitterExecutionOrder = 0x100,
+		GpuTickInformation = 0x200,
 	};
 
 	bool GetDrawElement(EDrawElements Element) const;

@@ -39,6 +39,7 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleInstructionCounts;
 	TSharedPtr<FUICommandInfo> ToggleParticleCounts;
 	TSharedPtr<FUICommandInfo> ToggleEmitterExecutionOrder;
+	TSharedPtr<FUICommandInfo> ToggleGpuTickInformation;
 
 	/** Toggles the preview pane's background */
 	TSharedPtr< FUICommandInfo > TogglePreviewBackground;

@@ -1590,6 +1590,7 @@ struct NIAGARA_API FSynchronizeWithParameterDefinitionsArgs
 };
 
 /** Enum used to track stage that GPU compute proxies will execute in. */
+UENUM()
 namespace ENiagaraGpuComputeTickStage
 {
 	enum Type
@@ -1597,8 +1598,8 @@ namespace ENiagaraGpuComputeTickStage
 		PreInitViews,
 		PostInitViews,
 		PostOpaqueRender,
-		Max,
-		First = PreInitViews,
-		Last = PostOpaqueRender,
+		Max UMETA(hidden),
+		First = PreInitViews UMETA(hidden),
+		Last = PostOpaqueRender UMETA(hidden),
 	};
-};
+}

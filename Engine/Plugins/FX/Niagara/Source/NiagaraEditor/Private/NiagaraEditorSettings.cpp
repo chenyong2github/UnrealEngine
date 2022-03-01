@@ -349,6 +349,20 @@ void UNiagaraEditorSettings::SetShowEmitterExecutionOrder(bool bInShowEmitterExe
 	}
 }
 
+bool UNiagaraEditorSettings::IsShowGpuTickInformation() const
+{
+	return bShowGpuTickInformation;
+}
+
+void UNiagaraEditorSettings::SetShowGpuTickInformation(bool bInShowGpuTickInformation)
+{
+	if (bShowGpuTickInformation != bInShowGpuTickInformation)
+	{
+		bShowGpuTickInformation = bInShowGpuTickInformation;
+		SaveConfig();
+	}
+}
+
 TArray<float> UNiagaraEditorSettings::GetPlaybackSpeeds() const
 {
 	if(!CachedPlaybackSpeeds.IsSet())
