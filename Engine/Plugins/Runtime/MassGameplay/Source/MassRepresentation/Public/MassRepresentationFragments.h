@@ -159,7 +159,7 @@ struct FMassVisualizationLODParameters : public FMassSharedFragment
 
 	/** Filter these settings with specified tag */
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (BaseStruct = "MassTag"))
-	UScriptStruct* FilterTag;
+	UScriptStruct* FilterTag = nullptr;
 };
 
 USTRUCT()
