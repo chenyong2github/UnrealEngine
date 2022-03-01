@@ -6695,49 +6695,10 @@ void FBlueprintComponentDetails::HandleNewEntryClassSelected(const UClass* NewEn
 
 		if (const UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
 		{
-			const FScopedTransaction Transaction(LOCTEXT("SetComponentClassOverride", "Set Component Class Override"));
-
-			const FName ComponentTemplateName = ComponentTemplate->GetFName();
-
-			UBlueprint* BlueprintObj = GetBlueprintObj();
-			check(BlueprintObj);
-
-			BlueprintObj->Modify();
-
-			if (FBPComponentClassOverride* Override = BlueprintObj->ComponentClassOverrides.FindByKey(ComponentTemplateName))
+			if (USubobjectDataSubsystem* System = USubobjectDataSubsystem::Get())
 			{
-				bool bRemoveEntry = false;
-				bool bFoundOverride = false;
-
-				UBlueprint* ParentBP = UBlueprint::GetBlueprintFromClass(Cast<UBlueprintGeneratedClass>(BlueprintObj->ParentClass));
-				while (ParentBP)
-				{
-					if (FBPComponentClassOverride* ParentOverride = BlueprintObj->ComponentClassOverrides.FindByKey(ComponentTemplateName))
-					{
-						bRemoveEntry = (ParentOverride->ComponentClass == NewEntryClass);
-						bFoundOverride = true;
-						break;
-					}
-				}
-				if (!bFoundOverride)
-				{
-					bRemoveEntry = (ComponentTemplate->GetClass() == NewEntryClass);
-				}
-				if (bRemoveEntry)
-				{
-					BlueprintObj->ComponentClassOverrides.RemoveAllSwap([ComponentTemplateName](const FBPComponentClassOverride& CCOverride) { return (CCOverride.ComponentName == ComponentTemplateName); });
-				}
-				else
-				{
-					Override->ComponentClass = const_cast<UClass*>(NewEntryClass);
-				}
+				System->ChangeSubobjectClass(CachedNodePtr->GetDataHandle(), NewEntryClass);
 			}
-			else
-			{
-				BlueprintObj->ComponentClassOverrides.Emplace(FBPComponentClassOverride(ComponentTemplateName, const_cast<UClass*>(NewEntryClass)));
-			}
-
-			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BlueprintObj);
 		}
 	}
 }

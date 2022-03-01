@@ -249,12 +249,23 @@ public:
 	* Attempts to rename the given subobject to the new name.
 	*
 	* @param Handle			Handle to the subobject to rename
-	* @param InNewName		The new name that is desired for the give subobject
+	* @param InNewName		The new name that is desired for the given subobject
 	*
 	* @return True if the rename was successful, false otherwise.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "SubobjectDataSubsystem")
 	bool RenameSubobject(const FSubobjectDataHandle& Handle, const FText& InNewName);
+
+	/**
+	* Attempts to change the subclass of a native component
+	*
+	* @param Handle			Handle to the subobject to change class of
+	* @param NewClass		The new class that is desired for the given subobject
+	*
+	* @return True if the class change was successful, false otherwise.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "SubobjectDataSubsystem")
+	bool ChangeSubobjectClass(const FSubobjectDataHandle& Handle, const UClass* NewClass);
 
 	/**
 	* Attempts to reparent the given subobject to the new parent
