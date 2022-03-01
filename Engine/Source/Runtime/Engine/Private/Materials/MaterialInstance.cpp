@@ -820,6 +820,26 @@ const FMaterialCachedExpressionData& UMaterialInstance::GetCachedExpressionData(
 	return UMaterial::GetDefaultMaterial(MD_Surface)->GetCachedExpressionData();
 }
 
+#if WITH_EDITOR
+const FMaterialCachedHLSLTree& UMaterialInstance::GetCachedHLSLTree(TMicRecursionGuard RecursionGuard) const
+{
+	check(IsUsingNewHLSLGenerator());
+	const FMaterialCachedHLSLTree* LocalTree = CachedHLSLTree.Get();
+	if (LocalTree)
+	{
+		return *LocalTree;
+	}
+
+	if (Parent && !RecursionGuard.Contains(this))
+	{
+		RecursionGuard.Set(this);
+		return Parent->GetCachedHLSLTree(RecursionGuard);
+	}
+
+	return UMaterial::GetDefaultMaterial(MD_Surface)->GetCachedHLSLTree();
+}
+#endif // WITH_EDITOR
+
 bool UMaterialInstance::GetParameterOverrideValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult) const
 {
 	bool bResult = false;

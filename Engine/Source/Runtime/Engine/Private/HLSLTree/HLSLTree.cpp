@@ -377,7 +377,7 @@ void FExpressionLocalPHI::EmitValueShader(FEmitContext& Context, FEmitScope& Sco
 			// This is the first time we've emitted shader code for this PHI
 			// Create an expression and add it to the map first, so if this is called recursively this path will only be taken the first time
 			const int32 LocalPHIIndex = Context.NumExpressionLocalPHIs++;
-			const Shader::FType LocalType = GetType();
+			const Shader::FType LocalType = Context.GetType(this);
 
 			EmitExpression = OutResult.Code = Context.EmitInlineExpression(Scope,
 				LocalType,
@@ -441,7 +441,7 @@ void FExpressionLocalPHI::EmitValuePreshader(FEmitContext& Context, FEmitScope& 
 		}
 	}
 
-	OutResult.Type = GetType();
+	OutResult.Type = Context.GetType(this);
 	if (ValueStackPosition == INDEX_NONE)
 	{
 		Private::FLocalPHILiveScopes LiveScopes;
@@ -518,11 +518,6 @@ void FExpressionFunctionCall::EmitValueShader(FEmitContext& Context, FEmitScope&
 void FExpressionFunctionCall::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
 	OutResult.Type = Function->OutputExpressions[OutputIndex]->GetValuePreshader(Context, Scope, RequestedType, OutResult.Preshader);
-}
-
-void FExpression::Reset()
-{
-	PrepareValueResult = FPrepareValueResult();
 }
 
 FRequestedType::FRequestedType(ERequestedType InType)
@@ -1117,13 +1112,14 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
 	
-	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType);
+	const FPreparedType PreparedType = Context.GetPreparedType(this);
+	const EExpressionEvaluation Evaluation = PreparedType.GetEvaluation(Scope, RequestedType);
 	check(Evaluation != EExpressionEvaluation::None && Evaluation != EExpressionEvaluation::Unknown);
 
 	FEmitShaderExpression* Value = nullptr;
 	if (Evaluation == EExpressionEvaluation::ConstantZero)
 	{
-		Value = Context.EmitConstantZero(Scope, GetType());
+		Value = Context.EmitConstantZero(Scope, PreparedType.GetType());
 	}
 	else if (Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::Preshader)
 	{
@@ -1136,10 +1132,10 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 		Value = Result.Code;
 	}
 
-	if (Value->Type.IsNumeric() && GetPreparedType().IsNumeric())
+	if (Value->Type.IsNumeric() && PreparedType.IsNumeric())
 	{
 		const Shader::FValueTypeDescription TypeDest = Shader::GetValueTypeDescription(Value->Type);
-		if (TypeDest.ComponentType == Shader::EValueComponentType::Double && GetPreparedType().ValueComponentType == Shader::EValueComponentType::Float)
+		if (TypeDest.ComponentType == Shader::EValueComponentType::Double && PreparedType.ValueComponentType == Shader::EValueComponentType::Float)
 		{
 			const Shader::EValueType CastType = Shader::MakeValueType(Shader::EValueComponentType::Float, TypeDest.NumComponents);
 			Value = Context.EmitCast(Scope, Value, CastType);
@@ -1167,7 +1163,8 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 
 FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope)
 {
-	return GetValueShader(Context, Scope, GetRequestedType());
+	const FPreparedType PreparedType = Context.GetPreparedType(this);
+	return GetValueShader(Context, Scope, PreparedType.GetRequestedType());
 }
 
 Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader)
@@ -1175,14 +1172,15 @@ Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& 
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
 	
 	const int32 PrevStackPosition = Context.PreshaderStackPosition;
-	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType);
+	const FPreparedType PreparedType = Context.GetPreparedType(this);
+	const EExpressionEvaluation Evaluation = PreparedType.GetEvaluation(Scope, RequestedType);
 	check(Evaluation != EExpressionEvaluation::None && Evaluation != EExpressionEvaluation::Unknown);
 
 	FEmitValuePreshaderResult Result(OutPreshader);
 	if (Evaluation == EExpressionEvaluation::ConstantZero)
 	{
 		Context.PreshaderStackPosition++;
-		Result.Type = GetType();
+		Result.Type = PreparedType.GetType();
 		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(Result.Type);
 	}
 	else if (Evaluation == EExpressionEvaluation::Constant)
@@ -1205,18 +1203,17 @@ Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& 
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
 	
-	check(!bReentryFlag);
-	const EExpressionEvaluation Evaluation = PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType);
+	const FPreparedType PreparedType = Context.GetPreparedType(this);
+	const EExpressionEvaluation Evaluation = PreparedType.GetEvaluation(Scope, RequestedType);
 	if (Evaluation == EExpressionEvaluation::ConstantZero)
 	{
-		return Shader::FValue(GetType());
+		return Shader::FValue(PreparedType.GetType());
 	}
 	else
 	{
 		check(Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::ConstantLoop);
 		Shader::FPreshaderData ConstantPreshader;
 		{
-			FExpressionReentryScope ReentryScope(this);
 			const int32 PrevPreshaderStackPosition = Context.PreshaderStackPosition;
 			FEmitValuePreshaderResult PreshaderResult(ConstantPreshader);
 			EmitValuePreshader(Context, Scope, RequestedType, PreshaderResult);
@@ -1312,17 +1309,6 @@ UObject* FOwnerContext::GetCurrentOwner() const
 	return (OwnerStack.Num() > 0) ? OwnerStack.Last() : nullptr;
 }
 
-void FTree::ResetNodes()
-{
-	FNode* Node = Nodes;
-	while (Node)
-	{
-		FNode* Next = Node->NextNode;
-		Node->Reset();
-		Node = Next;
-	}
-}
-
 bool FTree::Finalize()
 {
 	// Resolve values for any PHI nodes that were generated
@@ -1358,6 +1344,7 @@ bool FTree::Finalize()
 		}
 	}
 
+	PHIExpressions.Shrink();
 	return true;
 }
 
@@ -1469,23 +1456,15 @@ FExpression* FTree::NewFunctionCall(FScope& Scope, FFunction* Function, int32 Ou
 	return NewExpression<FExpressionFunctionCall>(Function, OutputIndex);
 }
 
-const FExpressionDerivatives& FTree::GetAnalyticDerivatives(FExpression* InExpression)
+FExpressionDerivatives FTree::GetAnalyticDerivatives(FExpression* InExpression)
 {
-	if (!InExpression)
+	FExpressionDerivatives Derivatives;
+	if (InExpression)
 	{
-		static const FExpressionDerivatives EmptyDerivatives;
-		return EmptyDerivatives;
-	}
-
-	if (!InExpression->bComputedDerivatives)
-	{
-		FExpressionReentryScope ReentryScope(InExpression);
 		FOwnerScope OwnerScope(*this, InExpression->GetOwner()); // Associate any newly created nodes with the same owner as the input expression
-
-		InExpression->ComputeAnalyticDerivatives(*this, InExpression->Derivatives);
-		InExpression->bComputedDerivatives = true;
+		InExpression->ComputeAnalyticDerivatives(*this, Derivatives);
 	}
-	return InExpression->Derivatives;
+	return Derivatives;
 }
 
 FExpression* FTree::GetPreviousFrame(FExpression* InExpression, const FRequestedType& RequestedType)
@@ -1493,9 +1472,7 @@ FExpression* FTree::GetPreviousFrame(FExpression* InExpression, const FRequested
 	FExpression* Result = InExpression;
 	if (Result && !RequestedType.IsVoid())
 	{
-		FExpressionReentryScope ReentryScope(InExpression);
 		FOwnerScope OwnerScope(*this, InExpression->GetOwner()); // Associate any newly created nodes with the same owner as the input expression
-
 		FExpression* PrevFrameExpression = InExpression->ComputePreviousFrame(*this, RequestedType);
 		if (PrevFrameExpression)
 		{

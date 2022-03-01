@@ -2,9 +2,22 @@
 #pragma once
 
 #include "HLSLTree/HLSLTree.h"
+#include "RHIDefinitions.h"
 
 namespace UE::HLSLTree
 {
+
+class FExpressionError : public FExpression
+{
+public:
+	explicit FExpressionError(FStringView InErrorMessage)
+		: ErrorMessage(InErrorMessage)
+	{}
+
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+
+	FStringView ErrorMessage;
+};
 
 class FExpressionConstant : public FExpression
 {
@@ -176,6 +189,59 @@ public:
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
+};
+
+class FExpressionSwitchBase : public FExpression
+{
+public:
+	static constexpr int8 MaxInputs = 8;
+
+	FExpressionSwitchBase(TConstArrayView<FExpression*> InInputs) : NumInputs(InInputs.Num())
+	{
+		check(InInputs.Num() <= MaxInputs);
+		for (int32 i = 0; i < InInputs.Num(); ++i)
+		{
+			Input[i] = InInputs[i];
+		}
+	}
+
+	FExpression* Input[MaxInputs] = { nullptr };
+	int8 NumInputs = 0;
+
+	virtual FExpression* NewSwitch(FTree& Tree, TConstArrayView<FExpression*> InInputs) const = 0;
+	virtual int32 GetInputIndex(const FEmitContext& Context) const = 0;
+
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
+	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
+};
+
+class FExpressionFeatureLevelSwitch : public FExpressionSwitchBase
+{
+public:
+	static_assert(MaxInputs >= (int32)ERHIFeatureLevel::Num, "FExpressionSwitchBase is too small for FExpressionFeatureLevelSwitch");
+	FExpressionFeatureLevelSwitch(TConstArrayView<FExpression*> InInputs) : FExpressionSwitchBase(InInputs)
+	{
+		check(InInputs.Num() == (int32)ERHIFeatureLevel::Num);
+	}
+
+	virtual FExpression* NewSwitch(FTree& Tree, TConstArrayView<FExpression*> InInputs) const override { return Tree.NewExpression<FExpressionFeatureLevelSwitch>(InInputs); }
+	virtual int32 GetInputIndex(const FEmitContext& Context) const override;
+};
+
+class FExpressionShadingPathSwitch : public FExpressionSwitchBase
+{
+public:
+	static_assert(MaxInputs >= (int32)ERHIShadingPath::Num, "FExpressionSwitchBase is too small for FExpressionShadingPathSwitch");
+	FExpressionShadingPathSwitch(TConstArrayView<FExpression*> InInputs) : FExpressionSwitchBase(InInputs)
+	{
+		check(InInputs.Num() == (int32)ERHIShadingPath::Num);
+	}
+
+	virtual FExpression* NewSwitch(FTree& Tree, TConstArrayView<FExpression*> InInputs) const override { return Tree.NewExpression<FExpressionShadingPathSwitch>(InInputs); }
+	virtual int32 GetInputIndex(const FEmitContext& Context) const override;
 };
 
 /** Can be used to emit HLSL chunks with no inputs, where it's not worth the trouble of defining a new expression type */

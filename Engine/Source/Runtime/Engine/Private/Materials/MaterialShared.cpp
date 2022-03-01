@@ -299,7 +299,7 @@ UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMaterialHLSL
 	const FExpressionInput TracedInput = GetTracedInput();
 	if (!TracedInput.Expression)
 	{
-		Generator.GetErrors().AddError(TEXT("Missing input"));
+		Generator.Error(TEXT("Missing input"));
 		return nullptr;
 	}
 	return TryAcquireHLSLExpression(Generator, Scope);

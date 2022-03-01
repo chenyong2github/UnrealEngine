@@ -14,6 +14,7 @@
 
 class FMaterial;
 class FMaterialCompilationOutput;
+class ITargetPlatform;
 
 namespace UE::Shader
 {
@@ -30,6 +31,7 @@ class FExpression;
 class FFunction;
 class FRequestedType;
 class FPreparedType;
+class FPrepareValueResult;
 class FEmitScope;
 class FEmitShaderExpression;
 class FEmitShaderStatement;
@@ -243,11 +245,26 @@ enum class EEmitCastFlags : uint32
 };
 ENUM_CLASS_FLAGS(EEmitCastFlags)
 
+struct FTargetParameters
+{
+	FTargetParameters(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, const ITargetPlatform* InTargetPlatform)
+		: ShaderPlatform(InShaderPlatform), FeatureLevel(InFeatureLevel), TargetPlatform(InTargetPlatform)
+	{}
+
+	EShaderPlatform ShaderPlatform;
+	ERHIFeatureLevel::Type FeatureLevel;
+	const ITargetPlatform* TargetPlatform;
+};
+
 /** Tracks shared state while emitting HLSL code */
 class FEmitContext
 {
 public:
-	explicit FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& InErrors, const Shader::FStructTypeRegistry& InTypeRegistry);
+	explicit FEmitContext(FMemStackBase& InAllocator,
+		const FTargetParameters& InTargetParameters,
+		FErrorHandlerInterface& InErrors,
+		const Shader::FStructTypeRegistry& InTypeRegistry);
+
 	~FEmitContext();
 
 	template<typename T>
@@ -282,6 +299,11 @@ public:
 	}
 
 	void EmitDeclarationsCode(FStringBuilderBase& OutCode);
+
+	const FPreparedType& GetPreparedType(const FExpression* Expression) const;
+	FRequestedType GetRequestedType(const FExpression* Expression) const;
+	Shader::FType GetType(const FExpression* Expression) const;
+	EExpressionEvaluation GetEvaluation(const FExpression* Expression, const FEmitScope& Scope, const FRequestedType& RequestedType) const;
 
 	FPreparedType PrepareExpression(FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType);
 
@@ -470,11 +492,13 @@ public:
 	FMemStackBase* Allocator = nullptr;
 	FErrorHandlerInterface* Errors = nullptr;
 	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
+	FTargetParameters TargetParameters;
 	EShaderFrequency ShaderFrequency = SF_Pixel;
 	bool bUseAnalyticDerivatives = false;
 
 	TArray<FEmitShaderNode*> EmitNodes;
 	TMap<const FScope*, FEmitScope*> EmitScopeMap;
+	TMap<const FExpression*, FPrepareValueResult*> PrepareValueMap;
 	TMap<const FExpression*, FEmitScope*> PrepareLocalPHIMap;
 	TMap<const FExpression*, FEmitShaderExpression*> EmitLocalPHIMap;
 	TMap<FXxHash64, FEmitShaderExpression*> EmitExpressionMap;

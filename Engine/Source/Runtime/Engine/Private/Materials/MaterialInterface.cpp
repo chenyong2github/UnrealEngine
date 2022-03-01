@@ -32,6 +32,7 @@
 
 #if WITH_EDITOR
 #include "ObjectCacheEventSink.h"
+#include "MaterialCachedHLSLTree.h"
 #endif
 
 /**
@@ -44,6 +45,15 @@
 //////////////////////////////////////////////////////////////////////////
 
 UEnum* UMaterialInterface::SamplerTypeEnum = nullptr;
+
+static TAutoConsoleVariable<int32> CVarMaterialEnableNewHLSLGenerator(
+	TEXT("r.MaterialEnableNewHLSLGenerator"),
+	0,
+	TEXT("Enables the new (WIP) material HLSL generator.\n")
+	TEXT("0 - Don't allow\n")
+	TEXT("1 - Allow if enabled by material\n")
+	TEXT("2 - Force all materials to use new generator\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -90,6 +100,16 @@ void FMaterialRelevance::SetPrimitiveViewRelevance(FPrimitiveViewRelevance& OutV
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+UMaterialInterface::UMaterialInterface() = default;
+
+UMaterialInterface::UMaterialInterface(FVTableHelper& Helper)
+{
+}
+
+UMaterialInterface::~UMaterialInterface()
+{
+}
 
 UMaterialInterface::UMaterialInterface(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -171,6 +191,31 @@ const FMaterialCachedExpressionData& UMaterialInterface::GetCachedExpressionData
 {
 	const FMaterialCachedExpressionData* LocalData = CachedExpressionData.Get();
 	return LocalData ? *LocalData : FMaterialCachedExpressionData::EmptyData;
+}
+
+#if WITH_EDITOR
+const FMaterialCachedHLSLTree& UMaterialInterface::GetCachedHLSLTree(TMicRecursionGuard) const
+{
+	check(IsUsingNewHLSLGenerator());
+	const FMaterialCachedHLSLTree* LocalTree = CachedHLSLTree.Get();
+	return LocalTree ? *LocalTree : FMaterialCachedHLSLTree::EmptyTree;
+}
+#endif // WITH_EDITOR
+
+bool UMaterialInterface::IsUsingNewHLSLGenerator() const
+{
+	const int CVarValue = CVarMaterialEnableNewHLSLGenerator.GetValueOnAnyThread();
+	if (CVarValue == 0)
+	{
+		return false;
+	}
+	else if (CVarValue == 2)
+	{
+		return true;
+	}
+
+	const UMaterial* BaseMaterial = GetMaterial_Concurrent();
+	return BaseMaterial ? BaseMaterial->bEnableNewHLSLGenerator : false;
 }
 
 void UMaterialInterface::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& OutQualityLevelsUsed, EShaderPlatform ShaderPlatform, bool bCooking)

@@ -88,6 +88,7 @@
 
 
 #if WITH_EDITOR
+#include "MaterialCachedHLSLTree.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
@@ -131,15 +132,6 @@ static TAutoConsoleVariable<int32> CVarMaterialEnableControlFlow(
 	TEXT("r.MaterialEnableControlFlow"),
 	0,
 	TEXT("Allows experemental control flow to be used in the material editor.\n"),
-	ECVF_RenderThreadSafe | ECVF_ReadOnly);
-
-static TAutoConsoleVariable<int32> CVarMaterialEnableNewHLSLGenerator(
-	TEXT("r.MaterialEnableNewHLSLGenerator"),
-	0,
-	TEXT("Enables the new (WIP) material HLSL generator.\n")
-	TEXT("0 - Don't allow\n")
-	TEXT("1 - Allow if enabled by material\n")
-	TEXT("2 - Force all materials to use new generator\n"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 bool Engine_IsStrataEnabled()
@@ -1894,6 +1886,14 @@ void UMaterial::UpdateCachedExpressionData()
 		return;
 	}
 
+	FMaterialCachedHLSLTree* LocalTree = nullptr;
+	if (IsUsingNewHLSLGenerator())
+	{
+		LocalTree = new FMaterialCachedHLSLTree();
+		LocalTree->GenerateTree(this, nullptr);
+	}
+	CachedHLSLTree.Reset(LocalTree);
+
 	if (!CachedExpressionData)
 	{
 		CachedExpressionData.Reset(new FMaterialCachedExpressionData());
@@ -3478,16 +3478,6 @@ bool UMaterial::IsUsingControlFlow() const
 		return CVarMaterialEnableControlFlow.GetValueOnAnyThread() != 0;
 	}
 	return false;
-}
-
-bool UMaterial::IsUsingNewHLSLGenerator() const
-{
-	const int CVarValue = CVarMaterialEnableNewHLSLGenerator.GetValueOnAnyThread();
-	if (bEnableNewHLSLGenerator)
-	{
-		return CVarValue != 0;
-	}
-	return CVarValue == 2;
 }
 
 #if WITH_EDITOR

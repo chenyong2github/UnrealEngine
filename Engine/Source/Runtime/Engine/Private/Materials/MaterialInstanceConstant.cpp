@@ -8,6 +8,7 @@
 #include "Materials/MaterialInstanceSupport.h"
 #include "ProfilingDebugging/CookStats.h"
 #if WITH_EDITOR
+#include "MaterialCachedHLSLTree.h"
 #include "MaterialEditor/DEditorScalarParameterValue.h"
 #include "ObjectCacheEventSink.h"
 #endif
@@ -182,6 +183,7 @@ void UMaterialInstanceConstant::UpdateCachedData()
 	if (!bLoadedCachedExpressionData)
 	{
 		FMaterialCachedExpressionData* LocalCachedExpressionData = nullptr;
+		FMaterialCachedHLSLTree* LocalCachedTree = nullptr;
 
 		// If we have overriden material layers, need to create a local cached expression data
 		// Otherwise we can leave it as null, and use cached data from our parent
@@ -195,8 +197,15 @@ void UMaterialInstanceConstant::UpdateCachedData()
 			LocalCachedExpressionData = new FMaterialCachedExpressionData();
 			LocalCachedExpressionData->Reset();
 			LocalCachedExpressionData->UpdateForExpressions(Context, BaseMaterial->Expressions, GlobalParameter, INDEX_NONE);
+
+			if (IsUsingNewHLSLGenerator())
+			{
+				LocalCachedTree = new FMaterialCachedHLSLTree();
+				LocalCachedTree->GenerateTree(BaseMaterial, &LocalStaticParameters.MaterialLayers);
+			}
 		}
 		CachedExpressionData.Reset(LocalCachedExpressionData);
+		CachedHLSLTree.Reset(LocalCachedTree);
 
 		FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
 	}

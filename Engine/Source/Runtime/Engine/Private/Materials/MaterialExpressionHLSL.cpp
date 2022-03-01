@@ -143,12 +143,12 @@
 
 bool UMaterialExpression::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	return Generator.GetErrors().AddError(TEXT("Node does not support expressions"));
+	return Generator.Error(TEXT("Node does not support expressions"));
 }
 
 bool UMaterialExpression::GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope)
 {
-	return Generator.GetErrors().AddError(TEXT("Node does not support statements"));
+	return Generator.Error(TEXT("Node does not support statements"));
 }
 
 bool UMaterialExpressionReroute::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
@@ -224,57 +224,68 @@ bool UMaterialExpressionStaticSwitch::GenerateHLSLExpression(FMaterialHLSLGenera
 
 bool UMaterialExpressionFeatureLevelSwitch::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	const ERHIFeatureLevel::Type FeatureLevelToCompile = Generator.GetCompileTarget().FeatureLevel;
-	check(FeatureLevelToCompile < UE_ARRAY_COUNT(Inputs));
-	FExpressionInput& FeatureInput = Inputs[FeatureLevelToCompile];
-
+	using namespace UE::HLSLTree;
 	if (!Default.GetTracedInput().Expression)
 	{
-		return Generator.GetErrors().AddError(TEXT("Missing default input"));
+		return Generator.Error(TEXT("Missing default input"));
 	}
 
-	if (FeatureInput.GetTracedInput().Expression)
+	FExpression* ExpressionDefault = nullptr;
+	FExpression* ExpressionInputs[ERHIFeatureLevel::Num] = { nullptr };
+	for (int32 Index = 0; Index < ERHIFeatureLevel::Num; ++Index)
 	{
-		OutExpression = FeatureInput.AcquireHLSLExpression(Generator, Scope);
+		FExpression* Expression = nullptr;
+		FExpressionInput& FeatureInput = Inputs[Index];
+		if (FeatureInput.GetTracedInput().Expression)
+		{
+			Expression = FeatureInput.AcquireHLSLExpression(Generator, Scope);
+		}
+		else
+		{
+			if (!ExpressionDefault)
+			{
+				ExpressionDefault = Default.AcquireHLSLExpression(Generator, Scope);
+			}
+			Expression = ExpressionDefault;
+		}
+		ExpressionInputs[Index] = Expression;
 	}
-	else
-	{
-		OutExpression = Default.AcquireHLSLExpression(Generator, Scope);
-	}
-	return OutExpression != nullptr;
+
+	OutExpression = Generator.GetTree().NewExpression<FExpressionFeatureLevelSwitch>(ExpressionInputs);
+	return true;
 }
 
 bool UMaterialExpressionShadingPathSwitch::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
-	const EShaderPlatform ShaderPlatform = Generator.GetCompileTarget().ShaderPlatform;
-	ERHIShadingPath::Type ShadingPathToCompile = ERHIShadingPath::Deferred;
-	if (IsForwardShadingEnabled(ShaderPlatform))
+	using namespace UE::HLSLTree;
+	if (!Default.GetTracedInput().Expression)
 	{
-		ShadingPathToCompile = ERHIShadingPath::Forward;
-	}
-	else if (Generator.GetCompileTarget().FeatureLevel < ERHIFeatureLevel::SM5)
-	{
-		ShadingPathToCompile = ERHIShadingPath::Mobile;
+		return Generator.Error(TEXT("Missing default input"));
 	}
 
-	check(ShadingPathToCompile < UE_ARRAY_COUNT(Inputs));
-	FExpressionInput ShadingPathInput = Inputs[ShadingPathToCompile].GetTracedInput();
-	FExpressionInput DefaultTraced = Default.GetTracedInput();
-
-	if (!DefaultTraced.Expression)
+	FExpression* ExpressionDefault = nullptr;
+	FExpression* ExpressionInputs[ERHIShadingPath::Num] = { nullptr };
+	for (int32 Index = 0; Index < ERHIShadingPath::Num; ++Index)
 	{
-		return Generator.GetErrors().AddError(TEXT("Missing default input"));
+		FExpression* Expression = nullptr;
+		FExpressionInput& FeatureInput = Inputs[Index];
+		if (FeatureInput.GetTracedInput().Expression)
+		{
+			Expression = FeatureInput.AcquireHLSLExpression(Generator, Scope);
+		}
+		else
+		{
+			if (!ExpressionDefault)
+			{
+				ExpressionDefault = Default.AcquireHLSLExpression(Generator, Scope);
+			}
+			Expression = ExpressionDefault;
+		}
+		ExpressionInputs[Index] = Expression;
 	}
 
-	if (ShadingPathInput.Expression)
-	{
-		OutExpression = ShadingPathInput.AcquireHLSLExpression(Generator, Scope);
-	}
-	else
-	{
-		OutExpression = Default.AcquireHLSLExpression(Generator, Scope);
-	}
-	return OutExpression != nullptr;
+	OutExpression = Generator.GetTree().NewExpression<FExpressionShadingPathSwitch>(ExpressionInputs);
+	return true;
 }
 
 bool UMaterialExpressionGetLocal::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
@@ -282,7 +293,7 @@ bool UMaterialExpressionGetLocal::GenerateHLSLExpression(FMaterialHLSLGenerator&
 	OutExpression = Generator.GetTree().AcquireLocal(Scope, LocalName);
 	if (!OutExpression)
 	{
-		return Generator.GetErrors().AddError(TEXT("Local accessed before assigned"));
+		return Generator.Errorf(TEXT("Local '%s' accessed before assigned"), *LocalName.ToString());
 	}
 	return true;
 }
@@ -588,7 +599,7 @@ bool UMaterialExpressionTextureSample::GenerateHLSLExpressionBase(FMaterialHLSLG
 	using namespace UE::HLSLTree;
 	if (!TextureExpression)
 	{
-		return Generator.GetErrors().AddError(TEXT("Missing input texture"));
+		return Generator.Error(TEXT("Missing input texture"));
 	}
 
 	FExpression* TexCoordExpression = Coordinates.GetTracedInput().Expression ? Coordinates.TryAcquireHLSLExpression(Generator, Scope) : Generator.NewTexCoord(ConstCoordinate);
@@ -677,15 +688,15 @@ bool UMaterialExpressionFontSample::GenerateHLSLExpression(FMaterialHLSLGenerato
 
 	if (!Font)
 	{
-		return Generator.GetErrors().AddError(TEXT("Missing input Font"));
+		return Generator.Error(TEXT("Missing input Font"));
 	}
 	else if (Font->FontCacheType == EFontCacheType::Runtime)
 	{
-		return Generator.GetErrors().AddErrorf(TEXT("Font '%s' is runtime cached, but only offline cached fonts can be sampled"), *Font->GetName());
+		return Generator.Errorf(TEXT("Font '%s' is runtime cached, but only offline cached fonts can be sampled"), *Font->GetName());
 	}
 	else if (!Font->Textures.IsValidIndex(FontTexturePage))
 	{
-		return Generator.GetErrors().AddErrorf(TEXT("Invalid font page %d. Max allowed is %d"), FontTexturePage, Font->Textures.Num());
+		return Generator.Errorf(TEXT("Invalid font page %d. Max allowed is %d"), FontTexturePage, Font->Textures.Num());
 	}
 
 	UTexture* Texture = Font->Textures[FontTexturePage];
@@ -706,11 +717,11 @@ bool UMaterialExpressionFontSample::GenerateHLSLExpression(FMaterialHLSLGenerato
 		ExpectedSamplerType = Texture->SRGB ? SAMPLERTYPE_Color : SAMPLERTYPE_LinearColor;
 	}
 
-	FString SamplerTypeError;
+	/*FString SamplerTypeError;
 	if (!UMaterialExpressionTextureBase::VerifySamplerType(Generator.GetCompileTarget().FeatureLevel, Generator.GetCompileTarget().TargetPlatform, Texture, ExpectedSamplerType, SamplerTypeError))
 	{
-		return Generator.GetErrors().AddErrorf(TEXT("%s"), *SamplerTypeError);
-	}
+		return Generator.Errorf(TEXT("%s"), *SamplerTypeError);
+	}*/
 
 	const FTextureValue* TextureValue = Generator.AcquireTextureValue(FTextureValue(Texture, ExpectedSamplerType));
 	FExpression* TextureExpression = GenerateHLSLTextureExpression(Generator, TextureValue);
@@ -745,7 +756,7 @@ bool UMaterialExpressionSceneTexture::GenerateHLSLExpression(FMaterialHLSLGenera
 		return true;
 	}
 
-	return Generator.GetErrors().AddError(TEXT("Invalid input parameter"));
+	return Generator.Error(TEXT("Invalid input parameter"));
 }
 
 bool UMaterialExpressionNoise::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
@@ -1274,7 +1285,7 @@ bool UMaterialExpressionGetMaterialAttributes::GenerateHLSLExpression(FMaterialH
 	const int32 AttributeIndex = OutputIndex - 1;
 	if (!AttributeGetTypes.IsValidIndex(AttributeIndex))
 	{
-		return Generator.GetErrors().AddError(TEXT("Invalid attribute"));
+		return Generator.Error(TEXT("Invalid attribute"));
 	}
 
 	const FGuid& AttributeID = AttributeGetTypes[AttributeIndex];
@@ -1380,7 +1391,7 @@ bool UMaterialExpressionBreakMaterialAttributes::GenerateHLSLExpression(FMateria
 	const EMaterialProperty* Property = PropertyToIOIndexMap.FindKey(OutputIndex);
 	if (!Property)
 	{
-		return Generator.GetErrors().AddError(TEXT("Invalid output"));
+		return Generator.Error(TEXT("Invalid output"));
 	}
 
 	FExpression* AttributesExpression = MaterialAttributes.AcquireHLSLExpression(Generator, Scope);
@@ -1429,11 +1440,11 @@ bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMateria
 {
 	using namespace UE::HLSLTree;
 
-	const FStaticParameterSet& StaticParameters = Generator.GetStaticParameters();
-	const FMaterialLayersFunctions& MaterialLayers = StaticParameters.bHasMaterialLayers ? StaticParameters.MaterialLayers : DefaultLayers;
+	const FMaterialLayersFunctions* LayerOverrides = Generator.GetLayerOverrides();
+	const FMaterialLayersFunctions& MaterialLayers = LayerOverrides ? *LayerOverrides : DefaultLayers;
 	if (MaterialLayers.Layers.Num() == 0)
 	{
-		return Generator.GetErrors().AddError(TEXT("No layers"));
+		return Generator.Error(TEXT("No layers"));
 	}
 
 	TArray<FFunctionExpressionInput> FunctionInputs;
@@ -1453,7 +1464,7 @@ bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMateria
 			const EMaterialFunctionUsage Usage = LayerFunction->GetMaterialFunctionUsage();
 			if (Usage != EMaterialFunctionUsage::MaterialLayer)
 			{
-				return Generator.GetErrors().AddErrorf(TEXT("Layer function %s is not a UMaterialFunctionMaterialLayer"),
+				return Generator.Errorf(TEXT("Layer function %s is not a UMaterialFunctionMaterialLayer"),
 					*LayerFunction->GetName());
 			}
 
@@ -1462,7 +1473,7 @@ bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMateria
 			LayerFunction->GetInputsAndOutputs(FunctionInputs, FunctionOutputs);
 			if (FunctionInputs.Num() > 1 || FunctionOutputs.Num() != 1)
 			{
-				return Generator.GetErrors().AddErrorf(TEXT("Layer function %s expected to have 0 or 1 inputs and 1 output, found %d inputs and %d outputs"),
+				return Generator.Errorf(TEXT("Layer function %s expected to have 0 or 1 inputs and 1 output, found %d inputs and %d outputs"),
 					*LayerFunction->GetName(), FunctionInputs.Num(), FunctionOutputs.Num());
 			}
 
@@ -1479,7 +1490,7 @@ bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMateria
 	FExpression* BottomLayerExpression = LayerExpressions[0];
 	if (!BottomLayerExpression)
 	{
-		return Generator.GetErrors().AddError(TEXT("No layers"));
+		return Generator.Error(TEXT("No layers"));
 	}
 
 	TArray<FExpression*, TInlineAllocator<2>> BlendInputExpressions;
@@ -1488,7 +1499,7 @@ bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMateria
 		const int32 LayerIndex = BlendIndex + 1;
 		if (!MaterialLayers.Layers.IsValidIndex(LayerIndex))
 		{
-			return Generator.GetErrors().AddErrorf(TEXT("Invalid number of layers (%d) and blends (%d)"), MaterialLayers.Layers.Num(), MaterialLayers.Blends.Num());
+			return Generator.Errorf(TEXT("Invalid number of layers (%d) and blends (%d)"), MaterialLayers.Layers.Num(), MaterialLayers.Blends.Num());
 		}
 
 		if (MaterialLayers.Layers[LayerIndex] && MaterialLayers.LayerStates[LayerIndex])
@@ -1496,7 +1507,7 @@ bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMateria
 			FExpression* LayerExpression = LayerExpressions[LayerIndex];
 			if (!LayerExpression)
 			{
-				return Generator.GetErrors().AddErrorf(TEXT("Missing layer %d"), LayerIndex);
+				return Generator.Errorf(TEXT("Missing layer %d"), LayerIndex);
 			}
 
 			UMaterialFunctionInterface* BlendFunction = MaterialLayers.Blends[BlendIndex];
@@ -1505,7 +1516,7 @@ bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMateria
 				const EMaterialFunctionUsage Usage = BlendFunction->GetMaterialFunctionUsage();
 				if (Usage != EMaterialFunctionUsage::MaterialLayerBlend)
 				{
-					return Generator.GetErrors().AddErrorf(TEXT("Blend function %s is not a UMaterialFunctionMaterialBlend"),
+					return Generator.Errorf(TEXT("Blend function %s is not a UMaterialFunctionMaterialBlend"),
 						*BlendFunction->GetName());
 				}
 
@@ -1514,7 +1525,7 @@ bool UMaterialExpressionMaterialAttributeLayers::GenerateHLSLExpression(FMateria
 				BlendFunction->GetInputsAndOutputs(FunctionInputs, FunctionOutputs);
 				if (FunctionInputs.Num() != 2 || FunctionOutputs.Num() != 1)
 				{
-					return Generator.GetErrors().AddErrorf(TEXT("Blend function %s expected to have 2 inputs and 1 output, found %d inputs and %d outputs"),
+					return Generator.Errorf(TEXT("Blend function %s expected to have 2 inputs and 1 output, found %d inputs and %d outputs"),
 						*BlendFunction->GetName(), FunctionInputs.Num(), FunctionOutputs.Num());
 				}
 
@@ -2045,7 +2056,7 @@ bool UMaterialExpressionVolumetricAdvancedMaterialInput::GenerateHLSLExpression(
 {
 	if (OutputIndex != 0)
 	{
-		return Generator.GetErrors().AddError(TEXT("Invalid output"));
+		return Generator.Error(TEXT("Invalid output"));
 	}
 	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionInlineCustomHLSL>(UE::Shader::EValueType::Float3, TEXT("MaterialExpressionVolumeSampleConservativeDensity(Parameters)"));
 	return true;
@@ -2062,7 +2073,7 @@ bool UMaterialExpressionVolumetricAdvancedMaterialOutput::GenerateHLSLExpression
 	case 4: OutExpression = MultiScatteringOcclusion.AcquireHLSLExpressionOrConstant(Generator, Scope, ConstMultiScatteringOcclusion); break;
 	case 5: OutExpression = MultiScatteringEccentricity.AcquireHLSLExpressionOrConstant(Generator, Scope, ConstMultiScatteringEccentricity); break;
 	case 6: OutExpression = ConservativeDensity.AcquireHLSLExpressionOrConstant(Generator, Scope, FVector3f(1.0f, 1.0f, 1.0f)); break;
-	default: return Generator.GetErrors().AddError(TEXT("Invlid output"));
+	default: return Generator.Error(TEXT("Invlid output"));
 	}
 	return OutExpression != nullptr;
 }
@@ -2099,7 +2110,7 @@ bool UMaterialExpressionHairAttributes::GenerateHLSLExpression(FMaterialHLSLGene
 	case 11: OutExpression = Generator.GetTree().NewExpression<FExpressionInlineCustomHLSL>(EValueType::Float4, TEXT("MaterialExpressionGetHairAuxilaryData(Parameters)")); break;
 	case 12: OutExpression = Generator.GetTree().NewExpression<FExpressionInlineCustomHLSL>(EValueType::Float2, TEXT("MaterialExpressionGetAtlasUVs(Parameters)")); break;
 	case 13: OutExpression = Generator.GetTree().NewExpression<FExpressionInlineCustomHLSL>(EValueType::Float1, TEXT("MaterialExpressionGetHairGroupIndex(Parameters)")); break;
-	default: return Generator.GetErrors().AddError(TEXT("Invalid output"));
+	default: return Generator.Error(TEXT("Invalid output"));
 	}
 	return OutExpression != nullptr;
 }
@@ -2115,7 +2126,7 @@ bool UMaterialExpressionCloudSampleAttribute::GenerateHLSLExpression(FMaterialHL
 	case 1: OutExpression = Generator.GetTree().NewExpression<FExpressionInlineCustomHLSL>(EValueType::Float1, TEXT("MaterialExpressionCloudSampleAltitudeInLayer(Parameters)")); break;
 	case 2: OutExpression = Generator.GetTree().NewExpression<FExpressionInlineCustomHLSL>(EValueType::Float1, TEXT("MaterialExpressionCloudSampleNormAltitudeInLayer(Parameters)")); break;
 	case 3: OutExpression = Generator.GetTree().NewExpression<FExpressionInlineCustomHLSL>(EValueType::Float1, TEXT("MaterialExpressionVolumeSampleShadowSampleDistance(Parameters)")); break;
-	default: return Generator.GetErrors().AddError(TEXT("Invalid output"));
+	default: return Generator.Error(TEXT("Invalid output"));
 	}
 	return OutExpression != nullptr;
 }
@@ -2168,7 +2179,7 @@ bool UMaterialExpressionCustom::GenerateHLSLExpression(FMaterialHLSLGenerator& G
 
 	if (OutputIndex < 0 || OutputIndex > AdditionalOutputs.Num())
 	{
-		return Generator.GetErrors().AddErrorf(TEXT("Invalid output index %d"), OutputIndex);
+		return Generator.Errorf(TEXT("Invalid output index %d"), OutputIndex);
 	}
 
 	FMemStackBase& Allocator = Generator.GetTree().GetAllocator();
@@ -2303,12 +2314,12 @@ bool UMaterialExpressionWhileLoop::GenerateHLSLStatements(FMaterialHLSLGenerator
 	using namespace UE::HLSLTree;
 	if (!Condition.IsConnected())
 	{
-		return Generator.GetErrors().AddError(TEXT("Missing condition connection"));
+		return Generator.Error(TEXT("Missing condition connection"));
 	}
 
 	if (!LoopBody.GetExpression())
 	{
-		return Generator.GetErrors().AddError(TEXT("Missing LoopBody connection"));
+		return Generator.Error(TEXT("Missing LoopBody connection"));
 	}
 
 	FStatementLoop* LoopStatement = Generator.GetTree().NewStatement<FStatementLoop>(Scope);
@@ -2348,7 +2359,7 @@ bool UMaterialExpressionForLoop::GenerateHLSLExpression(FMaterialHLSLGenerator& 
 	FExpressionDataForLoop* ExpressionData = Generator.FindExpressionData<FExpressionDataForLoop>(this);
 	if (!ExpressionData || !Scope.HasParentScope(*ExpressionData->LoopScope))
 	{
-		return Generator.GetErrors().AddError(TEXT("For loop index accessed outside loop scope"));
+		return Generator.Error(TEXT("For loop index accessed outside loop scope"));
 	}
 
 	OutExpression = Generator.GetTree().AcquireLocal(Scope, ExpressionData->LocalName);
@@ -2360,7 +2371,7 @@ bool UMaterialExpressionForLoop::GenerateHLSLStatements(FMaterialHLSLGenerator& 
 	using namespace UE::HLSLTree;
 	if (!LoopBody.GetExpression())
 	{
-		return Generator.GetErrors().AddError(TEXT("Missing LoopBody connection"));
+		return Generator.Error(TEXT("Missing LoopBody connection"));
 	}
 
 	FExpression* StartExpression = StartIndex.AcquireHLSLExpression(Generator, Scope);

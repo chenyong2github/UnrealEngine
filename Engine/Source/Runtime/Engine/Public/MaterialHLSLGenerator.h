@@ -9,11 +9,13 @@
 #include "Misc/MemStack.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/RefCounting.h"
+#include "Templates/UniquePtr.h"
 #include "RHIDefinitions.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "HLSLTree/HLSLTree.h"
 
 class FMaterial;
+class FMaterialCachedHLSLTree;
 class FMaterialCompilationOutput;
 struct FSharedShaderCompilerEnvironment;
 struct FMaterialCompileTargetParameters;
@@ -53,44 +55,38 @@ struct TMaterialHLSLGeneratorType;
 #define DECLARE_MATERIAL_HLSLGENERATOR_DATA(T) \
 	template<> struct TMaterialHLSLGeneratorType<T> { static const FName& GetTypeName() { static const FName Name(TEXT(#T)); return Name; } }
 
-class FMaterialHLSLErrorHandler : public UE::HLSLTree::FErrorHandlerInterface
-{
-public:
-	explicit FMaterialHLSLErrorHandler(FMaterial& InOutMaterial);
-
-	virtual void AddErrorInternal(UObject* InOwner, FStringView InError) override;
-
-private:
-	FMaterial* Material;
-};
-
 /**
  * MaterialHLSLGenerator is a bridge between a material, and HLSLTree.  It facilitates generating HLSL source code for a given material, using HLSLTree
  */
 class FMaterialHLSLGenerator
 {
 public:
-	FMaterialHLSLGenerator(const FMaterialCompileTargetParameters& InCompilerTarget,
-		const FStaticParameterSet& InStaticParameters,
-		FMaterial& InOutMaterial,
-		UE::Shader::FStructTypeRegistry& InOutTypeRegistry,
-		UE::HLSLTree::FTree& InOutTree);
+	FMaterialHLSLGenerator(UMaterial* Material,
+		const FMaterialLayersFunctions* InLayerOverrides,
+		FMaterialCachedHLSLTree& InTree);
 
-	const FMaterialCompileTargetParameters& GetCompileTarget() const { return CompileTarget; }
-	const FStaticParameterSet& GetStaticParameters() const { return StaticParameters; }
+	const FMaterialLayersFunctions* GetLayerOverrides() const { return LayerOverrides; }
+
+	UE::HLSLTree::FTree& GetTree() const;
+	UE::Shader::FStructTypeRegistry& GetTypeRegistry() const;
+	const UE::Shader::FStructType* GetMaterialAttributesType() const;
+	const UE::Shader::FValue& GetMaterialAttributesDefaultValue() const;
+
+	template<typename StringType>
+	inline bool Error(const StringType& InError)
+	{
+		return InternalError(FStringView(InError));
+	}
+
+	template<typename FormatType, typename... Types>
+	inline bool Errorf(const FormatType& Format, Types... Args)
+	{
+		TStringBuilder<2048> String;
+		String.Appendf(Format, Forward<Types>(Args)...);
+		return InternalError(FStringView(String.ToString(), String.Len()));
+	}
 	
 	bool Generate();
-
-	UE::HLSLTree::FTree& GetTree() const { return *HLSLTree; }
-	UE::Shader::FStructTypeRegistry& GetTypeRegistry() const { return *TypeRegistry; }
-	FMaterialHLSLErrorHandler& GetErrors() { return Errors; }
-
-	UE::HLSLTree::FExpression* GetResultExpression() { return ResultExpression; }
-	UE::HLSLTree::FStatement* GetResultStatement() { return ResultStatement; }
-
-	void SetRequestedFields(EShaderFrequency ShaderFrequency, UE::HLSLTree::FRequestedType& OutRequestedType);
-
-	void EmitSharedCode(FStringBuilderBase& OutCode) const;
 
 	bool GenerateResult(UE::HLSLTree::FScope& Scope);
 
@@ -150,9 +146,6 @@ public:
 		return Data;
 	}
 
-	const UE::Shader::FStructType* GetMaterialAttributesType() const { return MaterialAttributesType; }
-	const UE::Shader::FValue& GetMaterialAttributesDefaultValue() const { return MaterialAttributesDefaultValue; }
-
 	bool GetParameterOverrideValueForCurrentFunction(EMaterialParameterType ParameterType, FName ParameterName, FMaterialParameterMetadata& OutResult) const;
 	FMaterialParameterInfo GetParameterInfo(const FName& ParameterName) const;
 
@@ -199,27 +192,21 @@ private:
 		int32 NumInputs = 0;
 	};
 
+	bool InternalError(FStringView ErrorMessage);
+
 	void InternalRegisterExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression, void* Data);
 	void* InternalFindExpressionData(const FName& Type, const UMaterialExpression* MaterialExpression);
 
-	const FMaterialCompileTargetParameters& CompileTarget;
-	const FStaticParameterSet& StaticParameters;
-	UMaterial* TargetMaterial = nullptr;
-	FMaterialHLSLErrorHandler Errors;
+	UMaterial* TargetMaterial;
+	const FMaterialLayersFunctions* LayerOverrides;
+	FMaterialCachedHLSLTree& CachedTree;
+	FString CurrentErrorMessage;
 
-	TArray<UMaterialExpressionCustomOutput*> MaterialCustomOutputs;
-	const UE::Shader::FStructType* MaterialAttributesType = nullptr;
-	UE::Shader::FValue MaterialAttributesDefaultValue;
-
-	UE::HLSLTree::FTree* HLSLTree;
-	UE::Shader::FStructTypeRegistry* TypeRegistry = nullptr;
-	UE::HLSLTree::FExpression* ResultExpression = nullptr;
-	UE::HLSLTree::FStatement* ResultStatement = nullptr;
-
+	FFunctionCallEntry RootFunctionCallEntry;
 	TArray<FFunctionCallEntry*, TInlineAllocator<8>> FunctionCallStack;
 	TArray<UE::HLSLTree::FScope*> JoinedScopeStack;
 	TMap<FXxHash64, const UE::Shader::FTextureValue*> TextureValueMap;
-	TMap<FSHAHash, FFunctionCallEntry*> FunctionCallMap;
+	TMap<FXxHash64, TUniquePtr<FFunctionCallEntry>> FunctionCallMap;
 	TMap<UMaterialFunctionInterface*, UE::HLSLTree::FFunction*> FunctionMap;
 	TMap<UMaterialExpression*, FStatementEntry> StatementMap;
 	TMap<FExpressionDataKey, void*> ExpressionDataMap;

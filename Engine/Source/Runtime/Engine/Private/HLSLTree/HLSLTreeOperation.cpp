@@ -180,10 +180,15 @@ FOperationRequestedTypes GetOperationRequestedTypes(EOperation Op, const FReques
 	return Types;
 }
 
-FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FExpression*> Inputs)
+FOperationTypes GetOperationTypes(FEmitContext& Context, EOperation Op, TConstArrayView<FExpression*> Inputs)
 {
-	FOperationTypes Types;
+	FPreparedType InputPreparedType[FExpressionOperation::MaxInputs];
+	for (int32 Index = 0; Index < Inputs.Num(); ++Index)
+	{
+		InputPreparedType[Index] = Context.GetPreparedType(Inputs[Index]);
+	}
 
+	FOperationTypes Types;
 	if (Op == EOperation::VecMulMatrix3 ||
 		Op == EOperation::VecMulMatrix4 ||
 		Op == EOperation::Matrix3MulVec ||
@@ -193,9 +198,8 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FExpression*> I
 		Shader::EValueComponentType IntermediateComponentType = Shader::EValueComponentType::Void;
 		for (int32 Index = 0; Index < Inputs.Num(); ++Index)
 		{
-			const FPreparedType& InputType = Inputs[Index]->GetPreparedType();
-			IntermediateComponent = CombineComponents(IntermediateComponent, InputType.GetMergedComponent());
-			IntermediateComponentType = Shader::CombineComponentTypes(IntermediateComponentType, InputType.ValueComponentType);
+			IntermediateComponent = CombineComponents(IntermediateComponent, InputPreparedType[Index].GetMergedComponent());
+			IntermediateComponentType = Shader::CombineComponentTypes(IntermediateComponentType, InputPreparedType[Index].ValueComponentType);
 		}
 
 		switch (Op)
@@ -225,8 +229,7 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FExpression*> I
 		FPreparedType IntermediateType;
 		for (int32 Index = 0; Index < Inputs.Num(); ++Index)
 		{
-			const FPreparedType& InputType = Inputs[Index]->GetPreparedType();
-			IntermediateType = MergePreparedTypes(IntermediateType, InputType);
+			IntermediateType = MergePreparedTypes(IntermediateType, InputPreparedType[Index]);
 		}
 
 		const Shader::EValueType IntermediateValueType = IntermediateType.GetType();
@@ -299,13 +302,13 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FExpression*> I
 		case EOperation::Min:
 			for (int32 Index = 0; Index < Types.ResultType.PreparedComponents.Num(); ++Index)
 			{
-				Types.ResultType.SetComponentBounds(Index, Shader::MinBound(Inputs[0]->GetPreparedType().GetComponentBounds(Index), Inputs[1]->GetPreparedType().GetComponentBounds(Index)));
+				Types.ResultType.SetComponentBounds(Index, Shader::MinBound(InputPreparedType[0].GetComponentBounds(Index), InputPreparedType[1].GetComponentBounds(Index)));
 			}
 			break;
 		case EOperation::Max:
 			for (int32 Index = 0; Index < Types.ResultType.PreparedComponents.Num(); ++Index)
 			{
-				Types.ResultType.SetComponentBounds(Index, Shader::MaxBound(Inputs[0]->GetPreparedType().GetComponentBounds(Index), Inputs[1]->GetPreparedType().GetComponentBounds(Index)));
+				Types.ResultType.SetComponentBounds(Index, Shader::MaxBound(InputPreparedType[0].GetComponentBounds(Index), InputPreparedType[1].GetComponentBounds(Index)));
 			}
 			break;
 		default:
@@ -545,7 +548,7 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 		}
 	}
 
-	Private::FOperationTypes Types = Private::GetOperationTypes(Op, MakeArrayView(Inputs, OpDesc.NumInputs));
+	Private::FOperationTypes Types = Private::GetOperationTypes(Context, Op, MakeArrayView(Inputs, OpDesc.NumInputs));
 	if (OpDesc.PreshaderOpcode == Shader::EPreshaderOpcode::Nop)
 	{
 		// No preshader support
@@ -572,7 +575,7 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 {
 	const FOperationDescription OpDesc = GetOperationDescription(Op);
 	const Private::FOperationRequestedTypes RequestedTypes = Private::GetOperationRequestedTypes(Op, RequestedType);
-	const Private::FOperationTypes Types = Private::GetOperationTypes(Op, MakeArrayView(Inputs, OpDesc.NumInputs));
+	const Private::FOperationTypes Types = Private::GetOperationTypes(Context, Op, MakeArrayView(Inputs, OpDesc.NumInputs));
 	FEmitShaderExpression* InputValue[MaxInputs] = { nullptr };
 	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
 	{
@@ -672,7 +675,7 @@ void FExpressionOperation::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 {
 	const FOperationDescription OpDesc = GetOperationDescription(Op);
 	const Private::FOperationRequestedTypes RequestedTypes = Private::GetOperationRequestedTypes(Op, RequestedType);
-	const Private::FOperationTypes Types = Private::GetOperationTypes(Op, MakeArrayView(Inputs, OpDesc.NumInputs));
+	const Private::FOperationTypes Types = Private::GetOperationTypes(Context, Op, MakeArrayView(Inputs, OpDesc.NumInputs));
 	check(OpDesc.PreshaderOpcode != Shader::EPreshaderOpcode::Nop);
 
 	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)

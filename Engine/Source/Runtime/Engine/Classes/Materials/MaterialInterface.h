@@ -39,6 +39,7 @@ class UTexture;
 class UMaterialInstance;
 struct FMaterialParameterInfo;
 struct FMaterialResourceLocOnDisk;
+class FMaterialCachedHLSLTree;
 #if WITH_EDITORONLY_DATA
 struct FParameterChannelNames;
 #endif
@@ -231,6 +232,10 @@ private:
 
 public:
 
+	UMaterialInterface();
+	UMaterialInterface(FVTableHelper& Helper);
+	ENGINE_API virtual ~UMaterialInterface();
+
 	//~ Begin IInterface_AssetUserData Interface
 	ENGINE_API virtual void AddAssetUserData(UAssetUserData* InUserData) override;
 	ENGINE_API virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
@@ -320,6 +325,12 @@ public:
 	virtual void GetMaterialInheritanceChain(FMaterialInheritanceChain& OutChain) const PURE_VIRTUAL(UMaterialInterface::GetMaterialInheritanceChain, return;);
 
 	ENGINE_API virtual const FMaterialCachedExpressionData& GetCachedExpressionData(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const;
+
+#if WITH_EDITOR
+	ENGINE_API virtual const FMaterialCachedHLSLTree& GetCachedHLSLTree(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const;
+#endif
+
+	ENGINE_API bool IsUsingNewHLSLGenerator() const;
 
 	/**
 	* Test this material for dependency on a given material.
@@ -958,6 +969,9 @@ protected:
 	/** Set if CachedExpressionData was loaded from disk, should typically be true when running with cooked data, and false in the editor */
 	bool bLoadedCachedExpressionData = false;
 
+#if WITH_EDITOR
+	TUniquePtr<FMaterialCachedHLSLTree> CachedHLSLTree;
+#endif // WITH_EDITOR
 private:
 	/**
 	 * Post loads all default materials.

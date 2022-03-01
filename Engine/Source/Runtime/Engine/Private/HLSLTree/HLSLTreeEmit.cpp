@@ -192,10 +192,14 @@ FEmitScope* FEmitScope::FindLoop()
 	return nullptr;
 }
 
-FEmitContext::FEmitContext(FMemStackBase& InAllocator, FErrorHandlerInterface& InErrors, const Shader::FStructTypeRegistry& InTypeRegistry)
+FEmitContext::FEmitContext(FMemStackBase& InAllocator,
+	const FTargetParameters& InTargetParameters,
+	FErrorHandlerInterface& InErrors,
+	const Shader::FStructTypeRegistry& InTypeRegistry)
 	: Allocator(&InAllocator)
 	, Errors(&InErrors)
 	, TypeRegistry(&InTypeRegistry)
+	, TargetParameters(InTargetParameters)
 {
 }
 
@@ -339,6 +343,28 @@ void FEmitContext::EmitDeclarationsCode(FStringBuilderBase& OutCode)
 	}
 }
 
+const FPreparedType& FEmitContext::GetPreparedType(const FExpression* Expression) const
+{
+	static const FPreparedType VoidType;
+	FPrepareValueResult* const* PrevResult = PrepareValueMap.Find(Expression);
+	return PrevResult ? (*PrevResult)->PreparedType : VoidType;
+}
+
+FRequestedType FEmitContext::GetRequestedType(const FExpression* Expression) const
+{
+	return GetPreparedType(Expression).GetRequestedType();
+}
+
+Shader::FType FEmitContext::GetType(const FExpression* Expression) const
+{
+	return GetPreparedType(Expression).GetType();
+}
+
+EExpressionEvaluation FEmitContext::GetEvaluation(const FExpression* Expression, const FEmitScope& Scope, const FRequestedType& RequestedType) const
+{
+	return GetPreparedType(Expression).GetEvaluation(Scope, RequestedType);
+}
+
 FPreparedType FEmitContext::PrepareExpression(FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType)
 {
 	if (!InExpression || RequestedType.IsVoid())
@@ -346,29 +372,38 @@ FPreparedType FEmitContext::PrepareExpression(FExpression* InExpression, FEmitSc
 		return FPreparedType();
 	}
 
+	FPrepareValueResult** PrevResult = PrepareValueMap.Find(InExpression);
+	FPrepareValueResult* Result = PrevResult ? *PrevResult : nullptr;
+	if (!Result)
+	{
+		Result = new(*Allocator) FPrepareValueResult();
+		PrepareValueMap.Add(InExpression, Result);
+	}
+
+
 	FOwnerScope OwnerScope(*Errors, InExpression->GetOwner());
-	FPrepareValueResult& Result = InExpression->PrepareValueResult;
-	if (InExpression->bReentryFlag)
+	if (Result->bPreparingValue)
 	{
 		// Valid for this to be called reentrantly
 		// Code should ensure that the type is set before the reentrant call, otherwise type will not be valid here
 		// LocalPHI nodes rely on this to break loops
 		FEmitScope* LoopScope = Scope.FindLoop();
 		check(LoopScope);
-		Result.PreparedType.SetLoopEvaluation(*LoopScope, RequestedType);
-		return Result.PreparedType;
+		Result->PreparedType.SetLoopEvaluation(*LoopScope, RequestedType);
+		return Result->PreparedType;
 	}
 
 	bool bResult = false;
 	{
-		FExpressionReentryScope ReentryScope(InExpression);
-		bResult = InExpression->PrepareValue(*this, Scope, RequestedType, Result);
+		Result->bPreparingValue = true;
+		bResult = InExpression->PrepareValue(*this, Scope, RequestedType, *Result);
+		Result->bPreparingValue = false;
 	}
 
 	FPreparedType ResultType;
 	if (bResult)
 	{
-		ResultType = Result.PreparedType;
+		ResultType = Result->PreparedType;
 		check(!ResultType.IsVoid());
 	}
 	return ResultType;
@@ -843,7 +878,7 @@ FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, 
 		const Shader::EValueType FieldType = Type.GetFlatFieldType(FieldIndex);
 		const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(FieldType);
 		const int32 NumFieldComponents = TypeDesc.NumComponents;
-		const EExpressionEvaluation FieldEvaluation = Expression->GetPreparedType().GetFieldEvaluation(Scope, RequestedType, ComponentIndex, NumFieldComponents);
+		const EExpressionEvaluation FieldEvaluation = GetPreparedType(Expression).GetFieldEvaluation(Scope, RequestedType, ComponentIndex, NumFieldComponents);
 
 		if (FieldEvaluation == EExpressionEvaluation::Preshader)
 		{
@@ -1165,7 +1200,7 @@ FEmitShaderExpression* FEmitContext::EmitCustomHLSL(FEmitScope& Scope, FStringVi
 	EmitInputs.Reserve(Inputs.Num());
 	for (const FCustomHLSLInput& Input : Inputs)
 	{
-		EmitInputs.Add(FEmitCustomHLSLInput{ Input.Name, Input.Expression->GetType() });
+		EmitInputs.Add(FEmitCustomHLSLInput{ Input.Name, GetType(Input.Expression) });
 	}
 
 	FHasher Hasher;
@@ -1217,6 +1252,7 @@ void FEmitContext::Finalize()
 	
 	// Don't reset Expression/Preshader maps, allow future passes to share matching preshaders/expressions
 
+	PrepareValueMap.Reset();
 	EmitScopeMap.Reset();
 	EmitFunctionMap.Reset();
 	EmitLocalPHIMap.Reset();

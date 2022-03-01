@@ -116,7 +116,6 @@ class FNode
 {
 public:
 	virtual ~FNode() {}
-	virtual void Reset() {}
 
 	UObject* GetOwner() const { return Owner; }
 
@@ -338,6 +337,7 @@ private:
 	bool TryMergePreparedType(FEmitContext& Context, const Shader::FStructType* StructType, Shader::EValueComponentType ComponentType);
 
 	FPreparedType PreparedType;
+	bool bPreparingValue = false;
 
 	friend class FExpression;
 	friend class FEmitContext;
@@ -381,13 +381,6 @@ struct FExpressionDerivatives
 class FExpression : public FNode
 {
 public:
-	const FPreparedType& GetPreparedType() const { return PrepareValueResult.PreparedType; }
-	FRequestedType GetRequestedType() const { return PrepareValueResult.PreparedType.GetRequestedType(); }
-	Shader::FType GetType() const { return PrepareValueResult.PreparedType.GetType(); }
-	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const { return PrepareValueResult.PreparedType.GetEvaluation(Scope, RequestedType); }
-
-	virtual void Reset() override;
-
 	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType);
 	Shader::FType GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader);
 	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType);
@@ -408,39 +401,8 @@ protected:
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const;
 
-private:
-	FExpressionDerivatives Derivatives;
-	FPrepareValueResult PrepareValueResult;
-	bool bReentryFlag = false;
-	bool bComputedDerivatives = false;
-
 	friend class FTree;
 	friend class FEmitContext;
-	friend class FExpressionReentryScope;
-};
-
-class FExpressionReentryScope
-{
-public:
-	FExpressionReentryScope(FExpression* InExpression) : Expression(InExpression)
-	{
-		if (Expression)
-		{
-			check(!Expression->bReentryFlag);
-			Expression->bReentryFlag = true;
-		}
-	}
-
-	~FExpressionReentryScope()
-	{
-		if (Expression)
-		{
-			check(Expression->bReentryFlag);
-			Expression->bReentryFlag = false;
-		}
-	}
-
-	FExpression* Expression;
 };
 
 class FFunction final : public FNode
@@ -499,8 +461,6 @@ public:
 
 	FMemStackBase& GetAllocator() { return *Allocator; }
 
-	void ResetNodes();
-
 	bool Finalize();
 
 	bool EmitShader(FEmitContext& Context, FStringBuilderBase& OutCode) const;
@@ -537,7 +497,7 @@ public:
 
 	FExpression* NewFunctionCall(FScope& Scope, FFunction* Function, int32 OutputIndex);
 
-	const FExpressionDerivatives& GetAnalyticDerivatives(FExpression* InExpression);
+	FExpressionDerivatives GetAnalyticDerivatives(FExpression* InExpression);
 	FExpression* GetPreviousFrame(FExpression* InExpression, const FRequestedType& RequestedType);
 
 	FScope* NewScope(FScope& Scope);
@@ -601,7 +561,6 @@ private:
 	FScope* RootScope = nullptr;
 	TMap<FXxHash64, FExpression*> ExpressionMap;
 	TArray<FExpressionLocalPHI*> PHIExpressions;
-	TArray<UObject*, TInlineAllocator<8>> OwnerStack;
 
 	friend class FExpressionLocalPHI;
 };
