@@ -74,15 +74,15 @@ void FNiagaraGpuComputeDebug::Tick(FRHICommandListImmediate& RHICmdList)
 		DebugDrawData->StaticLineCount = DebugDrawData->StaticLines.Num();
 		if (DebugDrawData->StaticLineCount > 0 )
 		{
-			constexpr uint32 NumFloatsPerLine = 7;
-			static_assert(sizeof(FNiagaraSimulationDebugDrawData::FGpuLine) == (NumFloatsPerLine * sizeof(float)), "Line size does not match expected GPU size");
+			constexpr uint32 NumUintsPerLine = 7;
+			static_assert(sizeof(FNiagaraSimulationDebugDrawData::FGpuLine) == (NumUintsPerLine * sizeof(uint32)), "Line size does not match expected GPU size");
 
-			const uint32 NumElements = FMath::DivideAndRoundUp(DebugDrawData->StaticLineCount, 64u) * 64u * NumFloatsPerLine;
-			const uint32 RequiredBytes = NumElements * sizeof(float);
+			const uint32 NumElements = FMath::DivideAndRoundUp(DebugDrawData->StaticLineCount, 64u) * 64u * NumUintsPerLine;
+			const uint32 RequiredBytes = NumElements * sizeof(uint32);
 			if ( DebugDrawData->StaticLineBuffer.NumBytes < RequiredBytes )
 			{
 				DebugDrawData->StaticLineBuffer.Release();
-				DebugDrawData->StaticLineBuffer.Initialize(TEXT("NiagaraGpuComputeDebug::StaticLineBuffer"), sizeof(float), NumElements, EPixelFormat::PF_R32_FLOAT);
+				DebugDrawData->StaticLineBuffer.Initialize(TEXT("NiagaraGpuComputeDebug::StaticLineBuffer"), sizeof(uint32), NumElements, EPixelFormat::PF_R32_UINT);
 			}
 			void* VertexData = RHILockBuffer(DebugDrawData->StaticLineBuffer.Buffer, 0, RequiredBytes, RLM_WriteOnly);
 			FMemory::Memcpy(VertexData, DebugDrawData->StaticLines.GetData(), DebugDrawData->StaticLineCount * DebugDrawData->StaticLines.GetTypeSize());
@@ -241,7 +241,7 @@ FNiagaraSimulationDebugDrawData* FNiagaraGpuComputeDebug::GetSimulationDebugDraw
 		if (DebugDrawDataPtr->GpuLineMaxInstances > 0)
 		{
 			DebugDrawDataPtr->GpuLineBufferArgs.Initialize(TEXT("NiagaraGpuComputeDebug::DrawLineBufferArgs"), sizeof(uint32), 4, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_DrawIndirect);
-			DebugDrawDataPtr->GpuLineVertexBuffer.Initialize(TEXT("NiagaraGpuComputeDebug::DrawLineVertexBuffer"), sizeof(float), 7 * DebugDrawDataPtr->GpuLineMaxInstances, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+			DebugDrawDataPtr->GpuLineVertexBuffer.Initialize(TEXT("NiagaraGpuComputeDebug::DrawLineVertexBuffer"), sizeof(uint32), 7 * DebugDrawDataPtr->GpuLineMaxInstances, EPixelFormat::PF_R32_UINT, BUF_Static);
 
 			auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 			{

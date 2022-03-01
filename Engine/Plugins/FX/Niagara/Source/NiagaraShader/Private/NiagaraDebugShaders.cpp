@@ -125,7 +125,7 @@ class NIAGARASHADER_API FNiagaraDebugDrawLineVS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_SRV(Buffer<float>, GpuLineBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>, GpuLineBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 };
 

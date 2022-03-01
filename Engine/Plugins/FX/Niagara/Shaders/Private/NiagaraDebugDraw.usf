@@ -28,7 +28,7 @@ void MainCS(in uint3 ThreadID : SV_DispatchThreadID)
 ////////////////////////////////////////////////////////////////////////////////////
 
 #if NIAGARA_DEBUGDRAW_DRAWLINE_VS
-Buffer<float>	GpuLineBuffer;
+Buffer<uint>	GpuLineBuffer;
 
 void MainVS(
 	in uint InstanceID		: SV_InstanceID,

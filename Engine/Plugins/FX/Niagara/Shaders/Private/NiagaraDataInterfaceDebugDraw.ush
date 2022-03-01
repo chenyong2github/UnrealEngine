@@ -6,7 +6,7 @@
 #include "NiagaraDebugDraw.ush"
 
 RWBuffer<uint>		RWNDIDebugDrawArgs;
-RWBuffer<float>		RWNDIDebugDrawLineVertex;
+RWBuffer<uint>		RWNDIDebugDrawLineVertex;
 uint				NDIDebugDrawLineMaxInstances;
 
 void NDIDebugDraw_DrawBox(bool bDraw, float3 Location, float4 Rotation, float3 Extents, float4 Color)
