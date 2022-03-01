@@ -163,7 +163,11 @@ namespace Metasound
 				: Editor(InEditor)
 				, GraphMember(InGraphMember)
 			{
-				Construct();
+				CursorDecoratorWindow = SWindow::MakeCursorDecorator();
+				constexpr bool bShowImmediately = false;
+				FSlateApplication::Get().AddWindow(CursorDecoratorWindow.ToSharedRef(), bShowImmediately);
+
+				HoverTargetChanged();
 			}
 
 			DRAG_DROP_OPERATOR_TYPE(FMetaSoundDragDropMemberAction, FGraphSchemaActionDragDropAction)
