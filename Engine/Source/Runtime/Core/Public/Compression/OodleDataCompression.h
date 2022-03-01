@@ -54,6 +54,7 @@ enum class ECompressor : uint8
 // If the input is invalid, returns false, and doesn't touch output.
 bool CORE_API ECompressorToString(ECompressor InCompressor, const TCHAR** OutName);
 bool CORE_API ECompressorFromString(const class FString& InName, ECompressor& OutCompressor);
+CORE_API const TCHAR* ECompressorToString(ECompressor InCompressor);
 
 /**
  * ECompressionLevel : Choose the Oodle Compression Level
@@ -106,6 +107,7 @@ enum class ECompressionLevel : int8
 // If the input is invalid, returns false, and doesn't touch output.
 bool CORE_API ECompressionLevelFromValue(int8 InValue, ECompressionLevel& OutLevel);
 bool CORE_API ECompressionLevelToString(ECompressionLevel InLevel, const TCHAR** OutName);
+CORE_API const TCHAR * ECompressionLevelToString(ECompressionLevel InLevel);
 
 enum class ECompressionCommonUsage : uint8
 {

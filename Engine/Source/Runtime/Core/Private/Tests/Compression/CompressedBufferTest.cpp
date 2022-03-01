@@ -166,7 +166,7 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 		const FCompressedBuffer Compressed = FCompressedBuffer::Compress(
 			FSharedBuffer::MakeView(MakeMemoryView(ExpectedValues)),
 			FOodleDataCompression::ECompressor::Mermaid,
-			FOodleDataCompression::ECompressionLevel::Optimal4,
+			FOodleDataCompression::ECompressionLevel::Fast,
 			BlockSize);
 
 		UncompressAndValidate(Compressed, 0, N, ExpectedValues);
@@ -191,7 +191,7 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 		const FCompressedBuffer Compressed = FCompressedBuffer::Compress(
 			FSharedBuffer::MakeView(MakeMemoryView(ExpectedValues)),
 			FOodleDataCompression::ECompressor::Mermaid,
-			FOodleDataCompression::ECompressionLevel::Optimal4,
+			FOodleDataCompression::ECompressionLevel::Fast,
 			BlockSize);
 		
 		constexpr uint64 OffsetCount = 150;
@@ -229,7 +229,7 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 		const FCompressedBuffer Compressed = FCompressedBuffer::Compress(
 			FSharedBuffer::MakeView(MakeMemoryView(ExpectedValues)),
 			FOodleDataCompression::ECompressor::Mermaid,
-			FOodleDataCompression::ECompressionLevel::Optimal4,
+			FOodleDataCompression::ECompressionLevel::Fast,
 			BlockSize);
 
 		constexpr uint64 OffsetCount = 2;
