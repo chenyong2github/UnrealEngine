@@ -1192,16 +1192,6 @@ public:
 	virtual void FreeSourceBuffer() = 0;
 };
 
-class IIoStoreWriter
-{
-public:
-	CORE_API virtual ~IIoStoreWriter() = default;
-
-	CORE_API virtual void EnableDiskLayoutOrdering(const TArray<TUniquePtr<FIoStoreReader>>& PatchSourceReaders = TArray<TUniquePtr<FIoStoreReader>>()) = 0;
-	CORE_API virtual void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, uint64 OrderHint = MAX_uint64) = 0;
-	CORE_API virtual void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions) = 0;
-	CORE_API virtual TIoStatusOr<FIoStoreWriterResult> GetResult() = 0;
-};
 
 struct FIoStoreTocChunkInfo
 {
@@ -1240,6 +1230,19 @@ struct FIoStoreCompressedReadResult
 	TArray<FIoStoreCompressedBlockInfo> Blocks;
 	uint64 UncompressedOffset;
 	uint64 UncompressedSize;
+};
+
+
+class IIoStoreWriter
+{
+public:
+	CORE_API virtual ~IIoStoreWriter() = default;
+
+	CORE_API virtual void EnableDiskLayoutOrdering(const TArray<TUniquePtr<FIoStoreReader>>& PatchSourceReaders = TArray<TUniquePtr<FIoStoreReader>>()) = 0;
+	CORE_API virtual void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, uint64 OrderHint = MAX_uint64) = 0;
+	CORE_API virtual void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions) = 0;
+	CORE_API virtual TIoStatusOr<FIoStoreWriterResult> GetResult() = 0;
+	CORE_API virtual void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const = 0;
 };
 
 class FIoStoreReader

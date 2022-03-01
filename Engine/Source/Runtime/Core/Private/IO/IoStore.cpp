@@ -609,6 +609,55 @@ public:
 		return ChunkIdToFileName.Find(ChunkId);
 	}
 
+	FIoStoreTocChunkInfo GetTocChunkInfo(const int32 TocEntryIndex, const TMap<int32, FString>* InChunkFileNamesMap) const
+	{
+		const FIoStoreTocResource& TocResource = GetTocResource();
+		const FIoStoreTocEntryMeta& Meta = TocResource.ChunkMetas[TocEntryIndex];
+		const FIoOffsetAndLength& OffsetLength = TocResource.ChunkOffsetLengths[TocEntryIndex];
+
+		const bool bIsContainerCompressed = EnumHasAnyFlags(TocResource.Header.ContainerFlags, EIoContainerFlags::Compressed);
+
+		FIoStoreTocChunkInfo ChunkInfo;
+		ChunkInfo.Id = TocResource.ChunkIds[TocEntryIndex];
+		ChunkInfo.ChunkType = ChunkInfo.Id.GetChunkType();
+		ChunkInfo.Hash = Meta.ChunkHash;
+		ChunkInfo.bIsCompressed = EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::Compressed);
+		ChunkInfo.bIsMemoryMapped = EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::MemoryMapped);
+		ChunkInfo.bForceUncompressed = bIsContainerCompressed && !EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::Compressed);
+		ChunkInfo.Offset = OffsetLength.GetOffset();
+		ChunkInfo.Size = OffsetLength.GetLength();
+
+		const FString* FindFileName = 0;
+		if (InChunkFileNamesMap &&
+			(FindFileName = InChunkFileNamesMap->Find(TocEntryIndex)) != nullptr)
+		{
+			ChunkInfo.FileName = *FindFileName;
+			ChunkInfo.bHasValidFileName = true;
+		}
+		else
+		{
+			ChunkInfo.FileName = FString::Printf(TEXT("<%s>"), *LexToString(ChunkInfo.ChunkType));
+			ChunkInfo.bHasValidFileName = false;
+		}
+
+		const uint64 CompressionBlockSize = TocResource.Header.CompressionBlockSize;
+		int32 FirstBlockIndex = int32(OffsetLength.GetOffset() / CompressionBlockSize);
+		int32 LastBlockIndex = int32((Align(OffsetLength.GetOffset() + OffsetLength.GetLength(), CompressionBlockSize) - 1) / CompressionBlockSize);
+
+		ChunkInfo.CompressedSize = 0;
+		ChunkInfo.PartitionIndex = -1;
+		for (int32 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; ++BlockIndex)
+		{
+			const FIoStoreTocCompressedBlockEntry& CompressionBlock = TocResource.CompressionBlocks[BlockIndex];
+			ChunkInfo.CompressedSize += CompressionBlock.GetCompressedSize();
+			if (ChunkInfo.PartitionIndex < 0)
+			{
+				ChunkInfo.PartitionIndex = int32(CompressionBlock.GetOffset() / TocResource.Header.PartitionSize);
+			}
+		}
+		return ChunkInfo;
+	}
+
 private:
 	TMap<FIoChunkId, int32> ChunkIdToIndex;
 	FIoStoreTocResource Toc;
@@ -622,6 +671,20 @@ public:
 	FIoStoreWriter(const TCHAR* InContainerPath)
 		: ContainerPath(InContainerPath)
 	{
+	}
+
+	void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
+	{
+		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
+
+		for (int32 ChunkIndex = 0; ChunkIndex < TocResource.ChunkIds.Num(); ++ChunkIndex)
+		{
+			FIoStoreTocChunkInfo ChunkInfo = Toc.GetTocChunkInfo(ChunkIndex, 0);
+			if (!Callback(ChunkInfo))
+			{
+				break;
+			}
+		}
 	}
 
 	UE_NODISCARD FIoStatus Initialize(FIoStoreWriterContextImpl& InContext, const FIoContainerSettings& InContainerSettings)
@@ -1922,7 +1985,7 @@ public:
 
 		for (int32 ChunkIndex = 0; ChunkIndex < TocResource.ChunkIds.Num(); ++ChunkIndex)
 		{
-			FIoStoreTocChunkInfo ChunkInfo = GetTocChunkInfo(ChunkIndex);
+			FIoStoreTocChunkInfo ChunkInfo = Toc.GetTocChunkInfo(ChunkIndex, &ChunkFileNamesMap);
 			if (!Callback(ChunkInfo))
 			{
 				break;
@@ -1935,7 +1998,7 @@ public:
 		const int32* TocEntryIndex = Toc.GetTocEntryIndex(ChunkId);
 		if (TocEntryIndex)
 		{
-			return GetTocChunkInfo(*TocEntryIndex);
+			return Toc.GetTocChunkInfo(*TocEntryIndex, &ChunkFileNamesMap);
 		}
 		else
 		{
@@ -1949,7 +2012,7 @@ public:
 
 		if (TocEntryIndex < uint32(TocResource.ChunkIds.Num()))
 		{
-			return GetTocChunkInfo(TocEntryIndex);
+			return Toc.GetTocChunkInfo(TocEntryIndex, &ChunkFileNamesMap);
 		}
 		else
 		{
@@ -2323,52 +2386,7 @@ public:
 	}
 
 private:
-	FIoStoreTocChunkInfo GetTocChunkInfo(const int32 TocEntryIndex) const
-	{
-		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
-		const FIoStoreTocEntryMeta& Meta = TocResource.ChunkMetas[TocEntryIndex];
-		const FIoOffsetAndLength& OffsetLength = TocResource.ChunkOffsetLengths[TocEntryIndex];
 
-		const bool bIsContainerCompressed = EnumHasAnyFlags(TocResource.Header.ContainerFlags, EIoContainerFlags::Compressed);
-
-		FIoStoreTocChunkInfo ChunkInfo;
-		ChunkInfo.Id = TocResource.ChunkIds[TocEntryIndex];
-		ChunkInfo.ChunkType = static_cast<EIoChunkType>(ChunkInfo.Id.Id[11]);
-		ChunkInfo.Hash = Meta.ChunkHash;
-		ChunkInfo.bIsCompressed = EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::Compressed);
-		ChunkInfo.bIsMemoryMapped = EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::MemoryMapped);
-		ChunkInfo.bForceUncompressed = bIsContainerCompressed && !EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::Compressed);
-		ChunkInfo.Offset = OffsetLength.GetOffset();
-		ChunkInfo.Size = OffsetLength.GetLength();
-		const FString* FindFileName = ChunkFileNamesMap.Find(TocEntryIndex);
-		if (FindFileName)
-		{
-			ChunkInfo.FileName = *FindFileName;
-			ChunkInfo.bHasValidFileName = true;
-		}
-		else
-		{
-			ChunkInfo.FileName = FString::Printf(TEXT("<%s>"), *LexToString(ChunkInfo.ChunkType));
-			ChunkInfo.bHasValidFileName = false;
-		}
-
-		const uint64 CompressionBlockSize = TocResource.Header.CompressionBlockSize;
-		int32 FirstBlockIndex = int32(OffsetLength.GetOffset() / CompressionBlockSize);
-		int32 LastBlockIndex = int32((Align(OffsetLength.GetOffset() + OffsetLength.GetLength(), CompressionBlockSize) - 1) / CompressionBlockSize);
-
-		ChunkInfo.CompressedSize = 0;
-		ChunkInfo.PartitionIndex = -1;
-		for (int32 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; ++BlockIndex)
-		{
-			const FIoStoreTocCompressedBlockEntry& CompressionBlock = TocResource.CompressionBlocks[BlockIndex];
-			ChunkInfo.CompressedSize += CompressionBlock.GetCompressedSize();
-			if (ChunkInfo.PartitionIndex < 0)
-			{
-				ChunkInfo.PartitionIndex = int32(CompressionBlock.GetOffset() / TocResource.Header.PartitionSize);
-			}
-		}
-		return ChunkInfo;
-	}
 
 	FIoStoreToc Toc;
 	FAES::FAESKey DecryptionKey;
