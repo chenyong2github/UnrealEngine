@@ -236,7 +236,7 @@ namespace PropertyPathHelpersInternal
 				if ( void* ValuePtr = Property->ContainerPtrToValuePtr<void>(InContainer, ArrayIndex) )
 				{
 					OutProperty = Property;
-					OutProperty->ExportTextItem_InContainer(OutValue, InContainer, nullptr, nullptr, 0);
+					OutProperty->ExportTextItem_Direct(OutValue, ValuePtr, nullptr, nullptr, 0);
 					return true;
 				}
 			}
