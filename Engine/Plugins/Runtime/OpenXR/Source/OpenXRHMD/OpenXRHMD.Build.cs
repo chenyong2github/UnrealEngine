@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using UnrealBuildTool;
 using System.IO;
+using System.Linq;
 
 namespace UnrealBuildTool.Rules
 {
@@ -107,7 +107,14 @@ namespace UnrealBuildTool.Rules
                 });
 
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
-            }
+			}
+
+			if (Target.Platform == UnrealTargetPlatform.Android && !Target.EnablePlugins.Contains("OculusVR"))
+			{
+				// If the Oculus plugin is not enabled we need to include our own APL
+				string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "OculusOpenXRLoader_APL.xml"));
+			}
 		}
 	}
 }
