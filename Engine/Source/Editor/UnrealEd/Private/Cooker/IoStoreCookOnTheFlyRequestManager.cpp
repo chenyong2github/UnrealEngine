@@ -39,9 +39,9 @@ public:
 		Connected
 	};
 
-	using FRequestHandler = TFunction<bool(const FName&, const UE::Cook::FCookOnTheFlyRequest&, UE::Cook::FCookOnTheFlyResponse&)>;
+	using FRequestHandler = TFunction<bool(const FName&, bool, const UE::Cook::FCookOnTheFlyRequest&, UE::Cook::FCookOnTheFlyResponse&)>;
 
-	using FClientConnectionHandler = TFunction<bool(const FName&, EConnectionStatus)>;
+	using FClientConnectionHandler = TFunction<bool(const FName&, bool, EConnectionStatus)>;
 
 	using FFillRequest = TFunction<void(FArchive&)>;
 
@@ -218,6 +218,7 @@ private:
 		TAtomic<double> LastActivityTime{ 0 };
 		uint32 ClientId = 0;
 		FName PlatformName;
+		bool bIsSingleThreaded = false;
 	};
 
 	void ServerThreadEntry()
@@ -268,41 +269,12 @@ private:
 				for (auto It = Clients.CreateIterator(); It; ++It)
 				{
 					TUniquePtr<FClient>& Client = *It;
-
-					const double SecondsSinceLastActivity = FPlatformTime::Seconds() - Client->LastActivityTime.Load();
-
-					if (SecondsSinceLastActivity > HeartbeatTimeoutInSeconds && !Client->bIsProcessingRequest)
-					{
-						Client->LastActivityTime = FPlatformTime::Seconds();
-
-						UE_LOG(LogCookOnTheFly, Display, TEXT("Sending hearbeat message, ClientId='%d', Platform='%s', Address='%s', IdleTime='%.2llf's"),
-							Client->ClientId, *Client->PlatformName.ToString(), *Client->PeerAddr->ToString(true), HeartbeatTimeoutInSeconds);
-
-						FCookOnTheFlyMessage HeartbeatRequest(ECookOnTheFlyMessage::Heartbeat | ECookOnTheFlyMessage::Request);
-						FCookOnTheFlyMessageHeader& Header = HeartbeatRequest.GetHeader();
-
-						Header.MessageStatus = ECookOnTheFlyMessageStatus::Ok;
-						Header.SenderId = ServerSenderId;
-						Header.CorrelationId = Client->ClientId;
-						Header.Timestamp = FDateTime::UtcNow().GetTicks();
-
-						FBufferArchive RequestPayload;
-						RequestPayload.Reserve(HeartbeatRequest.TotalSize());
-						RequestPayload << HeartbeatRequest;
-
-						if (!FNFSMessageHeader::WrapAndSendPayload(RequestPayload, FSimpleAbstractSocket_FSocket(Client->Socket)))
-						{
-							Client->bIsRunning = false;
-							UE_LOG(LogCookOnTheFly, Display, TEXT("Heartbeat [Failed]"));
-						}
-					}
-
 					if (!Client->bIsRunning)
 					{
 						UE_LOG(LogCookOnTheFly, Display, TEXT("Closing connection to client on address '%s' (Id='%d', Platform='%s')"),
 							*Client->PeerAddr->ToString(true), Client->ClientId, *Client->PlatformName.ToString());
 
-						Options.HandleClientConnection(Client->PlatformName, EConnectionStatus::Disconnected);
+						Options.HandleClientConnection(Client->PlatformName, Client->bIsSingleThreaded, EConnectionStatus::Disconnected);
 
 						Client->Socket->Close();
 						Client->Thread.Wait();
@@ -361,23 +333,12 @@ private:
 		case ECookOnTheFlyMessage::Handshake:
 		{
 			ProcessHandshake(Client, Request, Response);
-			bRequestOk = Options.HandleClientConnection(Client.PlatformName, EConnectionStatus::Connected);
-			break;
-		}
-		case ECookOnTheFlyMessage::Heartbeat:
-		{
-			const bool bHeartbeatOk = Request.GetHeader().CorrelationId == Client.ClientId;
-
-			UE_LOG(LogCookOnTheFly, Display, TEXT("Heartbeat [%s], ClientId='%d', Platform='%s', Address='%s'"),
-				bHeartbeatOk ? TEXT("Ok") : TEXT("Failed"), Client.ClientId, *Client.PlatformName.ToString(), *Client.PeerAddr->ToString(true));
-
-			bRequestOk = bHeartbeatOk;
-			bIsResponse = true;
+			bRequestOk = Options.HandleClientConnection(Client.PlatformName, Client.bIsSingleThreaded, EConnectionStatus::Connected);
 			break;
 		}
 		default:
 		{
-			bRequestOk = Options.HandleRequest(Client.PlatformName, Request, Response);
+			bRequestOk = Options.HandleRequest(Client.PlatformName, Client.bIsSingleThreaded, Request, Response);
 			break;
 		}
 		}
@@ -412,6 +373,7 @@ private:
 			TUniquePtr<FArchive> Ar = HandshakeRequest.ReadBody();
 			*Ar << PlatformName;
 			*Ar << ProjectName;
+			*Ar << Client.bIsSingleThreaded;
 		}
 
 		if (PlatformName.Len())
@@ -489,6 +451,14 @@ private:
 			: PlatformName(InPlatformName)
 			, PackageWriter(InPackageWriter)
 		{
+		}
+
+		~FPlatformContext()
+		{
+			if (PackageCookedEvent)
+			{
+				FPlatformProcess::ReturnSynchEventToPool(PackageCookedEvent);
+			}
 		}
 
 		FCriticalSection& GetLock()
@@ -583,6 +553,10 @@ private:
 			FPackage& Package = GetPackage(PackageId);
 			Package.Status = EPackageStatus::Failed;
 			OutCompletedPackages.FailedPackages.Add(PackageId);
+			if (PackageCookedEvent)
+			{
+				PackageCookedEvent->Trigger();
+			}
 		}
 
 		void MarkAsCooked(FPackageId PackageId, const FPackageStoreEntryResource& Entry, UE::ZenCookOnTheFly::Messaging::FCompletedPackages& OutCompletedPackages)
@@ -592,6 +566,10 @@ private:
 			Package.Status = EPackageStatus::Cooked;
 			Package.Entry = Entry;
 			OutCompletedPackages.CookedPackages.Add(Entry);
+			if (PackageCookedEvent)
+			{
+				PackageCookedEvent->Trigger();
+			}
 		}
 
 		void AddExistingPackages(TArrayView<const FPackageStoreEntryResource> Entries, TArrayView<const IPackageStoreWriter::FOplogCookInfo> CookInfos)
@@ -625,11 +603,38 @@ private:
 			return *Package;
 		}
 
+		void AddSingleThreadedClient()
+		{
+			++SingleThreadedClientsCount;
+			if (!PackageCookedEvent)
+			{
+				PackageCookedEvent = FPlatformProcess::GetSynchEventFromPool();
+			}
+		}
+
+		void RemoveSingleThreadedClient()
+		{
+			check(SingleThreadedClientsCount >= 0);
+			if (!SingleThreadedClientsCount)
+			{
+				FPlatformProcess::ReturnSynchEventToPool(PackageCookedEvent);
+				PackageCookedEvent = nullptr;
+			}
+		}
+
+		void WaitForCook()
+		{
+			check(PackageCookedEvent);
+			PackageCookedEvent->Wait();
+		}
+
 	private:
 		FCriticalSection CriticalSection;
 		FName PlatformName;
 		TMap<FPackageId, TUniquePtr<FPackage>> Packages;
 		IPackageStoreWriter* PackageWriter = nullptr;
+		int32 SingleThreadedClientsCount = 0;
+		FEvent* PackageCookedEvent = nullptr;
 	};
 
 	virtual bool Initialize() override
@@ -643,13 +648,13 @@ private:
 		ConnectionServer = MakeUnique<FIoStoreCookOnTheFlyNetworkServer>(FIoStoreCookOnTheFlyNetworkServer::FServerOptions
 		{
 			Port,
-			[this](const FName& PlatformName, FIoStoreCookOnTheFlyNetworkServer::EConnectionStatus ConnectionStatus)
+			[this](const FName& PlatformName, bool bIsSingleThreaded, FIoStoreCookOnTheFlyNetworkServer::EConnectionStatus ConnectionStatus)
 			{
-				return HandleClientConnection(PlatformName, ConnectionStatus);
+				return HandleClientConnection(PlatformName, bIsSingleThreaded, ConnectionStatus);
 			},
-			[this](const FName& PlatformName, const FCookOnTheFlyRequest& Request, FCookOnTheFlyResponse& Response)
+			[this](const FName& PlatformName, bool bIsSingleThreaded, const FCookOnTheFlyRequest& Request, FCookOnTheFlyResponse& Response)
 			{ 
-				return HandleClientRequest(PlatformName, Request, Response);
+				return HandleClientRequest(PlatformName, bIsSingleThreaded, Request, Response);
 			}
 		});
 
@@ -743,7 +748,7 @@ private:
 	}
 
 private:
-	bool HandleClientConnection(const FName& PlatformName, FIoStoreCookOnTheFlyNetworkServer::EConnectionStatus ConnectionStatus)
+	bool HandleClientConnection(const FName& PlatformName, bool bIsSingleThreaded, FIoStoreCookOnTheFlyNetworkServer::EConnectionStatus ConnectionStatus)
 	{
 		FScopeLock _(&ContextsCriticalSection);
 
@@ -774,6 +779,13 @@ private:
 					PackageWriter->OnMarkUpToDate().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackagesMarkedUpToDate);
 				}
 
+				if (bIsSingleThreaded)
+				{
+					FPlatformContext& Context = GetContext(PlatformName);
+					FScopeLock __(&Context.GetLock());
+					Context.AddSingleThreadedClient();
+				}
+
 				return true;
 			}
 
@@ -781,12 +793,18 @@ private:
 		}
 		else
 		{
+			if (bIsSingleThreaded)
+			{
+				FPlatformContext& Context = GetContext(PlatformName);
+				FScopeLock __(&Context.GetLock());
+				Context.RemoveSingleThreadedClient();
+			}
 			CookOnTheFlyServer.RemovePlatform(PlatformName);
 			return true;
 		}
 	}
 
-	bool HandleClientRequest(const FName& PlatformName, const UE::Cook::FCookOnTheFlyRequest& Request, UE::Cook::FCookOnTheFlyResponse& Response)
+	bool HandleClientRequest(const FName& PlatformName, bool bIsSingleThreaded, const UE::Cook::FCookOnTheFlyRequest& Request, UE::Cook::FCookOnTheFlyResponse& Response)
 	{
 		bool bRequestOk = false;
 
@@ -797,7 +815,7 @@ private:
 		switch (Request.GetHeader().MessageType)
 		{
 			case UE::Cook::ECookOnTheFlyMessage::CookPackage:
-				bRequestOk = HandleCookPackageRequest(PlatformName, Request, Response);
+				bRequestOk = HandleCookPackageRequest(PlatformName, bIsSingleThreaded, Request, Response);
 				break;
 			case UE::Cook::ECookOnTheFlyMessage::GetCookedPackages:
 				bRequestOk = HandleGetCookedPackagesRequest(PlatformName, Request, Response);
@@ -849,7 +867,7 @@ private:
 		return true;
 	}
 
-	bool HandleCookPackageRequest(const FName& PlatformName, const UE::Cook::FCookOnTheFlyRequest& Request, UE::Cook::FCookOnTheFlyResponse& Response)
+	bool HandleCookPackageRequest(const FName& PlatformName, bool bIsSingleThreaded, const UE::Cook::FCookOnTheFlyRequest& Request, UE::Cook::FCookOnTheFlyResponse& Response)
 	{
 		using namespace UE::ZenCookOnTheFly::Messaging;
 
@@ -872,9 +890,29 @@ private:
 				return AllKnownPackagesMap.FindRef(CookRequest.PackageId);
 			};
 
-			FScopeLock _(&Context.GetLock());
 			FPackageStoreEntryResource Entry;
-			EPackageStoreEntryStatus PackageStatus = Context.RequestCook(CookOnTheFlyServer, CookRequest.PackageId, GetPackageNameFunc, Entry);
+			EPackageStoreEntryStatus PackageStatus = EPackageStoreEntryStatus::Pending;
+			if (bIsSingleThreaded)
+			{
+				for (;;)
+				{
+					{
+						FScopeLock _(&Context.GetLock());
+						PackageStatus = Context.RequestCook(CookOnTheFlyServer, CookRequest.PackageId, GetPackageNameFunc, Entry);
+					}
+					if (PackageStatus != EPackageStoreEntryStatus::Pending)
+					{
+						break;
+					}
+					Context.WaitForCook();
+				}
+			}
+			else
+			{
+				FScopeLock _(&Context.GetLock());
+				PackageStatus = Context.RequestCook(CookOnTheFlyServer, CookRequest.PackageId, GetPackageNameFunc, Entry);
+			}
+
 			Response.SetBodyTo(FCookPackageResponse{ PackageStatus, MoveTemp(Entry) });
 		}
 		Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Ok);

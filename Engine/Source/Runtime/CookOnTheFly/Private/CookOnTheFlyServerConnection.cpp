@@ -46,7 +46,9 @@ class FCookOnTheFlyServerConnection final
 {
 public:
 	FCookOnTheFlyServerConnection()
-	{ }
+		: bIsSingleThreaded(!FGenericPlatformProcess::SupportsMultithreading())
+	{
+	}
 
 	~FCookOnTheFlyServerConnection()
 	{
@@ -113,8 +115,18 @@ public:
 			return false;
 		}
 
-		Thread = AsyncThread([this] { return ThreadEntry(); },  8 * 1024, TPri_Normal);
-
+		Thread = MakeUnique<FThread>(
+			TEXT("CotfServerConnection"),
+			[this]()
+			{
+				ThreadEntry();
+			},
+			[this]()
+			{
+				SingleThreadedTickFunction();
+			},
+			8 * 1024);
+		
 		UE_LOG(LogCotfServerConnection, Log, TEXT("Connected to COTF server at '%s'"), *ServerAddr->ToString(true));
 
 		return true;
@@ -153,6 +165,13 @@ public:
 
 		if (SendMessage(RequestPayload))
 		{
+			if (bIsSingleThreaded)
+			{
+				ProcessMessagesWhile([this, CorrelationId]()
+					{
+						return PendingRequests.Contains(CorrelationId);
+					});
+			}
 			return FutureResponse;
 		}
 		else
@@ -177,7 +196,7 @@ public:
 			if (!bStopRequested.Exchange(true))
 			{
 				Socket->Close();
-				Thread.Wait();
+				Thread->Join();
 				Thread.Reset();
 				Socket.Reset();
 				ClientId  = 0;
@@ -232,6 +251,8 @@ public:
 			TUniquePtr<FArchive> Ar = HandshakeRequest.WriteBody();
 			*Ar << PlatformName;
 			*Ar << ProjectName;
+			bool bLocalIsSingleThreded = bIsSingleThreaded;
+			*Ar << bLocalIsSingleThreded;
 		}
 
 		FBufferArchive HandshakeRequestPayload;
@@ -260,17 +281,18 @@ public:
 		return ClientId > 0;
 	}
 
-	void ThreadEntry()
+	bool ProcessMessagesWhile(TFunctionRef<bool()> Condition)
 	{
 		using namespace UE::Cook;
 
-		while (!bStopRequested.Load())
+		while (Condition())
 		{
 			FArrayReader MessagePayload;
 			if (!ReceiveMessage(MessagePayload))
 			{
 				UE_LOG(LogCotfServerConnection, Warning, TEXT("Failed to receive message from '%s'"), *ServerAddr->ToString(true));
-				break;
+				ClientId = 0;
+				return false;
 			}
 
 			FCookOnTheFlyMessageHeader MessageHeader;
@@ -287,28 +309,7 @@ public:
 
 			if (bIsRequest)
 			{
-				UE_CLOG(
-					MessageHeader.MessageType != ECookOnTheFlyMessage::Heartbeat,
-					LogCotfServerConnection, Fatal, TEXT("Invalid server request message '%s'"), LexToString(MessageHeader.MessageType));
-
-				FCookOnTheFlyMessage HeartbeatResponse(ECookOnTheFlyMessage::Heartbeat | ECookOnTheFlyMessage::Response);
-				FCookOnTheFlyMessageHeader& ResponseHeader = HeartbeatResponse.GetHeader();
-
-				ResponseHeader.MessageStatus	= ECookOnTheFlyMessageStatus::Ok;
-				ResponseHeader.SenderId			= ClientId;
-				ResponseHeader.CorrelationId	= MessageHeader.CorrelationId;
-				ResponseHeader.Timestamp		= FDateTime::UtcNow().GetTicks();
-				
-				FBufferArchive ResponsePayload;
-				ResponsePayload << HeartbeatResponse;
-
-				UE_LOG(LogCotfServerConnection, Warning, TEXT("Sending heartbeat response to '%s'"), *ServerAddr->ToString(true));
-
-				if (!SendMessage(ResponsePayload))
-				{
-					UE_LOG(LogCotfServerConnection, Warning, TEXT("Failed to send heartbeat response to '%s'"), *ServerAddr->ToString(true));
-					break;
-				}
+				UE_LOG(LogCotfServerConnection, Warning, TEXT("Received request from server, ignoring"));
 			}
 			else if (bIsResponse)
 			{
@@ -337,8 +338,27 @@ public:
 			}
 		}
 
+		return true;
+	}
+
+	void ThreadEntry()
+	{
+		ProcessMessagesWhile([this]()
+			{
+				return !bStopRequested.Load();
+			});
+
 		UE_LOG(LogCotfServerConnection, Display, TEXT("Terminating connection to server '%s'"), *ServerAddr->ToString(true));
 		ClientId = 0;
+	}
+
+	void SingleThreadedTickFunction()
+	{
+		ProcessMessagesWhile([this]()
+			{
+				uint32 PendingDataSize;
+				return Socket->HasPendingData(PendingDataSize);
+			});
 	}
 
 	struct FPendingRequest
@@ -376,8 +396,9 @@ public:
 	TSharedPtr<FInternetAddr> ServerAddr;
 	TUniquePtr<FSocket> Socket;
 	uint32 ClientId = 0;
-	TFuture<void> Thread;
+	TUniquePtr<FThread> Thread;
 	TAtomic<bool> bStopRequested { false };
+	const bool bIsSingleThreaded;
 
 	FCriticalSection RequestsCriticalSection;
 	TMap<uint32, TUniquePtr<FPendingRequest>> PendingRequests;

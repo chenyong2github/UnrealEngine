@@ -50,10 +50,8 @@ enum class ECookOnTheFlyMessage : uint32
 	PackagesCooked		= 0x50,
 	/* One way message indicating that one or more files has been added. */
 	FilesAdded			= 0x60,
-	/* Heartbeat message. */
-	Heartbeat			= 0x70,
 	/* Request to recook packages. */
-	RecookPackages		= 0x80,
+	RecookPackages		= 0x70,
 };
 ENUM_CLASS_FLAGS(ECookOnTheFlyMessage);
 
@@ -80,8 +78,6 @@ inline const TCHAR* LexToString(ECookOnTheFlyMessage Message)
 			return TEXT("PackagesCooked");
 		case ECookOnTheFlyMessage::FilesAdded:
 			return TEXT("FilesAdded");
-		case ECookOnTheFlyMessage::Heartbeat:
-			return TEXT("Heartbeat");
 		case ECookOnTheFlyMessage::RecookPackages:
 			return TEXT("RecookPackages");
 		default:
