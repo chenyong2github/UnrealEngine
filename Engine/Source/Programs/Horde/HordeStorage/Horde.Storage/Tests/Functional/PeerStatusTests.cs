@@ -83,11 +83,13 @@ namespace Horde.Storage.FunctionalTests.Status
             handler.Verify();
 
             // as we are actually measuring the time it takes to call our mocked handler the latency expected is not going to be exact so we allow some delta
-            IPeerStatusService.PeerStatus siteAPeerStatus = statusService.GetPeerStatus("siteA");
+            IPeerStatusService.PeerStatus? siteAPeerStatus = statusService.GetPeerStatus("siteA");
+            Assert.IsNotNull(siteAPeerStatus);
             Assert.AreEqual(220, siteAPeerStatus.Latency, 50);
             Assert.IsTrue(siteAPeerStatus.Reachable);
 
-            IPeerStatusService.PeerStatus siteBPeerStatus = statusService.GetPeerStatus("siteB");
+            IPeerStatusService.PeerStatus? siteBPeerStatus = statusService.GetPeerStatus("siteB");
+            Assert.IsNotNull(siteBPeerStatus);
             Assert.AreEqual(420, siteBPeerStatus.Latency, 50);
             Assert.IsTrue(siteBPeerStatus.Reachable);
         }
@@ -157,13 +159,14 @@ namespace Horde.Storage.FunctionalTests.Status
             handler.Verify();
 
             // as we are actually measuring the time it takes to call our mocked handler the latency expected is not going to be exact so we allow some delta
-            IPeerStatusService.PeerStatus siteAPeerStatus = statusService.GetPeerStatus("siteA");
-            
+            IPeerStatusService.PeerStatus? siteAPeerStatus = statusService.GetPeerStatus("siteA");
+            Assert.IsNotNull(siteAPeerStatus);
             // verify that we ignore the failing internal endpoint
             Assert.AreEqual(220, siteAPeerStatus.Latency, 50);
             Assert.IsTrue(siteAPeerStatus.Reachable);
 
-            IPeerStatusService.PeerStatus siteBPeerStatus = statusService.GetPeerStatus("siteB");
+            IPeerStatusService.PeerStatus? siteBPeerStatus = statusService.GetPeerStatus("siteB");
+            Assert.IsNotNull(siteBPeerStatus);
             Assert.AreEqual(int.MaxValue, siteBPeerStatus.Latency);
             Assert.IsFalse(siteBPeerStatus.Reachable);
         }

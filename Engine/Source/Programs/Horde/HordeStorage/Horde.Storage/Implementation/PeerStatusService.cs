@@ -19,7 +19,7 @@ namespace Horde.Storage.Implementation
             public bool Reachable { get; set; }
         }
 
-        PeerStatus GetPeerStatus(string regionName);
+        PeerStatus? GetPeerStatus(string regionName);
 
         SortedList<int, string> GetPeersByLatency(IEnumerable<string> peerNames);
     }
@@ -36,14 +36,14 @@ namespace Horde.Storage.Implementation
         {
         }
 
-        public IPeerStatusService.PeerStatus GetPeerStatus(string regionName)
+        public IPeerStatusService.PeerStatus? GetPeerStatus(string regionName)
         {
             if (_peers.TryGetValue(regionName, out IPeerStatusService.PeerStatus? peerStatus))
             {
                 return peerStatus;
             }
 
-            throw new ArgumentException($"No Peer known for region: {regionName}", nameof(regionName));
+            return null;
         }
 
         public SortedList<int, string> GetPeersByLatency(IEnumerable<string> peerNames)
@@ -55,7 +55,9 @@ namespace Horde.Storage.Implementation
                 if (string.Equals(peerName, _jupiterSettings.CurrentValue.CurrentSite, StringComparison.InvariantCultureIgnoreCase))
                     continue;
 
-                IPeerStatusService.PeerStatus peerStatus = GetPeerStatus(peerName);
+                IPeerStatusService.PeerStatus? peerStatus = GetPeerStatus(peerName);
+                if (peerStatus == null)
+                    continue;
                 sortedPeers.Add(peerStatus.Latency, peerName);
             }
 

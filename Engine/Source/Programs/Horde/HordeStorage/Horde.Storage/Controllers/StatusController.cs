@@ -118,8 +118,12 @@ namespace Horde.Storage.Controllers
             if (!includeInternalEndpoints)
                 endpoints = endpoints.Where(s => !s.IsInternal);
             Endpoints = endpoints.Select(e => e.Url).ToList();
-            IPeerStatusService.PeerStatus peerStatus = statusService.GetPeerStatus(peerSettings.Name);
-            Latency = peerStatus.Latency;
+
+            IPeerStatusService.PeerStatus? peerStatus = statusService.GetPeerStatus(peerSettings.Name);
+            if (peerStatus != null)
+            {
+                Latency = peerStatus.Latency;
+            }
         }
 
         public string Site { get; set; }
