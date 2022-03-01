@@ -25,6 +25,10 @@ public:
 		HeadphonesGain = InHeadphonesGain;
 		MicrophoneGain = InMicrophoneGain;
 		OutputGain = InOutputGain;
+		for (int32 UserIndex = 0; UserIndex < SCE_USER_SERVICE_MAX_LOGIN_USERS; UserIndex++)
+		{
+			bGainChanged[UserIndex] = true;
+		}
 	}
 
 	float GetOutputGain()
