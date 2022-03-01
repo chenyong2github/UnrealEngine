@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Horde.Storage.Implementation;
+using Jupiter;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -63,6 +64,9 @@ namespace Horde.Storage.FunctionalTests.Status
             };
             IOptionsMonitor<ClusterSettings> settingsMock = Mock.Of<IOptionsMonitor<ClusterSettings>>(_ => _.CurrentValue == settings);
 
+            JupiterSettings jupiterSettings = new JupiterSettings();
+            IOptionsMonitor<JupiterSettings> jupiterSettingsMock = Mock.Of<IOptionsMonitor<JupiterSettings>>(_ => _.CurrentValue == jupiterSettings);
+
             Mock<HttpMessageHandler> handler = new Mock<HttpMessageHandler>();
             string endpoint = "/health/live";
             // this emulates response times from calling the different endpoints
@@ -72,7 +76,7 @@ namespace Horde.Storage.FunctionalTests.Status
             handler.SetupRequest("http://siteb.com/internal" + endpoint).ReturnsResponse(HttpStatusCode.OK).Callback(() => Task.Delay(400).Wait()).Verifiable();
 
             IHttpClientFactory httpClientFactory = handler.CreateClientFactory();
-            PeerStatusService statusService = new PeerStatusService(settingsMock, httpClientFactory);
+            PeerStatusService statusService = new PeerStatusService(settingsMock, jupiterSettingsMock, httpClientFactory);
 
             await statusService.UpdatePeerStatus(CancellationToken.None);
 
@@ -133,6 +137,9 @@ namespace Horde.Storage.FunctionalTests.Status
             };
             IOptionsMonitor<ClusterSettings> settingsMock = Mock.Of<IOptionsMonitor<ClusterSettings>>(_ => _.CurrentValue == settings);
 
+            JupiterSettings jupiterSettings = new JupiterSettings();
+            IOptionsMonitor<JupiterSettings> jupiterSettingsMock = Mock.Of<IOptionsMonitor<JupiterSettings>>(_ => _.CurrentValue == jupiterSettings);
+
             Mock<HttpMessageHandler> handler = new Mock<HttpMessageHandler>();
             string endpoint = "/health/live";
             handler.SetupRequest("http://sitea.com/public" + endpoint).ReturnsResponse(HttpStatusCode.OK).Callback(() => Task.Delay(220).Wait()).Verifiable();
@@ -143,7 +150,7 @@ namespace Horde.Storage.FunctionalTests.Status
             handler.SetupRequest("http://siteb.com/internal" + endpoint).Throws<SocketException>().Verifiable();
 
             IHttpClientFactory httpClientFactory = handler.CreateClientFactory();
-            PeerStatusService statusService = new PeerStatusService(settingsMock, httpClientFactory);
+            PeerStatusService statusService = new PeerStatusService(settingsMock, jupiterSettingsMock, httpClientFactory);
 
             await statusService.UpdatePeerStatus(CancellationToken.None);
 

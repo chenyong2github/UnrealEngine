@@ -27,6 +27,7 @@ namespace Horde.Storage.Implementation
     public class PeerStatusService : PollingService<PeerStatusService.PeerStatusServiceState>, IPeerStatusService
     {
         private readonly IOptionsMonitor<ClusterSettings> _clusterSettings;
+        private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
         private readonly IHttpClientFactory _clientFactory;
         private readonly Dictionary<string, IPeerStatusService.PeerStatus> _peers = new Dictionary<string, IPeerStatusService.PeerStatus>();
         private volatile bool _alreadyPolling = false;
@@ -50,6 +51,10 @@ namespace Horde.Storage.Implementation
             SortedList<int, string> sortedPeers = new();
             foreach (string peerName in peerNames)
             {
+                // skip the local site
+                if (string.Equals(peerName, _jupiterSettings.CurrentValue.CurrentSite))
+                    continue;
+
                 IPeerStatusService.PeerStatus peerStatus = GetPeerStatus(peerName);
                 sortedPeers.Add(peerStatus.Latency, peerName);
             }
@@ -57,13 +62,18 @@ namespace Horde.Storage.Implementation
             return sortedPeers;
         }
 
-        public PeerStatusService(IOptionsMonitor<ClusterSettings> clusterSettings, IHttpClientFactory clientFactory) : base("PeerStatus", TimeSpan.FromMinutes(15), new PeerStatusServiceState())
+        public PeerStatusService(IOptionsMonitor<ClusterSettings> clusterSettings, IOptionsMonitor<JupiterSettings> jupiterSettings, IHttpClientFactory clientFactory) : base("PeerStatus", TimeSpan.FromMinutes(15), new PeerStatusServiceState())
         {
             _clusterSettings = clusterSettings;
+            _jupiterSettings = jupiterSettings;
             _clientFactory = clientFactory;
 
             foreach (PeerSettings peerSettings in clusterSettings.CurrentValue.Peers)
             {
+                // skip the local site
+                if (string.Equals(peerSettings.Name, jupiterSettings.CurrentValue.CurrentSite))
+                    continue;
+
                 _peers[peerSettings.Name] = new IPeerStatusService.PeerStatus
                 {
                     Latency = int.MaxValue
@@ -86,6 +96,10 @@ namespace Horde.Storage.Implementation
         {
             foreach (PeerSettings peerSettings in _clusterSettings.CurrentValue.Peers)
             {
+                // skip the local site
+                if (string.Equals(peerSettings.Name, _jupiterSettings.CurrentValue.CurrentSite))
+                    continue;
+
                 IPeerStatusService.PeerStatus status = _peers[peerSettings.Name];
 
                 int bestLatency = int.MaxValue;
