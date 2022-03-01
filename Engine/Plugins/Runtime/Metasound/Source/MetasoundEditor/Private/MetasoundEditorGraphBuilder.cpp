@@ -1690,7 +1690,7 @@ namespace Metasound
 
 		bool FGraphBuilder::SynchronizeGraph(UObject& InMetaSound, bool bForceRefreshNodes)
 		{
-			bool bEditorGraphModified = SynchronizeGraphVertices(InMetaSound);
+			bool bEditorGraphModified = SynchronizeGraphMembers(InMetaSound);
 			bEditorGraphModified |= SynchronizeNodeMembers(InMetaSound);
 			bEditorGraphModified |= SynchronizeNodes(InMetaSound);
 			bEditorGraphModified |= SynchronizeConnections(InMetaSound);
@@ -2115,7 +2115,7 @@ namespace Metasound
 			return OldValue != InPin.DefaultValue;
 		}
 
-		bool FGraphBuilder::SynchronizeGraphVertices(UObject& InMetaSound)
+		bool FGraphBuilder::SynchronizeGraphMembers(UObject& InMetaSound)
 		{
 			using namespace Frontend;
 
@@ -2259,7 +2259,10 @@ namespace Metasound
 				}
 			}, EMetasoundFrontendClassType::Output);
 
-
+			// Remove empty entries
+			bEditorGraphModified |= Graph->Inputs.RemoveAllSwap([](const TObjectPtr<UMetasoundEditorGraphInput>& Input) { return !Input; }) > 0;
+			bEditorGraphModified |= Graph->Outputs.RemoveAllSwap([](const TObjectPtr<UMetasoundEditorGraphOutput>& Output) { return !Output; }) > 0;
+			bEditorGraphModified |= Graph->Variables.RemoveAllSwap([](const TObjectPtr<UMetasoundEditorGraphVariable>& Variable) { return !Variable; }) > 0;
 
 			return bEditorGraphModified;
 		}

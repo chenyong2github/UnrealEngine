@@ -1313,7 +1313,12 @@ UMetasoundEditorGraphInput* UMetasoundEditorGraph::FindInput(FGuid InNodeID) con
 {
 	const TObjectPtr<UMetasoundEditorGraphInput>* Input = Inputs.FindByPredicate([InNodeID](const TObjectPtr<UMetasoundEditorGraphInput>& InInput)
 	{
-		return InInput->NodeID == InNodeID;
+		if (InInput)
+		{
+			return InInput->NodeID == InNodeID;
+		}
+
+		return false;
 	});
 	return Input ? Input->Get() : nullptr;
 }
@@ -1322,8 +1327,13 @@ UMetasoundEditorGraphInput* UMetasoundEditorGraph::FindInput(FName InName) const
 {
 	const TObjectPtr<UMetasoundEditorGraphInput>* Input = Inputs.FindByPredicate([InName](const TObjectPtr<UMetasoundEditorGraphInput>& InInput)
 	{
-		const FName NodeName = InInput->GetMemberName();
-		return NodeName == InName;
+		if (InInput)
+		{
+			const FName NodeName = InInput->GetMemberName();
+			return NodeName == InName;
+		}
+
+		return false;
 	});
 	return Input ? Input->Get() : nullptr;
 }
@@ -1370,7 +1380,11 @@ UMetasoundEditorGraphOutput* UMetasoundEditorGraph::FindOutput(FGuid InNodeID) c
 {
 	const TObjectPtr<UMetasoundEditorGraphOutput>* Output = Outputs.FindByPredicate([InNodeID](const TObjectPtr<UMetasoundEditorGraphOutput>& InOutput)
 	{
-		return InOutput->NodeID == InNodeID;
+		if (InOutput)
+		{
+			return InOutput->NodeID == InNodeID;
+		}
+		return false;
 	});
 	return Output ? Output->Get() : nullptr;
 }
@@ -1379,7 +1393,11 @@ UMetasoundEditorGraphOutput* UMetasoundEditorGraph::FindOutput(FName InName) con
 {
 	const TObjectPtr<UMetasoundEditorGraphOutput>* Output = Outputs.FindByPredicate([&InName](const TObjectPtr<UMetasoundEditorGraphOutput>& InOutput)
 	{
-		return InName == InOutput->GetMemberName();
+		if (InOutput)
+		{
+			return InName == InOutput->GetMemberName();
+		}
+		return false;
 	});
 	return Output ? Output->Get() : nullptr;
 }
@@ -1553,7 +1571,7 @@ void UMetasoundEditorGraph::IterateInputs(TUniqueFunction<void(UMetasoundEditorG
 {
 	for (UMetasoundEditorGraphInput* Input : Inputs)
 	{
-		if (ensure(Input))
+		if (Input)
 		{
 			InFunction(*Input);
 		}

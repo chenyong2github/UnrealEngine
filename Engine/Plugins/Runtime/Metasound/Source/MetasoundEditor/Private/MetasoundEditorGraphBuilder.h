@@ -249,10 +249,10 @@ namespace Metasound
 			// Synchronizes pin type for a given pin with that registered with the MetaSound editor module provided.
 			static bool SynchronizePinType(const IMetasoundEditorModule& InEditorModule, UEdGraphPin& InPin, const FName InDataType);
 
-			// Synchronizes inputs and outputs for the given MetaSound.
+			// Synchronizes inputs, variables, and outputs for the given MetaSound.
 			//
 			// @return True if the UEdGraph was altered. False otherwise.
-			static bool SynchronizeGraphVertices(UObject& InMetaSound);
+			static bool SynchronizeGraphMembers(UObject& InMetaSound);
 
 			// Returns true if the FInputHandle and UEdGraphPin match each other.
 			static bool IsMatchingInputHandleAndPin(const Frontend::FConstInputHandle& InInputHandle, const UEdGraphPin& InEditorPin);

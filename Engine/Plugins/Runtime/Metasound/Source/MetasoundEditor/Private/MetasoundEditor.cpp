@@ -1754,6 +1754,7 @@ namespace Metasound
 					const FScopedTransaction Transaction(LOCTEXT("MetaSoundEditorDeleteSelectedMember", "Delete MetaSound Graph Member"));
 					Metasound->Modify();
 					Graph.Modify();
+					GraphMember->Modify();
 					Graph.RemoveMember(*GraphMember);
 				}
 
@@ -2666,7 +2667,7 @@ namespace Metasound
 				ActionList->AddAction(NewFuncAction);
 
 				UMetasoundEditorGraphInput * EdGraphInput = EdGraph.FindInput(NodeID);
-				if (ensure(EdGraphInput))
+				if (EdGraphInput)
 				{
 					if (FDelegateHandle* NameChangeDelegate = NameChangeDelegateHandles.Find(NodeID))
 					{

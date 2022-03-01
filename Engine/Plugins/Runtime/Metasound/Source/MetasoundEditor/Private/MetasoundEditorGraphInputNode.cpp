@@ -114,5 +114,8 @@ bool UMetasoundEditorGraphInputNode::Validate(Metasound::Editor::FGraphNodeValid
 
 void UMetasoundEditorGraphInputNode::SetNodeID(FGuid InNodeID)
 {
-	Input->NodeID = InNodeID;
+	if (Input)
+	{
+		Input->NodeID = InNodeID;
+	}
 }
