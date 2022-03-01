@@ -697,7 +697,7 @@ FORCEINLINE void EnsureIsInGameThreadContext()
 		TPhysicsSceneGuardScopedWrite(MutexType& InMutex)
 			: Mutex(InMutex)
 		{
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AcquireSceneWriteLock);
+			CSV_SCOPED_TIMING_STAT(PhysicsVerbose,AcquireSceneWriteLock);
 			Mutex.WriteLock();
 		}
 
@@ -726,7 +726,7 @@ FORCEINLINE void EnsureIsInGameThreadContext()
 		TPhysicsSceneGuardScopedRead(MutexType& InMutex)
 			: Mutex(InMutex)
 		{
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AcquireSceneReadLock);
+			CSV_SCOPED_TIMING_STAT(PhysicsVerbose, AcquireSceneReadLock);
 			Mutex.ReadLock();
 		}
 
