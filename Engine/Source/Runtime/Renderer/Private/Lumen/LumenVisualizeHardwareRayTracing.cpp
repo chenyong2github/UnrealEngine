@@ -90,16 +90,20 @@ static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingBucketMat
 
 namespace Lumen
 {
-	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily)
+	bool UseHardwareRayTracedVisualize(const FSceneViewFamily& ViewFamily)
 	{
 		bool bVisualize = false;
 #if RHI_RAYTRACING
 		bVisualize = IsRayTracingEnabled()
 			&& Lumen::UseHardwareRayTracing()
-			&& CVarLumenVisualizeHardwareRayTracing.GetValueOnRenderThread() != 0
-			&& Lumen::ShouldVisualizeScene(ViewFamily);
+			&& CVarLumenVisualizeHardwareRayTracing.GetValueOnRenderThread() != 0;
 #endif
 		return bVisualize;
+	}
+
+	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily)
+	{
+		return UseHardwareRayTracedVisualize(ViewFamily) && Lumen::ShouldVisualizeScene(ViewFamily);
 	}
 
 #if RHI_RAYTRACING

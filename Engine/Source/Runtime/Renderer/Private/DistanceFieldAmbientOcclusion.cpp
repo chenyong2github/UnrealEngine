@@ -743,7 +743,7 @@ bool FSceneRenderer::ShouldPrepareGlobalDistanceField() const
 			|| ((Views.Num() > 0) && Views[0].bUsesGlobalDistanceField)
 			|| ((FXSystem != nullptr) && FXSystem->UsesGlobalDistanceField()));
 
-	bShouldPrepareForAO = bShouldPrepareForAO || IsLumenEnabled(Views[0]);
+	bShouldPrepareForAO = bShouldPrepareForAO || (IsLumenEnabled(Views[0]) && Lumen::UseVoxelLighting(*Views[0].Family));
 
 	return bShouldPrepareForAO && UseGlobalDistanceField();
 }

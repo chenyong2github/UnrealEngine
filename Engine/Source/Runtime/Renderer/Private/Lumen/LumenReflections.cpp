@@ -18,13 +18,12 @@
 
 extern FLumenGatherCvarState GLumenGatherCvars;
 
-int32 GAllowLumenReflections = 1;
-FAutoConsoleVariableRef CVarLumenAllowReflections(
+static TAutoConsoleVariable<int> CVarLumenAllowReflections(
 	TEXT("r.Lumen.Reflections.Allow"),
-	GAllowLumenReflections,
+	1,
 	TEXT("Whether to allow Lumen Reflections.  Lumen Reflections is enabled in the project settings, this cvar can only disable it."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
+);
 
 int32 GLumenReflectionDownsampleFactor = 1;
 FAutoConsoleVariableRef GVarLumenReflectionDownsampleFactor(
@@ -548,7 +547,7 @@ bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracingDataCh
 			&& Lumen::IsLumenFeatureAllowedForView(Scene, View, bSkipTracingDataCheck, bSkipProjectCheck) 
 			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
 			&& View.Family->EngineShowFlags.LumenReflections 
-			&& GAllowLumenReflections
+			&& CVarLumenAllowReflections.GetValueOnAnyThread()
 			&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedReflections() || Lumen::IsSoftwareRayTracingSupported());
 	}
 	

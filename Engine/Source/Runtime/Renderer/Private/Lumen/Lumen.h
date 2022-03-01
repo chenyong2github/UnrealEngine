@@ -54,6 +54,7 @@ namespace Lumen
 	bool ShouldVisualizeScene(const FSceneViewFamily& ViewFamily);
 	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily);
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
+
 	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
 	float GetDistanceSceneNaniteLODScaleFactor();
 
@@ -81,6 +82,11 @@ namespace Lumen
 	bool UseHardwareRayTracedScreenProbeGather();
 	bool UseHardwareRayTracedRadianceCache();
 	bool UseHardwareRayTracedRadiosity(const FSceneViewFamily& ViewFamily);
+	bool UseHardwareRayTracedVisualize(const FSceneViewFamily& ViewFamily);
+
+	bool ShouldRenderRadiosityHardwareRayTracing(const FSceneViewFamily& ViewFamily);
+	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily);
+
 	int32 GetMaxTranslucentSkipCount();
 
 	bool UseHardwareInlineRayTracing();

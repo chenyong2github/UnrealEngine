@@ -226,11 +226,15 @@ bool Lumen::UseHardwareRayTracedRadiosity(const FSceneViewFamily& ViewFamily)
 #if RHI_RAYTRACING
 	return IsRayTracingEnabled()
 		&& Lumen::UseHardwareRayTracing()
-		&& (CVarLumenRadiosityHardwareRayTracing.GetValueOnRenderThread() != 0)
-		&& IsRadiosityEnabled(ViewFamily);
+		&& (CVarLumenRadiosityHardwareRayTracing.GetValueOnRenderThread() != 0);
 #else
 	return false;
 #endif
+}
+
+bool Lumen::ShouldRenderRadiosityHardwareRayTracing(const FSceneViewFamily& ViewFamily)
+{
+	return UseHardwareRayTracedRadiosity(ViewFamily) && IsRadiosityEnabled(ViewFamily);
 }
 
 bool Lumen::IsRadiosityEnabled(const FSceneViewFamily& ViewFamily)
@@ -460,7 +464,7 @@ bool IsHardwareRayTracingRadiosityIndirectDispatch()
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingRadiosityLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (Lumen::UseHardwareRayTracedRadiosity(*View.Family))
+	if (Lumen::ShouldRenderRadiosityHardwareRayTracing(*View.Family))
 	{
 		FLumenRadiosityHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenRadiosityHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingRadiosityIndirectDispatch());

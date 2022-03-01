@@ -27,13 +27,12 @@ FLumenGatherCvarState::FLumenGatherCvarState()
 	VoxelTracingMode = 0;
 }
 
-int32 GAllowLumenDiffuseIndirect = 1;
-FAutoConsoleVariableRef CVarLumenGlobalIllumination(
+static TAutoConsoleVariable<int> CVarLumenGlobalIllumination(
 	TEXT("r.Lumen.DiffuseIndirect.Allow"),
-	GAllowLumenDiffuseIndirect,
+	1,
 	TEXT("Whether to allow Lumen Global Illumination.  Lumen GI is enabled in the project settings, this cvar can only disable it."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
+);
 
 float GDiffuseTraceStepFactor = 1;
 FAutoConsoleVariableRef CVarDiffuseTraceStepFactor(
@@ -228,7 +227,7 @@ bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FSceneView& View, boo
 {
 	return Lumen::IsLumenFeatureAllowedForView(Scene, View, bSkipTracingDataCheck, bSkipProjectCheck)
 		&& View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen
-		&& GAllowLumenDiffuseIndirect != 0
+		&& CVarLumenGlobalIllumination.GetValueOnAnyThread()
 		&& View.Family->EngineShowFlags.GlobalIllumination 
 		&& View.Family->EngineShowFlags.LumenGlobalIllumination
 		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedScreenProbeGather() || Lumen::IsSoftwareRayTracingSupported());

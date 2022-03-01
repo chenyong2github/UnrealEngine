@@ -126,13 +126,13 @@ bool Lumen::UseVoxelLighting(const FSceneViewFamily& ViewFamily)
 		return false;
 	}
 
-	// All features user Hardware RayTracing, no need to update voxel lighting
+	// All features use Hardware RayTracing, no need to update voxel lighting
 	if (Lumen::UseHardwareRayTracedSceneLighting(ViewFamily)
 		&& Lumen::UseHardwareRayTracedScreenProbeGather()
 		&& Lumen::UseHardwareRayTracedReflections()
 		&& Lumen::UseHardwareRayTracedRadianceCache()
 		&& Lumen::UseHardwareRayTracedTranslucencyVolume()
-		&& Lumen::ShouldVisualizeHardwareRayTracing(ViewFamily))
+		&& Lumen::UseHardwareRayTracedVisualize(ViewFamily))
 	{
 		return false;
 	}

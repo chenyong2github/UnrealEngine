@@ -338,7 +338,7 @@ namespace Lumen
 			return true;
 		}
 
-		if ((bLumenGI || bLumenReflections) && Lumen::UseHardwareRayTracedRadiosity(*View.Family))
+		if ((bLumenGI || bLumenReflections) && Lumen::ShouldRenderRadiosityHardwareRayTracing(*View.Family))
 		{
 			return true;
 		}
