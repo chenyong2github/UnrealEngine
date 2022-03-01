@@ -105,7 +105,7 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 		InLayoutBuilder.AddObjectPropertyData(RootComponents, USceneComponent::GetRelativeScale3DPropertyName());
 	}
 
-	// Manually label the ICVFX category to propery format it to have the dash in "In-Camera"
+	// Manually label the ICVFX category to properly format it to have the dash in "In-Camera"
 	InLayoutBuilder.EditCategory(DisplayClusterConfigurationStrings::categories::ICVFXCategory, LOCTEXT("ICVFXCategoryLabel", "In-Camera VFX"));
 
 	// Customize the PreviewNodeId property to be a dropdown filled with the nodes configured on the root actor.
