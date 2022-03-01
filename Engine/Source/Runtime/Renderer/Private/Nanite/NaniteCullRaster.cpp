@@ -1460,7 +1460,7 @@ FCullingContext InitCullingContext(
 
 	if (CullingContext.Configuration.bProgrammableRaster)
 	{
-		CullingContext.ClusterCountSWHW = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, 2), TEXT("Nanite.SWHWClusterCount"));
+		CullingContext.ClusterCountSWHW = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FUintVector2), 1), TEXT("Nanite.SWHWClusterCount"));
 	}
 	else
 	{
