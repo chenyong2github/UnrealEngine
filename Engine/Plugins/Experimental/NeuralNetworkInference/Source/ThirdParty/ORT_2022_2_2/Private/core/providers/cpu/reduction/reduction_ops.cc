@@ -309,11 +309,15 @@ void NoTransposePrepareForReduce(const TensorShape& new_input_shape,
   } else {
     results.projected_index.resize(projection_size);
 #ifdef WITH_UE // WITH_UE
+#ifndef __PROSPERO__
 	const int initial_value_projected_indices = 0;
 	TensorShapeVector projected_indices(reduced_axes_size, initial_value_projected_indices);
 #else
-	TensorShapeVector projected_indices(reduced_axes_size, 0);
+	TensorShapeVector projected_indices(reduced_axes_size, NULL);
 #endif
+#else // WITH_UE
+	TensorShapeVector projected_indices(reduced_axes_size, 0);
+#endif // WITH_UE
     int64_t current_index = 0;
     size_t current_pos = 0;
     int j;
