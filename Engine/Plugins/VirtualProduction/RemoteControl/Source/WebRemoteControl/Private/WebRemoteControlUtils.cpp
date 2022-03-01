@@ -27,7 +27,7 @@ void WebRemoteControlUtils::ConvertToUTF8(const FString& InString, TArray<uint8>
 
 TSharedRef<IStructSerializerBackend> WebRemoteControlUtils::CreateJsonSerializerBackend(FMemoryWriter& Writer)
 {
-	return MakeShared<FRCJsonStructSerializerBackend>(Writer, FRCJsonStructSerializerBackend::DefaultSerializerFlags);
+	return MakeShared<FRCJsonStructSerializerBackend>(Writer);
 }
 
 TSharedRef<IStructDeserializerBackend> WebRemoteControlUtils::CreateJsonDeserializerBackend(FMemoryReaderView& Reader)
