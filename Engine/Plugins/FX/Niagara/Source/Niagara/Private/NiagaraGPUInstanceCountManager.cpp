@@ -414,7 +414,9 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(FNiagaraGpuCompu
 		const bool bCountBufferIsValid = CountBuffer.UAV.IsValid();
 		if (bCountBufferIsValid)
 		{
-			Transitions.Emplace(CountBuffer.UAV, kCountBufferDefaultState, ERHIAccess::UAVCompute);
+			// treat the incoming UAV as being unknown to be sure a barrier is inserted in the case
+			// where the preceding dispatch wrote to the counts buffer
+			Transitions.Emplace(CountBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
 			CountsUAV = CountBuffer.UAV;
 		}
 		else
