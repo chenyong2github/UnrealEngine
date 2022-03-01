@@ -21,6 +21,7 @@ struct ENGINE_API FMaterialRelevance
 			uint8 bMasked : 1;
 			uint8 bDistortion : 1;
 			uint8 bHairStrands : 1;
+			uint8 bTwoSided : 1;
 			uint8 bSeparateTranslucency : 1; // Translucency After DOF
 			uint8 bSeparateTranslucencyModulate : 1;
 			uint8 bPostMotionBlurTranslucency : 1;
@@ -29,6 +30,7 @@ struct ENGINE_API FMaterialRelevance
 			uint8 bOutputsTranslucentVelocity : 1;
 			uint8 bUsesGlobalDistanceField : 1;
 			uint8 bUsesWorldPositionOffset : 1;
+			uint8 bUsesPixelDepthOffset : 1;
 			uint8 bDecal : 1;
 			uint8 bTranslucentSurfaceLighting : 1;
 			uint8 bUsesSceneDepth : 1;

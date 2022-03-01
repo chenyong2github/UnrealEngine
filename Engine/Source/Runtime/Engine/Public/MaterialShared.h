@@ -714,7 +714,7 @@ public:
 	/** Bitfield of runtime virtual texture output attributes. */
 	LAYOUT_FIELD(uint8, RuntimeVirtualTextureOutputAttributeMask);
 
-	/** true if the material needs the scenetexture lookups. */
+	/** true if the material needs the scene texture lookups. */
 	LAYOUT_BITFIELD(uint8, bNeedsSceneTextures, 1);
 
 	/** true if the material uses the EyeAdaptationLookup */
@@ -1938,14 +1938,30 @@ public:
 	ENGINE_API bool NeedsGBuffer() const;
 	ENGINE_API bool UsesEyeAdaptation() const;	
 	ENGINE_API bool UsesGlobalDistanceField_GameThread() const;
-	ENGINE_API bool UsesWorldPositionOffset_GameThread() const;
+
+	/** Does the material use world position offset. */
+	ENGINE_API bool MaterialUsesWorldPositionOffset_RenderThread() const;
+	ENGINE_API bool MaterialUsesWorldPositionOffset_GameThread() const;
+
+	UE_DEPRECATED(5.0, "This function is deprecated. Use MaterialUsesWorldPositionOffset_GameThread() instead.")
+	inline bool UsesWorldPositionOffset_GameThread() const
+	{
+		return MaterialUsesWorldPositionOffset_GameThread();
+	}
+
+	/** Does the material use a pixel depth offset. */
+	ENGINE_API bool MaterialUsesPixelDepthOffset_RenderThread() const;
+	ENGINE_API bool MaterialUsesPixelDepthOffset_GameThread() const;
+
+	UE_DEPRECATED(5.0, "This function is deprecated. Use MaterialUsesPixelDepthOffset_RenderThread() instead.")
+	inline bool MaterialUsesPixelDepthOffset() const
+	{
+		return MaterialUsesPixelDepthOffset_RenderThread();
+	}
 
 	/** Does the material modify the mesh position. */
 	ENGINE_API bool MaterialModifiesMeshPosition_RenderThread() const;
 	ENGINE_API bool MaterialModifiesMeshPosition_GameThread() const;
-
-	/** Does the material use a pixel depth offset. */
-	ENGINE_API bool MaterialUsesPixelDepthOffset() const;
 
 	/** Does the material use a distance cull fade. */
 	ENGINE_API bool MaterialUsesDistanceCullFade_GameThread() const;
@@ -2141,7 +2157,7 @@ protected:
 	virtual FString GetBaseMaterialPathName() const { return TEXT(""); }
 	virtual FString GetDebugName() const { return GetBaseMaterialPathName(); }
 
-	UE_DEPRECATED(4.26, "Parameter bInHasQualityLevelUsage is depreceated")
+	UE_DEPRECATED(4.26, "Parameter bInHasQualityLevelUsage is deprecated")
 	void SetQualityLevelProperties(EMaterialQualityLevel::Type InQualityLevel, bool bInHasQualityLevelUsage, ERHIFeatureLevel::Type InFeatureLevel)
 	{
 		QualityLevel = InQualityLevel;
@@ -2419,8 +2435,8 @@ public:
 
 	/**
 	 * Finds the FMaterial to use for rendering this FMaterialRenderProxy.  Will fall back to a default material if needed due to a content error, or async compilation.
-	 * The returned FMaterial is guaranteed to have a complete shader map, so all relevant shaders should be availiable
-	 * OutFallbackMaterialRenderProxy - The proxy that coorisponds to the returned FMaterial, should be used for further rendering.  May be a fallback material, or 'this' if no fallback was needed
+	 * The returned FMaterial is guaranteed to have a complete shader map, so all relevant shaders should be available
+	 * OutFallbackMaterialRenderProxy - The proxy that corresponds to the returned FMaterial, should be used for further rendering.  May be a fallback material, or 'this' if no fallback was needed
 	 */
 	const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const;
 
@@ -2640,7 +2656,7 @@ public:
 		SetQualityLevelProperties(InFeatureLevel, InQualityLevel);
 	}
 
-	UE_DEPRECATED(4.26, "Parameter bInHasQualityLevelUsage is depreceated")
+	UE_DEPRECATED(4.26, "Parameter bInHasQualityLevelUsage is deprecated")
 	void SetMaterial(UMaterial* InMaterial, EMaterialQualityLevel::Type InQualityLevel, bool bInHasQualityLevelUsage, ERHIFeatureLevel::Type InFeatureLevel, UMaterialInstance* InInstance = nullptr)
 	{
 		SetMaterial(InMaterial, InInstance, InFeatureLevel, InQualityLevel);

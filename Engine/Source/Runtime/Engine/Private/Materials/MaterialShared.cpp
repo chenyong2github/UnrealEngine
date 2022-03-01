@@ -885,7 +885,13 @@ bool FMaterial::UsesGlobalDistanceField_GameThread() const
 	return GameThreadShaderMap.GetReference() ? GameThreadShaderMap->UsesGlobalDistanceField() : false; 
 }
 
-bool FMaterial::UsesWorldPositionOffset_GameThread() const 
+bool FMaterial::MaterialUsesWorldPositionOffset_RenderThread() const
+{
+	check(IsInParallelRenderingThread());
+	return RenderingThreadShaderMap ? RenderingThreadShaderMap->UsesWorldPositionOffset() : false;
+}
+
+bool FMaterial::MaterialUsesWorldPositionOffset_GameThread() const
 { 
 	return GameThreadShaderMap.GetReference() ? GameThreadShaderMap->UsesWorldPositionOffset() : false; 
 }
@@ -893,18 +899,14 @@ bool FMaterial::UsesWorldPositionOffset_GameThread() const
 bool FMaterial::MaterialModifiesMeshPosition_RenderThread() const
 { 
 	check(IsInParallelRenderingThread());
-	bool bUsesWPO = RenderingThreadShaderMap ? RenderingThreadShaderMap->ModifiesMeshPosition() : false;
-
-	return bUsesWPO;
+	return RenderingThreadShaderMap ? RenderingThreadShaderMap->ModifiesMeshPosition() : false;
 }
 
 bool FMaterial::MaterialModifiesMeshPosition_GameThread() const
 {
 	check(IsInParallelGameThread() || IsInGameThread());
 	FMaterialShaderMap* ShaderMap = GameThreadShaderMap.GetReference();
-	bool bUsesWPO = ShaderMap ? ShaderMap->ModifiesMeshPosition() : false;
-
-	return bUsesWPO;
+	return ShaderMap ? ShaderMap->ModifiesMeshPosition() : false;
 }
 
 bool FMaterial::MaterialMayModifyMeshPosition() const
@@ -914,7 +916,12 @@ bool FMaterial::MaterialMayModifyMeshPosition() const
 	return HasVertexPositionOffsetConnected() || HasPixelDepthOffsetConnected();
 }
 
-bool FMaterial::MaterialUsesPixelDepthOffset() const
+bool FMaterial::MaterialUsesPixelDepthOffset_GameThread() const
+{
+	return GameThreadShaderMap.GetReference() ? GameThreadShaderMap->UsesPixelDepthOffset() : false;
+}
+
+bool FMaterial::MaterialUsesPixelDepthOffset_RenderThread() const
 {
 	check(IsInParallelRenderingThread());
 	return RenderingThreadShaderMap ? RenderingThreadShaderMap->UsesPixelDepthOffset() : false;
