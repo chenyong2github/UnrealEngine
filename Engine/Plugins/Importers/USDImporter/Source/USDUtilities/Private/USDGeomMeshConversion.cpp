@@ -510,7 +510,8 @@ namespace UE
 				const TMap< FString, TMap<FString, int32> >& MaterialToPrimvarToUVIndex,
 				FMeshDescription& OutMeshDescription,
 				UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments,
-				bool bIsFirstPrim
+				bool bIsFirstPrim,
+				const bool bCombineIdenticalMaterialSlots
 			)
 			{
 				// Ignore meshes from disabled purposes
@@ -566,7 +567,7 @@ namespace UE
 				bool bSuccess = true;
 				if ( pxr::UsdGeomMesh Mesh = pxr::UsdGeomMesh( Prim ) )
 				{
-					bSuccess = UsdToUnreal::ConvertGeomMesh( Mesh, OutMeshDescription, OutMaterialAssignments, ChildTransform, MaterialToPrimvarToUVIndex, TimeCode, RenderContext );
+					bSuccess = UsdToUnreal::ConvertGeomMesh( Mesh, OutMeshDescription, OutMaterialAssignments, ChildTransform, MaterialToPrimvarToUVIndex, TimeCode, RenderContext, bCombineIdenticalMaterialSlots );
 				}
 
 				for ( const pxr::UsdPrim& ChildPrim : Prim.GetFilteredChildren( pxr::UsdTraverseInstanceProxies() ) )
@@ -587,7 +588,8 @@ namespace UE
 						MaterialToPrimvarToUVIndex,
 						OutMeshDescription,
 						OutMaterialAssignments,
-						bChildIsFirstPrim
+						bChildIsFirstPrim,
+						bCombineIdenticalMaterialSlots
 					);
 				}
 
@@ -631,7 +633,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 }
 
 bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescription& MeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments, const FTransform& AdditionalTransform,
-	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::UsdTimeCode TimeCode, const pxr::TfToken& RenderContext )
+	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const pxr::UsdTimeCode TimeCode, const pxr::TfToken& RenderContext, bool bCombineIdenticalMaterialSlots )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertGeomMesh );
 
@@ -656,10 +658,46 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 	// Material assignments
 	const bool bProvideMaterialIndices = true;
 	UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments( UsdPrim, TimeCode, bProvideMaterialIndices, RenderContext );
-	MaterialAssignments.Slots.Append( LocalInfo.Slots ); // We always want to keep individual slots, even when collapsing
-
 	TArray< UsdUtils::FUsdPrimMaterialSlot >& LocalMaterialSlots = LocalInfo.Slots;
 	TArray< int32 >& FaceMaterialIndices = LocalInfo.MaterialIndices;
+
+	// Position 3 in this has the value 6 --> Local material slot #3 is actually the combined material slot #6
+	TArray<int32> LocalToCombinedMaterialSlotIndices;
+	LocalToCombinedMaterialSlotIndices.SetNumZeroed( LocalInfo.Slots.Num() );
+
+	if ( bCombineIdenticalMaterialSlots )
+	{
+		// Build a map of our existing slots since we can hash the entire slot, and our incoming mesh may have an arbitrary number of new slots
+		TMap< UsdUtils::FUsdPrimMaterialSlot, int32 > CombinedMaterialSlotsToIndex;
+		for ( int32 Index = 0; Index < MaterialAssignments.Slots.Num(); ++Index )
+		{
+			const UsdUtils::FUsdPrimMaterialSlot& Slot = MaterialAssignments.Slots[ Index ];
+			CombinedMaterialSlotsToIndex.Add( Slot, Index );
+		}
+
+		for ( int32 LocalIndex = 0; LocalIndex < LocalInfo.Slots.Num(); ++LocalIndex )
+		{
+			const UsdUtils::FUsdPrimMaterialSlot& LocalSlot = LocalInfo.Slots[ LocalIndex ];
+			if ( int32* ExistingCombinedIndex = CombinedMaterialSlotsToIndex.Find( LocalSlot ) )
+			{
+				LocalToCombinedMaterialSlotIndices[ LocalIndex ] = *ExistingCombinedIndex;
+			}
+			else
+			{
+				MaterialAssignments.Slots.Add( LocalSlot );
+				LocalToCombinedMaterialSlotIndices[ LocalIndex ] = MaterialAssignments.Slots.Num() - 1;
+			}
+		}
+	}
+	else
+	{
+		// Just append our new local material slots at the end of MaterialAssignments
+		MaterialAssignments.Slots.Append( LocalInfo.Slots );
+		for ( int32 LocalIndex = 0; LocalIndex < LocalInfo.Slots.Num(); ++LocalIndex )
+		{
+			LocalToCombinedMaterialSlotIndices[ LocalIndex ] = LocalIndex + MaterialIndexOffset;
+		}
+	}
 
 	const int32 VertexOffset = MeshDescription.Vertices().Num();
 	const int32 VertexInstanceOffset = MeshDescription.VertexInstances().Num();
@@ -701,19 +739,32 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 		int32 CurrentVertexInstanceIndex = 0;
 		TPolygonGroupAttributesRef<FName> MaterialSlotNames = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames();
 
+		// If we're going to share existing material slots, we'll need to share existing PolygonGroups in the mesh description,
+		// so we need to traverse it and prefill PolygonGroupMapping
+		if( bCombineIdenticalMaterialSlots )
+		{
+			for ( FPolygonGroupID PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs() )
+			{
+				// We always create our polygon groups in order with our combined material slots, so its easy to reconstruct this mapping here
+				PolygonGroupMapping.Add( PolygonGroupID.GetValue(), PolygonGroupID );
+			}
+		}
+
 		// Material slots
 		// Note that we always create these in the order they show up in LocalInfo: If we created these on-demand when parsing polygons (like before)
 		// we could run into polygons in a different order than the material slots and end up with different material assignments.
 		// We could use the StaticMesh's SectionInfoMap to unswitch things, but that's not available at runtime so we better do this here
 		for ( int32 LocalMaterialIndex = 0; LocalMaterialIndex < LocalInfo.Slots.Num(); ++LocalMaterialIndex )
 		{
-			const int32 CombinedMaterialIndex = MaterialIndexOffset + LocalMaterialIndex;
+			const int32 CombinedMaterialIndex = LocalToCombinedMaterialSlotIndices[ LocalMaterialIndex ];
+			if ( !PolygonGroupMapping.Contains( CombinedMaterialIndex ) )
+			{
+				FPolygonGroupID NewPolygonGroup = MeshDescription.CreatePolygonGroup();
+				PolygonGroupMapping.Add( CombinedMaterialIndex, NewPolygonGroup );
 
-			FPolygonGroupID NewPolygonGroup = MeshDescription.CreatePolygonGroup();
-			PolygonGroupMapping.Add( CombinedMaterialIndex, NewPolygonGroup );
-
-			// This is important for runtime, where the material slots are matched to LOD sections based on their material slot name
-			MaterialSlotNames[ NewPolygonGroup ] = *LexToString( NewPolygonGroup.GetValue() );
+				// This is important for runtime, where the material slots are matched to LOD sections based on their material slot name
+				MaterialSlotNames[ NewPolygonGroup ] = *LexToString( NewPolygonGroup.GetValue() );
+			}
 		}
 
 		bool bFlipThisGeometry = false;
@@ -961,7 +1012,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 				}
 			}
 
-			const int32 CombinedMaterialIndex = MaterialIndexOffset + LocalMaterialIndex;
+			const int32 CombinedMaterialIndex = LocalToCombinedMaterialSlotIndices[ LocalMaterialIndex ];
 
 			if ( bFlipThisGeometry )
 			{
@@ -995,7 +1046,8 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 	const pxr::TfToken& RenderContext,
 	const TMap< FString, TMap<FString, int32> >& MaterialToPrimvarToUVIndex,
 	FMeshDescription& OutMeshDescription,
-	UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments
+	UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments,
+	bool bCombineIdenticalMaterialSlots
 )
 {
 	FStaticMeshAttributes StaticMeshAttributes( OutMeshDescription );
@@ -1014,7 +1066,8 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 		MaterialToPrimvarToUVIndex,
 		OutMeshDescription,
 		OutMaterialAssignments,
-		bIsFirstPrim
+		bIsFirstPrim,
+		bCombineIdenticalMaterialSlots
 	);
 }
 

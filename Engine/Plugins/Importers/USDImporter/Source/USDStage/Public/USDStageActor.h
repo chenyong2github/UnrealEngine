@@ -54,6 +54,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdDefaultKind))
 	int32 KindsToCollapse;
 
+	/**
+	 * If enabled, when multiple mesh prims are collapsed into a single static mesh, identical material slots are merged into one slot.
+	 * Otherwise, materials slots are simply appended to the list.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
+	bool bMergeIdenticalMaterialSlots;
+
 	/* Only load prims with these specific purposes from the USD file */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
 	int32 PurposesToLoad;
@@ -78,6 +85,9 @@ public:
 
 	UFUNCTION( BlueprintCallable, Category = "USD", meta = ( CallInEditor = "true" ) )
 	USDSTAGE_API void SetKindsToCollapse( int32 NewKindsToCollapse );
+
+	UFUNCTION( BlueprintCallable, Category = "USD", meta = ( CallInEditor = "true" ) )
+	USDSTAGE_API void SetMergeIdenticalMaterialSlots( bool bMerge );
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API void SetPurposesToLoad( int32 NewPurposesToLoad );

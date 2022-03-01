@@ -90,7 +90,8 @@ void FUsdGeomXformableCreateAssetsTaskChain::SetupTasks()
 				RenderContextToken,
 				*MaterialToPrimvarToUVIndex,
 				AddedMeshDescription,
-				AssignmentInfo
+				AssignmentInfo,
+				Context->bMergeIdenticalMaterialSlots
 			);
 
 			return !AddedMeshDescription.IsEmpty();
@@ -490,8 +491,17 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 		}
 		else
 		{
-			int32 NumMaxExpectedMaterialSlots = 0;
+			pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
+			if ( !Context->RenderContext.IsNone() )
+			{
+				RenderContextToken = UnrealToUsd::ConvertToken( *Context->RenderContext.ToString() ).Get();
+			}
+
 			int32 NumVertices = 0;
+
+			TSet<UsdUtils::FUsdPrimMaterialSlot> CombinedSlots;
+			int32 NumMaxExpectedMaterialSlots = 0;
+
 			for ( const TUsdStore< pxr::UsdPrim >& ChildPrim : ChildGeomMeshes )
 			{
 				pxr::UsdGeomMesh ChildGeomMesh( ChildPrim.Get() );
@@ -524,8 +534,18 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 				// Don't collapse children if the child meshes have Nanite override opinions but the combined mesh would lead to over 64 material slots.
 				if ( bChildrenWantNanite )
 				{
-					std::vector<pxr::UsdGeomSubset> GeomSubsets = pxr::UsdShadeMaterialBindingAPI( ChildPrim.Get() ).GetMaterialBindSubsets();
-					NumMaxExpectedMaterialSlots += FMath::Max<int32>( 1, GeomSubsets.size() + 1 ); // +1 because we may create an additional slot if it's not properly partitioned
+					if ( Context->bMergeIdenticalMaterialSlots )
+					{
+						const bool bProvideMaterialIndices = false;
+						UsdUtils::FUsdPrimMaterialAssignmentInfo LocalInfo = UsdUtils::GetPrimMaterialAssignments( ChildPrim.Get(), Context->Time, bProvideMaterialIndices, RenderContextToken );
+						CombinedSlots.Append( LocalInfo.Slots );
+						NumMaxExpectedMaterialSlots = CombinedSlots.Num();
+					}
+					else
+					{
+						std::vector<pxr::UsdGeomSubset> GeomSubsets = pxr::UsdShadeMaterialBindingAPI( ChildPrim.Get() ).GetMaterialBindSubsets();
+						NumMaxExpectedMaterialSlots += FMath::Max<int32>( 1, GeomSubsets.size() + 1 ); // +1 because we may create an additional slot if it's not properly partitioned
+					}
 
 					const int32 MaxNumSections = 64; // There is no define for this, but it's checked for on NaniteBuilder.cpp, FBuilderModule::Build
 					if ( NumMaxExpectedMaterialSlots > MaxNumSections )

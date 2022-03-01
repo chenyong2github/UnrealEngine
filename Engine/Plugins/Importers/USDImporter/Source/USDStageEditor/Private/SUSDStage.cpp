@@ -979,6 +979,41 @@ void SUsdStage::FillRenderContextSubMenu( FMenuBuilder& MenuBuilder )
 
 void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
 {
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT( "MergeIdenticalMaterialSlots", "Merge identical material slots" ),
+		LOCTEXT( "MergeIdenticalMaterialSlots", "If enabled, when multiple mesh prims are collapsed into a single static mesh, identical material slots are merged into one slot.\nOtherwise, material slots are simply appended to the list." ),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda( [this]()
+			{
+				if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+				{
+					FScopedTransaction Transaction( FText::Format(
+						LOCTEXT( "ToggleCollapsingTransaction", "Toggle bMergeIdenticalMaterialSlots on USD stage actor '{1}'" ),
+						FText::FromString( StageActor->GetActorLabel() )
+					) );
+
+					TGuardValue<bool> MaintainSelectionGuard( bUpdatingViewportSelection, true );
+					StageActor->SetMergeIdenticalMaterialSlots( !StageActor->bMergeIdenticalMaterialSlots );
+				}
+			}),
+			FCanExecuteAction::CreateLambda( [this]()
+			{
+				return ViewModel.UsdStageActor.Get() != nullptr;
+			}),
+			FIsActionChecked::CreateLambda( [this]()
+			{
+				if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+				{
+					return StageActor->bMergeIdenticalMaterialSlots;
+				}
+				return false;
+			})
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
 	auto AddKindToCollapseEntry = [&]( const EUsdDefaultKind Kind, const FText& Text, FCanExecuteAction CanExecuteAction )
 	{
 		MenuBuilder.AddMenuEntry(
@@ -1022,6 +1057,8 @@ void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
 			EUserInterfaceActionType::ToggleButton
 		);
 	};
+
+	MenuBuilder.BeginSection( "Kinds to collapse", LOCTEXT( "KindsToCollapse", "Kinds to collapse" ) );
 
 	AddKindToCollapseEntry(
 		EUsdDefaultKind::Model,
@@ -1092,6 +1129,8 @@ void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
 			return ViewModel.UsdStageActor.Get() != nullptr;
 		})
 	);
+
+	MenuBuilder.EndSection();
 }
 
 void SUsdStage::FillInterpolationTypeSubMenu(FMenuBuilder& MenuBuilder)

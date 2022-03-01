@@ -31,6 +31,7 @@ UUsdStageImportOptions::UUsdStageImportOptions(const FObjectInitializer& ObjectI
 
 	bPrimPathFolderStructure = false;
 	KindsToCollapse = ( int32 ) ( EUsdDefaultKind::Component | EUsdDefaultKind::Subcomponent );
+	bMergeIdenticalMaterialSlots = true;
 	bInterpretLODs = true;
 }
 

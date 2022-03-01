@@ -170,6 +170,12 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	EUsdDefaultKind KindsToCollapse = EUsdDefaultKind::Component | EUsdDefaultKind::Subcomponent;
 
 	/**
+	 * If enabled, when multiple mesh prims are collapsed into a single static mesh, identical material slots are merged into one slot.
+	 * Otherwise, material slots are simply appended to the list.
+	 */
+	bool bMergeIdenticalMaterialSlots = true;
+
+	/**
 	 * If true, prims with a "LOD" variant set, and "LOD0", "LOD1", etc. variants containing each
 	 * a prim can be parsed into a single UStaticMesh asset with multiple LODs
 	 */
