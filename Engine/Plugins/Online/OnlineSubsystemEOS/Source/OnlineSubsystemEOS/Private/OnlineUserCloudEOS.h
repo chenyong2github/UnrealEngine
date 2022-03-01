@@ -74,5 +74,6 @@ private:
 };
 
 typedef TSharedPtr<FOnlineUserCloudEOS, ESPMode::ThreadSafe> FOnlineUserCloudEOSPtr;
+typedef TWeakPtr<FOnlineUserCloudEOS, ESPMode::ThreadSafe> FOnlineUserCloudEOSWeakPtr;
 
 #endif

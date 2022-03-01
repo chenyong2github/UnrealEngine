@@ -7,8 +7,6 @@
 
 DEFINE_LOG_CATEGORY(LogEOSSDK);
 
-bool FCallbackBase::bShouldCancelAllCallbacks = false;
-
 FString LexToString(const EOS_ProductUserId UserId)
 {
 	FString Result;

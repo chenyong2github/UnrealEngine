@@ -10,19 +10,19 @@
 #if WITH_EOS_SDK
 #include "eos_playerdatastorage.h"
 
-typedef TEOSCallback<EOS_PlayerDataStorage_OnQueryFileListCompleteCallback, EOS_PlayerDataStorage_QueryFileListCallbackInfo> FOnQueryFileListCallback;
+typedef TEOSCallback<EOS_PlayerDataStorage_OnQueryFileListCompleteCallback, EOS_PlayerDataStorage_QueryFileListCallbackInfo, FOnlineUserCloudEOS> FOnQueryFileListCallback;
 
-typedef TEOSCallbackWithNested2ForNested1Param3<EOS_PlayerDataStorage_OnWriteFileCompleteCallback, EOS_PlayerDataStorage_WriteFileCallbackInfo,
+typedef TEOSCallbackWithNested2ForNested1Param3<EOS_PlayerDataStorage_OnWriteFileCompleteCallback, EOS_PlayerDataStorage_WriteFileCallbackInfo, FOnlineUserCloudEOS,
 	EOS_PlayerDataStorage_OnWriteFileDataCallback, EOS_PlayerDataStorage_WriteFileDataCallbackInfo, EOS_PlayerDataStorage_EWriteResult,
 	EOS_PlayerDataStorage_OnFileTransferProgressCallback, EOS_PlayerDataStorage_FileTransferProgressCallbackInfo
 > FWriteUserFileCompleteCallback;
 
-typedef TEOSCallbackWithNested2<EOS_PlayerDataStorage_OnReadFileCompleteCallback, EOS_PlayerDataStorage_ReadFileCallbackInfo,
+typedef TEOSCallbackWithNested2<EOS_PlayerDataStorage_OnReadFileCompleteCallback, EOS_PlayerDataStorage_ReadFileCallbackInfo, FOnlineUserCloudEOS,
 	EOS_PlayerDataStorage_OnReadFileDataCallback, EOS_PlayerDataStorage_ReadFileDataCallbackInfo, EOS_PlayerDataStorage_EReadResult,
 	EOS_PlayerDataStorage_OnFileTransferProgressCallback, EOS_PlayerDataStorage_FileTransferProgressCallbackInfo
 > FReadUserFileCompleteCallback;
 
-typedef TEOSCallback<EOS_PlayerDataStorage_OnDeleteFileCompleteCallback, EOS_PlayerDataStorage_DeleteFileCallbackInfo> FOnDeleteFileCallback;
+typedef TEOSCallback<EOS_PlayerDataStorage_OnDeleteFileCompleteCallback, EOS_PlayerDataStorage_DeleteFileCallbackInfo, FOnlineUserCloudEOS> FOnDeleteFileCallback;
 
 void FEOSUserCloudFile::Unload()
 {
@@ -192,7 +192,7 @@ void FOnlineUserCloudEOS::EnumerateUserFiles(const FUniqueNetId& UserId)
 	Options.ApiVersion = EOS_PLAYERDATASTORAGE_QUERYFILELISTOPTIONS_API_LATEST;
 	Options.LocalUserId = LocalUserId;
 
-	FOnQueryFileListCallback* CallbackObj = new FOnQueryFileListCallback();
+	FOnQueryFileListCallback* CallbackObj = new FOnQueryFileListCallback(FOnlineUserCloudEOSWeakPtr(AsShared()));
 	CallbackObj->CallbackLambda = [this](const EOS_PlayerDataStorage_QueryFileListCallbackInfo* Data)
 	{
 		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success || Data->ResultCode == EOS_EResult::EOS_NotFound; // If the user doesn't have any files yet, we will get a NotFound error, but the query was valid
@@ -312,7 +312,7 @@ bool FOnlineUserCloudEOS::ReadUserFile(const FUniqueNetId& UserId, const FString
 		ReadChunkSize = 16 * 1024;
 	}
 
-	FReadUserFileCompleteCallback* CallbackObj = new FReadUserFileCompleteCallback();
+	FReadUserFileCompleteCallback* CallbackObj = new FReadUserFileCompleteCallback(FOnlineUserCloudEOSWeakPtr(AsShared()));
 
 	CallbackObj->SetNested1CallbackLambda([this, SharedUserId, FileName](const EOS_PlayerDataStorage_ReadFileDataCallbackInfo* Data)
 		{
@@ -493,7 +493,7 @@ bool FOnlineUserCloudEOS::WriteUserFile(const FUniqueNetId& UserId, const FStrin
 		ReadChunkSize = 16 * 1024;
 	}
 
-	FWriteUserFileCompleteCallback* CallbackObj = new FWriteUserFileCompleteCallback();
+	FWriteUserFileCompleteCallback* CallbackObj = new FWriteUserFileCompleteCallback(FOnlineUserCloudEOSWeakPtr(AsShared()));
 
 	CallbackObj->SetNested1CallbackLambda([this, SharedUserId, FileName](const EOS_PlayerDataStorage_WriteFileDataCallbackInfo* Data, void* OutDataBuffer, uint32_t* OutDataWritten)
 	{
@@ -751,7 +751,7 @@ bool FOnlineUserCloudEOS::DeleteUserFile(const FUniqueNetId& UserId, const FStri
 		Options.LocalUserId = EOSSubsystem->UserManager->GetProductUserId(UserId);
 		Options.Filename = FileNameUtf8.Get();
 
-		FOnDeleteFileCallback* CallbackObj = new FOnDeleteFileCallback();
+		FOnDeleteFileCallback* CallbackObj = new FOnDeleteFileCallback(FOnlineUserCloudEOSWeakPtr(AsShared()));
 		CallbackObj->CallbackLambda = [this, UserIdRef = UserId.AsShared(), FileName](const EOS_PlayerDataStorage_DeleteFileCallbackInfo* Data)
 		{
 			bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;

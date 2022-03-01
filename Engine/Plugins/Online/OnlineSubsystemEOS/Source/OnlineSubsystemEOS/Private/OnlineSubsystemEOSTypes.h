@@ -438,16 +438,22 @@ static inline FString MakeNetIdStringFromIds(EOS_EpicAccountId AccountId, EOS_Pr
 }
 
 /** Class to handle all callbacks generically using a lambda to process callback results */
-template<typename CallbackFuncType, typename CallbackType>
+template<typename CallbackFuncType, typename CallbackType, typename OwningType>
 class TEOSCallback :
 	public FCallbackBase
 {
 public:
 	TFunction<void(const CallbackType*)> CallbackLambda;
 
-	TEOSCallback()
+	TEOSCallback(TWeakPtr<OwningType> InOwner)
+		: FCallbackBase()
+		, Owner(InOwner)
 	{
-
+	}
+	TEOSCallback(TWeakPtr<const OwningType> InOwner)
+		: FCallbackBase()
+		, Owner(InOwner)
+	{
 	}
 	virtual ~TEOSCallback() = default;
 
@@ -456,6 +462,10 @@ public:
 	{
 		return &CallbackImpl;
 	}
+
+protected:
+	/** The object that needs to be checked for lifetime before calling the callback */
+	TWeakPtr<const OwningType> Owner;
 
 private:
 	static void EOS_CALL CallbackImpl(const CallbackType* Data)
@@ -470,15 +480,11 @@ private:
 		TEOSCallback* CallbackThis = (TEOSCallback*)Data->ClientData;
 		check(CallbackThis);
 
-		if (FCallbackBase::ShouldCancelAllCallbacks())
+		if (CallbackThis->Owner.IsValid())
 		{
-			delete CallbackThis;
-			return;
+			check(CallbackThis->CallbackLambda);
+			CallbackThis->CallbackLambda(Data);
 		}
-
-		check(CallbackThis->CallbackLambda);
-		CallbackThis->CallbackLambda(Data);
-
 		delete CallbackThis;
 	}
 };
@@ -508,13 +514,16 @@ namespace OSSInternalCallback
  * Class to handle nested callbacks (callbacks that are tied to an external callback's lifetime,
  * e.g. file chunkers) generically using a lambda to process callback results
  */
-template<typename CallbackFuncType, typename CallbackType,
+template<typename CallbackFuncType, typename CallbackType, typename OwningType,
 	typename Nested1CallbackFuncType, typename Nested1CallbackType, typename Nested1ReturnType>
 class TEOSCallbackWithNested1 :
-	public TEOSCallback<CallbackFuncType, CallbackType>
+	public TEOSCallback<CallbackFuncType, CallbackType, OwningType>
 {
 public:
-	TEOSCallbackWithNested1() = default;
+	TEOSCallbackWithNested1(TWeakPtr<OwningType> InOwner)
+		: TEOSCallback<CallbackFuncType, CallbackType, OwningType>(InOwner)
+	{
+	}
 	virtual ~TEOSCallbackWithNested1() = default;
 
 
@@ -534,13 +543,13 @@ private:
 	static Nested1ReturnType EOS_CALL Nested1CallbackImpl(const Nested1CallbackType* Data)
 	{
 		check(IsInGameThread());
-		if (FCallbackBase::ShouldCancelAllCallbacks())
+		TEOSCallbackWithNested1* CallbackThis = (TEOSCallbackWithNested1*)Data->ClientData;
+		check(CallbackThis);
+
+		if (!CallbackThis->Owner.IsValid())
 		{
 			return Nested1ReturnType();
 		}
-
-		TEOSCallbackWithNested1* CallbackThis = (TEOSCallbackWithNested1*)Data->ClientData;
-		check(CallbackThis);
 
 		check(CallbackThis->CallbackLambda);
 		return CallbackThis->Nested1CallbackLambda(Data);
@@ -551,14 +560,17 @@ private:
  * Class to handle 2 nested callbacks (callbacks that are tied to an external callback's lifetime,
  * e.g. file chunkers) generically using a lambda to process callback results
  */
-template<typename CallbackFuncType, typename CallbackType,
+template<typename CallbackFuncType, typename CallbackType, typename OwningType,
 	typename Nested1CallbackFuncType, typename Nested1CallbackType, typename Nested1ReturnType,
 	typename Nested2CallbackFuncType, typename Nested2CallbackType>
 class TEOSCallbackWithNested2 :
-	public TEOSCallbackWithNested1<CallbackFuncType, CallbackType, Nested1CallbackFuncType, Nested1CallbackType, Nested1ReturnType>
+	public TEOSCallbackWithNested1<CallbackFuncType, CallbackType, OwningType, Nested1CallbackFuncType, Nested1CallbackType, Nested1ReturnType>
 {
 public:
-	TEOSCallbackWithNested2() = default;
+	TEOSCallbackWithNested2(TWeakPtr<OwningType> InOwner)
+		: TEOSCallbackWithNested1<CallbackFuncType, CallbackType, OwningType, Nested1CallbackFuncType, Nested1CallbackType, Nested1ReturnType>(InOwner)
+	{
+	}
 	virtual ~TEOSCallbackWithNested2() = default;
 
 
@@ -578,16 +590,14 @@ private:
 	static void EOS_CALL Nested2CallbackImpl(const Nested2CallbackType* Data)
 	{
 		check(IsInGameThread());
-		if (FCallbackBase::ShouldCancelAllCallbacks())
-		{
-			return;
-		}
-
 		TEOSCallbackWithNested2* CallbackThis = (TEOSCallbackWithNested2*)Data->ClientData;
 		check(CallbackThis);
 
-		check(CallbackThis->CallbackLambda);
-		CallbackThis->Nested2CallbackLambda(Data);
+		if (CallbackThis->Owner.IsValid())
+		{
+			check(CallbackThis->CallbackLambda);
+			CallbackThis->Nested2CallbackLambda(Data);
+		}
 	}
 };
 
@@ -595,13 +605,16 @@ private:
  * Class to handle nested callbacks (callbacks that are tied to an external callback's lifetime,
  * e.g. file chunkers) generically using a lambda to process callback results
  */
-template<typename CallbackFuncType, typename CallbackType,
+template<typename CallbackFuncType, typename CallbackType, typename OwningType,
 	typename Nested1CallbackFuncType, typename Nested1CallbackType, typename Nested1ReturnType>
-	class TEOSCallbackWithNested1Param3 :
-	public TEOSCallback<CallbackFuncType, CallbackType>
+class TEOSCallbackWithNested1Param3 :
+	public TEOSCallback<CallbackFuncType, CallbackType, OwningType>
 {
 public:
-	TEOSCallbackWithNested1Param3() = default;
+	TEOSCallbackWithNested1Param3(TWeakPtr<OwningType> InOwner)
+		: TEOSCallback<CallbackFuncType, CallbackType, OwningType>(InOwner)
+	{
+	}
 	virtual ~TEOSCallbackWithNested1Param3() = default;
 
 
@@ -621,13 +634,13 @@ private:
 	static Nested1ReturnType EOS_CALL Nested1CallbackImpl(const Nested1CallbackType* Data, void* OutDataBuffer, uint32_t* OutDataWritten)
 	{
 		check(IsInGameThread());
-		if (FCallbackBase::ShouldCancelAllCallbacks())
+		TEOSCallbackWithNested1Param3* CallbackThis = (TEOSCallbackWithNested1Param3*)Data->ClientData;
+		check(CallbackThis);
+
+		if (!CallbackThis->Owner.IsValid())
 		{
 			return Nested1ReturnType();
 		}
-
-		TEOSCallbackWithNested1Param3* CallbackThis = (TEOSCallbackWithNested1Param3*)Data->ClientData;
-		check(CallbackThis);
 
 		check(CallbackThis->CallbackLambda);
 		return CallbackThis->Nested1CallbackLambda(Data, OutDataBuffer, OutDataWritten);
@@ -638,14 +651,17 @@ private:
  * Class to handle 2 nested callbacks (callbacks that are tied to an external callback's lifetime,
  * e.g. file chunkers) generically using a lambda to process callback results
  */
-template<typename CallbackFuncType, typename CallbackType,
+template<typename CallbackFuncType, typename CallbackType, typename OwningType,
 	typename Nested1CallbackFuncType, typename Nested1CallbackType, typename Nested1ReturnType,
 	typename Nested2CallbackFuncType, typename Nested2CallbackType>
-	class TEOSCallbackWithNested2ForNested1Param3 :
-	public TEOSCallbackWithNested1Param3<CallbackFuncType, CallbackType, Nested1CallbackFuncType, Nested1CallbackType, Nested1ReturnType>
+class TEOSCallbackWithNested2ForNested1Param3 :
+	public TEOSCallbackWithNested1Param3<CallbackFuncType, CallbackType, OwningType, Nested1CallbackFuncType, Nested1CallbackType, Nested1ReturnType>
 {
 public:
-	TEOSCallbackWithNested2ForNested1Param3() = default;
+	TEOSCallbackWithNested2ForNested1Param3(TWeakPtr<OwningType> InOwner)
+		: TEOSCallbackWithNested1Param3<CallbackFuncType, CallbackType, OwningType, Nested1CallbackFuncType, Nested1CallbackType, Nested1ReturnType>(InOwner)
+	{
+	}
 	virtual ~TEOSCallbackWithNested2ForNested1Param3() = default;
 
 
@@ -665,16 +681,14 @@ private:
 	static void EOS_CALL Nested2CallbackImpl(const Nested2CallbackType* Data)
 	{
 		check(IsInGameThread());
-		if (FCallbackBase::ShouldCancelAllCallbacks())
-		{
-			return;
-		}
-
 		TEOSCallbackWithNested2ForNested1Param3* CallbackThis = (TEOSCallbackWithNested2ForNested1Param3*)Data->ClientData;
 		check(CallbackThis);
 
-		check(CallbackThis->CallbackLambda);
-		CallbackThis->Nested2CallbackLambda(Data);
+		if (CallbackThis->Owner.IsValid())
+		{
+			check(CallbackThis->CallbackLambda);
+			CallbackThis->Nested2CallbackLambda(Data);
+		}
 	}
 };
 

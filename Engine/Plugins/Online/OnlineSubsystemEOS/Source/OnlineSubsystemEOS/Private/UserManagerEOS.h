@@ -241,6 +241,7 @@ class FUserManagerEOS
 	, public IOnlineFriends
 	, public IOnlinePresence
 	, public IOnlineUser
+	, public TSharedFromThis<FUserManagerEOS, ESPMode::ThreadSafe>
 {
 public:
 	/**
@@ -254,6 +255,9 @@ public:
 	 * Destructor
 	 */
 	virtual ~FUserManagerEOS();
+
+	void Init();
+	void Shutdown();
 
 // IOnlineIdentity Interface
 	virtual bool Login(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials) override;
@@ -480,5 +484,9 @@ private:
 	/** Last Login Credentials used for a login attempt */
 	TMap<int32, TSharedRef<FOnlineAccountCredentials>> LocalUserNumToLastLoginCredentials;
 };
+
+typedef TSharedPtr<FUserManagerEOS, ESPMode::ThreadSafe> FUserManagerEOSPtr;
+typedef TWeakPtr<FUserManagerEOS, ESPMode::ThreadSafe> FUserManagerEOSWeakPtr;
+typedef TWeakPtr<const FUserManagerEOS, ESPMode::ThreadSafe> FUserManagerEOSConstWeakPtr;
 
 #endif

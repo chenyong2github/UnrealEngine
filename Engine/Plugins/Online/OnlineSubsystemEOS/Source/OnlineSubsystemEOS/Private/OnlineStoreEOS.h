@@ -69,5 +69,6 @@ private:
 };
 
 typedef TSharedPtr<FOnlineStoreEOS, ESPMode::ThreadSafe> FOnlineStoreEOSPtr;
+typedef TWeakPtr<FOnlineStoreEOS, ESPMode::ThreadSafe> FOnlineStoreEOSWeakPtr;
 
 #endif

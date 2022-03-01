@@ -68,5 +68,6 @@ private:
 };
 
 typedef TSharedPtr<FOnlineTitleFileEOS, ESPMode::ThreadSafe> FOnlineTitleFileEOSPtr;
+typedef TWeakPtr<FOnlineTitleFileEOS, ESPMode::ThreadSafe> FOnlineTitleFileEOSWeakPtr;
 
 #endif

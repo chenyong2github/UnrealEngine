@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreGlobals.h"
+#include "Templates/SharedPointer.h"
 
 #if WITH_EOS_SDK
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
@@ -19,26 +20,25 @@
 /** Used to store a pointer to the EOS callback object without knowing type */
 class EOSSHARED_API FCallbackBase
 {
-	static bool bShouldCancelAllCallbacks;
-
 public:
 	virtual ~FCallbackBase() {}
-	static bool ShouldCancelAllCallbacks() { return FCallbackBase::bShouldCancelAllCallbacks; }
-	static void EnableAllCallbacks() { FCallbackBase::bShouldCancelAllCallbacks = false; }
-	static void CancelAllCallbacks() { FCallbackBase::bShouldCancelAllCallbacks = true; }
 };
 
 #if WITH_EOS_SDK
 
 /** Class to handle all callbacks generically using a lambda to process callback results */
-template<typename CallbackFuncType, typename CallbackType>
+template<typename CallbackFuncType, typename CallbackType, typename OwningType>
 class TEOSGlobalCallback :
 	public FCallbackBase
 {
 public:
 	TFunction<void(const CallbackType*)> CallbackLambda;
 
-	TEOSGlobalCallback() = default;
+	TEOSGlobalCallback(TWeakPtr<OwningType> InOwner)
+		: FCallbackBase()
+		, Owner(InOwner)
+	{
+	}
 	virtual ~TEOSGlobalCallback() = default;
 
 
@@ -48,6 +48,9 @@ public:
 	}
 
 private:
+	/** The object that needs to be checked for lifetime before calling the callback */
+	TWeakPtr<OwningType> Owner;
+
 	static void EOS_CALL CallbackImpl(const CallbackType* Data)
 	{
 		check(IsInGameThread());
@@ -55,13 +58,11 @@ private:
 		TEOSGlobalCallback* CallbackThis = (TEOSGlobalCallback*)Data->ClientData;
 		check(CallbackThis);
 
-		if (FCallbackBase::ShouldCancelAllCallbacks())
+		if (CallbackThis->Owner.IsValid())
 		{
-			return;
+			check(CallbackThis->CallbackLambda);
+			CallbackThis->CallbackLambda(Data);
 		}
-
-		check(CallbackThis->CallbackLambda);
-		CallbackThis->CallbackLambda(Data);
 	}
 };
 

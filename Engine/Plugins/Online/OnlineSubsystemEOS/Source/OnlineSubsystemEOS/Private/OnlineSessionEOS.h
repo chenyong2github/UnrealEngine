@@ -16,8 +16,6 @@ class FOnlineSubsystemEOS;
 	#include "eos_lobby_types.h"
 
 
-typedef TEOSCallback<EOS_Sessions_OnUpdateSessionCallback, EOS_Sessions_UpdateSessionCallbackInfo> FUpdateSessionCallback;
-
 struct FSessionSearchEOS
 {
 	EOS_HSessionSearch SearchHandle;
@@ -36,8 +34,9 @@ struct FSessionSearchEOS
 /**
  * Interface for interacting with EOS sessions
  */
-class FOnlineSessionEOS :
-	public IOnlineSession
+class FOnlineSessionEOS
+	: public IOnlineSession
+	, public TSharedFromThis<FOnlineSessionEOS, ESPMode::ThreadSafe>
 {
 public:
 	FOnlineSessionEOS() = delete;
@@ -274,6 +273,7 @@ private:
 	void SetJoinInProgress(EOS_HSessionModification SessionModHandle, FNamedOnlineSession* Session);
 	void AddAttribute(EOS_HSessionModification SessionModHandle, const EOS_Sessions_AttributeData* Attribute);
 	void SetAttributes(EOS_HSessionModification SessionModHandle, FNamedOnlineSession* Session);
+	typedef TEOSCallback<EOS_Sessions_OnUpdateSessionCallback, EOS_Sessions_UpdateSessionCallbackInfo, FOnlineSessionEOS> FUpdateSessionCallback;
 	uint32 SharedSessionUpdate(EOS_HSessionModification SessionModHandle, FNamedOnlineSession* Session, FUpdateSessionCallback* Callback);
 
 	void TickLanTasks(float DeltaTime);
@@ -310,5 +310,6 @@ private:
 };
 
 typedef TSharedPtr<FOnlineSessionEOS, ESPMode::ThreadSafe> FOnlineSessionEOSPtr;
+typedef TWeakPtr<FOnlineSessionEOS, ESPMode::ThreadSafe> FOnlineSessionEOSWeakPtr;
 
 #endif

@@ -37,7 +37,7 @@ void FOnlineStoreEOS::QueryOffersById(const FUniqueNetId& UserId, const TArray<F
 	QueryOffers(UserId, Delegate);
 }
 
-typedef TEOSCallback<EOS_Ecom_OnQueryOffersCallback, EOS_Ecom_QueryOffersCallbackInfo> FQueryOffersCallback;
+typedef TEOSCallback<EOS_Ecom_OnQueryOffersCallback, EOS_Ecom_QueryOffersCallbackInfo, FOnlineStoreEOS> FQueryOffersCallback;
 
 void FOnlineStoreEOS::QueryOffers(const FUniqueNetId& UserId, const FOnQueryOnlineStoreOffersComplete& Delegate)
 {
@@ -60,7 +60,7 @@ void FOnlineStoreEOS::QueryOffers(const FUniqueNetId& UserId, const FOnQueryOnli
 	Options.ApiVersion = EOS_ECOM_QUERYOFFERS_API_LATEST;
 	Options.LocalUserId = AccountId;
 
-	FQueryOffersCallback* CallbackObj = new FQueryOffersCallback();
+	FQueryOffersCallback* CallbackObj = new FQueryOffersCallback(FOnlineStoreEOSWeakPtr(AsShared()));
 	CallbackObj->CallbackLambda = [this, OnComplete = FOnQueryOnlineStoreOffersComplete(Delegate)](const EOS_Ecom_QueryOffersCallbackInfo* Data)
 	{
 		EOS_EResult Result = Data->ResultCode;
@@ -138,7 +138,7 @@ TSharedPtr<FOnlineStoreOffer> FOnlineStoreEOS::GetOffer(const FUniqueOfferId& Of
 	return nullptr;
 }
 
-typedef TEOSCallback<EOS_Ecom_OnCheckoutCallback, EOS_Ecom_CheckoutCallbackInfo> FCheckoutCallback;
+typedef TEOSCallback<EOS_Ecom_OnCheckoutCallback, EOS_Ecom_CheckoutCallbackInfo, FOnlineStoreEOS> FCheckoutCallback;
 
 void FOnlineStoreEOS::Checkout(const FUniqueNetId& UserId, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnPurchaseCheckoutComplete& Delegate)
 {
@@ -181,7 +181,7 @@ void FOnlineStoreEOS::Checkout(const FUniqueNetId& UserId, const FPurchaseChecko
 	Options.EntryCount = NumItems;
 	Options.Entries = (const EOS_Ecom_CheckoutEntry*)Entries.GetData();
 
-	FCheckoutCallback* CallbackObj = new FCheckoutCallback();
+	FCheckoutCallback* CallbackObj = new FCheckoutCallback(FOnlineStoreEOSWeakPtr(AsShared()));
 	CallbackObj->CallbackLambda = [this, OnComplete = FOnPurchaseCheckoutComplete(Delegate)](const EOS_Ecom_CheckoutCallbackInfo* Data)
 	{
 		EOS_EResult Result = Data->ResultCode;
@@ -232,7 +232,7 @@ void FOnlineStoreEOS::RedeemCode(const FUniqueNetId& UserId, const FRedeemCodeRe
 	Delegate.ExecuteIfBound(ONLINE_ERROR(EOnlineErrorResult::NotImplemented), BlankReceipt);
 }
 
-typedef TEOSCallback<EOS_Ecom_OnQueryEntitlementsCallback, EOS_Ecom_QueryEntitlementsCallbackInfo> FQueryReceiptsCallback;
+typedef TEOSCallback<EOS_Ecom_OnQueryEntitlementsCallback, EOS_Ecom_QueryEntitlementsCallbackInfo, FOnlineStoreEOS> FQueryReceiptsCallback;
 
 void FOnlineStoreEOS::QueryReceipts(const FUniqueNetId& UserId, bool bRestoreReceipts, const FOnQueryReceiptsComplete& Delegate)
 {
@@ -251,7 +251,7 @@ void FOnlineStoreEOS::QueryReceipts(const FUniqueNetId& UserId, bool bRestoreRec
 	Options.LocalUserId = AccountId;
 	Options.bIncludeRedeemed = bRestoreReceipts ? EOS_TRUE : EOS_FALSE;
 
-	FQueryReceiptsCallback* CallbackObj = new FQueryReceiptsCallback();
+	FQueryReceiptsCallback* CallbackObj = new FQueryReceiptsCallback(FOnlineStoreEOSWeakPtr(AsShared()));
 	CallbackObj->CallbackLambda = [this, OnComplete = FOnQueryReceiptsComplete(Delegate)](const EOS_Ecom_QueryEntitlementsCallbackInfo* Data)
 	{
 		EOS_EResult Result = Data->ResultCode;
@@ -307,7 +307,7 @@ void FOnlineStoreEOS::GetReceipts(const FUniqueNetId& UserId, TArray<FPurchaseRe
 	OutReceipts = CachedReceipts;
 }
 
-typedef TEOSCallback<EOS_Ecom_OnRedeemEntitlementsCallback, EOS_Ecom_RedeemEntitlementsCallbackInfo> FRedeemReceiptCallback;
+typedef TEOSCallback<EOS_Ecom_OnRedeemEntitlementsCallback, EOS_Ecom_RedeemEntitlementsCallbackInfo, FOnlineStoreEOS> FRedeemReceiptCallback;
 
 void FOnlineStoreEOS::FinalizeReceiptValidationInfo(const FUniqueNetId& UserId, FString& InReceiptValidationInfo, const FOnFinalizeReceiptValidationInfoComplete& Delegate)
 {
@@ -333,7 +333,7 @@ void FOnlineStoreEOS::FinalizeReceiptValidationInfo(const FUniqueNetId& UserId, 
 	Options.EntitlementIdCount = 1;
 	Options.EntitlementIds = Ids;
 
-	FRedeemReceiptCallback* CallbackObj = new FRedeemReceiptCallback();
+	FRedeemReceiptCallback* CallbackObj = new FRedeemReceiptCallback(FOnlineStoreEOSWeakPtr(AsShared()));
 	CallbackObj->CallbackLambda = [this, Info = FString(InReceiptValidationInfo), OnComplete = FOnFinalizeReceiptValidationInfoComplete(Delegate)](const EOS_Ecom_RedeemEntitlementsCallbackInfo* Data)
 	{
 		EOS_EResult Result = Data->ResultCode;

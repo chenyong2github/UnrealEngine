@@ -65,7 +65,7 @@ struct FQueryStatsOptions :
 	}
 };
 
-typedef TEOSCallback<EOS_Stats_OnQueryStatsCompleteCallback, EOS_Stats_OnQueryStatsCompleteCallbackInfo> FReadStatsCallback;
+typedef TEOSCallback<EOS_Stats_OnQueryStatsCompleteCallback, EOS_Stats_OnQueryStatsCompleteCallbackInfo, FOnlineStatsEOS> FReadStatsCallback;
 
 struct FStatsQueryContext
 {
@@ -156,7 +156,7 @@ void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray
 		Options.LocalUserId = LocalEOSUserId;
 		Options.TargetUserId = TargetEOSUserId;
 
-		FReadStatsCallback* CallbackObj = new FReadStatsCallback();
+		FReadStatsCallback* CallbackObj = new FReadStatsCallback(FOnlineStatsEOSWeakPtr(AsShared()));
 		CallbackObj->CallbackLambda = [this, StatsQueryContext](const EOS_Stats_OnQueryStatsCompleteCallbackInfo* Data)
 		{
 			StatsQueryContext->NumPlayerReads--;
@@ -279,7 +279,7 @@ inline int32 GetVariantValue(const FOnlineStatValue& Data)
 	return Value;
 }
 
-typedef TEOSCallback<EOS_Stats_OnIngestStatCompleteCallback, EOS_Stats_IngestStatCompleteCallbackInfo> FWriteStatsCallback;
+typedef TEOSCallback<EOS_Stats_OnIngestStatCompleteCallback, EOS_Stats_IngestStatCompleteCallbackInfo, FOnlineStatsEOS> FWriteStatsCallback;
 
 void FOnlineStatsEOS::WriteStats(EOS_ProductUserId LocalUserId, EOS_ProductUserId UserId, const FOnlineStatsUserUpdatedStats& PlayerStats)
 {
@@ -309,7 +309,7 @@ void FOnlineStatsEOS::WriteStats(EOS_ProductUserId LocalUserId, EOS_ProductUserI
 	Options.Stats = EOSData.GetData();
 	Options.StatsCount = EOSData.Num();
 
-	FWriteStatsCallback* CallbackObj = new FWriteStatsCallback();
+	FWriteStatsCallback* CallbackObj = new FWriteStatsCallback(FOnlineStatsEOSWeakPtr(AsShared()));
 	CallbackObj->CallbackLambda = [this](const EOS_Stats_IngestStatCompleteCallbackInfo* Data)
 	{
 		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;

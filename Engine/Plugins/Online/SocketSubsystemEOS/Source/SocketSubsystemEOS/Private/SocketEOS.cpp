@@ -65,6 +65,7 @@ FSocketEOS::FSocketEOS(FSocketSubsystemEOS& InSocketSubsystem, const FString& In
 	, ClosedNotifyId(EOS_INVALID_NOTIFICATIONID)
 #endif
 {
+	CallbackAliveTracker = MakeShared<FCallbackBase>();
 }
 
 FSocketEOS::~FSocketEOS()
@@ -76,6 +77,7 @@ FSocketEOS::~FSocketEOS()
 		SocketSubsystem.UnbindChannel(LocalAddress);
 		LocalAddress = FInternetAddrEOS();
 	}
+	CallbackAliveTracker = nullptr;
 }
 
 bool FSocketEOS::Shutdown(ESocketShutdownMode Mode)
@@ -201,7 +203,7 @@ bool FSocketEOS::Listen(int32)
 	Options.LocalUserId = LocalAddress.GetLocalUserId();
 	Options.SocketId = &SocketId;
 
-	ConnectNotifyCallback = new FConnectNotifyCallback();
+	ConnectNotifyCallback = new FConnectNotifyCallback(CallbackAliveTracker);
 	ConnectNotifyCallback->CallbackLambda = [this](const EOS_P2P_OnIncomingConnectionRequestInfo* Info)
 	{
 		char PuidBuffer[64];
@@ -662,7 +664,7 @@ void FSocketEOS::RegisterClosedNotification()
 	Options.LocalUserId = LocalAddress.GetLocalUserId();
 	Options.SocketId = &SocketId;
 
-	ClosedNotifyCallback = new FClosedNotifyCallback();
+	ClosedNotifyCallback = new FClosedNotifyCallback(CallbackAliveTracker);
 	ClosedNotifyCallback->CallbackLambda = [this](const EOS_P2P_OnRemoteConnectionClosedInfo* Info)
 	{
 		// Add this connection to the list of closed ones

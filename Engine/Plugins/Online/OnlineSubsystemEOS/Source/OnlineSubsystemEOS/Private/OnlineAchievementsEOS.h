@@ -16,8 +16,9 @@ class FOnlineSubsystemEOS;
 /**
  * Interface for interacting with EOS achievements
  */
-class FOnlineAchievementsEOS :
-	public IOnlineAchievements
+class FOnlineAchievementsEOS
+	: public IOnlineAchievements
+	, public TSharedFromThis<FOnlineAchievementsEOS, ESPMode::ThreadSafe>
 {
 public:
 	FOnlineAchievementsEOS() = delete;
@@ -53,5 +54,6 @@ private:
 };
 
 typedef TSharedPtr<FOnlineAchievementsEOS, ESPMode::ThreadSafe> FOnlineAchievementsEOSPtr;
+typedef TWeakPtr<FOnlineAchievementsEOS, ESPMode::ThreadSafe> FOnlineAchievementsEOSWeakPtr;
 
 #endif

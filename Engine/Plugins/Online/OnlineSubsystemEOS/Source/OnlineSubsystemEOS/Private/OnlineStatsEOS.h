@@ -14,8 +14,9 @@ class FOnlineSubsystemEOS;
 /**
  * Interface for interacting with EOS stats
  */
-class FOnlineStatsEOS :
-	public IOnlineStats
+class FOnlineStatsEOS
+	: public IOnlineStats
+	, public TSharedFromThis<FOnlineStatsEOS, ESPMode::ThreadSafe>
 {
 public:
 	FOnlineStatsEOS() = delete;
@@ -47,5 +48,6 @@ private:
 };
 
 typedef TSharedPtr<FOnlineStatsEOS, ESPMode::ThreadSafe> FOnlineStatsEOSPtr;
+typedef TWeakPtr<FOnlineStatsEOS, ESPMode::ThreadSafe> FOnlineStatsEOSWeakPtr;
 
 #endif

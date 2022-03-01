@@ -22,9 +22,6 @@ class FSocketSubsystemEOS;
 
 #if WITH_EOS_SDK
 	#include "eos_p2p_types.h"
-
-	typedef TEOSGlobalCallback<EOS_P2P_OnIncomingConnectionRequestCallback, EOS_P2P_OnIncomingConnectionRequestInfo> FConnectNotifyCallback;
-	typedef TEOSGlobalCallback<EOS_P2P_OnRemoteConnectionClosedCallback, EOS_P2P_OnRemoteConnectionClosedInfo> FClosedNotifyCallback;
 #endif
 
 class SOCKETSUBSYSTEMEOS_API FSocketEOS
@@ -83,6 +80,9 @@ public:
 	void RegisterClosedNotification();
 
 private:
+	/** Used to track our aliveness and make it possible to use the callback interface */
+	TSharedPtr<FCallbackBase> CallbackAliveTracker;
+
 	/** Reference to our subsystem */
 	FSocketSubsystemEOS& SocketSubsystem;
 
@@ -95,6 +95,9 @@ private:
 	TArray<FInternetAddrEOS> ClosedRemotes;
 
 #if WITH_EOS_SDK
+	typedef TEOSGlobalCallback<EOS_P2P_OnIncomingConnectionRequestCallback, EOS_P2P_OnIncomingConnectionRequestInfo, FCallbackBase> FConnectNotifyCallback;
+	typedef TEOSGlobalCallback<EOS_P2P_OnRemoteConnectionClosedCallback, EOS_P2P_OnRemoteConnectionClosedInfo, FCallbackBase> FClosedNotifyCallback;
+
 	FConnectNotifyCallback* ConnectNotifyCallback;
 	EOS_NotificationId ConnectNotifyId;
 

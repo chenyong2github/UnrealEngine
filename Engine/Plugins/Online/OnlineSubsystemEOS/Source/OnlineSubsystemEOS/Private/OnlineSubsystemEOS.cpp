@@ -249,8 +249,6 @@ bool FOnlineSubsystemEOS::PlatformCreate()
 
 bool FOnlineSubsystemEOS::Init()
 {
-	FCallbackBase::EnableAllCallbacks();
-
 	// Determine if we are the default and if we're the platform OSS
 	FString DefaultOSS;
 	GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("DefaultPlatformService"), DefaultOSS, GEngineIni);
@@ -397,6 +395,7 @@ bool FOnlineSubsystemEOS::Init()
 	}
 
 	UserManager = MakeShareable(new FUserManagerEOS(this));
+	UserManager->Init();
 	SessionInterfacePtr = MakeShareable(new FOnlineSessionEOS(this));
 	// Set the bucket id to use for all sessions based upon the name and version to avoid upgrade issues
 	SessionInterfacePtr->Init(EOSSDKManager->GetProductName() + TEXT("_") + EOSSDKManager->GetProductVersion());
@@ -422,7 +421,6 @@ bool FOnlineSubsystemEOS::Shutdown()
 		EOS_Platform_Tick(*EOSPlatformHandle);
 	}
 
-	FCallbackBase::CancelAllCallbacks();
 	StopTicker();
 
 	if (SocketSubsystem)

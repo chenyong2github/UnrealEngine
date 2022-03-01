@@ -27,7 +27,7 @@ void FOnlineAchievementsEOS::WriteAchievements(const FUniqueNetId& PlayerId, FOn
 	Delegate.ExecuteIfBound(PlayerId, true);
 }
 
-typedef TEOSCallback<EOS_Achievements_OnQueryPlayerAchievementsCompleteCallback, EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo> FQueryProgressCallback;
+typedef TEOSCallback<EOS_Achievements_OnQueryPlayerAchievementsCompleteCallback, EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo, FOnlineAchievementsEOS> FQueryProgressCallback;
 
 void FOnlineAchievementsEOS::QueryAchievements(const FUniqueNetId& PlayerId, const FOnQueryAchievementsCompleteDelegate& Delegate)
 {
@@ -48,7 +48,7 @@ void FOnlineAchievementsEOS::QueryAchievements(const FUniqueNetId& PlayerId, con
 	Options.UserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserId);
 #endif
 
-	FQueryProgressCallback* CallbackObj = new FQueryProgressCallback();
+	FQueryProgressCallback* CallbackObj = new FQueryProgressCallback(FOnlineAchievementsEOSWeakPtr(AsShared()));
 	CallbackObj->CallbackLambda = [this, LambdaPlayerId = PlayerId.AsShared(), OnComplete = FOnQueryAchievementsCompleteDelegate(Delegate)](const EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo* Data)
 	{
 		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
@@ -109,7 +109,7 @@ void FOnlineAchievementsEOS::QueryAchievements(const FUniqueNetId& PlayerId, con
 	EOS_Achievements_QueryPlayerAchievements(EOSSubsystem->AchievementsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 }
 
-typedef TEOSCallback<EOS_Achievements_OnQueryDefinitionsCompleteCallback, EOS_Achievements_OnQueryDefinitionsCompleteCallbackInfo> FQueryDefinitionsCallback;
+typedef TEOSCallback<EOS_Achievements_OnQueryDefinitionsCompleteCallback, EOS_Achievements_OnQueryDefinitionsCompleteCallbackInfo, FOnlineAchievementsEOS> FQueryDefinitionsCallback;
 
 void FOnlineAchievementsEOS::QueryAchievementDescriptions(const FUniqueNetId& PlayerId, const FOnQueryAchievementsCompleteDelegate& Delegate)
 {
@@ -132,7 +132,7 @@ void FOnlineAchievementsEOS::QueryAchievementDescriptions(const FUniqueNetId& Pl
 	Options.ApiVersion = EOS_ACHIEVEMENTS_QUERYDEFINITIONS_API_LATEST;
 	Options.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(LocalUserId);
 
-	FQueryDefinitionsCallback* CallbackObj = new FQueryDefinitionsCallback();
+	FQueryDefinitionsCallback* CallbackObj = new FQueryDefinitionsCallback(FOnlineAchievementsEOSWeakPtr(AsShared()));
 	CallbackObj->CallbackLambda = [this, LambdaPlayerId = PlayerId.AsShared(), OnComplete = FOnQueryAchievementsCompleteDelegate(Delegate)](const EOS_Achievements_OnQueryDefinitionsCompleteCallbackInfo* Data)
 	{
 		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
