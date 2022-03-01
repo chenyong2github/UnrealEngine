@@ -3,8 +3,8 @@
 /**
  * VolumetricCloud.usf: Render volumetric cloud on screen.
  */  
-     
-      
+
+
 
 #include "Common.ush"
 #include "ColorMap.ush"
