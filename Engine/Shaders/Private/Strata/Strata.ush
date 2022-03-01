@@ -728,8 +728,14 @@ struct FStrataOperator
 	float3 VerticalTopTransmittance;	// Only used by vertical layering operators. It represent the transmittance of matter of the top layer (from the left sub tree).
 
 	// Rough refraction
-	float3				 RefractionWorldNormal;
-	FStrataLobeStatistic RefractionLobeStat;
+	float3				 RefractionWorldNormal;			// The normal used for the single refracted direction
+	FStrataLobeStatistic RefractionLobeStat;			// The lobe used for the scene rough refraction
+
+	// Thickness
+	float				 ThicknessCm;					// The thickness of the layer
+
+	float				 VerticalTopThicknessCm;		// Only used by vertical layering operators. It represent the thickness that is used to drive the roughness propagation from top layers to sub layers.
+	FStrataLobeStatistic VerticalTopRefractionLobeStat;	// Only used by vertical layering operators. It represent the lobe statistics of the top layer at its interface.
 };
 
 FStrataOperator GetInitialisedStrataOperator()
@@ -1969,6 +1975,16 @@ float StrataGetBSDFRoughness(in FStrataBSDF BSDF)
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return SLW_ROUGHNESS(BSDF);
 	}
 	return 0.f;
+}
+
+void StrataSetBSDFRoughness(inout FStrataBSDF BSDF, in float Roughness)
+{
+	switch (BSDF_GETTYPE(BSDF))
+	{
+	case STRATA_BSDF_TYPE_SLAB: 			SLAB_ROUGHNESS(BSDF) = Roughness; break;
+	case STRATA_BSDF_TYPE_HAIR: 			HAIR_ROUGHNESS(BSDF) = Roughness; break;
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER: SLW_ROUGHNESS(BSDF)  = Roughness; break;
+	}
 }
 
 float StrataGetBSDFAnisotropy(in FStrataBSDF BSDF)
