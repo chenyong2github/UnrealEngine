@@ -197,6 +197,14 @@ TSharedRef<const FCompositeFont> FLegacySlateFontInfoCache::GetDefaultFont()
 			APPEND_EDITOR_FONT(SubFont.Typeface, "VeryLight", "NanumGothic.ttf", EFontHinting::Default);
 		}
 
+		// Math (editor-only)
+		if (GIsEditor)
+		{
+			FCompositeSubFont& SubFont = MutableDefaultFont->SubTypefaces.AddDefaulted_GetRef();
+			APPEND_RANGE(SubFont, MathematicalAlphanumericSymbols);
+			APPEND_EDITOR_FONT(SubFont.Typeface, "Regular", "NotoSansMath-Regular.ttf", EFontHinting::Default);
+		}
+
 		// Emoji (editor-only)
 		if (GIsEditor)
 		{

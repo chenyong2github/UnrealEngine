@@ -572,6 +572,31 @@ public:
                 ]
             ]
 
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(64.f, 0.0f)
+			[
+				SNew(SVerticalBox)
+
+				+ SVerticalBox::Slot().Padding(0.f, 64.f, 0.f, 4.f).AutoHeight()[SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "SubMathTextDesc", "SUB-TYPEFACES - MATH"))]
+				+ SVerticalBox::Slot().Padding(0.f, 4.f).AutoHeight()
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("StarshipGallery", "MathematicalTextSpecimen", "Mathematical Alphanumeric Symbols, U+1D400 - U+1D7FF\n\U0001D400\U0001D401\U0001D402 \U0001D434\U0001D435\U0001D436 \U0001D4D0\U0001D4D1\U0001D4D2"))
+				]
+
+				+ SVerticalBox::Slot().Padding(0.f, 64.f, 0.f, 4.f).AutoHeight()[SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "SubEmojiTextDesc", "SUB-TYPEFACES - EMOJI"))]
+				+ SVerticalBox::Slot().Padding(0.f, 4.f).AutoHeight()
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("StarshipGallery", "EmoticonsTextSpecimen", "Emoticons, U+1F600 - U+1F64F\n\U0001F60E\U0001F643\U0001F648"))
+				]
+				+ SVerticalBox::Slot().Padding(0.f, 4.f).AutoHeight()
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("StarshipGallery", "SupplementalSymbolsPictographsTextSpecimen", "Supplemental Symbols and Pictographs, U+1F900 - U+1F9FF\n\U0001F914\U0001F916\U0001F9F2"))
+				]
+			]
         ];
     }
 
