@@ -87,7 +87,7 @@ namespace Chaos
 
 		TVector<TGeometryParticleHandle<FReal, 3>*, 2> GetConstrainedParticles();
 
-		void PreGatherInput(FPBDIslandSolverData& SolverData);
+		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 		void GatherInput(FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
 
 		FSolverBody* GetSolverBody0();

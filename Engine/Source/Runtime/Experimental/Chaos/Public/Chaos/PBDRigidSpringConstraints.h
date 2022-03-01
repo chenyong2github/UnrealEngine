@@ -37,6 +37,7 @@ namespace Chaos
 		FReal GetRestLength() const;
 		void SetRestLength(const FReal SpringLength);
 
+		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 		void GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
 
 		static const FConstraintHandleTypeID& StaticType()
@@ -162,6 +163,7 @@ namespace Chaos
 		// Simple Rule API
 		//
 
+		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 		void GatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 		void ScatterOutput(const FReal Dt, FPBDIslandSolverData& SolverData);
 
@@ -178,6 +180,7 @@ namespace Chaos
 		void UpdatePositionBasedState(const FReal Dt) {}
 
 		void SetNumIslandConstraints(const int32 NumIslandConstraints, FPBDIslandSolverData& SolverData);
+		void PreGatherInput(const FReal Dt, const int32 ConstraintIndex, FPBDIslandSolverData& SolverData);
 		void GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
 
 		bool ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);

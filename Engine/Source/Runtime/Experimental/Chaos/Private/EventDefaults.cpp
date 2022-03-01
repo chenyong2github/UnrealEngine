@@ -170,7 +170,7 @@ namespace Chaos
 								}
 							}
 						}
-					}, 100);
+					}, Chaos::LargeBatchSize);
 					for (int32 Index = 0; Index < CollisionHandles.Num(); ++Index)
 					{
 						if (ValidArray[Index])
@@ -272,7 +272,7 @@ namespace Chaos
 #endif
 								}
 							}
-						}, 10);
+						}, Chaos::SmallBatchSize);
 						int32 IdxCollision = 0, IdxCollision2 = NumValidCollisions - 1, NumDeleted = 0;
 						while (IdxCollision <= IdxCollision2)
 						{
@@ -299,7 +299,7 @@ namespace Chaos
 								IdxCollision++;
 							}
 						}
-						AllCollisionsDataArray.SetNum(NumValidCollisions - NumDeleted);
+						AllCollisionsDataArray.SetNum(NumValidCollisions - NumDeleted, false);
 					}
 				}
 			}

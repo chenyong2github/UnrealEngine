@@ -37,6 +37,11 @@ namespace Chaos
 		ConcreteContainer()->SetRestLength(ConstraintIndex, SpringLength);
 	}
 
+	void FPBDRigidSpringConstraintHandle::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
+	{
+		ConcreteContainer()->PreGatherInput(Dt, ConstraintIndex, SolverData);
+	}
+
 	void FPBDRigidSpringConstraintHandle::GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
 	{
 		ConcreteContainer()->GatherInput(Dt, ConstraintIndex, Particle0Level, Particle1Level, SolverData);
@@ -130,6 +135,14 @@ namespace Chaos
 		return SpringSettings[ConstraintIndex].Stiffness * Delta / CombinedInvMass;
 	}
 
+	void FPBDRigidSpringConstraints::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
+	{
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			PreGatherInput(Dt, ConstraintIndex, SolverData);
+		}
+	}
+
 	void FPBDRigidSpringConstraints::GatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
 	{
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
@@ -148,7 +161,7 @@ namespace Chaos
 		SolverData.GetConstraintIndices(ContainerId).Reset(NumIslandConstraints);
 	}
 
-	void FPBDRigidSpringConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+	void FPBDRigidSpringConstraints::PreGatherInput(const FReal Dt, const int32 ConstraintIndex, FPBDIslandSolverData& SolverData)
 	{
 		SolverData.GetConstraintIndices(ContainerId).Add(ConstraintIndex);
 	
@@ -157,6 +170,10 @@ namespace Chaos
 			SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][0]),
 			SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][1])
 		};
+	}
+
+	void FPBDRigidSpringConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+	{
 	}
 
 	void FPBDRigidSpringConstraints::ScatterOutput(FReal Dt, FPBDIslandSolverData& SolverData)

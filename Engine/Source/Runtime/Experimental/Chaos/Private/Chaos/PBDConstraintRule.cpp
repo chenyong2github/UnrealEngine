@@ -177,25 +177,38 @@ namespace Chaos
 					
 					if (IslandConstraints.Num())
 					{
-						InnerPhysicsParallelForRange(IslandConstraints.Num(), [&](const int32 StartRangeIndex, const int32 EndRangeIndex)
+						for (int32 Index = 0; Index < IslandConstraints.Num(); ++Index)
 						{
-							for (int32 Index = StartRangeIndex; Index < EndRangeIndex; ++Index)
+							FConstraintHandle* ConstraintHandle = IslandConstraints[Index];
+							if (ConstraintHandle->GetContainerId() == GetContainerId())
 							{
-								FConstraintHandle* ConstraintHandle = IslandConstraints[Index];
-								if (ConstraintHandle->GetContainerId() == GetContainerId())
-								{
-									FConstraintContainerHandle* Constraint = ConstraintHandle->As<FConstraintContainerHandle>();
+								FConstraintContainerHandle* Constraint = ConstraintHandle->As<FConstraintContainerHandle>();
 
-									// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
-									// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
-									if (Constraint->IsEnabled())
-									{
-										// @todo(chaos): we should provide Particle Levels in the island rule as well (see TPBDConstraintColorRule)
-										Constraint->GatherInput(Dt, INDEX_NONE, INDEX_NONE, *IslandGroup);
-									}
+								// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
+								// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
+								if (Constraint->IsEnabled())
+								{
+									// @todo(chaos): we should provide Particle Levels in the island rule as well (see TPBDConstraintColorRule)
+									Constraint->PreGatherInput(Dt, *IslandGroup);
 								}
 							}
-						}, 1);
+						}
+						InnerPhysicsParallelFor(IslandConstraints.Num(), [&](const int32 Index)
+						{
+							FConstraintHandle* ConstraintHandle = IslandConstraints[Index];
+							if (ConstraintHandle->GetContainerId() == GetContainerId())
+							{
+								FConstraintContainerHandle* Constraint = ConstraintHandle->As<FConstraintContainerHandle>();
+
+								// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
+								// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
+								if (Constraint->IsEnabled())
+								{
+									// @todo(chaos): we should provide Particle Levels in the island rule as well (see TPBDConstraintColorRule)
+									Constraint->GatherInput(Dt, INDEX_NONE, INDEX_NONE, *IslandGroup);
+								}
+							}
+						});
 					}
 				}
 			}
@@ -320,7 +333,7 @@ namespace Chaos
 											FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];
 											if (Constraint->IsEnabled())
 											{
-												Constraint->PreGatherInput(*IslandGroup);
+												Constraint->PreGatherInput(Dt, *IslandGroup);
 											}
 										}
 										// Calculate the range of indices for this color as a set of independent contacts
@@ -344,7 +357,7 @@ namespace Chaos
 													Constraint->GatherInput(Dt, Particle0Level, Particle1Level, *IslandGroup);
 												}
 											}
-										}, 10);
+										}, Chaos::SmallBatchSize);
 										for (int32 ConstraintIndex = OffsetBegin; ConstraintIndex < OffsetEnd; ++ConstraintIndex)
 										{
 											FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];

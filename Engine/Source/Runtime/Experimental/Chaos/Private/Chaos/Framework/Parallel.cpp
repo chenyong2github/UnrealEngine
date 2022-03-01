@@ -12,6 +12,8 @@ namespace Chaos
 	CHAOS_API int32 InnerParallelForBatchSize = 0;
 	CHAOS_API int32 MinRangeBatchSize = 0;
 	CHAOS_API int32 MaxNumWorkers = 100;
+	CHAOS_API int32 SmallBatchSize = 10;
+	CHAOS_API int32 LargeBatchSize = 100;
 	
 #if !UE_BUILD_SHIPPING
 	CHAOS_API bool bDisablePhysicsParallelFor = false;
@@ -24,6 +26,8 @@ namespace Chaos
 	FAutoConsoleVariableRef CVarInnerPhysicsBatchSize(TEXT("p.Chaos.InnerParallelForBatchSize"), InnerParallelForBatchSize, TEXT("Set the batch size threshold for inner parallel fors"));
 	FAutoConsoleVariableRef CVarMinRangeBatchSize(TEXT("p.Chaos.MinRangeBatchSize"), MinRangeBatchSize, TEXT("Set the min range batch size for parallel for"));
 	FAutoConsoleVariableRef CVarMaxRangeBatchWorkers(TEXT("p.Chaos.MaxNumWorkers"), MaxNumWorkers, TEXT("Set the max number of workers for physics"));
+	FAutoConsoleVariableRef CVarSmallBatchSize(TEXT("p.Chaos.SmallBatchSize"), SmallBatchSize, TEXT("Small batch size for chaos parallel loops"));
+	FAutoConsoleVariableRef CVarLargeBatchSize(TEXT("p.Chaos.LargeBatchSize"), LargeBatchSize, TEXT("Large batch size for chaos parallel loops"));
 #endif
 }
 

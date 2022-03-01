@@ -24,6 +24,7 @@ namespace Chaos
 			: TIndexedContainerConstraintHandle<FPBDPositionConstraints>(InConstraintContainer, InConstraintIndex) {}
 		TVector<FGeometryParticleHandle*, 2> GetConstrainedParticles() const;
 
+		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 		void GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
 
 		static const FConstraintHandleTypeID& StaticType()
@@ -186,6 +187,7 @@ namespace Chaos
 		void UpdatePositionBasedState(const FReal Dt) {}
 
 		void SetNumIslandConstraints(const int32 NumIslandConstraints, FPBDIslandSolverData& SolverData);
+		void PreGatherInput(const FReal Dt, const int32 ConstraintIndex, FPBDIslandSolverData& SolverData);
 		void GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
 		void ScatterOutput(FReal Dt, FPBDIslandSolverData& SolverData);
 

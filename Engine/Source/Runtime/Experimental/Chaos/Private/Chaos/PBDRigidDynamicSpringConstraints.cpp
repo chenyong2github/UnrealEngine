@@ -12,6 +12,11 @@ TVec2<FGeometryParticleHandle*> FPBDRigidDynamicSpringConstraintHandle::GetConst
 	return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 }
 
+void FPBDRigidDynamicSpringConstraintHandle::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
+{
+	ConcreteContainer()->PreGatherInput(Dt, ConstraintIndex, SolverData);
+}
+
 void FPBDRigidDynamicSpringConstraintHandle::GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
 {
 	ConcreteContainer()->GatherInput(Dt, ConstraintIndex, Particle0Level, Particle1Level, SolverData);
@@ -107,7 +112,7 @@ void FPBDRigidDynamicSpringConstraints::SetNumIslandConstraints(const int32 NumI
 	SolverData.GetConstraintIndices(ContainerId).Reset(NumIslandConstraints);
 }
 
-void FPBDRigidDynamicSpringConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+void FPBDRigidDynamicSpringConstraints::PreGatherInput(const FReal Dt, const int32 ConstraintIndex, FPBDIslandSolverData& SolverData)
 {
 	SolverData.GetConstraintIndices(ContainerId).Add(ConstraintIndex);
 
@@ -116,6 +121,10 @@ void FPBDRigidDynamicSpringConstraints::GatherInput(const FReal Dt, const int32 
 		SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][0]),
 		SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][1])
 	};
+}
+
+void FPBDRigidDynamicSpringConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+{
 }
 
 void FPBDRigidDynamicSpringConstraints::ScatterOutput(FReal Dt, FPBDIslandSolverData& SolverData)

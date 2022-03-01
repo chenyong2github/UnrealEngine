@@ -174,8 +174,14 @@ namespace Chaos
 		return ConcreteContainer()->SetConstraintEnabled(ConstraintIndex, bInEnabled);
 	}
 
+	void FPBDJointConstraintHandle::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
+	{
+		ConcreteContainer()->PreGatherInput(Dt, ConstraintIndex, SolverData);
+	}
+
 	void FPBDJointConstraintHandle::GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
 	{
+
 		ConcreteContainer()->GatherInput(Dt, ConstraintIndex, Particle0Level, Particle1Level, SolverData);
 	}
 
@@ -856,12 +862,27 @@ namespace Chaos
 		SolverData.GetConstraintIndices(ContainerId).Reset(NumIslandConstraints);
 	}
 
+	void FPBDJointConstraints::PreGatherInput(const FReal Dt, const int32 ConstraintIndex, FPBDIslandSolverData& SolverData)
+	{
+		check(!ConstraintStates[ConstraintIndex].bDisabled);
+
+		SolverData.GetConstraintIndices(ContainerId).Add(ConstraintIndex);
+
+		int32 Index0, Index1;
+		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
+		FGenericParticleHandle Particle0 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][Index0]);
+		FGenericParticleHandle Particle1 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][Index1]);
+
+		// Find the solver bodies for the particles we constrain. This will add them to the container
+		// if they aren't there already, and ensure that they are populated with the latest data.
+		SolverData.GetBodyContainer().FindOrAdd(Particle0);
+		SolverData.GetBodyContainer().FindOrAdd(Particle1);
+	}
+
 	void FPBDJointConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Joints_Gather);
 		check(!ConstraintStates[ConstraintIndex].bDisabled);
-
-		SolverData.GetConstraintIndices(ContainerId).Add(ConstraintIndex);
 
 		const FPBDJointSettings& JointSettings = ConstraintSettings[ConstraintIndex];
 		const FTransformPair& JointFrames = JointSettings.ConnectorTransforms;

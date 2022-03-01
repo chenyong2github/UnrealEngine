@@ -10,6 +10,11 @@ namespace Chaos
 		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}
 
+	void FPBDPositionConstraintHandle::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
+	{
+		ConcreteContainer()->PreGatherInput(Dt, ConstraintIndex, SolverData);
+	}
+
 	void FPBDPositionConstraintHandle::GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
 	{
 		ConcreteContainer()->GatherInput(Dt, ConstraintIndex, Particle0Level, Particle1Level, SolverData);
@@ -20,11 +25,15 @@ namespace Chaos
 		SolverData.GetConstraintIndices(ContainerId).Reset(NumIslandConstraints);
 	}
 
-	void FPBDPositionConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+	void FPBDPositionConstraints::PreGatherInput(const FReal Dt, const int32 ConstraintIndex, FPBDIslandSolverData& SolverData)
 	{
 		SolverData.GetConstraintIndices(ContainerId).Add(ConstraintIndex);
 
 		ConstraintSolverBodies[ConstraintIndex] = SolverData.GetBodyContainer().FindOrAdd(ConstrainedParticles[ConstraintIndex]);
+	}
+
+	void FPBDPositionConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+	{
 	}
 	
 	void FPBDPositionConstraints::ScatterOutput(FReal Dt, FPBDIslandSolverData& SolverData)

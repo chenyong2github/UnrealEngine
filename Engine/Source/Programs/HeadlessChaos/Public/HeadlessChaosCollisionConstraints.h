@@ -144,7 +144,7 @@ public:
 
 		for (auto Handle : CollisionConstraints.GetConstraintHandles())
 		{
-			Handle->PreGatherInput(SolverData);
+			Handle->PreGatherInput(Dt, SolverData);
 			Handle->GatherInput(Dt, INDEX_NONE, INDEX_NONE, SolverData);
 		}
 	}

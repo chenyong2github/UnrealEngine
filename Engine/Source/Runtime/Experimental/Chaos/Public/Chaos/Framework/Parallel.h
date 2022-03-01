@@ -14,6 +14,8 @@ namespace Chaos
 
 
 	CHAOS_API extern int32 MaxNumWorkers;
+	CHAOS_API extern int32 SmallBatchSize;
+	CHAOS_API extern int32 LargeBatchSize;
 #if UE_BUILD_SHIPPING
 	const bool bDisablePhysicsParallelFor = false;
 	const bool bDisableParticleParallelFor = false;
