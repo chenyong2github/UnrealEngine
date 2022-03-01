@@ -251,6 +251,9 @@ namespace Horde.Storage
 
             services.AddSingleton<ConsistencyCheckService>();
             services.AddHostedService<ConsistencyCheckService>(p => p.GetService<ConsistencyCheckService>()!);
+
+            services.AddSingleton(typeof(IPeerStatusService), typeof(PeerStatusService));
+            services.AddHostedService<PeerStatusService>(p => (PeerStatusService)p.GetService<IPeerStatusService>()!);
         
             services.AddTransient(typeof(IRefCleanup), typeof(RefCleanup));
 

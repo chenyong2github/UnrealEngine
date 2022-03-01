@@ -19,12 +19,14 @@ namespace Horde.Storage.Controllers
         private readonly VersionFile _versionFile;
         private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
         private readonly IOptionsMonitor<ClusterSettings> _clusterSettings;
+        private readonly IPeerStatusService _statusService;
 
-        public StatusController(VersionFile versionFile, IOptionsMonitor<JupiterSettings> jupiterSettings, IOptionsMonitor<ClusterSettings> clusterSettings)
+        public StatusController(VersionFile versionFile, IOptionsMonitor<JupiterSettings> jupiterSettings, IOptionsMonitor<ClusterSettings> clusterSettings, IPeerStatusService statusService)
         {
             _versionFile = versionFile;
             _jupiterSettings = jupiterSettings;
             _clusterSettings = clusterSettings;
+            _statusService = statusService;
         }
 
         /// <summary>
@@ -73,7 +75,7 @@ namespace Horde.Storage.Controllers
         [ProducesResponseType(type: typeof(PeersResponse), 200)]
         public IActionResult Peers([FromQuery] bool includeInternalEndpoints = false)
         {
-            return Ok(new PeersResponse(_jupiterSettings, _clusterSettings, includeInternalEndpoints));
+            return Ok(new PeersResponse(_jupiterSettings, _clusterSettings, includeInternalEndpoints, _statusService));
         }
     }
 
@@ -86,10 +88,10 @@ namespace Horde.Storage.Controllers
             Peers = peers;
         }
 
-        public PeersResponse(IOptionsMonitor<JupiterSettings> jupiterSettings, IOptionsMonitor<ClusterSettings> clusterSettings, bool includeInternalEndpoints)
+        public PeersResponse(IOptionsMonitor<JupiterSettings> jupiterSettings, IOptionsMonitor<ClusterSettings> clusterSettings, bool includeInternalEndpoints, IPeerStatusService peerStatusService)
         {
             CurrentSite = jupiterSettings.CurrentValue.CurrentSite;
-            Peers = clusterSettings.CurrentValue.Peers.Select(settings => new KnownPeer(settings, includeInternalEndpoints)).ToList();
+            Peers = clusterSettings.CurrentValue.Peers.Select(settings => new KnownPeer(settings, includeInternalEndpoints, peerStatusService)).ToList();
         }
 
         public string CurrentSite { get; set; }
@@ -100,14 +102,15 @@ namespace Horde.Storage.Controllers
     public class KnownPeer
     {
         [JsonConstructor]
-        public KnownPeer(string site, string fullName, List<string> endpoints)
+        public KnownPeer(string site, string fullName, List<string> endpoints, int latency)
         {
             Site = site;
             FullName = fullName;
             Endpoints = endpoints;
+            Latency = latency;
         }
 
-        public KnownPeer(PeerSettings peerSettings, bool includeInternalEndpoints)
+        public KnownPeer(PeerSettings peerSettings, bool includeInternalEndpoints, IPeerStatusService statusService)
         {
             Site = peerSettings.Name;
             FullName = peerSettings.FullName;
@@ -115,10 +118,14 @@ namespace Horde.Storage.Controllers
             if (!includeInternalEndpoints)
                 endpoints = endpoints.Where(s => !s.IsInternal);
             Endpoints = endpoints.Select(e => e.Url).ToList();
+            IPeerStatusService.PeerStatus peerStatus = statusService.GetPeerStatus(peerSettings.Name);
+            Latency = peerStatus.Latency;
         }
 
         public string Site { get; set; }
         public string FullName { get; set; }
+
+        public int Latency { get; set; }
 
         public List<string> Endpoints { get; set; }
     }
