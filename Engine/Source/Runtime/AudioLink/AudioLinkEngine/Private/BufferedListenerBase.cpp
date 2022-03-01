@@ -12,6 +12,7 @@ FBufferedListenerBase::FBufferedListenerBase(int32 InDefaultCircularBufferSize)
 bool FBufferedListenerBase::PopBuffer(float* InBuffer, int32 InBufferSizeInSamples, int32& OutSamplesWritten)
 {
 	OutSamplesWritten = LocklessCircularBuffer.Pop(InBuffer, InBufferSizeInSamples);
+	NumSilentSamplesRemaining = FMath::Max(0,NumSilentSamplesRemaining-OutSamplesWritten);
 	return bStarted;
 }
 
@@ -33,7 +34,7 @@ void FBufferedListenerBase::SetFormatKnownDelegate(FOnFormatKnown InFormatKnownD
 }
 
 /** AUDIO MIXER THREAD. */
-void FBufferedListenerBase::OnBufferRecieved(const FBufferFormat& InFormat, TArrayView<const float> InBuffer)
+void FBufferedListenerBase::OnBufferReceived(const FBufferFormat& InFormat, TArrayView<const float> InBuffer)
 {
 	// Keep track of if we need to fire the delegate, so we can do it outside of a lock.
 	bool bFireFormatKnownDelegate = false;
@@ -74,8 +75,8 @@ void FBufferedListenerBase::OnBufferRecieved(const FBufferFormat& InFormat, TArr
 	// Push the data into the circular buffer.
 	int32 SamplesPushed = LocklessCircularBuffer.Push(InBuffer.GetData(), InBuffer.Num());
 
-	// Warn of not enough space in circular buffer
-	if (SamplesPushed != InBuffer.Num())
+	// Warn of not enough space in circular buffer, unless we're overwriting silence.
+	if (SamplesPushed < InBuffer.Num() && NumSilentSamplesRemaining == 0)
 	{
 		// Prevent log spam by limiting to 1:100 logs.
 		static const int32 NumLogMessagesToSkip = 100;
@@ -84,7 +85,53 @@ void FBufferedListenerBase::OnBufferRecieved(const FBufferFormat& InFormat, TArr
 	}
 }
 
-void FBufferedListenerBase::Reserve(int32 InNumSamplesToReserve)
+void FBufferedListenerBase::ResetFormat()
 {
-	LocklessCircularBuffer.SetCapacity(InNumSamplesToReserve);
+	FWriteScopeLock WriteLock(FormatKnownRwLock);
+	KnownFormat.Reset();
+}
+
+void FBufferedListenerBase::SetFormat(const FBufferFormat& InFormat)
+{
+	FWriteScopeLock WriteLock(FormatKnownRwLock);
+	KnownFormat = InFormat;
+}
+
+bool FBufferedListenerBase::IsStartedNonAtomic() const
+{
+	return bStarted;
+}
+
+bool FBufferedListenerBase::TrySetStartedFlag()
+{
+	// We expect not to be started.
+	bool bExpected = false;
+	bool bDesired = true;
+	return bStarted.compare_exchange_strong(bExpected, bDesired);
+}
+
+bool FBufferedListenerBase::TryUnsetStartedFlag()
+{
+	// We expect be started.
+	bool bExpected = true;
+	bool bDesired = false;
+	return bStarted.compare_exchange_strong(bExpected, bDesired);
+}
+
+void FBufferedListenerBase::PushSilence(int32 InNumSamplesOfSilence)
+{
+	LocklessCircularBuffer.PushZeros(InNumSamplesOfSilence);
+	NumSilentSamplesRemaining += InNumSamplesOfSilence;
+}
+
+void FBufferedListenerBase::Reserve(int32 InNumSamplesToReserve, int32 InNumSamplesOfSilence)
+{
+	// This Zeros the buffer also so should only be done at the start.
+	LocklessCircularBuffer.SetCapacity(InNumSamplesToReserve);	
+
+	// Optionally add silence into the buffer, this will cause latency.
+	if (InNumSamplesOfSilence > 0)
+	{
+		PushSilence(InNumSamplesOfSilence);
+	}
 }

@@ -32,5 +32,10 @@ private:
 	void OnSourceReleased(const int32 SourceId) override;
 	//~ End ISourceBufferListener
 
+	//~ Begin IBufferedAudioOutput
+	void SetBufferStreamEndDelegate(FOnBufferStreamEnd InBufferStreamEndDelegate) override;
+	//~ End IBufferedAudioOutput
+
 	std::atomic<int32> CurrentSourceId	= INDEX_NONE;		// r/w AudioMixer thread.	
+	FOnBufferStreamEnd OnBufferStreamEndDelegate;
 };

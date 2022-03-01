@@ -36,6 +36,18 @@ public:
 	DECLARE_DELEGATE_OneParam(FOnFormatKnown, FBufferFormat);
 	virtual void SetFormatKnownDelegate(FOnFormatKnown InFormatKnownDelegate) = 0;
 
+	/**
+	 * Stream of buffers ended.
+	 */
+	struct FBufferStreamEnd
+	{
+		int32 Id = INDEX_NONE;
+	};
+
+	// Delegates.
+	DECLARE_DELEGATE_OneParam(FOnBufferStreamEnd, FBufferStreamEnd);
+	virtual void SetBufferStreamEndDelegate(FOnBufferStreamEnd InBufferStreamEndDelegate) = 0;
+
 	virtual bool Start(FAudioDevice* InAudioDevice) = 0;
 	virtual void Stop(FAudioDevice* InAudioDevice) = 0;
 
@@ -62,7 +74,7 @@ public:
 	 *
 	 * @param InNumSamplesToReserve Reserve this number of samples.
 	 */
-	virtual void Reserve(int32 InNumSamplesToReserve) = 0;
+	virtual void Reserve(int32 InNumSamplesToReserve, int32 InNumSamplesOfSilence = 0) = 0;
 };
 
 using FWeakBufferedOutputPtr = TWeakPtr<IBufferedAudioOutput, ESPMode::ThreadSafe>;

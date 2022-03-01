@@ -29,8 +29,9 @@ public:
 	void Stop(FAudioDevice* InDevice) override;
 
 private:
-	void StopInternal(FAudioDevice* InDevice);
-
+	void RegisterWithAudioDevice(FAudioDevice* InDevice);
+	void UnregsiterWithAudioDevice(FAudioDevice* InDevice);
+	
 	//~ Begin ISubmixBufferListener
 	void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 InNumSamples, int32 InNumChannels, const int32 InSampleRate, double) override;
 	//~ End ISubmixBufferListener

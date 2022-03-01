@@ -13,22 +13,14 @@ FBufferedSourceListener::~FBufferedSourceListener()
 	// No need to stop as its only record keeping and nothing to unregister.
 }
 
-bool FBufferedSourceListener::Start(FAudioDevice* InAudioDevice)
+bool FBufferedSourceListener::Start(FAudioDevice*)
 {
-	if (ensure(!bStarted))
-	{
-		bStarted = true;
-		return true;
-	}
-	return false;
+	return TrySetStartedFlag();
 }
 
-void FBufferedSourceListener::Stop(FAudioDevice* InAudioDevice)
+void FBufferedSourceListener::Stop(FAudioDevice*)
 {
-	if (bStarted)
-	{
-		bStarted = false;
-	}
+	ensure(TryUnsetStartedFlag());
 }
 
 /** AUDIO MIXER THREAD. When a source is finished and returned to the pool, this call will be called. */
@@ -36,18 +28,28 @@ void FBufferedSourceListener::OnSourceReleased(const int32 InSourceId)
 {	
 	if (InSourceId == CurrentSourceId)
 	{
+		// Fire delegate to any interested parties.
+		IBufferedAudioOutput::FBufferStreamEnd Params;
+		Params.Id = CurrentSourceId;
+		OnBufferStreamEndDelegate.ExecuteIfBound(Params);
+
+		// Reset our source id.
 		CurrentSourceId = INDEX_NONE;
-		
+
 		// Reset the format, now our source we were listening to has stopped.
-		FWriteScopeLock WriteLock(FormatKnownRwLock);
-		KnownFormat.Reset();
+		ResetFormat();
 	}
+}
+
+void FBufferedSourceListener::SetBufferStreamEndDelegate(FOnBufferStreamEnd InBufferStreamEndDelegate)
+{
+	OnBufferStreamEndDelegate = InBufferStreamEndDelegate;
 }
 
 /** AUDIO MIXER THREAD. New Audio buffers from the active sources enter here. */
 void FBufferedSourceListener::OnNewBuffer(const ISourceBufferListener::FOnNewBufferParams& InParams)
-{	
-	if (bStarted) 
+{
+	if (IsStartedNonAtomic()) 
 	{
 		// Make sure caller is sane.
 		check(InParams.AudioData);
@@ -73,6 +75,6 @@ void FBufferedSourceListener::OnNewBuffer(const ISourceBufferListener::FOnNewBuf
 		NewFormat.NumChannels = InParams.NumChannels;
 		NewFormat.NumSamplesPerBlock = InParams.NumSamples;
 		NewFormat.NumSamplesPerSec = InParams.SampleRate;
-		OnBufferRecieved(NewFormat, MakeArrayView(InParams.AudioData, InParams.NumSamples));
+		OnBufferReceived(NewFormat, MakeArrayView(InParams.AudioData, InParams.NumSamples));
 	}
 }
