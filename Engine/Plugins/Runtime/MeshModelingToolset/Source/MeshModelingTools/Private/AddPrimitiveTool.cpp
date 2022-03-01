@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AddPrimitiveTool.h"
+
+#include "BaseGizmos/TransformGizmoUtil.h"
+#include "BaseGizmos/TransformProxy.h"
 #include "ToolBuilderUtil.h"
 #include "InteractiveToolManager.h"
 #include "SceneQueries/SceneSnappingManager.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "Selection/ToolSelectionUtil.h"
+#include "Mechanics/DragAlignmentMechanic.h"
 #include "ModelingObjectsCreationAPI.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"
@@ -78,29 +82,6 @@ UInteractiveTool* UAddPrimitiveToolBuilder::BuildTool(const FToolBuilderState& S
 	return NewTool;
 }
 
-bool
-UProceduralShapeToolProperties::IsEquivalent( const UProceduralShapeToolProperties* Other ) const
-{
-#if WITH_EDITOR
-	UClass* Class = GetClass();
-	if ( Other->GetClass() != Class )
-	{
-		return false;
-	}
-	for (const FProperty* Prop : TFieldRange<FProperty>(Class))
-	{
-		if (Prop->HasMetaData(TEXT("ProceduralShapeSetting")) &&
-			(!Prop->Identical_InContainer(this, Other)))
-		{
-			return false;
-		}
-	}
-	return true;
-#else
-	return false;
-#endif
-}
-
 void UAddPrimitiveTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
@@ -111,6 +92,11 @@ UAddPrimitiveTool::UAddPrimitiveTool(const FObjectInitializer&)
 	ShapeSettings = CreateDefaultSubobject<UProceduralShapeToolProperties>(TEXT("ShapeSettings"));
 	// CreateDefaultSubobject automatically sets RF_Transactional flag, we need to clear it so that undo/redo doesn't affect tool properties
 	ShapeSettings->ClearFlags(RF_Transactional);
+}
+
+bool UAddPrimitiveTool::CanAccept() const
+{
+	return CurrentState == EState::AdjustingSettings;
 }
 
 void UAddPrimitiveTool::Setup()
@@ -142,28 +128,79 @@ void UAddPrimitiveTool::Setup()
 	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 	PreviewMesh->EnableWireframe(MaterialProperties->bShowWireframe);
 
+	UTransformProxy* TransformProxy = NewObject<UTransformProxy>(this);
+	TransformProxy->OnTransformChanged.AddWeakLambda(this, [this](UTransformProxy*, FTransform NewTransform) 
+		{
+			PreviewMesh->SetTransform(NewTransform);
+		});
+
+	// TODO: It might be nice to use a repositionable gizmo, but the drag alignment mechanic can't currently 
+	// hit the preview mesh, which makes middle click repositioning feel broken and not very useful.
+	Gizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GetToolManager(),
+		ETransformGizmoSubElements::StandardTranslateRotate, this);
+	Gizmo->SetActiveTarget(TransformProxy, GetToolManager());
+
+	DragAlignmentMechanic = NewObject<UDragAlignmentMechanic>(this);
+	DragAlignmentMechanic->Setup(this);
+	DragAlignmentMechanic->AddToGizmo(Gizmo);
+
 	UpdatePreviewMesh();
 
-	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartAddPrimitiveTool", "This Tool creates new shapes. Configure the shape via its settings, position it by moving the mouse in the scene, and drop it as a new object or instance by left-clicking."),
-		EToolMessageLevel::UserNotification);
+	SetState(EState::PlacingPrimitive);
+}
+
+void UAddPrimitiveTool::SetState(EState NewState)
+{
+	CurrentState = NewState;
+
+	bool bGizmoActive = (CurrentState == EState::AdjustingSettings);
+	Gizmo->SetVisibility(bGizmoActive && ShapeSettings->bShowGizmo);
+	ShapeSettings->bShowGizmoOptions = bGizmoActive;
+	NotifyOfPropertyChangeByTool(ShapeSettings);
+
+	if (CurrentState == EState::PlacingPrimitive)
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartAddPrimitiveTool", "This Tool creates new shapes. Click in the scene to choose initial placement of mesh."),
+			EToolMessageLevel::UserNotification);
+	}
+	else
+	{
+		// Initialize gizmo to current preview location
+		Gizmo->ReinitializeGizmoTransform(PreviewMesh->GetTransform());
+
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnStartAddPrimitiveTool", "Alter shape settings in the detail panel or modify placement with gizmo, then accept the tool."),
+			EToolMessageLevel::UserNotification);
+	}
 }
 
 
 void UAddPrimitiveTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	if (ShutdownType == EToolShutdownType::Accept)
+	{
+		GenerateAsset();
+	}
+
+	DragAlignmentMechanic->Shutdown();
+	DragAlignmentMechanic = nullptr;
+	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
+	Gizmo = nullptr;
+
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->Disconnect();
 	PreviewMesh = nullptr;
 
 	OutputTypeProperties->SaveProperties(this);
 	ShapeSettings->SaveProperties(this);
-	MaterialProperties->SaveProperties(this);	
+	MaterialProperties->SaveProperties(this);
 }
 
 
 void UAddPrimitiveTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	DragAlignmentMechanic->Render(RenderAPI);
 }
 
 
@@ -179,6 +216,11 @@ void UAddPrimitiveTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 		PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
 		UpdatePreviewMesh();
 	}
+
+	if (Gizmo)
+	{
+		Gizmo->SetVisibility(CurrentState == EState::AdjustingSettings && ShapeSettings->bShowGizmo);
+	}
 }
 
 
@@ -186,7 +228,9 @@ void UAddPrimitiveTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 
 FInputRayHit UAddPrimitiveTool::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
 {
-	return FInputRayHit(0.0f);		// always hit in hover 
+	FInputRayHit Result(0);
+	Result.bHit = (CurrentState == EState::PlacingPrimitive);
+	return Result;
 }
 
 void UAddPrimitiveTool::OnBeginHover(const FInputDeviceRay& DevicePos)
@@ -321,35 +365,33 @@ void UAddPrimitiveTool::UpdatePreviewMesh() const
 	checkSlow(CalculateTangentsSuccessful);
 }
 
+FInputRayHit UAddPrimitiveTool::IsHitByClick(const FInputDeviceRay& ClickPos)
+{
+	FInputRayHit Result(0);
+	Result.bHit = (CurrentState == EState::PlacingPrimitive);
+	return Result;
+}
+
 void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& ClickPos)
+{
+	if (!ensure(CurrentState == EState::PlacingPrimitive))
+	{
+		return;
+	}
+
+	UpdatePreviewPosition(ClickPos);
+	SetState(EState::AdjustingSettings);
+	GetToolManager()->EmitObjectChange(this, MakeUnique<FStateChange>(PreviewMesh->GetTransform()),
+		LOCTEXT("PlaceMeshTransaction", "Place Mesh"));
+}
+
+void UAddPrimitiveTool::GenerateAsset()
 {
 	UMaterialInterface* Material = PreviewMesh->GetMaterial();
 
-	if (ShapeSettings->bInstanceIfPossible && LastGenerated != nullptr && IsEquivalentLastGeneratedAsset())
-	{
-		GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Shape Mesh"));
-		FActorSpawnParameters SpawnParameters;
-		SpawnParameters.Template = LastGenerated->Actor;
-		FRotator Rotation(0.0f, 0.0f, 0.0f);
-		AStaticMeshActor* CloneActor = TargetWorld->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, Rotation, SpawnParameters);
-		// some properties must be manually set on the component because they will not persist reliably through the spawn template (especially if the actor creation was undone)
-		CloneActor->GetStaticMeshComponent()->SetWorldTransform(PreviewMesh->GetTransform());
-		CloneActor->GetStaticMeshComponent()->SetStaticMesh(LastGenerated->StaticMesh);
-		CloneActor->GetStaticMeshComponent()->SetMaterial(0, Material);
-#if WITH_EDITOR
-		CloneActor->SetActorLabel(LastGenerated->Label);
-#endif
-		// select newly-created object
-		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), CloneActor);
-		GetToolManager()->EndUndoTransaction();
-
-		return;
-	}
-	LastGenerated = nullptr;
-
 	const FDynamicMesh3* CurMesh = PreviewMesh->GetPreviewDynamicMesh();
 
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Shape Mesh"));
+	GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Primitive Tool"));
 
 	FCreateMeshObjectParams NewMeshObjectParams;
 	NewMeshObjectParams.TargetWorld = TargetWorld;
@@ -363,24 +405,28 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& ClickPos)
 	{
 		if (Result.NewActor != nullptr)
 		{
-			if (Cast<AStaticMeshActor>(Result.NewActor) != nullptr)
-			{
-				LastGenerated = NewObject<ULastActorInfo>(this);
-				LastGenerated->ShapeSettings = DuplicateObject(ShapeSettings, nullptr);
-				LastGenerated->MaterialProperties = DuplicateObject(MaterialProperties, nullptr);
-				LastGenerated->Actor = Result.NewActor;
-				LastGenerated->StaticMesh = CastChecked<AStaticMeshActor>(LastGenerated->Actor)->GetStaticMeshComponent()->GetStaticMesh();
-#if WITH_EDITOR
-				LastGenerated->Label = LastGenerated->Actor->GetActorLabel();
-#endif
-			}
-
 			// select newly-created object
 			ToolSelectionUtil::SetNewActorSelection(GetToolManager(), Result.NewActor);
 		}
 	}
 
 	GetToolManager()->EndUndoTransaction();
+}
+
+void UAddPrimitiveTool::FStateChange::Apply(UObject* Object)
+{
+	UAddPrimitiveTool* Tool = Cast<UAddPrimitiveTool>(Object);
+
+	// Set preview transform before changing state so that the adjustment gizmo is initialized properly
+	Tool->PreviewMesh->SetTransform(MeshTransform);
+
+	Tool->SetState(EState::AdjustingSettings);
+}
+
+void UAddPrimitiveTool::FStateChange::Revert(UObject* Object)
+{
+	UAddPrimitiveTool* Tool = Cast<UAddPrimitiveTool>(Object);
+	Tool->SetState(EState::PlacingPrimitive);
 }
 
 
