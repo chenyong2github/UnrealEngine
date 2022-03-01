@@ -24,6 +24,7 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "KismetCompiler.h"
+#include "Misc/ScopedSlowTask.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Serialization/ArchiveHasReferences.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
@@ -516,6 +517,9 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 		return;
 	}
 
+	FScopedSlowTask SlowTask(17.f /* Number of steps */, LOCTEXT("FlushCompilationQueue", "Compiling blueprints..."));
+	SlowTask.MakeDialogDelayed(1.0f);
+
 	TArray<FCompilerData> CurrentlyCompilingBPs;
 	{ // begin GTimeCompiling scope 
 		FScopedDurationTimer SetupTimer(GTimeCompiling); 
@@ -579,6 +583,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			}
 		}
 
+		SlowTask.EnterProgressFrame();
+
 		// then make sure any normal blueprints have their bytecode dependents recompiled, this is in case a function signature changes:
 		for(const FBPCompileRequestInternal& CompileJob : QueuedRequests)
 		{
@@ -614,6 +620,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				}
 			}
 		}
+
+		SlowTask.EnterProgressFrame();
 
 		// STAGE II: Filter out data only and interface blueprints:
 		for(int32 I = 0; I < QueuedRequests.Num(); ++I)
@@ -708,7 +716,9 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				BlueprintsToRecompile.Add(QueuedBP);
 			}
 		}
-			
+
+		SlowTask.EnterProgressFrame();
+
 		for(UBlueprint* BP : BlueprintsToRecompile)
 		{
 			// make sure all children are at least re-linked:
@@ -740,6 +750,10 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 					}
 				}
 			}
+
+			// Don't report progress for substep but gives a chance to tick slate to improve the responsiveness of the 
+			// progress bar being shown. We expect slate to be ticked at regular intervals throughout the loading.
+			SlowTask.TickProgress();
 		}
 
 		/*	Prevent 'pending kill' blueprints from being recompiled. Dependency
@@ -781,6 +795,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 		BlueprintsToRecompile.Empty();
 		QueuedRequests.Empty();
 
+		SlowTask.EnterProgressFrame();
+
 		// STAGE III: Sort into correct compilation order. We want to compile root types before their derived (child) types:
 		auto HierarchyDepthSortFn = [](const FCompilerData& CompilerDataA, const FCompilerData& CompilerDataB)
 		{
@@ -802,6 +818,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			return FBlueprintCompileReinstancer::ReinstancerOrderingFunction(A.GeneratedClass, B.GeneratedClass);
 		};
 		CurrentlyCompilingBPs.Sort( HierarchyDepthSortFn );
+
+		SlowTask.EnterProgressFrame();
 
 		// STAGE IV: Set UBlueprint flags (bBeingCompiled, bIsRegeneratingOnLoad)
 		for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
@@ -833,6 +851,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			}
 		}
 
+		SlowTask.EnterProgressFrame();
+
 		// STAGE V: Validate
 		for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
 		{
@@ -844,6 +864,9 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			CompilerData.Compiler->ValidateVariableNames();
 			CompilerData.Compiler->ValidateClassPropertyDefaults();
 		}
+
+		SlowTask.EnterProgressFrame();
+
 		// STAGE V (phase 2): Give the blueprint the possibility for edits
 		for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
 		{
@@ -854,6 +877,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				CompilerContext.PreCompileUpdateBlueprintOnLoad(BP);
 			}
 		}
+
+		SlowTask.EnterProgressFrame();
 
 		// STAGE VI: Purge null graphs, misc. data fixup
 		for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
@@ -872,6 +897,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				}
 			}
 		}
+
+		SlowTask.EnterProgressFrame();
 
 		// STAGE VII: safely throw away old skeleton CDOs:
 		{
@@ -1108,6 +1135,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			}
 		}
 
+		SlowTask.EnterProgressFrame();
 
 		// STAGE IX: Reconstruct nodes and replace deprecated nodes, then broadcast 'precompile
 		for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
@@ -1179,6 +1207,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			BP->bHasBeenRegenerated = true;
 		}
 	
+		SlowTask.EnterProgressFrame();
+
 		// STAGE X: reinstance every blueprint that is queued, note that this means classes in the hierarchy that are *not* being 
 		// compiled will be parented to REINST versions of the class, so type checks (IsA, etc) involving those types
 		// will be incoherent!
@@ -1256,6 +1286,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			}
 		}
 
+		SlowTask.EnterProgressFrame();
+
 		// STAGE XI: Reinstancing done, lets fix up child->parent pointers
 		for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
 		{
@@ -1265,6 +1297,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				BP->GeneratedClass->SetSuperStruct(BP->GeneratedClass->GetSuperClass()->GetAuthoritativeClass());
 			}
 		}
+
+		SlowTask.EnterProgressFrame();
 
 		// STAGE XII: Recompile every blueprint
 		bGeneratedClassLayoutReady = false;
@@ -1315,6 +1349,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 		bGeneratedClassLayoutReady = true;
 		
 		ProcessExtensions(CurrentlyCompilingBPs);
+
+		SlowTask.EnterProgressFrame();
 
 		// STAGE XIII: Compile functions
 		UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
@@ -1422,6 +1458,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			ensure(BPGC == nullptr || BPGC->ClassDefaultObject->GetClass() == BPGC);
 		}
 	} // end GTimeCompiling scope
+
+	SlowTask.EnterProgressFrame();
 
 	// STAGE XIV: Now we can finish the first stage of the reinstancing operation, moving old classes to new classes:
 	{
@@ -1619,6 +1657,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 		}
 	}
 
+	SlowTask.EnterProgressFrame();
+
 	for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
 	{
 		if(CompilerData.ResultsLog)
@@ -1632,6 +1672,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 		DECLARE_SCOPE_HIERARCHICAL_COUNTER(UEdGraphPin::Purge)
 		UEdGraphPin::Purge();
 	}
+
+	SlowTask.EnterProgressFrame();
 
 	UE_LOG(LogBlueprint, Display, TEXT("Time Compiling: %f, Time Reinstancing: %f"),  GTimeCompiling, GTimeReinstancing);
 	//GTimeCompiling = 0.0;

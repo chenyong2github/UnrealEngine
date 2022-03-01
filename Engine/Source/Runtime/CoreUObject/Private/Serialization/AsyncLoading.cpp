@@ -19,6 +19,7 @@
 #include "Misc/App.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/PackageName.h"
+#include "Misc/ScopedSlowTask.h"
 #include "UObject/PackageFileSummary.h"
 #include "UObject/Linker.h"
 #include "UObject/CoreRedirects.h"
@@ -6283,6 +6284,12 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadObjects()
 	const bool bAsyncPostLoadEnabled = FAsyncLoadingThreadSettings::Get().bAsyncPostLoadEnabled;
 	const bool bIsMultithreaded = AsyncLoadingThread.IsMultithreaded();
 
+	TOptional<FScopedSlowTask> SlowTask;
+	if (IsInGameThread())
+	{
+		SlowTask.Emplace(1, NSLOCTEXT("AsyncLoading", "PostloadingObjects", "Postloading objects..."));
+	}
+
 	// PostLoad objects.
 	while (PostLoadIndex < PackageObjLoaded.Num() && PostLoadIndex < PreLoadIndex && !IsTimeLimitExceeded())
 	{
@@ -6330,6 +6337,13 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadObjects()
 			check(Object->IsValidLowLevelFast());
 			// Make sure all objects in DeferredFinalizeObjects are referenced too
 			AddObjectReference(Object);
+
+			if (SlowTask)
+			{
+				// Don't report progress but gives a chance to tick slate to improve the responsiveness of the 
+				// progress bar being shown. We expect slate to be ticked at regular intervals throughout the loading.
+				SlowTask->TickProgress();
+			}
 		}
 	}
 

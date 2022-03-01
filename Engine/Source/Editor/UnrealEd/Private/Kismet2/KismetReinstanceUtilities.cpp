@@ -18,6 +18,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "FileHelpers.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -109,11 +110,17 @@ struct FReplaceReferenceHelper
 			Targets = FReferencerFinder::GetAllReferencers(SourceObjects, ObjectsThatShouldUseOldStuff);
 		}
 
+		if (Targets.Num())
 		{
 			BP_SCOPED_COMPILER_EVENT_STAT(EKismetReinstancerStats_ReplaceReferences);
 
+			FScopedSlowTask SlowTask(Targets.Num(), NSLOCTEXT("Kismet", "PerformingReplaceReferences", "Performing replace references..."));
+			SlowTask.MakeDialogDelayed(1.0f);
+
 			for (UObject* Obj : Targets)
 			{
+				SlowTask.EnterProgressFrame(1);
+
 				// Make sure we don't update properties in old objects, as they
 				// may take ownership of objects referenced in new objects (e.g.
 				// delete components owned by new actors)

@@ -77,7 +77,7 @@ Helpers
 #if WITH_EDITOR
 bool FLinkerLoad::ShouldCreateThrottledSlowTask() const
 {
-	return ShouldReportProgress() && FSlowTask::ShouldCreateThrottledSlowTask();
+	return ShouldReportProgress();
 }
 
 int32 GTreatVerifyImportErrorsAsWarnings = 0;

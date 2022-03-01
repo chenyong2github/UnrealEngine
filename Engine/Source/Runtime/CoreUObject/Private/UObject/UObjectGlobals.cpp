@@ -194,7 +194,7 @@ bool ShouldReportProgress()
 
 bool ShouldCreateThrottledSlowTask()
 {
-	return ShouldReportProgress() && FSlowTask::ShouldCreateThrottledSlowTask();
+	return ShouldReportProgress();
 }
 
 /**
@@ -1662,6 +1662,14 @@ void EndLoad(FUObjectSerializeContext* LoadContext, TArray<UPackage*>* OutLoaded
 					{
 						check(Obj->GetLinker());
 						UE_TRACK_REFERENCING_PACKAGE_DELAYED(AccessRefScope, Obj->GetOutermost());
+#if WITH_EDITOR
+						if (SlowTask)
+						{
+							// Don't report progress but gives a chance to tick slate to improve the responsiveness of the 
+							// progress bar being shown. We expect slate to be ticked at regular intervals throughout the loading.
+							SlowTask->TickProgress();
+						}
+#endif
 						Obj->GetLinker()->Preload(Obj);
 					}
 				}
@@ -1840,6 +1848,13 @@ void EndLoad(FUObjectSerializeContext* LoadContext, TArray<UPackage*>* OutLoaded
 	{
 		check(LoadedAsset);
 		FCoreUObjectDelegates::OnAssetLoaded.Broadcast(LoadedAsset);
+		
+		if (SlowTask)
+		{
+			// Don't report progress but gives a chance to tick slate to improve the responsiveness of the 
+			// progress bar being shown. We expect slate to be ticked at regular intervals throughout the loading.
+			SlowTask->TickProgress();
+		}
 	}
 #endif	// WITH_EDITOR
 

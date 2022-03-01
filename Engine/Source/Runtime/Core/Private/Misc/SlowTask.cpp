@@ -29,12 +29,51 @@ FSlowTask::FSlowTask(float InAmountOfWork, const FText& InDefaultMessage, bool b
 	, bEnabled(bInEnabled && IsInGameThread())
 	, bCreatedDialog(false)		// only set to true if we create a dialog
 	, Context(InContext)
+	, bSkipRecursiveDialogCreation(false)
 {
 	// If we have no work to do ourselves, create an arbitrary scope so that any actions performed underneath this still contribute to this one.
 	if (TotalAmountOfWork == 0.f)
 	{
 		TotalAmountOfWork = CurrentFrameScope = 1.f;
 	}
+}
+
+void FSlowTask::MakeRecursiveDialogIfNeeded()
+{
+	if (bEnabled)
+	{
+		if (bSkipRecursiveDialogCreation)
+		{
+			MakeDialogIfNeeded();
+			return;
+		}
+
+		bSkipRecursiveDialogCreation = true;
+		for (FSlowTask* Scope : Context.ScopeStack)
+		{
+			if (Scope->MakeDialogIfNeeded())
+			{
+				// Some dialog in the hierarchy wants to be called back
+				bSkipRecursiveDialogCreation = false;
+			}
+		}
+	}
+}
+
+bool FSlowTask::MakeDialogIfNeeded()
+{
+	if (bEnabled && !bCreatedDialog && OpenDialogThreshold.IsSet())
+	{
+		if (static_cast<float>(FPlatformTime::Seconds() - StartTime) < OpenDialogThreshold.GetValue())
+		{
+			// Let our caller know that we need to be called back
+			return true;
+		}
+
+		MakeDialog(bDelayedDialogShowCancelButton, bDelayedDialogAllowInPIE);
+	}
+
+	return false;
 }
 
 void FSlowTask::Initialize()
@@ -100,34 +139,41 @@ void FSlowTask::MakeDialogDelayed(float Threshold, bool bShowCancelButton, bool 
 
 void FSlowTask::EnterProgressFrame(float ExpectedWorkThisFrame, const FText& Text)
 {
-	check(!bEnabled || IsInGameThread());
-
-	// Should actually be FrameMessage = Text; but this code is to investigate crashes in FSlowTask::GetCurrentMessage()
-	if (!Text.IsEmpty())
-	{
-		FrameMessage = Text;
-	}
-	else
-	{
-		FrameMessage = FText::GetEmpty();
-	}
-	CompletedWork += CurrentFrameScope;
-
-	// Make sure OS events are getting through while the task is being processed
-	FPlatformMisc::PumpMessagesForSlowTask();
-
-	const float WorkRemaining = TotalAmountOfWork - CompletedWork;
-	// Add a small threshold here because when there are a lot of tasks, numerical imprecision can add up and trigger this.
-	ensureMsgf(ExpectedWorkThisFrame <= 1.01f * TotalAmountOfWork - CompletedWork, TEXT("Work overflow in slow task. Please revise call-site to account for entire progress range."));
-	CurrentFrameScope = FMath::Min(WorkRemaining, ExpectedWorkThisFrame);
-
-	if (!bCreatedDialog && OpenDialogThreshold.IsSet() && static_cast<float>(FPlatformTime::Seconds() - StartTime) > OpenDialogThreshold.GetValue())
-	{
-		MakeDialog(bDelayedDialogShowCancelButton, bDelayedDialogAllowInPIE);
-	}
-
 	if (bEnabled)
 	{
+		check(IsInGameThread());
+
+		// Should actually be FrameMessage = Text; but this code is to investigate crashes in FSlowTask::GetCurrentMessage()
+		if (!Text.IsEmpty())
+		{
+			FrameMessage = Text;
+		}
+		else
+		{
+			FrameMessage = FText::GetEmpty();
+		}
+		CompletedWork += CurrentFrameScope;
+
+		const float WorkRemaining = TotalAmountOfWork - CompletedWork;
+		// Add a small threshold here because when there are a lot of tasks, numerical imprecision can add up and trigger this.
+		ensureMsgf(ExpectedWorkThisFrame <= 1.01f * TotalAmountOfWork - CompletedWork, TEXT("Work overflow in slow task. Please revise call-site to account for entire progress range."));
+		CurrentFrameScope = FMath::Min(WorkRemaining, ExpectedWorkThisFrame);
+
+		TickProgress();
+	}
+}
+
+void FSlowTask::TickProgress()
+{
+	if (bEnabled)
+	{
+		check(IsInGameThread());
+
+		// Make sure OS events are getting through while the task is being processed
+		FPlatformMisc::PumpMessagesForSlowTask();
+
+		MakeRecursiveDialogIfNeeded();
+	
 		Context.RequestUpdateUI();
 	}
 }
