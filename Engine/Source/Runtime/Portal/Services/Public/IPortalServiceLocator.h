@@ -15,7 +15,7 @@ public:
 	 * Configure a service.
 	 *
 	 * The format of the ProductId is "ProductName_Major.Minor.Patch-Changelist+Branch".
-	 * Use the '*` wild card to include multiple versions, i.e. "Fortnite_1.0.*+UE4".
+	 * Use the '*` wild card to include multiple versions, i.e. "Fortnite_1.0.*+UE".
 	 *
 	 * When looking up services, the first matching configuration entry will be used. If no entry matches,
 	 * nullptr will be returned.
