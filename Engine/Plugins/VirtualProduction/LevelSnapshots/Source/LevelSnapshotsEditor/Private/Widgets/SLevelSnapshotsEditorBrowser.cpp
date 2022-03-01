@@ -222,7 +222,7 @@ TSharedPtr<SWidget> SLevelSnapshotsEditorBrowser::OnGetAssetContextMenu(const TA
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AssetTypeActions_LevelSnapshot_CaptureThumbnail", "Capture Thumbnail"),
-			LOCTEXT("AssetTypeActions_LevelSnapshot_CaptureThumbnailsToolTip", "Capture and update the thumbnail only for this asset."),
+			LOCTEXT("AssetTypeActions_LevelSnapshot_CaptureThumbnailsToolTip2", "Capture and update the thumbnail only for this asset."),
 			FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton.Small"),
 			FUIAction(
 			FExecuteAction::CreateLambda([SelectedAsset] {

@@ -283,7 +283,7 @@ void UNiagaraDataInterfaceAsyncGpuTrace::GetFunctions(TArray<FNiagaraFunctionSig
 	}
 
 	{
-		const FText TraceCountDescription = LOCTEXT("QueryIDDescription", "Number of async raytrace requests to be reserved");
+		const FText TraceCountDescription = LOCTEXT("QueryIDDescription2", "Number of async raytrace requests to be reserved");
 		const FText FirstQueryIDValidDescription = LOCTEXT("FirstQueryIDValidDescription", "The first index in the block reserved through this call");
 		const FText ReserveValidDescription = LOCTEXT("ReserveValidDescription", "Returns true if the requested indices were reserved");
 

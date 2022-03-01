@@ -48,7 +48,7 @@ bool FGeometryCollectionBoneDragDrop::ValidateDrop(const FGeometryCollection* Ot
 
 		if (ContainsEmbedded())
 		{
-			MessageText = NSLOCTEXT("GeometryCollectionOutliner", "EmbeddedToCluster_GeometryCollectionOutliner",
+			MessageText = NSLOCTEXT("GeometryCollectionOutliner", "EmbeddedToCluster_GeometryCollectionOutliner2",
 				"Embedded geometry will convert to rigids when parented to cluster.");
 			return true;
 		}

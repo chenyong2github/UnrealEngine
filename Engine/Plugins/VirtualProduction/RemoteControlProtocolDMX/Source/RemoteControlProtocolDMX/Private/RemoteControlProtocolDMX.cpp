@@ -285,7 +285,7 @@ void FRemoteControlProtocolDMX::ProcessAutoBinding(const FRemoteControlProtocolE
 				FRemoteControlLogger::Get().Log(ProtocolName, [&LastSignalPtr, FinalChannelValue, FoundChannelDifferenceValue]
 				{
 					return FText::Format(
-						LOCTEXT("DMXEventLog",
+						LOCTEXT("DMXEventLog2",
 								"AutoBinding new value. ExternUniverseID {0}, Channel {1}, New Value {2}"),
 						LastSignalPtr->ExternUniverseID, FinalChannelValue, FoundChannelDifferenceValue);
 				});

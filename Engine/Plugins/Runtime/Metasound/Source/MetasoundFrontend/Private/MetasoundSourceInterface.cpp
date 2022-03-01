@@ -197,19 +197,19 @@ namespace Metasound
 						{
 							{
 								LOCTEXT("AudioDeviceIDDisplayName1", "Audio Device ID"),
-								LOCTEXT("AudioDeviceIDDescription", "ID of AudioDevice source is played from."),
+								LOCTEXT("AudioDeviceIDDescription2", "ID of AudioDevice source is played from."),
 								FName(), // TODO: Align environment data types with environment (ex. this is actually set/get as a uint32)
 								Environment::DeviceID
 							},
 							{
 								LOCTEXT("GraphNameDisplayName", "Graph Name"),
-								LOCTEXT("AudioDeviceIDDescription", "Name of source graph (for debugging/logging)."),
+								LOCTEXT("AudioDeviceIDDescription3", "Name of source graph (for debugging/logging)."),
 								GetMetasoundDataTypeName<FString>(),
 								Environment::GraphName
 							},
 							{
 								LOCTEXT("IsPreviewSoundDisplayName", "Is Preview Sound"),
-								LOCTEXT("IsPreviewSoundDescription", "Whether source is being played as a previewed sound."),
+								LOCTEXT("IsPreviewSoundDescription4", "Whether source is being played as a previewed sound."),
 								GetMetasoundDataTypeName<bool>(),
 								Environment::IsPreview
 							},

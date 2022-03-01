@@ -532,7 +532,7 @@ FMetasoundGraphSchemaAction_PromoteToVariable_AccessorNode::FMetasoundGraphSchem
 	: FMetasoundGraphSchemaAction_NodeWithMultipleOutputs(
 		FText(),
 		LOCTEXT("PromoteToVariableGetterName", "Promote To Graph Variable"),
-		LOCTEXT("PromoteToInputTooltip2", "Promotes node input to graph variable and creates a getter node"),
+		LOCTEXT("PromoteToInputTooltip3", "Promotes node input to graph variable and creates a getter node"),
 		Metasound::Editor::EPrimaryContextGroup::Common)
 {
 }

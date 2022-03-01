@@ -143,7 +143,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorFunctionRow::GenerateWidgetFor
 						}
 						else
 						{
-							return LOCTEXT("InvalidAttributeFunctionName", "<Unnamed>");
+							return LOCTEXT("InvalidAttributeFunctionName2", "<Unnamed>");
 						}
 					})
 				.IsEnabled_Lambda([this]()
