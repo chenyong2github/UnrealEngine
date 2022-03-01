@@ -260,7 +260,7 @@ public:
 	virtual void GetMeshDescription(int32 LODIndex, TArray<FMeshBatch>& OutMeshElements) const {}
 
 	/** Gathers shadow shapes from this proxy. */
-	virtual void GetShadowShapes(TArray<FCapsuleShape3f>& CapsuleShapes) const {}		// LWC_TODO: Precision loss? Forcing float variant of FCapsuleShape3f.
+	virtual void GetShadowShapes(FVector PreViewTranslation, TArray<FCapsuleShape3f>& OutCapsuleShapes) const {}
 
 #if RHI_RAYTRACING
 	// TODO: remove these individual functions in favor of ERayTracingPrimitiveFlags

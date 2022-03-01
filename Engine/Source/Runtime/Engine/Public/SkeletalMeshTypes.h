@@ -173,7 +173,7 @@ public:
 	virtual bool IsUsingDistanceCullFade() const override;
 	
 	virtual bool HasDynamicIndirectShadowCasterRepresentation() const override;
-	virtual void GetShadowShapes(TArray<FCapsuleShape3f>& CapsuleShapes) const override;
+	virtual void GetShadowShapes(FVector PreViewTranslation, TArray<FCapsuleShape3f>& OutCapsuleShapes) const override;
 
 	/** Return the bounds for the pre-skinned primitive in local space */
 	virtual void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const override { OutBounds = PreSkinnedLocalBounds; }

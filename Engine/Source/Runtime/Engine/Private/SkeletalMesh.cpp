@@ -6829,15 +6829,15 @@ bool FSkeletalMeshSceneProxy::HasDynamicIndirectShadowCasterRepresentation() con
 	return CastsDynamicShadow() && CastsDynamicIndirectShadow();
 }
 
-void FSkeletalMeshSceneProxy::GetShadowShapes(TArray<FCapsuleShape3f>& CapsuleShapes) const 
+void FSkeletalMeshSceneProxy::GetShadowShapes(FVector PreViewTranslation, TArray<FCapsuleShape3f>& OutCapsuleShapes) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_GetShadowShapes);
 
 	const TArray<FMatrix44f>& ReferenceToLocalMatrices = MeshObject->GetReferenceToLocalMatrices();
 	const FMatrix& ProxyLocalToWorld = GetLocalToWorld();
 
-	int32 CapsuleIndex = CapsuleShapes.Num();
-	CapsuleShapes.SetNum(CapsuleShapes.Num() + ShadowCapsuleData.Num(), false);
+	int32 CapsuleIndex = OutCapsuleShapes.Num();
+	OutCapsuleShapes.SetNum(OutCapsuleShapes.Num() + ShadowCapsuleData.Num(), false);
 
 	for(const TPair<int32, FCapsuleShape>& CapsuleData : ShadowCapsuleData)
 	{
@@ -6848,9 +6848,9 @@ void FSkeletalMeshSceneProxy::GetShadowShapes(TArray<FCapsuleShape3f>& CapsuleSh
 		}
 		const float MaxScale = ReferenceToWorld.GetScaleVector().GetMax();
 
-		FCapsuleShape3f& NewCapsule = CapsuleShapes[CapsuleIndex++];
+		FCapsuleShape3f& NewCapsule = OutCapsuleShapes[CapsuleIndex++];
 
-		NewCapsule.Center = (FVector4f)ReferenceToWorld.TransformPosition(CapsuleData.Value.Center);
+		NewCapsule.Center = (FVector4f)(ReferenceToWorld.TransformPosition(CapsuleData.Value.Center) + PreViewTranslation);
 		NewCapsule.Radius = CapsuleData.Value.Radius * MaxScale;
 		NewCapsule.Orientation = (FVector4f)ReferenceToWorld.TransformVector(CapsuleData.Value.Orientation).GetSafeNormal();
 		NewCapsule.Length = CapsuleData.Value.Length * MaxScale;

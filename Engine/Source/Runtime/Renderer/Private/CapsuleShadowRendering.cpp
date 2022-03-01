@@ -209,7 +209,7 @@ public:
 		SHADER_PARAMETER(FIntPoint, TileDimensions)
 		SHADER_PARAMETER(FVector2f, NumGroups)
 
-		SHADER_PARAMETER(FVector4f, LightPositionAndInvRadius)
+		SHADER_PARAMETER(FVector4f, LightTranslatedPositionAndInvRadius)
 		SHADER_PARAMETER(FVector3f, LightDirection)
 		SHADER_PARAMETER(float, LightSourceRadius)
 		SHADER_PARAMETER(FVector3f, LightAngleAndNormalThreshold)
@@ -430,9 +430,8 @@ void SetupCapsuleShadowingParameters(
 
 		Parameters.LightDirection = LightParameters.Direction;
 
-		// LWC_TODO
-		FVector4f LightPositionAndInvRadius((FVector3f)LightParameters.WorldPosition, LightParameters.InvRadius);
-		Parameters.LightPositionAndInvRadius = LightPositionAndInvRadius;
+		FVector4f LightTranslatedPositionAndInvRadius((FVector3f)(LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation()), LightParameters.InvRadius);
+		Parameters.LightTranslatedPositionAndInvRadius = LightTranslatedPositionAndInvRadius;
 
 		// Default light source radius of 0 gives poor results
 		Parameters.LightSourceRadius = LightParameters.SourceRadius == 0 ? 20 : FMath::Clamp(LightParameters.SourceRadius, .001f, 1.0f / (4 * LightParameters.InvRadius));
@@ -509,6 +508,8 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		const FViewInfo& View = Views[ViewIndex];
+		const FVector PreViewTranslation = View.ViewMatrices.GetPreViewTranslation();
+
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 		RDG_EVENT_SCOPE(GraphBuilder, "CapsuleShadows");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, CapsuleShadows);
@@ -530,7 +531,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 
 				if (PrimitiveSceneInfo->Proxy->CastsDynamicShadow())
 				{
-					PrimitiveSceneInfo->Proxy->GetShadowShapes(CapsuleShapeData);
+					PrimitiveSceneInfo->Proxy->GetShadowShapes(PreViewTranslation, CapsuleShapeData);
 				}
 			}
 
@@ -749,6 +750,8 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 	int32& NumMeshesWithCapsules, 
 	int32& NumMeshDistanceFieldCasters)
 {
+	const FVector PreViewTranslation = View.ViewMatrices.GetPreViewTranslation();
+
 	IndirectCapsuleShadowsResources Output;
 	Output.IndirectShadowCapsuleShapesSRV = nullptr;
 	Output.IndirectShadowMeshDistanceFieldCasterIndicesSRV = nullptr;
@@ -839,7 +842,7 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 
 				if (GroupPrimitiveSceneInfo->Proxy->CastsDynamicShadow())
 				{
-					GroupPrimitiveSceneInfo->Proxy->GetShadowShapes(CapsuleShapeData);
+					GroupPrimitiveSceneInfo->Proxy->GetShadowShapes(PreViewTranslation, CapsuleShapeData);
 					
 					if (GroupPrimitiveSceneInfo->Proxy->HasDistanceFieldRepresentation())
 					{
