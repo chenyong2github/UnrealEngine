@@ -62,14 +62,39 @@ namespace HordeServer.Services
 		/// <param name="EnableAutoscaling">Whether to enable autoscaling for this pool</param>
 		/// <param name="MinAgents">Minimum number of agents in the pool</param>
 		/// <param name="NumReserveAgents">Minimum number of idle agents to maintain</param>
+		/// <param name="ScaleOutCooldown">Cooldown time between scale-out events</param>
+		/// <param name="ScaleInCooldown">Cooldown time between scale-in events</param>
 		/// <param name="SizeStrategy">Pool sizing strategy</param>
 		/// <param name="LeaseUtilizationSettings">Settings for lease utilization strategy</param>
 		/// <param name="JobQueueSettings">Settings for job queue strategy</param>
 		/// <param name="Properties">Properties for the new pool</param>
 		/// <returns>The new pool document</returns>
-		public Task<IPool> CreatePoolAsync(string Name, Condition? Condition = null, bool? EnableAutoscaling = null, int? MinAgents = null, int? NumReserveAgents = null, PoolSizeStrategy? SizeStrategy = null, LeaseUtilizationSettings? LeaseUtilizationSettings = null, JobQueueSettings? JobQueueSettings = null, Dictionary<string, string>? Properties = null)
+		public Task<IPool> CreatePoolAsync(
+			string Name,
+			Condition? Condition = null,
+			bool? EnableAutoscaling = null,
+			int? MinAgents = null,
+			int? NumReserveAgents = null,
+			TimeSpan? ScaleOutCooldown = null,
+			TimeSpan? ScaleInCooldown = null,
+			PoolSizeStrategy? SizeStrategy = null,
+			LeaseUtilizationSettings? LeaseUtilizationSettings = null,
+			JobQueueSettings? JobQueueSettings = null,
+			Dictionary<string, string>? Properties = null)
 		{
-			return Pools.AddAsync(PoolId.Sanitize(Name), Name, Condition, EnableAutoscaling, MinAgents, NumReserveAgents, SizeStrategy, LeaseUtilizationSettings, JobQueueSettings, Properties);
+			return Pools.AddAsync(
+				PoolId.Sanitize(Name),
+				Name,
+				Condition,
+				EnableAutoscaling,
+				MinAgents,
+				NumReserveAgents,
+				ScaleOutCooldown,
+				ScaleInCooldown,
+				SizeStrategy,
+				LeaseUtilizationSettings,
+				JobQueueSettings,
+				Properties);
 		}
 
 		/// <summary>
@@ -92,13 +117,36 @@ namespace HordeServer.Services
 		/// <param name="NewMinAgents">Minimum number of agents in the pool</param>
 		/// <param name="NewNumReserveAgents">Minimum number of idle agents to maintain</param>
 		/// <param name="NewProperties">Properties on the pool to update. Any properties with a value of null will be removed.</param>
+		/// <param name="ScaleOutCooldown">Cooldown time between scale-out events</param>
+		/// <param name="ScaleInCooldown">Cooldown time between scale-in events</param>
 		/// <param name="SizeStrategy">New pool sizing strategy for the pool</param>
 		/// <returns>Async task object</returns>
-		public async Task<IPool?> UpdatePoolAsync(IPool? Pool, string? NewName = null, Condition? NewCondition = null, bool? NewEnableAutoscaling = null, int? NewMinAgents = null, int? NewNumReserveAgents = null, Dictionary<string, string?>? NewProperties = null, PoolSizeStrategy? SizeStrategy = null)
+		public async Task<IPool?> UpdatePoolAsync(
+			IPool? Pool,
+			string? NewName = null,
+			Condition? NewCondition = null,
+			bool? NewEnableAutoscaling = null,
+			int? NewMinAgents = null,
+			int? NewNumReserveAgents = null,
+			Dictionary<string, string?>? NewProperties = null,
+			TimeSpan? ScaleOutCooldown = null,
+			TimeSpan? ScaleInCooldown = null,
+			PoolSizeStrategy? SizeStrategy = null)
 		{
 			for (; Pool != null; Pool = await Pools.GetAsync(Pool.Id))
 			{
-				IPool? NewPool = await Pools.TryUpdateAsync(Pool, NewName, NewCondition, NewEnableAutoscaling, NewMinAgents, NewNumReserveAgents, NewProperties: NewProperties, SizeStrategy: SizeStrategy);
+				IPool? NewPool = await Pools.TryUpdateAsync(
+					Pool,
+					NewName,
+					NewCondition,
+					NewEnableAutoscaling,
+					NewMinAgents,
+					NewNumReserveAgents,
+					NewProperties: NewProperties,
+					ScaleOutCooldown: ScaleOutCooldown,
+					ScaleInCooldown: ScaleInCooldown,
+					SizeStrategy: SizeStrategy);
+				
 				if (NewPool != null)
 				{
 					return NewPool;

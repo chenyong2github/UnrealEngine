@@ -22,22 +22,15 @@ namespace Horde.Build.Fleet.Autoscale
 	public class JobQueueSettings
 	{
 		/// <summary>
-		/// Minimum number of jobs in queue for scale-out logic to activate
-		///
-		/// Useful to avoid a very small queue size triggering any scaling. 
-		/// </summary>
-		public int MinQueueSizeForScaleOut { get; set; }
-
-		/// <summary>
 		/// Factor translating queue size to additional agents to grow the pool with
-		///
+		/// The result is always rounded up to nearest integer. 
 		/// Example: if there are 20 jobs in queue, a factor 0.25 will result in 5 new agents being added (20 * 0.25)
 		/// </summary>
 		public double ScaleOutFactor { get; set;  } = 0.25;
 		
 		/// <summary>
 		/// Factor by which to shrink the pool size with when queue is empty
-		///
+		/// The result is always rounded up to nearest integer.
 		/// Example: when the queue size is zero, a default value of 0.9 will shrink the pool by 10% (current agent count * 0.9)
 		/// </summary>
 		public double ScaleInFactor { get; set; } = 0.9;
@@ -45,12 +38,10 @@ namespace Horde.Build.Fleet.Autoscale
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="MinQueueSizeForScaleOut"></param>
 		/// <param name="ScaleOutFactor"></param>
 		/// <param name="ScaleInFactor"></param>
-		public JobQueueSettings(int? MinQueueSizeForScaleOut = null, double? ScaleOutFactor = null, double? ScaleInFactor = null)
+		public JobQueueSettings(double? ScaleOutFactor = null, double? ScaleInFactor = null)
 		{
-			this.MinQueueSizeForScaleOut = MinQueueSizeForScaleOut.GetValueOrDefault(this.MinQueueSizeForScaleOut);
 			this.ScaleOutFactor = ScaleOutFactor.GetValueOrDefault(this.ScaleOutFactor);
 			this.ScaleInFactor = ScaleInFactor.GetValueOrDefault(this.ScaleInFactor);
 		}
@@ -168,20 +159,7 @@ namespace Horde.Build.Fleet.Autoscale
 				PoolQueueSizes.TryGetValue(Current.Pool.Id, out var QueueSize);
 				if (QueueSize > 0)
 				{
-					int AdditionalAgentCount = (int)Math.Round(QueueSize * Settings.ScaleOutFactor);
-
-					int NumAgentsEnabled = Current.Agents.Count(x => x.Enabled);
-					if (NumAgentsEnabled == 0)
-					{
-						// Ensure pool can grow even if no agents are online combined with low queue count
-						// A low queue count with default scale out factor will yield an increase below 0.5,
-						// which is rounded down (see above).
-						AdditionalAgentCount = Math.Max(AdditionalAgentCount, 1);	
-					}
-					
-					if (QueueSize < Settings.MinQueueSizeForScaleOut)
-						AdditionalAgentCount = 0;
-
+					int AdditionalAgentCount = (int)Math.Ceiling(QueueSize * Settings.ScaleOutFactor);
 					int DesiredAgentCount = Current.Agents.Count + AdditionalAgentCount;
 					return new PoolSizeData(Current.Pool, Current.Agents, DesiredAgentCount, $"QueueSize={QueueSize}");
 				}

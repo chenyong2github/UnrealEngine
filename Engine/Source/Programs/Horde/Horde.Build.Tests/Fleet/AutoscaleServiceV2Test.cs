@@ -72,11 +72,11 @@ namespace Horde.Build.Tests.Fleet
 		{
 			var Service = GetAutoscaleService(FleetManagerSpy);
 			
-			IPool Pool1 = await PoolService.CreatePoolAsync("bogusPoolLease1", null, true, 0, 0, PoolSizeStrategy.LeaseUtilization);
-			IPool Pool2 = await PoolService.CreatePoolAsync("bogusPoolLease2", null, true, 0, 0, null);
-			IPool Pool3 = await PoolService.CreatePoolAsync("bogusPoolJobQueue1", null, true, 0, 0, PoolSizeStrategy.JobQueue);
-			IPool Pool4 = await PoolService.CreatePoolAsync("bogusPoolJobQueue2", null, true, 0, 0, PoolSizeStrategy.JobQueue);
-			IPool Pool5 = await PoolService.CreatePoolAsync("bogusPoolNoOp", null, true, 0, 0, PoolSizeStrategy.NoOp);
+			IPool Pool1 = await PoolService.CreatePoolAsync("bogusPoolLease1", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.LeaseUtilization);
+			IPool Pool2 = await PoolService.CreatePoolAsync("bogusPoolLease2", null, true, 0, 0, SizeStrategy: null);
+			IPool Pool3 = await PoolService.CreatePoolAsync("bogusPoolJobQueue1", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.JobQueue);
+			IPool Pool4 = await PoolService.CreatePoolAsync("bogusPoolJobQueue2", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.JobQueue);
+			IPool Pool5 = await PoolService.CreatePoolAsync("bogusPoolNoOp", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
 
 			PoolSizeStrategySpy LeaseUtilizationSpy = new();
 			PoolSizeStrategySpy JobQueueSpy = new();
@@ -95,6 +95,48 @@ namespace Horde.Build.Tests.Fleet
 			
 			Assert.AreEqual(1, NoOpSpy.CallCount);
 			Assert.IsTrue(NoOpSpy.PoolIdsSeen.Contains(Pool5.Id));
+		}
+
+		[TestMethod]
+		public async Task ScaleOutCooldown()
+		{
+			AutoscaleServiceV2 Service = GetAutoscaleService(FleetManagerSpy);
+			IPool Pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
+
+			// First scale-out will succeed
+			await Service.ResizePools(new() { new PoolSizeData(Pool, new List<IAgent>(), 1, "Testing") });
+			Assert.AreEqual(1, FleetManagerSpy.ExpandPoolAsyncCallCount);
+			
+			// Cannot scale-out due to cool-down
+			await Service.ResizePools(new() { new PoolSizeData(Pool, new List<IAgent>(), 2, "Testing") });
+			Assert.AreEqual(1, FleetManagerSpy.ExpandPoolAsyncCallCount);
+
+			// Wait some time and then try again
+			await Clock.AdvanceAsync(TimeSpan.FromHours(2));
+			await Service.ResizePools(new() { new PoolSizeData(Pool, new List<IAgent>(), 2, "Testing") });
+			Assert.AreEqual(2, FleetManagerSpy.ExpandPoolAsyncCallCount);
+		}
+		
+		[TestMethod]
+		public async Task ScaleInCooldown()
+		{
+			AutoscaleServiceV2 Service = GetAutoscaleService(FleetManagerSpy);
+			IPool Pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, SizeStrategy: PoolSizeStrategy.NoOp);
+			IAgent Agent1 = await CreateAgentAsync(Pool);
+			IAgent Agent2 = await CreateAgentAsync(Pool);
+
+			// First scale-out will succeed
+			await Service.ResizePools(new() { new PoolSizeData(Pool, new () { Agent1, Agent2 }, 1, "Testing") });
+			Assert.AreEqual(1, FleetManagerSpy.ShrinkPoolAsyncCallCount);
+			
+			// Cannot scale-out due to cool-down
+			await Service.ResizePools(new() { new PoolSizeData(Pool, new () { Agent1 }, 0, "Testing") });
+			Assert.AreEqual(1, FleetManagerSpy.ShrinkPoolAsyncCallCount);
+
+			// Wait some time and then try again
+			await Clock.AdvanceAsync(TimeSpan.FromHours(2));
+			await Service.ResizePools(new() { new PoolSizeData(Pool, new () { Agent1 }, 0, "Testing") });
+			Assert.AreEqual(2, FleetManagerSpy.ShrinkPoolAsyncCallCount);
 		}
 
 		private async Task<List<PoolSizeData>> GetPoolSizeData()

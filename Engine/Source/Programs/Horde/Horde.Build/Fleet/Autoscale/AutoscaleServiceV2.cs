@@ -28,7 +28,8 @@ namespace Horde.Build.Fleet.Autoscale
 	/// </summary>
 	public sealed class AutoscaleServiceV2 : IHostedService, IDisposable
 	{
-		static readonly TimeSpan ShrinkPoolCoolDown = TimeSpan.FromMinutes(20.0);
+		static readonly TimeSpan DefaultScaleOutCooldown = TimeSpan.FromMinutes(5);
+		static readonly TimeSpan DefaultScaleInCooldown = TimeSpan.FromMinutes(20);
 
 		IPoolSizeStrategy LeaseUtilizationStrategy;
 		IPoolSizeStrategy JobQueueStrategy;
@@ -121,7 +122,7 @@ namespace Horde.Build.Fleet.Autoscale
 				
 				try
 				{
-					using IScope Scope = GlobalTracer.Instance.BuildSpan("Scaling pool").StartActive();
+					using IScope Scope = GlobalTracer.Instance.BuildSpan("ScalingPool").StartActive();
 					Scope.Span.SetTag("poolName", Pool.Name);
 					Scope.Span.SetTag("current", CurrentAgentCount);
 					Scope.Span.SetTag("desired", DesiredAgentCount);
@@ -129,21 +130,35 @@ namespace Horde.Build.Fleet.Autoscale
 
 					if (DeltaAgentCount > 0)
 					{
-						await FleetManager.ExpandPoolAsync(Pool, PoolSizeData.Agents, DeltaAgentCount);
-						await PoolCollection.TryUpdateAsync(Pool, LastScaleUpTime: DateTime.UtcNow);
+						TimeSpan ScaleOutCooldown = Pool.ScaleOutCooldown ?? DefaultScaleOutCooldown;
+						bool IsCoolingDown = Pool.LastScaleUpTime != null && Pool.LastScaleUpTime + ScaleOutCooldown > Clock.UtcNow;
+						Scope.Span.SetTag("isCoolingDown", IsCoolingDown);
+						if (!IsCoolingDown)
+						{
+							await FleetManager.ExpandPoolAsync(Pool, PoolSizeData.Agents, DeltaAgentCount);
+							await PoolCollection.TryUpdateAsync(Pool, LastScaleUpTime: Clock.UtcNow);
+						}
+						else
+						{
+							TimeSpan? CooldownTimeLeft = Pool.LastScaleUpTime + DefaultScaleOutCooldown - Clock.UtcNow;
+							Logger.LogDebug("Cannot scale out {PoolName}, it's cooling down for another {TimeLeft} secs", Pool.Name, CooldownTimeLeft?.TotalSeconds);
+						}
 					}
 
 					if (DeltaAgentCount < 0)
 					{
-						bool bShrinkIsOnCoolDown = Pool.LastScaleDownTime != null && Pool.LastScaleDownTime + ShrinkPoolCoolDown > DateTime.UtcNow;
-						if (!bShrinkIsOnCoolDown)
+						TimeSpan ScaleInCooldown = Pool.ScaleInCooldown ?? DefaultScaleInCooldown;
+						bool IsCoolingDown = Pool.LastScaleDownTime != null && Pool.LastScaleDownTime + ScaleInCooldown > Clock.UtcNow;
+						Scope.Span.SetTag("isCoolingDown", IsCoolingDown);
+						if (!IsCoolingDown)
 						{
 							await FleetManager.ShrinkPoolAsync(Pool, PoolSizeData.Agents, -DeltaAgentCount);
-							await PoolCollection.TryUpdateAsync(Pool, LastScaleDownTime: DateTime.UtcNow);
+							await PoolCollection.TryUpdateAsync(Pool, LastScaleDownTime: Clock.UtcNow);
 						}
 						else
 						{
-							Logger.LogDebug("Cannot shrink {PoolName} right now, it's on cool-down until {CoolDownTimeEnds}", Pool.Name, Pool.LastScaleDownTime + ShrinkPoolCoolDown);
+							TimeSpan? CooldownTimeLeft = Pool.LastScaleDownTime + DefaultScaleInCooldown - Clock.UtcNow;
+							Logger.LogDebug("Cannot scale in {PoolName}, it's cooling down for another {TimeLeft} secs", Pool.Name, CooldownTimeLeft?.TotalSeconds);
 						}
 					}
 				}

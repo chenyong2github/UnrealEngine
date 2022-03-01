@@ -41,6 +41,8 @@ namespace HordeServer.Collections.Impl
 			public int? NumReserveAgents { get; set; }
 			public DateTime? LastScaleUpTime { get; set; }
 			public DateTime? LastScaleDownTime { get; set; }
+			public TimeSpan? ScaleOutCooldown { get; set; }
+			public TimeSpan? ScaleInCooldown { get; set; }
 			public PoolSizeStrategy? SizeStrategy { get; set; }
 			public LeaseUtilizationSettings? LeaseUtilizationSettings { get; set; }
 			public JobQueueSettings? JobQueueSettings { get; set; }
@@ -67,6 +69,8 @@ namespace HordeServer.Collections.Impl
 				NumReserveAgents = Other.NumReserveAgents;
 				LastScaleUpTime = Other.LastScaleUpTime;
 				LastScaleDownTime = Other.LastScaleDownTime;
+				ScaleOutCooldown = Other.ScaleOutCooldown;
+				ScaleInCooldown = Other.ScaleInCooldown;
 				SizeStrategy = Other.SizeStrategy;
 				LeaseUtilizationSettings = Other.LeaseUtilizationSettings;
 				JobQueueSettings = Other.JobQueueSettings;
@@ -89,7 +93,19 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IPool> AddAsync(PoolId Id, string Name, Condition? Condition, bool? EnableAutoscaling, int? MinAgents, int? NumReserveAgents, PoolSizeStrategy? SizeStrategy, LeaseUtilizationSettings? LeaseUtilizationSettings, JobQueueSettings? JobQueueSettings, IEnumerable<KeyValuePair<string, string>>? Properties)
+		public async Task<IPool> AddAsync(
+			PoolId Id,
+			string Name,
+			Condition? Condition,
+			bool? EnableAutoscaling,
+			int? MinAgents,
+			int? NumReserveAgents,
+			TimeSpan? ScaleOutCooldown,
+			TimeSpan? ScaleInCooldown,
+			PoolSizeStrategy? SizeStrategy,
+			LeaseUtilizationSettings? LeaseUtilizationSettings,
+			JobQueueSettings? JobQueueSettings,
+			IEnumerable<KeyValuePair<string, string>>? Properties)
 		{
 			PoolDocument Pool = new PoolDocument();
 			Pool.Id = Id;
@@ -106,6 +122,8 @@ namespace HordeServer.Collections.Impl
 				Pool.Properties = new Dictionary<string, string>(Properties);
 			}
 
+			Pool.ScaleOutCooldown = ScaleOutCooldown;
+			Pool.ScaleInCooldown = ScaleInCooldown;
 			Pool.SizeStrategy = SizeStrategy;
 			Pool.LeaseUtilizationSettings = LeaseUtilizationSettings;
 			Pool.JobQueueSettings = JobQueueSettings;
@@ -183,7 +201,23 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<IPool?> TryUpdateAsync(IPool Pool, string? NewName, Condition? NewCondition, bool? NewEnableAutoscaling, int? NewMinAgents, int? NewNumReserveAgents, List<AgentWorkspace>? NewWorkspaces, bool? NewUseAutoSdk, Dictionary<string, string?>? NewProperties, DateTime? LastScaleUpTime, DateTime? LastScaleDownTime, PoolSizeStrategy? SizeStrategy, LeaseUtilizationSettings? LeaseUtilizationSettings, JobQueueSettings? JobQueueSettings)
+		public Task<IPool?> TryUpdateAsync(
+			IPool Pool,
+			string? NewName,
+			Condition? NewCondition,
+			bool? NewEnableAutoscaling,
+			int? NewMinAgents,
+			int? NewNumReserveAgents,
+			List<AgentWorkspace>? NewWorkspaces,
+			bool? NewUseAutoSdk,
+			Dictionary<string, string?>? NewProperties,
+			DateTime? LastScaleUpTime,
+			DateTime? LastScaleDownTime,
+			TimeSpan? ScaleOutCooldown,
+			TimeSpan? ScaleInCooldown, 
+			PoolSizeStrategy? SizeStrategy,
+			LeaseUtilizationSettings? LeaseUtilizationSettings,
+			JobQueueSettings? JobQueueSettings)
 		{
 			TransactionBuilder<PoolDocument> Transaction = new TransactionBuilder<PoolDocument>();
 			if (NewName != null)
@@ -253,6 +287,14 @@ namespace HordeServer.Collections.Impl
 			if (LastScaleDownTime != null)
 			{
 				Transaction.Set(x => x.LastScaleDownTime, LastScaleDownTime);
+			}
+			if (ScaleOutCooldown != null)
+			{
+				Transaction.Set(x => x.ScaleOutCooldown, ScaleOutCooldown);
+			}
+			if (ScaleInCooldown != null)
+			{
+				Transaction.Set(x => x.ScaleInCooldown, ScaleInCooldown);
 			}
 			if (SizeStrategy != null)
 			{

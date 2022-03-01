@@ -63,7 +63,9 @@ namespace HordeServer.Controllers
 			Horde.Build.Fleet.Autoscale.LeaseUtilizationSettings? LuSettings = Create.LeaseUtilizationSettings?.Convert();
 			Horde.Build.Fleet.Autoscale.JobQueueSettings? JqSettings = Create.JobQueueSettings?.Convert();
 
-			IPool NewPool = await PoolService.CreatePoolAsync(Create.Name, Create.Condition, Create.EnableAutoscaling, Create.MinAgents, Create.NumReserveAgents, Create.SizeStrategy, LuSettings, JqSettings, Create.Properties);
+			IPool NewPool = await PoolService.CreatePoolAsync(
+				Create.Name, Create.Condition, Create.EnableAutoscaling, Create.MinAgents, Create.NumReserveAgents,
+				Create.ScaleOutCooldown, Create.ScaleInCooldown, Create.SizeStrategy, LuSettings, JqSettings, Create.Properties);
 			return new CreatePoolResponse(NewPool.Id.ToString());
 		}
 
@@ -142,7 +144,8 @@ namespace HordeServer.Controllers
 				return NotFound(PoolIdValue);
 			}
 
-			await PoolService.UpdatePoolAsync(Pool, Update.Name, Update.Condition, Update.EnableAutoscaling, Update.MinAgents, Update.NumReserveAgents, Update.Properties, Update.SizeStrategy);
+			await PoolService.UpdatePoolAsync(Pool, Update.Name, Update.Condition, Update.EnableAutoscaling,
+				Update.MinAgents, Update.NumReserveAgents, Update.Properties, Update.ScaleOutCooldown, Update.ScaleInCooldown, Update.SizeStrategy);
 			return new OkResult();
 		}
 

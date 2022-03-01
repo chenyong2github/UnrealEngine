@@ -71,6 +71,16 @@ namespace HordeServer.Models
 		public DateTime? LastScaleDownTime { get; }
 		
 		/// <summary>
+		/// Cooldown time between scale-out events
+		/// </summary>
+		public TimeSpan? ScaleOutCooldown { get; }
+		
+		/// <summary>
+		/// Cooldown time between scale-in events
+		/// </summary>
+		public TimeSpan? ScaleInCooldown { get; }
+		
+		/// <summary>
 		/// Pool sizing strategy to be used for this pool
 		/// </summary>
 		public PoolSizeStrategy? SizeStrategy { get; }
