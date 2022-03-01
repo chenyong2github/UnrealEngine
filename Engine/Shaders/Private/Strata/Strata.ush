@@ -713,32 +713,34 @@ struct FStrataOperator
 {
 	// STRATA_TODO: pack in a single uint
 	uint ParentIndex;
-	uint MaxDistanceFromLeaves;			// The largest depth distance from any tree leaf representing a BSDF
-	uint Type;							// The type of operator
+	uint MaxDistanceFromLeaves;							// The largest depth distance from any tree leaf representing a BSDF
+	uint Type;											// The type of operator
 	int	LeftIndex;
 	int RightIndex;
 	float Weight;
 
 	// Coverage / Transmittance
 
-	float  Coverage;					// The summarised coverage of all the matter (from the sub tree) represented by that operator
-	float3 Transmittance;				// This is the transmittance of the matter itself. If coverage is 0.25, then 25% of the light will be affected by the transmittance and 75% of light won't be.
+	float  Coverage;									// The summarised coverage of all the matter (from the sub tree) represented by that operator
+	float3 Transmittance;								// This is the transmittance of the matter itself. If coverage is 0.25, then 25% of the light will be affected by the transmittance and 75% of light won't be.
 
-	float VerticalTopCoverage;			// Only used by vertical layering operators. It represent the coverage of all the matter of the top layer (from the left sub tree).
-	float3 VerticalTopTransmittance;	// Only used by vertical layering operators. It represent the transmittance of matter of the top layer (from the left sub tree).
+	float VerticalTop_Coverage;							// Only used by vertical layering operators. It represent the coverage of all the matter of the top layer (from the left sub tree).
+	float3 VerticalTop_Transmittance;					// Only used by vertical layering operators. It represent the transmittance of matter of the top layer (from the left sub tree).
 
 	// Rough refraction
-	float3				 RefractionWorldNormal;			// The normal used for the single refracted direction
-	FStrataLobeStatistic RefractionLobeStat;			// The lobe used for the scene rough refraction
+	float3				 TopDownRefractionWorldNormal;	// The normal used for the single refracted direction
+	FStrataLobeStatistic TopDownRefractionLobeStat;		// The lobe used for the scene rough refraction from front to back, e.g. used for translucent rough refraciton
+	FStrataLobeStatistic BottomUpRefractionLobeStat;	// The lobe used for the scene rough refraction from back to front, e.g. used for opaque rough refraction of incoming light within sub layers
 
 	// Thickness
 	float				 ThicknessCm;					// The thickness of the layer
-	float				 VerticalTopThicknessCm;		// Only used by vertical layering operators. It represent the thickness that is used to drive the roughness propagation from top layers to sub layers.
+	float				 VerticalTop_ThicknessCm;		// Only used by vertical layering operators. It represent the thickness that is used to drive the roughness propagation from top layers to sub layers.
 
 	// Topology information
 	bool				 bIsTop;
 
-	FStrataLobeStatistic VerticalTopRefractionLobeStat;	// Only used by vertical layering operators. It represent the lobe statistics of the top layer at its interface.
+	FStrataLobeStatistic VerticalTop_TopDownRefractionLobeStat;	// Only used by vertical layering operators. It represent the lobe statistics of the top layer at its interface.
+	FStrataLobeStatistic VerticalTop_BottomUpRefractionLobeStat;
 };
 
 FStrataOperator GetInitialisedStrataOperator()
