@@ -66,6 +66,36 @@ uint3 FetchHWRasterizerBin(const uint ClusterIndex)
 
 #endif
 
+#if IS_NANITE_RASTER_PASS
+
+ViewState ResolveView(FNaniteView NaniteView)
+{
+	ViewState Ret = ResolveView();
+	Ret.SVPositionToTranslatedWorld	= NaniteView.SVPositionToTranslatedWorld;
+	Ret.ViewToTranslatedWorld 		= NaniteView.ViewToTranslatedWorld;
+	Ret.TranslatedWorldToView 		= NaniteView.TranslatedWorldToView;
+	Ret.TranslatedWorldToClip 		= NaniteView.TranslatedWorldToClip;
+	Ret.ViewToClip 					= NaniteView.ViewToClip;
+	Ret.ClipToWorld 				= NaniteView.ClipToWorld;	
+	Ret.PrevTranslatedWorldToView 	= NaniteView.PrevTranslatedWorldToView;
+	Ret.PrevTranslatedWorldToClip 	= NaniteView.PrevTranslatedWorldToClip;
+	Ret.PrevViewToClip 				= NaniteView.PrevViewToClip;
+	Ret.PrevClipToWorld 			= NaniteView.PrevClipToWorld;
+	Ret.ViewRectMin					= NaniteView.ViewRect;
+	Ret.ViewSizeAndInvSize 			= NaniteView.ViewSizeAndInvSize;
+	Ret.PreViewTranslation 			= NaniteView.PreViewTranslation;
+	Ret.PrevPreViewTranslation 		= NaniteView.PrevPreViewTranslation;
+	Ret.WorldCameraOrigin 			= NaniteView.WorldCameraOrigin;
+	Ret.ViewForward 				= NaniteView.ViewForward;
+	Ret.ViewTilePosition 			= NaniteView.ViewTilePosition;
+	Ret.MatrixTilePosition 			= NaniteView.MatrixTilePosition;
+	Ret.NearPlane 					= NaniteView.NearPlane;
+
+	return Ret;
+}
+
+#endif
+
 #if VISUALIZE
 uint VisualizeModeBitMask;
 
@@ -189,7 +219,7 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3] )
 	Tri.Edge12 = Vert1 - Vert2;
 	Tri.Edge20 = v02.xy;
 
-	if (bIsTwoSided)
+	if (bIsTwoSided && DetXY >= 0.0f)
 	{
 		// Swap winding order to support two sided materials
 		Tri.Edge01 *= -1.0f;
@@ -1166,6 +1196,8 @@ VSOut HWRasterizeVS(
 		BRANCH
 		if (bValidTriangle)
 		{
+			ResolvedView = ResolveView(NaniteView);
+
 			FVertexFactoryInput Input = (FVertexFactoryInput)0;
 			FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
 			float4 WorldPositionExcludingWPO = (float4)0;// VertexFactoryGetWorldPosition(Input, VFIntermediates);
@@ -1205,8 +1237,6 @@ void HWRasterizePS(VSOut In, PrimitiveAttributes Primitive)
 void HWRasterizePS(VSOut In)
 #endif
 {
-	// TODO: PROG_RASTER (Resolve view and patch multi-view)
-
 #if NANITE_MESH_SHADER_INTERP == 1
 	float3 InterpPos = In.InterpPosition.xyz / In.InterpPosition.www;
 	InterpPos.xy = (InterpPos.xy * float2(0.5f, -0.5f)) + 0.5f;
@@ -1266,7 +1296,10 @@ void HWRasterizePS(VSOut In)
 		float MaterialMask = 1.0f; // TODO: PROG_RASTER
 		float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
-	#if IS_NANITE_RASTER_PASS && MATERIALBLENDING_MASKED
+	#if IS_NANITE_RASTER_PASS
+		ResolvedView = ResolveView(NaniteView);
+
+	#if MATERIALBLENDING_MASKED
 		const uint DepthInt = asuint(DeviceZ);
 		const UlongType PackedPixel = PackUlongType(uint2(PixelValue, DepthInt));
 
@@ -1281,7 +1314,8 @@ void HWRasterizePS(VSOut In)
 		// TODO: PROG_RASTER
 
 		MaterialMask = GetMaterialMask(PixelMaterialInputs);
-	#endif
+	#endif // MATERIALBLENDING_MASKED
+	#endif // IS_NANITE_RASTER_PASS
 
 		DeviceZ += MaterialDepthOffset;
 
