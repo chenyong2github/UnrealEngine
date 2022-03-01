@@ -278,6 +278,13 @@ void FGenericPlatformProcess::TerminateProc( FProcHandle & ProcessHandle, bool K
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::TerminateProc not implemented on this platform"));
 }
 
+void FGenericPlatformProcess::TerminateProcTreeWithPredicate(
+	FProcHandle& ProcessHandle,
+	TFunctionRef<bool(uint32 ProcessId, const TCHAR* ApplicationName)> Predicate)
+{
+	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::TerminateProcTreeWithPredicate not implemented on this platform"));
+}
+
 FGenericPlatformProcess::EWaitAndForkResult FGenericPlatformProcess::WaitAndFork()
 {
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::WaitAndFork not implemented on this platform"));

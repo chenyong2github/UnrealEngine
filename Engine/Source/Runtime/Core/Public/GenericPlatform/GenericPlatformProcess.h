@@ -468,6 +468,16 @@ struct CORE_API FGenericPlatformProcess
 	 */
 	static void TerminateProc( FProcHandle & ProcessHandle, bool KillTree = false );
 
+	/** Terminates a process tree
+	 *
+	 * @param ProcessHandle handle returned from FPlatformProcess::CreateProc
+	 * @param Predicate that returns true if the process identified by ProcessId and ApplicationName
+	 *        should be terminated with its children, else that process and its children will be kept alive
+	 */
+	static void TerminateProcTreeWithPredicate(
+			FProcHandle& ProcessHandle,
+			TFunctionRef<bool(uint32 ProcessId, const TCHAR* ApplicationName)> Predicate);
+
 	enum class EWaitAndForkResult : uint8
 	{
 		Error,

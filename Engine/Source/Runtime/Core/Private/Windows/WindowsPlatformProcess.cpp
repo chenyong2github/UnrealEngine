@@ -439,35 +439,45 @@ void FWindowsPlatformProcess::CloseProc(FProcHandle & ProcessHandle)
 
 void FWindowsPlatformProcess::TerminateProc( FProcHandle & ProcessHandle, bool KillTree )
 {
-	if (KillTree)
+	TerminateProcTreeWithPredicate(ProcessHandle, [](uint32 ProcessId, const TCHAR* ApplicationName) { return true; });
+}
+
+void FWindowsPlatformProcess::TerminateProcTreeWithPredicate(
+	FProcHandle& ProcessHandle,
+	TFunctionRef<bool(uint32 ProcessId, const TCHAR* ApplicationName)> Predicate)
+{
+	::DWORD ProcessId = ::GetProcessId(ProcessHandle.Get());
+	FString ProcessName = FPlatformProcess::GetApplicationName(ProcessId);
+
+	if (!Predicate(ProcessId, *ProcessName))
 	{
-		HANDLE SnapShot = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		return;
+	}
 
-		if (SnapShot != INVALID_HANDLE_VALUE)
+	HANDLE SnapShot = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+	if (SnapShot != INVALID_HANDLE_VALUE)
+	{
+
+		PROCESSENTRY32 Entry;
+		Entry.dwSize = sizeof(PROCESSENTRY32);
+
+		if (::Process32First(SnapShot, &Entry))
 		{
-			::DWORD ProcessId = ::GetProcessId(ProcessHandle.Get());
-
-			PROCESSENTRY32 Entry;
-			Entry.dwSize = sizeof(PROCESSENTRY32);
-
-			if (::Process32First(SnapShot, &Entry))
+			do
 			{
-				do
+				if (Entry.th32ParentProcessID == ProcessId)
 				{
-					if (Entry.th32ParentProcessID == ProcessId)
-					{
-						HANDLE ChildProcHandle = ::OpenProcess(PROCESS_ALL_ACCESS, 0, Entry.th32ProcessID);
+					HANDLE ChildProcHandle = ::OpenProcess(PROCESS_ALL_ACCESS, 0, Entry.th32ProcessID);
 
-						if (ChildProcHandle)
-						{
-							FProcHandle ChildHandle(ChildProcHandle);
-							TerminateProc(ChildHandle, KillTree);
-//							::TerminateProcess(ChildProcHandle, 1);
-						}
+					if (ChildProcHandle)
+					{
+						FProcHandle ChildHandle(ChildProcHandle);
+						TerminateProcTreeWithPredicate(ChildHandle, Predicate);
 					}
 				}
-				while(::Process32Next(SnapShot, &Entry));
 			}
+			while(::Process32Next(SnapShot, &Entry));
 		}
 	}
 
