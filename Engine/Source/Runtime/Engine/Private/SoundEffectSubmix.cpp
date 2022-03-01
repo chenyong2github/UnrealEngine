@@ -15,8 +15,8 @@ void FSoundEffectSubmix::ProcessAudio(FSoundEffectSubmixInputData& InData, FSoun
 
 	Update();
 
-	// Only process the effect if the effect is active
-	if (bIsActive)
+	// Only process the effect if the effect is active and the preset is valid
+	if (bIsActive && Preset.IsValid())
 	{
 		OnProcessAudio(InData, OutData);
 	}
