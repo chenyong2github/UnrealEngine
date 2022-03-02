@@ -97,6 +97,10 @@ public:
 	FMassArchetypeSubChunks(const FMassArchetypeHandle& InArchetype, TConstArrayView<FMassEntityHandle> InEntities, EDuplicatesHandling DuplicatesHandling);
 	explicit FMassArchetypeSubChunks(FMassArchetypeHandle& InArchetypeHandle);
 	explicit FMassArchetypeSubChunks(TSharedPtr<FMassArchetypeData>& InArchetype);
+	FMassArchetypeSubChunks(FMassArchetypeHandle& InArchetypeHandle, FSubChunkArray&& InSubChunks)
+		: SubChunks(MoveTemp(InSubChunks))
+		, Archetype(InArchetypeHandle)
+	{}
 
 	FConstSubChunkArrayView GetChunks() const { return SubChunks; }
 	const FMassArchetypeHandle& GetArchetype() const { return Archetype; }

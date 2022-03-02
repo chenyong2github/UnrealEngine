@@ -139,6 +139,10 @@ struct FMassArchetypeCompositionDescriptor
 		, SharedFragments(MoveTemp(InSharedFragments))
 	{}
 
+	FMassArchetypeCompositionDescriptor(FMassTagBitSet&& InTags)
+		: Tags(MoveTemp(InTags))
+	{}
+
 	void Reset()
 	{
 		Fragments.Reset();

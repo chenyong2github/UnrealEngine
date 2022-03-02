@@ -43,9 +43,12 @@ void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstAr
 
 	for (const FMassEntityHandle& Entity : Entities)
 	{
-		FMassArchetypeHandle Archetype = EntitySystem.GetArchetypeForEntity(Entity);
-		TArray<FMassEntityHandle>& PerArchetypeEntities = ArchetypeToEntities.FindOrAdd(Archetype);
-		PerArchetypeEntities.Add(Entity);
+		if (EntitySystem.IsEntityValid(Entity))
+		{
+			FMassArchetypeHandle Archetype = EntitySystem.GetArchetypeForEntityUnsafe(Entity);
+			TArray<FMassEntityHandle>& PerArchetypeEntities = ArchetypeToEntities.FindOrAdd(Archetype);
+			PerArchetypeEntities.Add(Entity);
+		}
 	}
 
 	for (auto& Pair : ArchetypeToEntities)

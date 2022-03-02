@@ -113,6 +113,11 @@ public:
 		}
 	}
 
+	bool IsValidSubChunk(const int32 StartIndex, const int32 Length) const
+	{
+		return StartIndex >= 0 && StartIndex < NumInstances && (StartIndex + Length) <= NumInstances;
+	}
+
 #if WITH_MASSENTITY_DEBUG
 	int32 DebugGetChunkFragmentCount() const { return ChunkFragmentData.Num(); }
 #endif // WITH_MASSENTITY_DEBUG
@@ -190,7 +195,6 @@ public:
 
 	void AddEntity(FMassEntityHandle Entity);
 	void RemoveEntity(FMassEntityHandle Entity);
-	void BatchDestroyEntityChunks(FMassArchetypeSubChunks::FConstSubChunkArrayView SubChunkContainer, TArray<FMassEntityHandle>& OutEntitiesRemoved);
 
 	bool HasFragmentDataForEntity(const UScriptStruct* FragmentType, int32 EntityIndex) const;
 	void* GetFragmentDataForEntityChecked(const UScriptStruct* FragmentType, int32 EntityIndex) const;
@@ -292,7 +296,24 @@ public:
 
 	bool IsInitialized() const { return TotalBytesPerEntity > 0 && FragmentConfigs.IsEmpty() == false; }
 
+	//////////////////////////////////////////////////////////////////////
+	// batched api
+	void BatchDestroyEntityChunks(FMassArchetypeSubChunks::FConstSubChunkArrayView SubChunkContainer, TArray<FMassEntityHandle>& OutEntitiesRemoved);
+	void BatchAddEntities(TConstArrayView<FMassEntityHandle> Entities, TArray<FMassArchetypeSubChunks::FSubChunkInfo>& OutNewChunks);
+	void BatchMoveEntitiesToAnotherArchetype(const FMassArchetypeSubChunks& ChunkCollection, FMassArchetypeData& NewArchetype, TArray<FMassEntityHandle>& OutEntitesBeingMoved, TArray<FMassArchetypeSubChunks::FSubChunkInfo>* OutNewChunks = nullptr);
+
 protected:
+	FMassArchetypeSubChunks::FSubChunkInfo PrepareNextEntitiesSpanInternal(TConstArrayView<FMassEntityHandle> Entities, const int32 StartingChunk = 0);
+	void BatchRemoveEntitiesInternal(const int32 ChunkIndex, const int32 StartIndexWithinChunk, const int32 NumberToRemove);
+
+	struct FTransientChunkLocation
+	{
+		uint8* RawChunkMemory;
+		int32 IndexWithinChunk;
+	};
+	void MoveFragmentsToAnotherArchetypeInternal(FMassArchetypeData& TargetArchetype, FTransientChunkLocation Target, const FTransientChunkLocation Source, const int32 ElementsNum);
+	void MoveFragmentsToNewLocationInternal(FTransientChunkLocation Target, const FTransientChunkLocation Source, const int32 NumberToMove);
+
 	FORCEINLINE void* GetFragmentData(const int32 FragmentIndex, uint8* ChunkRawMemory, const int32 IndexWithinChunk) const
 	{
 		return FragmentConfigs[FragmentIndex].GetFragmentData(ChunkRawMemory, IndexWithinChunk);

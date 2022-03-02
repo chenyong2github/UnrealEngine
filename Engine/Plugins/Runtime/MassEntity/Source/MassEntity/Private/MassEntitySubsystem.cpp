@@ -15,6 +15,30 @@ const FMassEntityHandle UMassEntitySubsystem::InvalidEntity;
 //@TODO: Do we allow GCable types?  If so, need to implement AddReferencedObjects
 //@TODO: Do a UObject stat scope around the system Run call
 
+namespace UE::Mass::Private
+{
+	// note: this function doesn't set EntityHandle.SerialNumber
+	void ConvertArchetypelessSubchunksIntoEntityHandles(FMassArchetypeSubChunks::FConstSubChunkArrayView Subchunks, TArray<FMassEntityHandle>& OutEntityHandles)
+	{
+		int32 TotalCount = 0;
+		for (const FMassArchetypeSubChunks::FSubChunkInfo& Subchunk : Subchunks)
+		{
+			TotalCount += Subchunk.Length;
+		}
+
+		int32 Index = OutEntityHandles.Num();
+		OutEntityHandles.AddDefaulted(TotalCount);
+
+		for (const FMassArchetypeSubChunks::FSubChunkInfo& Subchunk : Subchunks)
+		{
+			for (int i = Subchunk.SubchunkStart; i < Subchunk.SubchunkStart + Subchunk.Length; ++i)
+			{
+				OutEntityHandles[Index++].Index = i;
+			}
+		}
+	}
+}
+
 //////////////////////////////////////////////////////////////////////
 // UMassEntitySubsystem
 
@@ -151,7 +175,7 @@ FMassArchetypeHandle UMassEntitySubsystem::CreateArchetype(const FMassArchetypeC
 		NewArchetype->Initialize(Composition, SharedFragmentValues);
 		HashRow.Add(NewArchetype);
 
-		for (const FMassArchetypeFragmentConfig & FragmentConfig : NewArchetype->GetFragmentConfigs())
+		for (const FMassArchetypeFragmentConfig& FragmentConfig : NewArchetype->GetFragmentConfigs())
 		{
 			checkSlow(FragmentConfig.FragmentType)
 			FragmentTypeToArchetypeMap.FindOrAdd(FragmentConfig.FragmentType).Add(NewArchetype);
@@ -213,6 +237,12 @@ FMassArchetypeHandle UMassEntitySubsystem::GetArchetypeForEntity(FMassEntityHand
 		Result.DataPtr = Entities[Entity.Index].CurrentArchetype;
 	}
 	return Result;
+}
+
+FMassArchetypeHandle UMassEntitySubsystem::GetArchetypeForEntityUnsafe(FMassEntityHandle Entity) const
+{
+	check(Entities.IsValidIndex(Entity.Index));
+	return FMassArchetypeHandle(Entities[Entity.Index].CurrentArchetype);
 }
 
 void UMassEntitySubsystem::ForEachArchetypeFragmentType(const FMassArchetypeHandle Archetype, TFunction< void(const UScriptStruct* /*FragmentType*/)> Function)
@@ -416,23 +446,35 @@ void UMassEntitySubsystem::BatchDestroyEntityChunks(const FMassArchetypeSubChunk
 
 	checkf(IsProcessing() == false, TEXT("Synchronous API function %s called during mass processing. Use asynchronous API instead."), ANSI_TO_TCHAR(__FUNCTION__));
 
-	FMassProcessingContext ProcessingContext(*this, /*TimeDelta=*/0.0f);
-	ProcessingContext.bFlushCommandBuffer = false;
-	ProcessingContext.CommandBuffer = MakeShareable(new FMassCommandBuffer());
-	ObserverManager.OnPreEntitiesDestroyed(ProcessingContext, Chunks);
-
-	check(Chunks.GetArchetype().IsValid());
 	TArray<FMassEntityHandle> EntitiesRemoved;
-	Chunks.GetArchetype().DataPtr->BatchDestroyEntityChunks(Chunks.GetChunks(), EntitiesRemoved);
-	
-	EntityFreeIndexList.Reserve(EntityFreeIndexList.Num() + EntitiesRemoved.Num());
+	// note that it's important to place the context instance in the same scope as the loop below that updates 
+	// UMassEntitySubsystem.EntityData, otherwise, if there are commands flushed as part of FMassProcessingContext's 
+	// destruction the commands will work on outdated information (which might result in crashes).
+	FMassProcessingContext ProcessingContext(*this, /*TimeDelta=*/0.0f);
+
+	bool bValidArchetype = Chunks.GetArchetype().IsValid();
+	if (bValidArchetype)
+	{
+		ProcessingContext.bFlushCommandBuffer = false;
+		ProcessingContext.CommandBuffer = MakeShareable(new FMassCommandBuffer());
+		ObserverManager.OnPreEntitiesDestroyed(ProcessingContext, Chunks);
+
+		check(Chunks.GetArchetype().IsValid());		
+		Chunks.GetArchetype().DataPtr->BatchDestroyEntityChunks(Chunks.GetChunks(), EntitiesRemoved);
+
+		EntityFreeIndexList.Reserve(EntityFreeIndexList.Num() + EntitiesRemoved.Num());
+	}
+	else
+	{
+		UE::Mass::Private::ConvertArchetypelessSubchunksIntoEntityHandles(Chunks.GetChunks(), EntitiesRemoved);
+	}
 
 	for (const FMassEntityHandle& Entity : EntitiesRemoved)
 	{
 		check(Entities.IsValidIndex(Entity.Index));
 
 		FEntityData& EntityData = Entities[Entity.Index];
-		if (EntityData.SerialNumber == Entity.SerialNumber)
+		if (!bValidArchetype || EntityData.SerialNumber == Entity.SerialNumber)
 		{
 			EntityData.Reset();
 			EntityFreeIndexList.Add(Entity.Index);
@@ -703,6 +745,53 @@ void UMassEntitySubsystem::RemoveTagFromEntity(FMassEntityHandle Entity, const U
 	}
 }
 
+void UMassEntitySubsystem::BatchChangeTagsForEntities(TConstArrayView<FMassArchetypeSubChunks> ChunkCollections, const FMassTagBitSet& TagsToAdd, const FMassTagBitSet& TagsToRemove)
+{
+	for (const FMassArchetypeSubChunks& Chunks : ChunkCollections)
+	{
+		FMassArchetypeData* CurrentArchetype = Chunks.GetArchetype().DataPtr.Get();
+		const FMassTagBitSet NewTagComposition = CurrentArchetype
+			? (CurrentArchetype->GetTagBitSet() + TagsToAdd - TagsToRemove)
+			: (TagsToAdd - TagsToRemove);
+
+		if (ensure(CurrentArchetype) && CurrentArchetype->GetTagBitSet() != NewTagComposition)
+		{
+			FMassTagBitSet TagsAdded = TagsToAdd - CurrentArchetype->GetTagBitSet();
+			FMassTagBitSet TagsRemoved = TagsToRemove.GetOverlap(CurrentArchetype->GetTagBitSet());
+
+			if (ObserverManager.HasObserversForBitSet(TagsRemoved, EMassObservedOperation::Remove))
+			{
+				ObserverManager.OnCompositionChanged(Chunks, FMassArchetypeCompositionDescriptor(MoveTemp(TagsRemoved)), EMassObservedOperation::Remove);
+			}
+			const bool bTagsAddedAreObserved = ObserverManager.HasObserversForBitSet(TagsAdded, EMassObservedOperation::Add);
+
+			FMassArchetypeHandle NewArchetypeHandle = InternalCreateSiblingArchetype(Chunks.GetArchetype().DataPtr, NewTagComposition);
+			checkSlow(NewArchetypeHandle.IsValid());
+
+			// Move the entity over
+			FMassArchetypeSubChunks::FSubChunkArray NewArchetypeSubChunks;
+			TArray<FMassEntityHandle> EntitesBeingMoved;
+			CurrentArchetype->BatchMoveEntitiesToAnotherArchetype(Chunks, *NewArchetypeHandle.DataPtr.Get(), EntitesBeingMoved
+				, bTagsAddedAreObserved ? &NewArchetypeSubChunks : nullptr);
+
+			for (const FMassEntityHandle& Entity : EntitesBeingMoved)
+			{
+				check(Entities.IsValidIndex(Entity.Index));
+
+				FEntityData& EntityData = Entities[Entity.Index];
+				EntityData.CurrentArchetype = NewArchetypeHandle.DataPtr;
+			}
+
+			if (bTagsAddedAreObserved)
+			{
+				ObserverManager.OnCompositionChanged(
+					FMassArchetypeSubChunks(NewArchetypeHandle, MoveTemp(NewArchetypeSubChunks))
+					, FMassArchetypeCompositionDescriptor(MoveTemp(TagsAdded))
+					, EMassObservedOperation::Add);
+			}
+		}
+	}
+}
 
 void UMassEntitySubsystem::MoveEntityToAnotherArchetype(FMassEntityHandle Entity, FMassArchetypeHandle NewArchetypeHandle)
 {
@@ -730,11 +819,9 @@ void UMassEntitySubsystem::BatchSetEntityFragmentsValues(const FMassArchetypeSub
 	FMassArchetypeData* Archetype = SparseEntities.GetArchetype().DataPtr.Get();
 	check(Archetype);
 
-	const FMassArchetypeSubChunks::FConstSubChunkArrayView SparseChunks = SparseEntities.GetChunks();
-
 	for (const FInstancedStruct& FragmentTemplate : FragmentInstanceList)
 	{
-		Archetype->SetFragmentData(SparseChunks, FragmentTemplate);
+		Archetype->SetFragmentData(SparseEntities.GetChunks(), FragmentTemplate);
 	}
 }
 

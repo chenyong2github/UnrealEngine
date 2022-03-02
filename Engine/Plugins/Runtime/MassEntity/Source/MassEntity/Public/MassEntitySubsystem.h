@@ -106,7 +106,14 @@ public:
 	 */
 	FMassArchetypeHandle CreateArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& NewFragmentList);
 
+	/** Fetches the archetype for a given Entity. If Entity is not valid it will still return a handle, just with an invalid archetype */
 	FMassArchetypeHandle GetArchetypeForEntity(FMassEntityHandle Entity) const;
+	/**
+	 * Fetches the archetype for a given Entity. Note that it's callers responsibility the given Entity handle is valid.
+	 * If you can't ensure that call GetArchetypeForEntity.
+	 */
+	FMassArchetypeHandle GetArchetypeForEntityUnsafe(FMassEntityHandle Entity) const;
+
 	/** Method to iterate on all the fragment types of an archetype */
 	static void ForEachArchetypeFragmentType(const FMassArchetypeHandle Archetype, TFunction< void(const UScriptStruct* /*FragmentType*/)> Function);
 
@@ -204,6 +211,7 @@ public:
 	void RemoveTagFromEntity(FMassEntityHandle Entity, const UScriptStruct* TagType);
 	void SwapTagsForEntity(FMassEntityHandle Entity, const UScriptStruct* FromFragmentType, const UScriptStruct* ToFragmentType);
 
+	void BatchChangeTagsForEntities(TConstArrayView<FMassArchetypeSubChunks> ChunkCollections, const FMassTagBitSet& TagsToAdd, const FMassTagBitSet& TagsToRemove);
 
 	/**
 	 * Adds fragments and tags indicated by InOutDescriptor to the Entity. The function also figures out which elements
