@@ -184,7 +184,6 @@ namespace Chaos
 
 				{
 					SCOPE_CYCLE_COUNTER(STAT_Events_RegisterCollisionEvent_Notify);
-
 					ValidCollisionHandles.SetNum(NumValidCollisions);
 					if (ValidCollisionHandles.Num() > 0)
 					{
