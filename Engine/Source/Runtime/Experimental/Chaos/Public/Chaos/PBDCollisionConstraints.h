@@ -154,6 +154,7 @@ public:
 	// Simple Rule API
 	//
 
+	void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 	void GatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
 	void ScatterOutput(const FReal Dt, FPBDIslandSolverData& SolverData);
 

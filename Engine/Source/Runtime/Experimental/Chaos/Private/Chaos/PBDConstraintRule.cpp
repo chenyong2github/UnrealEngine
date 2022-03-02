@@ -81,6 +81,7 @@ namespace Chaos
 		{
 			SolverData->GetConstraintIndex(Constraints.GetContainerId()) = 0;
 			Constraints.SetNumIslandConstraints(Constraints.NumConstraints(), *SolverData);
+			Constraints.PreGatherInput(Dt, *SolverData);
 			Constraints.GatherInput(Dt, *SolverData);
 		}
 	}

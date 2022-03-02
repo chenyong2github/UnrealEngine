@@ -181,7 +181,6 @@ namespace Chaos
 
 	void FPBDJointConstraintHandle::GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
 	{
-
 		ConcreteContainer()->GatherInput(Dt, ConstraintIndex, Particle0Level, Particle1Level, SolverData);
 	}
 
@@ -818,6 +817,17 @@ namespace Chaos
 	// Begin Simple API Solver. Iterate over constraints in array order.
 	//
 	//////////////////////////////////////////////////////////////////////////
+
+	void FPBDJointConstraints::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
+	{
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			if (!ConstraintStates[ConstraintIndex].bDisabled)
+			{
+				PreGatherInput(Dt, ConstraintIndex, SolverData);
+			}
+		}
+	}
 
 	void FPBDJointConstraints::GatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
 	{
