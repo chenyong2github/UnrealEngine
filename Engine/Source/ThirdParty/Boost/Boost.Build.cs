@@ -28,11 +28,24 @@ public class Boost : ModuleRules
 			{
 				string BoostLibName = "boost_" + BoostLib + "-" + BoostToolsetVersion + "-mt-x64" + "-" + BoostVersionShort;
 				PublicAdditionalLibraries.Add(Path.Combine(BoostLibPath, BoostLibName + ".lib"));
-				RuntimeDependencies.Add("$(TargetOutputDir)/" + BoostLibName + ".dll", Path.Combine(BoostLibPath, BoostLibName + ".dll"));
+				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", BoostLibName + ".dll"), Path.Combine(BoostLibPath, BoostLibName + ".dll"));
 			}
 
 			PublicDefinitions.Add("BOOST_LIB_TOOLSET=\"" + BoostToolsetVersion + "\"");
 			PublicDefinitions.Add("BOOST_ALL_NO_LIB");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			string BoostLibPath = Path.Combine(BoostPath, "lib", "Mac");
+
+			foreach (string BoostLib in BoostLibraries)
+			{
+				// Note that these file names identify the universal binaries
+				// that support both x86_64 and arm64.
+				string BoostLibName = "libboost_" + BoostLib + "-mt";
+				PublicAdditionalLibraries.Add(Path.Combine(BoostLibPath, BoostLibName + ".a"));
+				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", BoostLibName + ".dylib"), Path.Combine(BoostLibPath, BoostLibName + ".dylib"));
+			}
 		}
 	}
 }
