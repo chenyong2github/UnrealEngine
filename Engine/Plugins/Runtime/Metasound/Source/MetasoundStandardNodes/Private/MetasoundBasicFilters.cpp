@@ -877,7 +877,7 @@ namespace Metasound
 	{
 		const float CurrentFrequency = FMath::Clamp(*Frequency, 0.f, MaxCutoffFrequency);
 		const float CurrentBandwidth = FMath::Max(*Bandwidth, 0.f);
-		const float CurrentFilterGainDb = *FilterGainDb;
+		const float CurrentFilterGainDb = FMath::Clamp(*FilterGainDb, -90.0f, 20.0f);
 
 		if (!FMath::IsNearlyEqual(PreviousFrequency, CurrentFrequency))
 		{

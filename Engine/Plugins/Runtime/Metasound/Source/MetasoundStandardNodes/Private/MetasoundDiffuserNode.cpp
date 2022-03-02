@@ -102,7 +102,7 @@ namespace Metasound
 
 			ClampedDepth = FMath::Clamp(*InDepth, 1, MaxNumAPFs);
 
-			const float FeedbackGain = *InFeedback;
+			const float FeedbackGain = FMath::Clamp(*InFeedback, 0.0f, 1.0f - KINDA_SMALL_NUMBER);
 			const float SampleRatio =  InSettings.GetSampleRate() / 1000.f;
 
 			Delays.Reset(ClampedDepth);
