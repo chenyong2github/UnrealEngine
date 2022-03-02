@@ -1090,7 +1090,8 @@ public:
 		Nodes[AllocatedNodeIdx].ParentNode = INDEX_NONE;
 		FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload);
 		check(PayloadInfo);
-		*PayloadInfo = FAABBTreePayloadInfo{ INDEX_NONE, INDEX_NONE, LeafIndex, INDEX_NONE, AllocatedNodeIdx };
+		PayloadInfo->LeafIdx = LeafIndex;
+		PayloadInfo->NodeIdx = AllocatedNodeIdx;
 
 		return AllocatedNodeIdx;
 	}
