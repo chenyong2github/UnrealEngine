@@ -255,7 +255,7 @@ float ShadowTraceHeightfield(
 	return 1.0f;
 }
 
-float TraceOffscreenShadows(FLumenCardData CardData, float3 WorldPosition, float3 L, float3 ToLight, float3 WorldNormal)
+float TraceOffscreenShadows(FLumenCardData CardData, float3 WorldPosition, float3 L, float3 ToLight, float3 WorldNormal, bool bLocalLight)
 {
 	float ShadowFactor = 1.0f;
 
@@ -309,9 +309,17 @@ float TraceOffscreenShadows(FLumenCardData CardData, float3 WorldPosition, float
 	}
 	#elif OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF
 	{
-		float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, GlobalSDFShadowRayBias);
+		FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPosition, L, 0.0f, TraceDistance, 1.0f, 1.0f);
 
-		FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldPositionForShadowing, L, 0.0f, TraceDistance, 1.0f, 1.0f);
+		// Bias away from the starting point on surface
+		TraceInput.VoxelSizeRelativeBias = GetCardBiasForShadowing(L, WorldNormal, GlobalSDFShadowRayBias);
+
+		if (bLocalLight)
+		{
+			// Bias also the end point (local light position) in case if light is near the geometry
+			TraceInput.VoxelSizeRelativeRayEndBias = GlobalSDFShadowRayBias;
+		}
+
 		FGlobalSDFTraceResult SDFResult = RayTraceGlobalDistanceField(TraceInput);
 
 		//@todo - approximate cone trace from SDF for antialiasing
@@ -360,6 +368,7 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 
 		float3 L = LightData.Direction;
 		float3 ToLight = L;
+		bool bLocalLight = false;
 
 #if LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL
 		if (LightData.bRadialLight)
@@ -367,11 +376,12 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 			float3 TranslatedWorldPosition = WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation);
 			ToLight = LightData.TranslatedWorldPosition - TranslatedWorldPosition;
 			L = normalize(ToLight);
+			bLocalLight = true;
 		}
 #endif
 
 		ShadowMaskRay.bShadowFactorComplete = true;
-		ShadowMaskRay.ShadowFactor = TraceOffscreenShadows(CardData, WorldPosition, L, ToLight, WorldNormal);
+		ShadowMaskRay.ShadowFactor = TraceOffscreenShadows(CardData, WorldPosition, L, ToLight, WorldNormal, bLocalLight);
 
 		WriteSharedShadowMaskRay(ShadowMaskRay, GroupThreadId.xy);
 	}

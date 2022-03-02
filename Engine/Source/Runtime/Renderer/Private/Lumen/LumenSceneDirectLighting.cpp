@@ -110,7 +110,7 @@ static TAutoConsoleVariable<float> CVarLumenDirectLightingHeightfieldShadowRayBi
 
 static TAutoConsoleVariable<float> CVarLumenDirectLightingGlobalSDFShadowRayBias(
 	TEXT("r.LumenScene.DirectLighting.GlobalSDF.ShadowRayBias"),
-	15.0f,
+	1.0f,
 	TEXT("Bias for tracing global SDF shadow rays."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );

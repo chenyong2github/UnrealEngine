@@ -28,9 +28,14 @@ float CalculateDistanceBasedHeightfieldBias(float SurfaceBias, float3 WorldPosit
 		return clamp(DistanceBasedHeightfieldBias, 0.01, 100.0);
 }
 
-float3 GetCardWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float BiasValue)
+float GetCardBiasForShadowing(float3 L, float3 WorldNormal, float BiasValue)
 {
 	float SurfaceBias = BiasValue;
 	float SlopeScaledSurfaceBias = 2.0f * BiasValue;
-	return WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal)));
+	return SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal));
+}
+
+float3 GetCardWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float BiasValue)
+{
+	return WorldPosition + L * GetCardBiasForShadowing(L, WorldNormal, BiasValue);
 }

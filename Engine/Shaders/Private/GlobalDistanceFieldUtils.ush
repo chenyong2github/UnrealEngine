@@ -38,6 +38,11 @@ struct FGlobalSDFTraceInput
 	// Expanding as MaxDistance increases has less incorrect self-intersection which is desirable for reflections rays.
 	bool bExpandSurfaceUsingRayTimeInsteadOfMaxDistance;
 	float InitialMaxDistance;
+
+	// Bias relative to the clipmap's voxel size
+	float VoxelSizeRelativeBias;
+	// Ray length bias relative to the clipmap's voxel size
+	float VoxelSizeRelativeRayEndBias;
 };
 
 FGlobalSDFTraceInput SetupGlobalSDFTraceInput(float3 InWorldRayStart, float3 InWorldRayDirection, float InMinTraceDistance, float InMaxTraceDistance, float InStepFactor, float InMinStepFactor)
@@ -51,6 +56,8 @@ FGlobalSDFTraceInput SetupGlobalSDFTraceInput(float3 InWorldRayStart, float3 InW
 	TraceInput.MinStepFactor = InMinStepFactor;
 	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = true;
 	TraceInput.InitialMaxDistance = 0;
+	TraceInput.VoxelSizeRelativeBias = 0.0f;
+	TraceInput.VoxelSizeRelativeRayEndBias = 0.0f;
 	return TraceInput;
 }
 
@@ -87,13 +94,16 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 		float ClipmapVoxelExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
 		float MinStepSize = TraceInput.MinStepFactor * ClipmapVoxelExtent;
 		float ExpandSurfaceDistance = ClipmapVoxelExtent;
+		float ClipmapRayBias = ClipmapVoxelExtent * TraceInput.VoxelSizeRelativeBias;
+		float ClipmapRayLength = TraceInput.MaxTraceDistance - ClipmapVoxelExtent * TraceInput.VoxelSizeRelativeRayEndBias;
 
 		float3 GlobalVolumeCenter = GlobalVolumeCenterAndExtent[ClipmapIndex].xyz;
 		float GlobalVolumeExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w - ClipmapVoxelExtent;
-		float3 WorldRayEnd = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * TraceInput.MaxTraceDistance;
+		float3 WorldRayEnd = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * ClipmapRayLength;
 		float2 IntersectionTimes = LineBoxIntersect(TraceInput.WorldRayStart, WorldRayEnd, GlobalVolumeCenter - GlobalVolumeExtent.xxx, GlobalVolumeCenter + GlobalVolumeExtent.xxx);
-		IntersectionTimes.xy *= TraceInput.MaxTraceDistance;
+		IntersectionTimes.xy *= ClipmapRayLength;
 		IntersectionTimes.x = max(IntersectionTimes.x, MinRayTime);
+		IntersectionTimes.x = max(IntersectionTimes.x, ClipmapRayBias);
 
 		if (IntersectionTimes.x < IntersectionTimes.y)
 		{
@@ -136,7 +146,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 
 				MaxDistance = max(DistanceField, MaxDistance);
 
-				float ExpandSurfaceTime = TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance ? SampleRayTime : MaxDistance;
+				float ExpandSurfaceTime = TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance ? SampleRayTime - ClipmapRayBias : MaxDistance;
 				float ExpandSurfaceScale = lerp(UncoveredExpandSurfaceScale, FullyCoveredExpandSurfaceScale, Coverage);
 
 				const float ExpandSurfaceFalloff = 2.0f * ExpandSurfaceDistance;
