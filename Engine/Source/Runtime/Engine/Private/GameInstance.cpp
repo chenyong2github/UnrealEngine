@@ -794,10 +794,8 @@ int32 UGameInstance::AddLocalPlayer(ULocalPlayer* NewLocalPlayer, int32 Controll
 		return INDEX_NONE;
 	}
 
-	const int32 InsertIndex = LocalPlayers.Num();
-
 	// Add to list
-	LocalPlayers.AddUnique(NewLocalPlayer);
+	const int32 InsertIndex = LocalPlayers.AddUnique(NewLocalPlayer);
 
 	// Notify the player he/she was added
 	NewLocalPlayer->PlayerAdded(GetGameViewportClient(), ControllerId);
