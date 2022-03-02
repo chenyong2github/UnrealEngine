@@ -445,8 +445,13 @@ class ENGINE_API AWorldSettings : public AInfo, public IInterface_AssetUserData
 
 	/** DEFAULT BASIC PHYSICS SETTINGS **/
 
-	/** If true, enables CheckStillInWorld checks */
+	/** If true, configures engine for large world testing. Disables CheckStillInWorld checks and octree visibility testing.
+	 *	See UE_USE_UE4_WORLD_MAX for a more correct alternative. This setting will be removed once UE_LARGE_WORLD_MAX is considered stable. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World, AdvancedDisplay)
+	uint8 bEnableLargeWorlds:1;
+
+	/** If true, enables CheckStillInWorld checks. Note: Do not set this manually if experimenting with large worlds. @see bEnableLargeWorlds */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World, AdvancedDisplay, meta=(EditCondition = "!bEnableLargeWorlds"))
 	uint8 bEnableWorldBoundsChecks:1;
 
 protected:
@@ -584,11 +589,11 @@ public:
 	float WorldToMeters;
 
 	// any actor falling below this level gets destroyed
-	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category=World, meta=(editcondition = "bEnableWorldBoundsChecks"))
+	UPROPERTY(config, EditAnywhere, BlueprintReadOnly, Category=World, meta=(editcondition = "bEnableWorldBoundsChecks && !bEnableLargeWorlds"))
 	float KillZ;
 
 	// The type of damage inflicted when a actor falls below KillZ
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World, AdvancedDisplay, meta=(editcondition = "bEnableWorldBoundsChecks"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World, AdvancedDisplay, meta=(editcondition = "bEnableWorldBoundsChecks && !bEnableLargeWorlds"))
 	TSubclassOf<UDamageType> KillZDamageType;
 
 	// current gravity actually being used
@@ -828,6 +833,9 @@ public:
 	/** @return whether given world is configured to host an AISystem */
 	bool IsAISystemEnabled() const { return bEnableAISystem; }
 
+	/** @return whether given world is restricting actors to +-HALF_WORLD_MAX bounds, destroying actors that move below KillZ */
+	bool AreWorldBoundsChecksEnabled() const { return bEnableWorldBoundsChecks && !bEnableLargeWorlds; }
+	
 	/**
 	 * Called from GameStateBase, calls BeginPlay on all actors
 	 */
@@ -877,6 +885,8 @@ private:
 
 	void SanitizeBookmarkClasses();
 	void UpdateBookmarkClass();
+
+	void UpdateEnableLargeWorldsCVars(bool bEnable) const;
 
 	/**
 	 * Maximum number of bookmarks allowed.

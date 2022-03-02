@@ -70,6 +70,7 @@ AWorldSettings::AWorldSettings(const FObjectInitializer& ObjectInitializer)
 	};
 	static FConstructorStatics ConstructorStatics;
 
+	bEnableLargeWorlds = false;
 	bEnableWorldBoundsChecks = true;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bEnableNavigationSystem = true;
@@ -209,6 +210,11 @@ void AWorldSettings::PostRegisterAllComponents()
 	{
 		AudioDevice->SetDefaultAudioSettings(World, DefaultReverbSettings, DefaultAmbientZoneSettings);
 	}
+	
+	if(bEnableLargeWorlds)
+	{
+		UpdateEnableLargeWorldsCVars(bEnableLargeWorlds);
+	}	
 }
 
 UWorldPartition* AWorldSettings::GetWorldPartition() const
@@ -272,6 +278,12 @@ void AWorldSettings::NotifyBeginPlay()
 
 		World->bBegunPlay = true;
 	}
+
+	if(bEnableLargeWorlds)
+	{
+		// Done post BeginPlay to give code a chance to set bEnableLargeWorlds.
+		UpdateEnableLargeWorldsCVars(bEnableLargeWorlds);
+	}	
 }
 
 void AWorldSettings::NotifyMatchStarted()
@@ -279,6 +291,13 @@ void AWorldSettings::NotifyMatchStarted()
 	UWorld* World = GetWorld();
 	World->OnWorldMatchStarting.Broadcast();
 	World->bMatchStarted = true;
+}
+
+void AWorldSettings::UpdateEnableLargeWorldsCVars(bool bEnable) const
+{
+	// LWC_TODO: Large world support. This will be removed once UE_LARGE_WORLD_MAX is stable.
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.UseVisibilityOctree"))->Set(!bEnable);
+	IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.UseOctreeForCulling"))->Set(!bEnable); 
 }
 
 void AWorldSettings::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifetimeProps ) const
@@ -755,6 +774,10 @@ void AWorldSettings::InternalPostPropertyChanged(FName PropertyName)
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, DefaultBookmarkClass))
 	{
 		UpdateBookmarkClass();
+	}
+	else if(PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, bEnableLargeWorlds))
+	{
+		UpdateEnableLargeWorldsCVars(bEnableLargeWorlds);
 	}
 
 	if (GetWorld() != nullptr && GetWorld()->PersistentLevel && GetWorld()->PersistentLevel->GetWorldSettings() == this)

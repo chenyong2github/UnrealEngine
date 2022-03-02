@@ -4592,7 +4592,7 @@ struct FGatherShadowPrimitivesPrepareTask
 		}
 		else
 		{
-			const int32 PacketSize = CVarParallelGatherNumPrimitivesPerPacket.GetValueOnRenderThread();
+			const int32 PacketSize = CVarParallelGatherNumPrimitivesPerPacket.GetValueOnAnyThread();
 			const int32 NumPackets = FMath::DivideAndRoundUp(TaskData.Scene->Primitives.Num(), PacketSize);
 
 			TaskData.Packets.Reserve(NumPackets);
