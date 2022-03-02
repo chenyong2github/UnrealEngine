@@ -10,6 +10,8 @@
 
 #include "AnimNode_RetargetPoseFromMesh.generated.h"
 
+DECLARE_CYCLE_STAT(TEXT("IK Retarget"), STAT_IKRetarget, STATGROUP_Anim);
+
 USTRUCT(BlueprintInternalUseOnly)
 struct IKRIG_API FAnimNode_RetargetPoseFromMesh : public FAnimNode_Base
 {

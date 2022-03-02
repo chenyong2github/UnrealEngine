@@ -62,6 +62,8 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 
+	SCOPE_CYCLE_COUNTER(STAT_IKRetarget);
+
 	if (!(IKRetargeterAsset && Processor && SourceMeshComponent.IsValid()))
 	{
 		return;
