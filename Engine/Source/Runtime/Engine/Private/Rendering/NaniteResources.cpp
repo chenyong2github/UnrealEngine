@@ -488,6 +488,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	// Nanite supports mesh card representation.
 	bSupportsMeshCardRepresentation = true;
+	DistanceFieldSelfShadowBias = FMath::Max(Component->bOverrideDistanceFieldSelfShadowBias ? Component->DistanceFieldSelfShadowBias : Component->GetStaticMesh()->DistanceFieldSelfShadowBias, 0.0f);
 
 	// Use fast path that does not update static draw lists.
 	bStaticElementsAlwaysUseProxyPrimitiveUniformBuffer = true;
