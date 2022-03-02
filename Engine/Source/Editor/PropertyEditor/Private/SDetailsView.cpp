@@ -1384,10 +1384,7 @@ TMap<FName, FText> SDetailsView::GetAllSections() const
 				TArray<TSharedRef<FDetailTreeNode>> Children;
 				Category.GetGeneratedChildren(Children, true, false);
 
-				if (Children.Num() > 0)
-				{
-					LayoutCategories.Add(TreeNode->GetNodeName());
-				}
+				LayoutCategories.Add(TreeNode->GetNodeName());
 			}
 		}
 	}
