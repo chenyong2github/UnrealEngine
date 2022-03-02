@@ -59,10 +59,6 @@ AWaterBody::AWaterBody(const FObjectInitializer& ObjectInitializer)
 	// Temporarily set the root component to the spline because the WaterBodyComponent has not yet been created
 	RootComponent = SplineComp;
 
-#if WITH_EDITOR
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterSprite"));
-#endif
-
 #if WITH_EDITORONLY_DATA
 	bAffectsLandscape_DEPRECATED = true;
 	CollisionProfileName_DEPRECATED = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterCollisionProfileName();
@@ -153,57 +149,6 @@ void AWaterBody::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		// Waves data affect the navigation : 
 		WaterBodyComponent->OnWaterBodyChanged(/* bShapeOrPositionChanged */ true, /* bWeightMapSettingsChanged */ false);
 	}
-}
-
-void AWaterBody::UpdateActorIcon()
-{
-	if (ActorIcon && !bIsEditorPreviewActor)
-	{
-		// Actor icon gets in the way of meshes
-		ActorIcon->SetVisibility(IsIconVisible());
-
-		UTexture2D* IconTexture = ActorIcon->Sprite;
-		IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>("Water");
-		if (const IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
-		{
-			bool bHasError = false;
-			if (WaterBodyComponent)
-			{
-				TArray<TSharedRef<FTokenizedMessage>> StatusMessages = WaterBodyComponent->CheckWaterBodyStatus();
-				for (const TSharedRef<FTokenizedMessage>& StatusMessage : StatusMessages)
-				{
-					// Message severities are ordered from most severe to least severe.
-					if (StatusMessage->GetSeverity() <= EMessageSeverity::Error)
-					{
-						bHasError = true;
-						break;
-					}
-				}
-			}
-
-			if (bHasError)
-			{
-				IconTexture = WaterEditorServices->GetErrorSprite();
-			}
-			else
-			{
-				IconTexture = WaterEditorServices->GetWaterActorSprite(GetClass());
-			}
-		}
-		FWaterIconHelper::UpdateSpriteComponent(this, IconTexture);
-
-		if (GetWaterBodyType() == EWaterBodyType::Lake && SplineComp)
-		{
-			// Move the actor icon to the center of the lake
-			const FVector ZOffset(0.0f, 0.0f, GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldZOffset);
-			ActorIcon->SetWorldLocation(SplineComp->Bounds.Origin + ZOffset);
-		}
-	}
-}
-
-bool AWaterBody::IsIconVisible() const
-{
-	return GetWaterBodyType() != EWaterBodyType::Transition;
 }
 
 void AWaterBody::PostDuplicate(bool bDuplicateForPIE)

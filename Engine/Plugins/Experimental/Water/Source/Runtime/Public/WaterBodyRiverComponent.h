@@ -42,6 +42,8 @@ protected:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 #if WITH_EDITOR
 	virtual void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged) override;
+
+	virtual const TCHAR* GetWaterSpriteTextureName() const override;
 #endif
 
 	void CreateOrUpdateLakeTransitionMID();

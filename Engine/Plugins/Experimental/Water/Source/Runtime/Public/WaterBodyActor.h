@@ -95,10 +95,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Water)
 	UWaterBodyComponent* GetWaterBodyComponent() const { return WaterBodyComponent; }
 
-#if WITH_EDITOR
-	// #todo_water: all icon stuff can be moved to the component
-	void UpdateActorIcon();
-#endif // WITH_EDITOR
 protected:
 	/** Initializes the water body by creating the respective component for this water body type. */
 	virtual void InitializeBody();
@@ -126,17 +122,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Instanced, Category = Wave, DisplayName = "Waves Source", meta = (Tooltip = ""))
 	UWaterWavesBase* WaterWaves = nullptr;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(Transient)
-	UBillboardComponent* ActorIcon;
-#endif
-
 #if WITH_EDITOR
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	/** Returns whether icon billboard is visible. */
-	virtual bool IsIconVisible() const;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #endif // WITH_EDITOR
 
@@ -146,6 +135,9 @@ protected:
 // Deprecated
 
 public:
+	UE_DEPRECATED(5.1, "Moved to WaterBodyComponent")
+	virtual bool IsIconVisible() const { return WaterBodyComponent->IsIconVisible(); }
+
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	virtual bool HasWaves() const final { return WaterBodyComponent->HasWaves(); }
 

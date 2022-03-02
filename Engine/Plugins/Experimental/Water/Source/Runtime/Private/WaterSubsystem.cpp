@@ -314,10 +314,13 @@ void UWaterSubsystem::ApplyRuntimeSettings(const UWaterRuntimeSettings* Settings
 	MaterialParameterCollection = Settings->MaterialParameterCollection.LoadSynchronous();
 
 #if WITH_EDITOR
-	for (TActorIterator<AWaterBody> ActorItr(World); ActorItr; ++ActorItr)
+	// Update sprites since we may have changed the sprite Z offset setting.
+
+	ForEachWaterBodyComponent(World, [](UWaterBodyComponent* Component)
 	{
-		(*ActorItr)->UpdateActorIcon();
-	}
+		Component->UpdateWaterSpriteComponent();
+		return true;
+	});
 
 	for (TActorIterator<AWaterBodyIsland> ActorItr(World); ActorItr; ++ActorItr)
 	{

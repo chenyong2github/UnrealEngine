@@ -96,6 +96,8 @@ public:
 	virtual ETextureRenderTargetFormat GetBrushRenderTargetFormat() const;
 	virtual void GetBrushRenderDependencies(TSet<UObject*>& OutDependencies) const;
 	virtual TArray<UPrimitiveComponent*> GetBrushRenderableComponents() const { return TArray<UPrimitiveComponent*>(); }
+	
+	virtual void UpdateWaterSpriteComponent();
 #endif //WITH_EDITOR
 
 	/** Returns whether the body supports waves */
@@ -368,6 +370,12 @@ protected:
 	virtual void CheckForErrors() override;
 
 	virtual TArray<TSharedRef<FTokenizedMessage>> CheckWaterBodyStatus() const;
+
+	virtual const TCHAR* GetWaterSpriteTextureName() const { return TEXT("/Water/Icons/WaterSprite"); }
+
+	virtual bool IsIconVisible() const { return true; }
+
+	virtual FVector GetWaterSpriteLocation() const { return GetComponentLocation(); }
 #endif // WITH_EDITOR
 
 	EWaterBodyQueryFlags CheckAndAjustQueryFlags(EWaterBodyQueryFlags InQueryFlags) const;
@@ -398,6 +406,8 @@ protected:
 
 	void OnWaterSplineMetadataChanged(UWaterSplineMetadata* InWaterSplineMetadata, FPropertyChangedEvent& PropertyChangedEvent);
 	void RegisterOnChangeWaterSplineMetadata(UWaterSplineMetadata* InWaterSplineMetadata, bool bRegister);
+
+	void CreateWaterSpriteComponent();
 #endif // WITH_EDITOR
 
 public:

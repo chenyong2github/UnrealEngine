@@ -16,10 +16,6 @@ AWaterBodyCustom::AWaterBodyCustom(const FObjectInitializer& ObjectInitializer)
 {
 	WaterBodyType = EWaterBodyType::Transition;
 
-#if WITH_EDITOR
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyCustomSprite"));
-#endif
-
 #if WITH_EDITORONLY_DATA
 	bAffectsLandscape_DEPRECATED = false;
 #endif

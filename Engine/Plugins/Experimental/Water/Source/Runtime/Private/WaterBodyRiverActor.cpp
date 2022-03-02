@@ -14,9 +14,6 @@ AWaterBodyRiver::AWaterBodyRiver(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	WaterBodyType = EWaterBodyType::River;
-#if WITH_EDITOR
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyRiverSprite"));
-#endif
 }
 
 void AWaterBodyRiver::PostLoad()

@@ -55,13 +55,9 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Rendering)
 	TSoftObjectPtr<UMaterialParameterCollection> MaterialParameterCollection;
 
-	/** Size of the water body icon in world-space. */
-	UPROPERTY(EditAnywhere, config, Category = Rendering)
-	float WaterBodyIconWorldSize = 1000.0f;
-
 	/** Offset in Z for the water body icon in world-space. */
 	UPROPERTY(EditAnywhere, config, Category = Rendering)
-	float WaterBodyIconWorldZOffset = 250.0f;
+	float WaterBodyIconWorldZOffset = 75.0f;
 
 #if WITH_EDITORONLY_DATA
 	// Delegate called whenever the curve data is updated
@@ -88,4 +84,9 @@ private:
 
 	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "WaterBodyCustomComponent"))
 	TSubclassOf<UWaterBodyCustomComponent> WaterBodyCustomComponentClass;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	float WaterBodyIconWorldSize_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 };

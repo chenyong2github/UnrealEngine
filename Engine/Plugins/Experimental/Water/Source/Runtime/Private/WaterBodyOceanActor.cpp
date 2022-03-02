@@ -14,10 +14,6 @@ AWaterBodyOcean::AWaterBodyOcean(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	WaterBodyType = EWaterBodyType::Ocean;
-	
-#if WITH_EDITOR
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyOceanSprite"));
-#endif
 
 #if WITH_EDITORONLY_DATA
 	CollisionExtents_DEPRECATED = FVector(50000.f, 50000.f, 10000.f);

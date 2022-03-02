@@ -31,6 +31,12 @@ protected:
 	virtual void Reset() override;
 	virtual void OnUpdateBody(bool bWithExclusionVolumes) override;
 
+#if WITH_EDITOR
+	virtual const TCHAR* GetWaterSpriteTextureName() const override;
+
+	virtual FVector GetWaterSpriteLocation() const override;
+#endif // WITH_EDITOR
+
 	UPROPERTY(NonPIEDuplicateTransient)
 	UStaticMeshComponent* LakeMeshComp;
 

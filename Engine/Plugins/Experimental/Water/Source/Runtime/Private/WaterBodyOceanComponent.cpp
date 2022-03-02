@@ -96,6 +96,10 @@ void UWaterBodyOceanComponent::OnPostEditChangeProperty(FPropertyChangedEvent& P
 		bShapeOrPositionChanged = true;
 	}
 }
+const TCHAR* UWaterBodyOceanComponent::GetWaterSpriteTextureName() const
+{
+	return TEXT("/Water/Icons/WaterBodyOceanSprite");
+}
 #endif
 
 void UWaterBodyOceanComponent::Reset()

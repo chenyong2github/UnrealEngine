@@ -304,4 +304,8 @@ void UWaterBodyRiverComponent::OnPostEditChangeProperty(FPropertyChangedEvent& P
 		UpdateMaterialInstances();
 	}
 }
+const TCHAR* UWaterBodyRiverComponent::GetWaterSpriteTextureName() const
+{
+	return TEXT("/Water/Icons/WaterBodyRiverSprite");
+}
 #endif

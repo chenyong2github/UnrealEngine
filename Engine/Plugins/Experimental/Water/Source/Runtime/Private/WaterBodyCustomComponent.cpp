@@ -140,6 +140,10 @@ TArray<TSharedRef<FTokenizedMessage>> UWaterBodyCustomComponent::CheckWaterBodyS
 
 	return StatusMessages;
 }
+const TCHAR* UWaterBodyCustomComponent::GetWaterSpriteTextureName() const
+{
+	return TEXT("/Water/Icons/WaterBodyCustomComponent");
+}
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

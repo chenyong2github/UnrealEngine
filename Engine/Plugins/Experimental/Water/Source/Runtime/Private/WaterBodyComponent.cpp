@@ -630,6 +630,11 @@ float UWaterBodyComponent::GetAudioIntensityAtSplineInputKey(float InKey) const
 
 void UWaterBodyComponent::OnRegister()
 {
+#if WITH_EDITORONLY_DATA
+	// Prevents USceneComponent from creating the SpriteComponent in OnRegister because we want to provide a different texture
+	bVisualizeComponent = false;
+#endif // WITH_EDITORONLY_DATA
+
 	Super::OnRegister();
 
 	AWaterBody* OwningWaterBodyActor = GetWaterBodyActor();
@@ -642,6 +647,8 @@ void UWaterBodyComponent::OnRegister()
 #if WITH_EDITOR
 	RegisterOnChangeWaterSplineMetadata(WaterSplineMetadata, /*bRegister = */true);
 	GetWaterSpline()->OnSplineDataChanged().AddUObject(this, &UWaterBodyComponent::OnSplineDataChanged);
+
+	CreateWaterSpriteComponent();
 #endif // WITH_EDITOR
 }
 
@@ -1159,7 +1166,7 @@ void UWaterBodyComponent::UpdateAll(bool bShapeOrPositionChanged)
 		UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
 
 #if WITH_EDITOR
-		WaterBodyOwner->UpdateActorIcon();
+		UpdateWaterSpriteComponent();
 #endif
 	}
 }
@@ -1412,8 +1419,6 @@ UWaterWavesBase* UWaterBodyComponent::GetWaterWaves() const
 	return nullptr;
 }
 
-#undef LOCTEXT_NAMESPACE
-
 AWaterZone* UWaterBodyComponent::GetWaterZone() const
 {
 	// #todo_water [roey]: Currently returns the global water zone. Eventually this function will return the specific water zone which encapsulates this water body. 
@@ -1424,3 +1429,67 @@ AWaterZone* UWaterBodyComponent::GetWaterZone() const
 	}
 	return nullptr;
 }
+
+#if WITH_EDITOR
+
+void UWaterBodyComponent::CreateWaterSpriteComponent()
+{
+	UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, GetWaterSpriteTextureName());
+
+	IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>(TEXT("Water"));
+	if (IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
+	{
+		WaterEditorServices->RegisterWaterActorSprite(GetClass(), Texture);
+	}
+
+	bVisualizeComponent = true;
+	CreateSpriteComponent(Texture);
+
+	SpriteComponent->SetRelativeScale3D(FVector(1.f, 1.f, 1.f));
+	SpriteComponent->SetRelativeLocation(FVector(0.f, 0.f,  GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldZOffset));
+}
+
+void UWaterBodyComponent::UpdateWaterSpriteComponent()
+{
+	if (SpriteComponent)
+	{
+		SpriteComponent->SetVisibility(IsIconVisible());
+
+		UTexture2D* IconTexture = SpriteComponent->Sprite;
+		IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>("Water");
+		if (const IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
+		{
+			bool bHasError = false;
+			TArray<TSharedRef<FTokenizedMessage>> StatusMessages = CheckWaterBodyStatus();
+			for (const TSharedRef<FTokenizedMessage>& StatusMessage : StatusMessages)
+			{
+				// Message severities are ordered from most severe to least severe.
+				if (StatusMessage->GetSeverity() <= EMessageSeverity::Error)
+				{
+					bHasError = true;
+					break;
+				}
+			}
+
+			if (bHasError)
+			{
+				IconTexture = WaterEditorServices->GetErrorSprite();
+			}
+			else
+			{
+				IconTexture = WaterEditorServices->GetWaterActorSprite(GetClass());
+			}
+		}
+
+
+		const FVector ZOffset(0.0f, 0.0f, GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldZOffset);
+		SpriteComponent->SetWorldLocation(GetWaterSpriteLocation() + ZOffset);
+		SpriteComponent->Sprite = IconTexture;
+
+		SpriteComponent->MarkRenderStateDirty();
+	}
+}
+#endif // WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE
+

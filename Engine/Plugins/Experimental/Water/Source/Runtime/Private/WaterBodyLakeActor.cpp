@@ -15,10 +15,6 @@ AWaterBodyLake::AWaterBodyLake(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	WaterBodyType = EWaterBodyType::Lake;
-
-#if WITH_EDITOR
-	ActorIcon = FWaterIconHelper::EnsureSpriteComponentCreated(this, TEXT("/Water/Icons/WaterBodyLakeSprite"));
-#endif
 }
 
 void AWaterBodyLake::PostLoad()

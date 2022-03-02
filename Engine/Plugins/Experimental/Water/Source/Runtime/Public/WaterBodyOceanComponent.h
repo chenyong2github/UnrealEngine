@@ -39,6 +39,8 @@ protected:
 
 #if WITH_EDITOR
 	virtual void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged) override;
+
+	virtual const TCHAR* GetWaterSpriteTextureName() const override;
 #endif
 protected:
 	UPROPERTY(NonPIEDuplicateTransient)

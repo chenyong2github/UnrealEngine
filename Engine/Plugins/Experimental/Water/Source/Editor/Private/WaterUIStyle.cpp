@@ -10,6 +10,7 @@
 
 
 #define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+#define IMAGE_BRUSH_SVG(RelativePath, ...) FSlateVectorImageBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 #define BOX_BRUSH(RelativePath, ...) FSlateBoxBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 #define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
 
@@ -44,42 +45,42 @@ void FWaterUIStyle::Initialize()
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 	// WaterBodyRiver
-	StyleSet->Set("ClassIcon.WaterBodyRiver", new IMAGE_BRUSH("Icons/WaterBodyRiver_16x", Icon16x16));
-	StyleSet->Set("ClassThumbnail.WaterBodyRiver", new IMAGE_BRUSH("Icons/WaterBodyRiver_64x", Icon64x64));
+	StyleSet->Set("ClassIcon.WaterBodyRiver", new IMAGE_BRUSH_SVG("Icons/WaterBodyRiver", Icon16x16));
+	StyleSet->Set("ClassThumbnail.WaterBodyRiver", new IMAGE_BRUSH_SVG("Icons/WaterBodyRiver_64", Icon64x64));
 	// WaterBodyOcean
-	StyleSet->Set("ClassIcon.WaterBodyOcean", new IMAGE_BRUSH("Icons/WaterBodyOcean_16x", Icon16x16));
-	StyleSet->Set("ClassThumbnail.WaterBodyOcean", new IMAGE_BRUSH("Icons/WaterBodyOcean_64x", Icon64x64));
+	StyleSet->Set("ClassIcon.WaterBodyOcean", new IMAGE_BRUSH_SVG("Icons/WaterBodyOcean", Icon16x16));
+	StyleSet->Set("ClassThumbnail.WaterBodyOcean", new IMAGE_BRUSH_SVG("Icons/WaterBodyOcean_64", Icon64x64));
 	// WaterBodyLake
-	StyleSet->Set("ClassIcon.WaterBodyLake", new IMAGE_BRUSH("Icons/WaterBodyLake_16x", Icon16x16));
-	StyleSet->Set("ClassThumbnail.WaterBodyLake", new IMAGE_BRUSH("Icons/WaterBodyLake_64x", Icon64x64));
+	StyleSet->Set("ClassIcon.WaterBodyLake", new IMAGE_BRUSH_SVG("Icons/WaterBodyLake", Icon16x16));
+	StyleSet->Set("ClassThumbnail.WaterBodyLake", new IMAGE_BRUSH_SVG("Icons/WaterBodyLake_64", Icon64x64));
 	// WaterBodyCustom
-	StyleSet->Set("ClassIcon.WaterBodyCustom", new IMAGE_BRUSH("Icons/WaterBodyCustom_16x", Icon16x16));
-	StyleSet->Set("ClassThumbnail.WaterBodyCustom", new IMAGE_BRUSH("Icons/WaterBodyCustom_64x", Icon64x64));
+	StyleSet->Set("ClassIcon.WaterBodyCustom", new IMAGE_BRUSH_SVG("Icons/WaterBodyCustom", Icon16x16));
+	StyleSet->Set("ClassThumbnail.WaterBodyCustom", new IMAGE_BRUSH_SVG("Icons/WaterBodyCustom_64", Icon64x64));
 	// WaterBodyIsland
-	StyleSet->Set("ClassIcon.WaterBodyIsland", new IMAGE_BRUSH("Icons/WaterBodyIsland_16x", Icon16x16));
-	StyleSet->Set("ClassThumbnail.WaterBodyIsland", new IMAGE_BRUSH("Icons/WaterBodyIsland_64x", Icon64x64));
+	StyleSet->Set("ClassIcon.WaterBodyIsland", new IMAGE_BRUSH_SVG("Icons/WaterBodyIsland", Icon16x16));
+	StyleSet->Set("ClassThumbnail.WaterBodyIsland", new IMAGE_BRUSH_SVG("Icons/WaterBodyIsland_64", Icon64x64));
 	// WaterBodyExclusionVolume
-	StyleSet->Set("ClassIcon.WaterBodyExclusionVolume", new IMAGE_BRUSH("Icons/WaterBodyExclusionVolume_16x", Icon16x16));
-	StyleSet->Set("ClassThumbnail.WaterBodyExclusionVolume", new IMAGE_BRUSH("Icons/WaterBodyExclusionVolume_64x", Icon64x64));
+	StyleSet->Set("ClassIcon.WaterBodyExclusionVolume", new IMAGE_BRUSH_SVG("Icons/WaterBodyExclusionVolume", Icon16x16));
+	StyleSet->Set("ClassThumbnail.WaterBodyExclusionVolume", new IMAGE_BRUSH_SVG("Icons/WaterBodyExclusionVolume_64", Icon64x64));
 	// WaterZone
-	StyleSet->Set("ClassIcon.WaterZone", new IMAGE_BRUSH("Icons/WaterZoneActor_16x", Icon16x16));
-	StyleSet->Set("ClassThumbnail.WaterZone", new IMAGE_BRUSH("Icons/WaterZoneActor_64x", Icon64x64));
+	StyleSet->Set("ClassIcon.WaterZone", new IMAGE_BRUSH_SVG("Icons/WaterZone", Icon16x16));
+	StyleSet->Set("ClassThumbnail.WaterZone", new IMAGE_BRUSH_SVG("Icons/WaterZone_64", Icon64x64));
 	// WaterLandscapeBrush
-	StyleSet->Set("ClassIcon.WaterLandscapeBrush", new IMAGE_BRUSH("Icons/WaterLandscapeBrush_16x", Icon16x16));
-	StyleSet->Set("ClassThumbnail.WaterLandscapeBrush", new IMAGE_BRUSH("Icons/WaterLandscapeBrush_64x", Icon64x64));
+	StyleSet->Set("ClassIcon.WaterLandscapeBrush", new IMAGE_BRUSH_SVG("Icons/WaterLandscapeBrush", Icon16x16));
+	StyleSet->Set("ClassThumbnail.WaterLandscapeBrush", new IMAGE_BRUSH_SVG("Icons/WaterLandscapeBrush_64", Icon64x64));
 	// WaterWaves
-	StyleSet->Set("ClassIcon.WaterWavesBase", new IMAGE_BRUSH("Icons/WaterWave_16x", Icon16x16));
-	StyleSet->Set("ClassThumbnail.WaterWavesBase", new IMAGE_BRUSH("Icons/WaterWave_64x", Icon64x64));
+	StyleSet->Set("ClassIcon.WaterWavesBase", new IMAGE_BRUSH_SVG("Icons/WaterWave", Icon16x16));
+	StyleSet->Set("ClassThumbnail.WaterWavesBase", new IMAGE_BRUSH_SVG("Icons/WaterWave_64", Icon64x64));
 	// WaterWavesAsset
-	StyleSet->Set("ClassIcon.WaterWavesAsset", new IMAGE_BRUSH("Icons/WaterWaveAsset_16x", Icon16x16));
-	StyleSet->Set("ClassThumbnail.WaterWavesAsset", new IMAGE_BRUSH("Icons/WaterWaveAsset_64x", Icon64x64));
+	StyleSet->Set("ClassIcon.WaterWavesAsset", new IMAGE_BRUSH_SVG("Icons/WaterWave", Icon16x16));
+	StyleSet->Set("ClassThumbnail.WaterWavesAsset", new IMAGE_BRUSH_SVG("Icons/WaterWave_64", Icon64x64));
 	// WaterWaves Asset Editor
 	StyleSet->Set("WaterWavesEditor.TogglePauseWaveTime", new IMAGE_BRUSH("Icons/PauseWaveTime_40x", Icon40x40));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 };
 
-#undef IMAGE_PLUGIN_BRUSH
+#undef IMAGE_BRUSH_SVG
 #undef IMAGE_BRUSH
 #undef BOX_BRUSH
 #undef DEFAULT_FONT

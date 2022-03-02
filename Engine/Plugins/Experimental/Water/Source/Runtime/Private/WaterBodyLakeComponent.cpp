@@ -152,3 +152,17 @@ void UWaterBodyLakeComponent::OnUpdateBody(bool bWithExclusionVolumes)
 		}
 	}
 }
+
+#if WITH_EDITOR
+
+const TCHAR* UWaterBodyLakeComponent::GetWaterSpriteTextureName() const
+{
+	return TEXT("/Water/Icons/WaterBodyLakeSprite");
+}
+
+FVector UWaterBodyLakeComponent::GetWaterSpriteLocation() const
+{
+	return GetWaterSpline()->Bounds.Origin;
+}
+
+#endif // WITH_EDITOR
