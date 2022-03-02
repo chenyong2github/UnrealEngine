@@ -2526,6 +2526,11 @@ FReply FNiagaraScriptToolkitParameterPanelViewModel::OnParameterItemsDragged(con
 
 TSharedPtr<SWidget> FNiagaraScriptToolkitParameterPanelViewModel::CreateContextMenuForItems(const TArray<FNiagaraParameterPanelItem>& Items, const TSharedPtr<FUICommandList>& ToolkitCommands)
 {
+	if(Items.Num() == 0)
+	{
+		return nullptr;
+	}
+	
 	// Create a menu with all relevant operations.
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, ToolkitCommands);
