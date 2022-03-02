@@ -92,12 +92,8 @@ public:
 		// Due to delegate bind order, the item creation happens after the refresh. To solve this, we just wait a frame. 
 		UNiagaraEmitter* NiagaraEmitter = EmitterTrack->GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEmitter();
 		WeakNiagaraEmitter = NiagaraEmitter;
-		NiagaraEmitter->OnRenderersChanged().AddLambda(
-			[this]()
-			{
-				bShouldRefreshRenderers = true;
-			}
-		);
+		NiagaraEmitter->OnRenderersChanged().AddSP(this, &SEmitterTrackWidget::RefreshRenderers);
+
 
 		// Enabled checkbox.
 		TrackBox->AddSlot()
@@ -255,6 +251,11 @@ private:
 	EVisibility GetIsolateToggleVisibility() const
 	{
 		return EmitterTrack.IsValid() && EmitterTrack->GetSystemViewModel().GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
+	void RefreshRenderers()
+	{
+		bShouldRefreshRenderers = true;
 	}
 
 private:
