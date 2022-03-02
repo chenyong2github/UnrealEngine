@@ -491,7 +491,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = Shadows, meta = (
 		ConsoleVariable = "r.Shadow.Virtual.Enable", DisplayName = "Shadow Map Method",
-		ToolTip = "Shadow Map Method"))
+		ToolTip = "Select the primary shadow mapping method. Automatically uses 'Shadow Maps' when Forward Shading is enabled for the project as Virtual Shadow Maps are not supported."))
 	TEnumAsByte<EShadowMapMethod::Type> ShadowMapMethod;
 
 	/**
