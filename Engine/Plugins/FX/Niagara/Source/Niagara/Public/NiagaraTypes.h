@@ -1332,9 +1332,7 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 
 FORCEINLINE uint32 GetTypeHash(const FNiagaraTypeDefinition& Type)
 {
-	uint32 Result= HashCombine(GetTypeHash(Type.GetStruct()), GetTypeHash(Type.GetEnum()));
-	Result = HashCombine(Result, GetTypeHash(Type.GetFlags()));
-	return Result;
+	return HashCombine(HashCombine(GetTypeHash(Type.ClassStructOrEnum), GetTypeHash(Type.UnderlyingType)), GetTypeHash(Type.GetFlags()));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1652,7 +1650,6 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
-
 USTRUCT()
 struct FNiagaraVariableBase
 {
@@ -1976,6 +1973,7 @@ private:
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	TArray<uint8> VarData;
 };
+
 
 template<>
 struct TStructOpsTypeTraits<FNiagaraVariable> : public TStructOpsTypeTraitsBase2<FNiagaraVariable>

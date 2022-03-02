@@ -36,6 +36,7 @@ public:
 	NIAGARAEDITOR_API FSimpleMulticastDelegate& OnSummaryViewStateChanged();
 	
 	NIAGARAEDITOR_API bool ShouldShowSummaryView() const { return bShowSummaryView; }
+	NIAGARAEDITOR_API void SetShowSummaryView(bool bInShouldShowSummaryView);
 	NIAGARAEDITOR_API void ToggleShowSummaryView();
 	
 	NIAGARAEDITOR_API const TMap<FFunctionInputSummaryViewKey, FFunctionInputSummaryViewMetadata>& GetSummaryViewMetaDataMap() const;

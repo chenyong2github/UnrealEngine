@@ -1121,7 +1121,8 @@ bool FNiagaraEmitterDiffResults::IsEmpty() const
 		ModifiedInputSummaryEntries.Num() == 0 &&
 		ModifiedOtherInputSummaryEntries.Num() == 0 &&
 		ModifiedStackEntryDisplayNames.Num() == 0 &&
-		bScratchPadModified == false;
+		bScratchPadModified == false &&
+		NewShouldShowSummaryViewValue.IsSet() == false;
 }
 
 void FNiagaraEmitterDiffResults::AddError(FText ErrorMessage)
@@ -2300,6 +2301,11 @@ void FNiagaraScriptMergeManager::DiffEmitterSummary(const UNiagaraEmitterEditorD
 			DiffResults.ModifiedOtherSummarySections.Add(CommonValuePair.OtherValue);
 		}
 	}
+
+	if (BaseEditorData != nullptr && OtherEditorData != nullptr && BaseEditorData->ShouldShowSummaryView() != OtherEditorData->ShouldShowSummaryView())
+	{
+		DiffResults.NewShouldShowSummaryViewValue = OtherEditorData->ShouldShowSummaryView();
+	}	
 }
 
 void FNiagaraScriptMergeManager::DiffScriptStacks(TSharedRef<FNiagaraScriptStackMergeAdapter> BaseScriptStackAdapter, TSharedRef<FNiagaraScriptStackMergeAdapter> OtherScriptStackAdapter, FNiagaraScriptStackDiffResults& DiffResults) const
@@ -3482,6 +3488,11 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyE
 	}
 
 	EditorData->SetSummarySections(SummarySections);
+
+	if (DiffResults.NewShouldShowSummaryViewValue.IsSet())
+	{
+		EditorData->SetShowSummaryView(DiffResults.NewShouldShowSummaryViewValue.GetValue());
+	}
 
 	FApplyDiffResults Results;
 	Results.bSucceeded = true;

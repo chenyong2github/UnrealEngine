@@ -562,13 +562,14 @@ UNiagaraStackFunctionInput* FNiagaraStackEditorWidgetsUtilities::GetParentInputF
 	const UNiagaraEmitterEditorData* EditorData = (FunctionInput && FunctionInput->GetEmitterViewModel())? &FunctionInput->GetEmitterViewModel()->GetEditorData() : nullptr;
 
 	// Find outermost function input first, as this will traverse the chain of dynamic inputs to find the base input which is what needs to go to summary view
-	while (FunctionInput->GetTypedOuter<UNiagaraStackFunctionInput>())
-	{
-		FunctionInput = FunctionInput->GetTypedOuter<UNiagaraStackFunctionInput>();
-	}
 	
 	if (EditorData)
 	{
+		while (FunctionInput->GetTypedOuter<UNiagaraStackFunctionInput>())
+		{
+			FunctionInput = FunctionInput->GetTypedOuter<UNiagaraStackFunctionInput>();
+		}
+		
 		TOptional<FFunctionInputSummaryViewKey> Key = FNiagaraStackEditorWidgetsUtilities::GetSummaryViewInputKeyForFunctionInput(FunctionInput);
 
 		TOptional<FNiagaraVariableMetaData> Metadata = FunctionInput->GetMetadata();

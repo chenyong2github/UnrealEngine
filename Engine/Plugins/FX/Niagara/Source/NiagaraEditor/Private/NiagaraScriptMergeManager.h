@@ -391,6 +391,8 @@ struct FNiagaraEmitterDiffResults
 	TArray<FNiagaraStackSection> AddedOtherSummarySections;
 	TArray<FNiagaraStackSection> ModifiedBaseSummarySections;
 	TArray<FNiagaraStackSection> ModifiedOtherSummarySections;
+
+	TOptional<bool> NewShouldShowSummaryViewValue;
 	
 	bool bScratchPadModified;
 

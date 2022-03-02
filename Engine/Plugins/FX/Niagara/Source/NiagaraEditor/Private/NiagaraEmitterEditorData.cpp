@@ -81,15 +81,20 @@ void UNiagaraEmitterEditorData::SetSummaryViewMetaData(const FFunctionInputSumma
 	OnSummaryViewStateChangedDelegate.Broadcast();
 }
 
+void UNiagaraEmitterEditorData::SetShowSummaryView(bool bInShouldShowSummaryView)
+{
+	bShowSummaryView = bInShouldShowSummaryView;
+	
+	OnPersistentDataChanged().Broadcast();
+	OnSummaryViewStateChangedDelegate.Broadcast();
+}
+
 void UNiagaraEmitterEditorData::ToggleShowSummaryView()
 {
 	FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraEmitter", "EmitterModuleShowSummaryChanged", "Emitter summary view enabled/disabled."));
 	Modify();
-	
-	bShowSummaryView = !bShowSummaryView;
-	
-	OnPersistentDataChanged().Broadcast();
-	OnSummaryViewStateChangedDelegate.Broadcast();
+
+	SetShowSummaryView(!bShowSummaryView);
 }
 
 FSimpleMulticastDelegate& UNiagaraEmitterEditorData::OnSummaryViewStateChanged()
