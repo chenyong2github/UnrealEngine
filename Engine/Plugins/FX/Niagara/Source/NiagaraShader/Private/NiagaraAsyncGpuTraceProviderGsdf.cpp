@@ -78,6 +78,7 @@ IMPLEMENT_GLOBAL_SHADER(FNiagaraRayMarchGlobalSdfCS, "/Plugin/FX/Niagara/Private
 static void AssignGlobalDistanceFieldParameters(const FGlobalDistanceFieldParameterData& ParameterData, FGlobalDistanceFieldParameters2& ShaderParameters)
 {
 	ShaderParameters.GlobalDistanceFieldPageAtlasTexture = OrBlack3DIfNull(ParameterData.PageAtlasTexture);
+	ShaderParameters.GlobalDistanceFieldCoverageAtlasTexture = OrBlack3DIfNull(ParameterData.CoverageAtlasTexture);
 	ShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DUintIfNull(ParameterData.PageTableTexture);
 	ShaderParameters.GlobalDistanceFieldMipTexture = OrBlack3DIfNull(ParameterData.MipTexture);
 
@@ -93,6 +94,7 @@ static void AssignGlobalDistanceFieldParameters(const FGlobalDistanceFieldParame
 	ShaderParameters.GlobalDistanceFieldMipTransition = ParameterData.MipTransition;
 	ShaderParameters.GlobalDistanceFieldClipmapSizeInPages = ParameterData.ClipmapSizeInPages;
 	ShaderParameters.GlobalDistanceFieldInvPageAtlasSize = (FVector3f)ParameterData.InvPageAtlasSize;
+	ShaderParameters.GlobalDistanceFieldInvCoverageAtlasSize = (FVector3f)ParameterData.InvCoverageAtlasSize;
 	ShaderParameters.GlobalVolumeDimension = ParameterData.GlobalDFResolution;
 	ShaderParameters.GlobalVolumeTexelSize = 1.0f / ParameterData.GlobalDFResolution;
 	ShaderParameters.MaxGlobalDFAOConeDistance = ParameterData.MaxDFAOConeDistance;

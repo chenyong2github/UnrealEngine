@@ -93,6 +93,7 @@ struct FRadiosityTexel
 	float3x3 WorldToLocalRotation;
 
 	uint2 AtlasCoord;
+	uint2 CardCoord;
 	uint IndirectLightingTemporalIndex;
 };
 
@@ -114,6 +115,7 @@ FRadiosityTexel GetRadiosityTexel(FLumenCardPageData CardPage, uint2 CoordInCard
 		RadiosityTexel.bInsideAtlas = true;
 		RadiosityTexel.bHeightfield = Card.bHeightfield;
 		RadiosityTexel.AtlasCoord = AtlasUV * RadiosityAtlasSize;
+		RadiosityTexel.CardCoord = (CardPage.CardUVRect.xy * CardPage.ResLevelSizeInTiles) * CARD_TILE_SIZE + CoordInCardPage;
 		RadiosityTexel.IndirectLightingTemporalIndex = CardPage.IndirectLightingTemporalIndex;
 		RadiosityTexel.WorldToLocalRotation = Card.WorldToLocalRotation;
 
@@ -221,9 +223,9 @@ float2 UniformSampleHemisphereInverseFast(float3 Vector)
 
 #define RADIOSITY_PROBE_MAPPING				PROBE_HEMISPHERE_UNIFORM
 
-void GetRadiosityRay(FRadiosityTexel RadiosityTexel, uint2 ProbeTileCoord, uint2 TracingTexelCoord, out float3 WorldRayDirection, out float ConeHalfAngle, out float PDF)
+void GetRadiosityRay(FRadiosityTexel RadiosityTexel, uint2 ProbeCoord, uint2 TracingTexelCoord, out float3 WorldRayDirection, out float ConeHalfAngle, out float PDF)
 {
-	float2 ProbeTexelCenter = GetProbeTexelCenter(RadiosityTexel.IndirectLightingTemporalIndex, ProbeTileCoord);
+	float2 ProbeTexelCenter = GetProbeTexelCenter(RadiosityTexel.IndirectLightingTemporalIndex, ProbeCoord);
 	float2 ProbeUV = (TracingTexelCoord + ProbeTexelCenter) / float(HemisphereProbeResolution);
 
 	float3 LocalRayDirection;

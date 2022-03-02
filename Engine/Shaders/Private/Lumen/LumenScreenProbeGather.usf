@@ -55,7 +55,7 @@ void CopyDepthCS(
 }
 
 RWTexture2D<uint> RWScreenProbeSceneDepth;
-RWTexture2D<float> RWScreenProbeWorldSpeed;
+RWTexture2D<uint> RWScreenProbeWorldSpeed;
 RWTexture2D<UNORM float2> RWScreenProbeWorldNormal;
 RWTexture2D<float3> RWScreenProbeTranslatedWorldPosition;
 
@@ -64,6 +64,7 @@ struct FScreenProbeGBuffer
 	float3 WorldNormal;
 	float SceneDepth;
 	bool bLit;
+	bool bTwoSidedFoliage;
 };
 
 FScreenProbeGBuffer GetScreenProbeGBuffer(FGBufferData GBufferData)
@@ -72,6 +73,7 @@ FScreenProbeGBuffer GetScreenProbeGBuffer(FGBufferData GBufferData)
 	ScreenProbeGBuffer.WorldNormal = GBufferData.WorldNormal;
 	ScreenProbeGBuffer.SceneDepth = GBufferData.Depth;
 	ScreenProbeGBuffer.bLit = GBufferData.ShadingModelID != SHADINGMODELID_UNLIT;
+	ScreenProbeGBuffer.bTwoSidedFoliage = GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
 	return ScreenProbeGBuffer;
 }
 
@@ -101,7 +103,7 @@ void WriteDownsampledProbeGBuffer(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, 
 		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetPrevTranslatedWorldPosition(ProbeHistoryScreenPosition);
 	}
 
-	RWScreenProbeWorldSpeed[ScreenProbeAtlasCoord] = length(ProbeWorldVelocity);
+	RWScreenProbeWorldSpeed[ScreenProbeAtlasCoord] = EncodeScreenProbeSpeed(length(ProbeWorldVelocity), ProbeGBuffer.bTwoSidedFoliage);
 
 	RWScreenProbeTranslatedWorldPosition[ScreenProbeAtlasCoord] = ProbeTranslatedWorldPosition;
 }
@@ -593,6 +595,12 @@ uint GetDiffuseIntegrationMethod(FGBufferData GBufferData)
 	}
 #endif
 
+	if (GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	{
+		// This is the only path that implements backface lighting
+		DiffuseIntegrationMethod = DIFFUSE_INTEGRATION_SPHERICAL_HARMONIC;
+	}
+
 	return DiffuseIntegrationMethod;
 }
 
@@ -878,6 +886,49 @@ FBxDFSample SampleBxDFWrapper(const uint TermMask, FGBufferData GBuffer, float3 
 #endif
 }
 
+float3 EvaluateDiffuse(FScreenProbeSample ScreenProbeSample, float3 WorldNormal, float3 UnitBentNormal, float AO)
+{
+	float3 DiffuseLighting = 0.0f;
+
+	#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
+	{
+		FThreeBandSHVectorRGB LightingSH = GetScreenProbeSH(ScreenProbeSample.AtlasCoord[0], ScreenProbeSample.Weights.x);
+
+		#if !STOCHASTIC_PROBE_INTERPOLATION
+			LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[1], ScreenProbeSample.Weights.y));
+			LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[2], ScreenProbeSample.Weights.z));
+			LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[3], ScreenProbeSample.Weights.w));
+		#endif
+
+		float3 ProbeLightingNormal = WorldNormal;
+
+		#if SCREEN_SPACE_BENT_NORMAL 
+			// Use more bent normal in occluded corners
+			ProbeLightingNormal = normalize(lerp(UnitBentNormal, WorldNormal, AO));
+		#endif
+
+		float3 SHDiffuseLighting = EvaluateSHIrradiance(ProbeLightingNormal, 1 - AO, LightingSH);
+		DiffuseLighting += 4 * PI * SHDiffuseLighting;
+	}
+	#else
+	{
+		float2 IrradianceProbeUV = UnitVectorToOctahedron(WorldNormal) * 0.5f + 0.5f;
+
+		float3 Irradiance = GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[0], IrradianceProbeUV) * ScreenProbeSample.Weights.x;
+
+		#if !STOCHASTIC_PROBE_INTERPOLATION
+			Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[1], IrradianceProbeUV) * ScreenProbeSample.Weights.y;
+			Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[2], IrradianceProbeUV) * ScreenProbeSample.Weights.z;
+			Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[3], IrradianceProbeUV) * ScreenProbeSample.Weights.w;
+		#endif
+
+		DiffuseLighting += Irradiance;
+	}
+	#endif	
+
+	return DiffuseLighting;
+}
+
 #define TONEMAP_DURING_INTEGRATION 1
 
 float Luma(float3 Color) 
@@ -1017,6 +1068,7 @@ void ScreenProbeIntegrateCS(
 			float3 UnitBentNormal = GBufferData.WorldNormal;
 			float AO = 1.0f;
 			float3 DiffuseLighting = 0;
+			float3 BackfaceDiffuseLighting = 0;
 
 			#if SCREEN_SPACE_BENT_NORMAL 
 			if (UseScreenBentNormal > 0)
@@ -1031,41 +1083,12 @@ void ScreenProbeIntegrateCS(
 
 			if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_SPHERICAL_HARMONIC)
 			{
-				#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
+				DiffuseLighting += EvaluateDiffuse(ScreenProbeSample, GBufferData.WorldNormal, UnitBentNormal, AO);
+
+				if (GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
 				{
-					FThreeBandSHVectorRGB LightingSH = GetScreenProbeSH(ScreenProbeSample.AtlasCoord[0], ScreenProbeSample.Weights.x);
-
-					#if !STOCHASTIC_PROBE_INTERPOLATION
-						LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[1], ScreenProbeSample.Weights.y));
-						LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[2], ScreenProbeSample.Weights.z));
-						LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[3], ScreenProbeSample.Weights.w));
-					#endif
-
-					float3 ProbeLightingNormal = GBufferData.WorldNormal;
-
-					#if SCREEN_SPACE_BENT_NORMAL 
-						// Use more bent normal in occluded corners
-						ProbeLightingNormal = normalize(lerp(UnitBentNormal, GBufferData.WorldNormal, AO));
-					#endif
-
-					float3 SHDiffuseLighting = EvaluateSHIrradiance(ProbeLightingNormal, 1 - AO, LightingSH);
-					DiffuseLighting += 4 * PI * SHDiffuseLighting;
-				}
-				#else
-				{
-					float2 IrradianceProbeUV = UnitVectorToOctahedron(GBufferData.WorldNormal) * 0.5f + 0.5f;
-
-					float3 Irradiance = GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[0], IrradianceProbeUV) * ScreenProbeSample.Weights.x;
-
-					#if !STOCHASTIC_PROBE_INTERPOLATION
-						Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[1], IrradianceProbeUV) * ScreenProbeSample.Weights.y;
-						Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[2], IrradianceProbeUV) * ScreenProbeSample.Weights.z;
-						Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[3], IrradianceProbeUV) * ScreenProbeSample.Weights.w;
-					#endif
-
-					DiffuseLighting += Irradiance;
-				}
-				#endif				
+					BackfaceDiffuseLighting += EvaluateDiffuse(ScreenProbeSample, -GBufferData.WorldNormal, -UnitBentNormal, AO);
+				}			
 			}
 #if INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE
 			else if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF)
@@ -1192,22 +1215,31 @@ void ScreenProbeIntegrateCS(
 			#endif
 
 			float LightingIsMoving = GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[0]) * StochasticScreenProbeSample.Weights.x;
-#if !STOCHASTIC_PROBE_INTERPOLATION
-			LightingIsMoving += GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[1]) * StochasticScreenProbeSample.Weights.y;
-			LightingIsMoving += GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[2]) * StochasticScreenProbeSample.Weights.z;
-			LightingIsMoving += GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[3]) * StochasticScreenProbeSample.Weights.w;
-#endif
+			#if !STOCHASTIC_PROBE_INTERPOLATION
+				LightingIsMoving += GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[1]) * StochasticScreenProbeSample.Weights.y;
+				LightingIsMoving += GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[2]) * StochasticScreenProbeSample.Weights.z;
+				LightingIsMoving += GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[3]) * StochasticScreenProbeSample.Weights.w;
+			#endif
 
 			float EncodedAlpha = (bLightingIsValid ? 1.0f : -1.0f) * max(LightingIsMoving, .001f);
 
-			float3 DiffuseIndirectOutput = DiffuseLighting * (bLightingIsValid ? 1.0f : 0.0f) * Diffuse_Lambert(float3(1, 1, 1));
+			float3 FinalDiffuseLighting = DiffuseLighting;
+
+			if (GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+			{
+				float3 SubsurfaceColor = ExtractSubsurfaceColor(GBufferData);
+				// We can't afford to temporally accumulate them separately, so add to DiffuseLighting and counteract the multiply by DiffuseColor that will happen in DiffuseIndirectComposite
+				FinalDiffuseLighting += BackfaceDiffuseLighting * SubsurfaceColor / max(GBufferData.DiffuseColor, .0001f);
+			}
+
+			float3 DiffuseIndirectOutput = FinalDiffuseLighting * (bLightingIsValid ? 1.0f : 0.0f) * Diffuse_Lambert(float3(1, 1, 1));
 
 			#define DEBUG_VISUALIZE_PROBE_WORLD_SPEED 0
 			#if DEBUG_VISUALIZE_PROBE_WORLD_SPEED
-				float InterpolatedWorldSpeed = ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord[0], 0)).xyz * InterpolationWeights.x
-					+ ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord[1], 0)).xyz * InterpolationWeights.y
-					+ ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord[2], 0)).xyz * InterpolationWeights.z
-					+ ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord[3], 0)).xyz * InterpolationWeights.w;
+				float InterpolatedWorldSpeed = GetScreenProbeSpeed(ScreenProbeSample.AtlasCoord[0]) * StochasticScreenProbeSample.Weights.x
+					+ GetScreenProbeSpeed(ScreenProbeSample.AtlasCoord[1]) * StochasticScreenProbeSample.Weights.y
+					+ GetScreenProbeSpeed(ScreenProbeSample.AtlasCoord[2]) * StochasticScreenProbeSample.Weights.z
+					+ GetScreenProbeSpeed(ScreenProbeSample.AtlasCoord[3]) * StochasticScreenProbeSample.Weights.w;
 
 				DiffuseIndirectOutput = abs(InterpolatedWorldSpeed) / 2.0f;
 			#endif

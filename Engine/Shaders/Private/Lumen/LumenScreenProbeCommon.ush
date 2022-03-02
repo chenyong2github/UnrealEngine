@@ -50,7 +50,7 @@ int FixedJitterIndex;
 // Note: negative if unlit
 Texture2D<uint> ScreenProbeSceneDepth;
 Texture2D<float2> ScreenProbeWorldNormal;
-Texture2D ScreenProbeWorldSpeed;
+Texture2D<uint> ScreenProbeWorldSpeed;
 
 // Single element, contains the number of adaptive screen probes placed
 StructuredBuffer<uint> NumAdaptiveScreenProbes;
@@ -284,6 +284,23 @@ float DecodeProbeRayDistance(uint Encoded)
 	return DecodeProbeRayDistance(Encoded, bHit, bMoving);
 }
 
+uint EncodeScreenProbeSpeed(float ProbeSpeed, bool bTwoSidedFoliage)
+{
+	return f32tof16(ProbeSpeed) | (bTwoSidedFoliage ? 0x8000 : 0);
+}
+
+bool GetScreenProbeIsTwoSidedFoliage(uint2 ScreenProbeAtlasCoord)
+{
+	uint Encoded = ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord, 0));
+	return (Encoded & 0x8000) != 0;
+}
+
+float GetScreenProbeSpeed(uint2 ScreenProbeAtlasCoord)
+{
+	uint Encoded = ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord, 0));
+	return f16tof32(Encoded & 0x7FFF);
+}
+
 bool IsTraceMoving(float3 ProbeWorldPosition, float ProbeSceneDepth, uint2 ScreenProbeAtlasCoord, float3 HitWorldPosition, float3 HitWorldVelocity)
 {
 	//@todo - for pixels that use the velocity texture in GetHistoryScreenPosition, velocities transformed to world space are too inaccurate to use for a dis-occlusion test
@@ -298,7 +315,7 @@ bool IsTraceMoving(float3 ProbeWorldPosition, float ProbeSceneDepth, uint2 Scree
 	float CosProbeTraceVelocityAngleThreshold = cos(1.0f * (float)PI / 180.0f);
 	return CosAngle < CosProbeTraceVelocityAngleThreshold;
 #else
-	float ProbeWorldSpeed = ScreenProbeWorldSpeed.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+	float ProbeWorldSpeed = GetScreenProbeSpeed(ScreenProbeAtlasCoord);
 
 	return abs(ProbeWorldSpeed - length(HitWorldVelocity)) / max(ProbeSceneDepth, 100.0f) > RelativeSpeedDifferenceToConsiderLightingMoving;
 #endif

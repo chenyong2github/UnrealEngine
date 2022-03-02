@@ -498,6 +498,10 @@ void TraceVoxels(
 	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = false;
 	TraceInput.InitialMaxDistance = 0;
 
+	// Dither step factor to smooth out SDF stepping artifacts, but only when near mirror
+	float StepFactorNoise = lerp(.95f, 1.0f / .95f, InterleavedGradientNoise(ReflectionTracingCoord, View.StateFrameIndexMod8));
+	TraceInput.SDFStepFactor = lerp(StepFactorNoise, 1.0f, saturate(RayData.ConeHalfAngle / (PI / 256.0f)));
+
 	FConeTraceResult TraceResult = (FConeTraceResult)0;
 	TraceResult.Lighting = 0;
 	TraceResult.Transparency = 1;

@@ -443,7 +443,6 @@ class FAllocateProbeTracesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWProbeLastTracedFrame)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWProbesToUpdateTraceCost)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeTraceAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, RWProbeTraceData)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, RWProbeFreeListAllocator)
@@ -561,12 +560,12 @@ class FSetupProbeIndirectArgsCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FSetupProbeIndirectArgsCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, RWProbeFreeListAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWClearProbePDFsIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWGenerateProbeTraceTilesIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeTraceTileAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWFilterProbesIndirectArgs)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCalculateProbeIrradianceIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWPrepareProbeOcclusionIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWFixupProbeBordersIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeTraceAllocator)
@@ -1466,7 +1465,6 @@ void RenderRadianceCache(
 			PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
 			PassParameters->RWProbesToUpdateTraceCost = GraphBuilder.CreateUAV(ProbesToUpdateTraceCost);
 			PassParameters->RWProbeLastTracedFrame = GraphBuilder.CreateUAV(ProbeLastTracedFrame);
-			PassParameters->RWProbeAllocator = ProbeAllocatorUAV;
 			PassParameters->RWProbeTraceAllocator = ProbeTraceAllocatorUAV;
 			PassParameters->RWProbeTraceData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeTraceData, PF_A32B32G32R32F));
 			PassParameters->RWProbeFreeListAllocator = bPersistentCache ? ProbeFreeListAllocatorUAV : nullptr;
@@ -1498,18 +1496,17 @@ void RenderRadianceCache(
 		FRDGBufferRef GenerateProbeTraceTilesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(3), TEXT("Lumen.RadianceCache.GenerateProbeTraceTilesIndirectArgs"));
 		FRDGBufferRef ProbeTraceTileAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.RadianceCache.ProbeTraceTileAllocator"));
 		FRDGBufferRef FilterProbesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(5), TEXT("Lumen.RadianceCache.FilterProbesIndirectArgs"));
-		FRDGBufferRef CalculateProbeIrradianceIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(6), TEXT("Lumen.RadianceCache.CalculateProbeIrradianceIndirectArgs"));
 		FRDGBufferRef PrepareProbeOcclusionIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(7), TEXT("Lumen.RadianceCache.PrepareProbeOcclusionIndirectArgs"));
 		FRDGBufferRef FixupProbeBordersIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(8), TEXT("Lumen.RadianceCache.FixupProbeBordersIndirectArgs"));
 
 		{
 			FSetupProbeIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupProbeIndirectArgsCS::FParameters>();
+			PassParameters->RWProbeAllocator = ProbeAllocatorUAV;
 			PassParameters->RWProbeFreeListAllocator = ProbeFreeListAllocatorUAV;
 			PassParameters->RWClearProbePDFsIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ClearProbePDFsIndirectArgs, PF_R32_UINT));
 			PassParameters->RWGenerateProbeTraceTilesIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(GenerateProbeTraceTilesIndirectArgs, PF_R32_UINT));
 			PassParameters->RWProbeTraceTileAllocator = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeTraceTileAllocator, PF_R32_UINT));
 			PassParameters->RWFilterProbesIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(FilterProbesIndirectArgs, PF_R32_UINT));
-			PassParameters->RWCalculateProbeIrradianceIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(CalculateProbeIrradianceIndirectArgs, PF_R32_UINT));
 			PassParameters->RWPrepareProbeOcclusionIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(PrepareProbeOcclusionIndirectArgs, PF_R32_UINT));
 			PassParameters->RWFixupProbeBordersIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(FixupProbeBordersIndirectArgs, PF_R32_UINT));
 			PassParameters->ProbeTraceAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceAllocator, PF_R32_UINT));
@@ -1788,7 +1785,8 @@ void RenderRadianceCache(
 				PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 				PassParameters->OctahedralSolidAngleParameters = OctahedralSolidAngleParameters;
 				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->CalculateProbeIrradianceIndirectArgs = CalculateProbeIrradianceIndirectArgs;
+				// GenerateProbeTraceTilesIndirectArgs is the same so we can reuse it
+				PassParameters->CalculateProbeIrradianceIndirectArgs = GenerateProbeTraceTilesIndirectArgs;
 
 				auto ComputeShader = View.ShaderMap->GetShader<FCalculateProbeIrradianceCS>();
 
@@ -1797,7 +1795,7 @@ void RenderRadianceCache(
 					RDG_EVENT_NAME("CalculateProbeIrradiance Res=%ux%u", RadianceCacheInputs.IrradianceProbeResolution, RadianceCacheInputs.IrradianceProbeResolution),
 					ComputeShader,
 					PassParameters,
-					CalculateProbeIrradianceIndirectArgs,
+					GenerateProbeTraceTilesIndirectArgs,
 					0);
 			}
 

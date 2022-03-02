@@ -678,6 +678,7 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> PageFreeListAllocatorBuffer;
 	TRefCountPtr<FRDGPooledBuffer> PageFreeListBuffer;
 	TRefCountPtr<IPooledRenderTarget> PageAtlasTexture;
+	TRefCountPtr<IPooledRenderTarget> CoverageAtlasTexture;
 	TRefCountPtr<IPooledRenderTarget> PageTableCombinedTexture;
 	TRefCountPtr<IPooledRenderTarget> PageTableLayerTextures[GDF_Num];
 	TRefCountPtr<IPooledRenderTarget> MipTexture;

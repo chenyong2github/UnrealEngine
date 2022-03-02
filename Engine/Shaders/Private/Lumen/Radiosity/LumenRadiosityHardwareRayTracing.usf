@@ -71,7 +71,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 				float3 WorldRayDirection;
 				float ConeHalfAngle;
 				float PDF;
-				GetRadiosityRay(RadiosityTexel, RadiosityTexel.AtlasCoord / ProbeSpacingInRadiosityTexels, TraceTexelCoord, WorldRayDirection, ConeHalfAngle, PDF);
+				GetRadiosityRay(RadiosityTexel, RadiosityTexel.CardCoord / ProbeSpacingInRadiosityTexels, TraceTexelCoord, WorldRayDirection, ConeHalfAngle, PDF);
 
 				RayDesc Ray;
 				if (RadiosityTexel.bHeightfield)

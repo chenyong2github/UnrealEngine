@@ -85,7 +85,7 @@ void LumenRadiosityDistanceFieldTracingCS(
 			float3 WorldRayDirection;
 			float ConeHalfAngle;
 			float PDF;
-			GetRadiosityRay(RadiosityTexel, RadiosityTexel.AtlasCoord >> ProbeSpacingInRadiosityTexelsDivideShift, TraceTexelCoord, WorldRayDirection, ConeHalfAngle, PDF);
+			GetRadiosityRay(RadiosityTexel, RadiosityTexel.CardCoord >> ProbeSpacingInRadiosityTexelsDivideShift, TraceTexelCoord, WorldRayDirection, ConeHalfAngle, PDF);
 
 			//#lumen_todo: derive bias from texel world size
 			WorldPosition += WorldNormal * SurfaceBias;
@@ -330,7 +330,7 @@ void LumenRadiosityConvertToSH(
 					float3 WorldRayDirection;
 					float ConeHalfAngle;
 					float PDF;
-					GetRadiosityRay(RadiosityTexel, RadiosityTexel.AtlasCoord >> ProbeSpacingInRadiosityTexelsDivideShift, TraceTexelCoord, WorldRayDirection, ConeHalfAngle, PDF);
+					GetRadiosityRay(RadiosityTexel, RadiosityTexel.CardCoord >> ProbeSpacingInRadiosityTexelsDivideShift, TraceTexelCoord, WorldRayDirection, ConeHalfAngle, PDF);
 
 					IrradianceSH = AddSH(IrradianceSH, MulSH(SHBasisFunction(WorldRayDirection), TraceRadiance / PDF));
 					NumValidSamples += 1.0f;

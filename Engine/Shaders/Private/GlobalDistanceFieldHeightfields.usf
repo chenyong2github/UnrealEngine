@@ -7,12 +7,14 @@
 #include "Common.ush"
 #include "GlobalDistanceFieldShared.ush"
 #include "HeightfieldLightingShared.ush"
+#include "GlobalDistanceFieldUtils.ush"
 
 #define GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X (GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS / 8)
 #define GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_NUM (GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X * GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X)
 
 RWStructuredBuffer<uint> RWMarkedHeightfieldPageBuffer;
 RWTexture3D<UNORM float> RWPageAtlasTexture;
+RWTexture3D<UNORM float> RWCoverageAtlasTexture;
 
 StructuredBuffer<uint> MarkedHeightfieldPageBuffer;
 StructuredBuffer<uint> PageUpdateTileBuffer;
@@ -248,10 +250,10 @@ void ComposeHeightfieldsIntoPagesCS(
 
 	uint3 PageTableTextureCoord = PageGridCoordToPageTableTextureCoord(PageGridCoord);
 	uint PageId = PageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
-	uint3 PageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasCoord(PageId);
+	uint3 PageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageId) * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS;
 	PageAtlasCoord += TexelCoordInPage;
 
-	uint ValidHeightfieldIndex = 0;
+	uint ValidHeightfieldIndex = NumHeightfields;
 
 	LOOP
 	for (uint HeightfieldIndex = 0; HeightfieldIndex < NumHeightfields; HeightfieldIndex++)
@@ -267,42 +269,58 @@ void ComposeHeightfieldsIntoPagesCS(
 		}
 	}
 
-	float3 LocalPosition = mul(float4(VoxelWorldCenter, 1), GetWorldToLocal(ValidHeightfieldIndex)).xyz;
-	float4 MinMaxHeightfieldUV;
-	float2 HeightfieldUV = GetHeightfieldUV(ValidHeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
-
-	if (all(HeightfieldUV > MinMaxHeightfieldUV.xy) && all(HeightfieldUV < MinMaxHeightfieldUV.zw))
+	if (ValidHeightfieldIndex < NumHeightfields)
 	{
-		float3 WorldHeightfieldNormal;
-		float HeightfieldVisibility;
-		float3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(ValidHeightfieldIndex, LocalPosition.xy, HeightfieldUV, WorldHeightfieldNormal, HeightfieldVisibility);
+		float3 LocalPosition = mul(float4(VoxelWorldCenter, 1), GetWorldToLocal(ValidHeightfieldIndex)).xyz;
+		float4 MinMaxHeightfieldUV;
+		float2 HeightfieldUV = GetHeightfieldUV(ValidHeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
 
-		if (HeightfieldVisibility > 0.5f) // Skip holes in the heightfield
+		if (all(HeightfieldUV > MinMaxHeightfieldUV.xy) && all(HeightfieldUV < MinMaxHeightfieldUV.zw))
 		{
-			// Compute distance for all Z values of the update region
-			LOOP
-			for (uint ZIndex = 0; ZIndex < GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS; ++ZIndex)
+			float3 WorldHeightfieldNormal;
+			float HeightfieldVisibility;
+			float3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(ValidHeightfieldIndex, LocalPosition.xy, HeightfieldUV, WorldHeightfieldNormal, HeightfieldVisibility);
+
+			if (HeightfieldVisibility > 0.5f) // Skip holes in the heightfield
 			{
-				float3 WorldPosition = VoxelWorldCenter.xyz + float3(0.0f, 0.0f, ZIndex * PageCoordToVoxelCenterScale.z);
-
-				// Project the vertical height vector onto the normal of the heightfield directly below the point we are computing the distance field for, use the perpendicular distance
-				float DistanceToHeightfieldPlane = dot(WorldHeightfieldNormal, WorldPosition - WorldHeightfieldShadingPosition);
-
-				// Limit negative region of a heightfield to a user defined thickness  
-				const float MinInteriorDistance = -HeightfieldThickness;
-				if (DistanceToHeightfieldPlane < MinInteriorDistance)
+				// Compute distance for all Z values of the update region
+				LOOP
+				for (uint ZIndex = 0; ZIndex < GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS; ++ZIndex)
 				{
-					DistanceToHeightfieldPlane = MinInteriorDistance - DistanceToHeightfieldPlane;
+					float3 WorldPosition = VoxelWorldCenter.xyz + float3(0.0f, 0.0f, ZIndex * PageCoordToVoxelCenterScale.z);
+
+					// Project the vertical height vector onto the normal of the heightfield directly below the point we are computing the distance field for, use the perpendicular distance
+					float DistanceToHeightfieldPlane = dot(WorldHeightfieldNormal, WorldPosition - WorldHeightfieldShadingPosition);
+
+					// Limit negative region of a heightfield to a user defined thickness  
+					const float MinInteriorDistance = -HeightfieldThickness;
+					if (DistanceToHeightfieldPlane < MinInteriorDistance)
+					{
+						DistanceToHeightfieldPlane = MinInteriorDistance - DistanceToHeightfieldPlane;
+					}
+
+					float HeightfieldMinDistance = clamp(DistanceToHeightfieldPlane, -InfluenceRadius, InfluenceRadius);
+
+					const uint3 PageAtlasCoordZ = PageAtlasCoord + uint3(0, 0, ZIndex);
+
+					float PreviousDistanceField = DecodeGlobalDistanceFieldPageDistance(RWPageAtlasTexture[PageAtlasCoordZ], InfluenceRadius);
+					float MinDistance = min(HeightfieldMinDistance, PreviousDistanceField);
+
+					RWPageAtlasTexture[PageAtlasCoordZ] = EncodeGlobalDistanceFieldPageDistance(MinDistance, InfluenceRadius);
+
+					#if COMPOSITE_COVERAGE_ATLAS
+					uint3 TexelCoordInPageWithZ = uint3(TexelCoordInPage.xy, ZIndex);
+					bool bThreadWritesCoverage = all(TexelCoordInPageWithZ % GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR == 0);
+					uint3 CoverageTexelCoordInPage = TexelCoordInPageWithZ / GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR;
+
+					if (bThreadWritesCoverage && abs(HeightfieldMinDistance) < ClipmapVoxelExtent * DEFAULT_BAND_SIZE 
+						&& all(CoverageTexelCoordInPage < GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS))
+					{
+						uint3 CoverageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageId) * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + CoverageTexelCoordInPage;
+						RWCoverageAtlasTexture[CoverageAtlasCoord] = 1.0f;
+					}
+					#endif
 				}
-
-				float MinDistance = clamp(DistanceToHeightfieldPlane, -InfluenceRadius, InfluenceRadius);
-
-				const uint3 PageAtlasCoordZ = PageAtlasCoord + uint3(0, 0, ZIndex);
-
-				float PreviousDistanceField = DecodeGlobalDistanceFieldPageDistance(RWPageAtlasTexture[PageAtlasCoordZ], InfluenceRadius);
-				MinDistance = min(MinDistance, PreviousDistanceField);
-
-				RWPageAtlasTexture[PageAtlasCoordZ] = EncodeGlobalDistanceFieldPageDistance(MinDistance, InfluenceRadius);
 			}
 		}
 	}

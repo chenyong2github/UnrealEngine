@@ -4,6 +4,9 @@
 	GlobalDistanceFieldUtils.ush
 =============================================================================*/
 
+#define TWO_SIDED_BAND_SIZE 4.0f
+#define DEFAULT_BAND_SIZE 4.0f
+
 uint ComputeGlobalDistanceFieldClipmapIndex(float3 WorldPosition)
 {
 	uint FoundClipmapIndex = 0;
@@ -113,19 +116,31 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 
 				float DistanceFieldMipValue = Texture3DSampleLevel(GlobalDistanceFieldMipTexture, GlobalTrilinearClampedSampler, MipUV, 0).x;
 				float DistanceField = DecodeGlobalDistanceFieldPageDistance(DistanceFieldMipValue, GlobalDistanceFieldMipFactor * ClipmapInfluenceRange);
+				float Coverage = 1;
 				uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
+
 				if (PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID && DistanceFieldMipValue < GlobalDistanceFieldMipTransition)
 				{
+#define USE_COVERAGE_BASED_EXPAND 1
+#if USE_COVERAGE_BASED_EXPAND
+					float3 PageUV;
+					float3 CoveragePageUV;
+					ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, PageIndex, PageUV, CoveragePageUV);
+					Coverage = Texture3DSampleLevel(GlobalDistanceFieldCoverageAtlasTexture, GlobalTrilinearWrappedSampler, CoveragePageUV, 0).x;
+#else
 					float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, PageIndex);
+#endif
 					float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
 					DistanceField = DecodeGlobalDistanceFieldPageDistance(DistanceFieldValue, ClipmapInfluenceRange);
 				}
 
 				MaxDistance = max(DistanceField, MaxDistance);
+
 				float ExpandSurfaceTime = TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance ? SampleRayTime : MaxDistance;
+				float ExpandSurfaceScale = lerp(UncoveredExpandSurfaceScale, FullyCoveredExpandSurfaceScale, Coverage);
 
 				const float ExpandSurfaceFalloff = 2.0f * ExpandSurfaceDistance;
-				const float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate(ExpandSurfaceTime / ExpandSurfaceFalloff);
+				const float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate(ExpandSurfaceTime / ExpandSurfaceFalloff) * ExpandSurfaceScale;
 
 				if (DistanceField < ExpandSurfaceAmount)
 				{
@@ -135,7 +150,8 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 					break;
 				}
 
-				float StepDistance = max(DistanceField * TraceInput.StepFactor, MinStepSize);
+				float LocalMinStepSize = MinStepSize * lerp(UncoveredMinStepScale, 1.0f, Coverage);
+				float StepDistance = max(DistanceField * TraceInput.StepFactor, LocalMinStepSize);
 				SampleRayTime += StepDistance;
 
 				// Terminate the trace if we went past the end of the ray or achieved enough occlusion

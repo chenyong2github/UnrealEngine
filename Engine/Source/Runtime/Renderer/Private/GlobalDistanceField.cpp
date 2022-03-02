@@ -213,11 +213,36 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldMipFactor(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenSceneGlobalSDFFullyCoveredExpandSurfaceScale = 1.0f;
+FAutoConsoleVariableRef CVarLumenSceneGlobalSDFFullyCoveredExpandSurfaceScale(
+	TEXT("r.LumenScene.GlobalSDF.FullyCoveredExpandSurfaceScale"),
+	GLumenSceneGlobalSDFFullyCoveredExpandSurfaceScale,
+	TEXT("Scales the half voxel SDF expand used by the Global SDF to reconstruct surfaces that are thinner than the distance between two voxels, erring on the side of over-occlusion."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GLumenSceneGlobalSDFUncoveredExpandSurfaceScale = .6f;
+FAutoConsoleVariableRef CVarLumenScenGlobalSDFUncoveredExpandSurfaceScale(
+	TEXT("r.LumenScene.GlobalSDF.UncoveredExpandSurfaceScale"),
+	GLumenSceneGlobalSDFUncoveredExpandSurfaceScale,
+	TEXT("Scales the half voxel SDF expand used by the Global SDF to reconstruct surfaces that are thinner than the distance between two voxels, for regions of space that only contain Two Sided Mesh SDFs."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GLumenSceneGlobalSDFUncoveredMinStepScale = 4.0f;
+FAutoConsoleVariableRef CVarLumenScenGlobalSDFUncoveredMinStepScale(
+	TEXT("r.LumenScene.GlobalSDF.UncoveredMinStepScale"),
+	GLumenSceneGlobalSDFUncoveredMinStepScale,
+	TEXT("Scales the min step size to improve performance, for regions of space that only contain Two Sided Mesh SDFs."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobalDistanceFieldParameterData& ParameterData)
 {
 	FGlobalDistanceFieldParameters2 ShaderParameters;
 
 	ShaderParameters.GlobalDistanceFieldPageAtlasTexture = OrBlack3DIfNull(ParameterData.PageAtlasTexture);
+	ShaderParameters.GlobalDistanceFieldCoverageAtlasTexture = OrBlack3DIfNull(ParameterData.CoverageAtlasTexture);
 	ShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DUintIfNull(ParameterData.PageTableTexture);
 	ShaderParameters.GlobalDistanceFieldMipTexture = OrBlack3DIfNull(ParameterData.MipTexture);
 
@@ -233,10 +258,15 @@ FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobal
 	ShaderParameters.GlobalDistanceFieldMipTransition = ParameterData.MipTransition;
 	ShaderParameters.GlobalDistanceFieldClipmapSizeInPages = ParameterData.ClipmapSizeInPages;
 	ShaderParameters.GlobalDistanceFieldInvPageAtlasSize = (FVector3f)ParameterData.InvPageAtlasSize;
+	ShaderParameters.GlobalDistanceFieldInvCoverageAtlasSize = (FVector3f)ParameterData.InvCoverageAtlasSize;
 	ShaderParameters.GlobalVolumeDimension = ParameterData.GlobalDFResolution;
 	ShaderParameters.GlobalVolumeTexelSize = 1.0f / ParameterData.GlobalDFResolution;
 	ShaderParameters.MaxGlobalDFAOConeDistance = ParameterData.MaxDFAOConeDistance;
 	ShaderParameters.NumGlobalSDFClipmaps = ParameterData.NumGlobalSDFClipmaps;
+
+	ShaderParameters.FullyCoveredExpandSurfaceScale = GLumenSceneGlobalSDFFullyCoveredExpandSurfaceScale;
+	ShaderParameters.UncoveredExpandSurfaceScale = GLumenSceneGlobalSDFUncoveredExpandSurfaceScale;
+	ShaderParameters.UncoveredMinStepScale = GLumenSceneGlobalSDFUncoveredMinStepScale;
 
 	return ShaderParameters;
 }
@@ -282,6 +312,7 @@ int32 GetNumGlobalDistanceFieldClipmaps(bool bLumenEnabled, float LumenSceneView
 // Global Distance Field Pages
 // Must match GlobalDistanceFieldShared.ush
 const int32 GGlobalDistanceFieldPageResolutionInAtlas = 16; // Includes 1 texel bilinear filter margin
+const int32 GGlobalDistanceFieldCoveragePageResolutionInAtlas = 8; // Includes 1 texel bilinear filter margin
 const int32 GGlobalDistanceFieldPageResolution = GGlobalDistanceFieldPageResolutionInAtlas - 2;
 const int32 GGlobalDistanceFieldPageAtlasSizeInPagesX = 32;
 const int32 GGlobalDistanceFieldPageAtlasSizeInPagesY = 32;
@@ -366,6 +397,12 @@ FIntVector GlobalDistanceField::GetPageAtlasSize(bool bLumenEnabled, float Lumen
 	return PageAtlasTextureSizeInPages * GGlobalDistanceFieldPageResolutionInAtlas;
 }
 
+FIntVector GlobalDistanceField::GetCoverageAtlasSize(bool bLumenEnabled, float LumenSceneViewDistance)
+{
+	const FIntVector PageAtlasTextureSizeInPages = GlobalDistanceField::GetPageAtlasSizeInPages(bLumenEnabled, LumenSceneViewDistance);
+	return PageAtlasTextureSizeInPages * GGlobalDistanceFieldCoveragePageResolutionInAtlas;
+}
+
 int32 GlobalDistanceField::GetMaxPageNum(bool bLumenEnabled, float LumenSceneViewDistance)
 {
 	const FIntVector PageAtlasTextureSizeInPages = GlobalDistanceField::GetPageAtlasSizeInPages(bLumenEnabled, LumenSceneViewDistance);
@@ -390,6 +427,7 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 {
 	ParameterData.PageTableTexture = nullptr;
 	ParameterData.PageAtlasTexture = nullptr;
+	ParameterData.CoverageAtlasTexture = nullptr;
 	ParameterData.MipTexture = nullptr;
 	ParameterData.MaxPageNum = GlobalDistanceField::GetMaxPageNum(bLumenEnabled, LumenSceneViewDistance);
 
@@ -398,6 +436,11 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 		if (PageAtlasTexture)
 		{
 			ParameterData.PageAtlasTexture = PageAtlasTexture->GetRenderTargetItem().ShaderResourceTexture;
+		}
+
+		if (CoverageAtlasTexture)
+		{
+			ParameterData.CoverageAtlasTexture = CoverageAtlasTexture->GetRenderTargetItem().ShaderResourceTexture;
 		}
 
 		if (PageTableCombinedTexture)
@@ -459,6 +502,7 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 		ParameterData.MipTransition = (GGlobalDistanceFieldInfluenceRangeInVoxels + ParameterData.MipFactor / GGlobalDistanceFieldInfluenceRangeInVoxels) / (2.0f * GGlobalDistanceFieldInfluenceRangeInVoxels);
 		ParameterData.ClipmapSizeInPages = GlobalDistanceField::GetPageTableTextureResolution(bLumenEnabled, LumenSceneViewDistance).X;
 		ParameterData.InvPageAtlasSize = FVector(1.0f) / FVector(GlobalDistanceField::GetPageAtlasSize(bLumenEnabled, LumenSceneViewDistance));
+		ParameterData.InvCoverageAtlasSize = FVector(1.0f) / FVector(GlobalDistanceField::GetCoverageAtlasSize(bLumenEnabled, LumenSceneViewDistance));
 		ParameterData.GlobalDFResolution = GlobalDistanceField::GetClipmapResolution(bLumenEnabled);
 
 		extern float GAOConeHalfAngle;
@@ -703,6 +747,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 		GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer = nullptr;
 		GlobalDistanceFieldInfo.PageFreeListBuffer = nullptr;
 		GlobalDistanceFieldInfo.PageAtlasTexture = nullptr;
+		GlobalDistanceFieldInfo.CoverageAtlasTexture = nullptr;
 
 		if (View.ViewState)
 		{
@@ -748,9 +793,38 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 				bSharedDataReallocated = true;
 			}
 
+			const FIntVector CoverageAtlasTextureSize = GlobalDistanceField::GetCoverageAtlasSize(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance);
+
+			if (bLumenEnabled
+				&& (!ViewState.GlobalDistanceFieldCoverageAtlasTexture
+				|| ViewState.GlobalDistanceFieldCoverageAtlasTexture->GetDesc().Extent.X != CoverageAtlasTextureSize.X
+				|| ViewState.GlobalDistanceFieldCoverageAtlasTexture->GetDesc().Extent.Y != CoverageAtlasTextureSize.Y
+				|| ViewState.GlobalDistanceFieldCoverageAtlasTexture->GetDesc().Depth != CoverageAtlasTextureSize.Z))
+			{
+				FPooledRenderTargetDesc VolumeDesc = FPooledRenderTargetDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
+					CoverageAtlasTextureSize.X,
+					CoverageAtlasTextureSize.Y,
+					CoverageAtlasTextureSize.Z,
+					PF_R8,
+					FClearValueBinding::None,
+					TexCreate_None,
+					TexCreate_ShaderResource | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
+					false));
+
+				GRenderTargetPool.FindFreeElement(
+					RHICmdList,
+					VolumeDesc,
+					ViewState.GlobalDistanceFieldCoverageAtlasTexture,
+					TEXT("GlobalDistanceFieldCoverageAtlas")
+				);
+
+				bSharedDataReallocated = true;
+			}
+
 			GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer = ViewState.GlobalDistanceFieldPageFreeListAllocatorBuffer;
 			GlobalDistanceFieldInfo.PageFreeListBuffer = ViewState.GlobalDistanceFieldPageFreeListBuffer;
 			GlobalDistanceFieldInfo.PageAtlasTexture = ViewState.GlobalDistanceFieldPageAtlasTexture;
+			GlobalDistanceFieldInfo.CoverageAtlasTexture = ViewState.GlobalDistanceFieldCoverageAtlasTexture;
 		}
 
 		if(GAOGlobalDistanceFieldCacheMostlyStaticSeparately)
@@ -1093,12 +1167,14 @@ void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUnif
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTransition = 0.0f;
 	ViewUniformShaderParameters.GlobalDistanceFieldClipmapSizeInPages = 1;
 	ViewUniformShaderParameters.GlobalDistanceFieldInvPageAtlasSize = FVector3f::OneVector;
+	ViewUniformShaderParameters.GlobalDistanceFieldInvCoverageAtlasSize = FVector3f::OneVector;
 	ViewUniformShaderParameters.GlobalVolumeDimension = 0.0f;
 	ViewUniformShaderParameters.GlobalVolumeTexelSize = 0.0f;
 	ViewUniformShaderParameters.MaxGlobalDFAOConeDistance = 0.0f;
 	ViewUniformShaderParameters.NumGlobalSDFClipmaps = 0;
 
 	ViewUniformShaderParameters.GlobalDistanceFieldPageAtlasTexture = OrBlack3DIfNull(GBlackVolumeTexture->TextureRHI.GetReference());
+	ViewUniformShaderParameters.GlobalDistanceFieldCoverageAtlasTexture = OrBlack3DIfNull(GBlackVolumeTexture->TextureRHI.GetReference());
 	ViewUniformShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DUintIfNull(GBlackUintVolumeTexture->TextureRHI.GetReference());
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTexture = OrBlack3DIfNull(GBlackVolumeTexture->TextureRHI.GetReference());
 }
@@ -1118,14 +1194,20 @@ void FViewInfo::SetupGlobalDistanceFieldUniformBufferParameters(FViewUniformShad
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTransition = GlobalDistanceFieldInfo.ParameterData.MipTransition;
 	ViewUniformShaderParameters.GlobalDistanceFieldClipmapSizeInPages = GlobalDistanceFieldInfo.ParameterData.ClipmapSizeInPages;
 	ViewUniformShaderParameters.GlobalDistanceFieldInvPageAtlasSize = (FVector3f)GlobalDistanceFieldInfo.ParameterData.InvPageAtlasSize;
+	ViewUniformShaderParameters.GlobalDistanceFieldInvCoverageAtlasSize = (FVector3f)GlobalDistanceFieldInfo.ParameterData.InvCoverageAtlasSize;
 	ViewUniformShaderParameters.GlobalVolumeDimension = GlobalDistanceFieldInfo.ParameterData.GlobalDFResolution;
 	ViewUniformShaderParameters.GlobalVolumeTexelSize = 1.0f / GlobalDistanceFieldInfo.ParameterData.GlobalDFResolution;
 	ViewUniformShaderParameters.MaxGlobalDFAOConeDistance = GlobalDistanceFieldInfo.ParameterData.MaxDFAOConeDistance;
 	ViewUniformShaderParameters.NumGlobalSDFClipmaps = GlobalDistanceFieldInfo.ParameterData.NumGlobalSDFClipmaps;
 
 	ViewUniformShaderParameters.GlobalDistanceFieldPageAtlasTexture = OrBlack3DIfNull(GlobalDistanceFieldInfo.ParameterData.PageAtlasTexture);
+	ViewUniformShaderParameters.GlobalDistanceFieldCoverageAtlasTexture = OrBlack3DIfNull(GlobalDistanceFieldInfo.ParameterData.CoverageAtlasTexture);
 	ViewUniformShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DUintIfNull(GlobalDistanceFieldInfo.ParameterData.PageTableTexture);
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTexture = OrBlack3DIfNull(GlobalDistanceFieldInfo.ParameterData.MipTexture);
+
+	ViewUniformShaderParameters.FullyCoveredExpandSurfaceScale = GLumenSceneGlobalSDFFullyCoveredExpandSurfaceScale;
+	ViewUniformShaderParameters.UncoveredExpandSurfaceScale = GLumenSceneGlobalSDFUncoveredExpandSurfaceScale;
+	ViewUniformShaderParameters.UncoveredMinStepScale = GLumenSceneGlobalSDFUncoveredMinStepScale;
 }
 
 void ReadbackDistanceFieldClipmap(FRHICommandListImmediate& RHICmdList, FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
@@ -1298,7 +1380,8 @@ class FComposeObjectsIntoPagesCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, RWPageAtlasTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<UNORM float>, RWPageAtlasTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<UNORM float>, RWCoverageAtlasTexture)
 		RDG_BUFFER_ACCESS(ComposeIndirectArgBuffer, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ComposeTileBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, HeightfieldMarkedPageBuffer)
@@ -1331,7 +1414,8 @@ class FComposeObjectsIntoPagesCS : public FGlobalShader
 
 	class FComposeParentDistanceField : SHADER_PERMUTATION_BOOL("COMPOSE_PARENT_DISTANCE_FIELD");
 	class FProcessDistanceFields : SHADER_PERMUTATION_BOOL("PROCESS_DISTANCE_FIELDS");
-	using FPermutationDomain = TShaderPermutationDomain<FComposeParentDistanceField, FProcessDistanceFields>;
+	class FCompositeCoverageAtlas : SHADER_PERMUTATION_BOOL("COMPOSITE_COVERAGE_ATLAS");
+	using FPermutationDomain = TShaderPermutationDomain<FComposeParentDistanceField, FProcessDistanceFields, FCompositeCoverageAtlas>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -1634,6 +1718,12 @@ void UpdateGlobalDistanceFieldVolume(
 			if (GlobalDistanceFieldInfo.PageAtlasTexture)
 			{
 				PageAtlasTexture = GraphBuilder.RegisterExternalTexture(GlobalDistanceFieldInfo.PageAtlasTexture, TEXT("PageAtlas"));
+			}
+
+			FRDGTextureRef CoverageAtlasTexture = nullptr;
+			if (GlobalDistanceFieldInfo.CoverageAtlasTexture)
+			{
+				CoverageAtlasTexture = GraphBuilder.RegisterExternalTexture(GlobalDistanceFieldInfo.CoverageAtlasTexture, TEXT("CoverageAtlas"));
 			}
 
 			FRDGTextureRef PageTableCombinedTexture = nullptr;
@@ -2173,6 +2263,7 @@ void UpdateGlobalDistanceFieldVolume(
 							FComposeObjectsIntoPagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComposeObjectsIntoPagesCS::FParameters>();
 							PassParameters->View = View.ViewUniformBuffer;
 							PassParameters->RWPageAtlasTexture = GraphBuilder.CreateUAV(PageAtlasTexture);
+							PassParameters->RWCoverageAtlasTexture = CoverageAtlasTexture ? GraphBuilder.CreateUAV(CoverageAtlasTexture) : nullptr;
 							PassParameters->ComposeIndirectArgBuffer = PageComposeIndirectArgBuffer;
 							PassParameters->ComposeTileBuffer = GraphBuilder.CreateSRV(PageComposeTileBuffer, PF_R32_UINT);
 							PassParameters->PageTableLayerTexture = PageTableLayerTexture;
@@ -2202,6 +2293,7 @@ void UpdateGlobalDistanceFieldVolume(
 							FComposeObjectsIntoPagesCS::FPermutationDomain PermutationVector;
 							PermutationVector.Set<FComposeObjectsIntoPagesCS::FComposeParentDistanceField>(ParentPageTableLayerTexture != nullptr);
 							PermutationVector.Set<FComposeObjectsIntoPagesCS::FProcessDistanceFields>(Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0);
+							PermutationVector.Set<FComposeObjectsIntoPagesCS::FCompositeCoverageAtlas>(CoverageAtlasTexture != nullptr);
 							auto ComputeShader = View.ShaderMap->GetShader<FComposeObjectsIntoPagesCS>(PermutationVector);
 
 							FComputeShaderUtils::AddPass(
@@ -2236,6 +2328,7 @@ void UpdateGlobalDistanceFieldVolume(
 									FComposeHeightfieldsIntoPagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComposeHeightfieldsIntoPagesCS::FParameters>();
 									PassParameters->View = View.ViewUniformBuffer;
 									PassParameters->RWPageAtlasTexture = GraphBuilder.CreateUAV(PageAtlasTexture);
+									PassParameters->RWCoverageAtlasTexture = CoverageAtlasTexture ? GraphBuilder.CreateUAV(CoverageAtlasTexture) : nullptr;
 									PassParameters->ComposeIndirectArgBuffer = PageComposeHeightfieldIndirectArgBuffer;
 									PassParameters->ComposeTileBuffer = GraphBuilder.CreateSRV(PageComposeHeightfieldTileBuffer, PF_R32_UINT);
 									PassParameters->PageTableLayerTexture = PageTableLayerTexture;
@@ -2258,7 +2351,9 @@ void UpdateGlobalDistanceFieldVolume(
 									PassParameters->VisibilitySampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 									PassParameters->HeightfieldDescriptions = GraphBuilder.CreateSRV(HeightfieldDescriptionBuffer, EPixelFormat::PF_A32B32G32R32F);
 
-									auto ComputeShader = View.ShaderMap->GetShader<FComposeHeightfieldsIntoPagesCS>();
+									FComposeHeightfieldsIntoPagesCS::FPermutationDomain PermutationVector;
+									PermutationVector.Set<FComposeHeightfieldsIntoPagesCS::FCompositeCoverageAtlas>(CoverageAtlasTexture != nullptr);
+									auto ComputeShader = View.ShaderMap->GetShader<FComposeHeightfieldsIntoPagesCS>(PermutationVector);
 
 									FComputeShaderUtils::AddPass(
 										GraphBuilder,
@@ -2350,6 +2445,11 @@ void UpdateGlobalDistanceFieldVolume(
 			if (PageAtlasTexture)
 			{
 				GlobalDistanceFieldInfo.PageAtlasTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, PageAtlasTexture);
+			}
+
+			if (CoverageAtlasTexture)
+			{
+				GlobalDistanceFieldInfo.CoverageAtlasTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, CoverageAtlasTexture);
 			}
 
 			if (PageTableCombinedTexture)

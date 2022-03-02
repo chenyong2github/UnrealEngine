@@ -1087,6 +1087,7 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> GlobalDistanceFieldPageFreeListAllocatorBuffer;
 	TRefCountPtr<FRDGPooledBuffer> GlobalDistanceFieldPageFreeListBuffer;
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageAtlasTexture;
+	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldCoverageAtlasTexture;
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableCombinedTexture;
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableLayerTextures[GDF_Num];
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldMipTexture;

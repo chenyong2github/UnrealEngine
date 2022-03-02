@@ -115,9 +115,9 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 
 					FThreeBandSHVector BRDF;
 
-					if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
+					if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR || GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
 					{
-						// Hack to avoid culling directions that hair will sample
+						// Avoid culling directions that the shading models will sample
 						BRDF = (FThreeBandSHVector)0;
 						BRDF.V0.x = 1.0f;
 					}

@@ -25,6 +25,7 @@
 #if DISTANCE_FIELD_IN_VIEW_UB
     // for materials, these are in the view UB
 	#define GlobalDistanceFieldPageAtlasTexture			View.GlobalDistanceFieldPageAtlasTexture
+	#define GlobalDistanceFieldCoverageAtlasTexture	View.GlobalDistanceFieldCoverageAtlasTexture
 	#define GlobalDistanceFieldPageTableTexture			View.GlobalDistanceFieldPageTableTexture
 	#define GlobalDistanceFieldMipTexture				View.GlobalDistanceFieldMipTexture
 	#define GlobalVolumeCenterAndExtent					View.GlobalVolumeCenterAndExtent
@@ -36,14 +37,18 @@
 	#define GlobalDistanceFieldMipFactor				View.GlobalDistanceFieldMipFactor
 	#define GlobalDistanceFieldMipTransition			View.GlobalDistanceFieldMipTransition
 	#define GlobalDistanceFieldInvPageAtlasSize			View.GlobalDistanceFieldInvPageAtlasSize
+	#define GlobalDistanceFieldInvCoverageAtlasSize	View.GlobalDistanceFieldInvCoverageAtlasSize
 	#define GlobalDistanceFieldClipmapSizeInPages		View.GlobalDistanceFieldClipmapSizeInPages
 	#define GlobalVolumeDimension						View.GlobalVolumeDimension
 	#define GlobalVolumeTexelSize						View.GlobalVolumeTexelSize
 	#define NumGlobalSDFClipmaps						View.NumGlobalSDFClipmaps
-
+	#define FullyCoveredExpandSurfaceScale				View.FullyCoveredExpandSurfaceScale
+	#define UncoveredExpandSurfaceScale					View.UncoveredExpandSurfaceScale
+	#define UncoveredMinStepScale						View.UncoveredMinStepScale
 #else
 	// these are only used for the precomputation shaders; which don't have a view UB
 	Texture3D GlobalDistanceFieldPageAtlasTexture;
+	Texture3D GlobalDistanceFieldCoverageAtlasTexture;
 	Texture3D<uint> GlobalDistanceFieldPageTableTexture;
 	Texture3D GlobalDistanceFieldMipTexture;
 	float4 GlobalVolumeCenterAndExtent[MAX_GLOBAL_DF_CLIPMAPS];
@@ -53,10 +58,14 @@
 	float GlobalDistanceFieldMipFactor;
 	float GlobalDistanceFieldMipTransition;
 	float3 GlobalDistanceFieldInvPageAtlasSize;
+	float3 GlobalDistanceFieldInvCoverageAtlasSize;
 	uint GlobalDistanceFieldClipmapSizeInPages;
 	float GlobalVolumeDimension;
 	float GlobalVolumeTexelSize;
 	uint NumGlobalSDFClipmaps;
+	float FullyCoveredExpandSurfaceScale;
+	float UncoveredExpandSurfaceScale;
+	float UncoveredMinStepScale;
 #endif
 
 // Must match GlobalDistanceField.cpp
@@ -67,19 +76,24 @@
 #define GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS 4
 #define GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID 0xFFFF
 
-uint3 GlobalDistanceFieldPageLinearIndexToPageAtlasCoord(uint PageLinearIndex)
+// Coverage is a payload layer alongside the SDF
+#define GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS 8 // Includes 1 texel bilinear filter margin
+#define GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION (GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS - 2)
+#define GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR (GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS / GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS)
+
+uint3 GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(uint PageLinearIndex)
 {
-	uint3 PageAtlasCoord;
-	//PageAtlasCoord.x = (PageLinearIndex % GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X);
-	//PageAtlasCoord.y = ((PageLinearIndex / GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X) % GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_Y);
-	//PageAtlasCoord.z = ((PageLinearIndex / GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X) / GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_Y);
+	uint3 PageAtlasOffset;
+	//PageAtlasOffset.x = (PageLinearIndex % GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X);
+	//PageAtlasOffset.y = ((PageLinearIndex / GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X) % GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_Y);
+	//PageAtlasOffset.z = ((PageLinearIndex / GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X) / GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_Y);
 
 	// Same as above, but with bit operations
-	PageAtlasCoord.x = PageLinearIndex & 0x1F;
-	PageAtlasCoord.y = (PageLinearIndex >> 5) & 0x1F;
-	PageAtlasCoord.z = PageLinearIndex >> 10;
+	PageAtlasOffset.x = PageLinearIndex & 0x1F;
+	PageAtlasOffset.y = (PageLinearIndex >> 5) & 0x1F;
+	PageAtlasOffset.z = PageLinearIndex >> 10;
 
-	return PageAtlasCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS;
+	return PageAtlasOffset;
 }
 
 uint GetGlobalDistanceFieldPage(float3 VolumeUV, uint ClipmapIndex)
@@ -90,15 +104,34 @@ uint GetGlobalDistanceFieldPage(float3 VolumeUV, uint ClipmapIndex)
 	return PageIndex;
 }
 
+void ComputeGlobalDistanceFieldPageUV(float3 VolumeUV, uint PageIndex, out float3 OutPageUV, out float3 OutCoveragePageUV)
+{
+	uint3 PageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageIndex);
+	float3 VolumePageUV = frac(VolumeUV * GlobalDistanceFieldClipmapSizeInPages);
+
+	float3 PageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + 1.0f;
+	OutPageUV = PageAtlasCoord * GlobalDistanceFieldInvPageAtlasSize;
+
+	float3 CoveragePageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION + 1.0f;
+	OutCoveragePageUV = CoveragePageAtlasCoord * GlobalDistanceFieldInvCoverageAtlasSize;
+}
+
 float3 ComputeGlobalDistanceFieldPageUV(float3 VolumeUV, uint PageIndex)
 {
-	uint3 PageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasCoord(PageIndex);
-
-	float3 PageCoord = PageAtlasCoord;
-	PageCoord += frac(VolumeUV * GlobalDistanceFieldClipmapSizeInPages) * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + 1.0f;
-
-	float3 PageUV = PageCoord * GlobalDistanceFieldInvPageAtlasSize;
+	uint3 PageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageIndex);
+	float3 VolumePageUV = frac(VolumeUV * GlobalDistanceFieldClipmapSizeInPages);
+	float3 PageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + 1.0f;
+	float3 PageUV = PageAtlasCoord * GlobalDistanceFieldInvPageAtlasSize;
 	return PageUV;
+}
+
+float3 ComputeGlobalDistanceFieldCoveragePageUV(float3 VolumeUV, uint PageIndex)
+{
+	uint3 PageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageIndex);
+	float3 VolumePageUV = frac(VolumeUV * GlobalDistanceFieldClipmapSizeInPages);
+	float3 CoveragePageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION + 1.0f;
+	float3 CoveragePageUV = CoveragePageAtlasCoord * GlobalDistanceFieldInvCoverageAtlasSize;
+	return CoveragePageUV;
 }
 
 float EncodeGlobalDistanceFieldPageDistance(float Distance, float ClipmapInfluenceRange)

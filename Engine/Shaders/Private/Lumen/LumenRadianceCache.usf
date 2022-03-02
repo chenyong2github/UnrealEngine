@@ -56,11 +56,11 @@ void MarkRadianceProbesUsedByVisualizeCS(
 // Must match C++
 #define NUM_RADIANCE_PROBE_PDF_COEFFICIENTS (NUM_PDF_SH_COEFFICIENTS + 1)
 
+RWBuffer<uint> RWProbeAllocator;
 RWBuffer<uint> RWClearProbePDFsIndirectArgs;
 RWBuffer<uint> RWGenerateProbeTraceTilesIndirectArgs;
 RWBuffer<uint> RWProbeTraceTileAllocator;
 RWBuffer<uint> RWFilterProbesIndirectArgs;
-RWBuffer<uint> RWCalculateProbeIrradianceIndirectArgs;
 RWBuffer<uint> RWPrepareProbeOcclusionIndirectArgs;
 RWBuffer<uint> RWFixupProbeBordersIndirectArgs;
 Buffer<uint> ProbeTraceAllocator;
@@ -71,7 +71,7 @@ uint FilterProbesGroupSizeXY;
 [numthreads(1, 1, 1)]
 void SetupProbeIndirectArgsCS()
 {
-	// Clamp free list
+	// Clamp allocators
 	if (RWProbeFreeListAllocator[0] < 0)
 	{
 		RWProbeFreeListAllocator[0] = 0;
@@ -80,6 +80,11 @@ void SetupProbeIndirectArgsCS()
 	if (RWProbeFreeListAllocator[0] > (int)MaxNumProbes)
 	{
 		RWProbeFreeListAllocator[0] = (int)MaxNumProbes;
+	}
+
+	if (RWProbeAllocator[0] > MaxNumProbes)
+	{
+		RWProbeAllocator[0] = MaxNumProbes;
 	}
 
 	uint NumProbesToTrace = ProbeTraceAllocator[0];
@@ -97,10 +102,6 @@ void SetupProbeIndirectArgsCS()
 	RWFilterProbesIndirectArgs[0] = (RadianceProbeResolution + FilterProbesGroupSizeXY - 1) / FilterProbesGroupSizeXY;
 	RWFilterProbesIndirectArgs[1] = (RadianceProbeResolution + FilterProbesGroupSizeXY - 1) / FilterProbesGroupSizeXY;
 	RWFilterProbesIndirectArgs[2] = NumProbesToTrace;
-
-	RWCalculateProbeIrradianceIndirectArgs[0] = 1;
-	RWCalculateProbeIrradianceIndirectArgs[1] = 1;
-	RWCalculateProbeIrradianceIndirectArgs[2] = NumProbesToTrace;
 
 	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1u << FinalRadianceAtlasMaxMip);
 	RWPrepareProbeOcclusionIndirectArgs[0] = (FinalOcclusionProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY;
@@ -231,6 +232,7 @@ void ScatterScreenProbeBRDFToRadianceProbesCS(
 				int3 BottomCornerProbeCoord = GetRadianceProbeBottomCornerCoord(WorldPosition, ClipmapIndex);
 				int3 IndirectionTextureCoord = BottomCornerProbeCoord + int3(ClipmapIndex * RadianceProbeClipmapResolution, 0, 0);
 				uint ProbeIndex = RadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(GroupThreadId.x & 0x1, (GroupThreadId.x & 0x2) >> 1, (GroupThreadId.x & 0x4) >> 2)];
+				bool bTwoSidedFoliage = GetScreenProbeIsTwoSidedFoliage(ScreenProbeAtlasCoord);
 
 				//@todo - skip probes which are cached this frame
 				if (ProbeIndex != INVALID_PROBE_INDEX)
@@ -245,7 +247,8 @@ void ScatterScreenProbeBRDFToRadianceProbesCS(
 
 						if (CoefficientIndex < NUM_PDF_SH_COEFFICIENTS)
 						{
-							Coefficient = BRDFProbabilityDensityFunctionSH[SHBaseIndex + CoefficientIndex];
+							// The Radiance Cache over-samples with high depth complexity caused by foliage, attempt to offset that by keeping at the lowest trace resolution
+							Coefficient = bTwoSidedFoliage ? 0.0f : BRDFProbabilityDensityFunctionSH[SHBaseIndex + CoefficientIndex];
 							MaxValuePerThread = (float)0xFFFFFFFF / 100000.0f;
 						}
 						
@@ -717,6 +720,12 @@ void TraceFromProbesCS(
 			TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(FinalMinTraceDistance, FinalMaxTraceDistance, MaxMeshSDFTraceDistance, bContinueCardTracing);
 
 			FConeTraceResult TraceResult = TraceForProbeTexel(TraceInput);
+
+			#define DEBUG_VISUALIZE_SAMPLING_RESOLUTION 0
+			#if DEBUG_VISUALIZE_SAMPLING_RESOLUTION
+				// Set r.Lumen.RadianceCache.SpatialFilterProbes 0 for raw output
+				TraceResult.Lighting = TraceTileLevel == 0 ? float3(0, 1, 0) : (TraceTileLevel == 1 ? float3(1, 0, 0) : float3(1, 0, 1));
+			#endif
 
 			SharedTraceRadiance[GroupThreadId.y][GroupThreadId.x] = TraceResult.Lighting;
 			SharedTraceHitDistance[GroupThreadId.y][GroupThreadId.x] = TraceResult.OpaqueHitDistance;

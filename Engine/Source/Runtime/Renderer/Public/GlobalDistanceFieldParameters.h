@@ -33,10 +33,12 @@ public:
 	float MipFactor;
 	float MipTransition;
 	FRHITexture* PageAtlasTexture;
+	FRHITexture* CoverageAtlasTexture;
 	FRHITexture* PageTableTexture;
 	FRHITexture* MipTexture;
 	int32 ClipmapSizeInPages;
 	FVector InvPageAtlasSize;
+	FVector InvCoverageAtlasSize;
 	int32 MaxPageNum;
 	float GlobalDFResolution;
 	float MaxDFAOConeDistance;
@@ -45,6 +47,7 @@ public:
 
 BEGIN_SHADER_PARAMETER_STRUCT(FGlobalDistanceFieldParameters2, )
 	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldPageAtlasTexture)
+	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldCoverageAtlasTexture)
 	SHADER_PARAMETER_TEXTURE(Texture3D<uint>, GlobalDistanceFieldPageTableTexture)
 	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldMipTexture)
 	SHADER_PARAMETER_ARRAY(FVector4f, GlobalVolumeCenterAndExtent, [GMaxGlobalDistanceFieldClipmaps])
@@ -55,10 +58,14 @@ BEGIN_SHADER_PARAMETER_STRUCT(FGlobalDistanceFieldParameters2, )
 	SHADER_PARAMETER(float, GlobalDistanceFieldMipTransition)
 	SHADER_PARAMETER(int32, GlobalDistanceFieldClipmapSizeInPages)
 	SHADER_PARAMETER(FVector3f, GlobalDistanceFieldInvPageAtlasSize)
+	SHADER_PARAMETER(FVector3f, GlobalDistanceFieldInvCoverageAtlasSize)
 	SHADER_PARAMETER(float, GlobalVolumeDimension)
 	SHADER_PARAMETER(float, GlobalVolumeTexelSize)
 	SHADER_PARAMETER(float, MaxGlobalDFAOConeDistance)
 	SHADER_PARAMETER(uint32, NumGlobalSDFClipmaps)
+	SHADER_PARAMETER(float, FullyCoveredExpandSurfaceScale)
+	SHADER_PARAMETER(float, UncoveredExpandSurfaceScale)
+	SHADER_PARAMETER(float, UncoveredMinStepScale)
 END_SHADER_PARAMETER_STRUCT()
 
 FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobalDistanceFieldParameterData& ParameterData);

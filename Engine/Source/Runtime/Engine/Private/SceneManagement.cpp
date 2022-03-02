@@ -770,6 +770,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	SobolSamplingTexture = GWhiteTexture->TextureRHI;
 
 	GlobalDistanceFieldPageAtlasTexture = BlackVolume;
+	GlobalDistanceFieldCoverageAtlasTexture = BlackVolume;
 	GlobalDistanceFieldPageTableTexture = BlackVolume;
 	GlobalDistanceFieldMipTexture = BlackVolume;
 
