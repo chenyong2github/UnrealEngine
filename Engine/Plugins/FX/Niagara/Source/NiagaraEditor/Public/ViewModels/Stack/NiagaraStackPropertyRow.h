@@ -47,7 +47,7 @@ private:
 	EStackRowStyle RowStyle;
 
 	UPROPERTY()
-	UNiagaraStackSpacer* CategorySpacer;
+	TObjectPtr<UNiagaraStackSpacer> CategorySpacer;
 
 	bool bCannotEditInThisContext;
 	bool bIsTopLevelProperty;

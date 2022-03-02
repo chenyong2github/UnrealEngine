@@ -77,7 +77,7 @@ private:
 	TArray<FInputParameterHandleAndType> Inputs;
 
 	UPROPERTY()
-	UNiagaraStackSpacer* CategorySpacer;
+	TObjectPtr<UNiagaraStackSpacer> CategorySpacer;
 
 	bool bShouldShowInStack;
 	bool bIsTopLevelCategory;
