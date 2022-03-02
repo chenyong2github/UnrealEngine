@@ -104,8 +104,8 @@ public:
 	};
 
 	FCubeGrid()
-		: BaseGridCellSize(10)
-		, CurrentGridPower(3)
+		: BaseGridCellSize(3.125)
+		, CurrentGridPower(5)
 	{
 		UpdateCellSize();
 	}
@@ -130,6 +130,10 @@ public:
 	double GetBaseGridCellSize() const { return BaseGridCellSize; }
 	void SetBaseGridCellSize(double SizeIn)
 	{
+		if (!ensure(SizeIn > 0))
+		{
+			SizeIn = KINDA_SMALL_NUMBER;
+		}
 		BaseGridCellSize = SizeIn;
 		UpdateCellSize();
 	}

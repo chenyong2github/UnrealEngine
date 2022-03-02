@@ -321,7 +321,7 @@ namespace CubeGridToolLocals
 		double StepSize = Grid.GetCurrentGridCellSize();
 
 		// Draw the inside only if there aren't too many lines to draw (approximate)
-		if (BoxDimensions[Dim1] / StepSize + BoxDimensions[Dim2] / StepSize > MAX_NUM_INTERIOR_GRID_LINES)
+		if (StepSize <= 0 || BoxDimensions[Dim1] / StepSize + BoxDimensions[Dim2] / StepSize > MAX_NUM_INTERIOR_GRID_LINES)
 		{
 			return;
 		}

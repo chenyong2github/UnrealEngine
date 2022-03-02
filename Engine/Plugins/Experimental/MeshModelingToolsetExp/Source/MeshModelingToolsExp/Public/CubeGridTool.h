@@ -102,10 +102,10 @@ public:
 	const uint8 MaxPowerOfTwo = 31;
 
 	/** Smallest block size to use in the grid. For instance, 3.125 results in
-	 blocks that are 100 sized at power of 2 since 3.125 * 2^5 = 100. */
+	 blocks that are 100 sized at 5 power of two since 3.125 * 2^5 = 100. */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (
 		EditCondition = "bAllowedToEditGrid", HideEditConditionToggle,
-		UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "1000"))
+		UIMin = "0.1", UIMax = "10", ClampMin = "0.001", ClampMax = "1000"))
 	double BlockBaseSize = 3.125;
 
 	/** When pushing/pulling in a way where the diagonal matters, setting this to true
