@@ -41,6 +41,7 @@ class UMaterialInstance;
 class UMaterialGraphNode;
 struct FGraphAppearanceInfo;
 class UMaterialFunctionInstance;
+class FMaterialCachedHLSLTree;
 
 /**
  * Class for rendering previews of material expressions in the material editor's linked object viewport.
@@ -48,33 +49,10 @@ class UMaterialFunctionInstance;
 class FMatExpressionPreview : public FMaterial, public FMaterialRenderProxy
 {
 public:
-	FMatExpressionPreview()
-	: FMaterial()
-	, FMaterialRenderProxy(TEXT("FMatExpressionPreview"))
-	, UnrelatedNodesOpacity(1.0f)
-	{
-		// Register this FMaterial derivative with AddEditorLoadedMaterialResource since it does not have a corresponding UMaterialInterface
-		FMaterial::AddEditorLoadedMaterialResource(this);
-		SetQualityLevelProperties(GMaxRHIFeatureLevel);
-	}
+	FMatExpressionPreview();
+	FMatExpressionPreview(UMaterialExpression* InExpression);
 
-	FMatExpressionPreview(UMaterialExpression* InExpression)
-	: FMaterial()
-	, FMaterialRenderProxy(GetPathNameSafe(InExpression->Material))
-	, UnrelatedNodesOpacity(1.0f)
-	, Expression(InExpression)
-	{
-		FMaterial::AddEditorLoadedMaterialResource(this);
-		FPlatformMisc::CreateGuid(Id);
-
-		check(InExpression->Material && InExpression->Material->Expressions.Contains(InExpression));
-		ReferencedTextures = InExpression->Material->GetReferencedTextures();
-		SetQualityLevelProperties(GMaxRHIFeatureLevel);
-	}
-
-	virtual ~FMatExpressionPreview()
-	{
-	}
+	virtual ~FMatExpressionPreview();
 
 	virtual bool PrepareDestroy_GameThread() override
 	{
@@ -191,6 +169,7 @@ public:
 	float UnrelatedNodesOpacity;
 
 private:
+	TUniquePtr<FMaterialCachedHLSLTree> CachedHLSLTree;
 	TWeakObjectPtr<UMaterialExpression> Expression;
 	TArray<TObjectPtr<UObject>> ReferencedTextures;
 	FGuid Id;

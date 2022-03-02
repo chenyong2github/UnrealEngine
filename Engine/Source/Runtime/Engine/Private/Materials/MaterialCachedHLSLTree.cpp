@@ -49,7 +49,7 @@ static UE::Shader::EValueType GetShaderType(EMaterialValueType MaterialType)
 	}
 }
 
-bool FMaterialCachedHLSLTree::GenerateTree(UMaterial* Material, const FMaterialLayersFunctions* LayerOverrides)
+bool FMaterialCachedHLSLTree::GenerateTree(UMaterial* Material, const FMaterialLayersFunctions* LayerOverrides, UMaterialExpression* PreviewExpression)
 {
 	const EMaterialShadingModel DefaultShadingModel = Material->GetShadingModels().GetFirstShadingModel();
 
@@ -116,7 +116,7 @@ bool FMaterialCachedHLSLTree::GenerateTree(UMaterial* Material, const FMaterialL
 
 	HLSLTree = UE::HLSLTree::FTree::Create(Allocator);
 
-	FMaterialHLSLGenerator Generator(Material, LayerOverrides, *this);
+	FMaterialHLSLGenerator Generator(Material, LayerOverrides, PreviewExpression, *this);
 	const bool bResult = Generator.Generate();
 	if (bResult)
 	{

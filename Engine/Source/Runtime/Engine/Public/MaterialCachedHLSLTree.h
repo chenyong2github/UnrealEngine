@@ -18,12 +18,12 @@ class FMaterialCachedHLSLTree
 public:
 	static const FMaterialCachedHLSLTree EmptyTree;
 
-	FMaterialCachedHLSLTree();
-	~FMaterialCachedHLSLTree();
+	ENGINE_API FMaterialCachedHLSLTree();
+	ENGINE_API ~FMaterialCachedHLSLTree();
 
 	SIZE_T GetAllocatedSize() const;
 
-	bool GenerateTree(UMaterial* Material, const FMaterialLayersFunctions* LayerOverrides);
+	ENGINE_API bool GenerateTree(UMaterial* Material, const FMaterialLayersFunctions* LayerOverrides, UMaterialExpression* PreviewExpression);
 
 	UE::Shader::FStructTypeRegistry& GetTypeRegistry() { return TypeRegistry; }
 	//UE::HLSLTree::FTree& GetTree() { return *HLSLTree; }

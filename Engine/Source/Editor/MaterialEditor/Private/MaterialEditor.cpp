@@ -147,6 +147,7 @@
 #include "MaterialEditorTabs.h"
 #include "MaterialEditorModes.h"
 #include "Materials/MaterialExpression.h"
+#include "MaterialCachedHLSLTree.h"
 
 #include "SMaterialParametersOverviewWidget.h"
 #include "SMaterialEditorCustomPrimitiveDataWidget.h"
@@ -172,6 +173,42 @@ static TAutoConsoleVariable<int32> CVarMaterialEdUseDevShaders(
 ///////////////////////////
 // FMatExpressionPreview //
 ///////////////////////////
+
+FMatExpressionPreview::FMatExpressionPreview()
+	: FMaterial()
+	, FMaterialRenderProxy(TEXT("FMatExpressionPreview"))
+	, UnrelatedNodesOpacity(1.0f)
+{
+	// Register this FMaterial derivative with AddEditorLoadedMaterialResource since it does not have a corresponding UMaterialInterface
+	FMaterial::AddEditorLoadedMaterialResource(this);
+	SetQualityLevelProperties(GMaxRHIFeatureLevel);
+}
+
+FMatExpressionPreview::FMatExpressionPreview(UMaterialExpression* InExpression)
+	: FMaterial()
+	, FMaterialRenderProxy(GetPathNameSafe(InExpression->Material))
+	, UnrelatedNodesOpacity(1.0f)
+	, Expression(InExpression)
+{
+	FMaterial::AddEditorLoadedMaterialResource(this);
+	FPlatformMisc::CreateGuid(Id);
+
+	check(InExpression->Material && InExpression->Material->Expressions.Contains(InExpression));
+	ReferencedTextures = InExpression->Material->GetReferencedTextures();
+	SetQualityLevelProperties(GMaxRHIFeatureLevel);
+
+	UMaterial* BaseMaterial = InExpression->Material;
+	if (BaseMaterial->IsUsingNewHLSLGenerator())
+	{
+		FMaterialCachedHLSLTree* LocalTree = new FMaterialCachedHLSLTree();
+		LocalTree->GenerateTree(BaseMaterial, nullptr, InExpression);
+		CachedHLSLTree.Reset(LocalTree);
+	}
+}
+
+FMatExpressionPreview::~FMatExpressionPreview()
+{
+}
 
 bool FMatExpressionPreview::ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType, const FVertexFactoryType* VertexFactoryType) const
 {
@@ -275,11 +312,7 @@ void FMatExpressionPreview::NotifyCompilationFinished()
 
 const FMaterialCachedHLSLTree* FMatExpressionPreview::GetCachedHLSLTree() const
 {
-	if (Expression.IsValid() && Expression->Material)
-	{
-		return &Expression->Material->GetCachedHLSLTree();
-	}
-	return nullptr;
+	return CachedHLSLTree.Get();
 }
 
 bool FMatExpressionPreview::IsUsingControlFlow() const

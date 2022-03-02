@@ -214,7 +214,7 @@ void UMaterialInstanceConstant::UpdateCachedData()
 			if (bUsingNewHLSLGenerator)
 			{
 				LocalCachedTree = new FMaterialCachedHLSLTree();
-				LocalCachedTree->GenerateTree(BaseMaterial, &LocalStaticParameters.MaterialLayers);
+				LocalCachedTree->GenerateTree(BaseMaterial, &LocalStaticParameters.MaterialLayers, nullptr);
 			}
 			else
 			{

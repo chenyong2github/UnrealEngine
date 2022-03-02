@@ -63,6 +63,7 @@ class FMaterialHLSLGenerator
 public:
 	FMaterialHLSLGenerator(UMaterial* Material,
 		const FMaterialLayersFunctions* InLayerOverrides,
+		UMaterialExpression* InPreviewExpression,
 		FMaterialCachedHLSLTree& OutCachedTree);
 
 	const FMaterialLayersFunctions* GetLayerOverrides() const { return LayerOverrides; }
@@ -199,6 +200,7 @@ private:
 
 	UMaterial* TargetMaterial;
 	const FMaterialLayersFunctions* LayerOverrides;
+	UMaterialExpression* PreviewExpression;
 	FMaterialCachedHLSLTree& CachedTree;
 	FString CurrentErrorMessage;
 
@@ -210,6 +212,7 @@ private:
 	TMap<UMaterialFunctionInterface*, UE::HLSLTree::FFunction*> FunctionMap;
 	TMap<UMaterialExpression*, FStatementEntry> StatementMap;
 	TMap<FExpressionDataKey, void*> ExpressionDataMap;
+	UE::HLSLTree::FExpression* PreviewExpressionResult = nullptr;
 	bool bGeneratedResult;
 };
 

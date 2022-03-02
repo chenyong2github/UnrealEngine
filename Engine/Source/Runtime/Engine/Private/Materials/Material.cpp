@@ -1887,7 +1887,7 @@ void UMaterial::UpdateCachedExpressionData()
 	if (IsUsingNewHLSLGenerator())
 	{
 		LocalCachedTree = new FMaterialCachedHLSLTree();
-		LocalCachedTree->GenerateTree(this, nullptr);
+		LocalCachedTree->GenerateTree(this, nullptr, nullptr);
 		LocalCachedExpressionData->UpdateForCachedHLSLTree(*LocalCachedTree, nullptr);
 	}
 	else

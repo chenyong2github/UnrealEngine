@@ -21,9 +21,11 @@
 
 FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* Material,
 	const FMaterialLayersFunctions* InLayerOverrides,
+	UMaterialExpression* InPreviewExpression,
 	FMaterialCachedHLSLTree& OutCachedTree)
 	: TargetMaterial(Material)
 	, LayerOverrides(InLayerOverrides)
+	, PreviewExpression(InPreviewExpression)
 	, CachedTree(OutCachedTree)
 	, bGeneratedResult(false)
 {
@@ -169,11 +171,10 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 		check(!CachedTree.ResultStatement);
 		check(!CachedTree.ResultExpression);
 
+		FExpression* AttributesExpression = nullptr;
 		if (TargetMaterial)
 		{
 			const FStructField* PrevWPOField = CachedTree.GetMaterialAttributesType()->FindFieldByName(TEXT("PrevWorldPositionOffset"));
-
-			FExpression* AttributesExpression = nullptr;
 			if (TargetMaterial->bUseMaterialAttributes)
 			{
 				FMaterialInputDescription InputDescription;
@@ -242,20 +243,36 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 					AttributesExpression = GetTree().NewExpression<FExpressionSetStructField>(CachedTree.GetMaterialAttributesType(), CustomOutputField, AttributesExpression, CustomOutputExpression);
 				}
 			}
+		}
 
-			if (AttributesExpression)
-			{
-				FStatementReturn* ReturnStatement = GetTree().NewStatement<FStatementReturn>(Scope);
-				ReturnStatement->Expression = AttributesExpression;
-				CachedTree.ResultExpression = AttributesExpression;
-				CachedTree.ResultStatement = ReturnStatement;
-				bResult = true;
-			}
-		}
-		else
+		if (PreviewExpression)
 		{
-			check(false);
+			if (!PreviewExpressionResult)
+			{
+				// If we didn't hit the preview expression while generating the material normally, then generate it now
+				// Hardcoding output 0 as we don't have the UI to specify any other output
+				const int32 OutputIndex = 0;
+				PreviewExpressionResult = AcquireExpression(Scope, PreviewExpression, OutputIndex);
+			}
+			const FString& EmissiveColorName = FMaterialAttributeDefinitionMap::GetAttributeName(MP_EmissiveColor);
+			const FStructField* EmissiveColorField = CachedTree.GetMaterialAttributesType()->FindFieldByName(*EmissiveColorName);
+
+			// Get back into gamma corrected space, as DrawTile does not do this adjustment.
+			FExpression* ExpressionEmissive = GetTree().NewPowClamped(PreviewExpressionResult, NewConstant(1.f / 2.2f));
+
+			AttributesExpression = GetTree().NewExpression<FExpressionConstant>(CachedTree.GetMaterialAttributesDefaultValue());
+			AttributesExpression = GetTree().NewExpression<FExpressionSetStructField>(CachedTree.GetMaterialAttributesType(), EmissiveColorField, AttributesExpression, ExpressionEmissive);
 		}
+
+		if (AttributesExpression)
+		{
+			FStatementReturn* ReturnStatement = GetTree().NewStatement<FStatementReturn>(Scope);
+			ReturnStatement->Expression = AttributesExpression;
+			CachedTree.ResultExpression = AttributesExpression;
+			CachedTree.ResultStatement = ReturnStatement;
+			bResult = true;
+		}
+
 		bGeneratedResult = true;
 	}
 	return bResult;
@@ -351,6 +368,11 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::AcquireExpression(UE::HLSLTre
 	FExpression* Expression = nullptr;
 	if (MaterialExpression->GenerateHLSLExpression(*this, Scope, OutputIndex, Expression))
 	{
+		if (MaterialExpression == PreviewExpression &&
+			!PreviewExpressionResult)
+		{
+			PreviewExpressionResult = Expression;
+		}
 		return Expression;
 	}
 	

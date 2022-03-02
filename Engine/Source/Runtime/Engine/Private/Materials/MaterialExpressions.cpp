@@ -14512,7 +14512,7 @@ void UMaterialExpressionMaterialFunctionCall::GetConnectorToolTip(int32 InputInd
 
 				ConvertToMultilineToolTip(InputExpression->Description, 40, OutToolTip);
 
-				if (InputExpression->bUsePreviewValueAsDefault)
+				if (InputExpression && InputExpression->bUsePreviewValueAsDefault)
 				{
 					// Can't build a tooltip of an arbitrary expression chain
 					if (InputExpression->Preview.Expression)
@@ -14537,7 +14537,11 @@ void UMaterialExpressionMaterialFunctionCall::GetConnectorToolTip(int32 InputInd
 		{
 			if (FunctionOutputs.IsValidIndex(OutputIndex))
 			{
-				ConvertToMultilineToolTip(FunctionOutputs[OutputIndex].ExpressionOutput->Description, 40, OutToolTip);
+				UMaterialExpressionFunctionOutput* OutputExpression = FunctionOutputs[OutputIndex].ExpressionOutput;
+				if (OutputExpression)
+				{
+					ConvertToMultilineToolTip(OutputExpression->Description, 40, OutToolTip);
+				}
 			}
 		}
 	}
