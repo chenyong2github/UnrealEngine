@@ -824,9 +824,12 @@ struct VSOut
 	CUSTOM_INTERPOLATION uint4 ToTriangleMasks	: TEXCOORD4;
 #endif
 #if NANITE_MESH_SHADER_INTERP == 1
-	float4 InterpPosition					: TEXCOORD5;
+	float4 InterpPosition						: TEXCOORD5;
 #endif
-	float4 Position							: SV_Position;
+#if NANITE_USE_HW_BARYCENTRICS
+	float3 HWBarycentrics						: TEXCOORD6;
+#endif
+	float4 Position								: SV_Position;
 };
 
 VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FCluster Cluster, uint VertIndex, uint PixelValue, float3 WorldPositionOffset, out float4 PointClipNoScaling)
@@ -882,6 +885,10 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 
 #if NANITE_MESH_SHADER_INTERP == 1
 	Out.InterpPosition = Out.Position;
+#endif
+
+#if NANITE_USE_HW_BARYCENTRICS
+	Out.HWBarycentrics = float3(0.0f, 0.0f, 0.0f);
 #endif
 
 #if VISUALIZE
@@ -1224,6 +1231,15 @@ VSOut HWRasterizeVS(
 		float4 PointClipNoScaling;
 		const uint PixelValue = ((VisibleIndex + 1) << 7) | TriIndex;
 		Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, VertIndex, PixelValue, WorldPositionOffset, PointClipNoScaling);
+	#if NANITE_USE_HW_BARYCENTRICS
+		// TODO: PROG_RASTER (Implement support for SM6.1 SV_Barycentrics if available)
+		// https://github.com/microsoft/DirectXShaderCompiler/wiki/SV_Barycentrics
+		Out.HWBarycentrics = float3(
+			VertexID == 0 ? 1 : 0,
+			VertexID == 1 ? 1 : 0,
+			VertexID == 2 ? 1 : 0
+		);
+	#endif
 	}
 
 	return Out;
@@ -1307,7 +1323,13 @@ void HWRasterizePS(VSOut In)
 
 		// Material parameter inputs
 		
-		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Interpolants, In.Position /*SvPosition*/);
+	#if NANITE_USE_HW_BARYCENTRICS
+		const float3 HWBarycentrics = In.HWBarycentrics;
+	#else
+		const float3 HWBarycentrics = float3(0.0, 0.0f, 0.0f);
+	#endif
+
+		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, HWBarycentrics, Interpolants, In.Position /*SvPosition*/);
 		FPixelMaterialInputs PixelMaterialInputs;
 		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, In.Position /*SvPosition*/, true /*bIsFrontFace*/);
 

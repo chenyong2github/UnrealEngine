@@ -11,6 +11,10 @@
 #define VIRTUAL_TEXTURE_TARGET 0
 #endif
 
+#ifndef NANITE_USE_HW_BARYCENTRICS
+#define NANITE_USE_HW_BARYCENTRICS 0
+#endif
+
 // Nanite material evaluation is deferred to a screenspace pass sampling the visibility buffer,
 // so the 'interpolants' used in the GBuffer pass are almost all generated in the PixelShader, instead of exported from VS.
 // FNaniteFullscreenVSToPS is the struct containing what actually needs to be passed between VS and PS in the Nanite GBuffer pass.
@@ -140,7 +144,7 @@ void SetLightMapDataIndex(inout FVertexFactoryInterpolantsVSToPS Interpolants, u
 #endif // NEEDS_LIGHTMAP_COORDINATE
 
 // Shared function (for Nanite raster and shading passes) to fetch a valid FMaterialPixelParameters struct, which is used by material inputs.
-FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteView, UlongType PackedPixel, bool bHasPageData, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
+FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteView, UlongType PackedPixel, bool bHasPageData, float3 HWBarycentrics, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
 {
 	FMaterialPixelParameters Result = (FMaterialPixelParameters)0;
 
@@ -172,8 +176,18 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 
 		const float2 PixelClip = (SvPosition.xy - NaniteView.ViewRect.xy) * NaniteView.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
 
+#if NANITE_USE_HW_BARYCENTRICS
+		// HW Nanite rasterizer (not shading) passes can provide triangle barycentrics
+		FBarycentrics Barycentrics = (FBarycentrics)0;
+		Barycentrics.UVW = HWBarycentrics;
+	#if USE_ANALYTIC_DERIVATIVES
+		Barycentrics.UVW_dx = ddx(HWBarycentrics);
+		Barycentrics.UVW_dy = ddy(HWBarycentrics);
+	#endif
+#else
 		// Calculate perspective correct barycentric coordinates with screen derivatives
 		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, NaniteView.ViewSizeAndInvSize.zw);
+#endif
 
 		const FNaniteAttributeData AttributeData = GetAttributeData(
 			Cluster,
@@ -329,12 +343,17 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 
 #if IS_NANITE_SHADING_PASS
 
+#if NANITE_USE_HW_BARYCENTRICS
+#error NOT_SUPPORTED
+#endif
+
 /** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
 FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
 {
 	const uint2 PixelPos = SvPosition.xy - float2(0.5f, 0.5f);
 	const UlongType PackedPixel = Nanite.VisBuffer64[PixelPos];
-	return FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Interpolants, SvPosition);
+	const float3 HWBarycentrics = float3(0.0f, 0.0f, 0.0f); // Unused for shading pass (barycentrics are invalid here for full screen tile grid)
+	return FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, HWBarycentrics, Interpolants, SvPosition);
 }
 
 FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
