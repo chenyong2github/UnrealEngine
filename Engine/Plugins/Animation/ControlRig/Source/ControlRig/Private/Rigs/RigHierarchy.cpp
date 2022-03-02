@@ -309,6 +309,7 @@ void URigHierarchy::Reset()
 
 	ResetPoseHash = INDEX_NONE;
 	ResetPoseIsFilteredOut.Reset();
+	DefaultParentPerElement.Reset();
 
 	if(!IsGarbageCollecting())
 	{
