@@ -1468,11 +1468,6 @@ namespace UnrealBuildTool
 		{
 			if (bUseFixdeps)
 			{
-				if (!LinkEnvironment.bIsCrossReferenced)
-				{
-					return null;
-				}
-
 				Log.TraceVerbose("Adding postlink step");
 
 				bool bUseCmdExe = BuildHostPlatform.Current.ShellType == ShellType.Cmd;
@@ -1481,6 +1476,12 @@ namespace UnrealBuildTool
 				string ScriptName = bUseCmdExe ? "FixDependencies.bat" : "FixDependencies.sh";
 
 				FileItem FixDepsScript = FileItem.GetItemByFileReference(FileReference.Combine(LinkEnvironment.LocalShadowDirectory!, ScriptName));
+
+				// if we never generated one we did not have a circular depends that needed fixing up
+				if (!FixDepsScript.Exists)
+				{
+					return null;
+				}
 
 				Action PostLinkAction = Graph.CreateAction(ActionType.Link);
 				PostLinkAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
