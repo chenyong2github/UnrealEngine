@@ -203,6 +203,11 @@ void FDirectoryWatchRequestLinux::WatchDirectoryTree(const FString & RootAbsolut
 		return;
 	}
 
+	if (FileChangesPtr)
+	{
+		FileChangesPtr->Emplace(FFileChangeData(RootAbsolutePath, FFileChangeData::FCA_Added), true);
+	}
+
 	// If this isn't our root watch directory or under it, don't watch
 	if (!RootAbsolutePath.StartsWith(WatchDirectory, ESearchCase::CaseSensitive) ||
 		(!bWatchSubtree && (RootAbsolutePath != WatchDirectory)))
@@ -211,11 +216,6 @@ void FDirectoryWatchRequestLinux::WatchDirectoryTree(const FString & RootAbsolut
 	}
 
 	UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("Watching tree '%s'"), *RootAbsolutePath);
-
-	if (FileChangesPtr)
-	{
-		FileChangesPtr->Emplace(FFileChangeData(RootAbsolutePath, FFileChangeData::FCA_Added), true);
-	}
 
 	TArray<FString> AllFiles;
 	if (bWatchSubtree)
