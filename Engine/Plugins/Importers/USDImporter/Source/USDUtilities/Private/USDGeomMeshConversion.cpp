@@ -1050,6 +1050,8 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 	bool bCombineIdenticalMaterialSlots
 )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( UsdToUnreal::ConvertGeomMeshHierarchy );
+
 	FStaticMeshAttributes StaticMeshAttributes( OutMeshDescription );
 	StaticMeshAttributes.Register();
 

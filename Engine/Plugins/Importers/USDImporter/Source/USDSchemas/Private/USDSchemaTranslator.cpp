@@ -306,48 +306,54 @@ FUsdSchemaTranslatorTaskChain& FUsdSchemaTranslatorTaskChain::Then( ESchemaTrans
 	return *this;
 }
 
+namespace UsdSchemaTranslatorTaskChainImpl
+{
+	FORCEINLINE bool CanStart( FSchemaTranslatorTask* Task, bool bExclusiveSyncTasks )
+	{
+		return ( Task->LaunchPolicy == ESchemaTranslationLaunchPolicy::ExclusiveSync ) == bExclusiveSyncTasks;
+	}
+}
+
 ESchemaTranslationStatus FUsdSchemaTranslatorTaskChain::Execute(bool bExclusiveSyncTasks)
 {
-	if ( !CurrentTask )
+	FSchemaTranslatorTask* TranslatorTask = CurrentTask.Get();
+
+	if ( TranslatorTask == nullptr )
 	{
 		return ESchemaTranslationStatus::Done;
 	}
 
-	FSchemaTranslatorTask& TranslatorTask = *CurrentTask;
-
-	bool bCanStart =
-		(  bExclusiveSyncTasks && CurrentTask->LaunchPolicy == ESchemaTranslationLaunchPolicy::ExclusiveSync ) ||
-		( !bExclusiveSyncTasks && CurrentTask->LaunchPolicy != ESchemaTranslationLaunchPolicy::ExclusiveSync );
-
-	if ( !TranslatorTask.IsDone() )
+	if ( !TranslatorTask->IsDone() )
 	{
-		if ( !TranslatorTask.IsStarted() )
+		if ( !TranslatorTask->IsStarted() )
 		{
-			if ( bCanStart )
+			if ( UsdSchemaTranslatorTaskChainImpl::CanStart( TranslatorTask, bExclusiveSyncTasks ) )
 			{
-				TranslatorTask.Start();
+				TranslatorTask->Start();
 			}
 			else
 			{
 				return ESchemaTranslationStatus::Pending;
 			}
 		}
+
+		return ESchemaTranslationStatus::InProgress;
 	}
 	else
 	{
 		CurrentTask = CurrentTask->Continuation;
 
-		if ( CurrentTask )
+		if (( TranslatorTask = CurrentTask.Get()) != nullptr )
 		{
-			if ( bCanStart )
+			if ( UsdSchemaTranslatorTaskChainImpl::CanStart( TranslatorTask, bExclusiveSyncTasks ) )
 			{
 				if ( IsInGameThread() )
 				{
-					CurrentTask->StartIfAsync(); // Queue the next task asap if async
+					TranslatorTask->StartIfAsync(); // Queue the next task asap if async
 				}
 				else
 				{
-					CurrentTask->Start();
+					TranslatorTask->Start();
 				}
 			}
 			else
@@ -357,7 +363,7 @@ ESchemaTranslationStatus FUsdSchemaTranslatorTaskChain::Execute(bool bExclusiveS
 		}
 	}
 
-	return CurrentTask ? ESchemaTranslationStatus::InProgress : ESchemaTranslationStatus::Done;
+	return TranslatorTask ? ESchemaTranslationStatus::InProgress : ESchemaTranslationStatus::Done;
 }
 
 #undef LOCTEXT_NAMESPACE

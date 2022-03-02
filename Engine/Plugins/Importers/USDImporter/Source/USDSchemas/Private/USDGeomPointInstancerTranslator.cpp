@@ -18,8 +18,10 @@
 
 #if USE_USD_SDK
 
+#include "Async/Async.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 
 #include "USDIncludesStart.h"
@@ -31,10 +33,14 @@
 	#include "pxr/usd/usdGeom/xformable.h"
 #include "USDIncludesEnd.h"
 
+#define LOCTEXT_NAMESPACE "USDGeomPointInstancer"
+
 namespace UsdGeomPointInstancerTranslatorImpl
 {
-	bool ConvertGeomPointInstancer( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomPointInstancer& PointInstancer, const int32 ProtoIndex, UHierarchicalInstancedStaticMeshComponent& HismComponent, pxr::UsdTimeCode EvalTime )
+	bool GetPointInstancerTransforms( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomPointInstancer& PointInstancer, const int32 ProtoIndex, pxr::UsdTimeCode EvalTime, TArray<FTransform>& OutInstanceTransforms )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( GetPointInstancerTransforms );
+
 		FScopedUsdAllocs UsdAllocs;
 
 		pxr::VtArray< int > ProtoIndices = UsdUtils::GetUsdValue< pxr::VtArray< int > >( PointInstancer.GetProtoIndicesAttr(), EvalTime );
@@ -55,21 +61,29 @@ namespace UsdGeomPointInstancerTranslatorImpl
 
 		FScopedUnrealAllocs UnrealAllocs;
 
+		OutInstanceTransforms.Reset( UsdInstanceTransforms.size() );
+
 		for ( pxr::GfMatrix4d& UsdMatrix : UsdInstanceTransforms )
 		{
 			if ( ProtoIndices[ Index ] == ProtoIndex )
 			{
-				FTransform InstanceTransform = UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix );
-
-				HismComponent.AddInstance( InstanceTransform );
+				OutInstanceTransforms.Add( UsdToUnreal::ConvertMatrix( StageInfo, UsdMatrix ) );
 			}
 
 			++Index;
 		}
 
-		HismComponent.BuildTreeIfOutdated( true, true );
-
 		return true;
+	}
+
+	void ApplyPointInstanceTransforms( UInstancedStaticMeshComponent* Component, TArray<FTransform>& InstanceTransforms )
+	{
+		if ( Component )
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ApplyPointInstanceTransforms);
+
+			Component->AddInstances( InstanceTransforms, false );
+		}
 	}
 
 	UStaticMesh* SetStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMeshComponent& MeshComponent, const UUsdAssetCache& AssetCache )
@@ -128,6 +142,8 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 	{
 		return;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomPointInstancerTranslator::UpdateComponents );
 
 	PointInstancerRootComponent->Modify();
 
@@ -189,8 +205,13 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 	{
 		TGuardValue< USceneComponent* > ParentComponentGuard( Context->ParentComponent, PointInstancerRootComponent );
 
+		TArray<TFuture<TTuple<UHierarchicalInstancedStaticMeshComponent*, TArray<FTransform>>>> Tasks;
+
+		FScopedSlowTask PrototypesPathsSlowTask( (float)PrototypesPaths.size() * 3, LOCTEXT("GeomPointUpdateComponents", "Updating Point Components") );
 		for ( int32 PrototypeIndex = 0; PrototypeIndex < PrototypesPaths.size(); ++PrototypeIndex)
 		{
+			PrototypesPathsSlowTask.EnterProgressFrame();
+
 			pxr::UsdPrim PrototypeUsdPrim = Prim.GetStage()->GetPrimAtPath( PrototypesPaths[PrototypeIndex] );
 			if ( !PrototypeUsdPrim )
 			{
@@ -232,10 +253,22 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 			}
 
 			TArray< TUsdStore< pxr::UsdPrim > > ChildGeomMeshPrims = UsdUtils::GetAllPrimsOfType( PrototypeUsdPrim, pxr::TfType::Find< pxr::UsdGeomMesh >() );
-
-			for ( const TUsdStore< pxr::UsdPrim >& PrototypeGeomMeshPrim : ChildGeomMeshPrims )
+			TArray< TUsdStore< pxr::SdfPath > > Unwound;
+			Unwound.AddZeroed( ChildGeomMeshPrims.Num() );
+			PrototypesPathsSlowTask.EnterProgressFrame();
+			ParallelFor(
+				TEXT("Unwinding"),
+				ChildGeomMeshPrims.Num(), 1,
+				[&](int32 Index)
 				{
-				TUsdStore< pxr::SdfPath > PrototypeTargetPrimPath = UsdGeomPointInstancerTranslatorImpl::UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Assets, PrototypeGeomMeshPrim, Context );
+					const TUsdStore< pxr::UsdPrim >& PrototypeGeomMeshPrim = ChildGeomMeshPrims[Index];
+					Unwound[Index] = UsdGeomPointInstancerTranslatorImpl::UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Assets, PrototypeGeomMeshPrim, Context );
+				}
+			);
+			PrototypesPathsSlowTask.EnterProgressFrame();
+			for (int32 Index = 0; Index < ChildGeomMeshPrims.Num(); Index++)
+			{
+				TUsdStore< pxr::SdfPath > PrototypeTargetPrimPath = Unwound[Index];
 
 				const FString UEPrototypeTargetPrimPath = UsdToUnreal::ConvertPath( PrototypeTargetPrimPath.Get() );
 
@@ -261,7 +294,18 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 
 							UUsdAssetCache& AssetCache = *Context->AssetCache.Get();
 							UStaticMesh* StaticMesh = UsdGeomPointInstancerTranslatorImpl::SetStaticMesh( PrototypeGeomMesh, *HismComponent, AssetCache );
-							UsdGeomPointInstancerTranslatorImpl::ConvertGeomPointInstancer( Prim.GetStage(), PointInstancer, PrototypeIndex, *HismComponent, pxr::UsdTimeCode( Context->Time ) );
+
+							// Evaluating point instancer can take a long time and is thread-safe. Move to async task while we work on something else.
+							Tasks.Emplace(
+								Async(EAsyncExecution::ThreadPool,
+									[this, Stage = Prim.GetStage(), PointInstancer, PrototypeIndex, HismComponent]()
+									{
+										TArray<FTransform> InstanceTransforms;
+										UsdGeomPointInstancerTranslatorImpl::GetPointInstancerTransforms( Stage, PointInstancer, PrototypeIndex, pxr::UsdTimeCode(Context->Time), InstanceTransforms );
+
+										return MakeTuple( HismComponent, MoveTemp(InstanceTransforms) );
+									})
+							);
 
 							// Handle material overrides
 							if ( StaticMesh )
@@ -297,10 +341,19 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 				}
 			}
 		}
+
+		// Wait on and assign results of the point instancer.
+		for ( auto& Future : Tasks )
+		{
+			TTuple<UHierarchicalInstancedStaticMeshComponent*, TArray<FTransform>> Result { Future.Get() };
+			UsdGeomPointInstancerTranslatorImpl::ApplyPointInstanceTransforms( Result.Key, Result.Value );
+		}
 	}
 
 	Super::UpdateComponents( PointInstancerRootComponent );
 }
+
+#undef LOCTEXT_NAMESPACE
 
 #endif // #if USE_USD_SDK
 

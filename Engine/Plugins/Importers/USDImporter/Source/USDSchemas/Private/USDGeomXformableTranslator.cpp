@@ -360,7 +360,7 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 		// UsdToUnreal::ConvertXformable will set a new transform, which will emit warnings during PIE/Runtime if the component
 		// has Static mobility, so here we unregister, set the new transform value, and reregister below
 		const bool bStaticMobility = SceneComponent->Mobility == EComponentMobility::Static;
-		if ( bStaticMobility )
+		if ( bStaticMobility && SceneComponent->IsRegistered() )
 		{
 			SceneComponent->UnregisterComponent();
 		}
@@ -405,6 +405,8 @@ void FUsdGeomXformableTranslator::UpdateComponents( USceneComponent* SceneCompon
 
 bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingType ) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomXformableTranslator::CollapsesChildren );
+
 	bool bCollapsesChildren = false;
 
 	FScopedUsdAllocs UsdAllocs;

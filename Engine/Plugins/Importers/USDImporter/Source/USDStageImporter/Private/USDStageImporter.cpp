@@ -194,9 +194,13 @@ namespace UsdStageImporterImpl
 #endif // #if USE_USD_SDK
 	}
 
-	void CreateAssetsForPrims(const TArray<UE::FUsdPrim>& Prims, FUsdSchemaTranslationContext& TranslationContext)
+	void CreateAssetsForPrims(const TArray<UE::FUsdPrim>& Prims, FUsdSchemaTranslationContext& TranslationContext, const FText& ProgressMessage )
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( CreateAssetsForPrims );
+
 		IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked<IUsdSchemasModule>(TEXT("USDSchemas"));
+
+		FScopedSlowTask SlowTask( Prims.Num(), ProgressMessage );
 
 		for (const UE::FUsdPrim& Prim : Prims)
 		{
@@ -204,6 +208,8 @@ namespace UsdStageImporterImpl
 			{
 				SchemaTranslator->CreateAssets();
 			}
+
+			SlowTask.EnterProgressFrame();
 		}
 
 		TranslationContext.CompleteTasks();
@@ -211,6 +217,8 @@ namespace UsdStageImporterImpl
 
 	void ImportMaterials(FUsdStageImportContext& ImportContext, FUsdSchemaTranslationContext& TranslationContext)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( ImportMaterials );
+
 		if (!ImportContext.ImportOptions->bImportMaterials)
 		{
 			return;
@@ -218,11 +226,13 @@ namespace UsdStageImporterImpl
 
 		TArray< UE::FUsdPrim > MaterialPrims = UsdUtils::GetAllPrimsOfType( ImportContext.Stage.GetPseudoRoot(), TEXT("UsdShadeMaterial") );
 
-		CreateAssetsForPrims(MaterialPrims, TranslationContext);
+		CreateAssetsForPrims(MaterialPrims, TranslationContext, LOCTEXT("CreateMaterials", "Creating materials") );
 	}
 
 	void ImportMeshes(FUsdStageImportContext& ImportContext, FUsdSchemaTranslationContext& TranslationContext)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( ImportMeshes );
+
 #if USE_USD_SDK
 		if (!ImportContext.ImportOptions->bImportGeometry)
 		{
@@ -242,12 +252,14 @@ namespace UsdStageImporterImpl
 		};
 
 		TArray< UE::FUsdPrim > MeshPrims = UsdUtils::GetAllPrimsOfType( ImportContext.Stage.GetPseudoRoot(), TEXT("UsdGeomXformable"), PruneCollapsedMeshes );
-		CreateAssetsForPrims(MeshPrims, TranslationContext);
+		CreateAssetsForPrims(MeshPrims, TranslationContext, LOCTEXT( "CreateMeshes", "Creating meshes" ) );
 #endif // #if USE_USD_SDK
 	}
 
 	void ImportAnimation(FUsdStageImportContext& ImportContext, UE::FUsdPrim& Prim, USceneComponent* SceneComponent)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( ImportAnimation );
+
 		if ( !ImportContext.ImportOptions->bImportLevelSequences )
 		{
 			return;
@@ -262,7 +274,12 @@ namespace UsdStageImporterImpl
 
 	void ImportActor(FUsdStageImportContext& ImportContext, UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( ImportActor );
+
 		IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >(TEXT("USDSchemas"));
+
+		FScopedSlowTask SlowTask( 3, LOCTEXT("ImportActor", "Importing Actor") );
+
 		bool bExpandChilren = true;
 		USceneComponent* Component = nullptr;
 
@@ -274,6 +291,7 @@ namespace UsdStageImporterImpl
 			bExpandChilren = !SchemaTranslator->CollapsesChildren(FUsdSchemaTranslator::ECollapsingType::Components);
 		}
 
+		SlowTask.EnterProgressFrame();
 		// Recurse to children
 		if (bExpandChilren)
 		{
@@ -286,7 +304,7 @@ namespace UsdStageImporterImpl
 				ImportActor(ImportContext, ChildStore, TranslationContext);
 			}
 		}
-
+		SlowTask.EnterProgressFrame();
 		if ( Component )
 		{
 			// LightComponents specifically need this to setup static lighting
@@ -304,6 +322,7 @@ namespace UsdStageImporterImpl
 			}
 #endif // USE_USD_SDK
 		}
+		SlowTask.EnterProgressFrame();
 	}
 
 	void ImportActors(FUsdStageImportContext& ImportContext, FUsdSchemaTranslationContext& TranslationContext)
@@ -1542,7 +1561,7 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 		UE::FUsdPrim TargetPrim = ImportContext.Stage.GetPrimAtPath( UE::FSdfPath( *OriginalImportData->PrimPath ) );
 		if ( TargetPrim )
 		{
-			UsdStageImporterImpl::CreateAssetsForPrims({TargetPrim}, TranslationContext.Get());
+			UsdStageImporterImpl::CreateAssetsForPrims({TargetPrim}, TranslationContext.Get(), LOCTEXT("CreateAssets", "Creating assets"));
 		}
 	}
 	TranslationContext->CompleteTasks();

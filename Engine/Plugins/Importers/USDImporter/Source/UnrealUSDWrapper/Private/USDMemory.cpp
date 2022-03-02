@@ -162,14 +162,16 @@ void FUsdMemoryManager::Free( void* Original )
 #if USD_USES_SYSTEM_MALLOC
 	// Because USD is multi-threaded, it might call us back to free an object after we've exited our allocator scope.
 	// This can happen for inlined USD functions that call delete.
-	if ( FUsdMemoryManager::IsUsingSystemMalloc() || SystemAllocedPtrs.Contains( Original ) )
+	int32 Removed = 0;
 	{
-		{
-			FScopeLock Lock( &CriticalSection );
-			SystemAllocedPtrs.Remove( Original );
-		}
+		FScopeLock Lock( &CriticalSection );
+		Removed = SystemAllocedPtrs.Remove( Original );
+	}
 
-		FMemory::SystemFree( Original );
+	if ( FUsdMemoryManager::IsUsingSystemMalloc() || Removed > 0 )
+	{
+		// System allocations are so slow that we send them to another thread for freeing
+		Async( EAsyncExecution::ThreadPool, [Original](){ FMemory::SystemFree(Original); } );
 	}
 	else
 #endif // #if USD_USES_SYSTEM_MALLOC

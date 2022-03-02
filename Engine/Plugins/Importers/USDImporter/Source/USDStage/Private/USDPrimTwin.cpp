@@ -47,6 +47,8 @@ void UUsdPrimTwin::RemoveChild( const TCHAR* InPrimPath )
 
 void UUsdPrimTwin::Clear()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( UUsdPrimTwin::Clear );
+
 	FScopedUnrealAllocs UnrealAllocs;
 
 	Modify();
