@@ -361,9 +361,16 @@ Metasound::Frontend::FDataTypeRegistryInfo UMetasoundEditorGraphNode::GetPinData
 
  	Metasound::Frontend::FDataTypeRegistryInfo DataTypeInfo;
 
-	FConstInputHandle Handle = FGraphBuilder::GetConstInputHandleFromPin(&InPin);
-	ensure(IDataTypeRegistry::Get().GetDataTypeInfo(Handle->GetDataType(), DataTypeInfo));
-
+	if (InPin.Direction == EGPD_Input)
+	{
+		FConstInputHandle Handle = FGraphBuilder::GetConstInputHandleFromPin(&InPin);
+		ensure(IDataTypeRegistry::Get().GetDataTypeInfo(Handle->GetDataType(), DataTypeInfo));
+	}
+	else // InPin.Direction == EGPD_Output
+	{
+		FConstOutputHandle Handle = FGraphBuilder::GetConstOutputHandleFromPin(&InPin);
+		ensure(IDataTypeRegistry::Get().GetDataTypeInfo(Handle->GetDataType(), DataTypeInfo));
+	}
 
 	return DataTypeInfo;
 }

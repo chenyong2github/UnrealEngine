@@ -89,7 +89,6 @@ namespace Metasound
 
 		namespace SchemaPrivate
 		{
-
 			static const FText CategoryDelim = LOCTEXT("MetaSoundActionsCategoryDelim", "|");
 			static const FText KeywordDelim = LOCTEXT("MetaSoundKeywordDelim", " ");
 
@@ -107,6 +106,35 @@ namespace Metasound
 
 			static const FText VariableMutatorDisplayNameFormat = LOCTEXT("DisplayNameAddVariableMutatorFormat", "Set {0}");
 			static const FText VariableMutatorTooltipFormat = LOCTEXT("TooltipAddVariableMutatorFormat", "Adds a setter for the variable '{0}' to the graph.");
+
+			bool DataTypeSupportsAssetTypes(const Metasound::Frontend::FDataTypeRegistryInfo& InRegistryInfo, const TArray<FAssetData>& InAssets)
+			{
+				if (InRegistryInfo.PreferredLiteralType != Metasound::ELiteralType::UObjectProxy)
+				{
+					return false;
+				}
+
+				const IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+				return Algo::AnyOf(InAssets, [&EditorModule, &InRegistryInfo](const FAssetData& Asset)
+				{
+					if (InRegistryInfo.ProxyGeneratorClass)
+					{
+						if (const UClass* Class = Asset.GetClass())
+						{
+							if (EditorModule.IsExplicitProxyClass(*InRegistryInfo.ProxyGeneratorClass))
+							{
+								return Class == InRegistryInfo.ProxyGeneratorClass;
+							}
+							else
+							{
+								return Class->IsChildOf(InRegistryInfo.ProxyGeneratorClass);
+							}
+						}
+					}
+
+					return false;
+				});
+			}
 
 			// Connects to first pin with the same DataType
 			bool TryConnectNewNodeToMatchingDataTypePin(UEdGraphNode& NewGraphNode, UEdGraphPin* FromPin)
@@ -1489,6 +1517,48 @@ void UMetasoundEditorGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAsset
 	}
 }
 
+void UMetasoundEditorGraphSchema::GetAssetsPinHoverMessage(const TArray<FAssetData>& Assets, const UEdGraphPin* HoverPin, FString& OutTooltipText, bool& OutOkIcon) const
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	if (HoverPin && HoverPin->Direction == EGPD_Input)
+	{
+		if (const UEdGraphNode* Node = HoverPin->GetOwningNode())
+		{
+			if (const UMetasoundEditorGraphNode* MetaSoundNode = Cast<UMetasoundEditorGraphNode>(HoverPin->GetOwningNode()))
+			{
+				if (Assets.Num() == 1)
+				{
+					FDataTypeRegistryInfo RegistryInfo = MetaSoundNode->GetPinDataTypeInfo(*HoverPin);
+					const bool bAssetTypesMatch = SchemaPrivate::DataTypeSupportsAssetTypes(RegistryInfo, Assets);
+					if (bAssetTypesMatch)
+					{
+						OutTooltipText = FString::Format(TEXT("Set to '{0}'"), { *Assets[0].AssetName.ToString() });
+						OutOkIcon = true;
+						return;
+					}
+
+					OutTooltipText = FString::Format(TEXT("'{0}': Invalid Type"), { *Assets[0].AssetName.ToString() });
+					OutOkIcon = false;
+					return;
+				}
+
+				OutTooltipText = TEXT("Cannot drop multiple assets on single pin.");
+				OutOkIcon = false;
+				return;
+			}
+
+			OutTooltipText = FString::Format(TEXT("Node '{0}' does not support drag/drop"), { *Node->GetName() });
+			OutOkIcon = false;
+			return;
+		}
+	}
+
+	OutTooltipText = FString();
+	OutOkIcon = false;
+}
+
 void UMetasoundEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const
 {
 	using namespace Metasound;
@@ -1563,6 +1633,38 @@ void UMetasoundEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>&
 void UMetasoundEditorGraphSchema::DroppedAssetsOnNode(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraphNode* Node) const
 {
 	// Still needed?
+}
+
+void UMetasoundEditorGraphSchema::DroppedAssetsOnPin(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraphPin* Pin) const
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	if (!Pin)
+	{
+		return;
+	}
+
+	if (UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(Pin->GetOwningNode()))
+	{
+		if (Assets.Num() == 1)
+		{
+			FDataTypeRegistryInfo RegistryInfo = Node->GetPinDataTypeInfo(*Pin);
+			const bool bAssetTypesMatch = SchemaPrivate::DataTypeSupportsAssetTypes(RegistryInfo, Assets);
+			if (bAssetTypesMatch)
+			{
+				UObject* Object = Assets.Last().GetAsset();
+				const FText TransactionText = FText::Format(LOCTEXT("ChangeDefaultObjectTransaction", "Set {0} to '{1}'"),
+					Pin->GetDisplayName(),
+					FText::FromName(Object->GetFName()));
+				const FScopedTransaction Transaction(TransactionText);
+				Node->Modify();
+
+				constexpr bool bMarkAsModified = true;
+				TrySetDefaultObject(*Pin, Object, bMarkAsModified);
+			}
+		}
+	}
 }
 
 void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FActionClassFilters InFilters, bool bShowSelectedActions) const
