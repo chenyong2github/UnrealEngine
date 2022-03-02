@@ -37,6 +37,7 @@ class UUMGSequenceTickManager;
 class UWidgetAnimation;
 class UWidgetTree;
 class UNamedSlot;
+class UUserWidgetExtension;
 
 /** Determines what strategy we use to determine when and if the widget ticks. */
 UENUM()
@@ -225,6 +226,8 @@ public:
 	EWidgetTickFrequency GetDesiredTickFrequency() const { return TickFrequency; }
 
 	UWidgetBlueprintGeneratedClass* GetWidgetTreeOwningClass() const;
+
+	void UpdateCanTick();
 
 protected:
 	/** The function is implemented only in nativized widgets (automatically converted from BP to c++) */
@@ -1057,6 +1060,36 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface|Animation")
 	void FlushAnimations();
 
+	/** Find the first extension of the requested type. */
+	template<typename ExtensionType>
+	ExtensionType* GetExtension() const
+	{
+		return CastChecked<ExtensionType>(GetExtension(ExtensionType::StaticClass()), ECastCheckedType::NullAllowed);
+	}
+
+	/** Find the first extension of the requested type. */
+	UFUNCTION(BlueprintCallable, Category = "User Interface|Extension")
+	UUserWidgetExtension* GetExtension(TSubclassOf<UUserWidgetExtension> InExtensionType) const;
+
+	/** Find the extensions of the requested type. */
+	UFUNCTION(BlueprintCallable, Category = "User Interface|Extension")
+	TArray<UUserWidgetExtension*> GetExtensions(TSubclassOf<UUserWidgetExtension> InExtensionType) const;
+
+	/** Add the extension of the requested type. */
+	template<typename ExtensionType>
+	ExtensionType* AddExtension()
+	{
+		return CastChecked<ExtensionType>(AddExtension(ExtensionType::StaticClass()), ECastCheckedType::NullAllowed);
+	}
+
+	/** Add the extension of the requested type. */
+	UFUNCTION(BlueprintCallable, Category = "User Interface|Extension")
+	UUserWidgetExtension* AddExtension(TSubclassOf<UUserWidgetExtension> InExtensionType);
+
+	/** Remove the extension. */
+	UFUNCTION(BlueprintCallable, Category = "User Interface|Extension")
+	void RemoveExtension(UUserWidgetExtension* InExtension);
+
 	/**
 	 * Plays a sound through the UI
 	 *
@@ -1171,6 +1204,10 @@ private:
 	/** Stores the widgets being assigned to named slots */
 	UPROPERTY()
 	TArray<FNamedSlotBinding> NamedSlotBindings;
+
+	/** The UserWidget extensions */
+	UPROPERTY()
+	TArray<TObjectPtr<UUserWidgetExtension>> Extensions;
 
 public:
 	/** The widget tree contained inside this user widget initialized by the blueprint */
@@ -1408,8 +1445,6 @@ private:
 
 	static bool bTemplateInitializing;
 	static uint32 bInitializingFromWidgetTree;
-
-	void UpdateCanTick();
 
 protected:
 

@@ -14,6 +14,7 @@
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Animation/UMGSequencePlayer.h"
 #include "Animation/UMGSequenceTickManager.h"
+#include "Extensions/UserWidgetExtension.h"
 #include "Extensions/WidgetBlueprintGeneratedClassExtension.h"
 #include "UObject/UnrealType.h"
 #include "Blueprint/WidgetNavigation.h"
@@ -153,6 +154,11 @@ bool UUserWidget::Initialize()
 			InitializeNamedSlots(bReparentToWidgetTree);
 		}
 
+		for (UUserWidgetExtension* Extension : Extensions)
+		{
+			Extension->Initialize();
+		}
+
 		if (!IsDesignTime() && PlayerContext.IsValid())
 		{
 			NativeOnInitialized();
@@ -227,6 +233,11 @@ void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree
 void UUserWidget::BeginDestroy()
 {
 	Super::BeginDestroy();
+
+	for (UUserWidgetExtension* Extension : Extensions)
+	{
+		Extension->Destruct();
+	}
 
 	TearDownAnimations();
 
@@ -488,7 +499,7 @@ UUMGSequencePlayer* UUserWidget::PlayAnimation(UWidgetAnimation* InAnimation, fl
 		OnAnimationStartedPlaying(*Player);
 
 		UpdateCanTick();
-	}
+}
 
 	return Player;
 }
@@ -654,7 +665,7 @@ void UUserWidget::SetPlaybackSpeed(const UWidgetAnimation* InAnimation, float Pl
 void UUserWidget::ReverseAnimation(const UWidgetAnimation* InAnimation)
 {
 	if (UUMGSequencePlayer* FoundPlayer = GetSequencePlayer(InAnimation))
-		{
+	{
 		FoundPlayer->Reverse();
 	}
 }
@@ -1410,6 +1421,11 @@ void UUserWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	{
 		GInitRunaway();
 
+		for (UUserWidgetExtension* Extension : Extensions)
+		{
+			Extension->Tick(MyGeometry, InDeltaTime);
+		}
+
 #if WITH_EDITOR
 		const bool bTickAnimations = !IsDesignTime();
 #else
@@ -1641,6 +1657,18 @@ void UUserWidget::UpdateCanTick()
 			bCanTick |= bHasScriptImplementedTick;
 			bCanTick |= World->GetLatentActionManager().GetNumActionsForObject(this) != 0;
 			bCanTick |= ActiveSequencePlayers.Num() > 0;
+
+			if (!bCanTick)
+			{
+				for(UUserWidgetExtension* Extension : Extensions)
+				{
+					if (Extension->RequiresTick())
+					{
+						bCanTick = true;
+						break;
+					}
+				}
+			}
 		}
 
 		SafeGCWidget->SetCanTick(bCanTick);
@@ -2064,6 +2092,43 @@ void UUserWidget::OnLatentActionsChanged(UObject* ObjectWhichChanged, ELatentAct
 			}
 		}
 	}
+}
+
+UUserWidgetExtension* UUserWidget::GetExtension(TSubclassOf<UUserWidgetExtension> InExtensionType) const
+{
+	for (UUserWidgetExtension* Extension : Extensions)
+	{
+		if (Extension->IsA(InExtensionType))
+		{
+			return Extension;
+		}
+	}
+	return nullptr;
+}
+
+TArray<UUserWidgetExtension*> UUserWidget::GetExtensions(TSubclassOf<UUserWidgetExtension> InExtensionType) const
+{
+	TArray<UUserWidgetExtension*> Result;
+	for (UUserWidgetExtension* Extension : Extensions)
+	{
+		if (Extension->IsA(InExtensionType))
+		{
+			Result.Add(Extension);
+		}
+	}
+	return Result;
+}
+
+UUserWidgetExtension* UUserWidget::AddExtension(TSubclassOf<UUserWidgetExtension> InExtensionType)
+{
+	UUserWidgetExtension* Extension = NewObject<UUserWidgetExtension>(this, InExtensionType);
+	Extensions.Add(Extension);
+	return Extension;
+}
+
+void UUserWidget::RemoveExtension(UUserWidgetExtension* InExtension)
+{
+	Extensions.RemoveSingle(InExtension);
 }
 
 
