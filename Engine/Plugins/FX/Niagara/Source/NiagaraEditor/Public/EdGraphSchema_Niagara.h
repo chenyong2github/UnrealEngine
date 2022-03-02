@@ -170,7 +170,17 @@ class NIAGARAEDITOR_API UEdGraphSchema_Niagara : public UEdGraphSchema
 	static const FLinearColor NodeTitleColor_TranslatorConstant;
 	static const FLinearColor NodeTitleColor_RapidIteration;
 
-	bool PinTypesValidForNumericConversion(FEdGraphPinType AType, FEdGraphPinType BType) const;
+	static const FText ReplaceExistingInputConnectionsText;
+	static const FText TypesAreNotCompatibleText;
+	static const FText ConvertText;
+	static const FText ConvertLossyText;
+	static const FText PinNotConnectableText;
+	static const FText SameNodeConnectionForbiddenText;
+	static const FText DirectionsNotCompatibleText;
+	static const FText AddPinIncompatibleTypeText;
+	static const FText CircularConnectionFoundText;
+	
+	bool PinTypesValidForNumericConversion(FEdGraphPinType AType, FEdGraphPinType BType) const;	
 	
 private:
 	void GetNumericConversionToSubMenuActions(class UToolMenu* Menu, const FName SectionName, UEdGraphPin* InGraphPin);
