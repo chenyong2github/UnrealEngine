@@ -425,10 +425,10 @@ void FNiagaraPlatformSet::InvalidateCachedData()
 #if WITH_EDITOR
 	CachedQLMasksPerDeviceProfile.Empty();
 	CachedPlatformIniSettings.Empty();
-	CachedQualityLevel = INDEX_NONE;
 	FDeviceProfileValueCache::Empty();
 #endif
 
+	CachedQualityLevel = INDEX_NONE;
 	LastDirtiedFrame = GFrameNumber;
 }
 
