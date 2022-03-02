@@ -50,7 +50,7 @@ namespace AutomationTool
 			catch (Exception Ex)
 			{
 				Log.TraceError(
-					"Unable to find matching Perforce info. If the below does not help try P4CreateConfig -p4port=<server:port> and -p4user=<username> to supply more info");
+					"Unable to find matching Perforce info. If the below does not help try P4WriteConfig -p4port=<server:port> and -p4user=<username> to supply more info");
 				Log.TraceError("{0}", Ex.Message);
 				return ExitCode.Error_Arguments;
 			}
