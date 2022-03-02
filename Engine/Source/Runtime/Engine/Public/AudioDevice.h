@@ -1286,6 +1286,9 @@ public:
 	/** Returns the buffer length of the audio device. */
 	int32 GetBufferLength() const { return PlatformSettings.CallbackBufferFrameSize; }
 
+	/** Returns the number of buffers the audio device keeps queued. */
+	int32 GetNumBuffers() const { return PlatformSettings.NumBuffers; }
+
 	/** Whether or not there's a spatialization plugin enabled. */
 	bool IsSpatializationPluginEnabled() const
 	{
