@@ -128,7 +128,7 @@ int32 FClothingSimulationMesh::GetReferenceBoneIndex() const
 	return Asset ? Asset->ReferenceBoneIndex : INDEX_NONE;
 }
 
-FRigidTransform3 Chaos::FClothingSimulationMesh::GetReferenceBoneTransform() const
+FRigidTransform3 FClothingSimulationMesh::GetReferenceBoneTransform() const
 {
 	if (SkeletalMeshComponent)
 	{
@@ -144,6 +144,19 @@ FRigidTransform3 Chaos::FClothingSimulationMesh::GetReferenceBoneTransform() con
 		}
 	}
 	return FRigidTransform3::Identity;
+}
+
+Softs::FSolverReal FClothingSimulationMesh::GetScale() const
+{
+	if (SkeletalMeshComponent)
+	{
+		if (const FClothingSimulationContextCommon* const Context =
+			static_cast<const FClothingSimulationContextCommon*>(SkeletalMeshComponent->GetClothingSimulationContext()))
+		{
+			return (Softs::FSolverReal)Context->ComponentToWorld.GetScale3D().GetMax();
+		}
+	}
+	return (Softs::FSolverReal)1.;
 }
 
 bool FClothingSimulationMesh::WrapDeformLOD(

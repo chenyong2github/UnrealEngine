@@ -42,6 +42,9 @@ namespace Chaos
 		int32 GetReferenceBoneIndex() const;
 		FRigidTransform3 GetReferenceBoneTransform() const;
 
+		// Return this mesh component's scale (the max of the three axis scale values)
+		Softs::FSolverReal GetScale() const;
+
 		bool WrapDeformLOD(
 			int32 PrevLODIndex,
 			int32 LODIndex,
