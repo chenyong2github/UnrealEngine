@@ -16405,7 +16405,12 @@ int32 UEngine::RenderStatVersion(UWorld* World, FViewport* Viewport, FCanvas* Ca
 	{
 		if (!bSuppressMapWarnings)
 		{
-			FCanvasTextItem TextItem(FVector2D(X - 40, Y), FText::FromString(Viewport->AppVersionString), GetSmallFont(), FLinearColor::Yellow);
+			FText Text = FText::FromString(Viewport->AppVersionString);
+			int32 XSize = 0;
+			int32 YSize = 0;
+			StringSize(GEngine->GetSmallFont(), XSize, YSize, *Text.ToString());
+
+			FCanvasTextItem TextItem(FVector2D(X - XSize, Y), Text, GetSmallFont(), FLinearColor::Yellow);
 			TextItem.EnableShadow(FLinearColor::Black);
 			Canvas->DrawItem(TextItem);
 			Y += TextItem.DrawnSize.Y;
