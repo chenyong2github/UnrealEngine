@@ -40,6 +40,8 @@ LandscapeEdit.cpp: Landscape editing
 #include "Misc/MapErrors.h"
 #include "LandscapeSplinesComponent.h"
 #include "Serialization/MemoryWriter.h"
+#include "MaterialCachedData.h"
+
 #if WITH_EDITOR
 #include "Engine/World.h"
 #include "LandscapeSubsystem.h"

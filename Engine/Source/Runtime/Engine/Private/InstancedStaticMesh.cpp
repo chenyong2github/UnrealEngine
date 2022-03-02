@@ -33,6 +33,7 @@
 #include "MeshMaterialShader.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "NaniteSceneProxy.h"
+#include "MaterialCachedData.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/SMInstance/SMInstanceElementData.h"

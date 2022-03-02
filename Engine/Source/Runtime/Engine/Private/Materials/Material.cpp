@@ -85,7 +85,7 @@
 #include "Materials/MaterialExpressionTangentOutput.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionBreakMaterialAttributes.h"
-
+#include "MaterialCachedData.h"
 
 #if WITH_EDITOR
 #include "MaterialCachedHLSLTree.h"
@@ -127,12 +127,6 @@ static TAutoConsoleVariable<int32> CVarMaterialParameterLegacyChecks(
 	TEXT("When enabled, sanity check new material parameter logic against legacy path.\n")
 	TEXT("Note that this can be slow"),
 	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarMaterialEnableControlFlow(
-	TEXT("r.MaterialEnableControlFlow"),
-	0,
-	TEXT("Allows experemental control flow to be used in the material editor.\n"),
-	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 bool Engine_IsStrataEnabled()
 {
@@ -1886,27 +1880,30 @@ void UMaterial::UpdateCachedExpressionData()
 		return;
 	}
 
-	FMaterialCachedHLSLTree* LocalTree = nullptr;
+	FMaterialCachedExpressionData* LocalCachedExpressionData = new FMaterialCachedExpressionData();
+	LocalCachedExpressionData->Reset();
+
+	FMaterialCachedHLSLTree* LocalCachedTree = nullptr;
 	if (IsUsingNewHLSLGenerator())
 	{
-		LocalTree = new FMaterialCachedHLSLTree();
-		LocalTree->GenerateTree(this, nullptr);
+		LocalCachedTree = new FMaterialCachedHLSLTree();
+		LocalCachedTree->GenerateTree(this, nullptr);
+		LocalCachedExpressionData->UpdateForCachedHLSLTree(*LocalCachedTree, nullptr);
 	}
-	CachedHLSLTree.Reset(LocalTree);
-
-	if (!CachedExpressionData)
+	else
 	{
-		CachedExpressionData.Reset(new FMaterialCachedExpressionData());
+		FMaterialCachedExpressionContext Context;
+		LocalCachedExpressionData->UpdateForExpressions(Context, Expressions, EMaterialParameterAssociation::GlobalParameter, -1);
 	}
 
-	CachedExpressionData->Reset();
-	FMaterialCachedExpressionContext Context;
-	CachedExpressionData->UpdateForExpressions(Context, Expressions, EMaterialParameterAssociation::GlobalParameter, -1);
-	if (CachedExpressionData->bHasMaterialLayers)
+	if (LocalCachedExpressionData->bHasMaterialLayers)
 	{
 		// Set all layers as linked to parent (there is no parent for base UMaterials)
-		CachedExpressionData->MaterialLayers.LinkAllLayersToParent();
+		LocalCachedExpressionData->MaterialLayers.LinkAllLayersToParent();
 	}
+
+	CachedExpressionData.Reset(LocalCachedExpressionData);
+	CachedHLSLTree.Reset(LocalCachedTree);
 
 	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
 }
@@ -3466,18 +3463,64 @@ void UMaterial::GetShaderTypes(EShaderPlatform ShaderPlatform, const ITargetPlat
 }
 #endif // WITH_EDITOR
 
+bool UMaterial::HasBaseColorConnected() const
+{
+	return BaseColor.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_BaseColor);
+}
+
+bool UMaterial::HasRoughnessConnected() const
+{
+	return Roughness.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_Roughness);
+}
+
+bool UMaterial::HasAmbientOcclusionConnected() const
+{
+	return AmbientOcclusion.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_AmbientOcclusion);
+}
+
+bool UMaterial::HasNormalConnected() const
+{
+	return Normal.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_Normal);
+}
+
+bool UMaterial::HasSpecularConnected() const
+{
+	return Specular.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_Specular);
+}
+
+bool UMaterial::HasMetallicConnected() const
+{
+	return Metallic.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_Metallic);
+}
+
+bool UMaterial::HasEmissiveColorConnected() const
+{
+	return EmissiveColor.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_EmissiveColor);
+}
+
+bool UMaterial::HasAnisotropyConnected() const
+{
+	return Anisotropy.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_Anisotropy);
+}
+
+bool UMaterial::HasStrataFrontMaterialConnected() const
+{
+	return FrontMaterial.IsConnected();
+}
+
+bool UMaterial::HasVertexPositionOffsetConnected() const
+{
+	return WorldPositionOffset.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_WorldPositionOffset);
+}
+
+bool UMaterial::HasPixelDepthOffsetConnected() const
+{
+	return PixelDepthOffset.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_PixelDepthOffset);
+}
+
 void UMaterial::PropagateDataToMaterialProxy()
 {
 	UpdateMaterialRenderProxy(*DefaultMaterialInstance);
-}
-
-bool UMaterial::IsUsingControlFlow() const
-{
-	if (bEnableExecWire)
-	{
-		return CVarMaterialEnableControlFlow.GetValueOnAnyThread() != 0;
-	}
-	return false;
 }
 
 #if WITH_EDITOR

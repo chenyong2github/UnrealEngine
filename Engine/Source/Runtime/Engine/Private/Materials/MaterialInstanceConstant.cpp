@@ -7,6 +7,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceSupport.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "MaterialCachedData.h"
 #if WITH_EDITOR
 #include "MaterialCachedHLSLTree.h"
 #include "MaterialEditor/DEditorScalarParameterValue.h"
@@ -156,6 +157,24 @@ void UMaterialInstanceConstant::ClearParameterValuesEditorOnly()
 	ClearParameterValuesInternal();
 }
 
+#if WITH_EDITOR
+void FMaterialInstanceCachedData::InitializeForConstant(const FMaterialLayersFunctions* Layers, const FMaterialLayersFunctions* ParentLayers)
+{
+	const int32 NumLayers = Layers ? Layers->Layers.Num() : 0;
+	ParentLayerIndexRemap.Empty(NumLayers);
+	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
+	{
+		int32 ParentLayerIndex = INDEX_NONE;
+		if (ParentLayers && Layers->LayerLinkStates[LayerIndex] == EMaterialLayerLinkState::LinkedToParent)
+		{
+			const FGuid& LayerGuid = Layers->LayerGuids[LayerIndex];
+			ParentLayerIndex = ParentLayers->LayerGuids.Find(LayerGuid);
+		}
+		ParentLayerIndexRemap.Add(ParentLayerIndex);
+	}
+}
+#endif // WITH_EDITOR
+
 void UMaterialInstanceConstant::UpdateCachedData()
 {
 	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialInstanceCookStats::UpdateCachedExpressionDataSec));
@@ -182,6 +201,7 @@ void UMaterialInstanceConstant::UpdateCachedData()
 
 	if (!bLoadedCachedExpressionData)
 	{
+		const bool bUsingNewHLSLGenerator = IsUsingNewHLSLGenerator();
 		FMaterialCachedExpressionData* LocalCachedExpressionData = nullptr;
 		FMaterialCachedHLSLTree* LocalCachedTree = nullptr;
 
@@ -191,21 +211,31 @@ void UMaterialInstanceConstant::UpdateCachedData()
 		if (LocalStaticParameters.bHasMaterialLayers)
 		{
 			UMaterial* BaseMaterial = GetMaterial();
-
-			FMaterialCachedExpressionContext Context;
-			Context.LayerOverrides = &LocalStaticParameters.MaterialLayers;
-			LocalCachedExpressionData = new FMaterialCachedExpressionData();
-			LocalCachedExpressionData->Reset();
-			LocalCachedExpressionData->UpdateForExpressions(Context, BaseMaterial->Expressions, GlobalParameter, INDEX_NONE);
-
-			if (IsUsingNewHLSLGenerator())
+			if (bUsingNewHLSLGenerator)
 			{
 				LocalCachedTree = new FMaterialCachedHLSLTree();
 				LocalCachedTree->GenerateTree(BaseMaterial, &LocalStaticParameters.MaterialLayers);
 			}
+			else
+			{
+				FMaterialCachedExpressionContext Context;
+				Context.LayerOverrides = &LocalStaticParameters.MaterialLayers;
+				LocalCachedExpressionData = new FMaterialCachedExpressionData();
+				LocalCachedExpressionData->Reset();
+				LocalCachedExpressionData->UpdateForExpressions(Context, BaseMaterial->Expressions, GlobalParameter, INDEX_NONE);
+			}
 		}
-		CachedExpressionData.Reset(LocalCachedExpressionData);
+
 		CachedHLSLTree.Reset(LocalCachedTree);
+
+		if (bUsingNewHLSLGenerator && bHasStaticPermutationResource)
+		{
+			LocalCachedExpressionData = new FMaterialCachedExpressionData();
+			LocalCachedExpressionData->Reset();
+			LocalCachedExpressionData->UpdateForCachedHLSLTree(GetCachedHLSLTree(), &LocalStaticParameters);
+		}
+
+		CachedExpressionData.Reset(LocalCachedExpressionData);
 
 		FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
 	}

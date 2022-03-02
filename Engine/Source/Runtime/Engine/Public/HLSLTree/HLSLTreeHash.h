@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#if WITH_EDITOR
+
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Containers/ArrayView.h"
@@ -10,9 +12,7 @@
 #include "Hash/xxhash.h"
 #include "HLSLTree/HLSLTreeTypes.h"
 
-namespace UE
-{
-namespace HLSLTree
+namespace UE::HLSLTree
 {
 
 class FHasher
@@ -59,6 +59,11 @@ inline void AppendHash(FHasher& Hasher, FStringView Value)
 	Hasher.AppendData(Value.GetData(), Value.Len() * sizeof(TCHAR));
 }
 
+inline void AppendHash(FHasher& Hasher, const FString& Value)
+{
+	Hasher.AppendData(&Value[0], Value.Len() * sizeof(TCHAR));
+}
+
 inline void AppendHash(FHasher& Hasher, const TCHAR* Value)
 {
 	Hasher.AppendData(Value, FCString::Strlen(Value) * sizeof(TCHAR));
@@ -102,5 +107,6 @@ inline FXxHash64 HashValue(const T& Value)
 	return Hasher.Finalize();
 }
 
-} // namespace HLSLTree
-} // namespace UE
+} // namespace UE::HLSLTree
+
+#endif // WITH_EDITOR

@@ -61,6 +61,7 @@
 #include "RenderCaptureInterface.h"
 #include "SimpleMeshDrawCommandPass.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "MaterialCachedData.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 

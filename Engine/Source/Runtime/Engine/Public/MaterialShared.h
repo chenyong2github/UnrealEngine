@@ -67,6 +67,9 @@ struct FMaterialShaders;
 struct FMaterialCachedExpressionData;
 class FMaterialHLSLGenerator;
 class FShaderMapLayout;
+#if WITH_EDITOR
+class FMaterialCachedHLSLTree;
+#endif
 
 namespace UE
 {
@@ -1875,11 +1878,13 @@ public:
 	 */
 	ENGINE_API bool IsCompilationFinished() const;
 
+	ENGINE_API virtual const FMaterialCachedHLSLTree* GetCachedHLSLTree() const;
+
 	/** Should the material be compiled using exec pin? */
-	virtual bool IsUsingControlFlow() const { return false; }
+	ENGINE_API virtual bool IsUsingControlFlow() const;
 
 	/** Is the material using the new (WIP) HLSL generator? */
-	virtual bool IsUsingNewHLSLGenerator() const { return false; }
+	ENGINE_API virtual bool IsUsingNewHLSLGenerator() const;
 #endif // WITH_EDITOR
 
 	/**

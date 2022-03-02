@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#if WITH_EDITOR
+
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Containers/ArrayView.h"
@@ -247,13 +249,19 @@ ENUM_CLASS_FLAGS(EEmitCastFlags)
 
 struct FTargetParameters
 {
+	FTargetParameters() = default;
+
 	FTargetParameters(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, const ITargetPlatform* InTargetPlatform)
-		: ShaderPlatform(InShaderPlatform), FeatureLevel(InFeatureLevel), TargetPlatform(InTargetPlatform)
+		: ShaderPlatform(InShaderPlatform)
+		, FeatureLevel(InFeatureLevel)
+		, TargetPlatform(InTargetPlatform)
 	{}
 
-	EShaderPlatform ShaderPlatform;
-	ERHIFeatureLevel::Type FeatureLevel;
-	const ITargetPlatform* TargetPlatform;
+	inline bool IsGenericTarget() const { return FeatureLevel == ERHIFeatureLevel::Num; }
+
+	EShaderPlatform ShaderPlatform = SP_NumPlatforms;
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
+	const ITargetPlatform* TargetPlatform = nullptr;
 };
 
 /** Tracks shared state while emitting HLSL code */
@@ -523,3 +531,4 @@ public:
 
 } // namespace UE::HLSLTree
 
+#endif // WITH_EDITOR

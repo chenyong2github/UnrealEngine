@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#if WITH_EDITOR
+
 #include "Misc/EnumClassFlags.h"
 #include "Containers/BitArray.h"
 #include "Shader/ShaderTypes.h"
@@ -141,3 +143,4 @@ struct FCustomHLSLInput
 
 } // namespace UE::HLSLTree
 
+#endif // WITH_EDITOR

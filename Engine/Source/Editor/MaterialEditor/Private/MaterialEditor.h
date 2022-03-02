@@ -171,6 +171,10 @@ public:
 
 	virtual void NotifyCompilationFinished() override;
 
+	virtual const FMaterialCachedHLSLTree* GetCachedHLSLTree() const override;
+	virtual bool IsUsingControlFlow() const override;
+	virtual bool IsUsingNewHLSLGenerator() const override;
+
 	friend FArchive& operator<< ( FArchive& Ar, FMatExpressionPreview& V )
 	{
 		return Ar << V.Expression;

@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "HLSLTree/HLSLTree.h"
+#if WITH_EDITOR
+
+#include "HLSLTree/HLSLTreeCommon.h"
+#include "MaterialTypes.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "RHIDefinitions.h"
 
 enum class EMaterialParameterType : uint8;
+struct FMaterialCachedExpressionData;
+struct FMaterialLayersFunctions;
 
 namespace UE::HLSLTree::Material
 {
@@ -199,22 +204,69 @@ inline void AppendHash(FHasher& Hasher, const FMaterialParameterInfo& Value)
 	AppendHash(Hasher, Value.Association);
 }
 
+inline void AppendHash(FHasher& Hasher, const FMaterialParameterValue& Value)
+{
+	switch (Value.Type)
+	{
+	case EMaterialParameterType::Scalar: AppendHash(Hasher, Value.Float[0]); break;
+	case EMaterialParameterType::Vector: AppendHash(Hasher, Value.Float); break;
+	case EMaterialParameterType::DoubleVector: AppendHash(Hasher, Value.Double); break;
+	case EMaterialParameterType::Texture: AppendHash(Hasher, Value.Texture); break;
+	case EMaterialParameterType::Font: AppendHash(Hasher, Value.Font); break;
+	case EMaterialParameterType::RuntimeVirtualTexture: AppendHash(Hasher, Value.RuntimeVirtualTexture); break;
+	case EMaterialParameterType::StaticSwitch: AppendHash(Hasher, Value.Bool[0]); break;
+	case EMaterialParameterType::StaticComponentMask: AppendHash(Hasher, Value.Bool); break;
+	default: checkNoEntry(); break;
+	}
+}
+
+inline void AppendHash(FHasher& Hasher, const FMaterialParameterMetadata& Meta)
+{
+	AppendHash(Hasher, Meta.Value);
+}
+
 class FExpressionParameter : public FExpression
 {
 public:
-	explicit FExpressionParameter(EMaterialParameterType InType, const FMaterialParameterInfo& InParameterInfo, const Shader::FValue& InDefaultValue)
-		: ParameterInfo(InParameterInfo), DefaultValue(InDefaultValue), ParameterType(InType)
+	explicit FExpressionParameter(const FMaterialParameterInfo& InParameterInfo, const FMaterialParameterMetadata& InParameterMeta, const Shader::FValue& InDefaultValue)
+		: ParameterInfo(InParameterInfo), ParameterMeta(InParameterMeta), DefaultValue(InDefaultValue)
 	{
 	}
 
 	FMaterialParameterInfo ParameterInfo;
+	FMaterialParameterMetadata ParameterMeta;
 	Shader::FValue DefaultValue;
-	EMaterialParameterType ParameterType;
 
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
+};
+
+class FExpressionFunctionCall : public FExpressionForward
+{
+public:
+	FExpressionFunctionCall(FExpression* InExpression, UMaterialFunctionInterface* InMaterialFunction)
+		: FExpressionForward(InExpression)
+		, MaterialFunction(InMaterialFunction)
+	{}
+
+	UMaterialFunctionInterface* MaterialFunction;
+
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+};
+
+class FExpressionMaterialLayers : public FExpressionForward
+{
+public:
+	FExpressionMaterialLayers(FExpression* InExpression, const FMaterialLayersFunctions* InMaterialLayers)
+		: FExpressionForward(InExpression)
+		, MaterialLayers(InMaterialLayers)
+	{}
+
+	const FMaterialLayersFunctions* MaterialLayers;
+
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 };
 
 class FExpressionSceneTexture : public FExpression
@@ -279,6 +331,7 @@ public:
 	}
 
 	const FStaticParameterSet* StaticParameters = nullptr;
+	FMaterialCachedExpressionData* CachedExpressionData = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
 	bool bReadMaterialNormal = false;
 	bool bUsesVertexColor = false;
@@ -291,3 +344,5 @@ public:
 };
 
 } // namespace UE::HLSLTree::Material
+
+#endif // WITH_EDITOR

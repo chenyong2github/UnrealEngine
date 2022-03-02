@@ -788,7 +788,7 @@ void FDatasmithImporterImpl::GatherUnsupportedVirtualTexturesAndMaterials(const 
 				TextureParametersToConvertMap.Add(BaseMaterial, FMaterialParameterInfo());
 
 				//If no unsupported texture parameters were found, it's possible that a texture needing conversion is simply not exposed as a parameter, so we still need to check for those.
-				for (UObject* ReferencedTexture : BaseMaterial->GetCachedExpressionData().ReferencedTextures)
+				for (UObject* ReferencedTexture : BaseMaterial->GetReferencedTextures())
 				{
 					if (VirtualTexturesToConvert.Contains(Cast<UTexture2D>(ReferencedTexture)))
 					{

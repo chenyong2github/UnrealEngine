@@ -1,4 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+#if WITH_EDITOR
+
 #include "HLSLTree/HLSLTree.h"
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "Misc/StringBuilder.h"
@@ -1129,6 +1131,7 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 	{
 		FEmitValueShaderResult Result;
 		EmitValueShader(Context, Scope, RequestedType, Result);
+		check(Result.Code);
 		Value = Result.Code;
 	}
 
@@ -1510,3 +1513,4 @@ FFunction* FTree::NewFunction()
 
 } // namespace UE::HLSLTree
 
+#endif // WITH_EDITOR

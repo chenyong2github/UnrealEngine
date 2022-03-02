@@ -1,4 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+#if WITH_EDITOR
+
 #include "HLSLTree/HLSLTreeCommon.h"
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "Misc/StringBuilder.h"
@@ -85,6 +87,32 @@ FSwizzleParameters MakeSwizzleMask(bool bInR, bool bInG, bool bInB, bool bInA)
 bool FExpressionError::PrepareValue(FEmitContext& Context, FEmitScope&, const FRequestedType&, FPrepareValueResult&) const
 {
 	return Context.Errors->AddError(ErrorMessage);
+}
+
+void FExpressionForward::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
+{
+	OutResult = Tree.GetAnalyticDerivatives(Expression);
+}
+
+FExpression* FExpressionForward::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+{
+	return Tree.GetPreviousFrame(Expression, RequestedType);
+}
+
+bool FExpressionForward::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	const FPreparedType& ResultType = Context.PrepareExpression(Expression, Scope, RequestedType);
+	return OutResult.SetType(Context, RequestedType, ResultType);
+}
+
+void FExpressionForward::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+{
+	OutResult.Code = Expression->GetValueShader(Context, Scope, RequestedType);
+}
+
+void FExpressionForward::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
+{
+	OutResult.Type = Expression->GetValuePreshader(Context, Scope, RequestedType, OutResult.Preshader);
 }
 
 FExpression* FTree::NewConstant(const Shader::FValue& Value)
@@ -876,37 +904,63 @@ FExpression* FExpressionSwitchBase::ComputePreviousFrame(FTree& Tree, const FReq
 
 bool FExpressionSwitchBase::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const int32 InputIndex = GetInputIndex(Context);
-	check(InputIndex >= 0 && InputIndex < NumInputs);
-	const FPreparedType& InputType = Context.PrepareExpression(Input[InputIndex], Scope, RequestedType);
-	if (InputType.IsVoid())
+	FPreparedType ResultType;
+	for (int32 InputIndex = 0; InputIndex < NumInputs; ++InputIndex)
+	{
+		if (IsInputActive(Context, InputIndex))
+		{
+			const FPreparedType& InputType = Context.PrepareExpression(Input[InputIndex], Scope, RequestedType);
+			if (ResultType.IsVoid() && !InputType.IsVoid())
+			{
+				ResultType = InputType;
+			}
+		}
+	}
+
+	if (ResultType.IsVoid())
 	{
 		return false;
 	}
-	return OutResult.SetType(Context, RequestedType, InputType);
+
+	return OutResult.SetType(Context, RequestedType, ResultType);
 }
 
 void FExpressionSwitchBase::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	const int32 InputIndex = GetInputIndex(Context);
-	check(InputIndex >= 0 && InputIndex < NumInputs);
-	OutResult.Code = Input[InputIndex]->GetValueShader(Context, Scope, RequestedType);
+	for (int32 InputIndex = 0; InputIndex < NumInputs; ++InputIndex)
+	{
+		if (IsInputActive(Context, InputIndex))
+		{
+			OutResult.Code = Input[InputIndex]->GetValueShader(Context, Scope, RequestedType);
+			break;
+		}
+	}
 }
 
 void FExpressionSwitchBase::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
-	const int32 InputIndex = GetInputIndex(Context);
-	check(InputIndex >= 0 && InputIndex < NumInputs);
-	OutResult.Type = Input[InputIndex]->GetValuePreshader(Context, Scope, RequestedType, OutResult.Preshader);
+	for (int32 InputIndex = 0; InputIndex < NumInputs; ++InputIndex)
+	{
+		if (IsInputActive(Context, InputIndex))
+		{
+			OutResult.Type = Input[InputIndex]->GetValuePreshader(Context, Scope, RequestedType, OutResult.Preshader);
+			break;
+		}
+	}
 }
 
-int32 FExpressionFeatureLevelSwitch::GetInputIndex(const FEmitContext& Context) const
+bool FExpressionFeatureLevelSwitch::IsInputActive(const FEmitContext& Context, int32 Index) const
 {
-	return (int32)Context.TargetParameters.FeatureLevel;
+	return Context.TargetParameters.IsGenericTarget() || (Index == (int32)Context.TargetParameters.FeatureLevel);
 }
 
-int32 FExpressionShadingPathSwitch::GetInputIndex(const FEmitContext& Context) const
+bool FExpressionShadingPathSwitch::IsInputActive(const FEmitContext& Context, int32 Index) const
 {
+	if (Context.TargetParameters.IsGenericTarget())
+	{
+		return true;
+	}
+
 	const EShaderPlatform ShaderPlatform = Context.TargetParameters.ShaderPlatform;
 	ERHIShadingPath::Type ShadingPathToCompile = ERHIShadingPath::Deferred;
 	if (IsForwardShadingEnabled(ShaderPlatform))
@@ -917,7 +971,7 @@ int32 FExpressionShadingPathSwitch::GetInputIndex(const FEmitContext& Context) c
 	{
 		ShadingPathToCompile = ERHIShadingPath::Mobile;
 	}
-	return (int32)ShadingPathToCompile;
+	return Index == (int32)ShadingPathToCompile;
 }
 
 bool FExpressionInlineCustomHLSL::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
@@ -1086,3 +1140,5 @@ void FStatementLoop::EmitPreshader(FEmitContext& Context, FEmitScope& Scope, con
 }
 
 } // namespace UE::HLSLTree
+
+#endif // WITH_EDITOR

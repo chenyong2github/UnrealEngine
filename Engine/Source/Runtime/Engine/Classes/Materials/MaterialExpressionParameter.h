@@ -57,6 +57,8 @@ class UMaterialExpressionParameter : public UMaterialExpression
 		OutMeta.SortPriority = SortPriority;
 		return true;
 	}
+
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
 #endif
 	//~ End UMaterialExpression Interface
 

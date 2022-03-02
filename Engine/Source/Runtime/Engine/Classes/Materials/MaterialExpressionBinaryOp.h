@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -29,10 +28,9 @@ class UMaterialExpressionBinaryOp : public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionAdd, meta = (OverridingInputProperty = "B"))
 	float ConstB;
 
-	virtual UE::HLSLTree::EOperation GetBinaryOp() const PURE_VIRTUAL(UMaterialExpressionBinaryOp::GetBinaryOp, return UE::HLSLTree::EOperation::None;);
-
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
+	virtual UE::HLSLTree::EOperation GetBinaryOp() const PURE_VIRTUAL(UMaterialExpressionBinaryOp::GetBinaryOp, return UE::HLSLTree::EOperation::None;);
 	virtual FText GetKeywords() const override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
@@ -46,5 +44,7 @@ UCLASS(MinimalAPI, meta = (MaterialNewHLSLGenerator))
 class UMaterialExpressionLess : public UMaterialExpressionBinaryOp
 {
 	GENERATED_UCLASS_BODY()
+#if WITH_EDITOR
 	virtual UE::HLSLTree::EOperation GetBinaryOp() const override { return UE::HLSLTree::EOperation::Less; }
+#endif // WITH_EDITOR
 };

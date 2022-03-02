@@ -46,6 +46,7 @@
 #include "RayTracingDefinitions.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/ConfigCacheIni.h"
+#include "MaterialCachedData.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "MaterialHLSLGenerator.h"
@@ -765,6 +766,25 @@ void FMaterial::FinishCompilation()
 		GShaderCompilingManager->FinishCompilation(*GetFriendlyName(), ShaderMapIdsToFinish);
 	}
 }
+
+const FMaterialCachedHLSLTree* FMaterial::GetCachedHLSLTree() const
+{
+	const UMaterialInterface* MaterialInterface = GetMaterialInterface();
+	return MaterialInterface ? &MaterialInterface->GetCachedHLSLTree() : nullptr;
+}
+
+bool FMaterial::IsUsingControlFlow() const
+{
+	const UMaterialInterface* MaterialInterface = GetMaterialInterface();
+	return MaterialInterface ? MaterialInterface->IsUsingControlFlow() : false;
+}
+
+bool FMaterial::IsUsingNewHLSLGenerator() const
+{
+	const UMaterialInterface* MaterialInterface = GetMaterialInterface();
+	return MaterialInterface ? MaterialInterface->IsUsingNewHLSLGenerator() : false;
+}
+
 #endif // WITH_EDITOR
 
 bool FMaterial::HasValidGameThreadShaderMap() const

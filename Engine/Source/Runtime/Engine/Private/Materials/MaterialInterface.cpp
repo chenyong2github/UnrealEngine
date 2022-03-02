@@ -29,6 +29,7 @@
 #include "MaterialShaderQualitySettings.h"
 #include "ShaderPlatformQualitySettings.h"
 #include "ObjectCacheContext.h"
+#include "MaterialCachedData.h"
 
 #if WITH_EDITOR
 #include "ObjectCacheEventSink.h"
@@ -53,6 +54,12 @@ static TAutoConsoleVariable<int32> CVarMaterialEnableNewHLSLGenerator(
 	TEXT("0 - Don't allow\n")
 	TEXT("1 - Allow if enabled by material\n")
 	TEXT("2 - Force all materials to use new generator\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarMaterialEnableControlFlow(
+	TEXT("r.MaterialEnableControlFlow"),
+	0,
+	TEXT("Allows experemental control flow to be used in the material editor.\n"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 //////////////////////////////////////////////////////////////////////////
@@ -201,6 +208,18 @@ const FMaterialCachedHLSLTree& UMaterialInterface::GetCachedHLSLTree(TMicRecursi
 	return LocalTree ? *LocalTree : FMaterialCachedHLSLTree::EmptyTree;
 }
 #endif // WITH_EDITOR
+
+bool UMaterialInterface::IsUsingControlFlow() const
+{
+	const int CVarValue = CVarMaterialEnableNewHLSLGenerator.GetValueOnAnyThread();
+	if (CVarValue == 0)
+	{
+		return false;
+	}
+
+	const UMaterial* BaseMaterial = GetMaterial_Concurrent();
+	return BaseMaterial ? BaseMaterial->bEnableExecWire : false;
+}
 
 bool UMaterialInterface::IsUsingNewHLSLGenerator() const
 {

@@ -10,7 +10,6 @@
 #include "Materials/MaterialInterface.h"
 #include "StaticParameterSet.h"
 #include "MaterialShared.h"
-#include "MaterialCachedData.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceBasePropertyOverrides.h"
@@ -404,6 +403,22 @@ bool CompareValueArraysByExpressionGUID(const TArray<T>& InA, const TArray<T>& I
 	BB.Sort([](const T& A, const T& B) { return B.ExpressionGUID < A.ExpressionGUID; });
 	return AA == BB;
 }
+
+USTRUCT()
+struct FMaterialInstanceCachedData
+{
+	GENERATED_USTRUCT_BODY()
+
+	ENGINE_API static const FMaterialInstanceCachedData EmptyData;
+
+#if WITH_EDITOR
+	void InitializeForConstant(const FMaterialLayersFunctions* Layers, const FMaterialLayersFunctions* ParentLayers);
+#endif // WITH_EDITOR
+	void InitializeForDynamic(const FMaterialLayersFunctions* ParentLayers);
+
+	UPROPERTY()
+	TArray<int32> ParentLayerIndexRemap;
+};
 
 enum class EMaterialInstanceClearParameterFlag
 {

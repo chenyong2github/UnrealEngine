@@ -21,7 +21,6 @@
 #include "Interfaces/Interface_AssetUserData.h"
 #include "MaterialSceneTextureId.h"
 #include "Materials/MaterialRelevance.h"
-#include "MaterialCachedData.h"
 #if WITH_CHAOS
 #include "Physics/PhysicsInterfaceCore.h"
 #endif
@@ -39,7 +38,10 @@ class UTexture;
 class UMaterialInstance;
 struct FMaterialParameterInfo;
 struct FMaterialResourceLocOnDisk;
+class FMaterialCachedData;
+#if WITH_EDITOR
 class FMaterialCachedHLSLTree;
+#endif
 #if WITH_EDITORONLY_DATA
 struct FParameterChannelNames;
 #endif
@@ -331,6 +333,7 @@ public:
 #endif
 
 	ENGINE_API bool IsUsingNewHLSLGenerator() const;
+	ENGINE_API bool IsUsingControlFlow() const;
 
 	/**
 	* Test this material for dependency on a given material.

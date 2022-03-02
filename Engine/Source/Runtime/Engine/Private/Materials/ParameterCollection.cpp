@@ -7,6 +7,7 @@
 #include "UniformBuffer.h"
 #include "Engine/World.h"
 #include "MaterialShared.h"
+#include "MaterialCachedData.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialParameterCollectionInstance.h"
 #include "Materials/MaterialParameterCollection.h"

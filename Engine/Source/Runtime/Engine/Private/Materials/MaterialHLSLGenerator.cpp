@@ -19,10 +19,12 @@
 #include "Containers/LazyPrintf.h"
 #include "Misc/MemStackUtility.h"
 
-FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* Material, const FMaterialLayersFunctions* InLayerOverrides, FMaterialCachedHLSLTree& InTree)
+FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* Material,
+	const FMaterialLayersFunctions* InLayerOverrides,
+	FMaterialCachedHLSLTree& OutCachedTree)
 	: TargetMaterial(Material)
 	, LayerOverrides(InLayerOverrides)
-	, CachedTree(InTree)
+	, CachedTree(OutCachedTree)
 	, bGeneratedResult(false)
 {
 	FunctionCallStack.Add(&RootFunctionCallEntry);
@@ -462,26 +464,35 @@ bool FMaterialHLSLGenerator::GenerateStatements(UE::HLSLTree::FScope& Scope, UMa
 	return bResult;
 }
 
-UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateMaterialParameter(EMaterialParameterType InType, FName InParameterName, const UE::Shader::FValue& InDefaultValue)
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateMaterialParameter(FName InParameterName, const FMaterialParameterMetadata& InParameterMeta, const UE::Shader::FValue& InDefaultValue)
 {
-	UE::Shader::FValue DefaultValue(InDefaultValue);
+	using namespace UE::Shader;
 
-	FMaterialParameterMetadata Meta;
-	if (GetParameterOverrideValueForCurrentFunction(InType, InParameterName, Meta))
+	FMaterialParameterMetadata ParameterMeta(InParameterMeta);
+	FValue DefaultValue(InDefaultValue);
+
+	FMaterialParameterMetadata OverrideParameterMeta;
+	if (GetParameterOverrideValueForCurrentFunction(InParameterMeta.Value.Type, InParameterName, OverrideParameterMeta))
 	{
+		ParameterMeta.Value = OverrideParameterMeta.Value;
+		ParameterMeta.ExpressionGuid = OverrideParameterMeta.ExpressionGuid;
+		ParameterMeta.bUsedAsAtlasPosition = OverrideParameterMeta.bUsedAsAtlasPosition;
+		ParameterMeta.ScalarAtlas = OverrideParameterMeta.ScalarAtlas;
+		ParameterMeta.ScalarCurve = OverrideParameterMeta.ScalarCurve;
+
 		if (DefaultValue.Type.IsTexture())
 		{
-			UE::Shader::FTextureValue TextureValue(*DefaultValue.AsTexture());
-			TextureValue.Texture = Meta.Value.Texture;
+			FTextureValue TextureValue(*DefaultValue.AsTexture());
+			TextureValue.Texture = OverrideParameterMeta.Value.Texture;
 			DefaultValue = AcquireTextureValue(TextureValue);
 		}
 		else
 		{
-			DefaultValue = Meta.Value.AsShaderValue();
+			DefaultValue = OverrideParameterMeta.Value.AsShaderValue();
 		}
 	}
 
-	return GetTree().NewExpression<UE::HLSLTree::Material::FExpressionParameter>(InType, GetParameterInfo(InParameterName), DefaultValue);
+	return GetTree().NewExpression<UE::HLSLTree::Material::FExpressionParameter>(GetParameterInfo(InParameterName), ParameterMeta, DefaultValue);
 }
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSLTree::FScope& Scope,
@@ -602,7 +613,10 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE::HLSL
 		}
 	}
 	verify(FunctionCallStack.Pop() == FunctionCall);
-
+	if (Result)
+	{
+		Result = GetTree().NewExpression<Material::FExpressionFunctionCall>(Result, MaterialFunction);
+	}
 	return Result;
 }
 

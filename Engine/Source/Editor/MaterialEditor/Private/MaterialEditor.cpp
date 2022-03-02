@@ -44,7 +44,7 @@
 #include "MaterialEditorModule.h"
 #include "MaterialEditingLibrary.h"
 #include "HAL/PlatformApplicationMisc.h"
-
+#include "MaterialCachedData.h"
 
 #include "Materials/MaterialExpressionBreakMaterialAttributes.h"
 #include "Materials/MaterialExpressionCollectionParameter.h"
@@ -271,6 +271,33 @@ void FMatExpressionPreview::NotifyCompilationFinished()
 		CastChecked<UMaterialGraphNode>(Expression->GraphNode)->bPreviewNeedsUpdate = true;
 	}
 	FMaterialRenderProxy::CacheUniformExpressions_GameThread(true);
+}
+
+const FMaterialCachedHLSLTree* FMatExpressionPreview::GetCachedHLSLTree() const
+{
+	if (Expression.IsValid() && Expression->Material)
+	{
+		return &Expression->Material->GetCachedHLSLTree();
+	}
+	return nullptr;
+}
+
+bool FMatExpressionPreview::IsUsingControlFlow() const
+{
+	if (Expression.IsValid() && Expression->Material)
+	{
+		return Expression->Material->IsUsingControlFlow();
+	}
+	return false;
+}
+
+bool FMatExpressionPreview::IsUsingNewHLSLGenerator() const
+{
+	if (Expression.IsValid() && Expression->Material)
+	{
+		return Expression->Material->IsUsingNewHLSLGenerator();
+	}
+	return false;
 }
 
 /////////////////////

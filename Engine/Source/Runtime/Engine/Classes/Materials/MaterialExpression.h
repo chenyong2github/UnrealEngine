@@ -7,7 +7,6 @@
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "MaterialShared.h"
-#include "MaterialCachedData.h"
 #include "MaterialExpressionIO.h"
 
 #include "MaterialExpression.generated.h"

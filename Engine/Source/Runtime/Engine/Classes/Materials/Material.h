@@ -1101,8 +1101,6 @@ public:
 	/** Like IsPropertyActive(), but considers any state overriden by DerivedMaterial */
 	ENGINE_API bool IsPropertyActiveInDerived(EMaterialProperty InProperty, const UMaterialInterface* DerivedMaterial) const;
 
-	ENGINE_API bool IsUsingControlFlow() const;
-
 #if WITH_EDITOR
 	/** Allows material properties to be compiled with the option of being overridden by the material attributes input. */
 	ENGINE_API virtual int32 CompilePropertyEx( class FMaterialCompiler* Compiler, const FGuid& AttributeID ) override;
@@ -1729,17 +1727,17 @@ public:
 	ENGINE_API virtual void GetShaderTypes(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TArray<FDebugShaderTypeInfo>& OutShaderInfo) override;
 #endif // WITH_EDITOR
 
-	bool HasBaseColorConnected() const { return BaseColor.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_BaseColor); }
-	bool HasRoughnessConnected() const { return Roughness.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_Roughness); }
-	bool HasAmbientOcclusionConnected() const { return AmbientOcclusion.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_AmbientOcclusion); }
-	bool HasNormalConnected() const { return Normal.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_Normal); }
-	bool HasSpecularConnected() const { return Specular.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_Specular); }
-	bool HasMetallicConnected() const { return Metallic.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_Metallic); }
-	bool HasEmissiveColorConnected() const { return EmissiveColor.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_EmissiveColor); }
-	bool HasAnisotropyConnected() const { return Anisotropy.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_Anisotropy); }
-	bool HasStrataFrontMaterialConnected() const { return FrontMaterial.IsConnected(); }
-	bool HasVertexPositionOffsetConnected() const { return WorldPositionOffset.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_WorldPositionOffset); }
-	bool HasPixelDepthOffsetConnected() const { return PixelDepthOffset.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_PixelDepthOffset); }
+	ENGINE_API bool HasBaseColorConnected() const;
+	ENGINE_API bool HasRoughnessConnected() const;
+	ENGINE_API bool HasAmbientOcclusionConnected() const;
+	ENGINE_API bool HasNormalConnected() const;
+	ENGINE_API bool HasSpecularConnected() const;
+	ENGINE_API bool HasMetallicConnected() const;
+	ENGINE_API bool HasEmissiveColorConnected() const;
+	ENGINE_API bool HasAnisotropyConnected() const;
+	ENGINE_API bool HasStrataFrontMaterialConnected() const;
+	ENGINE_API bool HasVertexPositionOffsetConnected() const;
+	ENGINE_API bool HasPixelDepthOffsetConnected() const;
 
 #if WITH_EDITOR
 	static void NotifyCompilationFinished(UMaterialInterface* Material);

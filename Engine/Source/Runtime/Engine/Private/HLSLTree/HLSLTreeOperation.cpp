@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+#if WITH_EDITOR
+
 #include "HLSLTree/HLSLTreeCommon.h"
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "Shader/Preshader.h"
 
-namespace UE
-{
-namespace HLSLTree
+namespace UE::HLSLTree
 {
 
 class FExpressionOperation : public FExpression
@@ -694,5 +694,6 @@ void FExpressionOperation::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 	OutResult.Type = Types.ResultType.GetType();
 }
 
-} // namespace HLSLTree
-} // namespace UE
+} // namespace UE::HLSLTree
+
+#endif // WITH_EDITOR

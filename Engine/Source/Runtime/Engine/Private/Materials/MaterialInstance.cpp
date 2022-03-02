@@ -52,10 +52,13 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "ShaderCompilerCore.h"
 #include "ShaderCompiler.h"
+#include "MaterialCachedData.h"
 
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyMatInstParams"), STAT_MaterialInstance_CopyMatInstParams, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance Serialize"), STAT_MaterialInstance_Serialize, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyUniformParamsInternal"), STAT_MaterialInstance_CopyUniformParamsInternal, STATGROUP_Shaders);
+
+const FMaterialInstanceCachedData FMaterialInstanceCachedData::EmptyData{};
 
 /**
  * Cache uniform expressions for the given material.

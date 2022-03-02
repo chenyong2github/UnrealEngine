@@ -63,7 +63,7 @@ class FMaterialHLSLGenerator
 public:
 	FMaterialHLSLGenerator(UMaterial* Material,
 		const FMaterialLayersFunctions* InLayerOverrides,
-		FMaterialCachedHLSLTree& InTree);
+		FMaterialCachedHLSLTree& OutCachedTree);
 
 	const FMaterialLayersFunctions* GetLayerOverrides() const { return LayerOverrides; }
 
@@ -111,7 +111,7 @@ public:
 
 	bool GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression);
 
-	UE::HLSLTree::FExpression* GenerateMaterialParameter(EMaterialParameterType InType, FName InParameterName, const UE::Shader::FValue& InDefaultValue);
+	UE::HLSLTree::FExpression* GenerateMaterialParameter(FName InParameterName, const FMaterialParameterMetadata& InParameterMeta, const UE::Shader::FValue& InDefaultValue);
 
 	UE::HLSLTree::FExpression* GenerateFunctionCall(UE::HLSLTree::FScope& Scope,
 		UMaterialFunctionInterface* Function,

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#if WITH_EDITOR
+
 #include "HLSLTree/HLSLTree.h"
 #include "RHIDefinitions.h"
 
@@ -17,6 +19,24 @@ public:
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 
 	FStringView ErrorMessage;
+};
+
+/**
+ * Forwards all calls to the owned expression
+ * Intended to be used as a baseclass, where derived classes may hook certain method overrides
+ */
+class FExpressionForward : public FExpression
+{
+public:
+	explicit FExpressionForward(FExpression* InExpression) : Expression(InExpression) {}
+
+	FExpression* Expression;
+
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
+	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
 class FExpressionConstant : public FExpression
@@ -209,7 +229,7 @@ public:
 	int8 NumInputs = 0;
 
 	virtual FExpression* NewSwitch(FTree& Tree, TConstArrayView<FExpression*> InInputs) const = 0;
-	virtual int32 GetInputIndex(const FEmitContext& Context) const = 0;
+	virtual bool IsInputActive(const FEmitContext& Context, int32 Index) const = 0;
 
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
@@ -228,7 +248,7 @@ public:
 	}
 
 	virtual FExpression* NewSwitch(FTree& Tree, TConstArrayView<FExpression*> InInputs) const override { return Tree.NewExpression<FExpressionFeatureLevelSwitch>(InInputs); }
-	virtual int32 GetInputIndex(const FEmitContext& Context) const override;
+	virtual bool IsInputActive(const FEmitContext& Context, int32 Index) const override;
 };
 
 class FExpressionShadingPathSwitch : public FExpressionSwitchBase
@@ -241,7 +261,7 @@ public:
 	}
 
 	virtual FExpression* NewSwitch(FTree& Tree, TConstArrayView<FExpression*> InInputs) const override { return Tree.NewExpression<FExpressionShadingPathSwitch>(InInputs); }
-	virtual int32 GetInputIndex(const FEmitContext& Context) const override;
+	virtual bool IsInputActive(const FEmitContext& Context, int32 Index) const override;
 };
 
 /** Can be used to emit HLSL chunks with no inputs, where it's not worth the trouble of defining a new expression type */
@@ -320,3 +340,5 @@ public:
 };
 
 } // namespace UE::HLSLTree
+
+#endif // WITH_EDITOR

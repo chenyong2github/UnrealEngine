@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#if WITH_EDITOR
+
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Containers/ArrayView.h"
@@ -567,3 +569,4 @@ private:
 
 } // namespace UE::HLSLTree
 
+#endif // WITH_EDITOR

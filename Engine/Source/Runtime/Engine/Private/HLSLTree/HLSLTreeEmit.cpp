@@ -1,4 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+#if WITH_EDITOR
+
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "HLSLTree/HLSLTree.h"
 #include "Misc/StringBuilder.h"
@@ -1262,3 +1264,4 @@ void FEmitContext::Finalize()
 
 } // namespace UE::HLSLTree
 
+#endif // WITH_EDITOR

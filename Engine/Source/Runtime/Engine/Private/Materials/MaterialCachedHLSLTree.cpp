@@ -180,5 +180,52 @@ void FMaterialCachedHLSLTree::EmitSharedCode(FStringBuilderBase& OutCode) const
 	}
 }
 
+bool FMaterialCachedHLSLTree::IsAttributeUsed(UE::HLSLTree::FEmitContext& Context,
+	UE::HLSLTree::FEmitScope& Scope,
+	const UE::HLSLTree::FPreparedType& ResultType,
+	EMaterialProperty Property) const
+{
+	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
+
+	const FStructField* PropertyField = GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(Property));
+	if (!PropertyField)
+	{
+		return false;
+	}
+
+	FRequestedType RequestedType;
+	RequestedType.SetFieldRequested(PropertyField);
+
+	const int32 NumComponents = PropertyField->GetNumComponents();
+	const EExpressionEvaluation Evaluation = ResultType.GetFieldEvaluation(Scope, RequestedType, PropertyField->ComponentIndex, NumComponents);
+	if (Evaluation == EExpressionEvaluation::None)
+	{
+		return false;
+	}
+	else if (Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::ConstantZero)
+	{
+		const FValue& DefaultValue = GetMaterialAttributesDefaultValue();
+		const FValue ConstantValue = ResultExpression->GetValueConstant(Context, Scope, RequestedType);
+		if (DefaultValue.GetType() != ConstantValue.GetType())
+		{
+			ensure(false); // expected types to match
+			return true;
+		}
+
+		for (int32 Index = 0; Index < NumComponents; ++Index)
+		{
+			const int32 ComponentIndex = PropertyField->ComponentIndex + Index;
+			if (DefaultValue.Component[ComponentIndex].Packed != ConstantValue.Component[ComponentIndex].Packed)
+			{
+				// Non-default value, flag as used
+				return true;
+			}
+		}
+		return false;
+	}
+
+	return true;
+}
 
 #endif // WITH_EDITOR

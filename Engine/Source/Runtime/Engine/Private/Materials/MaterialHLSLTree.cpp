@@ -1,12 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+#if WITH_EDITOR
+
 #include "Materials/MaterialHLSLTree.h"
 #include "HLSLTree/HLSLTreeCommon.h"
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "Misc/StringBuilder.h"
 #include "MaterialShared.h"
+#include "MaterialCachedData.h"
 #include "MaterialSceneTextureId.h"
 #include "Engine/BlendableInterface.h" // BL_AfterTonemapping
-#include "Engine/Texture.h"
+#include "VT/RuntimeVirtualTexture.h"
+#include "Engine/Texture2D.h"
+#include "Engine/Font.h"
 
 namespace UE::HLSLTree::Material
 {
@@ -346,7 +351,7 @@ void FExpressionShadingModel::EmitValuePreshader(FEmitContext& Context, FEmitSco
 
 void FExpressionParameter::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
 {
-	const Shader::FType Type = GetShaderValueType(ParameterType);
+	const Shader::FType Type = GetShaderValueType(ParameterMeta.Value.Type);
 	const Shader::FType DerivativeType = Type.GetDerivativeType();
 	if (!DerivativeType.IsVoid())
 	{
@@ -358,6 +363,36 @@ void FExpressionParameter::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 
 bool FExpressionParameter::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
+	const EMaterialParameterType ParameterType = ParameterMeta.Value.Type;
+
+	FEmitData& EmitData = Context.FindData<FEmitData>();
+	if (EmitData.CachedExpressionData)
+	{
+		if (!ParameterInfo.Name.IsNone())
+		{
+			EmitData.CachedExpressionData->Parameters.AddParameter(ParameterInfo, ParameterMeta);
+		}
+
+		UObject* ReferencedTexture = nullptr;
+		switch (ParameterType)
+		{
+		case EMaterialParameterType::Texture: ReferencedTexture = ParameterMeta.Value.Texture; break;
+		case EMaterialParameterType::RuntimeVirtualTexture: ReferencedTexture = ParameterMeta.Value.RuntimeVirtualTexture; break;
+		case EMaterialParameterType::Font:
+			if (ParameterMeta.Value.Font.Value && ParameterMeta.Value.Font.Value->Textures.IsValidIndex(ParameterMeta.Value.Font.Page))
+			{
+				ReferencedTexture = ParameterMeta.Value.Font.Value->Textures[ParameterMeta.Value.Font.Page];
+			}
+			break;
+		default:
+			break;
+		}
+		if (ReferencedTexture)
+		{
+			EmitData.CachedExpressionData->ReferencedTextures.AddUnique(ReferencedTexture);
+		}
+	}
+
 	EExpressionEvaluation Evaluation = EExpressionEvaluation::Shader;
 	if (IsStaticMaterialParameter(ParameterType))
 	{
@@ -374,7 +409,10 @@ bool FExpressionParameter::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 
 void FExpressionParameter::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	if (ParameterType == EMaterialParameterType::Texture)
+	const EMaterialParameterType ParameterType = ParameterMeta.Value.Type;
+	if (ParameterType == EMaterialParameterType::Texture ||
+		ParameterType == EMaterialParameterType::RuntimeVirtualTexture ||
+		ParameterType == EMaterialParameterType::Font)
 	{
 		const Shader::FTextureValue* TextureValue = DefaultValue.AsTexture();
 		check(TextureValue);
@@ -451,6 +489,7 @@ void FExpressionParameter::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 
 void FExpressionParameter::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
+	const EMaterialParameterType ParameterType = ParameterMeta.Value.Type;
 	FEmitData& EmitMaterialData = Context.FindData<FEmitData>();
 
 	Context.PreshaderStackPosition++;
@@ -458,12 +497,15 @@ void FExpressionParameter::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 	if (ParameterType == EMaterialParameterType::StaticSwitch)
 	{
 		Shader::FValue Value = DefaultValue;
-		for (const FStaticSwitchParameter& Parameter : EmitMaterialData.StaticParameters->StaticSwitchParameters)
+		if (EmitMaterialData.StaticParameters)
 		{
-			if (Parameter.ParameterInfo == ParameterInfo)
+			for (const FStaticSwitchParameter& Parameter : EmitMaterialData.StaticParameters->StaticSwitchParameters)
 			{
-				Value = Parameter.Value;
-				break;
+				if (Parameter.ParameterInfo == ParameterInfo)
+				{
+					Value = Parameter.Value;
+					break;
+				}
 			}
 		}
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(Value);
@@ -485,6 +527,38 @@ void FExpressionParameter::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 		check(ParameterIndex >= 0 && ParameterIndex <= 0xffff);
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Parameter).Write((uint16)ParameterIndex);
 	}
+}
+
+bool FExpressionFunctionCall::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	FEmitData& EmitMaterialData = Context.FindData<FEmitData>();
+	if (EmitMaterialData.CachedExpressionData)
+	{
+		FMaterialFunctionInfo NewFunctionInfo;
+		NewFunctionInfo.Function = MaterialFunction;
+		NewFunctionInfo.StateId = MaterialFunction->StateId;
+		EmitMaterialData.CachedExpressionData->FunctionInfos.AddUnique(NewFunctionInfo);
+	}
+
+	return FExpressionForward::PrepareValue(Context, Scope, RequestedType, OutResult);
+}
+
+bool FExpressionMaterialLayers::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	FEmitData& EmitMaterialData = Context.FindData<FEmitData>();
+	if (EmitMaterialData.CachedExpressionData)
+	{
+		// Only a single set of material layers are supported
+		// There should only be a single FExpressionMaterialLayers, but PrepareValue may be called multiple times, only need to capture the layers once
+		if (!EmitMaterialData.CachedExpressionData->bHasMaterialLayers)
+		{
+			// TODO(?) - Layers for MIs are currently duplicated here and in FStaticParameterSet
+			EmitMaterialData.CachedExpressionData->bHasMaterialLayers = true;
+			EmitMaterialData.CachedExpressionData->MaterialLayers = *MaterialLayers;
+		}
+	}
+
+	return FExpressionForward::PrepareValue(Context, Scope, RequestedType, OutResult);
 }
 
 bool FExpressionSceneTexture::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
@@ -576,3 +650,4 @@ void FExpressionNoise::EmitValueShader(FEmitContext& Context, FEmitScope& Scope,
 
 } // namespace UE::HLSLTree::Material
 
+#endif // WITH_EDITOR

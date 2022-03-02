@@ -12,6 +12,7 @@
 #include "Distributions/DistributionFloatConstant.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "MaterialCachedData.h"
 #include "Particles/Parameter/ParticleModuleParameterBase.h"
 #include "Particles/Parameter/ParticleModuleParameterDynamic.h"
 #include "Particles/Parameter/ParticleModuleParameterDynamic_Seeded.h"

@@ -27,6 +27,7 @@
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "Elements/SMInstance/SMInstanceManager.h"
 #include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
+#include "MaterialCachedData.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCache.h"

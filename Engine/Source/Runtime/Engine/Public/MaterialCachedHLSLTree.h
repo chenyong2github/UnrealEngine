@@ -6,6 +6,7 @@
 
 #include "HLSLTree/HLSLTree.h"
 #include "RHIDefinitions.h"
+#include "SceneTypes.h"
 #include "Misc/MemStack.h"
 
 class UMaterial;
@@ -38,6 +39,11 @@ public:
 
 	void SetRequestedFields(EShaderFrequency ShaderFrequency, UE::HLSLTree::FRequestedType& OutRequestedType) const;
 	void EmitSharedCode(FStringBuilderBase& OutCode) const;
+
+	bool IsAttributeUsed(UE::HLSLTree::FEmitContext& Context,
+		UE::HLSLTree::FEmitScope& Scope,
+		const UE::HLSLTree::FPreparedType& ResultType,
+		EMaterialProperty Property) const;
 
 private:
 	FMemStackBase Allocator;
