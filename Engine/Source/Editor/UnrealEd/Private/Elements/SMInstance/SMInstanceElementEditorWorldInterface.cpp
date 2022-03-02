@@ -6,6 +6,7 @@
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 
+#include "ComponentReregisterContext.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
 
