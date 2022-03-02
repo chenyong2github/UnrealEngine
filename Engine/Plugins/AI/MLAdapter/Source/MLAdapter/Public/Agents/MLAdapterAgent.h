@@ -184,6 +184,12 @@ public:
 	/** Returns true if this agent has an avatar set. */
 	bool IsReady() const { return Avatar != nullptr; }
 
+	/** Enable/disable the action durations with the specified time duration in seconds. */
+	void EnableActionDuration(bool bEnable, float DurationSeconds);
+
+	/** Resets the action duration flag if it has elapsed. Returns false if not reset yet. Used with HasActionDurationElapsed by Manager. */
+	bool TryResetActionDuration();
+
 protected:
 	virtual void ShutDownSensorsAndActuators();
 
@@ -196,6 +202,23 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = MLAdapter)
 	TSubclassOf<AActor> AvatarClass;
+
+	// If true, then agents won't be able to make a new decision until each action duration has elapsed.
+	UPROPERTY(EditAnywhere, Category = MLAdapter)
+	bool bEnableActionDuration = false;
+
+	// How long should agents wait before they can change their action
+	UPROPERTY(EditAnywhere, Category = MLAdapter)
+	float ActionDurationSeconds = 0.1f;
+
+	// How much time has the current action been executing
+	UPROPERTY(VisibleInstanceOnly, Category = MLAdapter)
+	float CurrentActionDuration = 0.f;
+
+	UPROPERTY(VisibleInstanceOnly, Category = MLAdapter)
+	bool bActionDurationElapsed = false;
+
+	mutable FCriticalSection ActionDurationCS;
 
 private:
 	UPROPERTY()

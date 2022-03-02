@@ -54,12 +54,13 @@ class UnrealEnv(gym.Env):
     PROJECT_NAME = 'GenericUnrealEnvironment'
     
     def __init__(self, server_address=LOCALHOST, server_port=DEFAULT_PORT, agent_config=None, reacquire=True, 
-                 realtime=False, auto_connect=True, timeout=DEFAULT_TIMEOUT, ue_params=None, project_name=None):
+                 realtime=False, auto_connect=True, timeout=DEFAULT_TIMEOUT, ue_params=None, project_name=None,
+                 use_preconfigured_agent=False, action_duration_seconds=None):
 
-        # it's expected that the used passes in project_name or implements a wrapper defining PROJECT_NAME
+        # It's expected that the user passes in project_name or implements a wrapper defining PROJECT_NAME
         self._project_name = project_name or self.__class__.PROJECT_NAME
 
-        if agent_config is None:
+        if not use_preconfigured_agent and agent_config is None:
             agent_config = self.__class__.default_agent_config()
 
         self.__agent_config = agent_config
@@ -68,6 +69,7 @@ class UnrealEnv(gym.Env):
         self._debug_id = server_port
         self.__server_port = server_port
         self._realtime = None
+        self._action_duration_seconds = action_duration_seconds
 
         self.__engine_process = None
         if ue_params is not None:
@@ -143,9 +145,19 @@ class UnrealEnv(gym.Env):
 
     def _set_realtime(self, realtime):
         self._realtime = realtime
-        self._world_step_impl = self._tick_world if not realtime else lambda: None
+        
+        if not realtime:
+            self._world_step_impl = self._tick_world
+        elif self._action_duration_seconds != None:
+            self._world_step_impl = self.wait_for_action_duration
+        else:
+            self._world_step_impl = lambda: None
+
         if hasattr(self.__rpc_client, 'enable_manual_world_tick'):
             self.__rpc_client.enable_manual_world_tick(not realtime)
+
+        if hasattr(self.__rpc_client, 'enable_action_duration'):
+            self.__rpc_client.enable_action_duration(self.__agent_id, True, self._action_duration_seconds)
 
     def _get_observation(self):
         raw_obs = self.__rpc_client.get_observations(self.__agent_id)
@@ -153,6 +165,9 @@ class UnrealEnv(gym.Env):
 
     def _tick_world(self):
         self.__rpc_client.request_world_tick(self._frames_step, True)
+    
+    def wait_for_action_duration(self):
+        self.__rpc_client.wait_for_action_duration(self.__agent_id)
 
     def reset(self, wait_action=None, skip_time=1):
         if not self.is_connected():
@@ -228,7 +243,7 @@ class UnrealEnv(gym.Env):
             action = self.wrap_action(action)
             self.__rpc_client.act(self.__agent_id, action)
         
-        self._steps_performed += 1        
+        self._steps_performed += 1
         self._world_step_impl()
         observation = self._get_observation()
         reward = self.get_reward()

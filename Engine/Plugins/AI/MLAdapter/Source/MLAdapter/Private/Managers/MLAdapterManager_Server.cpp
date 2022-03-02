@@ -30,7 +30,7 @@ void UMLAdapterManager::ConfigureAsServer(FRPCServer& Server)
 	Server.bind("enable_manual_world_tick", [this](bool bEnable) {
 		SetManualWorldTickEnabled(bEnable);
 	});
-	Librarian.AddRPCFunctionDescription(TEXT("enable_manual_world_tick"), TEXT("(), Controlls whether the world is running real time or it\'s being ticked manually with calls to \'step\' or \'request_world_tick\' functions. Default is \'real time\'."));
+	Librarian.AddRPCFunctionDescription(TEXT("enable_manual_world_tick"), TEXT("(bool bEnable), Controls whether the world is running real time or it\'s being ticked manually with calls to \'step\' or \'request_world_tick\' functions. Default is \'real time\'."));
 
 	Server.bind("request_world_tick", [this](int32 TickCount, bool bWaitForWorldTick) {
 		if (bTickWorldManually == false)
@@ -45,6 +45,24 @@ void UMLAdapterManager::ConfigureAsServer(FRPCServer& Server)
 		return;
 	});
 	Librarian.AddRPCFunctionDescription(TEXT("request_world_tick"), TEXT("(int TickCount, bool bWaitForWorldTick), Requests a TickCount world ticks. This has meaning only if \'enable_manual_world_tick(true)\' has been called prior to this function. If bWaitForWorldTick is true then the call will not return until the world has been ticked required number of times"));
+
+	Server.bind("enable_action_duration", [this](FMLAdapter::FAgentID AgentID, bool bEnableActionDuration, float DurationSeconds) {
+		if (Session)
+		{
+			Session->EnableActionDuration(AgentID, bEnableActionDuration, DurationSeconds);
+		}
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("enable_action_duration"), TEXT("(uint AgentID, bool bEnableActionDuration, float DurationSeconds), Enable/disable the action durations on the agent with the specified time duration in seconds."));
+
+	Server.bind("wait_for_action_duration", [this](FMLAdapter::FAgentID AgentID) {
+		if (Session)
+		{
+			while (!Session->TryResetActionDuration(AgentID))
+			{
+			}
+		}
+	});
+	Librarian.AddRPCFunctionDescription(TEXT("wait_for_action_duration"), TEXT("(uint AgentID), Wait for the action duration to elapse for the agent. Only works if \'enable_action_duration\' has been called previously."));
 
 	Server.bind("close_session", [this]() { UMLAdapterManager::Get().SetSession(nullptr); });
 	Librarian.AddRPCFunctionDescription(TEXT("close_session"), TEXT("(), shuts down the current session (along with all the agents)."));

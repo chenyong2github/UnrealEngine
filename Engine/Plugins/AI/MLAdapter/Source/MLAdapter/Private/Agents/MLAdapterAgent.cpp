@@ -171,10 +171,21 @@ void UMLAdapterAgent::OnPawnControllerChanged(APawn* InPawn, AController* InCont
 
 void UMLAdapterAgent::Sense(const float DeltaTime)
 {
-	for (UMLAdapterSensor* Sensor : Sensors)
+	CurrentActionDuration += DeltaTime;
+
+	bool ShouldDecideNow = !bEnableActionDuration || CurrentActionDuration >= ActionDurationSeconds;
+	if (ShouldDecideNow)
 	{
-		// not that due to the system's design Sensor won't be null
-		Sensor->Sense(DeltaTime);
+		FScopeLock Lock(&ActionDurationCS);
+
+		CurrentActionDuration = 0.f;
+		bActionDurationElapsed = true;
+
+		for (UMLAdapterSensor* Sensor : Sensors)
+		{
+			// not that due to the system's design Sensor won't be null
+			Sensor->Sense(DeltaTime);
+		}
 	}
 }
 
@@ -442,6 +453,25 @@ bool UMLAdapterAgent::IsDone() const
 	return AgentConfig.bAutoRequestNewAvatarUponClearingPrev == false 
 		&& Avatar == nullptr
 		&& bEverHadAvatar == true;
+}
+
+void UMLAdapterAgent::EnableActionDuration(bool bEnable, float DurationSeconds)
+{
+	bEnableActionDuration = bEnable;
+	ActionDurationSeconds = DurationSeconds;
+}
+
+bool UMLAdapterAgent::TryResetActionDuration()
+{
+	FScopeLock Lock(&ActionDurationCS);
+
+	if (bActionDurationElapsed)
+	{
+		bActionDurationElapsed = false;
+		return true;
+	}
+
+	return false;
 }
 
 #if WITH_GAMEPLAY_DEBUGGER

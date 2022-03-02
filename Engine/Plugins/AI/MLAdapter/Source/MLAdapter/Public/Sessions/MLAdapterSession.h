@@ -102,6 +102,12 @@ public:
 	/** If true, the world's ticking will be controlled by the remote client. */
 	void SetManualWorldTickEnabled(bool bEnable);
 
+	/** Enable/disable the action durations with the specified time duration in seconds. */
+	void EnableActionDuration(FMLAdapter::FAgentID AgentID, bool bEnable, float DurationSeconds);
+
+	/** Resets the action duration flag if it has elapsed. Returns false if not reset yet or the agent is not found. Used with HasActionDurationElapsed by Manager. */
+	bool TryResetActionDuration(FMLAdapter::FAgentID AgentID);
+
 	FOnAgentAvatarChangedDelegate GetOnAgentAvatarChanged() { return OnAgentAvatarChanged; }
 	FOnBeginAgentRemove GetOnBeginAgentRemove() { return OnBeginAgentRemove; }
 

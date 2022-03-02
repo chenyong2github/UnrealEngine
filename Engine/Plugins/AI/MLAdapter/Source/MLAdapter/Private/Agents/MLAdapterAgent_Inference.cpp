@@ -24,6 +24,14 @@ void UMLAdapterAgent_Inference::Think(const float DeltaTime)
 		return;
 	}
 
+	if (bEnableActionDuration && !bActionDurationElapsed)
+	{
+		// Action duration is enabled and it's not time to think yet.
+		return;
+	}
+
+	bActionDurationElapsed = false;
+
 	TArray<uint8> Buffer;
 	FMLAdapterMemoryWriter Writer(Buffer);
 	GetObservations(Writer);

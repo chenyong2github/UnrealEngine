@@ -42,6 +42,26 @@ void UMLAdapterSession::SetManualWorldTickEnabled(bool bEnable)
 	}
 }
 
+void UMLAdapterSession::EnableActionDuration(FMLAdapter::FAgentID AgentID, bool bEnable, float DurationSeconds)
+{
+	UMLAdapterAgent* Agent = GetAgent(AgentID);
+	if (Agent != nullptr)
+	{
+		Agent->EnableActionDuration(bEnable, DurationSeconds);		
+	}
+}
+
+bool UMLAdapterSession::TryResetActionDuration(FMLAdapter::FAgentID AgentID)
+{
+	UMLAdapterAgent* Agent = GetAgent(AgentID);
+	if (Agent != nullptr)
+	{
+		return Agent->TryResetActionDuration();
+	}
+
+	return false;
+}
+
 void UMLAdapterSession::FWorldTicker::Tick(float DeltaTime) 
 {
 #if WITH_EDITORONLY_DATA
@@ -238,7 +258,7 @@ void UMLAdapterSession::Close()
 void UMLAdapterSession::Tick(float DeltaTime)
 {
 	LastTimestamp = CachedWorld ? CachedWorld->GetTimeSeconds() : -1.f;
-
+	
 	// @todo for perf reasons we could grab all the agents' senses and tick them
 	// by class to keep the cache hot
 	for (UMLAdapterAgent* Agent : Agents)
