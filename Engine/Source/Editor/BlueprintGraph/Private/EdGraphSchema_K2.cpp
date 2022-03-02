@@ -4525,6 +4525,12 @@ bool UEdGraphSchema_K2::ArePinTypesCompatible(const FEdGraphPinType& Output, con
 
 bool UEdGraphSchema_K2::ArePinTypesEquivalent(const FEdGraphPinType& PinA, const FEdGraphPinType& PinB) const
 {
+	// Real pins are effectively equivalent since we implicitly cast where necessary.
+	if ((PinA.PinCategory == PC_Real) && (PinB.PinCategory == PC_Real))
+	{
+		return true;
+	}
+
 	return 
 		PinA.PinCategory == PinB.PinCategory &&
 		PinA.PinSubCategory == PinB.PinSubCategory &&
