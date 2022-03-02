@@ -141,6 +141,6 @@ TUniquePtr<Audio::IProxyData> USoundControlBus::CreateNewProxyData(const Audio::
 
 const Audio::FModulationParameter& USoundControlBus::GetOutputParameter() const
 {
-	return AudioModulation::GetOrRegisterParameter(Parameter, *this);
+	const FString Breadcrumb = FString::Format(TEXT("{0} '{1}'"), { *GetClass()->GetName(), *GetName() });
+	return AudioModulation::GetOrRegisterParameter(Parameter, Breadcrumb);
 }
-

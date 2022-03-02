@@ -224,7 +224,7 @@ float USoundModulationParameterVolume::GetUnitMax() const
 
 namespace AudioModulation
 {
-	const Audio::FModulationParameter& GetOrRegisterParameter(const USoundModulationParameter* InParameter, const USoundModulatorBase& InReferencingModulator)
+	const Audio::FModulationParameter& GetOrRegisterParameter(const USoundModulationParameter* InParameter, const FString& InBreadcrumb)
 	{
 		FName ParamName;
 		if (InParameter)
@@ -233,9 +233,9 @@ namespace AudioModulation
 			if (!Audio::IsModulationParameterRegistered(ParamName))
 			{
 				UE_LOG(LogAudioModulation, Display,
-					TEXT("Parameter '%s' not registered.  Registration forced via activating referrencing modulator '%s'."),
+					TEXT("Parameter '%s' not registered.  Registration forced via '%s'."),
 					*ParamName.ToString(),
-					*InReferencingModulator.GetName());
+					*InBreadcrumb);
 			}
 
 			Audio::RegisterModulationParameter(ParamName, InParameter->CreateParameter());
@@ -247,18 +247,7 @@ namespace AudioModulation
 
 	FSoundModulationPluginParameterAssetProxy::FSoundModulationPluginParameterAssetProxy(USoundModulationParameter* InParameter)
 	{
-		using namespace Audio;
-
-		if (InParameter)
-		{
-			const FName ParameterName = InParameter->GetFName();
-			Parameter = Audio::GetModulationParameter(ParameterName);
-
-			if (ParameterName != Parameter.ParameterName)
-			{
-				UE_LOG(LogAudioModulation, Log, TEXT("Parameter '%s' not registered. Using default parameter."), *ParameterName.ToString());
-			}
-		}
+		Parameter = GetOrRegisterParameter(InParameter, TEXT("FSoundModulationPluginParameterAssetProxy construction"));
 	}
 
 	Audio::IProxyDataPtr FSoundModulationPluginParameterAssetProxy::Clone() const

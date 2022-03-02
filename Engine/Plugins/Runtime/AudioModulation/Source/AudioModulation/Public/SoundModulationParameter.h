@@ -265,5 +265,10 @@ namespace AudioModulation
 		virtual const Audio::FModulationParameter& GetParameter() const override;
 	};
 
-	AUDIOMODULATION_API const Audio::FModulationParameter& GetOrRegisterParameter(const USoundModulationParameter* InParameter, const USoundModulatorBase& InReferencingModulator);
+	/*
+	 * Returns given registered parameter instance reference or creates it from the given asset if not registered.
+	 * @param InParameter - Parameter asset associated with the pre-existing or to-create parameter
+	 * @param InBreadcrumb - String identifying get or register request initiator.
+	 */
+	AUDIOMODULATION_API const Audio::FModulationParameter& GetOrRegisterParameter(const USoundModulationParameter* InParameter, const FString& InBreadcrumb);
 } // namespace AudioModulation
