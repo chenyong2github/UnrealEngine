@@ -278,9 +278,9 @@ namespace TechSoftInterfaceUtils
 				
 				if (VertexOffset > 0)
 				{
-					for (int32& VertexIndex : Tessellation.VertexIndices)
+					for (int32& PositionIndex : Tessellation.PositionIndices)
 					{
-						VertexIndex += VertexOffset;
+						PositionIndex += VertexOffset;
 					}
 				}
 
