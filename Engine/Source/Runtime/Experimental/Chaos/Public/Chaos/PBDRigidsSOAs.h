@@ -632,8 +632,11 @@ public:
 
 	void SetClusteredParticleSOA(FPBDRigidClusteredParticleHandle* ClusteredParticle)
 	{
-		RemoveClusteredParticle(ClusteredParticle);
-		InsertClusteredParticle(ClusteredParticle);
+		if (ClusteredParticle->GetParticleType() != Chaos::EParticleType::GeometryCollection)
+		{ 
+			RemoveClusteredParticle(ClusteredParticle);
+			InsertClusteredParticle(ClusteredParticle);
+		}
 
 		if (ClusteredParticle->ObjectState() != EObjectStateType::Dynamic)
 		{
