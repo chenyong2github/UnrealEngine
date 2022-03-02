@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ClientSessionHistoryController.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
-#include "IConcertModule.h"
 #include "ConcertMessages.h"
 
 class IConcertClientSession;
@@ -83,6 +83,7 @@ private:
 	void OnHistoryAreaExpansionChanged(bool bExpanded) { bHistoryAreaExpanded = bExpanded; }
 
 private:
+	
 	/** Pointer on the client sync. */
 	TWeakPtr<IConcertSyncClient> WeakConcertSyncClient;
 
@@ -99,7 +100,7 @@ private:
 	TSharedPtr<FConcertSessionClientInfo> ClientInfo;
 
 	/** Holds a concert activity log. */
-	TSharedPtr<class SSessionHistory> SessionHistory;
+	TSharedPtr<FClientSessionHistoryController> SessionHistoryController;
 
 	/** The 'Clients' expandable area. */
 	TSharedPtr<SExpandableArea> ClientArea;

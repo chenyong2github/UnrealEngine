@@ -42,7 +42,7 @@ namespace ConcertSessionHistoryUI
 	}
 }
 
-void SSessionHistory::Construct(const FArguments& InArgs, TSharedPtr<IConcertSyncClient> InConcertSyncClient)
+void SSessionHistory::Construct(const FArguments& InArgs)
 {
 	PackageNameFilter = InArgs._PackageFilter;
 
@@ -50,8 +50,8 @@ void SSessionHistory::Construct(const FArguments& InArgs, TSharedPtr<IConcertSyn
 	ActivityListViewOptions = MakeShared<FConcertSessionActivitiesOptions>();
 
 	SAssignNew(ActivityListView, SConcertSessionActivities)
-		.OnGetPackageEvent([this](const FConcertSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutEvent) { return GetPackageEvent(Activity, OutEvent); })
-		.OnGetTransactionEvent([this](const FConcertSessionActivity& Activity) { return GetTransactionEvent(Activity); })
+		.OnGetPackageEvent(InArgs._GetPackageEvent)
+		.OnGetTransactionEvent(InArgs._GetTransactionEvent)
 		.OnMapActivityToClient([this](FGuid ClientId){ return EndpointClientInfoMap.Find(ClientId); })
 		.HighlightText(this, &SSessionHistory::HighlightSearchedText)
 		.TimeFormat(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
@@ -101,67 +101,21 @@ void SSessionHistory::Construct(const FArguments& InArgs, TSharedPtr<IConcertSyn
 				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum))
 		]
 	];
-
-	if (InConcertSyncClient.IsValid())
-	{
-		InConcertSyncClient->OnWorkspaceStartup().AddSP(this, &SSessionHistory::HandleWorkspaceStartup);
-		InConcertSyncClient->OnWorkspaceShutdown().AddSP(this, &SSessionHistory::HandleWorkspaceShutdown);
-
-		if (TSharedPtr<IConcertClientWorkspace> WorkspacePtr = InConcertSyncClient->GetWorkspace())
-		{
-			Workspace = WorkspacePtr;
-			RegisterWorkspaceHandler();
-			ReloadActivities();
-		}
-	}
 }
 
-void SSessionHistory::Refresh()
+void SSessionHistory::ReloadActivities(TMap<FGuid, FConcertClientInfo> InEndpointClientInfoMap, TArray<FConcertSessionActivity> InFetchedActivities)
 {
-	ReloadActivities();
-}
-
-void SSessionHistory::OnSearchTextChanged(const FText& InSearchText)
-{
-	SearchedText = InSearchText;
-	SearchBox->SetError(ActivityListView->UpdateTextFilter(InSearchText));
-}
-
-void SSessionHistory::OnSearchTextCommitted(const FText& InSearchText, ETextCommit::Type CommitType)
-{
-	if (!InSearchText.EqualTo(SearchedText))
-	{
-		OnSearchTextChanged(InSearchText);
-	}
-}
-
-FText SSessionHistory::HighlightSearchedText() const
-{
-	return SearchedText;
-}
-
-void SSessionHistory::ReloadActivities()
-{
-	EndpointClientInfoMap.Reset();
+	EndpointClientInfoMap = MoveTemp(InEndpointClientInfoMap);
 	ActivityMap.Reset();
 	ActivityListView->Reset(); // Careful, don't reset the shared ptr.
 
-	if (TSharedPtr<IConcertClientWorkspace> WorkspacePtr = Workspace.Pin())
+	for (FConcertSessionActivity& FetchedActivity : InFetchedActivities)
 	{
-		const int64 LastActivityId = WorkspacePtr->GetLastActivityId();
-		const int64 FirstActivityIdToFetch = FMath::Max<int64>(1, LastActivityId - MaximumNumberOfActivities);
-
-		TArray<FConcertSessionActivity> FetchedActivities;
-		WorkspacePtr->GetActivities(FirstActivityIdToFetch, MaximumNumberOfActivities, EndpointClientInfoMap, FetchedActivities);
-
-		for (FConcertSessionActivity& FetchedActivity : FetchedActivities)
+		if (ConcertSessionHistoryUI::PackageNamePassesFilter(PackageNameFilter, FetchedActivity.ActivitySummary))
 		{
-			if (ConcertSessionHistoryUI::PackageNamePassesFilter(PackageNameFilter, FetchedActivity.ActivitySummary))
-			{
-				TSharedRef<FConcertSessionActivity> NewActivity = MakeShared<FConcertSessionActivity>(MoveTemp(FetchedActivity));
-				ActivityMap.Add(NewActivity->Activity.ActivityId, NewActivity);
-				ActivityListView->Append(NewActivity);
-			}
+			TSharedRef<FConcertSessionActivity> NewActivity = MakeShared<FConcertSessionActivity>(MoveTemp(FetchedActivity));
+			ActivityMap.Add(NewActivity->Activity.ActivityId, NewActivity);
+			ActivityListView->Append(NewActivity);
 		}
 	}
 }
@@ -193,52 +147,23 @@ void SSessionHistory::HandleActivityAddedOrUpdated(const FConcertClientInfo& InC
 	}
 }
 
-void SSessionHistory::HandleWorkspaceStartup(const TSharedPtr<IConcertClientWorkspace>& NewWorkspace)
+void SSessionHistory::OnSearchTextChanged(const FText& InSearchText)
 {
-	Workspace = NewWorkspace;
-	RegisterWorkspaceHandler();
+	SearchedText = InSearchText;
+	SearchBox->SetError(ActivityListView->UpdateTextFilter(InSearchText));
 }
 
-void SSessionHistory::HandleWorkspaceShutdown(const TSharedPtr<IConcertClientWorkspace>& WorkspaceShuttingDown)
+void SSessionHistory::OnSearchTextCommitted(const FText& InSearchText, ETextCommit::Type CommitType)
 {
-	if (WorkspaceShuttingDown == Workspace)
+	if (!InSearchText.EqualTo(SearchedText))
 	{
-		Workspace.Reset();
-		ReloadActivities();
+		OnSearchTextChanged(InSearchText);
 	}
 }
 
-void SSessionHistory::RegisterWorkspaceHandler()
+FText SSessionHistory::HighlightSearchedText() const
 {
-	TSharedPtr<IConcertClientWorkspace> WorkspacePtr = Workspace.Pin();
-	if (WorkspacePtr.IsValid())
-	{
-		WorkspacePtr->OnActivityAddedOrUpdated().AddSP(this, &SSessionHistory::HandleActivityAddedOrUpdated);
-		WorkspacePtr->OnWorkspaceSynchronized().AddSP(this, &SSessionHistory::ReloadActivities);
-	}
+	return SearchedText;
 }
-
-bool SSessionHistory::GetPackageEvent(const FConcertSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutPackageEvent) const
-{
-	if (TSharedPtr<IConcertClientWorkspace> WorkspacePtr = Workspace.Pin())
-	{
-		// Don't request the package data, the widget only display the meta-data.
-		return WorkspacePtr->FindPackageEvent(Activity.Activity.EventId, OutPackageEvent);
-	}
-
-	return false; // The data is not available.
-}
-
-TFuture<TOptional<FConcertSyncTransactionEvent>> SSessionHistory::GetTransactionEvent(const FConcertSessionActivity& Activity) const
-{
-	if (TSharedPtr<IConcertClientWorkspace> WorkspacePtr = Workspace.Pin())
-	{
-		// Ask to get the full transaction to display which properties changed.
-		return WorkspacePtr->FindOrRequestTransactionEvent(Activity.Activity.EventId, /*bMetaDataOnly*/false);
-	}
-
-	return MakeFulfilledPromise<TOptional<FConcertSyncTransactionEvent>>().GetFuture();
-}
-
 
 #undef LOCTEXT_NAMESPACE /* SSessionHistory */

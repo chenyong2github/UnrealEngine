@@ -129,7 +129,7 @@ private:
 	void OnPreSequencerInit(TSharedRef<ISequencer> InSequencer, TSharedRef<ISequencerObjectChangeListener> InObjectChangeListener, const FSequencerInitParams& InitParams);
 
 	/** Create an asset history tab filtered with a resource name. */
-	TSharedRef<SDockTab> CreateHistoryTab(const FName& ResourceName) const;
+	static TSharedRef<SDockTab> CreateHistoryTab(const FName& ResourceName, const TSharedRef<IConcertSyncClient>& SyncClient);
 
 	/** Workspace this is a view of. */
 	TWeakPtr<IConcertClientWorkspace> ClientWorkspace;

@@ -1,28 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SActiveSession.h"
-#include "Widgets/Docking/SDockTab.h"
+
+#include "ConcertActionDefinition.h"
+#include "ConcertClientFrontendUtils.h"
+#include "ConcertFrontendUtils.h"
+#include "ConcertMessageData.h"
+#include "ClientSessionHistoryController.h"
+#include "IConcertClientPresenceManager.h"
+#include "IConcertClient.h"
+#include "IConcertSyncClient.h"
+#include "IMultiUserClientModule.h"
+
+#include "Algo/Transform.h"
+#include "EditorFontGlyphs.h"
+#include "FileHelpers.h"
+#include "Misc/PackageName.h"
+#include "Styling/AppStyle.h"
+#include "SSessionHistory.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "Framework/Docking/WorkspaceItem.h"
-#include "Algo/Transform.h"
-#include "Misc/PackageName.h"
-#include "EditorFontGlyphs.h"
-#include "Styling/AppStyle.h"
-#include "FileHelpers.h"
-#include "IConcertClient.h"
-#include "IConcertSyncClient.h"
-#include "IMultiUserClientModule.h"
-#include "IConcertClientPresenceManager.h"
-#include "ConcertActionDefinition.h"
-#include "ConcertFrontendUtils.h"
-#include "ConcertMessageData.h"
-#include "SSessionHistory.h"
-#include "ConcertClientFrontendUtils.h"
+#include "Widgets/SSessionHistoryWrapper.h"
 
 #define LOCTEXT_NAMESPACE "SActiveSession"
 
@@ -329,6 +331,8 @@ private:
 void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSyncClient> InConcertSyncClient)
 {
 	WeakConcertSyncClient = InConcertSyncClient;
+	SessionHistoryController = MakeShared<FClientSessionHistoryController>(InConcertSyncClient.ToSharedRef());
+	
 	if (InConcertSyncClient.IsValid())
 	{
 		IConcertClientRef ConcertClient = InConcertSyncClient->GetConcertClient();
@@ -501,7 +505,7 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 					]
 					.BodyContent()
 					[
-						SNew(SSessionHistory, WeakConcertSyncClient.Pin())
+						SessionHistoryController->GetSessionHistory()
 					]
 				]
 			]
@@ -530,9 +534,9 @@ void SActiveSession::HandleSessionStartup(TSharedRef<IConcertClientSession> InCl
 
 	UpdateSessionClientListView();
 
-	if (SessionHistory.IsValid())
+	if (SessionHistoryController.IsValid())
 	{
-		SessionHistory->Refresh();
+		SessionHistoryController->ReloadActivities();
 	}
 }
 
@@ -549,9 +553,9 @@ void SActiveSession::HandleSessionShutdown(TSharedRef<IConcertClientSession> InC
 			ClientsListView->RequestListRefresh();
 		}
 
-		if (SessionHistory.IsValid())
+		if (SessionHistoryController.IsValid())
 		{
-			SessionHistory->Refresh();
+			SessionHistoryController->ReloadActivities();
 		}
 	}
 }

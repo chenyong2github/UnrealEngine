@@ -33,6 +33,7 @@
 
 #include "ToolMenuContext.h"
 #include "ToolMenus.h"
+#include "Widgets/ClientSessionHistoryController.h"
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SConcertSandboxPersistWidget.h"
@@ -43,7 +44,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/SSessionHistory.h"
+#include "Widgets/SSessionHistoryWrapper.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "ConcertFrontend"
@@ -834,12 +835,17 @@ void FConcertWorkspaceUI::ExecuteUnlockResources(TArray<FName> InResourceNames)
 
 void FConcertWorkspaceUI::ExecuteViewHistory(TArray<FName> InResourceNames)
 {
-	FGlobalTabmanager::Get()->RestoreFrom(AssetHistoryLayout.ToSharedRef(), nullptr);
-
-	for (const FName& ResourceName : InResourceNames)
+	if (const TSharedPtr<IConcertSyncClient> ClientPin = SyncClient.Pin())
 	{
-		FGlobalTabmanager::Get()->InsertNewDocumentTab(ConcertHistoryTabName, FTabManager::ESearchPreference::PreferLiveTab, CreateHistoryTab(ResourceName));
+		FGlobalTabmanager::Get()->RestoreFrom(AssetHistoryLayout.ToSharedRef(), nullptr);
+		
+		const TSharedRef<IConcertSyncClient> ClientRef = ClientPin.ToSharedRef();
+		for (const FName& ResourceName : InResourceNames)
+		{
+			FGlobalTabmanager::Get()->InsertNewDocumentTab(ConcertHistoryTabName, FTabManager::ESearchPreference::PreferLiveTab, CreateHistoryTab(ResourceName, ClientRef));
+		}
 	}
+	
 }
 
 bool FConcertWorkspaceUI::IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo, int32 OtherClientsWithModifMaxFetchNum) const
@@ -1007,8 +1013,10 @@ void FConcertWorkspaceUI::OnPreSequencerInit(TSharedRef<ISequencer> InSequencer,
 	}
 }
 
-TSharedRef<SDockTab> FConcertWorkspaceUI::CreateHistoryTab(const FName& ResourceName) const
+TSharedRef<SDockTab> FConcertWorkspaceUI::CreateHistoryTab(const FName& ResourceName, const TSharedRef<IConcertSyncClient>& SyncClient)
 {
+	const TSharedRef<FClientSessionHistoryController> SessionHistoryController =
+		MakeShared<FClientSessionHistoryController>(SyncClient, ResourceName);
 	return SNew(SDockTab)
 		.TabRole(ETabRole::DocumentTab)
 		.ContentPadding(FMargin(3.0f))
@@ -1045,8 +1053,7 @@ TSharedRef<SDockTab> FConcertWorkspaceUI::CreateHistoryTab(const FName& Resource
 				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(FMargin(4.0f, 2.0f))
 				[
-					SNew(SSessionHistory, SyncClient.Pin())
-					.PackageFilter(ResourceName)
+					SNew(SSessionHistoryWrapper, SessionHistoryController)
 				]
 			]
 		];

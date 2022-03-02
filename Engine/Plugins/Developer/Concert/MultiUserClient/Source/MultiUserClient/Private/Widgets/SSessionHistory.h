@@ -3,14 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IConcertClientWorkspace.h"
-#include "ConcertSyncSessionTypes.h"
-#include "Async/Future.h"
+#include "SConcertSessionActivities.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
 
-class IConcertSyncClient;
 class SSearchBox;
 class SConcertSessionActivities;
 class FConcertSessionActivitiesOptions;
@@ -18,8 +14,14 @@ class FConcertSessionActivitiesOptions;
 class SSessionHistory : public SCompoundWidget
 {
 public:
+
+	/** Maximum number of activities displayed on screen. */ 
+	static constexpr int64 MaximumNumberOfActivities = 1000;
+	
 	SLATE_BEGIN_ARGS(SSessionHistory) {}
 		SLATE_ARGUMENT(FName, PackageFilter)
+		SLATE_ARGUMENT(SConcertSessionActivities::FGetPackageEvent, GetPackageEvent)
+		SLATE_ARGUMENT(SConcertSessionActivities::FGetTransactionEvent, GetTransactionEvent)
 	SLATE_END_ARGS()
 
 	/**
@@ -29,29 +31,15 @@ public:
 	* @param ConstructUnderMajorTab The major tab which will contain the Session History widget.
 	* @param InConcertSyncClient Pointer on the concert sync client.
 	*/
-	void Construct(const FArguments& InArgs, TSharedPtr<IConcertSyncClient> InConcertSyncClient);
-
-	/** Fetches the activities and updates the UI. */
-	void Refresh();
-
-private:
-	/** Callback for selecting an activity in the list view. */
-	void HandleSelectionChanged(TSharedPtr<FConcertSessionActivity> InSessionActivity, ESelectInfo::Type SelectInfo);
+	void Construct(const FArguments& InArgs);
 
 	/** Fetches activities from the server and updates the list view. */
-	void ReloadActivities();
-
+	void ReloadActivities(TMap<FGuid, FConcertClientInfo> EndpointClientInfoMap, TArray<FConcertSessionActivity> FetchedActivities);
+	
 	/** Callback for handling the a new or updated activity item. */ 
 	void HandleActivityAddedOrUpdated(const FConcertClientInfo& InClientInfo, const FConcertSyncActivity& InActivity, const FStructOnScope& InActivitySummary);
 
-	/** Callback for handling the startup of a workspace.  */
-	void HandleWorkspaceStartup(const TSharedPtr<IConcertClientWorkspace>& NewWorkspace);
-
-	/** Callback for handling the shutdown of a workspace. */
-	void HandleWorkspaceShutdown(const TSharedPtr<IConcertClientWorkspace>& WorkspaceShuttingDown);
-
-	/** Registers callbacks with the current workspace. */
-	void RegisterWorkspaceHandler();
+private:
 
 	/** Invoked when the text in the search box widget changes. */
 	void OnSearchTextChanged(const FText& InSearchText);
@@ -69,9 +57,6 @@ private:
 	TFuture<TOptional<FConcertSyncTransactionEvent>> GetTransactionEvent(const FConcertSessionActivity& Activity) const;
 
 private:
-
-	/** Maximum number of activities displayed on screen. */ 
-	static const int64 MaximumNumberOfActivities = 1000;
 	
 	/** Holds the map of endpoint IDs to client info. */
 	TMap<FGuid, FConcertClientInfo> EndpointClientInfoMap;
@@ -84,9 +69,6 @@ private:
 
 	/** Controls the activity list view options */
 	TSharedPtr<FConcertSessionActivitiesOptions> ActivityListViewOptions;
-
-	/** Holds a weak pointer to the current workspace. */ 
-	TWeakPtr<IConcertClientWorkspace> Workspace;
 
 	/** The widget used to enter the text to search. */
 	TSharedPtr<SSearchBox> SearchBox;
