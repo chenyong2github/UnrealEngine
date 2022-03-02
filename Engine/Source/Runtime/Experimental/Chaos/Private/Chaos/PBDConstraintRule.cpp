@@ -141,7 +141,13 @@ namespace Chaos
 		{
 			if (ConstraintHandle->IsEnabled())
 			{
-				ConstraintGraph->AddConstraint(GetContainerId(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+				bool DisabledParticle0 = (ConstraintHandle->GetConstrainedParticles()[0] && ConstraintHandle->GetConstrainedParticles()[0]->CastToRigidParticle()) ? ConstraintHandle->GetConstrainedParticles()[0]->CastToRigidParticle()->Disabled() : false;
+				bool DisabledParticle1 = (ConstraintHandle->GetConstrainedParticles()[1] && ConstraintHandle->GetConstrainedParticles()[1]->CastToRigidParticle()) ? ConstraintHandle->GetConstrainedParticles()[1]->CastToRigidParticle()->Disabled() : false;
+
+				if (!DisabledParticle0 && !DisabledParticle1)
+				{
+					ConstraintGraph->AddConstraint(GetContainerId(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+				}
 			}
 		}
 	}
