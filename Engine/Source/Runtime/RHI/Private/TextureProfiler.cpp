@@ -6,6 +6,7 @@
 #include "RHI.h"
 #include "RHIResources.h"
 #include "UObject/NameTypes.h"
+#include "Containers/StringConv.h"
 
 #if TEXTURE_PROFILER_ENABLED
 static int32 ToMB(uint64 Value)
@@ -234,15 +235,26 @@ void FTextureProfiler::UpdateTextureName(FRHITexture* UniqueTexturePtr)
 
 const char* FTextureProfiler::GetTextureNameString(FName TextureName)
 {
-	char*& TextureNameString = TextureNameStrings.FindOrAdd(TextureName, nullptr);
+	const char*& TextureNameString = TextureNameStrings.FindOrAdd(TextureName, nullptr);
 
 	if (TextureNameString == nullptr)
 	{
-		char NewTextureNameString[NAME_SIZE];
-		TextureName.GetPlainANSIString(NewTextureNameString);
-		int Length = FCStringAnsi::Strlen(NewTextureNameString);
-		TextureNameString = new char[Length + 1];
-		FCStringAnsi::Strcpy(TextureNameString, Length + 1, NewTextureNameString);
+		if(TextureName.GetDisplayNameEntry()->IsWide())
+		{
+			WIDECHAR NewTextureNameString[NAME_SIZE];
+			TextureName.GetPlainWIDEString(NewTextureNameString);
+			int Length = StringCast<ANSICHAR>(NewTextureNameString).Length();
+			TextureNameString = new char[Length + 1];
+			FCStringAnsi::Strcpy(const_cast<char*>(TextureNameString), Length + 1, StringCast<ANSICHAR>(NewTextureNameString).Get());
+		}
+		else
+		{
+			char NewTextureNameString[NAME_SIZE];
+			TextureName.GetPlainANSIString(NewTextureNameString);
+			int Length = FCStringAnsi::Strlen(NewTextureNameString);
+			TextureNameString = new char[Length + 1];
+			FCStringAnsi::Strcpy(const_cast<char*>(TextureNameString), Length + 1, NewTextureNameString);
+		}
 	}
 
 	return TextureNameString;
