@@ -455,7 +455,7 @@ namespace Audio
 		OutputBuffer.Reset(InNum);
 		OutputBuffer.AddUninitialized(InNum);
 
-		checkf(InMinuend.Num() == InSubtrahend.Num(), TEXT("Input buffers must be equal length"));
+		checkf(InMinuend.Num() == InSubtrahend.Num(), TEXT("Input buffers must be equal length. InMinuend.Num()=%d, InSubtrahend.Num()=%d"), InMinuend.Num(), InSubtrahend.Num());
 
 		BufferSubtractFast(InMinuend.GetData(), InSubtrahend.GetData(), OutputBuffer.GetData(), OutputBuffer.Num());
 	}
