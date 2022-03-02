@@ -41,6 +41,9 @@ private:
 	/** Raised when the user selects a new root actor from the root actor picker dropdown */
 	void OnRootActorChanged(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo);
 
+	/** When the root actor blueprint has been compiled */
+	void OnBlueprintCompiled(UBlueprint* Blueprint);
+
 	/** Raised when the root actor picker dropdown is being opened */
 	void OnRootActorComboBoxOpening();
 
@@ -59,6 +62,9 @@ private:
 	
 	/** The list of root actor names on the current level to display in the root actor picker dropdown */
 	TArray<TSharedPtr<FString>> RootActorList;
+
+	/** The name or label of the active actor */
+	TSharedPtr<FString> ActiveRootActorName;
 
 	/** The combo box widget that allows the uesr to pick the active root actor from */
 	TSharedPtr<SComboBox<TSharedPtr<FString>>> RootActorComboBox;

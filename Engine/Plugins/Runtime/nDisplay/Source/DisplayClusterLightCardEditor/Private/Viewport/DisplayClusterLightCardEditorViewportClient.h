@@ -42,6 +42,7 @@ public:
 	void SelectActor(AActor* NewActor);
 	void ResetSelection();
 
+	/** Update the spawned preview actor from a root actor in the level. */
 	void UpdatePreviewActor(ADisplayClusterRootActor* RootActor);
 	
 	AActor* GetSelectedActor() const { return SelectedActor.Get(); }
@@ -64,6 +65,9 @@ protected:
 	/** Ends the current transaction, if one exists. */
 	void EndTransaction();
 
+	/** When a property on the actor has changed. */
+	void OnActorPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
+	
 	/** Gets a list of all primitive components to be rendered in the scene */
 	void GetScenePrimitiveComponents(TArray<UPrimitiveComponent*>& OutPrimitiveComponents);
 
@@ -76,7 +80,7 @@ protected:
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
 	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
-	TWeakObjectPtr<ADisplayClusterRootActor> SpawnedRootActor;
+	TWeakObjectPtr<ADisplayClusterRootActor> RootActorPreviewInstance;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorLevelInstance;
 	TWeakObjectPtr<AActor> SelectedActor;
 	

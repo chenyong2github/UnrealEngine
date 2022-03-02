@@ -88,6 +88,7 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorViewportClient()
 {
 	EndTransaction();
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 }
 
 FLinearColor FDisplayClusterLightCardEditorViewportClient::GetBackgroundColor() const
@@ -128,7 +129,7 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 		}
 	}
 
-	if (SpawnedRootActor.IsValid() && RootActorLevelInstance.IsValid())
+	if (RootActorPreviewInstance.IsValid() && RootActorLevelInstance.IsValid())
 	{
 		// Pass the preview render targets from the level instance root actor to the preview root actor
 		UDisplayClusterConfigurationData* Config = RootActorLevelInstance->GetConfigData();
@@ -139,7 +140,7 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : Node->Viewports)
 			{
 				UDisplayClusterPreviewComponent* LevelInstancePreviewComp = RootActorLevelInstance->GetPreviewComponent(NodePair.Key, ViewportPair.Key);
-				UDisplayClusterPreviewComponent* PreviewComp = SpawnedRootActor->GetPreviewComponent(NodePair.Key, ViewportPair.Key);
+				UDisplayClusterPreviewComponent* PreviewComp = RootActorPreviewInstance->GetPreviewComponent(NodePair.Key, ViewportPair.Key);
 
 				if (PreviewComp && LevelInstancePreviewComp)
 				{
@@ -436,11 +437,12 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 {
 	UWorld* PreviewWorld = PreviewScene->GetWorld();
 	check (PreviewWorld);
-
-	if (SpawnedRootActor.IsValid() && (!RootActor || !PreviewWorld->ContainsActor(RootActor)))
+	
+	if (RootActorPreviewInstance.IsValid() && (!RootActor || !PreviewWorld->ContainsActor(RootActor)))
 	{
-		PreviewWorld->EditorDestroyActor(SpawnedRootActor.Get(), false);
-		SpawnedRootActor.Reset();
+		PreviewWorld->EditorDestroyActor(RootActorPreviewInstance.Get(), false);
+		
+		RootActorPreviewInstance.Reset();
 		RootActorLevelInstance.Reset();
 
 		MeshProjectionRenderer->ClearScene();
@@ -450,31 +452,53 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 	{
 		RootActorLevelInstance = RootActor;
 
-		const FVector SpawnLocation = FVector::ZeroVector;
-		const FRotator SpawnRotation = FRotator::ZeroRotator;
-		
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		SpawnInfo.bNoFail = true;
 		SpawnInfo.ObjectFlags = RF_Transient|RF_Transactional;
 		SpawnInfo.Template = RootActor;
 		
-		SpawnedRootActor = CastChecked<ADisplayClusterRootActor>(PreviewWorld->SpawnActor(RootActor->GetClass(),
-			&SpawnLocation, &SpawnRotation, MoveTemp(SpawnInfo)));
+		RootActorPreviewInstance = CastChecked<ADisplayClusterRootActor>(PreviewWorld->SpawnActor(RootActor->GetClass(),
+			nullptr,  nullptr, MoveTemp(SpawnInfo)));
+		
+		PreviewWorld->GetCurrentLevel()->AddLoadedActor(RootActorPreviewInstance.Get());
+
+		// Copy component data and update transforms.
+		{
+			TArray<UActorComponent*> SpawnedActorComponents;
+			TArray<UActorComponent*> LevelActorComponents;
+			RootActorPreviewInstance->GetComponents(SpawnedActorComponents);
+			RootActorLevelInstance->GetComponents(LevelActorComponents);
+
+			for (UActorComponent* SpawnedComponent : SpawnedActorComponents)
+			{
+				if (UActorComponent** OriginalComponent = LevelActorComponents.FindByPredicate([SpawnedComponent](const UActorComponent* Component)
+				{
+					return Component->GetFName() == SpawnedComponent->GetFName();
+				}))
+				{
+					UEngine::CopyPropertiesForUnrelatedObjects(*OriginalComponent, SpawnedComponent);
+					SpawnedComponent->UpdateComponentToWorld();
+				}
+			}
+		}
 
 		// Spawned actor will take the transform values from the template, so manually reset them to zero here
-		SpawnedRootActor->SetActorLocation(FVector::ZeroVector);
-		SpawnedRootActor->SetActorRotation(FRotator::ZeroRotator);
+		RootActorPreviewInstance->SetActorLocation(FVector::ZeroVector);
+		RootActorPreviewInstance->SetActorRotation(FRotator::ZeroRotator);
 
 		FindProjectionOriginComponent();
 
 		// Filter out any primitives hidden in game except screen components
-		MeshProjectionRenderer->AddActor(SpawnedRootActor.Get(), [](const UPrimitiveComponent* PrimitiveComponent)
+		MeshProjectionRenderer->AddActor(RootActorPreviewInstance.Get(), [](const UPrimitiveComponent* PrimitiveComponent)
 		{
 			return !PrimitiveComponent->bHiddenInGame || PrimitiveComponent->IsA<UDisplayClusterScreenComponent>();
 		});
 
-		SpawnedRootActor->UpdatePreviewComponents();
+		RootActorPreviewInstance->UpdatePreviewComponents();
+
+		FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+		FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FDisplayClusterLightCardEditorViewportClient::OnActorPropertyChanged);
 	}
 }
 
@@ -538,9 +562,31 @@ void FDisplayClusterLightCardEditorViewportClient::EndTransaction()
 	}
 }
 
+void FDisplayClusterLightCardEditorViewportClient::OnActorPropertyChanged(UObject* ObjectBeingModified,
+                                                                          FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
+	{
+		return;
+	}
+	
+	bool bIsOurActor = ObjectBeingModified == RootActorLevelInstance;
+	if (!bIsOurActor)
+	{
+		if (const UObject* RootActorOuter = ObjectBeingModified->GetTypedOuter(ADisplayClusterRootActor::StaticClass()))
+		{
+			bIsOurActor = RootActorOuter == RootActorLevelInstance;
+		}
+	}
+	if (bIsOurActor)
+	{
+		UpdatePreviewActor(RootActorLevelInstance.Get());
+	}
+}
+
 void FDisplayClusterLightCardEditorViewportClient::GetScenePrimitiveComponents(TArray<UPrimitiveComponent*>& OutPrimitiveComponents)
 {
-	SpawnedRootActor->ForEachComponent<UPrimitiveComponent>(true, [&](UPrimitiveComponent* PrimitiveComponent)
+	RootActorPreviewInstance->ForEachComponent<UPrimitiveComponent>(true, [&](UPrimitiveComponent* PrimitiveComponent)
 	{
 		OutPrimitiveComponents.Add(PrimitiveComponent);
 	});
@@ -655,12 +701,12 @@ void FDisplayClusterLightCardEditorViewportClient::GetSceneViewInitOptions(FScen
 
 void FDisplayClusterLightCardEditorViewportClient::FindProjectionOriginComponent()
 {
-	if (SpawnedRootActor.IsValid())
+	if (RootActorPreviewInstance.IsValid())
 	{
 		if (ProjectionMode == EDisplayClusterMeshProjectionType::Perspective)
 		{
 			TArray<UDisplayClusterCameraComponent*> ViewOriginComponents;
-			SpawnedRootActor->GetComponents<UDisplayClusterCameraComponent>(ViewOriginComponents);
+			RootActorPreviewInstance->GetComponents<UDisplayClusterCameraComponent>(ViewOriginComponents);
 
 			if (ViewOriginComponents.Num())
 			{
@@ -668,12 +714,12 @@ void FDisplayClusterLightCardEditorViewportClient::FindProjectionOriginComponent
 			}
 			else
 			{
-				ProjectionOriginComponent = SpawnedRootActor->GetRootComponent();
+				ProjectionOriginComponent = RootActorPreviewInstance->GetRootComponent();
 			}
 		}
 		else if (ProjectionMode == EDisplayClusterMeshProjectionType::Azimuthal)
 		{
-			ProjectionOriginComponent = SpawnedRootActor->GetRootComponent();
+			ProjectionOriginComponent = RootActorPreviewInstance->GetRootComponent();
 		}
 	}
 	else

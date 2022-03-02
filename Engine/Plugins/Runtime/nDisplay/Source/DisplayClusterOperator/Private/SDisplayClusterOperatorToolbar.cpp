@@ -19,6 +19,14 @@ SDisplayClusterOperatorToolbar::~SDisplayClusterOperatorToolbar()
 	{
 		GEngine->OnLevelActorDeleted().Remove(LevelActorDeletedHandle);
 	}
+	
+	if (ActiveRootActor.IsValid())
+	{
+		if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(ActiveRootActor->GetClass()))
+		{
+			Blueprint->OnCompiled().RemoveAll(this);
+		}
+	}
 }
 
 void SDisplayClusterOperatorToolbar::Construct(const FArguments& InArgs)
@@ -93,6 +101,7 @@ TSharedPtr<FString> SDisplayClusterOperatorToolbar::FillRootActorList(const FStr
 
 void SDisplayClusterOperatorToolbar::OnRootActorChanged(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo)
 {
+	ActiveRootActorName = ItemSelected;
 	if (!ItemSelected.IsValid())
 	{
 		return;
@@ -111,8 +120,34 @@ void SDisplayClusterOperatorToolbar::OnRootActorChanged(TSharedPtr<FString> Item
 		}
 	}
 
+	if (ActiveRootActor.IsValid())
+	{
+		if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(ActiveRootActor->GetClass()))
+		{
+			Blueprint->OnCompiled().RemoveAll(this);
+		}
+	}
+	
+	if (SelectedRootActor)
+	{
+		if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(SelectedRootActor->GetClass()))
+		{
+			Blueprint->OnCompiled().AddRaw(this, &SDisplayClusterOperatorToolbar::OnBlueprintCompiled);
+		}
+	}
+
 	ActiveRootActor = SelectedRootActor;
 	IDisplayClusterOperator::Get().OnActiveRootActorChanged().Broadcast(SelectedRootActor);
+}
+
+void SDisplayClusterOperatorToolbar::OnBlueprintCompiled(UBlueprint* Blueprint)
+{
+	if (RootActorComboBox.IsValid() && ActiveRootActorName.IsValid())
+	{
+		// Compiling the blueprint invalidates the instance so we need to find and set the instance again.
+		RootActorComboBox->SetSelectedItem(ActiveRootActorName);
+		OnRootActorChanged(ActiveRootActorName, ESelectInfo::Direct);
+	}
 }
 
 void SDisplayClusterOperatorToolbar::OnRootActorComboBoxOpening()
@@ -150,7 +185,15 @@ void SDisplayClusterOperatorToolbar::OnLevelActorDeleted(AActor* Actor)
 {
 	if (Actor == ActiveRootActor)
 	{
-		ActiveRootActor = nullptr;
+		if (Actor && Actor->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists))
+		{
+			// When a blueprint class is regenerated instances are deleted and replaced.
+			// In this case the OnCompiled() delegate will fire and refresh the actor.
+			return;
+		}
+		
+		ActiveRootActor.Reset();
+		ActiveRootActorName.Reset();
 		IDisplayClusterOperator::Get().OnActiveRootActorChanged().Broadcast(nullptr);
 		RootActorComboBox->SetSelectedItem(nullptr);
 	}
