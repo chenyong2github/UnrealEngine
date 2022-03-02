@@ -140,12 +140,16 @@ protected:
 	Audio::FAlignedFloatBuffer AudioExternal;
 
 private:
+	static constexpr int32 MaxBlockNumSamples = 8192; // 8 channels * 1024 samples
+	static_assert((MaxBlockNumSamples % 4) == 0, "MaxBlockNumSamples must be evenly divisible by 4 to allow for SIMD optimization" );
 	FKeySource KeySource;
 
 	Audio::FDeviceId DeviceId;
 
 	FDelegateHandle DeviceCreatedHandle;
 	FDelegateHandle DeviceDestroyedHandle;
+
+	Audio::FAlignedFloatBuffer ScratchBuffer;
 
 	TArray<Audio::FDynamicsProcessor> DynamicsProcessors;
 

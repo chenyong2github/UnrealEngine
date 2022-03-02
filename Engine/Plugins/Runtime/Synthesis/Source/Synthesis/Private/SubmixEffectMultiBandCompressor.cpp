@@ -9,6 +9,8 @@
 
 FSubmixEffectMultibandCompressor::FSubmixEffectMultibandCompressor()
 {
+	ScratchBuffer.AddUninitialized(FSubmixEffectMultibandCompressor::MaxBlockNumSamples);
+
 	DeviceCreatedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.AddRaw(this, &FSubmixEffectMultibandCompressor::OnDeviceCreated);
 	DeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddRaw(this, &FSubmixEffectMultibandCompressor::OnDeviceDestroyed);
 }
@@ -386,10 +388,8 @@ void FSubmixEffectMultibandCompressor::OnProcessAudio(const FSoundEffectSubmixIn
 	// Zero buffer so multiple bands can all sum to it
 	FMemory::Memzero(OutBuffer.GetData(), FrameSize * InData.NumFrames);
 
-	Audio::FStackSampleBuffer ScratchBuffer;
-
-	// Scratch buffer is stack allocated with a max size. If passed more samples than it can hold, process in blocks
-	const int32 BlockSize = FMath::Min(ScratchBuffer.Max(), NumSamples);
+	// If passed more samples than the max block size, process in blocks
+	const int32 BlockSize = FMath::Min(MaxBlockNumSamples, NumSamples);
 
 	if (BlockSize > MultiBandBuffer.NumSamples)
 	{
@@ -416,7 +416,7 @@ void FSubmixEffectMultibandCompressor::OnProcessAudio(const FSoundEffectSubmixIn
 			KeyPtr = &AudioExternal[KeySampleIdx];
 		}
 
-		ScratchBuffer.SetNumUninitialized(BlockSize);
+		ScratchBuffer.SetNumUninitialized(BlockSize, false /* bAllowShrinking */);
 
 		BandSplitter.ProcessAudioBuffer(InPtr, MultiBandBuffer, NumBlockFrames);
 

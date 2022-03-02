@@ -11,8 +11,6 @@
 
 namespace Audio
 {
-	typedef TArray<float, TInlineAllocator<MAX_BUFFER_SIZE>> FStackSampleBuffer;
-
 	struct FLinkwitzRileyBandFilter
 	{
 		TArray<FVariablePoleFilter> Filters;
@@ -102,6 +100,8 @@ namespace Audio
 
 		TArray<float> SharedBuffer;
 		TArray<float> BandWorkBuffer;
+		FAlignedFloatBuffer SharedAlignedBuffer;
+		FAlignedFloatBuffer BandAlignedBuffer;
 
 		TArray<FLinkwitzRileyBandFilter> BandFilters;
 		TArray<FCrossoverBandwidthPair> Crossovers;

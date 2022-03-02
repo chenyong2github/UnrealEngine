@@ -149,14 +149,11 @@ namespace Audio
 			return;
 		}
 
-		FStackSampleBuffer SharedStackBuffer;
-		SharedStackBuffer.SetNumZeroed(NumSamples);
+		SharedAlignedBuffer.SetNumZeroed(NumSamples, false /* bAllowShrinking */);
+		BandAlignedBuffer.SetNumUninitialized(NumSamples, false /* bAllowShrinking */);
 
-		FStackSampleBuffer BandStackBuffer;
-		BandStackBuffer.SetNumUninitialized(NumSamples);
-
-		float* const SharedBufferPtr = SharedStackBuffer.GetData();
-		float* const BandBufferPtr = BandStackBuffer.GetData();
+		float* const SharedBufferPtr = SharedAlignedBuffer.GetData();
+		float* const BandBufferPtr = BandAlignedBuffer.GetData();
 
 		CopyToBuffer(SharedBufferPtr, InBuffer, NumSamples);
 
