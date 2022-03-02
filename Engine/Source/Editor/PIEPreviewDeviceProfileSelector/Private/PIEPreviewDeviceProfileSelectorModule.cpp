@@ -78,7 +78,7 @@ void FPIEPreviewDeviceModule::SetPreviewDevice(const FString& DeviceName)
 	InitPreviewDevice();
 }
 
-void FPIEPreviewDeviceModule::ApplyCommandLineOverrides()
+FName FPIEPreviewDeviceModule::GetPreviewPlatformName()
 {
 	// Here we need to parse the json directly as we have not yet initialized the UObject system
 	if (JsonRootObject.IsValid())
@@ -86,9 +86,10 @@ void FPIEPreviewDeviceModule::ApplyCommandLineOverrides()
 		FString DevicePlatform;
 		if (JsonRootObject->TryGetStringField(TEXT("DevicePlatform"), DevicePlatform))
 		{
-			FCommandLine::Append(*FString::Printf(TEXT(" -ScalabilityIniPlatformOverride=%s"), *DevicePlatform));
+			return FName(*DevicePlatform);
 		}
 	}
+	return NAME_None;
 }
 
 FString const FPIEPreviewDeviceModule::GetRuntimeDeviceProfileName()

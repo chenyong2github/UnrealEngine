@@ -38,7 +38,7 @@ public:
 	{
 	}
 
-	virtual void ApplyCommandLineOverrides() override;
+	virtual FName GetPreviewPlatformName() override;
 
 	virtual void ApplyPreviewDeviceState() override;
 	

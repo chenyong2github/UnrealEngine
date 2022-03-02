@@ -5763,18 +5763,6 @@ bool FEngineLoop::AppInit( )
 		FPlatformOutputDevices::SetupOutputDevices();
 	}
 
-#if WITH_EDITOR
-	// Append any command line overrides when running as a preview device
-	if (FPIEPreviewDeviceModule::IsRequestingPreviewDevice())
-	{
-		FPIEPreviewDeviceModule* PIEPreviewDeviceProfileSelectorModule = FModuleManager::LoadModulePtr<FPIEPreviewDeviceModule>("PIEPreviewDeviceProfileSelector");
-		if (PIEPreviewDeviceProfileSelectorModule)
-		{
-			PIEPreviewDeviceProfileSelectorModule->ApplyCommandLineOverrides();
-		}
-	}
-#endif
-
 	{
 		SCOPED_BOOT_TIMING("FConfigCacheIni::InitializeConfigSystem");
 		LLM_SCOPE(ELLMTag::ConfigSystem);
@@ -6099,6 +6087,17 @@ bool FEngineLoop::AppInit( )
 		SCOPED_BOOT_TIMING("FCoreDelegates::OnInit.Broadcast");
 		FCoreDelegates::OnInit.Broadcast();
 	}
+
+#if WITH_EDITOR
+	if (FPIEPreviewDeviceModule::IsRequestingPreviewDevice())
+	{
+		FPIEPreviewDeviceModule* PIEPreviewDeviceProfileSelectorModule = FModuleManager::LoadModulePtr<FPIEPreviewDeviceModule>("PIEPreviewDeviceProfileSelector");
+		if (PIEPreviewDeviceProfileSelectorModule)
+		{
+			Scalability::ChangeScalabilityPreviewPlatform(PIEPreviewDeviceProfileSelectorModule->GetPreviewPlatformName());
+		}
+	}
+#endif
 
 	FEmbeddedCommunication::ForceTick(19);
 
