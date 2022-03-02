@@ -208,10 +208,8 @@ public:
 		DynamicKinematicParticles = MakeUnique<FPBDRigidParticles>();
 
 		ClusteredParticles = MakeUnique< FPBDRigidClusteredParticles>();
-		ClusteredParticles->RemoveParticleBehavior() = ERemoveParticleBehavior::Remove;	//clustered particles maintain relative ordering
 
 		GeometryCollectionParticles = MakeUnique<TPBDGeometryCollectionParticles<FReal, 3>>();
-		GeometryCollectionParticles->RemoveParticleBehavior() = ERemoveParticleBehavior::Remove;	//clustered particles maintain relative ordering
 		bGeometryCollectionDirty = false;
 
 		UpdateViews();
