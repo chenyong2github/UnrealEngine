@@ -2323,48 +2323,51 @@ void ULevel::CommitModelSurfaces()
 #if WITH_EDITOR
 void ULevel::FixupActorFolders()
 {
-	if (!IsUsingActorFolders() || !IsActorFolderObjectsFeatureAvailable())
+	if (!IsActorFolderObjectsFeatureAvailable())
 	{
 		return;
 	}
 
-	// At this point, LoadedExternalActorFolders are fully loaded, transfer them to the ActorFolders list.
-	for (UActorFolder* LoadedActorFolder : LoadedExternalActorFolders)
+	if (IsUsingActorFolders())
 	{
-		check(LoadedActorFolder->GetGuid().IsValid());
-		ActorFolders.Add(LoadedActorFolder->GetGuid(), LoadedActorFolder);
-	}
-	LoadedExternalActorFolders.Empty();
-	
-	// Discover duplicate paths first to prioritize non-duplicate paths
-	TSet<FName> FolderPaths;
-	TArray<UActorFolder*> DuplicateFolders;
-	ForEachActorFolder([&FolderPaths, &DuplicateFolders](UActorFolder* ActorFolder)
-	{
-		// Detects and clears invalid parent folder
-		ActorFolder->FixupParentFolder();
-
-		bool bIsAlreadyInSet = false;
-		FolderPaths.Add(ActorFolder->GetPath(), &bIsAlreadyInSet);
-		if (bIsAlreadyInSet)
+		// At this point, LoadedExternalActorFolders are fully loaded, transfer them to the ActorFolders list.
+		for (UActorFolder* LoadedActorFolder : LoadedExternalActorFolders)
 		{
-			DuplicateFolders.Add(ActorFolder);
+			check(LoadedActorFolder->GetGuid().IsValid());
+			ActorFolders.Add(LoadedActorFolder->GetGuid(), LoadedActorFolder);
 		}
-		return true;
-	}, /*bSkipDeleted*/ true);
-
-	if (!IsRunningCommandlet())
-	{
-		// Rename duplicates to a new valid/unique name
-		for (UActorFolder* ActorFolder : DuplicateFolders)
+		LoadedExternalActorFolders.Empty();
+	
+		// Discover duplicate paths first to prioritize non-duplicate paths
+		TSet<FName> FolderPaths;
+		TArray<UActorFolder*> DuplicateFolders;
+		ForEachActorFolder([&FolderPaths, &DuplicateFolders](UActorFolder* ActorFolder)
 		{
-			FFolder Folder = ActorFolder->GetFolder();
-			const FFolder NewPath = FActorFolders::Get().GetFolderName(*GetWorld(), Folder.GetParent(), Folder.GetLeafName());
-			ActorFolder->SetLabel(NewPath.GetLeafName().ToString());
+			// Detects and clears invalid parent folder
+			ActorFolder->FixupParentFolder();
+
 			bool bIsAlreadyInSet = false;
 			FolderPaths.Add(ActorFolder->GetPath(), &bIsAlreadyInSet);
-			check(!bIsAlreadyInSet);
-			UE_LOG(LogLevel, Warning, TEXT("Found duplicate actor folder %s, renamed to %s."), *Folder.GetPath().ToString(), *NewPath.GetPath().ToString());
+			if (bIsAlreadyInSet)
+			{
+				DuplicateFolders.Add(ActorFolder);
+			}
+			return true;
+		}, /*bSkipDeleted*/ true);
+
+		if (!IsRunningCommandlet())
+		{
+			// Rename duplicates to a new valid/unique name
+			for (UActorFolder* ActorFolder : DuplicateFolders)
+			{
+				FFolder Folder = ActorFolder->GetFolder();
+				const FFolder NewPath = FActorFolders::Get().GetFolderName(*GetWorld(), Folder.GetParent(), Folder.GetLeafName());
+				ActorFolder->SetLabel(NewPath.GetLeafName().ToString());
+				bool bIsAlreadyInSet = false;
+				FolderPaths.Add(ActorFolder->GetPath(), &bIsAlreadyInSet);
+				check(!bIsAlreadyInSet);
+				UE_LOG(LogLevel, Warning, TEXT("Found duplicate actor folder %s, renamed to %s."), *Folder.GetPath().ToString(), *NewPath.GetPath().ToString());
+			}
 		}
 	}
 	
@@ -2380,11 +2383,14 @@ void ULevel::FixupActorFolders()
 		}
 	}
 	
-	ForEachActorFolder([](UActorFolder* ActorFolder)
+	if (IsUsingActorFolders())
 	{
-		GEngine->BroadcastActorFolderAdded(ActorFolder);
-		return true;
-	}, /*bSkipDeleted*/ true);
+		ForEachActorFolder([](UActorFolder* ActorFolder)
+		{
+			GEngine->BroadcastActorFolderAdded(ActorFolder);
+			return true;
+		}, /*bSkipDeleted*/ true);
+	}
 }
 #endif
 

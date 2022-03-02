@@ -1055,30 +1055,46 @@ UActorFolder* AActor::GetActorFolder(bool bSkipDeleted) const
 void AActor::FixupActorFolder()
 {
 	check(GetLevel());
-	check(IsUsingActorFolders(this));
-	
-	// First detect and fixup reference to deleted actor folders
-	UActorFolder* ActorFolder = GetActorFolder(/*bSkipDeleted*/ false);
-	if (ActorFolder)
+
+	if (!IsUsingActorFolders(this))
 	{
-		// Remap to skip deleted actor folder
-		if (ActorFolder->IsMarkedAsDeleted())
+		if (FolderGuid.IsValid())
 		{
-			ActorFolder = ActorFolder->GetParent();
-			SetFolderGuidInternal(ActorFolder ? ActorFolder->GetGuid() : FGuid(), /*bBroadcastChange*/ false);
-		}
-		// We found actor folder using its path, update actor folder guid
-		else if (!FolderPath.IsNone())
-		{
-			SetFolderGuidInternal(ActorFolder ? ActorFolder->GetGuid() : FGuid(), /*bBroadcastChange*/ false);
+			UE_LOG(LogLevel, Warning, TEXT("Actor folder %s for actor %s encountered when not using actor folders"), *FolderGuid.ToString(), *GetName());
+			FolderGuid = FGuid();
 		}
 	}
-
-	// If still invalid, warn and fallback to root
-	if (!IsActorFolderValid())
+	else
 	{
-		UE_LOG(LogLevel, Warning, TEXT("Missing actor folder for actor %s"), *GetName());
-		SetFolderGuidInternal(FGuid(), /*bBroadcastChange*/ false);
+		// First detect and fixup reference to deleted actor folders
+		UActorFolder* ActorFolder = GetActorFolder(/*bSkipDeleted*/ false);
+		if (ActorFolder)
+		{
+			// Remap to skip deleted actor folder
+			if (ActorFolder->IsMarkedAsDeleted())
+			{
+				ActorFolder = ActorFolder->GetParent();
+				SetFolderGuidInternal(ActorFolder ? ActorFolder->GetGuid() : FGuid(), /*bBroadcastChange*/ false);
+			}
+			// We found actor folder using its path, update actor folder guid
+			else if (!FolderPath.IsNone())
+			{
+				SetFolderGuidInternal(ActorFolder ? ActorFolder->GetGuid() : FGuid(), /*bBroadcastChange*/ false);
+			}
+		}
+
+		// If still invalid, warn and fallback to root
+		if (!IsActorFolderValid())
+		{
+			UE_LOG(LogLevel, Warning, TEXT("Missing actor folder for actor %s"), *GetName());
+			SetFolderGuidInternal(FGuid(), /*bBroadcastChange*/ false);
+		}
+
+		if (!FolderPath.IsNone())
+		{
+			UE_LOG(LogLevel, Warning, TEXT("Actor folder path %s for actor %s encountered when using actor folders"), *FolderPath.ToString(), *GetName());
+			FolderPath = NAME_None;
+		}
 	}
 }
 
