@@ -2027,7 +2027,7 @@ void FNameEntry::GetUnterminatedName(TCHAR* OutName, uint32 OutLen) const
 void FNameEntry::GetName(TCHAR(&OutName)[NAME_SIZE]) const
 {
 	CopyAndConvertUnterminatedName(OutName);
-	OutName[GetNameLength()] = '\0';
+	OutName[GetNameLength()] = TEXT('\0');
 }
 
 void FNameEntry::CopyAndConvertUnterminatedName(TCHAR* OutName) const
@@ -3176,7 +3176,7 @@ uint32 FName::ToString(TCHAR* Out, uint32 OutSize) const
 
 	if (GetNumber() == NAME_NO_NUMBER_INTERNAL)
 	{
-		Out[NameLen] = '\0';
+		Out[NameLen] = TEXT('\0');
 		return NameLen;
 	}
 	else
@@ -3187,7 +3187,7 @@ uint32 FName::ToString(TCHAR* Out, uint32 OutSize) const
 		check(SuffixLen > 0 && OutSize > TotalLen);
 
 		FPlatformMemory::Memcpy(Out + NameLen, NumberSuffixStr, SuffixLen * sizeof(TCHAR));
-		Out[TotalLen] = '\0';
+		Out[TotalLen] = TEXT('\0');
 		return TotalLen;
 	}
 }

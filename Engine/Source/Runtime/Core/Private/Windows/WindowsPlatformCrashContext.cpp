@@ -224,7 +224,7 @@ void FWindowsPlatformCrashContext::ConvertProgramCountersToStackFrames(
 				TCHAR* ModuleNameExt = FCString::Strrchr(ModuleName, '.');
 				if (ModuleNameExt != nullptr)
 				{
-					*ModuleNameExt = 0;
+					*ModuleNameExt = TCHAR('\0');
 				}
 			}
 			else
@@ -397,7 +397,7 @@ bool CreateCrashReportClientPath(TCHAR* OutClientPath, int32 MaxLength)
 		const TCHAR* BinariesDir = FPlatformProcess::GetBinariesSubdirectory();
 
 		// Find the path to crash reporter binary. Avoid creating FStrings.
-		*OutClientPath = 0;
+		*OutClientPath = TCHAR('\0');
 		FCString::Strncat(OutClientPath, EngineDir, MaxLength);
 		FCString::Strncat(OutClientPath, TEXT("Binaries/"), MaxLength);
 		FCString::Strncat(OutClientPath, BinariesDir, MaxLength);

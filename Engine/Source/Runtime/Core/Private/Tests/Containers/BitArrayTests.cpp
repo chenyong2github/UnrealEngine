@@ -39,9 +39,9 @@ namespace BitArrayTest
 		{
 			if (Index != 0 && Index % 8 == 0)
 			{
-				Out.AppendChar(' ');
+				Out.AppendChar(TEXT(' '));
 			}
-			Out.AppendChar(It.GetValue() ? '1' : '0');
+			Out.AppendChar(It.GetValue() ? TEXT('1') : TEXT('0'));
 		}
 		return Out;
 	}
@@ -1195,15 +1195,15 @@ public:
 						bool OnesValue = ArrOnes[ResultIndex];
 						bOnesMatchesExpected = bOnesMatchesExpected & (OnesValue == OnesExpectedValue);
 						bZeroesMatchesExpected = bZeroesMatchesExpected & (ZeroesValue == ZeroesExpectedValue);
-						OnesExpectedText[DisplayIndex] = OnesExpectedValue ? '1' : '0';
-						OnesText[DisplayIndex] = OnesValue ? '1' : '0';
-						ZeroesExpectedText[DisplayIndex] = ZeroesExpectedValue ? '1' : '0';
-						ZeroesText[DisplayIndex] = ZeroesValue ? '1' : '0';
+						OnesExpectedText[DisplayIndex] = OnesExpectedValue ? TEXT('1') : TEXT('0');
+						OnesText[DisplayIndex] = OnesValue ? TEXT('1') : TEXT('0');
+						ZeroesExpectedText[DisplayIndex] = ZeroesExpectedValue ? TEXT('1') : TEXT('0');
+						ZeroesText[DisplayIndex] = ZeroesValue ? TEXT('1') : TEXT('0');
 					}
-					OnesExpectedText[DisplayIndex] = '\0';
-					OnesText[DisplayIndex] = '\0';
-					ZeroesExpectedText[DisplayIndex] = '\0';
-					ZeroesText[DisplayIndex] = '\0';
+					OnesExpectedText[DisplayIndex] = TEXT('\0');
+					OnesText[DisplayIndex] = TEXT('\0');
+					ZeroesExpectedText[DisplayIndex] = TEXT('\0');
+					ZeroesText[DisplayIndex] = TEXT('\0');
 					if (!bOnesMatchesExpected)
 					{
 						AddError(FString::Printf(TEXT("SetRange bool BitWidth=%d WriteOffset=%d, Ones\nExpected=%s\nActual  =%s"), BitWidth, WriteOffset, OnesExpectedText, OnesText));
@@ -2188,15 +2188,15 @@ protected:
 							bool ZeroesValue = (ZeroesVerify[ResultWord] & ResultMask) != 0;
 							bOnesMatchesExpected = bOnesMatchesExpected & (OnesValue == OnesExpectedValue);
 							bZeroesMatchesExpected = bZeroesMatchesExpected & (ZeroesValue == ZeroesExpectedValue);
-							OnesExpectedText[DisplayIndex] = OnesExpectedValue ? '1' : '0';
-							OnesText[DisplayIndex] = OnesValue ? '1' : '0';
-							ZeroesExpectedText[DisplayIndex] = ZeroesExpectedValue ? '1' : '0';
-							ZeroesText[DisplayIndex] = ZeroesValue ? '1' : '0';
+							OnesExpectedText[DisplayIndex] = OnesExpectedValue ? TEXT('1') : TEXT('0');
+							OnesText[DisplayIndex] = OnesValue ? TEXT('1') : TEXT('0');
+							ZeroesExpectedText[DisplayIndex] = ZeroesExpectedValue ? TEXT('1') : TEXT('0');
+							ZeroesText[DisplayIndex] = ZeroesValue ? TEXT('1') : TEXT('0');
 						}
-						OnesExpectedText[DisplayIndex] = '\0';
-						OnesText[DisplayIndex] = '\0';
-						ZeroesExpectedText[DisplayIndex] = '\0';
-						ZeroesText[DisplayIndex] = '\0';
+						OnesExpectedText[DisplayIndex] = TEXT('\0');
+						OnesText[DisplayIndex] = TEXT('\0');
+						ZeroesExpectedText[DisplayIndex] = TEXT('\0');
+						ZeroesText[DisplayIndex] = TEXT('\0');
 						if (!bOnesMatchesExpected)
 						{
 							AddError(FString::Printf(TEXT("MemmoveBitsWordOrder BitWidth=%d ReadOffset=%d, WriteOffset=%d, Overlap=%d, Ones\nExpected=%s\nActual  =%s"), BitWidth, ReadOffset, WriteOffset, Overlap, OnesExpectedText, OnesText));

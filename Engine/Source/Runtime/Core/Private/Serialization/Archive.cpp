@@ -1319,7 +1319,7 @@ void FArchive::LogfImpl(const TCHAR* Fmt, ...)
 		GET_VARARGS_RESULT( Buffer, BufferSize, BufferSize-1, Fmt, Fmt, Result );
 		BufferSize *= 2;
 	};
-	Buffer[Result] = 0;
+	Buffer[Result] = TEXT('\0');
 
 	// Convert to ANSI and serialize as ANSI char.
 	for( int32 i=0; i<Result; i++ )

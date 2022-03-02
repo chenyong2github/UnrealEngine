@@ -857,7 +857,7 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 		// Strip trailing spaces from the current line
 		while( *Start && FChar::IsWhitespace(Start[FCString::Strlen(Start)-1]) )
 		{
-			Start[FCString::Strlen(Start)-1] = 0;
+			Start[FCString::Strlen(Start)-1] = TEXT('\0');
 		}
 
 		// If the first character in the line is [ and last char is ], this line indicates a section name
@@ -865,7 +865,7 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 		{
 			// Remove the brackets
 			Start++;
-			Start[FCString::Strlen(Start)-1] = 0;
+			Start[FCString::Strlen(Start)-1] = TEXT('\0');
 
 			// If we don't have an existing section by this name, add one
 			CurrentSection = FindOrAddSection( Start );
@@ -890,7 +890,7 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 			if( Value )
 			{
 				// Terminate the property name, advancing past the =
-				*Value++ = 0;
+				*Value++ = TEXT('\0');
 
 				// strip leading whitespace from the property name
 				while ( *Start && FChar::IsWhitespace(*Start) )
@@ -912,13 +912,13 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 				}
 				else
 				{
-					Cmd=' ';
+					Cmd = TEXT(' ');
 				}
 
 				// Strip trailing spaces from the property name.
 				while( *Start && FChar::IsWhitespace(Start[FCString::Strlen(Start)-1]) )
 				{
-					Start[FCString::Strlen(Start)-1] = 0;
+					Start[FCString::Strlen(Start)-1] = TEXT('\0');
 				}
 
 				// Strip leading whitespace from the property value
@@ -930,7 +930,7 @@ void FConfigFile::CombineFromBuffer(const FString& Buffer)
 				// strip trailing whitespace from the property value
 				while( *Value && FChar::IsWhitespace(Value[FCString::Strlen(Value)-1]) )
 				{
-					Value[FCString::Strlen(Value)-1] = 0;
+					Value[FCString::Strlen(Value)-1] = TEXT('\0');
 				}
 
 				ProcessedValue.Reset();
@@ -1038,7 +1038,7 @@ void FConfigFile::ProcessInputFileContents(FStringView Contents)
 		// Strip trailing spaces from the current line
 		while( *Start && FChar::IsWhitespace(Start[FCString::Strlen(Start)-1]) )
 		{
-			Start[FCString::Strlen(Start)-1] = 0;
+			Start[FCString::Strlen(Start)-1] = TEXT('\0');
 		}
 
 		// If the first character in the line is [ and last char is ], this line indicates a section name
@@ -1046,7 +1046,7 @@ void FConfigFile::ProcessInputFileContents(FStringView Contents)
 		{
 			// Remove the brackets
 			Start++;
-			Start[FCString::Strlen(Start)-1] = 0;
+			Start[FCString::Strlen(Start)-1] = TEXT('\0');
 
 			// If we don't have an existing section by this name, add one
 			CurrentSection = FindOrAddSection( Start );
@@ -1067,7 +1067,7 @@ void FConfigFile::ProcessInputFileContents(FStringView Contents)
 			if( Value )
 			{
 				// Terminate the propertyname, advancing past the =
-				*Value++ = 0;
+				*Value++ = TEXT('\0');
 
 				// strip leading whitespace from the property name
 				while ( *Start && FChar::IsWhitespace(*Start) )
@@ -1075,7 +1075,7 @@ void FConfigFile::ProcessInputFileContents(FStringView Contents)
 
 				// Strip trailing spaces from the property name.
 				while( *Start && FChar::IsWhitespace(Start[FCString::Strlen(Start)-1]) )
-					Start[FCString::Strlen(Start)-1] = 0;
+					Start[FCString::Strlen(Start)-1] = TEXT('\0');
 
 				// Strip leading whitespace from the property value
 				while ( *Value && FChar::IsWhitespace(*Value) )
@@ -1083,7 +1083,7 @@ void FConfigFile::ProcessInputFileContents(FStringView Contents)
 
 				// strip trailing whitespace from the property value
 				while( *Value && FChar::IsWhitespace(Value[FCString::Strlen(Value)-1]) )
-					Value[FCString::Strlen(Value)-1] = 0;
+					Value[FCString::Strlen(Value)-1] = TEXT('\0');
 
 				// If this line is delimited by quotes
 				if( *Value=='\"' )

@@ -76,7 +76,7 @@ FString FLegacyCultureImplementation::GetNativeLanguage() const
 {
 	int32 LastBracket = INDEX_NONE;
 	int32 FirstBracket = INDEX_NONE;
-	if ( NativeName.FindLastChar( ')', LastBracket ) && NativeName.FindChar( '(', FirstBracket ) && LastBracket != FirstBracket )
+	if ( NativeName.FindLastChar( TEXT(')'), LastBracket ) && NativeName.FindChar( TEXT('('), FirstBracket ) && LastBracket != FirstBracket )
 	{
 		return NativeName.Left( FirstBracket-1 );
 	}
@@ -87,7 +87,7 @@ FString FLegacyCultureImplementation::GetNativeRegion() const
 {
 	int32 LastBracket = INDEX_NONE;
 	int32 FirstBracket = INDEX_NONE;
-	if ( NativeName.FindLastChar( ')', LastBracket ) && NativeName.FindChar( '(', FirstBracket ) && LastBracket != FirstBracket )
+	if ( NativeName.FindLastChar( TEXT(')'), LastBracket ) && NativeName.FindChar( TEXT('('), FirstBracket ) && LastBracket != FirstBracket )
 	{
 		return NativeName.Mid( FirstBracket+1, LastBracket-FirstBracket-1 );
 	}

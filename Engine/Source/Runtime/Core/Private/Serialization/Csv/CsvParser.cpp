@@ -84,8 +84,8 @@ FCsvParser::EParseResult FCsvParser::ParseCell()
 				// We null terminate and leave the write pos pointing at the trailing closing quote 
 				// if present so it gets overwritten by any subsequent text in the cell
 				NumQuotes /= 2;
-				while(NumQuotes-- > 0) *(WriteAt++) = '"';
-				*WriteAt = '\0';
+				while(NumQuotes-- > 0) *(WriteAt++) = TEXT('"');
+				*WriteAt = TEXT('\0');
 
 				continue;
 			}
@@ -97,14 +97,14 @@ FCsvParser::EParseResult FCsvParser::ParseCell()
 			if (NewLineSize != 0)
 			{
 				// Null terminate the cell
-				*WriteAt = '\0';
+				*WriteAt = TEXT('\0');
 				ReadAt += NewLineSize;
 
 				return *ReadAt ? EParseResult::EndOfRow : EParseResult::EndOfString;
 			}
 			else if (*ReadAt == ',')
 			{
-				*WriteAt = '\0';
+				*WriteAt = TEXT('\0');
 				++ReadAt;
 
 				// We always return EndOfCell here as we still have another (potentially empty) cell to add

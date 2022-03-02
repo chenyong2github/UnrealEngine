@@ -1029,7 +1029,7 @@ void FUnrealPropertyDefinitionInfo::ExportCppDeclaration(FOutputDevice& Out, EEx
 				else
 				{
 					// export as a pointer if this is an optional out parm, reference if it's just an out parm, standard otherwise...
-					TCHAR ModifierString[2] = { 0,0 };
+					TCHAR ModifierString[2] = { TCHAR('\0'), TCHAR('\0') };
 					if (bCanHaveRef && (HasAnyPropertyFlags(CPF_OutParm | CPF_ReferenceParm) || bIsInterfaceProp))
 					{
 						ModifierString[0] = TEXT('&');

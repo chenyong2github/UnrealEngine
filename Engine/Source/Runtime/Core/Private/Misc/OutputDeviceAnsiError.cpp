@@ -76,7 +76,7 @@ void FOutputDeviceAnsiError::HandleError()
 	GIsRunning			= 0;
 	GIsCriticalError	= 1;
 	GLogConsole			= NULL;
-	GErrorHist[UE_ARRAY_COUNT(GErrorHist)-1]=0;
+	GErrorHist[UE_ARRAY_COUNT(GErrorHist)-1] = TCHAR('\0');
 
 	if (GLog)
 	{

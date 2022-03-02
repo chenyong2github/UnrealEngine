@@ -55,7 +55,7 @@ bool FAssetBundleEntry::ExportTextItem(FString& ValueStr, const FAssetBundleEntr
 			return false;
 		}
 		
-		ValueStr.AppendChar(',');
+		ValueStr.AppendChar(TEXT(','));
 	}
 
 	// Remove last comma
@@ -199,7 +199,7 @@ bool FAssetBundleData::ExportTextItem(FString& ValueStr, FAssetBundleData const&
 			ValueStr.LeftInline(OriginalLen);
 			return false;
 		}
-		ValueStr.AppendChar(',');
+		ValueStr.AppendChar(TEXT(','));
 	}
 
 	// Remove last comma

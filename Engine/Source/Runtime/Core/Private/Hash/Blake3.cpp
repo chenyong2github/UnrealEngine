@@ -77,7 +77,7 @@ FString LexToString(const FBlake3Hash& Hash)
 	TArray<TCHAR, FString::AllocatorType>& CharArray = Output.GetCharArray();
 	CharArray.AddUninitialized(sizeof(FBlake3Hash::ByteArray) * 2 + 1);
 	UE::String::BytesToHexLower(Hash.GetBytes(), CharArray.GetData());
-	CharArray.Last() = 0;
+	CharArray.Last() = TCHAR('\0');
 	return Output;
 }
 

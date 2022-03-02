@@ -56,7 +56,7 @@ FCoreRedirectObjectName::FCoreRedirectObjectName(const class UObject* Object)
 				}
 				if (!OuterString.IsEmpty())
 				{
-					OuterString.AppendChar('.');
+					OuterString.AppendChar(TEXT('.'));
 				}
 				OuterString.Append(Outer->GetName());
 
@@ -182,10 +182,10 @@ bool FCoreRedirectObjectName::ExpandNames(const FString& InString, FName& OutNam
 	int32 FirstColonIndex = INDEX_NONE;
 	int32 LastColonIndex = INDEX_NONE;
 
-	FullString.FindChar('/', SlashIndex);
+	FullString.FindChar(TEXT('/'), SlashIndex);
 
-	FullString.FindChar('.', FirstPeriodIndex);
-	FullString.FindChar(':', FirstColonIndex);
+	FullString.FindChar(TEXT('.'), FirstPeriodIndex);
+	FullString.FindChar(TEXT(':'), FirstColonIndex);
 
 	if (FirstColonIndex != INDEX_NONE && (FirstPeriodIndex == INDEX_NONE || FirstColonIndex < FirstPeriodIndex))
 	{
@@ -207,8 +207,8 @@ bool FCoreRedirectObjectName::ExpandNames(const FString& InString, FName& OutNam
 		return true;
 	}
 
-	FullString.FindLastChar('.', LastPeriodIndex);
-	FullString.FindLastChar(':', LastColonIndex);
+	FullString.FindLastChar(TEXT('.'), LastPeriodIndex);
+	FullString.FindLastChar(TEXT(':'), LastColonIndex);
 
 	if (LastColonIndex != INDEX_NONE && (LastPeriodIndex == INDEX_NONE || LastColonIndex > LastPeriodIndex))
 	{
@@ -247,7 +247,7 @@ FString FCoreRedirectObjectName::CombineNames(FName NewName, FName NewOuter, FNa
 
 		int32 DelimIndex = INDEX_NONE;
 
-		if (OuterString.FindChar('.', DelimIndex) || OuterString.FindChar(':', DelimIndex))
+		if (OuterString.FindChar(TEXT('.'), DelimIndex) || OuterString.FindChar(TEXT(':'), DelimIndex))
 		{
 			if (NewPackage != NAME_None)
 			{

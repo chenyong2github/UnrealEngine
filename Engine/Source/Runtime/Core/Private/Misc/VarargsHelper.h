@@ -35,7 +35,7 @@
 		GET_VARARGS_RESULT( Buffer, BufferSize, BufferSize-1, Fmt, Fmt, Result ); \
 		BufferSize *= 2; \
 	}; \
-	Buffer[Result] = 0; \
+	Buffer[Result] = TEXT('\0'); \
 	; \
 \
 	SerializeFunc; \

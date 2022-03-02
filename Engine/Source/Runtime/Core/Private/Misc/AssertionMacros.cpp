@@ -252,7 +252,7 @@ void FDebug::LogFormattedMessageWithCallstack(const FName& InLogName, const ANSI
 		}
 
 		// cap it
-		*SingleLineWritePos = 0;
+		*SingleLineWritePos = TEXT('\0');
 
 		// prefix function lines with [Callstack] for parsing tools
 		const TCHAR* Prefix = (FCString::Strnicmp(LineStart, TEXT("0x"), 2) == 0) ? TEXT("[Callstack] ") : TEXT("");
@@ -489,8 +489,8 @@ FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* Fi
 
 			ReportEnsure(ErrorMsg, ProgramCounter);
 
-			GErrorHist[0] = 0;
-			GErrorExceptionDescription[0] = 0;
+			GErrorHist[0] = TEXT('\0');
+			GErrorExceptionDescription[0] = TEXT('\0');
 #endif
 		}
 	}

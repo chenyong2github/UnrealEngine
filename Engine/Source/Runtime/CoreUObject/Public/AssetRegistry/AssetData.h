@@ -219,7 +219,7 @@ public:
 	{
 		OutFullName.Reset();
 		AssetClass.AppendString(OutFullName);
-		OutFullName.AppendChar(' ');
+		OutFullName.AppendChar(TEXT(' '));
 		ObjectPath.AppendString(OutFullName);
 	}
 
@@ -228,7 +228,7 @@ public:
 	{
 		OutFullNameBuilder.Reset();
 		AssetClass.AppendString(OutFullNameBuilder);
-		OutFullNameBuilder.AppendChar(' ');
+		OutFullNameBuilder.AppendChar(TEXT*' '));
 		ObjectPath.AppendString(OutFullNameBuilder);
 	}
 
@@ -245,9 +245,9 @@ public:
 	{
 		OutExportTextName.Reset();
 		AssetClass.AppendString(OutExportTextName);
-		OutExportTextName.AppendChar('\'');
+		OutExportTextName.AppendChar(TEXT('\''));
 		ObjectPath.AppendString(OutExportTextName);
-		OutExportTextName.AppendChar('\'');
+		OutExportTextName.AppendChar(TEXT('\''));
 	}
 
 	/** Populates OutExportTextNameBuilder with the name for the asset in the form: Class'ObjectPath' */
@@ -255,9 +255,9 @@ public:
 	{
 		OutExportTextNameBuilder.Reset();
 		AssetClass.AppendString(OutExportTextNameBuilder);
-		OutExportTextNameBuilder.AppendChar('\'');
+		OutExportTextNameBuilder.AppendChar(TEXT('\''));
 		ObjectPath.AppendString(OutExportTextNameBuilder);
-		OutExportTextNameBuilder.AppendChar('\'');
+		OutExportTextNameBuilder.AppendChar(TEXT('\''));
 	}
 
 	/** Returns true if the this asset is a redirector. */

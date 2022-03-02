@@ -746,7 +746,7 @@ void LoadSymbolsForModule(HMODULE ModuleHandle, const FString& RemoteStorage)
 	{
 		if (!SearchPathList.IsEmpty())
 		{
-			SearchPathList.AppendChar(';');
+			SearchPathList.AppendChar(TEXT(';'));
 		}
 		SearchPathList.Append(RemoteStorage);
 	}
@@ -968,11 +968,11 @@ FString GetRemoteStorage(const FString& DownstreamStorage)
 		{
 			if (StorageIndex > 0) 
 			{
-				SymbolStorage.AppendChar(';');
+				SymbolStorage.AppendChar(TEXT(';'));
 			}
 			SymbolStorage.Append(TEXT("SRV*"));
 			SymbolStorage.Append(DownstreamStorage);
-			SymbolStorage.AppendChar('*');
+			SymbolStorage.AppendChar(TEXT('*'));
 			SymbolStorage.Append(RemoteStorage[StorageIndex]);
 		}
 		return SymbolStorage;

@@ -188,7 +188,7 @@ TOptional<FExpressionError> ParseArgumentModifier(const FTextFormatPatternDefini
 	// Parse out the argument modifier parameter text
 	TOptional<FStringToken> Parameters;
 	{
-		TCHAR QuoteChar = 0;
+		TCHAR QuoteChar = TEXT('\0');
 		int32 NumConsecutiveSlashes = 0;
 		Parameters = Stream.ParseToken([&](TCHAR InC)
 		{
@@ -202,7 +202,7 @@ TOptional<FExpressionError> ParseArgumentModifier(const FTextFormatPatternDefini
 				{
 					if (NumConsecutiveSlashes%2 == 0)
 					{
-						QuoteChar = 0;
+						QuoteChar = TEXT('\0');
 					}
 				}
 				else

@@ -10,6 +10,6 @@ FString LexToString(const FIoHash& Hash)
 	TArray<TCHAR, FString::AllocatorType>& CharArray = Output.GetCharArray();
 	CharArray.AddUninitialized(sizeof(FIoHash::ByteArray) * 2 + 1);
 	UE::String::BytesToHexLower(Hash.GetBytes(), CharArray.GetData());
-	CharArray.Last() = 0;
+	CharArray.Last() = TEXT('\0');
 	return Output;
 }

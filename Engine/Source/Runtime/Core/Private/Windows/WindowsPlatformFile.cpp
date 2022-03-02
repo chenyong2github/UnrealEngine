@@ -947,9 +947,9 @@ class CORE_API FWindowsPlatformFile : public IPhysicalPlatformFile
 		// We now have a canonical, strict-valid, absolute Unreal Path.  Convert it to a Windows Path.
 		for (TCHAR& Char : TArrayView<TCHAR>(Path.GetData(), Path.Len()))
 		{
-			if (Char == '/')
+			if (Char == TEXT('/'))
 			{
-				Char = '\\';
+				Char = TEXT('\\');
 			}
 		}
 

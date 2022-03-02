@@ -628,8 +628,8 @@ private:
 			{
 				// Print the response body if we got one, otherwise print header.
 				FString Response = GetAnsiBufferAsString(ResponseBuffer.Num() > 0 ? ResponseBuffer : ResponseHeader);
-				Response.ReplaceCharInline('\n', ' ');
-				Response.ReplaceCharInline('\r', ' ');
+				Response.ReplaceCharInline(TEXT('\n'), TEXT(' '));
+				Response.ReplaceCharInline(TEXT('\r'), TEXT(' '));
 				// Dont log access denied as error, since tokens can expire mid session
 				if (ResponseCode == 401)
 				{

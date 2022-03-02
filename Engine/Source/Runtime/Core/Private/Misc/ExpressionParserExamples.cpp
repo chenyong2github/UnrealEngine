@@ -33,7 +33,7 @@ public:
 		TokenDefinitions.DefineToken([](FExpressionTokenConsumer& Consumer){
 
 			// Called at the start of every new token - see if it's a + character
-			TOptional<FStringToken> Token = Consumer.GetStream().ParseSymbol('+');
+			TOptional<FStringToken> Token = Consumer.GetStream().ParseSymbol(TEXT('+'));
 			if (Token.IsSet())
 			{
 				// Add the token to the consumer. This moves the read position in the stream to the end of the token.

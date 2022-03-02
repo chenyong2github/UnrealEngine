@@ -113,9 +113,9 @@ FString FPlugin::GetMountedAssetPath() const
 {
 	FString Path;
 	Path.Reserve(Name.Len() + 2);
-	Path.AppendChar('/');
+	Path.AppendChar(TEXT('/'));
 	Path.Append(Name);
-	Path.AppendChar('/');
+	Path.AppendChar(TEXT('/'));
 	return Path;
 }
 

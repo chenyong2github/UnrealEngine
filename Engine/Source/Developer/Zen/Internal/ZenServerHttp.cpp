@@ -456,7 +456,7 @@ namespace UE::Zen {
 	{
 		LLM_SCOPE_BYTAG(ZenDDC);
 		// Strip any leading slashes because we compose the prefix and the suffix with a separating slash below
-		while (Uri.StartsWith('/'))
+		while (Uri.StartsWith(TEXT('/')))
 		{
 			Uri.RightChopInline(1);
 		}
@@ -600,8 +600,8 @@ namespace UE::Zen {
 			{
 				// Print the response body if we got one, otherwise print header.
 				FString Response = GetAnsiBufferAsString(ResponseBuffer.Num() > 0 ? ResponseBuffer : ResponseHeader);
-				Response.ReplaceCharInline('\n', ' ');
-				Response.ReplaceCharInline('\r', ' ');
+				Response.ReplaceCharInline(TEXT('\n'), TEXT(' '));
+				Response.ReplaceCharInline(TEXT('\r'), TEXT(' '));
 				UE_LOG(
 					LogZenHttp,
 					Error,
@@ -813,7 +813,7 @@ namespace UE::Zen {
 	FZenHttpRequestPool::FZenHttpRequestPool(FStringView InServiceUrl, uint32 PoolEntryCount)
 	{
 		int32 LastSlash = 0;
-		while (InServiceUrl.FindLastChar('/', /* out */ LastSlash) && (LastSlash == (InServiceUrl.Len() - 1)))
+		while (InServiceUrl.FindLastChar(TEXT('/'), /* out */ LastSlash) && (LastSlash == (InServiceUrl.Len() - 1)))
 		{
 			InServiceUrl.LeftChopInline(1);
 		}

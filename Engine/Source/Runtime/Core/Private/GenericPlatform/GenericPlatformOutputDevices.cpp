@@ -61,7 +61,7 @@ void FGenericPlatformOutputDevices::SetupOutputDevices()
 void FGenericPlatformOutputDevices::ResetCachedAbsoluteFilename()
 {
 	FScopeLock ScopeLock(&LogFilenameLock);
-	CachedAbsoluteFilename[0] = 0;
+	CachedAbsoluteFilename[0] = TEXT('\0');
 }
 
 void FGenericPlatformOutputDevices::OnLogFileOpened(const TCHAR* Pathname)
@@ -83,7 +83,7 @@ FString FGenericPlatformOutputDevices::GetAbsoluteLogFilename()
 		{
 			if (FParse::Value(FCommandLine::Get(), TEXT("ABSLOG="), LogFilename, bShouldStopOnSeparator))
 			{
-				CachedAbsoluteFilename[0] = 0;
+				CachedAbsoluteFilename[0] = TEXT('\0');
 			}
 		}
 

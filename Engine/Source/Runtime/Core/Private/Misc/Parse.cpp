@@ -248,11 +248,11 @@ bool FParse::Value(
 			int32 QuoteCharactersToSkip = 1;
 			FCString::Strncpy(Value, Start + QuoteCharactersToSkip, MaxLen);
 
-			Value[MaxLen-1]=0;
+			Value[MaxLen - 1] = TCHAR('\0');
 			TCHAR* Temp = FCString::Strstr( Value, TEXT("\x22") );
 			if (Temp != nullptr)
 			{
-				*Temp = 0;
+				*Temp = TCHAR('\0');
 			}
 		}
 		else
@@ -262,16 +262,16 @@ bool FParse::Value(
 
 			// Non-quoted string without spaces.
 			FCString::Strncpy( Value, Start, MaxLen );
-			Value[MaxLen-1]=0;
+			Value[MaxLen - 1]= TCHAR('\0');
 			TCHAR* Temp;
-			Temp = FCString::Strstr( Value, TEXT(" ")  ); if( Temp ) *Temp=0;
-			Temp = FCString::Strstr( Value, TEXT("\r") ); if( Temp ) *Temp=0;
-			Temp = FCString::Strstr( Value, TEXT("\n") ); if( Temp ) *Temp=0;
-			Temp = FCString::Strstr( Value, TEXT("\t") ); if( Temp ) *Temp=0;
+			Temp = FCString::Strstr( Value, TEXT(" ")  ); if( Temp ) *Temp = TCHAR('\0');
+			Temp = FCString::Strstr( Value, TEXT("\r") ); if( Temp ) *Temp = TCHAR('\0');
+			Temp = FCString::Strstr( Value, TEXT("\n") ); if( Temp ) *Temp = TCHAR('\0');
+			Temp = FCString::Strstr( Value, TEXT("\t") ); if( Temp ) *Temp = TCHAR('\0');
 			if (bShouldStopOnSeparator)
 			{
-				Temp = FCString::Strstr( Value, TEXT(",")  ); if( Temp ) *Temp=0;
-				Temp = FCString::Strstr( Value, TEXT(")")  ); if( Temp ) *Temp=0;
+				Temp = FCString::Strstr( Value, TEXT(",")  ); if( Temp ) *Temp = TCHAR('\0');
+				Temp = FCString::Strstr( Value, TEXT(")")  ); if( Temp ) *Temp = TCHAR('\0');
 			}
 		}
 
@@ -323,7 +323,7 @@ bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, FString& Value, boo
 	{
 		TArray<TCHAR, TInlineAllocator<4096>> ValueCharArray;
 		ValueCharArray.AddUninitialized(StreamLen + 1);
-		ValueCharArray[0] = 0;
+		ValueCharArray[0] = TCHAR('\0');
 
 		if( FParse::Value(Stream, Match, ValueCharArray.GetData(), ValueCharArray.Num(), bShouldStopOnSeparator) )
 		{
@@ -685,10 +685,10 @@ bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, struct FGuid& Guid 
 	if( FCString::Strlen(Temp)==32 )
 	{
 		TCHAR* End;
-		Guid.D = FCString::Strtoi( Temp+24, &End, 16 ); Temp[24]=0;
-		Guid.C = FCString::Strtoi( Temp+16, &End, 16 ); Temp[16]=0;
-		Guid.B = FCString::Strtoi( Temp+8,  &End, 16 ); Temp[8 ]=0;
-		Guid.A = FCString::Strtoi( Temp+0,  &End, 16 ); Temp[0 ]=0;
+		Guid.D = FCString::Strtoi( Temp+24, &End, 16 ); Temp[24] = TCHAR('\0');
+		Guid.C = FCString::Strtoi( Temp+16, &End, 16 ); Temp[16] = TCHAR('\0');
+		Guid.B = FCString::Strtoi( Temp+8,  &End, 16 ); Temp[8 ] = TCHAR('\0');
+		Guid.A = FCString::Strtoi( Temp+0,  &End, 16 ); Temp[0 ] = TCHAR('\0');
 	}
 	return true;
 }
@@ -847,8 +847,8 @@ bool FParse::Token( const TCHAR*& Str, TCHAR* Result, int32 MaxLen, bool UseEsca
 			}
 		}
 	}
-	Result[Len]=0;
-	return Len!=0;
+	Result[Len] = TCHAR('\0');
+	return Len != TCHAR('\0');
 }
 
 bool FParse::Token( const TCHAR*& Str, FString& Arg, bool UseEscape )
@@ -966,7 +966,7 @@ bool FParse::Line(const TCHAR** Stream, TCHAR* Result, int32 MaxLen, bool bExact
 	bool bIsQuoted = false;
 	bool bIgnore = false;
 
-	*Result=0;
+	*Result = TCHAR('\0');
 	while (**Stream != TEXT('\0') && **Stream != TEXT('\n') && **Stream != TEXT('\r') && --MaxLen > 0)
 	{
 		// Start of comments.

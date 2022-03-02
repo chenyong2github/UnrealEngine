@@ -597,7 +597,7 @@ struct FGPUHardware
 			for (const FString& SuggestedVersion : SuggestedDriverVersions)
 			{
 				int32 Found = 0;
-				if (!SuggestedVersion.FindChar(';', Found))
+				if (!SuggestedVersion.FindChar(TEXT(';'), Found))
 				{
 					return SuggestedVersion;
 				}

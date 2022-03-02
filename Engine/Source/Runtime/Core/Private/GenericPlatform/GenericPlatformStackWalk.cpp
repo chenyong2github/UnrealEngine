@@ -139,8 +139,8 @@ bool FGenericPlatformStackWalk::SymbolInfoToHumanReadableStringEx( const FProgra
 	// Strip module path.
 	int32 Pos0;
 	int32 Pos1;
-	SymbolInfo.ModuleName.FindLastChar('\\', Pos0);
-	SymbolInfo.ModuleName.FindLastChar('/', Pos1);
+	SymbolInfo.ModuleName.FindLastChar(TEXT('\\'), Pos0);
+	SymbolInfo.ModuleName.FindLastChar(TEXT('/'), Pos1);
 	const int32 RealPos = FMath::Max( Pos0, Pos1 );
 	const FString StrippedModuleName = RealPos > 0 ? SymbolInfo.ModuleName.RightChop(RealPos + 1) : SymbolInfo.ModuleName;
 

@@ -1020,7 +1020,7 @@ const TCHAR* FWindowsPlatformProcess::BaseDir()
 					}
 				}
 			}
-			Result[StringLength] = 0;
+			Result[StringLength] = TCHAR('\0');
 
 			FString CollapseResult(Result);
 #ifdef UE_RELATIVE_BASE_DIR
@@ -1135,7 +1135,7 @@ const TCHAR* FWindowsPlatformProcess::UserName(bool bOnlyAlphaNumeric/* = true*/
 			for( c=ResultAlpha, d=ResultAlpha; *c!=0; c++ )
 				if( FChar::IsAlnum(*c) )
 					*d++ = *c;
-			*d++ = 0;
+			*d++ = TCHAR('\0');
 		}
 		return ResultAlpha;
 	}
@@ -1207,7 +1207,7 @@ const TCHAR* FWindowsPlatformProcess::ExecutablePath()
 	{
 		if ( !GetModuleFileName( hInstance, Result, UE_ARRAY_COUNT(Result) ) )
 		{
-			Result[0] = 0;
+			Result[0] = TCHAR('\0');
 		}
 	}
 	return Result;
@@ -1336,7 +1336,7 @@ bool FWindowsPlatformProcess::ResolveNetworkPath( FString InUNCPath, FString& Ou
 	// Get local machine name first and check if this UNC path points to local share
 	// (if it's not UNC path it will also fail this check)
 	uint32 ComputerNameSize = MAX_COMPUTERNAME_LENGTH;
-	TCHAR ComputerName[MAX_COMPUTERNAME_LENGTH + 3] = { '\\', '\\', '\0', };
+	TCHAR ComputerName[MAX_COMPUTERNAME_LENGTH + 3] = { TEXT('\\'), TEXT('\\'), TEXT('\0'), };
 
 	if ( GetComputerName( ComputerName + 2, (::DWORD*)&ComputerNameSize ) )
 	{

@@ -28,7 +28,7 @@ TCHAR FTokenStream::PeekChar(int32 Offset) const
 		return *(ReadPos + Offset);
 	}
 
-	return '\0';
+	return TEXT('\0');
 }
 
 int32 FTokenStream::CharsRemaining() const

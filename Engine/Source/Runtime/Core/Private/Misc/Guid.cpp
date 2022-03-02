@@ -105,10 +105,10 @@ FString FGuid::ToString(EGuidFormats Format) const
 
 		for(int32 i=OutCharArray.Num(); i<25; i++)
 		{
-			OutCharArray.Add('0');
+			OutCharArray.Add(TEXT('0'));
 		}
 
-		OutCharArray.Add(0);
+		OutCharArray.Add(TCHAR('\0'));
 
 		check(Result.Len() == 25);
 		return Result.Reverse();

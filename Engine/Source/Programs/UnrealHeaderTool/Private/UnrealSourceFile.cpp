@@ -69,7 +69,7 @@ const FString& FUnrealSourceFile::GetFileId() const
 			}
 			else
 			{
-				Out.AppendChar('_');
+				Out.AppendChar(TEXT('_'));
 			}
 		}
 

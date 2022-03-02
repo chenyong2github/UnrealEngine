@@ -1103,7 +1103,7 @@ const TCHAR* DebugPathName(UObject* Object)
 	{
 		// Hardcoded static array. This function is only used inside the debugger so it should be fine to return it.
 		static TCHAR PathName[1024];
-		PathName[0] = 0;
+		PathName[0] = TCHAR('\0');
 
 		// Keep track of how many outers we have as we need to print them in inverse order.
 		UObject*	TempObject = Object;
@@ -1153,7 +1153,7 @@ const TCHAR* DebugFullName(UObject* Object)
 	{
 		// Hardcoded static array. This function is only used inside the debugger so it should be fine to return it.
 		static TCHAR FullName[1024];
-		FullName[0]=0;
+		FullName[0] = TCHAR('\0');
 
 		// Class Full.Path.Name
 		FCString::Strcat( FullName, DebugFName(Object->GetClass()) );

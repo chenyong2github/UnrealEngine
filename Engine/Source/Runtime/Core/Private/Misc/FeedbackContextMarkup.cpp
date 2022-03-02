@@ -65,7 +65,7 @@ bool FFeedbackContextMarkup::PipeProcessOutput(const FText& Description, const F
 			BufferedText += FPlatformProcess::ReadPipe(PipeRead);
 
 			int32 EndOfLineIdx;
-			while(BufferedText.FindChar('\n', EndOfLineIdx))
+			while(BufferedText.FindChar(TEXT('\n'), EndOfLineIdx))
 			{
 				FString Line = BufferedText.Left(EndOfLineIdx);
 				Line.RemoveFromEnd(TEXT("\r"), ESearchCase::CaseSensitive);

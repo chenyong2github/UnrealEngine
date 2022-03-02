@@ -349,7 +349,7 @@ FOutputDeviceFile::FOutputDeviceFile( const TCHAR* InFilename, bool bInDisableBa
 	}
 	else
 	{
-		Filename[0]	= 0;
+		Filename[0]	= TCHAR('\0');
 	}
 
 #if ALLOW_LOG_FILE && !NO_LOGGING
@@ -396,7 +396,7 @@ void FOutputDeviceFile::TearDown()
 	delete WriterArchive;
 	WriterArchive = nullptr;
 
-	Filename[0] = 0;
+	Filename[0] = TCHAR('\0');
 }
 
 /**

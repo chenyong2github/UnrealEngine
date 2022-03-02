@@ -2055,8 +2055,8 @@ FString ExtractObjectName(const FString& InFullPath)
 {
 	FString ObjectName = InFullPath;
 	int32 LastDot, LastSemi;
-	InFullPath.FindLastChar('.', LastDot);
-	InFullPath.FindLastChar(':', LastSemi);
+	InFullPath.FindLastChar(TEXT('.'), LastDot);
+	InFullPath.FindLastChar(TEXT(':'), LastSemi);
 	int32 StartOfObjectName = FMath::Max(LastDot, LastSemi);
 	if (StartOfObjectName != INDEX_NONE)
 	{

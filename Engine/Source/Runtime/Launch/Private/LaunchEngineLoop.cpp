@@ -386,7 +386,7 @@ public:
 #if PLATFORM_WINDOWS
 			if (bIsConsoleOutput)
 			{
-				line.AppendChar('\n');
+				line.AppendChar(TEXT('\n'));
 
 				WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE), *line, line.Len(), NULL, NULL);
 

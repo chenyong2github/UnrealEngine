@@ -325,8 +325,8 @@ int32 FWindowsOSVersionHelper::GetOSVersions( FString& OutOSVersionLabel, FStrin
 	TCHAR OSVersionLabel[128];
 	TCHAR OSSubVersionLabel[128];
 
-	OSVersionLabel[0] = 0;
-	OSSubVersionLabel[0] = 0;
+	OSVersionLabel[0] = TEXT('\0');
+	OSSubVersionLabel[0] = TEXT('\0');
 
 	int32 Result = GetOSVersionsHelper( OSVersionLabel, UE_ARRAY_COUNT(OSVersionLabel), OSSubVersionLabel, UE_ARRAY_COUNT(OSSubVersionLabel) );
 
@@ -694,7 +694,7 @@ void FWindowsPlatformMisc::GetEnvironmentVariable(const TCHAR* VariableName, TCH
 	uint32 Error = ::GetEnvironmentVariableW(VariableName, Result, ResultLength);
 	if (Error <= 0)
 	{		
-		*Result = 0;
+		*Result = TEXT('\0');
 	}
 }
 
@@ -2696,8 +2696,8 @@ void FWindowsPlatformMisc::GetOSVersions( FString& OutOSVersionLabel, FString& O
 	{
 		FOSVersionsInitializer()
 		{
-			OSVersionLabel[0] = 0;
-			OSSubVersionLabel[0] = 0;
+			OSVersionLabel[0] = TEXT('\0');
+			OSSubVersionLabel[0] = TEXT('\0');
 			GetOSVersionsHelper( OSVersionLabel, UE_ARRAY_COUNT(OSVersionLabel), OSSubVersionLabel, UE_ARRAY_COUNT(OSSubVersionLabel) );
 		}
 
@@ -2716,10 +2716,10 @@ FString FWindowsPlatformMisc::GetOSVersion()
 	{
 		FOSVersionInitializer()
 		{
-			CachedOSVersion[0] = 0;
+			CachedOSVersion[0] = TEXT('\0');
 			if (!GetOSVersionHelper(CachedOSVersion, UE_ARRAY_COUNT(CachedOSVersion)))
 			{
-				CachedOSVersion[0] = 0;
+				CachedOSVersion[0] = TEXT('\0');
 			}
 		}
 

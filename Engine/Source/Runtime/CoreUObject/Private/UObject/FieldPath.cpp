@@ -118,15 +118,15 @@ void FFieldPath::Generate(const TCHAR* InFieldPathString)
 		// Construct names
 		while (true)
 		{
-			if (*InFieldPathString == '.' || *InFieldPathString == SUBOBJECT_DELIMITER_CHAR || *InFieldPathString == '\0')
+			if (*InFieldPathString == TEXT('.') || *InFieldPathString == SUBOBJECT_DELIMITER_CHAR || *InFieldPathString == TEXT('\0'))
 			{
-				NameBuffer[NameIndex] = '\0';
+				NameBuffer[NameIndex] = TEXT('\0');
 				if (NameIndex > 0)
 				{
 					Result.Add(NameBuffer);
 					NameIndex = 0;
 				}
-				if (*InFieldPathString == '\0')
+				if (*InFieldPathString == TEXT('\0'))
 				{
 					break;
 				}

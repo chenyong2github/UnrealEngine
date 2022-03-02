@@ -134,7 +134,7 @@ void FFileHelper::BufferToString( FString& Result, const uint8* Buffer, int32 Si
 	else
 	{
 		// Else ensure null terminator is present
-		ResultArray.Last() = 0;
+		ResultArray.Last() = TCHAR('\0');
 
 		if (bIsUnicode)
 		{

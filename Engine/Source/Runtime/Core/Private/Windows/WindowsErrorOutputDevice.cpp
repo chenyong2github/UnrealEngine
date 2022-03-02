@@ -38,7 +38,7 @@ void FWindowsErrorOutputDevice::Serialize( const TCHAR* Msg, ELogVerbosity::Type
 		// First appError.
 		GIsCriticalError = 1;
 		TCHAR ErrorBuffer[1024];
-		ErrorBuffer[0] = 0;
+		ErrorBuffer[0] = TCHAR('\0');
 
 		// Windows error.
 		if (LastError == 0)
@@ -97,7 +97,7 @@ void FWindowsErrorOutputDevice::HandleError()
 	GIsRunning				= 0;
 	GIsCriticalError		= 1;
 	GLogConsole				= NULL;
-	GErrorHist[UE_ARRAY_COUNT(GErrorHist)-1]=0;
+	GErrorHist[UE_ARRAY_COUNT(GErrorHist) - 1] = TCHAR('\0');
 
 	// Trigger the OnSystemFailure hook if it exists
 	// make sure it happens after GIsGuarded is set to 0 in case this hook crashes

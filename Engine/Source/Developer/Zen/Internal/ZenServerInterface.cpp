@@ -406,9 +406,9 @@ ReadCbLockFile(FStringView FileName, FCbObject& OutLockObject)
 	FPathViews::ToAbsolutePath(FileName, FullFileNameBuilder);
 	for (TCHAR& Char : MakeArrayView(FullFileNameBuilder))
 	{
-		if (Char == '/')
+		if (Char == TEXT('/'))
 		{
-			Char = '\\';
+			Char = TEXT('\\');
 		}
 	}
 	if (FullFileNameBuilder.Len() >= MAX_PATH)

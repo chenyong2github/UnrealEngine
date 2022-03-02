@@ -84,7 +84,7 @@ FString FPackageName::GetShortName(const FString& LongName)
 {
 	// Get everything after the last slash
 	int32 IndexOfLastSlash = INDEX_NONE;
-	LongName.FindLastChar('/', IndexOfLastSlash);
+	LongName.FindLastChar(TEXT('/'), IndexOfLastSlash);
 	return LongName.Mid(IndexOfLastSlash + 1);
 }
 
@@ -852,7 +852,7 @@ bool FPackageName::TryConvertToMountedPath(FStringView InFilePathOrPackageName, 
 FString FPackageName::GetLongPackagePath(const FString& InLongPackageName)
 {
 	int32 IndexOfLastSlash = INDEX_NONE;
-	if (InLongPackageName.FindLastChar('/', IndexOfLastSlash))
+	if (InLongPackageName.FindLastChar(TEXT('/'), IndexOfLastSlash))
 	{
 		return InLongPackageName.Left(IndexOfLastSlash);
 	}
@@ -942,15 +942,15 @@ void FPackageName::SplitFullObjectPath(FStringView InFullObjectPath, FStringView
 	// then ClassName is empty and the remaining string is PackageName.ObjectName:SubObjectName
 	if (bDetectClassName)
 	{
-		ExtractBeforeDelim(' ', OutClassName);
+		ExtractBeforeDelim(TEXT(' '), OutClassName);
 	}
 	else
 	{
 		OutClassName.Reset();
 	}
-	if (ExtractBeforeDelim('.', OutPackageName))
+	if (ExtractBeforeDelim(TEXT('.'), OutPackageName))
 	{
-		if (ExtractBeforeDelim(':', OutObjectName))
+		if (ExtractBeforeDelim(TEXT(':'), OutObjectName))
 		{
 			OutSubObjectName = Remaining;
 		}
@@ -1130,7 +1130,7 @@ bool FPackageName::IsValidObjectPath(const FString& InObjectPath, FText* OutReas
 
 	// Check for package delimiter
 	int32 ObjectDelimiterIdx;
-	if (InObjectPath.FindChar('.', ObjectDelimiterIdx))
+	if (InObjectPath.FindChar(TEXT('.'), ObjectDelimiterIdx))
 	{
 		if (ObjectDelimiterIdx == InObjectPath.Len() - 1)
 		{
@@ -1173,7 +1173,7 @@ bool FPackageName::IsValidObjectPath(const FString& InObjectPath, FText* OutReas
 		}
 
 		int32 SlashIndex;
-		if (RemainingObjectPath.FindChar('/', SlashIndex))
+		if (RemainingObjectPath.FindChar(TEXT('/'), SlashIndex))
 		{
 			if (OutReason)
 			{
@@ -1845,7 +1845,7 @@ FString FPackageName::GetDelegateResolvedPackagePath(const FString& InSourcePack
 		FString ObjectName;
 		int32 DotIndex = INDEX_NONE;
 
-		if (PathName.FindChar('.', DotIndex))
+		if (PathName.FindChar(TEXT('.'), DotIndex))
 		{
 			ObjectName = PathName.Mid(DotIndex + 1);
 			PathName.LeftInline(DotIndex, false);
@@ -1868,7 +1868,7 @@ FString FPackageName::GetDelegateResolvedPackagePath(const FString& InSourcePack
 			if (ObjectName.Len())
 			{
 				int32 LastSlashIndex = INDEX_NONE;
-				if (PathName.FindLastChar('/', LastSlashIndex))
+				if (PathName.FindLastChar(TEXT('/'), LastSlashIndex))
 				{
 					ObjectName = PathName.Mid(LastSlashIndex + 1);
 				}

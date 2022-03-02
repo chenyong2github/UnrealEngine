@@ -31,10 +31,10 @@ bool FCommandLine::IsInitialized()
 
 void FCommandLine::Reset()
 {
-	CmdLine[0] = '\0';
-	OriginalCmdLine[0] = '\0';
-	LoggingCmdLine[0] = '\0';
-	LoggingOriginalCmdLine[0] = '\0';
+	CmdLine[0] = TEXT('\0');
+	OriginalCmdLine[0] = TEXT('\0');
+	LoggingCmdLine[0] = TEXT('\0');
+	LoggingOriginalCmdLine[0] = TEXT('\0');
 	bIsInitialized = false;
 }
 

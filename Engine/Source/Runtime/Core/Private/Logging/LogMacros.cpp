@@ -64,7 +64,7 @@ void FMsg::LogfImpl(const ANSICHAR* File, int32 Line, const FLogCategoryName& Ca
 			GET_VARARGS(MsgLogfStaticBuffer, UE_ARRAY_COUNT(MsgLogfStaticBuffer), UE_ARRAY_COUNT(MsgLogfStaticBuffer) - 1, Fmt, Fmt);
 			// Copy the message to the stack-allocated buffer)
 			FCString::Strncpy(Message, MsgLogfStaticBuffer, UE_ARRAY_COUNT(Message) - 1);
-			Message[UE_ARRAY_COUNT(Message) - 1] = '\0';
+			Message[UE_ARRAY_COUNT(Message) - 1] = TEXT('\0');
 		}
 
 		const int32 NumStackFramesToIgnore = 1;
@@ -111,7 +111,7 @@ void FMsg::Logf_InternalImpl(const ANSICHAR* File, int32 Line, const FLogCategor
 			GET_VARARGS(MsgLogfStaticBuffer, UE_ARRAY_COUNT(MsgLogfStaticBuffer), UE_ARRAY_COUNT(MsgLogfStaticBuffer) - 1, Fmt, Fmt);
 			// Copy the message to the stack-allocated buffer)
 			FCString::Strncpy(Message, MsgLogfStaticBuffer, UE_ARRAY_COUNT(Message) - 1);
-			Message[UE_ARRAY_COUNT(Message) - 1] = '\0';
+			Message[UE_ARRAY_COUNT(Message) - 1] = TEXT('\0');
 		}
 
 		const int32 NumStackFramesToIgnore = 1;

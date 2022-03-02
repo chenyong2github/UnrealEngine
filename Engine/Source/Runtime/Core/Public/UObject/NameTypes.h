@@ -139,7 +139,7 @@ typedef FNameEntryId NAME_INDEX;
 #define SUBOBJECT_DELIMITER				TEXT(":")
 
 /** this is the character used to separate a subobject root from its subobjects in a path name, as a char */
-#define SUBOBJECT_DELIMITER_CHAR		':'
+#define SUBOBJECT_DELIMITER_CHAR		TEXT(':')
 
 /** These are the characters that cannot be used in general FNames */
 #define INVALID_NAME_CHARACTERS			TEXT("\"' ,\n\r\t")

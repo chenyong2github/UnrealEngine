@@ -593,7 +593,7 @@ FString FGCStackSizeHelper::GetPropertyPath() const
 {
 	FString Result;
 	const FProperty* PreviousProperty = nullptr;
-	const TCHAR DelimiterChar = '.';
+	const TCHAR DelimiterChar = TEXT('.');
 
 	for (int32 PropertyIndex = 0; PropertyIndex < PropertyStack.Num(); ++PropertyIndex)
 	{
@@ -617,7 +617,7 @@ FString FGCStackSizeHelper::GetPropertyPath() const
 
 bool FGCStackSizeHelper::ConvertPathToProperties(UClass* ObjectClass, const FName& InPropertyPath, TArray<FProperty*>& OutProperties)
 {
-	const TCHAR DelimiterChar = '.';
+	const TCHAR DelimiterChar = TEXT('.');
 	FString PropertyNameOrPath = InPropertyPath.ToString();
 	int32 DelimiterIndex = -1;
 	bool bFullPathConstructed = true;
@@ -645,7 +645,7 @@ bool FGCStackSizeHelper::ConvertPathToProperties(UClass* ObjectClass, const FNam
 			OutProperties.Add(FoundProperty);
 
 			int32 StartIndex = DelimiterIndex + 1;
-			const TCHAR DelimiterStr[] = { DelimiterChar, '\0' };
+			const TCHAR DelimiterStr[] = { DelimiterChar, TEXT('\0') };
 			do
 			{
 				// Determine the next property name
@@ -1054,7 +1054,7 @@ void FProperty::ExportCppDeclaration(FOutputDevice& Out, EExportedDeclaration::T
 				else
 				{
 					// export as a pointer if this is an optional out parm, reference if it's just an out parm, standard otherwise...
-					TCHAR ModifierString[2]={0,0};
+					TCHAR ModifierString[2] = { TCHAR('\0'), TCHAR('\0') };
 					if (bCanHaveRef && (HasAnyPropertyFlags(CPF_OutParm | CPF_ReferenceParm) || bIsInterfaceProp))
 					{
 						ModifierString[0] = TEXT('&');
