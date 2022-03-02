@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
+					"Projects",
 					"Core",
 					"CoreUObject",
 					"UnrealEd",
