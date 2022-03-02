@@ -91,6 +91,12 @@ public:
 	 * Get the connectivity string used for client travel
 	 */
 	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) = 0;
+
+	/**
+	 * Get the provider type of this instance.
+	 * @return provider type
+	 */
+	virtual EOnlineServices GetServicesProvider() const = 0;
 };
 
 /**

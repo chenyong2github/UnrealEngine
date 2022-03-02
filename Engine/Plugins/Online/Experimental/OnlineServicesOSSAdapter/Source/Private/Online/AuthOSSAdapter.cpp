@@ -209,78 +209,153 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthOSSAdapter::Logout(FAuthLogout::Params&& 
 	return Op->GetHandle();
 }
 
-TOnlineAsyncOpHandle<FAuthGenerateAuth> FAuthOSSAdapter::GenerateAuth(FAuthGenerateAuth::Params&& Params)
+TOnlineAsyncOpHandle<FAuthGenerateAuthToken> FAuthOSSAdapter::GenerateAuthToken(FAuthGenerateAuthToken::Params&& Params)
 {
-	TSharedRef<TOnlineAsyncOp<FAuthGenerateAuth>> Op = GetOp<FAuthGenerateAuth>(MoveTemp(Params));
+	TSharedRef<TOnlineAsyncOp<FAuthGenerateAuthToken>> Op = GetOp<FAuthGenerateAuthToken>(MoveTemp(Params));
 
 	if (!Op->IsReady())
 	{
-		FUniqueNetIdRef UniqueNetId = GetUniqueNetId(Params.LocalUserId);
-
+		const FUniqueNetIdRef UniqueNetId = GetUniqueNetId(Op->GetParams().LocalUserId);
 		if (!UniqueNetId->IsValid())
 		{
 			Op->SetError(Errors::InvalidParams());
 			return Op->GetHandle();
 		}
 
-		if (GetIdentityInterface()->GetLoginStatus(*UniqueNetId) != ::ELoginStatus::LoggedIn)
+		IOnlineIdentityPtr Identity = GetIdentityInterface();
+		if (Identity->GetLoginStatus(*UniqueNetId) == ::ELoginStatus::LoggedIn)
 		{
-			Op->SetError(Errors::InvalidAuth());
+			Op->Then([this](TOnlineAsyncOp<FAuthGenerateAuthToken>& Op)
+			{
+				if (IOnlineIdentityPtr Identity = GetIdentityInterface())
+				{
+					const FUniqueNetIdRef UniqueNetId = GetUniqueNetId(Op.GetParams().LocalUserId);
+					const int32 LocalUserNum = Identity->GetLocalUserNumFromPlatformUserId(Identity->GetPlatformUserIdFromUniqueNetId(*UniqueNetId));
+
+					Identity->GetLinkedAccountAuthToken(LocalUserNum, IOnlineIdentity::FOnGetLinkedAccountAuthTokenCompleteDelegate::CreateLambda([this, WeakOp = Op.AsWeak()](int32 LocalUserNum, bool bWasSuccessful, const FExternalAuthToken& AuthToken)
+					{
+						TSharedPtr<TOnlineAsyncOp<FAuthGenerateAuthToken>> Op = WeakOp.Pin();
+						if (!Op)
+						{
+							return;
+						}
+
+						if (bWasSuccessful && AuthToken.IsValid())
+						{
+							FAuthGenerateAuthToken::Result Result;
+							Result.Type = LexToString(Services.GetServicesProvider());
+							if (AuthToken.HasTokenString())
+							{
+								Result.Token.Emplace<FString>(AuthToken.TokenString);
+							}
+							else if (AuthToken.HasTokenData())
+							{
+								Result.Token.Emplace<TArray<uint8>>(AuthToken.TokenData);
+							}
+							else
+							{
+								checkNoEntry();
+							}
+							Op->SetResult(MoveTemp(Result));
+						}
+						else
+						{
+							Op->SetError(Errors::Unknown());
+						}
+					}));
+				}
+				else
+				{
+					Op.SetError(Errors::Unknown());
+				}
+			})
+			.Enqueue(GetSerialQueue());
 		}
 		else
 		{
-			Op->SetResult(FAuthGenerateAuth::Result());
+			Op->SetError(Errors::InvalidAuth());
 		}
 	}
 
 	return Op->GetHandle();
 }
 
-TOnlineResult<FAuthGetAuthToken> FAuthOSSAdapter::GetAuthToken(FAuthGetAuthToken::Params&& Params)
+TOnlineAsyncOpHandle<FAuthGenerateAuthCode> FAuthOSSAdapter::GenerateAuthCode(FAuthGenerateAuthCode::Params&& Params)
 {
-	FUniqueNetIdRef UniqueNetId = GetUniqueNetId(Params.LocalUserId);
+	TSharedRef<TOnlineAsyncOp<FAuthGenerateAuthCode>> Op = GetOp<FAuthGenerateAuthCode>(MoveTemp(Params));
 
-	if (!UniqueNetId->IsValid())
+	if (!Op->IsReady())
 	{
-		return TOnlineResult<FAuthGetAuthToken>(Errors::InvalidUser());
-	}
-
-	if (GetIdentityInterface()->GetLoginStatus(*UniqueNetId) != ::ELoginStatus::LoggedIn)
-	{
-		return TOnlineResult<FAuthGetAuthToken>(Errors::InvalidAuth());
-	}
-
-	TSharedPtr<FUserOnlineAccount> UserAccount = GetIdentityInterface()->GetUserAccount(*UniqueNetId);
-	if (UserAccount.IsValid())
-	{
-		FAuthGetAuthToken::Result Result;
-		Result.Token = UserAccount->GetAccessToken();
-
-		return TOnlineResult<FAuthGetAuthToken>(Result);
-	}
-	else
-	{
-		// Fall back to GetAuthToken if the user account is not available (Steam doesn't implement GetUserAccount)
-		int32 LocalUserIndex = GetLocalUserNum(Params.LocalUserId);
-
-		if (LocalUserIndex < 0 || LocalUserIndex >= MAX_LOCAL_PLAYERS)
+		const FUniqueNetIdRef UniqueNetId = GetUniqueNetId(Op->GetParams().LocalUserId);
+		if (!UniqueNetId->IsValid())
 		{
-			return TOnlineResult<FAuthGetAuthToken>(Errors::InvalidUser());
+			Op->SetError(Errors::InvalidParams());
+			return Op->GetHandle();
 		}
 
-		FString Token = GetIdentityInterface()->GetAuthToken(LocalUserIndex);
-		if (!Token.IsEmpty())
+		IOnlineIdentityPtr Identity = GetIdentityInterface();
+		if (Identity->GetLoginStatus(*UniqueNetId) == ::ELoginStatus::LoggedIn)
 		{
-			FAuthGetAuthToken::Result Result;
-			Result.Token = Token;
+			const int32 LocalUserNum = Identity->GetLocalUserNumFromPlatformUserId(Identity->GetPlatformUserIdFromUniqueNetId(*UniqueNetId));
 
-			return TOnlineResult<FAuthGetAuthToken>(Result);
+			FString Token = Identity->GetAuthToken(LocalUserNum);
+			if (Token.IsEmpty())
+			{
+				Op->Then([this](TOnlineAsyncOp<FAuthGenerateAuthCode>& Op)
+				{
+					// AutoLogin to generate the token. Token generation is a side effect of calling login, but you can be logged in without calling login.
+					FOnLoginCompleteDelegate LoginCompleteDelegate = FOnLoginCompleteDelegate::CreateLambda([this, WeakOp = Op.AsWeak()](int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error)
+					{
+						TSharedPtr<TOnlineAsyncOp<FAuthGenerateAuthCode>> Op = WeakOp.Pin();
+						if (!Op)
+						{
+							return;
+						}
+
+						IOnlineIdentityPtr Identity = GetIdentityInterface();
+						if (bWasSuccessful && Identity)
+						{
+							if (const FDelegateHandle* LoginCompleteHandle = Op->Data.Get<FDelegateHandle>(TEXT("LoginCompleteHandle")))
+							{
+								Identity->ClearOnLoginCompleteDelegate_Handle(LocalUserNum, *const_cast<FDelegateHandle*>(LoginCompleteHandle));
+							}
+
+							FString Token = Identity->GetAuthToken(LocalUserNum);
+							if (!Token.IsEmpty())
+							{
+								FAuthGenerateAuthCode::Result Result;
+								Result.Code = MoveTemp(Token);
+								Op->SetResult(MoveTemp(Result));
+								return;
+							}
+						}
+						Op->SetError(Errors::Unknown());
+					});
+
+
+					IOnlineIdentityPtr Identity = GetIdentityInterface();
+					const FUniqueNetIdRef UniqueNetId = GetUniqueNetId(Op.GetParams().LocalUserId);
+					const int32 LocalUserNum = Identity->GetLocalUserNumFromPlatformUserId(Identity->GetPlatformUserIdFromUniqueNetId(*UniqueNetId));
+					FDelegateHandle LoginCompleteHandle = Identity->AddOnLoginCompleteDelegate_Handle(LocalUserNum, LoginCompleteDelegate);
+					Op.Data.Set(TEXT("LoginCompleteHandle"), MoveTemp(LoginCompleteHandle));
+					Identity->AutoLogin(LocalUserNum);
+				})
+				.Enqueue(GetSerialQueue());
+			}
+			else
+			{
+				FAuthGenerateAuthCode::Result Result;
+				Result.Code = MoveTemp(Token);
+				Op->SetResult(MoveTemp(Result));
+			}
 		}
 		else
 		{
-			return TOnlineResult<FAuthGetAuthToken>(Errors::InvalidUser());
+			Op->SetError(Errors::InvalidAuth());
 		}
 	}
+
+	return Op->GetHandle();
 }
 
 TOnlineResult<FAuthGetAccountByPlatformUserId> FAuthOSSAdapter::GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params)

@@ -26,8 +26,7 @@ public:
 	virtual void RegisterComponents() override;
 	virtual void Initialize() override;
 	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) override;
-
-	static EOnlineServices GetServicesProvider() { return EOnlineServices::Epic; }
+	virtual EOnlineServices GetServicesProvider() const override { return EOnlineServices::Epic; }
 
 	EOS_HPlatform GetEOSPlatformHandle() const;
 protected:

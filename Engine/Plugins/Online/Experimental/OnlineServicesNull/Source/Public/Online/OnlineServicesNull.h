@@ -15,8 +15,8 @@ public:
 	virtual void RegisterComponents() override;
 	virtual void Initialize() override;
 	virtual TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(FGetResolvedConnectString::Params&& Params) override;
+	virtual EOnlineServices GetServicesProvider() const override { return EOnlineServices::Null; }
 
-	static EOnlineServices GetServicesProvider() { return EOnlineServices::Null; }
 };
 
 /* UE::Online */ }

@@ -446,8 +446,12 @@ void TestToLogStringSyntax()
 	//ToLogString(UE::Online::FAuthLogin::Result()); default constructing a TSharedPtr will crash
 	ToLogString(UE::Online::FAuthLogout::Params());
 	ToLogString(UE::Online::FAuthLogout::Result());
-	ToLogString(UE::Online::FAuthGenerateAuth::Params());
-	ToLogString(UE::Online::FAuthGenerateAuth::Result());
+	ToLogString(UE::Online::FAuthGenerateAuthToken::Params());
+	ToLogString(UE::Online::FAuthGenerateAuthToken::Result());
+	ToLogString(UE::Online::FAuthGetAuthToken::Params());
+	ToLogString(UE::Online::FAuthGetAuthToken::Result());
+	ToLogString(UE::Online::FAuthGenerateAuthCode::Params());
+	ToLogString(UE::Online::FAuthGenerateAuthCode::Result());
 	ToLogString(UE::Online::FAuthGetAccountByPlatformUserId::Params());
 	ToLogString(UE::Online::FAuthGetAccountByPlatformUserId::Result());
 	ToLogString(UE::Online::FAuthGetAccountByAccountId::Params());

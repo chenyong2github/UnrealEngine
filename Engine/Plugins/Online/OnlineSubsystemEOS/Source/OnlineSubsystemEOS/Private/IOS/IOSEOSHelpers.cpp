@@ -53,24 +53,6 @@ FIOSEOSHelpers::~FIOSEOSHelpers()
 #endif
 }
 
-FString FIOSEOSHelpers::PlatformCreateCacheDir(const FString &ArtifactName, const FString &EOSSettingsCacheDir)
-{
-	NSString *BundleIdentifier = [[NSBundle mainBundle] bundleIdentifier];
-	NSString *CacheDirectory = NSTemporaryDirectory();									// Potentially use NSCachesDirectory
-	CacheDirectory = [CacheDirectory stringByAppendingPathComponent:BundleIdentifier];
-
-	FTCHARToUTF8 TCArtifactName(*ArtifactName);
-	NSString *NSArtifactName = [NSString stringWithUTF8String:TCArtifactName.Get()];
-	CacheDirectory = [CacheDirectory stringByAppendingPathComponent:NSArtifactName];
-
-	FTCHARToUTF8 TCEOSSettingsCacheDir(*EOSSettingsCacheDir);
-	NSString *NSEOSSettingsCacheDir = [NSString stringWithUTF8String:TCArtifactName.Get()];
-	CacheDirectory = [CacheDirectory stringByAppendingPathComponent:NSEOSSettingsCacheDir];
-
-	const char *CStrCacheDirectory = [CacheDirectory UTF8String];
-	return FString(UTF8_TO_TCHAR(CStrCacheDirectory));
-}
-
 void FIOSEOSHelpers::PlatformAuthCredentials(EOS_Auth_Credentials &Credentials)
 {
 #if PRESENTATIONCONTEXT_REQUIRED

@@ -6,6 +6,11 @@
 
 #include "EOSSDKManager.h"
 
-using FPlatformEOSSDKManager = FEOSSDKManager;
+class FIOSEOSSDKManager : public FEOSSDKManager
+{
+	virtual FString GetCacheDirBase() const override;
+};
+
+using FPlatformEOSSDKManager = FIOSEOSSDKManager;
 
 #endif // WITH_EOS_SDK

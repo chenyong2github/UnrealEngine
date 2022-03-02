@@ -68,34 +68,6 @@ void FOnlineServicesEOS::RegisterComponents()
 
 void FOnlineServicesEOS::Initialize()
 {
-	FEOSPlatformConfig EOSPlatformConfig;
-	LoadConfig(EOSPlatformConfig);
-
-	FTCHARToUTF8 ProductId(*EOSPlatformConfig.ProductId);
-	FTCHARToUTF8 SandboxId(*EOSPlatformConfig.SandboxId);
-	FTCHARToUTF8 DeploymentId(*EOSPlatformConfig.DeploymentId);
-	FTCHARToUTF8 ClientId(*EOSPlatformConfig.ClientId);
-	FTCHARToUTF8 ClientSecret(*EOSPlatformConfig.ClientSecret);
-
-	EOS_Platform_Options PlatformOptions = {};
-	PlatformOptions.ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
-	PlatformOptions.Reserved = nullptr;
-	PlatformOptions.bIsServer = EOS_FALSE;
-	PlatformOptions.OverrideCountryCode = nullptr;
-	PlatformOptions.OverrideLocaleCode = nullptr;
-	PlatformOptions.Flags = EOS_PF_WINDOWS_ENABLE_OVERLAY_D3D9 | EOS_PF_WINDOWS_ENABLE_OVERLAY_D3D10 | EOS_PF_WINDOWS_ENABLE_OVERLAY_OPENGL; // Enable overlay support for D3D9/10 and OpenGL. This sample uses D3D11 or SDL.
-
-	char CacheDirectory[512];
-	FCStringAnsi::Strncpy(CacheDirectory, TCHAR_TO_UTF8(*(FPlatformProcess::UserDir() / FString(TEXT("CacheDir")))), 512);
-	PlatformOptions.CacheDirectory = CacheDirectory;
-
-	PlatformOptions.ProductId = ProductId.Get();
-	PlatformOptions.SandboxId = SandboxId.Get();
-	PlatformOptions.DeploymentId = DeploymentId.Get();
-
-	PlatformOptions.ClientCredentials.ClientId = ClientId.Get();
-	PlatformOptions.ClientCredentials.ClientSecret = ClientSecret.Get();
-
 	IEOSSDKManager* SDKManager = IEOSSDKManager::Get();
 	if (!SDKManager)
 	{
@@ -107,6 +79,31 @@ void FOnlineServicesEOS::Initialize()
 	{
 		return;
 	}
+
+	FEOSPlatformConfig EOSPlatformConfig;
+	LoadConfig(EOSPlatformConfig);
+
+	const FTCHARToUTF8 ProductId(*EOSPlatformConfig.ProductId);
+	const FTCHARToUTF8 SandboxId(*EOSPlatformConfig.SandboxId);
+	const FTCHARToUTF8 DeploymentId(*EOSPlatformConfig.DeploymentId);
+	const FTCHARToUTF8 ClientId(*EOSPlatformConfig.ClientId);
+	const FTCHARToUTF8 ClientSecret(*EOSPlatformConfig.ClientSecret);
+	const FTCHARToUTF8 CacheDirectory(SDKManager->GetCacheDirBase() / TEXT("OnlineServicesEOS"));
+
+	EOS_Platform_Options PlatformOptions = {};
+	PlatformOptions.ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
+	PlatformOptions.Reserved = nullptr;
+	PlatformOptions.bIsServer = EOS_FALSE;
+	PlatformOptions.OverrideCountryCode = nullptr;
+	PlatformOptions.OverrideLocaleCode = nullptr;
+	PlatformOptions.Flags = EOS_PF_WINDOWS_ENABLE_OVERLAY_D3D9 | EOS_PF_WINDOWS_ENABLE_OVERLAY_D3D10 | EOS_PF_WINDOWS_ENABLE_OVERLAY_OPENGL; // Enable overlay support for D3D9/10 and OpenGL. This sample uses D3D11 or SDL.
+
+	PlatformOptions.ProductId = ProductId.Get();
+	PlatformOptions.SandboxId = SandboxId.Get();
+	PlatformOptions.DeploymentId = DeploymentId.Get();
+	PlatformOptions.ClientCredentials.ClientId = ClientId.Get();
+	PlatformOptions.ClientCredentials.ClientSecret = ClientSecret.Get();
+	PlatformOptions.CacheDirectory = CacheDirectory.Get();
 
 	EOSPlatformHandle = SDKManager->CreatePlatform(PlatformOptions);
 	if (EOSPlatformHandle)

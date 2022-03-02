@@ -114,12 +114,6 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthNull::Logout(FAuthLogout::Params&& Params
 	return Op->GetHandle();
 }
 
-TOnlineAsyncOpHandle<FAuthGenerateAuth> FAuthNull::GenerateAuth(FAuthGenerateAuth::Params&& Params)
-{
-	TSharedRef<TOnlineAsyncOp<FAuthGenerateAuth>> AsyncOperation = MakeShared<TOnlineAsyncOp<FAuthGenerateAuth>>(Services, MoveTemp(Params));
-	return AsyncOperation->GetHandle();
-}
-
 TOnlineResult<FAuthGetAccountByAccountId> FAuthNull::GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params)
 {
 	if (TSharedRef<FAccountInfoNull>* const FoundAccount = AccountInfos.Find(Params.LocalUserId))

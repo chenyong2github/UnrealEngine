@@ -16,7 +16,6 @@ class FIOSEOSHelpers : FEOSHelpers
 public:
 	virtual ~FIOSEOSHelpers();
 
-	virtual FString PlatformCreateCacheDir(const FString &ArtifactName, const FString &EOSSettingsCacheDir) override;
 	virtual void PlatformAuthCredentials(EOS_Auth_Credentials &Credentials) override;
 	virtual void PlatformTriggerLoginUI(FOnlineSubsystemEOS* EOSSubsystem, const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate) override;
 

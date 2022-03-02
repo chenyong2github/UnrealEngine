@@ -366,7 +366,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 	}
 	TOnlineAsyncOpRef<FAuthLogin> Op = GetOp<FAuthLogin>(MoveTemp(Params));
 	// Are we already logged in?
-	if (GetAccountIdByPlatformUserId(Params.PlatformUserId).IsOk())
+	if (GetAccountIdByPlatformUserId(Op->GetParams().PlatformUserId).IsOk())
 	{
 		Op->SetError(Errors::Auth::AlreadyLoggedIn());
 		return Op->GetHandle();
@@ -759,12 +759,6 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthEOS::Logout(FAuthLogout::Params&& Params)
 	}).Enqueue(GetSerialQueue());
 	
 	return Op->GetHandle();
-}
-
-TOnlineAsyncOpHandle<FAuthGenerateAuth> FAuthEOS::GenerateAuth(FAuthGenerateAuth::Params&& Params)
-{
-	TSharedRef<TOnlineAsyncOp<FAuthGenerateAuth>> AsyncOperation = MakeShared<TOnlineAsyncOp<FAuthGenerateAuth>>(Services, MoveTemp(Params));
-	return AsyncOperation->GetHandle();
 }
 
 TOnlineResult<FAuthGetAccountByPlatformUserId> FAuthEOS::GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params)

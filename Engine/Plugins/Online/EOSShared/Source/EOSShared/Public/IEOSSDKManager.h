@@ -57,6 +57,7 @@ public:
 
 	virtual FString GetProductName() const = 0;
 	virtual FString GetProductVersion() const = 0;
+	virtual FString GetCacheDirBase() const = 0;
 
 	FEOSSDKManagerOnPreInitializeSDK OnPreInitializeSDK;
 	FEOSSDKManagerOnPreCreatePlatform OnPreCreatePlatform;

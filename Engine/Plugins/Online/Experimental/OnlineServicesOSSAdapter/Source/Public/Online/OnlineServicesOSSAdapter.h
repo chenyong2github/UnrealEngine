@@ -19,6 +19,7 @@ public:
 
 	ONLINESERVICESOSSADAPTER_API virtual void RegisterComponents() override;
 	ONLINESERVICESOSSADAPTER_API virtual void Initialize() override;
+	virtual EOnlineServices GetServicesProvider() const override { return ServicesType; }
 
 	IOnlineSubsystem& GetSubsystem() { return *Subsystem; }
 	FOnlineUniqueNetIdRegistry& GetAccountIdRegistry() { return *AccountIdRegistry; }

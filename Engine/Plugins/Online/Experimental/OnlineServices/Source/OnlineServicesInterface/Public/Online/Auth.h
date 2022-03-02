@@ -75,9 +75,9 @@ struct FAuthLogout
 	};
 };
 
-struct FAuthGenerateAuth
+struct FAuthGenerateAuthToken
 {
-	static constexpr TCHAR Name[] = TEXT("GenerateAuth");
+	static constexpr TCHAR Name[] = TEXT("GenerateAuthToken");
 
 	struct Params
 	{
@@ -88,6 +88,8 @@ struct FAuthGenerateAuth
 
 	struct Result
 	{
+		FString Type;
+		FCredentialsToken Token;
 	};
 };
 
@@ -105,6 +107,23 @@ struct FAuthGetAuthToken
 	struct Result
 	{
 		FString Token;
+	};
+};
+
+struct FAuthGenerateAuthCode
+{
+	static constexpr TCHAR Name[] = TEXT("GenerateAuthCode");
+
+	struct Params
+	{
+		FOnlineAccountIdHandle LocalUserId;
+		FString Type;
+		TArray<FString> Scopes;
+	};
+
+	struct Result
+	{
+		FString Code;
 	};
 };
 
@@ -165,12 +184,17 @@ public:
 	/**
 	 *
 	 */
-	virtual TOnlineAsyncOpHandle<FAuthGenerateAuth> GenerateAuth(FAuthGenerateAuth::Params&& Params) = 0;
+	virtual TOnlineAsyncOpHandle<FAuthGenerateAuthToken> GenerateAuthToken(FAuthGenerateAuthToken::Params&& Params) = 0;
 
 	/**
 	 * Retrive a cached auth token
 	 */
 	virtual TOnlineResult<FAuthGetAuthToken> GetAuthToken(FAuthGetAuthToken::Params&& Params) = 0;
+
+	/**
+	 *
+	 */
+	virtual TOnlineAsyncOpHandle<FAuthGenerateAuthCode> GenerateAuthCode(FAuthGenerateAuthCode::Params&& Params) = 0;
 
 	/**
 	 * Get logged in user by local user num
@@ -217,13 +241,15 @@ END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FAuthLogout::Result)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FAuthGenerateAuth::Params)
-	ONLINE_STRUCT_FIELD(FAuthGenerateAuth::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FAuthGenerateAuth::Params, Type),
-	ONLINE_STRUCT_FIELD(FAuthGenerateAuth::Params, Scopes)
+BEGIN_ONLINE_STRUCT_META(FAuthGenerateAuthToken::Params)
+	ONLINE_STRUCT_FIELD(FAuthGenerateAuthToken::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FAuthGenerateAuthToken::Params, Type),
+	ONLINE_STRUCT_FIELD(FAuthGenerateAuthToken::Params, Scopes)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FAuthGenerateAuth::Result)
+BEGIN_ONLINE_STRUCT_META(FAuthGenerateAuthToken::Result)
+	ONLINE_STRUCT_FIELD(FAuthGenerateAuthToken::Result, Type),
+	ONLINE_STRUCT_FIELD(FAuthGenerateAuthToken::Result, Token)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthGetAuthToken::Params)
@@ -234,6 +260,16 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthGetAuthToken::Result)
 	ONLINE_STRUCT_FIELD(FAuthGetAuthToken::Result, Token)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAuthGenerateAuthCode::Params)
+ONLINE_STRUCT_FIELD(FAuthGenerateAuthCode::Params, LocalUserId),
+ONLINE_STRUCT_FIELD(FAuthGenerateAuthCode::Params, Type),
+ONLINE_STRUCT_FIELD(FAuthGenerateAuthCode::Params, Scopes)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FAuthGenerateAuthCode::Result)
+	ONLINE_STRUCT_FIELD(FAuthGenerateAuthCode::Result, Code)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthGetAccountByPlatformUserId::Params)

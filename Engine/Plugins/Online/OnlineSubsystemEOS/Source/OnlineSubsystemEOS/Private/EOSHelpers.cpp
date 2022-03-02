@@ -9,12 +9,6 @@
 #include "OnlineSubsystemEOS.h"
 #include "UserManagerEOS.h"
 
-FString FEOSHelpers::PlatformCreateCacheDir(const FString &ArtifactName, const FString &EOSSettingsCacheDir)
-{
-	FString CacheDir = FPlatformProcess::UserDir() / ArtifactName / EOSSettingsCacheDir;
-	return MoveTemp(CacheDir);
-}
-
 void FEOSHelpers::PlatformAuthCredentials(EOS_Auth_Credentials &Credentials)
 {
 }
