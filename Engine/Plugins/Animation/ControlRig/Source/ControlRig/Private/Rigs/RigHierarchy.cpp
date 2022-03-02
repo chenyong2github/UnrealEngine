@@ -1106,6 +1106,21 @@ FRigBaseElementParentArray URigHierarchy::GetParents(const FRigBaseElement* InEl
 	return Parents;
 }
 
+FRigElementKey URigHierarchy::GetDefaultParent(FRigElementKey InKey) const
+{
+	FRigElementKey DefaultParent;
+	if(const FRigElementKey* DefaultParentPtr = DefaultParentPerElement.Find(InKey))
+	{
+		DefaultParent = *DefaultParentPtr;
+	}
+	else
+	{
+		DefaultParent = GetFirstParent(InKey);
+		DefaultParentPerElement.Add(InKey, DefaultParent);
+	}
+	return DefaultParent;
+}
+
 FRigElementKey URigHierarchy::GetFirstParent(FRigElementKey InKey) const
 {
 	if(FRigBaseElement* FirstParent = GetFirstParent(Find(InKey)))
@@ -1251,7 +1266,10 @@ FRigElementKey URigHierarchy::GetActiveParent(const FRigElementKey& InKey) const
 			{
 				if (!(ParentKeys[ParentIndex] == URigHierarchy::GetDefaultParentKey() || ParentKeys[ParentIndex] == URigHierarchy::GetWorldSpaceReferenceKey()))
 				{
-					return URigHierarchy::GetDefaultParentKey();
+					if(ParentKeys[ParentIndex] == GetDefaultParent(InKey))
+					{
+						return URigHierarchy::GetDefaultParentKey();
+					}
 				}
 			}
 			return ParentKeys[ParentIndex];
@@ -3368,14 +3386,14 @@ FRigElementKey URigHierarchy::PreprocessParentElementKeyForSpaceSwitching(const 
 	}
 	else if(InParentKey == GetDefaultParentKey())
 	{
-		const FRigElementKey FirstParent = GetFirstParent(InChildKey);
-		if(FirstParent == GetWorldSpaceReferenceKey())
+		const FRigElementKey DefaultParent = GetDefaultParent(InChildKey);
+		if(DefaultParent == GetWorldSpaceReferenceKey())
 		{
 			return FRigElementKey();
 		}
 		else
 		{
-			return FirstParent;
+			return DefaultParent;
 		}
 	}
 

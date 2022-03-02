@@ -1587,6 +1587,14 @@ public:
 	FRigBaseElementParentArray GetParents(const FRigBaseElement* InElement, bool bRecursive = false) const;
 
 	/**
+	 * Returns the default parent element's key of a given child key
+	 * @param InKey The key of the element to retrieve the parent for
+	 * @return Returns the default parent element key
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FRigElementKey GetDefaultParent(FRigElementKey InKey) const;
+
+	/**
 	 * Returns the first parent element of a given element key
 	 * @param InKey The key of the element to retrieve the parents for
 	 * @return Returns the first parent element
@@ -2945,6 +2953,8 @@ protected:
 
 	UPROPERTY(transient)
 	TObjectPtr<URigHierarchy> HierarchyForCacheValidation;
+
+	mutable TMap<FRigElementKey, FRigElementKey> DefaultParentPerElement;  
 	
 private:
 	
