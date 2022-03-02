@@ -43,7 +43,7 @@ struct FSharedMobileBasePassInterpolants
 #endif
 
 #if USE_GLOBAL_CLIP_PLANE
-	float OutClipDistance : OUTCLIPDIST;
+	float OutClipDistance : SV_ClipDistance;
 #endif
 
 #if MOBILE_MULTI_VIEW

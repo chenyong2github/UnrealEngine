@@ -8,3 +8,7 @@
 // GUID = E121241A-1AD3-416B-8F74-288560D5F0005
 
 #pragma once
+
+
+// GLES does not support gl_ClipDistance, use interpolator for it
+#define SV_ClipDistance OUTCLIPDIST
