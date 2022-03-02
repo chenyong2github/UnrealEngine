@@ -976,12 +976,12 @@ public:
 		return MObject->GetMaterialIndex(HintIndex);
 	}
 
-#if 0
+
 	virtual TUniquePtr<FImplicitObject> Copy() const override
 	{
 		return TUniquePtr<FImplicitObject>(CopyHelper(this));
 	}
-#endif
+
 private:
 	ObjectType MObject;
 	TSharedPtr<TConcrete, ESPMode::ThreadSafe> MSharedPtrForRefCount; // Temporary solution to force ref counting on trianglemesh from body setup.
@@ -999,7 +999,10 @@ private:
 
 	static TImplicitObjectScaled<TConcrete, false>* CopyHelper(const TImplicitObjectScaled<TConcrete, false>* Obj)
 	{
-		return new TImplicitObjectScaled<TConcrete, false>(Obj->MObject->Copy(), Obj->MScale, Obj->OuterMargin);
+		TUniquePtr<FImplicitObject> DuplicatedShape = Obj->MObject->Copy();
+		
+		// We know the actual type of the underlying object pointer so we can cast it to the required type to make a copy of this implicit
+		return new TImplicitObjectScaled<TConcrete, false>(reinterpret_cast<TUniquePtr<TConcrete>&&>(DuplicatedShape), Obj->MScale, Obj->OuterMargin);
 	}
 
 	void UpdateBounds()

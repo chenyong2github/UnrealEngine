@@ -1586,30 +1586,48 @@ FTransform FChaosEngineInterface::GetLocalTransform(const FPhysicsShapeReference
 
 void FChaosEngineInterface::SetLocalTransform(const FPhysicsShapeHandle& InShape,const FTransform& NewLocalTransform)
 {
-#if !WITH_CHAOS_NEEDS_TO_BE_FIXED
-	if(InShape.ActorRef.IsValid())
+	using namespace Chaos;
+
+	FSingleParticlePhysicsProxy* Particle = InShape.ActorRef;
+	if(Particle)
 	{
-		TArray<RigidBodyId> Ids ={InShape.ActorRef.GetId()};
-		const auto Index = InShape.ActorRef.GetScene()->GetIndexFromId(InShape.ActorRef.GetId());
-		if(InShape.Object->GetType() == Chaos::ImplicitObjectType::Transformed)
+		Chaos::FRigidBodyHandle_External& BodyHandle = Particle->GetGameThreadAPI();
+
+		const FImplicitObject* CurrentGeom = BodyHandle.Geometry().Get();
+		if(ensure(CurrentGeom && CurrentGeom->GetType() == FImplicitObjectUnion::StaticType()))
 		{
-			// @todo(mlentine): We can avoid creating a new object here by adding delayed update support for the object transforms
-			LocalParticles.SetDynamicGeometry(Index,MakeUnique<Chaos::TImplicitObjectTransformed<Chaos::FReal,3>>(InShape.Object->GetObject<Chaos::TImplicitObjectTransformed<Chaos::FReal,3>>()->Object(),NewLocalTransform));
-		} else
-		{
-			LocalParticles.SetDynamicGeometry(Index,MakeUnique<Chaos::TImplicitObjectTransformed<Chaos::FReal,3>>(InShape.Object,NewLocalTransform));
+			const FImplicitObjectUnion* AsUnion = static_cast<const FImplicitObjectUnion*>(CurrentGeom);
+			const int32 ShapeIndex = InShape.Shape->GetShapeIndex();
+			const TArray<TUniquePtr<FImplicitObject>>& ObjectArray = AsUnion->GetObjects();
+
+			if(ensure(ShapeIndex < ObjectArray.Num()))
+			{
+				TArray<TUniquePtr<FImplicitObject>> NewGeoms;
+				NewGeoms.Reserve(ObjectArray.Num());
+
+				// Duplicate the union and either set transforms, or wrap in transforms
+				int32 CurrentIndex = 0;
+				for(const TUniquePtr<FImplicitObject>& Obj : ObjectArray)
+				{
+					if(CurrentIndex == ShapeIndex)
+					{
+						NewGeoms.Emplace(Utilities::DuplicateImplicitWithTransform(Obj.Get(), NewLocalTransform));
+					}
+					else
+					{
+						NewGeoms.Emplace(Obj->Copy());
+					}
+
+					CurrentIndex++;
+				}
+
+				if(ensure(NewGeoms.Num() == ObjectArray.Num()))
+				{
+					BodyHandle.SetGeometry(MakeUnique<FImplicitObjectUnion>(MoveTemp(NewGeoms)));
+				}
+			}
 		}
 	}
-	{
-		if(InShape.Object->GetType() == Chaos::ImplicitObjectType::Transformed)
-		{
-			InShape.Object->GetObject<Chaos::TImplicitObjectTransformed<Chaos::FReal,3>>()->SetTransform(NewLocalTransform);
-		} else
-		{
-			const_cast<FPhysicsShapeHandle&>(InShape).Object = new Chaos::TImplicitObjectTransformed<Chaos::FReal,3>(InShape.Object,NewLocalTransform);
-		}
-	}
-#endif
 }
 
 template<typename AllocatorType>

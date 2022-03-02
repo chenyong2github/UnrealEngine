@@ -6,6 +6,7 @@
 #include "Chaos/Transform.h"
 #include "ChaosArchive.h"
 #include "Templates/EnableIf.h"
+#include "AABB.h"
 
 namespace Chaos
 {
@@ -213,7 +214,7 @@ public:
 	const TRigidTransform<T, d>& GetTransform() const { return MTransform; }
 	void SetTransform(const TRigidTransform<T, d>& InTransform)
 	{
-		MLocalBoundingBox = MObject->BoundingBox().TransformedBox(InTransform);
+		MLocalBoundingBox = MObject->BoundingBox().TransformedAABB(InTransform);
 		MTransform = InTransform;
 	}
 
@@ -302,6 +303,33 @@ private:
 
 	friend FImplicitObject;	//needed for serialization
 };
+
+namespace Utilities
+{
+	inline TUniquePtr<FImplicitObject> DuplicateImplicitWithTransform(const FImplicitObject* const InObject, FTransform NewTransform)
+	{
+		if(!InObject)
+		{
+			return nullptr;
+		}
+
+		const EImplicitObjectType OuterType = InObject->GetType();
+
+		if(GetInnerType(OuterType) == ImplicitObjectType::Transformed)
+		{
+			TUniquePtr<FImplicitObject> NewTransformed = InObject->Copy();
+			TImplicitObjectTransformed<FReal, 3>* InnerTransformed = static_cast<TImplicitObjectTransformed<FReal, 3>*>(NewTransformed.Get());
+			InnerTransformed->SetTransform(NewTransform);
+
+			return MoveTemp(NewTransformed);
+		}
+		else
+		{
+			TUniquePtr<FImplicitObject> NewInnerObject = InObject->Copy();
+			return MakeUnique<TImplicitObjectTransformed<FReal, 3>>(MoveTemp(NewInnerObject), NewTransform);
+		}
+	}
+}
 
 template <typename T, int d>
 using TImplicitObjectTransformedNonSerializable = TImplicitObjectTransformed<T, d, false>;
