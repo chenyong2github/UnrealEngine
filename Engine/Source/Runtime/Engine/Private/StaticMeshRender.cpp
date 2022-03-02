@@ -249,7 +249,10 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	extern int32 GUseMobileLODBiasOnDesktopES31;
 	if (GUseMobileLODBiasOnDesktopES31 != 0 && FeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
-		EffectiveMinLOD += InComponent->GetStaticMesh()->GetRenderData()->LODBiasModifier;
+		int32 BiasModifier = InComponent->GetStaticMesh()->GetRenderData()->LODBiasModifier;
+		int32 MinLODIdx = FMath::Max(StaticMesh->GetMinLODIdx(), 0);
+		BiasModifier = FMath::Max(BiasModifier - MinLODIdx, 0);
+		EffectiveMinLOD += BiasModifier;
 	}
 #endif
 
