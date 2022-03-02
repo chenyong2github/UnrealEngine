@@ -10,7 +10,7 @@
 #include "RenderGraphDefinitions.h"
 #include "SceneTextures.h"
 
-void CopySceneCaptureComponentToTarget(
+RENDERER_API void CopySceneCaptureComponentToTarget(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef ViewFamilyTexture,

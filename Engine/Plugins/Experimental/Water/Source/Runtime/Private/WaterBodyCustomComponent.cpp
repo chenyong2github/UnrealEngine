@@ -102,6 +102,12 @@ void UWaterBodyCustomComponent::OnUpdateBody(bool bWithExclusionVolumes)
 	MeshComp->MarkRenderStateDirty();
 }
 
+FPrimitiveSceneProxy* UWaterBodyCustomComponent::CreateSceneProxy()
+{
+	// Don't create a scene proxy for custom water body components since they don't render into the water info texture (yet)
+	return nullptr;
+}
+
 void UWaterBodyCustomComponent::BeginUpdateWaterBody()
 {
 	Super::BeginUpdateWaterBody();

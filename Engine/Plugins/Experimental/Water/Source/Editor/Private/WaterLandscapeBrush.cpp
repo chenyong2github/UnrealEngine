@@ -203,7 +203,7 @@ void AWaterLandscapeBrush::OnActorChanged(AActor* Actor, bool bWeightmapSettings
 	{
 		if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
 		{
-			WaterSubsystem->MarkAllWaterMeshesForRebuild();
+			WaterSubsystem->MarkAllWaterZonesForRebuild();
 		}
 	}
 }
@@ -225,7 +225,7 @@ void AWaterLandscapeBrush::OnActorsAffectingLandscapeChanged()
 	RequestLandscapeUpdate();
 	if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
 	{
-		WaterSubsystem->MarkAllWaterMeshesForRebuild();
+		WaterSubsystem->MarkAllWaterZonesForRebuild();
 	}
 
 	MarkRenderTargetsDirty();
@@ -489,26 +489,7 @@ void AWaterLandscapeBrush::SetTargetLandscape(ALandscape* InTargetLandscape)
 
 void AWaterLandscapeBrush::OnFullHeightmapRenderDone(UTextureRenderTarget2D* InHeightmapRenderTarget)
 {
-	if (bRenderTargetsDirty)
-	{
-		FScopedDurationTimeLogger DurationTimer(TEXT("Water Texture Update Time"));
-
-		UTextureRenderTarget2D* VelocityRenderTarget = nullptr;
-		BlueprintGetRenderTargets(InHeightmapRenderTarget, VelocityRenderTarget);
-
-		UTexture2D* WaterVelocityTexture = nullptr;
-		GEditor->GetEditorSubsystem<UWaterEditorSubsystem>()->UpdateWaterTextures(
-			GetWorld(),
-			VelocityRenderTarget,
-			WaterVelocityTexture);
-
-		if (WaterVelocityTexture)
-		{
-			BlueprintOnRenderTargetTexturesUpdated(WaterVelocityTexture);
-		}
-
-		bRenderTargetsDirty = false;
-	}
+	bRenderTargetsDirty = false;
 }
 
 void AWaterLandscapeBrush::SetOwningLandscape(ALandscape* InOwningLandscape)

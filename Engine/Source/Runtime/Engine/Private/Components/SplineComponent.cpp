@@ -1089,7 +1089,9 @@ float USplineComponent::GetDistanceAlongSplineAtSplinePoint(int32 PointIndex) co
 	const int32 NumPoints = SplineCurves.Position.Points.Num();
 	const int32 NumSegments = bClosedLoop ? NumPoints : NumPoints - 1;
 
-	if ((PointIndex >= 0) && (PointIndex < NumSegments + 1))
+	// Ensure that if the reparam table is not prepared yet we don't attempt to access it. This can happen
+	// early in the construction of the spline component object.
+	if ((PointIndex >= 0) && (PointIndex < NumSegments + 1) && ((PointIndex * ReparamStepsPerSegment) < SplineCurves.ReparamTable.Points.Num()))
 	{
 		return SplineCurves.ReparamTable.Points[PointIndex * ReparamStepsPerSegment].InVal;
 	}
@@ -1515,7 +1517,7 @@ FTransform USplineComponent::FindTransformClosestToWorldLocation(const FVector& 
 	return GetTransformAtSplineInputKey(Param, CoordinateSpace, bUseScale);
 }
 
-bool USplineComponent::DivideSplineIntoPolylineRecursive(float StartDistanceAlongSpline, float EndDistanceAlongSpline, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const
+bool USplineComponent::DivideSplineIntoPolylineRecursiveWithDistances(float StartDistanceAlongSpline, float EndDistanceAlongSpline, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints, TArray<double>& OutDistancesAlongSpline) const
 {
 	double Dist = EndDistanceAlongSpline - StartDistanceAlongSpline;
 	if (Dist <= 0.0f)
@@ -1523,7 +1525,6 @@ bool USplineComponent::DivideSplineIntoPolylineRecursive(float StartDistanceAlon
 		return false;
 	}
 	double MiddlePointDistancAlongSpline = StartDistanceAlongSpline + Dist / 2.0f;
-
 	FVector Samples[3];
 	Samples[0] = GetLocationAtDistanceAlongSpline(StartDistanceAlongSpline, CoordinateSpace);
 	Samples[1] = GetLocationAtDistanceAlongSpline(MiddlePointDistancAlongSpline, CoordinateSpace);
@@ -1532,24 +1533,38 @@ bool USplineComponent::DivideSplineIntoPolylineRecursive(float StartDistanceAlon
 	if (FMath::PointDistToSegmentSquared(Samples[1], Samples[0], Samples[2]) > MaxSquareDistanceFromSpline)
 	{
 		TArray<FVector> NewPoints[2];
-		DivideSplineIntoPolylineRecursive(StartDistanceAlongSpline, MiddlePointDistancAlongSpline, CoordinateSpace, MaxSquareDistanceFromSpline, NewPoints[0]);
-		DivideSplineIntoPolylineRecursive(MiddlePointDistancAlongSpline, EndDistanceAlongSpline, CoordinateSpace, MaxSquareDistanceFromSpline, NewPoints[1]);
+		TArray<double> NewDistancesAlongSpline[2];
+		DivideSplineIntoPolylineRecursiveWithDistances(StartDistanceAlongSpline, MiddlePointDistancAlongSpline, CoordinateSpace, MaxSquareDistanceFromSpline, NewPoints[0], NewDistancesAlongSpline[0]);
+		DivideSplineIntoPolylineRecursiveWithDistances(MiddlePointDistancAlongSpline, EndDistanceAlongSpline, CoordinateSpace, MaxSquareDistanceFromSpline, NewPoints[1], NewDistancesAlongSpline[1]);
 		if ((NewPoints[0].Num() > 0) && (NewPoints[1].Num() > 0))
 		{
 			check(NewPoints[0].Last() == NewPoints[1][0]);
+			check(NewDistancesAlongSpline[0].Last() == NewDistancesAlongSpline[1][0]);
 			NewPoints[0].RemoveAt(NewPoints[0].Num() - 1);
+			NewDistancesAlongSpline[0].RemoveAt(NewDistancesAlongSpline[0].Num() - 1);
 		}
 		NewPoints[0].Append(NewPoints[1]);
+		NewDistancesAlongSpline[0].Append(NewDistancesAlongSpline[1]);
 		OutPoints.Append(NewPoints[0]);
+		OutDistancesAlongSpline.Append(NewDistancesAlongSpline[0]);
 	}
 	else
 	{
 		// The middle point is close enough to the other 2 points, let's keep those and stop the recursion :
 		OutPoints.Add(Samples[0]);
 		OutPoints.Add(Samples[2]);
+		OutDistancesAlongSpline.Add(StartDistanceAlongSpline);
+		OutDistancesAlongSpline.Add(EndDistanceAlongSpline);
 	}
 
+	check(OutPoints.Num() == OutDistancesAlongSpline.Num())
 	return (OutPoints.Num() > 0);
+}
+
+bool USplineComponent::DivideSplineIntoPolylineRecursive(float StartDistanceAlongSpline, float EndDistanceAlongSpline, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const
+{
+	TArray<double> DummyDistancesAlongSpline;
+	return DivideSplineIntoPolylineRecursiveWithDistances(StartDistanceAlongSpline, EndDistanceAlongSpline, CoordinateSpace, MaxSquareDistanceFromSpline, OutPoints, DummyDistancesAlongSpline);
 }
 
 bool USplineComponent::ConvertSplineSegmentToPolyLine(int32 SplinePointStartIndex, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const
@@ -1589,7 +1604,6 @@ bool USplineComponent::ConvertSplineSegmentToPolyLine(int32 SplinePointStartInde
 
 	return (OutPoints.Num() > 0);
 }
-
 
 bool USplineComponent::ConvertSplineToPolyLine(ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const
 {

@@ -77,17 +77,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = Mesh)
 	bool IsEnabled() const { return bIsEnabled; }
-
-	// HACK [jonathan.bard] (start) : This is to make sure that the RTWorldLocation / RTWorldSizeVector MPC params can be serialized and set at runtime on the Water MPC.
-	void SetLandscapeInfo(const FVector& InRTWorldLocation, const FVector& InRTWorldSizeVector);
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture)
-	FVector RTWorldLocation;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture)
-	FVector RTWorldSizeVector;
-	// HACK [jonathan.bard] (end)
-
 private:
 	//~ Begin USceneComponent Interface
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;

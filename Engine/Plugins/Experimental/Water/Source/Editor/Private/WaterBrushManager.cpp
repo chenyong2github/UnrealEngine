@@ -114,7 +114,6 @@ void AWaterBrushManager::PostLoad()
 					FVector RTWorldLocation, RTWorldSizeVector;
 					if (DeprecateWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector))
 					{
-						WaterZoneActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
 						SetMPCParams();
 					}
 				}
@@ -132,7 +131,6 @@ void AWaterBrushManager::PostLoad()
 					FVector RTWorldLocation, RTWorldSizeVector;
 					if (DeprecateWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector))
 					{
-						WaterZoneActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
 						SetMPCParams();
 					}
 				}
@@ -1202,14 +1200,6 @@ void AWaterBrushManager::SetMPCParams()
 			{
 				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"WaterClearHeight\" on Landscape MaterialParameterCollection"));
 			}
-		}
-
-		// HACK [jonathan.bard] : Quick and dirty way to move the responsability of updating the Water MPC to the water mesh actor (because AWaterBrushManager doesn't exist on client builds, this 
-		//  information needs to live somewhere, at least until we get rid of the water MPC and the water texture/params are handled outside of the water landscape brush) :
-		TActorIterator<AWaterZone> It(World);
-		if (AWaterZone* WaterZoneActor = It ? *It : nullptr)
-		{
-			WaterZoneActor->SetLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
 		}
 	}
 }

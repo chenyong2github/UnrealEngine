@@ -25,12 +25,14 @@ public class Water : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"RenderCore",
+				"Renderer",
 				"NiagaraCore",
 				"Niagara",
 				"NiagaraShader",
 				"Projects",
 				"Landscape",
 				"GeometryCore",
+				"GeometryAlgorithms",
 				"DynamicMesh",
 				"ChaosCore",
 				"Chaos",

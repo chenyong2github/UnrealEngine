@@ -457,21 +457,21 @@ void UWaterSubsystem::SetOceanFloodHeight(float InFloodHeight)
 {
 	if (UWorld* World = GetWorld())
 	{
-	const float ClampedFloodHeight = FMath::Max(0.0f, InFloodHeight);
+		const float ClampedFloodHeight = FMath::Max(0.0f, InFloodHeight);
 
-	if (FloodHeight != ClampedFloodHeight)
-	{
-		FloodHeight = ClampedFloodHeight;
-		MarkAllWaterMeshesForRebuild();
-
-		// the ocean body is dynamic and needs to be readjusted when the flood height changes : 
-			if (OceanBodyComponent.IsValid())
+		if (FloodHeight != ClampedFloodHeight)
 		{
+			FloodHeight = ClampedFloodHeight;
+			MarkAllWaterZonesForRebuild();
+
+			// the ocean body is dynamic and needs to be readjusted when the flood height changes : 
+			if (OceanBodyComponent.IsValid())
+			{
 				OceanBodyComponent->SetHeightOffset(InFloodHeight);
-		}
+			}
 
 			WaterBodyManager.ForEachWaterBodyComponent([this](UWaterBodyComponent* WaterBodyComponent)
-		{
+			{
 				WaterBodyComponent->UpdateMaterialInstances();
 				return true;
 			});
@@ -512,15 +512,15 @@ float UWaterSubsystem::GetOceanBaseHeight() const
 	return TNumericLimits<float>::Lowest();
 }
 
-void UWaterSubsystem::MarkAllWaterMeshesForRebuild()
+void UWaterSubsystem::MarkAllWaterZonesForRebuild()
 {
 	if (UWorld* World = GetWorld())
 	{
-		for (AWaterZone* WaterMesh : TActorRange<AWaterZone>(World))
-	{
-		WaterMesh->MarkWaterMeshComponentForRebuild();
+		for (AWaterZone* WaterZone : TActorRange<AWaterZone>(World))
+		{
+			WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::All);
+		}
 	}
-}
 }
 
 void UWaterSubsystem::NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar)

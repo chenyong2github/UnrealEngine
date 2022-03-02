@@ -130,35 +130,6 @@ void UWaterEditorSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UWaterEditorSubsystem::UpdateWaterTextures(
-	UWorld* World, 
-	UTextureRenderTarget2D* SourceVelocityTarget, 
-	UTexture2D*& OutWaterVelocityTexture)
-{
-	TActorIterator<AWaterZone> WaterZoneActorIt(World);
-	AWaterZone* ZoneActor = WaterZoneActorIt ? *WaterZoneActorIt : nullptr;
-	if (ZoneActor)
-	{
-		if (SourceVelocityTarget)
-		{
-			UTexture2D* PreviousTexture = ZoneActor->WaterVelocityTexture;
-			UpdateSingleTexture(ZoneActor->WaterVelocityTexture, SourceVelocityTarget, ZoneActor, TEXT("WaterVelocityTexture"));
-
-			// The water bodies' material instances are referencing the water velocity texture so they need to be in sync : 
-			if (ZoneActor->WaterVelocityTexture != PreviousTexture)
-			{
-				UWaterSubsystem::ForEachWaterBodyComponent(World, [this](UWaterBodyComponent* WaterBodyComponent)
-				{
-					WaterBodyComponent->UpdateMaterialInstances();
-					return true;
-				});
-			}
-
-			OutWaterVelocityTexture = ZoneActor->WaterVelocityTexture;
-		}
-	}
-}
-
 void UWaterEditorSubsystem::RegisterWaterActorSprite(UClass* InClass, UTexture2D* Texture)
 {
 	WaterActorSprites.Add(InClass, Texture);

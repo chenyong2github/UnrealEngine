@@ -31,6 +31,8 @@ public:
 
 	FName GetDefaultWaterCollisionProfileName() const { return DefaultWaterCollisionProfileName; }
 
+	UMaterialInterface* GetDefaultWaterInfoMaterial() const;
+
 	TSubclassOf<UWaterBodyRiverComponent> GetWaterBodyRiverComponentClass() const;
 
 	TSubclassOf<UWaterBodyLakeComponent> GetWaterBodyLakeComponentClass() const;
@@ -71,6 +73,9 @@ private:
 	UPROPERTY(VisibleAnywhere, config, Category = Collision)
 	FName DefaultWaterCollisionProfileName;
 
+	UPROPERTY(EditAnywhere, config, Category = Water)
+	TSoftObjectPtr<UMaterialInterface> DefaultWaterInfoMaterial;
+	
 	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "WaterBodyRiverComponent"))
 	TSubclassOf<UWaterBodyRiverComponent> WaterBodyRiverComponentClass;
 

@@ -1,0 +1,69 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/DeferredShadingCommon.ush"
+
+Texture2D<float4> DepthTexture;
+Texture2D<float4> ColorTexture;
+
+float2 WaterHeightExtents;
+float GroundZMin;
+float CaptureZ;
+
+struct FWaterColorPassResult
+{
+	float2 Velocity;
+	int WaterBodyIndex;
+	float SceneDepth;
+};
+
+FWaterColorPassResult MakeWaterColorPassResult(float4 InSampleData)
+{
+	FWaterColorPassResult Result;
+	Result.Velocity = InSampleData.rg;
+	Result.WaterBodyIndex = InSampleData.b;
+	Result.SceneDepth = InSampleData.a;
+	return Result;
+}
+
+float DecodeFloatRGB(float3 Enc)
+{
+	float3 Encoding = float3(1.0, 1.0 / 255.0, 1.0 / 65025.0);
+	return 1 - dot(Enc, Encoding);
+}
+
+void Main(
+	in float4 SVPos : SV_POSITION,
+	out float4 OutColor : SV_Target0
+	)
+{
+	uint2 TextureCoordinates = floor(SVPos.xy);
+	
+    const float GroundDeviceDepth = DecodeFloatRGB(DepthTexture.Load(int3(TextureCoordinates, 0)).rgb);
+	const float GroundSceneDepth = ConvertFromDeviceZ(GroundDeviceDepth);
+    const FWaterColorPassResult WaterInfo = MakeWaterColorPassResult(ColorTexture.Load(int3(TextureCoordinates, 0)));
+	const float WaterSceneDepth = WaterInfo.SceneDepth;
+	float WaterZ = CaptureZ - WaterSceneDepth;
+
+	float GroundZ = CaptureZ - GroundSceneDepth;
+
+	// If this is a dilated region and it is above the ground we must push it down to prevent artifacts
+	if (WaterInfo.WaterBodyIndex == -1 && WaterZ > GroundZ)
+	{
+		WaterZ = GroundZ - 32.f;
+	}
+
+	const float WaterZMin = WaterHeightExtents.x;
+	const float WaterZMax = WaterHeightExtents.y;
+
+	// If the GroundDepth is further than the far plane of the projection, set the GroundZ to some really far away value
+	if (GroundDeviceDepth == 1.0)
+	{
+		GroundZ = GroundZMin;
+	}
+
+	float NormalizedWaterZ = saturate((WaterZ - WaterZMin) / (WaterZMax - WaterZMin));
+	float NormalizedGroundZ = saturate((GroundZ - GroundZMin) / (WaterZMax - GroundZMin));
+
+	OutColor = float4(WaterInfo.Velocity, NormalizedWaterZ, NormalizedGroundZ);
+}

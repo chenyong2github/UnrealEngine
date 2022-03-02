@@ -27,11 +27,6 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	virtual void UpdateWaterTextures(
-		UWorld* World,
-		UTextureRenderTarget2D* SourceVelocityTarget,
-		UTexture2D*& OutWaterVelocityTexture);
-
 	UMaterialParameterCollection* GetLandscapeMaterialParameterCollection() const {	return LandscapeMaterialParameterCollection; }
 
 	// ~ IWaterEditorServices interface

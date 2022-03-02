@@ -33,6 +33,7 @@
 #include "Misc/UObjectToken.h"
 #include "Logging/MessageLog.h"
 #include "Logging/TokenizedMessage.h"
+#include "WaterBodySceneProxy.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
@@ -49,6 +50,7 @@ DECLARE_CYCLE_STAT(TEXT("WaterBody_ComputeWaterDepth"), STAT_WaterBody_ComputeLo
 DECLARE_CYCLE_STAT(TEXT("WaterBody_ComputeWaterDepth"), STAT_WaterBody_ComputeNormal, STATGROUP_Water);
 DECLARE_CYCLE_STAT(TEXT("WaterBody_ComputeLandscapeDepth"), STAT_WaterBody_ComputeLandscapeDepth, STATGROUP_Water);
 DECLARE_CYCLE_STAT(TEXT("WaterBody_ComputeWaveHeight"), STAT_WaterBody_ComputeWaveHeight, STATGROUP_Water);
+
 // ----------------------------------------------------------------------------------
 
 TAutoConsoleVariable<float> CVarWaterOceanFallbackDepth(
@@ -58,14 +60,17 @@ TAutoConsoleVariable<float> CVarWaterOceanFallbackDepth(
 	ECVF_Default);
 
 const FName UWaterBodyComponent::WaterBodyIndexParamName(TEXT("WaterBodyIndex"));
+const FName UWaterBodyComponent::WaterBodyZOffsetParamName(TEXT("WaterBodyZOffset"));
 const FName UWaterBodyComponent::WaterVelocityAndHeightName(TEXT("WaterVelocityAndHeight"));
 const FName UWaterBodyComponent::GlobalOceanHeightName(TEXT("GlobalOceanHeight"));
 const FName UWaterBodyComponent::FixedZHeightName(TEXT("FixedZHeight"));
-const FName UWaterBodyComponent::WaterAreaParamName(TEXT("WaterArea"));
 const FName UWaterBodyComponent::FixedVelocityName(TEXT("FixedVelocity"));
 const FName UWaterBodyComponent::FixedWaterDepthName(TEXT("FixedWaterDepth"));
-
-// ----------------------------------------------------------------------------------
+const FName UWaterBodyComponent::WaterAreaParamName(TEXT("WaterArea"));
+const FName UWaterBodyComponent::MaxFlowVelocityParamName(TEXT("MaxFlowVelocity"));
+const FName UWaterBodyComponent::WaterZMinParamName(TEXT("WaterZMin"));
+const FName UWaterBodyComponent::WaterZMaxParamName(TEXT("WaterZMax"));
+const FName UWaterBodyComponent::GroundZMinParamName(TEXT("GroundZMin"));
 
 UWaterBodyComponent::UWaterBodyComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -75,11 +80,14 @@ UWaterBodyComponent::UWaterBodyComponent(const FObjectInitializer& ObjectInitial
 	CollisionProfileName = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterCollisionProfileName();
 
 	WaterMID = nullptr;
+	WaterInfoMID = nullptr;
 
 	TargetWaveMaskDepth = 2048.f;
 
 	bCanAffectNavigation = false;
 	bFillCollisionUnderWaterBodiesForNavmesh = false;
+
+	WaterInfoMaterial = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterInfoMaterial();
 }
 
 void UWaterBodyComponent::OnVisibilityChanged()
@@ -94,6 +102,19 @@ void UWaterBodyComponent::OnHiddenInGameChanged()
 	Super::OnHiddenInGameChanged();
 
 	UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
+}
+
+FPrimitiveSceneProxy* UWaterBodyComponent::CreateSceneProxy()
+{
+	return new FWaterBodySceneProxy(this);
+}
+
+void UWaterBodyComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterialInterfaces, bool bGetDebugMaterials) const
+{
+	if (WaterInfoMID)
+	{
+		OutMaterialInterfaces.Add(WaterInfoMID);
+	}
 }
 
 bool UWaterBodyComponent::IsFlatSurface() const
@@ -127,6 +148,11 @@ FBox UWaterBodyComponent::GetCollisionComponentBounds() const
 		}
 	}
 	return Box;
+}
+
+FBoxSphereBounds UWaterBodyComponent::CalcBounds(const FTransform& LocalToWorld) const
+{
+	return Super::CalcBounds(LocalToWorld);
 }
 
 AWaterBody* UWaterBodyComponent::GetWaterBodyActor() const
@@ -203,6 +229,12 @@ UMaterialInstanceDynamic* UWaterBodyComponent::GetUnderwaterPostProcessMaterialI
 {
 	CreateOrUpdateUnderwaterPostProcessMID(); 
 	return UnderwaterPostProcessMID;
+}
+
+UMaterialInstanceDynamic* UWaterBodyComponent::GetWaterInfoMaterialInstance()
+{
+	CreateOrUpdateWaterInfoMID();
+	return WaterInfoMID;
 }
 
 void UWaterBodyComponent::SetUnderwaterPostProcessMaterial(UMaterialInterface* InMaterial)
@@ -605,6 +637,8 @@ void UWaterBodyComponent::OnRegister()
 
 	check(WaterSplineMetadata);
 
+	CreateOrUpdateWaterInfoMID();
+
 #if WITH_EDITOR
 	RegisterOnChangeWaterSplineMetadata(WaterSplineMetadata, /*bRegister = */true);
 	GetWaterSpline()->OnSplineDataChanged().AddUObject(this, &UWaterBodyComponent::OnSplineDataChanged);
@@ -653,6 +687,7 @@ EObjectFlags UWaterBodyComponent::GetTransientMIDFlags() const
 void UWaterBodyComponent::UpdateMaterialInstances()
 {
 	CreateOrUpdateWaterMID();
+	CreateOrUpdateWaterInfoMID();
 	CreateOrUpdateUnderwaterPostProcessMID();
 }
 
@@ -705,6 +740,16 @@ void UWaterBodyComponent::CreateOrUpdateUnderwaterPostProcessMID()
 
 		// update the transient post process settings accordingly : 
 		PrepareCurrentPostProcessSettings();
+	}
+}
+
+void UWaterBodyComponent::CreateOrUpdateWaterInfoMID()
+{
+	if (GetWorld())
+	{
+		WaterInfoMID = FWaterUtils::GetOrCreateTransientMID(WaterInfoMID, TEXT("WaterInfoMID"), WaterInfoMaterial, GetTransientMIDFlags());
+
+		SetDynamicParametersOnWaterInfoMID(WaterInfoMID);
 	}
 }
 
@@ -775,7 +820,7 @@ void UWaterBodyComponent::UpdateComponentVisibility(bool bAllowWaterMeshRebuild)
 			{
 				if (AWaterZone* WaterZone = WaterSubsystem->GetWaterZoneActor())
 				{
-					WaterZone->MarkWaterMeshComponentForRebuild();
+					WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::All);
 				}
 	 		}
 	 	}
@@ -820,7 +865,8 @@ void UWaterBodyComponent::OnPostEditChangeProperty(FPropertyChangedEvent& Proper
 		bWeightmapSettingsChanged = true;
 	}
 	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, WaterMaterial)) ||
-			(PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, UnderwaterPostProcessMaterial)))
+			(PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, UnderwaterPostProcessMaterial)) ||
+			(PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, WaterInfoMaterial)))
 	{
 		UpdateMaterialInstances();
 	}
@@ -832,7 +878,7 @@ void UWaterBodyComponent::OnPostEditChangeProperty(FPropertyChangedEvent& Proper
 	{
 		bShapeOrPositionChanged = true;
 	}
-	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == FName(TEXT("RelativeScale3D")) &&
+	else if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == FName(TEXT("RelativeScale3D")) &&
 		PropertyName == FName(TEXT("Z")))
 	{
 		// Prevent scaling on the Z axis
@@ -1106,6 +1152,8 @@ void UWaterBodyComponent::UpdateAll(bool bShapeOrPositionChanged)
 		if (bShapeOrPositionChanged)
 		{
 			FNavigationSystem::UpdateActorAndComponentData(*WaterBodyOwner);
+
+			MarkRenderStateDirty();
 		}
 
 		UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
@@ -1211,21 +1259,33 @@ bool UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* In
 	InMID->SetScalarParameterValue(GlobalOceanHeightName, GlobalOceanHeight);
 	InMID->SetScalarParameterValue(FixedZHeightName, GetConstantSurfaceZ());
 	InMID->SetScalarParameterValue(FixedWaterDepthName, GetConstantDepth());
+
 	InMID->SetVectorParameterValue(FixedVelocityName, GetConstantVelocity());
 
 	// Use WaterZone actor of the same level
-	if (AWaterZone* WaterZone = WaterSubsystem->GetWaterZoneActor(GetTypedOuter<ULevel>()))
+	if (const AWaterZone* WaterZone = WaterSubsystem->GetWaterZoneActor(GetTypedOuter<ULevel>()))
 	{
-		InMID->SetTextureParameterValue(WaterVelocityAndHeightName, WaterZone->WaterVelocityTexture);
+		InMID->SetTextureParameterValue(WaterVelocityAndHeightName, WaterZone->WaterInfoTexture);
 
-		UWaterMeshComponent* WaterMeshComponent = WaterZone->GetWaterMeshComponent();
+		const UWaterMeshComponent* WaterMeshComponent = WaterZone->GetWaterMeshComponent();
 		check(WaterMeshComponent);
 
-		// LWC_TODO: precision loss
-		FLinearColor WaterArea = FLinearColor(WaterMeshComponent->RTWorldLocation);
-		WaterArea.B = WaterMeshComponent->RTWorldSizeVector.X;
-		WaterArea.A = WaterMeshComponent->RTWorldSizeVector.Y;
+		// Location should be the bottom left of the zone
+		const FVector2D ZoneExtent = WaterZone->GetZoneExtent();
+		const FVector2D WaterAreaLocation = FVector2D(WaterZone->GetActorLocation()) - (ZoneExtent / 2.f);
+
+		FLinearColor WaterArea;
+		WaterArea.R = WaterAreaLocation.X;
+		WaterArea.G = WaterAreaLocation.Y;
+		WaterArea.B = ZoneExtent.X;
+		WaterArea.A = ZoneExtent.Y;
 		InMID->SetVectorParameterValue(WaterAreaParamName, WaterArea);
+
+		const FVector2f WaterHeightExtents = WaterZone->GetWaterHeightExtents();
+		const float GroundZMin = WaterZone->GetGroundZMin();
+		InMID->SetScalarParameterValue(WaterZMinParamName, WaterHeightExtents.X);
+		InMID->SetScalarParameterValue(WaterZMaxParamName, WaterHeightExtents.Y);
+		InMID->SetScalarParameterValue(GroundZMinParamName, GroundZMin);
 	}
 
 	return true;
@@ -1243,6 +1303,20 @@ bool UWaterBodyComponent::SetDynamicParametersOnUnderwaterPostProcessMID(UMateri
 	SetDynamicParametersOnMID(InMID);
 
 	// Add here the list of parameters that the underwater material needs (for not nothing more than the standard material) :
+
+	return true;
+}
+
+bool UWaterBodyComponent::SetDynamicParametersOnWaterInfoMID(UMaterialInstanceDynamic* InMID)
+{
+	UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld());
+	if ((InMID == nullptr) || (WaterSubsystem == nullptr))
+	{
+		return false;
+	}
+
+	InMID->SetScalarParameterValue(WaterBodyZOffsetParamName, WaterHeightmapSettings.FalloffSettings.ZOffset);
+	InMID->SetScalarParameterValue(MaxFlowVelocityParamName, FWaterUtils::GetWaterMaxFlowVelocity(false));
 
 	return true;
 }
@@ -1339,3 +1413,14 @@ UWaterWavesBase* UWaterBodyComponent::GetWaterWaves() const
 }
 
 #undef LOCTEXT_NAMESPACE
+
+AWaterZone* UWaterBodyComponent::GetWaterZone() const
+{
+	// #todo_water [roey]: Currently returns the global water zone. Eventually this function will return the specific water zone which encapsulates this water body. 
+
+	if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
+	{
+		return WaterSubsystem->GetWaterZoneActor();
+	}
+	return nullptr;
+}

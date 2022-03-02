@@ -1895,18 +1895,18 @@ public:
 	virtual ~FSceneRenderer();
 
 	// Initializes the scene renderer on the render thread.
-	void RenderThreadBegin(FRHICommandListImmediate& RHICmdList);
-	void RenderThreadEnd(FRHICommandListImmediate& RHICmdList);
+	RENDERER_API void RenderThreadBegin(FRHICommandListImmediate& RHICmdList);
+	RENDERER_API void RenderThreadEnd(FRHICommandListImmediate& RHICmdList);
 
 	// FSceneRenderer interface
 
-	virtual void Render(FRDGBuilder& GraphBuilder) = 0;
+	RENDERER_API virtual void Render(FRDGBuilder& GraphBuilder) = 0;
 	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) {}
 	virtual bool ShouldRenderVelocities() const { return false; }
 	virtual bool ShouldRenderPrePass() const { return false; }
 
 	/** Creates a scene renderer based on the current feature level. */
-	static FSceneRenderer* CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
+	RENDERER_API static FSceneRenderer* CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
 
 	/** Setups FViewInfo::ViewRect according to ViewFamilly's ScreenPercentageInterface. */
 	void PrepareViewRectsForRendering(FRHICommandListImmediate& RHICmdList);
@@ -1947,7 +1947,7 @@ public:
 	*
 	* @param SceneRenderer	Scene renderer to use for rendering.
 	*/
-	static void ViewExtensionPreRender_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer);
+	static void RENDERER_API ViewExtensionPreRender_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer);
 
 	/** the last thing we do with a scene renderer, lots of cleanup related to the threading **/
 	void WaitForTasksAndClearSnapshots(FParallelMeshDrawCommandPass::EWaitThread WaitThread);

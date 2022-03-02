@@ -8,6 +8,12 @@ extern TAutoConsoleVariable<int32> CVarWaterEnabled;
 extern TAutoConsoleVariable<int32> CVarWaterMeshEnabled;
 extern TAutoConsoleVariable<int32> CVarWaterMeshEnableRendering;
 
+static TAutoConsoleVariable<float> CVarWaterMaxFlowVelocity(
+	TEXT("r.Water.MaxFlowVelocity"),
+	1024.0f,
+	TEXT("The maximum magnitude for the velocity of a river to encode in the WaterInfo texture"),
+	ECVF_Default);
+
 UMaterialInstanceDynamic* FWaterUtils::GetOrCreateTransientMID(UMaterialInstanceDynamic* InMID, FName InMIDName, UMaterialInterface* InMaterialInterface, EObjectFlags InAdditionalObjectFlags)
 {
 	if (!IsValid(InMaterialInterface))
@@ -110,4 +116,9 @@ bool FWaterUtils::IsWaterMeshEnabled(bool bIsRenderThread)
 bool FWaterUtils::IsWaterMeshRenderingEnabled(bool bIsRenderThread)
 {
 	return IsWaterMeshEnabled(bIsRenderThread) && !!(bIsRenderThread ? CVarWaterMeshEnableRendering.GetValueOnRenderThread() : CVarWaterMeshEnableRendering.GetValueOnGameThread());
+}
+
+float FWaterUtils::GetWaterMaxFlowVelocity(bool bIsRenderThread)
+{
+	return (bIsRenderThread ? CVarWaterMaxFlowVelocity.GetValueOnRenderThread() : CVarWaterMaxFlowVelocity.GetValueOnGameThread());
 }

@@ -24,12 +24,19 @@ public:
 	virtual FVector GetCollisionExtents() const override { return CollisionExtents; }
 	virtual void SetHeightOffset(float InHeightOffset) override;
 	virtual float GetHeightOffset() const override { return HeightOffset; }
+
+	void SetVisualExtents(FVector2D NewExtents);
+	FVector2D GetVisualExtents() const { return VisualExtents; }
 protected:
 	/** UWaterBodyComponent Interface */
 	virtual bool IsBodyDynamic() const override { return true; }
 	virtual void BeginUpdateWaterBody() override;
 	virtual void OnUpdateBody(bool bWithExclusionVolumes) override;
 	virtual void Reset() override;
+
+	virtual void PostLoad() override;
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
+
 #if WITH_EDITOR
 	virtual void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged) override;
 #endif
@@ -39,6 +46,10 @@ protected:
 
 	UPROPERTY(NonPIEDuplicateTransient)
 	TArray<UOceanCollisionComponent*> CollisionHullSets;
+
+	/** The area over which the ocean should be displayed, centered on the actor */
+	UPROPERTY(Category = Water, EditAnywhere, BlueprintReadOnly)
+	FVector2D VisualExtents;
 
 	UPROPERTY(Category = Collision, EditAnywhere, BlueprintReadOnly)
 	FVector CollisionExtents;

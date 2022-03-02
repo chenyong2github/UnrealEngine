@@ -3,61 +3,112 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/Actor.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "WaterZoneActor.generated.h"
 
 class UWaterMeshComponent;
-class USceneCaptureComponent2D;
 class UBoxComponent;
+class AWaterBody;
+
+enum class EWaterZoneRebuildFlags
+{
+	None = 0,
+	UpdateWaterInfoTexture = (1 << 1),
+	UpdateWaterMesh = (1 << 2),
+	All = (~0),
+};
+ENUM_CLASS_FLAGS(EWaterZoneRebuildFlags);
 
 UCLASS(Blueprintable)
 class WATER_API AWaterZone : public AActor
 {
 	GENERATED_UCLASS_BODY()
-
 public:
-
 	UWaterMeshComponent* GetWaterMeshComponent() { return WaterMesh; }
 	const UWaterMeshComponent* GetWaterMeshComponent() const { return WaterMesh; }
 
-	void MarkWaterMeshComponentForRebuild();
+	void MarkForRebuild(EWaterZoneRebuildFlags Flags);
 	void Update();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture)
-	UTexture2D* WaterVelocityTexture;
+	FVector2D GetZoneExtent() const { return ZoneExtent; }
+	void SetZoneExtent(FVector2D NewExtents);
 
-	// HACK [jonathan.bard] : See UWaterMeshComponent, r : emove ASAP
-	void SetLandscapeInfo(const FVector& InRTWorldLocation, const FVector& InRTWorldSizeVector);
+	void SetRenderTargetResolution(FIntPoint NewResolution);
+	FIntPoint GetRenderTargetResolution() const { return RenderTargetResolution; }
 
+	uint32 GetVelocityBlurRadius() const { return VelocityBlurRadius; }
+
+	virtual void BeginPlay() override;
+	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
+	virtual void PostLoad() override;
+
+	FVector2f GetWaterHeightExtents() const { return WaterHeightExtents; }
+	float GetGroundZMin() const { return GroundZMin; }
+
+	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, BlueprintReadOnly, Category = Texture)
+	UTextureRenderTarget2D* WaterInfoTexture;
+private:
+
+	void UpdateWaterInfoTexture();
+
+	void OnExtentChanged();
+	
 #if WITH_EDITOR
+	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
+	
+	UFUNCTION(CallInEditor, Category = Debug)
+	void ForceUpdateWaterInfoTexture();
+
 	virtual void PostEditMove(bool bFinished) override;
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 
-	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
-private:
-
-#if WITH_EDITOR
-	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
-#endif
-
-	void OnBoundsChanged();
-
-	/** A manipulatable box for visualizing/editing the water zone bounds: */
-	UPROPERTY(Category = Bounds, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UBoxComponent* BoundsComponent;
-
-#if WITH_EDITORONLY_DATA
-
-	UPROPERTY(Transient)
-	TArray<TWeakObjectPtr<class AWaterBody>> SelectedWaterBodies;
-
-	UPROPERTY(Transient)
-	UBillboardComponent* ActorIcon;
-#endif
+	/** Called when the Bounds component is modified. Updates the value of ZoneExtent to match the new bounds */
+	void OnBoundsComponentModified();
+#endif // WITH_EDITOR
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Texture, meta = (AllowPrivateAccess = "true"))
+	FIntPoint RenderTargetResolution;
 
 	/** The water mesh component */
 	UPROPERTY(VisibleAnywhere, Category = Water, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UWaterMeshComponent* WaterMesh;
+
+	/** Radius of the zone bounding box */
+	UPROPERTY(Category = Shape, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	FVector2D ZoneExtent;
+
+	/** Offsets the height above the water zone at which the WaterInfoTexture is rendered. This is applied after computing the maximum Z of all the water bodies within the zone. */
+	UPROPERTY(Category = Shape, EditAnywhere, meta = (AllowPrivateAccess = "true"))
+	float CaptureZOffset = 64.f;
+
+	/** Determines if the WaterInfoTexture should be 16 or 32 bits per channel */
+	UPROPERTY(Category = Texture, EditAnywhere, AdvancedDisplay, meta = (AllowPrivateAccess = "true"))
+	bool bHalfPrecisionTexture = true;
+
+	/** Radius of the velocity blur in the finalize water info pass */
+	UPROPERTY(Category = Texture, EditAnywhere, AdvancedDisplay)
+	int32 VelocityBlurRadius = 1;
+
+	bool bNeedsWaterInfoRebuild = true;
+
+	FVector2f WaterHeightExtents;
+	float GroundZMin;
+
+#if WITH_EDITORONLY_DATA
+	/** A manipulatable box for visualizing/editing the water zone bounds */
+	UPROPERTY(Transient)
+	UBoxComponent* BoundsComponent;
+
+	UPROPERTY(Transient)
+	TArray<TWeakObjectPtr<AWaterBody>> SelectedWaterBodies;
+
+	UPROPERTY(Transient)
+	UBillboardComponent* ActorIcon;
+
+	UPROPERTY(Transient)
+	UTexture2D* WaterVelocityTexture_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 };

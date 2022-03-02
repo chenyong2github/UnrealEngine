@@ -8,6 +8,9 @@
 #include "WaterBodyOceanActor.h"
 #include "WaterBooleanUtils.h"
 #include "WaterSubsystem.h"
+#include "WaterZoneActor.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
@@ -19,6 +22,7 @@ UWaterBodyOceanComponent::UWaterBodyOceanComponent(const FObjectInitializer& Obj
 	: Super(ObjectInitializer)
 {
 	CollisionExtents = FVector(50000.f, 50000.f, 10000.f);
+	VisualExtents = FVector2D(150000.f, 150000.f);
 
 	// @todo_water : Remove these checks (Once AWaterBody is no more Blueprintable, these methods should become PURE_VIRTUAL and this class should overload them)
 	check(IsFlatSurface());
@@ -56,6 +60,16 @@ void UWaterBodyOceanComponent::SetHeightOffset(float InHeightOffset)
 	}
 }
 
+void UWaterBodyOceanComponent::SetVisualExtents(FVector2D NewExtents)
+{
+	if (VisualExtents != NewExtents)
+	{
+		VisualExtents = NewExtents;
+		MarkRenderStateDirty();
+		Modify();
+	}
+}
+
 void UWaterBodyOceanComponent::BeginUpdateWaterBody()
 {
 	Super::BeginUpdateWaterBody();
@@ -75,6 +89,10 @@ void UWaterBodyOceanComponent::OnPostEditChangeProperty(FPropertyChangedEvent& P
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyOceanComponent, CollisionExtents))
 	{
 		// Affects the physics shape
+		bShapeOrPositionChanged = true;
+	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyOceanComponent, VisualExtents))
+	{
 		bShapeOrPositionChanged = true;
 	}
 }
@@ -98,6 +116,35 @@ void UWaterBodyOceanComponent::Reset()
 		}
 	}
 	CollisionHullSets.Reset();
+}
+
+void UWaterBodyOceanComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterZonesRefactor)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			// #todo_water: this assumes only one water zone actor right now.  In the future we may need to associate a water mesh actor with a water body more directly
+			for (TObjectIterator<AWaterZone> It; It; ++It)
+			{
+				AWaterZone* WaterZone = *It;
+				if (WaterZone && (WaterZone->GetWorld() == World))
+				{
+					SetVisualExtents(WaterZone->GetZoneExtent());
+					return;
+				}
+			}
+		}
+	}
+}
+
+FBoxSphereBounds UWaterBodyOceanComponent::CalcBounds(const FTransform& LocalToWorld) const
+{
+	FVector Min(FVector(-VisualExtents / 2.f, -1 * GetChannelDepth()));
+	FVector Max(FVector(VisualExtents / 2.f, 0.f));
+	return FBoxSphereBounds(FBox(Min, Max)).TransformBy(LocalToWorld);
 }
 
 void UWaterBodyOceanComponent::OnUpdateBody(bool bWithExclusionVolumes)

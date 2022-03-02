@@ -24,6 +24,8 @@ public:
 	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const override;
 	virtual TArray<UPrimitiveComponent*> GetStandardRenderableComponents() const override;
 
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+
 protected:
 	/** UWaterBodyComponent Interface */
 	virtual void Reset() override;

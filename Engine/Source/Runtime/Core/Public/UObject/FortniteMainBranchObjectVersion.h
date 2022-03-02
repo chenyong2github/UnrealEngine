@@ -193,6 +193,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Anim Dynamics Node Physics parameters for each body in a chain are now stored in an array and can be edited.
 		AnimDynamicsEditableChainParameters,
 
+		// Decoupled the generation of the water texture from the Water Brush and the landscape
+		WaterZonesRefactor,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

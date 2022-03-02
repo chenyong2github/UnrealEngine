@@ -44,6 +44,14 @@ TArray<UPrimitiveComponent*> UWaterBodyLakeComponent::GetStandardRenderableCompo
 	return Result;
 }
 
+FBoxSphereBounds UWaterBodyLakeComponent::CalcBounds(const FTransform& LocalToWorld) const
+{
+	FBox BoxExtent = GetWaterSpline()->GetLocalBounds().GetBox();
+	BoxExtent.Max.Z += MaxWaveHeightOffset;
+	BoxExtent.Min.Z -= GetChannelDepth();
+	return FBoxSphereBounds(BoxExtent).TransformBy(LocalToWorld);
+}
+
 void UWaterBodyLakeComponent::Reset()
 {
 	AActor* Owner = GetOwner();

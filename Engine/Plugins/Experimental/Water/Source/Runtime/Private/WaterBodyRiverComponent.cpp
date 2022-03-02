@@ -82,6 +82,23 @@ void UWaterBodyRiverComponent::OnUpdateBody(bool bWithExclusionVolumes)
 	}
 }
 
+FBoxSphereBounds UWaterBodyRiverComponent::CalcBounds(const FTransform& LocalToWorld) const
+{
+	FBox BoxExtent(ForceInit);
+	for (const USplineMeshComponent* SplineMeshComponent : SplineMeshComponents)
+	{
+		if (SplineMeshComponent != nullptr)
+		{
+			BoxExtent += SplineMeshComponent->CalcLocalBounds().BoxExtent;
+		}
+	}
+	// Spline mesh components aren't storing our vertical bounds so account for that with the ChannelDepth parameter.
+	BoxExtent.Max.Z += MaxWaveHeightOffset;
+	BoxExtent.Min.Z -= GetChannelDepth();
+	FBoxSphereBounds Result(BoxExtent);
+	return Result.TransformBy(LocalToWorld);
+}
+
 void UWaterBodyRiverComponent::UpdateMaterialInstances()
 {
 	Super::UpdateMaterialInstances();

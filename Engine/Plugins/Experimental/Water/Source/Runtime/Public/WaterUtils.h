@@ -42,4 +42,5 @@ struct FWaterUtils
 	static WATER_API bool IsWaterEnabled(bool bIsRenderThread);
 	static WATER_API bool IsWaterMeshEnabled(bool bIsRenderThread);
 	static WATER_API bool IsWaterMeshRenderingEnabled(bool bIsRenderThread);
+	static WATER_API float GetWaterMaxFlowVelocity(bool bIsRenderThread);
 };

@@ -31,11 +31,15 @@ public:
 	void SetLakeTransitionMaterial(UMaterialInterface* InMat);
 	void SetOceanTransitionMaterial(UMaterialInterface* InMat);
 
+	float GetShapeDilationZOffsetFar() const { return ShapeDilationZOffsetFar; }
+
 protected:
 	/** UWaterBodyComponent Interface */
 	virtual void Reset() override;
 	virtual void UpdateMaterialInstances() override;
 	virtual void OnUpdateBody(bool bWithExclusionVolumes) override;
+
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 #if WITH_EDITOR
 	virtual void OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged) override;
 #endif
@@ -63,4 +67,8 @@ protected:
 
 	UPROPERTY(Category = Debug, VisibleInstanceOnly, Transient, NonPIEDuplicateTransient, TextExportTransient, meta = (DisplayAfter = "OceanTransitionMaterial"))
 	UMaterialInstanceDynamic* OceanTransitionMID;
+
+	/** How far to push down the furthest vertices of the dilated portion. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Rendering)
+	float ShapeDilationZOffsetFar = -128.f;
 };

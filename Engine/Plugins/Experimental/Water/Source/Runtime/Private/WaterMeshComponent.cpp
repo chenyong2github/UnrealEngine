@@ -361,7 +361,7 @@ void UWaterMeshComponent::RebuildWaterMesh(float InTileSize, const FIntPoint& In
 			const int32 NumOriginalSplinePoints = SplineComp->GetNumberOfSplinePoints();
 			float ConstantZ = SplineComp->GetLocationAtDistanceAlongSpline(0.0f, ESplineCoordinateSpace::World).Z;
 
-			FBox LakeBounds = Actor->GetComponentsBoundingBox();
+			FBox LakeBounds = Actor->GetComponentsBoundingBox(/* bNonColliding = */true);
 			LakeBounds.Max.Z += WaterBodyComponent->GetMaxWaveHeight();
 
 			// Skip lakes with less than 3 spline points
@@ -541,12 +541,6 @@ void UWaterMeshComponent::Update()
 		RebuildWaterMesh(TileSize / LODCountBiasFactor, FIntPoint(FMath::CeilToInt(ExtentInTiles.X * LODCountBiasFactor), FMath::CeilToInt(ExtentInTiles.Y * LODCountBiasFactor)));
 		bNeedsRebuild = false;
 	}
-}
-
-void UWaterMeshComponent::SetLandscapeInfo(const FVector& InRTWorldLocation, const FVector& InRTWorldSizeVector)
-{
-	RTWorldLocation = InRTWorldLocation;
-	RTWorldSizeVector = InRTWorldSizeVector;
 }
 
 #if WITH_EDITOR
