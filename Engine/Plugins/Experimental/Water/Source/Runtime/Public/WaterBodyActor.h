@@ -135,9 +135,6 @@ protected:
 // Deprecated
 
 public:
-	UE_DEPRECATED(5.1, "Moved to WaterBodyComponent")
-	virtual bool IsIconVisible() const { return WaterBodyComponent->IsIconVisible(); }
-
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	virtual bool HasWaves() const final { return WaterBodyComponent->HasWaves(); }
 
@@ -248,6 +245,11 @@ public:
 
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	virtual ALandscapeProxy* FindLandscape() const final { return WaterBodyComponent->FindLandscape(); }
+
+#if WITH_EDITOR
+	UE_DEPRECATED(5.1, "Moved to WaterBodyComponent")
+	virtual bool IsIconVisible() const { return WaterBodyComponent->IsIconVisible(); }
+#endif // WITH_EDITOR
 
 protected:
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")

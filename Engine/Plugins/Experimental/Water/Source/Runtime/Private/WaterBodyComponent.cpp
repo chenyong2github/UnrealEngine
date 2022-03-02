@@ -38,6 +38,8 @@
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
 #include "Components/BillboardComponent.h"
+#include "Modules/ModuleManager.h"
+#include "WaterModule.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "Water"

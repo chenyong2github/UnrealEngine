@@ -32,6 +32,7 @@ UBillboardComponent* FWaterIconHelper::EnsureSpriteComponentCreated_Internal(AAc
 		ActorIcon->bHiddenInGame = true;
 		ActorIcon->SpriteInfo.Category = TEXT("Water");
 		ActorIcon->SpriteInfo.DisplayName = NSLOCTEXT("SpriteCategory", "Water", "Water");
+		ActorIcon->SetVisibility(true);
 		ActorIcon->SetupAttachment(Actor->GetRootComponent());
 		UpdateSpriteComponent(Actor, ActorIcon->Sprite);
 	}
@@ -42,15 +43,9 @@ void FWaterIconHelper::UpdateSpriteComponent(AActor* Actor, UTexture2D* InTextur
 {
 	if (UBillboardComponent* ActorIcon = Actor->FindComponentByClass<UBillboardComponent>())
 	{
-		float TargetSize = GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldSize;
 		FVector ZOffset(0.0f, 0.0f, GetDefault<UWaterRuntimeSettings>()->WaterBodyIconWorldZOffset);
-		if (InTexture != nullptr)
-		{
-			// Use the texture source's size as the texture might not having finished loading when this runs, in which case the default texture's size would be returned : 
-			int32 TextureSize = FMath::Max(InTexture->Source.GetSizeX(), InTexture->Source.GetSizeY());
-			float Scale = (TextureSize > 0) ? (TargetSize / (float)TextureSize) : 1.0f;
-			ActorIcon->SetRelativeScale3D(FVector(Scale));
-		}
+
+		ActorIcon->SetRelativeScale3D(FVector(1.f));
 		ActorIcon->Sprite = InTexture;
 		ActorIcon->SetRelativeLocation(ZOffset);
 		ActorIcon->bIsScreenSizeScaled = true;
