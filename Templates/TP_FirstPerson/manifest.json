@@ -23,7 +23,7 @@
 	[
 		{
 			"Language": "en",
-			"Text": "The first person template features a player character (represented by a pair of arms) which is viewed from first person perspective. The character can be moved around the level using keyboard, controller or virtual joystick on a touch device. Additionally the player can look around using mouse, controller or virtual joystick on a touch device. The character is also equipped with a gun that, using mouse,  controller or virtual joystick on a touch device will fire a simple sphere projectile that will affect some physics objects in the level, whilst bounce off the arena walls."
+			"Text": "The first person template features a player character (represented by a pair of arms) which is viewed from first person perspective. The character can be moved around the level using keyboard, controller or virtual joystick on a touch device. Additionally the player can look around using mouse, controller or virtual joystick on a touch device. The character can also pick up a gun that, using mouse, controller or virtual joystick on a touch device will fire a simple sphere projectile that will affect some physics objects in the level, whilst bounce off the arena walls."
 		},
 		{
 			"Language": "ko",
@@ -42,7 +42,7 @@
 	[
 		{
 			"Language": "en",
-			"Text": "Animation Sequence, Animation Montage, Sound Wave, Skeletal Mesh, Animation Blueprint, Skeleton, Static Mesh, Texture."
+			"Text": "Animation Sequence, Animation Montage, Sound Wave, Skeletal Mesh, Animation Blueprint, Skeleton, Static Mesh."
 		}
 	],	
 	"SearchTags":
@@ -52,7 +52,7 @@
 			"Text": "First Person,Shoot,Fire,Aim"
 		}
 	],
-	"ClassTypes": "Character, GameMode, HUD, Actor, Character, GameMode, HUD, Actor",
+	"ClassTypes": "Actor, Character, GameMode",
 	"Category": "CodeFeature",
 	"FocusAsset": "/Game/FirstPerson/Blueprints/FirstPersonCharacter.FirstPersonCharacter",
 	"Thumbnail": "TP_FirstPerson.png",
