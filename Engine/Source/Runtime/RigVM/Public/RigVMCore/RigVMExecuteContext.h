@@ -177,6 +177,14 @@ struct RIGVM_API FRigVMRuntimeSettings
 	 * The function to use for logging anything from the VM to the host
 	 */
 	TFunction<void(EMessageSeverity::Type,const FRigVMExecuteContext*,const FString&)> LogFunction = nullptr;
+
+	/*
+	 * Validate the settings
+	 */
+	void Validate()
+	{
+		MaximumArraySize = FMath::Clamp(MaximumArraySize, 1, INT32_MAX);
+	}
 };
 
 /**

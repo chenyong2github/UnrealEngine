@@ -4305,6 +4305,7 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 
 		if (PropertyChangedEvent.MemberProperty->GetNameCPP() == TEXT("VMRuntimeSettings"))
 		{
+			ControlRigBP->VMRuntimeSettings.Validate();
 			ControlRigBP->PropagateRuntimeSettingsFromBPToInstances();
 			return;
 		}
