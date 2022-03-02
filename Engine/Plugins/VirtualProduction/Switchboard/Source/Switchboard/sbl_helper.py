@@ -1014,7 +1014,7 @@ class SbListenerHelper:
                                       'GenerateProjectFiles.bat')
         else:
             gpf_script = os.path.join(self.engine_dir, 'Build', 'BatchFiles',
-                                      'Linux' 'GenerateProjectFiles.sh')
+                                      'Linux', 'GenerateProjectFiles.sh')
 
         args = [gpf_script, str(self.uproj_path)]
 
