@@ -2711,7 +2711,10 @@ TIoStatusOr<uint64> FIoStoreTocResource::Write(
 	}
 	else if (WriterSettings.MaxPartitionSize)
 	{
-		TocHeader.PartitionCount = uint32(Align(TocResource.CompressionBlocks.Last().GetOffset(), WriterSettings.MaxPartitionSize) / WriterSettings.MaxPartitionSize);
+		const FIoStoreTocCompressedBlockEntry& LastBlock = TocResource.CompressionBlocks.Last();
+		uint64 LastBlockEnd = LastBlock.GetOffset() + LastBlock.GetCompressedSize();
+		TocHeader.PartitionCount = uint32(Align(LastBlockEnd, WriterSettings.MaxPartitionSize) / WriterSettings.MaxPartitionSize);
+		check(TocHeader.PartitionCount > 0);
 		TocHeader.PartitionSize = WriterSettings.MaxPartitionSize;
 	}
 	else
