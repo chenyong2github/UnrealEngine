@@ -25,10 +25,10 @@ public:
 	// BP Delegate
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FConnectedToSignallingServer);
 	UPROPERTY(BlueprintAssignable, Category = "Pixel Streaming Delegates")
-	FConnectedToSignallingServer OnConnecedToSignallingServer;
+	FConnectedToSignallingServer OnConnectedToSignallingServer;
 	// C++ Delegate
 	DECLARE_MULTICAST_DELEGATE(FConnectedToSignallingServerNative);
-	FConnectedToSignallingServerNative OnConnecedToSignallingServerNative;
+	FConnectedToSignallingServerNative OnConnectedToSignallingServerNative;
 
 
 	/**

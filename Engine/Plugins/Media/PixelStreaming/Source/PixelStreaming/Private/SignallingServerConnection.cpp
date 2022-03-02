@@ -255,8 +255,8 @@ namespace UE::PixelStreaming
 
 		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 		{
-			Delegates->OnConnecedToSignallingServer.Broadcast();
-			Delegates->OnConnecedToSignallingServerNative.Broadcast();
+			Delegates->OnConnectedToSignallingServer.Broadcast();
+			Delegates->OnConnectedToSignallingServerNative.Broadcast();
 		}
 	}
 
