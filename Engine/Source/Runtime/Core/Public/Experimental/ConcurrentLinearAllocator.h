@@ -50,6 +50,7 @@ struct FOsAllocator
 	}
 };
 
+#if PLATFORM_USES_ANSI_MALLOC
 struct FAlignedAllocator
 {
 	static constexpr bool SupportsAlignment = true;
@@ -71,6 +72,9 @@ struct FAlignedAllocator
 		return AnsiFree(Pointer);
 	}
 };
+#else // #if PLATFORM_USES_ANSI_MALLOC
+using FAlignedAllocator = FOsAllocator;
+#endif // #else // #if PLATFORM_USES_ANSI_MALLOC
 
 template<uint32 BlockSize, typename Allocator = FOsAllocator>
 class TBlockAllocationCache
