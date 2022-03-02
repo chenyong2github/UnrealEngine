@@ -1382,8 +1382,9 @@ bool FMeshUtilities::GenerateCardRepresentationData(
 
 	FGenerateCardMeshContext Context(MeshName, EmbreeScene, OutData);
 
-	// Note: must operate on the SDF bounds because SDF generation can expand the mesh's bounds
-	BuildMeshCards(DistanceFieldVolumeData ? DistanceFieldVolumeData->LocalSpaceMeshBounds : Bounds.GetBox(), Context, MaxLumenMeshCards, OutData);
+	// Note: must operate on the SDF bounds when available, because SDF generation can expand the mesh's bounds
+	const FBox BuildCardsBounds = DistanceFieldVolumeData && DistanceFieldVolumeData->LocalSpaceMeshBounds.IsValid ? DistanceFieldVolumeData->LocalSpaceMeshBounds : Bounds.GetBox();
+	BuildMeshCards(BuildCardsBounds, Context, MaxLumenMeshCards, OutData);
 
 	MeshRepresentation::DeleteEmbreeScene(EmbreeScene);
 

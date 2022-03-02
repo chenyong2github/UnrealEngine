@@ -953,10 +953,17 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 	extern int32 GLumenSceneRecaptureLumenSceneEveryFrame;
 
 	if (Lumen::IsRadiosityEnabled(ViewFamily) 
-		&& LumenSceneData.bFinalLightingAtlasContentsValid
-		&& (Lumen::UseHardwareRayTracedRadiosity(ViewFamily) || TracingInputs.NumClipmapLevels > 0))
+		&& LumenSceneData.bFinalLightingAtlasContentsValid)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Radiosity");
+
+		FLumenCardTracingInputs LocalTracingInputs = TracingInputs;
+
+		if (LocalTracingInputs.NumClipmapLevels == 0 && !Lumen::UseHardwareRayTracedRadiosity(ViewFamily))
+		{
+			// First frame since enabling, initialize voxel lighting since we won't have anything from last frame
+			ComputeLumenSceneVoxelLighting(GraphBuilder, LocalTracingInputs, GlobalShaderMap);
+		}
 
 		const bool bRenderSkylight = Lumen::ShouldHandleSkyLight(Scene, ViewFamily);
 
@@ -968,7 +975,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			LumenSceneData,
 			RadiosityAtlas,
 			RadiosityNumFramesAccumulatedAtlas,
-			TracingInputs,
+			LocalTracingInputs,
 			CardUpdateContext);
 
 		// Update Final Lighting
@@ -976,7 +983,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			Scene,
 			View,
 			GraphBuilder,
-			TracingInputs,
+			LocalTracingInputs,
 			CardUpdateContext);
 	}
 	else
