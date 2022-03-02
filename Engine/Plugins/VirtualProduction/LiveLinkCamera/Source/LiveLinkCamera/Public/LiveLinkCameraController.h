@@ -185,5 +185,9 @@ private:
 	FCameraFilmbackSettings LastFilmback;
 	FRotator LastRotation;
 	FVector LastLocation;
+	FVector LastLocationOffset;
+	FQuat LastRotationOffset;
 	double LastLensTableVerificationTimestamp = 0.0;
+
+	FDelegateHandle PostActorTickHandle;
 };
