@@ -872,7 +872,15 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UChannel>> ActorChannelPool;
 
+	/** Name of net driver definition used to create this driver */
+	FName NetDriverDefinition;
+
+	/** Cached copy of MaxChannelsOverride from the net driver definition to avoid extra lookups */
+	int32 MaxChannelsOverride;
+
 public:
+	/** Get the value of MaxChannelsOverride cached from the net driver definition */
+	int32 GetMaxChannelsOverride() const { return MaxChannelsOverride; }
 
 	/** Creates a new channel of the specified type name. If the type is pooled, it will return a pre-created channel */
 	UChannel* GetOrCreateChannelByName(const FName& ChName);
@@ -882,6 +890,12 @@ public:
 
 	/** Change the NetDriver's NetDriverName. This will also reinit packet simulation settings so that settings can be qualified to a specific driver. */
 	void SetNetDriverName(FName NewNetDriverNamed);
+
+	/** Set the NetDriver's NetDriverDefintion. */
+	void SetNetDriverDefinition(FName NewNetDriverDefinition);
+
+	/** Get the NetDriver's NetDriverDefintion. */
+	FName GetNetDriverDefintion() const { return NetDriverDefinition; }
 
 	void InitPacketSimulationSettings();
 

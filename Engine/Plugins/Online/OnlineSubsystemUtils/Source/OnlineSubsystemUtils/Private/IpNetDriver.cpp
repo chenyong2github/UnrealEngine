@@ -1600,6 +1600,10 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 			ReturnVal = NewObject<UIpConnection>(GetTransientPackage(), NetConnectionClass);
 			check(ReturnVal != nullptr);
 
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			ReturnVal->InitRemoteConnection(this, Socket, World ? World->URL : FURL(), * Address, USOCK_Open);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 #if STATELESSCONNECT_HAS_RANDOM_SEQUENCE
 			// Set the initial packet sequence from the handshake data
 			if (StatelessConnect.IsValid())
@@ -1612,9 +1616,6 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 				ReturnVal->InitSequence(ClientSequence, ServerSequence);
 			}
 #endif
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			ReturnVal->InitRemoteConnection(this, Socket, World ? World->URL : FURL(), *Address, USOCK_Open);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			if (ReturnVal->Handler.IsValid())
 			{

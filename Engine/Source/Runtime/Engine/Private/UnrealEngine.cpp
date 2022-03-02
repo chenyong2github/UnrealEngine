@@ -12924,6 +12924,7 @@ UNetDriver* CreateNetDriver_Local(UEngine* Engine, FWorldContext& Context, FName
 			check(ReturnVal != nullptr);
 
 			ReturnVal->SetNetDriverName(ReturnVal->GetFName());
+			ReturnVal->SetNetDriverDefinition(NetDriverDefinition);
 
 			new(Context.ActiveNetDrivers) FNamedNetDriver(ReturnVal, Definition);
 		}

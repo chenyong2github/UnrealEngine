@@ -62,8 +62,8 @@ static TAutoConsoleVariable<int32> CVarTickAllOpenChannels(TEXT("net.TickAllOpen
 static TAutoConsoleVariable<int32> CVarRandomizeSequence(TEXT("net.RandomizeSequence"), 1,
 	TEXT("Randomize initial packet sequence, can provide some obfuscation"));
 
-static TAutoConsoleVariable<int32> CVarMaxChannelSize(TEXT("net.MaxChannelSize"), UNetConnection::DEFAULT_MAX_CHANNEL_SIZE,
-	TEXT("The maximum number of network channels allowed across the entire server"));
+static TAutoConsoleVariable<int32> CVarMaxChannelSize(TEXT("net.MaxChannelSize"), 0,
+	TEXT("The maximum number of network channels allowed across the entire server, if <= 0 the connection DefaultMaxChannelSize will be used."));
 
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarForceNetFlush(TEXT("net.ForceNetFlush"), 0,
@@ -205,7 +205,10 @@ static SIZE_T CountBytes(FWrittenChannelsRecord& WrittenChannelsRecord);
 
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 const int32 UNetConnection::DEFAULT_MAX_CHANNEL_SIZE = 32767;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 /*-----------------------------------------------------------------------------
 	UNetConnection implementation.
 -----------------------------------------------------------------------------*/
@@ -220,7 +223,6 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	ViewTarget			( nullptr )
 ,   OwningActor			( nullptr )
 ,	MaxPacket			( 0 )
-,	InternalAck			( false )
 ,	bInternalAck		( false )
 ,	bReplay				( false )
 ,	bForceInitialDirty	( false )
@@ -236,7 +238,6 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	QueuedBits			( 0 )
 ,	TickCount			( 0 )
 ,	LastProcessedFrame	( 0 )
-,	ConnectTime			( 0.0 )
 ,	LastOSReceiveTime	()
 ,	bIsOSReceiveTimeLocal(false)
 ,   PreviousJitterTimeDelta(0)
@@ -279,12 +280,13 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	OutPacketId			( 0 ) // must be initialized as OutAckPacketId + 1 so loss of first packet can be detected
 ,	OutAckPacketId		( -1 )
 ,	bLastHasServerFrameTime( false )
+	, DefaultMaxChannelSize(32767)
 ,	InitOutReliable		( 0 )
 ,	InitInReliable		( 0 )
 ,	EngineNetworkProtocolVersion( FNetworkVersion::GetEngineNetworkProtocolVersion() )
 ,	GameNetworkProtocolVersion( FNetworkVersion::GetGameNetworkProtocolVersion() )
-,	PackageVersionUE( GPackageFileUEVersion )
-,	PackageVersionLicenseeUE( GPackageFileLicenseeUEVersion )
+	, PackageVersionUE( GPackageFileUEVersion )
+	, PackageVersionLicenseeUE( GPackageFileLicenseeUEVersion )
 ,	ResendAllDataState( EResendAllDataState::None )
 #if !UE_BUILD_SHIPPING
 ,	ReceivedRawPacketDel()
@@ -302,29 +304,51 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	bFlushingPacketOrderCache(false)
 ,	ConnectionId(0)
 {
-	// This isn't ideal, because it won't capture memory derived classes are creating dynamically.
-	// The allocations could *probably* be moved somewhere else (like InitBase), but that
-	// causes failure to connect for some reason, and for now this is easier.
+}
+
+void UNetConnection::InitChannelData()
+{
 	LLM_SCOPE_BYTAG(NetConnection);
 
-	MaxChannelSize = CVarMaxChannelSize.GetValueOnAnyThread();
-	if (MaxChannelSize <= 0)
+	if (!ensureMsgf(Channels.Num() == 0, TEXT("InitChannelData: Already initialized!")))
 	{
-		UE_LOG(LogNet, Warning, TEXT("CVarMaxChannelSize of %d is less than or equal to 0, using the default number of channels."), MaxChannelSize);
-		MaxChannelSize = DEFAULT_MAX_CHANNEL_SIZE;
+		return;
 	}
 	
-	
-	if (!HasAnyFlags(EObjectFlags::RF_ClassDefaultObject | EObjectFlags::RF_ArchetypeObject))
+	check(Driver);
+	check(!HasAnyFlags(EObjectFlags::RF_ClassDefaultObject | EObjectFlags::RF_ArchetypeObject));
+
+	int32 ChannelSize = CVarMaxChannelSize.GetValueOnAnyThread();
+	if (ChannelSize <= 0)
 	{
-		Channels.AddDefaulted(MaxChannelSize);
-		OutReliable.AddDefaulted(MaxChannelSize);
-		InReliable.AddDefaulted(MaxChannelSize);
-		PendingOutRec.AddDefaulted(MaxChannelSize);
+		// set from the connection default
+		ChannelSize = DefaultMaxChannelSize;
+	
+		// allow the driver to override
+		const int32 MaxChannelsOverride = Driver->GetMaxChannelsOverride();
+		if (MaxChannelsOverride > 0)
+	{
+			ChannelSize = MaxChannelsOverride;
+		}
+	}
+
+	UE_LOG(LogNet, Log, TEXT("%s setting maximum channels to: %d"), *GetNameSafe(this), ChannelSize);
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	MaxChannelSize = ChannelSize;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	Channels.AddDefaulted(ChannelSize);
+	OutReliable.AddDefaulted(ChannelSize);
+	InReliable.AddDefaulted(ChannelSize);
+
+	if (!IsInternalAck())
+	{
+		PendingOutRec.AddDefaulted(ChannelSize);
+	}
 
 		PacketNotify.Init(InPacketId, OutPacketId);
 	}	
-}
 
 /**
  * Initialize common settings for this connection instance
@@ -345,6 +369,8 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 
 	// Owning net driver
 	Driver = InDriver;
+
+	InitChannelData();
 
 	// Cache instance id
 #if UE_NET_TRACE_ENABLED
@@ -496,6 +522,8 @@ void UNetConnection::InitConnection(UNetDriver* InDriver, EConnectionState InSta
 {
 	Driver = InDriver;
 
+	InitChannelData();
+
 	// We won't be sending any packets, so use a default size
 	MaxPacket = (InMaxPacket == 0 || InMaxPacket > MAX_PACKET_SIZE) ? MAX_PACKET_SIZE : InMaxPacket;
 	PacketOverhead = 0;
@@ -595,6 +623,8 @@ void UNetConnection::InitHandler()
 
 void UNetConnection::InitSequence(int32 IncomingSequence, int32 OutgoingSequence)
 {
+	checkf(InReliable.Num() > 0 && OutReliable.Num() > 0, TEXT("InitChannelData must be called prior to InitSequence."));
+
 	// Make sure the sequence hasn't already been initialized on the server, and ignore multiple initializations on the client
 	check(InPacketId == -1 || Driver->ServerConnection != nullptr);
 
@@ -2718,7 +2748,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 					uint32 ChIndex;
 					Reader.SerializeIntPacked(ChIndex);
 
-					if (ChIndex >= (uint32)MaxChannelSize)
+					if (ChIndex >= (uint32)Channels.Num())
 					{
 						UE_LOG(LogNet, Warning, TEXT("Bunch channel index exceeds channel limit"));
 
@@ -3745,7 +3775,7 @@ UChannel* UNetConnection::CreateChannelByName(const FName& ChName, EChannelCreat
 			if (!bHasWarnedAboutChannelLimit)
 			{
 				bHasWarnedAboutChannelLimit = true;
-				UE_LOG(LogNetTraffic, Warning, TEXT("No free channel could be found in the channel list (current limit is %d channels) for connection with owner %s. Consider increasing the max channels allowed using net.MaxChannelSize."), MaxChannelSize, *GetNameSafe(OwningActor));
+				UE_LOG(LogNetTraffic, Warning, TEXT("No free channel could be found in the channel list (current limit is %d channels) for connection with owner %s. Consider increasing the max channels allowed using net.MaxChannelSize."), Channels.Num(), *GetNameSafe(OwningActor));
 			}
 
 			return nullptr;

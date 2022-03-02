@@ -224,10 +224,14 @@ struct FNetDriverDefinition
 	UPROPERTY()
 	FName DriverClassNameFallback;
 
+	UPROPERTY()
+	int32 MaxChannelsOverride;
+
 	FNetDriverDefinition() :
 		DefName(NAME_None),
 		DriverClassName(NAME_None),
-		DriverClassNameFallback(NAME_None)
+		DriverClassNameFallback(NAME_None),
+		MaxChannelsOverride(INDEX_NONE)
 	{
 	}
 };

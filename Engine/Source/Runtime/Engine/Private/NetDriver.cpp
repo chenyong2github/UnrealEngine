@@ -367,6 +367,8 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 ,	AnalyticsProvider()
 ,	AnalyticsAggregator()
 ,   World(nullptr)
+,	NetDriverDefinition(NAME_None)
+,	MaxChannelsOverride(0)
 ,   Notify(nullptr)
 ,	ElapsedTime( 0.0 )
 ,	bInTick(false)
@@ -5352,6 +5354,16 @@ void UNetDriver::SetNetDriverName(FName NewNetDriverNamed)
 {
 	NetDriverName = NewNetDriverNamed;
 	InitPacketSimulationSettings();
+}
+
+void UNetDriver::SetNetDriverDefinition(FName NewNetDriverDefinition)
+{
+	NetDriverDefinition = NewNetDriverDefinition;
+
+	if (const FNetDriverDefinition* DriverDef = GEngine->NetDriverDefinitions.FindByPredicate([this](const FNetDriverDefinition& Def) { return (Def.DefName == NetDriverDefinition); }))
+	{
+		MaxChannelsOverride = DriverDef->MaxChannelsOverride;
+	}
 }
 
 #if NET_DEBUG_RELEVANT_ACTORS

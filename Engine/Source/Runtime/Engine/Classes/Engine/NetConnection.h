@@ -329,10 +329,10 @@ public:
 	ENGINE_API virtual ~UNetConnection() {};
 
 private:
-	uint32 bInternalAck : 1;	// Internally ack all packets, for 100% reliable connections.
-	uint32 bReplay : 1;			// Flag to indicate a replay connection, independent of reliability
-	uint32 bForceInitialDirty : 1;	// Force all properties dirty on initial replication
-	uint32 bUnlimitedBunchSizeAllowed : 1; // Ignore the value of net.MaxConstructedPartialBunchSizeBytes
+	uint32 bInternalAck : 1;				// Internally ack all packets, for 100% reliable connections.
+	uint32 bReplay : 1;						// Flag to indicate a replay connection, independent of reliability
+	uint32 bForceInitialDirty : 1;			// Force all properties dirty on initial replication
+	uint32 bUnlimitedBunchSizeAllowed : 1;	// Ignore the value of net.MaxConstructedPartialBunchSizeBytes
 
 public:
 	struct FURL			URL;				// URL of the other side.
@@ -570,9 +570,16 @@ public:
 	bool			bLastHasServerFrameTime;
 
 	// Channel table.
+
+	UPROPERTY(config)
+	int32 DefaultMaxChannelSize;
+
+	UE_DEPRECATED(5.1, "Deprecated in favor of DefaultMaxChannelSize config property.")
 	static const int32 DEFAULT_MAX_CHANNEL_SIZE;
 
+	UE_DEPRECATED(5.1, "No longer used")
 	int32 MaxChannelSize;
+
 	TArray<UChannel*>	Channels;
 	TArray<int32>		OutReliable;
 	TArray<int32>		InReliable;
@@ -674,6 +681,8 @@ private:
 	FActorChannelMap ActorChannels;
 
 	UReplicationConnectionDriver* ReplicationConnectionDriver;
+
+	void InitChannelData();
 
 	/** Engine package version for compatibility */
 	FPackageFileVersion PackageVersionUE;
