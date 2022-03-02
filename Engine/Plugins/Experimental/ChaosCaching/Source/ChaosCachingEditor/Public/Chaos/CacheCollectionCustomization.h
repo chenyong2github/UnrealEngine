@@ -13,6 +13,7 @@ class IDetailChildrenBuilder;
 
 class UObject;
 class UChaosCacheCollection;
+class UChaosCache;
 
 class SEditableTextBox;
 
@@ -26,6 +27,7 @@ private:
 
 	UChaosCacheCollection* GetSelectedCollection();
 	const UChaosCacheCollection* GetSelectedCollection() const;
+	const UChaosCache* GetCacheCollection(int32 Index) const;
 	FText GetCacheName(int32 InCacheIndex) const;
 	void OnDeleteCache(int32 InArrayIndex, IDetailLayoutBuilder* InLayoutBuilder);
 
@@ -35,5 +37,5 @@ private:
 	void GenerateCacheArrayElementWidget(TSharedRef<IPropertyHandle> PropertyHandle, int32 ArrayIndex, IDetailChildrenBuilder& ChildrenBuilder, IDetailLayoutBuilder* DetailLayout);
 	TWeakObjectPtr<UObject> Item;
 
-	TArray<TSharedPtr<SEditableTextBox>> NameEditBoxes;
+	TMap< int, TSharedPtr<SEditableTextBox>> NameEditBoxes;
 };
