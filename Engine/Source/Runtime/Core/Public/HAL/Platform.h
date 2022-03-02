@@ -646,6 +646,10 @@
 	#define PLATFORM_USES_UNFAIR_LOCKS 0
 #endif
 
+#ifndef PLATFORM_HAS_FENV_H
+	#define PLATFORM_HAS_FENV_H 1
+#endif
+
 // deprecated, do not use
 #define PLATFORM_HAS_THREADSAFE_RHIGetRenderQueryResult	#
 #define PLATFORM_SUPPORTS_RHI_THREAD #

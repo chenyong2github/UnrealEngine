@@ -16,6 +16,10 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/ResolveTypeAmbiguity.h"
 
+#if PLATFORM_HAS_FENV_H 
+#include <fenv.h>
+#endif 
+
 /**
  * Generic implementation for most platforms
  */
@@ -396,6 +400,32 @@ struct FGenericPlatformMath
 	}
 
 	RESOLVE_FLOAT_AMBIGUITY(CeilToFloat);
+
+	/**
+	 * Converts a double to nearest int64 with ties rounding to nearest even
+	 * May incur a performance penalty. Asserts on platforms that do not support this mode.
+	 * @param F		Double precision floating point value to convert
+	 * @return		The 64-bit integer closest to 'F', with ties going to the nearest even number
+	 */
+	static int64 RoundToNearestTiesToEven(double F)
+	{
+#if PLATFORM_HAS_FENV_H == 0
+		ensureAlwaysMsgf(FLT_ROUNDS == 1, TEXT("Platform does not support FE_TONEAREST for double to int64."));
+		int64 result = llrint(F);
+#else
+		int PreviousRoundingMode = fegetround();
+		if (PreviousRoundingMode != FE_TONEAREST)
+		{
+			fesetround(FE_TONEAREST);
+		}
+		int64 result = llrint(F);
+		if (PreviousRoundingMode != FE_TONEAREST)
+		{
+			fesetround(PreviousRoundingMode);
+		}
+#endif
+		return result;
+	}
 
 	/**
 	* Returns signed fractional part of a float.
