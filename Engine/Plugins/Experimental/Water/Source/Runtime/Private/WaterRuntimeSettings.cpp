@@ -2,6 +2,7 @@
 
 #include "WaterRuntimeSettings.h"
 #include "Materials/MaterialParameterCollection.h"
+#include "Materials/MaterialInterface.h"
 #include "WaterBodyComponent.h"
 #include "WaterBodyRiverComponent.h"
 #include "WaterBodyLakeComponent.h"

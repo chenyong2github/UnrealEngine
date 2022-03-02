@@ -9,6 +9,7 @@
 #include "Engine/EngineTypes.h"
 #include "WaterRuntimeSettings.generated.h"
 
+class UMaterialInterface;
 class UMaterialParameterCollection;
 class UWaterBodyComponent;
 class UWaterBodyRiverComponent;

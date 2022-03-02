@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 class AWaterZone;
 class UWaterBodyComponent;
+class FSceneInterface;
+class UTextureRenderTarget2D;
+class AActor;
 
 namespace WaterInfo
 {
