@@ -444,7 +444,7 @@ static void CalcBoundingSphyl(const FMeshDescription* MeshDescription, FSphere& 
 	sphere.Center = Center;
 
 	// Work out best axis aligned orientation (longest side)
-	float Extent = Extents.GetMax();
+	double Extent = Extents.GetMax();
 	if (Extent == Extents.X)
 	{
 		rotation = FRotator(90.f, 0.f, 0.f);
