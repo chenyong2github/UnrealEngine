@@ -244,10 +244,22 @@ public:
 
 FStorageServerPlatformFile::FStorageServerPlatformFile()
 {
+	FCoreDelegates::OnEnginePreExit.AddRaw(this, &FStorageServerPlatformFile::OnEnginePreExit);
 }
 
 FStorageServerPlatformFile::~FStorageServerPlatformFile()
 {
+	FCoreDelegates::OnEnginePreExit.RemoveAll(this);
+}
+
+void FStorageServerPlatformFile::OnEnginePreExit()
+{
+#if WITH_COTF
+	if (CookOnTheFlyServerConnection)
+	{
+		CookOnTheFlyServerConnection->Disconnect();
+	}
+#endif
 }
 
 bool FStorageServerPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const
