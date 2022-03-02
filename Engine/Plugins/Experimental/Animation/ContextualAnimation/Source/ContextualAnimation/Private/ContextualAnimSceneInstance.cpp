@@ -8,10 +8,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "MotionWarpingComponent.h"
 #include "ContextualAnimActorInterface.h"
-#include "ContextualAnimScenePivotProvider.h"
 #include "ContextualAnimSceneAsset.h"
 #include "ContextualAnimSceneActorComponent.h"
-#include "ContextualAnimTransition.h"
 #include "ContextualAnimUtilities.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
@@ -40,7 +38,7 @@ USkeletalMeshComponent* FContextualAnimSceneActorData::GetSkeletalMeshComponent(
 
 FAnimMontageInstance* FContextualAnimSceneActorData::GetAnimMontageInstance() const
 {
-	if (const UAnimMontage* Animation = AnimDataPtr->Animation)
+	if (const UAnimMontage* Animation = AnimTrackPtr->Animation)
 	{
 		if (UAnimInstance* AnimInstance = GetAnimInstance())
 		{
@@ -51,7 +49,7 @@ FAnimMontageInstance* FContextualAnimSceneActorData::GetAnimMontageInstance() co
 	return nullptr;
 }
 
-const UAnimMontage* FContextualAnimSceneActorData::GetAnimMontage() const
+UAnimMontage* FContextualAnimSceneActorData::GetAnimMontage() const
 {
 	const FAnimMontageInstance* MontageInstance = GetAnimMontageInstance();
 	return MontageInstance ? MontageInstance->Montage : nullptr;
@@ -80,6 +78,11 @@ int32 FContextualAnimSceneActorData::GetCurrentSectionIndex() const
 	return INDEX_NONE;
 }
 
+const FContextualAnimIKTargetDefContainer& FContextualAnimSceneActorData::GetIKTargetDefs() const
+{ 
+	return GetSceneInstance().GetSceneAsset().GetIKTargetDefsForRole(Role); 
+}
+
 //================================================================================================================
 
 void UContextualAnimSceneInstance::BreakContextualAnimSceneActorData(const FContextualAnimSceneActorData& SceneActorData, AActor*& Actor, UAnimMontage*& Montage, float& AnimTime, int32& CurrentSectionIndex, FName& CurrentSectionName)
@@ -106,131 +109,16 @@ UWorld* UContextualAnimSceneInstance::GetWorld()const
 
 void UContextualAnimSceneInstance::Tick(float DeltaTime)
 {
-	UpdateTransitions(DeltaTime);
-}
-
-float UContextualAnimSceneInstance::GetResumePositionForSceneActor_Implementation(const FContextualAnimSceneActorData& SceneActorData, int32 DesiredSectionIndex) const
-{
-	// By default we resume from the same position in the section the leader is (we expect sections to have same length)
-
-	float StartTime = 0.f;
-	float EndTime = 0.f;
-	SceneActorData.GetAnimMontage()->GetSectionStartAndEndTime(DesiredSectionIndex, StartTime, EndTime);
-
-	const float TimeMaster = GetPositionInCurrentSection();
-	const float ResumePosition = StartTime + TimeMaster;
-
-	UE_LOG(LogContextualAnim, Verbose, TEXT("UContextualAnimSceneInstance::GetResumePositionForSceneActor Anim: %s DesiredSectionIndex: %d [%f %f] TimeMaster: %f ResumePosition: %f"),
-		*GetNameSafe(SceneActorData.GetAnimMontage()), DesiredSectionIndex, StartTime, EndTime, TimeMaster, ResumePosition);
-
-	return ResumePosition;
-}
-
-void UContextualAnimSceneInstance::UpdateTransitions(float DeltaTime)
-{
-	if (SceneAsset && SceneAsset->Transitions.Num() > 0)
-	{
-		FName CurrentSection = NAME_None;
-
-		if (const FContextualAnimSceneActorData* LeaderSceneActorData = FindSceneActorDataForRole(SceneAsset->GetLeaderRole()))
-		{
-			const FAnimMontageInstance* LeaderMontageInstance = LeaderSceneActorData->GetAnimMontageInstance();
-			if(LeaderMontageInstance)
-			{
-				CurrentSection = LeaderMontageInstance->GetCurrentSection();
-
-				// Attempt to resume montages that has been paused due a failed transition
-				for (auto& Pair : SceneActorMap)
-				{
-					FAnimMontageInstance* MontageInstance = Pair.Value.GetAnimMontageInstance();
-					if (MontageInstance && !MontageInstance->IsPlaying())
-					{
-						const int32 DesiredSectionIndex = MontageInstance->Montage->GetSectionIndex(CurrentSection);
-						if (DesiredSectionIndex != INDEX_NONE)
-						{
-							const float Position = GetResumePositionForSceneActor(Pair.Value, DesiredSectionIndex);
-							MontageInstance->SetPosition(Position);
-							MontageInstance->SetPlaying(true);
-						}
-					}
-				}
-
-				// Attempt to transition from current section
-				for (const FContextualAnimTransitionContainer& TransitionData : SceneAsset->Transitions)
-				{
-					if (TransitionData.FromSections.Contains(CurrentSection))
-					{
-						//@TODO: bForceTransition should not be in the SceneAsset
-						const bool bCanEnterTransition = TransitionData.bForceTransition || (TransitionData.Transition && TransitionData.Transition->CanEnterTransition(this, CurrentSection, TransitionData.ToSection));
-						if (bCanEnterTransition)
-						{
-							for (auto& Pair : SceneActorMap)
-							{
-								const bool bTransitionToResult = TransitionTo(Pair.Value, TransitionData.ToSection);
-
-								// If transition failed but we have a valid MontageInstance is usually because this montage doesn't have the desired section 
-								// In that case, just pause the montage. We will resume as soon as we have a valid section (see above)
-								if (bTransitionToResult == false)
-								{
-									if (FAnimMontageInstance* AnimMontageInstance = Pair.Value.GetAnimMontageInstance())
-									{
-										AnimMontageInstance->Pause();
-									}
-								}
-							}
-
-							// Break after find the first valid transition
-							break;
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
 bool UContextualAnimSceneInstance::IsActorInThisScene(const AActor* Actor) const
 {
-	if(Actor)
-	{
-		for (const auto& Pair : SceneActorMap)
-		{
-			const FContextualAnimSceneActorData& Data = Pair.Value;
-			if(Data.GetActor() == Actor)
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-const FContextualAnimSceneActorData* UContextualAnimSceneInstance::FindSceneActorDataForActor(const AActor* Actor) const
-{
-	if (Actor)
-	{
-		for (const auto& Pair : SceneActorMap)
-		{
-			const FContextualAnimSceneActorData& Data = Pair.Value;
-			if (Data.GetActor() == Actor)
-			{
-				return &Data;
-			}
-		}
-	}
-
-	return nullptr;
-}
-
-const FContextualAnimSceneActorData* UContextualAnimSceneInstance::FindSceneActorDataForRole(const FName& Role) const
-{
-	return SceneActorMap.Find(Role);
+	return FindSceneActorDataByActor(Actor) != nullptr;
 }
 
 AActor* UContextualAnimSceneInstance::GetActorByRole(FName Role) const
 {
-	const FContextualAnimSceneActorData* SceneActorData = FindSceneActorDataForRole(Role);
+	const FContextualAnimSceneActorData* SceneActorData = FindSceneActorDataByRole(Role);
 	return SceneActorData ? SceneActorData->GetActor() : nullptr;
 }
 
@@ -239,25 +127,14 @@ void UContextualAnimSceneInstance::Join(FContextualAnimSceneActorData& SceneActo
 	AActor* Actor = SceneActorData.GetActor();
 	if (UAnimInstance* AnimInstance = SceneActorData.GetAnimInstance())
 	{
-		if (UMotionWarpingComponent* MotionWarpingComp = Actor->FindComponentByClass<UMotionWarpingComponent>())
-		{
-			for (const auto& Pair : AlignmentSectionToScenePivotList)
-			{
-				const FName SyncPointName = Pair.Key;
-				const float SyncTime = SceneActorData.GetAnimData()->GetSyncTimeForWarpSection(SyncPointName);
-				const FTransform AlignmentTransform = (SceneActorData.GetAnimData()->AlignmentData.ExtractTransformAtTime(SyncPointName, SyncTime) * Pair.Value);
-				MotionWarpingComp->AddOrUpdateWarpTargetFromTransform(SyncPointName, AlignmentTransform);
-			}
-		}
-
-		UAnimMontage* Animation = SceneActorData.GetAnimData()->Animation;
+		UAnimMontage* Animation = SceneActorData.GetAnimTrack().Animation;
 		AnimInstance->Montage_Play(Animation, 1.f, EMontagePlayReturnType::MontageLength, SceneActorData.GetAnimStartTime());
 
 		AnimInstance->OnPlayMontageNotifyBegin.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyBeginReceived);
 		AnimInstance->OnPlayMontageNotifyEnd.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyEndReceived);
 		AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
 
-		if(SceneActorData.GetAnimData()->bRequireFlyingMode)
+		if(SceneActorData.GetAnimTrack().bRequireFlyingMode)
 		{
 			if (UCharacterMovementComponent* CharacterMovementComp = Actor->FindComponentByClass<UCharacterMovementComponent>())
 			{
@@ -266,7 +143,21 @@ void UContextualAnimSceneInstance::Join(FContextualAnimSceneActorData& SceneActo
 		}
 	}
 
-	if(SceneAsset->bDisableCollisionBetweenActors)
+	if (UMotionWarpingComponent* MotionWarpComp = Actor->FindComponentByClass<UMotionWarpingComponent>())
+	{
+		for (const auto& Pair : AlignmentSectionToScenePivotList)
+		{
+			const FName WarpTargetName = Pair.Key;
+			const FTransform ScenePivotRuntime = Pair.Value;
+			const float Time = SceneActorData.GetAnimTrack().GetSyncTimeForWarpSection(WarpTargetName);
+			const FTransform TransformRelativeToScenePivot = SceneActorData.GetAnimTrack().AlignmentData.ExtractTransformAtTime(WarpTargetName, Time);
+			const FTransform WarpTarget = (TransformRelativeToScenePivot * ScenePivotRuntime);
+
+			MotionWarpComp->AddOrUpdateWarpTargetFromTransform(WarpTargetName, WarpTarget);
+		}
+	}
+
+	if(SceneAsset->GetDisableCollisionBetweenActors())
 	{
 		SetIgnoreCollisionWithOtherActors(Actor, true);
 	}
@@ -278,7 +169,7 @@ void UContextualAnimSceneInstance::Join(FContextualAnimSceneActorData& SceneActo
 		SceneActorComp->OnJoinedScene(&SceneActorData);
 	}
 
-	OnActorJoined.ExecuteIfBound(this, Actor);
+	OnActorJoined.Broadcast(this, Actor);
 }
 
 void UContextualAnimSceneInstance::Leave(FContextualAnimSceneActorData& SceneActorData)
@@ -291,7 +182,7 @@ void UContextualAnimSceneInstance::Leave(FContextualAnimSceneActorData& SceneAct
 		if (UAnimInstance* AnimInstance = SceneActorData.GetAnimInstance())
 		{
 			UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage();
-			if (ensureAlways(CurrentMontage))
+			if (CurrentMontage)
 			{
 				AnimInstance->Montage_Stop(CurrentMontage->BlendOut.GetBlendTime(), CurrentMontage);
 			}
@@ -341,45 +232,43 @@ bool UContextualAnimSceneInstance::TransitionTo(FContextualAnimSceneActorData& S
 
 void UContextualAnimSceneInstance::Start()
 {
-	const int32 AlignmentSectionsNum = SceneAsset->AlignmentSections.Num();
-	
-	AlignmentSectionToScenePivotList.Reset(AlignmentSectionsNum);
-
-	for (int32 Idx = 0; Idx < AlignmentSectionsNum; Idx++)
+	for (const FContextualAnimAlignmentSectionData AligmentData : SceneAsset->GetAlignmentSections())
 	{
-		FTransform ScenePivot = FTransform::Identity;
-
-		if(SceneAsset->AlignmentSections[Idx].ScenePivotProvider)
+		FTransform ScenePivotRuntime = FTransform::Identity;
+		if (const FContextualAnimSceneActorData* SceneActor = FindSceneActorDataByRole(AligmentData.Origin))
 		{
-			ScenePivot = SceneAsset->AlignmentSections[Idx].ScenePivotProvider->CalculateScenePivot_Runtime(SceneActorMap);
-		}
-		else
-		{
-			ScenePivot = SceneActorMap.FindRef(SceneAsset->PrimaryRole).GetTransform();
+			if (AligmentData.bAlongClosestDistance)
+			{
+				if (const FContextualAnimSceneActorData* OtherSceneActor = FindSceneActorDataByRole(AligmentData.OtherRole))
+				{
+					const FTransform T1 = SceneActor->GetActor()->GetActorTransform();
+					const FTransform T2 = OtherSceneActor->GetActor()->GetActorTransform();
+
+					ScenePivotRuntime.SetLocation(FMath::Lerp<FVector>(T1.GetLocation(), T2.GetLocation(), AligmentData.Weight));
+					ScenePivotRuntime.SetRotation((T2.GetLocation() - T1.GetLocation()).GetSafeNormal2D().ToOrientationQuat());
+				}
+			}
+			else
+			{
+				ScenePivotRuntime = SceneActor->GetActor()->GetActorTransform();
+			}
 		}
 
-		AlignmentSectionToScenePivotList.Add(MakeTuple(SceneAsset->AlignmentSections[Idx].SectionName, ScenePivot));
-
-		//DrawDebugCoordinateSystem(GetWorld(), ScenePivot.GetLocation(), ScenePivot.Rotator(), 100.f, false, 10.f, 0, 5.f);
+		AlignmentSectionToScenePivotList.Add(MakeTuple(AligmentData.WarpTargetName, ScenePivotRuntime));
 	}
+	
 
-	for (auto& Pair : SceneActorMap)
+	for (auto& Binding : Bindings)
 	{
-		const FName& Role = Pair.Key;
-		FContextualAnimSceneActorData& Data = Pair.Value;
-
-		if (SceneAsset->GetTrackSettings(Role)->JoinRule == EContextualAnimJoinRule::Default)
-		{
-			Join(Data);
-		}
+		Join(Binding);
 	}
 }
 
 void UContextualAnimSceneInstance::Stop()
 {
-	for (auto& Pair : SceneActorMap)
+	for (auto& Binding : Bindings)
 	{
-		Leave(Pair.Value);
+		Leave(Binding);
 	}
 }
 
@@ -387,19 +276,18 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 {
 	UE_LOG(LogContextualAnim, Log, TEXT("UContextualAnimSceneInstance::OnMontageBlendingOut Montage: %s"), *GetNameSafe(Montage));
 
-	for (auto& Pair : SceneActorMap)
+	for (auto& Binding : Bindings)
 	{
-		FContextualAnimSceneActorData& SceneActorData = Pair.Value;
-		if (SceneActorData.GetAnimData()->Animation == Montage)
+		if (Binding.GetAnimTrack().Animation == Montage)
 		{
-			AActor* Actor = SceneActorData.GetActor();
-			if (UAnimInstance* AnimInstance = SceneActorData.GetAnimInstance())
+			AActor* Actor = Binding.GetActor();
+			if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
 			{
 				AnimInstance->OnPlayMontageNotifyBegin.RemoveDynamic(this, &UContextualAnimSceneInstance::OnNotifyBeginReceived);
 				AnimInstance->OnPlayMontageNotifyEnd.RemoveDynamic(this, &UContextualAnimSceneInstance::OnNotifyEndReceived);
 				AnimInstance->OnMontageBlendingOut.RemoveDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
 
-				if (SceneActorData.GetAnimData()->bRequireFlyingMode)
+				if (Binding.GetAnimTrack().bRequireFlyingMode)
 				{
 					if (UCharacterMovementComponent* CharacterMovementComp = Actor->FindComponentByClass<UCharacterMovementComponent>())
 					{
@@ -408,29 +296,28 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 				}
 			}
 
-			if (SceneAsset->bDisableCollisionBetweenActors)
+			if (SceneAsset->GetDisableCollisionBetweenActors())
 			{
-				SetIgnoreCollisionWithOtherActors(SceneActorData.GetActor(), false);
+				SetIgnoreCollisionWithOtherActors(Binding.GetActor(), false);
 			}
 
-			if (UContextualAnimSceneActorComponent* SceneActorComp = Pair.Value.GetSceneActorComponent())
+			if (UContextualAnimSceneActorComponent* SceneActorComp = Binding.GetSceneActorComponent())
 			{
-				SceneActorComp->OnLeftScene(&SceneActorData);
+				SceneActorComp->OnLeftScene(&Binding);
 			}
 
-			OnActorLeft.ExecuteIfBound(this, Actor);
+			OnActorLeft.Broadcast(this, Actor);
 
 			break;
 		}
 	}
 
 	bool bShouldEnd = true;
-	for (auto& Pair : SceneActorMap)
+	for (auto& Binding : Bindings)
 	{
-		const FContextualAnimSceneActorData& Data = Pair.Value;
-		if (UAnimInstance* AnimInstance = Data.GetAnimInstance())
+		if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
 		{
-			if(AnimInstance->Montage_IsPlaying(Data.GetAnimData()->Animation))
+			if(AnimInstance->Montage_IsPlaying(Binding.GetAnimTrack().Animation))
 			{
 				bShouldEnd = false;
 				break;
@@ -440,7 +327,7 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 
 	if(bShouldEnd)
 	{
-		OnSceneEnded.ExecuteIfBound(this);
+		OnSceneEnded.Broadcast(this);
 	}
 }
 
@@ -449,20 +336,9 @@ void UContextualAnimSceneInstance::OnNotifyBeginReceived(FName NotifyName, const
 	UE_LOG(LogContextualAnim, Log, TEXT("UContextualAnimSceneInstance::OnNotifyBeginReceived NotifyName: %s Montage: %s"),
 	*NotifyName.ToString(), *GetNameSafe(BranchingPointNotifyPayload.SequenceAsset));
 
-	// @TODO: For now just use a hard-coded name to identify the event. We should change this in the future
-	static const FName LateJoinNotifyName = FName(TEXT("ContextualAnimLateJoin"));
-	if(NotifyName == LateJoinNotifyName)
+	if(const USkeletalMeshComponent* SkelMeshCom = BranchingPointNotifyPayload.SkelMeshComponent)
 	{
-		for (auto& Pair : SceneActorMap)
-		{
-			const FName& Role = Pair.Key;
-			FContextualAnimSceneActorData& Data = Pair.Value;
-
-			if (SceneAsset->GetTrackSettings(Role)->JoinRule == EContextualAnimJoinRule::Late)
-			{
-				Join(Data);
-			}
-		}
+		OnNotifyBegin.Broadcast(this, SkelMeshCom->GetOwner(), NotifyName);
 	}
 }
 
@@ -470,13 +346,18 @@ void UContextualAnimSceneInstance::OnNotifyEndReceived(FName NotifyName, const F
 {
 	UE_LOG(LogContextualAnim, Log, TEXT("UContextualAnimSceneInstance::OnNotifyEndReceived NotifyName: %s Montage: %s"),
 	*NotifyName.ToString(), *GetNameSafe(BranchingPointNotifyPayload.SequenceAsset));
+
+	if (const USkeletalMeshComponent* SkelMeshCom = BranchingPointNotifyPayload.SkelMeshComponent)
+	{
+		OnNotifyEnd.Broadcast(this, SkelMeshCom->GetOwner(), NotifyName);
+	}
 }
 
 void UContextualAnimSceneInstance::SetIgnoreCollisionWithOtherActors(AActor* Actor, bool bValue) const
 {
-	for (auto& Pair : SceneActorMap)
+	for (auto& Binding : Bindings)
 	{
-		AActor* OtherActor = Pair.Value.GetActor();
+		AActor* OtherActor = Binding.GetActor();
 		if(OtherActor != Actor)
 		{
 			if (UPrimitiveComponent* RootPrimitiveComponent = Cast<UPrimitiveComponent>(Actor->GetRootComponent()))
@@ -485,66 +366,4 @@ void UContextualAnimSceneInstance::SetIgnoreCollisionWithOtherActors(AActor* Act
 			}
 		}
 	}
-}
-
-float UContextualAnimSceneInstance::GetCurrentSectionTimeLeft() const
-{
-	if(SceneAsset)
-	{
-		if(const FContextualAnimSceneActorData* Data = FindSceneActorDataForRole(SceneAsset->GetLeaderRole()))
-		{
-			if (const FAnimMontageInstance* MontageInstance = Data->GetAnimMontageInstance())
-			{
-				return MontageInstance->Montage->GetSectionTimeLeftFromPos(MontageInstance->GetPosition());
-			}
-		}
-	}
-	
-	return 0.f;
-}
-
-float UContextualAnimSceneInstance::GetPositionInCurrentSection() const
-{
-	if (SceneAsset)
-	{
-		if (const FContextualAnimSceneActorData* Data = FindSceneActorDataForRole(SceneAsset->GetLeaderRole()))
-		{
-			if (const FAnimMontageInstance* MontageInstance = Data->GetAnimMontageInstance())
-			{
-				float PosInSection = 0.f;
-				MontageInstance->Montage->GetAnimCompositeSectionIndexFromPos(MontageInstance->GetPosition(), PosInSection);
-				return PosInSection;
-			}
-		}
-	}
-
-	return 0.f;
-}
-
-bool UContextualAnimSceneInstance::DidCurrentSectionLoop() const
-{
-	if (SceneAsset)
-	{
-		if (const FContextualAnimSceneActorData* Data = FindSceneActorDataForRole(SceneAsset->GetLeaderRole()))
-		{
-			if (const FAnimMontageInstance* MontageInstance = Data->GetAnimMontageInstance())
-			{
-				const float PreviousPos = MontageInstance->GetPreviousPosition();
-				const float CurrentPos = MontageInstance->GetPosition();
-
-				const int32 SectionIdxPreviousPos = MontageInstance->Montage->GetSectionIndexFromPosition(PreviousPos);
-				const int32 SectionIdxCurrentPos = MontageInstance->Montage->GetSectionIndexFromPosition(CurrentPos);
-
-				if(SectionIdxPreviousPos == SectionIdxCurrentPos)
-				{
-					const float TimeLeftFromPreviousPos = MontageInstance->Montage->GetSectionTimeLeftFromPos(PreviousPos);
-					const float TimeLeftFromCurrentPos = MontageInstance->Montage->GetSectionTimeLeftFromPos(CurrentPos);
-
-					return TimeLeftFromPreviousPos < TimeLeftFromCurrentPos;
-				}
-			}
-		}
-	}
-
-	return false;
 }

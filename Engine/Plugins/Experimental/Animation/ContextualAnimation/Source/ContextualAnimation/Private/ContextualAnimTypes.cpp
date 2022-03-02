@@ -7,11 +7,13 @@
 #include "AnimNotifyState_MotionWarping.h"
 #include "ContextualAnimUtilities.h"
 #include "RootMotionModifier.h"
+#include "ContextualAnimSelectionCriterion.h"
 
 DEFINE_LOG_CATEGORY(LogContextualAnim);
 
-const FContextualAnimData FContextualAnimData::EmptyAnimData;
+const FContextualAnimTrack FContextualAnimTrack::EmptyTrack;
 const FContextualAnimIKTarget FContextualAnimIKTarget::InvalidIKTarget;
+const FContextualAnimIKTargetDefContainer FContextualAnimIKTargetDefContainer::EmptyContainer;
 
 // FContextualAnimAlignmentTrackContainer
 ///////////////////////////////////////////////////////////////////////
@@ -37,7 +39,7 @@ FTransform FContextualAnimAlignmentTrackContainer::ExtractTransformAtTime(int32 
 	return AlignmentTransform;
 }
 
-float FContextualAnimData::GetSyncTimeForWarpSection(int32 WarpSectionIndex) const
+float FContextualAnimTrack::GetSyncTimeForWarpSection(int32 WarpSectionIndex) const
 {
 	//@TODO: We need a better way to identify warping sections withing the animation. This is just a temp solution
 	//@TODO: We should cache this data
@@ -97,7 +99,7 @@ float FContextualAnimData::GetSyncTimeForWarpSection(int32 WarpSectionIndex) con
 	return Result;
 }
 
-float FContextualAnimData::GetSyncTimeForWarpSection(const FName& WarpSectionName) const
+float FContextualAnimTrack::GetSyncTimeForWarpSection(const FName& WarpSectionName) const
 {
 	//@TODO: We need a better way to identify warping sections within the animation. This is just a temp solution
 	//@TODO: We should cache this data
@@ -130,7 +132,7 @@ float FContextualAnimData::GetSyncTimeForWarpSection(const FName& WarpSectionNam
 	return Result;
 }
 
-float FContextualAnimData::FindBestAnimStartTime(const FVector& LocalLocation) const
+float FContextualAnimTrack::FindBestAnimStartTime(const FVector& LocalLocation) const
 {
 	float BestTime = 0.f;
 
@@ -169,20 +171,15 @@ float FContextualAnimData::FindBestAnimStartTime(const FVector& LocalLocation) c
 	return BestTime;
 }
 
-FTransform FContextualAnimCompositeTrack::GetRootTransformForAnimDataAtIndex(int32 Index) const
+bool FContextualAnimTrack::DoesQuerierPassSelectionCriteria(const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const
 {
-	if(AnimDataContainer.IsValidIndex(Index))
+	for (const UContextualAnimSelectionCriterion* Criterion : SelectionCriteria)
 	{
-		const FContextualAnimData& AnimData = AnimDataContainer[Index];
-		if (AnimData.Animation)
+		if (Criterion && !Criterion->DoesQuerierPassCondition(PrimaryActorData, QuerierData))
 		{
-			return (Settings.MeshToComponent.Inverse() * (UContextualAnimUtilities::ExtractRootTransformFromAnimation(AnimData.Animation, 0.f) * AnimData.MeshToScene));
-		}
-		else
-		{
-			return Settings.MeshToComponent.Inverse() * AnimData.MeshToScene;
+			return false;
 		}
 	}
 
-	return FTransform::Identity;
+	return true;
 }

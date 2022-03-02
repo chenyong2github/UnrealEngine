@@ -12,20 +12,30 @@
 #include "ContextualAnimMovieSceneNotifyTrack.h"
 #include "ContextualAnimMovieSceneNotifySection.h"
 #include "ContextualAnimPreviewScene.h"
-#include "ContextualAnimPreviewManager.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "EngineUtils.h"
 #include "ContextualAnimTypes.h"
+#include "ContextualAnimEditorTypes.h"
 #include "ContextualAnimUtilities.h"
 #include "ContextualAnimSceneAsset.h"
+#include "ContextualAnimManager.h"
+#include "ContextualAnimSceneInstance.h"
 #include "AnimNotifyState_IKWindow.h"
+#include "PropertyEditorModule.h"
+#include "Modules/ModuleManager.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Camera/CameraComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "MotionWarpingComponent.h"
 
 FContextualAnimViewModel::FContextualAnimViewModel()
 	: SceneAsset(nullptr)
 	, MovieSceneSequence(nullptr)
 	, MovieScene(nullptr)
+	, ContextualAnimManager(nullptr)
 {
 }
 
@@ -42,9 +52,9 @@ FContextualAnimViewModel::~FContextualAnimViewModel()
 void FContextualAnimViewModel::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(SceneAsset);
-	Collector.AddReferencedObject(PreviewManager);
 	Collector.AddReferencedObject(MovieSceneSequence);
 	Collector.AddReferencedObject(MovieScene);
+	Collector.AddReferencedObject(ContextualAnimManager);
 }
 
 TSharedPtr<ISequencer> FContextualAnimViewModel::GetSequencer()
@@ -57,17 +67,16 @@ void FContextualAnimViewModel::Initialize(UContextualAnimSceneAsset* InSceneAsse
 	SceneAsset = InSceneAsset;
 	PreviewScenePtr = InPreviewScene;
 
-	PreviewManager = NewObject<UContextualAnimPreviewManager>(GetTransientPackage());
-	PreviewManager->Initialize(*PreviewScenePtr.Pin()->GetWorld(), *SceneAsset);
+	ContextualAnimManager = NewObject<UContextualAnimManager>(GetWorld());
 
 	CreateSequencer();
-	
+
 	RefreshSequencerTracks();
 }
 
 UAnimMontage* FContextualAnimViewModel::FindAnimationByGuid(const FGuid& Guid) const
 {
-	return PreviewManager->FindAnimationByGuid(Guid);
+	return SceneInstance.IsValid() ? const_cast<UAnimMontage*>(SceneInstance->FindSceneActorDataByGuid(Guid)->GetAnimMontage()) : nullptr;
 }
 
 void FContextualAnimViewModel::CreateSequencer()
@@ -98,45 +107,105 @@ void FContextualAnimViewModel::CreateSequencer()
 	Sequencer = SequencerModule.CreateSequencer(SequencerInitParams);
 	Sequencer->OnMovieSceneDataChanged().AddRaw(this, &FContextualAnimViewModel::SequencerDataChanged);
 	Sequencer->OnGlobalTimeChanged().AddRaw(this, &FContextualAnimViewModel::SequencerTimeChanged);
-	//Sequencer->GetSelectionChangedTracks().AddRaw(this, &FContextualAnimAssetEditorToolkit::SequencerTrackSelectionChanged);
-	//Sequencer->GetSelectionChangedSections().AddRaw(this, &FContextualAnimAssetEditorToolkit::SequencerSectionSelectionChanged);
 	Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
+}
+
+void FContextualAnimViewModel::SetActiveSceneVariantIdx(int32 Index)
+{
+	check(FMath::IsWithinInclusive(Index, 0, (SceneAsset->GetTotalVariants() - 1)));
+
+	ActiveSceneVariantIdx = Index;
+
+	RefreshSequencerTracks();
+}
+
+AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& AnimTrack)
+{
+	const FContextualAnimRoleDefinition* RoleDef = GetSceneAsset()->RolesAsset ? GetSceneAsset()->RolesAsset->FindRoleDefinitionByName(AnimTrack.Role) : nullptr;
+	UClass* PreviewClass = RoleDef ? RoleDef->PreviewActorClass : nullptr;
+	const FTransform SpawnTransform = (AnimTrack.AlignmentData.ExtractTransformAtTime(0, 0.f));
+
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	AActor* PreviewActor = GetWorld()->SpawnActor<AActor>(PreviewClass, SpawnTransform, Params);
+
+	if (ACharacter* PreviewCharacter = Cast<ACharacter>(PreviewActor))
+	{
+		PreviewCharacter->bUseControllerRotationYaw = false;
+
+		if (UCharacterMovementComponent* CharacterMovementComp = PreviewCharacter->GetCharacterMovement())
+		{
+			CharacterMovementComp->bOrientRotationToMovement = true;
+			CharacterMovementComp->bUseControllerDesiredRotation = false;
+			CharacterMovementComp->RotationRate = FRotator(0.f, 540.0, 0.f);
+			CharacterMovementComp->bRunPhysicsWithNoController = true;
+
+			CharacterMovementComp->SetMovementMode(AnimTrack.bRequireFlyingMode ? EMovementMode::MOVE_Flying : EMovementMode::MOVE_Walking);
+		}
+
+		if (UCameraComponent* CameraComp = PreviewCharacter->FindComponentByClass<UCameraComponent>())
+		{
+			CameraComp->DestroyComponent();
+		}
+	}
+
+	UE_LOG(LogContextualAnim, Log, TEXT("Spawned preview Actor: %s at Loc: %s Rot: %s Role: %s"),
+		*GetNameSafe(PreviewActor), *SpawnTransform.GetLocation().ToString(), *SpawnTransform.Rotator().ToString(), *AnimTrack.Role.ToString());
+
+	return PreviewActor;
 }
 
 void FContextualAnimViewModel::RefreshSequencerTracks()
 {
-	// Remove movie scene tracks (if any)
-	for (const FContextualAnimPreviewActorData& Data : PreviewManager->PreviewActorsData)
-	{
-		Data.GetAnimation()->UnregisterOnNotifyChanged(this);
+	// Remove movie scene tracks and destroy existing actors (if any)
 
-		MovieSceneSequence->GetMovieScene()->RemovePossessable(Data.Guid);
+	for(UAnimMontage* Anim : AnimsBeingEdited)
+	{
+		Anim->UnregisterOnNotifyChanged(this);
+	}
+	AnimsBeingEdited.Reset();
+
+	if (SceneInstance.IsValid())
+	{
+		SceneInstance->Stop();
 	}
 
-	// Destroy preview actors (if any)
-	PreviewManager->Reset();
+	const int32 Num = MovieSceneSequence->GetMovieScene()->GetPossessableCount();
+	if(Num > 0)
+	{
+		for (int32 Idx = (Num - 1); Idx >= 0; Idx--)
+		{
+			FMovieScenePossessable& Possessable = MovieSceneSequence->GetMovieScene()->GetPossessable(Idx);
+			MovieSceneSequence->GetMovieScene()->RemovePossessable(Possessable.GetGuid());
+		}
+	}
+
+	if(StartSceneParams.RoleToActorMap.Num() > 0)
+	{
+		for (auto& MapEntry : StartSceneParams.RoleToActorMap)
+		{
+			if (MapEntry.Value)
+			{
+				MapEntry.Value->Destroy();
+			}
+		}
+	}
 
 	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 
-	for (const auto& Entry : SceneAsset->DataContainer)
-	{
-		if (Entry.Value.AnimDataContainer.Num() > 0)
-		{
-			const FName& Role = Entry.Key;
-			const FContextualAnimData& Data = Entry.Value.AnimDataContainer[0]; //@TODO: Use the first entry for now
+	StartSceneParams.Reset();
+	StartSceneParams.VariantIdx = ActiveSceneVariantIdx;
 
-			UAnimMontage* AnimMontage = Data.Animation;
-			if(AnimMontage == nullptr)
-			{
-				continue;
-			}
+	SceneAsset->ForEachAnimTrack(ActiveSceneVariantIdx, [this](const FContextualAnimTrack& AnimTrack)
+		{
+			const FName& Role = AnimTrack.Role;
 
 			// Spawn preview actor
-			AActor* PreviewActor = PreviewManager->SpawnPreviewActor(Role, Data);
+			AActor* PreviewActor = SpawnPreviewActor(AnimTrack);
 			check(PreviewActor);
 
 			// Set actor label so the track shows the name of the role it represents
-			PreviewActor->SetActorLabel(Role.ToString(), false);
+			//PreviewActor->SetActorLabel(Role.ToString(), false);
 
 			// Add preview actors to sequencer
 			const bool bSelectActors = false;
@@ -146,87 +215,205 @@ void FContextualAnimViewModel::RefreshSequencerTracks()
 
 			const FGuid& Guid = Guids[0];
 
-			// Add Animation Track
+			UAnimMontage* AnimMontage = AnimTrack.Animation;
+			if (AnimMontage)
 			{
-				// @TODO: Temporally using an EventTrack to represent the animation since this is just a visual representation of the data. This assumes there is a single section in the montage
-				UMovieSceneEventTrack* AnimTrack = MovieSceneSequence->GetMovieScene()->AddTrack<UMovieSceneEventTrack>(Guid);
-				check(AnimTrack);
-
-				AnimTrack->SetDisplayName(FText::FromString(GetNameSafe(AnimMontage)));
-
-				UMovieSceneSection* NewSection = NewObject<UMovieSceneSection>(AnimTrack, UMovieSceneEventRepeaterSection::StaticClass(), NAME_None, RF_Transactional);
-				check(NewSection);
-
-				FFrameRate TickResolution = MovieSceneSequence->GetMovieScene()->GetTickResolution();
-				FFrameNumber StartFrame(0);
-				FFrameNumber EndFrame = (AnimMontage->GetPlayLength() * TickResolution).RoundToFrame();
-				NewSection->SetRange(TRange<FFrameNumber>::Exclusive(StartFrame, EndFrame));
-
-				AnimTrack->AddSection(*NewSection);
-			}
-
-			// Add Notify Tracks
-			{
-				for (const FAnimNotifyTrack& NotifyTrack : AnimMontage->AnimNotifyTracks)
+				// Add Animation Track
 				{
-					UContextualAnimMovieSceneNotifyTrack* Track = MovieSceneSequence->GetMovieScene()->AddTrack<UContextualAnimMovieSceneNotifyTrack>(Guid);
-					check(Track);
+					// @TODO: Temporally using an EventTrack to represent the animation since this is just a visual representation of the data. This assumes there is a single section in the montage
+					UMovieSceneEventTrack* MovieSceneAnimTrack = MovieSceneSequence->GetMovieScene()->AddTrack<UMovieSceneEventTrack>(Guid);
+					check(MovieSceneAnimTrack);
 
-					Track->Initialize(*AnimMontage, NotifyTrack);
+					MovieSceneAnimTrack->SetDisplayName(FText::FromString(GetNameSafe(AnimMontage)));
+
+					UMovieSceneSection* NewSection = NewObject<UMovieSceneSection>(MovieSceneAnimTrack, UMovieSceneEventRepeaterSection::StaticClass(), NAME_None, RF_Transactional);
+					check(NewSection);
+
+					FFrameRate TickResolution = MovieSceneSequence->GetMovieScene()->GetTickResolution();
+					FFrameNumber StartFrame(0);
+					FFrameNumber EndFrame = (AnimMontage->GetPlayLength() * TickResolution).RoundToFrame();
+					NewSection->SetRange(TRange<FFrameNumber>::Exclusive(StartFrame, EndFrame));
+
+					MovieSceneAnimTrack->AddSection(*NewSection);
 				}
 
-				// Listen for when the notifies in the animation changes, so we can refresh the notify sections here
-				AnimMontage->RegisterOnNotifyChanged(UAnimSequenceBase::FOnNotifyChanged::CreateSP(this, &FContextualAnimViewModel::OnAnimNotifyChanged, AnimMontage));
+				// Add Notify Tracks
+				{
+					for (const FAnimNotifyTrack& NotifyTrack : AnimMontage->AnimNotifyTracks)
+					{
+						UContextualAnimMovieSceneNotifyTrack* Track = MovieSceneSequence->GetMovieScene()->AddTrack<UContextualAnimMovieSceneNotifyTrack>(Guid);
+						check(Track);
+
+						Track->Initialize(*AnimMontage, NotifyTrack);
+					}
+
+					// Listen for when the notifies in the animation changes, so we can refresh the notify sections here
+					AnimMontage->RegisterOnNotifyChanged(UAnimSequenceBase::FOnNotifyChanged::CreateSP(this, &FContextualAnimViewModel::OnAnimNotifyChanged, AnimMontage));
+				}
+
+				AnimsBeingEdited.Add(AnimMontage);
 			}
 
-			// Save preview actor data
-			PreviewManager->AddPreviewActor(*PreviewActor, Role, Guid, *AnimMontage);
-		}
-	}
+			StartSceneParams.RoleToActorMap.Add(Role, PreviewActor);
 
-	//@TODO: DisableCollisionBetweenActors should also be called if bDisableCollisionBetweenActors changes while the editor is open
-	if(SceneAsset->bDisableCollisionBetweenActors)
-	{
-		PreviewManager->DisableCollisionBetweenActors();
-	}
+			return UE::ContextualAnim::EForEachResult::Continue;
+		});
 
 	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+
+	SceneInstance = ContextualAnimManager->ForceStartScene(*GetSceneAsset(), StartSceneParams);
+
+	// Disable auto blend out
+	if(ensureAlways(SceneInstance.IsValid()))
+	{
+		for (auto& Binding : SceneInstance->GetBindings())
+		{
+			Binding.Guid = Sequencer->FindObjectId(*Binding.GetActor(), MovieSceneSequenceID::Root);
+			check(Binding.Guid.IsValid());
+
+			if (FAnimMontageInstance* MontageInstance = Binding.GetAnimMontageInstance())
+			{
+				MontageInstance->bEnableAutoBlendOut = false;
+			}
+		}
+	}
 }
 
-void FContextualAnimViewModel::AddActorTrack(const FNewRoleWidgetParams& Params)
-{	
-	UE_LOG(LogContextualAnim, Log, TEXT("FContextualAnimViewModel::AddActorTrack Role: %s PreviewClass: %s Animation: %s"), 
-		*Params.RoleName.ToString(), *GetNameSafe(Params.PreviewClass), *GetNameSafe(Params.Animation));
+void FContextualAnimViewModel::AddNewVariant(const FContextualAnimNewVariantParams& Params)
+{
+	FContextualAnimTracksContainer Container;
+	for (const FContextualAnimNewVariantData& Data : Params.Data)
+	{
+		FContextualAnimTrack AnimTrack;
+		AnimTrack.Role = Data.RoleName;
+		AnimTrack.Animation = Data.Animation;
+		AnimTrack.bRequireFlyingMode = Data.bRequiresFlyingMode;
+		Container.Tracks.Add(AnimTrack);
+	}
 
-	FContextualAnimCompositeTrack CompositeTrack;
-	CompositeTrack.Settings.PreviewActorClass = Params.PreviewClass;
-	CompositeTrack.Settings.MeshToComponent = Params.MeshToComponent;
-
-	FContextualAnimData AnimData;
-	AnimData.Animation = Params.Animation;
-	AnimData.bRequireFlyingMode = Params.bRequiresFlyingMode;
-	CompositeTrack.AnimDataContainer.Add(AnimData);
-
-	SceneAsset->DataContainer.Add(Params.RoleName, CompositeTrack);
+	SceneAsset->Variants.Add(Container);
 
 	SceneAsset->PrecomputeData();
 
-	RefreshSequencerTracks();
+	SceneAsset->MarkPackageDirty();
+
+	SetActiveSceneVariantIdx(SceneAsset->GetTotalVariants() - 1);
 }
 
-UObject* FContextualAnimViewModel::GetPlaybackContext() const
+void FContextualAnimViewModel::ToggleSimulateMode() 
+{ 
+	bIsSimulateModeActive = !bIsSimulateModeActive; 
+
+	if(bIsSimulateModeActive)
+	{
+		if (SceneInstance.IsValid())
+		{
+			SceneInstance->Stop();
+		}
+	}
+	else
+	{
+		if(SceneInstance.IsValid())
+		{
+			for (auto& Binding : SceneInstance->GetBindings())
+			{
+				if (UMotionWarpingComponent* MotionWarpComp = Binding.GetActor()->FindComponentByClass<UMotionWarpingComponent>())
+				{
+					for (const FContextualAnimAlignmentSectionData AligmentData : SceneAsset->AlignmentSections)
+					{
+						MotionWarpComp->RemoveWarpTarget(AligmentData.WarpTargetName);
+					}
+				}
+			}
+		}
+		
+
+		RefreshSequencerTracks();
+	}
+};
+
+void FContextualAnimViewModel::StartSimulation()
+{
+	//SceneInstance = ContextualAnimManager->ForceStartScene(*GetSceneAsset(), StartSceneParams);
+	SceneInstance = ContextualAnimManager->TryStartScene(*GetSceneAsset(), StartSceneParams);
+
+	if(SceneInstance == nullptr)
+	{
+		//@TODO: This should be a message on the screen
+		UE_LOG(LogContextualAnim, Warning, TEXT("Can't start scene"));
+		return;
+	}
+}
+
+UWorld* FContextualAnimViewModel::GetWorld() const
 {
 	check(PreviewScenePtr.IsValid());
 	return PreviewScenePtr.Pin()->GetWorld();
 }
 
+UObject* FContextualAnimViewModel::GetPlaybackContext() const
+{
+	return GetWorld();
+}
+
 void FContextualAnimViewModel::SequencerTimeChanged()
 {
+	auto ResetActorTransform = [](FContextualAnimSceneActorData& SceneActorData, float Time)
+	{
+		const USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(SceneActorData.GetActor());
+
+		const FTransform RootTransform = UContextualAnimUtilities::ExtractRootTransformFromAnimation(SceneActorData.GetAnimMontage(), Time);
+		const FTransform StartTransform = SkelMeshComp->GetRelativeTransform().Inverse() * RootTransform;
+
+		SceneActorData.GetActor()->SetActorLocationAndRotation(StartTransform.GetLocation(), StartTransform.GetRotation());
+
+		if (UCharacterMovementComponent* MovementComp = SceneActorData.GetActor()->FindComponentByClass<UCharacterMovementComponent>())
+		{
+			MovementComp->StopMovementImmediately();
+		}
+	};
+
 	EMovieScenePlayerStatus::Type CurrentStatus = Sequencer->GetPlaybackStatus();
 	const float CurrentSequencerTime = Sequencer->GetGlobalTime().AsSeconds();
 	const float PlaybackSpeed = Sequencer->GetPlaybackSpeed();
 
-	PreviewManager->PreviewTimeChanged(PreviousSequencerStatus, PreviousSequencerTime, CurrentStatus, CurrentSequencerTime, PlaybackSpeed);
+	if(SceneInstance.IsValid())
+	{
+		for (auto& Binding : SceneInstance->GetBindings())
+		{
+			if (FAnimMontageInstance* MontageInstance = Binding.GetAnimMontageInstance())
+			{
+				const float AnimPlayLength = MontageInstance->Montage->GetPlayLength();
+				float PreviousTime = FMath::Clamp(PreviousSequencerTime, 0.f, AnimPlayLength);
+				float CurrentTime = FMath::Clamp(CurrentSequencerTime, 0.f, AnimPlayLength);
+
+				if (CurrentStatus == EMovieScenePlayerStatus::Stopped || CurrentStatus == EMovieScenePlayerStatus::Scrubbing)
+				{
+					ResetActorTransform(Binding, CurrentTime);
+
+					if (MontageInstance->IsPlaying())
+					{
+						MontageInstance->Pause();
+					}
+
+					MontageInstance->SetPosition(CurrentTime);
+				}
+				else if (CurrentStatus == EMovieScenePlayerStatus::Playing)
+				{
+					if (PlaybackSpeed > 0.f && CurrentTime < PreviousTime)
+					{
+						ResetActorTransform(Binding, CurrentTime);
+						MontageInstance->SetPosition(CurrentTime);
+					}
+
+					if (!MontageInstance->IsPlaying())
+					{
+						MontageInstance->SetPlaying(true);
+					}
+				}
+			}
+		}
+	}
 
 	PreviousSequencerStatus = CurrentStatus;
 	PreviousSequencerTime = CurrentSequencerTime;
@@ -236,14 +423,19 @@ void FContextualAnimViewModel::SequencerDataChanged(EMovieSceneDataChangeType Da
 {
 	UE_LOG(LogContextualAnim, Log, TEXT("FContextualAnimViewModel::OnMovieSceneDataChanged DataChangeType: %d"), (int32)DataChangeType);
 
+	if(!SceneInstance.IsValid())
+	{
+		return;
+	}
+
 	if(DataChangeType == EMovieSceneDataChangeType::TrackValueChanged)
 	{
 		// Update IK AnimNotify's bEnable flag based on the Active state of the section
 		// @TODO: Temp brute-force approach until having a way to override FMovieSceneSection::SetIsActive or something similar
 
-		for (const FContextualAnimPreviewActorData& Data : PreviewManager->PreviewActorsData)
+		for (const auto& Binding : SceneInstance->GetBindings())
 		{
-			TArray<UMovieSceneTrack*> Tracks = MovieSceneSequence->GetMovieScene()->FindTracks(UContextualAnimMovieSceneNotifyTrack::StaticClass(), Data.Guid);
+			TArray<UMovieSceneTrack*> Tracks = MovieSceneSequence->GetMovieScene()->FindTracks(UContextualAnimMovieSceneNotifyTrack::StaticClass(), Binding.Guid);
 			for(UMovieSceneTrack* Track : Tracks)
 			{
 				const TArray<UMovieSceneSection*>& Sections = Track->GetAllSections();
@@ -262,39 +454,6 @@ void FContextualAnimViewModel::SequencerDataChanged(EMovieSceneDataChangeType Da
 					}
 				}
 			}
-		}
-	}
-	else if(DataChangeType == EMovieSceneDataChangeType::MovieSceneStructureItemRemoved)
-	{
-		// Remove preview actor and role from the scene asset if an actor track was removed
-		int32 TotalRemoved = 0;
-		for (int32 Idx = PreviewManager->PreviewActorsData.Num() - 1; Idx >= 0; Idx--)
-		{
-			const FContextualAnimPreviewActorData& Data = PreviewManager->PreviewActorsData[Idx];
-
-			// Missing binding means the actor track was removed...
-			FMovieSceneBinding* Binding = MovieSceneSequence->GetMovieScene()->FindBinding(Data.Guid);
-			if (Binding == nullptr)
-			{
-				// Remove role from the scene asset
-				SceneAsset->DataContainer.Remove(Data.Role);
-
-				// Remove preview actor from the scene
-				Data.Actor->Destroy();
-
-				// Remove cached data
-				PreviewManager->PreviewActorsData.RemoveAt(Idx, 1, false);
-
-				TotalRemoved++;
-			}
-		}
-
-		PreviewManager->PreviewActorsData.Shrink();
-
-		if(TotalRemoved > 0)
-		{
-			SceneAsset->PrecomputeData();
-			SceneAsset->MarkPackageDirty();
 		}
 	}
 }
@@ -319,4 +478,27 @@ void FContextualAnimViewModel::AnimationModified(UAnimMontage& Animation)
 	Animation.RefreshCacheData();
 	Animation.PostEditChange();
 	Animation.MarkPackageDirty();
+}
+
+void FContextualAnimViewModel::OnPreviewActorClassChanged()
+{
+	const UContextualAnimRolesAsset* RolesAsset = GetSceneAsset()->RolesAsset;
+
+	if(RolesAsset && SceneInstance.IsValid())
+	{
+		for (const auto& Binding : SceneInstance->GetBindings())
+		{
+			if (const FContextualAnimRoleDefinition* RoleDef = RolesAsset->FindRoleDefinitionByName(Binding.GetRole()))
+			{
+				const UClass* DesiredPreviewClass = RoleDef->PreviewActorClass;
+				const UClass* CurrentPreviewClass = Binding.GetActor()->GetClass();
+
+				if (DesiredPreviewClass && DesiredPreviewClass != CurrentPreviewClass)
+				{
+					RefreshSequencerTracks();
+					break;
+				}
+			}
+		}
+	}
 }

@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/SphereComponent.h"
 #include "ContextualAnimTypes.h"
+#include "ActorComponents/IKRigInterface.h"
 #include "ContextualAnimSceneActorComponent.generated.h"
 
 class UAnimInstance;
@@ -13,22 +13,10 @@ class AActor;
 class UContextualAnimSceneInstance;
 struct FContextualAnimSceneActorData;
 
-USTRUCT(BlueprintType)
-struct FContextualAnimDebugParams
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
-	TWeakObjectPtr<AActor> TestActor;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug", meta = (UIMin = 0, ClampMin = 0))
-	float DrawAlignmentTransformAtTime = 0.f;
-};
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FContextualAnimSceneActorCompDelegate, class UContextualAnimSceneActorComponent*, SceneActorComponent);
 
 UCLASS(meta = (BlueprintSpawnableComponent))
-class CONTEXTUALANIMATION_API UContextualAnimSceneActorComponent : public UPrimitiveComponent
+class CONTEXTUALANIMATION_API UContextualAnimSceneActorComponent : public UPrimitiveComponent, public IIKGoalCreatorInterface
 {
 	GENERATED_BODY()
 
@@ -48,15 +36,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
 	bool bEnableDebug;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug", meta = (ShowOnlyInnerProperties, EditCondition = "bEnableDebug"))
-	FContextualAnimDebugParams DebugParams;
-
 	UContextualAnimSceneActorComponent(const FObjectInitializer& ObjectInitializer);
 
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+
+	virtual void AddIKGoals_Implementation(TMap<FName, FIKRigGoal>& OutGoals) override;
 
 	/** Called from the scene instance when the actor owner of this component joins an scene */
 	void OnJoinedScene(const FContextualAnimSceneActorData* SceneActorData);

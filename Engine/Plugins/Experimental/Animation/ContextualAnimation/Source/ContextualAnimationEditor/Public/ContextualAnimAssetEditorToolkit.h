@@ -33,9 +33,12 @@ public:
 	virtual FString GetWorldCentricTabPrefix() const override;
 
 	UContextualAnimSceneAsset* GetSceneAsset() const;
-	UContextualAnimPreviewManager* GetPreviewManager() const;
+	FContextualAnimViewModel* GetViewModel() const { return ViewModel.Get(); }
 
 	void ResetPreviewScene();
+	void ToggleSimulateMode();
+	bool IsSimulateModeActive() const;
+	
 
 private:
 	
@@ -49,6 +52,8 @@ private:
 	void ExtendToolbar();
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
+	TSharedRef<SWidget> BuildVariantsMenu();
+
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
 	TSharedPtr<SContextualAnimViewport> ViewportWidget;
@@ -60,6 +65,8 @@ private:
 	TSharedPtr<FContextualAnimPreviewScene> PreviewScene;
 
 	TSharedPtr<FContextualAnimViewModel> ViewModel;
+
+	TSharedPtr<FStructOnScope> NewVariantWidgetStruct;
 };
 
 

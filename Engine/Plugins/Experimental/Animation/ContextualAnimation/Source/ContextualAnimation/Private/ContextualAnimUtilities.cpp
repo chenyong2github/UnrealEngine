@@ -18,6 +18,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
 #include "AnimNotifyState_IKWindow.h"
+#include "SceneManagement.h"
 
 void UContextualAnimUtilities::ExtractLocalSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCompactPose& OutPose)
 {
@@ -88,6 +89,8 @@ void UContextualAnimUtilities::DrawDebugPose(const UWorld* World, const UAnimSeq
 { 
 	if(World)
 	{
+		FMemMark Mark(FMemStack::Get());
+
 		Time = FMath::Clamp(Time, 0.f, Animation->GetPlayLength());
 
 		const int32 TotalBones = Animation->GetSkeleton()->GetReferenceSkeleton().GetNum();
@@ -127,26 +130,25 @@ void UContextualAnimUtilities::DrawDebugPose(const UWorld* World, const UAnimSeq
 	}
 }
 
-void UContextualAnimUtilities::DrawDebugScene(const UWorld* World, const UContextualAnimSceneAsset* SceneAsset, int32 AnimDataIndex, float Time, const FTransform& ToWorldTransform, const FColor& Color, float LifeTime, float Thickness)
+void UContextualAnimUtilities::DrawDebugScene(const UWorld* World, const UContextualAnimSceneAsset* SceneAsset, int32 VariantIdx, float Time, const FTransform& ToWorldTransform, const FColor& Color, float LifeTime, float Thickness)
 {
 	if (World && SceneAsset)
 	{
-		for(const auto& Pair : SceneAsset->DataContainer)
+		SceneAsset->ForEachAnimTrack(VariantIdx, [=](const FContextualAnimTrack& AnimTrack)
 		{
-			if (Pair.Value.AnimDataContainer.IsValidIndex(AnimDataIndex))
+			const FTransform Transform = (SceneAsset->GetMeshToComponentForRole(AnimTrack.Role) * AnimTrack.GetAlignmentTransformAtTime(Time)) * ToWorldTransform;
+			
+			if (const UAnimMontage* Animation = AnimTrack.Animation)
 			{
-				const FContextualAnimData& AnimData = Pair.Value.AnimDataContainer[AnimDataIndex];
-				const FTransform Transform = (Pair.Value.Settings.MeshToComponent * AnimData.GetAlignmentTransformAtTime(Time)) * ToWorldTransform;
-				if (const UAnimMontage* Animation = AnimData.Animation)
-				{
-					DrawDebugPose(World, Animation, Time, Transform, Color, LifeTime, Thickness);
-				}
-				else
-				{
-					DrawDebugCoordinateSystem(World, Transform.GetLocation(), Transform.Rotator(), 50.f, false, LifeTime, 0, Thickness);
-				}
+				DrawDebugPose(World, Animation, Time, Transform, Color, LifeTime, Thickness);
 			}
-		}
+			else
+			{
+				DrawDebugCoordinateSystem(World, Transform.GetLocation(), Transform.Rotator(), 50.f, false, LifeTime, 0, Thickness);
+			}
+
+			return UE::ContextualAnim::EForEachResult::Continue;
+		});
 	}
 }
 
@@ -209,4 +211,49 @@ float UContextualAnimUtilities::BP_Montage_GetSectionTimeLeftFromPos(const UAnim
 float UContextualAnimUtilities::BP_Montage_GetSectionLength(const UAnimMontage* Montage, int32 SectionIndex)
 {
 	return Montage ? Montage->GetSectionLength(SectionIndex) : -1.f;
+}
+
+void UContextualAnimUtilities::DrawSector(FPrimitiveDrawInterface& PDI, const FVector& Origin, const FVector& Direction, float MinDistance, float MaxDistance, float MinAngle, float MaxAngle, const FLinearColor& Color, uint8 DepthPriority, float Thickness)
+{
+	if(MinAngle == 0 && MaxAngle == 0)
+	{
+		DrawCircle(&PDI, Origin, FVector(1, 0, 0), FVector(0, 1, 0), Color, 30.f, 12, SDPG_World, 1.f);
+		return;
+	}
+
+	// Draw Cone lines
+	const FVector LeftDirection = Direction.RotateAngleAxis(MinAngle, FVector::UpVector);
+	const FVector RightDirection = Direction.RotateAngleAxis(MaxAngle, FVector::UpVector);
+	PDI.DrawLine(Origin + (LeftDirection * MinDistance), Origin + (LeftDirection * MaxDistance), Color, DepthPriority, Thickness);
+	PDI.DrawLine(Origin + (RightDirection * MinDistance), Origin + (RightDirection * MaxDistance), Color, DepthPriority, Thickness);
+
+	// Draw Near Arc
+	FVector LastDirection = LeftDirection;
+	float Angle = MinAngle;
+	while (Angle < MaxAngle)
+	{
+		Angle = FMath::Clamp<float>(Angle + 10, MinAngle, MaxAngle);
+
+		const float Length = MinDistance;
+		const FVector NewDirection = Direction.RotateAngleAxis(Angle, FVector::UpVector);
+		const FVector LineStart = Origin + (LastDirection * Length);
+		const FVector LineEnd = Origin + (NewDirection * Length);
+		PDI.DrawLine(LineStart, LineEnd, Color, DepthPriority, Thickness);
+		LastDirection = NewDirection;
+	}
+
+	// Draw Far Arc
+	LastDirection = LeftDirection;
+	Angle = MinAngle;
+	while (Angle < MaxAngle)
+	{
+		Angle = FMath::Clamp<float>(Angle + 10, MinAngle, MaxAngle);
+
+		const float Length = MaxDistance;
+		const FVector NewDirection = Direction.RotateAngleAxis(Angle, FVector::UpVector);
+		const FVector LineStart = Origin + (LastDirection * Length);
+		const FVector LineEnd = Origin + (NewDirection * Length);
+		PDI.DrawLine(LineStart, LineEnd, Color, DepthPriority, Thickness);
+		LastDirection = NewDirection;
+	}
 }

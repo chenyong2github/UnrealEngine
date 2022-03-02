@@ -28,7 +28,9 @@ public class ContextualAnimation : ModuleRules
 				"Core",
 				"CoreUObject",
                 "Engine",
-				"MotionWarping"
+				"GameplayTags",
+				"MotionWarping",
+				"IKRig"
 			}
 			);
 			

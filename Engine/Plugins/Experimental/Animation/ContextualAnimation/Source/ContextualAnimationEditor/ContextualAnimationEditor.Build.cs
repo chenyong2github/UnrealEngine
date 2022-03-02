@@ -27,7 +27,8 @@ public class ContextualAnimationEditor : ModuleRules
 				"AIModule",
 				"NavigationSystem",
 				"ContextualAnimation",
-				"MotionWarping",	
+				"MotionWarping",
+				"GameplayTags"
 			}
 			);
 			
@@ -58,7 +59,9 @@ public class ContextualAnimationEditor : ModuleRules
 				"MovieSceneTracks",
 				"MovieSceneTools",
 				"ClassViewer",
-				"Persona"
+				"Persona",
+				"RenderCore",
+				"BlueprintGraph"
 			}
 			);
 		

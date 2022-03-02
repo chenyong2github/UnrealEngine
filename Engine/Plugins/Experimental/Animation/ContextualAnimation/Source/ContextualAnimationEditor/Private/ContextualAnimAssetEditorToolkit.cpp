@@ -15,8 +15,11 @@
 #include "MovieScene.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AdvancedPreviewSceneModule.h"
+#include "IStructureDetailsView.h"
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
+#include "ContextualAnimEditorTypes.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "ContextualAnimAssetEditorToolkit"
 
@@ -49,11 +52,6 @@ FContextualAnimAssetEditorToolkit::~FContextualAnimAssetEditorToolkit()
 UContextualAnimSceneAsset* FContextualAnimAssetEditorToolkit::GetSceneAsset() const
 {
 	return ViewModel.IsValid() ? ViewModel->GetSceneAsset() : nullptr;
-}
-
-UContextualAnimPreviewManager* FContextualAnimAssetEditorToolkit::GetPreviewManager() const
-{
-	return ViewModel.IsValid() ? ViewModel->GetPreviewManager() : nullptr;
 }
 
 void FContextualAnimAssetEditorToolkit::ResetPreviewScene()
@@ -98,7 +96,7 @@ void FContextualAnimAssetEditorToolkit::InitAssetEditor(const EToolkitMode::Type
 	EditingAssetWidget->OnFinishedChangingProperties().AddSP(this, &FContextualAnimAssetEditorToolkit::OnFinishedChangingProperties);
 
 	// Define Editor Layout
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_ContextualAnimAnimEditor_Layout_v0.07")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_ContextualAnimAnimEditor_Layout_v0.09")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -163,6 +161,25 @@ void FContextualAnimAssetEditorToolkit::BindCommands()
 		Commands.ResetPreviewScene,
 		FExecuteAction::CreateSP(this, &FContextualAnimAssetEditorToolkit::ResetPreviewScene),
 		EUIActionRepeatMode::RepeatDisabled);
+
+	ToolkitCommands->MapAction(
+		Commands.Simulate,
+		FExecuteAction::CreateSP(this, &FContextualAnimAssetEditorToolkit::ToggleSimulateMode),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FContextualAnimAssetEditorToolkit::IsSimulateModeActive));
+}
+
+void FContextualAnimAssetEditorToolkit::ToggleSimulateMode()
+{
+	if(ViewModel.IsValid())
+	{
+		ViewModel->ToggleSimulateMode();
+	}
+}
+
+bool FContextualAnimAssetEditorToolkit::IsSimulateModeActive() const
+{
+	return (ViewModel.IsValid()) ? ViewModel->IsSimulateModeActive() : false;
 }
 
 void FContextualAnimAssetEditorToolkit::ExtendToolbar()
@@ -181,16 +198,128 @@ void FContextualAnimAssetEditorToolkit::ExtendToolbar()
 
 void FContextualAnimAssetEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 {
-	ToolbarBuilder.BeginSection("Reset");
+	ToolbarBuilder.AddToolBarButton(
+		FContextualAnimAssetEditorCommands::Get().ResetPreviewScene,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Refresh")
+	);
+
+	ToolbarBuilder.AddComboButton(
+		FUIAction(),
+		FOnGetContent::CreateSP(this, &FContextualAnimAssetEditorToolkit::BuildVariantsMenu),
+		LOCTEXT("Variants_Label", "Variants"),
+		FText::GetEmpty(),
+		FSlateIcon()
+	);
+
+	ToolbarBuilder.AddToolBarButton(
+		FContextualAnimAssetEditorCommands::Get().Simulate,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon()
+	);
+}
+
+TSharedRef<SWidget> FContextualAnimAssetEditorToolkit::BuildVariantsMenu()
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, GetToolkitCommands());
+
 	{
-		ToolbarBuilder.AddToolBarButton(
-			FContextualAnimAssetEditorCommands::Get().ResetPreviewScene,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Refresh"));
+		MenuBuilder.BeginSection(NAME_None, LOCTEXT("CreateNewVariant", "New Variant"));
+
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("NewVariant", "New Variant"),
+			FText::GetEmpty(),
+			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& MenuBuilder){
+			
+				FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+				FDetailsViewArgs Args;
+				Args.bHideSelectionTip = true;
+				Args.bAllowSearch = false;
+				Args.bAllowFavoriteSystem = false;
+
+				NewVariantWidgetStruct = MakeShared<FStructOnScope>(FContextualAnimNewVariantParams::StaticStruct());
+				FContextualAnimNewVariantParams* Params = (FContextualAnimNewVariantParams*)NewVariantWidgetStruct->GetStructMemory();
+
+				const TArray<FName> Roles = ViewModel->GetSceneAsset()->GetRoles();
+				for (FName Role : Roles)
+				{
+					FContextualAnimNewVariantData Entry;
+					Entry.RoleName = Role;
+					Params->Data.Add(Entry);
+				}
+
+				TSharedRef<IStructureDetailsView> StructureDetailsView = PropertyModule.CreateStructureDetailView(Args, FStructureDetailsViewArgs(), NewVariantWidgetStruct);
+
+				MenuBuilder.AddWidget(
+					SNew(SBox)
+					.MinDesiredWidth(500.0f)
+					.MaxDesiredWidth(500.f)
+					.MaxDesiredHeight(400.0f)
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.HAlign(HAlign_Fill)
+						[
+							StructureDetailsView->GetWidget().ToSharedRef()
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.HAlign(HAlign_Fill)
+						[
+							SNew(SButton)
+							.ContentPadding(3)
+							.VAlign(VAlign_Center)
+							.HAlign(HAlign_Center)
+							.OnClicked_Lambda([this]()
+							{
+								FContextualAnimNewVariantParams* Params = (FContextualAnimNewVariantParams*)NewVariantWidgetStruct->GetStructMemory();
+								check(Params);
+
+								ViewModel->AddNewVariant(*Params);
+
+								FSlateApplication::Get().DismissAllMenus();
+
+								return FReply::Handled();
+							})
+						.Text(LOCTEXT("OK", "OK"))
+						]
+					],
+					FText(), true, false);
+			}),
+			false,
+			FSlateIcon()
+		);
+
+		MenuBuilder.EndSection();
 	}
-	ToolbarBuilder.EndSection();
+
+	{
+		MenuBuilder.BeginSection(NAME_None, LOCTEXT("Variants_Label", "Variants"));
+		{
+			const UContextualAnimSceneAsset* SceneAsset = GetSceneAsset();
+			const int32 TotalVariants = SceneAsset->GetTotalVariants();
+			for (int32 Idx = 0; Idx < TotalVariants; Idx++)
+			{
+				MenuBuilder.AddMenuEntry(
+					FText::FromString(FString::Printf(TEXT("%d"), Idx)),
+					FText::GetEmpty(),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateLambda([this, Idx]() {
+						ViewModel->SetActiveSceneVariantIdx(Idx);
+					})));
+			}
+		}
+		MenuBuilder.EndSection();
+	}
+
+	return MenuBuilder.MakeWidget();
 }
 
 void FContextualAnimAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -332,6 +461,11 @@ TSharedRef<SDockTab> FContextualAnimAssetEditorToolkit::SpawnTab_PreviewSettings
 
 void FContextualAnimAssetEditorToolkit::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
+	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	const FName MemberPropertyName = (PropertyChangedEvent.MemberProperty != nullptr) ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
+
+	UE_LOG(LogContextualAnim, Log, TEXT("FContextualAnimAssetEditorToolkit::OnFinishedChangingProperties MemberPropertyName: %s PropertyName: %s"), 
+		*MemberPropertyName.ToString(), *PropertyName.ToString());
 }
 
 #undef LOCTEXT_NAMESPACE

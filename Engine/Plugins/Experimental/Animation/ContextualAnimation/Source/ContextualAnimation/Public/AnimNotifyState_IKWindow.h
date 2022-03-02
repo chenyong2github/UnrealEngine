@@ -30,4 +30,6 @@ public:
 	UAnimNotifyState_IKWindow(const FObjectInitializer& ObjectInitializer);
 
 	virtual FString GetNotifyName_Implementation() const override;
+
+	static float GetIKAlphaValue(const FName& GoalName, const struct FAnimMontageInstance* MontageInstance);
 };

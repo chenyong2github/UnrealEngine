@@ -11,6 +11,7 @@ class UContextualAnimSceneAsset;
 class USkeletalMeshComponent;
 class UAnimInstance;
 class AActor;
+class FPrimitiveDrawInterface;
 struct FAnimMontageInstance;
 
 UCLASS()
@@ -42,7 +43,7 @@ public:
 
 	static void DrawDebugPose(const UWorld* World, const UAnimSequenceBase* Animation, float Time, const FTransform& LocalToWorldTransform, const FColor& Color, float LifeTime, float Thickness);
 	
-	static void DrawDebugScene(const UWorld* World, const UContextualAnimSceneAsset* SceneAsset, int32 AnimDataIndex, float Time, const FTransform& ToWorldTransform, const FColor& Color, float LifeTime, float Thickness);
+	static void DrawDebugScene(const UWorld* World, const UContextualAnimSceneAsset* SceneAsset, int32 VariantIdx, float Time, const FTransform& ToWorldTransform, const FColor& Color, float LifeTime, float Thickness);
 
 	static USkeletalMeshComponent* TryGetSkeletalMeshComponent(const AActor* Actor);
 
@@ -59,4 +60,5 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Utilities", meta = (DisplayName = "GetSectionLength"))
 	static float BP_Montage_GetSectionLength(const UAnimMontage* Montage, int32 SectionIndex);
 
+	static void DrawSector(FPrimitiveDrawInterface& PDI, const FVector& Origin, const FVector& Direction, float MinDistance, float MaxDistance, float MinAngle, float MaxAngle, const FLinearColor& Color, uint8 DepthPriority, float Thickness);
 };

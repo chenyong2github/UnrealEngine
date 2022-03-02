@@ -3,7 +3,6 @@
 #include "ContextualAnimViewportClient.h"
 #include "ContextualAnimAssetEditorToolkit.h"
 #include "ContextualAnimPreviewScene.h"
-#include "ContextualAnimPreviewManager.h"
 #include "SContextualAnimViewport.h"
 #include "AssetEditorModeManager.h"
 #include "UnrealWidget.h"
@@ -38,4 +37,17 @@ void FContextualAnimViewportClient::TrackingStopped()
 void FContextualAnimViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
 	FEditorViewportClient::Draw(View, PDI);
+}
+
+void FContextualAnimViewportClient::OnSetIKTargetsDrawMode(EShowIKTargetsDrawMode Mode)
+{
+	if(ShowIKTargetsDrawMode != Mode)
+	{
+		ShowIKTargetsDrawMode = Mode;
+	}
+}
+
+bool FContextualAnimViewportClient::IsIKTargetsDrawModeSet(EShowIKTargetsDrawMode Mode) const
+{
+	return ShowIKTargetsDrawMode == Mode;
 }

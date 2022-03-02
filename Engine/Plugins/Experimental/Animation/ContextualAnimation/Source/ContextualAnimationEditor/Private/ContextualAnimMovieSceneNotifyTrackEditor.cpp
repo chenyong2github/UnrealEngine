@@ -21,106 +21,24 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SButton.h"
+#include "ContextualAnimEditorTypes.h"
 
 #define LOCTEXT_NAMESPACE "FContextualAnimMovieSceneNotifyTrackEditor"
-
-// FNewRoleWidgetParams
-////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FNewRoleWidgetParams::HasValidData() const
-{
-	return RoleName != NAME_None && PreviewClass && Animation;
-}
-
-// UNewIKTargetWidgetParams
-////////////////////////////////////////////////////////////////////////////////////////////////
-
-void UNewIKTargetWidgetParams::Reset(const FName& InSourceRole, const UContextualAnimSceneAsset& InSceneAsset)
-{
-	CachedRoles = InSceneAsset.GetRoles();
-	check(CachedRoles.Contains(InSourceRole));
-
-	SceneAssetPtr = &InSceneAsset;
-
-	Params.SourceRole = InSourceRole;
-	Params.GoalName = NAME_None;
-	Params.TargetBone = FBoneReference();
-	Params.SourceBone = FBoneReference();
-
-	if(CachedRoles.Num() > 1)
-	{
-		Params.TargetRole = *CachedRoles.FindByPredicate([this](const FName& Role){ return Role != Params.SourceRole; });
-	}
-}
-
-bool UNewIKTargetWidgetParams::HasValidData() const
-{
-	return	Params.GoalName != NAME_None &&
-			Params.TargetBone.BoneName != NAME_None &&
-			Params.SourceBone.BoneName != NAME_None &&
-			CachedRoles.Contains(Params.TargetRole);
-}
-
-const UContextualAnimSceneAsset& UNewIKTargetWidgetParams::GetSceneAsset() const
-{
-	check(SceneAssetPtr.IsValid());
-	return *SceneAssetPtr.Get();
-}
-
-USkeleton* UNewIKTargetWidgetParams::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
-{
-	//bInvalidSkeletonIsError = false;
-
-	if(PropertyHandle)
-	{
-		if(PropertyHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FNewIKTargetParams, SourceBone))
-		{
-			UAnimMontage* Animation = GetSceneAsset().GetAnimationForRoleAtIndex(Params.SourceRole, 0);
-			check(Animation);
-
-			return Animation->GetSkeleton();
-		}
-		else if(PropertyHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FNewIKTargetParams, TargetBone))
-		{
-			UAnimMontage* Animation = GetSceneAsset().GetAnimationForRoleAtIndex(Params.TargetRole, 0);
-			check(Animation);
-
-			return Animation->GetSkeleton();
-		}
-	}
-
-	return nullptr;
-}
-
-TArray<FString> UNewIKTargetWidgetParams::GetTargetRoleOptions() const
-{
-	TArray<FString> Options;
-
-	for(const FName& Role : CachedRoles)
-	{
-		if(Role != Params.SourceRole)
-		{
-			Options.Add(Role.ToString());
-		}
-	}
-	
-	return Options;
-}
 
 // FContextualAnimMovieSceneNotifyTrackEditor
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 FContextualAnimMovieSceneNotifyTrackEditor::FContextualAnimMovieSceneNotifyTrackEditor(TSharedRef<ISequencer> InSequencer)
 	: FMovieSceneTrackEditor(InSequencer)
-	, NewIKTargetWidgetParams(nullptr)
+	, NewIKTargetParams(nullptr)
 { 
 }
 
 void FContextualAnimMovieSceneNotifyTrackEditor::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	if (NewIKTargetWidgetParams)
+	if (NewIKTargetParams)
 	{
-		Collector.AddReferencedObject(NewIKTargetWidgetParams);
+		Collector.AddReferencedObject(NewIKTargetParams);
 	}
 }
 
@@ -172,67 +90,6 @@ void FContextualAnimMovieSceneNotifyTrackEditor::FillNewNotifyStateMenu(FMenuBui
 void FContextualAnimMovieSceneNotifyTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 {
 	// Menu that appears when clicking on the Add Track button next to the Search Tracks bar
-
-	// @TODO: Temporally using this TrackEditor to add New Actor Tracks (new roles to the interaction)
-
-	MenuBuilder.AddSubMenu(
-		LOCTEXT("AddActorTrack", "Actor Track"),
-		LOCTEXT("AddActorTrackTooltip", "Adds new actor track"),
-		FNewMenuDelegate::CreateRaw(this, &FContextualAnimMovieSceneNotifyTrackEditor::BuildAddTrackSubMenu, TArray<FGuid>()),
-		false,
-		FSlateIcon()
-	);
-}
-
-void FContextualAnimMovieSceneNotifyTrackEditor::BuildAddTrackSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings)
-{
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	FDetailsViewArgs Args;
-	Args.bHideSelectionTip = true;
-	Args.bAllowSearch = false;
-	Args.bAllowFavoriteSystem = false;
-
-	NewRoleWidgetParams = MakeShared<FStructOnScope>(FNewRoleWidgetParams::StaticStruct());
-
-	TSharedRef<IStructureDetailsView> StructureDetailsView = PropertyModule.CreateStructureDetailView(Args, FStructureDetailsViewArgs(), NewRoleWidgetParams);
-	
-	MenuBuilder.AddWidget(
-		SNew(SBox)
-		.MinDesiredWidth(500.0f)
-		.MaxDesiredWidth(500.f)
-		.MaxDesiredHeight(400.0f)
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Fill)
-			[
-				StructureDetailsView->GetWidget().ToSharedRef()
-			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Fill)
-			[
-				SNew(SButton)
-				.ContentPadding(3)
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				.IsEnabled_Lambda([this]() { return ((FNewRoleWidgetParams*)NewRoleWidgetParams->GetStructMemory())->HasValidData(); })
-				.OnClicked_Lambda([this]()
-					{
-						FNewRoleWidgetParams* Data = (FNewRoleWidgetParams*)NewRoleWidgetParams->GetStructMemory();
-
-						GetMovieSceneSequence().GetViewModel().AddActorTrack(*Data);
-
-						FSlateApplication::Get().DismissAllMenus();
-
-						return FReply::Handled();
-					})
-				.Text(LOCTEXT("OK", "OK"))
-			]
-		],
-		FText(), true, false);
 }
 
 TSharedPtr<SWidget> FContextualAnimMovieSceneNotifyTrackEditor::BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params)
@@ -311,9 +168,10 @@ void FContextualAnimMovieSceneNotifyTrackEditor::BuildNewIKTargetSubMenu(FMenuBu
 		const FName Role = SceneAsset->FindRoleByAnimation(&Track->GetAnimation());
 		check(Role != NAME_None);
 
-		TArray<FName> ExistingGoals = SceneAsset->GetIKGoalsForRole(Role);
-		for(const FName& GoalName : ExistingGoals)
+		const FContextualAnimIKTargetDefContainer& IKTargets = SceneAsset->GetIKTargetDefsForRole(Role);
+		for (const FContextualAnimIKTargetDefinition& IKTargetDef : IKTargets.IKTargetDefs)
 		{
+			const FName GoalName = IKTargetDef.GoalName;
 			MenuBuilder.AddMenuEntry(
  			FText::FromName(GoalName),
 			FText::GetEmpty(),
@@ -342,18 +200,18 @@ UContextualAnimMovieSceneNotifySection* FContextualAnimMovieSceneNotifyTrackEdit
 
 void FContextualAnimMovieSceneNotifyTrackEditor::BuildNewIKTargetWidget(FMenuBuilder& MenuBuilder, UContextualAnimMovieSceneNotifyTrack* Track, int32 RowIndex)
 {
-	if(NewIKTargetWidgetParams == nullptr)
+	if(NewIKTargetParams == nullptr)
 	{
-		NewIKTargetWidgetParams = NewObject<UNewIKTargetWidgetParams>(UNewIKTargetWidgetParams::StaticClass());
+		NewIKTargetParams = NewObject<UContextualAnimNewIKTargetParams>(UContextualAnimNewIKTargetParams::StaticClass());
 	}
 	
-	check(NewIKTargetWidgetParams);
+	check(NewIKTargetParams);
 
 	const UContextualAnimSceneAsset* SceneAsset = GetMovieSceneSequence().GetViewModel().GetSceneAsset();
 	const FName SourceRole = SceneAsset->FindRoleByAnimation(&Track->GetAnimation());
 	check(SourceRole != NAME_None);
 
-	NewIKTargetWidgetParams->Reset(SourceRole, *SceneAsset);
+	NewIKTargetParams->Reset(SourceRole, *SceneAsset);
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
@@ -363,7 +221,7 @@ void FContextualAnimMovieSceneNotifyTrackEditor::BuildNewIKTargetWidget(FMenuBui
 	Args.bAllowFavoriteSystem = false;
 
 	TSharedPtr<IDetailsView> Widget = PropertyModule.CreateDetailView(Args);
-	Widget->SetObject(NewIKTargetWidgetParams);
+	Widget->SetObject(NewIKTargetParams);
 
 	MenuBuilder.AddWidget(
 		SNew(SBox)
@@ -386,24 +244,30 @@ void FContextualAnimMovieSceneNotifyTrackEditor::BuildNewIKTargetWidget(FMenuBui
 				.ContentPadding(3)
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Center)
-				.IsEnabled_Lambda([this](){ return NewIKTargetWidgetParams->HasValidData(); })
+				.IsEnabled_Lambda([this](){ return NewIKTargetParams->HasValidData(); })
 				.OnClicked_Lambda([this, Track, RowIndex]()
 				{
 					UContextualAnimSceneAsset* SceneAsset = GetMovieSceneSequence().GetViewModel().GetSceneAsset();
 					check(SceneAsset);
 
-					FContextualAnimCompositeTrack* SceneAssetTrack = SceneAsset->DataContainer.Find(NewIKTargetWidgetParams->Params.SourceRole);
-					check(SceneAssetTrack);
-
 					// Add IK Target definition to the scene asset
 					FContextualAnimIKTargetDefinition IKTargetDef;
-					IKTargetDef.GoalName = NewIKTargetWidgetParams->Params.GoalName;
-					IKTargetDef.BoneName = NewIKTargetWidgetParams->Params.SourceBone.BoneName;
-					IKTargetDef.Provider = NewIKTargetWidgetParams->Params.Provider;
-					IKTargetDef.TargetRoleName = NewIKTargetWidgetParams->Params.TargetRole;
-					IKTargetDef.TargetBoneName = NewIKTargetWidgetParams->Params.TargetBone.BoneName;
+					IKTargetDef.GoalName = NewIKTargetParams->GoalName;
+					IKTargetDef.BoneName = NewIKTargetParams->SourceBone.BoneName;
+					IKTargetDef.Provider = NewIKTargetParams->Provider;
+					IKTargetDef.TargetRoleName = NewIKTargetParams->TargetRole;
+					IKTargetDef.TargetBoneName = NewIKTargetParams->TargetBone.BoneName;
 
-					SceneAssetTrack->Settings.IKTargetDefinitions.AddUnique(IKTargetDef);
+					if(FContextualAnimIKTargetDefContainer* ContainerPtr = SceneAsset->RoleToIKTargetDefsMap.Find(NewIKTargetParams->SourceRole))
+					{
+						ContainerPtr->IKTargetDefs.AddUnique(IKTargetDef);
+					}
+					else
+					{
+						FContextualAnimIKTargetDefContainer Container;
+						Container.IKTargetDefs.AddUnique(IKTargetDef);
+						SceneAsset->RoleToIKTargetDefsMap.Add(NewIKTargetParams->SourceRole, Container);
+					}
 
 					SceneAsset->PrecomputeData();
 

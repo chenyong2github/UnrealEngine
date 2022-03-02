@@ -19,4 +19,12 @@ public:
 public:
 
 	TSharedPtr<FUICommandInfo> ResetPreviewScene;
+
+	TSharedPtr<FUICommandInfo> ShowIKTargetsDrawSelected;
+
+	TSharedPtr<FUICommandInfo> ShowIKTargetsDrawAll;
+
+	TSharedPtr<FUICommandInfo> ShowIKTargetsDrawNone;
+
+	TSharedPtr<FUICommandInfo> Simulate;
 };

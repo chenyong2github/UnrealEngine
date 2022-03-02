@@ -9,6 +9,13 @@ class FContextualAnimPreviewScene;
 class SContextualAnimViewport;
 class FContextualAnimAssetEditorToolkit;
 
+enum class EShowIKTargetsDrawMode : uint8
+{
+	None,
+	Selected,
+	All
+};
+
 class FContextualAnimViewportClient : public FEditorViewportClient
 {
 public:
@@ -27,6 +34,10 @@ public:
 
 	TSharedRef<FContextualAnimAssetEditorToolkit> GetAssetEditorToolkit() const { return AssetEditorToolkitPtr.Pin().ToSharedRef(); }
 
+	void OnSetIKTargetsDrawMode(EShowIKTargetsDrawMode Mode);
+	bool IsIKTargetsDrawModeSet(EShowIKTargetsDrawMode Mode) const;
+	EShowIKTargetsDrawMode GetShowIKTargetsDrawMode() const { return ShowIKTargetsDrawMode; }
+
 private:
 
 	/** Preview scene we are viewing */
@@ -34,4 +45,6 @@ private:
 
 	/** Asset editor toolkit we are embedded in */
 	TWeakPtr<FContextualAnimAssetEditorToolkit> AssetEditorToolkitPtr;
+
+	EShowIKTargetsDrawMode ShowIKTargetsDrawMode = EShowIKTargetsDrawMode::None;
 };

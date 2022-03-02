@@ -4,13 +4,26 @@
 
 #include "Animation/AnimSequence.h"
 #include "Templates/SubclassOf.h"
+#include "GameplayTagContainer.h"
 #include "ContextualAnimTypes.generated.h"
 
 CONTEXTUALANIMATION_API DECLARE_LOG_CATEGORY_EXTERN(LogContextualAnim, Log, All);
 
 class AActor;
 class UAnimMontage;
-class UContextualAnimMetadata;
+class UContextualAnimSelectionCriterion;
+
+namespace UE 
+{
+	namespace ContextualAnim 
+	{
+		enum class EForEachResult : uint8
+		{
+			Break,
+			Continue,
+		};
+	}
+}
 
 /** Container for alignment tracks */
 USTRUCT()
@@ -42,20 +55,8 @@ struct CONTEXTUALANIMATION_API FContextualAnimAlignmentTrackContainer
 	FTransform ExtractTransformAtTime(const FName& TrackName, float Time) const;
 };
 
-USTRUCT()
-struct CONTEXTUALANIMATION_API FContextualAnimRoleBonePair
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FName RoleName = NAME_None;
-
-	UPROPERTY()
-	FName BoneName = NAME_None;
-};
-
 USTRUCT(BlueprintType)
-struct CONTEXTUALANIMATION_API FContextualAnimData
+struct CONTEXTUALANIMATION_API FContextualAnimTrack
 {
 	GENERATED_BODY()
 
@@ -76,19 +77,17 @@ struct CONTEXTUALANIMATION_API FContextualAnimData
 	UPROPERTY()
 	FContextualAnimAlignmentTrackContainer IKTargetData;
 
-	/** Lookup map to go from TrackName to Target Role and Parent Bone */
-	UPROPERTY()
-	TMap<FName, FContextualAnimRoleBonePair> IKTargetTrackLookupMap;
-
 	UPROPERTY(EditAnywhere, Instanced, Category = "Defaults")
-	UContextualAnimMetadata* Metadata = nullptr;
+	TArray<UContextualAnimSelectionCriterion*> SelectionCriteria;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	FTransform MeshToScene;
 
-	/** Index in the container of AnimData that owns us */
-	UPROPERTY()
-	int32 Index = INDEX_NONE;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defaults", meta = (GetOptions = "GetRoles"))
+	FName Role = NAME_None;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Defaults")
+	int32 VariantIdx = INDEX_NONE;
 
 	float GetSyncTimeForWarpSection(int32 WarpSectionIndex) const;
 	float GetSyncTimeForWarpSection(const FName& WarpSectionName) const;
@@ -99,7 +98,9 @@ struct CONTEXTUALANIMATION_API FContextualAnimData
 
 	float FindBestAnimStartTime(const FVector& LocalLocation) const;
 
-	static const FContextualAnimData EmptyAnimData;
+	bool DoesQuerierPassSelectionCriteria(const FContextualAnimPrimaryActorData& PrimaryActorData, const FContextualAnimQuerierData& QuerierData) const;
+
+	static const FContextualAnimTrack EmptyTrack;
 };
 
 /** Defines when the actor should start playing the animation */
@@ -108,25 +109,6 @@ enum class EContextualAnimJoinRule : uint8
 {
 	Default,
 	Late
-};
-
-USTRUCT(BlueprintType)
-struct FContextualAnimTransitionContainer
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TArray<FName> FromSections;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FName ToSection = NAME_None;
-
-	UPROPERTY(EditAnywhere, Instanced, Category = "Defaults")
-	class UContextualAnimTransition* Transition = nullptr;
-
-	//@TODO: Remove this from here it should be on the EdMode
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	bool bForceTransition = false;
 };
 
 UENUM(BlueprintType)
@@ -188,59 +170,26 @@ struct CONTEXTUALANIMATION_API FContextualAnimIKTarget
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	FTransform Transform;
 
-	FContextualAnimIKTarget(){}
+	FContextualAnimIKTarget() {}
 	FContextualAnimIKTarget(const FName& InGoalName, float InAlpha, const FTransform& InTransform)
-		: GoalName(InGoalName), Alpha(InAlpha), Transform(InTransform){}
+		: GoalName(InGoalName), Alpha(InAlpha), Transform(InTransform) {}
 
 	static const FContextualAnimIKTarget InvalidIKTarget;
 };
 
 USTRUCT(BlueprintType)
-struct CONTEXTUALANIMATION_API FContextualAnimTrackSettings
+struct CONTEXTUALANIMATION_API FContextualAnimIKTargetDefContainer
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TSubclassOf<AActor> PreviewActorClass;
+	TArray<FContextualAnimIKTargetDefinition> IKTargetDefs;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	EContextualAnimJoinRule JoinRule = EContextualAnimJoinRule::Default;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TArray<FContextualAnimIKTargetDefinition> IKTargetDefinitions;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", AdvancedDisplay)
-	FTransform MeshToComponent = FTransform(FRotator(0.f, -90.f, 0.f));
+	static const FContextualAnimIKTargetDefContainer EmptyContainer;
 };
 
 USTRUCT(BlueprintType)
-struct FContextualAnimTrack
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FContextualAnimTrackSettings Settings;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FContextualAnimData AnimData;
-};
-
-USTRUCT(BlueprintType)
-struct FContextualAnimCompositeTrack
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FContextualAnimTrackSettings Settings;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TArray<FContextualAnimData> AnimDataContainer;
-
-	FTransform GetRootTransformForAnimDataAtIndex(int32 Index) const;
-};
-
-USTRUCT(BlueprintType)
-struct FContextualAnimSceneBindings
+struct FContextualAnimStartSceneParams
 {
 	GENERATED_BODY()
 
@@ -248,13 +197,20 @@ struct FContextualAnimSceneBindings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	TMap<FName, AActor*> RoleToActorMap;
 
-	/** Desired AnimDataIndex. If INDEX_NONE the Manager will attempt to find the best AnimData to use */
+	/** Desired variant. If INDEX_NONE the Manager will attempt to find the best variant to use by running the selection criteria */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	int32 AnimDataIndex = INDEX_NONE;
+	int32 VariantIdx = INDEX_NONE;
 
-	/** Desired start time. Only relevant if AnimDataIndex != INDEX_NONE */
+	/** Desired start time */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	float AnimStartTime = 0.f;
+
+	void Reset()
+	{
+		RoleToActorMap.Reset();
+		VariantIdx = INDEX_NONE;
+		AnimStartTime = 0.f;
+	}
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -278,74 +234,39 @@ struct FContextualAnimQueryResult
 	float AnimStartTime = 0.f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
-	int32 DataIndex = INDEX_NONE;
+	int32 VariantIdx = INDEX_NONE;
 
 	void Reset()
 	{
 		Animation.Reset();
 		EntryTransform = SyncTransform = FTransform::Identity;
 		AnimStartTime = 0.f;
-		DataIndex = INDEX_NONE;
+		VariantIdx = INDEX_NONE;
 	}
 
-	FORCEINLINE bool IsValid() const { return DataIndex != INDEX_NONE; }
-};
-
-/** Stores the parameters passed into query function */
-USTRUCT(BlueprintType)
-struct FContextualAnimQueryParams
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TWeakObjectPtr<const AActor> Querier;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FTransform QueryTransform;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	bool bComplexQuery = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	bool bFindAnimStartTime = false;
-
-	FContextualAnimQueryParams() {}
-
-	FContextualAnimQueryParams(const AActor* InQuerier, bool bInComplexQuery, bool bInFindAnimStartTime)
-		: Querier(InQuerier), bComplexQuery(bInComplexQuery), bFindAnimStartTime(bInFindAnimStartTime) {}
-
-	FContextualAnimQueryParams(const FTransform& InQueryTransform, bool bInComplexQuery, bool bInFindAnimStartTime)
-		: QueryTransform(InQueryTransform), bComplexQuery(bInComplexQuery), bFindAnimStartTime(bInFindAnimStartTime) {}
+	FORCEINLINE bool IsValid() const { return VariantIdx != INDEX_NONE; }
 };
 
 USTRUCT(BlueprintType)
-struct FContextualAnimQuerier
+struct FContextualAnimQuerierData
 {
 	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TWeakObjectPtr<const AActor> Actor = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	FTransform Transform;
 
-	FContextualAnimQuerier(){}
-	FContextualAnimQuerier(const AActor* InActor) : Actor(InActor) {}
-	FContextualAnimQuerier(const FTransform& InTransform) : Transform(InTransform) {}
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	FVector Velocity = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	FGameplayTagContainer GameplayTags;
 };
 
 USTRUCT(BlueprintType)
-struct FContextualAnimQueryContext
+struct FContextualAnimPrimaryActorData
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TWeakObjectPtr<const AActor> Actor = nullptr;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	FTransform Transform;
-
-	FContextualAnimQueryContext() {}
-	FContextualAnimQueryContext(const AActor* InActor) : Actor(InActor) {}
-	FContextualAnimQueryContext(const FTransform& InTransform) : Transform(InTransform) {}
 };

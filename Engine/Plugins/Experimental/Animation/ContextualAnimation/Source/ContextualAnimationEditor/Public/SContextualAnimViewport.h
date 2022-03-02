@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "SEditorViewport.h"
+#include "SCommonEditorViewportToolbarBase.h"
 
 class FContextualAnimPreviewScene;
 class FContextualAnimViewportClient;
 class FContextualAnimAssetEditorToolkit;
+class SContextualAnimViewportToolBar;
 
 struct FContextualAnimViewportRequiredArgs
 {
@@ -21,7 +23,7 @@ struct FContextualAnimViewportRequiredArgs
 	TSharedRef<FContextualAnimPreviewScene> PreviewScene;
 };
 
-class SContextualAnimViewport : public SEditorViewport
+class SContextualAnimViewport : public SEditorViewport, public ICommonEditorViewportToolbarInfoProvider
 {
 public:
 	
@@ -31,14 +33,23 @@ public:
 	void Construct(const FArguments& InArgs, const FContextualAnimViewportRequiredArgs& InRequiredArgs);
 	virtual ~SContextualAnimViewport(){}
 
+	// ~ICommonEditorViewportToolbarInfoProvider interface
+	virtual TSharedRef<class SEditorViewport> GetViewportWidget() override;
+	virtual TSharedPtr<FExtender> GetExtenders() const override;
+	virtual void OnFloatingButtonClicked() override;
+	// ~End of ICommonEditorViewportToolbarInfoProvider interface
+
 protected:
 
 	// ~SEditorViewport interface
+	virtual void BindCommands() override;
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
+	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
 	// ~End of SEditorViewport interface
 
-protected:
-	
+	/** The viewport toolbar */
+	TSharedPtr<SContextualAnimViewportToolBar> ViewportToolbar;
+
 	/** Viewport client */
 	TSharedPtr<FContextualAnimViewportClient> ViewportClient;
 
