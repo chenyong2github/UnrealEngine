@@ -99,7 +99,8 @@ class FNiagaraDebugHud
 
 		bool		bShowInWorld = false;
 		bool		bPassesSystemFilter = true;
-		int32		TotalSystems = 0;
+		int32		TotalRegistered = 0;
+		int32		TotalActive = 0;
 		int32		TotalScalability = 0;
 		int32		TotalEmitters = 0;
 		int32		TotalParticles = 0;
@@ -117,7 +118,8 @@ class FNiagaraDebugHud
 		{
 			bShowInWorld = false;
 			bPassesSystemFilter = true;
-			TotalSystems = 0;
+			TotalRegistered = 0;
+			TotalActive = 0;
 			TotalScalability = 0;
 			TotalEmitters = 0;
 			TotalParticles = 0;
@@ -241,7 +243,8 @@ private:
 private:
 	TWeakObjectPtr<class UWorld>	WeakWorld;
 
-	int32 GlobalTotalSystems = 0;
+	int32 GlobalTotalRegistered = 0;
+	int32 GlobalTotalActive = 0;
 	int32 GlobalTotalScalability = 0;
 	int32 GlobalTotalEmitters = 0;
 	int32 GlobalTotalParticles = 0;
