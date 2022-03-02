@@ -96,7 +96,7 @@ void FContextualAnimAssetEditorToolkit::InitAssetEditor(const EToolkitMode::Type
 	EditingAssetWidget->OnFinishedChangingProperties().AddSP(this, &FContextualAnimAssetEditorToolkit::OnFinishedChangingProperties);
 
 	// Define Editor Layout
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_ContextualAnimAnimEditor_Layout_v0.09")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_ContextualAnimAnimEditor_Layout_v0.10")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -131,12 +131,6 @@ void FContextualAnimAssetEditorToolkit::InitAssetEditor(const EToolkitMode::Type
 							->SetSizeCoefficient(0.3f)
 							->AddTab(FContextualAnimEditorTabs::AssetDetailsID, ETabState::OpenedTab)
 							->AddTab(FContextualAnimEditorTabs::PreviewSettingsID, ETabState::OpenedTab)
-						)
-						->Split
-						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.3f)
-							->AddTab(FContextualAnimEditorTabs::AssetBrowserID, ETabState::OpenedTab)
 						)
 					)
 				)
