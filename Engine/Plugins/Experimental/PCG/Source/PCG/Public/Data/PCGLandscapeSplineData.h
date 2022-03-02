@@ -23,7 +23,7 @@ public:
 	//~End UPCGPolyLineData interface
 
 	//~Begin UPCGSpatialDataWithPointCache interface
-	virtual const UPCGPointData* CreatePointData() const override;
+	virtual const UPCGPointData* CreatePointData(FPCGContextPtr Context) const override;
 	//~End UPCGSpatialDataWithPointCache interface
 
 	//~Begin UPCGSpatialData interface

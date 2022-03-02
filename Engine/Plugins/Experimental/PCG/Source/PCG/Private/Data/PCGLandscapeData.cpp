@@ -6,6 +6,7 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGPolyLineData.h"
 #include "Data/PCGSpatialData.h"
+#include "Helpers/PCGAsync.h"
 
 #include "Landscape.h"
 #include "LandscapeEdit.h"
@@ -76,7 +77,7 @@ float UPCGLandscapeData::GetDensityAtPosition(const FVector& InPosition) const
 	return HeightAtVertex.IsSet() ? 1.0f : 0;
 }
 
-const UPCGPointData* UPCGLandscapeData::CreatePointData() const
+const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContextPtr Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGLandscapeData::CreatePointData);
 
@@ -93,28 +94,33 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData() const
 	const int32 MinY = FMath::FloorToInt(MinPt.Y);
 	const int32 MaxY = FMath::FloorToInt(MaxPt.Y);
 
-	Points.Reserve((MaxX - MinX) * (MaxY - MinY));
+	int32 NumIterations = (MaxX - MinX) * (MaxY - MinY);
 
-	bool bPlaneCase = Bounds.Min.Z == Bounds.Max.Z;
-
-	for (int X = MinX; X < MaxX; ++X)
+	FPCGAsync::AsyncPointProcessing(Context, NumIterations, Points, [this, MinX, MaxX, MinY](int32 Index, FPCGPoint& OutPoint)
 	{
-		for (int Y = MinY; Y < MaxY; ++Y)
-		{
-			FVector VertexLocation = Transform.TransformPosition(FVector(X, Y, 0));
-			TOptional<float> HeightAtVertex = Landscape->GetHeightAtLocation(VertexLocation);
-			if (HeightAtVertex.IsSet() &&
-				HeightAtVertex.GetValue() >= Bounds.Min.Z && 
-				(bPlaneCase ? HeightAtVertex.GetValue() <= Bounds.Max.Z : HeightAtVertex.GetValue() < Bounds.Max.Z))
-			{
-				VertexLocation.Z = HeightAtVertex.GetValue();
+		const int X = MinX + (Index % (MaxX - MinX));
+		const int Y = MinY + (Index / (MaxX - MinX));
+		const bool bPlaneCase = Bounds.Min.Z == Bounds.Max.Z;
 
-				Points.Emplace(FTransform(VertexLocation),
-					1.0f,
-					PCGHelpers::ComputeSeed(X, Y, (int)HeightAtVertex.GetValue()));
-			}
+		FVector VertexLocation = Transform.TransformPosition(FVector(X, Y, 0));
+		TOptional<float> HeightAtVertex = Landscape->GetHeightAtLocation(VertexLocation);
+		if (HeightAtVertex.IsSet() &&
+			HeightAtVertex.GetValue() >= Bounds.Min.Z &&
+			(bPlaneCase ? HeightAtVertex.GetValue() <= Bounds.Max.Z : HeightAtVertex.GetValue() < Bounds.Max.Z))
+		{
+			VertexLocation.Z = HeightAtVertex.GetValue();
+
+			OutPoint = FPCGPoint(FTransform(VertexLocation),
+				1.0f,
+				PCGHelpers::ComputeSeed(X, Y, (int)HeightAtVertex.GetValue()));
+
+			return true;
 		}
-	}
+		else
+		{
+			return false;
+		}
+	});
 
 	UE_LOG(LogPCG, Verbose, TEXT("Landscape %s extracted %d of %d potential points"), *Landscape->GetFName().ToString(), Points.Num(), (MaxX - MinX) * (MaxY - MinY));
 

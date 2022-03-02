@@ -4,6 +4,7 @@
 
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
+#include "Helpers/PCGAsync.h"
 
 namespace PCGTextureSampling
 {
@@ -106,7 +107,7 @@ FPCGPoint UPCGBaseTextureData::TransformPoint(const FPCGPoint& InPoint) const
 	return Point;
 }
 
-const UPCGPointData* UPCGBaseTextureData::CreatePointData() const
+const UPCGPointData* UPCGBaseTextureData::CreatePointData(FPCGContextPtr Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGBaseTextureData::CreatePointData);
 	// TODO: this is a trivial implementation
@@ -119,31 +120,36 @@ const UPCGPointData* UPCGBaseTextureData::CreatePointData() const
 	TArray<FPCGPoint>& Points = Data->GetMutablePoints();
 
 	// TODO: There's a bias issue here where we should correct by a 0.5 unit...
-	Points.Reserve(Width * Height);
 	const FVector::FReal XScale = LocalSurfaceBounds.GetSize().X / Width;
 	const FVector::FReal YScale = LocalSurfaceBounds.GetSize().Y / Height;
 	const FVector2D Bias = LocalSurfaceBounds.Min;
 
-	for (int32 X = 0; X < Width; ++X)
+	FPCGAsync::AsyncPointProcessing(Context, Width * Height, Points, [this, XScale, YScale, Bias](int32 Index, FPCGPoint& OutPoint)
 	{
-		for (int32 Y = 0; Y < Height; ++Y)
-		{
-			const float Density = PCGTextureSampling::SampleFloatChannel(ColorData[X + Y * Width], ColorChannel);
+		const int X = Index % Width;
+		const int Y = Index / Width;
+
+		const float Density = PCGTextureSampling::SampleFloatChannel(ColorData[X + Y * Width], ColorChannel);
 
 #if WITH_EDITORONLY_DATA
-			if(Density > 0 || bKeepZeroDensityPoints)
+		if (Density > 0 || bKeepZeroDensityPoints)
 #else
-			if (Density > 0)
+		if (Density > 0)
 #endif
-			{
-				FVector LocalPosition(X * XScale + Bias.X, Y * YScale + Bias.Y, 0);
-				FPCGPoint& Point = Points.Emplace_GetRef(FTransform(Transform.TransformPosition(LocalPosition)),
-					Density,
-					PCGHelpers::ComputeSeed(X, Y));
-				Point.Color = ColorData[X + Y * Width];
-			}
+		{
+			FVector LocalPosition(X * XScale + Bias.X, Y * YScale + Bias.Y, 0);
+			OutPoint = FPCGPoint(FTransform(Transform.TransformPosition(LocalPosition)),
+				Density,
+				PCGHelpers::ComputeSeed(X, Y));
+			OutPoint.Color = ColorData[X + Y * Width];
+
+			return true;
 		}
-	}
+		else
+		{
+			return false;
+		}
+	});
 
 	return Data;
 }

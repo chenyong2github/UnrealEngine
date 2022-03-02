@@ -2,6 +2,7 @@
 
 #include "Data/PCGUnionData.h"
 #include "Data/PCGPointData.h"
+#include "Helpers/PCGAsync.h"
 
 namespace PCGUnionDataMaths
 {
@@ -148,7 +149,7 @@ bool UPCGUnionData::HasNonTrivialTransform() const
 	return (FirstNonTrivialTransformData != nullptr || Super::HasNonTrivialTransform());
 }
 
-const UPCGPointData* UPCGUnionData::CreatePointData() const
+const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContextPtr Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGUnionData::CreatePointData);
 
@@ -161,7 +162,7 @@ const UPCGPointData* UPCGUnionData::CreatePointData() const
 	else if (Data.Num() == 1)
 	{
 		UE_LOG(LogPCG, Verbose, TEXT("Union is trivial"));
-		return Data[0]->ToPointData();
+		return Data[0]->ToPointData(Context);
 	}
 
 	UPCGPointData* PointData = NewObject<UPCGPointData>(const_cast<UPCGUnionData*>(this));
@@ -171,11 +172,11 @@ const UPCGPointData* UPCGUnionData::CreatePointData() const
 	{
 	case EPCGUnionType::LeftToRightPriority:
 	default:
-		CreateSequentialPointData(PointData, /*bLeftToRight=*/true);
+		CreateSequentialPointData(Context, PointData, /*bLeftToRight=*/true);
 		break;
 
 	case EPCGUnionType::RightToLeftPriority:
-		CreateSequentialPointData(PointData, /*bLeftToRight=*/false);
+		CreateSequentialPointData(Context, PointData, /*bLeftToRight=*/false);
 		break;
 
 	case EPCGUnionType::KeepAll:
@@ -183,7 +184,7 @@ const UPCGPointData* UPCGUnionData::CreatePointData() const
 			TArray<FPCGPoint>& TargetPoints = PointData->GetMutablePoints();
 			for (TObjectPtr<const UPCGSpatialData> Datum : Data)
 			{
-				TargetPoints.Append(Datum->ToPointData()->GetPoints());
+				TargetPoints.Append(Datum->ToPointData(Context)->GetPoints());
 			}
 		}
 		break;
@@ -194,11 +195,12 @@ const UPCGPointData* UPCGUnionData::CreatePointData() const
 	return PointData;
 }
 
-void UPCGUnionData::CreateSequentialPointData(UPCGPointData* PointData, bool bLeftToRight) const
+void UPCGUnionData::CreateSequentialPointData(FPCGContextPtr Context, UPCGPointData* PointData, bool bLeftToRight) const
 {
 	check(PointData);
 
 	TArray<FPCGPoint>& TargetPoints = PointData->GetMutablePoints();
+	TArray<FPCGPoint> SelectedDataPoints;
 
 	int32 FirstDataIndex = (bLeftToRight ? 0 : Data.Num() - 1);
 	int32 LastDataIndex = (bLeftToRight ? Data.Num() : -1);
@@ -210,9 +212,12 @@ void UPCGUnionData::CreateSequentialPointData(UPCGPointData* PointData, bool bLe
 	{
 		// For each point, if it is not already "processed" by previous data,
 		// add it & compute its final density
-		const TArray<FPCGPoint>& Points = Data[DataIndex]->ToPointData()->GetPoints();
-		for (const FPCGPoint& Point : Points)
+		const TArray<FPCGPoint>& Points = Data[DataIndex]->ToPointData(Context)->GetPoints();
+
+		FPCGAsync::AsyncPointProcessing(Context, Points.Num(), SelectedDataPoints, [this, &Points, DataIndex, FirstDataIndex, LastDataIndex, DataIndexIncrement](int32 Index, FPCGPoint& OutPoint)
 		{
+			const FPCGPoint& Point = Points[Index];
+
 			// Discard point if it is already covered by a previous data
 			bool bPointToExclude = false;
 			for (int32 PreviousDataIndex = FirstDataIndex; PreviousDataIndex != DataIndex; PreviousDataIndex += DataIndexIncrement)
@@ -226,19 +231,25 @@ void UPCGUnionData::CreateSequentialPointData(UPCGPointData* PointData, bool bLe
 
 			if (bPointToExclude)
 			{
-				continue;
+				return false;
 			}
 
-			FPCGPoint& TargetPoint = TargetPoints.Add_GetRef(Point);
+			OutPoint = Point;
 
 			// Compute final density based on current & following data
 			for (int32 FollowingDataIndex = DataIndex + DataIndexIncrement; FollowingDataIndex != LastDataIndex; FollowingDataIndex += DataIndexIncrement)
 			{
-				if (PCGUnionDataMaths::UpdateDensity(TargetPoint.Density, Data[FollowingDataIndex]->GetDensityAtPosition(TargetPoint.Transform.GetLocation()), DensityFunction) == 1.0f)
+				if (PCGUnionDataMaths::UpdateDensity(OutPoint.Density, Data[FollowingDataIndex]->GetDensityAtPosition(OutPoint.Transform.GetLocation()), DensityFunction) == 1.0f)
 				{
 					break;
 				}
 			}
-		}
+
+			return true;
+		});
+
+		// Append current iteration results to target points
+		TargetPoints += SelectedDataPoints;
+		SelectedDataPoints.Reset();
 	}
 }

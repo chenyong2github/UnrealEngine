@@ -6,7 +6,7 @@
 #include "Data/PCGProjectionData.h"
 #include "Data/PCGUnionData.h"
 
-const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData() const
+const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData(FPCGContextPtr Context) const
 {
 	if (!CachedPointData)
 	{
@@ -14,7 +14,7 @@ const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData() const
 
 		if (!CachedPointData)
 		{
-			CachedPointData = CreatePointData();
+			CachedPointData = CreatePointData(Context);
 		}
 
 		CacheLock.Unlock();

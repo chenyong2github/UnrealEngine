@@ -3,6 +3,7 @@
 #include "Elements/PCGDensityRemap.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
+#include "Helpers/PCGAsync.h"
 #include "Math/RandomStream.h"
 
 FPCGElementPtr UPCGLinearDensityRemapSettings::CreateElement() const
@@ -48,7 +49,7 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContextPtr Context) cons
 			continue;
 		}
 
-		const UPCGPointData* OriginalData = Cast<UPCGSpatialData>(Input.Data)->ToPointData();
+		const UPCGPointData* OriginalData = Cast<UPCGSpatialData>(Input.Data)->ToPointData(Context);
 
 		if (!OriginalData)
 		{
@@ -64,22 +65,25 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContextPtr Context) cons
 		TArray<FPCGPoint>& SampledPoints = SampledData->GetMutablePoints();
 		Output.Data = SampledData;
 
-		SampledPoints = Points;
 		if (Settings->bMultiplyDensity)
 		{
-			for (FPCGPoint& Point : SampledPoints)
+			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Settings, RemapMin, RemapMax](int32 Index, FPCGPoint& OutPoint)
 			{
-				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, Point.Seed));
-				Point.Density *= RandomSource.FRandRange(RemapMin, RemapMax);
-			}
+				OutPoint = Points[Index];
+				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, OutPoint.Seed));
+				OutPoint.Density *= RandomSource.FRandRange(RemapMin, RemapMax);
+				return true;
+			});
 		}
 		else
 		{
-			for (FPCGPoint& Point : SampledPoints)
+			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Settings, RemapMin, RemapMax](int32 Index, FPCGPoint& OutPoint)
 			{
-				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, Point.Seed));
-				Point.Density = RandomSource.FRandRange(RemapMin, RemapMax);
-			}
+				OutPoint = Points[Index];
+				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, OutPoint.Seed));
+				OutPoint.Density  = RandomSource.FRandRange(RemapMin, RemapMax);
+				return true;
+			});
 		}
 	}
 

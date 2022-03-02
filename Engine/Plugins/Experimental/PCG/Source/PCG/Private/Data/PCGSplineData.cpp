@@ -43,7 +43,7 @@ FVector UPCGSplineData::GetLocationAtDistance(int SegmentIndex, float Distance) 
 	return Spline->GetLocationAtDistanceAlongSpline(Distance, ESplineCoordinateSpace::World);
 }
 
-const UPCGPointData* UPCGSplineData::CreatePointData() const
+const UPCGPointData* UPCGSplineData::CreatePointData(FPCGContextPtr Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSplineData::CreatePointData);
 	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGSplineData*>(this));

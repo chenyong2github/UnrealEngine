@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Data/PCGProjectionData.h"
+#include "Helpers/PCGAsync.h"
 
 void UPCGProjectionData::Initialize(const UPCGSpatialData* InSource, const UPCGSpatialData* InTarget)
 {
@@ -86,31 +87,29 @@ bool UPCGProjectionData::HasNonTrivialTransform() const
 	return Target->HasNonTrivialTransform();
 }
 
-const UPCGPointData* UPCGProjectionData::CreatePointData() const
+const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContextPtr Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGProjectionData::CreatePointData);
 	// TODO: add mechanism in the ToPointData so we can pass in a transform
 	// so we can forego creating the points twice if they're not used.
-	const UPCGPointData* SourcePointData = Source->ToPointData();
+	const UPCGPointData* SourcePointData = Source->ToPointData(Context);
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 
 	UPCGPointData* PointData = NewObject<UPCGPointData>(const_cast<UPCGProjectionData*>(this));
 	PointData->TargetActor = TargetActor;
 	TArray<FPCGPoint>& Points = PointData->GetMutablePoints();
 
-	Points.Reserve(SourcePoints.Num());
-	for (const FPCGPoint& SourcePoint : SourcePoints)
+	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), Points, [this, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
 	{
-		FPCGPoint ProjectedPoint = Target->TransformPoint(SourcePoint);
+		const FPCGPoint& SourcePoint = SourcePoints[Index];
+		OutPoint = Target->TransformPoint(SourcePoint);
+
 #if WITH_EDITORONLY_DATA
-		if(ProjectedPoint.Density > 0 || bKeepZeroDensityPoints)
+		return OutPoint.Density > 0 || bKeepZeroDensityPoints;
 #else
-		if (ProjectedPoint.Density > 0)
+		return OutPoint.Density > 0;
 #endif
-		{
-			Points.Add(MoveTemp(ProjectedPoint));
-		}
-	}
+	});
 
 	UE_LOG(LogPCG, Verbose, TEXT("Projection generated %d points from %d source points"), Points.Num(), SourcePoints.Num());
 

@@ -14,6 +14,9 @@ class UPCGDifferenceData;
 class UPCGProjectionData;
 class AActor;
 
+struct FPCGContext;
+typedef TSharedPtr<FPCGContext, ESPMode::ThreadSafe> FPCGContextPtr;
+
 /**
 * "Concrete" data base class for PCG generation
 * This will be the base class for data classes that actually represent
@@ -51,7 +54,9 @@ public:
 
 	/** Discretizes the data into points */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
-	virtual const UPCGPointData* ToPointData() const PURE_VIRTUAL(UPCGSpatialData::ToPointData, return nullptr;);
+	virtual const UPCGPointData* ToPointData() const { return ToPointData(nullptr); }
+
+	virtual const UPCGPointData* ToPointData(FPCGContextPtr Context) const PURE_VIRTUAL(UPCGSpatialData::ToPointData, return nullptr;);
 
 	/** Transform a world-space position to a world-space position in relation to the current data. (ex: projection on surface) */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
@@ -96,11 +101,11 @@ class UPCGSpatialDataWithPointCache : public UPCGSpatialData
 
 public:
 	// ~UPCGSpatialData implementation
-	virtual const UPCGPointData* ToPointData() const override;
+	virtual const UPCGPointData* ToPointData(FPCGContextPtr Context) const override;
 	// ~End UPCGSpatialData implementation
 
 protected:
-	virtual const UPCGPointData* CreatePointData() const PURE_VIRTUAL(UPCGSpatialData::CreatePointData, return nullptr;);
+	virtual const UPCGPointData* CreatePointData(FPCGContextPtr Context) const PURE_VIRTUAL(UPCGSpatialData::CreatePointData, return nullptr;);
 
 private:
 	UPROPERTY(Transient)

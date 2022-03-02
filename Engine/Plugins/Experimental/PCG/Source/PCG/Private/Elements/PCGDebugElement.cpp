@@ -60,7 +60,7 @@ namespace PCGDebugElement
 				continue;
 			}
 
-			const UPCGPointData* PointData = SpatialData->ToPointData();
+			const UPCGPointData* PointData = SpatialData->ToPointData(Context);
 
 			if (!PointData)
 			{

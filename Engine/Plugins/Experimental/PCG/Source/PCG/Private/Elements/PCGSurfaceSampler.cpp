@@ -3,8 +3,83 @@
 #include "Elements/PCGSurfaceSampler.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
+#include "Helpers/PCGAsync.h"
 #include "PCGHelpers.h"
 #include "Math/RandomStream.h"
+
+struct FPCGSurfaceSamplerLoopData
+{
+	const UPCGSurfaceSamplerSettings* Settings;
+	
+	FVector::FReal PointRadius;
+	FVector::FReal InterstitialDistance;
+	FVector::FReal InnerCellSize;
+	FVector::FReal CellSize;
+
+	int32 CellMinX;
+	int32 CellMaxX;
+	int32 CellMinY;
+	int32 CellMaxY;
+
+	int32 CellCount;
+
+	int64 TargetPointCount;
+
+	float Ratio;
+
+	bool Initialize(const UPCGSurfaceSamplerSettings* InSettings, FPCGContextPtr Context, const FBox& InputBounds)
+	{
+		Settings = InSettings;
+
+		// Conceptually, we will break down the surface bounds in a N x M grid
+		InterstitialDistance = 2 * Settings->PointRadius;
+		InnerCellSize = 2 * Settings->Looseness * Settings->PointRadius;
+		CellSize = InterstitialDistance + InnerCellSize;
+
+		check(CellSize > 0);
+
+		// By using scaled indices in the world, we can easily make this process deterministic
+		CellMinX = FMath::CeilToInt((InputBounds.Min.X) / CellSize);
+		CellMaxX = FMath::FloorToInt((InputBounds.Max.X) / CellSize);
+		CellMinY = FMath::CeilToInt((InputBounds.Min.Y) / CellSize);
+		CellMaxY = FMath::FloorToInt((InputBounds.Max.Y) / CellSize);
+
+		if (CellMinX > CellMaxX || CellMinY > CellMaxY)
+		{
+			PCGE_LOG_C(Verbose, Context, "Skipped - invalid cell bounds");
+			return false;
+		}
+
+		CellCount = (1 + CellMaxX - CellMinX) * (1 + CellMaxY - CellMinY);
+		check(CellCount > 0);
+
+		const FVector::FReal InvSquaredMeterUnits = 1.0 / (100.0 * 100.0);
+		TargetPointCount = (InputBounds.Max.X - InputBounds.Min.X) * (InputBounds.Max.Y - InputBounds.Min.Y) * Settings->PointsPerSquaredMeter * InvSquaredMeterUnits;
+
+		if (TargetPointCount == 0)
+		{
+			PCGE_LOG_C(Verbose, Context, "Skipped - density yields no points");
+			return false;
+		}
+		else if (TargetPointCount > CellCount)
+		{
+			TargetPointCount = CellCount;
+		}
+
+		Ratio = TargetPointCount / (FVector::FReal)CellCount;
+
+		return true;
+	}
+
+	void ComputeCellIndices(int32 Index, int32& CellX, int32& CellY)
+	{
+		check(Index >= 0 && Index < CellCount);
+		const int32 CellCountX = CellMaxX - CellMinX;
+
+		CellX = CellMinX + (Index % CellCountX);
+		CellY = CellMinY + (Index / CellCountX);
+	}
+};
 
 FPCGElementPtr UPCGSurfaceSamplerSettings::CreateElement() const
 {
@@ -48,45 +123,11 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 			continue;
 		}
 
-		// Conceptually, we will break down the surface bounds in a N x M grid
-		const float PointSteepness = Settings->PointSteepness;
-		const bool bApplyDensity = Settings->bApplyDensityToPoints;
-		const FVector::FReal PointRadius = Settings->PointRadius;
-		const FVector::FReal InterstitialDistance = 2 * PointRadius;
-		const FVector::FReal InnerCellSize = 2 * Settings->Looseness * PointRadius;
-		const FVector::FReal CellSize = InterstitialDistance + InnerCellSize;
-		
-		check(CellSize > 0);
-
-		// By using scaled indices in the world, we can easily make this process deterministic
-		const int32 CellMinX = FMath::CeilToInt((InputBounds.Min.X) / CellSize);
-		const int32 CellMaxX = FMath::FloorToInt((InputBounds.Max.X) / CellSize);
-		const int32 CellMinY = FMath::CeilToInt((InputBounds.Min.Y) / CellSize);
-		const int32 CellMaxY = FMath::FloorToInt((InputBounds.Max.Y) / CellSize);
-
-		if (CellMinX > CellMaxX || CellMinY > CellMaxY)
+		FPCGSurfaceSamplerLoopData LoopData;
+		if (!LoopData.Initialize(Settings, Context, InputBounds))
 		{
-			PCGE_LOG(Verbose, "Skipped - invalid cell bounds");
 			continue;
 		}
-
-		const int32 CellCount = (1 + CellMaxX - CellMinX) * (1 + CellMaxY - CellMinY);
-		check(CellCount > 0);
-
-		const FVector::FReal InvSquaredMeterUnits = 1.0 / (100.0 * 100.0);
-		int64 TargetPointCount = (InputBounds.Max.X - InputBounds.Min.X) * (InputBounds.Max.Y - InputBounds.Min.Y) * Settings->PointsPerSquaredMeter * InvSquaredMeterUnits;
-
-		if (TargetPointCount == 0)
-		{
-			PCGE_LOG(Verbose, "Skipped - density yields no points");
-			continue;
-		}
-		else if (TargetPointCount > CellCount)
-		{
-			TargetPointCount = CellCount;
-		}
-
-		const FVector::FReal Ratio = TargetPointCount / (FVector::FReal)CellCount;
 
 		// Finally, create data
 		FPCGTaggedData& Output = Outputs.Emplace_GetRef();
@@ -98,51 +139,47 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		TArray<FPCGPoint>& SampledPoints = SampledData->GetMutablePoints();
 
-		const FVector::FReal CellStartX = CellMinX * CellSize;
-		const FVector::FReal CellStartY = CellMinY * CellSize;
-
-		FVector::FReal CurrentX = CellStartX;
-
-		for(int32 CellX = CellMinX; CellX <= CellMaxX; ++CellX)
+		FPCGAsync::AsyncPointProcessing(Context, LoopData.CellCount, SampledPoints, [&LoopData, SpatialInput](int32 Index, FPCGPoint& OutPoint)
 		{
-			FVector::FReal CurrentY = CellStartY;
+			int32 CellX;
+			int32 CellY;
+			LoopData.ComputeCellIndices(Index, CellX, CellY);
 
-			for(int32 CellY = CellMinY; CellY <= CellMaxY; ++CellY)
+			const FVector::FReal CurrentX = CellX * LoopData.CellSize;
+			const FVector::FReal CurrentY = CellY * LoopData.CellSize;
+			const FVector::FReal InnerCellSize = LoopData.InnerCellSize;
+
+			FRandomStream RandomSource(PCGHelpers::ComputeSeed(LoopData.Settings->Seed, CellX, CellY));
+			float Chance = RandomSource.FRand();
+
+			const float Ratio = LoopData.Ratio;
+
+			if (Chance < Ratio)
 			{
-				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, CellX, CellY));
-				float Chance = RandomSource.FRand();
+				const float RandX = RandomSource.FRand();
+				const float RandY = RandomSource.FRand();
 
-				if (Chance < Ratio)
-				{
-					const float RandX = RandomSource.FRand();
-					const float RandY = RandomSource.FRand();
+				OutPoint.Transform = FTransform(FVector(CurrentX + RandX * InnerCellSize, CurrentY + RandY * InnerCellSize, 0));
+				OutPoint.Extents = FVector(LoopData.Settings->PointRadius);
+				OutPoint.Density = LoopData.Settings->bApplyDensityToPoints ? ((Ratio - Chance) / Ratio) : 1.0f;
+				OutPoint.Steepness = LoopData.Settings->PointSteepness;
+				OutPoint.Seed = RandomSource.GetCurrentSeed();
 
-					FPCGPoint Point;
-					Point.Transform = FTransform(FVector(CurrentX + RandX * InnerCellSize, CurrentY + RandY * InnerCellSize, 0));
-					Point.Extents = FVector(PointRadius);
-					Point.Density = bApplyDensity ? ((Ratio - Chance) / Ratio) : 1.0f;
-					Point.Steepness = PointSteepness;
-					Point.Seed = RandomSource.GetCurrentSeed();
-
-					Point = SpatialInput->TransformPoint(Point);
+				OutPoint = SpatialInput->TransformPoint(OutPoint);
 
 #if WITH_EDITORONLY_DATA
-					if(Point.Density > 0 || Settings->bKeepZeroDensityPoints)
+				return OutPoint.Density > 0 || LoopData.Settings->bKeepZeroDensityPoints;
 #else
-					if (Point.Density > 0)
+				return OutPoint.Density > 0;
 #endif
-					{
-						SampledPoints.Add(Point);
-					}
-				}
-
-				CurrentY += CellSize;
 			}
+			else
+			{
+				return false;
+			}
+		});
 
-			CurrentX += CellSize;
-		}
-
-		PCGE_LOG(Verbose, "Generated %d points in %d cells", SampledPoints.Num(), CellCount);
+		PCGE_LOG(Verbose, "Generated %d points in %d cells", SampledPoints.Num(), LoopData.CellCount);
 	}
 
 	// Finally, forward any exclusions/settings

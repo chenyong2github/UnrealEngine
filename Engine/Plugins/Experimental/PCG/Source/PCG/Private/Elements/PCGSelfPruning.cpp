@@ -74,7 +74,7 @@ bool FPCGSelfPruningElement::ExecuteInternal(FPCGContextPtr Context) const
 			continue;
 		}
 
-		const UPCGPointData* InputPointData = SpatialInput->ToPointData();
+		const UPCGPointData* InputPointData = SpatialInput->ToPointData(Context);
 		const TArray<FPCGPoint>& Points = InputPointData->GetPoints();
 		const UPCGPointData::PointOctree& Octree = InputPointData->GetOctree();
 

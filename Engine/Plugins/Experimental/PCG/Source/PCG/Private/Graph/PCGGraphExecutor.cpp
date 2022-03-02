@@ -207,6 +207,10 @@ void FPCGGraphExecutor::Execute()
 		{
 			FPCGGraphActiveTask& ActiveTask = ActiveTasks[ExecutionIndex];
 
+			// Reassign resources to the context
+			// TODO: change this when we support MT in the graph executor
+			ActiveTask.Context->NumAvailableTasks = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
+
 			if (!ActiveTask.Context->bIsPaused && ActiveTask.Element->Execute(ActiveTask.Context))
 			{
 				// Store output data in map

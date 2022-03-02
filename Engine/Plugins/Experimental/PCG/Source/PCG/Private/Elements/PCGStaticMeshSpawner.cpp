@@ -71,7 +71,7 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContextPtr Context) const
 		}
 
 		// First, create target instance transforms
-		const UPCGPointData* PointData = SpatialData->ToPointData();
+		const UPCGPointData* PointData = SpatialData->ToPointData(Context);
 
 		if (!PointData)
 		{

@@ -21,6 +21,8 @@ struct FPCGContext
 	FPCGDataCollection OutputData;
 	UPCGComponent* SourceComponent = nullptr;
 	FPCGGraphCache* Cache = nullptr;
+	int32 NumAvailableTasks = 0;
+
 	// TODO: add RNG source
 	// TODO: replace this by a better identification mechanism
 	const UPCGNode* Node = nullptr;

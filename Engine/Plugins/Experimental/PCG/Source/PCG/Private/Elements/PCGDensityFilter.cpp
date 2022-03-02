@@ -2,6 +2,7 @@
 
 #include "Elements/PCGDensityFilter.h"
 #include "Data/PCGPointData.h"
+#include "Helpers/PCGAsync.h"
 
 FPCGElementPtr UPCGDensityFilterSettings::CreateElement() const
 {
@@ -58,7 +59,7 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContextPtr Context) const
 			continue;
 		}
 
-		const UPCGPointData* OriginalData = Cast<UPCGSpatialData>(Input.Data)->ToPointData();
+		const UPCGPointData* OriginalData = Cast<UPCGSpatialData>(Input.Data)->ToPointData(Context);
 
 		if (!OriginalData)
 		{
@@ -74,21 +75,29 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContextPtr Context) const
 
 		Output.Data = FilteredData;
 
-		for (const FPCGPoint& Point : Points)
+		FPCGAsync::AsyncPointProcessing(Context, Points.Num(), FilteredPoints, [&Points, Settings, MinBound, MaxBound](int32 Index, FPCGPoint& OutPoint)
 		{
+			const FPCGPoint& Point = Points[Index];
+
 			bool bInRange = (Point.Density >= MinBound && Point.Density <= MaxBound);
 			if (bInRange != Settings->bInvertFilter)
 			{
-				FilteredPoints.Add(Point);
+				OutPoint = Point;
+				return true;
 			}
 #if WITH_EDITORONLY_DATA
 			else if (Settings->bKeepZeroDensityPoints)
 			{
-				FPCGPoint& FilteredPoint = FilteredPoints.Add_GetRef(Point);
-				FilteredPoint.Density = 0;
+				OutPoint = Point;
+				OutPoint.Density = 0;
+				return true;
 			}
 #endif
-		}
+			else
+			{
+				return false;
+			}
+		});
 
 		PCGE_LOG(Verbose, "Generated %d points out of %d source points", FilteredPoints.Num(), Points.Num());
 	}

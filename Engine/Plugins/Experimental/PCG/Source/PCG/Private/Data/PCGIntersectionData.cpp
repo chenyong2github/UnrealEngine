@@ -2,6 +2,7 @@
 
 #include "Data/PCGIntersectionData.h"
 #include "Data/PCGPointData.h"
+#include "Helpers/PCGAsync.h"
 
 namespace PCGIntersectionDataMaths
 {
@@ -97,7 +98,7 @@ bool UPCGIntersectionData::HasNonTrivialTransform() const
 	return A->HasNonTrivialTransform() || B->HasNonTrivialTransform();
 }
 
-const UPCGPointData* UPCGIntersectionData::CreatePointData() const
+const UPCGPointData* UPCGIntersectionData::CreatePointData(FPCGContextPtr Context) const
 {
 	check(A && B);
 	// TODO: this is a placeholder;
@@ -105,21 +106,21 @@ const UPCGPointData* UPCGIntersectionData::CreatePointData() const
 	// and then cull out any of the points that are outside the bounds of the other
 	if (A->GetDimension() <= B->GetDimension())
 	{
-		return CreateAndFilterPointData(A, B);
+		return CreateAndFilterPointData(Context, A, B);
 	}
 	else
 	{
-		return CreateAndFilterPointData(B, A);
+		return CreateAndFilterPointData(Context, B, A);
 	}
 }
 
-UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(const UPCGSpatialData* X, const UPCGSpatialData* Y) const
+UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContextPtr Context, const UPCGSpatialData* X, const UPCGSpatialData* Y) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGIntersectionData::CreateAndFilterPointData);
 	check(X && Y);
 	check(X->GetDimension() <= Y->GetDimension());
 
-	const UPCGPointData* SourcePointData = X->ToPointData();
+	const UPCGPointData* SourcePointData = X->ToPointData(Context);
 
 	if (!SourcePointData)
 	{
@@ -133,21 +134,26 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(const UPCGSpatialD
 	Data->TargetActor = TargetActor;
 	TArray<FPCGPoint>& TargetPoints = Data->GetMutablePoints();
 
-	// TODO: go through only the points in the bounding box, otherwise we know beforehand
-	// that the density will be zero. Requires that points are stored in a better data structure.
-	for (const FPCGPoint& Point : SourcePoints)
+	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, &SourcePoints, Y](int32 Index, FPCGPoint& OutPoint)
 	{
+		const FPCGPoint& Point = SourcePoints[Index];
 		const float YDensity = Y->GetDensityAtPosition(Point.Transform.GetLocation());
+
 #if WITH_EDITORONLY_DATA
 		if (YDensity > 0 || bKeepZeroDensityPoints)
 #else
 		if (YDensity > 0)
 #endif
 		{
-			FPCGPoint& NewPoint = TargetPoints.Add_GetRef(Point);
-			NewPoint.Density = PCGIntersectionDataMaths::ComputeDensity(Point.Density, YDensity, DensityFunction);
+			OutPoint = Point;
+			OutPoint.Density = PCGIntersectionDataMaths::ComputeDensity(Point.Density, YDensity, DensityFunction);
+			return true;
 		}
-	}
+		else
+		{
+			return false;
+		}
+	});
 
 	UE_LOG(LogPCG, Verbose, TEXT("Intersection generated %d points from %d source points"), TargetPoints.Num(), SourcePoints.Num());
 

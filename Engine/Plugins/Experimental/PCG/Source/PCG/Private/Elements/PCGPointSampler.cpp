@@ -3,6 +3,7 @@
 #include "Elements/PCGPointSampler.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
+#include "Helpers/PCGAsync.h"
 #include "Math/RandomStream.h"
 
 FPCGElementPtr UPCGPointSamplerSettings::CreateElement() const
@@ -56,7 +57,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 			continue;
 		}
 
-		const UPCGPointData* OriginalData = Cast<UPCGSpatialData>(Input.Data)->ToPointData();
+		const UPCGPointData* OriginalData = Cast<UPCGSpatialData>(Input.Data)->ToPointData(Context);
 
 		if (!OriginalData)
 		{
@@ -90,10 +91,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointSamplerElement::Execute::SelectPoints);
 
-			// Approximate upper bound
-			SampledPoints.Reserve(FMath::Min(OriginalPointCount, 4 * TargetNumPoints / 3));
-
-			for (int Index = 0; Index < OriginalPointCount; ++Index)
+			FPCGAsync::AsyncPointProcessing(Context, OriginalPointCount, SampledPoints, [&Points, Settings](int32 Index, FPCGPoint& OutPoint)
 			{
 				const FPCGPoint& Point = Points[Index];
 
@@ -103,16 +101,22 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
 
 				if (Chance < Settings->Ratio)
 				{
-					SampledPoints.Add(Point);
+					OutPoint = Point;
+					return true;
 				}
 #if WITH_EDITORONLY_DATA
 				else if (Settings->bKeepZeroDensityPoints)
 				{
-					FPCGPoint& SampledPoint = SampledPoints.Add_GetRef(Point);
-					SampledPoint.Density = 0;
+					OutPoint = Point;
+					OutPoint.Density = 0;
+					return true;
 				}
 #endif
-			}
+				else
+				{
+					return false;
+				}
+			});
 
 			PCGE_LOG(Verbose, "Generated %d points from %d source points", SampledPoints.Num(), OriginalPointCount);
 		}

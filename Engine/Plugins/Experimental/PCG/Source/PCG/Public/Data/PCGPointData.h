@@ -65,7 +65,7 @@ public:
 	virtual int GetDimension() const override { return 0; }
 	virtual FBox GetBounds() const override;
 	virtual float GetDensityAtPosition(const FVector& InPosition) const override;
-	virtual const UPCGPointData* ToPointData() const { return this; }
+	virtual const UPCGPointData* ToPointData(FPCGContextPtr Context) const { return this; }
 	virtual FPCGPoint TransformPoint(const FPCGPoint& InPoint) const;
 	// ~End UPCGSpatialData interface
 

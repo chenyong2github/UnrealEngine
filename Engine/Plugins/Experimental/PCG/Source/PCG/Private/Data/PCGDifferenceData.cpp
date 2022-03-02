@@ -3,6 +3,7 @@
 #include "Data/PCGDifferenceData.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGUnionData.h"
+#include "Helpers/PCGAsync.h"
 
 namespace PCGDifferenceDataUtils
 {
@@ -128,12 +129,12 @@ bool UPCGDifferenceData::HasNonTrivialTransform() const
 	return Source->HasNonTrivialTransform();
 }
 
-const UPCGPointData* UPCGDifferenceData::CreatePointData() const
+const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContextPtr Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGDifferenceData::CreatePointData);
 	
 	// This is similar to what we are doing in UPCGUnionData::CreatePointData
-	const UPCGPointData* SourcePointData = Source->ToPointData();
+	const UPCGPointData* SourcePointData = Source->ToPointData(Context);
 
 	if (!SourcePointData)
 	{
@@ -150,25 +151,33 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData() const
 	UPCGPointData* Data = NewObject<UPCGPointData>(const_cast<UPCGDifferenceData*>(this));
 	Data->TargetActor = TargetActor;
 
+	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 	TArray<FPCGPoint>& TargetPoints = Data->GetMutablePoints();
 
-	for (const FPCGPoint& Point : SourcePointData->GetPoints())
+	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
 	{
+		const FPCGPoint& Point = SourcePoints[Index];
 		const float DensityInDifference = Difference->GetDensityAtPosition(Point.Transform.GetLocation());
 
 		if (DensityInDifference < Point.Density)
 		{
-			FPCGPoint& TargetPoint = TargetPoints.Add_GetRef(Point);
-			TargetPoint.Density -= DensityInDifference;
+			OutPoint = Point;
+			OutPoint.Density -= DensityInDifference;
+			return true;
 		}
 #if WITH_EDITORONLY_DATA
 		else if (bKeepZeroDensityPoints)
 		{
-			FPCGPoint& TargetPoint = TargetPoints.Add_GetRef(Point);
-			TargetPoint.Density = 0;
+			OutPoint = Point;
+			OutPoint.Density = 0;
+			return true;
 		}
 #endif
-	}
+		else
+		{
+			return false;
+		}
+	});
 
 	UE_LOG(LogPCG, Verbose, TEXT("Difference generated %d points from %d source points"), TargetPoints.Num(), SourcePointData->GetPoints().Num());
 
