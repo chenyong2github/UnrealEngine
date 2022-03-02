@@ -104,6 +104,16 @@ public:
 		const FLinearColor& InTint = FLinearColor::White );
 
 
+	UE_DEPRECATED(4.20, "Storing and passing in a FSlateResourceHandle to MakeBox is no longer necessary.")
+	SLATECORE_API static void MakeBox(
+		FSlateWindowElementList& ElementList,
+		uint32 InLayer, 
+		const FPaintGeometry& PaintGeometry, 
+		const FSlateBrush* InBrush, 
+		const FSlateResourceHandle& InRenderingHandle, 
+		ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, 
+		const FLinearColor& InTint = FLinearColor::White );
+
 	SLATECORE_API static void MakeRotatedBox(
 		FSlateWindowElementList& ElementList,
 		uint32 InLayer, 
@@ -175,7 +185,7 @@ public:
 	 * @param InDrawEffects         Optional draw effects to apply
 	 * @param InTint                Color to tint the element
 	 */
-	SLATECORE_API static void MakeSpline( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, FVector2f InStart, FVector2f InStartDir, FVector2f InEnd, FVector2f InEndDir, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White );
+	SLATECORE_API static void MakeSpline( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White );
 
 	/**
 	 * Creates a Bezier Spline element
@@ -190,10 +200,17 @@ public:
 	 * @param InDrawEffects         Optional draw effects to apply
 	 * @param InTint                Color to tint the element
 	 */
-	SLATECORE_API static void MakeCubicBezierSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, FVector2f P0, FVector2f P1, FVector2f P2, FVector2f P3, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint = FLinearColor::White);
+	SLATECORE_API static void MakeCubicBezierSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2D& P0, const FVector2D& P1, const FVector2D& P2, const FVector2D& P3, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint = FLinearColor::White);
 
 	/** Just like MakeSpline but in draw-space coordinates. This is useful for connecting already-transformed widgets together. */
-	SLATECORE_API static void MakeDrawSpaceSpline(FSlateWindowElementList& ElementList, uint32 InLayer, FVector2f InStart, FVector2f InStartDir, FVector2f InEnd, FVector2f InEndDir, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White);
+	SLATECORE_API static void MakeDrawSpaceSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None, const FLinearColor& InTint=FLinearColor::White);
+
+	/** Just like MakeSpline but in draw-space coordinates. This is useful for connecting already-transformed widgets together. */
+	UE_DEPRECATED(4.20, "Splines with color gradients will not be supported in the future.")
+	SLATECORE_API static void MakeDrawSpaceGradientSpline( FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, const TArray<FSlateGradientStop>& InGradientStops, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None );
+
+	UE_DEPRECATED(4.20, "Splines with color gradients will not be supported in the future.")
+	static void MakeDrawSpaceGradientSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, const FSlateRect InClippingRect, const TArray<FSlateGradientStop>& InGradientStops, float InThickness = 0.0f, ESlateDrawEffect InDrawEffects = ESlateDrawEffect::None);
 
 	/**
 	 * Creates a line defined by the provided points
@@ -250,87 +267,29 @@ public:
 	template<typename PayloadType>
 	FORCEINLINE PayloadType& GetDataPayload() { return *(PayloadType*)DataPayload; }
 
-	FORCEINLINE const FSlateRenderTransform& GetRenderTransform() const
-	{
-		return RenderTransform;
-	}
+	FORCEINLINE const FSlateRenderTransform& GetRenderTransform() const { return RenderTransform; }
+	FORCEINLINE void SetRenderTransform(const FSlateRenderTransform& InRenderTransform) { RenderTransform = InRenderTransform; }
+	FORCEINLINE FVector2D GetPosition() const { return FVector2D(Position); }
+	FORCEINLINE void SetPosition(const FVector2D& InPosition) { Position = FVector2f(InPosition); }
+	FORCEINLINE FVector2D GetLocalSize() const { return FVector2D(LocalSize); }
+	FORCEINLINE float GetScale() const { return Scale; }
+	FORCEINLINE ESlateDrawEffect GetDrawEffects() const { return DrawEffects; }
+	FORCEINLINE ESlateBatchDrawFlag GetBatchFlags() const { return BatchFlags; }
+	FORCEINLINE bool IsPixelSnapped() const { return !EnumHasAllFlags(DrawEffects, ESlateDrawEffect::NoPixelSnapping); }
 
-	FORCEINLINE void SetRenderTransform(const FSlateRenderTransform& InRenderTransform)
-	{
-		RenderTransform = InRenderTransform;
-	}
+	FORCEINLINE int32 GetPrecachedClippingIndex() const { return ClipStateHandle.GetPrecachedClipIndex(); }
+	FORCEINLINE void SetPrecachedClippingIndex(int32 InClippingIndex) { ClipStateHandle.SetPreCachedClipIndex(InClippingIndex); }
 
-	FORCEINLINE FVector2f GetPosition() const
-	{
-		return Position;
-	}
+	FORCEINLINE void SetCachedClippingState(const FSlateClippingState* CachedState) { ClipStateHandle.SetCachedClipState(CachedState); }
+	FORCEINLINE const FClipStateHandle& GetClippingHandle() const { return ClipStateHandle; }
+	FORCEINLINE const int8 GetSceneIndex() const { return SceneIndex; }
 
-	FORCEINLINE void SetPosition(FVector2f InPosition)
-	{
-		Position = InPosition;
-	}
-
-	FORCEINLINE FVector2f GetLocalSize() const
-	{
-		return LocalSize;
-	}
-
-	FORCEINLINE float GetScale() const
-	{
-		return Scale;
-	}
-	FORCEINLINE ESlateDrawEffect GetDrawEffects() const
-	{
-		return DrawEffects;
-	}
-
-	FORCEINLINE ESlateBatchDrawFlag GetBatchFlags() const
-	{
-		return BatchFlags;
-	}
-
-	FORCEINLINE bool IsPixelSnapped() const
-	{
-		return !EnumHasAllFlags(DrawEffects, ESlateDrawEffect::NoPixelSnapping);
-	}
-
-	FORCEINLINE int32 GetPrecachedClippingIndex() const
-	{
-		return ClipStateHandle.GetPrecachedClipIndex();
-	}
-	FORCEINLINE void SetPrecachedClippingIndex(int32 InClippingIndex)
-	{
-		ClipStateHandle.SetPreCachedClipIndex(InClippingIndex);
-	}
-
-	FORCEINLINE void SetCachedClippingState(const FSlateClippingState* CachedState)
-	{
-		ClipStateHandle.SetCachedClipState(CachedState);
-	}
-
-	FORCEINLINE const FClipStateHandle& GetClippingHandle() const
-	{
-		return ClipStateHandle;
-	}
-
-	FORCEINLINE const int8 GetSceneIndex() const
-	{
-		return SceneIndex;
-	}
-
-	FORCEINLINE void SetIsCached(bool bInIsCached)
-	{
-		bIsCached = bInIsCached;
-	}
-
-	FORCEINLINE bool IsCached() const
-	{
-		return bIsCached;
-	}
+	FORCEINLINE void SetIsCached(bool bInIsCached) { bIsCached = bInIsCached; }
+	FORCEINLINE bool IsCached() const { return bIsCached; }
 
 	FORCEINLINE FSlateLayoutTransform GetInverseLayoutTransform() const
 	{
-		return Inverse(FSlateLayoutTransform(Scale, Position));
+		return Inverse(FSlateLayoutTransform(Scale, FVector2D(Position)));
 	}
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
@@ -341,7 +300,13 @@ public:
 	* @param Element		   Element to update
 	* @param InOffset         Absolute translation delta
 	*/
-	void ApplyPositionOffset(FVector2f InOffset);
+	void ApplyPositionOffset(const FVector2D& InOffset);
+
+	UE_DEPRECATED(4.23, "GetClippingIndex has been deprecated.  If you were using this please use GetPrecachedClippingIndex instead.")
+	FORCEINLINE const int32 GetClippingIndex() const { return GetPrecachedClippingIndex(); }
+
+	UE_DEPRECATED(4.23, "SetClippingIndex has been deprecated.  If you were using this please use SetPrecachedClippingIndex instead.")
+	FORCEINLINE void SetClippingIndex(const int32 InClippingIndex) { SetPrecachedClippingIndex(InClippingIndex); }
 
 private:
 	void Init(FSlateWindowElementList& ElementList, EElementType InElementType, uint32 InLayer, const FPaintGeometry& PaintGeometry, ESlateDrawEffect InDrawEffects);
@@ -502,6 +467,14 @@ public:
 
 	SLATECORE_API ~FSlateWindowElementList();
 
+	/** @return Get the window that we will be painting */
+	UE_DEPRECATED(4.21, "FSlateWindowElementList::GetWindow is not thread safe but window element lists are accessed on multiple threads.  Please call GetPaintWindow instead")
+	FORCEINLINE TSharedPtr<SWindow> GetWindow() const
+	{
+		// check that we are in game thread or are in slate/movie loading thread
+		check(IsInGameThread() || IsInSlateThread());
+		return WeakPaintWindow.Pin();
+	}
 
 	/** @return Get the window that we will be painting */
 	SWindow* GetPaintWindow() const
@@ -524,8 +497,19 @@ public:
 		return UncachedDrawElements;
 	}
 
+	/**
+	 * Add a draw element to the list
+	 *
+	 * @param InDrawElement  The draw element to add
+	 */
+	UE_DEPRECATED(4.23, "AddItem is deprecated, use AddUninitialized instead")
+	void AddItem(const FSlateDrawElement& InDrawElement)
+	{
+		UncachedDrawElements.Add(InDrawElement);
+	}
+
 	/** @return Get the window size that we will be painting */
-	FVector2f GetWindowSize() const
+	FVector2D GetWindowSize() const
 	{
 		return WindowSize;
 	}
@@ -602,18 +586,12 @@ public:
 
 	int32 PaintDeferred(int32 LayerId, const FSlateRect& MyCullingRect);
 
-	bool ShouldResolveDeferred() const
-	{
-		return bNeedsDeferredResolve;
-	}
+	bool ShouldResolveDeferred() const { return bNeedsDeferredResolve; }
 
 	SLATECORE_API void BeginDeferredGroup();
 	SLATECORE_API void EndDeferredGroup();
 
-	TArray< TSharedPtr<FDeferredPaint> > GetDeferredPaintList() const
-	{
-		return DeferredPaintList;
-	}
+	TArray< TSharedPtr<FDeferredPaint> > GetDeferredPaintList() const { return DeferredPaintList; }
 
 
 	//--------------------------------------------------------------------------
@@ -656,16 +634,9 @@ public:
 private:
 	FSlateDrawElement& AddCachedElement();
 
-	TArrayView<FSlateCachedElementData* const> GetCachedElementDataList() const
-	{
-		return MakeArrayView(CachedElementDataList.GetData(), CachedElementDataList.Num());
-	}
+	TArrayView<FSlateCachedElementData* const> GetCachedElementDataList() const { return MakeArrayView(CachedElementDataList.GetData(), CachedElementDataList.Num()); }
 
-	FSlateCachedElementData* GetCurrentCachedElementData() const
-	{
-		return CachedElementDataListStack.Num() ? CachedElementDataList[CachedElementDataListStack.Top()] : nullptr;
-	}
-
+	FSlateCachedElementData* GetCurrentCachedElementData() const { return CachedElementDataListStack.Num() ? CachedElementDataList[CachedElementDataListStack.Top()] : nullptr; }
 private:
 	/**
 	* Window which owns the widgets that are being painted but not necessarily rendered to
@@ -724,5 +695,5 @@ private:
 	// End Fast Path
 
 	/** Store the size of the window being used to paint */
-	FVector2f WindowSize;
+	FVector2D WindowSize;
 };
