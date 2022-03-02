@@ -113,7 +113,7 @@ namespace UnrealBuildTool.Rules
 			{
 				// If the Oculus plugin is not enabled we need to include our own APL
 				string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
-				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "OculusOpenXRLoader_APL.xml"));
+				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "..", "..", "OculusOpenXRLoader_APL.xml"));
 			}
 		}
 	}
