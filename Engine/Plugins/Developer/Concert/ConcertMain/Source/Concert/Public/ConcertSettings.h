@@ -280,7 +280,7 @@ struct FConcertSourceControlSettings
 	GENERATED_BODY()
 
 	FConcertSourceControlSettings()
-		: ValidationMode(EConcertSourceValidationMode::Hard)
+		: ValidationMode(EConcertSourceValidationMode::Soft)
 	{}
 
 	UPROPERTY(config, EditAnywhere, Category="Source Control Settings")
