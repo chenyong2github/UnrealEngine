@@ -363,14 +363,8 @@ void FJsonArchiveOutputFormatter::Serialize(FText& Value)
 
 void FJsonArchiveOutputFormatter::Serialize(FWeakObjectPtr& Value)
 {
-	if (Value.IsValid() && IsObjectAllowed(Value.Get()))
-	{
-		SerializeStringInternal(FString::Printf(TEXT("Object:%s"), *Value.Get()->GetFullName(nullptr, EObjectFullNameFlags::IncludeClassPackage)));
-	}
-	else
-	{
-		WriteValue(TEXT("null"));
-	}
+	UObject* Ptr = Value.IsValid() ? Value.Get() : nullptr;
+	Serialize(Ptr);
 }
 
 void FJsonArchiveOutputFormatter::Serialize(FSoftObjectPtr& Value)
