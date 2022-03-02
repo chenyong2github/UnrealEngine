@@ -275,8 +275,8 @@ public:
 	}
 
 private:
-	void AddElementsInternal(const FSlateDrawElementArray& DrawElements, const FVector2D& ViewportSize);
-	void AddCachedElements(FSlateCachedElementData& CachedElementData, const FVector2D& ViewportSize);
+	void AddElementsInternal(const FSlateDrawElementArray& DrawElements, FVector2f ViewportSize);
+	void AddCachedElements(FSlateCachedElementData& CachedElementData, FVector2f ViewportSize);
 
 	/** 
 	 * Creates vertices necessary to draw a Quad element 
@@ -335,7 +335,7 @@ private:
 
 	void AddCustomVerts( const FSlateDrawElement& DrawElement );
 
-	void AddPostProcessPass(const FSlateDrawElement& DrawElement, const FVector2D& WindowSize);
+	void AddPostProcessPass(const FSlateDrawElement& DrawElement, FVector2f WindowSize);
 
 	FSlateRenderBatch& CreateRenderBatch(
 		int32 Layer,

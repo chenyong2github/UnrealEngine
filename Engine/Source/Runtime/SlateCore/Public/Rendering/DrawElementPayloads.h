@@ -6,7 +6,7 @@
 
 struct FSlateGradientStop
 {
-	FVector2D Position;
+	FVector2f Position;
 	FLinearColor Color;
 
 	/**
@@ -15,7 +15,7 @@ struct FSlateGradientStop
 						  A two stop gradient should go from (0,0), to (Width,Height).
 	 * @param InColor	- The color to lerp towards at this stop.
 	 */
-	FSlateGradientStop(const FVector2D& InPosition, const FLinearColor& InColor)
+	FSlateGradientStop(FVector2f InPosition, const FLinearColor& InColor)
 		: Position(InPosition)
 		, Color(InColor)
 	{
@@ -64,7 +64,7 @@ struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 	ESlateBrushDrawType::Type GetBrushDrawType() const { return DrawType; }
 	const FSlateShaderResourceProxy* GetResourceProxy() const { return ResourceProxy; }
 
-	void SetBrush(const FSlateBrush* InBrush, FVector2D LocalSize, float DrawScale)
+	void SetBrush(const FSlateBrush* InBrush, FVector2f LocalSize, float DrawScale)
 	{
 		check(InBrush);
 		ensureMsgf(InBrush->GetDrawType() != ESlateBrushDrawType::NoDrawType, TEXT("This should have been filtered out earlier in the Make... call."));
@@ -226,10 +226,10 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 	//     P0 *             * P3            P0 *   \   * P3
 	//                                              \ /
 	//                                               + P2	
-	FVector2D P0;
-	FVector2D P1;
-	FVector2D P2;
-	FVector2D P3;
+	FVector2f P0;
+	FVector2f P1;
+	FVector2f P2;
+	FVector2f P3;
 
 	float Thickness;
 
@@ -237,7 +237,7 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 	void SetThickness(float InThickness) { Thickness = InThickness; }
 	float GetThickness() const { return Thickness; }
 
-	void SetCubicBezier(const FVector2D& InP0, const FVector2D& InP1, const FVector2D& InP2, const FVector2D& InP3, float InThickness, const FLinearColor& InTint)
+	void SetCubicBezier(FVector2f InP0, FVector2f InP1, FVector2f InP2, FVector2f InP3, float InThickness, const FLinearColor& InTint)
 	{
 		Tint = InTint;
 		P0 = InP0;
@@ -247,7 +247,7 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 		Thickness = InThickness;
 	}
 
-	void SetHermiteSpline(const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, float InThickness, const FLinearColor& InTint)
+	void SetHermiteSpline(FVector2f InStart, FVector2f InStartDir, FVector2f InEnd, FVector2f InEndDir, float InThickness, const FLinearColor& InTint)
 	{
 		Tint = InTint;
 		P0 = InStart;
@@ -257,7 +257,7 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 		Thickness = InThickness;
 	}
 
-	void SetGradientHermiteSpline(const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, float InThickness, const TArray<FSlateGradientStop>& InGradientStops)
+	void SetGradientHermiteSpline(FVector2f InStart, FVector2f InStartDir, FVector2f InEnd, FVector2f InEndDir, float InThickness, const TArray<FSlateGradientStop>& InGradientStops)
 	{
 		P0 = InStart;
 		P1 = InStart + InStartDir / 3.0f;
@@ -342,10 +342,10 @@ struct FSlateCachedBufferPayload : public FSlateDataPayload
 {
 	// Cached render data
 	class FSlateRenderDataHandle* CachedRenderData;
-	FVector2D CachedRenderDataOffset;
+	FVector2f CachedRenderDataOffset;
 
 	// Cached Buffers
-	void SetCachedBuffer(FSlateRenderDataHandle* InRenderDataHandle, const FVector2D& Offset)
+	void SetCachedBuffer(FSlateRenderDataHandle* InRenderDataHandle, FVector2f Offset)
 	{
 		check(InRenderDataHandle);
 

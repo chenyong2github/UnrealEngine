@@ -49,7 +49,7 @@ static bool ShouldCull(const FSlateWindowElementList& ElementList, const FPaintG
 	const FVector2D& LocalSize = PaintGeometry.GetLocalSize();
 	const float DrawScale = PaintGeometry.DrawScale;
 
-	const FVector2D PixelSize = (LocalSize * DrawScale);
+	const FVector2f PixelSize = (LocalSize * DrawScale);
 	if (PixelSize.X <= 0.f || PixelSize.Y <= 0.f)
 	{
 		return true;
@@ -123,7 +123,7 @@ FSlateWindowElementList::FSlateWindowElementList(const TSharedPtr<SWindow>& InPa
 	, RenderTargetWindow(nullptr)
 	, bNeedsDeferredResolve(false)
 	, ResolveToDeferredIndex()
-	, WindowSize(FVector2D(0.0f, 0.0f))
+	, WindowSize(FVector2f(0.0f, 0.0f))
 	//, bReportReferences(true)
 {
 	if (InPaintWindow.IsValid())
@@ -193,7 +193,7 @@ void FSlateDrawElement::Init(FSlateWindowElementList& ElementList, EElementType 
 	}
 }
 
-void FSlateDrawElement::ApplyPositionOffset(const FVector2D& InOffset)
+void FSlateDrawElement::ApplyPositionOffset(FVector2f InOffset)
 {
 	SetPosition(GetPosition() + InOffset);
 	RenderTransform = Concatenate(RenderTransform, InOffset);
@@ -286,18 +286,6 @@ void FSlateDrawElement::MakeBox(
 	}
 
 	MakeBoxInternal(ElementList, InLayer, PaintGeometry, InBrush, InDrawEffects, InTint);
-}
-
-void FSlateDrawElement::MakeBox( 
-	FSlateWindowElementList& ElementList,
-	uint32 InLayer, 
-	const FPaintGeometry& PaintGeometry, 
-	const FSlateBrush* InBrush, 
-	const FSlateResourceHandle& InRenderingHandle,
-	ESlateDrawEffect InDrawEffects, 
-	const FLinearColor& InTint )
-{
-	MakeBox(ElementList, InLayer, PaintGeometry, InBrush, InDrawEffects, InTint);
 }
 
 void FSlateDrawElement::MakeRotatedBox(
@@ -471,7 +459,7 @@ void FSlateDrawElement::MakeGradient( FSlateWindowElementList& ElementList, uint
 	Element.Init(ElementList, EElementType::ET_Gradient, InLayer, PaintGeometry, InDrawEffects);
 }
 
-void FSlateDrawElement::MakeSpline( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint )
+void FSlateDrawElement::MakeSpline( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, FVector2f InStart, FVector2f InStartDir, FVector2f InEnd, FVector2f InEndDir, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint )
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 
@@ -488,7 +476,7 @@ void FSlateDrawElement::MakeSpline( FSlateWindowElementList& ElementList, uint32
 	Element.Init(ElementList, EElementType::ET_Spline, InLayer, PaintGeometry, InDrawEffects);
 }
 
-void FSlateDrawElement::MakeCubicBezierSpline(FSlateWindowElementList & ElementList, uint32 InLayer, const FPaintGeometry & PaintGeometry, const FVector2D & P0, const FVector2D & P1, const FVector2D & P2, const FVector2D & P3, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor & InTint)
+void FSlateDrawElement::MakeCubicBezierSpline(FSlateWindowElementList & ElementList, uint32 InLayer, const FPaintGeometry & PaintGeometry, FVector2f P0, FVector2f P1, FVector2f P2, FVector2f P3, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor & InTint)
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 
@@ -505,45 +493,9 @@ void FSlateDrawElement::MakeCubicBezierSpline(FSlateWindowElementList & ElementL
 	Element.Init(ElementList, EElementType::ET_Spline, InLayer, PaintGeometry, InDrawEffects);
 }
 
-void FSlateDrawElement::MakeDrawSpaceSpline( FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint )
+void FSlateDrawElement::MakeDrawSpaceSpline( FSlateWindowElementList& ElementList, uint32 InLayer, FVector2f InStart, FVector2f InStartDir, FVector2f InEnd, FVector2f InEndDir, float InThickness, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint )
 {
 	MakeSpline( ElementList, InLayer, FPaintGeometry(), InStart, InStartDir, InEnd, InEndDir, InThickness, InDrawEffects, InTint );
-}
-
-void FSlateDrawElement::MakeDrawSpaceGradientSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, const TArray<FSlateGradientStop>& InGradientStops, float InThickness, ESlateDrawEffect InDrawEffects)
-{
-	const FPaintGeometry PaintGeometry;
-	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
-
-	if (ShouldCull(ElementList))
-	{
-		return;
-	}
-
-	FSlateDrawElement& Element = ElementList.AddUninitialized();
-
-	FSlateSplinePayload& DataPayload = ElementList.CreatePayload<FSlateSplinePayload>(Element);
-	DataPayload.SetGradientHermiteSpline(InStart, InStartDir, InEnd, InEndDir, InThickness, InGradientStops);
-
-	Element.Init(ElementList, EElementType::ET_Spline, InLayer, PaintGeometry, InDrawEffects);
-}
-
-void FSlateDrawElement::MakeDrawSpaceGradientSpline(FSlateWindowElementList& ElementList, uint32 InLayer, const FVector2D& InStart, const FVector2D& InStartDir, const FVector2D& InEnd, const FVector2D& InEndDir, const FSlateRect InClippingRect, const TArray<FSlateGradientStop>& InGradientStops, float InThickness, ESlateDrawEffect InDrawEffects)
-{
-	const FPaintGeometry PaintGeometry;
-	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
-
-	if (ShouldCull(ElementList))
-	{
-		return;
-	}
-
-	FSlateDrawElement& Element = ElementList.AddUninitialized();
-
-	FSlateSplinePayload& DataPayload = ElementList.CreatePayload<FSlateSplinePayload>(Element);
-	DataPayload.SetGradientHermiteSpline(InStart, InStartDir, InEnd, InEndDir, InThickness, InGradientStops);
-
-	Element.Init(ElementList, EElementType::ET_Spline, InLayer, PaintGeometry, InDrawEffects);
 }
 
 void FSlateDrawElement::MakeLines(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const TArray<FVector2D>& Points, ESlateDrawEffect InDrawEffects, const FLinearColor& InTint, bool bAntialias, float Thickness)
