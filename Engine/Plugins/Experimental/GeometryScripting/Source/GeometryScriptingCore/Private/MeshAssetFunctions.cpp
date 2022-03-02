@@ -212,6 +212,11 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 	ThisSourceModel.ReductionSettings.PercentTriangles = 1.f;
 	ThisSourceModel.ReductionSettings.PercentVertices = 1.f;
 
+	if (Options.bApplyNaniteSettings)
+	{
+		ToStaticMeshAsset->NaniteSettings = Options.NaniteSettings;
+	}
+
 	if (Options.bReplaceMaterials)
 	{
 		bool bHaveSlotNames = (Options.NewMaterialSlotNames.Num() == Options.NewMaterials.Num());

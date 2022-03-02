@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "Engine/EngineTypes.h"
 #include "MeshAssetFunctions.generated.h"
 
 class UStaticMesh;
@@ -54,6 +55,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	TArray<FName> NewMaterialSlotNames;
 
+	/** If enabled, NaniteSettings will be applied to the target Asset if possible */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bApplyNaniteSettings = false;
+
+	/** Nanite Settings applied to the target Asset, if bApplyNaniteSettings = true */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	FMeshNaniteSettings NaniteSettings = FMeshNaniteSettings();
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bEmitTransaction = true;
