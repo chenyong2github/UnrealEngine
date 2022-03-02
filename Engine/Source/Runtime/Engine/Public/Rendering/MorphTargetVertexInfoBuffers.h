@@ -76,7 +76,8 @@ public:
 	FBufferRHIRef MorphDataBuffer;
 	FShaderResourceViewRHIRef MorphDataSRV;
 
-	void Reset()
+protected:
+	void ResetCPUData()
 	{
 		MorphData.Empty();
 		MaximumValuePerMorph.Empty();
@@ -87,11 +88,8 @@ public:
 		PositionPrecision = 0.0f;
 		TangentZPrecision = 0.0f;
 		bResourcesInitialized = false;
-		bRHIIntialized = false;
 		bIsMorphCPUDataValid = false;
 	}
-
-protected:
 
 	void ValidateVertexBuffers(bool bMorphTargetsShouldBeValid);
 	void Serialize(FArchive& Ar);

@@ -12,6 +12,7 @@ void FMorphTargetVertexInfoBuffers::InitRHI()
 	SCOPED_LOADTIMER(FFMorphTargetVertexInfoBuffers_InitRHI);
 
 	check(NumTotalBatches > 0);
+	check(!bRHIIntialized);
 
 	const uint32 BufferSize = MorphData.Num() * sizeof(uint32);
 	FRHIResourceCreateInfo CreateInfo(TEXT("MorphData"));
@@ -70,9 +71,9 @@ void FMorphTargetVertexInfoBuffers::Serialize(FArchive& Ar)
 		check(bIsMorphCPUDataValid);
 		ValidateVertexBuffers(true);
 	}
-	else
+	else if(Ar.IsLoading())
 	{
-		check(!bRHIIntialized);
+		ResetCPUData();
 	}
 
 	Ar << MorphData
