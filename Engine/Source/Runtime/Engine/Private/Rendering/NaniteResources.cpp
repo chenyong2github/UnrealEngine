@@ -482,13 +482,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	AuditMaterials(Component, MaterialAudit);
 	FixupMaterials(MaterialAudit);
 
-	MaterialRelevance = Component->GetMaterialRelevance(Component->GetScene()->GetFeatureLevel());
-
 	// Nanite supports the GPUScene instance data buffer.
 	bSupportsInstanceDataBuffer = true;
-
-	// Nanite supports distance field representation.
-	bSupportsDistanceFieldRepresentation = MaterialRelevance.bOpaque;
 
 	// Nanite supports mesh card representation.
 	bSupportsMeshCardRepresentation = true;
@@ -543,20 +538,21 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 			ShadingMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 
+		MaterialSection.MaterialRelevance = ShadingMaterial->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
+		CombinedMaterialRelevance |= MaterialSection.MaterialRelevance;
+
 		MaterialSection.ShadingMaterialProxy = ShadingMaterial->GetRenderProxy();
 
-		MaterialSection.bHasWorldPositionOffset = false;//RasterMaterial.MaterialModifiesMeshPosition_RenderThread(); // TODO: PROG_RASTER
-		MaterialSection.bHasPixelDepthOffset = false;//RasterMaterial.MaterialUsesPixelDepthOffset(); // TODO: PROG_RASTER
-		MaterialSection.bHasMaskedMaterial = ShadingMaterial->IsMasked();
-		MaterialSection.bHasTwoSidedMaterial = ShadingMaterial->IsTwoSided();
+		bHasProgrammableRaster |= MaterialSection.MaterialRelevance.bUsesWorldPositionOffset;
+		bHasProgrammableRaster |= MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
+		bHasProgrammableRaster |= MaterialSection.MaterialRelevance.bMasked;
 
-		bHasProgrammableRaster |= MaterialSection.bHasWorldPositionOffset;
-		bHasProgrammableRaster |= MaterialSection.bHasPixelDepthOffset;
-		bHasProgrammableRaster |= MaterialSection.bHasMaskedMaterial;
-
-		// NOTE: bHasTwoSidedMaterial does not go into bHasProgrammableRaster because we want only want this flag to control culling, not a full shader graph bin
+		// NOTE: MaterialRelevance.bTwoSided does not go into bHasProgrammableRaster because we want only want this flag to control culling, not a full shader graph bin
 		MaterialSection.RasterMaterialProxy = bHasProgrammableRaster ? MaterialSection.ShadingMaterialProxy : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	}
+
+	// Nanite supports distance field representation for fully opaque meshes.
+	bSupportsDistanceFieldRepresentation = CombinedMaterialRelevance.bOpaque;
 
 #if RHI_RAYTRACING
 	CachedRayTracingMaterials.SetNum(MaterialSections.Num());
@@ -796,7 +792,7 @@ FPrimitiveViewRelevance FSceneProxy::GetViewRelevance(const FSceneView* View) co
 
 	if (bOptimizedRelevance) // No dynamic relevance if optimized.
 	{
-		MaterialRelevance.SetPrimitiveViewRelevance(Result);
+		CombinedMaterialRelevance.SetPrimitiveViewRelevance(Result);
 		Result.bVelocityRelevance = DrawsVelocity();
 	}
 	else
@@ -852,7 +848,7 @@ FPrimitiveViewRelevance FSceneProxy::GetViewRelevance(const FSceneView* View) co
 			Result.bOpaque = true;
 		}
 
-		MaterialRelevance.SetPrimitiveViewRelevance(Result);
+		CombinedMaterialRelevance.SetPrimitiveViewRelevance(Result);
 		Result.bVelocityRelevance = Result.bOpaque && Result.bRenderInMainPass && DrawsVelocity();
 	}
 

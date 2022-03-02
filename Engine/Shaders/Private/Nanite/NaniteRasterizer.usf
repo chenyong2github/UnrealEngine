@@ -1197,33 +1197,25 @@ VSOut HWRasterizeVS(
 			}
 		}
 	
-		float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f); // TODO: PROG_RASTER
+		float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f);
 
-	#if IS_NANITE_RASTER_PASS
+	#if IS_NANITE_RASTER_PASS && IS_NANITE_PROGRAMMABLE
 		BRANCH
 		if (bValidTriangle)
 		{
 			ResolvedView = ResolveView(NaniteView);
 
-			FVertexFactoryInput Input = (FVertexFactoryInput)0;
-			FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
-			float4 WorldPositionExcludingWPO = (float4)0;// VertexFactoryGetWorldPosition(Input, VFIntermediates);
-			float4 WorldPosition = WorldPositionExcludingWPO;
+			// TODO: PROG_RASTER (Populate VertexParameters)
+			//FVertexFactoryInput Input = (FVertexFactoryInput)0;
+			//FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+			//float4 WorldPositionExcludingWPO = (float4)0;// VertexFactoryGetWorldPosition(Input, VFIntermediates);
+			//float4 WorldPosition = WorldPositionExcludingWPO;
 			//float4 ClipSpacePosition;
+			//float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
+			//FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, float3(0, 0, 0) /*WorldPosition.xyz*/, TangentToLocal);
 
-			// TODO: PROG_RASTER
-
-			float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
-			FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, float3(0, 0, 0) /*WorldPosition.xyz*/, TangentToLocal);
-
-			// Isolate instructions used for world position offset
-			// As these cause the optimizer to generate different position calculating instructions in each pass, resulting in self-z-fighting.
-			// This is only necessary for shaders used in passes that have depth testing enabled.
-			{
-				//WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
-			}
-
-			WorldPositionOffset = (float3)0;///*GetMaterialWorldPositionOffset(VertexParameters) +*/ float3(2000, 1000, 1000);
+			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
+			WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
 		}
 	#endif
 
@@ -1312,10 +1304,9 @@ void HWRasterizePS(VSOut In)
 		float MaterialMask = 1.0f; // TODO: PROG_RASTER
 		float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
-	#if IS_NANITE_RASTER_PASS
+	#if IS_NANITE_RASTER_PASS && IS_NANITE_PROGRAMMABLE
 		ResolvedView = ResolveView(NaniteView);
 
-	#if MATERIALBLENDING_MASKED
 		const uint DepthInt = asuint(DeviceZ);
 		const UlongType PackedPixel = PackUlongType(uint2(PixelValue, DepthInt));
 
@@ -1335,9 +1326,10 @@ void HWRasterizePS(VSOut In)
 
 		// TODO: PROG_RASTER
 
+		#if MATERIALBLENDING_MASKED
 		MaterialMask = GetMaterialMask(PixelMaterialInputs);
-	#endif // MATERIALBLENDING_MASKED
-	#endif // IS_NANITE_RASTER_PASS
+		#endif
+	#endif
 
 		DeviceZ += MaterialDepthOffset;
 

@@ -863,6 +863,7 @@ class FMicropolyRasterizeCS : public FNaniteGlobalShader
 		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 1);
+		OutEnvironment.SetDefine(TEXT("IS_NANITE_PROGRAMMABLE"), 0); // TODO: PROG_RASTER
 
 		// TODO: PROG_RASTER: Implement support for SM6.6 compute derivative operations (if available)
 		// https://microsoft.github.io/DirectX-Specs/d3d/HLSL_SM_6_6_Derivatives.html
@@ -2338,12 +2339,12 @@ void AddPass_Rasterize(
 			{
 				const FMaterial& RasterMaterial = RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(Scene.GetFeatureLevel());
 
-				const bool bMayModifyMeshPosition	= false;//RasterMaterial.MaterialModifiesMeshPosition_RenderThread(); // TODO: PROG_RASTER
-				const bool bUsesPixelDepthOffset	= false;//RasterMaterial.MaterialUsesPixelDepthOffset(); // TODO: PROG_RASTER
-				const bool bUsesAlphaTest			= RasterMaterial.IsMasked();
+				const bool bUsesWorldPositionOffset		= RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread();
+				const bool bUsesPixelDepthOffset		= RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread();
+				const bool bUsesAlphaTest				= RasterMaterial.IsMasked();
 
 				// Programmable vertex features
-				if (bMayModifyMeshPosition)
+				if (bUsesWorldPositionOffset)
 				{
 					if (bUseMeshShader)
 					{

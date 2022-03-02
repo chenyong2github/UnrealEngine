@@ -95,12 +95,10 @@ public:
 	#endif
 		int32 MaterialIndex = INDEX_NONE;
 
+		FMaterialRelevance MaterialRelevance;
+
 		uint8 bHasPerInstanceRandomID : 1;
 		uint8 bHasPerInstanceCustomData : 1;
-		uint8 bHasWorldPositionOffset : 1;
-		uint8 bHasPixelDepthOffset : 1; 
-		uint8 bHasMaskedMaterial : 1;
-		uint8 bHasTwoSidedMaterial : 1;
 	};
 
 public:
@@ -283,9 +281,7 @@ protected:
 	const FDistanceFieldVolumeData* DistanceFieldData;
 	const FCardRepresentationData* CardRepresentationData;
 
-	// TODO: Should probably calculate this on the materials array above instead of on the component
-	//       Null and !Opaque are assigned default material unlike the component material relevance.
-	FMaterialRelevance MaterialRelevance;
+	FMaterialRelevance CombinedMaterialRelevance;
 
 	uint32 bReverseCulling : 1;
 	uint32 bHasMaterialErrors : 1;

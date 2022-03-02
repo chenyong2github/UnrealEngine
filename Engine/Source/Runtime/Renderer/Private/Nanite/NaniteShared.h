@@ -247,22 +247,15 @@ public:
 
 	static bool RequiresProgrammableVertex(const FMaterialShaderPermutationParameters& Parameters)
 	{
-	#if 0 // TODO: PROG_RASTER
-		return Parameters.MaterialParameters.bMaterialMayModifyMeshPosition;
-	#else
-		return false;
-	#endif
+		return Parameters.MaterialParameters.bHasVertexPositionOffsetConnected;
 	}
 
 	static bool RequiresProgrammablePixel(const FMaterialShaderPermutationParameters& Parameters)
 	{
 		const bool bProgrammablePixel =
 		(
-			Parameters.MaterialParameters.bIsMasked 
-		#if 0 // TODO: PROG_RASTER
-			|| Parameters.MaterialParameters.bHasPixelDepthOffsetConnected
-			|| Parameters.MaterialParameters.bMaterialMayModifyMeshPosition
-		#endif
+			Parameters.MaterialParameters.bIsMasked || 
+			Parameters.MaterialParameters.bHasPixelDepthOffsetConnected
 		);
 
 		return bProgrammablePixel;
@@ -315,6 +308,18 @@ public:
 		OutEnvironment.SetDefine(TEXT("IS_NANITE_RASTER_PASS"), 1);
 		OutEnvironment.SetDefine(TEXT("IS_NANITE_PASS"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 0);
+
+		if (Parameters.MaterialParameters.bIsDefaultMaterial)
+		{
+			// We use the default material for the "fixed function" path (i.e. not programmable)
+			// Don't evaluate the material graph at all for efficiency
+			OutEnvironment.SetDefine(TEXT("IS_NANITE_PROGRAMMABLE"), 0);
+		}
+		else
+		{
+			// Any non-default materials will require some form of graph evaluation
+			OutEnvironment.SetDefine(TEXT("IS_NANITE_PROGRAMMABLE"), 1);
+		}
 
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 0);
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 0);

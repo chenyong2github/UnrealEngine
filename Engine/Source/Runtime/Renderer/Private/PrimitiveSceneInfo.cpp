@@ -607,8 +607,8 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 					check(MaterialSection.RasterMaterialProxy != nullptr);
 
 					FNaniteRasterPipeline RasterPipeline{};
-					RasterPipeline.RasterMaterial = MaterialSection.RasterMaterialProxy;
-					RasterPipeline.bIsTwoSided = !!MaterialSection.bHasTwoSidedMaterial;
+					RasterPipeline.RasterMaterial	=   MaterialSection.RasterMaterialProxy;
+					RasterPipeline.bIsTwoSided		= !!MaterialSection.MaterialRelevance.bTwoSided;
 
 					DrawListContext.DeferredPipelines[MeshPass].Add(
 						FNaniteDrawListContext::FDeferredPipeline{
