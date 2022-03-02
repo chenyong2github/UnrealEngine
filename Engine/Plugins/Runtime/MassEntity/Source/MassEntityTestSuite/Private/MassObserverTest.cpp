@@ -206,7 +206,7 @@ struct FTag_MultipleArchetypeSwap : FTagBaseOperation
 		AITEST_EQUAL(TEXT("Tag addition is not being observed and is not expected to produce results yet"), AffectedEntities.Num(), 0);
 		for (const FMassEntityHandle& ModifiedEntity : ExpectedEntities)
 		{
-			EntitySubsystem->Defer().PushCommand(FCommandSwapTags(ModifiedEntity, FTestTag_A::StaticStruct(), FTestTag_B::StaticStruct()));
+			EntitySubsystem->Defer().SwapTags<FTestTag_A, FTestTag_B>(ModifiedEntity);
 		}
 		return true;
 	}

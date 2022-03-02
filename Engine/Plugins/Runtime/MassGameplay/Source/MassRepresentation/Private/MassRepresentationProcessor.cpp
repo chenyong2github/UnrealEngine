@@ -346,7 +346,7 @@ void UMassVisualizationProcessor::UpdateEntityVisibility(const FMassEntityHandle
 	const EMassVisibility ChunkVisibility = ChunkData.GetVisibility();
 	if (ChunkVisibility != Visibility)
 	{
-		CommandBuffer.PushCommand(FCommandSwapTags(Entity, UE::MassRepresentation::GetTagFromVisibility(ChunkVisibility), UE::MassRepresentation::GetTagFromVisibility(Visibility)));
+		UE::MassRepresentation::PushSwapTagsCommand(CommandBuffer, Entity, ChunkVisibility, Visibility);
 		ChunkData.SetContainsNewlyVisibleEntity(Visibility == EMassVisibility::CanBeSeen);
 	}
 }

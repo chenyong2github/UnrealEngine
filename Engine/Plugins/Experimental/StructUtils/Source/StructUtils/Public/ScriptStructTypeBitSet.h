@@ -463,6 +463,11 @@ public:
 		}
 	}
 
+	SIZE_T GetAllocatedSize() const
+	{
+		return StructTypesBitArray.GetAllocatedSize();
+	}
+
 	FString DebugGetStringDesc() const
 	{
 #if WITH_STRUCTUTILS_DEBUG

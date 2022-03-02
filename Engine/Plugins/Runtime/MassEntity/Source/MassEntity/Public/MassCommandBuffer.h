@@ -6,7 +6,8 @@
 #include "MassEntitySubsystem.h"
 #include "InstancedStructStream.h"
 #include "Misc/MTAccessDetector.h"
-
+#include "MassEntityUtils.h"
+#include "MassCommands.h"
 #include "MassCommandBuffer.generated.h"
 
 
@@ -46,6 +47,11 @@ struct FMassObservedTypeCollection
 	const TMap<const UScriptStruct*, TArray<FMassEntityHandle>>& GetTypes() const 
 	{ 
 		return Types; 
+	}
+
+	SIZE_T GetAllocatedSize() const
+	{
+		return LastUsedCollection->GetAllocatedSize() + Types.GetAllocatedSize();
 	}
 
 private:
@@ -89,6 +95,17 @@ struct FMassCommandsObservedTypes
 	}
 
 	void Append(const FMassCommandsObservedTypes& Other);
+
+	SIZE_T GetAllocatedSize() const
+	{
+		SIZE_T Total = 0;
+		for (int i = 0; i < (int)EMassObservedOperation::MAX; ++i)
+		{
+			Total += Fragments[i].GetAllocatedSize();
+			Total += Tags[i].GetAllocatedSize();
+		}
+		return Total;
+	}
 
 protected:
 	FMassObservedTypeCollection Fragments[(uint8)EMassObservedOperation::MAX];
@@ -401,109 +418,6 @@ protected:
 };
 
 /**
- * Command dedicated to add a new tag to an existing entity
- */
-USTRUCT()
-struct MASSENTITY_API FCommandAddTag: public FCommandBufferEntryBase
-{
-	GENERATED_BODY()
-
-	enum
-	{
-		Type = ECommandBufferOperationType::Add
-	};
-
-	FCommandAddTag() = default;
-	FCommandAddTag(FMassEntityHandle InEntity, UScriptStruct* InStruct)
-		: FCommandBufferEntryBase(InEntity)
-		, StructParam(InStruct)
-	{}
-
-	void AppendAffectedEntitiesPerType(FMassCommandsObservedTypes& ObservedTypes)
-	{
-		ObservedTypes.TagAdded(StructParam, TargetEntity);
-	}
-
-protected:
-	virtual void Execute(UMassEntitySubsystem& System) const override;
-
-	UScriptStruct* StructParam = nullptr;
-};
-
-/**
- * Command dedicated to remove a tag from an existing entity
- */
-USTRUCT()
-struct MASSENTITY_API FCommandRemoveTag : public FCommandBufferEntryBase
-{
-	GENERATED_BODY()
-
-	enum
-	{
-		Type = ECommandBufferOperationType::Remove
-	};
-
-	FCommandRemoveTag() = default;
-	FCommandRemoveTag(FMassEntityHandle InEntity, UScriptStruct* InStruct)
-		: FCommandBufferEntryBase(InEntity)
-		, StructParam(InStruct)
-	{}
-
-	void AppendAffectedEntitiesPerType(FMassCommandsObservedTypes& ObservedTypes)
-	{
-		ObservedTypes.TagRemoved(StructParam, TargetEntity);
-	}
-
-protected:
-	virtual void Execute(UMassEntitySubsystem& System) const override;
-
-	UScriptStruct* StructParam = nullptr;
-};
-
-/**
- * Command for swapping given tags for a given entity. Note that the entity doesn't need to own the "old tag", the 
- * "new tag" will be added regardless.
- */
-USTRUCT()
-struct MASSENTITY_API FCommandSwapTags : public FCommandBufferEntryBase
-{
-	GENERATED_BODY()
-
-	enum
-	{
-		Type = ECommandBufferOperationType::Add | ECommandBufferOperationType::Remove
-	};
-
-	FCommandSwapTags() = default;
-	FCommandSwapTags(const FMassEntityHandle InEntity, const UScriptStruct* InOldTagType, const UScriptStruct* InNewTagType)
-		: FCommandBufferEntryBase(InEntity)
-		, OldTagType(InOldTagType)
-		, NewTagType(InNewTagType)
-	{
-		checkf((InOldTagType == nullptr) || InOldTagType->IsChildOf(FMassTag::StaticStruct()), TEXT("FCommandSwapTags works only with tags while '%s' is not one."), *GetPathNameSafe(InOldTagType));
-		checkf((InNewTagType == nullptr) || InNewTagType->IsChildOf(FMassTag::StaticStruct()), TEXT("FCommandSwapTags works only with tags while '%s' is not one."), *GetPathNameSafe(InNewTagType));
-	}
-
-	void AppendAffectedEntitiesPerType(FMassCommandsObservedTypes& ObservedTypes)
-	{
-		if (OldTagType)
-		{
-			ObservedTypes.TagRemoved(OldTagType, TargetEntity);
-		}
-		if (NewTagType)
-		{
-			ObservedTypes.TagAdded(NewTagType, TargetEntity);
-		}
-	}
-
-protected:
-	virtual void Execute(UMassEntitySubsystem& System) const override;
-
-	const UScriptStruct* OldTagType = nullptr;
-	const UScriptStruct* NewTagType = nullptr;
-};
-
-/**
  * Command performing a removal of a collection of fragments and tags
  */
 USTRUCT()
@@ -575,8 +489,24 @@ public:
 		}
 		return Command;
 	}
-	
-public:
+
+	/** Adds a new entry to a given TCommand batch command instance */
+	template< template<typename... TArgs> typename TCommand, typename... TArgs >
+	void PushCommand(const FMassEntityHandle Entity, TArgs&&... InArgs)
+	{
+		UE_MT_SCOPED_WRITE_ACCESS(PendingCommandsDetector);
+		TCommand<TArgs...>& Instance = CreateOrAddCommand<TCommand<TArgs...>>();
+		Instance.Add(Entity, Forward<TArgs>(InArgs)...);
+	}
+
+	/** Adds a new entry to a given TCommand batch command instance */
+	template< typename TCommand, typename = typename TEnableIf<TIsDerivedFrom<typename TRemoveReference<TCommand>::Type, FMassBatchedCommand>::IsDerived, void>::Type>
+	void PushCommand(const FMassEntityHandle Entity)
+	{
+		UE_MT_SCOPED_WRITE_ACCESS(PendingCommandsDetector);
+		CreateOrAddCommand<TCommand>().Add(Entity);
+	}
+
 	template<typename T>
 	void AddFragment(FMassEntityHandle Entity)
 	{
@@ -591,18 +521,29 @@ public:
 		EmplaceCommand<FCommandRemoveFragment>(Entity, T::StaticStruct());
 	}
 
+	/** the convenience function equivalent to calling PushCommand<FCommandAddTag<T>>(Entity) */
 	template<typename T>
 	void AddTag(FMassEntityHandle Entity)
 	{
 		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived, "Given struct type is not a valid tag type.");
-		EmplaceCommand<FCommandAddTag>(Entity, T::StaticStruct());
+		PushCommand<FCommandAddTag<T>>(Entity);
 	}
 
+	/** the convenience function equivalent to calling PushCommand<FCommandRemoveTag<T>>(Entity) */
 	template<typename T>
 	void RemoveTag(FMassEntityHandle Entity)
 	{
 		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived, "Given struct type is not a valid tag type.");
-		EmplaceCommand<FCommandRemoveTag>(Entity, T::StaticStruct());
+		PushCommand<FCommandRemoveTag<T>>(Entity);
+	}
+
+	/** the convenience function equivalent to calling PushCommand<FCommandSwapTags<TOld, TNew>>(Entity)  */
+	template<typename TOld, typename TNew>
+	void SwapTags(FMassEntityHandle Entity)
+	{
+		static_assert(TIsDerivedFrom<TOld, FMassTag>::IsDerived, "Given struct type is not a valid tag type.");
+		static_assert(TIsDerivedFrom<TNew, FMassTag>::IsDerived, "Given struct type is not a valid tag type.");
+		PushCommand<FCommandSwapTags<TOld, TNew>>(Entity);
 	}
 
 	void DestroyEntity(FMassEntityHandle Entity)
@@ -615,7 +556,7 @@ public:
 		EntitiesToDestroy.Append(InEntitiesToDestroy);
 	}
 
-	SIZE_T GetAllocatedSize() const { return PendingCommands.GetAllocatedSize(); }
+	SIZE_T GetAllocatedSize() const;
 
 	/** 
 	 * Appends the commands from the passed buffer into this one
@@ -629,6 +570,28 @@ public:
 
 private:
 	friend UMassEntitySubsystem;
+
+	template<typename T>
+	T& CreateOrAddCommand()
+	{
+		const int32 Index = FMassBatchedCommand::GetCommandIndex<T>();
+
+		UE_MT_SCOPED_WRITE_ACCESS(PendingBatchCommandsDetector);
+		if (CommandInstances.IsValidIndex(Index) == false)
+		{
+			CommandInstances.AddZeroed(Index - CommandInstances.Num() + 1);
+		}
+		else if (CommandInstances[Index])
+		{
+			return (T&)(*CommandInstances[Index]);
+		}
+
+		T* NewCommandInstance = new T();
+		check(NewCommandInstance);
+		CommandInstances[Index] = NewCommandInstance;
+		return *NewCommandInstance;
+	}
+
 	void Flush(UMassEntitySubsystem& EntitySystem);
 	void CleanUp();
 
@@ -639,6 +602,10 @@ private:
 	TArray<FMassEntityHandle> EntitiesToDestroy;
 
 	FMassCommandsObservedTypes ObservedTypes;
+
+	UE_MT_DECLARE_RW_ACCESS_DETECTOR(PendingBatchCommandsDetector);
+	// @todo consider using sparse array
+	TArray<FMassBatchedCommand*> CommandInstances;
 
 	/** Indicates that this specific MassCommandBuffer is currently flushing its contents */
 	bool bIsFlushing = false;

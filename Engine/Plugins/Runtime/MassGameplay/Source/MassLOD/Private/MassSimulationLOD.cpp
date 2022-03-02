@@ -174,8 +174,8 @@ void UMassSimulationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
 				const FMassSimulationLODFragment& EntityLOD = SimulationLODFragments[Index];
 				if (EntityLOD.PrevLOD != EntityLOD.LOD)
 				{
-					FMassEntityHandle Entity = Context.GetEntity(Index);
-					Context.Defer().PushCommand(FCommandSwapTags(Entity, UE::MassLOD::GetLODTagFromLOD(EntityLOD.PrevLOD), UE::MassLOD::GetLODTagFromLOD(EntityLOD.LOD)));
+					const FMassEntityHandle Entity = Context.GetEntity(Index);
+					UE::MassLOD::PushSwapTagsCommand(Context.Defer(), Entity, EntityLOD.PrevLOD, EntityLOD.LOD);
 				}
 			}
 		});

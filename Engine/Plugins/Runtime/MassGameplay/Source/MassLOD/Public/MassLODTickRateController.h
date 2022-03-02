@@ -152,8 +152,8 @@ bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::UpdateTi
 			TickRate.LastTickedTime = Time;
 			if (EntityLOD.LOD != ChunkLOD)
 			{
-				FMassEntityHandle Entity = Context.GetEntity(Index);
-				Context.Defer().PushCommand(FCommandSwapTags(Entity, UE::MassLOD::GetLODTagFromLOD(ChunkLOD), UE::MassLOD::GetLODTagFromLOD(EntityLOD.LOD)));
+				const FMassEntityHandle Entity = Context.GetEntity(Index);
+				UE::MassLOD::PushSwapTagsCommand(Context.Defer(), Entity, ChunkLOD, EntityLOD.LOD);
 			}
 		}
 	}

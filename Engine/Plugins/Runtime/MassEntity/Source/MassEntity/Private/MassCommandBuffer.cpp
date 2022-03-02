@@ -11,7 +11,7 @@
 CSV_DEFINE_CATEGORY(MassEntities, true);
 CSV_DEFINE_CATEGORY(MassEntitiesCounters, true);
 
-namespace UE::FLWCCommand {
+namespace UE::Mass::Command {
 
 #if CSV_PROFILER
 bool bEnableDetailedStats = false;
@@ -22,12 +22,16 @@ FAutoConsoleVariableRef CVarEnableDetailedCommandStats(TEXT("massentities.Enable
 /** CSV stat names */
 static FString DefaultName = TEXT("Command");
 static TArray<FName> CommandFNames;
+static FString DefaultBatchedName = TEXT("BatchedCommand");
+static TArray<FName> CommandBatchedFNames;
 
 /** CSV custom stat names (ANSI) */
 static const int32 MaxNameLength = 64;
 typedef ANSICHAR ANSIName[MaxNameLength];
 static ANSIName DefaultANSIName = "Command";
 static TArray<ANSIName> CommandANSINames;
+static ANSIName DefaultANSIBatchedName = "BatchedCommand";
+static TArray<ANSIName> CommandANSIBatchedNames;
 
 /**
  * Provides valid names for CSV profiling.
@@ -64,8 +68,42 @@ void GetCommandStatNames(FStructView Entry, FString& OutName, ANSIName*& OutANSI
 	}
 }
 
+/**
+ * Provides valid names for CSV profiling.
+ * @param Command is the command instance
+ * @param OutName is the name to use for csv custom stats
+ * @param OutANSIName is the name to use for csv stats
+ */
+void GetCommandStatNames(FMassBatchedCommand& Command, FString& OutName, ANSIName*& OutANSIName)
+{
+	OutANSIName = &DefaultANSIBatchedName;
+	OutName = DefaultANSIBatchedName;
+	if (!bEnableDetailedStats)
+	{
+		return;
+	}
+
+	const FName CommandFName = Command.GetFName();
+	OutName = CommandFName.ToString();
+
+	const int32 Index = CommandBatchedFNames.Find(CommandFName);
+	if (Index == INDEX_NONE)
+	{
+		CommandBatchedFNames.Emplace(CommandFName);
+		OutANSIName = &CommandANSIBatchedNames.AddZeroed_GetRef();
+		// Use prefix for easier parsing in reports
+		//const FString CounterName = FString::Printf(TEXT("Num%s"), *OutName);
+		//FMemory::Memcpy(OutANSIName, StringCast<ANSICHAR>(*CounterName).Get(), FMath::Min(CounterName.Len(), MaxNameLength - 1) * sizeof(ANSICHAR));
+		FMemory::Memcpy(OutANSIName, StringCast<ANSICHAR>(*OutName).Get(), FMath::Min(OutName.Len(), MaxNameLength - 1) * sizeof(ANSICHAR));
+	}
+	else
+	{
+		OutANSIName = &CommandANSIBatchedNames[Index];
+	}
+}
+
 #endif
-} // UE::FLWCCommand
+} // UE::Mass::Command
 
 
 //////////////////////////////////////////////////////////////////////
@@ -108,6 +146,10 @@ void FMassCommandsObservedTypes::Append(const FMassCommandsObservedTypes& Other)
 }
 
 //////////////////////////////////////////////////////////////////////
+// FMassBatchedCommand
+std::atomic<uint32> FMassBatchedCommand::CommandsCounter;
+
+//////////////////////////////////////////////////////////////////////
 // FMassCommandBuffer
 
 FMassCommandBuffer::~FMassCommandBuffer()
@@ -121,7 +163,7 @@ void FMassCommandBuffer::Flush(UMassEntitySubsystem& EntitySystem)
 	TGuardValue FlushingGuard(bIsFlushing, true);
 
 	// short-circuit exit
-	if (EntitiesToDestroy.Num() == 0 && PendingCommands.IsEmpty())
+	if (EntitiesToDestroy.Num() == 0 && PendingCommands.IsEmpty() && CommandInstances.IsEmpty())
 	{
 		return;
 	}
@@ -160,8 +202,61 @@ void FMassCommandBuffer::Flush(UMassEntitySubsystem& EntitySystem)
 			}
 		}
 	}
-	
-	TArray<FMassArchetypeSubChunks> EntityChunksToDestroy;
+
+	{
+		UE_MT_SCOPED_WRITE_ACCESS(PendingCommandsDetector);
+		PendingCommands.ForEach([&EntitySystem](FStructView Entry)
+			{
+				const FCommandBufferEntryBase* Command = Entry.GetPtr<FCommandBufferEntryBase>();
+				checkf(Command, TEXT("Either the entry is null or the command does not derive from FCommandBufferEntryBase"));
+
+#if CSV_PROFILER
+				using namespace UE::Mass::Command;
+
+				// Extract name (default or detailed)
+				ANSIName* ANSIName = &DefaultANSIName;
+				FString Name = DefaultName;
+				GetCommandStatNames(Entry, Name, ANSIName);
+
+				// Push stats
+				FScopedCsvStat ScopedCsvStat(*ANSIName, CSV_CATEGORY_INDEX(MassEntities));
+				FCsvProfiler::RecordCustomStat(*Name, CSV_CATEGORY_INDEX(MassEntitiesCounters), 1, ECsvCustomStatOp::Accumulate);
+#endif // CSV_PROFILER
+
+				Command->Execute(EntitySystem);
+			});
+
+		// Using Clear() instead of Reset(), as otherwise the chunks moved into the PendingCommands in MoveAppend() can accumulate.
+		PendingCommands.Clear();
+	}
+
+	{
+		UE_MT_SCOPED_WRITE_ACCESS(PendingBatchCommandsDetector);
+		for (FMassBatchedCommand* Command : CommandInstances)
+		{
+			if (Command && Command->HasWork())
+			{
+#if CSV_PROFILER
+				using namespace UE::Mass::Command;
+
+				// Extract name (default or detailed)
+				ANSIName* ANSIName = &DefaultANSIName;
+				FString Name = DefaultName;
+				GetCommandStatNames(*Command, Name, ANSIName);
+
+				// Push stats
+				FScopedCsvStat ScopedCsvStat(*ANSIName, CSV_CATEGORY_INDEX(MassEntities));
+				FCsvProfiler::RecordCustomStat(*Name, CSV_CATEGORY_INDEX(MassEntitiesCounters), Command->GetNumEntitiesStat(), ECsvCustomStatOp::Accumulate);
+#endif // CSV_PROFILER
+				Command->Execute(EntitySystem);
+				Command->Reset();
+			}
+		}
+		ObservedTypes.Reset();
+	}
+
+	// note that entity destruction has been moved to the end to avoid the burden of checking if an entity has been destroyed with every operation
+	TArray<FMassArchetypeSubChunks > EntityChunksToDestroy;
 	if (EntitiesToDestroy.Num())
 	{
 		UE::Mass::Utils::CreateSparseChunks(EntitySystem, EntitiesToDestroy, FMassArchetypeSubChunks::FoldDuplicates, EntityChunksToDestroy);
@@ -171,32 +266,6 @@ void FMassCommandBuffer::Flush(UMassEntitySubsystem& EntitySystem)
 		}
 	}
 	EntitiesToDestroy.Reset();
-
-
-	UE_MT_SCOPED_WRITE_ACCESS(PendingCommandsDetector);
-	PendingCommands.ForEach([&EntitySystem](FStructView Entry)
-	{
-		const FCommandBufferEntryBase* Command = Entry.GetPtr<FCommandBufferEntryBase>();
-		checkf(Command, TEXT("Either the entry is null or the command does not derive from FCommandBufferEntryBase"));
-
-#if CSV_PROFILER
-		using namespace UE::FLWCCommand;
-
-		// Extract name (default or detailed)
-		ANSIName* ANSIName = &DefaultANSIName;
-		FString Name = DefaultName;
-		GetCommandStatNames(Entry, Name, ANSIName);
-
-		// Push stats
-		FScopedCsvStat ScopedCsvStat(*ANSIName, CSV_CATEGORY_INDEX(MassEntities));
-		FCsvProfiler::RecordCustomStat(*Name, CSV_CATEGORY_INDEX(MassEntitiesCounters), 1, ECsvCustomStatOp::Accumulate);
-#endif // CSV_PROFILER
-
-		Command->Execute(EntitySystem);
-	});
-
-	// Using Clear() instead of Reset(), as otherwise the chunks moved into the PendingCommands in MoveAppend() can accumulate.
-	PendingCommands.Clear();
 
 	for (auto It : ObservedTypes.GetObservedFragments(EMassObservedOperation::Add))
 	{
@@ -227,8 +296,6 @@ void FMassCommandBuffer::Flush(UMassEntitySubsystem& EntitySystem)
 			}
 		}
 	}
-
-	ObservedTypes.Reset();
 }
  
 void FMassCommandBuffer::CleanUp()
@@ -248,8 +315,25 @@ void FMassCommandBuffer::MoveAppend(FMassCommandBuffer& Other)
 		UE_MT_SCOPED_WRITE_ACCESS(PendingCommandsDetector);
 		PendingCommands.Append(MoveTemp(Other.PendingCommands));
 		EntitiesToDestroy.Append(MoveTemp(Other.EntitiesToDestroy));
+		CommandInstances.Append(MoveTemp(Other.CommandInstances));
 		ObservedTypes.Append(Other.ObservedTypes);
 	}
+}
+
+SIZE_T FMassCommandBuffer::GetAllocatedSize() const
+{
+	SIZE_T TotalSize = 0;
+	for (FMassBatchedCommand* Command : CommandInstances)
+	{
+		TotalSize += Command ? Command->GetAllocatedSize() : 0;
+	}
+
+	TotalSize += PendingCommands.GetAllocatedSize();
+	TotalSize += EntitiesToDestroy.GetAllocatedSize();
+	TotalSize += ObservedTypes.GetAllocatedSize();
+	TotalSize += CommandInstances.GetAllocatedSize();
+	
+	return TotalSize;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -263,27 +347,6 @@ void FCommandAddFragmentInstance::Execute(UMassEntitySubsystem& System) const
 void FMassCommandAddFragmentInstanceList::Execute(UMassEntitySubsystem& System) const
 {
 	System.AddFragmentInstanceListToEntity(TargetEntity, FragmentList);
-}
-
-void FCommandSwapTags::Execute(UMassEntitySubsystem& System) const
-{
-	if (System.IsEntityValid(TargetEntity) == false)
-	{
-		return;
-}
-
-	if (OldTagType && NewTagType)
-	{
-		System.SwapTagsForEntity(TargetEntity, OldTagType, NewTagType);
-	}
-	else if (OldTagType)
-	{
-		System.RemoveTagFromEntity(TargetEntity, OldTagType);
-	}
-	else if (NewTagType)
-	{
-		System.AddTagToEntity(TargetEntity, NewTagType);
-	}
 }
 
 void FBuildEntityFromFragmentInstance::Execute(UMassEntitySubsystem& System) const
@@ -320,21 +383,6 @@ void FCommandAddFragmentList::Execute(UMassEntitySubsystem& System) const
 void FCommandRemoveFragmentList::Execute(UMassEntitySubsystem& System) const
 {
 	System.RemoveFragmentListFromEntity(TargetEntity, FragmentList);
-}
-
-void FCommandAddTag::Execute(UMassEntitySubsystem & System) const 
-{
-	if (System.IsEntityValid(TargetEntity) == false)
-	{
-		return;
-	}
-
-	System.AddTagToEntity(TargetEntity, StructParam);
-}
-
-void FCommandRemoveTag::Execute(UMassEntitySubsystem& System) const
-{
-	System.RemoveTagFromEntity(TargetEntity, StructParam);
 }
 
 void FCommandRemoveComposition::Execute(UMassEntitySubsystem& System) const
