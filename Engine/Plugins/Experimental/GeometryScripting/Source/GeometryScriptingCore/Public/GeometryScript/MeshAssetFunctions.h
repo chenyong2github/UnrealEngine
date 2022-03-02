@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
-#include "Engine/EngineTypes.h"
 #include "MeshAssetFunctions.generated.h"
 
 class UStaticMesh;
@@ -29,6 +28,26 @@ public:
 	bool bIgnoreRemoveDegenerates = true;
 };
 
+/**
+ * Configuration settings for Nanite Rendering on StaticMesh Assets
+ */
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptNaniteOptions
+{
+	GENERATED_BODY()
+
+	/** Set Nanite to Enabled/Disabled */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bEnabled = true;
+
+	/** Percentage of triangles to maintain in Fallback Mesh used when Nanite is unavailable */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float FallbackPercentTriangles = 100.0f;
+
+	/** Relative Error to maintain in Fallback Mesh used when Nanite is unavailable. Overrides FallbackPercentTriangles. Set to 0 to only use FallbackPercentTriangles (default). */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float FallbackRelativeError = 0.0f;
+};
 
 
 USTRUCT(BlueprintType)
@@ -61,7 +80,7 @@ public:
 
 	/** Nanite Settings applied to the target Asset, if bApplyNaniteSettings = true */
 	UPROPERTY(BlueprintReadWrite, Category = Options)
-	FMeshNaniteSettings NaniteSettings = FMeshNaniteSettings();
+	FGeometryScriptNaniteOptions NaniteSettings = FGeometryScriptNaniteOptions();
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bEmitTransaction = true;

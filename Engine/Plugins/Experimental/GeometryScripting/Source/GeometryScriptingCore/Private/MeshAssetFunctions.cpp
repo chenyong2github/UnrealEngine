@@ -5,6 +5,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "UDynamicMesh.h"
 
+#include "Engine/EngineTypes.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -214,7 +215,11 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 
 	if (Options.bApplyNaniteSettings)
 	{
-		ToStaticMeshAsset->NaniteSettings = Options.NaniteSettings;
+		FMeshNaniteSettings NewNaniteSettings = ToStaticMeshAsset->NaniteSettings;
+		NewNaniteSettings.bEnabled = Options.NaniteSettings.bEnabled;
+		NewNaniteSettings.FallbackPercentTriangles = FMath::Clamp(Options.NaniteSettings.FallbackPercentTriangles / 100.0f, 0.0f, 1.0f);
+		NewNaniteSettings.FallbackRelativeError = FMath::Max(Options.NaniteSettings.FallbackRelativeError, 0.0f);
+		ToStaticMeshAsset->NaniteSettings = NewNaniteSettings;
 	}
 
 	if (Options.bReplaceMaterials)
