@@ -92,13 +92,13 @@ void SNiagaraBakerViewportToolbar::Construct(const FArguments& InArgs)
 				}
 			)
 		)
-		.ToolTipText(LOCTEXT("CaptureToolTip", "Captures the Baker."))
+		.ToolTipText(LOCTEXT("BakeToolTip", "Runs the bake process."))
 		.Content()
 		[
 			SNew(STextBlock)
 			.Font(FEditorStyle::GetFontStyle("EditorViewportToolBar.Font"))
-			.Text(LOCTEXT("Capture", "Capture"))
-			.ColorAndOpacity(FLinearColor::Black)
+			.Text(LOCTEXT("Bake", "Bake"))
+			.ColorAndOpacity(FLinearColor::White)
 		]
 	];
 	

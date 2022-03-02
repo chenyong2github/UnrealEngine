@@ -729,7 +729,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::RenderVariableToCanvas(FNiagaraSystemI
 
 	Canvas->DrawTile(
 		DrawRect.Min.X, DrawRect.Min.Y, DrawRect.Width(), DrawRect.Height(),
-		0.0f, 0.0f, 1.0f, 1.0f,
+		0.0f, 1.0f, 1.0f, 0.0f,
 		FLinearColor::White,
 		GT_InstanceData->TargetTexture->GetResource(),
 		false

@@ -2096,7 +2096,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::RenderVariableToCanvas(FNiagaraSyste
 	AttributeSlices.Z = NumFloats > 2 ? FirstSlice + 2 : INDEX_NONE;
 	AttributeSlices.W = NumFloats > 3 ? FirstSlice + 3 : INDEX_NONE;
 
-	FCanvasTileItem TileItem(FVector2D(DrawRect.Min.X, DrawRect.Min.Y), FVector2D(DrawRect.Width(), DrawRect.Height()), FLinearColor::White);
+	FCanvasTileItem TileItem(FVector2D(DrawRect.Min.X, DrawRect.Min.Y), GWhiteTexture, FVector2D(DrawRect.Width(), DrawRect.Height()), FVector2D(0.0, 1.0f), FVector2D(1.0, 0.0f), FLinearColor::White);
 	TileItem.BlendMode = SE_BLEND_Opaque;
 	TileItem.BatchedElementParameters = new FBatchedElementNiagara2DArrayAttribute(
 		AttributeSlices,
