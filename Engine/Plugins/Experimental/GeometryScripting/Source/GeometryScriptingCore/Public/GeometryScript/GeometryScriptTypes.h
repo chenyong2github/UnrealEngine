@@ -160,14 +160,20 @@ public:
 // Polygroups
 //
 
+/**
+ * FGeometryScriptGroupLayer identifies a Polygroup Layer of a Mesh.
+ * The Default Layer always exists, Extended layers may or may not exist.
+ */
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptGroupLayer
 {
 	GENERATED_BODY()
 public:
+	/** If true,the default/standard PolyGroup Layer is used */
 	UPROPERTY(BlueprintReadWrite, Category = LOD)
 	bool bDefaultLayer = true;
 
+	/** Index of an extended PolyGroup Layer (which may or may not exist on any given Mesh) */
 	UPROPERTY(BlueprintReadWrite, Category = LOD)
 	int ExtendedLayerIndex = 0;
 };

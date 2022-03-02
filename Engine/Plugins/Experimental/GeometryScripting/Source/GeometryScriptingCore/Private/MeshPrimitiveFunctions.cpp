@@ -646,8 +646,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleSweptPo
 
 
 
-
-UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRectangle(
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRectangleXY(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptPrimitiveOptions PrimitiveOptions,
 	FTransform Transform,
@@ -659,15 +658,15 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRectangle(
 {
 	if (TargetMesh == nullptr)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("PrimitiveFunctions_AppendRectangle", "AppendRectangle: TargetMesh is Null"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("PrimitiveFunctions_AppendRectangleXY", "AppendRectangle: TargetMesh is Null"));
 		return TargetMesh;
 	}
 
 	FRectangleMeshGenerator RectGenerator;
 	RectGenerator.Origin = FVector3d(0, 0, 0);
 	RectGenerator.Normal = FVector3f::UnitZ();
-	RectGenerator.Width = DimensionX / 2;
-	RectGenerator.Height = DimensionY / 2;
+	RectGenerator.Width = DimensionX;
+	RectGenerator.Height = DimensionY;
 	RectGenerator.WidthVertexCount = FMath::Max(0, StepsWidth);
 	RectGenerator.HeightVertexCount = FMath::Max(0, StepsHeight);
 	RectGenerator.bSinglePolyGroup = (PrimitiveOptions.PolygroupMode != EGeometryScriptPrimitivePolygroupMode::PerQuad);
@@ -681,7 +680,21 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRectangle(
 
 
 
-UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRoundRectangle(
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRectangle_Compatibility_5_0(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FTransform Transform,
+	float DimensionX,
+	float DimensionY,
+	int32 StepsWidth,
+	int32 StepsHeight,
+	UGeometryScriptDebug* Debug)
+{
+	return AppendRectangleXY(TargetMesh, PrimitiveOptions, Transform, DimensionX * 0.5, DimensionY * 0.5, StepsWidth, StepsHeight, Debug);
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRoundRectangleXY(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptPrimitiveOptions PrimitiveOptions,
 	FTransform Transform,
@@ -695,15 +708,15 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRoundRectangl
 {
 	if (TargetMesh == nullptr)
 	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("PrimitiveFunctions_AppendRoundRectangle", "AppendRoundRectangle: TargetMesh is Null"));
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("PrimitiveFunctions_AppendRoundRectangleXY", "AppendRoundRectangle: TargetMesh is Null"));
 		return TargetMesh;
 	}
 
 	FRoundedRectangleMeshGenerator RectGenerator;
 	RectGenerator.Origin = FVector3d(0, 0, 0);
 	RectGenerator.Normal = FVector3f::UnitZ();
-	RectGenerator.Width = DimensionX / 2;
-	RectGenerator.Height = DimensionY / 2;
+	RectGenerator.Width = DimensionX;
+	RectGenerator.Height = DimensionY;
 	RectGenerator.WidthVertexCount = FMath::Max(0, StepsWidth);
 	RectGenerator.HeightVertexCount = FMath::Max(0, StepsHeight);
 	RectGenerator.Radius = FMath::Max(FMathf::ZeroTolerance, CornerRadius);
@@ -714,6 +727,23 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRoundRectangl
 	AppendPrimitive(TargetMesh, &RectGenerator, Transform, PrimitiveOptions);
 
 	return TargetMesh;
+}
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRoundRectangle_Compatibility_5_0(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FTransform Transform,
+	float DimensionX,
+	float DimensionY,
+	float CornerRadius,
+	int32 StepsWidth,
+	int32 StepsHeight,
+	int32 StepsRound,
+	UGeometryScriptDebug* Debug)
+{
+	return AppendRoundRectangleXY(TargetMesh, PrimitiveOptions, Transform, DimensionX * 0.5, DimensionY * 0.5, CornerRadius, StepsWidth, StepsHeight, StepsRound, Debug);
 }
 
 

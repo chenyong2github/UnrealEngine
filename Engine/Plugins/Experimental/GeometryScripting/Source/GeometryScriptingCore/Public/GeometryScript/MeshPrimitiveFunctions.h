@@ -264,7 +264,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
-	AppendRectangle( 
+	AppendRectangleXY( 
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
@@ -276,7 +276,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
-	AppendRoundRectangle( 
+	AppendRoundRectangleXY( 
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
@@ -344,6 +344,58 @@ public:
 		float CurveAngle = 90.0f,
 		int NumSteps = 8,
 		bool bFloating = false,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+
+
+	//---------------------------------------------
+	// Backwards-Compatibility implementations
+	//---------------------------------------------
+	// These are versions/variants of the above functions that were released
+	// in previous UE 5.x versions, that have since been updated. 
+	// To avoid breaking user scripts, these previous versions are currently kept and 
+	// called via redirectors registered in GeometryScriptingCoreModule.cpp.
+	// 
+	// These functions may be deprecated in future UE releases.
+	//
+
+
+	/**
+	 * 5.0 Preview 1 Compatibility version of AppendRectangleXY. Incorrectly interprets the input dimensions.
+	 * Incorrectly divides the input DimensionX and DimensionY by 2.
+	 * @warning It is strongly recommended that callers of this function update to the current AppendRectangleXY function!
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Compatibility", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	AppendRectangle_Compatibility_5_0( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptPrimitiveOptions PrimitiveOptions,
+		FTransform Transform,
+		float DimensionX = 100,
+		float DimensionY = 100,
+		int32 StepsWidth = 0,
+		int32 StepsHeight = 0,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+	/**
+	 * 5.0 Preview 1 Compatibility version of AppendRoundRectangleXY. 
+	 * Incorrectly divides the input DimensionX and DimensionY by 2.
+	 * @warning It is strongly recommended that callers of this function update to the current AppendRoundRectangleXY function!
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Compatibility", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	AppendRoundRectangle_Compatibility_5_0( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptPrimitiveOptions PrimitiveOptions,
+		FTransform Transform,
+		float DimensionX = 100,
+		float DimensionY = 100,
+		float CornerRadius = 5,
+		int32 StepsWidth = 0,
+		int32 StepsHeight = 0,
+		int32 StepsRound = 4,
 		UGeometryScriptDebug* Debug = nullptr);
 
 };
