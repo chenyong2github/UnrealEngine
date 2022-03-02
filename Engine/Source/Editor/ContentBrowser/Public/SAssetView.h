@@ -86,6 +86,9 @@ public:
 		/** Called to check if an asset should be filtered out by external code */
 		SLATE_EVENT( FOnShouldFilterAsset, OnShouldFilterAsset )
 
+		/** Called to check if an item should be filtered out by external code */
+		SLATE_EVENT(FOnShouldFilterItem, OnShouldFilterItem)
+
 		/** Called when the asset view is asked to start to create a temporary item */
 		SLATE_EVENT( FOnAssetViewNewItemRequested, OnNewItemRequested )
 
@@ -877,6 +880,9 @@ private:
 
 	/** Called to check if an asset should be filtered out by external code */
 	FOnShouldFilterAsset OnShouldFilterAsset;
+
+	/** Called to check if an item should be filtered out by external code */
+	FOnShouldFilterItem OnShouldFilterItem;
 
 	/** Called when the asset view is asked to start to create a temporary item */
 	FOnAssetViewNewItemRequested OnNewItemRequested;

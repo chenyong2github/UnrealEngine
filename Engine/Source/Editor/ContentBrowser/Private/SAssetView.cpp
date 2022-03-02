@@ -117,10 +117,17 @@ public:
 			return true;
 		}
 
+		if (AssetView->OnShouldFilterItem.IsBound()
+			&& !AssetView->OnShouldFilterItem.Execute(InItemToFilter->GetItem()))
+		{
+			return true;
+		}
+
 		// If we have OnShouldFilterAsset then it is assumed that we really only want to see true assets and 
 		// nothing else so only include things that have asset data and also pass the query filter
 		FAssetData ItemAssetData;
-		if (InItemToFilter->GetItem().Legacy_TryGetAssetData(ItemAssetData))
+		if (AssetView->OnShouldFilterAsset.IsBound()
+			&& InItemToFilter->GetItem().Legacy_TryGetAssetData(ItemAssetData))
 		{
 			if (!AssetView->OnShouldFilterAsset.Execute(ItemAssetData))
 			{
@@ -273,6 +280,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 	}
 
 	OnShouldFilterAsset = InArgs._OnShouldFilterAsset;
+	OnShouldFilterItem = InArgs._OnShouldFilterItem;
+
 	OnNewItemRequested = InArgs._OnNewItemRequested;
 	OnItemSelectionChanged = InArgs._OnItemSelectionChanged;
 	OnItemsActivated = InArgs._OnItemsActivated;
@@ -1255,7 +1264,7 @@ void SAssetView::ProcessItemsPendingFilter(const double TickStartTime)
 		}
 	};
 
-	const bool bRunQueryFilter = OnShouldFilterAsset.IsBound();
+	const bool bRunQueryFilter = OnShouldFilterAsset.IsBound() || OnShouldFilterItem.IsBound();
 	const bool bFlushAllPendingItems = TickStartTime < 0;
 
 	bool bRefreshList = false;
@@ -1773,7 +1782,8 @@ FContentBrowserDataFilter SAssetView::CreateBackendDataFilter() const
 		|| OnGetCustomAssetToolTip.IsBound()
 		|| OnVisualizeAssetToolTip.IsBound()
 		|| OnAssetToolTipClosing.IsBound()
-		|| OnShouldFilterAsset.IsBound();
+		|| OnShouldFilterAsset.IsBound()
+		|| OnShouldFilterItem.IsBound();
 
 	FContentBrowserDataFilter DataFilter;
 	DataFilter.bRecursivePaths = bRecurse || !bUsingFolders || bHasCollections;
@@ -4530,7 +4540,7 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 	if (ItemsPendingInplaceFrontendFilter.Num() > 0)
 	{
 		FAssetViewFrontendFilterHelper FrontendFilterHelper(this);
-		const bool bRunQueryFilter = OnShouldFilterAsset.IsBound();
+		const bool bRunQueryFilter = OnShouldFilterAsset.IsBound() || OnShouldFilterItem.IsBound();
 
 		for (auto It = FilteredAssetItems.CreateIterator(); It && ItemsPendingInplaceFrontendFilter.Num() > 0; ++It)
 		{
