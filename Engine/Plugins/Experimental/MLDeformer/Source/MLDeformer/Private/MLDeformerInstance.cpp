@@ -193,10 +193,17 @@ void FMLDeformerInstance::Update()
 		return;
 	}
 
-	// We only support GPU processing of the neural network at the moment.
+	
+	// If we're not on the GPU we can't continue really.
+	// This is needed as the deformer graph system needs it on the GPU.
+	// Some platforms might not support GPU yet.
+	// Only the inputs are on the CPU.
 	check(NeuralNetwork->GetInputDeviceType() == ENeuralDeviceType::CPU);
-	check(NeuralNetwork->GetDeviceType() == ENeuralDeviceType::GPU);
-	check(NeuralNetwork->GetOutputDeviceType() == ENeuralDeviceType::GPU);
+	if (NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU ||
+		NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU)
+	{
+		return;
+	}
 
 	// Allocate an inference context if none has already been allocated.
 	if (NeuralNetworkInferenceHandle == -1)

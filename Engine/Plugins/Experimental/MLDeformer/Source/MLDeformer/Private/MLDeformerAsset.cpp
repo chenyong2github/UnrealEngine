@@ -86,6 +86,13 @@ void UMLDeformerAsset::PostLoad()
 	}
 
 	InitGPUData();
+
+	if (NeuralNetwork && 
+		(NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU || 
+		NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU))
+	{
+		UE_LOG(LogMLDeformer, Error, TEXT("Neural net in ML Deformer '%s' cannot run on the GPU, it will not be active."), *GetName());
+	}
 }
 
 // Used for the FBoenReference, so it knows what skeleton to pick bones from.

@@ -95,13 +95,21 @@ bool UMLDeformerDataProvider::IsValid() const
 	}
 	
 	UMLDeformerComponent* DeformerComponent = SkeletalMeshComponent->GetOwner()->FindComponentByClass<UMLDeformerComponent>();
+	UMLDeformerAsset* DeformerAsset = DeformerComponent ? DeformerComponent->GetDeformerAsset() : nullptr;
+	UNeuralNetwork* NeuralNetwork = (DeformerAsset != nullptr && DeformerComponent != nullptr) ? DeformerComponent->GetDeformerAsset()->GetInferenceNeuralNetwork() : nullptr;
+	if (NeuralNetwork)
+	{
+		if (!NeuralNetwork->IsLoaded() ||
+			NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU || 
+			NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU)
+		{
+			return false;
+		}
+	}
 
-	return
-		DeformerComponent != nullptr &&
-		DeformerComponent->GetDeformerAsset() != nullptr &&
-		DeformerComponent->GetDeformerAsset()->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr &&
-		DeformerComponent->GetDeformerAsset()->GetInferenceNeuralNetwork() != nullptr &&
-		DeformerComponent->GetDeformerAsset()->GetInferenceNeuralNetwork()->IsLoaded() &&
+	return	
+		NeuralNetwork != nullptr &&
+		DeformerAsset->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr &&
 		DeformerComponent->GetDeformerInstance().GetNeuralNetworkInferenceHandle() != -1;
 }
 

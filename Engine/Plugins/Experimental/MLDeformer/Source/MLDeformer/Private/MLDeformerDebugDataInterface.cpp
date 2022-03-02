@@ -18,6 +18,7 @@
 #include "RenderGraphResources.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "SkeletalRenderPublic.h"
+#include "NeuralNetwork.h"
 
 FString UMLDeformerDebugDataInterface::GetDisplayName() const
 {
@@ -162,10 +163,22 @@ UComputeDataProvider* UMLDeformerDebugDataInterface::CreateDataProvider(TArrayVi
 bool UMLDeformerDebugDataProvider::IsValid() const
 {
 #if WITH_EDITORONLY_DATA
+	UMLDeformerComponent* DeformerComponent = SkeletalMeshComponent->GetOwner()->FindComponentByClass<UMLDeformerComponent>();
+	UNeuralNetwork* NeuralNetwork = (DeformerAsset != nullptr && DeformerComponent != nullptr) ? DeformerAsset->GetInferenceNeuralNetwork() : nullptr;
+	if (NeuralNetwork)
+	{
+		if (!NeuralNetwork->IsLoaded() ||
+			NeuralNetwork->GetDeviceType() != ENeuralDeviceType::GPU || 
+			NeuralNetwork->GetOutputDeviceType() != ENeuralDeviceType::GPU)
+		{
+			return false;
+		}
+	}
+
 	return
+		NeuralNetwork != nullptr &&
 		SkeletalMeshComponent != nullptr &&
 		SkeletalMeshComponent->MeshObject != nullptr &&
-		DeformerAsset != nullptr &&
 		DeformerAsset->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr;
 #else
 	return false; // This data interface is only valid in editor.
