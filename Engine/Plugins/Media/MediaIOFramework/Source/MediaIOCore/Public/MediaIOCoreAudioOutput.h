@@ -9,7 +9,7 @@
 namespace UE::MediaIoCoreModule::Private
 {
 	template <typename OutputType>
-	TArray<OutputType> ConvertAndUpmixBuffer(const Audio::FAlignedFloatBuffer& InBuffer, int32 NumInputChannels, int32 NumOutputChannels, uint32 NumSamplesToGet)
+	TArray<OutputType> ConvertAndUpmixBuffer(const Audio::FAlignedFloatBuffer& InBuffer, int32 NumInputChannels, int32 NumOutputChannels)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MediaIoCoreModule::ConvertAndUpmixBuffer);
 		/**
@@ -43,8 +43,9 @@ namespace UE::MediaIoCoreModule::Private
 			ConvertedBufferPtr += NumOutputChannels;
 		}
 
-		constexpr bool bAllowShrinking = false;
-		ConvertedBuffer.SetNum(NumSamplesToGet, bAllowShrinking);
+		const int32 FinalNumSamples = AlignDown(ConvertedBuffer.Num(), 4);
+		constexpr bool bAllowShrinking = true;
+		ConvertedBuffer.SetNum(FinalNumSamples, bAllowShrinking);
 		return ConvertedBuffer;
 	}
 }
@@ -72,7 +73,7 @@ public:
 		TRACE_CPUPROFILER_EVENT_SCOPE(FMediaIOAudioOutput::GetAudioSamples);
 		
 		const Audio::FAlignedFloatBuffer FloatBuffer = GetFloatBuffer(NumSamplesPerFrame);
-		return UE::MediaIoCoreModule::Private::ConvertAndUpmixBuffer<OutputType>(FloatBuffer, NumInputChannels, NumOutputChannels, NumSamplesPerFrame);
+		return UE::MediaIoCoreModule::Private::ConvertAndUpmixBuffer<OutputType>(FloatBuffer, NumInputChannels, NumOutputChannels);
 	}
 	
 	template <typename OutputType>
@@ -81,7 +82,7 @@ public:
 		TRACE_CPUPROFILER_EVENT_SCOPE(FMediaIOAudioOutput::GetAudioSamples);
 		
 		const Audio::FAlignedFloatBuffer FloatBuffer = GetFloatBuffer(NumSamplesToGet);
-		return UE::MediaIoCoreModule::Private::ConvertAndUpmixBuffer<OutputType>(FloatBuffer, NumInputChannels, NumOutputChannels, NumSamplesToGet);
+		return UE::MediaIoCoreModule::Private::ConvertAndUpmixBuffer<OutputType>(FloatBuffer, NumInputChannels, NumOutputChannels);
 	}
 
 public:

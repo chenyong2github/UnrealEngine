@@ -597,7 +597,10 @@ void UBlackmagicMediaCapture::BeforeFrameCaptured_RenderingThread(const FCapture
 
 		}
 
-		BlackmagicDesign::LockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::LockDMATexture);
+			BlackmagicDesign::LockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+		}
 	}
 }
 
@@ -681,11 +684,14 @@ void UBlackmagicMediaCapture::OnRHITextureCaptured_RenderingThread(const FCaptur
 	{
 		return;
 	}
-
-	BlackmagicDesign::UnlockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
-
 	// Prevent the rendering thread from copying while we are stopping the capture.
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread);
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::UnlockDMATexture);
+		BlackmagicDesign::UnlockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+	}
+
 	FScopeLock ScopeLock(&RenderThreadCriticalSection);
 
 

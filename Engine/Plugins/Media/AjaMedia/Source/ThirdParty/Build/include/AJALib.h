@@ -19,7 +19,6 @@ namespace GPUTextureTransfer
 
 namespace AJA
 {
-	extern void* RHITexture;
 	extern GPUTextureTransfer::ITextureTransfer* TextureTransfer;
 
 	/* Types provided from the interface
