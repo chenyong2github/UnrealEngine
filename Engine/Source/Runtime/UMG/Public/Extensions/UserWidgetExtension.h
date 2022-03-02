@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Layout/Geometry.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Object.h"
 
 #include "UserWidgetExtension.generated.h"
 
