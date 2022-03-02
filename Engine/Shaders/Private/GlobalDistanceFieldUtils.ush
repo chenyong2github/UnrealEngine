@@ -7,6 +7,10 @@
 #define TWO_SIDED_BAND_SIZE 4.0f
 #define DEFAULT_BAND_SIZE 4.0f
 
+#ifndef GLOBALSDF_USE_COVERAGE_BASED_EXPAND
+#define GLOBALSDF_USE_COVERAGE_BASED_EXPAND 1
+#endif
+
 uint ComputeGlobalDistanceFieldClipmapIndex(float3 WorldPosition)
 {
 	uint FoundClipmapIndex = 0;
@@ -131,8 +135,7 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 
 				if (PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID && DistanceFieldMipValue < GlobalDistanceFieldMipTransition)
 				{
-#define USE_COVERAGE_BASED_EXPAND 1
-#if USE_COVERAGE_BASED_EXPAND
+#if GLOBALSDF_USE_COVERAGE_BASED_EXPAND
 					float3 PageUV;
 					float3 CoveragePageUV;
 					ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, PageIndex, PageUV, CoveragePageUV);
