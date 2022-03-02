@@ -884,11 +884,16 @@ public class MediaPlayer14
 				// Do not use shared context if Adreno before 400 or on older Android than Marshmallow
 				if (RendererString.contains("Adreno (TM) "))
 				{
-					int AdrenoVersion = Integer.parseInt(RendererString.substring(12));
-					if (AdrenoVersion < 400 || android.os.Build.VERSION.SDK_INT < 22)
+					java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("Adreno \\(TM\\) (\\d*)");
+					java.util.regex.Matcher matcher = pattern.matcher(RendererString);
+					if (matcher.find() && matcher.groupCount() >= 1)
 					{
-						GameActivity.Log.debug("MediaPlayer14: disabled shared GL context on " + RendererString);
-						mUseOwnContext = false;
+						int AdrenoVersion = Integer.parseInt(matcher.group(1));
+						if (AdrenoVersion < 400 || android.os.Build.VERSION.SDK_INT < 22)
+						{
+							GameActivity.Log.debug("MediaPlayer14: disabled shared GL context on " + RendererString);
+							mUseOwnContext = false;
+						}
 					}
 				}
 			}
