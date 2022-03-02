@@ -5,7 +5,8 @@
 =============================================================================*/
 #pragma once
 
-#if COMPILER_DXC && PIXELSHADER
+#if PIXELSHADER
+#if COMPILER_DXC
 
 	// Note: Do not rename subpass input attachment declarations, or adjust your changes in VulkanBackend.cpp (see VULKAN_SUBPASS_FETCH_VAR_W)
 
@@ -29,4 +30,17 @@
 	SubpassInput<float4> GENERATED_SubpassFetchAttachment3;
 	#define GLSubpassFetch3() GENERATED_SubpassFetchAttachment3.SubpassLoad()
 	
-#endif // COMPILER_DXC && PIXELSHADER
+#else // COMPILER_DXC
+
+	#define GLSubpassDepthFetch() 1.0
+
+	#define GLSubpassFetch0() float4(1.0)
+
+	#define GLSubpassFetch1() float4(1.0)
+
+	#define GLSubpassFetch2() float4(1.0)
+	
+	#define GLSubpassFetch3() float4(1.0)
+
+#endif // COMPILER_DXC
+#endif // PIXELSHADER

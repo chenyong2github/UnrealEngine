@@ -180,6 +180,14 @@ public:
 		bool enable_texture_buffer = false;
 		// UE Change End: Enable textureBuffer over samplerBuffer.
 
+		// UE Change Begin: Emit structure padding to support uniform buffers with offsets
+		bool pad_ubo_blocks = false;
+		// UE Change End: Emit structure padding to support uniform buffers with offsets
+		
+		// UE Change Begin: Force Glsl Clipspace when using ES
+		bool force_glsl_clipspace = false;
+		// UE Change End: Force Glsl Clipspace when using ES
+
 		enum Precision
 		{
 			DontCare,
@@ -430,6 +438,11 @@ protected:
 	virtual void emit_subgroup_op(const Instruction &i);
 	virtual std::string type_to_glsl(const SPIRType &type, uint32_t id = 0);
 	virtual std::string builtin_to_glsl(spv::BuiltIn builtin, spv::StorageClass storage);
+	
+	// UE Change Begin: Emit structure padding to support uniform buffers with offsets
+	void emit_struct_member_padding(const SPIRType &type, uint32_t member_type_id, uint32_t index);
+	// UE Change End: Emit structure padding to support uniform buffers with offsets
+
 	virtual void emit_struct_member(const SPIRType &type, uint32_t member_type_id, uint32_t index,
 	                                const std::string &qualifier = "", uint32_t base_offset = 0);
 	virtual void emit_struct_padding_target(const SPIRType &type);

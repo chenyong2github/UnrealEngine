@@ -1226,10 +1226,33 @@ void CompilerGLSL::emit_struct(SPIRType &type)
 	type.member_name_cache.clear();
 
 	uint32_t i = 0;
+	// UE Change Begin: Emit structure padding to support uniform buffers with offsets
+	uint32_t padding_offset = 0;
+	// UE Change End: Emit structure padding to support uniform buffers with offsets
+
 	bool emitted = false;
 	for (auto &member : type.member_types)
 	{
 		add_member_name(type, i);
+
+		// UE Change Begin: Emit structure padding to support uniform buffers with offsets
+		ID &ib_type_id = type.self;
+
+		if (options.pad_ubo_blocks)
+		{
+			uint32_t spirv_mbr_offset = get_member_decoration(ib_type_id, i, DecorationOffset);
+			uint32_t member_size = get_declared_struct_member_size(type, i);
+			int32_t offset_delta = spirv_mbr_offset - padding_offset;
+
+			if (offset_delta > 0)
+			{
+				set_extended_member_decoration(ib_type_id, i, SPIRVCrossDecorationPaddingTarget, offset_delta);
+			}
+
+			padding_offset = padding_offset + offset_delta + member_size;
+		}
+		// UE Change End: Emit structure padding to support uniform buffers with offsets
+
 		emit_struct_member(type, member, i);
 		i++;
 		emitted = true;
@@ -13101,6 +13124,67 @@ bool CompilerGLSL::variable_decl_is_remapped_storage(const SPIRVariable &var, St
 	return var.storage == storage;
 }
 
+
+// UE Change begin: Emit structure padding to support uniform buffers with offsets
+void CompilerGLSL::emit_struct_member_padding(const SPIRType &type, uint32_t member_type_id, uint32_t index)
+{
+	if (!options.pad_ubo_blocks)
+	{
+		return;
+	}
+
+	if (has_extended_member_decoration(type.self, index, SPIRVCrossDecorationPaddingTarget))
+	{
+		uint32_t pad_len = get_extended_member_decoration(type.self, index, SPIRVCrossDecorationPaddingTarget);
+		uint32_t pad_len_float = pad_len / 4;
+
+		uint32_t pad_len_remainder = pad_len_float % 4;
+
+		if (pad_len > 0)
+		{
+			// Calculate any pre-padding we want to do before array of vectors, this is required because GL automatically inserts
+			// padding before arrays or vectors
+			if (index > 0 && pad_len_float > 4)
+			{
+				const ID &ib_type_id = type.self;
+
+				uint32_t prev_mbr_offset = get_member_decoration(ib_type_id, index - 1, DecorationOffset) / 4;
+				uint32_t prev_mbr_size = get_declared_struct_member_size(type, index - 1) / 4;
+
+				uint32_t prev_mbr_endpos = prev_mbr_offset + prev_mbr_size;
+				uint32_t prev_mbr_remainder = (prev_mbr_endpos % 4) ? 4 - (prev_mbr_endpos % 4) : 0;
+
+				if (prev_mbr_remainder)
+				{
+					uint32_t amount_to_prepad = pad_len_float > prev_mbr_remainder ? prev_mbr_remainder : pad_len_float;
+					pad_len_float -= amount_to_prepad;
+					pad_len_remainder = pad_len_float % 4;
+				}
+			}
+
+			if (pad_len_float > 0)
+			{
+				// Add array of vectors
+				if (pad_len_float > pad_len_remainder)
+				{
+					uint32_t size_in_vectors = (pad_len_float - pad_len_remainder) / 4;
+					statement("vec4 ", type_to_glsl(type), "_pad", index, "[", size_in_vectors, "];");
+				}
+
+				// Add the remaining padding in floats, required because the next member may have a size < 16 bytes
+				if (pad_len_remainder)
+				{
+					for (uint32_t i = 0; i < pad_len_remainder; i++)
+					{
+						statement("float ", type_to_glsl(type), "_pad", index, "f", i, "_pad;");
+					}
+				}
+			}
+		}
+	}
+}
+// UE Change End: Emit structure padding to support uniform buffers with offsets
+
 // Emit a structure member. Subclasses may override to modify output,
 // or to dynamically add a padding member if needed.
 void CompilerGLSL::emit_struct_member(const SPIRType &type, uint32_t member_type_id, uint32_t index,
@@ -13119,6 +13203,10 @@ void CompilerGLSL::emit_struct_member(const SPIRType &type, uint32_t member_type
 
 	if (is_block)
 		qualifiers = to_interpolation_qualifiers(memberflags);
+
+	// UE Change Begin: Emit structure padding to support uniform buffers with offsets
+	emit_struct_member_padding(type, member_type_id, index);
+	// UE Change End: Emit structure padding to support uniform buffers with offsets
 
 	statement(layout_for_member(type, index), qualifiers, qualifier, flags_to_qualifiers_glsl(membertype, memberflags),
 	          variable_decl(membertype, to_member_name(type, index)), ";");

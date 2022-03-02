@@ -362,6 +362,9 @@ static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, c
     PARSE_SPIRVCROSS_OPTION(define, "disable_explicit_binding", opt.disable_explicit_binding);
     PARSE_SPIRVCROSS_OPTION(define, "enable_texture_buffer", opt.enable_texture_buffer);
 	PARSE_SPIRVCROSS_OPTION(define, "ovr_multiview_view_count", opt.ovr_multiview_view_count);
+	PARSE_SPIRVCROSS_OPTION(define, "pad_ubo_blocks", opt.pad_ubo_blocks);
+	PARSE_SPIRVCROSS_OPTION(define, "force_temporary", opt.force_temporary);
+	PARSE_SPIRVCROSS_OPTION(define, "force_glsl_clipspace", opt.force_glsl_clipspace);
     return false;
 }
 
@@ -1395,7 +1398,6 @@ namespace
             opts.version = intVersion;
         }
         opts.es = (target.language == ShadingLanguage::Essl);
-        opts.force_temporary = false;
         opts.separate_shader_objects = !opts.es;
         opts.flatten_multidimensional_arrays = false;
         opts.enable_420pack_extension =
@@ -1471,6 +1473,14 @@ namespace
 				compiler->remap_ext_framebuffer_fetch(fetch.input_index, fetch.color_attachment, true);
 			}
 			// UE Change End: Improved support for PLS and FBF
+			 
+			// UE Change Begin: Force Glsl Clipspace when using ES
+			if (glslOpts.force_glsl_clipspace)
+			{
+				glslOpts.vertex.fixup_clipspace = false;
+				glslOpts.vertex.flip_vert_y = false;
+			}
+			// UE Change End: Force Glsl Clipspace when using ES
 
             glslCompiler->set_common_options(glslOpts);
 

@@ -1499,6 +1499,7 @@ struct ReflectionData
 	TArray<std::string> StructuredBuffers;
 	
 	std::map<std::string, std::string> UniformVarNames;
+	std::map<std::string, std::vector<std::string>> UniformVarMemberNames;
 
 	TMap<FString, uint32> GlobalOffsets;
 	TArray<std::string> GlobalRemap;
@@ -1515,8 +1516,8 @@ struct ReflectionData
 	TArray<FString> OutputVarNames;
 };
 
-void ParseReflectionData(CrossCompiler::FHlslccHeaderWriter& CCHeaderWriter, ReflectionData& ReflectionOut, TArray<uint32>& SpirvData, spv_reflect::ShaderModule& Reflection,
-							const ANSICHAR* SPIRV_DummySamplerName, const EShaderFrequency Frequency, bool bEmulatedUBs)
+void ParseReflectionData(const FShaderCompilerInput& ShaderInput, CrossCompiler::FHlslccHeaderWriter& CCHeaderWriter, ReflectionData& ReflectionOut, TArray<uint32>& SpirvData, 
+							spv_reflect::ShaderModule& Reflection,	const ANSICHAR* SPIRV_DummySamplerName, const EShaderFrequency Frequency, bool bEmulatedUBs)
 {
 	const ANSICHAR* FrequencyPrefix = GetFrequencyPrefix(Frequency);
 
@@ -1619,12 +1620,9 @@ void ParseReflectionData(CrossCompiler::FHlslccHeaderWriter& CCHeaderWriter, Ref
 		ReflectionOut.StructuredBuffers.Add(Binding->name);
 	}
 
+	TArray<const SpvReflectDescriptorBinding*> RealUniformBuffers;
 	for (auto const& Binding : ReflectionBindings.UniformBuffers)
 	{
-		check(UBOIndices);
-		uint32 Index = FPlatformMath::CountTrailingZeros(UBOIndices);
-		UBOIndices &= ~(1 << Index);
-
 		// Global uniform buffer - handled specially as we care about the internal layout
 		if (strstr(Binding->name, "$Globals"))
 		{
@@ -1661,13 +1659,15 @@ void ParseReflectionData(CrossCompiler::FHlslccHeaderWriter& CCHeaderWriter, Ref
 		{
 			if (bEmulatedUBs)
 			{
-				//CCHeaderWriter.WritePackedUB(Binding->binding);
+				check(UBOIndices);
+				uint32 Index = FPlatformMath::CountTrailingZeros(UBOIndices);
+				UBOIndices &= ~(1 << Index);
 
-				ReflectionOut.PackedUBOffsets.Add(PackedUBIndex);
-				ReflectionOut.PackedUBRemap.Add(PackedUBIndex);
-				ReflectionOut.PackedUBArrays.Add(PackedUBIndex);
-				ReflectionOut.PackedUBMemberInfos.Add(PackedUBIndex);
-				ReflectionOut.PackedUBNames.Add(PackedUBIndex, std::string(Binding->name));
+				ReflectionOut.PackedUBOffsets.Add(Index);
+				ReflectionOut.PackedUBRemap.Add(Index);
+				ReflectionOut.PackedUBArrays.Add(Index);
+				ReflectionOut.PackedUBMemberInfos.Add(Index);
+				ReflectionOut.PackedUBNames.Add(Index, std::string(Binding->name));
 
 				for (uint32 i = 0; i < Binding->block.member_count; i++)
 				{
@@ -1688,11 +1688,11 @@ void ParseReflectionData(CrossCompiler::FHlslccHeaderWriter& CCHeaderWriter, Ref
 							AddMemberToPackedUB(FrequencyPrefix,
 								StructMember,
 								UBName,
-								PackedUBIndex,
-								ReflectionOut.PackedUBOffsets[PackedUBIndex],
-								ReflectionOut.PackedUBMemberInfos[PackedUBIndex],
-								ReflectionOut.PackedUBRemap[PackedUBIndex],
-								ReflectionOut.PackedUBArrays[PackedUBIndex]);
+								Index,
+								ReflectionOut.PackedUBOffsets[Index],
+								ReflectionOut.PackedUBMemberInfos[Index],
+								ReflectionOut.PackedUBRemap[Index],
+								ReflectionOut.PackedUBArrays[Index]);
 						}
 					}
 					else
@@ -1700,26 +1700,43 @@ void ParseReflectionData(CrossCompiler::FHlslccHeaderWriter& CCHeaderWriter, Ref
 						AddMemberToPackedUB(FrequencyPrefix,
 							member,
 							UBName,
-							PackedUBIndex,
-							ReflectionOut.PackedUBOffsets[PackedUBIndex],
-							ReflectionOut.PackedUBMemberInfos[PackedUBIndex],
-							ReflectionOut.PackedUBRemap[PackedUBIndex],
-							ReflectionOut.PackedUBArrays[PackedUBIndex]);
+							Index,
+							ReflectionOut.PackedUBOffsets[Index],
+							ReflectionOut.PackedUBMemberInfos[Index],
+							ReflectionOut.PackedUBRemap[Index],
+							ReflectionOut.PackedUBArrays[Index]);
 					}
 				}
 
-				PackedUBIndex++;
+				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
+				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 			}
 			else
 			{
-				std::string OldName = Binding->name;
-				std::string NewName = FrequencyPrefix;
-				NewName += "b";
-				NewName += std::to_string(Index);
-				ReflectionOut.UniformVarNames[OldName] = NewName;
-				// Regular uniform buffer - we only care about the binding index
-				CCHeaderWriter.WriteUniformBlock(UTF8_TO_TCHAR(Binding->name), Index);
+				RealUniformBuffers.Add(Binding);
 			}
+		}
+	}
+
+	//Always write the real uniform buffers after the emulated because OpenGLShaders expects emulated to be in consecutive slots
+	for (auto const& Binding : RealUniformBuffers)
+	{
+		uint32 Index = FPlatformMath::CountTrailingZeros(UBOIndices);
+		UBOIndices &= ~(1 << Index);
+
+		std::string OldName = Binding->name;
+		std::string NewName = FrequencyPrefix;
+		NewName += "b";
+		NewName += std::to_string(Index);
+		ReflectionOut.UniformVarNames[OldName] = NewName;
+		// Regular uniform buffer - we only care about the binding index
+		CCHeaderWriter.WriteUniformBlock(UTF8_TO_TCHAR(Binding->name), Index);
+
+		ReflectionOut.UniformVarMemberNames.insert({ OldName, {} });
+		for (uint32 i = 0; i < Binding->block.member_count; i++)
+		{
+			SpvReflectBlockVariable& member = Binding->block.members[i];
+			ReflectionOut.UniformVarMemberNames[OldName].push_back(member.name);
 		}
 
 		SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
@@ -2003,96 +2020,7 @@ void ParseReflectionData(CrossCompiler::FHlslccHeaderWriter& CCHeaderWriter, Ref
 static void ConvertToEmulatedUBs(std::string& GlslSource, const ReflectionData& ReflectData, const EShaderFrequency Frequency)
 {
 	const ANSICHAR* FrequencyPrefix = GetFrequencyPrefix(Frequency);
-	{
-		bool bIsLayout = true;
-
-		std::string GlobalsSearchString = "layout\\(.*\\) uniform type_Globals$";
-
-		std::smatch RegexMatch;
-		std::regex_search(GlslSource, RegexMatch, std::regex(GlobalsSearchString));
-
-		for (auto Match : RegexMatch)
-		{
-			GlobalsSearchString = Match;
-			break;
-		}
-
-		size_t GlobalPos = GlslSource.find(GlobalsSearchString);
-
-		if (GlobalPos == std::string::npos)
-		{
-			GlobalsSearchString = "struct type_Globals";
-			GlobalPos = GlslSource.find(GlobalsSearchString);
-			bIsLayout = false;
-		}
-
-		if (GlobalPos != std::string::npos)
-		{
-			std::string GlobalsEndSearchString;
-			if (bIsLayout)
-			{
-				GlobalsEndSearchString = "} _Globals;";
-			}
-			else
-			{
-				GlobalsEndSearchString = "uniform type_Globals _Globals;";
-			}
-
-			size_t GlobalEndPos = GlslSource.find(GlobalsEndSearchString);
-
-			if (GlobalEndPos != std::string::npos)
-			{
-				GlslSource.erase(GlobalPos, GlobalEndPos - GlobalPos + GlobalsEndSearchString.length());
-
-				std::string GlobalVarString = "_Globals.";
-				size_t GlobalVarPos = 0;
-				do
-				{
-					GlobalVarPos = GlslSource.find(GlobalVarString, GlobalVarPos);
-					if (GlobalVarPos != std::string::npos)
-					{
-						GlslSource.replace(GlobalVarPos, GlobalVarString.length(), "_Globals_");
-						for (std::string const& SearchString : ReflectData.GlobalArrays)
-						{
-							if (!GlslSource.compare(GlobalVarPos, SearchString.length(), SearchString))
-							{
-								GlslSource.replace(GlobalVarPos + SearchString.length(), 1, "(");
-
-								size_t ClosingBrace = GlslSource.find("]", GlobalVarPos + SearchString.length());
-								if (ClosingBrace != std::string::npos)
-									GlslSource.replace(ClosingBrace, 1, ")");
-							}
-						}
-					}
-				} while (GlobalVarPos != std::string::npos);
-
-				for (auto const& Pair : ReflectData.GlobalOffsets)
-				{
-					if (Pair.Value > 0)
-					{
-						std::string NewUniforms;
-						GetPackedUniformString(NewUniforms, FrequencyPrefix + std::string("u"), Pair.Key, Pair.Value);
-						GlslSource.insert(GlobalPos, NewUniforms);
-					}
-				}
-
-				for (std::string const& Define : ReflectData.GlobalRemap)
-				{
-					GlslSource.insert(GlobalPos, Define);
-				}
-
-				bool UsesFramebufferFetch = Frequency == SF_Pixel && GlslSource.find("_Globals.ARM_shader_framebuffer_fetch") != std::string::npos;
-
-				if (UsesFramebufferFetch)
-				{
-					size_t OutColor = GlslSource.find("0) out ");
-					if (OutColor != std::string::npos)
-						GlslSource.replace(OutColor, 7, "0) FRAME_BUFFERFETCH_STORAGE_QUALIFIER ");
-				}
-			}
-		}
-	}
-
+	
 	for (const auto& PackedUBNamePair : ReflectData.PackedUBNames)
 	{
 		bool bIsLayout = true;
@@ -2293,7 +2221,7 @@ bool GenerateGlslShader(std::string& OutString, GLSLCompileParameters& GLSLCompi
 		// Framebuffer Depth Fetch
 		{
 			std::string FBDFString = "_Globals.ARM_shader_framebuffer_fetch_depth_stencil";
-			std::string FBDFReplaceString = "_Globals_ARM_shader_framebuffer_fetch_depth_stencil";
+			std::string FBDFReplaceString = "1u";
 
 			std::string FBFString = "_Globals.ARM_shader_framebuffer_fetch";
 			std::string FBFReplaceString = "_Globals_ARM_shader_framebuffer_fetch";
@@ -2312,12 +2240,17 @@ bool GenerateGlslShader(std::string& OutString, GLSLCompileParameters& GLSLCompi
 				OutString.insert(FramebufferDepthFetchPos, FBDFReplaceString);
 
 				std::string LastFragDepthARMString = "_Globals._RESERVED_IDENTIFIER_FIXUP_gl_LastFragDepthARM";
-				std::string LastFragDepthARMReplaceString = "gl_LastFragDepthARM";
+				std::string LastFragDepthARMReplaceString = "GLFetchDepthBuffer()";
 
 				size_t LastFragDepthARMStringPos = OutString.find(LastFragDepthARMString);
+				
+				while (LastFragDepthARMStringPos != std::string::npos)
+				{
+					OutString.erase(LastFragDepthARMStringPos, LastFragDepthARMString.length());
+					OutString.insert(LastFragDepthARMStringPos, LastFragDepthARMReplaceString);
 
-				OutString.erase(LastFragDepthARMStringPos, LastFragDepthARMString.length());
-				OutString.insert(LastFragDepthARMStringPos, LastFragDepthARMReplaceString);
+					LastFragDepthARMStringPos = OutString.find(LastFragDepthARMString);
+				}
 
 				MainPos = OutString.find("void main()");
 
@@ -2349,16 +2282,125 @@ bool GenerateGlslShader(std::string& OutString, GLSLCompileParameters& GLSLCompi
 						OutString.erase(QualifierPos - 2, 3);
 						OutString.insert(QualifierPos - 2, "inout");
 					}
+				}
+			}
+		}
+	}
 
-					std::string DepthFetchReplacePosString = "0.0 : gl_LastFragDepthARM";
-					size_t DepthFetchReplacePos = OutString.find(DepthFetchReplacePosString);
+	// If we are rendering deferred, then we only need SceneDepthAux on devices that don't support framebuffer fetch depthj
+	if (bIsDeferred)
+	{
+		std::string SceneDepthAux = "layout(location = 4) out highp float out_var_SV_Target4;";
+		size_t SceneDepthAuxPos = OutString.find(SceneDepthAux);
+		if (SceneDepthAuxPos != std::string::npos)
+		{
+			OutString.insert(SceneDepthAuxPos + SceneDepthAux.size(), "\n#endif\n");
+			OutString.insert(SceneDepthAuxPos, "\n#ifndef GL_ARM_shader_framebuffer_fetch_depth_stencil\n");
 
-					while (DepthFetchReplacePos != std::string::npos)
+			std::string SceneDepthAuxAssignment = "out_var_SV_Target4 =";
+			size_t SceneDepthAuxAssignmentPos = OutString.find(SceneDepthAuxAssignment);
+
+			if (SceneDepthAuxAssignmentPos != std::string::npos)
+			{
+				size_t LineEnd = OutString.find_first_of(";", SceneDepthAuxAssignmentPos);
+				uint32_t AssignmentValueStart = SceneDepthAuxAssignmentPos + SceneDepthAuxAssignment.size();
+				std::string AssignmentValue = OutString.substr(AssignmentValueStart + 1, LineEnd - AssignmentValueStart);
+
+				if (LineEnd != std::string::npos)
+				{
+					OutString.erase(SceneDepthAuxAssignmentPos, LineEnd + 1 - SceneDepthAuxAssignmentPos);
+					OutString.insert(SceneDepthAuxAssignmentPos, std::string("#ifndef GL_ARM_shader_framebuffer_fetch_depth_stencil\n") + SceneDepthAuxAssignment + AssignmentValue + std::string("\n#endif\n"));
+				}
+			}
+		}
+	}
+
+	// Fixup packed globals
+	{
+		bool bIsLayout = true;
+
+		std::string GlobalsSearchString = "layout\\(.*\\) uniform type_Globals$";
+
+		std::smatch RegexMatch;
+		std::regex_search(OutString, RegexMatch, std::regex(GlobalsSearchString));
+
+		for (auto Match : RegexMatch)
+		{
+			GlobalsSearchString = Match;
+			break;
+		}
+
+		size_t GlobalPos = OutString.find(GlobalsSearchString);
+
+		if (GlobalPos == std::string::npos)
+		{
+			GlobalsSearchString = "struct type_Globals";
+			GlobalPos = OutString.find(GlobalsSearchString);
+			bIsLayout = false;
+		}
+
+		if (GlobalPos != std::string::npos)
+		{
+			std::string GlobalsEndSearchString;
+			if (bIsLayout)
+			{
+				GlobalsEndSearchString = "} _Globals;";
+			}
+			else
+			{
+				GlobalsEndSearchString = "uniform type_Globals _Globals;";
+			}
+
+			size_t GlobalEndPos = OutString.find(GlobalsEndSearchString);
+
+			if (GlobalEndPos != std::string::npos)
+			{
+				OutString.erase(GlobalPos, GlobalEndPos - GlobalPos + GlobalsEndSearchString.length());
+
+				std::string GlobalVarString = "_Globals.";
+				size_t GlobalVarPos = 0;
+				do
+				{
+					GlobalVarPos = OutString.find(GlobalVarString, GlobalVarPos);
+					if (GlobalVarPos != std::string::npos)
 					{
-						OutString.erase(DepthFetchReplacePos, DepthFetchReplacePosString.length());
-						OutString.insert(DepthFetchReplacePos, "GLFetchDepthBuffer() : GLFetchDepthBuffer()");
-						DepthFetchReplacePos = OutString.find(DepthFetchReplacePosString);
+						OutString.replace(GlobalVarPos, GlobalVarString.length(), "_Globals_");
+						for (std::string const& SearchString : ReflectData.GlobalArrays)
+						{
+							if (!OutString.compare(GlobalVarPos, SearchString.length(), SearchString))
+							{
+								OutString.replace(GlobalVarPos + SearchString.length(), 1, "(");
+
+								size_t ClosingBrace = OutString.find("]", GlobalVarPos + SearchString.length());
+								if (ClosingBrace != std::string::npos)
+									OutString.replace(ClosingBrace, 1, ")");
+							}
+						}
 					}
+				} while (GlobalVarPos != std::string::npos);
+
+				for (auto const& Pair : ReflectData.GlobalOffsets)
+				{
+					if (Pair.Value > 0)
+					{
+						std::string NewUniforms;
+						GetPackedUniformString(NewUniforms, FrequencyPrefix + std::string("u"), Pair.Key, Pair.Value);
+						OutString.insert(GlobalPos, NewUniforms);
+					}
+				}
+
+				for (std::string const& Define : ReflectData.GlobalRemap)
+				{
+					OutString.insert(GlobalPos, Define);
+				}
+
+				bool UsesFramebufferFetch = GLSLCompileParams.Frequency == SF_Pixel && OutString.find("_Globals.ARM_shader_framebuffer_fetch") != std::string::npos;
+
+				if (UsesFramebufferFetch)
+				{
+					size_t OutColor = OutString.find("0) out ");
+					if (OutColor != std::string::npos)
+						OutString.replace(OutColor, 7, "0) FRAME_BUFFERFETCH_STORAGE_QUALIFIER ");
 				}
 			}
 		}
@@ -2510,15 +2552,72 @@ bool GenerateGlslShader(std::string& OutString, GLSLCompileParameters& GLSLCompi
 
 		for (const auto& pair : ReflectData.UniformVarNames)
 		{
-			std::string OldUniformTypeName = "uniform type_" + pair.first;
-			std::string NewUniformTypeName = "uniform " + pair.second;
+			std::string OldUniformTypeName = "uniform type_" + pair.first + " " + pair.first + ";";
 
 			size_t UniformTypePos = OutString.find(OldUniformTypeName);
 
 			if (UniformTypePos != std::string::npos)
 			{
 				OutString.erase(UniformTypePos, OldUniformTypeName.length());
-				OutString.insert(UniformTypePos, NewUniformTypeName);
+			}
+
+			// Replace struct type with layout, for compatibility 
+			std::string OldStructTypeName = "struct type_" + pair.first + "\n";
+			std::string NewStructTypeName = "layout(std140) uniform " + pair.second + "\n";
+
+			size_t StructTypePos = OutString.find(OldStructTypeName);
+
+			if (StructTypePos != std::string::npos)
+			{
+				OutString.erase(StructTypePos, OldStructTypeName.length());
+				OutString.insert(StructTypePos, NewStructTypeName);
+			}
+
+			// Append the uniform buffer name i.e. pb0 to ensure variable names are unique across shaders
+			std::vector<std::string>& MemberNames = ReflectData.UniformVarMemberNames[pair.first];
+			for (const std::string& uniform_member_name : MemberNames)
+			{
+				std::string OldVarName = uniform_member_name;
+				std::string NewVarName = uniform_member_name + pair.second;
+
+				size_t OldVarNamePos = OutString.find(OldVarName);
+
+				OutString.erase(OldVarNamePos, OldVarName.length());
+				OutString.insert(OldVarNamePos, NewVarName);
+			}
+
+			// Sort the member names by length so that we don't accidently replace a partial string
+			std::sort(MemberNames.begin(), MemberNames.end(), [](const std::string& a, const std::string& b) {
+				return a.length() > b.length();
+				});
+
+			// Replace uniform member names in the glsl
+			for (const std::string& uniform_member_name : MemberNames)
+			{
+				std::string OldUniformBufferAccessor = pair.first + "." + uniform_member_name;
+				std::string NewUniformBufferAccessor = uniform_member_name + pair.second;
+
+				size_t OldAccessorPos = OutString.find(OldUniformBufferAccessor);
+				while (OldAccessorPos != std::string::npos)
+				{
+					OutString.erase(OldAccessorPos, OldUniformBufferAccessor.length());
+					OutString.insert(OldAccessorPos, NewUniformBufferAccessor);
+
+					OldAccessorPos = OutString.find(OldUniformBufferAccessor);
+				}
+			}
+
+			// Rename the padding variables to stop conflicts between shaders
+			std::string OldPaddingName = "type_" + pair.first + "_pad";
+			std::string NewPaddingName = pair.second + "_pad";
+
+			size_t OldPaddingPos = OutString.find(OldPaddingName);
+			while (OldPaddingPos != std::string::npos)
+			{
+				OutString.erase(OldPaddingPos, OldPaddingName.length());
+				OutString.insert(OldPaddingPos, NewPaddingName);
+
+				OldPaddingPos = OutString.find(OldPaddingName);
 			}
 		}
 	}
@@ -2813,7 +2912,7 @@ static bool CompileToGlslWithShaderConductor(
 
 		const ANSICHAR* SPIRV_DummySamplerName = CrossCompiler::FShaderConductorContext::GetIdentifierTable().DummySampler;
 
-		ParseReflectionData(CCHeaderWriter, ReflectData, SpirvData, Reflection, SPIRV_DummySamplerName, Frequency, bEmulatedUBs);
+		ParseReflectionData(Input, CCHeaderWriter, ReflectData, SpirvData, Reflection, SPIRV_DummySamplerName, Frequency, bEmulatedUBs);
 		
 		const ANSICHAR* FrequencyPrefix = GetFrequencyPrefix(Frequency);
 		
@@ -2832,12 +2931,6 @@ static bool CompileToGlslWithShaderConductor(
 
 		switch (Version)
 		{
-		case GLSL_150_ES3_1:	// ES3.1 Emulation
-			TargetDesc.CompileFlags.SetDefine(TEXT("force_flattened_io_blocks"), 1);
-			TargetDesc.CompileFlags.SetDefine(TEXT("emit_uniform_buffer_as_plain_uniforms"), 1);
-			TargetDesc.Language = CrossCompiler::EShaderConductorLanguage::Glsl;
-			TargetDesc.Version = 430;
-			break;
 		case GLSL_SWITCH_FORWARD:
 			TargetDesc.Language = CrossCompiler::EShaderConductorLanguage::Essl;
 			TargetDesc.Version = 320;
@@ -2846,11 +2939,13 @@ static bool CompileToGlslWithShaderConductor(
 			TargetDesc.Language = CrossCompiler::EShaderConductorLanguage::Glsl;
 			TargetDesc.Version = 430;
 			break;
+		case GLSL_150_ES3_1:
 		case GLSL_ES3_1_ANDROID:
 		default:
 			TargetDesc.CompileFlags.SetDefine(TEXT("force_flattened_io_blocks"), 1);
 			TargetDesc.CompileFlags.SetDefine(TEXT("emit_uniform_buffer_as_plain_uniforms"), 1);
 			TargetDesc.CompileFlags.SetDefine(TEXT("force_temporary"), 1);
+			TargetDesc.CompileFlags.SetDefine(TEXT("pad_ubo_blocks"), 1);
 
 			// If we have mobile multiview define set then set the view count and enable extension
 			const FString* MultiViewDefine = Input.Environment.GetDefinitions().Find(TEXT("MOBILE_MULTI_VIEW"));
@@ -2859,6 +2954,10 @@ static bool CompileToGlslWithShaderConductor(
 				TargetDesc.CompileFlags.SetDefine(TEXT("ovr_multiview_view_count"), 2);
 			}
 
+			if (Version == GLSL_150_ES3_1)
+			{
+				TargetDesc.CompileFlags.SetDefine(TEXT("force_glsl_clipspace"), 1);
+			}
 			TargetDesc.Language = CrossCompiler::EShaderConductorLanguage::Essl;
 			TargetDesc.Version = 320;
 			break;
@@ -2929,7 +3028,6 @@ static bool CompileToGlslWithShaderConductor(
 			Version == GLSL_ES3_1_ANDROID)
 		{
 			bCompilationFailed = !GenerateDeferredMobileShaders(GlslSource, GLSLCompileParams, SourceData, ReflectData, true, false, bEmulatedUBs);
-
 		}
 		else
 		{
