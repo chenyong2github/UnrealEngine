@@ -37,7 +37,8 @@ public:
 	};
 
 	/** Creates a loader for the filename */
-	bool OpenPackageFile(const FString& PackageFilename, EOpenPackageResult* OutErrorCode = nullptr);
+	bool OpenPackageFile(FStringView PackageFilename, EOpenPackageResult* OutErrorCode = nullptr);
+	bool OpenPackageFile(FStringView LongPackageName, FStringView PackageFilename, EOpenPackageResult* OutErrorCode = nullptr);
 	bool OpenPackageFile(FArchive* Loader, EOpenPackageResult* OutErrorCode = nullptr);
 	bool OpenPackageFile(EOpenPackageResult* OutErrorCode = nullptr);
 
@@ -79,8 +80,10 @@ public:
 	}
 
 private:
+	bool TryGetLongPackageName(FString& OutLongPackageName) const;
 	bool StartSerializeSection(int64 Offset);
 
+	FString LongPackageName;
 	FString PackageFilename;
 	/* Loader is the interface used to read the bytes from the package's repository. All interpretation of the bytes is done by serializing into *this, which is also an FArchive. */
 	FArchive* Loader;

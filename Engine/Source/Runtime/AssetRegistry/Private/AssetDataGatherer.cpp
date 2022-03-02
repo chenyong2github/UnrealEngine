@@ -2877,7 +2877,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 				ReadContext.bCanceled = true;
 				return;
 			}
-			ReadContext.bResult = ReadAssetFile(ReadContext.AssetFileData.LocalAbsPath, ReadContext.AssetDataFromFile, ReadContext.DependencyData, ReadContext.CookedPackageNamesWithoutAssetData, ReadContext.bCanAttemptAssetRetry);
+			ReadContext.bResult = ReadAssetFile(ReadContext.AssetFileData.LongPackageName, ReadContext.AssetFileData.LocalAbsPath, ReadContext.AssetDataFromFile, ReadContext.DependencyData, ReadContext.CookedPackageNamesWithoutAssetData, ReadContext.bCanAttemptAssetRetry);
 		},
 		EParallelForFlags::Unbalanced | EParallelForFlags::BackgroundPriority
 	);
@@ -2991,7 +2991,7 @@ void FAssetDataGatherer::IngestDiscoveryResults()
 	Discovery->GetAndTrimSearchResults(bDiscoveryIsComplete, DiscoveredPaths, *FilesToSearch, NumPathsToSearchAtLastSyncPoint);
 }
 
-bool FAssetDataGatherer::ReadAssetFile(const FString& AssetFilename, TArray<FAssetData*>& AssetDataList, FPackageDependencyData& DependencyData, TArray<FString>& CookedPackageNamesWithoutAssetData, bool& OutCanRetry) const
+bool FAssetDataGatherer::ReadAssetFile(const FString& AssetLongPackageName, const FString& AssetFilename, TArray<FAssetData*>& AssetDataList, FPackageDependencyData& DependencyData, TArray<FString>& CookedPackageNamesWithoutAssetData, bool& OutCanRetry) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FAssetDataGatherer::ReadAssetFile);
 	OutCanRetry = false;
@@ -3000,7 +3000,7 @@ bool FAssetDataGatherer::ReadAssetFile(const FString& AssetFilename, TArray<FAss
 	FPackageReader PackageReader;
 
 	FPackageReader::EOpenPackageResult OpenPackageResult;
-	if (!PackageReader.OpenPackageFile(AssetFilename, &OpenPackageResult))
+	if (!PackageReader.OpenPackageFile(AssetLongPackageName, AssetFilename, &OpenPackageResult))
 	{
 		// If we're missing a custom version, we might be able to load this package later once the module containing that version is loaded...
 		//   -	We can only attempt a retry in editors (not commandlets) that haven't yet finished initializing (!GIsRunning), as we 

@@ -31,9 +31,15 @@ FPackageReader::~FPackageReader()
 	}
 }
 
-bool FPackageReader::OpenPackageFile(const FString& InPackageFilename, EOpenPackageResult* OutErrorCode)
+bool FPackageReader::OpenPackageFile(FStringView InPackageFilename, EOpenPackageResult* OutErrorCode)
+{
+	return OpenPackageFile(FStringView(), InPackageFilename, OutErrorCode);
+}
+
+bool FPackageReader::OpenPackageFile(FStringView InLongPackageName, FStringView InPackageFilename, EOpenPackageResult* OutErrorCode)
 {
 	check(!Loader);
+	LongPackageName = InLongPackageName;
 	PackageFilename = InPackageFilename;
 	Loader = IFileManager::Get().CreateFileReader(*PackageFilename);
 	bLoaderOwner = true;
@@ -45,6 +51,7 @@ bool FPackageReader::OpenPackageFile(FArchive* InLoader, EOpenPackageResult* Out
 	check(!Loader);
 	Loader = InLoader;
 	bLoaderOwner = false;
+	LongPackageName.Empty();
 	PackageFilename = Loader->GetArchiveName();
 	return OpenPackageFile(OutErrorCode);
 }
@@ -152,6 +159,20 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	SetPackageErrorCode(EOpenPackageResult::Success);
 	return true;
 }
+
+bool FPackageReader::TryGetLongPackageName(FString& OutLongPackageName) const
+{
+	if (!LongPackageName.IsEmpty())
+	{
+		OutLongPackageName = LongPackageName;
+		return true;
+	}
+	else
+	{
+		return FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, OutLongPackageName);
+	}
+}
+
 bool FPackageReader::StartSerializeSection(int64 Offset)
 {
 	check(Loader);
@@ -182,7 +203,7 @@ bool FPackageReader::ReadAssetRegistryData(TArray<FAssetData*>& AssetDataList)
 
 	// Determine the package name and path
 	FString PackageName;
-	if (!FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, PackageName))
+	if (!TryGetLongPackageName(PackageName))
 	{
 		// Path was possibly unmounted
 		return false;
@@ -278,7 +299,7 @@ bool FPackageReader::ReadAssetDataFromThumbnailCache(TArray<FAssetData*>& AssetD
 
 	// Determine the package name and path
 	FString PackageName;
-	if (!FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, PackageName))
+	if (!TryGetLongPackageName(PackageName))
 	{
 		return false;
 	}
@@ -335,7 +356,7 @@ bool FPackageReader::ReadAssetRegistryDataIfCookedPackage(TArray<FAssetData*>& A
 	if (!!(GetPackageFlags() & PKG_FilterEditorOnly))
 	{
 		FString PackageName;
-		if (!FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, PackageName))
+		if (!TryGetLongPackageName(PackageName))
 		{
 			return false;
 		}
@@ -403,7 +424,7 @@ bool FPackageReader::ReadAssetRegistryDataIfCookedPackage(TArray<FAssetData*>& A
 bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyData)
 {
 	FString PackageNameString;
-	if (!FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, PackageNameString))
+	if (!TryGetLongPackageName(PackageNameString))
 	{
 		// Path was possibly unmounted
 		return false;

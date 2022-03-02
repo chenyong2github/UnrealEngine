@@ -210,7 +210,8 @@ private:
 	/**
 	 * Reads FAssetData information out of a file
 	 *
-	 * @param AssetFilename the name of the file to read
+	 * @param AssetLongPackageName the package name of the file to read
+	 * @param AssetFilename the local path of the file to read
 	 * @param AssetDataList the FAssetData for every asset found in the file
 	 * @param DependencyData the FPackageDependencyData for every asset found in the file
 	 * @param CookedPackagesToLoadUponDiscovery the list of cooked packages to be loaded if any
@@ -218,7 +219,8 @@ private:
 	 *
 	 * @return true if the file was successfully read
 	 */
-	bool ReadAssetFile(const FString& AssetFilename, TArray<FAssetData*>& AssetDataList, FPackageDependencyData& DependencyData,
+	bool ReadAssetFile(const FString& AssetLongPackageName, const FString& AssetFilename,
+		TArray<FAssetData*>& AssetDataList, FPackageDependencyData& DependencyData,
 		TArray<FString>& CookedPackagesToLoadUponDiscovery, bool& OutCanRetry) const;
 
 	/** Helper for LoadCacheFile and internal callsites; occurs inside the proper critical section. */
