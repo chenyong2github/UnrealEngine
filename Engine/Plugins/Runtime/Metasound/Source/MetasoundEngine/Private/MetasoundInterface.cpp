@@ -134,7 +134,6 @@ namespace Metasound
 
 			// Transfer all input data from AudioExtension interface struct to FrontendInterface
 			{
-				FMetasoundFrontendInterfaceStyle InputStyle;
 				Algo::Transform(Interface->GetInputs(), FrontendInterface.Inputs, [&](const Audio::FParameterInterface::FInput& Input)
 				{
 					FMetasoundFrontendClassInput ClassInput;
@@ -150,7 +149,7 @@ namespace Metasound
 					ClassInput.Metadata.SetDescription(Input.Description);
 					ClassInput.Metadata.SortOrderIndex = Input.SortOrderIndex;
 					
-					InputStyle.DefaultSortOrder.Add(Input.SortOrderIndex);
+					FrontendInterface.AddSortOrderToInputStyle(Input.SortOrderIndex);
 
 					// Setup required inputs by telling the style that the input is required
 					// This will later be validated against.
@@ -164,12 +163,10 @@ namespace Metasound
 
 					return ClassInput;
 				});
-				FrontendInterface.SetInputStyle(InputStyle);
 			}
 
 			// Transfer all output data from AudioExtension interface struct to FrontendInterface
 			{
-				FMetasoundFrontendInterfaceStyle OutputStyle;
 				Algo::Transform(Interface->GetOutputs(), FrontendInterface.Outputs, [&](const Audio::FParameterInterface::FOutput& Output)
 				{
 					FMetasoundFrontendClassOutput ClassOutput;
@@ -184,7 +181,7 @@ namespace Metasound
 					ClassOutput.Metadata.SetDescription(Output.Description);
 					ClassOutput.Metadata.SortOrderIndex = Output.SortOrderIndex;
 					
-					OutputStyle.DefaultSortOrder.Add(Output.SortOrderIndex);
+					FrontendInterface.AddSortOrderToOutputStyle(Output.SortOrderIndex);
 
 					// Setup required outputs by telling the style that the output is required
 					// This will later be validated against.
@@ -198,7 +195,6 @@ namespace Metasound
 
 					return ClassOutput;
 				});
-				FrontendInterface.SetOutputStyle(OutputStyle);
 			}
 
 			Algo::Transform(Interface->GetEnvironment(), FrontendInterface.Environment, [&](const Audio::FParameterInterface::FEnvironmentVariable& Environment)

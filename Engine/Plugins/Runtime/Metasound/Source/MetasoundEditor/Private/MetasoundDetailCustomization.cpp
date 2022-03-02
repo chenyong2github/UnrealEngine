@@ -374,6 +374,7 @@ namespace Metasound
 						UpdateInterfaceNames();
 						InterfaceComboBox->RefreshOptions();
 						MetaSoundAsset->SetSynchronizationRequired();
+						FGraphBuilder::RegisterGraphWithFrontend(*MetaSound.Get());
 					}
 				})
 				.Content()
@@ -429,6 +430,8 @@ namespace Metasound
 						InterfaceComboBox->RefreshOptions();
 						MetaSoundAsset->SetUpdateDetailsOnSynchronization();
 						MetaSoundAsset->SetSynchronizationRequired();
+						FGraphBuilder::RegisterGraphWithFrontend(*MetaSound.Get());
+
 					}), LOCTEXT("RemoveInterfaceTooltip1", "Removes all interfaces from the given MetaSound."))
 				];
 

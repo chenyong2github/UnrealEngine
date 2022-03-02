@@ -842,7 +842,7 @@ namespace Metasound
 			ContentBox->AddSlot()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Top)
-			.AutoWidth()
+			.FillWidth(1.0f)
 			.Padding(0.0f, 0.0f, LeftNodeGrabPadding, 0.0f)
 			[
 				SAssignNew(LeftNodeBox, SVerticalBox)

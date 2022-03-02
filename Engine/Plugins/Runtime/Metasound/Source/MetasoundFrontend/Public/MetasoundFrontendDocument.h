@@ -876,11 +876,13 @@ public:
 	void AddRequiredInputToStyle(const FName& InInputName, const FText& InRequiredText)
 	{
 		InputStyle.RequiredMembers.Add(InInputName, InRequiredText);
+		ChangeID = FGuid::NewGuid();
 	}
 
 	void AddRequiredOutputToStyle(const FName& InOutputName, const FText& InRequiredText)
 	{
 		OutputStyle.RequiredMembers.Add(InOutputName, InRequiredText);
+		ChangeID = FGuid::NewGuid();
 	}
 
 	bool IsMemberInputRequired(const FName& InInputName, FText& OutRequiredText)
@@ -901,6 +903,18 @@ public:
 			return true;
 		}
 		return false;
+	}
+
+	void AddSortOrderToInputStyle(const int32 InSortOrder)
+	{
+		InputStyle.DefaultSortOrder.Add(InSortOrder);
+		ChangeID = FGuid::NewGuid();
+	}
+
+	void AddSortOrderToOutputStyle(const int32 InSortOrder)
+	{
+		OutputStyle.DefaultSortOrder.Add(InSortOrder);
+		ChangeID = FGuid::NewGuid();
 	}
 #endif // #if WITH_EDITORONLY_DATA
 
