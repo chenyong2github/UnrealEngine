@@ -2394,8 +2394,8 @@ void FNiagaraScriptToolkitParameterPanelViewModel::ChangeParameterType(const TAr
 		Graph->ChangeParameterType(VariablesToModify, NewType, true);
 	}
 
+	UIContext.RefreshSelectionDetailsViewPanel();
 	Refresh();
-	SelectParameterItemByName(VariablesToModify[0].GetName(), false);
 }
 
 void FNiagaraScriptToolkitParameterPanelViewModel::RenameParameter(const UNiagaraScriptVariable* ScriptVarToRename, const FName NewName) const

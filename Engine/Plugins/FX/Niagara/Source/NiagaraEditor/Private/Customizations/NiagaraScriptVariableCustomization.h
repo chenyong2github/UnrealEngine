@@ -42,7 +42,7 @@ enum class ENiagaraLibrarySourceDefaultMode : uint8
 };
 
 /** This customization sets up a custom details panel for the static switch Variable in the niagara module graph. */
-class FNiagaraScriptVariableDetails : public IDetailCustomization, public FEditorUndoClient
+class FNiagaraScriptVariableDetails : public IDetailCustomization
 {
 public:
  
@@ -55,11 +55,6 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
 	virtual void CustomizeDetails( const TSharedPtr<IDetailLayoutBuilder>& DetailBuilder ) override;
-
-	//~ Begin FEditorUndoClient Interface
-	virtual void PostUndo(bool bSuccess) override;
-	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
-	// End of FEditorUndoClient
 
 	// Fully regenerates the details view.
 	void Refresh();

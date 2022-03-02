@@ -33,7 +33,6 @@ TSharedRef<IDetailCustomization> FNiagaraScriptVariableDetails::MakeInstance()
  
 FNiagaraScriptVariableDetails::FNiagaraScriptVariableDetails()
 {
-	GEditor->RegisterForUndo(this);
 	bParameterValueChangedDuringOnValueChanged = false;
 	LibraryDefaultModeValue = 0;
 
@@ -43,7 +42,6 @@ FNiagaraScriptVariableDetails::FNiagaraScriptVariableDetails()
 
 FNiagaraScriptVariableDetails::~FNiagaraScriptVariableDetails()
 {
-	GEditor->UnregisterForUndo(this);
 }
 
 UEdGraphPin* FNiagaraScriptVariableDetails::GetAnyDefaultPin()
@@ -63,50 +61,6 @@ TArray<UEdGraphPin*> FNiagaraScriptVariableDetails::GetDefaultPins()
 		return Graph->FindParameterMapDefaultValuePins(Variable->Variable.GetName());
 	}
 	return TArray<UEdGraphPin*>();
-}
-
-void FNiagaraScriptVariableDetails::PostUndo(bool bSuccess)
-{
-	if (Variable == nullptr)
-	{
-		return;
-	}
-
-	if (Variable->GetIsStaticSwitch())
-	{
-		if (TypeUtilityStaticSwitchValue && ParameterEditorStaticSwitchValue)
-		{
-			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
-			if (Variable->GetDefaultValueData() != nullptr)
-			{
-				Variable->Variable.SetData(Variable->GetDefaultValueData());
-			}
-			Variable->Variable.CopyTo(ParameterValue->GetStructMemory());
-			ParameterEditorStaticSwitchValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
-		}
-	}
-	else if (Variable->GetOuter()->IsA<UNiagaraParameterDefinitions>())
-	{
-		if (TypeUtilityLibraryValue && ParameterEditorLibraryValue)
-		{
-			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
-			Variable->CopyDefaultValueDataTo(ParameterValue->GetStructMemory());
-			ParameterEditorLibraryValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
-		}
-	}
-	else
-	{
-		if (UEdGraphPin* Pin = GetAnyDefaultPin())
-		{
-			if (TypeUtilityValue && ParameterEditorValue)
-			{
-				TypeUtilityValue->SetValueFromPinDefaultString(Pin->DefaultValue, Variable->Variable);
-				TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
-				Variable->Variable.CopyTo(ParameterValue->GetStructMemory());
-				ParameterEditorValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
-			}
-		}
-	}
 }
  
 void FNiagaraScriptVariableDetails::Refresh()
