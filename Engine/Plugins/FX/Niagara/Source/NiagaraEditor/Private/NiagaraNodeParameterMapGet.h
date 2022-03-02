@@ -51,7 +51,8 @@ public:
 protected:
 	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) override;
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
-
+	virtual void OnPinRemoved(UEdGraphPin* InRemovedPin) override;
+	
 	/** Synchronize the removal of the output pin with its default.*/
 	virtual void RemoveDynamicPin(UEdGraphPin* Pin) override;
 

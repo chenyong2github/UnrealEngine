@@ -168,6 +168,15 @@ void UNiagaraNodeParameterMapGet::OnPinRenamed(UEdGraphPin* RenamedPin, const FS
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
 }
 
+void UNiagaraNodeParameterMapGet::OnPinRemoved(UEdGraphPin* InRemovedPin)
+{
+	if(UEdGraphPin* DefaultPin = GetDefaultPin(InRemovedPin))
+	{
+		RemovePin(DefaultPin);
+	}
+	
+	Super::OnPinRemoved(InRemovedPin);
+}
 
 void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 {
