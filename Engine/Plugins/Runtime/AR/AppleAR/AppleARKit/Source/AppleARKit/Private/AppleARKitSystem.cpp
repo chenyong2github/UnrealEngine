@@ -1291,17 +1291,39 @@ void FAppleARKitSystem::AddReferencedObjects( FReferenceCollector& Collector )
 		Collector.AddReferencedObject(TrackedGeometryGroup.ARComponent);
 	}
 
-	Collector.AddReferencedObjects(Pins);
-	Collector.AddReferencedObject(CameraImage);
-	Collector.AddReferencedObject(CameraDepth);
-	Collector.AddReferencedObjects(CandidateImages);
-	Collector.AddReferencedObjects(CandidateObjects);
-	Collector.AddReferencedObject(TimecodeProvider);
-	
-	Collector.AddReferencedObject(SceneDepthMap);
-	Collector.AddReferencedObject(SceneDepthConfidenceMap);
-
-	if(LightEstimate)
+	if (Pins.Num())
+	{
+		Collector.AddReferencedObjects(Pins);
+	}
+	if (CameraImage)
+	{
+		Collector.AddReferencedObject(CameraImage);
+	}
+	if (CameraDepth)
+	{
+		Collector.AddReferencedObject(CameraDepth);
+	}
+	if (CandidateImages.Num())
+	{
+		Collector.AddReferencedObjects(CandidateImages);
+	}
+	if (CandidateObjects.Num())
+	{
+		Collector.AddReferencedObjects(CandidateObjects);
+	}
+	if (TimecodeProvider)
+	{
+		Collector.AddReferencedObject(TimecodeProvider);
+	}
+	if (SceneDepthMap)
+	{
+		Collector.AddReferencedObject(SceneDepthMap);
+	}
+	if (SceneDepthConfidenceMap)
+	{
+		Collector.AddReferencedObject(SceneDepthConfidenceMap);
+	}
+	if (LightEstimate)
 	{
 		Collector.AddReferencedObject(LightEstimate);
 	}

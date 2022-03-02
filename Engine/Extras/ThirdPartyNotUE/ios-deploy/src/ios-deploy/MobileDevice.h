@@ -65,7 +65,14 @@ typedef unsigned int mach_error_t;
 
 typedef unsigned int afc_error_t;
 typedef unsigned int usbmux_error_t;
-typedef unsigned int service_conn_t;
+
+typedef struct {
+    char unknown[0x10];
+    int sockfd;
+    void * sslContext;
+    // ??
+} service_conn_t;
+
 typedef service_conn_t * ServiceConnRef;
 
 struct am_recovery_device;
@@ -194,9 +201,9 @@ void AMDSetLogLevel(int level);
  *      MDERR_OUT_OF_MEMORY if we ran out of memory
  */
 
-mach_error_t AMDeviceNotificationSubscribe(am_device_notification_callback
+mach_error_t AMDeviceNotificationSubscribeWithOptions(am_device_notification_callback
     callback, unsigned int unused0, unsigned int unused1, void* //unsigned int
-    dn_unknown3, struct am_device_notification **notification);
+    dn_unknown3, struct am_device_notification **notification, CFDictionaryRef options);
 
 
 /*  Connects to the iPhone. Pass in the am_device structure that the
@@ -261,7 +268,7 @@ mach_error_t AMDeviceStartSession(struct am_device *device);
  */
 
 mach_error_t AMDeviceStartService(struct am_device *device, CFStringRef 
-    service_name, ServiceConnRef handle, unsigned int *
+    service_name, ServiceConnRef * handle, unsigned int *
     unknown);
 
 mach_error_t AMDeviceStartHouseArrestService(struct am_device *device, CFStringRef identifier, void *unknown, ServiceConnRef handle, unsigned int *what);
@@ -283,7 +290,7 @@ mach_error_t AMDeviceStopSession(struct am_device *device);
  *      MDERR_AFC_OUT_OF_MEMORY if malloc() failed
  */
 
-afc_error_t AFCConnectionOpen(service_conn_t handle, unsigned int io_timeout,
+afc_error_t AFCConnectionOpen(ServiceConnRef handle, unsigned int io_timeout,
     AFCConnectionRef *conn);
 
 /* Pass in a pointer to an afc_device_info structure. It will be filled. */
