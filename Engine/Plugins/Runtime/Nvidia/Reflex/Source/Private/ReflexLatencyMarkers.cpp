@@ -30,6 +30,12 @@ void FReflexLatencyMarkers::Initialize()
 {
 	if (IsRHIDeviceNVIDIA())
 	{
+		FString RHIName = GDynamicRHI->GetName();
+		if (RHIName.StartsWith(TEXT("Vulkan")))
+		{
+			return;
+		}
+
 		NvU32 DriverVersion = 0;
 		NvAPI_ShortString BranchString;
 

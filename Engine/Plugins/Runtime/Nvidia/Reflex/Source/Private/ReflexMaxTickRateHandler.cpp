@@ -44,6 +44,12 @@ void FReflexMaxTickRateHandler::Initialize()
 {
 	if (IsRHIDeviceNVIDIA())
 	{
+		FString RHIName = GDynamicRHI->GetName();
+		if (RHIName.StartsWith(TEXT("Vulkan")))
+		{
+			return;
+		}
+
 		NvU32 DriverVersion;
 		NvAPI_ShortString BranchString;
 
