@@ -53,6 +53,9 @@ namespace Metasound
 		void ResetSeed();
 		int32 NextValue();
 
+		int32 GetNoRepeatOrder() const { return NoRepeatOrder; }
+		int32 GetMaxIndex() const { return MaxIndex; }
+
 	private:
 		float ComputeTotalWeight();
 
