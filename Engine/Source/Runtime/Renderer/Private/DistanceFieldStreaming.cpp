@@ -813,7 +813,7 @@ void FDistanceFieldSceneData::ProcessReadRequests(
 
 		if (bReady)
 		{
-			ReadRequests.RemoveAt(RequestIndex);
+			ReadRequests.RemoveAtSwap(RequestIndex);
 			RequestIndex--;
 
 			if (AssetStateArray.IsValidId(ReadRequest.AssetSetId) 
