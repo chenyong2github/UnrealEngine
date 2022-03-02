@@ -58,12 +58,48 @@ void FSoftObjectPath::ToString(FStringBuilderBase& Builder) const
 	}
 }
 
+FString FSoftObjectPath::GetLongPackageName() const
+{
+	if (!AssetPathName.IsNone())
+	{
+		FNameBuilder AssetPathNameBuilder(AssetPathName);
+		FStringView AssetPathNameView = AssetPathNameBuilder.ToView();
+
+		int32 DotPos = INDEX_NONE;
+		if (AssetPathNameView.FindChar(TEXT('.'), DotPos))
+		{
+			return FString(AssetPathNameView.Left(DotPos));
+		}
+
+		return FString(AssetPathNameView);
+	}
+
+	return FString();
+}
+
 FName FSoftObjectPath::GetLongPackageFName() const
 {
 	TCHAR Buffer[NAME_SIZE];
 	FStringView PlainAssetPath(Buffer, /* len */ AssetPathName.GetPlainNameString(Buffer));
 	int32 DotPos = UE::String::FindFirstChar(PlainAssetPath, '.');
 	return DotPos == INDEX_NONE ? AssetPathName : FName(PlainAssetPath.Left(DotPos));
+}
+
+FString FSoftObjectPath::GetAssetName() const
+{
+	if (!AssetPathName.IsNone())
+	{
+		FNameBuilder AssetPathNameBuilder(AssetPathName);
+		FStringView AssetPathNameView = AssetPathNameBuilder.ToView();
+
+		int32 DotPos = INDEX_NONE;
+		if (AssetPathNameView.FindChar(TEXT('.'), DotPos))
+		{
+			return FString(AssetPathNameView.Mid(DotPos + 1));
+		}
+	}
+
+	return FString();
 }
 
 /** Helper function that adds info about the object currently being serialized when triggering an ensure about invalid soft object path */

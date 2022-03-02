@@ -115,23 +115,13 @@ struct COREUOBJECT_API FSoftObjectPath
 	}
 
 	/** Returns /package/path, leaving off the asset name and sub object */
-	FString GetLongPackageName() const
-	{
-		FString PackageName;
-		GetAssetPathString().Split(TEXT("."), &PackageName, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
-		return PackageName;
-	}
+	FString GetLongPackageName() const;
 
 	/** Returns /package/path, leaving off the asset name and sub object */
 	FName GetLongPackageFName() const;
 
 	/** Returns assetname string, leaving off the /package/path part and sub object */
-	FString GetAssetName() const
-	{
-		FString AssetName;
-		GetAssetPathString().Split(TEXT("."), nullptr, &AssetName, ESearchCase::CaseSensitive, ESearchDir::FromStart);
-		return AssetName;
-	}
+	FString GetAssetName() const;
 
 	/** Sets asset path of this reference based on a string path */
 	void SetPath(FWideStringView Path);
