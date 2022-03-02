@@ -228,7 +228,7 @@ public:
 	{
 		OutFullNameBuilder.Reset();
 		AssetClass.AppendString(OutFullNameBuilder);
-		OutFullNameBuilder.AppendChar(TEXT*' '));
+		OutFullNameBuilder.AppendChar(TEXT(' '));
 		ObjectPath.AppendString(OutFullNameBuilder);
 	}
 
