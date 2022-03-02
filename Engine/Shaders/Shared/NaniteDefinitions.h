@@ -122,6 +122,7 @@
 #define NANITE_RENDER_FLAG_GAME_SHOW_FLAG_ENABLED			0x400
 #define NANITE_RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED			0x800
 #define NANITE_RENDER_FLAG_PROGRAMMABLE_RASTER				0x1000
+#define NANITE_RENDER_FLAG_IS_LUMEN_CAPTURE					0x2000
 
 // Only available with the DEBUG_FLAGS permutation active.
 // Default value (no debug) is 0

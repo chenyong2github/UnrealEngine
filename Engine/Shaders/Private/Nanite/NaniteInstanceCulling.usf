@@ -87,17 +87,25 @@ bool IsPrimitiveShown(uint PrimitiveFlags, uint RenderFlags)
 	//const bool bVisibleInRayTracing			= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RAY_TRACING) != 0u;
 	const bool bVisibleInSceneCaptureOnly		= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_SCENE_CAPTURE_ONLY) != 0u;
 	const bool bHiddenInSceneCapture			= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_HIDDEN_IN_SCENE_CAPTURE) != 0u;
+	const bool bVisibleInRayTracing				= (PrimitiveFlags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RAY_TRACING) != 0u;
 
 	const bool bIsSceneCapture					= (RenderFlags & NANITE_RENDER_FLAG_IS_SCENE_CAPTURE) != 0u;
 	const bool bIsReflectionCapture				= (RenderFlags & NANITE_RENDER_FLAG_IS_REFLECTION_CAPTURE) != 0u;
 	const bool bIsGameView						= (RenderFlags & NANITE_RENDER_FLAG_IS_GAME_VIEW) != 0u;
 	const bool bEditorShowFlag					= (RenderFlags & NANITE_RENDER_FLAG_EDITOR_SHOW_FLAG_ENABLED) != 0u;
 	const bool bGameShowFlag					= (RenderFlags & NANITE_RENDER_FLAG_GAME_SHOW_FLAG_ENABLED) != 0u;
+	const bool bIsLumenCapture					= (RenderFlags & NANITE_RENDER_FLAG_IS_LUMEN_CAPTURE) != 0u;
 
 	if (bForceHidden)
 	{
 		// Primitive is forcibly hidden
 		return false;
+	}
+
+	// Primitives may be visible only in ray tracing, but we still want to capture them into surface cache
+	if (bIsLumenCapture && bVisibleInRayTracing)
+	{
+		return true;
 	}
 
 	if (bIsSceneCapture && bHiddenInSceneCapture)

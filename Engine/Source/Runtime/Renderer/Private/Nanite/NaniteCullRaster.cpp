@@ -1409,6 +1409,7 @@ FCullingContext InitCullingContext(
 	CullingContext.RenderFlags |= CullingContext.Configuration.bUpdateStreaming			? NANITE_RENDER_FLAG_OUTPUT_STREAMING_REQUESTS : 0u;
 	CullingContext.RenderFlags |= CullingContext.Configuration.bIsSceneCapture			? NANITE_RENDER_FLAG_IS_SCENE_CAPTURE : 0u;
 	CullingContext.RenderFlags |= CullingContext.Configuration.bIsReflectionCapture		? NANITE_RENDER_FLAG_IS_REFLECTION_CAPTURE : 0u;
+	CullingContext.RenderFlags |= CullingContext.Configuration.bIsLumenCapture			? NANITE_RENDER_FLAG_IS_LUMEN_CAPTURE : 0u;
 	CullingContext.RenderFlags |= CullingContext.Configuration.bIsGameView				? NANITE_RENDER_FLAG_IS_GAME_VIEW : 0u;
 	CullingContext.RenderFlags |= CullingContext.Configuration.bGameShowFlag			? NANITE_RENDER_FLAG_GAME_SHOW_FLAG_ENABLED : 0u;
 #if WITH_EDITOR
