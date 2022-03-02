@@ -1091,11 +1091,11 @@ void FLandscapeSceneViewExtension::PreRenderView_RenderThread(FRHICommandListImm
 		}
 
 		FRHIResourceCreateInfo CreateInfoLODBuffer(TEXT("LandscapeLODDataBuffer"), &LandscapeLODData);
-		FBufferRHIRef LandscapeLODDataBuffer = RHICreateVertexBuffer(LandscapeLODData.GetResourceDataSize(), BUF_ShaderResource | BUF_Volatile, CreateInfoLODBuffer);
+		LandscapeLODDataBuffer = RHICreateVertexBuffer(LandscapeLODData.GetResourceDataSize(), BUF_ShaderResource | BUF_Volatile, CreateInfoLODBuffer);
 		LODDataSRV = RHICreateShaderResourceView(LandscapeLODDataBuffer, sizeof(float), PF_R32_FLOAT);
 
 		FRHIResourceCreateInfo CreateInfoIndirection(TEXT("LandscapeIndirectionBuffer"), &LandscapeIndirection);
-		FBufferRHIRef LandscapeIndirectionBuffer = RHICreateVertexBuffer(LandscapeIndirection.GetResourceDataSize(), BUF_ShaderResource | BUF_Volatile, CreateInfoIndirection);
+		LandscapeIndirectionBuffer = RHICreateVertexBuffer(LandscapeIndirection.GetResourceDataSize(), BUF_ShaderResource | BUF_Volatile, CreateInfoIndirection);
 		IndirectionSRV = RHICreateShaderResourceView(LandscapeIndirectionBuffer, sizeof(uint32), PF_R32_UINT);
 	}
 	else
@@ -1116,6 +1116,9 @@ void FLandscapeSceneViewExtension::EndFrame_RenderThread()
 
 		RenderSystem.EndFrame();
 	}
+
+	LandscapeLODDataBuffer = FBufferRHIRef();
+	LandscapeIndirectionBuffer = FBufferRHIRef();
 }
 
 //
