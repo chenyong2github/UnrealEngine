@@ -620,7 +620,7 @@ public:
 
 				if (DistanceFieldSceneData == nullptr)
 				{
-					UE_LOG(LogRigidMeshCollision, Error, TEXT("Distance fields are not available for use"));
+					// UE_LOG(LogRigidMeshCollision, Error, TEXT("Distance fields are not available for use"));
 					// #todo(dmp): for now, we'll disable collisions when distance field data is not available
 					// There is no Dummy distance field data we can use.
 									
