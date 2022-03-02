@@ -537,7 +537,7 @@ public:
 		return ImportText_Internal(Buffer, PropertyPtr, EPropertyPointerType::Direct, OwnerObject, PortFlags, ErrorText);
 	}
 
-	FORCENOINLINE void SetValue_InContainer(void* InContainer, const void* InValue) const
+	FORCEINLINE void SetValue_InContainer(void* InContainer, const void* InValue) const
 	{
 		if (!HasSetter())
 		{
@@ -548,7 +548,7 @@ public:
 			CallSetter(InContainer, InValue);
 		}
 	}
-	FORCENOINLINE void GetValue_InContainer(void const* InContainer, void* OutValue) const
+	FORCEINLINE void GetValue_InContainer(void const* InContainer, void* OutValue) const
 	{
 		if (!HasGetter())
 		{
@@ -1397,12 +1397,12 @@ public:
 		*GetPropertyValuePtr_InContainer(A, ArrayIndex) = Value;
 	}
 
-	FORCENOINLINE void SetValue_InContainer(void* InContainer, const TCppType& InValue) const
+	FORCEINLINE void SetValue_InContainer(void* InContainer, const TCppType& InValue) const
 	{
 		TInPropertyBaseClass::SetValue_InContainer(InContainer, &InValue);
 	}
 
-	FORCENOINLINE void GetValue_InContainer(void const* InContainer, TCppType* OutValue) const
+	FORCEINLINE void GetValue_InContainer(void const* InContainer, TCppType* OutValue) const
 	{
 		TInPropertyBaseClass::GetValue_InContainer(InContainer, OutValue);
 	}
