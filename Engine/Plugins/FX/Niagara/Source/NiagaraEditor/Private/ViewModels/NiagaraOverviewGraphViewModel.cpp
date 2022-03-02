@@ -495,7 +495,8 @@ void FNiagaraOverviewGraphViewModel::GraphSelectionChanged()
 					StackObject = NewObject<UNiagaraStackObject>(GetTransientPackage());
 					UNiagaraStackEditorData* EditorData = NewObject< UNiagaraStackEditorData >(GetTransientPackage());
 					UNiagaraStackEntry::FRequiredEntryData RequiredEntryData(GetSystemViewModel(), nullptr, TEXT("Custom"), NAME_None, *EditorData);
-					StackObject->Initialize(RequiredEntryData, SelectedObject, TEXT(""));
+					bool bIsTopLevelObject = true;
+					StackObject->Initialize(RequiredEntryData, SelectedObject, bIsTopLevelObject, TEXT(""));
 					NewTempEntries.AddUnique(StackObject);
 				}
 

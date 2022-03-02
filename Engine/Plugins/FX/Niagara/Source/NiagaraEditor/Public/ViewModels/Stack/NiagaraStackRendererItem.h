@@ -45,6 +45,10 @@ public:
 	virtual FText GetDeleteTransactionText() const override;
 	virtual void Delete();
 
+	virtual bool SupportsInheritance() const override { return true; }
+	virtual bool GetIsInherited() const override;
+	virtual FText GetInheritanceMessage() const override;
+	
 	virtual bool SupportsRename() const override { return true; }
 
 	bool HasBaseRenderer() const;

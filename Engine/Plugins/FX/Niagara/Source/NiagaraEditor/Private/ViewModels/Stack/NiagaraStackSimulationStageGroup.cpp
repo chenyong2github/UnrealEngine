@@ -102,7 +102,8 @@ void UNiagaraStackSimulationStagePropertiesItem::RefreshChildrenInternal(const T
 	if (SimulationStageObject == nullptr)
 	{
 		SimulationStageObject = NewObject<UNiagaraStackObject>(this);
-		SimulationStageObject->Initialize(CreateDefaultChildRequiredData(), SimulationStage.Get(), GetStackEditorDataKey());
+		bool bIsTopLevelObject = true;
+		SimulationStageObject->Initialize(CreateDefaultChildRequiredData(), SimulationStage.Get(), bIsTopLevelObject, GetStackEditorDataKey());
 	}
 
 	if ( SimulationStage.IsValid() )
@@ -397,6 +398,16 @@ void UNiagaraStackSimulationStageGroup::Delete()
 	ScriptViewModelPinned->SetScripts(Emitter);
 	
 	OnModifiedSimulationStagesDelegate.ExecuteIfBound();
+}
+
+bool UNiagaraStackSimulationStageGroup::GetIsInherited() const
+{
+	return HasBaseSimulationStage();
+}
+
+FText UNiagaraStackSimulationStageGroup::GetInheritanceMessage() const
+{
+	return LOCTEXT("SimulationStageGroupInheritanceMessage", "This simulation stage is inherited from a parent emitter.  Inherited\nsimulation stages can only be deleted while editing the parent emitter.");
 }
 
 void UNiagaraStackSimulationStageGroup::SimulationStagePropertiesChanged()

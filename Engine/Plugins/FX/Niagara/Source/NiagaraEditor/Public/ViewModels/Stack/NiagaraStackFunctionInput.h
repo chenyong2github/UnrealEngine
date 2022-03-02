@@ -271,12 +271,11 @@ public:
 
 	TOptional<FNiagaraVariableMetaData> GetInputMetaData() const;
 	
-	virtual bool IsSemanticChild() const;
+	virtual bool IsSemanticChild() const override;
 	void SetSemanticChild(bool IsSemanticChild);
 
 	//~ UNiagaraStackEntry interface
 	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
-	virtual bool HasFrontDivider() const override;
 
 	TOptional<FNiagaraVariableMetaData> GetMetadata() const;
 	TOptional<FGuid> GetMetadataGuid() const;

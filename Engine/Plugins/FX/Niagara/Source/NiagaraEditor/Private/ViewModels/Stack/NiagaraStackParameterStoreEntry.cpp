@@ -63,7 +63,8 @@ void UNiagaraStackParameterStoreEntry::RefreshChildrenInternal(const TArray<UNia
 		if(ValueObjectEntry == nullptr || ValueObjectEntry->GetObject() != ValueObject)
 		{
 			ValueObjectEntry = NewObject<UNiagaraStackObject>(this);
-			ValueObjectEntry->Initialize(CreateDefaultChildRequiredData(), ValueObject.Get(), GetOwnerStackItemEditorDataKey());
+			bool bIsTopLevelObject = false;
+			ValueObjectEntry->Initialize(CreateDefaultChildRequiredData(), ValueObject.Get(), bIsTopLevelObject, GetOwnerStackItemEditorDataKey());
 		}
 		NewChildren.Add(ValueObjectEntry);
 	}

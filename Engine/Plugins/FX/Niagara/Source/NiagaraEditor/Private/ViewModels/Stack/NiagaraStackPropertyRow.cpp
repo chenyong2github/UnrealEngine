@@ -7,7 +7,7 @@
 #include "PropertyHandle.h"
 #include "IDetailPropertyRow.h"
 
-void UNiagaraStackPropertyRow::Initialize(FRequiredEntryData InRequiredEntryData, TSharedRef<IDetailTreeNode> InDetailTreeNode, FString InOwnerStackItemEditorDataKey, FString InOwnerStackEditorDataKey, UNiagaraNode* InOwningNiagaraNode)
+void UNiagaraStackPropertyRow::Initialize(FRequiredEntryData InRequiredEntryData, TSharedRef<IDetailTreeNode> InDetailTreeNode, bool bInIsTopLevelProperty, FString InOwnerStackItemEditorDataKey, FString InOwnerStackEditorDataKey, UNiagaraNode* InOwningNiagaraNode)
 {
 	TSharedPtr<IPropertyHandle> PropertyHandle = InDetailTreeNode->CreatePropertyHandle();
 	FString RowStackEditorDataKey = FString::Printf(TEXT("%s-%s"), *InOwnerStackEditorDataKey, *InDetailTreeNode->GetNodeName().ToString());
@@ -15,10 +15,17 @@ void UNiagaraStackPropertyRow::Initialize(FRequiredEntryData InRequiredEntryData
 	bool bRowIsAdvanced = PropertyHandle.IsValid() && PropertyHandle->GetProperty() && PropertyHandle->GetProperty()->HasAnyPropertyFlags(CPF_AdvancedDisplay);
 	SetIsAdvanced(bRowIsAdvanced);
 	DetailTreeNode = InDetailTreeNode;
+	bIsTopLevelProperty = bInIsTopLevelProperty;
 	OwningNiagaraNode = InOwningNiagaraNode;
-	RowStyle = DetailTreeNode->GetNodeType() == EDetailNodeType::Category
-		? EStackRowStyle::ItemCategory
-		: EStackRowStyle::ItemContent;
+	CategorySpacer = nullptr;
+	if (DetailTreeNode->GetNodeType() == EDetailNodeType::Category)
+	{
+		RowStyle = bInIsTopLevelProperty ? EStackRowStyle::ItemCategory : EStackRowStyle::ItemSubCategory;
+	}
+	else
+	{
+		RowStyle = EStackRowStyle::ItemContent;
+	}
 	bCannotEditInThisContext = false;
 	if (PropertyHandle.IsValid() && PropertyHandle.Get() && PropertyHandle->GetProperty())
 	{
@@ -41,6 +48,11 @@ bool UNiagaraStackPropertyRow::GetIsEnabled() const
 	if (bCannotEditInThisContext) 
 		return false;
 	return OwningNiagaraNode == nullptr || OwningNiagaraNode->GetDesiredEnabledState() == ENodeEnabledState::Enabled;
+}
+
+UNiagaraStackEntry::EStackRowStyle UNiagaraStackPropertyRow::GetStackRowStyle() const
+{
+	return RowStyle;
 }
 
 bool UNiagaraStackPropertyRow::HasOverridenContent() const
@@ -86,12 +98,31 @@ void UNiagaraStackPropertyRow::RefreshChildrenInternal(const TArray<UNiagaraStac
 
 		if (ChildRow == nullptr)
 		{
+			bool bChildIsTopLevelProperty = false;
 			ChildRow = NewObject<UNiagaraStackPropertyRow>(this);
-			ChildRow->Initialize(CreateDefaultChildRequiredData(), NodeChild, GetOwnerStackItemEditorDataKey(), GetStackEditorDataKey(), OwningNiagaraNode);
+			ChildRow->Initialize(CreateDefaultChildRequiredData(), NodeChild, bChildIsTopLevelProperty, GetOwnerStackItemEditorDataKey(), GetStackEditorDataKey(), OwningNiagaraNode);
 		}
 
 		NewChildren.Add(ChildRow);
 	}
+
+	if (bIsTopLevelProperty && DetailTreeNode->GetNodeType() == EDetailNodeType::Category)
+	{
+		if (CategorySpacer == nullptr)
+		{
+			CategorySpacer = NewObject<UNiagaraStackSpacer>(this);
+			TAttribute<bool> ShouldShowSpacerInStack;
+			ShouldShowSpacerInStack.BindUObject(this, &UNiagaraStackPropertyRow::GetShouldShowInStack);
+			CategorySpacer->Initialize(CreateDefaultChildRequiredData(), 6, ShouldShowSpacerInStack, GetStackEditorDataKey());
+		}
+		NewChildren.Add(CategorySpacer);
+	}
+}
+
+int32 UNiagaraStackPropertyRow::GetChildIndentLevel() const
+{
+	// We want to keep inputs under a top level category at the same indent level as the category.
+	return bIsTopLevelProperty && DetailTreeNode->GetNodeType() == EDetailNodeType::Category ? GetIndentLevel() : Super::GetChildIndentLevel();
 }
 
 void UNiagaraStackPropertyRow::GetSearchItems(TArray<FStackSearchItem>& SearchItems) const

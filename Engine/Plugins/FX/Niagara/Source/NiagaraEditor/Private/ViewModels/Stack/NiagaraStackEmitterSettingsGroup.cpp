@@ -85,11 +85,6 @@ void UNiagaraStackEmitterPropertiesItem::ResetToBase()
 	}
 }
 
-bool UNiagaraStackEmitterPropertiesItem::IsExpandedByDefault() const
-{
-	return false;
-}
-
 const FSlateBrush* UNiagaraStackEmitterPropertiesItem::GetIconBrush() const
 {
 	if (Emitter->SimTarget == ENiagaraSimTarget::CPUSim)
@@ -109,7 +104,8 @@ void UNiagaraStackEmitterPropertiesItem::RefreshChildrenInternal(const TArray<UN
 	{
 		EmitterObject = NewObject<UNiagaraStackObject>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), FExecutionCategoryNames::Emitter, NAME_None, GetStackEditorData());
-		EmitterObject->Initialize(RequiredEntryData, Emitter.Get(), GetStackEditorDataKey());
+		bool bIsTopLevelObject = true;
+		EmitterObject->Initialize(RequiredEntryData, Emitter.Get(), bIsTopLevelObject, GetStackEditorDataKey());
 		EmitterObject->RegisterInstancedCustomPropertyLayout(UNiagaraEmitter::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraEmitterDetails::MakeInstance));
 	}
 
@@ -194,7 +190,8 @@ void UNiagaraStackEmitterSummaryItem::RefreshChildrenInternal(const TArray<UNiag
 		if (SummaryEditorData == nullptr)
 		{
 			SummaryEditorData = NewObject<UNiagaraStackObject>(this);
-			SummaryEditorData->Initialize(CreateDefaultChildRequiredData(), &GetEmitterViewModel()->GetOrCreateEditorData(), GetStackEditorDataKey());
+			bool bIsTopLevelObject = true;
+			SummaryEditorData->Initialize(CreateDefaultChildRequiredData(), &GetEmitterViewModel()->GetOrCreateEditorData(), bIsTopLevelObject, GetStackEditorDataKey());
 			SummaryEditorData->SetOnSelectRootNodes(UNiagaraStackObject::FOnSelectRootNodes::CreateUObject(this,
 				&UNiagaraStackEmitterSummaryItem::SelectSummaryNodesFromEmitterEditorDataRootNodes));
 		}

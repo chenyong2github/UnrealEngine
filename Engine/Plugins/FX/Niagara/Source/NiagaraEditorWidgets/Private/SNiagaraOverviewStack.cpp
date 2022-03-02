@@ -3,6 +3,15 @@
 #include "SNiagaraOverviewStack.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
+#include "ScopedTransaction.h"
+#include "SNiagaraOverviewInlineParameterBox.h"
+#include "SNiagaraStack.h"
+#include "Stack/SNiagaraStackInheritanceIcon.h"
+#include "Stack/SNiagaraStackIssueIcon.h"
+#include "Stack/SNiagaraStackItemGroupAddButton.h"
+#include "Stack/SNiagaraStackRowPerfWidget.h"
+#include "Styling/StyleColors.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "NiagaraStackEditorData.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
@@ -830,7 +839,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 		ContentBox->AddSlot()
 		.VAlign(VAlign_Center)
 		.AutoWidth()
-		.Padding(4.0f, 0.0f)
+		.Padding(4, 0, 0, 0)
 		[
 			SNew(SNiagaraStackIssueIcon, StackViewModel, StackItem)
 			.IconMode(SNiagaraStackIssueIcon::EIconMode::Compact)
@@ -839,7 +848,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 		// Perf widget
 		ContentBox->AddSlot()
         .AutoWidth()
-        .Padding(2, 0, 2, 0)
+        .Padding(3, 0, 0, 0)
         [
             SNew(SNiagaraStackRowPerfWidget, Item)
         ];
@@ -890,11 +899,23 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			}
 		}
 
+		// Inheritance Icon
+		if (StackItem->SupportsInheritance())
+		{
+			OptionsBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(3, 0, 0, 0)
+				[
+					SNew(SNiagaraStackInheritanceIcon, StackItem)
+				];
+		}
+
 		// Enabled checkbox
 		OptionsBox->AddSlot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
-			.Padding(0)
+			.Padding(3, 0, 0, 0)
 			[
 				SNew(SNiagaraSystemOverviewEnabledCheckBox)
 				.Visibility(this, &SNiagaraOverviewStack::GetEnabledCheckBoxVisibility, StackItem)
@@ -926,6 +947,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				]
 				+ SWrapBox::Slot()
 				.VAlign(VAlign_Center)
+				.Padding(3, 0, 0, 0)
 				[
 					SNew(SBox)
 					.VAlign(VAlign_Center)
@@ -1069,6 +1091,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 
 		// Spacer
 		ContentBox->AddSlot()
+			.Padding(0, 0, 2, 0)
 			[
 				SNew(SSpacer)
 			];
@@ -1080,6 +1103,18 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			[
 				SNew(SNiagaraStackRowPerfWidget, Item)
 			];
+
+		// Inheritance Icon
+		if (StackItemGroup->SupportsInheritance())
+		{
+			ContentBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(0, 0, 0, 0)
+				[
+					SNew(SNiagaraStackInheritanceIcon, Item)
+				];
+		}
 
 		// Delete button
 		if (StackItemGroup->SupportsDelete())
@@ -1094,7 +1129,6 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 					.IsFocusable(false)
 					.ToolTipText(this, &SNiagaraOverviewStack::GetItemGroupDeleteButtonToolTip, StackItemGroup)
 					.OnClicked(this, &SNiagaraOverviewStack::OnItemGroupDeleteClicked, StackItemGroup)
-					.IsEnabled(this, &SNiagaraOverviewStack::GetItemGroupDeleteButtonIsEnabled, StackItemGroup)
 					.Visibility(this, &SNiagaraOverviewStack::GetItemGroupDeleteButtonVisibility, StackItemGroup)
 					.Content()
 					[
@@ -1110,8 +1144,9 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 		if (StackItemGroup->SupportsChangeEnabled())
 		{
 			ContentBox->AddSlot()
+				.VAlign(VAlign_Center)
 				.AutoWidth()
-				.Padding(3, 3, 3, 3)
+				.Padding(2, 1, 1, 1)
 				[
 					SNew(SCheckBox)
 					.ForegroundColor(FSlateColor::UseSubduedForeground())
@@ -1127,7 +1162,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			ContentBox->AddSlot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
-			.Padding(0, 0, 1, 0)
+			.Padding(0)
 			[
 				SNew(SNiagaraStackItemGroupAddButton, StackItemGroup, StackItemGroup->GetAddUtilities())
 				.Width(22)
@@ -1320,15 +1355,11 @@ FText SNiagaraOverviewStack::GetItemGroupDeleteButtonToolTip(UNiagaraStackItemGr
 	return Message;
 }
 
-bool SNiagaraOverviewStack::GetItemGroupDeleteButtonIsEnabled(UNiagaraStackItemGroup* Group) const
-{
-	FText UnusedMessage;
-	return Group->TestCanDeleteWithMessage(UnusedMessage);
-}
-
 EVisibility SNiagaraOverviewStack::GetItemGroupDeleteButtonVisibility(UNiagaraStackItemGroup* Group) const
 {
-	return Group->SupportsDelete() ? EVisibility::Visible : EVisibility::Collapsed;
+	FText UnusedMessage;
+	return Group->SupportsDelete() && Group->TestCanDeleteWithMessage(UnusedMessage)
+		? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FReply SNiagaraOverviewStack::OnItemGroupDeleteClicked(UNiagaraStackItemGroup* Group)

@@ -41,6 +41,8 @@ public:
 	virtual bool SupportsEditMode() const { return false; }
 	virtual bool GetEditModeIsActive() const { return false; }
 	virtual void SetEditModeIsActive(bool bInEditModeIsActive) { }
+
+	virtual bool GetIsInherited() const { return false; }
 	
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;

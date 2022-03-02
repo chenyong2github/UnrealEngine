@@ -21,8 +21,6 @@ private:
 
 	FText GetDeleteButtonToolTip() const;
 
-	bool GetDeleteButtonIsEnabled() const;
-
 	EVisibility GetDeleteButtonVisibility() const;
 
 	FReply DeleteClicked();

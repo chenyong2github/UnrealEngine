@@ -27,18 +27,14 @@ FText UNiagaraStackSystemPropertiesItem::GetTooltipText() const
 	return LOCTEXT("SystemPropertiesTooltip", "Properties of the System. These cannot change at runtime.");
 }
 
-bool UNiagaraStackSystemPropertiesItem::IsExpandedByDefault() const
-{
-	return false;
-}
-
 void UNiagaraStackSystemPropertiesItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
 	if (SystemObject == nullptr)
 	{
 		SystemObject = NewObject<UNiagaraStackObject>(this);
 		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(), FExecutionCategoryNames::System, NAME_None, GetStackEditorData());
-		SystemObject->Initialize(RequiredEntryData, System.Get(), GetStackEditorDataKey());
+		bool bIsTopLevelObject = true;
+		SystemObject->Initialize(RequiredEntryData, System.Get(), bIsTopLevelObject, GetStackEditorDataKey());
 		SystemObject->RegisterInstancedCustomPropertyLayout(UNiagaraSystem::StaticClass(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraSystemDetails::MakeInstance));
 	}
 	NewChildren.Add(SystemObject);

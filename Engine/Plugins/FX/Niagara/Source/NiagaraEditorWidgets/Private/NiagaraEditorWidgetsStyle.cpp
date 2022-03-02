@@ -92,7 +92,7 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 
 	FSlateFontInfo NormalFont = FAppStyle::Get().GetFontStyle(TEXT("PropertyWindow.NormalFont"));
 	FTextBlockStyle StackItemText = FTextBlockStyle(CategoryText)
-		.SetFont(NormalFont);
+		.SetFont(CategoryFont);
 
 	Set("NiagaraEditor.Stack.ItemText", StackItemText);
 	
@@ -304,51 +304,70 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 
 	Set("Niagara.TableViewRowBorder", new BOX_BRUSH("Icons/Row", FMargin(3.0f / 8.0f), FStyleColors::Recessed));
 
-	Set("NiagaraEditor.Stack.TableViewRow", FTableRowStyle(NormalTableRowStyle)
-		.SetUseParentRowBrush(true)
- 		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Transparent))
-		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Transparent))
-		.SetActiveBrush(StackRowSelectionBrush)
-		.SetActiveHoveredBrush(StackRowSelectionBrush)
-		.SetParentRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Header))
-		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Header))
-		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Header))
-		.SetInactiveBrush(StackRowSubduedSelectionBrush)
-		.SetInactiveHoveredBrush(StackRowSelectionBrush));
+	// TODO - This color is not customizable using the editor style.
+	FLinearColor CustomNoteBackgroundColor = FLinearColor(FColor(56, 111, 75));
+	Set("NiagaraEditor.Stack.Item.CustomNoteBackgroundColor", CustomNoteBackgroundColor);
+
+	FLinearColor HoverAdd = FLinearColor(0.03f, 0.03f, 0.03f, 0.0f);
+	FLinearColor PanelHoverColor = FStyleColors::Panel.GetSpecifiedColor() + HoverAdd;
+	FLinearColor RecessedHoverColor = FStyleColors::Recessed.GetSpecifiedColor() + HoverAdd;
+	FLinearColor HeaderHoverColor = FStyleColors::Header.GetSpecifiedColor() + HoverAdd;
+	FLinearColor NoteHoverColor = CustomNoteBackgroundColor + HoverAdd;
+
+	FTableRowStyle BaseStackTableRowStyle = FTableRowStyle(NormalTableRowStyle)
+		.SetSelectorFocusedBrush(FSlateNoResource())
+		.SetActiveBrush(FSlateColorBrush(FStyleColors::Select))
+		.SetActiveHoveredBrush(FSlateColorBrush(FStyleColors::Select))
+		.SetInactiveBrush(FSlateColorBrush(FStyleColors::SelectInactive))
+		.SetActiveHighlightedBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
+		.SetTextColor(FStyleColors::Foreground);
+
+	Set("NiagaraEditor.Stack.TableViewRow.ItemContent", FTableRowStyle(BaseStackTableRowStyle)
+		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(PanelHoverColor))
+		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(PanelHoverColor))
+		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel))
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel)));
+
+	Set("NiagaraEditor.Stack.TableViewRow.ItemContentAdvanced", FTableRowStyle(BaseStackTableRowStyle)
+		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(RecessedHoverColor))
+		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(RecessedHoverColor))
+		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Recessed))
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Recessed)));
+
+	Set("NiagaraEditor.Stack.TableViewRow.ItemContentNote", FTableRowStyle(BaseStackTableRowStyle)
+		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(NoteHoverColor))
+		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(NoteHoverColor))
+		.SetEvenRowBackgroundBrush(FSlateColorBrush(CustomNoteBackgroundColor))
+		.SetOddRowBackgroundBrush(FSlateColorBrush(CustomNoteBackgroundColor)));
+
+	Set("NiagaraEditor.Stack.TableViewRow.ItemHeader", FTableRowStyle(NormalTableRowStyle)
+		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(HeaderHoverColor))
+		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(HeaderHoverColor))
+		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Header))
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Header)));
+
+	Set("NiagaraEditor.Stack.TableViewRow.Spacer", FTableRowStyle(NormalTableRowStyle)
+		.SetSelectorFocusedBrush(FSlateNoResource())
+		.SetActiveBrush(FSlateNoResource())
+		.SetActiveHoveredBrush(FSlateNoResource())
+		.SetInactiveBrush(FSlateNoResource())
+		.SetActiveHighlightedBrush(FSlateNoResource())
+		.SetEvenRowBackgroundBrush(FSlateNoResource())
+		.SetOddRowBackgroundBrush(FSlateNoResource())
+		.SetEvenRowBackgroundHoveredBrush(FSlateNoResource())
+		.SetOddRowBackgroundHoveredBrush(FSlateNoResource()));
 
 	Set("NiagaraEditor.SystemOverview.TableViewRow.Item", FTableRowStyle(NormalTableRowStyle)
+		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(PanelHoverColor))
+		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(PanelHoverColor))
 		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel))
-		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel))
-		.SetEvenRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
-		.SetOddRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
-		.SetSelectorFocusedBrush(FSlateNoResource())
-		.SetActiveBrush(FSlateColorBrush(FStyleColors::Select))
-		.SetActiveHoveredBrush(FSlateColorBrush(FStyleColors::Select))
-		.SetInactiveBrush(FSlateColorBrush(FStyleColors::SelectInactive))
-		.SetActiveHighlightedBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
-		.SetTextColor(FStyleColors::Foreground));
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel)));
 
 	Set("NiagaraEditor.SystemOverview.TableViewRow.Group", FTableRowStyle(NormalTableRowStyle)
+		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(HeaderHoverColor))
+		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(HeaderHoverColor))
 		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Header))
-		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Header))
-		.SetEvenRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
-		.SetOddRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
-		.SetSelectorFocusedBrush(FSlateNoResource())
-		.SetActiveBrush(FSlateColorBrush(FStyleColors::Select))
-		.SetActiveHoveredBrush(FSlateColorBrush(FStyleColors::Select))
-		.SetInactiveBrush(FSlateColorBrush(FStyleColors::SelectInactive))
-		.SetActiveHighlightedBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
-		.SetTextColor(FStyleColors::Foreground));
-
-	Set("NiagaraEditor.Stack.BackgroundColor", FLinearColor(FColor(96, 96, 96)));
-	Set("NiagaraEditor.Stack.Item.HeaderBackgroundColor", FLinearColor(FColor(48, 48, 48)));
-	Set("NiagaraEditor.Stack.Item.ContentBackgroundColor", FLinearColor(FColor(62, 62, 62)));
-	Set("NiagaraEditor.Stack.Item.ContentAdvancedBackgroundColor", FLinearColor(FColor(53, 53, 53)));
-	Set("NiagaraEditor.Stack.Item.FooterBackgroundColor", FLinearColor(FColor(75, 75, 75)));
-	Set("NiagaraEditor.Stack.Item.CustomNoteBackgroundColor", FLinearColor(FColor(56, 111, 75)));
-	Set("NiagaraEditor.Stack.Item.InfoBackgroundColor", FLinearColor(FColor(68, 100, 106)));
-	Set("NiagaraEditor.Stack.Item.WarningBackgroundColor", FLinearColor(FColor(97, 97, 68)));
-	Set("NiagaraEditor.Stack.Item.ErrorBackgroundColor", FLinearColor(FColor(126, 78, 68)));
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Header)));
 
 	Set("NiagaraEditor.Stack.UnknownColor", FLinearColor(1, 0, 1));
 

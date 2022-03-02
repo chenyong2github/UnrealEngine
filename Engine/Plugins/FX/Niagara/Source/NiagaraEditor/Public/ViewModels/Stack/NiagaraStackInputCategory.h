@@ -26,6 +26,7 @@ public:
 		FRequiredEntryData InRequiredEntryData,
 		FString InputCategoryStackEditorDataKey,
 		FText InCategoryName,
+		bool bInIsTopLevelCategory,
 		FString InOwnerStackItemEditorDataKey);
 	
 	const FText& GetCategoryName() const;
@@ -48,11 +49,11 @@ public:
 	void SetStaticSwitchValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs);
 
 	void SetStandardValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs);
+
 protected:
-
-
 	//~ UNiagaraStackEntry interface
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	virtual int32 GetChildIndentLevel() const override;
 
 private:
 	bool FilterForVisibleCondition(const UNiagaraStackEntry& Child) const;
@@ -74,5 +75,10 @@ private:
 	TOptional<FText> DisplayName;
 	FText CategoryName;
 	TArray<FInputParameterHandleAndType> Inputs;
+
+	UPROPERTY()
+	UNiagaraStackSpacer* CategorySpacer;
+
 	bool bShouldShowInStack;
+	bool bIsTopLevelCategory;
 };

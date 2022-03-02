@@ -23,21 +23,17 @@ public:
 public:
 	SLATE_BEGIN_ARGS(SNiagaraStackTableRow)
 		: _ContentPadding(FMargin(2, 0, 2, 0))
-		, _ItemBackgroundColor(FLinearColor::Transparent)
 		, _IsCategoryIconHighlighted(false)
 		, _ShowExecutionCategoryIcon(false)
-		, _RowPadding(FMargin(0, 0, 0, 0))
 	{}
-	SLATE_ARGUMENT(FMargin, ContentPadding)
-		SLATE_ARGUMENT(FSlateColor, ItemBackgroundColor)
-		SLATE_ARGUMENT(FSlateColor, ItemForegroundColor)
-		SLATE_ARGUMENT(FSlateColor, IndicatorColor)
+		SLATE_STYLE_ARGUMENT(FTableRowStyle, Style)
+		SLATE_ARGUMENT(FMargin, ContentPadding)
+		SLATE_ARGUMENT(TOptional<FSlateColor>, IndicatorColor)
 		SLATE_ARGUMENT(bool, IsCategoryIconHighlighted)
 		SLATE_ARGUMENT(bool, ShowExecutionCategoryIcon)
 		SLATE_ATTRIBUTE(float, NameColumnWidth)
 		SLATE_ATTRIBUTE(float, ValueColumnWidth)
 		SLATE_ATTRIBUTE(EVisibility, IssueIconVisibility)
-		SLATE_ATTRIBUTE(FMargin, RowPadding)
 		SLATE_EVENT(FOnColumnWidthChanged, OnNameColumnWidthChanged)
 		SLATE_EVENT(FOnColumnWidthChanged, OnValueColumnWidthChanged)
 		SLATE_EVENT(FOnDragDetected, OnDragDetected)
@@ -60,15 +56,13 @@ public:
 
 	void SetContentPadding(FMargin InContentPadding);
 
-	void SetNameAndValueContent(TSharedRef<SWidget> InNameWidget, TSharedPtr<SWidget> InValueWidget, TSharedPtr<SWidget> InEditConditionWidget, TSharedPtr<SWidget> InResetWidget);
+	void SetNameAndValueContent(TSharedRef<SWidget> InNameWidget, TSharedPtr<SWidget> InValueWidget);
 
 	void AddFillRowContextMenuHandler(FOnFillRowContextMenu FillRowContextMenuHandler);
 
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 
 	FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
-
-	virtual const FSlateBrush* GetBorder() const override;
 
 private:
 	void CollapseChildren();
@@ -78,8 +72,6 @@ private:
 	EVisibility GetRowVisibility() const;
 
 	EVisibility GetExecutionCategoryIconVisibility() const;
-
-	FOptionalSize GetIndentSize() const;
 
 	EVisibility GetExpanderVisibility() const;
 
@@ -91,11 +83,7 @@ private:
 
 	void OnValueColumnWidthChanged(float Width);
 
-	FSlateColor GetItemBackgroundColor() const;
-
-	const FSlateBrush* GetSelectionBorderBrush() const;
-
-	const FSlateBrush* GetSearchResultBorderBrush() const;
+	EVisibility GetSearchResultBorderVisibility() const;
 
 	void NavigateTo(UNiagaraStackEntry* Item);
 
@@ -114,15 +102,11 @@ private:
 	FOnColumnWidthChanged ValueColumnWidthChanged;
 
 	TAttribute<EVisibility> IssueIconVisibility;
-	TAttribute<FMargin> RowPadding;
 
 	const FSlateBrush* ExpandedImage;
 	const FSlateBrush* CollapsedImage;
 
-	FSlateColor ItemBackgroundColor;
-	FSlateColor DisabledItemBackgroundColor;
-	FSlateColor ForegroundColor;
-	FSlateColor IndicatorColor;
+	TOptional<FSlateColor> IndicatorColor;
 
 	FText ExecutionCategoryToolTipText;
 

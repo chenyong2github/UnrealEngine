@@ -52,6 +52,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraSettings.h"
 #include "SNiagaraParameterDropTarget.h"
+#include "Stack/SNiagaraStackIndent.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackFunctionInputValue"
 
@@ -87,6 +88,12 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 				// Values
 				SNew(SHorizontalBox)
 				.IsEnabled(this, &SNiagaraStackFunctionInputValue::GetInputEnabled)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(0, 0, 3, 0)
+				[
+					SNew(SNiagaraStackIndent, FunctionInput, ENiagaraStackIndentMode::Value)
+				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.AutoWidth()

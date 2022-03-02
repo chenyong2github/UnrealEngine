@@ -20,8 +20,6 @@ public:
 
 	virtual FText GetTooltipText() const override;
 
-	virtual bool IsExpandedByDefault() const override;
-
 	virtual bool GetShouldShowInOverview() const override { return false; }
 
 protected:

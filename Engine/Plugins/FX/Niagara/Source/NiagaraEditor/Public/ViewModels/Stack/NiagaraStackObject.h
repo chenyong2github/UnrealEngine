@@ -23,7 +23,13 @@ public:
 public:
 	UNiagaraStackObject();
 
-	void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InObject, FString InOwnerStackItemEditorDataKey, UNiagaraNode* InOwningNiagaraNode = nullptr);
+	/** Initialized an entry for displaying a UObject in the niagara stack. 
+		@param InRequiredEntryData Struct with required data for all stack entries.
+		@param InObject The object to be displayed in the stack.
+		@param bInIsTopLevelObject Whether or not the object being displayed should be treated as a top level object shown in the root of the stack.  This can be used to make layout decisions such as category styling.
+		@param InOwnerStackItemEditorDataKey The stack editor data key of the owning stack entry. 
+		@param InOwningNiagaraNode An optional niagara node which owns this object. */
+	void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InObject, bool bInIsTopLevelObject, FString InOwnerStackItemEditorDataKey, UNiagaraNode* InOwningNiagaraNode = nullptr);
 
 	void SetOnSelectRootNodes(FOnSelectRootNodes OnSelectRootNodes);
 
@@ -65,6 +71,10 @@ private:
 	};
 
 	TWeakObjectPtr<UObject> WeakObject;
+
+	// Whether or not the object being displayed should be treated as a top level object shown in the root of the stack.  This can be used to make layout decisions such as category styling.
+	bool bIsTopLevelObject;
+
 	UNiagaraNode* OwningNiagaraNode;
 	FOnSelectRootNodes OnSelectRootNodesDelegate;
 	TArray<FRegisteredClassCustomization> RegisteredClassCustomizations;

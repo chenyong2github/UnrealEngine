@@ -31,8 +31,6 @@ public:
 	virtual EIconMode GetSupportedIconMode() const { return EIconMode::Brush; }
 	virtual const FSlateBrush* GetIconBrush() const override;
 
-	virtual bool IsExpandedByDefault() const override;
-
 	virtual bool GetShouldShowInOverview() const override { return false; }
 
 protected:
@@ -66,7 +64,6 @@ public:
 	virtual FText GetTooltipText() const override;
 
 	virtual bool SupportsResetToBase() const override { return false; }
-	virtual bool IsExpandedByDefault() const override { return false; }
 	virtual EIconMode GetSupportedIconMode() const override { return EIconMode::Text; }
 	virtual FText GetIconText() const override;
 	virtual bool GetShouldShowInOverview() const override { return false; }

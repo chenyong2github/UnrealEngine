@@ -643,7 +643,7 @@ TSharedRef<ITableRow> SNiagaraStack::OnGenerateRowForStackItem(UNiagaraStackEntr
 {
 	TSharedRef<SNiagaraStackTableRow> Container = ConstructContainerForItem(Item);
 	FRowWidgets RowWidgets = ConstructNameAndValueWidgetsForItem(Item, Container);
-	Container->SetNameAndValueContent(RowWidgets.NameWidget, RowWidgets.ValueWidget, RowWidgets.EditConditionWidget, RowWidgets.ResetWidget);
+	Container->SetNameAndValueContent(RowWidgets.NameWidget, RowWidgets.ValueWidget);
 	return Container;
 }
 
@@ -744,108 +744,74 @@ TSharedPtr<SWidget> SNiagaraStack::GenerateStackMenu(TWeakPtr<UNiagaraStackViewM
 
 TSharedRef<SNiagaraStackTableRow> SNiagaraStack::ConstructContainerForItem(UNiagaraStackEntry* Item)
 {
-	float LeftContentPadding = 4;
-	float RightContentPadding = 6;
-	TAttribute<FMargin> RowPadding = FMargin(0, 0, 0, 0);
+	float LeftContentPadding = 0;
+	float RightContentPadding = 0;
+	float ItemContentVerticalPadding = 1;
 	FMargin ContentPadding(LeftContentPadding, 0, RightContentPadding, 0);
-	FSlateColor ItemBackgroundColor = FStyleColors::Panel;
-	FSlateColor ItemForegroundColor = FStyleColors::Foreground;
 	FSlateColor IndicatorColor = FLinearColor::Transparent;
-	bool bIsCategoryIconHighlighted;
-	bool bShowExecutionCategoryIcon;
+	bool bIsCategoryIconHighlighted = false;
+	bool bShowExecutionCategoryIcon = false;
+	const FTableRowStyle* TableRowStyle = nullptr;
 	switch (Item->GetStackRowStyle())
 	{
-	case UNiagaraStackEntry::EStackRowStyle::None:
-		bIsCategoryIconHighlighted = false;
-		bShowExecutionCategoryIcon = false;
-		break;
 	case UNiagaraStackEntry::EStackRowStyle::GroupHeader:
 		ContentPadding = FMargin(LeftContentPadding, 3, 0, 3);
-		ItemBackgroundColor = FStyleColors::Header;
 		bIsCategoryIconHighlighted = true;
 		bShowExecutionCategoryIcon = true;
-		break;
-	case UNiagaraStackEntry::EStackRowStyle::GroupFooter:
-		RowPadding = FMargin(0, 0, 0, 6);
-		bIsCategoryIconHighlighted = false;
-		bShowExecutionCategoryIcon = false;
-		ItemBackgroundColor = FStyleColors::Recessed;
+		TableRowStyle = &FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTableRowStyle>("NiagaraEditor.Stack.TableViewRow.ItemHeader");
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::ItemHeader:
-		RowPadding.Bind(TAttribute<FMargin>::FGetter::CreateLambda([Item]()
-		{
-			if (Item->GetIsExpanded())
-			{
-				return FMargin(0, 2, 0, 0);
-			}
-			else
-			{
-				return FMargin(0, 2, 0, 2);
-			}
-		}));
 		ContentPadding = FMargin(LeftContentPadding, 2, 2, 2);
-		bIsCategoryIconHighlighted = false;
 		bShowExecutionCategoryIcon = true;
+		TableRowStyle = &FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTableRowStyle>("NiagaraEditor.Stack.TableViewRow.ItemHeader");
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::ItemContent:
-		ContentPadding = FMargin(LeftContentPadding, 3, RightContentPadding, 3);
-		bIsCategoryIconHighlighted = false;
-		bShowExecutionCategoryIcon = false;
+		ContentPadding = FMargin(LeftContentPadding, ItemContentVerticalPadding, RightContentPadding, ItemContentVerticalPadding);
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::ItemContentAdvanced:
-		ContentPadding = FMargin(LeftContentPadding, 3, RightContentPadding, 3);
-		bIsCategoryIconHighlighted = false;
-		bShowExecutionCategoryIcon = false;
-		ItemBackgroundColor = FStyleColors::Recessed;
+		ContentPadding = FMargin(LeftContentPadding, ItemContentVerticalPadding, RightContentPadding, ItemContentVerticalPadding);
+		TableRowStyle = &FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTableRowStyle>("NiagaraEditor.Stack.TableViewRow.ItemContentAdvanced");
 		break;
-	case UNiagaraStackEntry::EStackRowStyle::ItemFooter:
-		RowPadding = FMargin(0, 0, 0, 2);
-		bIsCategoryIconHighlighted = false;
-		bShowExecutionCategoryIcon = false;
+	case UNiagaraStackEntry::EStackRowStyle::ItemContentNote:
+		ContentPadding = FMargin(LeftContentPadding, ItemContentVerticalPadding, RightContentPadding, ItemContentVerticalPadding);
+		TableRowStyle = &FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTableRowStyle>("NiagaraEditor.Stack.TableViewRow.ItemContentNote");
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::ItemCategory:
-		ContentPadding = FMargin(LeftContentPadding, 3, RightContentPadding, 3);
-		bIsCategoryIconHighlighted = false;
-		bShowExecutionCategoryIcon = false;
+		ContentPadding = FMargin(LeftContentPadding, ItemContentVerticalPadding, RightContentPadding, ItemContentVerticalPadding);
+		TableRowStyle = &FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTableRowStyle>("NiagaraEditor.Stack.TableViewRow.ItemHeader");
 		break;
 	case UNiagaraStackEntry::EStackRowStyle::StackIssue:
-
 		switch (Item->GetIssueSeverity())
 		{
 			case EStackIssueSeverity::Error:
-				ItemBackgroundColor = FStyleColors::Header;
 				IndicatorColor = FStyleColors::Error;
 				break;
 			case EStackIssueSeverity::Warning:
-				ItemBackgroundColor = FStyleColors::Header;
 				IndicatorColor = FStyleColors::Warning;
 				break;
 			case EStackIssueSeverity::Info:
-				ItemBackgroundColor = FStyleColors::Header;
 				IndicatorColor = FStyleColors::Foreground;
 				break;
 			case EStackIssueSeverity::CustomNote:
-				ItemBackgroundColor = FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.Item.CustomNoteBackgroundColor");
+				IndicatorColor = FStyleColors::Transparent;
 				break;
 			default:
 				checkf(false, TEXT("Issue severity not set for stack issue."));
 		}
+		ContentPadding = FMargin(LeftContentPadding, ItemContentVerticalPadding, RightContentPadding, ItemContentVerticalPadding);
+		break;
+	case UNiagaraStackEntry::EStackRowStyle::Spacer:
+		TableRowStyle = &FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTableRowStyle>("NiagaraEditor.Stack.TableViewRow.Spacer");
+	}
 
-		ContentPadding = FMargin(LeftContentPadding, 3, RightContentPadding, 3);
-		bIsCategoryIconHighlighted = false;
-		bShowExecutionCategoryIcon = false;
-		break;
-	default:
-		bIsCategoryIconHighlighted = false;
-		bShowExecutionCategoryIcon = false;
-		break;
+	if (TableRowStyle == nullptr)
+	{
+		TableRowStyle = &FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTableRowStyle>("NiagaraEditor.Stack.TableViewRow.ItemContent");
 	}
 
 	return SNew(SNiagaraStackTableRow, StackViewModel, Item, StackCommandContext.ToSharedRef(), StackTree.ToSharedRef())
-		.RowPadding(RowPadding)
+		.Style(TableRowStyle)
 		.ContentPadding(ContentPadding)
- 		.ItemBackgroundColor(ItemBackgroundColor)
-		.ItemForegroundColor(ItemForegroundColor)
 		.IndicatorColor(IndicatorColor)
 		.IsCategoryIconHighlighted(bIsCategoryIconHighlighted)
 		.ShowExecutionCategoryIcon(bShowExecutionCategoryIcon)
@@ -948,8 +914,9 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	}
 	else if (Item->IsA<UNiagaraStackInputCategory>())
 	{
+		Container->SetOverrideNameAlignment(HAlign_Left, VAlign_Center);
 		return FRowWidgets(SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
+			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ParameterText")
 			.ToolTipText_UObject(Item, &UNiagaraStackEntry::GetTooltipText)
 			.Text_UObject(Item, &UNiagaraStackEntry::GetDisplayName)
 			.ColorAndOpacity(this, &SNiagaraStack::GetTextColorForItem, Item)
@@ -1003,10 +970,27 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 			Container->SetOverrideNameWidth(PropertyRowWidgets.WholeRowWidgetLayoutData.MinWidth, PropertyRowWidgets.WholeRowWidgetLayoutData.MaxWidth);
 			Container->SetOverrideNameAlignment(PropertyRowWidgets.WholeRowWidgetLayoutData.HorizontalAlignment, PropertyRowWidgets.WholeRowWidgetLayoutData.VerticalAlignment);
 			PropertyRowWidgets.WholeRowWidget->SetEnabled(IsEnabled);
-
-			FRowWidgets RowWidgets(PropertyRowWidgets.WholeRowWidget.ToSharedRef()); 
-			RowWidgets.EditConditionWidget = PropertyRowWidgets.EditConditionWidget;
-			return RowWidgets;
+			TSharedRef<SHorizontalBox> RowBox = SNew(SHorizontalBox);
+			if (PropertyRowWidgets.EditConditionWidget.IsValid())
+			{
+				RowBox->AddSlot()
+				.AutoWidth()
+				.Padding(0, 0, 3, 0)
+				[
+					PropertyRowWidgets.EditConditionWidget.ToSharedRef()
+				];
+			}
+			RowBox->AddSlot()
+			[
+				PropertyRowWidgets.WholeRowWidget.ToSharedRef()
+			];
+			RowBox->AddSlot()
+			.AutoWidth()
+			.Padding(3, 0, 0, 0)
+			[
+				SNew(SResetToDefaultPropertyEditor, PropertyRow->GetDetailTreeNode()->CreatePropertyHandle())
+			];
+			return FRowWidgets(RowBox); 
 		}
 		else
 		{
@@ -1016,10 +1000,39 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 			PropertyRowWidgets.NameWidget->SetEnabled(IsEnabled);
 			PropertyRowWidgets.ValueWidget->SetEnabled(IsEnabled);
 
-			FRowWidgets RowWidgets(PropertyRowWidgets.NameWidget.ToSharedRef(), PropertyRowWidgets.ValueWidget.ToSharedRef());
-			RowWidgets.EditConditionWidget = PropertyRowWidgets.EditConditionWidget;
-			RowWidgets.ResetWidget = SNew(SResetToDefaultPropertyEditor, PropertyRow->GetDetailTreeNode()->CreatePropertyHandle());
-			return RowWidgets;
+			TSharedPtr<SWidget> NameWidget;
+			if (PropertyRowWidgets.EditConditionWidget.IsValid())
+			{
+				NameWidget = SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(0, 0, 3, 0)
+				[
+					PropertyRowWidgets.EditConditionWidget.ToSharedRef()
+				]
+				+ SHorizontalBox::Slot()
+				[
+					PropertyRowWidgets.NameWidget.ToSharedRef()
+				];
+			}
+			else
+			{
+				NameWidget = PropertyRowWidgets.NameWidget;
+			}
+
+			TSharedRef<SWidget> ValueWidget = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			[
+				PropertyRowWidgets.ValueWidget.ToSharedRef()
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(3, 0, 0, 0)
+			[
+				SNew(SResetToDefaultPropertyEditor, PropertyRow->GetDetailTreeNode()->CreatePropertyHandle())
+			];
+
+			return FRowWidgets(NameWidget.ToSharedRef(), ValueWidget);
 		}
 	}
 	else if (Item->IsA<UNiagaraStackItem>())
@@ -1036,6 +1049,12 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 			.Text(ItemTextContent->GetDisplayName())
 			.AutoWrapText(true)
 			.Justification(ETextJustify::Center));
+	}
+	else if (Item->IsA<UNiagaraStackSpacer>())
+	{
+		UNiagaraStackSpacer* Spacer = CastChecked<UNiagaraStackSpacer>(Item);
+		return FRowWidgets(SNew(SBox)
+			.HeightOverride(Spacer->GetSpacerHeight()));
 	}
 	else
 	{

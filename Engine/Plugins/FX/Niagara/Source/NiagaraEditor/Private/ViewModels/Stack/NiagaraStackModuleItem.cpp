@@ -1431,6 +1431,16 @@ void UNiagaraStackModuleItem::Delete()
 	}
 }
 
+bool UNiagaraStackModuleItem::GetIsInherited() const
+{
+	return CanMoveAndDelete() == false;
+}
+
+FText UNiagaraStackModuleItem::GetInheritanceMessage() const
+{
+	return LOCTEXT("ModuleItemInheritanceMessage", "This module is inherited from a parent emitter.  Inherited modules\ncan only be moved, deleted, and versioned while editing the parent emitter.");
+}
+
 bool UNiagaraStackModuleItem::IsScratchModule() const
 {
 	if (bIsScratchModuleCache.IsSet() == false)

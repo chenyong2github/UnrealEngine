@@ -36,16 +36,21 @@ private:
 
 	const FSlateBrush* GetIconBrush() const;
 	FText GetIconToolTip() const;
+	FOptionalSize GetIconHeight() const;
 	EVisibility GetCompactIconBorderVisibility() const;
 
 	void UpdateFromEntry(ENiagaraStructureChangedFlags Flags);
 
 private:
 	const FSlateBrush* IconBrush;
+	float IconHeight;
 
 	mutable TOptional<FText> IconToolTipCache;
 
 	UNiagaraStackViewModel* StackViewModel;
 	TWeakObjectPtr<UNiagaraStackEntry> StackEntry;
 	EIconMode IconMode;
+
+	static const float NormalSize;
+	static const float CompactSize;
 };

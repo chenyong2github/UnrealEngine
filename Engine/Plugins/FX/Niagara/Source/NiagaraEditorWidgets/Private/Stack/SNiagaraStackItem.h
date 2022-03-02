@@ -37,11 +37,9 @@ private:
 
 	FReply ResetToBaseButtonClicked();
 
-	EVisibility GetDeleteButtonVisibility() const;
-
 	FText GetDeleteButtonToolTipText() const;
 
-	bool GetDeleteButtonEnabled() const;
+	EVisibility GetDeleteButtonVisibility() const;
 
 	FReply DeleteClicked();
 

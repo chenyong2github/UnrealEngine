@@ -277,6 +277,16 @@ void UNiagaraStackRendererItem::Delete()
 	OnDataObjectModified().Broadcast(ChangedObjects, ENiagaraDataObjectChange::Removed);
 }
 
+bool UNiagaraStackRendererItem::GetIsInherited() const
+{
+	return HasBaseRenderer() == true;
+}
+
+FText UNiagaraStackRendererItem::GetInheritanceMessage() const
+{
+	return LOCTEXT("RendererItemInheritanceMessage", "This renderer is inherited from a parent emitter.  Inherited\nrenderers can only be deleted while editing the parent emitter.");
+}
+
 bool UNiagaraStackRendererItem::HasBaseRenderer() const
 {
 	if (HasBaseEmitter())
@@ -371,7 +381,8 @@ void UNiagaraStackRendererItem::RefreshChildrenInternal(const TArray<UNiagaraSta
 	if (RendererObject == nullptr)
 	{
 		RendererObject = NewObject<UNiagaraStackObject>(this);
-		RendererObject->Initialize(CreateDefaultChildRequiredData(), RendererProperties.Get(), GetStackEditorDataKey());
+		bool bIsTopLevelObject = true;
+		RendererObject->Initialize(CreateDefaultChildRequiredData(), RendererProperties.Get(), bIsTopLevelObject, GetStackEditorDataKey());
 	}
 
 	NewChildren.Add(RendererObject);

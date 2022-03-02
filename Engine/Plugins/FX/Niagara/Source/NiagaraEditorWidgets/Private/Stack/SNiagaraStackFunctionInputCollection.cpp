@@ -28,7 +28,7 @@ void SNiagaraStackFunctionInputCollection::Construct(const FArguments& InArgs, U
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0, 2)
+		.Padding(4, 2)
 		[
 			SAssignNew(SectionSelectorBox, SWrapBox)
 			.UseAllottedSize(true)

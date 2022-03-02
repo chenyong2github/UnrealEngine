@@ -27,7 +27,7 @@ public:
 			SNew(SEnumComboBox, Enum)
 			.CurrentValue(this, &SNiagaraEnumParameterEditor::GetValue)
 			.ContentPadding(FMargin(2, 0))
-			.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
+			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
 			.OnEnumSelectionChanged(SEnumComboBox::FOnEnumSelectionChanged::CreateSP(this, &SNiagaraEnumParameterEditor::ValueChanged))
 		];
 	}

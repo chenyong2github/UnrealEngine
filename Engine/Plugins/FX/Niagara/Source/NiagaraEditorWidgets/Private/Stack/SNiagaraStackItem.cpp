@@ -17,6 +17,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
 #include "Styling/StyleColors.h"
+#include "Stack/SNiagaraStackInheritanceIcon.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackItem"
 
@@ -114,6 +115,18 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 		];
 	}
 
+	// Inheritance Icon
+	if (Item->SupportsInheritance())
+	{
+		RowBox->AddSlot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		.Padding(0, 0, 2, 0)
+		[
+			SNew(SNiagaraStackInheritanceIcon, Item)
+		];
+	}
+
 	// Delete button
 	if (Item->SupportsDelete())
 	{
@@ -126,7 +139,7 @@ void SNiagaraStackItem::Construct(const FArguments& InArgs, UNiagaraStackItem& I
 			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 			.IsFocusable(false)
 			.ToolTipText(this, &SNiagaraStackItem::GetDeleteButtonToolTipText)
-			.IsEnabled(this, &SNiagaraStackItem::GetDeleteButtonEnabled)
+			.Visibility(this, &SNiagaraStackItem::GetDeleteButtonVisibility)
 			.OnClicked(this, &SNiagaraStackItem::DeleteClicked)
 			.Content()
 			[
@@ -225,10 +238,10 @@ FText SNiagaraStackItem::GetDeleteButtonToolTipText() const
 	return CanDeleteMessage;
 }
 
-bool SNiagaraStackItem::GetDeleteButtonEnabled() const
+EVisibility SNiagaraStackItem::GetDeleteButtonVisibility() const
 {
 	FText Unused;
-	return Item->TestCanDeleteWithMessage(Unused);
+	return Item->TestCanDeleteWithMessage(Unused) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FReply SNiagaraStackItem::DeleteClicked()

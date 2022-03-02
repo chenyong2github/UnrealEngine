@@ -9,12 +9,15 @@ void UNiagaraStackInputCategory::Initialize(
 	FRequiredEntryData InRequiredEntryData,
 	FString InputCategoryStackEditorDataKey,
 	FText InCategoryName,
+	bool bInIsTopLevelCategory,
 	FString InOwnerStackItemEditorDataKey)
 {
 	bool bCategoryIsAdvanced = false;
 	Super::Initialize(InRequiredEntryData, InOwnerStackItemEditorDataKey, InputCategoryStackEditorDataKey);
 	CategoryName = InCategoryName;
 	bShouldShowInStack = true;
+	bIsTopLevelCategory = bInIsTopLevelCategory;
+	CategorySpacer = nullptr;
 	
 	AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackInputCategory::FilterForVisibleCondition));
 	AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackInputCategory::FilterForIsInlineEditConditionToggle));
@@ -55,6 +58,24 @@ void UNiagaraStackInputCategory::RefreshChildrenInternal(const TArray<UNiagaraSt
 		InputChild->SetSummaryViewDisiplayName(Input.DisplayName);
 		NewChildren.Add(InputChild);
 	}
+
+	if (bIsTopLevelCategory)
+	{
+		if (CategorySpacer == nullptr)
+		{
+			CategorySpacer = NewObject<UNiagaraStackSpacer>(this);
+			TAttribute<bool> ShouldShowSpacerInStack;
+			ShouldShowSpacerInStack.BindUObject(this, &UNiagaraStackInputCategory::GetShouldShowInStack);
+			CategorySpacer->Initialize(CreateDefaultChildRequiredData(), 6, ShouldShowSpacerInStack, GetStackEditorDataKey());
+		}
+		NewChildren.Add(CategorySpacer);
+	}
+}
+
+int32 UNiagaraStackInputCategory::GetChildIndentLevel() const
+{
+	// We want to keep inputs under a top level category at the same indent level as the category.
+	return bIsTopLevelCategory ? GetIndentLevel() : Super::GetChildIndentLevel();
 }
 
 FText UNiagaraStackInputCategory::GetDisplayName() const
@@ -68,12 +89,13 @@ bool UNiagaraStackInputCategory::GetShouldShowInStack() const
 	// in the case where all children have been hidden, don't show the category in the stack.
 	TArray<UNiagaraStackEntry*> CurrentFilteredChildren;
 	GetFilteredChildren(CurrentFilteredChildren);
-	return bShouldShowInStack && CurrentFilteredChildren.Num() > 0;
+	int32 EmptyCount = CategorySpacer == nullptr ? 0 : 1;
+	return bShouldShowInStack && CurrentFilteredChildren.Num() > EmptyCount;
 }
 
 UNiagaraStackEntry::EStackRowStyle UNiagaraStackInputCategory::GetStackRowStyle() const
 {
-	return EStackRowStyle::ItemCategory;
+	return bIsTopLevelCategory ? EStackRowStyle::ItemCategory : EStackRowStyle::ItemSubCategory;
 }
 
 bool UNiagaraStackInputCategory::GetIsEnabled() const

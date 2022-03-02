@@ -256,6 +256,12 @@ void UNiagaraStackFunctionInputCollectionBase::RefreshChildrenInternal(const TAr
 	ActiveSectionCache.Reset();
 }
 
+int32 UNiagaraStackFunctionInputCollectionBase::GetChildIndentLevel() const
+{
+	// We don't want the child categories to be indented.
+	return GetIndentLevel();
+}
+
 void UNiagaraStackFunctionInputCollectionBase::RefreshChildrenForFunctionCall(UNiagaraNodeFunctionCall* ModuleNode, UNiagaraNodeFunctionCall* InputFunctionCallNode, 
 	const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues, bool bShouldApplySummaryFilter)
 {	
@@ -747,7 +753,8 @@ void UNiagaraStackFunctionInputCollectionBase::AddInputToCategory(const FInputDa
 			InputCategory = NewObject<UNiagaraStackInputCategory>(this);
 
 			FString InputCategoryStackEditorDataKey = FString::Printf(TEXT("%s-InputCategory-%s"), *InputData.InputFunctionCallNode->NodeGuid.ToString(EGuidFormats::DigitsWithHyphens), *InputData.Category.ToString());
-			InputCategory->Initialize(CreateDefaultChildRequiredData(), InputCategoryStackEditorDataKey, InputData.Category, GetOwnerStackItemEditorDataKey());
+			bool bIsTopLevelInput = InputData.InputFunctionCallNode == InputData.ModuleNode;
+			InputCategory->Initialize(CreateDefaultChildRequiredData(), InputCategoryStackEditorDataKey, InputData.Category, bIsTopLevelInput, GetOwnerStackItemEditorDataKey());
 		}
 		else
 		{
@@ -762,9 +769,6 @@ void UNiagaraStackFunctionInputCollectionBase::AddInputToCategory(const FInputDa
 		NewChildren.Add(InputCategory);
 	}
 	InputCategory->AddInput(InputData.ModuleNode, InputData.InputFunctionCallNode, InputData.Pin->PinName, InputData.Type, InputData.bIsStatic ? EStackParameterBehavior::Static : EStackParameterBehavior::Dynamic, InputData.DisplayName, InputData.bIsHidden, InputData.bIsChild);
-
-	
-
 }
 
 bool UNiagaraStackFunctionInputCollectionBase::FilterByActiveSection(const UNiagaraStackEntry& Child) const

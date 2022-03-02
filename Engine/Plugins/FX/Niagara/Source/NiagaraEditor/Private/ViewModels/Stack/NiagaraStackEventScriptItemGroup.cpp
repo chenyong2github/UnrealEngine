@@ -101,7 +101,8 @@ void UNiagaraStackEventHandlerPropertiesItem::RefreshChildrenInternal(const TArr
 	if (EmitterObject == nullptr)
 	{
 		EmitterObject = NewObject<UNiagaraStackObject>(this);
-		EmitterObject->Initialize(CreateDefaultChildRequiredData(), Emitter.Get(), GetStackEditorDataKey());
+		bool bIsTopLevelObject = true;
+		EmitterObject->Initialize(CreateDefaultChildRequiredData(), Emitter.Get(), bIsTopLevelObject, GetStackEditorDataKey());
 		EmitterObject->RegisterInstancedCustomPropertyTypeLayout(FNiagaraEventScriptProperties::StaticStruct()->GetFName(), 
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraEventScriptPropertiesCustomization::MakeInstance, 
 			TWeakObjectPtr<UNiagaraSystem>(&GetSystemViewModel()->GetSystem()), TWeakObjectPtr<UNiagaraEmitter>(GetEmitterViewModel()->GetEmitter())));
@@ -293,6 +294,16 @@ void UNiagaraStackEventScriptItemGroup::Delete()
 	ScriptViewModelPinned->SetScripts(Emitter);
 	
 	OnModifiedEventHandlersDelegate.ExecuteIfBound();
+}
+
+bool UNiagaraStackEventScriptItemGroup::GetIsInherited() const
+{
+	return HasBaseEventHandler();
+}
+
+FText UNiagaraStackEventScriptItemGroup::GetInheritanceMessage() const
+{
+	return LOCTEXT("EventGroupInheritanceMessage", "This event handler is inherited from a parent emitter.  Inherited\nevent handlers can only be deleted while editing the parent emitter.");
 }
 
 bool UNiagaraStackEventScriptItemGroup::HasBaseEventHandler() const

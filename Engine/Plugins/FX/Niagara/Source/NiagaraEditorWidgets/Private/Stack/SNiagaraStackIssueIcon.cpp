@@ -15,6 +15,9 @@
 
 #define LOCTEXT_NAMESPACE "SNiagaraStackIssueIcon"
 
+const float SNiagaraStackIssueIcon::NormalSize = 16.0f;
+const float SNiagaraStackIssueIcon::CompactSize = 10.0f;
+
 void SNiagaraStackIssueIcon::Construct(const FArguments& InArgs, UNiagaraStackViewModel* InStackViewModel, UNiagaraStackEntry* InStackEntry)
 {
 	StackViewModel = InStackViewModel;
@@ -32,8 +35,8 @@ void SNiagaraStackIssueIcon::Construct(const FArguments& InArgs, UNiagaraStackVi
 			SNew(SBox)
 			.IsEnabled(this, &SNiagaraStackIssueIcon::GetIconIsEnabled)
 			.ToolTipText(this, &SNiagaraStackIssueIcon::GetIconToolTip)
-			.HeightOverride(16)
-			.WidthOverride(16)
+			.HeightOverride(this, &SNiagaraStackIssueIcon::GetIconHeight)
+			.WidthOverride(NormalSize)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			[
@@ -66,8 +69,8 @@ void SNiagaraStackIssueIcon::Construct(const FArguments& InArgs, UNiagaraStackVi
 			.ToolTipText(this, &SNiagaraStackIssueIcon::GetIconToolTip)
 			[
 				SNew(SBox)
-				.HeightOverride(10)
-				.WidthOverride(10)
+				.HeightOverride(this, &SNiagaraStackIssueIcon::GetIconHeight)
+				.WidthOverride(CompactSize)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				[
@@ -243,15 +246,22 @@ FText SNiagaraStackIssueIcon::GetIconToolTip() const
 	return IconToolTipCache.GetValue();
 }
 
+FOptionalSize SNiagaraStackIssueIcon::GetIconHeight() const
+{
+	return IconHeight;
+}
+
 void SNiagaraStackIssueIcon::UpdateFromEntry(ENiagaraStructureChangedFlags Flags)
 {
 	if (StackEntry.IsValid() == false || StackEntry->IsFinalized() || StackEntry->HasIssuesOrAnyChildHasIssues() == false)
 	{
 		IconBrush = FEditorStyle::GetBrush("NoBrush");
+		IconHeight = 0;
 		IconToolTipCache = FText();
 		return;
 	}
 
+	IconHeight = IconMode == EIconMode::Compact ? CompactSize : NormalSize;
 	if (StackEntry->GetTotalNumberOfErrorIssues() > 0)
 	{
 		IconBrush = IconMode == EIconMode::Compact

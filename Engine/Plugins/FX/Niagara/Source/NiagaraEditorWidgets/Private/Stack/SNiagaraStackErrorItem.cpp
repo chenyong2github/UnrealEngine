@@ -75,7 +75,6 @@ void SNiagaraStackErrorItemFix::Construct(const FArguments& InArgs, UNiagaraStac
 	{
 		FixWidget = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
-		.Padding(0, 4, 0, 0)
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)

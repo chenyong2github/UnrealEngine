@@ -9,7 +9,7 @@
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Colors/SColorBlock.h"
-#include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Layout/SWrapBox.h"
 
 class SNiagaraColorParameterEditor : public SNiagaraParameterEditor
 {
@@ -20,41 +20,39 @@ public:
 	void Construct(const FArguments& InArgs)
 	{
 		SNiagaraParameterEditor::Construct(SNiagaraParameterEditor::FArguments()
-			.MinimumDesiredWidth(3 * DefaultInputSize)
-			.MaximumDesiredWidth(3 * DefaultInputSize));
+			.HAlign(HAlign_Fill));
 
 		ChildSlot
 		[
-			SNew(SGridPanel)
-			.FillColumn(1, 1)
-			.FillColumn(2, 1)
-			.FillColumn(3, 1)
-			+ SGridPanel::Slot(0, 0)
-			.RowSpan(2)
+			SNew(SWrapBox)
+			.UseAllottedSize(true)
+			+ SWrapBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(0, 0, 6, 0)
 			[
 				SAssignNew(ColorBlock, SColorBlock)
 				.Color(this, &SNiagaraColorParameterEditor::GetColor)
 				.ShowBackgroundForAlpha(true)
 				.OnMouseButtonDown(this, &SNiagaraColorParameterEditor::OnMouseButtonDownColorBlock)
-				.Size(FVector2D(35.0f, 12.0f))
+				.Size(FVector2D(40.0f, 16.0f))
+				.CornerRadius(FVector4(3.0f, 3.0f, 3.0f, 3.0f))
 			]
-			+ SGridPanel::Slot(1, 0)
-			.Padding(3, 0, 0, 0)
+			+ SWrapBox::Slot()
+			.Padding(0, 0, 4, 0)
 			[
 				ConstructComponentWidget(0, NSLOCTEXT("ColorParameterEditor", "RLabel", "R"))
 			]
-			+ SGridPanel::Slot(2, 0)
-			.Padding(3, 0, 0, 0)
+			+ SWrapBox::Slot()
+			.Padding(0, 0, 4, 0)
 			[
 				ConstructComponentWidget(1, NSLOCTEXT("ColorParameterEditor", "GLabel", "G"))
 			]
-			+ SGridPanel::Slot(3, 0)
-			.Padding(3, 0, 0, 0)
+			+ SWrapBox::Slot()
+			.Padding(0, 0, 4, 0)
 			[
 				ConstructComponentWidget(2, NSLOCTEXT("ColorParameterEditor", "BLabel", "B"))
 			]
-			+ SGridPanel::Slot(1, 1)
-			.Padding(3, 2, 0, 0)
+			+ SWrapBox::Slot()
 			[
 				ConstructComponentWidget(3, NSLOCTEXT("ColorParameterEditor", "ALabel", "A"))
 			]
@@ -79,7 +77,7 @@ private:
 	TSharedRef<SWidget> ConstructComponentWidget(int32 Index, FText ComponentLabel)
 	{
 		return SNew(SNumericEntryBox<float>)
-		.Font(FNiagaraEditorStyle::Get().GetFontStyle("NiagaraEditor.ParameterFont"))
+		.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
 		.OverrideTextMargin(2)
 		.MinValue(TOptional<float>())
 		.MaxValue(TOptional<float>())
@@ -93,6 +91,7 @@ private:
 		.OnEndSliderMovement(this, &SNiagaraColorParameterEditor::EndSliderMovement)
 		.AllowSpin(true)
 		.LabelVAlign(EVerticalAlignment::VAlign_Center)
+		.MinDesiredValueWidth(30)
 		.Label()
 		[
 			SNew(STextBlock)
