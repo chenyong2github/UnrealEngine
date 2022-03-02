@@ -11,6 +11,9 @@
 #include "Engine/StaticMesh.h"
 #include "Misc/ScopedSlowTask.h"
 
+#include "Engine/StaticMesh.h"
+#include "Components/StaticMeshComponent.h"
+
 #define LOCTEXT_NAMESPACE "FractureMesh"
 
 

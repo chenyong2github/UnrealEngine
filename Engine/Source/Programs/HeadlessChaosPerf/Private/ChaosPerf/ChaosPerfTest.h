@@ -2,6 +2,7 @@
 #pragma once
 
 #include "ChaosPerf/ChaosPerf.h"
+#include "Misc/Paths.h"
 
 namespace ChaosPerf
 {

@@ -32,6 +32,7 @@ class FTexture2DResource;
 class FTexture3DResource;
 class FTexture2DArrayResource;
 class FVirtualTexture2DResource;
+struct IPooledRenderTarget;
 
 /** Maximum number of slices in texture source art. */
 #define MAX_TEXTURE_SOURCE_SLICES 6

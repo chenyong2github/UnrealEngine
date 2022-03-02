@@ -24,6 +24,7 @@ class UGeometryCollection;
 class FFractureEditorModeToolkit;
 class UFractureActionTool;
 class UFractureModalTool;
+enum class EMapChangeType : uint8;
 
 namespace GeometryCollection
 {
