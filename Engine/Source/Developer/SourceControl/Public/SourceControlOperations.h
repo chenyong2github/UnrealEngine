@@ -346,6 +346,7 @@ public:
 		, bUpdateModifiedState(false)
 		, bCheckingAllFiles(false)
 		, bForceQuiet(false)
+		, bForceUpdate(false)
 	{
 	}
 
@@ -385,6 +386,11 @@ public:
 		bForceQuiet = bInQuiet;
 	}
 
+	void SetForceUpdate(const bool bInForceUpdate)
+	{
+		bForceUpdate = bInForceUpdate;
+	}
+
 	bool ShouldUpdateHistory() const
 	{
 		return bUpdateHistory;
@@ -410,6 +416,11 @@ public:
 		return bForceQuiet;
 	}
 
+	bool ShouldForceUpdate() const
+	{
+		return bForceUpdate;
+	}
+
 protected:
 	/** Whether to update history */
 	bool bUpdateHistory;
@@ -425,6 +436,9 @@ protected:
 
 	/** Controls whether the operation will trigger an update or not */
 	bool bForceQuiet;
+
+	/** Forces the verification for provided files - providers can ignore files not opened/edited without it */
+	bool bForceUpdate;
 };
 
 /**

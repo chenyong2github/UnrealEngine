@@ -118,6 +118,7 @@ bool FUncontrolledChangelistState::AddFiles(const TArray<FString>& InFilenames, 
 		auto UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
 		UpdateStatusOperation->SetUpdateModifiedState(true);
 		UpdateStatusOperation->SetQuiet(true);
+		UpdateStatusOperation->SetForceUpdate(true);
 		SourceControlProvider.Execute(UpdateStatusOperation, InFilenames);
 	}
 

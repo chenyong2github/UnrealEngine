@@ -1752,7 +1752,13 @@ bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InComma
 			TArray<FString> Parameters;
 			FP4RecordSet Records;
 			// Query for open files different than the versions stored in Perforce
-			Parameters.Add(TEXT("-fsa"));
+
+			if (Operation->ShouldForceUpdate())
+			{
+				Parameters.Add(TEXT("-f"));
+			}
+
+			Parameters.Add(TEXT("-sa"));
 			for (FString File : InCommand.Files)
 			{
 				if (IFileManager::Get().DirectoryExists(*File))
