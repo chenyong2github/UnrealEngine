@@ -83,6 +83,9 @@ public:
 	/** Cleans up the graph cache on an element basis */
 	void CleanFromCache(const IPCGElement* InElement);
 
+	/** Flushes the graph cache completely, use only for debugging */
+	void FlushCache();
+
 private:
 	FPCGTaskId DelayProcessGraph(UPCGComponent* Component, bool bGenerate, bool bSave, bool bUseEmptyNewBounds);
 	FPCGTaskId ProcessGraph(UPCGComponent* Component, const FBox& InPreviousBounds, const FBox& InNewBounds, bool bGenerate, bool bSave);

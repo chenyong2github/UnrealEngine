@@ -7,6 +7,7 @@
 #include "Grid/PCGPartitionActor.h"
 
 #include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -16,6 +17,22 @@
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 #include "ObjectTools.h"
+#endif
+
+#if WITH_EDITOR
+namespace PCGSubsystemConsole
+{
+	static FAutoConsoleCommand CommandFlushCache(
+		TEXT("pcg.FlushCache"),
+		TEXT("Clears the PCG results cache."),
+		FConsoleCommandDelegate::CreateLambda([]()
+			{
+				if (UWorld* World = GEditor->GetEditorWorldContext().World())
+				{
+					World->GetSubsystem<UPCGSubsystem>()->FlushCache();
+				}
+			}));
+}
 #endif
 
 void UPCGSubsystem::Deinitialize()
@@ -493,6 +510,14 @@ void UPCGSubsystem::CleanFromCache(const IPCGElement* InElement)
 	if (GraphExecutor)
 	{
 		GraphExecutor->GetCache().CleanFromCache(InElement);
+	}
+}
+
+void UPCGSubsystem::FlushCache()
+{
+	if (GraphExecutor)
+	{
+		GraphExecutor->GetCache().ClearCache();
 	}
 }
 
