@@ -432,13 +432,13 @@ private:
 	 */
 	void UpdateBoundsTransforms_Concurrent();
 	void UpdateBoundsTransforms();
-	void EnsureInstanceDataUpdated();
+	void EnsureInstanceDataUpdated(bool bForceUpdate = false);
 
 	TArray<FVector4f> PerInstanceBounds;
 	TArray<FRenderTransform> PerInstanceTransforms;
 	FGraphEventRef UpdateBoundsTask;
 	const FBox InstanceLocalBounds;
-	const bool bTrackBounds;
+	bool bTrackBounds;
 	bool bBoundsTransformsDirty;
 };
 
