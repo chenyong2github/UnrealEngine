@@ -28,13 +28,13 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FPermissionListUpdated, TSoftObjectPtr<UStr
  */
 enum class EPropertyEditorPermissionListRules : uint8
 {
-	// If a PermissionList is manually defined for this struct, PermissionList those properties. Otherwise, use the parent Struct's rule.
-	UseExistingPermissionList,
 	// If no PermissionList is manually defined for this Struct, AllowList all properties from this Struct and its subclasses
 	AllowListAllProperties,
 	// If a PermissionList is manually defined for this Struct, AllowList all properties from this Struct's subclasses.
 	// If this functionality is needed without any properties to AllowList, a fake property must be added to AllowList instead.
-	AllowListAllSubclassProperties
+	AllowListAllSubclassProperties,
+	// If a PermissionList is manually defined for this struct, PermissionList those properties. Otherwise, use the parent Struct's rule.
+	UseExistingPermissionList
 };
 
 struct FPropertyEditorPermissionListEntry
