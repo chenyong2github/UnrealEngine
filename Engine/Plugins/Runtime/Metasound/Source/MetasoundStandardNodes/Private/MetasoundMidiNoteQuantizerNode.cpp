@@ -133,12 +133,12 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(ParamNoteIn), METASOUND_GET_PARAM_TT(ParamNoteIn), 60.0f),
-				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(ParamRootNote), METASOUND_GET_PARAM_TT(ParamRootNote), 0.0f),
-				TInputDataVertexModel<ScaleDegreeArrayType>(METASOUND_GET_PARAM_NAME(ParamScaleDegrees), METASOUND_GET_PARAM_TT(ParamScaleDegrees))
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamNoteIn), 60.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamRootNote), 0.0f),
+				TInputDataVertexModel<ScaleDegreeArrayType>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamScaleDegrees))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(ParamNoteOutput), METASOUND_GET_PARAM_TT(ParamNoteOutput))
+				TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamNoteOutput))
 				)
 			);
 

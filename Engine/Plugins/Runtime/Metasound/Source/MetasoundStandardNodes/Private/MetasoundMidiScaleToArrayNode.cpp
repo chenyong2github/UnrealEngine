@@ -127,11 +127,11 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FEnumEMusicalScale>(METASOUND_GET_PARAM_NAME(ParamScaleDegreesPreset), METASOUND_GET_PARAM_TT(ParamScaleDegreesPreset)),
-				TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME(ParamChordTonesOnly), METASOUND_GET_PARAM_TT(ParamChordTonesOnly))
+				TInputDataVertexModel<FEnumEMusicalScale>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamScaleDegreesPreset)),
+				TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamChordTonesOnly))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<ScaleDegreeArrayType>(METASOUND_GET_PARAM_NAME(ParamNoteArrayOutput), METASOUND_GET_PARAM_TT(ParamNoteArrayOutput))
+				TOutputDataVertexModel<ScaleDegreeArrayType>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamNoteArrayOutput))
 				)
 			);
 

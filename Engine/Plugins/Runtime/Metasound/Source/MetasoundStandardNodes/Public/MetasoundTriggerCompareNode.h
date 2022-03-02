@@ -71,14 +71,14 @@ namespace Metasound
 
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputCompare)),
-					TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_TT(InputParamA)),
-					TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_TT(InputParamB)),
-					TInputDataVertexModel<FEnumTriggerComparisonType>(METASOUND_GET_PARAM_NAME_AND_TT(InputCompareType))
+					TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputCompare)),
+					TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputParamA)),
+					TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputParamB)),
+					TInputDataVertexModel<FEnumTriggerComparisonType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputCompareType))
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnTrue)),
-					TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnFalse))
+					TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputOnTrue)),
+					TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputOnFalse))
 				)
 			);
 

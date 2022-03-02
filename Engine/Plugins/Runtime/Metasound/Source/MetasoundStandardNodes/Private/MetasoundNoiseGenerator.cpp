@@ -8,6 +8,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundOperatorSettings.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
@@ -32,6 +33,13 @@ namespace Metasound
 		DEFINE_METASOUND_ENUM_ENTRY(ENoiseType::Pink, "PinkDescription", "Pink Noise", "PinkDescriptionTT", "Pink noise or ​1⁄f noise, spectral density is inversely proportional to the frequency of the signal"),
 		DEFINE_METASOUND_ENUM_ENTRY(ENoiseType::White, "WhiteDescription", "White Noise", "WhiteDescriptionTT", "A random signal having equal intensity at different frequencies"),
 	DEFINE_METASOUND_ENUM_END()
+
+	namespace NoiseGeneratorVertexNames
+	{
+		METASOUND_PARAM(OutAudio, "Audio", "Audio output.")
+		METASOUND_PARAM(InputType, "Type", "Type of Noise to Generate.")
+		METASOUND_PARAM(InputSeed, "Seed", "Seed for seeding the Random Number Generator, -1 (default) will use current time.")
+	}
 
 	class FNoiseOperator : public IOperator
 	{
@@ -86,10 +94,6 @@ namespace Metasound
 				*WritePtr++ = InGenerator.Generate();
 			}
 		}
-
-		static constexpr const TCHAR* OutPinName = TEXT("Audio");
-		static constexpr const TCHAR* TriggerTypePinName = TEXT("Type");
-		static constexpr const TCHAR* SeedPinName = TEXT("Seed");
 	};
 
 	constexpr int32 FNoiseOperator::DefaultSeed;
@@ -146,27 +150,33 @@ namespace Metasound
 
 	FDataReferenceCollection FNoiseOperator::GetInputs() const
 	{
+		using namespace NoiseGeneratorVertexNames;
+
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(SeedPinName, FInt32ReadRef(Seed));
+		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputSeed), FInt32ReadRef(Seed));
 		return InputDataReferences;
 	}
 
 	FDataReferenceCollection FNoiseOperator::GetOutputs() const
 	{
+		using namespace NoiseGeneratorVertexNames;
+
 		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(OutPinName, FAudioBufferReadRef(Out));
+		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutAudio), FAudioBufferReadRef(Out));
 		return OutputDataReferences;
 	}
 
 	FVertexInterface FNoiseOperator::DeclareVertexInterface()
 	{
+		using namespace NoiseGeneratorVertexNames; 
+
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<int32>(SeedPinName, METASOUND_LOCTEXT("SeedPinDescription", "Seed for seeding the Random Number Generator, -1 (default) will use current time"), FNoiseOperator::DefaultSeed),
-				TInputDataVertexModel<FEnumNoiseType>(TriggerTypePinName, METASOUND_LOCTEXT("NoiseTypeDescription", "Type of Noise to Generate"))
+				TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputSeed), FNoiseOperator::DefaultSeed),
+				TInputDataVertexModel<FEnumNoiseType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputType))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(OutPinName, METASOUND_LOCTEXT("AudioOutDescription", "Audio output"))
+				TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutAudio))
 			)
 		);
 		return Interface;
@@ -203,16 +213,18 @@ namespace Metasound
 
 	TUniquePtr<IOperator> FNoiseOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 	{
+		using namespace NoiseGeneratorVertexNames; 
+
 		const FNoiseNode& Node = static_cast<const FNoiseNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
 		const FOperatorSettings& Settings = InParams.OperatorSettings;
 		const FInputVertexInterface& InputInterface = DeclareVertexInterface().GetInputInterface();
 
 		// Static property pin, only used for factory.
-		FEnumNoiseTypeReadRef Type = InputCol.GetDataReadReferenceOrConstruct<FEnumNoiseType>(TriggerTypePinName);
+		FEnumNoiseTypeReadRef Type = InputCol.GetDataReadReferenceOrConstruct<FEnumNoiseType>(METASOUND_GET_PARAM_NAME(InputType));
 
 		// Seed.
-		FInt32ReadRef Seed = InputCol.GetDataReadReferenceOrConstruct<int32>(TriggerTypePinName, Node.GetDefaultSeed());
+		FInt32ReadRef Seed = InputCol.GetDataReadReferenceOrConstruct<int32>(METASOUND_GET_PARAM_NAME(InputSeed), Node.GetDefaultSeed());
 
 		switch (*Type)
 		{

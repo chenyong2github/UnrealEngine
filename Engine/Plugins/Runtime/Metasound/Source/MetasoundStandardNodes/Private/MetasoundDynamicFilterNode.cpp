@@ -161,27 +161,27 @@ namespace Metasound
 
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(InputAudio)),
-					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(InputSidechain)),
-					TInputDataVertexModel<FEnumEDynamicFilterType>(METASOUND_GET_PARAM_NAME_AND_TT(InputFilterType)),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputFrequency), 1000.0f),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputQ), 1.0f),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputThreshold), -12.0f),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputRatio), 4.0f),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputKnee), 12.0f),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputRange), -60.0f),
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAudio)),
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputSidechain)),
+					TInputDataVertexModel<FEnumEDynamicFilterType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputFilterType)),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputFrequency), 1000.0f),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputQ), 1.0f),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputThreshold), -12.0f),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputRatio), 4.0f),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputKnee), 12.0f),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputRange), -60.0f),
 					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME(InputGain),
 					{ 
 						METASOUND_GET_PARAM_TT(InputGain),
 						METASOUND_LOCTEXT("InputGainName", "Gain (dB)")
 					}, 0.0f),
-					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_TT(InputAttackTime), 0.01f),
-					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_TT(InputReleaseTime), 0.1f),
-					TInputDataVertexModel<FEnumEnvelopePeakMode>(METASOUND_GET_PARAM_NAME_AND_TT(InputEnvelopeMode), 1.0f),
-					TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_TT(InputAnalogMode), true)
+					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAttackTime), 0.01f),
+					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputReleaseTime), 0.1f),
+					TInputDataVertexModel<FEnumEnvelopePeakMode>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputEnvelopeMode), 1.0f),
+					TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAnalogMode), true)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(OutputAudio))
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudio))
 				)
 			);
 

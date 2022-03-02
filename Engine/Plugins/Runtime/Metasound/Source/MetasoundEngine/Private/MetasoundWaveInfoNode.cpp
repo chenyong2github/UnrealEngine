@@ -104,10 +104,10 @@ namespace Metasound
 		using namespace WaveInfoNodeParameterNames;
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FWaveAsset>(METASOUND_GET_PARAM_NAME(ParamWaveAsset), METASOUND_GET_PARAM_TT(ParamWaveAsset))
+				TInputDataVertexModel<FWaveAsset>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamWaveAsset))
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME(ParamDurationSeconds), METASOUND_GET_PARAM_TT(ParamDurationSeconds))
+				TOutputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(ParamDurationSeconds))
 			)
 		);
 

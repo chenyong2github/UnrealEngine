@@ -145,22 +145,22 @@ namespace Metasound
 
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(InputAudio)),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputRatio), 1.5f),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputThreshold), -6.0f),
-					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_TT(InputAttackTime), 0.01f),
-					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_TT(InputReleaseTime), 0.1f),
-					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_TT(InputLookaheadTime), 0.01f),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputKnee), 10.0f),
-					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(InputSidechain)),
-					TInputDataVertexModel<FEnumEnvelopePeakMode>(METASOUND_GET_PARAM_NAME_AND_TT(InputEnvelopeMode)),
-					TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_TT(InputIsAnalog), true),
-					TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_TT(InputIsUpwards), false),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputWetDryMix), 1.0f)
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAudio)),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputRatio), 1.5f),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputThreshold), -6.0f),
+					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAttackTime), 0.01f),
+					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputReleaseTime), 0.1f),
+					TInputDataVertexModel<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputLookaheadTime), 0.01f),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputKnee), 10.0f),
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputSidechain)),
+					TInputDataVertexModel<FEnumEnvelopePeakMode>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputEnvelopeMode)),
+					TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputIsAnalog), true),
+					TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputIsUpwards), false),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputWetDryMix), 1.0f)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(OutputAudio)),
-					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(OutputEnvelope))
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudio)),
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputEnvelope))
 				)
 			);
 

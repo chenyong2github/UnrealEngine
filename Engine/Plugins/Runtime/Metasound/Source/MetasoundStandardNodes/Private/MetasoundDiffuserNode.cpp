@@ -63,12 +63,12 @@ namespace Metasound
 
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(InputAudio)),
-					TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_TT(InputDiffusionDepth), 4),
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputFeedbackGain), 0.707f)
+					TInputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAudio)),
+					TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputDiffusionDepth), 4),
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputFeedbackGain), 0.707f)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(OutputAudio))
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudio))
 				)
 			);
 

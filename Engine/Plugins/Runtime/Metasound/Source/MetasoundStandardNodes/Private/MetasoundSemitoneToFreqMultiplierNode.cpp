@@ -93,10 +93,10 @@ namespace Metasound
 
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputSemitone), 0.0f)
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputSemitone), 0.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(OutputFrequencyMultiplier))
+				TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputFrequencyMultiplier))
 			)
 		);
 

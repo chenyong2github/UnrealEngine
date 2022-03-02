@@ -171,9 +171,9 @@ namespace Metasound
 		auto CreateVertexInterface = []() -> FVertexInterface
 		{
 			FInputVertexInterface InputInterface;
-			InputInterface.Add(TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputTrigger)));
-			InputInterface.Add(TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputReset)));
-			InputInterface.Add(TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_TT(InputLoop), true));
+			InputInterface.Add(TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTrigger)));
+			InputInterface.Add(TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputReset)));
+			InputInterface.Add(TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputLoop), true));
 			
 			FOutputVertexInterface OutputInterface;
 			for (uint32 i = 0; i < NumOutputs; ++i)

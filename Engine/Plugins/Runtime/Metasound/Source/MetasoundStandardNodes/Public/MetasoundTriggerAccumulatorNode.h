@@ -44,10 +44,10 @@ namespace Metasound
 					InputInterface.Add(TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_WITH_INDEX_AND_TT(InputTrigger, i)));
 				}
 
-				InputInterface.Add(TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_TT(InputAutoReset)));
+				InputInterface.Add(TInputDataVertexModel<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAutoReset)));
 
 				FOutputVertexInterface OutputInterface;
-				OutputInterface.Add(TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(AccumulateOutputOnTrigger)));
+				OutputInterface.Add(TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(AccumulateOutputOnTrigger)));
 
 				return FVertexInterface(InputInterface, OutputInterface);
 			};

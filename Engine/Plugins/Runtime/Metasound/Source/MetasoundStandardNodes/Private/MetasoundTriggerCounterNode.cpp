@@ -191,17 +191,17 @@ namespace Metasound
 
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputInTrigger)),
-				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(InputReset)),
-				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputStartValue), 0.0f),
-				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(InputStepSize), 1.0f),
-				TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_TT(InputAutoResetCount), 0)
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputInTrigger)),
+				TInputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputReset)),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputStartValue), 0.0f),
+				TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputStepSize), 1.0f),
+				TInputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAutoResetCount), 0)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnTrigger)),
-				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_TT(OutputOnReset)),
-				TOutputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_TT(OutputCount)),
-				TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(OutputValue))
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputOnTrigger)),
+				TOutputDataVertexModel<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputOnReset)),
+				TOutputDataVertexModel<int32>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputCount)),
+				TOutputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValue))
 			)
 		);
 

@@ -64,15 +64,15 @@ namespace Metasound
 
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
-					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_TT(BaseFrequency), 440.0f),
-					TInputDataVertexModel<FInputFloatArrayType>(METASOUND_GET_PARAM_NAME_AND_TT(HarmonicMultipliers)),
-					TInputDataVertexModel<FInputFloatArrayType>(METASOUND_GET_PARAM_NAME_AND_TT(Amplitudes)),
-					TInputDataVertexModel<FInputFloatArrayType>(METASOUND_GET_PARAM_NAME_AND_TT(Phases)),
-					TInputDataVertexModel<FInputFloatArrayType>(METASOUND_GET_PARAM_NAME_AND_TT(PanAmounts))
+					TInputDataVertexModel<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(BaseFrequency), 440.0f),
+					TInputDataVertexModel<FInputFloatArrayType>(METASOUND_GET_PARAM_NAME_AND_METADATA(HarmonicMultipliers)),
+					TInputDataVertexModel<FInputFloatArrayType>(METASOUND_GET_PARAM_NAME_AND_METADATA(Amplitudes)),
+					TInputDataVertexModel<FInputFloatArrayType>(METASOUND_GET_PARAM_NAME_AND_METADATA(Phases)),
+					TInputDataVertexModel<FInputFloatArrayType>(METASOUND_GET_PARAM_NAME_AND_METADATA(PanAmounts))
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(LeftAudioOut)),
-					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_TT(RightAudioOut))
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(LeftAudioOut)),
+					TOutputDataVertexModel<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(RightAudioOut))
 				)
 			);
 

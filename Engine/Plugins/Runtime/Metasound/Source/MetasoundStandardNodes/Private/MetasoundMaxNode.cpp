@@ -139,11 +139,11 @@ namespace Metasound
 
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_TT(InputAValue)),
-					TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_TT(InputBValue))
+					TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAValue)),
+					TInputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputBValue))
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_TT(OutputValue))
+					TOutputDataVertexModel<ValueType>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputValue))
 				)
 			);
 
