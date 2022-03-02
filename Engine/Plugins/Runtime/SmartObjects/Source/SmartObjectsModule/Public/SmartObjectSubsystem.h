@@ -27,23 +27,6 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestFilter
 {
 	GENERATED_BODY()
 
-	FSmartObjectRequestFilter(const FGameplayTagContainer& InUserTags, const FGameplayTagQuery& InRequirements)
-		: UserTags(InUserTags)
-		, ActivityRequirements(InRequirements)
-	{}
-
-	explicit FSmartObjectRequestFilter(const FGameplayTagContainer& InUserTags)
-		: UserTags(InUserTags)
-	{}
-
-	explicit FSmartObjectRequestFilter(const FGameplayTagQuery& InRequirements)
-		: ActivityRequirements(InRequirements)
-	{}
-
-	explicit FSmartObjectRequestFilter(const TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass)
-		: BehaviorDefinitionClass(DefinitionClass)
-	{}
-
 	FSmartObjectRequestFilter() = default;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
@@ -126,22 +109,12 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestResult
  * Result code indicating if the Collection was successfully registered or why it was not.
  */
 UENUM()
-enum class ESmartObjectCollectionRegistrationResult
+enum class ESmartObjectCollectionRegistrationResult : uint8
 {
 	Failed_InvalidCollection,
 	Failed_AlreadyRegistered,
 	Failed_NotFromPersistentLevel,
-	Succeeded,
-};
-
-/**
- * Indicates how extensive a search for slots should be within a single SmartObject.
- */
-UENUM()
-enum class ESmartObjectSlotSearchMode
-{
-	FirstMatch,
-	AllMatches
+	Succeeded
 };
 
 /**
@@ -190,22 +163,12 @@ public:
 	bool FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults) const;
 
 	/**
-	 * Goes through all defined slots of a given smart object and finds the first one matching the filter.
-	 * @return Identifier of a valid slot to use. Call IsValid on it to check if the search was successful.
-	 */
-	UE_NODISCARD FSmartObjectRequestResult FindSlot(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter) const;
-
-	/**
 	 * Returns slots of a given smart object matching the filter.
 	 * @param Handle Handle to the SmartObject
 	 * @param Filter Filter to apply on object and slots
 	 * @param OutSlots Available slots found that match the filter
-	 * @param SearchMode Indicates if the result must include all matching slots or only the first one matching
 	 */
-	void FindSlots(const FSmartObjectHandle Handle,
-				   const FSmartObjectRequestFilter& Filter,
-				   TArray<FSmartObjectSlotHandle>& OutSlots,
-				   ESmartObjectSlotSearchMode SearchMode = ESmartObjectSlotSearchMode::AllMatches) const;
+	void FindSlots(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutSlots) const;
 
 	/**
 	 *	Claim smart object from a valid request result.
@@ -355,20 +318,22 @@ public:
 	TOptional<FTransform> GetSlotTransform(FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
-	 * Returns the Activity GameplayTagContainer of the smartobject associated to the given request result.
+	 * Returns the Activity GameplayTagContainer of the smartobject definition associated to the given request result.
 	 * @param Result A valid request result (Result.IsValid() returns true) returned by any of the Find methods.
-	 * @return FGameplayTagContainer of the slot associated to Result.
+	 * @return FGameplayTagContainer of the SmartObject definition associated to Result.
 	 * @note Method will ensure on invalid FSmartObjectRequestResult.
+	 * @note Can also be retrieve using FSlotView.GetSmartObjectDefinition().GetActivityTags()
 	 */
 	const FGameplayTagContainer& GetActivityTags(const FSmartObjectRequestResult& Result) const;
 
 	/**
-	 * Returns the Activity GameplayTagContainer of the smartobject represented by the provided handle.
+	 * Returns the Activity GameplayTagContainer of the smartobject definition represented by the provided handle.
 	 * @param Handle Handle to the SmartObject.
-	 * @return FGameplayTagContainer of the SmartObject associated to Handle.
+	 * @return FGameplayTagContainer of the SmartObject definition associated to Handle.
 	 * @note Method will ensure on invalid FSmartObjectHandle.
+	 * @note Can also be retrieve using FSlotView.GetSmartObjectDefinition().GetActivityTags()
 	 */
-	const FGameplayTagContainer& GetActivityTags(const FSmartObjectHandle& Handle) const;
+	const FGameplayTagContainer& GetActivityTags(const FSmartObjectHandle Handle) const;
 
 	/**
 	 *	Register a callback to be notified if the claimed slot is no longer available and user need to perform cleanup.
@@ -413,13 +378,11 @@ protected:
 	/** Removes all runtime data */
 	void CleanupRuntime();
 
-	/**
-	 * Goes through all defined slots of smart object represented by SmartObjectRuntime
-	 * and finds the first one matching the filter.
-	 * @return Handle to a valid slot to use. Call IsValid on it to check if the search was successful.
-	 */
-	FSmartObjectSlotHandle FindSlot(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter) const;
-	void FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults, ESmartObjectSlotSearchMode SearchMode) const;
+	/** Goes through all defined slots of smart object represented by SmartObjectRuntime and finds the ones matching the filter. */
+	void FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults) const;
+
+	/** Applies filter on provided definition and fills OutValidIndices with indices of all valid slots. */
+	static void FindMatchingSlotDefinitionIndices(const USmartObjectDefinition& Definition, const FSmartObjectRequestFilter& Filter, TArray<int32>& OutValidIndices);
 
 	FSmartObjectClaimHandle Claim(FSmartObjectHandle Handle, FSmartObjectSlotHandle SlotHandle);
 

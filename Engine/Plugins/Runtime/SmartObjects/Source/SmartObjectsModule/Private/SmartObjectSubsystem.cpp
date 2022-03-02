@@ -11,7 +11,6 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
 #if UE_ENABLE_DEBUG_DRAWING
-#include "DebugRenderSceneProxy.h"
 #include "SmartObjectSubsystemRenderingActor.h"
 #endif
 
@@ -130,7 +129,7 @@ void USmartObjectSubsystem::AddToSimulation(const FSmartObjectHandle Handle, con
 	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding SmartObject '%s' to runtime simulation."), *LexToString(Handle));
 
 	FSmartObjectRuntime& Runtime = RuntimeSmartObjects.Emplace(Handle, FSmartObjectRuntime(Definition));
-	Runtime.SetRegisteredID(Handle);
+	Runtime.SetRegisteredHandle(Handle);
 
 #if UE_ENABLE_DEBUG_DRAWING
 	Runtime.Bounds = Bounds;
@@ -239,6 +238,30 @@ void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectCollectionEnt
 void USmartObjectSubsystem::RemoveFromSimulation(const USmartObjectComponent& SmartObjectComponent)
 {
 	RemoveFromSimulation(SmartObjectComponent.GetRegisteredHandle());
+}
+
+void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime)
+{
+	for (const FSmartObjectSlotHandle& SlotHandle : SmartObjectRuntime.SlotHandles)
+	{
+		FSmartObjectSlotClaimState& SlotState = RuntimeSlotStates.FindChecked(SlotHandle);
+		switch (SlotState.State)
+		{
+		case ESmartObjectSlotState::Claimed:
+		case ESmartObjectSlotState::Occupied:
+			{
+				FSmartObjectClaimHandle ClaimHandle(SmartObjectRuntime.GetRegisteredHandle(), SlotHandle, SlotState.User);
+				SlotState.Release(ClaimHandle, /* bAborted */ true);
+				break;
+			}
+		case ESmartObjectSlotState::Free: // falling through on purpose
+			default:
+				UE_CVLOG_UELOG(SlotState.User.IsValid(), this, LogSmartObject, Warning,
+					TEXT("Smart object %s used by %s while the slot it's assigned to is not marked Claimed nor Occupied"),
+					*LexToString(SmartObjectRuntime.GetDefinition()), *LexToString(SlotState.User));
+			break;
+		}
+	}
 }
 
 bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObjectComponent)
@@ -401,13 +424,14 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectHandle Ha
 		return FSmartObjectClaimHandle::InvalidHandle;
 	}
 
-	const FSmartObjectSlotHandle FoundHandle = FindSlot(*SORuntime, Filter);
-	if (!FoundHandle.IsValid())
+	TArray<FSmartObjectSlotHandle> SlotHandles;
+	FindSlots(*SORuntime, Filter, SlotHandles);
+	if (SlotHandles.IsEmpty())
 	{
 		return FSmartObjectClaimHandle::InvalidHandle;
 	}
 
-	return Claim(Handle, FoundHandle);
+	return Claim(Handle, SlotHandles.Top());
 }
 
 FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectRequestResult& RequestResult)
@@ -626,7 +650,7 @@ const FGameplayTagContainer& USmartObjectSubsystem::GetActivityTags(const FSmart
 	return FGameplayTagContainer::EmptyContainer;
 }
 
-const FGameplayTagContainer& USmartObjectSubsystem::GetActivityTags(const FSmartObjectHandle& Handle) const
+const FGameplayTagContainer& USmartObjectSubsystem::GetActivityTags(const FSmartObjectHandle Handle) const
 {
 	if (!ensureMsgf(Handle.IsValid(), TEXT("Must provide a valid smart object handle.")))
 	{
@@ -722,107 +746,117 @@ FSmartObjectSlotView USmartObjectSubsystem::GetSlotView(const FSmartObjectSlotHa
 	return FSmartObjectSlotView();
 }
 
-FSmartObjectSlotHandle USmartObjectSubsystem::FindSlot(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter) const
+void USmartObjectSubsystem::FindSlots(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutSlots) const
 {
-	TArray<FSmartObjectSlotHandle> Handles;
-	FindSlots(SmartObjectRuntime, Filter, Handles, ESmartObjectSlotSearchMode::FirstMatch);
+	UE_CVLOG_UELOG(!Handle.IsValid(), this, LogSmartObject, Error, TEXT("Trying to find slots using an invalid smart object handle."));
+	const FSmartObjectRuntime* SmartObjectRuntime = Handle.IsValid() ? RuntimeSmartObjects.Find(Handle) : nullptr;
+	// Runtime data may no longer be available (i.e. removed from simulation)
+	if (SmartObjectRuntime == nullptr)
+	{
+		return;
+	}
 
-	return Handles.IsEmpty() ? FSmartObjectSlotHandle() : Handles.Top();
+	FindSlots(*SmartObjectRuntime, Filter, OutSlots);
 }
 
-void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults, const ESmartObjectSlotSearchMode SearchMode) const
+void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("SmartObject_FilterSlots");
 
 	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
-	const int32 NumSlotDefinitions = Definition.GetSlots().Num();
-	if (!ensureMsgf(NumSlotDefinitions > 0, TEXT("Definition should contain slot definitions at this point")))
+	const int32 NumSlots = Definition.GetSlots().Num();
+	checkf(NumSlots > 0, TEXT("Definition should contain slot definitions at this point"));
+	checkf(SmartObjectRuntime.SlotHandles.Num() == NumSlots, TEXT("Number of runtime slot handles should match number of slot definitions"));
+
+	// Applying caller's predicate
+	if (Filter.Predicate && !Filter.Predicate(SmartObjectRuntime.GetRegisteredHandle()))
 	{
 		return;
 	}
 
-	// Validate if any available slots
-	bool bAnyFreeSlot = false;
-
-	TBitArray<> FreeSlots;
-	FreeSlots.Init(false, SmartObjectRuntime.SlotHandles.Num());
-	int32 SlotIndex = 0;
-	for (const FSmartObjectSlotHandle& SlotHandle : SmartObjectRuntime.SlotHandles)
-	{
-		if (RuntimeSlotStates.FindChecked(SlotHandle).State == ESmartObjectSlotState::Free)
-		{
-			bAnyFreeSlot = true;
-			FreeSlots[SlotIndex] = true;
-		}
-		SlotIndex++;
-	}
-
-	if (bAnyFreeSlot == false)
+	// Apply predicate on runtime instance tags (affecting all slots and not affected by the filtering policy)
+	if (!Definition.GetObjectTagFilter().IsEmpty()
+		&& !Definition.GetObjectTagFilter().Matches(SmartObjectRuntime.GetTags()))
 	{
 		return;
 	}
 
-	const FGameplayTagContainer& ObjectTags = SmartObjectRuntime.GetTags();
+	// Apply definition level filtering (Tags and BehaviorDefinition)
+	// This could be improved to cache results between a single query against multiple instances of the same definition
+	TArray<int32> ValidSlotIndices;
+	FindMatchingSlotDefinitionIndices(Definition, Filter, ValidSlotIndices);
 
-	auto MatchesTagQueryFunc = [](const FGameplayTagQuery& Requirements, const FGameplayTagContainer& Tags)-> bool
+	// Build list of available slot indices (filter out occupied or reserved slots)
+	for (const int32 SlotIndex : ValidSlotIndices)
 	{
-		return Requirements.IsEmpty() || Requirements.Matches(Tags);
-	};
-
-	if (MatchesTagQueryFunc(Filter.ActivityRequirements, Definition.GetActivityTags())
-		&& MatchesTagQueryFunc(Definition.GetObjectTagFilter(), ObjectTags)
-		&& MatchesTagQueryFunc(Definition.GetUserTagFilter(), Filter.UserTags))
-	{
-		const TConstArrayView<FSmartObjectSlotDefinition> Slots = Definition.GetSlots();
-		for (int i = 0; i < Slots.Num(); ++i)
+		if (RuntimeSlotStates.FindChecked(SmartObjectRuntime.SlotHandles[SlotIndex]).State == ESmartObjectSlotState::Free)
 		{
-			const FSmartObjectSlotDefinition& Slot = Slots[i];
-			if (FreeSlots[i] == false)
-			{
-				continue;
-			}
-
-			if (Filter.BehaviorDefinitionClass != nullptr &&
-				Definition.GetBehaviorDefinition(FSmartObjectSlotIndex(i), Filter.BehaviorDefinitionClass) == nullptr)
-			{
-				continue;
-			}
-
-			if (MatchesTagQueryFunc(Slot.UserTagFilter, Filter.UserTags) == false)
-			{
-				continue;
-			}
-
-			OutResults.Add(SmartObjectRuntime.SlotHandles[i]);
-			if (SearchMode == ESmartObjectSlotSearchMode::FirstMatch)
-			{
-				break;
+			OutResults.Add(SmartObjectRuntime.SlotHandles[SlotIndex]);
 		}
-	}
 	}
 }
 
-void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime)
+void USmartObjectSubsystem::FindMatchingSlotDefinitionIndices(const USmartObjectDefinition& Definition, const FSmartObjectRequestFilter& Filter, TArray<int32>& OutValidIndices)
 {
-	for (const FSmartObjectSlotHandle& SlotHandle : SmartObjectRuntime.SlotHandles)
+	const ESmartObjectTagFilteringPolicy TagFilteringPolicy = Definition.GetTagFilteringPolicy();
+
+	// Define our Tags filtering predicate
+	auto MatchesTagQueryFunc = [](const FGameplayTagQuery& Query, const FGameplayTagContainer& Tags){ return Query.IsEmpty() || Query.Matches(Tags); };
+
+	// When filter policy is to use combined we can validate the user tag query of the parent object first
+	// since they can't be merge so we need to apply them one after the other.
+	// For activity requirements we have to merge parent and slot tags together before testing.
+	if (TagFilteringPolicy == ESmartObjectTagFilteringPolicy::Combine
+		&& !MatchesTagQueryFunc(Definition.GetUserTagFilter(), Filter.UserTags))
 	{
-		FSmartObjectSlotClaimState& SlotState = RuntimeSlotStates.FindChecked(SlotHandle);
-		switch (SlotState.State)
+		return;
+	}
+
+	// Apply filter to individual slots
+	const TConstArrayView<FSmartObjectSlotDefinition> SlotDefinitions = Definition.GetSlots();
+	OutValidIndices.Reserve(SlotDefinitions.Num());
+	for (int i = 0; i < SlotDefinitions.Num(); ++i)
+	{
+		const FSmartObjectSlotDefinition& Slot = SlotDefinitions[i];
+
+		// Filter out mismatching behavior type (if specified)
+		if (Filter.BehaviorDefinitionClass != nullptr
+			&& Definition.GetBehaviorDefinition(FSmartObjectSlotIndex(i), Filter.BehaviorDefinitionClass) == nullptr)
 		{
-		case ESmartObjectSlotState::Claimed:
-		case ESmartObjectSlotState::Occupied:
-			{
-				FSmartObjectClaimHandle ClaimHandle(SmartObjectRuntime.GetRegisteredID(), SlotHandle, SlotState.User);
-				SlotState.Release(ClaimHandle, /* bAborted */ true);
-				break;
-			}
-		case ESmartObjectSlotState::Free: // falling through on purpose
-		default:
-			UE_CVLOG_UELOG(SlotState.User.IsValid(), this, LogSmartObject, Warning,
-				TEXT("Smart object %s used by %s while the slot it's assigned to is not marked Claimed nor Occupied"),
-				*LexToString(SmartObjectRuntime.GetDefinition()), *LexToString(SlotState.User));
-			break;
+			continue;
 		}
+
+		// Filter out slots based on their tags and tag query:
+		//  - override: we only test slot tags and query if they are present otherwise we use those of the parent object
+		//  - combine: we test slot query (parent filters were applied before processing individual slots) and merge parent and slot tags together
+		if (TagFilteringPolicy == ESmartObjectTagFilteringPolicy::Combine)
+		{
+			FGameplayTagContainer CombinedActivityTags = Slot.ActivityTags;
+			CombinedActivityTags.AppendTags(Definition.GetActivityTags());
+			if (!MatchesTagQueryFunc(Filter.ActivityRequirements, CombinedActivityTags))
+			{
+				continue;
+			}
+
+			if (!MatchesTagQueryFunc(Slot.UserTagFilter, Filter.UserTags))
+			{
+				continue;
+			}
+		}
+		else if (TagFilteringPolicy == ESmartObjectTagFilteringPolicy::Override)
+		{
+			if (!MatchesTagQueryFunc(Filter.ActivityRequirements, (Slot.ActivityTags.IsEmpty() ? Definition.GetActivityTags() : Slot.ActivityTags)))
+			{
+				continue;
+			}
+
+			if (!MatchesTagQueryFunc((Slot.UserTagFilter.IsEmpty() ? Definition.GetUserTagFilter() : Slot.UserTagFilter), Filter.UserTags))
+			{
+				continue;
+			}
+		}
+
+		OutValidIndices.Add(i);
 	}
 }
 
@@ -868,40 +902,6 @@ bool USmartObjectSubsystem::FindSmartObjects(const FSmartObjectRequest& Request,
 	}
 
 	return (OutResults.Num() > 0);
-}
-
-FSmartObjectRequestResult USmartObjectSubsystem::FindSlot(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter) const
-{
-	TArray<FSmartObjectSlotHandle> SlotHandles;
-	FindSlots(Handle, Filter, SlotHandles, ESmartObjectSlotSearchMode::FirstMatch);
-	return SlotHandles.IsEmpty() ? FSmartObjectRequestResult() : FSmartObjectRequestResult(Handle, SlotHandles.Top());
-}
-
-void USmartObjectSubsystem::FindSlots(const FSmartObjectHandle Handle,
-									  const FSmartObjectRequestFilter& Filter,
-									  TArray<FSmartObjectSlotHandle>& OutSlots,
-									  const ESmartObjectSlotSearchMode SearchMode) const
-	{
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("SmartObject_FindSlots");
-	if (!Handle.IsValid())
-	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Requesting a valid use for an invalid smart object."));
-		return;
-	}
-
-	if (Filter.Predicate && !Filter.Predicate(Handle))
-	{
-		return;
-	}
-
-	const FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(Handle);
-	// Runtime data may no longer be available (removed from simulation)
-	if (SmartObjectRuntime == nullptr)
-	{
-		return;
-	}
-
-	FindSlots(*SmartObjectRuntime, Filter, OutSlots, SearchMode);
 }
 
 void USmartObjectSubsystem::RegisterCollectionInstances()

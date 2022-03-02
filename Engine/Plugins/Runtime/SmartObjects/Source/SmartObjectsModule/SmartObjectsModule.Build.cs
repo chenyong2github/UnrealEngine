@@ -15,6 +15,7 @@ namespace UnrealBuildTool.Rules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"DeveloperSettings",
 				"Engine",
 				"AIModule",
 				"GameplayBehaviorsModule",

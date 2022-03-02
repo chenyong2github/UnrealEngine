@@ -235,28 +235,37 @@ void UMassSmartObjectCandidatesFinderProcessor::Execute(UMassEntitySubsystem& En
 					}
 
 					// Make sure that we can use a slot in that object (availability with supported definitions, etc.)
-					FSmartObjectRequestResult FoundSlot = SmartObjectSubsystem->FindSlot(Handle, Filter);
-					if (!FoundSlot.IsValid())
+					TArray<FSmartObjectSlotHandle> SlotHandles;
+					SmartObjectSubsystem->FindSlots(Handle, Filter, SlotHandles);
+
+					if (SlotHandles.IsEmpty())
 					{
 						continue;
 					}
 
-					Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(FoundSlot, Cost);
+					for (FSmartObjectSlotHandle SlotHandle : SlotHandles)
+					{
+						Result.Candidates[Result.NumCandidates++] = FSmartObjectCandidate(FSmartObjectRequestResult(Handle, SlotHandle), Cost);
 
 #if WITH_MASSGAMEPLAY_DEBUG
-					if (bDisplayDebug)
-					{
-						FZoneGraphLaneLocation RequestLaneLocation, EntryPointLaneLocation;
-						ZoneGraphSubsystem->CalculateLocationAlongLane(RequestLaneHandle, RequestLocation.DistanceAlongLane, RequestLaneLocation);
-						ZoneGraphSubsystem->CalculateLocationAlongLane(RequestLaneHandle, EntryPoint.DistanceAlongLane, EntryPointLaneLocation);
+						if (bDisplayDebug)
+						{
+							FZoneGraphLaneLocation RequestLaneLocation, EntryPointLaneLocation;
+							ZoneGraphSubsystem->CalculateLocationAlongLane(RequestLaneHandle, RequestLocation.DistanceAlongLane, RequestLaneLocation);
+							ZoneGraphSubsystem->CalculateLocationAlongLane(RequestLaneHandle, EntryPoint.DistanceAlongLane, EntryPointLaneLocation);
 
-						constexpr float DebugRadius = 10.f;
-						FVector SlotLocation = SmartObjectSubsystem->GetSlotLocation(FoundSlot.SlotHandle).Get(EntryPointLaneLocation.Position);
-						UE_VLOG_LOCATION(SmartObjectSubsystem, LogSmartObject, Display, SlotLocation, DebugRadius, DebugColor, TEXT("%s"), *LexToString(FoundSlot));
-						UE_VLOG_SEGMENT(SmartObjectSubsystem, LogSmartObject, Display, SlotLocation, EntryPointLaneLocation.Position, DebugColor, TEXT(""));
-						UE_VLOG_SEGMENT(SmartObjectSubsystem, LogSmartObject, Display, RequestLaneLocation.Position, EntryPointLaneLocation.Position, DebugColor, TEXT(""));
-					}
+							constexpr float DebugRadius = 10.f;
+							FVector SlotLocation = SmartObjectSubsystem->GetSlotLocation(SlotHandle).Get(EntryPointLaneLocation.Position);
+							UE_VLOG_LOCATION(SmartObjectSubsystem, LogSmartObject, Display, SlotLocation, DebugRadius, DebugColor, TEXT("%s"), *LexToString(SlotHandle));
+							UE_VLOG_SEGMENT(SmartObjectSubsystem, LogSmartObject, Display, SlotLocation, EntryPointLaneLocation.Position, DebugColor, TEXT(""));
+							UE_VLOG_SEGMENT(SmartObjectSubsystem, LogSmartObject, Display, RequestLaneLocation.Position, EntryPointLaneLocation.Position, DebugColor, TEXT(""));
+						}
 #endif // WITH_MASSGAMEPLAY_DEBUG
+						if (Result.NumCandidates == FMassSmartObjectRequestResult::MaxNumCandidates)
+						{
+							break;
+						}
+					}
 
 					if (Result.NumCandidates == FMassSmartObjectRequestResult::MaxNumCandidates)
 					{

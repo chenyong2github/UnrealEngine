@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AITestsCommon.h"
+#include "GameplayTagsManager.h"
 #include "Engine/World.h"
 #include "MassExecutor.h"
 #include "MassEntitySubsystem.h"
@@ -15,12 +16,39 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 namespace FSmartObjectTest
 {
+	// Helper struct to define some test tags
+	struct FNativeGameplayTags : public FGameplayTagNativeAdder
+	{
+		FGameplayTag TestTag1;
+		FGameplayTag TestTag2;
+		FGameplayTag TestTag3;
+
+		virtual void AddTags() override
+		{
+			UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
+			TestTag1 = Manager.AddNativeGameplayTag(TEXT("Test.SmartObject.Tag1"));
+			TestTag2 = Manager.AddNativeGameplayTag(TEXT("Test.SmartObject.Tag2"));
+			TestTag3 = Manager.AddNativeGameplayTag(TEXT("Test.SmartObject.Tag3"));
+		}
+
+		FORCEINLINE static const FNativeGameplayTags& Get()
+		{
+			return StaticInstance;
+		}
+		static FNativeGameplayTags StaticInstance;
+	};
+	FNativeGameplayTags FNativeGameplayTags::StaticInstance;
 
 struct FSmartObjectTestBase : FAITestBase
 {
 	FSmartObjectRequestFilter TestFilter;
+	USmartObjectDefinition* Definition = nullptr;
 	USmartObjectSubsystem* Subsystem = nullptr;
 	TArray<USmartObjectComponent*> SOList;
+	int32 NumCreatedSlots = 0;
+
+	/** Callback that derived classes can override to tweak the SmartObjectDefinition before the runtime gets initialized */
+	virtual bool SetupDefinition() { return true; }
 
 	virtual bool SetUp() override
 	{
@@ -32,21 +60,36 @@ struct FSmartObjectTestBase : FAITestBase
 		}
 
 		// Setup main definition
-		USmartObjectDefinition* Definition = NewAutoDestroyObject<USmartObjectDefinition>();
+		Definition = NewAutoDestroyObject<USmartObjectDefinition>();
+
+		// Set activity tags
+		Definition->SetActivityTags(FGameplayTagContainer(FNativeGameplayTags::Get().TestTag1));
+
 		FSmartObjectSlotDefinition& FirstSlot = Definition->DebugAddSlot();
 		FSmartObjectSlotDefinition& SecondSlot = Definition->DebugAddSlot();
+		FSmartObjectSlotDefinition& ThirdSlot = Definition->DebugAddSlot();
 
 		// Add some test behavior definition
 		FirstSlot.BehaviorDefinitions.Add(NewAutoDestroyObject<USmartObjectTestBehaviorDefinition>());
 		SecondSlot.BehaviorDefinitions.Add(NewAutoDestroyObject<USmartObjectTestBehaviorDefinition>());
+		ThirdSlot.BehaviorDefinitions.Add(NewAutoDestroyObject<USmartObjectTestBehaviorDefinition>());
 
 		// Add some test slot definition data
 		FSmartObjectSlotTestDefinitionData DefinitionData;
 		DefinitionData.SomeSharedFloat = 123.456f;
 		FirstSlot.Data.Add(FInstancedStruct::Make(DefinitionData));
+		SecondSlot.Data.Add(FInstancedStruct::Make(DefinitionData));
+		ThirdSlot.Data.Add(FInstancedStruct::Make(DefinitionData));
 
 		// Setup filter
 		TestFilter.BehaviorDefinitionClass = USmartObjectTestBehaviorDefinition::StaticClass();
+
+		// Allow derived classes to tweak the definitions before we initialize the runtime
+		const bool DefinitionValid = SetupDefinition();
+		if (!DefinitionValid)
+		{
+			return false;
+		}
 
 		// Create some smart objects
 		SOList =
@@ -62,12 +105,13 @@ struct FSmartObjectTestBase : FAITestBase
 			{
 				SO->SetDefinition(Definition);
 				Subsystem->RegisterSmartObject(*SO);
+				NumCreatedSlots += Definition->GetSlots().Num();
 			}
 		}
 
 #if WITH_SMARTOBJECT_DEBUG
-		// Force registration to the runtime simulation
-		Subsystem->DebugRegisterAllSmartObjects();
+		// Force runtime initialization
+		Subsystem->DebugInitializeRuntime();
 #endif
 
 		if (UMassEntitySubsystem* System = UWorld::GetSubsystem<UMassEntitySubsystem>(World))
@@ -88,7 +132,7 @@ struct FSmartObjectTestBase : FAITestBase
 
 #if WITH_SMARTOBJECT_DEBUG
 		// Force removal from the runtime simulation
-		Subsystem->DebugUnregisterAllSmartObjects();
+		Subsystem->DebugCleanupRuntime();
 #endif
 
 		// Unregister all from the current test
@@ -110,10 +154,10 @@ struct FFindSmartObject : FSmartObjectTestBase
 	{
 		const FSmartObjectRequest Request(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 
-		// Find object
+		// Find candidate
 		const FSmartObjectRequestResult FindResult = Subsystem->FindSmartObject(Request);
-		AITEST_TRUE("Result is expected to be valid", FindResult.IsValid());
-		AITEST_TRUE("ID is expected to be valid", FindResult.SmartObjectHandle.IsValid());
+		AITEST_TRUE("Result.IsValid()", FindResult.IsValid());
+		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", FindResult.SmartObjectHandle.IsValid());
 		return true;
 	}
 };
@@ -125,10 +169,10 @@ struct FFindMultipleSmartObjects : FSmartObjectTestBase
 	{
 		const FSmartObjectRequest Request(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 
-		// Find objects
+		// Find all candidates
 		TArray<FSmartObjectRequestResult> Results;
 		Subsystem->FindSmartObjects(Request, Results);
-		AITEST_EQUAL("Results is expected to contain 4 elements", Results.Num(), 4);
+		AITEST_EQUAL("Results.Num()", Results.Num(), NumCreatedSlots);
 		return true;
 	}
 };
@@ -140,26 +184,32 @@ struct FClaimAndReleaseSmartObject : FSmartObjectTestBase
 	{
 		const FSmartObjectRequest Request(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 
-		// Find object
+		// Find candidate
 		const FSmartObjectRequestResult FirstFindResult = Subsystem->FindSmartObject(Request);
-		AITEST_TRUE("Result is expected to be valid", FirstFindResult.IsValid());
-		AITEST_TRUE("ID is expected to be valid", FirstFindResult.SmartObjectHandle.IsValid());
+		AITEST_TRUE("Result.IsValid()", FirstFindResult.IsValid());
+		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", FirstFindResult.SmartObjectHandle.IsValid());
 
-		// Claim object
+		// Gather all available candidates before claiming
+		TArray<FSmartObjectSlotHandle> ResultsBeforeClaim;
+		Subsystem->FindSlots(FirstFindResult.SmartObjectHandle, TestFilter, ResultsBeforeClaim);
+
+		// Claim candidate
 		const FSmartObjectClaimHandle ClaimHandle = Subsystem->Claim(FirstFindResult);
-		AITEST_TRUE("Claim Handle is expected to be valid", ClaimHandle.IsValid());
+		AITEST_TRUE("ClaimHandle.IsValid()", ClaimHandle.IsValid());
 
-		// Try to find valid use in claimed object
-		const FSmartObjectRequestResult FirstFindValidUseResult = Subsystem->FindSlot(FirstFindResult.SmartObjectHandle, TestFilter);
-		AITEST_FALSE("Result is expected to be invalid since ID was claimed", FirstFindValidUseResult.IsValid());
+		// Gather remaining available candidates
+		TArray<FSmartObjectSlotHandle> ResultsAfterClaim;
+		Subsystem->FindSlots(FirstFindResult.SmartObjectHandle, TestFilter, ResultsAfterClaim);
+		AITEST_NOT_EQUAL("Number of available slots before and after a claim", ResultsBeforeClaim.Num(), ResultsAfterClaim.Num());
 
-		// Release claimed object
+		// Release claimed candidate
 		const bool bSuccess = Subsystem->Release(ClaimHandle);
-		AITEST_TRUE("Handle is expected to be unclaimed successfully", bSuccess);
+		AITEST_TRUE("Release() return status", bSuccess);
 
-		// Try to find valid use in unclaimed object
-		const FSmartObjectRequestResult SecondFindValidUseResult = Subsystem->FindSlot(FirstFindResult.SmartObjectHandle, TestFilter);
-		AITEST_TRUE("Result is expected to be valid since ID was released", SecondFindValidUseResult.IsValid());
+		// Gather all available candidates after releasing
+		TArray<FSmartObjectSlotHandle> ResultsAfterRelease;
+		Subsystem->FindSlots(FirstFindResult.SmartObjectHandle, TestFilter, ResultsAfterRelease);
+		AITEST_EQUAL("Number of available slots before claiming and after releasing", ResultsBeforeClaim.Num(), ResultsAfterRelease.Num());
 
 		return true;
 	}
@@ -172,28 +222,21 @@ struct FFindAfterClaimSmartObject : FSmartObjectTestBase
 	{
 		const FSmartObjectRequest Request(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 
-		// Find first object
+		// Find first candidate
 		const FSmartObjectRequestResult FirstFindResult = Subsystem->FindSmartObject(Request);
-		AITEST_TRUE("Result is expected to be valid", FirstFindResult.IsValid());
-		AITEST_TRUE("ID is expected to be valid", FirstFindResult.SmartObjectHandle.IsValid());
+		AITEST_TRUE("Result.IsValid()", FirstFindResult.IsValid());
+		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", FirstFindResult.SmartObjectHandle.IsValid());
 
-		// Claim first object
+		// Claim first candidate
 		const FSmartObjectClaimHandle FirstClaimHandle = Subsystem->Claim(FirstFindResult);
-		AITEST_TRUE("Claim Handle is expected to be valid for the first claim", FirstClaimHandle.IsValid());
+		AITEST_TRUE("ClaimHandle.IsValid() after first find result", FirstClaimHandle.IsValid());
 
-		// Find second object
+		// Find second candidate
 		const FSmartObjectRequestResult SecondFindResult = Subsystem->FindSmartObject(Request);
-		AITEST_TRUE("Result is expected to be valid", SecondFindResult.IsValid());
-		AITEST_TRUE("ID is expected to be valid", SecondFindResult.SmartObjectHandle.IsValid());
-		AITEST_NOT_EQUAL("Result is expected to point to a different ID since first ID was claimed", FirstFindResult.SmartObjectHandle, SecondFindResult.SmartObjectHandle);
-
-		// Claim second object
-		const FSmartObjectClaimHandle SecondClaimHandle = Subsystem->Claim(SecondFindResult);
-		AITEST_TRUE("Claim Handle is expected to be valid for the second claim", SecondClaimHandle.IsValid());
-
-		// Try to find an available object
-		const FSmartObjectRequestResult ThirdFindResult = Subsystem->FindSmartObject(Request);
-		AITEST_FALSE("Result is expected to be invalid: all objects are claimed", ThirdFindResult.IsValid());
+		AITEST_TRUE("Result.IsValid()", SecondFindResult.IsValid());
+		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", SecondFindResult.SmartObjectHandle.IsValid());
+		AITEST_TRUE("Result.SlotHandle.IsValid()", SecondFindResult.SlotHandle.IsValid());
+		AITEST_NOT_EQUAL("Result is expected to point to a different slot since first slot was claimed", FirstFindResult.SlotHandle, SecondFindResult.SlotHandle);
 
 		return true;
 	}
@@ -206,18 +249,18 @@ struct FDoubleClaimSmartObject : FSmartObjectTestBase
 	{
 		const FSmartObjectRequest Request(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 
-		// Find object
+		// Find candidate
 		const FSmartObjectRequestResult PreClaimResult = Subsystem->FindSmartObject(Request);
-		AITEST_TRUE("Result is expected to be valid", PreClaimResult.IsValid());
-		AITEST_TRUE("ID is expected to be valid", PreClaimResult.SmartObjectHandle.IsValid());
+		AITEST_TRUE("Result.IsValid()", PreClaimResult.IsValid());
+		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", PreClaimResult.SmartObjectHandle.IsValid());
 
-		// Claim first object
+		// Claim first candidate
 		const FSmartObjectClaimHandle FirstHdl = Subsystem->Claim(PreClaimResult);
-		AITEST_TRUE("Claim Handle is expected to be valid for the first claim", FirstHdl.IsValid());
+		AITEST_TRUE("ClaimHandle.IsValid() after first claim", FirstHdl.IsValid());
 
-		// Claim first object again
+		// Claim first candidate again
 		const FSmartObjectClaimHandle SecondHdl = Subsystem->Claim(PreClaimResult);
-		AITEST_FALSE("Claim Handle is expected to be invalid for the second claim", SecondHdl.IsValid());
+		AITEST_FALSE("ClaimHandle.IsValid() after second claim", SecondHdl.IsValid());
 
 		return true;
 	}
@@ -230,21 +273,22 @@ struct FUseAndReleaseSmartObject : FSmartObjectTestBase
 	{
 		const FSmartObjectRequest Request(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 
-		// Find object
+		// Find candidate
 		const FSmartObjectRequestResult PreClaimResult = Subsystem->FindSmartObject(Request);
-		AITEST_TRUE("Result is expected to be valid", PreClaimResult.IsValid());
-		AITEST_TRUE("ID is expected to be valid", PreClaimResult.SmartObjectHandle.IsValid());
+		AITEST_TRUE("Result.IsValid()", PreClaimResult.IsValid());
+		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", PreClaimResult.SmartObjectHandle.IsValid());
 
-		// Claim & Use object
+		// Claim & Use candidate
 		const FSmartObjectClaimHandle Hdl = Subsystem->Claim(PreClaimResult);
-		AITEST_TRUE("Claim Handle is expected to be valid", Hdl.IsValid());
+		AITEST_TRUE("ClaimHandle.IsValid()", Hdl.IsValid());
 
+		// Use specific behavior
 		const USmartObjectBehaviorDefinition* BehaviorDefinition = Subsystem->Use<USmartObjectBehaviorDefinition>(Hdl);
-		AITEST_NOT_NULL("Bahavior definition is expected to be valid", BehaviorDefinition);
+		AITEST_NOT_NULL("Behavior definition pointer", BehaviorDefinition);
 
-		// Release object
+		// Release candidate
 		const bool bSuccess = Subsystem->Release(Hdl);
-		AITEST_TRUE("Handle is expected to be released successfully", bSuccess);
+		AITEST_TRUE("Release() return status", bSuccess);
 
 		return true;
 	}
@@ -258,35 +302,31 @@ struct FFindAfterUseSmartObject : FSmartObjectTestBase
 		const FSmartObjectRequest Request(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
 
 		constexpr uint32 ExpectedNumRegisteredObjects = 2;
-		AITEST_EQUAL("Test expects only %s registerd smart objects", SOList.Num(), ExpectedNumRegisteredObjects);
+		AITEST_EQUAL("Number of registerd smart objects", SOList.Num(), ExpectedNumRegisteredObjects);
 
-		// Find first object
+		// Find first candidate
 		const FSmartObjectRequestResult FirstFindResult = Subsystem->FindSmartObject(Request);
-		AITEST_TRUE("Result is expected to be valid", FirstFindResult.IsValid());
-		AITEST_TRUE("ID is expected to be valid", FirstFindResult.SmartObjectHandle.IsValid());
+		AITEST_TRUE("Result.IsValid()", FirstFindResult.IsValid());
+		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", FirstFindResult.SmartObjectHandle.IsValid());
 
-		// Claim & Use first object
+		// Claim & Use first candidate
 		const FSmartObjectClaimHandle FirstClaimHandle = Subsystem->Claim(FirstFindResult);
-		AITEST_TRUE("Claim Handle is expected to be valid for the first claim", FirstClaimHandle.IsValid());
-
+		AITEST_TRUE("ClaimHandle.IsValid() after first claim", FirstClaimHandle.IsValid());
 		const USmartObjectBehaviorDefinition* FirstDefinition = Subsystem->Use<USmartObjectBehaviorDefinition>(FirstClaimHandle);
-		AITEST_NOT_NULL("Behavior definition is expected to be valid", FirstDefinition);
+		AITEST_NOT_NULL("Behavior definition pointer", FirstDefinition);
 
-		// Find second object
+		// Find second candidate
 		const FSmartObjectRequestResult SecondFindResult = Subsystem->FindSmartObject(Request);
-		AITEST_TRUE("Result is expected to be valid", SecondFindResult.IsValid());
-		AITEST_TRUE("ID is expected to be valid", SecondFindResult.SmartObjectHandle.IsValid());
-		AITEST_NOT_EQUAL("Result is expected to point to a different ID since first ID was claimed", FirstFindResult.SmartObjectHandle, SecondFindResult.SmartObjectHandle);
+		AITEST_TRUE("Result.IsValid()", SecondFindResult.IsValid());
+		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", SecondFindResult.SmartObjectHandle.IsValid());
+		AITEST_TRUE("Result.SlotHandle.IsValid()", SecondFindResult.SlotHandle.IsValid());
+		AITEST_NOT_EQUAL("Result is expected to point to a different slot since first slot was claimed", FirstFindResult.SlotHandle, SecondFindResult.SlotHandle);
 
-		// Claim & use second object
+		// Claim & use second candidate
 		const FSmartObjectClaimHandle SecondClaimHandle = Subsystem->Claim(SecondFindResult);
-		AITEST_TRUE("Claim Handle is expected to be valid for the second claim", SecondClaimHandle.IsValid());
+		AITEST_TRUE("ClaimHandle.IsValid() after second claim", SecondClaimHandle.IsValid());
 		const USmartObjectBehaviorDefinition* SecondDefinition = Subsystem->Use<USmartObjectBehaviorDefinition>(SecondClaimHandle);
-		AITEST_NOT_NULL("Behavior definition is expected to be valid", SecondDefinition);
-
-		// Try to find a third one
-		const FSmartObjectRequestResult ThirdFindResult = Subsystem->FindSmartObject(Request);
-		AITEST_FALSE("Result is expected to be invalid; all objects are claimed", ThirdFindResult.IsValid());
+		AITEST_NOT_NULL("Behavior definition pointer", SecondDefinition);
 
 		return true;
 	}
@@ -301,22 +341,22 @@ struct FSlotCustomData : FSmartObjectTestBase
 
 		// Find an object
 		const FSmartObjectRequestResult FindResult = Subsystem->FindSmartObject(Request);
-		AITEST_TRUE("Result is expected to be valid", FindResult.IsValid());
-		AITEST_TRUE("ID is expected to be valid", FindResult.SmartObjectHandle.IsValid());
-		AITEST_TRUE("SlotHandle is expected to be valid", FindResult.SlotHandle.IsValid());
+		AITEST_TRUE("Result.IsValid()", FindResult.IsValid());
+		AITEST_TRUE("Result.SmartObjectHandle.IsValid()", FindResult.SmartObjectHandle.IsValid());
+		AITEST_TRUE("Result.SlotHandle.IsValid()", FindResult.SlotHandle.IsValid());
 
 		const FSmartObjectSlotView SlotView = Subsystem->GetSlotView(FindResult);
-		AITEST_TRUE("Slot Handle is expected to be valid", SlotView.GetSlotHandle().IsValid());
+		AITEST_TRUE("SlotHandle.IsValid()", SlotView.GetSlotHandle().IsValid());
 
 		const FSmartObjectSlotTestDefinitionData* DefinitionData = SlotView.GetDefinitionDataPtr<FSmartObjectSlotTestDefinitionData>();
-		AITEST_NOT_NULL("Data definition for cooldown is expected to be valid", DefinitionData);
+		AITEST_NOT_NULL("Data definition pointer (for cooldown)", DefinitionData);
 
 		const FSmartObjectSlotTestRuntimeData* RuntimeData = SlotView.GetStateDataPtr<FSmartObjectSlotTestRuntimeData>();
-		AITEST_NULL("Runtime data is expected to be not valid", RuntimeData);
+		AITEST_NULL("Runtime data pointer", RuntimeData);
 
 		// Claim
 		const FSmartObjectClaimHandle ClaimHandle = Subsystem->Claim(FindResult);
-		AITEST_TRUE("Claim Handle is expected to be valid for the first claim", ClaimHandle.IsValid());
+		AITEST_TRUE("ClaimHandle.IsValid() after first claim", ClaimHandle.IsValid());
 
 		// Add new data, note that this will invalidate the view...
 		FSmartObjectSlotTestRuntimeData NewRuntimeData;
@@ -334,13 +374,395 @@ struct FSlotCustomData : FSmartObjectTestBase
 		// Fetch a fresh slot view
 		const FSmartObjectSlotView SlotViewAfter = Subsystem->GetSlotView(ClaimHandle);
 		const FSmartObjectSlotTestRuntimeData* RuntimeDataAfter = SlotViewAfter.GetStateDataPtr<FSmartObjectSlotTestRuntimeData>();
-		AITEST_NOT_NULL("Runtime data is expected to be valid", RuntimeDataAfter);
-		AITEST_EQUAL("Runtime data float from view is expected to be the same as the 'pushed' one", RuntimeDataAfter->SomePerInstanceSharedFloat, SomeFloatConstant);
+		AITEST_NOT_NULL("Runtime data pointer", RuntimeDataAfter);
+		AITEST_EQUAL("Runtime data float from SlotView", RuntimeDataAfter->SomePerInstanceSharedFloat, SomeFloatConstant);
 
 		return true;
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FSlotCustomData, "System.AI.SmartObjects.Slot custom data");
+
+struct FActivityTagsFilterPolicy : FSmartObjectTestBase
+{
+	virtual bool SetupDefinition() override
+	{
+		if (!ensureMsgf(Definition->GetMutableSlots().Num() >= 2, TEXT("Expecting at least three slots")))
+		{
+			return false;
+		}
+
+		// Tags setup looks like:
+		// Object:	ActivityTags:	TestTag1
+		// Slot1:	ActivityTags:	TestTag2
+		// Slot2:	ActivityTags:	TestTag1, TestTag2
+		// Slot3:	ActivityTags:	---
+
+		FSmartObjectSlotDefinition& FirstSlot = Definition->GetMutableSlots()[0];
+		FSmartObjectSlotDefinition& SecondSlot = Definition->GetMutableSlots()[1];
+		FirstSlot.ActivityTags.AddTag(FNativeGameplayTags::Get().TestTag2);
+		SecondSlot.ActivityTags.AddTag(FNativeGameplayTags::Get().TestTag1);
+		SecondSlot.ActivityTags.AddTag(FNativeGameplayTags::Get().TestTag2);
+		return true;
+	}
+};
+
+struct FActivityTagsFilterPolicyNoFilter : FActivityTagsFilterPolicy
+{
+	virtual bool SetupDefinition() override
+	{
+		if (!FActivityTagsFilterPolicy::SetupDefinition())
+		{
+			return false;
+		}
+
+		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::NoFilter);
+		return true;
+	}
+
+	virtual bool InstantTest() override
+	{
+#if WITH_SMARTOBJECT_DEBUG
+		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
+
+		{
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(DefaultRequest, Results);
+			AITEST_EQUAL("Results.Num() using 'NoFilter' policy with an empty query", Results.Num(), NumCreatedSlots);
+		}
+		{
+			// Adding activity requirements to the query
+			FSmartObjectRequest ModifiedRequest = DefaultRequest;
+			ModifiedRequest.Filter.ActivityRequirements = FGameplayTagQuery::BuildQuery(
+				FGameplayTagQueryExpression()
+				.NoTagsMatch()
+				.AddTag(FNativeGameplayTags::Get().TestTag1)
+			);
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			AITEST_EQUAL("Results.Num() using 'NoFilter' policy with NoMatch(TestTag1)", Results.Num(), NumCreatedSlots);
+		}
+#endif // WITH_SMARTOBJECT_DEBUG
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FActivityTagsFilterPolicyNoFilter, "System.AI.SmartObjects.Filter policy 'NoFilter' on ActivityTags");
+
+struct FActivityTagsFilterPolicyCombine : FActivityTagsFilterPolicy
+{
+	virtual bool SetupDefinition() override
+	{
+		if (!FActivityTagsFilterPolicy::SetupDefinition())
+		{
+			return false;
+		}
+
+		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::Combine);
+		return true;
+	}
+
+	virtual bool InstantTest() override
+	{
+#if WITH_SMARTOBJECT_DEBUG
+		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
+
+		{
+			// No activity requirements, should return registered slots
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(DefaultRequest, Results);
+			AITEST_EQUAL("Results.Num() using 'Combine' policy with an empty query", Results.Num(), NumCreatedSlots);
+		}
+		{
+			// Adding activity requirements to the query
+			FSmartObjectRequest ModifiedRequest = DefaultRequest;
+			ModifiedRequest.Filter.ActivityRequirements = FGameplayTagQuery::BuildQuery(
+				FGameplayTagQueryExpression()
+				.NoTagsMatch()
+				.AddTag(FNativeGameplayTags::Get().TestTag1)
+			);
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			// All slots inherit TestTag1 from parent object, so all invalid
+			AITEST_EQUAL("Results.Num() using 'Combine' policy with NoMatch(TestTag1)", Results.Num(), 0);
+		}
+		{
+			// Adding activity requirements to the query
+			FSmartObjectRequest ModifiedRequest = DefaultRequest;
+			ModifiedRequest.Filter.ActivityRequirements = FGameplayTagQuery::BuildQuery(
+				FGameplayTagQueryExpression()
+				.AnyTagsMatch()
+				.AddTag(FNativeGameplayTags::Get().TestTag1)
+				.AddTag(FNativeGameplayTags::Get().TestTag2)
+			);
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			// (Slot 1 & 2 & 3) = 3 matching slots / object
+			AITEST_EQUAL("Results.Num() using 'Combine' policy with AnyMatch(TestTag1, TestTag2)", Results.Num(), SOList.Num() * 3);
+		}
+		{
+			// Adding activity requirements to the query
+			FSmartObjectRequest ModifiedRequest = DefaultRequest;
+			ModifiedRequest.Filter.ActivityRequirements = FGameplayTagQuery::BuildQuery(
+				FGameplayTagQueryExpression()
+				.AllTagsMatch()
+				.AddTag(FNativeGameplayTags::Get().TestTag1)
+				.AddTag(FNativeGameplayTags::Get().TestTag2)
+			);
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			// (Slot 1 & 2) = 2 matching slots / object
+			AITEST_EQUAL("Results.Num() using 'Combine' policy with AllMatch(TestTag1, TestTag2)", Results.Num(), SOList.Num() * 2);
+		}
+#endif // WITH_SMARTOBJECT_DEBUG
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FActivityTagsFilterPolicyCombine, "System.AI.SmartObjects.Filter policy 'Combine' on ActivityTags");
+
+struct FActivityTagsFilterPolicyOverride : FActivityTagsFilterPolicy
+{
+	virtual bool SetupDefinition() override
+	{
+		if (!FActivityTagsFilterPolicy::SetupDefinition())
+		{
+			return false;
+		}
+
+		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::Override);
+		return true;
+	}
+
+	virtual bool InstantTest() override
+	{
+#if WITH_SMARTOBJECT_DEBUG
+		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
+
+		{
+			// No activity requirements, should return registered slots
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(DefaultRequest, Results);
+			AITEST_EQUAL("Results.Num() using 'Override' policy with an empty query", Results.Num(), NumCreatedSlots);
+		}
+		{
+			// Adding activity requirements to the query
+			FSmartObjectRequest ModifiedRequest = DefaultRequest;
+			ModifiedRequest.Filter.ActivityRequirements = FGameplayTagQuery::BuildQuery(
+				FGameplayTagQueryExpression()
+				.NoTagsMatch()
+				.AddTag(FNativeGameplayTags::Get().TestTag1)
+			);
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			// Slot 1 only has TestTag2 (Slot 2 has TestTag1 in override and Slot 3 inherits from parent) = 1 matching slots / object
+			AITEST_EQUAL("Results.Num() using 'Override' policy with NoMatch(TestTag1)", Results.Num(), SOList.Num() * 1);
+		}
+		{
+			// Adding activity requirements to the query
+			FSmartObjectRequest ModifiedRequest = DefaultRequest;
+			ModifiedRequest.Filter.ActivityRequirements = FGameplayTagQuery::BuildQuery(
+				FGameplayTagQueryExpression()
+				.AllTagsMatch()
+				.AddTag(FNativeGameplayTags::Get().TestTag1)
+				.AddTag(FNativeGameplayTags::Get().TestTag2)
+			);
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			// (Slot 2) = 1 matching slot / object
+			AITEST_EQUAL("Results.Num() using 'Override' policy with AllMatch(TestTag1, TestTag2)", Results.Num(), SOList.Num() * 1);
+		}
+#endif // WITH_SMARTOBJECT_DEBUG
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FActivityTagsFilterPolicyOverride, "System.AI.SmartObjects.Filter policy 'Override' on ActivityTags");
+
+struct FUserTagsFilterPolicy : FSmartObjectTestBase
+{
+	virtual bool SetupDefinition() override
+	{
+		if (!ensureMsgf(Definition->GetMutableSlots().Num() >= 2, TEXT("Expecting at least three slots")))
+		{
+			return false;
+		}
+
+		// Tags setup looks like:
+		// Object:	UserTagFilter:	Match(TestTag1)
+		// Slot1:	UserTagFilter:	NoMatch(TestTag2)
+		// Slot2:	UserTagFilter:	AnyMatch(TestTag1, TestTag2, TestTag3)
+		// Slot3:	UserTagFilter:	---
+
+		FSmartObjectSlotDefinition& FirstSlot = Definition->GetMutableSlots()[0];
+		FSmartObjectSlotDefinition& SecondSlot = Definition->GetMutableSlots()[1];
+
+		// Set first slot user tag filter
+		FirstSlot.UserTagFilter = FGameplayTagQuery::BuildQuery(
+			FGameplayTagQueryExpression()
+			.NoTagsMatch()
+			.AddTag(FNativeGameplayTags::Get().TestTag2)
+		);
+
+		// Set second slot user tag filter
+		SecondSlot.UserTagFilter = FGameplayTagQuery::BuildQuery(
+			FGameplayTagQueryExpression()
+			.AnyTagsMatch()
+			.AddTag(FNativeGameplayTags::Get().TestTag1)
+			.AddTag(FNativeGameplayTags::Get().TestTag3)
+		);
+
+
+		// Set user tag filter
+		Definition->SetUserTagFilter(FGameplayTagQuery::BuildQuery(
+			FGameplayTagQueryExpression()
+			.AllTagsMatch()
+			.AddTag(FNativeGameplayTags::Get().TestTag1)
+		));
+		return true;
+	}
+};
+
+struct FUserTagsFilterPolicyNoFilter : FUserTagsFilterPolicy
+{
+	virtual bool SetupDefinition() override
+	{
+		if (!FUserTagsFilterPolicy::SetupDefinition())
+		{
+			return false;
+		}
+
+		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::NoFilter);
+		return true;
+	}
+
+	virtual bool InstantTest() override
+	{
+#if WITH_SMARTOBJECT_DEBUG
+
+		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
+		{
+			// Providing user tags to the query
+			FSmartObjectRequest ModifiedRequest = DefaultRequest;
+			ModifiedRequest.Filter.UserTags.AddTag(FNativeGameplayTags::Get().TestTag2);
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			AITEST_EQUAL("Results.Num() using 'NoFilter' policy with user tags = TestTag2", Results.Num(), NumCreatedSlots);
+		}
+#endif // WITH_SMARTOBJECT_DEBUG
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FUserTagsFilterPolicyNoFilter, "System.AI.SmartObjects.Filter policy 'NoFilter' on UserTags");
+
+struct FUserTagsFilterPolicyCombine : FUserTagsFilterPolicy
+{
+	virtual bool SetupDefinition() override
+	{
+		if (!FUserTagsFilterPolicy::SetupDefinition())
+		{
+			return false;
+		}
+
+		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::Combine);
+		return true;
+	}
+
+	virtual bool InstantTest() override
+	{
+#if WITH_SMARTOBJECT_DEBUG
+		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
+
+		{
+			// User tags are empty so none should be found
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(DefaultRequest, Results);
+			AITEST_EQUAL("Results.Num() using 'Combine' policy with an empty query", Results.Num(), 0);
+		}
+		{
+			// Add TestTag1 to user tags
+			FSmartObjectRequest ModifiedRequest = DefaultRequest;
+			ModifiedRequest.Filter.UserTags.AddTag(FNativeGameplayTags::Get().TestTag1);
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			// (Slot 1 & 2 & 3) = 3 matching slots / object
+			AITEST_EQUAL("Results.Num() using 'Combine' policy with user tags = TestTag1", Results.Num(), SOList.Num() * 3);
+
+			// Add TestTag2 to User tags so first slot should match
+			ModifiedRequest.Filter.UserTags.AddTag(FNativeGameplayTags::Get().TestTag2);
+			Results.Reset();
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			// (Slot 2 & 3) = 2 matching slots / object
+			AITEST_EQUAL("Results.Num() using 'Combine' policy with user tags = TestTag1, TestTag2", Results.Num(), SOList.Num() * 2);
+		}
+		{
+			// Add TestTag3 to User tags so first slot should match
+			FSmartObjectRequest ModifiedRequest = DefaultRequest;
+			ModifiedRequest.Filter.UserTags.AddTag(FNativeGameplayTags::Get().TestTag3);
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			AITEST_EQUAL("Results.Num() using 'Combine' policy with user tags = TestTag3", Results.Num(), 0);
+		}
+#endif // WITH_SMARTOBJECT_DEBUG
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FUserTagsFilterPolicyCombine, "System.AI.SmartObjects.Filter policy 'Combine' on UserTags");
+
+struct FUserTagsFilterPolicyOverride : FUserTagsFilterPolicy
+{
+	virtual bool SetupDefinition() override
+	{
+		if (!FUserTagsFilterPolicy::SetupDefinition())
+		{
+			return false;
+		}
+
+		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::Override);
+		return true;
+	}
+
+	virtual bool InstantTest() override
+	{
+#if WITH_SMARTOBJECT_DEBUG
+		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
+
+		{
+			// User tags are empty
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(DefaultRequest, Results);
+			// (Slot 1) = 1 matching slots / object
+			AITEST_EQUAL("Results.Num() using 'Override' policy with an empty query", Results.Num(), SOList.Num() * 1);
+		}
+		{
+			// Add TestTag1 to user tags
+			FSmartObjectRequest ModifiedRequest = DefaultRequest;
+			ModifiedRequest.Filter.UserTags.AddTag(FNativeGameplayTags::Get().TestTag1);
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			// (Slot 1 & 2 & 3) = 3 matching slots / object
+			AITEST_EQUAL("Results.Num() using 'Override' policy with user tags = TestTag1", Results.Num(), SOList.Num() * 3);
+
+			// Add TestTag2 to User tags so first slot should match
+			ModifiedRequest.Filter.UserTags.AddTag(FNativeGameplayTags::Get().TestTag2);
+			Results.Reset();
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			// (Slot 2 & 3) = 2 matching slots / object
+			AITEST_EQUAL("Results.Num() using 'Override' policy with user tags = TestTag1, TestTag2", Results.Num(), SOList.Num() * 2);
+		}
+		{
+			// Add TestTag3 to User tags so first slot should match
+			FSmartObjectRequest ModifiedRequest = DefaultRequest;
+			ModifiedRequest.Filter.UserTags.AddTag(FNativeGameplayTags::Get().TestTag3);
+			TArray<FSmartObjectRequestResult> Results;
+			Subsystem->FindSmartObjects(ModifiedRequest, Results);
+			// (Slot 1 & 2) = 2 matching slots / object
+			AITEST_EQUAL("Results.Num() using 'Override' policy with user tags = TestTag3", Results.Num(), SOList.Num() * 2);
+		}
+#endif // WITH_SMARTOBJECT_DEBUG
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FUserTagsFilterPolicyOverride, "System.AI.SmartObjects.Filter policy 'Override' on UserTags");
 
 } // namespace FSmartObjectTest
 

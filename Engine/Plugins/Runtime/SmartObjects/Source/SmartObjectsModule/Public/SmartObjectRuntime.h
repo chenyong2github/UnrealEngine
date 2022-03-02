@@ -143,9 +143,10 @@ struct FSmartObjectRuntime
 	GENERATED_BODY()
 
 public:
-	const FSmartObjectHandle& GetRegisteredID() const { return RegisteredHandle; }
+	const FSmartObjectHandle& GetRegisteredHandle() const { return RegisteredHandle; }
 	const FTransform& GetTransform() const { return Transform; }
 	const USmartObjectDefinition& GetDefinition() const { checkf(Definition != nullptr, TEXT("Initialized from a valid reference from the constructor")); return *Definition; }
+	const FGameplayTagContainer& GetTags() const { return Tags; }
 
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>::ConstructForTests(void *)' */
@@ -157,11 +158,9 @@ private:
 
 	explicit FSmartObjectRuntime(const USmartObjectDefinition& Definition);
 
-	const FGameplayTagContainer& GetTags() const { return Tags; }
-
 	void SetTransform(const FTransform& Value) { Transform = Value; }
 
-	void SetRegisteredID(const FSmartObjectHandle Value) { RegisteredHandle = Value; }
+	void SetRegisteredHandle(const FSmartObjectHandle Value) { RegisteredHandle = Value; }
 
 	/** Runtime SlotHandles associated to each defined slot */
 	TArray<FSmartObjectSlotHandle> SlotHandles;

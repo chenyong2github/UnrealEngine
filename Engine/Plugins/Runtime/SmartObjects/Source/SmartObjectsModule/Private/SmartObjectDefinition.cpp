@@ -2,11 +2,17 @@
 
 #include "SmartObjectDefinition.h"
 
+#include "SmartObjectSettings.h"
 #include "SmartObjectTypes.h"
 
 namespace UE::SmartObject
 {
 	const FVector DefaultSlotSize(40, 40, 90);
+}
+
+USmartObjectDefinition::USmartObjectDefinition(const FObjectInitializer& ObjectInitializer): UDataAsset(ObjectInitializer)
+{
+	TagFilteringPolicy = GetDefault<USmartObjectSettings>()->DefaultTagFilteringPolicy;
 }
 
 bool USmartObjectDefinition::Validate() const
@@ -56,7 +62,7 @@ bool USmartObjectDefinition::Validate() const
 }
 
 const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinition(const FSmartObjectSlotIndex& SlotIndex,
-																			const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass) const
+																					const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass) const
 {
 	const USmartObjectBehaviorDefinition* Definition = nullptr;
 	if (Slots.IsValidIndex(SlotIndex))

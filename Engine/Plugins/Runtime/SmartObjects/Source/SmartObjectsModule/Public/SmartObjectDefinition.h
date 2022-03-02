@@ -9,6 +9,7 @@
 #include "SmartObjectDefinition.generated.h"
 
 class UGameplayBehaviorConfig;
+enum class ESmartObjectTagFilteringPolicy: uint8;
 
 /**
  * Abstract class that can be extended to bind a new type of behavior framework
@@ -52,6 +53,14 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 	/** This slot is available only for users matching this query. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	FGameplayTagQuery UserTagFilter;
+
+	/**
+	 * Tags identifying this slot's use case. Can be used while looking for slots supporting given activity.
+	 * Depending on the tag filtering policy these tags can override the parent object's tags
+	 * or be combined with them while applying filters from requests.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	FGameplayTagContainer ActivityTags;
 
 	/** Offset relative to the parent object where the slot is located. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
@@ -106,6 +115,8 @@ class SMARTOBJECTSMODULE_API USmartObjectDefinition : public UDataAsset
 	GENERATED_BODY()
 
 public:
+	explicit USmartObjectDefinition(const FObjectInitializer& ObjectInitializer);
+
 	/**
 	 * Retrieves a specific type of behavior definition for a given slot.
 	 * When the slot doesn't provide one or if the provided index is not valid
@@ -140,14 +151,29 @@ public:
 	 */
 	TOptional<FTransform> GetSlotTransform(const FTransform& OwnerTransform, const FSmartObjectSlotIndex SlotIndex) const;
 
-	/** Returns the tag query to run on the user tags to accept this definition */
+	/** Returns the tag query to run on the user tags provided by a request to accept this definition */
 	const FGameplayTagQuery& GetUserTagFilter() const { return UserTagFilter; }
 
-	/** Returns the tag query to run on the owner tags to accept this definition */
+	/** Sets the tag query to run on the user tags provided by a request to accept this definition */
+	void SetUserTagFilter(const FGameplayTagQuery& InUserTagFilter) { UserTagFilter = InUserTagFilter; }
+
+	/** Returns the tag query to run on the runtime tags of a smart object instance to accept it */
 	const FGameplayTagQuery& GetObjectTagFilter() const { return ObjectTagFilter; }
+
+	/** Sets the tag query to run on the runtime tags of a smart object instance to accept it */
+	void SetObjectTagFilter(const FGameplayTagQuery& InObjectTagFilter) { ObjectTagFilter = InObjectTagFilter; }
 
 	/** Returns the list of tags describing the activity associated to this definition */
 	const FGameplayTagContainer& GetActivityTags() const { return ActivityTags; }
+
+	/** Sets the list of tags describing the activity associated to this definition */
+	void SetActivityTags(const FGameplayTagContainer& InActivityTags) { ActivityTags = InActivityTags; }
+
+	/** Returns the tag filtering policy used by this definition */
+	ESmartObjectTagFilteringPolicy GetTagFilteringPolicy() const { return TagFilteringPolicy; }
+
+	/** Sets the tag filtering policy to apply on this definition */
+	void SetTagFilteringPolicy(const ESmartObjectTagFilteringPolicy InTagFilteringPolicy) { TagFilteringPolicy = InTagFilteringPolicy; }
 
 	/**
 	 *	Performs validation and logs errors if any. An object using an invalid definition
@@ -172,11 +198,11 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Actor class used for previewing the definition in the asset editor. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY()
 	TSoftClassPtr<AActor> PreviewClass;
 
 	/** Path of the static mesh used for previewing the definition in the asset editor. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY()
 	FSoftObjectPath PreviewMeshPath;
 #endif
 
@@ -206,6 +232,13 @@ private:
 	/** Tags identifying this Smart Object's use case. Can be used while looking for objects supporting given activity */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	FGameplayTagContainer ActivityTags;
+
+	/**
+	 * Indicates how Tags and TagQueries (User and Activity) from slots and parent object will be processed for find requests.
+	 * Tag Queries (ObjectTagFilter) from definitions tested against SmartObject instances tags are not affected.
+	 */
+	UPROPERTY(EditAnywhere, Category = SmartObject, AdvancedDisplay)
+	ESmartObjectTagFilteringPolicy TagFilteringPolicy;
 
 	mutable TOptional<bool> bValid;
 };

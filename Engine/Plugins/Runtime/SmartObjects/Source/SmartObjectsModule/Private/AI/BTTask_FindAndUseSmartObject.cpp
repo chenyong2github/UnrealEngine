@@ -36,7 +36,8 @@ EBTNodeResult::Type UBTTask_FindAndUseSmartObject::ExecuteTask(UBehaviorTreeComp
 	const FVector UserLocation = Avatar.GetActorLocation();
 
 	// Create filter
-	FSmartObjectRequestFilter Filter(ActivityRequirements);
+	FSmartObjectRequestFilter Filter;
+	Filter.ActivityRequirements = ActivityRequirements;
 	Filter.BehaviorDefinitionClass = USmartObjectGameplayBehaviorDefinition::StaticClass();
 	const IGameplayTagAssetInterface* TagsSource = Cast<const IGameplayTagAssetInterface>(&Avatar);
 	if (TagsSource != nullptr)
