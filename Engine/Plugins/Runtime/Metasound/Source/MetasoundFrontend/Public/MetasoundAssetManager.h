@@ -48,6 +48,9 @@ namespace Metasound
 			// Will not respect being set to true if project-level MetaSoundSettings specify to not run auto-update.)
 			bool bAutoUpdate = true;
 
+			// If true, warnings will be logged if updating a node results in existing connections being discarded.
+			bool bAutoUpdateLogWarningOnDroppedConnection = false;
+
 			// Attempt to rebuild referenced class keys (only run if class not registered or set to force re-register)
 			bool bRebuildReferencedAssetClassKeys = true;
 		};

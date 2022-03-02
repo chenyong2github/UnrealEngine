@@ -2489,8 +2489,13 @@ namespace Metasound
 
 					if (bHasNewVersion || !bIsClassNative)
 					{
+						// These are ignored here when updating as the user is actively
+						// forcing an update.
+						constexpr TArray<INodeController::FVertexNameAndType>* DisconnectedInputs = nullptr;
+						constexpr TArray<INodeController::FVertexNameAndType>* DisconnectedOutputs = nullptr;
+
 						FNodeHandle ExistingNode = ExternalNode->GetNodeHandle();
-						FNodeHandle NewNode = ExistingNode->ReplaceWithVersion(HighestVersion);
+						FNodeHandle NewNode = ExistingNode->ReplaceWithVersion(HighestVersion, DisconnectedInputs, DisconnectedOutputs);
 						bReplacedNodes = true;
 					}
 				}

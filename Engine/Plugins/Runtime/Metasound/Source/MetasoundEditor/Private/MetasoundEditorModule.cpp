@@ -29,6 +29,7 @@
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundNodeDetailCustomization.h"
+#include "MetasoundSettings.h"
 #include "MetasoundSource.h"
 #include "MetasoundTime.h"
 #include "MetasoundTrigger.h"
@@ -165,14 +166,19 @@ namespace Metasound
 		{
 			void LoadAndRegisterAsset(const FAssetData& InAssetData)
 			{
+				Frontend::FMetaSoundAssetRegistrationOptions RegOptions;
+				RegOptions.bForceReregister = false;
+				if (const UMetaSoundSettings* Settings = GetDefault<UMetaSoundSettings>())
+				{
+					RegOptions.bAutoUpdateLogWarningOnDroppedConnection = Settings->bAutoUpdateLogWarningOnDroppedConnection;
+				}
+
 				if (InAssetData.IsAssetLoaded())
 				{
 					if (UObject* AssetObject = InAssetData.GetAsset())
 					{
 						FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(AssetObject);
 						check(MetaSoundAsset);
-						Frontend::FMetaSoundAssetRegistrationOptions RegOptions;
-						RegOptions.bForceReregister = false;
 						MetaSoundAsset->RegisterGraphWithFrontend(RegOptions);
 					}
 				}
@@ -191,7 +197,7 @@ namespace Metasound
 					ActiveAsyncAssetLoadRequests++;
 
 					FSoftObjectPath AssetPath = InAssetData.ToSoftObjectPath();
-					auto LoadAndRegister = [this, ObjectPath = AssetPath](const FName& PackageName, UPackage* Package, EAsyncLoadingResult::Type Result)
+					auto LoadAndRegister = [this, ObjectPath = AssetPath, RegOptions](const FName& PackageName, UPackage* Package, EAsyncLoadingResult::Type Result)
 					{
 						if (Result == EAsyncLoadingResult::Succeeded)
 						{
@@ -199,8 +205,6 @@ namespace Metasound
 							check(MetaSoundAsset);
 							if (!MetaSoundAsset->IsRegistered())
 							{
-								Frontend::FMetaSoundAssetRegistrationOptions RegOptions;
-								RegOptions.bForceReregister = false;
 								MetaSoundAsset->RegisterGraphWithFrontend(RegOptions);
 							}
 						}

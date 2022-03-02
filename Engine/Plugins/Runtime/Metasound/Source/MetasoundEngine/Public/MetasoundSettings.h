@@ -52,6 +52,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = AutoUpdate, meta = (DisplayName = "Asset DenyList", EditCondition = "bAutoUpdateEnabled"))
 	TArray<FDefaultMetaSoundAssetAutoUpdateSettings> AutoUpdateAssetDenylist;
 
+	/** If true, warnings will be logged if updating a node results in existing connections being discarded. */
+	UPROPERTY(EditAnywhere, config, Category = AutoUpdate, meta = (DisplayName = "Log Warning on Dropped Connection", EditCondition = "bAutoUpdateEnabled"))
+	bool bAutoUpdateLogWarningOnDroppedConnection = true;
+
 	/** Directories to scan & automatically register MetaSound post initial asset scan on engine start-up.
 	  * May speed up subsequent calls to playback MetaSounds post asset scan but increases application load time.
 	  * See 'MetaSoundAssetSubsystem::RegisterAssetClassesInDirectories' to dynamically register or 

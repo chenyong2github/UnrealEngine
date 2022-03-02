@@ -112,7 +112,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 	if (InRegistrationOptions.bAutoUpdate)
 	{
 		FString OwningAssetName = GetOwningAssetName();
-		const bool bAutoUpdated = FAutoUpdateRootGraph(MoveTemp(OwningAssetName)).Transform(GetDocumentHandle());
+		const bool bAutoUpdated = FAutoUpdateRootGraph(MoveTemp(OwningAssetName), InRegistrationOptions.bAutoUpdateLogWarningOnDroppedConnection).Transform(GetDocumentHandle());
 #if WITH_EDITOR
 		if (bAutoUpdated || InRegistrationOptions.bForceViewSynchronization)
 		{

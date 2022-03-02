@@ -460,7 +460,13 @@ void UMetaSoundAssetSubsystem::RegisterAssetClassesInDirectories(const TArray<FM
 		AddOrUpdateAsset(AssetData);
 		FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(AssetData.GetAsset());
 		check(MetaSoundAsset);
-		MetaSoundAsset->RegisterGraphWithFrontend();
+
+		Metasound::Frontend::FMetaSoundAssetRegistrationOptions RegOptions;
+		if (const UMetaSoundSettings* Settings = GetDefault<UMetaSoundSettings>())
+		{
+			RegOptions.bAutoUpdateLogWarningOnDroppedConnection = Settings->bAutoUpdateLogWarningOnDroppedConnection;
+		}
+		MetaSoundAsset->RegisterGraphWithFrontend(RegOptions);
 	});
 }
 

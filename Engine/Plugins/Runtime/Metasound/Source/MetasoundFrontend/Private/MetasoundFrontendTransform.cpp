@@ -599,12 +599,37 @@ namespace Metasound
 			}
 			else
 			{
+				using FVertexNameAndType = INodeController::FVertexNameAndType;
+
 				bDidEdit |= !NodesToUpdate.IsEmpty();
 				for (const TPair<FNodeHandle, FMetasoundFrontendVersionNumber>& Pair : NodesToUpdate)
 				{
 					FNodeHandle ExistingNode = Pair.Key;
 					FMetasoundFrontendVersionNumber InitialVersion = ExistingNode->GetClassMetadata().GetVersion();
-					FNodeHandle NewNode = ExistingNode->ReplaceWithVersion(Pair.Value);
+
+					TArray<FVertexNameAndType> DisconnectedInputs;
+					TArray<FVertexNameAndType> DisconnectedOutputs;
+					FNodeHandle NewNode = ExistingNode->ReplaceWithVersion(Pair.Value, &DisconnectedInputs, &DisconnectedOutputs);
+
+					// Log warnings for any disconnections
+					if (bLogWarningOnDroppedConnection)
+					{
+						if ((DisconnectedInputs.Num() > 0) || (DisconnectedOutputs.Num() > 0))
+						{
+							const FString NodeClassName = NewNode->GetClassMetadata().GetClassName().ToString();
+							const FString NewClassVersion = Pair.Value.ToString();
+
+							for (const FVertexNameAndType& InputPin : DisconnectedInputs)
+							{
+								UE_LOG(LogMetaSound, Warning, TEXT("Auto-Updating '%s' node class '%s (%s)': Previously connected input '%s' with data type '%s' no longer exists."), *DebugAssetPath, *NodeClassName, *NewClassVersion, *InputPin.Get<0>().ToString(), *InputPin.Get<1>().ToString());
+							}
+
+							for (const FVertexNameAndType& OutputPin : DisconnectedOutputs)
+							{
+								UE_LOG(LogMetaSound, Warning, TEXT("Auto-Updating '%s' node class '%s (%s)': Previously connected output '%s' with data type '%s' no longer exists."), *DebugAssetPath, *NodeClassName, *NewClassVersion, *OutputPin.Get<0>().ToString(), *OutputPin.Get<1>().ToString());
+							}
+						}
+					}
 				}
 
 				InDocument->RemoveUnreferencedDependencies();

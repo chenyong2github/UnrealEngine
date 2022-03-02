@@ -143,14 +143,22 @@ namespace Metasound
 		class METASOUNDFRONTEND_API FAutoUpdateRootGraph : public IDocumentTransform
 		{
 		public:
-			FAutoUpdateRootGraph(FString&& InDebugAssetPath)
+			/** Construct an AutoUpdate transform
+			 *
+			 * @param InDebugAssetPath - Asset path used for debug logs on warnings and errors.
+			 * @param bInLogWarningOnDroppedConnections - If true, warnings will be logged if a node update results in a dropped connection.
+			 */
+			FAutoUpdateRootGraph(FString&& InDebugAssetPath, bool bInLogWarningOnDroppedConnection)
 				: DebugAssetPath(MoveTemp(InDebugAssetPath))
+				, bLogWarningOnDroppedConnection(bInLogWarningOnDroppedConnection)
 			{
 			}
 
 			bool Transform(FDocumentHandle InDocument) const override;
 
+		private:
 			const FString DebugAssetPath;
+			bool bLogWarningOnDroppedConnection;
 		};
 
 		/** Regenerates the class' name, effectively causing the class to get registered as

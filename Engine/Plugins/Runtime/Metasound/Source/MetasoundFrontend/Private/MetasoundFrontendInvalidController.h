@@ -217,7 +217,8 @@ namespace Metasound
 
 			virtual void SetNodeName(const FVertexName& InName) override { }
 
-			virtual FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion) override { return INodeController::GetInvalidHandle(); }
+			virtual FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion, TArray<FVertexNameAndType>* OutDisconnectedInputs, TArray<FVertexNameAndType>* OutDisconnectedOutputs) override { return INodeController::GetInvalidHandle(); }
+
 
 			virtual bool CanAddInput(const FVertexName& InVertexName) const override { return false; }
 			virtual FInputHandle AddInput(const FVertexName& InVertexName, const FMetasoundFrontendLiteral* InDefault) override { return IInputController::GetInvalidHandle(); }

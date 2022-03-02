@@ -10,6 +10,7 @@
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundGraph.h"
 #include "MetasoundVertex.h"
+#include "Templates/Tuple.h"
 
 
 /* Metasound Controllers and Handles provide a object oriented interface for  manipulating Metasound Documents. 
@@ -409,6 +410,8 @@ namespace Metasound
 		public:
 			static FNodeHandle GetInvalidHandle();
 
+			using FVertexNameAndType = TTuple<FVertexName, FName>;
+
 			INodeController() = default;
 			virtual ~INodeController() = default;
 
@@ -480,7 +483,7 @@ namespace Metasound
 			  * rebuild edges where possible with matching vertex names that share the same DataType.
 			  * Returns a node handle to the new node.  If operation fails, returns a handle to this node.
 			  */
-			virtual FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion) = 0;
+			virtual FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion, TArray<FVertexNameAndType>* OutDisconnectedInputs, TArray<FVertexNameAndType>* OutDisconnectedOutputs) = 0;
 
 			/** Returns an input with the given id.
 			 *

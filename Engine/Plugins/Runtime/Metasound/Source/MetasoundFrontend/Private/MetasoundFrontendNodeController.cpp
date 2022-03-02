@@ -2,6 +2,7 @@
 
 #include "MetasoundFrontendNodeController.h"
 
+#include "Algo/AnyOf.h"
 #include "Algo/Transform.h"
 #include "HAL/IConsoleManager.h"
 #include "MetasoundFrontendDocumentAccessPtr.h"
@@ -726,7 +727,7 @@ namespace Metasound
 
 		}
 
-		FNodeHandle FBaseNodeController::ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion)
+		FNodeHandle FBaseNodeController::ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion, TArray<FVertexNameAndType>* OutDisconnectedInputs, TArray<FVertexNameAndType>* OutDisconnectedOutputs)
 		{
 			const FMetasoundFrontendClassMetadata Metadata = GetClassMetadata();
 			const TArray<FMetasoundFrontendClass> Versions = ISearchEngine::Get().FindClassesWithName(Metadata.GetClassName().ToNodeClassName(), false /* bInSortByVersion */);
@@ -746,11 +747,10 @@ namespace Metasound
 			FMetasoundFrontendNodeStyle Style = GetNodeStyle();
 #endif // WITH_EDITOR
 
-			using FConnectionKey = TPair<FVertexName, FName>;
-
 			struct FInputConnectionInfo
 			{
 				FOutputHandle ConnectedOutput;
+				FVertexName Name;
 				FName DataType;
 				FMetasoundFrontendLiteral DefaultValue;
 				bool bLiteralSet = false;
@@ -758,7 +758,7 @@ namespace Metasound
 
 			// Cache input/output connections by name to try so they can be
 			// hooked back up after swapping to the new class version.
-			TMap<FConnectionKey, FInputConnectionInfo> InputConnections;
+			TMap<FVertexNameAndType, FInputConnectionInfo> InputConnections;
 			IterateInputs([Connections = &InputConnections](FInputHandle InputHandle)
 			{
 				bool bLiteralSet = false;
@@ -774,10 +774,11 @@ namespace Metasound
 					}
 				}
 
-				const FConnectionKey ConnectionKey(InputHandle->GetName(), InputHandle->GetDataType());
+				const FVertexNameAndType ConnectionKey(InputHandle->GetName(), InputHandle->GetDataType());
 				Connections->Add(ConnectionKey, FInputConnectionInfo
 				{
 					InputHandle->GetConnectedOutput(),
+					InputHandle->GetName(),
 					InputHandle->GetDataType(),
 					MoveTemp(DefaultLiteral),
 					bLiteralSet
@@ -787,17 +788,19 @@ namespace Metasound
 			struct FOutputConnectionInfo
 			{
 				TArray<FInputHandle> ConnectedInputs;
+				FVertexName VertexName;
 				FName DataType;
 			};
 
-			TMap<FConnectionKey, FOutputConnectionInfo> OutputConnections;
+			TMap<FVertexNameAndType, FOutputConnectionInfo> OutputConnections;
 			IterateOutputs([Connections = &OutputConnections](FOutputHandle OutputHandle)
 			{
-				const FConnectionKey ConnectionKey(OutputHandle->GetName(), OutputHandle->GetDataType());
+				const FVertexNameAndType ConnectionKey(OutputHandle->GetName(), OutputHandle->GetDataType());
 				Connections->Add(ConnectionKey, FOutputConnectionInfo
 				{
 					OutputHandle->GetConnectedInputs(),
-					OutputHandle->GetDataType(),
+					OutputHandle->GetName(),
+					OutputHandle->GetDataType()
 				});
 			});
 
@@ -832,10 +835,10 @@ namespace Metasound
 			ReplacementNode->SetNodeStyle(Style);
 #endif // WITH_EDITOR
 
-			ReplacementNode->IterateInputs([Connections = &InputConnections](FInputHandle InputHandle)
+			ReplacementNode->IterateInputs([&InputConnections](FInputHandle InputHandle)
 			{
-				const FConnectionKey ConnectionKey(InputHandle->GetName(), InputHandle->GetDataType());
-				if (FInputConnectionInfo* ConnectionInfo = Connections->Find(ConnectionKey))
+				const FVertexNameAndType ConnectionKey(InputHandle->GetName(), InputHandle->GetDataType());
+				if (FInputConnectionInfo* ConnectionInfo = InputConnections.Find(ConnectionKey))
 				{
 					if (ConnectionInfo->bLiteralSet)
 					{
@@ -846,13 +849,30 @@ namespace Metasound
 					{
 						ensure(InputHandle->Connect(*ConnectionInfo->ConnectedOutput));
 					}
+
+					// Remove connection to track missing connections between 
+					// node versions.
+					InputConnections.Remove(ConnectionKey);
 				}
 			});
 
-			ReplacementNode->IterateOutputs([Connections = &OutputConnections](FOutputHandle OutputHandle)
+			// Track missing input connections
+			if (nullptr != OutDisconnectedInputs)
 			{
-				const FConnectionKey ConnectionKey(OutputHandle->GetName(), OutputHandle->GetDataType());
-				if (FOutputConnectionInfo* ConnectionInfo = Connections->Find(ConnectionKey))
+				for (const auto& ConnectionInfoKV : InputConnections)
+				{
+					const FInputConnectionInfo& ConnectionInfo = ConnectionInfoKV.Value;
+					if (ConnectionInfo.ConnectedOutput->IsValid())
+					{
+						OutDisconnectedInputs->Add(FVertexNameAndType{ConnectionInfo.Name, ConnectionInfo.DataType});
+					}
+				}
+			}
+
+			ReplacementNode->IterateOutputs([&OutputConnections](FOutputHandle OutputHandle)
+			{
+				const FVertexNameAndType ConnectionKey(OutputHandle->GetName(), OutputHandle->GetDataType());
+				if (FOutputConnectionInfo* ConnectionInfo = OutputConnections.Find(ConnectionKey))
 				{
 					for (FInputHandle InputHandle : ConnectionInfo->ConnectedInputs)
 					{
@@ -861,8 +881,26 @@ namespace Metasound
 							ensure(InputHandle->Connect(*OutputHandle));
 						}
 					}
+
+					// Remove connection to track missing connections between 
+					// node versions.
+					OutputConnections.Remove(ConnectionKey);
 				}
 			});
+
+			// Track missing output connections
+			if (nullptr != OutDisconnectedOutputs)
+			{
+				for (const auto& ConnectionInfoKV : OutputConnections)
+				{
+					const FOutputConnectionInfo& ConnectionInfo = ConnectionInfoKV.Value;
+					const bool bAnyConnectedInputs = Algo::AnyOf(ConnectionInfo.ConnectedInputs, [](const FInputHandle& Input) { return Input->IsValid(); });
+					if (bAnyConnectedInputs)
+					{
+						OutDisconnectedOutputs->Add(FVertexNameAndType{ConnectionInfo.VertexName, ConnectionInfo.DataType});
+					}
+				}
+			}
 
 			return ReplacementNode;
 		}
