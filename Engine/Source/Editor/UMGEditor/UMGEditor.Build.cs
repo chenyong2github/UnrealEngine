@@ -47,6 +47,7 @@ public class UMGEditor : ModuleRules
 				"InputCore",
 				"Engine",
 				"AssetTools",
+				"EditorSubsystem",
 				"EditorFramework",
 				"InteractiveToolsFramework",
 				"UnrealEd", // for Asset Editor Subsystem
