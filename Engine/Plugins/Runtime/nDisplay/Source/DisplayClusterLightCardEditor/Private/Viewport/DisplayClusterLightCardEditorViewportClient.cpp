@@ -3,6 +3,7 @@
 #include "DisplayClusterLightCardEditorViewportClient.h"
 
 #include "DisplayClusterConfigurationTypes.h"
+#include "DisplayClusterProjectionStrings.h"
 #include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterPreviewComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
@@ -50,8 +51,8 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	LightCardEditorPtr = InLightCardEditor;
 	
 	MeshProjectionRenderer = MakeShared<FDisplayClusterMeshProjectionRenderer>();
+	MeshProjectionRenderer->ActorSelectedDelegate = FDisplayClusterMeshProjectionRenderer::FSelection::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected);
 
-	SelectedActor = nullptr;
 	bDraggingActor = false;
 	ScopedTransaction = nullptr;
 	
@@ -61,6 +62,8 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	DrawHelper.bDrawKillZ = false;
 	DrawHelper.bDrawGrid = false;
 	DrawHelper.PerspectiveGridSize = HALF_WORLD_MAX1;
+
+	EngineShowFlags.SetSelectionOutline(true);
 
 	check(Widget);
 	Widget->SetSnapEnabled(true);
@@ -252,7 +255,7 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 	FSceneViewInitOptions ViewInitOptions;
 	GetSceneViewInitOptions(ViewInitOptions);
 
-	MeshProjectionRenderer->Render(Canvas, GetScene(), ViewInitOptions, ProjectionMode);
+	MeshProjectionRenderer->Render(Canvas, GetScene(), ViewInitOptions, EngineShowFlags, ProjectionMode);
 
 	if (View)
 	{
@@ -311,21 +314,11 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 
 UE::Widget::EWidgetMode FDisplayClusterLightCardEditorViewportClient::GetWidgetMode() const
 {
-	if (IsActorSelected())
-	{
-		return FEditorViewportClient::GetWidgetMode();
-	}
-
 	return UE::Widget::WM_None;
 }
 
 FVector FDisplayClusterLightCardEditorViewportClient::GetWidgetLocation() const
 {
-	if (IsActorSelected())
-	{
-		return SelectedActor->GetActorLocation();
-	}
-
 	return FEditorViewportClient::GetWidgetLocation();
 }
 
@@ -386,7 +379,7 @@ bool FDisplayClusterLightCardEditorViewportClient::InputWidgetDelta(FViewport* I
 void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(const FInputEventState& InInputState, bool bIsDraggingWidget,
 	bool bNudge)
 {
-	if (!bDraggingActor && bIsDraggingWidget && InInputState.IsLeftMouseButtonPressed() && IsActorSelected())
+	if (!bDraggingActor && bIsDraggingWidget && InInputState.IsLeftMouseButtonPressed() && SelectedLightCards.Num())
 	{
 		GEditor->DisableDeltaModification(true);
 		{
@@ -407,7 +400,7 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStopped()
 	bDraggingActor = false;
 	EndTransaction();
 
-	if (IsActorSelected())
+	if (SelectedLightCards.Num())
 	{
 		GEditor->DisableDeltaModification(false);
 	}
@@ -415,12 +408,95 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStopped()
 	FEditorViewportClient::TrackingStopped();
 }
 
-void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event,
-                                                uint32 HitX, uint32 HitY)
+void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
-	// TODO: Add logic to check if the hit proxy was a light card, and select that light card
+	UWorld* PreviewWorld = PreviewScene->GetWorld();
+	check(PreviewWorld);
+
+	if (HitProxy)
+	{
+		if (HitProxy->IsA(HActor::StaticGetType()))
+		{
+			HActor* ActorHitProxy = static_cast<HActor*>(HitProxy);
+			if (ActorHitProxy->Actor == RootActorPreviewInstance.Get())
+			{
+				if (ActorHitProxy->PrimComponent && ActorHitProxy->PrimComponent->IsA<UStaticMeshComponent>())
+				{
+					AActor* TracedLightCard = TraceScreenForLightCard(View, HitX, HitY);
+					SelectLightCard(TracedLightCard);
+				}
+			}
+			else if (LightCardProxies.Contains(ActorHitProxy->Actor))
+			{
+				SelectLightCard(ActorHitProxy->Actor);
+			}
+			else
+			{
+				SelectLightCard(nullptr);
+			}
+		}
+	}
+	else
+	{
+		SelectLightCard(nullptr);
+	}
 	
 	FEditorViewportClient::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
+}
+
+EMouseCursor::Type FDisplayClusterLightCardEditorViewportClient::GetCursor(FViewport* InViewport, int32 X, int32 Y)
+{
+	EMouseCursor::Type MouseCursor = EMouseCursor::Default;
+
+	if (RequiredCursorVisibiltyAndAppearance.bOverrideAppearance &&
+		RequiredCursorVisibiltyAndAppearance.bHardwareCursorVisible)
+	{
+		 MouseCursor = RequiredCursorVisibiltyAndAppearance.RequiredCursor;
+	}
+	else if (!RequiredCursorVisibiltyAndAppearance.bHardwareCursorVisible)
+	{
+		MouseCursor = EMouseCursor::None;
+	}
+	else if( InViewport->IsCursorVisible() && !bWidgetAxisControlledByDrag )
+	{
+		HHitProxy* HitProxy = InViewport->GetHitProxy(X,Y);
+		if (HitProxy)
+		{
+			bShouldCheckHitProxy = true;
+
+			if (HitProxy->IsA(HActor::StaticGetType()))
+			{
+				HActor* ActorHitProxy = static_cast<HActor*>(HitProxy);
+				if (ActorHitProxy->Actor == RootActorPreviewInstance.Get())
+				{
+					if (ActorHitProxy->PrimComponent && ActorHitProxy->PrimComponent->IsA<UStaticMeshComponent>())
+					{
+						FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+							InViewport,
+							GetScene(),
+							EngineShowFlags)
+							.SetRealtimeUpdate(IsRealtime()));
+						FSceneView* View = CalcSceneView( &ViewFamily );
+
+						AActor* TracedLightCard = TraceScreenForLightCard(*View, X, Y);
+						if (TracedLightCard)
+						{
+							MouseCursor = EMouseCursor::Crosshairs;
+						}
+					}
+				}
+				else if (LightCardProxies.Contains(ActorHitProxy->Actor))
+				{
+					MouseCursor = EMouseCursor::Crosshairs;
+				}
+			}
+		}
+	}
+
+	CachedMouseX = X;
+	CachedLastMouseY = Y;
+
+	return MouseCursor;
 }
 
 void FDisplayClusterLightCardEditorViewportClient::SelectActor(AActor* NewActor)
@@ -433,19 +509,30 @@ void FDisplayClusterLightCardEditorViewportClient::ResetSelection()
 	SetWidgetMode(UE::Widget::WM_None);
 }
 
-void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayClusterRootActor* RootActor)
+void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce)
 {
 	UWorld* PreviewWorld = PreviewScene->GetWorld();
 	check (PreviewWorld);
 	
+	if (!bForce && RootActor == RootActorLevelInstance.Get())
+	{
+		return;
+	}
+
 	if (RootActorPreviewInstance.IsValid() && (!RootActor || !PreviewWorld->ContainsActor(RootActor)))
 	{
+		MeshProjectionRenderer->ClearScene();
 		PreviewWorld->EditorDestroyActor(RootActorPreviewInstance.Get(), false);
 		
 		RootActorPreviewInstance.Reset();
-		RootActorLevelInstance.Reset();
 
-		MeshProjectionRenderer->ClearScene();
+		for (const TWeakObjectPtr<AActor> LightCardProxy : LightCardProxies)
+		{
+			PreviewWorld->EditorDestroyActor(LightCardProxy.Get(), false);
+		}
+
+		RootActorLevelInstance.Reset();
+		LightCardProxies.Empty();
 	}
 	
 	if (RootActor)
@@ -497,6 +584,26 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 
 		RootActorPreviewInstance->UpdatePreviewComponents();
 
+		TArray<TWeakObjectPtr<AActor>> LevelLightCards;
+		FindLightCardsForRootActor(RootActor, LevelLightCards);
+
+		for (const TWeakObjectPtr<AActor>& LightCard : LevelLightCards)
+		{
+			FActorSpawnParameters LightCardSpawnInfo;
+			LightCardSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			LightCardSpawnInfo.bNoFail = true;
+			LightCardSpawnInfo.ObjectFlags = RF_Transient|RF_Transactional;
+			LightCardSpawnInfo.Template = LightCard.Get();
+		
+			AActor* LightCardProxy = PreviewWorld->SpawnActor(LightCard->GetClass(), &FVector::ZeroVector, &FRotator::ZeroRotator, MoveTemp(LightCardSpawnInfo));
+
+			LightCardProxy->SetActorLocation(LightCard->GetActorLocation() - RootActor->GetActorLocation());
+			LightCardProxy->SetActorRotation(LightCard->GetActorRotation() - RootActor->GetActorRotation());
+
+			LightCardProxies.Add(LightCardProxy);
+			MeshProjectionRenderer->AddActor(LightCardProxy);
+		}
+
 		FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 		FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FDisplayClusterLightCardEditorViewportClient::OnActorPropertyChanged);
 	}
@@ -517,6 +624,9 @@ void FDisplayClusterLightCardEditorViewportClient::SetProjectionMode(EDisplayClu
 	}
 
 	FindProjectionOriginComponent();
+
+	Viewport->InvalidateHitProxy();
+	bShouldCheckHitProxy = true;
 }
 
 float FDisplayClusterLightCardEditorViewportClient::GetProjectionModeFOV(EDisplayClusterMeshProjectionType InProjectionMode) const
@@ -580,7 +690,7 @@ void FDisplayClusterLightCardEditorViewportClient::OnActorPropertyChanged(UObjec
 	}
 	if (bIsOurActor)
 	{
-		UpdatePreviewActor(RootActorLevelInstance.Get());
+		UpdatePreviewActor(RootActorLevelInstance.Get(), true);
 	}
 }
 
@@ -699,25 +809,55 @@ void FDisplayClusterLightCardEditorViewportClient::GetSceneViewInitOptions(FScen
 	OutViewInitOptions = ViewInitOptions;
 }
 
+UDisplayClusterConfigurationViewport* FDisplayClusterLightCardEditorViewportClient::FindViewportForPrimitiveComponent(UPrimitiveComponent* PrimitiveComponent)
+{
+	if (RootActorPreviewInstance.IsValid())
+	{
+		const FString PrimitiveComponentName = PrimitiveComponent->GetName();
+		UDisplayClusterConfigurationData* Config = RootActorPreviewInstance->GetConfigData();
+		
+		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodePair : Config->Cluster->Nodes)
+		{
+			const UDisplayClusterConfigurationClusterNode* Node = NodePair.Value;
+			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : Node->Viewports)
+			{
+				UDisplayClusterConfigurationViewport* CfgViewport = ViewportPair.Value;
+
+				FString ComponentName;
+				if (CfgViewport->ProjectionPolicy.Type.Equals(DisplayClusterProjectionStrings::projection::Simple, ESearchCase::IgnoreCase)
+					&& CfgViewport->ProjectionPolicy.Parameters.Contains(DisplayClusterProjectionStrings::cfg::simple::Screen))
+				{
+					ComponentName = CfgViewport->ProjectionPolicy.Parameters[DisplayClusterProjectionStrings::cfg::simple::Screen];
+				}
+				else if (CfgViewport->ProjectionPolicy.Type.Equals(DisplayClusterProjectionStrings::projection::Mesh, ESearchCase::IgnoreCase)
+					&& CfgViewport->ProjectionPolicy.Parameters.Contains(DisplayClusterProjectionStrings::cfg::mesh::Component))
+				{
+					ComponentName = CfgViewport->ProjectionPolicy.Parameters[DisplayClusterProjectionStrings::cfg::mesh::Component];
+				}
+
+				if (ComponentName == PrimitiveComponentName)
+				{
+					return CfgViewport;
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void FDisplayClusterLightCardEditorViewportClient::FindProjectionOriginComponent()
 {
 	if (RootActorPreviewInstance.IsValid())
 	{
-		if (ProjectionMode == EDisplayClusterMeshProjectionType::Perspective)
-		{
-			TArray<UDisplayClusterCameraComponent*> ViewOriginComponents;
-			RootActorPreviewInstance->GetComponents<UDisplayClusterCameraComponent>(ViewOriginComponents);
+		TArray<UDisplayClusterCameraComponent*> ViewOriginComponents;
+		RootActorPreviewInstance->GetComponents<UDisplayClusterCameraComponent>(ViewOriginComponents);
 
-			if (ViewOriginComponents.Num())
-			{
-				ProjectionOriginComponent = ViewOriginComponents[0];
-			}
-			else
-			{
-				ProjectionOriginComponent = RootActorPreviewInstance->GetRootComponent();
-			}
+		if (ViewOriginComponents.Num())
+		{
+			ProjectionOriginComponent = ViewOriginComponents[0];
 		}
-		else if (ProjectionMode == EDisplayClusterMeshProjectionType::Azimuthal)
+		else
 		{
 			ProjectionOriginComponent = RootActorPreviewInstance->GetRootComponent();
 		}
@@ -726,6 +866,148 @@ void FDisplayClusterLightCardEditorViewportClient::FindProjectionOriginComponent
 	{
 		ProjectionOriginComponent.Reset();
 	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TArray<TWeakObjectPtr<AActor>>& OutLightCards)
+{
+	if (RootActor)
+	{
+		FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = RootActor->GetConfigData()->StageSettings.Lightcard.ShowOnlyList;
+
+		for (const TSoftObjectPtr<AActor>& LightCardActor : RootActorLightCards.Actors)
+		{
+			if (LightCardActor.IsValid())
+			{
+				OutLightCards.Add(LightCardActor.Get());
+			}
+		}
+
+		// If there are any layers that are specified as light card layers, iterate over all actors in the world and 
+		// add any that are members of any of the light card layers to the list. Only add an actor once, even if it is
+		// in multiple layers
+		if (RootActorLightCards.ActorLayers.Num())
+		{
+			if (UWorld* World = RootActor->GetWorld())
+			{
+				for (const TWeakObjectPtr<AActor> WeakActor : FActorRange(World))
+				{
+					if (WeakActor.IsValid())
+					{
+						for (const FActorLayer& ActorLayer : RootActorLightCards.ActorLayers)
+						{
+							if (WeakActor->Layers.Contains(ActorLayer.Name))
+							{
+								OutLightCards.Add(WeakActor);
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+bool FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected(const AActor* Actor)
+{
+	return SelectedLightCards.Contains(Actor);
+}
+
+void FDisplayClusterLightCardEditorViewportClient::SelectLightCard(AActor* Actor, bool bAddToSelection)
+{
+	TArray<AActor*> UpdatedActors;
+
+	if (!bAddToSelection)
+	{
+		for (const TWeakObjectPtr<AActor>& LightCard : SelectedLightCards)
+		{
+			if (LightCard.IsValid())
+			{
+				UpdatedActors.Add(LightCard.Get());
+			}
+		}
+
+		SelectedLightCards.Empty();
+	}
+
+	if (Actor)
+	{
+		SelectedLightCards.Add(Actor);
+		UpdatedActors.Add(Actor);
+	}
+
+	for (AActor* UpdatedActor : UpdatedActors)
+	{
+		UpdatedActor->PushSelectionToProxies();
+	}
+}
+
+AActor* FDisplayClusterLightCardEditorViewportClient::TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY)
+{
+	UWorld* PreviewWorld = PreviewScene->GetWorld();
+	check(PreviewWorld);
+
+	const FVector4 ScreenPos = View.PixelToScreen(HitX, HitY, 0);
+	const FMatrix InvProjMatrix = View.ViewMatrices.GetInvProjectionMatrix();
+	const FMatrix InvViewMatrix = View.ViewMatrices.GetInvViewMatrix();
+	FVector ViewPos = FVector(InvProjMatrix.TransformFVector4(FVector4(ScreenPos.X * GNearClippingPlane, ScreenPos.Y * GNearClippingPlane, 0.0f, GNearClippingPlane)));
+	
+	// If the projection mode is azimuthal, we need to convert to the "true" view position by undoing the non-linear projection applied by the projection shader
+	if (ProjectionMode == EDisplayClusterMeshProjectionType::Azimuthal)
+	{
+		const float Rho = ViewPos.Length();
+		const FVector UnitViewPos = ViewPos.GetSafeNormal();
+
+		const FVector PlanePos = UnitViewPos / UnitViewPos.Z;
+		const FVector2D PolarCoords = FVector2D(FMath::Sqrt(PlanePos.X * PlanePos.X + PlanePos.Y * PlanePos.Y), FMath::Atan2(PlanePos.Y, PlanePos.X));
+		ViewPos = FVector(FMath::Sin(PolarCoords.X) * FMath::Cos(PolarCoords.Y), FMath::Sin(PolarCoords.X) * FMath::Sin(PolarCoords.Y), FMath::Cos(PolarCoords.X)) * Rho;
+	}
+
+	const FVector Direction = InvViewMatrix.TransformVector(ViewPos).GetSafeNormal();
+
+	const FVector CursorRayStart = View.ViewMatrices.GetViewOrigin();
+	const FVector CursorRayEnd = CursorRayStart + Direction * HALF_WORLD_MAX;
+
+	FCollisionQueryParams Param(SCENE_QUERY_STAT(DragDropTrace), true);
+
+	bool bHitLightCard = false;
+	FHitResult ScreenHitResult;
+	if (PreviewWorld->LineTraceSingleByObjectType(ScreenHitResult, CursorRayStart, CursorRayEnd, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), Param))
+	{
+		if (AActor* HitActor = ScreenHitResult.GetActor())
+		{
+			if (RootActorPreviewInstance.Get() == HitActor && ScreenHitResult.Component.IsValid())
+			{
+				if (UDisplayClusterConfigurationViewport* CfgViewport = FindViewportForPrimitiveComponent(ScreenHitResult.Component.Get()))
+				{
+					FString ViewOriginName = CfgViewport->Camera;
+					if (UDisplayClusterCameraComponent* ViewOrigin = RootActorPreviewInstance->GetComponentByName<UDisplayClusterCameraComponent>(ViewOriginName))
+					{
+						const FVector ViewOriginRayStart = ViewOrigin->GetComponentLocation();
+						const FVector ViewOriginRayEnd = ViewOriginRayStart + (ScreenHitResult.Location - ViewOriginRayStart) * HALF_WORLD_MAX;
+
+						TArray<FHitResult> HitResults;
+						if (PreviewWorld->LineTraceMultiByObjectType(HitResults, ViewOriginRayStart, ViewOriginRayEnd, FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), Param))
+						{
+							for (FHitResult& HitResult : HitResults)
+							{
+								if (LightCardProxies.Contains(HitResult.GetActor()))
+								{
+									return HitResult.GetActor();
+								}
+							}
+						}
+					}
+				}
+			}
+			else if (LightCardProxies.Contains(HitActor))
+			{
+				return HitActor;
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -17,5 +17,10 @@ public class DisplayClusterLightCardEditorShaders : ModuleRules
 				"RHI",
 				"Projects"
 			});
+
+		PrivateIncludePaths.AddRange(
+			new string[] {
+				"../../../../Source/Runtime/Renderer/Private",
+			});
 	}
 }

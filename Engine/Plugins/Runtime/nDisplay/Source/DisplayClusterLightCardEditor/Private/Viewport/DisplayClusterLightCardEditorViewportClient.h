@@ -12,6 +12,7 @@
 class ADisplayClusterRootActor;
 class SDisplayClusterLightCardEditor;
 class FScopedTransaction;
+class UDisplayClusterConfigurationViewport;
 
 /** Viewport Client for the preview viewport */
 class FDisplayClusterLightCardEditorViewportClient : public FEditorViewportClient, public TSharedFromThis<FDisplayClusterLightCardEditorViewportClient>
@@ -36,6 +37,7 @@ public:
 	virtual void TrackingStarted(const FInputEventState& InInputState, bool bIsDraggingWidget, bool bNudge) override;
 	virtual void TrackingStopped() override;
 	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
+	virtual EMouseCursor::Type GetCursor(FViewport* Viewport,int32 X,int32 Y) override;
 	virtual ELevelViewportType GetViewportType() const override { return LVT_Perspective; }
 	// ~FEditorViewportClient
 
@@ -43,11 +45,7 @@ public:
 	void ResetSelection();
 
 	/** Update the spawned preview actor from a root actor in the level. */
-	void UpdatePreviewActor(ADisplayClusterRootActor* RootActor);
-	
-	AActor* GetSelectedActor() const { return SelectedActor.Get(); }
-
-	bool IsActorSelected() const { return SelectedActor.IsValid(); }
+	void UpdatePreviewActor(ADisplayClusterRootActor* RootActor, bool bForce = false);
 	
 	EDisplayClusterMeshProjectionType GetProjectionMode() const { return ProjectionMode; }
 	void SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode);
@@ -58,7 +56,7 @@ public:
 	/** Sets the field of view of the specified projection mode */
 	void SetProjectionModeFOV(EDisplayClusterMeshProjectionType InProjectionMode, float NewFOV);
 
-protected:
+private:
 	/** Initiates a transaction. */
 	void BeginTransaction(const FText& Description);
 
@@ -74,15 +72,32 @@ protected:
 	/** Gets the scene view init options to use to create scene views for the preview scene */
 	void GetSceneViewInitOptions(FSceneViewInitOptions& OutViewInitOptions);
 
+	/** Gets the viewport that is attached to the specified primitive component */
+	UDisplayClusterConfigurationViewport* FindViewportForPrimitiveComponent(UPrimitiveComponent* PrimitiveComponent);
+
 	/** Finds a suitable primitive component on the stage actor to use as a projection origin */
 	void FindProjectionOriginComponent();
+
+	/** Gets a list of all light card actors on the level linked to the specified root actor */
+	void FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TArray<TWeakObjectPtr<AActor>>& OutLightCards);
+
+	/** Callback to check if an light card actor is among the list of selected light card actors */
+	bool IsLightCardSelected(const AActor* Actor);
+
+	/** Adds the specified light card actor the the list of selected light cards */
+	void SelectLightCard(AActor* Actor, bool bAddToSelection = false);
+
+	/** Traces to find the light card corresponding to a click on a stage screen */
+	AActor* TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY);
 
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
 	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorPreviewInstance;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorLevelInstance;
-	TWeakObjectPtr<AActor> SelectedActor;
+
+	TArray<TWeakObjectPtr<AActor>> LightCardProxies;
+	TArray<TWeakObjectPtr<AActor>> SelectedLightCards;
 	
 	/** The renderer for the viewport, which can render the meshes with a variety of projection types */
 	TSharedPtr<FDisplayClusterMeshProjectionRenderer> MeshProjectionRenderer;

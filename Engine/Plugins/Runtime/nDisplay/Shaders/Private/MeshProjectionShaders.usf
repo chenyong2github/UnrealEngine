@@ -62,6 +62,10 @@ void MainPS(FMeshProjectionVSToPS Input, in float4 SvPosition : SV_Position OPTI
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, bIsFrontFace);
 
+	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
+	
 	float3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
-	OutputColor = float4(Emissive, 1);
+	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	
+	OutputColor = float4(Emissive, Opacity);
 }
