@@ -35,6 +35,7 @@
 #include "Misc/NamePermissionList.h"
 #include "StatusBarSubsystem.h"
 #include "ToolMenus.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -396,7 +397,12 @@ TSharedPtr<SContentBrowser> FContentBrowserSingleton::FindContentBrowserToSync(b
 
 	if ( !ContentBrowserToSync.IsValid() )
 	{
-		UE_LOG( LogContentBrowser, Log, TEXT( "Unable to sync content browser, all browsers appear to be locked" ) );
+		FText NotificationText = FText::FromString(TEXT("Unable to browse to the requested asset. All Content Browsers are locked."));
+		FNotificationInfo Notification(NotificationText);
+		Notification.ExpireDuration = 3.0f;
+		FSlateNotificationManager::Get().AddNotification(Notification);
+
+		UE_LOG(LogNet, Log, TEXT("%s"), *NotificationText.ToString());
 	}
 
 	return ContentBrowserToSync;
