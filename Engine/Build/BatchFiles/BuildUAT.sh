@@ -37,7 +37,7 @@ elif [ ! -f ../Binaries/DotNET/AutomationTool/AutomationTool.dll ]; then
 
 elif [ -f ../Intermediate/Build/AutomationToolLastBuildTime ]; then
   UPDATED_DEP_FILES="$(find \
-    Programs/Shared/EpicGames.Core Programs/Shared/EpicGames.Build Programs/UnrealBuildTool \
+    Programs/Shared/EpicGames.Core Programs/Shared/EpicGames.Build Programs/Shared/EpicGames.UHT Programs/UnrealBuildTool \
     -type f \
     \( -iname \*.cs -or -iname \*.csproj \) \
     -newer ../Intermediate/Build/AutomationToolLastBuildTime)"

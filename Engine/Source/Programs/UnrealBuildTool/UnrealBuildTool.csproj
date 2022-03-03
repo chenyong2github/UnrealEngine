@@ -104,6 +104,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- If you add a project reference, BuildUAT.bat/.sh need to be updated to also test for those projects.
+    While similar checks are in RunUBT.bat/.sh and GenerateProjectFiles.bat, they don't currently check for these projects. -->
     <ProjectReference Include="..\Shared\EpicGames.Build\EpicGames.Build.csproj" />
     <ProjectReference Include="..\Shared\EpicGames.Core\EpicGames.Core.csproj" />
     <ProjectReference Include="..\Shared\EpicGames.UHT\EpicGames.UHT.csproj" />
