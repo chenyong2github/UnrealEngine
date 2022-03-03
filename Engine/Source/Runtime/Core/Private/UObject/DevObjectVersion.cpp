@@ -303,6 +303,7 @@ FDevVersionRegistration GRegisterUE5MainStreamObjectVersion(FUE5MainStreamObject
 const FGuid FUE5ReleaseStreamObjectVersion::GUID(0xD89B5E42, 0x24BD4D46, 0x8412ACA8, 0xDF641779);
 // Register UE5 release stream custom version with Core
 FDevVersionRegistration GRegisterUE5ReleaseStreamObjectVersion(FUE5ReleaseStreamObjectVersion::GUID, FUE5ReleaseStreamObjectVersion::LatestVersion, TEXT("UE5-Release"));
+FDevSystemGuidRegistration GRegisterUE5ReleaseBranchSystemGuids(FUE5ReleaseStreamObjectVersion::GetSystemGuids());
 
 // Unique UE5 private frosty version id
 const FGuid FUE5PrivateFrostyStreamObjectVersion::GUID(0x59DA5D52, 0x12324948, 0xB8785978, 0x70B8E98B);
