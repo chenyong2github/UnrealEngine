@@ -1208,6 +1208,19 @@ void UChildConnection::CleanUp()
 	Driver = NULL;
 }
 
+void UChildConnection::InitChildConnection(UNetDriver* InDriver, UNetConnection* InParent)
+{
+	Driver = InDriver;
+	URL = FURL();
+	SetConnectionState(InParent->GetConnectionState());
+	URL.Host = InParent->URL.Host;
+	Parent = InParent;
+	PackageMap = InParent->PackageMap;
+	CurrentNetSpeed = InParent->CurrentNetSpeed;
+
+	InitChannelData();
+}
+
 void UNetConnection::FinishDestroy()
 {
 	if ( !HasAnyFlags(RF_ClassDefaultObject) )

@@ -682,8 +682,6 @@ private:
 
 	UReplicationConnectionDriver* ReplicationConnectionDriver;
 
-	void InitChannelData();
-
 	/** Engine package version for compatibility */
 	FPackageFileVersion PackageVersionUE;
 
@@ -1699,6 +1697,8 @@ private:
 
 protected:
 	TOptional<FNetworkCongestionControl> NetworkCongestionControl;
+
+	void InitChannelData();
 };
 
 struct FScopedRepContext

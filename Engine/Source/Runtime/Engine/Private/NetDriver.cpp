@@ -3699,15 +3699,10 @@ void UNetDriver::ForceActorRelevantNextUpdate(AActor* Actor)
 UChildConnection* UNetDriver::CreateChild(UNetConnection* Parent)
 {
 	UE_LOG(LogNet, Log, TEXT("Creating child connection with %s parent"), *Parent->GetName());
-	auto Child = NewObject<UChildConnection>();
-	Child->Driver = this;
-	Child->URL = FURL();
-	Child->SetConnectionState(Parent->GetConnectionState());
-	Child->URL.Host = Parent->URL.Host;
-	Child->Parent = Parent;
-	Child->PackageMap = Parent->PackageMap;
-	Child->CurrentNetSpeed = Parent->CurrentNetSpeed;
+	UChildConnection* Child = NewObject<UChildConnection>();
+	Child->InitChildConnection(this, Parent);
 	Parent->Children.Add(Child);
+
 	return Child;
 }
 
