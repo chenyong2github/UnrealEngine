@@ -130,9 +130,6 @@ namespace Metasound
 			// Adds an variable node with the given node handle to the editor graph.
 			static UMetasoundEditorGraphVariableNode* AddVariableNode(UObject& InMetaSound, Frontend::FNodeHandle& InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
 
-			// Synchronizes node location data
-			static void SynchronizeNodeLocation(FVector2D InLocation, Frontend::FNodeHandle InNodeHandle, UMetasoundEditorGraphNode& InNode);
-
 			// Adds an output node to the editor graph that corresponds to the provided node handle.
 			static UMetasoundEditorGraphOutputNode* AddOutputNode(UObject& InMetaSound, Frontend::FNodeHandle& InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
 
@@ -231,6 +228,11 @@ namespace Metasound
 			//
 			// @return True if the UMetasoundEditorGraphNode was altered. False otherwise.
 			static bool SynchronizeNodeMembers(UObject& InMetaSound);
+
+			// Synchronizes node location data using handle's data
+			//
+			// @return True if the UMetasoundEditorGraphNode was altered. False otherwise.
+			static bool SynchronizeNodeLocation(UMetasoundEditorGraphNode& InNode);
 
 			// Adds and removes pins so that the UMetasoundEditorGraphNode matches the InNode.
 			//

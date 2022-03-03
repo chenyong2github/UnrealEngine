@@ -2447,14 +2447,17 @@ namespace Metasound
 			{
 				MetasoundDetails->ForceRefresh();
 			}
+		}
 
+		void FEditor::RefreshInterfaces()
+		{
 			if (InterfacesDetails.IsValid())
 			{
 				InterfacesDetails->ForceRefresh();
 			}
 		}
 
-		void FEditor::RefreshInterface()
+		void FEditor::RefreshGraphMemberMenu()
 		{
 			if (GraphMembersMenu.IsValid())
 			{
@@ -3008,13 +3011,23 @@ namespace Metasound
 				const bool bShouldRefreshDetails = MetasoundAsset->GetSynchronizationUpdateDetails();
 				FGraphBuilder::SynchronizeGraph(*Metasound);
 
-				if (bShouldRefreshDetails)
+				// Presets always update interfaces
+				const FMetasoundFrontendGraphClass& RootGraphClass = MetasoundAsset->GetDocumentHandle()->GetRootGraphClass();
+				const bool bIsPreset = RootGraphClass.PresetOptions.bIsPreset;
+				if (bIsPreset)
 				{
+					RefreshInterfaces();
+				}
+
+				if (bShouldRefreshDetails || bIsPreset)
+				{
+					// TODO: Break up this synchronization flag
 					RefreshDetails();
+					RefreshInterfaces();
 				}
 				else
 				{
-					// Also refresh if the object in the panel has gone invalid
+					// Also refresh details if the object in the panel has gone invalid
 					auto ShouldRefreshDetails = [](TWeakObjectPtr<UObject> Obj)
 					{
 						if (!Obj.IsValid() || !IsValid(Obj.Get()))

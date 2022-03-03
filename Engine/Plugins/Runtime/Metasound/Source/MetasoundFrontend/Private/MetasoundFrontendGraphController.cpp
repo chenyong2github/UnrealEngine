@@ -187,6 +187,26 @@ namespace Metasound
 			return Invalid::GetInvalidGraphStyle();
 		}
 
+		const FMetasoundFrontendInterfaceStyle& FGraphController::GetInputStyle() const
+		{
+			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+			{
+				return GraphClass->Interface.GetInputStyle();
+			}
+
+			return Invalid::GetInvalidInterfaceStyle();
+		}
+
+		const FMetasoundFrontendInterfaceStyle& FGraphController::GetOutputStyle() const
+		{
+			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+			{
+				return GraphClass->Interface.GetOutputStyle();
+			}
+
+			return Invalid::GetInvalidInterfaceStyle();
+		}
+
 		void FGraphController::SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle)
 		{
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
@@ -199,7 +219,16 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
-				GraphClass->Interface.SetInputStyle(InStyle);
+				FMetasoundFrontendInterfaceStyle Style = InStyle;
+
+				TArray<FMetasoundFrontendClassInput>& Inputs = GraphClass->Interface.Inputs;
+				Style.DefaultSortOrder.SetNumZeroed(Inputs.Num());
+
+				for (int32 i = 0; i < Inputs.Num(); ++i)
+				{
+					Inputs[i].Metadata.SortOrderIndex = InStyle.DefaultSortOrder[i];
+				}
+				GraphClass->Interface.SetInputStyle(Style);
 			}
 		}
 
@@ -207,7 +236,16 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
-				GraphClass->Interface.SetOutputStyle(InStyle);
+				FMetasoundFrontendInterfaceStyle Style = InStyle;
+
+				TArray<FMetasoundFrontendClassOutput>& Outputs = GraphClass->Interface.Outputs;
+				Style.DefaultSortOrder.SetNumZeroed(Outputs.Num());
+
+				for (int32 i = 0; i < Outputs.Num(); ++i)
+				{
+					Outputs[i].Metadata.SortOrderIndex = InStyle.DefaultSortOrder[i];
+				}
+				GraphClass->Interface.SetOutputStyle(Style);
 			}
 		}
 #endif // WITH_EDITOR

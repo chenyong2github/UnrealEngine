@@ -286,8 +286,7 @@ namespace Metasound
 
 			NodeCreator.Finalize();
 			InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
-
-			SynchronizeNodeLocation(InLocation, InNodeHandle, *NewGraphNode);
+			NewGraphNode->SetNodeLocation(InLocation);
 
 			// Adding external node may introduce referenced asset so rebuild referenced keys.
 			MetaSoundAsset->RebuildReferencedAssetClassKeys();
@@ -339,8 +338,7 @@ namespace Metasound
 					NodeCreator.Finalize();
 
 					InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
-
-					SynchronizeNodeLocation(InLocation, InNodeHandle, *NewGraphNode);
+					NewGraphNode->SetNodeLocation(InLocation);
 				}
 			}
 
@@ -369,8 +367,7 @@ namespace Metasound
 
 			NodeCreator.Finalize();
 			InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
-
-			SynchronizeNodeLocation(InLocation, InNodeHandle, *NewGraphNode);
+			NewGraphNode->SetNodeLocation(InLocation);
 
 			return NewGraphNode;
 		}
@@ -432,7 +429,7 @@ namespace Metasound
 
 			if (MetaSoundEditor.IsValid())
 			{
-				MetaSoundEditor->RefreshInterface();
+				MetaSoundEditor->RefreshGraphMemberMenu();
 			}
 
 			if (bMarkDirty)
@@ -630,14 +627,32 @@ namespace Metasound
 			return false;
 		}
 
-		void FGraphBuilder::SynchronizeNodeLocation(FVector2D InLocation, Frontend::FNodeHandle InNodeHandle, UMetasoundEditorGraphNode& InNode)
+		bool FGraphBuilder::SynchronizeNodeLocation(UMetasoundEditorGraphNode& InNode)
 		{
-			InNode.NodePosX = InLocation.X;
-			InNode.NodePosY = InLocation.Y;
+			bool bModified = false;
 
-			FMetasoundFrontendNodeStyle Style = InNodeHandle->GetNodeStyle();
-			Style.Display.Locations.FindOrAdd(InNode.NodeGuid) = InLocation;
-			InNodeHandle->SetNodeStyle(Style);
+			const FMetasoundFrontendNodeStyle& Style = InNode.GetConstNodeHandle()->GetNodeStyle();
+
+			const FVector2D* Location = Style.Display.Locations.Find(InNode.NodeGuid);
+			if (!Location)
+			{
+				// If no specific location found, use default location if provided (zero guid
+				// for example, provided by preset defaults.)
+				Location = Style.Display.Locations.Find({ });
+			}
+
+			if (Location)
+			{
+				const FVector2D Delta = *Location - FVector2D(InNode.NodePosX, InNode.NodePosY);
+				if (!Delta.IsNearlyZero(SMALL_NUMBER))
+				{
+					InNode.NodePosX = Location->X;
+					InNode.NodePosY = Location->Y;
+					bModified = true;
+				}
+			}
+
+			return bModified;
 		}
 
 		UMetasoundEditorGraphInputNode* FGraphBuilder::AddInputNode(UObject& InMetaSound, Frontend::FNodeHandle InNodeHandle, FVector2D InLocation, bool bInSelectNewNode)
@@ -656,8 +671,7 @@ namespace Metasound
 			UMetasoundEditorGraphInputNode* NewGraphNode = MetasoundGraph->CreateInputNode(InNodeHandle, bInSelectNewNode);
 			if (ensure(NewGraphNode))
 			{
-				SynchronizeNodeLocation(InLocation, InNodeHandle, *NewGraphNode);
-
+				NewGraphNode->SetNodeLocation(InLocation);
 				RebuildNodePins(*NewGraphNode);
 				return NewGraphNode;
 			}
@@ -1820,11 +1834,6 @@ namespace Metasound
 			for (int32 i = FrontendNodes.Num() - 1; i >= 0; i--)
 			{
 				FNodeHandle Node = FrontendNodes[i];
-				auto IsEditorNodeWithSameNodeID = [&](const UMetasoundEditorGraphNode* InEditorNode)
-				{
-					return InEditorNode->GetNodeID() == Node->GetID();
-				};
-
 				bool bFoundEditorNode = false;
 				for (int32 j = EditorNodes.Num() - 1; j >= 0; --j)
 				{
@@ -1842,6 +1851,7 @@ namespace Metasound
 							AssociatedNodeData.Node = Node;
 						}
 
+						bEditorGraphModified |= SynchronizeNodeLocation(*EditorNode);
 						AssociatedNodeData.EditorNodes.Add(EditorNode);
 						EditorNodes.RemoveAtSwap(j, 1, false /* bAllowShrinking */);
 					}

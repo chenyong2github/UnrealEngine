@@ -151,7 +151,10 @@ namespace Metasound
 			void RenameSelected();
 
 			/** Forces all UX pertaining to the root graph's interface to be refreshed. */
-			void RefreshInterface();
+			void RefreshGraphMemberMenu();
+
+			/** Forces refresh of interfaces list. */
+			void RefreshInterfaces();
 
 			/** Updates selected node classes to highest class found in the MetaSound Class Registry. */
 			void UpdateSelectedNodeClasses();

@@ -334,6 +334,8 @@ namespace Metasound
 #if WITH_EDITOR
 			virtual const FMetasoundFrontendGraphStyle& GetGraphStyle() const override { return Invalid::GetInvalidGraphStyle(); }
 			virtual void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) override { }
+			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override { return Invalid::GetInvalidInterfaceStyle(); }
+			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override { return Invalid::GetInvalidInterfaceStyle(); }
 			virtual void SetInputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) override { }
 			virtual void SetOutputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) override { }
 #endif // WITH_EDITOR

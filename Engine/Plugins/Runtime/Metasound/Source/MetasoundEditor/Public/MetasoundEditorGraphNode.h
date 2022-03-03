@@ -90,7 +90,8 @@ public:
 	UObject& GetMetasoundChecked();
 	const UObject& GetMetasoundChecked() const;
 
-	void UpdatePosition();
+	// Sets the node's location, both on this graph member node and on the frontend handle
+	void SetNodeLocation(const FVector2D& InLocation);
 
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;
 	Metasound::Frontend::FConstGraphHandle GetConstRootGraphHandle() const;

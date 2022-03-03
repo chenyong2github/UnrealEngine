@@ -623,6 +623,9 @@ namespace Metasound
 			// Returns graph style.
 			virtual const FMetasoundFrontendGraphStyle& GetGraphStyle() const = 0;
 
+			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const = 0;
+			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const = 0;
+
 			// Sets graph style.
 			virtual void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) = 0;
 

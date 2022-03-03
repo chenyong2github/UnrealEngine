@@ -97,10 +97,12 @@ namespace Metasound
 			TArray<FConstNodeHandle> GetConstOutputNodes() const override;
 
 #if WITH_EDITOR
-			const FMetasoundFrontendGraphStyle& GetGraphStyle() const override;
-			void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) override;
-			void SetInputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) override;
-			void SetOutputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) override;
+			virtual const FMetasoundFrontendGraphStyle& GetGraphStyle() const override;
+			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override;
+			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override;
+			virtual void SetGraphStyle(const FMetasoundFrontendGraphStyle& InStyle) override;
+			virtual void SetInputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) override;
+			virtual void SetOutputStyle(const FMetasoundFrontendInterfaceStyle& InStyle) override;
 #endif // WITH_EDITOR
 
 			bool ContainsInputVertex(const FVertexName& InName, const FName& InTypeName) const override;

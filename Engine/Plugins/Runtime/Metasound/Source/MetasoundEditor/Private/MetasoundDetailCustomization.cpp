@@ -434,6 +434,7 @@ namespace Metasound
 
 					}), LOCTEXT("RemoveInterfaceTooltip1", "Removes all interfaces from the given MetaSound."))
 				];
+			InterfaceUtilities->SetEnabled(IsGraphEditableAttribute);
 
 			const FText HeaderName = LOCTEXT("InterfacesGroupDisplayName", "Interfaces");
 			IDetailCategoryBuilder& InterfaceCategory = DetailLayout.EditCategory("Interfaces", HeaderName);
@@ -443,7 +444,7 @@ namespace Metasound
 				InterfaceUtilities
 			];
 
-			auto CreateInterfaceEntryWidget = [&](FName InInterfaceName) -> TSharedPtr<SWidget>
+			auto CreateInterfaceEntryWidget = [&](FName InInterfaceName) -> TSharedRef<SWidget>
 			{
 				using namespace Frontend;
 
@@ -478,7 +479,7 @@ namespace Metasound
 					MetaSoundAsset->SetSynchronizationRequired();
 				}), LOCTEXT("RemoveInterfaceTooltip2", "Removes the associated interface from the MetaSound."));
 
-				return SNew(SHorizontalBox)
+				TSharedRef<SWidget> EntryWidget = SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
 					.Padding(2.0f)
 					.HAlign(HAlign_Center)
@@ -496,6 +497,9 @@ namespace Metasound
 					[
 						RemoveButtonWidget
 					];
+
+				EntryWidget->SetEnabled(IsGraphEditableAttribute);
+				return EntryWidget;
 			};
 
 			TArray<FName> InterfaceNames = ImplementedInterfaceNames.Array();
@@ -504,7 +508,7 @@ namespace Metasound
 			{
 				InterfaceCategory.AddCustomRow(FText::FromName(InterfaceName))
 				[
-					CreateInterfaceEntryWidget(InterfaceName)->AsShared()
+					CreateInterfaceEntryWidget(InterfaceName)
 				];
 			}
 		}

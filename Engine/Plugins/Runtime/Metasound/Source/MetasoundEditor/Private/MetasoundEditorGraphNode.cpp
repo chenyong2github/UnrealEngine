@@ -68,9 +68,23 @@ Metasound::Editor::FGraphNodeValidationResult UMetasoundEditorGraphMemberNode::C
 	}
 	return OutResult;
 }
+
 UMetasoundEditorGraphNode::UMetasoundEditorGraphNode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+void UMetasoundEditorGraphNode::SetNodeLocation(const FVector2D& InLocation)
+{
+	using namespace Metasound::Frontend;
+
+	NodePosX = InLocation.X;
+	NodePosY = InLocation.Y;
+
+	FNodeHandle NodeHandle = GetNodeHandle();
+	FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
+	Style.Display.Locations.FindOrAdd(NodeGuid) = InLocation;
+	NodeHandle->SetNodeStyle(Style);
 }
 
 void UMetasoundEditorGraphNode::PostLoad()
@@ -482,16 +496,6 @@ void UMetasoundEditorGraphNode::PostEditUndo()
 			FGraphBuilder::SynchronizePinLiteral(*Pin);
 		}
 	}
-}
-
-void UMetasoundEditorGraphNode::UpdatePosition()
-{
-	GetMetasoundChecked().Modify();
-
-	Metasound::Frontend::FNodeHandle NodeHandle = GetNodeHandle();
-	FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
-	Style.Display.Locations.FindOrAdd(NodeGuid) = FVector2D(NodePosX, NodePosY);
-	GetNodeHandle()->SetNodeStyle(Style);
 }
 
 void UMetasoundEditorGraphNode::PostDuplicate(bool bDuplicateForPIE)

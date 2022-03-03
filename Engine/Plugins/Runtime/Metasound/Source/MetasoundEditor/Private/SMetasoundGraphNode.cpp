@@ -511,7 +511,9 @@ namespace Metasound
 		{
 			SGraphNode::MoveTo(NewPosition, NodeFilter, bMarkDirty);
 
-			GetMetaSoundNode().UpdatePosition();
+			UMetasoundEditorGraphNode& Node = GetMetaSoundNode();
+			Node.GetMetasoundChecked().Modify();
+			Node.SetNodeLocation(NewPosition);
 		}
 
 		const FSlateBrush* SMetaSoundGraphNode::GetNodeBodyBrush() const

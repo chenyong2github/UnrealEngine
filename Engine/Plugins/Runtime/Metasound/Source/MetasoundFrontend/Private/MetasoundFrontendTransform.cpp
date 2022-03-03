@@ -699,7 +699,7 @@ namespace Metasound
 			FMetasoundFrontendNodeStyle RefNodeStyle;
 
 			// Offset to be to the right of input nodes
-			RefNodeStyle.Display.Locations.Add(FGuid::NewGuid(), DisplayStyle::NodeLayout::DefaultOffsetX);
+			RefNodeStyle.Display.Locations.Add(FGuid(), DisplayStyle::NodeLayout::DefaultOffsetX);
 			ReferencedNodeHandle->SetNodeStyle(RefNodeStyle);
 #endif // WITH_EDITOR
 
@@ -717,27 +717,38 @@ namespace Metasound
 			// Add inputs and space appropriately
 			FVector2D InputNodeLocation = FVector2D::ZeroVector;
 
+			FConstGraphHandle ReferencedGraphHandle = ReferencedDocument->GetRootGraph();
+
+			TArray<FNodeHandle> NodeHandles;
 			for (const FMetasoundFrontendClassInput& ClassInput : InClassInputs)
 			{
 				FNodeHandle InputNode = InPresetGraphHandle->AddInputVertex(ClassInput);
-
 				if (ensure(InputNode->IsValid()))
 				{
-#if WITH_EDITOR
-					// Set input node location
-					FMetasoundFrontendNodeStyle NodeStyle;
-					NodeStyle.Display.Locations.Add(FGuid::NewGuid(), InputNodeLocation);
-					InputNode->SetNodeStyle(NodeStyle);
-					InputNodeLocation += DisplayStyle::NodeLayout::DefaultOffsetY;
-#endif // WITH_EDITOR
-
 					// Connect input node to corresponding referencing node.
 					FOutputHandle OutputToConnect = InputNode->GetOutputWithVertexName(ClassInput.Name);
 					FInputHandle InputToConnect = InReferencedNode->GetInputWithVertexName(ClassInput.Name);
-					bool bSuccess = OutputToConnect->Connect(*InputToConnect);
-					check(bSuccess);
+					ensure(OutputToConnect->Connect(*InputToConnect));
+					NodeHandles.Add(MoveTemp(InputNode));
 				}
 			}
+
+#if WITH_EDITOR
+			// Sort before adding nodes to graph layout & copy to preset (must be done after all
+			// inputs/outputs are added but before setting locations to propagate effectively)
+			FMetasoundFrontendInterfaceStyle Style = ReferencedGraphHandle->GetInputStyle();
+			InPresetGraphHandle->SetInputStyle(Style);
+			Style.SortDefaults(NodeHandles);
+
+			for (const FNodeHandle& InputNode : NodeHandles)
+			{
+				// Set input node location
+				FMetasoundFrontendNodeStyle NodeStyle;
+				NodeStyle.Display.Locations.Add(FGuid(), InputNodeLocation);
+				InputNode->SetNodeStyle(NodeStyle);
+				InputNodeLocation += DisplayStyle::NodeLayout::DefaultOffsetY;
+			}
+#endif // WITH_EDITOR
 		}
 
 		void FRebuildPresetRootGraph::AddAndConnectOutputs(const TArray<FMetasoundFrontendClassOutput>& InClassOutputs, FGraphHandle& InPresetGraphHandle, FNodeHandle& InReferencedNode) const
@@ -745,27 +756,38 @@ namespace Metasound
 			// Add outputs and space appropriately
 			FVector2D OutputNodeLocation = (2 * DisplayStyle::NodeLayout::DefaultOffsetX);
 
+			FConstGraphHandle ReferencedGraphHandle = ReferencedDocument->GetRootGraph();
+
+			TArray<FNodeHandle> NodeHandles;
 			for (const FMetasoundFrontendClassOutput& ClassOutput : InClassOutputs)
 			{
 				FNodeHandle OutputNode = InPresetGraphHandle->AddOutputVertex(ClassOutput);
-				
 				if (ensure(OutputNode->IsValid()))
 				{
-#if WITH_EDITOR
-					// Set input node location
-					FMetasoundFrontendNodeStyle NodeStyle;
-					NodeStyle.Display.Locations.Add(FGuid::NewGuid(), OutputNodeLocation);
-					OutputNode->SetNodeStyle(NodeStyle);
-					OutputNodeLocation += DisplayStyle::NodeLayout::DefaultOffsetY;
-#endif // WITH_EDITOR
-
 					// Connect input node to corresponding referenced node. 
 					FInputHandle InputToConnect = OutputNode->GetInputWithVertexName(ClassOutput.Name);
 					FOutputHandle OutputToConnect = InReferencedNode->GetOutputWithVertexName(ClassOutput.Name);
-					bool bSuccess = InputToConnect->Connect(*OutputToConnect);
-					check(bSuccess);
+					ensure(InputToConnect->Connect(*OutputToConnect));
+					NodeHandles.Add(MoveTemp(OutputNode));
 				}
 			}
+
+#if WITH_EDITOR
+			// Sort before adding nodes to graph layout & copy to preset (must be done after all
+			// inputs/outputs are added but before setting locations to propagate effectively)
+			FMetasoundFrontendInterfaceStyle Style = ReferencedGraphHandle->GetOutputStyle();
+			InPresetGraphHandle->SetOutputStyle(Style);
+			Style.SortDefaults(NodeHandles);
+
+			for (const FNodeHandle& OutputNode : NodeHandles)
+			{
+				// Set input node location
+				FMetasoundFrontendNodeStyle NodeStyle;
+				NodeStyle.Display.Locations.Add(FGuid(), OutputNodeLocation);
+				OutputNode->SetNodeStyle(NodeStyle);
+				OutputNodeLocation += DisplayStyle::NodeLayout::DefaultOffsetY;
+			}
+#endif // WITH_EDITOR
 		}
 
 		TArray<FMetasoundFrontendClassInput> FRebuildPresetRootGraph::GenerateRequiredClassInputs(const FConstGraphHandle& InPresetGraph, TSet<FName>& OutInputsInheritingDefault) const
