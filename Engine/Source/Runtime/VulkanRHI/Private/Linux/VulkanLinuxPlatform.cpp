@@ -266,16 +266,4 @@ void FVulkanLinuxPlatform::WriteCrashMarker(const FOptionalVulkanDeviceExtension
 
 void FVulkanLinuxPlatform::CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId VendorId, const VkPhysicalDeviceProperties& Props)
 {
-	if (VendorId == EGpuVendorId::Nvidia)
-	{
-		UNvidiaDriverVersion NvidiaVersion;
-		static_assert(sizeof(NvidiaVersion) == sizeof(Props.driverVersion), "Mismatched Nvidia pack driver version!");
-		NvidiaVersion.Packed = Props.driverVersion;
-
-		{
-			UE_LOG(LogVulkanRHI, Warning, TEXT("Nvidia drivers do not currently support Nanite/Lumen in Vulkan."));
-			extern TAutoConsoleVariable<int32> GRHIAllow64bitShaderAtomicsCvar;
-			GRHIAllow64bitShaderAtomicsCvar->SetWithCurrentPriority(0);
-		}
-	}
 }

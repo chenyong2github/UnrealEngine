@@ -395,13 +395,6 @@ void FVulkanWindowsPlatform::CheckDeviceDriver(uint32 DeviceIndex, EGpuVendorId 
 				BypassVar->SetWithCurrentPriority(1);
 			}
 		}
-
-		if ((NvidiaVersion.Major < 496) || ((NvidiaVersion.Major == 496) && (NvidiaVersion.Minor < 13)))
-		{
-			UE_LOG(LogVulkanRHI, Warning, TEXT("Nvidia drivers < 496.13 do not support Nanite/Lumen in Vulkan."));
-			extern TAutoConsoleVariable<int32> GRHIAllow64bitShaderAtomicsCvar;
-			GRHIAllow64bitShaderAtomicsCvar->SetWithCurrentPriority(0);
-		}
 	}
 }
 
