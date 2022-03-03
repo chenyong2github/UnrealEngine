@@ -593,7 +593,7 @@ void SPlacementModeTools::Construct( const FArguments& InArgs, TSharedRef<SDockT
 
 	SAssignNew(CategoryFilterPtr, SUniformWrapPanel)
 	.HAlign(HAlign_Center)
-	.SlotPadding(FMargin(2.0f, 0.0f));
+	.SlotPadding(FMargin(2.0f, 1.0f));
 
 	UpdatePlacementCategories();
 
