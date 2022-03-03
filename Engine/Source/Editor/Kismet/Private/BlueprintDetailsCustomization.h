@@ -755,7 +755,7 @@ private:
 class FBlueprintImportsLayout : public FBlueprintManagedListDetails, public TSharedFromThis<FBlueprintImportsLayout>
 {
 public:
-	FBlueprintImportsLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails);
+	FBlueprintImportsLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, bool bInShowDefaultImports);
 
 protected:
 	/** FBlueprintManagedListDetails interface*/
@@ -767,6 +767,10 @@ protected:
 	void OnNamespaceSelected(const FString& InNamespace);
 	void OnFilterNamespaceList(TArray<FString>& InOutNamespaceList);
 	void HandleImportEntryTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType);
+
+private:
+	/** Whether we should show default (i.e. global) imports versus custom (i.e. local) imports */
+	bool bShouldShowDefaultImports;
 };
 
 /** Blueprint Interface List Details */

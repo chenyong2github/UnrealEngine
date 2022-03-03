@@ -103,6 +103,7 @@
 #include "Stats/StatsHierarchical.h"
 #include "BlueprintEditorLibrary.h"
 #include "BlueprintNamespaceHelper.h"
+#include "BlueprintNamespaceUtilities.h"
 
 #include "BlueprintEditorTabs.h"
 
@@ -230,23 +231,14 @@ namespace BlueprintEditorImpl
 {
 	static const float InstructionFadeDuration = 0.5f;
 
-	/** Consolidates the class viewer filters for each edited BP asset into a single filter option */
-	class FImportedClassViewerFilter : public IClassViewerFilter, public TSharedFromThis<FImportedClassViewerFilter>
+	/** Class viewer filter proxy for imported namespace type selectors, controlled by a custom filter option */
+	class FImportedClassViewerFilterProxy : public IClassViewerFilter, public TSharedFromThis<FImportedClassViewerFilterProxy>
 	{
 	public:
-		FImportedClassViewerFilter(const TArray<TSharedRef<FBlueprintNamespaceHelper>>& InNamespaceHelpers)
+		FImportedClassViewerFilterProxy(TSharedPtr<IClassViewerFilter> InClassViewerFilter)
+			: ClassViewerFilter(InClassViewerFilter)
+			, bIsFilterEnabled(true)
 		{
-			bIsFilterEnabled = true;
-
-			ClassViewerFilters.Reserve(InNamespaceHelpers.Num());
-			for (const TSharedRef<FBlueprintNamespaceHelper>& NamespaceHelper : InNamespaceHelpers)
-			{
-				TSharedPtr<IClassViewerFilter> Filter = NamespaceHelper->GetClassViewerFilter();
-				if (Filter.IsValid())
-				{
-					ClassViewerFilters.Add(Filter.ToSharedRef());
-				}
-			}
 		}
 
 		// IClassViewerFilter interface
@@ -257,15 +249,9 @@ namespace BlueprintEditorImpl
 				return true;
 			}
 
-			if(bIsFilterEnabled)
+			if (bIsFilterEnabled && ClassViewerFilter.IsValid())
 			{
-				for (const TSharedRef<IClassViewerFilter>& Filter : ClassViewerFilters)
-				{
-					if (!Filter->IsClassAllowed(InInitOptions, InClass, InFilterFuncs))
-					{
-						return false;
-					}
-				}
+				return ClassViewerFilter->IsClassAllowed(InInitOptions, InClass, InFilterFuncs);
 			}
 
 			return true;
@@ -278,15 +264,9 @@ namespace BlueprintEditorImpl
 				return true;
 			}
 
-			if (bIsFilterEnabled)
+			if (bIsFilterEnabled && ClassViewerFilter.IsValid())
 			{
-				for (const TSharedRef<IClassViewerFilter>& Filter : ClassViewerFilters)
-				{
-					if (!Filter->IsUnloadedClassAllowed(InInitOptions, InBlueprint, InFilterFuncs))
-					{
-						return false;
-					}
-				}
+				return ClassViewerFilter->IsUnloadedClassAllowed(InInitOptions, InBlueprint, InFilterFuncs);
 			}
 
 			return true;
@@ -305,7 +285,7 @@ namespace BlueprintEditorImpl
 				ToggleFilterOption->bEnabled = bIsFilterEnabled;
 				ToggleFilterOption->LabelText = LOCTEXT("ClassViewerNamespaceFilterMenuOptionLabel", "Show Only Imported Types");
 				ToggleFilterOption->ToolTipText = LOCTEXT("ClassViewerNamespaceFilterMenuOptionToolTip", "Don't include non-imported class types.");
-				ToggleFilterOption->OnOptionChanged = FOnClassViewerFilterOptionChanged::CreateSP(this, &FImportedClassViewerFilter::OnFilterOptionChanged);
+				ToggleFilterOption->OnOptionChanged = FOnClassViewerFilterOptionChanged::CreateSP(this, &FImportedClassViewerFilterProxy::OnFilterOptionChanged);
 			}
 
 			OutFilterOptions.Add(ToggleFilterOption.ToSharedRef());
@@ -318,8 +298,8 @@ namespace BlueprintEditorImpl
 		}
 
 	private:
-		/** Class viewer filters (one per edited BP asset). */
-		TArray<TSharedRef<IClassViewerFilter>> ClassViewerFilters;
+		/** Imported namespace class viewer filter. */
+		TSharedPtr<IClassViewerFilter> ClassViewerFilter;
 
 		/** Filter option for the class viewer settings menu. */
 		TSharedPtr<FClassViewerFilterOption> ToggleFilterOption;
@@ -328,25 +308,16 @@ namespace BlueprintEditorImpl
 		bool bIsFilterEnabled;
 	};
 
-	/** Consolidates the pin type selector filters for each edited BP asset into a singular construct */
-	class FImportedPinTypeSelectorFilter : public IPinTypeSelectorFilter, public TSharedFromThis<FImportedPinTypeSelectorFilter>
+	/** Pin type filter proxy for imported namespace type selectors, controlled by a custom filter option */
+	class FImportedPinTypeSelectorFilterProxy : public IPinTypeSelectorFilter, public TSharedFromThis<FImportedPinTypeSelectorFilterProxy>
 	{
 		DECLARE_MULTICAST_DELEGATE(FOnFilterChanged);
 	
 	public:
-		FImportedPinTypeSelectorFilter(const TArray<TSharedRef<FBlueprintNamespaceHelper>>& InNamespaceHelpers)
+		FImportedPinTypeSelectorFilterProxy(TSharedPtr<IPinTypeSelectorFilter> InPinTypeSelectorFilter)
+			: PinTypeSelectorFilter(InPinTypeSelectorFilter)
+			, bIsFilterEnabled(true)
 		{
-			bIsFilterEnabled = true;
-
-			PinTypeSelectorFilters.Reserve(InNamespaceHelpers.Num());
-			for (const TSharedRef<FBlueprintNamespaceHelper>& NamespaceHelper : InNamespaceHelpers)
-			{
-				TSharedPtr<IPinTypeSelectorFilter> Filter = NamespaceHelper->GetPinTypeSelectorFilter();
-				if (Filter.IsValid())
-				{
-					PinTypeSelectorFilters.Add(Filter.ToSharedRef());
-				}
-			}
 		}
 
 		// IPinTypeSelectorFilter interface
@@ -357,15 +328,9 @@ namespace BlueprintEditorImpl
 				return true;
 			}
 
-			if (bIsFilterEnabled)
+			if (bIsFilterEnabled && PinTypeSelectorFilter.IsValid())
 			{
-				for (const TSharedRef<IPinTypeSelectorFilter>& Filter : PinTypeSelectorFilters)
-				{
-					if (!Filter->ShouldShowPinTypeTreeItem(InItem))
-					{
-						return false;
-					}
-				}
+				return PinTypeSelectorFilter->ShouldShowPinTypeTreeItem(InItem);
 			}
 
 			return true;
@@ -391,8 +356,8 @@ namespace BlueprintEditorImpl
 			if (!FilterOptionsWidget.IsValid())
 			{
 				SAssignNew(FilterOptionsWidget, SCheckBox)
-					.IsChecked(this, &FImportedPinTypeSelectorFilter::IsFilterToggleChecked)
-					.OnCheckStateChanged(this, &FImportedPinTypeSelectorFilter::OnToggleFilter)
+					.IsChecked(this, &FImportedPinTypeSelectorFilterProxy::IsFilterToggleChecked)
+					.OnCheckStateChanged(this, &FImportedPinTypeSelectorFilterProxy::OnToggleFilter)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("PinTypeNamespaceFilterToggleOptionLabel", "Hide Non-Imported Types"))
@@ -417,8 +382,8 @@ namespace BlueprintEditorImpl
 		}
 
 	private:
-		/** Pin type filters (one per edited BP asset). */
-		TArray<TSharedRef<IPinTypeSelectorFilter>> PinTypeSelectorFilters;
+		/** Imported namespace pin type selector filter. */
+		TSharedPtr<IPinTypeSelectorFilter> PinTypeSelectorFilter;
 
 		/** Cached filter options widget. */
 		TSharedPtr<SWidget> FilterOptionsWidget;
@@ -1255,6 +1220,20 @@ void FBlueprintEditor::OnComponentDoubleClicked(TSharedPtr<FSubobjectEditorTreeN
 	}
 }
 
+void FBlueprintEditor::OnComponentAddedToBlueprint(const FSubobjectData& NewSubobjectData)
+{
+	const UObject* NewSubobject = NewSubobjectData.GetObject();
+	check(NewSubobject);
+
+	// If necessary, auto-import the namespace associated with the new subobject's class.
+	const bool bShouldAutoImportTypeNamespace = GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures;
+	if (bShouldAutoImportTypeNamespace)
+	{
+		const FString SubobjectTypeNamespace = FBlueprintNamespaceUtilities::GetObjectNamespace(NewSubobject->GetClass());
+		ImportNamespace(SubobjectTypeNamespace);
+	}
+}
+
 TSharedRef<SWidget> FBlueprintEditor::CreateGraphTitleBarWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph)
 {
 	// Create the title bar widget
@@ -1901,15 +1880,18 @@ void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBluep
 		DocumentManager->RegisterDocumentFactory(GraphEditorFactory);
 	}
 
-	// Create imported namespace type filters for value editing.
-	TArray<TSharedRef<FBlueprintNamespaceHelper>> LocalNamespaceHelpersArray;
-	LocalNamespaceHelpersArray.Reserve(InitBlueprints.Num());
+	// Create a namespace helper to keep track of imports for all BPs being edited.
+	ImportedNamespaceHelper = MakeShared<FBlueprintNamespaceHelper>();
+
+	// Add each Blueprint instance to be edited into the namespace helper's context.
 	for (const UBlueprint* BP : InitBlueprints)
 	{
-		LocalNamespaceHelpersArray.Add(GetOrCreateNamespaceHelperForBlueprint(BP));
+		ImportedNamespaceHelper->AddBlueprint(BP);
 	}
-	ImportedClassViewerFilter = MakeShared<BlueprintEditorImpl::FImportedClassViewerFilter>(LocalNamespaceHelpersArray);
-	ImportedPinTypeSelectorFilter = MakeShared<BlueprintEditorImpl::FImportedPinTypeSelectorFilter>(LocalNamespaceHelpersArray);
+
+	// Create imported namespace type filters for value editing.
+	ImportedClassViewerFilter = MakeShared<BlueprintEditorImpl::FImportedClassViewerFilterProxy>(ImportedNamespaceHelper->GetClassViewerFilter());
+	ImportedPinTypeSelectorFilter = MakeShared<BlueprintEditorImpl::FImportedPinTypeSelectorFilterProxy>(ImportedNamespaceHelper->GetPinTypeSelectorFilter());
 
 	// Make sure we know when tabs become active to update details tab
 	OnActiveTabChangedDelegateHandle = FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe( FOnActiveTabChanged::FDelegate::CreateRaw(this, &FBlueprintEditor::OnActiveTabChanged) );
@@ -1957,8 +1939,6 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 		const FString UserDeveloperPath = FPackageName::FilenameToLongPackageName( FPaths::GameUserDeveloperDir());
 		const FString DeveloperPath = FPackageName::FilenameToLongPackageName( FPaths::GameDevelopersDir() );
 
-		TSharedRef<FBlueprintNamespaceHelper> NamespaceHelper = GetOrCreateNamespaceHelperForBlueprint(BP);
-
 		// Interface blueprints don't show a node context menu anywhere so we can skip library loading
 		if (BP->BlueprintType != BPTYPE_Interface)
 		{
@@ -2000,10 +1980,8 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 				{
 					const FString BlueprintPath = AssetEntry.ObjectPath.ToString();
 
-					bool bAllowLoadBP = true;
-
 					// See if this passes the namespace check
-					bAllowLoadBP = bAllowLoadBP && NamespaceHelper->IsImportedAsset(AssetEntry);
+					bool bAllowLoadBP = !ImportedNamespaceHelper.IsValid() || ImportedNamespaceHelper->IsImportedAsset(AssetEntry);
 					
 					// For blueprints inside developers folder, only allow the ones inside current user's developers folder.
 					if (bAllowLoadBP)
@@ -2061,7 +2039,7 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 	}
 }
 
-void FBlueprintEditor::ImportNamespace(const FString& InNamespace)
+void FBlueprintEditor::ImportNamespace(const FString& InNamespace, const FImportNamespaceParameters& InParams)
 {
 	// No need to import the global namespace.
 	if (InNamespace.IsEmpty())
@@ -2069,50 +2047,105 @@ void FBlueprintEditor::ImportNamespace(const FString& InNamespace)
 		return;
 	}
 
-	bool bShouldReloadLibraries = false;
+	auto AddNamespaceToImportList = [](UBlueprint* InBlueprint, const FString& InNamespace) -> bool
+	{
+		if (!InBlueprint->ImportedNamespaces.Contains(InNamespace))
+		{
+			InBlueprint->Modify();
+			InBlueprint->ImportedNamespaces.Add(InNamespace);
 
-	// Add the namespace to any cached helper objects.
+			return true;
+		}
+
+		return false;
+	};
+
+	// Update the imported set for all edited objects.
+	bool bWasAdded = false;
 	const TArray<UObject*>& EditingObjs = GetEditingObjects();
 	for (UObject* EditingObj : EditingObjs)
 	{
 		if (UBlueprint* BlueprintObj = Cast<UBlueprint>(EditingObj))
 		{
 			// Add it into the Blueprint's user-facing import set.
-			if (BlueprintObj->BlueprintNamespace != InNamespace && !BlueprintObj->ImportedNamespaces.Contains(InNamespace))
+			bWasAdded |= AddNamespaceToImportList(BlueprintObj, InNamespace);
+			for (const FString& AdditionalNamespace : InParams.AdditionalNamespaces)
 			{
-				BlueprintObj->Modify();
-				BlueprintObj->ImportedNamespaces.Add(InNamespace);
-			}
-
-			// Add it to the current scope of the Blueprint's editor context.
-			TSharedRef<FBlueprintNamespaceHelper> NamespaceHelper = GetOrCreateNamespaceHelperForBlueprint(BlueprintObj);
-			if (!NamespaceHelper->IsIncludedInNamespaceList(InNamespace))
-			{
-				NamespaceHelper->AddNamespace(InNamespace);
-
-				// Load additional libraries that may now be in scope.
-				bShouldReloadLibraries = true;
+				bWasAdded |= AddNamespaceToImportList(BlueprintObj, AdditionalNamespace);
 			}
 		}
 	}
 
-	if (bShouldReloadLibraries)
+	auto AddNamespaceToEditorContext = [](TSharedPtr<FBlueprintNamespaceHelper> ImportsHelper, const FString& InNamespace) -> bool
 	{
+		if (!ImportsHelper->IsIncludedInNamespaceList(InNamespace))
+		{
+			ImportsHelper->AddNamespace(InNamespace);
+			return true;
+		}
+
+		return false;
+	};
+
+	// Add it to the current scope of the Blueprint's editor context. Note that in certain cases, imports may already be associated
+	// with the Blueprint, but not yet associated with the editor context (e.g. - auto-import after setting a Blueprint's namespace;
+	// we won't add it to the Blueprint's import list, but we still want to add to the editor context and do any post-import actions).
+	if (ImportedNamespaceHelper.IsValid())
+	{
+		bWasAdded |= AddNamespaceToEditorContext(ImportedNamespaceHelper, InNamespace);
+		for (const FString& AdditionalNamespace : InParams.AdditionalNamespaces)
+		{
+			bWasAdded |= AddNamespaceToEditorContext(ImportedNamespaceHelper, AdditionalNamespace);
+		}
+	}
+
+	if (bWasAdded)
+	{
+		// Load additional libraries that may now be in scope.
 		// @todo_namespaces - Make this more targeted - i.e. get/load only those assets tagged w/ the given namespace
 		LoadLibrariesFromAssetRegistry();
+
+		// Refresh class details on an auto-import if visible, since the list of imports has implicitly changed.
+		if (InParams.bIsAutoImport && IsDetailsPanelEditingGlobalOptions())
+		{
+			RefreshInspector();
+		}
+
+		// If bound, execute the post-import callback.
+		InParams.OnImportCallback.ExecuteIfBound();
 	}
 }
 
-TSharedRef<FBlueprintNamespaceHelper> FBlueprintEditor::GetOrCreateNamespaceHelperForBlueprint(const UBlueprint* InBlueprint)
+void FBlueprintEditor::RemoveNamespace(const FString& InNamespace)
 {
-	TWeakObjectPtr<const UBlueprint> Key = TWeakObjectPtr<const UBlueprint>(InBlueprint);
-	if (TSharedRef<FBlueprintNamespaceHelper>* ValuePtr = CachedNamespaceHelpers.Find(Key))
+	// Cannot remove the global namespace.
+	if (InNamespace.IsEmpty())
 	{
-		return *ValuePtr;
+		return;
 	}
 
-	TSharedPtr<FBlueprintNamespaceHelper> NewValue = MakeShared<FBlueprintNamespaceHelper>(InBlueprint);
-	return GetEditingObjects().Contains(InBlueprint) ? CachedNamespaceHelpers.Add(Key, NewValue.ToSharedRef()) : NewValue.ToSharedRef();
+	// Update the imported set for all edited objects.
+	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	for (UObject* EditingObj : EditingObjs)
+	{
+		if (UBlueprint* BlueprintObj = Cast<UBlueprint>(EditingObj))
+		{
+			if (BlueprintObj->ImportedNamespaces.Contains(InNamespace))
+			{
+				BlueprintObj->Modify();
+				BlueprintObj->ImportedNamespaces.Remove(InNamespace);
+			}
+		}
+	}
+
+	// Remove it from the current scope of the Blueprint's editor context.
+	if (ImportedNamespaceHelper.IsValid())
+	{
+		if (ImportedNamespaceHelper->IsIncludedInNamespaceList(InNamespace))
+		{
+			ImportedNamespaceHelper->RemoveNamespace(InNamespace);
+		}
+	}
 }
 
 void FBlueprintEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -2779,7 +2812,7 @@ void FBlueprintEditor::CreateSubobjectEditors()
 		.AllowEditing(this, &FBlueprintEditor::InEditingMode)
 		.OnSelectionUpdated(this, &FBlueprintEditor::OnSelectionUpdated)
 		.OnItemDoubleClicked(this, &FBlueprintEditor::OnComponentDoubleClicked)
-		.OnImportNamespaceToEditorContext(this, &FBlueprintEditor::ImportNamespace)
+		.OnNewSubobjectAdded(this, &FBlueprintEditor::OnComponentAddedToBlueprint)
 		.SubobjectClassListFilters(ClassFilters);
 	
 	SubobjectViewport = SAssignNew(SubobjectViewport, SSCSEditorViewport)
@@ -10281,23 +10314,12 @@ void FBlueprintEditor::ClearAllGraphEditorQuickJumps()
 
 bool FBlueprintEditor::IsNonImportedObject(const UObject* InObject) const
 {
-	bool bNotImported = false;
-
-	for (const UObject* EditingObj : GetEditingObjects())
+	if (ImportedNamespaceHelper.IsValid() && !ImportedNamespaceHelper->IsImportedObject(InObject))
 	{
-		if (const UBlueprint* BP = Cast<UBlueprint>(EditingObj))
-		{
-			// Casting away the 'const' here currently because this is a non-const method that can modify the internally-cached set.
-			TSharedRef<FBlueprintNamespaceHelper> NamespaceHelper = const_cast<FBlueprintEditor*>(this)->GetOrCreateNamespaceHelperForBlueprint(BP);
-			if (!NamespaceHelper->IsImportedObject(InObject))
-			{
-				bNotImported = true;
-				break;
-			}
-		}
+		return true;
 	}
 
-	return bNotImported;
+	return false;
 }
 
 void FBlueprintEditor::OnBlueprintProjectSettingsChanged(UObject*, struct FPropertyChangedEvent&)

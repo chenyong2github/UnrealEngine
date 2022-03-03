@@ -30,7 +30,7 @@ void SBlueprintNamespaceEntry::Construct(const FArguments& InArgs)
 			.Font(InArgs._Font)
 			.ForegroundColor(FSlateColor::UseForeground())
 			.Visibility(InArgs._AllowTextEntry ? EVisibility::Visible : EVisibility::Collapsed)
-			.Text(FText::FromString(CurrentNamespace))
+			.Text(this, &SBlueprintNamespaceEntry::GetCurrentNamespaceText)
 			.OnTextChanged(this, &SBlueprintNamespaceEntry::OnTextChanged)
 			.OnTextCommitted(this, &SBlueprintNamespaceEntry::OnTextCommitted)
 			.OnShowingSuggestions(this, &SBlueprintNamespaceEntry::OnShowingSuggestions)
@@ -263,6 +263,11 @@ void SBlueprintNamespaceEntry::OnNamespaceListSelectionChanged(TSharedPtr<FStrin
 		FSlateApplication::Get().SetKeyboardFocus(TextBox);
 		FSlateApplication::Get().SetUserFocus(0, TextBox);
 	}
+}
+
+FText SBlueprintNamespaceEntry::GetCurrentNamespaceText() const
+{
+	return FText::FromString(CurrentNamespace);
 }
 
 void SBlueprintNamespaceEntry::PopulateNamespaceList()

@@ -6,6 +6,7 @@
 
 class IClassViewerFilter;
 class IPinTypeSelectorFilter;
+class UBlueprint;
 struct FAssetData;
 struct FBlueprintNamespacePathTree;
 
@@ -15,15 +16,18 @@ struct FBlueprintNamespacePathTree;
 class KISMET_API FBlueprintNamespaceHelper
 {
 public:
-	/**
-	 * Default constructor.
-	 * 
-	 * @param InBlueprint	The Blueprint object being edited.
-	 */
-	explicit FBlueprintNamespaceHelper(const class UBlueprint* InBlueprint);
+	/** Default constructor. */
+	FBlueprintNamespaceHelper();
 
 	/** Note: We explicitly declare/implement the dtor so that forward-declared types can be destroyed. */
 	virtual ~FBlueprintNamespaceHelper();
+
+	/**
+	 * Add a new Blueprint into the current helper context.
+	 * 
+	 * @param InBlueprint	A Blueprint object being edited.
+	 */
+	void AddBlueprint(const UBlueprint* InBlueprint);
 
 	/**
 	 * Add a namespace identifier into the Blueprint editor context that's managed by this instance.
@@ -45,6 +49,13 @@ public:
 			AddNamespace(Namespace);
 		}
 	}
+
+	/**
+	 * Remove a namespace identifier from the Blueprint editor context that's managed by this instance.
+	 * 
+	 * @param Namespace		The namespace identifier string to remove. Should resemble "X.Y.Z" as the format.
+	 */
+	void RemoveNamespace(const FString& Namespace);
 
 	/**
 	 * Tests a namespace identifier to see if it's been imported. 

@@ -2782,7 +2782,7 @@ void FBlueprintVarActionDetails::ImportNamespacesForPropertyValue(const UStruct*
 	}
 
 	// Auto-import any namespace(s) associated with the property's value into the current editor context.
-	TSet<FString> AssociatedNamespaces;
+	TArray<FString> AssociatedNamespaces;
 	FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(InStruct, InProperty, InContainer, AssociatedNamespaces);
 	if (AssociatedNamespaces.Num() > 0)
 	{
@@ -2792,10 +2792,9 @@ void FBlueprintVarActionDetails::ImportNamespacesForPropertyValue(const UStruct*
 			TSharedPtr<FBlueprintEditor> BlueprintEditor = MyBlueprintPtr->GetBlueprintEditor().Pin();
 			if (BlueprintEditor.IsValid())
 			{
-				for (const FString& AssociatedNamespace : AssociatedNamespaces)
-				{
-					BlueprintEditor->ImportNamespace(AssociatedNamespace);
-				}
+				FBlueprintEditor::FImportNamespaceParameters Params;
+				Params.AdditionalNamespaces = MakeArrayView(AssociatedNamespaces).RightChop(1);
+				BlueprintEditor->ImportNamespace(AssociatedNamespaces[0], Params);
 			}
 		}
 	}
@@ -5688,10 +5687,13 @@ void FBlueprintManagedListDetails::OnRefreshInDetailsView()
 }
 
 
-FBlueprintImportsLayout::FBlueprintImportsLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails)
+FBlueprintImportsLayout::FBlueprintImportsLayout(TWeakPtr<class FBlueprintGlobalOptionsDetails> InGlobalOptionsDetails, bool bInShowDefaultImports)
 	:FBlueprintManagedListDetails(InGlobalOptionsDetails)
+	,bShouldShowDefaultImports(bInShowDefaultImports)
 {
-	DisplayOptions.TitleText = LOCTEXT("BlueprintImportedNamespaceTitle", "Imported Namespaces");
+	DisplayOptions.TitleText = bShouldShowDefaultImports ?
+		LOCTEXT("BlueprintDefaultNamespaceTitle", "Default Namespaces") :
+		LOCTEXT("BlueprintImportedNamespaceTitle", "Imported Namespaces");
 	DisplayOptions.NoItemsLabelText = LOCTEXT("NoBlueprintImports", "No Imports");
 	DisplayOptions.ItemRowFilterText = LOCTEXT("BlueprintImportsValue", "Imports Value");
 	DisplayOptions.AddItemRowFilterText = LOCTEXT("BlueprintAddImport", "Add Import");
@@ -5699,6 +5701,11 @@ FBlueprintImportsLayout::FBlueprintImportsLayout(TWeakPtr<class FBlueprintGlobal
 
 TSharedPtr<SWidget> FBlueprintImportsLayout::MakeAddItemRowWidget()
 {
+	if (bShouldShowDefaultImports)
+	{
+		return nullptr;
+	}
+
 	return SNew(SBlueprintNamespaceEntry)
 		.AllowTextEntry(false)
 		.OnNamespaceSelected(this, &FBlueprintImportsLayout::OnNamespaceSelected)
@@ -5712,37 +5719,47 @@ TSharedPtr<SWidget> FBlueprintImportsLayout::MakeAddItemRowWidget()
 
 void FBlueprintImportsLayout::GetManagedListItems(TArray<FManagedListItem>& OutListItems) const
 {
-	auto AddNamespaceItemsToOutputList = [&OutListItems](const TArray<FString>& NamespaceArray, bool bIsRemovable)
+	auto AddNamespaceItemsToOutputList = [&OutListItems](const TSet<FString>& NamespaceItems, bool bIsRemovable)
 	{
-		for (const FString& Namespace : NamespaceArray)
+		for (const FString& NamespaceItem : NamespaceItems)
 		{
 			FManagedListItem ItemDesc;
-			ItemDesc.ItemName = Namespace;
-			ItemDesc.DisplayName = FText::FromString(Namespace);
+			ItemDesc.ItemName = NamespaceItem;
+			ItemDesc.DisplayName = FText::FromString(NamespaceItem);
 			ItemDesc.bIsRemovable = bIsRemovable;
 
 			OutListItems.Add(MoveTemp(ItemDesc));
 		}
 	};
 
-	// Project imports (static).
-	bool bIsRemovable = false;
-	AddNamespaceItemsToOutputList(GetDefault<UBlueprintEditorProjectSettings>()->NamespacesToAlwaysInclude, bIsRemovable);
-
-	// Blueprint imports (removable).
-	bIsRemovable = true;
+	TSet<FString> NamespaceItems;
 	const UBlueprint* Blueprint = GetBlueprintObjectChecked();
-	AddNamespaceItemsToOutputList(Blueprint->ImportedNamespaces.Array(), bIsRemovable);
+
+	if (bShouldShowDefaultImports)
+	{
+		FBlueprintNamespaceUtilities::GetSharedGlobalImports(NamespaceItems);
+		FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(Blueprint, NamespaceItems);
+	}
+	else
+	{
+		// Blueprint imports (removable).
+		NamespaceItems.Append(Blueprint->ImportedNamespaces);
+
+		// A Blueprint can explicitly import and also be assigned to the same namespace.
+		NamespaceItems.Remove(Blueprint->BlueprintNamespace);
+	}
+
+	AddNamespaceItemsToOutputList(NamespaceItems, !bShouldShowDefaultImports);
 }
 
 void FBlueprintImportsLayout::OnRemoveItem(const FManagedListItem& Item)
 {
-	UBlueprint* Blueprint = GetBlueprintObjectChecked();
-
-	Blueprint->ImportedNamespaces.Remove(Item.ItemName);
-
-	FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-
+	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = GetPinnedBlueprintEditorPtr();
+	if (BlueprintEditorPtr.IsValid())
+	{
+		BlueprintEditorPtr->RemoveNamespace(Item.ItemName);
+	}
+	
 	RegenerateChildContent();
 
 	OnRefreshInDetailsView();
@@ -5750,32 +5767,21 @@ void FBlueprintImportsLayout::OnRemoveItem(const FManagedListItem& Item)
 
 void FBlueprintImportsLayout::OnNamespaceSelected(const FString& InNamespace)
 {
-	bool bWasAdded = false;
-
-	// Add to the blueprint's list of imports.
-	if (!InNamespace.IsEmpty())
+	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = GetPinnedBlueprintEditorPtr();
+	if (BlueprintEditorPtr.IsValid())
 	{
-		UBlueprint* Blueprint = GetBlueprintObjectChecked();
-
-		if (FBlueprintEditorUtils::AddNamespaceToImportList(Blueprint, InNamespace))
+		FBlueprintEditor::FImportNamespaceParameters Params;
+		Params.bIsAutoImport = false;
+		Params.OnImportCallback = FSimpleDelegate::CreateLambda([this]()
 		{
-			bWasAdded = true;
-		}
+			RegenerateChildContent();
+		});
 
-		RegenerateChildContent();
+		// Add to edited Blueprint(s) and import into the current editor context.
+		BlueprintEditorPtr->ImportNamespace(InNamespace, Params);
 	}
 
 	OnRefreshInDetailsView();
-
-	// If added above, import the namespace into the current editor context.
-	if (bWasAdded)
-	{
-		TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = GetPinnedBlueprintEditorPtr();
-		if (BlueprintEditorPtr.IsValid())
-		{
-			BlueprintEditorPtr->ImportNamespace(InNamespace);
-		}
-	}
 }
 
 void FBlueprintImportsLayout::OnFilterNamespaceList(TArray<FString>& InOutNamespaceList)
@@ -6046,7 +6052,8 @@ void FBlueprintGlobalOptionsDetails::OnNamespaceValueCommitted(const FString& In
 	if (UBlueprint* Blueprint = GetBlueprintObj())
 	{
 		// Skip if the value has not been changed.
-		if (Blueprint->BlueprintNamespace == InNamespace)
+		const FString OldNamespace = Blueprint->BlueprintNamespace;
+		if (OldNamespace == InNamespace)
 		{
 			return;
 		}
@@ -6056,15 +6063,21 @@ void FBlueprintGlobalOptionsDetails::OnNamespaceValueCommitted(const FString& In
 		NamespacePropertyHandle->SetValue(InNamespace);
 
 		// Ensure that the new path is added into the namespace registry.
-		// @todo_namespaces - Find and remove old path if no longer in use.
 		FBlueprintNamespaceRegistry::Get().RegisterNamespace(InNamespace);
 
-		if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+		// Auto-import the namespace into the current editor context.
+		TSharedPtr<FBlueprintEditor> BlueprintEditor = GetBlueprintEditorPtr().Pin();
+		if (BlueprintEditor.IsValid())
 		{
-			// Auto-import the namespace into the current editor context.
-			TSharedPtr<FBlueprintEditor> BlueprintEditor = GetBlueprintEditorPtr().Pin();
-			if (BlueprintEditor.IsValid())
+			// We need to refresh the details view if we flipped from an imported namespace to an assigned
+			// namespace (or vice-versa). In that case, it will switch to/from a default import in the view.
+			if (Blueprint->ImportedNamespaces.Contains(OldNamespace) || Blueprint->ImportedNamespaces.Contains(InNamespace))
 			{
+				BlueprintEditor->RefreshInspector();
+			}
+			else if (GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+			{
+				// This will also refresh the details view.
 				BlueprintEditor->ImportNamespace(InNamespace);
 			}
 		}
@@ -6079,8 +6092,13 @@ bool FBlueprintGlobalOptionsDetails::ShouldShowNamespaceResetToDefault() const
 
 void FBlueprintGlobalOptionsDetails::OnNamespaceResetToDefaultValue()
 {
-	// Standard reset-to-default path.
 	check(NamespacePropertyHandle.IsValid());
+
+	// Get the current value.
+	FString OriginalValue;
+	NamespacePropertyHandle->GetValue(OriginalValue);
+
+	// Standard reset-to-default path.
 	NamespacePropertyHandle->ResetToDefault();
 
 	// Get the value after having been reset.
@@ -6091,6 +6109,18 @@ void FBlueprintGlobalOptionsDetails::OnNamespaceResetToDefaultValue()
 	if (NamespaceValueWidget.IsValid())
 	{
 		NamespaceValueWidget->SetCurrentNamespace(DefaultNamespaceValue);
+	}
+
+	TSharedPtr<FBlueprintEditor> BlueprintEditor = GetBlueprintEditorPtr().Pin();
+	if (BlueprintEditor.IsValid())
+	{
+		// We need to refresh the details view if we reassigned away from an already-imported
+		// namespace. In that case, it needs to switch back to a user-added import in the view.
+		const UBlueprint* Blueprint = GetBlueprintObj();
+		if (Blueprint && Blueprint->ImportedNamespaces.Contains(OriginalValue))
+		{
+			BlueprintEditor->RefreshInspector();
+		}
 	}
 }
 
@@ -6150,8 +6180,11 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 			// Imported namespace details
 			IDetailCategoryBuilder& ImportsCategory = DetailLayout.EditCategory("Imports", LOCTEXT("BlueprintImportDetailsCategory", "Imports"));
 
-			TSharedRef<FBlueprintImportsLayout> ImportsLayout = MakeShareable(new FBlueprintImportsLayout(SharedThis(this)));
-			ImportsCategory.AddCustomBuilder(ImportsLayout);
+			TSharedRef<FBlueprintImportsLayout> DefaultImportsLayout = MakeShareable(new FBlueprintImportsLayout(SharedThis(this), /*bShowDefaultImports = */true));
+			ImportsCategory.AddCustomBuilder(DefaultImportsLayout);
+
+			TSharedRef<FBlueprintImportsLayout> LocalImportsLayout = MakeShareable(new FBlueprintImportsLayout(SharedThis(this), /*bShowDefaultImports = */false));
+			ImportsCategory.AddCustomBuilder(LocalImportsLayout);
 		}
 
 		if (bSupportsInterfaces)
@@ -6159,11 +6192,11 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 			// Interface details customization
 			IDetailCategoryBuilder& InterfacesCategory = DetailLayout.EditCategory("Interfaces", LOCTEXT("BlueprintInterfacesDetailsCategory", "Interfaces"));
 		
-			TSharedRef<FBlueprintInterfaceLayout> InterfaceLayout = MakeShareable(new FBlueprintInterfaceLayout(SharedThis(this), false));
-			InterfacesCategory.AddCustomBuilder(InterfaceLayout);
-		
-			TSharedRef<FBlueprintInterfaceLayout> InheritedInterfaceLayout = MakeShareable(new FBlueprintInterfaceLayout(SharedThis(this), true));
-			InterfacesCategory.AddCustomBuilder(InheritedInterfaceLayout);
+			TSharedRef<FBlueprintInterfaceLayout> InheritedInterfacesLayout = MakeShareable(new FBlueprintInterfaceLayout(SharedThis(this), /*bShowInheritedInterfaces = */true));
+			InterfacesCategory.AddCustomBuilder(InheritedInterfacesLayout);
+
+			TSharedRef<FBlueprintInterfaceLayout> LocalInterfacesLayout = MakeShareable(new FBlueprintInterfaceLayout(SharedThis(this), /*bShowInheritedInterfaces = */false));
+			InterfacesCategory.AddCustomBuilder(LocalInterfacesLayout);
 		}
 
 		// Hide the bDeprecate, we override the functionality.

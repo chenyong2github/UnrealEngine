@@ -13,7 +13,7 @@ class SUBOBJECTEDITOR_API SSubobjectBlueprintEditor final : public SSubobjectEdi
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnHighlightPropertyInDetailsView, const class FPropertyPath&);
-	DECLARE_DELEGATE_OneParam(FOnImportNamespaceToEditorContext, const FString& InNamespace);
+	DECLARE_DELEGATE_OneParam(FOnNewSubobjectAdded, const FSubobjectData&);
 
 private:	
 	SLATE_BEGIN_ARGS(SSubobjectBlueprintEditor)
@@ -23,7 +23,7 @@ private:
 		, _HideComponentClassCombo(false)
         , _OnSelectionUpdated()
 		, _OnHighlightPropertyInDetailsView()
-		, _OnImportNamespaceToEditorContext()
+		, _OnNewSubobjectAdded()
 		{}
 
 		SLATE_ATTRIBUTE(UObject*, ObjectContext)
@@ -33,7 +33,7 @@ private:
 	    SLATE_EVENT(FOnSelectionUpdated, OnSelectionUpdated)
 	    SLATE_EVENT(FOnItemDoubleClicked, OnItemDoubleClicked)
 		SLATE_EVENT(FOnHighlightPropertyInDetailsView, OnHighlightPropertyInDetailsView)
-		SLATE_EVENT(FOnImportNamespaceToEditorContext, OnImportNamespaceToEditorContext)
+		SLATE_EVENT(FOnNewSubobjectAdded, OnNewSubobjectAdded)
 		SLATE_ARGUMENT(TArray<TSharedRef<IClassViewerFilter>>, SubobjectClassListFilters)
 	    
 	SLATE_END_ARGS()
@@ -74,8 +74,8 @@ public:
 	/** Delegate to invoke when the given property should be highlighted in the details view (e.g. diff). */
 	FOnHighlightPropertyInDetailsView OnHighlightPropertyInDetailsView;
 
-	/** Delegate to invoke when a component class is selected in order to ensure the namespace is imported into the current editor context. */
-	FOnImportNamespaceToEditorContext OnImportNamespaceToEditorContext;
+	/** Delegate to invoke when a subobject type is chosen to add a new subobject entry. */
+	FOnNewSubobjectAdded OnNewSubobjectAdded;
 	
 	/**
 	* Fills out an events section in ui.

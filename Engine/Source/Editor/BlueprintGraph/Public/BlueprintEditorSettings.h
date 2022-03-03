@@ -175,6 +175,11 @@ public:
 	UPROPERTY(Transient)
 	bool bEnableNamespaceImportingFeatures;
 
+	/** Whether to inherit the set of imported namespaces from the parent class hierarchy */
+	// @todo_namespaces - Remove this if/when this becomes a permanent setting. For now this is experimental.
+	UPROPERTY(Transient)
+	bool bInheritImportedNamespacesFromParentBP;
+
 	// The list of namespaces to always expose in any Blueprint (local per-user)
 	UPROPERTY(EditAnywhere, config, Category = Experimental, meta = (EditCondition = "bEnableNamespaceEditorFeatures"))
 	TArray<FString> NamespacesToAlwaysInclude;

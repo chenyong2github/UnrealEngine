@@ -55,6 +55,7 @@ class SSubobjectEditor;
 class FSubobjectEditorTreeNode;
 class UBlueprintEditorSettings;
 class UBlueprintEditorProjectSettings;
+struct FSubobjectData;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NodeSectionID
@@ -521,6 +522,9 @@ public:
 
 	/** Delegate invoked when an item is double clicked in the subobject editor widget */
 	virtual void OnComponentDoubleClicked(TSharedPtr<class FSubobjectEditorTreeNode> Node);
+
+	/** Delegate invoked when a new subobject is added in the subobject editor widget */
+	virtual void OnComponentAddedToBlueprint(const FSubobjectData& NewSubobjectData);
 	
 	/** Delegate invoked when the selection is changed in the subobject editor widget */
 	UE_DEPRECATED(5.0, "OnSelectionUpdated(const TArray<TSharedPtr<class FSCSEditorTreeNode>>&) has been deprecated. Use OnSelectionUpdated(const TArray<TSharedPtr<class FSubobjectEditorTreeNode>>&) instead.")
@@ -714,11 +718,31 @@ public:
 	/** Gets the default schema for this editor */
 	TSubclassOf<UEdGraphSchema> GetDefaultSchema() const { return GetDefaultSchemaClass(); }
 
-	/** Imports the given namespace into the editor. This may trigger a load event for additional macro and/or function library assets if not already loaded. */
-	void ImportNamespace(const FString& InNamespace);
+	/** Extended parameters for the ImportNamespace() method */
+	struct FImportNamespaceParameters
+	{
+		/** Whether this is an automatic or explicit (i.e. user-initiated) action. */
+		bool bIsAutoImport;
 
-	/** Returns an instanced namespace helper utility object that corresponds to the given Blueprint. */
-	TSharedRef<FBlueprintNamespaceHelper> GetOrCreateNamespaceHelperForBlueprint(const UBlueprint* InBlueprint);
+		/** Callback to use for any post-import actions. Will not be invoked if nothing is imported. */
+		FSimpleDelegate OnImportCallback;
+
+		/** Additional namespaces to be imported as part of the single transaction. */
+		TArray<FString> AdditionalNamespaces;
+
+		/** Default ctor (for initialization). */
+		FImportNamespaceParameters()
+		{
+			// Treat as auto-import by default (implies that the editor will auto-refresh the details view).
+			bIsAutoImport = true;
+		}
+	};
+	
+	/** Imports the given namespace into the editor. This may trigger a load event for additional macro and/or function library assets if not already loaded. */
+	void ImportNamespace(const FString& InNamespace, const FImportNamespaceParameters& InParams = FImportNamespaceParameters());
+
+	/** Removes the given namespace from the editor's current import context. However, this will NOT unload any associated macro and/or function library assets. */
+	void RemoveNamespace(const FString& InNamespace);
 
 	/** Selects a local variable to load in the details panel. */
 	virtual bool SelectLocalVariable(const UEdGraph* Graph, const FName& VariableName) { return false; }
@@ -1363,8 +1387,8 @@ protected:
 	/** The toolbar builder class */
 	TSharedPtr<class FBlueprintEditorToolbar> Toolbar;
 
-	/** Cached set of instanced namespace helper objects */
-	TMap<TWeakObjectPtr<const UBlueprint>, TSharedRef<FBlueprintNamespaceHelper>> CachedNamespaceHelpers;
+	/** Imported namespace helper utility object */
+	TSharedPtr<FBlueprintNamespaceHelper> ImportedNamespaceHelper;
 
 	/** Filter used to restrict class viewer widgets in the editor context to imported namespaces only */
 	TSharedPtr<class IClassViewerFilter> ImportedClassViewerFilter;

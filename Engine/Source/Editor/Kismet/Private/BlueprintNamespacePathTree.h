@@ -12,7 +12,7 @@ struct FBlueprintNamespacePathTree
 {
 public:
 	/** Path tree node structure. */
-	struct FNode
+	struct FNode : TSharedFromThis<FNode>
 	{
 		/** If TRUE, this node marks the end of an explicitly-added path string. Allows for "wildcard" paths which are inclusive of all subtrees. */
 		bool bIsAddedPath = false;
@@ -99,6 +99,76 @@ public:
 		}
 
 		Node->bIsAddedPath = true;
+	}
+
+	/**
+	 * Removes the given namespace identifier string as an explicitly-added path.
+	 *
+	 * @param InPath	A Blueprint namespace path identifier string (e.g. "X.Y.Z").
+	 */
+	void RemovePath(const FString& InPath)
+	{
+		TArray<FString> PathSegments;
+		InPath.ParseIntoArray(PathSegments, TEXT("."));
+
+		using FPathTraceNode = TTuple<FName, TSharedPtr<FNode>>;
+		TArray<FPathTraceNode> PathTrace;
+		PathTrace.Reserve(PathSegments.Num() + 1);
+
+		TSharedPtr<FNode> Node = GetRootNode();
+		PathTrace.Push(MakeTuple(NAME_None, Node));
+		for (const FString& PathSegment : PathSegments)
+		{
+			FName SubPathName = FName(*PathSegment);
+			if (const TSharedPtr<FNode>* NodePtr = Node->Children.Find(SubPathName))
+			{
+				Node = *NodePtr;
+				PathTrace.Push(MakeTuple(SubPathName, Node));
+			}
+		}
+
+		FName LastKey = NAME_None;
+		TSharedPtr<FNode> LastNode;
+		while (PathTrace.Num() > 0)
+		{
+			const FPathTraceNode& PathTraceNode = PathTrace.Pop();
+
+			TSharedPtr<FNode> CurrNode = PathTraceNode.Get<1>();
+			check(CurrNode.IsValid());
+			
+			// On the first pass, LastNode will not be valid, so we clear the added flag on the leaf node. On the
+			// next pass, the current node equates to the parent of the leaf node, and we remove the leaf node only
+			// if it has an empty subtree. All subsequent passes will iterate from there back up to the root node,
+			// where at each level we examine the last child node to see if it can be removed (no children and
+			// not explicitly added; i.e. - not a wildcard path (e.g. X.Y.*)). This means that we will not be left
+			// with a subtree that contains only non-explicitly added paths (i.e. we're also minimizing the tree).
+			//
+			// Example: Remove path "X.Y.Z" from the following tree:
+			//
+			//                         Root        <-- The root node is never removed.
+			//                          |
+			//                          +- X        <-- Node "X" will not be removed even if "Y" is removed, b/c its subtree is still not empty (i.e. "X.W" would still be a valid path). 
+			//                             |
+			//                             +- Y        <-- Node "Y" will be removed (*unless* "X.Y" was explicitly added) only if it's not left with any children after node "Z" is removed.
+			//                             |  |
+			//                             |  +- Z        <-- Node "Z" will not be removed if its subtree is not empty. Since this is the leaf node, we clear the "added" flag and shift up.
+			//                             |     |
+			//                             |     +- T
+			//                             +- W
+			//
+			if (!LastNode.IsValid())
+			{
+				CurrNode->bIsAddedPath = false;
+			}
+			else if(!LastNode->bIsAddedPath && LastNode->Children.Num() == 0)
+			{
+				TSharedPtr<FNode> RemovedNode = CurrNode->Children.FindAndRemoveChecked(LastKey);
+				check(RemovedNode == LastNode);
+			}
+
+			LastKey = PathTraceNode.Get<0>();
+			LastNode = CurrNode;
+		}
 	}
 
 	/** Path node visitor function signature.

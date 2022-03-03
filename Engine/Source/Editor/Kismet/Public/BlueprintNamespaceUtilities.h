@@ -52,7 +52,22 @@ public:
 	 * @param InContainer	The source address of the struct/object containing the property's value.
 	 * @param OutNamespaces	Zero or more unique namespace identifier(s) referenced by the property value. An entry with an empty string equates to the default global namespace.
 	 */
-	static void GetPropertyValueNamespaces(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer, TSet<FString>& OutNamespaces);
+	static void GetPropertyValueNamespaces(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer, TArray<FString>& OutNamespaces);
+
+	/**
+	 * Gathers the set of global namespaces that are implicitly imported by all Blueprint assets.
+	 * 
+	 * @param OutNamespaces	Zero or more unique namespace identifier(s) representing the shared global namespace set.
+	 */
+	static void GetSharedGlobalImports(TSet<FString>& OutNamespaces);
+
+	/**
+	 * Gathers the set of default namespaces that are implicitly imported by a given Blueprint asset.
+	 *
+	 * @param InBlueprint	A reference to a loaded Blueprint asset.
+	 * @param OutNamespaces	Zero or more unique namespace identifier(s) representing the Blueprint asset's default namespace set.
+	 */
+	static void GetDefaultImportsForBlueprint(const UBlueprint* InBlueprint, TSet<FString>& OutNamespaces);
 
 	/**
 	 * Sets the default Blueprint namespace type that objects/assets should use when not explicitly assigned.

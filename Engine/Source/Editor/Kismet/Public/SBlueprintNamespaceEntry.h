@@ -58,6 +58,7 @@ protected:
 	TSharedRef<ITableRow> OnGenerateRowForNamespaceList(TSharedPtr<FString> Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnNamespaceListFilterTextChanged(const FText& InText);
 	void OnNamespaceListSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo);
+	FText GetCurrentNamespaceText() const;
 
 	void PopulateNamespaceList();
 	void SelectNamespace(const FString& InNamespace);

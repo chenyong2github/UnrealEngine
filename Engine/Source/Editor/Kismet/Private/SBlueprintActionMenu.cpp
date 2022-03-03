@@ -622,37 +622,20 @@ void SBlueprintActionMenu::OnFilterImportNamespaceList(TArray<FString>& InOutNam
 
 void SBlueprintActionMenu::OnNamespaceSelectedForImport(const FString& InNamespace)
 {
-	bool bWasAdded = false;
-
-	FBlueprintActionContext MenuContext;
-	ConstructActionContext(MenuContext);
-
-	// Add to the blueprint's list of imports.
-	if (!InNamespace.IsEmpty())
+	TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = EditorPtr.Pin();
+	if (BlueprintEditorPtr.IsValid())
 	{
-		for (UBlueprint* Blueprint : MenuContext.Blueprints)
+		FBlueprintEditor::FImportNamespaceParameters Params;
+		Params.OnImportCallback = FSimpleDelegate::CreateLambda([GraphActionMenu = this->GraphActionMenu]()
 		{
-			if (FBlueprintEditorUtils::AddNamespaceToImportList(Blueprint, InNamespace))
-			{
-				bWasAdded = true;
-			}
-		}
-	}
+			// Now that additional types have been loaded/imported, update the menu to include any additional action(s).
+			const bool bPreserveExpansion = true;
+			const bool bHandleOnSelectionEvent = false;
+			GraphActionMenu->RefreshAllActions(bPreserveExpansion, bHandleOnSelectionEvent);
+		});
 
-	if (bWasAdded)
-	{
-		// Import the namespace into the current editor context. This may load additional type assets.
-		TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = EditorPtr.Pin();
-		if (BlueprintEditorPtr.IsValid())
-		{
-			BlueprintEditorPtr->ImportNamespace(InNamespace);
-			BlueprintEditorPtr->RefreshInspector();
-		}
-
-		// Now that additional types have been loaded/imported, update the menu to include any additional action(s).
-		const bool bPreserveExpansion = true;
-		const bool bHandleOnSelectionEvent = false;
-		GraphActionMenu->RefreshAllActions(bPreserveExpansion, bHandleOnSelectionEvent);
+		// Auto-import the namespace into the current editor context. This may load additional type assets.
+		BlueprintEditorPtr->ImportNamespace(InNamespace, Params);
 	}
 }
 

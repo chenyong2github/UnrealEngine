@@ -842,7 +842,7 @@ private:
 				if (PinSubCategoryObject && BlueprintEditor.IsValid() && BlueprintEditor->IsNonImportedObject(PinSubCategoryObject))
 				{
 					FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(PinSubCategoryObject);
-					if (!Namespace.IsEmpty())
+					if (!Namespace.IsEmpty() && BlueprintEditor.IsValid())
 					{
 						BlueprintEditor->ImportNamespace(Namespace);
 					}

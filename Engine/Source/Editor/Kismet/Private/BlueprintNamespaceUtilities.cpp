@@ -8,6 +8,8 @@
 #include "Misc/AssertionMacros.h"
 #include "BlueprintEditorModule.h"
 #include "Toolkits/ToolkitManager.h"
+#include "BlueprintEditorSettings.h"
+#include "Settings/BlueprintEditorProjectSettings.h"
 
 namespace UE::Editor::Kismet::Private
 {
@@ -153,7 +155,7 @@ FString FBlueprintNamespaceUtilities::GetObjectNamespace(const FSoftObjectPath& 
 	return GetAssetNamespace(AssetData);
 }
 
-void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer, TSet<FString>& OutNamespaces)
+void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer, TArray<FString>& OutNamespaces)
 {
 	if (!InStruct || !InProperty || !InContainer)
 	{
@@ -214,7 +216,7 @@ void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InS
 			if (ObjectPath.IsValid())
 			{
 				FString Namespace = GetObjectNamespace(ObjectPath);
-				OutNamespaces.Add(Namespace);
+				OutNamespaces.AddUnique(Namespace);
 			}
 		}
 		else if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(InProperty))
@@ -223,7 +225,58 @@ void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InS
 			if (ObjectValue)
 			{
 				FString Namespace = GetObjectNamespace(ObjectValue);
-				OutNamespaces.Add(Namespace);
+				OutNamespaces.AddUnique(Namespace);
+			}
+		}
+	}
+}
+
+void FBlueprintNamespaceUtilities::GetSharedGlobalImports(TSet<FString>& OutNamespaces)
+{
+	// Local editor imports.
+	OutNamespaces.Append(GetDefault<UBlueprintEditorSettings>()->NamespacesToAlwaysInclude);
+
+	// Project-wide imports.
+	OutNamespaces.Append(GetDefault<UBlueprintEditorProjectSettings>()->NamespacesToAlwaysInclude);
+
+	// Exclude the global namespace (empty) if it was included; this is implied.
+	OutNamespaces.Remove(FString());
+}
+
+void FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(const UBlueprint* InBlueprint, TSet<FString>& OutNamespaces)
+{
+	if (!InBlueprint)
+	{
+		return;
+	}
+
+	// Blueprint namespace (if set).
+	FString BlueprintNamespace = GetObjectNamespace(InBlueprint);
+	if (!BlueprintNamespace.IsEmpty())
+	{
+		OutNamespaces.Add(BlueprintNamespace);
+	}
+
+	const bool bAddParentClassImportedNamespaces = GetDefault<UBlueprintEditorSettings>()->bInheritImportedNamespacesFromParentBP;
+
+	// Inherited Blueprint namespaces (if set).
+	TArray<UBlueprint*> ParentBPStack;
+	UBlueprint::GetBlueprintHierarchyFromClass(InBlueprint->ParentClass, ParentBPStack);
+	while (ParentBPStack.Num() > 0)
+	{
+		if (const UBlueprint* ParentBP = ParentBPStack.Pop())
+		{
+			// Parent Blueprint's namespace (if set).
+			FString ParentBPNamespace = GetObjectNamespace(ParentBP);
+			if (!ParentBPNamespace.IsEmpty())
+			{
+				OutNamespaces.Add(ParentBPNamespace);
+			}
+
+			// If enabled, also include namespaces that are explicitly imported by all ancestor BPs.
+			if (bAddParentClassImportedNamespaces)
+			{
+				OutNamespaces.Append(ParentBP->ImportedNamespaces);
 			}
 		}
 	}

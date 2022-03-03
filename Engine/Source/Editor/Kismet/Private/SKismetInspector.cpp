@@ -1017,7 +1017,7 @@ void SKismetInspector::ImportNamespacesForPropertyValue(const FProperty* InPrope
 	}
 
 	// Gather all namespace identifier strings associated with the property's value for each edited object.
-	TSet<FString> AssociatedNamespaces;
+	TArray<FString> AssociatedNamespaces;
 	for (const TWeakObjectPtr<UObject>& SelectedObjectPtr : SelectedObjects)
 	{
 		if (const UObject* SelectedObject = SelectedObjectPtr.Get())
@@ -1043,10 +1043,9 @@ void SKismetInspector::ImportNamespacesForPropertyValue(const FProperty* InPrope
 		TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
 		if (BlueprintEditor.IsValid())
 		{
-			for (const FString& AssociatedNamespace : AssociatedNamespaces)
-			{
-				BlueprintEditor->ImportNamespace(AssociatedNamespace);
-			}
+			FBlueprintEditor::FImportNamespaceParameters Params;
+			Params.AdditionalNamespaces = MakeArrayView(AssociatedNamespaces).RightChop(1);
+			BlueprintEditor->ImportNamespace(AssociatedNamespaces[0], Params);
 		}
 	}
 }
