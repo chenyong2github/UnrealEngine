@@ -129,6 +129,38 @@ bool FPathPermissionList::AddDenyListItem(const FName OwnerName, const TCHAR* It
 	return AddDenyListItem(OwnerName, FStringView(Item));
 }
 
+bool FPathPermissionList::RemoveDenyListItem(const FName OwnerName, const FStringView Item)
+{
+	const uint32 ItemHash = GetTypeHash(Item);
+
+	FPermissionListOwners* Owners = DenyList.FindByHash(ItemHash, Item);
+	if (Owners && Owners->Remove(OwnerName) == 1)
+	{
+		if (Owners->Num() == 0)
+		{
+			DenyList.RemoveByHash(ItemHash, Item);
+		}
+
+		if (!bSuppressOnFilterChanged)
+		{
+			OnFilterChanged().Broadcast();
+		}
+		return true;
+	}
+
+	return false;
+}
+
+bool FPathPermissionList::RemoveDenyListItem(const FName OwnerName, const FName Item)
+{
+	return RemoveDenyListItem(OwnerName, FNameBuilder(Item));
+}
+
+bool FPathPermissionList::RemoveDenyListItem(const FName OwnerName, const TCHAR* Item)
+{
+	return RemoveDenyListItem(OwnerName, FStringView(Item));
+}
+
 bool FPathPermissionList::AddAllowListItem(const FName OwnerName, const FStringView Item)
 {
 	const uint32 ItemHash = GetTypeHash(Item);
@@ -172,6 +204,38 @@ bool FPathPermissionList::AddDenyListAll(const FName OwnerName)
 	}
 
 	return bFilterChanged;
+}
+
+bool FPathPermissionList::RemoveAllowListItem(const FName OwnerName, const FStringView Item)
+{
+	const uint32 ItemHash = GetTypeHash(Item);
+
+	FPermissionListOwners* Owners = AllowList.FindByHash(ItemHash, Item);
+	if (Owners && Owners->Remove(OwnerName) == 1)
+	{
+		if (Owners->Num() == 0)
+		{
+			AllowList.RemoveByHash(ItemHash, Item);
+		}
+
+		if (!bSuppressOnFilterChanged)
+		{
+			OnFilterChanged().Broadcast();
+		}
+		return true;
+	}
+
+	return false;
+}
+
+bool FPathPermissionList::RemoveAllowListItem(const FName OwnerName, const FName Item)
+{
+	return RemoveAllowListItem(OwnerName, FNameBuilder(Item));
+}
+
+bool FPathPermissionList::RemoveAllowListItem(const FName OwnerName, const TCHAR* Item)
+{
+	return RemoveAllowListItem(OwnerName, FStringView(Item));
 }
 
 bool FPathPermissionList::HasFiltering() const

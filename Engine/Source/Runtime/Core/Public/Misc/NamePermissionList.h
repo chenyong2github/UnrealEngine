@@ -152,6 +152,24 @@ public:
 	bool AddDenyListItem(const FName OwnerName, const TCHAR* Item);
 
 	/**
+	* Remove item from the DenyList
+	* @return whether the filters changed
+	*/
+	bool RemoveDenyListItem(const FName OwnerName, const FStringView Item);
+
+	/**
+	* Remove item from the DenyList
+	* @return whether the filters changed
+	*/
+	bool RemoveDenyListItem(const FName OwnerName, const FName Item);
+
+	/**
+	* Remove item from the DenyList
+	* @return whether the filters changed
+	*/
+	bool RemoveDenyListItem(const FName OwnerName, const TCHAR* Item);
+
+	/**
 	 * Add item to allowlist after which all items not in the allowlist will be filtered out.
 	 * @return whether the filters changed.
 	 */
@@ -168,6 +186,24 @@ public:
 	 * @return whether the filters changed.
 	 */
 	bool AddAllowListItem(const FName OwnerName, const TCHAR* Item);
+
+	/**
+	* Remove item from the AllowList
+	* @return whether the filters changed
+	*/
+	bool RemoveAllowListItem(const FName OwnerName, const FStringView Item);
+
+	/**
+	* Remove item from the AllowList
+	* @return whether the filters changed
+	*/
+	bool RemoveAllowListItem(const FName OwnerName, const FName Item);
+
+	/**
+	* Remove item from the AllowList
+	* @return whether the filters changed
+	*/
+	bool RemoveAllowListItem(const FName OwnerName, const TCHAR* Item);
 
 	/**
 	 * Set to filter out all items.
