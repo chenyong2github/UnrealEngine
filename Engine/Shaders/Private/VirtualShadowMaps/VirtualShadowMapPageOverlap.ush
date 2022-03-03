@@ -7,7 +7,8 @@
 #include "../SceneData.ush"
 #include "VirtualShadowMapPageAccessCommon.ush"
 
-StructuredBuffer<uint> ShadowHZBPageTable;
+StructuredBuffer<uint> HZBPageTable;
+StructuredBuffer<uint4> HZBPageRectBounds;
 
 // NOTE: HMipLevel = 0 means the regular page flags
 uint ShadowGetPageFlags(uint ShadowMapID, uint MipLevel, uint HMipLevel, uint2 PageAddress)
@@ -21,17 +22,34 @@ uint ShadowGetPageFlags(uint ShadowMapID, uint MipLevel, uint HMipLevel, uint2 P
 	return (RawFlags >> HMipBitShift) & VSM_PAGE_FLAGS_BITS_MASK;
 }
 
-// Note: the pixel 'screen' rect in FScreenRect is calculated using only the viewport _size_ as HZB uses a zero-offset buffer.
-// However, the page table is with respect to the entire virtual SM so we need to offset here.
-// Returns true if *all* flags in FlagMask are set on at least one overlapped page (see GetPageFlagMaskForRendering below)
-bool OverlapsAnyValidPage( 
-	uint ShadowMapID, 
-	uint MipLevel, 
-	int2 ViewPortRectMin, 
-	FScreenRect Rect,
-	uint FlagMask = VSM_ALLOCATED_FLAG)
+
+uint4 GetPageRect(FScreenRect Rect)
 {
-	uint4 RectPages = uint4( Rect.Pixels + ViewPortRectMin.xyxy ) >> VSM_LOG2_PAGE_SIZE;
+	uint4 RectPages = uint4(Rect.Pixels) >> VSM_LOG2_PAGE_SIZE;
+
+	return RectPages;
+}
+
+uint4 ClipPageRect(uint4 RectPages, uint VirtualShadowMapId, uint MipLevel, StructuredBuffer<uint4> PageRectBoundsBuffer)
+{
+	uint4 AllocatedBounds = PageRectBoundsBuffer[VirtualShadowMapId * VSM_MAX_MIP_LEVELS + MipLevel];
+
+	return uint4(max(RectPages.xy, AllocatedBounds.xy), min(RectPages.zw, AllocatedBounds.zw));
+}
+
+uint4 GetPageRect(FScreenRect Rect, uint VirtualShadowMapId, uint MipLevel)
+{
+	return ClipPageRect(GetPageRect(Rect), VirtualShadowMapId, MipLevel, VirtualShadowMap.PageRectBounds);
+}
+
+// Returns true if *all* flags in FlagMask are set on at least one overlapped page (see GetPageFlagMaskForRendering below)
+bool OverlapsAnyValidPage(uint ShadowMapID, uint MipLevel, uint4 RectPages, uint FlagMask = VSM_ALLOCATED_FLAG)
+{
+	// Skip empty rectangles (inclusive).
+	if (any(RectPages.zw < RectPages.xy))
+	{
+		return false;
+	}
 
 	uint HMipLevel = MipLevelForRect(RectPages, 2);
 
@@ -73,15 +91,22 @@ bool IsVisibleHZB( uint ShadowMapID, uint MipLevel, FScreenRect Rect )
 
 	uint PageTableLevelOffset = CalcPageTableLevelOffset( ShadowMapID, MipLevel );
 
-	uint4 RectPages = uint4( Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
+	uint4 RectPages = GetPageRect(Rect);
 
+	// If the clipped page rect is smaller than the unclipped rect, there are unmapped pages in the footprint and we return 
+	// that it is visible.
+	uint4 ClippedRectPages = ClipPageRect(RectPages, ShadowMapID, MipLevel, HZBPageRectBounds);
+	if (any(ClippedRectPages.xy > RectPages.xy) || any(ClippedRectPages.zw < RectPages.zw))
+	{
+		return true;
+	}
 	for( uint y = RectPages.y; y <= RectPages.w; y++ )
 	{
 		for( uint x = RectPages.x; x <= RectPages.z; x++ )
 		{
 			uint2 vPage = uint2(x,y);
 			uint PageOffset = PageTableLevelOffset + CalcPageOffsetInLevel( MipLevel, vPage );
-			FShadowPhysicalPage pPage = ShadowDecodePageTable( ShadowHZBPageTable[ PageOffset ] );
+			FShadowPhysicalPage pPage = ShadowDecodePageTable( HZBPageTable[ PageOffset ] );
 
 			if( !pPage.bThisLODValid )
 			{
@@ -101,7 +126,9 @@ bool IsVisibleHZB( uint ShadowMapID, uint MipLevel, FScreenRect Rect )
 				ClippedRect.HZBTexels += ( pPage.PhysicalAddress << Shift ).xyxy;
 
 				if( IsVisibleHZB( ClippedRect, true ) )
+				{
 					return true;
+				}
 			}
 		}
 	}
@@ -143,7 +170,7 @@ FPageTestScreenRect SetupPageHZBRect(FScreenRect ScreenRect)
 
 bool IsPageVisibleHZB(uint2 vPage, uint PageFlagOffset, FPageTestScreenRect PageTestScreenRect, bool bSampleStaticPage = false)
 {
-	FShadowPhysicalPage pPage = ShadowDecodePageTable(ShadowHZBPageTable[PageFlagOffset]);
+	FShadowPhysicalPage pPage = ShadowDecodePageTable(HZBPageTable[PageFlagOffset]);
 
 	if (pPage.bThisLODValid)
 	{

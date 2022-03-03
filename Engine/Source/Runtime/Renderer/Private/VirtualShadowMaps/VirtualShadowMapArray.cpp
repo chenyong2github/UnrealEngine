@@ -1787,7 +1787,8 @@ public:
 
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FHZBShaderParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, ShadowHZBPageTable)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HZBPageTable)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, HZBPageRectBounds)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
 		SHADER_PARAMETER(FVector2f, HZBSize)
@@ -2165,6 +2166,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	FGPUScene& GPUScene = Scene.GPUScene;
 
 	FRDGBufferSRVRef PrevPageTableRDGSRV = CacheManager->IsValid() ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageTable, TEXT("Shadow.Virtual.PrevPageTable"))) : nullptr;
+	FRDGBufferSRVRef PrevPageRectBoundsRDGSRV = CacheManager->IsValid() ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageRectBounds, TEXT("Shadow.Virtual.PrevPageRectBounds"))) : nullptr;
 
 	int32 HZBMode = CVarNonNaniteVsmUseHzb.GetValueOnRenderThread();
 
@@ -2316,7 +2318,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	if (HZBTexture)
 	{
 		// Mode 2 uses the current frame HZB  & page table.
-		HZBShaderParameters.ShadowHZBPageTable = HZBMode == 2 ? GraphBuilder.CreateSRV(PageTableRDG) : PrevPageTableRDGSRV;
+		HZBShaderParameters.HZBPageTable = HZBMode == 2 ? GraphBuilder.CreateSRV(PageTableRDG) : PrevPageTableRDGSRV;
+		HZBShaderParameters.HZBPageRectBounds = HZBMode == 2 ? GraphBuilder.CreateSRV(PageRectBoundsRDG) : PrevPageRectBoundsRDGSRV;
 		HZBShaderParameters.HZBTexture = HZBTexture;
 		HZBShaderParameters.HZBSize = HZBTexture->Desc.Extent;
 		HZBShaderParameters.HZBSampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
@@ -2642,7 +2645,7 @@ FRDGTextureRef FVirtualShadowMapArray::BuildHZBFurthest(FRDGBuilder& GraphBuilde
 				PassParameters,
 				PassParameters->IndirectArgs,
 				// NOTE: offset 4 to get second set of args in the buffer.
-				4U
+				4U * sizeof(uint32)
 			);
 		}
 	}

@@ -8,10 +8,8 @@
 #include "NaniteWritePixel.ush"
 
 #if IS_NANITE_RASTER_PASS
-
 #include "/Engine/Generated/Material.ush"
 #include "NaniteVertexFactory.ush"
-
 #else
 
 // TODO: PROG_RASTER (Make SW rasterizer support material graph)

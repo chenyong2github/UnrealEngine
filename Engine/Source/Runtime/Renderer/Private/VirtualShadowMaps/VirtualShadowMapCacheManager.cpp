@@ -454,25 +454,24 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 
 	if (bEnableCaching && VirtualShadowMapArray.IsAllocated())
 	{
-		bool bExtractPageTable = false;
+		bool bExtractHzbData = false;
 
 		// HZB and associated page table are needed by next frame even when VSM physical page caching is disabled
 		if (VirtualShadowMapArray.HZBPhysical)
 		{
-			bExtractPageTable = true;
+			bExtractHzbData = true;
 			GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.HZBPhysical, &PrevBuffers.HZBPhysical);
 			PrevBuffers.HZBMetadata = VirtualShadowMapArray.HZBMetadata;
 		}
 
 		if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
 		{
-			bExtractPageTable = true;
+			bExtractHzbData = true;
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageFlagsRDG, &PrevBuffers.PageFlags);
 		
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PhysicalPageMetaDataRDG, &PrevBuffers.PhysicalPageMetaData);
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.DynamicCasterPageFlagsRDG, &PrevBuffers.DynamicCasterPageFlags);
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.ProjectionDataRDG, &PrevBuffers.ProjectionData);
-			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageRectBoundsRDG, &PrevBuffers.PageRectBounds);
 
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.InvalidatingInstancesRDG, &PrevBuffers.InvalidatingInstancesBuffer);
 			PrevBuffers.NumInvalidatingInstanceSlots = VirtualShadowMapArray.NumInvalidatingInstanceSlots;
@@ -482,9 +481,10 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 			PrevUniformParameters = VirtualShadowMapArray.UniformParameters;
 		}
 
-		if (bExtractPageTable)
+		if (bExtractHzbData)
 		{
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &PrevBuffers.PageTable);
+			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageRectBoundsRDG, &PrevBuffers.PageRectBounds);
 		}
 
 		// propagate current-frame primitive state to cache entry
@@ -758,7 +758,9 @@ public:
 		SHADER_PARAMETER(uint32, GPUSceneNumAllocatedInstances)
 		SHADER_PARAMETER(uint32, GPUSceneNumAllocatedPrimitives)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, ShadowHZBPageTable)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HZBPageTable)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, HZBPageRectBounds)
+
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
 		SHADER_PARAMETER( FVector2f,	HZBSize )
@@ -870,7 +872,8 @@ static void SetupCommonParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapAr
 	if (PrevHZBPhysical)
 	{
 		// Same, since we are not producing a new frame just yet
-		OutPassParameters.ShadowHZBPageTable = CacheManager->PrevUniformParameters.PageTable;
+		OutPassParameters.HZBPageTable = CacheManager->PrevUniformParameters.PageTable;
+		OutPassParameters.HZBPageRectBounds = CacheManager->PrevUniformParameters.PageRectBounds;
 		OutPassParameters.HZBTexture = GraphBuilder.RegisterExternalTexture(PrevHZBPhysical);
 		OutPassParameters.HZBSize = PrevHZBPhysical->GetDesc().Extent;
 		OutPassParameters.HZBSampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();

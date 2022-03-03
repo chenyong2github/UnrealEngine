@@ -144,53 +144,45 @@ void VirtualSmInvalidateInstancePagesCS(
 							// axis aligned boxes.
 							Rect.Depth += 1e-8f;
 
-							// Use Hierarchical mip test to speed up (allows skipping invalidating areas that don't have any flags anyway)
-							if (OverlapsAnyValidPage(ProjectionData.VirtualShadowMapId, MipLevel, float2(0.0f, 0.0f), Rect, VSM_ALLOCATED_FLAG))
-							{
-								uint4 RectPages = uint4(Rect.Pixels) >> VSM_LOG2_PAGE_SIZE;
+							uint4 RectPages = GetPageRect(Rect, ProjectionData.VirtualShadowMapId, MipLevel);
 
+							// Use Hierarchical mip test to speed up (allows skipping invalidating areas that don't have any flags anyway)
+							if (OverlapsAnyValidPage(ProjectionData.VirtualShadowMapId, MipLevel, RectPages, VSM_ALLOCATED_FLAG))
+							{
 #if USE_HZB_OCCLUSION
 								FPageTestScreenRect HZBTestRect = SetupPageHZBRect(Rect);
 #endif // USE_HZB_OCCLUSION
 
-								// Clip to actually allocated pages
-								// TODO: move this to be done as part of or before the overlap test?
-								uint4 AllocatedBounds = VirtualShadowMap.PageRectBounds[ProjectionData.VirtualShadowMapId * VSM_MAX_MIP_LEVELS + MipLevel];
-								RectPages.xy = max(RectPages.xy, AllocatedBounds.xy);
-								RectPages.zw = min(RectPages.zw, AllocatedBounds.zw);
-								if (all(RectPages.zw >= RectPages.xy))
+								// 3. do invalidation
+								uint PageTableLevelOffset = CalcPageTableLevelOffset(ProjectionData.VirtualShadowMapId, MipLevel);
+								for (uint y = RectPages.y; y <= RectPages.w; y++)
 								{
-									// 3. do invalidation
-									uint PageTableLevelOffset = CalcPageTableLevelOffset(ProjectionData.VirtualShadowMapId, MipLevel);
-									for (uint y = RectPages.y; y <= RectPages.w; y++)
+									for (uint x = RectPages.x; x <= RectPages.z; x++)
 									{
-										for (uint x = RectPages.x; x <= RectPages.z; x++)
-										{
-											uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
-											uint PageFlag = VirtualShadowMap.PageFlags[PageFlagOffset];
+										uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
+										uint PageFlag = VirtualShadowMap.PageFlags[PageFlagOffset];
 
-											if ((PageFlag & VSM_ALLOCATED_FLAG) != 0)
-											{
+										if ((PageFlag & VSM_ALLOCATED_FLAG) != 0)
+										{
 #if USE_HZB_OCCLUSION
-												// When separate static caching is enabled we check against the static page
-												// rather than the dynamic one. This is not totally ideal for a number of reasons
-												// but it is generally better than checking against the dynamic one in most scenes.
-												// Ideally in fully cached cases we would check the cached/merged (dynamic) page at
-												// the very least.
-												const bool bSampleStaticPage = true;
-												if (!IsPageVisibleHZB(uint2(x, y), PageFlagOffset, HZBTestRect, bSampleStaticPage))
-												{
-													continue;
-												}
+											// When separate static caching is enabled we check against the static page
+											// rather than the dynamic one. This is not totally ideal for a number of reasons
+											// but it is generally better than checking against the dynamic one in most scenes.
+											// Ideally in fully cached cases we would check the cached/merged (dynamic) page at
+											// the very least.
+											const bool bSampleStaticPage = true;
+											if (!IsPageVisibleHZB(uint2(x, y), PageFlagOffset, HZBTestRect, bSampleStaticPage))
+											{
+												continue;
+											}
 #endif // USE_HZB_OCCLUSION
-												// Accumulate static/dynamic invalidation flags
-												// TODO: Wave version
-												InterlockedOr(OutDynamicCasterPageFlags[PageFlagOffset], InvalidationFlags);
+											// Accumulate static/dynamic invalidation flags
+											// TODO: Wave version
+											InterlockedOr(OutDynamicCasterPageFlags[PageFlagOffset], InvalidationFlags);
 #if ENABLE_DEBUG_MODE
-												++PageInvalidationCount;
+											++PageInvalidationCount;
 #endif
 
-											}
 										}
 									}
 								}

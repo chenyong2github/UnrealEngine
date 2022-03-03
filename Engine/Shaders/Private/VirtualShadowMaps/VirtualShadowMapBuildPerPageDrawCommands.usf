@@ -230,47 +230,37 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 				FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4);
 
 				uint FlagMask = VSM_NON_NANITE_FLAG | GetPageFlagMaskForRendering(InstanceData, bHasMoved);
-				if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, MipView.ViewRect.xy, Rect, FlagMask))
+
+				uint4 RectPages = GetPageRect(Rect, VirtualShadowMapId, MipLevel);
+
+				if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, RectPages, FlagMask))
 				{
-					uint4 RectPages = uint4( MipView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
-
-					// Clip to actually allocated pages
-					// TODO: move this to be done as part of or before the overlap test?
-					uint4 AllocatedBounds = VirtualShadowMap.PageRectBounds[VirtualShadowMapId * VSM_MAX_MIP_LEVELS + MipLevel];
-					RectPages.xy = max(RectPages.xy, AllocatedBounds.xy);
-					RectPages.zw = min(RectPages.zw, AllocatedBounds.zw);
-					if (all(RectPages.zw >= RectPages.xy))
-					{
 #if USE_HZB_OCCLUSION
-						if (bViewHZB)
-						{
-							// Assume:
-							//  1. Virtual address space has not changed (if so it'd have been invalidated)
-							//  2. Physical pages that are chached have not changed (guaranteed by persistent caching)
-							//  OR (mode 2): Using this frame's HZB from Nanite shadow passes.
-							// Then we can:
-							//  1. Iterate the clipped page rect
-							//  2. Test against only valid pages which enables
-							//  3. rejecting any that don't pass HZB at least once (or touches an uncached page)
+					if (bViewHZB)
+					{
+						// Assume:
+						//  1. Virtual address space has not changed (if so it'd have been invalidated)
+						//  2. Physical pages that are chached have not changed (guaranteed by persistent caching)
+						//  OR (mode 2): Using this frame's HZB from Nanite shadow passes.
+						// Then we can:
+						//  1. Iterate the clipped page rect
+						//  2. Test against only valid pages which enables
+						//  3. rejecting any that don't pass HZB at least once (or touches an uncached page)
 
-							// In Mode 2 we are using the current-frame HZB and can use any page whether it is cached or not.
-							// TODO: Figure out which flag(s) we actually want here
-							uint VisiblePageMask = HZBMode == 1 ? (VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG) : 0U;
-							if (!IsVisibleValidMaskedHZB(HZBMode == 1 ? MipView.TargetPrevLayerIndex : VirtualShadowMapId, VirtualShadowMapId, MipLevel, RectPages, Rect, VisiblePageMask))
-							{
-								StatsBufferInterlockedInc(VSM_STAT_NON_NANITE_INSTANCES_HZB_CULLED);
-								continue;
-							}
+						// In Mode 2 we are using the current-frame HZB and can use any page whether it is cached or not.
+						// TODO: Figure out which flag(s) we actually want here. Also need to check the non-nanite one?
+						// TODO: for mode 1, we need to use the previous view transform and rect.
+						uint VisiblePageMask = HZBMode == 1 ? (VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG) : 0U;
+						if (!IsVisibleValidMaskedHZB(HZBMode == 1 ? MipView.TargetPrevLayerIndex : VirtualShadowMapId, VirtualShadowMapId, MipLevel, RectPages, Rect, VisiblePageMask))
+						{
+							StatsBufferInterlockedInc(VSM_STAT_NON_NANITE_INSTANCES_HZB_CULLED);
+							continue;
 						}
+					}
 #endif // USE_HZB_OCCLUSION
 
-						++ThreadTotalForAllViews;
-						WriteCmd(MipViewId, InstanceId, Payload.IndirectArgIndex, ShouldCacheInstanceAsStatic(InstanceData));
-					}
-					else
-					{
-						StatsBufferInterlockedInc(VSM_STAT_NON_NANITE_INSTANCES_EMPTY_RECT_CULLED);
-					}
+					++ThreadTotalForAllViews;
+					WriteCmd(MipViewId, InstanceId, Payload.IndirectArgIndex, ShouldCacheInstanceAsStatic(InstanceData));
 				}
 				else
 				{

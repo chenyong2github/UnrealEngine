@@ -567,7 +567,8 @@ void InstanceCullVSM(
 				if( bVisible && !Cull.bCrossesNearPlane )
 				{
 					const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, bHasMoved);
-					bVisible = OverlapsAnyValidPage(MipView.TargetLayerIndex, MipView.TargetMipLevel, MipView.ViewRect.xy, Rect, PageFlagMask );
+					uint4 RectPages = GetPageRect(Rect, MipView.TargetLayerIndex, MipView.TargetMipLevel);
+					bVisible = OverlapsAnyValidPage(MipView.TargetLayerIndex, MipView.TargetMipLevel, RectPages, PageFlagMask );
 				}
 
 				BRANCH
