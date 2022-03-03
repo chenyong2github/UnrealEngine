@@ -16,14 +16,7 @@ public:
 	SLATE_BEGIN_ARGS(SSessionHistoryWrapper) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedRef<FAbstractSessionHistoryController> InController)
-	{
-		Controller = InController;
-		ChildSlot
-		[
-			Controller->GetSessionHistory()
-		];
-	}
+	void Construct(const FArguments& InArgs, TSharedRef<FAbstractSessionHistoryController> InController);
 
 private:
 
