@@ -491,7 +491,10 @@ void FDisplayClusterMeshProjectionRenderer::ClearScene()
 	for (const TWeakObjectPtr<UPrimitiveComponent>& PrimitiveComponent : PrimitiveComponents)
 	{
 #if WITH_EDITOR
-		PrimitiveComponent->SelectionOverrideDelegate.Unbind();
+		if (PrimitiveComponent.IsValid() && PrimitiveComponent->SelectionOverrideDelegate.IsBound())
+		{
+			PrimitiveComponent->SelectionOverrideDelegate.Unbind();
+		}
 #endif
 	}
 

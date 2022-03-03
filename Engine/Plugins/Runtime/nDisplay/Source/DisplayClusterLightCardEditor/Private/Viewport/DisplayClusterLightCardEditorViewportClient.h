@@ -93,10 +93,11 @@ private:
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
 	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
-	TWeakObjectPtr<ADisplayClusterRootActor> RootActorPreviewInstance;
+	TWeakObjectPtr<ADisplayClusterRootActor> RootActorProxy;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorLevelInstance;
 
 	TArray<TWeakObjectPtr<AActor>> LightCardProxies;
+	TArray<TWeakObjectPtr<AActor>> LightCardLevelInstances;
 	TArray<TWeakObjectPtr<AActor>> SelectedLightCards;
 	
 	/** The renderer for the viewport, which can render the meshes with a variety of projection types */
