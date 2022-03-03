@@ -10,6 +10,7 @@ import { ConfirmTextResolve } from './tests/confirm-text-resolve'
 import { ConfirmTextResolveBinaryStomp } from './tests/confirm-text-resolve-binary-stomp'
 import { CrossDepotStreamIntegration } from './tests/cross-depot-stream-integration'
 import { EdgeIndependence } from './tests/edge-independence'
+import { EdgeInitialCl } from './tests/edge-initial-cl'
 import { ExclusiveCheckout } from './tests/exclusive-checkout'
 import { ExcludeAuthors } from './tests/exclude-authors'
 import { ExcludeAuthorsPerEdge } from './tests/exclude-authors-per-edge'
@@ -22,6 +23,7 @@ import { IndirectTarget } from './tests/indirect-target'
 import { MergeMainRevToMultipleRelease } from './tests/merge-main-rev-to-multiple-release'
 import { MergeMainRevToRelease } from './tests/merge-main-rev-to-release'
 import { MultipleConflicts } from './tests/multiple-conflicts'
+import { MultipleRoutesToSkip } from './tests/multiple-routes-to-skip'
 import { OverriddenCommand } from './tests/overridden-command'
 import { RejectBranchResolveStomp } from './tests/reject-branch-resolve-stomp'
 import { RejectDeleteResolveStomp } from './tests/reject-delete-resolve-stomp'
@@ -37,7 +39,6 @@ import { TestChain } from './tests/test-chain'
 import { TestEdgeGate } from './tests/test-edge-gate'
 import { TestFlags } from './tests/test-flags'
 import { TestGate } from './tests/test-gate'
-import { EdgeInitialCl } from './tests/edge-initial-cl'
 import { TestReconsider } from './tests/test-reconsider'
 import { TestEdgeReconsider } from './tests/test-edge-reconsider'
 import { TestTerminal } from './tests/test-terminal'
@@ -85,7 +86,8 @@ async function addToRoboMerge(p4: Perforce, tests: FunctionalTest[]) {
 	}
 
 	await Promise.all(settings.map(([botName, s]) => 
-		P4Util.addFile(rootClient, botName + '.branchmap.json', JSON.stringify({...DEFAULT_BOT_SETTINGS, ...s, slackChannel: botName, alias: botName + '-alias'}))
+		P4Util.addFile(rootClient, botName + '.branchmap.json', JSON.stringify({...DEFAULT_BOT_SETTINGS, ...s, slackChannel: botName,
+			aliases: [botName + '-alias', botName + '-alias2']}))
 	))
 
 	await rootClient.submit('Adding branchspecs')
@@ -195,7 +197,8 @@ async function go() {
 
 		new StompWithAdd(p4),
 		new Ignore(p4),
-		new StompForwardingCommands(p4)
+		new StompForwardingCommands(p4),
+		new MultipleRoutesToSkip(p4)
 	]
 
 	// const testToDebug = availableTests[30]

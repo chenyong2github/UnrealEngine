@@ -652,8 +652,16 @@ function computeTargetsImpl(
 		return {computeResult: null, errors: []}
 	}
 
+	// handle multiple routes to skip targets
+	//	
+	const skipTargets: Branch[] = [...allIntegrations]
+		.filter(([_, mergeMode]) => mergeMode === 'skip')
+		.map(([branchName, _]) => branchGraph.getBranch(branchName)!)
+
+
 	const merges = new Map<Branch, Branch[]>()
 	for (const [initialEdge, furtherEdges] of integrations) {
+
 		const edgeTargetBranch = (e: Edge) => {
 			const branch = branchGraph.getBranch(e.targetName)
 			if (!branch) {
@@ -662,7 +670,28 @@ function computeTargetsImpl(
 			return branch
 		}
 
-		merges.set(edgeTargetBranch(initialEdge), furtherEdges.map(edgeTargetBranch))
+		const targetBranch = edgeTargetBranch(initialEdge)
+		const furtherEdgeBranches = furtherEdges.map(edgeTargetBranch)
+		for (const skipTarget of skipTargets) {
+			console.log('skip stuff!!!', initialEdge.source.debugName, skipTarget.name, furtherEdgeBranches)
+			console.log('skip stuff!!!', targetBranch.forcedDownstream)
+			console.log('skip stuff!!!', furtherEdgeBranches.map(b => b.forcedDownstream))
+			if (furtherEdgeBranches.indexOf(skipTarget) < 0
+				&&
+
+			// make sure skipTarget is present directly if reachable
+				[...furtherEdgeBranches, targetBranch]
+					.map(b => b.forcedDownstream)
+					.filter(ds => (ds || []).map(b => branchGraph.getBranch(b)).indexOf(skipTarget) >= 0)
+					.length > 0
+				) {
+
+				logger.info(`adding skip of ${skipTarget.name} to onward integrations for ` +
+					`${initialEdge.source.debugName}->${initialEdge.target.debugName} due to ... todo`)
+				furtherEdgeBranches.push(skipTarget)
+			}
+		}
+		merges.set(targetBranch, furtherEdgeBranches)
 	}
 
 	return {computeResult: {merges, targets, flags: ri.flags}, errors}
