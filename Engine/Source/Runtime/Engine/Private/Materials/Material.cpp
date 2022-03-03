@@ -3113,7 +3113,11 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			AddStrataShadingModelFromMaterialShadingModel(ConvertNode->ConvertedStrataMaterialInfo, ShadingModels);
 			check(ConvertNode->ConvertedStrataMaterialInfo.CountShadingModels() == 1);
 
-			FrontMaterial.Connect(0, ConvertNode);
+			// Now pas through the convert to decal node
+			UMaterialExpressionStrataConvertToDecal* ConvertToDecalNode= NewObject<UMaterialExpressionStrataConvertToDecal>(this);
+			ConvertToDecalNode->DecalMaterial.Connect(0, ConvertNode);
+
+			FrontMaterial.Connect(0, ConvertToDecalNode);
 			bInvalidateShader = true;
 		}
 
@@ -4109,7 +4113,13 @@ void UMaterial::RebuildShadingModelField()
 		}
 		if (StrataMaterialInfo.CountShadingModels() > 1)
 		{
-			if (StrataMaterialInfo.HasShadingModelFromExpression())
+			if (StrataMaterialInfo.HasShadingModel(SSM_Decal))
+			{
+				// Keep the decals information and remove the shading from expression part 
+				// since we are going to bake down the material to a single slab using parameter blending.
+				StrataMaterialInfo.SetShadingModelFromExpression(false);
+			}
+			else if (StrataMaterialInfo.HasShadingModelFromExpression())
 			{
 				if (BlendMode == EBlendMode::BLEND_Opaque || BlendMode == EBlendMode::BLEND_Masked)
 				{
@@ -4174,7 +4184,7 @@ void UMaterial::RebuildShadingModelField()
 				}
 			}
 
-			// Subsurface profil
+			// Subsurface profile
 			if (StrataMaterialInfo.HasShadingModel(SSM_SubsurfaceLit) && StrataMaterialInfo.CountSubsurfaceProfiles() > 0)
 			{
 				if (StrataMaterialInfo.CountSubsurfaceProfiles() > 1)
@@ -4204,10 +4214,7 @@ void UMaterial::RebuildShadingModelField()
 			}
 			else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_DefaultLit))
 			{
-				if (MaterialDomain != EMaterialDomain::MD_Surface && MaterialDomain != EMaterialDomain::MD_DeferredDecal)
-				{
-					MaterialDomain = EMaterialDomain::MD_Surface;
-				}
+				MaterialDomain = EMaterialDomain::MD_Surface;
 				ShadingModel = MSM_DefaultLit;
 			}
 			else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_VolumetricFogCloud))
@@ -4244,6 +4251,13 @@ void UMaterial::RebuildShadingModelField()
 				{
 					StrataBlendMode = SBM_Opaque;
 				}
+			}
+			else if (StrataMaterialInfo.HasShadingModel(SSM_Decal))
+			{
+				// Decal can have multiple shading model
+				MaterialDomain = EMaterialDomain::MD_DeferredDecal;
+				ShadingModel = MSM_DefaultLit;
+				BlendMode = EBlendMode::BLEND_Translucent;
 			}
 
 			// Also update the ShadingModels for remaining pipeline operation

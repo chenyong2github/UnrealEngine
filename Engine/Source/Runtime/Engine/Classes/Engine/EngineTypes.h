@@ -669,6 +669,7 @@ enum EStrataShadingModel
 	SSM_SingleLayerWater		UMETA(DisplayName = "SingleLayerWater"),
 	SSM_LightFunction			UMETA(DisplayName = "LightFunction"),
 	SSM_PostProcess				UMETA(DisplayName = "PostProcess"),
+	SSM_Decal					UMETA(DisplayName = "Decal"),
 	/** Number of unique shading models. */
 	SSM_NUM						UMETA(Hidden),
 };
@@ -712,7 +713,7 @@ public:
 
 private:
 	UPROPERTY()
-	uint8 ShadingModelField = 0;
+	uint16 ShadingModelField = 0;
 
 	/* Indicates if the shading model is constant or data-driven from the shader graph */
 	UPROPERTY()

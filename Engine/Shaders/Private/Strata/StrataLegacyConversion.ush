@@ -508,6 +508,16 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	Out.PreMultipliedAlphaOverrideCoverage = Opacity;
 	#endif
 
+	// We also evaluated the inlined BSDF in case it is used (for instance, for by decals)
+	const float DummyNoV = 1.0f;
+	uint NewNormalIndex = BSDF_GETSHAREDLOCALBASISID(Top_Slab.InlinedBSDF);
+	FStrataData ParamBlendVertical = StrataVerticalLayeringParameterBlending(StrataWeightParameterBlending(Top_Slab, Top.Weight), StrataWeightParameterBlending(Bot_Slab, Bot.Weight), NewNormalIndex, DummyNoV);
+#if STRATA_LEGACY_MATERIAL_APPLIES_FINAL_WEIGHT
+	Out.InlinedBSDF = StrataWeightParameterBlending(ParamBlendVertical, FinalWeight).InlinedBSDF;
+#else
+	Out.InlinedBSDF = ParamBlendVertical.InlinedBSDF;
+#endif
+
 	return Out;
 }
 

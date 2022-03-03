@@ -21346,7 +21346,7 @@ UMaterialExpressionStrataLightFunction::UMaterialExpressionStrataLightFunction(c
 	struct FConstructorStatics
 	{
 		FText NAME_Strata;
-		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata Others", "Strata Others")) { }
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata Extras", "Strata Extras")) { }
 	};
 	static FConstructorStatics ConstructorStatics;
 #if WITH_EDITORONLY_DATA
@@ -21413,7 +21413,7 @@ UMaterialExpressionStrataPostProcess::UMaterialExpressionStrataPostProcess(const
 	struct FConstructorStatics
 	{
 		FText NAME_Strata;
-		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata Others", "Strata Others")) { }
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata Extras", "Strata Extras")) { }
 	};
 	static FConstructorStatics ConstructorStatics;
 #if WITH_EDITORONLY_DATA
@@ -21475,6 +21475,101 @@ void UMaterialExpressionStrataPostProcess::GatherStrataMaterialInfo(FStrataMater
 FStrataOperator* UMaterialExpressionStrataPostProcess::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
 {
 	return &Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_BSDF, this, Parent);
+}
+#endif // WITH_EDITOR
+
+
+
+UMaterialExpressionStrataConvertToDecal::UMaterialExpressionStrataConvertToDecal(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	struct FConstructorStatics
+	{
+		FText NAME_Strata;
+		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata Extras", "Strata Extras")) { }
+	};
+	static FConstructorStatics ConstructorStatics;
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Strata);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStrataConvertToDecal::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!DecalMaterial.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing DecalMaterial input"));
+	}
+
+	int32 DecalMaterialCodeChunk = DecalMaterial.Compile(Compiler);
+	int32 WeightOfOneCodeChunk = Compiler->Constant(1.0f);
+
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
+
+	if (!StrataOperator.bUseParameterBlending)
+	{
+		return Compiler->Errorf(TEXT("Strata Convert To Decal node is not receiveing a parameter blended strata material tree."));
+	}
+	else if (!StrataOperator.bRootOfParameterBlendingSubTree)
+	{
+		return Compiler->Errorf(TEXT("Strata Convert To Decal node must be the root of a parameter blending sun tree."));
+	}
+
+	int32 OutputCodeChunk = INDEX_NONE;
+	if (StrataOperator.bUseParameterBlending)
+	{
+		OutputCodeChunk = Compiler->StrataWeightParameterBlending(
+			DecalMaterialCodeChunk, WeightOfOneCodeChunk,
+			StrataOperator.bRootOfParameterBlendingSubTree ? &StrataOperator : nullptr);
+
+		FStrataMaterialCompilationInfo StrataInfo = StrataCompilationInfoWeightParamBlend(Compiler, Compiler->GetStrataCompilationInfo(DecalMaterialCodeChunk));
+
+		Compiler->StrataCompilationInfoRegisterCodeChunk(OutputCodeChunk, StrataInfo);
+	}
+	return OutputCodeChunk;
+}
+
+void UMaterialExpressionStrataConvertToDecal::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Strata Convert To Decal"));
+}
+
+uint32 UMaterialExpressionStrataConvertToDecal::GetOutputType(int32 OutputIndex)
+{
+	return MCT_Strata;
+}
+
+uint32 UMaterialExpressionStrataConvertToDecal::GetInputType(int32 InputIndex)
+{
+	return MCT_Strata;
+}
+
+bool UMaterialExpressionStrataConvertToDecal::IsResultStrataMaterial(int32 OutputIndex)
+{
+	return true;
+}
+
+void UMaterialExpressionStrataConvertToDecal::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	if (DecalMaterial.GetTracedInput().Expression)
+	{
+		DecalMaterial.GetTracedInput().Expression->GatherStrataMaterialInfo(StrataMaterialInfo, DecalMaterial.OutputIndex);
+	}
+	StrataMaterialInfo.AddShadingModel(SSM_Decal);
+}
+
+FStrataOperator* UMaterialExpressionStrataConvertToDecal::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	FStrataOperator& StrataOperator = Compiler->StrataCompilationRegisterOperator(STRATA_OPERATOR_WEIGHT, this, Parent, bUseParameterBlending);
+
+	UMaterialExpression* ChildDecalMaterialExpression = DecalMaterial.GetTracedInput().Expression;
+	if (ChildDecalMaterialExpression)
+	{
+		StrataOperator.LeftIndex = ChildDecalMaterialExpression->StrataGenerateMaterialTopologyTree(Compiler, this, DecalMaterial.OutputIndex)->Index;
+	}
+
+	return &StrataOperator;
 }
 #endif // WITH_EDITOR
 
