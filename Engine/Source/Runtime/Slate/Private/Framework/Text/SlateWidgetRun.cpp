@@ -30,7 +30,7 @@ void FSlateWidgetRun::SetTextRange( const FTextRange& Value )
 
 int16 FSlateWidgetRun::GetBaseLine( float Scale ) const 
 {
-	return Info.Baseline * Scale;
+	return Info.Baseline.Get(0) * Scale;
 }
 
 int16 FSlateWidgetRun::GetMaxHeight( float Scale ) const 

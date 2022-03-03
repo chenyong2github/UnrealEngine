@@ -24,10 +24,10 @@ public:
 	struct FWidgetRunInfo
 	{
 		TSharedRef< SWidget > Widget;
-		int16 Baseline;
+		TAttribute< int16 > Baseline;
 		TOptional< FVector2D > Size;
 
-		FWidgetRunInfo( const TSharedRef< SWidget >& InWidget, int16 InBaseline, TOptional< FVector2D > InSize = TOptional< FVector2D >() )
+		FWidgetRunInfo( const TSharedRef< SWidget >& InWidget, const TAttribute< int16 >& InBaseline, TOptional< FVector2D > InSize = TOptional< FVector2D >() )
 			: Widget( InWidget )
 			, Baseline( InBaseline )
 			, Size( InSize )
