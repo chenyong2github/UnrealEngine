@@ -223,7 +223,7 @@ void ShadowObjectCullVS(
 
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
-	float4x4 ObjectOBBToWorld = DFObjectData.VolumeToWorld;
+	float4x4 ObjectOBBToWorld = LWCHackToFloat(DFObjectData.VolumeToWorld);
 
 	float ObjectScaleX = length(ObjectOBBToWorld[0].xyz);
 	float ObjectScaleY = length(ObjectOBBToWorld[1].xyz);
@@ -299,7 +299,8 @@ FObjectViewSpaceBox GetObjectViewSpaceBox(uint ObjectIndex)
 
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
-		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex * DFObjectData.VolumePositionExtent, 1.0f), DFObjectData.VolumeToWorld).xyz;
+		float4x4 VolumeToWorld = LWCHackToFloat(DFObjectData.VolumeToWorld);
+		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex * DFObjectData.VolumePositionExtent, 1.0f), VolumeToWorld).xyz;
 #else
 		FHeightfieldObjectBounds HeightfieldObjectBounds = LoadHeightfieldObjectBounds(ObjectIndex);
 		float3 WorldBoundsPosition = UnitBoxVertex * HeightfieldObjectBounds.BoxExtent + LWCHackToFloat(HeightfieldObjectBounds.BoxOrigin); // DF_LWC_TODO

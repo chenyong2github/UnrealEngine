@@ -106,9 +106,10 @@ float ShadowRayTraceThroughCulledObjects(
 
 		{
 			FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+			float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
 
-			float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
-			float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
+			float3 VolumeRayStart = mul(float4(WorldRayStart, 1), WorldToVolume).xyz;
+			float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), WorldToVolume).xyz;
 			float3 VolumeRayDirection = VolumeRayEnd - VolumeRayStart;
 			float VolumeRayLength = length(VolumeRayDirection);
 			VolumeRayDirection /= VolumeRayLength;

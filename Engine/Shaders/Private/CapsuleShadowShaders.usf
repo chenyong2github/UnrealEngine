@@ -725,7 +725,8 @@ bool TileBoundsIntersectDistanceFieldCaster(
 	{
 #if USE_DISTANCE_FIELD_FOR_TILE_CULLING
 		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
-		float3 VolumeSamplePosition = mul(float4(TileBoundingSphere.xyz, 1), DFObjectData.WorldToVolume).xyz;
+		float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
+		float3 VolumeSamplePosition = mul(float4(TileBoundingSphere.xyz, 1), WorldToVolume).xyz;
 		float3 ClampedSamplePosition = clamp(VolumeSamplePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 		float DistanceToClamped = length(ClampedSamplePosition - VolumeSamplePosition);
 		float WorldDistanceToOccluder = (DistanceToMeshSurfaceStandalone(ClampedSamplePosition, DFObjectData) + DistanceToClamped) * DFObjectData.VolumeScale;
@@ -854,6 +855,7 @@ float ShadowConeTraceAgainstCulledDistanceFieldCasters(
 
 		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+		float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
 
 		// Increase max occlusion distance based on object size for distance field casters
 		// This improves the solidness of the shadows, since the fadeout distance causes internal structure of objects to become visible
@@ -862,8 +864,8 @@ float ShadowConeTraceAgainstCulledDistanceFieldCasters(
 		float MaxSphereRadius = TanConeAngle * EffectiveMaxOcclusionDistance;
 		float3 WorldRayEnd = WorldRayStart + UnitRayDirection * EffectiveMaxOcclusionDistance;
 
-		float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
-		float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
+		float3 VolumeRayStart = mul(float4(WorldRayStart, 1), WorldToVolume).xyz;
+		float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), WorldToVolume).xyz;
 		float3 VolumeRayDirection = VolumeRayEnd - VolumeRayStart;
 		float VolumeRayLength = length(VolumeRayDirection);
 		VolumeRayDirection /= VolumeRayLength;

@@ -6,7 +6,8 @@
 
 float DistanceToNearestSurfaceForObject(FDFObjectData DFObjectData, float3 WorldPosition, float MaxDistance)
 {
-	float3 VolumePosition = mul(float4(WorldPosition, 1), DFObjectData.WorldToVolume).xyz;
+	float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
+	float3 VolumePosition = mul(float4(WorldPosition, 1), WorldToVolume).xyz;
 
 	float3 ClampedVolumePosition = clamp(VolumePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 	float DistanceToBox = length((VolumePosition - ClampedVolumePosition) * DFObjectData.VolumeToWorldScale);

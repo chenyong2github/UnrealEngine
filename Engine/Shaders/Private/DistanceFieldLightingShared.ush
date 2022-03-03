@@ -237,8 +237,8 @@ struct FDFObjectData
 	uint GPUSceneInstanceIndex;
 
 	// Transforms between world space and the volume space that tracing happens in
-	float4x4 WorldToVolume;
-	float4x4 VolumeToWorld;
+	FLWCInverseMatrix WorldToVolume;
+	FLWCMatrix VolumeToWorld;
 
 	// Scales along each axis to transform from volume space to world space.  Transform a scaled direction to better handle non-uniform scaling.
 	float3 VolumeToWorldScale;
@@ -258,7 +258,7 @@ FDFObjectData LoadDFObjectDataFromBuffer(StructuredBuffer<float4> SourceBuffer, 
 	float4 V2 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 3];
 	float4x4 RelativeWorldToVolume = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	Data.WorldToVolume = LWCHackToFloat(MakeLWCInverseMatrix4x3(TilePosition, RelativeWorldToVolume)); // DF_LWC_TODO
+	Data.WorldToVolume = MakeLWCInverseMatrix4x3(TilePosition, RelativeWorldToVolume);
 
 	float4 Vector3 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 4];
 	Data.VolumePositionExtent = Vector3.xyz;
@@ -275,7 +275,7 @@ FDFObjectData LoadDFObjectDataFromBuffer(StructuredBuffer<float4> SourceBuffer, 
 	V2 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 8];
 	float4x4 VolumeToRelativeWorld = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	Data.VolumeToWorld = LWCHackToFloat(MakeLWCMatrix(TilePosition, VolumeToRelativeWorld)); // DF_LWC_TODO
+	Data.VolumeToWorld = MakeLWCMatrix(TilePosition, VolumeToRelativeWorld);
 
 	float4 Vector8 = SourceBuffer[ObjectIndex * DF_OBJECT_DATA_STRIDE + 9];
 	Data.VolumeToWorldScale = Vector8.xyz;

@@ -403,7 +403,7 @@ void MeshSDFObjectCullPS(
 	if (ObjectType == CULL_MESH_TYPE_SDF)
 	{
 		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
-		WorldObjectExtent = mul(DFObjectData.VolumePositionExtent, abs(((float3x3)DFObjectData.VolumeToWorld)));
+		WorldObjectExtent = mul(DFObjectData.VolumePositionExtent, abs(((float3x3)DFObjectData.VolumeToWorld.M)));
 	}
 	#endif // CULL_MESH_SDF
 
@@ -558,7 +558,7 @@ void MeshSDFObjectCullForProbesPS(
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectData.Index);
 
 	float3 WorldObjectPosition = Input.PositionAndRadius.xyz;
-	float3 WorldObjectExtent = mul(DFObjectData.VolumePositionExtent, abs((float3x3) DFObjectData.VolumeToWorld));
+	float3 WorldObjectExtent = mul(DFObjectData.VolumePositionExtent, abs((float3x3) DFObjectData.VolumeToWorld.M));
 
 	for (uint ProbeIndexInTile = 0; ProbeIndexInTile < PROBE_HIERARCHY_MAX_EMIT_PER_TILE; ++ProbeIndexInTile)
 	{

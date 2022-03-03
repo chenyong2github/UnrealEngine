@@ -122,8 +122,6 @@ void ComputeDistanceFieldAssetWantedMipsCS(
 
 	if (ObjectIndex < NumSceneObjects)
 	{
-		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
-
 		uint WantedNumMips = 1;
 		if (DebugForceNumMips == 0)
 		{

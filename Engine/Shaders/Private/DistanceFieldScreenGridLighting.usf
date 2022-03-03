@@ -81,8 +81,9 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 	if (ObjectBounds.SphereRadius * ObjectBounds.SphereRadius / ObjectDistanceSq > Square(.25f))
 	{
 		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+		float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
 
-		float3 VolumeShadingPosition = mul(float4(WorldShadingPosition, 1), DFObjectData.WorldToVolume).xyz;
+		float3 VolumeShadingPosition = mul(float4(WorldShadingPosition, 1), WorldToVolume).xyz;
 		float BoxDistance = ComputeDistanceFromBoxToPoint(-DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent, VolumeShadingPosition) * DFObjectData.VolumeScale;
 
 		BRANCH
@@ -106,7 +107,7 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 			{
 				float3 ConeDirection = SampleDirections[ConeIndex].xyz;
 				float3 RotatedConeDirection = ConeDirection.x * TangentX + ConeDirection.y * TangentY + ConeDirection.z * WorldNormal;
-				float3 ScaledLocalConeDirection = mul(RotatedConeDirection, (float3x3) DFObjectData.WorldToVolume).xyz;
+				float3 ScaledLocalConeDirection = LWCMultiplyVector(RotatedConeDirection, DFObjectData.WorldToVolume);
 		
 				float MinVisibility = 1;
 				float WorldStepOffset = GetStepOffset(0);

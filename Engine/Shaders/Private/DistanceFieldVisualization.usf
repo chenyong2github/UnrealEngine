@@ -32,10 +32,11 @@ void RayTraceThroughTileCulledDistanceFields(float3 WorldRayStart, float3 WorldR
 	{
 		uint ObjectIndex = IntersectingObjectIndices[ListObjectIndex];
 		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+		float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
 
-		float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
+		float3 VolumeRayStart = mul(float4(WorldRayStart, 1), WorldToVolume).xyz;
 		float3 WorldRayEnd = WorldRayStart + WorldRayDirection * MaxRayTime;
-		float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
+		float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), WorldToVolume).xyz;
 		float3 VolumeRayDirection = VolumeRayEnd - VolumeRayStart;
 		float VolumeRayLength = length(VolumeRayDirection);
 		VolumeRayDirection /= VolumeRayLength;
@@ -227,16 +228,17 @@ void VisualizeMeshDistanceFieldCS(
 	if (HitCulledObjectIndex != 0xFFFFFFFF)
 	{
 		FDFObjectData DFObjectData = LoadDFObjectData(HitCulledObjectIndex);
+		float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
 
 		float3 WorldRayEnd = WorldRayStart + WorldRayDirection * MinRayTime;
-		float3 VolumeHitPosition = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
+		float3 VolumeHitPosition = mul(float4(WorldRayEnd, 1), WorldToVolume).xyz;
 		//VolumeHitPosition = clamp(VolumeHitPosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 		uint NumMips = LoadDFAssetData(DFObjectData.AssetIndex, 0).NumMips;
 		FDFAssetData DFAssetData = LoadDFAssetData(DFObjectData.AssetIndex, NumMips - 1);
 		float3 VolumeGradient = CalculateMeshSDFGradient(VolumeHitPosition, DFAssetData);
 		float VolumeGradientLength = length(VolumeGradient);
 		float3 VolumeNormal = VolumeGradientLength > 0.0f ? VolumeGradient / VolumeGradientLength : 0;
-		float3 WorldGradient = mul(VolumeNormal, transpose((float3x3)DFObjectData.WorldToVolume));
+		float3 WorldGradient = mul(VolumeNormal, transpose((float3x3)DFObjectData.WorldToVolume.M));
 		float WorldGradientLength = length(WorldGradient);
 		WorldHitNormal = WorldGradientLength > 0.0f ? WorldGradient / WorldGradientLength : 0;
 		bHit = true;

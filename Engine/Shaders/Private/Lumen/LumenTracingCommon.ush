@@ -611,13 +611,14 @@ void RayTraceSingleMeshSDF(
 	inout FTraceMeshSDFResult TraceResult)
 {
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+	float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
 
 	// Trace up to the current hit point
 	MaxTraceDistance = min(MaxTraceDistance, TraceResult.HitDistance + DFObjectData.VolumeSurfaceBias);
 
 	float3 WorldRayEnd = WorldRayStart + WorldRayDirection * MaxTraceDistance;
-	float3 VolumeRayStart = mul(float4(WorldRayStart, 1), DFObjectData.WorldToVolume).xyz;
-	float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), DFObjectData.WorldToVolume).xyz;
+	float3 VolumeRayStart = mul(float4(WorldRayStart, 1), WorldToVolume).xyz;
+	float3 VolumeRayEnd = mul(float4(WorldRayEnd, 1), WorldToVolume).xyz;
 	float3 VolumeRayDirection = VolumeRayEnd - VolumeRayStart;
 
 	float VolumeMaxTraceDistance = length(VolumeRayDirection);
@@ -751,9 +752,10 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 
 	uint DFObjectIndex = TraceMeshSDFResult.HitObject;
 	FDFObjectData DFObjectData = LoadDFObjectData(DFObjectIndex);
+	float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
 
 	float3 HitPosition = WorldRayStart + WorldRayDirection * TraceMeshSDFResult.HitDistance;
-	float3 SampleVolumePosition = mul(float4(HitPosition, 1), DFObjectData.WorldToVolume).xyz;
+	float3 SampleVolumePosition = mul(float4(HitPosition, 1), WorldToVolume).xyz;
 
 	// Clamp hit point to a valid volume
 	SampleVolumePosition = clamp(SampleVolumePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
@@ -763,7 +765,7 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	float VolumeGradientLength = length(VolumeGradient);
 	float3 VolumeNormal = VolumeGradientLength > 0.0f ? VolumeGradient / VolumeGradientLength : 0;
 	// Transform by transposed inverse to handle non-uniform scaling
-	float3 WorldGradient = mul(VolumeNormal, transpose((float3x3)DFObjectData.WorldToVolume));
+	float3 WorldGradient = mul(VolumeNormal, transpose((float3x3)DFObjectData.WorldToVolume.M));
 	float WorldGradientLength = length(WorldGradient);
 	TraceSDFData.HitNormal = WorldGradientLength > 0.0f ? WorldGradient / WorldGradientLength : 0;
 	TraceSDFData.SurfaceCacheBias = DFObjectData.bMostlyTwoSided ? 40.0f : 20.0f;
