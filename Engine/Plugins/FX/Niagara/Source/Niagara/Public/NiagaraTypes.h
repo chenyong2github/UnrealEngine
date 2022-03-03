@@ -636,6 +636,7 @@ public:
 	bool UpdatePOD(const TCHAR* InDebugName, const T& InData)
 	{
 		static_assert(TIsPODType<T>::Value, "Update does not support a constructor / destructor on the element class.");
+		static_assert(!TIsPointer<T>::Value, "Update does not support pointer types.");
 		HashState.Update((const uint8 *)&InData, sizeof(T));
 #if WITH_EDITORONLY_DATA
 		if (LogCompileIdGeneration != 0)
