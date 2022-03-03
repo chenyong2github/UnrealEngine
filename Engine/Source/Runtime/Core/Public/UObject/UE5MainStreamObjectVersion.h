@@ -3,6 +3,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/Guid.h"
+#include "UObject/DevObjectVersion.h"
 
 // Custom serialization version for changes made in //UE5/Main stream
 struct CORE_API FUE5MainStreamObjectVersion
