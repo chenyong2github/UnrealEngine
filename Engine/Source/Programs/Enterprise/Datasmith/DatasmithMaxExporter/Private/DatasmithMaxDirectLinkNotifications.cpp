@@ -137,6 +137,10 @@ public:
 	virtual void LinkChanged(NodeKeyTab& nodes) override
 	{
 		LogNodeEvent(L"LinkChanged", nodes);
+		for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
+		{
+			SceneTracker.NodeLinkChanged(nodes[NodeIndex]);
+		}
 	}
 
 	virtual void GroupChanged(NodeKeyTab& nodes) override
@@ -492,6 +496,14 @@ FString FNotifications::ConvertNotificationCodeToString(int code)
 	return Str ? *Str : TEXT("<unknown>");
 }
 
+void FNotifications::PrepareForUpdate()
+{
+	if (NodeEventCallback)
+	{
+		GetISceneEventManager()->TriggerMessages(NodeEventCallback->CallbackKey);
+	}
+}
+
 void FNotifications::On3dsMaxNotification(void* param, NotifyInfo* info)
 {
 	FNotifications& NotificationsHandler = *static_cast<FNotifications*>(param);
@@ -547,20 +559,48 @@ void FNotifications::On3dsMaxNotification(void* param, NotifyInfo* info)
 			SceneTracker.NodeDeleted(reinterpret_cast<INode*>(info->callParam));
 			break;
 		}
+		case NOTIFY_NODE_UNLINKED:
+		{
+			INode* Node = reinterpret_cast<INode*>(info->callParam);
+			LogDebugNode(NotificationsHandler.ConvertNotificationCodeToString(info->intcode), Node);
+			break;
+		}
+		case NOTIFY_SCENE_POST_DELETED_NODE:
+		{
+			INode* Node = reinterpret_cast<INode*>(info->callParam);
+			LogDebugNode(NotificationsHandler.ConvertNotificationCodeToString(info->intcode), Node);
+			break;
+		}
+		case NOTIFY_SCENE_XREF_POST_MERGE:
+		{
+			INode* Node = reinterpret_cast<INode*>(info->callParam);
+			LogDebugNode(NotificationsHandler.ConvertNotificationCodeToString(info->intcode), Node);
+
+			SceneTracker.NodeXRefMerged(Node);
+			break;
+		}
 		}
 	}
 
-	// Handle events not related to tracking scene changes
+	// Handle events for scene load/new/reset
+	// Note - different UI functions which destroy current scene send different notifications
+	// Reset - NOTIFY_SYSTEM_PRE_RESET NOTIFY_POST_SCENE_RESET
+	// Open -  NOTIFY_FILE_PRE_OPEN_PROCESS NOTIFY_FILE_PRE_OPEN NOTIFY_POST_SCENE_RESET NOTIFY_FILE_POST_OPEN NOTIFY_FILE_POST_OPEN_PROCESS NOTIFY_FILE_POST_OPEN_PROCESS_FINALIZED
+	// File>New>New All -  NOTIFY_SYSTEM_PRE_NEW NOTIFY_POST_SCENE_RESET NOTIFY_SYSTEM_POST_NEW
+	// File>New>New From Template -  NOTIFY_SYSTEM_PRE_RESET NOTIFY_POST_SCENE_RESET NOTIFY_SYSTEM_POST_RESET
 	switch (info->intcode)
 	{
-	// Handle New/Reset events - reset tracking immediately when "Pre events are received - after this point all nodes are invalid, don't wait for "Post" event
+	// Handle New/Reset events sent before scene reset - stop tracking immediately when "Pre" events are received - after this point all nodes are invalid, don't wait for "Post" event
 	case NOTIFY_SYSTEM_PRE_NEW:  // Sent when File>New>New All is selected 
 	case NOTIFY_SYSTEM_PRE_RESET:  // Sent when Reset OR File>New>New From Template is selected
-		Exporter->Reset();
+	case NOTIFY_FILE_PRE_OPEN:  // Sent when File>Open is used
+		Exporter->ResetSceneTracking();
 		break;
 
+	case NOTIFY_SYSTEM_POST_NEW:
+	case NOTIFY_SYSTEM_POST_RESET:
 	case NOTIFY_FILE_POST_OPEN:
-		Exporter->Reset();
+		Exporter->InitializeDirectLinkForScene();
 		break;
 
 	}

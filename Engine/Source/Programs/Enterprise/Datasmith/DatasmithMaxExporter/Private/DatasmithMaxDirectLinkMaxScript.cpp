@@ -147,7 +147,7 @@ Value* Reset_cf(Value** arg_list, int count)
 		return bool_result(false);
 	}
 
-	GetExporter()->Reset();
+	GetExporter()->ResetSceneTracking();
 	return bool_result(true);
 }
 

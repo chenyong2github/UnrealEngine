@@ -298,6 +298,15 @@ bool FillDatasmithMeshFromBoundingBox(FDatasmithMesh& DatasmithMesh, INode* Expo
 		return false;
 	}
 
+	if (MaxMesh->getNumFaces() == 0)
+	{
+		if (bNeedsDelete)
+		{
+			MaxMesh->DeleteThis();
+		}
+		return false;
+	}
+
 	if (MaxMesh->getBoundingBox().IsEmpty())
 	{
 		MaxMesh->buildBoundingBox();

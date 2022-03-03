@@ -62,10 +62,13 @@ class IExporter
 
 	virtual ISceneTracker& GetSceneTracker() = 0;
 
+	virtual void InitializeScene() = 0;
+
 	// Scene update
 	virtual void ParseScene() = 0;
 	virtual bool UpdateScene(bool bQuiet) = 0;
-	virtual void Reset() = 0;
+
+	virtual void ResetSceneTracking() = 0;
 
 	// ChangeTracking
 	virtual void StartSceneChangeTracking() = 0;
@@ -92,6 +95,15 @@ IPersistentExportOptions& GetPersistentExportOptions();
 typedef NodeEventNamespace::NodeKey FNodeKey;
 typedef MtlBase* FMaterialKey;
 
+struct FXRefScene
+{
+	INode* Tree = nullptr;
+	int32 XRefFileIndex = -1;
+
+	operator bool(){ return XRefFileIndex != -1; }
+};
+
+
 // Identifies Max node to track its changes
 class FNodeTracker: FNoncopyable
 {
@@ -113,6 +125,16 @@ public:
 		return InstanceHandle != 0;
 	}
 
+	void SetXRefIndex(FXRefScene InXRefScene)
+	{
+		XRefScene = InXRefScene;
+	}
+
+	INode* GetXRefParent()
+	{
+		return XRefScene ? XRefScene.Tree->GetXRefParent(XRefScene.XRefFileIndex): nullptr;
+	}
+
 	FNodeKey NodeKey;
 	INode* const Node;
 	FNodeTracker* Collision = nullptr;
@@ -127,6 +149,10 @@ public:
 	class FMaterialTracker* MaterialTracker = nullptr;
 
 	TSharedPtr<IDatasmithMeshActorElement> DatasmithMeshActor;
+
+	FXRefScene XRefScene;
+
+	TArray<FNodeTracker*> Children;
 
 };
 
@@ -190,6 +216,7 @@ public:
 	virtual void NodeGeometryChanged(FNodeKey NodeKey) = 0;
 	virtual void NodeHideChanged(FNodeKey NodeKey) = 0;
 	virtual void NodePropertiesChanged(FNodeKey NodeKey) = 0;
+	virtual void NodeLinkChanged(FNodeKey NodeKey) = 0;
 	virtual void NodeTransformChanged(FNodeKey NodeKey) = 0;
 	virtual void NodeMaterialAssignmentChanged(FNodeKey NodeKey) = 0;
 	virtual void NodeMaterialGraphModified(FNodeKey NodeKey) = 0;
@@ -200,6 +227,7 @@ public:
 	virtual void SetupActor(FNodeTracker& NodeTracker) = 0;
 	virtual void SetupDatasmithHISMForNode(FNodeTracker& NodeTracker, INode* GeometryNode, const FRenderMeshForConversion& RenderMesh, Mtl* Material, int32 MeshIndex, const TArray<Matrix3>& Transforms) = 0;
 	virtual void RemoveMaterial(const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial) = 0;
+	virtual void NodeXRefMerged(INode* Node) = 0;
 };
 
 //---- Geometry utility function
@@ -241,6 +269,7 @@ public:
 	void AddNode(INode*);
 
 	FString ConvertNotificationCodeToString(int code);
+	void PrepareForUpdate();
 
 	static void On3dsMaxNotification(void* param, NotifyInfo* info);
 
