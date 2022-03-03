@@ -773,6 +773,9 @@ EUsdDefaultKind UsdUtils::GetDefaultKind( const pxr::UsdPrim& Prim )
 		return Result;
 	}
 
+	// We need KindValidationNone here or else we get inconsistent results when a prim references another prim that is a component.
+	// For example, when referencing a component prim in another file, this returns 'true' if the referencer is a root prim,
+	// but false if the referencer is within another Xform prim, for whatever reason.
 	if ( Model.IsKind( pxr::KindTokens->model, pxr::UsdModelAPI::KindValidationNone ) )
 	{
 		Result |= EUsdDefaultKind::Model;

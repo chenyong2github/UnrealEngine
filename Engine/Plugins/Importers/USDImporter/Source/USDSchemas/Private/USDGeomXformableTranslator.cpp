@@ -40,6 +40,12 @@
 	#include "pxr/usd/usdShade/materialBindingAPI.h"
 #include "USDIncludesEnd.h"
 
+static bool GCollapsePrimsWithoutKind = true;
+static FAutoConsoleVariableRef CVarCollapsePrimsWithoutKind(
+	TEXT( "USD.CollapsePrimsWithoutKind" ),
+	GCollapsePrimsWithoutKind,
+	TEXT( "Allow collapsing prims that have no authored 'Kind' value" ) );
+
 static int32 GMaxNumVerticesCollapsedMesh = 5000000;
 static FAutoConsoleVariableRef CVarMaxNumVerticesCollapsedMesh(
 	TEXT( "USD.MaxNumVerticesCollapsedMesh" ),
@@ -416,10 +422,8 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 
 	if ( Model )
 	{
-		// We need KindValidationNone here or else we get inconsistent results when a prim references another prim that is a component.
-		// For example, when referencing a component prim in another file, this returns 'true' if the referencer is a root prim,
-		// but false if the referencer is within another Xform prim, for whatever reason.
-		bCollapsesChildren = EnumHasAnyFlags( Context->KindsToCollapse, UsdUtils::GetDefaultKind( Prim ) );
+		EUsdDefaultKind PrimKind = UsdUtils::GetDefaultKind( Prim );
+		bCollapsesChildren = Context->KindsToCollapse != EUsdDefaultKind::None && ( EnumHasAnyFlags( Context->KindsToCollapse, PrimKind ) || ( PrimKind == EUsdDefaultKind::None && GCollapsePrimsWithoutKind ) );
 
 		if ( !bCollapsesChildren )
 		{
