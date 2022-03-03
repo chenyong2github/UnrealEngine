@@ -2779,9 +2779,20 @@ static void AddHairOnlyHZBPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGTextureRef HairDepthTexture,
+	FVector4f& OutHZBUvFactorAndInvFactor,
 	FRDGTextureRef& OutClosestHZBTexture,
 	FRDGTextureRef& OutFurthestHZBTexture)
 {
+	const FVector2D ViewportUVToHZBBufferUV(
+		float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
+		float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
+
+	OutHZBUvFactorAndInvFactor = FVector4f(
+		ViewportUVToHZBBufferUV.X,
+		ViewportUVToHZBBufferUV.Y,
+		1.0f / ViewportUVToHZBBufferUV.X,
+		1.0f / ViewportUVToHZBBufferUV.Y);
+
 	BuildHZB(
 		GraphBuilder,
 		HairDepthTexture,
@@ -3732,6 +3743,7 @@ void RenderHairStrandsVisibilityBuffer(
 						GraphBuilder,
 						View,
 						HairOnlyDepthTexture,
+						VisibilityData.HairOnlyDepthHZBParameters,
 						VisibilityData.HairOnlyDepthClosestHZBTexture,
 						VisibilityData.HairOnlyDepthFurthestHZBTexture);
 				}
@@ -3930,6 +3942,7 @@ void RenderHairStrandsVisibilityBuffer(
 						GraphBuilder,
 						View,
 						HairOnlyDepthTexture,
+						VisibilityData.HairOnlyDepthHZBParameters,
 						VisibilityData.HairOnlyDepthClosestHZBTexture,
 						VisibilityData.HairOnlyDepthFurthestHZBTexture);
 				}
