@@ -184,6 +184,8 @@ $ bAllowHotReloadFromIDE : True if hot-reload from IDE is allowed.
 
 $ bForceDebugUnrealHeaderTool : If true, the Debug version of UnrealHeaderTool will be built and run instead of the Development version.
 
+$ bUseBuiltInUnrealHeaderTool : If true, use UHT internal to UBT
+
 ### WindowsPlatform
 
 $ MaxRootPathLength : Maximum recommended root path length.
