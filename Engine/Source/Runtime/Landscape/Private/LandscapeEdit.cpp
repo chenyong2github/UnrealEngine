@@ -710,11 +710,11 @@ bool ALandscapeProxy::GetReferencedContentObjects(TArray<UObject*>& Objects) con
 		Objects.AddUnique(LandscapeMaterial);
 	}
 
-	for (const FLandscapePerLODMaterialOverride& LODOverrideMaterial : PerLODOverrideMaterials)
+	for (const FLandscapeProxyMaterialOverride& OverrideMaterial : LandscapeMaterialsOverride)
 	{
-		if (LODOverrideMaterial.Material != nullptr)
+		if (OverrideMaterial.Material != nullptr)
 		{
-			Objects.AddUnique(LODOverrideMaterial.Material);
+			Objects.AddUnique(OverrideMaterial.Material);
 		}
 	}
 
@@ -5082,11 +5082,11 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 			LandscapeActor = nullptr;
 		}
 	}
-	else if (PropertyName == FName(TEXT("LandscapeMaterial")) || PropertyName == FName(TEXT("LandscapeHoleMaterial")) || PropertyName == FName(TEXT("PerLODOverrideMaterials")))
+	else if (PropertyName == FName(TEXT("LandscapeMaterial")) || PropertyName == FName(TEXT("LandscapeHoleMaterial")) || PropertyName == FName(TEXT("LandscapeMaterialsOverride")))
 	{
 		bool RecreateMaterialInstances = true;
 
-		if (PropertyName == FName(TEXT("PerLODOverrideMaterials")) && PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
+		if (PropertyName == FName(TEXT("LandscapeMaterialsOverride")) && PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
 		{
 			RecreateMaterialInstances = false;
 		}
@@ -5312,7 +5312,7 @@ void ALandscape::PreEditChange(FProperty* PropertyThatWillChange)
 {
 	PreEditLandscapeMaterial = LandscapeMaterial;
 	PreEditLandscapeHoleMaterial = LandscapeHoleMaterial;
-	PreEditPerLODOverrideMaterials = PerLODOverrideMaterials;
+	PreEditLandscapeMaterialsOverride = LandscapeMaterialsOverride;
 
 	Super::PreEditChange(PropertyThatWillChange);
 }
@@ -5329,24 +5329,24 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if ((PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterial) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeHoleMaterial) || MemberPropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, PerLODOverrideMaterials))
+	if ((PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterial) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeHoleMaterial) || MemberPropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterialsOverride))
 		&& PropertyChangedEvent.ChangeType != EPropertyChangeType::ArrayAdd)
 	{
 		bool HasMaterialChanged = false;
 
 		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
-			if (PreEditLandscapeMaterial != LandscapeMaterial || PreEditLandscapeHoleMaterial != LandscapeHoleMaterial || PreEditPerLODOverrideMaterials.Num() != PerLODOverrideMaterials.Num() || bIsPerformingInteractiveActionOnLandscapeMaterialOverride)
+			if (PreEditLandscapeMaterial != LandscapeMaterial || PreEditLandscapeHoleMaterial != LandscapeHoleMaterial || PreEditLandscapeMaterialsOverride.Num() != LandscapeMaterialsOverride.Num() || bIsPerformingInteractiveActionOnLandscapeMaterialOverride)
 			{
 				HasMaterialChanged = true;
 			}
 
 			if (!HasMaterialChanged)
 			{
-				for (int32 i = 0; i < PerLODOverrideMaterials.Num(); ++i)
+				for (int32 i = 0; i < LandscapeMaterialsOverride.Num(); ++i)
 				{
-					const FLandscapePerLODMaterialOverride& NewMaterialOverride = PerLODOverrideMaterials[i];
-					const FLandscapePerLODMaterialOverride& PreEditMaterialOverride = PreEditPerLODOverrideMaterials[i];
+					const FLandscapeProxyMaterialOverride& NewMaterialOverride = LandscapeMaterialsOverride[i];
+					const FLandscapeProxyMaterialOverride& PreEditMaterialOverride = PreEditLandscapeMaterialsOverride[i];
 
 					if (!(PreEditMaterialOverride == NewMaterialOverride))
 					{
@@ -5360,8 +5360,8 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		}
 		else
 		{
-			// We are probably using a slider or something similar in PerLODOverrideMaterials
-			bIsPerformingInteractiveActionOnLandscapeMaterialOverride = MemberPropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, PerLODOverrideMaterials);
+			// We are probably using a slider or something similar in LandscapeMaterialsOverride
+			bIsPerformingInteractiveActionOnLandscapeMaterialOverride = MemberPropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterialsOverride);
 		}
 
 		if (Info != nullptr && HasMaterialChanged)
@@ -5398,32 +5398,32 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
 		RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 	}
-	else if (GIsEditor && PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, MaxLODLevel))
+	else if (GIsEditor && PropertyName == FName(TEXT("MaxLODLevel")))
 	{
 		MaxLODLevel = FMath::Clamp<int32>(MaxLODLevel, -1, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
 		bPropagateToProxies = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, ComponentScreenSizeToUseSubSections))
+	else if (PropertyName == FName(TEXT("ComponentScreenSizeToUseSubSections")))
 	{
 		ComponentScreenSizeToUseSubSections = FMath::Clamp<float>(ComponentScreenSizeToUseSubSections, 0.01f, 1.0f);
 		bPropagateToProxies = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LODDistributionSetting))
+	else if (PropertyName == FName(TEXT("LODDistributionSetting")))
 	{
 		LODDistributionSetting = FMath::Clamp<float>(LODDistributionSetting, 1.0f, 10.0f);
 		bPropagateToProxies = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0DistributionSetting))
+	else if (PropertyName == FName(TEXT("LOD0DistributionSetting")))
 	{
 		LOD0DistributionSetting = FMath::Clamp<float>(LOD0DistributionSetting, 1.0f, 10.0f);
 		bPropagateToProxies = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0ScreenSize))
+	else if (PropertyName == FName(TEXT("LOD0ScreenSize")))
 	{
 		LOD0ScreenSize = FMath::Clamp<float>(LOD0ScreenSize, 0.1f, 10.0f);
 		bPropagateToProxies = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, CollisionMipLevel))
+	else if (PropertyName == FName(TEXT("CollisionMipLevel")))
 	{
 		CollisionMipLevel = FMath::Clamp<int32>(CollisionMipLevel, 0, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
 		bPropagateToProxies = true;
@@ -5449,7 +5449,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	{
 		bPropagateToProxies = true;
 	}
-	else if (GIsEditor && PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, StaticLightingResolution))
+	else if (GIsEditor && PropertyName == FName(TEXT("StaticLightingResolution")))
 	{
 		StaticLightingResolution = ::AdjustStaticLightingResolution(StaticLightingResolution, NumSubsections, SubsectionSizeQuads, ComponentSizeQuads);
 		bChangedLighting = true;
@@ -5549,7 +5549,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 	PreEditLandscapeMaterial = nullptr;
 	PreEditLandscapeHoleMaterial = nullptr;
-	PreEditPerLODOverrideMaterials.Empty();
+	PreEditLandscapeMaterialsOverride.Empty();
 }
 
 void ALandscapeProxy::ChangedPhysMaterial()
@@ -5647,11 +5647,11 @@ void ULandscapeComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	const FName MemberPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 
-	if (PropertyName == FName(TEXT("OverrideMaterial")) || MemberPropertyName == FName(TEXT("PerLODOverrideMaterials")) || MemberPropertyName == FName(TEXT("MaterialPerLOD_Key")))
+	if (PropertyName == FName(TEXT("OverrideMaterial")) || MemberPropertyName == FName(TEXT("OverrideMaterials")) || MemberPropertyName == FName(TEXT("MaterialPerLOD_Key")))
 	{
 		bool RecreateMaterialInstances = true;
 
-		if (PropertyName == FName(TEXT("PerLODOverrideMaterials")) && PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
+		if (PropertyName == FName(TEXT("OverrideMaterials")) && PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
 		{
 			RecreateMaterialInstances = false;
 		}
