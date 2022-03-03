@@ -1778,6 +1778,22 @@ void ITextureCompressorModule::GenerateAngularFilteredMips(TArray<FImage>& InOut
 	}
 }
 
+static bool NeedAdjustImageColors(const FTextureBuildSettings& InBuildSettings)
+{
+	const FColorAdjustmentParameters& InParams = InBuildSettings.ColorAdjustment;
+
+	return
+		!FMath::IsNearlyEqual(InParams.AdjustBrightness, 1.0f, (float)KINDA_SMALL_NUMBER) ||
+		!FMath::IsNearlyEqual(InParams.AdjustBrightnessCurve, 1.0f, (float)KINDA_SMALL_NUMBER) ||
+		!FMath::IsNearlyEqual(InParams.AdjustSaturation, 1.0f, (float)KINDA_SMALL_NUMBER) ||
+		!FMath::IsNearlyEqual(InParams.AdjustVibrance, 0.0f, (float)KINDA_SMALL_NUMBER) ||
+		!FMath::IsNearlyEqual(InParams.AdjustRGBCurve, 1.0f, (float)KINDA_SMALL_NUMBER) ||
+		!FMath::IsNearlyEqual(InParams.AdjustHue, 0.0f, (float)KINDA_SMALL_NUMBER) ||
+		!FMath::IsNearlyEqual(InParams.AdjustMinAlpha, 0.0f, (float)KINDA_SMALL_NUMBER) ||
+		!FMath::IsNearlyEqual(InParams.AdjustMaxAlpha, 1.0f, (float)KINDA_SMALL_NUMBER) ||
+		InBuildSettings.bChromaKeyTexture;
+}
+
 static inline void AdjustColors(FLinearColor * Colors,int64 Count,
 		const FTextureBuildSettings& InBuildSettings)
 {
@@ -1951,17 +1967,8 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 	//		this is how it was done in the past, so keep it the same to preserve legacy operation
 	//	if possible in the future factor this Needed check out so it is shared code
 
-	bool bAdjustNeeded =
-		!FMath::IsNearlyEqual( InParams.AdjustBrightness, 1.0f, (float)KINDA_SMALL_NUMBER ) ||
-		!FMath::IsNearlyEqual( InParams.AdjustBrightnessCurve, 1.0f, (float)KINDA_SMALL_NUMBER ) ||
-		!FMath::IsNearlyEqual( InParams.AdjustSaturation, 1.0f, (float)KINDA_SMALL_NUMBER ) ||
-		!FMath::IsNearlyEqual( InParams.AdjustVibrance, 0.0f, (float)KINDA_SMALL_NUMBER ) ||
-		!FMath::IsNearlyEqual( InParams.AdjustRGBCurve, 1.0f, (float)KINDA_SMALL_NUMBER ) ||
-		!FMath::IsNearlyEqual( InParams.AdjustHue, 0.0f, (float)KINDA_SMALL_NUMBER ) ||
-		!FMath::IsNearlyEqual( InParams.AdjustMinAlpha, 0.0f, (float)KINDA_SMALL_NUMBER ) ||
-		!FMath::IsNearlyEqual( InParams.AdjustMaxAlpha, 1.0f, (float)KINDA_SMALL_NUMBER ) ||
-		InBuildSettings.bChromaKeyTexture;
-		
+	bool bAdjustNeeded = NeedAdjustImageColors(InBuildSettings);
+
 	if ( bAdjustNeeded )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.AdjustImageColors);
@@ -2634,7 +2641,10 @@ public:
 		// we can't use the Ex version here because it needs an FImage, which needs BuildTextureMips to be called
 		const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilities();
 
-		if (!BuildTextureMips(SourceMips, BuildSettings, CompressorCaps, IntermediateMipChain))
+		// allow to leave texture in sRGB in case compressor accepts other than non-F32 input source
+		// otherwise linearizing will force format to be RGBA32F
+		const bool bNeedLinearize = !TextureFormat->CanAcceptNonF32Source() || AssociatedNormalSourceMips.Num() != 0;
+		if (!BuildTextureMips(SourceMips, BuildSettings, CompressorCaps, bNeedLinearize, IntermediateMipChain))
 		{
 			return false;
 		}
@@ -2664,7 +2674,7 @@ public:
 			//  we should instead compute the roughness scalar first on the original normap map
 			//  then filter on the roughness scalar
 
-			if (!BuildTextureMips(AssociatedNormalSourceMips, DefaultSettings, CompressorCaps, IntermediateAssociatedNormalSourceMipChain))
+			if (!BuildTextureMips(AssociatedNormalSourceMips, DefaultSettings, CompressorCaps, true, IntermediateAssociatedNormalSourceMipChain))
 			{
 				UE_LOG(LogTextureCompressor, Warning, TEXT("Failed to generate texture mips for composite texture"));
 			}
@@ -2752,6 +2762,7 @@ private:
 		const TArray<FImage>& InSourceMips,
 		const FTextureBuildSettings& BuildSettings,
 		const FTextureFormatCompressorCaps& CompressorCaps,
+		const bool bNeedLinearize,
 		TArray<FImage>& OutMipChain)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.BuildTextureMips);
@@ -2954,6 +2965,14 @@ private:
 		check(StartMip < SourceMips.Num());
 		int32 CopyCount = SourceMips.Num() - StartMip;
 
+		// avoid converting to RGBA32F linear format if there's no need for any extra processing of pixels
+		// image will be left in BGRA8 format if possible
+		const bool bNeedAdjustImageColors = NeedAdjustImageColors(BuildSettings);
+		const bool bLinearize = bNeedLinearize || NumOutputMips != 1 || BuildSettings.bRenormalizeTopMip || (BuildSettings.Downscale > 1.f)
+			|| BuildSettings.bHasColorSpaceDefinition || BuildSettings.bComputeBokehAlpha || BuildSettings.bFlipGreenChannel
+			|| BuildSettings.bReplicateRed || BuildSettings.bReplicateAlpha || BuildSettings.bApplyYCoCgBlockScale
+			|| BuildSettings.SourceEncodingOverride != 0 || bNeedAdjustImageColors;
+
 		for (int32 MipIndex = StartMip; MipIndex < StartMip + CopyCount; ++MipIndex)
 		{
 			const FImage& Image = SourceMips[MipIndex];
@@ -2985,13 +3004,21 @@ private:
 				}
 				else
 				{
-					Image.Linearize(BuildSettings.SourceEncodingOverride, *Mip);
-
-					if(BuildSettings.bRenormalizeTopMip)
+					if (bLinearize)
 					{
-						NormalizeMip(*Mip);
+						Image.Linearize(BuildSettings.SourceEncodingOverride, *Mip);
+						if (BuildSettings.bRenormalizeTopMip)
+						{
+							NormalizeMip(*Mip);
+						}
 					}
-				}				
+					else
+					{
+						// if image is in BGRA8 format leave it, otherwise use original RGBA32F
+						ERawImageFormat::Type DestFormat = Image.Format == ERawImageFormat::BGRA8 ? ERawImageFormat::BGRA8 : ERawImageFormat::RGBA32F;
+						Image.CopyTo(*Mip, DestFormat, Image.GammaSpace);
+					}
+				}
 			}
 
 			if (BuildSettings.Downscale > 1.f)

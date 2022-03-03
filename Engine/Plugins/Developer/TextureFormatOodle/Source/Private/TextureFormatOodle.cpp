@@ -933,6 +933,11 @@ public:
 		}
 	}
 
+	bool CanAcceptNonF32Source() const override
+	{
+		return true;
+	}
+
 	virtual bool CompressImage(const FImage& InImage, const FTextureBuildSettings& InBuildSettings, FStringView DebugTexturePathName, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_CompressImage);
@@ -1061,6 +1066,10 @@ public:
 			//	BC4/5 should always have linear gamma
 			// @todo we only need 1 or 2 channel 16-bit, not all 4; use our own converter
 			//	or just let our encoder take F32 input?
+
+			// input image format now will be BGRA8 (used to be RGBA32F)
+			// but to maintain matching output with previous RGBA32F format convert to RGBA16
+			// ideally should pass BGRA8 directly to Oodle if it is OK to use 8-bit components as input
 			ImageFormat = ERawImageFormat::RGBA16;
 			OodlePF = OodleTex_PixelFormat_4_U16;
 		}

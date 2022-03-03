@@ -59,6 +59,14 @@ public:
 	}
 
 	/**
+	 * @returns true in case Compress can handle other than RGBA32F image formats
+	 */
+	virtual bool CanAcceptNonF32Source() const
+	{
+		return false;
+	}
+
+	/**
 	 * Gets the current version of the specified texture format.
 	 *
 	 * @param Format The format to get the version for.

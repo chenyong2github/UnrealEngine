@@ -102,6 +102,34 @@ static void ParallelLoop(const TCHAR* DebugName, int32 NumJobs, int64 TexelsPerJ
 	});
 }
 
+template <int64 TexelsPerVec, typename LambdaVec, typename Lambda>
+static void ParallelLoop(const TCHAR* DebugName, int32 NumJobs, int64 TexelsPerJob, int64 NumTexels, const LambdaVec& FuncVec, const Lambda& Func)
+{
+	static_assert(FMath::IsPowerOfTwo(TexelsPerVec), "TexelsPerVec must be power of 2");
+
+	ParallelFor(DebugName, NumJobs, 1, [=](int64 JobIndex)
+	{
+		const int64 StartIndex = JobIndex * TexelsPerJob;
+		const int64 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
+		int64 TexelIndex = StartIndex;
+#if PLATFORM_CPU_X86_FAMILY
+		const int64 TexelCount = EndIndex - StartIndex;
+		const int64 EndIndexVec = StartIndex + (TexelCount & ~(TexelsPerVec - 1));
+		while (TexelIndex < EndIndexVec)
+		{
+			FuncVec(TexelIndex);
+			TexelIndex += TexelsPerVec;
+		}
+#endif
+		while (TexelIndex < EndIndex)
+		{
+			Func(TexelIndex);
+			++TexelIndex;
+		}
+	});
+}
+
+
 /**
  * Copies an image accounting for format differences. Sizes must match.
  *
@@ -144,10 +172,20 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		case ERawImageFormat::G8:
 			{
 				uint8* DestLum = DestImage.AsG8().GetData();
-				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestLum, SrcColors, bDestIsGammaCorrected](int64 TexelIndex)
+				if (bDestIsGammaCorrected)
 				{
-					DestLum[TexelIndex] = SrcColors[TexelIndex].ToFColor(bDestIsGammaCorrected).R;
-				});
+					ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestLum, SrcColors](int64 TexelIndex)
+					{
+						DestLum[TexelIndex] = SrcColors[TexelIndex].ToFColorSRGB().R;
+					});
+				}
+				else
+				{
+					ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestLum, SrcColors](int64 TexelIndex)
+					{
+						DestLum[TexelIndex] = SrcColors[TexelIndex].QuantizeRound().R;
+					});
+				}
 			}
 			break;
 
@@ -164,10 +202,64 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 		case ERawImageFormat::BGRA8:
 			{
 				FColor* DestColors = DestImage.AsBGRA8().GetData();
-				ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors, bDestIsGammaCorrected](int64 TexelIndex)
+				if (bDestIsGammaCorrected)
 				{
-					DestColors[TexelIndex] = SrcColors[TexelIndex].ToFColor(bDestIsGammaCorrected);
-				});
+					ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels,
+						[DestColors, SrcColors](int64 TexelIndex)
+						{
+							DestColors[TexelIndex] = SrcColors[TexelIndex].ToFColorSRGB();
+						}
+					);
+				}
+				else
+				{
+					ParallelLoop<4>(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels,
+						[DestColors, SrcColors](int64 TexelIndex)
+						{
+#if PLATFORM_CPU_X86_FAMILY
+							// load 4x RGBA32F
+							__m128 Pixel0 = _mm_loadu_ps((const float*)&SrcColors[TexelIndex + 0]);
+							__m128 Pixel1 = _mm_loadu_ps((const float*)&SrcColors[TexelIndex + 1]);
+							__m128 Pixel2 = _mm_loadu_ps((const float*)&SrcColors[TexelIndex + 2]);
+							__m128 Pixel3 = _mm_loadu_ps((const float*)&SrcColors[TexelIndex + 3]);
+
+							// RGBA -> BGRA
+							Pixel0 = _mm_shuffle_ps(Pixel0, Pixel0, _MM_SHUFFLE(3, 0, 1, 2));
+							Pixel1 = _mm_shuffle_ps(Pixel1, Pixel1, _MM_SHUFFLE(3, 0, 1, 2));
+							Pixel2 = _mm_shuffle_ps(Pixel2, Pixel2, _MM_SHUFFLE(3, 0, 1, 2));
+							Pixel3 = _mm_shuffle_ps(Pixel3, Pixel3, _MM_SHUFFLE(3, 0, 1, 2));
+
+							// scale to [0,255]
+							__m128 Mul = _mm_set_ps1(255.f);
+							__m128 Add = _mm_set_ps1(0.5f);
+							Pixel0 = _mm_add_ps(_mm_mul_ps(Pixel0, Mul), Add);
+							Pixel1 = _mm_add_ps(_mm_mul_ps(Pixel1, Mul), Add);
+							Pixel2 = _mm_add_ps(_mm_mul_ps(Pixel2, Mul), Add);
+							Pixel3 = _mm_add_ps(_mm_mul_ps(Pixel3, Mul), Add);
+
+							// cast float to 32-bit components
+							__m128i Pixel0i = _mm_cvttps_epi32(Pixel0);
+							__m128i Pixel1i = _mm_cvttps_epi32(Pixel1);
+							__m128i Pixel2i = _mm_cvttps_epi32(Pixel2);
+							__m128i Pixel3i = _mm_cvttps_epi32(Pixel3);
+
+							// pack to 8-bit components
+							__m128i Out0 = _mm_packs_epi32(Pixel0i, Pixel1i);
+							__m128i Out1 = _mm_packs_epi32(Pixel2i, Pixel3i);
+							__m128i Out = _mm_packus_epi16(Out0, Out1);
+
+							// store 4xBGRA8
+							_mm_storeu_si128((__m128i*)&DestColors[TexelIndex], Out);
+#else
+							check(false); // not supported for other platforms, see ParallelLoop
+#endif
+						},
+						[DestColors, SrcColors](int64 TexelIndex)
+						{
+							DestColors[TexelIndex] = SrcColors[TexelIndex].QuantizeRound();
+						}
+					);
+				}
 			}
 			break;
 		
@@ -273,10 +365,49 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 				switch (SrcImage.GammaSpace)
 				{
 				case EGammaSpace::Linear:
-					ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
-					{
-						DestColors[TexelIndex] = SrcColors[TexelIndex].ReinterpretAsLinear();
-					});
+					ParallelLoop<4>(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels,
+						[DestColors, SrcColors](int64 TexelIndex)
+						{
+#if PLATFORM_CPU_X86_FAMILY
+							// load 4x BGRA8
+							__m128i Pixels = _mm_loadu_si128((const __m128i*)&SrcColors[TexelIndex]);
+
+							// expand 8-bit components to 32-bit
+							__m128i Zero = _mm_setzero_si128();
+							__m128i PixelsL = _mm_unpacklo_epi8(Pixels, Zero);
+							__m128i PixelsH = _mm_unpackhi_epi8(Pixels, Zero);
+							__m128i Pixel0 = _mm_unpacklo_epi16(PixelsL, Zero);
+							__m128i Pixel1 = _mm_unpackhi_epi16(PixelsL, Zero);
+							__m128i Pixel2 = _mm_unpacklo_epi16(PixelsH, Zero);
+							__m128i Pixel3 = _mm_unpackhi_epi16(PixelsH, Zero);
+
+							// scale to [0,1]
+							__m128 OneOver255 = _mm_set_ps1(1.f / 255.f);
+							__m128 Out0 = _mm_mul_ps(_mm_cvtepi32_ps(Pixel0), OneOver255);
+							__m128 Out1 = _mm_mul_ps(_mm_cvtepi32_ps(Pixel1), OneOver255);
+							__m128 Out2 = _mm_mul_ps(_mm_cvtepi32_ps(Pixel2), OneOver255);
+							__m128 Out3 = _mm_mul_ps(_mm_cvtepi32_ps(Pixel3), OneOver255);
+
+							// BGRA -> RGBA
+							Out0 = _mm_shuffle_ps(Out0, Out0, _MM_SHUFFLE(3, 0, 1, 2));
+							Out1 = _mm_shuffle_ps(Out1, Out1, _MM_SHUFFLE(3, 0, 1, 2));
+							Out2 = _mm_shuffle_ps(Out2, Out2, _MM_SHUFFLE(3, 0, 1, 2));
+							Out3 = _mm_shuffle_ps(Out3, Out3, _MM_SHUFFLE(3, 0, 1, 2));
+
+							// store 4x RGBAF pixels
+							_mm_storeu_ps((float*)&DestColors[TexelIndex + 0], Out0);
+							_mm_storeu_ps((float*)&DestColors[TexelIndex + 1], Out1);
+							_mm_storeu_ps((float*)&DestColors[TexelIndex + 2], Out2);
+							_mm_storeu_ps((float*)&DestColors[TexelIndex + 3], Out3);
+#else
+							check(false); // not supported for other platforms, see ParallelLoop
+#endif
+						},
+						[DestColors, SrcColors](int64 TexelIndex)
+						{
+							DestColors[TexelIndex] = SrcColors[TexelIndex].ReinterpretAsLinear();
+						}
+					);
 					break;
 				case EGammaSpace::sRGB:
 					ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels, [DestColors, SrcColors](int64 TexelIndex)
@@ -340,6 +471,58 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 			}
 			break;
 		}
+	}
+	else if (SrcImage.Format == ERawImageFormat::BGRA8 && SrcImage.GammaSpace == EGammaSpace::Linear &&
+			DestImage.Format == ERawImageFormat::RGBA16 && DestImage.GammaSpace == EGammaSpace::Linear)
+	{
+		const FColor* SrcColors = SrcImage.AsBGRA8().GetData();
+		uint16* DestColors = DestImage.AsRGBA16().GetData();
+		ParallelLoop<4>(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels,
+			[DestColors, SrcColors](int64 TexelIndex)
+			{
+#if PLATFORM_CPU_X86_FAMILY
+				// load 4x BGRA
+				__m128i Pixels = _mm_loadu_si128((const __m128i*)&SrcColors[TexelIndex]);
+
+				// 8-bit to 16-bit conversion (same as multiply with 65535.f/255.f)
+				__m128i Pixel01 = _mm_unpacklo_epi8(Pixels, Pixels);
+				__m128i Pixel23 = _mm_unpackhi_epi8(Pixels, Pixels);
+
+				// BGRA -> RGBA
+				Pixel01 = _mm_shufflelo_epi16(Pixel01, _MM_SHUFFLE(3, 0, 1, 2));
+				Pixel01 = _mm_shufflehi_epi16(Pixel01, _MM_SHUFFLE(3, 0, 1, 2));
+				Pixel23 = _mm_shufflelo_epi16(Pixel23, _MM_SHUFFLE(3, 0, 1, 2));
+				Pixel23 = _mm_shufflehi_epi16(Pixel23, _MM_SHUFFLE(3, 0, 1, 2));
+
+				// store two 2xRGBA16 pixels
+				_mm_storeu_si128((__m128i*)&DestColors[TexelIndex * 4 + 0], Pixel01);
+				_mm_storeu_si128((__m128i*)&DestColors[TexelIndex * 4 + 8], Pixel23);
+#else
+				check(false); // not supported for other platforms, see ParallelLoop
+#endif
+			},
+			[DestColors, SrcColors](int64 TexelIndex)
+			{
+				FColor Src = SrcColors[TexelIndex];
+				uint16* Dst = DestColors + TexelIndex * 4;
+				Dst[0] = (Src.R << 8) | Src.R;
+				Dst[1] = (Src.G << 8) | Src.G;
+				Dst[2] = (Src.B << 8) | Src.B;
+				Dst[3] = (Src.A << 8) | Src.A;
+			}
+		);
+	}
+	else if (SrcImage.Format == ERawImageFormat::BGRA8 && SrcImage.GammaSpace == EGammaSpace::Linear &&
+			DestImage.Format == ERawImageFormat::G8 && DestImage.GammaSpace == EGammaSpace::Linear)
+	{
+		const FColor* SrcColors = SrcImage.AsBGRA8().GetData();
+		uint8* DestLum = DestImage.AsG8().GetData();
+		ParallelLoop(TEXT("Texture.CopyImage.PF"), NumJobs, TexelsPerJob, NumTexels,
+			[DestLum, SrcColors](int64 TexelIndex)
+			{
+				DestLum[TexelIndex] = SrcColors[TexelIndex].R;
+			}
+		);
 	}
 	else
 	{
