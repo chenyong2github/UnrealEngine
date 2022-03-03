@@ -80,11 +80,14 @@ FTargetPlatformInfo::FTargetPlatformInfo(const FString& InIniPlatformName, EBuil
 		// put the type in parens
 		DisplayString += FString::Printf(TEXT(" (%s)"), LexToString(PlatformType));
 
-		// client builds need to be plopped on the commandline, servers are handled differently? 
-		// @todo: not sure if needed to be handled specially, honestly
+		// client and server builds need to modify the commandline
 		if (PlatformType == EBuildTargetType::Client)
 		{
 			UATCommandLine += TEXT(" -client");
+		}
+		else if (PlatformType == EBuildTargetType::Server)
+		{
+			UATCommandLine += TEXT(" -server -noclient");
 		}
 
 		VanillaInfo->Flavors.AddUnique(this);
