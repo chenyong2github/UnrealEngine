@@ -410,6 +410,7 @@ static uint8 *SetupBatchStatePtrs(FVectorVMState *VVMState, FVectorVMBatchState 
 		size_t PtrBeforeExtFnDecodeReg = (size_t)BatchDataPtr;
 		BatchState->ChunkLocalData.ExtFnDecodedReg.RegData       = (FVecReg **)BatchDataPtr;  BatchDataPtr += sizeof(FVecReg *) * VVMState->MaxExtFnRegisters;
 		BatchState->ChunkLocalData.ExtFnDecodedReg.RegInc        = (uint32 *)BatchDataPtr;    BatchDataPtr += sizeof(uint32)    * VVMState->MaxExtFnRegisters;
+		BatchState->ChunkLocalData.ExtFnDecodedReg.DummyRegs     = (FVecReg *)BatchDataPtr;   BatchDataPtr += sizeof(FVecReg)   * VVMState->NumDummyRegsReq;
 		size_t PtrAfterExtFnDecodeReg = (size_t)BatchDataPtr;
 		check(PtrAfterExtFnDecodeReg - PtrBeforeExtFnDecodeReg == VVMState->PerBatchChunkLocalNumExtFnDecodeRegisterBytesRequired);
 	}
@@ -530,7 +531,7 @@ VECTORVM_API FVectorVMState *InitVectorVMState(FVectorVMInitData *InitData, FVec
 	const size_t PerBatchChunkLocalDataOutputIdxBytesRequired	       = sizeof(uint32)                                        * InitData->OptimizeContext->NumOutputDataSets;                  //chunk local bytes required for instance offset
 	const size_t PerBatchChunkLocalNumOutputBytesRequired		       = sizeof(uint32)                                        * InitData->OptimizeContext->NumOutputDataSets;                  //chunk local bytes for num outputs
 	const size_t ConstantBufferSize					                   = sizeof(FVecReg)                                       * InitData->OptimizeContext->NumConstsRemapped;
-	const size_t PerBatchChunkLocalNumExtFnDecodeRegisterBytesRequired = (sizeof(FVecReg *) + sizeof(uint32)) * MaxExtFnRegisters; 
+	const size_t PerBatchChunkLocalNumExtFnDecodeRegisterBytesRequired = (sizeof(FVecReg *) + sizeof(uint32)) * MaxExtFnRegisters + sizeof(FVecReg) * InitData->OptimizeContext->NumDummyRegsReq;
 
 	const size_t BatchOverheadSize                                     = ConstantBufferSize + 
 		                                                                 PerBatchChunkLocalDataOutputIdxBytesRequired + 
@@ -688,6 +689,7 @@ VECTORVM_API FVectorVMState *InitVectorVMState(FVectorVMInitData *InitData, FVec
 	VVMState->NumConstBuffers   = InitData->OptimizeContext->NumConstsRemapped;
 	VVMState->NumOutputDataSets = InitData->OptimizeContext->NumOutputDataSets;
 	VVMState->MaxExtFnRegisters = MaxExtFnRegisters;
+	VVMState->NumDummyRegsReq   = InitData->OptimizeContext->NumDummyRegsReq;
 	VVMState->DataSets          = InitData->DataSets;
 
 	VVMState->UserPtrTable      = InitData->UserPtrTable;
@@ -1342,9 +1344,17 @@ OpCodeSwitch: //I think computed gotos would be a huge win here... maybe write t
 
 						ExtFnCtx.RandCounters             = BatchState->ChunkLocalData.RandCounters;
 						ExtFnCtx.DataSets                 = VVMState->DataSets;
-						ExtFnData->Function->Execute(ExtFnCtx);
 
-						//UE_LOG(LogVectorVM, Warning, TEXT("Num Instances: %d"), NumInstancesThisChunk);
+						//correct invalid registers
+						uint32 DummyRegCount = 0;
+						for (int i = 0; i < ExtFnData->NumInputs + ExtFnData->NumOutputs; ++i) {
+							if (ExtFnCtx.RawVecIndices[i] == 0xFFFF) {
+								ExtFnCtx.RegInc[i] = 0;
+								ExtFnCtx.RegisterData[i] = (uint32 *)(BatchState->ChunkLocalData.ExtFnDecodedReg.DummyRegs + DummyRegCount++);
+							}
+						}
+						check(DummyRegCount <= VVMState->NumDummyRegsReq);
+						ExtFnData->Function->Execute(ExtFnCtx);
 					}
 					InsPtr += 2 + ((ExtFnData->NumInputs + ExtFnData->NumOutputs) << 1);
 				}

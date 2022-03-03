@@ -335,16 +335,24 @@ bool FNiagaraScriptExecutionContextBase::Execute(uint32 NumInstances, const FScr
 #			endif //NIAGARA_EXP_VM
 			
 			//only write under certain circumstances
-			if (OuterObj0 &&
-				OuterObj0->GetName() == L"BoneTest_System" && 
-				OuterObj1 &&
-				OuterObj1->GetName() == L"BoneTest_1" &&
-				ScriptName == L"SpawnScript_0")
-			{
+			//if (OuterObj0 &&
+			//	OuterObj0->GetName() == L"BoneTest_System" && 
+			//	OuterObj1 &&
+			//	OuterObj1->GetName() == L"BoneTest_1" &&
+			//	ScriptName == L"SpawnScript_0")
+			if (0) {
 				SerializeVectorVMOutputDataSets(SerializeState, DataSetMetaTable, VVMConstData, NumVVMConstData);
-				TStringBuilder<256> sb;
-				//sb.Append(Parameters.DebugName);
-				//sb.Append(L"_");
+				TStringBuilder<1024> sb;
+				
+				if (OuterObj0) {
+					sb.Append(OuterObj0->GetName());
+					sb.Append(L"_");
+				}
+				if (OuterObj1) {
+					sb.Append(OuterObj1->GetName());
+					sb.Append(L"_");
+				}
+
 				sb.Append(ScriptName);
 				sb.Append(L"_");
 
@@ -576,28 +584,26 @@ static void PerInsFn(FVectorVMExternalFunctionContext &PerInsFnContext, TArray<F
 	check(SystemInstances);
 	check(*SystemInstances);
 	
-	if (PerInsFnContext.UserPtrTable && UserPtrIdx < PerInsFnContext.NumUserPtrs) {
-		void *SavedUserPtrData       = PerInsFnContext.UserPtrTable[UserPtrIdx];
-		int32 InstanceOffset         = PerInsFnContext.DataSets[0].InstanceOffset; //Apparently the function table is generated based off the first data set, therefore this is safe. (I don't like this - @shawn mcgrath)	
-		int NumInstances             = PerInsFnContext.NumInstances;
-		PerInsFnContext.NumInstances = 1;
-		for (int i = 0; i < NumInstances; ++i) {
-			PerInsFnContext.RegReadCount             = 0;
-			PerInsFnContext.PerInstanceFnInstanceIdx = i;
+	void *SavedUserPtrData       = UserPtrIdx != INDEX_NONE ? PerInsFnContext.UserPtrTable[UserPtrIdx] : NULL;
+	int32 InstanceOffset         = PerInsFnContext.DataSets[0].InstanceOffset; //Apparently the function table is generated based off the first data set, therefore this is safe. (I don't like this - @shawn mcgrath)	
+	int NumInstances             = PerInsFnContext.NumInstances;
+	PerInsFnContext.NumInstances = 1;
+	for (int i = 0; i < NumInstances; ++i) {
+		PerInsFnContext.RegReadCount             = 0;
+		PerInsFnContext.PerInstanceFnInstanceIdx = i;
 
-			int32 InstanceIndex                           = InstanceOffset + PerInsFnContext.StartInstance + i;
-			FNiagaraSystemInstance *Instance              = (**SystemInstances)[InstanceIndex];
-			const FNiagaraPerInstanceDIFuncInfo &FuncInfo = Instance->GetPerInstanceDIFunction(ScriptType, PerInstFunctionIndex);
+		int32 InstanceIndex                           = InstanceOffset + PerInsFnContext.StartInstance + i;
+		FNiagaraSystemInstance *Instance              = (**SystemInstances)[InstanceIndex];
+		const FNiagaraPerInstanceDIFuncInfo &FuncInfo = Instance->GetPerInstanceDIFunction(ScriptType, PerInstFunctionIndex);
 		
-			if (UserPtrIdx != INDEX_NONE) {
-				PerInsFnContext.UserPtrTable[UserPtrIdx] = FuncInfo.InstData;
-			}
-			FuncInfo.Function.Execute(PerInsFnContext);
+		if (UserPtrIdx != INDEX_NONE) {
+			PerInsFnContext.UserPtrTable[UserPtrIdx] = FuncInfo.InstData;
 		}
+		FuncInfo.Function.Execute(PerInsFnContext);
+	}
 	
-		if (SavedUserPtrData) {
-			PerInsFnContext.UserPtrTable[UserPtrIdx] = SavedUserPtrData;
-		}
+	if (SavedUserPtrData) {
+		PerInsFnContext.UserPtrTable[UserPtrIdx] = SavedUserPtrData;
 	}
 }
 #else

@@ -884,6 +884,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 			break;
 			case EVectorVMOp::external_func_call:
 			{
+				uint32 DummyRegCount = 0;
 				uint8 ExtFnIdx = *OpPtrIn;
 				check(ExtFnIdx < NumExtFns);
 
@@ -898,6 +899,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 					if (VecIndices[i] == 0xFFFF)
 					{ //invalid, just write it out
 						OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = 0xFFFF;
+						++DummyRegCount;
 					}
 					else
 					{
@@ -922,8 +924,14 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 				{
 					int Idx = ExtFnIOData[ExtFnIdx].NumInputs + i;
 					check((VecIndices[Idx] & 0x8000) == 0 || VecIndices[Idx] == 0xFFFF); //can't output to a const... 0xFFFF is invalid
+					if (VecIndices[Idx] == 0xFFFF) {
+						++DummyRegCount;
+					}
 					OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = VecIndices[Idx];
 					++OptContext->Intermediate.NumRegistersUsed;
+				}
+				if (DummyRegCount > OptContext->NumDummyRegsReq) {
+					OptContext->NumDummyRegsReq = DummyRegCount;
 				}
 				OptContext->MaxExtFnUsed      = VVM_MAX(OptContext->MaxExtFnUsed, ExtFnIdx);
 				OptContext->MaxExtFnRegisters = VVM_MAX(OptContext->MaxExtFnRegisters, (uint32)(ExtFnIOData[ExtFnIdx].NumInputs + ExtFnIOData[ExtFnIdx].NumOutputs));
@@ -1123,6 +1131,12 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 					{
 						++SSARegCount;
 					}
+					else
+					{
+						//this instruction will be removed later because its output isn't used.  Set the SSA to invalid to avoid messing up
+						//dependency checks before the instruction is removed.
+						OptContext->Intermediate.SSARegisterUsageBuffer[OutputInsRegUse.RegIndices[OutputInsRegUse.NumInputRegisters + j]] = 0xFFFF;
+					}
 				} else {
 					OptContext->Intermediate.SSARegisterUsageBuffer[OutputInsRegUse.RegIndices[OutputInsRegUse.NumInputRegisters + j]] = 0xFFFF;
 				}
@@ -1271,7 +1285,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		}
 	}
 
-	if (0)
+	if (1)
 	{ //Step 7: remove instructions where outputs are never used 
 		int NumRemovedInstructions = 0;
 		FVectorVMOptimizeInsRegUsage RegUsage;
@@ -1410,7 +1424,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		int *InstructionIdxStack = RegToCheckStack + OptContext->Intermediate.NumRegistersUsed;
 		int LowestInstructionIdxForAcquireIdx = OnePastLastInputIdx; //acquire index instructions will be sorted by whichever comes first in the IR... possibly worth checking if re-ordering is more efficient
 
-		{ //Step 9: Find all the acquireindex instructions and re-order them to be executed ASAP
+		if (1) { //Step 9: Find all the acquireindex instructions and re-order them to be executed ASAP
 			int NumAcquireIndexInstructions = 0;
 			for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
 			{
@@ -1490,7 +1504,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 			}
 		}
 
-		{ //Step 11: re-order the outputs to be done as early as possible: after the SSA's register's last usage
+		if (1) { //Step 11: re-order the outputs to be done as early as possible: after the SSA's register's last usage
 			for (uint32 OutputInsIdx = 0; OutputInsIdx < OptContext->Intermediate.NumInstructions; ++OutputInsIdx)
 			{
 				FVectorVMOptimizeInstruction *OutputIns = OptContext->Intermediate.Instructions + OutputInsIdx;
@@ -1540,7 +1554,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 			}
 		}
 
-		{ //Step 12: re-order all dependent-less instructions to right before their output is used
+		if (1) { //Step 12: re-order all dependent-less instructions to right before their output is used
 			int LastSwapInstructionIdx = -1; //to prevent an infinite loop when one instruction has two or more dependencies and they keep swapping back and forth
 			for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
 			{
@@ -1704,7 +1718,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 
 			{ // small list, very stupid bubble sort
 				bool sorted = false;
-				int NumCopyInstructions                        = LastCopyFromInputInsIdx - FirstCopyFromInputInsIdx + 1;
+				int NumCopyInstructions = LastCopyFromInputInsIdx - FirstCopyFromInputInsIdx + 1;
 				while (!sorted) {
 					sorted = true;
 					for (int i = 0; i < NumCopyInstructions - 1; ++i) {
@@ -1856,30 +1870,35 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 			for (int j = 0; j < InsRegUse.NumOutputRegisters; ++j)
 			{
 				uint16 SSARegIdx = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse.RegIndices[InsRegUse.NumInputRegisters + j]];
-				uint16 MinimizedRegIdx = 0xFFFF;
-				for (uint16 k = 0; k < NumSSARegistersUsed; ++k)
-				{
-					if (SSAUseMap[k] == 0xFFFF)
-					{
-						SSAUseMap[k] = SSARegIdx;
-						MinimizedRegIdx = k;
-						break;
-					}
-				}
-				check(MinimizedRegIdx != 0xFFFF);
 				uint16 OutputRegIdx = InsRegUse.RegIndices[InsRegUse.NumInputRegisters + j];
-				OptContext->Intermediate.RegisterUsageBuffer[OutputRegIdx] = MinimizedRegIdx;
-
-				//change all future instructions to use minimized register index
-				for (uint32 i2 = i + 1; i2 < OptContext->Intermediate.NumInstructions; ++i2)
-				{
-					FVectorVMOptimizeInstruction *Ins2 = OptContext->Intermediate.Instructions + i2;
-					GetRegistersUsedForInstruction(OptContext, Ins2, &InsRegUse2);
-					for (int k = 0; k < InsRegUse2.NumInputRegisters; ++k)
+				if (SSARegIdx == 0xFFFF) { //"invalid" flag for external functions
+					OptContext->Intermediate.RegisterUsageBuffer[OutputRegIdx] = 0xFFFF;
+				} else {
+					uint16 MinimizedRegIdx = 0xFFFF;
+					for (uint16 k = 0; k < NumSSARegistersUsed; ++k)
 					{
-						if (OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse2.RegIndices[k]] == OptContext->Intermediate.SSARegisterUsageBuffer[OutputRegIdx])
+						if (SSAUseMap[k] == 0xFFFF)
 						{
-							OptContext->Intermediate.RegisterUsageBuffer[InsRegUse2.RegIndices[k]] = MinimizedRegIdx;
+							SSAUseMap[k] = SSARegIdx;
+							MinimizedRegIdx = k;
+							break;
+						}
+					}
+					check(MinimizedRegIdx != 0xFFFF);
+				
+					OptContext->Intermediate.RegisterUsageBuffer[OutputRegIdx] = MinimizedRegIdx;
+
+					//change all future instructions to use minimized register index
+					for (uint32 i2 = i + 1; i2 < OptContext->Intermediate.NumInstructions; ++i2)
+					{
+						FVectorVMOptimizeInstruction *Ins2 = OptContext->Intermediate.Instructions + i2;
+						GetRegistersUsedForInstruction(OptContext, Ins2, &InsRegUse2);
+						for (int k = 0; k < InsRegUse2.NumInputRegisters; ++k)
+						{
+							if (OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse2.RegIndices[k]] == OptContext->Intermediate.SSARegisterUsageBuffer[OutputRegIdx])
+							{
+								OptContext->Intermediate.RegisterUsageBuffer[InsRegUse2.RegIndices[k]] = MinimizedRegIdx;
+							}
 						}
 					}
 				}
