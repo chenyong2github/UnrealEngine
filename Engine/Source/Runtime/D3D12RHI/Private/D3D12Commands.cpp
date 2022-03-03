@@ -474,8 +474,9 @@ static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D1
 		if (GUseInternalTransitions)
 		{
 			// Only need to check for UAV barriers here, all other transitions are handled inside the RHI
-			const bool bUAVAccessOrUnknownBefore = EnumHasAnyFlags(Info.AccessBefore, ERHIAccess::UAVMask) || Info.AccessBefore == ERHIAccess::Unknown;
-			bUAVBarrier |= (bUAVAccessOrUnknownBefore && bUAVAccessAfter);
+			// Can't rely on before state to either be unknown or UAV because there could be a UAV->SRV transition already done (and ignored here)
+			// and the transition SRV->UAV needs a UAV barrier then to work correctly otherwise there is no synchronization at all
+			bUAVBarrier |= bUAVAccessAfter;
 		}
 		else
 		{
