@@ -28,6 +28,7 @@ class FHairMacroGroupAABBCS : public FGlobalShader
 
 		SHADER_PARAMETER(float, PixelSizeAtDepth1)
 		SHADER_PARAMETER(float, NumPixelPerVoxel)
+		SHADER_PARAMETER(uint32, VoxelPageResolution)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer0)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InGroupAABBBuffer1)
@@ -53,6 +54,8 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FHairMacroGroupAABBCS, "/Engine/Private/HairStrands/HairStrandsAABB.usf", "Main", SF_Compute);
 
+void GetVoxelPageResolution(uint32& OutPageResolution, uint32& OutPageResolutionLog2);
+
 static void AddHairMacroGroupAABBPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
@@ -69,6 +72,10 @@ static void AddHairMacroGroupAABBPass(
 	const float vFOV = FMath::DegreesToRadians(View.FOV);
 	const float PixelSizeAtDepth1 = FMath::Tan(vFOV * 0.5f) / (0.5f * Resolution.Y);
 	
+	uint32 VoxelPageResolution = 0;
+	uint32 VoxelPageResolutionLog2 = 1;
+	GetVoxelPageResolution(VoxelPageResolution, VoxelPageResolutionLog2);
+
 	const float NumPixelPerVoxel = FMath::Clamp(GHairVirtualVoxel_NumPixelPerVoxel, 1.f, 50.f);
 
 	const uint32 GroupPerPass = 8;
@@ -81,9 +88,10 @@ static void AddHairMacroGroupAABBPass(
 		Parameters->MacroGroupId = MacroGroupId;
 		Parameters->OutMacroGroupAABBBuffer = OutHairMacroGroupAABBBufferUAV;
 		Parameters->OutMacroGroupVoxelSizeBuffer = OutMacroGroupVoxelSizeBufferUAV;
-		Parameters->PixelSizeAtDepth1 = PixelSizeAtDepth1;
-		Parameters->NumPixelPerVoxel  = NumPixelPerVoxel;
-		Parameters->View			  = View.ViewUniformBuffer;
+		Parameters->PixelSizeAtDepth1   = PixelSizeAtDepth1;
+		Parameters->NumPixelPerVoxel    = NumPixelPerVoxel;
+		Parameters->VoxelPageResolution = VoxelPageResolution;
+		Parameters->View			    = View.ViewUniformBuffer;
 
 		uint32 MacroGroupValid = 1;
 		uint32 CurrentGroupIt = 1;

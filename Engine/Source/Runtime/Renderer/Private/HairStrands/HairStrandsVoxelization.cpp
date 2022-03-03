@@ -119,6 +119,12 @@ static FAutoConsoleVariableRef CVarHairVirtualVoxelAdaptive_CorrectionThreshold(
 static int32 GHairVirtualVoxel_JitterMode = 1;
 static FAutoConsoleVariableRef CVarHairVirtualVoxel_JitterMode(TEXT("r.HairStrands.Voxelization.Virtual.Jitter"), GHairVirtualVoxel_JitterMode, TEXT("Change jittered for voxelization/traversal. 0: No jitter 1: Regular randomized jitter: 2: Constant Jitter (default = 1)"), ECVF_RenderThreadSafe);
 
+void GetVoxelPageResolution(uint32& OutPageResolution, uint32& OutPageResolutionLog2)
+{
+	OutPageResolutionLog2 = FMath::CeilLogTwo(FMath::Clamp(GHairVirtualVoxel_PageResolution, 2, 256));
+	OutPageResolution = (1u << OutPageResolutionLog2);
+}
+
 static bool IsHairStrandsAdaptiveVoxelAllocationEnable()
 {
 	return GHairVirtualVoxelAdaptive_Enable > 0;
@@ -985,11 +991,11 @@ static FHairStrandsVoxelResources AllocateVirtualVoxelResources(
 
 	FHairStrandsVoxelResources Out;
 
+	GetVoxelPageResolution(Out.Parameters.Common.PageResolution, Out.Parameters.Common.PageResolutionLog2);
+
 	Out.Parameters.Common.PageCountResolution		= PageCountResolution;
 	Out.Parameters.Common.PageCount					= PageCount;
 	Out.Parameters.Common.CPUMinVoxelWorldSize		= CPUMinVoxelWorldSize;
-	Out.Parameters.Common.PageResolutionLog2		= FMath::CeilLogTwo(FMath::Clamp(GHairVirtualVoxel_PageResolution, 2, 256));
-	Out.Parameters.Common.PageResolution			= (1u << Out.Parameters.Common.PageResolutionLog2);
 	Out.Parameters.Common.PageTextureResolution		= Out.Parameters.Common.PageCountResolution * Out.Parameters.Common.PageResolution;
 	Out.Parameters.Common.JitterMode				= FMath::Clamp(GHairVirtualVoxel_JitterMode, 0, 2);
 

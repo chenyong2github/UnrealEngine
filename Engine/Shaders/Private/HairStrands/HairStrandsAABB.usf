@@ -11,6 +11,7 @@ uint MacroGroupValid;
 
 float PixelSizeAtDepth1;
 float NumPixelPerVoxel;
+uint  VoxelPageResolution;
 
 // Group data packed as {uint3 AABBMin, uint3 AABBMax}
 Buffer<int> InGroupAABBBuffer0;
@@ -55,8 +56,17 @@ void Main(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		// Compute voxel size to have 1px = 1 voxels
 		const float PixelWorldSize = PixelSizeAtDepth1 * ViewBound.Min.z;
-		const float VoxelWorldSize = PixelWorldSize * NumPixelPerVoxel;
+		float VoxelWorldSize = PixelWorldSize * NumPixelPerVoxel;
 		WriteHairAABB(MacroGroupId, Bound, OutMacroGroupAABBBuffer);
+
+		// Ensure the MacroGroup AABB has, at minimum, the size of a voxel page
+		const float3 Extend = Bound.Max - Bound.Min;
+		const float MaxExtent = max3(Extend.x, Extend.y, Extend.z);
+		const float BoundVoxelCount = MaxExtent / VoxelWorldSize;
+		if (BoundVoxelCount < float(VoxelPageResolution))
+		{
+			VoxelWorldSize = MaxExtent / float(VoxelPageResolution);
+		}
 
 		const float MinVoxelWorldSize = 0.01f; // 0.01mm
 		OutMacroGroupVoxelSizeBuffer[MacroGroupId] = max(MinVoxelWorldSize, VoxelWorldSize);
