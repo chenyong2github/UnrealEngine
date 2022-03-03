@@ -18,7 +18,7 @@ class SWindow;
  *  - connection monitor (details about the connected clients on the given session and network info)
  * Implements view in model-view-controller pattern.
  */
-class CONCERTSHAREDSLATE_API SConcertSessionInspector : public SCompoundWidget
+class SConcertSessionInspector : public SCompoundWidget
 {
 public:
 

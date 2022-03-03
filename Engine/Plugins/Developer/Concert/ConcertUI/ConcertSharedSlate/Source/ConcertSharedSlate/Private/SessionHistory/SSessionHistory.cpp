@@ -1,16 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SSessionHistory.h"
-#include "IConcertSession.h"
-#include "IConcertSyncClient.h"
-#include "ConcertTransactionEvents.h"
-#include "ConcertWorkspaceData.h"
+#include "SessionHistory/SSessionHistory.h"
+
 #include "ConcertMessageData.h"
-#include "ConcertMessages.h"
-#include "Editor/Transactor.h"
+#include "IConcertSession.h"
+#include "SConcertSessionActivities.h"
+
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"
-#include "SConcertSessionActivities.h"
 
 #define LOCTEXT_NAMESPACE "SSessionHistory"
 

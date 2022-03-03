@@ -17,14 +17,14 @@
 #include "FileHelpers.h"
 #include "Misc/PackageName.h"
 #include "Styling/AppStyle.h"
-#include "SSessionHistory.h"
+#include "SessionHistory/SSessionHistory.h"
+#include "SessionHistory/SSessionHistoryWrapper.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/SSessionHistoryWrapper.h"
 
 #define LOCTEXT_NAMESPACE "SActiveSession"
 

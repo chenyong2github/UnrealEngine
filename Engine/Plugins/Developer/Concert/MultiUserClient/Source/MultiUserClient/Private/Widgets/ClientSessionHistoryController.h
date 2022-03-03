@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AbstractSessionHistoryController.h"
+#include "SessionHistory/AbstractSessionHistoryController.h"
 
 struct FConcertSyncActivity;
 struct FConcertClientInfo;

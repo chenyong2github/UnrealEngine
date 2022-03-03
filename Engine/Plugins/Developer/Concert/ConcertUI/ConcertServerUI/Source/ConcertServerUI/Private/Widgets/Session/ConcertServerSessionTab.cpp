@@ -5,7 +5,7 @@
 #include "IConcertSession.h"
 #include "Widgets/ConcertServerTabs.h"
 #include "Widgets/StatusBar/SConcertStatusBar.h"
-#include "SessionInspector/SConcertSessionInspector.h"
+#include "Widgets/Session/SConcertSessionInspector.h"
 
 FConcertServerSessionTab::FConcertServerSessionTab(TSharedRef<IConcertServerSession> InspectedSession, const TSharedRef<SWindow>& ConstructUnderWindow)
 	: InspectedSession(MoveTemp(InspectedSession))

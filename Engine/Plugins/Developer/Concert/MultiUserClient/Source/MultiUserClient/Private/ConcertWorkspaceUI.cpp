@@ -31,10 +31,10 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/Notifications/NotificationManager.h"
 
+#include "SessionHistory/SSessionHistoryWrapper.h"
 #include "ToolMenuContext.h"
 #include "ToolMenus.h"
 #include "Widgets/ClientSessionHistoryController.h"
-
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SConcertSandboxPersistWidget.h"
 #include "Widgets/SCompoundWidget.h"
@@ -44,7 +44,6 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/SSessionHistoryWrapper.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "ConcertFrontend"
