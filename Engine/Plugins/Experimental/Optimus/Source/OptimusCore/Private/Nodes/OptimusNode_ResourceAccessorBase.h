@@ -32,7 +32,6 @@ public:
 
 	// IOptimusDataInterfaceProvider implementations
 	UOptimusComputeDataInterface* GetDataInterface(UObject *InOuter) const override;
-	bool IsRetainedDataInterface() const override { return true; }
 	int32 GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const override { return INDEX_NONE; }
 	
 private:

@@ -186,7 +186,7 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 
 		if (ensure(Binding))
 		{
-			Binding->Name = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodePin::StaticClass(), Name);
+			Binding->Name = Optimus::GetUniqueNameForScope(this, Name);
 			Binding->DataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
 
 			AddPin(Binding->Name, Direction, StorageConfig, Binding->DataType, BeforePin);
@@ -351,7 +351,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePinNames(
 		{
 			if (KernelPins[Index]->GetFName() != Names[Index])
 			{
-				FName NewName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodePin::StaticClass(), Names[Index]);
+				FName NewName = Optimus::GetUniqueNameForScope(this, Names[Index]);
 
 				SetPinName(KernelPins[Index], NewName);
 

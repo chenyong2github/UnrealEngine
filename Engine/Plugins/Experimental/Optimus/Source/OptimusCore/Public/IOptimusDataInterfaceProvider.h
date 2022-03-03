@@ -31,12 +31,6 @@ public:
 	virtual UOptimusComputeDataInterface* GetDataInterface(UObject *InOuter) const = 0;
 
 	/**
-	 * Return true if the given data interface requires a separate resource release call when
-	 * the owning component is unregistered or the graph recompiled.
-	 */
-	virtual bool IsRetainedDataInterface() const = 0;
-
-	/**
 	 * Returns the index on the data interface that this pin on the node represents. E.g. for
 	 * input pins, this would represent a write function on the data interface (and _not_ the
 	 * proposed pin definitions).

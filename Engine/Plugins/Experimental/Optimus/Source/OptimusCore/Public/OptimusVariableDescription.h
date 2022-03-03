@@ -11,6 +11,10 @@
 
 #include "OptimusVariableDescription.generated.h"
 
+
+class UOptimusDeformer;
+
+
 USTRUCT()
 struct FOptimusVariableMetaDataEntry
 {
@@ -38,6 +42,10 @@ class OPTIMUSCORE_API UOptimusVariableDescription :
 	GENERATED_BODY()
 public:
 	UOptimusVariableDescription() = default;
+	
+	/** Returns the owning deformer to operate on this variable */
+	// FIXME: Move to interface-based system.
+	UOptimusDeformer* GetOwningDeformer() const;
 
 	/** An identifier that uniquely identifies this variable */
 	UPROPERTY()

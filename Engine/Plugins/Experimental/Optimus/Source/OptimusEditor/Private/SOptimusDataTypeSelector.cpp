@@ -157,7 +157,7 @@ FText SOptimusDataTypeSelector::GetTypeTooltip() const
 		EditText = LOCTEXT("DataTypeSelector", "Click to see the data type menu and change the current type.");
 	}
 
-	return FText::Format(LOCTEXT("TypeTooltip", "{}Current Type: {1}"), EditText, GetTypeDescription());
+	return FText::Format(LOCTEXT("TypeTooltip", "{0}Current Type: {1}"), EditText, GetTypeDescription());
 }
 
 

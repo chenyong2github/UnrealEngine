@@ -46,8 +46,7 @@ public:
 private:
 	FOptimusDataTypeHandle OnGetDataType() const
 	{
-		UOptimusResourceDescription *Resource = WeakResource.Get();
-		if (Resource)
+		if (const UOptimusResourceDescription *Resource = WeakResource.Get())
 		{
 			return Resource->DataType.Resolve();
 		}
@@ -59,7 +58,10 @@ private:
 
 	void OnDataTypeChanged(FOptimusDataTypeHandle InDataType)
 	{
-		// FIXME: Call command.
+		if (UOptimusResourceDescription *Resource = WeakResource.Get())
+		{
+			Resource->GetOwningDeformer()->SetResourceDataType(Resource, InDataType);
+		}
 	}
 
 	TWeakObjectPtr<UOptimusResourceDescription> WeakResource;
@@ -101,7 +103,10 @@ private:
 
 	void OnDataTypeChanged(FOptimusDataTypeHandle InDataType)
 	{
-		// FIXME: Call command.
+		if (UOptimusVariableDescription *Variable = WeakVariable.Get())
+		{
+			Variable->GetOwningDeformer()->SetVariableDataType(Variable, InDataType);
+		}
 	}
 
 	TWeakObjectPtr<UOptimusVariableDescription> WeakVariable;

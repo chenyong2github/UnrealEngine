@@ -56,7 +56,7 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 	
 	FName ClassName(TEXT("Optimus_ComputeKernel_") + InKernelName);
 
-	ClassName = Optimus::GetUniqueNameForScopeAndClass(InPackage, UClass::StaticClass(), ClassName);
+	ClassName = Optimus::GetUniqueNameForScope(InPackage, ClassName);
 
 	UClass *ParentClass = UOptimusNode_ComputeKernelFunction::StaticClass();
 	

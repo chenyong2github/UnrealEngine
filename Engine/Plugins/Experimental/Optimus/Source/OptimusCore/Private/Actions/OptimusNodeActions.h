@@ -121,7 +121,7 @@ protected:
 private:
 	bool SetPinName(
 		IOptimusPathResolver* InRoot,
-		FName InName) const;
+		FName InName);
 	
 	// The path of the pin to set the value on
 	FString PinPath;

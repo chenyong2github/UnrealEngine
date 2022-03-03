@@ -10,19 +10,14 @@
 
 
 FOptimusResourceAction_AddResource::FOptimusResourceAction_AddResource(
-    UOptimusDeformer* InDeformer,
 	FOptimusDataTypeRef InDataType,
     FName InName
 	)
 {
-	if (ensure(InDeformer))
-	{
-		// FIXME: Validate name?
-		ResourceName = Optimus::GetUniqueNameForScopeAndClass(InDeformer, UOptimusResourceDescription::StaticClass(), InName);
-		DataType = InDataType;
+	ResourceName = InName;
+	DataType = InDataType;
 
-		SetTitlef(TEXT("Add resource '%s'"), *ResourceName.ToString());
-	}
+	SetTitlef(TEXT("Add resource '%s'"), *ResourceName.ToString());
 }
 
 
@@ -30,9 +25,7 @@ UOptimusResourceDescription* FOptimusResourceAction_AddResource::GetResource(
 	IOptimusPathResolver* InRoot
 	) const
 {
-	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
-
-	return Deformer->ResolveResource(ResourceName);
+	return InRoot->ResolveResource(ResourceName);
 }
 
 
@@ -50,7 +43,6 @@ bool FOptimusResourceAction_AddResource::Do(
 
 	// The name should not have changed.
 	check(Resource->GetFName() == ResourceName);
-
 
 	Resource->ResourceName = Resource->GetFName();
 	Resource->DataType = DataType;
@@ -76,13 +68,13 @@ bool FOptimusResourceAction_AddResource::Undo(
 		return false;
 	}
 
-	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
-	return Deformer->RemoveResourceDirect(Resource);
+	UOptimusDeformer* Deformer = Resource->GetOwningDeformer();
+	return Deformer && Deformer->RemoveResourceDirect(Resource);
 }
 
 
 FOptimusResourceAction_RemoveResource::FOptimusResourceAction_RemoveResource(
-	UOptimusResourceDescription* InResource
+	const UOptimusResourceDescription* InResource
 	)
 {
 	if (ensure(InResource))
@@ -99,9 +91,7 @@ bool FOptimusResourceAction_RemoveResource::Do(
 	IOptimusPathResolver* InRoot
 	)
 {
-	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
-	
-	UOptimusResourceDescription* Resource = Deformer->ResolveResource(ResourceName);
+	UOptimusResourceDescription* Resource = InRoot->ResolveResource(ResourceName);
 	if (!Resource)
 	{
 		return false;
@@ -111,7 +101,8 @@ bool FOptimusResourceAction_RemoveResource::Do(
 		Optimus::FBinaryObjectWriter ResourceArchive(Resource, ResourceData);
 	}
 
-	return Deformer->RemoveResourceDirect(Resource);
+	UOptimusDeformer* Deformer = Resource->GetOwningDeformer();
+	return Deformer && Deformer->RemoveResourceDirect(Resource);
 }
 
 
@@ -152,10 +143,8 @@ FOptimusResourceAction_RenameResource::FOptimusResourceAction_RenameResource(
 {
 	if (ensure(InResource))
 	{
-		UOptimusDeformer *Deformer = Cast<UOptimusDeformer>(InResource->GetOuter());
-
 		OldName = InResource->GetFName();
-		NewName = Optimus::GetUniqueNameForScopeAndClass(Deformer, UOptimusResourceDescription::StaticClass(), InNewName);
+		NewName = InNewName;
 
 		SetTitlef(TEXT("Rename resource to '%s'"), *NewName.ToString());
 	}
@@ -166,10 +155,14 @@ bool FOptimusResourceAction_RenameResource::Do(
 	IOptimusPathResolver* InRoot
 	)
 {
-	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
-	UOptimusResourceDescription* Resource = Deformer->ResolveResource(OldName);
+	UOptimusResourceDescription* Resource = InRoot->ResolveResource(OldName);
+	if (!Resource)
+	{
+		return false;
+	}
+	UOptimusDeformer* Deformer = Resource->GetOwningDeformer();
 	
-	return Resource && Deformer->RenameResourceDirect(Resource, NewName);
+	return Deformer && Deformer->RenameResourceDirect(Resource, NewName);
 }
 
 
@@ -177,8 +170,56 @@ bool FOptimusResourceAction_RenameResource::Undo(
 	IOptimusPathResolver* InRoot
 	)
 {
-	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
-	UOptimusResourceDescription* Resource = Deformer->ResolveResource(NewName);
+	UOptimusResourceDescription* Resource = InRoot->ResolveResource(NewName);
+	if (!Resource)
+	{
+		return false;
+	}
+	UOptimusDeformer* Deformer = Resource->GetOwningDeformer();
 
-	return Resource && Deformer->RenameResourceDirect(Resource, OldName);
+	return Deformer && Deformer->RenameResourceDirect(Resource, OldName);
+}
+
+
+FOptimusResourceAction_SetDataType::FOptimusResourceAction_SetDataType(
+	UOptimusResourceDescription* InResource,
+	FOptimusDataTypeRef InDataType
+	)
+{
+	if (ensure(InResource) && ensure(InDataType.IsValid()))
+	{
+		ResourceName = InResource->GetFName();
+		NewDataType = InDataType;
+		OldDataType = InResource->DataType;
+
+		SetTitlef(TEXT("Set Resource Data Type"));
+	}
+}
+
+
+bool FOptimusResourceAction_SetDataType::Do(IOptimusPathResolver* InRoot)
+{
+	return SetDataType(InRoot, NewDataType);
+}
+
+
+bool FOptimusResourceAction_SetDataType::Undo(IOptimusPathResolver* InRoot)
+{
+	return SetDataType(InRoot, OldDataType);
+}
+
+
+bool FOptimusResourceAction_SetDataType::SetDataType(
+	IOptimusPathResolver* InRoot,
+	FOptimusDataTypeRef InDataType
+	) const
+{
+	UOptimusResourceDescription* Resource = InRoot->ResolveResource(ResourceName);
+	if (!Resource)
+	{
+		return false;
+	}
+	UOptimusDeformer* Deformer = Resource->GetOwningDeformer();
+	
+	return Deformer && Deformer->SetResourceDataTypeDirect(Resource, InDataType);
 }

@@ -33,7 +33,6 @@ public:
 	{
 		return NewObject<UOptimusComputeDataInterface>(InOuter, DataInterfaceClass);
 	}
-	bool IsRetainedDataInterface() const override { return false; }
 	int32 GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const override;
 
 	void SetDataInterfaceClass(TSubclassOf<UOptimusComputeDataInterface> InDataInterfaceClass);
@@ -55,3 +54,5 @@ private:
 	UPROPERTY()
 	TObjectPtr<UClass> DataInterfaceClass; 
 };
+
+

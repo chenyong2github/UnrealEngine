@@ -23,7 +23,6 @@ public:
 	FOptimusResourceAction_AddResource() = default;
 
 	FOptimusResourceAction_AddResource(
-		UOptimusDeformer* InDeformer,
 		FOptimusDataTypeRef InDataType,
 		FName InName
 	);
@@ -53,7 +52,7 @@ public:
 	FOptimusResourceAction_RemoveResource() = default;
 
 	FOptimusResourceAction_RemoveResource(
-		UOptimusResourceDescription* InResource
+		const UOptimusResourceDescription* InResource
 	);
 
 protected:
@@ -95,4 +94,39 @@ private:
 
 	// The old name of the resource.
 	FName OldName;
+};
+
+
+USTRUCT()
+struct FOptimusResourceAction_SetDataType : 
+	public FOptimusAction
+{
+	GENERATED_BODY()
+
+public:
+	FOptimusResourceAction_SetDataType() = default;
+
+	FOptimusResourceAction_SetDataType(
+	    UOptimusResourceDescription* InResource,
+		FOptimusDataTypeRef InDataType
+		);
+
+protected:
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
+
+private:
+	bool SetDataType(
+		IOptimusPathResolver* InRoot, 
+		FOptimusDataTypeRef InDataType
+		) const;
+
+	// The name of the resource to update.
+	FName ResourceName;
+
+	// The data type of the resource
+	FOptimusDataTypeRef NewDataType;
+
+	// The data type of the resource
+	FOptimusDataTypeRef OldDataType;
 };

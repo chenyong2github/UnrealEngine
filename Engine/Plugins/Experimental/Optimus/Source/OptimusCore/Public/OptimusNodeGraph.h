@@ -10,6 +10,7 @@
 
 #include "OptimusNodeGraph.generated.h"
 
+struct FOptimusCompoundAction;
 struct FOptimusPinTraversalContext;
 struct FOptimusRoutedNodePin;
 class UOptimusVariableDescription;
@@ -324,6 +325,11 @@ protected:
 	bool AddNodeDirect(
 		UOptimusNode* InNode
 	);
+	
+	bool RemoveNodesToAction(
+			FOptimusCompoundAction* InAction,
+			const TArray<UOptimusNode*>& InNodes
+			) const;
 
 	// Remove a node directly. If a node still has connections this call will fail. 
 	bool RemoveNodeDirect(

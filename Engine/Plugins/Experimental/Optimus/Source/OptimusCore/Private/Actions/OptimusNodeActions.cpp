@@ -152,7 +152,7 @@ bool FOptimusNodeAction_SetPinName::Undo(IOptimusPathResolver* InRoot)
 bool FOptimusNodeAction_SetPinName::SetPinName(
 	IOptimusPathResolver* InRoot, 
 	FName InName
-	) const
+	)
 {
 	UOptimusNodePin *Pin = InRoot->ResolvePinPath(PinPath);
 
@@ -161,7 +161,13 @@ bool FOptimusNodeAction_SetPinName::SetPinName(
 		return false;
 	}
 	
-	return Pin->GetOwningNode()->SetPinNameDirect(Pin, InName);
+	if (!Pin->GetOwningNode()->SetPinNameDirect(Pin, InName))
+	{
+		return false;
+	}
+
+	PinPath = Pin->GetPinPath();
+	return true;
 }
 
 

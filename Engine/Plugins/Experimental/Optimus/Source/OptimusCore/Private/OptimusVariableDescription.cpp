@@ -4,6 +4,13 @@
 
 #include "OptimusDeformer.h"
 
+UOptimusDeformer* UOptimusVariableDescription::GetOwningDeformer() const
+{
+	const UOptimusVariableContainer* Container = CastChecked<UOptimusVariableContainer>(GetOuter());
+	return Container ? CastChecked<UOptimusDeformer>(Container->GetOuter()) : nullptr;
+}
+
+
 #if WITH_EDITOR
 void UOptimusVariableDescription::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -11,8 +18,7 @@ void UOptimusVariableDescription::PostEditChangeProperty(FPropertyChangedEvent& 
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UOptimusVariableDescription, VariableName))
 	{
-		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(GetOuter());
-
+		UOptimusDeformer* Deformer = GetOwningDeformer();
 		if (ensure(Deformer))
 		{
 			// Do a rename through an action. Otherwise undo won't notify on changes.
@@ -21,6 +27,15 @@ void UOptimusVariableDescription::PostEditChangeProperty(FPropertyChangedEvent& 
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FOptimusDataType, TypeName))
 	{
+		UOptimusDeformer* Deformer = GetOwningDeformer();
+		if (ensure(Deformer))
+		{
+			// Set the variable type again, so that we can remove any links that are now
+			// type-incompatible.
+			Deformer->SetVariableDataType(this, DataType);
+		}
+
+		// Make sure the value data container is still large enough to hold the property value.
 		ValueData.Reset();
 		if (DataType->CanCreateProperty())
 		{

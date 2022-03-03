@@ -8,19 +8,14 @@
 
 
 FOptimusVariableAction_AddVariable::FOptimusVariableAction_AddVariable(
-	UOptimusDeformer* InDeformer, 
 	FOptimusDataTypeRef InDataType, 
 	FName InName
 	)
 {
-	if (ensure(InDeformer))
-	{
-		// FIXME: Validate name?
-		VariableName = Optimus::GetUniqueNameForScopeAndClass(InDeformer, UOptimusVariableDescription::StaticClass(), InName);
-		DataType = InDataType;
+	VariableName = InName;
+	DataType = InDataType;
 
-		SetTitlef(TEXT("Add variable '%s'"), *VariableName.ToString());
-	}
+	SetTitlef(TEXT("Add variable '%s'"), *VariableName.ToString());
 }
 
 
@@ -28,7 +23,7 @@ UOptimusVariableDescription* FOptimusVariableAction_AddVariable::GetVariable(
 	IOptimusPathResolver* InRoot
 	) const
 {
-	return Cast<UOptimusDeformer>(InRoot)->ResolveVariable(VariableName);
+	return InRoot->ResolveVariable(VariableName);
 }
 
 
@@ -140,10 +135,8 @@ FOptimusVariableAction_RenameVariable::FOptimusVariableAction_RenameVariable(
 {
 	if (ensure(InVariable))
 	{
-		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InVariable->GetOuter());
-
 		OldName = InVariable->GetFName();
-		NewName = Optimus::GetUniqueNameForScopeAndClass(Deformer, UOptimusVariableDescription::StaticClass(), InNewName);
+		NewName = InNewName;
 
 		SetTitlef(TEXT("Rename variable to '%s'"), *NewName.ToString());
 	}
@@ -169,4 +162,49 @@ bool FOptimusVariableAction_RenameVariable::Undo(
 	UOptimusVariableDescription* Variable = Deformer->ResolveVariable(NewName);
 
 	return Variable && Deformer->RenameVariableDirect(Variable, OldName);
+}
+
+
+
+FOptimusVariableAction_SetDataType::FOptimusVariableAction_SetDataType(
+	UOptimusVariableDescription* InVariable,
+	FOptimusDataTypeRef InDataType
+	)
+{
+	if (ensure(InVariable) && ensure(InDataType.IsValid()))
+	{
+		VariableName = InVariable->GetFName();
+		NewDataType = InDataType;
+		OldDataType = InVariable->DataType;
+
+		SetTitlef(TEXT("Set Variable Data Type"));
+	}
+}
+
+
+bool FOptimusVariableAction_SetDataType::Do(IOptimusPathResolver* InRoot)
+{
+	return SetDataType(InRoot, NewDataType);
+}
+
+
+bool FOptimusVariableAction_SetDataType::Undo(IOptimusPathResolver* InRoot)
+{
+	return SetDataType(InRoot, OldDataType);
+}
+
+
+bool FOptimusVariableAction_SetDataType::SetDataType(
+	IOptimusPathResolver* InRoot,
+	FOptimusDataTypeRef InDataType
+	) const
+{
+	UOptimusVariableDescription* Variable = InRoot->ResolveVariable(VariableName);
+	if (!Variable)
+	{
+		return false;
+	}
+	UOptimusDeformer* Deformer = Variable->GetOwningDeformer();
+	
+	return Deformer && Deformer->SetVariableDataTypeDirect(Variable, InDataType);
 }

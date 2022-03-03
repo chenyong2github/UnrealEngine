@@ -138,7 +138,7 @@ UOptimusNode* UOptimusNodeGraph::AddNodeInternal(
 	)
 {
 	// FIXME: Need better naming.
-	FName NodeName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNode::StaticClass(), InNodeClass->GetFName());
+	FName NodeName = Optimus::GetUniqueNameForScope(this, InNodeClass->GetFName());
 	FOptimusNodeGraphAction_AddNode *AddNodeAction = new FOptimusNodeGraphAction_AddNode(
 		GetGraphPath(), InNodeClass, NodeName,
 		[InNodeConfigFunc, InPosition](UOptimusNode *InNode) {
@@ -244,7 +244,36 @@ bool UOptimusNodeGraph::RemoveNodes(const TArray<UOptimusNode*> &InNodes)
 	return RemoveNodes(InNodes, TEXT("Remove"));
 }
 
-bool UOptimusNodeGraph::RemoveNodes(const TArray<UOptimusNode*>& InNodes, const FString& InActionName)
+
+bool UOptimusNodeGraph::RemoveNodes(
+		const TArray<UOptimusNode*>& InNodes,
+		const FString& InActionName
+		)
+{
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction;
+	if (InNodes.Num() == 1)
+	{
+		Action->SetTitlef(TEXT("%s Node"), *InActionName);
+	}
+	else
+	{
+		Action->SetTitlef(TEXT("%s %d Nodes"), *InActionName, InNodes.Num());
+	}
+
+	if (RemoveNodesToAction(Action, InNodes))
+	{
+		return GetActionStack()->RunAction(Action);
+	}
+
+	delete Action;
+	return false;
+}
+
+
+bool UOptimusNodeGraph::RemoveNodesToAction(
+	FOptimusCompoundAction* InAction,
+	const TArray<UOptimusNode*>& InNodes
+	) const
 {
 	// Validate the input set.
 	if (InNodes.Num() == 0)
@@ -259,17 +288,7 @@ bool UOptimusNodeGraph::RemoveNodes(const TArray<UOptimusNode*>& InNodes, const 
 			return false;
 		}
 	}
-
-	FOptimusCompoundAction* Action = new FOptimusCompoundAction;
-	if (InNodes.Num() == 1)
-	{
-		Action->SetTitlef(TEXT("%s Node"), *InActionName);
-	}
-	else
-	{
-		Action->SetTitlef(TEXT("%s %d Nodes"), *InActionName, InNodes.Num());
-	}
-
+	
 	TSet<int32> AllLinkIndexes;
 
 	// Get all unique links for all the given nodes and remove them *before* we remove the nodes.
@@ -280,15 +299,15 @@ bool UOptimusNodeGraph::RemoveNodes(const TArray<UOptimusNode*>& InNodes, const 
 
 	for (const int32 LinkIndex : AllLinkIndexes)
 	{
-		Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Links[LinkIndex]);
+		InAction->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Links[LinkIndex]);
 	}
 
 	for (UOptimusNode* Node : InNodes)
 	{
-		Action->AddSubAction<FOptimusNodeGraphAction_RemoveNode>(Node);
+		InAction->AddSubAction<FOptimusNodeGraphAction_RemoveNode>(Node);
 	}
 
-	return GetActionStack()->RunAction(Action);
+	return true;
 }
 
 
@@ -302,7 +321,7 @@ UOptimusNode* UOptimusNodeGraph::DuplicateNode(
 		return nullptr;
 	}
 	
-	const FName NodeName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNode::StaticClass(), InNode->GetFName());
+	const FName NodeName = Optimus::GetUniqueNameForScope(this, InNode->GetFName());
 	
 	FOptimusNodeGraphAction_DuplicateNode *DuplicateNodeAction = new FOptimusNodeGraphAction_DuplicateNode(
 		GetGraphPath(), InNode, NodeName,
@@ -711,7 +730,7 @@ UOptimusNode* UOptimusNodeGraph::CollapseNodesToSubGraph(
 	IOptimusPathResolver* PathResolver = GetPathResolver();
 
 	FName SubGraphName("SubGraph");
-	SubGraphName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodeSubGraph::StaticClass(), SubGraphName);
+	SubGraphName = Optimus::GetUniqueNameForScope(this, SubGraphName);
 	
 	FOptimusNodeGraphAction_AddGraph* CreateGraph = new FOptimusNodeGraphAction_AddGraph(
 		this, EOptimusNodeGraphType::SubGraph, SubGraphName, INDEX_NONE,
@@ -770,7 +789,7 @@ UOptimusNode* UOptimusNodeGraph::CollapseNodesToSubGraph(
 
 	// Create the reference node and connect it.
 	FName GraphNodeRefName("SubGraphNode");
-	GraphNodeRefName = Optimus::GetUniqueNameForScopeAndClass(this, UObject::StaticClass(), GraphNodeRefName);
+	GraphNodeRefName = Optimus::GetUniqueNameForScope(this, GraphNodeRefName);
 	FOptimusNodeGraphAction_AddNode* AddSubGraphRefNodeAction = new FOptimusNodeGraphAction_AddNode(
 		GetGraphPath(), UOptimusNode_SubGraphReference::StaticClass(), GraphNodeRefName,
 		[NodeBox, SubGraphPath, PathResolver](UOptimusNode* InNode)

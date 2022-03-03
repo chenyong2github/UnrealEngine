@@ -138,6 +138,11 @@ public:
 	bool RenameVariable(
 	    UOptimusVariableDescription* InVariableDesc,
 	    FName InNewName);
+	    
+	bool SetVariableDataType(
+		UOptimusVariableDescription* InVariableDesc,
+		FOptimusDataTypeRef InDataType
+		);
 
 	UFUNCTION(BlueprintGetter)
 	const TArray<UOptimusVariableDescription*>& GetVariables() const { return Variables->Descriptions; }
@@ -181,6 +186,11 @@ public:
 	    UOptimusResourceDescription* InResourceDesc,
 	    FName InNewName);
 
+	bool SetResourceDataType(
+		UOptimusResourceDescription* InResourceDesc,
+		FOptimusDataTypeRef InDataType
+		);
+
 	UFUNCTION(BlueprintGetter)
 	const TArray<UOptimusResourceDescription*>& GetResources() const { return Resources->Descriptions; }
 
@@ -200,6 +210,7 @@ public:
 	
 	/// UObject overrides
 	void Serialize(FArchive& Ar) override;
+	void PostLoad() override;
 
 	// UMeshDeformer overrides
 	UMeshDeformerInstance* CreateInstance(UMeshComponent* InMeshComponent) override;
@@ -256,9 +267,11 @@ protected:
 	friend struct FOptimusResourceAction_AddResource;
 	friend struct FOptimusResourceAction_RemoveResource;
 	friend struct FOptimusResourceAction_RenameResource;
+	friend struct FOptimusResourceAction_SetDataType;
 	friend struct FOptimusVariableAction_AddVariable;
 	friend struct FOptimusVariableAction_RemoveVariable;
 	friend struct FOptimusVariableAction_RenameVariable;
+	friend struct FOptimusVariableAction_SetDataType;
 
 	/** Create a resource owned by this deformer but does not add it to the list of known
 	  * resources. Call AddResource for that */
@@ -279,6 +292,12 @@ protected:
 		UOptimusResourceDescription* InResourceDesc,
 		FName InNewName
 		);
+		
+	bool SetResourceDataTypeDirect(
+		UOptimusResourceDescription* InResourceDesc,
+		FOptimusDataTypeRef InDataType
+		);
+
 	
 	/** Create a resource owned by this deformer but does not add it to the list of known
 	  * resources. Call AddResource for that */
@@ -300,17 +319,16 @@ protected:
 		FName InNewName
 		);
 
+	bool SetVariableDataTypeDirect(
+		UOptimusVariableDescription* InResourceDesc,
+		FOptimusDataTypeRef InDataType
+		);
 	
 	void Notify(EOptimusGlobalNotifyType InNotifyType, UObject *InObject) const;
 
 	// The compute graphs to execute.
 	UPROPERTY()
 	TArray<FOptimusComputeGraphInfo> ComputeGraphs;
-
-	// Data interfaces that need resource release if our owning component is unregistered
-	// or if the deformer gets recompiled.
-	UPROPERTY()
-	TArray<TObjectPtr<UOptimusComputeDataInterface>> RetainedDataInterfaces;
 	
 private:
 	UOptimusNodeGraph* ResolveGraphPath(const FStringView InPath, FStringView& OutRemainingPath) const;
@@ -320,6 +338,8 @@ private:
 	template<typename T>
 	bool SetVariableValue(FName InVariableName, FName InTypeName, const T& InValue);
 
+	TArray<UOptimusNode*> GetAllNodesOfClass(UClass* InNodeClass) const;
+	
 	// Compile a node graph to a compute graph. Returns either a completed compute graph, or
 	// the error message to pass back, if the compilation failed.
 	using FOptimusCompileResult = TVariant<FEmptyVariantState, UOptimusComputeGraph*, TSharedRef<FTokenizedMessage>>;

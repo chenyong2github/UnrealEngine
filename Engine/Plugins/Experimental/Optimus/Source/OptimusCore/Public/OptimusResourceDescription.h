@@ -11,6 +11,7 @@
 #include "OptimusResourceDescription.generated.h"
 
 
+class UOptimusDeformer;
 class UPersistentBufferDataInterface;
 
 
@@ -22,6 +23,10 @@ class OPTIMUSCORE_API UOptimusResourceDescription :
 public:
 
 	UOptimusResourceDescription() = default;
+
+	/** Returns the owning deformer to operate on this resource */
+	// FIXME: Move to interface-based system.
+	UOptimusDeformer* GetOwningDeformer() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ResourceDescription)
 	FName ResourceName;

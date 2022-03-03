@@ -23,7 +23,6 @@ public:
 	FOptimusVariableAction_AddVariable() = default;
 
 	FOptimusVariableAction_AddVariable(
-	    UOptimusDeformer* InDeformer,
 	    FOptimusDataTypeRef InDataType,
 	    FName InName
 		);
@@ -94,4 +93,38 @@ private:
 
 	// The old name of the variable.
 	FName OldName;
+};
+
+
+USTRUCT()
+struct FOptimusVariableAction_SetDataType : 
+	public FOptimusAction
+{
+	GENERATED_BODY()
+
+	FOptimusVariableAction_SetDataType() = default;
+
+	FOptimusVariableAction_SetDataType(
+		UOptimusVariableDescription* InVariable,
+		FOptimusDataTypeRef InDataType
+		);
+
+protected:
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
+
+private:
+	bool SetDataType(
+		IOptimusPathResolver* InRoot, 
+		FOptimusDataTypeRef InDataType
+		) const;
+
+	// The name of the variable to update.
+	FName VariableName;
+
+	// The new data type to give the variable, used when running Do.
+	FOptimusDataTypeRef NewDataType;
+
+	// The old data type of the variable, used when running Undo.
+	FOptimusDataTypeRef OldDataType;
 };

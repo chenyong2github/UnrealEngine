@@ -12,8 +12,8 @@
 
 namespace Optimus
 {
-	/// Attempts to find an object, first within a specific package, if the dot prefix 
-	/// points to a known package, otherwise fall back on searching globally.
+	/** Attempts to find an object, first within a specific package, if the dot prefix
+	  * points to a known package, otherwise fall back to searching globally. */
 	template<typename T>
 	T* FindObjectInPackageOrGlobal(const FString& InObjectPath)
 	{
@@ -36,10 +36,9 @@ namespace Optimus
 		return FoundObject;
 	}
 
-	/** Given an object hierarchy scope, and object class, ensure that the given name is
-	    unique within those parameters. If the name is already unique, it will be returned
-		unchanged. */
-	FName GetUniqueNameForScopeAndClass(UObject *InScopeObj, UClass *InClass, FName InName);
+	/** Given an object scope, ensure that the given name is unique within that scope.
+	    If the name is already unique, it will be returned unchanged. */
+	FName GetUniqueNameForScope(UObject *InScopeObj, FName InName);
 
 	/** A small helper class to enable binary reads on an archive, since the 
 		FObjectReader::Serialize(TArray<uint8>& InBytes) constructor is protected */
