@@ -122,8 +122,12 @@ void FConsoleVariablesEditorListRow::SetShouldExpandAllChildren(const bool bNewS
 
 void FConsoleVariablesEditorListRow::ResetToStartupValueAndSource() const
 {
-	GetCommandInfo().Pin()->ExecuteCommand(GetCommandInfo().Pin()->StartupValueAsString);
-	GetCommandInfo().Pin()->SetSourceFlag(GetCommandInfo().Pin()->StartupSource);
+	if (const TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedCommand = GetCommandInfo().Pin())
+	{
+		PinnedCommand->SetSourceFlag(PinnedCommand->StartupSource);
+		PinnedCommand->ExecuteCommand(PinnedCommand->StartupValueAsString);
+		PinnedCommand->SetIfChangedInCurrentPreset(false);
+	}
 }
 
 const FString& FConsoleVariablesEditorListRow::GetPresetValue() const
@@ -343,7 +347,7 @@ FReply FConsoleVariablesEditorListRow::OnActionButtonClicked()
 
 		EditableAsset->RemoveConsoleVariable(CommandName);
 
-		ListViewPtr.Pin()->RebuildList();
+		ListViewPtr.Pin()->RebuildListWithListMode(ListViewPtr.Pin()->GetListModelPtr().Pin()->GetListMode());
 	}
 
 	return FReply::Handled();

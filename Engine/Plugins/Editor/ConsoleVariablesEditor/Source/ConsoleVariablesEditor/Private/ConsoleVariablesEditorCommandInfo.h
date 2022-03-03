@@ -62,10 +62,22 @@ struct FConsoleVariablesEditorCommandInfo
 		return Command.Equals(Comparator.Command);
 	}
 
-	void ExecuteCommand(const FString& NewValueAsString) const
+	void SetIfChangedInCurrentPreset(const bool bNewSetting)
 	{
-		GEngine->Exec(GetCurrentWorld(),
-			*FString::Printf(TEXT("%s %s"), *Command, *NewValueAsString).TrimStartAndEnd());
+		bChangedInCurrentPreset = bNewSetting;
+	}
+
+	void ExecuteCommand(const FString& NewValueAsString)
+	{
+		if (IConsoleVariable* AsVariable = GetConsoleVariablePtr())
+		{
+			AsVariable->Set(*NewValueAsString, GetSource());
+		}
+		else
+		{
+			GEngine->Exec(GetCurrentWorld(),
+				*FString::Printf(TEXT("%s %s"), *Command, *NewValueAsString).TrimStartAndEnd());
+		}
 	}
 
 	/** Get a reference to the cached console object. May return nullptr if unregistered. */
@@ -76,7 +88,16 @@ struct FConsoleVariablesEditorCommandInfo
 		if (!ConsoleObjectPtr ||
 			(FDateTime::UtcNow() - TimeOfLastConsoleObjectRefresh).GetTotalSeconds() > ConsoleObjectRefreshThreshold)
 		{
-			ConsoleObjectPtr = IConsoleManager::Get().FindConsoleObject(*Command);
+			FString CommandKey = Command; 
+
+			// Remove additional params, if they exist
+			const int32 IndexOfSpace = CommandKey.Find(" ");
+			if (IndexOfSpace != INDEX_NONE)
+			{
+				CommandKey = CommandKey.Left(IndexOfSpace).TrimStartAndEnd();
+			}
+			
+			ConsoleObjectPtr = IConsoleManager::Get().FindConsoleObject(*CommandKey);
 			TimeOfLastConsoleObjectRefresh = FDateTime::UtcNow();
 		}
 
@@ -161,6 +182,12 @@ struct FConsoleVariablesEditorCommandInfo
 
 	void SetSourceFlag(const EConsoleVariableFlags InSource)
 	{
+		if (IConsoleVariable* AsVariable = GetConsoleVariablePtr())
+		{
+			AsVariable->Set(*AsVariable->GetString(), StartupSource);
+			return;
+		}
+		
 		const uint32 OldPri = (uint32)GetSource();
 		const uint32 NewPri = (uint32)InSource;
 
@@ -178,6 +205,17 @@ struct FConsoleVariablesEditorCommandInfo
 
 	FText GetSourceAsText()
 	{
+		// Non-variables don't really have a source
+		if (ObjectType != EConsoleObjectType::Variable)
+		{
+			return LOCTEXT("Source_IsNotConsoleVariableButConsoleCommand", "Command");
+		}
+
+		if (bChangedInCurrentPreset)
+		{
+			return LOCTEXT("Source_SetByCurrentPreset", "Session");
+		}
+		
 		return ConvertConsoleVariableSetByFlagToText(GetSource());
 	}
 
@@ -239,6 +277,9 @@ struct FConsoleVariablesEditorCommandInfo
 	/** The source of this variable's (if Variable object type) last setting as recorded when the plugin was loaded. */
 	EConsoleVariableFlags StartupSource = ECVF_Default;
 
+	/** If the variable was last changed by the current preset */
+	bool bChangedInCurrentPreset = false;
+
 	/** When variables change, this callback is executed. */
 	FDelegateHandle OnVariableChangedCallbackHandle;
 
@@ -249,17 +290,17 @@ struct FConsoleVariablesEditorCommandInfo
 	/** A mapping of SetBy console variable flags to information like the associated display text. */
 	static const inline TArray<FStaticConsoleVariableFlagInfo> SupportedFlags =
 	{
-		{ EConsoleVariableFlags::ECVF_SetByConstructor, LOCTEXT("SetByConstructor", "Constructor") },
-		{ EConsoleVariableFlags::ECVF_SetByScalability, LOCTEXT("SetByScalability", "Scalability") },
-		{ EConsoleVariableFlags::ECVF_SetByGameSetting, LOCTEXT("SetByGameSetting", "Game Setting") },
-		{ EConsoleVariableFlags::ECVF_SetByProjectSetting, LOCTEXT("SetByProjectSetting", "Project Setting") },
-		{ EConsoleVariableFlags::ECVF_SetBySystemSettingsIni, LOCTEXT("SetBySystemSettingsIni", "System Settings ini") },
-		{ EConsoleVariableFlags::ECVF_SetByDeviceProfile, LOCTEXT("SetByDeviceProfile", "Device Profile") },
-		{ EConsoleVariableFlags::ECVF_SetByGameOverride, LOCTEXT("SetByGameOverride", "Game Override") },
-		{ EConsoleVariableFlags::ECVF_SetByConsoleVariablesIni, LOCTEXT("SetByConsoleVariablesIni", "Console Variables ini") },
-		{ EConsoleVariableFlags::ECVF_SetByCommandline, LOCTEXT("SetByCommandline", "Command line") },
-		{ EConsoleVariableFlags::ECVF_SetByCode, LOCTEXT("SetByCode", "Code") },
-		{ EConsoleVariableFlags::ECVF_SetByConsole, LOCTEXT("SetByConsole", "Console") }
+		{ EConsoleVariableFlags::ECVF_SetByConstructor, LOCTEXT("Source_SetByConstructor", "Constructor") },
+		{ EConsoleVariableFlags::ECVF_SetByScalability, LOCTEXT("Source_SetByScalability", "Scalability") },
+		{ EConsoleVariableFlags::ECVF_SetByGameSetting, LOCTEXT("Source_SetByGameSetting", "Game Setting") },
+		{ EConsoleVariableFlags::ECVF_SetByProjectSetting, LOCTEXT("Source_SetByProjectSetting", "Project Setting") },
+		{ EConsoleVariableFlags::ECVF_SetBySystemSettingsIni, LOCTEXT("Source_SetBySystemSettingsIni", "System Settings ini") },
+		{ EConsoleVariableFlags::ECVF_SetByDeviceProfile, LOCTEXT("Source_SetByDeviceProfile", "Device Profile") },
+		{ EConsoleVariableFlags::ECVF_SetByGameOverride, LOCTEXT("Source_SetByGameOverride", "Game Override") },
+		{ EConsoleVariableFlags::ECVF_SetByConsoleVariablesIni, LOCTEXT("Source_SetByConsoleVariablesIni", "Console Variables ini") },
+		{ EConsoleVariableFlags::ECVF_SetByCommandline, LOCTEXT("Source_SetByCommandline", "Command line") },
+		{ EConsoleVariableFlags::ECVF_SetByCode, LOCTEXT("Source_SetByCode", "Code") },
+		{ EConsoleVariableFlags::ECVF_SetByConsole, LOCTEXT("Source_SetByConsole", "Console") }
 	};
 };
 

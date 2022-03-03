@@ -3,9 +3,11 @@
 #pragma once
 
 #include "ConsoleVariablesAsset.h"
+#include "ConsoleVariablesEditorList.h"
 #include "ConsoleVariablesEditorListRow.h"
 #include "ConsoleVariablesEditorListFilters/IConsoleVariablesEditorListFilter.h"
 
+#include "Misc/EnumRange.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Views/SHeaderRow.h"
@@ -49,7 +51,7 @@ public:
 	 * Regenerate the list items and refresh the list. Call when adding or removing variables.
 	 * @param bShouldCacheValues If true, the current list's current values will be cached and then restored when the list is rebuilt. Otherwise preset values will be used.
 	 */
-	void RebuildList(const FString& InConsoleCommandToScrollTo = "", bool bShouldCacheValues = true);
+	void RebuildListWithListMode(FConsoleVariablesEditorList::EConsoleVariablesEditorListMode NewListMode, const FString& InConsoleCommandToScrollTo = "", bool bShouldCacheValues = true);
 
 	/**
 	 * Refresh filters and sorting.
@@ -152,7 +154,7 @@ private:
 
 	void CacheCurrentListItemData();
 	void RestorePreviousListItemData();
-	void GenerateTreeView(const bool bExecuteCommandsAsTheyAreLoaded = true);
+	void GenerateTreeView(const bool bSkipExecutionOfCachedCommands = true);
 	void FindVisibleTreeViewObjects();
 	void FindVisibleObjectsAndRequestTreeRefresh();
 	

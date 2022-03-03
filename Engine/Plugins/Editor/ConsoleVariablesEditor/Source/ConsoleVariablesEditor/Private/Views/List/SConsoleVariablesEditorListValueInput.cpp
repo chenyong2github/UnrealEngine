@@ -56,7 +56,9 @@ TSharedRef<SConsoleVariablesEditorListValueInput> SConsoleVariablesEditorListVal
 		}
 
 		// For Commands
-		return SNew(SConsoleVariablesEditorListValueInput_Command, InRow, PinnedItem->GetPresetValue());
+		const FString CachedValue = PinnedItem->GetCachedValue();
+		return SNew(SConsoleVariablesEditorListValueInput_Command, InRow,
+			CachedValue.IsEmpty() ? PinnedItem->GetPresetValue() : CachedValue);
 	}
 
 	// fallback

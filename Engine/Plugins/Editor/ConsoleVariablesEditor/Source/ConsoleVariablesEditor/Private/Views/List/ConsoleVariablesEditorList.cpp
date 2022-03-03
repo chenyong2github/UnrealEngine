@@ -28,7 +28,7 @@ void FConsoleVariablesEditorList::RebuildList(const FString& InConsoleCommandToS
 {
 	if (ListWidget.IsValid())
 	{
-		ListWidget->RebuildList(InConsoleCommandToScrollTo, bShouldCacheValues);
+		ListWidget->RebuildListWithListMode(GetListMode(), InConsoleCommandToScrollTo, bShouldCacheValues);
 	}
 }
 

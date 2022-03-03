@@ -2,9 +2,13 @@
 
 #include "SConsoleVariablesEditorList.h"
 
-#include "ConsoleVariablesEditorList.h"
-#include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_ModifiedVariables.h"
-#include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_SourceText.h"
+// Filters
+#include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_ShowOnlyModifiedVariables.h"
+#include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_SetInSession.h"
+#include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_ShowOnlyCommands.h"
+#include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_ShowOnlyVariables.h"
+#include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_Source.h"
+
 #include "ConsoleVariablesEditorModule.h"
 #include "ConsoleVariablesEditorProjectSettings.h"
 #include "ConsoleVariablesEditorStyle.h"
@@ -167,12 +171,10 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 				.IsChecked(false)
 				.OnCheckStateChanged_Lambda([this] (ECheckBoxState NewCheckState)
 				{
-					ListModelPtr.Pin()->SetListMode(FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset);
-
 					GlobalSearchesContainer->ClearChildren();
 					CurrentGlobalSearches.Empty();
 
-					RebuildList();
+					RebuildListWithListMode(FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset);
 
 					RemoveGlobalSearchesButtonPtr->SetIsChecked(false);
 				})
@@ -231,15 +233,23 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 				.Justification(ETextJustify::Center)
 				.Text_Lambda([this]()
 				{
-					if (VisibleTreeViewObjects.Num() == TreeViewRootObjects.Num())
+					if (VisibleTreeViewObjects.Num() == 0)
 					{
-						// Global Search Empty List (without filter)
-                    	return LOCTEXT("ConsoleVariablesEditorList_EmptyListGlobalSearch", "No matching console variables found in Unreal Engine.\n\nCheck your search criteria.");
-						
+						if (TreeViewRootObjects.Num() == 0)
+						{
+							if (GetListModelPtr().Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::GlobalSearch)
+							{
+								// Global Search Empty List (without filter)
+								return LOCTEXT("ConsoleVariablesEditorList_EmptyListGlobalSearch", "No matching console variables found in Unreal Engine.\n\nCheck your search criteria.");
+							}
+
+							// Preset Empty List (without Filter)
+							return LOCTEXT("ConsoleVariablesEditorList_EmptyListPresetWithoutFilter", "Type in a variable to the console or <RichTextBlock.Bold>Search All</> to add to your list.");
+						}
 					}
 
-					// Empty List (with filter)
-                    return LOCTEXT("ConsoleVariablesEditorList_EmptyListWithFilter", "No matching console variables in your list.\n\nCheck your filter or <RichTextBlock.Bold>Search All</> console variables instead.");
+					// Preset Empty List (with filter)
+                    return LOCTEXT("ConsoleVariablesEditorList_EmptyListPresetWithFilter", "No matching console variables in your list.\n\nCheck your filter or <RichTextBlock.Bold>Search All</> console variables instead.");
 				})
 			]
 		]
@@ -266,6 +276,8 @@ SConsoleVariablesEditorList::~SConsoleVariablesEditorList()
 	TreeViewPtr.Reset();
 	VisibleTreeViewObjects.Reset();
 	LastPresetObjects.Reset();
+	
+	CachedCommandStates.Empty();
 }
 
 FReply SConsoleVariablesEditorList::TryEnterGlobalSearch(const FString& SearchString)
@@ -279,11 +291,10 @@ FReply SConsoleVariablesEditorList::TryEnterGlobalSearch(const FString& SearchSt
 			TEXT("%hs: Global search request is empty. Exiting Global Search."),
 			__FUNCTION__, *SearchString);
 
-		// Return to preset mode if in global search mode then rebuild list
+		// Return to preset mode if in global search mode and rebuild list
 		if (ListModelPtr.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::GlobalSearch)
 		{
-			ListModelPtr.Pin()->SetListMode(FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset);
-			RebuildList();
+			RebuildListWithListMode(FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset);
 		}
 
 		return ReturnValue;
@@ -322,13 +333,6 @@ FReply SConsoleVariablesEditorList::TryEnterGlobalSearch(const FString& SearchSt
 	
 	const bool bFoundMatches = ConsoleVariablesEditorModule.PopulateGlobalSearchAssetWithVariablesMatchingTokens(OutTokens);
 	{
-		// If we were in Preset mode before entering global search, cache the existing tree objects to maintain state
-		if (ListModelPtr.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
-		{
-			LastPresetObjects = TreeViewRootObjects;
-			ListModelPtr.Pin()->SetListMode(FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::GlobalSearch);
-		}
-
 		// Convert tokens to global search toggle buttons
 		for (const FString& TokenString : OutTokens)
 		{
@@ -361,7 +365,7 @@ FReply SConsoleVariablesEditorList::TryEnterGlobalSearch(const FString& SearchSt
 			__FUNCTION__, *SearchString);
 	}
 
-	RebuildList();
+	RebuildListWithListMode(FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::GlobalSearch);
 
 	return ReturnValue;
 }
@@ -397,19 +401,34 @@ void SConsoleVariablesEditorList::RefreshGlobalSearchWidgets()
 	}
 }
 
-void SConsoleVariablesEditorList::RebuildList(const FString& InConsoleCommandToScrollTo, bool bShouldCacheValues)
+void SConsoleVariablesEditorList::RebuildListWithListMode(
+	FConsoleVariablesEditorList::EConsoleVariablesEditorListMode NewListMode, const FString& InConsoleCommandToScrollTo, bool bShouldCacheValues)
 {
 	if (bShouldCacheValues)
 	{
 		CacheCurrentListItemData();
 	}
 
+	// If we're in Preset mode and changing to something else, cache the existing tree objects to maintain state
+	if (GetListModelPtr().Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset &&
+		NewListMode != FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
+	{
+		LastPresetObjects = TreeViewRootObjects;
+	}
+	
+	GetListModelPtr().Pin()->SetListMode(NewListMode);
+
 	// Skip execution on load if we've cached the previous values
-	GenerateTreeView(!bShouldCacheValues);
+	GenerateTreeView(bShouldCacheValues);
 
 	if (bShouldCacheValues)
 	{
 		RestorePreviousListItemData();
+	}
+	else
+	{
+		// If we didn't want to cache, clear the previous cache
+		CachedCommandStates.Empty();
 	}
 
 	RefreshList();
@@ -451,9 +470,9 @@ void SConsoleVariablesEditorList::RefreshList()
 
 		// Refresh the header's check state
 		OnListItemCheckBoxStateChange(ECheckBoxState::Undetermined);
-
-		FindVisibleObjectsAndRequestTreeRefresh();
 	}
+
+	FindVisibleObjectsAndRequestTreeRefresh();
 }
 
 TArray<FConsoleVariablesEditorListRowPtr> SConsoleVariablesEditorList::GetSelectedTreeViewItems() const
@@ -839,28 +858,37 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 
 void SConsoleVariablesEditorList::SetupFilters()
 {
-	TArray<FString> SourceFilterTypes =
+	TArray<EConsoleVariableFlags> SourceFilterTypes =
 	{
-		"Constructor",
-		"Scalability",
-		"Game Setting",
-		"Project Setting",
-		"System Settings ini",
-		"Device Profile",
-		"Game Override",
-		"Console Variables ini",
-		"Command line",
-		"Code",
-		"Console"
+		ECVF_SetByConstructor,
+		ECVF_SetByScalability,
+		ECVF_SetByGameSetting,
+		ECVF_SetByProjectSetting,
+		ECVF_SetBySystemSettingsIni,
+		ECVF_SetByDeviceProfile,
+		ECVF_SetByGameOverride,
+		ECVF_SetByConsoleVariablesIni,
+		ECVF_SetByCommandline,
+		ECVF_SetByCode,
+		ECVF_SetByConsole
 	};
 
-	for (const FString& Type : SourceFilterTypes)
+	for (const EConsoleVariableFlags Type : SourceFilterTypes)
 	{
-		ShowFilters.Add(MakeShared<FConsoleVariablesEditorListFilter_SourceText>(Type));
+		ShowFilters.Add(MakeShared<FConsoleVariablesEditorListFilter_Source>(Type));
 	}
 
 	// Add Show Only Modified filter
-	ShowFilters.Add(MakeShared<ConsoleVariablesEditorListFilter_ModifiedVariables>());
+	ShowFilters.Add(MakeShared<ConsoleVariablesEditorListFilter_ShowOnlyModifiedVariables>());
+
+	// Add Show Only Set By Current Preset filter
+	ShowFilters.Add(MakeShared<ConsoleVariablesEditorListFilter_SetInSession>());
+
+	// Add Show Only Variables filter
+	ShowFilters.Add(MakeShared<ConsoleVariablesEditorListFilter_ShowOnlyVariables>());
+
+	// Add Show Only Commands filter
+	ShowFilters.Add(MakeShared<ConsoleVariablesEditorListFilter_ShowOnlyCommands>());
 }
 
 TSharedRef<SWidget> SConsoleVariablesEditorList::BuildShowOptionsMenu()
@@ -902,18 +930,6 @@ TSharedRef<SWidget> SConsoleVariablesEditorList::BuildShowOptionsMenu()
 	
 	ShowOptionsMenuBuilder.BeginSection("", LOCTEXT("ShowOptions_SortSectionHeading", "Sort"));
 	{
-		// Add commands
-
-		// Save this for later when folders are added
-		/*ShowOptionsMenuBuilder.AddMenuEntry(
-			LOCTEXT("CollapseAll", "Collapse All"),
-			LOCTEXT("ConsoleVariablesEditorList_CollapseAll_Tooltip", "Collapse all expanded actor groups in the Modified Actors list."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &SConsoleVariablesEditorList::SetAllGroupsCollapsed)),
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);*/
-		
 		ShowOptionsMenuBuilder.AddMenuEntry(
 			LOCTEXT("SetSortOrder", "Set Sort Order"),
 			LOCTEXT("ConsoleVariablesEditorList_SetSortOrder_Tooltip", "Makes the current order of the variables list the saved order."),
@@ -998,27 +1014,32 @@ void SConsoleVariablesEditorList::OnListViewSearchTextChanged(const FText& Text)
 
 void SConsoleVariablesEditorList::CacheCurrentListItemData()
 {
-	CachedCommandStates.Empty();
-
-	// We only want preset items, not global search
 	const TArray<FConsoleVariablesEditorListRowPtr>& ListItems =
-		ListModelPtr.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset ?
-			TreeViewRootObjects : LastPresetObjects;
+		GetListModelPtr().Pin()->GetListMode() ==
+			FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset ? TreeViewRootObjects : LastPresetObjects;
+
+	CachedCommandStates.Empty(CachedCommandStates.Num());
 
 	for (const TSharedPtr<FConsoleVariablesEditorListRow>& Item : ListItems)
 	{
 		if (const TSharedPtr<FConsoleVariablesEditorCommandInfo>& CommandInfo = Item->GetCommandInfo().Pin())
 		{
-			if (const IConsoleVariable* AsVariable = CommandInfo->GetConsoleVariablePtr())
-			{
-				CachedCommandStates.Add(
-					{
-						CommandInfo->Command,
-						AsVariable->GetString(),
-						Item->GetWidgetCheckedState()
-					}
-				);
-			}
+			const FString& CommandName = CommandInfo->Command;
+				
+			/*CachedCommandStates.SetNum(Algo::RemoveIf(
+				CachedCommandStates,
+				[CommandName](const FConsoleVariablesEditorAssetSaveData& CachedData)
+				{
+					return CachedData.CommandName.Equals(CommandName);
+				}));*/
+			
+			CachedCommandStates.Add(
+				{
+					CommandInfo->Command,
+					Item->GetCachedValue(),
+					Item->GetWidgetCheckedState()
+				}
+			);
 		}
 	}
 }
@@ -1029,7 +1050,9 @@ void SConsoleVariablesEditorList::RestorePreviousListItemData()
 	{
 		if (const TSharedPtr<FConsoleVariablesEditorCommandInfo>& CommandInfo = Item->GetCommandInfo().Pin())
 		{
-			if (CommandInfo->GetConsoleVariablePtr())
+			FConsoleVariablesEditorCommandInfo::EConsoleObjectType CommandType = CommandInfo->ObjectType;
+			
+			if (CommandInfo->GetConsoleObjectPtr())
 			{
 				const FString& CommandName = CommandInfo->Command;
 				
@@ -1040,17 +1063,15 @@ void SConsoleVariablesEditorList::RestorePreviousListItemData()
 						return CachedData.CommandName.Equals(CommandName);
 					}))
 				{
-					CommandInfo->ExecuteCommand((*Match).CommandValueAsString);
+					Item->SetCachedValue((*Match).CommandValueAsString);
 					Item->SetWidgetCheckedState((*Match).CheckedState);
 				}
 			}
 		}
 	}
-
-	CachedCommandStates.Empty();
 }
 
-void SConsoleVariablesEditorList::GenerateTreeView(const bool bExecuteCommandsAsTheyAreLoaded)
+void SConsoleVariablesEditorList::GenerateTreeView(const bool bSkipExecutionOfCachedCommands)
 {	
 	if (!ensure(TreeViewPtr.IsValid()))
 	{
@@ -1058,6 +1079,9 @@ void SConsoleVariablesEditorList::GenerateTreeView(const bool bExecuteCommandsAs
 	}
 	
 	FlushMemory(true);
+
+	const bool bIsPresetMode =
+		ListModelPtr.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset;
 
 	FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
 
@@ -1076,6 +1100,7 @@ void SConsoleVariablesEditorList::GenerateTreeView(const bool bExecuteCommandsAs
 		default:
 			checkNoEntry();
 	}
+	
 	check(EditableAsset);
 
 	for (const FConsoleVariablesEditorAssetSaveData& SavedCommand : EditableAsset->GetSavedCommands())
@@ -1084,6 +1109,7 @@ void SConsoleVariablesEditorList::GenerateTreeView(const bool bExecuteCommandsAs
 		TSharedPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
 			ConsoleVariablesEditorModule.FindCommandInfoByName(SavedCommand.CommandName).Pin();
 
+		// Make new CommandInfo if one doesn't exist
 		if (!CommandInfo.IsValid())
 		{
 			CommandInfo = MakeShared<FConsoleVariablesEditorCommandInfo>(SavedCommand.CommandName);
@@ -1111,22 +1137,6 @@ void SConsoleVariablesEditorList::GenerateTreeView(const bool bExecuteCommandsAs
 				const ECheckBoxState NewCheckedState =
 					SavedCommand.CheckedState == ECheckBoxState::Unchecked ?
 							ECheckBoxState::Unchecked : ECheckBoxState::Checked;
-
-				if (bExecuteCommandsAsTheyAreLoaded &&
-					ListModelPtr.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
-				{
-					// If the row is checked and the saved value differs from the current value,
-					// execute the command with the saved value 
-					if (CommandInfo->ObjectType == FConsoleVariablesEditorCommandInfo::EConsoleObjectType::Command ||
-						(NewCheckedState == ECheckBoxState::Checked &&
-						CommandInfo->IsCurrentValueDifferentFromInputValue(SavedCommand.CommandValueAsString)))
-					{
-						if (!SavedCommand.CommandValueAsString.IsEmpty())
-						{
-							CommandInfo->ExecuteCommand(SavedCommand.CommandValueAsString);
-						}
-					}
-				}
 		
 				RowToAdd = 
 				   MakeShared<FConsoleVariablesEditorListRow>(
@@ -1134,15 +1144,42 @@ void SConsoleVariablesEditorList::GenerateTreeView(const bool bExecuteCommandsAs
 						   FConsoleVariablesEditorListRow::SingleCommand, 
 						   NewCheckedState, SharedThis(this), TreeViewRootObjects.Num(), nullptr);
 			}
-			
-			TreeViewRootObjects.Add(RowToAdd);
+
+			if (RowToAdd)
+			{
+				bool bIsEligibleForExecution =
+					bIsPresetMode &&
+					CommandInfo->ObjectType != FConsoleVariablesEditorCommandInfo::EConsoleObjectType::NullObject &&
+					RowToAdd->IsRowChecked() &&
+					!SavedCommand.CommandValueAsString.IsEmpty() &&
+					CommandInfo->IsCurrentValueDifferentFromInputValue(SavedCommand.CommandValueAsString);
+				
+				if (bIsEligibleForExecution && bSkipExecutionOfCachedCommands)
+				{
+					// If we want to skip execution of cached commands, we need to check the cached commands for a match
+					// first. If one isn't found, then we'll execute.
+					bIsEligibleForExecution =
+						!CachedCommandStates.ContainsByPredicate(
+							[this, &CommandInfo](const FConsoleVariablesEditorAssetSaveData& Comparator)
+							{
+								return Comparator.CommandName.Equals(CommandInfo->Command);
+							});
+				}
+
+				if (bIsEligibleForExecution)
+				{
+					CommandInfo->ExecuteCommand(SavedCommand.CommandValueAsString);
+				}
+				
+				TreeViewRootObjects.Add(RowToAdd);
+			}
 		}
 	}
 
 	// Now clear out the last preset cache if the list is in preset mode
-	if (ListModelPtr.Pin()->GetListMode() == FConsoleVariablesEditorList::EConsoleVariablesEditorListMode::Preset)
+	if (bIsPresetMode)
 	{
-		LastPresetObjects.Empty();
+		LastPresetObjects.Empty(LastPresetObjects.Num());
 	}
 
 	TreeViewPtr->RequestTreeRefresh();

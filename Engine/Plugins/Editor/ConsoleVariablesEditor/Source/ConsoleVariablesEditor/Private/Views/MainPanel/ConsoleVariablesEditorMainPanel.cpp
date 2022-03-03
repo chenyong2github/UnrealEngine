@@ -60,7 +60,7 @@ void FConsoleVariablesEditorMainPanel::AddConsoleObjectToCurrentPreset(
 	{
 		Asset->AddOrSetConsoleObjectSavedData(
 			{
-				InConsoleCommand,
+				InConsoleCommand.TrimStartAndEnd(),
 				InValue,
 				ECheckBoxState::Checked
 			}
@@ -82,12 +82,33 @@ FReply FConsoleVariablesEditorMainPanel::ValidateConsoleInputAndAddToCurrentPres
 	}
 	
 	const FString CommandString = CommittedText.ToString().TrimStartAndEnd();
-	FString CommandKey;
-	FString ValueString;
+
+	if (CommandString.IsEmpty())
+	{
+		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Input is blank."), __FUNCTION__);
+
+		return FReply::Unhandled();
+	}
 	
+	FString CommandKey; // The actual variable name, like r.ScreenPercentage
+	FString ValueString; // The variable value, usually after the CommandKey and a single space
+	FString AdditionalParams; // Some variables have multiple parameters between the CommandKey and ValueString
+
 	if (CommandString.Contains(" "))
 	{
-		CommandString.Split(TEXT(" "), &CommandKey, &ValueString);
+		// We want to treat the last string after the last space as the value
+		// This allows commands with multiple parameters to be treated as separate list items
+		const int32 IndexOfLastSpace = CommandString.Find(" ", ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+		CommandKey = CommandString.Left(IndexOfLastSpace).TrimStartAndEnd();
+		ValueString = CommandString.RightChop(IndexOfLastSpace).TrimStartAndEnd();
+
+		// If true, this variable has additional parameters
+		if (CommandKey.Contains(" "))
+		{
+			const int32 IndexOfFirstSpace = CommandString.Find(" ", ESearchCase::IgnoreCase, ESearchDir::FromStart);
+			AdditionalParams = CommandKey.RightChop(IndexOfFirstSpace).TrimStartAndEnd();
+			CommandKey = CommandKey.Left(IndexOfFirstSpace).TrimStartAndEnd();
+		}
 	}
 	else
 	{
@@ -105,16 +126,10 @@ FReply FConsoleVariablesEditorMainPanel::ValidateConsoleInputAndAddToCurrentPres
 		}
 		
 		AddConsoleObjectToCurrentPreset(
-			CommandKey,
+			CommandKey + " " + AdditionalParams,
 			ValueString,
 			true
 		);
-	}
-	else if (CommandString.IsEmpty())
-	{
-		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Input is blank."), __FUNCTION__);
-
-		return FReply::Unhandled();
 	}
 	// Try to execute the whole command. Some commands are not registered, but are parsed externally so they won't be found by IConsoleManager::FindConsoleObject
 	else if (GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(), *CommandString))
