@@ -34,7 +34,7 @@ void FLevelEditorModesCommands::RegisterCommands()
 				ModeName = FText::FromName(Mode.ID);
 			}
 			Args.Add(TEXT("Mode"), ModeName);
-			const FText Tooltip = FText::Format( NSLOCTEXT("LevelEditor", "ModeTooltipF", "Activate {Mode} Editing Mode"), Args );
+			const FText Tooltip = FText::Format( NSLOCTEXT("LevelEditor", "ModeTooltipF", "Activate {Mode} Mode"), Args );
 
 			FInputChord DefaultKeyBinding;
 			if (Mode.IsVisible() && editorMode < EdModeKeys.Num())

@@ -26,7 +26,7 @@ UEdModeDefault::UEdModeDefault()
 {
 	Info = FEditorModeInfo(
 		FBuiltinEditorModes::EM_Default,
-		NSLOCTEXT("DefaultMode", "DisplayName", "Select"),
+		NSLOCTEXT("DefaultMode", "DisplayName", "Selection"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.SelectMode", "LevelEditor.SelectMode.Small"),
 		true, 0);
 }
