@@ -921,6 +921,15 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 	uint32 bSupportSkinCacheShaders : 1;
 
+	/**
+	"When enabled this will skip compiling GPU skin vertex factory shader variants with the assumption that all skinning work will be done via the skin cache."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
+		ConsoleVariable = "r.SkinCache.SkipCompilingGPUSkinVF", DisplayName = "Reduce GPU Skin Vertex Factory shader permutations",
+		ToolTip = "Cannot be enabled while the skin cache is turned off.",
+		ConfigRestartRequired = true))
+	uint32 bSkipCompilingGPUSkinVF : 1;
+
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (
 		ConsoleVariable = "r.SkinCache.DefaultBehavior", DisplayName = "Default Skin Cache Behavior",
 		ToolTip = "Default behavior if all skeletal meshes are included/excluded from the skin cache. If Support Ray Tracing is enabled on a mesh, will force inclusive behavior on that mesh."))

@@ -20,6 +20,7 @@ GPUSkinCache.cpp: Performs skinning on a compute shader into a buffer to avoid v
 #include "Algo/Unique.h"
 #include "HAL/IConsoleManager.h"
 #include "RayTracingSkinnedGeometry.h"
+#include "Internationalization/Internationalization.h"
 
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumChunks);
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumVertices);
@@ -31,6 +32,36 @@ DEFINE_STAT(STAT_GPUSkinCache_NumSetVertexStreams);
 DEFINE_STAT(STAT_GPUSkinCache_NumPreGDME);
 DEFINE_LOG_CATEGORY_STATIC(LogSkinCache, Log, All);
 
+/** Exec helper to handle GPU Skin Cache related commands. */
+class FSkinCacheExecHelper : public FSelfRegisteringExec
+{
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+	{
+		/** Command to list all skeletal mesh lods which have the skin cache disabled. */
+		if (FParse::Command(&Cmd, TEXT("list skincacheusage")))
+		{
+			UE_LOG(LogTemp, Display, TEXT("Name, Lod Index, Skin Cache Usage"));
+
+			for (TObjectIterator<USkeletalMesh> It; It; ++It)
+			{
+				if (USkeletalMesh* SkeletalMesh = *It)
+				{
+					for (int32 LODIndex = 0; LODIndex < SkeletalMesh->GetLODNum(); ++LODIndex)
+					{
+						if (FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(LODIndex))
+						{
+							UE_LOG(LogTemp, Display, TEXT("%s, %d, %d"), *SkeletalMesh->GetFullName(), LODIndex, LODInfo->SkinCacheUsage);
+						}
+					}
+				}
+			}
+			return true;
+		}
+		return false;
+	}
+};
+static FSkinCacheExecHelper GSkelMeshExecHelper;
+
 static int32 GEnableGPUSkinCacheShaders = 0;
 
 static FAutoConsoleVariableRef CVarEnableGPUSkinCacheShaders(
@@ -41,6 +72,15 @@ static FAutoConsoleVariableRef CVarEnableGPUSkinCacheShaders(
 	TEXT("GPUSkinVertexFactory.usf needs to be touched to cause a recompile if this changes.\n")
 	TEXT("0 is off(default), 1 is on"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+
+static TAutoConsoleVariable<bool> CVarSkipCompilingGPUSkinVF(
+	TEXT("r.SkinCache.SkipCompilingGPUSkinVF"),
+	false,
+	TEXT("Reduce GPU Skin Vertex Factory shader permutations. Cannot be disabled while the skin cache is turned off.\n")
+	TEXT(" False ( 0): Compile all GPU Skin Vertex factory variants.\n")
+	TEXT(" True  ( 1): Don't compile all GPU Skin Vertex factory variants."),
+    ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
 
 // 0/1
@@ -156,6 +196,43 @@ static inline bool DoesPlatformSupportGPUSkinCache(const FStaticShaderPlatform P
 ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform)
 {
 	return AreSkinCacheShadersEnabled(Platform) != 0 && DoesPlatformSupportGPUSkinCache(Platform);
+}
+
+static inline bool IsGPUSkinCacheEnable(EShaderPlatform Platform)
+{
+	static FShaderPlatformCachedIniValue<int32> PerPlatformCVar(TEXT("r.SkinCache.Mode"));
+	return (PerPlatformCVar.Get(Platform) != 0);
+}
+
+static inline bool IsGPUSkinCacheInclusive(EShaderPlatform Platform)
+{
+	static FShaderPlatformCachedIniValue<int32> PerPlatformCVar(TEXT("r.SkinCache.DefaultBehavior"));
+	return (PerPlatformCVar.Get(Platform) != 0);
+}
+
+bool ShouldWeCompileGPUSkinVFShaders(EShaderPlatform Platform)
+{
+	// If the skin cache is not available on this platform we need to compile GPU Skin VF shaders.
+	if (IsGPUSkinCacheAvailable(Platform) == false)
+	{
+		return true;
+	}
+
+	// If the skin cache is not available on this platform we need to compile GPU Skin VF Shaders.
+	if (IsGPUSkinCacheEnable(Platform) == false)
+	{
+		return true;
+	}
+
+	// If the skin cache has been globally disabled for all skeletal meshes we need to compile GPU Skin VF Shaders.
+	if (IsGPUSkinCacheInclusive(Platform) == false)
+	{
+		return true;
+	}
+
+	// If the skin cache is enabled and we've been asked to skip GPU Skin VF shaders.
+	static FShaderPlatformCachedIniValue<bool> PerPlatformCVar(TEXT("r.SkinCache.SkipCompilingGPUSkinVF"));
+	return (PerPlatformCVar.Get(Platform) == false);
 }
 
 ENGINE_API bool GPUSkinCacheNeedsDuplicatedVertices()
@@ -2083,8 +2160,9 @@ void FGPUSkinCache::CVarSinkFunction()
 {
 	int32 NewGPUSkinCacheValue = CVarEnableGPUSkinCache.GetValueOnAnyThread() != 0;
 	int32 NewRecomputeTangentsValue = CVarGPUSkinCacheRecomputeTangents.GetValueOnAnyThread();
-	float NewSceneMaxSizeInMb = CVarGPUSkinCacheSceneMemoryLimitInMB.GetValueOnAnyThread();
-	int32 NewNumTangentIntermediateBuffers = CVarGPUSkinNumTangentIntermediateBuffers.GetValueOnAnyThread();
+	const float NewSceneMaxSizeInMb = CVarGPUSkinCacheSceneMemoryLimitInMB.GetValueOnAnyThread();
+	const int32 NewNumTangentIntermediateBuffers = CVarGPUSkinNumTangentIntermediateBuffers.GetValueOnAnyThread();
+	const bool NewSkipCompilingGPUSkinVF = CVarSkipCompilingGPUSkinVF.GetValueOnAnyThread();
 
 	if (GEnableGPUSkinCacheShaders)
 	{
@@ -2098,6 +2176,17 @@ void FGPUSkinCache::CVarSinkFunction()
 	{
 		NewGPUSkinCacheValue = 0;
 		NewRecomputeTangentsValue = 0;
+	}
+
+	// We don't have GPU Skin VF shaders at all so we can't fallback to using GPU Skinning.
+	if (NewSkipCompilingGPUSkinVF)
+	{
+		// If we had the skin cache enabled and we are turning it off.
+		if (GEnableGPUSkinCache && (NewGPUSkinCacheValue == 0))
+		{
+			NewGPUSkinCacheValue = 1;
+			UE_LOG(LogSkinCache, Warning, TEXT("Attemping to turn off the GPU Skin Cache, but we don't have GPU Skin VF shaders to fallback to (r.SkinCache.SkipCompilingGPUSkinVF=1).  Leaving skin cache turned on."));
+		}
 	}
 
 	if (NewGPUSkinCacheValue != GEnableGPUSkinCache || NewRecomputeTangentsValue != GSkinCacheRecomputeTangents

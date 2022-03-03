@@ -70,6 +70,7 @@ URendererSettings::URendererSettings(const FObjectInitializer& ObjectInitializer
 	bSupportPointLightWholeSceneShadows = true;
 	bSupportSkyAtmosphere = true;
 	bSupportSkinCacheShaders = false;
+	bSkipCompilingGPUSkinVF = false;
 	GPUSimulationTextureSizeX = 1024;
 	GPUSimulationTextureSizeY = 1024;
 	bEnableRayTracing = 0;
@@ -181,6 +182,17 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			}
 		}
 
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bSupportSkinCacheShaders)
+			&& !bSupportSkinCacheShaders
+			&& bSkipCompilingGPUSkinVF)
+		{
+			FString FullPath = FPaths::ConvertRelativePathToFull(GetDefaultConfigFilename());
+			FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*FullPath, false);
+
+			bSkipCompilingGPUSkinVF = 0;
+			UpdateDependentPropertyInConfigFile(this, GET_MEMBER_NAME_CHECKED(URendererSettings, bSkipCompilingGPUSkinVF));
+		}
+
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, DynamicGlobalIllumination) 
 			&& DynamicGlobalIllumination == EDynamicGlobalIlluminationMethod::Lumen)
 		{
@@ -287,6 +299,12 @@ bool URendererSettings::CanEditChange(const FProperty* InProperty) const
 	{
 		//only allow DISABLE of skincache shaders if raytracing is also disabled as skincache is a dependency of raytracing.
 		return !bSupportSkinCacheShaders || !bEnableRayTracing;
+	}
+
+	// the bSkipCompilingGPUSkinVF setting can only be edited if the skin cache is on.
+	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bSkipCompilingGPUSkinVF)))
+	{
+		return bSupportSkinCacheShaders;
 	}
 
 	// the following settings can only be edited if ray tracing is enabled
