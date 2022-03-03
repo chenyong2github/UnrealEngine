@@ -38,7 +38,7 @@ void UNiagaraScriptSource::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id
 
 	Id.ScriptUsageType = InUsage;
 	Id.ScriptUsageTypeID = InUsageId;
-	Id.CompilerVersionID = FNiagaraCustomVersion::LatestScriptCompileVersion;
+	Id.CompilerVersionID = FNiagaraCustomVersion::GetLatestScriptCompileVersion();
 	if (NodeGraph)
 	{
 		NodeGraph->RebuildCachedCompileIds(bForceRebuild);

@@ -12,7 +12,6 @@
 #include "ShaderCompiler.h"
 #include "DerivedDataCacheInterface.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-#include "ShaderDerivedDataVersion.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"

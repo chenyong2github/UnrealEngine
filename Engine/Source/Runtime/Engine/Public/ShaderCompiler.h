@@ -1325,9 +1325,9 @@ extern ENGINE_API void CompileGlobalShaderMap(ERHIFeatureLevel::Type InFeatureLe
 extern ENGINE_API void CompileGlobalShaderMap(EShaderPlatform Platform, bool bRefreshShaderMap = false);
 extern ENGINE_API void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, bool bRefreshShaderMap);
 
-extern ENGINE_API FString GetGlobalShaderMapDDCKey();
+extern ENGINE_API const FString& GetGlobalShaderMapDDCKey();
 
-extern ENGINE_API FString GetMaterialShaderMapDDCKey();
+extern ENGINE_API const FString& GetMaterialShaderMapDDCKey();
 
 /**
 * Handles serializing in MeshMaterialMaps or GlobalShaderMap from a CookOnTheFly command and applying them to the in-memory shadermaps.

@@ -39,7 +39,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "Components/PrimitiveComponent.h"
 #include "DerivedDataCacheInterface.h"
-#include "ShaderDerivedDataVersion.h"
+#include "UObject/DevObjectVersion.h"
 #include "Misc/FileHelper.h"
 #include "StaticBoundShaderState.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -225,14 +225,16 @@ namespace GlobalShaderCookStats
 }
 #endif
 
-FString GetGlobalShaderMapDDCKey()
+const FString& GetGlobalShaderMapDDCKey()
 {
-	return FString(GLOBALSHADERMAP_DERIVEDDATA_VER);
+	static FString GlobalShaderMapDDCKey = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::GLOBALSHADERMAP_DERIVEDDATA_VER).ToString();
+	return GlobalShaderMapDDCKey;
 }
 
-FString GetMaterialShaderMapDDCKey()
+const FString& GetMaterialShaderMapDDCKey()
 {
-	return FString(MATERIALSHADERMAP_DERIVEDDATA_VER);
+	static FString MaterialShaderMapDDCKey = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::MATERIALSHADERMAP_DERIVEDDATA_VER).ToString();
+	return MaterialShaderMapDDCKey;
 }
 
 namespace ShaderCompiler

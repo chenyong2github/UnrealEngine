@@ -5,6 +5,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Engine/SkeletalMesh.h"
+#include "UObject/DevObjectVersion.h"
 #include "UObject/Package.h"
 
 #if WITH_EDITOR
@@ -182,15 +183,9 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 	}
 }
 
-// If skeletal mesh derived data needs to be rebuilt (new format, serialization
-// differences, etc.) replace the version GUID below with a new one.
-// In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.
-#define SKELETALMESH_DERIVEDDATA_VER TEXT("724A220873DA44A4B31CBE7004F1F545")
-
 const FString& GetSkeletalMeshDerivedDataVersion()
 {
-	static FString CachedVersionString = SKELETALMESH_DERIVEDDATA_VER;
+	static FString CachedVersionString = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::SkeletalMeshDerivedDataVersion).ToString();
 	return CachedVersionString;
 }
 

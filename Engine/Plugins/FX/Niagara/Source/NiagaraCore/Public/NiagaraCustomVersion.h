@@ -180,7 +180,7 @@ struct FNiagaraCustomVersion
 	 meant to capture the state of the translator/VM compiler structure and force a flush of any files in the DDC. Since it is 
 	 a GUID, we don't need to worry about multiple people editing the translator having conflicting files in the shared DDC as 
 	 there should never be any collisions.*/
-	NIAGARACORE_API const static FGuid LatestScriptCompileVersion;
+	NIAGARACORE_API static FGuid GetLatestScriptCompileVersion();
 
 	// The GUID for this custom version number
 	NIAGARACORE_API const static FGuid GUID;

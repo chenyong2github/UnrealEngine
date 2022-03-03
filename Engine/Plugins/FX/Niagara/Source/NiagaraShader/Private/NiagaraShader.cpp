@@ -9,7 +9,7 @@
 #include "Serialization/MemoryReader.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "ShaderCompiler.h"
-#include "NiagaraShaderDerivedDataVersion.h"
+#include "UObject/DevObjectVersion.h"
 #include "NiagaraShaderCompilationManager.h"
 #include "UObject/CoreRedirects.h"
 #if WITH_EDITOR
@@ -619,12 +619,14 @@ void NiagaraShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyStrin
 /** Creates a string key for the derived data cache given a shader map id. */
 static FString GetNiagaraShaderMapKeyString(const FNiagaraShaderMapId& ShaderMapId, EShaderPlatform Platform)
 {
+	static const FString NIAGARASHADERMAP_DERIVEDDATA_VER = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::NIAGARASHADERMAP_DERIVEDDATA_VER).ToString();
+
 	FName Format = LegacyShaderPlatformToShaderFormat(Platform);
 	FString ShaderMapKeyString = Format.ToString() + TEXT("_") + FString(FString::FromInt(GetTargetPlatformManagerRef().ShaderFormatVersion(Format))) + TEXT("_");
 	NiagaraShaderMapAppendKeyString(Platform, ShaderMapKeyString);
 	ShaderMapAppendKeyString(Platform, ShaderMapKeyString);
 	ShaderMapId.AppendKeyString(ShaderMapKeyString);
-	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("NIAGARASM"), NIAGARASHADERMAP_DERIVEDDATA_VER, *ShaderMapKeyString);
+	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("NIAGARASM"), *NIAGARASHADERMAP_DERIVEDDATA_VER, *ShaderMapKeyString);
 }
 
 

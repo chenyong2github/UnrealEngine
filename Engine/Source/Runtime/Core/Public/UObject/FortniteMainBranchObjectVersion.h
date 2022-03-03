@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/Guid.h"
+#include "DevObjectVersion.h"
+#include "Containers/Map.h"
 
 // Custom serialization version for changes made in the //Fortnite/Main stream
 struct CORE_API FFortniteMainBranchObjectVersion
@@ -203,6 +203,19 @@ struct CORE_API FFortniteMainBranchObjectVersion
 
 	// The GUID for this custom version number
 	const static FGuid GUID;
+
+	static TMap<FGuid, FGuid> GetSystemGuids()
+	{
+		TMap<FGuid, FGuid> SystemGuids;
+
+		SystemGuids.Add(FDevSystemGuids::GLOBALSHADERMAP_DERIVEDDATA_VER,    FGuid("8D3A12924CDF4D9F84C0A900E9445CAD"));
+		SystemGuids.Add(FDevSystemGuids::MATERIALSHADERMAP_DERIVEDDATA_VER,  FGuid("1DA85DA5733C4A489A1BE117CDC5ACCC"));
+		SystemGuids.Add(FDevSystemGuids::NIAGARASHADERMAP_DERIVEDDATA_VER,   FGuid("2289D5116CF94BC0AFEAEC541468E645"));
+		SystemGuids.Add(FDevSystemGuids::Niagara_LatestScriptCompileVersion, FGuid("A366AB6E36266F4CBB2DB87D6C07A6A6"));
+		SystemGuids.Add(FDevSystemGuids::SkeletalMeshDerivedDataVersion,     FGuid("ACF593EAAE354FCBB34CF44F5AA1BFD2"));
+
+		return SystemGuids;
+	}
 
 private:
 	FFortniteMainBranchObjectVersion() {}

@@ -220,7 +220,7 @@ void FNiagaraShaderScript::GetShaderMapId(EShaderPlatform Platform, const ITarge
 		OutId.BaseScriptID = BaseScriptId;*/
 		OutId.bUsesRapidIterationParams = bUsesRapidIterationParams;		
 		BaseCompileHash.ToSHAHash(OutId.BaseCompileHash);
-		OutId.CompilerVersionID = FNiagaraCustomVersion::LatestScriptCompileVersion;
+		OutId.CompilerVersionID = FNiagaraCustomVersion::GetLatestScriptCompileVersion();
 
 		OutId.ReferencedCompileHashes.Reserve(ReferencedCompileHashes.Num());
 		for (const FNiagaraCompileHash& Hash : ReferencedCompileHashes)

@@ -6,6 +6,23 @@
 #include "Misc/Guid.h"
 #include "Serialization/CustomVersion.h"
 
+struct CORE_API FDevSystemGuidRegistration
+{
+public:
+	FDevSystemGuidRegistration(const TMap<FGuid, FGuid>& SystemGuids);
+};
+
+struct CORE_API FDevSystemGuids
+{
+	static FGuid GetSystemGuid(FGuid System);
+
+	static const FGuid GLOBALSHADERMAP_DERIVEDDATA_VER;
+	static const FGuid MATERIALSHADERMAP_DERIVEDDATA_VER;
+	static const FGuid NIAGARASHADERMAP_DERIVEDDATA_VER;
+	static const FGuid Niagara_LatestScriptCompileVersion;
+	static const FGuid SkeletalMeshDerivedDataVersion;
+};
+
 class CORE_API FDevVersionRegistration :  public FCustomVersionRegistration
 {
 public:

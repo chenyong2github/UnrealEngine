@@ -1894,7 +1894,7 @@ void UNiagaraScript::PostLoad()
         		}
         	}
 
-        	if (CachedScriptVMId.CompilerVersionID.IsValid() && CachedScriptVMId.CompilerVersionID != FNiagaraCustomVersion::LatestScriptCompileVersion)
+        	if (CachedScriptVMId.CompilerVersionID.IsValid() && CachedScriptVMId.CompilerVersionID != FNiagaraCustomVersion::GetLatestScriptCompileVersion())
         	{
         		bScriptVMNeedsRebuild = true;
         		RebuildReason = TEXT("Niagara compiler version changed since the last time the script was compiled.");
