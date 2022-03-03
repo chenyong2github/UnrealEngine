@@ -329,7 +329,7 @@ public:
 		return Ar;
 	}
 
-	friend FORCEINLINE void operator<<(FStructuredArchiveSlot&& Slot, TObjectPtr<T>& ObjectPtr)
+	friend FORCEINLINE void operator<<(FStructuredArchiveSlot Slot, TObjectPtr<T>& ObjectPtr)
 	{
 		Slot << static_cast<FObjectPtr&>(ObjectPtr);
 	}
