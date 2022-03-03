@@ -49,6 +49,7 @@ AWaterZone::AWaterZone(const FObjectInitializer& Initializer)
 		BoundsComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoundsComponent"));
 		BoundsComponent->SetCollisionObjectType(ECC_WorldStatic);
 		BoundsComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+		BoundsComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		BoundsComponent->SetGenerateOverlapEvents(false);
 		BoundsComponent->SetupAttachment(WaterMesh);
 		// Bounds component extent is half-extent, ZoneExtent is full extent.
