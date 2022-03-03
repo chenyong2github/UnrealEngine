@@ -121,6 +121,15 @@ private:
 	/** Handler to check to see if a Public Asset toggle is allowed */
 	bool CanExecutePublicAssetToggle();
 
+	/** Handler for setting all selected assets to Public */
+	void ExecuteBulkSetPublicAsset();
+
+	/** Handler for setting all selected assets to Private */
+	void ExecuteBulkUnsetPublicAsset();
+
+	/** Handler to check if all selected assets can have their Public state changed */
+	bool CanExecuteBulkSetPublicAsset();
+
 	/** Handler for getting the Public Asset check state */
 	ECheckBoxState GetPublicAssetCheckState();
 
@@ -165,4 +174,6 @@ private:
 
 	/** Cached CanExecute vars */
 	bool bCanExecuteFindInExplorer = false;
+	bool bCanExecutePublicAssetToggle = false;
+	bool bCanExecuteBulkSetPublicAsset = false;
 };
