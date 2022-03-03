@@ -298,6 +298,7 @@ FDevVersionRegistration GRegisterVirtualProductionObjectVersion(FVirtualProducti
 const FGuid FUE5MainStreamObjectVersion::GUID(0x697DD581, 0xE64f41AB, 0xAA4A51EC, 0xBEB7B628);
 // Register UE5 main stream custom version with Core
 FDevVersionRegistration GRegisterUE5MainStreamObjectVersion(FUE5MainStreamObjectVersion::GUID, FUE5MainStreamObjectVersion::LatestVersion, TEXT("UE5-Main"));
+FDevSystemGuidRegistration GRegisterUE5MainBranchSystemGuids(FUE5MainStreamObjectVersion::GetSystemGuids());
 
 // Unique UE5 release version id
 const FGuid FUE5ReleaseStreamObjectVersion::GUID(0xD89B5E42, 0x24BD4D46, 0x8412ACA8, 0xDF641779);
