@@ -36,6 +36,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Components|Box")
 	void SetBoxExtent(FVector InBoxExtent, bool bUpdateOverlaps=true);
 
+	// Set the LineThickness
+	UFUNCTION(BlueprintCallable, Category="Components|Box")
+	void SetLineThickness(float Thickness);
+
 	// @return the box extent, scaled by the component scale.
 	UFUNCTION(BlueprintCallable, Category="Components|Box")
 	FVector GetScaledBoxExtent() const;
