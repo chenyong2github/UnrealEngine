@@ -46,12 +46,13 @@ void CullObjectsForViewCS(
 		uint SourceIndex = ObjectIndex;
 
 		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
+		const float3 TranslatedCenter = LWCToFloat(LWCAdd(DFObjectBounds.Center, PrimaryView.PreViewTranslation));
 
-		float3 WorldCameraOrigin = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
-		float DistanceToViewSq = dot(WorldCameraOrigin - DFObjectBounds.Center, WorldCameraOrigin - DFObjectBounds.Center);
+		const float3 CenterToCamera = PrimaryView.TranslatedWorldCameraOrigin - TranslatedCenter;
+		float DistanceToViewSq = dot(CenterToCamera, CenterToCamera);
 
 		if (DistanceToViewSq < Square(AOMaxViewDistance + DFObjectBounds.SphereRadius)
-			&& ViewFrustumIntersectSphere(DFObjectBounds.Center, DFObjectBounds.SphereRadius + AOObjectMaxDistance))
+			&& ViewFrustumIntersectSphere(LWCHackToFloat(DFObjectBounds.Center), DFObjectBounds.SphereRadius + AOObjectMaxDistance))
 		{
 			FDFObjectData DFObjectData = LoadDFObjectData(SourceIndex);
 
@@ -249,11 +250,12 @@ void ObjectCullVS(
 
 	//@todo - implement ConservativelyBoundSphere
 	FDFObjectBounds ObjectBounds = LoadDFObjectBounds(ObjectIndex);
+	const float3 TranslatedCenter = LWCToFloat(LWCAdd(ObjectBounds.Center, PrimaryView.PreViewTranslation));
 	//@todo - expand to handle conservative rasterization
 	float EffectiveRadius = (ObjectBounds.SphereRadius + AOObjectMaxDistance) * ConservativeRadiusScale;
-	float3 WorldPosition = InPosition.xyz * EffectiveRadius + ObjectBounds.Center;
-	OutPosition = mul(float4(WorldPosition, 1), LWCHackToFloat(PrimaryView.WorldToClip));
-	Output.PositionAndRadius.xyz = ObjectBounds.Center;
+	float3 TranslatedWorldPosition = InPosition.xyz * EffectiveRadius + TranslatedCenter;
+	OutPosition = mul(float4(TranslatedWorldPosition, 1), PrimaryView.TranslatedWorldToClip);
+	Output.PositionAndRadius.xyz = LWCHackToFloat(ObjectBounds.Center);
 	Output.PositionAndRadius.w = ObjectBounds.SphereRadius;
 	Output.ObjectIndexInstanceIndex = uint2(ObjectIndex, InstanceIndex);
 } 

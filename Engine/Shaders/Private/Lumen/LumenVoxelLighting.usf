@@ -225,7 +225,7 @@ void CullToVoxelClipmapCS(
 		if (ObjectIndex < NumSceneObjects)
 		{
 			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
-			WorldObjectCenter = DFObjectBounds.Center;
+			WorldObjectCenter = LWCHackToFloat(DFObjectBounds.Center);
 			WorldObjectExtent = DFObjectBounds.BoxExtent;
 			bEmissiveLightSource = DFObjectBounds.bEmissiveLightSource;
 		}
@@ -293,7 +293,7 @@ void SetupVoxelTracesCS(
 
 #if MESH_TYPE == SDF_MESH_TYPE
 	FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
-	float3 ObjectCenter = DFObjectBounds.Center;
+	float3 ObjectCenter = LWCHackToFloat(DFObjectBounds.Center);
 	float3 ObjectExtent = DFObjectBounds.BoxExtent;
 
 #else // MESH_TYPE == HEIGHTFIELD_MESH_TYPE

@@ -72,7 +72,9 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 #endif
 
 	FDFObjectBounds ObjectBounds = LoadDFObjectBounds(ObjectIndex);
-	float ObjectDistanceSq = dot(ObjectBounds.Center - WorldShadingPosition, ObjectBounds.Center - WorldShadingPosition);
+
+	const float3 CenterToCamera = LWCHackToFloat(ObjectBounds.Center) - WorldShadingPosition;
+	float ObjectDistanceSq = dot(CenterToCamera, CenterToCamera);
 
 	BRANCH
 	// Skip tracing objects with a small projected angle 

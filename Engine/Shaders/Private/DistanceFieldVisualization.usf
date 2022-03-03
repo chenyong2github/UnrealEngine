@@ -200,7 +200,7 @@ void VisualizeMeshDistanceFieldCS(
 	{
 		const uint ObjectIndex = CulledObjectIndices[IndexInCulledList];
 		FDFObjectBounds ObjectBounds = LoadDFObjectBounds(ObjectIndex);
-		float4 SphereCenterAndRadius = float4(ObjectBounds.Center, ObjectBounds.SphereRadius);
+		float4 SphereCenterAndRadius = float4(LWCHackToFloat(ObjectBounds.Center), ObjectBounds.SphereRadius);
 
 		BRANCH
 		if (SphereIntersectCone(SphereCenterAndRadius, TileConeVertex, TileConeAxis, TileConeAngleCos, TileConeAngleSin))

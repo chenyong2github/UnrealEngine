@@ -99,9 +99,11 @@ void CullObjectsForShadowCS(
 	{
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
+		const float3 TranslatedCenter = LWCToFloat(LWCAdd(DFObjectBounds.Center, PrimaryView.PreViewTranslation));
 
-		const bool bConvexHullIntersect = ShadowBoundingSphere.w == 0 && ShadowConvexHullIntersectSphere(DFObjectBounds.Center, DFObjectBounds.SphereRadius);
-		const bool bBoundingSphereIntersect = ShadowBoundingSphere.w > 0 && dot(ShadowBoundingSphere.xyz - DFObjectBounds.Center, ShadowBoundingSphere.xyz - DFObjectBounds.Center) < Square(ShadowBoundingSphere.w + DFObjectBounds.SphereRadius);
+		const float3 CenterToShadowBoundingSphere = ShadowBoundingSphere.xyz - LWCHackToFloat(DFObjectBounds.Center);
+		const bool bConvexHullIntersect = ShadowBoundingSphere.w == 0 && ShadowConvexHullIntersectSphere(LWCHackToFloat(DFObjectBounds.Center), DFObjectBounds.SphereRadius);
+		const bool bBoundingSphereIntersect = ShadowBoundingSphere.w > 0 && dot(CenterToShadowBoundingSphere, CenterToShadowBoundingSphere) < Square(ShadowBoundingSphere.w + DFObjectBounds.SphereRadius);
 
         if (DFObjectBounds.bCastShadow 
 			&& (bConvexHullIntersect || bBoundingSphereIntersect)
@@ -110,7 +112,8 @@ void CullObjectsForShadowCS(
 			FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
 			// Assume ObjectBoundingSphere is located at (0, 0, 0) in local space
-            float ViewDist2 = length2(DFObjectBounds.Center - LWCHackToFloat(PrimaryView.WorldViewOrigin));
+			const float3 TranslatedWorldViewOrigin = LWCToFloat(LWCAdd(PrimaryView.WorldViewOrigin, PrimaryView.PreViewTranslation));
+			float ViewDist2 = length2(TranslatedCenter - TranslatedWorldViewOrigin);
 
             if ((DFObjectData.MinMaxDrawDistance2.x < 0.0001 || ViewDist2 > DFObjectData.MinMaxDrawDistance2.x)
                 && (DFObjectData.MinMaxDrawDistance2.y < 0.0001 || ViewDist2 < DFObjectData.MinMaxDrawDistance2.y))
@@ -551,7 +554,7 @@ void CullObjectsToTileWithGather(
 			FDFObjectBounds Bounds = LoadDFObjectBounds(ObjectIndex);
 
 			BRANCH
-			if (RaySegmentHitSphere(WorldGroup0Center, LightDirection0, RayLength0, Bounds.Center, Bounds.SphereRadius + Group0BoundingRadius))
+			if (RaySegmentHitSphere(WorldGroup0Center, LightDirection0, RayLength0, LWCHackToFloat(Bounds.Center), Bounds.SphereRadius + Group0BoundingRadius))
 			{
 				uint ListIndex;
 				InterlockedAdd(TileNumObjects0, 1U, ListIndex);
@@ -561,7 +564,7 @@ void CullObjectsToTileWithGather(
 			}
 
 			BRANCH
-			if (RaySegmentHitSphere(WorldGroup1Center, LightDirection1, RayLength1, Bounds.Center, Bounds.SphereRadius + Group1BoundingRadius))
+			if (RaySegmentHitSphere(WorldGroup1Center, LightDirection1, RayLength1, LWCHackToFloat(Bounds.Center), Bounds.SphereRadius + Group1BoundingRadius))
 			{
 				uint ListIndex;
 				InterlockedAdd(TileNumObjects1, 1U, ListIndex);

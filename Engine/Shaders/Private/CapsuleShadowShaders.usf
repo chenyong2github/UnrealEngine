@@ -716,7 +716,7 @@ bool TileBoundsIntersectDistanceFieldCaster(
 	float MaxOcclusionDistance)
 {
 	BRANCH
-	if (SphereIntersectSphere(float4(DFObjectBounds.Center, DFObjectBounds.SphereRadius + MaxOcclusionDistance), TileBoundingSphere)
+	if (SphereIntersectSphere(float4(LWCHackToFloat(DFObjectBounds.Center), DFObjectBounds.SphereRadius + MaxOcclusionDistance), TileBoundingSphere)
 #if LIGHT_SOURCE_MODE != LIGHT_SOURCE_FROM_RECEIVER
 		// This 'can object cast on tile bounds' test has to be disabled because the weight used to combine occlusion from multiple objects is computed based on distance to occluder only
 		//&& SphereIntersectConeWithMaxDistance(float4(SphereCenterAndRadius.xyz, SphereCenterAndRadius.w + TileBoundingSphere.w), TileBoundingSphere.xyz, TileConeAxis, TileConeAngleCos, TileConeAngleSin, MaxOcclusionDistance)

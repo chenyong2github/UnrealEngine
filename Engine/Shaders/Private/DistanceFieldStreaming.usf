@@ -127,12 +127,14 @@ void ComputeDistanceFieldAssetWantedMipsCS(
 		uint WantedNumMips = 1;
 		if (DebugForceNumMips == 0)
 		{
-			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex, PrimaryView.PreViewTranslation);
-			float OuterDistanceSq = ComputeSquaredDistanceBetweenAABBs(Mip1WorldTranslatedCenter, Mip1WorldExtent, DFObjectBounds.TranslatedCenter, DFObjectBounds.BoxExtent);
+			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
+			const float3 TranslatedCenter = LWCToFloat(LWCAdd(DFObjectBounds.Center, PrimaryView.PreViewTranslation));
+
+			float OuterDistanceSq = ComputeSquaredDistanceBetweenAABBs(Mip1WorldTranslatedCenter, Mip1WorldExtent, TranslatedCenter, DFObjectBounds.BoxExtent);
  
 			if (OuterDistanceSq <= 0)
 			{
-				float InnerDistanceSq = ComputeSquaredDistanceBetweenAABBs(Mip2WorldTranslatedCenter, Mip2WorldExtent, DFObjectBounds.TranslatedCenter, DFObjectBounds.BoxExtent);
+				float InnerDistanceSq = ComputeSquaredDistanceBetweenAABBs(Mip2WorldTranslatedCenter, Mip2WorldExtent, TranslatedCenter, DFObjectBounds.BoxExtent);
 				WantedNumMips = InnerDistanceSq <= 0 ? 3 : 2;
 			}
 		}

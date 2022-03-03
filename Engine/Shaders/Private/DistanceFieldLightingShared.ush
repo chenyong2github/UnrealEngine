@@ -148,10 +148,9 @@ uint GetCulledNumObjects()
 
 struct FDFObjectBounds
 {
-	float3 TranslatedCenter;	// Translated world space bounds center
-	float3 Center;				// World space bounds center (DF_LWC_TODO)
-	float SphereRadius;			// World space bounding sphere extent
-	float3 BoxExtent;			// World space AABB extent
+	FLWCVector3 Center;	// World space bounds center
+	float SphereRadius;	// World space bounding sphere extent
+	float3 BoxExtent;	// World space AABB extent
 	uint OftenMoving;
 	uint bCastShadow;
 	bool bIsNaniteMesh;
@@ -166,7 +165,7 @@ uint NumSceneHeightfieldObjects;
 
 SamplerState DistanceFieldSampler;
 
-FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex, FLWCVector3 PreViewTranslation)
+FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 {
 	FDFObjectBounds Bounds;
 
@@ -176,8 +175,7 @@ FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex, FLWCVector3 PreViewTranslat
 	float4 Vector1 = SceneObjectBounds[ObjectIndex * DF_OBJECT_BOUNDS_STRIDE + 1];
 	float3 RelativeWorldPosition = Vector1.xyz;
 
-	Bounds.TranslatedCenter = LWCToFloat(LWCAdd(MakeLWCVector3(TilePosition, RelativeWorldPosition), PreViewTranslation));
-	Bounds.Center = LWCHackToFloat(MakeLWCVector3(TilePosition, RelativeWorldPosition)); // DF_LWC_TODO
+	Bounds.Center = MakeLWCVector3(TilePosition, RelativeWorldPosition);
 	Bounds.SphereRadius = Vector1.w;
 
 	float4 Vector2 = SceneObjectBounds[ObjectIndex * DF_OBJECT_BOUNDS_STRIDE + 2];
@@ -190,11 +188,6 @@ FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex, FLWCVector3 PreViewTranslat
 	Bounds.bEmissiveLightSource = (Flags & 8U) != 0U;
 
 	return Bounds;
-}
-
-FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
-{
-	return LoadDFObjectBounds(ObjectIndex, MakeLWCVector3(0, 0)); // DF_LWC_TODO
 }
 
 struct FHeightfieldObjectBounds
