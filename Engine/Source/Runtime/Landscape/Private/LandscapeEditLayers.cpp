@@ -7118,12 +7118,12 @@ void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*
 		Component->LODIndexToMaterialIndex.SetNumUninitialized(MaxLOD + 1);
 		int8 LastLODIndex = INDEX_NONE;
 
-		UMaterialInterface* BaseMaterial = GetLandscapeMaterial();
-		UMaterialInterface* LOD0Material = GetLandscapeMaterial(0);
+		UMaterialInterface* BaseMaterial = Component->GetLandscapeMaterial();
+		UMaterialInterface* LOD0Material = Component->GetLandscapeMaterial(0);
 
 		for (int32 LODIndex = 0; LODIndex <= MaxLOD; ++LODIndex)
 		{
-			UMaterialInterface* CurrentMaterial = GetLandscapeMaterial(LODIndex);
+			UMaterialInterface* CurrentMaterial = Component->GetLandscapeMaterial(LODIndex);
 
 			// if we have a LOD0 override, do not let the base material override it, it should override everything!
 			if (CurrentMaterial == BaseMaterial && BaseMaterial != LOD0Material)

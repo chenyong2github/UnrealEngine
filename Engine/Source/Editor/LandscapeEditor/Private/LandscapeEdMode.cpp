@@ -3434,7 +3434,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			NewLandscape->SetActorRelativeScale3D(FVector(OldScale.X * LandscapeScaleFactor, OldScale.Y * LandscapeScaleFactor, OldScale.Z));
 
 			NewLandscape->LandscapeMaterial = OldLandscape->LandscapeMaterial;
-			NewLandscape->LandscapeMaterialsOverride = OldLandscape->LandscapeMaterialsOverride;
+			NewLandscape->SetPerLODOverrideMaterials(OldLandscape->GetPerLODOverrideMaterials());
 			NewLandscape->CollisionMipLevel = OldLandscape->CollisionMipLevel;
 			NewLandscape->MaxLODLevel = OldLandscape->MaxLODLevel;
 			NewLandscape->LODDistanceFactor_DEPRECATED = OldLandscape->LODDistanceFactor_DEPRECATED;

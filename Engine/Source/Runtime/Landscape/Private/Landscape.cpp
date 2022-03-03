@@ -594,17 +594,10 @@ UMaterialInterface* ULandscapeComponent::GetLandscapeMaterial(int8 InLODIndex) c
 
 		if (World != nullptr)
 		{
-			for (const FLandscapeComponentMaterialOverride& Material : OverrideMaterials)
+			if (const FLandscapePerLODMaterialOverride* LocalMaterialOverride = PerLODOverrideMaterials.FindByPredicate(
+				[InLODIndex](const FLandscapePerLODMaterialOverride& InOverride) { return (InOverride.LODIndex == InLODIndex) && (InOverride.Material != nullptr); }))
 			{
-				if (Material.LODIndex.GetValue() == InLODIndex)
-				{
-					if (Material.Material != nullptr)
-					{
-						return Material.Material;
-					}
-
-					break;
-				}
+				return LocalMaterialOverride->Material;
 			}
 		}
 	}
@@ -823,8 +816,20 @@ void ULandscapeComponent::PostLoad()
 		}
 		LastBakedTextureMaterialGuid = BakedTextureMaterialGuid;
 		LastSavedPhysicalMaterialHash = PhysicalMaterialHash;
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+		if (!OverrideMaterials_DEPRECATED.IsEmpty())
+		{
+			PerLODOverrideMaterials.Reserve(OverrideMaterials_DEPRECATED.Num());
+			for (const FLandscapeComponentMaterialOverride& LocalMaterialOverride : OverrideMaterials_DEPRECATED)
+			{
+				PerLODOverrideMaterials.Add({ LocalMaterialOverride.LODIndex.Default, LocalMaterialOverride.Material });
+			}
+			OverrideMaterials_DEPRECATED.Reset();
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	}
-#endif
+#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 	// Handle old MaterialInstance
@@ -2240,6 +2245,7 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FLandscapeCustomVersion::GUID);
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 
+#if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::MigrateOldPropertiesToNewRenderingProperties)
 	{
 		if (LODDistanceFactor_DEPRECATED > 0)
@@ -2261,6 +2267,7 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 			}
 		}
 	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 void ALandscapeProxy::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -2583,6 +2590,18 @@ void ALandscapeProxy::PostLoad()
 		CreateLandscapeInfo();
 	}
 #if WITH_EDITOR
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	if (!LandscapeMaterialsOverride_DEPRECATED.IsEmpty())
+	{
+		PerLODOverrideMaterials.Reserve(LandscapeMaterialsOverride_DEPRECATED.Num());
+		for (const FLandscapeProxyMaterialOverride& LocalMaterialOverride : LandscapeMaterialsOverride_DEPRECATED)
+		{
+			PerLODOverrideMaterials.Add({ LocalMaterialOverride.LODIndex.Default, LocalMaterialOverride.Material });
+		}
+		LandscapeMaterialsOverride_DEPRECATED.Reset();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+
 	if (GIsEditor && GetWorld() && !GetWorld()->IsGameWorld())
 	{
 		if ((GetLinker() && (GetLinker()->UEVer() < VER_UE4_LANDSCAPE_COMPONENT_LAZY_REFERENCES)) ||
@@ -2741,7 +2760,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		if (!LandscapeMaterial)
 		{
 			LandscapeMaterial = Landscape->LandscapeMaterial;
-			LandscapeMaterialsOverride = Landscape->LandscapeMaterialsOverride;
+			PerLODOverrideMaterials = Landscape->PerLODOverrideMaterials;
 		}
 		if (!LandscapeHoleMaterial)
 		{
@@ -2893,17 +2912,10 @@ UMaterialInterface* ALandscapeProxy::GetLandscapeMaterial(int8 InLODIndex) const
 
 		if (World != nullptr)
 		{
-			for (const FLandscapeProxyMaterialOverride& OverrideMaterial : LandscapeMaterialsOverride)
+			if (const FLandscapePerLODMaterialOverride* LocalMaterialOverride = PerLODOverrideMaterials.FindByPredicate(
+				[InLODIndex](const FLandscapePerLODMaterialOverride& InOverride) { return (InOverride.LODIndex == InLODIndex) && (InOverride.Material != nullptr); }))
 			{
-				if (OverrideMaterial.LODIndex.GetValue() == InLODIndex)
-				{
-					if (OverrideMaterial.Material != nullptr)
-					{
-						return OverrideMaterial.Material;
-					}
-
-					break;
-				}
+				return LocalMaterialOverride->Material;
 			}
 		}
 	}
@@ -2924,17 +2936,10 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODInd
 
 		if (World != nullptr)
 		{
-			for (const FLandscapeProxyMaterialOverride& OverrideMaterial : LandscapeMaterialsOverride)
+			if (const FLandscapePerLODMaterialOverride* LocalMaterialOverride = PerLODOverrideMaterials.FindByPredicate(
+				[InLODIndex](const FLandscapePerLODMaterialOverride& InOverride) { return (InOverride.LODIndex == InLODIndex) && (InOverride.Material != nullptr); }))
 			{
-				if (OverrideMaterial.LODIndex.GetValue() == InLODIndex)
-				{
-					if (OverrideMaterial.Material != nullptr)
-					{
-						return OverrideMaterial.Material;
-					}
-
-					break;
-				}
+				return LocalMaterialOverride->Material;
 			}
 		}
 	}
@@ -3841,6 +3846,7 @@ void FLandscapeComponentDerivedData::SaveToDDC(const FGuid& StateId, UObject* Co
 	GetDerivedDataCacheRef().Put(*GetDDCKeyString(StateId), Bytes, Component->GetPathName());
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 ALandscapeProxy::~ALandscapeProxy()
 {
 	for (int32 Index = 0; Index < AsyncFoliageTasks.Num(); Index++)
@@ -3863,6 +3869,7 @@ ALandscapeProxy::~ALandscapeProxy()
 	LandscapeProxies.Remove(this);
 #endif
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 //
 // ALandscapeMeshProxyActor
@@ -3907,6 +3914,19 @@ void ULandscapeMeshProxyComponent::InitializeForLandscape(ALandscapeProxy* Lands
 }
 
 #if WITH_EDITOR
+void ALandscapeProxy::SerializeStateHashes(FArchive& Ar)
+{
+	for (FLandscapePerLODMaterialOverride& MaterialOverride : PerLODOverrideMaterials)
+	{
+		if (MaterialOverride.Material != nullptr)
+		{
+			FGuid LocalStateId = MaterialOverride.Material->GetMaterial_Concurrent()->StateId;
+			Ar << LocalStateId;
+			Ar << MaterialOverride.LODIndex;
+		}
+	}
+}
+
 void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 {
 	FGuid HeightmapGuid = HeightmapTexture->Source.GetId();
@@ -3931,7 +3951,7 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 		Ar << LocalStateId;
 	}
 
-	for (FLandscapeComponentMaterialOverride& MaterialOverride : OverrideMaterials)
+	for (FLandscapePerLODMaterialOverride& MaterialOverride : PerLODOverrideMaterials)
 	{
 		if (MaterialOverride.Material != nullptr)
 		{
@@ -3949,15 +3969,7 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 		Ar << LocalStateId;
 	}
 
-	for (FLandscapeProxyMaterialOverride& MaterialOverride : Proxy->LandscapeMaterialsOverride)
-	{
-		if (MaterialOverride.Material != nullptr)
-		{
-			FGuid LocalStateId = MaterialOverride.Material->GetMaterial_Concurrent()->StateId;
-			Ar << LocalStateId;
-			Ar << MaterialOverride.LODIndex;
-		}
-	}
+	Proxy->SerializeStateHashes(Ar);
 }
 
 FLandscapeGIBakedTextureBuilder::FLandscapeGIBakedTextureBuilder(UWorld* InWorld)

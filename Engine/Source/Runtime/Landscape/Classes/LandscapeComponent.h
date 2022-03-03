@@ -300,8 +300,8 @@ struct FLandscapeComponentGrassData
 	friend FArchive& operator<<(FArchive& Ar, FLandscapeComponentGrassData& Data);
 };
 
-USTRUCT(NotBlueprintable)
-struct FLandscapeComponentMaterialOverride
+USTRUCT(NotBlueprintable, meta = (Deprecated = "5.1"))
+struct UE_DEPRECATED(5.1, "FLandscapeComponentMaterialOverride is deprecated; please use FLandscapePerLODMaterialOverride instead") FLandscapeComponentMaterialOverride
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -310,6 +310,24 @@ struct FLandscapeComponentMaterialOverride
 
 	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
 	TObjectPtr<UMaterialInterface> Material = nullptr;
+};
+
+USTRUCT(NotBlueprintable)
+struct FLandscapePerLODMaterialOverride
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Material, meta = (UIMin = 0, UIMax = 8, ClampMin = 0, ClampMax = 8))
+	int32 LODIndex = 0;
+
+	UPROPERTY(EditAnywhere, Category = Material)
+	TObjectPtr<UMaterialInterface> Material = nullptr;
+
+	bool operator == (const FLandscapePerLODMaterialOverride & InOther) const
+	{
+		return (LODIndex == InOther.LODIndex)
+			&& (Material == InOther.Material);
+	}
 };
 
 USTRUCT(NotBlueprintable)
@@ -480,10 +498,13 @@ class ULandscapeComponent : public UPrimitiveComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LandscapeComponent, AdvancedDisplay)
 	TObjectPtr<UMaterialInterface> OverrideHoleMaterial;
 
-	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
-	TArray<FLandscapeComponentMaterialOverride> OverrideMaterials;
-
 #if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.1, "OverrideMaterials has been deprecated, use PerLODOverrideMaterials instead.")
+	UPROPERTY()
+	TArray<FLandscapeComponentMaterialOverride> OverrideMaterials_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceConstant> MaterialInstance_DEPRECATED;
 #endif
@@ -568,6 +589,9 @@ private:
 	/** Used to interface the component to the LOD streamer. */
 	UPROPERTY()
 	TObjectPtr<ULandscapeLODStreamingProxy> LODStreamingProxy;
+
+	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
+	TArray<FLandscapePerLODMaterialOverride> PerLODOverrideMaterials;
 
 public:
 
@@ -759,6 +783,9 @@ public:
 	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnEditingWeightmap = false) const;
 	LANDSCAPE_API TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(const FGuid& InLayerGuid);
 	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(const FGuid& InLayerGuid) const;
+
+	const TArray<FLandscapePerLODMaterialOverride>& GetPerLODOverrideMaterials() const { return PerLODOverrideMaterials; }
+	void SetPerLODOverrideMaterials(const TArray<FLandscapePerLODMaterialOverride>& InValue) { PerLODOverrideMaterials = InValue; }
 
 #if WITH_EDITOR
 	LANDSCAPE_API uint32 ComputeLayerHash(bool InReturnEditingHash = true) const;

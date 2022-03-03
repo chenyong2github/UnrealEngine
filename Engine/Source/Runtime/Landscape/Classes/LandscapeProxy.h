@@ -320,8 +320,8 @@ public:
 	~FAsyncGrassTask();
 };
 
-USTRUCT()
-struct FLandscapeProxyMaterialOverride
+USTRUCT(meta = (Deprecated = "5.1"))
+struct UE_DEPRECATED(5.1, "FLandscapeProxyMaterialOverride is deprecated; please use FLandscapePerLODMaterialOverride instead") FLandscapeProxyMaterialOverride
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -330,31 +330,6 @@ struct FLandscapeProxyMaterialOverride
 
 	UPROPERTY(EditAnywhere, Category = Landscape)
 	TObjectPtr<UMaterialInterface> Material = nullptr;
-
-#if WITH_EDITORONLY_DATA
-	bool operator==(const FLandscapeProxyMaterialOverride& InOther) const
-	{
-		if (Material != InOther.Material)
-		{
-			return false;
-		}
-
-		if (LODIndex.Default != InOther.LODIndex.Default || LODIndex.PerPlatform.Num() != InOther.LODIndex.PerPlatform.Num())
-		{
-			return false;
-		}
-
-		for (auto& ItPair : LODIndex.PerPlatform)
-		{
-			if (!InOther.LODIndex.PerPlatform.Contains(ItPair.Key))
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
-#endif
 };
 
 UCLASS(Abstract, MinimalAPI, NotBlueprintable, NotPlaceable, hidecategories=(Display, Attachment, Physics, Debug, Lighting, HLOD), showcategories=(Lighting, Rendering, Transformation), hidecategories=(Mobility))
@@ -375,6 +350,14 @@ protected:
 	UPROPERTY()
 	FGuid LandscapeGuid;
 
+	UPROPERTY(EditAnywhere, Category = Landscape)
+	TArray<FLandscapePerLODMaterialOverride> PerLODOverrideMaterials;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(Transient)
+	TArray<FLandscapePerLODMaterialOverride> PreEditPerLODOverrideMaterials;
+#endif // WITH_EDITORONLY_DATA
+
 public:
 	LANDSCAPE_API TOptional<float> GetHeightAtLocation(FVector Location) const;
 
@@ -389,11 +372,13 @@ public:
 	UPROPERTY(EditAnywhere, Category=LOD)
 	int32 MaxLODLevel;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	float LODDistanceFactor_DEPRECATED;
 
 	UPROPERTY()
 	TEnumAsByte<ELandscapeLODFalloff::Type> LODFalloff_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Component screen size (0.0 - 1.0) at which we should keep sub sections. This is mostly pertinent if you have large component of > 64 and component are close to the camera. The goal is to reduce draw call, so if a component is smaller than the value, we merge all subsections into 1 drawcall. */
 	UPROPERTY(EditAnywhere, Category = LOD, meta=(ClampMin = "0.01", ClampMax = "1.0", UIMin = "0.01", UIMax = "1.0", DisplayName= "SubSection Min Component ScreenSize"))
@@ -460,18 +445,20 @@ public:
 	UPROPERTY(EditAnywhere, Category=Landscape, AdvancedDisplay)
 	TObjectPtr<UMaterialInterface> LandscapeHoleMaterial;
 
-	UPROPERTY(EditAnywhere, Category = Landscape)
-	TArray<FLandscapeProxyMaterialOverride> LandscapeMaterialsOverride;
 
 #if WITH_EDITORONLY_DATA
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.1, "LandscapeComponentMaterialOverride has been deprecated, use PerLODOverrideMaterials instead.")
+	UPROPERTY()
+	TArray<FLandscapeProxyMaterialOverride> LandscapeMaterialsOverride_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInterface> PreEditLandscapeMaterial;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInterface> PreEditLandscapeHoleMaterial;
-
-	UPROPERTY(Transient)
-	TArray<FLandscapeProxyMaterialOverride> PreEditLandscapeMaterialsOverride;
 
 	UPROPERTY(Transient)
 	bool bIsPerformingInteractiveActionOnLandscapeMaterialOverride;
@@ -728,8 +715,6 @@ public:
 	UPROPERTY()
 	bool bHasLayersContent;
 
-public:
-
 #if WITH_EDITOR
 	LANDSCAPE_API static ULandscapeLayerInfoObject* VisibilityLayer;
 #endif
@@ -816,6 +801,9 @@ public:
 	virtual ALandscape* GetLandscapeActor() PURE_VIRTUAL(GetLandscapeActor, return nullptr;)
 	virtual const ALandscape* GetLandscapeActor() const PURE_VIRTUAL(GetLandscapeActor, return nullptr;)
 
+	const TArray<FLandscapePerLODMaterialOverride>& GetPerLODOverrideMaterials() const { return PerLODOverrideMaterials; }
+	void SetPerLODOverrideMaterials(const TArray<FLandscapePerLODMaterialOverride>& InValue) { PerLODOverrideMaterials = InValue; }
+
 	static void SetGrassUpdateInterval(int32 Interval) { GrassUpdateInterval = Interval; }
 
 	/* Per-frame call to update dynamic grass placement and render grassmaps */
@@ -851,9 +839,9 @@ public:
 		* @param bForceSync if true, block and finish all work
 	*/
 	LANDSCAPE_API void UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNumComponentsCreated, bool bForceSync = false);
-
 	LANDSCAPE_API void UpdateGrass(const TArray<FVector>& Cameras, bool bForceSync = false);
 
+	// TODO [jonathan.bard] : Rename to "AddGrassExlusionBox" + no reason for any of this to be static
 	LANDSCAPE_API static void AddExclusionBox(FWeakObjectPtr Owner, const FBox& BoxToRemove);
 	LANDSCAPE_API static void RemoveExclusionBox(FWeakObjectPtr Owner);
 	LANDSCAPE_API static void RemoveAllExclusionBoxes();
@@ -941,6 +929,9 @@ public:
 	LANDSCAPE_API TArray<float> GetLODScreenSizeArray() const;
 
 #if WITH_EDITOR
+	/* Serialize all hashes/guids that record the current state of this proxy */
+	void SerializeStateHashes(FArchive& Ar);
+
 	LANDSCAPE_API void SetSplinesComponent(ULandscapeSplinesComponent* InSplineComponent) { check(!SplineComponent); SplineComponent = InSplineComponent; }
 
 	LANDSCAPE_API virtual bool SupportsForeignSplineMesh() const override { return true; }

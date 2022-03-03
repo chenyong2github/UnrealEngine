@@ -193,7 +193,8 @@ bool FLandscapeConfigHelper::ChangeGridSize(ULandscapeInfo* InLandscapeInfo, uin
 					}
 				}
 
-				MovedComponent->OverrideMaterials.Reset();
+				TArray<FLandscapePerLODMaterialOverride> PerLODOverrideMaterialsForComponent;
+				TArray<FLandscapePerLODMaterialOverride> PerLODOverrideMaterialsForProxy = LandscapeProxy->GetPerLODOverrideMaterials();
 				for (int32 LODIndex = 0; LODIndex <= 8; ++LODIndex)
 				{
 					UMaterialInterface* PreviousLODMaterial = PreviousLandscapeLODMaterials.FindChecked(LODIndex);
@@ -202,14 +203,16 @@ bool FLandscapeConfigHelper::ChangeGridSize(ULandscapeInfo* InLandscapeInfo, uin
 					{
 						if (LandscapeProxy->GetLandscapeMaterial(LODIndex) == LandscapeProxy->GetLandscapeActor()->GetLandscapeMaterial(LODIndex))
 						{
-							LandscapeProxy->LandscapeMaterialsOverride.Add({ LODIndex, decltype(FLandscapeProxyMaterialOverride::Material)(PreviousLODMaterial) });
+							PerLODOverrideMaterialsForProxy.Add({ LODIndex, TObjectPtr<UMaterialInterface>(PreviousLODMaterial) });
 						}
 						else // If it already differs it means that the component differs from it, override on component
 						{
-							MovedComponent->OverrideMaterials.Add({ LODIndex, decltype(FLandscapeComponentMaterialOverride::Material)(PreviousLODMaterial) });
+							PerLODOverrideMaterialsForComponent.Add({ LODIndex, TObjectPtr<UMaterialInterface>(PreviousLODMaterial) });
 						}
 					}
 				}
+				MovedComponent->SetPerLODOverrideMaterials(PerLODOverrideMaterialsForComponent);
+				LandscapeProxy->SetPerLODOverrideMaterials(PerLODOverrideMaterialsForProxy);
 			}
 		}
 
