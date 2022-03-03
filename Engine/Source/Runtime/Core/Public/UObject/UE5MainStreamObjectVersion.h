@@ -191,6 +191,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Add Texture DoScaleMipsForAlphaCoverage
 		TextureDoScaleMipsForAlphaCoverage,
 
+		// Fixed default value of volumetric cloud to be exact match with main view, more expenssive but we let user choosing how to lower the quality.
+		VolumetricCloudReflectionSampleCountDefaultUpdate,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

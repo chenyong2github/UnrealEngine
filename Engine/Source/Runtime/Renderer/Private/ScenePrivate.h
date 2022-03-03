@@ -2841,6 +2841,10 @@ public:
 
 	/** The current progress of the real time reflection capture when time sliced. */
 	int32 RealTimeSlicedReflectionCaptureState;
+	/** The current progress of each sub step of a state capture of the real time reflection capture when time sliced. */
+	int32 RealTimeSlicedReflectionCaptureStateStep;
+	/** When a state is sub divided, StepDone tells us if we can move onto the next step*/
+	bool bRealTimeSlicedReflectionCaptureStateStepDone;
 
 	/** Cache of Frame Number, used to detect first viewfamily */
 	uint64 RealTimeSlicedReflectionCaptureFrameNumber;

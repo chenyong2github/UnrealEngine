@@ -15,6 +15,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInstance.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
@@ -40,10 +41,12 @@ UVolumetricCloudComponent::UVolumetricCloudComponent(const FObjectInitializer& O
 	, bUsePerSampleAtmosphericLightTransmittance(false)
 	, SkyLightCloudBottomOcclusion(0.5f)
 	, ViewSampleCountScale(1.0f)
-	, ReflectionViewSampleCountScale(0.15f)			// Roughly equivalent to previous default 1.0f, scaled by OldToNewReflectionViewRaySampleCount
+	, ReflectionViewSampleCountScaleValue(1.0f)
+	, ReflectionViewSampleCountScale_DEPRECATED(0.15f)		// Roughly equivalent to previous default 1.0f, scaled by OldToNewReflectionViewRaySampleCount
 	, ReflectionSampleCountScale_DEPRECATED(1.0f)
 	, ShadowViewSampleCountScale(1.0f)
-	, ShadowReflectionViewSampleCountScale(0.3f)	// Roughly equivalent to previous default 1.0f, scaled by OldToNewReflectionShadowRaySampleCount
+	, ShadowReflectionViewSampleCountScaleValue(1.0f)
+	, ShadowReflectionViewSampleCountScale_DEPRECATED(0.3f)	// Roughly equivalent to previous default 1.0f, scaled by OldToNewReflectionShadowRaySampleCount
 	, ShadowReflectionSampleCountScale_DEPRECATED(1.0f)
 	, ShadowTracingDistance(15.0f)
 	, StopTracingTransmittanceThreshold(0.005f)
@@ -126,11 +129,18 @@ void UVolumetricCloudComponent::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::VolumetricCloudSampleCountUnification && Ar.IsLoading())
 	{
-		ReflectionViewSampleCountScale		= ReflectionSampleCountScale_DEPRECATED		  * UVolumetricCloudComponent::OldToNewReflectionViewRaySampleCount;
-		ShadowReflectionViewSampleCountScale= ShadowReflectionSampleCountScale_DEPRECATED * UVolumetricCloudComponent::OldToNewReflectionShadowRaySampleCount;
+		ReflectionViewSampleCountScale_DEPRECATED		= ReflectionSampleCountScale_DEPRECATED		  * UVolumetricCloudComponent::OldToNewReflectionViewRaySampleCount;
+		ShadowReflectionViewSampleCountScale_DEPRECATED = ShadowReflectionSampleCountScale_DEPRECATED * UVolumetricCloudComponent::OldToNewReflectionShadowRaySampleCount;
+	}
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::VolumetricCloudReflectionSampleCountDefaultUpdate && Ar.IsLoading())
+	{
+		ReflectionViewSampleCountScaleValue = ReflectionViewSampleCountScale_DEPRECATED;
+		ShadowReflectionViewSampleCountScaleValue = ShadowReflectionViewSampleCountScale_DEPRECATED;
 	}
 }
 
@@ -153,26 +163,41 @@ CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(FColor, GroundAlbedo);
 CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(bool, bUsePerSampleAtmosphericLightTransmittance);
 CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, SkyLightCloudBottomOcclusion);
 CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ViewSampleCountScale);
-CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ReflectionViewSampleCountScale);
 CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ShadowViewSampleCountScale);
-CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ShadowReflectionViewSampleCountScale);
 CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, ShadowTracingDistance);
 CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(float, StopTracingTransmittanceThreshold);
 CLOUD_DECLARE_BLUEPRINT_SETFUNCTION(UMaterialInterface*, Material);
 
+void UVolumetricCloudComponent::SetReflectionViewSampleCountScale(float NewValue)
+{
+	if (AreDynamicDataChangesAllowed() && ReflectionViewSampleCountScaleValue != NewValue)
+	{
+		ReflectionViewSampleCountScaleValue = NewValue;
+		MarkRenderStateDirty();
+	}
+}
+void UVolumetricCloudComponent::SetShadowReflectionViewSampleCountScale(float NewValue)
+{
+	if (AreDynamicDataChangesAllowed() && ShadowReflectionViewSampleCountScaleValue != NewValue)
+	{
+		ShadowReflectionViewSampleCountScaleValue = NewValue;
+		MarkRenderStateDirty();
+	}
+}
+
 void UVolumetricCloudComponent::SetReflectionSampleCountScale(float NewValue)
 {
-	if (AreDynamicDataChangesAllowed() && ReflectionViewSampleCountScale != NewValue)
+	if (AreDynamicDataChangesAllowed() && ReflectionViewSampleCountScaleValue != NewValue * UVolumetricCloudComponent::OldToNewReflectionViewRaySampleCount)
 	{
-		ReflectionViewSampleCountScale = NewValue * UVolumetricCloudComponent::OldToNewReflectionViewRaySampleCount;
+		ReflectionViewSampleCountScaleValue = NewValue * UVolumetricCloudComponent::OldToNewReflectionViewRaySampleCount;
 		MarkRenderStateDirty();
 	}
 }
 void UVolumetricCloudComponent::SetShadowReflectionSampleCountScale(float NewValue)
 {
-	if (AreDynamicDataChangesAllowed() && ShadowReflectionViewSampleCountScale != NewValue)
+	if (AreDynamicDataChangesAllowed() && ShadowReflectionViewSampleCountScaleValue != NewValue * UVolumetricCloudComponent::OldToNewReflectionShadowRaySampleCount)
 	{
-		ShadowReflectionViewSampleCountScale = NewValue * UVolumetricCloudComponent::OldToNewReflectionShadowRaySampleCount;
+		ShadowReflectionViewSampleCountScaleValue = NewValue * UVolumetricCloudComponent::OldToNewReflectionShadowRaySampleCount;
 		MarkRenderStateDirty();
 	}
 }

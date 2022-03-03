@@ -31,6 +31,11 @@ DECLARE_GPU_STAT(CaptureConvolveSkyEnvMap);
 
 static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureTimeSlicing(
 	TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice"), 1,
+	TEXT("When enabled, the real-time sky light capture and convolutions will by distributed over several frames to lower the per-frame cost. Value in [1,6]."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureTimeSlicingSkyCloudCubeFacePerFrame(
+	TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice.SkyCloudCubeFacePerFrame"), 6,
 	TEXT("When enabled, the real-time sky light capture and convolutions will by distributed over several frames to lower the per-frame cost."),
 	ECVF_RenderThreadSafe);
 
@@ -368,7 +373,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 			});
 	};
 
-	auto RenderCubeFaces_SkyCloud = [&](bool bExecuteSky, bool bExecuteCloud, TRefCountPtr<IPooledRenderTarget>& SkyRenderTarget)
+	auto RenderCubeFaces_SkyCloud = [&](bool bExecuteSky, bool bExecuteCloud, TRefCountPtr<IPooledRenderTarget>& SkyRenderTarget, int32 StartCubeFace, int32 EndCubeFace)
 	{
 		FScene* Scene = MainView.Family->Scene->GetRenderScene();
 
@@ -467,8 +472,10 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 			}
 
 
-			for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
+			for (int32 CubeFace = StartCubeFace; CubeFace < EndCubeFace; CubeFace++)
 			{
+				RDG_EVENT_SCOPE(GraphBuilder, "Capture Face=%d", CubeFace);
+
 				SkyRC.RenderTargets[0] = FRenderTargetBinding(SkyCubeTexture, ERenderTargetLoadAction::ENoAction, 0, CubeFace);
 
 				const FMatrix CubeViewRotationMatrix = CalcCubeFaceViewRotationMatrix((ECubeFace)CubeFace);
@@ -572,6 +579,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						// If there are any mesh tagged as IsSky then we render them only, otherwise we simply render the sky atmosphere itself.
 						if (MainView.bSceneHasSkyMaterial)
 						{
+							RDG_EVENT_SCOPE(GraphBuilder, "Capture Sky Materials", CubeFace);
 							auto* PassParameters = GraphBuilder.AllocParameters<FCaptureSkyMeshReflectionPassParameters>();
 							PassParameters->View = CubeView.GetShaderParameters();
 							PassParameters->RenderTargets = SkyRC.RenderTargets;
@@ -616,6 +624,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						}
 						else
 						{
+							RDG_EVENT_SCOPE(GraphBuilder, "Capture Sky Raw", CubeFace);
 							FSceneTextureShaderParameters SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, SceneRenderer.FeatureLevel, ESceneTextureSetupMode::SceneDepth);
 							SceneRenderer.RenderSkyAtmosphereInternal(GraphBuilder, SceneTextures, SkyRC);
 						}
@@ -883,7 +892,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		ConvolvedSkyRenderTargetReadyIndex = 0;
 
 		// 0.60ms (0.12ms for faces with the most clouds)
-		RenderCubeFaces_SkyCloud(true, true, CapturedSkyRenderTarget);
+		RenderCubeFaces_SkyCloud(true, true, CapturedSkyRenderTarget, 0, CubeFace_MAX);
 
 		// 0.05ms
 		RenderCubeFaces_GenCubeMips(1, LastMipLevel, CapturedSkyRenderTarget);
@@ -911,32 +920,49 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		const int32 ConvolvedSkyRenderTargetWorkIndex = 1 - ConvolvedSkyRenderTargetReadyIndex;
 		const int32 TimeSliceCount = 12;
 
-		// Update the current time-slicing state if this is a new frame
+#define DEBUG_TIME_SLICE 0
+#if DEBUG_TIME_SLICE
+		RealTimeSlicedReflectionCaptureState = -1;
+		RealTimeSlicedReflectionCaptureStateStep = 0;
+		while(true)
+		{
+			if (RealTimeSlicedReflectionCaptureState+1 >= TimeSliceCount)
+			{
+				break;
+			}
+#endif 
+
+		// Update the current time-slicing state if this is a new frame and if the current step is done.
 		// Note: RealTimeSlicedReflectionCaptureState will initially be -1.
-		if (bIsNewFrame)
+		if (bIsNewFrame && bRealTimeSlicedReflectionCaptureStateStepDone)
 		{
 			if (++RealTimeSlicedReflectionCaptureState >= TimeSliceCount)
 			{
 				RealTimeSlicedReflectionCaptureState = 0;
+				RealTimeSlicedReflectionCaptureStateStep = 0;
 			}
 		}
+		bRealTimeSlicedReflectionCaptureStateStepDone = true;
 
-#define DEBUG_TIME_SLICE 0
-#if DEBUG_TIME_SLICE
-		RealTimeSlicedReflectionCaptureState = 0;
-		for(int i=0; i<TimeSliceCount; ++i)
-		{
-#endif 
+		const int32 SkyCloudFrameStepCount	= FMath::Clamp(CVarRealTimeReflectionCaptureTimeSlicingSkyCloudCubeFacePerFrame.GetValueOnRenderThread(), int32(1), int32(CubeFace_MAX));
+		const int32 SkyCloudStartSubStep	= FMath::Clamp(RealTimeSlicedReflectionCaptureStateStep, int32(0), int32(CubeFace_MAX - 1));
+		const int32 SkyCloudEndSubStep		= FMath::Clamp(RealTimeSlicedReflectionCaptureStateStep + SkyCloudFrameStepCount, int32(0), int32(CubeFace_MAX));
 
 		if (RealTimeSlicedReflectionCaptureState <= 0)
 		{
-			RDG_EVENT_SCOPE(GraphBuilder, "RenderSky");
-			RenderCubeFaces_SkyCloud(true, false, CapturedSkyRenderTarget);
+			RDG_EVENT_SCOPE(GraphBuilder, "RenderSky StartFace=%d EndFace=%d", SkyCloudStartSubStep, SkyCloudEndSubStep);
+			RenderCubeFaces_SkyCloud(true, false, CapturedSkyRenderTarget, SkyCloudStartSubStep, SkyCloudEndSubStep);
+
+			bRealTimeSlicedReflectionCaptureStateStepDone = SkyCloudEndSubStep >= CubeFace_MAX;
+			RealTimeSlicedReflectionCaptureStateStep = bRealTimeSlicedReflectionCaptureStateStepDone ? 0 : SkyCloudEndSubStep;
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 1)
 		{
-			RDG_EVENT_SCOPE(GraphBuilder, "RenderCloud");
-			RenderCubeFaces_SkyCloud(false, true, CapturedSkyRenderTarget);
+			RDG_EVENT_SCOPE(GraphBuilder, "RenderCloud StartFace=%d EndFace=%d", SkyCloudStartSubStep, SkyCloudEndSubStep);
+			RenderCubeFaces_SkyCloud(false, true, CapturedSkyRenderTarget, SkyCloudStartSubStep, SkyCloudEndSubStep);
+
+			bRealTimeSlicedReflectionCaptureStateStepDone = SkyCloudEndSubStep >= CubeFace_MAX;
+			RealTimeSlicedReflectionCaptureStateStep = bRealTimeSlicedReflectionCaptureStateStepDone ? 0 : SkyCloudEndSubStep;
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 2)
 		{
