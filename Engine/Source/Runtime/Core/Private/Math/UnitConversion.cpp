@@ -17,6 +17,7 @@ struct FParseCandidate
 	EUnit Unit;
 };
 
+//TODO: Add note about updating
 FParseCandidate ParseCandidates[] = {
 	
 	{ TEXT("Micrometers"),			EUnit::Micrometers },			{ TEXT("um"),		EUnit::Micrometers }, 			{ TEXT("\u00B5m"),	EUnit::Micrometers },

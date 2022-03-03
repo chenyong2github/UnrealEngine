@@ -1173,6 +1173,13 @@ namespace UnrealBuildTool
 		/// <param name="EngineProject">Engine project to add files to.</param>
 		private void AddUBTConfigFilesToEngineProject(ProjectFile EngineProject)
 		{
+			// UHT in UBT has a configuration file that needs to be included.
+			DirectoryReference UBTConfigDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Programs", "UnrealBuildTool", "Config");
+			if (DirectoryReference.Exists(UBTConfigDirectory))
+			{
+				EngineProject.AddFilesToProject(SourceFileSearch.FindFiles(UBTConfigDirectory), Unreal.EngineDirectory);
+			}
+
 			EngineProject.AddAliasedFileToProject(new AliasedFile(
 					XmlConfig.GetSchemaLocation(),
 					XmlConfig.GetSchemaLocation().FullName,

@@ -18,6 +18,7 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using OpenTracing;
 using OpenTracing.Util;
+using UnrealBuildTool.Modes;
 
 namespace UnrealBuildTool
 {
@@ -909,6 +910,22 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static void ExecuteHeaderToolIfNecessary(BuildConfiguration BuildConfiguration, FileReference? ProjectFile, TargetMakefile Makefile, string TargetName, ISourceFileWorkingSet WorkingSet)
 		{
+			if (!BuildConfiguration.bUseBuiltInUnrealHeaderTool || Makefile.bHasProjectScriptPlugin || TargetName.Equals("UnrealHeaderTool", StringComparison.InvariantCultureIgnoreCase))
+			{
+				ExecuteExternalHeaderToolIfNecessary(BuildConfiguration, ProjectFile, Makefile, TargetName, WorkingSet);
+			}
+			else
+			{
+				ExecuteInternalHeaderToolIfNecessary(BuildConfiguration, ProjectFile, Makefile, TargetName, WorkingSet);
+			}
+		}
+
+		/// <summary>
+		/// Builds and runs the header tool and touches the header directories.
+		/// Performs any early outs if headers need no changes, given the UObject modules, tool path, game name, and configuration
+		/// </summary>
+		private static void ExecuteExternalHeaderToolIfNecessary(BuildConfiguration BuildConfiguration, FileReference? ProjectFile, TargetMakefile Makefile, string TargetName, ISourceFileWorkingSet WorkingSet)
+		{
 			if (ProgressWriter.bWriteMarkup)
 			{
 				Log.WriteLine(LogEventType.Console, "@progress push 5%");
@@ -1055,7 +1072,7 @@ namespace UnrealBuildTool
 
 					// Disable extensions when serializing to remove the $type fields
 					Directory.CreateDirectory(ModuleInfoFileName.Directory.FullName);
-					System.IO.File.WriteAllText(ModuleInfoFileName.FullName, JsonSerializer.Serialize(Manifest));
+					System.IO.File.WriteAllText(ModuleInfoFileName.FullName, JsonSerializer.Serialize(Manifest, new JsonSerializerOptions { WriteIndented = true }));
 
 					string CmdLine = (ProjectFile != null) ? "\"" + ProjectFile.FullName + "\"" : TargetName;
 					CmdLine += " \"" + ModuleInfoFileName + "\" -LogCmds=\"loginit warning, logexit warning, logdatabase error\" -Unattended -WarningsAsErrors";
@@ -1108,7 +1125,215 @@ namespace UnrealBuildTool
 							UHTResult = ((int)(UHTResult) == 130) ? CompilationResult.Canceled : CompilationResult.CrashOrAssert;
 						}
 
-						if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && 
+						if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 &&
+							(int)(UHTResult) < 0)
+						{
+							Log.TraceError(String.Format("UnrealHeaderTool failed with exit code 0x{0:X} - check that Unreal Engine prerequisites are installed.", (int)UHTResult));
+						}
+
+						throw new CompilationResultException(UHTResult);
+					}
+
+					Log.TraceInformation("Reflection code generated for {0} in {1} seconds", ActualTargetName, s.Elapsed.TotalSeconds);
+
+					// Update the tool info file
+					DirectoryReference.CreateDirectory(ToolInfoFile.Directory);
+					FileReference.WriteAllText(ToolInfoFile, HeaderToolReceipt.FullName);
+
+					// Now that UHT has successfully finished generating code, we need to update all cached FileItems in case their last write time has changed.
+					// Otherwise UBT might not detect changes UHT made.
+					using (GlobalTracer.Instance.BuildSpan("ExternalExecution.ResetCachedHeaderInfo()").StartActive())
+					{
+						ResetCachedHeaderInfo(Makefile.UObjectModules);
+					}
+				}
+				else
+				{
+					Log.TraceVerbose("Generated code is up to date.");
+				}
+
+				Progress.Write(2, 3);
+
+				using (GlobalTracer.Instance.BuildSpan("ExternalExecution.UpdateTimestamps()").StartActive())
+				{
+					UpdateTimestamps(Makefile.UObjectModules);
+				}
+
+				Progress.Write(3, 3);
+			}
+			if (ProgressWriter.bWriteMarkup)
+			{
+				Log.WriteLine(LogEventType.Console, "@progress pop");
+			}
+		}
+
+		/// <summary>
+		/// Builds and runs the header tool and touches the header directories.
+		/// Performs any early outs if headers need no changes, given the UObject modules, tool path, game name, and configuration
+		/// </summary>
+		private static void ExecuteInternalHeaderToolIfNecessary(BuildConfiguration BuildConfiguration, FileReference? ProjectFile, TargetMakefile Makefile, string TargetName, ISourceFileWorkingSet WorkingSet)
+		{
+			if (ProgressWriter.bWriteMarkup)
+			{
+				Log.WriteLine(LogEventType.Console, "@progress push 5%");
+			}
+			using (ProgressWriter Progress = new ProgressWriter("Generating code...", false))
+			{
+				string RootLocalPath = Unreal.RootDirectory.FullName;
+
+				UnrealTargetConfiguration UHTConfig = BuildConfiguration.bForceDebugUnrealHeaderTool ? UnrealTargetConfiguration.Debug : UnrealTargetConfiguration.Development;
+
+				// Figure out the receipt path
+				FileReference HeaderToolReceipt = GetHeaderToolReceiptFile(ProjectFile, UHTConfig, Makefile.bHasProjectScriptPlugin);
+
+				// Get UHT assembly timestamp
+				DateTime UnrealBuildToolTimestamp = new FileInfo(Assembly.GetExecutingAssembly().Location).LastWriteTimeUtc;
+				//DateTime UnrealHeaderToolTimestamp = DateTime.MinValue;
+				//Assembly? UHTAssembly = AppDomain.CurrentDomain.GetAssemblies().Single(x => x.GetName().Name == "EpicGames.UHT");
+				//if (UHTAssembly != null)
+				//{
+				//	UnrealHeaderToolTimestamp = new FileInfo(UHTAssembly.Location).LastWriteTimeUtc;
+				//}
+				DateTime ComboTimeStamp = UnrealBuildToolTimestamp;
+				//if (UnrealHeaderToolTimestamp > ComboTimeStamp)
+				//{
+				//	ComboTimeStamp = UnrealHeaderToolTimestamp;
+				//}
+
+				// ensure the headers are up to date
+				bool bUHTNeedsToRun = false;
+				if (BuildConfiguration.bForceHeaderGeneration)
+				{
+					bUHTNeedsToRun = true;
+				}
+				else if (AreGeneratedCodeFilesOutOfDate(BuildConfiguration, Makefile.UObjectModules, ComboTimeStamp))
+				{
+					bUHTNeedsToRun = true;
+				}
+
+				// Check we're not using a different version of UHT
+				FileReference ModuleInfoFileName = FileReference.Combine(Makefile.ProjectIntermediateDirectory, TargetName + ".uhtmanifest");
+				FileReference ToolInfoFile = ModuleInfoFileName.ChangeExtension(".uhtpath");
+				if (!bUHTNeedsToRun)
+				{
+					if (!FileReference.Exists(ToolInfoFile))
+					{
+						bUHTNeedsToRun = true;
+					}
+					else if (FileReference.ReadAllText(ToolInfoFile) != HeaderToolReceipt.FullName)
+					{
+						bUHTNeedsToRun = true;
+					}
+				}
+
+				// Get the file containing dependencies for the generated code
+				FileReference ExternalDependenciesFile = ModuleInfoFileName.ChangeExtension(".deps");
+				if (AreExternalDependenciesOutOfDate(ExternalDependenciesFile))
+				{
+					bUHTNeedsToRun = true;
+				}
+
+				// @todo ubtmake: Optimization: Ideally we could avoid having to generate this data in the case where UHT doesn't even need to run!  Can't we use the existing copy?  (see below use of Manifest)
+
+				List<UHTManifest.Module> Modules = new List<UHTManifest.Module>();
+				foreach(UHTModuleInfo UObjectModule in Makefile.UObjectModules)
+				{
+					Modules.Add(
+						new UHTManifest.Module
+						{
+							Name = UObjectModule.ModuleName,
+							ModuleType = (UHTModuleType)Enum.Parse(typeof(UHTModuleType), UObjectModule.ModuleType),
+							OverrideModuleType = (EPackageOverrideType)Enum.Parse(typeof(EPackageOverrideType), UObjectModule.OverrideModuleType),
+							BaseDirectory = UObjectModule.ModuleDirectories[0].FullName,
+							IncludeBase = UObjectModule.ModuleDirectories[0].ParentDirectory!.FullName,
+							OutputDirectory = Path.GetDirectoryName(UObjectModule.GeneratedCPPFilenameBase)!,
+							ClassesHeaders = UObjectModule.PublicUObjectClassesHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+							PublicHeaders = UObjectModule.PublicUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+							InternalHeaders = UObjectModule.InternalUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+							PrivateHeaders = UObjectModule.PrivateUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+							GeneratedCPPFilenameBase = UObjectModule.GeneratedCPPFilenameBase,
+							SaveExportedHeaders = !UObjectModule.bIsReadOnly,
+							GeneratedCodeVersion = UObjectModule.GeneratedCodeVersion,
+						});
+				}
+				UHTManifest Manifest = new UHTManifest
+				{
+					TargetName = TargetName,
+					IsGameTarget = Makefile.TargetType != TargetType.Program,
+					RootLocalPath = RootLocalPath,
+					ExternalDependenciesFile = ExternalDependenciesFile.FullName,
+					Modules = Modules,
+				};
+
+				if (bUHTNeedsToRun)
+				{
+					Progress.Write(1, 3);
+
+					// Disable extensions when serializing to remove the $type fields
+					Directory.CreateDirectory(ModuleInfoFileName.Directory.FullName);
+					System.IO.File.WriteAllText(ModuleInfoFileName.FullName, JsonSerializer.Serialize(Manifest, new JsonSerializerOptions { WriteIndented = true }));
+
+					string ActualTargetName = String.IsNullOrEmpty(TargetName) ? "UE5" : TargetName;
+					Log.TraceInformation("Parsing headers for {0}", ActualTargetName);
+
+					// Generate the command line
+					string CmdLine = (ProjectFile != null) ? "\"" + ProjectFile.FullName + "\"" : TargetName;
+					CmdLine += " \"" + ModuleInfoFileName + "\" -WarningsAsErrors";
+
+					if (Makefile.UHTAdditionalArguments != null)
+					{
+						foreach (string UHTArgument in Makefile.UHTAdditionalArguments)
+						{
+							CmdLine += " " + UHTArgument;
+						}
+					}
+
+					if (Unreal.IsEngineInstalled())
+					{
+						CmdLine += " -installed";
+					}
+
+					if (BuildConfiguration.bFailIfGeneratedCodeChanges)
+					{
+						CmdLine += " -FailIfGeneratedCodeChanges";
+					}
+
+					Log.TraceInformation("  Running Internal UnrealHeaderTool {0}", CmdLine);
+
+					// Convert the command line to an argument list
+					string[] Args = CmdLine.Split();
+					for (int Index = 0; Index < Args.Length; ++Index)
+					{
+						string Arg = Args[Index];
+						if (Arg[0] == '"' && Arg[Arg.Length - 1] == '"')
+						{
+							Args[Index] = Arg.Substring(1, Arg.Length - 2);
+						}
+					}
+					CommandLineArguments Arguments = new CommandLineArguments(Args);
+
+					// Run UHT
+					Stopwatch s = new Stopwatch();
+					s.Start();
+					IScope Timer = GlobalTracer.Instance.BuildSpan("Executing UnrealHeaderTool").StartActive();
+					UnrealHeaderToolMode UHTTool = new UnrealHeaderToolMode();
+					CompilationResult UHTResult = (CompilationResult)UHTTool.Execute(Arguments);
+					Timer.Span.Finish();
+					s.Stop();
+
+					if (UHTResult != CompilationResult.Succeeded)
+					{
+						// On Linux and Mac, the shell will return 128+signal number exit codes if UHT gets a signal (e.g. crashes or is interrupted)
+						if ((BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux ||
+							BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac) &&
+							(int)(UHTResult) >= 128
+							)
+						{
+							// SIGINT is 2, so 128 + SIGINT is 130
+							UHTResult = ((int)(UHTResult) == 130) ? CompilationResult.Canceled : CompilationResult.CrashOrAssert;
+						}
+
+						if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 &&
 							(int)(UHTResult) < 0)
 						{
 							Log.TraceError(String.Format("UnrealHeaderTool failed with exit code 0x{0:X} - check that Unreal Engine prerequisites are installed.", (int)UHTResult));
