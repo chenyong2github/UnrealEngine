@@ -234,13 +234,14 @@ class FComputeDistanceFieldAssetWantedMipsCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FComputeDistanceFieldAssetWantedMipsCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWDistanceFieldAssetWantedNumMips)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWDistanceFieldAssetStreamingRequests)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
 		SHADER_PARAMETER(int32, DebugForceNumMips)
-		SHADER_PARAMETER(FVector3f, Mip1WorldCenter)
+		SHADER_PARAMETER(FVector3f, Mip1WorldTranslatedCenter)
 		SHADER_PARAMETER(FVector3f, Mip1WorldExtent)
-		SHADER_PARAMETER(FVector3f, Mip2WorldCenter)
+		SHADER_PARAMETER(FVector3f, Mip2WorldTranslatedCenter)
 		SHADER_PARAMETER(FVector3f, Mip2WorldExtent)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1089,7 +1090,7 @@ void FDistanceFieldSceneData::GenerateStreamingRequests(
 
 		{
 			FComputeDistanceFieldAssetWantedMipsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeDistanceFieldAssetWantedMipsCS::FParameters>();
-
+			PassParameters->View = View.ViewUniformBuffer;
 			checkf(DistanceField::NumMips == 3, TEXT("Shader needs to be updated"));
 			PassParameters->RWDistanceFieldAssetWantedNumMips = GraphBuilder.CreateUAV(WantedNumMips);
 			PassParameters->RWDistanceFieldAssetStreamingRequests = GraphBuilder.CreateUAV(StreamingRequestsBuffer);
@@ -1097,9 +1098,9 @@ void FDistanceFieldSceneData::GenerateStreamingRequests(
 			PassParameters->DebugForceNumMips = CVarDebugForceNumMips.GetValueOnRenderThread();
 			extern int32 GAOGlobalDistanceFieldNumClipmaps;
 			// Request Mesh SDF mips based off of the Global SDF clipmaps
-			PassParameters->Mip1WorldCenter = (FVector3f)View.ViewMatrices.GetViewOrigin();
+			PassParameters->Mip1WorldTranslatedCenter = FVector3f(View.ViewMatrices.GetViewOrigin() + View.ViewMatrices.GetPreViewTranslation());
 			PassParameters->Mip1WorldExtent = FVector3f(GlobalDistanceField::GetClipmapExtent(GAOGlobalDistanceFieldNumClipmaps - 1, Scene, bLumenEnabled));
-			PassParameters->Mip2WorldCenter = (FVector3f)View.ViewMatrices.GetViewOrigin();
+			PassParameters->Mip2WorldTranslatedCenter = FVector3f(View.ViewMatrices.GetViewOrigin() + View.ViewMatrices.GetPreViewTranslation());
 			PassParameters->Mip2WorldExtent = FVector3f(GlobalDistanceField::GetClipmapExtent(FMath::Max<int32>(GAOGlobalDistanceFieldNumClipmaps / 2 - 1, 0), Scene, bLumenEnabled));
 
 			auto ComputeShader = GlobalShaderMap->GetShader<FComputeDistanceFieldAssetWantedMipsCS>();

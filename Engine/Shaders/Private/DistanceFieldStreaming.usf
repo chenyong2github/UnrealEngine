@@ -94,9 +94,9 @@ void CopyDistanceFieldIndirectionAtlasCS(
 RWStructuredBuffer<uint> RWDistanceFieldAssetWantedNumMips;
 RWStructuredBuffer<uint> RWDistanceFieldAssetStreamingRequests;
 
-float3 Mip1WorldCenter;
+float3 Mip1WorldTranslatedCenter;
 float3 Mip1WorldExtent;
-float3 Mip2WorldCenter;
+float3 Mip2WorldTranslatedCenter;
 float3 Mip2WorldExtent;
 
 float ComputeSquaredDistanceBetweenAABBs(float3 CenterA, float3 ExtentA, float3 CenterB, float3 ExtentB)
@@ -127,12 +127,12 @@ void ComputeDistanceFieldAssetWantedMipsCS(
 		uint WantedNumMips = 1;
 		if (DebugForceNumMips == 0)
 		{
-			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
-			float OuterDistanceSq = ComputeSquaredDistanceBetweenAABBs(Mip1WorldCenter, Mip1WorldExtent, DFObjectBounds.Center, DFObjectBounds.BoxExtent);
+			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex, PrimaryView.PreViewTranslation);
+			float OuterDistanceSq = ComputeSquaredDistanceBetweenAABBs(Mip1WorldTranslatedCenter, Mip1WorldExtent, DFObjectBounds.TranslatedCenter, DFObjectBounds.BoxExtent);
  
 			if (OuterDistanceSq <= 0)
 			{
-				float InnerDistanceSq = ComputeSquaredDistanceBetweenAABBs(Mip2WorldCenter, Mip2WorldExtent, DFObjectBounds.Center, DFObjectBounds.BoxExtent);
+				float InnerDistanceSq = ComputeSquaredDistanceBetweenAABBs(Mip2WorldTranslatedCenter, Mip2WorldExtent, DFObjectBounds.TranslatedCenter, DFObjectBounds.BoxExtent);
 				WantedNumMips = InnerDistanceSq <= 0 ? 3 : 2;
 			}
 		}
