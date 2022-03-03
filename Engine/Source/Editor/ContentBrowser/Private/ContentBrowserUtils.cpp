@@ -717,4 +717,42 @@ const TArray<FString>& ContentBrowserUtils::GetFavoriteFolders()
 	return FContentBrowserSingleton::Get().FavoriteFolderPaths;
 }
 
+void ContentBrowserUtils::AddShowPrivateContentFolder(const FStringView VirtualFolderPath, const FName Owner)
+{
+	FContentBrowserSingleton& ContentBrowserSingleton = FContentBrowserSingleton::Get();
+
+	if (!ContentBrowserSingleton.IsFolderShowPrivateContentToggleable(VirtualFolderPath))
+	{
+		return;
+	}
+
+	FName InvariantPath;
+	IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(VirtualFolderPath, InvariantPath);
+
+	const TSharedPtr<FPathPermissionList>& ShowPrivateContentPermissionList = ContentBrowserSingleton.GetShowPrivateContentPermissionList();
+
+	ShowPrivateContentPermissionList->AddAllowListItem(Owner, InvariantPath);
+
+	ContentBrowserSingleton.SetPrivateContentPermissionListDirty();
+}
+
+void ContentBrowserUtils::RemoveShowPrivateContentFolder(const FStringView VirtualFolderPath, const FName Owner)
+{
+	FContentBrowserSingleton& ContentBrowserSingleton = FContentBrowserSingleton::Get();
+
+	if (!ContentBrowserSingleton.IsFolderShowPrivateContentToggleable(VirtualFolderPath))
+	{
+		return;
+	}
+
+	FName InvariantPath;
+	IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(VirtualFolderPath, InvariantPath);
+
+	const TSharedPtr<FPathPermissionList>& ShowPrivateContentPermissionList = ContentBrowserSingleton.GetShowPrivateContentPermissionList();
+
+	ShowPrivateContentPermissionList->RemoveAllowListItem(Owner, InvariantPath);
+
+	ContentBrowserSingleton.SetPrivateContentPermissionListDirty();
+}
+
 #undef LOCTEXT_NAMESPACE

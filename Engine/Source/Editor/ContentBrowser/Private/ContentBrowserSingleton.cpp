@@ -85,6 +85,9 @@ FContentBrowserSingleton::FContentBrowserSingleton()
 	FContentBrowserCommands::Register();
 
 	PopulateConfigValues();
+
+	ShowPrivateContentState.InvariantPaths = MakeShared<FPathPermissionList>();
+	ShowPrivateContentState.CachedVirtualPaths = MakeShared<FPathPermissionList>();
 }
 
 FContentBrowserSingleton::~FContentBrowserSingleton()
@@ -1038,6 +1041,66 @@ void FContentBrowserSingleton::RefreshPathView(TSharedPtr<SWidget> Widget)
 			PathPicker->RefreshPathView();
 		}
 	}
+}
+
+bool FContentBrowserSingleton::IsShowingPrivateContent(const FStringView VirtualFolderPath)
+{
+	if (!ShowPrivateContentState.InvariantPaths->HasFiltering())
+	{
+		return false;
+	}
+
+	if (!ShowPrivateContentState.CachedVirtualPaths)
+	{
+		RebuildPrivateContentStateCache();
+	}
+
+	return ShowPrivateContentState.CachedVirtualPaths->PassesStartsWithFilter(VirtualFolderPath);
+}
+
+void FContentBrowserSingleton::RebuildPrivateContentStateCache()
+{
+	ShowPrivateContentState.CachedVirtualPaths.Reset();
+	ShowPrivateContentState.CachedVirtualPaths = MakeShared<FPathPermissionList>();
+
+	const auto& InvariantAllowList = ShowPrivateContentState.InvariantPaths->GetAllowList();
+	for (const TPair<FString, FPermissionListOwners>& InvariantPathOwnerPair : InvariantAllowList)
+	{
+		FName VirtualPath;
+		IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(FStringView(InvariantPathOwnerPair.Key), VirtualPath);
+
+		ShowPrivateContentState.CachedVirtualPaths->AddAllowListItem(TEXT("ContentBrowser"), VirtualPath);
+	}
+}
+
+bool FContentBrowserSingleton::IsFolderShowPrivateContentToggleable(const FStringView VirtualFolderPath)
+{
+	if (IsFolderShowPrivateContentToggleableDelegate.IsBound())
+	{
+		return IsFolderShowPrivateContentToggleableDelegate.Execute(VirtualFolderPath);
+	}
+
+	return true;
+}
+
+const TSharedPtr<FPathPermissionList>& FContentBrowserSingleton::GetShowPrivateContentPermissionList()
+{
+	return ShowPrivateContentState.InvariantPaths;
+}
+
+void FContentBrowserSingleton::SetPrivateContentPermissionListDirty()
+{
+	ShowPrivateContentState.CachedVirtualPaths.Reset();
+}
+
+void FContentBrowserSingleton::RegisterIsFolderShowPrivateContentToggleableDelegate(FIsFolderShowPrivateContentToggleableDelegate InIsFolderShowPrivateContentToggleableDelegate)
+{
+	IsFolderShowPrivateContentToggleableDelegate = InIsFolderShowPrivateContentToggleableDelegate;
+}
+
+void FContentBrowserSingleton::UnregisterIsFolderShowPrivateContentToggleableDelegate()
+{
+	IsFolderShowPrivateContentToggleableDelegate = FIsFolderShowPrivateContentToggleableDelegate();
 }
 
 void FContentBrowserSingleton::PopulateConfigValues()

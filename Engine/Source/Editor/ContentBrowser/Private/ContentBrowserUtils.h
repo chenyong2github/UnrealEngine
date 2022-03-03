@@ -97,4 +97,10 @@ namespace ContentBrowserUtils
 	void RemoveFavoriteFolder(const FString& FolderPath, bool bFlushConfig = true);
 
 	const TArray<FString>& GetFavoriteFolders();
+
+	/** Adds FolderPath as a private content edit folder if it's allowed to be toggled as such */
+	void AddShowPrivateContentFolder(const FStringView VirtualFolderPath, const FName Owner);
+
+	/** Removes FolderPath as a private content edit folder if it's allowed to be toggled as such */
+	void RemoveShowPrivateContentFolder(const FStringView VirtualFolderPath, const FName Owner);
 }

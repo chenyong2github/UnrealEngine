@@ -5953,6 +5953,7 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 	{
 		// Tab and menu icon
 		Set("ContentBrowser.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/ContentBrowser", Icon16x16));
+		Set("ContentBrowser.PrivateContentEdit", new IMAGE_BRUSH("Icons/hiererchy_16x", Icon16x16));
 
 		// Sources View
 		Set("ContentBrowser.SourceTitleFont", DEFAULT_FONT( "Regular", 12 ) );

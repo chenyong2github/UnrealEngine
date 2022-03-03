@@ -65,6 +65,11 @@ void FPathContextMenu::SetOnFolderFavoriteToggled(const FOnFolderFavoriteToggled
 	OnFolderFavoriteToggled = InOnFolderFavoriteToggled;
 }
 
+void FPathContextMenu::SetOnPrivateContentEditToggled(const FOnPrivateContentEditToggled& InOnPrivateContentEditToggled)
+{
+	OnPrivateContentEditToggled = InOnPrivateContentEditToggled;
+}
+
 const TArray<FContentBrowserItem>& FPathContextMenu::GetSelectedFolders() const
 {
 	return SelectedFolders;
@@ -179,8 +184,9 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 					);
 			}			
 
+			FString SelectedFolderPath = SelectedFolders[0].GetVirtualPath().ToString();
 			// If this folder is already favorited, show the option to remove from favorites
-			if (ContentBrowserUtils::IsFavoriteFolder(SelectedFolders[0].GetVirtualPath().ToString()))
+			if (ContentBrowserUtils::IsFavoriteFolder(SelectedFolderPath))
 			{
 				// Remove from favorites
 				Section.AddMenuEntry(
@@ -201,6 +207,39 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Star"),
 					FUIAction(FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteFavorite))
 				);
+			}
+
+			static const auto PublicAssetUIEnabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ContentBrowser.PublicAsset.EnablePublicAssetFeature"));
+			bool bIsPublicAssetUIEnabled = false;
+
+			if (PublicAssetUIEnabledCVar)
+			{
+				bIsPublicAssetUIEnabled = PublicAssetUIEnabledCVar->GetBool();
+			}
+
+			FStringView SelectedFolderPathView(SelectedFolderPath);
+			if (bIsPublicAssetUIEnabled && FContentBrowserSingleton::Get().IsFolderShowPrivateContentToggleable(SelectedFolderPathView))
+			{
+				if (FContentBrowserSingleton::Get().IsShowingPrivateContent(SelectedFolderPathView))
+				{
+					Section.AddMenuEntry(
+						"DisallowPrivateContentEditing",
+						LOCTEXT("DisallowPrivateContentEditing", "Disallow Private Content Editing"),
+						LOCTEXT("DisallowPrivateContentEditingTooltip", "Hides Private Content and prevents editing the Public/Private state of content in this folder"),
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.PrivateContentEdit"),
+						FUIAction(FExecuteAction::CreateSP(this, &FPathContextMenu::ExecutePrivateContentEdit))
+					);
+				}
+				else
+				{
+					Section.AddMenuEntry(
+						"AllowPrivateContentEditing",
+						LOCTEXT("AllowPrivateContentEditing", "Allow Private Content Editing"),
+						LOCTEXT("AllowPrivateContentEditingTooltip", "Reveals Private Content and allows editing the Public/Private state of content in this folder"),
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "ContentBrowser.PrivateContentEdit"),
+						FUIAction(FExecuteAction::CreateSP(this, &FPathContextMenu::ExecutePrivateContentEdit))
+					);
+				}
 			}
 		}
 
@@ -362,6 +401,17 @@ void FPathContextMenu::ExecuteFavorite()
 	}
 
 	OnFolderFavoriteToggled.ExecuteIfBound(PathsToUpdate);
+}
+
+void FPathContextMenu::ExecutePrivateContentEdit()
+{
+	TArray<FString> PathsToUpdate;
+	for (const FContentBrowserItem& SelectedItem : SelectedFolders)
+	{
+		PathsToUpdate.Add(SelectedItem.GetVirtualPath().ToString());
+	}
+
+	OnPrivateContentEditToggled.ExecuteIfBound(PathsToUpdate);
 }
 
 void FPathContextMenu::NewColorComplete(const TSharedRef<SWindow>& Window)

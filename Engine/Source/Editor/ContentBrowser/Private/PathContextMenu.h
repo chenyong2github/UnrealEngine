@@ -32,6 +32,10 @@ public:
 	DECLARE_DELEGATE_OneParam(FOnFolderFavoriteToggled, const TArray<FString>& /*FoldersToToggle*/)
 	void SetOnFolderFavoriteToggled(const FOnFolderFavoriteToggled& InOnFolderFavoriteToggled);
 
+	/* Delegate for when the context menu has succesfully toggled the private content edit mode of a folder*/
+	DECLARE_DELEGATE_OneParam(FOnPrivateContentEditToggled, const TArray<FString>& /*FolderVirtualPaths*/)
+	void SetOnPrivateContentEditToggled(const FOnPrivateContentEditToggled& InOnPrivateContentEditableToggled);
+
 	/** Gets the currently selected folders */
 	const TArray<FContentBrowserItem>& GetSelectedFolders() const;
 
@@ -74,6 +78,9 @@ public:
 	/** Handler for favoriting */
 	void ExecuteFavorite();
 
+	/* Handler for enabling private content editing*/
+	void ExecutePrivateContentEdit();
+
 	/** Handler for when "Save" is selected */
 	void ExecuteSaveFolder();
 
@@ -107,4 +114,5 @@ private:
 	FOnRenameFolderRequested OnRenameFolderRequested;
 	FOnFolderDeleted OnFolderDeleted;
 	FOnFolderFavoriteToggled OnFolderFavoriteToggled;
+	FOnPrivateContentEditToggled OnPrivateContentEditToggled;
 };

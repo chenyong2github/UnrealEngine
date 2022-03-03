@@ -467,6 +467,9 @@ private:
 	/** Handles content items being updated */
 	void HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUpdate> InUpdatedItems);
 
+	/* Handles hiding private content if folder is not showing private content*/
+	bool HandlePrivateContentFilter(const FContentBrowserItem& AssetItem);
+
 	/** Gets all suggestions for the asset search box */
 	void OnAssetSearchSuggestionFilter(const FText& SearchText, TArray<FAssetSearchBoxSuggestion>& PossibleSuggestions, FText& SuggestionHighlightText) const;
 
@@ -508,6 +511,9 @@ private:
 
 	/** Toggles the favorite status of an array of folders*/
 	void ToggleFolderFavorite(const TArray<FString>& FolderPaths);
+
+	/* Toggles the private show private content state of an array of folders*/
+	void TogglePrivateContentEdit(const TArray<FString>& FolderPaths);
 
 	/** Called when Asset View Options "Search" options change */
 	void HandleAssetViewSearchOptionsChanged();

@@ -37,6 +37,12 @@ struct FContentBrowserPluginSettings
 	{}
 };
 
+struct FShowPrivateContentState
+{
+	TSharedPtr<FPathPermissionList> InvariantPaths;
+	TSharedPtr<FPathPermissionList> CachedVirtualPaths;
+};
+
 /**
  * Content browser module singleton implementation class
  */
@@ -81,6 +87,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void ExecuteRename(TSharedPtr<SWidget> PickerWidget) override;
 	virtual void ExecuteAddFolder(TSharedPtr<SWidget> PathPickerWidget) override;
 	virtual void RefreshPathView(TSharedPtr<SWidget> PathPickerWidget) override;
+	virtual bool IsShowingPrivateContent(const FStringView VirtualFolderPath) override;
+	virtual bool IsFolderShowPrivateContentToggleable(const FStringView VirtualFolderPath) override;
+	virtual const TSharedPtr<FPathPermissionList>& GetShowPrivateContentPermissionList() override;
+	virtual void SetPrivateContentPermissionListDirty() override;
+	virtual void RegisterIsFolderShowPrivateContentToggleableDelegate(FIsFolderShowPrivateContentToggleableDelegate InIsFolderShowPrivateContentToggleableDelegate) override;
+	virtual void UnregisterIsFolderShowPrivateContentToggleableDelegate() override;
 
 	/** Gets the content browser singleton as a FContentBrowserSingleton */
 	static FContentBrowserSingleton& Get();
@@ -142,11 +154,17 @@ private:
 
 	void ExtendContentBrowserTabContextMenu(FMenuBuilder& InMenuBuilder);
 
+	/** Rebuilds the private content state cache based off of the currently registered Invariant Path permission list */
+	void RebuildPrivateContentStateCache();
+
 public:
 	/** The tab identifier/instance name for content browser tabs */
 	FName ContentBrowserTabIDs[MAX_CONTENT_BROWSERS];
 
 private:
+
+	FIsFolderShowPrivateContentToggleableDelegate IsFolderShowPrivateContentToggleableDelegate;
+
 	TArray<TWeakPtr<SContentBrowser>> AllContentBrowsers;
 
 	TWeakPtr<SContentBrowser> ContentBrowserDrawer;
@@ -165,4 +183,6 @@ private:
 
 	/** An incrementing int32 which is used when making unique settings strings */
 	int32 SettingsStringID;
+
+	FShowPrivateContentState ShowPrivateContentState;
 };

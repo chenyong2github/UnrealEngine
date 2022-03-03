@@ -684,4 +684,22 @@ public:
 
 	/** Returns InPath if can be written to, otherwise picks a default path that can be written to */
 	virtual FContentBrowserItemPath GetInitialPathToSaveAsset(const FContentBrowserItemPath& InPath) = 0;
+
+	/** Returns true if FolderPath is a private content edit folder */
+	virtual bool IsShowingPrivateContent(const FStringView VirtualFolderPath) = 0;
+
+	/** Returns true if FolderPath's private content edit mode is allowed to be toggled */
+	virtual bool IsFolderShowPrivateContentToggleable(const FStringView VirtualFolderPath) = 0;
+
+	/** Returns the Private Content Permission List */
+	virtual const TSharedPtr<FPathPermissionList>& GetShowPrivateContentPermissionList() = 0;
+
+	/** Declares the Private Content Permission List dirty */
+	virtual void SetPrivateContentPermissionListDirty() = 0;
+
+	/** Registers the delegate for custom handling of if a Folder allows private content edits */
+	virtual void RegisterIsFolderShowPrivateContentToggleableDelegate(FIsFolderShowPrivateContentToggleableDelegate InIsFolderShowPrivateContentToggleableDelegate) = 0;
+
+	/** Unregisters the delegate for custom handling of if a Folder allows private content edits */
+	virtual void UnregisterIsFolderShowPrivateContentToggleableDelegate() = 0;
 };

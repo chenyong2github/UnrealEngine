@@ -6592,6 +6592,7 @@ void FSlateEditorStyle::FStyle::SetupContentBrowserStyle()
 	{
 		// Tab and menu icon
 		Set( "ContentBrowser.TabIcon", new IMAGE_BRUSH( "Icons/icon_tab_ContentBrowser_16x", Icon16x16 ) );
+		Set( "ContentBrowser.PrivateContentEdit", new IMAGE_BRUSH("Icons/hiererchy_16x", Icon16x16));
 
 		// Sources View
 		Set( "ContentBrowser.SourceTitleFont", DEFAULT_FONT( "Regular", 12 ) );

@@ -142,6 +142,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	PathContextMenu->SetOnRenameFolderRequested(FPathContextMenu::FOnRenameFolderRequested::CreateSP(this, &SContentBrowser::OnRenameRequested));
 	PathContextMenu->SetOnFolderDeleted(FPathContextMenu::FOnFolderDeleted::CreateSP(this, &SContentBrowser::OnOpenedFolderDeleted));
 	PathContextMenu->SetOnFolderFavoriteToggled(FPathContextMenu::FOnFolderFavoriteToggled::CreateSP(this, &SContentBrowser::ToggleFolderFavorite));
+	PathContextMenu->SetOnPrivateContentEditToggled(FPathContextMenu::FOnPrivateContentEditToggled::CreateSP(this, &SContentBrowser::TogglePrivateContentEdit));
 	FrontendFilters = MakeShareable(new FAssetFilterCollectionType());
 	TextFilter = MakeShareable( new FFrontendFilter_Text() );
 
@@ -184,6 +185,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 		.OnItemsActivated(this, &SContentBrowser::OnItemsActivated)
 		.OnGetItemContextMenu(this, &SContentBrowser::GetItemContextMenu, EContentBrowserViewContext::AssetView)
 		.OnItemRenameCommitted(this, &SContentBrowser::OnItemRenameCommitted)
+		.OnShouldFilterItem(this, &SContentBrowser::HandlePrivateContentFilter)
 		.FrontendFilters(FrontendFilters)
 		.HighlightedText(this, &SContentBrowser::GetHighlightedText)
 		.ShowBottomToolbar(bShowBottomToolbar)
@@ -624,6 +626,25 @@ void SContentBrowser::ToggleFolderFavorite(const TArray<FString>& FolderPaths)
 			Settings->SaveConfig();
 		}
 	}
+}
+
+void SContentBrowser::TogglePrivateContentEdit(const TArray<FString>& FolderPaths)
+{
+	for (const FString& FolderPath : FolderPaths)
+	{
+		ensure(FContentBrowserSingleton::Get().IsFolderShowPrivateContentToggleable(FolderPath));
+
+		if (FContentBrowserSingleton::Get().IsShowingPrivateContent(FolderPath))
+		{
+			ContentBrowserUtils::RemoveShowPrivateContentFolder(FolderPath, TEXT("ContentBrowser"));
+		}
+		else
+		{
+			ContentBrowserUtils::AddShowPrivateContentFolder(FolderPath, TEXT("ContentBrowser"));
+		}
+	}
+
+	OnAssetViewRefreshRequested();
 }
 
 void SContentBrowser::HandleAssetViewSearchOptionsChanged()
@@ -3414,6 +3435,32 @@ void SContentBrowser::HandleItemDataUpdated(TArrayView<const FContentBrowserItem
 			break;
 		}
 	}
+}
+
+bool SContentBrowser::HandlePrivateContentFilter(const FContentBrowserItem& AssetItem)
+{
+	static const auto PublicAssetUIEnabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ContentBrowser.PublicAsset.EnablePublicAssetFeature"));
+	bool bIsPublicAssetUIEnabled = false;
+
+	if (PublicAssetUIEnabledCVar)
+	{
+		bIsPublicAssetUIEnabled = PublicAssetUIEnabledCVar->GetBool();
+	}
+
+	if (!bIsPublicAssetUIEnabled)
+	{
+		return false;
+	}
+
+	FAssetData ItemAssetData;
+	if ((AssetItem.Legacy_TryGetAssetData(ItemAssetData) && (ItemAssetData.PackageFlags & PKG_NotExternallyReferenceable)))
+	{
+		const FNameBuilder AssetItemFolderPath(AssetItem.GetVirtualPath());
+
+		return !FContentBrowserSingleton::Get().IsShowingPrivateContent(AssetItemFolderPath);
+	}
+
+	return false;
 }
 
 FText SContentBrowser::GetSearchAssetsHintText() const
