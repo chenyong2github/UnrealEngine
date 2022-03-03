@@ -178,42 +178,26 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 		FMaterialVertexParameters VertexParameters2 = (FMaterialVertexParameters)0;
 		VertexParameters2.WorldPosition = mul(float4(PointLocalNoWPO2, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
 
-		FLWCVector3 WorldPositionOffset0;
-		FLWCVector3 WorldPositionOffset1;
-		FLWCVector3 WorldPositionOffset2;
+		const float3 WorldPositionOffset0 = GetMaterialWorldPositionOffset(VertexParameters0);
+		const float3 WorldPositionOffset1 = GetMaterialWorldPositionOffset(VertexParameters1);
+		const float3 WorldPositionOffset2 = GetMaterialWorldPositionOffset(VertexParameters2);
 
-		WorldPositionOffset0.Tile = InstanceData.WorldToLocal.Tile;
-		WorldPositionOffset1.Tile = InstanceData.WorldToLocal.Tile;
-		WorldPositionOffset2.Tile = InstanceData.WorldToLocal.Tile;
+		const float3 PointWorld0 = VertexParameters0.WorldPosition + WorldPositionOffset0;
+		const float3 PointWorld1 = VertexParameters1.WorldPosition + WorldPositionOffset1;
+		const float3 PointWorld2 = VertexParameters2.WorldPosition + WorldPositionOffset2;
 
-		WorldPositionOffset0.Offset = GetMaterialWorldPositionOffset(VertexParameters0);
-		WorldPositionOffset1.Offset = GetMaterialWorldPositionOffset(VertexParameters1);
-		WorldPositionOffset2.Offset = GetMaterialWorldPositionOffset(VertexParameters2);
+		const float3x3 WorldToLocalVector = LWCToFloat3x3(InstanceData.WorldToLocal);
+		const float3 LocalOffset0 = mul(WorldPositionOffset0, WorldToLocalVector);
+		const float3 LocalOffset1 = mul(WorldPositionOffset1, WorldToLocalVector);
+		const float3 LocalOffset2 = mul(WorldPositionOffset2, WorldToLocalVector);
 
-		// Patch up world positions to include world position offset
-		const float3 PointWorld0 = VertexParameters0.WorldPosition + WorldPositionOffset0.Offset;
-		const float3 PointWorld1 = VertexParameters1.WorldPosition + WorldPositionOffset1.Offset;
-		const float3 PointWorld2 = VertexParameters2.WorldPosition + WorldPositionOffset2.Offset;
+		const float3 PointLocal0 = PointLocalNoWPO0 + LocalOffset0;
+		const float3 PointLocal1 = PointLocalNoWPO1 + LocalOffset1;
+		const float3 PointLocal2 = PointLocalNoWPO2 + LocalOffset2;
 
-		//const float3 WorldPositionOffsetLocal0 = LWCMultiply(WorldPositionOffset0, InstanceData.WorldToLocal);
-		//const float3 WorldPositionOffsetLocal1 = LWCMultiply(WorldPositionOffset1, InstanceData.WorldToLocal);
-		//const float3 WorldPositionOffsetLocal2 = LWCMultiply(WorldPositionOffset2, InstanceData.WorldToLocal);
-		float3 WorldPositionOffsetLocal0 = mul(float4(WorldPositionOffset0.Offset, 1.0f), LWCHackToFloat(InstanceData.WorldToLocal)).xyz;
-		float3 WorldPositionOffsetLocal1 = mul(float4(WorldPositionOffset1.Offset, 1.0f), LWCHackToFloat(InstanceData.WorldToLocal)).xyz;
-		float3 WorldPositionOffsetLocal2 = mul(float4(WorldPositionOffset2.Offset, 1.0f), LWCHackToFloat(InstanceData.WorldToLocal)).xyz;
-
-		const float3 PointLocal0 = PointLocalNoWPO0 + WorldPositionOffsetLocal0;
-		const float3 PointLocal1 = PointLocalNoWPO1 + WorldPositionOffsetLocal1;
-		const float3 PointLocal2 = PointLocalNoWPO2 + WorldPositionOffsetLocal2;
-
-		const float4 PointClip0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToClip);
-		const float4 PointClip1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);
-		const float4 PointClip2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToClip);
-
-		//const float4 PointClip0 = mul(float4(PointWorld0, 1.0f), NaniteView.TranslatedWorldToClip);
-		//const float4 PointClip1 = mul(float4(PointWorld1, 1.0f), NaniteView.TranslatedWorldToClip);
-		//const float4 PointClip2 = mul(float4(PointWorld2, 1.0f), NaniteView.TranslatedWorldToClip);
-
+		const float4 PointClip0 = mul(float4(PointWorld0, 1), NaniteView.TranslatedWorldToClip);
+		const float4 PointClip1 = mul(float4(PointWorld1, 1), NaniteView.TranslatedWorldToClip);
+		const float4 PointClip2 = mul(float4(PointWorld2, 1), NaniteView.TranslatedWorldToClip);
 #else
 		const float3 PointLocal0 = PointLocalNoWPO0;
 		const float3 PointLocal1 = PointLocalNoWPO1;
