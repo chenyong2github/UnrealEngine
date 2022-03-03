@@ -837,7 +837,7 @@ AActor* FActorFactoryAssetProxy::AddActorForAsset( UObject* AssetObj, bool Selec
 {
 	AActor* Result = NULL;
 
-	const FAssetData AssetData( AssetObj );
+	const FAssetData AssetData(AssetObj, FAssetData::ECreationFlags::AllowBlueprintClass);
 	FText UnusedErrorMessage;
 	if ( AssetObj != NULL )
 	{
