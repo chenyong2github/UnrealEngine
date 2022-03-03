@@ -129,10 +129,11 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 		if (bCreatedNamespace && GetNiagaraGraph())
 		{
 			const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-			FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(NewPin, false);
-			const bool bIsStaticSwitch = false;
-			UNiagaraScriptVariable* Var = GetNiagaraGraph()->AddParameter(PinVariable, bIsStaticSwitch);
-			NewPin->PinName = Var->Variable.GetName();
+			constexpr bool bNeedsValue = false;
+			FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(NewPin, bNeedsValue);
+			constexpr bool bIsStaticSwitch = false;
+			UNiagaraScriptVariable* ScriptVar = GetNiagaraGraph()->AddParameter(PinVariable, bIsStaticSwitch);
+			NewPin->PinName = ScriptVar->Variable.GetName();
 		}
 	}
 

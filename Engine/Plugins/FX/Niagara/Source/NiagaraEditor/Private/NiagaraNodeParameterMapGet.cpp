@@ -225,6 +225,13 @@ void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 		return;
 	}
 
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+	constexpr bool bNeedsValue = false;
+	FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(NewPin, bNeedsValue);
+	constexpr bool bIsStaticSwitch = false;
+	UNiagaraScriptVariable* ScriptVar = GetNiagaraGraph()->AddParameter(PinVariable, bIsStaticSwitch);
+	NewPin->PinName = ScriptVar->Variable.GetName();
+
 	if (NewPin->Direction == EEdGraphPinDirection::EGPD_Output)
 	{
 		PinPendingRename = NewPin;
