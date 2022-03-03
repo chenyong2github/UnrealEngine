@@ -811,7 +811,13 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 				//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
 				const FVec3 Offset = FVec3::CrossProduct(AB, AC);
 
-				if (GJKIntersection(FTriangle(A, B, C), WorldScaleQueryGeom, WorldScaleQueryTM, Thickness, Offset))
+				VectorRegister4Float ASimd = MakeVectorRegisterFloat((float)A.X, (float)A.Y, (float)A.Z, 0.0f);
+				VectorRegister4Float BSimd = MakeVectorRegisterFloat((float)B.X, (float)B.Y, (float)B.Z, 0.0f);
+				VectorRegister4Float CSimd = MakeVectorRegisterFloat((float)C.X, (float)C.Y, (float)C.Z, 0.0f);
+
+				FTriangleRegister Tri(ASimd, BSimd, CSimd);
+
+				if (GJKIntersection(Tri, WorldScaleQueryGeom, WorldScaleQueryTM, Thickness, Offset))
 				{
 					return true;
 				}
