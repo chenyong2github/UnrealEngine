@@ -435,6 +435,34 @@ class IntSetting(Setting):
     '''
     A UI-displayable Setting for storing and modifying an integer value.
     '''
+    
+    def __init__(
+        self,
+        attr_name: str,
+        nice_name: str,
+        value: str,
+        tool_tip: typing.Optional[str] = None,
+        show_ui: bool = True,
+        allow_reset: bool = True,
+        migrate_data: typing.Callable[[any], None] = None,
+        is_read_only: bool = False
+    ):
+        '''
+        Create a new IntSetting object.
+
+        Args:
+            attr_name       : Internal name.
+            nice_name       : Display name.
+            value           : The initial value of this Setting.
+            tool_tip        : Tooltip to show in the UI for this Setting.
+            show_ui         : Whether to show this Setting in the Settings UI.
+            is_read_only    : Whether to make entry field editable or not.
+        '''
+        super().__init__(
+            attr_name, nice_name, value,
+            tool_tip=tool_tip, show_ui=show_ui, allow_reset=allow_reset, migrate_data=migrate_data)
+
+        self.is_read_only = is_read_only
 
     def _create_widgets(
             self, override_device_name: typing.Optional[str] = None) \
@@ -447,6 +475,7 @@ class IntSetting(Setting):
         value = str(self.get_value(override_device_name))
         line_edit.setText(value)
         line_edit.setCursorPosition(0)
+        line_edit.setReadOnly(self.is_read_only)
 
         self.set_widget(
             widget=line_edit, override_device_name=override_device_name)
@@ -487,7 +516,8 @@ class StringSetting(Setting):
         tool_tip: typing.Optional[str] = None,
         show_ui: bool = True,
         allow_reset: bool = True,
-        migrate_data: typing.Callable[[any], None] = None
+        migrate_data: typing.Callable[[any], None] = None,
+        is_read_only: bool = False
     ):
         '''
         Create a new StringSetting object.
@@ -499,12 +529,14 @@ class StringSetting(Setting):
             placeholder_text: Placeholder for this Setting's value in the UI.
             tool_tip        : Tooltip to show in the UI for this Setting.
             show_ui         : Whether to show this Setting in the Settings UI.
+            is_read_only    : Whether to make entry field editable or not.
         '''
         super().__init__(
             attr_name, nice_name, value,
             tool_tip=tool_tip, show_ui=show_ui, allow_reset=allow_reset, migrate_data=migrate_data)
 
         self.placeholder_text = placeholder_text
+        self.is_read_only = is_read_only
 
     def _create_widgets(
             self, override_device_name: typing.Optional[str] = None) \
@@ -517,6 +549,7 @@ class StringSetting(Setting):
         line_edit.setText(value)
         line_edit.setPlaceholderText(self.placeholder_text)
         line_edit.setCursorPosition(0)
+        line_edit.setReadOnly(self.is_read_only)
 
         self.set_widget(
             widget=line_edit, override_device_name=override_device_name)

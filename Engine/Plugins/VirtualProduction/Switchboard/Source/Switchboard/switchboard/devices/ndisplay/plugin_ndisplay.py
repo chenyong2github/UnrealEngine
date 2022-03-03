@@ -353,12 +353,13 @@ class DevicenDisplay(DeviceUnreal):
     add_device_dialog = AddnDisplayDialog
 
     csettings = {
-        'ndisplay_config_file': FilePathSetting(
+        'ndisplay_config_file': StringSetting(
             attr_name="ndisplay_cfg_file",
             nice_name="nDisplay Config File",
             value="",
-            file_path_filter="nDisplay Config (*.ndisplay;*.uasset)",
-            tool_tip="Path to nDisplay config file"
+            tool_tip="Path to nDisplay config file",
+            allow_reset=False,
+            is_read_only=True
         ),
         'use_all_available_cores': BoolSetting(
             attr_name="use_all_available_cores",
@@ -533,7 +534,8 @@ class DevicenDisplay(DeviceUnreal):
                 attr_name="ue_command_line",
                 nice_name="UE Command Line",
                 value=kwargs.get("ue_command_line", ''),
-                allow_reset=False
+                allow_reset=False,
+                is_read_only=True
             ),
             'window_position': Setting(
                 attr_name="window_position",
