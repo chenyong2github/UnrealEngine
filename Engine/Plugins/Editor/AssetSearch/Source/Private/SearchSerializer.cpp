@@ -15,7 +15,8 @@ enum class ESearchIndexVersion
 {
 	Empty,
 	Initial,
-
+	IndexingInstancedSubObjects,
+	
 	// -----<new versions can be added above this line>-------------------------------------------------
 	VersionPlusOne,
 	LatestVersion = VersionPlusOne - 1
