@@ -382,7 +382,7 @@ struct FSlotCustomData : FSmartObjectTestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FSlotCustomData, "System.AI.SmartObjects.Slot custom data");
 
-struct FActivityTagsFilterPolicy : FSmartObjectTestBase
+struct FActivityTagsMergingPolicy : FSmartObjectTestBase
 {
 	virtual bool SetupDefinition() override
 	{
@@ -406,58 +406,16 @@ struct FActivityTagsFilterPolicy : FSmartObjectTestBase
 	}
 };
 
-struct FActivityTagsFilterPolicyNoFilter : FActivityTagsFilterPolicy
+struct FActivityTagsMergingPolicyCombine : FActivityTagsMergingPolicy
 {
 	virtual bool SetupDefinition() override
 	{
-		if (!FActivityTagsFilterPolicy::SetupDefinition())
+		if (!FActivityTagsMergingPolicy::SetupDefinition())
 		{
 			return false;
 		}
 
-		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::NoFilter);
-		return true;
-	}
-
-	virtual bool InstantTest() override
-	{
-#if WITH_SMARTOBJECT_DEBUG
-		FSmartObjectRequest DefaultRequest(FBox(EForceInit::ForceInit).ExpandBy(FVector(HALF_WORLD_MAX), FVector(HALF_WORLD_MAX)), TestFilter);
-
-		{
-			TArray<FSmartObjectRequestResult> Results;
-			Subsystem->FindSmartObjects(DefaultRequest, Results);
-			AITEST_EQUAL("Results.Num() using 'NoFilter' policy with an empty query", Results.Num(), NumCreatedSlots);
-		}
-		{
-			// Adding activity requirements to the query
-			FSmartObjectRequest ModifiedRequest = DefaultRequest;
-			ModifiedRequest.Filter.ActivityRequirements = FGameplayTagQuery::BuildQuery(
-				FGameplayTagQueryExpression()
-				.NoTagsMatch()
-				.AddTag(FNativeGameplayTags::Get().TestTag1)
-			);
-			TArray<FSmartObjectRequestResult> Results;
-			Subsystem->FindSmartObjects(ModifiedRequest, Results);
-			AITEST_EQUAL("Results.Num() using 'NoFilter' policy with NoMatch(TestTag1)", Results.Num(), NumCreatedSlots);
-		}
-#endif // WITH_SMARTOBJECT_DEBUG
-
-		return true;
-	}
-};
-IMPLEMENT_AI_INSTANT_TEST(FActivityTagsFilterPolicyNoFilter, "System.AI.SmartObjects.Filter policy 'NoFilter' on ActivityTags");
-
-struct FActivityTagsFilterPolicyCombine : FActivityTagsFilterPolicy
-{
-	virtual bool SetupDefinition() override
-	{
-		if (!FActivityTagsFilterPolicy::SetupDefinition())
-		{
-			return false;
-		}
-
-		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::Combine);
+		Definition->SetActivityTagsMergingPolicy(ESmartObjectTagMergingPolicy::Combine);
 		return true;
 	}
 
@@ -518,18 +476,18 @@ struct FActivityTagsFilterPolicyCombine : FActivityTagsFilterPolicy
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FActivityTagsFilterPolicyCombine, "System.AI.SmartObjects.Filter policy 'Combine' on ActivityTags");
+IMPLEMENT_AI_INSTANT_TEST(FActivityTagsMergingPolicyCombine, "System.AI.SmartObjects.Merging policy 'Combine' on ActivityTags");
 
-struct FActivityTagsFilterPolicyOverride : FActivityTagsFilterPolicy
+struct FActivityTagsMergingPolicyOverride : FActivityTagsMergingPolicy
 {
 	virtual bool SetupDefinition() override
 	{
-		if (!FActivityTagsFilterPolicy::SetupDefinition())
+		if (!FActivityTagsMergingPolicy::SetupDefinition())
 		{
 			return false;
 		}
 
-		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::Override);
+		Definition->SetActivityTagsMergingPolicy(ESmartObjectTagMergingPolicy::Override);
 		return true;
 	}
 
@@ -576,7 +534,7 @@ struct FActivityTagsFilterPolicyOverride : FActivityTagsFilterPolicy
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FActivityTagsFilterPolicyOverride, "System.AI.SmartObjects.Filter policy 'Override' on ActivityTags");
+IMPLEMENT_AI_INSTANT_TEST(FActivityTagsMergingPolicyOverride, "System.AI.SmartObjects.Merging policy 'Override' on ActivityTags");
 
 struct FUserTagsFilterPolicy : FSmartObjectTestBase
 {
@@ -631,7 +589,7 @@ struct FUserTagsFilterPolicyNoFilter : FUserTagsFilterPolicy
 			return false;
 		}
 
-		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::NoFilter);
+		Definition->SetUserTagsFilteringPolicy(ESmartObjectTagFilteringPolicy::NoFilter);
 		return true;
 	}
 
@@ -663,7 +621,7 @@ struct FUserTagsFilterPolicyCombine : FUserTagsFilterPolicy
 			return false;
 		}
 
-		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::Combine);
+		Definition->SetUserTagsFilteringPolicy(ESmartObjectTagFilteringPolicy::Combine);
 		return true;
 	}
 
@@ -717,7 +675,7 @@ struct FUserTagsFilterPolicyOverride : FUserTagsFilterPolicy
 			return false;
 		}
 
-		Definition->SetTagFilteringPolicy(ESmartObjectTagFilteringPolicy::Override);
+		Definition->SetUserTagsFilteringPolicy(ESmartObjectTagFilteringPolicy::Override);
 		return true;
 	}
 

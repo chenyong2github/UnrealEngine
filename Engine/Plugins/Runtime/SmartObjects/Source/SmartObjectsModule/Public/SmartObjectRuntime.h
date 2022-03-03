@@ -246,6 +246,20 @@ public:
 	}
 
 	/**
+	 * Fills the provided GameplayTagContainer with the activity tags associated to the slot according to the tag filtering policy.
+	 * Method will fail a check if called on an invalid SlotView.
+	 */
+	void GetActivityTags(FGameplayTagContainer& OutActivityTags) const
+	{
+		checkf(EntityView.IsSet(), TEXT("Definition can only be accessed through a valid SlotView"));
+		const FSmartObjectSlotDefinitionFragment& DefinitionFragment = EntityView.GetConstSharedFragmentData<FSmartObjectSlotDefinitionFragment>();
+		checkf(DefinitionFragment.SmartObjectDefinition != nullptr, TEXT("SmartObjectDefinition should always be valid in a valid SlotView"));
+		checkf(DefinitionFragment.SlotDefinition != nullptr, TEXT("SlotDefinition should always be valid in a valid SlotView"));
+
+		DefinitionFragment.SmartObjectDefinition->GetSlotActivityTags(*DefinitionFragment.SlotDefinition, OutActivityTags);
+	}
+
+	/**
 	 * Returns a reference to the definition data of the specified type from the main slot definition.
 	 * Method will fail a check if the slot definition doesn't contain the given type.
 	 */

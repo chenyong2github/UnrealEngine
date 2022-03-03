@@ -12,7 +12,8 @@ namespace UE::SmartObject
 
 USmartObjectDefinition::USmartObjectDefinition(const FObjectInitializer& ObjectInitializer): UDataAsset(ObjectInitializer)
 {
-	TagFilteringPolicy = GetDefault<USmartObjectSettings>()->DefaultTagFilteringPolicy;
+	UserTagsFilteringPolicy = GetDefault<USmartObjectSettings>()->DefaultUserTagsFilteringPolicy;
+	ActivityTagsMergingPolicy = GetDefault<USmartObjectSettings>()->DefaultActivityTagsMergingPolicy;
 }
 
 bool USmartObjectDefinition::Validate() const
@@ -61,6 +62,53 @@ bool USmartObjectDefinition::Validate() const
 	return true;
 }
 
+FBox USmartObjectDefinition::GetBounds() const
+{
+	FBox BoundingBox(ForceInitToZero);
+	for (const FSmartObjectSlotDefinition& Slot : GetSlots())
+	{
+		BoundingBox += Slot.Offset + UE::SmartObject::DefaultSlotSize;
+		BoundingBox += Slot.Offset - UE::SmartObject::DefaultSlotSize;
+	}
+	return BoundingBox;
+}
+
+void USmartObjectDefinition::GetSlotActivityTags(const FSmartObjectSlotIndex& SlotIndex, FGameplayTagContainer& OutActivityTags) const
+{
+	if (ensureMsgf(Slots.IsValidIndex(SlotIndex), TEXT("Requesting activity tags for an out of range slot index: %s"), *LexToString(SlotIndex)))
+	{
+		GetSlotActivityTags(Slots[SlotIndex], OutActivityTags);
+	}
+}
+
+void USmartObjectDefinition::GetSlotActivityTags(const FSmartObjectSlotDefinition& SlotDefinition, FGameplayTagContainer& OutActivityTags) const
+{
+	OutActivityTags = ActivityTags;
+
+	if (ActivityTagsMergingPolicy == ESmartObjectTagMergingPolicy::Combine)
+	{
+		OutActivityTags.AppendTags(SlotDefinition.ActivityTags);
+	}
+	else if (ActivityTagsMergingPolicy == ESmartObjectTagMergingPolicy::Override && !SlotDefinition.ActivityTags.IsEmpty())
+	{
+		OutActivityTags = SlotDefinition.ActivityTags;
+	}
+}
+
+TOptional<FTransform> USmartObjectDefinition::GetSlotTransform(const FTransform& OwnerTransform, const FSmartObjectSlotIndex SlotIndex) const
+{
+	TOptional<FTransform> Transform;
+
+	if (ensureMsgf(Slots.IsValidIndex(SlotIndex), TEXT("Requesting slot transform for an out of range index: %s"), *LexToString(SlotIndex)))
+	{
+		const FSmartObjectSlotDefinition& Slot = Slots[SlotIndex];
+		Transform = FTransform(Slot.Rotation, Slot.Offset) * OwnerTransform;
+	}
+
+	return Transform;
+}
+
+
 const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinition(const FSmartObjectSlotIndex& SlotIndex,
 																					const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass) const
 {
@@ -78,29 +126,6 @@ const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinit
 	return Definition;
 }
 
-FBox USmartObjectDefinition::GetBounds() const
-{
-	FBox BoundingBox(ForceInitToZero);
-	for (const FSmartObjectSlotDefinition& Slot : GetSlots())
-	{
-		BoundingBox += Slot.Offset + UE::SmartObject::DefaultSlotSize;
-		BoundingBox += Slot.Offset - UE::SmartObject::DefaultSlotSize;
-	}
-	 return BoundingBox;
-}
-
-TOptional<FTransform> USmartObjectDefinition::GetSlotTransform(const FTransform& OwnerTransform, const FSmartObjectSlotIndex SlotIndex) const
-{
-	TOptional<FTransform> Transform;
-
-	if (ensureMsgf(Slots.IsValidIndex(SlotIndex), TEXT("Requesting slot transform for an out of range index: %s"), *LexToString(SlotIndex)))
-	{
-		const FSmartObjectSlotDefinition& Slot = Slots[SlotIndex];
-		Transform = FTransform(Slot.Rotation, Slot.Offset) * OwnerTransform;
-	}
-
-	return Transform;
-}
 
 const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinitionByType(const TArray<USmartObjectBehaviorDefinition*>& BehaviorDefinitions,
 																				 const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)

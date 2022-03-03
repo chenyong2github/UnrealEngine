@@ -10,6 +10,7 @@
 
 class UGameplayBehaviorConfig;
 enum class ESmartObjectTagFilteringPolicy: uint8;
+enum class ESmartObjectTagMergingPolicy: uint8;
 
 /**
  * Abstract class that can be extended to bind a new type of behavior framework
@@ -151,6 +152,20 @@ public:
 	 */
 	TOptional<FTransform> GetSlotTransform(const FTransform& OwnerTransform, const FSmartObjectSlotIndex SlotIndex) const;
 
+	/**
+	 * Fills the provided GameplayTagContainer with the activity tags associated to the slot according to the tag merging policy.
+	 * @param SlotIndex	Index of the slot for which the tags are requested
+	 * @param OutActivityTags Tag container to fill with the activity tags associated to the slot
+	 */
+	void GetSlotActivityTags(const FSmartObjectSlotIndex& SlotIndex, FGameplayTagContainer& OutActivityTags) const;
+
+	/**
+	 * Fills the provided GameplayTagContainer with the activity tags associated to the slot according to the tag merging policy.
+	 * @param SlotDefinition Definition of the slot for which the tags are requested
+	 * @param OutActivityTags Tag container to fill with the activity tags associated to the slot
+	 */
+	void GetSlotActivityTags(const FSmartObjectSlotDefinition& SlotDefinition, FGameplayTagContainer& OutActivityTags) const;
+
 	/** Returns the tag query to run on the user tags provided by a request to accept this definition */
 	const FGameplayTagQuery& GetUserTagFilter() const { return UserTagFilter; }
 
@@ -169,11 +184,17 @@ public:
 	/** Sets the list of tags describing the activity associated to this definition */
 	void SetActivityTags(const FGameplayTagContainer& InActivityTags) { ActivityTags = InActivityTags; }
 
-	/** Returns the tag filtering policy used by this definition */
-	ESmartObjectTagFilteringPolicy GetTagFilteringPolicy() const { return TagFilteringPolicy; }
+	/** Returns the tag filtering policy that should be applied on User tags by this definition */
+	ESmartObjectTagFilteringPolicy GetUserTagsFilteringPolicy() const { return UserTagsFilteringPolicy; }
 
-	/** Sets the tag filtering policy to apply on this definition */
-	void SetTagFilteringPolicy(const ESmartObjectTagFilteringPolicy InTagFilteringPolicy) { TagFilteringPolicy = InTagFilteringPolicy; }
+	/** Sets the tag filtering policy to apply on User tags by this definition */
+	void SetUserTagsFilteringPolicy(const ESmartObjectTagFilteringPolicy InUserTagsFilteringPolicy) { UserTagsFilteringPolicy = InUserTagsFilteringPolicy; }
+
+	/** Returns the tag merging policy to apply on Activity tags from this definition */
+	ESmartObjectTagMergingPolicy GetActivityTagsMergingPolicy() const { return ActivityTagsMergingPolicy; }
+
+	/** Sets the tag merging policy to apply on Activity tags from this definition */
+	void SetActivityTagsMergingPolicy(const ESmartObjectTagMergingPolicy InActivityTagsMergingPolicy) { ActivityTagsMergingPolicy = InActivityTagsMergingPolicy; }
 
 	/**
 	 *	Performs validation and logs errors if any. An object using an invalid definition
@@ -233,12 +254,13 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	FGameplayTagContainer ActivityTags;
 
-	/**
-	 * Indicates how Tags and TagQueries (User and Activity) from slots and parent object will be processed for find requests.
-	 * Tag Queries (ObjectTagFilter) from definitions tested against SmartObject instances tags are not affected.
-	 */
+	/** Indicates how Tags from slots and parent object are combined to be evaluated by a TagQuery from a find request. */
 	UPROPERTY(EditAnywhere, Category = SmartObject, AdvancedDisplay)
-	ESmartObjectTagFilteringPolicy TagFilteringPolicy;
+	ESmartObjectTagMergingPolicy ActivityTagsMergingPolicy;
+
+	/** Indicates how TagQueries from slots and parent object will be processed against User Tags from a find request. */
+	UPROPERTY(EditAnywhere, Category = SmartObject, AdvancedDisplay)
+	ESmartObjectTagFilteringPolicy UserTagsFilteringPolicy;
 
 	mutable TOptional<bool> bValid;
 };

@@ -13,28 +13,26 @@ class FDebugRenderSceneProxy;
 
 SMARTOBJECTSMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogSmartObject, Warning, All);
 
-/**
- * Indicates how Tags and TagQueries (User and Activity) from slots and parent object will be processed for find requests.
- * Tag Queries (ObjectTagFilter) from definitions tested against SmartObject instances tags are not affected.
- */
+/** Indicates how Tags from slots and parent object are combined to be evaluated by a TagQuery from a find request. */
+UENUM()
+enum class ESmartObjectTagMergingPolicy : uint8
+{
+	/** Tags are combined (parent object and slot) and TagQuery from the request will be run against the combined list. */
+	Combine,
+	/** Tags in slot (if any) will be used instead of the parent object Tags when running the TagQuery from a request. Empty Tags on a slot indicates no override. */
+	Override
+};
+
+
+/** Indicates how TagQueries from slots and parent object will be processed against Tags from a find request. */
 UENUM()
 enum class ESmartObjectTagFilteringPolicy : uint8
 {
-	/**
-	 * Tags and TagQueries stored in the object and slot definitions are not used by the framework to filter results.
-	 * Users can access them and perform its own filtering.
-	 */
+	/** TagQueries in the object and slot definitions are not used by the framework to filter results. Users can access them and perform its own filtering. */
 	NoFilter,
-	/**
-	 * Activity Tags are combined (parent object and slot) and Activity TagQuery from the request will be run against the combined list.
-	 * Both User TagQueries (parent object and slot) will be applied to the User Tags provided by a request.
-	 */
+	/** Both TagQueries (parent object and slot) will be applied to the Tags provided by a request. */
 	Combine,
-	/**
-	 * Activity Tags in slot (if any) will be used instead of the parent object Activity Tags when running the Activity TagQuery from a request.
-	 * User TagQuery in slot (if any) will be used instead of the parent object TagQuery to run against the User Tags provided by a request.
-	 * Empty Tags, or empty TagQuery on a slot indicates no override.
-	 */
+	/** TagQuery in slot (if any) will be used instead of the parent object TagQuery to run against the Tags provided by a request. EmptyTagQuery on a slot indicates no override. */
 	Override
 };
 

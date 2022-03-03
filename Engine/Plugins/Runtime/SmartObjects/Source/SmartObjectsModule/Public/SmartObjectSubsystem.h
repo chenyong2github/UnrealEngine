@@ -318,24 +318,6 @@ public:
 	TOptional<FTransform> GetSlotTransform(FSmartObjectSlotHandle SlotHandle) const;
 
 	/**
-	 * Returns the Activity GameplayTagContainer of the smartobject definition associated to the given request result.
-	 * @param Result A valid request result (Result.IsValid() returns true) returned by any of the Find methods.
-	 * @return FGameplayTagContainer of the SmartObject definition associated to Result.
-	 * @note Method will ensure on invalid FSmartObjectRequestResult.
-	 * @note Can also be retrieve using FSlotView.GetSmartObjectDefinition().GetActivityTags()
-	 */
-	const FGameplayTagContainer& GetActivityTags(const FSmartObjectRequestResult& Result) const;
-
-	/**
-	 * Returns the Activity GameplayTagContainer of the smartobject definition represented by the provided handle.
-	 * @param Handle Handle to the SmartObject.
-	 * @return FGameplayTagContainer of the SmartObject definition associated to Handle.
-	 * @note Method will ensure on invalid FSmartObjectHandle.
-	 * @note Can also be retrieve using FSlotView.GetSmartObjectDefinition().GetActivityTags()
-	 */
-	const FGameplayTagContainer& GetActivityTags(const FSmartObjectHandle Handle) const;
-
-	/**
 	 *	Register a callback to be notified if the claimed slot is no longer available and user need to perform cleanup.
 	 *	@param ClaimHandle Handle to identify the object and slot. Error will be reported if the handle is invalid.
 	 *	@param Callback Delegate that will be called to notify that a slot gets invalidated and can no longer be used.

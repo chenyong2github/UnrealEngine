@@ -640,32 +640,6 @@ TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObject
 	return TOptional<FTransform>();
 }
 
-const FGameplayTagContainer& USmartObjectSubsystem::GetActivityTags(const FSmartObjectRequestResult& Result) const
-{
-	if (ensureMsgf(Result.IsValid(), TEXT("Requesting ActivityTags from an invalid request result.")))
-	{
-		return GetActivityTags(Result.SmartObjectHandle);
-	}
-
-	return FGameplayTagContainer::EmptyContainer;
-}
-
-const FGameplayTagContainer& USmartObjectSubsystem::GetActivityTags(const FSmartObjectHandle Handle) const
-{
-	if (!ensureMsgf(Handle.IsValid(), TEXT("Must provide a valid smart object handle.")))
-	{
-		return FGameplayTagContainer::EmptyContainer;
-	}
-
-	const FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(Handle);
-	if (!ensureMsgf(SmartObjectRuntime != nullptr, TEXT("A SmartObjectRuntime must be created for %s"), *LexToString(Handle)))
-	{
-		return FGameplayTagContainer::EmptyContainer;
-	}
-
-	return SmartObjectRuntime->GetDefinition().GetActivityTags();
-}
-
 FSmartObjectSlotClaimState* USmartObjectSubsystem::GetMutableSlotState(const FSmartObjectClaimHandle& ClaimHandle)
 {
 	return RuntimeSlotStates.Find(ClaimHandle.SlotHandle);
@@ -798,7 +772,7 @@ void USmartObjectSubsystem::FindSlots(const FSmartObjectRuntime& SmartObjectRunt
 
 void USmartObjectSubsystem::FindMatchingSlotDefinitionIndices(const USmartObjectDefinition& Definition, const FSmartObjectRequestFilter& Filter, TArray<int32>& OutValidIndices)
 {
-	const ESmartObjectTagFilteringPolicy TagFilteringPolicy = Definition.GetTagFilteringPolicy();
+	const ESmartObjectTagFilteringPolicy UserTagsFilteringPolicy = Definition.GetUserTagsFilteringPolicy();
 
 	// Define our Tags filtering predicate
 	auto MatchesTagQueryFunc = [](const FGameplayTagQuery& Query, const FGameplayTagContainer& Tags){ return Query.IsEmpty() || Query.Matches(Tags); };
@@ -806,7 +780,7 @@ void USmartObjectSubsystem::FindMatchingSlotDefinitionIndices(const USmartObject
 	// When filter policy is to use combined we can validate the user tag query of the parent object first
 	// since they can't be merge so we need to apply them one after the other.
 	// For activity requirements we have to merge parent and slot tags together before testing.
-	if (TagFilteringPolicy == ESmartObjectTagFilteringPolicy::Combine
+	if (UserTagsFilteringPolicy == ESmartObjectTagFilteringPolicy::Combine
 		&& !MatchesTagQueryFunc(Definition.GetUserTagFilter(), Filter.UserTags))
 	{
 		return;
@@ -826,34 +800,27 @@ void USmartObjectSubsystem::FindMatchingSlotDefinitionIndices(const USmartObject
 			continue;
 		}
 
-		// Filter out slots based on their tags and tag query:
-		//  - override: we only test slot tags and query if they are present otherwise we use those of the parent object
-		//  - combine: we test slot query (parent filters were applied before processing individual slots) and merge parent and slot tags together
-		if (TagFilteringPolicy == ESmartObjectTagFilteringPolicy::Combine)
+		// Filter out slots based on their activity tags
+		FGameplayTagContainer ActivityTags;
+		Definition.GetSlotActivityTags(Slot, ActivityTags);
+		if (!MatchesTagQueryFunc(Filter.ActivityRequirements, ActivityTags))
 		{
-			FGameplayTagContainer CombinedActivityTags = Slot.ActivityTags;
-			CombinedActivityTags.AppendTags(Definition.GetActivityTags());
-			if (!MatchesTagQueryFunc(Filter.ActivityRequirements, CombinedActivityTags))
-			{
-				continue;
-			}
-
-			if (!MatchesTagQueryFunc(Slot.UserTagFilter, Filter.UserTags))
-			{
-				continue;
-			}
+			continue;
 		}
-		else if (TagFilteringPolicy == ESmartObjectTagFilteringPolicy::Override)
-		{
-			if (!MatchesTagQueryFunc(Filter.ActivityRequirements, (Slot.ActivityTags.IsEmpty() ? Definition.GetActivityTags() : Slot.ActivityTags)))
-			{
-				continue;
-			}
 
-			if (!MatchesTagQueryFunc((Slot.UserTagFilter.IsEmpty() ? Definition.GetUserTagFilter() : Slot.UserTagFilter), Filter.UserTags))
-			{
-				continue;
-			}
+		// Filter out slots based on their TagQuery applied on provided User Tags
+		//  - override: we only run query from the slot if provided otherwise we run the one from the parent object
+		//  - combine: we run slot query (parent query was applied before processing individual slots)
+		if (UserTagsFilteringPolicy == ESmartObjectTagFilteringPolicy::Combine
+			&& !MatchesTagQueryFunc(Slot.UserTagFilter, Filter.UserTags))
+		{
+			continue;
+		}
+
+		if (UserTagsFilteringPolicy == ESmartObjectTagFilteringPolicy::Override
+			&& !MatchesTagQueryFunc((Slot.UserTagFilter.IsEmpty() ? Definition.GetUserTagFilter() : Slot.UserTagFilter), Filter.UserTags))
+		{
+			continue;
 		}
 
 		OutValidIndices.Add(i);
