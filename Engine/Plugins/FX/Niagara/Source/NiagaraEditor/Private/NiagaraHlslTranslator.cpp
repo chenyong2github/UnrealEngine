@@ -5109,7 +5109,7 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 			}
 
 			Var = ActiveHistoryForFunctionCalls.ResolveAliases(Var);
-			ensure(!Var.IsInNameSpace(FNiagaraConstants::StackContextNamespaceString));
+			
 			const FNiagaraVariable* ConstantVar = FNiagaraConstants::GetKnownConstant(Var.GetName(), false);
 			if (ConstantVar != nullptr && ConstantVar->GetType() != Var.GetType())
 			{
