@@ -13,7 +13,7 @@ class IConcertSyncClient;
 class SSessionHistory;
 
 /** Acts as controller of SSessionHistory in model-view-component pattern. */
-class FAbstractSessionHistoryController : public TSharedFromThis<FAbstractSessionHistoryController>
+class CONCERTSHAREDSLATE_API FAbstractSessionHistoryController : public TSharedFromThis<FAbstractSessionHistoryController>
 {
 public:
 

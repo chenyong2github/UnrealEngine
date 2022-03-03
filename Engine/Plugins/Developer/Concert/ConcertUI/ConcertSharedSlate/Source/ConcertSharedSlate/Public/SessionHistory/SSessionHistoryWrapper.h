@@ -9,7 +9,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 /** Shows a SSessionHistory widget - keeping alive the controller as long as this widget lives. Useful for closeable tabs. */
-class SSessionHistoryWrapper : public SCompoundWidget
+class CONCERTSHAREDSLATE_API SSessionHistoryWrapper : public SCompoundWidget
 {
 public:
 

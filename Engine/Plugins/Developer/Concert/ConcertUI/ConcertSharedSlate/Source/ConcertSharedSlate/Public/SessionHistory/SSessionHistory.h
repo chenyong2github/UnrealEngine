@@ -11,7 +11,7 @@ class SSearchBox;
 class SConcertSessionActivities;
 class FConcertSessionActivitiesOptions;
 
-class SSessionHistory : public SCompoundWidget
+class CONCERTSHAREDSLATE_API SSessionHistory : public SCompoundWidget
 {
 public:
 
