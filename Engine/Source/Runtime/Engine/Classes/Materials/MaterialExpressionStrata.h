@@ -582,13 +582,13 @@ class UMaterialExpressionStrataPostProcess : public UMaterialExpressionStrataBSD
 	GENERATED_UCLASS_BODY()
 
 	/**
-	 * The output color of the post process
+	 * The output color of the post process: it represents a color added over the back buffer, or a color multiplied if the Strata blend mode is TransmittanceOnly.
 	 */
 	UPROPERTY()
 	FExpressionInput Color;
 
 	/**
-	 * The opacity of the post process. Only writable if "Output Alpha" is enabled.
+	 * The coverage of the post process: the more the value is high, the less the back buffer will be visible. Only used if "Output Alpha" is enabled on the root node.
 	 */
 	UPROPERTY()
 	FExpressionInput Opacity;

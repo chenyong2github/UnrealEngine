@@ -21,7 +21,7 @@
 
 #ifndef MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER
 #define MOBILE_SUPPORT_FETCH_BINDED_CUSTOM_STENCIL_BUFFER 0
-#endif
+#endif 
 
 // Must match ESceneTextureId
 #define PPI_PostProcessInput0 14

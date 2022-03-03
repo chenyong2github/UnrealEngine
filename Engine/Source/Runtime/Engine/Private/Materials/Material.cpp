@@ -3041,10 +3041,10 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			ShadingModels.AddShadingModel(MSM_Unlit);
 
 			// Only Emissive & Opacity are valid input for PostProcess material
-			UMaterialExpressionStrataLightFunction* ConvertNode = NewObject<UMaterialExpressionStrataLightFunction>(this);
-			MoveConnectionTo(EmissiveColor, ConvertNode, 0);
+			UMaterialExpressionStrataLightFunction* LightFunctionNode = NewObject<UMaterialExpressionStrataLightFunction>(this);
+			MoveConnectionTo(EmissiveColor, LightFunctionNode, 0);
 
-			FrontMaterial.Connect(0, ConvertNode);
+			FrontMaterial.Connect(0, LightFunctionNode);
 			bInvalidateShader = true;
 		}
 		else if (MaterialDomain == MD_PostProcess)
@@ -3054,12 +3054,33 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			ShadingModels.ClearShadingModels();
 			ShadingModels.AddShadingModel(MSM_Unlit);
 
-			// Only Emissive & Opacity are valid input for PostProcess material
-			UMaterialExpressionStrataPostProcess* ConvertNode = NewObject<UMaterialExpressionStrataPostProcess>(this);
-			MoveConnectionTo(EmissiveColor, ConvertNode, 0);
-			MoveConnectionTo(Opacity, ConvertNode, 1);
+			if (MaterialDomain == MD_PostProcess && !BlendableOutputAlpha)
+			{
+				BlendMode = BLEND_Opaque;
+			}
 
-			FrontMaterial.Connect(0, ConvertNode);
+			UMaterialExpressionStrataPostProcess* PostProcNode = NewObject<UMaterialExpressionStrataPostProcess>(this);
+			if (GetBlendMode() == BLEND_Translucent)
+			{
+				// If the blending mode was translucent, we must multiply the color by the opacity before the output node
+				UMaterialExpressionMultiply* ColorMultiplyOpacityNode = NewObject<UMaterialExpressionMultiply>(this);
+				CopyConnectionTo(Opacity, ColorMultiplyOpacityNode, 0);
+				MoveConnectionTo(EmissiveColor, ColorMultiplyOpacityNode, 1);
+
+				PostProcNode->Color.Connect(0, ColorMultiplyOpacityNode);
+				MoveConnectionTo(Opacity, PostProcNode, 1);
+			}
+			else
+			{
+				// Only Emissive & Opacity are valid input for PostProcess material
+				MoveConnectionTo(EmissiveColor, PostProcNode, 0);
+				if (GetBlendMode() != BLEND_Additive) // Legacy material additive was ignoring opacity
+				{
+					MoveConnectionTo(Opacity, PostProcNode, 1);
+				}
+			}
+
+			FrontMaterial.Connect(0, PostProcNode);
 			bInvalidateShader = true;
 		}
 		else if (MaterialDomain == MD_DeferredDecal)
@@ -4220,7 +4241,7 @@ void UMaterial::RebuildShadingModelField()
 			{
 				MaterialDomain = EMaterialDomain::MD_PostProcess;
 				ShadingModel = MSM_Unlit;
-				BlendMode = EBlendMode::BLEND_Opaque;
+				// We keep the blend mode resulting from ConvertLegacyToStrataBlendMode because post processes can be translucent.
 			}
 
 			// Also update the ShadingModels for remaining pipeline operation

@@ -21,6 +21,7 @@
 #include "BufferVisualizationData.h"
 #include "SceneTextureParameters.h"
 #include "SystemTextures.h"
+#include "Strata/Strata.h"
 
 namespace
 {
@@ -124,6 +125,26 @@ FRHIBlendState* GetMaterialBlendState(const FMaterial* Material)
 	static_assert(EBlendMode::BLEND_MAX == UE_ARRAY_COUNT(BlendStates), "Ensure that all EBlendMode values are accounted for.");
 
 	check(Material);
+
+	if (Strata::IsStrataEnabled())
+	{
+		switch (Material->GetStrataBlendMode())
+		{
+		case EStrataBlendMode::SBM_Opaque:
+		case EStrataBlendMode::SBM_Masked:
+			return TStaticBlendState<>::GetRHI();
+		case EStrataBlendMode::SBM_TranslucentColoredTransmittance: // A platform may not support dual source blending so we always only use grey scale transmittance
+		case EStrataBlendMode::SBM_TranslucentGreyTransmittance:
+			return TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
+		case EStrataBlendMode::SBM_ColoredTransmittanceOnly:
+			return TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_Zero>::GetRHI();
+		case EStrataBlendMode::SBM_AlphaHoldout:
+			return TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI();
+		default:
+			check(false);
+			return TStaticBlendState<>::GetRHI();
+		}
+	}
 
 	return BlendStates[Material->GetBlendMode()];
 }
