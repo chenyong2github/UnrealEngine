@@ -10,6 +10,7 @@
 #include "Misc/TVariant.h"
 #include "Policies/PrettyJsonPrintPolicy.h"
 #include "Serialization/JsonWriter.h"
+#include "Templates/PimplPtr.h"
 #include "Templates/UniquePtr.h"
 #include "ZenGlobals.h"
 #include "Async/Future.h"
@@ -134,6 +135,7 @@ private:
 	FString ConditionalUpdateLocalInstall();
 	static bool AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FString&& ExecutablePath, FString& OutHostName, uint16& OutPort);
 
+	mutable TPimplPtr<class FZenHttpRequest> StatsHttpRequest;
 	mutable TFuture<FZenStats> StatsRequest;
 	mutable FZenStats LastStats;
 	mutable uint64 LastStatsTime = 0;

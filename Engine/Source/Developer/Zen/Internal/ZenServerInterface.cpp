@@ -1073,12 +1073,18 @@ FZenServiceInstance::GetStats(FZenStats& Stats)
 #else
 		EAsyncExecution ThreadPool = EAsyncExecution::ThreadPool;
 #endif
+		if (!StatsHttpRequest.IsValid())
+		{
+			TStringBuilder<128> ZenDomain;
+			ZenDomain << HostName << TEXT(":") << Port;
+			StatsHttpRequest = MakePimpl<FZenHttpRequest>(ZenDomain.ToString(), false);
+		}
+
 		// We've not got any requests in flight and we've met a given time requirement for requests
 		StatsRequest = Async(ThreadPool, [this]
 			{
-				TStringBuilder<128> ZenDomain;
-				ZenDomain << HostName << TEXT(":") << Port;
-				UE::Zen::FZenHttpRequest Request(ZenDomain.ToString(), false);
+				UE::Zen::FZenHttpRequest& Request = *StatsHttpRequest.Get();
+				Request.Reset();
 
 				TArray64<uint8> GetBuffer;
 				FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXT("/stats/z$"_SV), &GetBuffer, Zen::EContentType::CbObject);

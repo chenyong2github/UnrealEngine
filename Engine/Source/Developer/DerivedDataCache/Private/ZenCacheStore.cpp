@@ -173,7 +173,6 @@ private:
 	mutable FDerivedDataCacheUsageStats UsageStats;
 	TUniquePtr<UE::Zen::FZenHttpRequestPool> RequestPool;
 	bool bIsUsable = false;
-	bool bIsRemote = false;
 	uint32 FailedLoginAttempts = 0;
 	uint32 MaxAttempts = 4;
 	int32 BatchPutMaxBytes = 1024*1024;
@@ -199,14 +198,10 @@ FZenCacheStore::FZenCacheStore(
 	{
 		RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), 32);
 		bIsUsable = true;
-		bIsRemote = false;
 
+		// Issue a request for stats as it will be fetched asynchronously and issuing now makes them available sooner for future callers.
 		Zen::FZenStats ZenStats;
-
-		if (ZenService.GetInstance().GetStats(ZenStats) == true)
-		{
-			 bIsRemote = ZenStats.UpstreamStats.EndPointStats.IsEmpty() == false;
-		}
+		ZenService.GetInstance().GetStats(ZenStats);
 	}
 
 	GConfig->GetInt(TEXT("Zen"), TEXT("BatchPutMaxBytes"), BatchPutMaxBytes, GEngineIni);
