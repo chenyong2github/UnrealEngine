@@ -13,6 +13,8 @@
 #include "Elements/Interfaces/TypedElementAssetDataInterface.h"
 #include "Instances/InstancedPlacementClientInfo.h"
 
+#include "AssetToolsModule.h"
+
 bool UAssetPlacementSettings::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty))
@@ -143,6 +145,13 @@ void UAssetPlacementSettings::SaveActivePalette()
 	if (ActivePalette)
 	{
 		UPackageTools::SavePackagesForObjects(TArray<UObject*>({ ActivePalette }));
+	}
+	else if (UserPalette)
+	{
+		FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
+		UObject* NewPaletteAsset = AssetToolsModule.Get().DuplicateAssetWithDialogAndTitle(FString(), FString(), UserPalette, NSLOCTEXT("AssetPlacementEdMode", "SavePaletteAsDialogTitle", "Save Asset Palette As..."));
+		ActivePalette = CastChecked<UPlacementPaletteAsset>(NewPaletteAsset);
+		LastActivePalettePath = FSoftObjectPath(ActivePalette);
 	}
 }
 

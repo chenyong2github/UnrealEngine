@@ -130,7 +130,7 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 							.AutoWidth()
 							.Padding(2.0f, 0.0f)
 							[
-								PropertyCustomizationHelpers::MakeSaveButton(FSimpleDelegate::CreateSP(this, &SAssetPlacementPalette::OnSavePaletteAssetClicked), LOCTEXT("SaveAssetPaletteTooltip", "Save changes to the current palette asset"), TAttribute<bool>::CreateLambda([this]() { return PalettePath.IsValid(); }))
+								PropertyCustomizationHelpers::MakeSaveButton(FSimpleDelegate::CreateSP(this, &SAssetPlacementPalette::OnSavePaletteAssetClicked), LOCTEXT("SaveAssetPaletteTooltip", "Save changes to the current palette asset"), TAttribute<bool>::CreateLambda([this]() { return PalettePath.IsValid() || (PaletteItems.Num() > 0); }))
 							]
 						]
 					]
@@ -403,6 +403,12 @@ void SAssetPlacementPalette::OnSavePaletteAssetClicked()
 	if (UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
 	{
 		PlacementModeSubsystem->GetMutableModeSettingsObject()->SaveActivePalette();
+
+		// If we saved from a temporary/user palette, update the active palette now
+		if (!PalettePath.IsValid())
+		{
+			OnSetPaletteAsset(PlacementModeSubsystem->GetModeSettingsObject()->GetActivePalettePath().TryLoad());
+		}
 	}
 }
 
