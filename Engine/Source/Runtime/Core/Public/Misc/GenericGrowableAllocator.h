@@ -121,6 +121,10 @@ public:
 	 */
 	virtual bool DoesChunkContainAllocation(const FGrowableAllocationBase* Allocation) = 0;
 
+	/**
+	 * Queries the implementation if the given address came from this chunk
+	 */
+	virtual bool DoesChunkContainAddress(const void* Address) = 0;
 
 
 	/**
@@ -707,6 +711,23 @@ public:
 				Chunks++;
 			}
 		}
+	}
+
+	bool DoesAllocatorContainAddress(const void* Address)
+	{
+		// multi-thread protection
+		FScopeLock ScopeLock(&CriticalSection);
+
+		// loop through the chunks, query each one to see if they contain the address
+		for (int32 ChunkIndex = 0; ChunkIndex < AllocChunks.Num(); ChunkIndex++)
+		{
+			ChunkAllocatorType* Chunk = AllocChunks[ChunkIndex];
+			if (Chunk && Chunk->DoesChunkContainAddress(Address))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	void ShowAllocationInfo()
