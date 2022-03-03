@@ -91,6 +91,28 @@ enum class EProjectPackagingBlueprintNativizationMethod : uint8
 	Exclusive
 };
 
+/**
+* The list of possible registry writebacks. During staging, iostore can
+* optionally write back data that is only available during the staging process
+* so that asset registry tools can associate this data with their respective
+* assets.
+* 
+* Note that this is used in UnrealPak and thus can't use StaticEnum<>, so if you
+* add any types here, be sure to add the parsing of the strings to IoStoreUtilities.cpp.
+*/
+UENUM()
+enum class EAssetRegistryWritebackMethod : uint8
+{
+	/** Do not write-back staging metadata to the asset registry */
+	Disabled,
+
+	/** The development asset registry from the source cooked directory will be re-used. */
+	OriginalFile,
+
+	/** A duplicate asset registry will be created with the metadata added to it, adjacent to the cooked development asset registry. */
+	AdjacentFile	
+};
+
 USTRUCT()
 struct FPakOrderFileSpec
 {
@@ -301,6 +323,12 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Packaging)
 	FDirectoryPath HttpChunkInstallDataDirectory;
 
+	/**
+	* Whether to write staging metadata back to the asset registry. This metadata contains information such as
+	* the actual compressed chunk sizes of the assets as well as some bulk data diff blame support information.
+	*/
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay)
+	EAssetRegistryWritebackMethod WriteBackMetadataToAssetRegistry;
 
 	/**
 	 * Create compressed cooked packages (decreased deployment size)

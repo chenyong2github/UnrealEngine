@@ -3104,6 +3104,13 @@ namespace AutomationScripts
 					}
 				}
 
+				string WriteBackMetadataToAssetRegistry;
+				if (PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "WriteBackMetadataToAssetRegistry", out WriteBackMetadataToAssetRegistry))
+				{
+					AdditionalArgs += " -WriteBackMetadataToAssetRegistry=" + WriteBackMetadataToAssetRegistry;
+				}
+
+
 				AdditionalArgs += " " + Params.AdditionalIoStoreOptions;
 
 				RunIoStore(Params, SC, IoStoreCommandsFileName, FinalOrderFiles, AdditionalArgs);

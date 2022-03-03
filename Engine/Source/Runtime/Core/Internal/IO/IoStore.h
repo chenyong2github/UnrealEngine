@@ -128,6 +128,7 @@ ENUM_CLASS_FLAGS(FIoStoreTocEntryMetaFlags);
  */
 struct FIoStoreTocEntryMeta
 {
+	// Source data hash (i.e. not the on disk data)
 	FIoChunkHash ChunkHash;
 	FIoStoreTocEntryMetaFlags Flags;
 };
