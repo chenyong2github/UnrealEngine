@@ -296,7 +296,6 @@ void FNiagaraParameterStoreBinding::MatchParameters(FNiagaraParameterStore* Dest
 	{
 		for (const FNiagaraVariableWithOffset& ParamWithOffset : DestParamWithOffsets)
 		{
-			Visitor(ParamWithOffset, SrcStore->IndexOf(ParamWithOffset), ParamWithOffset.Offset);
 			if (const FNiagaraVariableWithOffset* Var = SrcStore->FindParameterVariable(ParamWithOffset, true))
 			{
 				Visitor(ParamWithOffset, Var->Offset, ParamWithOffset.Offset);
