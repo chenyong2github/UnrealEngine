@@ -73,6 +73,8 @@ public:
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const override;
 #endif
 
+	virtual FName AdditionalTaskName() const override;
+
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	// ~End UPCGSettings interface
@@ -106,6 +108,9 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bCreatesArtifacts = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bPrecachePoints = false;
 
 protected:
 #if WITH_EDITOR

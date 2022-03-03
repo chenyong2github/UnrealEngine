@@ -4,12 +4,31 @@
 #include "PCGComponent.h"
 #include "GameFramework/Actor.h"
 
-FName FPCGContext::GetTaskName() const
+FString FPCGContext::GetTaskName() const
 {
-	return Node ? Node->GetFName() : TEXT("Anonymous task");
+	if (Node)
+	{
+		const FName NodeName = Node->GetFName();
+
+		const UPCGSettings* Settings = GetInputSettings<UPCGSettings>();
+		const FName NodeAdditionalName = Settings ? Settings->AdditionalTaskName() : NAME_None;
+
+		if (NodeAdditionalName == NAME_None)
+		{
+			return NodeName.ToString();
+		}
+		else
+		{
+			return FString::Printf(TEXT("%s (%s)"), *NodeName.ToString(), *NodeAdditionalName.ToString());
+		}
+	}
+	else
+	{
+		return TEXT("Anonymous task");
+	}
 }
 
-FName FPCGContext::GetComponentName() const
+FString FPCGContext::GetComponentName() const
 {
-	return SourceComponent ? SourceComponent->GetOwner()->GetFName() : TEXT("Non-PCG Component");
+	return SourceComponent ? SourceComponent->GetOwner()->GetFName().ToString() : TEXT("Non-PCG Component");
 }

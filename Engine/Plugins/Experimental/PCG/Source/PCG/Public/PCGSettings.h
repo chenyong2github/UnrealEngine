@@ -47,6 +47,9 @@ public:
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const {}
 #endif
 
+	/** Derived classes can implement this to expose additional name information in the logs */
+	virtual FName AdditionalTaskName() const { return NAME_None; }
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	int Seed = 0xC35A9631; // random prime number
 

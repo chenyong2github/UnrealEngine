@@ -35,7 +35,7 @@ struct FPCGContext
 #endif
 
 	template<typename SettingsType>
-	const SettingsType* GetInputSettings()
+	const SettingsType* GetInputSettings() const
 	{
 		if (Node && Node->DefaultSettings)
 		{
@@ -47,6 +47,6 @@ struct FPCGContext
 		}
 	}
 
-	FName GetTaskName() const;
-	FName GetComponentName() const;
+	FString GetTaskName() const;
+	FString GetComponentName() const;
 };

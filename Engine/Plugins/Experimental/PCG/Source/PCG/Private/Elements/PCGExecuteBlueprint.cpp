@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGExecuteBlueprint.h"
+#include "Data/PCGPointData.h"
+#include "Data/PCGSpatialData.h"
 
 #if WITH_EDITOR
 #include "Engine/World.h"
@@ -323,6 +325,11 @@ void UPCGBlueprintSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSe
 }
 #endif // WITH_EDITOR
 
+FName UPCGBlueprintSettings::AdditionalTaskName() const
+{
+	return BlueprintElementType ? BlueprintElementType->GetFName() : Super::AdditionalTaskName();
+}
+
 FPCGElementPtr UPCGBlueprintSettings::CreateElement() const
 {
 	return MakeShared<FPCGExecuteBlueprintElement>();
@@ -335,7 +342,39 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContextPtr Context) const
 
 	if (Settings && Settings->BlueprintElementInstance)
 	{
+		// Precache points if needed
+		if (Settings->bPrecachePoints)
+		{
+			for (const FPCGTaggedData& Input : Context->InputData.TaggedData)
+			{
+				if (const UPCGSpatialDataWithPointCache* SpatialInput = Cast<UPCGSpatialDataWithPointCache>(Input.Data))
+				{
+					SpatialInput->ToPointData(Context);
+				}
+			}
+		}
+
+		// Log info on inputs
+		for(int32 InputIndex = 0; InputIndex < Context->InputData.TaggedData.Num(); ++InputIndex)
+		{
+			const FPCGTaggedData& Input = Context->InputData.TaggedData[InputIndex];
+			if (const UPCGPointData* PointData = Cast<UPCGPointData>(Input.Data))
+			{
+				PCGE_LOG(Verbose, "Input %d has %d points", InputIndex, PointData->GetPoints().Num());
+			}
+		}
+
 		Settings->BlueprintElementInstance->Execute(Context->InputData, Context->OutputData);
+
+		// Log info on outputs
+		for (int32 OutputIndex = 0; OutputIndex < Context->OutputData.TaggedData.Num(); ++OutputIndex)
+		{
+			const FPCGTaggedData& Output = Context->OutputData.TaggedData[OutputIndex];
+			if (const UPCGPointData* PointData = Cast<UPCGPointData>(Output.Data))
+			{
+				PCGE_LOG(Verbose, "Output %d has %d points", OutputIndex, PointData->GetPoints().Num());
+			}
+		}
 	}
 	else
 	{
