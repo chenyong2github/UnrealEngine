@@ -143,8 +143,8 @@ uint GetCulledNumObjects()
 // In float4's.  Must match equivalent C++ variables.
 #define DF_OBJECT_BOUNDS_STRIDE 3
 #define DF_OBJECT_DATA_STRIDE 10
-#define HEIGHTFIELD_OBJECT_BOUNDS_STRIDE 2
-#define HEIGHTFIELD_OBJECT_DATA_STRIDE 6
+#define HEIGHTFIELD_OBJECT_BOUNDS_STRIDE 3
+#define HEIGHTFIELD_OBJECT_DATA_STRIDE 7
 
 struct FDFObjectBounds
 {
@@ -199,8 +199,8 @@ FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 
 struct FHeightfieldObjectBounds
 {
-	float3 BoxOrigin;	// World space AABB center
-	float3 BoxExtent;	// World space AABB extent
+	FLWCVector3 BoxOrigin;	// World space AABB center
+	float3 BoxExtent;		// World space AABB extent
 };
 
 FHeightfieldObjectBounds LoadHeightfieldObjectBounds(uint ObjectIndex)
@@ -208,10 +208,15 @@ FHeightfieldObjectBounds LoadHeightfieldObjectBounds(uint ObjectIndex)
 	FHeightfieldObjectBounds Bounds;
 
 	float4 Vector0 = SceneHeightfieldObjectBounds[ObjectIndex * HEIGHTFIELD_OBJECT_BOUNDS_STRIDE + 0];
-	Bounds.BoxOrigin = Vector0.xyz;
-
 	float4 Vector1 = SceneHeightfieldObjectBounds[ObjectIndex * HEIGHTFIELD_OBJECT_BOUNDS_STRIDE + 1];
-	Bounds.BoxExtent = Vector1.xyz;
+
+	float3 TilePosition = Vector0.xyz;
+	float3 RelativeWorldPosition = Vector1.xyz;
+
+	Bounds.BoxOrigin = MakeLWCVector3(TilePosition, RelativeWorldPosition);
+
+	float4 Vector2 = SceneHeightfieldObjectBounds[ObjectIndex * HEIGHTFIELD_OBJECT_BOUNDS_STRIDE + 2];
+	Bounds.BoxExtent = Vector2.xyz;
 
 	return Bounds;
 }
@@ -289,7 +294,7 @@ FDFObjectData LoadDFObjectDataFromBuffer(StructuredBuffer<float4> SourceBuffer, 
 
 struct FHeightfieldObjectData
 {
-	float4x4 WorldToLocal;
+	FLWCInverseMatrix WorldToLocal;
 	float4 SizeScale;
 	float4 AtlasUVScaleBias;
 	float4 VisibilityAtlasUVScaleBias;
@@ -299,14 +304,18 @@ FHeightfieldObjectData LoadHeightfieldObjectDataFromBuffer(StructuredBuffer<floa
 {
 	FHeightfieldObjectData Data;
 
-	float4 V0 = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 0];
-	float4 V1 = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 1];
-	float4 V2 = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 2];
-	Data.WorldToLocal = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	float3 TilePosition = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 0].xyz;
 
-	Data.SizeScale = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 3];
-	Data.AtlasUVScaleBias = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 4];
-	Data.VisibilityAtlasUVScaleBias = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 5];
+	float4 V0 = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 1];
+	float4 V1 = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 2];
+	float4 V2 = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 3];
+	float4x4 RelativeWorldToVolume = transpose(float4x4(V0, V1, V2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+
+	Data.WorldToLocal = MakeLWCInverseMatrix4x3(TilePosition, RelativeWorldToVolume);
+
+	Data.SizeScale = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 4];
+	Data.AtlasUVScaleBias = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 5];
+	Data.VisibilityAtlasUVScaleBias = SourceBuffer[ObjectIndex * HEIGHTFIELD_OBJECT_DATA_STRIDE + 6];
 
 	return Data;
 }

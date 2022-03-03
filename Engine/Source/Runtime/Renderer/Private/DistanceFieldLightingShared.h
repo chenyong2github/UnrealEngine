@@ -47,8 +47,8 @@ enum EDistanceFieldPrimitiveType
 static const int32 GDistanceFieldObjectDataStride = 10;
 static const int32 GDistanceFieldObjectBoundsStride = 3;
 
-static const int32 GHeightFieldObjectDataStride = 6;
-static const int32 GHeightFieldObjectBoundsStride = 2;
+static const int32 GHeightFieldObjectDataStride = 7;
+static const int32 GHeightFieldObjectBoundsStride = 3;
 
 template <EDistanceFieldPrimitiveType PrimitiveType>
 class TDistanceFieldObjectBuffers

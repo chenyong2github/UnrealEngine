@@ -342,7 +342,7 @@ float ShadowRayTraceThroughCulledHeightFieldObjects(
 		}
 
 		FHeightfieldObjectData HeightfieldObject = LoadHeightfieldObjectData(ObjectIndex);
-		float4x4 WorldToLocal = HeightfieldObject.WorldToLocal;
+		float4x4 WorldToLocal = LWCHackToFloat(HeightfieldObject.WorldToLocal); // DF_LWC_TODO
 		float2 HeightFieldSize = HeightfieldObject.SizeScale.xy;
 		float WorldToLocalScale = HeightfieldObject.SizeScale.z;
 

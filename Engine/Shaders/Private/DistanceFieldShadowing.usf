@@ -122,7 +122,7 @@ void CullObjectsForShadowCS(
         }
 #else
 		FHeightfieldObjectBounds Bounds = LoadHeightfieldObjectBounds(ObjectIndex);
-		if (ShadowConvexHullIntersectBox(Bounds.BoxOrigin, Bounds.BoxExtent))
+		if (ShadowConvexHullIntersectBox(LWCHackToFloat(Bounds.BoxOrigin), Bounds.BoxExtent)) // DF_LWC_TODO
 		{
 			uint DestIndex;
 			InterlockedAdd(RWObjectIndirectArguments[1], 1U, DestIndex);
@@ -234,7 +234,7 @@ void ShadowObjectCullVS(
 #else
 
 	FHeightfieldObjectBounds Bounds = LoadHeightfieldObjectBounds(ObjectIndex);
-	float3 BoxOrigin = Bounds.BoxOrigin;
+	float3 BoxOrigin = LWCHackToFloat(Bounds.BoxOrigin); // DF_LWC_TODO
 	float3 BoxExtent = Bounds.BoxExtent;
 
 	BoxExtent += MinExpandRadius;
@@ -299,7 +299,7 @@ FObjectViewSpaceBox GetObjectViewSpaceBox(uint ObjectIndex)
 		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex * DFObjectData.VolumePositionExtent, 1.0f), DFObjectData.VolumeToWorld).xyz;
 #else
 		FHeightfieldObjectBounds HeightfieldObjectBounds = LoadHeightfieldObjectBounds(ObjectIndex);
-		float3 WorldBoundsPosition = UnitBoxVertex * HeightfieldObjectBounds.BoxExtent + HeightfieldObjectBounds.BoxOrigin;
+		float3 WorldBoundsPosition = UnitBoxVertex * HeightfieldObjectBounds.BoxExtent + LWCHackToFloat(HeightfieldObjectBounds.BoxOrigin); // DF_LWC_TODO
 #endif
 
 		float3 ViewSpacePosition = mul(float4(WorldBoundsPosition, 1.0f), WorldToShadow).xyz;

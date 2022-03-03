@@ -953,24 +953,41 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 								FHeightfieldComponentDescription HeightFieldCompDesc(Primitive->Proxy->GetLocalToWorld());
 								Primitive->Proxy->GetHeightfieldRepresentation(HeightNormalTexture, DiffuseColorTexture, VisibilityTexture, HeightFieldCompDesc);
 
-								const FBoxSphereBounds& Bounds = Primitive->Proxy->GetBounds();
-								const FBox BoxBound = Bounds.GetBox();
-								UploadObjectBounds[0] = FVector4f((FVector3f)BoxBound.GetCenter(), Bounds.SphereRadius);
-								UploadObjectBounds[1] = FVector4f((FVector3f)BoxBound.GetExtent(), 0.f);
+								{
+									const FBoxSphereBounds& Bounds = Primitive->Proxy->GetBounds();
+									const FBox BoxBound = Bounds.GetBox();
+
+									const FLargeWorldRenderPosition AbsoluteWorldPosition(BoxBound.GetCenter());
+
+									const FVector4f ObjectBoundingSphere(AbsoluteWorldPosition.GetOffset(), Bounds.SphereRadius);
+
+									UploadObjectBounds[0] = AbsoluteWorldPosition.GetTile();
+									UploadObjectBounds[1] = ObjectBoundingSphere;
+									UploadObjectBounds[2] = FVector4f((FVector3f)BoxBound.GetExtent(), 0.f);
+								}
 
 								const FMatrix& LocalToWorld = HeightFieldCompDesc.LocalToWorld;
 								check(LocalToWorld.GetMaximumAxisScale() > 0.f);
-								const FMatrix44f WorldToLocalT = FMatrix44f(LocalToWorld.Inverse().GetTransposed()); // LWC_TODO
-								UploadObjectData[0] = *(const FVector4f*)&WorldToLocalT.M[0];
-								UploadObjectData[1] = *(const FVector4f*)&WorldToLocalT.M[1];
-								UploadObjectData[2] = *(const FVector4f*)&WorldToLocalT.M[2];
+
+								const FLargeWorldRenderPosition WorldPosition(LocalToWorld.GetOrigin());
+								const FVector TilePositionOffset = WorldPosition.GetTileOffset();
+
+								// Inverse on FMatrix44f can generate NaNs if the source matrix contains large scaling, so do it in double precision.
+								FMatrix LocalToRelativeWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrixDouble(TilePositionOffset, LocalToWorld);
+
+								UploadObjectData[0] = WorldPosition.GetTile();
+
+								const FMatrix44f WorldToLocalT = FMatrix44f(LocalToRelativeWorld.Inverse().GetTransposed());
+								UploadObjectData[1] = *(const FVector4f*)&WorldToLocalT.M[0];
+								UploadObjectData[2] = *(const FVector4f*)&WorldToLocalT.M[1];
+								UploadObjectData[3] = *(const FVector4f*)&WorldToLocalT.M[2];
 
 								const FIntRect& HeightFieldRect = HeightFieldCompDesc.HeightfieldRect;
 								const float WorldToLocalScale = FMath::Min3(
 									WorldToLocalT.GetColumn(0).Size(),
 									WorldToLocalT.GetColumn(1).Size(),
 									WorldToLocalT.GetColumn(2).Size());
-								UploadObjectData[3] = FVector4f(HeightFieldRect.Width(), HeightFieldRect.Height(), WorldToLocalScale, 0.f);
+								UploadObjectData[4] = FVector4f(HeightFieldRect.Width(), HeightFieldRect.Height(), WorldToLocalScale, 0.f);
 
 								FVector4f HeightUVScaleBias(ForceInitToZero);
 								if (HeightNormalTexture)
@@ -988,7 +1005,7 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 											HeightFieldScaleBias.W * ScaleBias.Y + ScaleBias.W);
 									}
 								}
-								UploadObjectData[4] = HeightUVScaleBias;
+								UploadObjectData[5] = HeightUVScaleBias;
 
 								FVector4f VisUVScaleBias(ForceInitToZero);
 								if (VisibilityTexture)
@@ -1000,7 +1017,7 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 										VisUVScaleBias = FVector4f(1.f / HeightFieldRect.Width() * ScaleBias.X, 1.f / HeightFieldRect.Height() * ScaleBias.Y, ScaleBias.Z, ScaleBias.W);
 									}
 								}
-								UploadObjectData[5] = VisUVScaleBias;
+								UploadObjectData[6] = VisUVScaleBias;
 							}
 						}
 
