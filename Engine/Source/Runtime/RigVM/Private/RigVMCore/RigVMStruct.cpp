@@ -3,6 +3,7 @@
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "UObject/StructOnScope.h"
+#include "RigVMModule.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -83,6 +84,29 @@ FName FRigVMUnitNodeCreatedContext::FindFirstVariableOfType(UObject* InCPPTypeOb
 	}
 	return NAME_None;
 }
+
+FRigVMStructUpgradeInfo::FRigVMStructUpgradeInfo()
+	: NodePath()
+	, OldStruct(nullptr)
+	, NewStruct(nullptr)
+{
+}
+
+bool FRigVMStructUpgradeInfo::IsValid() const
+{
+	return NodePath.IsEmpty() && (OldStruct != nullptr) && (NewStruct != nullptr);
+}
+
+#if WITH_EDITOR
+
+void FRigVMStructUpgradeInfo::SetDefaultValues(const FRigVMStruct* InNewStructMemory)
+{
+	check(NewStruct);
+	check(InNewStructMemory);
+	DefaultValues = InNewStructMemory->GetDefaultValues(NewStruct);
+}
+
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -375,18 +399,18 @@ ERigVMPinDirection FRigVMStruct::GetPinDirectionFromProperty(FProperty* InProper
 	return ERigVMPinDirection::Hidden;
 }
 
-FString FRigVMStruct::ExportToFullyQualifiedText(FProperty* InMemberProperty, const uint8* InMemberMemoryPtr)
+FString FRigVMStruct::ExportToFullyQualifiedText(const FProperty* InMemberProperty, const uint8* InMemberMemoryPtr, bool bUseQuotes)
 {
 	check(InMemberProperty);
 	check(InMemberMemoryPtr);
 
 	FString DefaultValue;
 
-	if (FStructProperty* StructProperty = CastField<FStructProperty>(InMemberProperty))
+	if (const FStructProperty* StructProperty = CastField<FStructProperty>(InMemberProperty))
 	{
 		DefaultValue = ExportToFullyQualifiedText(StructProperty->Struct, InMemberMemoryPtr);
 	}
-	else if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InMemberProperty))
+	else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InMemberProperty))
 	{
 		FScriptArrayHelper ScriptArrayHelper(ArrayProperty, InMemberMemoryPtr);
 
@@ -413,13 +437,16 @@ FString FRigVMStruct::ExportToFullyQualifiedText(FProperty* InMemberProperty, co
 		if (CastField<FNameProperty>(InMemberProperty) != nullptr ||
 			CastField<FStrProperty>(InMemberProperty) != nullptr)
 		{
-			if (DefaultValue.IsEmpty())
+			if(bUseQuotes)
 			{
-				DefaultValue = TEXT("\"\"");
-			}
-			else
-			{
-				DefaultValue = FString::Printf(TEXT("\"%s\""), *DefaultValue);
+				if (DefaultValue.IsEmpty())
+				{
+					DefaultValue = TEXT("\"\"");
+				}
+				else
+				{
+					DefaultValue = FString::Printf(TEXT("\"%s\""), *DefaultValue);
+				}
 			}
 		}
 	}
@@ -452,6 +479,117 @@ FString FRigVMStruct::ExportToFullyQualifiedText(UScriptStruct* InStruct, const 
 	}
 
 	return FString::Printf(TEXT("(%s)"), *FString::Join(FieldValues, TEXT(",")));
+}
+
+FString FRigVMStruct::ExportToFullyQualifiedText(UScriptStruct* InScriptStruct, const FName& InPropertyName, const uint8* InStructMemoryPointer) const
+{
+	check(InScriptStruct);
+	if(InStructMemoryPointer == nullptr)
+	{
+		InStructMemoryPointer = (const uint8*)this;
+	}
+	
+	const FProperty* Property = InScriptStruct->FindPropertyByName(InPropertyName);
+	if(Property == nullptr)
+	{
+		return FString();
+	}
+
+	const uint8* StructMemberMemoryPtr = Property->ContainerPtrToValuePtr<uint8>(InStructMemoryPointer);
+	return ExportToFullyQualifiedText(Property, StructMemberMemoryPtr);
+}
+
+TMap<FName, FString> FRigVMStruct::GetDefaultValues(UScriptStruct* InScriptStruct) const
+{
+	check(InScriptStruct);
+	
+	FRigVMStructUpgradeInfo Info;
+	Info.OldStruct = InScriptStruct;
+
+	TMap<FName, FString> DefaultValues;
+	for (TFieldIterator<FProperty> It(InScriptStruct); It; ++It)
+	{
+		if(It->HasAnyPropertyFlags(CPF_Transient))
+		{
+			continue;
+		}
+		
+		const FName PropertyName = It->GetFName();
+		const uint8* StructMemberMemoryPtr = It->ContainerPtrToValuePtr<uint8>(this);
+		const FString DefaultValue = ExportToFullyQualifiedText(*It, StructMemberMemoryPtr, false);
+		DefaultValues.Add(PropertyName, DefaultValue);
+	}
+
+	return DefaultValues;
+}
+
+class FRigVMStructApplyUpgradeInfoErrorContext : public FOutputDevice
+{
+public:
+
+	int32 NumErrors;
+	UScriptStruct* OldStruct;
+	UScriptStruct* NewStruct;
+	FName PropertyName;
+
+	FRigVMStructApplyUpgradeInfoErrorContext(UScriptStruct* InOldStruct, UScriptStruct* InNewStruct, const FName& InPropertyName)
+		: FOutputDevice()
+		, NumErrors(0)
+		, OldStruct(InOldStruct)
+		, NewStruct(InNewStruct)
+		, PropertyName(InPropertyName)
+	{
+	}
+
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+	{
+		if(Verbosity == ELogVerbosity::Error)
+		{
+			UE_LOG(LogRigVM, Warning, TEXT("Error when applying upgrade data from %s to %s, property %s: %s"),
+				*OldStruct->GetStructCPPName(),
+				*NewStruct->GetStructCPPName(),
+				*PropertyName.ToString(),
+				V);
+			NumErrors++;
+		}
+		else if(Verbosity == ELogVerbosity::Warning)
+		{
+			UE_LOG(LogRigVM, Warning, TEXT("Warning when applying upgrade data from %s to %s, property %s: %s"),
+				*OldStruct->GetStructCPPName(),
+				*NewStruct->GetStructCPPName(),
+				*PropertyName.ToString(),
+				V);
+		}
+	}
+};
+
+bool FRigVMStruct::ApplyUpgradeInfo(const FRigVMStructUpgradeInfo& InUpgradeInfo)
+{
+	check(InUpgradeInfo.IsValid());
+
+	for(const TPair<FName, FString>& Pair : InUpgradeInfo.DefaultValues)
+	{
+		const FName& PropertyName = Pair.Key;
+		const FString& DefaultValue = Pair.Value;
+		
+		const FProperty* Property = InUpgradeInfo.NewStruct->FindPropertyByName(PropertyName);
+		if(Property == nullptr)
+		{
+			return false;
+		}
+
+		uint8* MemberMemory = Property->ContainerPtrToValuePtr<uint8>(this);
+
+		FRigVMStructApplyUpgradeInfoErrorContext ErrorPipe(InUpgradeInfo.OldStruct, InUpgradeInfo.NewStruct, PropertyName);
+        Property->ImportText_Direct(*DefaultValue, MemberMemory, nullptr, PPF_None, &ErrorPipe);
+
+		if(ErrorPipe.NumErrors > 0)
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 #endif
