@@ -17,20 +17,20 @@ void FColorSpace::SetWorking(FColorSpace ColorSpace)
 	WorkingColorSpace = ColorSpace;
 }
 
-static bool IsSRGBChromaticities(const TStaticArray<FCoordinate2d, 4>& Chromaticities, double Tolerance = 1.e-7)
+static bool IsSRGBChromaticities(const TStaticArray<FVector2d, 4>& Chromaticities, double Tolerance = 1.e-7)
 {
-	return	Chromaticities[0].Equals(FCoordinate2d(0.64, 0.33), Tolerance) &&
-		Chromaticities[1].Equals(FCoordinate2d(0.30, 0.60), Tolerance) &&
-		Chromaticities[2].Equals(FCoordinate2d(0.15, 0.06), Tolerance) &&
-		Chromaticities[3].Equals(FCoordinate2d(0.3127, 0.3290), Tolerance);
+	return	Chromaticities[0].Equals(FVector2d(0.64, 0.33), Tolerance) &&
+		Chromaticities[1].Equals(FVector2d(0.30, 0.60), Tolerance) &&
+		Chromaticities[2].Equals(FVector2d(0.15, 0.06), Tolerance) &&
+		Chromaticities[3].Equals(FVector2d(0.3127, 0.3290), Tolerance);
 }
 
-FColorSpace::FColorSpace(const FVector2D& InRed, const FVector2D& InGreen, const FVector2D& InBlue, const FVector2D& InWhite)
+FColorSpace::FColorSpace(const FVector2d& InRed, const FVector2d& InGreen, const FVector2d& InBlue, const FVector2d& InWhite)
 {
-	Chromaticities[0] = FCoordinate2d(InRed);
-	Chromaticities[1] = FCoordinate2d(InGreen);
-	Chromaticities[2] = FCoordinate2d(InBlue);
-	Chromaticities[3] = FCoordinate2d(InWhite);
+	Chromaticities[0] = InRed;
+	Chromaticities[1] = InGreen;
+	Chromaticities[2] = InBlue;
+	Chromaticities[3] = InWhite;
 
 	bIsSRGB = IsSRGBChromaticities(Chromaticities);
 
@@ -39,92 +39,92 @@ FColorSpace::FColorSpace(const FVector2D& InRed, const FVector2D& InGreen, const
 }
 
 FColorSpace::FColorSpace(EColorSpace ColorSpaceType)
-	: Chromaticities(InPlace, FCoordinate2d(0, 0))
+	: Chromaticities(InPlace, FVector2d::Zero())
 	, bIsSRGB(ColorSpaceType == EColorSpace::sRGB)
 {
-	const FCoordinate2d D65(0.3127, 0.3290);
-	const FCoordinate2d D60(0.32168, 0.33767);
+	const FVector2d D65(0.3127, 0.3290);
+	const FVector2d D60(0.32168, 0.33767);
 
 	switch (ColorSpaceType)
 	{
 	case EColorSpace::None:
 		break;
 	case EColorSpace::sRGB:
-		Chromaticities[0] = FCoordinate2d(0.64, 0.33);
-		Chromaticities[1] = FCoordinate2d(0.30, 0.60);
-		Chromaticities[2] = FCoordinate2d(0.15, 0.06);
+		Chromaticities[0] = FVector2d(0.64, 0.33);
+		Chromaticities[1] = FVector2d(0.30, 0.60);
+		Chromaticities[2] = FVector2d(0.15, 0.06);
 		Chromaticities[3] = D65;
 		break;
 	case EColorSpace::Rec2020:
-		Chromaticities[0] = FCoordinate2d(0.708, 0.292);
-		Chromaticities[1] = FCoordinate2d(0.170, 0.797);
-		Chromaticities[2] = FCoordinate2d(0.131, 0.046);
+		Chromaticities[0] = FVector2d(0.708, 0.292);
+		Chromaticities[1] = FVector2d(0.170, 0.797);
+		Chromaticities[2] = FVector2d(0.131, 0.046);
 		Chromaticities[3] = D65;
 		break;
 	case EColorSpace::ACESAP0:
-		Chromaticities[0] = FCoordinate2d(0.7347, 0.2653);
-		Chromaticities[1] = FCoordinate2d(0.0000, 1.0000);
-		Chromaticities[2] = FCoordinate2d(0.0001, -0.0770);
+		Chromaticities[0] = FVector2d(0.7347, 0.2653);
+		Chromaticities[1] = FVector2d(0.0000, 1.0000);
+		Chromaticities[2] = FVector2d(0.0001, -0.0770);
 		Chromaticities[3] = D60;
 		break;
 	case EColorSpace::ACESAP1:
-		Chromaticities[0] = FCoordinate2d(0.713, 0.293);
-		Chromaticities[1] = FCoordinate2d(0.165, 0.830);
-		Chromaticities[2] = FCoordinate2d(0.128, 0.044);
+		Chromaticities[0] = FVector2d(0.713, 0.293);
+		Chromaticities[1] = FVector2d(0.165, 0.830);
+		Chromaticities[2] = FVector2d(0.128, 0.044);
 		Chromaticities[3] = D60;
 		break;
 	case EColorSpace::P3DCI:
-		Chromaticities[0] = FCoordinate2d(0.680, 0.320);
-		Chromaticities[1] = FCoordinate2d(0.265, 0.690);
-		Chromaticities[2] = FCoordinate2d(0.150, 0.060);
-		Chromaticities[3] = FCoordinate2d(0.314, 0.351);
+		Chromaticities[0] = FVector2d(0.680, 0.320);
+		Chromaticities[1] = FVector2d(0.265, 0.690);
+		Chromaticities[2] = FVector2d(0.150, 0.060);
+		Chromaticities[3] = FVector2d(0.314, 0.351);
 		break;
 	case EColorSpace::P3D65:
-		Chromaticities[0] = FCoordinate2d(0.680, 0.320);
-		Chromaticities[1] = FCoordinate2d(0.265, 0.690);
-		Chromaticities[2] = FCoordinate2d(0.150, 0.060);
+		Chromaticities[0] = FVector2d(0.680, 0.320);
+		Chromaticities[1] = FVector2d(0.265, 0.690);
+		Chromaticities[2] = FVector2d(0.150, 0.060);
 		Chromaticities[3] = D65;
 		break;
 	case EColorSpace::REDWideGamut:
-		Chromaticities[0] = FCoordinate2d(0.780308, 0.304253);
-		Chromaticities[1] = FCoordinate2d(0.121595, 1.493994);
-		Chromaticities[2] = FCoordinate2d(0.095612, -0.084589);
+		Chromaticities[0] = FVector2d(0.780308, 0.304253);
+		Chromaticities[1] = FVector2d(0.121595, 1.493994);
+		Chromaticities[2] = FVector2d(0.095612, -0.084589);
 		Chromaticities[3] = D65;
 		break;
 	case EColorSpace::SonySGamut3:
-		Chromaticities[0] = FCoordinate2d(0.730, 0.280);
-		Chromaticities[1] = FCoordinate2d(0.140, 0.855);
-		Chromaticities[2] = FCoordinate2d(0.100, -0.050);
+		Chromaticities[0] = FVector2d(0.730, 0.280);
+		Chromaticities[1] = FVector2d(0.140, 0.855);
+		Chromaticities[2] = FVector2d(0.100, -0.050);
 		Chromaticities[3] = D65;
 		break;
 	case EColorSpace::SonySGamut3Cine:
-		Chromaticities[0] = FCoordinate2d(0.766, 0.275);
-		Chromaticities[1] = FCoordinate2d(0.225, 0.800);
-		Chromaticities[2] = FCoordinate2d(0.089, -0.087);
+		Chromaticities[0] = FVector2d(0.766, 0.275);
+		Chromaticities[1] = FVector2d(0.225, 0.800);
+		Chromaticities[2] = FVector2d(0.089, -0.087);
 		Chromaticities[3] = D65;
 		break;
 	case EColorSpace::AlexaWideGamut:
-		Chromaticities[0] = FCoordinate2d(0.684, 0.313);
-		Chromaticities[1] = FCoordinate2d(0.221, 0.848);
-		Chromaticities[2] = FCoordinate2d(0.0861, -0.1020);
+		Chromaticities[0] = FVector2d(0.684, 0.313);
+		Chromaticities[1] = FVector2d(0.221, 0.848);
+		Chromaticities[2] = FVector2d(0.0861, -0.1020);
 		Chromaticities[3] = D65;
 		break;
 	case EColorSpace::CanonCinemaGamut:
-		Chromaticities[0] = FCoordinate2d(0.740, 0.270);
-		Chromaticities[1] = FCoordinate2d(0.170, 1.140);
-		Chromaticities[2] = FCoordinate2d(0.080, -0.100);
+		Chromaticities[0] = FVector2d(0.740, 0.270);
+		Chromaticities[1] = FVector2d(0.170, 1.140);
+		Chromaticities[2] = FVector2d(0.080, -0.100);
 		Chromaticities[3] = D65;
 		break;
 	case EColorSpace::GoProProtuneNative:
-		Chromaticities[0] = FCoordinate2d(0.698448, 0.193026);
-		Chromaticities[1] = FCoordinate2d(0.329555, 1.024597);
-		Chromaticities[2] = FCoordinate2d(0.108443, -0.034679);
+		Chromaticities[0] = FVector2d(0.698448, 0.193026);
+		Chromaticities[1] = FVector2d(0.329555, 1.024597);
+		Chromaticities[2] = FVector2d(0.108443, -0.034679);
 		Chromaticities[3] = D65;
 		break;
 	case EColorSpace::PanasonicVGamut:
-		Chromaticities[0] = FCoordinate2d(0.730, 0.280);
-		Chromaticities[1] = FCoordinate2d(0.165, 0.840);
-		Chromaticities[2] = FCoordinate2d(0.100, -0.030);
+		Chromaticities[0] = FVector2d(0.730, 0.280);
+		Chromaticities[1] = FVector2d(0.165, 0.840);
+		Chromaticities[2] = FVector2d(0.100, -0.030);
 		Chromaticities[3] = D65;
 		break;
 	default:
@@ -139,14 +139,14 @@ FColorSpace::FColorSpace(EColorSpace ColorSpaceType)
 FMatrix44d FColorSpace::CalcRgbToXYZ() const
 {
 	FMatrix44d Mat = FMatrix44d(
-		FVector3d(Chromaticities[0].x, Chromaticities[0].y, 1.0 - Chromaticities[0].x - Chromaticities[0].y),
-		FVector3d(Chromaticities[1].x, Chromaticities[1].y, 1.0 - Chromaticities[1].x - Chromaticities[1].y),
-		FVector3d(Chromaticities[2].x, Chromaticities[2].y, 1.0 - Chromaticities[2].x - Chromaticities[2].y),
+		FVector3d(Chromaticities[0].X, Chromaticities[0].Y, 1.0 - Chromaticities[0].X - Chromaticities[0].Y),
+		FVector3d(Chromaticities[1].X, Chromaticities[1].Y, 1.0 - Chromaticities[1].X - Chromaticities[1].Y),
+		FVector3d(Chromaticities[2].X, Chromaticities[2].Y, 1.0 - Chromaticities[2].X - Chromaticities[2].Y),
 		FVector3d{0,0,0}
 	);
 
 	FMatrix44d Inverse = Mat.Inverse();
-	const FCoordinate2d& White = Chromaticities[3];
+	const FVector2d& White = Chromaticities[3];
 	FVector3d WhiteXYZ = FVector3d(White[0] / White[1], 1.0, (1.0f - White[0] - White[1]) / White[1]);
 	FVector3d Scale = Inverse.TransformVector(WhiteXYZ);
 
