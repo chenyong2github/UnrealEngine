@@ -185,7 +185,7 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 
 const FString& GetSkeletalMeshDerivedDataVersion()
 {
-	static FString CachedVersionString = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::SkeletalMeshDerivedDataVersion).ToString();
+	static FString CachedVersionString = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().SkeletalMeshDerivedDataVersion).ToString();
 	return CachedVersionString;
 }
 

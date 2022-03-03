@@ -14,13 +14,15 @@ public:
 
 struct CORE_API FDevSystemGuids
 {
+	static const FDevSystemGuids& Get();
 	static FGuid GetSystemGuid(FGuid System);
-
-	static const FGuid GLOBALSHADERMAP_DERIVEDDATA_VER;
-	static const FGuid MATERIALSHADERMAP_DERIVEDDATA_VER;
-	static const FGuid NIAGARASHADERMAP_DERIVEDDATA_VER;
-	static const FGuid Niagara_LatestScriptCompileVersion;
-	static const FGuid SkeletalMeshDerivedDataVersion;
+	
+	FDevSystemGuids();
+	const FGuid GLOBALSHADERMAP_DERIVEDDATA_VER;
+	const FGuid MATERIALSHADERMAP_DERIVEDDATA_VER;
+	const FGuid NIAGARASHADERMAP_DERIVEDDATA_VER;
+	const FGuid Niagara_LatestScriptCompileVersion;
+	const FGuid SkeletalMeshDerivedDataVersion;
 };
 
 class CORE_API FDevVersionRegistration :  public FCustomVersionRegistration

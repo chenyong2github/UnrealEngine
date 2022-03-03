@@ -227,13 +227,13 @@ namespace GlobalShaderCookStats
 
 const FString& GetGlobalShaderMapDDCKey()
 {
-	static FString GlobalShaderMapDDCKey = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::GLOBALSHADERMAP_DERIVEDDATA_VER).ToString();
+	static FString GlobalShaderMapDDCKey = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().GLOBALSHADERMAP_DERIVEDDATA_VER).ToString();
 	return GlobalShaderMapDDCKey;
 }
 
 const FString& GetMaterialShaderMapDDCKey()
 {
-	static FString MaterialShaderMapDDCKey = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::MATERIALSHADERMAP_DERIVEDDATA_VER).ToString();
+	static FString MaterialShaderMapDDCKey = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().MATERIALSHADERMAP_DERIVEDDATA_VER).ToString();
 	return MaterialShaderMapDDCKey;
 }
 

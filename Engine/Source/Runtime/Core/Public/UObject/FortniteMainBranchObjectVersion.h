@@ -207,12 +207,13 @@ struct CORE_API FFortniteMainBranchObjectVersion
 	static TMap<FGuid, FGuid> GetSystemGuids()
 	{
 		TMap<FGuid, FGuid> SystemGuids;
+		const FDevSystemGuids& DevGuids = FDevSystemGuids::Get();
 
-		SystemGuids.Add(FDevSystemGuids::GLOBALSHADERMAP_DERIVEDDATA_VER,    FGuid("8D3A12924CDF4D9F84C0A900E9445CAD"));
-		SystemGuids.Add(FDevSystemGuids::MATERIALSHADERMAP_DERIVEDDATA_VER,  FGuid("1DA85DA5733C4A489A1BE117CDC5ACCC"));
-		SystemGuids.Add(FDevSystemGuids::NIAGARASHADERMAP_DERIVEDDATA_VER,   FGuid("2289D5116CF94BC0AFEAEC541468E645"));
-		SystemGuids.Add(FDevSystemGuids::Niagara_LatestScriptCompileVersion, FGuid("A366AB6E36266F4CBB2DB87D6C07A6A6"));
-		SystemGuids.Add(FDevSystemGuids::SkeletalMeshDerivedDataVersion,     FGuid("ACF593EAAE354FCBB34CF44F5AA1BFD2"));
+		SystemGuids.Add(DevGuids.GLOBALSHADERMAP_DERIVEDDATA_VER,    FGuid("8D3A12924CDF4D9F84C0A900E9445CAD"));
+		SystemGuids.Add(DevGuids.MATERIALSHADERMAP_DERIVEDDATA_VER,  FGuid("1DA85DA5733C4A489A1BE117CDC5ACCC"));
+		SystemGuids.Add(DevGuids.NIAGARASHADERMAP_DERIVEDDATA_VER,   FGuid("2289D5116CF94BC0AFEAEC541468E645"));
+		SystemGuids.Add(DevGuids.Niagara_LatestScriptCompileVersion, FGuid("A366AB6E36266F4CBB2DB87D6C07A6A6"));
+		SystemGuids.Add(DevGuids.SkeletalMeshDerivedDataVersion,     FGuid("ACF593EAAE354FCBB34CF44F5AA1BFD2"));
 
 		return SystemGuids;
 	}

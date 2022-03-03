@@ -10,5 +10,5 @@ FCustomVersionRegistration GRegisterNiagaraCustomVersion(FNiagaraCustomVersion::
 
 FGuid FNiagaraCustomVersion::GetLatestScriptCompileVersion()
 {
-	return FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Niagara_LatestScriptCompileVersion);
+	return FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().Niagara_LatestScriptCompileVersion);
 }
