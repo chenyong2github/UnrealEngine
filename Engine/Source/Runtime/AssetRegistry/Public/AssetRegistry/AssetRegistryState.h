@@ -117,7 +117,8 @@ public:
 	{
 		Rebuild,
 		OnlyUpdateExisting,
-		Append
+		Append,
+		OnlyUpdateNew,
 	};
 
 	/**

@@ -175,7 +175,8 @@ void FAssetRegistryState::FilterTags(const FAssetDataTagMapSharedView& InTagsAnd
 	}
 }
 
-void FAssetRegistryState::InitializeFromExistingAndPrune(const FAssetRegistryState & ExistingState, const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages, const TSet<int32> ChunksToKeep, const FAssetRegistrySerializationOptions & Options)
+void FAssetRegistryState::InitializeFromExistingAndPrune(const FAssetRegistryState & ExistingState, const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages,
+	const TSet<int32> ChunksToKeep, const FAssetRegistrySerializationOptions& Options)
 {
 	LLM_SCOPE(ELLMTag::AssetRegistry);
 	const bool bIsFilteredByChunkId = ChunksToKeep.Num() != 0;
@@ -296,6 +297,7 @@ void FAssetRegistryState::InitializeFromExistingAndPrune(const FAssetRegistrySta
 				NewDependency->AddReferencer(NewNode);
 			}
 		});
+		NewNode->SetIsDependenciesInitialized(true);
 	}
 
 	// Remove any orphaned depends nodes. This will leave cycles in but those might represent useful data
@@ -318,7 +320,8 @@ void FAssetRegistryState::InitializeFromExistingAndPrune(const FAssetRegistrySta
 	}
 }
 
-void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>& AssetDataMap, const TMap<FAssetIdentifier, FDependsNode*>& DependsNodeMap, const TMap<FName, FAssetPackageData*>& AssetPackageDataMap, const FAssetRegistrySerializationOptions& Options, EInitializationMode InInitializationMode)
+void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>& AssetDataMap, const TMap<FAssetIdentifier, FDependsNode*>& DependsNodeMap,
+	const TMap<FName, FAssetPackageData*>& AssetPackageDataMap, const FAssetRegistrySerializationOptions& Options, EInitializationMode InInitializationMode)
 {
 	LLM_SCOPE(ELLMTag::AssetRegistry);
 	if (InInitializationMode == EInitializationMode::Rebuild)
@@ -343,6 +346,10 @@ void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>&
 		{
 			continue;
 		}
+		if (InInitializationMode == EInitializationMode::OnlyUpdateNew && ExistingData != nullptr)
+		{
+			continue;
+		}
 
 		// Filter asset registry tags now
 		const FAssetData& AssetData = *Pair.Value;
@@ -350,8 +357,6 @@ void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>&
 		FAssetDataTagMap LocalTagsAndValues;
 		FAssetRegistryState::FilterTags(AssetData.TagsAndValues, LocalTagsAndValues, Options.CookFilterlistTagsByClass.Find(AssetData.AssetClass), Options);
 		
-		// in append or onlyupdateexisting we may have some existing data
-		// in rebuild mode existing data should never be found
 		if (ExistingData)
 		{
 			// Bundle tags might have changed even if other tags haven't
@@ -382,7 +387,10 @@ void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>&
 		for (const TPair<FName, FAssetPackageData*>& Pair : AssetPackageDataMap)
 		{
 			bool bIsScriptPackage = FPackageName::IsScriptPackage(Pair.Key.ToString());
-
+			if (InInitializationMode == EInitializationMode::OnlyUpdateNew && CachedPackageData.Find(Pair.Key))
+			{
+				continue;
+			}
 			if (Pair.Value)
 			{
 				// Only add if also in asset data map, or script package
@@ -401,29 +409,55 @@ void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>&
 			}
 		}
 
-		for (const TPair<FAssetIdentifier, FDependsNode*>& Pair : DependsNodeMap)
+		TMap<FAssetIdentifier, FDependsNode*> FilteredDependsNodeMap;
+		const TMap<FAssetIdentifier, FDependsNode*>* DependsNodesToAdd = &DependsNodeMap;
+		if (InInitializationMode == EInitializationMode::OnlyUpdateNew)
 		{
-			FDependsNode* OldNode = Pair.Value;
-			FDependsNode* NewNode = CreateOrFindDependsNode(Pair.Key);
-			NewNode->Reserve(OldNode);
+			// Keep the original DependsNodeMap for reference, but remove from NodesToAdd all nodes that already have dependency data
+			// Also reserve up-front all (unfiltered) nodes we are adding, to avoid reallocating the Referencers array.
+			FilteredDependsNodeMap.Reserve(DependsNodeMap.Num());
+			DependsNodesToAdd = &FilteredDependsNodeMap;
+			for (const TPair<FAssetIdentifier, FDependsNode*>& Pair : DependsNodeMap)
+			{
+				FDependsNode* SourceNode = Pair.Value;
+				FDependsNode* TargetNode = CreateOrFindDependsNode(Pair.Key);
+				if (!TargetNode->IsDependenciesInitialized())
+				{
+					FilteredDependsNodeMap.Add(Pair.Key, SourceNode);
+				}
+				TargetNode->Reserve(SourceNode);
+			}
+		}
+		else
+		{
+			// Reserve up-front all the nodes that we are adding, so we do not reallocate
+			// the Referencers array multiple times on a node as we add nodes that refer to it
+			for (const TPair<FAssetIdentifier, FDependsNode*>& Pair : DependsNodeMap)
+			{
+				FDependsNode* SourceNode = Pair.Value;
+				FDependsNode* TargetNode = CreateOrFindDependsNode(Pair.Key);
+				TargetNode->Reserve(SourceNode);
+			}
 		}
 
-		for (const TPair<FAssetIdentifier, FDependsNode*>& Pair : DependsNodeMap)
+		for (const TPair<FAssetIdentifier, FDependsNode*>& Pair : *DependsNodesToAdd)
 		{
-			FDependsNode* OldNode = Pair.Value;
-			FDependsNode* NewNode = CreateOrFindDependsNode(Pair.Key);
-			Pair.Value->IterateOverDependencies([this, &DependsNodeMap, &ScriptPackages, OldNode, NewNode](FDependsNode* InDependency, UE::AssetRegistry::EDependencyCategory InCategory, UE::AssetRegistry::EDependencyProperty InFlags, bool bDuplicate) {
+			FDependsNode* SourceNode = Pair.Value;
+			FDependsNode* TargetNode = CreateOrFindDependsNode(Pair.Key);
+			SourceNode->IterateOverDependencies([this, &DependsNodeMap, &ScriptPackages, TargetNode]
+			(FDependsNode* InDependency, UE::AssetRegistry::EDependencyCategory InCategory, UE::AssetRegistry::EDependencyProperty InFlags, bool bDuplicate) {
 				const FAssetIdentifier& Identifier = InDependency->GetIdentifier();
 				if (DependsNodeMap.Find(Identifier) || ScriptPackages.Contains(Identifier))
 				{
 					// Only add if this node is in the incoming map
-					FDependsNode* NewDependency = CreateOrFindDependsNode(Identifier);
-					NewNode->SetIsDependencyListSorted(InCategory, false);
-					NewNode->AddDependency(NewDependency, InCategory, InFlags);
-					NewDependency->SetIsReferencersSorted(false);
-					NewDependency->AddReferencer(NewNode);
+					FDependsNode* TargetDependency = CreateOrFindDependsNode(Identifier);
+					TargetNode->SetIsDependencyListSorted(InCategory, false);
+					TargetNode->AddDependency(TargetDependency, InCategory, InFlags);
+					TargetDependency->SetIsReferencersSorted(false);
+					TargetDependency->AddReferencer(TargetDependency);
 				}
 			});
+			TargetNode->SetIsDependenciesInitialized(true);
 		}
 
 		// Restore the sortedness that we turned off for performance when creating each DependsNode

@@ -14,11 +14,52 @@
 #include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
 
+// Disable premade asset registry until the target specifies it in UBT
+#ifndef ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR
+#define ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 0
+#endif
+
 class FDependsNode;
 struct FARFilter;
 class FAssetDataGatherer;
 struct FFileChangeData;
 class FPackageReader;
+class UAssetRegistryImpl;
+namespace UE::AssetRegistry::Impl { struct FEventContext; }
+namespace UE::AssetRegistry::Premade { struct FAsyncConsumer; }
+
+#if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR
+namespace UE::AssetRegistry::Premade
+{
+
+/**
+ * A struct to consume a Premade asset registry on an async thread. It supports a cheap Wait() call so that it can be Waited on
+ * by frequent AssetRegistry interface calls for the rest of the process.
+ */
+struct FAsyncConsumer
+{
+	~FAsyncConsumer();
+	/** Sets the Consumer into need-to-wait mode; Wait will block until Consume is called. */
+	void PrepareForConsume();
+	/**
+	 * Does not return until after the Premade AssetRegistryState has been added into the target AssetRegistry, or it has been decided not to be used.
+	 * For performance reasons, this must be called within the WriteScopeLock, and the caller must handle the possibility that it leaves and reenters the lock.
+	 */
+	void Wait(UAssetRegistryImpl& UARI, FWriteScopeLock& ScopeLock);
+	/** Callback from the async thread to consume the Premade ARState */
+	void Consume(UAssetRegistryImpl& UARI, UE::AssetRegistry::Impl::FEventContext& EventContext, bool bSucceeded, FAssetRegistryState&& ARState);
+
+private:
+	/**
+	 * ReferenceCounter for the Consumed event. Also used to decide whether Waiting is necessary. Read/Write only inside the lock.
+	 */
+	int32 ReferenceCount = 0;
+	/** Event used to Wait for Consume. Allocated/deallocated within the lock. Can be waited on outside the lock if RefCount is held. */
+	FEvent* Consumed = nullptr;
+};
+
+}
+#endif
 
 namespace UE
 {
@@ -27,7 +68,6 @@ namespace AssetRegistry
 
 namespace Impl
 {
-	struct FEventContext;
 	struct FInitializeContext;
 	struct FScanPathContext;
 	struct FClassInheritanceContext;
@@ -183,6 +223,11 @@ public:
 	/** Finds all class names of classes capable of generating new UClasses */
 	void CollectCodeGeneratorClasses();
 
+	/**
+	 * Block until the Premade AssetRegistry finishes loading, if there is one still loading.
+	 * For performance reasons, this must be called within the WriteScopeLock, and the caller must handle the possibility that it leaves and reenters the lock.
+	 */
+	void ConditionalLoadPremadeAssetRegistry(UAssetRegistryImpl& UARI, UE::AssetRegistry::Impl::FEventContext& EventContext, FWriteScopeLock& ScopeLock);
 
 private:
 
@@ -241,6 +286,12 @@ private:
 	/** Updates OutBuffer from loaded classes and registered-in-CachedBPInheritanceMap blueprint classes */
 	void UpdateInheritanceBuffer(Impl::FClassInheritanceBuffer& OutBuffer) const;
 
+	/** Conditionally loads the Premade AssetRegistry from disk, or queues it for asynchronous loading if not yet loaded. */
+	void ConsumeOrDeferPreloadedPremade(UAssetRegistryImpl& UARI, Impl::FEventContext& EventContext);
+	/** Moves a premade asset registry state into this AR */
+	void LoadPremadeAssetRegistry(Impl::FEventContext& Context,
+		bool bSucceeded, FAssetRegistryState&& ARState, FAssetRegistryState::EInitializationMode Mode);
+
 private:
 
 	/** Internal state of the cached asset registry */
@@ -296,6 +347,8 @@ private:
 	bool bInitialSearchStarted;
 	/** Flag to indicate if the initial background search has completed */
 	bool bInitialSearchCompleted;
+	/** Flag to indicate if the initial background search can be finalized */
+	bool bCanFinishInitialSearch = false;
 	/** Status of the background search, so we can take actions when it changes to or from idle */
 	Impl::EGatherStatus GatherStatus;
 
@@ -336,7 +389,10 @@ private:
 	/** Class names that return true for IsAsset but which should not be treated as assets in cooked packages */
 	TSet<FName> SkipCookedClasses;
 #endif
-
+#if ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR
+	UE::AssetRegistry::Premade::FAsyncConsumer AsyncConsumer;
+#endif
+	friend struct UE::AssetRegistry::Premade::FAsyncConsumer;
 	friend struct Impl::FClassInheritanceContext;
 };
 

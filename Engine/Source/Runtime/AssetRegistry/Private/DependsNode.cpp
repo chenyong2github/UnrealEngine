@@ -702,6 +702,8 @@ void FDependsNode::SerializeLoad(FArchive& Ar, const TUniqueFunction<FDependsNod
 	ReadDependencies(NameDependencies, nullptr, 0);
 	ReadDependencies(ManageDependencies, &ManageFlags, ManageFlagSetWidth);
 	ReadDependencies(Referencers, nullptr, 0);
+
+	SetIsDependenciesInitialized(true);
 }
 
 void FDependsNode::SerializeLoad_BeforeFlags(FArchive& Ar, FAssetRegistryVersion::Type Version, FDependsNode* PreallocatedDependsNodeDataBuffer, int32 NumDependsNodes, bool bSerializeDependencies,
@@ -771,6 +773,8 @@ void FDependsNode::SerializeLoad_BeforeFlags(FArchive& Ar, FAssetRegistryVersion
 	SerializeNodeArray(NumSoftManage, ManageDependencies, &ManageFlags, ManageFlagSetWidth, SoftManageBits, true, bSerializeDependencies);
 	SerializeNodeArray(NumHardManage, ManageDependencies, &ManageFlags, ManageFlagSetWidth, HardManageBits, true, bSerializeDependencies);
 	SerializeNodeArray(NumReferencers, Referencers, nullptr, 0, 0, true, true);
+
+	SetIsDependenciesInitialized(true);
 }
 
 void FDependsNode::GetPropertySetBits_BeforeFlags(uint32& HardBits, uint32& SoftBits, uint32& HardManageBits, uint32& SoftManageBits)
@@ -940,4 +944,14 @@ void FDependsNode::SetIsReferencersSorted(bool bValue)
 		SortDependencyList<0>(Referencers, nullptr);
 	}
 	ReferencersIsSorted = bValue ? 1 : 0;
+}
+
+bool FDependsNode::IsDependenciesInitialized() const
+{
+	return DependenciesInitialized;
+}
+
+void FDependsNode::SetIsDependenciesInitialized(bool bValue)
+{
+	DependenciesInitialized = bValue ? 1 : 0;
 }

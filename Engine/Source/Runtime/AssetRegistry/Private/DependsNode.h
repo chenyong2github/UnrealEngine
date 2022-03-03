@@ -158,6 +158,8 @@ public:
 	void SetIsDependencyListSorted(UE::AssetRegistry::EDependencyCategory Category, bool bValue);
 	bool IsReferencersSorted() const;
 	void SetIsReferencersSorted(bool bValue);
+	bool IsDependenciesInitialized() const;
+	void SetIsDependenciesInitialized(bool bValue);
 
 private:
 
@@ -172,6 +174,7 @@ private:
 		SearchableNameIsSorted = 1;
 		ManageIsSorted = 1;
 		ReferencersIsSorted = 1;
+		DependenciesInitialized = 0;
 	}
 
 	/** The name of the package/object this node represents */
@@ -186,4 +189,5 @@ private:
 	uint32 SearchableNameIsSorted : 1;
 	uint32 ManageIsSorted : 1;
 	uint32 ReferencersIsSorted : 1;
+	uint32 DependenciesInitialized : 1;
 };

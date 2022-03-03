@@ -8,6 +8,7 @@
 #include "AssetRegistry.generated.h"
 
 class FRWScopeLock;
+namespace UE::AssetRegistry::Premade { struct FAsyncConsumer; }
 
 /**
  * The AssetRegistry singleton gathers information about .uasset files in the background so things
@@ -276,5 +277,8 @@ private:
 	FFileLoadProgressUpdatedEvent FileLoadProgressUpdatedEvent;
 
 	UE::AssetRegistry::Impl::FEventContext DeferredEvents;
+
+	friend class UE::AssetRegistry::FAssetRegistryImpl;
+	friend struct UE::AssetRegistry::Premade::FAsyncConsumer;
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
