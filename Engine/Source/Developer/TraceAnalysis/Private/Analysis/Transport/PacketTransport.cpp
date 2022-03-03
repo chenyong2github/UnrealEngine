@@ -41,7 +41,7 @@ FPacketTransport::~FPacketTransport()
 		for (FPacketNode* Node = Root; Node != nullptr;)
 		{
 			FPacketNode* Next = Node->Next;
-			delete[] Node;
+			FMemory::Free(Node);
 			Node = Next;
 		}
 	}
