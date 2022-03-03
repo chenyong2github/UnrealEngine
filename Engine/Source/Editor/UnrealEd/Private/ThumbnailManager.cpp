@@ -319,7 +319,7 @@ bool UThumbnailManager::CaptureProjectThumbnail(FViewport* Viewport, const FStri
 
 		// Compress the scaled image
 		TArray<uint8> ScaledPng;
-		FImageUtils::CompressImageArray(ScaledSize, ScaledSize, ScaledBitmap, ScaledPng);
+		FImageUtils::ThumbnailCompressImageArray(ScaledSize, ScaledSize, ScaledBitmap, ScaledPng);
 
 		// Save to file
 		const FString ScreenShotPath = FPaths::GetPath(OutputFilename);
