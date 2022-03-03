@@ -105,6 +105,7 @@ public:
 	virtual bool Tick(float DeltaTime) override;
 
 	IVoiceChatUser* GetVoiceChatUserInterface(const FUniqueNetId& LocalUserId);
+	IEOSPlatformHandlePtr GetEOSPlatformHandle() { return EOSPlatformHandle; };
 
 PACKAGE_SCOPE:
 	/** Only the factory makes instances */
