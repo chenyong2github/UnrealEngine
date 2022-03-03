@@ -229,6 +229,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Sorting")
 	uint32 bSortOnlyWhenTranslucent : 1;
 
+	/** Sort precision to use when sorting is active. */
+	UPROPERTY(EditAnywhere, Category = "Sorting")
+	ENiagaraRendererSortPrecision SortPrecision = ENiagaraRendererSortPrecision::Default;
+
 	/**
 	If true and a GPU emitter, we will use the current frames data to render with regardless of where the batcher may execute the dispatches.
 	If you have other emitters that are not translucent and using data that forces it to be a frame latent (i.e. view uniform buffer) you may need to disable

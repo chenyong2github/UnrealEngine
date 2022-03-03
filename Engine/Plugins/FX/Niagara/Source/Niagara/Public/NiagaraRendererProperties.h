@@ -152,6 +152,17 @@ private:
 	int32 TotalHalfComponents_RT;
 };
 
+UENUM()
+enum class ENiagaraRendererSortPrecision : uint8
+{
+	/** Uses the project settings value. */
+	Default,
+	/** Low precision sorting, half float (fp16) precision, faster and adequate for most cases. */
+	Low,
+	/** High precision sorting, float (fp32) precision, slower but may fix sorting artifacts. */
+	High,
+};
+
 /**
 * Emitter properties base class
 * Each EmitterRenderer derives from this with its own class, and returns it in GetProperties; a copy
@@ -256,6 +267,8 @@ public:
 	virtual bool NeedsSystemCompletion() const { return false; }
 
 	bool NeedsPreciseMotionVectors() const;
+
+	static bool IsSortHighPrecision(ENiagaraRendererSortPrecision SortPrecision);
 
 	/** Platforms on which this renderer is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta=(DisplayInScalabilityContext))

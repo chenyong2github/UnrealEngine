@@ -62,6 +62,15 @@ enum class ENiagaraDefaultRendererPixelCoverageMode : uint8
 };
 
 UENUM()
+enum class ENiagaraDefaultSortPrecision : uint8
+{
+	/** Low precision sorting, half float (fp16) precision, faster and adequate for most cases. */
+	Low,
+	/** High precision sorting, float (fp32) precision, slower but may fix sorting artifacts. */
+	High,
+};
+
+UENUM()
 namespace ENDICollisionQuery_AsyncGpuTraceProvider
 {
 	enum Type
@@ -139,6 +148,10 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	/** The default setting for pixel coverage mode when automatic is set on the Niagara Renderer. */
 	UPROPERTY(config, EditAnywhere, Category = Renderer)
 	ENiagaraDefaultRendererPixelCoverageMode DefaultPixelCoverageMode = ENiagaraDefaultRendererPixelCoverageMode::Enabled;
+
+	/** The default setting for sorting precision when automatic is set on the Niagara Renderer. */
+	UPROPERTY(config, EditAnywhere, Category = Renderer)
+	ENiagaraDefaultSortPrecision DefaultSortPrecision = ENiagaraDefaultSortPrecision::Low;
 
 	UPROPERTY(config, EditAnywhere, Category=SkeletalMeshDI, meta = ( DisplayName = "Gpu Max Bone Influences", ToolTip = "Controls the maximum number of influences we allow the Skeletal Mesh Data Interface to use on the GPU.  Changing this setting requires restarting the editor.", ConfigRestartRequired = true))
 	TEnumAsByte<ENDISkelMesh_GpuMaxInfluences::Type> NDISkelMesh_GpuMaxInfluences;

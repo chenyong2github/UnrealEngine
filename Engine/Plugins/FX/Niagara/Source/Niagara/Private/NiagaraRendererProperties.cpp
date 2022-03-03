@@ -459,3 +459,12 @@ bool UNiagaraRendererProperties::NeedsPreciseMotionVectors() const
 	
 	return MotionVectorSetting == ENiagaraRendererMotionVectorSetting::Precise;
 }
+
+bool UNiagaraRendererProperties::IsSortHighPrecision(ENiagaraRendererSortPrecision SortPrecision)
+{
+	if (SortPrecision == ENiagaraRendererSortPrecision::Default)
+	{
+		return GetDefault<UNiagaraSettings>()->DefaultSortPrecision == ENiagaraDefaultSortPrecision::High;
+	}
+	return SortPrecision == ENiagaraRendererSortPrecision::High;
+}

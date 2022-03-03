@@ -9,14 +9,6 @@ NiagaraSortingGPU.cpp: Niagara sorting shaders
 #include "ShaderParameterUtils.h"
 #include "ShaderCompilerCore.h"
 
-int32 GNiagaraGPUSortingUseMaxPrecision = 0;
-static FAutoConsoleVariableRef CVarNiagaraGPUSortinUseMaxPrecision(
-	TEXT("Niagara.GPUSorting.UseMaxPrecision"),
-	GNiagaraGPUSortingUseMaxPrecision,
-	TEXT("Wether sorting using fp32 instead of fp16. (default=0)"),
-	ECVF_Default
-);
-
 int32 GNiagaraGPUSortingCPUToGPUThreshold = -1;
 static FAutoConsoleVariableRef CVarNiagaraGPUSortingCPUToGPUThreshold(
 	TEXT("Niagara.GPUSorting.CPUToGPUThreshold"),

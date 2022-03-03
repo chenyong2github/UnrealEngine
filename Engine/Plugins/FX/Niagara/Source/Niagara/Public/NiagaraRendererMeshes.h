@@ -177,6 +177,7 @@ private:
 	ENiagaraSortMode SortMode;
 	ENiagaraMeshFacingMode FacingMode;
 	uint32 bOverrideMaterials : 1;
+	uint32 bSortHighPrecision : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
 	uint32 bGpuLowLatencyTranslucency : 1;
 	uint32 bLockedAxisEnable : 1;

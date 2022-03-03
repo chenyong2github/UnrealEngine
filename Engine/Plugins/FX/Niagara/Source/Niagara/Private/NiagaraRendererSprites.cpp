@@ -68,6 +68,7 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	, NumIndicesPerInstance(0)
 	, bSubImageBlend(false)
 	, bRemoveHMDRollInVR(false)
+	, bSortHighPrecision(false)
 	, bSortOnlyWhenTranslucent(true)
 	, bGpuLowLatencyTranslucency(true)
 	, bEnableDistanceCulling(false)
@@ -91,6 +92,7 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	NumIndicesPerInstance = Properties->GetNumIndicesPerInstance();
 	bSubImageBlend = Properties->bSubImageBlend;
 	bRemoveHMDRollInVR = Properties->bRemoveHMDRollInVR;
+	bSortHighPrecision = UNiagaraRendererProperties::IsSortHighPrecision(Properties->SortPrecision);
 	bSortOnlyWhenTranslucent = Properties->bSortOnlyWhenTranslucent;
 	bGpuLowLatencyTranslucency = Properties->bGpuLowLatencyTranslucency;
 	MinFacingCameraBlendDistance = Properties->MinFacingCameraBlendDistance;
@@ -378,7 +380,7 @@ void FNiagaraRendererSprites::InitializeSortInfo(FParticleSpriteRenderData& Part
 
 	OutSortInfo.ParticleCount = ParticleSpriteRenderData.SourceParticleData->GetNumInstances();
 	OutSortInfo.SortMode = SortMode;
-	OutSortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, ParticleSpriteRenderData.SourceParticleData->GetGPUDataReadyStage());
+	OutSortInfo.SetSortFlags(bSortHighPrecision, ParticleSpriteRenderData.SourceParticleData->GetGPUDataReadyStage());
 	OutSortInfo.bEnableCulling = ParticleSpriteRenderData.bNeedsCull;
 	OutSortInfo.RendererVisTagAttributeOffset = ParticleSpriteRenderData.RendererVisTagOffset;
 	OutSortInfo.RendererVisibility = RendererVisibility;

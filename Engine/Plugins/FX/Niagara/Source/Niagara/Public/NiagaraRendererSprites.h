@@ -114,6 +114,7 @@ private:
 
 	uint32 bSubImageBlend : 1;
 	uint32 bRemoveHMDRollInVR : 1;
+	uint32 bSortHighPrecision : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
 	uint32 bGpuLowLatencyTranslucency : 1;
 	uint32 bEnableCulling : 1;
