@@ -1351,10 +1351,11 @@ bool FHLSLMaterialTranslator::Translate()
 			// Unlit must be used in isolation
 			if (StrataMaterialContainsAnyBSDF(this, StrataCompilationInfo, STRATA_BSDF_TYPE_UNLIT))
 			{
-				// If the unlit node is used, it must be the only one used
+				FString MaterialDomain = MaterialDomainString(Material->GetMaterialDomain());
+				// If the unlit node is used, it must be the only one used. This is true for all domain (surface, light function, post process).
 				if (!StrataIsUnlitOnly(this, StrataCompilationInfo))
 				{
-					FString ErrorMsg = FString::Printf(TEXT("Material %s contains Unlit BSDF but it is not the single BSDF representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+					FString ErrorMsg = FString::Printf(TEXT("%s Material %s contains Unlit BSDF but it is not the single BSDF representing the material asset: %s. It must be the single BSDF.\r\n"), *MaterialDomain, *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 					Error(*ErrorMsg);
 				}
 			}

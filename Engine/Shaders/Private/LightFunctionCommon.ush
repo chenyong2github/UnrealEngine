@@ -55,7 +55,7 @@ float3 GetLightFunctionColor(float3 LightVector, float3 TranslatedWorldSpace)
 #if STRATA_ENABLED
 
   #if COMPUTESHADER
-	return 0.f; // STRATA_TODO: This path doesn't seem to be used
+	return StrataGetBSDFEmissive(MaterialParameters.StrataTree.BSDFs[0]); // Unused code path?
   #else
 	return StrataGetBSDFEmissive(PixelMaterialInputs.FrontMaterial.InlinedBSDF);
   #endif

@@ -667,10 +667,12 @@ enum EStrataShadingModel
 	SSM_VolumetricFogCloud		UMETA(DisplayName = "VolumetricFogCloud"),
 	SSM_Hair					UMETA(DisplayName = "Hair"),
 	SSM_SingleLayerWater		UMETA(DisplayName = "SingleLayerWater"),
+	SSM_LightFunction			UMETA(DisplayName = "LightFunction"),
+	SSM_PostProcess				UMETA(DisplayName = "PostProcess"),
 	/** Number of unique shading models. */
 	SSM_NUM						UMETA(Hidden),
 };
-static_assert(SSM_NUM <= 8, "Do not exceed 16 shading models without expanding FStrataMaterialShadingModelField to support uint32 instead of uint16!");
+static_assert(SSM_NUM <= 16, "Do not exceed 16 shading models without expanding FStrataMaterialShadingModelField to support uint32 instead of uint16!");
 
 /** Gather information from the Strata material graph to setup material for runtime. */
 USTRUCT()

@@ -3033,26 +3033,31 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			FrontMaterial.Connect(0, VolBSDF);
 			bInvalidateShader = true;
 		}
-		else if (MaterialDomain == MD_PostProcess || MaterialDomain == MD_LightFunction)
+		else if (MaterialDomain == MD_LightFunction)
 		{
-			// Some post-process material don't have their shading mode set correctly to Unlit. Since only Unlit is supported, forcing it here.
+			// Some materials don't have their shading mode set correctly to Unlit. Since only Unlit is supported, forcing it here.
 			ShadingModel = MSM_Unlit;
 			ShadingModels.ClearShadingModels();
 			ShadingModels.AddShadingModel(MSM_Unlit);
 
 			// Only Emissive & Opacity are valid input for PostProcess material
-			UMaterialExpressionStrataLegacyConversion* ConvertNode = NewObject<UMaterialExpressionStrataLegacyConversion>(this);
-			MoveConnectionTo(EmissiveColor, ConvertNode, 5);
-			MoveConnectionTo(Opacity, ConvertNode, 11);
+			UMaterialExpressionStrataLightFunction* ConvertNode = NewObject<UMaterialExpressionStrataLightFunction>(this);
+			MoveConnectionTo(EmissiveColor, ConvertNode, 0);
 
-			// Add constant for the Unlit shading model
-			UMaterialExpressionConstant* ShadingModelNode = NewObject<UMaterialExpressionConstant>(this);
-			ShadingModelNode->SetParameterName(FName(TEXT("ConstantShadingModel")));
-			ShadingModelNode->R = ShadingModel;
-			ConvertNode->ShadingModel.Connect(0, ShadingModelNode);
+			FrontMaterial.Connect(0, ConvertNode);
+			bInvalidateShader = true;
+		}
+		else if (MaterialDomain == MD_PostProcess)
+		{
+			// Some materials don't have their shading mode set correctly to Unlit. Since only Unlit is supported, forcing it here.
+			ShadingModel = MSM_Unlit;
+			ShadingModels.ClearShadingModels();
+			ShadingModels.AddShadingModel(MSM_Unlit);
 
-			AddStrataShadingModelFromMaterialShadingModel(ConvertNode->ConvertedStrataMaterialInfo, ShadingModels);
-			check(ConvertNode->ConvertedStrataMaterialInfo.CountShadingModels() == 1);
+			// Only Emissive & Opacity are valid input for PostProcess material
+			UMaterialExpressionStrataPostProcess* ConvertNode = NewObject<UMaterialExpressionStrataPostProcess>(this);
+			MoveConnectionTo(EmissiveColor, ConvertNode, 0);
+			MoveConnectionTo(Opacity, ConvertNode, 1);
 
 			FrontMaterial.Connect(0, ConvertNode);
 			bInvalidateShader = true;
@@ -3670,7 +3675,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, StrataBlendMode))
 		{
-			return Engine_IsStrataEnabled();
+			return Engine_IsStrataEnabled() && ((MaterialDomain != MD_PostProcess && MaterialDomain != MD_LightFunction && MaterialDomain != MD_Volume) || (MaterialDomain == MD_PostProcess && BlendableOutputAlpha));
 		}
 	
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, ShadingModel))
@@ -4204,6 +4209,18 @@ void UMaterial::RebuildShadingModelField()
 				MaterialDomain = EMaterialDomain::MD_Surface;
 				ShadingModel = MSM_SingleLayerWater;
 				BlendMode = EBlendMode::BLEND_Opaque; // STRATA_TODO water can also be masked: check Mask input from the main node to automatically enabled that?
+			}
+			else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_LightFunction))
+			{
+				MaterialDomain = EMaterialDomain::MD_LightFunction;
+				ShadingModel = MSM_Unlit;
+				BlendMode = EBlendMode::BLEND_Opaque;
+			}
+			else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_PostProcess))
+			{
+				MaterialDomain = EMaterialDomain::MD_PostProcess;
+				ShadingModel = MSM_Unlit;
+				BlendMode = EBlendMode::BLEND_Opaque;
 			}
 
 			// Also update the ShadingModels for remaining pipeline operation

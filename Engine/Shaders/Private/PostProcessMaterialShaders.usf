@@ -203,17 +203,23 @@ void MainPS(
 	CalcMaterialParametersPost(Parameters, PixelMaterialInputs, SvPosition, true);
 
 	float Alpha = 1.0f;
-#if STRATA_ENABLED   
+#if STRATA_ENABLED
+
 	// Unlit forces a single BSDF
 	const FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
 
 	// Grab emissive colour as output
   #if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
-	Alpha = UnlitBSDF.Coverage;
+	// Transmittance = 1 - opacity. See UMaterialExpressionStrataPostProcess.
+	const float UnlitBSDFTransmittance = UNLIT_TRANSMITTANCE(UnlitBSDF).x;
+	const float UnlitBSDFOpacity = 1.0f - UnlitBSDFTransmittance;
+	Alpha = UnlitBSDFOpacity;
   #elif (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)
 	Alpha = Parameters.BackupSceneColorAlpha;
   #endif
+
 	const float3 Emissive = BSDF_GETEMISSIVE(UnlitBSDF);
+
 #else
 	// Grab emissive colour as output
   #if MATERIAL_OUTPUT_OPACITY_AS_ALPHA
