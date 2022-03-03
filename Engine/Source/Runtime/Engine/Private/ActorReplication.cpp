@@ -395,7 +395,7 @@ void AActor::GatherCurrentMovement()
 			{
 				// Networking for attachments assumes the RootComponent of the AttachParent actor. 
 				// If that's not the case, we can't update this, as the client wouldn't be able to resolve the Component and would detach as a result.
-				AttachmentReplication.AttachParent = RootComponent->GetAttachParent()->GetAttachmentRootActor();
+				AttachmentReplication.AttachParent = RootComponent->GetAttachParentActor();
 				if (AttachmentReplication.AttachParent != nullptr)
 				{
 					AttachmentReplication.LocationOffset = RootComponent->GetRelativeLocation();

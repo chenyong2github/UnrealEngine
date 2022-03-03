@@ -2285,6 +2285,12 @@ AActor* USceneComponent::GetAttachmentRootActor() const
 	return AttachmentRootComponent ? AttachmentRootComponent->GetOwner() : nullptr;
 }
 
+AActor* USceneComponent::GetAttachParentActor() const
+{
+	const USceneComponent* const AttachParentComponent = GetAttachParent();
+	return AttachParentComponent ? AttachParentComponent->GetOwner() : nullptr;
+}
+
 bool USceneComponent::IsAttachedTo(const USceneComponent* TestComp) const
 {
 	if(TestComp != nullptr)

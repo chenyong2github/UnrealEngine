@@ -1258,6 +1258,9 @@ public:
 	/** Walks up the attachment chain from this SceneComponent and returns the top-level actor it's attached to.  Returns Owner if unattached. */
 	AActor* GetAttachmentRootActor() const;
 
+	/** Gets the owner of the attach parent */
+	AActor* GetAttachParentActor() const;
+
 	/** Walks up the attachment chain to see if this component is attached to the supplied component. If TestComp == this, returns false.*/
 	bool IsAttachedTo(const USceneComponent* TestComp) const;
 
