@@ -16,7 +16,7 @@
 FWidgetGraphApplicationMode::FWidgetGraphApplicationMode(TSharedPtr<FWidgetBlueprintEditor> InWidgetEditor)
 	: FWidgetBlueprintApplicationMode(InWidgetEditor, FWidgetBlueprintApplicationModes::GraphMode)
 {
-	TabLayout = FTabManager::NewLayout( "WidgetBlueprintEditor_Graph_Layout_v2" )
+	TabLayout = FTabManager::NewLayout( "WidgetBlueprintEditor_Graph_Layout_v2x1" )
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea() ->SetOrientation(Orient_Vertical)
@@ -69,8 +69,16 @@ FWidgetGraphApplicationMode::FWidgetGraphApplicationMode(TSharedPtr<FWidgetBluep
 			)
 		);
 	
-	IUMGEditorModule& EditorModule = FModuleManager::GetModuleChecked<IUMGEditorModule>("UMGEditor");
-	EditorModule.OnRegisterTabsForEditor().Broadcast(*this, TabFactories);
+	IUMGEditorModule& UMGEditorModule = FModuleManager::GetModuleChecked<IUMGEditorModule>("UMGEditor");
+	UMGEditorModule.OnRegisterTabsForEditor().Broadcast(*this, TabFactories);
+
+	// Add any extenders specified by the UMG Editor Module
+	// Note: Used by WidgetEditorModeUILayer to register the toolbox tab
+	if (LayoutExtender)
+	{
+		UMGEditorModule.OnRegisterLayoutExtensions().Broadcast(*LayoutExtender);
+		TabLayout->ProcessExtensions(*LayoutExtender);
+	}
 
 	ToolbarExtender = MakeShareable(new FExtender);
 	InWidgetEditor->GetWidgetToolbarBuilder()->AddWidgetBlueprintEditorModesToolbar(ToolbarExtender);

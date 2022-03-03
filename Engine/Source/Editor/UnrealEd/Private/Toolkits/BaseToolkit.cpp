@@ -396,10 +396,8 @@ void FModeToolkit::InvokeUI()
 				GetToolPaletteNames(PaletteNames);
 				for (auto Palette : PaletteNames)
 				{
-					FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), false);
-					ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
-					BuildToolPalette(Palette, ModeToolbarBuilder);
-					ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
+					TSharedRef<SWidget> PaletteWidget = CreatePaletteWidget(CommandList, ScriptableMode->GetModeInfo().ToolbarCustomizationName, Palette);
+					ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, GetToolPaletteDisplayName(Palette), PaletteWidget);
 				}
 			}
 			TSharedPtr<SDockTab> CreatedToolbarTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::VerticalToolbarID);
@@ -510,12 +508,7 @@ void FModeToolkit::UpdatePrimaryModePanel()
 			for (auto Palette : PaletteNames)
 			{
 				FName ToolbarCustomizationName = GetEditorMode() ?  GetEditorMode()->GetModeInfo().ToolbarCustomizationName : GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
-				FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ToolbarCustomizationName));
-				ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
-
-				BuildToolPalette(Palette, ModeToolbarBuilder);
-
-				TSharedRef<SWidget> PaletteWidget = ModeToolbarBuilder.MakeWidget();
+				TSharedRef<SWidget> PaletteWidget = CreatePaletteWidget(CommandList, ToolbarCustomizationName, Palette);
 
 				const bool bRebuildChildren = false;
 				PaletteTabBox->AddSlot(Palette, false)
@@ -660,6 +653,16 @@ const FEditorModeInfo* FModeToolkit::GetEditorModeInfo() const
 bool FModeToolkit::ShouldShowModeToolbar() const
 {
 	return ActiveToolBarRows.Num() > 0;
+}
+
+TSharedRef<SWidget> FModeToolkit::CreatePaletteWidget(TSharedPtr<FUICommandList> InCommandList, FName InToolbarCustomizationName, FName InPaletteName)
+{
+	FUniformToolBarBuilder ModeToolbarBuilder(InCommandList, FMultiBoxCustomization(InToolbarCustomizationName));
+	ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
+
+	BuildToolPalette(InPaletteName, ModeToolbarBuilder);
+
+	return ModeToolbarBuilder.MakeWidget();
 }
 
 void FModeToolkit::SpawnOrUpdateModeToolbar()

@@ -1737,6 +1737,56 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		Set("EditorModesPanel.ToolDescriptionFont", DEFAULT_FONT("Italic", 10));
 
 	}
+	// Vertical ToolPalette 
+	{
+		FToolBarStyle VerticalToolBarStyle = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
+
+		FTextBlockStyle VerticalToolBarLabelStyle = FTextBlockStyle(GetParentStyle()->GetWidgetStyle<FTextBlockStyle>("SmallText"));
+		VerticalToolBarLabelStyle.SetOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+
+		VerticalToolBarStyle.SetLabelStyle(VerticalToolBarLabelStyle);
+		
+		VerticalToolBarStyle.SetBackground(FSlateColorBrush(FStyleColors::Recessed));
+
+		VerticalToolBarStyle.SetLabelPadding(FMargin(0.0f, 1.0f, 0.0f, 0.0f));
+
+		VerticalToolBarStyle.SetButtonPadding(       FMargin(0.0f, 0.0f));
+		VerticalToolBarStyle.SetCheckBoxPadding(     FMargin(0.0f, 0.0f));
+		VerticalToolBarStyle.SetComboButtonPadding(  FMargin(0.0f, 0.0f));
+		VerticalToolBarStyle.SetIndentedBlockPadding(FMargin(0.0f, 0.0f));
+		VerticalToolBarStyle.SetBlockPadding(        FMargin(0.0f, 0.0f));
+		VerticalToolBarStyle.SetBackgroundPadding(   FMargin(4.0f, 2.0f));
+		VerticalToolBarStyle.ToggleButton.SetPadding(FMargin(0.0f, 6.0f));
+		VerticalToolBarStyle.ButtonStyle.SetNormalPadding(FMargin(2.0f, 6.0f));
+		VerticalToolBarStyle.ButtonStyle.SetPressedPadding(FMargin(2.0f, 6.0f));
+
+		Set( "VerticalToolBar.Tab",  FCheckBoxStyle()
+			.SetCheckBoxType(            ESlateCheckBoxType::ToggleButton)
+
+			.SetCheckedImage(            FSlateRoundedBoxBrush(FStyleColors::Input, 2.0f))
+			.SetCheckedHoveredImage(     FSlateRoundedBoxBrush(FStyleColors::Input, 2.0f))
+			.SetCheckedPressedImage(     FSlateRoundedBoxBrush(FStyleColors::Input, 2.0f))
+
+			.SetUncheckedImage(          FSlateRoundedBoxBrush(FStyleColors::Secondary, 2.0f))
+			.SetUncheckedHoveredImage(   FSlateRoundedBoxBrush(FStyleColors::Hover, 2.0f))
+			.SetUncheckedPressedImage(   FSlateRoundedBoxBrush(FStyleColors::Secondary, 2.0f))
+
+			.SetForegroundColor(         FStyleColors::Foreground)
+			.SetHoveredForegroundColor(  FStyleColors::ForegroundHover)
+			.SetPressedForegroundColor(  FStyleColors::ForegroundHover)
+			.SetCheckedForegroundColor(  FStyleColors::Primary)
+			.SetCheckedHoveredForegroundColor(FStyleColors::PrimaryHover)
+			.SetPadding(FMargin(2.f, 6.f))
+		);
+
+		Set("VerticalToolBar.MaxUniformToolbarSize", 48.f);
+		Set("VerticalToolBar.MinUniformToolbarSize", 48.f);
+
+		Set("VerticalToolBar.ExpandableAreaHeader", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(4.0, 4.0, 0.0, 0.0)));
+		Set("VerticalToolBar.ExpandableAreaBody", new FSlateRoundedBoxBrush(FStyleColors::Recessed, FVector4(0.0, 0.0, 4.0, 4.0)));
+
+		Set("VerticalToolBar", VerticalToolBarStyle);
+	}
 	
 	// Ctrl+Tab menu
 	{

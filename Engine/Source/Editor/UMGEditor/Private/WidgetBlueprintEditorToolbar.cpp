@@ -141,4 +141,17 @@ void FWidgetBlueprintEditorToolbar::AddWidgetReflector(UToolMenu* InMenu)
 	));
 }
 
+void FWidgetBlueprintEditorToolbar::AddToolPalettes(UToolMenu* InMenu)
+{
+	// @TODO: DarenC - For now we only support one tool palette, switch this to a dropdown when we support multiple tool palettes.
+	for (TSharedPtr<FUICommandInfo>& Command : WidgetEditor.Pin()->ToolPaletteCommands)
+	{
+		FToolMenuSection& Section = InMenu->FindOrAddSection("UMGToolPalette");
+		Section.AddDynamicEntry(Command->GetCommandName(), FNewToolMenuSectionDelegate::CreateLambda([this, Command](FToolMenuSection& InSection)
+			{
+				InSection.AddEntry(FToolMenuEntry::InitToolBarButton(Command));
+			}));
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

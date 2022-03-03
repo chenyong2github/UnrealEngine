@@ -34,8 +34,8 @@
 #include "WidgetBlueprintEditorUtils.h"
 #include "ScopedTransaction.h"
 #include "Styling/SlateIconFinder.h"
-#include "WidgetTemplateBlueprintClass.h"
-#include "WidgetTemplateImageClass.h"
+#include "Templates/WidgetTemplateBlueprintClass.h"
+#include "Templates/WidgetTemplateImageClass.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

@@ -394,7 +394,7 @@ void UEditorInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient,
 {
 	// invalidate this viewport if it's timestamp is not current
 	const int32* FoundTimestamp = InvalidationMap.Find(ViewportClient);
-	if (FoundTimestamp == nullptr)
+	if (FoundTimestamp == nullptr && ViewportClient)
 	{
 		ViewportClient->Invalidate(false, false);
 		InvalidationMap.Add(ViewportClient, InvalidationTimestamp);
@@ -429,7 +429,10 @@ void UEditorInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient,
 	// Cache current camera state from this Viewport in the ContextQueries, which we will use for things like snapping/etc that
 	// is computed by the Tool and Gizmo Tick()s
 	// (This is not necessarily correct for Hover, because we might be Hovering over a different Viewport than the Active one...)
-	((FEdModeToolsContextQueriesImpl*)this->QueriesAPI)->CacheCurrentViewState(ViewportClient);
+	if (ViewportClient)
+	{
+		((FEdModeToolsContextQueriesImpl*)this->QueriesAPI)->CacheCurrentViewState(ViewportClient);
+	}
 
 	// tick our stuff
 	ToolManager->Tick(DeltaTime);
@@ -474,6 +477,11 @@ public:
 
 	void CacheCurrentViewState(FViewport* Viewport, FEditorViewportClient* ViewportClient)
 	{
+		if (!ViewportClient)
+		{
+			return;
+		}
+
 		FViewportCameraTransform ViewTransform = ViewportClient->GetViewTransform();
 		ViewCameraState.bIsOrthographic = ViewportClient->IsOrtho();
 		ViewCameraState.Position = ViewTransform.GetLocation();
@@ -631,6 +639,11 @@ bool UEditorInteractiveToolsContext::ProcessEditDelete()
 
 FRay UEditorInteractiveToolsContext::GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY)
 {
+	if (!ViewportClient)
+	{
+		return FRay();
+	}
+
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		ViewportClient->Viewport,
 		ViewportClient->GetScene(),
@@ -871,16 +884,19 @@ bool UModeManagerInteractiveToolsContext::InputKey(FEditorViewportClient* Viewpo
 				// to wherever they get handled.
 				// Someday these kinds of prioritizations will be handled by having camera manipulation be
 				// in a common input router so that behavior priorities can determine the ordering.
-				if (ViewportClient->IsAltPressed() && InputRouter->HasActiveMouseCapture() == false)
+				if (ViewportClient && ViewportClient->IsAltPressed() && InputRouter->HasActiveMouseCapture() == false)
 				{
 					return false;
 				}
 
 				FInputDeviceState InputState = CurrentMouseState;
 				InputState.InputDevice = EInputDevices::Mouse;
+
+				FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
 				InputState.SetModifierKeyStates(
-					ViewportClient->IsShiftPressed(), ViewportClient->IsAltPressed(),
-					ViewportClient->IsCtrlPressed(), ViewportClient->IsCmdPressed());
+					ModifierKeys.IsShiftDown(), ModifierKeys.IsAltDown(),
+					ModifierKeys.IsControlDown(), ModifierKeys.IsCommandDown());
+
 				if (bIsLeftMouse)
 				{
 					InputState.Mouse.Left.SetStates(
@@ -917,9 +933,11 @@ bool UModeManagerInteractiveToolsContext::InputKey(FEditorViewportClient* Viewpo
 
 				FInputDeviceState InputState = CurrentMouseState;
 				InputState.InputDevice = EInputDevices::Mouse;
+
+				FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
 				InputState.SetModifierKeyStates(
-					ViewportClient->IsShiftPressed(), ViewportClient->IsAltPressed(),
-					ViewportClient->IsCtrlPressed(), ViewportClient->IsCmdPressed());
+					ModifierKeys.IsShiftDown(), ModifierKeys.IsAltDown(),
+					ModifierKeys.IsControlDown(), ModifierKeys.IsCommandDown());
 
 				InputState.Mouse.WheelDelta = (Event != IE_Pressed) ? 0
 					: (Key == EKeys::MouseScrollUp) ? 1 
@@ -944,9 +962,12 @@ bool UModeManagerInteractiveToolsContext::InputKey(FEditorViewportClient* Viewpo
 		{
 			FInputDeviceState InputState;
 			InputState.InputDevice = EInputDevices::Keyboard;
+
+			FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
 			InputState.SetModifierKeyStates(
-				ViewportClient->IsShiftPressed(), ViewportClient->IsAltPressed(),
-				ViewportClient->IsCtrlPressed(), ViewportClient->IsCmdPressed());
+				ModifierKeys.IsShiftDown(), ModifierKeys.IsAltDown(),
+				ModifierKeys.IsControlDown(), ModifierKeys.IsCommandDown());
+
 			InputState.Keyboard.ActiveKey.Button = Key;
 			bool bPressed = (Event == IE_Pressed);
 			InputState.Keyboard.ActiveKey.SetStates(bPressed, bPressed, !bPressed);
@@ -981,9 +1002,10 @@ bool UModeManagerInteractiveToolsContext::MouseMove(FEditorViewportClient* Viewp
 	FInputDeviceState InputState = CurrentMouseState;
 	InputState.InputDevice = EInputDevices::Mouse;
 
+	FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
 	InputState.SetModifierKeyStates(
-		ViewportClient->IsShiftPressed(), ViewportClient->IsAltPressed(),
-		ViewportClient->IsCtrlPressed(), ViewportClient->IsCmdPressed());
+		ModifierKeys.IsShiftDown(), ModifierKeys.IsAltDown(),
+		ModifierKeys.IsControlDown(), ModifierKeys.IsCommandDown());
 
 	if (InputRouter->HasActiveMouseCapture())
 	{
@@ -1033,9 +1055,12 @@ bool UModeManagerInteractiveToolsContext::CapturedMouseMove(FEditorViewportClien
 
 		FInputDeviceState InputState = CurrentMouseState;
 		InputState.InputDevice = EInputDevices::Mouse;
+		
+		FModifierKeysState ModifierKeys = FSlateApplication::Get().GetModifierKeys();
 		InputState.SetModifierKeyStates(
-			InViewportClient->IsShiftPressed(), InViewportClient->IsAltPressed(),
-			InViewportClient->IsCtrlPressed(), InViewportClient->IsCmdPressed());
+			ModifierKeys.IsShiftDown(), ModifierKeys.IsAltDown(),
+			ModifierKeys.IsControlDown(), ModifierKeys.IsCommandDown());
+
 		InputState.Mouse.Delta2D = CurrentMouseState.Mouse.Position2D - OldPosition;
 		InputRouter->PostInputEvent(InputState);
 		return true;
@@ -1051,7 +1076,10 @@ bool UModeManagerInteractiveToolsContext::EndTracking(FEditorViewportClient* InV
 		// If the input router captured the mouse input, we need to invalidate the viewport client here, since the mouse delta tracker's end tracking will not be called.
 		constexpr bool bForceChildViewportRedraw = true;
 		constexpr bool bInvalidateHitProxies = true;
-		InViewportClient->Invalidate(bForceChildViewportRedraw, bInvalidateHitProxies);
+		if (InViewportClient)
+		{
+			InViewportClient->Invalidate(bForceChildViewportRedraw, bInvalidateHitProxies);
+		}
 		bIsTrackingMouse = false;
 		return true;
 	}

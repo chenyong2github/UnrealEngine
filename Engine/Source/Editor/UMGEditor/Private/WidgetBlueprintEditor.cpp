@@ -40,6 +40,7 @@
 #include "WorkflowOrientedApp/ApplicationMode.h"
 #include "BlueprintModes/WidgetDesignerApplicationMode.h"
 #include "BlueprintModes/WidgetGraphApplicationMode.h"
+#include "WidgetModeManager.h"
 
 #include "WidgetBlueprintEditorToolbar.h"
 #include "Components/CanvasPanel.h"
@@ -54,11 +55,13 @@
 
 #include "ScopedTransaction.h"
 
+#include "Designer/SDesignerView.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "UMGEditorActions.h"
 #include "UMGEditorModule.h"
 #include "GameProjectGenerationModule.h"
+#include "Tools/ToolCompatible.h"
 
 #include "SPaletteViewModel.h"
 #include "SLibraryViewModel.h"
@@ -72,6 +75,8 @@
 #include "Serialization/BufferArchive.h"
 #include "Widgets/SVirtualWindow.h"
 #include "TabFactory/AnimationTabSummoner.h"
+#include "TabFactory/DesignerTabSummoner.h"
+#include "ToolPalette/WidgetEditorModeUILayer.h"
 #include "Kismet/Public/BlueprintEditorTabs.h"
 
 #include "Editor/UnrealEdEngine.h"
@@ -190,6 +195,10 @@ void FWidgetBlueprintEditor::InitWidgetBlueprintEditor(const EToolkitMode::Type 
 		FExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::DuplicateSelectedWidgets),
 		FCanExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::CanDuplicateSelectedWidgets)
 		);
+
+	TSharedPtr<class IToolkitHost> PinnedToolkitHost = ToolkitHost.Pin();
+	check(PinnedToolkitHost.IsValid());
+	ModeUILayer = MakeShared<FWidgetEditorModeUILayer>(PinnedToolkitHost.Get());
 }
 
 void FWidgetBlueprintEditor::InitalizeExtenders()
@@ -200,6 +209,15 @@ void FWidgetBlueprintEditor::InitalizeExtenders()
 	AddMenuExtender(UMGEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 
 	AddMenuExtender(CreateMenuExtender());
+
+	TArrayView<IUMGEditorModule::FWidgetEditorToolbarExtender> ToolbarExtenderDelegates = UMGEditorModule.GetAllWidgetEditorToolbarExtenders();
+	for (auto& ToolbarExtenderDelegate : ToolbarExtenderDelegates)
+	{
+		if (ToolbarExtenderDelegate.IsBound())
+		{
+			AddToolbarExtender(ToolbarExtenderDelegate.Execute(GetToolkitCommands(), SharedThis(this)));
+		}
+	}
 }
 
 TSharedPtr<FExtender> FWidgetBlueprintEditor::CreateMenuExtender()
@@ -1455,6 +1473,31 @@ void FWidgetBlueprintEditor::Compile()
 	}
 }
 
+bool FWidgetBlueprintEditor::OnRequestClose()
+{
+	bool bAllowClose = Super::OnRequestClose();
+
+	// Give any active modes a chance to shutdown while the toolkit host is still alive
+	// Note: This along side with the default tool palette extension tab being closed 
+	// is what prevents an unrecognized tab from spawning on layout restore
+	if (bAllowClose)
+	{
+		GetEditorModeManager().ActivateDefaultMode();
+	}
+
+	return bAllowClose;
+}
+
+void FWidgetBlueprintEditor::OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit)
+{
+	ModeUILayer->OnToolkitHostingStarted(Toolkit);
+}
+
+void FWidgetBlueprintEditor::OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit)
+{
+	ModeUILayer->OnToolkitHostingFinished(Toolkit);
+}
+
 void FWidgetBlueprintEditor::DestroyPreview()
 {
 	UUserWidget* PreviewUserWidget = GetPreview();
@@ -1651,6 +1694,14 @@ bool FWidgetBlueprintEditor::GetIsRespectingLocks() const
 void FWidgetBlueprintEditor::SetIsRespectingLocks(bool Value)
 {
 	bRespectLocks = Value;
+}
+
+void FWidgetBlueprintEditor::CreateEditorModeManager()
+{
+	TSharedPtr<FWidgetModeManager> WidgetModeManager = MakeShared<FWidgetModeManager>();
+	WidgetModeManager->OwningToolkit = SharedThis(this);
+	EditorModeManager = WidgetModeManager;
+
 }
 
 class FObjectAndDisplayName

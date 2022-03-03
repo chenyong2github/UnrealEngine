@@ -26,6 +26,8 @@ public:
 
 	void AddWidgetReflector(UToolMenu* InMenu);
 
+	void AddToolPalettes(UToolMenu* InMenu);
+
 public:
 	/**  */
 	void FillWidgetBlueprintEditorModesToolbar(FToolBarBuilder& ToolbarBuilder);

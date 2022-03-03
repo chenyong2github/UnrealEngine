@@ -1331,7 +1331,7 @@ protected:
 	void SetDebugInfo( const ANSICHAR* InType, const ANSICHAR* InFile, int32 OnLine, size_t InAllocSize );
 
 	/** The cursor to show when the mouse is hovering over this widget. */
-	TOptional<EMouseCursor::Type> GetCursor() const;
+	virtual TOptional<EMouseCursor::Type> GetCursor() const;
 
 public:
 

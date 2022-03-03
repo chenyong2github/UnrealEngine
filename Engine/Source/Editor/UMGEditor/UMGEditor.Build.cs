@@ -48,6 +48,7 @@ public class UMGEditor : ModuleRules
 				"Engine",
 				"AssetTools",
 				"EditorFramework",
+				"InteractiveToolsFramework",
 				"UnrealEd", // for Asset Editor Subsystem
 				"KismetWidgets",
 				"EditorWidgets",
@@ -79,6 +80,7 @@ public class UMGEditor : ModuleRules
 				"DeveloperSettings",
 				"ImageWrapper",
 				"ToolWidgets",
+				"WorkspaceMenuStructure"
 			}
 			);
 	}

@@ -127,7 +127,7 @@ public:
 		ToolBarExtensibilityManager.Reset();
 
 		IKismetCompilerInterface& KismetCompilerModule = FModuleManager::LoadModuleChecked<IKismetCompilerInterface>("KismetCompiler");
-		KismetCompilerModule.GetCompilers().Remove(&WidgetBlueprintCompiler);
+		KismetCompilerModule.GetCompilers().Remove(&WidgetBlueprintCompiler); 
 
 		// Unregister all the asset types that we registered
 		if ( FModuleManager::Get().IsModuleLoaded("AssetTools") )
@@ -227,6 +227,21 @@ public:
 		return RegisterTabsForEditor;
 	}
 
+	virtual void AddWidgetEditorToolbarExtender(FWidgetEditorToolbarExtender&& InToolbarExtender) override
+	{
+		WidgetEditorToolbarExtenders.Add(MoveTemp(InToolbarExtender));
+	}
+
+	virtual TArrayView<FWidgetEditorToolbarExtender> GetAllWidgetEditorToolbarExtenders() override
+	{
+		return WidgetEditorToolbarExtenders;
+	}
+
+	virtual FOnRegisterLayoutExtensions& OnRegisterLayoutExtensions() override 
+	{
+		return RegisterLayoutExtensions; 
+	}
+
 private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
 	{
@@ -277,6 +292,9 @@ private:
 	/** All created asset type actions.  Cached here so that we can unregister it during shutdown. */
 	TArray< TSharedPtr<IAssetTypeActions> > CreatedAssetTypeActions;
 
+	/** All toolbar extenders. Utilized by tool palette */
+	TArray<FWidgetEditorToolbarExtender> WidgetEditorToolbarExtenders;
+
 	USequencerSettings* Settings;
 
 	/** Compiler customization for Widgets */
@@ -284,6 +302,9 @@ private:
 
 	/** */
 	FOnRegisterTabs RegisterTabsForEditor;
+
+	/** Support layout extensions */
+	FOnRegisterLayoutExtensions	RegisterLayoutExtensions;
 
 	bool bThumbnailRenderersRegistered;
 	bool bOnPostEngineInitHandled;

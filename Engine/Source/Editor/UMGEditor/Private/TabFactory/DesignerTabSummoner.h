@@ -10,6 +10,7 @@
 struct FDesignerTabSummoner : public FWorkflowTabFactory
 {
 public:
+	static const FName ToolPaletteTabID;
 	static const FName TabID;
 	
 public:

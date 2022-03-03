@@ -47,7 +47,24 @@ UWorld* UAssetEditorContextObject::GetEditingWorld() const
 	return nullptr;
 }
 
+const IToolkitHost* UAssetEditorContextObject::GetToolkitHost() const
+{
+	return ToolkitHost;
+}
+
+IToolkitHost* UAssetEditorContextObject::GetMutableToolkitHost()
+{
+	return ToolkitHost;
+}
+
+void UAssetEditorContextObject::SetToolkitHost(IToolkitHost* InToolkitHost)
+{
+	ToolkitHost = InToolkitHost;
+}
+
 UWorld* UAssetEditorContextObject::GetWorld() const
 {
 	return GetEditingWorld();
 }
+
+

@@ -67,11 +67,15 @@ public:
 	virtual void PostUndo(bool bSuccessful) override;
 	virtual void PostRedo(bool bSuccessful) override;
 	virtual void Compile() override;
-	//~ End Begin FBlueprintEditor interface
+	//~ End FBlueprintEditor interface
+	
+	//~ Begin FAssetEditorToolkit Interface
+	virtual bool OnRequestClose() override;
+	// End of FAssetEditorToolkit 
 
 	//~ Begin FGCObjectInterface interface
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
-	//~ end FGCObjectInterface interface
+	//~ End FGCObjectInterface interface
 
 	//~ Begin IToolkit interface
 	virtual FName GetToolkitFName() const override;
@@ -79,6 +83,8 @@ public:
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
+	void OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit) override;
+	void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) override;
 	//~ End IToolkit interface
 
 	/** @return The widget blueprint currently being edited in this editor */
@@ -224,6 +230,8 @@ public:
 	TSharedPtr<FPaletteViewModel> GetPaletteViewModel() { return PaletteViewModel; };
 	TSharedPtr<FLibraryViewModel> GetLibraryViewModel() { return LibraryViewModel; };
 
+	void CreateEditorModeManager() override;
+
 public:
 	/** Fires whenever a new widget is being hovered over */
 	FOnHoveredWidgetSet OnHoveredWidgetSet;
@@ -248,6 +256,9 @@ public:
 
 	/** Command list for handling widget actions in the WidgetBlueprintEditor */
 	TSharedPtr< FUICommandList > DesignerCommandList;
+
+	/** Commands for switching between tool palettes */
+	TArray< TSharedPtr<FUICommandInfo>> ToolPaletteCommands;
 
 	/** Paste Metadata */
 	FVector2D PasteDropLocation;
@@ -440,6 +451,9 @@ private:
 
 	/** The toolbar builder associated with this editor */
 	TSharedPtr<class FWidgetBlueprintEditorToolbar> WidgetToolbar;
+
+	/** Used to spawn sidebar tool palette */
+	TSharedPtr<class FWidgetEditorModeUILayer> ModeUILayer;
 
 	/** The widget references out in the ether that may need to be updated after being issued. */
 	TArray< TWeakPtr<FWidgetHandle> > WidgetHandlePool;

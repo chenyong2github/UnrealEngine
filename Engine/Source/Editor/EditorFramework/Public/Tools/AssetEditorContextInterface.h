@@ -43,4 +43,14 @@ public:
 	 * Gets the world on which the asset editor performs actions.
 	 */
 	virtual UWorld* GetEditingWorld() const = 0;
+
+	/**
+	 * Get the toolkit host associated with our asset editor.
+	 */
+	virtual const IToolkitHost* GetToolkitHost() const = 0;
+
+	/**
+	 * Get the toolkit host associated with our asset editor.
+	 */
+	virtual IToolkitHost* GetMutableToolkitHost() = 0;
 };
