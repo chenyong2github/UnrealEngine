@@ -140,6 +140,11 @@ namespace UnrealBuildTool
 		public LocalizationTargetDescriptor[]? LocalizationTargets;
 
 		/// <summary>
+		/// The Verse path to the root of this plugin's content directory
+		/// </summary>
+		public string? VersePath;
+
+		/// <summary>
 		/// Whether this plugin should be enabled by default for all projects
 		/// </summary>
 		public Nullable<bool> bEnabledByDefault;
@@ -288,6 +293,8 @@ namespace UnrealBuildTool
 				LocalizationTargets = Array.ConvertAll(LocalizationTargetsArray, x => LocalizationTargetDescriptor.FromJsonObject(x));
 			}
 
+			RawObject.TryGetStringField("VersePath", out VersePath);
+
 			bool bEnabledByDefaultValue;
 			if(RawObject.TryGetBoolField("EnabledByDefault", out bEnabledByDefaultValue))
 			{
@@ -382,7 +389,11 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteValue("EngineVersion", EngineVersion);
 			}
-			if(bEnabledByDefault.HasValue)
+			if (!String.IsNullOrEmpty(VersePath))
+			{
+				Writer.WriteValue("VersePath", VersePath);
+			}
+			if (bEnabledByDefault.HasValue)
 			{
 				Writer.WriteValue("EnabledByDefault", bEnabledByDefault.Value);
 			}

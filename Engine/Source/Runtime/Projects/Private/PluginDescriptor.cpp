@@ -210,6 +210,8 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText* OutFailReason /*=
 		return false;
 	}
 
+	Object.TryGetStringField(TEXT("VersePath"), VersePath);
+
 	bool bEnabledByDefault;
 	if(Object.TryGetBoolField(TEXT("EnabledByDefault"), bEnabledByDefault))
 	{
@@ -318,6 +320,11 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	else
 	{
 		JsonObject.RemoveField(TEXT("EditorCustomVirtualPath"));
+	}
+
+	if (!VersePath.IsEmpty())
+	{
+		JsonObject.SetStringField(TEXT("VersePath"), VersePath);
 	}
 
 	if (EnabledByDefault != EPluginEnabledByDefault::Unspecified)

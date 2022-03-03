@@ -1044,6 +1044,11 @@ namespace UnrealBuildTool
 		public bool? bRequiresImplementModule;
 
 		/// <summary>
+		/// If this module has associated Verse code, this is the Verse root path of it
+		/// </summary>
+		public string? VersePath;
+
+		/// <summary>
 		/// Whether this module qualifies included headers from other modules relative to the root of their 'Public' folder. This reduces the number
 		/// of search paths that have to be passed to the compiler, improving performance and reducing the length of the compiler command line.
 		/// </summary>

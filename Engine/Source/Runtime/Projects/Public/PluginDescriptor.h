@@ -81,6 +81,9 @@ struct PROJECTS_API FPluginDescriptor
 	/** List of all localization targets associated with this plugin */
 	TArray<FLocalizationTargetDescriptor> LocalizationTargets;
 
+	/** The Verse path to the root of this plugin's content directory */
+	FString VersePath;
+
 	/** Whether this plugin should be enabled by default for all projects */
 	EPluginEnabledByDefault EnabledByDefault;
 
