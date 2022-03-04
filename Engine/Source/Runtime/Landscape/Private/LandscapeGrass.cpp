@@ -3023,8 +3023,9 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 										HierarchicalInstancedStaticMeshComponent->InstancingRandomSeed = FolSeed;
 										HierarchicalInstancedStaticMeshComponent->LightingChannels = GrassVariety.LightingChannels;
 										HierarchicalInstancedStaticMeshComponent->bCastStaticShadow = false;
-										HierarchicalInstancedStaticMeshComponent->CastShadow = GrassVariety.bCastDynamicShadow && !bDisableDynamicShadows;
+										HierarchicalInstancedStaticMeshComponent->CastShadow = (GrassVariety.bCastDynamicShadow || GrassVariety.bCastContactShadow) && !bDisableDynamicShadows;
 										HierarchicalInstancedStaticMeshComponent->bCastDynamicShadow = GrassVariety.bCastDynamicShadow && !bDisableDynamicShadows;
+										HierarchicalInstancedStaticMeshComponent->bCastContactShadow = GrassVariety.bCastContactShadow && !bDisableDynamicShadows;
 										HierarchicalInstancedStaticMeshComponent->OverrideMaterials = GrassVariety.OverrideMaterials;
 
 										const FMeshMapBuildData* MeshMapBuildData = Component->GetMeshMapBuildData();
