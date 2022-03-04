@@ -3,7 +3,7 @@
 #include "TextureShareD3D11.h"
 #include "TextureShareD3D11Log.h"
 
-#include "D3D11RHIPrivate.h"
+#include "ID3D11DynamicRHI.h"
 
 inline const FString GetComErrorDescription(HRESULT Res)
 {
@@ -53,11 +53,9 @@ inline bool CreateSharedHandle(ID3D11Device* pD3D11Device, ID3D11Texture2D* pD3D
 
 bool FTextureShareD3D11::CreateRHITexture(ID3D11Texture2D* OpenedSharedResource, EPixelFormat Format, FTexture2DRHIRef& DstTexture)
 {
-	FD3D11DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D11DynamicRHI>();
-
 	// Create RHI texture from D3D11 resource
 	ETextureCreateFlags TexCreateFlags = TexCreate_Shared;
-	DstTexture = DynamicRHI->RHICreateTexture2DFromResource(Format, TexCreateFlags, FClearValueBinding::None, OpenedSharedResource).GetReference();
+	DstTexture = GetID3D11DynamicRHI()->RHICreateTexture2DFromResource(Format, TexCreateFlags, FClearValueBinding::None, OpenedSharedResource).GetReference();
 	return DstTexture.IsValid();
 }
 

@@ -68,7 +68,6 @@ namespace UnrealBuildTool.Rules
 				"Json",
 				"RenderCore",
 				"RHI",
-				"RHICore",
 				"Slate",
 				"SlateCore",
 				"AudioMixer",
@@ -93,19 +92,10 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 			{
-				PublicDependencyModuleNames.Add("D3D11RHI");
-				PublicDependencyModuleNames.Add("D3D12RHI");
-				PrivateIncludePaths.AddRange(
-					new string[]{
-						Path.Combine(EngineDir, "Source/Runtime/D3D12RHI/Private"),
-						Path.Combine(EngineDir, "Source/Runtime/D3D12RHI/Private/Windows")
-					});
+				PrivateDependencyModuleNames.Add("D3D11RHI");
+				PrivateDependencyModuleNames.Add("D3D12RHI");
 
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-				PublicSystemLibraries.AddRange(new string[] {
-					"DXGI.lib",
-					"d3d11.lib",
-				});
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11", "DX12");
 
 				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows"));
 			}

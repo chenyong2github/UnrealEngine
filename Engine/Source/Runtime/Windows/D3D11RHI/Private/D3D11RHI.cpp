@@ -761,3 +761,60 @@ void UpdateBufferStats(TRefCountPtr<ID3D11Buffer> Buffer, bool bAllocating)
 #endif
 	}
 }
+
+ID3D11Device* FD3D11DynamicRHI::RHIGetDevice() const
+{
+	return GetDevice();
+}
+
+ID3D11DeviceContext* FD3D11DynamicRHI::RHIGetDeviceContext() const
+{
+	return GetDeviceContext();
+}
+
+IDXGISwapChain* FD3D11DynamicRHI::RHIGetSwapChain(FRHIViewport* InViewport) const
+{
+	FD3D11Viewport* Viewport = static_cast<FD3D11Viewport*>(InViewport);
+	return Viewport->GetSwapChain();
+}
+
+DXGI_FORMAT FD3D11DynamicRHI::RHIGetSwapChainFormat(EPixelFormat InFormat) const
+{
+	const DXGI_FORMAT PlatformFormat = ::FindDepthStencilDXGIFormat(static_cast<DXGI_FORMAT>(GPixelFormats[InFormat].PlatformFormat));
+	return ::FindShaderResourceDXGIFormat(PlatformFormat, true);
+}
+
+ID3D11Buffer* FD3D11DynamicRHI::RHIGetResource(FRHIBuffer* InBuffer) const
+{
+	FD3D11Buffer* Buffer = ResourceCast(InBuffer);
+	return Buffer->Resource;
+}
+
+ID3D11Resource* FD3D11DynamicRHI::RHIGetResource(FRHITexture* InTexture) const
+{
+	FD3D11TextureBase* D3D11Texture = GetD3D11TextureFromRHITexture(InTexture);
+	return D3D11Texture->GetResource();
+}
+
+int64 FD3D11DynamicRHI::RHIGetResourceMemorySize(FRHITexture* InTexture) const
+{
+	FD3D11TextureBase* D3D11Texture = GetD3D11TextureFromRHITexture(InTexture);
+	return D3D11Texture->GetMemorySize();
+}
+
+ID3D11RenderTargetView* FD3D11DynamicRHI::RHIGetRenderTargetView(FRHITexture* InTexture, int32 InMipIndex, int32 InArraySliceIndex) const
+{
+	FD3D11TextureBase* D3D11Texture = GetD3D11TextureFromRHITexture(InTexture);
+	return D3D11Texture->GetRenderTargetView(InMipIndex, InArraySliceIndex);
+}
+
+ID3D11ShaderResourceView* FD3D11DynamicRHI::RHIGetShaderResourceView(FRHITexture* InTexture) const
+{
+	FD3D11TextureBase* D3D11Texture = GetD3D11TextureFromRHITexture(InTexture);
+	return D3D11Texture->GetShaderResourceView();
+}
+
+void FD3D11DynamicRHI::RHIRegisterWork(uint32 NumPrimitives)
+{
+	RegisterGPUWork(NumPrimitives);
+}

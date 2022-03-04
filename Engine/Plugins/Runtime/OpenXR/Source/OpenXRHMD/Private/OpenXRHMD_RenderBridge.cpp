@@ -41,11 +41,9 @@ public:
 
 	virtual void* GetGraphicsBinding() override
 	{
-		FD3D11Device* Device = GD3D11RHI->GetDevice();
-
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_D3D11_KHR;
 		Binding.next = nullptr;
-		Binding.device = Device;
+		Binding.device = GetID3D11DynamicRHI()->RHIGetDevice();
 		return &Binding;
 	}
 
@@ -82,14 +80,10 @@ public:
 
 	virtual void* GetGraphicsBinding() override
 	{
-		FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
-		ID3D12Device* Device = DynamicRHI->GetAdapter().GetD3DDevice();
-		ID3D12CommandQueue* Queue = DynamicRHI->RHIGetD3DCommandQueue();
-
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_D3D12_KHR;
 		Binding.next = nullptr;
-		Binding.device = Device;
-		Binding.queue = Queue;
+		Binding.device = GetID3D12DynamicRHI()->RHIGetDevice(0);
+		Binding.queue = GetID3D12DynamicRHI()->RHIGetCommandQueue();
 		return &Binding;
 	}
 

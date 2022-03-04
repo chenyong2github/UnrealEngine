@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ID3D11DynamicRHI.h"
 #include "D3D11RHI.h"
 // Dependencies.
 #include "RHI.h"
@@ -18,7 +19,6 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogD3D11RHI, Log, All);
 
-#include "Windows/D3D11RHIBasePrivate.h"
 #include "Containers/StaticArray.h"
 
 // D3D RHI public headers.
@@ -399,7 +399,7 @@ struct FD3D11Adapter
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /** The interface which is implemented by the dynamically bound RHI. */
-class D3D11RHI_API FD3D11DynamicRHI : public FDynamicRHIPSOFallback, public IRHICommandContextPSOFallback
+class D3D11RHI_API FD3D11DynamicRHI : public ID3D11DynamicRHI, public IRHICommandContextPSOFallback
 {
 public:
 	typedef TMap<FD3D11LockedKey, FD3D11LockedData> FD3D11LockTracker;
@@ -420,7 +420,6 @@ public:
 	virtual void PostInit() override;
 	virtual void Shutdown() override;
 	virtual const TCHAR* GetName() override { return TEXT("D3D11"); }
-	virtual ERHIInterfaceType GetInterfaceType() const override final { return ERHIInterfaceType::D3D11; }
 
 #if PLATFORM_HOLOLENS
 	virtual void RHISuspendRendering() override;
@@ -630,10 +629,6 @@ public:
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) final override;
 	virtual void RHIPopEvent() final override;
 
-	virtual FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D11Texture2D* Resource);
-	virtual FTexture2DArrayRHIRef RHICreateTexture2DArrayFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding&, ID3D11Texture2D* Resource);
-	virtual FTextureCubeRHIRef RHICreateTextureCubeFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D11Texture2D* Resource);
-	
 	virtual void RHIPerFrameRHIFlushComplete() final override;
 	virtual void RHIPollRenderQueryResults() final override;
 
@@ -675,6 +670,21 @@ public:
 	virtual void RHIEndRenderPass() final override;
 
 	virtual void RHICalibrateTimers() override;
+
+	// ID3D11DynamicRHI interface
+	virtual ID3D11Device*         RHIGetDevice() const final override;
+	virtual ID3D11DeviceContext*  RHIGetDeviceContext() const final override;
+	virtual IDXGISwapChain*       RHIGetSwapChain(FRHIViewport* InViewport) const final override;
+	virtual DXGI_FORMAT           RHIGetSwapChainFormat(EPixelFormat InFormat) const final override;
+	virtual FTexture2DRHIRef      RHICreateTexture2DFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D11Texture2D* Resource) final override;
+	virtual FTexture2DArrayRHIRef RHICreateTexture2DArrayFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding&, ID3D11Texture2D* Resource) final override;
+	virtual FTextureCubeRHIRef    RHICreateTextureCubeFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D11Texture2D* Resource) final override;
+	virtual ID3D11Buffer*         RHIGetResource(FRHIBuffer* InBuffer) const final override;
+	virtual ID3D11Resource*       RHIGetResource(FRHITexture* InTexture) const final override;
+	virtual int64                 RHIGetResourceMemorySize(FRHITexture* InTexture) const final override;
+	virtual ID3D11RenderTargetView* RHIGetRenderTargetView(FRHITexture* InTexture, int32 InMipIndex = 0, int32 InArraySliceIndex = -1) const final override;
+	virtual ID3D11ShaderResourceView* RHIGetShaderResourceView(FRHITexture* InTexture) const final override;
+	virtual void                  RHIRegisterWork(uint32 NumPrimitives) final override;
 
 	// Accessors.
 	ID3D11Device* GetDevice() const

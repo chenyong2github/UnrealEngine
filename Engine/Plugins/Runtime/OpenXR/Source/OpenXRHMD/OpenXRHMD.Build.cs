@@ -44,7 +44,6 @@ namespace UnrealBuildTool.Rules
                     "BuildSettings",
                     "InputCore",
 					"RHI",
-					"RHICore",
 					"RenderCore",
 					"Renderer",
 					"RenderCore",
@@ -68,21 +67,7 @@ namespace UnrealBuildTool.Rules
 					"D3D12RHI"
 				});
 
-                // Required for some private headers needed for the rendering support.
-                PrivateIncludePaths.AddRange(
-                    new string[] {
-                            Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private"),
-                            Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private\Windows"),
-							Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private"),
-							Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private\Windows")
-								});
-
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
-                AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
+                AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11", "DX12");
             }
 
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))

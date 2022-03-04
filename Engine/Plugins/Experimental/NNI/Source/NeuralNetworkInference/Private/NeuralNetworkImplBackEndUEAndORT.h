@@ -7,8 +7,6 @@
 
 // RHI includes must happen before onnxruntime_cxx_api.h (both files include Windows.h)
 #include "HAL/CriticalSection.h"
-#include "RHI.h"
-#include "DynamicRHI.h"
 
 #if defined(WITH_UE_AND_ORT_SUPPORT) && defined(PLATFORM_WIN64)
 // Disable NOMINMAX & WIN32_LEAN_AND_MEAN defines to avoid compiler warnings
@@ -16,7 +14,7 @@
 #pragma push_macro("WIN32_LEAN_AND_MEAN")
 #undef NOMINMAX
 #undef WIN32_LEAN_AND_MEAN
-#include "D3D12RHIPrivate.h"
+#include "ID3D12DynamicRHI.h"
 #pragma pop_macro("WIN32_LEAN_AND_MEAN")
 #pragma pop_macro("NOMINMAX")
 #endif

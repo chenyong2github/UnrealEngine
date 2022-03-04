@@ -26,8 +26,7 @@
 //-------------------------------------------------------------------------------------------------
 
 #ifdef XR_USE_GRAPHICS_API_D3D11
-#include "D3D11RHIPrivate.h"
-#include "D3D11Util.h"
+#include "ID3D11DynamicRHI.h"
 #endif // XR_USE_GRAPHICS_API_D3D11
 
 
@@ -36,24 +35,7 @@
 //-------------------------------------------------------------------------------------------------
 
 #ifdef XR_USE_GRAPHICS_API_D3D12
-#include "D3D12RHIPrivate.h"
-#include "D3D12Util.h"
-
-#undef GetD3D11CubeFace
-#undef VerifyD3D11Result
-#undef GetD3D11TextureFromRHITexture
-#undef FRingAllocation
-#undef GetRenderTargetFormat
-#undef ED3D11ShaderOffsetBuffer
-#undef FindShaderResourceDXGIFormat
-#undef FindUnorderedAccessDXGIFormat
-#undef FindDepthStencilDXGIFormat
-#undef HasStencilBits
-#undef FVector4VertexDeclaration
-#undef GLOBAL_CONSTANT_BUFFER_INDEX
-#undef MAX_CONSTANT_BUFFER_SLOTS
-#undef FD3DGPUProfiler
-#undef FRangeAllocator
+#include "ID3D12DynamicRHI.h"
 #endif // XR_USE_GRAPHICS_API_D3D12
 
 

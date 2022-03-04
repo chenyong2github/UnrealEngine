@@ -53,7 +53,6 @@ namespace UnrealBuildTool.Rules
 						"Projects",
                         "HeadMountedDisplay",
                         "D3D11RHI",
-						"RHICore",
                         "Slate",
                         "SlateCore",
                         "MRMesh",
@@ -62,12 +61,6 @@ namespace UnrealBuildTool.Rules
                     );
 
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
-
-				if (Target.Platform != UnrealTargetPlatform.HoloLens)
-				{
-					AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-					AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-				}
 
 				if (Target.bBuildEditor == true)
                 {
@@ -81,19 +74,8 @@ namespace UnrealBuildTool.Rules
                     new string[]
                     {
                     "WindowsMixedRealityRHI/Private",
-                    "../../../../Source/Runtime/Windows/D3D11RHI/Private",
                     "../../../../Source/Runtime/Renderer/Private",
                     });
-
-                //TODO: needed?
-                if (Target.Platform == UnrealTargetPlatform.Win64)
-                {
-                    PrivateIncludePaths.Add("../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows");
-                }
-                else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-                {
-                    PrivateIncludePaths.Add("../../../../Source/Runtime/Windows/D3D11RHI/Private/HoloLens");
-                }
 
                 PCHUsage = PCHUsageMode.NoSharedPCHs;
                 PrivatePCHHeaderFile = "Private/WindowsMixedRealityPrecompiled.h";

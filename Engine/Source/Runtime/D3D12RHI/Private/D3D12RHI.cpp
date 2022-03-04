@@ -405,6 +405,129 @@ void FD3D12DynamicRHI::RHIReleaseThreadOwnership()
 	// Nothing to do
 }
 
+TArray<FD3D12MinimalAdapterDesc> FD3D12DynamicRHI::RHIGetAdapterDescs() const
+{
+	TArray<FD3D12MinimalAdapterDesc> Result;
+
+	for (const TSharedPtr<FD3D12Adapter>& Adapter : ChosenAdapters)
+	{
+		FD3D12MinimalAdapterDesc Desc{};
+		Desc.Desc = Adapter->GetDesc().Desc;
+		Desc.NumDeviceNodes = Adapter->GetDesc().NumDeviceNodes;
+
+		Result.Add(Desc);
+	}
+
+	return Result;
+}
+
+bool FD3D12DynamicRHI::RHIIsPixEnabled() const
+{
+	return IsPixEventEnabled();
+}
+
+ID3D12CommandQueue* FD3D12DynamicRHI::RHIGetCommandQueue() const
+{
+	// Multi-GPU support : any code using this function needs validation.
+	return GetAdapter().GetDevice(0)->GetCommandListManager().GetD3DCommandQueue();
+}
+
+ID3D12Device* FD3D12DynamicRHI::RHIGetDevice(uint32 InIndex) const
+{
+	return GetAdapter().GetDevice(InIndex)->GetDevice();
+}
+
+uint32 FD3D12DynamicRHI::RHIGetDeviceNodeMask(uint32 InIndex) const
+{
+	return GetAdapter().GetDevice(InIndex)->GetGPUMask().GetNative();
+}
+
+ID3D12GraphicsCommandList* FD3D12DynamicRHI::RHIGetGraphicsCommandList(uint32 InDeviceIndex) const
+{
+	FD3D12Device* Device = GetRHIDevice(InDeviceIndex);
+	return Device->GetCommandContext().CommandListHandle.GraphicsCommandList();
+}
+
+DXGI_FORMAT FD3D12DynamicRHI::RHIGetSwapChainFormat(EPixelFormat InFormat) const
+{
+	const DXGI_FORMAT PlatformFormat = D3D12RHI::FindDepthStencilDXGIFormat(static_cast<DXGI_FORMAT>(GPixelFormats[InFormat].PlatformFormat));
+	return D3D12RHI::FindShaderResourceDXGIFormat(PlatformFormat, true);
+}
+
+ID3D12Resource* FD3D12DynamicRHI::RHIGetResource(FRHIBuffer* InBuffer) const
+{
+	FD3D12Buffer* D3D12Buffer = ResourceCast(InBuffer);
+	return D3D12Buffer->GetResource()->GetResource();
+}
+
+uint32 FD3D12DynamicRHI::RHIGetResourceDeviceIndex(FRHIBuffer* InBuffer) const
+{
+	FD3D12Buffer* D3D12Buffer = ResourceCast(InBuffer);
+	return D3D12Buffer->GetParentDevice()->GetGPUIndex();
+}
+
+ID3D12Resource* FD3D12DynamicRHI::RHIGetResource(FRHITexture* InTexture) const
+{
+	return (ID3D12Resource*)InTexture->GetNativeResource();
+}
+
+uint32 FD3D12DynamicRHI::RHIGetResourceDeviceIndex(FRHITexture* InTexture) const
+{
+	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
+	return D3D12Texture->GetParentDevice()->GetGPUIndex();
+}
+
+int64 FD3D12DynamicRHI::RHIGetResourceMemorySize(FRHITexture* InTexture) const
+{
+	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
+	return D3D12Texture->GetMemorySize();
+}
+
+bool FD3D12DynamicRHI::RHIIsResourcePlaced(FRHITexture* InTexture) const
+{
+	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
+	return D3D12Texture->GetResource()->IsPlacedResource();
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE FD3D12DynamicRHI::RHIGetRenderTargetView(FRHITexture* InTexture, int32 InMipIndex, int32 InArraySliceIndex) const
+{
+	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
+	FD3D12RenderTargetView* RTV = D3D12Texture->GetRenderTargetView(InMipIndex, InArraySliceIndex);
+	return RTV ? RTV->GetView() : D3D12_CPU_DESCRIPTOR_HANDLE{};
+}
+
+void FD3D12DynamicRHI::RHIFinishExternalComputeWork(uint32 InDeviceIndex, ID3D12GraphicsCommandList* InCommandList)
+{
+	FD3D12Device* Device = GetRHIDevice(InDeviceIndex);
+
+	check(InCommandList == Device->GetCommandContext().CommandListHandle.GraphicsCommandList());
+
+	Device->GetCommandContext().StateCache.ForceSetComputeRootSignature();
+	Device->GetCommandContext().StateCache.GetDescriptorCache()->SetCurrentCommandList(Device->GetCommandContext().CommandListHandle);
+}
+
+void FD3D12DynamicRHI::RHIRegisterWork(uint32 InDeviceIndex, uint32 NumPrimitives)
+{
+	FD3D12Device* Device = GetRHIDevice(InDeviceIndex);
+	if (Device->GetCommandContext().IsDefaultContext())
+	{
+		Device->RegisterGPUWork(NumPrimitives);
+	}
+}
+
+void FD3D12DynamicRHI::RHIAddPendingBarrier(FRHITexture* InTexture, D3D12_RESOURCE_STATES InState, uint32 InSubResource)
+{
+	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
+	FD3D12CommandListHandle& CommandList = D3D12Texture->GetParentDevice()->GetDefaultCommandContext().CommandListHandle;
+
+	CommandList.AddPendingResourceBarrier(D3D12Texture->GetResource(), InState, InSubResource);
+}
+
+bool ID3D12DynamicRHI::IsD3DDebugEnabled()
+{
+	return D3D12RHI_ShouldCreateWithD3DDebug();
+}
+
 void* FD3D12DynamicRHI::RHIGetNativeDevice()
 {
 	return (void*)GetAdapter().GetD3DDevice();
@@ -412,19 +535,18 @@ void* FD3D12DynamicRHI::RHIGetNativeDevice()
 
 void* FD3D12DynamicRHI::RHIGetNativeGraphicsQueue()
 {
-	return (void*)RHIGetD3DCommandQueue();
+	return (void*)RHIGetCommandQueue();
 }
 
 void* FD3D12DynamicRHI::RHIGetNativeComputeQueue()
 {
-	return (void*)RHIGetD3DCommandQueue();
+	return (void*)RHIGetCommandQueue();
 }
 
 void* FD3D12DynamicRHI::RHIGetNativeInstance()
 {
 	return nullptr;
 }
-
 
 /**
 * Returns a supported screen resolution that most closely matches the input.
@@ -537,11 +659,6 @@ void FD3D12DynamicRHI::GetBestSupportedMSAASetting(DXGI_FORMAT PlatformFormat, u
 	}
 
 	return;
-}
-
-uint32 FD3D12DynamicRHI::GetDebugFlags()
-{
-	return GetAdapter().GetDebugFlags();
 }
 
 bool FD3D12DynamicRHI::CheckGpuHeartbeat() const

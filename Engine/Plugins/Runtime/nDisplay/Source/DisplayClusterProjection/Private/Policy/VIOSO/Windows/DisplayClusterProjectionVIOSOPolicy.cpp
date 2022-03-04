@@ -26,16 +26,14 @@
 // D3D11
 //-------------------------------------------------------------------------------------------------
 #if VIOSO_USE_GRAPHICS_API_D3D11
-#include "D3D11RHIPrivate.h"
-#include "D3D11Util.h"
+#include "ID3D11DynamicRHI.h"
 #endif // VIOSO_USE_GRAPHICS_API_D3D11
 
 //-------------------------------------------------------------------------------------------------
 // D3D12
 //-------------------------------------------------------------------------------------------------
 #if VIOSO_USE_GRAPHICS_API_D3D12
-#include "D3D12RHIPrivate.h"
-#include "D3D12Util.h"
+#include "ID3D12DynamicRHI.h"
 #endif // VIOSO_USE_GRAPHICS_API_D3D12
 
 #if VIOSO_USE_GRAPHICS_API_D3D11
@@ -53,8 +51,8 @@ public:
 		DepthStencilView = NULL;
 
 
-		FD3D11DynamicRHI* d3d11RHI = GetDynamicRHI<FD3D11DynamicRHI>();
-		DeviceContext = d3d11RHI ? d3d11RHI->GetDeviceContext() : nullptr;
+		ID3D11DynamicRHI* D3D11RHI = GDynamicRHI ? GetDynamicRHI<ID3D11DynamicRHI>() : nullptr;
+		DeviceContext = D3D11RHI ? D3D11RHI->RHIGetDeviceContext() : nullptr;
 
 		if (DeviceContext)
 		{
@@ -98,8 +96,7 @@ public:
 		if (DeviceContext)
 		{
 			// Set RTV
-			FD3D11TextureBase* DestTextureD3D11RHI = static_cast<FD3D11TextureBase*>(RenderTargetTexture->GetTextureBaseRHI());
-			ID3D11RenderTargetView* DestTextureRTV = DestTextureD3D11RHI->GetRenderTargetView(0, -1);
+			ID3D11RenderTargetView* DestTextureRTV = GetID3D11DynamicRHI()->RHIGetRenderTargetView(RenderTargetTexture, 0, -1);
 			DeviceContext->OMSetRenderTargets(1, &DestTextureRTV, nullptr);
 
 			// Set viewport
@@ -396,27 +393,21 @@ bool FDisplayClusterProjectionVIOSOPolicy::FViewData::RenderVIOSO_RenderThread(F
 #ifdef VIOSO_USE_GRAPHICS_API_D3D12
 			case ERenderDevice::D3D12:
 			{
-				FD3D12Texture2D* SrcTexture2D = FD3D12DynamicRHI::ResourceCast(ShaderResourceTexture);
-				FD3D12Texture2D* DestTexture2D = FD3D12DynamicRHI::ResourceCast(RenderTargetTexture);
-
-				FD3D12RenderTargetView* RTV = DestTexture2D->GetRenderTargetView(0, 0);
-				D3D12_CPU_DESCRIPTOR_HANDLE RTVHandle = RTV->GetView();
-
-				FD3D12Device* Device = DestTexture2D->GetParentDevice();
-				FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
+				ID3D12DynamicRHI* D3D12RHI = GetID3D12DynamicRHI();
+				const D3D12_CPU_DESCRIPTOR_HANDLE RTVHandle = D3D12RHI->RHIGetRenderTargetView(RenderTargetTexture);
 
 				VWB_D3D12_RENDERINPUT RenderInput = {};
-				RenderInput.textureResource = (ID3D12Resource*)SrcTexture2D->GetNativeResource();;
-				RenderInput.renderTarget = (ID3D12Resource*)DestTexture2D->GetNativeResource();;
+				RenderInput.textureResource = D3D12RHI->RHIGetResource(ShaderResourceTexture);
+				RenderInput.renderTarget = D3D12RHI->RHIGetResource(RenderTargetTexture);
 				RenderInput.rtvHandlePtr = RTVHandle.ptr;
 
 				//experimental: add resource barrier
-				hCommandList.AddPendingResourceBarrier(DestTexture2D->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+				D3D12RHI->RHIAddPendingBarrier(RenderTargetTexture, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
 				if (Warper.Render(&RenderInput, VWB_STATEMASK_DEFAULT_D3D12))
 				{
 					//experimental: add resource barrier
-					hCommandList.AddPendingResourceBarrier(DestTexture2D->GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+					D3D12RHI->RHIAddPendingBarrier(RenderTargetTexture, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 					return true;
 				}
 				break;
@@ -468,8 +459,7 @@ bool FDisplayClusterProjectionVIOSOPolicy::FViewData::InitializeVIOSO(FRHITextur
 #if VIOSO_USE_GRAPHICS_API_D3D12
 	case ERenderDevice::D3D12:
 	{
-		FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
-		ID3D12CommandQueue* D3D12CommandQueue = DynamicRHI->RHIGetD3DCommandQueue();
+		ID3D12CommandQueue* D3D12CommandQueue = GetID3D12DynamicRHI()->RHIGetCommandQueue();
 
 		if (Warper.Initialize(D3D12CommandQueue, InConfigData))
 		{

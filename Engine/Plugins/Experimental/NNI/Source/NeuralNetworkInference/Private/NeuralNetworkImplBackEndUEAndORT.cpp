@@ -12,20 +12,7 @@
 
 #if defined(WITH_UE_AND_ORT_SUPPORT) && defined(PLATFORM_WIN64)
 	#include "HAL/CriticalSection.h"
-	#include "RHI.h"
-	#include "DynamicRHI.h"
-
-	// Disable NOMINMAX & WIN32_LEAN_AND_MEAN defines to avoid compiler warnings
-	#pragma push_macro("NOMINMAX")
-	#pragma push_macro("WIN32_LEAN_AND_MEAN")
-	#pragma push_macro("UE_MINIMAL_WINDOWS_INCLUDE")
-	#undef NOMINMAX
-	#undef WIN32_LEAN_AND_MEAN
-	#define UE_MINIMAL_WINDOWS_INCLUDE // Avoids Win64 Clang warning
-	#include "D3D12RHIPrivate.h"
-	#pragma pop_macro("UE_MINIMAL_WINDOWS_INCLUDE")
-	#pragma pop_macro("WIN32_LEAN_AND_MEAN")
-	#pragma pop_macro("NOMINMAX")
+	#include "ID3D12DynamicRHI.h"
 #endif
 
 //#define WITH_NNI_CPU_NOT_RECOMMENDED // Only for debugging purposes
@@ -51,10 +38,12 @@ NNI_THIRD_PARTY_INCLUDES_END
 
 #if defined(PLATFORM_WIN64)
 
-#if WITH_EDITOR && !UE_BUILD_SHIPPING
+#if WITH_EDITOR && defined(PLATFORM_WIN64) && !UE_BUILD_SHIPPING
+#include "Windows/AllowWindowsPlatformTypes.h"
 NNI_THIRD_PARTY_INCLUDES_START
-	#include "pix3.h"
+	#include <pix3.h>
 NNI_THIRD_PARTY_INCLUDES_END
+#include "Windows/HideWindowsPlatformTypes.h"
 	#define NNIGPUProfileMarker(Name) FNNIGPUProfiler::Instance()->Marker(Name)
 #else
 	#define NNIGPUProfileMarker(Name)
@@ -91,7 +80,7 @@ private:
 	FNNIGPUProfiler()
 	{
 #if defined(PLATFORM_WIN64) && defined(USE_PIX) && !defined(UE_BUILD_SHIPPING)
-		bIsEnabled = FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled();
+		bIsEnabled = GetID3D12DynamicRHI()->RHIIsPixEnabled();
 #else
 		bIsEnabled = false;
 #endif
@@ -198,7 +187,7 @@ IDMLDevice* FPrivateImplBackEndUEAndORT::FDMLDeviceList::Add(ID3D12Device* Devic
 	DML_CREATE_DEVICE_FLAGS DmlCreateFlags = DML_CREATE_DEVICE_FLAG_NONE;
 
 #if !UE_BUILD_SHIPPING
-	if (D3D12RHI_ShouldCreateWithD3DDebug()
+	if (ID3D12DynamicRHI::IsD3DDebugEnabled()
 		|| FParse::Param(FCommandLine::Get(), TEXT("d3d12gpuvalidation")) || FParse::Param(FCommandLine::Get(), TEXT("gpuvalidation")))
 	{
 		DmlCreateFlags |= DML_CREATE_DEVICE_FLAG_DEBUG;
@@ -544,35 +533,34 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 		}
 
 		// Get adapter's D3D12 device that we would like to share with DirectML execution provider
-		FD3D12DynamicRHI*			RHI = GetDynamicRHI<FD3D12DynamicRHI>();
-		FD3D12Adapter&				RHIAdapter = RHI->GetAdapter(0);
-		const FD3D12AdapterDesc&	RHIAdapterDesc = RHIAdapter.GetDesc();
+		ID3D12DynamicRHI* RHI = GetID3D12DynamicRHI();
+		const TArray<FD3D12MinimalAdapterDesc> Adapters = RHI->RHIGetAdapterDescs();
+
+		const FD3D12MinimalAdapterDesc&	RHIAdapterDesc = Adapters[0];
 
 		UE_LOG(LogNeuralNetworkInference, Display, TEXT("%d available RHI adapters. NNI using RHI adapter %s with LUID:%0x%0x."),
-			RHI->GetNumAdapters(), RHIAdapterDesc.Desc.Description, RHIAdapterDesc.Desc.AdapterLuid.HighPart, RHIAdapterDesc.Desc.AdapterLuid.LowPart);
+			Adapters.Num(), RHIAdapterDesc.Desc.Description, RHIAdapterDesc.Desc.AdapterLuid.HighPart, RHIAdapterDesc.Desc.AdapterLuid.LowPart);
 
-		if (RHI->GetNumAdapters() > 1)
+		if (Adapters.Num() > 1)
 		{
 			UE_LOG(LogNeuralNetworkInference, Display, TEXT("All available RHI adapters:"));
-			for (int32 AdapterIndex = 0; AdapterIndex < RHI->GetNumAdapters(); ++AdapterIndex)
+			for (int32 AdapterIndex = 0; AdapterIndex < Adapters.Num(); ++AdapterIndex)
 			{
-				const FD3D12AdapterDesc& CurrAdapterDesc = RHI->GetAdapter(AdapterIndex).GetDesc();
+				const FD3D12MinimalAdapterDesc& CurrAdapterDesc = Adapters[AdapterIndex];
 				UE_LOG(LogNeuralNetworkInference, Display, TEXT("  - Adapter [%d] Name:%s with LUID:%0x%0x."),
 					AdapterIndex, CurrAdapterDesc.Desc.Description, CurrAdapterDesc.Desc.AdapterLuid.HighPart, CurrAdapterDesc.Desc.AdapterLuid.LowPart);
 			}
 		}
 
-		if (RHI->GetNumAdapters() > 1 || RHIAdapterDesc.NumDeviceNodes > 1)
+		if (Adapters.Num() > 1 || RHIAdapterDesc.NumDeviceNodes > 1)
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning,
 				TEXT("FImplBackEndUEAndORT::ConfigureMembers(): There are multiple (%d) adapters and/or multiple (%d) devices, NNI is currently using only one adapter."),
-				RHI->GetNumAdapters(), RHIAdapterDesc.NumDeviceNodes);
+				Adapters.Num(), RHIAdapterDesc.NumDeviceNodes);
 		}
 
-		ID3D12Device* NativeDevice = RHIAdapter.GetD3DDevice();
-
 		// Make sure that we have one DMLDevice per D3D12 device
-		IDMLDevice* DmlDevice = FPrivateImplBackEndUEAndORT::GetDMLDeviceThreadSafe(NativeDevice);
+		IDMLDevice* DmlDevice = FPrivateImplBackEndUEAndORT::GetDMLDeviceThreadSafe(RHI->RHIGetDevice(0));
 
 		if (!DmlDevice)
 		{
@@ -582,7 +570,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 
 		// Get a ID3D12CommandQueue as well
 		// TODO: Should we create our own queue?
-		ID3D12CommandQueue* NativeCmdQ = RHI->RHIGetD3DCommandQueue();
+		ID3D12CommandQueue* NativeCmdQ = RHI->RHIGetCommandQueue();
 
 		// ORT GPU (Direct ML)
 		SessionOptions->SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL); // ORT_ENABLE_ALL, ORT_ENABLE_EXTENDED, ORT_ENABLE_BASIC, ORT_DISABLE_ALL

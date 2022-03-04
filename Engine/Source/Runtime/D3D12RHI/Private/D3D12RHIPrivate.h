@@ -29,7 +29,7 @@
 
 // Dependencies.
 #include "CoreMinimal.h"
-#include "RHI.h"
+#include "ID3D12DynamicRHI.h"
 #include "GPUProfiler.h"
 #include "ShaderCore.h"
 
@@ -265,7 +265,7 @@ struct INTCExtensionContext;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /** The interface which is implemented by the dynamically bound RHI. */
-class FD3D12DynamicRHI : public FDynamicRHI
+class FD3D12DynamicRHI : public ID3D12DynamicRHI
 {
 	friend class FD3D12CommandContext;
 
@@ -273,7 +273,7 @@ class FD3D12DynamicRHI : public FDynamicRHI
 
 public:
 
-	static D3D12RHI_API FD3D12DynamicRHI* GetD3DRHI() { return SingleD3DRHI; }
+	static FD3D12DynamicRHI* GetD3DRHI() { return SingleD3DRHI; }
 
 private:
 
@@ -293,7 +293,6 @@ public:
 	virtual void PostInit() override;
 	virtual void Shutdown() override;
 	virtual const TCHAR* GetName() override { return TEXT("D3D12"); }
-	virtual ERHIInterfaceType GetInterfaceType() const override final { return ERHIInterfaceType::D3D12; }
 
 	template<typename TRHIType>
 	static FORCEINLINE typename TD3D12ResourceTraits<TRHIType>::TConcreteType* ResourceCast(TRHIType* Resource)
@@ -434,12 +433,27 @@ public:
 	virtual IRHICommandContextContainer* RHIGetCommandContextContainer(int32 Index, int32 Num, FRHIGPUMask GPUMask)final override;
 #endif
 
-	// FD3D12DynamicRHI interface.
-	virtual uint32 GetDebugFlags();
-	virtual ID3D12CommandQueue* RHIGetD3DCommandQueue();
-	virtual FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource);
-	virtual FTexture2DRHIRef RHICreateTexture2DArrayFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource);
-	virtual FTextureCubeRHIRef RHICreateTextureCubeFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource);
+	// ID3D12DynamicRHI interface.
+	virtual TArray<FD3D12MinimalAdapterDesc> RHIGetAdapterDescs() const final override;
+	virtual bool RHIIsPixEnabled() const final override;
+	virtual ID3D12CommandQueue* RHIGetCommandQueue() const final override;
+	virtual ID3D12Device* RHIGetDevice(uint32 InIndex) const final override;
+	virtual uint32 RHIGetDeviceNodeMask(uint32 InIndex) const final override;
+	virtual ID3D12GraphicsCommandList* RHIGetGraphicsCommandList(uint32 InDeviceIndex) const final override;
+	virtual DXGI_FORMAT RHIGetSwapChainFormat(EPixelFormat InFormat) const final override;
+	virtual FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource) final override;
+	virtual FTexture2DArrayRHIRef RHICreateTexture2DArrayFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource) final override;
+	virtual FTextureCubeRHIRef RHICreateTextureCubeFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource) final override;
+	virtual ID3D12Resource* RHIGetResource(FRHIBuffer* InBuffer) const final override;
+	virtual uint32 RHIGetResourceDeviceIndex(FRHIBuffer* InBuffer) const final override;
+	virtual ID3D12Resource* RHIGetResource(FRHITexture* InTexture) const final override;
+	virtual uint32 RHIGetResourceDeviceIndex(FRHITexture* InTexture) const final override;
+	virtual int64 RHIGetResourceMemorySize(FRHITexture* InTexture) const final override;
+	virtual bool RHIIsResourcePlaced(FRHITexture* InTexture) const final override;
+	virtual D3D12_CPU_DESCRIPTOR_HANDLE RHIGetRenderTargetView(FRHITexture* InTexture, int32 InMipIndex = 0, int32 InArraySliceIndex = 0) const final override;
+	virtual void RHIFinishExternalComputeWork(uint32 InDeviceIndex, ID3D12GraphicsCommandList* InCommandList) final override;
+	virtual void RHIRegisterWork(uint32 InDeviceIndex, uint32 NumPrimitives) final override;
+	virtual void RHIAddPendingBarrier(FRHITexture* InTexture, D3D12_RESOURCE_STATES InState, uint32 InSubResource) final override;
 
 	//
 	// The Following functions are the _RenderThread version of the above functions. They allow the RHI to control the thread synchronization for greater efficiency.
@@ -1127,6 +1141,8 @@ public:
 	virtual bool HandleSpecialUnlock(FRHICommandListBase* RHICmdList, uint32 MipIndex, ETextureCreateFlags InFlags, const struct FD3D12TextureLayout& TextureLayout, void* RawTextureMemory) { return false; }
 
 	FD3D12Adapter& GetAdapter(uint32_t Index = 0) { return *ChosenAdapters[Index]; }
+	const FD3D12Adapter& GetAdapter(uint32_t Index = 0) const { return *ChosenAdapters[Index]; }
+
 	int32 GetNumAdapters() const { return ChosenAdapters.Num(); }
 
 	bool IsPixEventEnabled() const { return bPixEventEnabled; }
@@ -1233,7 +1249,7 @@ protected:
 	void SetupRecursiveResources();
 
 	// This should only be called by Dynamic RHI member functions
-	inline FD3D12Device* GetRHIDevice(uint32 GPUIndex)
+	inline FD3D12Device* GetRHIDevice(uint32 GPUIndex) const
 	{
 		return GetAdapter().GetDevice(GPUIndex);
 	}

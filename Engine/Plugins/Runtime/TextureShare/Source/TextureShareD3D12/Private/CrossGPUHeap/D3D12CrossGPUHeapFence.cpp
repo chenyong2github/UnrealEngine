@@ -141,9 +141,7 @@ bool FD3D12CrossGPUFence::ImplSignal(FRHICommandListImmediate& RHICmdList, uint6
 	//@todo integrate into RHICmd. Now just flush
 	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 
-	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
-
-	ID3D12CommandQueue* D3D12CommandQueue = DynamicRHI->RHIGetD3DCommandQueue();
+	ID3D12CommandQueue* D3D12CommandQueue = GetID3D12DynamicRHI()->RHIGetCommandQueue();
 
 	// Schedule a signal in the command queue
 	HRESULT hr = D3D12CommandQueue->Signal(GetFence(), NextFenceValue);
@@ -166,10 +164,10 @@ FString FD3D12CrossGPUFence::GetSharedHeapName(const HANDLE MasterProcessHandle)
 
 bool FD3D12CrossGPUFence::Create(const HANDLE LocalProcessHandle, HANDLE& OutFenceHandle, uint64 InitialValue)
 {
-	auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
+	ID3D12Device* PrimaryDevice = GetID3D12DynamicRHI()->RHIGetPrimaryDevice();
 
 	// Create fence for cross adapter resources
-	CHECK_HR_DEFAULT(UE4D3DDevice->CreateFence(
+	CHECK_HR_DEFAULT(PrimaryDevice->CreateFence(
 		InitialValue,
 		D3D12_FENCE_FLAG_SHARED | D3D12_FENCE_FLAG_SHARED_CROSS_ADAPTER,
 		IID_PPV_ARGS(Fence.GetInitReference())));
@@ -177,9 +175,9 @@ bool FD3D12CrossGPUFence::Create(const HANDLE LocalProcessHandle, HANDLE& OutFen
 	OutFenceHandle = nullptr;
 #if TE_USE_NAMEDFENCE
 	FString FenceHeapName = GetSharedHeapName(LocalProcessHandle);
-	CHECK_HR_DEFAULT(UE4D3DDevice->CreateSharedHandle(Fence, *Security, GENERIC_ALL, *FenceHeapName, &OutFenceHandle));
+	CHECK_HR_DEFAULT(PrimaryDevice->CreateSharedHandle(Fence, *Security, GENERIC_ALL, *FenceHeapName, &OutFenceHandle));
 #else
-	CHECK_HR_DEFAULT(UE4D3DDevice->CreateSharedHandle(Fence, *Security, GENERIC_ALL, nullptr, &OutFenceHandle));
+	CHECK_HR_DEFAULT(PrimaryDevice->CreateSharedHandle(Fence, *Security, GENERIC_ALL, nullptr, &OutFenceHandle));
 #endif
 
 	return true;
@@ -188,19 +186,17 @@ bool FD3D12CrossGPUFence::Create(const HANDLE LocalProcessHandle, HANDLE& OutFen
 
 bool FD3D12CrossGPUFence::Open(HANDLE FenceHandle)
 {
-	auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
-
-	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
+	ID3D12Device* PrimaryDevice = GetID3D12DynamicRHI()->RHIGetPrimaryDevice();
 
 	// Open shared handle on secondaryDevice device
 #if TE_USE_NAMEDFENCE
 	HANDLE NamedResourceHandle;
 	FString FenceHeapName = GetSharedHeapName(FenceProcessHandle);
-	CHECK_HR_DEFAULT(UE4D3DDevice->OpenSharedHandleByName(*FenceHeapName, GENERIC_ALL, &NamedResourceHandle));
-	CHECK_HR_DEFAULT(UE4D3DDevice->OpenSharedHandle(NamedResourceHandle, IID_PPV_ARGS(Fence.GetInitReference())));
+	CHECK_HR_DEFAULT(PrimaryDevice->OpenSharedHandleByName(*FenceHeapName, GENERIC_ALL, &NamedResourceHandle));
+	CHECK_HR_DEFAULT(PrimaryDevice->OpenSharedHandle(NamedResourceHandle, IID_PPV_ARGS(Fence.GetInitReference())));
 	CloseHandle(NamedResourceHandle);
 #else
-	CHECK_HR_DEFAULT(UE4D3DDevice->OpenSharedHandle(FenceHandle, IID_PPV_ARGS(Fence.GetInitReference())));
+	CHECK_HR_DEFAULT(PrimaryDevice->OpenSharedHandle(FenceHandle, IID_PPV_ARGS(Fence.GetInitReference())));
 	CloseHandle(FenceHandle);
 #endif
 

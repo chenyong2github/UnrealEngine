@@ -3,14 +3,6 @@
 #include "HLMediaPlayerTracks.h"
 
 #include "MediaUtils/Public/MediaSamples.h"
-#include "RHIStaticStates.h"
-// Fix build error.
-#define INTEL_EXTENSIONS 0
-#include "D3D11RHIPrivate.h"
-#include "RenderingThread.h"
-
-#include "Engine/Engine.h"
-#include "D3D11Resources.h"
 
 using namespace HLMediaLibrary;
 

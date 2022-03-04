@@ -242,7 +242,7 @@ public:
 
 	FORCEINLINE FD3D12Fence* GetStagingFence()  { return StagingFence.GetReference(); }
 
-	FORCEINLINE FD3D12Device* GetDevice(uint32 GPUIndex)
+	FORCEINLINE FD3D12Device* GetDevice(uint32 GPUIndex) const
 	{
 		check(GPUIndex < GNumExplicitGPUsForRendering);
 		return Devices[GPUIndex];

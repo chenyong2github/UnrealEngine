@@ -24,7 +24,7 @@
 #endif
 
 #if PLATFORM_WINDOWS
-#include "D3D12RHIPrivate.h"
+#include "ID3D12DynamicRHI.h"
 #endif
 
 static TAutoConsoleVariable<int32> CUsePostPresentHandoff(TEXT("vr.SteamVR.UsePostPresentHandoff"), 0, TEXT("Whether or not to use PostPresentHandoff.  If true, more GPU time will be available, but this relies on no SceneCaptureComponent2D or WidgetComponents being active in the scene.  Otherwise, it will break async reprojection."));
@@ -261,13 +261,13 @@ void FSteamVRHMD::D3D12Bridge::FinishRendering()
 	bool bSubmitDepth = CVarEnableDepthSubmission->GetInt() > 0;
 	vr::EVRSubmitFlags Flags = bSubmitDepth ? vr::EVRSubmitFlags::Submit_TextureWithDepth : vr::EVRSubmitFlags::Submit_Default;
 
-	FD3D12DynamicRHI* D3D12RHI = GetDynamicRHI<FD3D12DynamicRHI>();
-	FD3D12Device* Device = D3D12RHI->GetAdapter().GetDevice(0);
+	ID3D12CommandQueue* CommandQueue = GetID3D12DynamicRHI()->RHIGetCommandQueue();
+	const uint32 DeviceNodeMask = GetID3D12DynamicRHI()->RHIGetDeviceNodeMask(0);
 
 	vr::D3D12TextureData_t TextureData;
 	TextureData.m_pResource = (ID3D12Resource*)SwapChain->GetTexture2D()->GetNativeResource();
-	TextureData.m_pCommandQueue = D3D12RHI->RHIGetD3DCommandQueue();
-	TextureData.m_nNodeMask = Device->GetGPUMask().GetNative();
+	TextureData.m_pCommandQueue = CommandQueue;
+	TextureData.m_nNodeMask = DeviceNodeMask;
 
 	vr::VRTextureWithDepth_t Texture;
 	Texture.handle = &TextureData;
@@ -281,8 +281,8 @@ void FSteamVRHMD::D3D12Bridge::FinishRendering()
 	{
 		// If this flag is false, the struct will be treated as a vr::Texture_t and these entries will be ignored - so we can skip this if not submitting depth
 		DepthTextureData.m_pResource = (ID3D12Resource*)DepthSwapChain->GetTexture2D()->GetNativeResource();
-		DepthTextureData.m_pCommandQueue = D3D12RHI->RHIGetD3DCommandQueue();
-		DepthTextureData.m_nNodeMask = Device->GetGPUMask().GetNative();
+		DepthTextureData.m_pCommandQueue = CommandQueue;
+		DepthTextureData.m_nNodeMask = DeviceNodeMask;
 
 		Texture.depth.handle = &DepthTextureData;
 

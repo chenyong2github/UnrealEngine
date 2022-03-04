@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
 					"Projects",
 					"RenderCore",
                     "RHI",
-					"RHICore",
                     "WmfMediaFactory"
                 });
 
@@ -42,13 +41,7 @@ namespace UnrealBuildTool.Rules
 					"WmfMedia/Private",
 					"WmfMedia/Private/Player",
 					"WmfMedia/Private/Wmf",
-                    "../../../../Source/Runtime/Windows/D3D11RHI/Private",
-                    "../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows",
                 });
-
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 
 			if (Target.bCompileAgainstEngine)
 			{
@@ -58,17 +51,13 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				PrivateDependencyModuleNames.AddRange(
-				  new string[] {
-					"D3D11RHI",
-				});
+				PrivateDependencyModuleNames.Add("D3D11RHI");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 
 				PublicDelayLoadDLLs.Add("mf.dll");
 				PublicDelayLoadDLLs.Add("mfplat.dll");
 				PublicDelayLoadDLLs.Add("mfplay.dll");
 				PublicDelayLoadDLLs.Add("shlwapi.dll");
-
-				PublicSystemLibraries.Add("dxgi.lib");
 			}
 			
 			PublicDefinitions.Add("WMFMEDIA_PLAYER_VERSION=2");

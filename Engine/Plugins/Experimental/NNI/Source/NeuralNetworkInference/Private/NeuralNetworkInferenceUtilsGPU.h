@@ -3,11 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RenderGraphBuilder.h"
+
+class FRDGBuilder;
+class FRHIBuffer;
+struct FReadBuffer;
 
 #ifdef PLATFORM_WIN64
-	#include "RHI.h"
-
 	struct ID3D12Resource;
 #endif
 

@@ -28,22 +28,13 @@ public class GameplayMediaEncoder : ModuleRules
 		});
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{			
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+		{
+			PrivateDependencyModuleNames.Add("D3D11RHI");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PrivateDependencyModuleNames.AddRange(new string[]
-					{
-						"D3D11RHI"
-					});
-
-				PublicDelayLoadDLLs.Add("mfplat.dll");
-				PublicDelayLoadDLLs.Add("mfuuid.dll");
-				PublicDelayLoadDLLs.Add("Mfreadwrite.dll");
-
-				PublicSystemLibraries.Add("d3d11.lib");
-			}
+			PublicDelayLoadDLLs.Add("mfplat.dll");
+			PublicDelayLoadDLLs.Add("mfuuid.dll");
+			PublicDelayLoadDLLs.Add("Mfreadwrite.dll");
 		}
 	}
 }

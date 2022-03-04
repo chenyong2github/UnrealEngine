@@ -25,14 +25,7 @@
 #include "TextureResource.h"
 #include "ScreenPass.h"
 
-#include "D3D12RHIPrivate.h"
-#include "D3D12Util.h"
-#include "D3D12State.h"
-#include "D3D12Resources.h"
-#include "D3D12RHICommon.h"
-#include "D3D12Viewport.h"
-#include "D3D12ConstantBuffer.h"
-#include "D3D12DirectCommandListManager.h"
+#include "ID3D12DynamicRHI.h"
 
 #define READ_IN_CHUNKS 1
 #define EXR_ENABLE_MIPS 1

@@ -43,7 +43,6 @@ public class NeuralNetworkInference : ModuleRules
 				"ModelProtoFileReader",
 				"NeuralNetworkInferenceShaders",
 				"RHI",
-				"RHICore",
 				// ORT-related
 				"Projects",
 				"ThirdPartyHelperAndDLLLoader"
@@ -61,30 +60,12 @@ public class NeuralNetworkInference : ModuleRules
 				}
 			);
 
-			// Borrowed from Plugins/Media/ImgMedia (we need to use FD3D12DynamicRHI)
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				PrivateIncludePaths.AddRange(
-					new string[]{
-						//required for "D3D12RHIPrivate.h"
-						Path.Combine(EngineDirectory, "Source/Runtime/D3D12RHI/Private"),
-						Path.Combine(EngineDirectory, "Source/Runtime/D3D12RHI/Private/Windows")
-					});
-
-				PrivateDependencyModuleNames.AddRange
-					(
-					new string[] {
-						"D3D12RHI",
-						"DirectML_1_8_0"
-					}
-				);
+				PrivateDependencyModuleNames.Add("D3D12RHI");
 
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-
-				if (Target.bBuildEditor)
-				{
-					PublicDependencyModuleNames.Add("WinPixEventRuntime");
-				}
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DirectML_1_8_0");
 			}
 		}
 

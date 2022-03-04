@@ -3,8 +3,7 @@
 #include "TextureShareD3D12.h"
 #include "TextureShareD3D12Log.h"
 
-#include "D3D12RHIPrivate.h"
-#include "D3D12Util.h"
+#include "ID3D12DynamicRHI.h"
 
 #if TEXTURESHARE_CROSSGPUHEAP
 #include "CrossGPUHeap/D3D12CrossGPUHeap.h"
@@ -31,10 +30,8 @@ inline bool CreateSharedHandle(ID3D12Device* pD3D12Device, ID3D12Resource* pD3D1
 
 bool FTextureShareD3D12::CreateRHITexture(ID3D12Resource* OpenedSharedResource, EPixelFormat Format, FTexture2DRHIRef& DstTexture)
 {
-	FD3D12DynamicRHI* DynamicRHI = GetDynamicRHI<FD3D12DynamicRHI>();
-
 	ETextureCreateFlags TexCreateFlags = TexCreate_Shared;
-	DstTexture = DynamicRHI->RHICreateTexture2DFromResource(Format, TexCreateFlags, FClearValueBinding::None, (ID3D12Resource*)OpenedSharedResource).GetReference();
+	DstTexture = GetID3D12DynamicRHI()->RHICreateTexture2DFromResource(Format, TexCreateFlags, FClearValueBinding::None, (ID3D12Resource*)OpenedSharedResource).GetReference();
 	return DstTexture.IsValid();
 }
 
@@ -47,13 +44,13 @@ bool FTextureShareD3D12::CreateSharedTexture(FIntPoint& Size, EPixelFormat Forma
 	OutRHITexture = RHICreateTexture2D(Size.X, Size.Y, Format, 1, 1, TexCreate_Shared | TexCreate_ResolveTargetable, CreateInfo);
 	if (OutRHITexture.IsValid() && OutRHITexture->IsValid())
 	{
-		auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
-		ID3D12Resource* ResolvedTexture = (ID3D12Resource*)OutRHITexture->GetTexture2D()->GetNativeResource();
+		ID3D12Device* D3DDevice = GetID3D12DynamicRHI()->RHIGetDevice(0);
+		ID3D12Resource* ResolvedTexture = GetID3D12DynamicRHI()->RHIGetResource(OutRHITexture);
 
 		// Create unique handle name
 		OutSharedHandleGuid = FGuid::NewGuid();
 
-		if (CreateSharedHandle(UE4D3DDevice, ResolvedTexture, UniqueHandleId, *SharedResourceSecurityAttributes, OutHandle))
+		if (CreateSharedHandle(D3DDevice, ResolvedTexture, UniqueHandleId, *SharedResourceSecurityAttributes, OutHandle))
 		{
 			return true;
 		}

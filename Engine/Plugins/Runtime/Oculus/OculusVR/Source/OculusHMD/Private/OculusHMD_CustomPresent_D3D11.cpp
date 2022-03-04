@@ -82,7 +82,7 @@ bool FD3D11CustomPresent::IsUsingCorrectDisplayAdapter() const
 
 void* FD3D11CustomPresent::GetOvrpDevice() const
 {
-	return GD3D11RHI->GetDevice();
+	return GetID3D11DynamicRHI()->RHIGetDevice();
 }
 
 
@@ -93,13 +93,13 @@ FTextureRHIRef FD3D11CustomPresent::CreateTexture_RenderThread(uint32 InSizeX, u
 	switch (InResourceType)
 	{
 	case RRT_Texture2D:
-		return GD3D11RHI->RHICreateTexture2DFromResource(InFormat, InTexCreateFlags, InBinding, (ID3D11Texture2D*) InTexture).GetReference();
+		return GetID3D11DynamicRHI()->RHICreateTexture2DFromResource(InFormat, InTexCreateFlags, InBinding, (ID3D11Texture2D*) InTexture).GetReference();
 
 	case RRT_Texture2DArray:
-		return GD3D11RHI->RHICreateTexture2DArrayFromResource(InFormat, InTexCreateFlags, InBinding, (ID3D11Texture2D*)InTexture).GetReference();
+		return GetID3D11DynamicRHI()->RHICreateTexture2DArrayFromResource(InFormat, InTexCreateFlags, InBinding, (ID3D11Texture2D*)InTexture).GetReference();
 
 	case RRT_TextureCube:
-		return GD3D11RHI->RHICreateTextureCubeFromResource(InFormat, InTexCreateFlags | TexCreate_TargetArraySlicesIndependently, InBinding, (ID3D11Texture2D*) InTexture).GetReference();
+		return GetID3D11DynamicRHI()->RHICreateTextureCubeFromResource(InFormat, InTexCreateFlags | TexCreate_TargetArraySlicesIndependently, InBinding, (ID3D11Texture2D*) InTexture).GetReference();
 
 	default:
 		return nullptr;

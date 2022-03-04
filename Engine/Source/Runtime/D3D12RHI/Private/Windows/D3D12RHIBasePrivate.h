@@ -6,29 +6,7 @@
 
 #pragma once
 
-// Disable macro redefinition warning for compatibility with Windows SDK 8+
-#pragma warning(push)
-#pragma warning(disable : 4005)	// macro redefinition
-
-// D3D headers.
-#if PLATFORM_64BITS
-#pragma pack(push,16)
-#else
-#pragma pack(push,8)
-#endif
-#define D3D_OVERLOADS 1
-#include "Windows/AllowWindowsPlatformTypes.h"
-THIRD_PARTY_INCLUDES_START
-#include <d3d12.h>
-#include <d3dx12.h>
-#include <d3d12sdklayers.h>
-THIRD_PARTY_INCLUDES_END
-#include "Windows/HideWindowsPlatformTypes.h"
-
-#undef DrawText
-
-#pragma pack(pop)
-#pragma warning(pop)
+#include "Windows/D3D12ThirdParty.h"
 
 #define D3D12RHI_RESOURCE_FLAG_ALLOW_INDIRECT_BUFFER D3D12_RESOURCE_FLAG_NONE
 #define D3D12RHI_HEAP_FLAG_ALLOW_INDIRECT_BUFFERS		D3D12_HEAP_FLAG_NONE

@@ -13,6 +13,13 @@
 #include "HLMediaLibrary.h"
 #include "HLMediaPlayerTracks.h"
 
+#include "ID3D12DynamicRHI.h"
+#include "Windows/AllowWindowsPlatformTypes.h"
+THIRD_PARTY_INCLUDES_START
+	#include <d3d11on12.h>
+THIRD_PARTY_INCLUDES_END
+#include "Windows/HideWindowsPlatformTypes.h"
+
 #define LOCTEXT_NAMESPACE "HLMediaPlayer"
 
 DEFINE_LOG_CATEGORY(LogHLMediaPlayer);

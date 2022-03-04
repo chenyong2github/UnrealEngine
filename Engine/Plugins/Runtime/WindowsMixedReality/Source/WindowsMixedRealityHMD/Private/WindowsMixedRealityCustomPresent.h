@@ -5,8 +5,7 @@
 #include "WindowsMixedRealityPrecompiled.h"
 #include "SceneRendering.h"
 
-#include "D3D11RHIPrivate.h"
-#include "D3D11Util.h"
+#include "ID3D11DynamicRHI.h"
 
 #if WITH_WINDOWS_MIXED_REALITY
 #include "MixedRealityInterop.h"

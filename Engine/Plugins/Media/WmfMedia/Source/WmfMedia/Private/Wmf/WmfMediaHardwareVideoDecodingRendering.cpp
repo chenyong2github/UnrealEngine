@@ -16,7 +16,7 @@
 #include "ShaderParameterUtils.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
-#include "D3D11RHIPrivate.h"
+#include "ID3D11DynamicRHI.h"
 #include "DynamicRHI.h"
 
 #include "WmfMediaHardwareVideoDecodingTextureSample.h"
@@ -47,13 +47,12 @@ struct FRHICommandCopyResource final : public FRHICommand<FRHICommandCopyResourc
 	void Execute(FRHICommandListBase& CmdList)
 	{
 		LLM_SCOPE(ELLMTag::MediaStreaming);
-		ID3D11Device* D3D11Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
-		ID3D11DeviceContext* D3D11DeviceContext = nullptr;
+		ID3D11Device* D3D11Device = GetID3D11DynamicRHI()->RHIGetDevice();
+		ID3D11DeviceContext* D3D11DeviceContext = GetID3D11DynamicRHI()->RHIGetDeviceContext();
 
-		D3D11Device->GetImmediateContext(&D3D11DeviceContext);
 		if (D3D11DeviceContext)
 		{
-			ID3D11Resource* DestinationTexture = reinterpret_cast<ID3D11Resource*>(SampleDestinationTexture->GetNativeResource());
+			ID3D11Resource* DestinationTexture = GetID3D11DynamicRHI()->RHIGetResource(SampleDestinationTexture);
 			if (DestinationTexture)
 			{
 				TComPtr<IDXGIResource> OtherResource(nullptr);
@@ -101,7 +100,6 @@ struct FRHICommandCopyResource final : public FRHICommand<FRHICommandCopyResourc
 					}
 				}
 			}
-			D3D11DeviceContext->Release();
 		}
 	}
 };
@@ -121,18 +119,15 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 	TComPtr<ID3D11Texture2D> SampleTexture = InSample->GetSourceTexture();
 
 	ID3D11Device* D3D11Device = nullptr;
+	// Must access rendering device context to copy shared resource.
+	ID3D11DeviceContext* D3D11DeviceContext = nullptr;
+
 	if (InSample->IsBufferExternal() == false)
 	{
-		D3D11Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
+		D3D11Device = GetID3D11DynamicRHI()->RHIGetDevice();
+		D3D11DeviceContext = GetID3D11DynamicRHI()->RHIGetDeviceContext();
 	}
-	ID3D11DeviceContext* D3D11DeviceContext = nullptr;
 			
-	// Must access rendering device context to copy shared resource.
-	if (D3D11Device != nullptr)
-	{
-		D3D11Device->GetImmediateContext(&D3D11DeviceContext);
-	}
-	
 	{
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
@@ -275,11 +270,6 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 
 		RHICmdList.DrawPrimitive(0, 2, 1);
 		RHICmdList.EndRenderPass();
-
-		if (D3D11DeviceContext != nullptr)
-		{
-			D3D11DeviceContext->Release();
-		}
 	}
 
 	return true;

@@ -12,10 +12,7 @@
 	#include "VideoCommon.h"
 	#include "D3D11State.h"
 	#include "D3D11Resources.h"
-	#include "D3D12RHICommon.h"
-	#include "D3D12RHIPrivate.h"
-	#include "D3D12Resources.h"
-	#include "D3D12Texture.h"
+	#include "ID3D12DynamicRHI.h"
 	#include "Windows/AllowWindowsPlatformTypes.h"
 THIRD_PARTY_INCLUDES_START
 	#include <VersionHelpers.h>
@@ -486,13 +483,12 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D11(TSharedPtr<AV
 
 void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAD3D12(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
 {
-	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(Texture);
-	ID3D12Resource* NativeD3D12Resource = (ID3D12Resource*)Texture->GetNativeResource();
-	unsigned long long TextureMemorySize = D3D12Texture->GetMemorySize();
+	ID3D12Resource* NativeD3D12Resource = GetID3D12DynamicRHI()->RHIGetResource(Texture);
+	const int64 TextureMemorySize = GetID3D12DynamicRHI()->RHIGetResourceMemorySize(Texture);
 
 	// Because we create our texture as RenderTargetable, it is created as a committed resource, which is what our current implementation here supports.
 	// To prevent a mystery crash in future, check that our resource is a committed resource
-	check(!D3D12Texture->GetResource()->IsPlacedResource());
+	check(!GetID3D12DynamicRHI()->RHIIsResourcePlaced(Texture));
 
 	TRefCountPtr<ID3D12Device> OwnerDevice;
 	HRESULT QueryResult;

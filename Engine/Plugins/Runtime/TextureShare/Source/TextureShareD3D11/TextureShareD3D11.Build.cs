@@ -1,29 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System.IO;
 
 public class TextureShareD3D11 : ModuleRules
 {
 	public TextureShareD3D11(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateDependencyModuleNames.AddRange(
-						new string[]
-						{
-							"Core",
-							"Engine",
-							"RHI",
-							"RHICore",
-							"RenderCore",
-							"D3D11RHI",
-						});
-
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-						"../../../../Source/Runtime/Windows/D3D11RHI/Private",
-						"../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows",
-			});
+		PrivateDependencyModuleNames.AddRange(new string[] {
+			"Core",
+			"Engine",
+			"RHI",
+			"RenderCore",
+			"D3D11RHI",
+		});
 
 		///////////////////////////////////////////////////////////////
 		// Platform specific defines
@@ -37,12 +26,6 @@ public class TextureShareD3D11 : ModuleRules
 			Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-			if (Target.Platform != UnrealTargetPlatform.HoloLens)
-			{
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-			}
 		}
 	}
 }

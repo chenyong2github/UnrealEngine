@@ -21,7 +21,4 @@
 
 #include "SceneRendering.h"
 
-#pragma warning(disable:4668)  
-#include "D3D11RHIPrivate.h"
-#pragma warning(default:4668)
-#include "D3D11Util.h"
+#include "ID3D11DynamicRHI.h"

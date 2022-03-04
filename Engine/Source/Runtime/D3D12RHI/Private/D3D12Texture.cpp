@@ -3036,13 +3036,6 @@ void FD3D12DynamicRHI::RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* Textur
 {
 }
 
-ID3D12CommandQueue* FD3D12DynamicRHI::RHIGetD3DCommandQueue()
-{
-	// Multi-GPU support : any code using this function needs validation.
-	return GetAdapter().GetDevice(0)->GetCommandListManager().GetD3DCommandQueue();
-}
-
-
 template<typename BaseResourceType>
 TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateTextureFromResource(bool bTextureArray, bool bCubeTexture, EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource)
 {
@@ -3257,7 +3250,7 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHICreateTexture2DFromResource(EPixelFormat F
 	return CreateTextureFromResource<FD3D12BaseTexture2D>(false, false, Format, TexCreateFlags, ClearValueBinding, Resource);
 }
 
-FTexture2DRHIRef FD3D12DynamicRHI::RHICreateTexture2DArrayFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource)
+FTexture2DArrayRHIRef FD3D12DynamicRHI::RHICreateTexture2DArrayFromResource(EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource)
 {
 	return CreateTextureFromResource<FD3D12BaseTexture2DArray>(true, false, Format, TexCreateFlags, ClearValueBinding, Resource);
 }

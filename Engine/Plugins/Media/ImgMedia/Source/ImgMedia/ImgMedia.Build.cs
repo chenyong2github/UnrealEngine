@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"Renderer",
 					"RHI",
-					"RHICore",
 				});
 
 			PrivateIncludePathModuleNames.AddRange(
@@ -69,19 +68,9 @@ namespace UnrealBuildTool.Rules
 			{
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 				PrivateDependencyModuleNames.Add("D3D12RHI");
-				PrivateIncludePaths.AddRange(
-					new string[]{
-						//required for FD3D12GPUFence
-						Path.Combine(EngineDir, "Source/Runtime/D3D12RHI/Private"),
-						Path.Combine(EngineDir, "Source/Runtime/D3D12RHI/Private/Windows")
-					});
 			}
 			
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					//required for FPostProcessMaterialInputs
-					Path.Combine(EngineDir, "Source/Runtime/Renderer/Private")
-				});
+			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source", "Runtime", "Renderer", "Private"));
 
 			// Is this the editor?
 			if (Target.bBuildEditor == true)

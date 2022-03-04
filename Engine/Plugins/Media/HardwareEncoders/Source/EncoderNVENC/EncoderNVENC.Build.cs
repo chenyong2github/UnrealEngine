@@ -37,15 +37,6 @@ public class EncoderNVENC: ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
-			PublicDependencyModuleNames.Add("D3D11RHI");
-			PublicDependencyModuleNames.Add("D3D12RHI");
-
-			PublicSystemLibraries.AddRange(new string[] {
-				"DXGI.lib",
-				"d3d11.lib",
-				"d3d12.lib"
-			});
-
 			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

@@ -75,11 +75,7 @@ public class DisplayCluster : ModuleRules
 					"TextureShareCore",
 			});
 
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11", "DX12");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 		}
 	}

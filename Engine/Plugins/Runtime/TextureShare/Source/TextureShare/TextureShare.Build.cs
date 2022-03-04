@@ -29,7 +29,6 @@ public class TextureShare : ModuleRules
 				"Core",
 				"Engine",
 				"RHI",
-				"RHICore",
 				"Renderer",
 				"RenderCore",
 				"TextureShareCore"

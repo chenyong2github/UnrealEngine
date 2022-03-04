@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System.IO;
 
 public class TextureShareD3D12 : ModuleRules
 {
@@ -14,17 +13,8 @@ public class TextureShareD3D12 : ModuleRules
 							"Engine",
 							"RenderCore",
 							"RHI",
-							"RHICore",
 							"D3D12RHI",
 						});
-
-		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-						"../../../../Source/Runtime/D3D12RHI/Private",
-						"../../../../Source/Runtime/D3D12RHI/Private/Windows",
-						"../../../../Source/ThirdParty/Windows/D3DX12/Include"
-			});
 
 		// Allow D3D12 Cross GPU Heap resource API (experimental)
 		PublicDefinitions.Add("TEXTURESHARE_CROSSGPUHEAP=0");
@@ -37,17 +27,9 @@ public class TextureShareD3D12 : ModuleRules
 			PrecompileForTargets = PrecompileTargetsType.None;
 		}
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
-			Target.Platform == UnrealTargetPlatform.HoloLens)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-			if (Target.Platform != UnrealTargetPlatform.HoloLens)
-			{
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
-			}
 		}
 	}
 }

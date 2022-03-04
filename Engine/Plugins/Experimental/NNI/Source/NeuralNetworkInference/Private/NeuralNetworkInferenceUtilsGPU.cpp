@@ -5,27 +5,7 @@
 #include "NeuralTensorResourceArray.h"
 
 #ifdef PLATFORM_WIN64
-
-#include "RHIResources.h"
-#include "ShaderCore.h"
-
-// Disable NOMINMAX & WIN32_LEAN_AND_MEAN defines to avoid compiler warnings
-#pragma push_macro("NOMINMAX")
-#pragma push_macro("WIN32_LEAN_AND_MEAN")
-#undef NOMINMAX
-#undef WIN32_LEAN_AND_MEAN
-
-#include "D3D12RHI.h"
-#include "D3D12RHICommon.h"
-
-// @todo: We need D3D12RHIPrivate.h in order to compile correctly, i.e. to be able to use FD3D12Resource and ID3D12Resource
-#include "D3D12RHIPrivate.h"
-
-#include "D3D12Resources.h"
-
-#pragma pop_macro("WIN32_LEAN_AND_MEAN")
-#pragma pop_macro("NOMINMAX")
-
+	#include "ID3D12DynamicRHI.h"
 #endif
 
 /* FNeuralNetworkInferenceUtilsGPU public functions
@@ -79,14 +59,7 @@ bool FNeuralNetworkInferenceUtilsGPU::IsD3D12RHI()
 
 ID3D12Resource* FNeuralNetworkInferenceUtilsGPU::GetD3D12Resource(FRHIBuffer* Buffer)
 {
-	if (!IsD3D12RHI())
-	{
-		return nullptr;
-	}
-
-	FD3D12Buffer*	D3DBuffer = static_cast<FD3D12Buffer*>(Buffer);
-
-	return D3DBuffer->GetResource()->GetResource();
+	return GetID3D12DynamicRHI()->RHIGetResource(Buffer);
 }
 
 #endif

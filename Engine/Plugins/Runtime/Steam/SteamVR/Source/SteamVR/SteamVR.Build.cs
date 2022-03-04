@@ -31,7 +31,6 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"RHI",
-					"RHICore",
 					"RenderCore",
 					"Renderer",
                     "InputCore",
@@ -62,16 +61,7 @@ namespace UnrealBuildTool.Rules
 							"D3D12RHI",
 					});
 
-				PrivateIncludePaths.AddRange(
-					new string[]
-					{
-							"../../../../../Source/Runtime/Windows/D3D11RHI/Private",
-							"../../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows",
-							"../../../../../Source/Runtime/D3D12RHI/Private",
-							"../../../../../Source/Runtime/D3D12RHI/Private/Windows",
-					});
-
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11", "DX12");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenVR");
 
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");

@@ -28,10 +28,7 @@ public class EncoderAMF : ModuleRules
 			"Engine",
 			"AVEncoder",
 			"VulkanRHI",
-			"Amf"
-		});
-
-		PublicDependencyModuleNames.AddRange(new string[] {
+			"Amf",
 			"RenderCore",
 			"Core",
 			"RHI"
@@ -47,7 +44,6 @@ public class EncoderAMF : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
-			PublicDependencyModuleNames.Add("D3D12RHI");
 			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

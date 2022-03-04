@@ -29,7 +29,6 @@ public class DisplayClusterProjection : ModuleRules
 				"Projects",
 				"RenderCore",
 				"RHI",
-				"RHICore",
 				"ProceduralMeshComponent",
 			});
 
@@ -40,29 +39,12 @@ public class DisplayClusterProjection : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PrivateDependencyModuleNames.AddRange(
-				new string[] {
-					"D3D11RHI",
-					"D3D12RHI"
+			PrivateDependencyModuleNames.AddRange(new string[] {
+				"D3D11RHI",
+				"D3D12RHI",
 			});
 
-			// Required for some private headers needed for the rendering support.
-			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-			PrivateIncludePaths.AddRange(
-				new string[] {
-					Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private"),
-					Path.Combine(EngineDir, @"Source\Runtime\Windows\D3D11RHI\Private\Windows"),
-					Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private"),
-					Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private\Windows")
-			});
-
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11", "DX12");
 		}
 
 		AddThirdPartyDependencies(ROTargetRules);

@@ -9,16 +9,14 @@
 
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
-#include "DynamicRHI.h"
 
-#pragma warning(push)
-#pragma warning (disable : 4005)
+#include "ID3D11DynamicRHI.h"
+
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include "dxgi1_3.h"
-#include "d3d11.h"
-#include "nvapi.h"
+THIRD_PARTY_INCLUDES_START
+	#include <nvapi.h>
+THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
-#pragma warning(pop)
 
 
 // TEMPORARY DIAGNOSTICS START

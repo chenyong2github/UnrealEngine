@@ -15,10 +15,6 @@
 
 #include "HLMediaPlayerTracks.h"
 
-#include "d3d11on12.h"
-#include "D3D12RHIPrivate.h"
-#include "D3D12Util.h"
-
 class FMediaSamples;
 class FHLMediaPlayerTracks;
 
