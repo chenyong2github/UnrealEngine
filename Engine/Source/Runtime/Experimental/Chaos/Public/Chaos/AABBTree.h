@@ -1320,7 +1320,8 @@ public:
 			Nodes[BestSibling].ChildrenBounds[0] = ExpandedBounds;
 			UpdateAncestorBounds(BestSibling, true);
 			FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload);
-			*PayloadInfo = FAABBTreePayloadInfo{ INDEX_NONE, INDEX_NONE, LeafIdx, INDEX_NONE, BestSibling };
+			PayloadInfo->LeafIdx = LeafIdx;
+			PayloadInfo->NodeIdx = BestSibling;
 			return;
 		}
 
