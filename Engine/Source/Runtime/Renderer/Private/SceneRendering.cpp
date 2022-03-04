@@ -1980,7 +1980,7 @@ void FViewInfo::SetupUniformBufferParameters(
 #endif
 }
 
-void FViewInfo::InitRHIResources()
+void FViewInfo::InitRHIResources(uint32 OverrideNumMSAASamples)
 {
 	FBox VolumeBounds[TVC_MAX];
 
@@ -1992,6 +1992,11 @@ void FViewInfo::InitRHIResources()
 		VolumeBounds,
 		TVC_MAX,
 		*CachedViewUniformShaderParameters);
+
+	if (OverrideNumMSAASamples > 0)
+	{
+		CachedViewUniformShaderParameters->NumSceneColorMSAASamples = OverrideNumMSAASamples;
+	}
 
 	ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 	if (bShouldBindInstancedViewUB)

@@ -257,17 +257,13 @@ const FViewInfo* CreateEditorPrimitiveView(const FViewInfo& ParentView, FIntRect
 		EditorView->ViewMatrices.HackRemoveTemporalAAProjectionJitter();
 	}
 
-	FBox VolumeBounds[TVC_MAX];
-	TUniquePtr<FViewUniformShaderParameters> ViewParameters = MakeUnique<FViewUniformShaderParameters>();
-	EditorView->SetupUniformBufferParameters(VolumeBounds, TVC_MAX, *ViewParameters);
-	ViewParameters->NumSceneColorMSAASamples = NumSamples;
-	EditorView->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewParameters, UniformBuffer_SingleFrame);
-	EditorView->CachedViewUniformShaderParameters = MoveTemp(ViewParameters);
+	EditorView->InitRHIResources(NumSamples);
+
 	return EditorView;
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FEditorPrimitivesPassParameters, )
-	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileBasePassUniformParameters, MobileBasePass)
@@ -465,7 +461,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 		// Draws the editors primitives
 		{
 			FEditorPrimitivesPassParameters* PassParameters = GraphBuilder.AllocParameters<FEditorPrimitivesPassParameters>();
-			PassParameters->View = EditorView->ViewUniformBuffer;
+			PassParameters->View = EditorView->GetShaderParameters();
 			PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 			PassParameters->InstanceCulling = InstanceCullingManager.GetDummyInstanceCullingUniformBuffer();
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(EditorPrimitiveColor, ERenderTargetLoadAction::ELoad);
