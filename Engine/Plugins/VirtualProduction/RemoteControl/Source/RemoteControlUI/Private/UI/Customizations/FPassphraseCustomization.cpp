@@ -1,4 +1,6 @@
-﻿#include "FPassphraseCustomization.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "FPassphraseCustomization.h"
 
 #include "DetailWidgetRow.h"
 #include "RemoteControlSettings.h"
