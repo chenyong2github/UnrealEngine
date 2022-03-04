@@ -34,12 +34,13 @@ namespace Chaos
 
 		FReal OutTime = FLT_MAX;
 		int32 FaceIndex = -1;
+		FVec3 FaceNormal;
 		FVec3 Location, Normal;
 
 		Utilities::CastHelper(A, AStartTransform, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
 				// @todo(chaos): handle instances with margin
-				if (B.SweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
+				if (B.SweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, FaceNormal, 0.0f, true))
 				{
 					// @todo(chaos): margin
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
@@ -158,11 +159,12 @@ namespace Chaos
 		FReal OutTime = FLT_MAX;
 		FVec3 Location, Normal;
 		int32 FaceIndex = -1;
+		Chaos::FVec3 FaceNormal;
 
 		Utilities::CastHelper(A, AStartTransform, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
 				// @todo(chaos): handle Instanced with margin
-				if (B.LowLevelSweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
+				if (B.LowLevelSweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, FaceNormal, 0.0f, true))
 				{
 					Contact.ShapeContactPoints[1] = Location;
 					Contact.ShapeContactNormal = Normal;

@@ -133,6 +133,7 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, Chaos::FReal>
 		, OutputFlags(InOutputFlags)
 		, bAnyHit(false)
 		, DebugParams(InDebugParams)
+		, HitFaceNormal(Chaos::FVec3::ZeroVector)
 		, HitBuffer(InHitBuffer)
 		, QueryFilterData(InQueryFilterData)
 #if PHYSICS_INTERFACE_PHYSX
@@ -158,6 +159,7 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, Chaos::FReal>
 		: HalfExtents(InQueryGeom.BoundingBox().Extents() * 0.5)
 		, bAnyHit(false)
 		, DebugParams(InDebugParams)
+		, HitFaceNormal(Chaos::FVec3::ZeroVector)
 		, HitBuffer(InHitBuffer)
 		, QueryFilterData(InQueryFilterData)
 #if PHYSICS_INTERFACE_PHYSX
@@ -324,6 +326,7 @@ private:
 				FVec3 WorldPosition, WorldNormal;
 				Chaos::FReal Distance = 0;	//not needed but fixes compiler warning for overlap
 				int32 FaceIdx = INDEX_NONE;	//not needed but fixes compiler warning for overlap
+				FVec3 FaceNormal = FVec3::ZeroVector;
 				const bool bComputeMTD = !!((uint16)(OutputFlags.HitFlags & EHitFlags::MTD));
 
 				if (SQ == ESQType::Raycast)
@@ -342,7 +345,7 @@ private:
 				}
 				else if(SQ == ESQType::Sweep && CurData->CurrentLength > 0 && ensure(QueryGeom))
 				{
-					bHit = SweepQuery(*Geom, ActorTM, *QueryGeom, StartTM, CurData->Dir, CurData->CurrentLength, Distance, WorldPosition, WorldNormal, FaceIdx, 0.f, bComputeMTD);
+					bHit = SweepQuery(*Geom, ActorTM, *QueryGeom, StartTM, CurData->Dir, CurData->CurrentLength, Distance, WorldPosition, WorldNormal, FaceIdx, FaceNormal, 0.f, bComputeMTD);
 				}
 				else if ((SQ == ESQType::Overlap || (SQ == ESQType::Sweep && CurData->CurrentLength == 0)) && ensure(QueryGeom))
 				{
@@ -364,39 +367,81 @@ private:
 				if(bHit)
 				{
 					//QUICK_SCOPE_CYCLE_COUNTER(SQNarrowHit);
-					FillHitHelper(Hit, Distance, WorldPosition, WorldNormal, FaceIdx, bComputeMTD);
-
-
-#if PHYSICS_INTERFACE_PHYSX
-					HitType = QueryFilterData.flags & PxQueryFlag::ePOSTFILTER ? QueryCallback.PostFilter(QueryFilterDataConcrete, Hit) : HitType;
-#else
-					HitType = QueryFilterData.flags & FChaosQueryFlag::ePOSTFILTER ? QueryCallback.PostFilter(QueryFilterDataConcrete, Hit) : HitType;
-#endif
-
-					if (HitType != ECollisionQueryHitType::None)
+					
+					bool bAcceptHit = true;
+					if constexpr(SQ == ESQType::Sweep && std::is_same_v<THitType, FSweepHit>)
 					{
-
-						//overlap never blocks
-						const bool bBlocker = (HitType == ECollisionQueryHitType::Block || bAnyHit || HitBuffer.WantsSingleResult());
-						HitBuffer.InsertHit(Hit, bBlocker);
-#if CHAOS_DEBUG_DRAW
-						bHitBufferIncreased = true;
-#endif
-
-						if (bBlocker && SQ != ESQType::Overlap)
+						const THitType* CurrentHit = HitBuffer.GetCurrentHit();
+						if(FaceIdx != INDEX_NONE)
 						{
-							CurData->SetLength(FMath::Max((FReal)0., Distance));	//Max is needed for MTD which returns negative distance
-							if (CurData->CurrentLength == 0 && (SQ == ESQType::Raycast || HitBuffer.WantsSingleResult()))	//raycasts always fail with distance 0, sweeps only matter if we want multi overlaps
+							if(CurrentHit)
 							{
-								bContinue = false; //initial overlap so nothing will be better than this
-								break;
+								constexpr static FReal CoLocationEpsilon = 1e-6;
+								const FReal DistDelta = FMath::Abs(Distance - CurrentHit->Distance);
+								const int32 OldFace = CurrentHit->FaceIndex;
+
+								if(DistDelta < CoLocationEpsilon && OldFace != INDEX_NONE)
+								{
+									// We already have a face hit from another triangle mesh - see if this one is better (more opposing the sweep)
+									const FReal OldDot = FVec3::DotProduct(CurData->Dir, HitFaceNormal);
+									const FReal NewDot = FVec3::DotProduct(CurData->Dir, FaceNormal);
+
+									if(NewDot < OldDot)
+									{
+										// More opposing
+										HitFaceNormal = FaceNormal;
+									}
+									else
+									{
+										// This hit is co-located but has a worse normal
+										bAcceptHit = false;
+									}
+								}
+							}
+							
+							if(bAcceptHit)
+							{
+								// Record the new face normal
+								HitFaceNormal = FaceNormal;
 							}
 						}
+					}
 
-						if (bAnyHit)
+					if(bAcceptHit)
+					{
+						FillHitHelper(Hit, Distance, WorldPosition, WorldNormal, FaceIdx, bComputeMTD);
+
+#if PHYSICS_INTERFACE_PHYSX
+						HitType = QueryFilterData.flags & PxQueryFlag::ePOSTFILTER ? QueryCallback.PostFilter(QueryFilterDataConcrete, Hit) : HitType;
+#else
+						HitType = QueryFilterData.flags & FChaosQueryFlag::ePOSTFILTER ? QueryCallback.PostFilter(QueryFilterDataConcrete, Hit) : HitType;
+#endif
+
+						if(HitType != ECollisionQueryHitType::None)
 						{
-							bContinue = false;
-							break;
+
+							//overlap never blocks
+							const bool bBlocker = (HitType == ECollisionQueryHitType::Block || bAnyHit || HitBuffer.WantsSingleResult());
+							HitBuffer.InsertHit(Hit, bBlocker);
+#if CHAOS_DEBUG_DRAW
+							bHitBufferIncreased = true;
+#endif
+
+							if(bBlocker && SQ != ESQType::Overlap)
+							{
+								CurData->SetLength(FMath::Max((FReal)0., Distance));	//Max is needed for MTD which returns negative distance
+								if(CurData->CurrentLength == 0 && (SQ == ESQType::Raycast || HitBuffer.WantsSingleResult()))	//raycasts always fail with distance 0, sweeps only matter if we want multi overlaps
+								{
+									bContinue = false; //initial overlap so nothing will be better than this
+									break;
+								}
+							}
+
+							if(bAnyHit)
+							{
+								bContinue = false;
+								break;
+							}
 						}
 					}
 				}
@@ -452,6 +497,7 @@ private:
 	FHitFlags OutputFlags;
 	bool bAnyHit;
 	const FQueryDebugParams DebugParams;
+	Chaos::FVec3 HitFaceNormal;
 	ChaosInterface::FSQHitBuffer<THitType>& HitBuffer;
 	const FQueryFilterData& QueryFilterData;
 	const FCollisionFilterData QueryFilterDataConcrete;

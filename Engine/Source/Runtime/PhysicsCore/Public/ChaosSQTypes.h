@@ -241,6 +241,8 @@ namespace ChaosInterface
 			Hits.Add(InTouchingHit);
 		}
 
+		const HitType* GetCurrentHit() const { return bHasBlockingHit ? &CurrentBlockingHit : nullptr; }
+
 		/** Does not do any distance verification. This is up to the SQ code to manage */
 		void InsertHit(const HitType& Hit, bool bBlocking)
 		{
