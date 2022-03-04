@@ -1682,6 +1682,7 @@ FMemoryImageSection* FMemoryImageSection::WritePointer(const FTypeLayoutDesc& St
 	FFrozenMemoryImagePtr FrozenPtr;
 	FrozenPtr.Packed = 0; // dummy value
 	// If derived type matches the static type, store INDEX_NONE to indicate the static type may be used
+	checkf(static_cast<uint64>(TypeDependencyIndex + 1) <= (1ULL << FFrozenMemoryImagePtr::TypeIndexBits), TEXT(""));
 	FrozenPtr.SetTypeIndex(bStaticTypeMatchesDerived ? INDEX_NONE : TypeDependencyIndex);
 
 	SectionPointer.Offset = WriteBytes(FrozenPtr);
@@ -1854,7 +1855,7 @@ void FMemoryImage::Flatten(FMemoryImageResult& OutResult, bool bMergeDuplicateSe
 			const int32 RemapSectionIndex = SectionIndexRemap[Pointer.SectionIndex];
 			FFrozenMemoryImagePtr* FrozenPtr = (FFrozenMemoryImagePtr*)(OutResult.Bytes.GetData() + OffsetToPointer);
 			check(FrozenPtr->GetOffsetFromThis() == 0 && !FrozenPtr->IsFrozen());
-			const int64 OffsetFromPointer = (int64)(SectionOffset[RemapSectionIndex] + Pointer.PointerOffset) - OffsetToPointer;
+			const int64 OffsetFromPointer = static_cast<int64>(SectionOffset[RemapSectionIndex]) + static_cast<int64>(Pointer.PointerOffset) - OffsetToPointer;
 			FrozenPtr->SetOffsetFromThis(OffsetFromPointer);
 			FrozenPtr->SetIsFrozen(true);
 			check(FrozenPtr->GetOffsetFromThis() == OffsetFromPointer);

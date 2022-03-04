@@ -342,7 +342,8 @@ struct FFrozenMemoryImagePtr
 	void SetTypeIndex(int32 TypeIndex)
 	{
 		static_assert(INDEX_NONE == -1, "TypeIndex cannot store INDEX_NONE when it's not -1");
-		Packed = (Packed & ~TypeIndexMask) | ((static_cast<uint64>(TypeIndex + 1) << TypeIndexShift) & TypeIndexMask);
+		// PVS warns about a possible overflow in TypeIndex + 1. We don't care as we don't expect 2^31 type indices anyway
+		Packed = (Packed & ~TypeIndexMask) | ((static_cast<uint64>(TypeIndex + 1) << TypeIndexShift) & TypeIndexMask); //-V1028
 	}
 };
 
