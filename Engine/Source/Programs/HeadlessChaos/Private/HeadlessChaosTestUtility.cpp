@@ -34,8 +34,8 @@ namespace ChaosTest {
 
 		InParticles.M(RigidBodyIndex) = 1.0;
 		InParticles.InvM(RigidBodyIndex) = 1.0;
-		InParticles.I(RigidBodyIndex) = FMatrix33(1, 0, 0, 0, 1, 0, 0, 0, 1);
-		InParticles.InvI(RigidBodyIndex) = FMatrix33(1, 0, 0, 0, 1, 0, 0, 0, 1);
+		InParticles.I(RigidBodyIndex) = TVec3<FRealSingle>(1, 1, 1);
+		InParticles.InvI(RigidBodyIndex) = TVec3<FRealSingle>(1, 1, 1);
 		InParticles.SetDynamicGeometry(RigidBodyIndex, MakeUnique<TSphere<FReal, 3>>(FVec3(0), Scale));
 		InParticles.SetObjectState(RigidBodyIndex, EObjectStateType::Dynamic);
 
@@ -56,8 +56,8 @@ namespace ChaosTest {
 
 		InParticles.M(RigidBodyIndex) = 1.0;
 		InParticles.InvM(RigidBodyIndex) = 1.0;
-		InParticles.I(RigidBodyIndex) = FMatrix33(1, 0, 0, 0, 1, 0, 0, 0, 1);
-		InParticles.InvI(RigidBodyIndex) = FMatrix33(1, 0, 0, 0, 1, 0, 0, 0, 1);
+		InParticles.I(RigidBodyIndex) = TVec3<FRealSingle>(1, 1, 1);
+		InParticles.InvI(RigidBodyIndex) = TVec3<FRealSingle>(1, 1, 1);
 		InParticles.SetDynamicGeometry(RigidBodyIndex, MakeUnique<TBox<FReal, 3>>(-Scale / 2.0, Scale / 2.0));
 		InParticles.SetObjectState(RigidBodyIndex, EObjectStateType::Dynamic);
 
@@ -80,8 +80,8 @@ namespace ChaosTest {
 
 			DynamicParticle->M() = 1.0;
 			DynamicParticle->InvM() = 1.0;
-			DynamicParticle->I() = FMatrix33(1, 0, 0, 0, 1, 0, 0, 0, 1);
-			DynamicParticle->InvI() = FMatrix33(1, 0, 0, 0, 1, 0, 0, 0, 1);
+			DynamicParticle->I() = TVec3<FRealSingle>(1, 1, 1);
+			DynamicParticle->InvI() = TVec3<FRealSingle>(1, 1, 1);
 		}
 	}
 
@@ -101,8 +101,8 @@ namespace ChaosTest {
 		FReal ScaleSq = Scale.X * Scale.X;
 		InParticles.M(RigidBodyIndex) = 1.0;
 		InParticles.InvM(RigidBodyIndex) = 1.0;
-		InParticles.I(RigidBodyIndex) = FMatrix33(ScaleSq / 6.0, 0, 0, 0, ScaleSq / 6.0, 0, 0, 0, ScaleSq / 6.0);
-		InParticles.InvI(RigidBodyIndex) = FMatrix33(6.0 / ScaleSq, 0, 0, 0, 6.0 / ScaleSq, 0, 0, 0, 6.0 / ScaleSq);
+		InParticles.I(RigidBodyIndex) = TVec3<FRealSingle>(ScaleSq / 6.0, ScaleSq / 6.0, ScaleSq / 6.0);
+		InParticles.InvI(RigidBodyIndex) = TVec3<FRealSingle>(6.0 / ScaleSq, 6.0 / ScaleSq, 6.0 / ScaleSq);
 		InParticles.SetDynamicGeometry(RigidBodyIndex, MakeUnique<TBox<FReal, 3>>(-Scale / 2.0, Scale / 2.0));
 		InParticles.SetObjectState(RigidBodyIndex, EObjectStateType::Dynamic);
 
@@ -169,8 +169,8 @@ namespace ChaosTest {
 		FReal ScaleSq = MaxScale * MaxScale;
 		Particle->M() = 1.0;
 		Particle->InvM() = 1.0;
-		Particle->I() = FMatrix33(ScaleSq / 6.0, 0, 0, 0, ScaleSq / 6.0, 0, 0, 0, ScaleSq / 6.0);
-		Particle->InvI() = FMatrix33(6.0 / ScaleSq, 0, 0, 0, 6.0 / ScaleSq, 0, 0, 0, 6.0 / ScaleSq);
+		Particle->I() = TVec3<FRealSingle>(ScaleSq / 6.0);
+		Particle->InvI() = TVec3<FRealSingle>(6.0 / ScaleSq);
 
 		Particle->SetDynamicGeometry(MakeUnique<TBox<FReal, 3>>(-Scale / 2.0, Scale / 2.0, Margin));
 
@@ -241,8 +241,8 @@ namespace ChaosTest {
 		FReal ScaleSq = Scale.X * Scale.X;
 		Particle->M() = 1.0;
 		Particle->InvM() = 1.0;
-		Particle->I() = FMatrix33(ScaleSq / 6.0, 0, 0, 0, ScaleSq / 6.0, 0, 0, 0, ScaleSq / 6.0);
-		Particle->InvI() = FMatrix33(6.0 / ScaleSq, 0, 0, 0, 6.0 / ScaleSq, 0, 0, 0, 6.0 / ScaleSq);
+		Particle->I() = TVec3<FRealSingle>(ScaleSq / 6.0);
+		Particle->InvI() = TVec3<FRealSingle>(6.0 / ScaleSq);
 
 		Particle->SetDynamicGeometry(MakeUnique<TSphere<FReal, 3>>(FVec3(0), Scale.X / 2.0));
 
@@ -304,8 +304,8 @@ namespace ChaosTest {
 		FReal ScaleSq = Scale.X * Scale.X;
 		Particle->M() = 1.0;
 		Particle->InvM() = 1.0;
-		Particle->I() = FMatrix33(ScaleSq / 6.0, 0, 0, 0, ScaleSq / 6.0, 0, 0, 0, ScaleSq / 6.0);
-		Particle->InvI() = FMatrix33(6.0 / ScaleSq, 0, 0, 0, 6.0 / ScaleSq, 0, 0, 0, 6.0 / ScaleSq);
+		Particle->I() = TVec3<FRealSingle>(ScaleSq / 6.0);
+		Particle->InvI() = TVec3<FRealSingle>(6.0 / ScaleSq);
 		
 		if (Tapered)
 		{
@@ -474,8 +474,8 @@ namespace ChaosTest {
 		InParticles.W(RigidBodyIndex) = FVec3(0, 0, 0);
 		InParticles.M(RigidBodyIndex) = 1.0;
 		InParticles.InvM(RigidBodyIndex) = 0.0;
-		InParticles.I(RigidBodyIndex) = FMatrix33(1, 0, 0, 0, 1, 0, 0, 0, 1);
-		InParticles.InvI(RigidBodyIndex) = FMatrix33(0, 0, 0, 0, 0, 0, 0, 0, 0);
+		InParticles.I(RigidBodyIndex) = TVec3<FRealSingle>(1);
+		InParticles.InvI(RigidBodyIndex) = TVec3<FRealSingle>(0);
 		InParticles.SetDynamicGeometry(RigidBodyIndex, MakeUnique<TPlane<FReal, 3>>(FVec3(0, 0, 0), FVec3(0, 0, 1)));
 		InParticles.SetObjectState(RigidBodyIndex, EObjectStateType::Kinematic);
 
@@ -587,8 +587,8 @@ namespace ChaosTest {
 
 		InParticles.M() = 1.0;
 		InParticles.InvM() = 1.0;
-		InParticles.I() = FMatrix33(1, 0, 0, 0, 1, 0, 0, 0, 1);
-		InParticles.InvI() = FMatrix33(1, 0, 0, 0, 1, 0, 0, 0, 1);
+		InParticles.I() = TVec3<FRealSingle>(1);
+		InParticles.InvI() = TVec3<FRealSingle>(1);
 		InParticles.SetDynamicGeometry(MakeUnique<FConvex>(Cube, Margin));
 		InParticles.SetObjectStateLowLevel(EObjectStateType::Dynamic);
 

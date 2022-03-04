@@ -137,7 +137,9 @@ namespace Chaos
 
 		ensureMsgf(!ProxyGeometry || ForceMassOrientation, TEXT("If ProxyGeometry is passed, we must override the mass orientation as they are tied"));
 
-		UpdateClusterMassProperties(NewParticle, ChildrenSet, ForceMassOrientation);
+		// TODO: This needs to be rotated to diagonal, used to update I()/InvI() from diagonal, and update transform with rotation.
+		FMatrix33 ClusterInertia(0);
+		UpdateClusterMassProperties(NewParticle, ChildrenSet, ClusterInertia, ForceMassOrientation);
 		UpdateKinematicProperties(NewParticle, MChildren, MEvolution);
 		UpdateGeometry(NewParticle, ChildrenSet, ProxyGeometry, Parameters);
 		GenerateConnectionGraph(NewParticle, Parameters);
@@ -240,7 +242,10 @@ namespace Chaos
 		NoCleanParams.bCopyCollisionParticles = !!UnionsHaveCollisionParticles;
 
 		TSet<FPBDRigidParticleHandle*> ChildrenSet(ChildrenArray);
-		UpdateClusterMassProperties(NewParticle, ChildrenSet, nullptr);
+		
+		// TODO: This needs to be rotated to diagonal, used to update I()/InvI() from diagonal, and update transform with rotation.
+		FMatrix33 ClusterInertia(0);
+		UpdateClusterMassProperties(NewParticle, ChildrenSet, ClusterInertia, nullptr);
 		UpdateKinematicProperties(NewParticle, MChildren, MEvolution);
 
 		UpdateGeometry(NewParticle, ChildrenSet, nullptr, NoCleanParams);

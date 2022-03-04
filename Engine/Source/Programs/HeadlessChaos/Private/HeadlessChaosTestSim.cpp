@@ -81,8 +81,8 @@ namespace ChaosTest {
 
 		Static->X() = FVec3(10, 10, 10);
 		Dynamic->X() = FVec3(10, 10, 150);
-		Dynamic->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
-		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
+		Dynamic->I() = TVec3<FRealSingle>(100000.0f);
+		Dynamic->InvI() = TVec3<FRealSingle>(1.0f / 100000.0f);
 
 		// The position of the static has changed and statics don't automatically update bounds, so update explicitly
 		Static->UpdateWorldSpaceState(FRigidTransform3(Static->X(), Static->R()), FVec3(0));
@@ -122,8 +122,8 @@ namespace ChaosTest {
 		Static->X() = FVec3(10, 10, 10);
 		Static->UpdateWorldSpaceState(FRigidTransform3(Static->X(), Static->R()), FVec3(0));
 		Dynamic->X() = FVec3(10, 10, 120);
-		Dynamic->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
-		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
+		Dynamic->I() = TVec3<FRealSingle>(100000.0f);
+		Dynamic->InvI() = TVec3<FRealSingle>(1.0f / 100000.0f);
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
@@ -168,8 +168,8 @@ namespace ChaosTest {
 		Static->X() = FVec3(10, 10, 10);
 		Static->UpdateWorldSpaceState(FRigidTransform3(Static->X(), Static->R()), FVec3(0));
 		Dynamic->X() = FVec3(10, 10, 300);
-		Dynamic->I() = FMatrix33(1, 1, 1);
-		Dynamic->InvI() = FMatrix33(1, 1, 1);
+		Dynamic->I() = TVec3<FRealSingle>(1);
+		Dynamic->InvI() = TVec3<FRealSingle>(1);
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
@@ -217,10 +217,10 @@ namespace ChaosTest {
 		Evolution.SetPhysicsMaterial(Dynamic1, MakeSerializable(PhysicsMaterial));
 		Evolution.SetPhysicsMaterial(Dynamic2, MakeSerializable(PhysicsMaterial));
 
-		Dynamic1->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
-		Dynamic1->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
-		Dynamic2->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
-		Dynamic2->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
+		Dynamic1->I() = TVec3<FRealSingle>(100000.0f);
+		Dynamic1->InvI() = TVec3<FRealSingle>(1.0f / 100000.0f);
+		Dynamic2->I() = TVec3<FRealSingle>(100000.0f);
+		Dynamic2->InvI() = TVec3<FRealSingle>(1.0f / 100000.0f);
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic1,Dynamic2 });
 

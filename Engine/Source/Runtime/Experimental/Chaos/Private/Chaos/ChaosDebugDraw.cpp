@@ -818,7 +818,7 @@ namespace Chaos
 			{
 				if (const TPBDRigidParticleHandle<FReal, 3>* Rigid = InParticle->CastToRigidParticle())
 				{
-					const FVec3 EquivalentBoxSize = Utilities::BoxSizeFromInertia(Rigid->I().GetDiagonal(), Rigid->M());
+					const FVec3 EquivalentBoxSize = Utilities::BoxSizeFromInertia(Rigid->I(), Rigid->M());
 					FDebugDrawQueue::GetInstance().DrawDebugBox(PCOM, 0.5f * Settings.InertiaScale * EquivalentBoxSize, QCOM, FColor::Magenta, false, 0.0f, 0, Settings.LineThickness);
 				}
 			}

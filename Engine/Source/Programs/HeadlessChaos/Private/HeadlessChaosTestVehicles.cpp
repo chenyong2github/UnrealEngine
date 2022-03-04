@@ -1522,8 +1522,8 @@ namespace ChaosTest
 		Dynamic->X() = FVec3(10, 10, 20);
 		Dynamic->M() = BodyMass;
 		Dynamic->InvM() = 1.0f / BodyMass;
-		Dynamic->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
-		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
+		Dynamic->I() = TVec3<FRealSingle>(100000.0f);
+		Dynamic->InvI() = TVec3<FRealSingle>(1.0f / 100000.0f);
 
 		float AccumulatedTime = 0.f;
 		const FReal Dt = 1 / 30.f;

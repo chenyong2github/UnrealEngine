@@ -686,8 +686,7 @@ FTransform FChaosEngineInterface::GetComTransformLocal_AssumesLocked(const FPhys
 
 FVector FChaosEngineInterface::GetLocalInertiaTensor_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	const Chaos::FMatrix33 Tensor = InActorReference->GetGameThreadAPI().I();
-	return FVector(Tensor.M[0][0],Tensor.M[1][1],Tensor.M[2][2]);
+	return InActorReference->GetGameThreadAPI().I();
 }
 
 FBox FChaosEngineInterface::GetBounds_AssumesLocked(const FPhysicsActorHandle& InActorReference)
@@ -878,8 +877,8 @@ void FChaosEngineInterface::SetMassSpaceInertiaTensor_AssumesLocked(FPhysicsActo
 	if(CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.X)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Y)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Z)))
 	{
 		Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
-		Body_External.SetI(Chaos::FMatrix33(InTensor.X,InTensor.Y,InTensor.Z));
-		Body_External.SetInvI(Chaos::FMatrix33(1./InTensor.X,1./InTensor.Y,1./InTensor.Z));
+		Body_External.SetI(Chaos::TVec3<Chaos::FRealSingle>(InTensor.X,InTensor.Y,InTensor.Z));
+		Body_External.SetInvI(Chaos::TVec3<Chaos::FRealSingle>(1./InTensor.X,1./InTensor.Y,1./InTensor.Z));
 	}
 }
 

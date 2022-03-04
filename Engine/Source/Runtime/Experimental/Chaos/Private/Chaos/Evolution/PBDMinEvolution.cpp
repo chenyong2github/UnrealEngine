@@ -112,7 +112,7 @@ namespace Chaos
 		FVec3* CenterOfMass;
 		FRotation3* RotationOfMass;
 		FReal* InvM;
-		FMatrix33* InvI;
+		TVec3<FRealSingle>* InvI;
 		FVec3* Acceleration;
 		FVec3* AngularAcceleration;
 		FVec3* LinearImpulseVelocity;

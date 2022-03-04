@@ -295,8 +295,8 @@ namespace ImmediatePhysics_Chaos
 					Dynamic->SetInvM(MassInv);
 					Dynamic->SetCenterOfMass(CoMTransform.GetTranslation());
 					Dynamic->SetRotationOfMass(CoMTransform.GetRotation());
-					Dynamic->SetI({ Inertia.X, Inertia.Y, Inertia.Z });
-					Dynamic->SetInvI({ InertiaInv.X, InertiaInv.Y, InertiaInv.Z });
+					Dynamic->SetI(TVec3<FRealSingle>( Inertia.X, Inertia.Y, Inertia.Z ));
+					Dynamic->SetInvI(TVec3<FRealSingle>(InertiaInv.X, InertiaInv.Y, InertiaInv.Z ));
 					if (BodyInstance != nullptr)
 					{
 						Dynamic->SetLinearEtherDrag(BodyInstance->LinearDamping);
@@ -635,25 +635,19 @@ namespace ImmediatePhysics_Chaos
 			{
 				NewInertia = FVector3f( 1.0f / NewInverseInertia.X , 1.0f / NewInverseInertia.Y, 1.0f / NewInverseInertia.Z );
 			}
-			Dynamic->SetI({ NewInertia.X, NewInertia.Y, NewInertia.Z });
-			Dynamic->SetInvI({ (float)NewInverseInertia.X, (float)NewInverseInertia.Y, (float)NewInverseInertia.Z });
+			Dynamic->SetI(TVec3<FRealSingle>(NewInertia.X, NewInertia.Y, NewInertia.Z ));
+			Dynamic->SetInvI(TVec3<FRealSingle>(NewInverseInertia.X, NewInverseInertia.Y, NewInverseInertia.Z ));
 		}
 	}
 
 	FVector FActorHandle::GetInverseInertia() const
 	{
-		using namespace Chaos;
-
-		const FMatrix33& InvI = Handle()->InvI();
-		return { InvI.M[0][0], InvI.M[1][1], InvI.M[2][2] };
+		return Handle()->InvI();
 	}
 
 	FVector FActorHandle::GetInertia() const
 	{
-		using namespace Chaos;
-
-		const FMatrix33& I = Handle()->I();
-		return { I.M[0][0], I.M[1][1], I.M[2][2] };
+		return Handle()->I();
 	}
 
 	void FActorHandle::SetMaxDepenetrationVelocity(FReal NewMaxDepenetrationVelocity)

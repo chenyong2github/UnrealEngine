@@ -265,11 +265,11 @@ public:
 	const FRotation3& RotationOfMass() const { return MRotationOfMass; }
 	void SetRotationOfMass(const FRotation3& InRotationOfMass){ MRotationOfMass = InRotationOfMass; }
 
-	const FMatrix33& I() const { return MI; }
-	void SetI(const FMatrix33& InI){ MI = InI; }
+	const TVec3<FRealSingle>& I() const { return MI; }
+	void SetI(const TVec3<FRealSingle>& InI){ MI = InI; }
 
-	const FMatrix33& InvI() const { return MInvI; }
-	void SetInvI(const FMatrix33& InInvI){ MInvI = InInvI; }
+	const TVec3<FRealSingle>& InvI() const { return MInvI; }
+	void SetInvI(const TVec3<FRealSingle>& InInvI){ MInvI = InInvI; }
 
 	FReal M() const { return MM; }
 	void SetM(FReal InM){ MM = InM; }
@@ -280,8 +280,8 @@ public:
 private:
 	FVec3 MCenterOfMass;
 	FRotation3 MRotationOfMass;
-	FMatrix33 MI;
-	FMatrix33 MInvI;
+	TVec3<FRealSingle> MI;
+	TVec3<FRealSingle> MInvI;
 	FReal MM;
 	FReal MInvM;
 

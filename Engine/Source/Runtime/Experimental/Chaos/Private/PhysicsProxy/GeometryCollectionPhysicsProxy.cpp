@@ -147,7 +147,7 @@ void PopulateSimulatedParticle(
 	const FCollisionFilterData SimFilterIn,
 	const FCollisionFilterData QueryFilterIn,
 	Chaos::FReal MassIn,
-	FVector3f InertiaTensorVec,
+	Chaos::TVec3<Chaos::FRealSingle> InertiaTensorVec,
 	const FTransform& WorldTransform, 
 	const uint8 DynamicState, 
 	const int16 CollisionGroup,
@@ -195,7 +195,7 @@ void PopulateSimulatedParticle(
 		}
 
 		Handle->SetM(MassIn);
-		Handle->SetI(Chaos::PMatrix<Chaos::FReal, 3, 3>(InertiaTensorVec[0], InertiaTensorVec[1], InertiaTensorVec[2]));
+		Handle->SetI(InertiaTensorVec);
 		Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic); // this step sets InvM, InvInertia, P, Q
 	}
 
@@ -1028,7 +1028,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 		SimFilter,
 		QueryFilter,
 		Parent->M() > 0.0 ? Parent->M() : Mass[CollectionClusterIndex] * MassScale, 
-		FVector3f(Parent->I().GetDiagonal() != Chaos::FVec3(0.0) ? Parent->I().GetDiagonal() : Chaos::FVec3(InertiaTensor[CollectionClusterIndex] * MassScale)),
+		Parent->I() != Chaos::TVec3<Chaos::FRealSingle>(0.0) ? Parent->I() : Chaos::TVec3<Chaos::FRealSingle>(InertiaTensor[CollectionClusterIndex] * MassScale),
 		ParticleTM, 
 		(uint8)DynamicState[CollectionClusterIndex], 
 		0,
@@ -2365,7 +2365,10 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				//CollectionSimulatableParticles[TransformGroupIndex] = true;
 				IsClusterSimulated[TransformGroupIndex] = true;
 
-				UpdateClusterMassProperties(Handles[ClusterTransformIdx].Get(), ChildrenIndices);	//compute mass properties
+
+				// TODO: This needs to be rotated to diagonal, used to update I()/InvI() from diagonal, and update transform with rotation.
+				FMatrix33 ClusterInertia(0);
+				UpdateClusterMassProperties(Handles[ClusterTransformIdx].Get(), ChildrenIndices, ClusterInertia);	//compute mass properties
 				const FTransform ClusterMassToCollection = 
 					FTransform(CollectionSpaceParticles->R(ClusterTransformIdx), 
 							   CollectionSpaceParticles->X(ClusterTransformIdx));
@@ -2422,9 +2425,9 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				} // tmp scope
 
 				TUniquePtr<FTriangleMesh> UnionMesh(new FTriangleMesh(MoveTemp(UnionMeshIndices)));
-				const FMatrix& InertiaMatrix = CollectionSpaceParticles->I(ClusterTransformIdx);
-				const FVector InertiaDiagonal(InertiaMatrix.M[0][0], InertiaMatrix.M[1][1], InertiaMatrix.M[2][2]);
-				CollectionInertiaTensor[ClusterTransformIdx] = (FVector3f)InertiaDiagonal;	// LWC_TODO: Precision loss
+				// TODO: Seems this should rotate full matrix and not discard off diagonals.
+				const FVec3& InertiaDiagonal = CollectionSpaceParticles->I(ClusterTransformIdx);
+				CollectionInertiaTensor[ClusterTransformIdx] = InertiaDiagonal;	// LWC_TODO: Precision loss
 				CollectionMass[ClusterTransformIdx] = (FRealSingle)CollectionSpaceParticles->M(ClusterTransformIdx);
 
 				const int32 SizeSpecificIdx = GeometryCollection::SizeSpecific::FindIndexForVolume(SharedParams.SizeSpecificData, InstanceBoundingBox);

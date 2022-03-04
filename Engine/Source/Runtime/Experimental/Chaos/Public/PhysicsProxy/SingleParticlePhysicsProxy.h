@@ -650,7 +650,7 @@ public:
 		});
 	}
 
-	const FMatrix33 I() const
+	const Chaos::TVec3<FRealSingle> I() const
 	{
 		return Read([](auto* Particle)
 		{
@@ -659,11 +659,11 @@ public:
 				return Rigid->I();
 			}
 
-			return FMatrix33(0, 0, 0);
+			return Chaos::TVec3<FRealSingle>(0, 0, 0);
 		});
 	}
 
-	void SetI(const FMatrix33& InI)
+	void SetI(const Chaos::TVec3<FRealSingle>& InI)
 	{
 		Write([&InI](auto* Particle)
 		{
@@ -674,7 +674,7 @@ public:
 		});
 	}
 
-	const FMatrix33 InvI() const
+	const Chaos::TVec3<FRealSingle> InvI() const
 	{
 		return Read([](auto* Particle)
 		{
@@ -683,11 +683,11 @@ public:
 				return Rigid->InvI();
 			}
 
-			return FMatrix33(0, 0, 0);
+			return Chaos::TVec3<FRealSingle>(0, 0, 0);
 		});
 	}
 
-	void SetInvI(const FMatrix33& InInvI)
+	void SetInvI(const Chaos::TVec3<FRealSingle>& InInvI)
 	{
 		Write([&InInvI](auto* Particle)
 		{

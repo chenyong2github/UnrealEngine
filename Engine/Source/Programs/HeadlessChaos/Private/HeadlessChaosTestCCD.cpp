@@ -49,9 +49,9 @@ namespace ChaosTest
 
 		Evolution.SetPhysicsMaterial(Dynamic, MakeSerializable(PhysicsMaterial));
 
-		const FReal Mass = 100000.0f;;
-		Dynamic->I() = FMatrix33(Mass, Mass, Mass);
-		Dynamic->InvI() = FMatrix33(1.0f / Mass, 1.0f / Mass, 1.0f / Mass);
+		const FRealSingle Mass = 100000.0f;;
+		Dynamic->I() = TVec3<FRealSingle>(Mass, Mass, Mass);
+		Dynamic->InvI() = TVec3<FRealSingle>(1.0f / Mass, 1.0f / Mass, 1.0f / Mass);
 
 		// Positions and velocities
 		Static->X() = FVec3(0, 0, 0);
@@ -111,8 +111,8 @@ namespace ChaosTest
 		Evolution.SetPhysicsMaterial(Dynamic, MakeSerializable(PhysicsMaterial));
 
 		const FReal Mass = 100000.0f;;
-		Dynamic->I() = FMatrix33(Mass, Mass, Mass);
-		Dynamic->InvI() = FMatrix33(1.0f / Mass, 1.0f / Mass, 1.0f / Mass);
+		Dynamic->I() = TVec3<FRealSingle>(Mass, Mass, Mass);
+		Dynamic->InvI() = TVec3<FRealSingle>(1.0f / Mass, 1.0f / Mass, 1.0f / Mass);
 
 		// Positions and velocities
 		Static->X() = FVec3(0, 0, 0);
@@ -174,8 +174,8 @@ namespace ChaosTest
 		Evolution.SetPhysicsMaterial(Dynamic, MakeSerializable(PhysicsMaterial));
 
 		const FReal Mass = 100000.0f;;
-		Dynamic->I() = FMatrix33(Mass, Mass, Mass);
-		Dynamic->InvI() = FMatrix33(1.0f / Mass, 1.0f / Mass, 1.0f / Mass);
+		Dynamic->I() = TVec3<FRealSingle>(Mass);
+		Dynamic->InvI() = TVec3<FRealSingle>(1.0f / Mass);
 
 		// Positions and velocities
 		Static->X() = FVec3(0, 0, 0);
@@ -256,8 +256,8 @@ namespace ChaosTest
 		Evolution.SetPhysicsMaterial(Dynamic, MakeSerializable(PhysicsMaterial));
 
 		const FReal Mass = 100000.0f;
-		Dynamic->I() = FMatrix33(Mass, Mass, Mass);
-		Dynamic->InvI() = FMatrix33(1.0f / Mass, 1.0f / Mass, 1.0f / Mass);
+		Dynamic->I() = TVec3<FRealSingle>(Mass);
+		Dynamic->InvI() = TVec3<FRealSingle>(1.0f / Mass);
 
 		// Positions and velocities
 		ContainerFaces[0]->X() = FVec3(ContainerBoxHalfSize, 0, 0);

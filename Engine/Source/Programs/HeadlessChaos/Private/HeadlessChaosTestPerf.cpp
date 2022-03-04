@@ -89,16 +89,16 @@ namespace ChaosTest {
 				auto BoxDynamic = DynamicParticles[DynamicParticleIndex++];
 				BoxDynamic->SetGeometry(MakeSerializable(Box));
 				BoxDynamic->X() = Offset + FVec3(x * Interval, y * Interval, Height);
-				BoxDynamic->I() = FMatrix33(100000., 100000., 100000.);
-				BoxDynamic->InvI() = FMatrix33(1. / 100000., 1. / 100000., 1. / 100000.);
+				BoxDynamic->I() = TVec3<FRealSingle>(100000.);
+				BoxDynamic->InvI() = TVec3<FRealSingle>(1. / 100000.);
 				Evolution.SetPhysicsMaterial(BoxDynamic, Material);
 				ParticleHandles.Add(BoxDynamic);
 
 				auto SphereDynamic = DynamicParticles[DynamicParticleIndex++];
 				SphereDynamic->SetGeometry(MakeSerializable(Sphere));
 				SphereDynamic->X() = Offset + FVec3(x * Interval, y * Interval, Height * (FReal)0.5);
-				SphereDynamic->I() = FMatrix33(100000., 100000., 100000.);
-				SphereDynamic->InvI() = FMatrix33(1. / 100000., 1. / 100000., 1. / 100000.);
+				SphereDynamic->I() = TVec3<FRealSingle>(100000.);
+				SphereDynamic->InvI() = TVec3<FRealSingle>(1. / 100000.);
 				Evolution.SetPhysicsMaterial(SphereDynamic, Material);
 				ParticleHandles.Add(SphereDynamic);
 #if USE_CONSTRAINTS

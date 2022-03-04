@@ -161,8 +161,8 @@ namespace ChaosTest {
 			auto* DynamicParticle = Evolution.CreateDynamicParticles(1)[0];
 			DynamicParticle->X() = FVec3(0, 10, 10);
 			//	DynamicParticle->R() = FRotation3::FromAxisAngle(FVec3(0,1,0), PI); // upside down
-			DynamicParticle->I() = FMatrix33(100.0f, 100.0f, 100.0f);
-			DynamicParticle->InvI() = FMatrix33(1.0f / 100.0f, 1.0f / 100.0f, 1.0f / 100.0f);
+			DynamicParticle->I() = TVec3<FRealSingle>(100.0f);
+			DynamicParticle->InvI() = TVec3<FRealSingle>(1.0f / 100.0f);
 
 			FPBDSuspensionConstraints SuspensionConstraints;
 			FVec3 SuspensionLocalLocationA(FVec3(0, 0, 0));
@@ -213,8 +213,8 @@ namespace ChaosTest {
 			DynamicParticle->X() = FVec3(50, 10, 10);
 
 			// minimize rotation using high inertia
-			DynamicParticle->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
-			DynamicParticle->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
+			DynamicParticle->I() = TVec3<FRealSingle>(100000.0f);
+			DynamicParticle->InvI() = TVec3<FRealSingle>(1.0f / 100000.0f);
 
 			FPBDSuspensionConstraints SuspensionConstraints;
 
@@ -276,8 +276,8 @@ namespace ChaosTest {
 		DynamicParticle->X() = FVec3(0, 0, 10);
 		DynamicParticle->M() = Mass;
 		DynamicParticle->InvM() = 1.0f / Mass;
-		DynamicParticle->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
-		DynamicParticle->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
+		DynamicParticle->I() = TVec3<FRealSingle>(100000.0f);
+		DynamicParticle->InvI() = TVec3<FRealSingle>(1.0f / 100000.0f);
 
 		// Suspension setup
 		FPBDSuspensionSettings SuspensionSettings;

@@ -50,7 +50,7 @@ namespace Chaos
 					SolverBody.SetR(PrevCoMTransform.GetRotation());
 
 					SolverBody.SetInvM(Particle->InvM());
-					SolverBody.SetInvILocal(Particle->InvI().GetDiagonal());
+					SolverBody.SetInvILocal(Particle->InvI());
 				}
 				else
 				{

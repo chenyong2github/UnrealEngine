@@ -8,6 +8,7 @@ namespace Chaos
 	void UpdateClusterMassProperties(
 		FPBDRigidClusteredParticleHandle* Parent,
 		TSet<FPBDRigidParticleHandle*>& Children,
+		FMatrix33& ParentInertia,
 		const FRigidTransform3* ForceMassOrientation = nullptr);
 
 	void CHAOS_API UpdateKinematicProperties(

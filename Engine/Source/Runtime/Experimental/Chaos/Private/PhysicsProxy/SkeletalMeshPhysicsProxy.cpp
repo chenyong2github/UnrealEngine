@@ -235,8 +235,8 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 
 			Particles.M(RigidBodyId) = FMath::Clamp(TotalMass, (Chaos::FReal)Parameters.MinMass, (Chaos::FReal)Parameters.MaxMass);
 			Particles.InvM(RigidBodyId) = Particles.M(RigidBodyId) < KINDA_SMALL_NUMBER ?  BIG_NUMBER/2 : 1.f / Particles.M(RigidBodyId);
-			Particles.I(RigidBodyId) = MassProperties.InertiaTensor;
-			Particles.InvI(RigidBodyId) = MassProperties.InertiaTensor.Inverse();
+			Particles.I(RigidBodyId) = Chaos::TVec3<Chaos::FRealSingle>((Chaos::FRealSingle)MassProperties.InertiaTensor.M[0][0], (Chaos::FRealSingle)MassProperties.InertiaTensor.M[1][1], (Chaos::FRealSingle)MassProperties.InertiaTensor.M[2][2]);
+			Particles.InvI(RigidBodyId) = Chaos::TVec3<Chaos::FRealSingle>(1.f / (Chaos::FRealSingle)MassProperties.InertiaTensor.M[0][0], 1.f / (Chaos::FRealSingle)MassProperties.InertiaTensor.M[1][1], 1.f / (Chaos::FRealSingle)MassProperties.InertiaTensor.M[2][2]);
 
 			Particles.CollisionGroup(RigidBodyId) = Parameters.CollisionGroup;
 			

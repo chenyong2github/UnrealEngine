@@ -38,6 +38,7 @@ namespace Chaos
 	void UpdateClusterMassProperties(
 		FPBDRigidClusteredParticleHandle* Parent,
 		TSet<FPBDRigidParticleHandle*>& Children,
+		FMatrix33& ParentInertia,
 		const FRigidTransform3* ForceMassOrientation)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterMassProperties);
@@ -48,7 +49,8 @@ namespace Chaos
 		Parent->SetV(FVec3(0));
 		Parent->SetW(FVec3(0));
 		Parent->SetM(0);
-		Parent->SetI(FMatrix33(0));
+		Parent->SetI(TVec3<FRealSingle>(0)); // Diagonal should be updated from ParentInertia by caller
+		ParentInertia = FMatrix33(0);
 
 		bool bHasChild = false;
 		bool bHasProxyChild = false;
@@ -63,8 +65,9 @@ namespace Chaos
 			ChildRotation = Child->R();
 
 			const FReal ChildMass = Child->M();
+			const FMatrix33 IMatrix(Child->I());
 			const FMatrix33 ChildWorldSpaceI =
-				(ChildRotation * FMatrix::Identity) * Child->I() * (ChildRotation * FMatrix::Identity).GetTransposed();
+				(ChildRotation * FMatrix::Identity) * IMatrix * (ChildRotation * FMatrix::Identity).GetTransposed();
 			if (ChildWorldSpaceI.ContainsNaN())
 			{
 				continue;
@@ -72,7 +75,8 @@ namespace Chaos
 			bHasProxyChild = true;
 			bHasChild = true;
 			bHasProxyChild = true;
-			Parent->I() += ChildWorldSpaceI;
+
+			ParentInertia += ChildWorldSpaceI;
 			Parent->M() += ChildMass;
 			Parent->X() += ChildPosition * ChildMass;
 			Parent->V() += OriginalChild->V() * ChildMass; // Use orig child for vel because we don't sim the proxy
@@ -87,14 +91,15 @@ namespace Chaos
 				const FRotation3& ChildRotation = Child->R();
 				const FReal ChildMass = Child->M();
 
+				const FMatrix33 IMatrix(Child->I());
 				const FMatrix33 ChildWorldSpaceI =
-					(ChildRotation * FMatrix::Identity) * Child->I() * (ChildRotation * FMatrix::Identity).GetTransposed();
+					(ChildRotation * FMatrix::Identity) * IMatrix * (ChildRotation * FMatrix::Identity).GetTransposed();
 				if (ChildWorldSpaceI.ContainsNaN())
 				{
 					continue;
 				}
 				bHasChild = true;
-				Parent->I() += ChildWorldSpaceI;
+				ParentInertia += ChildWorldSpaceI;
 				Parent->M() += ChildMass;
 				Parent->X() += ChildPosition * ChildMass;
 				Parent->V() += OriginalChild->V() * ChildMass; // Use orig child for vel because we don't sim the proxy
@@ -103,10 +108,10 @@ namespace Chaos
 		}
 		for (int32 i = 0; i < 3; i++)
 		{
-			const FMatrix33& InertiaTensor = Parent->I();
-			if (InertiaTensor.GetColumn(i)[i] < SMALL_NUMBER)
+			const FVec3& InertiaTensor = Parent->I();
+			if (InertiaTensor[i] < SMALL_NUMBER)
 			{
-				Parent->SetI(FMatrix33(1.f, 1.f, 1.f));
+				Parent->SetI(TVec3<FRealSingle>(1.f, 1.f, 1.f));
 				break;
 			}
 		}
@@ -123,8 +128,9 @@ namespace Chaos
 			Parent->PreW() = Parent->W();
 			Parent->R() = FRotation3(FMatrix::Identity);
 			Parent->Q() = Parent->R();
-			Parent->I() = FMatrix::Identity;
-			Parent->InvI() = FMatrix::Identity;
+			Parent->I() = TVec3<FRealSingle>(1);
+			Parent->InvI() = TVec3<FRealSingle>(1);
+			ParentInertia = FMatrix33(1,1,1);
 			return;
 		}
 
@@ -159,24 +165,23 @@ namespace Chaos
 				const FReal& p1 = ParentToChild[1];
 				const FReal& p2 = ParentToChild[2];
 				const FReal& m = ChildMass;
-				Parent->I() +=
-					FMatrix33(
+				// TODO: We are computing inertia twice. Need to decide if we prefer this to loop above.
+				ParentInertia += FMatrix33(
 						m * (p1 * p1 + p2 * p2), -m * p1 * p0, -m * p2 * p0,
 						m * (p2 * p2 + p0 * p0), -m * p2 * p1, m * (p1 * p1 + p0 * p0));
 			}
 		}
-		FMatrix33& InertiaTensor = Parent->I();
-		if (Parent->I().ContainsNaN())
+		if (ParentInertia.ContainsNaN())
 		{
-			InertiaTensor = FMatrix33((FReal)1., (FReal)1., (FReal)1.);
+			ParentInertia = FMatrix33(1,1,1);
 		}
 		else
 		{
 			for (int32 i = 0; i < 3; i++)
 			{
-				if (InertiaTensor.GetColumn(i)[i] < SMALL_NUMBER)
+				if (ParentInertia.GetColumn(i)[i] < SMALL_NUMBER)
 				{
-					InertiaTensor = FMatrix33((FReal)1., (FReal)1., (FReal)1.);
+					ParentInertia = FMatrix33(1,1,1);
 					break;
 				}
 			}
@@ -190,12 +195,16 @@ namespace Chaos
 
 		if (Parent->R().ContainsNaN())
 		{
-			InertiaTensor = PMatrix<FReal, 3, 3>(1.f, 1.f, 1.f);
+			ParentInertia = FMatrix33(1,1,1);
 			Parent->R() = TRotation<FReal, 3>(FMatrix::Identity);
 		}
 
 		Parent->Q() = Parent->R();
-		Parent->InvI() = Parent->I().Inverse();
+		
+		// TODO: This should be computed from rotated tensor by caller.
+		// Initializing to keep current behaviour until fixed.
+		Parent->I() = ParentInertia.GetDiagonal(); 
+		Parent->InvI() = TVec3<FRealSingle>(1.f / Parent->I()[0], 1.f / Parent->I()[1], 1.f / Parent->I()[2]);
 	}
 
 

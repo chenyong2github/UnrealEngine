@@ -175,11 +175,11 @@ public:
 	FORCEINLINE const TVector<T, d>& AngularImpulseVelocity(const int32 Index) const { return MAngularImpulseVelocity[Index]; }
 	FORCEINLINE TVector<T, d>& AngularImpulseVelocity(const int32 Index) { return MAngularImpulseVelocity[Index]; }
 
-	FORCEINLINE const PMatrix<T, d, d>& I(const int32 Index) const { return MI[Index]; }
-	FORCEINLINE PMatrix<T, d, d>& I(const int32 Index) { return MI[Index]; }
+	FORCEINLINE const TVec3<FRealSingle>& I(const int32 Index) const { return MI[Index]; }
+	FORCEINLINE TVec3<FRealSingle>& I(const int32 Index) { return MI[Index]; }
 
-	FORCEINLINE const PMatrix<T, d, d>& InvI(const int32 Index) const { return MInvI[Index]; }
-	FORCEINLINE PMatrix<T, d, d>& InvI(const int32 Index) { return MInvI[Index]; }
+	FORCEINLINE const TVec3<FRealSingle>& InvI(const int32 Index) const { return MInvI[Index]; }
+	FORCEINLINE TVec3<FRealSingle>& InvI(const int32 Index) { return MInvI[Index]; }
 
 	FORCEINLINE const T M(const int32 Index) const { return MM[Index]; }
 	FORCEINLINE T& M(const int32 Index) { return MM[Index]; }
@@ -304,7 +304,27 @@ public:
 			Ar << MRotationOfMass;
 		}
 
-		Ar << MAcceleration << MAngularAcceleration << MLinearImpulseVelocity << MAngularImpulseVelocity << MI << MInvI << MM << MInvM;
+		Ar << MAcceleration << MAngularAcceleration << MLinearImpulseVelocity << MAngularImpulseVelocity;
+
+		Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+		if (Ar.IsLoading() && Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ChaosInertiaConvertedToVec3)
+		{
+			TArray<PMatrix<T, d, d>> IArray;
+			TArray<PMatrix<T, d, d>> InvIArray;
+			Ar << IArray << InvIArray;
+
+			for (int32 Idx = 0; Idx < IArray.Num(); ++Idx)
+			{
+				MI.Add(IArray[Idx].GetDiagonal());
+				MInvI.Add(InvIArray[Idx].GetDiagonal());
+			}
+		}
+		else
+		{
+			Ar << MI << MInvI;
+		}
+		
+		Ar << MM << MInvM;
 
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddDampingToRigids)
@@ -320,8 +340,8 @@ public:
 	FORCEINLINE TArray<TVector<T, d>>& AllAngularAcceleration() { return MAngularAcceleration; }
 	FORCEINLINE TArray<TVector<T, d>>& AllLinearImpulseVelocity() { return MLinearImpulseVelocity; }
 	FORCEINLINE TArray<TVector<T, d>>& AllAngularImpulseVelocity() { return MAngularImpulseVelocity; }
-	FORCEINLINE TArray<PMatrix<T, d, d>>& AllI() { return MI; }
-	FORCEINLINE TArray<PMatrix<T, d, d>>& AllInvI() { return MInvI; }
+	FORCEINLINE TArray<TVec3<FRealSingle>>& AllI() { return MI; }
+	FORCEINLINE TArray<TVec3<FRealSingle>>& AllInvI() { return MInvI; }
 	FORCEINLINE TArray<FReal>& AllM() { return MM; }
 	FORCEINLINE TArray<FReal>& AllInvM() { return MInvM; }
 	FORCEINLINE TArray<TVector<T, d>>& AllCenterOfMass() { return MCenterOfMass; }
@@ -342,8 +362,8 @@ private:
 	TArrayCollectionArray<TVector<T, d>> MAngularAcceleration;
 	TArrayCollectionArray<TVector<T, d>> MLinearImpulseVelocity;
 	TArrayCollectionArray<TVector<T, d>> MAngularImpulseVelocity;
-	TArrayCollectionArray<PMatrix<T, d, d>> MI;
-	TArrayCollectionArray<PMatrix<T, d, d>> MInvI;
+	TArrayCollectionArray<TVec3<FRealSingle>> MI;
+	TArrayCollectionArray<TVec3<FRealSingle>> MInvI;
 	TArrayCollectionArray<T> MM;
 	TArrayCollectionArray<T> MInvM;
 	TArrayCollectionArray<TVector<T,d>> MCenterOfMass;

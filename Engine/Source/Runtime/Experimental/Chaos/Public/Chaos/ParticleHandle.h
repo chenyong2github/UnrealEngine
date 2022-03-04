@@ -97,8 +97,8 @@ void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const FPBDRigidPartic
 	Concrete.SetInvM(1);
 	Concrete.SetCenterOfMass(TVector<T,d>(0));
 	Concrete.SetRotationOfMass(TRotation<T, d>::FromIdentity());
-	Concrete.SetI(PMatrix<T, d, d>(1, 1, 1));
-	Concrete.SetInvI(PMatrix<T, d, d>(1, 1, 1));
+	Concrete.SetI(TVec3<FRealSingle>(1, 1, 1));
+	Concrete.SetInvI(TVec3<FRealSingle>(1, 1, 1));
 	Concrete.SetLinearEtherDrag(0.f);
 	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
@@ -967,13 +967,13 @@ public:
 		SetWSmooth(W());
 	}
 
-	const PMatrix<T, d, d>& I() const { return PBDRigidParticles->I(ParticleIdx); }
-	PMatrix<T, d, d>& I() { return PBDRigidParticles->I(ParticleIdx); }
-	void SetI(const PMatrix<T, d, d>& InI) { PBDRigidParticles->I(ParticleIdx) = InI; }
+	const TVec3<FRealSingle>& I() const { return PBDRigidParticles->I(ParticleIdx); }
+	TVec3<FRealSingle>& I() { return PBDRigidParticles->I(ParticleIdx); }
+	void SetI(const TVec3<FRealSingle>& InI) { PBDRigidParticles->I(ParticleIdx) = InI; }
 
-	const PMatrix<T, d, d>& InvI() const { return PBDRigidParticles->InvI(ParticleIdx); }
-	PMatrix<T, d, d>& InvI() { return PBDRigidParticles->InvI(ParticleIdx); }
-	void SetInvI(const PMatrix<T, d, d>& InInvI) { PBDRigidParticles->InvI(ParticleIdx) = InInvI; }
+	const TVec3<FRealSingle>& InvI() const { return PBDRigidParticles->InvI(ParticleIdx); }
+	TVec3<FRealSingle>& InvI() { return PBDRigidParticles->InvI(ParticleIdx); }
+	void SetInvI(const TVec3<FRealSingle>& InInvI) { PBDRigidParticles->InvI(ParticleIdx) = InInvI; }
 
 	T M() const { return PBDRigidParticles->M(ParticleIdx); }
 	T& M() { return PBDRigidParticles->M(ParticleIdx); }
@@ -1552,24 +1552,24 @@ public:
 		MHandle->UpdateWorldSpaceState(WorldTransform, BoundsExpansion);
 	}
 
-	const FMatrix33& I() const 
+	const TVec3<FRealSingle> I() const
 	{ 
 		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
 			return MHandle->CastToRigidParticle()->I();
 		}
 
-		return ZeroMatrix;
+		return TVec3<FRealSingle>(0);
 	}
 
-	const FMatrix33& InvI() const 
+	const TVec3<FRealSingle> InvI() const
 	{ 
 		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
 			return MHandle->CastToRigidParticle()->InvI();
 		}
 
-		return ZeroMatrix;
+		return TVec3<FRealSingle>(0);
 	}
 
 	FReal M() const
@@ -2521,14 +2521,14 @@ public:
 		// Physics thread only. API required for FGeometryParticleStateBase::SyncToParticle
 	}
 
-	const PMatrix<T, d, d>& I() const { return MMassProps.Read().I(); }
-	void SetI(const PMatrix<T, d, d>& InI)
+	const TVec3<FRealSingle>& I() const { return MMassProps.Read().I(); }
+	void SetI(const TVec3<FRealSingle>& InI)
 	{
 		MMassProps.Modify(true,MDirtyFlags,Proxy,[&InI](auto& Data){ Data.SetI(InI);});
 	}
 
-	const PMatrix<T, d, d>& InvI() const { return MMassProps.Read().InvI(); }
-	void SetInvI(const PMatrix<T, d, d>& InInvI)
+	const TVec3<FRealSingle>& InvI() const { return MMassProps.Read().InvI(); }
+	void SetInvI(const TVec3<FRealSingle>& InInvI)
 	{
 		MMassProps.Modify(true,MDirtyFlags,Proxy,[&InInvI](auto& Data){ Data.SetInvI(InInvI);});
 	}

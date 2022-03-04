@@ -166,8 +166,8 @@ namespace ChaosTest {
 	{
 		float Element = Mass * Dimension * Dimension / 6.0f;
 		float InvElement = 1.f / Element;
-		Particle.SetI(FMatrix33(Element, Element, Element));
-		Particle.SetInvI(FMatrix33(InvElement, InvElement, InvElement));
+		Particle.SetI(TVec3<FRealSingle>(Element));
+		Particle.SetInvI(TVec3<FRealSingle>(InvElement));
 	}
 
 

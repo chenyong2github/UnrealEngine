@@ -126,27 +126,27 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		{
 			// When the state is first initialized, treat it like a static.
 			this->InvM(Index) = 0.0f;
-			this->InvI(Index) = FMatrix33(0);
+			this->InvI(Index) = TVec3<FRealSingle>(0);
 		}
 
 		if ((CurrentState == EObjectStateType::Dynamic || CurrentState == EObjectStateType::Sleeping) && (InObjectState == EObjectStateType::Kinematic || InObjectState == EObjectStateType::Static))
 		{
 			// Transitioning from dynamic to static or kinematic, set inverse mass and inertia tensor to zero.
 			this->InvM(Index) = 0.0f;
-			this->InvI(Index) = FMatrix33(0);
+			this->InvI(Index) = TVec3<FRealSingle>(0);
 		}
 		else if ((CurrentState == EObjectStateType::Kinematic || CurrentState == EObjectStateType::Static || CurrentState == EObjectStateType::Uninitialized) && (InObjectState == EObjectStateType::Dynamic || InObjectState == EObjectStateType::Sleeping))
 		{
 			// Transitioning from kinematic or static to dynamic, compute the inverses.
 			checkSlow(this->M(Index) != 0.0);
-			checkSlow(this->I(Index).M[0][0] != 0.0);
-			checkSlow(this->I(Index).M[1][1] != 0.0);
-			checkSlow(this->I(Index).M[2][2] != 0.0);
+			checkSlow(this->I(Index)[0] != 0.0);
+			checkSlow(this->I(Index)[1] != 0.0);
+			checkSlow(this->I(Index)[2] != 0.0);
 			this->InvM(Index) = 1.f / this->M(Index);
-			this->InvI(Index) = Chaos::FMatrix33(
-				1.f / this->I(Index).M[0][0], 0.f, 0.f,
-				0.f, 1.f / this->I(Index).M[1][1], 0.f,
-				0.f, 0.f, 1.f / this->I(Index).M[2][2]);
+			this->InvI(Index) = TVec3<FRealSingle>(
+				1.f / this->I(Index)[0], 
+				1.f / this->I(Index)[1],
+				1.f / this->I(Index)[2]);
 
 			this->P(Index) = this->X(Index);
 			this->Q(Index) = this->R(Index);

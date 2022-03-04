@@ -114,6 +114,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		
 		// add inertia tensor and rotation of mass to convex 
 		AddedInertiaTensorAndRotationOfMassAddedToConvex,
+		
+		// Storing inertia tensor as vec3 instead of matrix.
+		ChaosInertiaConvertedToVec3,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
