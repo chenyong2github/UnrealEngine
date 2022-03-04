@@ -134,7 +134,7 @@ namespace GeometryCollectionTest
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
-			MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(Vertex[Idx]);
+			MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(FVector(Vertex[Idx]));
 		}
 
 		CalculateVolumeAndCenterOfMass(MassSpaceParticles, TriMesh->GetElements(), MassProperties.Volume, MassProperties.CenterOfMass);
@@ -207,7 +207,7 @@ namespace GeometryCollectionTest
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
-			MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(Vertex[Idx]);
+			MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(FVector(Vertex[Idx]));
 		}
 
 		CalculateVolumeAndCenterOfMass(MassSpaceParticles, TriMesh->GetElements(), MassProperties.Volume, MassProperties.CenterOfMass);
@@ -289,7 +289,7 @@ namespace GeometryCollectionTest
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
-			MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(Vertex[Idx]);
+			MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(FVector(Vertex[Idx]));
 		}
 
 		CalculateVolumeAndCenterOfMass(MassSpaceParticles, TriMesh->GetElements(), MassProperties.Volume, MassProperties.CenterOfMass);
@@ -370,8 +370,8 @@ namespace GeometryCollectionTest
 		MassSpaceParticles.AddParticles(Vertex.Num());
 		for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 		{
-			FVector VertexPoint = Vertex[Idx];
-			MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(Vertex[Idx]);
+			FVector VertexPoint = FVector(Vertex[Idx]);
+			MassSpaceParticles.X(Idx) = Transform[BoneMap[Idx]].TransformPosition(FVector(Vertex[Idx]));
 			FVector MassSpacePoint = FVector(MassSpaceParticles.X(Idx)[0], MassSpaceParticles.X(Idx)[1], MassSpaceParticles.X(Idx)[2]);
 			SomeVec.Add(MassSpacePoint);
 		}

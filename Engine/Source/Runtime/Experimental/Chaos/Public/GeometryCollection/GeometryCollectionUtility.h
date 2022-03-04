@@ -78,8 +78,8 @@ namespace GeometryCollection
 
 			for (int32 Axis = 0; Axis < 3; ++Axis)
 			{
-				const FVector& Normal = Normals[Tri[Axis]];
-				const FVector Edge = (Vertices[Tri[(Axis + 1) % 3]] - Vertices[Tri[Axis]]);
+				const FVector3f& Normal = Normals[Tri[Axis]];
+				const FVector3f Edge = (Vertices[Tri[(Axis + 1) % 3]] - Vertices[Tri[Axis]]);
 				TangentU[Tri[Axis]] = (Edge ^ Normal).GetSafeNormal();
 				TangentV[Tri[Axis]] = (Normal ^ TangentU[Tri[Axis]]).GetSafeNormal();
 			}

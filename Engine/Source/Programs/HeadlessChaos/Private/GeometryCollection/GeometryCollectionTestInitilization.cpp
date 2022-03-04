@@ -125,7 +125,7 @@ GTEST_TEST(AllTraits,GeometryCollection_Initilization_TransformedGeometryCollect
 	FVector CenterOfMass(0);  
 	for (int VertexIndex = 0; VertexIndex < NumVertices; VertexIndex++)
 	{
-		CenterOfMass += RestTransforms[BoneMap[VertexIndex]].TransformPosition(Vertices[VertexIndex]);
+		CenterOfMass += RestTransforms[BoneMap[VertexIndex]].TransformPosition(FVector(Vertices[VertexIndex]));
 	}
 	CenterOfMass /= NumVertices;
 	EXPECT_NEAR(CenterOfMass.X - GlobalTranslation[0],0.0f,KINDA_SMALL_NUMBER);

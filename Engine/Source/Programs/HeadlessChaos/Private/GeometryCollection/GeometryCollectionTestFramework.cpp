@@ -109,7 +109,7 @@ namespace GeometryCollectionTest
 	{
 		FGeometryCollection* Collection = FGeometryCollection::NewGeometryCollection(SphereGeometry::RawVertexArray, SphereGeometry::RawIndicesArray);
 		TManagedArray<FVector3f>& Vertices = Collection->Vertex;
-		for (int i = 0; i < Vertices.Num(); i++) Vertices[i] = GeomTransform.TransformPosition(Vertices[i]);
+		for (int i = 0; i < Vertices.Num(); i++) Vertices[i] = FVector3f(GeomTransform.TransformPosition(FVector(Vertices[i])));
 		return TSharedPtr<FGeometryCollection>(Collection);
 	}
 

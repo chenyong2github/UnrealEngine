@@ -120,8 +120,8 @@ namespace GeometryCollectionTest
 			int TinyFaces = 0;
 			for (const FIntVector & Face : InColl->Indices)
 			{
-				FVector p10 = InColl->Vertex[Face.Y] - InColl->Vertex[Face.X];
-				FVector p20 = InColl->Vertex[Face.Z] - InColl->Vertex[Face.X];
+				FVector p10 = FVector(InColl->Vertex[Face.Y] - InColl->Vertex[Face.X]);
+				FVector p20 = FVector(InColl->Vertex[Face.Z] - InColl->Vertex[Face.X]);
 				FVector Cross = FVector::CrossProduct(p20, p10);
 				if (Cross.SizeSquared() < InTinyNumber)
 				{

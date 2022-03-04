@@ -1249,9 +1249,10 @@ namespace ChaosTest
 			FVec3 Normal(0.0f);
 			FVec3 Position(0.0f);
 			int32 FaceIndex = -1;
-			bool bResult = ScaledTriangleMesh.LowLevelSweepGeom(ConvexBox, Transform0, Dir, Length, OutTime, Position, Normal, FaceIndex, 0.0f, true);
+			FVec3 FaceNormal(0.0);
+			bool bResult = ScaledTriangleMesh.LowLevelSweepGeom(ConvexBox, Transform0, Dir, Length, OutTime, Position, Normal, FaceIndex, FaceNormal, 0.0f, true);
 
-			bResult = ScaledTriangleMesh.LowLevelSweepGeom(ConvexBox, Transform1, Dir, Length, OutTime, Position, Normal, FaceIndex, 0.0f, true);
+			bResult = ScaledTriangleMesh.LowLevelSweepGeom(ConvexBox, Transform1, Dir, Length, OutTime, Position, Normal, FaceIndex, FaceNormal, 0.0f, true);
 			
 			// Observe that normals are in opposite direction, while rotations are very similar.
 

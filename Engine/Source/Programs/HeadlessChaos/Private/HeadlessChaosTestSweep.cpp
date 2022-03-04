@@ -873,7 +873,8 @@ namespace ChaosTest
 		FVec3 Normal(0.0);
 		FVec3 Position(0.0);
 		int32 FaceIndex = -1;
-		bool bResult = ScaledTriangleMesh.LowLevelSweepGeom(Capsule, CapsuleToTrimesh, Dir, Length, OutTime, Position, Normal, FaceIndex, 0.0f, true);
+		FVec3 FaceNormal(0.0);
+		bool bResult = ScaledTriangleMesh.LowLevelSweepGeom(Capsule, CapsuleToTrimesh, Dir, Length, OutTime, Position, Normal, FaceIndex, FaceNormal, 0.0f, true);
 		FVec3 WorldPosition = TrimeshTransform.TransformPositionNoScale(Position);
 
 		EXPECT_EQ(bResult, true);

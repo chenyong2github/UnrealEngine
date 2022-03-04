@@ -167,8 +167,8 @@ namespace Chaos
 			// Edge Vertices in other object space
 			const int32 EdgeVertexIndex2A = Convex2.GetEdgeVertex(EdgeIndex2, 0);
 			const int32 EdgeVertexIndex2B = Convex2.GetEdgeVertex(EdgeIndex2, 1);
-			const FVec3 EdgeVertex2AIn1 = Convex2ToConvex1Transform.TransformPositionNoScale(Convex2.GetVertex(EdgeVertexIndex2A));
-			const FVec3 EdgeVertex2BIn1 = Convex2ToConvex1Transform.TransformPositionNoScale(Convex2.GetVertex(EdgeVertexIndex2B));
+			const FVec3 EdgeVertex2AIn1 = Convex2ToConvex1Transform.TransformPositionNoScale(FVector(Convex2.GetVertex(EdgeVertexIndex2A)));
+			const FVec3 EdgeVertex2BIn1 = Convex2ToConvex1Transform.TransformPositionNoScale(FVector(Convex2.GetVertex(EdgeVertexIndex2B)));
 
 			// Planes that use the edge
 			const int32 EdgePlaneIndex2A = Convex2.GetEdgePlane(EdgeIndex2, 0);
