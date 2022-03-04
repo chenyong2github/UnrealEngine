@@ -3283,7 +3283,10 @@ void FAnimInstanceProxy::EvaluateInputProxy(FAnimInstanceProxy* InputProxy, FPos
 {
 	if (InputProxy)
 	{
-		InputProxy->Evaluate(Output);
+		if(!InputProxy->Evaluate(Output))
+		{
+			Output.ResetToRefPose();
+		}
 	}
 }
 
