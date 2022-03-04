@@ -58,12 +58,7 @@ namespace Anim {
 		Transaction = MakeUnique<UE::Anim::FScopedCompoundTransaction>(ChangeTransactor, Text); \
 	}
 
-#define CONDITIONAL_BRACKET(Text) \
-	TUniquePtr<IAnimationDataController::FScopedBracket> Transaction; \
-	if (UE::Anim::CanTransactChanges() && bShouldTransact) \
-	{ \
-		Transaction = MakeUnique<IAnimationDataController::FScopedBracket>(this, Text); \
-	}
+#define CONDITIONAL_BRACKET(Text) IAnimationDataController::FScopedBracket Transaction(this, Text, UE::Anim::CanTransactChanges() && bShouldTransact);
 
 #define CONDITIONAL_ACTION(ActionClass, ...) \
 	if (UE::Anim::CanTransactChanges() && bShouldTransact) \

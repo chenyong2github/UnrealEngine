@@ -41,30 +41,31 @@ public:
 	/** RAII helper to define a scoped-based bracket, opens and closes a controller bracket automatically */
     struct FScopedBracket
 	{
-		FScopedBracket(IAnimationDataController* InController, const FText& InDescription)
-            : Controller(*InController)
+		FScopedBracket(IAnimationDataController* InController, const FText& InDescription, bool bInShouldTransact=true)
+            : Controller(*InController), bShouldTransact(bInShouldTransact)
 		{
-			Controller.OpenBracket(InDescription);
+			Controller.OpenBracket(InDescription, bShouldTransact);
 		}
 
-		FScopedBracket(IAnimationDataController& InController, const FText& InDescription)
-            : Controller(InController)
+		FScopedBracket(IAnimationDataController& InController, const FText& InDescription, bool bInShouldTransact=true)
+            : Controller(InController), bShouldTransact(bInShouldTransact)
 		{
-			Controller.OpenBracket(InDescription);
+			Controller.OpenBracket(InDescription, bShouldTransact);
 		}
 		
-		FScopedBracket(TScriptInterface<IAnimationDataController>& InController, const FText& InDescription)
-            : Controller(*InController)
+		FScopedBracket(TScriptInterface<IAnimationDataController>& InController, const FText& InDescription, bool bInShouldTransact=true)
+            : Controller(*InController), bShouldTransact(bInShouldTransact)
 		{
-			Controller.OpenBracket(InDescription);
+			Controller.OpenBracket(InDescription, bShouldTransact);
 		}
 		
 		~FScopedBracket()
 		{
-			Controller.CloseBracket();
+			Controller.CloseBracket(bShouldTransact);
 		}
 	private:
 		IAnimationDataController& Controller;
+		bool bShouldTransact;
 	};
 #endif // WITH_EDITOR
 
