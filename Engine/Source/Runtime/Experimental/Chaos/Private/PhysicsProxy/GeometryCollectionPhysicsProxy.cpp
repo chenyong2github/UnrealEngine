@@ -2427,7 +2427,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				TUniquePtr<FTriangleMesh> UnionMesh(new FTriangleMesh(MoveTemp(UnionMeshIndices)));
 				// TODO: Seems this should rotate full matrix and not discard off diagonals.
 				const FVec3& InertiaDiagonal = CollectionSpaceParticles->I(ClusterTransformIdx);
-				CollectionInertiaTensor[ClusterTransformIdx] = InertiaDiagonal;	// LWC_TODO: Precision loss
+				CollectionInertiaTensor[ClusterTransformIdx] = FVector3f(InertiaDiagonal);	// LWC_TODO: Precision loss
 				CollectionMass[ClusterTransformIdx] = (FRealSingle)CollectionSpaceParticles->M(ClusterTransformIdx);
 
 				const int32 SizeSpecificIdx = GeometryCollection::SizeSpecific::FindIndexForVolume(SharedParams.SizeSpecificData, InstanceBoundingBox);

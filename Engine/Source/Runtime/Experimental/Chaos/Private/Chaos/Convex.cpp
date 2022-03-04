@@ -448,7 +448,7 @@ namespace Chaos
 				FVec3 PlaneCenter(0);
 				for (int32 VertexIndex = 0; VertexIndex < PlaneVerticesNum; VertexIndex++)
 				{
-					PlaneCenter += GetVertex(GetPlaneVertex(PlaneIndex, VertexIndex));
+					PlaneCenter += FVec3(GetVertex(GetPlaneVertex(PlaneIndex, VertexIndex)));
 				}
 				PlaneCenter /= PlaneVerticesNum;
 

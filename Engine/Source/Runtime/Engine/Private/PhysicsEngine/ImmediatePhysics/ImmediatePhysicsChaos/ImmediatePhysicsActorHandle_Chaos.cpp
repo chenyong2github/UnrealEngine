@@ -642,12 +642,12 @@ namespace ImmediatePhysics_Chaos
 
 	FVector FActorHandle::GetInverseInertia() const
 	{
-		return Handle()->InvI();
+		return FVector(Handle()->InvI());
 	}
 
 	FVector FActorHandle::GetInertia() const
 	{
-		return Handle()->I();
+		return FVector(Handle()->I());
 	}
 
 	void FActorHandle::SetMaxDepenetrationVelocity(FReal NewMaxDepenetrationVelocity)
