@@ -212,6 +212,8 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 				BuildRayTracingInstanceBuffer(
 					RHICmdList,
 					GPUScene,
+					FVector3f(ViewTilePosition),
+					FVector3f(RelativePreViewTranslation),
 					PassParams->InstanceBuffer->GetRHI(),
 					InstanceUploadSRV,
 					AccelerationStructureAddressesBuffer.SRV,

@@ -259,7 +259,7 @@ static void SetupRaytracingLightDataPacked(
 		LightDataElement.LightProfileIndex = IESLightProfileIndex;
 
 		LightDataElement.Direction = LightParameters.Direction;
-		LightDataElement.TranslatedLightPosition = LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation();
+		LightDataElement.TranslatedLightPosition = FVector3f(LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation());
 		LightDataElement.LightColor = FVector3f(LightParameters.Color);
 		LightDataElement.Tangent = LightParameters.Tangent;
 

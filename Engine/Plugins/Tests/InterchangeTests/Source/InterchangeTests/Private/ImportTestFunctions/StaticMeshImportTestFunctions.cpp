@@ -390,7 +390,7 @@ FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckVertexIndexP
 		}
 		else
 		{
-			const FVector3f VertexPosition = Attributes.GetVertexPositions()[VertexIndex];
+			const FVector VertexPosition = FVector(Attributes.GetVertexPositions()[VertexIndex]);
 			if (!VertexPosition.Equals(ExpectedVertexPosition))
 			{
 				Result.AddError(FString::Printf(TEXT("For LOD %d vertex index %d, expected position %s, imported %s."), LodIndex, VertexIndex, *ExpectedVertexPosition.ToString(), *VertexPosition.ToString()));
@@ -596,8 +596,8 @@ FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckAgainstGroun
 			{
 				for (int32 VertexIndex = 0; VertexIndex < VertexCount; VertexIndex++)
 				{
-					const FVector& V0 = VertexPositions[VertexIndex];
-					const FVector& V1 = GroundTruthVertexPositions[VertexIndex];
+					const FVector3f& V0 = VertexPositions[VertexIndex];
+					const FVector3f& V1 = GroundTruthVertexPositions[VertexIndex];
 
 					if (!V0.Equals(V1))
 					{
@@ -632,8 +632,8 @@ FInterchangeTestFunctionResult UStaticMeshImportTestFunctions::CheckAgainstGroun
 			{
 				for (int32 NormalIndex = 0; NormalIndex < NormalsCount; NormalIndex++)
 				{
-					const FVector& N0 = VertexInstanceNormals[NormalIndex];
-					const FVector& N1 = GroundTruthVertexInstanceNormals[NormalIndex];
+					const FVector3f& N0 = VertexInstanceNormals[NormalIndex];
+					const FVector3f& N1 = GroundTruthVertexInstanceNormals[NormalIndex];
 
 					if (!N0.Equals(N1))
 					{

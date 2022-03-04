@@ -156,7 +156,7 @@ namespace ShaderPrint
 		Out.MaxSymbolCount = Data.MaxSymbolCount;
 		Out.MaxStateCount = Data.MaxStateCount;
 		Out.MaxLineCount = Data.MaxLineCount;
-		Out.TranslatedWorldOffset = Data.TranslatedWorldOffset;
+		Out.TranslatedWorldOffset = FVector3f(Data.TranslatedWorldOffset);
 		return TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters>::CreateUniformBufferImmediate(Out, UniformBuffer_SingleFrame);
 	}
 

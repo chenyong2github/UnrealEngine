@@ -406,7 +406,7 @@ namespace UE
 				for (FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
 				{
 					//We can use GetValue because the Meshdescription was compacted before the copy
-					DestinationVertexPositions[VertexID.GetValue()] = VertexPositions[VertexID];
+					DestinationVertexPositions[VertexID.GetValue()] = FVector(VertexPositions[VertexID]);
 				}
 
 				// Deform the vertex array with the links contained in the mesh.
@@ -490,7 +490,7 @@ namespace UE
 				for (FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
 				{
 					const int32 VertexIndex = VertexID.GetValue();
-					const FVector3f lSrcVertex = DestinationVertexPositions[VertexIndex];
+					const FVector lSrcVertex = DestinationVertexPositions[VertexIndex];
 					FVector& lDstVertex = DestinationVertexPositions[VertexIndex];
 					double Weight = SkinWeights[VertexIndex];
 
@@ -502,7 +502,7 @@ namespace UE
 						//Normalized, in case the weight is different then 1
 						lDstVertex /= Weight;
 						//Set the new vertex position in the mesh description
-						VertexPositions[VertexID] = lDstVertex;
+						VertexPositions[VertexID] = FVector3f(lDstVertex);
 					}
 				}
 			}
@@ -871,7 +871,7 @@ namespace UE
 				 */
 				FORCEINLINE static FBoxCenterAndExtent GetBoundingBox(const FSoftSkinVertex& Element)
 				{
-					return FBoxCenterAndExtent(Element.Position, FVector::ZeroVector);
+					return FBoxCenterAndExtent(FVector(Element.Position), FVector::ZeroVector);
 				}
 
 				/**
@@ -910,8 +910,8 @@ namespace UE
 				for (int32 WedgeIndex = 0; WedgeIndex < WedgeNumber; ++WedgeIndex)
 				{
 					SkeletalMeshImportData::FVertex& Wedge = SkelMeshImportData->Wedges[WedgeIndex];
-					const FVector& Position = SkelMeshImportData->Points[Wedge.VertexIndex];
-					Bounds += Position;
+					const FVector3f& Position = SkelMeshImportData->Points[Wedge.VertexIndex];
+					Bounds += FVector(Position);
 				}
 
 				TArray<FSoftSkinVertex> Vertices;
@@ -919,7 +919,7 @@ namespace UE
 				for (int32 SkinVertexIndex = 0; SkinVertexIndex < Vertices.Num(); ++SkinVertexIndex)
 				{
 					const FSoftSkinVertex& SkinVertex = Vertices[SkinVertexIndex];
-					Bounds += SkinVertex.Position;
+					Bounds += FVector(SkinVertex.Position);
 				}
 
 				TSKCVertPosOctree VertPosOctree(Bounds.GetCenter(), Bounds.GetExtent().GetMax());
@@ -947,12 +947,12 @@ namespace UE
 				for (int32 WedgeIndex = 0; WedgeIndex < WedgeNumber; ++WedgeIndex)
 				{
 					SkeletalMeshImportData::FVertex& Wedge = SkelMeshImportData->Wedges[WedgeIndex];
-					const FVector& Position = SkelMeshImportData->Points[Wedge.VertexIndex];
+					const FVector3f& Position = SkelMeshImportData->Points[Wedge.VertexIndex];
 					const FVector2f UV = Wedge.UVs[0];
 					const FVector3f& Normal = WedgeIndexToNormal.FindChecked(WedgeIndex);
 
 					TArray<FSoftSkinVertex> PointsToConsider;
-					VertPosOctree.FindNearbyElements(Position, [&PointsToConsider](const FSoftSkinVertex& Vertex)
+					VertPosOctree.FindNearbyElements(FVector(Position), [&PointsToConsider](const FSoftSkinVertex& Vertex)
 						{
 							PointsToConsider.Add(Vertex);
 						});

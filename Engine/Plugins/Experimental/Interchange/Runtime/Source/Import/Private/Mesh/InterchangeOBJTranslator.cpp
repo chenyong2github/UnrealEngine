@@ -186,7 +186,7 @@ FBox FObjData::GetGroupBoundingBox(const FString& GroupName) const
 
 	for (int32 PositionIndex : GetVertexIndicesUsedByGroup(GroupData))
 	{
-		Box += PositionToUEBasis(Positions[PositionIndex]);
+		Box += FVector(PositionToUEBasis(Positions[PositionIndex]));
 	}
 
 	return Box;

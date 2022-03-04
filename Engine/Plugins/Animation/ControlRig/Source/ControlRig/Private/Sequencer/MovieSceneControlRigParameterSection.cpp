@@ -2439,7 +2439,7 @@ void UMovieSceneControlRigParameterSection::RecordControlRigKey(FFrameNumber Fra
 						FloatChannels[ChannelIndex + 2]->SetDefault(Val.Z);
 					}
 
-					AddVectorKeyToFloatChannels(ChannelIndex, FrameNumber, Val);
+					AddVectorKeyToFloatChannels(ChannelIndex, FrameNumber, FVector(Val));
 
 					break;
 				}

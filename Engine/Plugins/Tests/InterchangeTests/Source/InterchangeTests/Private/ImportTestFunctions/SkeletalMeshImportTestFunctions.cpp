@@ -210,7 +210,7 @@ FInterchangeTestFunctionResult USkeletalMeshImportTestFunctions::CheckVertexInde
 		}
 		else
 		{
-			FVector VertexPosition = Mesh->GetResourceForRendering()->LODRenderData[LodIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
+			FVector VertexPosition = FVector(Mesh->GetResourceForRendering()->LODRenderData[LodIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex));
 			if (!VertexPosition.Equals(ExpectedVertexPosition))
 			{
 				Result.AddError(FString::Printf(TEXT("For LOD %d vertex index %d, expected position %s, imported %s."), LodIndex, VertexIndex, *ExpectedVertexPosition.ToString(), *VertexPosition.ToString()));

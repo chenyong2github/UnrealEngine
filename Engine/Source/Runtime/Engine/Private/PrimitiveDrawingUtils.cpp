@@ -788,7 +788,7 @@ void DrawTorus(FPrimitiveDrawInterface* PDI, const FMatrix& Transform, const FVe
 			}
 
 			FDynamicMeshVertex MeshVertex;
-			MeshVertex.Position = Vertex;
+			MeshVertex.Position = FVector3f(Vertex);
 			MeshVertex.TextureCoordinate[0] = TC;
 			MeshVertex.TextureCoordinate[0].X += TCStepX * InnerIndex;
 

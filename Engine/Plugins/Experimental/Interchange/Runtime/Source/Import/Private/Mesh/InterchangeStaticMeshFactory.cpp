@@ -297,7 +297,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 						//If we have old vertex color (reimport), we want to keep it if the option is ignore
 						if (ExisitingVertexColorData.Num() > 0)
 						{
-							FVector3f VertexPosition = LodMeshDescription->GetVertexPosition(LodMeshDescription->GetVertexInstanceVertex(VertexInstanceID));
+							FVector VertexPosition = FVector(LodMeshDescription->GetVertexPosition(LodMeshDescription->GetVertexInstanceVertex(VertexInstanceID)));
 							const FColor* PaintedColor = ExisitingVertexColorData.Find(VertexPosition);
 							if (PaintedColor)
 							{
