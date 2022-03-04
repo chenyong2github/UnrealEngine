@@ -38,6 +38,19 @@ enum class EDefaultLocationUnit : uint8
 	Invalid
 };
 
+UENUM()
+enum class EReferenceViewerSettingMode : uint8
+{
+	// Use the editor default setting
+	NoPreference,
+
+	// Show this kind of reference by default (it can be toggled off in the reference viewer)
+	ShowByDefault,
+
+	// Hide this kind of reference by default (it can be toggled back on in the reference viewer)
+	HideByDefault
+};
+
 /**
  * Editor project appearance settings. Stored in default config, per-project
  */
@@ -81,6 +94,14 @@ public:
 
 	UPROPERTY(EditAnywhere, config, Category=Units, AdvancedDisplay, meta=(DisplayName="Force", Tooltip="Choose the units in which to display forces.", ValidEnumValues="Newtons, PoundsForce, KilogramsForce"))
 	EUnit ForceUnits;
+
+	// Should the Reference Viewer have 'Show Searchable Names' checked by default when opened in this project
+	UPROPERTY(EditAnywhere, config, Category=ReferenceViewer)
+	EReferenceViewerSettingMode ShowSearchableNames;
+
+	// The default maximum search breadth for the reference viewer when opened
+	UPROPERTY(EditAnywhere, config, Category = ReferenceViewer, meta=(DisplayName="Default Max Search Breadth", ClampMin=1, ClampMax=1000, UIMin=1, UIMax=50))
+	int32 ReferenceViewerDefaultMaxSearchBreadth = 20;
 
 public:
 	/** Deprecated properties that didn't live very long */

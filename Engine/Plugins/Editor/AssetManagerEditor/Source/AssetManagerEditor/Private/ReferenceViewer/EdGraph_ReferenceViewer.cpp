@@ -13,6 +13,7 @@
 #include "CollectionManagerModule.h"
 #include "AssetManagerEditorModule.h"
 #include "Engine/AssetManager.h"
+#include "Settings/EditorProjectSettings.h"
 
 UEdGraph_ReferenceViewer::UEdGraph_ReferenceViewer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -20,7 +21,7 @@ UEdGraph_ReferenceViewer::UEdGraph_ReferenceViewer(const FObjectInitializer& Obj
 	AssetThumbnailPool = MakeShareable( new FAssetThumbnailPool(1024) );
 
 	MaxSearchDepth = 1;
-	MaxSearchBreadth = 20;
+	MaxSearchBreadth = GetDefault<UEditorProjectAppearanceSettings>()->ReferenceViewerDefaultMaxSearchBreadth;
 
 	bLimitSearchDepth = true;
 	bLimitSearchBreadth = true;
@@ -28,7 +29,7 @@ UEdGraph_ReferenceViewer::UEdGraph_ReferenceViewer(const FObjectInitializer& Obj
 	bIsShowHardReferences = true;
 	bIsShowEditorOnlyReferences = true;
 	bIsShowManagementReferences = false;
-	bIsShowSearchableNames = false;
+	bIsShowSearchableNames = GetDefault<UEditorProjectAppearanceSettings>()->ShowSearchableNames == EReferenceViewerSettingMode::ShowByDefault;
 	bIsShowNativePackages = false;
 	bIsShowReferencers = true;
 	bIsShowDependencies = true;
