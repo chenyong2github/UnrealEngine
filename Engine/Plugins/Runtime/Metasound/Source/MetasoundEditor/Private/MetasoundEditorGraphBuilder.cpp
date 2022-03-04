@@ -669,11 +669,14 @@ namespace Metasound
 
 			if (Location)
 			{
-				const FVector2D Delta = *Location - FVector2D(InNode.NodePosX, InNode.NodePosY);
-				if (!Delta.IsNearlyZero(SMALL_NUMBER))
+				const int32 LocX = FMath::TruncToInt(Location->X);
+				const int32 LocY = FMath::TruncToInt(Location->Y);
+				const bool bXChanged = static_cast<bool>(LocX - InNode.NodePosX);
+				const bool bYChanged = static_cast<bool>(LocY - InNode.NodePosY);
+				if (bXChanged || bYChanged)
 				{
-					InNode.NodePosX = Location->X;
-					InNode.NodePosY = Location->Y;
+					InNode.NodePosX = LocX;
+					InNode.NodePosY = LocY;
 					bModified = true;
 				}
 			}

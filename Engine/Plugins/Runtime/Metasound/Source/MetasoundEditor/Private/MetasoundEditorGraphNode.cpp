@@ -78,8 +78,8 @@ void UMetasoundEditorGraphNode::SetNodeLocation(const FVector2D& InLocation)
 {
 	using namespace Metasound::Frontend;
 
-	NodePosX = InLocation.X;
-	NodePosY = InLocation.Y;
+	NodePosX = FMath::TruncToInt(InLocation.X);
+	NodePosY = FMath::TruncToInt(InLocation.Y);
 
 	FNodeHandle NodeHandle = GetNodeHandle();
 	FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
