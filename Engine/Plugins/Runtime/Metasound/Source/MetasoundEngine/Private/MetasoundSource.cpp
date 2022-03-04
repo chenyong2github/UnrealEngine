@@ -425,22 +425,34 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 
 	for (int32 i = InParametersToInit.Num() - 1; i >= 0; --i)
 	{
-		FAudioParameter& Parameter = InParametersToInit[i];
+		FAudioParameter& Parameter = InParametersToInit[i];		
+		
+#if !NO_LOGGING
+		// For logging in case of failure
+		FString AssetName;
+		GetName(AssetName); 
+#endif // !NO_LOGGING
+		
 		if (Sanitize(Parameter))
 		{
 			if (IsParameterValid(Parameter, InputNameTypeMap))
 			{
 				ConstructProxies(Parameter);
 			}
+#if !NO_LOGGING
 			else
 			{
-				UE_LOG(LogMetaSound, Error, TEXT("Failed to set invalid parameter '%s': Either does not exist or is unsupported type"), *Parameter.ParamName.ToString());
+				UE_LOG(LogMetaSound, Error, TEXT("Failed to set invalid parameter '%s' in asset '%s': Either does not exist or is unsupported type"), *Parameter.ParamName.ToString(), *AssetName);
 			}
+#endif // !NO_LOGGING
 		}
 		else
 		{
 			constexpr bool bAllowShrinking = false;
 			InParametersToInit.RemoveAtSwap(i, 1, bAllowShrinking);
+#if !NO_LOGGING
+			UE_LOG(LogMetaSound, Error, TEXT("Failed to set parameter '%s' in asset '%s': No name specified, no matching input found, or type mismatch."), *Parameter.ParamName.ToString(), *AssetName);
+#endif // !NO_LOGGING
 		}
 	}
 }

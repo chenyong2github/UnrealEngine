@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MetasoundLog.h"
 
 #include <type_traits>
 
@@ -131,11 +132,19 @@ namespace Metasound
 		// From Name
 		explicit TEnum(FName InValueName)		
 		{
-			// Try and convert from Name to Value and ensure that we succeed
+			// Try and convert from Name to Value 
 			TOptional<EnumType> Converted = NameToEnum(InValueName);
-			if (ensure(Converted))
+			if (Converted)
 			{
 				EnumValue = *Converted;
+			}
+			else
+			{
+				if (!bHasWarnedNameToEnumConversionFailure)
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("Cannot create valid enum value from string '%s'"), *InValueName.ToString());
+					bHasWarnedNameToEnumConversionFailure = true;
+				}
 			}
 		}
 
@@ -188,7 +197,12 @@ namespace Metasound
 	private:
 		// Keep the type in its fully typed form for debugging.
 		EnumType EnumValue = DefaultValue;
+
+		static bool bHasWarnedNameToEnumConversionFailure;
 	};
+
+	template<typename EnumType, EnumType DefaultValue>
+	bool TEnum<EnumType, DefaultValue>::bHasWarnedNameToEnumConversionFailure = false;
 
 	template<typename T>
 	struct TEnumTraits
