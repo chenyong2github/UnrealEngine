@@ -73,6 +73,10 @@ public:
 	/** If a render was canceled (via hitting escape mid render) should we skip trying to encode the files we did produce? */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Command Line Encoder")
 	bool bSkipEncodeOnRenderCanceled;
+
+	/** Write the duration for each frame into the generated text file. Needed for some input types on some CLI encoding software. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Command Line Encoder")
+	bool bWriteEachFrameDuration;
 	
 private:
 	struct FActiveJob
