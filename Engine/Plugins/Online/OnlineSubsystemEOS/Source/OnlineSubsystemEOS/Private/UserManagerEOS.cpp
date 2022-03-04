@@ -233,7 +233,7 @@ void FUserManagerEOS::LoginStatusChanged(const EOS_Auth_LoginStatusChangedCallba
 	}
 }
 
-IOnlineSubsystem* FUserManagerEOS::GetPlatformOSS()
+IOnlineSubsystem* FUserManagerEOS::GetPlatformOSS() const
 {
 	IOnlineSubsystem* PlatformOSS = IOnlineSubsystem::GetByPlatform();
 	if (PlatformOSS == nullptr)
@@ -250,7 +250,7 @@ IOnlineSubsystem* FUserManagerEOS::GetPlatformOSS()
 	return PlatformOSS;
 }
 
-void FUserManagerEOS::GetPlatformAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate)
+void FUserManagerEOS::GetPlatformAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
 {
 	IOnlineSubsystem* PlatformOSS = GetPlatformOSS();
 	if (PlatformOSS == nullptr)
@@ -268,6 +268,28 @@ void FUserManagerEOS::GetPlatformAuthToken(int32 LocalUserNum, const FOnGetLinke
 	}
 	// Request the auth token from the platform
 	PlatformIdentity->GetLinkedAccountAuthToken(LocalUserNum, Delegate);
+}
+
+FString FUserManagerEOS::GetPlatformDisplayName(int32 LocalUserNum) const
+{
+	FString Result;
+
+	IOnlineSubsystem* PlatformOSS = GetPlatformOSS();
+	if (PlatformOSS == nullptr)
+	{
+		UE_LOG_ONLINE(Warning, TEXT("GetPlatformDisplayName(%d) failed due to no platform OSS"), LocalUserNum);
+		return Result;
+	}
+	IOnlineIdentityPtr PlatformIdentity = PlatformOSS->GetIdentityInterface();
+	if (!PlatformIdentity.IsValid())
+	{
+		UE_LOG_ONLINE(Warning, TEXT("GetPlatformDisplayName(%d) failed due to no platform OSS identity interface"), LocalUserNum);
+		return Result;
+	}
+
+	Result = PlatformIdentity->GetPlayerNickname(LocalUserNum);
+
+	return Result;
 }
 
 typedef TEOSCallback<EOS_Auth_OnLoginCallback, EOS_Auth_LoginCallbackInfo, FUserManagerEOS> FLoginCallback;
@@ -627,12 +649,20 @@ bool FUserManagerEOS::ConnectLoginNoEAS(int32 LocalUserNum)
 			}
 
 			// Now login into our EOS account
-
 			check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
 			FConnectCredentials Credentials(ToEOS_EExternalCredentialType(GetPlatformOSS()->GetSubsystemName(), *LocalUserNumToLastLoginCredentials[LocalUserNum]), AuthToken);
 			EOS_Connect_LoginOptions Options = { };
 			Options.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
 			Options.Credentials = &Credentials;
+
+#if ADD_USER_LOGIN_INFO
+			EOS_Connect_UserLoginInfo UserLoginInfo = {};
+			UserLoginInfo.ApiVersion = EOS_CONNECT_USERLOGININFO_API_LATEST;
+			const FTCHARToUTF8 DisplayNameUtf8(*GetPlatformDisplayName(LocalUserNum));
+			UserLoginInfo.DisplayName = DisplayNameUtf8.Get();
+
+			Options.UserLoginInfo = &UserLoginInfo;
+#endif
 
 			FConnectLoginCallback* CallbackObj = new FConnectLoginCallback(FUserManagerEOSWeakPtr(AsShared()));
 			CallbackObj->CallbackLambda = [this, LocalUserNum](const EOS_Connect_LoginCallbackInfo* Data)

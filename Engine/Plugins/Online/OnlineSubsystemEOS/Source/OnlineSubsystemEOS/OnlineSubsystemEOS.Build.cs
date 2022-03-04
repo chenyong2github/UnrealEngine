@@ -35,8 +35,10 @@ public class OnlineSubsystemEOS : ModuleRules
 
 		PrivateDefinitions.Add("USE_XBL_XSTS_TOKEN=" + (bUseXblXstsToken ? "1" : "0"));
 		PrivateDefinitions.Add("USE_PSN_ID_TOKEN=" + (bUsePsnIdToken ? "1" : "0"));
+		PrivateDefinitions.Add("ADD_USER_LOGIN_INFO=" + (bAddUserLoginInfo ? "1" : "0"));
 	}
 
 	protected virtual bool bUseXblXstsToken { get { return false; } }
 	protected virtual bool bUsePsnIdToken { get { return false; } }
+	protected virtual bool bAddUserLoginInfo { get { return false; } }
 }

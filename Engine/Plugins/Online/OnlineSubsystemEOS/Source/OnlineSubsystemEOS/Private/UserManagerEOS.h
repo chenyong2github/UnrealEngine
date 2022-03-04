@@ -401,8 +401,9 @@ private:
 	void UpdatePresence(EOS_EpicAccountId AccountId);
 	void UpdateFriendPresence(const FString& FriendId, FOnlineUserPresenceRef Presence);
 
-	IOnlineSubsystem* GetPlatformOSS();
-	void GetPlatformAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate);
+	IOnlineSubsystem* GetPlatformOSS() const;
+	void GetPlatformAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const;
+	FString GetPlatformDisplayName(int32 LocalUserNum) const;
 
 	/** Cached pointer to owning subsystem */
 	FOnlineSubsystemEOS* EOSSubsystem;
