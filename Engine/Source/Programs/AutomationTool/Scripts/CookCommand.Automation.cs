@@ -173,6 +173,18 @@ namespace AutomationScripts
 			{
 				CommandletParams += " -basedonreleaseversionroot=" + Params.BasedOnReleaseVersionBasePath;
 			}
+			if (!String.IsNullOrEmpty(Params.Trace))
+			{
+				CommandletParams += " " + Params.Trace;
+			}
+			if (!String.IsNullOrEmpty(Params.TraceHost))
+			{
+				CommandletParams += " " + Params.TraceHost;
+			}
+			if (!String.IsNullOrEmpty(Params.TraceFile))
+			{
+				CommandletParams += " " + Params.TraceFile;
+			}
 
 			// if we are not going to pak but we specified compressed then compress in the cooker ;)
 			// otherwise compress the pak files
@@ -254,6 +266,21 @@ namespace AutomationScripts
 					if (Params.ZenStore)
 					{
 						COTFCommandLine += " -zenstore -messaging";
+					}
+
+					if (!String.IsNullOrEmpty(Params.Trace))
+					{
+						COTFCommandLine += " " + Params.Trace;
+					}
+
+					if (!String.IsNullOrEmpty(Params.TraceHost))
+					{
+						COTFCommandLine += " " + Params.TraceHost;
+					}
+
+					if (!String.IsNullOrEmpty(Params.TraceFile))
+					{
+						COTFCommandLine += " " + Params.TraceFile;
 					}
 
 					var ServerLogFile = CombinePaths(LogFolderOutsideOfSandbox, "Server.log");

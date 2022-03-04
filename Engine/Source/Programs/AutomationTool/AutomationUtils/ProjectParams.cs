@@ -408,6 +408,9 @@ namespace AutomationTool
 			this.bTreatNonShippingBinariesAsDebugFiles = InParams.bTreatNonShippingBinariesAsDebugFiles;
 			this.bUseExtraFlavor = InParams.bUseExtraFlavor;
 			this.AdditionalPackageOptions = InParams.AdditionalPackageOptions;
+			this.Trace = InParams.Trace;
+			this.TraceHost = InParams.TraceHost;
+			this.TraceFile = InParams.TraceFile;
 		}
 
 		/// <summary>
@@ -561,6 +564,9 @@ namespace AutomationTool
 			string Certificate = null,
 		    string Team = null,
 		    bool AutomaticSigning = false,
+			string Trace = null,
+			string TraceHost = null,
+			string TraceFile = null,
 			ParamList<string> InMapsToRebuildLightMaps = null,
             ParamList<string> InMapsToRebuildHLOD = null,
             ParamList<string> TitleID = null
@@ -922,6 +928,39 @@ namespace AutomationTool
 			this.SpecifiedArchitecture = ParseParamValueIfNotSpecified(Command, SpecifiedArchitecture, "specifiedarchitecture", String.Empty);
 			this.UbtArgs = ParseParamValueIfNotSpecified(Command, UbtArgs, "ubtargs", String.Empty);
 			this.AdditionalPackageOptions = ParseParamValueIfNotSpecified(Command, AdditionalPackageOptions, "AdditionalPackageOptions", String.Empty);
+
+			// -trace can be used with or without a value
+			if (Trace != null || GetParamValueIfNotSpecified(Command, null, false, "trace"))
+			{
+				this.Trace += "-trace";
+				string Value = ParseParamValueIfNotSpecified(Command, Trace, "trace", null);
+				if (!String.IsNullOrWhiteSpace(Value))
+				{
+					this.Trace += "=" + Value;
+				}
+			}
+
+			// -tracehost can be used with or without a value
+			if (TraceHost != null || GetParamValueIfNotSpecified(Command, null, false, "tracehost"))
+			{
+				this.TraceHost += "-tracehost";
+				string Value = ParseParamValueIfNotSpecified(Command, TraceHost, "tracehost", null);
+				if (!String.IsNullOrWhiteSpace(Value))
+				{
+					this.TraceHost += "=" + Value;
+				}
+			}
+
+			// -tracefile can be used with or without a value
+			if (TraceFile != null || GetParamValueIfNotSpecified(Command, null, false, "tracefile"))
+			{
+				this.TraceFile += "-tracefile";
+				string Value = ParseParamValueIfNotSpecified(Command, TraceFile, "tracefile", null);
+				if (!String.IsNullOrWhiteSpace(Value))
+				{
+					this.TraceFile += "=" + Value;
+				}
+			}
 
 			if (ClientConfigsToBuild == null)
 			{
@@ -2147,6 +2186,15 @@ namespace AutomationTool
         [Help("IgnoreLightMapErrors", "Whether Light Map errors should be treated as critical")]
 		public bool IgnoreLightMapErrors { get; set; }
 
+		[Help("trace", "The list of trace channels to enable")]
+		public string Trace { get; set; }
+
+		[Help("tracehost", "The host address of the trace recorder")]
+		public string TraceHost { get; set; }
+		
+		[Help("tracefile", "The file where the trace will be recorded")]
+		public string TraceFile { get; set; }
+
 		private List<SingleTargetProperties> DetectedTargets;
 		private Dictionary<UnrealTargetPlatform, ConfigHierarchy> LoadedEngineConfigs;
 		private Dictionary<UnrealTargetPlatform, ConfigHierarchy> LoadedGameConfigs;
@@ -3069,6 +3117,9 @@ namespace AutomationTool
 				CommandUtils.LogLog("bUseExtraFlavor={0}", bUseExtraFlavor);
                 CommandUtils.LogLog("StageDirectoryParam={0}", StageDirectoryParam);
 				CommandUtils.LogLog("AdditionalPackageOptions={0}", AdditionalPackageOptions);
+				CommandUtils.LogLog("Trace={0}", Trace);
+				CommandUtils.LogLog("TraceHost={0}", TraceHost);
+				CommandUtils.LogLog("TraceFile={0}", TraceFile);
 				CommandUtils.LogLog("Project Params **************");
 			}
 			bLogged = true;

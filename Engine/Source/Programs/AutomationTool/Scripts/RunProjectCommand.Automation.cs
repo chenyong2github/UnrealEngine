@@ -860,6 +860,19 @@ namespace AutomationScripts
 			{
 				TempCmdLine += "-nullrhi ";
 			}
+			if (!String.IsNullOrEmpty(Params.Trace))
+			{
+				TempCmdLine += Params.Trace + " ";
+			}
+			if (!String.IsNullOrEmpty(Params.TraceHost))
+			{
+				TempCmdLine += Params.TraceHost + " ";
+			}
+			if (!String.IsNullOrEmpty(Params.TraceFile))
+			{
+				TempCmdLine += Params.TraceFile + " ";
+			}
+
 			TempCmdLine += SC.StageTargetPlatform.GetLaunchExtraCommandLine(Params);
 
 			TempCmdLine += "-CrashForUAT ";
@@ -985,6 +998,22 @@ namespace AutomationScripts
 			{
 				Args += " -buildmachine";
 			}
+
+			if (!String.IsNullOrEmpty(Params.Trace))
+			{
+				Args += " " + Params.Trace;
+			}
+
+			if (!String.IsNullOrEmpty(Params.TraceHost))
+			{
+				Args += " " + Params.TraceHost;
+			}
+
+			if (!String.IsNullOrEmpty(Params.TraceFile))
+			{
+				Args += " " + Params.TraceFile;
+			}
+
 			Args += " -CrashForUAT";
 			Args += " " + AdditionalCommandLine;
 
