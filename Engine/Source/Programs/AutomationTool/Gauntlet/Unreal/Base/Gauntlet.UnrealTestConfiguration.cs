@@ -855,11 +855,12 @@ namespace Gauntlet
 				}
 			}
 
-			// due to an issue with dotnet being extremely pedantic we have to drop our locks on files so we can read from the log file
-			// https://github.com/dotnet/runtime/issues/34126
 			if (AppConfig.Platform == UnrealTargetPlatform.Linux)
 			{
+				// due to an issue with dotnet being extremely pedantic we have to drop our locks on files so we can read from the log file
+				// https://github.com/dotnet/runtime/issues/34126
 				AppConfig.CommandLine += " -noexclusivelockonwrite";
+				AppConfig.CommandLine += " -RemoveInvalidKeys";
 			}
 
 			// use -log on servers so we get a window..
