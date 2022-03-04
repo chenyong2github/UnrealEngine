@@ -135,7 +135,7 @@ protected:
 
 	/** How to deal with the priority value */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
-	EDMXPortPriorityStrategy PriorityStrategy = EDMXPortPriorityStrategy::None;
+	EDMXPortPriorityStrategy PriorityStrategy = EDMXPortPriorityStrategy::Highest;
 
 	/** Priority value, can act as a filter or a threshold */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
