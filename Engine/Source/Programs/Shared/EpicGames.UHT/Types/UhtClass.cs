@@ -444,11 +444,6 @@ namespace EpicGames.UHT.Types
 								break;
 							}
 
-							if (Property.SourceName == "SourceModels")
-							{
-								Debugger.Break();
-							}
-
 							if (!Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.GetterSpecifiedNone))
 							{
 								if (Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.GetterSpecified))
