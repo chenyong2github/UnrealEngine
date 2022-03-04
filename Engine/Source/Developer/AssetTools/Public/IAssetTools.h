@@ -36,6 +36,16 @@ enum class EAssetRenameResult : uint8
 	Pending,
 };
 
+UENUM()
+enum class ERedirectFixupMode
+{
+	// Remove fully fixed up redirectors after the fixup process is done
+	DeleteFixedUpRedirectors,
+
+	// Leave the redirectors around even if no longer locally referenced
+	LeaveFixedUpRedirectors
+};
+
 USTRUCT(BlueprintType)
 struct FAssetRenameData
 {
@@ -395,7 +405,7 @@ public:
 	 * Fix up references to the specified redirectors.
 	 * @param bCheckoutDialogPrompt indicates whether to prompt the user with files checkout dialog or silently attempt to checkout all necessary files.
 	 */
-	virtual void FixupReferencers(const TArray<UObjectRedirector*>& Objects, bool bCheckoutDialogPrompt = true) const = 0;
+	virtual void FixupReferencers(const TArray<UObjectRedirector*>& Objects, bool bCheckoutDialogPrompt = true, ERedirectFixupMode FixupMode = ERedirectFixupMode::DeleteFixedUpRedirectors) const = 0;
 
 	/** Returns whether redirectors are being fixed up. */
 	virtual bool IsFixupReferencersInProgress() const = 0;

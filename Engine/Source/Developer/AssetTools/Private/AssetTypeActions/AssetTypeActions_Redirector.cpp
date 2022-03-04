@@ -27,10 +27,21 @@ void FAssetTypeActions_Redirector::GetActions(const TArray<UObject*>& InObjects,
 		LOCTEXT("Redirector_FixUpTooltip", "Finds referencers to selected redirectors and resaves them if possible, then deletes any redirectors that had all their referencers fixed."),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateSP( this, &FAssetTypeActions_Redirector::ExecuteFixUp, Redirectors ),
+			FExecuteAction::CreateSP( this, &FAssetTypeActions_Redirector::ExecuteFixUp, Redirectors, /*bDeleteAssets=*/ true ),
 			FCanExecuteAction()
 			)
 		);
+
+	Section.AddMenuEntry(
+		"Redirector_FixUp_KeepRedirectors",
+		LOCTEXT("Redirector_FixUp_KeepingRedirector", "Fix Up (keeping redirector)"),
+		LOCTEXT("Redirector_FixUp_KeepingRedirectorTooltip", "Finds referencers to selected redirectors and resaves them if possible."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP( this, &FAssetTypeActions_Redirector::ExecuteFixUp, Redirectors, /*bDeleteAssets=*/ false ),
+			FCanExecuteAction()
+		)
+	);
 }
 
 bool FAssetTypeActions_Redirector::AssetsActivatedOverride( const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType )
@@ -76,7 +87,7 @@ void FAssetTypeActions_Redirector::ExecuteFindTarget(TArray<TWeakObjectPtr<UObje
 	}
 }
 
-void FAssetTypeActions_Redirector::ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirector>> Objects)
+void FAssetTypeActions_Redirector::ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirector>> Objects, bool bDeleteAssets)
 {
 	// This will fix references to selected redirectors, except in the following cases:
 	// Redirectors referenced by unloaded maps will not be fixed up, but any references to it that can be fixed up will
@@ -92,7 +103,7 @@ void FAssetTypeActions_Redirector::ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRed
 			ObjectRedirectors.Add(Object.Get());
 		}
 
-		FAssetTools::Get().FixupReferencers(ObjectRedirectors);
+		FAssetTools::Get().FixupReferencers(ObjectRedirectors, /*bCheckoutDialogPrompt=*/ true, bDeleteAssets ? ERedirectFixupMode::DeleteFixedUpRedirectors : ERedirectFixupMode::LeaveFixedUpRedirectors);
 	}
 }
 

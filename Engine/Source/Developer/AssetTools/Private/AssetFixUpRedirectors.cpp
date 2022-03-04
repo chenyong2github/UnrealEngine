@@ -44,7 +44,7 @@ struct FRedirectorRefs
 };
 
 
-void FAssetFixUpRedirectors::FixupReferencers(const TArray<UObjectRedirector*>& Objects, const bool bCheckoutDialogPrompt) const
+void FAssetFixUpRedirectors::FixupReferencers(const TArray<UObjectRedirector*>& Objects, const bool bCheckoutDialogPrompt, ERedirectFixupMode FixupMode) const
 {
 	// Transform array into TWeakObjectPtr array
 	TArray<TWeakObjectPtr<UObjectRedirector>> ObjectWeakPtrs;
@@ -61,18 +61,18 @@ void FAssetFixUpRedirectors::FixupReferencers(const TArray<UObjectRedirector*>& 
 		{
 			// Open a dialog asking the user to wait while assets are being discovered
 			SDiscoveringAssetsDialog::OpenDiscoveringAssetsDialog(
-				SDiscoveringAssetsDialog::FOnAssetsDiscovered::CreateSP(this, &FAssetFixUpRedirectors::ExecuteFixUp, ObjectWeakPtrs, bCheckoutDialogPrompt)
+				SDiscoveringAssetsDialog::FOnAssetsDiscovered::CreateSP(this, &FAssetFixUpRedirectors::ExecuteFixUp, ObjectWeakPtrs, bCheckoutDialogPrompt, FixupMode)
 				);
 		}
 		else
 		{
 			// No need to wait, attempt to fix references now.
-			ExecuteFixUp(ObjectWeakPtrs, bCheckoutDialogPrompt);
+			ExecuteFixUp(ObjectWeakPtrs, bCheckoutDialogPrompt, FixupMode);
 		}
 	}
 }
 
-void FAssetFixUpRedirectors::ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirector>> Objects, const bool bCheckoutDialogPrompt) const
+void FAssetFixUpRedirectors::ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirector>> Objects, const bool bCheckoutDialogPrompt, ERedirectFixupMode FixupMode) const
 {
 	TGuardValue<bool> Guard(bIsFixupReferencersInProgress, true);
 
@@ -133,8 +133,11 @@ void FAssetFixUpRedirectors::ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirecto
 				// Wait for package referencers to be updated
 				UpdateAssetReferencers(RedirectorRefsList);
 
-				// Delete any redirectors that are no longer referenced
-				DeleteRedirectors(RedirectorRefsList, FailedToSave);
+				if (FixupMode == ERedirectFixupMode::DeleteFixedUpRedirectors)
+				{
+					// Delete any redirectors that are no longer referenced
+					DeleteRedirectors(RedirectorRefsList, FailedToSave);
+				}
 
 				// Finally, report any failures that happened during the rename
 				ReportFailures(RedirectorRefsList);

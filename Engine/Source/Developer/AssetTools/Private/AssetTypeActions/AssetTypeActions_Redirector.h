@@ -25,7 +25,7 @@ private:
 	void ExecuteFindTarget(TArray<TWeakObjectPtr<UObjectRedirector>> Objects);
 
 	/** Handler for when FixUp is selected */
-	void ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirector>> Objects);
+	void ExecuteFixUp(TArray<TWeakObjectPtr<UObjectRedirector>> Objects, bool bDeleteAssets);
 
 	/** Syncs the content browser to the destination objects for all the supplied redirectors */
 	void FindTargets(const TArray<UObjectRedirector*>& Redirectors) const;
