@@ -1282,7 +1282,7 @@ bool FMacApplication::OnWindowDestroyed(TSharedRef<FMacWindow> DestroyedWindow)
 
 	TSharedPtr<FMacWindow> WindowToActivate;
 
-	if (bDestroyingMainWindow)
+	if (bDestroyingMainWindow || DestroyedWindow->GetWindowHandle().Type == EWindowType::Menu)
 	{
 		FScopeLock Lock(&WindowsMutex);
 		// Figure out which window will now become active and let Slate know without waiting for Cocoa events.
