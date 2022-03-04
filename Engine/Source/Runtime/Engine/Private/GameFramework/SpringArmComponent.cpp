@@ -6,6 +6,7 @@
 #include "WorldCollision.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 
 //////////////////////////////////////////////////////////////////////////
 // USpringArmComponent
@@ -38,6 +39,7 @@ USpringArmComponent::USpringArmComponent(const FObjectInitializer& ObjectInitial
 	CameraRotationLagSpeed = 10.f;
 	CameraLagMaxTimeStep = 1.f / 60.f;
 	CameraLagMaxDistance = 0.f;
+	bClampToMaxPhysicsDeltaTime = false;
 
  	UnfixedCameraPosition = FVector::ZeroVector;
 }
@@ -89,6 +91,13 @@ FRotator USpringArmComponent::GetTargetRotation() const
 void USpringArmComponent::UpdateDesiredArmLocation(bool bDoTrace, bool bDoLocationLag, bool bDoRotationLag, float DeltaTime)
 {
 	FRotator DesiredRot = GetTargetRotation();
+
+	// If our viewtarget is simulating using physics, we may need to clamp deltatime
+	if (bClampToMaxPhysicsDeltaTime)
+	{
+		// Use the same max timestep cap as the physics system to avoid camera jitter when the viewtarget simulates less time than the camera
+		DeltaTime = FMath::Min(DeltaTime, UPhysicsSettings::Get()->MaxPhysicsDeltaTime);
+	}
 
 	// Apply 'lag' to rotation if desired
 	if(bDoRotationLag)

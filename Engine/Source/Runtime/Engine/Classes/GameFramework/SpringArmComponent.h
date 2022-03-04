@@ -112,6 +112,10 @@ class ENGINE_API USpringArmComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Lag, meta=(editcondition="bEnableCameraLag", ClampMin="0.0", UIMin = "0.0"))
 	float CameraLagMaxDistance;
 
+	/** If true AND the view target is simulating using physics then use the same max timestep cap as the physics system. Prevents camera jitter when delta time is clamped within Chaos Physics. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Lag)
+	uint32 bClampToMaxPhysicsDeltaTime : 1;
+
 	/**
 	 * Get the target rotation we inherit, used as the base target for the boom rotation.
 	 * This is derived from attachment to our parent and considering the UsePawnControlRotation and absolute rotation flags.
