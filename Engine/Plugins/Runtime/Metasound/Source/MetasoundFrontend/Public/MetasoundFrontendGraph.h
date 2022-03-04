@@ -109,10 +109,10 @@ namespace Metasound
 		static bool IsFlat(const FMetasoundFrontendGraphClass& InRoot, const TArray<FMetasoundFrontendClass>& InDependencies);
 
 		/* Metasound document should be in order to create this graph. */
-		static TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundFrontendDocument& InDocument);
+		static TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundFrontendDocument& InDocument, const FString& InDebugAssetName);
 
 		/* Metasound document should be in order to create this graph. */
-		static TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendClass>& InDependencies);
+		static TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendClass>& InDependencies, const FString& InDebugAssetName);
 
 	private:
 		struct FDefaultLiteralData
@@ -134,6 +134,7 @@ namespace Metasound
 		// (for both a root and nested subgraphs)
 		struct FBuildContext
 		{
+			FString DebugAssetName;
 			FDependencyByIDMap FrontendClasses;
 			FSharedNodeByIDMap Graphs;
 		};
@@ -163,9 +164,13 @@ namespace Metasound
 		static TUniquePtr<INode> CreateVariableNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendGraph& InGraph);
 		static TUniquePtr<INode> CreateExternalNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, FBuildGraphContext& InGraphContext, const TSet<FNodeIDVertexID>& InEdgeDestinations);
 
-		// TODO: add errors here. Most will be a "PromptIfMissing"...
-		static void AddNodesToGraph(FBuildGraphContext& InGraphContext);
-		static void AddEdgesToGraph(FBuildGraphContext& InGraphContext);
-		static void AddDefaultInputLiterals(FBuildGraphContext& InGraphContext);
+		// Returns false on error
+		static bool AddNodesToGraph(FBuildGraphContext& InGraphContext);
+
+		// Returns false on error
+		static bool AddEdgesToGraph(FBuildGraphContext& InGraphContext);
+
+		// Returns false on error
+		static bool AddDefaultInputLiterals(FBuildGraphContext& InGraphContext);
 	};
 }
