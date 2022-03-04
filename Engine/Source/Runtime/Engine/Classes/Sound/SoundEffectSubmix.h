@@ -125,7 +125,9 @@ public:
 	virtual float GetDryLevel() const { return 0.0f; }
 
 	// Processes audio in the submix effect.
-	void ProcessAudio(FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData);
+	//
+	// If the audio cannot be processed, this function will return false and OutData will not be altered. 
+	bool ProcessAudio(FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData);
 
 	friend class USoundEffectPreset;
 

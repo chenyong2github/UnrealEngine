@@ -8,7 +8,7 @@ USoundEffectSubmixPreset::USoundEffectSubmixPreset(const FObjectInitializer& Obj
 {
 }
 
-void FSoundEffectSubmix::ProcessAudio(FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
+bool FSoundEffectSubmix::ProcessAudio(FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData)
 {
 	bIsRunning = true;
 	InData.PresetData = nullptr;
@@ -19,10 +19,8 @@ void FSoundEffectSubmix::ProcessAudio(FSoundEffectSubmixInputData& InData, FSoun
 	if (bIsActive && Preset.IsValid())
 	{
 		OnProcessAudio(InData, OutData);
+		return true;
 	}
-	else
-	{
-		// otherwise, bypass the effect and move inputs to outputs
-		OutData.AudioBuffer = MoveTemp(InData.AudioBuffer);
-	}
+
+	return false;
 }
