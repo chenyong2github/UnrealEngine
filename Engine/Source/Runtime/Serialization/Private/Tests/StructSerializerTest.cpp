@@ -157,10 +157,10 @@ namespace StructSerializerTest
 		Test.TestEqual<float>(TEXT("LWC struct float must be the same when deserialized to a non-LWC struct float"), Struct1.Float, Struct2.Float);
 		Test.TestEqual<double>(TEXT("LWC struct double must be the same when deserialized to a non-LWC struct double"), Struct1.Double, Struct2.Double);
 
-		const bool bIsOrientedBoxEqual = Struct1.OrientedBox.AxisX == Struct2.OrientedBox.AxisX
-			&& Struct1.OrientedBox.AxisY == Struct2.OrientedBox.AxisY
-			&& Struct1.OrientedBox.AxisZ == Struct2.OrientedBox.AxisZ
-			&& Struct1.OrientedBox.Center == Struct2.OrientedBox.Center
+		const bool bIsOrientedBoxEqual = Struct1.OrientedBox.AxisX == FVector(Struct2.OrientedBox.AxisX)
+			&& Struct1.OrientedBox.AxisY == FVector(Struct2.OrientedBox.AxisY)
+			&& Struct1.OrientedBox.AxisZ == FVector(Struct2.OrientedBox.AxisZ)
+			&& Struct1.OrientedBox.Center == FVector(Struct2.OrientedBox.Center)
 			&& Struct1.OrientedBox.ExtentX == Struct2.OrientedBox.ExtentX
 			&& Struct1.OrientedBox.ExtentY == Struct2.OrientedBox.ExtentY
 			&& Struct1.OrientedBox.ExtentZ == Struct2.OrientedBox.ExtentZ;
@@ -228,10 +228,10 @@ namespace StructSerializerTest
 		Test.TestEqual<float>(TEXT("Non-LWC struct float must be the same when deserialized to a LWC struct float"), Struct1.Float, Struct2.Float);
 		Test.TestEqual<double>(TEXT("Non-LWC struct double must be the same when deserialized to a LWC struct double"), Struct1.Double, Struct2.Double);
 
-		const bool bIsOrientedBoxEqual = Struct1.OrientedBox.AxisX == Struct2.OrientedBox.AxisX
-			&& Struct1.OrientedBox.AxisY == Struct2.OrientedBox.AxisY
-			&& Struct1.OrientedBox.AxisZ == Struct2.OrientedBox.AxisZ
-			&& Struct1.OrientedBox.Center == Struct2.OrientedBox.Center
+		const bool bIsOrientedBoxEqual = FVector(Struct1.OrientedBox.AxisX) == Struct2.OrientedBox.AxisX
+			&& FVector(Struct1.OrientedBox.AxisY) == Struct2.OrientedBox.AxisY
+			&& FVector(Struct1.OrientedBox.AxisZ) == Struct2.OrientedBox.AxisZ
+			&& FVector(Struct1.OrientedBox.Center) == Struct2.OrientedBox.Center
 			&& Struct1.OrientedBox.ExtentX == Struct2.OrientedBox.ExtentX
 			&& Struct1.OrientedBox.ExtentY == Struct2.OrientedBox.ExtentY
 			&& Struct1.OrientedBox.ExtentZ == Struct2.OrientedBox.ExtentZ;

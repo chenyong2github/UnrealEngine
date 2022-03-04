@@ -5,12 +5,6 @@
 
 double FBenchmarkTimer::Time = 0;
 
-const FDoubleVector FDoubleVector::ZeroVector = FDoubleVector(FVector::ZeroVector);
-const FDoubleVector FDoubleVector::OneVector = FDoubleVector(FVector::OneVector);
-const FDoubleVector FDoubleVector::UpVector = FDoubleVector(FVector::UpVector);
-const FDoubleVector FDoubleVector::ForwardVector = FDoubleVector(FVector::ForwardVector);
-const FDoubleVector FDoubleVector::RightVector = FDoubleVector(FVector::RightVector);
-
 void FLidarPointCloudDataBuffer::MarkAsFree()
 {
 	if (PendingSize > 0)

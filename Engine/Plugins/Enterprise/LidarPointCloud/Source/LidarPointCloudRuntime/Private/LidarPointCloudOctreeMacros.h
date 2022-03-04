@@ -8,7 +8,7 @@
 #define IS_VIS_CHECK_REQUIRED (bVisibleOnly && CurrentNode->NumVisiblePoints < CurrentNode->GetNumPoints())
 
 #define NODE_IN_BOX (Box.Intersect(Child->GetBounds()))
-#define NODE_IN_CONVEX_VOLUME (ConvexVolume.IntersectBox(Child->Center, SharedData[Child->Depth].Extent))
+#define NODE_IN_CONVEX_VOLUME (ConvexVolume.IntersectBox((FVector)Child->Center, (FVector)SharedData[Child->Depth].Extent))
 
 #define ITERATE_NODES_BODY(Action, NodeTest, Const) \
 {\
@@ -28,9 +28,9 @@
 #define ITERATE_NODES(Action, NodeTest) ITERATE_NODES_BODY(Action, NodeTest,  )
 #define ITERATE_NODES_CONST(Action, NodeTest) ITERATE_NODES_BODY(Action, NodeTest, const)
 
-#define POINT_IN_BOX Box.IsInsideOrOn(Point->Location)
-#define POINT_IN_SPHERE (POINT_IN_BOX && FVector::DistSquared(Point->Location, Sphere.Center) <= RadiusSq)
-#define POINT_IN_CONVEX_VOLUME ConvexVolume.IntersectSphere(Point->Location, 0)
+#define POINT_IN_BOX Box.IsInsideOrOn((FVector)Point->Location)
+#define POINT_IN_SPHERE (POINT_IN_BOX && FVector3f::DistSquared(Point->Location, (FVector3f)Sphere.Center) <= RadiusSq)
+#define POINT_IN_CONVEX_VOLUME ConvexVolume.IntersectSphere((FVector)Point->Location, 0)
 #define POINT_BY_RAY Ray.Intersects(Point, RadiusSq)
 
 #define PROCESS_BODY(Action, PointTest, Mode) \
@@ -71,7 +71,7 @@
 {\
 	if (!bVisibleOnly || CurrentNode->NumVisiblePoints > 0)\
 	{\
-		const bool bNodeFullyContained = Box.IsInsideOrOn(CurrentNode->Center - Octree->SharedData[CurrentNode->Depth].Extent) && Box.IsInsideOrOn(CurrentNode->Center + Octree->SharedData[CurrentNode->Depth].Extent);\
+		const bool bNodeFullyContained = Box.IsInsideOrOn((FVector)(CurrentNode->Center - Octree->SharedData[CurrentNode->Depth].Extent)) && Box.IsInsideOrOn((FVector)(CurrentNode->Center + Octree->SharedData[CurrentNode->Depth].Extent));\
 		PROCESS_BODY(Action, POINT_IN_BOX, Mode) \
 	}\
 }
@@ -82,7 +82,7 @@
 	if (!bVisibleOnly || CurrentNode->NumVisiblePoints > 0)\
 	{\
 		bool bNodeFullyContained;\
-		ConvexVolume.IntersectBox(CurrentNode->Center, SharedData[CurrentNode->Depth].Extent, bNodeFullyContained);\
+		ConvexVolume.IntersectBox((FVector)CurrentNode->Center, (FVector)SharedData[CurrentNode->Depth].Extent, bNodeFullyContained);\
 		PROCESS_BODY(Action, POINT_IN_CONVEX_VOLUME, Mode) \
 	}\
 }

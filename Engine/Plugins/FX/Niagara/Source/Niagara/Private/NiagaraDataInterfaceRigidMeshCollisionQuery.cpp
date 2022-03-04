@@ -254,7 +254,7 @@ void CreateInternalArrays(TArray<AActor*> Actors, FNDIRigidMeshCollisionArrays* 
 
 								FBox BBox = ConvexElem.ElemBox;
 								FVector3f Extent = FVector3f(BBox.Max - BBox.Min);
-								FVector3f Center = FVector3f(BBox.Max + BBox.Min) * .5;
+								FVector Center = (BBox.Max + BBox.Min) * .5;
 								OutAssetArrays->PhysicsType[BoxCount] = (ConvexElem.GetCollisionEnabled() == ECollisionEnabled::QueryAndPhysics);
 								OutAssetArrays->SourceSceneProxy[BoxCount] = StaticMeshComponent->SceneProxy;
 								
@@ -373,7 +373,7 @@ void UpdateInternalArrays(const TArray<AActor*> &Actors, FNDIRigidMeshCollisionA
 					if (CollisionEnabledHasPhysics(ConvexElem.GetCollisionEnabled()))
 					{
 						FBox BBox = ConvexElem.ElemBox;												
-						FVector3f Center = FVector3f(BBox.Max + BBox.Min) * .5;
+						FVector Center = (BBox.Max + BBox.Min) * .5;
 
 						OutAssetArrays->SourceSceneProxy[BoxCount] = StaticMeshComponent->SceneProxy;
 						const FTransform ElementTransform = FTransform(Center) * MeshTransform;
@@ -523,7 +523,7 @@ void FNDIRigidMeshCollisionData::Update(UNiagaraDataInterfaceRigidMeshCollisionQ
 
 		if (0 < Actors.Num() && Actors[0] != nullptr)
 		{
-			UpdateInternalArrays(Actors, AssetArrays, SystemInstance->GetLWCTile());
+			UpdateInternalArrays(Actors, AssetArrays, FVector(SystemInstance->GetLWCTile()));
 		}
 	}
 }

@@ -227,13 +227,13 @@ void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMExternalFunctionCo
 
 		OutHeight.SetAndAdvance(bIsValid ? QueryResult.GetWaveInfo().Height : 0.0f);
 		OutDepth.SetAndAdvance(bIsValid ? QueryResult.GetWaterSurfaceDepth() : 0.0f);
-		OutVelocity.SetAndAdvance( bIsValid ? QueryResult.GetVelocity() : FVector::ZeroVector);
+		OutVelocity.SetAndAdvance( bIsValid ? FVector3f(QueryResult.GetVelocity()) : FVector3f::ZeroVector);		// LWC_TODO: Precision loss
 
 		// Note we assume X and Y are in water by the time this is queried
 		const FVector& AdjustedSurfaceLoc = bIsValid ? QueryResult.GetWaterSurfaceLocation() : FVector::ZeroVector;
 		OutSurfacePos.SetAndAdvance( InstData->LWCConverter.ConvertWorldToSimulationPosition(AdjustedSurfaceLoc));
 
-		OutSurfaceNormal.SetAndAdvance(bIsValid ? QueryResult.GetWaterSurfaceNormal() : FVector::UpVector);
+		OutSurfaceNormal.SetAndAdvance(bIsValid ? FVector3f(QueryResult.GetWaterSurfaceNormal()) : FVector3f::UpVector);
 
 		Time.GetAndAdvance();
 	}

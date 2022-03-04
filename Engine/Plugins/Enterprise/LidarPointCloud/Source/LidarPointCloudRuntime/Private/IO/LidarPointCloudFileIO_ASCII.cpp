@@ -224,7 +224,7 @@ bool ULidarPointCloudFileIO_ASCII::HandleImport(const FString& Filename, TShared
 					if (LoadedColumns > 1)
 					{
 						// Convert to UU and flip Y axis
-						FDoubleVector Location(TempDoubles[0] * ImportScale, -TempDoubles[1] * ImportScale, TempDoubles[2] * ImportScale);
+						FVector Location(TempDoubles[0] * ImportScale, -TempDoubles[1] * ImportScale, TempDoubles[2] * ImportScale);
 
 						if (!bFirstPointSet)
 						{
@@ -279,7 +279,7 @@ bool ULidarPointCloudFileIO_ASCII::HandleExport(const FString& Filename, class U
 
 	const float ExportScale = GetDefault<ULidarPointCloudSettings>()->ExportScale;
 
-	const FDoubleVector LocationOffset = PointCloud->LocationOffset;
+	const FVector LocationOffset = PointCloud->LocationOffset;
 
 	TArray<FString> Lines;
 	Lines.Reserve(5000000);
@@ -289,7 +289,7 @@ bool ULidarPointCloudFileIO_ASCII::HandleExport(const FString& Filename, class U
 
 		for (FLidarPointCloudPoint* Data = Points->GetData(), *DestEnd = Data + Points->Num(); Data != DestEnd; ++Data)
 		{
-			const FDoubleVector Location = (LocationOffset + (FVector)Data->Location) * ExportScale;
+			const FVector Location = (LocationOffset + (FVector)Data->Location) * ExportScale;
 			const FVector Normal = (FVector)Data->Normal.ToVector();
 			Lines.Emplace(FString::Printf(TEXT("%f,%f,%f,%d,%d,%d,%d,%f,%f,%f"), Location.X, -Location.Y, Location.Z, Data->Color.R, Data->Color.G, Data->Color.B, Data->Color.A, Normal.X, Normal.Y, Normal.Z));
 		}

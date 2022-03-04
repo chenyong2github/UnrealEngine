@@ -1933,7 +1933,7 @@ FBoxSphereBounds UHierarchicalInstancedStaticMeshComponent::CalcBounds(const FTr
 static FBox GetClusterTreeBounds(TArray<FClusterNode> const& InClusterTree, FVector InOffset)
 {
 	// Return top node of cluster tree. Apply offset on node bounds.
-	return (InClusterTree.Num() > 0 ? FBox(InOffset + InClusterTree[0].BoundMin, InOffset + InClusterTree[0].BoundMax) : FBox(ForceInit));
+	return (InClusterTree.Num() > 0 ? FBox(InOffset + FVector(InClusterTree[0].BoundMin), InOffset + FVector(InClusterTree[0].BoundMax)) : FBox(ForceInit));
 }
 
 UHierarchicalInstancedStaticMeshComponent::UHierarchicalInstancedStaticMeshComponent(const FObjectInitializer& ObjectInitializer)

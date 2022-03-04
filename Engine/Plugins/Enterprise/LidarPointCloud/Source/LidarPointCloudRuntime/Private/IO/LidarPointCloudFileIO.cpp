@@ -42,14 +42,14 @@ FLidarPointCloudImportResults::FLidarPointCloudImportResults(FThreadSafeBool* bI
 {
 }
 
-FLidarPointCloudImportResults::FLidarPointCloudImportResults(FThreadSafeBool* bInCancelled, TFunction<void(float)> InProgressCallback, TFunction<void(const FDoubleBox& Bounds, FDoubleVector)> InInitCallback, TFunction<void(TArray64<FLidarPointCloudPoint>*)> InBufferCallback)
+FLidarPointCloudImportResults::FLidarPointCloudImportResults(FThreadSafeBool* bInCancelled, TFunction<void(float)> InProgressCallback, TFunction<void(const FBox& Bounds, FVector)> InInitCallback, TFunction<void(TArray64<FLidarPointCloudPoint>*)> InBufferCallback)
 	: FLidarPointCloudImportResults(bInCancelled, MoveTemp(InProgressCallback))
 {
 	InitCallback = MoveTemp(InInitCallback);
 	BufferCallback = MoveTemp(InBufferCallback);
 }
 
-void FLidarPointCloudImportResults::InitializeOctree(const FDoubleBox& InBounds)
+void FLidarPointCloudImportResults::InitializeOctree(const FBox& InBounds)
 {
 	InitCallback(InBounds, OriginalCoordinates);
 }

@@ -560,7 +560,7 @@ private:
 		FTransform LocalToWorld = GetComponentTransform();
 		if (PointCloud)
 		{
-			LocalToWorld.AddToTranslation(PointCloud->LocationOffset.ToVector());
+			LocalToWorld.AddToTranslation(PointCloud->LocationOffset);
 		}
 		return LocalToWorld;
 	}

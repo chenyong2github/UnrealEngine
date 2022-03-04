@@ -92,7 +92,7 @@ private:
 
 					const FSolverVec3 Normal = FSolverVec3(CollisionParticles.Geometry(CollisionIndex)->Normal(PointPair.First));
 					const FSolverVec3 NormalWorld = Frame.TransformVectorNoScale(Normal);
-					const FSolverVec3 ContactWorld = Frame.TransformPositionNoScale(PointPair.First);
+					const FSolverVec3 ContactWorld = Frame.TransformPositionNoScale(UE::Math::TVector<FSolverReal>(PointPair.First));
 
 					if (bLockAndWriteContacts)
 					{

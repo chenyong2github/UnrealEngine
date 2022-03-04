@@ -119,7 +119,7 @@ template<> inline void Serial<ESerialMethod::Vector_f32>(FArchive& Ar, FVector* 
 	{
 		FVector3f Tmp;
 		Ar << Tmp;
-		*ValuePtr = Tmp;
+		*ValuePtr = FVector(Tmp);
 	}
 	else if (Ar.IsSaving())
 	{

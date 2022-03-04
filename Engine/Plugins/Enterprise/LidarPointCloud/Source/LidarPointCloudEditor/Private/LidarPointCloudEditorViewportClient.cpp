@@ -603,7 +603,7 @@ FSceneView* FLidarPointCloudEditorViewportClient::GetView()
 		FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(Viewport, GetScene(), EngineShowFlags).SetRealtimeUpdate(IsRealtime()));
 		FSceneView* View = CalcSceneView(&ViewFamily);
 
-		const FVector LocationOffset = Editor->GetPointCloudBeingEdited()->LocationOffset.ToVector();
+		const FVector LocationOffset = Editor->GetPointCloudBeingEdited()->LocationOffset;
 
 		// Adjust for the LocationOffset
 		if (View->IsPerspectiveProjection())
@@ -922,7 +922,7 @@ FConvexVolume FLidarPointCloudEditorViewportClient::BuildConvexVolumeForPoints(c
 	if (TSharedPtr<FLidarPointCloudEditor> Editor = PointCloudEditorPtr.Pin())
 	{
 		FSceneView* View = GetView();
-		const FVector LocationOffset = Editor->GetPointCloudBeingEdited()->LocationOffset.ToVector();
+		const FVector LocationOffset = Editor->GetPointCloudBeingEdited()->LocationOffset;
 		const FMatrix InvViewProjectionMatrix = View->ViewMatrices.GetInvViewProjectionMatrix();
 
 		TArray<FVector> Origins; Origins.AddUninitialized(Points.Num() + 2);

@@ -581,7 +581,7 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsVectorField(FVectorVMExtern
 
 		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
-			OutVectorFieldParam.SetAndAdvance(SampleMax[InstanceIdx]);
+			OutVectorFieldParam.SetAndAdvance(FVector3f(SampleMax[InstanceIdx]));
 		}
 	}
 	else

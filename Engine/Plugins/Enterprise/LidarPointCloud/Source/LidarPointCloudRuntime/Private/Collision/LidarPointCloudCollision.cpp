@@ -398,7 +398,7 @@ void LidarPointCloudCollision::BuildCollisionMesh(FLidarPointCloudOctree* Octree
 	// Expand original bounds to make sure the mesh is closed at the edges
 	const FBox Bounds = Octree->GetBounds().ExpandBy(FVector::OneVector * CellSize, FVector::OneVector * CellSize);
 	const FVector3f BoundsSize = (FVector3f)Bounds.GetSize();
-	const FVector3f LocationOffset = (FVector3f)Octree->GetOwner()->LocationOffset.ToVector();
+	const FVector3f LocationOffset = (FVector3f)Octree->GetOwner()->LocationOffset;
 
 	// Number of cells in each axis
 	const int32 BatchSize = GetDefault<ULidarPointCloudSettings>()->MeshingBatchSize;

@@ -288,7 +288,7 @@ public:
 		if (BoxExtent.ContainsNaN())
 		{
 			logOrEnsureNanError(TEXT("BoxExtent contains NaN: %s"), *BoxExtent.ToString());
-			const_cast<TBoxSphereBounds*>(this)->BoxExtent = TVector<T>::ZeroVector;
+			const_cast<TBoxSphereBounds*>(this)->BoxExtent = TVector<TExtent>::ZeroVector;
 		}
 		if (FMath::IsNaN(SphereRadius) || !FMath::IsFinite(SphereRadius))
 		{

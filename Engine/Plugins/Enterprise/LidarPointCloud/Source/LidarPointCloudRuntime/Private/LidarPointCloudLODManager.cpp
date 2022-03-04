@@ -207,11 +207,11 @@ int32 FLidarPointCloudTraversalOctree::GetVisibleNodes(TArray<FLidarPointCloudTr
 			// Update number of visible points, if needed
 			CurrentNode->DataNode->UpdateNumVisiblePoints();
 
-			const FVector NodeExtent = Extents[CurrentNode->Depth] * SelectionParams.BoundsScale;
+			const FVector3f NodeExtent = Extents[CurrentNode->Depth] * SelectionParams.BoundsScale;
 
 			bool bFullyContained = true;
 
-			if (SelectionParams.bUseFrustumCulling && (CurrentNode->Depth == 0 || !CurrentNode->bFullyContained) && !ViewData->ViewFrustum.IntersectBox(CurrentNode->Center, NodeExtent, bFullyContained))
+			if (SelectionParams.bUseFrustumCulling && (CurrentNode->Depth == 0 || !CurrentNode->bFullyContained) && !ViewData->ViewFrustum.IntersectBox((FVector)CurrentNode->Center, (FVector)NodeExtent, bFullyContained))
 			{
 				continue;
 			}
@@ -251,7 +251,7 @@ int32 FLidarPointCloudTraversalOctree::GetVisibleNodes(TArray<FLidarPointCloudTr
 			{
 				float ScreenSizeSq = 0;
 
-				FVector VectorToNode = CurrentNode->Center - ViewData->ViewOrigin;
+				FVector3f VectorToNode = CurrentNode->Center - (FVector3f)ViewData->ViewOrigin;
 				const float DistSq = VectorToNode.SizeSquared();
 				const float AdjustedRadiusSq = RadiiSq[CurrentNode->Depth] * BoundsScaleSq;
 
@@ -283,7 +283,7 @@ int32 FLidarPointCloudTraversalOctree::GetVisibleNodes(TArray<FLidarPointCloudTr
 						if (SelectionParams.ScreenCenterImportance > 0)
 						{
 							VectorToNode.Normalize();
-							float Dot = FVector::DotProduct(ViewData->ViewDirection, VectorToNode);
+							float Dot = FVector3f::DotProduct((FVector3f)ViewData->ViewDirection, VectorToNode);
 
 							ScreenSizeSq = FMath::Lerp(ScreenSizeSq, ScreenSizeSq * Dot, SelectionParams.ScreenCenterImportance);
 						}
@@ -635,7 +635,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 #if !(UE_BUILD_SHIPPING)
 						if (bDrawNodeBounds)
 						{
-							const FVector Extent = RegisteredProxy.TraversalOctree->Extents[Node->Depth];
+							const FVector3f Extent = RegisteredProxy.TraversalOctree->Extents[Node->Depth];
 							UpdateData.Bounds.Emplace(Node->Center - Extent, Node->Center + Extent);
 						}
 #endif

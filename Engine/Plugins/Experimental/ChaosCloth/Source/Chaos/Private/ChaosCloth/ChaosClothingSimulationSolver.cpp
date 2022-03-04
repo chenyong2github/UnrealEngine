@@ -766,7 +766,7 @@ void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegac
 					}
 				}
 
-				Particles.Acceleration(Index) += Forces * Particles.InvM(Index);
+				Particles.Acceleration(Index) += FVector3f(Forces) * Particles.InvM(Index);
 			};
 	}
 }
@@ -864,7 +864,7 @@ void FClothingSimulationSolver::UpdateSolverField()
 
 		for (uint32 Index = 0; Index < NumParticles; ++Index)
 		{
-			SamplePositions[Index] = Evolution->Particles().X(Index) + LocalSpaceLocation;
+			SamplePositions[Index] = FVector(Evolution->Particles().X(Index)) + LocalSpaceLocation;
 			SampleIndices[Index] = FFieldContextIndex(Index, Index);
 		}
 		PerSolverField.ComputeFieldLinearImpulse(GetTime());
@@ -1065,7 +1065,7 @@ FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const
 		}
 
 		// Update bounds with this cloth
-		return FBoxSphereBounds(LocalSpaceLocation + BoundingBox.Center(), BoundingBox.Extents() * 0.5f, FMath::Sqrt(SquaredRadius));
+		return FBoxSphereBounds(LocalSpaceLocation + BoundingBox.Center(), FVector(BoundingBox.Extents() * 0.5f), FMath::Sqrt(SquaredRadius));
 	}
 
 	return FBoxSphereBounds(LocalSpaceLocation, FVector(0.f), 0.f);

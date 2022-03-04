@@ -75,8 +75,8 @@ static void ComputeBoundsFromPositionBuffer(const FPositionVertexBuffer& UsePosi
 		RadiusSqr = FMath::Max(	RadiusSqr, ( UsePositionBuffer.VertexPosition(VertexIndex) - Center ).SizeSquared() );
 	}
 
-	BoundsOut.Origin = Center;
-	BoundsOut.BoxExtent = Bounds.GetExtent();
+	BoundsOut.Origin = FVector(Center);
+	BoundsOut.BoxExtent = FVector(Bounds.GetExtent());
 	BoundsOut.SphereRadius = FMath::Sqrt( RadiusSqr );
 }
 
@@ -101,8 +101,8 @@ static void ComputeBoundsFromVertexList(const TArray<FStaticMeshBuildVertex>& Ve
 		RadiusSqr = FMath::Max(	RadiusSqr, ( Vertices[VertexIndex].Position - Center ).SizeSquared() );
 	}
 
-	BoundsOut.Origin = Center;
-	BoundsOut.BoxExtent = Bounds.GetExtent();
+	BoundsOut.Origin = FVector(Center);
+	BoundsOut.BoxExtent = FVector(Bounds.GetExtent());
 	BoundsOut.SphereRadius = FMath::Sqrt( RadiusSqr );
 }
 

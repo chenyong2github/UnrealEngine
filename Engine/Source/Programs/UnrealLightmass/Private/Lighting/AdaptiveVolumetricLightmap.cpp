@@ -964,7 +964,7 @@ void FIrradianceBrickData::SetFromVolumeLightingSample(int32 Index, const FVolum
 		LQLightDirection[Index] = (MaxLightDirAsColor * FLinearColor(.5f, .5f, .5f, .5f) + FLinearColor(.5f, .5f, .5f, .5f)).QuantizeRound();
 		
 		// Set color along the max direction
-		FSHVector3 BrigthestDiffuseTransferSH = FSHVector3::CalcDiffuseTransfer(MaxLightDir);
+		FSHVector3 BrigthestDiffuseTransferSH = FSHVector3::CalcDiffuseTransfer(FVector(MaxLightDir));
 		FLinearColor BrightestLighting = Dot(DirectLight, BrigthestDiffuseTransferSH);
 		BrightestLighting.R = FMath::Max(BrightestLighting.R, 0.0f);
 		BrightestLighting.G = FMath::Max(BrightestLighting.G, 0.0f);

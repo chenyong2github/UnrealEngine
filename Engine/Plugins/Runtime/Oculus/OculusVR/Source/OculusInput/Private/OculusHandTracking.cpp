@@ -416,7 +416,7 @@ void FOculusHandTracking::InitializeHandMesh(USkeletalMesh* SkeletalMesh, const 
 		// Update Model Vertex
 		ovrpVector3f VertexPosition = OvrMesh->VertexPositions[VertexIndex];
 		ovrpVector3f Normal = OvrMesh->VertexNormals[VertexIndex];
-		ModelVertex.Position = FVector(VertexPosition.x, VertexPosition.z, VertexPosition.y) * WorldToMeters;
+		ModelVertex.Position = FVector3f(VertexPosition.x, VertexPosition.z, VertexPosition.y) * WorldToMeters;	// LWC_TODO: Precision loss?
 		ModelVertex.TangentZ = FVector3f(Normal.x, Normal.z, Normal.y);
 		ModelVertex.TangentX = FVector3f(1.0f, 0.0f, 0.0f);
 		ModelVertex.TexCoord = FVector2f(OvrMesh->VertexUV0[VertexIndex].x, OvrMesh->VertexUV0[VertexIndex].y);

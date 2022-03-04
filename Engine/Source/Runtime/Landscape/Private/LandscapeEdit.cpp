@@ -3528,7 +3528,7 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 						else
 						{
 							VertexID = OutRawMesh.CreateVertex();
-							VertexPositions[VertexID] = Positions[i];
+							VertexPositions[VertexID] = FVector3f(Positions[i]);
 						}
 						IndexToVertexID.Add(CurrentIndex, VertexID);
 						VertexIDs.Add(VertexID);
@@ -3565,9 +3565,9 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 								FVector LocalTangentX, LocalTangentY, LocalTangentZ;
 								CDI.GetLocalTangentVectors(VertexX, VertexY, LocalTangentX, LocalTangentY, LocalTangentZ);
 
-								VertexInstanceTangents[VertexInstanceIDs[i]] = LocalTangentX;
+								VertexInstanceTangents[VertexInstanceIDs[i]] = FVector3f(LocalTangentX);
 								VertexInstanceBinormalSigns[VertexInstanceIDs[i]] = GetBasisDeterminantSign(LocalTangentX, LocalTangentY, LocalTangentZ);
-								VertexInstanceNormals[VertexInstanceIDs[i]] = LocalTangentZ;
+								VertexInstanceNormals[VertexInstanceIDs[i]] = FVector3f(LocalTangentZ);
 
 								FVector2f UV = (ComponentUVOffsetLOD + FVector2f(VertexX, VertexY))*ComponentUVScaleLOD;
 								VertexInstanceUVs.Set(VertexInstanceIDs[i], 0, UV);

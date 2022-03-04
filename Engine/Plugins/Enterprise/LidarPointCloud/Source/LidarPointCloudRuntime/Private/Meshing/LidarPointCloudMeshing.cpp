@@ -16,12 +16,12 @@ void LidarPointCloudMeshing::CalculateNormals(FLidarPointCloudOctree* Octree, FT
 	/** Groups sampling information together for readability */
 	struct FSamplingUnit
 	{
-		FVector Center;
-		FVector Extent;
+		FVector3f Center;
+		FVector3f Extent;
 		TArray64<FLidarPointCloudPoint*> Points;
 		FLidarPointCloudOctreeNode* Node;
 
-		FSamplingUnit(const FVector& Center, const FVector& Extent, FLidarPointCloudOctreeNode* Node)
+		FSamplingUnit(const FVector3f& Center, const FVector3f& Extent, FLidarPointCloudOctreeNode* Node)
 			: Center(Center)
 			, Extent(Extent)
 			, Node(Node)
@@ -30,7 +30,7 @@ void LidarPointCloudMeshing::CalculateNormals(FLidarPointCloudOctree* Octree, FT
 
 		FSamplingUnit* ConstructChildAtLocation(int32 i)
 		{
-			return new FSamplingUnit(Center + Extent * (FVector(-0.5f) + FVector((i & 4) == 4, (i & 2) == 2, (i & 1) == 1)), Extent / 2, Node ? Node->GetChildNodeAtLocation(i) : nullptr);
+			return new FSamplingUnit(Center + Extent * (FVector3f(-0.5f) + FVector3f((i & 4) == 4, (i & 2) == 2, (i & 1) == 1)), Extent / 2, Node ? Node->GetChildNodeAtLocation(i) : nullptr);
 		}
 	};
 
@@ -42,7 +42,7 @@ void LidarPointCloudMeshing::CalculateNormals(FLidarPointCloudOctree* Octree, FT
 
 	TQueue<FSamplingUnit*> Q;
 	{
-		FSamplingUnit* Root = new FSamplingUnit(FVector::ZeroVector, Octree->SharedData[0].Extent, Octree->Root);
+		FSamplingUnit* Root = new FSamplingUnit(FVector3f::ZeroVector, Octree->SharedData[0].Extent, Octree->Root);
 		if (InPointSelection.Num() == 0)
 		{
 			Octree->GetPoints(Root->Points);

@@ -41,10 +41,10 @@ struct FLidarPointCloudFileIO_LAS_PublicHeaderBlock
 	uint16 PointDataRecordLength;
 	uint32 LegacyNumberOfPointRecords;
 	uint32 LegacyNumberOfPointsByReturn[5];
-	FDoubleVector ScaleFactor;
-	FDoubleVector Offset;
-	FDoubleVector Min;
-	FDoubleVector Max;
+	FVector ScaleFactor;
+	FVector Offset;
+	FVector Min;
+	FVector Max;
 
 	/** Added in 1.3, extra 8 bytes */
 	uint64 StartOfWaveformDataPacketRecord;
@@ -110,14 +110,14 @@ struct FLidarPointCloudFileIO_LAS_PublicHeaderBlock
 		}
 	}
 
-	void SetBounds(const FDoubleVector& InMin, const FDoubleVector& InMax)
+	void SetBounds(const FVector& InMin, const FVector& InMax)
 	{
 		Min = InMin;
 		Max = InMax;
 		Offset = InMin;
 
-		FDoubleVector Size = Max - Min;
-		ScaleFactor = FDoubleVector(FMath::Pow(2.0, FMath::CeilToInt(FMath::Log2(Size.X)) - 31), FMath::Pow(2.0, FMath::CeilToInt(FMath::Log2(Size.Y)) - 31), FMath::Pow(2.0, FMath::CeilToInt(FMath::Log2(Size.Z)) - 31));
+		FVector Size = Max - Min;
+		ScaleFactor = FVector(FMath::Pow(2.0, FMath::CeilToInt(FMath::Log2(Size.X)) - 31), FMath::Pow(2.0, FMath::CeilToInt(FMath::Log2(Size.Y)) - 31), FMath::Pow(2.0, FMath::CeilToInt(FMath::Log2(Size.Z)) - 31));
 	}
 
 	bool HasValidBounds()
@@ -192,8 +192,8 @@ FArchive& operator<<(FArchive& Ar, FLidarPointCloudFileIO_LAS_PublicHeaderBlock&
 	// Use legacy bounds order, if needed
 	if (Header.VersionMinor < 4 || !Header.HasValidBounds())
 	{
-		FDoubleVector Min = Header.Min;
-		FDoubleVector Max = Header.Max;
+		FVector Min = Header.Min;
+		FVector Max = Header.Max;
 
 		Header.Max.X = Max.X;
 		Header.Max.Y = Max.Z;
@@ -363,8 +363,8 @@ public:
 		if (bSuccess)
 		{
 			// LASzip keeps the bounds in 1.2 spec
-			FDoubleVector Min = OutHeader->Min;
-			FDoubleVector Max = OutHeader->Max;
+			FVector Min = OutHeader->Min;
+			FVector Max = OutHeader->Max;
 			OutHeader->Min.X = Min.Y;
 			OutHeader->Min.Y = Max.X;
 			OutHeader->Min.Z = Max.Z;
@@ -393,8 +393,8 @@ public:
 		static laszip_set_header_def laszip_set_header = (laszip_set_header_def)FPlatformProcess::GetDllExport(GetDLLHandle(), TEXT("laszip_set_header"));
 
 		// LASzip keeps the bounds in 1.2 spec
-		FDoubleVector Min = Header.Min;
-		FDoubleVector Max = Header.Max;
+		FVector Min = Header.Min;
+		FVector Max = Header.Max;
 		Header.Min.X = Max.X;
 		Header.Min.Y = Min.X;
 		Header.Min.Z = Max.Y;
@@ -577,7 +577,9 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAS(const FString& Filename, FLidar
 
 			if (!bFirstPointSet)
 			{
-				OutImportResults.OriginalCoordinates = (Header.ScaleFactor * Record->Location + Header.Offset) * ImportScale;
+				OutImportResults.OriginalCoordinates = FVector(Header.ScaleFactor.X * Record->Location.X + Header.Offset.X,
+																Header.ScaleFactor.Y * Record->Location.Y + Header.Offset.Y,
+																Header.ScaleFactor.Z * Record->Location.Z + Header.Offset.Z) * ImportScale;
 				OutImportResults.OriginalCoordinates.Y = -OutImportResults.OriginalCoordinates.Y;
 				bFirstPointSet = true;
 			}
@@ -590,7 +592,14 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAS(const FString& Filename, FLidar
 
 	if (bUseConcurrentImport)
 	{
-		OutImportResults.InitializeOctree(FDoubleBox(Header.Min * ImportScale, Header.Max * ImportScale).FlipY());
+		FBox Bounds(Header.Min * ImportScale, Header.Max * ImportScale);
+
+		// Flip Y
+		const double Tmp = Bounds.Min.Y;
+		Bounds.Min.Y = -Bounds.Max.Y;
+		Bounds.Max.Y = -Tmp;
+		
+		OutImportResults.InitializeOctree(Bounds);
 	}
 
 	// Read Data
@@ -645,14 +654,16 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAS(const FString& Filename, FLidar
 						Classifications.AddUnique(Classification);
 
 						// Calculate the actual location of the point, convert to UU and flip the Y axis
-						FDoubleVector Location = (Header.ScaleFactor * Record->Location + Header.Offset) * ImportScale;
+						FVector Location = FVector(Header.ScaleFactor.X * Record->Location.X + Header.Offset.X,
+												Header.ScaleFactor.Y * Record->Location.Y + Header.Offset.Y,
+												Header.ScaleFactor.Z * Record->Location.Z + Header.Offset.Z) * ImportScale;
 						Location.Y = -Location.Y;
 
 						// Shift to protect from precision loss
 						Location -= OutImportResults.OriginalCoordinates;
 
 						// Convert location to floats
-						const FVector ProcessedLocation = Location.ToVector();
+						const FVector ProcessedLocation = Location;
 
 						_Bounds += ProcessedLocation;
 
@@ -778,7 +789,9 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAZ(const FString& Filename, FLidar
 
 			if (!bFirstPointSet)
 			{
-				OutImportResults.OriginalCoordinates = (Header.ScaleFactor * Point.Location + Header.Offset) * ImportScale;
+				OutImportResults.OriginalCoordinates = FVector(Header.ScaleFactor.X * Point.Location.X + Header.Offset.X,
+															Header.ScaleFactor.Y * Point.Location.Y + Header.Offset.Y,
+															Header.ScaleFactor.Z * Point.Location.Z + Header.Offset.Z) * ImportScale;
 				OutImportResults.OriginalCoordinates.Y = -OutImportResults.OriginalCoordinates.Y;
 				bFirstPointSet = true;
 			}
@@ -792,7 +805,14 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAZ(const FString& Filename, FLidar
 	// Initialize Octree
 	if (bUseConcurrentImport)
 	{
-		OutImportResults.InitializeOctree(FDoubleBox(Header.Min * ImportScale, Header.Max * ImportScale).FlipY());
+		FBox Bounds(Header.Min * ImportScale, Header.Max * ImportScale);
+
+		// Flip Y
+		const double Tmp = Bounds.Min.Y;
+		Bounds.Min.Y = -Bounds.Max.Y;
+		Bounds.Max.Y = -Tmp;
+		
+		OutImportResults.InitializeOctree(Bounds);
 	}
 
 	// Read Data
@@ -847,13 +867,15 @@ bool ULidarPointCloudFileIO_LAS::HandleImportLAZ(const FString& Filename, FLidar
 					Classifications.AddUnique(Classification);
 
 					// Calculate the actual location of the point, convert to UU and flip the Y axis
-					FDoubleVector Location = (Header.ScaleFactor * Point.Location + Header.Offset) * ImportScale;
+					FVector Location = FVector(Header.ScaleFactor.X * Point.Location.X + Header.Offset.X,
+											Header.ScaleFactor.Y * Point.Location.Y + Header.Offset.Y,
+											Header.ScaleFactor.Z * Point.Location.Z + Header.Offset.Z) * ImportScale;
 					Location.Y = -Location.Y;
 
 					// Shift to protect from precision loss
 					Location -= OutImportResults.OriginalCoordinates;
 
-					const FVector ProcessedLocation = Location.ToVector();
+					const FVector ProcessedLocation = Location;
 
 					const uint8 Intensity = bHasIntensityData ? Point.Intensity >> IntensityBitShift : 255;
 
@@ -936,8 +958,8 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAS(const FString& Filename, ULidar
 {
 	if (FArchive* Ar = IFileManager::Get().CreateFileWriter(*Filename, 0))
 	{
-		FDoubleVector Min = PointCloud->GetBounds().Min;
-		FDoubleVector Max = PointCloud->GetBounds().Max;
+		FVector Min = PointCloud->GetBounds().Min;
+		FVector Max = PointCloud->GetBounds().Max;
 
 		// Flip Y
 		float MaxY = Max.Y;
@@ -956,9 +978,9 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAS(const FString& Filename, ULidar
 
 		(*Ar) << Header;
 
-		const FDoubleVector Size = Max - Min;
-		const FDoubleVector ForwardScale(FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.X))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Y))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Z))));
-		const FDoubleVector LocationOffset = PointCloud->LocationOffset;
+		const FVector Size = Max - Min;
+		const FVector ForwardScale(FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.X))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Y))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Z))));
+		const FVector LocationOffset = PointCloud->LocationOffset;
 
 		const int32 BatchSize = 500000;
 		TArray<FLidarPointCloudFileIO_LAS_PointDataRecordFormat2> PointRecords;
@@ -973,10 +995,10 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAS(const FString& Filename, ULidar
 			FLidarPointCloudPoint* Data = Points->GetData();
 			for (FLidarPointCloudFileIO_LAS_PointDataRecordFormat2* Dest = PointRecordsPtr, *DestEnd = Dest + Points->Num(); Dest != DestEnd; ++Dest, ++Data)
 			{
-				FDoubleVector Location = (LocationOffset + (FVector)Data->Location) * ExportScale;
+				FVector Location = (LocationOffset + (FVector)Data->Location) * ExportScale;
 				Location.Y = -Location.Y;
 
-				Dest->Location = (ForwardScale * (Location - Min)).ToIntVector();
+				Dest->Location = FIntVector(ForwardScale * (Location - Min));
 				Dest->Intensity = (Data->Color.A << 8) + Data->Color.A;
 				Dest->Red = (Data->Color.R << 8) + Data->Color.R;
 				Dest->Green = (Data->Color.G << 8) + Data->Color.G;
@@ -999,8 +1021,8 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAZ(const FString& Filename, ULidar
 {
 	FLASZipWrapper LASZipWrapper;
 
-	FDoubleVector Min = PointCloud->GetPreciseBounds(false).Min;
-	FDoubleVector Max = PointCloud->GetPreciseBounds(false).Max;
+	FVector Min = PointCloud->GetBounds(false).Min;
+	FVector Max = PointCloud->GetBounds(false).Max;
 
 	// Flip Y
 	float MaxY = Max.Y;
@@ -1023,16 +1045,16 @@ bool ULidarPointCloudFileIO_LAS::HandleExportLAZ(const FString& Filename, ULidar
 	FLASZipPoint PointRecord;
 	FMemory::Memzero(&PointRecord, sizeof(FLASZipPoint));
 
-	const FDoubleVector Size = Max - Min;
-	const FDoubleVector ForwardScale(FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.X))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Y))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Z))));
-	const FDoubleVector LocationOffset = PointCloud->LocationOffset;
+	const FVector Size = Max - Min;
+	const FVector ForwardScale(FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.X))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Y))), FMath::Pow(2.0, 31 - FMath::CeilToInt(FMath::Log2(Size.Z))));
+	const FVector LocationOffset = PointCloud->LocationOffset;
 
 	PointCloud->ExecuteActionOnAllPoints([&PointRecord, &LASZipWrapper, &LocationOffset, &ExportScale, &Min, &ForwardScale](FLidarPointCloudPoint* Point)
 	{
-		FDoubleVector Location = (LocationOffset + (FVector)Point->Location) * ExportScale;
+		FVector Location = (LocationOffset + (FVector)Point->Location) * ExportScale;
 		Location.Y = -Location.Y;
 
-		PointRecord.Location = (ForwardScale * (Location - Min)).ToIntVector();
+		PointRecord.Location = FIntVector(ForwardScale * (Location - Min));
 		PointRecord.Intensity = Point->Color.A << 8;
 		PointRecord.rgb[0] = Point->Color.R << 8;
 		PointRecord.rgb[1] = Point->Color.G << 8;

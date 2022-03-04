@@ -83,7 +83,7 @@ struct LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudImportResults
 public:
 	TArray64<FLidarPointCloudPoint> Points;
 	FBox Bounds;
-	FDoubleVector OriginalCoordinates;
+	FVector OriginalCoordinates;
 
 	/** Contains the list of imported classification IDs */
 	TArray<uint8> ClassificationsImported;
@@ -96,14 +96,14 @@ private:
 	uint64 ProgressCounter;
 	uint64 TotalProgressCounter;
 	uint64 MaxProgressCounter;
-	TFunction<void(const FDoubleBox& Bounds, FDoubleVector)> InitCallback;
+	TFunction<void(const FBox& Bounds, FVector)> InitCallback;
 	TFunction<void(TArray64<FLidarPointCloudPoint>*)> BufferCallback;
 
 public:
 	FLidarPointCloudImportResults(FThreadSafeBool* bInCancelled = nullptr, TFunction<void(float)> InProgressCallback = TFunction<void(float)>());
-	FLidarPointCloudImportResults(FThreadSafeBool* bInCancelled, TFunction<void(float)> InProgressCallback, TFunction<void(const FDoubleBox& Bounds, FDoubleVector)> InInitCallback, TFunction<void(TArray64<FLidarPointCloudPoint>*)> InBufferCallback);
+	FLidarPointCloudImportResults(FThreadSafeBool* bInCancelled, TFunction<void(float)> InProgressCallback, TFunction<void(const FBox& Bounds, FVector)> InInitCallback, TFunction<void(TArray64<FLidarPointCloudPoint>*)> InBufferCallback);
 
-	void InitializeOctree(const FDoubleBox& InBounds);
+	void InitializeOctree(const FBox& InBounds);
 
 	void ProcessBuffer(TArray64<FLidarPointCloudPoint>* InPoints);
 

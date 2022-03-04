@@ -12,276 +12,6 @@ DECLARE_STATS_GROUP(TEXT("Lidar Point Cloud"), STATGROUP_LidarPointCloud, STATCA
 #define PC_WARNING(Format, ...) UE_LOG(LogLidarPointCloud, Warning, TEXT(Format), ##__VA_ARGS__)
 #define PC_ERROR(Format, ...) UE_LOG(LogLidarPointCloud, Error, TEXT(Format), ##__VA_ARGS__)
 
-#if !CPP
-USTRUCT(noexport)
-struct FDoubleVector
-{
-	UPROPERTY()
-	double X = 0.0;
-
-	UPROPERTY()
-	double Y = 0.0;
-
-	UPROPERTY()
-	double Z = 0.0;
-};
-#endif
-
-struct LIDARPOINTCLOUDRUNTIME_API FDoubleVector
-{
-	double X;
-	double Y;
-	double Z;
-
-	/** A zero vector (0,0,0) */
-	static const FDoubleVector ZeroVector;
-
-	/** One vector (1,1,1) */
-	static const FDoubleVector OneVector;
-
-	/** World up vector (0,0,1) */
-	static const FDoubleVector UpVector;
-
-	/** Unreal forward vector (1,0,0) */
-	static const FDoubleVector ForwardVector;
-
-	/** Unreal right vector (0,1,0) */
-	static const FDoubleVector RightVector;
-
-	FORCEINLINE FDoubleVector() {}
-
-	explicit FORCEINLINE FDoubleVector(double InD) : X(InD), Y(InD), Z(InD) {}
-
-	FORCEINLINE FDoubleVector(double InX, double InY, double InZ) : X(InX), Y(InY), Z(InZ) {}
-
-	FORCEINLINE FDoubleVector(const FVector& V) : X(V.X), Y(V.Y), Z(V.Z) {}
-
-	FORCEINLINE FDoubleVector operator-() const
-	{
-		return FDoubleVector(-X, -Y, -Z);
-	}
-
-	FORCEINLINE FDoubleVector operator+(const FDoubleVector& V) const
-	{
-		return FDoubleVector(X + V.X, Y + V.Y, Z + V.Z);
-	}
-
-	FORCEINLINE FDoubleVector operator-(const FDoubleVector& V) const
-	{
-		return FDoubleVector(X - V.X, Y - V.Y, Z - V.Z);
-	}
-
-	FORCEINLINE FDoubleVector operator+(const FVector& V) const
-	{
-		return FDoubleVector(X + V.X, Y + V.Y, Z + V.Z);
-	}
-
-	FORCEINLINE FDoubleVector operator-(const FVector& V) const
-	{
-		return FDoubleVector(X - V.X, Y - V.Y, Z - V.Z);
-	}
-
-	FORCEINLINE FDoubleVector operator+=(const FDoubleVector& V)
-	{
-		X += V.X; Y += V.Y; Z += V.Z;
-		return *this;
-	}
-
-	FORCEINLINE FDoubleVector operator-=(const FDoubleVector& V)
-	{
-		X -= V.X; Y -= V.Y; Z -= V.Z;
-		return *this;
-	}
-
-	FORCEINLINE FDoubleVector operator+=(const FVector& V)
-	{
-		X += V.X; Y += V.Y; Z += V.Z;
-		return *this;
-	}
-
-	FORCEINLINE FDoubleVector operator-=(const FVector& V)
-	{
-		X -= V.X; Y -= V.Y; Z -= V.Z;
-		return *this;
-	}
-
-	FORCEINLINE FDoubleVector operator*=(double Scale)
-	{
-		X *= Scale; Y *= Scale; Z *= Scale;
-		return *this;
-	}
-
-	FORCEINLINE FDoubleVector operator*(double Scale) const
-	{
-		return FDoubleVector(X * Scale, Y * Scale, Z * Scale);
-	}
-
-	FORCEINLINE FDoubleVector operator*(const FVector& V) const
-	{
-		return FDoubleVector(X * V.X, Y * V.Y, Z * V.Z);
-	}
-
-	FORCEINLINE FDoubleVector operator*(const FDoubleVector& V) const
-	{
-		return FDoubleVector(X * V.X, Y * V.Y, Z * V.Z);
-	}
-
-	FORCEINLINE FDoubleVector operator*(const FIntVector& V) const
-	{
-		return FDoubleVector(X * V.X, Y * V.Y, Z * V.Z);
-	}
-
-	FORCEINLINE FDoubleVector operator/(int32 Scale) const
-	{
-		return FDoubleVector(X / Scale, Y / Scale, Z / Scale);
-	}
-
-	FORCEINLINE FDoubleVector operator/(double Scale) const
-	{
-		return FDoubleVector(X / Scale, Y / Scale, Z / Scale);
-	}
-
-	FORCEINLINE FDoubleVector operator^(const FDoubleVector& V) const
-	{
-		return FDoubleVector
-		(
-			Y * V.Z - Z * V.Y,
-			Z * V.X - X * V.Z,
-			X * V.Y - Y * V.X
-		);
-	}
-
-	FORCEINLINE bool Equals(const FDoubleVector& V, float Tolerance = KINDA_SMALL_NUMBER) const
-	{
-		return FMath::Abs(X - V.X) <= Tolerance && FMath::Abs(Y - V.Y) <= Tolerance && FMath::Abs(Z - V.Z) <= Tolerance;
-	}
-
-	FORCEINLINE bool IsZero(float Tolerance = KINDA_SMALL_NUMBER) const
-	{
-		return Equals(FDoubleVector::ZeroVector, Tolerance);
-	}
-
-	FORCEINLINE bool IsNearlyZero(float Tolerance) const
-	{
-		return FMath::Abs(X) <= Tolerance && FMath::Abs(Y) <= Tolerance && FMath::Abs(Z) <= Tolerance;
-	}
-
-	FORCEINLINE float GetMax() const { return FMath::Max3(X, Y, Z); }
-
-	/** Ported solution from FQuat::RotateVector */
-	FORCEINLINE FDoubleVector RotateVector(const FQuat& Quat) const
-	{
-		const FDoubleVector V = *this;
-		const FDoubleVector Q(Quat.X, Quat.Y, Quat.Z);
-		const FDoubleVector T = (Q ^ V) * 2;
-		const FDoubleVector Result = V + (T * Quat.W) + (Q ^ T);
-		return Result;
-	}
-
-	FORCEINLINE FVector ToVector() const { return FVector(X, Y, Z); }
-	FORCEINLINE FIntVector ToIntVector() const { return FIntVector(X, Y, Z); }
-
-	FORCEINLINE FString ToString() const { return FString::Printf(TEXT("X=%f Y=%f Z=%f"), X, Y, Z); }
-
-	friend FArchive& operator<<(FArchive& Ar, FDoubleVector& V)
-	{
-		Ar << V.X << V.Y << V.Z;
-		return Ar;
-	}
-};
-
-/** Essentially a double-based version of FBox */
-struct LIDARPOINTCLOUDRUNTIME_API FDoubleBox
-{
-public:
-	FDoubleVector Min;
-	FDoubleVector Max;
-	uint8 IsValid;
-
-public:
-	FDoubleBox() { }
-	explicit FDoubleBox(EForceInit) { Init(); }
-	FDoubleBox(const FDoubleVector& InMin, const FDoubleVector& InMax) : Min(InMin), Max(InMax), IsValid(1) { }
-	FDoubleBox(const FBox& Box) : Min(Box.Min), Max(Box.Max), IsValid(1) { }
-
-public:
-	FORCEINLINE FDoubleBox& operator+=(const FDoubleVector& Other)
-	{
-		if (IsValid)
-		{
-			Min.X = FMath::Min(Min.X, Other.X);
-			Min.Y = FMath::Min(Min.Y, Other.Y);
-			Min.Z = FMath::Min(Min.Z, Other.Z);
-
-			Max.X = FMath::Max(Max.X, Other.X);
-			Max.Y = FMath::Max(Max.Y, Other.Y);
-			Max.Z = FMath::Max(Max.Z, Other.Z);
-		}
-		else
-		{
-			Min = Max = Other;
-			IsValid = 1;
-		}
-
-		return *this;
-	}
-	FORCEINLINE FDoubleBox operator+(const FDoubleVector& Other) const
-	{
-		return FDoubleBox(*this) += Other;
-	}
-	FORCEINLINE FDoubleBox& operator+=(const FDoubleBox& Other)
-	{
-		if (IsValid && Other.IsValid)
-		{
-			Min.X = FMath::Min(Min.X, Other.Min.X);
-			Min.Y = FMath::Min(Min.Y, Other.Min.Y);
-			Min.Z = FMath::Min(Min.Z, Other.Min.Z);
-
-			Max.X = FMath::Max(Max.X, Other.Max.X);
-			Max.Y = FMath::Max(Max.Y, Other.Max.Y);
-			Max.Z = FMath::Max(Max.Z, Other.Max.Z);
-		}
-		else if (Other.IsValid)
-		{
-			*this = Other;
-		}
-
-		return *this;
-	}
-	FORCEINLINE FDoubleBox operator+(const FDoubleBox& Other) const
-	{
-		return FDoubleBox(*this) += Other;
-	}
-
-public:
-	FORCEINLINE FDoubleBox ShiftBy(const FDoubleVector& Offset) const { return FDoubleBox(Min + Offset, Max + Offset); }
-	FORCEINLINE FDoubleVector GetCenter() const { return FDoubleVector((Min + Max) * 0.5f); }
-	FORCEINLINE FDoubleVector GetExtent() const { return (Max - Min) * 0.5f; }
-	FORCEINLINE FDoubleVector GetSize() const { return (Max - Min); }
-
-public:
-	FORCEINLINE void Init()
-	{
-		Min = Max = FDoubleVector::ZeroVector;
-		IsValid = 0;
-	}
-
-	FORCEINLINE FDoubleBox& FlipY()
-	{
-		const double Tmp = Min.Y;
-		Min.Y = -Max.Y;
-		Max.Y = -Tmp;
-		return *this;
-	}
-
-	FORCEINLINE FBox ToBox() const { return FBox(Min.ToVector(), Max.ToVector()); }
-
-	FORCEINLINE FString ToString() const
-	{
-		return FString::Printf(TEXT("IsValid=%s, Min=(%s), Max=(%s)"), IsValid ? TEXT("true") : TEXT("false"), *Min.ToString(), *Max.ToString());
-	}
-};
-
 #pragma pack(push)
 #pragma pack(1)
 /** 3D vector represented using only a single byte per component */
@@ -579,6 +309,7 @@ public:
 	{
 		SetDirection(Direction);
 	}
+	FLidarPointCloudRay(const FVector& Origin, const FVector& Direction) : FLidarPointCloudRay((FVector3f)Origin, (FVector3f)Direction) {}
 
 	static FORCEINLINE FLidarPointCloudRay FromLocations(const FVector3f& Origin, const FVector3f& Destination)
 	{
@@ -593,11 +324,15 @@ public:
 	}
 	FLidarPointCloudRay TransformBy(const FTransform& Transform) const
 	{
-		return FLidarPointCloudRay((FVector3f)Transform.TransformPosition((FVector)Origin), (FVector3f)Transform.TransformVector((FVector)Direction));
+		return FLidarPointCloudRay(Transform.TransformPosition((FVector)Origin), Transform.TransformVector((FVector)Direction));
 	}
 	FORCEINLINE FLidarPointCloudRay ShiftBy(const FVector3f& Offset) const
 	{
 		return FLidarPointCloudRay(Origin + Offset, Direction);
+	}
+	FORCEINLINE FLidarPointCloudRay ShiftBy(const FVector& Offset) const
+	{
+		return FLidarPointCloudRay(Origin + (FVector3f)Offset, Direction);
 	}
 
 	FORCEINLINE FVector3f GetDirection() const { return Direction; }

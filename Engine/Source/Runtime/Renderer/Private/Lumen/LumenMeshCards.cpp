@@ -244,10 +244,10 @@ struct FLumenMeshCardsGPUData
 void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards, FVector4f* RESTRICT OutData)
 {
 	// Note: layout must match GetLumenMeshCardsData in usf
-	const FVector3f WorldOrigin = MeshCards.LocalToWorld.GetOrigin();
-	OutData[0] = FVector4f(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::X), WorldOrigin.X);
-	OutData[1] = FVector4f(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Y), WorldOrigin.Y);
-	OutData[2] = FVector4f(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Z), WorldOrigin.Z);
+	const FVector WorldOrigin = MeshCards.LocalToWorld.GetOrigin();
+	OutData[0] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::X), WorldOrigin.X));
+	OutData[1] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Y), WorldOrigin.Y));
+	OutData[2] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Z), WorldOrigin.Z));
 
 	uint32 PackedData[4];
 	PackedData[0] = MeshCards.FirstCardIndex;
@@ -265,8 +265,8 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 
 	// Small (world space) epsilon to handle arithmetic errors during surface cache sampling
 	const float SamplingEps = 0.01f;
-	const FVector3f MinMeshCardsPosition = MeshCards.LocalBounds.Min * MeshCards.LocalToWorldScale + SamplingEps;
-	const FVector3f MaxMeshCardsPosition = MeshCards.LocalBounds.Max * MeshCards.LocalToWorldScale - SamplingEps;
+	const FVector3f MinMeshCardsPosition = FVector3f(MeshCards.LocalBounds.Min) * MeshCards.LocalToWorldScale + SamplingEps;
+	const FVector3f MaxMeshCardsPosition = FVector3f(MeshCards.LocalBounds.Max) * MeshCards.LocalToWorldScale - SamplingEps;
 	OutData[5] = FVector4f(MinMeshCardsPosition, 0.0f);
 	OutData[6] = FVector4f(MaxMeshCardsPosition, 0.0f);
 
@@ -1004,9 +1004,9 @@ void FLumenCard::SetTransform(const FMatrix44f& LocalToWorld, const FLumenMeshCa
 {
 	WorldOBB = LocalOBB.Transform(LocalToWorld);
 
-	MeshCardsOBB.AxisX = FVector4f(MeshCards.WorldToLocalRotation.TransformVector(WorldOBB.AxisX));
-	MeshCardsOBB.AxisY = FVector4f(MeshCards.WorldToLocalRotation.TransformVector(WorldOBB.AxisY));
-	MeshCardsOBB.AxisZ = FVector4f(MeshCards.WorldToLocalRotation.TransformVector(WorldOBB.AxisZ));
+	MeshCardsOBB.AxisX = FVector4f(MeshCards.WorldToLocalRotation.TransformVector(FVector(WorldOBB.AxisX)));
+	MeshCardsOBB.AxisY = FVector4f(MeshCards.WorldToLocalRotation.TransformVector(FVector(WorldOBB.AxisY)));
+	MeshCardsOBB.AxisZ = FVector4f(MeshCards.WorldToLocalRotation.TransformVector(FVector(WorldOBB.AxisZ)));
 	MeshCardsOBB.Origin = LocalOBB.Origin * MeshCards.LocalToWorldScale;
 	MeshCardsOBB.Extent = LocalOBB.RotateCardToLocal(LocalOBB.Extent).GetAbs() * MeshCards.LocalToWorldScale;
 }
@@ -1031,10 +1031,10 @@ void FLumenMeshCards::UpdateLookup(const TSparseSpanArray<FLumenCard>& Cards)
 void FLumenMeshCards::SetTransform(const FMatrix& InLocalToWorld)
 {
 	LocalToWorld = InLocalToWorld;
-	LocalToWorldScale = LocalToWorld.GetScaleVector();
+	LocalToWorldScale = FVector3f(LocalToWorld.GetScaleVector());
 
 	WorldToLocalRotation = LocalToWorld;
 	WorldToLocalRotation.RemoveScaling();
-	WorldToLocalRotation.SetOrigin(FVector3f(0.0f, 0.0f, 0.0f));
+	WorldToLocalRotation.SetOrigin(FVector::ZeroVector);
 	WorldToLocalRotation = WorldToLocalRotation.GetTransposed();
 }

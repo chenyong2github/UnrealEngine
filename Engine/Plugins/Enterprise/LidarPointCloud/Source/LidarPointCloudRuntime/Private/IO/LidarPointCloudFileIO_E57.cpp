@@ -16,7 +16,7 @@
 #pragma pack(1)
 struct FE57Point
 {
-	FDoubleVector Location;
+	FVector Location;
 	FColor Color;
 };
 #pragma pack(pop)
@@ -92,16 +92,16 @@ public:
 		}
 	}
 
-	FDoubleBox GetBounds(uint32 ScanID)
+	FBox GetBounds(uint32 ScanID)
 	{
 		if (ImageFile)
 		{
-			LOADFUNC(FDoubleBox, GetBounds, void*, uint32);
+			LOADFUNC(FBox, GetBounds, void*, uint32);
 			return hGetBounds(ImageFile, ScanID);
 		}
 		else
 		{
-			return FDoubleBox(EForceInit::ForceInit);
+			return FBox(EForceInit::ForceInit);
 		}
 	}
 
@@ -118,11 +118,11 @@ public:
 		}
 	}
 
-	void GetFirstLocation(FDoubleVector& OutLocation, FE57PoseTransform& OutTransform)
+	void GetFirstLocation(FVector& OutLocation, FE57PoseTransform& OutTransform)
 	{
 		if (ImageFile)
 		{
-			LOADFUNC(void, GetFirstLocation, void*, FDoubleVector&, FE57PoseTransform&);
+			LOADFUNC(void, GetFirstLocation, void*, FVector&, FE57PoseTransform&);
 			return hGetFirstLocation(ImageFile, OutLocation, OutTransform);
 		}
 	}
@@ -192,8 +192,8 @@ bool ULidarPointCloudFileIO_E57::HandleImport(const FString& Filename, TSharedPt
 	{
 		FE57PoseTransform Transform;
 		Reader.GetFirstLocation(OutImportResults.OriginalCoordinates, Transform);
-
-		OutImportResults.OriginalCoordinates = (OutImportResults.OriginalCoordinates.RotateVector(Transform.Rotation) + Transform.Translation) * ImportScale;
+		
+		OutImportResults.OriginalCoordinates = (Transform.Rotation.RotateVector(OutImportResults.OriginalCoordinates) + Transform.Translation) * ImportScale;
 		OutImportResults.OriginalCoordinates.Y = -OutImportResults.OriginalCoordinates.Y;
 	}
 
@@ -220,14 +220,14 @@ bool ULidarPointCloudFileIO_E57::HandleImport(const FString& Filename, TSharedPt
 				for (FE57Point* Data = (FE57Point*)ThreadBuffer->GetData(), *DataEnd = Data + NumPointsRead; Data != DataEnd; ++Data)
 				{
 					// Apply transformations
-					Data->Location = (Data->Location.RotateVector(Transform.Rotation) + Transform.Translation) * ImportScale;
+					Data->Location = (Transform.Rotation.RotateVector(Data->Location) + Transform.Translation) * ImportScale;
 					Data->Location.Y = -Data->Location.Y;
 
 					// Shift to protect from precision loss
 					Data->Location -= OutImportResults.OriginalCoordinates;
 
 					// Convert location to floats
-					const FVector ProcessedLocation = Data->Location.ToVector();
+					const FVector ProcessedLocation = Data->Location;
 
 					Bounds += ProcessedLocation;
 

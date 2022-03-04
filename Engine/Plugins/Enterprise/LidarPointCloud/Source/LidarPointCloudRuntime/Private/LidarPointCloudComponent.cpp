@@ -255,7 +255,7 @@ void FLidarPointCloudComponentRenderParams::UpdateFromComponent(ULidarPointCloud
 	BoundsSize.Y = FMath::Max(BoundsSize.Y, 0.001f);
 	BoundsSize.Z = FMath::Max(BoundsSize.Z, 0.001f);
 
-	LocationOffset = (FVector3f)Component->GetPointCloud()->GetLocationOffset().ToVector();
+	LocationOffset = (FVector3f)Component->GetPointCloud()->LocationOffset;
 	ComponentScale = Component->GetComponentScale().GetAbsMax();
 
 	PointSize = Component->PointSize;

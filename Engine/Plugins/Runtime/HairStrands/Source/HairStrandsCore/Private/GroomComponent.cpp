@@ -1868,9 +1868,9 @@ FBoxSphereBounds UGroomComponent::CalcBounds(const FTransform& InLocalToWorld) c
 				FBoxSphereBounds RestBounds;
 				SkeletalMeshComponent->GetPreSkinnedLocalBounds(RestBounds);
 				const FBox RestBox = RestBounds.GetBox();
-				const FVector3f MinDiff = LocalHairBound.Min - RestBox.Min;
-				const FVector3f MaxDiff = LocalHairBound.Max - RestBox.Max;
-				BoundExtraRadius = FMath::Max3(0.f, FMath::Max3(MinDiff.X, MinDiff.Y, MinDiff.Z), FMath::Max3(MaxDiff.X, MaxDiff.Y, MaxDiff.Z));
+				const FVector MinDiff = LocalHairBound.Min - RestBox.Min;
+				const FVector MaxDiff = LocalHairBound.Max - RestBox.Max;
+				BoundExtraRadius = static_cast<float>(FMath::Max3(0.0, FMath::Max3(MinDiff.X, MinDiff.Y, MinDiff.Z), FMath::Max3(MaxDiff.X, MaxDiff.Y, MaxDiff.Z)));
 			}
 			
 			FBox LocalBound(EForceInit::ForceInitToZero);

@@ -146,9 +146,9 @@ namespace Chaos
 		const TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC)
 	{
 		// Note: deliberately using scaled transform
-		OutA = Transform.TransformPosition(Particles.X(Elements[TriIdx][0]));
-		OutB = Transform.TransformPosition(Particles.X(Elements[TriIdx][1]));
-		OutC = Transform.TransformPosition(Particles.X(Elements[TriIdx][2]));
+		OutA = Transform.TransformPosition(FVector(Particles.X(Elements[TriIdx][0])));
+		OutB = Transform.TransformPosition(FVector(Particles.X(Elements[TriIdx][1])));
+		OutC = Transform.TransformPosition(FVector(Particles.X(Elements[TriIdx][2])));
 	}
 
 

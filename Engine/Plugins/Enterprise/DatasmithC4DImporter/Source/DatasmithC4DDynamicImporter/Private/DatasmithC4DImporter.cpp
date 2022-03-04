@@ -3677,7 +3677,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DDynamicImporter::ImportMesh(cinew
 		// We count on this check when creating polygons
 		check(NewVertexID.GetValue() == PointIndex);
 
-		VertexPositions[NewVertexID] = ConvertMelangePosition(Points[PointIndex]);
+		VertexPositions[NewVertexID] = FVector3f(ConvertMelangePosition(Points[PointIndex]));
 	}
 
 	// Create one material slot per polygon selection tag (including the "unselected" group)
@@ -3737,7 +3737,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DDynamicImporter::ImportMesh(cinew
 				FVertexID VertID = VerticesForPolygon[TriangleIndex * 3 + VertexIndex];
 
 				TriangleVertices[VertexIndex] = VertID;
-				TriangleVertexPositions[VertexIndex] = VertexPositions[VertID];
+				TriangleVertexPositions[VertexIndex] = FVector(VertexPositions[VertID]);
 			}
 
 			// Check if those vertices lead to degenerate triangles first, to prevent us from ever adding unused data to the MeshDescription
@@ -3767,7 +3767,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DDynamicImporter::ImportMesh(cinew
 				FVertexInstanceID& VertInstanceID = VertexInstances[VertexCount];
 				int32 VertexIDInQuad = (*IndexOffsets)[VertexCount];
 
-				VertexInstanceNormals.Set(VertInstanceID, QuadNormals[VertexIDInQuad]);
+				VertexInstanceNormals.Set(VertInstanceID, FVector3f(QuadNormals[VertexIDInQuad]));
 			}
 		}
 

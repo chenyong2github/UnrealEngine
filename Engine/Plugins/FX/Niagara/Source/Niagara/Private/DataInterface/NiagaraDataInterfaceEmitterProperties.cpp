@@ -437,8 +437,8 @@ void UNiagaraDataInterfaceEmitterProperties::VMSetFixedBounds(FVectorVMExternalF
 		{
 			FBox FixedBounds;
 			FixedBounds.IsValid = InIsValid.GetAndAdvance();
-			FixedBounds.Min = InMin.GetAndAdvance();
-			FixedBounds.Max = InMax.GetAndAdvance();
+			FixedBounds.Min = FVector(InMin.GetAndAdvance());
+			FixedBounds.Max = FVector(InMax.GetAndAdvance());
 			const bool bExecute = InExecute.GetAndAdvance();
 			if (bExecute)
 			{
