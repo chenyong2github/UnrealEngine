@@ -10,7 +10,7 @@
  * Simulates a single position over time using Verlet integration. It is recommended to use SpringInterp instead as it
  * is more accurate and stable, and has more meaningful parameters.
  */
-USTRUCT(meta=(DisplayName="Verlet (Vector)", Category = "Simulation|Springs", PrototypeName="Verlet", Keywords="Simulate,Integrate"))
+USTRUCT(meta=(DisplayName="Verlet (Vector)", Category = "Simulation|Springs", TemplateName="Verlet", Keywords="Simulate,Integrate"))
 struct CONTROLRIG_API FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 {
 	GENERATED_BODY()

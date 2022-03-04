@@ -99,7 +99,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolConstFalse : public FRigUnit_MathBoolCons
 /**
  * Returns true if the condition is false
  */
-USTRUCT(meta=(DisplayName="Not", PrototypeName="Not", Keywords="!"))
+USTRUCT(meta=(DisplayName="Not", TemplateName="Not", Keywords="!"))
 struct CONTROLRIG_API FRigUnit_MathBoolNot : public FRigUnit_MathBoolUnaryOp
 {
 	GENERATED_BODY()
@@ -111,7 +111,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolNot : public FRigUnit_MathBoolUnaryOp
 /**
  * Returns true if both conditions are true
  */
-USTRUCT(meta=(DisplayName="And", PrototypeName="And", Keywords="&&"))
+USTRUCT(meta=(DisplayName="And", TemplateName="And", Keywords="&&"))
 struct CONTROLRIG_API FRigUnit_MathBoolAnd : public FRigUnit_MathBoolBinaryOp
 {
 	GENERATED_BODY()
@@ -123,7 +123,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolAnd : public FRigUnit_MathBoolBinaryOp
 /**
  * Returns true if both conditions are false
  */
-USTRUCT(meta=(DisplayName="Nand", PrototypeName="Nand"))
+USTRUCT(meta=(DisplayName="Nand", TemplateName="Nand"))
 struct CONTROLRIG_API FRigUnit_MathBoolNand : public FRigUnit_MathBoolBinaryOp
 {
 	GENERATED_BODY()
@@ -135,7 +135,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolNand : public FRigUnit_MathBoolBinaryOp
 /**
  * Returns true if one of the conditions is true
  */
-USTRUCT(meta=(DisplayName="Or", PrototypeName="Or", Keywords="||"))
+USTRUCT(meta=(DisplayName="Or", TemplateName="Or", Keywords="||"))
 struct CONTROLRIG_API FRigUnit_MathBoolOr : public FRigUnit_MathBoolBinaryOp
 {
 	GENERATED_BODY()
@@ -147,7 +147,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolOr : public FRigUnit_MathBoolBinaryOp
 /**
  * Returns true if the value A equals B
  */
-USTRUCT(meta=(DisplayName="Equals", PrototypeName="Equals", Keywords="Same,=="))
+USTRUCT(meta=(DisplayName="Equals", TemplateName="Equals", Keywords="Same,=="))
 struct CONTROLRIG_API FRigUnit_MathBoolEquals : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
@@ -173,7 +173,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolEquals : public FRigUnit_MathBoolBase
 /**
  * Returns true if the value A does not equal B
  */
-USTRUCT(meta=(DisplayName="Not Equals", PrototypeName="NotEquals", Keywords="Different,!=,Xor"))
+USTRUCT(meta=(DisplayName="Not Equals", TemplateName="NotEquals", Keywords="Different,!=,Xor"))
 struct CONTROLRIG_API FRigUnit_MathBoolNotEquals : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()
@@ -199,7 +199,7 @@ struct CONTROLRIG_API FRigUnit_MathBoolNotEquals : public FRigUnit_MathBoolBase
 /**
 * Returns true if the value has changed from the last run
 */
-USTRUCT(meta=(DisplayName="Toggled", PrototypeName="Toggled", Keywords="Changed,Different"))
+USTRUCT(meta=(DisplayName="Toggled", TemplateName="Toggled", Keywords="Changed,Different"))
 struct CONTROLRIG_API FRigUnit_MathBoolToggled : public FRigUnit_MathBoolBase
 {
 	GENERATED_BODY()

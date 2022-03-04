@@ -8,7 +8,7 @@
 /**
  * Computes the difference from the previous value going through the node
  */
-USTRUCT(meta=(DisplayName="DeltaFromPrevious (Float)", Category = "Simulation|Time", PrototypeName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
+USTRUCT(meta=(DisplayName="DeltaFromPrevious (Float)", Category = "Simulation|Time", TemplateName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
 struct CONTROLRIG_API FRigUnit_DeltaFromPreviousFloat : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
@@ -37,7 +37,7 @@ struct CONTROLRIG_API FRigUnit_DeltaFromPreviousFloat : public FRigUnit_SimBase
 /**
  * Computes the difference from the previous value going through the node
  */
-USTRUCT(meta=(DisplayName="DeltaFromPrevious (Vector)", Category = "Simulation|Time", PrototypeName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
+USTRUCT(meta=(DisplayName="DeltaFromPrevious (Vector)", Category = "Simulation|Time", TemplateName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
 struct CONTROLRIG_API FRigUnit_DeltaFromPreviousVector : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
@@ -66,7 +66,7 @@ struct CONTROLRIG_API FRigUnit_DeltaFromPreviousVector : public FRigUnit_SimBase
 /**
  * Computes the difference from the previous value going through the node
  */
-USTRUCT(meta=(DisplayName="DeltaFromPrevious (Quaternion)", Category = "Simulation|Time", PrototypeName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
+USTRUCT(meta=(DisplayName="DeltaFromPrevious (Quaternion)", Category = "Simulation|Time", TemplateName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
 struct CONTROLRIG_API FRigUnit_DeltaFromPreviousQuat : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
@@ -95,7 +95,7 @@ struct CONTROLRIG_API FRigUnit_DeltaFromPreviousQuat : public FRigUnit_SimBase
 /**
  * Computes the difference from the previous value going through the node
  */
-USTRUCT(meta=(DisplayName="DeltaFromPrevious (Transform)", Category = "Simulation|Time", PrototypeName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
+USTRUCT(meta=(DisplayName="DeltaFromPrevious (Transform)", Category = "Simulation|Time", TemplateName="DeltaFromPrevious", Keywords="Difference,Velocity,Acceleration"))
 struct CONTROLRIG_API FRigUnit_DeltaFromPreviousTransform : public FRigUnit_SimBase
 {
 	GENERATED_BODY()

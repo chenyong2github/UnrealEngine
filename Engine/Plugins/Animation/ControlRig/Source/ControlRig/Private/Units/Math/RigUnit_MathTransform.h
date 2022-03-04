@@ -59,7 +59,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformBinaryOp : public FRigUnit_MathTrans
 /**
  * Makes a quaternion based transform from a euler based transform
  */
-USTRUCT(meta=(DisplayName="From Euler Transform", PrototypeName="FromEulerTransform", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="From Euler Transform", TemplateName="FromEulerTransform", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransform : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -83,7 +83,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromEulerTransform : public FRigUnit
 /**
  * Retrieves a euler based transform from a quaternion based transform
  */
-USTRUCT(meta=(DisplayName="To Euler Transform", PrototypeName="ToEulerTransform", Keywords="Make,Construct"))
+USTRUCT(meta=(DisplayName="To Euler Transform", TemplateName="ToEulerTransform", Keywords="Make,Construct"))
 struct CONTROLRIG_API FRigUnit_MathTransformToEulerTransform : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -107,7 +107,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformToEulerTransform : public FRigUnit_M
 /**
  * Returns the product of the two values
  */
-USTRUCT(meta=(DisplayName="Multiply", PrototypeName="Multiply", Keywords="Product,*,Global"))
+USTRUCT(meta=(DisplayName="Multiply", TemplateName="Multiply", Keywords="Product,*,Global"))
 struct CONTROLRIG_API FRigUnit_MathTransformMul : public FRigUnit_MathTransformBinaryOp
 {
 	GENERATED_BODY()
@@ -118,7 +118,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformMul : public FRigUnit_MathTransformB
 /**
  * Returns the relative local transform within a parent's transform
  */
-USTRUCT(meta=(DisplayName="Make Relative", PrototypeName="MakeRelative", Keywords="Local,Global,Absolute"))
+USTRUCT(meta=(DisplayName="Make Relative", TemplateName="MakeRelative", Keywords="Local,Global,Absolute"))
 struct CONTROLRIG_API FRigUnit_MathTransformMakeRelative : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -144,7 +144,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformMakeRelative : public FRigUnit_MathT
 /**
  * Returns the absolute global transform within a parent's transform
  */
-USTRUCT(meta = (DisplayName = "Make Absolute", PrototypeName = "MakeAbsolute", Keywords = "Local,Global,Relative"))
+USTRUCT(meta = (DisplayName = "Make Absolute", TemplateName="MakeAbsolute", Keywords = "Local,Global,Relative"))
 struct CONTROLRIG_API FRigUnit_MathTransformMakeAbsolute : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -214,7 +214,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformAccumulateArray : public FRigUnit_Ma
 /**
  * Returns the negative value
  */
-USTRUCT(meta=(DisplayName="Inverse", PrototypeName="Inverse"))
+USTRUCT(meta=(DisplayName="Inverse", TemplateName="Inverse"))
 struct CONTROLRIG_API FRigUnit_MathTransformInverse : public FRigUnit_MathTransformUnaryOp
 {
 	GENERATED_BODY()
@@ -225,7 +225,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformInverse : public FRigUnit_MathTransf
 /**
  * Linearly interpolates between A and B using the ratio T
  */
-USTRUCT(meta=(DisplayName="Interpolate", PrototypeName="Interpolate", Keywords="Lerp,Mix,Blend"))
+USTRUCT(meta=(DisplayName="Interpolate", TemplateName="Interpolate", Keywords="Lerp,Mix,Blend"))
 struct CONTROLRIG_API FRigUnit_MathTransformLerp : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -255,7 +255,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformLerp : public FRigUnit_MathTransform
 /**
  * Return one of the two values based on the condition
  */
-USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
+USTRUCT(meta=(DisplayName="Select", TemplateName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
 struct CONTROLRIG_API FRigUnit_MathTransformSelectBool : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -288,7 +288,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformSelectBool : public FRigUnit_MathTra
 /**
  * Rotates a given vector (direction) by the transform
  */
-USTRUCT(meta=(DisplayName="Transform Direction", PrototypeName="Rotate", Keywords="Transform,Direction"))
+USTRUCT(meta=(DisplayName="Transform Direction", TemplateName="Rotate", Keywords="Transform,Direction"))
 struct CONTROLRIG_API FRigUnit_MathTransformRotateVector : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -315,7 +315,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformRotateVector : public FRigUnit_MathT
 /**
  * Rotates a given vector (location) by the transform
  */
-USTRUCT(meta=(DisplayName="Transform Location", PrototypeName="Multiply"))
+USTRUCT(meta=(DisplayName="Transform Location", TemplateName="Multiply"))
 struct CONTROLRIG_API FRigUnit_MathTransformTransformVector : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()
@@ -382,7 +382,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromSRT : public FRigUnit_MathTransf
 /**
  * Clamps a position using a plane collision, cylindric collision or spherical collision.
  */
-USTRUCT(meta = (DisplayName = "Clamp Spatially", PrototypeName = "ClampSpatially", Keywords = "Collide,Collision"))
+USTRUCT(meta = (DisplayName = "Clamp Spatially", TemplateName="ClampSpatially", Keywords = "Collide,Collision"))
 struct CONTROLRIG_API FRigUnit_MathTransformClampSpatially : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()

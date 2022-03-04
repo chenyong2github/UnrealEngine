@@ -9,7 +9,7 @@
 /**
  * Uses a simple spring model to interpolate a float from Current to Target.
  */
-USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate", PrototypeName = "SpringInterp", Deprecated="5.0"))
+USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate", TemplateName="SpringInterp", Deprecated="5.0"))
 struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
@@ -54,7 +54,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
 /**
  * Uses a simple spring model to interpolate a vector from Current to Target.
  */
-USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate", PrototypeName = "SpringInterp", MenuDescSuffix = "(Vector)", Deprecated="5.0"))
+USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate", TemplateName="SpringInterp", MenuDescSuffix = "(Vector)", Deprecated="5.0"))
 struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
@@ -99,7 +99,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
 /**
  * Uses a simple spring model to interpolate a float from Current to Target.
  */
-USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate,Verlet", Category = "Simulation|Springs", PrototypeName = "SpringInterp"))
+USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate,Verlet", Category = "Simulation|Springs", TemplateName="SpringInterp"))
 struct CONTROLRIG_API FRigUnit_SpringInterpV2 : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
@@ -189,7 +189,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterpV2 : public FRigUnit_SimBase
 /**
  * Uses a simple spring model to interpolate a vector from Current to Target.
  */
-USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate,Verlet", Category = "Simulation|Springs", PrototypeName = "SpringInterp", MenuDescSuffix = "(Vector)"))
+USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate,Verlet", Category = "Simulation|Springs", TemplateName="SpringInterp", MenuDescSuffix = "(Vector)"))
 struct CONTROLRIG_API FRigUnit_SpringInterpVectorV2 : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
@@ -279,7 +279,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVectorV2 : public FRigUnit_SimBase
 /**
  * Uses a simple spring model to interpolate a quaternion from Current to Target.
  */
-USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate,Verlet", Category = "Simulation|Springs", PrototypeName = "SpringInterp", MenuDescSuffix = "(Quaternion)"))
+USTRUCT(meta=(DisplayName="Spring Interpolate", Keywords="Alpha,SpringInterpolate,Verlet", Category = "Simulation|Springs", TemplateName="SpringInterp", MenuDescSuffix = "(Quaternion)"))
 struct CONTROLRIG_API FRigUnit_SpringInterpQuaternionV2 : public FRigUnit_SimBase
 {
 	GENERATED_BODY()

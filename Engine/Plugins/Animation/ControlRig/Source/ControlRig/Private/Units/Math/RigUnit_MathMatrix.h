@@ -173,7 +173,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixFromVectors : public FRigUnit_MathMatri
 /**
  * Returns the product of the two values
  */
-USTRUCT(meta=(DisplayName="Multiply", PrototypeName="Multiply", Keywords="Product,*,Global"))
+USTRUCT(meta=(DisplayName="Multiply", TemplateName="Multiply", Keywords="Product,*,Global"))
 struct CONTROLRIG_API FRigUnit_MathMatrixMul : public FRigUnit_MathMatrixBinaryOp
 {
 	GENERATED_BODY()
@@ -184,7 +184,7 @@ struct CONTROLRIG_API FRigUnit_MathMatrixMul : public FRigUnit_MathMatrixBinaryO
 /**
  * Returns the inverse value
  */
-USTRUCT(meta=(DisplayName="Inverse", PrototypeName="Inverse"))
+USTRUCT(meta=(DisplayName="Inverse", TemplateName="Inverse"))
 struct CONTROLRIG_API FRigUnit_MathMatrixInverse : public FRigUnit_MathMatrixUnaryOp
 {
 	GENERATED_BODY()

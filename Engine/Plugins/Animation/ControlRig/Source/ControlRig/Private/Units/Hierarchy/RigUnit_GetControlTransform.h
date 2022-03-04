@@ -8,7 +8,7 @@
 /**
  * GetControlBool is used to retrieve a single Bool from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Bool", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlBool", PrototypeName = "GetControlValue", NodeColor="0.462745, 1,0, 0.329412",Varying))
+USTRUCT(meta=(DisplayName="Get Control Bool", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlBool", TemplateName="GetControlValue", NodeColor="0.462745, 1,0, 0.329412",Varying))
 struct CONTROLRIG_API FRigUnit_GetControlBool : public FRigUnit
 {
 	GENERATED_BODY()
@@ -39,7 +39,7 @@ struct CONTROLRIG_API FRigUnit_GetControlBool : public FRigUnit
 /**
  * GetControlFloat is used to retrieve a single Float from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Float", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlFloat", PrototypeName = "GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="Get Control Float", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlFloat", TemplateName="GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_GetControlFloat : public FRigUnit
 {
 	GENERATED_BODY()
@@ -80,7 +80,7 @@ struct CONTROLRIG_API FRigUnit_GetControlFloat : public FRigUnit
 /**
  * GetControlFloat is used to retrieve a single Integer from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Integer", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlInteger,GetControlEnum", PrototypeName = "GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="Get Control Integer", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlInteger,GetControlEnum", TemplateName="GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_GetControlInteger : public FRigUnit
 {
 	GENERATED_BODY()
@@ -121,7 +121,7 @@ struct CONTROLRIG_API FRigUnit_GetControlInteger : public FRigUnit
 /**
  * GetControlVector2D is used to retrieve a single Vector2D from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Vector2D", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlVector2D", PrototypeName = "GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="Get Control Vector2D", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlVector2D", TemplateName="GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_GetControlVector2D : public FRigUnit
 {
 	GENERATED_BODY()
@@ -162,7 +162,7 @@ struct CONTROLRIG_API FRigUnit_GetControlVector2D : public FRigUnit
 /**
  * GetControlVector is used to retrieve a single Vector from a hierarchy, can be used for Controls of type "Position" or "Scale".
  */
-USTRUCT(meta=(DisplayName="Get Control Vector", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlVector, GetControlPosition, GetControlScale", PrototypeName = "GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="Get Control Vector", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlVector, GetControlPosition, GetControlScale", TemplateName="GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_GetControlVector : public FRigUnit
 {
 	GENERATED_BODY()
@@ -211,7 +211,7 @@ struct CONTROLRIG_API FRigUnit_GetControlVector : public FRigUnit
 /**
  * GetControlRotator is used to retrieve a single Rotator from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Rotator", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlRotator", PrototypeName = "GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="Get Control Rotator", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlRotator", TemplateName="GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_GetControlRotator : public FRigUnit
 {
 	GENERATED_BODY()
@@ -261,7 +261,7 @@ struct CONTROLRIG_API FRigUnit_GetControlRotator : public FRigUnit
 /**
  * GetControlTransform is used to retrieve a single transform from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Control Transform", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlTransform", PrototypeName = "GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
+USTRUCT(meta=(DisplayName="Get Control Transform", Category="Controls", DocumentationPolicy = "Strict", Keywords="GetControlTransform", TemplateName="GetControlValue", NodeColor="0.462745, 1,0, 0.329412", Varying))
 struct CONTROLRIG_API FRigUnit_GetControlTransform : public FRigUnit
 {
 	GENERATED_BODY()

@@ -5,7 +5,7 @@
 #include "UObject/UObjectIterator.h"
 
 FRigVMRegistry FRigVMRegistry::s_RigVMRegistry;
-const FName FRigVMRegistry::TemplateNameMetaName = TEXT("PrototypeName");
+const FName FRigVMRegistry::TemplateNameMetaName = TEXT("TemplateName");
 
 FRigVMRegistry& FRigVMRegistry::Get()
 {
