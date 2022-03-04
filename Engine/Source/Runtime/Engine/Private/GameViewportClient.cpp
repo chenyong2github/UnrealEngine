@@ -801,7 +801,7 @@ bool UGameViewportClient::InputTouch(FViewport* InViewport, int32 ControllerId, 
 
 bool UGameViewportClient::InputMotion(FViewport* InViewport, int32 ControllerId, const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration)
 {
-	if (IgnoreInput())
+	if (IgnoreInput() || !GetDefault<UInputSettings>()->bEnableMotionControls)
 	{
 		return false;
 	}

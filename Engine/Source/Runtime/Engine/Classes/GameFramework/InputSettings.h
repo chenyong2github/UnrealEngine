@@ -57,6 +57,16 @@ class ENGINE_API UInputSettings
 	UPROPERTY(config, EditAnywhere, Category = "Input")
 	uint8 bEnableLegacyInputScales:1;
 	
+	/**
+	 * If set to false, then the player controller's InputMotion function will never be called.
+	 * This will effectively disable any motion input (tilt, rotation, acceleration, etc) on
+	 * the GameViewportClient.
+	 * 
+	 * @see GameViewportClient::InputMotion
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Input")
+	uint8 bEnableMotionControls:1;
+	
 	/** Should the touch input interface be shown always, or only when the platform has a touch screen? */
 	UPROPERTY(config, EditAnywhere, Category="Mobile")
 	uint8 bAlwaysShowTouchInterface:1;

@@ -505,6 +505,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Game|Feedback")
 	uint32 bForceFeedbackEnabled:1;
 
+	/** Whether or not to consider input from motion sources (tilt, acceleration, etc) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetMotionControlsEnabled, Category="Input")
+	uint32 bEnableMotionControls:1;
+
+	UFUNCTION(BlueprintSetter)
+	void SetMotionControlsEnabled(bool bEnabled);
+
 	/** Whether the PlayerController should be used as a World Partiton streaming source. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition)
 	uint32 bEnableStreamingSource:1;

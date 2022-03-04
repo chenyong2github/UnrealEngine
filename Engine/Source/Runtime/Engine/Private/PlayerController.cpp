@@ -2478,12 +2478,21 @@ bool APlayerController::InputMotion(const FVector& Tilt, const FVector& Rotation
 {
 	bool bResult = false;
 
-	if (PlayerInput)
+	if (PlayerInput && bEnableMotionControls)
 	{
 		bResult = PlayerInput->InputMotion(Tilt, RotationRate, Gravity, Acceleration);
 	}
 
 	return bResult;
+}
+
+void APlayerController::SetMotionControlsEnabled(bool bEnabled)
+{
+	bEnableMotionControls = bEnabled;
+	if (bEnableMotionControls && !GetDefault<UInputSettings>()->bEnableMotionControls)
+	{
+		UE_LOG(LogPlayerController, Warning, TEXT("Player bEnableMotionControls has been set to true, but motion controls are disabled in the input settings! See UInputSettings::bEnableMotionControls"));
+	}
 }
 
 bool APlayerController::ShouldShowMouseCursor() const

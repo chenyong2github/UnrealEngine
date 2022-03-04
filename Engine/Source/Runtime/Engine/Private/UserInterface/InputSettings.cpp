@@ -8,6 +8,7 @@
 #include "Misc/CommandLine.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -22,6 +23,7 @@ UInputSettings::UInputSettings(const FObjectInitializer& ObjectInitializer)
 	, bCaptureMouseOnLaunch(true)
 	, bDefaultViewportMouseLock_DEPRECATED(false)
 	, bEnableLegacyInputScales(true)
+	, bEnableMotionControls(true)
 	, DefaultViewportMouseCaptureMode(EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown)
 	, DefaultViewportMouseLockMode(EMouseLockMode::LockOnCapture)
 	, DefaultPlayerInputClass(UPlayerInput::StaticClass())
@@ -134,6 +136,8 @@ void UInputSettings::PostInitProperties()
 			UE_LOG(LogInput, Warning, TEXT("Axis %s uses deprecated key %s."), *KeyMapping.AxisName.ToString(), *KeyMapping.Key.ToString());
 		}
 	}
+
+	FPlatformApplicationMisc::EnableMotionData(bEnableMotionControls);
 }
 
 void UInputSettings::PopulateAxisConfigs()
@@ -188,10 +192,13 @@ void UInputSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 		ForceRebuildKeymaps();
 		FEditorDelegates::OnActionAxisMappingsChanged.Broadcast();
 	}
-
-	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, bEnableGestureRecognizer))
+	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, bEnableGestureRecognizer))
 	{
 		FEditorDelegates::OnEnableGestureRecognizerChanged.Broadcast();
+	}
+	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, bEnableMotionControls))
+	{
+		FPlatformApplicationMisc::EnableMotionData(bEnableMotionControls);
 	}
 }
 
