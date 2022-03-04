@@ -268,7 +268,7 @@ UObject* FObjectInstancingGraph::InstancePropertyValue(UObject* SubObjectTemplat
 
 	check(CurrentValue);
 
-	if (CurrentValue->GetClass()->HasAnyClassFlags(CLASS_DefaultToInstanced))
+	if (CurrentValue != nullptr && CurrentValue->GetClass()->HasAnyClassFlags(CLASS_DefaultToInstanced))
 	{
 		bCausesInstancing = true; // these are always instanced no matter what
 	}
@@ -283,7 +283,7 @@ UObject* FObjectInstancingGraph::InstancePropertyValue(UObject* SubObjectTemplat
 	// if the object we're instancing the subobjects for (Owner) has the current subobject's outer in its archetype chain, and its archetype has a nullptr value
 	// for this subobject property it means that the archetype didn't instance its subobject, so we shouldn't either.
 
-	if (SubObjectTemplate == nullptr && CurrentValue != nullptr && (Owner && Owner->IsBasedOnArchetype(CurrentValue->GetOuter())))
+	if (SubObjectTemplate == nullptr && (Owner != nullptr && CurrentValue != nullptr && Owner->IsBasedOnArchetype(CurrentValue->GetOuter())))
 	{
 		NewValue = nullptr;
 	}

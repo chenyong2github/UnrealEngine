@@ -325,7 +325,12 @@ void FPackageHarvester::TryHarvestImport(UObject* InObject)
 {
 	// Those should have been already validated
 	check(InObject);
-	check(!InObject->IsInPackage(SaveContext.GetPackage()));
+	check(InObject && !InObject->IsInPackage(SaveContext.GetPackage()));
+
+	if ( InObject==nullptr )
+	{
+		return;
+	}
 
 	auto IsObjNative = [](UObject* InObj)
 	{
