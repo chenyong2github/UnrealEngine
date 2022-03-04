@@ -7,7 +7,7 @@
 #include "RigUnit_Vector.generated.h"
 
 /** Two args and a result of Vector type */
-USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
+USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1"))
 struct CONTROLRIG_API FRigUnit_BinaryVectorOp : public FRigUnit
 {
 	GENERATED_BODY()
@@ -29,6 +29,9 @@ struct CONTROLRIG_API FRigUnit_Multiply_VectorVector : public FRigUnit_BinaryVec
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta=(DisplayName="Add(Vector)", Category="Math|Vector", Deprecated="4.23.0"))
@@ -38,6 +41,9 @@ struct CONTROLRIG_API FRigUnit_Add_VectorVector : public FRigUnit_BinaryVectorOp
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta=(DisplayName="Subtract(Vector)", Category="Math|Vector", Deprecated="4.23.0"))
@@ -47,6 +53,9 @@ struct CONTROLRIG_API FRigUnit_Subtract_VectorVector : public FRigUnit_BinaryVec
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta=(DisplayName="Divide(Vector)", Category="Math|Vector", Deprecated="4.23.0"))
@@ -56,6 +65,9 @@ struct CONTROLRIG_API FRigUnit_Divide_VectorVector : public FRigUnit_BinaryVecto
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta = (DisplayName = "Distance", Category = "Math|Vector", Deprecated="4.23.0", NodeColor = "0.1 0.7 0.1"))
@@ -74,4 +86,7 @@ struct CONTROLRIG_API FRigUnit_Distance_VectorVector : public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

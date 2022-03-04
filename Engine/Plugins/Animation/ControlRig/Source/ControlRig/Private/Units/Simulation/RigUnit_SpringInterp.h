@@ -46,6 +46,9 @@ struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
  
 	UPROPERTY()
 	FFloatSpringState SpringState;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
  
 /**
@@ -88,6 +91,9 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
  
 	UPROPERTY()
 	FVectorSpringState SpringState;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

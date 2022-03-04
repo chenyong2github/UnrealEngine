@@ -41,4 +41,7 @@ struct CONTROLRIG_API FRigUnit_GetJointTransform : public FRigUnitMutable
 	// possibly space, relative transform so on can be input
 	UPROPERTY(meta=(Output))
 	FTransform Output;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

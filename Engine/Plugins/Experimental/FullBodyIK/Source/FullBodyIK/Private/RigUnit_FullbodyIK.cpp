@@ -596,3 +596,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_FullbodyIK)
 	return true;
 }
 #endif
+FRigVMStructUpgradeInfo FRigUnit_FullbodyIK::GetUpgradeInfo() const
+{
+	return FRigUnit_HighlevelBaseMutable::GetUpgradeInfo();
+}

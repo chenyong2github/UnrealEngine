@@ -78,6 +78,9 @@ struct CONTROLRIG_API FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(transient)
 	FRigUnit_SlideChain_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -119,6 +122,9 @@ struct CONTROLRIG_API FRigUnit_SlideChainPerItem: public FRigUnit_HighlevelBaseM
 
 	UPROPERTY(transient)
 	FRigUnit_SlideChain_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

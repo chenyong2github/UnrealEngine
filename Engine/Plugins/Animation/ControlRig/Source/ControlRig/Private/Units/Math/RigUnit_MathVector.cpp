@@ -227,6 +227,12 @@ FRigUnit_MathVectorSelectBool_Execute()
 	Result = Condition ? IfTrue : IfFalse;
 }
 
+FRigVMStructUpgradeInfo FRigUnit_MathVectorSelectBool::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_MathVectorDeg_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -381,8 +387,20 @@ FRigUnit_MathVectorBezierFourPoint_Execute()
 	FControlRigMathLibrary::FourPointBezier(Bezier, T, Result, Tangent);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_MathVectorBezierFourPoint::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_MathVectorMakeBezierFourPoint_Execute()
 {
+}
+
+FRigVMStructUpgradeInfo FRigUnit_MathVectorMakeBezierFourPoint::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
 }
 
 FRigUnit_MathVectorClampSpatially_Execute()

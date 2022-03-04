@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_Quaternion.h"
+#include "Units/Math/RigUnit_MathQuaternion.h"
 
 FRigUnit_MultiplyQuaternion_Execute()
 {
@@ -8,10 +9,32 @@ FRigUnit_MultiplyQuaternion_Execute()
 	Result.Normalize();
 }
 
+FRigVMStructUpgradeInfo FRigUnit_MultiplyQuaternion::GetUpgradeInfo() const
+{
+	FRigUnit_MathQuaternionMul NewNode;
+	NewNode.A = Argument0;
+	NewNode.B = Argument1;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Argument0"), TEXT("A"));
+	Info.AddRemappedPin(TEXT("Argument1"), TEXT("B"));
+	return Info;
+}
+
 FRigUnit_InverseQuaterion_Execute()
 {
 	Result = Argument.Inverse();
 	Result.Normalize();
+}
+
+FRigVMStructUpgradeInfo FRigUnit_InverseQuaterion::GetUpgradeInfo() const
+{
+	FRigUnit_MathQuaternionInverse NewNode;
+	NewNode.Value = Argument;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Argument"), TEXT("Value"));
+	return Info;
 }
 
 FRigUnit_QuaternionToAxisAndAngle_Execute()
@@ -21,10 +44,31 @@ FRigUnit_QuaternionToAxisAndAngle_Execute()
 	Angle = FMath::RadiansToDegrees(Angle);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_QuaternionToAxisAndAngle::GetUpgradeInfo() const
+{
+	FRigUnit_MathQuaternionToAxisAndAngle NewNode;
+	NewNode.Value = Argument;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Argument"), TEXT("Value"));
+	return Info;
+}
+
 FRigUnit_QuaternionFromAxisAndAngle_Execute()
 {
 	FVector NewAxis = Axis.GetSafeNormal();
 	Result = FQuat(NewAxis, FMath::DegreesToRadians(Angle));
+}
+
+FRigVMStructUpgradeInfo FRigUnit_QuaternionFromAxisAndAngle::GetUpgradeInfo() const
+{
+	FRigUnit_MathQuaternionToAxisAndAngle NewNode;
+	NewNode.Axis = Axis;
+	NewNode.Angle = Angle;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Result"), TEXT("Value"));
+	return Info;
 }
 
 FRigUnit_QuaternionToAngle_Execute()
@@ -48,3 +92,8 @@ FRigUnit_QuaternionToAngle_Execute()
 	}
 }
 
+FRigVMStructUpgradeInfo FRigUnit_QuaternionToAngle::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}

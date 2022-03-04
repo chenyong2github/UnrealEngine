@@ -31,6 +31,9 @@ struct CONTROLRIG_API FRigUnit_DrawContainerGetInstruction : public FRigUnit
 
 	UPROPERTY(meta = (Output))
 	FTransform Transform;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -55,6 +58,9 @@ struct CONTROLRIG_API FRigUnit_DrawContainerSetColor: public FRigUnitMutable
 
 	UPROPERTY(meta = (Input))
 	FLinearColor Color;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -79,6 +85,9 @@ struct CONTROLRIG_API FRigUnit_DrawContainerSetThickness : public FRigUnitMutabl
 
 	UPROPERTY(meta = (Input))
 	float Thickness;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -103,4 +112,7 @@ struct CONTROLRIG_API FRigUnit_DrawContainerSetTransform : public FRigUnitMutabl
 
 	UPROPERTY(meta = (Input))
 	FTransform Transform;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

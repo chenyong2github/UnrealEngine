@@ -20,6 +20,12 @@ FRigUnit_DebugBezier_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_DebugBezier::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_DebugBezierItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -40,4 +46,10 @@ FRigUnit_DebugBezierItemSpace_Execute()
 	}
 
 	Context.DrawInterface->DrawBezier(Transform, Bezier, MinimumU, MaximumU, Color, Thickness, Detail);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_DebugBezierItemSpace::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
 }

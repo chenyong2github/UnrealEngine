@@ -56,6 +56,9 @@ struct CONTROLRIG_API FRigUnit_SphereTraceWorld : public FRigUnit
 	/** Hit normal in rig / global Space */
 	UPROPERTY(meta = (Output))
 	FVector HitNormal;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

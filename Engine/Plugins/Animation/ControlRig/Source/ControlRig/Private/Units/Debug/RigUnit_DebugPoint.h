@@ -60,6 +60,9 @@ struct CONTROLRIG_API FRigUnit_DebugPoint : public FRigUnit_DebugBase
 
 	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta=(DisplayName="Draw Point", Keywords="Draw Vector", Deprecated = "4.25.0"))
@@ -106,4 +109,7 @@ struct CONTROLRIG_API FRigUnit_DebugPointMutable : public FRigUnit_DebugBaseMuta
 
 	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

@@ -3,6 +3,7 @@
 #include "RigUnit_SetSpaceInitialTransform.h"
 #include "Units/RigUnitContext.h"
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
+#include "Units/Hierarchy/RigUnit_SetTransform.h"
 
 FRigUnit_SetSpaceInitialTransform_Execute()
 {
@@ -42,4 +43,17 @@ FRigUnit_SetSpaceInitialTransform_Execute()
 			}
 		}
 	}
+}
+
+FRigVMStructUpgradeInfo FRigUnit_SetSpaceInitialTransform::GetUpgradeInfo() const
+{
+	FRigUnit_SetTransform NewNode;
+	NewNode.Item = FRigElementKey(SpaceName, ERigElementType::Null);
+	NewNode.Space = Space;
+	NewNode.Transform = Transform;
+	NewNode.bInitial = true;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("SpaceName"), TEXT("Item.Name"));
+	return Info;
 }

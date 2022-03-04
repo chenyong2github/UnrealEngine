@@ -394,6 +394,9 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionSelectBool : public FRigUnit_MathQu
 
 	UPROPERTY(meta=(Output))
 	FQuat Result;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

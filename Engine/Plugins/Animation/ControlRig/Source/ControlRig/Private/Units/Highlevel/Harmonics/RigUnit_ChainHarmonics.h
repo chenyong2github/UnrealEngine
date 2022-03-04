@@ -226,6 +226,9 @@ struct CONTROLRIG_API FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMut
 
 	UPROPERTY(transient)
 	FRigUnit_ChainHarmonics_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

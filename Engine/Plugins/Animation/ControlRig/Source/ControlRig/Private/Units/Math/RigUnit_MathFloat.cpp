@@ -233,6 +233,12 @@ FRigUnit_MathFloatSelectBool_Execute()
 	Result = Condition ? IfTrue : IfFalse;
 }
 
+FRigVMStructUpgradeInfo FRigUnit_MathFloatSelectBool::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_MathFloatDeg_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

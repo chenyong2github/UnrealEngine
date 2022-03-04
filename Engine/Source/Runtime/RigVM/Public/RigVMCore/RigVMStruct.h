@@ -138,18 +138,38 @@ private:
 /** Structure used to upgrade to a new implementation of a node */
 struct RIGVM_API FRigVMStructUpgradeInfo
 {
+public:
+	
 	FRigVMStructUpgradeInfo();
+
+	template<typename Old, typename New>
+	FRigVMStructUpgradeInfo(const Old& InOld, const New& InNew)
+	{
+		OldStruct = Old::StaticStruct();
+		NewStruct = New::StaticStruct();
+		SetDefaultValues(&InNew);
+	}
 
 	// returns true if this upgrade info can be applied
 	bool IsValid() const;
 
-#if WITH_EDITOR
+	// returns the old struct trying to be upgraded
+	UScriptStruct* GetOldStruct() const { return OldStruct; }
+
+	// returns the new struct to upgrade to
+	UScriptStruct* GetNewStruct() const { return NewStruct; }
+
+	// returns the map for all default values
+	const TMap<FName, FString>& GetDefaultValues() const { return DefaultValues; }
+
+	// returns the default value for a given pin
+	const FString& GetDefaultValueForPin(const FName& InPinName) const;
+
+	// adds a pin to be remapped
+	void AddRemappedPin(const FString& InOldPinPath, const FString& InNewPinPath, bool bAsInput = true, bool bAsOutput = true);
+
+private:
 	
-	// sets the default values from the new struct.
-	void SetDefaultValues(const FRigVMStruct* InNewStructMemory);
-
-#endif
-
 	// The complete node path including models / collapse node.
 	// The path may look like "RigGraph|CollapseNode1|Add"
 	FString NodePath;
@@ -160,22 +180,21 @@ struct RIGVM_API FRigVMStructUpgradeInfo
 	// The new struct this upgrade info is targeting
 	UScriptStruct* NewStruct;
 
-	// Remapping info for re-mapping pins
-	// Entries can be root pins or sub pins
-	TMap<FString, FString> PinNameMap;
-
 	// Remapping info for re-linking inputs 
-	// (takes precedence over pin name map)
 	// Entries can be root pins or sub pins
 	TMap<FString, FString> InputLinkMap;
 
 	// Remapping info for re-linking outputs 
-	// (takes precedence over pin name map)
 	// Entries can be root pins or sub pins
 	TMap<FString, FString> OutputLinkMap;
 
 	// New sets of default values
 	TMap<FName, FString> DefaultValues;
+
+	// sets the default values from the new struct.
+	void SetDefaultValues(const FRigVMStruct* InNewStructMemory);
+
+	friend class URigVMController;
 };
 
 /**
@@ -207,11 +226,11 @@ public:
 	static bool CheckPinExists(UScriptStruct* InStruct, const FName& PinName, const FString& ExpectedType = FString(), FString* OutErrorMessage = nullptr);
 	static bool CheckMetadata(UScriptStruct* InStruct, const FName& PinName, const FName& InMetadataKey, FString* OutErrorMessage = nullptr);
 	static bool CheckFunctionExists(UScriptStruct* InStruct, const FName& FunctionName, FString* OutErrorMessage = nullptr);
+#endif
 	static FString ExportToFullyQualifiedText(const FProperty* InMemberProperty, const uint8* InMemberMemoryPtr, bool bUseQuotes = true);
 	static FString ExportToFullyQualifiedText(UScriptStruct* InStruct, const uint8* InStructMemoryPtr);
 	FString ExportToFullyQualifiedText(UScriptStruct* InScriptStruct, const FName& InPropertyName, const uint8* InStructMemoryPointer = nullptr) const;
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const { return FRigVMStructUpgradeInfo(); }
-#endif
 
 	static const FName DeprecatedMetaName;
 	static const FName InputMetaName;
@@ -250,10 +269,8 @@ public:
 protected:
 
 	static float GetRatioFromIndex(int32 InIndex, int32 InCount);
-#if WITH_EDITOR
 	TMap<FName, FString> GetDefaultValues(UScriptStruct* InScriptStruct) const;
 	bool ApplyUpgradeInfo(const FRigVMStructUpgradeInfo& InUpgradeInfo);
-#endif
 
 	friend struct FRigVMStructUpgradeInfo;
 	friend class FRigVMGraphStructUpgradeInfoTest;

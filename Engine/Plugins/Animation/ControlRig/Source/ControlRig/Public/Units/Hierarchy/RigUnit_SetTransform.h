@@ -322,6 +322,9 @@ struct CONTROLRIG_API FRigUnit_SetTransformArray : public FRigUnitMutable
 	// Used to cache the internally
 	UPROPERTY()
 	TArray<FCachedRigElement> CachedIndex;
+	
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

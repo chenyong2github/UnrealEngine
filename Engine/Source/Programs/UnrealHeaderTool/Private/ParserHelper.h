@@ -711,6 +711,7 @@ struct FRigVMMethodInfo
 struct FRigVMStructInfo
 {
 	bool bHasRigVM = false;
+	bool bHasGetUpgradeInfoMethod = false;
 	FString Name;
 	FRigVMParameterArray Members;
 	TArray<FRigVMMethodInfo> Methods;

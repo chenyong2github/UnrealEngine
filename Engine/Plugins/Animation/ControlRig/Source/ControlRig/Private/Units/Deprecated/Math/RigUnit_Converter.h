@@ -19,6 +19,9 @@ struct CONTROLRIG_API FRigUnit_ConvertTransform : public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertToTransform", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -34,6 +37,9 @@ struct CONTROLRIG_API FRigUnit_ConvertEulerTransform : public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertToQuaternion", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -49,6 +55,9 @@ struct CONTROLRIG_API FRigUnit_ConvertRotation : public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertToQuaternionDeprecated", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -70,6 +79,9 @@ struct CONTROLRIG_API FRigUnit_ConvertQuaternion: public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertVectorToRotation", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -85,6 +97,9 @@ struct CONTROLRIG_API FRigUnit_ConvertVectorToRotation: public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertVectorToQuaternion", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -100,8 +115,10 @@ struct CONTROLRIG_API FRigUnit_ConvertVectorToQuaternion: public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
-};
 
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
+};
 
 USTRUCT(meta = (DisplayName = "ConvertRotationToVector", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
 struct CONTROLRIG_API FRigUnit_ConvertRotationToVector: public FRigUnit
@@ -116,6 +133,9 @@ struct CONTROLRIG_API FRigUnit_ConvertRotationToVector: public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta = (DisplayName = "ConvertQuaternionToVector", Category = "Math|Convert", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -131,6 +151,9 @@ struct CONTROLRIG_API FRigUnit_ConvertQuaternionToVector: public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta = (DisplayName = "ToSwingAndTwist", Category = "Math|Transform", NodeColor = "0.1 0.1 0.7", Deprecated="4.23.0"))
@@ -160,4 +183,7 @@ struct CONTROLRIG_API FRigUnit_ToSwingAndTwist : public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

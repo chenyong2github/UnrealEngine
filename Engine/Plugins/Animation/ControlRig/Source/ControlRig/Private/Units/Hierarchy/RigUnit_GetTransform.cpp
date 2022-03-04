@@ -88,6 +88,15 @@ FRigUnit_GetTransformArray_Execute()
 	FRigUnit_GetTransformItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, Space, bInitial, Transforms, CachedIndex, Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_GetTransformArray::GetUpgradeInfo() const
+{
+	FRigUnit_GetTransformItemArray NewNode;
+	NewNode.Items = Items.GetKeys();
+	NewNode.Space = Space;
+	NewNode.bInitial = bInitial;
+	return FRigVMStructUpgradeInfo(*this, NewNode);
+}
+
 FRigUnit_GetTransformItemArray_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

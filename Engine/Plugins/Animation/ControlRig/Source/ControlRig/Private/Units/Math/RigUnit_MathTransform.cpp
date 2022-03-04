@@ -119,6 +119,12 @@ FRigUnit_MathTransformSelectBool_Execute()
 	Result = Condition ? IfTrue : IfFalse;
 }
 
+FRigVMStructUpgradeInfo FRigUnit_MathTransformSelectBool::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_MathTransformRotateVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

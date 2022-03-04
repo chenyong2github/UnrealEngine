@@ -579,4 +579,7 @@ struct CONTROLRIG_API FRigUnit_SetControlTransform : public FRigUnitMutable
 	// Used to cache the internally used bone index
 	UPROPERTY()
 	FCachedRigElement CachedControlIndex;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

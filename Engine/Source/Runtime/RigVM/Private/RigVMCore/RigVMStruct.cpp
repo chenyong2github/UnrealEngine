@@ -97,7 +97,28 @@ bool FRigVMStructUpgradeInfo::IsValid() const
 	return NodePath.IsEmpty() && (OldStruct != nullptr) && (NewStruct != nullptr);
 }
 
-#if WITH_EDITOR
+const FString& FRigVMStructUpgradeInfo::GetDefaultValueForPin(const FName& InPinName) const
+{
+	static const FString EmptyString = FString();
+	if(const FString* DefaultValue = DefaultValues.Find(InPinName))
+	{
+		return *DefaultValue;
+	}
+	return EmptyString;
+}
+
+void FRigVMStructUpgradeInfo::AddRemappedPin(const FString& InOldPinPath, const FString& InNewPinPath, bool bAsInput,
+	bool bAsOutput)
+{
+	if(bAsInput)
+	{
+		InputLinkMap.Add(InOldPinPath, InNewPinPath);
+	}
+	if(bAsOutput)
+	{
+		OutputLinkMap.Add(InOldPinPath, InNewPinPath);
+	}
+}
 
 void FRigVMStructUpgradeInfo::SetDefaultValues(const FRigVMStruct* InNewStructMemory)
 {
@@ -105,8 +126,6 @@ void FRigVMStructUpgradeInfo::SetDefaultValues(const FRigVMStruct* InNewStructMe
 	check(InNewStructMemory);
 	DefaultValues = InNewStructMemory->GetDefaultValues(NewStruct);
 }
-
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -399,6 +418,8 @@ ERigVMPinDirection FRigVMStruct::GetPinDirectionFromProperty(FProperty* InProper
 	return ERigVMPinDirection::Hidden;
 }
 
+#endif
+
 FString FRigVMStruct::ExportToFullyQualifiedText(const FProperty* InMemberProperty, const uint8* InMemberMemoryPtr, bool bUseQuotes)
 {
 	check(InMemberProperty);
@@ -503,9 +524,6 @@ TMap<FName, FString> FRigVMStruct::GetDefaultValues(UScriptStruct* InScriptStruc
 {
 	check(InScriptStruct);
 	
-	FRigVMStructUpgradeInfo Info;
-	Info.OldStruct = InScriptStruct;
-
 	TMap<FName, FString> DefaultValues;
 	for (TFieldIterator<FProperty> It(InScriptStruct); It; ++It)
 	{
@@ -513,6 +531,15 @@ TMap<FName, FString> FRigVMStruct::GetDefaultValues(UScriptStruct* InScriptStruc
 		{
 			continue;
 		}
+
+#if WITH_EDITOR
+		if(!It->HasMetaData(FRigVMStruct::InputMetaName) &&
+			!It->HasMetaData(FRigVMStruct::OutputMetaName) &&
+			!It->HasMetaData(FRigVMStruct::VisibleMetaName))
+		{
+			continue;
+		}
+#endif
 		
 		const FName PropertyName = It->GetFName();
 		const uint8* StructMemberMemoryPtr = It->ContainerPtrToValuePtr<uint8>(this);
@@ -567,12 +594,12 @@ bool FRigVMStruct::ApplyUpgradeInfo(const FRigVMStructUpgradeInfo& InUpgradeInfo
 {
 	check(InUpgradeInfo.IsValid());
 
-	for(const TPair<FName, FString>& Pair : InUpgradeInfo.DefaultValues)
+	for(const TPair<FName, FString>& Pair : InUpgradeInfo.GetDefaultValues())
 	{
 		const FName& PropertyName = Pair.Key;
 		const FString& DefaultValue = Pair.Value;
 		
-		const FProperty* Property = InUpgradeInfo.NewStruct->FindPropertyByName(PropertyName);
+		const FProperty* Property = InUpgradeInfo.GetNewStruct()->FindPropertyByName(PropertyName);
 		if(Property == nullptr)
 		{
 			return false;
@@ -580,7 +607,7 @@ bool FRigVMStruct::ApplyUpgradeInfo(const FRigVMStructUpgradeInfo& InUpgradeInfo
 
 		uint8* MemberMemory = Property->ContainerPtrToValuePtr<uint8>(this);
 
-		FRigVMStructApplyUpgradeInfoErrorContext ErrorPipe(InUpgradeInfo.OldStruct, InUpgradeInfo.NewStruct, PropertyName);
+		FRigVMStructApplyUpgradeInfoErrorContext ErrorPipe(InUpgradeInfo.GetOldStruct(), InUpgradeInfo.GetNewStruct(), PropertyName);
         Property->ImportText_Direct(*DefaultValue, MemberMemory, nullptr, PPF_None, &ErrorPipe);
 
 		if(ErrorPipe.NumErrors > 0)
@@ -591,5 +618,3 @@ bool FRigVMStruct::ApplyUpgradeInfo(const FRigVMStructUpgradeInfo& InUpgradeInfo
 
 	return true;
 }
-
-#endif

@@ -93,4 +93,7 @@ private:
 	
 	UPROPERTY(transient)
 	float LowerLimbLength;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

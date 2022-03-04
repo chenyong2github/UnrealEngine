@@ -48,9 +48,31 @@ FRigUnit_CCDIK_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_CCDIK::GetUpgradeInfo() const
+{
+	// this node is no longer supported and the upgrade path is too complex.
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_CCDIKPerItem_Execute()
 {
 	FRigUnit_CCDIKItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, MaxIterations, bStartFromTail, BaseRotationLimit, RotationLimits, bPropagateToChildren, WorkData, ExecuteContext, Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_CCDIKPerItem::GetUpgradeInfo() const
+{
+	FRigUnit_CCDIKItemArray NewNode;
+	NewNode.Items = Items.Keys;
+	NewNode.EffectorTransform = EffectorTransform;
+	NewNode.Precision = Precision;
+	NewNode.Weight = Weight;
+	NewNode.MaxIterations = MaxIterations;
+	NewNode.bStartFromTail = bStartFromTail;
+	NewNode.BaseRotationLimit = BaseRotationLimit;
+	NewNode.RotationLimits = RotationLimits;
+	NewNode.bPropagateToChildren = bPropagateToChildren;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 FRigUnit_CCDIKItemArray_Execute()

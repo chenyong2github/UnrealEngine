@@ -35,6 +35,37 @@ FRigUnit_TwoBoneIKSimple_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_TwoBoneIKSimple::GetUpgradeInfo() const
+{
+	FRigUnit_TwoBoneIKSimplePerItem NewNode;
+	NewNode.ItemA = FRigElementKey(BoneA, ERigElementType::Bone);
+	NewNode.ItemA = FRigElementKey(BoneB, ERigElementType::Bone);
+	NewNode.EffectorItem = FRigElementKey(EffectorBone, ERigElementType::Bone);
+	NewNode.Effector = Effector;
+	NewNode.PrimaryAxis = PrimaryAxis;
+	NewNode.SecondaryAxis = SecondaryAxis;
+	NewNode.SecondaryAxisWeight = SecondaryAxisWeight;
+	NewNode.PoleVector = PoleVector;
+	NewNode.PoleVectorKind = PoleVectorKind;
+	NewNode.PoleVectorSpace = FRigElementKey(PoleVectorSpace, ERigElementType::Bone);
+	NewNode.bEnableStretch = bEnableStretch;
+	NewNode.StretchStartRatio = StretchStartRatio;
+	NewNode.StretchMaximumRatio = StretchMaximumRatio;
+	NewNode.Weight = Weight;
+	NewNode.ItemALength = BoneALength;
+	NewNode.ItemBLength = BoneBLength;
+	NewNode.bPropagateToChildren = bPropagateToChildren;
+	NewNode.DebugSettings = DebugSettings;
+	
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("BoneA"), TEXT("ItemA.Name"));
+	Info.AddRemappedPin(TEXT("BoneB"), TEXT("ItemB.Name"));
+	Info.AddRemappedPin(TEXT("EffectorBone"), TEXT("EffectorItem.Name"));
+	Info.AddRemappedPin(TEXT("BoneALength"), TEXT("ItemALength"));
+	Info.AddRemappedPin(TEXT("BoneBLength"), TEXT("ItemBLength"));
+	return Info;
+}
+
 FRigUnit_TwoBoneIKSimplePerItem_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

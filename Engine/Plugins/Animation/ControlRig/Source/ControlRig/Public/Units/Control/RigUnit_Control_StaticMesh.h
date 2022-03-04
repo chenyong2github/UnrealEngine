@@ -22,4 +22,7 @@ struct CONTROLRIG_API FRigUnit_Control_StaticMesh : public FRigUnit_Control
 	/** The the transform the mesh will be rendered with (applied on top of the control's transform in the viewport) */
 	UPROPERTY(meta=(Input))
 	FTransform MeshTransform;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

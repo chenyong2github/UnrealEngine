@@ -73,4 +73,7 @@ struct CONTROLRIG_API FRigUnit_SetBoneTranslation : public FRigUnitMutable
 	// Used to cache the internally used bone index
 	UPROPERTY(transient)
 	FCachedRigElement CachedBone;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

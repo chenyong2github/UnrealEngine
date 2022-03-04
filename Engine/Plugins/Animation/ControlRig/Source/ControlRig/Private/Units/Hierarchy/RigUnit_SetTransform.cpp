@@ -164,6 +164,19 @@ FRigUnit_SetTransformArray_Execute()
 	FRigUnit_SetTransformItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, Space, bInitial, Transforms, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_SetTransformArray::GetUpgradeInfo() const
+{
+	FRigUnit_SetTransformItemArray NewNode;
+	NewNode.Items = Items.GetKeys();
+	NewNode.Space = Space;
+	NewNode.bInitial = bInitial;
+	NewNode.Transforms = Transforms;
+	NewNode.Weight = Weight;
+	NewNode.bPropagateToChildren = bPropagateToChildren;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
+}
+
 FRigUnit_SetTransformItemArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

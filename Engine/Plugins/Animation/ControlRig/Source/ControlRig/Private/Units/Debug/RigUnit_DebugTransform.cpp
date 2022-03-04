@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Units/Debug/RigUnit_DebugTransform.h"
+#include "Units/Debug/RigUnit_VisualDebug.h"
 #include "Units/RigUnitContext.h"
 
 FRigUnit_DebugTransform_Execute()
@@ -43,6 +44,22 @@ FRigUnit_DebugTransform_Execute()
 	}
 }
 
+FRigVMStructUpgradeInfo FRigUnit_DebugTransform::GetUpgradeInfo() const
+{
+	FRigUnit_VisualDebugTransformItemSpace NewNode;
+	NewNode.Value = Transform;
+	NewNode.Space = FRigElementKey(Space, ERigElementType::Bone);
+	NewNode.Scale = Scale;
+	NewNode.Thickness = Thickness;
+	NewNode.Space = FRigElementKey(Space, ERigElementType::Bone);
+	NewNode.bEnabled = bEnabled;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Transform"), TEXT("Value"));
+	Info.AddRemappedPin(TEXT("Space"), TEXT("Space.Name"));
+	return Info;
+}
+
 FRigUnit_DebugTransformMutable_Execute()
 {
 	FRigUnit_DebugTransformMutableItemSpace::StaticExecute(
@@ -57,6 +74,23 @@ FRigUnit_DebugTransformMutable_Execute()
 		bEnabled,
 		ExecuteContext, 
 		Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_DebugTransformMutable::GetUpgradeInfo() const
+{
+	FRigUnit_DebugTransformMutableItemSpace NewNode;
+	NewNode.Transform = Transform;
+	NewNode.Mode = Mode;
+	NewNode.Color = Color;
+	NewNode.Thickness = Thickness;
+	NewNode.Scale = Scale;
+	NewNode.Space = FRigElementKey(Space, ERigElementType::Bone);
+	NewNode.WorldOffset = WorldOffset;
+	NewNode.bEnabled = bEnabled;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Space"), TEXT("Space.Name"));
+	return Info;
 }
 
 FRigUnit_DebugTransformMutableItemSpace_Execute()
@@ -151,6 +185,23 @@ FRigUnit_DebugTransformArrayMutable_Execute()
 			}
 		}
 	}
+}
+
+FRigVMStructUpgradeInfo FRigUnit_DebugTransformArrayMutable::GetUpgradeInfo() const
+{
+	FRigUnit_DebugTransformArrayMutableItemSpace NewNode;
+	NewNode.Transforms = Transforms;
+	NewNode.Mode = Mode;
+	NewNode.Color = Color;
+	NewNode.Thickness = Thickness;
+	NewNode.Scale = Scale;
+	NewNode.Space = FRigElementKey(Space, ERigElementType::Bone);
+	NewNode.WorldOffset = WorldOffset;
+	NewNode.bEnabled = bEnabled;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Space"), TEXT("Space.Name"));
+	return Info;
 }
 
 FRigUnit_DebugTransformArrayMutableItemSpace_Execute()

@@ -46,9 +46,49 @@ struct CONTROLRIG_API FRigUnit_NoiseFloat : public FRigUnit_MathBase
 };
 
 /**
+ * Generates a float through a noise fluctuation process between a min and a max through speed
+ */
+USTRUCT(meta=(DisplayName="Noise (Double)", Category="Math|Noise", PrototypeName="Noise"))
+struct CONTROLRIG_API FRigUnit_NoiseDouble : public FRigUnit_MathBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_NoiseDouble()
+	{
+		Value = Minimum = Result = Time = 0.0;
+		Speed = 0.1;
+		Frequency = Maximum = 1.0;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	double Value;
+
+	UPROPERTY(meta = (Input))
+	double Speed;
+
+	UPROPERTY(meta = (Input))
+	double Frequency;
+
+	UPROPERTY(meta = (Input))
+	double Minimum;
+
+	UPROPERTY(meta = (Input))
+	double Maximum;
+
+	UPROPERTY(meta = (Output))
+	double Result;
+
+	UPROPERTY()
+	double Time;
+};
+
+/**
  * Generates a vector through a noise fluctuation process between a min and a max through speed
  */
-USTRUCT(meta = (DisplayName = "Noise (Vector)", Category = "Math|Noise", PrototypeName = "Noise"))
+USTRUCT(meta = (DisplayName = "Noise (Vector)", Category = "Math|Noise", PrototypeName = "Noise", Deprecated = "5.0.0"))
 struct CONTROLRIG_API FRigUnit_NoiseVector : public FRigUnit_MathBase
 {
 	GENERATED_BODY()
@@ -79,6 +119,51 @@ struct CONTROLRIG_API FRigUnit_NoiseVector : public FRigUnit_MathBase
 
 	UPROPERTY(meta = (Input))
 	float Maximum;
+
+	UPROPERTY(meta = (Output))
+	FVector Result;
+
+	UPROPERTY()
+	FVector Time;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
+};
+
+/**
+ * Generates a vector through a noise fluctuation process between a min and a max through speed
+ */
+USTRUCT(meta = (DisplayName = "Noise (Vector)", Category = "Math|Noise", PrototypeName = "Noise"))
+struct CONTROLRIG_API FRigUnit_NoiseVector2 : public FRigUnit_MathBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_NoiseVector2()
+	{
+		Value = Result = Time = FVector::ZeroVector;
+		Frequency = FVector::OneVector;
+		Speed = FVector(0.1f, 0.1f, 0.1f);
+		Minimum = 0.0;
+		Maximum = 1.0;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FVector Value;
+
+	UPROPERTY(meta = (Input))
+	FVector Speed;
+
+	UPROPERTY(meta = (Input))
+	FVector Frequency;
+
+	UPROPERTY(meta = (Input))
+	double Minimum;
+
+	UPROPERTY(meta = (Input))
+	double Maximum;
 
 	UPROPERTY(meta = (Output))
 	FVector Result;

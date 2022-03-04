@@ -94,6 +94,9 @@ struct CONTROLRIG_API FRigUnit_TwistBones : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(transient)
 	FRigUnit_TwistBones_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -156,4 +159,7 @@ struct CONTROLRIG_API FRigUnit_TwistBonesPerItem : public FRigUnit_HighlevelBase
 
 	UPROPERTY(transient)
 	FRigUnit_TwistBones_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

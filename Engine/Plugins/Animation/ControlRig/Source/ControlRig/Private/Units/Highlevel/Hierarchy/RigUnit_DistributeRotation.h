@@ -121,6 +121,9 @@ struct CONTROLRIG_API FRigUnit_DistributeRotation : public FRigUnit_HighlevelBas
 
 	UPROPERTY(transient)
 	FRigUnit_DistributeRotation_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -168,6 +171,9 @@ struct CONTROLRIG_API FRigUnit_DistributeRotationForCollection : public FRigUnit
 
 	UPROPERTY(transient)
 	FRigUnit_DistributeRotation_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

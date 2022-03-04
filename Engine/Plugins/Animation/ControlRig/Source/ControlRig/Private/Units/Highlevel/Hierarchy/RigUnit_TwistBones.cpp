@@ -35,6 +35,12 @@ FRigUnit_TwistBones_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_TwistBones::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_TwistBonesPerItem_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -136,4 +142,10 @@ FRigUnit_TwistBonesPerItem_Execute()
 		ItemTransforms[Index].SetRotation(OffsetQuat);
 		Hierarchy->SetGlobalTransform(CachedItems[Index], ItemTransforms[Index], bPropagateToChildren);
 	}
+}
+
+FRigVMStructUpgradeInfo FRigUnit_TwistBonesPerItem::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
 }

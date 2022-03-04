@@ -51,4 +51,7 @@ struct CONTROLRIG_API FRigUnit_SetSpaceTransform : public FRigUnitMutable
 	// Used to cache the internally used bone index
 	UPROPERTY()
 	FCachedRigElement CachedSpaceIndex;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

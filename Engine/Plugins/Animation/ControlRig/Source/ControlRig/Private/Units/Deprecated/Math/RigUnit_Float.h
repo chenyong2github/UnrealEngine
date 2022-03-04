@@ -7,7 +7,7 @@
 #include "RigUnit_Float.generated.h"
 
 /** Two args and a result of float type */
-USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
+USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1"))
 struct CONTROLRIG_API FRigUnit_BinaryFloatOp : public FRigUnit
 {
 	GENERATED_BODY()
@@ -29,6 +29,9 @@ struct CONTROLRIG_API FRigUnit_Multiply_FloatFloat : public FRigUnit_BinaryFloat
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta=(DisplayName="Add", Category="Math|Float", Keywords = "+,Sum", Deprecated="4.23.0"))
@@ -38,6 +41,9 @@ struct CONTROLRIG_API FRigUnit_Add_FloatFloat : public FRigUnit_BinaryFloatOp
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta=(DisplayName="Subtract", Category="Math|Float", Keywords = "-", Deprecated="4.23.0"))
@@ -47,6 +53,9 @@ struct CONTROLRIG_API FRigUnit_Subtract_FloatFloat : public FRigUnit_BinaryFloat
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta=(DisplayName="Divide", Category="Math|Float", Keywords = "/", Deprecated="4.23.0"))
@@ -56,6 +65,9 @@ struct CONTROLRIG_API FRigUnit_Divide_FloatFloat : public FRigUnit_BinaryFloatOp
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /** Two args and a result of float type */
@@ -78,6 +90,9 @@ struct CONTROLRIG_API FRigUnit_Clamp_Float: public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /** Two args and a result of float type */
@@ -106,4 +121,7 @@ struct CONTROLRIG_API FRigUnit_MapRange_Float: public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

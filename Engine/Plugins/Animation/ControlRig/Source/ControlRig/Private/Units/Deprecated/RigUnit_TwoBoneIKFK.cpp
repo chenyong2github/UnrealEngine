@@ -117,3 +117,8 @@ FRigUnit_TwoBoneIKFK_Execute()
 	}
 }
 
+FRigVMStructUpgradeInfo FRigUnit_TwoBoneIKFK::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}

@@ -173,6 +173,30 @@ FRigUnit_AimBone_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_AimBone::GetUpgradeInfo() const
+{
+	FRigUnit_AimItem NewNode;
+	NewNode.Item = FRigElementKey(Bone, ERigElementType::Bone);
+	NewNode.Primary.Weight = Primary.Weight;
+	NewNode.Primary.Axis = Primary.Axis;
+	NewNode.Primary.Target = Primary.Target;
+	NewNode.Primary.Kind = Primary.Kind;
+	NewNode.Primary.Space = FRigElementKey(Primary.Space, ERigElementType::Bone);
+	NewNode.Secondary.Weight = Secondary.Weight;
+	NewNode.Secondary.Axis = Secondary.Axis;
+	NewNode.Secondary.Target = Secondary.Target;
+	NewNode.Secondary.Kind = Secondary.Kind;
+	NewNode.Secondary.Space = FRigElementKey(Secondary.Space, ERigElementType::Bone);
+	NewNode.Weight = Weight;
+	NewNode.DebugSettings = DebugSettings;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Bone"), TEXT("Item.Name"));
+	Info.AddRemappedPin(TEXT("Primary.Space"), TEXT("Primary.Space.Name"));
+	Info.AddRemappedPin(TEXT("Secondary.Space"), TEXT("Secondary.Space.Name"));
+	return Info;
+}
+
 FRigUnit_AimItem_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -217,3 +241,4 @@ FRigUnit_AimItem_Execute()
 
 	Hierarchy->SetGlobalTransform(CachedItem, Transform);
 }
+

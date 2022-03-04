@@ -70,3 +70,8 @@ FEulerTransform FRigUnit_Control::StaticGetFilteredTransform(const FEulerTransfo
 	InFilter.FilterTransform(FilteredTransform);
 	return FilteredTransform;
 }
+
+FRigVMStructUpgradeInfo FRigUnit_Control::GetUpgradeInfo() const
+{
+	return FRigUnit::GetUpgradeInfo();
+}

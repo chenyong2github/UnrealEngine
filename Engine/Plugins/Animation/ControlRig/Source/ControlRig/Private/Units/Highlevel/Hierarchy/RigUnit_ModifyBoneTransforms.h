@@ -123,4 +123,7 @@ struct CONTROLRIG_API FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelB
 	// Used to cache the internally used bone index
 	UPROPERTY(transient)
 	FRigUnit_ModifyBoneTransforms_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

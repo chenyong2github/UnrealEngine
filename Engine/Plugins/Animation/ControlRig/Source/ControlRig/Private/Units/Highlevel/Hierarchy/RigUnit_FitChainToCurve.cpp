@@ -43,6 +43,12 @@ FRigUnit_FitChainToCurve_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_FitChainToCurve::GetUpgradeInfo() const
+{
+	// this node is no longer supported and the upgrade path is too complex.
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_FitChainToCurvePerItem_Execute()
 {
 	FRigUnit_FitChainToCurveItemArray::StaticExecute(
@@ -64,6 +70,12 @@ FRigUnit_FitChainToCurvePerItem_Execute()
 		WorkData,
 		ExecuteContext,
 		Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_FitChainToCurvePerItem::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
 }
 
 FRigUnit_FitChainToCurveItemArray_Execute()
@@ -454,4 +466,10 @@ FRigUnit_FitChainToCurveItemArray_Execute()
 		// Context.DrawInterface->DrawPoints(DebugSettings.WorldOffset, CurvePositions, DebugSettings.Scale * 3.f, FLinearColor::Blue);
 		// Context.DrawInterface->DrawPoints(DebugSettings.WorldOffset, ItemPositions, DebugSettings.Scale * 6.f, DebugSettings.SegmentsColor);
 	}
+}
+
+FRigVMStructUpgradeInfo FRigUnit_FitChainToCurveItemArray::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
 }

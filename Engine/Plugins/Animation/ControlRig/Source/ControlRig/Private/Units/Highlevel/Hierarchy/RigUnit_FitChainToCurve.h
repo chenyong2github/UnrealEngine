@@ -245,6 +245,9 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMu
 
 	UPROPERTY(transient)
 	FRigUnit_FitChainToCurve_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -362,6 +365,9 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurvePerItem : public FRigUnit_Highleve
 
 	UPROPERTY(transient)
 	FRigUnit_FitChainToCurve_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -479,4 +485,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurveItemArray : public FRigUnit_Highle
 
 	UPROPERTY(transient)
 	FRigUnit_FitChainToCurve_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

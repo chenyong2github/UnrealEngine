@@ -280,6 +280,9 @@ struct CONTROLRIG_API FRigUnit_MathTransformSelectBool : public FRigUnit_MathTra
 
 	UPROPERTY(meta=(Output))
 	FTransform Result;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

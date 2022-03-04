@@ -89,6 +89,9 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParents : public FRigUnit_HierarchyBa
 	// Used to cache the internally
 	UPROPERTY()
 	FRigElementKeyCollection CachedParents;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -172,6 +175,9 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetChildren : public FRigUnit_HierarchyB
 	// Used to cache the internally
 	UPROPERTY()
 	FRigElementKeyCollection CachedChildren;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -209,6 +215,9 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetSiblings : public FRigUnit_HierarchyB
 	// Used to cache the internally
 	UPROPERTY()
 	FRigElementKeyCollection CachedSiblings;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -279,6 +288,9 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetPose : public FRigUnit_HierarchyBase
 
 	UPROPERTY(meta = (Output))
 	FRigPose Pose;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -349,6 +361,9 @@ struct CONTROLRIG_API FRigUnit_HierarchySetPose : public FRigUnit_HierarchyBaseM
 
 	UPROPERTY(meta = (Input))
 	float Weight;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -437,6 +452,9 @@ struct CONTROLRIG_API FRigUnit_PoseGetItems : public FRigUnit_HierarchyBase
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Items;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

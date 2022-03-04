@@ -65,3 +65,9 @@ FRigUnit_PropagateTransform_Execute()
 		*/
 	}
 }
+
+FRigVMStructUpgradeInfo FRigUnit_PropagateTransform::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}

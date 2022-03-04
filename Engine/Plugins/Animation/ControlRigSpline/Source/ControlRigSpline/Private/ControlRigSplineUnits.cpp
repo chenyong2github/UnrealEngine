@@ -252,6 +252,28 @@ FRigUnit_FitChainToSplineCurve_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_FitChainToSplineCurve::GetUpgradeInfo() const
+{
+	FRigUnit_FitChainToSplineCurveItemArray NewNode;
+	NewNode.Items = Items.GetKeys();
+	NewNode.Spline = Spline;
+	NewNode.Alignment = Alignment;
+	NewNode.Minimum = Minimum;
+	NewNode.Maximum = Maximum;
+	NewNode.SamplingPrecision = SamplingPrecision;
+	NewNode.PrimaryAxis = PrimaryAxis;
+	NewNode.SecondaryAxis = SecondaryAxis;
+	NewNode.PoleVectorPosition = PoleVectorPosition;
+	NewNode.Rotations = Rotations;
+	NewNode.RotationEaseType = RotationEaseType;
+	NewNode.Weight = Weight;
+	NewNode.bPropagateToChildren = bPropagateToChildren;
+	NewNode.DebugSettings = DebugSettings;
+	NewNode.WorkData = WorkData;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
+}
+
 FRigUnit_FitChainToSplineCurveItemArray_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -662,6 +684,15 @@ FRigUnit_FitChainToSplineCurveItemArray_Execute()
 FRigUnit_FitSplineCurveToChain_Execute()
 {
 	FRigUnit_FitSplineCurveToChainItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, Spline, ExecuteContext, Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_FitSplineCurveToChain::GetUpgradeInfo() const
+{
+	FRigUnit_FitSplineCurveToChainItemArray NewNode;
+	NewNode.Items = Items.GetKeys();
+	NewNode.Spline = Spline;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 FRigUnit_FitSplineCurveToChainItemArray_Execute()

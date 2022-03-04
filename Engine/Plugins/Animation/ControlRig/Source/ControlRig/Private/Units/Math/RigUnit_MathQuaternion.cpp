@@ -123,6 +123,12 @@ FRigUnit_MathQuaternionSelectBool_Execute()
 	Result = Condition ? IfTrue : IfFalse;
 }
 
+FRigVMStructUpgradeInfo FRigUnit_MathQuaternionSelectBool::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_MathQuaternionDot_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

@@ -514,6 +514,9 @@ struct CONTROLRIG_API FRigUnit_MathVectorSelectBool : public FRigUnit_MathVector
 
 	UPROPERTY(meta=(Output))
 	FVector Result;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -862,6 +865,9 @@ struct CONTROLRIG_API FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathV
 
 	UPROPERTY(meta=(Output))
 	FVector Tangent;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -882,6 +888,9 @@ struct CONTROLRIG_API FRigUnit_MathVectorMakeBezierFourPoint : public FRigUnit_M
 
 	UPROPERTY(meta = (Input, Output))
 	FCRFourPointBezier Bezier;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

@@ -136,6 +136,16 @@ FRigUnit_HierarchyGetParentWeights_Execute()
 	FRigUnit_HierarchyGetParentWeightsArray::StaticExecute(RigVMExecuteContext, Child, Weights, Parents.Keys, Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_HierarchyGetParentWeights::GetUpgradeInfo() const
+{
+	FRigUnit_HierarchyGetParentWeightsArray NewNode;
+	NewNode.Child = Child;
+	NewNode.Weights = Weights;
+	NewNode.Parents = Parents.Keys;
+
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_HierarchyGetParentWeightsArray_Execute()
 {
 	if((Context.State != EControlRigState::Update) || (Context.Hierarchy == nullptr))

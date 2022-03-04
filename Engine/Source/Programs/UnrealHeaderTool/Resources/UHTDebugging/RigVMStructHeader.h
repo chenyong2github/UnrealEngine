@@ -33,9 +33,11 @@ struct FRigVMStructBase
 
 	UPROPERTY(meta = (Output))
 	float InheritedOutput;
+
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const {};
 };
 
-USTRUCT()
+USTRUCT(meta = (Deprecated = "5.0.0"))
 struct FRigVMMethodStruct : public FRigVMStructBase
 {
 	GENERATED_BODY()
@@ -93,4 +95,7 @@ struct FRigVMMethodStruct : public FRigVMStructBase
 
 	UPROPERTY()
 	TEnumAsByte<ERigVMTestNameSpaceEnum::Type> HiddenNameSpaceEnum;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

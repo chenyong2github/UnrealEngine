@@ -62,6 +62,9 @@ struct CONTROLRIG_API FRigUnit_DebugTransform : public FRigUnit_DebugBase
 
 	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta=(DisplayName="Draw Transform", Deprecated = "4.25"))
@@ -105,6 +108,9 @@ struct CONTROLRIG_API FRigUnit_DebugTransformMutable : public FRigUnit_DebugBase
 
 	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -207,6 +213,9 @@ struct CONTROLRIG_API FRigUnit_DebugTransformArrayMutable : public FRigUnit_Debu
 
 	UPROPERTY(transient)
 	FRigUnit_DebugTransformArrayMutable_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

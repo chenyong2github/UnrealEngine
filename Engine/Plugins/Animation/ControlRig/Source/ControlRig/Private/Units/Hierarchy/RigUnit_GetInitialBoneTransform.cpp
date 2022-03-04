@@ -2,6 +2,7 @@
 
 #include "RigUnit_GetInitialBoneTransform.h"
 #include "Units/RigUnitContext.h"
+#include "Units/Hierarchy/RigUnit_GetTransform.h"
 
 FRigUnit_GetInitialBoneTransform_Execute()
 {
@@ -48,6 +49,18 @@ FRigUnit_GetInitialBoneTransform_Execute()
 			}
 		}
 	}
+}
+
+FRigVMStructUpgradeInfo FRigUnit_GetInitialBoneTransform::GetUpgradeInfo() const
+{
+	FRigUnit_GetTransform NewNode;
+	NewNode.Item = FRigElementKey(Bone, ERigElementType::Control);
+	NewNode.Space = Space;
+	NewNode.bInitial = true;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Bone"), TEXT("Item.Name"));
+	return Info;
 }
 
 #if WITH_DEV_AUTOMATION_TESTS

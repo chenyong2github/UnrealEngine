@@ -80,6 +80,9 @@ struct CONTROLRIG_API FRigUnit_ParentSwitchConstraint : public FRigUnitMutable
 	// The cached relative offset between subject and parent
 	UPROPERTY()
 	FTransform RelativeOffset;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -156,4 +159,7 @@ struct CONTROLRIG_API FRigUnit_ParentSwitchConstraintArray : public FRigUnitMuta
 	// The cached relative offset between subject and parent
 	UPROPERTY()
 	FTransform RelativeOffset;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

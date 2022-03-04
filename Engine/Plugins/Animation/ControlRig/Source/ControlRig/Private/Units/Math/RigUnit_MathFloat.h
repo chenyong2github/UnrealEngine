@@ -65,7 +65,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatBinaryOp : public FRigUnit_MathFloatBase
 /**
  * Returns PI
  */
-USTRUCT(meta=(DisplayName="Pi"))
+USTRUCT(meta=(DisplayName="Pi", PrototypeName="Pi"))
 struct CONTROLRIG_API FRigUnit_MathFloatConstPi : public FRigUnit_MathFloatConstant
 {
 	GENERATED_BODY()
@@ -77,7 +77,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatConstPi : public FRigUnit_MathFloatConst
 /**
  * Returns PI * 0.5
  */
-USTRUCT(meta=(DisplayName="Half Pi"))
+USTRUCT(meta=(DisplayName="Half Pi", PrototypeName="HalfPi"))
 struct CONTROLRIG_API FRigUnit_MathFloatConstHalfPi : public FRigUnit_MathFloatConstant
 {
 	GENERATED_BODY()
@@ -89,7 +89,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatConstHalfPi : public FRigUnit_MathFloatC
 /**
  * Returns PI * 2.0
  */
-USTRUCT(meta=(DisplayName="Two Pi", Keywords="Tau"))
+USTRUCT(meta=(DisplayName="Two Pi", PrototypeName="TwoPi", Keywords="Tau"))
 struct CONTROLRIG_API FRigUnit_MathFloatConstTwoPi : public FRigUnit_MathFloatConstant
 {
 	GENERATED_BODY()
@@ -101,7 +101,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatConstTwoPi : public FRigUnit_MathFloatCo
 /**
  * Returns E
  */
-USTRUCT(meta=(DisplayName="E", Keywords="Euler"))
+USTRUCT(meta=(DisplayName="E", PrototypeName="E", Keywords="Euler"))
 struct CONTROLRIG_API FRigUnit_MathFloatConstE : public FRigUnit_MathFloatConstant
 {
 	GENERATED_BODY()
@@ -727,6 +727,9 @@ struct CONTROLRIG_API FRigUnit_MathFloatSelectBool : public FRigUnit_MathFloatBa
 
 	UPROPERTY(meta=(Output))
 	float Result;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -828,7 +831,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatAtan : public FRigUnit_MathFloatUnaryOp
 /**
  * Computes the angles alpha, beta and gamma (in radians) between the three sides A, B and C
  */
-USTRUCT(meta = (DisplayName = "Law Of Cosine"))
+USTRUCT(meta = (DisplayName = "Law Of Cosine", PrototypeName="LawOfCosine"))
 struct CONTROLRIG_API FRigUnit_MathFloatLawOfCosine : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
@@ -867,7 +870,7 @@ struct CONTROLRIG_API FRigUnit_MathFloatLawOfCosine : public FRigUnit_MathFloatB
 /**
  * Computes the base-e exponential of the given value 
  */
-USTRUCT(meta = (DisplayName = "Exponential"))
+USTRUCT(meta = (DisplayName = "Exponential", PrototypeName="Exponential"))
 struct CONTROLRIG_API FRigUnit_MathFloatExponential : public FRigUnit_MathFloatUnaryOp
 {
 	GENERATED_BODY()

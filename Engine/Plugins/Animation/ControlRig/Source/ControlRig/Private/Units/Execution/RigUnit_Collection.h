@@ -47,6 +47,9 @@ struct CONTROLRIG_API FRigUnit_CollectionChain : public FRigUnit_CollectionBase
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -106,6 +109,9 @@ struct CONTROLRIG_API FRigUnit_CollectionNameSearch : public FRigUnit_Collection
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -170,6 +176,9 @@ struct CONTROLRIG_API FRigUnit_CollectionChildren : public FRigUnit_CollectionBa
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -243,6 +252,9 @@ struct CONTROLRIG_API FRigUnit_CollectionReplaceItems : public FRigUnit_Collecti
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -354,6 +366,9 @@ struct CONTROLRIG_API FRigUnit_CollectionGetParentIndices : public FRigUnit_Coll
 
 	UPROPERTY(meta = (Output))
 	TArray<int32> ParentIndices;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -409,6 +424,9 @@ struct CONTROLRIG_API FRigUnit_CollectionUnion : public FRigUnit_CollectionBase
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -435,6 +453,9 @@ struct CONTROLRIG_API FRigUnit_CollectionIntersection : public FRigUnit_Collecti
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -461,6 +482,9 @@ struct CONTROLRIG_API FRigUnit_CollectionDifference : public FRigUnit_Collection
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -483,6 +507,9 @@ struct CONTROLRIG_API FRigUnit_CollectionReverse : public FRigUnit_CollectionBas
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Reversed;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -507,6 +534,9 @@ struct CONTROLRIG_API FRigUnit_CollectionCount : public FRigUnit_CollectionBase
 
 	UPROPERTY(meta = (Output))
 	int32 Count;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -535,6 +565,9 @@ struct CONTROLRIG_API FRigUnit_CollectionItemAtIndex : public FRigUnit_Collectio
 
 	UPROPERTY(meta = (Output))
 	FRigElementKey Item;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -585,6 +618,9 @@ struct CONTROLRIG_API FRigUnit_CollectionLoop : public FRigUnit_CollectionBaseMu
 
 	UPROPERTY(meta = (Output))
 	FControlRigExecuteContext Completed;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -612,4 +648,7 @@ struct CONTROLRIG_API FRigUnit_CollectionAddItem : public FRigUnit_CollectionBas
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Result;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

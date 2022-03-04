@@ -49,3 +49,9 @@ FRigUnit_BlendTransform_Execute()
 	// if failed on any of the above, it will just use source as target pose
 	Result = Source;
 }
+
+FRigVMStructUpgradeInfo FRigUnit_BlendTransform::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}

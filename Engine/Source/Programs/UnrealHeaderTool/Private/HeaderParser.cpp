@@ -2079,6 +2079,21 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 		Throwf(TEXT("Expected a GENERATED_BODY() at the start of struct"));
 	}
 
+	// check if the struct is marked as deprecated and does not implement the upgrade path
+	if(StructDef.HasMetaData(TEXT("Deprecated")))
+	{
+		const FRigVMStructInfo& StructRigVMInfo = StructDef.GetRigVMInfo();
+		if(!StructRigVMInfo.bHasGetUpgradeInfoMethod && !StructRigVMInfo.Methods.IsEmpty())
+		{
+			LogError(TEXT(
+				"RigVMStruct '%s' is marked as deprecated but is missing GetUpgradeInfo method.\n"
+				"Please implement a method like below:\n\n"
+				"RIGVM_METHOD()\n"
+				"virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;"),
+				*StructDef.GetNameCPP());
+		}
+	}
+
 	// Validate sparse class data
 	CheckSparseClassData(StructDef);
 	return StructDef;
@@ -6210,7 +6225,17 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 	FRigVMMethodInfo MethodInfo;
 	MethodInfo.ReturnType = FString(ReturnTypeToken.Value);
 	MethodInfo.Name = FString(NameToken.Value);
-	
+
+	// look out for the upgrade info method
+	static const FString GetUpgradeInfoString = TEXT("GetUpgradeInfo");
+	static const FString RigVMStructUpgradeInfoString = TEXT("FRigVMStructUpgradeInfo");
+	if(MethodInfo.ReturnType == RigVMStructUpgradeInfoString && MethodInfo.Name == GetUpgradeInfoString)
+	{
+		FRigVMStructInfo& StructRigVMInfo = StructDef.GetRigVMInfo();
+		StructRigVMInfo.bHasGetUpgradeInfoMethod = true;
+		return;
+	}
+
 	FString ParamString = FString::Join(ParamsContent, TEXT(" "));
 	if (!ParamString.IsEmpty())
 	{

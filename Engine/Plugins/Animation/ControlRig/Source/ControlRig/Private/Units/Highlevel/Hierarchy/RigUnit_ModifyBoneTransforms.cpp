@@ -26,6 +26,12 @@ FRigUnit_ModifyBoneTransforms_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_ModifyBoneTransforms::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}
+
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Units/RigUnitTest.h"
 

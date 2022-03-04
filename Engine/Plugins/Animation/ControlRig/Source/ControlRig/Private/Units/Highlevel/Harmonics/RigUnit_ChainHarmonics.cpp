@@ -20,6 +20,23 @@ FRigUnit_ChainHarmonics_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_ChainHarmonics::GetUpgradeInfo() const
+{
+	FRigUnit_ChainHarmonicsPerItem NewNode;
+	NewNode.ChainRoot = FRigElementKey(ChainRoot, ERigElementType::Bone);
+	NewNode.Speed = Speed;
+	NewNode.Reach = Reach;
+	NewNode.Wave = Wave;
+	NewNode.WaveCurve = WaveCurve;
+	NewNode.Pendulum = Pendulum;
+	NewNode.bDrawDebug = bDrawDebug;
+	NewNode.DrawWorldOffset = DrawWorldOffset;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("ChainRoot"), TEXT("ChainRoot.Name"));
+	return Info;
+}
+
 FRigUnit_ChainHarmonicsPerItem_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

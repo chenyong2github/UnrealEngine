@@ -54,4 +54,7 @@ struct CONTROLRIG_API FRigUnit_PropagateTransform : public FRigUnitMutable
 	// Used to cache the item internally
 	UPROPERTY(transient)
 	FCachedRigElement CachedIndex;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

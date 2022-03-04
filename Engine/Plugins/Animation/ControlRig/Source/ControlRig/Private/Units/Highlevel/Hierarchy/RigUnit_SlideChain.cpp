@@ -33,9 +33,25 @@ FRigUnit_SlideChain_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_SlideChain::GetUpgradeInfo() const
+{
+	// this node is no longer supported and the upgrade path is too complex.
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_SlideChainPerItem_Execute()
 {
 	FRigUnit_SlideChainItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, SlideAmount, bPropagateToChildren, WorkData, ExecuteContext, Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_SlideChainPerItem::GetUpgradeInfo() const
+{
+	FRigUnit_SlideChainItemArray NewNode;
+	NewNode.Items = Items.Keys;
+	NewNode.SlideAmount = SlideAmount;
+	NewNode.bPropagateToChildren = bPropagateToChildren;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 FRigUnit_SlideChainItemArray_Execute()

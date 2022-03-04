@@ -57,6 +57,9 @@ struct CONTROLRIG_API FRigUnit_VisualDebugVector : public FRigUnit_DebugBase
 
 	UPROPERTY(meta = (Input, EditCondition = "bEnabled"))
 	FName BoneSpace;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -139,6 +142,9 @@ struct CONTROLRIG_API FRigUnit_VisualDebugQuat : public FRigUnit_DebugBase
 
 	UPROPERTY(meta = (Input, EditCondition = "bEnabled"))
 	FName BoneSpace;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -213,6 +219,9 @@ struct CONTROLRIG_API FRigUnit_VisualDebugTransform : public FRigUnit_DebugBase
 
 	UPROPERTY(meta = (Input, EditCondition = "bEnabled"))
 	FName BoneSpace;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

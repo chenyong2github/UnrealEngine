@@ -56,4 +56,7 @@ struct CONTROLRIG_API FRigUnit_ApplyFK : public FRigUnitMutable
 	// Transform op option. Use if ETransformSpace is BaseJoint
 	UPROPERTY(EditAnywhere, Category = "ApplyFK", meta = (Input))
 	FName BaseJoint;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

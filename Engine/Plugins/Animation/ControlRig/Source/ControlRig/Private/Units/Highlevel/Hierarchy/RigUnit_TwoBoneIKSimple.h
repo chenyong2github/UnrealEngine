@@ -201,6 +201,9 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKSimple : public FRigUnit_HighlevelBaseMu
 	FCachedRigElement CachedEffectorBoneIndex;
 	UPROPERTY()
 	FCachedRigElement CachedPoleVectorSpaceIndex;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

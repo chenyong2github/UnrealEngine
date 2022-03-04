@@ -45,6 +45,9 @@ struct CONTROLRIG_API FRigUnit_BoneName : public FRigUnit
 	 */
 	UPROPERTY(meta = (Input, Output))
 	FName Bone;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -66,6 +69,9 @@ struct CONTROLRIG_API FRigUnit_SpaceName : public FRigUnit
 	 */
 	UPROPERTY(meta = (Input, Output))
 	FName Space;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -87,4 +93,7 @@ struct CONTROLRIG_API FRigUnit_ControlName : public FRigUnit
 	 */
 	UPROPERTY(meta = (Input, Output))
 	FName Control;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

@@ -46,6 +46,16 @@ FRigUnit_SphereTraceWorld_Execute()
 	}
 }
 
+FRigVMStructUpgradeInfo FRigUnit_SphereTraceWorld::GetUpgradeInfo() const
+{
+	FRigUnit_SphereTraceByTraceChannel NewNode;
+	NewNode.Start = Start;
+	NewNode.End = End;
+	NewNode.Radius = Radius;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
+}
+
 FRigUnit_SphereTraceByTraceChannel_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

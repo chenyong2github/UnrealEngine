@@ -2,6 +2,7 @@
 
 #include "RigUnit_SetBoneTransform.h"
 #include "Units/RigUnitContext.h"
+#include "Units/Hierarchy/RigUnit_SetTransform.h"
 
 FRigUnit_SetBoneTransform_Execute()
 {
@@ -71,6 +72,18 @@ FRigUnit_SetBoneTransform_Execute()
 			}
 		}
 	}
+}
+
+FRigVMStructUpgradeInfo FRigUnit_SetBoneTransform::GetUpgradeInfo() const
+{
+	FRigUnit_SetTransform NewNode;
+	NewNode.Item = FRigElementKey(Bone, ERigElementType::Bone);
+	NewNode.Space = Space;
+	NewNode.Transform = Transform;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Bone"), TEXT("Item.Name"));
+	return Info;
 }
 
 #if WITH_DEV_AUTOMATION_TESTS

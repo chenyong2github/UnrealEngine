@@ -17,6 +17,21 @@ FRigUnit_DebugLineStrip_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_DebugLineStrip::GetUpgradeInfo() const
+{
+	FRigUnit_DebugLineStripItemSpace NewNode;
+	NewNode.Points = Points;
+	NewNode.Color = Color;
+	NewNode.Thickness = Thickness;
+	NewNode.Space = FRigElementKey(Space, ERigElementType::Bone);
+	NewNode.WorldOffset = WorldOffset;
+	NewNode.bEnabled = bEnabled;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Space"), TEXT("Space.Name"));
+	return Info;
+}
+
 FRigUnit_DebugLineStripItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

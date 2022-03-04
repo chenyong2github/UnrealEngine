@@ -144,4 +144,7 @@ struct FRigUnit_FullbodyIK : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(transient)
 	FRigUnit_FullbodyIK_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

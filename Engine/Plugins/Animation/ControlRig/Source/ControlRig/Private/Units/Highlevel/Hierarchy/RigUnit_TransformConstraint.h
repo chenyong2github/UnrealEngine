@@ -109,6 +109,11 @@ private:
 
 	UPROPERTY(transient)
 	FRigUnit_TransformConstraint_WorkData WorkData;
+
+public:
+	
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -175,6 +180,11 @@ private:
 
 	UPROPERTY(transient)
 	FRigUnit_TransformConstraint_WorkData WorkData;
+
+public:
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT()
@@ -307,6 +317,9 @@ struct FRigUnit_PositionConstraint : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
 	float Weight;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -404,6 +417,9 @@ struct FRigUnit_RotationConstraint : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
 	float Weight;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -477,6 +493,9 @@ struct FRigUnit_ScaleConstraint : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
 	float Weight;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

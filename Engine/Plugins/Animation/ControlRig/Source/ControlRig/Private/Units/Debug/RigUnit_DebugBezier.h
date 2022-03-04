@@ -52,6 +52,9 @@ struct CONTROLRIG_API FRigUnit_DebugBezier : public FRigUnit_DebugBaseMutable
 
 	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta=(DisplayName="Draw Bezier", Deprecated = "4.25"))
@@ -101,4 +104,7 @@ struct CONTROLRIG_API FRigUnit_DebugBezierItemSpace : public FRigUnit_DebugBaseM
 
 	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

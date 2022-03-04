@@ -54,6 +54,12 @@ FRigUnit_ApplyFK_Execute()
 	}
 }
 
+FRigVMStructUpgradeInfo FRigUnit_ApplyFK::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}
+
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Units/RigUnitTest.h"
 

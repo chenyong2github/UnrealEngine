@@ -276,6 +276,9 @@ struct CONTROLRIG_API FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY()
 	FCachedRigElement SecondaryCachedSpace;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

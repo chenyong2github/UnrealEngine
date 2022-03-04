@@ -133,6 +133,9 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParentWeights : public FRigUnit_Dynam
 	 */
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Parents;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

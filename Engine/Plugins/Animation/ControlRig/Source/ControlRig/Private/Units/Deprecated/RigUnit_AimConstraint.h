@@ -95,4 +95,7 @@ struct CONTROLRIG_API FRigUnit_AimConstraint : public FRigUnitMutable
 	// note that Targets.Num () != ConstraintData.Num()
 	UPROPERTY()
 	FRigUnit_AimConstraint_WorkData WorkData;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

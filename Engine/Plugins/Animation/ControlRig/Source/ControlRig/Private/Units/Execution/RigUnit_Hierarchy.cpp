@@ -3,6 +3,7 @@
 #include "RigUnit_Hierarchy.h"
 #include "Units/Execution/RigUnit_Item.h"
 #include "Units/RigUnitContext.h"
+#include "RigUnit_Collection.h"
 
 FRigUnit_HierarchyGetParent_Execute()
 {
@@ -37,6 +38,16 @@ FRigUnit_HierarchyGetParent_Execute()
 FRigUnit_HierarchyGetParents_Execute()
 {
 	FRigUnit_HierarchyGetParentsItemArray::StaticExecute(RigVMExecuteContext, Child, bIncludeChild, bReverse, Parents.Keys, CachedChild, CachedParents, Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_HierarchyGetParents::GetUpgradeInfo() const
+{
+	FRigUnit_HierarchyGetParentsItemArray NewNode;
+	NewNode.Child = Child;
+	NewNode.bIncludeChild = bIncludeChild;
+	NewNode.bReverse = bReverse;
+	NewNode.Parents = Parents.Keys;
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 FRigUnit_HierarchyGetParentsItemArray_Execute()
@@ -111,9 +122,27 @@ FRigUnit_HierarchyGetChildren_Execute()
 	Children = CachedChildren;
 }
 
+FRigVMStructUpgradeInfo FRigUnit_HierarchyGetChildren::GetUpgradeInfo() const
+{
+	FRigUnit_CollectionChildrenArray NewNode;
+	NewNode.Parent = Parent;
+	NewNode.bRecursive = bRecursive;
+	NewNode.bIncludeParent = bIncludeParent;
+	NewNode.TypeToSearch = ERigElementType::All;
+	return FRigVMStructUpgradeInfo(*this, NewNode);
+}
+
 FRigUnit_HierarchyGetSiblings_Execute()
 {
 	FRigUnit_HierarchyGetSiblingsItemArray::StaticExecute(RigVMExecuteContext, Item, bIncludeItem, Siblings.Keys, CachedItem, CachedSiblings, Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_HierarchyGetSiblings::GetUpgradeInfo() const
+{
+	FRigUnit_HierarchyGetSiblingsItemArray NewNode;
+	NewNode.Item = Item;
+	NewNode.bIncludeItem = bIncludeItem;
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 FRigUnit_HierarchyGetSiblingsItemArray_Execute()
@@ -164,6 +193,16 @@ FRigUnit_HierarchyGetPose_Execute()
 	FRigUnit_HierarchyGetPoseItemArray::StaticExecute(RigVMExecuteContext, Initial, ElementType, ItemsToGet.Keys, Pose, Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_HierarchyGetPose::GetUpgradeInfo() const
+{
+	FRigUnit_HierarchyGetPoseItemArray NewNode;
+	NewNode.Initial = Initial;
+	NewNode.ElementType = ElementType;
+	NewNode.ItemsToGet = ItemsToGet.Keys;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
+}
+
 FRigUnit_HierarchyGetPoseItemArray_Execute()
 {
 	Pose = Context.Hierarchy->GetPose(Initial, ElementType, ItemsToGet);
@@ -172,6 +211,17 @@ FRigUnit_HierarchyGetPoseItemArray_Execute()
 FRigUnit_HierarchySetPose_Execute()
 {
 	FRigUnit_HierarchySetPoseItemArray::StaticExecute(RigVMExecuteContext, Pose, ElementType, Space, ItemsToSet.Keys, Weight, ExecuteContext, Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_HierarchySetPose::GetUpgradeInfo() const
+{
+	FRigUnit_HierarchySetPoseItemArray NewNode;
+	NewNode.Pose = Pose;
+	NewNode.ElementType = ElementType;
+	NewNode.Space = Space;
+	NewNode.ItemsToSet = ItemsToSet.Keys;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 FRigUnit_HierarchySetPoseItemArray_Execute()
@@ -193,6 +243,15 @@ FRigUnit_PoseIsEmpty_Execute()
 FRigUnit_PoseGetItems_Execute()
 {
 	FRigUnit_PoseGetItemsItemArray::StaticExecute(RigVMExecuteContext, Pose, ElementType, Items.Keys, Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_PoseGetItems::GetUpgradeInfo() const
+{
+	FRigUnit_PoseGetItemsItemArray NewNode;
+	NewNode.Pose = Pose;
+	NewNode.ElementType = ElementType;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 FRigUnit_PoseGetItemsItemArray_Execute()
@@ -356,7 +415,7 @@ FRigUnit_PoseGetDelta_Execute()
 }
 
 bool FRigUnit_PoseGetDelta::ArePoseElementsEqual(const FRigPoseElement& A, const FRigPoseElement& B,
-	EBoneGetterSetterMode Space, float PositionU, float RotationU, float ScaleU, float CurveU)
+                                                 EBoneGetterSetterMode Space, float PositionU, float RotationU, float ScaleU, float CurveU)
 {
 	const FRigElementKey& KeyA = A.Index.GetKey();
 	const FRigElementKey& KeyB = B.Index.GetKey();

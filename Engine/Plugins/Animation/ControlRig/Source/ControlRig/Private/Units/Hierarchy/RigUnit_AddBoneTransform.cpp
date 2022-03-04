@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Units/Hierarchy/RigUnit_AddBoneTransform.h"
+#include "Units/Hierarchy/RigUnit_OffsetTransform.h"
 #include "Units/RigUnitContext.h"
 
 FRigUnit_AddBoneTransform_Execute()
@@ -53,3 +54,14 @@ FRigUnit_AddBoneTransform_Execute()
 	}
 }
 
+FRigVMStructUpgradeInfo FRigUnit_AddBoneTransform::GetUpgradeInfo() const
+{
+	FRigUnit_OffsetTransformForItem NewNode;
+	NewNode.Item = FRigElementKey(Bone, ERigElementType::Bone);
+	NewNode.Weight = Weight;
+	NewNode.bPropagateToChildren = bPropagateToChildren;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Bone"), TEXT("Item.Name"));
+	return Info;
+}

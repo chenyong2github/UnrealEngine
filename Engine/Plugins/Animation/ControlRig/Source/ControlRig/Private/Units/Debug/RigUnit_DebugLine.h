@@ -42,6 +42,9 @@ struct CONTROLRIG_API FRigUnit_DebugLine : public FRigUnit_DebugBaseMutable
 
 	UPROPERTY(meta = (Input, Constant))
 	bool bEnabled;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

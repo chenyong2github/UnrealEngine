@@ -72,4 +72,7 @@ struct CONTROLRIG_API FRigUnit_SetRelativeBoneTransform : public FRigUnitMutable
 	// Used to cache the internally used space index
 	UPROPERTY(transient)
 	FCachedRigElement CachedSpaceIndex;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

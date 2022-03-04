@@ -25,6 +25,16 @@ FRigUnit_CollectionChain_Execute()
 	FRigUnit_CollectionChainArray::StaticExecute(RigVMExecuteContext, FirstItem, LastItem, Reverse, Collection.Keys, Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_CollectionChain::GetUpgradeInfo() const
+{
+	FRigUnit_CollectionChainArray NewNode;
+	NewNode.FirstItem = FirstItem;
+	NewNode.LastItem = LastItem;
+	NewNode.Reverse = Reverse;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
+}
+
 FRigUnit_CollectionChainArray_Execute()
 {
 	uint32 Hash = FRigUnit_CollectionChain_Hash + Context.Hierarchy->GetTopologyVersion() * 17;
@@ -68,6 +78,15 @@ FRigUnit_CollectionNameSearch_Execute()
 	FRigUnit_CollectionNameSearchArray::StaticExecute(RigVMExecuteContext, PartialName, TypeToSearch, Collection.Keys, Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_CollectionNameSearch::GetUpgradeInfo() const
+{
+	FRigUnit_CollectionNameSearchArray NewNode;
+	NewNode.PartialName = PartialName;
+	NewNode.TypeToSearch = TypeToSearch;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
+}
+
 FRigUnit_CollectionNameSearchArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -93,6 +112,17 @@ FRigUnit_CollectionNameSearchArray_Execute()
 FRigUnit_CollectionChildren_Execute()
 {
 	FRigUnit_CollectionChildrenArray::StaticExecute(RigVMExecuteContext, Parent, bIncludeParent, bRecursive, TypeToSearch, Collection.Keys, Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_CollectionChildren::GetUpgradeInfo() const
+{
+	FRigUnit_CollectionChildrenArray NewNode;
+	NewNode.Parent = Parent;
+	NewNode.bIncludeParent = bIncludeParent;
+	NewNode.bRecursive = bRecursive;
+	NewNode.TypeToSearch = TypeToSearch;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 FRigUnit_CollectionChildrenArray_Execute()
@@ -168,6 +198,18 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_CollectionChildren)
 FRigUnit_CollectionReplaceItems_Execute()
 {
 	FRigUnit_CollectionReplaceItemsArray::StaticExecute(RigVMExecuteContext, Items.Keys, Old, New, RemoveInvalidItems, bAllowDuplicates, Collection.Keys, Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_CollectionReplaceItems::GetUpgradeInfo() const
+{
+	FRigUnit_CollectionReplaceItemsArray NewNode;
+	NewNode.Items = Items.Keys;
+	NewNode.Old = Old;
+	NewNode.New = New;
+	NewNode.RemoveInvalidItems = RemoveInvalidItems;
+	NewNode.bAllowDuplicates = bAllowDuplicates;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 FRigUnit_CollectionReplaceItemsArray_Execute()
@@ -247,6 +289,16 @@ FRigUnit_CollectionGetParentIndices_Execute()
 	FRigUnit_CollectionGetParentIndicesItemArray::StaticExecute(RigVMExecuteContext, Collection.Keys, ParentIndices, Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_CollectionGetParentIndices::GetUpgradeInfo() const
+{
+	FRigUnit_CollectionGetParentIndicesItemArray NewNode;
+	NewNode.Items = Collection.Keys;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Collection"), TEXT("Items"));
+	return Info;
+}
+
 FRigUnit_CollectionGetParentIndicesItemArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -319,11 +371,23 @@ FRigUnit_CollectionUnion_Execute()
 	Collection = FRigElementKeyCollection::MakeUnion(A, B, bAllowDuplicates);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_CollectionUnion::GetUpgradeInfo() const
+{
+	// this node is no longer supported. you can rely on generic array nodes for this now
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_CollectionIntersection_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	Collection = FRigElementKeyCollection::MakeIntersection(A, B);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_CollectionIntersection::GetUpgradeInfo() const
+{
+	// this node is no longer supported. you can rely on generic array nodes for this now
+	return FRigVMStructUpgradeInfo();
 }
 
 FRigUnit_CollectionDifference_Execute()
@@ -333,6 +397,12 @@ FRigUnit_CollectionDifference_Execute()
 	Collection = FRigElementKeyCollection::MakeDifference(A, B);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_CollectionDifference::GetUpgradeInfo() const
+{
+	// this node is no longer supported. you can rely on generic array nodes for this now
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_CollectionReverse_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -340,11 +410,23 @@ FRigUnit_CollectionReverse_Execute()
 	Reversed = FRigElementKeyCollection::MakeReversed(Collection);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_CollectionReverse::GetUpgradeInfo() const
+{
+	// this node is no longer supported. you can rely on generic array nodes for this now
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_CollectionCount_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	Count = Collection.Num();
+}
+
+FRigVMStructUpgradeInfo FRigUnit_CollectionCount::GetUpgradeInfo() const
+{
+	// this node is no longer supported. you can rely on generic array nodes for this now
+	return FRigVMStructUpgradeInfo();
 }
 
 FRigUnit_CollectionItemAtIndex_Execute()
@@ -359,6 +441,12 @@ FRigUnit_CollectionItemAtIndex_Execute()
 	{
 		Item = FRigElementKey();
 	}
+}
+
+FRigVMStructUpgradeInfo FRigUnit_CollectionItemAtIndex::GetUpgradeInfo() const
+{
+	// this node is no longer supported. you can rely on generic array nodes for this now
+	return FRigVMStructUpgradeInfo();
 }
 
 FRigUnit_CollectionLoop_Execute()
@@ -378,10 +466,22 @@ FRigUnit_CollectionLoop_Execute()
 	}
 }
 
+FRigVMStructUpgradeInfo FRigUnit_CollectionLoop::GetUpgradeInfo() const
+{
+	// this node is no longer supported. you can rely on generic array nodes for this now
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_CollectionAddItem_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT();
 
 	Result = Collection;
 	Result.AddUnique(Item);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_CollectionAddItem::GetUpgradeInfo() const
+{
+	// this node is no longer supported. you can rely on generic array nodes for this now
+	return FRigVMStructUpgradeInfo();
 }

@@ -88,6 +88,12 @@ FRigUnit_AimConstraint_Execute()
 	}
 }
 
+FRigVMStructUpgradeInfo FRigUnit_AimConstraint::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}
+
 /*
 void FRigUnit_AimConstraint::AddConstraintData(EAimConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform)
 {

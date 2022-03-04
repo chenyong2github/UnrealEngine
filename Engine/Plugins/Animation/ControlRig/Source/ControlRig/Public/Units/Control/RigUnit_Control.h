@@ -62,4 +62,7 @@ struct CONTROLRIG_API FRigUnit_Control : public FRigUnit
 	/** The filter determines what axes can be manipulated by the in-viewport widgets */
 	UPROPERTY(meta=(Input))
  	FTransformFilter Filter;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };

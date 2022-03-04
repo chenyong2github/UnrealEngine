@@ -7,7 +7,7 @@
 #include "RigUnit_Quaternion.generated.h"
 
 /** Two args and a result of Quaternion type */
-USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
+USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1"))
 struct CONTROLRIG_API FRigUnit_BinaryQuaternionOp : public FRigUnit
 {
 	GENERATED_BODY()
@@ -35,10 +35,13 @@ struct CONTROLRIG_API FRigUnit_MultiplyQuaternion : public FRigUnit_BinaryQuater
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /** Two args and a result of Quaternion type */
-USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
+USTRUCT(meta=(Abstract, NodeColor = "0.1 0.7 0.1"))
 struct CONTROLRIG_API FRigUnit_UnaryQuaternionOp : public FRigUnit
 {
 	GENERATED_BODY()
@@ -57,6 +60,9 @@ struct CONTROLRIG_API FRigUnit_InverseQuaterion: public FRigUnit_UnaryQuaternion
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta = (DisplayName = "To Axis And Angle(Quaternion)", Category = "Math|Quaternion", NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
@@ -75,6 +81,9 @@ struct CONTROLRIG_API FRigUnit_QuaternionToAxisAndAngle : public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta = (DisplayName = "From Axis And Angle(Quaternion)", Category = "Math|Quaternion", NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
@@ -99,6 +108,9 @@ struct CONTROLRIG_API FRigUnit_QuaternionFromAxisAndAngle : public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 USTRUCT(meta = (DisplayName = "Get Angle Around Axis", Category = "Math|Quaternion", NodeColor = "0.1 0.7 0.1", Deprecated="4.23.0"))
@@ -123,5 +135,8 @@ struct CONTROLRIG_API FRigUnit_QuaternionToAngle : public FRigUnit
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+	
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 

@@ -33,6 +33,12 @@ FRigUnit_SpringInterp_Execute()
 		Result = UKismetMathLibrary::FloatSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RemainingTime, Mass);
 	}
 }
+
+FRigVMStructUpgradeInfo FRigUnit_SpringInterp::GetUpgradeInfo() const
+{
+	// this node is no longer supported and the new implementation is vastly different
+	return FRigVMStructUpgradeInfo();
+}
  
 FRigUnit_SpringInterpVector_Execute()
 {
@@ -56,6 +62,12 @@ FRigUnit_SpringInterpVector_Execute()
  
 		Result = UKismetMathLibrary::VectorSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RemainingTime, Mass);
 	}
+}
+
+FRigVMStructUpgradeInfo FRigUnit_SpringInterpVector::GetUpgradeInfo() const
+{
+	// this node is no longer supported and the new implementation is vastly different
+	return FRigVMStructUpgradeInfo();
 }
 
 FRigUnit_SpringInterpV2_Execute()

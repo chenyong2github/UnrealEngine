@@ -8,6 +8,21 @@ FRigUnit_VisualDebugVector_Execute()
 	FRigUnit_VisualDebugVectorItemSpace::StaticExecute(RigVMExecuteContext, Value, bEnabled, Mode, Color, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone), Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_VisualDebugVector::GetUpgradeInfo() const
+{
+	FRigUnit_VisualDebugVectorItemSpace NewNode;
+	NewNode.Value = Value;
+	NewNode.Color = Color;
+	NewNode.Thickness = Thickness;
+	NewNode.Space = FRigElementKey(BoneSpace, ERigElementType::Bone);
+	NewNode.Scale = Scale;
+	NewNode.bEnabled = bEnabled;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("BoneSpace"), TEXT("Space.Name"));
+	return Info;
+}
+
 FRigUnit_VisualDebugVectorItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -51,6 +66,20 @@ FRigUnit_VisualDebugQuat_Execute()
 	FRigUnit_VisualDebugQuatItemSpace::StaticExecute(RigVMExecuteContext, Value, bEnabled, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone), Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_VisualDebugQuat::GetUpgradeInfo() const
+{
+	FRigUnit_VisualDebugQuatItemSpace NewNode;
+	NewNode.Value = Value;
+	NewNode.Thickness = Thickness;
+	NewNode.Space = FRigElementKey(BoneSpace, ERigElementType::Bone);
+	NewNode.Scale = Scale;
+	NewNode.bEnabled = bEnabled;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("BoneSpace"), TEXT("Space.Name"));
+	return Info;
+}
+
 FRigUnit_VisualDebugQuatItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -64,6 +93,20 @@ FRigUnit_VisualDebugQuatItemSpace_Execute()
 FRigUnit_VisualDebugTransform_Execute()
 {
 	FRigUnit_VisualDebugTransformItemSpace::StaticExecute(RigVMExecuteContext, Value, bEnabled, Thickness, Scale, FRigElementKey(BoneSpace, ERigElementType::Bone), Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_VisualDebugTransform::GetUpgradeInfo() const
+{
+	FRigUnit_VisualDebugTransformItemSpace NewNode;
+	NewNode.Value = Value;
+	NewNode.Thickness = Thickness;
+	NewNode.Space = FRigElementKey(BoneSpace, ERigElementType::Bone);
+	NewNode.Scale = Scale;
+	NewNode.bEnabled = bEnabled;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("BoneSpace"), TEXT("Space.Name"));
+	return Info;
 }
 
 FRigUnit_VisualDebugTransformItemSpace_Execute()

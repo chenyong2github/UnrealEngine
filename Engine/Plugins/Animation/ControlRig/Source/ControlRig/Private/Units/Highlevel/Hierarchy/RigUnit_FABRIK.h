@@ -101,6 +101,9 @@ struct CONTROLRIG_API FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 	*/
 	UPROPERTY(meta = (Input))
 	bool bSetEffectorTransform;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**
@@ -172,6 +175,9 @@ struct CONTROLRIG_API FRigUnit_FABRIKPerItem : public FRigUnit_HighlevelBaseMuta
 	*/
 	UPROPERTY(meta = (Input))
 	bool bSetEffectorTransform;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
 
 /**

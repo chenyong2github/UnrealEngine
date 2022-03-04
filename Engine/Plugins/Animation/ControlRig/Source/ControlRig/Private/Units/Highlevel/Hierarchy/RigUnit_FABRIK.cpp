@@ -36,9 +36,28 @@ FRigUnit_FABRIK_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_FABRIK::GetUpgradeInfo() const
+{
+	// this node is no longer supported and the upgrade path is too complex.
+	return FRigVMStructUpgradeInfo();
+}
+
 FRigUnit_FABRIKPerItem_Execute()
 {
 	FRigUnit_FABRIKItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, bPropagateToChildren, MaxIterations, WorkData, bSetEffectorTransform,ExecuteContext, Context);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_FABRIKPerItem::GetUpgradeInfo() const
+{
+	FRigUnit_FABRIKItemArray NewNode;
+	NewNode.Items = Items.Keys;
+	NewNode.EffectorTransform = EffectorTransform;
+	NewNode.Precision = Precision;
+	NewNode.Weight = Weight;
+	NewNode.bPropagateToChildren = bPropagateToChildren;
+	NewNode.MaxIterations = MaxIterations;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 FRigUnit_FABRIKItemArray_Execute()

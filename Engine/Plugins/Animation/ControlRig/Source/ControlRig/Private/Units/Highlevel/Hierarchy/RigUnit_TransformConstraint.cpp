@@ -20,6 +20,22 @@ FRigUnit_TransformConstraint_Execute()
 		Context);
 }
 
+FRigVMStructUpgradeInfo FRigUnit_TransformConstraint::GetUpgradeInfo() const
+{
+	FRigUnit_TransformConstraintPerItem NewNode;
+	NewNode.Item = FRigElementKey(Bone, ERigElementType::Bone);
+	NewNode.BaseTransformSpace = BaseTransformSpace;
+	NewNode.BaseTransform = BaseTransform;
+	NewNode.BaseItem = FRigElementKey(BaseBone, ERigElementType::Bone);
+	NewNode.Targets = Targets;
+	NewNode.bUseInitialTransforms = bUseInitialTransforms;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Bone"), TEXT("Item.Name"));
+	Info.AddRemappedPin(TEXT("BaseBone"), TEXT("BaseItem.Name"));
+	return Info;
+}
+
 FRigUnit_TransformConstraintPerItem_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -164,6 +180,12 @@ void FRigUnit_TransformConstraintPerItem::AddConstraintData(const TArrayView<con
 	}
 
 	OutConstraintDataToTargets.Add(NewIndex, TargetIndex);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_TransformConstraintPerItem::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
 }
 
 FRigUnit_ParentConstraint_Execute()
@@ -535,6 +557,18 @@ FRigUnit_PositionConstraint_Execute()
 			Hierarchy->SetLocalTransform(Child, FinalLocalTransform);
 		}
 	}
+}
+
+FRigVMStructUpgradeInfo FRigUnit_PositionConstraint::GetUpgradeInfo() const
+{
+	FRigUnit_PositionConstraintLocalSpaceOffset NewNode;
+	NewNode.Child = Child;
+	NewNode.bMaintainOffset = bMaintainOffset;
+	NewNode.Filter = Filter;
+	NewNode.Parents = Parents;
+	NewNode.Weight = Weight;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -962,6 +996,19 @@ FRigUnit_RotationConstraint_Execute()
 			Hierarchy->SetLocalTransform(Child, FinalLocalTransform);
 		}
 	} 	
+}
+
+FRigVMStructUpgradeInfo FRigUnit_RotationConstraint::GetUpgradeInfo() const
+{
+	FRigUnit_RotationConstraintLocalSpaceOffset NewNode;
+	NewNode.Child = Child;
+	NewNode.bMaintainOffset = bMaintainOffset;
+	NewNode.Filter = Filter;
+	NewNode.Parents = Parents;
+	NewNode.AdvancedSettings = AdvancedSettings;
+	NewNode.Weight = Weight;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -1557,6 +1604,18 @@ FRigUnit_ScaleConstraint_Execute()
 			Hierarchy->SetLocalTransform(Child, FinalLocalTransform);
 		}
 	}
+}
+
+FRigVMStructUpgradeInfo FRigUnit_ScaleConstraint::GetUpgradeInfo() const
+{
+	FRigUnit_ScaleConstraintLocalSpaceOffset NewNode;
+	NewNode.Child = Child;
+	NewNode.bMaintainOffset = bMaintainOffset;
+	NewNode.Filter = Filter;
+	NewNode.Parents = Parents;
+	NewNode.Weight = Weight;
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS

@@ -254,3 +254,9 @@ FRigUnit_PointSimulation_Execute()
 		Context.DrawInterface->DrawPointSimulation(DebugSettings.WorldOffset, Simulation, DebugSettings.Color, DebugSettings.Scale, DebugSettings.CollisionScale, DebugSettings.bDrawPointsAsSpheres);
 	}
 }
+
+FRigVMStructUpgradeInfo FRigUnit_PointSimulation::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}

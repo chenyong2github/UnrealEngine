@@ -2,6 +2,7 @@
 
 #include "RigUnit_SetBoneRotation.h"
 #include "Units/RigUnitContext.h"
+#include "Units/Hierarchy/RigUnit_SetTransform.h"
 
 FRigUnit_SetBoneRotation_Execute()
 {
@@ -74,6 +75,18 @@ FRigUnit_SetBoneRotation_Execute()
 			}
 		}
 	}
+}
+
+FRigVMStructUpgradeInfo FRigUnit_SetBoneRotation::GetUpgradeInfo() const
+{
+	FRigUnit_SetRotation NewNode;
+	NewNode.Item = FRigElementKey(Bone, ERigElementType::Bone);
+	NewNode.Space = Space;
+	NewNode.Rotation = Rotation;
+
+	FRigVMStructUpgradeInfo Info(*this, NewNode);
+	Info.AddRemappedPin(TEXT("Bone"), TEXT("Item.Name"));
+	return Info;
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
