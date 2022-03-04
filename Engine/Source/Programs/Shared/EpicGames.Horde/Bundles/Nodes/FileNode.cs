@@ -107,8 +107,25 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <inheritdoc/>
 		public override ReadOnlyMemory<byte> Serialize()
 		{
-			if (ChildNodeRefs != null)
+			if (ChildNodeRefs == null)
 			{
+				// Compact the buffer to reflect the amount of serialized data
+				const int MaxSlackPct = 20;
+
+				int SlackBytes = WriteBuffer.Length - Data.Length;
+				int SlackPct = (SlackBytes * 100) / WriteBuffer.Length;
+
+				if (SlackPct > MaxSlackPct)
+				{
+					WriteBuffer = new byte[Data.Length];
+					Data.CopyTo(WriteBuffer);
+					Data = WriteBuffer;
+					Payload = Data.Slice(Data.Length - Payload.Length);
+				}
+			}
+			else
+			{
+				// Allocate data with the required size and write it immediately
 				Span<byte> Span = GetWritableSpan(VarInt.Measure((ulong)Length) + ChildNodeRefs.Count * IoHash.NumBytes, 0);
 
 				int LengthBytes = VarInt.Write(Span, Length);

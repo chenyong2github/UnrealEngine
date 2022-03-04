@@ -221,16 +221,12 @@ namespace EpicGames.Horde.Bundles
 		/// <summary>
 		/// Flush a subset of nodes in the working set.
 		/// </summary>
-		private List<NodeInfo> SerializeWorkingSet(int IgnoreCount)
+		private void SerializeWorkingSet(int IgnoreCount)
 		{
 			// Find all the nodes that need to be flushed, in order
 			List<BundleNodeRef> NodeRefs = new List<BundleNodeRef>();
 			LinkWorkingSet(Root, null, NodeRefs);
 			NodeRefs.SortBy(x => x.LastModifiedTime);
-
-			// Keep track of the nodes that have been serialized so far. Nodes in-memory may hash to the same serialized data, so we need to deduplicate them.
-			List<NodeInfo> DirtyNodes = new List<NodeInfo>();
-			HashSet<NodeInfo> DirtyNodesSet = new HashSet<NodeInfo>();
 
 			// Write them all to storage
 			for (int Idx = 0; Idx + IgnoreCount < NodeRefs.Count; Idx++)
@@ -242,13 +238,7 @@ namespace EpicGames.Horde.Bundles
 
 				NodeInfo NodeInfo = WriteNode(Node);
 				NodeRef.MarkAsClean(NodeInfo.Hash);
-
-				if (NodeInfo.Blob == null && DirtyNodesSet.Add(NodeInfo))
-				{
-					DirtyNodes.Add(NodeInfo);
-				}
 			}
-			return DirtyNodes;
 		}
 
 		/// <summary>
@@ -288,12 +278,15 @@ namespace EpicGames.Horde.Bundles
 		/// </summary>
 		public async Task TrimAsync(int IgnoreCount)
 		{
+			// Serialize nodes currently in the working set
+			SerializeWorkingSet(IgnoreCount);
+
+			// Find all the nodes that can be written, in order
+			List<NodeInfo> WriteNodes = new List<NodeInfo>();
+			FindNodesToWrite(Root, WriteNodes, new HashSet<NodeInfo>());
+
 			// Timestamp for any flushed objects
 			DateTime UtcNow = DateTime.UtcNow;
-
-			// Find all the nodes that need to be flushed, in order
-			List<NodeInfo> WriteNodes = SerializeWorkingSet(IgnoreCount);
-			WriteNodes.SortBy(x => x.Rank);
 
 			// Write them all to storage
 			int MinNodeIdx = 0;
@@ -307,6 +300,34 @@ namespace EpicGames.Horde.Bundles
 					MinNodeIdx = Idx;
 					NextBlobCost = 0;
 				}
+				NextBlobCost += Node.Cost;
+			}
+		}
+
+		void FindNodesToWrite(BundleNode Node, List<NodeInfo> WriteNodes, HashSet<NodeInfo> WriteNodesSet)
+		{
+			foreach (BundleNodeRef ChildRef in Node.GetReferences())
+			{
+				if (ChildRef.Node != null)
+				{
+					FindNodesToWrite(ChildRef.Node, WriteNodes, WriteNodesSet);
+				}
+				else
+				{
+					FindNodeInfosToWrite(HashToNode[ChildRef.Hash], WriteNodes, WriteNodesSet);
+				}
+			}
+		}
+
+		void FindNodeInfosToWrite(NodeInfo Node, List<NodeInfo> WriteNodes, HashSet<NodeInfo> WriteNodesSet)
+		{
+			if (Node.Blob == null && WriteNodesSet.Add(Node))
+			{
+				foreach (NodeInfo ChildNode in Node.References!)
+				{
+					FindNodeInfosToWrite(ChildNode, WriteNodes, WriteNodesSet);
+				}
+				WriteNodes.Add(Node);
 			}
 		}
 

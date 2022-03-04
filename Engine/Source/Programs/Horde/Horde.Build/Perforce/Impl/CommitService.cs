@@ -913,6 +913,7 @@ namespace HordeServer.Commits.Impl
 			DirectoryNode Contents = CommitBundle.Root;
 			if (Options.WriteStubFiles)
 			{
+				int Count = 0;
 				await foreach (PerforceResponse<SyncRecord> Record in Perforce.StreamCommandAsync<SyncRecord>("sync", new[] { "-k", $"{QueryPath}@{Change}" }, null, default))
 				{
 					SyncRecord SyncRecord = Record.Data;
@@ -926,6 +927,12 @@ namespace HordeServer.Commits.Impl
 
 					byte[] Data = Encoding.UTF8.GetBytes($"{SyncRecord.DepotFile}#{SyncRecord.Revision}");
 					File.Append(Data, Options.Chunking);
+
+					if (++Count > 1000)
+					{
+						await CommitBundle.TrimAsync();
+						Count = 0;
+					}
 				}
 			}
 			else
