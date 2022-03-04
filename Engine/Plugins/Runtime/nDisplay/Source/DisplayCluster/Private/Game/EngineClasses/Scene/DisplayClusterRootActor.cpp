@@ -488,9 +488,11 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 		{
 			GetTypedPrimitives<UStaticMeshComponent>(OutPrimitives, &WarpMeshNames);
 			GetTypedPrimitives<UProceduralMeshComponent>(OutPrimitives, &WarpMeshNames);
-			GetTypedPrimitives<UDisplayClusterScreenComponent>(OutPrimitives, &WarpMeshNames);
 		}
 	}
+
+	// Always hide DC Screen component in game
+	GetTypedPrimitives<UDisplayClusterScreenComponent>(OutPrimitives);
 
 #if WITH_EDITOR
 

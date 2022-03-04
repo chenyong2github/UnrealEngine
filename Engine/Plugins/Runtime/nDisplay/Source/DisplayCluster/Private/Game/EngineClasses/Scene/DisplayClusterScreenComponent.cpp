@@ -28,9 +28,7 @@ UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInit
 		SetVisibility(true);
 	}
 
-#if WITH_EDITORONLY_DATA
-	SetIsVisualizationComponent(true);
-#endif
+	SetCastShadow(false);
 
 	bVisibleInReflectionCaptures = false;
 	bVisibleInRayTracing = false;
