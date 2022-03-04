@@ -73,7 +73,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 	/// Chunks are pushed into a tree hierarchy as data is appended to the root, with nodes of the tree also split along content-aware boundaries with <see cref="IoHash.NumBytes"/> granularity.
 	/// Once a chunk has been written to storage, it is treated as immutable.
 	/// </summary>
-	[BundleNodeFactory(typeof(FileNodeFactory))]
+	[BundleNodeDeserializer(typeof(FileNodeDeserializer))]
 	public sealed class FileNode : BundleNode
 	{
 		const byte TypeId = (byte)'c';
@@ -81,34 +81,55 @@ namespace EpicGames.Horde.Bundles.Nodes
 		internal int Depth { get; private set; }
 		internal ReadOnlyMemory<byte> Payload { get; private set; }
 		ReadOnlyMemory<byte> Data; // Full serialized data, including type id and header fields.
+		IoHash? Hash; // Hash of the serialized data buffer.
 
 		// In-memory state
-		uint Hash;
-		byte[]? WriteBuffer; // Null if the node is complete and does not support writes
-		List<FileNode?>? ChildNodes;
+		bool IsRoot = true;
+		uint RollingHash;
+		byte[] WriteBuffer = Array.Empty<byte>();
+		List<BundleNodeRef<FileNode>>? ChildNodeRefs;
 
 		/// <summary>
-		/// Constructor
+		/// Length of this tree
 		/// </summary>
-		public FileNode(Bundle Owner, BundleNode? Parent)
-			: this(Owner, Parent, 0, new ChunkingOptions())
-		{
-		}
+		public long Length { get; private set; }
 
 		/// <summary>
-		/// Create a writable file node
+		/// Whether this node is read-only
 		/// </summary>
-		private FileNode(Bundle Owner, BundleNode? Parent, int Depth, ChunkingOptions Options)
-			: base(Owner, Parent)
+		public bool IsComplete() => Hash != null;
+
+		/// <summary>
+		/// Accessor for the children of this node
+		/// </summary>
+		public IReadOnlyList<BundleNodeRef<FileNode>> Children => (IReadOnlyList<BundleNodeRef<FileNode>>?)ChildNodeRefs ?? Array.Empty<BundleNodeRef<FileNode>>();
+
+		/// <inheritdoc/>
+		public override ReadOnlyMemory<byte> Serialize()
 		{
-			MakeWritable(Depth, Options);
+			if (ChildNodeRefs != null)
+			{
+				Span<byte> Span = GetWritableSpan(VarInt.Measure((ulong)Length) + ChildNodeRefs.Count * IoHash.NumBytes, 0);
+
+				int LengthBytes = VarInt.Write(Span, Length);
+				Span = Span.Slice(LengthBytes);
+
+				foreach (BundleNodeRef<FileNode> ChildNodeRef in ChildNodeRefs)
+				{
+					ChildNodeRef.Hash.CopyTo(Span);
+					Span = Span.Slice(IoHash.NumBytes);
+				}
+			}
+			return Data;
 		}
+
+		/// <inheritdoc/>
+		public override IEnumerable<BundleNodeRef> GetReferences() => Children;
 
 		/// <summary>
 		/// Create a file node from deserialized data
 		/// </summary>
-		public FileNode(Bundle Owner, BundleNode? Parent, IoHash Hash, ReadOnlyMemory<byte> Data)
-			: base(Owner, Parent, Hash)
+		public static FileNode Deserialize(Bundle Bundle, ReadOnlyMemory<byte> Data)
 		{
 			ReadOnlySpan<byte> Span = Data.Span;
 			if (Span[0] != TypeId)
@@ -116,82 +137,64 @@ namespace EpicGames.Horde.Bundles.Nodes
 				throw new InvalidDataException("Invalid type id");
 			}
 
-			Depth = (int)VarInt.Read(Span.Slice(1), out int DepthBytes);
+			FileNode Node = new FileNode();
+			Node.Data = Data;
+			Node.Hash = IoHash.Compute(Data.Span);
+			Node.Depth = (int)VarInt.Read(Span.Slice(1), out int DepthBytes);
+
 			int HeaderLength = 1 + DepthBytes;
+			Node.Payload = Data.Slice(HeaderLength);
 
-			Payload = Data.Slice(HeaderLength);
-			this.Data = Data;
-
-			if (Depth > 0)
+			if (Node.Depth == 0)
 			{
-				ChildNodes = new List<FileNode?>(Payload.Length / IoHash.NumBytes);
-				ChildNodes.AddRange(Enumerable.Repeat<FileNode?>(null, Payload.Length / IoHash.NumBytes));
-			}
-		}
-
-		private void MakeWritable(int Depth, ChunkingOptions Options)
-		{
-			int WriteBufferSize = 1 + VarInt.Measure(Depth);
-			if (Depth == 0)
-			{
-				WriteBufferSize += Options.LeafOptions.MaxSize;
+				Node.Length = Node.Payload.Length;
 			}
 			else
 			{
-				WriteBufferSize += Options.InteriorOptions.MaxSize;
+				Node.Length = (long)VarInt.Read(Span, out int LengthBytes);
+				Span = Span.Slice(LengthBytes);
+
+				Node.ChildNodeRefs = new List<BundleNodeRef<FileNode>>(Node.Payload.Length / IoHash.NumBytes);
+
+				Span = Span.Slice(HeaderLength);
+				while (Span.Length > 0)
+				{
+					IoHash ChildHash = new IoHash(Span);
+					Node.ChildNodeRefs.Add(new BundleNodeRef<FileNode>(Bundle, ChildHash));
+				}
 			}
-
-			byte[] WriteBuffer = new byte[WriteBufferSize];
-			WriteBuffer[0] = TypeId;
-			int DepthBytes = VarInt.Write(WriteBuffer.AsSpan(1), Depth);
-			int HeaderLength = 1 + DepthBytes;
-
-			this.Depth = Depth;
-			this.Payload = ReadOnlyMemory<byte>.Empty;
-			this.Data = WriteBuffer.AsMemory(0, HeaderLength);
-			this.Hash = 0;
-			this.WriteBuffer = WriteBuffer;
-			this.ChildNodes = (Depth > 0) ? new List<FileNode?>() : null;
+			return Node;
 		}
 
 		/// <summary>
-		/// Returns the number of child nodes to this chunk
+		/// Gets a writable span of the given size.
 		/// </summary>
-		public int GetChildCount() => (ChildNodes == null)? 0 : ChildNodes.Count;
-
-		/// <summary>
-		/// Gets a child node at the given index
-		/// </summary>
-		/// <param name="Index">Index of the child node</param>
-		/// <returns>Node containing data for the given child</returns>
-		public async ValueTask<FileNode> GetChildNodeAsync(int Index)
-		{
-			if(ChildNodes == null)
-			{
-				throw new InvalidOperationException("Node does not contain any children");
-			}
-
-			FileNode? ChildNode = ChildNodes[Index];
-			if (ChildNode == null)
-			{
-				IoHash Hash = new IoHash(Payload.Span.Slice(Index * IoHash.NumBytes));
-				ReadOnlyMemory<byte> Data = await Owner.GetDataAsync(Hash);
-				ChildNode = new FileNode(Owner, this, Hash, Data);
-				ChildNodes[Index] = ChildNode;
-			}
-			return ChildNode;
-		}
-
-		/// <summary>
-		/// Enumerate the children from this node
-		/// </summary>
+		/// <param name="SpanSize">Required size of the writable span</param>
+		/// <param name="HintMaxPayloadSize">Hint for the maximum size of the payload, to avoid having to reallocate the buffer. May be zero if unknown.</param>
 		/// <returns></returns>
-		public async IAsyncEnumerable<FileNode> GetChildNodesAsync()
+		private Span<byte> GetWritableSpan(int SpanSize, int HintMaxPayloadSize)
 		{
-			for (int Idx = 0; Idx < GetChildCount(); Idx++)
+			Debug.Assert(!IsComplete());
+
+			int HeaderLength = 1 + VarInt.Measure(Depth);
+			int PrevPayloadLength = Payload.Length;
+
+			int MinWriteBufferSize = HeaderLength + Math.Max(PrevPayloadLength + SpanSize, HintMaxPayloadSize);
+			if (MinWriteBufferSize > WriteBuffer.Length)
 			{
-				yield return await GetChildNodeAsync(Idx);
+				byte[] NewWriteBuffer = new byte[MinWriteBufferSize];
+
+				NewWriteBuffer[0] = TypeId;
+				VarInt.Write(NewWriteBuffer.AsSpan(1), Depth);
+				Payload.Span.CopyTo(NewWriteBuffer.AsSpan(HeaderLength));
+
+				WriteBuffer = NewWriteBuffer;
 			}
+
+			Data = WriteBuffer.AsMemory(0, HeaderLength + PrevPayloadLength + SpanSize);
+			Payload = Data.Slice(HeaderLength);
+
+			return WriteBuffer.AsSpan(HeaderLength + PrevPayloadLength, SpanSize);
 		}
 
 		/// <summary>
@@ -247,12 +250,12 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <param name="OutputStream">The output stream to receive the data</param>
 		public async Task CopyToStreamAsync(Stream OutputStream)
 		{
-			if (Depth > 0)
+			if (ChildNodeRefs != null)
 			{
-				for (int Idx = 0; Idx < GetChildCount(); Idx++)
+				foreach (BundleNodeRef<FileNode> ChildNodeRef in ChildNodeRefs)
 				{
-					FileNode Node = await GetChildNodeAsync(Idx);
-					await Node.CopyToStreamAsync(OutputStream);
+					FileNode ChildNode = await ChildNodeRef.GetAsync();
+					await ChildNode.CopyToStreamAsync(OutputStream);
 				}
 			}
 			else
@@ -281,9 +284,9 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <param name="Options">Settings for chunking the data</param>
 		public void Append(ReadOnlyMemory<byte> Input, ChunkingOptions Options)
 		{
-			if (Parent is FileNode)
+			if (!IsRoot)
 			{
-				throw new InvalidOperationException("Data may only be appended to the root of a tree of file nodes.");
+				throw new InvalidOperationException("Data may only be appended to the root of a file node tree");
 			}
 
 			for (; ; )
@@ -296,29 +299,38 @@ namespace EpicGames.Horde.Bundles.Nodes
 				}
 
 				// Increase the height of the tree by pushing the contents of this node into a new child node
-				FileNode NewNode = new FileNode(Owner, this, IoHash.Zero, Data);
-				if (ChildNodes != null)
+				FileNode NewNode = new FileNode();
+				NewNode.IsRoot = false;
+				NewNode.Depth = Depth;
+				NewNode.Payload = Payload;
+				NewNode.Data = Data;
+				NewNode.ChildNodeRefs = ChildNodeRefs;
+
+				// Detach all the child refs
+				if (ChildNodeRefs != null)
 				{
-					for (int Idx = 0; Idx < ChildNodes.Count; Idx++)
+					foreach (BundleNodeRef<FileNode> ChildNodeRef in ChildNodeRefs)
 					{
-						FileNode? ChildNode = ChildNodes[Idx];
-						if (ChildNode != null)
-						{
-							ChildNode.Parent = NewNode;
-							NewNode.ChildNodes![Idx] = ChildNode;
-						}
+						ChildNodeRef.Detach();
 					}
+					ChildNodeRefs = null;
 				}
 
-				// Reinitialize the current node
-				MakeWritable(Depth + 1, Options);
-				AddChildNode(NewNode);
+				// Increase the depth and reset the current node
+				Depth++;
+				ChildNodeRefs = new List<BundleNodeRef<FileNode>>();
+				Payload = ReadOnlyMemory<byte>.Empty;
+				Data = ReadOnlyMemory<byte>.Empty;
+				WriteBuffer = Array.Empty<byte>();
+
+				// Append the new node as a child
+				ChildNodeRefs.Add(new BundleNodeRef<FileNode>(NewNode));
 			}
 		}
 
 		private ReadOnlyMemory<byte> AppendToNode(ReadOnlyMemory<byte> Data, ChunkingOptions Options)
 		{
-			if (WriteBuffer == null || Data.Length == 0)
+			if (Data.Length == 0 || IsComplete())
 			{
 				return Data;
 			}
@@ -335,58 +347,134 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 		private ReadOnlyMemory<byte> AppendToLeafNode(ReadOnlyMemory<byte> NewData, ChunkingOptions Options)
 		{
-			ReadOnlySpan<byte> NewSpan = NewData.Span;
-
-			uint HashThreshold = (uint)((1L << 32) / Options.LeafOptions.TargetSize);
-			for (int Length = 0; Length < NewData.Length; Length++)
+			// Fast path for appending data to the buffer up to the chunk window size
+			int WindowSize = Options.LeafOptions.MinSize;
+			if (Payload.Length < WindowSize)
 			{
-				Hash = BuzHash.Add(Hash, NewSpan[Length]);
-
-				int BlockSize = Payload.Length + Length;
-				if ((BlockSize >= Options.LeafOptions.MinSize && Hash < HashThreshold) || (BlockSize >= Options.LeafOptions.MaxSize))
-				{
-					AppendData(NewSpan.Slice(0, Length));
-					WriteBuffer = null;
-					return NewData.Slice(Length);
-				}
+				int AppendLength = Math.Min(WindowSize - Payload.Length, NewData.Length);
+				AppendLeafData(NewData.Span.Slice(0, AppendLength), Options);
+				NewData = NewData.Slice(AppendLength);
 			}
 
-			AppendData(NewSpan);
-			return ReadOnlyMemory<byte>.Empty;
+			// Cap the maximum amount of data to append to this node
+			int MaxLength = Math.Min(NewData.Length, Options.LeafOptions.MaxSize - Payload.Length);
+			if (MaxLength > 0)
+			{
+				int AppendLength = HashScan(NewData.Span.Slice(0, MaxLength), Options);
+				AppendLeafData(NewData.Span.Slice(0, AppendLength), Options);
+				NewData = NewData.Slice(AppendLength);
+			}
+
+			return NewData;
+		}
+
+		private int HashScan(ReadOnlySpan<byte> NewSpan, ChunkingOptions Options)
+		{
+			int WindowSize = Options.LeafOptions.MinSize;
+			Debug.Assert(Payload.Length >= WindowSize);
+
+			int Length = 0;
+
+			// If this is the first time we're hashing the data, compute the hash of the existing window
+			if (Payload.Length == WindowSize)
+			{
+				RollingHash = BuzHash.Add(RollingHash, Payload.Span);
+			}
+
+			// Get the threshold for the rolling hash
+			uint RollingHashThreshold = (uint)((1L << 32) / Options.LeafOptions.TargetSize);
+
+			// Get the remaining part of the payload span leading into the new data
+			ReadOnlySpan<byte> PayloadSpan = Payload.Span.Slice(Payload.Length - WindowSize);
+
+			// Step the window through the tail end of the existing payload window. In this state, update the hash to remove data from the current payload, and add data from the new payload.
+			int SplitLength = Math.Min(NewSpan.Length, WindowSize);
+			for (; Length < SplitLength; Length++)
+			{
+				RollingHash = BuzHash.Add(RollingHash, NewSpan[Length]);
+				if (RollingHash < RollingHashThreshold)
+				{
+					return Length;
+				}
+				RollingHash = BuzHash.Sub(RollingHash, PayloadSpan[Length], WindowSize);
+			}
+
+			// Step through the new window.
+			for (; Length < NewSpan.Length; Length++)
+			{
+				RollingHash = BuzHash.Add(RollingHash, NewSpan[Length]);
+				if (RollingHash < RollingHashThreshold)
+				{
+					return Length;
+				}
+				RollingHash = BuzHash.Sub(RollingHash, NewSpan[Length - WindowSize], WindowSize);
+			}
+
+			return Length;
+		}
+
+		private int AppendInternal(ReadOnlySpan<byte> TailSpan, ReadOnlySpan<byte> HeadSpan, uint RollingHashThreshold, int WindowSize, int MaxLength, ChunkingOptions Options)
+		{
+			for (int Length = 0; Length < MaxLength; Length++)
+			{
+				RollingHash = BuzHash.Add(RollingHash, HeadSpan[Length]);
+
+				if (RollingHash < RollingHashThreshold)
+				{
+					AppendLeafData(HeadSpan.Slice(0, Length), Options);
+					Hash = IoHash.Compute(Data.Span);
+					return Length;
+				}
+
+				RollingHash = BuzHash.Sub(RollingHash, TailSpan[Length], WindowSize);
+			}
+			return -1;
+		}
+
+		private void AppendLeafData(ReadOnlySpan<byte> Data, ChunkingOptions Options)
+		{
+			Span<byte> WriteSpan = GetWritableSpan(Data.Length, Options.LeafOptions.MaxSize);
+			Data.CopyTo(WriteSpan);
+			Length += Data.Length;
 		}
 
 		private ReadOnlyMemory<byte> AppendToInteriorNode(ReadOnlyMemory<byte> NewData, ChunkingOptions Options)
 		{
 			for (; ; )
 			{
-				Debug.Assert(ChildNodes != null);
+				Debug.Assert(ChildNodeRefs != null);
 
 				// Try to write to the last node
-				if (ChildNodes.Count > 0)
+				if (ChildNodeRefs.Count > 0)
 				{
-					FileNode? LastNode = ChildNodes[^1];
+					FileNode? LastNode = ChildNodeRefs[^1].Node;
 					if (LastNode != null)
 					{
+						// Update the length to match the new node
+						Length -= LastNode.Length;
 						NewData = LastNode.AppendToNode(NewData, Options);
-						if (LastNode.WriteBuffer == null)
-						{
-							Span<byte> LastHashSpan = WriteBuffer.AsSpan(Data.Length - IoHash.NumBytes);
+						Length += LastNode.Length;
 
+						// If the last node is complete, write it to the buffer
+						if (LastNode.IsComplete())
+						{
 							// Add it to the write buffer
-							IoHash LastHash = LastNode.Serialize();
-							LastHash.CopyTo(LastHashSpan);
+							Span<byte> LastHashSpan = GetWritableSpan(IoHash.NumBytes, Options.InteriorOptions.MaxSize);
+							LastNode.Hash!.Value.CopyTo(LastHashSpan);
 
 							// Update the hash
-							Hash = BuzHash.Add(Hash, LastHashSpan);
+							RollingHash = BuzHash.Add(RollingHash, LastHashSpan);
 
 							// Check if it's time to finish this chunk
 							uint HashThreshold = (uint)(((1L << 32) * IoHash.NumBytes) / Options.LeafOptions.TargetSize);
-							if ((Payload.Length >= Options.InteriorOptions.MinSize && Hash < HashThreshold) || (Payload.Length >= Options.InteriorOptions.MaxSize))
+							if ((Payload.Length >= Options.InteriorOptions.MinSize && RollingHash < HashThreshold) || (Payload.Length >= Options.InteriorOptions.MaxSize))
 							{
-								WriteBuffer = null;
+								Hash = IoHash.Compute(Data.Span);
 								return NewData;
 							}
 						}
+
+						// Bail out if there's nothing left to write
 						if (NewData.Length == 0)
 						{
 							return NewData;
@@ -394,86 +482,20 @@ namespace EpicGames.Horde.Bundles.Nodes
 					}
 				}
 
-				// Create a new child node
-				FileNode NewNode = new FileNode(Owner, this, Depth - 1, Options);
-				AddChildNode(NewNode);
+				// Add a new child node
+				FileNode ChildNode = new FileNode();
+				ChildNode.IsRoot = false;
+				ChildNodeRefs.Add(new BundleNodeRef<FileNode>(ChildNode));
 			}
-		}
-
-		void AddChildNode(FileNode NewNode)
-		{
-			Debug.Assert(ChildNodes != null);
-			ChildNodes.Add(NewNode);
-			ExpandData(IoHash.NumBytes);
-		}
-
-		void ExpandData(int Size)
-		{
-			Debug.Assert(WriteBuffer != null);
-
-			int NewDataLength = Data.Length + Size;
-			if (NewDataLength > WriteBuffer.Length)
-			{
-				Array.Resize(ref WriteBuffer, NewDataLength + 4096);
-			}
-
-			int HeaderLength = Data.Length - Payload.Length;
-			Data = WriteBuffer.AsMemory(0, NewDataLength);
-			Payload = Data.Slice(HeaderLength);
-		}
-
-		void AppendData(ReadOnlySpan<byte> NewData)
-		{
-			ExpandData(NewData.Length);
-			NewData.CopyTo(WriteBuffer.AsSpan(Data.Length - NewData.Length));
-		}
-
-		/// <inheritdoc/>
-		protected override IoHash SerializeDirty()
-		{
-			// If we're still writing to the last node, flush it to the write buffer
-			if (ChildNodes != null && ChildNodes.Count > 0)
-			{
-				FileNode? LastNode = ChildNodes[^1];
-				if (LastNode != null && LastNode.WriteBuffer != null)
-				{
-					Span<byte> LastHashSpan = WriteBuffer.AsSpan(Data.Length - IoHash.NumBytes);
-					IoHash LastHash = LastNode.Serialize();
-					LastHash.CopyTo(LastHashSpan);
-				}
-			}
-
-			// Do not allow this node to be modified from this point out
-			WriteBuffer = null;
-
-			// Write the current data
-			List<IoHash> References = new List<IoHash>();
-			if (Depth > 0)
-			{
-				for (ReadOnlySpan<byte> Span = Payload.Span; Span.Length > 0; Span = Span.Slice(IoHash.NumBytes))
-				{
-					References.Add(new IoHash(Span));
-				}
-			}
-			return Owner.WriteNode(Data, References);
 		}
 	}
 
 	/// <summary>
 	/// Factory class for file nodes
 	/// </summary>
-	public class FileNodeFactory : BundleNodeFactory<FileNode>
+	public class FileNodeDeserializer : BundleNodeDeserializer<FileNode>
 	{
 		/// <inheritdoc/>
-		public override FileNode CreateRoot(Bundle Bundle)
-		{
-			return new FileNode(Bundle, null);
-		}
-
-		/// <inheritdoc/>
-		public override FileNode ParseRoot(Bundle Bundle, IoHash Hash, ReadOnlyMemory<byte> Data)
-		{
-			return new FileNode(Bundle, null, Hash, Data);
-		}
+		public override FileNode Deserialize(Bundle Bundle, ReadOnlyMemory<byte> Data) => FileNode.Deserialize(Bundle, Data);
 	}
 }

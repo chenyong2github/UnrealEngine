@@ -38,9 +38,8 @@ namespace HordeAgent.Commands.Bundles
 			IStorageClient StorageClient = CreateStorageClient(Logger);
 			using (IMemoryCache Cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 1024 * 1024 * 1000 }))
 			{
-				Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new BundleOptions(), Cache);
-				await Bundle.ReadAsync(BucketId, RefId);
-				await Bundle.Root.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), Logger);
+				Bundle<DirectoryNode> NewBundle = await Bundle.ReadAsync<DirectoryNode>(StorageClient, NamespaceId, BucketId, RefId, new BundleOptions(), Cache);
+				await NewBundle.Root.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), Logger);
 			}
 			return 0;
 		}

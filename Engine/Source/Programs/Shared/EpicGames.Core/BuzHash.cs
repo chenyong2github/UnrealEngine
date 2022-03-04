@@ -127,6 +127,15 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Removes a byte from the start of the hash window
+		/// </summary>
+		/// <param name="Value">Value at the start of the window</param>
+		public static uint Sub(uint State, byte Value, int Count)
+		{
+			return State ^ Rol32(Table[Value], (int)(Count - 1));
+		}
+
+		/// <summary>
 		/// Update the hash with the given data
 		/// </summary>
 		/// <param name="Data"></param>

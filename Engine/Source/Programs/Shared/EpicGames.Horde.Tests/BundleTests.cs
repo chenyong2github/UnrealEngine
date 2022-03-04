@@ -10,6 +10,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,6 +23,67 @@ namespace HordeServerTests
 		MemoryStorageClient StorageClient = new MemoryStorageClient();
 		NamespaceId NamespaceId = new NamespaceId("namespace");
 		BucketId BucketId = new BucketId("bucket");
+
+		[TestMethod]
+		public void BuzHashTests()
+		{
+			byte[] Data = new byte[4096];
+			new Random(0).NextBytes(Data);
+
+			const int WindowSize = 128;
+
+			uint RollingHash = 0;
+			for (int MaxIdx = 0; MaxIdx < Data.Length + WindowSize; MaxIdx++)
+			{
+				int MinIdx = MaxIdx - WindowSize;
+
+				if (MaxIdx < Data.Length)
+				{
+					RollingHash = BuzHash.Add(RollingHash, Data[MaxIdx]);
+				}
+
+				int Length = Math.Min(MaxIdx + 1, Data.Length) - Math.Max(MinIdx, 0);
+				uint CleanHash = BuzHash.Add(0, Data.AsSpan(Math.Max(MinIdx, 0), Length));
+				Assert.AreEqual(RollingHash, CleanHash);
+
+				if (MinIdx >= 0)
+				{
+					RollingHash = BuzHash.Sub(RollingHash, Data[MinIdx], Length);
+				}
+			}
+		}
+
+		[TestMethod]
+		public void BasicChunkingTests()
+		{
+			ChunkingOptions Options = new ChunkingOptions();
+			Options.LeafOptions = new ChunkingOptionsForNodeType(8, 8, 8);
+
+			FileNode Node = new FileNode();
+			Node.Append(new byte[7], Options);
+			Assert.AreEqual(0, Node.Depth);
+			Assert.AreEqual(7, Node.Payload.Length);
+
+			Node = new FileNode();
+			Node.Append(new byte[8], Options);
+			Assert.AreEqual(0, Node.Depth);
+			Assert.AreEqual(8, Node.Payload.Length);
+
+			Node = new FileNode();
+			Node.Append(new byte[9], Options);
+			Assert.AreEqual(1, Node.Depth);
+			Assert.AreEqual(2, Node.Children.Count);
+
+			FileNode? ChildNode1 = Node.Children[0].Node;
+			Assert.IsNotNull(ChildNode1);
+			Assert.AreEqual(0, ChildNode1!.Depth);
+			Assert.AreEqual(8, ChildNode1!.Payload.Length);
+
+			FileNode? ChildNode2 = Node.Children[1].Node;
+			Assert.IsNotNull(ChildNode2);
+			Assert.AreEqual(0, ChildNode2!.Depth);
+			Assert.AreEqual(1, ChildNode2!.Payload.Length);
+		}
 
 		[TestMethod]
 		public void SerializationTests()
@@ -88,37 +150,39 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task BasicTestDirectory()
 		{
-			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new BundleOptions(), null);
-			DirectoryNode Node = Bundle.Root.AddDirectory("hello");
+			Bundle<DirectoryNode> NewBundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), new BundleOptions(), null);
+			DirectoryNode Node = NewBundle.Root.AddDirectory("hello");
 			DirectoryNode Node2 = Node.AddDirectory("world");
 
 			RefId RefId = new RefId("testref");
-			await Bundle.WriteAsync(BucketId, RefId, false, DateTime.MinValue);
+			await NewBundle.WriteAsync(BucketId, RefId, false, DateTime.MinValue);
 
 			// Should be stored inline
 			Assert.AreEqual(1, StorageClient.Refs.Count);
 			Assert.AreEqual(0, StorageClient.Blobs.Count);
 
 			// Check the ref
-			BundleObject Root = await StorageClient.GetRefAsync<BundleObject>(NamespaceId, BucketId, RefId);
-			Assert.AreEqual(3, Root.Exports.Count);
-			Assert.AreEqual(0, Root.Exports[0].Rank);
-			Assert.AreEqual(1, Root.Exports[1].Rank);
-			Assert.AreEqual(2, Root.Exports[2].Rank);
+			BundleObject RootObject = await StorageClient.GetRefAsync<BundleObject>(NamespaceId, BucketId, RefId);
+			Assert.AreEqual(3, RootObject.Exports.Count);
+			Assert.AreEqual(0, RootObject.Exports[0].Rank);
+			Assert.AreEqual(1, RootObject.Exports[1].Rank);
+			Assert.AreEqual(2, RootObject.Exports[2].Rank);
 
 			// Create a new bundle and read it back in again
-			Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new BundleOptions(), null);
-			await Bundle.ReadAsync(BucketId, RefId);
+			NewBundle = await Bundle.ReadAsync<DirectoryNode>(StorageClient, NamespaceId, BucketId, RefId, new BundleOptions(), null);
 
-			Assert.AreEqual(1, Bundle.Root.Entries.Count);
-			DirectoryNode? OutputNode = await Bundle.Root.FindDirectoryAsync("hello");
+			Assert.AreEqual(0, NewBundle.Root.Files.Count);
+			Assert.AreEqual(1, NewBundle.Root.Directories.Count);
+			DirectoryNode? OutputNode = await NewBundle.Root.FindDirectoryAsync("hello");
 			Assert.IsNotNull(OutputNode);
 
-			Assert.AreEqual(1, OutputNode!.Entries.Count);
+			Assert.AreEqual(0, OutputNode!.Files.Count);
+			Assert.AreEqual(1, OutputNode!.Directories.Count);
 			DirectoryNode? OutputNode2 = await OutputNode!.FindDirectoryAsync("world");
 			Assert.IsNotNull(OutputNode2);
 
-			Assert.AreEqual(0, OutputNode2!.Entries.Count);
+			Assert.AreEqual(0, OutputNode2!.Files.Count);
+			Assert.AreEqual(0, OutputNode2!.Directories.Count);
 		}
 
 		[TestMethod]
@@ -128,11 +192,14 @@ namespace HordeServerTests
 			Options.MaxBlobSize = 1;
 			Options.MaxInlineBlobSize = 1;
 
-			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, Options, null);
+			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, null);
 
 			Bundle.Root.AddDirectory("node1");
 			Bundle.Root.AddDirectory("node2");
 			Bundle.Root.AddDirectory("node3");
+
+			Assert.AreEqual(0, StorageClient.Refs.Count);
+			Assert.AreEqual(0, StorageClient.Blobs.Count);
 
 			RefId RefId = new RefId("ref");
 			await Bundle.WriteAsync(BucketId, RefId, false, DateTime.UtcNow);
@@ -148,21 +215,20 @@ namespace HordeServerTests
 			Options.MaxBlobSize = 1;
 			Options.MaxInlineBlobSize = 1;
 
-			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, Options, null);
+			Bundle<DirectoryNode> InitialBundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, null);
 
-			DirectoryNode Node1 = Bundle.Root.AddDirectory("node1");
+			DirectoryNode Node1 = InitialBundle.Root.AddDirectory("node1");
 			DirectoryNode Node2 = Node1.AddDirectory("node2");
 			DirectoryNode Node3 = Node2.AddDirectory("node3");
 			DirectoryNode Node4 = Node3.AddDirectory("node4");
 
 			RefId RefId = new RefId("ref");
-			await Bundle.WriteAsync(BucketId, RefId, false, DateTime.UtcNow);
+			await InitialBundle.WriteAsync(BucketId, RefId, false, DateTime.UtcNow);
 
 			Assert.AreEqual(1, StorageClient.Refs.Count);
 			Assert.AreEqual(4, StorageClient.Blobs.Count);
 
-			Bundle<DirectoryNode> NewBundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, Options, null);
-			await NewBundle.ReadAsync(BucketId, RefId);
+			Bundle<DirectoryNode> NewBundle = await Bundle.ReadAsync<DirectoryNode>(StorageClient, NamespaceId, BucketId, RefId, Options, null);
 
 			DirectoryNode? NewNode1 = await NewBundle.Root.FindDirectoryAsync("node1");
 			Assert.IsNotNull(NewNode1);
@@ -186,7 +252,7 @@ namespace HordeServerTests
 			Options.MaxBlobSize = 1024 * 1024;
 			Options.MaxInlineBlobSize = 1;
 
-			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, Options, null);
+			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, null);
 
 			DirectoryNode Node1 = Bundle.Root.AddDirectory("node1");
 			DirectoryNode Node2 = Node1.AddDirectory("node2");
@@ -201,33 +267,31 @@ namespace HordeServerTests
 
 			IRef Ref1 = StorageClient.Refs[(NamespaceId, BucketId, RefId1)];
 
-			IoHash RootHash1 = Bundle.RootHash;
 			BundleObject RootObject1 = CbSerializer.Deserialize<BundleObject>(Ref1.Value);
 			Assert.AreEqual(1, RootObject1.Exports.Count);
 			Assert.AreEqual(1, RootObject1.ImportObjects.Count);
-			Assert.AreEqual(RootHash1, RootObject1.Exports[0].Hash);
 
 			IoHash LeafHash1 = RootObject1.ImportObjects[0].Object.Hash;
 			BundleObject LeafObject1 = CbSerializer.Deserialize<BundleObject>(StorageClient.Blobs[(NamespaceId, LeafHash1)]);
-			Assert.AreEqual(3, LeafObject1.Exports.Count); // node4 == node3
+			Assert.AreEqual(3, LeafObject1.Exports.Count); // node1 + node2 + node3 (== node4)
 			Assert.AreEqual(0, LeafObject1.ImportObjects.Count);
 
 			// Remove one of the nodes from the root without compacting. the existing blob should be reused.
-			Bundle.Root.Delete("node1");
+			Bundle.Root.DeleteDirectory("node1");
 
 			RefId RefId2 = new RefId("ref2");
 			await Bundle.WriteAsync(BucketId, RefId2, false, Time);
 
 			IRef Ref2 = StorageClient.Refs[(NamespaceId, BucketId, RefId2)];
 
-			IoHash RootHash2 = Bundle.RootHash;
 			BundleObject RootObject2 = CbSerializer.Deserialize<BundleObject>(Ref2.Value);
 			Assert.AreEqual(1, RootObject2.Exports.Count);
 			Assert.AreEqual(1, RootObject2.ImportObjects.Count);
-			Assert.AreEqual(RootHash2, RootObject2.Exports[0].Hash);
 
 			IoHash LeafHash2 = RootObject2.ImportObjects[0].Object.Hash;
 			Assert.AreEqual(LeafHash1, LeafHash2);
+			Assert.AreEqual(3, LeafObject1.Exports.Count); // unused: node1 + node2 + node3, used: node4 (== node3)
+			Assert.AreEqual(0, LeafObject1.ImportObjects.Count);
 
 			// Repack it and check that we make a new object
 			RefId RefId3 = new RefId("ref3");
@@ -235,11 +299,9 @@ namespace HordeServerTests
 
 			IRef Ref3 = StorageClient.Refs[(NamespaceId, BucketId, RefId3)];
 
-			IoHash RootHash3 = Bundle.RootHash;
 			BundleObject RootObject3 = CbSerializer.Deserialize<BundleObject>(Ref3.Value);
 			Assert.AreEqual(1, RootObject3.Exports.Count);
 			Assert.AreEqual(1, RootObject3.ImportObjects.Count);
-			Assert.AreEqual(RootHash3, RootObject3.Exports[0].Hash);
 
 			IoHash LeafHash3 = RootObject3.ImportObjects[0].Object.Hash;
 			Assert.AreNotEqual(LeafHash1, LeafHash3);
@@ -247,6 +309,25 @@ namespace HordeServerTests
 			BundleObject LeafObject3 = CbSerializer.Deserialize<BundleObject>(StorageClient.Blobs[(NamespaceId, LeafHash3)]);
 			Assert.AreEqual(1, LeafObject3.Exports.Count);
 			Assert.AreEqual(0, LeafObject3.ImportObjects.Count);
+		}
+
+		[TestMethod]
+		public async Task CoreAppendTest()
+		{
+			byte[] Data = new byte[4096];
+			new Random(0).NextBytes(Data);
+
+			ChunkingOptions Options = new ChunkingOptions();
+			Options.LeafOptions = new ChunkingOptionsForNodeType(16, 64, 256);
+
+			FileNode Node = new FileNode();
+			for (int Idx = 0; Idx < Data.Length; Idx++)
+			{
+				Node.Append(Data.AsMemory(Idx, 1), Options);
+
+				byte[] OutputData = await Node.ToByteArrayAsync();
+				Assert.IsTrue(Data.AsMemory(0, Idx + 1).Span.SequenceEqual(OutputData.AsSpan(0, Idx + 1)));
+			}
 		}
 
 		[TestMethod]
@@ -279,15 +360,16 @@ namespace HordeServerTests
 				Data[Idx] = (byte)Idx;
 			}
 
-			Bundle<FileNode> Bundle = new Bundle<FileNode>(StorageClient, NamespaceId, new BundleOptions(), null);
+			Bundle<FileNode> Bundle = new Bundle<FileNode>(StorageClient, NamespaceId, new FileNode(), new BundleOptions(), null);
+			FileNode Root = Bundle.Root;
 
 			const int NumIterations = 100;
 			for (int Idx = 0; Idx < NumIterations; Idx++)
 			{
-				Bundle.Root.Append(Data, Options);
+				Root.Append(Data, Options);
 			}
 
-			byte[] Result = await Bundle.Root.ToByteArrayAsync();
+			byte[] Result = await Root.ToByteArrayAsync();
 			Assert.AreEqual(NumIterations * Data.Length, Result.Length);
 
 			for (int Idx = 0; Idx < NumIterations; Idx++)
@@ -296,7 +378,7 @@ namespace HordeServerTests
 				Assert.IsTrue(SpanData.Span.SequenceEqual(Data));
 			}
 
-			await CheckSizes(Bundle.Root, Options, true);
+			await CheckSizes(Root, Options, true);
 		}
 
 		async Task CheckSizes(FileNode Node, ChunkingOptions Options, bool Rightmost)
@@ -311,13 +393,74 @@ namespace HordeServerTests
 				Assert.IsTrue(Rightmost || Node.Payload.Length >= Options.InteriorOptions.MinSize);
 				Assert.IsTrue(Node.Payload.Length <= Options.InteriorOptions.MaxSize);
 
-				int ChildCount = Node.GetChildCount();
+				int ChildCount = Node.Children.Count;
 				for (int Idx = 0; Idx < ChildCount; Idx++)
 				{
-					FileNode ChildNode = await Node.GetChildNodeAsync(Idx);
+					FileNode ChildNode = await Node.Children[Idx].GetAsync();
 					await CheckSizes(ChildNode, Options, Idx == ChildCount - 1);
 				}
 			}
+		}
+
+		[TestMethod]
+		public async Task SpillTestAsync()
+		{
+			BundleOptions Options = new BundleOptions();
+			Options.MaxBlobSize = 1;
+
+			Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, NamespaceId, new DirectoryNode(), Options, null);
+			DirectoryNode Root = Bundle.Root;
+
+			long TotalLength = 0;
+			for (int IdxA = 0; IdxA < 10; IdxA++)
+			{
+				DirectoryNode NodeA = Root.AddDirectory($"{IdxA}");
+				for (int IdxB = 0; IdxB < 10; IdxB++)
+				{
+					DirectoryNode NodeB = NodeA.AddDirectory($"{IdxB}");
+					for (int IdxC = 0; IdxC < 10; IdxC++)
+					{
+						DirectoryNode NodeC = NodeB.AddDirectory($"{IdxC}");
+						for (int IdxD = 0; IdxD < 10; IdxD++)
+						{
+							FileNode File = NodeC.CreateFile($"{IdxD}", 0);
+							byte[] Data = Encoding.UTF8.GetBytes($"This is file {IdxA}/{IdxB}/{IdxC}/{IdxD}");
+							TotalLength += Data.Length;
+							File.Append(Data, new ChunkingOptions());
+						}
+					}
+
+					int OldWorkingSetSize = GetWorkingSetSize(Bundle.Root);
+					await Bundle.TrimAsync(20);
+					int NewWorkingSetSize = GetWorkingSetSize(Bundle.Root);
+					Assert.IsTrue(NewWorkingSetSize <= OldWorkingSetSize);
+					Assert.IsTrue(NewWorkingSetSize <= 20);
+				}
+			}
+
+			Assert.IsTrue(StorageClient.Blobs.Count > 0);
+			Assert.IsTrue(StorageClient.Refs.Count == 0);
+
+			RefId RefId = new RefId("ref");
+			await Bundle.WriteAsync(BucketId, RefId, true, DateTime.UtcNow);
+
+			Assert.AreEqual(TotalLength, Root.Length);
+
+			Assert.IsTrue(StorageClient.Blobs.Count > 0);
+			Assert.IsTrue(StorageClient.Refs.Count == 1);
+		}
+
+		int GetWorkingSetSize(BundleNode Node)
+		{
+			int Size = 0;
+			foreach (BundleNodeRef NodeRef in Node.GetReferences())
+			{
+				if (NodeRef.Node != null)
+				{
+					Size += 1 + GetWorkingSetSize(NodeRef.Node);
+				}
+			}
+			return Size;
 		}
 	}
 }

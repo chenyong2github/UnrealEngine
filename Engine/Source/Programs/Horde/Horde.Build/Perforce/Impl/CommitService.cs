@@ -894,22 +894,23 @@ namespace HordeServer.Commits.Impl
 			using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(ClientInfo.Settings, Logger);
 
 			// Get the initial directory state
+			Bundle<DirectoryNode> CommitBundle;
 			if (BaseTree == null)
 			{
 				await FlushWorkspaceAsync(ClientInfo, Perforce, 0);
-				ClientInfo.Contents.Root.Clear();
+				CommitBundle = Bundle.Create<DirectoryNode>(StorageClient, Options.NamespaceId, Options.Bundle, MemoryCache);
 			}
 			else
 			{
 				await FlushWorkspaceAsync(ClientInfo, Perforce, BaseTree.Change);
-				await ClientInfo.Contents.ReadAsync(GetStreamBucketId(BaseTree.StreamId), BaseTree.RefId);
+				CommitBundle = await Bundle.ReadAsync<DirectoryNode>(StorageClient, Options.NamespaceId, GetStreamBucketId(BaseTree.StreamId), BaseTree.RefId, Options.Bundle, MemoryCache);
 			}
 
 			// Apply all the updates
 			Logger.LogInformation("Updating client {Client} to changelist {Change}", ClientInfo.Client.Name, Change);
 			ClientInfo.Change = -1;
 
-			DirectoryNode Contents = ClientInfo.Contents.Root;
+			DirectoryNode Contents = CommitBundle.Root;
 			if (Options.WriteStubFiles)
 			{
 				await foreach (PerforceResponse<SyncRecord> Record in Perforce.StreamCommandAsync<SyncRecord>("sync", new[] { "-k", $"{QueryPath}@{Change}" }, null, default))
@@ -921,7 +922,7 @@ namespace HordeServer.Commits.Impl
 					}
 
 					string Path = SyncRecord.Path.Substring(ClientInfo.Client.Root.Length).Replace('\\', '/');
-					FileNode File = await Contents.CreateFileByPathAsync(Path, DirectoryEntryFlags.PerforceDepotPathAndRevision);
+					FileNode File = await Contents.CreateFileByPathAsync(Path, FileEntryFlags.PerforceDepotPathAndRevision);
 
 					byte[] Data = Encoding.UTF8.GetBytes($"{SyncRecord.DepotFile}#{SyncRecord.Revision}");
 					File.Append(Data, Options.Chunking);
@@ -938,7 +939,7 @@ namespace HordeServer.Commits.Impl
 						if (Io.Command == PerforceIoCommand.Open)
 						{
 							string Path = GetClientRelativePath(Io.Payload, ClientInfo.Client.Root);
-							Files[Io.File] = await Contents.CreateFileByPathAsync(Path, DirectoryEntryFlags.File);
+							Files[Io.File] = await Contents.CreateFileByPathAsync(Path, 0);
 						}
 						else if (Io.Command == PerforceIoCommand.Write)
 						{
@@ -963,7 +964,8 @@ namespace HordeServer.Commits.Impl
 			// Return the new root object
 			RefId RefId = CommitTree.GetDefaultRefId(Change);
 			Logger.LogInformation("Writing ref {RefId} for {StreamId} change {Change}", RefId, Stream.Id, Change);
-			await ClientInfo.Contents.WriteAsync(GetStreamBucketId(Stream.Id), RefId, true, DateTime.UtcNow);
+			await CommitBundle.WriteAsync(GetStreamBucketId(Stream.Id), RefId, true, DateTime.UtcNow);
+
 			return new CommitTree(Stream.Id, Change, RefId);
 		}
 
@@ -1006,16 +1008,14 @@ namespace HordeServer.Commits.Impl
 			public InfoRecord ServerInfo { get; }
 			public ClientRecord Client { get; }
 			public int Change { get; set; }
-			public Bundle<DirectoryNode> Contents { get; }
 
-			public ReplicationClient(PerforceSettings Settings, string ClusterName, InfoRecord ServerInfo, ClientRecord Client, int Change, Bundle<DirectoryNode> Contents)
+			public ReplicationClient(PerforceSettings Settings, string ClusterName, InfoRecord ServerInfo, ClientRecord Client, int Change)
 			{
 				this.Settings = Settings;
 				this.ClusterName = ClusterName;
 				this.ServerInfo = ServerInfo;
 				this.Client = Client;
 				this.Change = Change;
-				this.Contents = Contents;
 			}
 		}
 
@@ -1066,8 +1066,7 @@ namespace HordeServer.Commits.Impl
 				Settings.ClientName = NewClient.Name;
 				Settings.PreferNativeClient = true;
 
-				Bundle<DirectoryNode> Bundle = new Bundle<DirectoryNode>(StorageClient, Options.NamespaceId, Options.Bundle, MemoryCache);
-				ClientInfo = new ReplicationClient(Settings, Stream.ClusterName, ServerInfo, NewClient, -1, Bundle);
+				ClientInfo = new ReplicationClient(Settings, Stream.ClusterName, ServerInfo, NewClient, -1);
 				CachedPerforceClients.Add(Stream.Id, ClientInfo);
 			}
 			return ClientInfo;

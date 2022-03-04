@@ -43,6 +43,16 @@ namespace EpicGames.Horde.Bundles
 		/// Minimum size of a block to be compressed
 		/// </summary>
 		public int MinCompressionPacketSize { get; set; } = 16 * 1024;
+
+		/// <summary>
+		/// Number of nodes to retain in the working set after performing a partial flush
+		/// </summary>
+		public int TrimIgnoreCount { get; set; } = 150;
+
+		/// <summary>
+		/// Proportion of used data under which to trigger a re-pack
+		/// </summary>
+		public float RepackRatio { get; set; } = 0.6f;
 	}
 
 	/// <summary>
@@ -102,7 +112,7 @@ namespace EpicGames.Horde.Bundles
 			public int TotalCost { get; }
 
 			public bool Mounted { get; set; }
-			public HashSet<BlobInfo> ReferencedBy { get; } = new HashSet<BlobInfo>(); // Used for repacking
+			public List<NodeInfo>? LiveNodes { get; set; }
 
 			public BlobInfo(IoHash Hash, DateTime CreationTimeUtc, int TotalCost)
 			{
@@ -112,14 +122,15 @@ namespace EpicGames.Horde.Bundles
 			}
  		}
 
-		IStorageClient StorageClient;
-		NamespaceId NamespaceId;
+		readonly IStorageClient StorageClient;
+		readonly NamespaceId NamespaceId;
+		
+		object RootCacheKey = new object();
 
 		/// <summary>
-		/// Hash of the root object
+		/// Reference to the root node in the bundle
 		/// </summary>
-		public IoHash RootHash { get; protected set; }
-		object RootCacheKey = new object();
+		public BundleNode Root { get; private set; }
 
 		Dictionary<IoHash, NodeInfo> HashToNode = new Dictionary<IoHash, NodeInfo>();
 		Dictionary<IoHash, BlobInfo> HashToBlob = new Dictionary<IoHash, BlobInfo>();
@@ -136,17 +147,167 @@ namespace EpicGames.Horde.Bundles
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		protected Bundle(IStorageClient StorageClient, NamespaceId NamespaceId, BundleNode Root, BundleOptions Options, IMemoryCache? Cache)
+		{
+			this.StorageClient = StorageClient;
+			this.NamespaceId = NamespaceId;
+			this.Root = Root;
+			this.Options = Options;
+			this.Cache = Cache;
+			this.HashToNode = new Dictionary<IoHash, NodeInfo>();
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="StorageClient">Client interface for the storage backend</param>
+		/// <param name="NamespaceId">Namespace for storing blobs in the storage system</param>
+		/// <param name="Object">Object containing the root node for this bundle</param>
+		/// <param name="Root">Reference to the root node for the bundle</param>
+		/// <param name="Options">Options for controlling how things are serialized</param>
+		/// <param name="Cache">Cache for storing decompressed objects, serialized blobs.</param>
+		protected Bundle(IStorageClient StorageClient, NamespaceId NamespaceId, BundleObject Object, BundleNode Root, BundleOptions Options, IMemoryCache? Cache)
+			: this(StorageClient, NamespaceId, Root, Options, Cache)
+		{
+			RegisterObject(null, Object, Object.Data);
+		}
+
+		/// <summary>
+		/// Creates a new typed bundle with a default-constructed root node
+		/// </summary>
+		/// <typeparam name="T">The node type</typeparam>
 		/// <param name="StorageClient">Client interface for the storage backend</param>
 		/// <param name="NamespaceId">Namespace for storing blobs in the storage system</param>
 		/// <param name="Options">Options for controlling how things are serialized</param>
 		/// <param name="Cache">Cache for storing decompressed objects, serialized blobs.</param>
-		public Bundle(IStorageClient StorageClient, NamespaceId NamespaceId, BundleOptions Options, IMemoryCache? Cache)
+		/// <returns>New bundle instance</returns>
+		public static Bundle<T> Create<T>(IStorageClient StorageClient, NamespaceId NamespaceId, BundleOptions Options, IMemoryCache? Cache) where T : BundleNode, new()
 		{
-			this.StorageClient = StorageClient;
-			this.NamespaceId = NamespaceId;
-			this.Options = Options;
-			this.Cache = Cache;
-			this.HashToNode = new Dictionary<IoHash, NodeInfo>();
+			return Create(StorageClient, NamespaceId, new T(), Options, Cache);
+		}
+
+		/// <summary>
+		/// Creates a new typed bundle with a specific root node
+		/// </summary>
+		/// <typeparam name="T">The node type</typeparam>
+		/// <param name="StorageClient">Client interface for the storage backend</param>
+		/// <param name="NamespaceId">Namespace for storing blobs in the storage system</param>
+		/// <param name="Root">Reference to the root node for the bundle</param>
+		/// <param name="Options">Options for controlling how things are serialized</param>
+		/// <param name="Cache">Cache for storing decompressed objects, serialized blobs.</param>
+		/// <returns>New bundle instance</returns>
+		public static Bundle<T> Create<T>(IStorageClient StorageClient, NamespaceId NamespaceId, T Root, BundleOptions Options, IMemoryCache? Cache) where T : BundleNode
+		{
+			return new Bundle<T>(StorageClient, NamespaceId, Root, Options, Cache);
+		}
+
+		/// <summary>
+		/// Reads a bundle from storage
+		/// </summary>
+		public static async ValueTask<Bundle<T>> ReadAsync<T>(IStorageClient StorageClient, NamespaceId NamespaceId, BucketId BucketId, RefId RefId, BundleOptions Options, IMemoryCache? Cache) where T : BundleNode
+		{
+			Bundle<T> NewBundle = new Bundle<T>(StorageClient, NamespaceId, null!, Options, Cache);
+
+			BundleObject Object = await StorageClient.GetRefAsync<BundleObject>(NamespaceId, BucketId, RefId);
+			NewBundle.RegisterObject(null, Object, Object.Data);
+
+			IoHash RootHash = Object.Exports[Object.Exports.Count - 1].Hash;
+			BundleNodeRef<T> RootRef = new BundleNodeRef<T>(NewBundle, RootHash);
+
+			((Bundle)NewBundle).Root = await RootRef.GetAsync();
+			return NewBundle;
+		}
+
+		/// <summary>
+		/// Flush a subset of nodes in the working set.
+		/// </summary>
+		private List<NodeInfo> SerializeWorkingSet(int IgnoreCount)
+		{
+			// Find all the nodes that need to be flushed, in order
+			List<BundleNodeRef> NodeRefs = new List<BundleNodeRef>();
+			LinkWorkingSet(Root, null, NodeRefs);
+			NodeRefs.SortBy(x => x.LastModifiedTime);
+
+			// Keep track of the nodes that have been serialized so far. Nodes in-memory may hash to the same serialized data, so we need to deduplicate them.
+			List<NodeInfo> DirtyNodes = new List<NodeInfo>();
+			HashSet<NodeInfo> DirtyNodesSet = new HashSet<NodeInfo>();
+
+			// Write them all to storage
+			for (int Idx = 0; Idx + IgnoreCount < NodeRefs.Count; Idx++)
+			{
+				BundleNodeRef NodeRef = NodeRefs[Idx];
+
+				BundleNode? Node = NodeRef.Node;
+				Debug.Assert(Node != null);
+
+				NodeInfo NodeInfo = WriteNode(Node);
+				NodeRef.MarkAsClean(NodeInfo.Hash);
+
+				if (NodeInfo.Blob == null && DirtyNodesSet.Add(NodeInfo))
+				{
+					DirtyNodes.Add(NodeInfo);
+				}
+			}
+			return DirtyNodes;
+		}
+
+		/// <summary>
+		/// Traverse a tree of <see cref="BundleNodeRef"/> objects and update the incoming reference to each node
+		/// </summary>
+		/// <param name="Node">The reference to update</param>
+		/// <param name="IncomingRef">The parent reference</param>
+		/// <param name="NodeRefs">List to accumulate the list of all modified references</param>
+		private void LinkWorkingSet(BundleNode Node, BundleNodeRef? IncomingRef, List<BundleNodeRef> NodeRefs)
+		{
+			Node.IncomingRef = IncomingRef;
+
+			foreach (BundleNodeRef ChildRef in Node.GetReferences())
+			{
+				ChildRef.Bundle ??= this;
+				ChildRef.ParentRef ??= IncomingRef;
+
+				if (ChildRef.Node != null && ChildRef.LastModifiedTime != 0)
+				{
+					LinkWorkingSet(ChildRef.Node, ChildRef, NodeRefs);
+					if (IncomingRef != null)
+					{
+						IncomingRef.LastModifiedTime = Math.Max(IncomingRef.LastModifiedTime, ChildRef.LastModifiedTime + 1);
+					}
+					NodeRefs.Add(ChildRef);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Perform an incremental flush of the tree
+		/// </summary>
+		public Task TrimAsync() => TrimAsync(Options.TrimIgnoreCount);
+
+		/// <summary>
+		/// Perform an incremental flush of the tree
+		/// </summary>
+		public async Task TrimAsync(int IgnoreCount)
+		{
+			// Timestamp for any flushed objects
+			DateTime UtcNow = DateTime.UtcNow;
+
+			// Find all the nodes that need to be flushed, in order
+			List<NodeInfo> WriteNodes = SerializeWorkingSet(IgnoreCount);
+			WriteNodes.SortBy(x => x.Rank);
+
+			// Write them all to storage
+			int MinNodeIdx = 0;
+			int NextBlobCost = 0;
+			for (int Idx = 0; Idx < WriteNodes.Count; Idx++)
+			{
+				NodeInfo Node = WriteNodes[Idx];
+				if (Idx > MinNodeIdx && NextBlobCost + Node.Cost > Options.MaxBlobSize)
+				{
+					await WriteObjectAsync(WriteNodes.Slice(MinNodeIdx, Idx - MinNodeIdx), UtcNow);
+					MinNodeIdx = Idx;
+					NextBlobCost = 0;
+				}
+			}
 		}
 
 		/// <summary>
@@ -154,7 +315,7 @@ namespace EpicGames.Horde.Bundles
 		/// </summary>
 		/// <param name="Hash">Hash of the node to return data for</param>
 		/// <returns>The node data</returns>
-		public ValueTask<ReadOnlyMemory<byte>> GetDataAsync(IoHash Hash)
+		internal ValueTask<ReadOnlyMemory<byte>> GetDataAsync(IoHash Hash)
 		{
 			return GetDataAsync(HashToNode[Hash]);
 		}
@@ -186,13 +347,27 @@ namespace EpicGames.Horde.Bundles
 			}
 		}
 
+		NodeInfo WriteNode(BundleNode Node)
+		{
+			ReadOnlyMemory<byte> Data = Node.Serialize();
+
+			List<IoHash> References = new List<IoHash>();
+			foreach (BundleNodeRef Reference in Node.GetReferences())
+			{
+				Debug.Assert(Reference.Hash != IoHash.Zero);
+				References.Add(Reference.Hash);
+			}
+
+			return WriteNode(Data, References);
+		}
+
 		/// <summary>
 		/// Write a node's data
 		/// </summary>
 		/// <param name="Data">The node data</param>
 		/// <param name="References">Hashes for referenced nodes</param>
 		/// <returns>Hash of the data</returns>
-		public IoHash WriteNode(ReadOnlyMemory<byte> Data, IEnumerable<IoHash> References)
+		NodeInfo WriteNode(ReadOnlyMemory<byte> Data, IEnumerable<IoHash> References)
 		{
 			IoHash Hash = IoHash.Compute(Data.Span);
 			NodeInfo[] NodeReferences = References.Select(x => HashToNode[x]).Distinct().OrderBy(x => x.Hash).ToArray();
@@ -211,7 +386,7 @@ namespace EpicGames.Horde.Bundles
 			}
 
 			Node.SetStandalone(Data, NodeReferences);
-			return Hash;
+			return Node;
 		}
 
 		async ValueTask MountBlobAsync(BlobInfo Blob)
@@ -281,18 +456,6 @@ namespace EpicGames.Horde.Bundles
 			return DecodedData;
 		}
 
-		/// <summary>
-		/// Reads a ref into the bundle
-		/// </summary>
-		/// <param name="BucketId">Bucket containing the ref</param>
-		/// <param name="RefId">Reference id</param>
-		public virtual async Task ReadAsync(BucketId BucketId, RefId RefId)
-		{
-			BundleObject Object = await StorageClient.GetRefAsync<BundleObject>(NamespaceId, BucketId, RefId);
-			RegisterObject(null, Object, Object.Data);
-			RootHash = Object.Exports[Object.Exports.Count - 1].Hash;
-		}
-
 		NodeInfo FindOrAddNode(IoHash Hash, int Rank, int Cost)
 		{
 			NodeInfo? Node;
@@ -346,90 +509,66 @@ namespace EpicGames.Horde.Bundles
 		/// <param name="UtcNow"></param>
 		public virtual async Task WriteAsync(BucketId BucketId, RefId RefId, bool Compact, DateTime UtcNow)
 		{
-			NodeInfo RootNode = HashToNode[RootHash];
+			// Completely flush the entire working set into NodeInfo objects
+			SerializeWorkingSet(0);
+
+			// Serialize the root node
+			NodeInfo RootNode = WriteNode(Root);
 
 			// If we're compacting the output, see if there are any other blocks we should merge
 			if (Compact)
 			{
 				// Find the live set of objects
-				HashSet<NodeInfo> LiveNodes = new HashSet<NodeInfo>();
-				await FindFullLiveSetAsync(RootNode, LiveNodes);
+				List<NodeInfo> LiveNodes = new List<NodeInfo>();
+				await FindLiveNodesAsync(RootNode, LiveNodes, new HashSet<NodeInfo>());
 
-				// Find the live set of blobs
-				HashSet<BlobInfo> LiveBlobs = new HashSet<BlobInfo>();
+				// Find the live set of blobs, and the cost of nodes within them
+				List<BlobInfo> LiveBlobs = new List<BlobInfo>();
 				foreach (NodeInfo LiveNode in LiveNodes)
 				{
-					if (LiveNode.Blob != null)
+					BlobInfo? LiveBlob = LiveNode.Blob;
+					if (LiveBlob != null)
 					{
-						LiveBlobs.Add(LiveNode.Blob);
+						if (LiveBlob.LiveNodes == null)
+						{
+							LiveBlob.LiveNodes = new List<NodeInfo>();
+							LiveBlobs.Add(LiveBlob);
+						}
+						LiveBlob.LiveNodes.Add(LiveNode);
 					}
 				}
 
-				// Clear the reference list on each one
+				// Figure out which blobs need to be repacked
 				foreach (BlobInfo LiveBlob in LiveBlobs)
 				{
-					LiveBlob.ReferencedBy.Clear();
-				}
+					int LiveCost = LiveBlob.LiveNodes.Sum(x => x.Cost);
+					int MinLiveCost = (int)(LiveBlob.TotalCost * Options.RepackRatio);
 
-				// Find the first reference from each node to other blobs
-				foreach (NodeInfo NodeInfo in LiveNodes)
-				{
-					if (NodeInfo.Rank > 0 && NodeInfo.Blob != null)
+					if (LiveCost < MinLiveCost)
 					{
-						foreach (NodeInfo ReferencedNode in NodeInfo.References!)
+						foreach (NodeInfo Node in LiveBlob.LiveNodes!)
 						{
-							BlobInfo? ReferencedBlob = ReferencedNode.Blob;
-							if (ReferencedBlob != null)
-							{
-								ReferencedBlob.ReferencedBy.Add(NodeInfo.Blob);
-							}
+							ReadOnlyMemory<byte> Data = await GetDataAsync(Node);
+							Node.SetStandalone(Data, Node.References!);
 						}
 					}
 				}
 
-				// Clear out the reference data on each blob
-				HashSet<BlobInfo> VisitedBlobs = new HashSet<BlobInfo>();
-				foreach (BlobInfo LiveBlob in LiveBlobs)
+				// Walk backwards through the list of live nodes and make anything that references a repacked node also standalone
+				for (int Idx = LiveNodes.Count - 1; Idx >= 0; Idx--)
 				{
-					ExpandReferences(LiveBlob, VisitedBlobs);
+					NodeInfo LiveNode = LiveNodes[Idx];
+					if (LiveNode.References != null && LiveNode.References.Any(x => x.Blob == null))
+					{
+						ReadOnlyMemory<byte> Data = await GetDataAsync(LiveNode);
+						LiveNode.SetStandalone(Data, LiveNode.References!);
+					}
 				}
 
-				// Find the total cost of all the current blobs, then loop through the blobs trying to find a more optimal arrangement
-				List<NodeInfo> SortedLiveNodes = LiveNodes.OrderByDescending(x => x.Rank).ThenByDescending(x => x.Hash).ToList();
-				for (; ; )
+				// Clear the reference list on each blob
+				foreach (BlobInfo LiveBlob in LiveBlobs)
 				{
-					BlobInfo? MergeBlob = null;
-					double MergeCost = GetNewCostHeuristic(SortedLiveNodes, new HashSet<BlobInfo>(), UtcNow);
-
-					foreach (BlobInfo LiveBlob in LiveBlobs)
-					{
-						double PotentialCost = GetNewCostHeuristic(SortedLiveNodes, LiveBlob.ReferencedBy, UtcNow);
-						if (PotentialCost < MergeCost)
-						{
-							MergeBlob = LiveBlob;
-							MergeCost = PotentialCost;
-						}
-					}
-
-					// Bail out if we didn't find anything to merge
-					if (MergeBlob == null)
-					{
-						break;
-					}
-
-					// Make sure this blob is resident (it may not have been loaded above if it's a leaf blob)
-					await MountBlobAsync(MergeBlob);
-
-					// Find all the live nodes in this blob
-					List<NodeInfo> MergeNodes = LiveNodes.Where(x => x.Blob == MergeBlob).ToList();
-					foreach (NodeInfo MergeNode in MergeNodes)
-					{
-						ReadOnlyMemory<byte> Data = await GetDataAsync(MergeNode);
-						MergeNode.SetStandalone(Data, MergeNode.References!);
-					}
-
-					// Remove the merged blob from the live list
-					LiveBlobs.Remove(MergeBlob);
+					LiveBlob.LiveNodes = null;
 				}
 			}
 
@@ -478,32 +617,22 @@ namespace EpicGames.Horde.Bundles
 			}
 		}
 
-		async Task FindFullLiveSetAsync(NodeInfo Node, HashSet<NodeInfo> LiveNodes)
+		async Task FindLiveNodesAsync(NodeInfo Node, List<NodeInfo> LiveNodes, HashSet<NodeInfo> LiveNodeSet)
 		{
-			if (LiveNodes.Add(Node) && Node.Rank > 0)
+			if (LiveNodeSet.Add(Node))
 			{
-				if (Node.Blob != null)
+				LiveNodes.Add(Node);
+				if (Node.Rank > 0)
 				{
-					await MountBlobAsync(Node.Blob);
+					if (Node.Blob != null)
+					{
+						await MountBlobAsync(Node.Blob);
+					}
+					foreach (NodeInfo Reference in Node.References!)
+					{
+						await FindLiveNodesAsync(Reference, LiveNodes, LiveNodeSet);
+					}
 				}
-				foreach (NodeInfo Reference in Node.References!)
-				{
-					await FindFullLiveSetAsync(Reference, LiveNodes);
-				}
-			}
-		}
-
-		void ExpandReferences(BlobInfo Blob, HashSet<BlobInfo> VisitedBlobs)
-		{
-			if (VisitedBlobs.Add(Blob))
-			{
-				BlobInfo[] ReferencedBy = Blob.ReferencedBy.ToArray();
-				foreach (BlobInfo ReferencedBlob in ReferencedBy)
-				{
-					ExpandReferences(ReferencedBlob, VisitedBlobs);
-					Blob.ReferencedBy.UnionWith(ReferencedBlob.ReferencedBy);
-				}
-				Blob.ReferencedBy.Add(Blob);
 			}
 		}
 
@@ -642,87 +771,6 @@ namespace EpicGames.Horde.Bundles
 				Buffer = NewBuffer;
 			}
 		}
-
-		/// <inheritdoc cref="GetCostHeuristic(int, TimeSpan)"/>
-		double GetCostHeuristic(BlobInfo Info, DateTime UtcNow) => GetCostHeuristic(Info.TotalCost, UtcNow - Info.CreationTimeUtc);
-
-		/// <summary>
-		/// Gets the cost of packaging the given set of nodes which are either not in a blob or are in a blob listed to be collapsed
-		/// </summary>
-		/// <param name="Nodes">The full list of nodes</param>
-		/// <param name="CollapseBlobs">Set of blobs that should be collapsed</param>
-		/// <param name="UtcNow">The current time</param>
-		/// <returns></returns>
-		double GetNewCostHeuristic(List<NodeInfo> Nodes, HashSet<BlobInfo> CollapseBlobs, DateTime UtcNow)
-		{
-			double Cost = 0.0;
-			foreach (BlobInfo CollapseBlob in CollapseBlobs)
-			{
-				Cost -= GetCostHeuristic(CollapseBlob, UtcNow);
-			}
-
-			int BlobSize = 0;
-			for (int Idx = Nodes.Count - 1; Idx >= 0; Idx--)
-			{
-				NodeInfo Node = Nodes[Idx];
-				if (Node.Blob == null || CollapseBlobs.Contains(Node.Blob))
-				{
-					if (BlobSize > 0 && BlobSize + Node.Data.Length > Options.MaxBlobSize)
-					{
-						Cost += GetCostHeuristic(BlobSize, TimeSpan.Zero);
-						BlobSize = 0;
-					}
-					BlobSize += Node.Data.Length;
-				}
-			}
-			Cost += GetCostHeuristic(BlobSize, TimeSpan.Zero);
-			return Cost;
-		}
-
-		/// <summary>
-		/// Heuristic which estimates the cost of a particular blob. This is used to compare scenarios of merging blobs to reduce download
-		/// size against keeping older blobs which a lot of agents already have.
-		/// </summary>
-		/// <param name="Size">Size of the blob</param>
-		/// <param name="Age">Age of the blob</param>
-		/// <returns>Heuristic for the cost of a blob</returns>
-		static double GetCostHeuristic(int Size, TimeSpan Age)
-		{
-			// Time overhead to starting a download
-			const double DownloadInit = 0.1;
-
-			// Download speed for agents, in bytes/sec
-			const double DownloadRate = 1024 * 1024;
-
-			// Probability of an agent having to download everything. Prevents bias against keeping a large number of files.
-			const double CleanSyncProbability = 0.2;
-
-			// Average length of time between agents having to update
-			TimeSpan AverageCoherence = TimeSpan.FromHours(4.0);
-
-			// Scale the age into a -1.0 -> 1.0 range around AverageCoherence
-			double ScaledAge = (AverageCoherence - Age).TotalSeconds / AverageCoherence.TotalSeconds;
-
-			// Get the probability of agents having to sync this blob based on its age. This is modeled as a logistic function (1 / (1 + e^-x))
-			// with value of 0.5 at AverageCoherence, and MaxInterval at zero.
-
-			// Find the scale factor for the 95% interval
-			//    1 / (1 + e^-x) = MaxInterval
-			//    e^-x = (1 / MaxInterval) - 1
-			//    x = -ln((1 / MaxInterval) - 1)
-			const double MaxInterval = 0.95;
-			double SigmoidScale = -Math.Log((1.0 / MaxInterval) - 1.0);
-
-			// Find the probability of having to sync this 
-			double Param = ScaledAge * SigmoidScale;
-			double Probability = 1.0 / (1.0 + Math.Exp(-Param));
-
-			// Scale the probability against having to do a full sync
-			Probability = CleanSyncProbability + (Probability * (1.0 - CleanSyncProbability));
-
-			// Compute the final cost estimate; the amount of time we expect agents to spend downloading the file
-			return Probability * (DownloadInit + (Size / DownloadRate));
-		}
 	}
 
 	/// <summary>
@@ -731,49 +779,17 @@ namespace EpicGames.Horde.Bundles
 	/// <typeparam name="T">The root node type</typeparam>
 	public class Bundle<T> : Bundle where T : BundleNode
 	{
-		static BundleNodeFactory<T> Factory = CreateFactory();
-
 		/// <summary>
-		/// Object at the root of the bundle
+		/// Node at the root of this tree
 		/// </summary>
-		public T Root { get; private set; }
+		public new T Root => (T)base.Root;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public Bundle(IStorageClient StorageClient, NamespaceId NamespaceId, BundleOptions Options, IMemoryCache? Cache)
-			: base(StorageClient, NamespaceId, Options, Cache)
+		internal Bundle(IStorageClient StorageClient, NamespaceId NamespaceId, T Root, BundleOptions Options, IMemoryCache? Cache)
+			: base(StorageClient, NamespaceId, Root, Options, Cache)
 		{
-			Root = Factory.CreateRoot(this);
-		}
-
-		/// <summary>
-		/// Create a factory for manipulating T instances
-		/// </summary>
-		/// <returns></returns>
-		static BundleNodeFactory<T> CreateFactory()
-		{
-			BundleNodeFactoryAttribute? Attribute = typeof(T).GetCustomAttribute<BundleNodeFactoryAttribute>();
-			if (Attribute == null)
-			{
-				throw new InvalidOperationException("Nodes used as the root of a bundle must have a BundleNodeFactoryAttribute");
-			}
-			return (BundleNodeFactory<T>)Activator.CreateInstance(Attribute.Type)!;
-		}
-
-		/// <inheritdoc/>
-		public override async Task ReadAsync(BucketId BucketId, RefId RefId)
-		{
-			await base.ReadAsync(BucketId, RefId);
-			ReadOnlyMemory<byte> Data = await GetDataAsync(RootHash);
-			Root = Factory.ParseRoot(this, RootHash, Data);
-		}
-
-		/// <inheritdoc/>
-		public override async Task WriteAsync(BucketId BucketId, RefId RefId, bool Compact, DateTime UtcNow)
-		{
-			RootHash = Root.Serialize();
-			await base.WriteAsync(BucketId, RefId, Compact, UtcNow);
 		}
 	}
 }

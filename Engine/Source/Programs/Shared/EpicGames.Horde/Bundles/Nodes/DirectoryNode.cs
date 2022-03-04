@@ -5,6 +5,7 @@ using EpicGames.Serialization;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -16,18 +17,8 @@ namespace EpicGames.Horde.Bundles.Nodes
 	/// <summary>
 	/// Flags for a directory entry
 	/// </summary>
-	public enum DirectoryEntryFlags : byte
+	public enum FileEntryFlags : byte
 	{
-		/// <summary>
-		/// This item is a directory
-		/// </summary>
-		Directory = 1,
-
-		/// <summary>
-		/// This item is a file
-		/// </summary>
-		File = 2,
-
 		/// <summary>
 		/// Indicates that the referenced file is executable
 		/// </summary>
@@ -55,144 +46,151 @@ namespace EpicGames.Horde.Bundles.Nodes
 	}
 
 	/// <summary>
-	/// Entry within a directory
+	/// Entry for a file within a directory node
 	/// </summary>
-	public class DirectoryEntry
+	public class FileEntry : BundleNodeRef<FileNode>
 	{
 		/// <summary>
-		/// Directory that owns this entry
-		/// </summary>
-		public DirectoryNode Directory { get; }
-
-		/// <summary>
-		/// Name of the entry
+		/// Name of this file
 		/// </summary>
 		public Utf8String Name { get; }
 
 		/// <summary>
-		/// Flags for this entry
+		/// Flags for this file
 		/// </summary>
-		public DirectoryEntryFlags Flags { get; }
+		public FileEntryFlags Flags { get; }
 
 		/// <summary>
-		/// Hash of this entry
+		/// Length of this entry
 		/// </summary>
-		IoHash Hash;
+		public long Length => (Node == null) ? CachedLength : Node.Length;
 
 		/// <summary>
-		/// Cached logical representation of this object
+		/// Cached length of this node
 		/// </summary>
-		BundleNode? Node;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		internal DirectoryEntry(DirectoryNode Directory, Utf8String Name, DirectoryEntryFlags Flags, IoHash Hash)
-		{
-			this.Directory = Directory;
-			this.Name = Name;
-			this.Flags = Flags;
-			this.Hash = Hash;
-		}
+		long CachedLength;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal DirectoryEntry(DirectoryNode Directory, Utf8String Name, DirectoryEntryFlags Flags, BundleNode Node)
+		public FileEntry(Utf8String Name, FileEntryFlags Flags, FileNode Node)
+			: base(Node)
 		{
-			this.Directory = Directory;
 			this.Name = Name;
 			this.Flags = Flags;
-			this.Node = Node;
-		}
-
-		internal IoHash Serialize()
-		{
-			if (Node != null)
-			{
-				Hash = Node.Serialize();
-			}
-			return Hash;
 		}
 
 		/// <summary>
-		/// Gets the file associated with this entry
+		/// Constructor
 		/// </summary>
-		/// <returns>File object associated with this entry</returns>
-		public async ValueTask<FileNode> GetFileAsync()
+		public FileEntry(Bundle Bundle, Utf8String Name, FileEntryFlags Flags, long Length, IoHash Hash)
+			: base(Bundle, Hash)
 		{
-			if ((Flags & DirectoryEntryFlags.File) == 0)
-			{
-				throw new InvalidCastException();
-			}
-			if (Node == null)
-			{
-				ReadOnlyMemory<byte> Data = await Directory.Owner.GetDataAsync(Hash);
-				Node = new FileNode(Directory.Owner, Directory, Hash, Data);
-			}
-			return (FileNode)Node;
+			this.Name = Name;
+			this.Flags = Flags;
+			this.CachedLength = Length;
+		}
+
+		/// <inheritdoc/>
+		protected override void Collapse()
+		{
+			CachedLength = Node!.Length;
+		}
+	}
+
+	/// <summary>
+	/// Entry for a directory within a directory node
+	/// </summary>
+	public class DirectoryEntry : BundleNodeRef<DirectoryNode>
+	{
+		/// <summary>
+		/// Name of this directory
+		/// </summary>
+		public Utf8String Name { get; }
+
+		/// <summary>
+		/// Length of this directory tree
+		/// </summary>
+		public long Length => (Node == null) ? CachedLength : Node.Length;
+
+		/// <summary>
+		/// Cached value for the length of this tree
+		/// </summary>
+		long CachedLength;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public DirectoryEntry(Utf8String Name, DirectoryNode Node)
+			: base(Node)
+		{
+			this.Name = Name;
 		}
 
 		/// <summary>
-		/// Gets the directory associated with this entry
+		/// Constructor
 		/// </summary>
-		/// <returns>Directory object associated with this entry</returns>
-		public async ValueTask<DirectoryNode> GetDirectoryAsync()
+		public DirectoryEntry(Bundle Bundle, Utf8String Name, long Length, IoHash Hash)
+			: base(Bundle, Hash)
 		{
-			if ((Flags & DirectoryEntryFlags.Directory) == 0)
-			{
-				throw new InvalidCastException();
-			}
-			if (Node == null)
-			{
-				ReadOnlyMemory<byte> Data = await Directory.Owner.GetDataAsync(Hash);
-				Node = DirectoryNode.Deserialize(Directory.Owner, Directory, Hash, Data.Span);
-			}
-			return (DirectoryNode)Node;
+			this.Name = Name;
+			this.CachedLength = Length;
+		}
+
+		/// <inheritdoc/>
+		protected override void Collapse()
+		{
+			CachedLength = Node!.Length;
 		}
 	}
 
 	/// <summary>
 	/// A directory node
 	/// </summary>
-	[BundleNodeFactory(typeof(DirectoryNodeFactory))]
+	[BundleNodeDeserializer(typeof(DirectoryNodeDeserializer))]
 	public class DirectoryNode : BundleNode
 	{
 		internal const byte TypeId = (byte)'d';
 
-		Dictionary<Utf8String, DirectoryEntry> NameToEntry = new Dictionary<Utf8String, DirectoryEntry>();
+		Dictionary<Utf8String, FileEntry> NameToFileEntry = new Dictionary<Utf8String, FileEntry>();
+		Dictionary<Utf8String, DirectoryEntry> NameToDirectoryEntry = new Dictionary<Utf8String, DirectoryEntry>();
 
 		/// <summary>
-		/// Entries within this directory
+		/// Total size of this directory
 		/// </summary>
-		public IReadOnlyCollection<DirectoryEntry> Entries => NameToEntry.Values;
+		public long Length => Files.Sum(x => x.Length) + Directories.Sum(x => x.Length);
 
-		internal DirectoryNode(Bundle Owner, BundleNode? Parent)
-			: base(Owner, Parent)
-		{
-		}
+		/// <summary>
+		/// All the files within this directory
+		/// </summary>
+		public IReadOnlyCollection<FileEntry> Files => NameToFileEntry.Values;
 
-		internal DirectoryNode(Bundle Owner, BundleNode? Parent, IoHash Hash)
-			: base(Owner, Parent, Hash)
-		{
-		}
+		/// <summary>
+		/// All the subdirectories within this directory
+		/// </summary>
+		public IReadOnlyCollection<DirectoryEntry> Directories => NameToDirectoryEntry.Values;
 
 		/// <summary>
 		/// Clear the contents of this directory
 		/// </summary>
 		public void Clear()
 		{
-			NameToEntry.Clear();
+			NameToFileEntry.Clear();
+			NameToDirectoryEntry.Clear();
 			MarkAsDirty();
 		}
 
 		/// <summary>
-		/// Attempt to get a directory entry with the given name
+		/// Check whether an entry with the given name exists in this directory
 		/// </summary>
-		/// <param name="Name">Name of the entry to find</param>
-		/// <param name="Entry">Receives the entry on success, or null on failure</param>
-		/// <returns>True if a matching entry was found</returns>
-		public bool TryGetEntry(Utf8String Name, [NotNullWhen(true)] out DirectoryEntry? Entry) => NameToEntry.TryGetValue(Name, out Entry);
+		/// <param name="Name">Name of the entry to search for</param>
+		/// <returns>True if the entry exists</returns>
+		public bool Contains(Utf8String Name) => TryGetFileEntry(Name, out _) || TryGetDirectoryEntry(Name, out _);
+
+		/// <inheritdoc/>
+		public override IEnumerable<BundleNodeRef> GetReferences() => Enumerable.Concat<BundleNodeRef>(Files, Directories);
+
+		#region File operations
 
 		/// <summary>
 		/// Adds a new directory with the given name
@@ -200,17 +198,17 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <param name="Name">Name of the new directory</param>
 		/// <param name="Flags">Flags for the new file</param>
 		/// <returns>The new directory object</returns>
-		public FileNode CreateFile(Utf8String Name, DirectoryEntryFlags Flags)
+		public FileNode CreateFile(Utf8String Name, FileEntryFlags Flags)
 		{
-			if((Flags & DirectoryEntryFlags.Directory) != 0)
+			if(TryGetDirectoryEntry(Name, out _))
 			{
-				throw new ArgumentException("Directory flag cannot be specified for new file");
+				throw new ArgumentException($"A directory with the name {Name} already exists");
 			}
 
-			FileNode NewNode = new FileNode(Owner, this);
+			FileNode NewNode = new FileNode();
 
-			DirectoryEntry Entry = new DirectoryEntry(this, Name, Flags | DirectoryEntryFlags.File, NewNode);
-			NameToEntry[Name] = Entry;
+			FileEntry Entry = new FileEntry(Name, Flags, NewNode);
+			NameToFileEntry[Name] = Entry;
 			MarkAsDirty();
 
 			return NewNode;
@@ -222,7 +220,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <param name="Path">Path to the file</param>
 		/// <param name="Flags">Flags for the new file</param>
 		/// <returns>The new directory object</returns>
-		public async ValueTask<FileNode> CreateFileByPathAsync(Utf8String Path, DirectoryEntryFlags Flags)
+		public async ValueTask<FileNode> CreateFileByPathAsync(Utf8String Path, FileEntryFlags Flags)
 		{
 			DirectoryNode Directory = this;
 
@@ -243,11 +241,34 @@ namespace EpicGames.Horde.Bundles.Nodes
 		}
 
 		/// <summary>
+		/// Attempts to get a file entry with the given name
+		/// </summary>
+		/// <param name="Name">Name of the file</param>
+		/// <param name="Entry">Entry for the file</param>
+		/// <returns>True if the file was found</returns>
+		public bool TryGetFileEntry(Utf8String Name, [NotNullWhen(true)] out FileEntry? Entry) => NameToFileEntry.TryGetValue(Name, out Entry);
+
+		/// <summary>
+		/// Deletes the file entry with the given name
+		/// </summary>
+		/// <param name="Name">Name of the entry to delete</param>
+		/// <returns>True if the entry was found, false otherwise</returns>
+		public bool DeleteFile(Utf8String Name)
+		{
+			if (NameToFileEntry.Remove(Name))
+			{
+				MarkAsDirty();
+				return true;
+			}
+			return false;
+		}
+
+		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="Path"></param>
 		/// <returns></returns>
-		public async ValueTask DeleteFileByPathAsync(Utf8String Path)
+		public async ValueTask<bool> DeleteFileByPathAsync(Utf8String Path)
 		{
 			DirectoryNode Directory = this;
 
@@ -257,8 +278,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				int Length = RemainingPath.IndexOf('/');
 				if (Length == -1)
 				{
-					Directory.Delete(RemainingPath);
-					return;
+					return Directory.DeleteFile(RemainingPath);
 				}
 				if (Length > 0)
 				{
@@ -268,6 +288,10 @@ namespace EpicGames.Horde.Bundles.Nodes
 			}
 		}
 
+		#endregion
+
+		#region Directory operations
+
 		/// <summary>
 		/// Adds a new directory with the given name
 		/// </summary>
@@ -275,14 +299,27 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <returns>The new directory object</returns>
 		public DirectoryNode AddDirectory(Utf8String Name)
 		{
-			DirectoryNode NewNode = new DirectoryNode(Owner, this);
+			if (TryGetFileEntry(Name, out _))
+			{
+				throw new ArgumentException($"A file with the name '{Name}' already exists in this directory", nameof(Name));
+			}
 
-			DirectoryEntry Entry = new DirectoryEntry(this, Name, DirectoryEntryFlags.Directory, NewNode);
-			NameToEntry.Add(Name, Entry);
+			DirectoryNode Node = new DirectoryNode();
+
+			DirectoryEntry Entry = new DirectoryEntry(Name, Node);
+			NameToDirectoryEntry.Add(Name, Entry);
 			MarkAsDirty();
 
-			return NewNode;
+			return Node;
 		}
+
+		/// <summary>
+		/// Attempts to get a directory entry with the given name
+		/// </summary>
+		/// <param name="Name">Name of the directory</param>
+		/// <param name="Entry">Entry for the directory</param>
+		/// <returns>True if the directory was found</returns>
+		public bool TryGetDirectoryEntry(Utf8String Name, [NotNullWhen(true)] out DirectoryEntry? Entry) => NameToDirectoryEntry.TryGetValue(Name, out Entry);
 
 		/// <summary>
 		/// Tries to get a directory with the given name
@@ -291,9 +328,9 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <returns>The new directory object</returns>
 		public async ValueTask<DirectoryNode?> FindDirectoryAsync(Utf8String Name)
 		{
-			if (TryGetEntry(Name, out DirectoryEntry? Entry))
+			if (TryGetDirectoryEntry(Name, out DirectoryEntry? Entry))
 			{
-				return await Entry.GetDirectoryAsync();
+				return await Entry.GetAsync();
 			}
 			else
 			{
@@ -317,9 +354,9 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// </summary>
 		/// <param name="Name">Name of the entry to delete</param>
 		/// <returns>True if the entry was found, false otherwise</returns>
-		public bool Delete(Utf8String Name)
+		public bool DeleteDirectory(Utf8String Name)
 		{
-			if(NameToEntry.Remove(Name))
+			if(NameToDirectoryEntry.Remove(Name))
 			{
 				MarkAsDirty();
 				return true;
@@ -327,41 +364,69 @@ namespace EpicGames.Horde.Bundles.Nodes
 			return false;
 		}
 
+		#endregion
+
 		/// <inheritdoc/>
-		protected override IoHash SerializeDirty()
+		public override ReadOnlyMemory<byte> Serialize()
 		{
+			// Measure the required size of the write buffer
 			int Size = 1;
-			foreach (DirectoryEntry Entry in NameToEntry.Values)
+			Size += VarInt.Measure(NameToFileEntry.Count);
+			foreach (FileEntry Entry in NameToFileEntry.Values)
 			{
-				Size += 1 + (Entry.Name.Length + 1) + IoHash.NumBytes;
+				Size += (Entry.Name.Length + 1) + 1 + VarInt.Measure((ulong)Entry.Length) + IoHash.NumBytes;
+			}
+			Size += VarInt.Measure(NameToDirectoryEntry.Count);
+			foreach (DirectoryEntry Entry in NameToDirectoryEntry.Values)
+			{
+				Size += (Entry.Name.Length + 1) + VarInt.Measure((ulong)Entry.Length) + IoHash.NumBytes;
 			}
 
+			// Allocate the buffer and copy the node to it
 			byte[] Data = new byte[Size];
 			Span<byte> Span = Data.AsSpan();
 
 			Span[0] = TypeId;
 			Span = Span.Slice(1);
 
-			List<IoHash> References = new List<IoHash>();
-			foreach (DirectoryEntry Entry in NameToEntry.Values.OrderBy(x => x.Name))
-			{
-				IoHash EntryHash = Entry.Serialize();
-				References.Add(EntryHash);
+			int FileCountBytes = VarInt.Write(Span, NameToFileEntry.Count);
+			Span = Span.Slice(FileCountBytes);
 
-				Span[0] = (byte)Entry.Flags;
+			foreach (FileEntry FileEntry in NameToFileEntry.Values.OrderBy(x => x.Name))
+			{
+				FileEntry.Name.Span.CopyTo(Span);
+				Span = Span.Slice(FileEntry.Name.Length + 1);
+
+				Span[0] = (byte)FileEntry.Flags;
 				Span = Span.Slice(1);
 
-				Entry.Name.Span.CopyTo(Span);
-				Span = Span.Slice(Entry.Name.Length + 1);
+				int LengthBytes = VarInt.Write(Span, FileEntry.Length);
+				Span = Span.Slice(LengthBytes);
 
-				EntryHash.CopyTo(Span);
+				FileEntry.Hash.CopyTo(Span);
 				Span = Span.Slice(IoHash.NumBytes);
 			}
 
-			return Owner.WriteNode(Data, References);
+			int DirectoryCountBytes = VarInt.Write(Span, NameToDirectoryEntry.Count);
+			Span = Span.Slice(DirectoryCountBytes);
+
+			foreach (DirectoryEntry DirectoryEntry in NameToDirectoryEntry.Values.OrderBy(x => x.Name))
+			{
+				DirectoryEntry.Name.Span.CopyTo(Span);
+				Span = Span.Slice(DirectoryEntry.Name.Length + 1);
+
+				int LengthBytes = VarInt.Write(Span, DirectoryEntry.Length);
+				Span = Span.Slice(LengthBytes);
+
+				DirectoryEntry.Hash.CopyTo(Span);
+				Span = Span.Slice(IoHash.NumBytes);
+			}
+
+			Debug.Assert(Span.Length == 0);
+			return Data;
 		}
 
-		internal static DirectoryNode Deserialize(Bundle Owner, BundleNode? Parent, IoHash Hash, ReadOnlySpan<byte> Span)
+		internal static DirectoryNode Deserialize(Bundle Bundle, ReadOnlySpan<byte> Span)
 		{
 			if(Span[0] != TypeId)
 			{
@@ -370,21 +435,49 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 			Span = Span.Slice(1);
 
-			DirectoryNode Node = new DirectoryNode(Owner, Parent);
-			while (Span.Length > 0)
+			DirectoryNode Node = new DirectoryNode();
+
+			int FileCount = (int)VarInt.Read(Span, out int FileCountBytes);
+			Span = Span.Slice(FileCountBytes);
+
+			Node.NameToFileEntry.EnsureCapacity(FileCount);
+			for (int Idx = 0; Idx < FileCount; Idx++)
 			{
-				DirectoryEntryFlags Flags = (DirectoryEntryFlags)Span[0];
+				int NameLen = Span.IndexOf((byte)0);
+				Utf8String Name = new Utf8String(Span.Slice(0, NameLen).ToArray());
+				Span = Span.Slice(NameLen + 1);
+
+				FileEntryFlags Flags = (FileEntryFlags)Span[0];
 				Span = Span.Slice(1);
 
-				int Length = Span.IndexOf((byte)0);
-				Utf8String Name = new Utf8String(Span.Slice(0, Length).ToArray());
-				Span = Span.Slice(Length + 1);
+				long Length = (long)VarInt.Read(Span, out int LengthBytes);
+				Span = Span.Slice(LengthBytes);
 
-				IoHash EntryHash = new IoHash(Span);
+				IoHash Hash = new IoHash(Span);
 				Span = Span.Slice(IoHash.NumBytes);
 
-				Node.NameToEntry[Name] = new DirectoryEntry(Node, Name, Flags, EntryHash);
+				Node.NameToFileEntry[Name] = new FileEntry(Bundle, Name, Flags, Length, Hash);
 			}
+
+			int DirectoryCount = (int)VarInt.Read(Span, out int DirectoryCountBytes);
+			Span = Span.Slice(DirectoryCountBytes);
+
+			Node.NameToDirectoryEntry.EnsureCapacity(DirectoryCount);
+			for (int Idx = 0; Idx < DirectoryCount; Idx++)
+			{
+				int NameLen = Span.IndexOf((byte)0);
+				Utf8String Name = new Utf8String(Span.Slice(0, NameLen).ToArray());
+				Span = Span.Slice(NameLen + 1);
+
+				long Length = (long)VarInt.Read(Span, out int LengthBytes);
+				Span = Span.Slice(LengthBytes);
+
+				IoHash Hash = new IoHash(Span);
+				Span = Span.Slice(IoHash.NumBytes);
+
+				Node.NameToDirectoryEntry[Name] = new DirectoryEntry(Bundle, Name, Length, Hash);
+			}
+
 			return Node;
 		}
 
@@ -406,7 +499,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			foreach (FileInfo FileInfo in DirectoryInfo.EnumerateFiles())
 			{
 				Logger.LogInformation("Adding {File}", FileInfo.FullName);
-				FileNode FileNode = CreateFile(FileInfo.Name, DirectoryEntryFlags.File);
+				FileNode FileNode = CreateFile(FileInfo.Name, 0);
  				await FileNode.CopyFromFileAsync(FileInfo, Options);
 			}
 		}
@@ -422,20 +515,17 @@ namespace EpicGames.Horde.Bundles.Nodes
 			DirectoryInfo.Create();
 
 			List<Task> Tasks = new List<Task>();
-			foreach (DirectoryEntry Entry in Entries)
+			foreach (FileEntry FileEntry in Files)
 			{
-				if ((Entry.Flags & DirectoryEntryFlags.Directory) != 0)
-				{
-					DirectoryInfo SubDirectoryInfo = DirectoryInfo.CreateSubdirectory(Entry.Name.ToString());
-					DirectoryNode SubDirectoryNode = await Entry.GetDirectoryAsync();
-					Tasks.Add(Task.Run(() => SubDirectoryNode.CopyToDirectoryAsync(SubDirectoryInfo, Logger)));
-				}
-				else
-				{
-					FileInfo FileInfo = new FileInfo(Path.Combine(DirectoryInfo.FullName, Entry.Name.ToString()));
-					FileNode FileNode = await Entry.GetFileAsync();
-					Tasks.Add(Task.Run(() => FileNode.CopyToFileAsync(FileInfo)));
-				}
+				FileInfo FileInfo = new FileInfo(Path.Combine(DirectoryInfo.FullName, FileEntry.Name.ToString()));
+				FileNode FileNode = await FileEntry.GetAsync();
+				Tasks.Add(Task.Run(() => FileNode.CopyToFileAsync(FileInfo)));
+			}
+			foreach (DirectoryEntry DirectoryEntry in Directories)
+			{
+				DirectoryInfo SubDirectoryInfo = DirectoryInfo.CreateSubdirectory(DirectoryEntry.Name.ToString());
+				DirectoryNode SubDirectoryNode = await DirectoryEntry.GetAsync();
+				Tasks.Add(Task.Run(() => SubDirectoryNode.CopyToDirectoryAsync(SubDirectoryInfo, Logger)));
 			}
 
 			await Task.WhenAll(Tasks);
@@ -445,18 +535,12 @@ namespace EpicGames.Horde.Bundles.Nodes
 	/// <summary>
 	/// Factory for creating and serializing <see cref="DirectoryNode"/> objects
 	/// </summary>
-	public class DirectoryNodeFactory : BundleNodeFactory<DirectoryNode>
+	public class DirectoryNodeDeserializer : BundleNodeDeserializer<DirectoryNode>
 	{
 		/// <inheritdoc/>
-		public override DirectoryNode CreateRoot(Bundle Bundle)
+		public override DirectoryNode Deserialize(Bundle Bundle, ReadOnlyMemory<byte> Data)
 		{
-			return new DirectoryNode(Bundle, null);
-		}
-
-		/// <inheritdoc/>
-		public override DirectoryNode ParseRoot(Bundle Bundle, IoHash Hash, ReadOnlyMemory<byte> Data)
-		{
-			return DirectoryNode.Deserialize(Bundle, null, Hash, Data.Span);
+			return DirectoryNode.Deserialize(Bundle, Data.Span);
 		}
 	}
 }
