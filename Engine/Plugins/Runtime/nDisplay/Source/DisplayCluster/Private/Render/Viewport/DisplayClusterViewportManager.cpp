@@ -253,7 +253,7 @@ bool FDisplayClusterViewportManager::ShouldUseFullSizeFrameTargetableResource() 
 {
 	check(IsInGameThread());
 
-	if (PostProcessManager->ShouldUseFullSizeFrameTargetableResource())
+	if (PostProcessManager.IsValid() && PostProcessManager->ShouldUseFullSizeFrameTargetableResource())
 	{
 		return true;
 	}
@@ -273,7 +273,7 @@ bool FDisplayClusterViewportManager::ShouldUseAdditionalFrameTargetableResource(
 {
 	check(IsInGameThread());
 
-	if (PostProcessManager->ShouldUseAdditionalFrameTargetableResource())
+	if (PostProcessManager.IsValid() && PostProcessManager->ShouldUseAdditionalFrameTargetableResource())
 	{
 		return true;
 	}
@@ -404,6 +404,12 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 		}
 	}
 
+	// Before new frame
+	if (PostProcessManager.IsValid())
+	{
+		PostProcessManager->HandleSetupNewFrame();
+	}
+
 	// generate unique stereo view index for each frame
 	// Begin from 1, because INDEX_NONE use ViewState[0] in LocalPlayer.cpp:786
 	uint32 StereoViewIndex = 1;
@@ -445,9 +451,6 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 	{
 		if (Viewport)
 		{
-			// Update TextureShare links
-			Viewport->TextureShare.UpdateLinkSceneContextToShare(*Viewport);
-
 			// Update ViewportRemap geometry
 			Viewport->ViewportRemap.Update(*Viewport, RenderFrameSize);
 		}
@@ -460,6 +463,11 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 	// Get preview resources from root actor
 	ImplUpdatePreviewRTTResources();
 #endif /*WITH_EDITOR*/
+
+	if (PostProcessManager.IsValid())
+	{
+		PostProcessManager->HandleBeginNewFrame(OutRenderFrame);
+	}
 
 	return true;
 }
@@ -526,11 +534,14 @@ void FDisplayClusterViewportManager::FinalizeNewFrame()
 		}
 	}
 
-	// Update postprocess data from game thread
-	PostProcessManager->Tick();
+	if (PostProcessManager.IsValid())
+	{
+		// Update postprocess data from game thread
+		PostProcessManager->Tick();
 
-	// Send updated postprocess data to rendering thread
-	PostProcessManager->FinalizeNewFrame();
+		// Send updated postprocess data to rendering thread
+		PostProcessManager->FinalizeNewFrame();
+	}
 }
 
 FSceneViewFamily::ConstructionValues FDisplayClusterViewportManager::CreateViewFamilyConstructionValues(

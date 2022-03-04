@@ -40,11 +40,6 @@ void FDisplayClusterConfiguratorViewportDetailsCustomization::CustomizeDetails(I
 	}
 	check(ConfigurationViewportPtr != nullptr);
 
-	// Hide the texture share property when we aren't on a Windows platform
-#if !PLATFORM_WINDOWS
-	InLayoutBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, TextureShare));
-#endif
-
 	const bool bDisplayICVFX =
 			ConfigurationViewportPtr->ProjectionPolicy.Type.Equals(DisplayClusterProjectionStrings::projection::Mesh, ESearchCase::IgnoreCase)
 		||  ConfigurationViewportPtr->ProjectionPolicy.Type.Equals(DisplayClusterProjectionStrings::projection::MPCDI, ESearchCase::IgnoreCase);

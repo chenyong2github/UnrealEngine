@@ -46,4 +46,7 @@ public:
 	virtual void SetupSceneView(uint32 ContextNum, class UWorld* World, FSceneViewFamily& InViewFamily, FSceneView& InView) const = 0;
 
 	virtual class IDisplayClusterViewportManager& GetOwner() const = 0;
+
+	virtual void SetRenderSettings(const FDisplayClusterViewport_RenderSettings& InRenderSettings) = 0;
+	virtual void SetContexts(TArray<FDisplayClusterViewport_Context>& InContexts) = 0;
 };

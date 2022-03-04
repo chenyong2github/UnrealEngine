@@ -69,6 +69,19 @@ public:
 		return Contexts;
 	}
 
+	virtual void SetRenderSettings_RenderThread(const FDisplayClusterViewport_RenderSettings& InRenderSettings) const override
+	{
+		check(IsInRenderingThread());
+		RenderSettings = InRenderSettings;
+	}
+
+	virtual void SetContexts_RenderThread(const TArray<FDisplayClusterViewport_Context>& InContexts) const override
+	{
+		check(IsInRenderingThread());
+		Contexts.Empty();
+		Contexts.Append(InContexts);
+	}
+
 	// Apply postprocess, generate mips, etc from settings in FDisplayClusterViewporDeferredUpdateSettings
 	void UpdateDeferredResources(FRHICommandListImmediate& RHICmdList) const;
 
@@ -135,7 +148,7 @@ protected:
 	const FString ClusterNodeId;
 
 	// Viewport render params
-	FDisplayClusterViewport_RenderSettings       RenderSettings;
+	mutable FDisplayClusterViewport_RenderSettings       RenderSettings;
 	FDisplayClusterViewport_RenderSettingsICVFX  RenderSettingsICVFX;
 	FDisplayClusterViewport_PostRenderSettings   PostRenderSettings;
 
@@ -148,7 +161,7 @@ protected:
 	TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> ProjectionPolicy;
 
 	// Viewport contexts (left/center/right eyes)
-	TArray<FDisplayClusterViewport_Context> Contexts;
+	mutable TArray<FDisplayClusterViewport_Context> Contexts;
 
 	// View family render to this resources
 	TArray<FDisplayClusterViewportRenderTargetResource*> RenderTargets;

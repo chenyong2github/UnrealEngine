@@ -9,7 +9,9 @@
 #include "RHICommandList.h"
 
 class IDisplayClusterViewportManager;
+class IDisplayClusterViewportManagerProxy;
 class IDisplayClusterViewportProxy;
+class FDisplayClusterRenderFrame;
 
 /**
  * nDisplay post-process interface
@@ -66,6 +68,41 @@ public:
 	*
 	*/
 	virtual void HandleEndScene(IDisplayClusterViewportManager* InViewportManager) = 0;
+
+	/**
+	* Called each time a new frame setup
+	*
+	*/
+	virtual void HandleSetupNewFrame(IDisplayClusterViewportManager* InViewportManager)
+	{ }
+
+	/**
+	* Called each time a new frame begin
+	*
+	*/
+	virtual void HandleBeginNewFrame(IDisplayClusterViewportManager* InViewportManager, FDisplayClusterRenderFrame& InOutRenderFrame)
+	{ }
+
+	/**
+	* Called each time a render thread multi-viewport composing begin
+	*
+	*/
+	virtual void HandleRenderFrameSetup_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
+	{ }
+
+	/**
+	* Called each time a render thread before UpdateFrameResources()
+	*
+	*/
+	virtual void HandleBeginUpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
+	{ }
+
+	/**
+	* Called each time a render thread after UpdateFrameResources()
+	*
+	*/
+	virtual void HandleEndUpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
+	{ }
 
 	/**
 	* Returns if an interface implementation processes each view region before warp&blend

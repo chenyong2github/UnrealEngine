@@ -42,4 +42,7 @@ public:
 	virtual EDisplayClusterViewportResourceType   GetOutputResourceType_RenderThread() const = 0;
 
 	virtual const class IDisplayClusterViewportManagerProxy& GetOwner_RenderThread() const = 0;
+
+	virtual void SetRenderSettings_RenderThread(const FDisplayClusterViewport_RenderSettings& InRenderSettings) const = 0;
+	virtual void SetContexts_RenderThread(const TArray<FDisplayClusterViewport_Context>& InContexts) const = 0;
 };

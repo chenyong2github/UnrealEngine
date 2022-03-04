@@ -89,7 +89,7 @@ void FDisplayClusterViewportConfigurationBase::Update(const FString& ClusterNode
 	}
 }
 
-void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(const FString& InClusterNodeId)
+void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(const FString& InClusterNodeId, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings)
 {
 	const UDisplayClusterConfigurationClusterNode* ClusterNode = ConfigurationData.Cluster->GetNode(InClusterNodeId);
 	if (ClusterNode)
@@ -129,6 +129,28 @@ void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(cons
 				else
 				{
 					PPManager->CreatePostprocess(It.Key, &It.Value);
+				}
+			}
+
+			// Texture sharing is not supported in preview mode.
+			if(InRenderFrameSettings.bIsPreviewRendering == false)
+			{
+				static const FString TextureShareID(TEXT("TextureShare"));
+				if (ClusterNode->bEnableTextureShare)
+				{
+					TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> ExistPostProcess = PPManager->FindPostProcess(TextureShareID);
+					if (!ExistPostProcess.IsValid())
+					{
+						// Helper create postprocess entry for TextureShare
+						FDisplayClusterConfigurationPostprocess TextureShareConfiguration;
+						TextureShareConfiguration.Type = TextureShareID;
+
+						PPManager->CreatePostprocess(TextureShareID, &TextureShareConfiguration);
+					}
+				}
+				else
+				{
+					PPManager->RemovePostprocess(TextureShareID);
 				}
 			}
 
@@ -194,19 +216,3 @@ bool FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(FDisp
 
 	return true;
 }
-
-void FDisplayClusterViewportConfigurationBase::UpdateTextureShare(const FString& ClusterNodeId)
-{
-	for (FDisplayClusterViewport* ViewportIt : ViewportManager.ImplGetViewports())
-	{
-		if (ViewportIt)
-		{
-			const UDisplayClusterConfigurationViewport* ViewportCfg = ConfigurationData.GetViewport(ClusterNodeId, ViewportIt->GetId());
-			if (ViewportCfg)
-			{
-				ViewportIt->TextureShare.UpdateConfiguration(*ViewportIt, ViewportCfg->TextureShare);
-			}
-		}
-	}
-}
-

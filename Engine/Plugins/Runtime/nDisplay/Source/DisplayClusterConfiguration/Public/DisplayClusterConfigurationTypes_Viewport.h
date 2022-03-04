@@ -10,8 +10,6 @@
 #include "DisplayClusterConfigurationStrings.h"
 #include "DisplayClusterConfigurationTypes_PostRender.h"
 #include "DisplayClusterConfigurationTypes_Postprocess.h"
-
-#include "DisplayClusterConfigurationTypes_TextureShare.h"
 #include "DisplayClusterConfigurationTypes_ViewportRemap.h"
 
 #include "OpenColorIOColorSpace.h"
@@ -182,10 +180,6 @@ public:
 	/** Specify your Projection Policy Settings */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Configuration")
 	FDisplayClusterConfigurationProjection ProjectionPolicy;
-
-	/** Enable or disable compatibility with inter process GPU Texture share */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration", meta = (DisplayName = "Shared Texture"))
-	FDisplayClusterConfigurationTextureShare_Viewport TextureShare;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Preview", meta = (DisplayName = "Preview Frustum"))

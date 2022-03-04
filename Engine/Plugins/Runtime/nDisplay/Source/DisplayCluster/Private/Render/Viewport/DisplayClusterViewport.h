@@ -11,7 +11,6 @@
 #include "Render/Viewport/Containers/DisplayClusterViewport_Enums.h"
 
 #include "Render/Viewport/DisplayClusterViewport_CustomPostProcessSettings.h"
-#include "Render/Viewport/DisplayClusterViewport_TextureShare.h"
 #include "Render/Viewport/DisplayClusterViewport_VisibilitySettings.h"
 
 #include "SceneViewExtensionContext.h"
@@ -68,6 +67,19 @@ public:
 	{
 		check(IsInGameThread());
 		return RenderSettings;
+	}
+
+	virtual void SetRenderSettings(const FDisplayClusterViewport_RenderSettings& InRenderSettings) override
+	{
+		check(IsInGameThread());
+		RenderSettings = InRenderSettings;
+	}
+
+	virtual void SetContexts(TArray<FDisplayClusterViewport_Context>& InContexts) override
+	{
+		check(IsInGameThread());
+		Contexts.Empty();
+		Contexts.Append(InContexts);
 	}
 
 	virtual void CalculateProjectionMatrix(const uint32 InContextNum, float Left, float Right, float Top, float Bottom, float ZNear, float ZFar, bool bIsAnglesInput) override;
@@ -198,9 +210,6 @@ public:
 
 	// OCIO wrapper
 	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OpenColorIODisplayExtension;
-
-	//TextureShare
-	FDisplayClusterViewport_TextureShare TextureShare;
 
 public:
 	// Projection policy instance that serves this viewport

@@ -12,7 +12,6 @@ public class DisplayClusterConfiguration : ModuleRules
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"DisplayCluster",
-				"DisplayClusterPostprocess",
 				"DisplayClusterProjection",
 			});
 
@@ -22,14 +21,6 @@ public class DisplayClusterConfiguration : ModuleRules
 				"ActorLayerUtilities",
 				"OpenColorIO"
 			});
-
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicDependencyModuleNames.AddRange(
-			new string[] {
-				"TextureShare"
-			});
-		}
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

@@ -187,6 +187,12 @@ void FDisplayClusterViewportManagerProxy::ImplRenderFrame(FViewport* InViewport)
 		SCOPED_GPU_STAT(RHICmdList, nDisplay_ViewportManager_RenderFrame);
 		SCOPED_DRAW_EVENT(RHICmdList, nDisplay_ViewportManager_RenderFrame);
 
+		// Handle render setup
+		if (ViewportManagerProxy->PostProcessManager.IsValid())
+		{
+			ViewportManagerProxy->PostProcessManager->HandleRenderFrameSetup_RenderThread(RHICmdList, ViewportManagerProxy);
+		}
+
 		bool bWarpBlendEnabled = ViewportManagerProxy->RenderFrameSettings.bAllowWarpBlend && CVarWarpBlendEnabled.GetValueOnRenderThread() != 0;
 
 		// mGPU not used for in-editor rendering
@@ -200,8 +206,18 @@ void FDisplayClusterViewportManagerProxy::ImplRenderFrame(FViewport* InViewport)
 		// Update viewports resources: overlay, vp-overla, blur, nummips, etc
 		ViewportManagerProxy->UpdateDeferredResources_RenderThread(RHICmdList);
 
+		if (ViewportManagerProxy->PostProcessManager.IsValid())
+		{
+			ViewportManagerProxy->PostProcessManager->HandleBeginUpdateFrameResources_RenderThread(RHICmdList, ViewportManagerProxy);
+		}
+
 		// Update the frame resources: post-processing, warping, and finally resolving everything to the frame resource
 		ViewportManagerProxy->UpdateFrameResources_RenderThread(RHICmdList, bWarpBlendEnabled);
+
+		if (ViewportManagerProxy->PostProcessManager.IsValid())
+		{
+			ViewportManagerProxy->PostProcessManager->HandleEndUpdateFrameResources_RenderThread(RHICmdList, ViewportManagerProxy);
+		}
 
 		if (InViewport)
 		{
@@ -294,7 +310,10 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 	check(IsInRenderingThread());
 
 	// Do postprocess before warp&blend
-	PostProcessManager->PerformPostProcessBeforeWarpBlend_RenderThread(RHICmdList, this);
+	if (PostProcessManager.IsValid())
+	{
+		PostProcessManager->PerformPostProcessBeforeWarpBlend_RenderThread(RHICmdList, this);
+	}
 
 	// Support viewport overlap order sorting:
 	TArray<FDisplayClusterViewportProxy*> SortedViewportProxy = ClusterNodeViewportProxies;
@@ -384,7 +403,10 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 		}
 	}
 
-	PostProcessManager->PerformPostProcessAfterWarpBlend_RenderThread(RHICmdList, this);
+	if (PostProcessManager.IsValid())
+	{
+		PostProcessManager->PerformPostProcessAfterWarpBlend_RenderThread(RHICmdList, this);
+	}
 }
 
 void FDisplayClusterViewportManagerProxy::DoCrossGPUTransfers_RenderThread(FRHICommandListImmediate& RHICmdList) const

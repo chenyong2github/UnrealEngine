@@ -104,12 +104,14 @@ bool FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(EDisplayClust
 				RenderFrameSettings.PreviewMaxGPUIndex = InPreviewSettings->MaxGPUIndex;
 
 				RenderFrameSettings.bIsRenderingInEditor = true;
+				RenderFrameSettings.bIsPreviewRendering = true;
 			}
 			else
 			{
 				RenderFrameSettings.bPreviewEnablePostProcess = false;
 				RenderFrameSettings.bAllowMultiGPURenderingInEditor = false;
 				RenderFrameSettings.bIsRenderingInEditor = false;
+				RenderFrameSettings.bIsPreviewRendering = false;
 			}
 
 			ConfigurationBase.Update(InClusterNodeId);
@@ -126,8 +128,7 @@ bool FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(EDisplayClust
 
 			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
 
-			ConfigurationBase.UpdateClusterNodePostProcess(InClusterNodeId);
-			ConfigurationBase.UpdateTextureShare(InClusterNodeId);
+			ConfigurationBase.UpdateClusterNodePostProcess(InClusterNodeId, RenderFrameSettings);
 
 			ImplPostUpdateRenderFrameConfiguration();
 

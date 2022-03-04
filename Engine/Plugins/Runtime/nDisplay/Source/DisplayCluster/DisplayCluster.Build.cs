@@ -23,14 +23,6 @@ public class DisplayCluster : ModuleRules
 				"Engine"
 			});
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicDependencyModuleNames.AddRange(
-			new string[] {
-				"TextureShare"
-			});
-		}
-
 		PrivateDependencyModuleNames.AddRange(
 		new string[] {
 			"HeadMountedDisplay",
@@ -71,8 +63,6 @@ public class DisplayCluster : ModuleRules
 				new string[] {
 					"D3D11RHI",
 					"D3D12RHI",
-					"TextureShare",
-					"TextureShareCore",
 			});
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11", "DX12");

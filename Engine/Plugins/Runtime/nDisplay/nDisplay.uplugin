@@ -47,15 +47,6 @@
 			]
 		},
 		{
-			"Name": "DisplayClusterPostprocess",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [
-				"Win64",
-				"Linux"
-			]
-		},
-		{
 			"Name": "DisplayClusterShaders",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
@@ -159,10 +150,6 @@
 		},
 		{
 			"Name": "ProceduralMeshComponent",
-			"Enabled": true
-		},
-		{
-			"Name": "TextureShare",
 			"Enabled": true
 		},
 		{
