@@ -101,7 +101,7 @@ FPCGPoint UPCGBaseTextureData::TransformPoint(const FPCGPoint& InPoint) const
 
 	FLinearColor Color = PCGTextureSampling::Sample<FLinearColor>(Position2D, Surface, Width, Height, [this](int32 Index) { return ColorData[Index]; });
 
-	Point.Color = Color;
+	Point.Color *= Color;
 	Point.Density *= PCGTextureSampling::SampleFloatChannel(Color, ColorChannel);
 
 	return Point;
@@ -141,6 +141,10 @@ const UPCGPointData* UPCGBaseTextureData::CreatePointData(FPCGContextPtr Context
 			OutPoint = FPCGPoint(FTransform(Transform.TransformPosition(LocalPosition)),
 				Density,
 				PCGHelpers::ComputeSeed(X, Y));
+
+			const FVector TransformScale = Transform.GetScale3D();
+			// Note: divided by 4 here because the scale is doubled before, and the extents represent half a pixel
+			OutPoint.Extents = FVector(TransformScale.X * XScale / 4.0, TransformScale.Y * YScale / 4.0, 1.0);
 			OutPoint.Color = ColorData[X + Y * Width];
 
 			return true;

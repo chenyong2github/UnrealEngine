@@ -20,8 +20,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0"))
 	float PointsPerSquaredMeter = 0.1f;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0"))
-	float PointRadius = 100.0f;
+	UPROPERTY()
+	float PointRadius_DEPRECATED = 100.0f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	FVector PointExtents = FVector(100.0f);
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0"))
 	float Looseness = 1.0f;
@@ -36,6 +39,10 @@ public:
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = "Debug")
 	bool bKeepZeroDensityPoints = false;
 #endif
+
+	//~Begin UObject interface
+	virtual void PostLoad() override;
+	//~End UObject interface
 
 #if WITH_EDITOR
 	//~Begin UPCGSettings interface
