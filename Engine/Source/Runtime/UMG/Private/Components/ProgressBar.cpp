@@ -9,6 +9,10 @@
 /////////////////////////////////////////////////////
 // UProgressBar
 
+
+UE_FIELD_NOTIFICATION_IMPLEMENT_CLASS_DESCRIPTOR_ThreeFields(UProgressBar, Percent, FillColorAndOpacity, bIsMarquee);
+
+
 static FProgressBarStyle* DefaultProgressBarStyle = nullptr;
 
 #if WITH_EDITOR
@@ -88,7 +92,12 @@ void UProgressBar::SynchronizeProperties()
 
 void UProgressBar::SetIsMarquee(bool InbIsMarquee)
 {
-	bIsMarquee = InbIsMarquee;
+	if (bIsMarquee != InbIsMarquee)
+	{
+		bIsMarquee = InbIsMarquee;
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::bIsMarquee);
+	}
+
 	if (MyProgressBar.IsValid())
 	{
 		MyProgressBar->SetPercent(bIsMarquee ? TOptional<float>() : Percent);
@@ -97,7 +106,12 @@ void UProgressBar::SetIsMarquee(bool InbIsMarquee)
 
 void UProgressBar::SetFillColorAndOpacity(FLinearColor Color)
 {
-	FillColorAndOpacity = Color;
+	if (FillColorAndOpacity != Color)
+	{
+		FillColorAndOpacity = Color;
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::FillColorAndOpacity);
+	}
+
 	if (MyProgressBar.IsValid())
 	{
 		MyProgressBar->SetFillColorAndOpacity(FillColorAndOpacity);
@@ -106,7 +120,12 @@ void UProgressBar::SetFillColorAndOpacity(FLinearColor Color)
 
 void UProgressBar::SetPercent(float InPercent)
 {
-	Percent = InPercent;
+	if (Percent != InPercent)
+	{
+		Percent = InPercent;
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Percent);
+	}
+
 	if (MyProgressBar.IsValid())
 	{
 		MyProgressBar->SetPercent(InPercent);

@@ -23,7 +23,9 @@ class UMG_API UProgressBar : public UWidget
 	GENERATED_UCLASS_BODY()
 	
 public:
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_ThreeFields(Percent, FillColorAndOpacity, bIsMarquee);
 
+public:
 	/** The progress bar style */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=( DisplayName="Style" ))
 	FProgressBarStyle WidgetStyle;

@@ -32,6 +32,9 @@ class UMG_API UCheckBox : public UContentWidget
 	GENERATED_UCLASS_BODY()
 
 public:
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_OneField(CheckedState);
+
+public:
 	/** Whether the check box is currently in a checked state */
 	UPROPERTY(EditAnywhere, Category=Appearance)
 	ECheckBoxState CheckedState;

@@ -12,6 +12,8 @@
 /////////////////////////////////////////////////////
 // UCheckBox
 
+UE_FIELD_NOTIFICATION_IMPLEMENT_CLASS_DESCRIPTOR_OneField(UCheckBox, CheckedState);
+
 static FCheckBoxStyle* DefaultCheckboxStyle = nullptr;
 
 #if WITH_EDITOR
@@ -175,7 +177,13 @@ ECheckBoxState UCheckBox::GetCheckedState() const
 
 void UCheckBox::SetIsChecked(bool InIsChecked)
 {
-	CheckedState = InIsChecked ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	ECheckBoxState NewState = InIsChecked ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	if (NewState != CheckedState)
+	{
+		CheckedState = NewState;
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::CheckedState);
+	}
+
 	if ( MyCheckbox.IsValid() )
 	{
 		MyCheckbox->SetIsChecked(PROPERTY_BINDING(ECheckBoxState, CheckedState));
@@ -184,7 +192,12 @@ void UCheckBox::SetIsChecked(bool InIsChecked)
 
 void UCheckBox::SetCheckedState(ECheckBoxState InCheckedState)
 {
-	CheckedState = InCheckedState;
+	if (CheckedState != InCheckedState)
+	{
+		CheckedState = InCheckedState;
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::CheckedState);
+	}
+
 	if ( MyCheckbox.IsValid() )
 	{
 		MyCheckbox->SetIsChecked(PROPERTY_BINDING(ECheckBoxState, CheckedState));
@@ -193,7 +206,11 @@ void UCheckBox::SetCheckedState(ECheckBoxState InCheckedState)
 
 void UCheckBox::SlateOnCheckStateChangedCallback(ECheckBoxState NewState)
 {
-	CheckedState = NewState;
+	if (CheckedState != NewState)
+	{
+		CheckedState = NewState;
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::CheckedState);
+	}
 
 	//@TODO: Choosing to treat Undetermined as Checked
 	const bool bWantsToBeChecked = NewState != ECheckBoxState::Unchecked;

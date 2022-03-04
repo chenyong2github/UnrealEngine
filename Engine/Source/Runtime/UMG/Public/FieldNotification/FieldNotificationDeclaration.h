@@ -25,8 +25,8 @@
  */
 
 
-#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(DllApi) \
-	struct DllApi FFieldNotificationClassDescriptor : public Super::FFieldNotificationClassDescriptor \
+#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN() \
+	struct FFieldNotificationClassDescriptor : public Super::FFieldNotificationClassDescriptor \
 	{ \
 	private: \
 		using SuperDescriptor = Super::FFieldNotificationClassDescriptor; \
@@ -61,11 +61,15 @@
 			return *(AllFields[InFieldNumber - SuperDescriptor::Max_IndexOf_]); \
 		} \
 	}; \
-	virtual const ::UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const override
+	virtual const ::UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const override \
+ 	{ \
+ 		static FFieldNotificationClassDescriptor Instance; \
+ 		return Instance; \
+ 	}
 
 
-#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BASE_BEGIN(DllApi) \
-	struct DllApi FFieldNotificationClassDescriptor : public ::UE::FieldNotification::IClassDescriptor \
+#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BASE_BEGIN() \
+	struct FFieldNotificationClassDescriptor : public ::UE::FieldNotification::IClassDescriptor \
 	{ \
 	private: \
 		using SuperDescriptor = ::UE::FieldNotification::IClassDescriptor; \
@@ -96,7 +100,11 @@
 			return *(AllFields[InFieldNumber]); \
 		} \
 	}; \
-	virtual const ::UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const override
+	virtual const ::UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const \
+	{ \
+ 		static FFieldNotificationClassDescriptor Instance; \
+ 		return Instance; \
+ 	}
 
 
 #define UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_BEGIN(Name) \
@@ -118,16 +126,16 @@
 			IndexOf_##Name,
 
 
-#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_OneField(DllApi, Field1) \
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(DllApi) \
+#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_OneField(Field1) \
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN() \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field1) \
 	UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_BEGIN(Field1) \
 	UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_END() \
 	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_END()
 
 
-#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_TwoFields(DllApi, Field1, Field2) \
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(DllApi) \
+#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_TwoFields(Field1, Field2) \
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN() \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field1) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field2) \
 	UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_BEGIN(Field1) \
@@ -136,8 +144,8 @@
 	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_END()
 
 
-#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_ThreeFields(DllApi, Field1, Field2, Field3) \
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(DllApi) \
+#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_ThreeFields(Field1, Field2, Field3) \
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN() \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field1) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field2) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field3) \
@@ -148,8 +156,8 @@
 	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_END()
 
 
-#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_FourFields(DllApi, Field1, Field2, Field3, Field4) \
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(DllApi) \
+#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_FourFields(Field1, Field2, Field3, Field4) \
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN() \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field1) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field2) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field3) \
@@ -162,8 +170,8 @@
 	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_END()
 
 
-#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_FiveFields(DllApi, Field1, Field2, Field3, Field4, Field5) \
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(DllApi) \
+#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_FiveFields(Field1, Field2, Field3, Field4, Field5) \
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN() \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field1) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field2) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field3) \
@@ -178,8 +186,8 @@
 	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_END()
 
 
-#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_SixFields(DllApi, Field1, Field2, Field3, Field4, Field5, Field6) \
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(DllApi) \
+#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_SixFields(Field1, Field2, Field3, Field4, Field5, Field6) \
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN() \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field1) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field2) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field3) \
@@ -196,8 +204,8 @@
 	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_END()
 
 
-#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_SevenFields(DllApi, Field1, Field2, Field3, Field4, Field5, Field6, Field7) \
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(DllApi) \
+#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_SevenFields(Field1, Field2, Field3, Field4, Field5, Field6, Field7) \
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN() \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field1) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field2) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field3) \
@@ -216,8 +224,8 @@
 	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_END()
 
 
-#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_EightFields(DllApi, Field1, Field2, Field3, Field4, Field5, Field6, Field7, Field8) \
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN(DllApi) \
+#define UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_EightFields(Field1, Field2, Field3, Field4, Field5, Field6, Field7, Field8) \
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BEGIN() \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field1) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field2) \
 	UE_FIELD_NOTIFICATION_DECLARE_FIELD(Field3) \
@@ -242,38 +250,40 @@
 	const ::UE::FieldNotification::FFieldId* ClassName::FFieldNotificationClassDescriptor::AllFields[] = {
 
 
-#if DO_CHECK
-#define UE_FIELD_NOTIFICATION_IMPLEMENTATION_END(ClassName) \
-	}; \
-	const ::UE::FieldNotification::IClassDescriptor& ClassName::GetFieldNotificationDescriptor() const \
-	{ \
-		static_assert(UE_ARRAY_COUNT(ClassName::FFieldNotificationClassDescriptor::AllFields) == ClassName::FFieldNotificationClassDescriptor::Max_IndexOf_-ClassName::FFieldNotificationClassDescriptor::SuperDescriptor::Max_IndexOf_, "The descriptor for class " #ClassName " doesn't not implement the same number of field as declared in in the constructor."); \
-		struct FLocal \
-		{ \
-			ClassName::FFieldNotificationClassDescriptor Instance; \
-			FLocal() \
-			{ \
-				int32 NumberOfField = Instance.GetNumberOfField(); \
-				for (int32 Index = 0; Index < NumberOfField; ++Index) \
-				{ \
-					::UE::FieldNotification::FFieldId Id = Instance.GetField(Index); \
-					ensureAlwaysMsgf(Id.IsValid(), TEXT("The FFieldId '%d' for the class '%s' is invalid"), Index, *ClassName::StaticClass()->GetName()); \
-					ensureAlwaysMsgf(Id.GetIndex() == Index, TEXT("The FFieldId at index '%d' doesn't match the id index '%d'."), Index, Id.GetIndex()); \
-				} \
-			} \
-		}; \
-		static FLocal Local; \
-		return Local.Instance; \
-	}
-#else
-#define UE_FIELD_NOTIFICATION_IMPLEMENTATION_END(ClassName) \
-	}; \
-	const ::UE::FieldNotification::IClassDescriptor& ClassName::GetFieldNotificationDescriptor() const \
-	{ \
-		static FFieldNotificationClassDescriptor Instance; \
-		return Instance; \
-	}
-#endif
+#define UE_FIELD_NOTIFICATION_IMPLEMENTATION_END(ClassName) }
+
+//#if DO_CHECK
+//#define UE_FIELD_NOTIFICATION_IMPLEMENTATION_END(ClassName) \
+//	}; \
+//	const ::UE::FieldNotification::IClassDescriptor& ClassName::GetFieldNotificationDescriptor() const \
+//	{ \
+//		static_assert(UE_ARRAY_COUNT(ClassName::FFieldNotificationClassDescriptor::AllFields) == ClassName::FFieldNotificationClassDescriptor::Max_IndexOf_-ClassName::FFieldNotificationClassDescriptor::SuperDescriptor::Max_IndexOf_, "The descriptor for class " #ClassName " doesn't not implement the same number of field as declared in in the constructor."); \
+//		struct FLocal \
+//		{ \
+//			ClassName::FFieldNotificationClassDescriptor Instance; \
+//			FLocal() \
+//			{ \
+//				int32 NumberOfField = Instance.GetNumberOfField(); \
+//				for (int32 Index = 0; Index < NumberOfField; ++Index) \
+//				{ \
+//					::UE::FieldNotification::FFieldId Id = Instance.GetField(Index); \
+//					ensureAlwaysMsgf(Id.IsValid(), TEXT("The FFieldId '%d' for the class '%s' is invalid"), Index, *ClassName::StaticClass()->GetName()); \
+//					ensureAlwaysMsgf(Id.GetIndex() == Index, TEXT("The FFieldId at index '%d' doesn't match the id index '%d'."), Index, Id.GetIndex()); \
+//				} \
+//			} \
+//		}; \
+//		static FLocal Local; \
+//		return Local.Instance; \
+//	}
+//#else
+//#define UE_FIELD_NOTIFICATION_IMPLEMENTATION_END(ClassName) \
+//	}; \
+//	const ::UE::FieldNotification::IClassDescriptor& ClassName::GetFieldNotificationDescriptor() const \
+//	{ \
+//		static FFieldNotificationClassDescriptor Instance; \
+//		return Instance; \
+//	}
+//#endif
 
 
 #define UE_FIELD_NOTIFICATION_IMPLEMENT_FIELD(ClassName, MemberName) const ::UE::FieldNotification::FFieldId ClassName::FFieldNotificationClassDescriptor::MemberName( FName(TEXT(#MemberName)), ClassName::FFieldNotificationClassDescriptor::IndexOf_##MemberName );
