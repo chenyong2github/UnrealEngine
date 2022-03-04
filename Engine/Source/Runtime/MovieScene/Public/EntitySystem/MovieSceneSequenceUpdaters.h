@@ -20,6 +20,7 @@ namespace MovieScene
 {
 
 struct FInstanceHandle;
+struct FRootInstanceHandle;
 
 
 /**
@@ -68,7 +69,7 @@ public:
 	 * @param InPlayer         The movie scene player instance playing this sequence
 	 * @param InContext        The root-level context for the current evaluation.
 	 */
-	virtual void Start(UMovieSceneEntitySystemLinker* InLinker, FInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& InContext) = 0;
+	virtual void Start(UMovieSceneEntitySystemLinker* InLinker, FRootInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& InContext) = 0;
 
 
 	/**
@@ -79,7 +80,7 @@ public:
 	 * @param InPlayer         The movie scene player instance playing this sequence
 	 * @param InContext        The root-level context for the current evaluation.
 	 */
-	virtual void Update(UMovieSceneEntitySystemLinker* InLinker, FInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& InContext) = 0;
+	virtual void Update(UMovieSceneEntitySystemLinker* InLinker, FRootInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& InContext) = 0;
 
 
 	/**
@@ -89,7 +90,7 @@ public:
 	 * @param InInstanceHandle The instance handle for the top level sequence instance that this updater belongs to
 	 * @param InPlayer         The movie scene player instance playing this sequence
 	 */
-	virtual void Finish(UMovieSceneEntitySystemLinker* InLinker, FInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer) = 0;
+	virtual void Finish(UMovieSceneEntitySystemLinker* InLinker, FRootInstanceHandle InInstanceHandle, IMovieScenePlayer* InPlayer) = 0;
 
 
 	/**
@@ -115,7 +116,7 @@ public:
 	 * @param InstanceHandle              The instance handle for the master sequence
 	 * @param NewRootOverrideSequenceID   The new sequence ID to treat as the root
 	 */
-	virtual void OverrideRootSequence(UMovieSceneEntitySystemLinker* InLinker, FInstanceHandle InstanceHandle, FMovieSceneSequenceID NewRootOverrideSequenceID) = 0;
+	virtual void OverrideRootSequence(UMovieSceneEntitySystemLinker* InLinker, FRootInstanceHandle InstanceHandle, FMovieSceneSequenceID NewRootOverrideSequenceID) = 0;
 
 
 	/**

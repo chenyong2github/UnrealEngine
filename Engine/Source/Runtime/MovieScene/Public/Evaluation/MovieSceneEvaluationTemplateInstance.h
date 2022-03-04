@@ -68,7 +68,7 @@ public:
 		return CompiledDataManager && WeakRootSequence.Get();
 	}
 
-	UE::MovieScene::FInstanceHandle GetRootInstanceHandle() const
+	UE::MovieScene::FRootInstanceHandle GetRootInstanceHandle() const
 	{
 		return RootInstanceHandle;
 	}
@@ -135,7 +135,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<UMovieSceneCompiledDataManager> CompiledDataManager;
 
-	UE::MovieScene::FInstanceHandle RootInstanceHandle;
+	UE::MovieScene::FRootInstanceHandle RootInstanceHandle;
 
 	UPROPERTY()
 	TObjectPtr<UMovieSceneEntitySystemLinker> EntitySystemLinker;

@@ -116,7 +116,7 @@ void TPreAnimatedCaptureSources<KeyType>::GatherAndRemoveMetaDataForGroup(FPreAn
 }
 
 template<typename KeyType>
-bool TPreAnimatedCaptureSources<KeyType>::ContainsInstanceHandle(FInstanceHandle RootInstanceHandle) const
+bool TPreAnimatedCaptureSources<KeyType>::ContainsInstanceHandle(FRootInstanceHandle RootInstanceHandle) const
 {
 	for (const TPair<KeyType, FPreAnimatedStateMetaDataArray>& Pair : KeyToMetaData)
 	{

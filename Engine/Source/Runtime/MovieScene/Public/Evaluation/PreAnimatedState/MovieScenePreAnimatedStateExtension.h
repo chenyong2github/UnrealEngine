@@ -248,7 +248,7 @@ public:
 	 * Search for any captured state that originated from the specified root instance handle
 	 * WARNING: This is a linear search across all state, and so is potentially very slow
 	 */
-	bool ContainsAnyStateForInstanceHandle(FInstanceHandle RootInstanceHandle) const;
+	bool ContainsAnyStateForInstanceHandle(FRootInstanceHandle RootInstanceHandle) const;
 
 
 	// Use FScopedPreAnimatedCaptureSource to capture from a specific source rather than globally

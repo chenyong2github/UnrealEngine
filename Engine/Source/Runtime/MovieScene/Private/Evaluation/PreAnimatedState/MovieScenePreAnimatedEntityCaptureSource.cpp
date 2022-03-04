@@ -20,7 +20,7 @@ void FPreAnimatedEntityCaptureSource::Reset()
 	KeyToMetaData.Empty();
 }
 
-void FPreAnimatedEntityCaptureSource::BeginTrackingEntity(const FPreAnimatedStateEntry& Entry, FMovieSceneEntityID EntityID, FInstanceHandle InstanceHandle, bool bWantsRestoreState)
+void FPreAnimatedEntityCaptureSource::BeginTrackingEntity(const FPreAnimatedStateEntry& Entry, FMovieSceneEntityID EntityID, FRootInstanceHandle InstanceHandle, bool bWantsRestoreState)
 {
 	FPreAnimatedStateMetaDataArray& Array = KeyToMetaData.FindOrAdd(EntityID);
 	if (FPreAnimatedStateMetaData* Existing = Algo::FindBy(Array, Entry, &FPreAnimatedStateMetaData::Entry))
@@ -130,7 +130,7 @@ void FPreAnimatedEntityCaptureSource::GatherAndRemoveMetaDataForGroup(FPreAnimat
 	}
 }
 
-bool FPreAnimatedEntityCaptureSource::ContainsInstanceHandle(FInstanceHandle RootInstanceHandle) const
+bool FPreAnimatedEntityCaptureSource::ContainsInstanceHandle(FRootInstanceHandle RootInstanceHandle) const
 {
 	for (const TPair<FMovieSceneEntityID, FPreAnimatedStateMetaDataArray>& Pair : KeyToMetaData)
 	{

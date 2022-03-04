@@ -11,7 +11,7 @@ namespace UE
 namespace MovieScene
 {
 
-struct FInstanceHandle;
+struct FRootInstanceHandle;
 struct FRestoreStateParams;
 struct FPreAnimatedStateMetaData;
 struct FPreAnimatedStorageGroupHandle;
@@ -21,7 +21,7 @@ struct IPreAnimatedCaptureSource
 	virtual ~IPreAnimatedCaptureSource(){}
 
 	virtual void Reset() = 0;
-	virtual bool ContainsInstanceHandle(FInstanceHandle RootInstanceHandle) const = 0;
+	virtual bool ContainsInstanceHandle(FRootInstanceHandle RootInstanceHandle) const = 0;
 	virtual void GatherAndRemoveExpiredMetaData(const FRestoreStateParams& Params, TArray<FPreAnimatedStateMetaData>& OutExpiredMetaData) = 0;
 	virtual void GatherAndRemoveMetaDataForGroup(FPreAnimatedStorageGroupHandle Group, TArray<FPreAnimatedStateMetaData>& OutExpiredMetaData) = 0;
 };

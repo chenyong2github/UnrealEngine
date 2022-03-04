@@ -28,12 +28,12 @@ namespace MovieScene
 DECLARE_CYCLE_STAT(TEXT("Sequence Instance Update"), MovieSceneEval_SequenceInstanceUpdate, STATGROUP_MovieSceneEval);
 DECLARE_CYCLE_STAT(TEXT("[External] Sequence Instance Post-Update"), MovieSceneEval_SequenceInstancePostUpdate, STATGROUP_MovieSceneEval);
 
-FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle InInstanceHandle)
+FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FRootInstanceHandle InInstanceHandle)
 	: SequenceID(MovieSceneSequenceID::Root)
 	, RootOverrideSequenceID(MovieSceneSequenceID::Root)
 	, PlayerIndex(Player->GetUniqueIndex())
 	, InstanceHandle(InInstanceHandle)
-	, RootInstanceHandle(InstanceHandle)
+	, RootInstanceHandle(InInstanceHandle)
 {
 	// Root instances always start in a finished state in order to ensure that 'Start'
 	// is called correctly for the top level instance. This is subtly different from
@@ -49,7 +49,7 @@ FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMov
 	InvalidateCachedData(Linker);
 }
 
-FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle InInstanceHandle, FInstanceHandle InRootInstanceHandle, FMovieSceneSequenceID InSequenceID, FMovieSceneCompiledDataID InCompiledDataID)
+FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle InInstanceHandle, FRootInstanceHandle InRootInstanceHandle, FMovieSceneSequenceID InSequenceID, FMovieSceneCompiledDataID InCompiledDataID)
 	: CompiledDataID(InCompiledDataID)
 	, SequenceID(InSequenceID)
 	, RootOverrideSequenceID(MovieSceneSequenceID::Invalid)
@@ -165,8 +165,10 @@ void FSequenceInstance::Start(UMovieSceneEntitySystemLinker* Linker, const FMovi
 	bFinished = false;
 	bHasEverUpdated = true;
 
+	check(RootInstanceHandle == InstanceHandle);
+
 	IMovieScenePlayer* Player = GetPlayer();
-	SequenceUpdater->Start(Linker, InstanceHandle, Player, InContext);
+	SequenceUpdater->Start(Linker, RootInstanceHandle, Player, InContext);
 }
 
 void FSequenceInstance::Update(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext)
@@ -185,8 +187,10 @@ void FSequenceInstance::Update(UMovieSceneEntitySystemLinker* Linker, const FMov
 		Start(Linker, InContext);
 	}
 
+	check(RootInstanceHandle == InstanceHandle);
+
 	Context = InContext;
-	SequenceUpdater->Update(Linker, InstanceHandle, GetPlayer(), InContext);
+	SequenceUpdater->Update(Linker, RootInstanceHandle, GetPlayer(), InContext);
 }
 
 void FSequenceInstance::Finish(UMovieSceneEntitySystemLinker* Linker)
@@ -210,7 +214,8 @@ void FSequenceInstance::Finish(UMovieSceneEntitySystemLinker* Linker)
 
 	if (SequenceUpdater)
 	{
-		SequenceUpdater->Finish(Linker, InstanceHandle, Player);
+		check(RootInstanceHandle == InstanceHandle);
+		SequenceUpdater->Finish(Linker, RootInstanceHandle, Player);
 	}
 
 	if (LegacyEvaluator)
@@ -296,7 +301,8 @@ void FSequenceInstance::OverrideRootSequence(UMovieSceneEntitySystemLinker* Link
 {
 	if (SequenceUpdater)
 	{
-		SequenceUpdater->OverrideRootSequence(Linker, InstanceHandle, NewRootSequenceID);
+		check(RootInstanceHandle == InstanceHandle);
+		SequenceUpdater->OverrideRootSequence(Linker, RootInstanceHandle, NewRootSequenceID);
 	}
 
 	RootOverrideSequenceID = NewRootSequenceID;

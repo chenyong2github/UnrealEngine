@@ -179,7 +179,7 @@ void UMovieSceneComponentMobilitySystem::SavePreAnimatedState(const FPreAnimatio
 
 	FPreAnimatedStateExtension* Extension = InParameters.CacheExtension;
 
-	auto IterNewObjects = [Extension](FEntityAllocationIteratorItem Item, TRead<FMovieSceneEntityID> EntityIDs, TRead<FInstanceHandle> InstanceHandles, TRead<UObject*> BoundObjects)
+	auto IterNewObjects = [Extension](FEntityAllocationIteratorItem Item, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> InstanceHandles, TRead<UObject*> BoundObjects)
 	{
 		TSharedPtr<FPreAnimatedComponentMobilityStorage> ComponentMobilityStorage
 			= Extension->GetOrCreateStorage<FPreAnimatedComponentMobilityStorage>();
@@ -201,7 +201,7 @@ void UMovieSceneComponentMobilitySystem::SavePreAnimatedState(const FPreAnimatio
 			}
 
 			FMovieSceneEntityID EntityID       = EntityIDs[Index];
-			FInstanceHandle     InstanceHandle = InstanceHandles[Index];
+			FRootInstanceHandle InstanceHandle = InstanceHandles[Index];
 
 			TArray<USceneComponent*, TInlineAllocator<4>> FlatHierarchy;
 			GetFlattenedHierarchy(SceneComponent, FlatHierarchy);
@@ -227,7 +227,7 @@ void UMovieSceneComponentMobilitySystem::SavePreAnimatedState(const FPreAnimatio
 
 	FEntityTaskBuilder()
 	.ReadEntityIDs()
-	.Read(BuiltInComponents->InstanceHandle)
+	.Read(BuiltInComponents->RootInstanceHandle)
 	.Read(BuiltInComponents->BoundObject)
 	.FilterAll(RestrictiveMask)
 	.FilterAny({ TrackComponents->ComponentTransform.PropertyTag, TrackComponents->AttachParent })

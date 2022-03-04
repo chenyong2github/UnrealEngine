@@ -58,7 +58,7 @@ public:
 		this->ReplaceKey(StorageIndex, ExistingKey);
 	}
 
-	void BeginTrackingEntities(const FPreAnimatedTrackerParams& Params, TRead<FMovieSceneEntityID> EntityIDs, TRead<FInstanceHandle> InstanceHandles, TRead<UObject*> BoundObjects) override
+	void BeginTrackingEntities(const FPreAnimatedTrackerParams& Params, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> InstanceHandles, TRead<UObject*> BoundObjects) override
 	{
 		const int32 Num = Params.Num;
 		const bool  bWantsRestore = Params.bWantsRestoreState;

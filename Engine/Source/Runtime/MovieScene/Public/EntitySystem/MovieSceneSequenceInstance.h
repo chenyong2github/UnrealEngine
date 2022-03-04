@@ -135,7 +135,7 @@ public:
 	 *
 	 * @return A handle to the root sequence instance for this sub sequence, or a handle to this sequence instance if it is not a sub sequence
 	 */
-	FInstanceHandle GetRootInstanceHandle() const
+	FRootInstanceHandle GetRootInstanceHandle() const
 	{
 		return RootInstanceHandle;
 	}
@@ -245,10 +245,10 @@ public:
 public:
 
 	/** Constructor for top level sequences */
-	explicit FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle ThisInstanceHandle);
+	explicit FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FRootInstanceHandle ThisInstanceHandle);
 
 	/** Constructor for sub sequences */
-	explicit FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle ThisInstanceHandle, FInstanceHandle RootInstanceHandle, FMovieSceneSequenceID InSequenceID, FMovieSceneCompiledDataID InCompiledDataID);
+	explicit FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle ThisInstanceHandle, FRootInstanceHandle RootInstanceHandle, FMovieSceneSequenceID InSequenceID, FMovieSceneCompiledDataID InCompiledDataID);
 
 	/** Destructor */
 	~FSequenceInstance();
@@ -290,7 +290,7 @@ private:
 	/** This instance's handle. */
 	FInstanceHandle InstanceHandle;
 	/** This instance's root handle, if it is a sub sequence. */
-	FInstanceHandle RootInstanceHandle;
+	FRootInstanceHandle RootInstanceHandle;
 	/** Flag that is set when this sequence has or (will be) finished. */
 	bool bFinished : 1;
 	/** Flag that is set if this sequence has ever updated. */

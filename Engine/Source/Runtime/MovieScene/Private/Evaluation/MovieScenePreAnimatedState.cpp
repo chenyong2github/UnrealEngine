@@ -45,7 +45,7 @@ FMovieScenePreAnimatedState::~FMovieScenePreAnimatedState()
 	}
 }
 
-void FMovieScenePreAnimatedState::Initialize(UMovieSceneEntitySystemLinker* Linker, UE::MovieScene::FInstanceHandle InInstanceHandle)
+void FMovieScenePreAnimatedState::Initialize(UMovieSceneEntitySystemLinker* Linker, UE::MovieScene::FRootInstanceHandle InInstanceHandle)
 {
 	// If we're re-using a pre-animated state class and it was previously
 	// capturing global state make sure to decrement that request

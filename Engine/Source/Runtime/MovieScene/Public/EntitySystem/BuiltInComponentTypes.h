@@ -189,7 +189,7 @@ public:
 
 	TComponentTypeID<FInstanceHandle>     InstanceHandle;
 
-	TComponentTypeID<FInstanceHandle>     RootInstanceHandle;
+	TComponentTypeID<FRootInstanceHandle> RootInstanceHandle;
 
 	TComponentTypeID<FFrameTime>          EvalTime;
 

@@ -459,7 +459,7 @@ void FPreAnimatedStateExtension::DiscardStateForGroup(FPreAnimatedStorageGroupHa
 	bEntriesInvalidated = true;
 }
 
-bool FPreAnimatedStateExtension::ContainsAnyStateForInstanceHandle(FInstanceHandle RootInstanceHandle) const
+bool FPreAnimatedStateExtension::ContainsAnyStateForInstanceHandle(FRootInstanceHandle RootInstanceHandle) const
 {
 	if (FPreAnimatedEntityCaptureSource* EntityMetaData = GetEntityMetaData())
 	{

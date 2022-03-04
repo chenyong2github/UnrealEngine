@@ -49,6 +49,21 @@ struct FInstanceHandle
 	}
 };
 
+/**
+ * A handle to a root instance of a UMovieSceneSequence.
+ * This type should be used where type-safety needs to be enforced for root instances.
+ * FRootInstanceHandle is implicitly castable to FInstanceHandle but not visa-versa (even explicitly so).
+ */
+struct FRootInstanceHandle : FInstanceHandle
+{
+	FRootInstanceHandle()
+	{}
+
+	FRootInstanceHandle(uint16 InInstanceID, uint16 InInstanceSerial)
+		: FInstanceHandle(InInstanceID, InInstanceSerial)
+	{}
+};
+
 #if UE_MOVIESCENE_ENTITY_DEBUG
 template<> struct TComponentDebugType<FInstanceHandle> { static const EComponentDebugType Type = EComponentDebugType::InstanceHandle; };
 #endif

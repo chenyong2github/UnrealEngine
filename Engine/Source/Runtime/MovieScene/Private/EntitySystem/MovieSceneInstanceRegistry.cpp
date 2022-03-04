@@ -54,21 +54,21 @@ FInstanceHandle FInstanceRegistry::FindRelatedInstanceHandle(FInstanceHandle Ins
 	return RootInstance->FindSubInstance(SequenceID);
 }
 
-FInstanceHandle FInstanceRegistry::AllocateRootInstance(IMovieScenePlayer* Player)
+FRootInstanceHandle FInstanceRegistry::AllocateRootInstance(IMovieScenePlayer* Player)
 {
 	check(Instances.Num() < 65535);
 
 	const uint16 InstanceSerial = InstanceSerialNumber++;
 
 	FSparseArrayAllocationInfo NewAllocation = Instances.AddUninitialized();
-	FInstanceHandle InstanceHandle { (uint16)NewAllocation.Index, InstanceSerial };
+	FRootInstanceHandle InstanceHandle { (uint16)NewAllocation.Index, InstanceSerial };
 
 	new (NewAllocation) FSequenceInstance(Linker, Player, InstanceHandle);
 
 	return InstanceHandle;
 }
 
-FInstanceHandle FInstanceRegistry::AllocateSubInstance(IMovieScenePlayer* Player, FMovieSceneSequenceID SequenceID, FInstanceHandle RootInstanceHandle)
+FInstanceHandle FInstanceRegistry::AllocateSubInstance(IMovieScenePlayer* Player, FMovieSceneSequenceID SequenceID, FRootInstanceHandle RootInstanceHandle)
 {
 	check(Instances.Num() < 65535 && SequenceID != MovieSceneSequenceID::Root);
 

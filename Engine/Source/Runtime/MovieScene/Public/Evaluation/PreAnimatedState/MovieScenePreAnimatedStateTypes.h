@@ -181,7 +181,7 @@ struct FPreAnimatedStateMetaData
 	/** The pre-animated state entry */
 	FPreAnimatedStateEntry Entry;
 	/** The instance handle for the root sequence */
-	FInstanceHandle RootInstanceHandle;
+	FRootInstanceHandle RootInstanceHandle;
 	/** True if this entry should be restored when it is removed */
 	bool bWantsRestoreState;
 };

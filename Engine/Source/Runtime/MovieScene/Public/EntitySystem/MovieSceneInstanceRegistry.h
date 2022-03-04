@@ -81,9 +81,9 @@ struct FInstanceRegistry
 		return GetInstance(InstanceHandle).GetContext();
 	}
 
-	MOVIESCENE_API FInstanceHandle AllocateRootInstance(IMovieScenePlayer* Player);
+	MOVIESCENE_API FRootInstanceHandle AllocateRootInstance(IMovieScenePlayer* Player);
 
-	MOVIESCENE_API FInstanceHandle AllocateSubInstance(IMovieScenePlayer* Player, FMovieSceneSequenceID SequenceID, FInstanceHandle RootInstance);
+	MOVIESCENE_API FInstanceHandle AllocateSubInstance(IMovieScenePlayer* Player, FMovieSceneSequenceID SequenceID, FRootInstanceHandle RootInstance);
 
 	MOVIESCENE_API void DestroyInstance(FInstanceHandle InstanceHandle);
 

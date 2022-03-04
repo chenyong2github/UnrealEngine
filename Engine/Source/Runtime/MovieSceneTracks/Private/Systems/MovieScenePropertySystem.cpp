@@ -76,7 +76,7 @@ void UMovieScenePropertySystem::SavePreAnimatedState(const FPreAnimationParamete
 		.Read(BuiltInComponents->BoundObject)
 		.FilterAll(ComponentMask)
 		.Iterate_PerAllocation(&Linker->EntityManager,
-			[ObjectStorage](FEntityAllocationIteratorItem Item, TRead<FMovieSceneEntityID> EntityIDs, TRead<FInstanceHandle> RootInstanceHandles, TRead<UObject*> BoundObjects)
+			[ObjectStorage](FEntityAllocationIteratorItem Item, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> RootInstanceHandles, TRead<UObject*> BoundObjects)
 			{
 				ObjectStorage->BeginTrackingEntities(Item, EntityIDs, RootInstanceHandles, BoundObjects);
 			}
@@ -102,7 +102,7 @@ void UMovieScenePropertySystem::SavePreAnimatedState(const FPreAnimationParamete
 		.Read(BuiltInComponents->PropertyBinding)
 		.FilterAll(ComponentMask)
 		.Iterate_PerAllocation(&Linker->EntityManager,
-			[PropertyStorage](FEntityAllocationIteratorItem Item, TRead<FMovieSceneEntityID> EntityIDs, TRead<FInstanceHandle> RootInstanceHandles, TRead<UObject*> BoundObjects, TRead<FMovieScenePropertyBinding> PropertyBindings)
+			[PropertyStorage](FEntityAllocationIteratorItem Item, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> RootInstanceHandles, TRead<UObject*> BoundObjects, TRead<FMovieScenePropertyBinding> PropertyBindings)
 			{
 				PropertyStorage->BeginTrackingEntities(Item, EntityIDs, RootInstanceHandles, BoundObjects, PropertyBindings);
 			}

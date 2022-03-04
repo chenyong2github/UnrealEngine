@@ -51,7 +51,7 @@ public:
 
 	MOVIESCENE_API ~FMovieScenePreAnimatedState();
 
-	MOVIESCENE_API void Initialize(UMovieSceneEntitySystemLinker* Linker, UE::MovieScene::FInstanceHandle InstanceHandle);
+	MOVIESCENE_API void Initialize(UMovieSceneEntitySystemLinker* Linker, UE::MovieScene::FRootInstanceHandle InstanceHandle);
 
 	/**
 	 * Check whether this sequence instance is capturing any and all changes of state so they can be restored later
@@ -149,7 +149,7 @@ private:
 	TSharedPtr<UE::MovieScene::FPreAnimatedEvaluationHookCaptureSources> EvaluationHookMetaData;
 
 	/** The instance handle for the root sequence instance */
-	UE::MovieScene::FInstanceHandle InstanceHandle;
+	UE::MovieScene::FRootInstanceHandle InstanceHandle;
 
 	bool bCapturingGlobalPreAnimatedState;
 };

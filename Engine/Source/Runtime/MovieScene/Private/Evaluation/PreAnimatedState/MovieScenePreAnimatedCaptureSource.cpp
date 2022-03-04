@@ -63,7 +63,7 @@ FScopedPreAnimatedCaptureSource*& FScopedPreAnimatedCaptureSource::GetCaptureSou
 	return GCaptureSource;
 }
 
-UE::MovieScene::FInstanceHandle FScopedPreAnimatedCaptureSource::GetRootInstanceHandle(UMovieSceneEntitySystemLinker* Linker) const
+UE::MovieScene::FRootInstanceHandle FScopedPreAnimatedCaptureSource::GetRootInstanceHandle(UMovieSceneEntitySystemLinker* Linker) const
 {
 	if (OptionalSequencePreAnimatedState)
 	{
@@ -74,7 +74,7 @@ UE::MovieScene::FInstanceHandle FScopedPreAnimatedCaptureSource::GetRootInstance
 	{
 		return Linker->GetInstanceRegistry()->GetInstance(TrackInstanceInput->InstanceHandle).GetRootInstanceHandle();
 	}
-	return UE::MovieScene::FInstanceHandle();
+	return UE::MovieScene::FRootInstanceHandle();
 }
 
 void FScopedPreAnimatedCaptureSource::BeginTracking(const UE::MovieScene::FPreAnimatedStateMetaData& MetaData, UMovieSceneEntitySystemLinker* Linker)

@@ -641,7 +641,7 @@ void UMovieSceneDataLayerSystem::BeginTrackingEntities()
 	auto GatherDataLayers = [this, EntityMetaData, DataLayerSubsystem, PreAnimatedStorage](
 		FEntityAllocationIteratorItem Item,
 		TRead<FMovieSceneEntityID> EntityIDs,
-		TRead<FInstanceHandle> RootInstanceHandles,
+		TRead<FRootInstanceHandle> RootInstanceHandles,
 		TRead<FMovieSceneDataLayerComponentData> ComponentData)
 	{
 		const bool bRestoreState = Item.GetAllocationType().Contains(FBuiltInComponentTypes::Get()->Tags.RestoreState);
@@ -651,7 +651,7 @@ void UMovieSceneDataLayerSystem::BeginTrackingEntities()
 			if (Section)
 			{
 				FMovieSceneEntityID EntityID     = EntityIDs[Index];
-				FInstanceHandle     RootInstance = RootInstanceHandles[Index];
+				FRootInstanceHandle RootInstance = RootInstanceHandles[Index];
 
 				for (const FActorDataLayer& ActorDataLayer : Section->GetDataLayers())
 				{
