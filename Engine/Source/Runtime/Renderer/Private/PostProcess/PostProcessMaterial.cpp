@@ -156,22 +156,22 @@ bool PostProcessStencilTest(uint32 StencilValue, uint32 StencilComp, uint32 Sten
 	switch (StencilComp)
 	{
 	case EMaterialStencilCompare::MSC_Less:
-		bStencilTestPassed = (StencilValue < StencilRef);
+		bStencilTestPassed = (StencilRef < StencilValue);
 		break;
 	case EMaterialStencilCompare::MSC_LessEqual:
-		bStencilTestPassed = (StencilValue <= StencilRef);
+		bStencilTestPassed = (StencilRef <= StencilValue);
 		break;
 	case EMaterialStencilCompare::MSC_GreaterEqual:
-		bStencilTestPassed = (StencilValue >= StencilRef);
+		bStencilTestPassed = (StencilRef >= StencilValue);
 		break;
 	case EMaterialStencilCompare::MSC_Equal:
-		bStencilTestPassed = (StencilValue == StencilRef);
+		bStencilTestPassed = (StencilRef == StencilValue);
 		break;
 	case EMaterialStencilCompare::MSC_Greater:
-		bStencilTestPassed = (StencilValue > StencilRef);
+		bStencilTestPassed = (StencilRef > StencilValue);
 		break;
 	case EMaterialStencilCompare::MSC_NotEqual:
-		bStencilTestPassed = (StencilValue != StencilRef);
+		bStencilTestPassed = (StencilRef != StencilValue);
 		break;
 	case EMaterialStencilCompare::MSC_Never:
 		bStencilTestPassed = false;
@@ -638,12 +638,9 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	{
 		bool bFailStencil = true;
 
-		// when the depthStencilTexture was not produced, check if all the pixels will fail the clear value
-		if (!DepthStencilTexture)
-		{
-			uint32 StencilClearValue = Inputs.CustomDepthTexture ? Inputs.CustomDepthTexture->Desc.ClearValue.Value.DSValue.Stencil : 0;
-			bFailStencil &= PostProcessStencilTest(StencilClearValue, Material->GetStencilCompare(), PostProcessMaterialParameters->MobileStencilValueRef);
-		}
+		// Always check against clear value, since a material might want to perform operations against that value
+		uint32 StencilClearValue = Inputs.CustomDepthTexture ? Inputs.CustomDepthTexture->Desc.ClearValue.Value.DSValue.Stencil : 0;
+		bFailStencil &= PostProcessStencilTest(StencilClearValue, Material->GetStencilCompare(), PostProcessMaterialParameters->MobileStencilValueRef);
 
 		for (const uint32& Value : View.CustomDepthStencilValues)
 		{
@@ -699,6 +696,10 @@ FScreenPassTexture AddPostProcessMaterialPass(
 			AddCopyAndFlipTexturePass(GraphBuilder, View, TempTarget.Texture, Output.Texture);
 		}
 	}
+	}
+	else
+	{
+		Output = FScreenPassRenderTarget(SceneColor, ERenderTargetLoadAction::ENoAction);
 	}
 
 	return MoveTemp(Output);
