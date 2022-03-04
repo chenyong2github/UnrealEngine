@@ -1,0 +1,384 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "PCGEditor.h"
+
+#include "PCGEditorGraph.h"
+#include "PCGEditorGraphNode.h"
+#include "PCGEditorGraphSchema.h"
+#include "PCGGraph.h"
+
+#include "Editor.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandList.h"
+#include "Framework/Docking/TabManager.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GraphEditor.h"
+#include "GraphEditorActions.h"
+#include "IDetailsView.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "Widgets/Docking/SDockTab.h"
+
+#include "ToolMenus.h"
+
+#define LOCTEXT_NAMESPACE "PCGGraphEditor"
+
+namespace FPCGEditor_private
+{
+	const FName GraphEditorID = FName(TEXT("GraphEditor"));
+	const FName PropertyDetailsID = FName(TEXT("PropertyDetails"));
+	const FName LibraryID = FName(TEXT("Library"));
+	const FName AttributesID = FName(TEXT("Attributes"));
+	const FName ViewportID = FName(TEXT("Viewport"));
+}
+
+void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<class IToolkitHost>& InToolkitHost, UPCGGraph* InPCGGraph)
+{
+	PCGGraphBeingEdited = InPCGGraph;
+
+	PCGEditorGraph = NewObject<UPCGEditorGraph>(PCGGraphBeingEdited, UPCGEditorGraph::StaticClass(), NAME_None, RF_Transactional | RF_Transient);
+	PCGEditorGraph->Schema = UPCGEditorGraphSchema::StaticClass();
+	PCGEditorGraph->InitFromNodeGraph(InPCGGraph);
+
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	DetailsViewArgs.bHideSelectionTip = true;
+	PropertyDetailsWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+
+	GraphEditorWidget = CreateGraphEditorWidget();
+
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PCGGraphEditor_Layout_v0.3")
+		->AddArea
+		(
+			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
+			->Split
+			(
+				
+				FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
+				->SetSizeCoefficient(0.10f)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.16)
+					->SetHideTabWell(true)
+					->AddTab(FPCGEditor_private::ViewportID, ETabState::OpenedTab)
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.84)
+					->SetHideTabWell(true)
+					->AddTab(FPCGEditor_private::LibraryID, ETabState::OpenedTab)
+				)
+			)
+			->Split
+			(
+				FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
+				->SetSizeCoefficient(0.70f)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.72)
+					->SetHideTabWell(true)
+					->AddTab(FPCGEditor_private::GraphEditorID, ETabState::OpenedTab)
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.28)
+					->SetHideTabWell(true)
+					->AddTab(FPCGEditor_private::AttributesID, ETabState::OpenedTab)
+				)
+			)
+			->Split
+			(
+				FTabManager::NewStack()
+				->SetSizeCoefficient(0.20f)
+				->SetHideTabWell(true)
+				->AddTab(FPCGEditor_private::PropertyDetailsID, ETabState::OpenedTab)
+			)
+		);
+
+	const FName PCGGraphEditorAppName = FName(TEXT("PCGEditorApp"));
+
+	InitAssetEditor(InMode, InToolkitHost, PCGGraphEditorAppName, StandaloneDefaultLayout, /*bCreateDefaultStandaloneMenu=*/ true, /*bCreateDefaultToolbar=*/ true, InPCGGraph);
+}
+
+void FPCGEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+{
+	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_PCGEditor", "PCG Editor"));
+	auto WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
+
+	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
+
+	//TODO: Add Icons
+	InTabManager->RegisterTabSpawner(FPCGEditor_private::GraphEditorID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_GraphEditor))
+		.SetDisplayName(LOCTEXT("GraphTab", "Graph"))
+		.SetGroup(WorkspaceMenuCategoryRef);
+
+	InTabManager->RegisterTabSpawner(FPCGEditor_private::PropertyDetailsID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_PropertyDetails))
+		.SetDisplayName(LOCTEXT("DetailsTab", "Details"))
+		.SetGroup(WorkspaceMenuCategoryRef);
+
+	InTabManager->RegisterTabSpawner(FPCGEditor_private::LibraryID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Library))
+		.SetDisplayName(LOCTEXT("LibraryTab", "Library"))
+		.SetGroup(WorkspaceMenuCategoryRef);
+
+	InTabManager->RegisterTabSpawner(FPCGEditor_private::AttributesID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Attributes))
+		.SetDisplayName(LOCTEXT("AttributesTab", "Attributes"))
+		.SetGroup(WorkspaceMenuCategoryRef);
+
+	InTabManager->RegisterTabSpawner(FPCGEditor_private::ViewportID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Viewport))
+		.SetDisplayName(LOCTEXT("ViewportTab", "Viewport"))
+		.SetGroup(WorkspaceMenuCategoryRef);
+}
+
+void FPCGEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+{
+	InTabManager->UnregisterTabSpawner(FPCGEditor_private::GraphEditorID);
+	InTabManager->UnregisterTabSpawner(FPCGEditor_private::PropertyDetailsID);
+	InTabManager->UnregisterTabSpawner(FPCGEditor_private::LibraryID);
+	InTabManager->UnregisterTabSpawner(FPCGEditor_private::AttributesID);
+	InTabManager->UnregisterTabSpawner(FPCGEditor_private::ViewportID);
+
+	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
+}
+
+FName FPCGEditor::GetToolkitFName() const
+{
+	return FName(TEXT("PCGEditor"));
+}
+
+FText FPCGEditor::GetBaseToolkitName() const
+{
+	return LOCTEXT("AppLabel", "PCG Editor");
+}
+
+FLinearColor FPCGEditor::GetWorldCentricTabColorScale() const
+{
+	return FLinearColor::White;
+}
+
+FString FPCGEditor::GetWorldCentricTabPrefix() const
+{
+	return LOCTEXT("WorldCentricTabPrefix", "PCG ").ToString();
+}
+
+void FPCGEditor::SelectAllNodes()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->SelectAllNodes();
+	}
+}
+
+bool FPCGEditor::CanSelectAllNodes()
+{
+	return GraphEditorWidget.IsValid();
+}
+
+void FPCGEditor::OnAlignTop()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignTop();
+	}
+}
+
+void FPCGEditor::OnAlignMiddle()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignMiddle();
+	}
+}
+
+void FPCGEditor::OnAlignBottom()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignBottom();
+	}
+}
+
+void FPCGEditor::OnAlignLeft()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignLeft();
+	}
+}
+
+void FPCGEditor::OnAlignCenter()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignCenter();
+	}
+}
+
+void FPCGEditor::OnAlignRight()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignRight();
+	}
+}
+
+void FPCGEditor::OnStraightenConnections()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnStraightenConnections();
+	}
+}
+
+void FPCGEditor::OnDistributeNodesH()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnDistributeNodesH();
+	}
+}
+
+void FPCGEditor::OnDistributeNodesV()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnDistributeNodesV();
+	}
+}
+
+TSharedRef<SGraphEditor> FPCGEditor::CreateGraphEditorWidget()
+{
+	GraphEditorCommands = MakeShareable(new FUICommandList);
+
+	// Editing commands
+	GraphEditorCommands->MapAction(FGenericCommands::Get().SelectAll,
+		FExecuteAction::CreateSP(this, &FPCGEditor::SelectAllNodes),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanSelectAllNodes));
+
+	// Alignment Commands
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnAlignTop)
+	);
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesMiddle,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnAlignMiddle)
+	);
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesBottom,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnAlignBottom)
+	);
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesLeft,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnAlignLeft)
+	);
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesCenter,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnAlignCenter)
+	);
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesRight,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnAlignRight)
+	);
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().StraightenConnections,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnStraightenConnections)
+	);
+
+	// Distribution Commands
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().DistributeNodesHorizontally,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnDistributeNodesH)
+	);
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().DistributeNodesVertically,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnDistributeNodesV)
+	);
+
+	FGraphAppearanceInfo AppearanceInfo;
+	AppearanceInfo.CornerText = LOCTEXT("PCGGraphEditorCornerText", "Procedural Graph");
+
+	SGraphEditor::FGraphEditorEvents InEvents;
+	InEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &FPCGEditor::OnSelectedNodesChanged);
+
+	return SNew(SGraphEditor)
+		.AdditionalCommands(GraphEditorCommands)
+		.IsEditable(true)
+		.Appearance(AppearanceInfo)
+		.GraphToEdit(PCGEditorGraph)
+		.GraphEvents(InEvents)
+		.ShowGraphStateOverlay(false);
+}
+
+void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
+{
+	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
+
+	for (UObject* Object : NewSelection)
+	{
+		if (UPCGEditorGraphNode* GraphNode = Cast<UPCGEditorGraphNode>(Object))
+		{
+			SelectedObjects.Add(GraphNode->GetPCGNode()->DefaultSettings);
+		}
+	}
+
+	PropertyDetailsWidget->SetObjects(SelectedObjects, /*bForceRefresh=*/true);
+
+	GetTabManager()->TryInvokeTab(FPCGEditor_private::PropertyDetailsID);
+}
+
+TSharedRef<SDockTab> FPCGEditor::SpawnTab_GraphEditor(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("PCGGraphTitle", "Graph"))
+		.TabColorScale(GetTabColorScale())
+		[
+			GraphEditorWidget.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FPCGEditor::SpawnTab_PropertyDetails(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("PCGDetailsTitle", "Details"))
+		.TabColorScale(GetTabColorScale())
+		[
+			PropertyDetailsWidget.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FPCGEditor::SpawnTab_Library(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("PCGLibraryTitle", "Library"))
+		.TabColorScale(GetTabColorScale())
+		[
+			SNullWidget::NullWidget
+		];
+}
+
+TSharedRef<SDockTab> FPCGEditor::SpawnTab_Attributes(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("PCGAttributesTitle", "Attributes"))
+		.TabColorScale(GetTabColorScale())
+		[
+			SNullWidget::NullWidget
+		];
+}
+
+TSharedRef<SDockTab> FPCGEditor::SpawnTab_Viewport(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("PCGViewportTitle", "Viewport"))
+		.TabColorScale(GetTabColorScale())
+		[
+			SNullWidget::NullWidget
+		];
+}
+
+#undef LOCTEXT_NAMESPACE

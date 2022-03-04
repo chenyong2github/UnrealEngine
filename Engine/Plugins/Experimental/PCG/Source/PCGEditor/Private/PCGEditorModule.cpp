@@ -2,18 +2,20 @@
 
 #include "PCGEditorModule.h"
 
+#include "EdGraphUtilities.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IAssetTools.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Toolkits/IToolkit.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 
-#include "PCGComponentDetails.h"
-#include "PCGGraphDetails.h"
-#include "PCGVolumeFactory.h"
 #include "AssetTypeActions/PCGGraphAssetTypeActions.h"
 #include "AssetTypeActions/PCGSettingsAssetTypeActions.h"
+#include "PCGComponentDetails.h"
+#include "PCGEditorGraphNodeFactory.h"
+#include "PCGGraphDetails.h"
+#include "PCGVolumeFactory.h"
 
 #include "PCGSubsystem.h"
 
@@ -27,6 +29,9 @@ void FPCGEditorModule::StartupModule()
 	RegisterAssetTypeActions();
 	RegisterMenuExtensions();
 
+	GraphNodeFactory = MakeShareable(new FPCGEditorGraphNodeFactory());
+	FEdGraphUtilities::RegisterVisualNodeFactory(GraphNodeFactory);
+
 	if (GEditor)
 	{
 		GEditor->ActorFactories.Add(NewObject<UPCGVolumeFactory>());
@@ -38,6 +43,8 @@ void FPCGEditorModule::ShutdownModule()
 	UnregisterAssetTypeActions();
 	UnregisterDetailsCustomizations();
 	UnregisterMenuExtensions();
+
+	FEdGraphUtilities::UnregisterVisualNodeFactory(GraphNodeFactory);
 
 	if (GEditor)
 	{

@@ -8,6 +8,7 @@
 #include "Toolkits/AssetEditorToolkit.h"
 
 class FMenuBuilder;
+class FPCGEditorGraphNodeFactory;
 
 class FPCGEditorModule : public IModuleInterface, public IHasMenuExtensibility, public IHasToolBarExtensibility
 {
@@ -43,4 +44,6 @@ protected:
 
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
+
+	TSharedPtr<FPCGEditorGraphNodeFactory> GraphNodeFactory;
 };

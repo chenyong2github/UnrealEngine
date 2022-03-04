@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"DesktopWidgets",
 					"EditorStyle",
 					"EditorSubsystem",
+					"GraphEditor",
 					"InputCore",
 					"Kismet",
 					"PCG",

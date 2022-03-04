@@ -41,6 +41,8 @@ public:
 	/** Changes the default settings in the node */
 	void SetDefaultSettings(TObjectPtr<UPCGSettings> InSettings);
 
+	const TArray<TObjectPtr<UPCGNode>>& GetOutboundNodes() const { return OutboundNodes; }
+
 	/** Note: do not set this property directly from code, use SetDefaultSettings instead */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Node, meta=(EditInline))
 	TObjectPtr<UPCGSettings> DefaultSettings;
@@ -48,6 +50,14 @@ public:
 #if WITH_EDITOR
 	FOnPCGNodeSettingsChanged OnNodeSettingsChangedDelegate;
 #endif
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	int32 PositionX;
+
+	UPROPERTY()
+	int32 PositionY;
+#endif // WITH_EDITORONLY_DATA
 
 protected:
 	void ConnectTo(UPCGNode* InSuccessor);
