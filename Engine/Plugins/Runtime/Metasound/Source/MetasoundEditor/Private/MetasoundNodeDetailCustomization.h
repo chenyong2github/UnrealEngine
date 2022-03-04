@@ -166,7 +166,7 @@ namespace Metasound
 			static constexpr float DetailsTitleWrapPadding = 32.0f;
 
 			static const FText DataTypeNameText = LOCTEXT("Node_DataTypeName", "Type");
-			static const FText DefaultPropertyText = LOCTEXT("Node_DefaultPropertyName", "Default Value");
+			static const FText DefaultPropertyText = LOCTEXT("Node_DefaultPropertyName", "Default");
 		} // namespace MemberCustomizationStyle
 
 		class FMetasoundFloatLiteralCustomization : public FMetasoundDefaultLiteralCustomizationBase
@@ -316,21 +316,16 @@ namespace Metasound
 			virtual void CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout);
 			virtual TArray<IDetailPropertyRow*> CustomizeDefaultCategory(IDetailLayoutBuilder& InDetailLayout);
 
-			virtual bool IsDefaultEditable() const
-			{
-				return true;
-			}
-
-			virtual bool IsInterfaceMember() const
-			{
-				return false;
-			}
+			virtual EVisibility GetDefaultVisibility() const { return EVisibility::Visible; }
+			virtual bool IsDefaultEditable() const { return true; }
+			virtual bool IsInterfaceMember() const { return false; }
 
 			// IDetailCustomization interface
 			virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override;
 			// End of IDetailCustomization interface
 
 			void OnNameChanged(const FText& InNewName);
+			Frontend::FDocumentHandle GetDocumentHandle() const;
 			FText GetName() const;
 			bool IsGraphEditable() const;
 			FText GetDisplayName() const;
@@ -349,8 +344,6 @@ namespace Metasound
 			FDelegateHandle RenameRequestedHandle;
 		};
 
-		using FMetasoundVariableDetailCustomization = FMetasoundMemberDetailCustomization;
-
 		class FMetasoundVertexDetailCustomization : public FMetasoundMemberDetailCustomization
 		{
 		public:
@@ -358,6 +351,8 @@ namespace Metasound
 
 		protected:
 			virtual void CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout) override;
+			virtual EVisibility GetDefaultVisibility() const;
+			virtual bool IsInterfaceMember() const override;
 		};
 
 		class FMetasoundInputDetailCustomization : public FMetasoundVertexDetailCustomization
@@ -367,22 +362,19 @@ namespace Metasound
 
 			virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override;
 			virtual bool IsDefaultEditable() const override;
-			virtual bool IsInterfaceMember() const override;
 
 		private:
-			Frontend::FDocumentHandle GetDocumentHandle() const;
 			bool GetInputInheritsDefault() const;
 			void SetInputInheritsDefault();
 			void ClearInputInheritsDefault();
 		};
 
-		class FMetasoundOutputDetailCustomization : public FMetasoundVertexDetailCustomization
+		class FMetasoundVariableDetailCustomization : public FMetasoundMemberDetailCustomization
 		{
-		public:
-			virtual ~FMetasoundOutputDetailCustomization() = default;
-
-			virtual bool IsInterfaceMember() const override;
+			EVisibility GetDefaultVisibility() const override;
 		};
+
+		using FMetasoundOutputDetailCustomization = FMetasoundVertexDetailCustomization;
 	} // namespace Editor
 } // namespace Metasound
 #undef LOCTEXT_NAMESPACE

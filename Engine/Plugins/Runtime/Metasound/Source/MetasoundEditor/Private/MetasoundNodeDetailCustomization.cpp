@@ -897,6 +897,17 @@ namespace Metasound
 				}
 			}
 
+			for (IDetailPropertyRow* Row : DefaultPropertyRows)
+			{
+				if (ensure(Row))
+				{
+					Row->Visibility(TAttribute<EVisibility>::CreateLambda([this]()
+					{
+						return GetDefaultVisibility();
+					}));
+				}
+			}
+
 			return DefaultPropertyRows;
 		}
 
@@ -1013,6 +1024,19 @@ namespace Metasound
 			return FText::GetEmpty();
 		}
 
+		Frontend::FDocumentHandle FMetasoundMemberDetailCustomization::GetDocumentHandle() const
+		{
+			if (GraphMember.IsValid())
+			{
+				if (UMetasoundEditorGraph* Graph = GraphMember->GetOwningGraph())
+				{
+					return Graph->GetDocumentHandle();
+				}
+			}
+
+			return Frontend::IDocumentController::GetInvalidHandle();
+		}
+
 		bool FMetasoundMemberDetailCustomization::IsGraphEditable() const
 		{
 			if (GraphMember.IsValid())
@@ -1057,6 +1081,27 @@ namespace Metasound
 			}
 
 			return FText::GetEmpty();
+		}
+
+		EVisibility FMetasoundVertexDetailCustomization::GetDefaultVisibility() const
+		{
+			using namespace Frontend;
+
+			if (GraphMember.IsValid())
+			{
+				bool bIsInputConnected = false;
+				FConstNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphVertex>(GraphMember)->GetConstNodeHandle();
+				if (NodeHandle->IsValid())
+				{
+					NodeHandle->IterateConstInputs([&bIsInputConnected](FConstInputHandle InputHandle)
+					{
+						bIsInputConnected |= InputHandle->IsConnectionUserModifiable() && InputHandle->IsConnected();
+					});
+				}
+				return bIsInputConnected ? EVisibility::Collapsed : EVisibility::Visible;
+			}
+
+			return EVisibility::Collapsed;
 		}
 
 		void FMetasoundMemberDetailCustomization::OnNameCommitted(const FText& InNewName, ETextCommit::Type InTextCommit)
@@ -1135,17 +1180,14 @@ namespace Metasound
 			}
 		}
 
-		Frontend::FDocumentHandle FMetasoundInputDetailCustomization::GetDocumentHandle() const
+		bool FMetasoundVertexDetailCustomization::IsInterfaceMember() const
 		{
 			if (GraphMember.IsValid())
 			{
-				if (UMetasoundEditorGraph* Graph = GraphMember->GetOwningGraph())
-				{
-					return Graph->GetDocumentHandle();
-				}
+				return CastChecked<UMetasoundEditorGraphVertex>(GraphMember)->IsInterfaceMember();
 			}
 
-			return Frontend::IDocumentController::GetInvalidHandle();
+			return false;
 		}
 
 		bool FMetasoundInputDetailCustomization::GetInputInheritsDefault() const
@@ -1297,25 +1339,28 @@ namespace Metasound
 			return !GetInputInheritsDefault();
 		}
 
-		bool FMetasoundInputDetailCustomization::IsInterfaceMember() const
+		EVisibility FMetasoundVariableDetailCustomization::GetDefaultVisibility() const
 		{
+			using namespace Frontend;
+
 			if (GraphMember.IsValid())
 			{
-				return CastChecked<UMetasoundEditorGraphVertex>(GraphMember)->IsInterfaceMember();
+				bool bIsInputConnected = false;
+				const UMetasoundEditorGraphVariable* Variable = CastChecked<UMetasoundEditorGraphVariable>(GraphMember);
+				FConstNodeHandle NodeHandle = Variable->GetConstVariableHandle()->FindMutatorNode();
+				if (NodeHandle->IsValid())
+				{
+					NodeHandle->IterateConstInputs([&bIsInputConnected](FConstInputHandle InputHandle)
+					{
+						bIsInputConnected |= InputHandle->IsConnectionUserModifiable() && InputHandle->IsConnected();
+					});
+				}
+				return bIsInputConnected ? EVisibility::Collapsed : EVisibility::Visible;
 			}
 
-			return false;
+			return EVisibility::Collapsed;
 		}
 
-		bool FMetasoundOutputDetailCustomization::IsInterfaceMember() const
-		{
-			if (GraphMember.IsValid())
-			{
-				return CastChecked<UMetasoundEditorGraphVertex>(GraphMember)->IsInterfaceMember();
-			}
-
-			return false;
-		}
 	} // namespace Editor
 } // namespace Metasound
 #undef LOCTEXT_NAMESPACE

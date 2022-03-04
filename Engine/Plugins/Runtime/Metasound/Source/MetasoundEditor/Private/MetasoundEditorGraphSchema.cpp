@@ -489,11 +489,9 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* Pare
 	if (UMetasoundEditorGraphInputNode* NewGraphNode = FGraphBuilder::AddInputNode(ParentMetasound, NodeHandle, InLocation))
 	{
 		NewGraphNode->Modify();
-		UEdGraphNode* EdGraphNode = CastChecked<UEdGraphNode>(NewGraphNode);
-		SchemaPrivate::TryConnectNewNodeToMatchingDataTypePin(*EdGraphNode, FromPin);
-
+		SchemaPrivate::TryConnectNewNodeToMatchingDataTypePin(*NewGraphNode, FromPin);
 		FGraphBuilder::RegisterGraphWithFrontend(ParentMetasound);
-		return EdGraphNode;
+		return NewGraphNode;
 	}
 
 	return nullptr;
@@ -796,15 +794,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewVariableNode::PerformAction(UEdGrap
 					if (UMetasoundEditorGraphVariableNode* NewGraphNode = FGraphBuilder::AddVariableNode(*ParentMetasound, FrontendNode, Location, bSelectNewNode))
 					{
 						NewGraphNode->Modify();
-
-						// Ensures the setter node value is synced with the editor literal value
-						constexpr bool bPostTransaction = false;
-						Variable->UpdateFrontendDefaultLiteral(bPostTransaction);
-
 						SchemaPrivate::TryConnectNewNodeToMatchingDataTypePin(*NewGraphNode, FromPin);
-
-						MetasoundGraph->SetSynchronizationRequired();
-
 						return NewGraphNode;
 					}
 				}

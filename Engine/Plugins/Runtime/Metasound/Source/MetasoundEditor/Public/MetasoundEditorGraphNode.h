@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"

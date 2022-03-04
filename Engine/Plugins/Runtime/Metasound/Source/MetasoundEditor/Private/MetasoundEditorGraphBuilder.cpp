@@ -278,18 +278,20 @@ namespace Metasound
 			FGraphNodeCreator<UMetasoundEditorGraphExternalNode> NodeCreator(Graph);
 
 			NewGraphNode = NodeCreator.CreateNode(bInSelectNewNode);
+			if (ensure(NewGraphNode))
+			{
+				const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(InNodeHandle->GetClassMetadata());
+				NewGraphNode->bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
+				NewGraphNode->ClassName = InNodeHandle->GetClassMetadata().GetClassName();
+				NewGraphNode->CacheTitle();
 
-			const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(InNodeHandle->GetClassMetadata());
-			NewGraphNode->bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
-			NewGraphNode->ClassName = InNodeHandle->GetClassMetadata().GetClassName();
-			NewGraphNode->CacheTitle();
+				NodeCreator.Finalize();
+				InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
+				NewGraphNode->SetNodeLocation(InLocation);
 
-			NodeCreator.Finalize();
-			InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
-			NewGraphNode->SetNodeLocation(InLocation);
-
-			// Adding external node may introduce referenced asset so rebuild referenced keys.
-			MetaSoundAsset->RebuildReferencedAssetClassKeys();
+				// Adding external node may introduce referenced asset so rebuild referenced keys.
+				MetaSoundAsset->RebuildReferencedAssetClassKeys();
+			}
 
 			return NewGraphNode;
 		}
@@ -332,13 +334,26 @@ namespace Metasound
 					FGraphNodeCreator<UMetasoundEditorGraphVariableNode> NodeCreator(*MetasoundGraph);
 
 					NewGraphNode = NodeCreator.CreateNode(bInSelectNewNode);
-					NewGraphNode->ClassName = InNodeHandle->GetClassMetadata().GetClassName();
-					NewGraphNode->ClassType = ClassType;
-					NewGraphNode->Variable = MetasoundGraph->FindOrAddVariable(FrontendVariable);
-					NodeCreator.Finalize();
+					if (ensure(NewGraphNode))
+					{
+						NewGraphNode->ClassName = InNodeHandle->GetClassMetadata().GetClassName();
+						NewGraphNode->ClassType = ClassType;
+						NodeCreator.Finalize();
+						InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
 
-					InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
-					NewGraphNode->SetNodeLocation(InLocation);
+						UMetasoundEditorGraphVariable* Variable = MetasoundGraph->FindOrAddVariable(FrontendVariable);
+						if (ensure(Variable))
+						{
+							NewGraphNode->Variable = Variable;
+
+							// Ensures the variable node value is synced with the editor literal value should it be set
+							constexpr bool bPostTransaction = false;
+							Variable->UpdateFrontendDefaultLiteral(bPostTransaction);
+						}
+
+						MetasoundGraph->SetSynchronizationRequired();
+						NewGraphNode->SetNodeLocation(InLocation);
+					}
 				}
 			}
 
@@ -361,22 +376,34 @@ namespace Metasound
 			FGraphNodeCreator<UMetasoundEditorGraphOutputNode> NodeCreator(Graph);
 
 			NewGraphNode = NodeCreator.CreateNode(bInSelectNewNode);
-			UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(&Graph);
-			NewGraphNode->Output = MetasoundGraph->FindOrAddOutput(InNodeHandle);
-			NewGraphNode->CacheTitle();
+			if (ensure(NewGraphNode))
+			{
+				UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(&Graph);
 
-			NodeCreator.Finalize();
-			InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
-			NewGraphNode->SetNodeLocation(InLocation);
+				UMetasoundEditorGraphOutput* Output = MetasoundGraph->FindOrAddOutput(InNodeHandle);
+				if (ensure(Output))
+				{
+					NewGraphNode->Output = Output;
+					NodeCreator.Finalize();
+					InitGraphNode(InNodeHandle, NewGraphNode, InMetaSound);
+
+					// Ensures the output node value is synced with the editor literal value should it be set
+					constexpr bool bPostTransaction = false;
+					Output->UpdateFrontendDefaultLiteral(bPostTransaction);
+
+					MetasoundGraph->SetSynchronizationRequired();
+				}
+
+				NewGraphNode->CacheTitle();
+				NewGraphNode->SetNodeLocation(InLocation);
+			}
 
 			return NewGraphNode;
 		}
 
 		void FGraphBuilder::InitGraphNode(Frontend::FNodeHandle& InNodeHandle, UMetasoundEditorGraphNode* NewGraphNode, UObject& InMetaSound)
 		{
-			NewGraphNode->CreateNewGuid();
 			NewGraphNode->SetNodeID(InNodeHandle->GetID());
-
 			RebuildNodePins(*NewGraphNode);
 		}
 
@@ -414,7 +441,6 @@ namespace Metasound
 				const FText Title = Result.Node->GetCachedTitle();
 				Result.Node->CacheTitle();
 				const bool bTitleUpdated = !Title.IdenticalTo(Result.Node->GetCachedTitle());
-
 
 				if (Result.bIsDirty || bTitleUpdated || bMetadataChange || bInterfaceChange || bStyleChange || bForceRefreshNodes)
 				{
@@ -673,6 +699,7 @@ namespace Metasound
 			{
 				NewGraphNode->SetNodeLocation(InLocation);
 				RebuildNodePins(*NewGraphNode);
+				MetasoundGraph->SetSynchronizationRequired();
 				return NewGraphNode;
 			}
 

@@ -3,17 +3,21 @@
 
 #include "AudioMeterStyle.h"
 #include "AudioSynesthesia/Classes/Meter.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EditorUndoClient.h"
 #include "Framework/Commands/UICommandList.h"
 #include "GraphEditor.h"
 #include "IDetailsView.h"
 #include "IMetasoundEditor.h"
+#include "Math/UnrealMathUtility.h"
+#include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorMeter.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "Misc/NotifyHook.h"
 #include "SAudioMeter.h"
 #include "SGraphActionMenu.h"
+#include "SGraphPanel.h"
 #include "SMetasoundPalette.h"
 #include "Sound/AudioBus.h"
 #include "Textures/SlateIcon.h"
@@ -147,8 +151,6 @@ namespace Metasound
 			void PasteNodes(const FVector2D* InLocation = nullptr);
 			void PasteNodes(const FVector2D* InLocation, const FText& InTransactionText);
 
-			/** Rename selected items (nodes or interface items). */
-			void RenameSelected();
 
 			/** Forces all UX pertaining to the root graph's interface to be refreshed. */
 			void RefreshGraphMemberMenu();
@@ -177,8 +179,42 @@ namespace Metasound
 			/** Destroys analyzers */
 			void DestroyAnalyzers();
 
-			/** Jumps to the given nodes on the graph */
-			void JumpToNodes(const TArray<UMetasoundEditorGraphNode*>& InNodes);
+			/** Jumps to the given nodes on the graph (templated to support arrays of various MetaSound graph node types) */
+			template<typename TNodeType = UMetasoundEditorGraphNode>
+			void JumpToNodes(const TArray<TNodeType*>& InNodes)
+			{
+				if (!MetasoundGraphEditor.IsValid())
+				{
+					return;
+				}
+
+				MetasoundGraphEditor->ClearSelectionSet();
+				const UMetasoundEditorGraph& Graph = GetMetaSoundGraphChecked();
+				if (!InNodes.IsEmpty())
+				{
+					if (SGraphPanel* GraphPanel = MetasoundGraphEditor->GetGraphPanel())
+					{
+						FVector2D BottomLeft = { TNumericLimits<float>::Max(), TNumericLimits<float>::Max() };
+						FVector2D TopRight = { TNumericLimits<float>::Min(), TNumericLimits<float>::Min() };
+						for (TNodeType* Node : InNodes)
+						{
+							if (!Node || Node->GetGraph() != &Graph)
+							{
+								continue;
+							}
+
+							constexpr bool bSelected = true;
+							MetasoundGraphEditor->SetNodeSelection(Node, bSelected);
+							BottomLeft.X = FMath::Min(BottomLeft.X, Node->NodePosX);
+							BottomLeft.Y = FMath::Min(BottomLeft.Y, Node->NodePosY);
+							TopRight.X = FMath::Max(TopRight.X, Node->NodePosX + Node->EstimateNodeWidth());
+							TopRight.Y = FMath::Max(TopRight.Y, Node->NodePosY);
+						}
+
+						GraphPanel->JumpToRect(BottomLeft, TopRight);
+					}
+				}
+			}
 
 		protected:
 			// Callbacks for action tree

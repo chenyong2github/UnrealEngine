@@ -103,7 +103,7 @@ public:
 	virtual Metasound::Editor::ENodeSection GetSectionID() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetSectionID, return Metasound::Editor::ENodeSection::None; );
 
 	/** Return the nodes associated with this member */
-	virtual TArray<UMetasoundEditorGraphNode*> GetNodes() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetNodes, return TArray<UMetasoundEditorGraphNode*>(); );
+	virtual TArray<UMetasoundEditorGraphMemberNode*> GetNodes() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetNodes, return TArray<UMetasoundEditorGraphMemberNode*>(); );
 
 	/** Sets the datatype on the member. */
 	virtual void SetDataType(FName InNewType, bool bPostTransaction = true) PURE_VIRTUAL(UMetasoundEditorGraphMember::SetDataType, );
@@ -213,7 +213,7 @@ public:
 	virtual FText GetDisplayName() const override;
 
 	virtual bool CanRename(const FText& InNewName, FText& OutError) const override;
-	virtual TArray<UMetasoundEditorGraphNode*> GetNodes() const override;
+	virtual TArray<UMetasoundEditorGraphMemberNode*> GetNodes() const override;
 	virtual void SetDescription(const FText& InDescription, bool bPostTransaction) override;
 	virtual void SetMemberName(const FName& InNewName, bool bPostTransaction) override;
 	virtual void SetDisplayName(const FText& InNewName, bool bPostTransaction) override;
@@ -312,7 +312,7 @@ public:
 	virtual void ResetToClassDefault() override;
 	virtual void UpdateFrontendDefaultLiteral(bool bPostTransaction) override;
 
-	virtual TArray<UMetasoundEditorGraphNode*> GetNodes() const override;
+	virtual TArray<UMetasoundEditorGraphMemberNode*> GetNodes() const override;
 
 	virtual const FText& GetGraphMemberLabel() const override;
 	/* ~EndUMetasoundEditorGraphMember interface */
@@ -327,9 +327,9 @@ public:
 private:
 	struct FVariableEditorNodes
 	{
-		UMetasoundEditorGraphNode* MutatorNode = nullptr;
-		TArray<UMetasoundEditorGraphNode*> AccessorNodes;
-		TArray<UMetasoundEditorGraphNode*> DeferredAccessorNodes;
+		UMetasoundEditorGraphMemberNode* MutatorNode = nullptr;
+		TArray<UMetasoundEditorGraphMemberNode*> AccessorNodes;
+		TArray<UMetasoundEditorGraphMemberNode*> DeferredAccessorNodes;
 	};
 
 	struct FVariableNodeLocations
