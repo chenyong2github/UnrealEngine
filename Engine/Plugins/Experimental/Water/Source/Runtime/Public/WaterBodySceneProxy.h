@@ -36,7 +36,7 @@ private:
 	void GenerateOceanMesh(UWaterBodyOceanComponent* Component);
 	void GenerateRiverMesh(UWaterBodyRiverComponent* Component);
 
-	void AddSectionFromDynamicMesh(const UE::Geometry::FDynamicMesh3& DynamicMesh, TFunctionRef<FDynamicMeshVertex(const FVector3f&)> VertTransformFunc);
+	void AddSectionFromDynamicMesh(const UE::Geometry::FDynamicMesh3& DynamicMesh, TFunctionRef<FDynamicMeshVertex(const FVector&)> VertTransformFunc);
 
 	void InitResources(FWaterBodyMeshSection* Section);
 
