@@ -64,17 +64,23 @@
 	"AdditionalFeaturePacks":
 	[
 		{
-			"MountName": "VehicleAdv",
+			"MountName": "Vehicles",
 			"DetailLevels":
 			[
 				"Standard"
 			]
 		},
 		{
-			"MountName": "Geometry",
+			"MountName": "Track",
 			"DetailLevels":
 			[
-				"Standard",
+				"High"
+			]
+		},
+		{
+			"MountName": "LevelPrototyping",
+			"DetailLevels":
+			[
 				"High"
 			]
 		}
