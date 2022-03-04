@@ -35,13 +35,13 @@
 	[
 		"Track_Preview.png"
 	],
-	"Ident": "TrackStandard",
+	"Ident": "TrackHigh",
 	"AdditionalFiles":
 	{
 		"DestinationFilesFolder": "Track",
 		"AdditionalFilesList":
 		[
-			"Templates/TemplateResources/Standard/Track/Content/*.*"
+			"Templates/TemplateResources/High/Track/Content/*.*"
 		]
 	}
 }
