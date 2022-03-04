@@ -541,9 +541,9 @@ void ResampleLightingHistoryToCardCaptureAtlasPS(
 		FLumenCardSample CardSample = ComputeSurfaceCacheSample(OldCard, CardIndex, LocalSamplePosition, 0.0f, true);
 		if (CardSample.bValid)
 		{
-			OutDirectLightingCardCaptureAtlas = Texture2DSampleLevel(DirectLightingAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).xyz;
-			OutRadiosityCardCaptureAtlas = Texture2DSampleLevel(IndirectLightingAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.IndirectLightingPhysicalAtlasUV, 0.0f).xyz;
-			OutRadiosityNumFramesAccumulatedCardCaptureAtlas = Texture2DSampleLevel(RadiosityNumFramesAccumulatedAtlas, SURFACE_CACHE_ATLAS_SAMPLER, CardSample.IndirectLightingPhysicalAtlasUV, 0.0f).x;
+			OutDirectLightingCardCaptureAtlas = Texture2DSampleLevel(DirectLightingAtlas, GlobalBilinearClampedSampler, CardSample.PhysicalAtlasUV, 0.0f).xyz;
+			OutRadiosityCardCaptureAtlas = Texture2DSampleLevel(IndirectLightingAtlas, GlobalBilinearClampedSampler, CardSample.IndirectLightingPhysicalAtlasUV, 0.0f).xyz;
+			OutRadiosityNumFramesAccumulatedCardCaptureAtlas = Texture2DSampleLevel(RadiosityNumFramesAccumulatedAtlas, GlobalBilinearClampedSampler, CardSample.IndirectLightingPhysicalAtlasUV, 0.0f).x;
 		}
 	}
 }

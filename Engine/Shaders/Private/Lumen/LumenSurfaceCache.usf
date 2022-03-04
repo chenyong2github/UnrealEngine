@@ -39,27 +39,24 @@ void LumenCardCopyPS(
 	{
 		#if COMPRESS
 		{
-			float BlockTexelsX[16];
+			float BlockTexels[16];
 			float BlockTexelsY[16];
-			ReadBlockX(SourceAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexelsX);
+			ReadBlockX(SourceAtlas, GlobalPointClampedSampler, AtlasUV - OneOverSourceAtlasSize, OneOverSourceAtlasSize, BlockTexels);
 
 			for (uint TexelIndex = 0; TexelIndex < 16; ++TexelIndex)
 			{
 				// Reverse inverted Z from the HW depth buffer
-				BlockTexelsX[TexelIndex] = 1.0f - BlockTexelsX[TexelIndex];
-
-				// Store square depth for the variance depth test
-				BlockTexelsY[TexelIndex] = BlockTexelsX[TexelIndex] * BlockTexelsX[TexelIndex];
+				BlockTexels[TexelIndex] = 1.0f - BlockTexels[TexelIndex];
 			}
 
-			RWAtlasBlock4[WriteCoord] = CompressBC5Block(BlockTexelsX, BlockTexelsY);
+			RWAtlasBlock4[WriteCoord] = CompressBC4Block(BlockTexels);
 		}
 		#else
 		{
 			float SourceDepth = Texture2DSampleLevel(SourceAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
 			// Reverse inverted Z from the HW depth buffer
 			float Depth = 1.0f - SourceDepth;
-			OutColor0 = float4(Depth, Depth * Depth, 0.0f, 0.0f);
+			OutColor0 = float4(Depth, 0.0f, 0.0f, 0.0f);
 		}
 		#endif
 	}
