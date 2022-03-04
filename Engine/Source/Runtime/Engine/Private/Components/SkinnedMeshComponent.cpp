@@ -1167,6 +1167,18 @@ FBoxSphereBounds USkinnedMeshComponent::CalcBounds(const FTransform& LocalToWorl
 	return CalcMeshBound( FVector3f::ZeroVector, false, LocalToWorld );
 }
 
+void USkinnedMeshComponent::UpdateBounds()
+{
+	const auto OldRadius = Bounds.SphereRadius;
+
+	Super::UpdateBounds();
+
+	// Avoid updating the streamer for small changes in size
+	if (!FMath::IsNearlyEqual(OldRadius, Bounds.SphereRadius, 0.1f) && GetForcedLOD() == 0)
+	{
+		IStreamingManager::Get().NotifyPrimitiveUpdated_Concurrent(this);
+	}
+}
 
 class UPhysicsAsset* USkinnedMeshComponent::GetPhysicsAsset() const
 {
