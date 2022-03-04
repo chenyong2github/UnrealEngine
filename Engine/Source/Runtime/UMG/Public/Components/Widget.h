@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "FieldNotification/FieldNotificationDeclaration.h"
+#include "FieldNotification/IFieldValueChanged.h"
 #include "Misc/Attribute.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/ScriptMacros.h"
@@ -217,11 +219,20 @@ public:
  * This is the base class for all wrapped Slate controls that are exposed to UObjects.
  */
 UCLASS(Abstract, BlueprintType, Blueprintable)
-class UMG_API UWidget : public UVisual
+class UMG_API UWidget : public UVisual, public INotifyFieldValueChanged
 {
 	GENERATED_UCLASS_BODY()
 
 public:
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BASE_BEGIN(UMG_API)
+		UE_FIELD_NOTIFICATION_DECLARE_FIELD(ToolTipText)
+		UE_FIELD_NOTIFICATION_DECLARE_FIELD(Visibility)
+		UE_FIELD_NOTIFICATION_DECLARE_FIELD(bIsEnabled)
+		UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_BEGIN(ToolTipText)
+		UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD(Visibility)
+		UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD(bIsEnabled)
+		UE_FIELD_NOTIFICATION_DECLARE_ENUM_FIELD_END()
+	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_BASE_END();
 
 	// Common Bindings - If you add any new common binding, you must provide a UPropertyBinding for it.
 	//                   all primitive binding in UMG goes through native binding evaluators to prevent
@@ -259,7 +270,7 @@ public:
 	FGetBool bIsEnabledDelegate;
 
 	/** Tooltip text to show when the user hovers over the widget with the mouse */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Behavior", meta=(MultiLine=true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter="SetToolTipText", Category="Behavior", meta=(MultiLine=true))
 	FText ToolTipText;
 
 	/** A bindable delegate for ToolTipText */
@@ -644,7 +655,7 @@ public:
 	 *	@param WidgetToFocus When using the Explicit rule, focus on this widget
 	 */
 	UE_DEPRECATED(4.23, "SetNavigationRule is deprecated. Please use either SetNavigationRuleBase or SetNavigationRuleExplicit or SetNavigationRuleCustom or SetNavigationRuleCustomBoundary.")
-	UFUNCTION(BlueprintCallable, Category = "Widget")
+	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DeprecatedFunction, DeprecatedMessage = "Please use either SetNavigationRuleBase or SetNavigationRuleExplicit or SetNavigationRuleCustom or SetNavigationRuleCustomBoundary."))
 	void SetNavigationRule(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus);
 
 	/**
@@ -707,6 +718,18 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	const FGeometry& GetPaintSpaceGeometry() const;
+
+	//~ Begin INotifyFieldValueChanged Interface
+public:
+	virtual FDelegateHandle AddFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FFieldValueChangedDelegate InNewDelegate) override final;
+	virtual bool RemoveFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FDelegateHandle InHandle) override final;
+	virtual int32 RemoveAllFieldValueChangedDelegates(const void* InUserObject) override final;
+	//~ End INotifyFieldValueChanged Interface
+
+public:
+	void BroadcastFieldValueChanged(UE::FieldNotification::FFieldId InFieldId);
+
+public:
 	/**
 	 * Gets the underlying slate widget or constructs it if it doesn't exist.  If you're looking to replace
 	 * what slate widget gets constructed look for RebuildWidget.  For extremely special cases where you actually
@@ -1055,6 +1078,7 @@ protected:
 	static TArray<TSubclassOf<UPropertyBinding>> BinderClasses;
 
 private:
+	TBitArray<> EnabledFieldNotifications;
 
 #if WITH_EDITORONLY_DATA
 	/** Any flags used by the designer at edit time. */
