@@ -93,6 +93,7 @@ public:
 
 public:
 	SGraphPin();
+	virtual ~SGraphPin();
 
 	/** Set attribute for determining if pin is editable */
 	void SetIsEditable(TAttribute<bool> InIsEditable);

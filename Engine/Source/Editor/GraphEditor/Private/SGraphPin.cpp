@@ -147,6 +147,14 @@ SGraphPin::SGraphPin()
 	CachedImg_Pin_BackgroundHovered = FEditorStyle::GetBrush( NAME_Pin_BackgroundHovered );
 }
 
+SGraphPin::~SGraphPin()
+{
+	if (ValueInspectorTooltip.IsValid())
+	{
+		ValueInspectorTooltip.Pin()->TryDismissTooltip();
+	}
+}
+
 void SGraphPin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 {
 	bUsePinColorForText = InArgs._UsePinColorForText;
