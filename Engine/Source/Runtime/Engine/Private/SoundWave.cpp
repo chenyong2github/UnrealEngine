@@ -2780,7 +2780,7 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 	else //if this is a preview sound, ignore Submix sends
 	{
 		// Only allow submix sends if this is a metasound preview
-		if (IsMetaSound())
+		if (EnableSubmixSendsOnPreview())
 		{
 			WaveInstance->bEnableSubmixSends = ParseParams.bEnableSubmixSends;
 		}

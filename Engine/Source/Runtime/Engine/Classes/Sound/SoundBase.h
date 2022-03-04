@@ -320,8 +320,8 @@ public:
 	/** Gets all the default parameters for this Asset.  */
 	virtual bool GetAllDefaultParameters(TArray<FAudioParameter>& OutParameters) const { return false; }
 
-	/** Whether or not this sound is a MetaSound. */
-	virtual bool IsMetaSound() const { return false; }
+	/** Whether or not this sound allows submix sends on preview. */
+	virtual bool EnableSubmixSendsOnPreview() const { return false; }
 
 #if WITH_EDITORONLY_DATA
 	void SetTimecodeOffset(const FSoundTimecodeOffset& InTimecodeOffset);
