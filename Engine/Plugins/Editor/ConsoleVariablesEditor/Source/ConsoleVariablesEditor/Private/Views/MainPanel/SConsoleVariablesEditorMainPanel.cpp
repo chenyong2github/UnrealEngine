@@ -199,7 +199,7 @@ void SConsoleVariablesEditorMainPanel::CreateConcertButtonIfNeeded()
 		.Padding(11.f, 1.f, 1.f, 1.f)
 		[
 			SAssignNew(ConcertButtonPtr, SCheckBox)
-			.Padding(0)
+			.Padding(4.f)
 			.ToolTipText(LOCTEXT("ShowConcertSettings_Tip", "Show the multi-user controls for Console Variables"))
 			.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
 			.ForegroundColor(FSlateColor::UseForeground())

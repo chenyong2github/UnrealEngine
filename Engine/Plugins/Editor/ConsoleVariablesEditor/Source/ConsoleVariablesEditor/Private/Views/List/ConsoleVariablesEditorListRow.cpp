@@ -125,8 +125,7 @@ void FConsoleVariablesEditorListRow::ResetToStartupValueAndSource() const
 	if (const TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedCommand = GetCommandInfo().Pin())
 	{
 		PinnedCommand->SetSourceFlag(PinnedCommand->StartupSource);
-		PinnedCommand->ExecuteCommand(PinnedCommand->StartupValueAsString);
-		PinnedCommand->SetIfChangedInCurrentPreset(false);
+		PinnedCommand->ExecuteCommand(PinnedCommand->StartupValueAsString, false);
 	}
 }
 

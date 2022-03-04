@@ -32,10 +32,13 @@ public:
 
 	virtual bool DoesItemPassFilter(const FConsoleVariablesEditorListRowPtr& InItem) override
 	{
-		if (InItem.IsValid(); const TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedCommand = InItem->GetCommandInfo().Pin())
+		if (InItem.IsValid())
 		{
-			const EConsoleVariableFlags Source = PinnedCommand->GetSource();
-			return Source == SourceFlag;
+			if (const TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedCommand = InItem->GetCommandInfo().Pin())
+			{
+				const EConsoleVariableFlags Source = PinnedCommand->GetSource();
+				return Source == SourceFlag;
+			}
 		}
 
 		return false;

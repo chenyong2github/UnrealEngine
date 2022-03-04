@@ -64,14 +64,20 @@ struct FConsoleVariablesEditorCommandInfo
 
 	void SetIfChangedInCurrentPreset(const bool bNewSetting)
 	{
-		bChangedInCurrentPreset = bNewSetting;
+		bSetInCurrentSession = bNewSetting;
 	}
 
-	void ExecuteCommand(const FString& NewValueAsString)
+	/** Sets a variable to the specified value whilst maintaining its SetBy flag.
+	  * Non-variables will be executed through the console.
+	  * If bSetInSession is true, this CommandInfo's associated variable row will display "Session" in the UI.
+	 */
+	void ExecuteCommand(const FString& NewValueAsString, const bool bSetInSession = true)
 	{
 		if (IConsoleVariable* AsVariable = GetConsoleVariablePtr())
 		{
 			AsVariable->Set(*NewValueAsString, GetSource());
+
+			bSetInCurrentSession = bSetInSession;
 		}
 		else
 		{
@@ -211,7 +217,7 @@ struct FConsoleVariablesEditorCommandInfo
 			return LOCTEXT("Source_IsNotConsoleVariableButConsoleCommand", "Command");
 		}
 
-		if (bChangedInCurrentPreset)
+		if (bSetInCurrentSession)
 		{
 			return LOCTEXT("Source_SetByCurrentPreset", "Session");
 		}
@@ -278,7 +284,7 @@ struct FConsoleVariablesEditorCommandInfo
 	EConsoleVariableFlags StartupSource = ECVF_Default;
 
 	/** If the variable was last changed by the current preset */
-	bool bChangedInCurrentPreset = false;
+	bool bSetInCurrentSession = false;
 
 	/** When variables change, this callback is executed. */
 	FDelegateHandle OnVariableChangedCallbackHandle;

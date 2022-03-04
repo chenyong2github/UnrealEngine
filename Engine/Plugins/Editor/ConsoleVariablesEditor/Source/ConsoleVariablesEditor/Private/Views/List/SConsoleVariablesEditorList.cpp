@@ -120,7 +120,7 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs, TSharedRef
 			.Padding(8.f, 1.f, 0.f, 1.f)
 			[
 				SAssignNew( ViewOptionsComboButton, SComboButton )
-				.ContentPadding(0)
+				.ContentPadding(4.f)
 				.ToolTipText(LOCTEXT("ShowOptions_Tooltip", "Show options to affect the visibility of items in the Console Variables Editor list"))
 				.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButtonWithIcon" ) // Use the tool bar item style for this button
 				.OnGetMenuContent( this, &SConsoleVariablesEditorList::BuildShowOptionsMenu)
