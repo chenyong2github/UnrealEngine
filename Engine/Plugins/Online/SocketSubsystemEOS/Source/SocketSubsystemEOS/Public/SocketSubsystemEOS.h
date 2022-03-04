@@ -82,6 +82,19 @@ public:
 	 */
 	bool UnbindChannel(const FInternetAddrEOS& Address);
 
+	/**
+	 * Returns the FSocketSubsytemEOS instance corresponding with the UWorld* parameter.
+	 * If no entry exists for the given UWorld*, it will add it if a valid instance is found.
+	 * 
+	 * @param InWorld UWorld* to be used in the search
+	 * @return The FSocketSubsystemEOS instance associated with InWorld
+	 */
+	FSocketSubsystemEOS* GetSocketSubsystemForWorld(UWorld* InWorld);
+
+private:
+	/** Removes the FSocketSubsystemEOS instance from SocketSubsystemEOSInstances and all related entries from SocketSubsystemEOSPerWorldMap */
+	void RemoveFromStaticContainers();
+
 private:
 #if WITH_EOS_SDK
 	EOS_HP2P P2PHandle;
@@ -96,4 +109,10 @@ private:
 
 	/** The last error we received */
 	ESocketErrors LastSocketError;
+
+	/** Static array of all instances of FSocketSubsystemEOS running concurrently (can be more than one in PIE) */
+	static TArray<FSocketSubsystemEOS*> SocketSubsystemEOSInstances;
+
+	/** Static map of world to corresponding FSocketSubsystemeOS instance */
+	static TMap<UWorld*, FSocketSubsystemEOS*> SocketSubsystemEOSPerWorldMap;
 };

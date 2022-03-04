@@ -18,6 +18,7 @@ public:
 
 	virtual EOS_ProductUserId GetLocalUserId() override;
 	virtual FString GetSessionId() override;
+	virtual FName GetSubsystemInstanceName() override;
 
 private:
 	FOnlineServicesEOS& ServicesEOS;

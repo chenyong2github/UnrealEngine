@@ -9,10 +9,14 @@
 #include "SocketSubsystemModule.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "OnlineSubsystemUtils.h"
 
 #if WITH_EOS_SDK
 	#include "eos_sdk.h"
 #endif
+
+TArray<FSocketSubsystemEOS*> FSocketSubsystemEOS::SocketSubsystemEOSInstances;
+TMap<UWorld*, FSocketSubsystemEOS*> FSocketSubsystemEOS::SocketSubsystemEOSPerWorldMap;
 
 FSocketSubsystemEOS::FSocketSubsystemEOS(IEOSPlatformHandlePtr InPlatformHandle, ISocketSubsystemEOSUtilsPtr InUtils)
 	: P2PHandle(nullptr)
@@ -33,8 +37,34 @@ FSocketSubsystemEOS::~FSocketSubsystemEOS()
 	Utils = nullptr;
 }
 
+FSocketSubsystemEOS* FSocketSubsystemEOS::GetSocketSubsystemForWorld(UWorld* InWorld)
+{
+	FSocketSubsystemEOS** Result = SocketSubsystemEOSPerWorldMap.Find(InWorld);
+
+	if(!Result)
+	{
+		for (FSocketSubsystemEOS* SocketSubsystem : SocketSubsystemEOSInstances)
+		{
+			const UWorld* NewWorld = GetWorldForOnline(SocketSubsystem->Utils->GetSubsystemInstanceName());
+
+			if (NewWorld == InWorld)
+			{
+				SocketSubsystemEOSPerWorldMap.Add(InWorld, SocketSubsystem);
+
+				Result = &SocketSubsystem;
+
+				break;
+			}
+		}
+	}
+
+	return Result ? *Result : nullptr;
+}
+
 bool FSocketSubsystemEOS::Init(FString& Error)
 {
+	SocketSubsystemEOSInstances.Add(this);
+
 	FSocketSubsystemModule& SocketSubsystem = FModuleManager::LoadModuleChecked<FSocketSubsystemModule>("Sockets");
 	SocketSubsystem.RegisterSocketSubsystem(EOS_SOCKETSUBSYSTEM, this, false);
 
@@ -43,6 +73,8 @@ bool FSocketSubsystemEOS::Init(FString& Error)
 
 void FSocketSubsystemEOS::Shutdown()
 {
+	RemoveFromStaticContainers();
+
 	// Destruct our sockets before we finish destructing, as they maintain a reference to us
 	TrackedSockets.Reset();
 
@@ -50,6 +82,19 @@ void FSocketSubsystemEOS::Shutdown()
 	{
 		SocketSubsystem->UnregisterSocketSubsystem(EOS_SOCKETSUBSYSTEM);
 	}
+}
+
+void FSocketSubsystemEOS::RemoveFromStaticContainers()
+{
+	for (TMap<UWorld*, FSocketSubsystemEOS*>::TIterator Iter(SocketSubsystemEOSPerWorldMap); Iter; ++Iter)
+	{
+		if (Iter.Value() == this)
+		{
+			Iter.RemoveCurrent();
+		}
+	}
+
+	SocketSubsystemEOSInstances.Remove(this);
 }
 
 FSocket* FSocketSubsystemEOS::CreateSocket(const FName& SocketTypeName, const FString& SocketDescription, const FName& /*unused*/)

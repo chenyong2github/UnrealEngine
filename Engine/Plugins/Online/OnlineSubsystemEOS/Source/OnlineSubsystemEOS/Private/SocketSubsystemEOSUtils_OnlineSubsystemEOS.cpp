@@ -39,3 +39,8 @@ FString FSocketSubsystemEOSUtils_OnlineSubsystemEOS::GetSessionId()
 
 	return Result;
 }
+
+FName FSocketSubsystemEOSUtils_OnlineSubsystemEOS::GetSubsystemInstanceName()
+{
+	return SubsystemEOS.GetInstanceName();
+}

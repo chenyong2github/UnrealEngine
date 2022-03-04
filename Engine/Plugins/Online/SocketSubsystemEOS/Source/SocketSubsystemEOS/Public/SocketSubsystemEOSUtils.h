@@ -21,5 +21,7 @@ public:
 	virtual EOS_ProductUserId GetLocalUserId() = 0;
 #endif
 	virtual FString GetSessionId() = 0;
+
+	virtual FName GetSubsystemInstanceName() = 0;
 };
 typedef TSharedPtr<ISocketSubsystemEOSUtils, ESPMode::ThreadSafe> ISocketSubsystemEOSUtilsPtr;

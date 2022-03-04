@@ -88,6 +88,12 @@ FString FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId()
 	return Result;
 }
 
+FName FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSubsystemInstanceName()
+{
+	// TODO: OnlineServices still doesn't have functionality that matches GetInstanceName
+	return FName();
+}
+
 /* UE::Online */}
 
 #endif // WITH_ENGINE

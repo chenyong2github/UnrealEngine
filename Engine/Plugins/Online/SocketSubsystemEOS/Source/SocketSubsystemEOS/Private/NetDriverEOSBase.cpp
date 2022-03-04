@@ -7,6 +7,7 @@
 #include "Misc/EngineVersionComparison.h"
 #include "EOSSharedTypes.h"
 #include "Engine/Engine.h"
+#include "Misc/ConfigCacheIni.h"
 
 bool UNetDriverEOSBase::IsAvailable() const
 {
@@ -171,7 +172,29 @@ bool UNetDriverEOSBase::InitListen(FNetworkNotify* InNotify, FURL& LocalURL, boo
 
 ISocketSubsystem* UNetDriverEOSBase::GetSocketSubsystem()
 {
-	return ISocketSubsystem::Get(bIsPassthrough ? PLATFORM_SOCKETSUBSYSTEM : EOS_SOCKETSUBSYSTEM);
+	if (bIsPassthrough)
+	{
+		return ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	}
+	else
+	{
+		FSocketSubsystemEOS* DefaultSocketSubsystem = static_cast<FSocketSubsystemEOS*>(ISocketSubsystem::Get(EOS_SOCKETSUBSYSTEM));
+
+		bool bUseOnlineServicesV2 = false;
+		GConfig->GetBool(TEXT("/Script/Engine.OnlineEngineInterface"), TEXT("bUseOnlineServicesV2"), bUseOnlineServicesV2, GEngineIni);
+
+		if (bUseOnlineServicesV2)
+		{
+			// V2 still doesn't have the logic to process several instances, so we'll return the default one
+			return DefaultSocketSubsystem;
+		}
+		else
+		{
+			// We may have several instances of FSocketSubsystemEOS if running in PIE mode, so we need to pick the right one for the current world
+			UWorld* CurrentWorld = FindWorld();
+			return DefaultSocketSubsystem->GetSocketSubsystemForWorld(CurrentWorld);
+		}
+	}
 }
 
 void UNetDriverEOSBase::Shutdown()
