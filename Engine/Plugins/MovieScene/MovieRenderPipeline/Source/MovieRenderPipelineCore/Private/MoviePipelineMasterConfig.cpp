@@ -155,9 +155,6 @@ void UMoviePipelineMasterConfig::GetFormatArguments(FMoviePipelineFormatArgs& In
 		{
 			Setting->GetFormatArguments(InOutFormatArgs);
 		}
-
-		// ToDo: Should shots be able to provide arguments too? They're only overrides, and
-		// outside of that shot the format would fail and end up leaving the {text} anyways.
 	}
 }
 

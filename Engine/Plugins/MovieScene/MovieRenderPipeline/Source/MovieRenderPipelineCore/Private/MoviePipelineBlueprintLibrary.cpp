@@ -900,12 +900,24 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 		OutMergedFormatArgs.FilenameArguments.Add(TEXT("file_dup"), FString());
 	}
 
-	// Apply any overrides from shots
 	if (InParams.ShotOverride && InParams.ShotOverride->GetShotOverrideConfiguration())
 	{
-		// ToDo
-		// InParams.ShotOverride->GetShotOverrideConfiguration()->GetFormatArguments(OutMergedFormatArgs, true);
+		UMoviePipelineShotConfig* ShotConfig = InParams.ShotOverride->GetShotOverrideConfiguration();
+		for (UMoviePipelineSetting* Setting : ShotConfig->GetUserSettings())
+		{
+			if (!Setting)
+			{
+				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Null setting found in config: %s - Did you disable a plugin that contained this setting?"), *GetNameSafe(ShotConfig));
+				continue;
+			}
+
+			if (Setting->IsEnabled())
+			{
+				Setting->GetFormatArguments(OutMergedFormatArgs);
+			}
+		}
 	}
+
 	// Overwrite the variables with overrides if needed. This allows different requesters to share the same variables (ie: filename extension, render pass name)
 	for (const TPair<FString, FString>& KVP : InParams.FileNameFormatOverrides)
 	{
