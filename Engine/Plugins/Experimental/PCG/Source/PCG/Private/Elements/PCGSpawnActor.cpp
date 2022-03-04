@@ -129,12 +129,14 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContextPtr Context) const
 			{
 				TArray<UActorComponent*> Components;
 				UPCGActorHelpers::GetActorClassDefaultComponents(Settings->TemplateActorClass, Components, UStaticMeshComponent::StaticClass());
+				UStaticMeshComponent* FirstSMC = nullptr;
 				UStaticMesh* Mesh = nullptr;
 
 				for (UActorComponent* Component : Components)
 				{
 					if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Component))
 					{
+						FirstSMC = SMC;
 						Mesh = SMC->GetStaticMesh();
 						if (Mesh)
 						{
@@ -146,6 +148,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContextPtr Context) const
 				if (Mesh)
 				{
 					ISMC = UPCGActorHelpers::GetOrCreateISMC(TargetActor, Context->SourceComponent, Mesh);
+					UEngine::CopyPropertiesForUnrelatedObjects(FirstSMC, ISMC);
 				}
 				else
 				{

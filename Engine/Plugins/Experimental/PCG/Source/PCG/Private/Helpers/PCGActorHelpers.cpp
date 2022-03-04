@@ -69,7 +69,17 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 	// Otherwise, create a new component
 	// TODO: use static mesh component if there's only one instance
 	// TODO: add hism/ism switch or better yet, use a template component
-	UInstancedStaticMeshComponent* ISMC = NewObject<UHierarchicalInstancedStaticMeshComponent>(InTargetActor);
+	UInstancedStaticMeshComponent* ISMC = nullptr;
+
+	if (InMesh->HasValidNaniteData())
+	{
+		ISMC = NewObject<UInstancedStaticMeshComponent>(InTargetActor);
+	}
+	else
+	{
+		ISMC = NewObject<UHierarchicalInstancedStaticMeshComponent>(InTargetActor);
+	}
+
 	ISMC->SetStaticMesh(InMesh);
 
 	// TODO: improve material override mechanisms
