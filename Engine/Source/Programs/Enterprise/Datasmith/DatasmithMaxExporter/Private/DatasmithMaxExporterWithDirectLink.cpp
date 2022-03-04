@@ -1638,12 +1638,13 @@ public:
 
 		Lights.Add(&NodeTracker);
 
+		TSharedPtr<IDatasmithLightActorElement> LightElement;
 		if(!NodeTracker.DatasmithActorElement)
 		{
 			// note: this is how baseline exporter derives names
 			FString UniqueName = FString::FromInt(NodeTracker.Node->GetHandle());
 
-			TSharedPtr<IDatasmithLightActorElement> LightElement = FDatasmithMaxSceneExporter::CreateLightElementForNode(NodeTracker.Node, *UniqueName);
+			LightElement = FDatasmithMaxSceneExporter::CreateLightElementForNode(NodeTracker.Node, *UniqueName);
 
 			if (!LightElement)
 			{
@@ -1668,6 +1669,31 @@ public:
 			NodeTracker.DatasmithActorElement = LightElement;
 		}
 		SetupActor(NodeTracker);
+
+		//Cylinder shaped lights don't have the same default orientations, so we recalculate their transform and add the shape information.
+		if (LightElement->IsA(EDatasmithElementType::AreaLight) 
+			&& StaticCastSharedPtr<IDatasmithAreaLightElement>(LightElement)->GetLightShape() == EDatasmithLightShape::Cylinder)
+		{
+			FVector Translation, Scale;
+			FQuat Rotation;
+
+			const float UnitMultiplier = (float)GetSystemUnitScale(UNITS_CENTIMETERS);
+			const FMaxLightCoordinateConversionParams LightParams = FMaxLightCoordinateConversionParams(NodeTracker.Node, EDatasmithLightShape::Cylinder);
+			if (NodeTracker.Node->GetWSMDerivedObject() != nullptr)
+			{
+				FDatasmithMaxSceneExporter::MaxToUnrealCoordinates(NodeTracker.Node->GetObjTMAfterWSM(GetCOREInterface()->GetTime()), Translation, Rotation, Scale, UnitMultiplier, LightParams);
+			}
+			else
+			{
+				FDatasmithMaxSceneExporter::MaxToUnrealCoordinates(NodeTracker.Node->GetObjectTM(GetCOREInterface()->GetTime()), Translation, Rotation, Scale, UnitMultiplier, LightParams);
+			}
+
+			Rotation.Normalize();
+			LightElement->SetTranslation(Translation);
+			LightElement->SetScale(Scale);
+			LightElement->SetRotation(Rotation);
+		}
+
 
 		NodeTracker.bInvalidated = false;
 
