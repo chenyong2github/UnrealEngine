@@ -301,9 +301,10 @@ namespace UnrealBuildTool
 
 			if (bGeneratingGameProjectFiles)
 			{
-				if (bGeneratingRunIOSProject || bGeneratingRunTVOSProject)
+				if (bGeneratingRunIOSProject || bGeneratingRunTVOSProject || UnrealBuildBase.Unreal.IsEngineInstalled())
 				{
 					// an Engine target is required in order to be able to get Xcode to sign blueprint projects
+					// always include the engine target for installed builds.
 					IncludeEnginePrograms = true;
 				}
 				bIncludeEngineSource = true;
