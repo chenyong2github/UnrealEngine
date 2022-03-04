@@ -282,6 +282,7 @@ namespace EpicGames.UHT.Types
 	 */
 	public class UhtRigVMStructInfo
 	{
+		public bool bHasGetUpgradeInfoMethod = false;
 		public string Name { get; set; } = string.Empty;
 		public List<UhtRigVMParameter> Members = new List<UhtRigVMParameter>();
 		public List<UhtRigVMMethodInfo> Methods { get; set; } = new List<UhtRigVMMethodInfo>();
@@ -447,6 +448,15 @@ namespace EpicGames.UHT.Types
 			if (this.SourceName != ExpectedName)
 			{
 				this.LogError($"Struct '{this.SourceName}' has an invalid Unreal prefix, expecting '{ExpectedName}");
+			}
+
+			// Validate RigVM
+			if (this.RigVMStructInfo != null && this.MetaData.ContainsKey("Deprecated") && !this.RigVMStructInfo.bHasGetUpgradeInfoMethod)
+			{
+				this.LogError($"RigVMStruct '{this.SourceName}' is marked as deprecated but is missing 'GetUpgradeInfo method.");
+				this.LogError("Please implement a method like below:");
+				this.LogError("RIGVM_METHOD()");
+				this.LogError("virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;");					
 			}
 
 			return Options |= UhtValidationOptions.Shadowing;

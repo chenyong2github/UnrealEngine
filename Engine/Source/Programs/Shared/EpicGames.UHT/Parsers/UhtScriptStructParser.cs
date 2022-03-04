@@ -199,32 +199,47 @@ namespace EpicGames.UHT.Parsers
 					.RequireList('(', ')')
 					.Optional("virtual")
 					.RequireIdentifier((ref UhtToken Identifier) => MethodInfo.ReturnType = Identifier.Value.ToString())
-					.RequireIdentifier((ref UhtToken Identifier) => MethodInfo.Name = Identifier.Value.ToString())
+					.RequireIdentifier((ref UhtToken Identifier) => MethodInfo.Name = Identifier.Value.ToString());
+
+				bool bIsGetUpgradeInfo = false;
+				if (MethodInfo.ReturnType == "FRigVMStructUpgradeInfo" && MethodInfo.Name == "GetUpgradeInfo")
+				{
+					StructInfo.bHasGetUpgradeInfoMethod = true;
+					bIsGetUpgradeInfo = true;
+				}
+
+				TopScope.TokenReader
 					.RequireList('(', ')', ',', false, (IEnumerable<UhtToken> Tokens) =>
 					{
-						StringViewBuilder Builder = new StringViewBuilder();
-						UhtToken LastToken = new UhtToken();
-						foreach (UhtToken Token in Tokens)
+						if (!bIsGetUpgradeInfo)
 						{
-							if (Token.IsSymbol('='))
+							StringViewBuilder Builder = new StringViewBuilder();
+							UhtToken LastToken = new UhtToken();
+							foreach (UhtToken Token in Tokens)
 							{
-								break;
-							}
-							if (LastToken)
-							{
-								if (Builder.Length != 0)
+								if (Token.IsSymbol('='))
 								{
-									Builder.Append(' ');
+									break;
 								}
-								Builder.Append(LastToken.Value);
+								if (LastToken)
+								{
+									if (Builder.Length != 0)
+									{
+										Builder.Append(' ');
+									}
+									Builder.Append(LastToken.Value);
+								}
+								LastToken = Token;
 							}
-							LastToken = Token;
+							MethodInfo.Parameters.Add(new UhtRigVMParameter(LastToken.Value.ToString(), Builder.ToString()));
 						}
-						MethodInfo.Parameters.Add(new UhtRigVMParameter(LastToken.Value.ToString(), Builder.ToString()));
 					})
 					.ConsumeUntil(';');
 
-				StructInfo.Methods.Add(MethodInfo);
+				if (!bIsGetUpgradeInfo)
+				{
+					StructInfo.Methods.Add(MethodInfo);
+				}
 			}
 		}
 	}
