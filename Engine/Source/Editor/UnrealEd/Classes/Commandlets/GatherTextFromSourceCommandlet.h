@@ -314,7 +314,7 @@ private:
 		}
 
 		virtual const FString& GetToken() const override
-		{
+			{
 			return Name;
 		}
 
@@ -365,6 +365,25 @@ private:
 		}
 
 		virtual void TryParse(const FString& Text, FSourceFileParseContext& Context) const override;
+	};
+/** Macro descriptor to parse METASOUND_PARAM(NAME, NAME_TEXT, TOOLTIP_TEXT) macros. */
+	class FMetasoundParamMacroDescriptor : public FMacroDescriptor
+	{
+	public:
+		FMetasoundParamMacroDescriptor()
+			: FMacroDescriptor(TEXT("METASOUND_PARAM"), 3)
+		{
+		}
+
+		virtual void TryParse(const FString& Text, FSourceFileParseContext& Context) const override;
+
+	protected:
+		FMetasoundParamMacroDescriptor(FString InName, int32 InMinNumberOfArgument)
+			: FMacroDescriptor(MoveTemp(InName), InMinNumberOfArgument)
+		{
+		}
+
+		void TryParseArgs(const FString& Text, FSourceFileParseContext& Context, const TArray<FString>& Arguments, const int32 ArgIndexOffset) const;
 	};
 
 	class FStringMacroDescriptor : public FMacroDescriptor
