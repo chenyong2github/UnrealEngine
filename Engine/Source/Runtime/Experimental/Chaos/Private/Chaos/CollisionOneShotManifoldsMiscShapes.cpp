@@ -30,6 +30,7 @@ namespace Chaos
 	extern FRealSingle Chaos_Collision_Manifold_CapsuleDeepPenetrationFraction;
 	extern FRealSingle Chaos_Collision_Manifold_CapsuleRadialContactFraction;
 
+	extern bool bChaos_Collision_UseGJK2;
 	extern FRealSingle Chaos_Collision_GJKEpsilon;
 	extern FRealSingle Chaos_Collision_EPAEpsilon;
 
@@ -255,18 +256,36 @@ namespace Chaos
 			// Primary contact
 			// NOTE: swapped contact point order to match desired output order (Sphere, Convex)
 			FContactPoint ClosestContactPoint;
-			GJKPenetrationSameSpace(
-				GJKConvex, 
-				GJKSphere, 
-				ClosestPenetration,
-				ClosestContactPoint.ShapeContactPoints[1], 
-				ClosestContactPoint.ShapeContactPoints[0], 
-				ClosestContactPoint.ShapeContactNormal, 
-				ClosestVertexIndexConvex,
-				ClosestVertexIndexSphere,
-				ClosestSupportMaxDelta,
-				GJKEpsilon, 
-				EPAEpsilon);
+			if (bChaos_Collision_UseGJK2)
+			{
+				GJKPenetrationSameSpace2(
+					GJKConvex, 
+					GJKSphere, 
+					ClosestPenetration,
+					ClosestContactPoint.ShapeContactPoints[1], 
+					ClosestContactPoint.ShapeContactPoints[0], 
+					ClosestContactPoint.ShapeContactNormal, 
+					ClosestVertexIndexConvex,
+					ClosestVertexIndexSphere,
+					ClosestSupportMaxDelta,
+					GJKEpsilon, 
+					EPAEpsilon);
+			}
+			else
+			{
+				GJKPenetrationSameSpace(
+					GJKConvex,
+					GJKSphere,
+					ClosestPenetration,
+					ClosestContactPoint.ShapeContactPoints[1],
+					ClosestContactPoint.ShapeContactPoints[0],
+					ClosestContactPoint.ShapeContactNormal,
+					ClosestVertexIndexConvex,
+					ClosestVertexIndexSphere,
+					ClosestSupportMaxDelta,
+					GJKEpsilon,
+					EPAEpsilon);
+			}
 
 			// Stop now if beyond cull distance
 			const FReal ClosestPhi = -ClosestPenetration;

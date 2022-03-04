@@ -40,6 +40,45 @@ namespace Chaos
 		return Closest;
 	}
 
+	template <typename T>
+	TVec3<T> LineSimplexFindOrigin2(TVec3<T>* Simplex, int32& NumVerts, T* OutBarycentric, TVec3<T>* A, TVec3<T>* B)
+	{
+		const TVec3<T>& X0 = Simplex[0];
+		const TVec3<T>& X1 = Simplex[1];
+		const TVec3<T> X0ToX1 = X1 - X0;
+
+		//Closest Point = (-X0 dot X1-X0) / ||(X1-X0)||^2 * (X1-X0)
+
+		const TVec3<T> X0ToOrigin = -X0;
+		const T Dot = TVec3<T>::DotProduct(X0ToOrigin, X0ToX1);
+
+		if (Dot <= 0)
+		{
+			NumVerts = 1;
+			OutBarycentric[0] = 1;
+			return X0;
+		}
+
+		const T X0ToX1Squared = X0ToX1.SizeSquared();
+
+		if (X0ToX1Squared <= Dot || X0ToX1Squared <= std::numeric_limits<T>::min())	//if dividing gives 1+ or the line is degenerate
+		{
+			NumVerts = 1;
+			OutBarycentric[0] = 1;
+			Simplex[0] = Simplex[1];
+			A[0] = A[1];
+			B[0] = B[1];
+			return X1;
+		}
+
+		const T Ratio = FMath::Clamp(Dot / X0ToX1Squared, T(0), T(1));
+		const TVec3<T> Closest = Ratio * (X0ToX1)+X0;	//note: this could pass X1 by machine epsilon, but doesn't seem worth it for now
+		OutBarycentric[0] = 1 - Ratio;
+		OutBarycentric[1] = Ratio;
+		return Closest;
+	}
+
+
 	struct FSimplex
 	{
 		int32 NumVerts;
@@ -231,6 +270,163 @@ namespace Chaos
 	}
 
 	template <typename T>
+	TVec3<T> TriangleSimplexFindOrigin2(TVec3<T>* Simplex, int32& NumVerts, T* OutBarycentric, TVec3<T>* As, TVec3<T>* Bs)
+	{
+		const TVec3<T>& A = Simplex[0];
+		const TVec3<T>& B = Simplex[1];
+		const TVec3<T>& C = Simplex[2];
+
+		// Vertex region A
+		const TVec3<T> AB = B - A;
+		const TVec3<T> AC = C - A;
+		const TVec3<T> AO = -A;
+
+		const T d1 = TVec3<T>::DotProduct(AB, AO);
+		const T d2 = TVec3<T>::DotProduct(AC, AO);
+
+		const bool bIsD1LEZero = (d1 <= T(0));
+		const bool bIsD2LEZero = (d2 <= T(0));
+		const bool bIsA = bIsD1LEZero && bIsD2LEZero;
+		if (bIsA)
+		{
+			NumVerts = 1;
+			OutBarycentric[0] = T(1);
+			return A;
+		}
+
+		//Vertex region B
+		const TVec3<T> BO = -B;
+		const T d3 = TVec3<T>::DotProduct(AB, BO);
+		const T d4 = TVec3<T>::DotProduct(AC, BO);
+
+		const bool bIsD3GEZero = (d3 >= T(0));
+		const bool bIsD3GED4 = (d4 >= d4);
+		const bool bIsB = bIsD3GEZero && bIsD3GED4;
+		if (bIsB)
+		{
+			NumVerts = 1;
+			OutBarycentric[0] = T(1);
+			Simplex[0] = B;
+			As[0] = As[1];
+			Bs[0] = Bs[1];
+			return B;
+		}
+
+		// Edge AB
+		const T d1d4 = d1 * d4;
+		const T vc = d1d4 - d2 * d3;
+		const T NormalizationDenominatorAB = d1 - d3;
+
+		const bool bIsZeroGEvc = (vc <= T(0));
+		const bool bIsD1GEZero = (d1 >= T(0));
+		const bool bIsZeroGED3 = (d3 <= T(0));
+		const bool bIsNDABGTZero = (NormalizationDenominatorAB > T(0));
+		const bool bIsAB = bIsZeroGEvc && bIsD1GEZero && bIsZeroGED3 && bIsNDABGTZero;
+
+		if (bIsAB)
+		{
+			NumVerts = 2;
+			const T V = d1 / NormalizationDenominatorAB;
+			const T OneMinusV = T(1) - V;
+			OutBarycentric[0] = OneMinusV;
+			OutBarycentric[1] = V;
+			return A + V * AB;
+		}
+
+		// Vertex C
+		const TVec3<T> CO = -C;
+		const T d5 = TVec3<T>::DotProduct(AB, CO);
+		const T d6 = TVec3<T>::DotProduct(AC, CO);
+		const bool bIsD6GEZero = (d6 >= T(0));
+		const bool bIsD6GED5 = (d6 >= d5);
+		const bool bIsC = bIsD6GEZero && bIsD6GED5;
+		if (bIsC)
+		{
+			NumVerts = 1;
+			OutBarycentric[0] = T(1);
+			Simplex[0] = C;
+			As[0] = As[2];
+			Bs[0] = Bs[2];
+			return C;
+		}
+
+		// Edge AC
+		const T d5d2 = d5 * d2;
+		const T vb = d5d2 - d1 * d6;
+		const T NormalizationDenominatorAC = d2 - d6;
+
+		const bool bIsZeroGEvb = (vb <= T(0));
+		const bool bIsD2GEZero = (d2 >= T(0));
+		const bool bIsZeroGED6 = (d6 <= T(0));
+		const bool bIsNDACGTZero = (NormalizationDenominatorAC > T(0));
+		const bool bIsAC = bIsZeroGEvb && bIsD2GEZero && bIsZeroGED6 && bIsNDACGTZero;
+		if (bIsAC)
+		{
+			const T W = d2 / NormalizationDenominatorAC;
+			const T OneMinusW = T(1) - W;
+			NumVerts = 2;
+			OutBarycentric[0] = OneMinusW;
+			OutBarycentric[1] = W;
+			Simplex[1] = C;
+			As[1] = As[2];
+			Bs[1] = Bs[2];
+			return A + W * AC;
+		}
+
+		// Edge BC
+		const T d3d6 = d3 * d6;
+		const T va = d3d6 - d5 * d4;
+		const T d4MinusD3 = d4 - d3;
+		const T d5MinusD6 = d5 - d6;
+		const T NormalizationDenominatorBC = d4MinusD3 + d5MinusD6;
+
+		const bool bIsZeroGEva = (va <= T(0));
+		const bool bIsD4MinusD3GEZero = (d4MinusD3 >= T(0));
+		const bool bIsD5MinusD6GEZero = (d5MinusD6 >= T(0));
+		const bool bIsNDBCGTZero = (NormalizationDenominatorBC > T(0));
+		const bool bIsBC = bIsZeroGEva && bIsD4MinusD3GEZero && bIsD5MinusD6GEZero && bIsNDBCGTZero;
+		if (bIsBC)
+		{
+			const T W = d4MinusD3 / NormalizationDenominatorBC;
+			const T OneMinusW = T(1) - W;
+			NumVerts = 2;
+			OutBarycentric[0] = OneMinusW;
+			OutBarycentric[1] = W;
+			const TVec3<T> CMinusB = C - B;
+			const TVec3<T> Result = B + W * CMinusB;
+			Simplex[0] = B;
+			Simplex[1] = C;
+			As[0] = As[1];
+			Bs[0] = Bs[1];
+			As[1] = As[2];
+			Bs[1] = Bs[2];
+			return Result;
+		}
+
+		// Inside triangle
+		const T denom = T(1) / (va + vb + vc);
+		const T U = va * denom;
+		const T V = vb * denom;
+		const T W = vc * denom;
+		NumVerts = 3;
+		OutBarycentric[0] = U;
+		OutBarycentric[1] = V;
+		OutBarycentric[2] = W;
+
+		// We know that we are inside the triangle so we project the origin onto the plane
+		// The closest point can also be derived from the barycentric coordinates, but it will contain 
+		// numerical error from the determinant calculation  and can cause GJK to terminate with a poor solution.
+		// (E.g., this caused jittering when walking on box with dimensions of 100000cm or more).
+		// This fix the unit test TestSmallCapsuleLargeBoxGJKRaycast_Vertical
+		// Previously was return VectorMultiplyAdd(AC, w, VectorMultiplyAdd(AB, v, A));
+		const TVec3<T> TriNormal = TVec3<T>::CrossProduct(AB, AC);
+		const T TriNormal2 = TVec3<T>::DotProduct(TriNormal, TriNormal);
+		const TVec3<T> TriNormalOverSize2 = TriNormal / TriNormal2;
+		const T SignedDistance = TVec3<T>::DotProduct(A, TriNormalOverSize2);
+		return TriNormal * SignedDistance;
+	}
+
+	template <typename T>
 	TVec3<T> TetrahedronSimplexFindOrigin(const TVec3<T>* Simplex, FSimplex& Idxs, T* OutBarycentric)
 	{
 		const int32 Idx0 = Idxs[0];
@@ -304,6 +500,79 @@ namespace Chaos
 	}
 
 	template <typename T>
+	TVec3<T> TetrahedronSimplexFindOrigin2(TVec3<T>* Simplex, int32& NumVerts, T* OutBarycentric, TVec3<T>* A, TVec3<T>* B)
+	{
+		const TVec3<T>& X0 = Simplex[0];
+		const TVec3<T>& X1 = Simplex[1];
+		const TVec3<T>& X2 = Simplex[2];
+		const TVec3<T>& X3 = Simplex[3];
+
+		//Use signed volumes to determine if origin is inside or outside
+		/*
+			M = [X0x X1x X2x X3x;
+				 X0y X1y X2y X3y;
+				 X0z X1z X2z X3z;
+				 1   1   1   1]
+		*/
+
+		T Cofactors[4];
+		Cofactors[0] = -TVec3<T>::DotProduct(X1, TVec3<T>::CrossProduct(X2, X3));
+		Cofactors[1] = TVec3<T>::DotProduct(X0, TVec3<T>::CrossProduct(X2, X3));
+		Cofactors[2] = -TVec3<T>::DotProduct(X0, TVec3<T>::CrossProduct(X1, X3));
+		Cofactors[3] = TVec3<T>::DotProduct(X0, TVec3<T>::CrossProduct(X1, X2));
+		T DetM = (Cofactors[0] + Cofactors[1]) + (Cofactors[2] + Cofactors[3]);
+
+		bool bSignMatch[4];
+		int32 SubNumVerts[4] = { 3, 3, 3, 3 };
+		TVec3<T> SubSimplices[4][3] = { {Simplex[1], Simplex[2], Simplex[3]}, {Simplex[0], Simplex[2], Simplex[3]}, {Simplex[0], Simplex[1], Simplex[3]}, {Simplex[0], Simplex[1], Simplex[2]} };
+		TVec3<T> SubAs[4][3] = { {A[1], A[2], A[3]}, {A[0], A[2], A[3]}, {A[0], A[1], A[3]}, {A[0], A[1], A[2]} };
+		TVec3<T> SubBs[4][3] = { {B[1], B[2], B[3]}, {B[0], B[2], B[3]}, {B[0], B[1], B[3]}, {B[0], B[1], B[2]} };
+		TVec3<T> ClosestPointSub[4];
+		T SubBarycentric[4][4];
+		int32 ClosestTriangleIdx = INDEX_NONE;
+		T MinTriangleDist2 = 0;
+
+		bool bInside = true;
+		for (int Idx = 0; Idx < 4; ++Idx)
+		{
+			bSignMatch[Idx] = SignMatch(DetM, Cofactors[Idx]);
+			if (!bSignMatch[Idx])
+			{
+				bInside = false;
+				ClosestPointSub[Idx] = TriangleSimplexFindOrigin2(SubSimplices[Idx], SubNumVerts[Idx], SubBarycentric[Idx], SubAs[Idx], SubBs[Idx]);
+
+				const T Dist2 = ClosestPointSub[Idx].SizeSquared();
+				if (ClosestTriangleIdx == INDEX_NONE || Dist2 < MinTriangleDist2)
+				{
+					MinTriangleDist2 = Dist2;
+					ClosestTriangleIdx = Idx;
+				}
+			}
+		}
+
+		if (bInside)
+		{
+			OutBarycentric[0] = Cofactors[0] / DetM;
+			OutBarycentric[1] = Cofactors[1] / DetM;
+			OutBarycentric[2] = Cofactors[2] / DetM;
+			OutBarycentric[3] = Cofactors[3] / DetM;
+
+			return TVec3<T>(0);
+		}
+
+		NumVerts = SubNumVerts[ClosestTriangleIdx];
+		for (int i = 0; i < 3; i++)
+		{
+			OutBarycentric[i] = SubBarycentric[ClosestTriangleIdx][i];
+			Simplex[i] = SubSimplices[ClosestTriangleIdx][i];
+			A[i] = SubAs[ClosestTriangleIdx][i];
+			B[i] = SubBs[ClosestTriangleIdx][i];
+		}
+
+		return ClosestPointSub[ClosestTriangleIdx];
+	}
+
+	template <typename T>
 	void ReorderGJKArray(T* Data, FSimplex& Idxs)
 	{
 		const T D0 = Data[Idxs[0]];
@@ -364,4 +633,32 @@ namespace Chaos
 
 		return ClosestPoint;
 	}
+
+	template <typename T>
+	TVec3<T> SimplexFindClosestToOrigin2(TVec3<T>* Simplex, int32& NumVerts, T* OutBarycentric, TVec3<T>* A, TVec3<T>* B)
+	{
+		TVec3<T> ClosestPoint;
+		switch (NumVerts)
+		{
+		case 1:
+			OutBarycentric[0] = T(1);
+			return Simplex[0];
+		case 2:
+		{
+			return LineSimplexFindOrigin2(Simplex, NumVerts, OutBarycentric, A, B);
+		}
+		case 3:
+		{
+			return TriangleSimplexFindOrigin2(Simplex, NumVerts, OutBarycentric, A, B);
+		}
+		case 4:
+		{
+			return TetrahedronSimplexFindOrigin2(Simplex, NumVerts, OutBarycentric, A, B);
+		}
+		default:
+			ensure(false);
+			return TVec3<T>(0);
+		}
+	}
+
 }
