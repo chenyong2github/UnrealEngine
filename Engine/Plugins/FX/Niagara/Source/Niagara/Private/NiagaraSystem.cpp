@@ -3159,6 +3159,12 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 		ForceGraphToRecompileOnNextCheck();
 	}
 
+	// we can't compile systems that have been cooked without editor data
+	if (RootPackageHasAnyFlags(PKG_FilterEditorOnly))
+	{
+		return false;
+	}
+
 	if (bCompilationReentrantGuard)
 	{
 		return false;
