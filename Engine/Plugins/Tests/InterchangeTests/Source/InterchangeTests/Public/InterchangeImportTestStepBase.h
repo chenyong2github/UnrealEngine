@@ -5,12 +5,11 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/EngineTypes.h"
+#include "Misc/AutomationTest.h"
 #include "InterchangeImportTestData.h"
 #include "InterchangeManager.h"
+#include "InterchangeTestFunction.h"
 #include "InterchangeImportTestStepBase.generated.h"
-
-class FAutomationTestExecutionInfo;
-struct FInterchangeTestFunction;
 
 
 struct FTestStepResults

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImportTestFunctions/SkeletalMeshImportTestFunctions.h"
-#include "InterchangeTestFunction.h"
 
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImportTestFunctions/MaterialImportTestFunctions.h"
-#include "InterchangeTestFunction.h"
 #include "Materials/MaterialInterface.h"
 
 

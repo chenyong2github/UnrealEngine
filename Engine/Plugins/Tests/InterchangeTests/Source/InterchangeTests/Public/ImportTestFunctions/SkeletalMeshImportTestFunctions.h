@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ImportTestFunctionsBase.h"
+#include "InterchangeTestFunction.h"
 #include "SkeletalMeshImportTestFunctions.generated.h"
 
 struct FInterchangeTestFunctionResult;

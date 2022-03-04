@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NaniteDefinitions.h"
+#include "Math/Bounds.h"
 
 struct FMeshNaniteSettings;
 

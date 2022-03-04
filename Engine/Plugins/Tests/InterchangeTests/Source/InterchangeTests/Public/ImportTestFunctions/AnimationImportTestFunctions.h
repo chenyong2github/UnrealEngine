@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ImportTestFunctionsBase.h"
+#include "InterchangeTestFunction.h"
 #include "AnimationImportTestFunctions.generated.h"
 
 struct FInterchangeTestFunctionResult;

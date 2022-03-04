@@ -2,7 +2,6 @@
 
 #include "InterchangeImportTestStepBase.h"
 #include "InterchangeImportTestData.h"
-#include "InterchangeTestFunction.h"
 
 
 bool UInterchangeImportTestStepBase::PerformTests(FInterchangeImportTestData& Data, FAutomationTestExecutionInfo& ExecutionInfo)
