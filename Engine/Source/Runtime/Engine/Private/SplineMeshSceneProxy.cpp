@@ -24,6 +24,8 @@ void FSplineMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactory
 	// We don't call this because we don't actually support speed tree wind, and this advertises support for that
 	//FLocalVertexFactory::ModifyCompilationEnvironment(Type, Platform, Material, OutEnvironment);
 
+	FLocalVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
 	OutEnvironment.SetDefine(TEXT("USE_SPLINEDEFORM"), TEXT("1"));
 }
 
@@ -31,7 +33,7 @@ FSplineMeshSceneProxy::FSplineMeshSceneProxy(USplineMeshComponent* InComponent) 
 	FStaticMeshSceneProxy(InComponent, false)
 {
 	bSupportsDistanceFieldRepresentation = false;
-	bVFRequiresPrimitiveUniformBuffer = true;
+	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel());
 
 	// make sure all the materials are okay to be rendered as a spline mesh
 	for (FStaticMeshSceneProxy::FLODInfo& LODInfo : LODs)

@@ -41,24 +41,44 @@ uint InstanceOffset;
 #endif	// USE_INSTANCING
 
 #if USE_SPLINEDEFORM
-float4 SplineParams[10];
-#define SplineStartPos			SplineParams[0].xyz
-#define SplineStartRoll			SplineParams[0].w
-#define SplineStartTangent		SplineParams[1].xyz
-#define SplineEndRoll			SplineParams[1].w
-#define SplineStartScale		SplineParams[2].xy
-#define SplineStartOffset		SplineParams[2].zw
-#define SplineEndPos			SplineParams[3].xyz
-#define SmoothInterpRollScale	SplineParams[3].w
-#define SplineEndTangent		SplineParams[4].xyz
-#define SplineMeshMinZ			SplineParams[4].w
-#define SplineEndScale			SplineParams[5].xy
-#define SplineEndOffset			SplineParams[5].zw
-#define SplineUpDir				SplineParams[6].xyz
-#define SplineMeshScaleZ		SplineParams[6].w
-#define SplineMeshDir			SplineParams[7].xyz
-#define SplineMeshX				SplineParams[8].xyz
-#define SplineMeshY				SplineParams[9].xyz
+	#if VF_SUPPORTS_PRIMITIVE_SCENE_DATA
+		#define SplineStartPos			GetPrimitiveData(PrimitiveId).CustomPrimitiveData[0].xyz
+		#define SplineStartRoll			GetPrimitiveData(PrimitiveId).CustomPrimitiveData[0].w
+		#define SplineStartTangent		GetPrimitiveData(PrimitiveId).CustomPrimitiveData[1].xyz
+		#define SplineEndRoll			GetPrimitiveData(PrimitiveId).CustomPrimitiveData[1].w
+		#define SplineStartScale		GetPrimitiveData(PrimitiveId).CustomPrimitiveData[2].xy
+		#define SplineStartOffset		GetPrimitiveData(PrimitiveId).CustomPrimitiveData[2].zw
+		#define SplineEndPos			GetPrimitiveData(PrimitiveId).CustomPrimitiveData[3].xyz
+		#define SmoothInterpRollScale	GetPrimitiveData(PrimitiveId).CustomPrimitiveData[3].w
+		#define SplineEndTangent		GetPrimitiveData(PrimitiveId).CustomPrimitiveData[4].xyz
+		#define SplineMeshMinZ			GetPrimitiveData(PrimitiveId).CustomPrimitiveData[4].w
+		#define SplineEndScale			GetPrimitiveData(PrimitiveId).CustomPrimitiveData[5].xy
+		#define SplineEndOffset			GetPrimitiveData(PrimitiveId).CustomPrimitiveData[5].zw
+		#define SplineUpDir				GetPrimitiveData(PrimitiveId).CustomPrimitiveData[6].xyz
+		#define SplineMeshScaleZ		GetPrimitiveData(PrimitiveId).CustomPrimitiveData[6].w
+		#define SplineMeshDir			GetPrimitiveData(PrimitiveId).CustomPrimitiveData[7].xyz
+		#define SplineMeshX				GetPrimitiveData(PrimitiveId).CustomPrimitiveData[8].xyz
+		#define SplineMeshY				float3(0, 0, 1)
+	#else
+		float4 SplineParams[10];
+		#define SplineStartPos			SplineParams[0].xyz
+		#define SplineStartRoll			SplineParams[0].w
+		#define SplineStartTangent		SplineParams[1].xyz
+		#define SplineEndRoll			SplineParams[1].w
+		#define SplineStartScale		SplineParams[2].xy
+		#define SplineStartOffset		SplineParams[2].zw
+		#define SplineEndPos			SplineParams[3].xyz
+		#define SmoothInterpRollScale	SplineParams[3].w
+		#define SplineEndTangent		SplineParams[4].xyz
+		#define SplineMeshMinZ			SplineParams[4].w
+		#define SplineEndScale			SplineParams[5].xy
+		#define SplineEndOffset			SplineParams[5].zw
+		#define SplineUpDir				SplineParams[6].xyz
+		#define SplineMeshScaleZ		SplineParams[6].w
+		#define SplineMeshDir			SplineParams[7].xyz
+		#define SplineMeshX				SplineParams[8].xyz
+		#define SplineMeshY				SplineParams[9].xyz
+	#endif
 #endif	// USE_SPLINEDEFORM
 
 #ifndef MANUAL_VERTEX_FETCH
@@ -587,7 +607,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	}
 
 	/** Calculate full transform that defines frame along spline, given the Z of a vertex. */
-	float4x3 CalcSliceTransform(float ZPos)
+	float4x3 CalcSliceTransform(float ZPos, uint PrimitiveId)
 	{
 		// Find how far 'along' mesh we are
 		float Alpha = ZPos * SplineMeshScaleZ - SplineMeshMinZ;
@@ -629,7 +649,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	}
 
 	/** Calculate rotation matrix that defines frame along spline, given the Z of a vertex. */
-	half3x3 CalcSliceRot(float ZPos)
+	half3x3 CalcSliceRot(float ZPos, uint PrimitiveId)
 	{
 		// Find how far 'along' mesh we are
 		half Alpha = ZPos * SplineMeshScaleZ - SplineMeshMinZ;
@@ -682,7 +702,7 @@ float4 CalcWorldPosition(float4 Position, uint PrimitiveId)
 	// Transform from mesh to world space
 	return TransformLocalToTranslatedWorld(LocalPos.xyz);
 	*/
-	return INVARIANT(TransformLocalToTranslatedWorld(float3(mul(Position, CalcSliceTransform(dot(Position.xyz, SplineMeshDir))).xyz), PrimitiveId));
+	return INVARIANT(TransformLocalToTranslatedWorld(float3(mul(Position, CalcSliceTransform(dot(Position.xyz, SplineMeshDir), PrimitiveId)).xyz), PrimitiveId));
 #else
 	return TransformLocalToTranslatedWorld(Position.xyz, PrimitiveId);
 #endif
@@ -690,6 +710,11 @@ float4 CalcWorldPosition(float4 Position, uint PrimitiveId)
 
 half3x3 CalcTangentToLocal(FVertexFactoryInput Input, out float TangentSign)
 {
+	uint PrimitiveId = 0;
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	PrimitiveId = Input.PrimitiveId;
+#endif
+
 	half3x3 Result;
 	
 #if MANUAL_VERTEX_FETCH
@@ -712,7 +737,7 @@ half3x3 CalcTangentToLocal(FVertexFactoryInput Input, out float TangentSign)
 
 #if USE_SPLINEDEFORM
 	// Make slice rotation matrix, and use that to transform tangents
-	half3x3 SliceRot = CalcSliceRot(dot(Input.Position.xyz, SplineMeshDir));
+	half3x3 SliceRot = CalcSliceRot(dot(Input.Position.xyz, SplineMeshDir), PrimitiveId);
 
 	TangentX = mul(TangentX, SliceRot);
 	TangentZ.xyz = mul(TangentZ.xyz, SliceRot);
@@ -1033,7 +1058,8 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 	return mul(float4(PreviousPos, 1), PreviousLocalToWorldTranslated);
 #elif USE_SPLINEDEFORM
 	// Just like CalcWorldPosition...
-	float4x3 SliceTransform = CalcSliceTransform(dot(Input.Position.xyz, SplineMeshDir));
+	uint PrimitiveId = Intermediates.PrimitiveId;
+	float4x3 SliceTransform = CalcSliceTransform(dot(Input.Position.xyz, SplineMeshDir), PrimitiveId);
 
 	// Transform into mesh space
 	float4 LocalPos = float4(mul(Input.Position, SliceTransform), Input.Position.w);
