@@ -6,6 +6,10 @@
 #include "UObject/Package.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
+#if WITH_EDITORONLY_DATA
+#include "Serialization/TextReferenceCollector.h"
+#endif //WITH_EDITORONLY_DATA
+
 FSMInstanceElementIdMapEntry::FSMInstanceElementIdMapEntry(FSMInstanceElementIdMap* InOwner, UInstancedStaticMeshComponent* InComponent)
 	: Owner(InOwner)
 	, Component(InComponent)
@@ -355,6 +359,13 @@ void FSMInstanceElementIdMap::AddReferencedObjects(FReferenceCollector& Collecto
 #endif	// WITH_EDITORONLY_DATA
 }
 
+USMInstanceElementIdMapTransactor::USMInstanceElementIdMapTransactor()
+{
+#if WITH_EDITORONLY_DATA
+	// The map transactor should not get text reference collected, as it is native and transient only, and should not find its way into asset packages
+	{ static const FAutoRegisterTextReferenceCollectorCallback AutomaticRegistrationOfTextReferenceCollector(USMInstanceElementIdMapTransactor::StaticClass(), [](UObject* Object, FArchive& Ar) {}); }
+#endif //WITH_EDITORONLY_DATA
+}
 
 #if WITH_EDITORONLY_DATA
 void USMInstanceElementIdMapTransactor::Serialize(FArchive& Ar)

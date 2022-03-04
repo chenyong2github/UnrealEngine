@@ -195,6 +195,8 @@ class USMInstanceElementIdMapTransactor : public UObject
 	GENERATED_BODY()
 
 public:
+	USMInstanceElementIdMapTransactor();
+
 #if WITH_EDITORONLY_DATA
 	void SetOwnerEntry(FSMInstanceElementIdMapEntry* InOwnerEntry)
 	{

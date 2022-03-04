@@ -10,6 +10,10 @@
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
 
+#if WITH_EDITORONLY_DATA
+#include "Serialization/TextReferenceCollector.h"
+#endif //WITH_EDITORONLY_DATA
+
 void FTypedElementSelectionCustomization::GetNormalizedElements(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements)
 {
 	// Don't include this element in the normalized selection if it has a parent element that is also selected
@@ -41,6 +45,11 @@ UTypedElementSelectionSet::UTypedElementSelectionSet()
 		ElementList->OnPreChange().AddUObject(this, &UTypedElementSelectionSet::OnElementListPreChange);
 		ElementList->OnChanged().AddUObject(this, &UTypedElementSelectionSet::OnElementListChanged);
 	}
+	
+#if WITH_EDITORONLY_DATA
+	// The selection set should not get text reference collected, as it is native and transient only, and should not find its way into asset packages
+	{ static const FAutoRegisterTextReferenceCollectorCallback AutomaticRegistrationOfTextReferenceCollector(UTypedElementSelectionSet::StaticClass(), [](UObject* Object, FArchive& Ar) {}); }
+#endif //WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITOR
