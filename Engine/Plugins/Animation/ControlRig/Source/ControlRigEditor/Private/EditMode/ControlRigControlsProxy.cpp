@@ -712,6 +712,11 @@ void UControlRigDetailPanelControlProxies::AddProxy(const FName& Name, UControlR
 			case ERigControlType::Float:
 			{
 				Proxy = NewObject<UControlRigFloatControlProxy>(GetTransientPackage(), NAME_None);
+				FRigControlElement* ParentControlElement = Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(ControlElement));
+				if (ParentControlElement)
+				{
+					Proxy->bIsIndividual = true;
+				}
 				break;
 
 			}
@@ -726,6 +731,11 @@ void UControlRigDetailPanelControlProxies::AddProxy(const FName& Name, UControlR
 					UControlRigEnumControlProxy* EnumProxy = NewObject<UControlRigEnumControlProxy>(GetTransientPackage(), NAME_None);
 					EnumProxy->Enum.EnumType = ControlElement->Settings.ControlEnum;
 					Proxy = EnumProxy;
+				}
+				FRigControlElement* ParentControlElement = Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(ControlElement));
+				if (ParentControlElement)
+				{
+					Proxy->bIsIndividual = true;
 				}
 				break;
 
@@ -747,6 +757,11 @@ void UControlRigDetailPanelControlProxies::AddProxy(const FName& Name, UControlR
 			case ERigControlType::Bool:
 			{
 				Proxy = NewObject<UControlRigBoolControlProxy>(GetTransientPackage(), NAME_None);
+				FRigControlElement* ParentControlElement = Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(ControlElement));
+				if (ParentControlElement)
+				{
+					Proxy->bIsIndividual = true;
+				}
 				break;
 
 			}
@@ -824,11 +839,7 @@ void UControlRigDetailPanelControlProxies::SelectProxy(const FName& Name, bool b
 		{
 			if (!SelectedProxies.Contains(Proxy))
 			{
-				//don't show more than 5 for performance
-				if (SelectedProxies.Num() < 5)
-				{
-					SelectedProxies.Add(Proxy);
-				}
+				SelectedProxies.Add(Proxy);
 			}
 		}
 		else

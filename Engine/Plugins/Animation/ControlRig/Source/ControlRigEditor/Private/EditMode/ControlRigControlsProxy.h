@@ -36,6 +36,7 @@ public:
 	virtual void PostEditUndo() override;
 #endif
 	void SetIsMultiple(bool bIsVal); 
+	void SetIsIndividual(bool bIsVal);
 public:
 
 	FRigControlElement* GetControlElement() const;
@@ -45,6 +46,10 @@ public:
 	bool bSelected;
 	UPROPERTY(VisibleAnywhere, Category = "Control")
 	FName ControlName;
+
+	//if individual it will show up independently, this will happen for certain nested controls
+	bool bIsIndividual = false;
+
 protected:
 	bool bIsMultiple = 0;
 	FName Name;

@@ -50,18 +50,6 @@ class SControlRigDetails: public SCompoundWidget, public FControlRigBaseDockable
 
 	void Construct(const FArguments& InArgs, FControlRigEditMode& InEditMode);
 
-	/** Set the objects to be displayed in the details panel */
-	void SetSettingsDetailsObject(const TWeakObjectPtr<>& InObject);
-	void SetEulerTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetTransformNoScaleDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetFloatDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetBoolDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetIntegerDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetEnumDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetVectorDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-	void SetVector2DDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-
 	// IDetailKeyframeHandler interface
 	virtual bool IsPropertyKeyable(const UClass* InObjectClass, const class IPropertyHandle& PropertyHandle) const override;
 	virtual bool IsPropertyKeyingEnabled() const override;
@@ -73,10 +61,24 @@ class SControlRigDetails: public SCompoundWidget, public FControlRigBaseDockable
 	bool IsReadOnlyPropertyOnDetailCustomization(const struct FPropertyAndParent& InPropertyAndParent) const;
 
 private:
+
+	/** Set the objects to be displayed in the details panel */
+	void SetSettingsDetailsObject(const TWeakObjectPtr<>& InObject);
+	void SetEulerTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetTransformNoScaleDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetVectorDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetVector2DDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetFloatDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
+	void SetBoolDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
+	void SetIntegerDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
+	void SetEnumDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects, bool bIsIndividual);
+
 	void UpdateProxies();
 	virtual void HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected) override;
 	virtual void HandleControlAdded(UControlRig* ControlRig, bool bIsAdded) override;
 
+	//these views will hold more than one of the same tyhpe
 	TSharedPtr<IDetailsView> ControlEulerTransformDetailsView;
 	TSharedPtr<IDetailsView> ControlTransformDetailsView;
 	TSharedPtr<IDetailsView> ControlTransformNoScaleDetailsView;
@@ -86,6 +88,11 @@ private:
 	TSharedPtr<IDetailsView> ControlEnumDetailsView;
 	TSharedPtr<IDetailsView> ControlVector2DDetailsView;
 	TSharedPtr<IDetailsView> ControlVectorDetailsView;
+	//these will show more than one of the same type, will happen for controls with parents.
+	TSharedPtr<IDetailsView> IndividualControlFloatDetailsView;
+	TSharedPtr<IDetailsView> IndividualControlBoolDetailsView;
+	TSharedPtr<IDetailsView> IndividualControlIntegerDetailsView;
+	TSharedPtr<IDetailsView> IndividualControlEnumDetailsView;
 
 };
 
