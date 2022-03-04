@@ -124,6 +124,7 @@ void UCommonActivatableWidgetContainerBase::ReleaseSlateResources(bool bReleaseC
 	MyOverlay.Reset();
 	MyInputGuard.Reset();
 	MySwitcher.Reset();
+	ReleasedWidgets.Empty();
 
 	GeneratedWidgetsPool.ReleaseAllSlateResources();
 }
