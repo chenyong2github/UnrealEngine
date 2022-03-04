@@ -8077,25 +8077,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		}
 	}
 
-	// don't resave the global shader map files in dlc
-	if (!IsCookingDLC() && !(CookByTheBookStartupOptions.CookOptions & ECookByTheBookOptions::ForceDisableSaveGlobalShaders))
-	{
-		OpenGlobalShaderLibrary();
-
-		SaveGlobalShaderMapFiles(TargetPlatforms);
-
-		SaveAndCloseGlobalShaderLibrary();
-	}
-	
-	// Open the shader code library for the current project or the current DLC pack, depending on which we are cooking
-    {
-		FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
-		if (LibraryName.Len() > 0)
-		{
-			OpenShaderLibrary(LibraryName);
-		}
-	}
-
 	TSet<FName> StartupSoftObjectPackages;
 	if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 	{
@@ -8225,6 +8206,26 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	{
 		BeginCookSandbox(TargetPlatforms);
 	}
+
+	// don't resave the global shader map files in dlc
+	if (!IsCookingDLC() && !(CookByTheBookStartupOptions.CookOptions & ECookByTheBookOptions::ForceDisableSaveGlobalShaders))
+	{
+		OpenGlobalShaderLibrary();
+
+		SaveGlobalShaderMapFiles(TargetPlatforms);
+
+		SaveAndCloseGlobalShaderLibrary();
+	}
+
+	// Open the shader code library for the current project or the current DLC pack, depending on which we are cooking
+	{
+		FString LibraryName = !IsCookingDLC() ? FApp::GetProjectName() : CookByTheBookOptions->DlcName;
+		if (LibraryName.Len() > 0)
+		{
+			OpenShaderLibrary(LibraryName);
+		}
+	}
+
 	if (bHybridIterativeDebug)
 	{
 		// Discoveries during the processing of the initial cluster are expected, so LogDiscoveredPackages must be off.
