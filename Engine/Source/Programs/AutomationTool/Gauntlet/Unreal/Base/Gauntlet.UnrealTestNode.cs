@@ -1251,8 +1251,8 @@ namespace Gauntlet
 					}
 				}
 				// Convert test results for Horde
-				HordeReport.UnrealEngineTestPassResults HordeTestPassResults = HordeReport.UnrealEngineTestPassResults.FromUnrealAutomatedTests(JsonTestPassResults, UnrealAutomatedTestReportPath, ReportURL);
-				HordeTestPassResults.CopyTestResultsArtifacts(HordeArtifactPath);
+				HordeReport.UnrealEngineTestPassResults HordeTestPassResults = HordeReport.UnrealEngineTestPassResults.FromUnrealAutomatedTests(JsonTestPassResults, ReportURL);
+				HordeTestPassResults.CopyTestResultsArtifacts(UnrealAutomatedTestReportPath, HordeArtifactPath);
 				// Metadata
 				// With UE Test Automation, we care only for one role.
 				var MainRole = new List<UnrealTestRole>() { GetConfiguration().GetMainRequiredRole() };

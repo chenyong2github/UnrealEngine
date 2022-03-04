@@ -464,9 +464,9 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUn
 		
 	// make all these paths relative to the report path so the report can be relocated outside of the project directory
 	// and the files still found.
-	FPaths::MakePathRelativeTo(ComparisonResult.ReportApprovedFilePath, *ReportPathOnDisk);
-	FPaths::MakePathRelativeTo(ComparisonResult.ReportIncomingFilePath, *ReportPathOnDisk);
-	FPaths::MakePathRelativeTo(ComparisonResult.ReportComparisonFilePath, *ReportPathOnDisk);
+	FPaths::MakePathRelativeTo(ComparisonResult.ReportApprovedFilePath, *ScreenshotResultsFolder);
+	FPaths::MakePathRelativeTo(ComparisonResult.ReportIncomingFilePath, *ScreenshotResultsFolder);
+	FPaths::MakePathRelativeTo(ComparisonResult.ReportComparisonFilePath, *ScreenshotResultsFolder);
 
 	// save the result at to a report
 	FString Json;
@@ -493,9 +493,9 @@ FScreenshotExportResult FScreenShotManager::ExportScreenshotComparisonResult(FSt
 
 	FScreenshotExportResult Results;
 	Results.Success = false;
-	Results.ExportPath = RootExportFolder / FString::FromInt(FEngineVersion::Current().GetChangelist());
+	Results.ExportPath = RootExportFolder;
 
-	FString Destination = Results.ExportPath / ScreenshotName;
+	FString Destination = RootExportFolder / ScreenshotName;
 	if (!IFileManager::Get().MakeDirectory(*Destination, /*Tree =*/true))
 	{
 		return Results;
@@ -553,7 +553,7 @@ bool FScreenShotManager::OpenComparisonReports(FString ImportPath, TArray<FCompa
 
 FString FScreenShotManager::GetDefaultExportDirectory() const
 {
-	return FPaths::Combine(FPaths::ProjectSavedDir(),TEXT("Exported/"));
+	return FPaths::Combine(FPaths::ProjectSavedDir(),TEXT("Exported/imageCompare"));
 }
 
 void FScreenShotManager::CopyDirectory(const FString& DestDir, const FString& SrcDir)

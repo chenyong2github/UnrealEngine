@@ -22,7 +22,7 @@ FScreenComparisonModel::FScreenComparisonModel(const FComparisonReport& InReport
 		that is where a blessed image should be checked in to.
 	*/
 
-	FString SourceImage = FPaths::Combine(Report.GetReportPath(), Report.GetComparisonResult().ReportIncomingFilePath);
+	FString SourceImage = FPaths::Combine(Report.GetReportRootDirectory(), Report.GetComparisonResult().ReportIncomingFilePath);
 	FString OutputImage = FPaths::Combine(FPaths::ProjectDir(), Report.GetComparisonResult().IdealApprovedFolderPath, FPaths::GetCleanFilename(Report.GetComparisonResult().IncomingFilePath));
 
 	FileImports.Add(FFileMapping(OutputImage, SourceImage));
@@ -53,7 +53,7 @@ TOptional<FAutomationScreenshotMetadata> FScreenComparisonModel::GetMetadata()
 	{
 		const FImageComparisonResult& Comparison = Report.GetComparisonResult();
 
-		FString IncomingImage = Report.GetReportPath() / Comparison.ReportIncomingFilePath;
+		FString IncomingImage = Report.GetReportRootDirectory() / Comparison.ReportIncomingFilePath;
 		FString IncomingMetadata = FPaths::ChangeExtension(IncomingImage, TEXT("json"));
 
 		if ( !IncomingMetadata.IsEmpty() )

@@ -343,7 +343,7 @@ bool SScreenComparisonRow::IsComparingAgainstPlatformFallback() const
 TSharedRef<SWidget> SScreenComparisonRow::BuildAddedView()
 {
 	const FImageComparisonResult& ComparisonResult = Model->Report.GetComparisonResult();
-	FString IncomingFile = FPaths::Combine(Model->Report.GetReportPath(), ComparisonResult.ReportIncomingFilePath);
+	FString IncomingFile = FPaths::Combine(Model->Report.GetReportRootDirectory(), ComparisonResult.ReportIncomingFilePath);
 
 	return
 		SNew(SVerticalBox)
@@ -410,7 +410,7 @@ TSharedRef<SWidget> SScreenComparisonRow::BuildComparisonPreview()
 {
 	const FImageComparisonResult& ComparisonResult = Model->Report.GetComparisonResult();
 
-	FString ApprovedFile = FPaths::Combine(Model->Report.GetReportPath(), ComparisonResult.ReportApprovedFilePath);
+	FString ApprovedFile = FPaths::Combine(Model->Report.GetReportRootDirectory(), ComparisonResult.ReportApprovedFilePath);
 
 	// If the actual approved file is on disk then use that so the tool-tip is more useful
 	if (IFileManager::Get().FileExists(*ComparisonResult.ApprovedFilePath))
@@ -418,8 +418,8 @@ TSharedRef<SWidget> SScreenComparisonRow::BuildComparisonPreview()
 		ApprovedFile = ComparisonResult.ApprovedFilePath;
 	}
 
-	FString IncomingFile = FPaths::Combine(Model->Report.GetReportPath(), ComparisonResult.ReportIncomingFilePath);
-	FString DeltaFile = FPaths::Combine(Model->Report.GetReportPath(), ComparisonResult.ReportComparisonFilePath);
+	FString IncomingFile = FPaths::Combine(Model->Report.GetReportRootDirectory(), ComparisonResult.ReportIncomingFilePath);
+	FString DeltaFile = FPaths::Combine(Model->Report.GetReportRootDirectory(), ComparisonResult.ReportComparisonFilePath);
 
 	// Create the screen shot data widget.
 	return 
@@ -596,7 +596,7 @@ FReply SScreenComparisonRow::OnCompareNewImage(const FGeometry& InGeometry, cons
 {
 
 	const FImageComparisonResult& ComparisonResult = Model->Report.GetComparisonResult();
-	FString IncomingFilePath = FPaths::Combine(Model->Report.GetReportPath(), ComparisonResult.ReportIncomingFilePath);
+	FString IncomingFilePath = FPaths::Combine(Model->Report.GetReportRootDirectory(), ComparisonResult.ReportIncomingFilePath);
 
 	TSharedPtr<FSlateDynamicImageBrush> UnapprovedImage = UnapprovedImageWidget->GetDynamicBrush();
 

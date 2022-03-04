@@ -359,9 +359,8 @@ namespace Gauntlet
 			/// Convert UnrealAutomatedTestPassResults to Horde data model
 			/// </summary>
 			/// <param name="InTestPassResults"></param>
-			/// <param name="ReportPath"></param>
 			/// <param name="ReportURL"></param>
-			public static UnrealEngineTestPassResults FromUnrealAutomatedTests(UnrealAutomatedTestPassResults InTestPassResults, string ReportPath, string ReportURL)
+			public static UnrealEngineTestPassResults FromUnrealAutomatedTests(UnrealAutomatedTestPassResults InTestPassResults, string ReportURL)
 			{
 				UnrealEngineTestPassResults OutTestPassResults = new UnrealEngineTestPassResults();
 				if (InTestPassResults.Devices != null)
@@ -412,9 +411,9 @@ namespace Gauntlet
 							NewArtifact.Name = InTestArtifact.Name;
 							NewArtifact.Type = InTestArtifact.Type;
 							ComparisonFiles ArtifactFiles = NewArtifact.Files;
-							ArtifactFiles.Difference = !string.IsNullOrEmpty(InTestArtifact.Files.Difference)?Path.Combine(ReportPath, InTestArtifact.Files.Difference):null;
-							ArtifactFiles.Approved = !string.IsNullOrEmpty(InTestArtifact.Files.Approved)?Path.Combine(ReportPath, InTestArtifact.Files.Approved):null;
-							ArtifactFiles.Unapproved = !string.IsNullOrEmpty(InTestArtifact.Files.Unapproved)?Path.Combine(ReportPath, InTestArtifact.Files.Unapproved):null;
+							ArtifactFiles.Difference = InTestArtifact.Files.Difference;
+							ArtifactFiles.Approved = InTestArtifact.Files.Approved;
+							ArtifactFiles.Unapproved = InTestArtifact.Files.Unapproved;
 						}
 						foreach (UnrealAutomationEntry InTestEntry in InTestResult.Entries)
 						{
@@ -436,8 +435,9 @@ namespace Gauntlet
 			/// <summary>
 			/// Copy Test Results Artifacts
 			/// </summary>
+			/// <param name="ReportPath"></param>
 			/// <param name="OutputArtifactPath"></param>
-			public void CopyTestResultsArtifacts(string InOutputArtifactPath)
+			public void CopyTestResultsArtifacts(string ReportPath, string InOutputArtifactPath)
 			{
 				SetOutputArtifactPath(InOutputArtifactPath);
 				int ArtifactsCount = 0;
@@ -447,14 +447,12 @@ namespace Gauntlet
 					// copy artifacts
 					foreach (Artifact TestArtifact in OutputTestResultDetailed.Artifacts)
 					{
+						
 						string[] ArtifactPaths= { TestArtifact.Files.Difference, TestArtifact.Files.Approved, TestArtifact.Files.Unapproved };
 						foreach (string ArtifactPath in ArtifactPaths)
 						{
-							if (AttachArtifact(ArtifactPath)) { ArtifactsCount++; }
+							if (!string.IsNullOrEmpty(ArtifactPath) && AttachArtifact(Path.Combine(ReportPath, ArtifactPath), ArtifactPath)) { ArtifactsCount++; }
 						}
-						TestArtifact.Files.Difference = Path.GetFileName(TestArtifact.Files.Difference);
-						TestArtifact.Files.Approved = Path.GetFileName(TestArtifact.Files.Approved);
-						TestArtifact.Files.Unapproved = Path.GetFileName(TestArtifact.Files.Unapproved);
 					}
 					// write test json blob
 					string TestResultFilePath = Path.Combine(OutputArtifactPath, OutputTestResult.ArtifactName);

@@ -442,20 +442,20 @@ void FAutomationControllerManager::ProcessComparisonQueue()
 				// Record the artifacts for the test.
 				TMap<FString, FString> LocalFiles;
 
-				FString ProjectDir = FPaths::ProjectDir();
+				FString ScreenshotResultsFolder = FPaths::AutomationReportsDir();
 	
-				// Paths in the result are relative to the project directory.	
-				LocalFiles.Add(TEXT("unapproved"), FPaths::Combine(ProjectDir, Result.IncomingFilePath));
+				// Paths in the result are relative to the automation report directory.	
+				LocalFiles.Add(TEXT("unapproved"), FPaths::Combine(ScreenshotResultsFolder, Result.ReportApprovedFilePath));
 
 				// unapproved should always be valid. but approved/difference may be empty if this is a new screenshot
-				if (Result.ApprovedFilePath.Len())
+				if (Result.ReportIncomingFilePath.Len())
 				{
-					LocalFiles.Add(TEXT("approved"), FPaths::Combine(ProjectDir, Result.ApprovedFilePath));
+					LocalFiles.Add(TEXT("approved"), FPaths::Combine(ScreenshotResultsFolder, Result.ReportIncomingFilePath));
 				}
 
-				if (Result.ComparisonFilePath.Len())
+				if (Result.ReportComparisonFilePath.Len())
 				{
-					LocalFiles.Add(TEXT("difference"), FPaths::Combine(ProjectDir, Result.ComparisonFilePath));
+					LocalFiles.Add(TEXT("difference"), FPaths::Combine(ScreenshotResultsFolder, Result.ReportComparisonFilePath));
 				}
 
 				Report->AddArtifact(ClusterIndex, CurrentTestPass, FAutomationArtifact(UniqueId, Entry->ScreenshotPath, EAutomationArtifactType::Comparison, LocalFiles));
@@ -537,6 +537,13 @@ void FAutomationControllerManager::CollectTestResults(TSharedPtr<IAutomationRepo
 
 		JsonTestPassResults.TotalDuration += Results.Duration;
 
+		FString ImageCompareDirName = TEXT("imageCompare");
+		if (FEngineVersion::Current().GetChangelist() != 0)
+		{
+			ImageCompareDirName = ImageCompareDirName / FString::FromInt(FEngineVersion::Current().GetChangelist());
+		}
+		FString ImageCompareExportPath = ReportExportPath / ImageCompareDirName;
+
 		// Copy new artifacts to Report export path
 		FCriticalSection CS;
 		for (FAutomationArtifact& Artifact : TestResult.GetArtifacts())
@@ -547,7 +554,9 @@ void FAutomationControllerManager::CollectTestResults(TSharedPtr<IAutomationRepo
 			ParallelFor(Keys.Num(), [&](int32 Index)
 				{
 					const FString& Key = Keys[Index];
-					FString Path = CopyArtifact(ReportExportPath, Artifact.LocalFiles[Key]);
+					FString Path = Artifact.LocalFiles[Key];
+					FPaths::MakePathRelativeTo(Path, *FPaths::AutomationReportsDir());
+					Path = ImageCompareDirName / Path;
 					{
 						FScopeLock Lock(&CS);
 						Artifact.Files.Add(Key, MoveTemp(Path));
@@ -555,7 +564,7 @@ void FAutomationControllerManager::CollectTestResults(TSharedPtr<IAutomationRepo
 					if (Key == TEXT("unapproved"))
 					{
 						// Copy screenshot report
-						FScreenshotExportResult ExportResult = ScreenshotManager->ExportScreenshotComparisonResult(Artifact.Name, ReportExportPath);
+						FScreenshotExportResult ExportResult = ScreenshotManager->ExportScreenshotComparisonResult(Artifact.Name, ImageCompareExportPath);
 
 						FScopeLock Lock(&CS);
 						if (!JsonTestPassResults.ComparisonExported && ExportResult.Success)
@@ -678,22 +687,6 @@ FString FAutomationControllerManager::SlugString(const FString& DisplayString) c
 	}
 
 	return GeneratedName;
-}
-
-FString FAutomationControllerManager::CopyArtifact(const FString& DestFolder, const FString& SourceFile) const
-{
-	FString ArtifactFile = FString(TEXT("artifacts")) / FGuid::NewGuid().ToString(EGuidFormats::Digits) + FPaths::GetExtension(SourceFile, true);
-	FString ArtifactDestination = DestFolder / ArtifactFile;
-	
-	if (IFileManager::Get().Copy(*ArtifactDestination, *SourceFile, true, true) != 0)
-	{
-		uint32 ErrorCode = FPlatformMisc::GetLastError();
-		TCHAR ErrorBuffer[1024];
-		FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
-		UE_LOG(LogAutomationController, Error, TEXT("Failed to copy %s to %s. Error: %u (%s)"), *SourceFile, *ArtifactDestination, ErrorCode, ErrorBuffer);
-	}
-
-	return ArtifactFile;
 }
 
 FString FAutomationControllerManager::GetReportOutputPath() const
