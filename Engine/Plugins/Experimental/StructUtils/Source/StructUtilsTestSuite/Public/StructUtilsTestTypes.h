@@ -6,7 +6,13 @@
 #include "StructUtilsTestTypes.generated.h"
 
 USTRUCT()
-struct FTestStructSimple
+struct FTestStructSimpleBase
+{
+	GENERATED_BODY()
+};
+
+USTRUCT()
+struct FTestStructSimple : public FTestStructSimpleBase
 {
 	GENERATED_BODY()
 	
@@ -32,9 +38,8 @@ struct FTestStructComplex
 	TArray<FString> StringArray;
 };
 
-
 USTRUCT()
-struct FTestStructSimple1
+struct FTestStructSimple1 : public FTestStructSimpleBase
 {
 	GENERATED_BODY()
 	
@@ -45,7 +50,7 @@ struct FTestStructSimple1
 };
 
 USTRUCT()
-struct FTestStructSimple2
+struct FTestStructSimple2 : public FTestStructSimpleBase
 {
 	GENERATED_BODY()
 	
@@ -56,7 +61,7 @@ struct FTestStructSimple2
 };
 
 USTRUCT()
-struct FTestStructSimple3
+struct FTestStructSimple3 : public FTestStructSimpleBase
 {
 	GENERATED_BODY()
 	
@@ -67,7 +72,7 @@ struct FTestStructSimple3
 };
 
 USTRUCT()
-struct FTestStructSimple4
+struct FTestStructSimple4 : public FTestStructSimpleBase
 {
 	GENERATED_BODY()
 	
@@ -78,7 +83,7 @@ struct FTestStructSimple4
 };
 
 USTRUCT()
-struct FTestStructSimple5
+struct FTestStructSimple5 : public FTestStructSimpleBase
 {
 	GENERATED_BODY()
 	
@@ -89,7 +94,7 @@ struct FTestStructSimple5
 };
 
 USTRUCT()
-struct FTestStructSimple6
+struct FTestStructSimple6 : public FTestStructSimpleBase
 {
 	GENERATED_BODY()
 	
@@ -100,7 +105,7 @@ struct FTestStructSimple6
 };
 
 USTRUCT()
-struct FTestStructSimple7
+struct FTestStructSimple7 : public FTestStructSimpleBase
 {
 	GENERATED_BODY()
 	

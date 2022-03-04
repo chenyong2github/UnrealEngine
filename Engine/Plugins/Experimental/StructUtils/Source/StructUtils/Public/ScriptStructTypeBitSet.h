@@ -281,6 +281,11 @@ private:
 	{
 	}
 
+	TScriptStructTypeBitSet(const int32 BitToSet)
+	{
+		StructTypesBitArray.AddAtIndex(BitToSet);
+	}
+
 public:
 
 	static int32 CreateTypeIndex(const UScriptStruct& InStructType)
@@ -302,6 +307,14 @@ public:
 		return TypeIndex;
 	}
 
+	template<typename T>
+	static const TScriptStructTypeBitSet<TBaseStruct>& GetTypeBitSet()
+	{
+		static_assert(TIsDerivedFrom<T, TBaseStruct>::IsDerived, "Given struct type doesn't match the expected base struct type.");
+		static const TScriptStructTypeBitSet<TBaseStruct> TypeBitSet(GetTypeIndex<T>());
+		return TypeBitSet;
+	}
+	
 	template<typename T>
 	FORCEINLINE void Add()
 	{
@@ -410,6 +423,11 @@ public:
 	FORCEINLINE TScriptStructTypeBitSet operator&(const TScriptStructTypeBitSet& Other) const
 	{
 		return TScriptStructTypeBitSet(TBitArray<>::BitwiseAND(StructTypesBitArray, Other.StructTypesBitArray, EBitwiseOperatorFlags::MinSize));
+	}
+
+	FORCEINLINE TScriptStructTypeBitSet operator|(const TScriptStructTypeBitSet& Other) const
+	{
+		return TScriptStructTypeBitSet(TBitArray<>::BitwiseOR(StructTypesBitArray, Other.StructTypesBitArray, EBitwiseOperatorFlags::MaxSize));
 	}
 
 	FORCEINLINE TScriptStructTypeBitSet GetOverlap(const TScriptStructTypeBitSet& Other) const
