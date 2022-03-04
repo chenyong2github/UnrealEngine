@@ -29,6 +29,8 @@ namespace Chaos
 		// ---- Animatable property setters ----
 		void SetLocalSpaceLocation(const FVec3& InLocalSpaceLocation, bool bReset = false);
 		const FVec3& GetLocalSpaceLocation() const { return LocalSpaceLocation; }
+		void SetLocalSpaceRotation(const FQuat& InLocalSpaceRotation) { LocalSpaceRotation = InLocalSpaceRotation; }
+		const FRotation3& GetLocalSpaceRotation() const { return LocalSpaceRotation; }
 
 		// Disables all Cloths gravity override mechanism
 		void EnableClothGravityOverride(bool bInIsClothGravityOverrideEnabled) { bIsClothGravityOverrideEnabled = bInIsClothGravityOverrideEnabled; }
@@ -207,6 +209,7 @@ namespace Chaos
 		// Local space simulation
 		FVec3 OldLocalSpaceLocation;  // This is used to translate between world space and simulation space,
 		FVec3 LocalSpaceLocation;     // add this to simulation space coordinates to get world space coordinates, must keep FReal as underlying type for LWC
+		FRotation3 LocalSpaceRotation;
 
 		// Time stepping
 		FSolverReal Time;
