@@ -102,6 +102,11 @@ float F0ToDielectricSpecular(float F0)
 	return saturate(F0 / 0.08f);
 }
 
+float F0RGBToDielectricSpecular(float3 F0)
+{
+	return F0ToDielectricSpecular(max(F0.r, max(F0.g, F0.b)));
+}
+
 float DielectricSpecularToF0(float Specular)
 {
 	return 0.08f * Specular;
@@ -120,10 +125,15 @@ float DielectricIorToF0(float Ior)
 	return F0;
 }
 
-float ComputeSpecularMicroOcclusion(float F0)
+float F0ToMicroOcclusion(float F0)
 {
 	// Anything with Specular less than 2% is physically impossible and is instead considered to be shadowing.
 	return saturate(50.0 * F0);
+}
+
+float F0RGBToMicroOcclusion(float3 F0)
+{
+	return F0ToMicroOcclusion(max(F0.r, max(F0.g, F0.b)));
 }
 
 float3 ComputeF0(float Specular, float3 BaseColor, float Metallic)

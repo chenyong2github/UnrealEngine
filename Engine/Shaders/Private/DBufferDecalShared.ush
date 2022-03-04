@@ -60,7 +60,7 @@ void ConvertToMetalness(
 	inout float Metallic)
 {
 	Metallic  = F0RGBToMetallic(F0);
-	Specular  = F0ToDielectricSpecular(F0.x);
+	Specular  = F0RGBToDielectricSpecular(F0);
 	BaseColor = lerp(DiffuseAlbedo, F0, Metallic);
 }
 

@@ -435,7 +435,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			}
 
 			float3 FresnelTerm = 0;
-			const float SpecularMicroOcclusion = ComputeSpecularMicroOcclusion(F0.g);
+			const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
 			#if STRATA_FASTPATH==0
 			const bool bHasThinFilm = BSDF_GETHASTHINFILM(BSDFContext.BSDF);
 			BRANCH
@@ -945,7 +945,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			BRANCH
 			if (bEnableSpecular)
 			{
-				const float SpecularMicroOcclusion = ComputeSpecularMicroOcclusion(F0.g);
+				const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
 
 				#if STRATA_FASTPATH==0
 				const bool bHasThinFilm = BSDF_GETHASTHINFILM(BSDFContext.BSDF);
