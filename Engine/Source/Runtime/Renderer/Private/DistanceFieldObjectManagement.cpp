@@ -797,7 +797,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									UploadObjectData[7] = *(FVector4f*)&VolumeToWorldT.M[1];
 									UploadObjectData[8] = *(FVector4f*)&VolumeToWorldT.M[2];
 
-									FVector4f FloatVector8(VolumeToWorld.GetScaleVector(), 0.0f);
+									FVector4f FloatVector8(FVector3f(VolumeToWorld.GetScaleVector()), 0.0f);
 
 									// Bypass NaN checks in FVector4f ctor
 									FSetElementId AssetStateSetId = AssetStateArray.FindId(DistanceFieldData);

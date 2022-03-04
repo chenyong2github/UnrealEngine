@@ -217,7 +217,7 @@ void UMLAdapterSensor_AIPerception::GetObservations(FMLAdapterMemoryWriter& Ar)
 		Ar.Serialize(&TargetData.Distance, sizeof(float));
 		if (bVectorMode)
 		{
-			FVector3f HeadingVector3f = TargetData.HeadingVector;
+			FVector3f HeadingVector3f = (FVector3f)TargetData.HeadingVector;
 			Ar << HeadingVector3f;
 		}
 		else

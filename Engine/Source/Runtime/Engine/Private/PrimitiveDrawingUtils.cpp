@@ -795,7 +795,7 @@ void DrawTorus(FPrimitiveDrawInterface* PDI, const FMatrix& Transform, const FVe
 			FVector TangentX = -UnitDir * FMath::Sin(InnerAngle) + ZAxis * FMath::Cos(InnerAngle);
 			FVector TangentY = Dir ^ TangentX;
 			FVector TangentZ = Dir;
-			MeshVertex.SetTangents(TangentX, TangentY, TangentZ);
+			MeshVertex.SetTangents((FVector3f)TangentX, (FVector3f)TangentY, (FVector3f)TangentZ);
 
 			MeshBuilder.AddVertex(MeshVertex); //Add bottom vertex
 		}
@@ -1074,11 +1074,11 @@ void DrawRectangleMesh(FPrimitiveDrawInterface* PDI, const FVector& Center, cons
 	for (int32 VertexIndex = 0; VertexIndex < 4; VertexIndex++)
 	{
 		VertexIndices[VertexIndex] = MeshBuilder.AddVertex(
-			Positions[VertexIndex],
+			(FVector3f)Positions[VertexIndex],
 			UVs[VertexIndex],
-			FVector(1.0f, 0.0f, 0.0f),
-			FVector(0.0f, 1.0f, 0.0f),
-			FVector(0.0f, 0.0f, 1.0f),
+			FVector3f(1.0f, 0.0f, 0.0f),
+			FVector3f(0.0f, 1.0f, 0.0f),
+			FVector3f(0.0f, 0.0f, 1.0f),
 			Color
 		);
 	}
