@@ -4,20 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Components/SphereComponent.h"
 #include "TP_WeaponComponent.generated.h"
 
 class ATP_FirstPersonCharacter;
-class USkeletalMeshComponent;
-class USceneComponent;
 
 UCLASS(Blueprintable, BlueprintType, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class TP_FIRSTPERSON_API UTP_WeaponComponent : public USphereComponent
+class TP_FIRSTPERSON_API UTP_WeaponComponent : public UActorComponent
 {
 	GENERATED_BODY()
-	/** Sphere collision to do Pick up */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Mesh, meta = (AllowPrivateAccess = "true"))
-	USphereComponent* SphereCollision;
 
 public:
 	/** Projectile class to spawn */
@@ -36,20 +30,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
 	FVector MuzzleOffset;
 
-	// Sets default values for this component's properties
+	/** Sets default values for this component's properties */
 	UTP_WeaponComponent();
 
-	// Make the weapon Fire a Projectile
+	/** Attaches the actor to a FirstPersonCharacter */
+	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void AttachWeapon(ATP_FirstPersonCharacter* TargetCharacter);
+
+	/** Make the weapon Fire a Projectile */
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	void Fire();
 
 protected:
-	// Called when the game starts
-	virtual void BeginPlay() override;
-
-	// Code for when something overlaps this component
+	/** Ends gameplay for this component. */
 	UFUNCTION()
-	void OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+		
 
 private:
 	/** The Character holding this weapon*/

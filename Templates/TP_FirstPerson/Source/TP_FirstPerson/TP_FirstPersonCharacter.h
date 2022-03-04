@@ -13,7 +13,9 @@ class UCameraComponent;
 class UAnimMontage;
 class USoundBase;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnItemUsed);
+// Declaration of the delegate that will be called when the Primary Action is triggered
+// It is declared as dynamic so it can be accessed also in Blueprints
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnUseItem);
 
 UCLASS(config=Game)
 class ATP_FirstPersonCharacter : public ACharacter
@@ -39,8 +41,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float TurnRateGamepad;
 
+	/** Delegate to whom anyone can subscribe to receive this event */
 	UPROPERTY(BlueprintAssignable, Category = "Interaction")
-	FOnItemUsed OnItemUsed;
+	FOnUseItem OnUseItem;
 protected:
 	
 	/** Fires a projectile. */

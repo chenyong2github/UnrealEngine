@@ -11,7 +11,6 @@
 // Sets default values for this component's properties
 UTP_WeaponComponent::UTP_WeaponComponent()
 {
-	SphereRadius = 32.f;
 	// Default offset from the character location for projectiles to spawn
 	MuzzleOffset = FVector(100.0f, 0.0f, 10.0f);
 }
@@ -62,29 +61,26 @@ void UTP_WeaponComponent::Fire()
 	}
 }
 
-// Called when the game starts
-void UTP_WeaponComponent::BeginPlay()
+void UTP_WeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	Super::BeginPlay();
-
-	// Register our Overlap Event
-	OnComponentBeginOverlap.AddDynamic(this, &UTP_WeaponComponent::OnSphereBeginOverlap);
+	if(Character != nullptr)
+	{
+		// Unregister from the OnUseItem Event
+		Character->OnUseItem.RemoveDynamic(this, &UTP_WeaponComponent::Fire);
+	}
 }
 
-void UTP_WeaponComponent::OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+void UTP_WeaponComponent::AttachWeapon(ATP_FirstPersonCharacter* TargetCharacter)
 {
-	// Checking if it is a First Person Character overlapping
-	Character = Cast<ATP_FirstPersonCharacter>(OtherActor);
+	Character = TargetCharacter;
 	if(Character != nullptr)
 	{
 		// Attach the weapon to the First Person Character
 		FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, true);
 		GetOwner()->AttachToComponent(Character->GetMesh1P(),AttachmentRules, FName(TEXT("GripPoint")));
 
-		// Unregister from the Overlap Event so it is no longer triggered
-		OnComponentBeginOverlap.RemoveAll(this);
 		// Register so that Fire is called every time the character tries to use the item being held
-		Character->OnItemUsed.AddDynamic(this, &UTP_WeaponComponent::Fire);
+		Character->OnUseItem.AddDynamic(this, &UTP_WeaponComponent::Fire);
 	}
 }
 
