@@ -50,6 +50,7 @@ private:
 
 	/** Mutex that protects adding/updating/removing from PendingData */
 	FCriticalSection GlobalQueueDataMutex;
+	FCriticalSection OutputDataMutex;
 	FIntPoint OutputEquirectangularMapSize;
 
 	TWeakPtr<MoviePipeline::IMoviePipelineOutputMerger> OutputMerger;
