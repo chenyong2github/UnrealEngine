@@ -5809,3 +5809,57 @@ UAssetRegistryImpl::FFileLoadProgressUpdatedEvent& UAssetRegistryImpl::OnFileLoa
 	checkf(IsInGameThread(), TEXT("Registering to AssetRegistry events is not supported from multiple threads."));
 	return FileLoadProgressUpdatedEvent;
 }
+
+
+namespace UE::AssetRegistry
+{
+
+void GetAssetForPackages(TConstArrayView<FName> PackageNames, TMap<FName, FAssetData>& OutPackageToAssetData)
+{
+	FARFilter Filter;
+	for (FName PackageName : PackageNames)
+	{
+		Filter.PackageNames.Add(PackageName);
+	}
+
+	TArray<FAssetData> AssetDataList;
+	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
+	if (!AssetRegistry)
+	{
+		return;
+	}
+	AssetRegistry->GetAssets(Filter, AssetDataList);
+	auto IsHigherDisplayPriority = [](const FAssetData& LHS, const FAssetData& RHS)
+	{
+		bool bLHSIsEmpty = LHS.AssetName.IsNone();
+		bool bRHSIsEmpty = RHS.AssetName.IsNone();
+		if (bLHSIsEmpty || bRHSIsEmpty)
+		{
+			return !bLHSIsEmpty;
+		}
+		bool bLHSIsUAsset = LHS.IsUAsset();
+		bool bRHSIsUAsset = RHS.IsUAsset();
+		if (bLHSIsUAsset != bRHSIsUAsset)
+		{
+			return bLHSIsUAsset;
+		}
+		bool bLHSShouldSkip = FFiltering::ShouldSkipAsset(LHS.AssetClass, LHS.PackageFlags);
+		bool bRHSShouldSkip = FFiltering::ShouldSkipAsset(LHS.AssetClass, LHS.PackageFlags);
+		if (bLHSShouldSkip || bRHSShouldSkip)
+		{
+			return !bLHSShouldSkip;
+		}
+		return LHS.AssetName.FastLess(RHS.AssetName);
+	};
+	for (FAssetData& AssetData : AssetDataList)
+	{
+		// If there are multiple assets in the same package, use the highest priority asset for the display
+		FAssetData& MappedAssetData = OutPackageToAssetData.FindOrAdd(AssetData.PackageName);
+		if (IsHigherDisplayPriority(AssetData, MappedAssetData))
+		{
+			MappedAssetData = MoveTemp(AssetData);
+		}
+	}
+}
+
+}

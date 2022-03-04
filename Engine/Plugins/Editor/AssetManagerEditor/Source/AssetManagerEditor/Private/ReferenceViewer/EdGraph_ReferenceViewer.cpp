@@ -544,22 +544,7 @@ int32 UEdGraph_ReferenceViewer::RecursivelyGatherSizes(bool bReferencers, const 
 
 void UEdGraph_ReferenceViewer::GatherAssetData(const TSet<FName>& AllPackageNames, TMap<FName, FAssetData>& OutPackageToAssetDataMap) const
 {
-	// Take a guess to find the asset instead of searching for it. Most packages have a single asset in them with the same name as the package.
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-
-	FARFilter Filter;
-	for ( auto PackageIt = AllPackageNames.CreateConstIterator(); PackageIt; ++PackageIt )
-	{
-		const FString& PackageName = (*PackageIt).ToString();
-		Filter.PackageNames.Add(*PackageIt);
-	}
-
-	TArray<FAssetData> AssetDataList;
-	AssetRegistryModule.Get().GetAssets(Filter, AssetDataList);
-	for ( auto AssetIt = AssetDataList.CreateConstIterator(); AssetIt; ++AssetIt )
-	{
-		OutPackageToAssetDataMap.Add((*AssetIt).PackageName, *AssetIt);
-	}
+	UE::AssetRegistry::GetAssetForPackages(AllPackageNames.Array(), OutPackageToAssetDataMap);
 }
 
 UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RecursivelyConstructNodes(bool bReferencers, UEdGraphNode_Reference* RootNode, const TArray<FAssetIdentifier>& Identifiers, const FIntPoint& NodeLoc, const TMap<FAssetIdentifier, int32>& NodeSizes, const TMap<FName, FAssetData>& PackagesToAssetDataMap, const TSet<FName>& AllowedPackageNames, int32 CurrentDepth, TSet<FAssetIdentifier>& VisitedNames)
