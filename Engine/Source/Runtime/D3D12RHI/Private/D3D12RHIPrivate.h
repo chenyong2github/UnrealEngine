@@ -970,6 +970,9 @@ public:
 		D3D12_RESOURCE_STATES TrackedState = InResourceState.GetSubresourceState(InSubresourceIndex);
 		D3D12_RESOURCE_STATES BeforeState = TrackedState;
 
+		// Special case for UAV access resources
+		bool bHasUAVAccessResource = InResource->GetUAVAccessResource() != nullptr;
+
 		// Still untracked in this command list, then try and find out a before state to use
 		if (BeforeState == D3D12_RESOURCE_STATE_TBD)
 		{
@@ -996,9 +999,20 @@ public:
 				}
 				else
 				{
-					// We need a pending resource barrier so we can setup the state before this command list executes
-					InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
-					InCommandList.AddPendingResourceBarrier(InResource, InAfterState, InSubresourceIndex);
+					// Special handling for UAVAccessResource and transition to UAV - don't want to
+					// enqueue pending resource to UAV because the actual resource won't transition
+					// Adding of patch up will only be done when transitioning to non UAV state
+					if (bHasUAVAccessResource && EnumHasAnyFlags(InAfterState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
+					{
+						InCommandList.AddAliasingBarrier(InResource->GetResource(), InResource->GetUAVAccessResource());
+						InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+					}
+					else
+					{
+						// We need a pending resource barrier so we can setup the state before this command list executes
+						InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+						InCommandList.AddPendingResourceBarrier(InResource, InAfterState, InSubresourceIndex);
+					}
 				}
 			}
 			else
@@ -1037,25 +1051,65 @@ public:
 			}
 			else
 			{
+				bool bApplyTransitionBarrier = true;
+
 				// Require UAV barrier when before and after are UAV
 				if (BeforeState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS && InAfterState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
 				{
 					bRequireUAVBarrier = true;
 				}
+				// Special case for UAV access resources
+				else if (bHasUAVAccessResource && EnumHasAnyFlags(BeforeState | InAfterState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
+				{
+					// inject an aliasing barrier
+					const bool bFromUAV = EnumHasAnyFlags(BeforeState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+					const bool bToUAV = EnumHasAnyFlags(InAfterState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+					check(bFromUAV != bToUAV);
 
-				// We're not using IsTransitionNeeded() when bInForceAfterState is set because we do want to transition even if 'after' is a subset of 'before'
-				// This is so that we can ensure all subresources are in the same state, simplifying future barriers
-				// No state merging when using engine transitions - otherwise next before state might not match up anymore)
-				bool bAllowStateMerging = GUseInternalTransitions;
-				if ((bInForceAfterState && BeforeState != InAfterState) || IsTransitionNeeded(bAllowStateMerging, BeforeState, InAfterState))
-				{
-					InCommandList.AddTransitionBarrier(InResource, BeforeState, InAfterState, InSubresourceIndex);
-					InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+					InCommandList.AddAliasingBarrier(
+						bFromUAV ? InResource->GetUAVAccessResource() : InResource->GetResource(),
+						bToUAV ? InResource->GetUAVAccessResource() : InResource->GetResource());
+
+					if (bToUAV)
+					{
+						InResourceState.SetUAVHiddenResourceState(BeforeState);
+						bApplyTransitionBarrier = false;
+					}
+					else
+					{
+						D3D12_RESOURCE_STATES HiddenState = InResourceState.GetUAVHiddenResourceState();
+
+						// Still unknown in this command list?
+						if (HiddenState == D3D12_RESOURCE_STATE_TBD)
+						{
+							InCommandList.AddPendingResourceBarrier(InResource, InAfterState, InSubresourceIndex);
+							InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+							bApplyTransitionBarrier = false;
+						}
+						else
+						{
+							// Use the hidden state as the before state on the resource
+							BeforeState = HiddenState;
+						}
+					}
 				}
-				// Force update the state when the tracked state is still unknown
-				else if (TrackedState == D3D12_RESOURCE_STATE_TBD)
+
+				if (bApplyTransitionBarrier)
 				{
-					InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+					// We're not using IsTransitionNeeded() when bInForceAfterState is set because we do want to transition even if 'after' is a subset of 'before'
+					// This is so that we can ensure all subresources are in the same state, simplifying future barriers
+					// No state merging when using engine transitions - otherwise next before state might not match up anymore)
+					bool bAllowStateMerging = GUseInternalTransitions;
+					if ((bInForceAfterState && BeforeState != InAfterState) || IsTransitionNeeded(bAllowStateMerging, BeforeState, InAfterState))
+					{
+						InCommandList.AddTransitionBarrier(InResource, BeforeState, InAfterState, InSubresourceIndex);
+						InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+					}
+					// Force update the state when the tracked state is still unknown
+					else if (TrackedState == D3D12_RESOURCE_STATE_TBD)
+					{
+						InResourceState.SetSubresourceState(InSubresourceIndex, InAfterState);
+					}
 				}
 			}
 		}

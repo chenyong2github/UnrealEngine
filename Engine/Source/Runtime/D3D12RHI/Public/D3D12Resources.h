@@ -174,7 +174,6 @@ private:
 #ifdef PLATFORM_SUPPORTS_RESOURCE_COMPRESSION
 	D3D12_RESOURCE_STATES CompressedState{ D3D12_RESOURCE_STATE_CORRUPT };
 #endif
-	D3D12_RESOURCE_STATES UAVHiddenResourceState{ D3D12_RESOURCE_STATE_CORRUPT };
 
 	D3D12_HEAP_TYPE HeapType;
 	FName DebugName;
@@ -219,9 +218,6 @@ public:
 	ID3D12Resource* GetResource() const { return Resource.GetReference(); }
 	ID3D12Resource* GetUAVAccessResource() const { return UAVAccessResource.GetReference(); }
 	void SetUAVAccessResource(ID3D12Resource* InUAVAccessResource) { UAVAccessResource = InUAVAccessResource; }
-
-	inline D3D12_RESOURCE_STATES GetUAVHiddenResourceState() const { return UAVHiddenResourceState; }
-	void SetUAVHiddenResourceState(D3D12_RESOURCE_STATES InUAVHiddenResourceState) { UAVHiddenResourceState = InUAVHiddenResourceState; }
 
 	inline void* Map(const D3D12_RANGE* ReadRange = nullptr)
 	{
@@ -973,37 +969,6 @@ inline void AddTransitionBarrier(TArray<D3D12_RESOURCE_BARRIER, InAllocatorType>
 	BarrierList.Add(CD3DX12_RESOURCE_BARRIER::Transition(pResource->GetResource(), Before, After, Subresource));
 }
 
-template<typename InAllocatorType>
-inline void AddTransitionBarrierWithUAVAccessOverrides(TArray<D3D12_RESOURCE_BARRIER, InAllocatorType>& BarrierList, FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
-{
-	if (pResource->GetUAVAccessResource() && EnumHasAnyFlags(Before | After, D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
-	{
-		// inject an aliasing barrier
-		const bool bFromUAV = EnumHasAnyFlags(Before, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		const bool bToUAV = EnumHasAnyFlags(After, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-		check(bFromUAV != bToUAV);
-
-		BarrierList.Add(CD3DX12_RESOURCE_BARRIER::Aliasing(
-			bFromUAV ? pResource->GetUAVAccessResource() : pResource->GetResource(),
-			bToUAV ? pResource->GetUAVAccessResource() : pResource->GetResource()
-		));
-
-		if (bToUAV)
-		{
-			pResource->SetUAVHiddenResourceState(Before);
-		}
-		else if (D3D12_RESOURCE_STATES HiddenState = pResource->GetUAVHiddenResourceState(); HiddenState != After && HiddenState != D3D12_RESOURCE_STATE_CORRUPT)
-		{
-			AddTransitionBarrier(BarrierList, pResource, HiddenState, After, Subresource);
-		}
-	}
-	else
-	{
-		AddTransitionBarrier(BarrierList, pResource, Before, After, Subresource);
-	}
-}
-
 class FD3D12ResourceBarrierBatcher : public FNoncopyable
 {
 public:
@@ -1053,7 +1018,7 @@ public:
 		else
 #endif
 		{
-			AddTransitionBarrierWithUAVAccessOverrides(Barriers, pResource, Before, After, Subresource);
+			AddTransitionBarrier(Barriers, pResource, Before, After, Subresource);
 		}
 
 		return 1;

@@ -1371,6 +1371,9 @@ void CResourceState::Initialize(uint32 SubresourceCount)
 
 	// All subresources start out in an unknown state
 	SetResourceState(D3D12_RESOURCE_STATE_TBD);
+
+	// Unknown hidden resource state
+	UAVHiddenResourceState = D3D12_RESOURCE_STATE_TBD;
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------

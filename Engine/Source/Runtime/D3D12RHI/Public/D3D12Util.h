@@ -295,6 +295,9 @@ public:
 	void SetResourceState(D3D12_RESOURCE_STATES State);
 	void SetSubresourceState(uint32 SubresourceIndex, D3D12_RESOURCE_STATES State);
 
+	D3D12_RESOURCE_STATES GetUAVHiddenResourceState() const { return UAVHiddenResourceState; }
+	void SetUAVHiddenResourceState(D3D12_RESOURCE_STATES InUAVHiddenResourceState) { UAVHiddenResourceState = InUAVHiddenResourceState; }
+
 private:
 	// Only used if m_AllSubresourcesSame is 1.
 	// Bits defining the state of the full resource, bits are from D3D12_RESOURCE_STATES
@@ -303,6 +306,10 @@ private:
 	// Set to 1 if m_ResourceState is valid.  In this case, all subresources have the same state
 	// Set to 0 if m_SubresourceState is valid.  In this case, each subresources may have a different state (or may be unknown)
 	uint32 m_AllSubresourcesSame : 1;
+
+	// Special resource state to track previous state before resource transitioned to UAV when the resource
+	// has a UAV aliasing resource so correct previous state can be found (only single state allowed)
+	D3D12_RESOURCE_STATES UAVHiddenResourceState;
 
 	// Only used if m_AllSubresourcesSame is 0.
 	// The state of each subresources.  Bits are from D3D12_RESOURCE_STATES.

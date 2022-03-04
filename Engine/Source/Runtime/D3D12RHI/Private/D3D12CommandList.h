@@ -594,7 +594,7 @@ public:
 	// Adds a UAV barrier to the barrier batch
 	void AddUAVBarrier();
 
-	void AddAliasingBarrier(FD3D12Resource* InResourceBefore, FD3D12Resource* InResourceAfter);
+	void AddAliasingBarrier(ID3D12Resource* InResourceBefore, ID3D12Resource* InResourceAfter);
 
 	// Flushes the batched resource barriers to the current command list
 	void FlushResourceBarriers()

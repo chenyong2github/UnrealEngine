@@ -60,10 +60,10 @@ void FD3D12CommandListHandle::AddUAVBarrier()
 	}
 }
 
-void FD3D12CommandListHandle::AddAliasingBarrier(FD3D12Resource* InResourceBefore, FD3D12Resource* InResourceAfter)
+void FD3D12CommandListHandle::AddAliasingBarrier(ID3D12Resource* InResourceBefore, ID3D12Resource* InResourceAfter)
 {
 	check(CommandListData);
-	CommandListData->ResourceBarrierBatcher.AddAliasingBarrier(InResourceBefore ? InResourceBefore->GetResource() : nullptr, InResourceAfter->GetResource());
+	CommandListData->ResourceBarrierBatcher.AddAliasingBarrier(InResourceBefore, InResourceAfter);
 	CommandListData->CurrentOwningContext->numBarriers++;
 
 	if (!GD3D12BatchResourceBarriers)

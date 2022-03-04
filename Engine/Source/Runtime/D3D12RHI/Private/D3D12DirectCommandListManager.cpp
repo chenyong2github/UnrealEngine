@@ -970,12 +970,12 @@ uint32 FD3D12CommandListManager::CollectInitialResourceBarriersAndUpdateFinalSta
 			CResourceState& ResourceState = PRB.Resource->GetResourceState();
 
 			const D3D12_RESOURCE_STATES Before = ResourceState.GetSubresourceState(PRB.SubResource);
+			check(Before != D3D12_RESOURCE_STATE_TBD && Before != D3D12_RESOURCE_STATE_CORRUPT);
 
 			// If state unknown then we don't enqueue a transition - only want to update the end state on the resource
 			// and not really enqueue a transition
 			const D3D12_RESOURCE_STATES After = (PRB.State != D3D12_RESOURCE_STATE_TBD) ? PRB.State : Before;
-
-			check(Before != D3D12_RESOURCE_STATE_TBD && Before != D3D12_RESOURCE_STATE_CORRUPT);
+		
 			if (Before != After)
 			{
 				if (IsDirectQueueExclusiveD3D12State(Before) || IsDirectQueueExclusiveD3D12State(After))
@@ -987,15 +987,38 @@ uint32 FD3D12CommandListManager::CollectInitialResourceBarriersAndUpdateFinalSta
 				{
 					AddTransitionBarrier(BarrierDescInfo.BackBufferBarrierDescs, PRB.Resource, Before, After, PRB.SubResource);
 				}
+				// Special case for UAV access resources transitioning from UAV (then they need to transition from the cache hidden state instead)
+				else if (PRB.Resource->GetUAVAccessResource() && EnumHasAnyFlags(Before | After, D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
+				{
+					// After state should never be UAV here
+					check(!EnumHasAnyFlags(After, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+					
+					// Add the aliasing barrier
+					BarrierDescInfo.BarrierDescs.AddUninitialized();
+					D3D12_RESOURCE_BARRIER& Barrier = BarrierDescInfo.BarrierDescs.Last();
+					Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+					Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+					Barrier.Aliasing.pResourceBefore = PRB.Resource->GetUAVAccessResource();
+					Barrier.Aliasing.pResourceAfter = PRB.Resource->GetResource();
+
+					AddTransitionBarrier(BarrierDescInfo.BarrierDescs, PRB.Resource, ResourceState.GetUAVHiddenResourceState(), After, PRB.SubResource);
+				}
 				else
 				{
-					AddTransitionBarrierWithUAVAccessOverrides(BarrierDescInfo.BarrierDescs, PRB.Resource, Before, After, PRB.SubResource);
+					AddTransitionBarrier(BarrierDescInfo.BarrierDescs, PRB.Resource, Before, After, PRB.SubResource);
 				}
 			}
 
 			// Update the state to the what it will be after hList executes
-			const D3D12_RESOURCE_STATES CommandListState = InCommandListHandle.GetResourceState(PRB.Resource).GetSubresourceState(PRB.SubResource);
-			const D3D12_RESOURCE_STATES LastState = (CommandListState != D3D12_RESOURCE_STATE_TBD) ? CommandListState : After;
+			const CResourceState& CommandListState = InCommandListHandle.GetResourceState(PRB.Resource);
+			const D3D12_RESOURCE_STATES CommandListLastState = CommandListState.GetSubresourceState(PRB.SubResource);
+			const D3D12_RESOURCE_STATES LastState = (CommandListLastState != D3D12_RESOURCE_STATE_TBD) ? CommandListLastState : After;
+
+			// Copy over the hidden UAV state if the last state in the command list was UAV (needed for patch up transition on next command list)
+			if (PRB.Resource->GetUAVAccessResource() && EnumHasAnyFlags(LastState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
+			{
+				ResourceState.SetUAVHiddenResourceState(CommandListState.GetUAVHiddenResourceState());
+			}
 
 			if (Before != LastState)
 			{
