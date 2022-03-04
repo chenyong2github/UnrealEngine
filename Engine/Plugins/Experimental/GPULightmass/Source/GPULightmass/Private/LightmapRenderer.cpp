@@ -1109,7 +1109,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 				RHICmdList,
 				nullptr,
 				AbsoluteViewOrigin.GetTile(),
-				View.ViewMatrices.GetPreViewTranslation() + ViewTileOffset,
+				FVector3f(View.ViewMatrices.GetPreViewTranslation() + ViewTileOffset),
 				InstanceBuffer.UAV,
 				InstanceUploadSRV,
 				AccelerationStructureAddressesBuffer.SRV,

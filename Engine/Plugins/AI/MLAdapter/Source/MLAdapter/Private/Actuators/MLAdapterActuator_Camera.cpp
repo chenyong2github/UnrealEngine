@@ -89,7 +89,7 @@ void UMLAdapterActuator_Camera::DigestInputData(FMLAdapterMemoryReader& ValueStr
 	{
 		FVector3f HeadingVector3f;
 		ValueStream << HeadingVector3f;
-		HeadingVector = HeadingVector3f;
+		HeadingVector = FVector(HeadingVector3f);
 	}
 	else
 	{
