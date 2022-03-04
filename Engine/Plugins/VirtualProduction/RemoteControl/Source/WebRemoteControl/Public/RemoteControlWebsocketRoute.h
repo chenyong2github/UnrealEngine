@@ -8,6 +8,7 @@ struct FRemoteControlWebSocketMessage
 	int32 MessageId = -1;
 	FGuid ClientId;
 	TArrayView<uint8> RequestPayload;
+	TMap<FString, TArray<FString>> Header;
 };
 
 DECLARE_DELEGATE_OneParam(FWebSocketMessageDelegate, const FRemoteControlWebSocketMessage& /** Message */);

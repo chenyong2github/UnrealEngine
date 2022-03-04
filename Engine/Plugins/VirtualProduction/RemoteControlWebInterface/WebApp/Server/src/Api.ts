@@ -24,6 +24,11 @@ export class Api {
     this.send(res, UnrealEngine.getPresets());
   }
 
+  @Get('passphrase')
+  private async passphrase(req: Request, res: Response) {
+    this.send(res, Promise.resolve({ keyCorrect: await UnrealEngine.checkPassphrase(req.headers['passphrase'].toString()) }) );
+  }
+
   @Get('payloads')
   private payloads(req: Request, res: Response) {
     this.send(res, UnrealEngine.getPayloads());

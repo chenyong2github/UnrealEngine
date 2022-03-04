@@ -30,6 +30,10 @@ namespace UnrealApi {
     Value: string;
   };
 
+  export type PassphraseCheck = {
+    keyCorrect: boolean;
+  };
+
   export type Request = {
     RequestId: number;
     URL: string;
@@ -74,15 +78,16 @@ export namespace UnrealEngine {
   let isPullingPresets: boolean;
   let isLoadingPresets: boolean;
   let autoPullTimeout: NodeJS.Timeout;
+  let isOpen: boolean;
 
   let pendings: { [id: string]: (reply: any) => void } = {};
-  let httpRequest: number = 1;
-  let wsRequest: number = 1;
+  let request: number = 1;
 
   let presets: IPresets = {};
   let registered: { [id: string]: boolean };
   let payloads: IPayloads = {};
   let views: { [preset: string]: IView } = {};
+  let workingPassphrase: string = undefined;
 
   export async function initialize() {
     connect();
@@ -91,6 +96,10 @@ export namespace UnrealEngine {
 
   export function isConnected(): boolean {
     return (connection?.readyState === WebSocket.OPEN);
+  }
+
+  export function isOpenConnection(): boolean {
+    return isOpen;
   }
 
   export function isLoading(): boolean {
@@ -118,6 +127,28 @@ export namespace UnrealEngine {
       .on('close', onClose);
   }
 
+  export async function checkPassphrase(passphrase: string) : Promise<boolean> {
+    try {
+      let res = await get<UnrealApi.PassphraseCheck>(`/remote/passphrase/`, passphrase);
+      if (!res?.keyCorrect) {
+        return false;
+      }
+    } catch (error) {
+      return false;
+    }
+
+    if (workingPassphrase == undefined) {
+      workingPassphrase = passphrase;
+      await pullPresets(true);
+      pullTimer();   
+    }
+    else {
+      workingPassphrase = passphrase;
+    }
+
+    return true;
+  }
+
   async function onConnected() {
     if (connection.readyState !== WebSocket.OPEN)
       return;
@@ -126,13 +157,18 @@ export namespace UnrealEngine {
     registered = {};
     payloads = {};
     views = {};
-
+    isOpen = undefined;
+    
     clearQuitTimeout();
-
+    
     console.log('Connected to UE Remote WebSocket');
     Notify.emit('connected', true);
-    await refresh();
-    pullTimer();
+    
+    isOpen = await checkPassphrase("");
+    if (isOpen || workingPassphrase !== undefined) {
+      await pullPresets(true);
+      pullTimer();
+    }
   }
 
   async function refresh() { 
@@ -148,8 +184,9 @@ export namespace UnrealEngine {
 
       // First check if there are any new presets
       for (const preset of Presets) {
-        if (preset && !presets[preset.ID])
+        if (preset && !presets[preset.ID]){
           await refreshPreset(preset.ID, preset.Name);
+        }
       }
 
       // Check for deleted presets
@@ -166,8 +203,9 @@ export namespace UnrealEngine {
     }
 
     // Check for new presets once every 5 seconds
-    if (isConnected())
-       autoPullTimeout = setTimeout(pullTimer, 5 * 1000);
+    if (isConnected()) {
+      autoPullTimeout = setTimeout(pullTimer, 5 * 1000);
+    }
   }
  
   async function onMessage(data: WebSocket.Data) {
@@ -264,6 +302,7 @@ export namespace UnrealEngine {
     registered = {};
     payloads = {};
     views = {};
+    isOpen = undefined;
 
     Notify.emit('connected', false);
 
@@ -295,19 +334,20 @@ export namespace UnrealEngine {
       throw new Error('Websocket is not connected');
   }
 
-  function send(message: string, parameters: any) {
+  function send(message: string, parameters: any, passphrase?: string) {
     verifyConnection();
-    const Id = wsRequest++;
-    connection.send(JSON.stringify({ MessageName: message, Id, Parameters: parameters }));
+    const Id = parameters?.RequestId ?? request++;
+    passphrase = passphrase ?? workingPassphrase;
+    connection.send(JSON.stringify({ MessageName: message, Id, Passphrase: passphrase, Parameters: parameters}));
   }
 
-  function http<T>(Verb: string, URL: string, Body?: object, wantAnswer?: boolean): Promise<T> {
-    const RequestId = httpRequest++;
+  function http<T>(Verb: string, URL: string, Body?: object, wantAnswer?: boolean, passphrase?: string): Promise<T> {
+    const RequestId = request++;
     const payload = { RequestId, Verb, URL, Body };
     if (Program.logger)
       LogServer.logLoopback(payload);
 
-    send('http', payload);
+    send('http', payload, passphrase);
     if (!wantAnswer)
       return Promise.resolve(null);
 
@@ -316,12 +356,12 @@ export namespace UnrealEngine {
     });
   }
 
-  function get<T>(url: string): Promise<T> {
-    return http<T>('GET', url, undefined, true);
+  function get<T>(url: string, passphrase?: string): Promise<T> {
+    return http<T>('GET', url, undefined, true, passphrase);
   }
 
-  function put<T>(url: string, body: object): Promise<T> {
-    return http<T>('PUT', url, body, true);
+  function put<T>(url: string, body: object, passphrase?: string): Promise<T> {
+    return http<T>('PUT', url, body, true, passphrase);
   }
 
   function registerToPreset(PresetName: string): void {
@@ -356,8 +396,9 @@ export namespace UnrealEngine {
           continue;
 
         allPresets[Preset.ID] = Preset;
-        if (bInitial || !presets[Preset.ID])
+        if (bInitial || !presets[Preset.ID]){
           allPayloads[Preset.ID] = await pullPresetValues(Preset);
+        }
       }
 
       if (!equal(presets, allPresets)) {
@@ -546,7 +587,7 @@ export namespace UnrealEngine {
     const Requests = [];
     for (const property of Preset.ExposedProperties) {
       Requests.push({
-        RequestId: httpRequest++,
+        RequestId: request++,
         Verb: 'GET',
         URL: `/remote/preset/${Preset.ID}/property/${property.ID}`,
         PropertyId: property.ID,
@@ -611,7 +652,7 @@ export namespace UnrealEngine {
       if (Program.logger) {
         const presetObj = presets[preset];
         const log = {
-          RequestId: httpRequest,
+          RequestId: request,
           Stage: 'Set Property',
           Preset: presetObj?.Name,
           Property: presetObj?.Exposed[property]?.DisplayName,

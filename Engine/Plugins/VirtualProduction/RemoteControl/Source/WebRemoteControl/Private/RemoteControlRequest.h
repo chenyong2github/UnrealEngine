@@ -35,6 +35,9 @@ struct FRCRequest
 		return StructParameters.FindChecked(ParameterName);
 	}
 
+	UPROPERTY()
+	FString Passphrase;
+
 	/** Holds the request's TCHAR payload. */
 	TArray<uint8> TCHARBody;
 
@@ -549,4 +552,3 @@ struct FRCWebSocketPresetRegisterBody : public FRCRequest
 	UPROPERTY()
 	bool IgnoreRemoteChanges = false;
 };
-

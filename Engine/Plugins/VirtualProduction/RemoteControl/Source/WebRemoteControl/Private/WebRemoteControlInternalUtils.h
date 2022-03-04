@@ -49,6 +49,7 @@ namespace RemotePayloadSerializer
 namespace WebRemoteControlInternalUtils
 {
 	static const TCHAR* WrappedRequestHeader = TEXT("UE-Wrapped-Request");
+	static const FString PassphraseHeader = TEXT("Passphrase");
 
 	/**
 	 * Construct a default http response with CORS headers.

@@ -21,6 +21,8 @@ export namespace Notify {
 
       if (UnrealEngine.isConnected())
         socket.emit('connected', true);
+        
+      socket.emit('opened', UnrealEngine.isOpenConnection());
 
       if (UnrealEngine.isLoading())
         socket.emit('loading', true);

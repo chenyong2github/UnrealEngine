@@ -85,6 +85,7 @@ TSharedRef<FHttpServerRequest> UnwrapHttpRequest(const FRCRequestWrapper& Wrappe
 	WrappedHttpRequest->RelativePath = Wrapper.URL;
 	WrappedHttpRequest->Verb = ParseHttpVerb(Wrapper.Verb);
 	WrappedHttpRequest->Body = Wrapper.TCHARBody;
+	WrappedHttpRequest->Headers.Add(WebRemoteControlInternalUtils::PassphraseHeader, { Wrapper.Passphrase });
 
 	return WrappedHttpRequest;
 }

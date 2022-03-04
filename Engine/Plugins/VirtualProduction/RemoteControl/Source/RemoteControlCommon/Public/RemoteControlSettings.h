@@ -7,6 +7,22 @@
 
 #include "RemoteControlSettings.generated.h"
 
+/**
+ * Passphrase Struct
+ */
+USTRUCT(BlueprintType)
+struct FRCPassphrase
+{
+	GENERATED_BODY()
+	
+	FRCPassphrase(){}
+
+	UPROPERTY(EditAnywhere, Category="Passphrase")
+	FString Identifier;
+	
+	UPROPERTY(EditAnywhere, Category="Passphrase")
+	FString Passphrase;
+};
 
 /**
  * Global remote control settings
@@ -40,6 +56,18 @@ public:
 		return NSLOCTEXT("RemoteControlSettings", "RemoteControlSettingsSection", "Remote Control");
 	}
 
+	virtual TArray<FString> GetHashedPassphrases() const
+	{
+		TArray<FString> OutArray;
+
+		for (const FRCPassphrase& Passphrase : Passphrases)
+		{
+			OutArray.Add(Passphrase.Passphrase);
+		}
+		
+		return OutArray;
+	}
+
 	/**
 	 * Should transactions be generated for events received through protocols (ie. MIDI, DMX etc.)
 	 * Disabling transactions improves performance but will prevent events from being transacted to Multi-User
@@ -59,6 +87,14 @@ public:
 	/** Should WebApp log timing. */
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Log WebApp requests handle duration")
 	bool bWebAppLogRequestDuration = false;
+
+	/** Whether communication with the Web Interface should only be allowed with an Passphrase */
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Use Passphrase to block Access")
+	bool bUseRemoteControlPassphrase = false;
+
+	/** Whether the User should be warned that Passphrase usage is disabled or now. Initially activated */
+	UPROPERTY(Config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Warn that Passphrase might be disabled ")
+	bool bShowPassphraseDisabledWarning = true;
 
 	/** Whether web server is started automatically. */
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Server")
@@ -86,4 +122,7 @@ public:
 
 	UPROPERTY(config)
 	bool bUseRebindingContext = true;
+
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Remote Control Web Interface Passphrase")
+	TArray<FRCPassphrase> Passphrases = {};
 };

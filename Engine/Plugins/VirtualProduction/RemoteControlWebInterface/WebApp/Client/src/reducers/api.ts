@@ -14,7 +14,9 @@ export type ApiState = {
   view: IView;
   status: {
     connected?: boolean;
+    keyCorrect?: boolean;
     loading?: boolean;
+    isOpen?: boolean;
   },
 };
 
@@ -22,15 +24,17 @@ export type ApiState = {
 let _preset;
 let _dispatch: Dispatch;
 let _socket: SocketIOClient.Socket;
+let _passphrase: string;
 const _host = (process.env.NODE_ENV === 'development' ? `http://${window.location.hostname}:7001` : '');
 
 function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
   _dispatch = dispatch;
+  _passphrase = localStorage.getItem('passphrase'); 
 
   _socket = io(`${_host}/`, { path: '/api/io' });
 
   _socket
-    .on('disconnect', () => dispatch(API.STATUS({ connected: false, version: undefined })))
+    .on('disconnect', () => dispatch(API.STATUS({ connected: false, isOpen: false, keyCorrect: false, version: undefined })))
     .on('presets', (presets: IPreset[]) => dispatch(API.PRESETS(presets)))
     .on('payloads', (payloads: IPayloads) => {
       dispatch(API.PAYLOADS(payloads));
@@ -57,12 +61,21 @@ function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
       dispatch(API.VIEW(view));
     })
     .on('connected', (connected: boolean, version: string) => {
-      dispatch(API.STATUS({ connected, version, loading: false }));
+      dispatch(API.STATUS({ connected, version }));
 
-      if (connected) {
-          _api.presets.get();
-          _api.payload.all();
-      }
+      if (_passphrase !== null)
+        _api.passphrase.login(_passphrase);
+          
+      _api.presets.get();
+      _api.payload.all();
+    })
+    .on('opened', (isOpen: boolean) => {
+      dispatch(API.STATUS({ isOpen, loading: false }));
+    })
+    .on('passphrase', (keyCorrect: boolean) => {
+      dispatch(API.STATUS({ keyCorrect }));
+
+
     })
     .on('loading', (loading: boolean) => {
       dispatch(API.STATUS({ loading }));
@@ -71,7 +84,7 @@ function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
 
 type IRequestCallback = Function | string | undefined;
 
-async function _request(method: string, url: string, body: string | object | undefined, callback: IRequestCallback): Promise<any> {
+async function _request(method: string, url: string, body: string | object | undefined, callback: IRequestCallback, passphrase?: string): Promise<any> {
   const request: RequestInit = { method, mode: 'cors', redirect: 'follow', headers: {} };
   if (body instanceof FormData || typeof(body) === 'string') {
     request.body = body;
@@ -79,13 +92,14 @@ async function _request(method: string, url: string, body: string | object | und
     request.body = JSON.stringify(body);
     request.headers['Content-Type'] = 'application/json';
   }
+  request.headers['passphrase'] = passphrase ?? _passphrase;
 
   const res = await fetch(_host + url, request);
 
   let answer: any = await res.text();
   if (answer.length > 0)
     answer = JSON.parse(answer);
-
+  
   if (!res.ok)
     throw answer;
 
@@ -95,8 +109,8 @@ async function _request(method: string, url: string, body: string | object | und
   return answer;
 }
 
-function _get(url: string, callback?: IRequestCallback)        { return _request('GET', url, undefined, callback) }
-function _put(url: string, body: any)                          { return _request('PUT', url, body, undefined) }
+function _get(url: string, callback?: IRequestCallback, passphrase?: string)        { return _request('GET', url, undefined, callback, passphrase) };
+function _put(url: string, body: any, passphrase?: string)                          { return _request('PUT', url, body, undefined, passphrase) };
 
 const API = {
   STATUS: createAction<any>('API_STATUS'),
@@ -135,6 +149,19 @@ export const _api = {
     },
     set: (view: IView) => {
       _socket.emit('view', _preset, view);
+    },
+  },
+  passphrase: {
+    login: async(passphrase: string): Promise<boolean> => {
+      const ok = await _get('/api/passphrase', API.STATUS, passphrase);
+      if (!ok)
+        return false;
+
+      localStorage.setItem('passphrase', passphrase);
+      _passphrase = passphrase;
+      _api.presets.get();
+      _api.payload.all();
+      return true;
     },
   },
   payload: {
@@ -195,6 +222,8 @@ const initialState: ApiState = {
   view: { tabs: null },
   status: {
     connected: false,
+    keyCorrect: false,
+    isOpen: false,
   },
 };
 

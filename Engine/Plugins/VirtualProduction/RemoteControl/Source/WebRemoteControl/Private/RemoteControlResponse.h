@@ -76,6 +76,22 @@ struct FGetPresetResponse
 };
 
 USTRUCT()
+struct FCheckPassphraseResponse
+{
+	GENERATED_BODY()
+
+	FCheckPassphraseResponse() = default;
+
+	FCheckPassphraseResponse(bool bInKeyCorrect)
+		: keyCorrect(bInKeyCorrect)
+	{}
+
+	UPROPERTY()
+	bool keyCorrect;
+	
+};
+
+USTRUCT()
 struct FDescribeObjectResponse
 {
 	GENERATED_BODY()

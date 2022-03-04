@@ -25,6 +25,7 @@
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Textures/SlateIcon.h"
+#include "UI/Customizations/FPassphraseCustomization.h"
 #include "UI/Customizations/RemoteControlEntityCustomization.h"
 #include "UI/SRCPanelExposedField.h"
 #include "UI/SRCPanelExposedActor.h"
@@ -137,7 +138,7 @@ namespace RemoteControlUIModule
 		{
 			FRemoteControlProperty::StaticStruct()->GetFName(),
 			FRemoteControlFunction::StaticStruct()->GetFName(),
-			FRemoteControlActor::StaticStruct()->GetFName()
+			FRemoteControlActor::StaticStruct()->GetFName(),
 		};
 
 		return CustomizedStructNames;
@@ -744,6 +745,8 @@ void FRemoteControlUIModule::RegisterStructCustomizations()
 	{
 		PropertyEditorModule.RegisterCustomClassLayout(Name, FOnGetDetailCustomizationInstance::CreateStatic(&FRemoteControlEntityCustomization::MakeInstance));
 	}
+	
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout(FRCPassphrase::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPassphraseCustomization::MakeInstance));
 }
 
 void FRemoteControlUIModule::UnregisterStructCustomizations()
@@ -754,6 +757,11 @@ void FRemoteControlUIModule::UnregisterStructCustomizations()
 	for (int8 NameIndex = RemoteControlUIModule::GetCustomizedStructNames().Num() - 1; NameIndex >= 0; NameIndex--)
 	{
 		PropertyEditorModule.UnregisterCustomClassLayout(RemoteControlUIModule::GetCustomizedStructNames()[NameIndex]);
+	}
+
+	if (UObjectInitialized())
+	{
+		PropertyEditorModule.UnregisterCustomPropertyTypeLayout(FRCPassphrase::StaticStruct()->GetFName());
 	}
 }
 
