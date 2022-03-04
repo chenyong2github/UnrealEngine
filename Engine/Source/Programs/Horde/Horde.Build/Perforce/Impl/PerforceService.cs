@@ -229,24 +229,12 @@ namespace HordeServer.Services
 			IPerforceServer Server = await SelectServer(Cluster);
 
 			PerforceSettings Settings = new PerforceSettings(Server.ServerAndPort, UserName);
+			Settings.Password = Password;
 			Settings.AppName = "Horde.Build";
 			Settings.ClientName = "__DOES_NOT_EXIST__";
 			Settings.PreferNativeClient = true;
 
-			IPerforceConnection Connection = await PerforceConnection.CreateAsync(Settings, Logger);
-			try
-			{
-				if (Password != null)
-				{
-					await Connection.LoginAsync(Password);
-				}
-				return Connection;
-			}
-			catch
-			{
-				Connection.Dispose();
-				throw;
-			}
+			return await PerforceConnection.CreateAsync(Settings, Logger);
 		}
 
 		async Task<P4.Repository> GetServiceUserConnection(PerforceCluster Cluster)
