@@ -419,4 +419,70 @@ namespace Chaos
 		// Generate a new convex from the points
 		*this = FConvex(NewPoints, 0.0f);
 	}
+
+	void FConvex::ComputeUnitMassInertiaTensorAndRotationOfMass(const FReal InVolume)
+	{
+		// we only compute the inertia tensor using unit mass and scale it upon request
+		if (InVolume < SMALL_NUMBER)
+		{
+			UnitMassInertiaTensor = FVec3{1., 1., 1.};
+			RotationOfMass = FRotation3::Identity;
+			return;
+		}
+
+		// verify that the StructureData has been built before we call process further
+		ensure(StructureData.IsValid());
+		
+		constexpr FReal Mass = 1.0;
+		const FReal Density = Mass / InVolume;
+
+		static const FMatrix33 Standard(2, 1, 1, 2, 1, 2);
+		FMatrix33 Covariance(0);
+
+		for (int32 PlaneIndex = 0; PlaneIndex < Planes.Num(); ++PlaneIndex)
+		{
+			const int32 PlaneVerticesNum = NumPlaneVertices(PlaneIndex);
+			if (PlaneVerticesNum > 2)
+			{
+				// compute plane center
+				FVec3 PlaneCenter(0);
+				for (int32 VertexIndex = 0; VertexIndex < PlaneVerticesNum; VertexIndex++)
+				{
+					PlaneCenter += GetVertex(GetPlaneVertex(PlaneIndex, VertexIndex));
+				}
+				PlaneCenter /= PlaneVerticesNum;
+
+				// Now break down the plane in triangle ( fan around PlaneCenter ) 
+				FMatrix33 DeltaMatrix(0);
+				for (int32 VertexIndex = 0; VertexIndex < PlaneVerticesNum; VertexIndex++)
+				{
+					FVec3 DeltaVector = PlaneCenter - CenterOfMass;
+					DeltaMatrix.M[0][0] = DeltaVector[0];
+					DeltaMatrix.M[1][0] = DeltaVector[1];
+					DeltaMatrix.M[2][0] = DeltaVector[2];
+
+					DeltaVector = GetVertex(GetPlaneVertex(PlaneIndex, VertexIndex)) - CenterOfMass;
+					DeltaMatrix.M[0][1] = DeltaVector[0];
+					DeltaMatrix.M[1][1] = DeltaVector[1];
+					DeltaMatrix.M[2][1] = DeltaVector[2];
+
+					DeltaVector = GetVertex(GetPlaneVertex(PlaneIndex, (VertexIndex + 1) % PlaneVerticesNum)) - CenterOfMass;
+					DeltaMatrix.M[0][2] = DeltaVector[0];
+					DeltaMatrix.M[1][2] = DeltaVector[1];
+					DeltaMatrix.M[2][2] = DeltaVector[2];
+
+					FReal Det = DeltaMatrix.M[0][0] * (DeltaMatrix.M[1][1] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][1]) -
+						DeltaMatrix.M[0][1] * (DeltaMatrix.M[1][0] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][0]) +
+						DeltaMatrix.M[0][2] * (DeltaMatrix.M[1][0] * DeltaMatrix.M[2][1] - DeltaMatrix.M[1][1] * DeltaMatrix.M[2][0]);
+					const FMatrix33 ScaledStandard = Standard * Det;
+					Covariance += DeltaMatrix * ScaledStandard * DeltaMatrix.GetTransposed();
+				}
+			}
+		}
+		FReal Trace = Covariance.M[0][0] + Covariance.M[1][1] + Covariance.M[2][2];
+		FMatrix33 TraceMat(Trace, Trace, Trace);
+		FMatrix33 InertiaTensor = (TraceMat - Covariance) * (1 / (FReal)120) * Density;
+		RotationOfMass = TransformToLocalSpace(InertiaTensor);
+		UnitMassInertiaTensor = InertiaTensor.GetDiagonal();
+	}
 }

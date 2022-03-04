@@ -111,6 +111,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 
 		// Serialize LandscapeActorGuid in FLandscapeActorDesc sub class.
 		WorldPartitionLandscapeActorDescSerializeLandscapeActorGuid,
+		
+		// add inertia tensor and rotation of mass to convex 
+		AddedInertiaTensorAndRotationOfMassAddedToConvex,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

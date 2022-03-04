@@ -15,6 +15,7 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
 namespace Chaos
@@ -41,6 +42,8 @@ namespace Chaos
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Volume(0.f)
 			, CenterOfMass(FVec3Type(0.f))
+			, UnitMassInertiaTensor(1., 1., 1.)
+			, RotationOfMass(FRotation3::Identity)
 		{}
 		FConvex(FConvex&& Other)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
@@ -50,6 +53,8 @@ namespace Chaos
 			, StructureData(MoveTemp(Other.StructureData))
 			, Volume(MoveTemp(Other.Volume))
 			, CenterOfMass(MoveTemp(Other.CenterOfMass))
+			, UnitMassInertiaTensor(MoveTemp(Other.UnitMassInertiaTensor))
+			, RotationOfMass(MoveTemp(Other.RotationOfMass))
 		{}
 
 		// NOTE: This constructor will result in approximate COM and volume calculations, since it does
@@ -72,6 +77,8 @@ namespace Chaos
 			// For now we approximate COM and volume with the bounding box
 			CenterOfMass = LocalBoundingBox.GetCenterOfMass();
 			Volume = LocalBoundingBox.GetVolume();
+
+			ComputeUnitMassInertiaTensorAndRotationOfMass(Volume);
 		}
 
 		FConvex(TArray<FPlaneType>&& InPlanes, TArray<TArray<int32>>&& InFaceIndices, TArray<FVec3Type>&& InVertices)
@@ -87,8 +94,10 @@ namespace Chaos
 			// For now we approximate COM and volume with the bounding box
 			CenterOfMass = LocalBoundingBox.GetCenterOfMass();
 			Volume = LocalBoundingBox.GetVolume();
-
+			
 			CreateStructureData(MoveTemp(InFaceIndices));
+
+			ComputeUnitMassInertiaTensorAndRotationOfMass(Volume);
 		}
 
 		FConvex(const TArray<FVec3Type>& InVertices, const FReal InMargin)
@@ -107,7 +116,7 @@ namespace Chaos
 			// @todo(chaos): this only works with triangles. Fix that an we can run MergeFaces before calling this
 			CalculateVolumeAndCenterOfMass(Vertices, FaceIndices, Volume, CenterOfMass);
 
-			// @todo(chaos):																				 should be based on size, or passed in
+			// @todo(chaos): should be based on size, or passed in
 			if (!FConvexBuilder::bUseGeometryTConvexHull3)
 			{
 				// @todo(convex) : TConvexHull3 does not need to merge faces, and 
@@ -120,6 +129,8 @@ namespace Chaos
 			}
 
 			CreateStructureData(MoveTemp(FaceIndices));
+
+			ComputeUnitMassInertiaTensorAndRotationOfMass(Volume);
 
 			SetMargin(InMargin);
 		}
@@ -146,6 +157,8 @@ namespace Chaos
 			StructureData = MoveTemp(Other.StructureData);
 			Volume = MoveTemp(Other.Volume);
 			CenterOfMass = MoveTemp(Other.CenterOfMass);
+			UnitMassInertiaTensor = MoveTemp(Other.UnitMassInertiaTensor);
+			RotationOfMass = MoveTemp(Other.RotationOfMass);
 
 			return *this;
 		}
@@ -732,16 +745,16 @@ namespace Chaos
 		{
 			return Volume;
 		}
-
+		
 		const FMatrix33 GetInertiaTensor(const FReal Mass) const
 		{
-			// TODO: More precise inertia!
-			return LocalBoundingBox.GetInertiaTensor(Mass);
+			const FVec3 ScaledInertiaTensorDiagonal{ UnitMassInertiaTensor * Mass };
+			return FMatrix33(ScaledInertiaTensorDiagonal.X, ScaledInertiaTensorDiagonal.Y, ScaledInertiaTensorDiagonal.Z);
 		}
 
 		FRotation3 GetRotationOfMass() const
 		{
-			return FRotation3::FromIdentity();
+			return RotationOfMass;
 		}
 
 		const FVec3 GetCenterOfMass() const
@@ -774,6 +787,7 @@ namespace Chaos
 			Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 			Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
 			Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+			Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 			FImplicitObject::SerializeImp(Ar);
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ConvexUsesTPlaneConcrete)
@@ -827,6 +841,13 @@ namespace Chaos
 				Ar << VolumeFloat;
 				Volume = (FRealType)VolumeFloat;
 
+				// Some assets have stored NaN ( empty convex objects from Geometry Collection )
+				// Fixing this so that next time they get saved the Volume is a valid number
+				if (FMath::IsNaN(Volume) && Ar.IsLoading())
+				{
+					Volume = 0;
+				}
+
 				Ar << CenterOfMass;
 			}
 			else if (Ar.IsLoading())
@@ -859,6 +880,16 @@ namespace Chaos
 				TArray<TArray<int32>> FaceIndices;
 				FConvexBuilder::BuildPlaneVertexIndices(Planes, Vertices, FaceIndices);
 				CreateStructureData(MoveTemp(FaceIndices));
+			}
+
+			if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::AddedInertiaTensorAndRotationOfMassAddedToConvex)
+			{
+				Ar << UnitMassInertiaTensor;
+				Ar << RotationOfMass;
+			}
+			else if (Ar.IsLoading())
+			{
+				ComputeUnitMassInertiaTensorAndRotationOfMass(Volume);
 			}
 		}
 
@@ -930,6 +961,8 @@ namespace Chaos
 #endif // #if INTEL_ISPC && !UE_BUILD_SHIPPING
 
 	private:
+		void ComputeUnitMassInertiaTensorAndRotationOfMass(const FReal InVolume);
+		
 		// IMPORTANT to keep this copy constructor private to avoid unintented expensive copies 
 		FConvex(const FConvex& Other)
 			: FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
@@ -938,6 +971,8 @@ namespace Chaos
 			, LocalBoundingBox(Other.LocalBoundingBox)
 			, Volume(Other.Volume)
 			, CenterOfMass(Other.CenterOfMass)
+			, UnitMassInertiaTensor(Other.UnitMassInertiaTensor)
+			, RotationOfMass(Other.RotationOfMass)
 		{
 			StructureData.CopyFrom(Other.StructureData);
 			SetMargin(Other.Margin);
@@ -950,5 +985,7 @@ namespace Chaos
 		FConvexStructureData StructureData;
 		FRealType Volume;
 		FVec3Type CenterOfMass;
+		FVec3 UnitMassInertiaTensor;
+		FRotation3 RotationOfMass;
 	};
 }
