@@ -282,7 +282,13 @@ void UPCGBlueprintSettings::OnBlueprintElementChanged(UPCGBlueprintElement* InEl
 }
 #endif
 
-void UPCGBlueprintSettings::SetElementType(TSubclassOf<UPCGBlueprintElement> InElementType)
+void UPCGBlueprintSettings::SetElementTypeInternal(TSubclassOf<UPCGBlueprintElement> InElementType)
+{
+	UPCGBlueprintElement* ElementInstance = nullptr;
+	SetElementType(InElementType, ElementInstance);
+}
+
+void UPCGBlueprintSettings::SetElementType(TSubclassOf<UPCGBlueprintElement> InElementType, UPCGBlueprintElement*& ElementInstance)
 {
 	if (!BlueprintElementInstance || InElementType != BlueprintElementType)
 	{
@@ -295,6 +301,8 @@ void UPCGBlueprintSettings::SetElementType(TSubclassOf<UPCGBlueprintElement> InE
 		
 		RefreshBlueprintElement();
 	}
+
+	ElementInstance = BlueprintElementInstance;
 }
 
 void UPCGBlueprintSettings::RefreshBlueprintElement()

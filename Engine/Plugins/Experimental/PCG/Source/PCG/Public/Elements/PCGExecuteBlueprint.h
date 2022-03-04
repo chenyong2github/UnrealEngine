@@ -88,14 +88,18 @@ public:
 	// ~End UObject interface
 #endif
 
-	UFUNCTION(BlueprintCallable, Category = Settings)
-	void SetElementType(TSubclassOf<UPCGBlueprintElement> InElementType);
+	/** To facilitate transition, we will keep this version around even though it's a lot less useful */
+	UFUNCTION(BlueprintCallable, BlueprintInternalUseOnly)
+	void SetElementTypeInternal(TSubclassOf<UPCGBlueprintElement> InElementType);
+
+	UFUNCTION(BlueprintCallable, Category = Settings, meta=(DeterminesOutputType="InElementType", DynamicOutputParam = "ElementInstance"))
+	void SetElementType(TSubclassOf<UPCGBlueprintElement> InElementType, UPCGBlueprintElement*& ElementInstance);
 
 protected:
 	UPROPERTY()
 	TSubclassOf<UPCGBlueprintElement> BlueprintElement_DEPRECATED;
 
-	UPROPERTY(BlueprintSetter = SetElementType, EditAnywhere, Category = Template)
+	UPROPERTY(BlueprintSetter = SetElementTypeInternal, EditAnywhere, Category = Template)
 	TSubclassOf<UPCGBlueprintElement> BlueprintElementType;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Instanced, Category = Settings, meta = (ShowOnlyInnerProperties))

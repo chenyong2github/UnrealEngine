@@ -36,8 +36,8 @@ public:
 #endif
 
 	/** Creates a default node based on the settings class wanted. Returns the newly created node. */
-	UFUNCTION(BlueprintCallable, Category = Graph)
-	UPCGNode* AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsClass);
+	UFUNCTION(BlueprintCallable, Category = Graph, meta=(DeterminesOutputType = "InSettingsClass", DynamicOutputParam = "DefaultNodeSettings"))
+	UPCGNode* AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsClass, UPCGSettings*& DefaultNodeSettings);
 
 	/** Creates a node and assigns it in the input settings. Returns the created node. */
 	UFUNCTION(BlueprintCallable, Category = Graph)

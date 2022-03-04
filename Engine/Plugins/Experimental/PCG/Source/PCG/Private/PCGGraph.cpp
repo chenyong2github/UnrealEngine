@@ -88,7 +88,7 @@ void UPCGGraph::InitializeFromTemplate()
 }
 #endif
 
-UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsClass)
+UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsClass, UPCGSettings*& OutDefaultNodeSettings)
 {
 	UPCGSettings* Settings = NewObject<UPCGSettings>(GetTransientPackage(), InSettingsClass);
 
@@ -124,6 +124,7 @@ UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsCla
 		OnNodeAdded(Node);
 	}
 
+	OutDefaultNodeSettings = Settings;
 	return Node;
 }
 
