@@ -826,6 +826,7 @@ void CullMeshObjectsForLightCards(
 
 	int32 NumPlanes = MeshSDFShadowInitializer.CascadeSettings.ShadowBoundsAccurate.Planes.Num();
 	const FPlane* PlaneData = MeshSDFShadowInitializer.CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
+	FVector PrePlaneTranslation = FVector::ZeroVector;
 	FVector4f LocalLightShadowBoundingSphere = FVector4f::Zero();
 
 	WorldToMeshSDFShadowValue = FTranslationMatrix(MeshSDFShadowInitializer.PreShadowTranslation) * SubjectAndReceiverMatrix;
@@ -840,6 +841,7 @@ void CullMeshObjectsForLightCards(
 		WorldToMeshSDFShadowValue,
 		NumPlanes,
 		PlaneData,
+		PrePlaneTranslation,
 		LocalLightShadowBoundingSphere,
 		MeshSDFShadowBounds.W,
 		false,

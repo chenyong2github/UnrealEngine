@@ -33,12 +33,10 @@ uint bDrawNaniteMeshes;
 
 bool ShadowConvexHullIntersectSphere(float3 SphereOrigin, float SphereRadius)
 {
-	float3 TranslatedSphereOrigin = SphereOrigin + ShadowBoundingSphere.xyz;
-
 	for (uint PlaneIndex = 0; PlaneIndex < NumShadowHullPlanes; PlaneIndex++)
 	{
 		float4 PlaneData = ShadowConvexHull[PlaneIndex];
-		float PlaneDistance = dot(PlaneData.xyz, TranslatedSphereOrigin) - PlaneData.w;
+		float PlaneDistance = dot(PlaneData.xyz, SphereOrigin) - PlaneData.w;
 
 		if (PlaneDistance > SphereRadius)
 		{

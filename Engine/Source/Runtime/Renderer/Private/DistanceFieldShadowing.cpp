@@ -499,7 +499,8 @@ void CullDistanceFieldObjectsForLight(
 	EDistanceFieldPrimitiveType PrimitiveType,
 	const FMatrix& WorldToShadowValue, 
 	int32 NumPlanes, 
-	const FPlane* PlaneData, 
+	const FPlane* PlaneData,
+	const FVector& PrePlaneTranslation,
 	const FVector4f& ShadowBoundingSphere,
 	float ShadowBoundingRadius,
 	bool bCullingForDirectShadowing,
@@ -540,7 +541,8 @@ void CullDistanceFieldObjectsForLight(
 
 		for (int32 i = 0; i < NumPlanes; i++)
 		{
-			const FPlane4f Plane(PlaneData[i].TranslateBy(View.ViewMatrices.GetPreViewTranslation()));
+			// translated planes from translated-shadow-space to translated-world-space
+			const FPlane4f Plane(PlaneData[i].TranslateBy(View.ViewMatrices.GetPreViewTranslation() - PrePlaneTranslation));
 			PassParameters->ShadowConvexHull[i] = FVector4f(FVector3f(Plane), Plane.W);
 		}
 
@@ -835,6 +837,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 			int32 NumPlanes = 0;
 			const FPlane* PlaneData = NULL;
 			FVector4f ShadowBoundingSphere = FVector4f::Zero();
+			FVector PrePlaneTranslation = FVector::ZeroVector;
 
 			if (bDirectionalLight)
 			{
@@ -849,7 +852,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 			{
 				NumPlanes = CasterOuterFrustum.Planes.Num();
 				PlaneData = CasterOuterFrustum.Planes.GetData();
-				ShadowBoundingSphere = FVector4f(FVector3f(PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()), 0.0f);
+				PrePlaneTranslation = PreShadowTranslation;
 			}
 
 			const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * FMatrix(TranslatedWorldToClipInnerMatrix);
@@ -867,6 +870,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 				WorldToShadowValue,
 				NumPlanes,
 				PlaneData,
+				PrePlaneTranslation,
 				ShadowBoundingSphere,
 				ShadowBounds.W,
 				true,
@@ -899,6 +903,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 
 		const int32 NumPlanes = CascadeSettings.ShadowBoundsAccurate.Planes.Num();
 		const FPlane* PlaneData = CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
+		FVector PrePlaneTranslation = FVector::ZeroVector;
 		const FVector4f ShadowBoundingSphere = FVector4f::Zero();
 		const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * FMatrix(TranslatedWorldToClipInnerMatrix);
 
@@ -915,6 +920,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 			WorldToShadowValue,
 			NumPlanes,
 			PlaneData,
+			PrePlaneTranslation,
 			ShadowBoundingSphere,
 			ShadowBounds.W,
 			true,
