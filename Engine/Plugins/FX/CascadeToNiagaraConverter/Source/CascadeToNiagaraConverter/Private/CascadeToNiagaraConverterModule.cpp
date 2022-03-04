@@ -28,7 +28,6 @@ void ICascadeToNiagaraConverterModule::StartupModule()
 	MessageManager->RegisterMessageTopic(FNiagaraConverterMessageTopics::VerboseConversionEventTopicName);
 	MessageManager->RegisterMessageTopic(FNiagaraConverterMessageTopics::ConversionEventTopicName);
 	MessageManager->RegisterAdditionalMessageLogTopic(FNiagaraConverterMessageTopics::ConversionEventTopicName);
-	MessageManager->RegisterAdditionalMessageLogTopic(FNiagaraConverterMessageTopics::VerboseConversionEventTopicName);
 }
 
 void ICascadeToNiagaraConverterModule::ShutdownModule()
