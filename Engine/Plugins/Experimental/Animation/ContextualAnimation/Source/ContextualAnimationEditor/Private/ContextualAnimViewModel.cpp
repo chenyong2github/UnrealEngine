@@ -202,7 +202,11 @@ void FContextualAnimViewModel::RefreshSequencerTracks()
 
 			// Spawn preview actor
 			AActor* PreviewActor = SpawnPreviewActor(AnimTrack);
-			check(PreviewActor);
+			
+			if(PreviewActor == nullptr)
+			{
+				return UE::ContextualAnim::EForEachResult::Continue;
+			}
 
 			// Set actor label so the track shows the name of the role it represents
 			//PreviewActor->SetActorLabel(Role.ToString(), false);

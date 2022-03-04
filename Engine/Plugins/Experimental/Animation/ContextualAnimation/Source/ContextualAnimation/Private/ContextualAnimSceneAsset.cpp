@@ -522,6 +522,33 @@ const FContextualAnimTrack* UContextualAnimSceneAsset::FindAnimTrackForRoleWithC
 	return Result;
 }
 
+bool UContextualAnimSceneAsset::Query(const FName& Role, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const
+{
+	FContextualAnimPrimaryActorData PrimaryActorData;
+	PrimaryActorData.Transform = ToWorldTransform;
+
+	FContextualAnimQuerierData QuerierData;
+	QuerierData.Transform = QueryParams.Querier.IsValid() ? QueryParams.Querier->GetActorTransform() : QueryParams.QueryTransform;
+
+	if(const FContextualAnimTrack* AnimTrack = FindFirstAnimTrackForRoleThatPassesSelectionCriteria(Role, PrimaryActorData, QuerierData))
+	{
+		OutResult.VariantIdx = AnimTrack->VariantIdx;
+		OutResult.Animation = AnimTrack->Animation;
+		OutResult.EntryTransform = AnimTrack->GetAlignmentTransformAtEntryTime() * ToWorldTransform;
+		OutResult.SyncTransform = AnimTrack->GetAlignmentTransformAtSyncTime() * ToWorldTransform;
+
+		if (QueryParams.bFindAnimStartTime)
+		{
+			const FVector LocalLocation = (QuerierData.Transform.GetRelativeTransform(ToWorldTransform)).GetLocation();
+			OutResult.AnimStartTime = AnimTrack->FindBestAnimStartTime(LocalLocation);
+		}
+
+		return true;
+	}
+	
+	return false;
+}
+
 FTransform UContextualAnimSceneAsset::GetAlignmentTransformForRoleRelativeToScenePivot(FName Role, int32 VariantIdx, float Time) const
 {
 	if (const FContextualAnimTrack* AnimTrack = GetAnimTrack(Role, VariantIdx))

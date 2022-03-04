@@ -135,11 +135,14 @@ public:
 	int32 GetTotalVariants() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset", meta = (DisplayName = "Get Anim Track"))
-	const FContextualAnimTrack& BP_GetAnimTrack(const FName& Role, int32 VariantIdx) const
+	const FContextualAnimTrack& BP_GetAnimTrack(FName Role, int32 VariantIdx) const
 	{
 		const FContextualAnimTrack* AnimTrack = GetAnimTrack(Role, VariantIdx);
 		return AnimTrack ? *AnimTrack : FContextualAnimTrack::EmptyTrack;
 	}
+
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
+	bool Query(const FName& Role, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const;
 
 protected:
 
