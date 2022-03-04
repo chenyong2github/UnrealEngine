@@ -331,15 +331,15 @@ static IOSAppDelegate* CachedDelegate = nil;
 #endif
 
 	bEngineInit = true;
-    
-    // put a render thread job to turn off the splash screen after the first render flip
-    if (GShowSplashScreen)
-    {
-        FGraphEventRef SplashTask = FFunctionGraphTask::CreateAndDispatchWhenReady([]()
-        {
-            GShowSplashScreen = false;
-        }, TStatId(), NULL, ENamedThreads::ActualRenderingThread);
-    }
+
+	// put a render thread job to turn off the splash screen after the first render flip
+	if (GShowSplashScreen)
+	{
+		FGraphEventRef SplashTask = FFunctionGraphTask::CreateAndDispatchWhenReady([]()
+		{
+			GShowSplashScreen = false;
+		}, TStatId(), NULL, ENamedThreads::ActualRenderingThread);
+	}
 
 	for (NSDictionary* openUrlParameter in self.savedOpenUrlParameters)
 	{
@@ -823,6 +823,25 @@ static IOSAppDelegate* CachedDelegate = nil;
 #else
     return self.bBatteryState;
 #endif
+}
+
+- (void)LoadMobileContentScaleFactor
+{
+	// need to cache the MobileContentScaleFactor for framebuffer creation.
+	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
+	self.MobileContentScaleFactor = CVar ? CVar->GetFloat() : 0;
+
+	// Can also be overridden from the commandline using "mcsf="
+	FString CmdLineCSF;
+	if (FParse::Value(FCommandLine::Get(), TEXT("mcsf="), CmdLineCSF, false))
+	{
+		self.MobileContentScaleFactor = FCString::Atof(*CmdLineCSF);
+	}
+}
+
+- (float)GetMobileContentScaleFactor
+{
+	return self.MobileContentScaleFactor;
 }
 
 - (void)CheckForZoomAccessibility

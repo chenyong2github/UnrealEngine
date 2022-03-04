@@ -180,6 +180,7 @@ APPLICATIONCORE_API
 @property (assign) bool bBatteryState;
 @property (assign) int BatteryLevel;
 
+@property (assign) float MobileContentScaleFactor;
 @property (assign) bool bUpdateAvailable;
 
 /**
@@ -193,6 +194,9 @@ APPLICATIONCORE_API
 /** Uses the TaskGraph to execute a function on the game thread, and then blocks until the function is executed. */
 +(bool)WaitAndRunOnGameThread:(TUniqueFunction<void()>)Function;
 -(void)NoUrlCommandLine;
+
+-(void)LoadMobileContentScaleFactor;
+-(float)GetMobileContentScaleFactor;
 
 -(int)GetAudioVolume;
 -(bool)AreHeadphonesPluggedIn;

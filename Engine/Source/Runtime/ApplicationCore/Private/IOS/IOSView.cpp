@@ -272,34 +272,16 @@ id<MTLDevice> GMetalDevice = nil;
 	if (!bIsInitialized)
 	{
 		// look up what the device can support
-		const float NativeScale = [[UIScreen mainScreen] scale];
-
-		float RequestedContentScaleFactor = 1.0;
-		[IOSAppDelegate WaitAndRunOnGameThread:[&RequestedContentScaleFactor]()
-		{
-			// look up the CVar for the scale factor
-			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
-			RequestedContentScaleFactor = CVar->GetFloat();
-
-			FString CmdLineCSF;
-			if (FParse::Value(FCommandLine::Get(), TEXT("mcsf="), CmdLineCSF, false))
-			{
-				RequestedContentScaleFactor = FCString::Atof(*CmdLineCSF);
-			}
-		}];
-
+		const float Scale = [[UIScreen mainScreen] scale];
+		const float NativeScale = self.window.screen.nativeScale;
+		const float RequestedContentScaleFactor = [[IOSAppDelegate GetDelegate] GetMobileContentScaleFactor];
+		
+		UE_LOG(LogIOS, Log, TEXT("RequestedContentScaleFactor %f to nativeScale which is = (s:%f, ns:%f, csf:%f"), RequestedContentScaleFactor, Scale, NativeScale, self.contentScaleFactor);
 		// 0 means to leave the scale alone, use native
 		if (RequestedContentScaleFactor == 0.0f)
 		{
-            if ([self.window.screen respondsToSelector:@selector(nativeScale)])
-            {
-                self.contentScaleFactor = self.window.screen.nativeScale;
-                UE_LOG(LogIOS, Log, TEXT("Setting contentScaleFactor to nativeScale which is = %f"), self.contentScaleFactor);
-            }
-            else
-            {
-                UE_LOG(LogIOS, Log, TEXT("Leaving contentScaleFactor alone, with scale = %f"), NativeScale);
-            }
+			self.contentScaleFactor = NativeScale;
+			UE_LOG(LogIOS, Log, TEXT("Setting contentScaleFactor to nativeScale which is = %f"), self.contentScaleFactor);
 		}
 		else
 		{
@@ -308,9 +290,7 @@ id<MTLDevice> GMetalDevice = nil;
 			UE_LOG(LogIOS, Log, TEXT("Setting contentScaleFactor to %0.4f (optimal = %0.4f)"), self.contentScaleFactor, NativeScale);
 		}
 
-
-		// handle Metal or GL sizing
-#if HAS_METAL
+		// TODO: bIsUsingMetal is always true. Remove it.
 		if (bIsUsingMetal)
 		{
 			CAMetalLayer* MetalLayer = (CAMetalLayer*)self.layer;
@@ -319,10 +299,9 @@ id<MTLDevice> GMetalDevice = nil;
 			DrawableSize.height *= self.contentScaleFactor;
 			MetalLayer.drawableSize = DrawableSize;
 		}
-#endif
 
 		bIsInitialized = true;
-	}    
+	}
 	return true;
 }
 

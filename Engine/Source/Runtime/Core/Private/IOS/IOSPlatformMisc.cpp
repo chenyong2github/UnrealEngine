@@ -73,6 +73,10 @@ static int32 GetFreeMemoryMB()
 
 void FIOSPlatformMisc::PlatformInit()
 {
+	// PlatformInit() starts the UI thread which creates the framebuffer and it requires
+	// "r.MobileContentScaleFactor" to be available before it's creation, so need to cache that value now.
+	[[IOSAppDelegate GetDelegate] LoadMobileContentScaleFactor];
+		
 	FAppEntry::PlatformInit();
 
 	// Increase the maximum number of simultaneously open files
