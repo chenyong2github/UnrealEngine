@@ -117,6 +117,27 @@ namespace EpicGames.Horde.Storage.Impl
 			Response.EnsureSuccessStatusCode();
 		}
 
+		/// <inheritdoc/>
+		public async Task<bool> HasBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
+		{
+			using HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Head, $"api/v1/blobs/{NamespaceId}/{Hash}");
+
+			HttpResponseMessage Response = await HttpClient.SendAsync(Request, CancellationToken);
+			try
+			{
+				if (Response.StatusCode != System.Net.HttpStatusCode.NotFound)
+				{
+					Response.EnsureSuccessStatusCode();
+				}
+				return Response.StatusCode == System.Net.HttpStatusCode.OK;
+			}
+			catch
+			{
+				Response.Dispose();
+				throw;
+			}
+		}
+
 		#endregion
 
 		#region Refs

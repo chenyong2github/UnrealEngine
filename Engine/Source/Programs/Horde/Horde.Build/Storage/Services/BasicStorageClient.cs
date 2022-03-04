@@ -94,6 +94,12 @@ namespace Horde.Build.Storage.Services
 		}
 
 		/// <inheritdoc/>
+		public async Task<bool> HasBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken)
+		{
+			return await StorageBackend.ExistsAsync(GetFullBlobPath(NamespaceId, Hash));
+		}
+
+		/// <inheritdoc/>
 		public async Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken)
 		{
 			string Id = GetFullRefId(NamespaceId, BucketId, RefId);

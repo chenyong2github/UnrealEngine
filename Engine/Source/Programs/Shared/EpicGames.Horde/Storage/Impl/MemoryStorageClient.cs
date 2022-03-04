@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Storage.Impl
 {
 	/// <summary>
-	/// Implementation of <see cref="IStorageClient"/> which writes directly to the local filesystem for testing. Not intended for production use.
+	/// Implementation of <see cref="IStorageClient"/> which writes directly to memory for testing. Not intended for production use.
 	/// </summary>
 	public class MemoryStorageClient : IStorageClient
 	{
@@ -34,14 +34,10 @@ namespace EpicGames.Horde.Storage.Impl
 			}
 		}
 
-		/// <summary>
-		/// Blobs that have been written to storage
-		/// </summary>
+		/// <inheritdoc/>
 		public Dictionary<(NamespaceId, IoHash), ReadOnlyMemory<byte>> Blobs { get; } = new Dictionary<(NamespaceId, IoHash), ReadOnlyMemory<byte>>();
 
-		/// <summary>
-		/// Refs that have been written to storage
-		/// </summary>
+		/// <inheritdoc/>
 		public Dictionary<(NamespaceId, BucketId, RefId), IRef> Refs { get; } = new Dictionary<(NamespaceId, BucketId, RefId), IRef>();
 
 		/// <inheritdoc/>
@@ -62,6 +58,12 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
+		public Task<bool> HasBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
+		{
+			return Task.FromResult(Blobs.ContainsKey((NamespaceId, Hash)));
+		}
+
+		/// <inheritdoc/>
 		public Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
 		{
 			return Task.FromResult(Refs.Remove((NamespaceId, BucketId, RefId)));
@@ -76,7 +78,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
 		{
-			return Task.FromResult<IRef>(Refs[(NamespaceId, BucketId, RefId)]);
+			return Task.FromResult(Refs[(NamespaceId, BucketId, RefId)]);
 		}
 
 		/// <inheritdoc/>

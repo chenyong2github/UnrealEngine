@@ -176,6 +176,15 @@ namespace EpicGames.Horde.Storage
 		/// <param name="CancellationToken">Cancellation token for the operation</param>
 		Task WriteBlobAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream, CancellationToken CancellationToken = default);
 
+		/// <summary>
+		/// Checks if the given blob exists
+		/// </summary>
+		/// <param name="NamespaceId">Namespace to operate on</param>
+		/// <param name="Hash">Hash of the blob</param>
+		/// <param name="CancellationToken">Cancellation token for the operation</param>
+		/// <returns>True if the blob exists, false if it did not exist</returns>
+		Task<bool> HasBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default);
+
 		#endregion
 		#region Refs
 
@@ -190,13 +199,13 @@ namespace EpicGames.Horde.Storage
 		Task<IRef> GetRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default);
 
 		/// <summary>
-		/// Gets the given reference
+		/// Checks if the given reference exists
 		/// </summary>
 		/// <param name="NamespaceId">Namespace identifier</param>
 		/// <param name="BucketId">Bucket identifier</param>
 		/// <param name="RefId">Ref identifier</param>
 		/// <param name="CancellationToken">Cancellation token for the operation</param>
-		/// <returns>The reference data if the ref exists</returns>
+		/// <returns>True if the ref exists, false if it did not exist</returns>
 		Task<bool> HasRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default);
 
 		/// <summary>
