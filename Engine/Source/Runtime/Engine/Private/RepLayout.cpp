@@ -5163,8 +5163,8 @@ static bool DiffStableProperties_r(FDiffStablePropertiesSharedParams& Params, TD
 						const bool bNetStartupActor = bIsActor && ObjValue && Cast<AActor>(ObjValue)->IsNetStartupActor();
 						const bool bIsReplicatedActor = bIsActor && ObjValue && Cast<AActor>(ObjValue)->GetIsReplicated();
 
-						// This is similar to AActor::IsNameStableForNetworking but we want to ignore forced net addressable objects for now
-						const bool bStableForNetworking = bNetStartupActor || (ObjValue && (ObjValue->HasAnyFlags(RF_WasLoaded | RF_DefaultSubObject) || ObjValue->IsNative() || ObjValue->IsDefaultSubobject()));
+						// This is similar to AActor::IsNameStableForNetworking but we want to ignore forced net addressable objects for now. Explicitly call the UObject implementation.
+						const bool bStableForNetworking = bNetStartupActor || (ObjValue && (ObjValue->UObject::IsNameStableForNetworking()));
 
 						if (bIsReplicatedActor || bIsActorComponent)
 						{
@@ -5199,8 +5199,8 @@ static bool DiffStableProperties_r(FDiffStablePropertiesSharedParams& Params, TD
 								continue;
 							}
 
-							const bool bStableForNetworking = (InterfaceObjValue->HasAnyFlags(RF_WasLoaded | RF_DefaultSubObject) || InterfaceObjValue->IsNative() || InterfaceObjValue->IsDefaultSubobject());
-							if (!bStableForNetworking)
+							// Explicitly call the UObject implementation to mirror object property behavior above.
+							if (!InterfaceObjValue->UObject::IsNameStableForNetworking())
 							{
 								// skip object references without a stable name
 								continue;
