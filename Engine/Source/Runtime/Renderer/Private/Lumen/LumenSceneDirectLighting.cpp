@@ -638,7 +638,7 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, ObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightTileIntersectionParameters, LightTileIntersectionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlasParameters)
-		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
+		SHADER_PARAMETER(FMatrix44f, TranslatedWorldToShadow)
 		SHADER_PARAMETER(float, TwoSidedMeshDistanceBias)
 		SHADER_PARAMETER(float, StepFactor)
 		SHADER_PARAMETER(float, TanLightSourceAngle)
@@ -826,7 +826,7 @@ void CullMeshObjectsForLightCards(
 
 	int32 NumPlanes = MeshSDFShadowInitializer.CascadeSettings.ShadowBoundsAccurate.Planes.Num();
 	const FPlane* PlaneData = MeshSDFShadowInitializer.CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
-	FVector4 LocalLightShadowBoundingSphereValue(0, 0, 0, 0);
+	FVector4f LocalLightShadowBoundingSphere = FVector4f::Zero();
 
 	WorldToMeshSDFShadowValue = FTranslationMatrix(MeshSDFShadowInitializer.PreShadowTranslation) * SubjectAndReceiverMatrix;
 
@@ -840,7 +840,7 @@ void CullMeshObjectsForLightCards(
 		WorldToMeshSDFShadowValue,
 		NumPlanes,
 		PlaneData,
-		LocalLightShadowBoundingSphereValue,
+		LocalLightShadowBoundingSphere,
 		MeshSDFShadowBounds.W,
 		false,
 		ObjectBufferParameters,
@@ -1146,7 +1146,7 @@ void TraceDistanceFieldShadows(
 		FDistanceFieldAtlasParameters DistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(Scene->DistanceFieldSceneData);
 
 		PassParameters->DistanceFieldAtlasParameters = DistanceFieldAtlasParameters;
-		PassParameters->WorldToShadow = FMatrix44f(WorldToMeshSDFShadowValue);	// LWC_TODO: Precision loss
+		PassParameters->TranslatedWorldToShadow = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToMeshSDFShadowValue);
 		extern float GTwoSidedMeshDistanceBias;
 		PassParameters->TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
 

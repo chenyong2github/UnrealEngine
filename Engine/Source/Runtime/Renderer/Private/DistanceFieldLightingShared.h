@@ -214,7 +214,7 @@ extern void CullDistanceFieldObjectsForLight(
 	const FMatrix& WorldToShadowValue, 
 	int32 NumPlanes, 
 	const FPlane* PlaneData, 
-	const FVector4& ShadowBoundingSphereValue,
+	const FVector4f& ShadowBoundingSphere,
 	float ShadowBoundingRadius,
 	bool bCullingForDirectShadowing,
 	const FDistanceFieldObjectBufferParameters& ObjectBufferParameters,

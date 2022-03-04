@@ -101,8 +101,8 @@ void CullObjectsForShadowCS(
 		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 		const float3 TranslatedCenter = LWCToFloat(LWCAdd(DFObjectBounds.Center, PrimaryView.PreViewTranslation));
 
-		const float3 CenterToShadowBoundingSphere = ShadowBoundingSphere.xyz - LWCHackToFloat(DFObjectBounds.Center);
-		const bool bConvexHullIntersect = ShadowBoundingSphere.w == 0 && ShadowConvexHullIntersectSphere(LWCHackToFloat(DFObjectBounds.Center), DFObjectBounds.SphereRadius);
+		const float3 CenterToShadowBoundingSphere = ShadowBoundingSphere.xyz - TranslatedCenter;
+		const bool bConvexHullIntersect = ShadowBoundingSphere.w == 0 && ShadowConvexHullIntersectSphere(TranslatedCenter, DFObjectBounds.SphereRadius);
 		const bool bBoundingSphereIntersect = ShadowBoundingSphere.w > 0 && dot(CenterToShadowBoundingSphere, CenterToShadowBoundingSphere) < Square(ShadowBoundingSphere.w + DFObjectBounds.SphereRadius);
 
         if (DFObjectBounds.bCastShadow 
@@ -125,7 +125,8 @@ void CullObjectsForShadowCS(
         }
 #else
 		FHeightfieldObjectBounds Bounds = LoadHeightfieldObjectBounds(ObjectIndex);
-		if (ShadowConvexHullIntersectBox(LWCHackToFloat(Bounds.BoxOrigin), Bounds.BoxExtent)) // DF_LWC_TODO
+		const float3 TranslatedBoxOrigin = LWCToFloat(LWCAdd(Bounds.BoxOrigin, PrimaryView.PreViewTranslation));
+		if (ShadowConvexHullIntersectBox(TranslatedBoxOrigin, Bounds.BoxExtent))
 		{
 			uint DestIndex;
 			InterlockedAdd(RWObjectIndirectArguments[1], 1U, DestIndex);
@@ -223,29 +224,29 @@ void ShadowObjectCullVS(
 
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 	FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
-	float4x4 ObjectOBBToWorld = LWCHackToFloat(DFObjectData.VolumeToWorld);
+	float4x4 ObjectOBBToTranslatedWorld = LWCMultiplyTranslation(DFObjectData.VolumeToWorld, PrimaryView.PreViewTranslation);
 
-	float ObjectScaleX = length(ObjectOBBToWorld[0].xyz);
-	float ObjectScaleY = length(ObjectOBBToWorld[1].xyz);
-	float ObjectScaleZ = length(ObjectOBBToWorld[2].xyz);
+	float ObjectScaleX = length(ObjectOBBToTranslatedWorld[0].xyz);
+	float ObjectScaleY = length(ObjectOBBToTranslatedWorld[1].xyz);
+	float ObjectScaleZ = length(ObjectOBBToTranslatedWorld[2].xyz);
 
-	ObjectOBBToWorld[0].xyz *= (1.0f + MinExpandRadius / ObjectScaleX);
-	ObjectOBBToWorld[1].xyz *= (1.0f + MinExpandRadius / ObjectScaleY);
-	ObjectOBBToWorld[2].xyz *= (1.0f + MinExpandRadius / ObjectScaleZ);
+	ObjectOBBToTranslatedWorld[0].xyz *= (1.0f + MinExpandRadius / ObjectScaleX);
+	ObjectOBBToTranslatedWorld[1].xyz *= (1.0f + MinExpandRadius / ObjectScaleY);
+	ObjectOBBToTranslatedWorld[2].xyz *= (1.0f + MinExpandRadius / ObjectScaleZ);
 
-	float3 WorldPosition = mul(float4(InPosition.xyz, 1.0f), ObjectOBBToWorld).xyz;
+	float3 TranslatedWorldPosition = mul(float4(InPosition.xyz, 1.0f), ObjectOBBToTranslatedWorld).xyz;
 #else
 
 	FHeightfieldObjectBounds Bounds = LoadHeightfieldObjectBounds(ObjectIndex);
-	float3 BoxOrigin = LWCHackToFloat(Bounds.BoxOrigin); // DF_LWC_TODO
+	float3 BoxTranslatedOrigin = LWCToFloat(LWCAdd(Bounds.BoxOrigin, PrimaryView.PreViewTranslation));
 	float3 BoxExtent = Bounds.BoxExtent;
 
 	BoxExtent += MinExpandRadius;
 
-	float3 WorldPosition = InPosition.xyz * BoxExtent + BoxOrigin;
+	float3 TranslatedWorldPosition = InPosition.xyz * BoxExtent + BoxTranslatedOrigin;
 #endif
 
-	OutPosition = mul(float4(WorldPosition, 1.0), WorldToShadow);
+	OutPosition = mul(float4(TranslatedWorldPosition, 1.0), TranslatedWorldToShadow);
 
 	// Clamp the vertex to the near plane if it is in front of the near plane
 	if (OutPosition.z > 1)
@@ -299,14 +300,14 @@ FObjectViewSpaceBox GetObjectViewSpaceBox(uint ObjectIndex)
 
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
-		float4x4 VolumeToWorld = LWCHackToFloat(DFObjectData.VolumeToWorld);
-		float3 WorldBoundsPosition = mul(float4(UnitBoxVertex * DFObjectData.VolumePositionExtent, 1.0f), VolumeToWorld).xyz;
+		float4x4 VolumeToTranslatedWorld = LWCMultiplyTranslation(DFObjectData.VolumeToWorld, PrimaryView.PreViewTranslation);
+		float3 TranslatedWorldBoundsPosition = mul(float4(UnitBoxVertex * DFObjectData.VolumePositionExtent, 1.0f), VolumeToTranslatedWorld).xyz;
 #else
 		FHeightfieldObjectBounds HeightfieldObjectBounds = LoadHeightfieldObjectBounds(ObjectIndex);
-		float3 WorldBoundsPosition = UnitBoxVertex * HeightfieldObjectBounds.BoxExtent + LWCHackToFloat(HeightfieldObjectBounds.BoxOrigin); // DF_LWC_TODO
+		float3 TranslatedWorldBoundsPosition = UnitBoxVertex * HeightfieldObjectBounds.BoxExtent + LWCToFloat(LWCAdd(HeightfieldObjectBounds.BoxOrigin, PrimaryView.PreViewTranslation));
 #endif
 
-		float3 ViewSpacePosition = mul(float4(WorldBoundsPosition, 1.0f), WorldToShadow).xyz;
+		float3 ViewSpacePosition = mul(float4(TranslatedWorldBoundsPosition, 1.0f), TranslatedWorldToShadow).xyz;
 		MinViewSpacePosition = min(MinViewSpacePosition, ViewSpacePosition);
 		MaxViewSpacePosition = max(MaxViewSpacePosition, ViewSpacePosition);
 		ViewSpaceBoundsVertices[i] = ViewSpacePosition;
@@ -408,7 +409,7 @@ float2 NumGroups;
 
 /** From point being shaded toward light, for directional lights. */
 float3 LightDirection;
-float4 LightPositionAndInvRadius;
+float4 LightTranslatedPositionAndInvRadius;
 float LightSourceRadius;
 float RayStartOffsetDepthScale;
 float3 TanLightAngleAndNormalThreshold;
@@ -510,17 +511,17 @@ void CullObjectsToTileWithGather(
 	ViewTileMax2.z = MaxTileZ + ExpandRadius;
 
 	float3 ViewGroup0Center = (ViewTileMax + ViewTileMin) / 2;
-	float3 WorldGroup0Center = mul(float4(ViewGroup0Center, 1), View.ViewToTranslatedWorld).xyz - LWCHackToFloat(PrimaryView.PreViewTranslation);
+	float3 TranslatedWorldGroup0Center = mul(float4(ViewGroup0Center, 1), View.ViewToTranslatedWorld).xyz;
 	float Group0BoundingRadius = length(ViewGroup0Center - ViewTileMax);
 
 	float3 ViewGroup1Center = (ViewTileMax2 + ViewTileMin2) / 2;
-	float3 WorldGroup1Center = mul(float4(ViewGroup1Center, 1), View.ViewToTranslatedWorld).xyz - LWCHackToFloat(PrimaryView.PreViewTranslation);
+	float3 TranslatedWorldGroup1Center = mul(float4(ViewGroup1Center, 1), View.ViewToTranslatedWorld).xyz;
 	float Group1BoundingRadius = length(ViewGroup1Center - ViewTileMax2);
 
 #if POINT_LIGHT
-	float3 LightVector0 = LightPositionAndInvRadius.xyz - WorldGroup0Center;
+	float3 LightVector0 = LightTranslatedPositionAndInvRadius.xyz - TranslatedWorldGroup0Center;
 	float LightVector0Length = length(LightVector0);
-	float3 LightVector1 = LightPositionAndInvRadius.xyz - WorldGroup1Center;
+	float3 LightVector1 = LightTranslatedPositionAndInvRadius.xyz - TranslatedWorldGroup1Center;
 	float LightVector1Length = length(LightVector1);
 	float3 LightDirection0 = LightVector0 / LightVector0Length;
 	float3 LightDirection1 = LightVector1 / LightVector1Length;;
@@ -528,8 +529,8 @@ void CullObjectsToTileWithGather(
 	float RayLength1 = LightVector1Length;
 
 	// Don't operate on tiles completely outside of the light's influence
-	bTileShouldComputeShadowing = LightVector0Length < 1.0f / LightPositionAndInvRadius.w + Group0BoundingRadius
-		|| LightVector1Length < 1.0f / LightPositionAndInvRadius.w + Group1BoundingRadius;
+	bTileShouldComputeShadowing = LightVector0Length < 1.0f / LightTranslatedPositionAndInvRadius.w + Group0BoundingRadius
+		|| LightVector1Length < 1.0f / LightTranslatedPositionAndInvRadius.w + Group1BoundingRadius;
 
 #else
 	float3 LightDirection0 = LightDirection;
@@ -553,9 +554,10 @@ void CullObjectsToTileWithGather(
 		{
 			const uint ObjectIndex = CulledObjectIndices[IndexInCulledList];
 			FDFObjectBounds Bounds = LoadDFObjectBounds(ObjectIndex);
+			const float3 TranslatedBoundsCenter = LWCToFloat(LWCAdd(Bounds.Center, PrimaryView.PreViewTranslation));
 
 			BRANCH
-			if (RaySegmentHitSphere(WorldGroup0Center, LightDirection0, RayLength0, LWCHackToFloat(Bounds.Center), Bounds.SphereRadius + Group0BoundingRadius))
+			if (RaySegmentHitSphere(TranslatedWorldGroup0Center, LightDirection0, RayLength0, TranslatedBoundsCenter, Bounds.SphereRadius + Group0BoundingRadius))
 			{
 				uint ListIndex;
 				InterlockedAdd(TileNumObjects0, 1U, ListIndex);
@@ -565,7 +567,7 @@ void CullObjectsToTileWithGather(
 			}
 
 			BRANCH
-			if (RaySegmentHitSphere(WorldGroup1Center, LightDirection1, RayLength1, LWCHackToFloat(Bounds.Center), Bounds.SphereRadius + Group1BoundingRadius))
+			if (RaySegmentHitSphere(TranslatedWorldGroup1Center, LightDirection1, RayLength1, TranslatedBoundsCenter, Bounds.SphereRadius + Group1BoundingRadius))
 			{
 				uint ListIndex;
 				InterlockedAdd(TileNumObjects1, 1U, ListIndex);
@@ -602,7 +604,7 @@ void DistanceFieldShadowingCS(
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
 	float SceneDepth = CalcSceneDepth(ScreenUV);
-	float3 OpaqueWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
+	float3 OpaqueTranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 
 	// Distance for directional lights to trace
 	float TraceDistance = TanLightAngleAndNormalThreshold.z;
@@ -618,7 +620,7 @@ void DistanceFieldShadowingCS(
 
 	if (bTileShouldComputeShadowing)
 	{
-		GetShadowTileCulledData(OpaqueWorldPosition, CulledDataParameter, NumIntersectingObjects);
+		GetShadowTileCulledData(OpaqueTranslatedWorldPosition, CulledDataParameter, NumIntersectingObjects);
 	}
 
 #else
@@ -658,18 +660,18 @@ void DistanceFieldShadowingCS(
 	#endif
 #endif
 
-		OpaqueWorldPosition.z += SelfShadowVerticalBias;
-		OpaqueWorldPosition -= SelfShadowViewBias * View.ViewForward;
+		OpaqueTranslatedWorldPosition.z += SelfShadowVerticalBias;
+		OpaqueTranslatedWorldPosition -= SelfShadowViewBias * View.ViewForward;
 
 		// World space offset along the start of the ray to avoid incorrect self-shadowing
 		float RayStartOffset = 2 + RayStartOffsetDepthScale * SceneDepth;
 
 		#if POINT_LIGHT
 
-			float3 LightVector = LightPositionAndInvRadius.xyz - OpaqueWorldPosition;
+			float3 LightVector = LightTranslatedPositionAndInvRadius.xyz - OpaqueTranslatedWorldPosition;
 			float LightVectorLength = length(LightVector);
-			float3 WorldRayStart = OpaqueWorldPosition + LightVector / LightVectorLength * RayStartOffset;
-			float3 WorldRayEnd = LightPositionAndInvRadius.xyz;
+			float3 TranslatedWorldRayStart = OpaqueTranslatedWorldPosition + LightVector / LightVectorLength * RayStartOffset;
+			float3 TranslatedWorldRayEnd = LightTranslatedPositionAndInvRadius.xyz;
 			float MaxRayTime = LightVectorLength;
 			float MaxAngle = tan(10 * PI / 180.0f);
 			// Comparing tangents instead of angles, but tangent is always increasing in this range
@@ -677,8 +679,8 @@ void DistanceFieldShadowingCS(
 
 		#else
 
-			float3 WorldRayStart = OpaqueWorldPosition + LightDirection * RayStartOffset;
-			float3 WorldRayEnd = OpaqueWorldPosition + LightDirection * TraceDistance;
+			float3 TranslatedWorldRayStart = OpaqueTranslatedWorldPosition + LightDirection * RayStartOffset;
+			float3 TranslatedWorldRayEnd = OpaqueTranslatedWorldPosition + LightDirection * TraceDistance;
 			float MaxRayTime = TraceDistance;
 			float TanLightAngle = TanLightAngleAndNormalThreshold.x;
 
@@ -701,8 +703,8 @@ void DistanceFieldShadowingCS(
 		if (bIsHeightField)
 		{
 			Result = ShadowRayTraceThroughCulledHeightFieldObjects(
-				WorldRayStart,
-				WorldRayEnd,
+				TranslatedWorldRayStart,
+				TranslatedWorldRayEnd,
 				TanLightAngle,
 				MaxSphereRadius,
 				SelfShadowFadeDistance,
@@ -741,8 +743,8 @@ void DistanceFieldShadowingCS(
 #endif
 
 			Result = ShadowRayTraceThroughCulledObjects(
-				WorldRayStart, 
-				WorldRayEnd, 
+				TranslatedWorldRayStart, 
+				TranslatedWorldRayEnd, 
 				MaxRayTime, 
 				TanLightAngle, 
 				MinSphereRadius, 

@@ -161,7 +161,7 @@ class FCullObjectsForShadowCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, ObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, CulledObjectBufferParameters)
 		SHADER_PARAMETER(uint32, ObjectBoundingGeometryIndexCount)
-		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
+		SHADER_PARAMETER(FMatrix44f, TranslatedWorldToShadow)
 		SHADER_PARAMETER(uint32, NumShadowHullPlanes)
 		SHADER_PARAMETER(uint32, bDrawNaniteMeshes)
 		SHADER_PARAMETER(FVector4f, ShadowBoundingSphere)
@@ -191,9 +191,10 @@ class FShadowObjectCullVS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FShadowObjectCullVS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, ObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, CulledObjectBufferParameters)
-		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
+		SHADER_PARAMETER(FMatrix44f, TranslatedWorldToShadow)
 		SHADER_PARAMETER(float, MinExpandRadius)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -214,10 +215,11 @@ class FShadowObjectCullPS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FShadowObjectCullPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, ObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, CulledObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightTileIntersectionParameters, LightTileIntersectionParameters)
-		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
+		SHADER_PARAMETER(FMatrix44f, TranslatedWorldToShadow)
 		SHADER_PARAMETER(float, ObjectExpandScale)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -273,7 +275,7 @@ class FDistanceFieldShadowingCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER(FVector2f, NumGroups)
 		SHADER_PARAMETER(FVector3f, LightDirection)
-		SHADER_PARAMETER(FVector4f, LightPositionAndInvRadius)
+		SHADER_PARAMETER(FVector4f, LightTranslatedPositionAndInvRadius)
 		SHADER_PARAMETER(float, LightSourceRadius)
 		SHADER_PARAMETER(float, RayStartOffsetDepthScale)
 		SHADER_PARAMETER(FVector3f, TanLightAngleAndNormalThreshold)
@@ -283,7 +285,7 @@ class FDistanceFieldShadowingCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightTileIntersectionParameters, LightTileIntersectionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlasParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHeightFieldAtlasParameters, HeightFieldAtlasParameters)
-		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
+		SHADER_PARAMETER(FMatrix44f, TranslatedWorldToShadow)
 		SHADER_PARAMETER(float, TwoSidedMeshDistanceBias)
 		SHADER_PARAMETER(float, MinDepth)
 		SHADER_PARAMETER(float, MaxDepth)
@@ -408,14 +410,16 @@ void ScatterObjectsToShadowTiles(
 
 		const float MinExpandRadiusValue = (PrimitiveType == DFPT_HeightField ? 0.87f : 1.414f) * ShadowBoundingRadius / FMath::Min(LightTileDimensions.X, LightTileDimensions.Y);
 
+		PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
 		PassParameters->VS.ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->VS.CulledObjectBufferParameters = CulledObjectBufferParameters;
-		PassParameters->VS.WorldToShadow = FMatrix44f(WorldToShadowValue);
+		PassParameters->VS.TranslatedWorldToShadow = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToShadowValue);
 		PassParameters->VS.MinExpandRadius = MinExpandRadiusValue;
+		PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
 		PassParameters->PS.ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->PS.CulledObjectBufferParameters = CulledObjectBufferParameters;
 		PassParameters->PS.LightTileIntersectionParameters = LightTileIntersectionParameters;
-		PassParameters->PS.WorldToShadow = FMatrix44f(WorldToShadowValue);
+		PassParameters->PS.TranslatedWorldToShadow = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToShadowValue);
 		PassParameters->PS.ObjectExpandScale = PrimitiveType == DFPT_HeightField ? 0.f : WorldToShadowValue.GetMaximumAxisScale();
 
 		PassParameters->MeshSDFIndirectArgs = ObjectIndirectArguments;
@@ -496,7 +500,7 @@ void CullDistanceFieldObjectsForLight(
 	const FMatrix& WorldToShadowValue, 
 	int32 NumPlanes, 
 	const FPlane* PlaneData, 
-	const FVector4& ShadowBoundingSphereValue,
+	const FVector4f& ShadowBoundingSphere,
 	float ShadowBoundingRadius,
 	bool bCullingForDirectShadowing,
 	const FDistanceFieldObjectBufferParameters& ObjectBufferParameters,
@@ -526,9 +530,9 @@ void CullDistanceFieldObjectsForLight(
 		PassParameters->ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->CulledObjectBufferParameters = CulledObjectBufferParameters;
 		PassParameters->ObjectBoundingGeometryIndexCount = UE_ARRAY_COUNT(GCubeIndices);
-		PassParameters->WorldToShadow = FMatrix44f(WorldToShadowValue);	// LWC_TODO: Precision loss
+		PassParameters->TranslatedWorldToShadow = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToShadowValue);
 		PassParameters->NumShadowHullPlanes = NumPlanes;
-		PassParameters->ShadowBoundingSphere = (FVector4f)ShadowBoundingSphereValue; // LWC_TODO: Precision loss
+		PassParameters->ShadowBoundingSphere = ShadowBoundingSphere;
 		// Disable Nanite meshes for directional lights that use VSM since they draw into the VSM unconditionally (and would get double shadow)
 		PassParameters->bDrawNaniteMeshes = !(LightSceneProxy->UseVirtualShadowMaps() && LightSceneProxy->GetLightType() == LightType_Directional) || !bCullingForDirectShadowing;
 
@@ -536,7 +540,8 @@ void CullDistanceFieldObjectsForLight(
 
 		for (int32 i = 0; i < NumPlanes; i++)
 		{
-			PassParameters->ShadowConvexHull[i] = FVector4f((FVector3f)PlaneData[i], PlaneData[i].W);
+			const FPlane4f Plane(PlaneData[i].TranslateBy(View.ViewMatrices.GetPreViewTranslation()));
+			PassParameters->ShadowConvexHull[i] = FVector4f(FVector3f(Plane), Plane.W);
 		}
 
 		FCullObjectsForShadowCS::FPermutationDomain PermutationVector;
@@ -742,7 +747,7 @@ void RayTraceShadows(
 		LightProxy.GetLightShaderParameters(LightParameters);
 
 		PassParameters->LightDirection = LightParameters.Direction;
-		PassParameters->LightPositionAndInvRadius = FVector4f((FVector3f)LightParameters.WorldPosition, LightParameters.InvRadius); // LWC_TODO
+		PassParameters->LightTranslatedPositionAndInvRadius = FVector4f(FVector3f(LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation()), LightParameters.InvRadius);
 		// Default light source radius of 0 gives poor results
 		PassParameters->LightSourceRadius = LightParameters.SourceRadius == 0 ? 20 : FMath::Clamp(LightParameters.SourceRadius, .001f, 1.0f / (4 * LightParameters.InvRadius));
 		PassParameters->RayStartOffsetDepthScale = LightProxy.GetRayStartOffsetDepthScale();
@@ -758,7 +763,7 @@ void RayTraceShadows(
 		PassParameters->LightTileIntersectionParameters = LightTileIntersectionParameters;
 		PassParameters->DistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 		PassParameters->HeightFieldAtlasParameters = HeightFieldAtlasParameters;
-		PassParameters->WorldToShadow = FMatrix44f(FTranslationMatrix(ProjectedShadowInfo->PreShadowTranslation) * FMatrix(ProjectedShadowInfo->TranslatedWorldToClipInnerMatrix));
+		PassParameters->TranslatedWorldToShadow = FMatrix44f(FTranslationMatrix(ProjectedShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * FMatrix(ProjectedShadowInfo->TranslatedWorldToClipInnerMatrix));
 		PassParameters->TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
@@ -829,7 +834,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 
 			int32 NumPlanes = 0;
 			const FPlane* PlaneData = NULL;
-			FVector4 ShadowBoundingSphereValue(0, 0, 0, 0);
+			FVector4f ShadowBoundingSphere = FVector4f::Zero();
 
 			if (bDirectionalLight)
 			{
@@ -838,13 +843,13 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 			}
 			else if (IsWholeScenePointLightShadow())
 			{
-				ShadowBoundingSphereValue = FVector4(ShadowBounds.Center.X, ShadowBounds.Center.Y, ShadowBounds.Center.Z, ShadowBounds.W);
+				ShadowBoundingSphere = FVector4f(FVector3f(ShadowBounds.Center + View.ViewMatrices.GetPreViewTranslation()), ShadowBounds.W);
 			}
 			else
 			{
 				NumPlanes = CasterOuterFrustum.Planes.Num();
 				PlaneData = CasterOuterFrustum.Planes.GetData();
-				ShadowBoundingSphereValue = FVector4(PreShadowTranslation, 0);
+				ShadowBoundingSphere = FVector4f(FVector3f(PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()), 0.0f);
 			}
 
 			const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * FMatrix(TranslatedWorldToClipInnerMatrix);
@@ -862,7 +867,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 				WorldToShadowValue,
 				NumPlanes,
 				PlaneData,
-				ShadowBoundingSphereValue,
+				ShadowBoundingSphere,
 				ShadowBounds.W,
 				true,
 				ObjectBufferParameters,
@@ -894,7 +899,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 
 		const int32 NumPlanes = CascadeSettings.ShadowBoundsAccurate.Planes.Num();
 		const FPlane* PlaneData = CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
-		const FVector4 ShadowBoundingSphereValue(0.f, 0.f, 0.f, 0.f);
+		const FVector4f ShadowBoundingSphere = FVector4f::Zero();
 		const FMatrix WorldToShadowValue = FTranslationMatrix(PreShadowTranslation) * FMatrix(TranslatedWorldToClipInnerMatrix);
 
 		FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
@@ -910,7 +915,7 @@ void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 			WorldToShadowValue,
 			NumPlanes,
 			PlaneData,
-			ShadowBoundingSphereValue,
+			ShadowBoundingSphere,
 			ShadowBounds.W,
 			true,
 			ObjectBufferParameters,

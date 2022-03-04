@@ -85,7 +85,7 @@ void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 		for (int32 i = 0; i < View.ViewFrustum.Planes.Num(); i++)
 		{
 			const FPlane4f Plane(View.ViewFrustum.Planes[i].TranslateBy(View.ViewMatrices.GetPreViewTranslation()));
-			PassParameters->ViewFrustumConvexHull[i] = Plane;
+			PassParameters->ViewFrustumConvexHull[i] = FVector4f(FVector3f(Plane), Plane.W);
 		}
 
 		PassParameters->ObjectBoundingGeometryIndexCount = StencilingGeometry::GLowPolyStencilSphereIndexBuffer.GetIndexCount();
