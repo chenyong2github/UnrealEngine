@@ -20,7 +20,7 @@ struct FSimpleShapeSet3d;
 /**
  * Component/BodySetup collision settings (eg StaticMeshComponent) we might need to pass through the functions below
  */
-struct FComponentCollisionSettings
+struct MODELINGCOMPONENTS_API FComponentCollisionSettings
 {
 	int32 CollisionTypeFlag = 0;		// this is ECollisionTraceFlag
 	bool bIsGeneratedCollision = true;
