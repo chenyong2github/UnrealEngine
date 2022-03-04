@@ -150,7 +150,7 @@ void FDatasmithSceneGraphBuilder::FillAnchorActor(const TSharedRef<IDatasmithAct
 	TMap<FString, FString> InstanceNodeMetaDataMap;
 	FString ActorUUID;
 	FString ActorLabel;
-	GetNodeUUIDAndName(InstanceNodeMetaDataMap, Component.MetaData, 1, ParentData.Uuid, ActorUUID, ActorLabel);
+	GetNodeUUIDAndName(InstanceNodeMetaDataMap, Component.MetaData, Component.ObjectId, ParentData.Uuid, ActorUUID, ActorLabel);
 
 	AddMetaData(ActorElement, InstanceNodeMetaDataMap, Component.MetaData);
 
@@ -337,7 +337,7 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneBaseGraphBuilder::BuildInst
 
 	FString ActorUUID;
 	FString ActorLabel;
-	GetNodeUUIDAndName(Instance.MetaData, Reference->MetaData, InstanceIndex, ParentData.Uuid, ActorUUID, ActorLabel);
+	GetNodeUUIDAndName(Instance.MetaData, Reference->MetaData, Instance.ObjectId, ParentData.Uuid, ActorUUID, ActorLabel);
 
 	TSharedPtr<IDatasmithActorElement> Actor = CreateActor(*ActorUUID, *ActorLabel);
 	if (!Actor.IsValid())
@@ -449,10 +449,9 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildCompone
 {
 	TMap<FString, FString> InstanceNodeMetaDataMap;
 
-	FString ActorUUID = TEXT("");
-	FString ActorLabel = TEXT("");
-	
-	GetNodeUUIDAndName(InstanceNodeMetaDataMap, Component.MetaData, 1, ParentData.Uuid, ActorUUID, ActorLabel);
+	FString ActorUUID;
+	FString ActorLabel;
+	GetNodeUUIDAndName(InstanceNodeMetaDataMap, Component.MetaData, Component.ObjectId, ParentData.Uuid, ActorUUID, ActorLabel);
 
 	TSharedPtr< IDatasmithActorElement > Actor = CreateActor(*ActorUUID, *ActorLabel);
 	if (!Actor.IsValid())
@@ -485,7 +484,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildBody(in
 
 	FString BodyUUID;
 	FString BodyLabel;
-	GetNodeUUIDAndName(InstanceNodeMetaDataMap, Body.MetaData, BodyIndex, ParentData.Uuid, BodyUUID, BodyLabel);
+	GetNodeUUIDAndName(InstanceNodeMetaDataMap, Body.MetaData, Body.ObjectId, ParentData.Uuid, BodyUUID, BodyLabel);
 
 	// Apply materials on the current part
 	uint32 MaterialUuid = 0;
