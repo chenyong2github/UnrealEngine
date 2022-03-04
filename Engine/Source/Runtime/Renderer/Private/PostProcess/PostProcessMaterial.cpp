@@ -699,7 +699,15 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	}
 	else
 	{
+		// When skipping the pass, we still need to output a valid FScreenPassRenderTarget
 		Output = FScreenPassRenderTarget(SceneColor, ERenderTargetLoadAction::ENoAction);
+
+		// If there is override output, we need to output to that
+		if (Inputs.OverrideOutput.IsValid())
+		{
+			AddDrawTexturePass(GraphBuilder, View, Output.Texture, Inputs.OverrideOutput.Texture);
+			Output = Inputs.OverrideOutput;
+		}
 	}
 
 	return MoveTemp(Output);
