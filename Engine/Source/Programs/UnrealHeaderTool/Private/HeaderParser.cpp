@@ -87,6 +87,7 @@ TArray<FString> FHeaderParser::PropertyCPPTypesRequiringUIRanges = { TEXT("float
 TArray<FString> FHeaderParser::ReservedTypeNames = { TEXT("none") };
 
 // Busy wait support for holes in the include graph issues
+extern bool bGoWide;
 extern std::atomic<bool> GSourcesConcurrent;
 extern std::atomic<int> GSourcesToParse;
 extern std::atomic<int> GSourcesParsing;
@@ -708,7 +709,7 @@ namespace
 		}
 
 		// If we aren't doing concurrent processing, then there isn't any reason to continue, we will never make any progress.
-		if (!GSourcesConcurrent)
+		if (!bGoWide)
 		{
 			return false;
 		}

@@ -13,18 +13,6 @@
 // we might never need this tracking since it is always by pointer.
 #define UHT_ENABLE_PTR_PROPERTY_TAG 0
 
-// Enable concurrent pre-parsing of header files
-#define UHT_ENABLE_CONCURRENT_PREPARSING 1
-
-// Enable concurrent parsing of header files
-#define UHT_ENABLE_CONCURRENT_PARSING 1
-
-// Enable concurrent code generation
-#define UHT_ENABLE_CONCURRENT_CODE_GENERATION 1
-
-// Enable the output of extra code gen that contributes to hashes
-#define UHT_ENABLE_EXTRA_HASH_OUTPUT 0
-
 struct FHeaderParserNames
 {
 	static const FName NAME_IsConversionRoot;
