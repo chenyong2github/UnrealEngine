@@ -221,6 +221,7 @@ namespace DatasmithRhino
 		{
 			get
 			{
+				bool bVisibleLocally = true;
 				if (RhinoCommonObject is Layer RhinoLayer)
 				{
 					// This recursion ensure that only layer actors with an actual exported object under them are considered visible.
@@ -228,12 +229,17 @@ namespace DatasmithRhino
 					return RhinoLayer.IsVisible
 						&& ChildrenInternal.Any(Child => Child.bIsVisible);
 				}
+				else if (RhinoCommonObject is RhinoObject CurrentRhinoObject)
+				{
+					bVisibleLocally = CurrentRhinoObject.Visible;
+				}
 				else if (bIsRoot)
 				{
 					return true;
 				}
 
-				return (VisibilityLayer == null || VisibilityLayer.IsVisible)
+				return bVisibleLocally
+					&& (VisibilityLayer == null || VisibilityLayer.IsVisible)
 					&& (DefinitionNode == null || DefinitionNode.bIsVisible);
 			}
 		}
