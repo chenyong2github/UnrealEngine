@@ -118,7 +118,7 @@ FText SEnumComboBox::GetCurrentValueText() const
 	}
 
 	const int32 ValueNameIndex = Enum->GetIndexByValue(CurrentValue.Get());
-	return VisibleEnums[ValueNameIndex].DisplayName;
+	return Enum->GetDisplayNameTextByIndex(ValueNameIndex);
 }
 
 FText SEnumComboBox::GetCurrentValueTooltip() const
