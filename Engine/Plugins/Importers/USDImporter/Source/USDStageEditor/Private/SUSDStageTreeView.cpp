@@ -749,7 +749,7 @@ void SUsdStageTreeView::OnAddReference()
 		return;
 	}
 
-	TOptional< FString > PickedFile = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Open, AsShared() );
+	TOptional< FString > PickedFile = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Composition, AsShared() );
 
 	if ( !PickedFile )
 	{

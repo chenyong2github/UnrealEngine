@@ -134,7 +134,14 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 
 	TArray< FString > OutFiles;
 
-	TArray< FString > SupportedExtensions = UnrealUSDWrapper::GetAllSupportedFileFormats();
+	// When browsing files for the purposes of opening a stage or saving layers,
+	// we offer the native USD file formats as options. Browsing files in order
+	// to use them as the targets of composition arcs (e.g. sublayers,
+	// references, payloads, etc.) also offers any plugin file formats that are
+	// registered.
+	TArray< FString > SupportedExtensions = ( Mode == EBrowseFileMode::Composition ) ?
+		UnrealUSDWrapper::GetAllSupportedFileFormats() :
+		UnrealUSDWrapper::GetNativeFileFormats();
 	if ( SupportedExtensions.Num() == 0 )
 	{
 		UE_LOG(LogUsd, Error, TEXT("No file extensions supported by the USD SDK!"));
@@ -159,6 +166,7 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 	switch ( Mode )
 	{
 		case EBrowseFileMode::Open :
+		case EBrowseFileMode::Composition :
 		{
 			if ( !DesktopPlatform->OpenFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), *FileTypes, EFileDialogFlags::None, OutFiles ) )
 			{

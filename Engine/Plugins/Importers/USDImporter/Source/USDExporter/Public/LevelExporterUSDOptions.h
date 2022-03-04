@@ -106,7 +106,7 @@ private:
 	UFUNCTION()
 	static TArray<FString> GetUsdExtensions()
 	{
-		TArray<FString> Extensions = UnrealUSDWrapper::GetAllSupportedFileFormats();
+		TArray<FString> Extensions = UnrealUSDWrapper::GetNativeFileFormats();
 		Extensions.Remove( TEXT( "usdz" ) );
 		return Extensions;
 	}

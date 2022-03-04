@@ -36,7 +36,13 @@ namespace UsdUtils
 {
 	enum class EBrowseFileMode
 	{
+		/** Browse for a file for the purpose of opening a stage with that file as the stage's root layer. */
 		Open,
+
+		/** Browse for a file for the purpose of using that file as the target of a composition arc (e.g. a sublayer, reference, payload, etc.). */
+		Composition,
+
+		/** Browse for a file for the purpose of saving or exporting a layer to that file. */
 		Save
 	};
 
