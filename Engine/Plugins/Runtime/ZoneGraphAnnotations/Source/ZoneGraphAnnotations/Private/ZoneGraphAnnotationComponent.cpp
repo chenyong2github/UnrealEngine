@@ -6,12 +6,10 @@
 #include "ZoneGraphAnnotationSubsystem.h"
 #include "ZoneGraphSubsystem.h"
 #include "ZoneGraphDelegates.h"
+#include "ZoneGraphSettings.h"
 #include "Debug/DebugDrawService.h"
-
-#if WITH_EDITOR
-#include "Editor.h"
-#endif
-
+#include "Engine/DebugCameraController.h"
+#include "Engine/LocalPlayer.h"
 
 #if UE_ENABLE_DEBUG_DRAWING
 //////////////////////////////////////////////////////////////////////////
@@ -151,6 +149,8 @@ void UZoneGraphAnnotationComponent::PostSubsystemsInitialized()
 
 void UZoneGraphAnnotationComponent::OnUnregister()
 {
+	Super::OnUnregister();
+
 	UWorld* World = GetWorld();
 	if (World == nullptr)
 	{
@@ -181,8 +181,6 @@ void UZoneGraphAnnotationComponent::OnUnregister()
 #if UE_ENABLE_DEBUG_DRAWING
 	UDebugDrawService::Unregister(CanvasDebugDrawDelegateHandle);
 #endif
-	
-	Super::OnUnregister();
 }
 
 void UZoneGraphAnnotationComponent::OnPostZoneGraphDataAdded(const AZoneGraphData* ZoneGraphData)
@@ -208,6 +206,50 @@ void UZoneGraphAnnotationComponent::OnPreZoneGraphDataRemoved(const AZoneGraphDa
 }
 
 #if UE_ENABLE_DEBUG_DRAWING
+void UZoneGraphAnnotationComponent::GetFirstViewPoint(FVector& ViewLocation, FRotator& ViewRotation) const
+{
+	ViewLocation = FVector::ZeroVector;
+	ViewRotation = FRotator::ZeroRotator;
+
+	bool bFound = false;
+	
+	if (const UWorld* World = GetWorld())
+	{
+		// Now go through all current player controllers and add if they do not exist
+		for (FConstPlayerControllerIterator PlayerIterator = World->GetPlayerControllerIterator(); PlayerIterator; ++PlayerIterator)
+		{
+			if (const APlayerController* PlayerController = (*PlayerIterator).Get())
+			{
+				PlayerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+				bFound = true;
+				break;
+			}
+		}
+
+		// spectator mode
+		if (!bFound)
+		{
+			for (FLocalPlayerIterator It(GEngine, const_cast<UWorld*>(World)); It; ++It)
+			{
+				ADebugCameraController* SpectatorPC = Cast<ADebugCameraController>(It->PlayerController);
+				if (SpectatorPC)
+				{
+					SpectatorPC->GetPlayerViewPoint(ViewLocation, ViewRotation);
+					bFound = true;
+					break;
+				}
+			}
+		}
+
+	}
+}
+
+float UZoneGraphAnnotationComponent::GetMaxDebugDrawDistance() const
+{
+	const UZoneGraphSettings* ZoneGraphSettings = GetDefault<UZoneGraphSettings>();
+	return ZoneGraphSettings ? ZoneGraphSettings->GetShapeMaxDrawDistance() : 0.0f;
+}
+
 FDebugRenderSceneProxy* UZoneGraphAnnotationComponent::CreateDebugSceneProxy()
 {
 	FZoneGraphAnnotationSceneProxy* DebugProxy = new FZoneGraphAnnotationSceneProxy(*this);

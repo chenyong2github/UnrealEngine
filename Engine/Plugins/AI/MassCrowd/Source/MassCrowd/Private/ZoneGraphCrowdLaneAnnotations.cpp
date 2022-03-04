@@ -85,7 +85,10 @@ void UZoneGraphCrowdLaneAnnotations::TickAnnotation(const float DeltaTime, FZone
 	StateChangeEvents.Reset();
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	MarkRenderStateDirty();
+	if (bEnableDebugDrawing)
+	{
+		MarkRenderStateDirty();
+	}
 #endif
 }
 
@@ -110,6 +113,13 @@ void UZoneGraphCrowdLaneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* D
 	AllTags.Add(CloseLaneTag);
 	AllTags.Add(WaitingLaneTag);
 
+	FVector ViewLocation = FVector::ZeroVector;
+	FRotator ViewRotation = FRotator::ZeroRotator;
+	GetFirstViewPoint(ViewLocation, ViewRotation);
+
+	const float DrawDistance = GetMaxDebugDrawDistance();
+	const float DrawDistanceSq = FMath::Square(DrawDistance);
+
 	for (const FRegisteredCrowdLaneData& RegisteredLaneData : CrowdSubsystem->RegisteredLaneData)
 	{
 		const FZoneGraphStorage* ZoneStorage = ZoneGraph->GetZoneGraphStorage(RegisteredLaneData.DataHandle);
@@ -118,25 +128,34 @@ void UZoneGraphCrowdLaneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* D
 			continue;
 		}
 
-		for (int32 LaneIndex = 0; LaneIndex < RegisteredLaneData.CrowdLaneDataArray.Num(); LaneIndex++)
+		for (const FZoneData& Zone : ZoneStorage->Zones)
 		{
-			const FZoneGraphCrowdLaneData& LaneData = RegisteredLaneData.CrowdLaneDataArray[LaneIndex];
-			if (LaneData.GetState() == ECrowdLaneState::Closed)
+			const float DistanceSq = FVector::DistSquared(ViewLocation, Zone.Bounds.GetCenter());
+			if (DistanceSq > DrawDistanceSq)
 			{
-				const FZoneGraphLaneHandle LaneHandle(LaneIndex, RegisteredLaneData.DataHandle);
+				continue;
+			}
 
-				FLinearColor Color = ClosedColor;
-
-				const FCrowdWaitAreaData* WaitArea = CrowdSubsystem->GetCrowdWaitingAreaData(LaneHandle);
-				if (WaitArea && !WaitArea->IsFull())
+			for (int32 LaneIdx = Zone.LanesBegin; LaneIdx < Zone.LanesEnd; LaneIdx++)
+			{
+				const FZoneGraphCrowdLaneData& LaneData = RegisteredLaneData.CrowdLaneDataArray[LaneIdx];
+				if (LaneData.GetState() == ECrowdLaneState::Closed)
 				{
-					Color = WaitingColor;
-				}
+					const FZoneGraphLaneHandle LaneHandle(LaneIdx, RegisteredLaneData.DataHandle);
 
-				UE::ZoneGraph::RenderingUtilities::AppendLane(DebugProxy, *ZoneStorage, LaneHandle, Color.ToFColor(/*sRGB*/true), 4.0f, ZOffset);
+					FLinearColor Color = ClosedColor;
+
+					const FCrowdWaitAreaData* WaitArea = CrowdSubsystem->GetCrowdWaitingAreaData(LaneHandle);
+					if (WaitArea && !WaitArea->IsFull())
+					{
+						Color = WaitingColor;
+					}
+
+					UE::ZoneGraph::RenderingUtilities::AppendLane(DebugProxy, *ZoneStorage, LaneHandle, Color.ToFColor(/*sRGB*/true), 4.0f, ZOffset);
+				}
 			}
 		}
-
+		
 		auto AppendCircleXY = [DebugProxy](const FVector& Center, const float Radius, const FColor Color, const float LineThickness)
 		{
 			static int32 NumDivs = 16;
@@ -160,10 +179,17 @@ void UZoneGraphCrowdLaneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* D
 		const FColor SlotColor = FColor::Orange;
 		for (const FCrowdWaitAreaData& WaitArea : RegisteredLaneData.WaitAreas)
 		{
-			for (const FCrowdWaitSlot& Slot : WaitArea.Slots)
+			if (WaitArea.Slots.Num() > 0)
 			{
-				AppendCircleXY(Slot.Position + ZOffset, Slot.Radius, SlotColor, 1.0f);
-				DebugProxy->Lines.Emplace(Slot.Position + ZOffset, Slot.Position + Slot.Forward * Slot.Radius + ZOffset, SlotColor, 4.0f);
+				const float DistanceSq = FVector::DistSquared(ViewLocation, WaitArea.Slots[0].Position);
+				if (DistanceSq < DrawDistanceSq)
+				{
+					for (const FCrowdWaitSlot& Slot : WaitArea.Slots)
+					{
+						AppendCircleXY(Slot.Position + ZOffset, Slot.Radius, SlotColor, 1.0f);
+						DebugProxy->Lines.Emplace(Slot.Position + ZOffset, Slot.Position + Slot.Forward * Slot.Radius + ZOffset, SlotColor, 4.0f);
+					}
+				}
 			}
 		}
 	}
@@ -179,6 +205,8 @@ void UZoneGraphCrowdLaneAnnotations::DebugDrawCanvas(UCanvas* Canvas, APlayerCon
 	const FColor OldDrawColor = Canvas->DrawColor;
 	const UFont* RenderFont = GEngine->GetSmallFont();
 
+	const FFontRenderInfo FontInfo = Canvas->CreateFontRenderInfo(true, true);
+
 	Canvas->SetDrawColor(FColor::White);
 	static const FVector ZOffset(0, 0, 35.0f);
 
@@ -189,6 +217,20 @@ void UZoneGraphCrowdLaneAnnotations::DebugDrawCanvas(UCanvas* Canvas, APlayerCon
 		return;
 	}
 
+	if (Canvas->SceneView == nullptr)
+	{
+		return;
+	}
+	
+	const FVector ViewLocation = Canvas->SceneView->ViewLocation;
+	const float DrawDistance = GetMaxDebugDrawDistance() * 0.25f;
+	const float DrawDistanceSq = FMath::Square(DrawDistance);
+
+	auto InFrustum = [Canvas](const FVector& Location)
+	{
+		return Canvas->SceneView->ViewFrustum.IntersectBox(Location, FVector::ZeroVector);
+	};
+
 	for (const FRegisteredCrowdLaneData& RegisteredLaneData : CrowdSubsystem->RegisteredLaneData)
 	{
 		const FZoneGraphStorage* ZoneStorage = RegisteredLaneData.DataHandle.IsValid() ? ZoneGraph->GetZoneGraphStorage(RegisteredLaneData.DataHandle) : nullptr;
@@ -197,37 +239,67 @@ void UZoneGraphCrowdLaneAnnotations::DebugDrawCanvas(UCanvas* Canvas, APlayerCon
 			continue;
 		}
 
-		for (int32 LaneIdx = 0; LaneIdx < ZoneStorage->Lanes.Num() && ZoneGraphAnnotationSubsystem; LaneIdx++)
+		for (const FZoneData& Zone : ZoneStorage->Zones)
 		{
-			FZoneGraphLaneLocation CenterLoc;
-			UE::ZoneGraph::Query::CalculateLocationAlongLaneFromRatio(*ZoneStorage, LaneIdx, 0.5f, CenterLoc);
-			const FVector ScreenLoc = Canvas->Project(CenterLoc.Position);
-
-			const FZoneGraphTagMask Mask = ZoneGraphAnnotationSubsystem->GetAnnotationTags({LaneIdx, RegisteredLaneData.DataHandle});
-			Canvas->DrawText(RenderFont, FString::Printf(TEXT("%s\n0x%08X"), *UE::ZoneGraph::Helpers::GetTagMaskString(Mask, TEXT(", ")), Mask.GetValue()), ScreenLoc.X, ScreenLoc.Y);
-		}
-
-		for (auto It = RegisteredLaneData.LaneToTrackingDataLookup.CreateConstIterator(); It; ++It)
-		{
-			const FCrowdTrackingLaneData& TrackingData = It->Value;
-			if (TrackingData.NumEntitiesOnLane > 0)
+			const float DistanceSq = FVector::DistSquared(ViewLocation, Zone.Bounds.GetCenter());
+			if (DistanceSq > DrawDistanceSq)
 			{
-				const int32 LaneIndex = It->Key;
+				continue;
+			}
+
+			for (int32 LaneIdx = Zone.LanesBegin; LaneIdx < Zone.LanesEnd; LaneIdx++)
+			{
+				const FZoneGraphLaneHandle LaneHandle(LaneIdx, RegisteredLaneData.DataHandle);
+				
 				FZoneGraphLaneLocation CenterLoc;
-				UE::ZoneGraph::Query::CalculateLocationAlongLaneFromRatio(*ZoneStorage, LaneIndex, 0.5f, CenterLoc);
-				const FVector ScreenLoc = Canvas->Project(CenterLoc.Position + ZOffset);
-				Canvas->DrawText(RenderFont, FString::Printf(TEXT("Num: %d"), TrackingData.NumEntitiesOnLane), ScreenLoc.X, ScreenLoc.Y);
+				UE::ZoneGraph::Query::CalculateLocationAlongLaneFromRatio(*ZoneStorage, LaneIdx, 0.5f, CenterLoc);
+
+				if (!InFrustum(CenterLoc.Position))
+				{
+					continue;
+				}
+				
+				const FVector ScreenLoc = Canvas->Project(CenterLoc.Position, /*bClampToNearPlane*/false);
+				
+				// Flags
+				if (bDisplayTags)
+				{
+					const FZoneGraphTagMask Mask = ZoneGraphAnnotationSubsystem->GetAnnotationTags(LaneHandle);
+					Canvas->DrawText(RenderFont, FString::Printf(TEXT("%s\n0x%08X"), *UE::ZoneGraph::Helpers::GetTagMaskString(Mask, TEXT(", ")), Mask.GetValue()), ScreenLoc.X, ScreenLoc.Y, 1.0f, 1.0f, FontInfo);
+				}
+
+				// Tracking
+				if (const FCrowdTrackingLaneData* TrackingData = RegisteredLaneData.LaneToTrackingDataLookup.Find(LaneIdx))
+				{
+					if (TrackingData->NumEntitiesOnLane > 0)
+					{
+						Canvas->DrawText(RenderFont, FString::Printf(TEXT("Num Entities: %d"), TrackingData->NumEntitiesOnLane), ScreenLoc.X, ScreenLoc.Y + 20, 1.0f, 1.0f, FontInfo);
+					}
+				}
 			}
 		}
 
+		// Waiting areas
 		for (const FCrowdWaitAreaData& WaitArea : RegisteredLaneData.WaitAreas)
 		{
-			for (const FCrowdWaitSlot& Slot : WaitArea.Slots)
+			if (WaitArea.Slots.Num() > 0)
 			{
-				if (Slot.bOccupied)
+				const float DistanceSq = FVector::DistSquared(ViewLocation, WaitArea.Slots[0].Position);
+				if (DistanceSq < DrawDistanceSq)
 				{
-					const FVector ScreenLoc = Canvas->Project(Slot.Position + ZOffset);
-					Canvas->DrawText(RenderFont, TEXT("OCCUPIED"), ScreenLoc.X, ScreenLoc.Y);
+					for (const FCrowdWaitSlot& Slot : WaitArea.Slots)
+					{
+						if (Slot.bOccupied)
+						{
+							if (!InFrustum(Slot.Position + ZOffset))
+							{
+								continue;
+							}
+
+							const FVector ScreenLoc = Canvas->Project(Slot.Position + ZOffset);
+							Canvas->DrawText(RenderFont, TEXT("OCCUPIED"), ScreenLoc.X, ScreenLoc.Y, 1.0f, 1.0f, FontInfo);
+						}
+					}
 				}
 			}
 		}

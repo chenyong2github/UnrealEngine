@@ -8,7 +8,7 @@
 #include "ZoneGraphAnnotationComponent.generated.h"
 
 class UZoneGraphAnnotationSubsystem;
-class UMassZoneGraphAnnotationComponent;
+class UZoneGraphAnnotationComponent;
 class UCanvas;
 class AZoneGraphData;
 struct FInstancedStructStream;
@@ -58,6 +58,12 @@ public:
 	virtual void PreZoneGraphDataRemoved(const AZoneGraphData& ZoneGraphData) {}
 	
 #if UE_ENABLE_DEBUG_DRAWING
+	/** Returns first view point (player controller or debug camera) */
+	void GetFirstViewPoint(FVector& ViewLocation, FRotator& ViewRotation) const;
+
+	/** Returns ZoneGraph max debug draw distance. */
+	float GetMaxDebugDrawDistance() const;
+
 	/** Called when scene proxy is rebuilt. */
 	virtual void DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy) {}
 

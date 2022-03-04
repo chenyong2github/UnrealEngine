@@ -182,6 +182,8 @@ protected:
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	virtual void DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy) override;
 	virtual void DebugDrawCanvas(UCanvas* Canvas, APlayerController*) override;
+
+	FVector LastDebugDrawLocation = FVector::ZeroVector; 
 #endif
 
 	void CalculateEscapeGraph(FZoneGraphDataEscapeGraph& EscapeGraph);

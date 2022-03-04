@@ -106,7 +106,10 @@ AMassSpawner::AMassSpawner()
 #endif // WITH_EDITOR
 
 	SetCanBeDamaged(false);
+
+#if UE_BUILD_SHIPPING || UE_BUILD_TEST
 	SetActorHiddenInGame(true);
+#endif
 
 	bAutoSpawnOnBeginPlay = true;
 	bOverrideSchematics = false;

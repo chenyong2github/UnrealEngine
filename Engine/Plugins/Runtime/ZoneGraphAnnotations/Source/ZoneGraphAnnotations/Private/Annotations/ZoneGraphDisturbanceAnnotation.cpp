@@ -70,6 +70,23 @@ void UZoneGraphDisturbanceAnnotation::TickAnnotation(const float DeltaTime, FZon
 		
 		UpdateAnnotationTags(AnnotationTagContainer);
 	}
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	if (bEnableDebugDrawing)
+	{
+		FVector ViewLocation = FVector::ZeroVector;
+		FRotator ViewRotation = FRotator::ZeroRotator;
+		GetFirstViewPoint(ViewLocation, ViewRotation);
+
+		// The debug draw caches an area around the current view. Update the debug drawing if the view moves far enough from the last snapshot.
+		const float UpdateThreshold = GetMaxDebugDrawDistance() * 0.25f;
+		if (FVector::DistSquared(LastDebugDrawLocation, ViewLocation) > FMath::Square(UpdateThreshold))
+		{
+			MarkRenderStateDirty();
+		}
+	}
+#endif
+
 }
 
 void UZoneGraphDisturbanceAnnotation::UpdateDangerLanes()
@@ -172,8 +189,9 @@ void UZoneGraphDisturbanceAnnotation::CalculateEscapeGraph(FZoneGraphDataEscapeG
 	TArray<FEscapeNode> DisturbanceHeap;
 	TArray<FZoneGraphLinkedLane> LinkedLanes;
 
-	static const float InvIdealSpanLength = 1.0f / FMath::Max(1.0f, IdealSpanLength);
-	
+	const float InvIdealSpanLength = 1.0f / FMath::Max(1.0f, IdealSpanLength);
+	float LowestLaneDanger = MAX_flt;
+
 	for (int32 EscapeLaneIndex = 0; EscapeLaneIndex < EscapeGraph.LanesToEscape.Num(); EscapeLaneIndex++)
 	{
 		FZoneGraphEscapeLaneAction& EscapeLane = EscapeGraph.LanesToEscape[EscapeLaneIndex];
@@ -188,6 +206,8 @@ void UZoneGraphDisturbanceAnnotation::CalculateEscapeGraph(FZoneGraphDataEscapeG
 		
 		FVector PrevPosition = ZoneStorage->LanePoints[Lane.PointsBegin];
 		float PrevDistance = 0.0f;
+
+		float AccumulatedDanger = 0.0f;
 		
 		for (uint8 SpanIndex = 0; SpanIndex < EscapeLane.SpanCount; SpanIndex++)
 		{
@@ -227,9 +247,13 @@ void UZoneGraphDisturbanceAnnotation::CalculateEscapeGraph(FZoneGraphDataEscapeG
 				Span.Danger = FMath::Max(Span.Danger, DangerCost);
 			}
 
+			AccumulatedDanger += Span.Danger;
+			
 			PrevPosition = LaneLocation.Position;
 			PrevDistance = Distance;
 		}
+
+		LowestLaneDanger = FMath::Min(LowestLaneDanger, AccumulatedDanger);
 		
 		EscapeLane.LaneLength = LaneLength;
 
@@ -263,6 +287,68 @@ void UZoneGraphDisturbanceAnnotation::CalculateEscapeGraph(FZoneGraphDataEscapeG
 		}
 	}
 
+	// If none of the lanes lead to safety, remove lowest danger lanes and try to connect again.
+	// This can happen for example when danger area covers a city block and crosswalks are not allowed as escape lanes.
+	if (DisturbanceHeap.IsEmpty())
+	{
+		// Remove all lanes that have accumulated danger value below the lowest accumulated danger found earlier. 
+		const float ExitDangerThreshold = LowestLaneDanger + KINDA_SMALL_NUMBER;
+		for (int32 EscapeLaneIndex = 0; EscapeLaneIndex < EscapeGraph.LanesToEscape.Num(); EscapeLaneIndex++)
+		{
+			FZoneGraphEscapeLaneAction& EscapeLane = EscapeGraph.LanesToEscape[EscapeLaneIndex];
+		
+			// Check if the lane leads out of the danger zone, and add as a starting point for the search.
+			float AccumulatedDanger = 0.0f;
+			for (uint8 SpanIndex = 0; SpanIndex < EscapeLane.SpanCount; SpanIndex += (EscapeLane.SpanCount - 1))
+			{
+				FZoneGraphEscapeLaneSpan& Span = EscapeLane.Spans[SpanIndex];
+				AccumulatedDanger += Span.Danger;
+			}
+
+			if (AccumulatedDanger < ExitDangerThreshold)
+			{
+				EscapeGraph.LanesToEscape.RemoveAt(EscapeLaneIndex);
+				EscapeLaneIndex--;
+			}
+		}
+
+		// Try to reconnect exits.
+		for (int32 EscapeLaneIndex = 0; EscapeLaneIndex < EscapeGraph.LanesToEscape.Num(); EscapeLaneIndex++)
+		{
+			FZoneGraphEscapeLaneAction& EscapeLane = EscapeGraph.LanesToEscape[EscapeLaneIndex];
+			const FZoneGraphLaneHandle LaneHandle(EscapeLane.LaneIndex, EscapeGraph.DataHandle);
+			const FZoneLaneData& Lane = ZoneStorage->Lanes[EscapeLane.LaneIndex];
+		
+			// Check if the lane leads out of the danger zone, and add as a starting point for the search.
+			for (uint8 SpanIndex = 0; SpanIndex < EscapeLane.SpanCount; SpanIndex += (EscapeLane.SpanCount - 1))
+			{
+				FZoneGraphEscapeLaneSpan& Span = EscapeLane.Spans[SpanIndex];
+
+				const EZoneLaneLinkType ExitLinkType = SpanIndex == 0 ? EZoneLaneLinkType::Incoming : EZoneLaneLinkType::Outgoing;
+				UE::ZoneGraph::Query::GetLinkedLanes(*ZoneStorage, LaneHandle, ExitLinkType, EZoneLaneLinkFlags::All, EZoneLaneLinkFlags::None, LinkedLanes);
+
+				for (const FZoneGraphLinkedLane& LinkedLane : LinkedLanes)
+				{
+					// If the linked lane is not part of the lanes to escape and passes the escape lanes filter, add this avoided lane as start for the search.
+					if (!EscapeGraph.LanesToEscapeLookup.Contains(LinkedLane.DestLane.Index))
+					{
+						const FZoneLaneData& DestLane = ZoneStorage->Lanes[LinkedLane.DestLane.Index];
+						if (EscapeLaneTags.Pass(DestLane.Tags))
+						{
+							DisturbanceHeap.Emplace(EscapeLaneIndex, /*EscapeCost*/0.0f, SpanIndex, LinkedLane.DestLane.Index, ExitLinkType);
+							Span.bLeadsToExit = true;
+							Span.ExitLinkType = ExitLinkType;
+							Span.EscapeCost = 0.0f;
+							Span.ExitLaneIndex = LinkedLane.DestLane.Index;
+							Span.bReverseLaneDirection = ExitLinkType == EZoneLaneLinkType::Incoming;
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	
 	// Flood exit direction along the danger lanes.
 	// 
 	// NOTE:A lot of this code feels reversed because we're advancing from the fringe towards the center,
@@ -599,6 +685,16 @@ void UZoneGraphDisturbanceAnnotation::DebugDraw(FZoneGraphAnnotationSceneProxy* 
 	static const FLinearColor EscapeCostHighColor(FColor(255, 61, 0));
 	static constexpr float ArrowSize = 15.0f;
 
+	FVector ViewLocation = FVector::ZeroVector;
+	FRotator ViewRotation = FRotator::ZeroRotator;
+	GetFirstViewPoint(ViewLocation, ViewRotation);
+
+	LastDebugDrawLocation = ViewLocation; 
+	
+	const float DrawDistance = GetMaxDebugDrawDistance();
+	const float DrawDistanceSq = FMath::Square(DrawDistance);
+	const float LabelDrawDistanceSq = FMath::Square(DrawDistance * 0.15f);
+
 	for (const FZoneGraphDataEscapeGraph& EscapeGraph : EscapeGraphs)
 	{
 		if (!EscapeGraph.bInUse)
@@ -610,6 +706,18 @@ void UZoneGraphDisturbanceAnnotation::DebugDraw(FZoneGraphAnnotationSceneProxy* 
 		{
 			for (const FZoneGraphEscapeLaneAction& EscapeLane : EscapeGraph.LanesToEscape)
 			{
+				if (EscapeLane.SpanCount == 0)
+				{
+					continue;
+				}
+				const float DistanceSq = FVector::DistSquared(ViewLocation, EscapeLane.Spans[EscapeLane.SpanCount/2].Position);
+				if (DistanceSq > DrawDistanceSq)
+				{
+					continue;
+				}
+
+				const bool bAddLabel = DistanceSq < LabelDrawDistanceSq;
+				
 				const FZoneGraphLaneHandle LaneHandle(EscapeLane.LaneIndex, EscapeGraph.DataHandle);
 				
 				// Draw lane to indicate danger.
@@ -661,20 +769,26 @@ void UZoneGraphDisturbanceAnnotation::DebugDraw(FZoneGraphAnnotationSceneProxy* 
 						DebugProxy->Lines.Emplace(ArrowPosition - ArrowDirection * ArrowSize + ArrowSide * ArrowSize, ArrowPosition + ArrowDirection * ArrowSize, MarkerColor.ToFColor(/*sRGB*/true), 2.0f);
 					}
 
-					if (Span.ExitLaneIndex == INDEX_NONE)
+					if (bAddLabel)
 					{
-						DebugProxy->Texts.Emplace(FString::Printf(TEXT("ERROR!")), ArrowPosition + FVector::UpVector * ArrowSize, FColor::Red);
-					}
-					else
-					{
-						DebugProxy->Texts.Emplace(FString::Printf(TEXT("%d->%d\nescapeCost: %.1f\ndanger: %.1f\ntags: %s"), EscapeLane.LaneIndex, Span.ExitLaneIndex, Span.EscapeCost, Span.Danger, *TagString), ArrowPosition + FVector::UpVector * ArrowSize, FColor::Red);
+						if (Span.ExitLaneIndex == INDEX_NONE)
+						{
+							DebugProxy->Texts.Emplace(FString::Printf(TEXT("ERROR!")), ArrowPosition + FVector::UpVector * ArrowSize, FColor::Red);
+						}
+						else
+						{
+							DebugProxy->Texts.Emplace(FString::Printf(TEXT("%d->%d\nescapeCost: %.1f\ndanger: %.1f\ntags: %s"), EscapeLane.LaneIndex, Span.ExitLaneIndex, Span.EscapeCost, Span.Danger, *TagString), ArrowPosition + FVector::UpVector * ArrowSize, FColor::Red);
+						}
 					}
 
 					if (Span.bLeadsToExit)
 					{
 						const FVector Point = SpanIndex == 0 ? PrevLocation.Position : SplitLocation.Position + ZOffset;
 						DebugProxy->Lines.Emplace(Point, Point + FVector::UpVector * ArrowSize, FColor::Blue, 2.0f);
-						DebugProxy->Texts.Emplace(FString(TEXT("EXIT")), Point + FVector::UpVector * ArrowSize, FColor::Blue);
+						if (bAddLabel)
+						{
+							DebugProxy->Texts.Emplace(FString(TEXT("EXIT")), Point + FVector::UpVector * ArrowSize, FColor::Blue);
+						}
 					}
 					
 					PrevLocation = SplitLocation;
@@ -685,6 +799,12 @@ void UZoneGraphDisturbanceAnnotation::DebugDraw(FZoneGraphAnnotationSceneProxy* 
 
 	for (const FZoneGraphDisturbanceArea& Danger : Dangers)
 	{
+		const float DistanceSq = FVector::DistSquared(ViewLocation, Danger.Position);
+		if (DistanceSq > DrawDistanceSq)
+		{
+			continue;
+		}
+
 		const FBox QueryBounds = FBox::BuildAABB(Danger.Position, FVector(Danger.Radius));
 		DebugProxy->Boxes.Emplace(QueryBounds, FColor::Red);
 		DebugProxy->Lines.Emplace(Danger.Position - FVector(ArrowSize, 0, 0), Danger.Position + FVector(ArrowSize, 0, 0), FColor::Red, 2.0f);
@@ -694,6 +814,12 @@ void UZoneGraphDisturbanceAnnotation::DebugDraw(FZoneGraphAnnotationSceneProxy* 
 
 	for (const FZoneGraphObstacleDisturbanceArea& Obstacle : Obstacles)
 	{
+		const float DistanceSq = FVector::DistSquared(ViewLocation, Obstacle.Position);
+		if (DistanceSq > DrawDistanceSq)
+		{
+			continue;
+		}
+
 		const FColor ObstacleColor = FColor::Blue;
 		const FBox QueryBounds = FBox::BuildAABB(Obstacle.Position, FVector(Obstacle.Radius));
 		DebugProxy->Boxes.Emplace(QueryBounds, ObstacleColor);
@@ -707,7 +833,7 @@ void UZoneGraphDisturbanceAnnotation::DebugDraw(FZoneGraphAnnotationSceneProxy* 
 void UZoneGraphDisturbanceAnnotation::DebugDrawCanvas(UCanvas* Canvas, APlayerController*)
 {
 	const FColor OldDrawColor = Canvas->DrawColor;
-	const FFontRenderInfo FontInfo = Canvas->CreateFontRenderInfo(false, true);
+	const FFontRenderInfo FontInfo = Canvas->CreateFontRenderInfo(true, true);
 	const UFont* RenderFont = GEngine->GetSmallFont();
 	const float LineHeight = RenderFont->GetMaxCharHeight() * 1.2f;
 
@@ -715,14 +841,25 @@ void UZoneGraphDisturbanceAnnotation::DebugDrawCanvas(UCanvas* Canvas, APlayerCo
 
 	constexpr float PosX = 40;
 	float PosY = 200;
-	for (const FZoneGraphDisturbanceArea& Danger : Dangers)
+
+	const int32 NumLines = FMath::Min(Dangers.Num(), 15);
+	
+	for (int32 Index = 0; Index < NumLines; Index++)
 	{
+		const FZoneGraphDisturbanceArea& Danger = Dangers[Index];
 		FString Text = FString::Printf(TEXT("Danger %.1f"), Danger.Duration);
 		
 		Canvas->SetDrawColor(FColor::Red);
 		Canvas->DrawText(RenderFont, Text, PosX, PosY, 1, 1, FontInfo);
 
 		PosY -= LineHeight;
+	}
+	
+	if (NumLines < Dangers.Num())
+	{
+		FString Text = FString::Printf(TEXT("%d more dangers..."), Dangers.Num() - NumLines);
+		Canvas->SetDrawColor(FColor::Red);
+		Canvas->DrawText(RenderFont, Text, PosX, PosY, 1, 1, FontInfo);
 	}
 
 	Canvas->SetDrawColor(OldDrawColor);

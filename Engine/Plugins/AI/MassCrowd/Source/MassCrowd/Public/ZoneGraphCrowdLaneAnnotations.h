@@ -54,6 +54,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = CrowdLane)
 	FZoneGraphTag WaitingLaneTag;
 
+	UPROPERTY(EditAnywhere, Category = Debug)
+	bool bDisplayTags = false;
+
 	/** Array of queued events. */
 	TArray<FZoneGraphCrowdLaneStateChangeEvent> StateChangeEvents;
 
