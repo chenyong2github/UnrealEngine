@@ -23,7 +23,7 @@ struct AUDIOMODULATION_API FSoundModulationParameterSettings
 	  * If GetMixFunction performs the mathematical operation f(x1, x2), then the default ValueNormalized should result in
 	  * f(x1, d) = x1 where d is ValueNormalized.
 	  */
-	UPROPERTY(EditAnywhere, Category = General, meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ValueNormalized = 1.0f;
 
 #if WITH_EDITORONLY_DATA
@@ -108,12 +108,13 @@ public:
 	//~ End IAudioProxyDataFactory Interface.
 
 #if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+
 	void RefreshNormalizedValue();
 	void RefreshUnitValue();
 #endif // WITH_EDITOR
 
 	Audio::FModulationParameter CreateParameter() const;
-
 };
 
 // Linearly scaled value between unit minimum and maximum.
@@ -124,11 +125,11 @@ class USoundModulationParameterScaled : public USoundModulationParameter
 
 public:
 	/** Unit minimum of modulator. Minimum is only enforced at modulation destination. */
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly)
 	float UnitMin = 0.0f;
 
 	/** Unit maximum of modulator. Maximum is only enforced at modulation destination. */
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly)
 	float UnitMax = 1.0f;
 
 	virtual bool RequiresUnitConversion() const override;
@@ -158,11 +159,11 @@ class USoundModulationParameterFrequency : public USoundModulationParameterFrequ
 
 public:
 	/** Unit minimum of modulator. Minimum is only enforced at modulation destination. */
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly)
 	float UnitMin = MIN_FILTER_FREQUENCY;
 
 	/** Unit maximum of modulator. Maximum is only enforced at modulation destination. */
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly)
 	float UnitMax = MAX_FILTER_FREQUENCY;
 
 	virtual float GetUnitMin() const override
@@ -224,7 +225,7 @@ class USoundModulationParameterBipolar : public USoundModulationParameter
 
 public:
 	/** Unit range of modulator. Range is only enforced at modulation destination. */
-	UPROPERTY(EditAnywhere, Category = General, meta = (ClampMin = 0.00000001))
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly, meta = (ClampMin = 0.00000001))
 	float UnitRange = 2.0f;
 
 	virtual bool RequiresUnitConversion() const override;
@@ -242,7 +243,7 @@ class USoundModulationParameterVolume : public USoundModulationParameter
 
 public:
 	/** Minimum volume of parameter. Only enforced at modulation destination. */
-	UPROPERTY(EditAnywhere, Category = General, meta = (ClampMax = 0.0))
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly, meta = (ClampMax = 0.0))
 	float MinVolume = -100.0f;
 
 	virtual bool RequiresUnitConversion() const override;
@@ -261,8 +262,6 @@ namespace AudioModulation
 		FSoundModulationPluginParameterAssetProxy(const FSoundModulationPluginParameterAssetProxy& InProxy) = default;
 
 		virtual Audio::IProxyDataPtr Clone() const override;
-
-		virtual const Audio::FModulationParameter& GetParameter() const override;
 	};
 
 	/*

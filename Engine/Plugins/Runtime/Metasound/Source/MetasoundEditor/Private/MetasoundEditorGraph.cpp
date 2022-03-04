@@ -1682,12 +1682,6 @@ bool UMetasoundEditorGraph::ValidateInternal(Metasound::Editor::FGraphValidation
 	{
 		FGraphNodeValidationResult NodeResult(*Node);
 
-		if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(Node))
-		{
-			bIsValid &= ExternalNode->Validate(NodeResult);
-			bMarkDirty |= NodeResult.bIsDirty;
-		}
-
 		bIsValid &= Node->Validate(NodeResult);
 		bMarkDirty |= NodeResult.bIsDirty;
 

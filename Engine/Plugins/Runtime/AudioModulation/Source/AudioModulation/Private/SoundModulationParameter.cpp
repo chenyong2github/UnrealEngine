@@ -15,6 +15,20 @@ TUniquePtr<Audio::IProxyData> USoundModulationParameter::CreateNewProxyData(cons
 }
 
 #if WITH_EDITOR
+void USoundModulationParameter::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		const FName AssetName = GetFName();
+		if (Audio::IsModulationParameterRegistered(AssetName))
+		{
+			Audio::FModulationParameter NewParam = CreateParameter();
+			Audio::RegisterModulationParameter(NewParam.ParameterName, MoveTemp(NewParam));
+		}
+	}
+}
+
+
 void USoundModulationParameter::RefreshNormalizedValue()
 {
 	const float NewNormalizedValue = ConvertUnitToNormalized(Settings.ValueUnit);
@@ -236,9 +250,9 @@ namespace AudioModulation
 					TEXT("Parameter '%s' not registered.  Registration forced via '%s'."),
 					*ParamName.ToString(),
 					*InBreadcrumb);
-			}
 
-			Audio::RegisterModulationParameter(ParamName, InParameter->CreateParameter());
+				Audio::RegisterModulationParameter(ParamName, InParameter->CreateParameter());
+			}
 		}
 
 		// Returns default modulation parameter if no parameter provided.
@@ -253,10 +267,5 @@ namespace AudioModulation
 	Audio::IProxyDataPtr FSoundModulationPluginParameterAssetProxy::Clone() const
 	{
 		return TUniquePtr<FSoundModulationPluginParameterAssetProxy>(new FSoundModulationPluginParameterAssetProxy(*this));
-	}
-
-	const Audio::FModulationParameter& FSoundModulationPluginParameterAssetProxy::GetParameter() const
-	{
-		return Parameter;
 	}
 }

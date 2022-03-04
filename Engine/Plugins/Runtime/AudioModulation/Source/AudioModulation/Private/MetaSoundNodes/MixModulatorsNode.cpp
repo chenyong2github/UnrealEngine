@@ -134,7 +134,7 @@ namespace AudioModulation
 
 				if (OutHandle.IsValid())
 				{
-					Value = OutHandle.GetValueThreadSafe(Value);
+					OutHandle.GetValueThreadSafe(Value);
 				}
 
 				return Value;

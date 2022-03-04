@@ -253,12 +253,10 @@ public:
 
 	virtual const Audio::FModulationParameter& GetParameter() const
 	{
-		static const Audio::FModulationParameter DefaultParam;
-		return DefaultParam;
+		return Parameter;
 	}
 
-	protected:
-	Audio::FModulatorHandle ModHandle;
+protected:
 	Audio::FModulationParameter Parameter;
 };
 using FSoundModulationParameterAssetProxyPtr = TSharedPtr<FSoundModulationParameterAssetProxy, ESPMode::ThreadSafe>;
