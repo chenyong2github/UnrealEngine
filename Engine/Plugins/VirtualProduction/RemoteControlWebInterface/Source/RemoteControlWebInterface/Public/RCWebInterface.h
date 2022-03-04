@@ -10,12 +10,17 @@ class FRemoteControlWebInterfaceProcess;
 
 class FRCWebInterfaceCustomizations;
 
-class FRemoteControlWebInterfaceModule : public IModuleInterface
+class FRemoteControlWebInterfaceModule 
+	: public IModuleInterface
+	, public FSelfRegisteringExec
 {
 public:
 	//~ IModuleInterface
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+
+	//~ FSelfRegisteringExec interface
+	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 
 	/**
@@ -29,8 +34,6 @@ public:
 		static const FName ModuleName = TEXT("RemoteControlWebInterface");
 		return FModuleManager::LoadModuleChecked<FRemoteControlWebInterfaceModule>(ModuleName);
 	}
-
-	static void OnCVarChanged();
 
 private:
 	/** Handle Web Interface settings modifications. */
