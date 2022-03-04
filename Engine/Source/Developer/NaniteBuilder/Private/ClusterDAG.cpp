@@ -440,6 +440,8 @@ FBinaryHeap< float > FindDAGCut(
 
 		if( Cluster.MipLevel == 0 )
 			break;
+		if( Cluster.GeneratingGroupIndex == MAX_uint32 )
+			break;
 
 		bool bHitTarget =
 			Heap.Num() * FCluster::ClusterSize > TargetNumTris ||
