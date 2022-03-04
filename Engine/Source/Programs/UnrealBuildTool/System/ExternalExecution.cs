@@ -921,6 +921,84 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Return the file reference for the UHT manifest file
+		/// </summary>
+		/// <param name="Makefile">Input makefile</param>
+		/// <param name="TargetName">Name of the target</param>
+		/// <returns>Manifest file name</returns>
+		public static FileReference GetUHTModuleInfoFileName(TargetMakefile Makefile, string TargetName)
+		{
+			return FileReference.Combine(Makefile.ProjectIntermediateDirectory, TargetName + ".uhtmanifest");
+		}
+
+		/// <summary>
+		/// Return the file reference for the UHT deps file
+		/// </summary>
+		/// <param name="ModuleInfoFileName">Manifest info file name</param>
+		/// <returns>UHT dependency file name</returns>
+		public static FileReference GetUHTDepsFileName(FileReference ModuleInfoFileName)
+		{
+			return ModuleInfoFileName.ChangeExtension(".deps");
+		}
+
+		/// <summary>
+		/// Convert the makefile to a UHTManifest object
+		/// </summary>
+		/// <param name="Makefile">Input makefile</param>
+		/// <param name="TargetName">Name of the target</param>
+		/// <param name="DepsFileName">Name of the dependencies file.</param>
+		/// <returns>Output UHT manifest</returns>
+		public static UHTManifest CreateUHTManifest(TargetMakefile Makefile, string TargetName, FileReference DepsFileName)
+		{
+			List<UHTManifest.Module> Modules = new List<UHTManifest.Module>();
+			foreach (UHTModuleInfo UObjectModule in Makefile.UObjectModules)
+			{
+				Modules.Add(
+					new UHTManifest.Module
+					{
+						Name = UObjectModule.ModuleName,
+						ModuleType = (UHTModuleType)Enum.Parse(typeof(UHTModuleType), UObjectModule.ModuleType),
+						OverrideModuleType = (EPackageOverrideType)Enum.Parse(typeof(EPackageOverrideType), UObjectModule.OverrideModuleType),
+						BaseDirectory = UObjectModule.ModuleDirectories[0].FullName,
+						IncludeBase = UObjectModule.ModuleDirectories[0].ParentDirectory!.FullName,
+						OutputDirectory = Path.GetDirectoryName(UObjectModule.GeneratedCPPFilenameBase)!,
+						ClassesHeaders = UObjectModule.PublicUObjectClassesHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+						PublicHeaders = UObjectModule.PublicUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+						InternalHeaders = UObjectModule.InternalUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+						PrivateHeaders = UObjectModule.PrivateUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
+						GeneratedCPPFilenameBase = UObjectModule.GeneratedCPPFilenameBase,
+						SaveExportedHeaders = !UObjectModule.bIsReadOnly,
+						GeneratedCodeVersion = UObjectModule.GeneratedCodeVersion,
+					});
+			}
+			UHTManifest Manifest = new UHTManifest
+			{
+				TargetName = TargetName,
+				IsGameTarget = Makefile.TargetType != TargetType.Program,
+				RootLocalPath = Unreal.RootDirectory.FullName,
+				ExternalDependenciesFile = DepsFileName.FullName,
+				Modules = Modules,
+			};
+
+			return Manifest;
+		}
+
+		/// <summary>
+		/// Write the manifest to disk
+		/// </summary>
+		/// <param name="Makefile">Input makefile</param>
+		/// <param name="TargetName">Name of the target</param>
+		/// <param name="ModuleInfoFileName">Destination file name.  If not supplied, it will be generated.</param>
+		/// <param name="DepsFileName">Name of the dependencies file.  If not supplied, it will be generated.</param>
+		public static void WriteUHTManifest(TargetMakefile Makefile, string TargetName, FileReference ModuleInfoFileName, FileReference DepsFileName)
+		{
+			// @todo ubtmake: Optimization: Ideally we could avoid having to generate this data in the case where UHT doesn't even need to run!  Can't we use the existing copy?  (see below use of Manifest)
+			UHTManifest Manifest = CreateUHTManifest(Makefile, TargetName, DepsFileName);
+			Directory.CreateDirectory(ModuleInfoFileName.Directory.FullName);
+			System.IO.File.WriteAllText(ModuleInfoFileName.FullName, JsonSerializer.Serialize(Manifest, new JsonSerializerOptions { WriteIndented = true }));
+		}
+
+		/// <summary>
 		/// Builds and runs the header tool and touches the header directories.
 		/// Performs any early outs if headers need no changes, given the UObject modules, tool path, game name, and configuration
 		/// </summary>
@@ -962,7 +1040,7 @@ namespace UnrealBuildTool
 				}
 
 				// Check we're not using a different version of UHT
-				FileReference ModuleInfoFileName = FileReference.Combine(Makefile.ProjectIntermediateDirectory, TargetName + ".uhtmanifest");
+				FileReference ModuleInfoFileName = GetUHTModuleInfoFileName(Makefile, TargetName);
 				FileReference ToolInfoFile = ModuleInfoFileName.ChangeExtension(".uhtpath");
 				if(!bUHTNeedsToRun)
 				{
@@ -977,44 +1055,12 @@ namespace UnrealBuildTool
 				}
 
 				// Get the file containing dependencies for the generated code
-				FileReference ExternalDependenciesFile = ModuleInfoFileName.ChangeExtension(".deps");
+				FileReference ExternalDependenciesFile = GetUHTDepsFileName(ModuleInfoFileName);
 				if (AreExternalDependenciesOutOfDate(ExternalDependenciesFile))
 				{
 					bUHTNeedsToRun = true;
 					bHaveHeaderTool = false; // Force UHT to build until dependency checking is fast enough to run all the time
 				}
-
-				// @todo ubtmake: Optimization: Ideally we could avoid having to generate this data in the case where UHT doesn't even need to run!  Can't we use the existing copy?  (see below use of Manifest)
-
-				List<UHTManifest.Module> Modules = new List<UHTManifest.Module>();
-				foreach(UHTModuleInfo UObjectModule in Makefile.UObjectModules)
-				{
-					Modules.Add(
-						new UHTManifest.Module
-						{
-							Name = UObjectModule.ModuleName,
-							ModuleType = (UHTModuleType)Enum.Parse(typeof(UHTModuleType), UObjectModule.ModuleType),
-							OverrideModuleType = (EPackageOverrideType)Enum.Parse(typeof(EPackageOverrideType), UObjectModule.OverrideModuleType),
-							BaseDirectory = UObjectModule.ModuleDirectories[0].FullName,
-							IncludeBase = UObjectModule.ModuleDirectories[0].ParentDirectory!.FullName,
-							OutputDirectory = Path.GetDirectoryName(UObjectModule.GeneratedCPPFilenameBase)!,
-							ClassesHeaders = UObjectModule.PublicUObjectClassesHeaders.Select((Header) => Header.AbsolutePath).ToList(),
-							PublicHeaders = UObjectModule.PublicUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
-							InternalHeaders = UObjectModule.InternalUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
-							PrivateHeaders = UObjectModule.PrivateUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
-							GeneratedCPPFilenameBase = UObjectModule.GeneratedCPPFilenameBase,
-							SaveExportedHeaders = !UObjectModule.bIsReadOnly,
-							GeneratedCodeVersion = UObjectModule.GeneratedCodeVersion,
-						});
-				}
-				UHTManifest Manifest = new UHTManifest
-				{
-					TargetName = TargetName,
-					IsGameTarget = Makefile.TargetType != TargetType.Program,
-					RootLocalPath = RootLocalPath,
-					ExternalDependenciesFile = ExternalDependenciesFile.FullName,
-					Modules = Modules,
-				};
 
 				if (!bIsBuildingUHT && bUHTNeedsToRun)
 				{
@@ -1070,9 +1116,7 @@ namespace UnrealBuildTool
 						throw new BuildException("Unable to generate headers because UnrealHeaderTool binary was not found ({0}).", HeaderToolPath);
 					}
 
-					// Disable extensions when serializing to remove the $type fields
-					Directory.CreateDirectory(ModuleInfoFileName.Directory.FullName);
-					System.IO.File.WriteAllText(ModuleInfoFileName.FullName, JsonSerializer.Serialize(Manifest, new JsonSerializerOptions { WriteIndented = true }));
+					WriteUHTManifest(Makefile, TargetName, ModuleInfoFileName, ExternalDependenciesFile);
 
 					string CmdLine = (ProjectFile != null) ? "\"" + ProjectFile.FullName + "\"" : TargetName;
 					CmdLine += " \"" + ModuleInfoFileName + "\" -LogCmds=\"loginit warning, logexit warning, logdatabase error\" -Unattended -WarningsAsErrors";
@@ -1188,17 +1232,6 @@ namespace UnrealBuildTool
 
 				// Get UHT assembly timestamp
 				DateTime UnrealBuildToolTimestamp = new FileInfo(Assembly.GetExecutingAssembly().Location).LastWriteTimeUtc;
-				//DateTime UnrealHeaderToolTimestamp = DateTime.MinValue;
-				//Assembly? UHTAssembly = AppDomain.CurrentDomain.GetAssemblies().Single(x => x.GetName().Name == "EpicGames.UHT");
-				//if (UHTAssembly != null)
-				//{
-				//	UnrealHeaderToolTimestamp = new FileInfo(UHTAssembly.Location).LastWriteTimeUtc;
-				//}
-				DateTime ComboTimeStamp = UnrealBuildToolTimestamp;
-				//if (UnrealHeaderToolTimestamp > ComboTimeStamp)
-				//{
-				//	ComboTimeStamp = UnrealHeaderToolTimestamp;
-				//}
 
 				// ensure the headers are up to date
 				bool bUHTNeedsToRun = false;
@@ -1206,13 +1239,13 @@ namespace UnrealBuildTool
 				{
 					bUHTNeedsToRun = true;
 				}
-				else if (AreGeneratedCodeFilesOutOfDate(BuildConfiguration, Makefile.UObjectModules, ComboTimeStamp))
+				else if (AreGeneratedCodeFilesOutOfDate(BuildConfiguration, Makefile.UObjectModules, UnrealBuildToolTimestamp))
 				{
 					bUHTNeedsToRun = true;
 				}
 
 				// Check we're not using a different version of UHT
-				FileReference ModuleInfoFileName = FileReference.Combine(Makefile.ProjectIntermediateDirectory, TargetName + ".uhtmanifest");
+				FileReference ModuleInfoFileName = GetUHTModuleInfoFileName(Makefile, TargetName);
 				FileReference ToolInfoFile = ModuleInfoFileName.ChangeExtension(".uhtpath");
 				if (!bUHTNeedsToRun)
 				{
@@ -1227,51 +1260,17 @@ namespace UnrealBuildTool
 				}
 
 				// Get the file containing dependencies for the generated code
-				FileReference ExternalDependenciesFile = ModuleInfoFileName.ChangeExtension(".deps");
+				FileReference ExternalDependenciesFile = GetUHTDepsFileName(ModuleInfoFileName);
 				if (AreExternalDependenciesOutOfDate(ExternalDependenciesFile))
 				{
 					bUHTNeedsToRun = true;
 				}
 
-				// @todo ubtmake: Optimization: Ideally we could avoid having to generate this data in the case where UHT doesn't even need to run!  Can't we use the existing copy?  (see below use of Manifest)
-
-				List<UHTManifest.Module> Modules = new List<UHTManifest.Module>();
-				foreach(UHTModuleInfo UObjectModule in Makefile.UObjectModules)
-				{
-					Modules.Add(
-						new UHTManifest.Module
-						{
-							Name = UObjectModule.ModuleName,
-							ModuleType = (UHTModuleType)Enum.Parse(typeof(UHTModuleType), UObjectModule.ModuleType),
-							OverrideModuleType = (EPackageOverrideType)Enum.Parse(typeof(EPackageOverrideType), UObjectModule.OverrideModuleType),
-							BaseDirectory = UObjectModule.ModuleDirectories[0].FullName,
-							IncludeBase = UObjectModule.ModuleDirectories[0].ParentDirectory!.FullName,
-							OutputDirectory = Path.GetDirectoryName(UObjectModule.GeneratedCPPFilenameBase)!,
-							ClassesHeaders = UObjectModule.PublicUObjectClassesHeaders.Select((Header) => Header.AbsolutePath).ToList(),
-							PublicHeaders = UObjectModule.PublicUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
-							InternalHeaders = UObjectModule.InternalUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
-							PrivateHeaders = UObjectModule.PrivateUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
-							GeneratedCPPFilenameBase = UObjectModule.GeneratedCPPFilenameBase,
-							SaveExportedHeaders = !UObjectModule.bIsReadOnly,
-							GeneratedCodeVersion = UObjectModule.GeneratedCodeVersion,
-						});
-				}
-				UHTManifest Manifest = new UHTManifest
-				{
-					TargetName = TargetName,
-					IsGameTarget = Makefile.TargetType != TargetType.Program,
-					RootLocalPath = RootLocalPath,
-					ExternalDependenciesFile = ExternalDependenciesFile.FullName,
-					Modules = Modules,
-				};
-
 				if (bUHTNeedsToRun)
 				{
 					Progress.Write(1, 3);
 
-					// Disable extensions when serializing to remove the $type fields
-					Directory.CreateDirectory(ModuleInfoFileName.Directory.FullName);
-					System.IO.File.WriteAllText(ModuleInfoFileName.FullName, JsonSerializer.Serialize(Manifest, new JsonSerializerOptions { WriteIndented = true }));
+					WriteUHTManifest(Makefile, TargetName, ModuleInfoFileName, ExternalDependenciesFile);
 
 					string ActualTargetName = String.IsNullOrEmpty(TargetName) ? "UE5" : TargetName;
 					Log.TraceInformation("Parsing headers for {0}", ActualTargetName);

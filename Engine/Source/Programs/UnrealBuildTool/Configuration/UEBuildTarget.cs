@@ -1705,7 +1705,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Builds the target, appending list of output files and returns building result.
 		/// </summary>
-		public TargetMakefile Build(BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, TargetDescriptor TargetDescriptor)
+		public TargetMakefile Build(BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, TargetDescriptor TargetDescriptor, bool bInitOnly = false)
 		{
 			CppConfiguration CppConfiguration = GetCppConfiguration(Configuration);
 
@@ -1842,6 +1842,12 @@ namespace UnrealBuildTool
 			if ((UHTAdditionalArguments != null) && (UHTAdditionalArguments.Any()))
 			{
 				Makefile.UHTAdditionalArguments = UHTAdditionalArguments.ToArray();
+			}
+
+			// UHT mode uses this to create the makefile at least to the point where UHT would have valid manifest information
+			if (bInitOnly)
+			{
+				return Makefile;
 			}
 
 			// NOTE: Even in Gather mode, we need to run UHT to make sure the files exist for the static action graph to be setup correctly.  This is because UHT generates .cpp

@@ -898,7 +898,7 @@ namespace UnrealBuildTool.Modes
 	/// <summary>
 	/// Invoke UHT
 	/// </summary>
-	[ToolMode("UnrealHeaderTool", ToolModeOptions.SingleInstance | ToolModeOptions.ShowExecutionTime)]
+	[ToolMode("UnrealHeaderTool", ToolModeOptions.XmlConfig | ToolModeOptions.BuildPlatforms | ToolModeOptions.SingleInstance | ToolModeOptions.ShowExecutionTime)]
 	class UnrealHeaderToolMode : ToolMode
 	{
 		/// <summary>
@@ -933,7 +933,7 @@ namespace UnrealBuildTool.Modes
 		/// </summary>
 		private static void PrintUsage()
 		{
-			Console.WriteLine("UnrealBuildTool -Mode=UnrealHeaderTool ProjectFile ManifestFile [Options]");
+			Console.WriteLine("UnrealBuildTool -Mode=UnrealHeaderTool [ProjectFile ManifestFile] -OR [\"-Target...\"] [Options]");
 			Console.WriteLine("");
 			Console.WriteLine("Options:");
 			int LongestPrefix = 0;
@@ -992,7 +992,20 @@ namespace UnrealBuildTool.Modes
 
 				// Parse the global options
 				UhtGlobalOptions Options = new UhtGlobalOptions(Arguments);
-				if (Arguments.GetRawArray().Length <= 1 || Options.bGetHelp)
+				int TargetArgumentIndex = -1;
+				if (Arguments.GetPositionalArgumentCount() == 0)
+				{
+					for (int Index = 0; Index < Arguments.Count; ++Index)
+					{
+						if (Arguments[Index].StartsWith("-Target", StringComparison.OrdinalIgnoreCase))
+						{
+							TargetArgumentIndex = Index;
+							break;
+						}
+					}
+				}
+				int RequiredArgCount = TargetArgumentIndex >= 0 ? 0 : 2;
+				if (Arguments.GetPositionalArgumentCount() != RequiredArgCount || Options.bGetHelp)
 				{
 					PrintUsage();
 					return Options.bGetHelp ? (int)CompilationResult.Succeeded : (int)CompilationResult.OtherCompilationError;
@@ -1031,17 +1044,57 @@ namespace UnrealBuildTool.Modes
 					return UhtTestHarness.RunTests(Options) ? (int)CompilationResult.Succeeded : (int)CompilationResult.OtherCompilationError;
 				}
 
-				// If we don't have a manifest name, then generate an error
-				if (Arguments.GetPositionalArgumentCount() < 2)
+				string? ProjectPath = null;
+				string? ManifestPath = null;
+
+				if (TargetArgumentIndex >= 0)
 				{
-					Log.TraceError("Manifest file name is required");
-					return (int)CompilationResult.OtherCompilationError;
+					CommandLineArguments LocalArguments = new CommandLineArguments(new string[] { Arguments[TargetArgumentIndex] });
+					List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(LocalArguments, false, false, false);
+					if (TargetDescriptors.Count == 0)
+					{
+						Log.TraceError("No target descriptors found.");
+						return (int)CompilationResult.OtherCompilationError;
+					}
+
+					TargetDescriptor TargetDesc = TargetDescriptors[0];
+
+					// Create the target
+					UEBuildTarget Target = UEBuildTarget.Create(TargetDesc, false, false, false);
+
+					// Create the makefile for the target and export the module information
+					using (ISourceFileWorkingSet WorkingSet = new EmptySourceFileWorkingSet())
+					{
+						// Create the build configuration object, and read the settings
+						BuildConfiguration BuildConfiguration = new BuildConfiguration();
+						XmlConfig.ApplyTo(BuildConfiguration);
+						Arguments.ApplyTo(BuildConfiguration);
+
+						// Create the makefile
+						TargetMakefile Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDesc, true);
+
+						FileReference ModuleInfoFileName = ExternalExecution.GetUHTModuleInfoFileName(Makefile, Target.TargetName);
+						FileReference DepsFileName = ExternalExecution.GetUHTDepsFileName(ModuleInfoFileName);
+						ManifestPath = ModuleInfoFileName.FullName;
+						ExternalExecution.WriteUHTManifest(Makefile, Target.TargetName, ModuleInfoFileName, DepsFileName);
+
+						if (Target.ProjectFile != null)
+						{
+							ProjectPath = Path.GetDirectoryName(Target.ProjectFile.FullName);
+						}
+					}
+				}
+				else
+				{
+					ProjectPath = Path.GetDirectoryName(Arguments.GetPositionalArguments()[0]);
+					ManifestPath = Arguments.GetPositionalArguments()[1];
 				}
 
 				UhtSession Session = new UhtSession
 				{
 					FileManager = new UhtStdFileManager(),
 					EngineDirectory = Unreal.EngineDirectory.FullName,
+					ProjectDirectory = string.IsNullOrEmpty(ProjectPath) ? null : ProjectPath,
 					ReferenceDirectory = FileReference.Combine(EngineProgramSavedDirectory, "UnrealBuildTool", "ReferenceGeneratedCode").FullName,
 					VerifyDirectory = FileReference.Combine(EngineProgramSavedDirectory, "UnrealBuildTool", "VerifyGeneratedCode").FullName,
 					bWarningsAsErrors = Options.bWarningsAsErrors,
@@ -1050,15 +1103,6 @@ namespace UnrealBuildTool.Modes
 					bNoOutput = Options.bNoOutput,
 					bIncludeDebugOutput = Options.bIncludeDebugOutput,
 				};
-
-				// Extract the project directory from the project file name
-				{
-					string? ProjectPath = Path.GetDirectoryName(Arguments.GetPositionalArguments()[0]);
-					if (!string.IsNullOrEmpty(ProjectPath))
-					{
-						Session.ProjectDirectory = ProjectPath;
-					}
-				}				
 
 				if (Options.bWriteRef)
 				{
@@ -1082,7 +1126,7 @@ namespace UnrealBuildTool.Modes
 				}
 
 				// Read and parse
-				Session.Run(Arguments.GetPositionalArguments()[1]);
+				Session.Run(ManifestPath!);
 				Session.LogMessages();
 				return (int)(Session.bHasErrors ? CompilationResult.OtherCompilationError : CompilationResult.Succeeded);
 			}
