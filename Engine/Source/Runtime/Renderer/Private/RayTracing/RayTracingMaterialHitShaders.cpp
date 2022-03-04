@@ -188,6 +188,11 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		if (GCompileRayTracingMaterialAHS || GCompileRayTracingMaterialCHS)
+		{
+			return false;
+		}
+
 		return IsSupportedVertexFactoryType(Parameters.VertexFactoryType)
 			&& ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
