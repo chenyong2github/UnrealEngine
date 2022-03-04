@@ -161,11 +161,15 @@ void FHoloLensDeviceDetector::StartDeviceDetection()
 
 #if APPXPACKAGING_ENABLE
 
+	// We cannot use RoInitialize(multithreaded) because this is called from the main thread and other systems need single threaded apartment, and use CoInitialize to set that up.
+	// If we do need to use RoInitialize we would need to move the winrt code here to a separate thread.
+	bool bSuccess = FWindowsPlatformMisc::CoInitialize();
+	if (!bSuccess) { return; }
+	//HRESULT hr1;
+	//hr1 = ::RoInitialize(RO_INIT_MULTITHREADED);
+	//if (FAILED(hr1)) { return; }
+
 	HRESULT hr;
-
-	hr = ::RoInitialize(RO_INIT_MULTITHREADED);
-	if (FAILED(hr)) { return; }
-
 	ComPtr <IDeviceInformationStatics2> DeviceInformationStatics2;
 	hr = GetActivationFactory(HStringReference(RuntimeClass_Windows_Devices_Enumeration_DeviceInformation).Get(), &DeviceInformationStatics2);
 	if (FAILED(hr)) { return; }
