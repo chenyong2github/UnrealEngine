@@ -158,7 +158,7 @@ void SPaletteView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepri
 		.AutoHeight()
 		[
 			SAssignNew(SearchBoxPtr, SSearchBox)
-			.HintText(LOCTEXT("SearchTemplates", "Search Palette"))
+			.HintText(LOCTEXT("SearchPalette", "Search Palette"))
 			.OnTextChanged(this, &SPaletteView::OnSearchChanged)
 		]
 

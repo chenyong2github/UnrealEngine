@@ -2405,7 +2405,7 @@ bool UEditorEngine::PackageIsAMapFile( const TCHAR* PackageFilename, FText& OutN
 			Arguments.Add(TEXT("UE5Version"), Summary.GetFileVersionUE().FileVersionUE5);
 			Arguments.Add(TEXT("UE4Lastest"), GPackageFileUEVersion.FileVersionUE4);
 			Arguments.Add(TEXT("UE5Lastest"), GPackageFileUEVersion.FileVersionUE5);
-			OutNotMapReason = FText::Format( LOCTEXT( "UEFileIsNewer", "{File} is a UE map [File:v{UE4Version}|{UE5Version}], from an engine release newer than this [Cur:v{UE4Lastest}|{UE5Lastest}]." ), 
+			OutNotMapReason = FText::Format( LOCTEXT( "UEFileIsNewerUE5", "{File} is a UE map [File:v{UE4Version}|{UE5Version}], from an engine release newer than this [Cur:v{UE4Lastest}|{UE5Lastest}]." ), 
 				Arguments);
 			return false;
 		}

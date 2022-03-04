@@ -30,11 +30,11 @@ FText UAnimGraphNode_Mirror::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("AssetName"), FText::FromName(Node.GetMirrorDataTable()->GetFName()));
-		return FText::Format(LOCTEXT("NodeTitle", "Mirror with {AssetName}"), Args);
+		return FText::Format(LOCTEXT("MirrorWithAssetNodeTitle", "Mirror with {AssetName}"), Args);
 	}
 	else
 	{
-		return LOCTEXT("NodeTitle", "Mirror");
+		return LOCTEXT("MirrorNodeTitle", "Mirror");
 	}
 }
 
@@ -336,7 +336,7 @@ FText  UAnimGraphNode_Mirror::GetTitleGivenAssetInfo(const FText& AssetName)
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("AssetName"), AssetName);
 
-	return FText::Format(LOCTEXT("MirrorNodeTitle", "Mirror with {AssetName}"), Args);
+	return FText::Format(LOCTEXT("MirrorNodeTitle_WithAsset", "Mirror with {AssetName}"), Args);
 }
 
 EAnimAssetHandlerType UAnimGraphNode_Mirror::SupportsAssetClass(const UClass* AssetClass) const

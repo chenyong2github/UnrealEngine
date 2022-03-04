@@ -13336,14 +13336,14 @@ void FSequencer::BuildAddSelectedToFolderMenuEntry(FMenuBuilder& InMenuBuilder, 
 	{
 		InMenuBuilder.AddSubMenu(
 			FText::FromName(InFolder->GetFolderName()),
-			LOCTEXT("MoveNodesToFolderTooltip", "Move the selected nodes to an existing folder"),
+			LOCTEXT("MoveNodesToFolderTooltip2", "Move the selected nodes to an existing folder"),
 			FNewMenuDelegate::CreateSP(this, &FSequencer::BuildAddSelectedToFolderSubMenu, InExcludedFolders, InFolder, ChildFolders));
 	}
 	else
 	{
 		InMenuBuilder.AddMenuEntry(
 			FText::FromName(InFolder->GetFolderName()),
-			LOCTEXT("MoveNodesToFolderTooltip", "Move the selected nodes to this existing folder"),
+			LOCTEXT("MoveNodesToFolderTooltip1", "Move the selected nodes to this existing folder"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FSequencer::MoveSelectedNodesToFolder, InFolder)));
 	}

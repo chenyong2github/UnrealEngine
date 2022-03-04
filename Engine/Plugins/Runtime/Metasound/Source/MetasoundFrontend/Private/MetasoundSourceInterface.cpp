@@ -221,7 +221,7 @@ namespace Metasound
 							},
 							{
 								LOCTEXT("SoundUniqueDisplayName", "Sound Unique ID"),
-								LOCTEXT("AudioDeviceIDDescription", "ID of unique source instance."),
+								LOCTEXT("SoundUniqueDescription", "ID of unique source instance."),
 								FName(), // TODO: Align environment data types with environment (ex. this is actually set/get as a uint32)
 								Environment::SoundUniqueID
 							}

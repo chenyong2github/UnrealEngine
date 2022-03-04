@@ -275,7 +275,7 @@ void FKCHandler_MathExpression::RegisterNets(FKismetFunctionContext& Context, UE
 				}
 				else
 				{
-					Context.MessageLog.Error(*LOCTEXT("Compile_PinError", "ICE - mismatched pins found on @@ and @@!").ToString(), Node_MathExpression, InnerEntryNode);
+					Context.MessageLog.Error(*LOCTEXT("Compile_PinMismatchError", "ICE - mismatched pins found on @@ and @@!").ToString(), Node_MathExpression, InnerEntryNode);
 				}
 			}
 
@@ -300,7 +300,7 @@ void FKCHandler_MathExpression::Compile(FKismetFunctionContext& Context, UEdGrap
 
 	if (!InnerExitNode || !InnerEntryNode || (InnerExitNode->Pins.Num() != 1) || ((InnerExitNode->Pins.Num() + InnerEntryNode->Pins.Num()) != Node->Pins.Num()))
 	{
-		Context.MessageLog.Error(*LOCTEXT("Compile_PinError", "ICE - wrong inner pins - @@").ToString(), Node);
+		Context.MessageLog.Error(*LOCTEXT("Compile_WrongInnerPinError", "ICE - wrong inner pins - @@").ToString(), Node);
 		return;
 	}
 

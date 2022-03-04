@@ -453,7 +453,7 @@ void FContentDirectoryMonitor::ProcessModifications(const DirectoryWatcher::FTim
 					FPackagePath DestPackagePath;
 					if (!FPackagePath::TryFromMountedName(FullDestPath, DestPackagePath))
 					{
-						Context.AddMessage(EMessageSeverity::Warning, FText::Format(LOCTEXT("MoveWarning_ExistingAsset", "Can't move {0} to {1} - {1} is not in a mounted path."), SrcPathText, DstPathText));
+						Context.AddMessage(EMessageSeverity::Warning, FText::Format(LOCTEXT("MoveWarning_NotInMountedPath", "Can't move {0} to {1} - {1} is not in a mounted path."), SrcPathText, DstPathText));
 					}
 					else
 					{

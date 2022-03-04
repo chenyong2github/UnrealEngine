@@ -5026,7 +5026,7 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 		[
 			SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(LOCTEXT("Enabled", "Enable Nanite Support"))
+			.Text(LOCTEXT("EnabledNaniteSupport", "Enable Nanite Support"))
 		]
 		.ValueContent()
 		[

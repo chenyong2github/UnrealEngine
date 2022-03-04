@@ -386,7 +386,7 @@ void UAnimBlueprintExtension_PropertyAccess::ExpandPropertyAccess(FKismetCompile
 						bool bSucceeded = GraphSchema->TryCreateConnection(CurrentPin, InputPin);
 						if(!bSucceeded)
 						{
-							InCompilerContext.MessageLog.Error(*LOCTEXT("TargetConnectionFailed", "@@ ICE: could not connect autocast when expanding node").ToString(), SourceNode);
+							InCompilerContext.MessageLog.Error(*LOCTEXT("AutocastConnectionFailed", "@@ ICE: could not connect autocast when expanding node").ToString(), SourceNode);
 						}
 						else
 						{
@@ -396,12 +396,12 @@ void UAnimBlueprintExtension_PropertyAccess::ExpandPropertyAccess(FKismetCompile
 					}
 					else
 					{
-						InCompilerContext.MessageLog.Error(*LOCTEXT("TargetConnectionFailed", "@@ ICE: could not find pins on autocast when expanding node").ToString(), SourceNode);
+						InCompilerContext.MessageLog.Error(*LOCTEXT("AutocastPinsConnectionFailed", "@@ ICE: could not find pins on autocast when expanding node").ToString(), SourceNode);
 					}
 				}
 				else
 				{
-					InCompilerContext.MessageLog.Error(*LOCTEXT("TargetConnectionFailed", "@@ could not make auto-cast function when expanding node").ToString(), SourceNode);
+					InCompilerContext.MessageLog.Error(*LOCTEXT("AutocastFunctionExpansionFailed", "@@ could not make auto-cast function when expanding node").ToString(), SourceNode);
 				}
 			}
 		}

@@ -110,7 +110,7 @@ FText UAnimGraphNode_CallFunction::GetMenuCategory() const
 	{
 		if(UFunction* Function = CallFunctionPrototype->GetTargetFunction())
 		{
-			return UK2Node_CallFunction::GetDefaultCategoryForFunction(CallFunctionPrototype->GetTargetFunction(), LOCTEXT("BaseCategory", "Call Function"));
+			return UK2Node_CallFunction::GetDefaultCategoryForFunction(CallFunctionPrototype->GetTargetFunction(), LOCTEXT("BaseCategory_CallFunction", "Call Function"));
 		}
 	}
 	return FText::GetEmpty();

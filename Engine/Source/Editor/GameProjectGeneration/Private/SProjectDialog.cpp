@@ -2039,7 +2039,7 @@ void SProjectDialog::UpdateProjectFileValidity()
 
 					if (IsIDERequired())
 					{
-						LastGlobalValidityErrorText = FText::Format(LOCTEXT("NoCompilerFound", "No compiler was found. In order to use a C++ template, you must first install {0}."), FSourceCodeNavigation::GetSuggestedSourceCodeIDE());
+						LastGlobalValidityErrorText = FText::Format(LOCTEXT("NoCompilerFoundProjectDialog", "No compiler was found. In order to use a C++ template, you must first install {0}."), FSourceCodeNavigation::GetSuggestedSourceCodeIDE());
 					}
 					else
 					{

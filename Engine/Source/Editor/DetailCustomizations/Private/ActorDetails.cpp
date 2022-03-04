@@ -626,7 +626,7 @@ void FActorDetails::AddActorCategory( IDetailLayoutBuilder& DetailBuilder, const
 				.NameContent()
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("ActorGuid", "Actor Guid"))
+					.Text(LOCTEXT("ActorGuid2", "Actor Guid"))
 					.ToolTipText(LOCTEXT("ActorGuid_ToolTip", "Actor Guid"))
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]

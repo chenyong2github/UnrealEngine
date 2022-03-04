@@ -605,7 +605,7 @@ bool UK2Node_PromotableOperator::IsConnectionDisallowed(const UEdGraphPin* MyPin
 				Args.Add(TEXT("MyPinType"), K2Schema->TypeToText(MyPin->PinType));
 				Args.Add(TEXT("OtherPinType"), K2Schema->TypeToText(OtherPin->PinType));
 
-				OutReason = FText::Format(LOCTEXT("NoCompatibleStructConv", "No compatible operator functions between '{MyPinType}' and '{OtherPinType}'"), Args).ToString();
+				OutReason = FText::Format(LOCTEXT("NoCompatibleOperatorConv", "No compatible operator functions between '{MyPinType}' and '{OtherPinType}'"), Args).ToString();
 				return true;
 			}
 		}

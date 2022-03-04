@@ -238,7 +238,7 @@ FText FActorBrowsingMode::GetStatusText() const
 		{
 			if (bRepresentingWorldPartitionedWorld)
 			{
-				return FText::Format(LOCTEXT("ShowingAllActorsFmt", "{0} actors ({1} loaded)"), FText::AsNumber(FilteredActorCount), FText::AsNumber(FilteredActorCount - FilteredUnloadedActorCount));
+				return FText::Format(LOCTEXT("ShowingAllLoadedActorsFmt", "{0} actors ({1} loaded)"), FText::AsNumber(FilteredActorCount), FText::AsNumber(FilteredActorCount - FilteredUnloadedActorCount));
 			}
 			else
 			{

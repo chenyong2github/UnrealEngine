@@ -199,7 +199,7 @@ FText FSourceControlMenuHelpers::GetSourceControlStatusText()
 		{
 			if (!SourceControlModule.GetProvider().IsAvailable())
 			{
-				return LOCTEXT("SourceControlStatus_Error", "Server Unavailable");
+				return LOCTEXT("SourceControlStatus_Error_ServerUnavailable", "Server Unavailable");
 			}
 			else
 			{
@@ -208,7 +208,7 @@ FText FSourceControlMenuHelpers::GetSourceControlStatusText()
 		}
 		else
 		{
-			return LOCTEXT("SourceControlStatus_Error", "Source Control Off");
+			return LOCTEXT("SourceControlStatus_Error_Off", "Source Control Off");
 		}
 	}
 }

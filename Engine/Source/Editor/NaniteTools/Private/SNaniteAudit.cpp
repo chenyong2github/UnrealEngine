@@ -291,8 +291,8 @@ void SNaniteAudit::Construct(const FArguments& Args, SNaniteAudit::AuditMode InM
 					SNew(SButton)
 					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(FOnClicked::CreateSP(this, &SNaniteAudit::OnBatchEnableNanite))
-					.ToolTipText(LOCTEXT("PopulateAssetListTooltipLoc", "Enable Nanite on all selected meshes"))
-					.Text(LOCTEXT("PopulateAssetListLoc", "Enable Nanite"))
+					.ToolTipText(LOCTEXT("PopulateAssetListTooltipLocEnableNaniteAll", "Enable Nanite on all selected meshes"))
+					.Text(LOCTEXT("PopulateAssetListLocEnableNanite", "Enable Nanite"))
 				]
 			]
 		];
@@ -399,8 +399,8 @@ void SNaniteAudit::Construct(const FArguments& Args, SNaniteAudit::AuditMode InM
 					SNew(SButton)
 					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(FOnClicked::CreateSP(this, &SNaniteAudit::OnBatchDisableNanite))
-					.ToolTipText(LOCTEXT("PopulateAssetListTooltipLoc", "Disable Nanite on all selected meshes"))
-					.Text(LOCTEXT("PopulateAssetListLoc", "Disable Nanite"))
+					.ToolTipText(LOCTEXT("PopulateAssetListTooltipLocDisableNaniteAll", "Disable Nanite on all selected meshes"))
+					.Text(LOCTEXT("PopulateAssetListLocDisableNanite", "Disable Nanite"))
 				]
 			]
 		];

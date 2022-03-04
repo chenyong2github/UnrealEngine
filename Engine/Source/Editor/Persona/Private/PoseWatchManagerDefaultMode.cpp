@@ -88,7 +88,7 @@ FPoseWatchManagerDragValidationInfo FPoseWatchManagerDefaultMode::ValidateDrop(c
 
 		if (!PayloadPoseWatch->IsPoseWatchLabelUniqueInFolder(PayloadPoseWatch->GetLabel(), TargetFolder))
 		{
-			FText ValidationText = FText::Format(LOCTEXT("MovePoseWatchIntoFolder", "A pose watch with that name already exists inside {0}"), TargetFolderLabel);
+			FText ValidationText = FText::Format(LOCTEXT("PoseWatchAlreadyExistsInFolder", "A pose watch with that name already exists inside {0}"), TargetFolderLabel);
 			return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, ValidationText);
 		}
 

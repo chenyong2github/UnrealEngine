@@ -1177,7 +1177,7 @@ FText FLevelEditorToolBar::GetActiveModeName(TWeakPtr<SLevelEditor> LevelEditorP
 		}
 	}
 
-	return LOCTEXT("ActiveMode", "No Active Mode");
+	return LOCTEXT("NoActiveMode", "No Active Mode");
 
 #undef LOCTEXT_NAMESPACE
 }

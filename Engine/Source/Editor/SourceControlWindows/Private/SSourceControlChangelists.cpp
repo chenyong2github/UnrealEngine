@@ -692,8 +692,8 @@ void SSourceControlChangelistsWidget::OnEditChangelist()
 
 	bool bOk = GetChangelistDescription(
 		nullptr,
-		LOCTEXT("SourceControl.Changelist.New.Title", "Edit Changelist..."),
-		LOCTEXT("SourceControl.Changelist.New.Label", "Enter a new description for the changelist:"),
+		LOCTEXT("SourceControl.Changelist.New.Title2", "Edit Changelist..."),
+		LOCTEXT("SourceControl.Changelist.New.Label2", "Enter a new description for the changelist:"),
 		NewChangelistDescription);
 
 	if (!bOk)
