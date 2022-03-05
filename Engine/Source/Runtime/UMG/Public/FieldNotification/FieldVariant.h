@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Class.h"
 #include "UObject/Field.h"
+#include "UObject/UnrealType.h"
 
 namespace UE::FieldNotification
 {
