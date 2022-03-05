@@ -47,6 +47,12 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
+		public Task<bool> HasBlobAsync(NamespaceId NamespaceId, IoHash Hash, CancellationToken CancellationToken = default)
+		{
+			return Inner.HasBlobAsync(NamespaceId, Hash, CancellationToken);
+		}
+
+		/// <inheritdoc/>
 		public Task<bool> DeleteRefAsync(NamespaceId NamespaceId, BucketId BucketId, RefId RefId, CancellationToken CancellationToken = default)
 		{
 			Logger.LogDebug("Deleting ref {NamespaceId}/{BucketId}/{RefId}", NamespaceId, BucketId, RefId);
