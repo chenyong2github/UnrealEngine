@@ -400,7 +400,7 @@ private:
 	 */
 	void Trim_()
 	{
-		if(NumBits % NumBitsPerWord != 0)
+		if constexpr (NumBits % NumBitsPerWord != 0)
 		{
 			Words[NumWords-1] &= (WordType(1) << (NumBits % NumBitsPerWord)) - 1;
 		}
