@@ -26,7 +26,21 @@ public class DirectMLDefault : ModuleRules
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
 			}
 			// PublicDelayLoadDLLs
-			string DLLFileName = LibFileNames[0] + ".dll";
+			string DLLReleaseFileName = LibFileNames[0] + ".dll";
+			string DLLDebugFileName = LibFileNames[0] + ".Debug.dll";
+
+			bool ReleaseMode = true;
+			string DLLFileName;
+
+			if (ReleaseMode == true)
+            {
+				DLLFileName = DLLReleaseFileName;
+			}
+            else
+            {
+				DLLFileName = DLLDebugFileName;
+			}
+
 			PublicDelayLoadDLLs.Add(DLLFileName);
 			// RuntimeDependencies
 			string BinaryThirdPartyDirPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "bin", PlatformDir));
