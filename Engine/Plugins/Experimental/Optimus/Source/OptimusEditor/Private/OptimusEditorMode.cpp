@@ -54,17 +54,18 @@ TSharedRef<FTabManager::FLayout> FOptimusEditorMode::CreatePaneLayout()
 	// |     |                           |       |
 	// | Pre |                           | Deets |
 	// |     |                           |       |
-	// +-----+          Graph            |       |
+	// +-----+          Graph            +-------+
 	// |     |                           |       |
-	// | Pex +---------------------------+       |
+	// | Pex +---------------------------+ Text  |
 	// |     |          Output           |       |
 	// +-----+---------------------------+-------+
 	//
 	// Pre = 3D Preview 
 	// Pex = Node Palette/explorer
 	// Deets = Details panel
+	// Text = Shader Text Editor
 
-	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_OptimusEditor_Layout_v05")
+	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_OptimusEditor_Layout_v06")
 		->AddArea(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
 			->Split(							// - Main work area
@@ -95,11 +96,18 @@ TSharedRef<FTabManager::FLayout> FOptimusEditorMode::CreatePaneLayout()
 						->AddTab(FOptimusEditorCompilerOutputTabSummoner::TabId, ETabState::OpenedTab)
 					)
 				)
-				->Split(						// -- Details
-					FTabManager::NewStack()->SetSizeCoefficient(0.2f)
-					->AddTab(FPersonaTabs::DetailsID, ETabState::OpenedTab)
-					->AddTab(FPersonaTabs::AdvancedPreviewSceneSettingsID, ETabState::OpenedTab)
-					->SetForegroundTab(FPersonaTabs::DetailsID)
+				->Split(						// -- Details + Shader Text Editor
+					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)->SetSizeCoefficient(0.2f)
+					->Split(                   // --- Details 
+						FTabManager::NewStack()
+						->AddTab(FPersonaTabs::DetailsID, ETabState::OpenedTab)
+						->AddTab(FPersonaTabs::AdvancedPreviewSceneSettingsID, ETabState::OpenedTab)
+						->SetForegroundTab(FPersonaTabs::DetailsID)
+					)
+					->Split(					// ---  Shader Text Editor
+						FTabManager::NewStack()
+						->AddTab(FOptimusEditorShaderTextEditorTabSummoner::TabId, ETabState::ClosedTab)
+					)
 				)
 			)
 		);

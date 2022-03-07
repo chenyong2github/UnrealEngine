@@ -2,6 +2,7 @@
 
 #include "OptimusEditor.h"
 
+#include "OptimusEditorTabSummoners.h"
 #include "OptimusEditorClipboard.h"
 #include "OptimusEditorCommands.h"
 #include "OptimusEditorGraph.h"
@@ -23,6 +24,7 @@
 #include "GraphEditor.h"
 #include "IAssetFamily.h"
 #include "IMessageLogListing.h"
+#include "IOptimusShaderTextProvider.h"
 #include "IPersonaPreviewScene.h"
 #include "IPersonaToolkit.h"
 #include "IPersonaViewport.h"
@@ -605,6 +607,19 @@ void FOptimusEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 
 	// Bring the node details tab into the open.
 	GetTabManager()->TryInvokeTab(FPersonaTabs::DetailsID);
+
+	if (SelectedObjects.ContainsByPredicate(
+		[](const TWeakObjectPtr<UObject>& InObject)
+		{
+			if (IOptimusShaderTextProvider* ShaderTextProvider = Cast<IOptimusShaderTextProvider>(InObject.Get()))
+			{
+				return true;
+			}
+			return false;
+		}))
+	{
+		GetTabManager()->TryInvokeTab(FOptimusEditorShaderTextEditorTabSummoner::TabId);
+	}
 
 	SelectedNodesChangedEvent.Broadcast(SelectedObjects);
 }

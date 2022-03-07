@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SSplitter.h"
 
 class IOptimusShaderTextProvider;
 class FOptimusHLSLSyntaxHighlighter;
@@ -11,19 +13,13 @@ class FOptimusHLSLSyntaxHighlighter;
 class SVerticalBox;
 class FSpawnTabArgs;
 class FTabManager;
-class SOptimusShaderTextDocumentSubTab;
+class SOptimusShaderTextDocumentTextBox;
 class SDockTab;
 
 
 class SOptimusShaderTextDocumentTab : public SCompoundWidget
 {
 public:
-	static const FName DeclarationsTabId;
-	static const FName ShaderTextTabId;
-	static TArray<FName> GetAllTabIds();
-	static void OnHostTabClosed(TSharedRef<SDockTab> InDocumentHostTab);
-	
-	
 	SOptimusShaderTextDocumentTab();
 	virtual ~SOptimusShaderTextDocumentTab() override;
 
@@ -33,8 +29,9 @@ public:
 	void Construct(const FArguments& InArgs, UObject* InShaderTextProviderObject, TSharedRef<SDockTab> InDocumentHostTab);
 	
 private:
-	TSharedRef<SDockTab> OnSpawnSubTab(const FSpawnTabArgs& Args, FName SubTabID);
-
+	TSharedRef<SWidget> ConstructNonExpandableHeaderWidget(const SExpandableArea::FArguments& InArgs) const;
+	SSplitter::ESizeRule GetDeclarationsSectionSizeRule() const;
+	
 	bool HasValidShaderTextProvider() const;
 	IOptimusShaderTextProvider* GetProviderInterface() const;
 	FText GetDeclarationsAsText() const;
@@ -49,7 +46,9 @@ private:
 	
 	TWeakObjectPtr<UObject> ShaderTextProviderObject;
 
+	TSharedPtr<SExpandableArea> DeclarationsExpandableArea;
 	// ptr needed for text search
-	TSharedPtr<SOptimusShaderTextDocumentSubTab> DeclarationsSubTab;
-	TSharedPtr<SOptimusShaderTextDocumentSubTab> ShaderTextSubTab;
+	TSharedPtr<SOptimusShaderTextDocumentTextBox> DeclarationsTextBox;
+	TSharedPtr<SOptimusShaderTextDocumentTextBox> ShaderTextTextBox;
 };
+

@@ -15,11 +15,11 @@ class SOptimusShaderTextSearchWidget;
 class SDockTab;
 class SVerticalBox;
 
-class FOptimusShaderTextEditorDocumentSubTabCommands :
-	public TCommands<FOptimusShaderTextEditorDocumentSubTabCommands>
+class FOptimusShaderTextEditorDocumentTextBoxCommands :
+	public TCommands<FOptimusShaderTextEditorDocumentTextBoxCommands>
 {
 public:
-	FOptimusShaderTextEditorDocumentSubTabCommands();
+	FOptimusShaderTextEditorDocumentTextBoxCommands();
 	
 	// TCommands<> overrides
 	virtual void RegisterCommands() override;
@@ -27,14 +27,14 @@ public:
 	TSharedPtr<FUICommandInfo> Search;
 };
 
-class SOptimusShaderTextDocumentSubTab : public SCompoundWidget
+class SOptimusShaderTextDocumentTextBox : public SCompoundWidget
 {
 public:
 	
-	SOptimusShaderTextDocumentSubTab();
-	virtual ~SOptimusShaderTextDocumentSubTab() override;
+	SOptimusShaderTextDocumentTextBox();
+	virtual ~SOptimusShaderTextDocumentTextBox() override;
 
-	SLATE_BEGIN_ARGS(SOptimusShaderTextDocumentSubTab) {};
+	SLATE_BEGIN_ARGS(SOptimusShaderTextDocumentTextBox) {};
 		/** The initial text that will appear in the widget. */
 		SLATE_ATTRIBUTE(FText, Text)
 
@@ -47,17 +47,12 @@ public:
 		/** Sets whether this text box can actually be modified interactively by the user */
 		SLATE_ATTRIBUTE(bool, IsReadOnly)
 
-		/** The title to display. */
-		SLATE_ATTRIBUTE( FText, TabTitle )
-
 		/** Called whenever the text is changed programmatically or interactively by the user */
 		SLATE_EVENT(FOnTextChanged, OnTextChanged)
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedPtr<SDockTab> InParentTab);
-
-	bool IsExpanded() const;
+	void Construct(const FArguments& InArgs);
 
 	void Refresh() const;
 
@@ -68,8 +63,6 @@ private:
 	virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 	void RegisterCommands();
-	
-	void OnTabContentExpansionChanged(bool bIsExpanded);
 	
 	bool HandleEscape();
 	
@@ -85,10 +78,6 @@ private:
 	FReply OnTextKeyChar(const FGeometry& MyGeometry,
 		const FCharacterEvent& InCharacterEvent);
 	
-	TWeakPtr<SDockTab> ParentTab;
-	
-	TSharedPtr<SExpandableArea> Area;
-
 	TSharedPtr<SVerticalBox> TabBody;
 	
 	TSharedPtr<SMultiLineEditableText> Text;

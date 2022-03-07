@@ -1,39 +1,27 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #include "SOptimusShaderTextDocumentTab.h"
 #include "IOptimusShaderTextProvider.h"
-#include "SOptimusShaderTextDocumentSubTab.h"
+#include "SOptimusShaderTextDocumentTextBox.h"
 
 #include "OptimusHLSLSyntaxHighlighter.h"
+
+#include "EditorStyleSet.h" 
 
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/SWindow.h"
 #include "Widgets/Docking/SDockTab.h"
-
-
-#include "Framework/Docking/TabManager.h"
-#include "Framework/Application/SlateApplication.h"
-
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SSplitter.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "OptimusShaderTextDocumentTab"
-
-const FName SOptimusShaderTextDocumentTab::DeclarationsTabId = TEXT("DeclarationsTab");
-const FName SOptimusShaderTextDocumentTab::ShaderTextTabId = TEXT("ShaderTextTab");
-
-
-TArray<FName> SOptimusShaderTextDocumentTab::GetAllTabIds()
-{
-	TArray<FName> TabIds;
-	TabIds.AddUnique(DeclarationsTabId);
-	TabIds.AddUnique(ShaderTextTabId);
-	return TabIds;
-}
 
 SOptimusShaderTextDocumentTab::SOptimusShaderTextDocumentTab()
 	:SyntaxHighlighterDeclarations(FOptimusHLSLSyntaxHighlighter::Create())
 	,SyntaxHighlighterShaderText(FOptimusHLSLSyntaxHighlighter::Create())
-
 {
 }
 
@@ -53,126 +41,105 @@ void SOptimusShaderTextDocumentTab::Construct(const FArguments& InArgs, UObject*
 
 	GetProviderInterface()->OnDiagnosticsUpdated().AddSP(this, &SOptimusShaderTextDocumentTab::OnDiagnosticsUpdated);
 
-	TabManager = FGlobalTabmanager::Get()->NewTabManager(InDocumentHostTab);
-	InDocumentHostTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateStatic(&SOptimusShaderTextDocumentTab::OnHostTabClosed) );
-	
-	TabManager->RegisterTabSpawner(
-		DeclarationsTabId,
-		FOnSpawnTab::CreateRaw(this, &SOptimusShaderTextDocumentTab::OnSpawnSubTab, DeclarationsTabId)
-	);
-	TabManager->RegisterTabSpawner(
-		ShaderTextTabId,
-		FOnSpawnTab::CreateRaw(this, &SOptimusShaderTextDocumentTab::OnSpawnSubTab, ShaderTextTabId)
-	);
+	const FText DeclarationsTitle =	LOCTEXT("OptimusShaderTextDocumentTab_Declarations_Title", "Declarations (Read-Only)");
+	const FText ShaderTextTitle = LOCTEXT("OptimusShaderTextDocumentTab_ShaderText_Title", "Shader Text");
 
-	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("SOptimusShaderTextEditor_DocumentTab1.0") 
-	->AddArea
-	(
-		FTabManager::NewPrimaryArea()
-		->SetOrientation(EOrientation::Orient_Vertical)
-		->Split
-		(
-			FTabManager::NewStack()
-			->SetHideTabWell(true)
-			->AddTab(DeclarationsTabId, ETabState::OpenedTab)
-		)
-		->Split
-		(
-			FTabManager::NewStack()
-			->SetHideTabWell(true)
-			->AddTab(ShaderTextTabId, ETabState::OpenedTab)	
-		)
-	);
+	SExpandableArea::FArguments ExpandableAreaArgs;
+	ExpandableAreaArgs.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"));
 	
-	const TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(InDocumentHostTab);
-
 	ChildSlot
 	[
-		SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		.FillHeight(1.0)
+		SNew(SSplitter)
+		.Orientation(Orient_Vertical)
+		.PhysicalSplitterHandleSize(4.0f)
+		.HitDetectionSplitterHandleSize(6.0f)
+		+ SSplitter::Slot()
+		.Value(1.0)
+		.SizeRule(this, &SOptimusShaderTextDocumentTab::GetDeclarationsSectionSizeRule)
 		[
-			TabManager->RestoreFrom(Layout, ParentWindow).ToSharedRef()
+			SAssignNew(DeclarationsExpandableArea,SExpandableArea) = ExpandableAreaArgs
+			.AreaTitle(DeclarationsTitle)
+			.InitiallyCollapsed(false)
+			.BodyContent()
+			[
+				SAssignNew(DeclarationsTextBox,SOptimusShaderTextDocumentTextBox)
+				.Text(this, &SOptimusShaderTextDocumentTab::GetDeclarationsAsText)
+				.IsReadOnly(true)
+				.Marshaller(SyntaxHighlighterDeclarations)	
+			]
+		]
+		+ SSplitter::Slot()
+		.Value(1.0)
+		[
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				ConstructNonExpandableHeaderWidget(ExpandableAreaArgs.AreaTitle(ShaderTextTitle))
+			]
+			+SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			[
+				SNew(SOptimusShaderTextDocumentTextBox)
+				.Text(this, &SOptimusShaderTextDocumentTab::GetShaderTextAsText)
+				.IsReadOnly(false)
+				.Marshaller(SyntaxHighlighterShaderText)
+				.OnTextChanged(this, &SOptimusShaderTextDocumentTab::OnShaderTextChanged)	
+			]
 		]
 	];
 }
 
-void SOptimusShaderTextDocumentTab::OnHostTabClosed(TSharedRef<SDockTab> InDocumentHostTab)
+TSharedRef<SWidget> SOptimusShaderTextDocumentTab::ConstructNonExpandableHeaderWidget(const SExpandableArea::FArguments& InArgs) const
 {
-	const TSharedPtr<FTabManager> SubTabManager = FGlobalTabmanager::Get()->GetTabManagerForMajorTab(InDocumentHostTab);
-
-	const TArray<FName> TabIdsToFind = GetAllTabIds();
-
-	for (const FName TabId : TabIdsToFind)
-	{
-		while(true)
-		{
-			TSharedPtr<SDockTab> SubTab = SubTabManager->FindExistingLiveTab(TabId);
-			if (SubTab.IsValid())
-			{
-				// force close sub tabs
-				SubTab->SetCanCloseTab(
-					SDockTab::FCanCloseTab::CreateLambda([]()
-					{
-						return true;
-					})
-				);
-				SubTab->RequestCloseTab();
-			}
-			else
-			{
-				break;
-			}
-		}
-	}
+	const TAttribute<const FSlateBrush*> TitleBorderImage = FStyleDefaults::GetNoBrush();
+	const TAttribute<FSlateColor> TitleBorderBackgroundColor = FLinearColor::Transparent;
+	const FVector2d SpacerSize = InArgs._Style->CollapsedImage.GetImageSize();
+    					
+	return
+		SNew(SBorder )
+		.BorderImage(TitleBorderImage)
+		.BorderBackgroundColor(TitleBorderBackgroundColor)
+		.Padding(0.0f)
+		[
+			SNew( SButton )
+			.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+			.ContentPadding(InArgs._HeaderPadding)
+			.ForegroundColor(FSlateColor::UseForeground())
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(InArgs._AreaTitlePadding)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SSpacer)
+					.Size(SpacerSize)
+				]
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(InArgs._AreaTitle)
+					.Font(InArgs._AreaTitleFont)
+				]
+			]
+		];
 }
 
 
-TSharedRef<SDockTab> SOptimusShaderTextDocumentTab::OnSpawnSubTab(const FSpawnTabArgs& Args, FName SubTabID)
+SSplitter::ESizeRule SOptimusShaderTextDocumentTab::GetDeclarationsSectionSizeRule() const
 {
-	const bool bIsDeclarations = SubTabID == DeclarationsTabId;
+	SSplitter::ESizeRule SizeRule = SSplitter::ESizeRule::FractionOfParent;
 	
-	const FText SubTabTitle =
-		bIsDeclarations ?
-			LOCTEXT("OptimusShaderTextDocumentTab_Declarations_Title", "Declarations (Read-Only)") : 
-			LOCTEXT("OptimusShaderTextDocumentTab_ShaderText_Title", "Shader Text");
-
-	
-	const TSharedPtr<SDockTab> HostTab =
-		SNew(SDockTab)
-		.Label(SubTabTitle)
-		// keep users from closing the tab since we have not
-		// offered an easy way to reopen the tab
-		// Owner of sub tab will override CanCloseTab to return true
-		// when the owner wants to close the sub tabs
-		.OnCanCloseTab_Lambda([](){return false;});
-
-	if (bIsDeclarations)
+	if (ensure(DeclarationsExpandableArea.IsValid()))
 	{
-		DeclarationsSubTab =
-			SNew(SOptimusShaderTextDocumentSubTab, HostTab)
-			.TabTitle(SubTabTitle)
-			.Text(this, &SOptimusShaderTextDocumentTab::GetDeclarationsAsText)
-			.IsReadOnly(true)
-			.Marshaller(SyntaxHighlighterDeclarations);
+		SizeRule = DeclarationsExpandableArea->IsExpanded() ?
+			SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent;
 	}
-	else
-	{
-		ShaderTextSubTab =
-			SNew(SOptimusShaderTextDocumentSubTab, HostTab)
-			.TabTitle(SubTabTitle)
-			.Text(this, &SOptimusShaderTextDocumentTab::GetShaderTextAsText)
-			.IsReadOnly(false)
-			.Marshaller(SyntaxHighlighterShaderText)
-			.OnTextChanged(this, &SOptimusShaderTextDocumentTab::OnShaderTextChanged);
-	}
-
-	const TSharedPtr<SOptimusShaderTextDocumentSubTab>& SubTabToSpawn =
-		bIsDeclarations ? DeclarationsSubTab : ShaderTextSubTab;
-
-	HostTab->SetContent(SubTabToSpawn.ToSharedRef());
 	
-	return HostTab.ToSharedRef();
+	return SizeRule;
 }
 
 bool SOptimusShaderTextDocumentTab::HasValidShaderTextProvider() const
@@ -214,7 +181,7 @@ void SOptimusShaderTextDocumentTab::OnShaderTextChanged(const FText& InText) con
 void SOptimusShaderTextDocumentTab::OnDiagnosticsUpdated() const
 {
 	SyntaxHighlighterShaderText->SetCompilerMessages(GetProviderInterface()->GetCompilationDiagnostics());
-	ShaderTextSubTab->Refresh();
+	ShaderTextTextBox->Refresh();
 }
 
 #undef LOCTEXT_NAMESPACE

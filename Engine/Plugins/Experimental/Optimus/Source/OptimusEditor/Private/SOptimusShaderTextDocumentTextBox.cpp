@@ -1,5 +1,5 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
-#include "SOptimusShaderTextDocumentSubTab.h"
+#include "SOptimusShaderTextDocumentTextBox.h"
 
 #include "SOptimusShaderTextSearchWidget.h"
 
@@ -10,45 +10,40 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Application/SlateUser.h"
 
+#define LOCTEXT_NAMESPACE "OptimusShaderTextDocumentTextBox"
 
-#define LOCTEXT_NAMESPACE "OptimusShaderTextDocumentSubTab"
-
-FOptimusShaderTextEditorDocumentSubTabCommands::FOptimusShaderTextEditorDocumentSubTabCommands() 
-	: TCommands<FOptimusShaderTextEditorDocumentSubTabCommands>(
-		"OptimusShaderTextEditorDocumentSubTab", // Context name for fast lookup
-		NSLOCTEXT("Contexts", "OptimusShaderTextEditorDocumentSubTab", "Deformer Shader Text Editor Document Sub Tab"), // Localized context name for displaying
+FOptimusShaderTextEditorDocumentTextBoxCommands::FOptimusShaderTextEditorDocumentTextBoxCommands() 
+	: TCommands<FOptimusShaderTextEditorDocumentTextBoxCommands>(
+		"OptimusShaderTextEditorDocumentTextBox", // Context name for fast lookup
+		NSLOCTEXT("Contexts", "OptimusShaderTextEditorDocumentTextBox", "Deformer Shader Text Editor Document TextBox"), // Localized context name for displaying
 		NAME_None,
 		FEditorStyle::GetStyleSetName()
 	)
 {
 }
 
-void FOptimusShaderTextEditorDocumentSubTabCommands::RegisterCommands()
+void FOptimusShaderTextEditorDocumentTextBoxCommands::RegisterCommands()
 {
 	UI_COMMAND(Search, "Search", "Search for a String", EUserInterfaceActionType::Button, FInputChord(EKeys::F, EModifierKey::Control));
 }
 
-SOptimusShaderTextDocumentSubTab::SOptimusShaderTextDocumentSubTab()
+SOptimusShaderTextDocumentTextBox::SOptimusShaderTextDocumentTextBox()
 	:bIsSearchBarHidden(true)
 	,CommandList(MakeShared<FUICommandList>())
 {
 }
 
-SOptimusShaderTextDocumentSubTab::~SOptimusShaderTextDocumentSubTab()
+SOptimusShaderTextDocumentTextBox::~SOptimusShaderTextDocumentTextBox()
 {
 }
 
-void SOptimusShaderTextDocumentSubTab::Construct(const FArguments& InArgs, TSharedPtr<SDockTab> InParentTab)
+void SOptimusShaderTextDocumentTextBox::Construct(const FArguments& InArgs)
 {
-	check(InParentTab.IsValid());
-	ParentTab = InParentTab;
-	
 	RegisterCommands();
 	
 	const TSharedPtr<SScrollBar> HScrollBar =
@@ -68,7 +63,7 @@ void SOptimusShaderTextDocumentSubTab::Construct(const FArguments& InArgs, TShar
 			.TextStyle(&TextStyle)
 			.Text(InArgs._Text)
 			.OnTextChanged(InArgs._OnTextChanged)
-			.OnKeyCharHandler(this, &SOptimusShaderTextDocumentSubTab::OnTextKeyChar)
+			.OnKeyCharHandler(this, &SOptimusShaderTextDocumentTextBox::OnTextKeyChar)
 			// By default, the Tab key gets routed to "next widget". We want to disable that behaviour.
 			.OnIsTypedCharValid_Lambda([](const TCHAR InChar) { return true; })
 			.Marshaller(InArgs._Marshaller)
@@ -81,66 +76,53 @@ void SOptimusShaderTextDocumentSubTab::Construct(const FArguments& InArgs, TShar
 
 	SearchBar =
 		SNew(SOptimusShaderTextSearchWidget)
-		.OnTextChanged(this, &SOptimusShaderTextDocumentSubTab::OnSearchTextChanged)
-		.OnTextCommitted(this, &SOptimusShaderTextDocumentSubTab::OnSearchTextCommitted)
-		.SearchResultData(this, &SOptimusShaderTextDocumentSubTab::GetSearchResultData)
-		.OnResultNavigationButtonClicked(this, &SOptimusShaderTextDocumentSubTab::OnSearchResultNavigationButtonClicked);
+		.OnTextChanged(this, &SOptimusShaderTextDocumentTextBox::OnSearchTextChanged)
+		.OnTextCommitted(this, &SOptimusShaderTextDocumentTextBox::OnSearchTextCommitted)
+		.SearchResultData(this, &SOptimusShaderTextDocumentTextBox::GetSearchResultData)
+		.OnResultNavigationButtonClicked(this, &SOptimusShaderTextDocumentTextBox::OnSearchResultNavigationButtonClicked);
 
 	ChildSlot
 	[
-		SAssignNew(Area, SExpandableArea)
-		.AreaTitle(InArgs._TabTitle)
-		.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-		.InitiallyCollapsed(false)
-		.OnAreaExpansionChanged(this, &SOptimusShaderTextDocumentSubTab::OnTabContentExpansionChanged)
-		.BodyContent()
+		SAssignNew(TabBody, SVerticalBox)
+		+ SVerticalBox::Slot()
 		[
-			SAssignNew(TabBody, SVerticalBox)
-			+ SVerticalBox::Slot()
+			SNew(SBorder)
+			.BorderImage(FOptimusEditorStyle::Get().GetBrush("TextEditor.Border"))
+			.BorderBackgroundColor(FLinearColor::Black)
 			[
-				SNew(SBorder)
-				.BorderImage(FOptimusEditorStyle::Get().GetBrush("TextEditor.Border"))
-				.BorderBackgroundColor(FLinearColor::Black)
+				SNew(SGridPanel)
+				.FillColumn(0,1.0f)
+				.FillRow(0,1.0f)
+				+SGridPanel::Slot(0,0)
 				[
-					SNew(SGridPanel)
-					.FillColumn(0,1.0f)
-					.FillRow(0,1.0f)
-					+SGridPanel::Slot(0,0)
-					[
-						Text.ToSharedRef()
-					]
-					+SGridPanel::Slot(1,0)
-					[
-						VScrollBar.ToSharedRef()
-					]
-					+SGridPanel::Slot(0,1)
-					[
-						HScrollBar.ToSharedRef()
-					]
-				]		
-			]
-		]	
+					Text.ToSharedRef()
+				]
+				+SGridPanel::Slot(1,0)
+				[
+					VScrollBar.ToSharedRef()
+				]
+				+SGridPanel::Slot(0,1)
+				[
+					HScrollBar.ToSharedRef()
+				]
+			]		
+		]
 	];
 }
 
-void SOptimusShaderTextDocumentSubTab::RegisterCommands()
+void SOptimusShaderTextDocumentTextBox::RegisterCommands()
 {
 	
-	const FOptimusShaderTextEditorDocumentSubTabCommands& Commands = FOptimusShaderTextEditorDocumentSubTabCommands::Get();
+	const FOptimusShaderTextEditorDocumentTextBoxCommands& Commands = FOptimusShaderTextEditorDocumentTextBoxCommands::Get();
 	
 	CommandList->MapAction(
 		Commands.Search,
-		FExecuteAction::CreateSP(this, &SOptimusShaderTextDocumentSubTab::OnTriggerSearch)
+		FExecuteAction::CreateSP(this, &SOptimusShaderTextDocumentTextBox::OnTriggerSearch)
 	);
 }
 
-FReply SOptimusShaderTextDocumentSubTab::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+FReply SOptimusShaderTextDocumentTextBox::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (!IsExpanded())
-	{
-		return FReply::Unhandled();
-	}
-	
 	const FKey Key = InKeyEvent.GetKey();
 	
 	if (Key == EKeys::Escape)
@@ -159,7 +141,7 @@ FReply SOptimusShaderTextDocumentSubTab::OnPreviewKeyDown(const FGeometry& MyGeo
 	return SCompoundWidget::OnPreviewKeyDown(MyGeometry, InKeyEvent);
 }
 
-bool SOptimusShaderTextDocumentSubTab::HandleEscape()
+bool SOptimusShaderTextDocumentTextBox::HandleEscape()
 {
 	if (HideSearchBar())
 	{
@@ -169,7 +151,7 @@ bool SOptimusShaderTextDocumentSubTab::HandleEscape()
 	return false;
 }
 
-void SOptimusShaderTextDocumentSubTab::ShowSearchBar()
+void SOptimusShaderTextDocumentTextBox::ShowSearchBar()
 {
 	if (bIsSearchBarHidden)
 	{
@@ -183,7 +165,7 @@ void SOptimusShaderTextDocumentSubTab::ShowSearchBar()
 	}
 }
 
-bool SOptimusShaderTextDocumentSubTab::HideSearchBar() 
+bool SOptimusShaderTextDocumentTextBox::HideSearchBar() 
 {
 	if (!bIsSearchBarHidden)
 	{
@@ -200,7 +182,7 @@ bool SOptimusShaderTextDocumentSubTab::HideSearchBar()
 	return false;
 }
 
-void SOptimusShaderTextDocumentSubTab::OnTriggerSearch()
+void SOptimusShaderTextDocumentTextBox::OnTriggerSearch()
 {
 	ShowSearchBar();
 
@@ -213,37 +195,18 @@ void SOptimusShaderTextDocumentSubTab::OnTriggerSearch()
 	SearchBar->TriggerSearch(SelectedText);
 }
 
-bool SOptimusShaderTextDocumentSubTab::IsExpanded() const
-{
-	return Area->IsExpanded();
-}
-
-void SOptimusShaderTextDocumentSubTab::Refresh() const
+void SOptimusShaderTextDocumentTextBox::Refresh() const
 {
 	Text->Refresh();
 }
 
-void SOptimusShaderTextDocumentSubTab::OnTabContentExpansionChanged(bool bIsExpanded)
-{
-	if (ensure(ParentTab.IsValid()))
-	{
-		if (bIsExpanded)
-		{
-			ParentTab.Pin()->SetShouldAutosize(false);
-		}
-		else
-		{
-			ParentTab.Pin()->SetShouldAutosize(true);
-		}
-	}
-}
 
-void SOptimusShaderTextDocumentSubTab::OnSearchTextChanged(const FText& InTextToSearch)
+void SOptimusShaderTextDocumentTextBox::OnSearchTextChanged(const FText& InTextToSearch)
 {
 	Text->SetSearchText(InTextToSearch);
 }
 
-void SOptimusShaderTextDocumentSubTab::OnSearchTextCommitted(const FText& InTextToSearch, ETextCommit::Type InCommitType)
+void SOptimusShaderTextDocumentTextBox::OnSearchTextCommitted(const FText& InTextToSearch, ETextCommit::Type InCommitType)
 {
 	if (!InTextToSearch.EqualTo(Text->GetSearchText()))
 	{
@@ -258,7 +221,7 @@ void SOptimusShaderTextDocumentSubTab::OnSearchTextCommitted(const FText& InText
 	}
 }
 
-TOptional<SSearchBox::FSearchResultData> SOptimusShaderTextDocumentSubTab::GetSearchResultData() const
+TOptional<SSearchBox::FSearchResultData> SOptimusShaderTextDocumentTextBox::GetSearchResultData() const
 {
 	FText SearchText = Text->GetSearchText();
 	
@@ -274,12 +237,12 @@ TOptional<SSearchBox::FSearchResultData> SOptimusShaderTextDocumentSubTab::GetSe
 	return TOptional<SSearchBox::FSearchResultData>();
 }
 
-void SOptimusShaderTextDocumentSubTab::OnSearchResultNavigationButtonClicked(SSearchBox::SearchDirection InDirection)
+void SOptimusShaderTextDocumentTextBox::OnSearchResultNavigationButtonClicked(SSearchBox::SearchDirection InDirection)
 {
 	Text->AdvanceSearch(InDirection == SSearchBox::SearchDirection::Previous);
 }
 
-FReply SOptimusShaderTextDocumentSubTab::OnTextKeyChar(const FGeometry& MyGeometry,
+FReply SOptimusShaderTextDocumentTextBox::OnTextKeyChar(const FGeometry& MyGeometry,
 	const FCharacterEvent& InCharacterEvent)
 {
 	if (Text->IsTextReadOnly())

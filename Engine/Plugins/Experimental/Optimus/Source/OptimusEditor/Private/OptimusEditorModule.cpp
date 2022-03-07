@@ -3,7 +3,7 @@
 #include "OptimusEditorModule.h"
 
 #include "SOptimusEditorGraphExplorer.h"
-#include "SOptimusShaderTextDocumentSubTab.h"
+#include "SOptimusShaderTextDocumentTextBox.h"
 #include "OptimusDeformerAssetActions.h"
 #include "OptimusDetailsCustomization.h"
 #include "OptimusEditor.h"
@@ -43,7 +43,7 @@ void FOptimusEditorModule::StartupModule()
 	FOptimusEditorCommands::Register();
 	FOptimusEditorGraphCommands::Register();
 	FOptimusEditorGraphExplorerCommands::Register();
-	FOptimusShaderTextEditorDocumentSubTabCommands::Register();
+	FOptimusShaderTextEditorDocumentTextBoxCommands::Register();
 	FOptimusEditorStyle::Register();
 
 	GraphNodeFactory = MakeShared<FOptimusEditorGraphNodeFactory>();

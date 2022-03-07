@@ -125,15 +125,10 @@ private:
 
 	TSharedPtr<SMultiLineEditableText> ShaderEditor;
 
-	FText GetDeclarationsText() const;
 	FText GetShaderText() const;
-
-	void OnShaderTextChanged(const FText &InText);
 
 	void UpdateDiagnostics();
 	void OnPropertyChanged(UObject *InObject, FPropertyChangedEvent& InChangedEvent);
-
-	FReply OnShaderTextKeyChar(const FGeometry& MyGeometry,const FCharacterEvent& InCharacterEvent);
 
 	TArray<UObject *> InspectedObjects;
 };
