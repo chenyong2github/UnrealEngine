@@ -40,11 +40,6 @@ namespace Horde.Storage.Implementation
         /// <returns></returns>
         public static string GetConnectionString(AzureSettings settings, IServiceProvider provider)
         {
-            if (!string.IsNullOrEmpty(settings.ConnectionString))
-            {
-                return settings.ConnectionString;
-            }
-
             // Cache the connection string in the settings for next time.
             ISecretResolver secretResolver = provider.GetService<ISecretResolver>()!;
             string connectionString = secretResolver.Resolve(settings.ConnectionString)!;
