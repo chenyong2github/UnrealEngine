@@ -74,6 +74,11 @@ enum class EExternalInput : uint8
 	WorldNormal,
 	WorldReflection,
 
+	PreSkinnedPosition,
+	PreSkinnedNormal,
+	PreSkinnedLocalBoundsMin,
+	PreSkinnedLocalBoundsMax,
+
 	ViewportUV,
 	PixelPosition,
 	ViewSize,
@@ -86,6 +91,7 @@ enum class EExternalInput : uint8
 	TemporalSampleOffset,
 	PreExposure,
 	RcpPreExposure,
+	EyeAdaptation,
 	RuntimeVirtualTextureOutputLevel,
 	RuntimeVirtualTextureOutputDerivative,
 	RuntimeVirtualTextureMaxLevel,
@@ -240,6 +246,20 @@ public:
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
+};
+
+class FExpressionTextureSize : public FExpression
+{
+public:
+	explicit FExpressionTextureSize(const FMaterialParameterInfo& InParameterInfo, UTexture* InTexture)
+		: ParameterInfo(InParameterInfo), Texture(InTexture)
+	{}
+
+	FMaterialParameterInfo ParameterInfo;
+	UTexture* Texture;
+
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 

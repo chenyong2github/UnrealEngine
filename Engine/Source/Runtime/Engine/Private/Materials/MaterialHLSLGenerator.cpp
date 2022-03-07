@@ -310,8 +310,14 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewConstant(const UE::Shader:
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewTexCoord(int32 Index)
 {
-	using namespace UE::HLSLTree::Material;
-	return GetTree().NewExpression<FExpressionExternalInput>(MakeInputTexCoord(Index));
+	using namespace UE::HLSLTree;
+	return NewExternalInput(Material::MakeInputTexCoord(Index));
+}
+
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewExternalInput(UE::HLSLTree::Material::EExternalInput Input)
+{
+	using namespace UE::HLSLTree;
+	return GetTree().NewExpression<Material::FExpressionExternalInput>(Input);
 }
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewSwizzle(const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input)

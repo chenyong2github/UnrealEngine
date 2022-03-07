@@ -30,16 +30,17 @@ struct FFunctionExpressionInput;
 class ITargetPlatform;
 enum class EMaterialParameterType : uint8;
 
-namespace UE
-{
-namespace HLSLTree
+namespace UE::HLSLTree
 {
 struct FSwizzleParameters;
 }
-namespace Shader
+namespace UE::HLSLTree::Material
+{
+enum class EExternalInput : uint8;
+}
+namespace UE::Shader
 {
 struct FStructType;
-}
 }
 
 enum class EMaterialNewScopeFlag : uint8
@@ -98,6 +99,7 @@ public:
 
 	UE::HLSLTree::FExpression* NewConstant(const UE::Shader::FValue& Value);
 	UE::HLSLTree::FExpression* NewTexCoord(int32 Index);
+	UE::HLSLTree::FExpression* NewExternalInput(UE::HLSLTree::Material::EExternalInput Input);
 	UE::HLSLTree::FExpression* NewSwizzle(const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input);
 
 	const UE::Shader::FTextureValue* AcquireTextureValue(const UE::Shader::FTextureValue& Value);

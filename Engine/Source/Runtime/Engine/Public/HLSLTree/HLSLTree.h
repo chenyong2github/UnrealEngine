@@ -280,7 +280,6 @@ public:
 
 	int32 GetNumComponents() const;
 	FRequestedType GetRequestedType() const;
-	FPreparedType GetTypeForRequest(const FRequestedType& RequestedType) const;
 	Shader::FType GetType() const;
 	const TCHAR* GetName() const { return GetType().GetName(); }
 	bool IsStruct() const { return !IsVoid() && StructType != nullptr; }
@@ -295,7 +294,6 @@ public:
 	FPreparedComponent GetMergedComponent() const;
 
 	FPreparedComponent GetComponent(int32 Index) const;
-	EExpressionEvaluation GetComponentEvaluation(int32 Index) const { return GetComponent(Index).Evaluation; }
 	Shader::FComponentBounds GetComponentBounds(int32 Index) const;
 
 	void SetComponent(int32 Index, const FPreparedComponent& InComponent);
@@ -539,6 +537,7 @@ public:
 	FExpression* NewLessEqual(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::LessEqual, Lhs, Rhs); }
 	FExpression* NewGreaterEqual(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::GreaterEqual, Lhs, Rhs); }
 
+	FExpression* NewLog(FExpression* Input);
 	FExpression* NewPow2(FExpression* Input) { return NewMul(Input, Input); }
 	FExpression* NewCross(FExpression* Lhs, FExpression* Rhs);
 	FExpression* NewDot(FExpression* Lhs, FExpression* Rhs) { return NewSum(NewMul(Lhs, Rhs)); }

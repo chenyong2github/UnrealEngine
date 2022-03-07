@@ -77,6 +77,11 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input)
 	case EExternalInput::WorldVertexNormal: return FExternalInputDescription(TEXT("WorldVertexNormal"), Shader::EValueType::Float3);
 	case EExternalInput::WorldVertexTangent: return FExternalInputDescription(TEXT("WorldVertexTangent"), Shader::EValueType::Float3);
 
+	case EExternalInput::PreSkinnedPosition: return FExternalInputDescription(TEXT("PreSkinnedPosition"), Shader::EValueType::Float3);
+	case EExternalInput::PreSkinnedNormal: return FExternalInputDescription(TEXT("PreSkinnedNormal"), Shader::EValueType::Float3);
+	case EExternalInput::PreSkinnedLocalBoundsMin: return FExternalInputDescription(TEXT("PreSkinnedLocalBoundsMin"), Shader::EValueType::Float3);
+	case EExternalInput::PreSkinnedLocalBoundsMax: return FExternalInputDescription(TEXT("PreSkinnedLocalBoundsMax"), Shader::EValueType::Float3);
+
 	case EExternalInput::ViewportUV: return FExternalInputDescription(TEXT("ViewportUV"), Shader::EValueType::Float2);
 	case EExternalInput::PixelPosition: return FExternalInputDescription(TEXT("PixelPosition"), Shader::EValueType::Float2);
 	case EExternalInput::ViewSize: return FExternalInputDescription(TEXT("ViewSize"), Shader::EValueType::Float2);
@@ -89,6 +94,7 @@ FExternalInputDescription GetExternalInputDescription(EExternalInput Input)
 	case EExternalInput::TemporalSampleOffset: return FExternalInputDescription(TEXT("TemporalSampleOffset"), Shader::EValueType::Float2);
 	case EExternalInput::PreExposure: return FExternalInputDescription(TEXT("PreExposure"), Shader::EValueType::Float1);
 	case EExternalInput::RcpPreExposure: return FExternalInputDescription(TEXT("RcpPreExposure"), Shader::EValueType::Float1);
+	case EExternalInput::EyeAdaptation: return FExternalInputDescription(TEXT("EyeAdaptation"), Shader::EValueType::Float1);
 	case EExternalInput::RuntimeVirtualTextureOutputLevel: return FExternalInputDescription(TEXT("RuntimeVirtualTextureOutputLevel"), Shader::EValueType::Float1);
 	case EExternalInput::RuntimeVirtualTextureOutputDerivative: return FExternalInputDescription(TEXT("RuntimeVirtualTextureOutputDerivative"), Shader::EValueType::Float2);
 	case EExternalInput::RuntimeVirtualTextureMaxLevel: return FExternalInputDescription(TEXT("RuntimeVirtualTextureMaxLevel"), Shader::EValueType::Float1);
@@ -261,6 +267,11 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		case EExternalInput::WorldVertexNormal: Code = TEXT("Parameters.TangentToWorld[2]"); break;
 		case EExternalInput::WorldVertexTangent: Code = TEXT("Parameters.TangentToWorld[0]"); break;
 
+		case EExternalInput::PreSkinnedPosition: Code = TEXT("Parameters.PreSkinnedPosition"); break;
+		case EExternalInput::PreSkinnedNormal: Code = TEXT("Parameters.PreSkinnedNormal"); break;
+		case EExternalInput::PreSkinnedLocalBoundsMin: Code = TEXT("GetPrimitiveData(Parameters).PreSkinnedLocalBoundsMin"); break;
+		case EExternalInput::PreSkinnedLocalBoundsMax: Code = TEXT("GetPrimitiveData(Parameters).PreSkinnedLocalBoundsMax"); break;
+
 		case EExternalInput::ViewportUV: Code = TEXT("GetViewportUV(Parameters)"); break;
 		case EExternalInput::PixelPosition: Code = TEXT("GetPixelPosition(Parameters)"); break;
 		case EExternalInput::ViewSize: Code = TEXT("View.ViewSizeAndInvSize.xy"); break;
@@ -274,6 +285,7 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		case EExternalInput::TemporalSampleOffset: Code = TEXT("View.TemporalAAParams.zw"); break;
 		case EExternalInput::PreExposure: Code = TEXT("View.PreExposure.x"); break;
 		case EExternalInput::RcpPreExposure: Code = TEXT("View.OneOverPreExposure.x"); break;
+		case EExternalInput::EyeAdaptation: Code = TEXT("EyeAdaptationLookup()"); Context.MaterialCompilationOutput->bUsesEyeAdaptation = true; break;
 		case EExternalInput::RuntimeVirtualTextureOutputLevel:  Code = TEXT("View.RuntimeVirtualTextureMipLevel.x"); break;
 		case EExternalInput::RuntimeVirtualTextureOutputDerivative: Code = TEXT("View.RuntimeVirtualTextureMipLevel.zw"); break;
 		case EExternalInput::RuntimeVirtualTextureMaxLevel:  Code = TEXT("View.RuntimeVirtualTextureMipLevel.y"); break;
@@ -527,6 +539,27 @@ void FExpressionParameter::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 		check(ParameterIndex >= 0 && ParameterIndex <= 0xffff);
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Parameter).Write((uint16)ParameterIndex);
 	}
+}
+
+bool FExpressionTextureSize::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	FEmitData& EmitData = Context.FindData<FEmitData>();
+	if (EmitData.CachedExpressionData)
+	{
+		EmitData.CachedExpressionData->ReferencedTextures.AddUnique(Texture);
+	}
+
+	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Preshader, Shader::EValueType::Float2);
+}
+
+void FExpressionTextureSize::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
+{
+	const int32 TextureIndex = Context.Material->GetReferencedTextures().Find(Texture);
+	check(TextureIndex != INDEX_NONE);
+	
+	Context.PreshaderStackPosition++;
+	OutResult.Type = Shader::EValueType::Float2;
+	OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::TextureSize).Write<FMemoryImageMaterialParameterInfo>(ParameterInfo).Write(TextureIndex);
 }
 
 bool FExpressionFunctionCall::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const

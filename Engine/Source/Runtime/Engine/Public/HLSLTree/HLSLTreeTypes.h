@@ -55,6 +55,11 @@ EExpressionEvaluation CombineEvaluations(EExpressionEvaluation Lhs, EExpressionE
 EExpressionEvaluation MakeLoopEvaluation(EExpressionEvaluation Evaluation);
 EExpressionEvaluation MakeNonLoopEvaluation(EExpressionEvaluation Evaluation);
 
+inline bool IsConstantEvaluation(EExpressionEvaluation Evaluation)
+{
+	return Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::ConstantZero;
+}
+
 inline bool IsLoopEvaluation(EExpressionEvaluation Evaluation)
 {
 	return Evaluation == EExpressionEvaluation::PreshaderLoop || Evaluation == EExpressionEvaluation::ConstantLoop;

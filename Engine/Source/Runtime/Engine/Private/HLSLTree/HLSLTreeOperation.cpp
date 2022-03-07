@@ -103,6 +103,12 @@ FExpression* FTree::NewBinaryOp(EOperation Op, FExpression* Lhs, FExpression* Rh
 	return NewExpression<FExpressionOperation>(Op, Inputs);
 }
 
+FExpression* FTree::NewLog(FExpression* Input)
+{
+	const float Log2ToLog = 1.0f / FMath::Log2(EULERS_NUMBER);
+	return NewMul(NewLog2(Input), NewConstant(Log2ToLog));
+}
+
 FExpression* FTree::NewCross(FExpression* Lhs, FExpression* Rhs)
 {
 	//c_P[0] = v_A[1] * v_B[2] - v_A[2] * v_B[1];

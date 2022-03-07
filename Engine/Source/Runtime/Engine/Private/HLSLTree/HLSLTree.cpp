@@ -710,31 +710,9 @@ FRequestedType FPreparedType::GetRequestedType() const
 	return Result;
 }
 
-FPreparedType FPreparedType::GetTypeForRequest(const FRequestedType& RequestedType) const
-{
-	const int32 NumComponents = FMath::Min(PreparedComponents.Num(), RequestedType.RequestedComponents.Num());
-
-	FPreparedType Result;
-	Result.StructType = StructType;
-	Result.ValueComponentType = ValueComponentType;
-	Result.PreparedComponents.Reserve(NumComponents);
-	for (int32 Index = 0; Index < NumComponents; ++Index)
-	{
-		if (RequestedType.IsComponentRequested(Index))
-		{
-			Result.SetComponent(Index, GetComponent(Index));
-		}
-		else
-		{
-			Result.SetComponent(Index, EExpressionEvaluation::ConstantZero);
-		}
-	}
-	return Result;
-}
-
 EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope) const
 {
-	EExpressionEvaluation Result = EExpressionEvaluation::None;
+	EExpressionEvaluation Result = EExpressionEvaluation::ConstantZero;
 	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
 	{
 		Result = CombineEvaluations(Result, PreparedComponents[Index].GetEvaluation(Scope));
@@ -744,16 +722,13 @@ EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope) cons
 
 EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const
 {
-	EExpressionEvaluation Result = EExpressionEvaluation::None;
-	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	const int32 NumComponents = RequestedType.GetNumComponents();
+	EExpressionEvaluation Result = EExpressionEvaluation::ConstantZero;
+	for (int32 Index = 0; Index < NumComponents; ++Index)
 	{
 		if (RequestedType.IsComponentRequested(Index))
 		{
-			Result = CombineEvaluations(Result, PreparedComponents[Index].GetEvaluation(Scope));
-		}
-		else
-		{
-			Result = CombineEvaluations(Result, EExpressionEvaluation::ConstantZero);
+			Result = CombineEvaluations(Result, GetComponent(Index).GetEvaluation(Scope));
 		}
 	}
 	return Result;
@@ -761,17 +736,13 @@ EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope, cons
 
 EExpressionEvaluation FPreparedType::GetFieldEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType, int32 ComponentIndex, int32 NumComponents) const
 {
-	EExpressionEvaluation Result = EExpressionEvaluation::None;
+	EExpressionEvaluation Result = EExpressionEvaluation::ConstantZero;
 	for (int32 Index = 0; Index < NumComponents; ++Index)
 	{
 		const FPreparedComponent Component = GetComponent(ComponentIndex + Index);
 		if (RequestedType.IsComponentRequested(ComponentIndex + Index))
 		{
 			Result = CombineEvaluations(Result, Component.GetEvaluation(Scope));
-		}
-		else if(!Component.IsNone())
-		{
-			Result = CombineEvaluations(Result, EExpressionEvaluation::ConstantZero);
 		}
 	}
 	return Result;
@@ -793,9 +764,11 @@ FPreparedComponent FPreparedType::GetComponent(int32 Index) const
 	{
 		return PreparedComponents[Index];
 	}
+
 	// Return 'ConstantZero' for unprepared components
 	// TODO - do we ever want to return 'None' instead?
-	return EExpressionEvaluation::ConstantZero;
+	const int32 NumComponents = GetNumComponents();
+	return (NumComponents == 1) ? PreparedComponents[0] : FPreparedComponent(EExpressionEvaluation::ConstantZero);
 }
 
 void FPreparedType::EnsureNumComponents(int32 NumComponents)
@@ -1070,11 +1043,12 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 		const int32 NumComponents = Type.GetNumComponents();
 		for (int32 Index = 0; Index < NumComponents; ++Index)
 		{
+			const FPreparedComponent& Component = Type.GetComponent(Index);
 			if (RequestedType.IsComponentRequested(Index))
 			{
-				PreparedType.MergeComponent(Index, Type.GetComponent(Index));
+				PreparedType.MergeComponent(Index, Component);
 			}
-			else
+			else if(!Component.IsNone())
 			{
 				// If component wasn't requested, it can be replaced with constant-0
 				PreparedType.MergeComponent(Index, EExpressionEvaluation::ConstantZero);

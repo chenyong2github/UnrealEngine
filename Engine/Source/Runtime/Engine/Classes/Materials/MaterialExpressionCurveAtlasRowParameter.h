@@ -44,7 +44,8 @@ class UMaterialExpressionCurveAtlasRowParameter : public UMaterialExpressionScal
 	{
 		OutCaptions.Empty();
 		OutCaptions.Add(TEXT(""));
-	};
+	}
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
 //~ Begin UMaterialExpression Interface
 	virtual FName GetInputName(int32 InputIndex) const override
 	{
