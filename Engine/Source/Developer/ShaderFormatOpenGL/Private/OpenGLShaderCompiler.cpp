@@ -2462,17 +2462,9 @@ bool GenerateGlslShader(std::string& OutString, GLSLCompileParameters& GLSLCompi
 				OutString.erase(SamplerBufferPos + SamplerBufferName.size() - Texture.Len(), Texture.Len());
 				OutString.insert(SamplerBufferPos + SamplerBufferName.size() - Texture.Len(), NewSamplerBufferName);
 
-				std::string SamplerTexFetchName = std::string("texelFetch(") + TCHAR_TO_ANSI(*Texture);
-				size_t SamplerTexFetchPos = OutString.find(SamplerTexFetchName);
-
-				while (SamplerTexFetchPos != std::string::npos)
-				{
-
-					OutString.erase(SamplerTexFetchPos + SamplerTexFetchName.size() - Texture.Len(), Texture.Len());
-					OutString.insert(SamplerTexFetchPos + SamplerTexFetchName.size() - Texture.Len(), NewSamplerBufferName);
-
-					SamplerTexFetchPos = OutString.find(SamplerTexFetchName);
-				}
+				std::string SamplerTexFetchExpression = std::string("texelFetch\\(\\s?") + TCHAR_TO_ANSI(*Texture) + "\\s?,";
+				std::regex SamplerTexFetchPattern(SamplerTexFetchExpression);
+				OutString = std::regex_replace(OutString, SamplerTexFetchPattern, std::string("texelFetch(") + NewSamplerBufferName + ",");
 			}
 
 			const uint32 SamplerCount = FMath::Max(1, UsedSamplers.Num());
@@ -2985,7 +2977,7 @@ static bool CompileToGlslWithShaderConductor(
 					FString Name = TextureExternalName;
 					if (Name.RemoveFromEnd(TEXT(";")))
 					{
-						ExternalTextures.Add(TEXT("SPIRV_Cross_Combined") + Name);
+						ExternalTextures.Add(TEXT("SPIRV_Cross_Combined") + Name + Name + TEXT("Sampler"));
 					}
 				}
 			}
