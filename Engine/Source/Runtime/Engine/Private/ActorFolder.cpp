@@ -117,7 +117,7 @@ FActorFolderDesc UActorFolder::GetAssetRegistryInfoFromPackage(FName ActorFolder
 void UActorFolder::SetLabel(const FString& InFolderLabel)
 {
 	check(IsValid());
-	if (FolderLabel != InFolderLabel)
+	if (!FolderLabel.Equals(InFolderLabel, ESearchCase::CaseSensitive))
 	{
 		Modify();
 		FolderLabel = InFolderLabel;
