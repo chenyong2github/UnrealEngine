@@ -1141,6 +1141,11 @@ namespace UnrealBuildTool
 		private static List<FileItem> AllBinaries = new List<FileItem>();
 
 		/// <summary>
+		/// Tracks that information about used C++ library is only printed once
+		/// </summary>
+		private bool bHasPrintedBuildDetails = false;
+
+		/// <summary>
 		/// Checks if we actually can use LTO/PGO with this set of tools
 		/// </summary>
 		protected virtual bool CanUseAdvancedLinkerFeatures(string Architecture)
@@ -1255,6 +1260,13 @@ namespace UnrealBuildTool
 			string PCHArguments = "";
 
 			//var BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
+
+			if (!bHasPrintedBuildDetails)
+			{
+				PrintBuildDetails(CompileEnvironment);
+
+				bHasPrintedBuildDetails = true;
+			}
 
 			if ((CompileEnvironment.bAllowLTCG || CompileEnvironment.bPGOOptimize || CompileEnvironment.bPGOProfile) && !CanUseAdvancedLinkerFeatures(CompileEnvironment.Architecture))
 			{
