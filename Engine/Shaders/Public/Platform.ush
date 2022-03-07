@@ -330,6 +330,11 @@
 
 // ---------------------------------------------------- Platform dependent supports
 
+// On mobile use interpolator for ClipDistance as it does not work/supported on all mobile platforms
+#if (FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
+#define SV_ClipDistance OUTCLIPDIST
+#endif
+
 // non-editor platforms generally never want development/editor features.
 #ifndef PLATFORM_SUPPORTS_DEVELOPMENT_SHADERS
 #define PLATFORM_SUPPORTS_DEVELOPMENT_SHADERS 1

@@ -10,5 +10,3 @@
 #pragma once
 
 
-// GLES does not support gl_ClipDistance, use interpolator for it
-#define SV_ClipDistance OUTCLIPDIST
