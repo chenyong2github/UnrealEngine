@@ -148,6 +148,28 @@ namespace OodleDDS
 	#undef ODDFMT
 	};
 
+	// What version of DDS file to write
+	enum class EDDSFormatVersion
+	{
+		Auto,	// Write as D3D9-version DDS if possible without losing metadata like sRGB status, D3D10 otherwise
+		D3D9,	// Try really hard to write a D3D9-format .DDS file (the more widely supported version) even when doing so loses some information
+		D3D10,	// Always write a D3D10-format .DDS file
+	};
+
+	// Error codes
+	enum class EDDSError
+	{
+		OK,						// No error
+		OutOfMemory,			// Out of memory/allocation failure while reading
+		NotADds,				// No valid DDS header found
+		BadResourceDimension,	// Resource not 1D, 2D or 3D
+		BadPixelFormat,			// Malformed or unsupported pixel format
+		BadImageDimension,		// Image dimensions (width, height, depth, array size) outside supported range
+		BadMipmapCount,			// Invalid mipmap count for given image dimensions
+		BadCubemap,				// Cubemap has non-square faces, non-1 depth, or unsupported array count
+		IoError,				// General I/O error
+	};
+
 	// One of these for each mip of a DDS
 	struct FDDSMip
 	{
@@ -155,7 +177,7 @@ namespace OodleDDS
 		uint32 RowStride;		// Bytes in one row of a 2d slice of the mip. equal to SliceStride for 1D textures.
 		uint32 SliceStride;		// Bytes in one 2d slice of the mip, equal to DataStride for 2D textures.
 		uint32 DataSize;
-		uint8* Data;			// just raw bytes; interpretation as per dxgi_format in rr_dds_t.
+		uint8* Data;			// just raw bytes; interpretation as per DXGIFormat in parent FDDSFile
 	};
 
 	// Metadata structure for a DDS file, with access pointers for the raw texture data (i.e. 
@@ -185,6 +207,9 @@ namespace OodleDDS
 		uint32 Height=0;
 		uint32 Depth=0;
 		uint32 MipCount=0;
+
+		// Array size here uses the conventions as in the D3D runtime, which means
+		// an array of N cubemaps has an array size of 6N (one element per face).
 		uint32 ArraySize=0;
 		EDXGIFormat DXGIFormat=EDXGIFormat::UNKNOWN;
 		uint32 CreateFlags=0;
@@ -193,32 +218,53 @@ namespace OodleDDS
 		// for arrays, we store the full mip chain for one array element before advancing
 		// to the next array element, and have (ArraySize * MipCount) mips total.
 		FDDSMip* Mips=nullptr;
+
+		// When we allocated the mips ourselves, storage for all mips in a single allocation,
+		// and we store the pointer and size here. With CREATE_FLAG_NO_MIP_STORAGE_ALLOC,
+		// we don't own the underlying memory and this pointer is left at nullptr.
 		void* MipRawPtr=nullptr;
 		size_t MipDataSize=0;
 
 		~FDDSFile();
 
 		// Serialize to an archive (i.e. to a file using IFileManager::Get()::CreateFileWriter()).
-		bool SerializeToArchive(FArchive* Ar);
+		//
+		// Automatic format selection rules used are:
+		// - D3D9 DDS does not support 1D or array textures directly, so these always write as D3D10
+		// - The pixel format must be a "common" D3D9 format (more obscure formats can be used for D3D9
+		//   writing when InFormatVersion is D3D9, but "Auto" sticks with a restricted subset)
+		// - For 8-bit pixel formats, the format must be non-sRGB.
+		// 
+		// The latter is somewhat arbitrary. D3D9 DDS files don't store whether pixels for a texture are meant
+		// to be interpreted as sRGB or not. This reader treats the resulting formats as non-sRGB UNORM,
+		// so the writer does the same for symmetry.
+		EDDSError SerializeToArchive(FArchive* Ar, EDDSFormatVersion InFormatVersion=EDDSFormatVersion::D3D10);
 
-		// 64k x 64k max supported atm.
-		static constexpr uint32 MAX_MIPS_SUPPORTED = 16;
+		// 20 mips means 512k x 512k pixels max, should be sufficient for now.
+		// It's 512k not 1M because the final 1x1 pixel mip counts; i.e. a mip chain
+		// from 1048576x1048576 down to 1x1 has 21 mips!
+		static constexpr uint32 MAX_MIPS_SUPPORTED = 20;
 
 		// Create an empty DDS structure (for writing DDS files typically)
 		//
 		// InDimension is [1,3] (1D,2D,3D)
 		// InWidth/InHeight are for the top mip. Cubemaps must be square.
-		// InDepth is only for 3D textures.
+		// InDepth is only used for 3D textures, must be 1 otherwise.
 		// InMipCount <= MAX_MIPS_SUPPORTED.
 		// InArraySize number of textures provided - must be multiple of 6 for cubemaps (CREATE_FLAG_CUBEMAP)
 		// 
 		// Note for texture arrays the mip data pointers are expecting the entire mip chain 
 		// for one texture before moving to the next
 		//
-		static FDDSFile* CreateEmpty(int32 InDimension, uint32 InWidth, uint32 InHeight, uint32 InDepth, uint32 InMipCount, uint32 InArraySize, EDXGIFormat InFormat, uint32 InCreateFlags);
+		// On error, returns nullptr. If a non-null OutError is supplied, error information
+		// is written there.
+		static FDDSFile* CreateEmpty(int32 InDimension, uint32 InWidth, uint32 InHeight, uint32 InDepth, uint32 InMipCount, uint32 InArraySize, EDXGIFormat InFormat, uint32 InCreateFlags, EDDSError *OutError=nullptr);
 
 		// Convenience version of the above to create a basic 2D texture with mip chain
-		static FDDSFile* CreateEmpty2D(uint32 InWidth, uint32 InHeight, uint32 InMipCount, EDXGIFormat InFormat, uint32 InCreateFlags);
+		static FDDSFile* CreateEmpty2D(uint32 InWidth, uint32 InHeight, uint32 InMipCount, EDXGIFormat InFormat, uint32 InCreateFlags, EDDSError* OutError=nullptr);
+
+		// Sanity-check that all members make sense and return an error code.
+		EDDSError Validate() const;
 
 		// Used for loading a DDS from a file, e.g.
 		// FArchive* Ar = IFileManager::Get().CreateFileReader(*FileName);
@@ -227,11 +273,16 @@ namespace OodleDDS
 		// delete Ar;
 		// ... use DDS as desired.
 		// delete DDS;
-		static FDDSFile* CreateFromArchive(FArchive* Ar);
+		// 
+		// On error, returns nullptr. If a non-null OutError is supplied, error information
+		// is written there.
+		static FDDSFile* CreateFromArchive(FArchive* Ar, EDDSError* OutError=nullptr);
 
+		// Bit flags
 		static constexpr uint32 CREATE_FLAG_NONE = 0;
 		static constexpr uint32 CREATE_FLAG_CUBEMAP = 1;
-		static constexpr uint32 CREATE_FLAG_NO_MIP_STORAGE_ALLOC = 2;
+		static constexpr uint32 CREATE_FLAG_NO_MIP_STORAGE_ALLOC = 2; // Mip storage wasn't allocated by us and isn't owned by us, just pointing elsewhere.
+		static constexpr uint32 CREATE_FLAG_WAS_D3D9 = 4; // Loaded from D3D9-format .DDS file, so whether 8-bit/channel formats are sRGB or not is largely guesswork
 	};
 
 	// Returns the name of a DXGI format

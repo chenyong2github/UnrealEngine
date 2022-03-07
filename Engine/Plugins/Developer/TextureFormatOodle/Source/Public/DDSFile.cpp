@@ -116,12 +116,12 @@ const TCHAR * DXGIFormatGetName(EDXGIFormat fmt)
 static EDXGIFormat DXGIFormatSRGBTable[] = 
 {
 	EDXGIFormat::R8G8B8A8_UNORM,		EDXGIFormat::R8G8B8A8_UNORM_SRGB,
-	EDXGIFormat::BC1_UNORM,			EDXGIFormat::BC1_UNORM_SRGB,
-	EDXGIFormat::BC2_UNORM,			EDXGIFormat::BC2_UNORM_SRGB,
-	EDXGIFormat::BC3_UNORM,			EDXGIFormat::BC3_UNORM_SRGB,
+	EDXGIFormat::BC1_UNORM,				EDXGIFormat::BC1_UNORM_SRGB,
+	EDXGIFormat::BC2_UNORM,				EDXGIFormat::BC2_UNORM_SRGB,
+	EDXGIFormat::BC3_UNORM,				EDXGIFormat::BC3_UNORM_SRGB,
 	EDXGIFormat::B8G8R8A8_UNORM,		EDXGIFormat::B8G8R8A8_UNORM_SRGB,
 	EDXGIFormat::B8G8R8X8_UNORM,		EDXGIFormat::B8G8R8X8_UNORM_SRGB,
-	EDXGIFormat::BC7_UNORM,			EDXGIFormat::BC7_UNORM_SRGB,
+	EDXGIFormat::BC7_UNORM,				EDXGIFormat::BC7_UNORM_SRGB,
 };
 
 static int DXGIFormatGetIndexInSRGBTable(EDXGIFormat Format) 
@@ -175,6 +175,7 @@ struct FBitmaskToDXGI
 	uint32 Bits;
 	uint32 RMask, GMask, BMask, AMask;
 	EDXGIFormat Format;
+	int32 AutoD3d9;
 };
 
 // used for mapping fourcc format specifications to DXGI
@@ -182,6 +183,7 @@ struct FFOURCCToDXGI
 {
 	uint32 fourcc;
 	EDXGIFormat Format;
+	int32 AutoD3d9;
 };
 
 struct FDXGIFormatInfo 
@@ -203,55 +205,62 @@ static const FDXGIFormatInfo SupportedFormatList[] =
 #undef ODDFMT
 };
 
-// this is following MS DDSTextureLoader11
+// This is following MS DDSTextureLoader11.
+//
+// Formats with AutoD3d9 == 1 will get emitted as D3D9 DDS when FormatVersion is "Auto";
+// the other ones we read from D3D9 .DDS files but will only write when FormatVersion is D3D9,
+// and otherwise prefer D3D10 mode, because they're not widely supported in apps that consume
+// D3D9 .DDS files.
 static const FBitmaskToDXGI BitmaskToDXGITable[] = 
 {
-	//flags					bits	r			g			b			a			dxgi
-	{ DDPF_RGB,			32,		0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000, EDXGIFormat::R8G8B8A8_UNORM },
-	{ DDPF_RGB,			32,		0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000, EDXGIFormat::B8G8R8A8_UNORM },
-	{ DDPF_RGB,			32,		0x00ff0000, 0x0000ff00, 0x000000ff, 0x00000000, EDXGIFormat::B8G8R8X8_UNORM },
-	{ DDPF_RGB,			32,		0x3ff00000, 0x000ffc00, 0x000003ff, 0xc0000000, EDXGIFormat::R10G10B10A2_UNORM }, // yes, this mask is backwards, but that's the standard value to write for R10G10B10A2_UNORM! (see comments in DDSTextureLoader11)
-	{ DDPF_RGB,			32,		0x0000ffff, 0xffff0000, 0x00000000, 0x00000000, EDXGIFormat::R16G16_UNORM },
-	{ DDPF_RGB,			32,		0xffffffff, 0x00000000, 0x00000000, 0x00000000, EDXGIFormat::R32_FLOAT }, // only 32-bit color channel format in D3D9 was R32F
-	{ DDPF_RGB,			16,		0x7c00,		0x03e0,		0x001f,		0x8000,		EDXGIFormat::B5G5R5A1_UNORM },
-	{ DDPF_RGB,			16,		0xf800,		0x07e0,		0x001f,		0x0000,		EDXGIFormat::B5G6R5_UNORM },
-	{ DDPF_RGB,			16,		0x0f00,		0x00f0,		0x000f,		0xf000,		EDXGIFormat::B4G4R4A4_UNORM },
-	{ DDPF_LUMINANCE,	8,		0xff,		0x00,		0x00,		0x00,		EDXGIFormat::R8_UNORM },
-	{ DDPF_LUMINANCE,	16,		0xffff,		0x0000,		0x0000,		0x0000,		EDXGIFormat::R16_UNORM },
-	{ DDPF_LUMINANCE,	16,		0x00ff,		0x0000,		0x0000,		0xff00,		EDXGIFormat::R8G8_UNORM }, // official way to do it - this must go first!
-	{ DDPF_LUMINANCE,	8,		0xff,		0x00,		0x00,		0xff00,		EDXGIFormat::R8G8_UNORM }, // some writers write this instead, ugh.
-	{ DDPF_ALPHA,		8,		0x00,		0x00,		0x00,		0xff,		EDXGIFormat::A8_UNORM },
-	{ DDPF_BUMPDUDV,	32,		0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000, EDXGIFormat::R8G8B8A8_SNORM },
-	{ DDPF_BUMPDUDV,	2,		0x0000ffff, 0xffff0000, 0x00000000, 0x00000000, EDXGIFormat::R16G16_SNORM },
-	{ DDPF_BUMPDUDV,	16,		0x00ff,		0xff00,		0x0000,		0x0000,		EDXGIFormat::R8G8_SNORM },
+	//flags				bits	r			g			b			a			dxgi							AutoD3d9
+	{ DDPF_RGB,			32,		0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000, EDXGIFormat::R8G8B8A8_UNORM,	1 },
+	{ DDPF_RGB,			32,		0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000, EDXGIFormat::B8G8R8A8_UNORM,	1 },
+	{ DDPF_RGB,			32,		0x00ff0000, 0x0000ff00, 0x000000ff, 0x00000000, EDXGIFormat::B8G8R8X8_UNORM,	1 },
+	{ DDPF_RGB,			32,		0x3ff00000, 0x000ffc00, 0x000003ff, 0xc0000000, EDXGIFormat::R10G10B10A2_UNORM,	0 }, // This mask is backwards, but that's the standard value to write for R10G10B10A2_UNORM! (see comments in DDSTextureLoader11)
+	{ DDPF_RGB,			32,		0x0000ffff, 0xffff0000, 0x00000000, 0x00000000, EDXGIFormat::R16G16_UNORM,		1 },
+	{ DDPF_RGB,			32,		0xffffffff, 0x00000000, 0x00000000, 0x00000000, EDXGIFormat::R32_FLOAT,			0 }, // only 32-bit color channel format in D3D9 was R32F
+	{ DDPF_RGB,			16,		0x7c00,		0x03e0,		0x001f,		0x8000,		EDXGIFormat::B5G5R5A1_UNORM,	1 },
+	{ DDPF_RGB,			16,		0xf800,		0x07e0,		0x001f,		0x0000,		EDXGIFormat::B5G6R5_UNORM,		1 },
+	{ DDPF_RGB,			16,		0x0f00,		0x00f0,		0x000f,		0xf000,		EDXGIFormat::B4G4R4A4_UNORM,	1 },
+	{ DDPF_LUMINANCE,	8,		0xff,		0x00,		0x00,		0x00,		EDXGIFormat::R8_UNORM,			1 },
+	{ DDPF_LUMINANCE,	16,		0xffff,		0x0000,		0x0000,		0x0000,		EDXGIFormat::R16_UNORM,			1 },
+	{ DDPF_LUMINANCE,	16,		0x00ff,		0x0000,		0x0000,		0xff00,		EDXGIFormat::R8G8_UNORM,		1 }, // official way to do it - this must go first!
+	{ DDPF_LUMINANCE,	8,		0xff,		0x00,		0x00,		0xff00,		EDXGIFormat::R8G8_UNORM,		0 }, // some writers write this instead, ugh.
+	{ DDPF_ALPHA,		8,		0x00,		0x00,		0x00,		0xff,		EDXGIFormat::A8_UNORM,			1 },
+	{ DDPF_BUMPDUDV,	32,		0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000, EDXGIFormat::R8G8B8A8_SNORM,	0 },
+	{ DDPF_BUMPDUDV,	2,		0x0000ffff, 0xffff0000, 0x00000000, 0x00000000, EDXGIFormat::R16G16_SNORM,		0 },
+	{ DDPF_BUMPDUDV,	16,		0x00ff,		0xff00,		0x0000,		0x0000,		EDXGIFormat::R8G8_SNORM,		0 },
 };
 
-// this is following MS DDSTextureLoader11
-// when multiple FOURCCs map to the same DXGI format, put the preferred FOURCC first
+// This is following MS DDSTextureLoader11.
+// When multiple FOURCCs map to the same DXGI format, put the preferred FOURCC first.
+// AutoD3d9 works as above.
 static const FFOURCCToDXGI FOURCCToDXGITable[] = 
 {
-	{ MakeFOURCC('D','X','T','1'),		EDXGIFormat::BC1_UNORM },
-	{ MakeFOURCC('D','X','T','2'),		EDXGIFormat::BC2_UNORM },
-	{ MakeFOURCC('D','X','T','3'),		EDXGIFormat::BC2_UNORM },
-	{ MakeFOURCC('D','X','T','4'),		EDXGIFormat::BC3_UNORM },
-	{ MakeFOURCC('D','X','T','5'),		EDXGIFormat::BC3_UNORM },
-	{ MakeFOURCC('A','T','I','1'),		EDXGIFormat::BC4_UNORM },
-	{ MakeFOURCC('B','C','4','U'),		EDXGIFormat::BC4_UNORM },
-	{ MakeFOURCC('B','C','4','S'),		EDXGIFormat::BC4_SNORM },
-	{ MakeFOURCC('B','C','5','U'),		EDXGIFormat::BC5_UNORM },
-	{ MakeFOURCC('B','C','5','S'),		EDXGIFormat::BC5_SNORM },
-	{ MakeFOURCC('A','T','I','2'),		EDXGIFormat::BC5_UNORM }, // NOTE: ATI2 is kind of odd (technically swapped block order), so put it below BC5U
-	{ MakeFOURCC('B','C','6','H'),		EDXGIFormat::BC6H_UF16 },
-	{ MakeFOURCC('B','C','7','L'),		EDXGIFormat::BC7_UNORM },
-	{ MakeFOURCC('B','C','7', 0 ),		EDXGIFormat::BC7_UNORM },
-	{ 36,								EDXGIFormat::R16G16B16A16_UNORM }, // D3DFMT_A16B16G16R16
-	{ 110,								EDXGIFormat::R16G16B16A16_SNORM }, // D3DFMT_Q16W16V16U16
-	{ 111,								EDXGIFormat::R16_FLOAT }, // D3DFMT_R16F
-	{ 112,								EDXGIFormat::R16G16_FLOAT }, // D3DFMT_G16R16F
-	{ 113,								EDXGIFormat::R16G16B16A16_FLOAT }, // D3DFMT_A16B16G16R16F
-	{ 114,								EDXGIFormat::R32_FLOAT }, // D3DFMT_R32F
-	{ 115,								EDXGIFormat::R32G32_FLOAT }, // D3DFMT_G32R32F
-	{ 116,								EDXGIFormat::R32G32B32A32_FLOAT }, // D3DFMT_G32R32F
+	//fourcc							dxgi								AutoD3d9
+	{ MakeFOURCC('D','X','T','1'),		EDXGIFormat::BC1_UNORM,				1 },
+	{ MakeFOURCC('D','X','T','3'),		EDXGIFormat::BC2_UNORM,				1 }, // Note: comes before DXT2 because it's our preferred choice for BC2 export
+	{ MakeFOURCC('D','X','T','2'),		EDXGIFormat::BC2_UNORM,				1 },
+	{ MakeFOURCC('D','X','T','5'),		EDXGIFormat::BC3_UNORM,				1 }, // Note: comes before DXT4 because it's our preferred choice for BC3 export
+	{ MakeFOURCC('D','X','T','4'),		EDXGIFormat::BC3_UNORM,				1 },
+	{ MakeFOURCC('B','C','4','U'),		EDXGIFormat::BC4_UNORM,				0 },
+	{ MakeFOURCC('B','C','4','S'),		EDXGIFormat::BC4_SNORM,				0 },
+	{ MakeFOURCC('A','T','I','1'),		EDXGIFormat::BC4_UNORM,				0 }, // Note: prefer the more explicit BC4U to ATI1 for export
+	{ MakeFOURCC('B','C','5','U'),		EDXGIFormat::BC5_UNORM,				0 },
+	{ MakeFOURCC('B','C','5','S'),		EDXGIFormat::BC5_SNORM,				0 },
+	{ MakeFOURCC('A','T','I','2'),		EDXGIFormat::BC5_UNORM,				0 }, // NOTE: ATI2 is kind of odd (technically swapped block order), so put it below BC5U
+	{ MakeFOURCC('B','C','6','H'),		EDXGIFormat::BC6H_UF16,				0 },
+	{ MakeFOURCC('B','C','7','L'),		EDXGIFormat::BC7_UNORM,				0 },
+	{ MakeFOURCC('B','C','7', 0 ),		EDXGIFormat::BC7_UNORM,				0 },
+	{ 36,								EDXGIFormat::R16G16B16A16_UNORM,	1 }, // D3DFMT_A16B16G16R16
+	{ 110,								EDXGIFormat::R16G16B16A16_SNORM,	0 }, // D3DFMT_Q16W16V16U16
+	{ 111,								EDXGIFormat::R16_FLOAT,				1 }, // D3DFMT_R16F
+	{ 112,								EDXGIFormat::R16G16_FLOAT,			1 }, // D3DFMT_G16R16F
+	{ 113,								EDXGIFormat::R16G16B16A16_FLOAT,	1 }, // D3DFMT_A16B16G16R16F
+	{ 114,								EDXGIFormat::R32_FLOAT,				1 }, // D3DFMT_R32F
+	{ 115,								EDXGIFormat::R32G32_FLOAT,			1 }, // D3DFMT_G32R32F
+	{ 116,								EDXGIFormat::R32G32B32A32_FLOAT,	1 }, // D3DFMT_A32B32G32R32F
 };
 
 static const FDXGIFormatInfo* DXGIFormatGetInfo(EDXGIFormat InFormat)
@@ -340,12 +349,106 @@ FDDSFile::~FDDSFile()
 	}
 }
 
-static bool AllocateMips(FDDSFile* InDDS, const FDXGIFormatInfo* InFormatInfo, uint32 InCreateFlags)
+EDDSError FDDSFile::Validate() const
+{
+	// Supported pixel format?
+	const FDXGIFormatInfo* FormatInfo = DXGIFormatGetInfo(DXGIFormat);
+	if (!FormatInfo)
+	{
+		UE_LOG(LogOodleDDS, Error, TEXT("Unsupported format %d (%s)"), DXGIFormat, DXGIFormatGetName(DXGIFormat));
+		return EDDSError::BadPixelFormat;
+	}
+
+	// Resource and image dimensions agree?
+	switch (Dimension)
+	{
+	case 1:
+		if (Height != 1 || Depth != 1)
+		{
+			UE_LOG(LogOodleDDS, Error, TEXT("1D textures must have height and depth of 1."));
+			return EDDSError::BadImageDimension;
+		}
+		break;
+
+	case 2:
+		if (Depth != 1)
+		{
+			UE_LOG(LogOodleDDS, Error, TEXT("2D textures must have depth of 1."));
+			return EDDSError::BadImageDimension;
+		}
+		break;
+
+	case 3:
+		if (ArraySize != 1)
+		{
+			UE_LOG(LogOodleDDS, Error, TEXT("3D textures must have array size of 1."));
+			return EDDSError::BadImageDimension;
+		}
+
+	default:
+		UE_LOG(LogOodleDDS, Error, TEXT("DDS textures must be 1D, 2D or 3D."));
+		return EDDSError::BadResourceDimension;
+	}
+
+	// All dimensions must be non-zero
+	if (Width == 0 || Height == 0 || Depth == 0 || MipCount == 0 || ArraySize == 0)
+	{
+		UE_LOG(LogOodleDDS, Error, TEXT("One or more image dimensions are zero."));
+		return EDDSError::BadImageDimension;
+	}
+
+	// Images must not be larger than we support
+	const uint32 MaxDimension = (1 << MAX_MIPS_SUPPORTED) - 1; // 1<<k is when we tip over into needing k+1 mip levels, (1<<k)-1 needs just k.
+	if (Width > MaxDimension || Height > MaxDimension || Depth > MaxDimension)
+	{
+		UE_LOG(LogOodleDDS, Error, TEXT("Image dimensions %ux%ux%u of DDS exceed maximum of %u."), Width, Height, Depth, MaxDimension);
+		return EDDSError::BadImageDimension;
+	}
+
+	// Check that mipmap count is supported and makes sense for the image dimensions.
+	if (MipCount > MAX_MIPS_SUPPORTED)
+	{
+		UE_LOG(LogOodleDDS, Error, TEXT("Invalid mipmap count of %u."), MipCount);
+		return EDDSError::BadMipmapCount;
+	}
+
+	// Mipmaps halve each dimension (rounding down) every step; dimensions that end up at 0
+	// turn into 1. For the mip count to be valid, in the final mip level, at least one
+	// dimension should have been 0 before this adjustment.
+	const uint32 FinalMip = MipCount - 1;
+	if ((Width >> FinalMip) == 0 &&
+		(Height >> FinalMip) == 0 &&
+		(Depth >> FinalMip) == 0)
+	{
+		UE_LOG(LogOodleDDS, Error, TEXT("Invalid mipmap count of %u for %ux%ux%u image."), MipCount, Width, Height, Depth);
+		return EDDSError::BadMipmapCount;
+	}
+
+	// Cubemaps need to be square and have a valid array count
+	if (CreateFlags & CREATE_FLAG_CUBEMAP)
+	{
+		if (Width != Height || Depth != 1)
+		{
+			UE_LOG(LogOodleDDS, Error, TEXT("Cubemap has non-square faces or non-1 depth!"));
+			return EDDSError::BadCubemap;
+		}
+
+		if ((ArraySize % 6) != 0)
+		{
+			UE_LOG(LogOodleDDS, Error, TEXT("Cubemap or cubemap array doesn't have a multiple of 6 faces."));
+			return EDDSError::BadCubemap;
+		}
+	}
+
+	return EDDSError::OK;
+}
+
+static EDDSError AllocateMips(FDDSFile* InDDS, const FDXGIFormatInfo* InFormatInfo, uint32 InCreateFlags)
 {
 	InDDS->Mips = (FDDSMip*)FMemory::MallocZeroed(InDDS->MipCount * InDDS->ArraySize * sizeof(FDDSMip));
 	if (!InDDS->Mips) 
 	{
-		return false;
+		return EDDSError::OutOfMemory;
 	}
 
 	InDDS->MipDataSize = 0;
@@ -376,7 +479,16 @@ static bool AllocateMips(FDDSFile* InDDS, const FDXGIFormatInfo* InFormatInfo, u
 		InDDS->MipRawPtr = FMemory::MallocZeroed(AllMipsSize);
 		if (!InDDS->MipRawPtr)
 		{
-			return false;
+			// NOTE: This code is intentionally written so that all failure paths from here
+			// eventually lead to the DDS being destroyed (which would clean up the mip
+			// allocations regardless), but just clean up the previous allocation anyway and
+			// get us back to a pristine state.
+			FMemory::Free(InDDS->Mips);
+			InDDS->Mips = nullptr;
+			InDDS->MipDataSize = 0;
+			InDDS->MipRawPtr = 0;
+
+			return EDDSError::OutOfMemory;
 		}
 
 		unsigned char* MipPtr = (unsigned char *) InDDS->MipRawPtr;
@@ -388,36 +500,25 @@ static bool AllocateMips(FDDSFile* InDDS, const FDXGIFormatInfo* InFormatInfo, u
 		}
 	}
 
-	return true;
+	return EDDSError::OK;
 }
 
-/* static */ FDDSFile* FDDSFile::CreateEmpty(int InDimension, uint32 InWidth, uint32 InHeight, uint32 InDepth, uint32 InMipCount, uint32 InArraySize, EDXGIFormat InFormat, uint32 InCreateFlags)
+/* static */ FDDSFile* FDDSFile::CreateEmpty(int InDimension, uint32 InWidth, uint32 InHeight, uint32 InDepth, uint32 InMipCount, uint32 InArraySize, EDXGIFormat InFormat, uint32 InCreateFlags, EDDSError* OutError)
 {
-	const FDXGIFormatInfo *FormatInfo;
+	// If null OutError passed, point to somewhere safe
+	EDDSError DummyError;
+	if (!OutError)
+		OutError = &DummyError;
 
-	// Some sanity checks
-	if (!InWidth || !InHeight || !InDepth || !InMipCount || !InArraySize)
-	{
-		return 0;
-	}
-
-	// Cube maps must have an array size that's a multiple of 6
-	if ((InCreateFlags & CREATE_FLAG_CUBEMAP) && (InArraySize % 6) != 0) 
-	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Array length must be multple of 6 for cube maps"));
-		return 0;
-	}
-
-	// Fail if it's not a recognized format
-	FormatInfo = DXGIFormatGetInfo(InFormat);
-	if (!FormatInfo)
-	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Unsupported format %d (%s)"), InFormat, DXGIFormatGetName(InFormat));
-		return 0;
-	}
-
-	// Allocate the struct
+	// Allocate the new DDS
 	FDDSFile* DDS = new FDDSFile();
+	if (!DDS)
+	{
+		*OutError = EDDSError::OutOfMemory;
+		return nullptr;
+	}
+
+	// Set up the parameters
 	DDS->Dimension = InDimension;
 	DDS->Width = InWidth;
 	DDS->Height = InHeight;
@@ -427,21 +528,33 @@ static bool AllocateMips(FDDSFile* InDDS, const FDXGIFormatInfo* InFormatInfo, u
 	DDS->DXGIFormat = InFormat;
 	DDS->CreateFlags = InCreateFlags & ~CREATE_FLAG_NO_MIP_STORAGE_ALLOC;
 
-	if (!AllocateMips(DDS, FormatInfo, InCreateFlags)) 
+	// Check all the parameters
+	*OutError = DDS->Validate();
+	if (*OutError != EDDSError::OK)
 	{
 		delete DDS;
-		return 0;
+		return nullptr;
+	}
+
+	// Try to allocate mip storage
+	// Validate checks the pixel format is OK, so we don't need to re-check here
+	const FDXGIFormatInfo* FormatInfo = DXGIFormatGetInfo(InFormat);
+	*OutError = AllocateMips(DDS, FormatInfo, InCreateFlags);
+	if (*OutError != EDDSError::OK)
+	{
+		delete DDS;
+		return nullptr;
 	}
 
 	return DDS;
 }
 
-/* static */ FDDSFile* FDDSFile::CreateEmpty2D(uint32 InWidth, uint32 InHeight, uint32 InMipCount, EDXGIFormat InFormat, uint32 InCreateFlags)
+/* static */ FDDSFile* FDDSFile::CreateEmpty2D(uint32 InWidth, uint32 InHeight, uint32 InMipCount, EDXGIFormat InFormat, uint32 InCreateFlags, EDDSError* OutError)
 {
-	return FDDSFile::CreateEmpty(2, InWidth, InHeight, 1, InMipCount, 1, InFormat, InCreateFlags);
+	return FDDSFile::CreateEmpty(2, InWidth, InHeight, 1, InMipCount, 1, InFormat, InCreateFlags, OutError);
 }
 
-static bool ParseHeader(FDDSFile* InDDS, FDDSHeader const* InHeader, FDDSHeaderDX10 const* InDX10Header)
+static EDDSError ParseHeader(FDDSFile* InDDS, FDDSHeader const* InHeader, FDDSHeaderDX10 const* InDX10Header)
 {
 	// If the fourCC is "DX10" then we have a secondary header that follows the first header. 
 	// This header specifies an dxgi_format explicitly, so we don't have to derive one.
@@ -455,8 +568,8 @@ static bool ParseHeader(FDDSFile* InDDS, FDDSHeader const* InHeader, FDDSHeaderD
 		}
 		else
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("D3D10 resource dimension in DDS is not 1D, 2D or 3D texture."));
-			return false;
+			UE_LOG(LogOodleDDS, Error, TEXT("D3D10 resource dimension in DDS is neither 1D, 2D, nor 3D."));
+			return EDDSError::BadResourceDimension;
 		}
 		InDDS->DXGIFormat = (EDXGIFormat)InDX10Header->dxgi_format;
 		bDX10 = true;
@@ -467,14 +580,6 @@ static bool ParseHeader(FDDSFile* InDDS, FDDSHeader const* InHeader, FDDSHeaderD
 		// If the volume cap is set, assume 3D, otherwise 2D.
 		InDDS->Dimension = (InHeader->caps2 & DDSCAPS2_VOLUME) ? 3 : 2;
 		InDDS->DXGIFormat = DXGIFormatFromDDS9Header(InHeader);
-	}
-
-	// Check if the pixel format is supported
-	const FDXGIFormatInfo* format_info = DXGIFormatGetInfo(InDDS->DXGIFormat);
-	if (!format_info)
-	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Unsupported DDS pixel format!"));
-		return false;
 	}
 
 	// More header parsing
@@ -493,43 +598,27 @@ static bool ParseHeader(FDDSFile* InDDS, FDDSHeader const* InHeader, FDDSHeaderD
 		InDDS->ArraySize *= 6;
 	}
 
-	// Sanity-check all these values
-	if (!InDDS->Width || !InDDS->Height || !InDDS->Depth || !InDDS->MipCount || !InDDS->ArraySize)
+	if (!bDX10)
 	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Invalid dimensions in DDS file."));
-		return false;
+		InDDS->CreateFlags |= FDDSFile::CREATE_FLAG_WAS_D3D9;
 	}
 
-	// TODO: might want to make sure that num_mips <= number of actual possible mips for the resolution.
-
-	// Note: max_mips of 16 means maximum dimension of 64k-1... increase this number if you need to.
-	const uint32 MaxDimension = (1 << FDDSFile::MAX_MIPS_SUPPORTED) - 1; // max_dim=0xffff has 16 mip levels, but 0x10000 has 17
-	if (InDDS->Width > MaxDimension || InDDS->Height > MaxDimension || InDDS->Depth > MaxDimension || InDDS->MipCount > FDDSFile::MAX_MIPS_SUPPORTED)
-	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Dimensions of DDS exceed maximum of %u"), MaxDimension);
-		return false;
-	}
-
-	// Cubemaps need to be square
-	if (bIsCubemap && (InDDS->Width != InDDS->Height || InDDS->Depth != 1))
-	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Cubemap is not square or has non-1 depth!"));
-		return false;
-	}
-
-	return true;
+	// Sanity-check header values and return
+	EDDSError Error = InDDS->Validate();
+	
+	return Error;
 }
 
-
-static bool ReadPayload(FDDSFile* InDDS, FArchive* Ar)
+static EDDSError ReadPayload(FDDSFile* InDDS, FArchive* Ar)
 {
 	const FDXGIFormatInfo* FormatInfo = DXGIFormatGetInfo(InDDS->DXGIFormat);
-	if (!AllocateMips(InDDS, FormatInfo, InDDS->CreateFlags))
+	EDDSError Error = AllocateMips(InDDS, FormatInfo, InDDS->CreateFlags);
+	if (Error != EDDSError::OK)
 	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Out of memory allocating DDS mip chain"));
-		return false;
+		return Error;
 	}
 
+	// Read all subresources (array elements and mips within each array element)
 	for (uint32 SubresourceIndex = 0; SubresourceIndex < InDDS->ArraySize * InDDS->MipCount; ++SubresourceIndex)
 	{
 		FDDSMip* Mip = InDDS->Mips + SubresourceIndex;
@@ -537,19 +626,27 @@ static bool ReadPayload(FDDSFile* InDDS, FArchive* Ar)
 		Ar->Serialize(Mip->Data, Mip->DataSize);
 		if (Ar->GetError())
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("Corrupt file: texture data truncated."));
-			return false;
+			UE_LOG(LogOodleDDS, Error, TEXT("Error reading texture datad."));
+			return EDDSError::IoError;
 		}
 	}
 
-	return true;
+	return EDDSError::OK;
 }
 
 
-/* static */ FDDSFile* FDDSFile::CreateFromArchive(FArchive* Ar)
+/* static */ FDDSFile* FDDSFile::CreateFromArchive(FArchive* Ar, EDDSError *OutError)
 {
+	// If no OutError passed in, redirect it to dummy storage on stack.
+	EDDSError DummyError;
+	if (!OutError)
+	{
+		OutError = &DummyError;
+	}
+
 	if (Ar->IsLoading() == false)
 	{
+		*OutError = EDDSError::IoError;
 		return nullptr;
 	}
 
@@ -558,12 +655,14 @@ static bool ReadPayload(FDDSFile* InDDS, FArchive* Ar)
 	if (Ar->GetError())
 	{
 		UE_LOG(LogOodleDDS, Error, TEXT("Not a DDS file."));
+		*OutError = EDDSError::NotADds;
 		return nullptr;
 	}
 
-	if (Magic != ' SDD')
+	if (Magic != DDS_MAGIC)
 	{
 		UE_LOG(LogOodleDDS, Error, TEXT("Not a DDS file."));
+		*OutError = EDDSError::NotADds;
 		return nullptr;
 	}
 
@@ -574,6 +673,7 @@ static bool ReadPayload(FDDSFile* InDDS, FArchive* Ar)
 	if (Ar->GetError())
 	{
 		UE_LOG(LogOodleDDS, Error, TEXT("Failed to read DDS header"));
+		*OutError = EDDSError::IoError;
 		return nullptr;
 	}
 
@@ -585,19 +685,20 @@ static bool ReadPayload(FDDSFile* InDDS, FArchive* Ar)
 		if (Ar->GetError())
 		{
 			UE_LOG(LogOodleDDS, Error, TEXT("Failed to read DX10 DDS header"));
+			*OutError = EDDSError::IoError;
 			return nullptr;
 		}
 	}
 
 	FDDSFile* DDS = new FDDSFile();
 
-	if (!ParseHeader(DDS, &DDSHeader, &DDS10Header))
+	*OutError = ParseHeader(DDS, &DDSHeader, &DDS10Header);
+	if (*OutError == EDDSError::OK)
 	{
-		delete DDS;
-		return nullptr;
+		*OutError = ReadPayload(DDS, Ar);
 	}
 
-	if (!ReadPayload(DDS, Ar))
+	if (*OutError != EDDSError::OK)
 	{
 		delete DDS;
 		return nullptr;
@@ -609,32 +710,26 @@ static bool ReadPayload(FDDSFile* InDDS, FArchive* Ar)
 //
 // Write to an archive (i.e. file)
 //
-bool FDDSFile::SerializeToArchive(FArchive* Ar)
+EDDSError FDDSFile::SerializeToArchive(FArchive* Ar, EDDSFormatVersion InFormatVersion)
 {	
 	if (Ar->IsSaving() == false)
 	{
-		return false;
+		return EDDSError::IoError;
 	}
 
-	// Validate DDS a bit...
+	// Validate before we save
+	EDDSError ValidateErr = Validate();
+	if (ValidateErr != EDDSError::OK)
+	{
+		return ValidateErr;
+	}
+
 	bool bIsCubemap = (this->CreateFlags & CREATE_FLAG_CUBEMAP) != 0;
-	if(	   (this->DXGIFormat == EDXGIFormat::UNKNOWN) // unknown format
-		|| (bIsCubemap && (this->ArraySize % 6) != 0) // says its a cubemap... but doesn't have a multiple of 6 faces?!
-		|| (this->ArraySize <= 0)
-		|| (this->MipCount <= 0)
-		|| (this->Mips == 0)
-		|| (this->Dimension < 1 || this->Dimension > 3)
-		)
-	{
-		return false;
-	}
 
-	if((this->Dimension == 3 && this->ArraySize != 1) || // volume textures can't be arrays
-	   (this->Dimension < 3 && this->Depth > 1) || // 1D and 2D textures must have depth==1
-	   (this->Dimension < 2 && this->Height > 1)) // 1D textures must have height==1
-	{
-		return false;
-	}
+	// We can change format and dimension when writing in D3D9 mode, so keep track of
+	// what we're going to write to the file.
+	int32 EffectiveDimension = Dimension;
+	EDXGIFormat EffectiveFormat = DXGIFormat;
 
 	uint32 DepthFlag = (this->Dimension == 3) ? 0x800000 : 0; // DDSD_DEPTH
 	uint32 WriteArraySize = bIsCubemap ? this->ArraySize / 6 : this->ArraySize; 
@@ -649,9 +744,72 @@ bool FDDSFile::SerializeToArchive(FArchive* Ar)
 		Caps2 |= 0xFE00; // DDSCAPS2_CUBEMAP*
 	}
 
-	uint32 FourCC = DX10_MAGIC;
-	bool bIsDX10 = true;
+	// We always try to find a D3D9 pixel format matching our DXGI Format for export.
+	// In D3D10 mode, nothing is done with this information.
+	// In Auto mode, we consider D3D9 pixel formats when we consider them widely supported,
+	// which are those with AutoD3D9 >= 1.
+	// In D3D9 mode, we'll take any D3D9 pixel format that works, even if they get fairly
+	// obscure.
+	int MinAutoD3d9 = 1; // Only consider D3d9 for pixel formats that have an AutoD3d9 value >= this
+	if (InFormatVersion == EDDSFormatVersion::D3D9)
+	{
+		// In force-D3D9 mode, don't be picky about which formats we consider viable.
+		MinAutoD3d9 = 0;
 
+		// D3D9 format DDS can't represent sRGB-ness, so strip sRGB flag from format.
+		EffectiveFormat = DXGIFormatRemoveSRGB(EffectiveFormat);
+	}
+
+	// Look up how to represent effective format as D3D9 bitmasks format
+	// (if multiple choices, pick the first we find)
+	const FBitmaskToDXGI* D3d9BitmaskFormat = nullptr;
+	for (size_t i = 0; i < sizeof(BitmaskToDXGITable) / sizeof(*BitmaskToDXGITable); ++i)
+	{
+		if (BitmaskToDXGITable[i].Format == EffectiveFormat && BitmaskToDXGITable[i].AutoD3d9 >= MinAutoD3d9)
+		{
+			D3d9BitmaskFormat = &BitmaskToDXGITable[i];
+			break;
+		}
+	}
+
+	// Look up how to represent effective format as D3D9 FOURCC format
+	// (if multiple choices, pick the first we find)
+	uint32 D3d9FourCC = 0;
+	for (size_t i = 0; i < sizeof(FOURCCToDXGITable) / sizeof(*FOURCCToDXGITable); i++)
+	{
+		if (FOURCCToDXGITable[i].Format == EffectiveFormat && FOURCCToDXGITable[i].AutoD3d9 >= MinAutoD3d9)
+		{
+			D3d9FourCC = FOURCCToDXGITable[i].fourcc;
+			break;
+		}
+	}
+
+	// In D3D9 mode, there's some extra checks because a few things just aren't representable as D3D9.
+	if (InFormatVersion == EDDSFormatVersion::D3D9)
+	{
+		// If we found neither a bitmask format nor FourCC, we don't know how to save this pixel format for D3D9.
+		if (!D3d9BitmaskFormat && !D3d9FourCC)
+		{
+			UE_LOG(LogOodleDDS, Error, TEXT("Unsupported pixel format %s for D3D9 DDS."), DXGIFormatGetName(EffectiveFormat));
+			return EDDSError::BadPixelFormat;
+		}
+
+		if (ArraySize != 1)
+		{
+			UE_LOG(LogOodleDDS, Error, TEXT("D3D9 .DDS does not support arrays."));
+			return EDDSError::BadImageDimension;
+		}
+
+		if (EffectiveDimension == 1)
+		{
+			// D3D9 DDS can't do real 1D, it just implicitly turns it into 2D.
+			// Height is already 1 (validate checks that), so in D3D9 mode we just
+			// bump the effective dimension to 2D and write a Nx1 pixel image instead.
+			EffectiveDimension = 2;
+		}
+	}
+
+	// Set up the DDS header
 	FDDSHeader DDSHeader = 
 	{
 		124, // size value. Required to be 124
@@ -666,8 +824,8 @@ bool FDDSFile::SerializeToArchive(FArchive* Ar)
 		{
 			32, // size, must be 32
 			DDPF_FOURCC, // DDPF_FOURCC
-			FourCC, // DX10 header specification
-			0,0,0,0,0 // Omit this data as the DX10 header specifies a DXGI format which implicitly defines this information more specifically...
+			DX10_MAGIC, // Set up for writing as D3D10-format file
+			0,0,0,0,0 // Mask and bit counts, if used, are set up below.
 		},
 		DDSCAPS_COMPLEX | DDSCAPS_TEXTURE | DDSCAPS_MIPMAP,
 		Caps2,
@@ -676,35 +834,80 @@ bool FDDSFile::SerializeToArchive(FArchive* Ar)
 		0
 	};
 
-	uint32 ResourceDimension = RESOURCE_DIMENSION_TEXTURE1D + (this->Dimension - 1);
+	uint32 ResourceDimension = RESOURCE_DIMENSION_TEXTURE1D + (EffectiveDimension - 1);
 	uint32 MiscFlags = bIsCubemap ? RESOURCE_MISC_TEXTURECUBE : 0;
 	FDDSHeaderDX10 DX10Header = 
 	{
-		(uint32)this->DXGIFormat, // DXGI_FORMAT
+		(uint32)EffectiveFormat, // DXGI_FORMAT
 		ResourceDimension, 
 		MiscFlags, 
 		WriteArraySize,
 		0, // DDS_ALPHA_MODE_UNKNOWN
 	};
 
+	// So far, we set up the header for a D3D10-format DDS. Check if we should write
+	// as D3D9-format instead.
+	//
+	// In format=D3D9 mode, we did some extra validation earlier to ensure that we can always
+	// write D3D9-format files once we get here, else we would've returned an error earlier.
+	// In Auto mode, we check if writing a D3D9-format file is viable, and if so, change our
+	// pixel format description to a D3D9 one (which then makes us write a D3D9 DDS).
+	if (InFormatVersion != EDDSFormatVersion::D3D10 && EffectiveDimension >= 2 && ArraySize == 1)
+	{
+		// Sizes are OK.
+		// If we have a suitable D3D9 pixel format, writing as D3D9-format DDS is an option.
+		FDDSPixelFormat* PixelFmt = &DDSHeader.ddspf;
+
+		if (D3d9BitmaskFormat)
+		{
+			// Can write as D3D9 bitmask format, so do it!
+			PixelFmt->flags = D3d9BitmaskFormat->Flags;
+			PixelFmt->fourCC = 0;
+			PixelFmt->RGBBitCount = D3d9BitmaskFormat->Bits;
+			PixelFmt->RBitMask = D3d9BitmaskFormat->RMask;
+			PixelFmt->GBitMask = D3d9BitmaskFormat->GMask;
+			PixelFmt->BBitMask = D3d9BitmaskFormat->BMask;
+			PixelFmt->ABitMask = D3d9BitmaskFormat->AMask;
+		}
+		else if (D3d9FourCC != 0)
+		{
+			PixelFmt->fourCC = D3d9FourCC;
+		}
+
+		// If neither of the above two cases were true, continue on with the header we already have,
+		// which corresponds to a D3D10 DDS.
+		//
+		// In Auto mode, this happens when we didn't find a suitable D3D9-esque pixel format to write.
+		// In D3D9 mode, this should never happen.
+	}
+
 	// Write the magic identifier and headers...
-	uint32 DDSMagic = ' SDD';
+	uint32 DDSMagic = DDS_MAGIC;
 	Ar->Serialize(&DDSMagic, 4);
 	Ar->Serialize(&DDSHeader, sizeof(DDSHeader));
-	if (bIsDX10) 
+	if (DDSHeader.ddspf.fourCC == DX10_MAGIC)
 	{
+		check(InFormatVersion != EDDSFormatVersion::D3D9); // If we try to write a D3D10 header despite being in D3D9 mode, something went wrong.
 		Ar->Serialize(&DX10Header, sizeof(DX10Header));
 	}
 	
-	// now go through all subresources in standard order and write them out
-	// @@ this could just write mip_data_ptr,mip_data_size
+	// Now go through all subresources in standard order and write them out
+	// Need to write them one by one even though we allocate them as a
+	// contiguous block if we do it ourselves, because of
+	// CREATE_FLAG_NO_MIP_STORAGE_ALLOC.
 	for(uint32 i = 0; i < this->ArraySize * this->MipCount; ++i) 
 	{
 		FDDSMip *Mip = this->Mips + i;
 		Ar->Serialize(Mip->Data, Mip->DataSize);
 	}
 
-	return true;
+	if (Ar->GetError())
+	{
+		UE_LOG(LogOodleDDS, Error, TEXT("Error writing DDS file!"));
+		return EDDSError::IoError;
+	}
+
+	return EDDSError::OK;
 }
 
 } // end OodleDDS namespace
