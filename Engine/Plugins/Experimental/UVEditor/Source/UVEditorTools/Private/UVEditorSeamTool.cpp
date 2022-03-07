@@ -563,6 +563,14 @@ void UUVEditorSeamTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UVEditorSeamTool_Shutdown);
 
+	if (LivePreviewInputRouter.IsValid())
+	{
+		// TODO: Arguably the live preview input router should do this for us before Shutdown(), but
+		// we don't currently have support for that...
+		LivePreviewInputRouter->ForceTerminateSource(LivePreviewBehaviorSource);
+		LivePreviewInputRouter->DeregisterSource(LivePreviewBehaviorSource);
+	}
+
 	// Apply any pending seam if needed
 	if (ShutdownType != EToolShutdownType::Cancel && LockedPath.Num() > 0)
 	{
@@ -574,12 +582,7 @@ void UUVEditorSeamTool::Shutdown(EToolShutdownType ShutdownType)
 	EmitChangeAPI = nullptr;
 	LivePreviewAPI = nullptr;
 
-	if (LivePreviewInputRouter.IsValid())
-	{
-		LivePreviewInputRouter->DeregisterSource(LivePreviewBehaviorSource);
-	}
 	LivePreviewBehaviorSet->RemoveAll();
-
 	LivePreviewBehaviorSet = nullptr;
 	LivePreviewBehaviorSource = nullptr;
 
