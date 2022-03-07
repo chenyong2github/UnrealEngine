@@ -161,9 +161,10 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		// Calculate perspective correct barycentric coordinates with screen derivatives
 		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, View.ViewSizeAndInvSize.zw);
 
+		const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, TriIndices, NANITE_MAX_UVS);
 		const FNaniteAttributeData AttributeData = GetAttributeData(
+			RawAttributeData,
 			Cluster,
-			TriIndices,
 			PointLocal0,
 			PointLocal1,
 			PointLocal2,

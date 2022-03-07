@@ -21,6 +21,20 @@ struct FNaniteAttributeData
 	half UnMirrored;
 };
 
+struct FNaniteRawAttributeData
+{
+	float3 TangentZ[3];
+
+#if NANITE_USE_UNCOMPRESSED_VERTEX_DATA
+	uint4 Color[3];
+#else
+	uint4 ColorDelta[3];
+	float4 ColorMin;
+#endif
+
+	float2 TexCoords[3][NANITE_MAX_UVS];
+};
+
 #define SIZEOF_UV_RANGE	32
 struct FUVRange
 {
@@ -282,20 +296,15 @@ FTexCoord InterpolateTexCoord(float2 TexCoord0, float2 TexCoord1, float2 TexCoor
 	return Result;
 }
 
-FNaniteAttributeData GetAttributeData(
+FNaniteRawAttributeData GetRawAttributeData(
 	FCluster Cluster,
 	uint3 TriIndices,
-	float3 PointLocal0,
-	float3 PointLocal1,
-	float3 PointLocal2,
-	FBarycentrics Barycentrics,
-	FInstanceSceneData InstanceData,
 	uint CompileTimeMaxTexCoords
 )
 {
-	FNaniteAttributeData AttributeData = (FNaniteAttributeData)0;
+	FNaniteRawAttributeData RawAttributeData = (FNaniteRawAttributeData)0;
 
-	// Unpack and interpolate attributes
+	// Unpack attributes
 	uint DecodeInfoOffset = Cluster.PageBaseAddress + Cluster.DecodeInfoOffset;
 	uint AttributeDataOffset = Cluster.PageBaseAddress + Cluster.AttributeOffset;
 
@@ -305,9 +314,9 @@ FNaniteAttributeData GetAttributeData(
 	// Unpack normal
 #if NANITE_USE_UNCOMPRESSED_VERTEX_DATA
 	uint3 ReadOffset = AttributeDataOffset + TriIndices * Cluster.BitsPerAttribute / 8;
-	float3 TangentZ0 = asfloat(ClusterPageData.Load3(ReadOffset.x));
-	float3 TangentZ1 = asfloat(ClusterPageData.Load3(ReadOffset.y));
-	float3 TangentZ2 = asfloat(ClusterPageData.Load3(ReadOffset.z));
+	RawAttributeData.TangentZ[0] = asfloat(ClusterPageData.Load3(ReadOffset.x));
+	RawAttributeData.TangentZ[1] = asfloat(ClusterPageData.Load3(ReadOffset.y));
+	RawAttributeData.TangentZ[2] = asfloat(ClusterPageData.Load3(ReadOffset.z));
 	ReadOffset += 12;
 #else
 	const uint MaxAttributeBits = CalculateMaxAttributeBits(CompileTimeMaxTexCoords);
@@ -320,46 +329,25 @@ FNaniteAttributeData GetAttributeData(
 	uint NormalBits1 = BitStreamReader_Read_RO(ClusterPageData, AttributeStream1, 2 * NANITE_NORMAL_QUANTIZATION_BITS, 2 * NANITE_NORMAL_QUANTIZATION_BITS);
 	uint NormalBits2 = BitStreamReader_Read_RO(ClusterPageData, AttributeStream2, 2 * NANITE_NORMAL_QUANTIZATION_BITS, 2 * NANITE_NORMAL_QUANTIZATION_BITS);
 
-	float3 TangentZ0 = UnpackNormal(NormalBits0, NANITE_NORMAL_QUANTIZATION_BITS);
-	float3 TangentZ1 = UnpackNormal(NormalBits1, NANITE_NORMAL_QUANTIZATION_BITS);
-	float3 TangentZ2 = UnpackNormal(NormalBits2, NANITE_NORMAL_QUANTIZATION_BITS);
+	RawAttributeData.TangentZ[0] = UnpackNormal(NormalBits0, NANITE_NORMAL_QUANTIZATION_BITS);
+	RawAttributeData.TangentZ[1] = UnpackNormal(NormalBits1, NANITE_NORMAL_QUANTIZATION_BITS);
+	RawAttributeData.TangentZ[2] = UnpackNormal(NormalBits2, NANITE_NORMAL_QUANTIZATION_BITS);
 #endif
 
-	float3 TangentZ = normalize(Barycentrics.UVW.x * TangentZ0 + Barycentrics.UVW.y * TangentZ1 + Barycentrics.UVW.z * TangentZ2);
-
-	// Decode vertex color
-	// This needs to happen even if INTERPOLATE_VERTEX_COLOR is not defined as the data might be there regardless of what the shader needs.
-	// When INTERPOLATE_VERTEX_COLOR is not defined, the results are not used and the code mostly disappears.
-	AttributeData.UnMirrored = 1.0f;
-
 #if NANITE_USE_UNCOMPRESSED_VERTEX_DATA
-	uint4 Color0 = UnpackToUint4(ClusterPageData.Load(ReadOffset.x), 8);
-	uint4 Color1 = UnpackToUint4(ClusterPageData.Load(ReadOffset.y), 8);
-	uint4 Color2 = UnpackToUint4(ClusterPageData.Load(ReadOffset.z), 8);
+	RawAttributeData.Color[0] = UnpackToUint4(ClusterPageData.Load(ReadOffset.x), 8);
+	RawAttributeData.Color[1] = UnpackToUint4(ClusterPageData.Load(ReadOffset.y), 8);
+	RawAttributeData.Color[2] = UnpackToUint4(ClusterPageData.Load(ReadOffset.z), 8);
 	ReadOffset += 4;
-	AttributeData.VertexColor = (Barycentrics.UVW.x * float4(Color0) + Barycentrics.UVW.y * float4(Color1) + Barycentrics.UVW.z * float4(Color2)) * (1.0f / 255.0f);
 #else
 	uint4 NumComponentBits = UnpackToUint4(Cluster.ColorBits, 4);
-	uint4 ColorDelta0 = BitStreamReader_Read4_RO(ClusterPageData, AttributeStream0, NumComponentBits, NANITE_MAX_COLOR_QUANTIZATION_BITS);
-	uint4 ColorDelta1 = BitStreamReader_Read4_RO(ClusterPageData, AttributeStream1, NumComponentBits, NANITE_MAX_COLOR_QUANTIZATION_BITS);
-	uint4 ColorDelta2 = BitStreamReader_Read4_RO(ClusterPageData, AttributeStream2, NumComponentBits, NANITE_MAX_COLOR_QUANTIZATION_BITS);
+	RawAttributeData.ColorDelta[0] = BitStreamReader_Read4_RO(ClusterPageData, AttributeStream0, NumComponentBits, NANITE_MAX_COLOR_QUANTIZATION_BITS);
+	RawAttributeData.ColorDelta[1] = BitStreamReader_Read4_RO(ClusterPageData, AttributeStream1, NumComponentBits, NANITE_MAX_COLOR_QUANTIZATION_BITS);
+	RawAttributeData.ColorDelta[2] = BitStreamReader_Read4_RO(ClusterPageData, AttributeStream2, NumComponentBits, NANITE_MAX_COLOR_QUANTIZATION_BITS);
 
-	AttributeData.VertexColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
-	AttributeData.VertexColor_DDX = 0.0f;
-	AttributeData.VertexColor_DDY = 0.0f;
 	if (Cluster.ColorMode != NANITE_VERTEX_COLOR_MODE_WHITE)
 	{
-		float4 ColorMin = float4(UnpackByte0(Cluster.ColorMin), UnpackByte1(Cluster.ColorMin), UnpackByte2(Cluster.ColorMin), UnpackByte3(Cluster.ColorMin));
-		if (Cluster.ColorMode == NANITE_VERTEX_COLOR_MODE_VARIABLE)
-		{
-			AttributeData.VertexColor = (ColorMin + Barycentrics.UVW.x * float4(ColorDelta0) + Barycentrics.UVW.y * float4(ColorDelta1) + Barycentrics.UVW.z * float4(ColorDelta2)) * (1.0f / 255.0f);
-			AttributeData.VertexColor_DDX = (Barycentrics.UVW_dx.x * float4(ColorDelta0) + Barycentrics.UVW_dx.y * float4(ColorDelta1) + Barycentrics.UVW_dx.z * float4(ColorDelta2)) * (1.0f / 255.0f);
-			AttributeData.VertexColor_DDY = (Barycentrics.UVW_dy.x * float4(ColorDelta0) + Barycentrics.UVW_dy.y * float4(ColorDelta1) + Barycentrics.UVW_dy.z * float4(ColorDelta2)) * (1.0f / 255.0f);
-		}
-		else // (Cluster.ColorMode == NANITE_VERTEX_COLOR_MODE_CONSTANT)
-		{
-			AttributeData.VertexColor = ColorMin * (1.0f / 255.0f);
-		}
+		RawAttributeData.ColorMin = float4(UnpackByte0(Cluster.ColorMin), UnpackByte1(Cluster.ColorMin), UnpackByte2(Cluster.ColorMin), UnpackByte3(Cluster.ColorMin));
 	}
 #endif
 
@@ -367,9 +355,9 @@ FNaniteAttributeData GetAttributeData(
 	for (uint TexCoordIndex = 0; TexCoordIndex < CompileTimeMaxTexCoords; ++TexCoordIndex)
 	{
 	#if NANITE_USE_UNCOMPRESSED_VERTEX_DATA
-		float2 TexCoord0 = asfloat(ClusterPageData.Load2(ReadOffset.x));
-		float2 TexCoord1 = asfloat(ClusterPageData.Load2(ReadOffset.y));
-		float2 TexCoord2 = asfloat(ClusterPageData.Load2(ReadOffset.z));
+		RawAttributeData.TexCoords[0][TexCoordIndex] = asfloat(ClusterPageData.Load2(ReadOffset.x));
+		RawAttributeData.TexCoords[1][TexCoordIndex] = asfloat(ClusterPageData.Load2(ReadOffset.y));
+		RawAttributeData.TexCoords[2][TexCoordIndex] = asfloat(ClusterPageData.Load2(ReadOffset.z));
 	#else
 		uint2 UVPrec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8), BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 4));
 		uint2 Bits0_UV = BitStreamReader_Read2_RO(ClusterPageData, AttributeStream0, UVPrec, NANITE_MAX_TEXCOORD_QUANTIZATION_BITS);
@@ -383,11 +371,61 @@ FNaniteAttributeData GetAttributeData(
 			ReadOffset += 8;
 		#else
 			FUVRange UVRange = GetUVRange(ClusterPageData, DecodeInfoOffset, TexCoordIndex);
-			float2 TexCoord0 = UnpackTexCoord(Bits0_UV, UVRange);
-			float2 TexCoord1 = UnpackTexCoord(Bits1_UV, UVRange);
-			float2 TexCoord2 = UnpackTexCoord(Bits2_UV, UVRange);
+			RawAttributeData.TexCoords[0][TexCoordIndex] = UnpackTexCoord(Bits0_UV, UVRange);
+			RawAttributeData.TexCoords[1][TexCoordIndex] = UnpackTexCoord(Bits1_UV, UVRange);
+			RawAttributeData.TexCoords[2][TexCoordIndex] = UnpackTexCoord(Bits2_UV, UVRange);
 		#endif
-			FTexCoord TexCoord = InterpolateTexCoord(TexCoord0, TexCoord1, TexCoord2, Barycentrics);
+		}
+	}
+
+	return RawAttributeData;
+}
+
+FNaniteAttributeData GetAttributeData(
+	FNaniteRawAttributeData RawData,
+	FCluster Cluster,
+	float3 PointLocal0,
+	float3 PointLocal1,
+	float3 PointLocal2,
+	FBarycentrics Barycentrics,
+	FInstanceSceneData InstanceData,
+	uint CompileTimeMaxTexCoords
+)
+{
+	FNaniteAttributeData AttributeData = (FNaniteAttributeData)0;
+
+	float3 TangentZ = normalize(Barycentrics.UVW.x * RawData.TangentZ[0] + Barycentrics.UVW.y * RawData.TangentZ[1] + Barycentrics.UVW.z * RawData.TangentZ[2]);
+
+	// Decode vertex color
+	// This needs to happen even if INTERPOLATE_VERTEX_COLOR is not defined as the data might be there regardless of what the shader needs.
+	// When INTERPOLATE_VERTEX_COLOR is not defined, the results are not used and the code mostly disappears.
+	AttributeData.UnMirrored = 1.0f;
+
+#if NANITE_USE_UNCOMPRESSED_VERTEX_DATA
+	AttributeData.VertexColor = (Barycentrics.UVW.x * float4(RawData.Color[0]) + Barycentrics.UVW.y * float4(RawData.Color[1]) + Barycentrics.UVW.z * float4(RawData.Color[2])) * (1.0f / 255.0f);
+#else
+	AttributeData.VertexColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+	if (Cluster.ColorMode != NANITE_VERTEX_COLOR_MODE_WHITE)
+	{
+		if (Cluster.ColorMode == NANITE_VERTEX_COLOR_MODE_VARIABLE)
+		{
+			AttributeData.VertexColor = (RawData.ColorMin + Barycentrics.UVW.x * float4(RawData.ColorDelta[0]) + Barycentrics.UVW.y * float4(RawData.ColorDelta[1]) + Barycentrics.UVW.z * float4(RawData.ColorDelta[2])) * (1.0f / 255.0f);
+			AttributeData.VertexColor_DDX = (Barycentrics.UVW_dx.x * float4(RawData.ColorDelta[0]) + Barycentrics.UVW_dx.y * float4(RawData.ColorDelta[1]) + Barycentrics.UVW_dx.z * float4(RawData.ColorDelta[2])) * (1.0f / 255.0f);
+			AttributeData.VertexColor_DDY = (Barycentrics.UVW_dy.x * float4(RawData.ColorDelta[0]) + Barycentrics.UVW_dy.y * float4(RawData.ColorDelta[1]) + Barycentrics.UVW_dy.z * float4(RawData.ColorDelta[2])) * (1.0f / 255.0f);
+		}
+		else // (Cluster.ColorMode == NANITE_VERTEX_COLOR_MODE_CONSTANT)
+		{
+			AttributeData.VertexColor = RawData.ColorMin * (1.0f / 255.0f);
+		}
+	}
+#endif
+
+	UNROLL
+	for (uint TexCoordIndex = 0; TexCoordIndex < CompileTimeMaxTexCoords; ++TexCoordIndex)
+	{
+		if (TexCoordIndex < Cluster.NumUVs)
+		{
+			FTexCoord TexCoord = InterpolateTexCoord(RawData.TexCoords[0][TexCoordIndex], RawData.TexCoords[1][TexCoordIndex], RawData.TexCoords[2][TexCoordIndex], Barycentrics);
 			AttributeData.TexCoords[TexCoordIndex] = TexCoord.Value;
 			AttributeData.TexCoords_DDX[TexCoordIndex] = TexCoord.DDX;
 			AttributeData.TexCoords_DDY[TexCoordIndex] = TexCoord.DDY;
@@ -403,8 +441,8 @@ FNaniteAttributeData GetAttributeData(
 
 				float3 PointLocal10 = PointLocal1 - PointLocal0;
 				float3 PointLocal20 = PointLocal2 - PointLocal0;
-				float2 TexCoord10 = TexCoord1 - TexCoord0;
-				float2 TexCoord20 = TexCoord2 - TexCoord0;
+				float2 TexCoord10 = RawData.TexCoords[1][0] - RawData.TexCoords[0][0];
+				float2 TexCoord20 = RawData.TexCoords[2][0] - RawData.TexCoords[0][0];
 
 				bool TangentXValid = abs(TexCoord10.x) + abs(TexCoord20.x) > 1e-6;
 
@@ -457,6 +495,7 @@ FNaniteAttributeData GetAttributeData(
 			}
 		}
 	}
+
 	return AttributeData;
 }
 

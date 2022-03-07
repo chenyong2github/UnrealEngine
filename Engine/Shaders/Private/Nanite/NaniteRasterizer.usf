@@ -1194,6 +1194,8 @@ VSOut HWRasterizeVS(
 				TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
 			}
 		}
+
+		uint VertIndex = TriangleIndices[VertexID];
 	
 		float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f);
 
@@ -1203,21 +1205,29 @@ VSOut HWRasterizeVS(
 		{
 			ResolvedView = ResolveView(NaniteView);
 
-			// TODO: PROG_RASTER (Populate VertexParameters)
-			//FVertexFactoryInput Input = (FVertexFactoryInput)0;
-			//FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
-			//float4 WorldPositionExcludingWPO = (float4)0;// VertexFactoryGetWorldPosition(Input, VFIntermediates);
-			//float4 WorldPosition = WorldPositionExcludingWPO;
-			//float4 ClipSpacePosition;
-			//float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
-			//FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, float3(0, 0, 0) /*WorldPosition.xyz*/, TangentToLocal);
+			// TODO: PROG_RASTER: Optimize
+		#if USES_WORLD_POSITION_OFFSET
+			FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+
+			const float3 PointLocalNoWPO = DecodePosition(TriangleIndices[VertIndex], Cluster); // TODO: PROG_RASTER - Optimize (CommonRasterizerVS also decodes positions)
+			const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, TriangleIndices, NUM_TEX_COORD_INTERPOLATORS);
+
+			// Should be Pow2(InvScale) but that requires renormalization
+			float3x3 LocalToWorld = LWCToFloat3x3(InstanceData.LocalToWorld);
+			float3 InvScale = InstanceData.InvNonUniformScale;
+			LocalToWorld[0] *= InvScale.x;
+			LocalToWorld[1] *= InvScale.y;
+			LocalToWorld[2] *= InvScale.z;
 
 			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
+			SetVertexParameterInstanceData(VertexParameters, InstanceData);
+			SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData, LocalToWorld, VertIndex, PointLocalNoWPO);
+
 			WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
+		#endif
 		}
 	#endif
 
-		uint VertIndex = TriangleIndices[VertexID];
 		float4 PointClipNoScaling;
 		const uint PixelValue = ((VisibleIndex + 1) << 7) | TriIndex;
 		Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, VertIndex, PixelValue, WorldPositionOffset, PointClipNoScaling);

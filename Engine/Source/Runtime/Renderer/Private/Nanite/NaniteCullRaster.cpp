@@ -127,7 +127,6 @@ static FAutoConsoleVariableRef CVarNaniteMSInterp(
 	TEXT("")
 );
 
-// TODO: WIP - PROG_RASTER
 int32 GNaniteAllowProgrammableRaster = 1;
 static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRaster(
 	TEXT("r.Nanite.AllowProgrammableRaster"),

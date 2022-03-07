@@ -128,8 +128,8 @@
 
 #define IS_MESHPARTICLE_FACTORY (PARTICLE_MESH_FACTORY || NIAGARA_MESH_FACTORY)
 
-#define HAS_INSTANCE_LOCAL_TO_WORLD_PS	(NEEDS_INSTANCE_LOCAL_TO_WORLD_PS && (USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY))
-#define HAS_INSTANCE_WORLD_TO_LOCAL_PS	(NEEDS_INSTANCE_WORLD_TO_LOCAL_PS && (USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY))
+#define HAS_INSTANCE_LOCAL_TO_WORLD_PS	(NEEDS_INSTANCE_LOCAL_TO_WORLD_PS && (USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY || IS_NANITE_PASS))
+#define HAS_INSTANCE_WORLD_TO_LOCAL_PS	(NEEDS_INSTANCE_WORLD_TO_LOCAL_PS && (USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY || IS_NANITE_PASS))
 
 #define IS_HAIR_FACTORY (HAIR_STRAND_MESH_FACTORY || HAIR_CARD_MESH_FACTORY)
 
@@ -501,11 +501,11 @@ struct FMaterialVertexParameters
 	uint CustomDataCount;
 #endif
 	
-#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
+#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY || IS_NANITE_PASS
 	FLWCMatrix InstanceLocalToWorld;
 	FLWCInverseMatrix InstanceWorldToLocal;
 #endif
-#if USE_INSTANCING || USE_INSTANCE_CULLING
+#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_PASS
 	/** Per-instance properties. */
 	float3 InstanceLocalPosition;
 	float4 PerInstanceParams;
@@ -596,7 +596,7 @@ MaterialFloat3x3 GetLocalToWorld3x3()
 
 FLWCInverseMatrix GetWorldToInstance(FMaterialVertexParameters Parameters)
 {
-	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
+	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY || IS_NANITE_PASS
 		return Parameters.InstanceWorldToLocal;
 	#else
 		return GetPrimitiveData(Parameters).WorldToLocal;
@@ -614,7 +614,7 @@ FLWCInverseMatrix GetWorldToInstance(FMaterialPixelParameters Parameters)
 
 FLWCMatrix GetInstanceToWorld(FMaterialVertexParameters Parameters)
 {
-	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
+	#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY || IS_NANITE_PASS
 		return Parameters.InstanceLocalToWorld;
 	#else
 		return GetPrimitiveData(Parameters).LocalToWorld;
@@ -1206,7 +1206,7 @@ FLWCVector3 GetObjectWorldPosition(FMaterialVertexParameters Parameters)
 /** Get the per-instance random value when instancing */
 float GetPerInstanceRandom(FMaterialVertexParameters Parameters)
 {
-#if USE_INSTANCING || USE_INSTANCE_CULLING
+#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_PASS
 	return Parameters.PerInstanceParams.x;
 #else
 	return 0.0;
