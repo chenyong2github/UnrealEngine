@@ -4,6 +4,9 @@
 	SceneCapturePixelShader.usf: 
 =============================================================================*/
 
+// do not use framebuffer fetch
+#define FORCE_DEPTH_TEXTURE_READS 1
+
 #include "Common.ush"
 #include "DeferredShadingCommon.ush"
 
