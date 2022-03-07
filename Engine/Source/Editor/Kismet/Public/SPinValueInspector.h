@@ -69,8 +69,10 @@ public:
 	/** 
 	 * Dismisses the current tooltip, if it is not currently hovered
 	 * NOTE: Pin a shared ptr before calling this function 
+	 * 
+	 * @param bForceDismiss	true to dismiss regardless of hover & tooltip ownership 
 	 */
-	void TryDismissTooltip();
+	void TryDismissTooltip(bool bForceDismiss = false);
 
 private:
 	/** Dismisses the current tooltip (internal implementation) */

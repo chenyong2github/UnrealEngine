@@ -151,7 +151,8 @@ SGraphPin::~SGraphPin()
 {
 	if (ValueInspectorTooltip.IsValid())
 	{
-		ValueInspectorTooltip.Pin()->TryDismissTooltip();
+		bool bForceDismiss = true;
+		ValueInspectorTooltip.Pin()->TryDismissTooltip(bForceDismiss);
 	}
 }
 

@@ -272,12 +272,12 @@ void FPinValueInspectorTooltip::MoveTooltip(const FVector2D& InNewLocation)
 	}
 }
 
-void FPinValueInspectorTooltip::TryDismissTooltip()
+void FPinValueInspectorTooltip::TryDismissTooltip(bool bForceDismiss)
 {
 	if (Instance.IsValid() && ValueInspectorWidget.IsValid())
 	{
 		// if we can't inspect the pin, force it to close
-		if (!FKismetDebugUtilities::CanInspectPinValue(ValueInspectorWidget->PinRef.Get()) || TooltipCanClose())
+		if (!FKismetDebugUtilities::CanInspectPinValue(ValueInspectorWidget->PinRef.Get()) || TooltipCanClose() || bForceDismiss)
 		{
 			DismissTooltip();
 		}
