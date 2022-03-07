@@ -6,12 +6,14 @@ using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using Azure;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Jupiter.Implementation;
 using Serilog;
 using EpicGames.Horde.Storage;
+using Jupiter.Common.Implementation;
 
 namespace Horde.Storage.Implementation
 {
@@ -23,9 +25,32 @@ namespace Horde.Storage.Implementation
         private const string LastTouchedKey = "Io_LastTouched";
         private const string NamespaceKey = "Io_Namespace";
 
-        public AzureBlobStore(IOptionsMonitor<AzureSettings> settings)
+        public AzureBlobStore(IOptionsMonitor<AzureSettings> settings, IServiceProvider provider)
         {
-            _connectionString = settings.CurrentValue.ConnectionString;
+            _connectionString = GetConnectionString(settings.CurrentValue, provider);
+        }
+
+        /// <summary>
+        /// Gets the connection string for Azure storage.
+        /// If a key vault secret is used, the value is cached in <see cref="AzureSettings.ConnectionString"/>
+        /// for next time.
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <param name="provider"></param>
+        /// <returns></returns>
+        public static string GetConnectionString(AzureSettings settings, IServiceProvider provider)
+        {
+            if (!string.IsNullOrEmpty(settings.ConnectionString))
+            {
+                return settings.ConnectionString;
+            }
+
+            // Cache the connection string in the settings for next time.
+            ISecretResolver secretResolver = provider.GetService<ISecretResolver>()!;
+            string connectionString = secretResolver.Resolve(settings.ConnectionString)!;
+            settings.ConnectionString = connectionString;
+
+            return connectionString;
         }
 
         public async Task<BlobIdentifier> PutObject(NamespaceId ns, ReadOnlyMemory<byte> content, BlobIdentifier blobIdentifier)

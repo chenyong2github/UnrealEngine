@@ -61,7 +61,7 @@ namespace Horde.Storage.FunctionalTests.Storage
             if (await _s3!.DoesS3BucketExistAsync(S3BucketName))
             {
                 // if we have failed to run the cleanup for some reason we run it now
-                await Teardown();
+                await Teardown(provider);
             }
 
             await _s3.PutBucketAsync(S3BucketName);
@@ -71,7 +71,7 @@ namespace Horde.Storage.FunctionalTests.Storage
             await _s3.PutObjectAsync(new PutObjectRequest {BucketName = S3BucketName, Key = _oldBlobFileHash.AsS3Key(), ContentBody = OldFileContents});
         }
 
-        protected override async Task Teardown()
+        protected override async Task Teardown(IServiceProvider provider)
         {
             string S3BucketName = $"tests-{TestNamespaceName}";
             ListObjectsResponse response = await _s3!.ListObjectsAsync(S3BucketName);
@@ -96,13 +96,13 @@ namespace Horde.Storage.FunctionalTests.Storage
         {
             _settings = provider.GetService<IOptionsMonitor<AzureSettings>>()!.CurrentValue;
 
-            string connectionString = _settings.ConnectionString;
+            string connectionString = AzureBlobStore.GetConnectionString(_settings, provider);
             BlobContainerClient container = new BlobContainerClient(connectionString, TestNamespaceName.ToString());
 
             if (await container.ExistsAsync())
             {
                 // if we have failed to run the cleanup for some reason we run it now
-                await Teardown();
+                await Teardown(provider);
             }
 
             await container.CreateAsync();
@@ -127,9 +127,9 @@ namespace Horde.Storage.FunctionalTests.Storage
             await oldBlob.UploadAsync(oldBlobContentsSteam);
         }
 
-        protected override async Task Teardown()
+        protected override async Task Teardown(IServiceProvider provider)
         {
-            string connectionString = _settings!.ConnectionString;
+            string connectionString = AzureBlobStore.GetConnectionString( _settings!, provider);
             BlobContainerClient container = new BlobContainerClient(connectionString, TestNamespaceName.ToString());
 
             await container.DeleteAsync();
@@ -193,7 +193,7 @@ namespace Horde.Storage.FunctionalTests.Storage
             File.SetLastWriteTimeUtc(oldFileInfo.FullName, DateTime.Now.AddDays(-7));
         }
 
-        protected override Task Teardown()
+        protected override Task Teardown(IServiceProvider provider)
         {
             Directory.Delete(_localTestDir, true);
 
@@ -361,13 +361,13 @@ namespace Horde.Storage.FunctionalTests.Storage
         protected abstract IEnumerable<KeyValuePair<string, string>> GetSettings();
 
         protected abstract Task Seed(IServiceProvider serverServices);
-        protected abstract Task Teardown();
+        protected abstract Task Teardown(IServiceProvider serverServices);
 
 
         [TestCleanup]
         public async Task MyTeardown()
         {
-            await Teardown();
+            await Teardown(_server!.Services);
         }
 
 

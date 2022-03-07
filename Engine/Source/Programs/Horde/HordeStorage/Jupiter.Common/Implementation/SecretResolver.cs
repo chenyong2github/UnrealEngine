@@ -2,10 +2,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
+using Azure;
+using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Jupiter.Common.Implementation
@@ -43,6 +47,8 @@ namespace Jupiter.Common.Implementation
             {
                 case "aws":
                     return ResolveAWSSecret(providerPath);
+                case "akv":
+                    return ResolveAKVSecret(providerPath);
                 default:
                     // no provider matches so just return the original value
                     return originalValue;
@@ -51,14 +57,7 @@ namespace Jupiter.Common.Implementation
 
         private string? ResolveAWSSecret(string providerPath)
         {
-            int keySeparator = providerPath.IndexOf("|");
-            string? key = null;
-            string arn = providerPath;
-            if (keySeparator != -1)
-            {
-                arn = providerPath.Substring(0, keySeparator);
-                key = providerPath.Substring(keySeparator + 1);
-            }
+            SplitByFirstSeparator(providerPath, '|', out string? key, out string arn);
 
             IAmazonSecretsManager? secretsManager = _serviceProvider.GetService<IAmazonSecretsManager>();
             if (secretsManager == null)
@@ -81,6 +80,43 @@ namespace Jupiter.Common.Implementation
                 return s;
 
             throw new Exception($"Unable to find key {key} in blob returned for secret {arn}");
+        }
+
+        /// <summary>
+        /// AKV = Azure Key Vault.
+        /// Uses <see cref="DefaultAzureCredential"/> to get a secret from Azure Key Vault.
+        /// Using <see cref="DefaultAzureCredential"/> lets us debug using <see cref="VisualStudioCredential"/>
+        /// and deploy to an app service that uses <see cref="ManagedIdentityCredential"/>.
+        /// </summary>
+        /// <param name="providerPath"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        private string? ResolveAKVSecret(string providerPath)
+        {
+            if (!SplitByFirstSeparator(providerPath, '|', out string? vaultName, out string secretName))
+            {
+                throw new InvalidDataException("Azure Key Vault secret path must be of the form vaultName|secretName");
+            }
+
+            string vaultUrl = $"https://{vaultName}.vault.azure.net/";
+
+            SecretClient client = new SecretClient(new Uri(vaultUrl), new DefaultAzureCredential());
+            Response<KeyVaultSecret> response = client.GetSecret(secretName);
+            return response.Value.Value;
+        }
+
+        private static bool SplitByFirstSeparator(string fullPath, char sep, out string? left, out string right)
+        {
+            int keySeparator = fullPath.IndexOf(sep);
+            left = null;
+            right = fullPath;
+            if (keySeparator != -1)
+            {
+                left = fullPath.Substring(0, keySeparator);
+                right = fullPath.Substring(keySeparator + 1);
+                return true;
+            }
+            return false;
         }
     }
 }

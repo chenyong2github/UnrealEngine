@@ -4,6 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Security;
+using System.Security.Authentication;
 using Amazon.DAX;
 using Amazon.DynamoDBv2;
 using Amazon.Extensions.NETCore.Setup;
@@ -54,74 +57,110 @@ namespace Horde.Storage
             authorizationOptions.AddPolicy("Cache.read", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("Cache", "read", "readwrite", "full");
+                policy.BeginAnyContext()
+                    .IncludeClaim("Cache", "read", "readwrite", "full")
+                    .IncludeRole("Cache.read", "Cache.readwrite", "Cache.full")
+                    .AddAny();
             });
 
             authorizationOptions.AddPolicy("Cache.write", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("Cache", "write", "readwrite", "full");
+                policy.BeginAnyContext()
+                    .IncludeClaim("Cache", "write", "readwrite", "full")
+                    .IncludeRole("Cache.write", "Cache.readwrite", "Cache.full")
+                    .AddAny();
             });
 
             authorizationOptions.AddPolicy("Cache.delete", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("Cache", "delete", "full");
+                policy.BeginAnyContext()
+                    .IncludeClaim("Cache", "delete", "full")
+                    .IncludeRole("Cache.delete", "Cache.full")
+                    .AddAny();
             });
 
             authorizationOptions.AddPolicy("Object.read", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("Cache", "read", "readwrite", "full");
+                policy.BeginAnyContext()
+                    .IncludeClaim("Cache", "read", "readwrite", "full")
+                    .IncludeRole("Cache.read", "Cache.readwrite", "Cache.full")
+                    .AddAny();
             });
 
             authorizationOptions.AddPolicy("Object.write", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("Cache", "write", "readwrite", "full");
+                policy.BeginAnyContext()
+                    .IncludeClaim("Cache", "write", "readwrite", "full")
+                    .IncludeRole("Cache.write", "Cache.readwrite", "Cache.full")
+                    .AddAny();
             });
 
             authorizationOptions.AddPolicy("Object.delete", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("Cache", "delete", "full");
+                policy.BeginAnyContext()
+                    .IncludeClaim("Cache", "delete", "full")
+                    .IncludeRole("Cache.delete", "Cache.full")
+                    .AddAny();
             });
 
             authorizationOptions.AddPolicy("Storage.read", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("Storage", "read", "readwrite", "full");
+                policy.BeginAnyContext()
+                    .IncludeClaim("Storage", "read", "readwrite", "full")
+                    .IncludeRole("Storage.read", "Storage.readwrite", "Storage.full")
+                    .AddAny();
             });
 
             authorizationOptions.AddPolicy("Storage.write", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("Storage", "write", "readwrite", "full");
+                policy.BeginAnyContext()
+                    .IncludeClaim("Storage", "write", "readwrite", "full")
+                    .IncludeRole("Storage.write", "Storage.readwrite", "Storage.full")
+                    .AddAny();
             });
 
             authorizationOptions.AddPolicy("Storage.delete", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("Storage", "delete", "full");
+                policy.BeginAnyContext()
+                    .IncludeClaim("Storage", "delete", "full")
+                    .IncludeRole("Storage.delete", "Storage.full")
+                    .AddAny();
             });
 
             authorizationOptions.AddPolicy("replication-log.read", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("transactionLog", "read", "readwrite", "full");
+                policy.BeginAnyContext()
+                    .IncludeClaim("transactionLog", "read", "readwrite", "full")
+                    .IncludeRole("transactionLog.read", "transactionLog.readwrite", "transactionLog.full")
+                    .AddAny();
             });
 
             authorizationOptions.AddPolicy("replication-log.write", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("transactionLog", "write", "readwrite", "full");
+                policy.BeginAnyContext()
+                    .IncludeClaim("transactionLog", "write", "readwrite", "full")
+                    .IncludeRole("transactionLog.write", "transactionLog.readwrite", "transactionLog.full")
+                    .AddAny();
             });
 
 
             authorizationOptions.AddPolicy("Admin", policy =>
             {
                 policy.AuthenticationSchemes = defaultSchemes;
-                policy.RequireClaim("Admin");
+                policy.BeginAnyContext()
+                    .IncludeClaim("Admin")
+                    .IncludeRole("Admin")
+                    .AddAny();
             });
 
             // A policy that grants any authenticated user access
@@ -334,20 +373,70 @@ namespace Horde.Storage
         private IScyllaSessionManager ScyllaFactory(IServiceProvider provider)
         {
             ScyllaSettings settings = provider.GetService<IOptionsMonitor<ScyllaSettings>>()!.CurrentValue!;
+            ISecretResolver secretResolver = provider.GetService<ISecretResolver>()!;
 
             Serilog.Extensions.Logging.SerilogLoggerProvider serilogLoggerProvider = new();
             Diagnostics.AddLoggerProvider(serilogLoggerProvider);
-
             const string DefaultKeyspaceName = "jupiter";
+
+            string? connectionString = secretResolver.Resolve(settings.ConnectionString);
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                throw new Exception("Connection string has to be specified");
+            }
+
             // Configure the builder with your cluster's contact points
-            var cluster = Cluster.Builder()
-                .AddContactPoints(settings.ContactPoints)
+            Builder clusterBuilder = Cluster.Builder()
+                .WithDefaultKeyspace(DefaultKeyspaceName)
+                .WithConnectionString(connectionString)
                 .WithLoadBalancingPolicy(new DefaultLoadBalancingPolicy(settings.LocalDatacenterName))
                 .WithPoolingOptions(PoolingOptions.Create().SetMaxConnectionsPerHost(HostDistance.Local, settings.MaxConnectionForLocalHost))
-                .WithDefaultKeyspace(DefaultKeyspaceName)
-                .WithExecutionProfiles(options => 
-                    options.WithProfile("default", builder => builder.WithConsistencyLevel(ConsistencyLevel.LocalOne)))
-                .Build();
+                .WithExecutionProfiles(options =>
+                    options.WithProfile("default", builder => builder.WithConsistencyLevel(ConsistencyLevel.LocalOne)));
+
+
+            if (settings.UseAzureCosmosDB)
+            {
+                CassandraConnectionStringBuilder connectionStringBuilder = new CassandraConnectionStringBuilder(connectionString);
+                connectionStringBuilder.DefaultKeyspace = DefaultKeyspaceName;
+                string[] contactPoints = connectionStringBuilder.ContactPoints;
+
+                // Connect to cassandra cluster using TLSv1.2.
+                var sslOptions = new SSLOptions(SslProtocols.Tls12, false,
+                    (sender, certificate, chain, sslPolicyErrors) =>
+                    {
+                        if (sslPolicyErrors == SslPolicyErrors.None)
+                            return true;
+
+                        _logger.Error("Certificate error: {0}", sslPolicyErrors);
+                        // Do not allow this client to communicate with unauthenticated servers.
+                        return false;
+                    });
+
+                // Prepare a map to resolve the host name from the IP address.
+                var hostNameByIp = new Dictionary<IPAddress, string>();
+                foreach (string contactPoint in contactPoints)
+                {
+                    IPAddress[] resolvedIps = Dns.GetHostAddresses(contactPoint);
+                    foreach (IPAddress resolvedIp in resolvedIps)
+                    {
+                        hostNameByIp[resolvedIp] = contactPoint;
+                    }
+                }
+
+                sslOptions.SetHostNameResolver((ipAddress) =>
+                {
+                    if (hostNameByIp.TryGetValue(ipAddress, out string? resolvedName))
+                    {
+                        return resolvedName;
+                    }
+                    var hostEntry = Dns.GetHostEntry(ipAddress.ToString());
+                    return hostEntry.HostName;
+                });
+
+                clusterBuilder = clusterBuilder.WithSSL(sslOptions);
+            }
+            Cluster cluster = clusterBuilder.Build();
 
             Dictionary<string, string> replicationStrategy = ReplicationStrategies.CreateSimpleStrategyReplicationProperty(2);
             if (settings.KeyspaceReplicationStrategy != null)
@@ -603,7 +692,7 @@ namespace Horde.Storage
                         break;
                     case HordeStorageSettings.StorageBackendImplementations.Azure:
                         AzureSettings azureSettings = provider.GetService<IOptionsMonitor<AzureSettings>>()!.CurrentValue;
-                        healthChecks.AddAzureBlobStorage(azureSettings.ConnectionString, tags: new[] {"services"});
+                        healthChecks.AddAzureBlobStorage(AzureBlobStore.GetConnectionString(azureSettings, provider), tags: new[] {"services"});
                         break;
 
                     case HordeStorageSettings.StorageBackendImplementations.FileSystem:

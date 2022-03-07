@@ -378,6 +378,7 @@ namespace Horde.Storage.Implementation
 
     public class ScyllaSettings
     {
+        public string ConnectionString { get; set; } = "Contact Points=localhost,scylla;Default Keyspace=jupiter";
         public long InlineBlobMaxSize { get; set; } = 32 * 1024; // default to 32 kb blobs max
         public string[] ContactPoints { get; set; } = new string[] {"localhost", "scylla"};
         public int MaxSnapshotsPerNamespace { get; set; } = 10;
@@ -415,6 +416,11 @@ namespace Horde.Storage.Implementation
         /// The time for a replication log event to live in the incremental state before being deleted, assumption is that the snapshot will have processed the event within this time
         /// </summary>
         public TimeSpan ReplicationLogTimeToLive { get; set; } = TimeSpan.FromDays(7);
+
+        /// <summary>
+        /// Whether a Cosmos DB Cassandra layer from Azure should be used.
+        /// </summary>
+        public bool UseAzureCosmosDB { get; set; } = false;
     }
 
     [Cassandra.Mapping.Attributes.Table("objects")]

@@ -217,7 +217,7 @@ namespace Horde.Storage
 
     public class AzureSettings
     {
-        [Required] public string ConnectionString { get; set; } = "";
+        [Required] public string ConnectionString { get; set; } = string.Empty;
     }
 
     public class FilesystemSettings
