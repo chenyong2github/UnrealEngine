@@ -17,7 +17,7 @@ enum class EPCGIntersectionDensityFunction : uint8
 * Generic intersection class that delays operations as long as possible.
 */
 UCLASS(BlueprintType, ClassGroup=(Procedural))
-class UPCGIntersectionData : public UPCGSpatialDataWithPointCache
+class PCG_API UPCGIntersectionData : public UPCGSpatialDataWithPointCache
 {
 	GENERATED_BODY()
 public:

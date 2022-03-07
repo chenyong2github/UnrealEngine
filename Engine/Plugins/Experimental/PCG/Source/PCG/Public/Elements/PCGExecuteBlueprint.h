@@ -26,7 +26,7 @@ namespace PCGBlueprintHelper
 #endif // WITH_EDITOR
 
 UCLASS(Abstract, BlueprintType, Blueprintable, hidecategories = (Object))
-class UPCGBlueprintElement : public UObject
+class PCG_API UPCGBlueprintElement : public UObject
 {
 	GENERATED_BODY()
 
@@ -79,7 +79,7 @@ protected:
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGBlueprintSettings : public UPCGSettings
+class PCG_API UPCGBlueprintSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 

@@ -23,7 +23,7 @@ enum class EPCGUnionDensityFunction : uint8
 };
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
-class UPCGUnionData : public UPCGSpatialDataWithPointCache
+class PCG_API UPCGUnionData : public UPCGSpatialDataWithPointCache
 {
 	GENERATED_BODY()
 public:

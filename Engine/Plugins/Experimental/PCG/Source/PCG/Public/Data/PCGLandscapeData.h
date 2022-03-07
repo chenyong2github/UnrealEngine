@@ -12,7 +12,7 @@ class ALandscapeProxy;
 class UPCGPolyLineData;
 
 USTRUCT()
-struct FPCGLandscapeDataPoint
+struct PCG_API FPCGLandscapeDataPoint
 {
 	GENERATED_BODY()
 
@@ -30,7 +30,7 @@ struct FPCGLandscapeDataPoint
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGLandscapeData : public UPCGSurfaceData
+class PCG_API UPCGLandscapeData : public UPCGSurfaceData
 {
 	GENERATED_BODY()
 

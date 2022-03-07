@@ -11,7 +11,7 @@
 * Generic projection class (A projected onto B) that intercepts spatial queries
 */
 UCLASS(BlueprintType, ClassGroup=(Procedural))
-class UPCGProjectionData : public UPCGSpatialDataWithPointCache
+class PCG_API UPCGProjectionData : public UPCGSpatialDataWithPointCache
 {
 	GENERATED_BODY()
 public:
@@ -44,4 +44,3 @@ protected:
 	FBox CachedBounds = FBox(EForceInit::ForceInit);
 	FBox CachedStrictBounds = FBox(EForceInit::ForceInit);
 };
-

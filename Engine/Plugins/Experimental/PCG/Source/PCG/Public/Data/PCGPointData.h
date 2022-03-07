@@ -12,7 +12,7 @@
 
 class AActor;
 
-struct FPCGPointRef
+struct PCG_API FPCGPointRef
 {
 	FPCGPointRef(const FPCGPoint& InPoint);
 	FPCGPointRef(const FPCGPointRef& InPointRef);
@@ -21,7 +21,7 @@ struct FPCGPointRef
 	FBoxSphereBounds Bounds;
 };
 
-struct FPCGPointRefSemantics
+struct PCG_API FPCGPointRefSemantics
 {
 	enum { MaxElementsPerLeaf = 16 };
 	enum { MinInclusiveElementsPerNode = 7 };
@@ -52,7 +52,7 @@ struct FPCGPointRefSemantics
 
 // TODO: Split this in "concrete" vs "api" class (needed for views)
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGPointData : public UPCGSpatialData
+class PCG_API UPCGPointData : public UPCGSpatialData
 {
 	GENERATED_BODY()
 

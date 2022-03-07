@@ -15,7 +15,7 @@ class UPCGGraph;
 #endif
 
 UCLASS(Abstract)
-class UPCGBaseSubgraphSettings : public UPCGSettings
+class PCG_API UPCGBaseSubgraphSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 public:
@@ -48,7 +48,7 @@ public:
 };
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
-class UPCGSubgraphSettings : public UPCGBaseSubgraphSettings
+class PCG_API UPCGSubgraphSettings : public UPCGBaseSubgraphSettings
 {
 	GENERATED_BODY()
 
@@ -79,7 +79,7 @@ public:
 };
 
 UCLASS(Abstract)
-class UPCGBaseSubgraphNode : public UPCGNode
+class PCG_API UPCGBaseSubgraphNode : public UPCGNode
 {
 	GENERATED_BODY()
 
@@ -91,7 +91,7 @@ public:
 };
 
 UCLASS(ClassGroup = (Procedural))
-class UPCGSubgraphNode : public UPCGBaseSubgraphNode
+class PCG_API UPCGSubgraphNode : public UPCGBaseSubgraphNode
 {
 	GENERATED_BODY()
 
@@ -117,13 +117,13 @@ protected:
 #endif
 };
 
-struct FPCGSubgraphContext : public FPCGContext
+struct PCG_API FPCGSubgraphContext : public FPCGContext
 {
 	FPCGTaskId SubgraphTaskId = InvalidTaskId;
 	bool bScheduledSubgraph = false;
 };
 
-class FPCGSubgraphElement : public IPCGElement
+class PCG_API FPCGSubgraphElement : public IPCGElement
 {
 public:
 	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) override;
@@ -132,7 +132,7 @@ protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 };
 
-class FPCGInputForwardingElement : public FSimplePCGElement
+class PCG_API FPCGInputForwardingElement : public FSimplePCGElement
 {
 public:
 	FPCGInputForwardingElement(const FPCGDataCollection& InputToForward);

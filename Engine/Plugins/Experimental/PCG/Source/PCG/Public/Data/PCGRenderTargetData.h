@@ -10,7 +10,7 @@
 //TODO: It's possible that caching the result in this class is not as efficient as it could be
 // if we expect to sample in different ways (e.g. channel) in the same render target
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGRenderTargetData : public UPCGBaseTextureData
+class PCG_API UPCGRenderTargetData : public UPCGBaseTextureData
 {
 	GENERATED_BODY()
 

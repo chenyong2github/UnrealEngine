@@ -17,7 +17,7 @@ class UPCGSettings;
 * flexibility to pass in various concrete data types, settings, and more.
 */
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGData : public UObject
+class PCG_API UPCGData : public UObject
 {
 	GENERATED_BODY()
 };
@@ -33,7 +33,7 @@ enum class EPCGDataUsage : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FPCGTaggedData
+struct PCG_API FPCGTaggedData
 {
 	GENERATED_BODY()
 
@@ -51,7 +51,7 @@ struct FPCGTaggedData
 };
 
 USTRUCT(BlueprintType)
-struct FPCGDataCollection
+struct PCG_API FPCGDataCollection
 {
 	GENERATED_BODY()
 
@@ -86,7 +86,7 @@ inline const SettingsType* FPCGDataCollection::GetSettings() const
 }
 
 UCLASS()
-class UPCGDataFunctionLibrary : public UBlueprintFunctionLibrary
+class PCG_API UPCGDataFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

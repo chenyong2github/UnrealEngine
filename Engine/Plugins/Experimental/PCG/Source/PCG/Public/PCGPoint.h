@@ -7,7 +7,7 @@
 #include "PCGPoint.generated.h"
 
 USTRUCT(BlueprintType)
-struct FPCGPoint
+struct PCG_API FPCGPoint
 {
 	GENERATED_BODY()
 public:

@@ -10,7 +10,7 @@
 #include "PCGDensityFilter.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGDensityFilterSettings : public UPCGSettings
+class PCG_API UPCGDensityFilterSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 

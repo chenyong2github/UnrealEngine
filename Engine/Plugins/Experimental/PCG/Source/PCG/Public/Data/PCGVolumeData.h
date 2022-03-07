@@ -10,7 +10,7 @@
 class AVolume;
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGVolumeData : public UPCGSpatialDataWithPointCache
+class PCG_API UPCGVolumeData : public UPCGSpatialDataWithPointCache
 {
 	GENERATED_BODY()
 

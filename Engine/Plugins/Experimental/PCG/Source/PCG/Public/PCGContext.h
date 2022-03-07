@@ -13,7 +13,7 @@ class UPCGComponent;
 struct FPCGGraphCache;
 
 USTRUCT(BlueprintType)
-struct FPCGContext
+struct PCG_API FPCGContext
 {
 	GENERATED_BODY()
 

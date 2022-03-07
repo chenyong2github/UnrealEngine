@@ -15,7 +15,7 @@ class IPCGElement;
 #endif
 
 UCLASS(ClassGroup = (Procedural))
-class UPCGNode : public UObject
+class PCG_API UPCGNode : public UObject
 {
 	GENERATED_BODY()
 

@@ -10,7 +10,7 @@
 #include "PCGDifferenceElement.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGDifferenceSettings : public UPCGSettings
+class PCG_API UPCGDifferenceSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 

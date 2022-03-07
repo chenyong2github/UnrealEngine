@@ -19,7 +19,7 @@ enum class EPCGSelfPruningType : uint8
 };
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
-class UPCGSelfPruningSettings : public UPCGSettings
+class PCG_API UPCGSelfPruningSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 

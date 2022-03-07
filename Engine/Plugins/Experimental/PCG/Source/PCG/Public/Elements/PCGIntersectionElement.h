@@ -10,7 +10,7 @@
 #include "PCGIntersectionElement.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGIntersectionSettings : public UPCGSettings
+class PCG_API UPCGIntersectionSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 

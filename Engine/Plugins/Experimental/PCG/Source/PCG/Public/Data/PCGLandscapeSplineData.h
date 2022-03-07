@@ -10,7 +10,7 @@
 class ULandscapeSplinesComponent;
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
-class UPCGLandscapeSplineData : public UPCGPolyLineData
+class PCG_API UPCGLandscapeSplineData : public UPCGPolyLineData
 {
 	GENERATED_BODY()
 public:

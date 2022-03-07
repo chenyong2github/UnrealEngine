@@ -13,7 +13,7 @@ namespace PCGDebugElement
 }
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGDebugSettings : public UPCGSettings
+class PCG_API UPCGDebugSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 

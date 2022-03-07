@@ -21,7 +21,7 @@ enum class EPCGSpawnActorOption : uint8
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGSpawnActorSettings : public UPCGBaseSubgraphSettings
+class PCG_API UPCGSpawnActorSettings : public UPCGBaseSubgraphSettings
 {
 	GENERATED_BODY()
 
@@ -54,7 +54,7 @@ protected:
 };
 
 UCLASS(ClassGroup = (Procedural))
-class UPCGSpawnActorNode : public UPCGBaseSubgraphNode
+class PCG_API UPCGSpawnActorNode : public UPCGBaseSubgraphNode
 {
 	GENERATED_BODY()
 public:

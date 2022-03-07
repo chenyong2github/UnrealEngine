@@ -17,7 +17,7 @@ enum class EPCGTextureColorChannel : uint8
 };
 
 UCLASS(Abstract)
-class UPCGBaseTextureData : public UPCGSurfaceData
+class PCG_API UPCGBaseTextureData : public UPCGSurfaceData
 {
 	GENERATED_BODY()
 
@@ -51,7 +51,7 @@ protected:
 };
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
-class UPCGTextureData : public UPCGBaseTextureData
+class PCG_API UPCGTextureData : public UPCGBaseTextureData
 {
 	GENERATED_BODY()
 

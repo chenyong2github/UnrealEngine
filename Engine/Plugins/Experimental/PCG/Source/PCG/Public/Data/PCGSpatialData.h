@@ -25,7 +25,7 @@ class UPCGProjectionData;
 * which hold metadata and a transform, and this is the basic currency of the PCG framework.
 */
 UCLASS(Abstract, BlueprintType, ClassGroup = (Procedural))
-class UPCGSpatialData : public UPCGData
+class PCG_API UPCGSpatialData : public UPCGData
 {
 	GENERATED_BODY()
 
@@ -96,7 +96,7 @@ public:
 };
 
 UCLASS(Abstract, ClassGroup = (Procedural))
-class UPCGSpatialDataWithPointCache : public UPCGSpatialData
+class PCG_API UPCGSpatialDataWithPointCache : public UPCGSpatialData
 {
 	GENERATED_BODY()
 

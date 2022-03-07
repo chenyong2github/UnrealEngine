@@ -25,7 +25,7 @@ typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
 /**
 * Base class for the processing bit of a PCG node/settings
 */
-class IPCGElement
+class PCG_API IPCGElement
 {
 public:
 	virtual ~IPCGElement() = default;
@@ -42,7 +42,7 @@ protected:
 /**
 * Basic PCG element class for elements that do not store any intermediate data in the context
 */
-class FSimplePCGElement : public IPCGElement
+class PCG_API FSimplePCGElement : public IPCGElement
 {
 public:
 	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) override;
@@ -52,7 +52,7 @@ public:
 * CRTP PCG element class to facilitate settings retrieval
 */
 template<typename SettingsClass>
-class FSimpleTypedPCGElement : public FSimplePCGElement
+class PCG_API FSimpleTypedPCGElement : public FSimplePCGElement
 {
 public:
 	const SettingsClass* GetSettings();

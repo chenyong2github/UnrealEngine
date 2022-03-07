@@ -10,7 +10,7 @@
 #include "PCGPointSampler.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGPointSamplerSettings : public UPCGSettings
+class PCG_API UPCGPointSamplerSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 

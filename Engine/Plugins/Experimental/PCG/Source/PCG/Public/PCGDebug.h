@@ -17,7 +17,7 @@ enum class EPCGDebugVisScaleMethod : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FPCGDebugVisualizationSettings
+struct PCG_API FPCGDebugVisualizationSettings
 {
 	GENERATED_BODY()
 

@@ -94,7 +94,7 @@ private:
 
 /** Trivial / Pass-through settings used for input/output nodes */
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGTrivialSettings : public UPCGSettings
+class PCG_API UPCGTrivialSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 
@@ -103,7 +103,7 @@ protected:
 	virtual FPCGElementPtr CreateElement() const override;
 };
 
-class FPCGTrivialElement : public FSimplePCGElement
+class PCG_API FPCGTrivialElement : public FSimplePCGElement
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

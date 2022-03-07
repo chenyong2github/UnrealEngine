@@ -10,7 +10,7 @@
 class UStaticMesh;
 
 USTRUCT(BlueprintType)
-struct FPCGStaticMeshSpawnerEntry
+struct PCG_API FPCGStaticMeshSpawnerEntry
 {
 	GENERATED_BODY()
 
@@ -22,7 +22,7 @@ struct FPCGStaticMeshSpawnerEntry
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGStaticMeshSpawnerSettings : public UPCGSettings
+class PCG_API UPCGStaticMeshSpawnerSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 

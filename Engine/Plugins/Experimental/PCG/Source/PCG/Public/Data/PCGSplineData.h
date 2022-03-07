@@ -11,7 +11,7 @@ class USplineComponent;
 class UPCGSurfaceData;
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGSplineData : public UPCGPolyLineData
+class PCG_API UPCGSplineData : public UPCGPolyLineData
 {
 	GENERATED_BODY()
 
@@ -43,7 +43,7 @@ protected:
 };
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
-class UPCGSplineProjectionData : public UPCGProjectionData
+class PCG_API UPCGSplineProjectionData : public UPCGProjectionData
 {
 	GENERATED_BODY()
 public:

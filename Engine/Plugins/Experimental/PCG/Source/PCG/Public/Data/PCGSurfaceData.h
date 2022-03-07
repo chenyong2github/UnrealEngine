@@ -8,7 +8,7 @@
 #include "PCGSurfaceData.generated.h"
 
 UCLASS(Abstract, BlueprintType, ClassGroup = (Procedural))
-class UPCGSurfaceData : public UPCGSpatialDataWithPointCache
+class PCG_API UPCGSurfaceData : public UPCGSpatialDataWithPointCache
 {
 	GENERATED_BODY()
 

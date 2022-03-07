@@ -12,7 +12,7 @@
 class FPCGSurfaceSamplerElement;
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGSurfaceSamplerSettings : public UPCGSettings
+class PCG_API UPCGSurfaceSamplerSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 

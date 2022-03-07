@@ -8,7 +8,7 @@
 #include "PCGPolyLineData.generated.h"
 
 UCLASS(Abstract, BlueprintType, ClassGroup = (Procedural))
-class UPCGPolyLineData : public UPCGSpatialDataWithPointCache
+class PCG_API UPCGPolyLineData : public UPCGSpatialDataWithPointCache
 {
 	GENERATED_BODY()
 

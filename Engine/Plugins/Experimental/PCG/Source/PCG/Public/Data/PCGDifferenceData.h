@@ -17,7 +17,7 @@ enum class EPCGDifferenceDensityFunction : uint8
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGDifferenceData : public UPCGSpatialDataWithPointCache
+class PCG_API UPCGDifferenceData : public UPCGSpatialDataWithPointCache
 {
 	GENERATED_BODY()
 public:

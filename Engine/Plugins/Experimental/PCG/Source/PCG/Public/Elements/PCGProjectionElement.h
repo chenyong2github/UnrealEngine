@@ -9,7 +9,7 @@
 #include "PCGProjectionElement.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGProjectionSettings : public UPCGSettings
+class PCG_API UPCGProjectionSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 

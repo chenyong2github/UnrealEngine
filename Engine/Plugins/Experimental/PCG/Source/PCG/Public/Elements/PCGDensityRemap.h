@@ -10,7 +10,7 @@
 #include "PCGDensityRemap.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class UPCGLinearDensityRemapSettings : public UPCGSettings
+class PCG_API UPCGLinearDensityRemapSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 

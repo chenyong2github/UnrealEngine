@@ -9,7 +9,7 @@
 class UPCGGraph;
 
 UCLASS(Abstract, BlueprintType, Blueprintable, hidecategories=(Object))
-class UPCGGraphSetupBP : public UObject
+class PCG_API UPCGGraphSetupBP : public UObject
 {
 	GENERATED_BODY()
 
