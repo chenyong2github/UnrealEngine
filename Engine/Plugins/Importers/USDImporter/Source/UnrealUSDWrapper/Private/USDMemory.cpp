@@ -172,7 +172,7 @@ void FUsdMemoryManager::Free( void* Original )
 	if ( FUsdMemoryManager::IsUsingSystemMalloc() || Removed > 0 )
 	{
 		// System allocations are so slow that we send them to another thread for freeing
-		Async( EAsyncExecution::ThreadPool, [Original](){ FMemory::SystemFree(Original); } );
+		Async( EAsyncExecution::TaskGraph, [Original](){ FMemory::SystemFree(Original); } );
 	}
 	else
 #endif // #if USD_USES_SYSTEM_MALLOC
