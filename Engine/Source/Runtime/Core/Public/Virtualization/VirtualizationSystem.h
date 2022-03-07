@@ -117,7 +117,7 @@ struct FPushRequest
  * during process start up but it will also be called by IVirtualizationSystem::Get if it detects that the
  * IVirtualizationSystem has not yet been set up.
  */
-CORE_API void Initialize();
+CORE_API void Initialize(FConfigFile* ConfigFile = nullptr);
 
 /**
  * Shutdowns the global IVirtualizationSystem if it exists. 
@@ -144,6 +144,20 @@ class CORE_API IVirtualizationSystem
 public:
 	IVirtualizationSystem() = default;
 	virtual ~IVirtualizationSystem() = default;
+
+	/**
+	 * Initialize the system from the given config file. Since the system might be initialized from a custom set
+	 * of specifically loaded config files, this is the only point in the systems life time that you are guaranteed 
+	 * to have the correct config file available so make sure that all settings that are required are parsed and
+	 * stored at this point rather than trying to access the config system directly in the future.
+	 * 
+	 * @param ConfigFile	The config file to parse the systems settings from. The object is guaranteed to be
+	 *						valid for the life time of the method so do not store it for future use.
+	 * @return				True if the system was initialized correctly, otherwise false. Note that if the method
+	 *						returns false then the system will be deleted and the default FNullVirtualizationSystem 
+	 *						will be used instead.
+	 */
+	virtual bool Initialize(const FConfigFile& ConfigFile) = 0;
 
 	/** Gain access to the current virtualization system active for the project */
 	static IVirtualizationSystem& Get();

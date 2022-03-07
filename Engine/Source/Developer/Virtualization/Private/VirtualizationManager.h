@@ -105,6 +105,8 @@ public:
 private:
 	/* IVirtualizationSystem implementation */
 
+	virtual bool Initialize(const FConfigFile& ConfigFile) override;
+
 	virtual bool IsEnabled() const override;
 	virtual bool IsPushingEnabled(EStorageType StorageType) const override;
 	
@@ -126,15 +128,15 @@ private:
 	
 private:
 
-	void ApplySettingsFromConfigFiles(const FConfigFile& PlatformEngineIni);
+	void ApplySettingsFromConfigFiles(const FConfigFile& ConfigFile);
 	void ApplySettingsFromCmdline();
 	
-	void ApplyDebugSettingsFromConfigFiles(const FConfigFile& PlatformEngineIni);
+	void ApplyDebugSettingsFromConfigFiles(const FConfigFile& ConfigFile);
 	void ApplyDebugSettingsFromFromCmdline();
 
-	void MountBackends();
-	void ParseHierarchy(const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
-	bool CreateBackend(const TCHAR* GraphName, const FString& ConfigEntryName, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
+	void MountBackends(const FConfigFile& ConfigFile);
+	void ParseHierarchy(const FConfigFile& ConfigFile, const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
+	bool CreateBackend(const FConfigFile& ConfigFile, const TCHAR* GraphName, const FString& ConfigEntryName, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
 
 	void AddBackend(TUniquePtr<IVirtualizationBackend> Backend, FBackendArray& PushArray);
 

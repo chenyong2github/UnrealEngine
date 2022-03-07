@@ -268,22 +268,6 @@ FVirtualizationManager::FVirtualizationManager()
 	// TODO: We should just be able to call the logging in the destructor, but 
 	// we need to fix the startup/shutdown ordering of Mirage first.
 	COOK_STAT(FCoreDelegates::OnExit.AddStatic(Profiling::LogStats));
-
-	FConfigFile* ConfigFile = GConfig->Find(GEngineIni);
-	if (ConfigFile != nullptr)
-	{
-		ApplySettingsFromConfigFiles(*ConfigFile);
-		ApplyDebugSettingsFromConfigFiles(*ConfigFile);
-	}
-	else
-	{
-		UE_LOG(LogVirtualization, Error, TEXT("Failed to load config file settings for content virtualization"));
-	}
-
-	ApplySettingsFromCmdline();
-	ApplyDebugSettingsFromFromCmdline();
-	
-	MountBackends();
 }
 
 FVirtualizationManager::~FVirtualizationManager()
@@ -297,6 +281,21 @@ FVirtualizationManager::~FVirtualizationManager()
 	AllBackends.Empty(); // This will delete all backends and beyond this point all references to them are invalid
 
 	UE_LOG(LogVirtualization, Log, TEXT("Virtualization manager destroyed"));
+}
+
+bool FVirtualizationManager::Initialize(const FConfigFile& ConfigFile)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::Initialize);
+
+	ApplySettingsFromConfigFiles(ConfigFile);
+	ApplyDebugSettingsFromConfigFiles(ConfigFile);
+	
+	ApplySettingsFromCmdline();
+	ApplyDebugSettingsFromFromCmdline();
+
+	MountBackends(ConfigFile);
+
+	return true;
 }
 
 bool FVirtualizationManager::IsEnabled() const
@@ -640,12 +639,12 @@ void FVirtualizationManager::GetPayloadActivityInfo( GetPayloadActivityInfoFuncR
 	
 }
 
-void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& PlatformEngineIni)
+void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& ConfigFile)
 {
 	UE_LOG(LogVirtualization, Display, TEXT("Loading virtualization manager settings from config files..."));
 	
 	bool bEnablePayloadPushingFromIni = false;
-	if (PlatformEngineIni.GetBool(TEXT("Core.ContentVirtualization"), TEXT("EnablePushToBackend"), bEnablePayloadPushingFromIni))
+	if (ConfigFile.GetBool(TEXT("Core.ContentVirtualization"), TEXT("EnablePushToBackend"), bEnablePayloadPushingFromIni))
 	{
 		bEnablePayloadPushing = bEnablePayloadPushingFromIni;
 		UE_LOG(LogVirtualization, Display, TEXT("\tEnablePushToBackend : %s"), bEnablePayloadPushing ? TEXT("true") : TEXT("false") );
@@ -656,7 +655,7 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Pla
 	}
 
 	bool bEnableCacheAfterPullFromIni = false;
-	if (PlatformEngineIni.GetBool(TEXT("Core.ContentVirtualization"), TEXT("EnableCacheAfterPull"), bEnableCacheAfterPullFromIni))
+	if (ConfigFile.GetBool(TEXT("Core.ContentVirtualization"), TEXT("EnableCacheAfterPull"), bEnableCacheAfterPullFromIni))
 	{
 		bEnableCacheAfterPull = bEnableCacheAfterPullFromIni;
 		UE_LOG(LogVirtualization, Display, TEXT("\tCachePulledPayloads : %s"), bEnableCacheAfterPull ? TEXT("true") : TEXT("false"));
@@ -667,7 +666,7 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Pla
 	}
 
 	int64 MinPayloadLengthFromIni = 0;
-	if (PlatformEngineIni.GetInt64(TEXT("Core.ContentVirtualization"), TEXT("MinPayloadLength"), MinPayloadLengthFromIni))
+	if (ConfigFile.GetInt64(TEXT("Core.ContentVirtualization"), TEXT("MinPayloadLength"), MinPayloadLengthFromIni))
 	{
 		MinPayloadLength = MinPayloadLengthFromIni;
 		UE_LOG(LogVirtualization, Display, TEXT("\tMinPayloadLength : %" INT64_FMT), MinPayloadLength );
@@ -678,7 +677,7 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Pla
 	}
 
 	FString BackendGraphNameFromIni;
-	if (PlatformEngineIni.GetString(TEXT("Core.ContentVirtualization"), TEXT("BackendGraph"), BackendGraphNameFromIni))
+	if (ConfigFile.GetString(TEXT("Core.ContentVirtualization"), TEXT("BackendGraph"), BackendGraphNameFromIni))
 	{
 		BackendGraphName = BackendGraphNameFromIni;
 		UE_LOG(LogVirtualization, Display, TEXT("\tBackendGraphName : %s"), *BackendGraphName );
@@ -689,7 +688,7 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Pla
 	}
 
 	FString FilterModeFromIni;
-	if (PlatformEngineIni.GetString(TEXT("Core.ContentVirtualization"), TEXT("FilterMode"), FilterModeFromIni))
+	if (ConfigFile.GetString(TEXT("Core.ContentVirtualization"), TEXT("FilterMode"), FilterModeFromIni))
 	{
 		if(LexTryParseString(FilteringMode, FilterModeFromIni))
 		{
@@ -706,7 +705,7 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Pla
 	}
 
 	bool bFilterEngineContentFromIni = true;
-	if (PlatformEngineIni.GetBool(TEXT("Core.ContentVirtualization"), TEXT("FilterEngineContent"), bFilterEngineContentFromIni))
+	if (ConfigFile.GetBool(TEXT("Core.ContentVirtualization"), TEXT("FilterEngineContent"), bFilterEngineContentFromIni))
 	{
 		bFilterEngineContent = bFilterEngineContentFromIni;
 		UE_LOG(LogVirtualization, Display, TEXT("\tFilterEngineContent : %s"), bFilterEngineContent ? TEXT("true") : TEXT("false"));
@@ -717,7 +716,7 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Pla
 	}
 	
 	bool bFilterEnginePluginContentFromIni = true;
-	if (PlatformEngineIni.GetBool(TEXT("Core.ContentVirtualization"), TEXT("FilterEnginePluginContent"), bFilterEnginePluginContentFromIni))
+	if (ConfigFile.GetBool(TEXT("Core.ContentVirtualization"), TEXT("FilterEnginePluginContent"), bFilterEnginePluginContentFromIni))
 	{
 		bFilterEnginePluginContent = bFilterEnginePluginContentFromIni;
 		UE_LOG(LogVirtualization, Display, TEXT("\tFilterEnginePluginContent : %s"), bFilterEnginePluginContent ? TEXT("true") : TEXT("false"));
@@ -744,20 +743,20 @@ void FVirtualizationManager::ApplySettingsFromCmdline()
 	}
 }
 
-void FVirtualizationManager::ApplyDebugSettingsFromConfigFiles(const FConfigFile& PlatformEngineIni)
+void FVirtualizationManager::ApplyDebugSettingsFromConfigFiles(const FConfigFile& ConfigFile)
 {
 	UE_LOG(LogVirtualization, Display, TEXT("Loading virtualization manager debugging settings from config files..."));
 
 	// Note that the debug settings are optional and could be left out of the config files entirely
 	bool bForceSingleThreadedFromIni = false;
-	if (PlatformEngineIni.GetBool(TEXT("Core.ContentVirtualizationDebugOptions"), TEXT("ForceSingleThreaded"), bForceSingleThreadedFromIni))
+	if (ConfigFile.GetBool(TEXT("Core.ContentVirtualizationDebugOptions"), TEXT("ForceSingleThreaded"), bForceSingleThreadedFromIni))
 	{
 		bForceSingleThreaded = bForceSingleThreadedFromIni;
 		UE_LOG(LogVirtualization, Display, TEXT("\tForceSingleThreaded : %s"), bForceSingleThreaded ? TEXT("true") : TEXT("false"));
 	}
 
 	bool bValidateAfterPushOperationFromIni = false;
-	if (PlatformEngineIni.GetBool(TEXT("Core.ContentVirtualizationDebugOptions"), TEXT("ValidateAfterPushOperation"), bValidateAfterPushOperationFromIni))
+	if (ConfigFile.GetBool(TEXT("Core.ContentVirtualizationDebugOptions"), TEXT("ValidateAfterPushOperation"), bValidateAfterPushOperationFromIni))
 	{
 		bValidateAfterPushOperation = bValidateAfterPushOperationFromIni;
 		UE_LOG(LogVirtualization, Display, TEXT("\tValidateAfterPushOperation : %s"), bValidateAfterPushOperation ? TEXT("true") : TEXT("false"));
@@ -784,7 +783,7 @@ void FVirtualizationManager::ApplyDebugSettingsFromFromCmdline()
 	}
 }
 
-void FVirtualizationManager::MountBackends()
+void FVirtualizationManager::MountBackends(const FConfigFile& ConfigFile)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::MountBackends);
 
@@ -793,7 +792,7 @@ void FVirtualizationManager::MountBackends()
 
 	const TCHAR* GraphName = *BackendGraphName;
 
-	if(!GConfig->DoesSectionExist(GraphName, GEngineIni))
+	if(!ConfigFile.DoesSectionExist(GraphName))
 	{
 		UE_LOG(LogVirtualization, Fatal, TEXT("Unable to find the backend graph: '%s' [ini=%s]."), GraphName, *GEngineIni);
 	}
@@ -802,14 +801,14 @@ void FVirtualizationManager::MountBackends()
 
 	// It is important to parse the local storage hierarchy first so those backends will show up before the
 	// persistent storage backends in 'PullEnabledBackends'.
-	ParseHierarchy(GraphName, TEXT("LocalStorageHierarchy"), FactoryLookupTable, LocalCachableBackends);
-	ParseHierarchy(GraphName, TEXT("PersistentStorageHierarchy"), FactoryLookupTable, PersistentStorageBackends);
+	ParseHierarchy(ConfigFile, GraphName, TEXT("LocalStorageHierarchy"), FactoryLookupTable, LocalCachableBackends);
+	ParseHierarchy(ConfigFile, GraphName, TEXT("PersistentStorageHierarchy"), FactoryLookupTable, PersistentStorageBackends);
 }
 
-void FVirtualizationManager::ParseHierarchy(const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray)
+void FVirtualizationManager::ParseHierarchy(const FConfigFile& ConfigFile, const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray)
 {
 	FString HierarchyData;
-	if (!GConfig->GetString(GraphName, HierarchyKey, HierarchyData, GEngineIni))
+	if (!ConfigFile.GetValue(GraphName, HierarchyKey, HierarchyData))
 	{
 		UE_LOG(LogVirtualization, Fatal, TEXT("Unable to find the '%s' entry for the content virtualization backend graph '%s' [ini=%s]."), HierarchyKey, GraphName, *GEngineIni);
 	}
@@ -825,18 +824,18 @@ void FVirtualizationManager::ParseHierarchy(const TCHAR* GraphName, const TCHAR*
 
 	for (const FString& Entry : Entries)
 	{
-		CreateBackend(GraphName, Entry, FactoryLookupTable, PushArray);
+		CreateBackend(ConfigFile, GraphName, Entry, FactoryLookupTable, PushArray);
 	}
 }
 
-bool FVirtualizationManager::CreateBackend(const TCHAR* GraphName, const FString& ConfigEntryName, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray)
+bool FVirtualizationManager::CreateBackend(const FConfigFile& ConfigFile, const TCHAR* GraphName, const FString& ConfigEntryName, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray)
 {
 	// All failures in this method are considered fatal, however it still returns true/false in case we decide
 	// to be more forgiving in the future.
 	UE_LOG(LogVirtualization, Display, TEXT("Mounting backend entry '%s'"), *ConfigEntryName);
 
 	FString BackendData;
-	if (!GConfig->GetString(GraphName, *ConfigEntryName, BackendData, GEngineIni))
+	if (!ConfigFile.GetValue(GraphName, *ConfigEntryName, BackendData))
 	{
 		UE_LOG(LogVirtualization, Fatal, TEXT("Unable to find the entry '%s' in the content virtualization backend graph '%s' [ini=%s]."), *ConfigEntryName, GraphName, *GEngineIni);
 		return false;

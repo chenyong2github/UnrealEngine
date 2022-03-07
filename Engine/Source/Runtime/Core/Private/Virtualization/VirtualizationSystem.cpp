@@ -19,6 +19,11 @@ public:
 
 	virtual ~FNullVirtualizationSystem() = default;
 
+	virtual bool Initialize(const FConfigFile& ConfigFile) override
+	{
+		return true;
+	}
+
 	virtual bool IsEnabled() const override
 	{
 		return false;
@@ -70,36 +75,66 @@ public:
 
 TUniquePtr<IVirtualizationSystem> GVirtualizationSystem = nullptr;
 
-void Initialize()
+/** Utility function for finding a IVirtualizationSystemFactory for a given system name */
+Private::IVirtualizationSystemFactory* FindFactory(FName SystemName)
+{
+	TArray<Private::IVirtualizationSystemFactory*> AvaliableSystems = IModularFeatures::Get().GetModularFeatureImplementations<Private::IVirtualizationSystemFactory>(FName("VirtualizationSystem"));
+	for (Private::IVirtualizationSystemFactory* SystemFactory : AvaliableSystems)
+	{
+		if (SystemFactory->GetName() == SystemName)
+		{
+			return SystemFactory;
+		}
+	}
+
+	return nullptr;
+}
+
+void Initialize(FConfigFile* ConfigFile)
 {
 	FName SystemName;
 
-	FConfigFile EngineIni;
-	if (FConfigCacheIni::LoadLocalIniFile(EngineIni, TEXT("Engine"), true))
+	if (ConfigFile == nullptr)
+	{
+		ConfigFile = GConfig->Find(GEngineIni);
+	}
+	
+	if (ConfigFile != nullptr)
 	{
 		FString RawSystemName;
-		if (EngineIni.GetString(TEXT("Core.ContentVirtualization"), TEXT("SystemName"), RawSystemName))
+		if (ConfigFile->GetString(TEXT("Core.ContentVirtualization"), TEXT("SystemName"), RawSystemName))
 		{
 			SystemName = FName(RawSystemName);
 			UE_LOG(LogVirtualization, Display, TEXT("VirtualizationSystem name found in ini file: %s"), *RawSystemName);
 		}
 	}
-
+	
 	if (!SystemName.IsNone())
 	{
-		TArray<Private::IVirtualizationSystemFactory*> AvaliableSystems = IModularFeatures::Get().GetModularFeatureImplementations<Private::IVirtualizationSystemFactory>(FName("VirtualizationSystem"));
-		for (Private::IVirtualizationSystemFactory* SystemFactory : AvaliableSystems)
+		Private::IVirtualizationSystemFactory* SystemFactory = FindFactory(SystemName);
+		if (SystemFactory != nullptr)
 		{
-			if (SystemFactory->GetName() == SystemName)
+			GVirtualizationSystem = SystemFactory->Create();
+			check(GVirtualizationSystem.IsValid()); // It is assumed that create will always return a valid pointer
+
+			if (!GVirtualizationSystem->Initialize(*ConfigFile))
 			{
-				GVirtualizationSystem = SystemFactory->Create();
-				return;
+				UE_LOG(LogVirtualization, Error, TEXT("Initialization of the virtualization system '%s' failed, falling back to the default implementation"), *SystemName.ToString());
+				GVirtualizationSystem.Reset();
 			}
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("Unable to find factory to create the virtualization system: %s"), *SystemName.ToString());
 		}
 	}
 
-	// We found no system to create so we will use the fallback Null system
-	GVirtualizationSystem = MakeUnique<FNullVirtualizationSystem>();	
+	if (!GVirtualizationSystem.IsValid())
+	{
+		// We found no system to create so we will use the fallback Null system
+		GVirtualizationSystem = MakeUnique<FNullVirtualizationSystem>();
+		GVirtualizationSystem->Initialize(*ConfigFile); // We know this method does nothing but we call it anyway for sake of form
+	}
 }
 
 void Shutdown()
@@ -114,7 +149,7 @@ IVirtualizationSystem& IVirtualizationSystem::Get()
 	if (GVirtualizationSystem == nullptr)
 	{
 		UE_LOG(LogVirtualization, Warning, TEXT("UE::Virtualization::Initialize was not called before UE::Virtualization::IVirtualizationSystem::Get()!"));
-		Initialize();
+		UE::Virtualization::Initialize();
 	}
 
 	return *GVirtualizationSystem;
