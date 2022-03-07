@@ -34,8 +34,10 @@ void InitValueBufferCS()
 	// Clear .Type in the first buffer element which is (ab)used as the ShaderPrintFilterOneThread() atomic value
 
 	// Symbol/print Counter
+	RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].ScreenPos16bits = 0;
 	RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Value = 0;
 	RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].TypeAndColor = 0;
+	RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Metadata = 0;
 }
 
 
@@ -93,12 +95,12 @@ void AddState(in uint InValue, in uint InPackedMetadata)
 	if (Metadata.Index == SHADER_PRINT_STATE_INVALID_INDEX)
 	{
 		// Change buffer to Ruint x 2 x cound
-		InterlockedAdd(RWStateBuffer[0].x, 1, Metadata.Index);
+		InterlockedAdd(RWStateBuffer[SHADER_PRINT_STATE_COUNT_OFFSET], 1, Metadata.Index);
 	}
 
 	if (Metadata.Index < ShaderPrint.MaxStateCount)
 	{
-		const uint Index3 = Metadata.Index * SHADER_PRINT_STATE_STRIDE + 1;
+		const uint Index3 = Metadata.Index * SHADER_PRINT_STATE_STRIDE + SHADER_PRINT_STATE_VALUE_OFFSET;
 		RWStateBuffer[Index3 + SHADER_PRINT_STATE_INDEX_METADATA] = ShaderPrintPackMetadata(Metadata); // Re-encode with the new index
 		RWStateBuffer[Index3 + SHADER_PRINT_STATE_INDEX_VALUE] = InValue;
 		RWStateBuffer[Index3 + SHADER_PRINT_STATE_INDEX_FRAME] = FrameIndex;
@@ -247,18 +249,18 @@ void BuildSymbolBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 [numthreads(1, 1, 1)]
 void CompactStateBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint StateCount = min(RWStateBuffer[0], ShaderPrint.MaxStateCount);
+	uint StateCount = min(RWStateBuffer[SHADER_PRINT_STATE_COUNT_OFFSET], ShaderPrint.MaxStateCount);
 
 	if (StateCount > 0)
 	{
 		for (uint Index = 0; Index < StateCount;)
 		{
-			const uint Index3 = Index * SHADER_PRINT_STATE_STRIDE + 1;
+			const uint Index3 = Index * SHADER_PRINT_STATE_STRIDE + SHADER_PRINT_STATE_VALUE_OFFSET;
 			const uint FrameDiff = FrameIndex - RWStateBuffer[Index3 + SHADER_PRINT_STATE_INDEX_FRAME];
 			if (FrameDiff > FrameThreshold)
 			{
 				// Swap with last element
-				const uint SrcIndex3 = (StateCount-1) * SHADER_PRINT_STATE_STRIDE + 1;
+				const uint SrcIndex3 = (StateCount-1) * SHADER_PRINT_STATE_STRIDE + SHADER_PRINT_STATE_VALUE_OFFSET;
 				RWStateBuffer[Index3 + SHADER_PRINT_STATE_INDEX_METADATA] = RWStateBuffer[SrcIndex3 + SHADER_PRINT_STATE_INDEX_METADATA];
 				RWStateBuffer[Index3 + SHADER_PRINT_STATE_INDEX_VALUE]    = RWStateBuffer[SrcIndex3 + SHADER_PRINT_STATE_INDEX_VALUE];
 				RWStateBuffer[Index3 + SHADER_PRINT_STATE_INDEX_FRAME]    = RWStateBuffer[SrcIndex3 + SHADER_PRINT_STATE_INDEX_FRAME];	

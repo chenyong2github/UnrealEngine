@@ -663,7 +663,7 @@ namespace ShaderPrint
 		FRDGBufferRef IndirectDrawArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("ShaderPrint.IndirectDrawArgs"));
 
 		// Non graph managed resources
-		FRDGBufferSRVRef ValuesBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintValueBuffer);
+		FRDGBufferSRVRef ValueBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintValueBuffer);
 		FRDGBufferSRVRef StateBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintStateBuffer);
 		FTextureRHIRef FontTexture = GSystemTextures.AsciiTexture->GetRenderTargetItem().ShaderResourceTexture;
 
@@ -677,7 +677,7 @@ namespace ShaderPrint
 
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
 			PassParameters->Common = View.ShaderPrintData.UniformBuffer;
-			PassParameters->ValuesBuffer = ValuesBuffer;
+			PassParameters->ValuesBuffer = ValueBuffer;
 			PassParameters->RWSymbolsBuffer = GraphBuilder.CreateUAV(SymbolBuffer, EPixelFormat::PF_R32_UINT);
 			PassParameters->RWIndirectDispatchArgsBuffer = GraphBuilder.CreateUAV(IndirectDispatchArgsBuffer, EPixelFormat::PF_R32_UINT);
 
@@ -696,7 +696,7 @@ namespace ShaderPrint
 			SHADER::FParameters* PassParameters = GraphBuilder.AllocParameters<SHADER::FParameters>();
 			PassParameters->FrameIndex = View.Family ? View.Family->FrameNumber : 0u;
 			PassParameters->Common = View.ShaderPrintData.UniformBuffer;
-			PassParameters->ValuesBuffer = ValuesBuffer;
+			PassParameters->ValuesBuffer = ValueBuffer;
 			PassParameters->RWSymbolsBuffer = GraphBuilder.CreateUAV(SymbolBuffer, EPixelFormat::PF_R32_UINT);
 			PassParameters->RWStateBuffer = GraphBuilder.CreateUAV(View.ShaderPrintData.ShaderPrintStateBuffer, EPixelFormat::PF_R32_UINT);
 			PassParameters->IndirectDispatchArgsBuffer = IndirectDispatchArgsBuffer;
@@ -709,6 +709,7 @@ namespace ShaderPrint
 		}
 
 		// CompactStateBuffer
+		#if 0
 		{
 			typedef FShaderCompactStateBufferCS SHADER;
 			TShaderMapRef<SHADER> ComputeShader(GlobalShaderMap);
@@ -724,6 +725,7 @@ namespace ShaderPrint
 				RDG_EVENT_NAME("ShaderPrint::CompactStateBuffer"),
 				ComputeShader, PassParameters, FIntVector(1,1,1));
 		}
+		#endif
 
 		// BuildIndirectDrawArgs
 		{

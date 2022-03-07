@@ -141,6 +141,9 @@ RWStructuredBuffer<FPackedShaderPrintItem> ShaderPrint_RWValuesBuffer;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // State 
+#define SHADER_PRINT_STATE_COUNT_OFFSET 0
+#define SHADER_PRINT_STATE_VALUE_OFFSET 1
+
 #define SHADER_PRINT_STATE_STRIDE 3
 #define SHADER_PRINT_STATE_INDEX_METADATA 0
 #define SHADER_PRINT_STATE_INDEX_VALUE 1
@@ -571,10 +574,10 @@ bool ShaderPrintGetStateValue(in uint InHash, inout uint OutIndex, inout uint Ou
 	OutValue = 0;
 
 	// Slow linear search among all widget states
-	const uint MaxCount = min(ShaderPrint_StateBuffer[0], ShaderPrint.MaxStateCount);
+	const uint MaxCount = min(ShaderPrint_StateBuffer[SHADER_PRINT_STATE_COUNT_OFFSET], ShaderPrint.MaxStateCount);
 	for (uint Index = 0; Index < MaxCount; ++Index)
 	{
-		const uint Index3 = Index * SHADER_PRINT_STATE_STRIDE + 1u;
+		const uint Index3 = Index * SHADER_PRINT_STATE_STRIDE + SHADER_PRINT_STATE_VALUE_OFFSET;
 		const FShaderPrintMetadata Metadata = ShaderPrintUnpackMetadata(ShaderPrint_StateBuffer[Index3 + SHADER_PRINT_STATE_INDEX_METADATA]);
 		if (Metadata.Hash == InHash)
 		{
