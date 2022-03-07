@@ -608,12 +608,13 @@ FRepMovement::FRepMovement()
 bool FRepMovement::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
 	// pack bitfield with flags
+	const bool bServerFrameAndHandleSupported = Ar.EngineNetVer() >= HISTORY_REPMOVE_SERVERFRAME_AND_HANDLE;
 	uint8 Flags = (bSimulatedPhysicSleep << 0) | (bRepPhysics << 1) | ((ServerFrame > 0) << 2) | ((ServerPhysicsHandle != INDEX_NONE) << 3);
-	Ar.SerializeBits(&Flags, 4);
+	Ar.SerializeBits(&Flags, bServerFrameAndHandleSupported ? 4 : 2);
 	bSimulatedPhysicSleep = ( Flags & ( 1 << 0 ) ) ? 1 : 0;
 	bRepPhysics = ( Flags & ( 1 << 1 ) ) ? 1 : 0;
-	const bool bRepServerFrame = (Flags & (1 << 2)) ? 1 : 0;
-	const bool bRepServerHandle = (Flags & (1 << 3)) ? 1 : 0;
+	const bool bRepServerFrame = (Flags & (1 << 2) && bServerFrameAndHandleSupported) ? 1 : 0;
+	const bool bRepServerHandle = (Flags & (1 << 3) && bServerFrameAndHandleSupported) ? 1 : 0;
 
 	bOutSuccess = true;
 
