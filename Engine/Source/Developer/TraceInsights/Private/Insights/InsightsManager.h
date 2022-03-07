@@ -94,6 +94,7 @@ public:
 	virtual void Shutdown() override;
 	virtual void RegisterMajorTabs(IUnrealInsightsModule& InsightsModule) override;
 	virtual void UnregisterMajorTabs() override;
+	virtual bool Exec(const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 	//////////////////////////////////////////////////
 
@@ -261,6 +262,8 @@ public:
 
 	const FName& GetLogListingName() const { return LogListingName; }
 
+	void ScheduleCommand(const FString& InCmd);
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// SessionChangedEvent
 
@@ -320,19 +323,22 @@ private:
 	void ResetSession(bool bNotify = true);
 
 	void OnSessionChanged();
+	void OnSessionAnalysisCompleted();
 
 	void SpawnAndActivateTabs();
 
 	void ActivateTimingInsightsTab();
 
+	bool HandleResponseFileCmd(const TCHAR* ResponseFile, FOutputDevice& Ar);
+
 private:
-	bool bIsInitialized;
+	bool bIsInitialized = false;
 
 	/** If true, the "high system memory usage warning" will be disabled until the system memory usage first drops below a certain threshold. */
-	bool bMemUsageLimitHysteresis;
+	bool bMemUsageLimitHysteresis = false;
 
 	/** The timestamp when has occurred the last check for system memory usage. */
-	uint64 MemUsageLimitLastTimestamp;
+	uint64 MemUsageLimitLastTimestamp = 0;
 
 	/** The name of the Unreal Insights log listing. */
 	FName LogListingName;
@@ -356,7 +362,7 @@ private:
 	TSharedPtr<const TraceServices::IAnalysisSession> Session;
 
 	/** The id of the trace being analyzed. */
-	uint32 CurrentTraceId;
+	uint32 CurrentTraceId = 0;
 
 	/** The filename of the trace being analyzed. */
 	FString CurrentTraceFilename;
@@ -383,20 +389,23 @@ private:
 	TWeakPtr<class SSessionInfoWindow> SessionInfoWindow;
 
 	/** If enabled, UI can display additional info for debugging purposes. */
-	bool bIsDebugInfoEnabled;
-
-	FStopwatch AnalysisStopwatch;
-	bool bIsAnalysisComplete;
-	double SessionDuration;
-	double AnalysisDuration;
-	double AnalysisSpeedFactor;
+	bool bIsDebugInfoEnabled = false;
 
 	bool bIsMainTabSet = false;
+	bool bIsAnalysisComplete = false;
+	bool bSessionAnalysisCompletedAutoQuit = false;
+
+	FStopwatch AnalysisStopwatch;
+	double SessionDuration = 0.0;
+	double AnalysisDuration = 0.0;
+	double AnalysisSpeedFactor = 0.0;
 
 	TSharedPtr<FInsightsMenuBuilder> InsightsMenuBuilder;
 	TSharedPtr<FInsightsTestRunner> TestRunner;
 
-private:
+	FString SessionAnalysisCompletedCmd;
+
+	static const TCHAR* AutoQuitMsg;
 	static const TCHAR* AutoQuitMsgOnFail;
 
 	/** A shared pointer to the global instance of the main manager. */

@@ -328,7 +328,7 @@ void FTraceInsightsModule::CreateSessionViewer(bool bAllowDebugTools)
 	FDisplayMetrics DisplayMetrics;
 	FSlateApplication::Get().GetDisplayMetrics(DisplayMetrics);
 	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(DisplayMetrics.PrimaryDisplayWorkAreaRect.Left, DisplayMetrics.PrimaryDisplayWorkAreaRect.Top);
-	
+
 	const FVector2D ClientSize(1280.f * DPIScaleFactor, 720.0f * DPIScaleFactor);
 
 	TSharedRef<SWindow> RootWindow = SNew(SWindow)
@@ -377,7 +377,7 @@ void FTraceInsightsModule::CreateSessionViewer(bool bAllowDebugTools)
 	const bool bForceWindowToFront = true;
 	RootWindow->BringToFront(bForceWindowToFront);
 
-#endif
+#endif // !WITH_EDITOR
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -556,15 +556,6 @@ void FTraceInsightsModule::OnWindowClosedEvent(const TSharedRef<SWindow>&)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTraceInsightsModule::ScheduleCommand(const FString& InCmd)
-{
-#if !UE_BUILD_SHIPPING && !WITH_EDITOR
-	FInsightsTestRunner::Get()->ScheduleCommand(InCmd);
-#endif
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void FTraceInsightsModule::InitializeTesting(bool InInitAutomationModules, bool InAutoQuit)
 {
 #if !UE_BUILD_SHIPPING && !WITH_EDITOR
@@ -575,6 +566,40 @@ void FTraceInsightsModule::InitializeTesting(bool InInitAutomationModules, bool 
 
 	RegisterComponent(TestRunner);
 #endif
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTraceInsightsModule::ScheduleCommand(const FString& InCmd)
+{
+	FString ActualCmd = InCmd;
+	ActualCmd.TrimCharInline(TEXT('\"'), nullptr);
+	ActualCmd.TrimCharInline(TEXT('\''), nullptr);
+
+#if !UE_BUILD_SHIPPING && !WITH_EDITOR
+	if (ActualCmd.StartsWith(TEXT("Automation RunTests")))
+	{
+		FInsightsTestRunner::Get()->ScheduleCommand(ActualCmd);
+		return;
+	}
+#endif
+
+	FInsightsManager::Get()->ScheduleCommand(ActualCmd);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTraceInsightsModule::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	for (TSharedRef<IInsightsComponent>& Component : Components)
+	{
+		if (Component->Exec(Cmd, Ar))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

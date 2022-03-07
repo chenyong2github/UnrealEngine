@@ -7,6 +7,7 @@
 #include "Logging/MessageLog.h"
 #include "MessageLog/Public/MessageLogModule.h"
 #include "Misc/CString.h"
+#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/UniquePtr.h"
@@ -102,6 +103,7 @@ void FAvailabilityCheck::Enable(double InWaitTime)
 // FInsightsManager
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const TCHAR* FInsightsManager::AutoQuitMsg = TEXT("Application is closing because it was started with the AutoQuit parameter and session analysis is complete.");
 const TCHAR* FInsightsManager::AutoQuitMsgOnFail = TEXT("Application is closing because it was started with the AutoQuit parameter and session analysis failed to start.");
 
 TSharedPtr<FInsightsManager> FInsightsManager::Instance = nullptr;
@@ -133,23 +135,11 @@ TSharedPtr<FInsightsManager> FInsightsManager::CreateInstance(TSharedRef<TraceSe
 
 FInsightsManager::FInsightsManager(TSharedRef<TraceServices::IAnalysisService> InTraceAnalysisService,
 								   TSharedRef<TraceServices::IModuleService> InTraceModuleService)
-	: bIsInitialized(false)
-	, bMemUsageLimitHysteresis(false)
-	, MemUsageLimitLastTimestamp(0)
-	, LogListingName(TEXT("UnrealInsights"))
+	: LogListingName(TEXT("UnrealInsights"))
 	, AnalysisService(InTraceAnalysisService)
 	, ModuleService(InTraceModuleService)
-	, StoreDir()
-	, StoreClient()
 	, CommandList(new FUICommandList())
 	, ActionManager(this)
-	, Settings()
-	, bIsDebugInfoEnabled(false)
-	, AnalysisStopwatch()
-	, bIsAnalysisComplete(false)
-	, SessionDuration(0.0)
-	, AnalysisDuration(0.0)
-	, AnalysisSpeedFactor(0.0)
 {
 }
 
@@ -546,6 +536,8 @@ void FInsightsManager::UpdateSessionDuration()
 				*TimeUtils::FormatTimeAuto(AnalysisDuration, 2),
 				AnalysisSpeedFactor,
 				*TimeUtils::FormatTimeAuto(SessionDuration, 2));
+
+			OnSessionAnalysisCompleted();
 		}
 	}
 }
@@ -764,6 +756,7 @@ void FInsightsManager::LoadTrace(uint32 InTraceId, bool InAutoQuit)
 		CurrentTraceId = InTraceId;
 		CurrentTraceFilename = TraceName;
 		OnSessionChanged();
+		bSessionAnalysisCompletedAutoQuit = InAutoQuit;
 	}
 	else if (InAutoQuit)
 	{
@@ -791,6 +784,7 @@ void FInsightsManager::LoadTraceFile(const FString& InTraceFilename, bool InAuto
 		CurrentTraceId = 0;
 		CurrentTraceFilename = InTraceFilename;
 		OnSessionChanged();
+		bSessionAnalysisCompletedAutoQuit = InAutoQuit;
 	}
 	else if (InAutoQuit)
 	{
@@ -881,6 +875,119 @@ void FInsightsManager::OpenSettings()
 	{
 		Wnd->OpenSettings();
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::ScheduleCommand(const FString& InCmd)
+{
+	SessionAnalysisCompletedCmd = InCmd;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::OnSessionAnalysisCompleted()
+{
+	if (!SessionAnalysisCompletedCmd.IsEmpty())
+	{
+		FOutputDevice& Ar = *GLog;
+		Ar.Logf(TEXT("Executing commands on analysis completed..."));
+		FStopwatch Stopwatch;
+		Stopwatch.Start();
+		IUnrealInsightsModule& TraceInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+		TraceInsightsModule.Exec(*SessionAnalysisCompletedCmd, Ar);
+		Stopwatch.Stop();
+		Ar.Logf(TEXT("Commands executed in %.3fs."), Stopwatch.GetAccumulatedTime());
+	}
+
+#if !UE_BUILD_SHIPPING && !WITH_EDITOR
+	if (FInsightsTestRunner::Get().IsValid())
+	{
+		// Don't quit now. Let the test runner to execute.
+		bSessionAnalysisCompletedAutoQuit = false;
+	}
+#endif
+
+	if (bSessionAnalysisCompletedAutoQuit)
+	{
+		bSessionAnalysisCompletedAutoQuit = false;
+		RequestEngineExit(AutoQuitMsg);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FInsightsManager::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	FString ResponseFile;
+	if (FParse::Value(Cmd, TEXT("@="), ResponseFile))
+	{
+		HandleResponseFileCmd(*ResponseFile, Ar);
+		return true;
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FInsightsManager::HandleResponseFileCmd(const TCHAR* ResponseFile, FOutputDevice& Ar)
+{
+	Ar.Logf(TEXT("Executing commands using response file (%s)..."), ResponseFile);
+
+	FString Contents;
+	if (!FFileHelper::LoadFileToString(Contents, &IPlatformFile::GetPlatformPhysical(), ResponseFile))
+	{
+		Ar.Logf(ELogVerbosity::Error, TEXT("Failed to open the response file (%s)."), ResponseFile);
+		return false;
+	}
+
+	if (Contents.IsEmpty())
+	{
+		return true;
+	}
+
+	IUnrealInsightsModule& TraceInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+
+	TCHAR* StartPos = &Contents[0];
+	TCHAR* EndPos = StartPos + Contents.Len();
+	TCHAR* CrtPos = StartPos;
+	while (CrtPos != EndPos)
+	{
+		uint32 EndOfLine = 0;
+		if (*CrtPos == TEXT('\r'))
+		{
+			if (*(CrtPos + 1) == '\n')
+			{
+				EndOfLine = 2;
+			}
+			else
+			{
+				EndOfLine = 1;
+			}
+		}
+		else if (*CrtPos == TEXT('\n'))
+		{
+			EndOfLine = 1;
+		}
+
+		if (EndOfLine > 0)
+		{
+			const uint32 LineLen = uint32(CrtPos - StartPos);
+			StartPos[LineLen] = TEXT('\0');
+
+			TraceInsightsModule.Exec(StartPos, Ar);
+
+			CrtPos += EndOfLine;
+			StartPos = CrtPos;
+		}
+		else
+		{
+			++CrtPos;
+		}
+	}
+
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

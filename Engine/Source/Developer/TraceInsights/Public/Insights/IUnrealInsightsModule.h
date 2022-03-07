@@ -279,6 +279,9 @@ public:
 	 * @param InAutoQuit If true Insights will close after completing session analysis and running any tests started using the ScheduleCommand function.
 	*/
 	virtual void InitializeTesting(bool InInitAutomationModules, bool InAutoQuit) = 0;
+
+	/** Execute command. */
+	virtual bool Exec(const TCHAR* Cmd, FOutputDevice& Ar) = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -299,7 +302,10 @@ public:
 	virtual void UnregisterMajorTabs() = 0;
 
 	/* Called by the TraceInsights module when it receives the OnWindowClosedEvent. Can be used to close any panels that should not persist in the layout. */
-	virtual void OnWindowClosedEvent() {};
+	virtual void OnWindowClosedEvent() {}
+
+	/** Execute command. */
+	virtual bool Exec(const TCHAR* Cmd, FOutputDevice& Ar) { return false; }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

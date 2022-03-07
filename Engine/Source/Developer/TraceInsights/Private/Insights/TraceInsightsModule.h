@@ -74,9 +74,9 @@ public:
 	/** Set the ini path for saving persistent layout data. */
 	virtual void SetUnrealInsightsLayoutIni(const FString& InIniPath) override;
 
-	virtual void ScheduleCommand(const FString& InCmd) override;
-
 	virtual void InitializeTesting(bool InInitAutomationModules, bool InAutoQuit) override;
+	virtual void ScheduleCommand(const FString& InCmd) override;
+	virtual bool Exec(const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 protected:
 	void InitTraceStore();

@@ -263,11 +263,10 @@ void FUserInterfaceCommand::InitializeSlateApplication(bool bOpenTraceFile, cons
 
 	IUnrealInsightsModule& TraceInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 
-	const uint32 MaxPath = FPlatformMisc::GetMaxPathLength();
-
 	uint32 TraceId = 0;
 	bool bUseTraceId = FParse::Value(FCommandLine::Get(), TEXT("-OpenTraceId="), TraceId);
 
+	const uint32 MaxPath = FPlatformMisc::GetMaxPathLength();
 	TCHAR* StoreHost = new TCHAR[MaxPath + 1];
 	FCString::Strcpy(StoreHost, MaxPath, TEXT("127.0.0.1"));
 	uint32 StorePort = 0;
@@ -293,78 +292,62 @@ void FUserInterfaceCommand::InitializeSlateApplication(bool bOpenTraceFile, cons
 		bUseCustomStoreAddress = true;
 	}
 
-	TCHAR Cmd[1024];
-	bool bExecuteCommand = false;
-	if (FParse::Value(FCommandLine::Get(), TEXT("-ExecOnAnalysisCompleteCmd="), Cmd, 1024, false))
-	{
-		bExecuteCommand = true;
-	}
-
-	//This parameter will cause the application to close when analysis fails to start or completes succesfully
-	const bool bAutoQuit = FParse::Param(FCommandLine::Get(), TEXT("AutoQuit"));
-
-	const bool bNoUI = FParse::Param(FCommandLine::Get(), TEXT("NoUI"));
-
 	const bool bInitializeTesting = FParse::Param(FCommandLine::Get(), TEXT("InsightsTest"));
 
-	if (bUseTraceId)
+	if (bUseTraceId || bOpenTraceFile) // viewer mode
 	{
-		if (bInitializeTesting || bAutoQuit)
-		{
-			TraceInsightsModule.InitializeTesting(bInitializeTesting, bAutoQuit);
+		// This parameter will cause the application to close when analysis fails to start or completes successfully.
+		const bool bAutoQuit = FParse::Param(FCommandLine::Get(), TEXT("AutoQuit"));
 
-			if (bExecuteCommand)
-			{
-				TraceInsightsModule.ScheduleCommand(Cmd);
-			}
+		if (bInitializeTesting)
+		{
+			const bool bInitAutomationModules = true;
+			TraceInsightsModule.InitializeTesting(bInitAutomationModules, bAutoQuit);
 		}
 
+		TCHAR Cmd[1024];
+		bool bExecuteCommand = false;
+		if (FParse::Value(FCommandLine::Get(), TEXT("-ExecOnAnalysisCompleteCmd="), Cmd, 1024, false))
+		{
+			bExecuteCommand = true;
+		}
+		if (bExecuteCommand)
+		{
+			TraceInsightsModule.ScheduleCommand(Cmd);
+		}
+
+		const bool bNoUI = FParse::Param(FCommandLine::Get(), TEXT("NoUI"));
 		if (!bNoUI)
 		{
 			TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
 		}
 
-		TraceInsightsModule.ConnectToStore(StoreHost, StorePort);
-		TraceInsightsModule.StartAnalysisForTrace(TraceId, bAutoQuit);
-	}
-	else
-	{
-		if (bOpenTraceFile)
+		if (bUseTraceId)
 		{
-			if (bInitializeTesting || bAutoQuit)
-			{
-				TraceInsightsModule.InitializeTesting(bInitializeTesting, bAutoQuit);
-
-				if (bExecuteCommand)
-				{
-					TraceInsightsModule.ScheduleCommand(Cmd);
-				}
-			}
-
-			if (!bNoUI)
-			{
-				TraceInsightsModule.CreateSessionViewer(bAllowDebugTools);
-			}
-
-			TraceInsightsModule.StartAnalysisForTraceFile(TraceFile, bAutoQuit);
+			TraceInsightsModule.ConnectToStore(StoreHost, StorePort);
+			TraceInsightsModule.StartAnalysisForTrace(TraceId, bAutoQuit);
 		}
 		else
 		{
-			if (!bUseCustomStoreAddress)
-			{
-				TraceInsightsModule.CreateDefaultStore();
-			}
-			else
-			{
-				TraceInsightsModule.ConnectToStore(StoreHost, StorePort);
-			}
-
-			FCreateSessionBrowserParams Params;
-			Params.bAllowDebugTools = bAllowDebugTools;
-			Params.bInitializeTesting = bInitializeTesting;
-			Params.bStartProcessWithStompMalloc = FParse::Param(FCommandLine::Get(), TEXT("stompmalloc"));
-			TraceInsightsModule.CreateSessionBrowser(Params);
+			TraceInsightsModule.StartAnalysisForTraceFile(TraceFile, bAutoQuit);
 		}
+	}
+	else // browser mode
+	{
+		if (bUseCustomStoreAddress)
+		{
+			TraceInsightsModule.ConnectToStore(StoreHost, StorePort);
+		}
+		else
+		{
+			TraceInsightsModule.CreateDefaultStore();
+		}
+
+		FCreateSessionBrowserParams Params;
+		Params.bAllowDebugTools = bAllowDebugTools;
+		Params.bInitializeTesting = bInitializeTesting;
+		Params.bStartProcessWithStompMalloc = FParse::Param(FCommandLine::Get(), TEXT("stompmalloc"));
+		TraceInsightsModule.CreateSessionBrowser(Params);
 	}
 
 	delete[] StoreHost;
