@@ -12,6 +12,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/SecureHash.h"
+#include "Async/ParallelFor.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
@@ -1309,63 +1310,70 @@ public:
 		}
 
 		// encode each slice
-		// @todo Oodle alternatively could do [Image.NumSlices] array of OodleTex_Surface
-		//	and call OodleTex_Encode with the array
-		//  would be slightly better for parallelism with multi-slice images & cube maps
-		//	that's a rare case so don't bother for now
-		// (the main parallelism is from running many mips or VT tiles at once which is done by our caller)
-		bool bCompressionSucceeded = true;
-		for (int Slice = 0; Slice < Image.NumSlices; ++Slice)
-		{
-			InSurf.pixels = ImageBasePtr + Slice * InBytesPerSlice;
-			uint8 * OutSlicePtr = OutBlocksBasePtr + Slice * OutBytesPerSlice;
+		std::atomic_bool bCompressionSucceeded { true };
 
-			OodleTex_RDO_Options OodleOptions = { };
-			OodleOptions.effort = EffortLevel;
-			OodleOptions.metric = OodleTex_RDO_ErrorMetric_Default;
-			OodleOptions.bcn_flags = OodleTex_BCNFlags_None;
-			OodleOptions.universal_tiling = RDOUniversalTiling;
-
-			if (bImageDump)
+		ParallelFor(
+			TEXT("ProcessSlice"),
+			Image.NumSlices, 1,
+			[&, InSurf](int32 Slice) mutable
 			{
-				DebugDumpDDS(DebugTexturePathName,InSurf.width,InSurf.height,Slice,
-					DXGIFormatFromOodlePF(OodlePF),TEXT("IN"),
-					InSurf.pixels, InBytesPerSlice);
-			}
-
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN);
-
-			// if RDOLambda == 0, does non-RDO encode :
-			OodleTex_Err OodleErr = (VTable->fp_OodleTex_EncodeBCN_RDO_Ex)(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
-					&InSurf, 1, OodlePF, NULL, RDOLambda, 
-					&OodleOptions, CurJobifyNumThreads, CurJobifyUserPointer);
-
-			if (OodleErr != OodleTex_Err_OK)
-			{
-				const char * OodleErrStr = (VTable->fp_OodleTex_Err_GetName)(OodleErr);
-				UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture encode failed!? %s"), OodleErrStr );
-				bCompressionSucceeded = false;
-				break;
-			}
-			}
-			
-			if (bImageDump)
-			{
-				// put RDO lambda on the debug name :
-				FStringView DebugNameOut = DebugTexturePathName;
-				FString Scratch;
-				if ( RDOLambda != 0 )
+				// Early out in case another task failed
+				if (!bCompressionSucceeded)
 				{
-					Scratch = FString::Printf(TEXT("%.*s_RDO%d"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), RDOLambda);
-					DebugNameOut = Scratch;
+					return;
 				}
 
-				DebugDumpDDS(DebugNameOut,InSurf.width,InSurf.height,Slice,
-					DXGIFormatFromOodleBC(OodleBCN),TEXT("OUT"),
-					OutSlicePtr, OutBytesPerSlice);
-			}
-		}
+				InSurf.pixels = ImageBasePtr + Slice * InBytesPerSlice;
+				uint8 * OutSlicePtr = OutBlocksBasePtr + Slice * OutBytesPerSlice;
+
+				OodleTex_RDO_Options OodleOptions = { };
+				OodleOptions.effort = EffortLevel;
+				OodleOptions.metric = OodleTex_RDO_ErrorMetric_Default;
+				OodleOptions.bcn_flags = OodleTex_BCNFlags_None;
+				OodleOptions.universal_tiling = RDOUniversalTiling;
+
+				if (bImageDump)
+				{
+					DebugDumpDDS(DebugTexturePathName,InSurf.width,InSurf.height,Slice,
+						DXGIFormatFromOodlePF(OodlePF),TEXT("IN"),
+						InSurf.pixels, InBytesPerSlice);
+				}
+
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN);
+
+					// if RDOLambda == 0, does non-RDO encode :
+					OodleTex_Err OodleErr = (VTable->fp_OodleTex_EncodeBCN_RDO_Ex)(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
+							&InSurf, 1, OodlePF, NULL, RDOLambda, 
+							&OodleOptions, CurJobifyNumThreads, CurJobifyUserPointer);
+
+					if (OodleErr != OodleTex_Err_OK)
+					{
+						const char * OodleErrStr = (VTable->fp_OodleTex_Err_GetName)(OodleErr);
+						UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture encode failed!? %s"), OodleErrStr );
+						bCompressionSucceeded = false;
+						return;
+					}
+				}
+			
+				if (bImageDump)
+				{
+					// put RDO lambda on the debug name :
+					FStringView DebugNameOut = DebugTexturePathName;
+					FString Scratch;
+					if ( RDOLambda != 0 )
+					{
+						Scratch = FString::Printf(TEXT("%.*s_RDO%d"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), RDOLambda);
+						DebugNameOut = Scratch;
+					}
+
+					DebugDumpDDS(DebugNameOut,InSurf.width,InSurf.height,Slice,
+						DXGIFormatFromOodleBC(OodleBCN),TEXT("OUT"),
+						OutSlicePtr, OutBytesPerSlice);
+				}
+			},
+			EParallelForFlags::Unbalanced
+		);
 
 		return bCompressionSucceeded;
 	}
