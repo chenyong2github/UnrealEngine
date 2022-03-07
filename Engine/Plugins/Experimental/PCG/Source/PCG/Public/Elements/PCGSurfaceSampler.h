@@ -21,7 +21,7 @@ public:
 	float PointsPerSquaredMeter = 0.1f;
 
 	UPROPERTY()
-	float PointRadius_DEPRECATED = 100.0f;
+	float PointRadius_DEPRECATED = 0.0f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FVector PointExtents = FVector(100.0f);
