@@ -950,14 +950,11 @@ namespace EpicGames.Core
 			StdOutText?.Dispose();
 			StdErr?.Dispose();
 			StdErrText?.Dispose();
+			AccountingProcessGroup?.Dispose();
 
-			if (AccountingProcessGroup != null) 
-			{
-				AccountingProcessGroup.Dispose();
-			}
 			if(FrameworkProcess != null)
 			{
-				FrameworkCancellationSource!.Cancel();
+				FrameworkCancellationSource?.Cancel();
 
 				if (!FrameworkProcess.HasExited)
 				{
@@ -968,7 +965,7 @@ namespace EpicGames.Core
 				FrameworkProcess.Dispose();
 				FrameworkProcess = null;
 
-				FrameworkOutputTask!.ContinueWith(x => FrameworkCancellationSource.Dispose());
+				FrameworkOutputTask?.ContinueWith(x => FrameworkCancellationSource?.Dispose());
 			}
 		}
 
