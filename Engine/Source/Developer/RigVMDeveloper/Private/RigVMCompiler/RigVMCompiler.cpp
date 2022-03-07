@@ -429,55 +429,10 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 		}
 	}
 
-	// define all parameters independent from sorted nodes
-	for (const FRigVMExprAST* Expr : WorkData.AST->Expressions)
-	{
-		if (Expr->IsA(FRigVMExprAST::EType::Literal))
-		{
-			continue;
-		}
-		if (Expr->IsA(FRigVMExprAST::EType::Var))
-		{
-			const FRigVMVarExprAST* VarExpr = Expr->To<FRigVMVarExprAST>();
-			{
-				if(Cast<URigVMParameterNode>(VarExpr->GetPin()->GetNode()))
-				{
-					if (VarExpr->GetPin()->GetName() == TEXT("Value"))
-					{
-						FindOrAddRegister(VarExpr, WorkData, false /* watchvalue */);
-					}
-				}
-			}
-		}
-	}
-
 	WorkData.ExprComplete.Reset();
 	for (FRigVMExprAST* RootExpr : *WorkData.AST)
 	{
 		TraverseExpression(RootExpr, WorkData);
-	}
-
-	// If a parameter node has no corresponding AST node, because it's not on the execution path,
-	// then add a dummy parameter with no register index, so that we can properly add the pins on the 
-	// ControlRig node later and not lose any existing external connections.
-	for (URigVMNode* Node : InGraph->GetNodes())
-	{
-		if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
-		{
-			FRigVMASTProxy ParameterNodeProxy = FRigVMASTProxy::MakeFromUObject(ParameterNode);
-			const FRigVMExprAST* ParameterExpr = WorkData.AST->GetExprForSubject(ParameterNodeProxy);
-			if (!ParameterExpr || ParameterExpr->IsA(FRigVMExprAST::NoOp))
-			{
-				FName Name = ParameterNode->GetParameterName();
-
-				if (!WorkData.VM->ParametersNameMap.Contains(Name))
-				{
-					ERigVMParameterType ParameterType = ParameterNode->IsInput() ? ERigVMParameterType::Input : ERigVMParameterType::Output;
-					FRigVMParameter Parameter(ParameterType, Name, INDEX_NONE, ParameterNode->GetCPPType(), nullptr);
-					WorkData.VM->ParametersNameMap.Add(Parameter.Name, WorkData.VM->Parameters.Add(Parameter));
-				}
-			}
-		}
 	}
 
 	if(WorkData.WatchedPins.Num() > 0)
@@ -1945,7 +1900,6 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 
 	bool bIsExecutePin = false;
 	bool bIsLiteral = false;
-	bool bIsParameter = false;
 	bool bIsVariable = false;
 
 	if (InVarExpr != nullptr && !bIsDebugValue)
@@ -1969,11 +1923,11 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 		bIsExecutePin = InPin->IsExecuteContext();
 		bIsLiteral = InVarExpr->GetType() == FRigVMExprAST::EType::Literal;
 
-		bIsParameter = Cast<URigVMParameterNode>(Node) != nullptr;
 		bIsVariable = Cast<URigVMVariableNode>(Node) != nullptr || InVarExpr->IsA(FRigVMExprAST::ExternalVar);
 
 		// determine if this is an initialization for an IO pin
-		if (!bIsLiteral && !bIsParameter && !bIsVariable &&
+		if (!bIsLiteral &&
+			!bIsVariable &&
 			!bIsExecutePin && (InPin->GetDirection() == ERigVMPinDirection::IO ||
 			(InPin->GetDirection() == ERigVMPinDirection::Input && InPin->GetSourceLinks().Num() == 0)))
 		{
@@ -1986,14 +1940,7 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 	}
 
 	bool bUseFullNodePath = true;
-	if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
-	{
-		if (InPin->GetName() == TEXT("Value") && !bIsLiteral && !bIsDebugValue)
-		{
-			return FString::Printf(TEXT("%sParameter::%s%s"), *Prefix, *ParameterNode->GetParameterName().ToString(), *Suffix);
-		}
-	}
-	else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+	if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
 	{
 		if (InPin->GetName() == TEXT("Value") && !bIsDebugValue)
 		{
@@ -2379,7 +2326,6 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 	bool bIsExecutePin = Pin->IsExecuteContext();
 	bool bIsLiteral = InVarExpr->GetType() == FRigVMExprAST::EType::Literal && !bIsDebugValue;
-	bool bIsParameter = InVarExpr->IsGraphParameter();
 	bool bIsVariable = Pin->IsRootPin() && (Pin->GetName() == URigVMVariableNode::ValueName) &&
 		InVarExpr->GetPin()->GetNode()->IsA<URigVMVariableNode>();
 
@@ -2528,16 +2474,6 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		}
 	
 		Operand = WorkData.AddProperty(MemoryType, RegisterName, CPPType, Pin->GetCPPTypeObject(), JoinedDefaultValue);
-
-		if (bIsParameter && !bIsLiteral && !bIsDebugValue)
-		{
-			URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Pin->GetNode());
-			check(ParameterNode);
-			FName Name = ParameterNode->GetParameterName();
-			ERigVMParameterType ParameterType = ParameterNode->IsInput() ? ERigVMParameterType::Input : ERigVMParameterType::Output;
-			FRigVMParameter Parameter(ParameterType, Name, Operand.GetRegisterIndex(), Pin->GetCPPType(), ScriptStruct);
-			WorkData.VM->ParametersNameMap.FindOrAdd(Parameter.Name) = WorkData.VM->Parameters.Add(Parameter);
-		}
 	}
 	ensure(Operand.IsValid());
 
@@ -2601,7 +2537,7 @@ const FRigVMCompilerWorkData::FRigVMASTProxyArray& URigVMCompiler::FindProxiesWi
 		{
 			if (URigVMPin* Pin = Cast<URigVMPin>(CurrentProxy.GetSubject()))
 			{
-				if (Pin->GetNode()->IsA<URigVMVariableNode>() || Pin->GetNode()->IsA<URigVMParameterNode>())
+				if (Pin->GetNode()->IsA<URigVMVariableNode>())
 				{
 					if (Pin->GetDirection() == ERigVMPinDirection::Input)
 					{

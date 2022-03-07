@@ -511,15 +511,6 @@ bool FRigVMVarExprAST::IsExecuteContext() const
 	return GetPin()->IsExecuteContext();
 }
 
-bool FRigVMVarExprAST::IsGraphParameter() const
-{
-	if (Cast<URigVMParameterNode>(GetPin()->GetNode()))
-	{
-		return GetPin()->GetName() == TEXT("Value");
-	}
-	return false;
-}
-
 bool FRigVMVarExprAST::IsGraphVariable() const
 {
 	if (Cast<URigVMVariableNode>(GetPin()->GetNode()))
@@ -937,7 +928,6 @@ FRigVMExprAST* FRigVMParserAST::CreateExpressionForNode(const FRigVMASTProxy& In
 	else
 	{
 		if (InNodeProxy.IsA<URigVMRerouteNode>() ||
-			InNodeProxy.IsA<URigVMParameterNode>() ||
 			InNodeProxy.IsA<URigVMVariableNode>() ||
 			InNodeProxy.IsA<URigVMEnumNode>() ||
 			InNodeProxy.IsA<URigVMLibraryNode>() ||
@@ -1040,8 +1030,7 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 			return nullptr;
 		}
 	}
-	else if (Cast<URigVMParameterNode>(Pin->GetNode()) ||
-		Cast<URigVMEnumNode>(Pin->GetNode()))
+	else if (Cast<URigVMEnumNode>(Pin->GetNode()))
 	{
 		if (Pin->GetDirection() == ERigVMPinDirection::Visible)
 		{
@@ -1053,8 +1042,7 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 		Pin->GetDirection() == ERigVMPinDirection::Visible) &&
 		Links.Num() == 0)
 	{
-		if (Cast<URigVMParameterNode>(Pin->GetNode()) ||
-				 Cast<URigVMVariableNode>(Pin->GetNode()))
+		if (Cast<URigVMVariableNode>(Pin->GetNode()))
 		{
 			PinExpr = MakeExpr<FRigVMVarExprAST>(FRigVMExprAST::EType::Var, InPinProxy);
 			FRigVMExprAST* PinLiteralExpr = MakeExpr<FRigVMLiteralExprAST>(InPinProxy);
@@ -1154,8 +1142,7 @@ FRigVMExprAST* FRigVMParserAST::TraverseLink(const FRigVMPinProxyPair& InLink, F
 	bool bRequiresCopy = SourceRootPin != SourcePin || TargetRootPin != TargetPin;
 	if (!bRequiresCopy)
 	{
-		if(Cast<URigVMParameterNode>(TargetRootPin->GetNode()) ||
-			Cast<URigVMVariableNode>(TargetRootPin->GetNode()))
+		if(Cast<URigVMVariableNode>(TargetRootPin->GetNode()))
 		{
 			bRequiresCopy = true;
 		}
@@ -1432,13 +1419,6 @@ void FRigVMParserAST::FoldNoOps()
 		{
 			if (URigVMNode* Node = Expression->To<FRigVMNoOpExprAST>()->GetNode())
 			{
-				if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
-				{
-					if (!ParameterNode->IsInput())
-					{
-						continue;
-					}
-				}
 				if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
 				{
 					if (!VariableNode->IsGetter())
@@ -1628,8 +1608,7 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 
 	for (const FRigVMASTProxy& NodeProxy : NodeProxies)
 	{
-		if (NodeProxy.IsA<URigVMParameterNode>() ||
-			NodeProxy.IsA<URigVMVariableNode>() ||
+		if (NodeProxy.IsA<URigVMVariableNode>() ||
 			NodeProxy.IsA<URigVMEnumNode>())
 		{
 			continue;
@@ -1701,8 +1680,7 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 
 				check(SourceNodeProxy.IsValid());
 
-				if (SourceNodeProxy.IsA<URigVMParameterNode>() ||
-					SourceNodeProxy.IsA<URigVMVariableNode>() ||
+				if (SourceNodeProxy.IsA<URigVMVariableNode>() ||
 					SourceNodeProxy.IsA<URigVMRerouteNode>() ||
 					SourceNodeProxy.IsA<URigVMEnumNode>())
 				{
@@ -1947,8 +1925,7 @@ bool FRigVMParserAST::FoldUnreachableBranches(URigVMGraph* InGraph)
 
 	for (const FRigVMASTProxy& NodeProxy : NodeProxies)
 	{
-		if (NodeProxy.IsA<URigVMParameterNode>() ||
-			NodeProxy.IsA<URigVMVariableNode>())
+		if (NodeProxy.IsA<URigVMVariableNode>())
 		{
 			continue;
 		}
@@ -2430,13 +2407,7 @@ FString FRigVMParserAST::DumpDot() const
 				}
 				case FRigVMExprAST::EType::Var:
 				{
-					if (InExpr->To<FRigVMVarExprAST>()->IsGraphParameter())
-					{
-						URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(InExpr->To<FRigVMVarExprAST>()->GetPin()->GetNode());
-						check(ParameterNode);
-						Label = FString::Printf(TEXT("Param %s"), *ParameterNode->GetParameterName().ToString());
-					}
-					else if (InExpr->To<FRigVMVarExprAST>()->IsGraphVariable())
+					if (InExpr->To<FRigVMVarExprAST>()->IsGraphVariable())
 					{
 						URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InExpr->To<FRigVMVarExprAST>()->GetPin()->GetNode());
 						check(VariableNode);

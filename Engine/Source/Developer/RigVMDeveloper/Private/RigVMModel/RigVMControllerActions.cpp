@@ -301,52 +301,6 @@ bool FRigVMAddVariableNodeAction::Redo(URigVMController* InController)
 	return false;
 }
 
-FRigVMAddParameterNodeAction::FRigVMAddParameterNodeAction()
-	: ParameterName(NAME_None)
-	, CPPType()
-	, CPPTypeObjectPath()
-	, bIsInput(false)
-	, DefaultValue()
-	, Position(FVector2D::ZeroVector)
-	, NodePath()
-{
-}
-
-FRigVMAddParameterNodeAction::FRigVMAddParameterNodeAction(URigVMParameterNode* InNode)
-	: ParameterName(InNode->GetParameterName())
-	, CPPType(InNode->GetCPPType())
-	, CPPTypeObjectPath()
-	, bIsInput(InNode->IsInput())
-	, DefaultValue(InNode->GetDefaultValue())
-	, Position(InNode->GetPosition())
-	, NodePath(InNode->GetNodePath())
-{
-	if (InNode->GetCPPTypeObject())
-	{
-		CPPTypeObjectPath = InNode->GetCPPTypeObject()->GetPathName();
-	}
-}
-
-bool FRigVMAddParameterNodeAction::Undo(URigVMController* InController)
-{
-	if (!FRigVMBaseAction::Undo(InController))
-	{
-		return false;
-	}
-	return InController->RemoveNodeByName(*NodePath, false);
-}
-
-bool FRigVMAddParameterNodeAction::Redo(URigVMController* InController)
-{
-#if WITH_EDITOR
-	if (URigVMParameterNode* Node = InController->AddParameterNodeFromObjectPath(ParameterName, CPPType, CPPTypeObjectPath, bIsInput, DefaultValue, Position, NodePath, false))
-	{
-		return FRigVMBaseAction::Redo(InController);
-	}
-#endif
-	return false;
-}
-
 FRigVMAddCommentNodeAction::FRigVMAddCommentNodeAction()
 	: CommentText()
 	, Position(FVector2D::ZeroVector)
@@ -686,12 +640,6 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 	{
 		InverseAction.AddAction(FRigVMAddVariableNodeAction(VariableNode));
 		URigVMPin* ValuePin = VariableNode->FindPin(TEXT("Value"));
-		InverseAction.AddAction(FRigVMSetPinDefaultValueAction(ValuePin, ValuePin->GetDefaultValue()));
-	}
-	else if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(InNode))
-	{
-		InverseAction.AddAction(FRigVMAddParameterNodeAction(ParameterNode));
-		URigVMPin* ValuePin = ParameterNode->FindPin(TEXT("Value"));
 		InverseAction.AddAction(FRigVMSetPinDefaultValueAction(ValuePin, ValuePin->GetDefaultValue()));
 	}
 	else if (URigVMCommentNode* CommentNode = Cast<URigVMCommentNode>(InNode))
@@ -1170,30 +1118,6 @@ bool FRigVMRenameVariableAction::Undo(URigVMController* InController)
 bool FRigVMRenameVariableAction::Redo(URigVMController* InController)
 {
 	if(!InController->RenameVariable(*OldVariableName, *NewVariableName, false))
-	{
-		return false;
-	}
-	return FRigVMBaseAction::Redo(InController);
-}
-
-FRigVMRenameParameterAction::FRigVMRenameParameterAction(const FName& InOldParameterName, const FName& InNewParameterName)
-: OldParameterName(InOldParameterName.ToString())
-, NewParameterName(InNewParameterName.ToString())
-{
-}
-
-bool FRigVMRenameParameterAction::Undo(URigVMController* InController)
-{
-	if(!FRigVMBaseAction::Undo(InController))
-	{
-		return false;
-	}
-	return InController->RenameParameter(*NewParameterName, *OldParameterName, false);
-}
-
-bool FRigVMRenameParameterAction::Redo(URigVMController* InController)
-{
-	if(!InController->RenameParameter(*OldParameterName, *NewParameterName, false))
 	{
 		return false;
 	}

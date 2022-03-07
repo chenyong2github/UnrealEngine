@@ -687,10 +687,6 @@ public:
 	// @return true if this variable is an execute context
 	bool IsExecuteContext() const;
 
-	// returns true if this variable is a graph parameter
-	// @return true if this variable is a graph parameter
-	bool IsGraphParameter() const;
-
 	// returns true if this variable is a graph variable
 	// @return true if this variable is a graph variable
 	bool IsGraphVariable() const;

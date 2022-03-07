@@ -7,7 +7,6 @@
 #include "Graph/SControlRigGraphPinNameList.h"
 #include "Graph/SControlRigGraphPinCurveFloat.h"
 #include "Graph/SControlRigGraphPinVariableName.h"
-#include "Graph/SControlRigGraphPinParameterName.h"
 #include "Graph/SControlRigGraphPinVariableBinding.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "SGraphPinComboBox.h"
@@ -94,10 +93,6 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 				else if (CustomWidgetName == TEXT("VariableName"))
 				{
 					return SNew(SControlRigGraphPinVariableName, InPin);
-				}
-				else if (CustomWidgetName == TEXT("ParameterName"))
-				{
-					return SNew(SControlRigGraphPinParameterName, InPin);
 				}
 			}
 

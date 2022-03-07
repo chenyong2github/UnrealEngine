@@ -237,8 +237,6 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			case ERigVMGraphNotifType::PinRenamed:
 			case ERigVMGraphNotifType::VariableRemoved:
 			case ERigVMGraphNotifType::VariableRenamed:
-			case ERigVMGraphNotifType::ParameterRemoved:
-			case ERigVMGraphNotifType::ParameterRenamed:
 			case ERigVMGraphNotifType::GraphChanged:
 			{
 				return;
@@ -589,14 +587,6 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					if (Cast<URigVMVariableNode>(ModelPin->GetNode()))
 					{
 						if (ModelPin->GetName() == TEXT("Variable"))
-						{
-							RigNode->InvalidateNodeTitle();
-							RigNode->ReconstructNode_Internal(true);
-						}
-					}
-					else if (Cast<URigVMParameterNode>(ModelPin->GetNode()))
-					{
-						if (ModelPin->GetName() == TEXT("Parameter"))
 						{
 							RigNode->InvalidateNodeTitle();
 							RigNode->ReconstructNode_Internal(true);

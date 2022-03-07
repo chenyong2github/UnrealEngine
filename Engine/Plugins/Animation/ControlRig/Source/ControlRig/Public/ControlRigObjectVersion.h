@@ -54,6 +54,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Removed the parent cache for multi parent elements 
 		RemovedMultiParentParentCache,
 
+		// Deprecation of parameters
+		RemoveParameters,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

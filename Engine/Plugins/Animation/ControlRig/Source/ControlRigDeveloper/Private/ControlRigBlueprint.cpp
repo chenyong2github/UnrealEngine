@@ -464,6 +464,7 @@ void UControlRigBlueprint::PostLoad()
 #if UE_RIGVM_ENABLE_TEMPLATE_NODES
 		ConvertUnitNodesToTemplateNodes();
 #endif
+		PatchParameterNodesOnLoad();
 
 #if WITH_EDITOR
 
@@ -2722,7 +2723,7 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 							bIsInput = false;
 						}
 
-						ModelNode = GetOrCreateController()->AddParameterNode(PropertyName, DataType.ToString(), DataTypeObject, bIsInput, FString(), NodePosition, PropertyName.ToString(), false);
+						ModelNode = GetOrCreateController()->AddVariableNode(PropertyName, DataType.ToString(), DataTypeObject, bIsInput, FString(), NodePosition, PropertyName.ToString(), false);
 					}
 				}
 				else
@@ -3201,9 +3202,6 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 				}
 				break;
 			}
-			case ERigVMGraphNotifType::ParameterAdded:
-			case ERigVMGraphNotifType::ParameterRemoved:
-			case ERigVMGraphNotifType::ParameterRenamed:
 			case ERigVMGraphNotifType::PinBoundVariableChanged:
 			case ERigVMGraphNotifType::VariableRemappingChanged:
 			{
@@ -3368,6 +3366,8 @@ void UControlRigBlueprint::CreateMemberVariablesOnLoad()
 				}
 			}
 
+			// Leaving this for backwards compatibility, even though we don't support parameters anymore
+			// When a parameter node is found, we will create a variable
 			if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
 			{
 				if (URigVMPin* ParameterPin = ParameterNode->FindPin(TEXT("Parameter")))
@@ -3751,6 +3751,82 @@ void UControlRigBlueprint::ConvertUnitNodesToTemplateNodes()
 			Controller->ReplaceUnitNodeWithTemplateNode(Node->GetFName(), false);
 		}
 	}
+}
+
+void UControlRigBlueprint::PatchParameterNodesOnLoad()
+{	
+#if WITH_EDITOR
+
+	// setup variables on the blueprint based on the previous "parameters"
+	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RemoveParameters)
+	{
+		
+		TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
+
+		GetOrCreateController()->ReattachLinksToPinObjects();
+
+		check(Model);
+
+		TArray<URigVMNode*> Nodes = Model->GetNodes();
+		for (URigVMNode* Node : Nodes)
+		{
+			if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
+			{
+				FRigVMGraphParameterDescription Description = ParameterNode->GetParameterDescription();
+
+				const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(Description.CPPType, Description.CPPTypeObject);
+
+				int32 VariableIndex = INDEX_NONE;
+				bool bFoundName = false;
+				for (int32 i=0; i<NewVariables.Num(); ++i)
+				{
+					if (NewVariables[i].VarName == Description.Name)
+					{
+						if (NewVariables[i].VarType == PinType &&
+							NewVariables[i].DefaultValue == Description.DefaultValue)
+						{
+							VariableIndex = i;
+						}
+						bFoundName = true;
+						break;
+					}
+				}
+
+				if (VariableIndex == INDEX_NONE)
+				{
+					FName NewVariableName = Description.Name;
+					if (bFoundName)
+					{
+						bool bFound = true;
+						int32 Count = 0;
+						while (bFound)
+						{
+							bFound = false;
+							for (int32 i=0; i<NewVariables.Num(); ++i)
+							{
+								if (NewVariables[i].VarName == NewVariableName)
+								{
+									bFound = true;
+									NewVariableName = *FString::Printf(TEXT("%s_%d"), *Description.Name.ToString(), ++Count);
+									break;
+								}
+							}
+						}
+					}
+					
+					VariableIndex = AddCRMemberVariable(this, NewVariableName, PinType, false, false, Description.DefaultValue);
+				}
+				
+				FName VarName = NewVariables[VariableIndex].VarName;
+				GetOrCreateController()->ReplaceParameterNodeWithVariable(ParameterNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
+				bDirtyDuringLoad = true;
+			}
+		}		
+
+		LastNewVariables = NewVariables;
+	}
+
+#endif	
 }
 
 void UControlRigBlueprint::PropagatePoseFromInstanceToBP(UControlRig* InControlRig)

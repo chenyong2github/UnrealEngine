@@ -375,44 +375,6 @@ public:
 };
 
 /**
- * An action adding a parameter node to the graph.
- */
-USTRUCT()
-struct FRigVMAddParameterNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddParameterNodeAction();
-	FRigVMAddParameterNodeAction(URigVMParameterNode* InNode);
-	virtual ~FRigVMAddParameterNodeAction() {};
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FName ParameterName;
-	
-	UPROPERTY()
-	FString CPPType;
-
-	UPROPERTY()
-	FString CPPTypeObjectPath;
-
-	UPROPERTY()
-	bool bIsInput;
-
-	UPROPERTY()
-	FString DefaultValue;
-
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-};
-
-/**
  * An action adding a comment node to the graph.
  */
 USTRUCT()
@@ -968,29 +930,6 @@ public:
 
 	UPROPERTY()
 	FString NewVariableName;
-};
-
-/**
- * An action renaming a parameter in the graph.
- */
-USTRUCT()
-struct FRigVMRenameParameterAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMRenameParameterAction() {}
-	FRigVMRenameParameterAction(const FName& InOldParameterName, const FName& InNewParameterName);
-	virtual ~FRigVMRenameParameterAction() {};
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	FString OldParameterName;
-
-	UPROPERTY()
-	FString NewParameterName;
 };
 
 /**

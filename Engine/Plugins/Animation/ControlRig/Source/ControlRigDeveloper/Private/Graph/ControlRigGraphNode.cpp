@@ -745,7 +745,7 @@ FLinearColor UControlRigGraphNode::GetNodeOpacityColor() const
 {
 	if (URigVMNode* ModelNode = GetModelNode())
 	{
-		if (Cast<URigVMParameterNode>(ModelNode) || Cast<URigVMVariableNode>(ModelNode))
+		if (Cast<URigVMVariableNode>(ModelNode))
 		{
 			return FLinearColor::White;
 		}

@@ -69,11 +69,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	TArray<FRigVMGraphVariableDescription> GetVariableDescriptions() const;
 
-	// Returns a list of unique Parameter descriptions within this Graph.
-	// Multiple Parameter Nodes can share the same description.
-	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
-	TArray<FRigVMGraphParameterDescription> GetParameterDescriptions() const;
-
 	// Returns the path of this graph as defined by its invoking nodes
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	virtual FString GetNodePath() const;

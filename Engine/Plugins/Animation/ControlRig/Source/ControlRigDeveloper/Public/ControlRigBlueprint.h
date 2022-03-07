@@ -552,6 +552,7 @@ private:
 	void PatchBoundVariables();
 	void PatchVariableNodesWithIncorrectType();
 	void ConvertUnitNodesToTemplateNodes();
+	void PatchParameterNodesOnLoad();
 
 	TMap<FName, int32> AddedMemberVariableMap;
 	TArray<FBPVariableDescription> LastNewVariables;

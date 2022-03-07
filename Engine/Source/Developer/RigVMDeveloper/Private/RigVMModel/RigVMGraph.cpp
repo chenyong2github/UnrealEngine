@@ -102,19 +102,6 @@ TArray<FRigVMGraphVariableDescription> URigVMGraph::GetVariableDescriptions() co
 	return Variables;
 }
 
-TArray<FRigVMGraphParameterDescription> URigVMGraph::GetParameterDescriptions() const
-{
-	TArray<FRigVMGraphParameterDescription> Parameters;
-	for (URigVMNode* Node : Nodes)
-	{
-		if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
-		{
-			Parameters.AddUnique(ParameterNode->GetParameterDescription());
-		}
-	}
-	return Parameters;
-}
-
 FString URigVMGraph::GetNodePath() const
 {
 	if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(GetOuter()))

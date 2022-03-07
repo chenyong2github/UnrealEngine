@@ -58,7 +58,7 @@ UObject* URigVMParameterNode::GetCPPTypeObject() const
 FString URigVMParameterNode::GetDefaultValue() const
 {
 
-	URigVMPin* ValuePin = FindPin(ValueName);
+	URigVMPin* ValuePin = FindPin(DefaultName);
 	if (ValuePin == nullptr)
 	{
 		return FString();

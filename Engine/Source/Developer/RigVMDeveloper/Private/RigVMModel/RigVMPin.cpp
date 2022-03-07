@@ -256,7 +256,7 @@ void URigVMPin::GetExposedPinChain(TArray<const URigVMPin*>& OutExposedPins) con
 void URigVMPin::GetExposedPinChainImpl(TArray<const URigVMPin*>& OutExposedPins, TArray<const URigVMPin*>& VisitedPins) const
 {
 	// Variable nodes do not share the operand with their source link
-	if ((GetNode()->IsA<URigVMVariableNode>() || GetNode()->IsA<URigVMParameterNode>()) && GetDirection() == ERigVMPinDirection::Input)
+	if (GetNode()->IsA<URigVMVariableNode>() && GetDirection() == ERigVMPinDirection::Input)
 	{
 		OutExposedPins.Add(this);
 		return;
@@ -299,7 +299,7 @@ void URigVMPin::GetExposedPinChainImpl(TArray<const URigVMPin*>& OutExposedPins,
 			}
 		}
 		// Variable nodes do not share the operand with their source link
-		else if (SourcePin->GetNode()->IsA<URigVMVariableNode>() || SourcePin->GetNode()->IsA<URigVMParameterNode>())
+		else if (SourcePin->GetNode()->IsA<URigVMVariableNode>())
 		{
 			continue;
 		}
@@ -331,7 +331,7 @@ void URigVMPin::GetExposedPinChainImpl(TArray<const URigVMPin*>& OutExposedPins,
 			URigVMPin* TargetPin = Link->GetTargetPin();
 
 			// Variable nodes do not share the operand with their source link
-			if (TargetPin->GetNode()->IsA<URigVMVariableNode>() || TargetPin->GetNode()->IsA<URigVMParameterNode>())
+			if (TargetPin->GetNode()->IsA<URigVMVariableNode>())
 			{
 				continue;
 			}

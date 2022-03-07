@@ -255,8 +255,6 @@ void URigVMController::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		case ERigVMGraphNotifType::LinkAdded:
 		case ERigVMGraphNotifType::LinkRemoved:
 		case ERigVMGraphNotifType::PinArraySizeChanged:
-		case ERigVMGraphNotifType::ParameterAdded:
-		case ERigVMGraphNotifType::ParameterRemoved:
 		{
 			if (InGraph)
 			{
@@ -596,35 +594,6 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 						*RigVMPythonUtils::Vector2DToPythonString(VariableNode->GetPosition()),
 						*NodeName));	
 			}
-		}
-	}
-	else if (const URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
-	{
-		const FString ParameterName = GetSanitizedVariableName(ParameterNode->GetParameterName().ToString());
-
-		// add_parameter_node_from_object_path(parameter_name, cpp_type, cpp_type_object_path, is_input, default_value, position=[0.0, 0.0], node_name='', undo=True)
-		if (ParameterNode->GetParameterDescription().CPPTypeObject)
-		{
-			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_parameter_node_from_object_path('%s', '%s', '%s', %s, '%s', %s, '%s')"),
-					*GraphName,
-					*ParameterName,
-					*ParameterNode->GetParameterDescription().CPPType,
-					*ParameterNode->GetParameterDescription().CPPTypeObject->GetPathName(),
-					ParameterNode->IsInput() ? TEXT("True") : TEXT("False"),
-					*ParameterNode->GetParameterDescription().DefaultValue,
-					*RigVMPythonUtils::Vector2DToPythonString(ParameterNode->GetPosition()),
-					*NodeName));	
-		}
-		else
-		{
-			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_parameter_node('%s', '%s', None, %s, str(%s), %s, '%s')"),
-					*GraphName,
-					*ParameterName,
-					*ParameterNode->GetParameterDescription().CPPType,
-					ParameterNode->IsInput() ? TEXT("True") : TEXT("False"),
-					*ParameterNode->GetParameterDescription().DefaultValue,
-					*RigVMPythonUtils::Vector2DToPythonString(ParameterNode->GetPosition()),
-					*NodeName));	
 		}
 	}
 	else if (const URigVMCommentNode* CommentNode = Cast<URigVMCommentNode>(Node))
@@ -1664,168 +1633,9 @@ URigVMTemplateNode* URigVMController::ReplaceUnitNodeWithTemplateNode(const FNam
 
 URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameterName, const FString& InCPPType, UObject* InCPPTypeObject, bool bIsInput, const FString& InDefaultValue, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
-	if (!IsValidGraph())
-	{
-		return nullptr;
-	}
-
-	URigVMGraph* Graph = GetGraph();
-	check(Graph);
-
-	if (Graph->IsA<URigVMFunctionLibrary>())
-	{
-		ReportError(TEXT("Cannot add parameter nodes to function library graphs."));
-		return nullptr;
-	}
-
-	if (InCPPTypeObject == nullptr)
-	{
-		InCPPTypeObject = URigVMCompiler::GetScriptStructForCPPType(InCPPType);
-	}
-	if (InCPPTypeObject == nullptr)
-	{
-		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
-	}
-
-	TArray<FRigVMGraphParameterDescription> ExistingParameters = Graph->GetParameterDescriptions();
-	for (const FRigVMGraphParameterDescription& ExistingParameter : ExistingParameters)
-	{
-		if (ExistingParameter.Name == InParameterName)
-		{
-			if (ExistingParameter.CPPType != InCPPType ||
-				ExistingParameter.CPPTypeObject != InCPPTypeObject ||
-				ExistingParameter.bIsInput != bIsInput)
-			{
-				ReportErrorf(TEXT("Cannot add parameter '%s' - parameter already exists."), *InParameterName.ToString());
-				return nullptr;
-			}
-		}
-	}
-
-	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("ParameterNode")) : InNodeName);
-	URigVMParameterNode* Node = NewObject<URigVMParameterNode>(Graph, *Name);
-	Node->Position = InPosition;
-
-	if (!bIsInput)
-	{
-		URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, FRigVMStruct::ExecuteContextName);
-		ExecutePin->CPPType = FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName());
-		ExecutePin->CPPTypeObject = ExecuteContextStruct;
-		ExecutePin->CPPTypeObjectPath = *ExecutePin->CPPTypeObject->GetPathName();
-		ExecutePin->Direction = ERigVMPinDirection::IO;
-		AddNodePin(Node, ExecutePin);
-	}
-
-	URigVMPin* ParameterPin = NewObject<URigVMPin>(Node, *URigVMParameterNode::ParameterName);
-	ParameterPin->CPPType = RigVMTypeUtils::FNameType;
-	ParameterPin->Direction = ERigVMPinDirection::Visible;
-	ParameterPin->DefaultValue = InParameterName.ToString();
-	ParameterPin->CustomWidgetName = TEXT("ParameterName");
-
-	AddNodePin(Node, ParameterPin);
-
-	URigVMPin* DefaultValuePin = nullptr;
-	if (bIsInput)
-	{
-		DefaultValuePin = NewObject<URigVMPin>(Node, *URigVMParameterNode::DefaultName);
-	}
-	URigVMPin* ValuePin = NewObject<URigVMPin>(Node, *URigVMParameterNode::ValueName);
-
-	if (DefaultValuePin)
-	{
-		DefaultValuePin->CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject);
-		DefaultValuePin->CPPTypeObject = InCPPTypeObject;
-		if(DefaultValuePin->CPPTypeObject)
-		{
-			DefaultValuePin->CPPTypeObjectPath = *DefaultValuePin->CPPTypeObject->GetPathName();
-		}
-	}
-	
-	ValuePin->CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject);
-	ValuePin->CPPTypeObject = InCPPTypeObject;
-	if(ValuePin->CPPTypeObject)
-	{
-		ValuePin->CPPTypeObjectPath = *ValuePin->CPPTypeObject->GetPathName();
-	}
-
-	if (DefaultValuePin)
-	{
-		DefaultValuePin->Direction = ERigVMPinDirection::Visible;
-	}
-	ValuePin->Direction = bIsInput ? ERigVMPinDirection::Output : ERigVMPinDirection::Input;
-
-	if (bIsInput)
-	{
-		if (ValuePin->CPPType == RigVMTypeUtils::FNameType)
-		{
-			ValuePin->bIsConstant = true;
-		}
-	}
-
-	if (DefaultValuePin)
-	{
-		AddNodePin(Node, DefaultValuePin);
-	}
-	AddNodePin(Node, ValuePin);
-
-	Graph->Nodes.Add(Node);
-
-	if (ValuePin->IsStruct())
-	{
-		FString DefaultValue = InDefaultValue;
-		CreateDefaultValueForStructIfRequired(ValuePin->GetScriptStruct(), DefaultValue);
-		if (DefaultValuePin)
-		{
-			AddPinsForStruct(DefaultValuePin->GetScriptStruct(), Node, DefaultValuePin, DefaultValuePin->Direction, DefaultValue, false);
-		}
-		AddPinsForStruct(ValuePin->GetScriptStruct(), Node, ValuePin, ValuePin->Direction, DefaultValue, false);
-	}
-	else if (!InDefaultValue.IsEmpty() && InDefaultValue != TEXT("()"))
-	{
-		if (DefaultValuePin)
-		{
-			SetPinDefaultValue(DefaultValuePin, InDefaultValue, true, false, false);
-		}
-		SetPinDefaultValue(ValuePin, InDefaultValue, true, false, false);
-	}
-
-	ForEveryPinRecursively(Node, [](URigVMPin* Pin) {
-		Pin->bIsExpanded = false;
-	});
-
-	if (!bSuspendNotifications)
-	{
-		Graph->MarkPackageDirty();
-	}
-
-	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMAddParameterNodeAction Action;
-	if (bSetupUndoRedo)
-	{
-		Action = FRigVMAddParameterNodeAction(Node);
-		Action.Title = FString::Printf(TEXT("Add %s Parameter"), *InParameterName.ToString());
-		ActionStack->BeginAction(Action);
-	}
-
-	Notify(ERigVMGraphNotifType::NodeAdded, Node);
-	Notify(ERigVMGraphNotifType::ParameterAdded, Node);
-
-	if (bSetupUndoRedo)
-	{
-		ActionStack->EndAction(Action);
-	}
-
-	if (bPrintPythonCommand)
-	{
-		TArray<FString> Commands = GetAddNodePythonCommands(Node);
-		for (const FString& Command : Commands)
-		{
-			RigVMPythonUtils::Print(GetGraphOuterName(), 
-								FString::Printf(TEXT("%s"), *Command));
-		}
-	}
-
-	return Node;
+	AddVariableNode(InParameterName, InCPPType, InCPPTypeObject, bIsInput, InDefaultValue, InPosition, InNodeName, bSetupUndoRedo, bPrintPythonCommand);
+	ReportWarning(TEXT("AddParameterNode has been deprecated. Adding a variable node instead."));
+	return nullptr;
 }
 
 URigVMParameterNode* URigVMController::AddParameterNodeFromObjectPath(const FName& InParameterName, const FString& InCPPType, const FString& InCPPTypeObjectPath, bool bIsInput, const FString& InDefaultValue, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
@@ -5378,11 +5188,7 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 	{
 		Notify(ERigVMGraphNotifType::VariableRemoved, VariableNode);
 	}
-	if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(InNode))
-	{
-		Notify(ERigVMGraphNotifType::ParameterRemoved, ParameterNode);
-	}
-
+	
 	if (URigVMInjectionInfo* InjectionInfo = InNode->GetInjectionInfo())
 	{
 		DestroyObject(InjectionInfo);
@@ -6191,74 +5997,8 @@ bool URigVMController::RenameVariable(const FName& InOldName, const FName& InNew
 
 bool URigVMController::RenameParameter(const FName& InOldName, const FName& InNewName, bool bSetupUndoRedo)
 {
-	if(!IsValidGraph())
-	{
-		return false;
-	}
-
-	if (InOldName == InNewName)
-	{
-		ReportWarning(TEXT("RenameParameter: InOldName and InNewName are equal."));
-		return false;
-	}
-
-	URigVMGraph* Graph = GetGraph();
-	check(Graph);
-
-	TArray<FRigVMGraphParameterDescription> ExistingParameters = Graph->GetParameterDescriptions();
-	for (const FRigVMGraphParameterDescription& ExistingParameter : ExistingParameters)
-	{
-		if (ExistingParameter.Name == InNewName)
-		{
-			ReportErrorf(TEXT("Cannot rename parameter to '%s' - parameter already exists."), *InNewName.ToString());
-			return false;
-		}
-	}
-
-	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMRenameParameterAction Action;
-	if (bSetupUndoRedo)
-	{
-		Action = FRigVMRenameParameterAction(InOldName, InNewName);
-		Action.Title = FString::Printf(TEXT("Rename Parameter"));
-		ActionStack->BeginAction(Action);
-	}
-
-	TArray<URigVMNode*> RenamedNodes;
-	for (URigVMNode* Node : Graph->Nodes)
-	{
-		if(URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
-		{
-			if (ParameterNode->GetParameterName() == InOldName)
-			{
-				ParameterNode->FindPin(URigVMParameterNode::ParameterName)->DefaultValue = InNewName.ToString();
-				RenamedNodes.Add(Node);
-			}
-		}
-	}
-
-	for (URigVMNode* RenamedNode : RenamedNodes)
-	{
-		Notify(ERigVMGraphNotifType::ParameterRenamed, RenamedNode);
-		if (!bSuspendNotifications)
-		{
-			Graph->MarkPackageDirty();
-		}
-	}
-
-	if (bSetupUndoRedo)
-	{
-		if (RenamedNodes.Num() > 0)
-		{
-			ActionStack->EndAction(Action);
-		}
-		else
-		{
-			ActionStack->CancelAction(Action);
-		}
-	}
-
-	return RenamedNodes.Num() > 0;
+	ReportWarning(TEXT("RenameParameter has been deprecated. Please use RenameVariable instead."));
+	return false;
 }
 
 void URigVMController::UpdateRerouteNodeAfterChangingLinks(URigVMPin* PinChanged, bool bSetupUndoRedo)
@@ -6474,14 +6214,7 @@ bool URigVMController::SetPinDefaultValue(const FString& InPinPath, const FStrin
 			return SetVariableName(VariableNode, *InDefaultValue, bSetupUndoRedo);
 		}
 	}
-	if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Pin->GetNode()))
-	{
-		if (Pin->GetName() == URigVMParameterNode::ParameterName)
-		{
-			return SetParameterName(ParameterNode, *InDefaultValue, bSetupUndoRedo);
-		}
-	}
-
+	
 	if (!SetPinDefaultValue(Pin, InDefaultValue, bResizeArrays, bSetupUndoRedo, bMergeUndoAction))
 	{
 		return false;
@@ -9877,66 +9610,6 @@ bool URigVMController::SetVariableName(URigVMVariableNode* InVariableNode, const
 
 	Notify(ERigVMGraphNotifType::VariableAdded, InVariableNode);
 	Notify(ERigVMGraphNotifType::VariableRenamed, InVariableNode);
-
-	return true;
-}
-
-bool URigVMController::SetParameterName(URigVMParameterNode* InParameterNode, const FName& InParameterName, bool bSetupUndoRedo)
-{
-	if (!IsValidNodeForGraph(InParameterNode))
-	{
-		return false;
-	}
-
-	if (InParameterNode->GetParameterName() == InParameterName)
-	{
-		return false;
-	}
-
-	if (InParameterName == NAME_None)
-	{
-		return false;
-	}
-
-	URigVMGraph* Graph = GetGraph();
-	check(Graph);
-
-	TArray<FRigVMGraphParameterDescription> Descriptions = Graph->GetParameterDescriptions();
-	TMap<FName, int32> NameToIndex;
-	for (int32 ParameterIndex = 0; ParameterIndex < Descriptions.Num(); ParameterIndex++)
-	{
-		NameToIndex.Add(Descriptions[ParameterIndex].Name, ParameterIndex);
-	}
-
-	FName ParameterName = GetUniqueName(InParameterName, [Descriptions, NameToIndex, InParameterNode](const FName& InName) {
-		const int32* FoundIndex = NameToIndex.Find(InName);
-		if (FoundIndex == nullptr)
-		{
-			return true;
-		}
-		return InParameterNode->GetCPPType() == Descriptions[*FoundIndex].CPPType && InParameterNode->IsInput() == Descriptions[*FoundIndex].bIsInput;
-	}, false, true);
-
-	int32 NodesSharingName = 0;
-	for (URigVMNode* Node : Graph->Nodes)
-	{
-		if (URigVMParameterNode* OtherParameterNode = Cast<URigVMParameterNode>(Node))
-		{
-			if (OtherParameterNode->GetParameterName() == InParameterNode->GetParameterName())
-			{
-				NodesSharingName++;
-			}
-		}
-	}
-
-	if (NodesSharingName == 1)
-	{
-		Notify(ERigVMGraphNotifType::ParameterRemoved, InParameterNode);
-	}
-
-	SetPinDefaultValue(InParameterNode->FindPin(URigVMParameterNode::ParameterName), ParameterName.ToString(), false, bSetupUndoRedo, false);
-
-	Notify(ERigVMGraphNotifType::ParameterAdded, InParameterNode);
 
 	return true;
 }

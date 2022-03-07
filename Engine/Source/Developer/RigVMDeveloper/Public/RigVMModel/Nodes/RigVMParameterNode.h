@@ -12,7 +12,7 @@
  * about unique parameters within a Graph. Multiple Parameter
  * Nodes can share the same parameter description.
  */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta = (Deprecated = "5.1"))
 struct FRigVMGraphParameterDescription
 {
 	GENERATED_BODY()
@@ -75,7 +75,7 @@ public:
  * The Parameter Node represents an input or output argument / parameter
  * of the Function / Graph. Parameter Node have only a single value pin.
  */
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, meta = (Deprecated = "5.1"))
 class RIGVMDEVELOPER_API URigVMParameterNode : public URigVMNode
 {
 	GENERATED_BODY()
