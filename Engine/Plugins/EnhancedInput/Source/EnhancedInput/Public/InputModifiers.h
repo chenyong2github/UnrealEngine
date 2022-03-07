@@ -307,28 +307,3 @@ protected:
 	virtual FInputActionValue ModifyRaw_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime) override;
 	virtual FLinearColor GetVisualizationColor_Implementation(FInputActionValue SampleValue, FInputActionValue FinalValue) const override;
 };
-
-/** Modifier collection
-	* A user definable group of modifiers that can be easily applied to multiple actions or mappings to save duplication work.
-	*/
-UCLASS(NotBlueprintable, MinimalAPI, meta = (DisplayName = "Modifier Collection"))
-class UInputModifierCollection : public	UInputModifier
-{
-	GENERATED_BODY()
-
-public:
-
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = Settings)
-	TArray<UInputModifier*> Modifiers;	// TODO: These either need to be instanced per copy of the collection or it needs to be clear the modifiers are okay running multiple times per frame (or we just don't support collections)
-
-	/** If set each modifier will not have the modified value corrected to the base type before execution.
-	*	After all modifiers are run the resulting value will be converted back to the action's value type as with any other modifier.
-	*	This allows for complex sets of conditional modifiers that can alter their behavior based on their predecessors value type.
-	*	Note that this is an advanced feature and may cause issues if used with the basic modifier implementations.
-	**/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	bool bPermitValueTypeModification = false;
-
-protected:
-	virtual FInputActionValue ModifyRaw_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime) override;
-};

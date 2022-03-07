@@ -330,20 +330,3 @@ FLinearColor UInputModifierSwizzleAxis::GetVisualizationColor_Implementation(FIn
 	float SampleX = (FMath::Abs(SampleValue.Get<float>()) + 1.f) * 0.5f;
 	return FLinearColor(SampleX, 1.f - SampleX, 0.f);
 }
-
-/*
-* Modifier collections
-*/
-FInputActionValue UInputModifierCollection::ModifyRaw_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime)
-{
-	FInputActionValue ModifiedValue = CurrentValue;
-	for (UInputModifier* Modifier : Modifiers)
-	{
-		ModifiedValue = Modifier->ModifyRaw(PlayerInput, ModifiedValue, DeltaTime);
-		if (!bPermitValueTypeModification)
-		{
-			ModifiedValue.ConvertToType(CurrentValue);
-		}
-	}
-	return ModifiedValue;
-}

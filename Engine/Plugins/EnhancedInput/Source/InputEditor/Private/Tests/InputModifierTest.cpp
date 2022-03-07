@@ -205,28 +205,3 @@ bool FInputModifierDeadzoneTest::RunTest(const FString& Parameters)
 
 	return true;
 }
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputModifierCollectionTest, "Input.Modifiers.Collections", BasicModifierTestFlags)
-
-bool FInputModifierCollectionTest::RunTest(const FString& Parameters)
-{
-	GIVEN(UControllablePlayer & Data = ABasicModifierTest(this, EInputActionValueType::Axis1D));
-	AND(AnActionIsMappedToAKey(Data, TestContext, TestAction, TestKey));
-
-	// Build collection modifier
-	UInputModifierCollection* Collection = NewObject<UInputModifierCollection>();
-	UInputModifierNegate* Negate = NewObject<UInputModifierNegate>();
-	UInputModifierScalar* Scalar = NewObject<UInputModifierScalar>(); Scalar->Scalar = FVector(0.5f, 0.5f, 0.5f);
-	Collection->Modifiers.Add(Negate);
-	Collection->Modifiers.Add(Scalar);
-
-	WHEN(AModifierIsAppliedToAnActionMapping(Data, Collection, TestContext, TestAction, TestKey));
-	AND(AKeyIsActuated(Data, TestKey));
-	AND(InputIsTicked(Data));
-
-	THEN(PressingKeyTriggersAction(Data, TestAction));
-	AND(TestEqual(TEXT("Tnput value"), GetActionValue(Data, TestAction), -0.5f));
-
-	return true;
-}
-
