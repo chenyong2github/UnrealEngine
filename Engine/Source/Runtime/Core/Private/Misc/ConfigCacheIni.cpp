@@ -2054,7 +2054,10 @@ int32 FConfigFile::GetArray(const TCHAR* Section, const TCHAR* Key, TArray<FStri
 	return Value.Num();
 }
 
-
+bool FConfigFile::DoesSectionExist(const TCHAR* Section) const
+{
+	return Find(Section) != nullptr;
+}
 
 void FConfigFile::SetString( const TCHAR* Section, const TCHAR* Key, const TCHAR* Value )
 {

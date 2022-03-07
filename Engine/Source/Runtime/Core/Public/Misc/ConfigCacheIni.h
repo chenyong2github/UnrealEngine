@@ -530,6 +530,8 @@ public:
 		return GetArray(Section, Key, Value);
 	}
 
+	CORE_API bool DoesSectionExist(const TCHAR* Section) const;
+
 	CORE_API void SetString(const TCHAR* Section, const TCHAR* Key, const TCHAR* Value);
 	CORE_API void SetText(const TCHAR* Section, const TCHAR* Key, const FText& Value);
 	CORE_API void SetFloat(const TCHAR* Section, const TCHAR* Key, float Value);
