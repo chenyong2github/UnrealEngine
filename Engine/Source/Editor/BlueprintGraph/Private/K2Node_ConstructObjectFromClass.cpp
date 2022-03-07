@@ -202,6 +202,21 @@ void UK2Node_ConstructObjectFromClass::PostPlacedNewNode()
 	}
 }
 
+FString UK2Node_ConstructObjectFromClass::GetPinMetaData(FName InPinName, FName InKey)
+{
+	FString MetaData = Super::GetPinMetaData(InPinName, InKey);
+
+	if (MetaData.IsEmpty())
+	{
+		if (InPinName == FK2Node_ConstructObjectFromClassHelper::GetClassPinName() && InKey == FBlueprintMetadata::MD_AllowAbstractClasses)
+		{
+			MetaData = TEXT("false");
+		}
+	}
+
+	return MetaData;
+}
+
 void UK2Node_ConstructObjectFromClass::AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const
 {
 	Super::AddSearchMetaDataInfo(OutTaggedMetaData);
