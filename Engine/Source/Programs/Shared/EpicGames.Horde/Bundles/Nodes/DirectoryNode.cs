@@ -4,6 +4,7 @@ using EpicGames.Core;
 using EpicGames.Serialization;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -367,7 +368,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		#endregion
 
 		/// <inheritdoc/>
-		public override ReadOnlyMemory<byte> Serialize()
+		public override ReadOnlySequence<byte> Serialize()
 		{
 			// Measure the required size of the write buffer
 			int Size = 1;
@@ -423,7 +424,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			}
 
 			Debug.Assert(Span.Length == 0);
-			return Data;
+			return new ReadOnlySequence<byte>(Data);
 		}
 
 		internal static DirectoryNode Deserialize(Bundle Bundle, ReadOnlySpan<byte> Span)

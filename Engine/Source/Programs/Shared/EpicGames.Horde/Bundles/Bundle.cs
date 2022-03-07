@@ -8,6 +8,7 @@ using K4os.Compression.LZ4;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
@@ -72,7 +73,7 @@ namespace EpicGames.Horde.Bundles
 
 			public BlobInfo? Blob;
 			public BundleExport? Export;
-			public ReadOnlyMemory<byte> Data;
+			public ReadOnlySequence<byte> Data;
 			public NodeInfo[]? References;
 
 			public NodeInfo(IoHash Hash, int Rank, int Cost)
@@ -88,7 +89,7 @@ namespace EpicGames.Horde.Bundles
 				this.Blob = Blob;
 			}
 
-			void Set(BlobInfo? Blob, BundleExport? Export, ReadOnlyMemory<byte> Data, NodeInfo[]? References)
+			void Set(BlobInfo? Blob, BundleExport? Export, ReadOnlySequence<byte> Data, NodeInfo[]? References)
 			{
 				this.Blob = Blob;
 				this.Export = Export;
@@ -96,9 +97,9 @@ namespace EpicGames.Horde.Bundles
 				this.References = References;
 			}
 
-			public void SetImport(BlobInfo Blob) => Set(Blob, null, ReadOnlyMemory<byte>.Empty, null);
-			public void SetExport(BlobInfo? Blob, BundleExport Export, ReadOnlyMemory<byte> Data, NodeInfo[] References) => Set(Blob, Export, Data, References);
-			public void SetStandalone(ReadOnlyMemory<byte> Data, NodeInfo[] References) => Set(null, null, Data, References);
+			public void SetImport(BlobInfo Blob) => Set(Blob, null, ReadOnlySequence<byte>.Empty, null);
+			public void SetExport(BlobInfo? Blob, BundleExport Export, ReadOnlySequence<byte> Data, NodeInfo[] References) => Set(Blob, Export, Data, References);
+			public void SetStandalone(ReadOnlySequence<byte> Data, NodeInfo[] References) => Set(null, null, Data, References);
 		}
 
 		/// <summary>
@@ -336,7 +337,7 @@ namespace EpicGames.Horde.Bundles
 		/// </summary>
 		/// <param name="Hash">Hash of the node to return data for</param>
 		/// <returns>The node data</returns>
-		internal ValueTask<ReadOnlyMemory<byte>> GetDataAsync(IoHash Hash)
+		internal ValueTask<ReadOnlySequence<byte>> GetDataAsync(IoHash Hash)
 		{
 			return GetDataAsync(HashToNode[Hash]);
 		}
@@ -346,7 +347,7 @@ namespace EpicGames.Horde.Bundles
 		/// </summary>
 		/// <param name="Node">The node to get the data for</param>
 		/// <returns>The node data</returns>
-		async ValueTask<ReadOnlyMemory<byte>> GetDataAsync(NodeInfo Node)
+		async ValueTask<ReadOnlySequence<byte>> GetDataAsync(NodeInfo Node)
 		{
 			if (Node.Blob == null)
 			{
@@ -356,7 +357,7 @@ namespace EpicGames.Horde.Bundles
 				}
 				else
 				{
-					return DecodePacket(RootCacheKey, Node.Data, Node.Export.Packet).Slice(Node.Export.Offset, Node.Export.Length);
+					return new ReadOnlySequence<byte>(DecodePacket(RootCacheKey, Node.Data, Node.Export.Packet).Slice(Node.Export.Offset, Node.Export.Length));
 				}
 			}
 			else
@@ -364,13 +365,13 @@ namespace EpicGames.Horde.Bundles
 				await MountBlobAsync(Node.Blob);
 				Debug.Assert(Node.Export != null);
 				BundleObject Object = await GetObjectAsync(Node.Blob.Hash);
-				return DecodePacket(Node.Blob.Hash, Object.Data, Node.Export.Packet).Slice(Node.Export.Offset, Node.Export.Length);
+				return new ReadOnlySequence<byte>(DecodePacket(Node.Blob.Hash, new ReadOnlySequence<byte>(Object.Data), Node.Export.Packet).Slice(Node.Export.Offset, Node.Export.Length));
 			}
 		}
 
 		NodeInfo WriteNode(BundleNode Node)
 		{
-			ReadOnlyMemory<byte> Data = Node.Serialize();
+			ReadOnlySequence<byte> Data = Node.Serialize();
 
 			List<IoHash> References = new List<IoHash>();
 			foreach (BundleNodeRef Reference in Node.GetReferences())
@@ -388,9 +389,9 @@ namespace EpicGames.Horde.Bundles
 		/// <param name="Data">The node data</param>
 		/// <param name="References">Hashes for referenced nodes</param>
 		/// <returns>Hash of the data</returns>
-		NodeInfo WriteNode(ReadOnlyMemory<byte> Data, IEnumerable<IoHash> References)
+		NodeInfo WriteNode(ReadOnlySequence<byte> Data, IEnumerable<IoHash> References)
 		{
-			IoHash Hash = IoHash.Compute(Data.Span);
+			IoHash Hash = IoHash.Compute(Data);
 			NodeInfo[] NodeReferences = References.Select(x => HashToNode[x]).Distinct().OrderBy(x => x.Hash).ToArray();
 
 			NodeInfo? Node;
@@ -402,7 +403,7 @@ namespace EpicGames.Horde.Bundles
 					Rank = Math.Max(Rank, Reference.Rank + 1);
 				}
 
-				Node = new NodeInfo(Hash, Rank, Data.Length);
+				Node = new NodeInfo(Hash, Rank, (int)Data.Length);
 				HashToNode[Hash] = Node;
 			}
 
@@ -452,15 +453,17 @@ namespace EpicGames.Horde.Bundles
 		/// <param name="Data">Raw blob data</param>
 		/// <param name="Packet">The decoded block location and size</param>
 		/// <returns>The decoded data</returns>
-		ReadOnlyMemory<byte> DecodePacket(object BlobKey, ReadOnlyMemory<byte> Data, BundleCompressionPacket Packet)
+		ReadOnlyMemory<byte> DecodePacket(object BlobKey, ReadOnlySequence<byte> Data, BundleCompressionPacket Packet)
 		{
 			object CacheKey = (BlobKey, Packet.Offset);
 
 			ReadOnlyMemory<byte> DecodedData;
 			if (Cache == null || !Cache.TryGetValue(CacheKey, out DecodedData))
 			{
+				Debug.Assert(Data.IsSingleSegment);
+
 				byte[] DecodedBuffer = new byte[Packet.DecodedLength];
-				LZ4Codec.Decode(Data.Span.Slice(Packet.Offset, Packet.EncodedLength), DecodedBuffer);
+				LZ4Codec.Decode(Data.FirstSpan.Slice(Packet.Offset, Packet.EncodedLength), DecodedBuffer);
 
 				DecodedData = DecodedBuffer;
 
@@ -517,7 +520,7 @@ namespace EpicGames.Horde.Bundles
 			for(int Idx = 0; Idx < Object.Exports.Count; Idx++)
 			{
 				NodeInfo Node = Nodes[Idx];
-				Node.SetExport(Blob, Object.Exports[Idx], Data, Object.Exports[Idx].References.Select(x => Nodes[x]).ToArray());
+				Node.SetExport(Blob, Object.Exports[Idx], new ReadOnlySequence<byte>(Data), Object.Exports[Idx].References.Select(x => Nodes[x]).ToArray());
 			}
 		}
 
@@ -569,7 +572,7 @@ namespace EpicGames.Horde.Bundles
 					{
 						foreach (NodeInfo Node in LiveBlob.LiveNodes!)
 						{
-							ReadOnlyMemory<byte> Data = await GetDataAsync(Node);
+							ReadOnlySequence<byte> Data = await GetDataAsync(Node);
 							Node.SetStandalone(Data, Node.References!);
 						}
 					}
@@ -581,7 +584,7 @@ namespace EpicGames.Horde.Bundles
 					NodeInfo LiveNode = LiveNodes[Idx];
 					if (LiveNode.References != null && LiveNode.References.Any(x => x.Blob == null))
 					{
-						ReadOnlyMemory<byte> Data = await GetDataAsync(LiveNode);
+						ReadOnlySequence<byte> Data = await GetDataAsync(LiveNode);
 						LiveNode.SetStandalone(Data, LiveNode.References!);
 					}
 				}
@@ -665,7 +668,7 @@ namespace EpicGames.Horde.Bundles
 			foreach (NodeInfo Node in Nodes)
 			{
 				Node.Blob = null;
-				Node.Data = Object.Data;
+				Node.Data = new ReadOnlySequence<byte>(Object.Data);
 			}
 
 			RootCacheKey = new object();
@@ -680,7 +683,7 @@ namespace EpicGames.Horde.Bundles
 			foreach (NodeInfo Node in Nodes)
 			{
 				Node.Blob = Blob;
-				Node.Data = ReadOnlyMemory<byte>.Empty;
+				Node.Data = ReadOnlySequence<byte>.Empty;
 			}
 		}
 
@@ -728,7 +731,7 @@ namespace EpicGames.Horde.Bundles
 			BundleCompressionPacket Packet = new BundleCompressionPacket(0);
 			foreach (NodeInfo Node in Nodes)
 			{
-				ReadOnlyMemory<byte> NodeData = await GetDataAsync(Node);
+				ReadOnlySequence<byte> NodeData = await GetDataAsync(Node);
 
 				// If we can't fit this data into the current block, flush the contents of it first
 				if (BlockSize > 0 && BlockSize + NodeData.Length > Options.MinCompressionPacketSize)
@@ -740,21 +743,24 @@ namespace EpicGames.Horde.Bundles
 
 				// Create the export for this node
 				int[] References = Node.References.Select(x => NodeToIndex[x]).ToArray();
-				Node.Export = new BundleExport(Node.Hash, Node.Rank, Node.Cost, Packet, Packet.DecodedLength, NodeData.Length, References);
+				Node.Export = new BundleExport(Node.Hash, Node.Rank, Node.Cost, Packet, Packet.DecodedLength, (int)NodeData.Length, References);
 				Object.Exports.Add(Node.Export);
 
 				// Write out the new block
 				int Offset = Packet.EncodedLength;
-				if (NodeData.Length < Options.MinCompressionPacketSize)
+				if (NodeData.Length < Options.MinCompressionPacketSize || !NodeData.IsSingleSegment)
 				{
-					int RequiredSize = Math.Max(BlockSize + NodeData.Length, (int)(Options.MaxBlobSize * 1.2));
+					int RequiredSize = Math.Max(BlockSize + (int)NodeData.Length, (int)(Options.MaxBlobSize * 1.2));
 					CreateFreeSpace(ref BlockBuffer, BlockSize, RequiredSize);
-					NodeData.CopyTo(BlockBuffer.AsMemory(BlockSize));
-					BlockSize += NodeData.Length;
+					foreach (ReadOnlyMemory<byte> NodeSegment in NodeData)
+					{
+						NodeSegment.CopyTo(BlockBuffer.AsMemory(BlockSize));
+						BlockSize += NodeSegment.Length;
+					}
 				}
 				else
 				{
-					FlushPacket(NodeData, Packet);
+					FlushPacket(NodeData.First, Packet);
 					Packet = new BundleCompressionPacket(Packet.Offset + Packet.EncodedLength);
 				}
 			}

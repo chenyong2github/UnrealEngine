@@ -3,6 +3,7 @@
 using EpicGames.Core;
 using EpicGames.Serialization;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -78,15 +79,30 @@ namespace EpicGames.Horde.Bundles.Nodes
 	{
 		const byte TypeId = (byte)'c';
 
+		class DataSegment : ReadOnlySequenceSegment<byte>
+		{
+			public DataSegment(long RunningIndex, ReadOnlyMemory<byte> Data)
+			{
+				this.RunningIndex = RunningIndex;
+				this.Memory = Data;
+			}
+
+			public void SetNext(DataSegment Next)
+			{
+				this.Next = Next;
+			}
+		}
+
 		internal int Depth { get; private set; }
-		internal ReadOnlyMemory<byte> Payload { get; private set; }
-		ReadOnlyMemory<byte> Data; // Full serialized data, including type id and header fields.
+		internal ReadOnlySequence<byte> Payload { get; private set; }
+		ReadOnlySequence<byte> Data; // Full serialized data, including type id and header fields.
 		IoHash? Hash; // Hash of the serialized data buffer.
 
 		// In-memory state
 		bool IsRoot = true;
 		uint RollingHash;
-		byte[] WriteBuffer = Array.Empty<byte>();
+		DataSegment? FirstSegment;
+		DataSegment? LastSegment;
 		List<BundleNodeRef<FileNode>>? ChildNodeRefs;
 
 		/// <summary>
@@ -105,38 +121,9 @@ namespace EpicGames.Horde.Bundles.Nodes
 		public IReadOnlyList<BundleNodeRef<FileNode>> Children => (IReadOnlyList<BundleNodeRef<FileNode>>?)ChildNodeRefs ?? Array.Empty<BundleNodeRef<FileNode>>();
 
 		/// <inheritdoc/>
-		public override ReadOnlyMemory<byte> Serialize()
+		public override ReadOnlySequence<byte> Serialize()
 		{
-			if (ChildNodeRefs == null)
-			{
-				// Compact the buffer to reflect the amount of serialized data
-				const int MaxSlackPct = 20;
-
-				int SlackBytes = WriteBuffer.Length - Data.Length;
-				int SlackPct = (SlackBytes * 100) / WriteBuffer.Length;
-
-				if (SlackPct > MaxSlackPct)
-				{
-					WriteBuffer = new byte[Data.Length];
-					Data.CopyTo(WriteBuffer);
-					Data = WriteBuffer;
-					Payload = Data.Slice(Data.Length - Payload.Length);
-				}
-			}
-			else
-			{
-				// Allocate data with the required size and write it immediately
-				Span<byte> Span = GetWritableSpan(VarInt.Measure((ulong)Length) + ChildNodeRefs.Count * IoHash.NumBytes, 0);
-
-				int LengthBytes = VarInt.Write(Span, Length);
-				Span = Span.Slice(LengthBytes);
-
-				foreach (BundleNodeRef<FileNode> ChildNodeRef in ChildNodeRefs)
-				{
-					ChildNodeRef.Hash.CopyTo(Span);
-					Span = Span.Slice(IoHash.NumBytes);
-				}
-			}
+			MarkComplete();
 			return Data;
 		}
 
@@ -155,12 +142,13 @@ namespace EpicGames.Horde.Bundles.Nodes
 			}
 
 			FileNode Node = new FileNode();
-			Node.Data = Data;
+			Node.Data = new ReadOnlySequence<byte>(Data);
 			Node.Hash = IoHash.Compute(Data.Span);
 			Node.Depth = (int)VarInt.Read(Span.Slice(1), out int DepthBytes);
 
 			int HeaderLength = 1 + DepthBytes;
-			Node.Payload = Data.Slice(HeaderLength);
+			ReadOnlyMemory<byte> Payload = Data.Slice(HeaderLength);
+			Node.Payload = new ReadOnlySequence<byte>(Payload);
 
 			if (Node.Depth == 0)
 			{
@@ -171,7 +159,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				Node.Length = (long)VarInt.Read(Span, out int LengthBytes);
 				Span = Span.Slice(LengthBytes);
 
-				Node.ChildNodeRefs = new List<BundleNodeRef<FileNode>>(Node.Payload.Length / IoHash.NumBytes);
+				Node.ChildNodeRefs = new List<BundleNodeRef<FileNode>>(Payload.Length / IoHash.NumBytes);
 
 				Span = Span.Slice(HeaderLength);
 				while (Span.Length > 0)
@@ -181,37 +169,6 @@ namespace EpicGames.Horde.Bundles.Nodes
 				}
 			}
 			return Node;
-		}
-
-		/// <summary>
-		/// Gets a writable span of the given size.
-		/// </summary>
-		/// <param name="SpanSize">Required size of the writable span</param>
-		/// <param name="HintMaxPayloadSize">Hint for the maximum size of the payload, to avoid having to reallocate the buffer. May be zero if unknown.</param>
-		/// <returns></returns>
-		private Span<byte> GetWritableSpan(int SpanSize, int HintMaxPayloadSize)
-		{
-			Debug.Assert(!IsComplete());
-
-			int HeaderLength = 1 + VarInt.Measure(Depth);
-			int PrevPayloadLength = Payload.Length;
-
-			int MinWriteBufferSize = HeaderLength + Math.Max(PrevPayloadLength + SpanSize, HintMaxPayloadSize);
-			if (MinWriteBufferSize > WriteBuffer.Length)
-			{
-				byte[] NewWriteBuffer = new byte[MinWriteBufferSize];
-
-				NewWriteBuffer[0] = TypeId;
-				VarInt.Write(NewWriteBuffer.AsSpan(1), Depth);
-				Payload.Span.CopyTo(NewWriteBuffer.AsSpan(HeaderLength));
-
-				WriteBuffer = NewWriteBuffer;
-			}
-
-			Data = WriteBuffer.AsMemory(0, HeaderLength + PrevPayloadLength + SpanSize);
-			Payload = Data.Slice(HeaderLength);
-
-			return WriteBuffer.AsSpan(HeaderLength + PrevPayloadLength, SpanSize);
 		}
 
 		/// <summary>
@@ -277,7 +234,10 @@ namespace EpicGames.Horde.Bundles.Nodes
 			}
 			else
 			{
-				await OutputStream.WriteAsync(Payload);
+				foreach (ReadOnlyMemory<byte> PayloadSegment in Payload)
+				{
+					await OutputStream.WriteAsync(PayloadSegment);
+				}
 			}
 		}
 
@@ -317,11 +277,18 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 				// Increase the height of the tree by pushing the contents of this node into a new child node
 				FileNode NewNode = new FileNode();
-				NewNode.IsRoot = false;
 				NewNode.Depth = Depth;
 				NewNode.Payload = Payload;
 				NewNode.Data = Data;
+				NewNode.Hash = Hash;
+
+				NewNode.IsRoot = false;
+				NewNode.RollingHash = RollingHash;
+				NewNode.FirstSegment = FirstSegment;
+				NewNode.LastSegment = LastSegment;
 				NewNode.ChildNodeRefs = ChildNodeRefs;
+
+				NewNode.Length = Length;
 
 				// Detach all the child refs
 				if (ChildNodeRefs != null)
@@ -335,10 +302,15 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 				// Increase the depth and reset the current node
 				Depth++;
+				Payload = ReadOnlySequence<byte>.Empty;
+				Data = ReadOnlySequence<byte>.Empty;
+				Hash = null;
+
+				IsRoot = true;
+				RollingHash = BuzHash.Add(0, NewNode.Hash!.Value.ToByteArray());
+				FirstSegment = null;
+				LastSegment = null;
 				ChildNodeRefs = new List<BundleNodeRef<FileNode>>();
-				Payload = ReadOnlyMemory<byte>.Empty;
-				Data = ReadOnlyMemory<byte>.Empty;
-				WriteBuffer = Array.Empty<byte>();
 
 				// Append the new node as a child
 				ChildNodeRefs.Add(new BundleNodeRef<FileNode>(NewNode));
@@ -368,91 +340,147 @@ namespace EpicGames.Horde.Bundles.Nodes
 			int WindowSize = Options.LeafOptions.MinSize;
 			if (Payload.Length < WindowSize)
 			{
-				int AppendLength = Math.Min(WindowSize - Payload.Length, NewData.Length);
+				int AppendLength = Math.Min(WindowSize - (int)Payload.Length, NewData.Length);
 				AppendLeafData(NewData.Span.Slice(0, AppendLength), Options);
 				NewData = NewData.Slice(AppendLength);
 			}
 
 			// Cap the maximum amount of data to append to this node
-			int MaxLength = Math.Min(NewData.Length, Options.LeafOptions.MaxSize - Payload.Length);
+			int MaxLength = Math.Min(NewData.Length, Options.LeafOptions.MaxSize - (int)Payload.Length);
 			if (MaxLength > 0)
 			{
-				int AppendLength = HashScan(NewData.Span.Slice(0, MaxLength), Options);
-				AppendLeafData(NewData.Span.Slice(0, AppendLength), Options);
-				NewData = NewData.Slice(AppendLength);
+				ReadOnlySpan<byte> InputSpan = NewData.Span.Slice(0, MaxLength);
+				int Length = AppendLeafDataToChunkBoundary(InputSpan, Options);
+				NewData = NewData.Slice(Length);
 			}
 
+			// Compute the hash if this node is complete
+			if (Payload.Length == Options.LeafOptions.MaxSize)
+			{
+				MarkComplete();
+			}
 			return NewData;
 		}
 
-		private int HashScan(ReadOnlySpan<byte> NewSpan, ChunkingOptions Options)
+		private int AppendLeafDataToChunkBoundary(ReadOnlySpan<byte> InputSpan, ChunkingOptions Options)
 		{
 			int WindowSize = Options.LeafOptions.MinSize;
 			Debug.Assert(Payload.Length >= WindowSize);
 
-			int Length = 0;
-
 			// If this is the first time we're hashing the data, compute the hash of the existing window
 			if (Payload.Length == WindowSize)
 			{
-				RollingHash = BuzHash.Add(RollingHash, Payload.Span);
+				foreach (ReadOnlyMemory<byte> Segment in Payload)
+				{
+					RollingHash = BuzHash.Add(RollingHash, Segment.Span);
+				}
 			}
 
 			// Get the threshold for the rolling hash
 			uint RollingHashThreshold = (uint)((1L << 32) / Options.LeafOptions.TargetSize);
 
-			// Get the remaining part of the payload span leading into the new data
-			ReadOnlySpan<byte> PayloadSpan = Payload.Span.Slice(Payload.Length - WindowSize);
+			// Length of the data taken from the input span, updated as we step through it.
+			int Length = 0;
 
 			// Step the window through the tail end of the existing payload window. In this state, update the hash to remove data from the current payload, and add data from the new payload.
-			int SplitLength = Math.Min(NewSpan.Length, WindowSize);
-			for (; Length < SplitLength; Length++)
+			int SplitLength = Math.Min(InputSpan.Length, WindowSize);
+			ReadOnlySequence<byte> SplitPayload = Payload.Slice(Payload.Length - WindowSize, SplitLength);
+
+			foreach (ReadOnlyMemory<byte> PayloadSegment in SplitPayload)
 			{
-				RollingHash = BuzHash.Add(RollingHash, NewSpan[Length]);
-				if (RollingHash < RollingHashThreshold)
+				int BaseLength = Length;
+				int SpanLength = Length + PayloadSegment.Length;
+
+				ReadOnlySpan<byte> PayloadSpan = PayloadSegment.Span;
+				for (; Length < SpanLength; Length++)
 				{
-					return Length;
+					RollingHash = BuzHash.Add(RollingHash, InputSpan[Length]);
+					if (RollingHash < RollingHashThreshold)
+					{
+						AppendLeafData(InputSpan.Slice(0, Length), Options);
+						MarkComplete();
+						return Length;
+					}
+					RollingHash = BuzHash.Sub(RollingHash, PayloadSpan[Length - BaseLength], WindowSize);
 				}
-				RollingHash = BuzHash.Sub(RollingHash, PayloadSpan[Length], WindowSize);
 			}
 
 			// Step through the new window.
-			for (; Length < NewSpan.Length; Length++)
+			for (; Length < InputSpan.Length; Length++)
 			{
-				RollingHash = BuzHash.Add(RollingHash, NewSpan[Length]);
+				RollingHash = BuzHash.Add(RollingHash, InputSpan[Length]);
 				if (RollingHash < RollingHashThreshold)
 				{
+					AppendLeafData(InputSpan.Slice(0, Length), Options);
+					MarkComplete();
 					return Length;
 				}
-				RollingHash = BuzHash.Sub(RollingHash, NewSpan[Length - WindowSize], WindowSize);
+				RollingHash = BuzHash.Sub(RollingHash, InputSpan[Length - WindowSize], WindowSize);
 			}
 
-			return Length;
+			AppendLeafData(InputSpan, Options);
+			return InputSpan.Length;
 		}
 
-		private int AppendInternal(ReadOnlySpan<byte> TailSpan, ReadOnlySpan<byte> HeadSpan, uint RollingHashThreshold, int WindowSize, int MaxLength, ChunkingOptions Options)
+		private void AppendLeafData(ReadOnlySpan<byte> LeafData, ChunkingOptions Options)
 		{
-			for (int Length = 0; Length < MaxLength; Length++)
+			int DepthBytes = VarInt.Measure(Depth);
+
+			if (LastSegment == null)
 			{
-				RollingHash = BuzHash.Add(RollingHash, HeadSpan[Length]);
+				byte[] Buffer = new byte[1 + DepthBytes + LeafData.Length];
+				Buffer[0] = TypeId;
 
-				if (RollingHash < RollingHashThreshold)
-				{
-					AppendLeafData(HeadSpan.Slice(0, Length), Options);
-					Hash = IoHash.Compute(Data.Span);
-					return Length;
-				}
+				VarInt.Write(Buffer.AsSpan(1, DepthBytes), Depth);
+				LeafData.CopyTo(Buffer.AsSpan(1 + DepthBytes));
 
-				RollingHash = BuzHash.Sub(RollingHash, TailSpan[Length], WindowSize);
+				FirstSegment = LastSegment = new DataSegment(0, Buffer);
 			}
-			return -1;
+			else
+			{
+				DataSegment NewSegment = new DataSegment(LastSegment.RunningIndex + LastSegment.Memory.Length, LeafData.ToArray());
+				LastSegment.SetNext(NewSegment);
+				LastSegment = NewSegment;
+			}
+
+			Data = new ReadOnlySequence<byte>(FirstSegment!, 0, LastSegment, LastSegment.Memory.Length);
+			Payload = Data.Slice(1 + DepthBytes);
+
+			Length += LeafData.Length;
 		}
 
-		private void AppendLeafData(ReadOnlySpan<byte> Data, ChunkingOptions Options)
+		private void MarkComplete()
 		{
-			Span<byte> WriteSpan = GetWritableSpan(Data.Length, Options.LeafOptions.MaxSize);
-			Data.CopyTo(WriteSpan);
-			Length += Data.Length;
+			if (Hash == null)
+			{
+				if (ChildNodeRefs != null)
+				{
+					int DepthBytes = VarInt.Measure(Depth);
+					int LengthBytes = VarInt.Measure((ulong)Length);
+
+					byte[] NewData = new byte[1 + DepthBytes + LengthBytes + (ChildNodeRefs.Count * IoHash.NumBytes)];
+					Data = new ReadOnlySequence<byte>(NewData);
+					Payload = new ReadOnlySequence<byte>(NewData.AsMemory(1 + DepthBytes));
+
+					NewData[0] = TypeId;
+					Span<byte> Span = NewData.AsSpan(1);
+
+					VarInt.Write(Span, Depth);
+					Span = Span.Slice(DepthBytes);
+
+					VarInt.Write(Span, Length);
+					Span = Span.Slice(LengthBytes);
+
+					foreach (BundleNodeRef<FileNode> ChildNodeRef in ChildNodeRefs)
+					{
+						ChildNodeRef.Hash.CopyTo(Span);
+						Span = Span.Slice(IoHash.NumBytes);
+					}
+
+					Debug.Assert(Span.Length == 0);
+				}
+				Hash = IoHash.Compute(Data);
+			}
 		}
 
 		private ReadOnlyMemory<byte> AppendToInteriorNode(ReadOnlyMemory<byte> NewData, ChunkingOptions Options)
@@ -475,18 +503,15 @@ namespace EpicGames.Horde.Bundles.Nodes
 						// If the last node is complete, write it to the buffer
 						if (LastNode.IsComplete())
 						{
-							// Add it to the write buffer
-							Span<byte> LastHashSpan = GetWritableSpan(IoHash.NumBytes, Options.InteriorOptions.MaxSize);
-							LastNode.Hash!.Value.CopyTo(LastHashSpan);
-
 							// Update the hash
-							RollingHash = BuzHash.Add(RollingHash, LastHashSpan);
+							byte[] HashData = LastNode.Hash!.Value.ToByteArray();
+							RollingHash = BuzHash.Add(RollingHash, HashData);
 
 							// Check if it's time to finish this chunk
 							uint HashThreshold = (uint)(((1L << 32) * IoHash.NumBytes) / Options.LeafOptions.TargetSize);
 							if ((Payload.Length >= Options.InteriorOptions.MinSize && RollingHash < HashThreshold) || (Payload.Length >= Options.InteriorOptions.MaxSize))
 							{
-								Hash = IoHash.Compute(Data.Span);
+								MarkComplete();
 								return NewData;
 							}
 						}

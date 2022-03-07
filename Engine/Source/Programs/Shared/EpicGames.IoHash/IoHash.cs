@@ -72,15 +72,37 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
-		/// Creates a content hash for a block of data, using a given algorithm.
+		/// Creates the IoHash for a block of data.
 		/// </summary>
 		/// <param name="Data">Data to compute the hash for</param>
-		/// <returns>New content hash instance containing the hash of the data</returns>
+		/// <returns>New hash instance containing the hash of the data</returns>
 		public static IoHash Compute(ReadOnlySpan<byte> Data)
 		{
 			byte[] Output = new byte[32];
 			Blake3.Hasher.Hash(Data, Output);
 			return new IoHash(Output);
+		}
+
+		/// <summary>
+		/// Creates the IoHash for a block of data.
+		/// </summary>
+		/// <param name="Sequence">Data to compute the hash for</param>
+		/// <returns>New hash instance containing the hash of the data</returns>
+		public static IoHash Compute(ReadOnlySequence<byte> Sequence)
+		{
+			if (Sequence.IsSingleSegment)
+			{
+				return Compute(Sequence.FirstSpan);
+			}
+
+			using (Blake3.Hasher Hasher = Blake3.Hasher.New())
+			{
+				foreach (ReadOnlyMemory<byte> Segment in Sequence)
+				{
+					Hasher.Update(Segment.Span);
+				}
+				return FromBlake3(Hasher);
+			}
 		}
 
 		/// <summary>

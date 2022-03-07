@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
@@ -30,7 +31,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// Serialize this node into a sequence of bytes
 		/// </summary>
 		/// <returns>Serialized data for this node</returns>
-		public abstract ReadOnlyMemory<byte> Serialize();
+		public abstract ReadOnlySequence<byte> Serialize();
 
 		/// <summary>
 		/// Enumerates all the child references from this node
@@ -251,5 +252,25 @@ namespace EpicGames.Horde.Bundles.Nodes
 		/// <param name="Data">Data to deserialize</param>
 		/// <returns>New node parsed from the data</returns>
 		public abstract T Deserialize(Bundle Bundle, ReadOnlyMemory<byte> Data);
+
+		/// <summary>
+		/// Deserializes data from the given bundle
+		/// </summary>
+		/// <param name="Bundle">The bundle containing the data</param>
+		/// <param name="Data">Data to deserialize</param>
+		/// <returns>New node parsed from the data</returns>
+		public T Deserialize(Bundle Bundle, ReadOnlySequence<byte> Data)
+		{
+			ReadOnlyMemory<byte> Memory;
+			if (Data.IsSingleSegment)
+			{
+				Memory = Data.First;
+			}
+			else
+			{
+				Memory = Data.ToArray();
+			}
+			return Deserialize(Bundle, Memory);
+		}
 	}
 }
