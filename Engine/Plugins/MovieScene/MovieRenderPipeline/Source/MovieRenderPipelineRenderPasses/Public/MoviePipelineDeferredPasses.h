@@ -263,4 +263,7 @@ public:
 	virtual int32 GetOutputFileSortingOrder() const override { return 2; }
 
 	virtual bool IsAntiAliasingSupported() const { return false; }
+	virtual void ValidateStateImpl() override;
+	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
+
 };
