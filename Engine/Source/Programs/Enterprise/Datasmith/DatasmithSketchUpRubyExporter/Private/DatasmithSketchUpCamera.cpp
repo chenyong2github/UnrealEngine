@@ -109,7 +109,7 @@ void FCamera::Update(FExportContext& Context)
 	// To avoid perturbating X, which is forward in Unreal, the handedness conversion is done by flipping the side vector Y.
 	// SketchUp uses inches as internal system unit for all 3D coordinates in the model while Unreal uses centimeters.
 
-	FVector Translation = DatasmithSketchUpUtils::FromSketchUp::ConvertPosition(SourcePosition);
+	FVector Translation = FVector(DatasmithSketchUpUtils::FromSketchUp::ConvertPosition(SourcePosition));
 
 	// Set the world transform of the Datasmith camera actor.
 	DatasmithCamera->SetRotation(Rotation);
@@ -126,7 +126,7 @@ void FCamera::Update(FExportContext& Context)
 	DatasmithCamera->SetFocalLength(float(FocalLength));
 
 	// Set the Datasmith camera focus distance (in centimeters).
-	FVector DistanceVector = DatasmithSketchUpUtils::FromSketchUp::ConvertPosition(SourceTarget.x - SourcePosition.x, SourceTarget.y - SourcePosition.y, SourceTarget.z - SourcePosition.z);
+	FVector DistanceVector = FVector(DatasmithSketchUpUtils::FromSketchUp::ConvertPosition(SourceTarget.x - SourcePosition.x, SourceTarget.y - SourcePosition.y, SourceTarget.z - SourcePosition.z));
 	DatasmithCamera->SetFocusDistance(DistanceVector.Size());
 
 }

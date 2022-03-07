@@ -306,7 +306,7 @@ namespace DatasmithSketchUp
 		for (int32 VertexNo = 0; VertexNo < VertexCount; VertexNo++)
 		{
 			SUPoint3D const& VertexPoint = MeshVertexPoints[VertexNo];
-			FVector P = DatasmithSketchUpUtils::FromSketchUp::ConvertPosition(VertexPoint);
+			FVector P = FVector(DatasmithSketchUpUtils::FromSketchUp::ConvertPosition(VertexPoint));
 			OutDMesh.SetVertex(VertexNo, P.X, P.Y, P.Z);
 		}
 
