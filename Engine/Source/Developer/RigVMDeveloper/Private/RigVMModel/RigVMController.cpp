@@ -1631,6 +1631,254 @@ URigVMTemplateNode* URigVMController::ReplaceUnitNodeWithTemplateNode(const FNam
 	return TemplateNode;
 }
 
+TArray<URigVMNode*> URigVMController::UpgradeNodes(const TArray<FName>& InNodeNames, bool bRecursive, bool bSetupUndoRedo,
+	bool bPrintPythonCommand)
+{
+	TArray<URigVMNode*> Nodes;
+	if (!IsValidGraph())
+	{
+		return Nodes;
+	}
+
+	for (const FName& NodeName : InNodeNames)
+	{
+		if (URigVMNode* Node = GetGraph()->FindNodeByName(NodeName))
+		{
+			Nodes.Add(Node);
+		}
+	}
+
+	Nodes = UpgradeNodes(Nodes, bRecursive, bSetupUndoRedo);
+
+	if(bPrintPythonCommand)
+	{
+		const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
+		TArray<FString> NodeNames;
+		for(const FName& NodeName : InNodeNames)
+		{
+			NodeNames.Add(GetSanitizedNodeName(NodeName.ToString()));
+		}
+		const FString NodeNamesJoined = FString::Join(NodeNames, TEXT("','"));
+
+		// UpgradeNodes(const TArray<FName>& InNodeNames)
+		RigVMPythonUtils::Print(GetGraphOuterName(),
+				FString::Printf(TEXT("blueprint.get_controller_by_name('%s').upgrade_nodes(['%s'])"),
+				*GraphName,
+				*NodeNamesJoined));
+	}
+
+	return Nodes;
+}
+
+TArray<URigVMNode*> URigVMController::UpgradeNodes(const TArray<URigVMNode*>& InNodes, bool bRecursive, bool bSetupUndoRedo)
+{
+	if (!IsValidGraph())
+	{
+		return TArray<URigVMNode*>();
+	}
+
+	bool bFoundAnyNodeToUpgrade = false;
+	for(URigVMNode* Node : InNodes)
+	{
+		if(!IsValidNodeForGraph(Node))
+		{
+			return TArray<URigVMNode*>();
+		}
+
+		bFoundAnyNodeToUpgrade |= Node->CanBeUpgraded();
+	}
+
+	if(!bFoundAnyNodeToUpgrade)
+	{
+		return InNodes;
+	}
+
+	FRigVMBaseAction Action;
+	if(bSetupUndoRedo)
+	{
+		Action.Title = TEXT("Upgrade nodes");
+		ActionStack->BeginAction(Action);
+	}
+
+	// find all links affecting the nodes to upgrade
+	TArray<TPair<FString, FString>> LinkedPaths;
+	for(URigVMNode* Node : InNodes)
+	{
+		TArray<URigVMLink*> Links = Node->GetLinks();
+		for(URigVMLink* Link : Links)
+		{
+			TPair<FString, FString> LinkedPath(Link->GetSourcePin()->GetPinPath(), Link->GetTargetPin()->GetPinPath());
+			LinkedPaths.AddUnique(LinkedPath);
+		}
+	}
+
+	for(const TPair<FString, FString>& LinkedPath : LinkedPaths)
+	{
+		if(!BreakLink(LinkedPath.Key, LinkedPath.Value, bSetupUndoRedo))
+		{
+			if(bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			ReportErrorf(TEXT("Couldn't remove link '%s' -> '%s'"), *LinkedPath.Key, *LinkedPath.Value);
+			return TArray<URigVMNode*>();
+		}
+	}
+
+	TArray<URigVMNode*> UpgradedNodes;
+	TMap<FString,FRigVMController_PinPathRemapDelegate> RemapPinDelegates;
+	for(URigVMNode* Node : InNodes)
+	{
+		FRigVMController_PinPathRemapDelegate RemapPinDelegate;
+		URigVMNode* UpgradedNode = UpgradeNode(Node, bSetupUndoRedo, &RemapPinDelegate);
+		UpgradedNodes.Add(UpgradedNode);
+		if(RemapPinDelegate.IsBound())
+		{
+			RemapPinDelegates.Add(UpgradedNode->GetName(), RemapPinDelegate);
+		}
+	}
+
+	for(const TPair<FString, FString>& LinkedPath : LinkedPaths)
+	{
+		FString SourcePath = LinkedPath.Key;
+		FString TargetPath = LinkedPath.Value;
+
+		FString SourceNodeName, SourceSegmentPath;
+		if(!URigVMPin::SplitPinPathAtStart(SourcePath, SourceNodeName, SourceSegmentPath))
+		{
+			continue;
+		}
+		
+		FString TargetNodeName, TargetSegmentPath;
+		if(!URigVMPin::SplitPinPathAtStart(TargetPath, TargetNodeName, TargetSegmentPath))
+		{
+			continue;
+		}
+
+		if(FRigVMController_PinPathRemapDelegate* SourceRemapDelegate = RemapPinDelegates.Find(SourceNodeName))
+		{
+			SourcePath = SourceRemapDelegate->Execute(SourcePath, false);
+		}
+		if(FRigVMController_PinPathRemapDelegate* TargetRemapDelegate = RemapPinDelegates.Find(TargetNodeName))
+		{
+			TargetPath = TargetRemapDelegate->Execute(TargetPath, true);
+		}
+		
+		if(!AddLink(SourcePath, TargetPath, bSetupUndoRedo))
+		{
+			ReportWarningf(TEXT("Couldn't recreate link '%s' -> '%s'"), *SourcePath, *TargetPath);
+		}
+	}
+
+	if(bRecursive)
+	{
+		UpgradedNodes = UpgradeNodes(UpgradedNodes, bRecursive, bSetupUndoRedo);
+	}
+
+	if(bSetupUndoRedo)
+	{
+		ActionStack->EndAction(Action);
+	}
+
+	return UpgradedNodes;
+}
+
+URigVMNode* URigVMController::UpgradeNode(URigVMNode* InNode, bool bSetupUndoRedo, FRigVMController_PinPathRemapDelegate* OutRemapPinDelegate)
+{
+	if(!IsValidNodeForGraph(InNode))
+	{
+		return nullptr;
+	}
+
+	if(!InNode->CanBeUpgraded())
+	{
+		return InNode; 
+	}
+
+	TMap<FString, FPinState> PinStates = GetPinStates(InNode);
+
+	const FString NodeName = InNode->GetName();
+	const FVector2D NodePosition = InNode->GetPosition();
+
+	FRigVMBaseAction Action;
+	if(bSetupUndoRedo)
+	{
+		Action.Title = TEXT("Upgrade node");
+		ActionStack->BeginAction(Action);
+	}
+
+	URigVMNode* UpgradedNode = nullptr;
+
+	if(URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
+	{
+		const FName MethodName = UnitNode->GetMethodName();
+		
+		const FRigVMStructUpgradeInfo UpgradeInfo = UnitNode->GetUpgradeInfo();
+		check(UpgradeInfo.IsValid());
+
+		if(OutRemapPinDelegate)
+		{
+			*OutRemapPinDelegate = FRigVMController_PinPathRemapDelegate::CreateLambda([UpgradeInfo](const FString& InPinPath, bool bIsInput) -> FString
+			{
+				return UpgradeInfo.RemapPin(InPinPath, bIsInput, true);
+			});
+		}
+
+		if(!RemoveNode(InNode, bSetupUndoRedo, true, false, false))
+		{
+			if(bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			ReportErrorf(TEXT("Unable to remove node %s."), *NodeName);
+			return nullptr;
+		}
+
+		URigVMUnitNode* NewUnitNode = AddUnitNode(UpgradeInfo.GetNewStruct(), MethodName, NodePosition, NodeName, bSetupUndoRedo, false);
+		if(NewUnitNode == nullptr)
+		{
+			if(bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			ReportErrorf(TEXT("Unable to upgrade node %s."), *NodeName);
+			return nullptr;
+		}
+
+		for(URigVMPin* Pin : NewUnitNode->GetPins())
+		{
+			const FString DefaultValue = UpgradeInfo.GetDefaultValueForPin(Pin->GetFName());
+			if(!DefaultValue.IsEmpty())
+			{
+				SetPinDefaultValue(Pin, DefaultValue, true, false, false);
+			}
+		}
+
+		UpgradedNode = NewUnitNode;
+	}
+	else
+	{
+		// for now we don't allow to upgrade anything else but unit nodes
+		checkNoEntry();
+	}
+
+	check(UpgradedNode);
+
+	// reapply the pin states but don't touch defaults
+	for(TPair<FString, FPinState>& PinState : PinStates)
+	{
+		PinState.Value.DefaultValue.Reset();
+	}
+	ApplyPinStates(UpgradedNode, PinStates);
+
+	if(bSetupUndoRedo)
+	{
+		ActionStack->EndAction(Action);
+	}
+
+	return UpgradedNode;
+}
+
 URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameterName, const FString& InCPPType, UObject* InCPPTypeObject, bool bIsInput, const FString& InDefaultValue, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	AddVariableNode(InParameterName, InCPPType, InCPPTypeObject, bIsInput, InDefaultValue, InPosition, InNodeName, bSetupUndoRedo, bPrintPythonCommand);
@@ -7767,6 +8015,11 @@ bool URigVMController::BreakAllLinks(const FString& InPinPath, bool bAsInput, bo
 
 bool URigVMController::BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bSetupUndoRedo)
 {
+	if(!Pin->IsLinked(false))
+	{
+		return false;
+	}
+	
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	FRigVMBaseAction Action;
 	if (bSetupUndoRedo)
@@ -12305,6 +12558,20 @@ void URigVMController::ApplyPinStates(URigVMNode* InNode, const TMap<FString, UR
 			}
 		}
 	}
+}
+
+void URigVMController::ReportInfo(const FString& InMessage) const
+{
+	if (URigVMGraph* Graph = GetGraph())
+	{
+		if (UPackage* Package = Cast<UPackage>(Graph->GetOutermost()))
+		{
+			UE_LOG(LogRigVMDeveloper, Display, TEXT("%s : %s"), *Package->GetPathName(), *InMessage);
+			return;
+		}
+	}
+
+	UE_LOG(LogRigVMDeveloper, Display, TEXT("%s"), *InMessage);
 }
 
 void URigVMController::ReportWarning(const FString& InMessage) const

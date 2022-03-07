@@ -120,6 +120,57 @@ void FRigVMStructUpgradeInfo::AddRemappedPin(const FString& InOldPinPath, const 
 	}
 }
 
+FString FRigVMStructUpgradeInfo::RemapPin(const FString& InPinPath, bool bIsInput, bool bContainsNodeName) const
+{
+	FString NodeName;
+	FString PinPath = InPinPath;
+
+	if(bContainsNodeName)
+	{
+		if(!PinPath.Split(TEXT("."), &NodeName, &PinPath, ESearchCase::IgnoreCase, ESearchDir::FromStart))
+		{
+			return InPinPath;
+		}
+	}
+
+	const TMap<FString, FString>& LinkMap = bIsInput ? InputLinkMap : OutputLinkMap;
+
+	int32 FoundMaxLength = 0;
+	FString FoundReplacement;
+
+	for(const TPair<FString, FString>& Pair : LinkMap)
+	{
+		if(Pair.Key == PinPath)
+		{
+			PinPath = Pair.Value;
+			FoundReplacement.Reset();
+			break;
+		}
+
+		const FString KeyWithPeriod = Pair.Key + TEXT(".");
+		if(PinPath.StartsWith(KeyWithPeriod))
+		{
+			if(FoundMaxLength < KeyWithPeriod.Len())
+			{
+				FoundMaxLength = KeyWithPeriod.Len();
+				FoundReplacement = Pair.Value + PinPath.RightChop(Pair.Key.Len());
+			}
+		}
+	}
+
+	if(!FoundReplacement.IsEmpty())
+	{
+		PinPath = FoundReplacement;
+	}
+
+	if(bContainsNodeName)
+	{
+		PinPath = FString::Printf(TEXT("%s.%s"), *NodeName, *PinPath);
+	}
+
+	return PinPath;
+}
+
 void FRigVMStructUpgradeInfo::SetDefaultValues(const FRigVMStruct* InNewStructMemory)
 {
 	check(NewStruct);
@@ -475,7 +526,7 @@ FString FRigVMStruct::ExportToFullyQualifiedText(const FProperty* InMemberProper
 	return DefaultValue;
 }
 
-FString FRigVMStruct::ExportToFullyQualifiedText(UScriptStruct* InStruct, const uint8* InStructMemoryPtr)
+FString FRigVMStruct::ExportToFullyQualifiedText(const UScriptStruct* InStruct, const uint8* InStructMemoryPtr)
 {
 	check(InStruct);
 	check(InStructMemoryPtr);
@@ -502,7 +553,7 @@ FString FRigVMStruct::ExportToFullyQualifiedText(UScriptStruct* InStruct, const 
 	return FString::Printf(TEXT("(%s)"), *FString::Join(FieldValues, TEXT(",")));
 }
 
-FString FRigVMStruct::ExportToFullyQualifiedText(UScriptStruct* InScriptStruct, const FName& InPropertyName, const uint8* InStructMemoryPointer) const
+FString FRigVMStruct::ExportToFullyQualifiedText(const UScriptStruct* InScriptStruct, const FName& InPropertyName, const uint8* InStructMemoryPointer) const
 {
 	check(InScriptStruct);
 	if(InStructMemoryPointer == nullptr)

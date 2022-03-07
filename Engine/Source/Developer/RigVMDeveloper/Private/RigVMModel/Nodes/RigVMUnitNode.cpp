@@ -175,3 +175,16 @@ TSharedPtr<FStructOnScope> URigVMUnitNode::ConstructStructInstance(bool bUseDefa
 	}
 	return nullptr;
 }
+
+FRigVMStructUpgradeInfo URigVMUnitNode::GetUpgradeInfo() const
+{
+	if(UScriptStruct* Struct = GetScriptStruct())
+	{
+		check(Struct->IsChildOf(FRigVMStruct::StaticStruct()));
+
+		const TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance();
+		const FRigVMStruct* StructMemory = (const FRigVMStruct*)StructOnScope->GetStructMemory();
+		return StructMemory->GetUpgradeInfo();
+	}
+	return FRigVMStructUpgradeInfo();
+}

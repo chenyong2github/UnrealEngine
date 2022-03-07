@@ -26,6 +26,7 @@ public:
 	virtual bool IsDefinedAsVarying() const override;
 	virtual FName GetEventName() const override;
 	virtual bool IsLoopNode() const override;
+	virtual bool CanBeUpgraded() const override { return GetUpgradeInfo().IsValid(); }
 
 	bool IsDeprecated() const;
 	FString GetDeprecatedMetadata() const;
@@ -46,6 +47,8 @@ public:
 	// Returns an instance of the struct with the current values.
 	// @param bUseDefault If set to true the default struct will be created - otherwise the struct will contains the values from the node
 	TSharedPtr<FStructOnScope> ConstructStructInstance(bool bUseDefault = false) const;
+
+	FRigVMStructUpgradeInfo GetUpgradeInfo() const;
 
 protected:
 

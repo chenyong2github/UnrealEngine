@@ -298,6 +298,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsLinkedTo(URigVMPin* InPin) const;
 
+	// Returns true if the pin has any link
+	bool IsLinked(bool bRecursive = false) const;
+
 	// Returns all of the links linked to this Pin.
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	const TArray<URigVMLink*>& GetLinks() const;

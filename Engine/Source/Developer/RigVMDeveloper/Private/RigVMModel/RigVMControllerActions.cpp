@@ -7,36 +7,45 @@
 #include "Misc/ITransaction.h"
 #endif
 
+UScriptStruct* FRigVMActionKey::GetScriptStruct() const
+{
+	return FindObjectChecked<UScriptStruct>(ANY_PACKAGE, *ScriptStructPath);		
+}
+
+TSharedPtr<FStructOnScope> FRigVMActionKey::GetAction() const
+{
+	UScriptStruct* ScriptStruct = GetScriptStruct();
+	TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(ScriptStruct));
+	ScriptStruct->ImportText(*ExportedText, StructOnScope->GetStructMemory(), nullptr, PPF_None, nullptr, ScriptStruct->GetName());
+	return StructOnScope;
+}
+
 FRigVMActionWrapper::FRigVMActionWrapper(const FRigVMActionKey& Key)
 {
-	ScriptStruct = FindObjectChecked<UScriptStruct>(ANY_PACKAGE, *Key.ScriptStructPath);
-	Data.SetNumUninitialized(ScriptStruct->GetStructureSize());
-	ScriptStruct->InitializeStruct(Data.GetData(), 1);
-	ScriptStruct->ImportText(*Key.ExportedText, Data.GetData(), nullptr, PPF_None, nullptr, ScriptStruct->GetName());
+	StructOnScope = Key.GetAction();
 }
 FRigVMActionWrapper::~FRigVMActionWrapper()
 {
-	if (Data.Num() > 0 && ScriptStruct != nullptr)
-	{
-		ScriptStruct->DestroyStruct(Data.GetData(), 1);
-	}
 }
 
-FRigVMBaseAction* FRigVMActionWrapper::GetAction()
+const UScriptStruct* FRigVMActionWrapper::GetScriptStruct() const
 {
-	return (FRigVMBaseAction*)Data.GetData();
+	return CastChecked<UScriptStruct>(StructOnScope->GetStruct());
 }
 
-FString FRigVMActionWrapper::ExportText()
+FRigVMBaseAction* FRigVMActionWrapper::GetAction() const
+{
+	return (FRigVMBaseAction*)StructOnScope->GetStructMemory();
+}
+
+FString FRigVMActionWrapper::ExportText() const
 {
 	FString ExportedText;
-	if (Data.Num() > 0 && ScriptStruct != nullptr)
+	if (StructOnScope.IsValid() && StructOnScope->IsValid())
 	{
-		TArray<uint8, TAlignedHeapAllocator<16>> DefaultStructData;
-		DefaultStructData.AddZeroed(ScriptStruct->GetStructureSize());
-		ScriptStruct->InitializeDefaultValue(DefaultStructData.GetData());
-		
-		ScriptStruct->ExportText(ExportedText, GetAction(), DefaultStructData.GetData(), nullptr, PPF_None, nullptr);
+		const UScriptStruct* ScriptStruct = GetScriptStruct();
+		FStructOnScope DefaultScope(ScriptStruct);
+		ScriptStruct->ExportText(ExportedText, GetAction(), DefaultScope.GetStructMemory(), nullptr, PPF_None, nullptr);
 	}
 	return ExportedText;
 }
@@ -86,6 +95,12 @@ bool URigVMActionStack::Undo(URigVMController* InController)
 	ActionIndex = UndoActions.Num();
 	
 	FRigVMActionWrapper Wrapper(KeyToUndo);
+
+#if RIGVM_ACTIONSTACK_VERBOSE_LOG		
+	TGuardValue<int32> TabDepthGuard(LogActionDepth, 0);
+	LogAction(Wrapper.GetScriptStruct(), *Wrapper.GetAction(), FRigVMBaseAction::UndoPrefix);
+#endif
+	
 	if (Wrapper.GetAction()->Undo(InController))
 	{
 		RedoActions.Add(KeyToUndo);
@@ -109,6 +124,12 @@ bool URigVMActionStack::Redo(URigVMController* InController)
 	FRigVMActionKey KeyToRedo = RedoActions.Pop();
 
 	FRigVMActionWrapper Wrapper(KeyToRedo);
+
+#if RIGVM_ACTIONSTACK_VERBOSE_LOG		
+	TGuardValue<int32> TabDepthGuard(LogActionDepth, 0);
+	LogAction(Wrapper.GetScriptStruct(), *Wrapper.GetAction(), FRigVMBaseAction::RedoPrefix);
+#endif
+	
 	if (Wrapper.GetAction()->Redo(InController))
 	{
 		UndoActions.Add(KeyToRedo);
@@ -171,6 +192,47 @@ void URigVMActionStack::PostTransacted(const FTransactionObjectEvent& Transactio
 	}
 }
 
+#if RIGVM_ACTIONSTACK_VERBOSE_LOG		
+
+void URigVMActionStack::LogAction(const UScriptStruct* InActionStruct, const FRigVMBaseAction& InAction, const FString& InPrefix)
+{
+	if(bSuspendLogActions)
+	{
+		return;
+	}
+	
+	if(URigVMController* Controller = GetTypedOuter<URigVMController>())
+	{
+		static TArray<FString> TabPrefix = {TEXT(""), TEXT("  ")};
+
+		while(TabPrefix.Num() <= LogActionDepth)
+		{
+			TabPrefix.Add(TabPrefix.Last() + TabPrefix[1]);
+		}
+		
+		const FString ActionContent = FRigVMStruct::ExportToFullyQualifiedText(InActionStruct, (const uint8*)&InAction);
+		Controller->ReportInfof(TEXT("%s%s: %s (%s) '%s"), *TabPrefix[LogActionDepth], *InPrefix, *InAction.GetTitle(), *InActionStruct->GetStructCPPName(), *ActionContent);
+	}
+
+	if(InPrefix == FRigVMBaseAction::AddActionPrefix)
+	{
+		TGuardValue<int32> ActionDepthGuard(LogActionDepth, LogActionDepth + 1);
+		for(const FRigVMActionKey& SubAction : InAction.SubActions)
+		{
+			const FRigVMActionWrapper Wrapper(SubAction);
+			LogAction(Wrapper.GetScriptStruct(), *Wrapper.GetAction(), InPrefix);
+		}
+		if(InActionStruct == FRigVMRemoveNodeAction::StaticStruct())
+		{
+			const FRigVMRemoveNodeAction* RemoveNodeAction = (const FRigVMRemoveNodeAction*)&InAction; 
+			const FRigVMActionWrapper Wrapper(RemoveNodeAction->InverseActionKey);
+			LogAction(Wrapper.GetScriptStruct(), *Wrapper.GetAction(), InPrefix);
+		}
+	}
+}
+
+#endif
+
 #endif
 
 
@@ -181,10 +243,19 @@ bool FRigVMBaseAction::Merge(const FRigVMBaseAction* Other)
 
 bool FRigVMBaseAction::Undo(URigVMController* InController)
 {
+#if RIGVM_ACTIONSTACK_VERBOSE_LOG		
+	URigVMActionStack* Stack = InController->ActionStack;
+	check(Stack);
+	TGuardValue<int32> TabDepthGuard(Stack->LogActionDepth, Stack->LogActionDepth + 1);
+#endif
+
 	bool Result = true;
 	for (int32 KeyIndex = SubActions.Num() - 1; KeyIndex >= 0; KeyIndex--)
 	{
 		FRigVMActionWrapper Wrapper(SubActions[KeyIndex]);
+#if RIGVM_ACTIONSTACK_VERBOSE_LOG		
+		Wrapper.GetAction()->LogAction(InController, UndoPrefix);
+#endif
 		if(!Wrapper.GetAction()->Undo(InController))
 		{
 			InController->ReportAndNotifyErrorf(TEXT("Error while undoing action '%s'."), *Wrapper.GetAction()->Title);
@@ -196,10 +267,19 @@ bool FRigVMBaseAction::Undo(URigVMController* InController)
 
 bool FRigVMBaseAction::Redo(URigVMController* InController)
 {
+#if RIGVM_ACTIONSTACK_VERBOSE_LOG		
+	URigVMActionStack* Stack = InController->ActionStack;
+	check(Stack);
+	TGuardValue<int32> TabDepthGuard(Stack->LogActionDepth, Stack->LogActionDepth + 1);
+#endif
+
 	bool Result = true;
 	for (int32 KeyIndex = 0; KeyIndex < SubActions.Num(); KeyIndex++)
 	{
 		FRigVMActionWrapper Wrapper(SubActions[KeyIndex]);
+#if RIGVM_ACTIONSTACK_VERBOSE_LOG		
+		Wrapper.GetAction()->LogAction(InController, RedoPrefix);
+#endif
 		if (!Wrapper.GetAction()->Redo(InController))
 		{
 			InController->ReportAndNotifyErrorf(TEXT("Error while redoing action '%s'."), *Wrapper.GetAction()->Title);
@@ -208,6 +288,20 @@ bool FRigVMBaseAction::Redo(URigVMController* InController)
 	}
 	return Result;
 }
+
+#if RIGVM_ACTIONSTACK_VERBOSE_LOG
+
+void FRigVMBaseAction::LogAction(URigVMController* InController, const FString& InPrefix) const
+{
+	check(InController);
+	URigVMActionStack* Stack = InController->ActionStack;
+	check(Stack);
+	TGuardValue<int32> TabDepthGuard(Stack->LogActionDepth, Stack->LogActionDepth + 1);
+
+	Stack->LogAction(GetScriptStruct(), *this, InPrefix);
+}
+
+#endif
 
 bool FRigVMInverseAction::Undo(URigVMController* InController)
 {
@@ -626,65 +720,66 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 
 	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddUnitNodeAction(UnitNode));
+		InverseAction.AddAction(FRigVMAddUnitNodeAction(UnitNode), InController);
 		for (URigVMPin* Pin : UnitNode->GetPins())
 		{
 			if (Pin->GetDirection() == ERigVMPinDirection::Input ||
+				Pin->GetDirection() == ERigVMPinDirection::IO ||
 				Pin->GetDirection() == ERigVMPinDirection::Visible)
 			{
-				InverseAction.AddAction(FRigVMSetPinDefaultValueAction(Pin, Pin->GetDefaultValue()));
+				InverseAction.AddAction(FRigVMSetPinDefaultValueAction(Pin, Pin->GetDefaultValue()), InController);
 			}
 		}
 	}
 	else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddVariableNodeAction(VariableNode));
+		InverseAction.AddAction(FRigVMAddVariableNodeAction(VariableNode), InController);
 		URigVMPin* ValuePin = VariableNode->FindPin(TEXT("Value"));
-		InverseAction.AddAction(FRigVMSetPinDefaultValueAction(ValuePin, ValuePin->GetDefaultValue()));
+		InverseAction.AddAction(FRigVMSetPinDefaultValueAction(ValuePin, ValuePin->GetDefaultValue()), InController);
 	}
 	else if (URigVMCommentNode* CommentNode = Cast<URigVMCommentNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddCommentNodeAction(CommentNode));
+		InverseAction.AddAction(FRigVMAddCommentNodeAction(CommentNode), InController);
 	}
 	else if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddRerouteNodeAction(RerouteNode));
+		InverseAction.AddAction(FRigVMAddRerouteNodeAction(RerouteNode), InController);
 	}
 	else if (URigVMBranchNode* BranchNode = Cast<URigVMBranchNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddBranchNodeAction(BranchNode));
+		InverseAction.AddAction(FRigVMAddBranchNodeAction(BranchNode), InController);
 	}
 	else if (URigVMIfNode* IfNode = Cast<URigVMIfNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddIfNodeAction(IfNode));
+		InverseAction.AddAction(FRigVMAddIfNodeAction(IfNode), InController);
 	}
 	else if (URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddSelectNodeAction(SelectNode));
+		InverseAction.AddAction(FRigVMAddSelectNodeAction(SelectNode), InController);
 	}
 	else if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddTemplateNodeAction(TemplateNode));
+		InverseAction.AddAction(FRigVMAddTemplateNodeAction(TemplateNode), InController);
 	}
 	else if (URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddEnumNodeAction(EnumNode));
+		InverseAction.AddAction(FRigVMAddEnumNodeAction(EnumNode), InController);
 	}
 	else if (URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMAddArrayNodeAction(ArrayNode));
+		InverseAction.AddAction(FRigVMAddArrayNodeAction(ArrayNode), InController);
 		for (URigVMPin* Pin : ArrayNode->GetPins())
 		{
 			if (Pin->GetDirection() == ERigVMPinDirection::Input ||
 				Pin->GetDirection() == ERigVMPinDirection::Visible)
 			{
-				InverseAction.AddAction(FRigVMSetPinDefaultValueAction(Pin, Pin->GetDefaultValue()));
+				InverseAction.AddAction(FRigVMSetPinDefaultValueAction(Pin, Pin->GetDefaultValue()), InController);
 			}
 		}
 	}
 	else if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode))
 	{
-		InverseAction.AddAction(FRigVMImportNodeFromTextAction(LibraryNode, InController));
+		InverseAction.AddAction(FRigVMImportNodeFromTextAction(LibraryNode, InController), InController);
 	}
 	else if (InNode->IsA<URigVMFunctionEntryNode>() || InNode->IsA<URigVMFunctionReturnNode>())
 	{
@@ -701,7 +796,7 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 		{
 			FRigVMSetPinExpansionAction ExpansionAction(Pin, true);
 			ExpansionAction.OldIsExpanded = false;
-			InverseAction.AddAction(ExpansionAction);
+			InverseAction.AddAction(ExpansionAction, InController);
 		}
 
 		if (Pin->HasInjectedNodes())
@@ -711,9 +806,9 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 				FRigVMAddVariableNodeAction AddVariableNodeAction(VariableNode);
 				FRigVMAddLinkAction AddLinkAction(VariableNode->GetValuePin(), Pin);
 				FRigVMInjectNodeIntoPinAction InjectAction(Pin->GetInjectedNodes()[0]);
-				InverseAction.AddAction(AddVariableNodeAction);
-				InverseAction.AddAction(AddLinkAction);
-				InverseAction.AddAction(InjectAction);
+				InverseAction.AddAction(AddVariableNodeAction, InController);
+				InverseAction.AddAction(AddLinkAction, InController);
+				InverseAction.AddAction(InjectAction, InController);
 			}
 		}
 	}

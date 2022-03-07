@@ -85,6 +85,7 @@ DECLARE_DELEGATE_RetVal_ThreeParams(FName, FRigVMController_RequestNewExternalVa
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMController_IsDependencyCyclicDelegate, UObject*, UObject*)
 DECLARE_DELEGATE_RetVal_TwoParams(FRigVMController_BulkEditResult, FRigVMController_RequestBulkEditDialogDelegate, URigVMLibraryNode*, ERigVMControllerBulkEditType)
 DECLARE_DELEGATE_FiveParams(FRigVMController_OnBulkEditProgressDelegate, TSoftObjectPtr<URigVMFunctionReferenceNode>, ERigVMControllerBulkEditType, ERigVMControllerBulkEditProgress, int32, int32)
+DECLARE_DELEGATE_RetVal_TwoParams(FString, FRigVMController_PinPathRemapDelegate, const FString& /* InPinPath */, bool /* bIsInput */);
 
 /**
  * The Controller is the sole authority to perform changes
@@ -216,6 +217,10 @@ public:
 	// Refreshes the unit node to be backed up by a template instead 
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMTemplateNode* ReplaceUnitNodeWithTemplateNode(const FName& InNodeName, bool bSetupUndoRedo);
+
+	// Upgrades a set of nodes with each corresponding next known version
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	TArray<URigVMNode*> UpgradeNodes(const TArray<FName>& InNodeNames, bool bRecursive = true, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Parameter Node to the edited Graph.
 	// Parameters represent input or output arguments to the Graph / Function.
@@ -533,7 +538,13 @@ public:
 	// Renames a parameter in the graph.
 	// This causes a ParameterRenamed modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController, meta=(DeprecatedFunction))
-	bool RenameParameter(const FName& InOldName, const FName& InNewName, bool bSetupUndoRedo = true);
+	bool RenameParameter(const FName& InOldName, const FName& InNewName, bool bSetupUndoRedo = true);\
+
+	// Upgrades a set of nodes with each corresponding next known version
+	TArray<URigVMNode*> UpgradeNodes(const TArray<URigVMNode*>& InNodes, bool bRecursive = true, bool bSetupUndoRedo = true);
+
+	// Upgrades a single node with its next known version
+	URigVMNode* UpgradeNode(URigVMNode* InNode, bool bSetupUndoRedo = true, FRigVMController_PinPathRemapDelegate* OutRemapPinDelegate = nullptr);
 
 	// Sets the pin to be expanded or not
 	// This causes a PinExpansionChanged modified event.
@@ -761,9 +772,16 @@ public:
 
 	const FRigVMByteCode* GetCurrentByteCode() const;
 
+	void ReportInfo(const FString& InMessage) const;
 	void ReportWarning(const FString& InMessage) const;
 	void ReportError(const FString& InMessage) const;
 	void ReportAndNotifyError(const FString& InMessage) const;
+
+	template <typename FmtType, typename... Types>
+	void ReportInfof(const FmtType& Fmt, Types... Args)
+	{
+		ReportInfo(FString::Printf(Fmt, Args...));
+	}
 
 	template <typename FmtType, typename... Types>
 	void ReportWarningf(const FmtType& Fmt, Types... Args)
@@ -984,6 +1002,7 @@ private:
 	friend class URigVMGraph;
 	friend class URigVMPin;
 	friend class URigVMActionStack;
+	friend struct FRigVMBaseAction;
 	friend class URigVMCompiler;
 	friend struct FRigVMControllerObjectFactory;
 	friend struct FRigVMAddRerouteNodeAction;

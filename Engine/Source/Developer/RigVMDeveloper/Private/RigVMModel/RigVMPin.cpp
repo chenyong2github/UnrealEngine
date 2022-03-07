@@ -1305,6 +1305,27 @@ bool URigVMPin::IsLinkedTo(URigVMPin* InPin) const
 	return false;
 }
 
+bool URigVMPin::IsLinked(bool bRecursive) const
+{
+	if(!GetLinks().IsEmpty())
+	{
+		return true;
+	}
+
+	if(bRecursive)
+	{
+		for (const URigVMPin* SubPin : SubPins)
+		{
+			if(SubPin->IsLinked(true))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 const TArray<URigVMLink*>& URigVMPin::GetLinks() const
 {
 	return Links;

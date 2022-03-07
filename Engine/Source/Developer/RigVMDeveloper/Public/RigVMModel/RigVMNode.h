@@ -203,6 +203,9 @@ public:
 	// return true if this node is a loop node
 	virtual bool IsLoopNode() const { return false; }
 
+	// returns true if the node can be upgraded
+	virtual bool CanBeUpgraded() const { return false; }
+
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	bool HasBreakpoint() const { return bHasBreakpoint; }
 
