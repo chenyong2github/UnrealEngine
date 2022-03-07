@@ -77,7 +77,7 @@ float UPCGLandscapeData::GetDensityAtPosition(const FVector& InPosition) const
 	return HeightAtVertex.IsSet() ? 1.0f : 0;
 }
 
-const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContextPtr Context) const
+const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGLandscapeData::CreatePointData);
 

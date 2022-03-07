@@ -12,7 +12,7 @@
 
 namespace PCGDebugElement
 {
-	void ExecuteDebugDisplay(FPCGContextPtr Context)
+	void ExecuteDebugDisplay(FPCGContext* Context)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PCGDebugElement::ExecuteDebugDisplay);
 #if WITH_EDITORONLY_DATA
@@ -128,7 +128,7 @@ FPCGElementPtr UPCGDebugSettings::CreateElement() const
 	return MakeShared<FPCGDebugElement>();
 }
 
-bool FPCGDebugElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGDebugElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGDebugElement::Execute);
 	PCGDebugElement::ExecuteDebugDisplay(Context);

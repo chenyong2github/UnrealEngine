@@ -2,14 +2,16 @@
 
 #include "Helpers/PCGAsync.h"
 #include "PCGPoint.h"
+#include "PCGContext.h"
+
 #include "Async/Async.h"
 
 namespace FPCGAsync
 {
-	void AsyncPointProcessing(FPCGContextPtr Context, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<bool(int32, FPCGPoint&)>& PointFunc)
+	void AsyncPointProcessing(FPCGContext* Context, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<bool(int32, FPCGPoint&)>& PointFunc)
 	{
 		const int32 MinIterationsPerTask = 256;
-		AsyncPointProcessing(Context.IsValid() ? Context->NumAvailableTasks : 1, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
+		AsyncPointProcessing(Context ? Context->NumAvailableTasks : 1, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
 	}
 
 	void AsyncPointProcessing(int32 NumAvailableTasks, int32 MinIterationsPerTask, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<bool(int32, FPCGPoint&)>& PointFunc)

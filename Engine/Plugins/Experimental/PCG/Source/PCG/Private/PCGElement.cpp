@@ -7,7 +7,7 @@
 #include "Elements/PCGDebugElement.h"
 #include "Graph/PCGGraphCache.h"
 
-bool IPCGElement::Execute(FPCGContextPtr Context) const
+bool IPCGElement::Execute(FPCGContext* Context) const
 {
 	// Early out to stop execution
 	if (Context->InputData.bCancelExecution)
@@ -131,9 +131,9 @@ bool IPCGElement::Execute(FPCGContextPtr Context) const
 	}
 }
 
-FPCGContextPtr FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent)
+FPCGContext* FSimplePCGElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent)
 {
-	FPCGContextPtr Context = MakeShared<FPCGContext>();
+	FPCGContext* Context = new FPCGContext();
 	Context->InputData = InputData;
 	Context->SourceComponent = SourceComponent;
 

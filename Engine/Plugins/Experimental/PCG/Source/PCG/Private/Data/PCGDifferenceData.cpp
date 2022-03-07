@@ -129,7 +129,7 @@ bool UPCGDifferenceData::HasNonTrivialTransform() const
 	return Source->HasNonTrivialTransform();
 }
 
-const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContextPtr Context) const
+const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGDifferenceData::CreatePointData);
 	

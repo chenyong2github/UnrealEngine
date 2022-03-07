@@ -191,14 +191,14 @@ void FPCGGraphExecutor::Execute()
 					continue;
 				}
 				
-				FPCGContextPtr Context = Element->Initialize(TaskInput, Task.SourceComponent);
+				FPCGContext* Context = Element->Initialize(TaskInput, Task.SourceComponent);
 				Context->Node = Task.Node; // still needed?
 				Context->TaskId = Task.NodeId;
 				Context->Cache = &GraphCache;
 
 				FPCGGraphActiveTask& ActiveTask = ActiveTasks.Emplace_GetRef();
 				ActiveTask.Element = Element;
-				ActiveTask.Context = Context;
+				ActiveTask.Context = TUniquePtr<FPCGContext>(Context);
 				ActiveTask.NodeId = Task.NodeId;
 				
 				// TODO update bCanStartNewTasks
@@ -216,7 +216,7 @@ void FPCGGraphExecutor::Execute()
 			// TODO: change this when we support MT in the graph executor
 			ActiveTask.Context->NumAvailableTasks = FMath::Max(1, FMath::Min(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, CVarMaxNumTasks.GetValueOnAnyThread()));
 
-			if (!ActiveTask.Context->bIsPaused && ActiveTask.Element->Execute(ActiveTask.Context))
+			if (!ActiveTask.Context->bIsPaused && ActiveTask.Element->Execute(ActiveTask.Context.Get()))
 			{
 				// Store output data in map
 				StoreResults(ActiveTask.NodeId, ActiveTask.Context->OutputData);
@@ -367,7 +367,7 @@ void FPCGGraphExecutor::NotifyGraphChanged(UPCGGraph* InGraph)
 }
 #endif
 
-bool FPCGFetchInputElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGFetchInputElement::ExecuteInternal(FPCGContext* Context) const
 {
 	// First: any input can be passed through to the output trivially
 	Context->OutputData = Context->InputData;
@@ -389,7 +389,7 @@ FPCGGenericElement::FPCGGenericElement(TFunction<bool()> InOperation)
 {
 }
 
-bool FPCGGenericElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGGenericElement::ExecuteInternal(FPCGContext* Context) const
 {
 	return Operation();
 }

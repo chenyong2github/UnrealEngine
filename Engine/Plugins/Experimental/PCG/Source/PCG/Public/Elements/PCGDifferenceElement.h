@@ -37,5 +37,5 @@ public:
 class FPCGDifferenceElement : public FSimpleTypedPCGElement<UPCGDifferenceSettings>
 {
 protected:
-	virtual bool ExecuteInternal(FPCGContextPtr Context) const;
+	virtual bool ExecuteInternal(FPCGContext* Context) const;
 };

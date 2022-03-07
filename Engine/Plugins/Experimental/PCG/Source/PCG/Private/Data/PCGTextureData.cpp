@@ -107,7 +107,7 @@ FPCGPoint UPCGBaseTextureData::TransformPoint(const FPCGPoint& InPoint) const
 	return Point;
 }
 
-const UPCGPointData* UPCGBaseTextureData::CreatePointData(FPCGContextPtr Context) const
+const UPCGPointData* UPCGBaseTextureData::CreatePointData(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGBaseTextureData::CreatePointData);
 	// TODO: this is a trivial implementation

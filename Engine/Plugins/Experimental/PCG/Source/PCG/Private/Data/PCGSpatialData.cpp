@@ -6,7 +6,7 @@
 #include "Data/PCGProjectionData.h"
 #include "Data/PCGUnionData.h"
 
-const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData(FPCGContextPtr Context) const
+const UPCGPointData* UPCGSpatialDataWithPointCache::ToPointData(FPCGContext* Context) const
 {
 	if (!CachedPointData)
 	{

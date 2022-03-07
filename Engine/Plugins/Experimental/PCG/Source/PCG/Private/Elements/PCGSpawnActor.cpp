@@ -64,7 +64,7 @@ TObjectPtr<UPCGGraph> UPCGSpawnActorNode::GetSubgraph() const
 	return (Settings && Settings->Option != EPCGSpawnActorOption::NoMerging) ? Settings->GetSubgraph() : nullptr;
 }
 
-bool FPCGSpawnActorElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCSpawnActorElement::Execute);
 

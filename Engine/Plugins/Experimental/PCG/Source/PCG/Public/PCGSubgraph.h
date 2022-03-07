@@ -126,10 +126,10 @@ struct FPCGSubgraphContext : public FPCGContext
 class FPCGSubgraphElement : public IPCGElement
 {
 public:
-	virtual FPCGContextPtr Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) override;
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) override;
 
 protected:
-	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 };
 
 class FPCGInputForwardingElement : public FSimplePCGElement
@@ -138,6 +138,6 @@ public:
 	FPCGInputForwardingElement(const FPCGDataCollection& InputToForward);
 
 protected:
-	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 	FPCGDataCollection Input;
 };

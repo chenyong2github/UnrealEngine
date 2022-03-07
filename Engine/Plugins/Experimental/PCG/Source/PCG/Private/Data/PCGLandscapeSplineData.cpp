@@ -88,7 +88,7 @@ FVector UPCGLandscapeSplineData::GetLocationAtDistance(int SegmentIndex, float D
 	return FVector::Zero();
 }
 
-const UPCGPointData* UPCGLandscapeSplineData::CreatePointData(FPCGContextPtr Context) const
+const UPCGPointData* UPCGLandscapeSplineData::CreatePointData(FPCGContext* Context) const
 {
 	check(Spline);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGLandscapeSplineData::CreatePointData);

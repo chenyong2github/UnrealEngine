@@ -32,5 +32,5 @@ protected:
 class FPCGProjectionElement : public FSimpleTypedPCGElement<UPCGProjectionSettings>
 {
 protected:
-	virtual bool ExecuteInternal(FPCGContextPtr Context) const;
+	virtual bool ExecuteInternal(FPCGContext* Context) const;
 };

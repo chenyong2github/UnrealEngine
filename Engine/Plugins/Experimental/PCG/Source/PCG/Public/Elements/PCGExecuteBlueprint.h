@@ -5,6 +5,9 @@
 #include "PCGElement.h"
 #include "PCGSettings.h"
 
+#include "Data/PCGPointData.h"
+#include "PCGPoint.h"
+
 #include "Templates/SubclassOf.h"
 
 #include "PCGExecuteBlueprint.generated.h"
@@ -33,8 +36,24 @@ public:
 	virtual void BeginDestroy() override;
 	// ~End UObject interface
 
+	UFUNCTION(BlueprintNativeEvent, Category = Execution)
+	void ExecuteWithContext(UPARAM(ref)FPCGContext& InContext, const FPCGDataCollection& Input, FPCGDataCollection& Output) const;
+
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = Execution)
 	void Execute(const FPCGDataCollection& Input, FPCGDataCollection& Output) const;
+
+	UFUNCTION(BlueprintImplementableEvent, Category = Execution)
+	bool PointLoopBody(const UPCGPointData* InData, const FPCGPoint& InPoint, FPCGPoint& OutPoint) const;
+
+	UFUNCTION(BlueprintImplementableEvent, Category = Execution)
+	bool PointPairLoopBody(const UPCGPointData* InA, const UPCGPointData* InB, const FPCGPoint& InPointA, const FPCGPoint& InPointB, FPCGPoint& OutPoint) const;
+
+	/** Calls the LoopBody function on all points */
+	UFUNCTION(BlueprintCallable, Category = Execution)
+	void LoopOnPoints(UPARAM(ref) FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData) const;
+
+	UFUNCTION(BlueprintCallable, Category = Execution)
+	void LoopOnPointPairs(UPARAM(ref) FPCGContext& InContext, const UPCGPointData* InA, const UPCGPointData* InB, UPCGPointData*& OutData) const;
 
 	/** Called after object creation to setup the object callbacks */
 	void Initialize();
@@ -132,6 +151,6 @@ protected:
 class FPCGExecuteBlueprintElement : public FSimpleTypedPCGElement<UPCGBlueprintSettings>
 {
 protected:
-	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override;
 };

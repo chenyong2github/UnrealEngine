@@ -149,7 +149,7 @@ bool UPCGUnionData::HasNonTrivialTransform() const
 	return (FirstNonTrivialTransformData != nullptr || Super::HasNonTrivialTransform());
 }
 
-const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContextPtr Context) const
+const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGUnionData::CreatePointData);
 
@@ -195,7 +195,7 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContextPtr Context) cons
 	return PointData;
 }
 
-void UPCGUnionData::CreateSequentialPointData(FPCGContextPtr Context, UPCGPointData* PointData, bool bLeftToRight) const
+void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointData* PointData, bool bLeftToRight) const
 {
 	check(PointData);
 

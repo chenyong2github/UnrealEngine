@@ -35,7 +35,7 @@ public:
 	//~End UPCGSpatialData interface
 
 	//~Begin UPCGSpatialDataWithPointCache interface
-	virtual const UPCGPointData* CreatePointData(FPCGContextPtr Context) const override;
+	virtual const UPCGPointData* CreatePointData(FPCGContext* Context) const override;
 	//~End UPCGSpatialDataWithPointCache interface
 
 public:
@@ -43,7 +43,7 @@ public:
 	EPCGIntersectionDensityFunction DensityFunction = EPCGIntersectionDensityFunction::Multiply;
 
 protected:
-	UPCGPointData* CreateAndFilterPointData(FPCGContextPtr Context, const UPCGSpatialData* X, const UPCGSpatialData* Y) const;
+	UPCGPointData* CreateAndFilterPointData(FPCGContext* Context, const UPCGSpatialData* X, const UPCGSpatialData* Y) const;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = SpatialData)
 	TObjectPtr<const UPCGSpatialData> A = nullptr;

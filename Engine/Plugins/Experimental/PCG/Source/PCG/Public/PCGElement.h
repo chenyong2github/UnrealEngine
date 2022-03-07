@@ -29,12 +29,12 @@ class IPCGElement
 {
 public:
 	virtual ~IPCGElement() = default;
-	virtual FPCGContextPtr Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) = 0;
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) = 0;
 
-	bool Execute(FPCGContextPtr Context) const;
+	bool Execute(FPCGContext* Context) const;
 
 protected:
-	virtual bool ExecuteInternal(FPCGContextPtr Context) const = 0;
+	virtual bool ExecuteInternal(FPCGContext* Context) const = 0;
 	virtual bool IsCancellable() const { return true; }
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const { return true; }
 };
@@ -45,7 +45,7 @@ protected:
 class FSimplePCGElement : public IPCGElement
 {
 public:
-	virtual FPCGContextPtr Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) override;
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent) override;
 };
 
 /**

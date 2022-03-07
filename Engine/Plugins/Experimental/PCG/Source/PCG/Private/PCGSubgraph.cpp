@@ -173,18 +173,18 @@ void UPCGSubgraphNode::OnStructuralSettingsChanged(UPCGSettings* InSettings)
 }
 #endif // WITH_EDITOR
 
-FPCGContextPtr FPCGSubgraphElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent)
+FPCGContext* FPCGSubgraphElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent)
 {
-	TSharedPtr<FPCGSubgraphContext> Context = MakeShared<FPCGSubgraphContext>();
+	FPCGSubgraphContext* Context = new FPCGSubgraphContext();
 	Context->InputData = InputData;
 	Context->SourceComponent = SourceComponent;
 
-	return StaticCastSharedPtr<FPCGContext>(Context);
+	return Context;
 }
 
-bool FPCGSubgraphElement::ExecuteInternal(FPCGContextPtr InContext) const
+bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 {
-	TSharedPtr<FPCGSubgraphContext> Context = StaticCastSharedPtr<FPCGSubgraphContext>(InContext);
+	FPCGSubgraphContext* Context = static_cast<FPCGSubgraphContext*>(InContext);
 
 	const UPCGSubgraphNode* SubgraphNode = Cast<const UPCGSubgraphNode>(Context->Node);
 	if (SubgraphNode && SubgraphNode->bDynamicGraph)
@@ -261,7 +261,7 @@ FPCGInputForwardingElement::FPCGInputForwardingElement(const FPCGDataCollection&
 
 }
 
-bool FPCGInputForwardingElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGInputForwardingElement::ExecuteInternal(FPCGContext* Context) const
 {
 	Context->OutputData = Input;
 	return true;

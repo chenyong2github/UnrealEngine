@@ -27,7 +27,7 @@ struct FPCGSurfaceSamplerLoopData
 
 	float Ratio;
 
-	bool Initialize(const UPCGSurfaceSamplerSettings* InSettings, FPCGContextPtr Context, const FBox& InputBounds)
+	bool Initialize(const UPCGSurfaceSamplerSettings* InSettings, FPCGContext* Context, const FBox& InputBounds)
 	{
 		Settings = InSettings;
 
@@ -96,7 +96,7 @@ FPCGElementPtr UPCGSurfaceSamplerSettings::CreateElement() const
 	return MakeShared<FPCGSurfaceSamplerElement>();
 }
 
-bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSurfaceSamplerElement::Execute);
 	// TODO: time-sliced implementation

@@ -11,7 +11,7 @@ FPCGElementPtr UPCGLinearDensityRemapSettings::CreateElement() const
 	return MakeShared<FPCGLinearDensityRemapElement>();
 }
 
-bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGLinearDensityRemapElement::Execute);
 

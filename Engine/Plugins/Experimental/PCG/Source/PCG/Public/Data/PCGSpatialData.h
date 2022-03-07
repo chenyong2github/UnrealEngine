@@ -7,15 +7,13 @@
 
 #include "PCGSpatialData.generated.h"
 
+class AActor;
+struct FPCGContext;
 class UPCGPointData;
 class UPCGIntersectionData;
 class UPCGUnionData;
 class UPCGDifferenceData;
 class UPCGProjectionData;
-class AActor;
-
-struct FPCGContext;
-typedef TSharedPtr<FPCGContext, ESPMode::ThreadSafe> FPCGContextPtr;
 
 /**
 * "Concrete" data base class for PCG generation
@@ -54,9 +52,12 @@ public:
 
 	/** Discretizes the data into points */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
-	virtual const UPCGPointData* ToPointData() const { return ToPointData(nullptr); }
+	const UPCGPointData* ToPointData() const { return ToPointData(nullptr); }
 
-	virtual const UPCGPointData* ToPointData(FPCGContextPtr Context) const PURE_VIRTUAL(UPCGSpatialData::ToPointData, return nullptr;);
+	UFUNCTION(BlueprintCallable, Category = SpatialData)
+	const UPCGPointData* ToPointDataWithContext(UPARAM(ref) FPCGContext& Context) const { return ToPointData(&Context); }
+
+	virtual const UPCGPointData* ToPointData(FPCGContext* Context) const PURE_VIRTUAL(UPCGSpatialData::ToPointData, return nullptr;);
 
 	/** Transform a world-space position to a world-space position in relation to the current data. (ex: projection on surface) */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
@@ -101,11 +102,11 @@ class UPCGSpatialDataWithPointCache : public UPCGSpatialData
 
 public:
 	// ~UPCGSpatialData implementation
-	virtual const UPCGPointData* ToPointData(FPCGContextPtr Context) const override;
+	virtual const UPCGPointData* ToPointData(FPCGContext* Context) const override;
 	// ~End UPCGSpatialData implementation
 
 protected:
-	virtual const UPCGPointData* CreatePointData(FPCGContextPtr Context) const PURE_VIRTUAL(UPCGSpatialData::CreatePointData, return nullptr;);
+	virtual const UPCGPointData* CreatePointData(FPCGContext* Context) const PURE_VIRTUAL(UPCGSpatialData::CreatePointData, return nullptr;);
 
 private:
 	UPROPERTY(Transient)

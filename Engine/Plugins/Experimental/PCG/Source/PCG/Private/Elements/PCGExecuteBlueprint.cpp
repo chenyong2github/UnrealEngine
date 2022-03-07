@@ -3,6 +3,7 @@
 #include "Elements/PCGExecuteBlueprint.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
+#include "Helpers/PCGAsync.h"
 
 #if WITH_EDITOR
 #include "Engine/World.h"
@@ -138,6 +139,11 @@ void UPCGBlueprintElement::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void UPCGBlueprintElement::ExecuteWithContext_Implementation(FPCGContext& InContext, const FPCGDataCollection& Input, FPCGDataCollection& Output) const
+{
+	Execute(Input, Output);
+}
+
 void UPCGBlueprintElement::Initialize()
 {
 #if WITH_EDITOR
@@ -264,6 +270,7 @@ void UPCGBlueprintSettings::PostEditChangeProperty(FPropertyChangedEvent& Proper
 void UPCGBlueprintSettings::OnBlueprintChanged(UBlueprint* InBlueprint)
 {
 	// When the blueprint changes, the element gets recreated, so we must rewire it here.
+	DirtyCache();
 	TeardownBlueprintElementEvent();
 	SetupBlueprintElementEvent();
 
@@ -343,7 +350,7 @@ FPCGElementPtr UPCGBlueprintSettings::CreateElement() const
 	return MakeShared<FPCGExecuteBlueprintElement>();
 }
 
-bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGExecuteBlueprintElement::Execute);
 	const UPCGBlueprintSettings* Settings = Context->GetInputSettings<UPCGBlueprintSettings>();
@@ -372,7 +379,7 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContextPtr Context) const
 			}
 		}
 
-		Settings->BlueprintElementInstance->Execute(Context->InputData, Context->OutputData);
+		Settings->BlueprintElementInstance->ExecuteWithContext(*Context, Context->InputData, Context->OutputData);
 
 		// Log info on outputs
 		for (int32 OutputIndex = 0; OutputIndex < Context->OutputData.TaggedData.Num(); ++OutputIndex)
@@ -391,6 +398,35 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContextPtr Context) const
 	}
 	
 	return true;
+}
+
+void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData) const
+{
+	OutData = NewObject<UPCGPointData>();
+	OutData->TargetActor = InData->TargetActor;
+	
+	const TArray<FPCGPoint>& InPoints = InData->GetPoints();
+	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
+
+	FPCGAsync::AsyncPointProcessing(&InContext, InPoints.Num(), OutPoints, [this, InData, &InPoints](int32 Index, FPCGPoint& OutPoint)
+	{
+		return PointLoopBody(InData, InPoints[Index], OutPoint);
+	});
+}
+
+void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPointData* InA, const UPCGPointData* InB, UPCGPointData*& OutData) const
+{
+	OutData = NewObject<UPCGPointData>();
+	OutData->TargetActor = InA->TargetActor;
+
+	const TArray<FPCGPoint>& InPointsA = InA->GetPoints();
+	const TArray<FPCGPoint>& InPointsB = InB->GetPoints();
+	TArray<FPCGPoint>& OutPoints = OutData->GetMutablePoints();
+
+	FPCGAsync::AsyncPointProcessing(&InContext, InPointsA.Num() * InPointsB.Num(), OutPoints, [this, InA, InB, &InPointsA, &InPointsB](int32 Index, FPCGPoint& OutPoint)
+	{
+		return PointPairLoopBody(InA, InB, InPointsA[Index / InPointsB.Num()], InPointsB[Index % InPointsB.Num()], OutPoint);
+	});
 }
 
 bool FPCGExecuteBlueprintElement::IsCacheable(const UPCGSettings* InSettings) const

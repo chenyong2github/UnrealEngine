@@ -87,7 +87,7 @@ bool UPCGProjectionData::HasNonTrivialTransform() const
 	return Target->HasNonTrivialTransform();
 }
 
-const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContextPtr Context) const
+const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGProjectionData::CreatePointData);
 	// TODO: add mechanism in the ToPointData so we can pass in a transform

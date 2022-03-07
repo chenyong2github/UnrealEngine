@@ -36,7 +36,7 @@ struct FPCGGraphScheduleTask
 struct FPCGGraphActiveTask
 {
 	FPCGElementPtr Element;
-	FPCGContextPtr Context;
+	TUniquePtr<FPCGContext> Context;
 	FPCGTaskId NodeId = InvalidTaskId;
 };
 
@@ -118,7 +118,7 @@ private:
 class FPCGFetchInputElement : public FSimplePCGElement
 {
 protected:
-	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 };
 
@@ -130,7 +130,7 @@ public:
 protected:
 	// Important note: generic elements must always be run on the main thread
 	// as most of these will impact the editor in some way (loading, unloading, saving)
-	virtual bool ExecuteInternal(FPCGContextPtr Context) const override;
+	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 	virtual bool IsCancellable() const { return false; }
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 

@@ -47,7 +47,7 @@ public:
 	//~End UPCGSpatialData interface
 
 	//~Begin UPCGSpatialDataWithPointCache interface
-	virtual const UPCGPointData* CreatePointData(FPCGContextPtr Context) const override;
+	virtual const UPCGPointData* CreatePointData(FPCGContext* Context) const override;
 	//~End UPCGSpatialDataWithPointCache interface
 
 protected:
@@ -73,5 +73,5 @@ protected:
 	int CachedDimension = 0;
 
 private:
-	void CreateSequentialPointData(FPCGContextPtr Context, UPCGPointData* PointData, bool bLeftToRight) const;
+	void CreateSequentialPointData(FPCGContext* Context, UPCGPointData* PointData, bool bLeftToRight) const;
 };

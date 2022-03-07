@@ -8,7 +8,7 @@ FPCGElementPtr UPCGProjectionSettings::CreateElement() const
 	return MakeShared<FPCGProjectionElement>();
 }
 
-bool FPCGProjectionElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGProjectionElement::Execute);
 

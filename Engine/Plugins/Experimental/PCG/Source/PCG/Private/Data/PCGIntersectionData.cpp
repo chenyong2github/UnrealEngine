@@ -98,7 +98,7 @@ bool UPCGIntersectionData::HasNonTrivialTransform() const
 	return A->HasNonTrivialTransform() || B->HasNonTrivialTransform();
 }
 
-const UPCGPointData* UPCGIntersectionData::CreatePointData(FPCGContextPtr Context) const
+const UPCGPointData* UPCGIntersectionData::CreatePointData(FPCGContext* Context) const
 {
 	check(A && B);
 	// TODO: this is a placeholder;
@@ -114,7 +114,7 @@ const UPCGPointData* UPCGIntersectionData::CreatePointData(FPCGContextPtr Contex
 	}
 }
 
-UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContextPtr Context, const UPCGSpatialData* X, const UPCGSpatialData* Y) const
+UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContext* Context, const UPCGSpatialData* X, const UPCGSpatialData* Y) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGIntersectionData::CreateAndFilterPointData);
 	check(X && Y);

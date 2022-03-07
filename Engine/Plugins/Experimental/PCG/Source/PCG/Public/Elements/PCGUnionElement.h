@@ -35,5 +35,5 @@ public:
 class FPCGUnionElement : public FSimpleTypedPCGElement<UPCGUnionSettings>
 {
 protected:
-	virtual bool ExecuteInternal(FPCGContextPtr Context) const;
+	virtual bool ExecuteInternal(FPCGContext* Context) const;
 };

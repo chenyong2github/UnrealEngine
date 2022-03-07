@@ -7,7 +7,7 @@ FPCGElementPtr UPCGDifferenceSettings::CreateElement() const
 	return MakeShared<FPCGDifferenceElement>();
 }
 
-bool FPCGDifferenceElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGDifferenceElement::Execute);
 

@@ -47,7 +47,7 @@ public:
 	// ~End UPGCConcreteData interface
 
 	// ~Begin UPCGSpatialDataWithPointCache interface
-	virtual const UPCGPointData* CreatePointData(FPCGContextPtr Context) const override;
+	virtual const UPCGPointData* CreatePointData(FPCGContext* Context) const override;
 	// ~End UPCGConcreteDataWithPointCache interface
 
 	// TODO: add on property changed to clear cached data

@@ -9,7 +9,7 @@ FPCGElementPtr UPCGDensityFilterSettings::CreateElement() const
 	return MakeShared<FPCGDensityFilterElement>();
 }
 
-bool FPCGDensityFilterElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGDensityFilterElement::Execute);
 

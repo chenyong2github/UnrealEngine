@@ -9,7 +9,7 @@
 
 namespace PCGDebugElement
 {
-	void ExecuteDebugDisplay(FPCGContextPtr Context);
+	void ExecuteDebugDisplay(FPCGContext* Context);
 }
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
@@ -31,6 +31,6 @@ protected:
 class FPCGDebugElement : public FSimpleTypedPCGElement<UPCGDebugSettings>
 {
 protected:
-	virtual bool ExecuteInternal(FPCGContextPtr Contexxt) const override;
+	virtual bool ExecuteInternal(FPCGContext* Contexxt) const override;
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 };

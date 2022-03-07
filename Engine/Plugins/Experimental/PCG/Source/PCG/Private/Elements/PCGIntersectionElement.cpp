@@ -7,7 +7,7 @@ FPCGElementPtr UPCGIntersectionSettings::CreateElement() const
 	return MakeShared<FPCGIntersectionElement>();
 }
 
-bool FPCGIntersectionElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGIntersectionElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGIntersectionElement::Execute);
 

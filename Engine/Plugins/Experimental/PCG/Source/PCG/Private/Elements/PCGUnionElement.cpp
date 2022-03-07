@@ -7,7 +7,7 @@ FPCGElementPtr UPCGUnionSettings::CreateElement() const
 	return MakeShared<FPCGUnionElement>();
 }
 
-bool FPCGUnionElement::ExecuteInternal(FPCGContextPtr Context) const
+bool FPCGUnionElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGUnionElement::Execute);
 

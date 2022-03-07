@@ -7,14 +7,16 @@
 #include "PCGNode.h"
 #include "PCGSubsystem.h"
 
-struct FPCGContext;
+#include "PCGContext.generated.h"
+
 class UPCGComponent;
 struct FPCGGraphCache;
 
-typedef TSharedPtr<FPCGContext, ESPMode::ThreadSafe> FPCGContextPtr;
-
+USTRUCT(BlueprintType)
 struct FPCGContext
 {
+	GENERATED_BODY()
+
 	virtual ~FPCGContext() = default;
 
 	FPCGDataCollection InputData;
