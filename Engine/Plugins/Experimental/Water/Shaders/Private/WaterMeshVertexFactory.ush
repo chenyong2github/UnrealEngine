@@ -365,6 +365,56 @@ float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryInte
 	return float3(0.0f, 0.0f, 1.0f);
 }
 
+#if RAYHITGROUPSHADER
+FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
+{
+	FTriangleBaseAttributes TriangleAttributes = LoadTriangleBaseAttributes(TriangleIndex);
+
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+
+	Input.Position = float4(TriangleAttributes.LocalPositions[VertexIndex], 1.0f);
+
+	Input.InstanceData0 = WaterRaytracingVF.InstanceData0;
+	Input.InstanceData1 = WaterRaytracingVF.InstanceData1;
+#if WITH_WATER_SELECTION_SUPPORT_VF
+	Input.InstanceData2 = 0.0f;
+#endif
+
+	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, GetInstanceUserData(), 0U);
+
+	return Input;
+}
+#endif
+
+#if COMPUTESHADER
+FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
+{
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+
+	const uint VertexId = TriangleIndex * 3 + VertexIndex;
+	const uint VertexOffset = VertexId * 4;
+	Input.Position.x = WaterRaytracingVF.VertexBuffer[VertexOffset + 0];
+	Input.Position.y = WaterRaytracingVF.VertexBuffer[VertexOffset + 1];
+	Input.Position.z = WaterRaytracingVF.VertexBuffer[VertexOffset + 2];
+	Input.Position.w = WaterRaytracingVF.VertexBuffer[VertexOffset + 3];
+
+	Input.InstanceData0 = WaterRaytracingVF.InstanceData0;
+	Input.InstanceData1 = WaterRaytracingVF.InstanceData1;
+#if WITH_WATER_SELECTION_SUPPORT_VF
+	Input.InstanceData2 = 0.0f;
+#endif
+	
+	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, GetInstanceUserData(), 0U);
+
+	return Input;
+}
+
+uint GetNumRayTracingDynamicMeshVerticesIndirect()
+{
+	return 0;
+}
+#endif // RAYHITGROUP || COMPUTESHADER
+
 #if NEEDS_VERTEX_FACTORY_INTERPOLATION
 	struct FVertexFactoryRayTracingInterpolants
 	{
@@ -374,7 +424,7 @@ float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryInte
 	float2 VertexFactoryGetRayTracingTextureCoordinate( FVertexFactoryRayTracingInterpolants Interpolants )
 	{
 #if NUM_MATERIAL_TEXCOORDS
-		return Interpolants.InterpolantsVSToPS.TexCoords.xy;
+		return Interpolants.InterpolantsVSToPS.TexCoords[0].xy;
 #else // #if NUM_MATERIAL_TEXCOORDS
 		return float2(0,0);
 #endif // #if NUM_MATERIAL_TEXCOORDS

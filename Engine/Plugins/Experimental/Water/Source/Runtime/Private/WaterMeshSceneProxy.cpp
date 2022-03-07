@@ -11,6 +11,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "DrawDebugHelpers.h"
 #include "Math/ColorList.h"
+#include "RayTracingInstance.h"
 
 DECLARE_STATS_GROUP(TEXT("Water Mesh"), STATGROUP_WaterMesh, STATCAT_Advanced);
 
@@ -74,6 +75,12 @@ static TAutoConsoleVariable<int32> CVarWaterMeshPreAllocStagingInstanceMemory(
 	TEXT("Pre-allocates staging instance data memory according to historical max. This reduces the overhead when the array needs to grow but may use more memory"),
 	ECVF_RenderThreadSafe);
 
+#if RHI_RAYTRACING
+static TAutoConsoleVariable<int32> CVarRayTracingGeometryWater(
+	TEXT("r.RayTracing.Geometry.Water"),
+	0,
+	TEXT("Include water in ray tracing effects (default = 0 (water disabled in ray tracing))"));
+#endif
 
 // ----------------------------------------------------------------------------------
 
@@ -118,6 +125,10 @@ FWaterMeshSceneProxy::FWaterMeshSceneProxy(UWaterMeshComponent* Component)
 	WaterMeshUserDataBuffers = new WaterMeshUserDataBuffersType(WaterInstanceDataBuffers);
 
 	WaterQuadTree.BuildMaterialIndices();
+
+#if RHI_RAYTRACING
+	RayTracingWaterData.SetNum(DensityCount);
+#endif
 }
 
 FWaterMeshSceneProxy::~FWaterMeshSceneProxy()
@@ -131,6 +142,38 @@ FWaterMeshSceneProxy::~FWaterMeshSceneProxy()
 	delete WaterInstanceDataBuffers;
 
 	delete WaterMeshUserDataBuffers;
+
+#if RHI_RAYTRACING
+	for (auto& WaterDataArray : RayTracingWaterData)
+	{
+		for (auto& WaterRayTracingItem : WaterDataArray)
+		{
+			WaterRayTracingItem.Geometry.ReleaseResource();
+			WaterRayTracingItem.DynamicVertexBuffer.Release();
+		}
+	}	
+#endif
+}
+
+FWaterMeshSceneProxy::FWaterLODParams FWaterMeshSceneProxy::GetWaterLODParams(const FVector& Position) const
+{
+	float WaterHeightForLOD = 0.0f;
+	WaterQuadTree.QueryInterpolatedTileBaseHeightAtLocation(FVector2D(Position), WaterHeightForLOD);
+
+	// Need to let the lowest LOD morph globally towards the next LOD. When the LOD is done morphing, simply clamp the LOD in the LOD selection to effectively promote the lowest LOD to the same LOD level as the one above
+	float DistToWater = FMath::Abs(Position.Z - WaterHeightForLOD) / LODScale;
+	DistToWater = FMath::Max(DistToWater - 2.0f, 0.0f);
+	DistToWater *= 2.0f;
+
+	// Clamp to WaterTileQuadTree.GetLODCount() - 1.0f prevents the last LOD to morph
+	const float FloatLOD = FMath::Clamp(FMath::Log2(DistToWater), 0.0f, WaterQuadTree.GetTreeDepth() - 1.0f);
+
+	FWaterLODParams WaterLODParams;
+	WaterLODParams.HeightLODFactor = FMath::Frac(FloatLOD);
+	WaterLODParams.LowestLOD = FMath::Clamp(FMath::FloorToInt(FloatLOD), 0, WaterQuadTree.GetTreeDepth() - 1);
+	WaterLODParams.WaterHeightForLOD = WaterHeightForLOD;
+
+	return WaterLODParams;
 }
 
 void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const
@@ -155,7 +198,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 	}
 #endif // WITH_WATER_SELECTION_SUPPORT
 
-	if (WaterQuadTree.GetNodeCount() == 0 || DensityCount == 0 || !FWaterUtils::IsWaterMeshRenderingEnabled(/*bIsRenderThread = */true))
+	if (!HasWaterData() || !FWaterUtils::IsWaterMeshRenderingEnabled(/*bIsRenderThread = */true))
 	{
 		return;
 	}
@@ -185,27 +228,16 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 			const FSceneView* View = Views[ViewIndex];
 
 			const FVector ObserverPosition = View->ViewMatrices.GetViewOrigin();
-
-			float WaterHeightForLOD = 0.0f;
-			WaterQuadTree.QueryInterpolatedTileBaseHeightAtLocation(FVector2D(ObserverPosition), WaterHeightForLOD);
-
-			// Need to let the lowest LOD morph globally towards the next LOD. When the LOD is done morphing, simply clamp the LOD in the LOD selection to effectively promote the lowest LOD to the same LOD level as the one above
-			float DistToWater = FMath::Abs(ObserverPosition.Z - WaterHeightForLOD) / LODScale;
-			DistToWater = FMath::Max(DistToWater - 2.0f, 0.0f);
-			DistToWater *= 2.0f;
-
-			// Clamp to WaterTileQuadTree.GetLODCount() - 1.0f prevents the last LOD to morph
-			float FloatLOD = FMath::Clamp(FMath::Log2(DistToWater), 0.0f, WaterQuadTree.GetTreeDepth() - 1.0f);
-			float HeightLODFactor = FMath::Frac(FloatLOD);
-			int32 LowestLOD = FMath::Clamp(FMath::FloorToInt(FloatLOD), 0, WaterQuadTree.GetTreeDepth() - 1);
+			
+			FWaterLODParams WaterLODParams = GetWaterLODParams(ObserverPosition);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			if (CVarWaterMeshShowLODLevels.GetValueOnRenderThread())
 			{
-				for (int32 i = LowestLOD; i < WaterQuadTree.GetTreeDepth(); i++)
+				for (int32 i = WaterLODParams.LowestLOD; i < WaterQuadTree.GetTreeDepth(); i++)
 				{
 					float LODDist = FWaterQuadTree::GetLODDistance(i, LODScale);
-					FVector Orig = FVector(FVector2D(ObserverPosition), WaterHeightForLOD);
+					FVector Orig = FVector(FVector2D(ObserverPosition), WaterLODParams.WaterHeightForLOD);
 
 					DrawCircle(Collector.GetPDI(ViewIndex), Orig, FVector::ForwardVector, FVector::RightVector, GColorList.GetFColorByIndex(i + 1), LODDist, 64, 0);
 				}
@@ -222,8 +254,8 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 			}
 
 			FWaterQuadTree::FTraversalDesc TraversalDesc;
-			TraversalDesc.LowestLOD = LowestLOD;
-			TraversalDesc.HeightMorph = HeightLODFactor;
+			TraversalDesc.LowestLOD = WaterLODParams.LowestLOD;
+			TraversalDesc.HeightMorph = WaterLODParams.HeightLODFactor;
 			TraversalDesc.LODCount = WaterQuadTree.GetTreeDepth();
 			TraversalDesc.DensityCount = DensityCount;
 			TraversalDesc.ForceCollapseDensityLevel = ForceCollapseDensityLevel;
@@ -387,6 +419,212 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 
 	WaterInstanceDataBuffers->Unlock();
 }
+
+#if RHI_RAYTRACING
+void FWaterMeshSceneProxy::SetupRayTracingInstances(int32 NumInstances, uint32 DensityIndex)
+{
+	TArray<FRayTracingWaterData>& WaterDataArray = RayTracingWaterData[DensityIndex];
+
+	if (WaterDataArray.Num() > NumInstances)
+	{
+		for (int32 Item = NumInstances; Item < WaterDataArray.Num(); Item++)
+		{
+			auto& WaterItem = WaterDataArray[Item];
+			WaterItem.Geometry.ReleaseResource();
+			WaterItem.DynamicVertexBuffer.Release();
+		}
+		WaterDataArray.SetNum(NumInstances);
+	}	
+
+	if (WaterDataArray.Num() < NumInstances)
+	{
+		FRayTracingGeometryInitializer Initializer;
+		static const FName DebugName("FWaterMeshSceneProxy");		
+		Initializer.IndexBuffer = WaterVertexFactories[DensityIndex]->IndexBuffer->IndexBufferRHI;
+		Initializer.GeometryType = RTGT_Triangles;
+		Initializer.bFastBuild = true;
+		Initializer.bAllowUpdate = true;
+		Initializer.TotalPrimitiveCount = 0;
+
+		WaterDataArray.Reserve(NumInstances);
+		const int32 StartIndex = WaterDataArray.Num();
+
+		for (int32 Item = StartIndex; Item < NumInstances; Item++)
+		{
+			FRayTracingWaterData& WaterData = WaterDataArray.AddDefaulted_GetRef();
+
+			Initializer.DebugName = FName(DebugName, Item);
+
+			WaterData.Geometry.SetInitializer(Initializer);
+			WaterData.Geometry.InitResource();
+		}
+	}
+}
+
+template <bool bWithWaterSelectionSupport>
+class TWaterVertexFactoryUserDataWrapper : public FOneFrameResource
+{
+public:
+	TWaterMeshUserData<bWithWaterSelectionSupport> UserData;
+};
+
+void FWaterMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
+{
+	if (!HasWaterData() || !FWaterUtils::IsWaterMeshRenderingEnabled(/*bIsRenderThread = */true) || !CVarRayTracingGeometryWater.GetValueOnRenderThread())
+	{
+		return;
+	}
+
+	const FSceneView& SceneView = *Context.ReferenceView;
+	const FVector ObserverPosition = SceneView.ViewMatrices.GetViewOrigin();
+
+	FWaterLODParams WaterLODParams = GetWaterLODParams(ObserverPosition);
+
+	const int32 NumBuckets = WaterQuadTree.GetWaterMaterials().Num() * DensityCount;
+
+	FWaterQuadTree::FTraversalOutput WaterInstanceData;
+	WaterInstanceData.BucketInstanceCounts.Empty(NumBuckets);
+	WaterInstanceData.BucketInstanceCounts.AddZeroed(NumBuckets);
+
+	FWaterQuadTree::FTraversalDesc TraversalDesc;
+	TraversalDesc.LowestLOD = WaterLODParams.LowestLOD;
+	TraversalDesc.HeightMorph = WaterLODParams.HeightLODFactor;
+	TraversalDesc.LODCount = WaterQuadTree.GetTreeDepth();
+	TraversalDesc.DensityCount = DensityCount;
+	TraversalDesc.ForceCollapseDensityLevel = ForceCollapseDensityLevel;
+	TraversalDesc.PreViewTranslation = SceneView.ViewMatrices.GetPreViewTranslation();
+	TraversalDesc.ObserverPosition = ObserverPosition;
+	TraversalDesc.Frustum = FConvexVolume(); // Default volume to disable frustum culling
+	TraversalDesc.LODScale = LODScale;
+	TraversalDesc.bLODMorphingEnabled = !!CVarWaterMeshLODMorphEnabled.GetValueOnRenderThread();
+
+	WaterQuadTree.BuildWaterTileInstanceData(TraversalDesc, WaterInstanceData);
+
+	if (WaterInstanceData.InstanceCount == 0)
+	{
+		// no instance visible, early exit
+		return;
+	}
+
+	const int32 NumWaterMaterials = WaterQuadTree.GetWaterMaterials().Num();	
+
+	for (int32 DensityIndex = 0; DensityIndex < DensityCount; ++DensityIndex)
+	{
+		int32 DensityInstanceCount = 0;
+		for (int32 MaterialIndex = 0; MaterialIndex < NumWaterMaterials; ++MaterialIndex)
+		{
+			const int32 BucketIndex = MaterialIndex * DensityCount + DensityIndex;
+			const int32 InstanceCount = WaterInstanceData.BucketInstanceCounts[BucketIndex];
+			DensityInstanceCount += InstanceCount;
+		}
+
+		SetupRayTracingInstances(DensityInstanceCount, DensityIndex);
+	}
+
+	// Create per-bucket prefix sum and sort instance data so we can easily access per-instance data for each density
+	TArray<int32> BucketOffsets;
+	BucketOffsets.SetNumZeroed(NumBuckets);
+
+	for (int32 BucketIndex = 1; BucketIndex < NumBuckets; ++BucketIndex)
+	{
+		BucketOffsets[BucketIndex] = BucketOffsets[BucketIndex - 1] + WaterInstanceData.BucketInstanceCounts[BucketIndex - 1];
+	}
+	
+	WaterInstanceData.StagingInstanceData.StableSort([](const FWaterQuadTree::FStagingInstanceData& Lhs, const FWaterQuadTree::FStagingInstanceData& Rhs)
+		{
+			return Lhs.BucketIndex < Rhs.BucketIndex;
+		});
+
+	FMeshBatch BaseMesh;
+	BaseMesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
+	BaseMesh.Type = PT_TriangleList;
+	BaseMesh.bUseForMaterial = true;
+	BaseMesh.CastShadow = false;
+	BaseMesh.CastRayTracedShadow = false;
+	BaseMesh.SegmentIndex = 0;
+	BaseMesh.Elements.AddZeroed();
+
+	for (int32 DensityIndex = 0; DensityIndex < DensityCount; ++DensityIndex)
+	{
+		int32 DensityInstanceIndex = 0;
+		
+		BaseMesh.VertexFactory = WaterVertexFactories[DensityIndex];
+
+		FMeshBatchElement& BatchElement = BaseMesh.Elements[0];
+
+		BatchElement.NumInstances = 1;
+
+		BatchElement.FirstIndex = 0;
+		BatchElement.NumPrimitives = WaterVertexFactories[DensityIndex]->IndexBuffer->GetIndexCount() / 3;
+		BatchElement.MinVertexIndex = 0;
+		BatchElement.MaxVertexIndex = WaterVertexFactories[DensityIndex]->VertexBuffer->GetVertexCount() - 1;
+
+		// Don't use primitive buffer
+		BatchElement.IndexBuffer = WaterVertexFactories[DensityIndex]->IndexBuffer;
+		BatchElement.PrimitiveIdMode = PrimID_ForceZero;
+		BatchElement.PrimitiveUniformBufferResource = &GIdentityPrimitiveUniformBuffer;
+
+		for (int32 MaterialIndex = 0; MaterialIndex < NumWaterMaterials; ++MaterialIndex)
+		{
+			const int32 BucketIndex = MaterialIndex * DensityCount + DensityIndex;
+			const int32 InstanceCount = WaterInstanceData.BucketInstanceCounts[BucketIndex];
+
+			if (!InstanceCount)
+			{
+				continue;
+			}
+
+			const FMaterialRenderProxy* MaterialRenderProxy = WaterQuadTree.GetWaterMaterials()[MaterialIndex];
+			check(MaterialRenderProxy != nullptr);
+
+			BaseMesh.MaterialRenderProxy = MaterialRenderProxy;
+
+			for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
+			{
+				using FWaterVertexFactoryUserDataWrapperType = TWaterVertexFactoryUserDataWrapper<WITH_WATER_SELECTION_SUPPORT>;
+				FWaterVertexFactoryUserDataWrapperType& UserDataWrapper = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FWaterVertexFactoryUserDataWrapperType>();
+
+				const int32 InstanceDataIndex = BucketOffsets[BucketIndex] + InstanceIndex;
+				const FWaterQuadTree::FStagingInstanceData& InstanceData = WaterInstanceData.StagingInstanceData[InstanceDataIndex];
+
+				FWaterVertexFactoryRaytracingParameters UniformBufferParams;
+				UniformBufferParams.VertexBuffer = WaterVertexFactories[DensityIndex]->VertexBuffer->GetSRV();
+				UniformBufferParams.InstanceData0 = InstanceData.Data[0];
+				UniformBufferParams.InstanceData1 = InstanceData.Data[1];
+
+				UserDataWrapper.UserData.InstanceDataBuffers = WaterMeshUserDataBuffers->GetUserData(EWaterMeshRenderGroupType::RG_RenderWaterTiles)->InstanceDataBuffers;
+				UserDataWrapper.UserData.RenderGroupType = EWaterMeshRenderGroupType::RG_RenderWaterTiles;
+				UserDataWrapper.UserData.WaterVertexFactoryRaytracingVFUniformBuffer = FWaterVertexFactoryRaytracingParametersRef::CreateUniformBufferImmediate(UniformBufferParams, UniformBuffer_SingleFrame);
+							
+				BatchElement.UserData = (void*)&UserDataWrapper.UserData;							
+
+				FRayTracingWaterData& WaterInstanceRayTracingData = RayTracingWaterData[DensityIndex][DensityInstanceIndex++];
+
+				FRayTracingInstance RayTracingInstance;
+				RayTracingInstance.Geometry = &WaterInstanceRayTracingData.Geometry;
+				RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
+				RayTracingInstance.Materials.Add(BaseMesh);
+				RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
+				OutRayTracingInstances.Add(RayTracingInstance);
+
+				Context.DynamicRayTracingGeometriesToUpdate.Add(
+					FRayTracingDynamicGeometryUpdateParams
+					{
+						RayTracingInstance.Materials,
+						false,
+						uint32(WaterVertexFactories[DensityIndex]->VertexBuffer->GetVertexCount()),
+						uint32(WaterVertexFactories[DensityIndex]->VertexBuffer->GetVertexCount() * sizeof(FVector3f)),
+						uint32(WaterVertexFactories[DensityIndex]->IndexBuffer->GetIndexCount() / 3),
+						&WaterInstanceRayTracingData.Geometry,
+						nullptr,
+						true
+					}
+				);				
+			}
+		}
+	}
+}
+#endif // RHI_RAYTRACING
 
 FPrimitiveViewRelevance FWaterMeshSceneProxy::GetViewRelevance(const FSceneView* View) const
 {

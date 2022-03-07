@@ -55,7 +55,38 @@ public:
 	using WaterInstanceDataBuffersType = TWaterInstanceDataBuffers<WITH_WATER_SELECTION_SUPPORT>;
 	using WaterMeshUserDataBuffersType = TWaterMeshUserDataBuffers<WITH_WATER_SELECTION_SUPPORT>;
 
+#if RHI_RAYTRACING
+	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override final;
+	virtual bool HasRayTracingRepresentation() const override { return true; }
+	virtual bool IsRayTracingRelevant() const override { return true; }
+#endif
+
 private:
+	struct FWaterLODParams
+	{
+		int32 LowestLOD;
+		float HeightLODFactor;
+		float WaterHeightForLOD;
+	};
+
+#if RHI_RAYTRACING
+	struct FRayTracingWaterData
+	{
+		FRayTracingGeometry Geometry;
+		FRWBuffer DynamicVertexBuffer;
+	};
+#endif
+
+	bool HasWaterData() const 
+	{
+		return WaterQuadTree.GetNodeCount() != 0 && DensityCount != 0;
+	}
+
+	FWaterLODParams GetWaterLODParams(const FVector& Position) const;
+
+#if RHI_RAYTRACING
+	void SetupRayTracingInstances(int32 NumInstances, uint32 DensityIndex);
+#endif
 
 	FMaterialRelevance MaterialRelevance;
 
@@ -80,4 +111,9 @@ private:
 	int32 ForceCollapseDensityLevel = TNumericLimits<int32>::Max();
 
 	mutable int32 HistoricalMaxViewInstanceCount = 0;
+
+#if RHI_RAYTRACING
+	// Per density array of ray tracing geometries.
+	TArray<TArray<FRayTracingWaterData>> RayTracingWaterData;	
+#endif
 };

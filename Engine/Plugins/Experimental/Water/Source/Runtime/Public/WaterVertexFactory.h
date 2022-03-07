@@ -22,6 +22,14 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FWaterVertexFactoryParameters> FWaterVertexFactoryBufferRef;
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FWaterVertexFactoryRaytracingParameters, )
+	SHADER_PARAMETER_SRV(Buffer<float>, VertexBuffer)
+	SHADER_PARAMETER(FVector4f, InstanceData0)
+	SHADER_PARAMETER(FVector4f, InstanceData1)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+typedef TUniformBufferRef<FWaterVertexFactoryRaytracingParameters> FWaterVertexFactoryRaytracingParametersRef;
+
 class FWaterMeshIndexBuffer : public FIndexBuffer
 {
 public:
@@ -110,7 +118,7 @@ public:
 		NumVerts = NumVertsPerSide * NumVertsPerSide;
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("FWaterMeshVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4f) * NumVerts, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4f) * NumVerts, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
 		FVector4f* DummyContents = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * NumVerts, RLM_WriteOnly);
 
 		for (uint32 VertY = 0; VertY < NumVertsPerSide; VertY++)
@@ -127,13 +135,24 @@ public:
 		}
 
 		RHIUnlockBuffer(VertexBufferRHI);
+
+		SRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+	}
+
+	virtual void ReleaseRHI() override
+	{
+		SRV.SafeRelease();
+		FVertexBuffer::ReleaseRHI();
 	}
 
 	int32 GetVertexCount() const { return NumVerts; }
+	FRHIShaderResourceView* GetSRV() { return SRV; }
 
 private:
 	int32 NumVerts = 0;
 	const int32 NumQuadsPerSide = 0;
+
+	FShaderResourceViewRHIRef SRV;
 };
 
 enum class EWaterMeshRenderGroupType : uint8
@@ -212,6 +231,10 @@ struct TWaterMeshUserData
 
 	EWaterMeshRenderGroupType RenderGroupType = EWaterMeshRenderGroupType::RG_RenderWaterTiles;
 	const TWaterInstanceDataBuffers<bWithWaterSelectionSupport>* InstanceDataBuffers = nullptr;
+
+#if RHI_RAYTRACING	
+	FUniformBufferRHIRef WaterVertexFactoryRaytracingVFUniformBuffer = nullptr;
+#endif
 };
 
 /**
