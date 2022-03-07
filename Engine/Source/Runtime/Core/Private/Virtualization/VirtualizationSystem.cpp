@@ -102,6 +102,12 @@ void Initialize()
 	GVirtualizationSystem = MakeUnique<FNullVirtualizationSystem>();	
 }
 
+void Shutdown()
+{
+	GVirtualizationSystem.Reset();
+	UE_LOG(LogVirtualization, Log, TEXT("UE::Virtualization was shutdown"));
+}
+
 IVirtualizationSystem& IVirtualizationSystem::Get()
 {
 	// For now allow Initialize to be called directly if it was not called explicitly.
