@@ -265,6 +265,19 @@ namespace Horde.Storage.FunctionalTests.CompressedBlobs
                 HttpResponseMessage result = await _httpClient!.SendAsync(request);
                 Assert.AreEqual(HttpStatusCode.UnsupportedMediaType, result.StatusCode);
             }
+
+            {
+                // ask for any accept type
+                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/compressed-blobs/{TestNamespace}/{blobIdentifier}");
+                request.Headers.Add("Accept", "*/*");
+
+                HttpResponseMessage result = await _httpClient!.SendAsync(request);
+                result.EnsureSuccessStatusCode();
+                Assert.AreEqual(MediaTypeNames.Application.Octet, result.Content.Headers.ContentType!.MediaType);
+
+                byte[] blobContent = await result.Content.ReadAsByteArrayAsync();
+                CollectionAssert.AreEqual(payload, blobContent);
+            }
         }
     }
 }

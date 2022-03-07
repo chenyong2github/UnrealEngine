@@ -72,7 +72,7 @@ namespace Horde.Storage.Controllers
                 (BlobContents blobContents, string mediaType) = await GetImpl(ns, id);
 
                 StringValues acceptHeader = Request.Headers["Accept"];
-                if (acceptHeader.Count != 0 && !acceptHeader.Contains(mediaType))
+                if (!acceptHeader.Contains("*/*") && acceptHeader.Count != 0 && !acceptHeader.Contains(mediaType))
                     return new UnsupportedMediaTypeResult();
 
                 return File(blobContents.Stream, mediaType, enableRangeProcessing: true);
