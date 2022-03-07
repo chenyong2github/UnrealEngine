@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Mime;
+using System.Text;
 using System.Threading.Tasks;
 using Horde.Storage.FunctionalTests.Storage;
 using Horde.Storage.Implementation;
@@ -171,6 +172,7 @@ namespace Horde.Storage.FunctionalTests.CompressedBlobs
             {
                 HttpResponseMessage result = await _httpClient!.GetAsync($"api/v1/compressed-blobs/{TestNamespace}/{uncompressedPayloadIdentifier}");
                 result.EnsureSuccessStatusCode();
+                Assert.AreEqual(CustomMediaTypeNames.UnrealCompressedBuffer, result.Content.Headers.ContentType!.MediaType);
 
                 byte[] blobContent = await result.Content.ReadAsByteArrayAsync();
                 CollectionAssert.AreEqual(texturePayload, blobContent);
@@ -180,6 +182,7 @@ namespace Horde.Storage.FunctionalTests.CompressedBlobs
                 // verify the compressed blob can be retrieved in the blob store
                 HttpResponseMessage result = await _httpClient!.GetAsync($"api/v1/blobs/{TestNamespace}/{compressedPayloadIdentifier}");
                 result.EnsureSuccessStatusCode();
+                Assert.AreEqual(MediaTypeNames.Application.Octet, result.Content.Headers.ContentType!.MediaType);
 
                 byte[] blobContent = await result.Content.ReadAsByteArrayAsync();
                 CollectionAssert.AreEqual(texturePayload, blobContent);
@@ -206,6 +209,61 @@ namespace Horde.Storage.FunctionalTests.CompressedBlobs
                 HttpResponseMessage result = await _httpClient!.PutAsync($"api/v1/compressed-blobs/{TestNamespace}/{compressedPayloadIdentifier}", content);
 
                 Assert.AreEqual(HttpStatusCode.BadRequest, result.StatusCode);
+            }
+        }
+
+
+        [TestMethod]
+        public async Task GetUncompressedContent()
+        {
+            string stringContent = "this is just a random string";
+            byte[] payload = Encoding.ASCII.GetBytes(stringContent);
+            BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(payload);
+
+            // upload a uncompressed blob
+            {
+                ByteArrayContent content = new ByteArrayContent(payload);
+                content.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
+                HttpResponseMessage result = await _httpClient!.PutAsync($"api/v1/blobs/{TestNamespace}/{blobIdentifier}", content);
+                result.EnsureSuccessStatusCode();
+            }
+
+
+            {
+                HttpResponseMessage result = await _httpClient!.GetAsync($"api/v1/compressed-blobs/{TestNamespace}/{blobIdentifier}");
+                result.EnsureSuccessStatusCode();
+
+                // verify that we return the uncompressed content but also that the media type indicates that
+                byte[] blobContent = await result.Content.ReadAsByteArrayAsync();
+                Assert.AreEqual(MediaTypeNames.Application.Octet, result.Content.Headers.ContentType!.MediaType);
+                CollectionAssert.AreEqual(payload, blobContent);
+            }
+        }
+
+        
+        [TestMethod]
+        public async Task GetUncompressedContentAsCompressedBuffer()
+        {
+            string stringContent = "this is just a random string";
+            byte[] payload = Encoding.ASCII.GetBytes(stringContent);
+            BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(payload);
+
+            // upload a uncompressed blob
+            {
+                ByteArrayContent content = new ByteArrayContent(payload);
+                content.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
+                HttpResponseMessage result = await _httpClient!.PutAsync($"api/v1/blobs/{TestNamespace}/{blobIdentifier}", content);
+                result.EnsureSuccessStatusCode();
+            }
+
+
+            {
+                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/compressed-blobs/{TestNamespace}/{blobIdentifier}");
+                request.Headers.Add("Accept", CustomMediaTypeNames.UnrealCompactBinary);
+
+                // asking for a compressed buffer when we only have the uncompressed content results in a 415 (unsupported media type) as transcoding this is to complicated when the compressed buffer header requires the full blake3 hash of the content
+                HttpResponseMessage result = await _httpClient!.SendAsync(request);
+                Assert.AreEqual(HttpStatusCode.UnsupportedMediaType, result.StatusCode);
             }
         }
     }

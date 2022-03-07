@@ -17,6 +17,7 @@ using Jupiter.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 using Serilog;
 
 namespace Horde.Storage.Controllers
@@ -33,10 +34,11 @@ namespace Horde.Storage.Controllers
         private readonly IAuthorizationService _authorizationService;
         private readonly CompressedBufferUtils _compressedBufferUtils;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
+        private readonly FormatResolver _formatResolver;
 
         private readonly ILogger _logger = Log.ForContext<CompressedBlobController>();
 
-        public CompressedBlobController(IBlobService storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, CompressedBufferUtils compressedBufferUtils, BufferedPayloadFactory bufferedPayloadFactory)
+        public CompressedBlobController(IBlobService storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, CompressedBufferUtils compressedBufferUtils, BufferedPayloadFactory bufferedPayloadFactory, FormatResolver formatResolver)
         {
             _storage = storage;
             _contentIdStore = contentIdStore;
@@ -44,6 +46,7 @@ namespace Horde.Storage.Controllers
             _authorizationService = authorizationService;
             _compressedBufferUtils = compressedBufferUtils;
             _bufferedPayloadFactory = bufferedPayloadFactory;
+            _formatResolver = formatResolver;
         }
 
 
@@ -51,7 +54,7 @@ namespace Horde.Storage.Controllers
         [Authorize("Storage.read")]
         [ProducesResponseType(type: typeof(byte[]), 200)]
         [ProducesResponseType(type: typeof(ValidationProblemDetails), 400)]
-        [Produces(CustomMediaTypeNames.UnrealCompressedBuffer)]
+        [Produces(CustomMediaTypeNames.UnrealCompressedBuffer, MediaTypeNames.Application.Octet)]
 
         public async Task<IActionResult> Get(
             [Required] NamespaceId ns,
@@ -66,9 +69,13 @@ namespace Horde.Storage.Controllers
 
             try
             {
-                BlobContents blobContents = await GetImpl(ns, id);
+                (BlobContents blobContents, string mediaType) = await GetImpl(ns, id);
 
-                return File(blobContents.Stream, CustomMediaTypeNames.UnrealCompressedBuffer, enableRangeProcessing: true);
+                StringValues acceptHeader = Request.Headers["Accept"];
+                if (acceptHeader.Count != 0 && !acceptHeader.Contains(mediaType))
+                    return new UnsupportedMediaTypeResult();
+
+                return File(blobContents.Stream, mediaType, enableRangeProcessing: true);
             }
             catch (BlobNotFoundException e)
             {
@@ -93,7 +100,7 @@ namespace Horde.Storage.Controllers
             {
                 return Forbid();
             }
-            BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, id, mustBeContentId: true);
+            BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, id, mustBeContentId: false);
             if (chunks == null || chunks.Length == 0)
             {
                 return NotFound();
@@ -136,7 +143,7 @@ namespace Horde.Storage.Controllers
 
             IEnumerable<Task> tasks = id.Select(async blob =>
             {
-                BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, blob, mustBeContentId: true);
+                BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, blob, mustBeContentId: false);
 
                 if (chunks == null)
                 {
@@ -161,9 +168,9 @@ namespace Horde.Storage.Controllers
             return Ok(new ExistCheckMultipleContentIdResponse { Needs = partialContentIds.ToArray()});
         }
 
-        private async Task<BlobContents> GetImpl(NamespaceId ns, ContentId contentId)
+        private async Task<(BlobContents, string)> GetImpl(NamespaceId ns, ContentId contentId)
         {
-            BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, contentId, mustBeContentId: true);
+            BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, contentId, mustBeContentId: false);
             if (chunks == null || chunks.Length == 0)
             {
                 throw new ContentIdResolveException(contentId);
@@ -172,7 +179,15 @@ namespace Horde.Storage.Controllers
             // single chunk, we just return that chunk
             if (chunks.Length == 1)
             {
-                return await _storage.GetObject(ns, chunks[0]);
+                BlobIdentifier blobToReturn = chunks[0];
+                string mimeType = CustomMediaTypeNames.UnrealCompressedBuffer;
+                if (contentId.Equals(blobToReturn))
+                {
+                    // this was actually the unmapped blob, meaning its not a compressed buffer
+                    mimeType = MediaTypeNames.Application.Octet;
+                }
+
+                return (await _storage.GetObject(ns, blobToReturn), mimeType);
             }
 
             // chunked content, combine the chunks into a single stream
@@ -193,7 +208,8 @@ namespace Horde.Storage.Controllers
 
             ms.Seek(0, SeekOrigin.Begin);
 
-            return new BlobContents(ms, ms.Length);
+            // chunking could not have happened for a non compressed buffer so assume it is compressed
+            return (new BlobContents(ms, ms.Length), CustomMediaTypeNames.UnrealCompressedBuffer);
         }
 
         [HttpPut("{ns}/{id}")]
