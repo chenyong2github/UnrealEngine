@@ -7,6 +7,7 @@
 #include "FieldNotification/IFieldValueChanged.h"
 #include "UObject/Object.h"
 
+#include <limits>
 
 namespace UE::FieldNotification
 {
