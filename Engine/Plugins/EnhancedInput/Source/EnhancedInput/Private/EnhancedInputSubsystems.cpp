@@ -28,20 +28,3 @@ UEnhancedPlayerInput* UEnhancedInputLocalPlayerSubsystem::GetPlayerInput() const
 	}
 	return nullptr;
 }
-
-// **************************************************************************************************
-// *
-// * UEnhancedInputEngineSubsystem
-// *
-// **************************************************************************************************
-
-void UEnhancedInputEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
-{	
-	PlayerInput = nullptr;
-	//PlayerInput = NewObject<UEnhancedPlayerInput>();	// TODO: Remove UPlayerInput Within? Create an empty player controller?
-}
-
-UEnhancedPlayerInput* UEnhancedInputEngineSubsystem::GetPlayerInput() const
-{
-	return PlayerInput;
-}

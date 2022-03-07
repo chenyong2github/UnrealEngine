@@ -15,8 +15,8 @@
 
 void UEnhancedInputLibrary::ForEachSubsystem(TFunctionRef<void(IEnhancedInputSubsystemInterface*)> SubsystemPredicate)
 {
-	// Engine
-	SubsystemPredicate(Cast<IEnhancedInputSubsystemInterface>(GEngine->GetEngineSubsystem<UEnhancedInputEngineSubsystem>()));
+	// TODO: World subsystem for enhanced input, so that you bind to actions without an owning player controller
+	// This is useful for widgets, main menu situations, or just stuff that isn't dependant on a player.
 
 	// Players
 	for (TObjectIterator<UEnhancedInputLocalPlayerSubsystem> It; It; ++It)
