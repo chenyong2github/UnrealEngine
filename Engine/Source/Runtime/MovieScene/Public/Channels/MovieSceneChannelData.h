@@ -555,7 +555,7 @@ struct TMovieSceneChannelData<const ValueType>
 	 *
 	 * @param InTime         The time at which to search
 	 * @param InTolerance    A tolerance of frame numbers to allow either side of the specified time
-	 * @return The index of the key closest to InTime and within InTolerance, or INDEX_NONE
+	 * @return The index of the key closest to InTime and within InTolerance, INDEX_NONE or Times.Num()
 	 */
 	int32 FindKey(FFrameNumber InTime, FFrameNumber InTolerance = 0) const
 	{

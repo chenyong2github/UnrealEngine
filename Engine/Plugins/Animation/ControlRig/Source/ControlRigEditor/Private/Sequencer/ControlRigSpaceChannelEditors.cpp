@@ -1408,18 +1408,21 @@ void FControlRigSpaceChannelHelpers::EvaluateTangentAtThisTime(	UControlRig* Con
 			return DefaultTangent;
 		}
 
+		const TArrayView<const FMovieSceneFloatValue> Values = ChannelInterface.GetValues();
+		
 		// look around to get the closest key tangent if fairly close
 		const int32 Tolerance = static_cast<int32>(InChannel->GetTickResolution().AsDecimal() * 0.01);
+		// NOTE FindKey might return Times.Num() (see AlgoImpl::LowerBoundInternal)
 		const int32 ExistingIndex = ChannelInterface.FindKey(InTime, Tolerance);
-		if (ExistingIndex != INDEX_NONE)
+		if (Times.IsValidIndex(ExistingIndex) && Values.IsValidIndex(ExistingIndex))
 		{
-			const FMovieSceneFloatValue& Value = ChannelInterface.GetValues()[ExistingIndex];
 			const FFrameNumber& Time = Times[ExistingIndex];
 			const int32 DiffToKey = InTime.Value - Time.Value;
 
 			// if the closest key is within a threshold, we use it's tangent directly instead of computing one
 			if (FMath::Abs(DiffToKey) <= Tolerance)
 			{
+				const FMovieSceneFloatValue& Value = Values[ExistingIndex];
 				if (DiffToKey == 0)
 				{
 					return Value.Tangent;				
