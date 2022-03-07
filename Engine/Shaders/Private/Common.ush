@@ -1795,7 +1795,16 @@ bool GetRayTracingQualitySwitch()
 
 bool GetPathTracingQualitySwitch()
 {
-#if RAYHITGROUPSHADER && PATH_TRACING
+#if RAYHITGROUPSHADER && PATH_TRACING && !SIMPLIFIED_MATERIAL_SHADER
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool GetLightmassReplaceState()
+{
+#if RAYHITGROUPSHADER && PATH_TRACING && SIMPLIFIED_MATERIAL_SHADER
 	return true;
 #else
 	return false;
