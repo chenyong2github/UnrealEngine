@@ -7,6 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/SListView.h"
 
 class FConcertSessionItem;
 class SWidget;

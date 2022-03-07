@@ -9,6 +9,7 @@ struct FConcertSyncActivity;
 struct FConcertClientInfo;
 class IConcertClientWorkspace;
 class IConcertSyncClient;
+class FStructOnScope;
 
 /** Manages SSessionHistory for IConcertClients */
 class FClientSessionHistoryController : public FAbstractSessionHistoryController

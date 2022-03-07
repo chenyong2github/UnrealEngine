@@ -2,8 +2,10 @@
 
 #include "ConcertServerSessionTab.h"
 
+#include "Framework/Docking/TabManager.h"
 #include "IConcertSession.h"
 #include "Widgets/ConcertServerTabs.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/StatusBar/SConcertStatusBar.h"
 #include "Widgets/Session/SConcertSessionInspector.h"
 
