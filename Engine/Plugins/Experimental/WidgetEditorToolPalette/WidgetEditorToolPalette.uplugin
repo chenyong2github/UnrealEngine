@@ -19,7 +19,7 @@
 			"Name": "WidgetEditorToolPalette",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"PlatformAllowList": [ "Win64" ]
 		}
 	]
 }
