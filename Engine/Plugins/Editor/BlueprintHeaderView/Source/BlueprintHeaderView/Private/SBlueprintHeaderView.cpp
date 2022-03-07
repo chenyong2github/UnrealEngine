@@ -10,6 +10,8 @@
 #include "IContentBrowserSingleton.h"
 #include "Engine/Blueprint.h"
 #include "Framework/Text/SlateTextRun.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HeaderViewClassListItem.h"
 #include "HeaderViewFunctionListItem.h"
 #include "HeaderViewVariableListItem.h"
@@ -17,6 +19,7 @@
 #include "K2Node_FunctionEntry.h"
 #include "EditorStyleSet.h"
 #include "String/LineEndings.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #define LOCTEXT_NAMESPACE "SBlueprintHeaderView"
 
@@ -171,6 +174,15 @@ void SBlueprintHeaderView::Construct(const FArguments& InArgs)
 	const float PaddingAmount = 8.0f;
 	SelectedBlueprint = nullptr;
 
+	CommandList = MakeShared<FUICommandList>();
+	
+	CommandList->MapAction(FGenericCommands::Get().Copy,
+		FExecuteAction::CreateRaw(this, &SBlueprintHeaderView::OnCopy),
+		FCanExecuteAction::CreateRaw(this, &SBlueprintHeaderView::CanCopy));
+
+	CommandList->MapAction(FGenericCommands::Get().SelectAll,
+		FExecuteAction::CreateRaw(this, &SBlueprintHeaderView::OnSelectAll));
+
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -222,9 +234,20 @@ void SBlueprintHeaderView::Construct(const FArguments& InArgs)
 				SAssignNew(ListView, SListView<FHeaderViewListItemPtr>)
 				.ListItemsSource(&ListItems)
 				.OnGenerateRow(this, &SBlueprintHeaderView::GenerateRowForItem)
+				.OnContextMenuOpening(this, &SBlueprintHeaderView::OnContextMenuOpening)
 //			]
 		]
 	];
+}
+
+FReply SBlueprintHeaderView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (CommandList.IsValid() && CommandList->ProcessCommandBindings(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
 }
 
 FText SBlueprintHeaderView::GetClassPickerText() const
@@ -379,6 +402,42 @@ void SBlueprintHeaderView::PopulateVariableItems(const UBlueprint* Blueprint)
 			}
 		}
 	}
+}
+
+TSharedPtr<SWidget> SBlueprintHeaderView::OnContextMenuOpening()
+{
+	FMenuBuilder MenuBuilder(true, CommandList);
+
+	MenuBuilder.AddMenuEntry(FGenericCommands::Get().SelectAll);
+	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SBlueprintHeaderView::OnCopy() const
+{
+	const int32 StringReserveSize = 2048;
+	FString CopyText;
+	CopyText.Reserve(StringReserveSize);
+	for (const FHeaderViewListItemPtr& Item : ListItems)
+	{
+		if (ListView->IsItemSelected(Item))
+		{
+			CopyText += Item->GetRawItemString() + LINE_TERMINATOR;
+		}
+	}
+
+	FPlatformApplicationMisc::ClipboardCopy(*CopyText);
+}
+
+bool SBlueprintHeaderView::CanCopy() const
+{
+	return ListView->GetNumItemsSelected() > 0;
+}
+
+void SBlueprintHeaderView::OnSelectAll()
+{
+	ListView->SetItemSelection(ListItems, true);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -27,6 +27,7 @@ public class BlueprintHeaderView : ModuleRules
 				"EditorStyle",
 				"UnrealEd",
 				"BlueprintGraph",
+				"ApplicationCore",
 			}
 			);
 		

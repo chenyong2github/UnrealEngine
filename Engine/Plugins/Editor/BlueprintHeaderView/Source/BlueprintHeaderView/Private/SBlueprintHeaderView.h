@@ -12,6 +12,7 @@ class SComboButton;
 class UBlueprint;
 class ITableRow;
 class STableViewBase;
+class FUICommandList;
 
 /** rich text decorators for BlueprintHeaderView Syntax Highlighting */
 namespace HeaderViewSyntaxDecorators
@@ -31,6 +32,9 @@ struct FHeaderViewListItem : public TSharedFromThis<FHeaderViewListItem>
 
 	/** Creates a basic list item containing some text */
 	static TSharedPtr<FHeaderViewListItem> Create(FString InRawString, FString InRichText);
+
+	/** Returns the raw item text for copy actions */
+	const FString& GetRawItemString() const { return RawItemString; }
 
 protected:
 	/** Empty base constructor hidden from public */
@@ -74,6 +78,10 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
+	//~ SWidget interface
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	//~ End SWidget interface
+
 private:
 	/** Gets the text for the class picker combo button */
 	FText GetClassPickerText() const;
@@ -95,7 +103,19 @@ private:
 
 	/** Adds items to the list view representing all variables present in the given blueprints */
 	void PopulateVariableItems(const UBlueprint* Blueprint);
+
+	/** Creates a context menu for the list view */
+	TSharedPtr<SWidget> OnContextMenuOpening();
+
+	/** UI Command Functions */
+	void OnCopy() const;
+	bool CanCopy() const;
+	void OnSelectAll();
+
 private:
+	/** List of UI Commands for this scope */
+	TSharedPtr<FUICommandList> CommandList;
+
 	/** The blueprint currently being displayed by the header view */
 	TWeakObjectPtr<UBlueprint> SelectedBlueprint;
 
