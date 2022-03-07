@@ -1564,8 +1564,8 @@ bool TrySavePackage(UPackage* Package)
 	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
 	if (!PackageDigest.IsSuccessful())
 	{
-		UE_LOG(LogEditorDomain, Warning, TEXT("Could not save package to EditorDomain: %s."),
-			*PackageDigest.GetStatusString());
+		UE_LOG(LogEditorDomain, Warning, TEXT("Could not save package to EditorDomain: %s. Reason: %s"),
+			*WriteToString<256>(PackageName), *PackageDigest.GetStatusString());
 		return false;
 	}
 	if (!EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::SaveEnabled))

@@ -209,6 +209,7 @@ bool FEditorDomain::TryFindOrAddPackageSource(FName PackageName,
 			*WriteToString<256>(PackageName), *PackageDigest.GetStatusString());
 		PackageSource = new FPackageSource();
 		PackageSource->Source = EPackageSource::Workspace;
+		PackageSource->Digest = MoveTemp(PackageDigest);
 		OutSource = PackageSource;
 		return true;
 	}
