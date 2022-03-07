@@ -114,7 +114,7 @@ public:
 	 * @param OutReductionOptions - The reduction settings where we copy the reduction options.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Library")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static void GetLodReductionSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshReductionSettings& OutReductionOptions);
 
 	/**
@@ -124,7 +124,7 @@ public:
 	 * @param ReductionOptions - The reduction settings we want to apply to the LOD.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Library")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static void SetLodReductionSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshReductionSettings& ReductionOptions);
 
 	/**
@@ -134,7 +134,7 @@ public:
 	 * @param OutBuildOptions - The build settings where we copy the build options.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Library")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static void GetLodBuildSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshBuildSettings& OutBuildOptions);
 
 	/**
@@ -144,7 +144,7 @@ public:
 	 * @param BuildOptions - The build settings we want to apply to the LOD.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Library")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static void SetLodBuildSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshBuildSettings& BuildOptions);
 
 	/**
@@ -157,7 +157,7 @@ public:
 	 * @return the index of the LOD that was imported or re-imported. Will return INDEX_NONE if anything goes bad.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Library")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 ImportLOD(UStaticMesh* BaseStaticMesh, const int32 LODIndex, const FString& SourceFilename);
 
 	/**
@@ -168,7 +168,7 @@ public:
 	 * @return true if re-import all LODs works, false otherwise see log for explanation.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Library")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool ReimportAllCustomLODs(UStaticMesh* StaticMesh);
 
 	/**
@@ -183,7 +183,7 @@ public:
 	 *			A negative value indicates that the LOD was not set. See log for explanation.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 SetLodFromStaticMesh(UStaticMesh* DestinationStaticMesh, int32 DestinationLodIndex, UStaticMesh* SourceStaticMesh, int32 SourceLodIndex, bool bReuseExistingMaterialSlots);
 
 	/**
@@ -193,7 +193,7 @@ public:
 	 * An negative value indicates that the command could not be executed. See log for explanation.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 GetLodCount(UStaticMesh* StaticMesh);
 
 	/**
@@ -202,7 +202,7 @@ public:
 	 * @return A boolean indicating if the removal was successful, true, or not.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool RemoveLods(UStaticMesh* StaticMesh);
 
 	/**
@@ -211,7 +211,7 @@ public:
 	 * @return array of LOD screen sizes.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static TArray<float> GetLodScreenSizes(UStaticMesh* StaticMesh);
 
 public:
@@ -245,7 +245,7 @@ public:
 	 * An negative value indicates that the command could not be executed. See log for explanation.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 GetSimpleCollisionCount(UStaticMesh* StaticMesh);
 
 	/**
@@ -254,7 +254,7 @@ public:
 	 * @return the Collision Trace behavior.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static TEnumAsByte<ECollisionTraceFlag> GetCollisionComplexity(UStaticMesh* StaticMesh);
 
 	/**
@@ -264,7 +264,7 @@ public:
 	 * An negative value indicates that the command could not be executed. See log for explanation.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 GetConvexCollisionCount(UStaticMesh* StaticMesh);
 
 	/**
@@ -279,7 +279,7 @@ public:
 	 * @return A boolean indicating if the addition was successful or not.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool SetConvexDecompositionCollisionsWithNotification(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges);
 
 	/**
@@ -294,14 +294,14 @@ public:
 	 * @return A boolean indicating if the addition was successful or not.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool BulkSetConvexDecompositionCollisionsWithNotification(const TArray<UStaticMesh*>& StaticMeshes, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges);
 
 	/**
 	 * Same as SetConvexDecompositionCollisionsWithNotification but changes are automatically applied.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool SetConvexDecompositionCollisions(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision)
 	{
 		UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
@@ -313,7 +313,7 @@ public:
 	 * Same as SetConvexDecompositionCollisionsWithNotification but changes are automatically applied.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool BulkSetConvexDecompositionCollisions(const TArray<UStaticMesh*>& StaticMeshes, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision)
 	{
 		UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
@@ -329,14 +329,14 @@ public:
 	 * @return A boolean indicating if the removal was successful or not.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool RemoveCollisionsWithNotification(UStaticMesh* StaticMesh, bool bApplyChanges);
 
 	/**
 	 * Same as RemoveCollisionsWithNotification but changes are applied.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool RemoveCollisions(UStaticMesh* StaticMesh)
 	{
 		UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
@@ -352,7 +352,7 @@ public:
 	 * @param	SectionIndex		Index of the StaticMesh Section.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static void EnableSectionCollision(UStaticMesh* StaticMesh, bool bCollisionEnabled, int32 LODIndex, int32 SectionIndex);
 
 	/**
@@ -363,7 +363,7 @@ public:
 	 * @return True is the collision is enabled for the specified LOD of the StaticMesh section.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool IsSectionCollisionEnabled(UStaticMesh* StaticMesh, int32 LODIndex, int32 SectionIndex);
 
 public:
@@ -376,37 +376,37 @@ public:
 	 * @param	SectionIndex		Index of the StaticMesh Section.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static void EnableSectionCastShadow(UStaticMesh* StaticMesh, bool bCastShadow, int32 LODIndex, int32 SectionIndex);
 
 	/** Check whether a static mesh has vertex colors */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool HasVertexColors(UStaticMesh* StaticMesh);
 
 	/** Check whether a static mesh component has vertex colors */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool HasInstanceVertexColors(UStaticMeshComponent* StaticMeshComponent);
 
 	/** Set Generate Lightmap UVs for StaticMesh */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta=(ScriptName="SetGenerateLightmapUv", DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta=(ScriptName="SetGenerateLightmapUv", DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool SetGenerateLightmapUVs(UStaticMesh* StaticMesh, bool bGenerateLightmapUVs);
 
 	/** Get number of StaticMesh verts for an LOD */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 GetNumberVerts(UStaticMesh* StaticMesh, int32 LODIndex);
 
 	/** Get number of Materials for a StaticMesh */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 GetNumberMaterials(UStaticMesh* StaticMesh);
 
 	/** Sets StaticMeshFlag bAllowCPUAccess  */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static void SetAllowCPUAccess(UStaticMesh* StaticMesh, bool bAllowCPUAccess);
 
 public:
@@ -418,7 +418,7 @@ public:
 	 * @return the number of UV channels.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 GetNumUVChannels(UStaticMesh* StaticMesh, int32 LODIndex);
 
 	/**
@@ -428,7 +428,7 @@ public:
 	 * @return true if a UV channel was added.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool AddUVChannel(UStaticMesh* StaticMesh, int32 LODIndex);
 
 	/**
@@ -439,7 +439,7 @@ public:
 	 * @return true if a UV channel was added.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool InsertUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex);
 
 	/**
@@ -450,7 +450,7 @@ public:
 	 * @return true if the UV channel was removed.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool RemoveUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex);
 
 	/**
@@ -464,7 +464,7 @@ public:
 	 * @return true if the UV mapping was generated.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool GeneratePlanarUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector2D& Tiling);
 
 	/**
@@ -478,7 +478,7 @@ public:
 	 * @return true if the UV mapping was generated.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool GenerateCylindricalUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector2D& Tiling);
 
 	/**
@@ -492,7 +492,7 @@ public:
 	 * @return true if the UV mapping was generated.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool GenerateBoxUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector& Size);
 
 	// Converts the deprecated FEditorScriptingMeshReductionOptions to the new FStaticMeshReductionOptions
@@ -510,14 +510,14 @@ public:
 	// The old functions are still available as an overload, which makes old code that uses them compatible
 
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 SetLodsWithNotification(UStaticMesh* StaticMesh, const FStaticMeshReductionOptions& ReductionOptions, bool bApplyChanges );
 
 	/**
 	 * Same as SetLodsWithNotification but changes are applied.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 SetLods(UStaticMesh* StaticMesh, const FStaticMeshReductionOptions& ReductionOptions)
 	{
 		UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
@@ -526,14 +526,14 @@ public:
 	}
 
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 AddSimpleCollisionsWithNotification(UStaticMesh* StaticMesh, const EScriptCollisionShapeType ShapeType, bool bApplyChanges);
 
 	/**
 	 * Same as AddSimpleCollisionsWithNotification but changes are automatically applied.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 AddSimpleCollisions(UStaticMesh* StaticMesh, const EScriptCollisionShapeType ShapeType)
 	{
 		UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
