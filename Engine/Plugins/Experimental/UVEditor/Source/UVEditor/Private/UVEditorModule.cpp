@@ -3,7 +3,6 @@
 #include "UVEditorModule.h"
 
 #include "ContentBrowserMenuContexts.h"
-#include "DetailsCustomizations/UVSelectToolCustomizations.h"
 #include "EditorModeRegistry.h"
 #include "LevelEditorMenuContext.h"
 #include "PropertyEditorModule.h"
@@ -31,9 +30,10 @@ void FUVEditorModule::StartupModule()
 	// Register details view customizations
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	ClassesToUnregisterOnShutdown.Reset();
-	PropertyModule.RegisterCustomClassLayout(USelectToolActionPropertySet::StaticClass()->GetFName(), 
-		FOnGetDetailCustomizationInstance::CreateStatic(&FUVSelectToolActionPropertySetDetails::MakeInstance));
-	ClassesToUnregisterOnShutdown.Add(USelectToolActionPropertySet::StaticClass()->GetFName());
+	// Customizations get registered like this:
+	//PropertyModule.RegisterCustomClassLayout(USelectToolActionPropertySet::StaticClass()->GetFName(), 
+	//	FOnGetDetailCustomizationInstance::CreateStatic(&FUVSelectToolActionPropertySetDetails::MakeInstance));
+	//ClassesToUnregisterOnShutdown.Add(USelectToolActionPropertySet::StaticClass()->GetFName());
 }
 
 void FUVEditorModule::ShutdownModule()

@@ -16,7 +16,7 @@
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "ToolSceneQueriesUtil.h"
 #include "UVEditorUXSettings.h"
-#include "UVToolContextObjects.h"
+#include "ContextObjects/UVToolContextObjects.h"
 #include "EngineAnalytics.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorSeamTool"

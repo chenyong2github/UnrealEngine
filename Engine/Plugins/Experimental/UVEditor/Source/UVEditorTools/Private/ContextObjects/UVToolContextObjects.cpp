@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "UVToolContextObjects.h"
+#include "ContextObjects/UVToolContextObjects.h"
 
 #include "DynamicMesh/MeshIndexUtil.h"
 #include "Engine/World.h"
@@ -169,9 +169,7 @@ void UUVToolAABBTreeStorage::Empty()
 	AABBTreeStorage.Empty();
 }
 
-void UUVToolAABBTreeStorage::BeginDestroy()
+void UUVToolAABBTreeStorage::Shutdown()
 {
 	Empty();
-
-	Super::BeginDestroy();
 }

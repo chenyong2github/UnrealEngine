@@ -3,8 +3,15 @@
 #include "UVEditorMode.h"
 
 #include "Algo/AnyOf.h"
+#include "Actions/UVIslandConformalUnwrapAction.h"
+#include "Actions/UVSplitAction.h"
+#include "Actions/UVSeamSewAction.h"
+#include "Actions/UVToolAction.h"
 #include "AssetEditorModeManager.h"
+#include "ContextObjects/UVToolViewportButtonsAPI.h"
+#include "ContextObjects/UVToolAssetInputsContext.h"
 #include "ContextObjectStore.h"
+#include "Selection/UVToolSelectionAPI.h"
 #include "Drawing/MeshElementsVisualizer.h"
 #include "Editor.h"
 #include "EditorViewportClient.h"
@@ -33,10 +40,9 @@
 #include "UVSelectTool.h"
 #include "UVEditorModeToolkit.h"
 #include "UVEditorSubsystem.h"
-#include "UVToolContextObjects.h"
+#include "ContextObjects/UVToolContextObjects.h"
 #include "UVEditorBackgroundPreview.h"
 #include "UVEditorToolAnalyticsUtils.h"
-#include "Editor.h"
 #include "UVEditorUXSettings.h"
 #include "UDIMUtilities.h"
 #include "EditorSupportDelegates.h"
@@ -71,6 +77,45 @@ namespace UVEditorModeLocals
 			ViewTransform.ComputeOrbitMatrix().InverseFast().Rotator() : ViewTransform.GetRotation();
 		CameraStateOut.Orientation = ViewRotation.Quaternion();
 	}
+
+	/**
+	 * Support for undoing a tool start in such a way that we go back to the mode's default
+	 * tool on undo.
+	 */
+	class FUVEditorBeginToolChange : public FToolCommandChange
+	{
+	public:
+		virtual void Apply(UObject* Object) override
+		{
+			// Do nothing, since we don't allow a re-do back into a tool
+		}
+
+		virtual void Revert(UObject* Object) override
+		{
+			UUVEditorMode* Mode = Cast<UUVEditorMode>(Object);
+			// Don't really need the check for default tool since we theoretically shouldn't
+			// be issuing this transaction for starting the default tool, but still...
+			if (Mode && !Mode->IsDefaultToolActive())
+			{
+				Mode->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Cancel);
+				Mode->ActivateDefaultTool();
+			}
+		}
+
+		virtual bool HasExpired(UObject* Object) const override
+		{
+			// To not be expired, we must be in some tool.
+			UUVEditorMode* Mode = Cast<UUVEditorMode>(Object);
+			return !(Mode && Mode->GetInteractiveToolsContext()
+				&& Mode->GetInteractiveToolsContext()->ToolManager
+				&& Mode->GetInteractiveToolsContext()->ToolManager->HasAnyActiveTool());
+		}
+
+		virtual FString ToString() const override
+		{
+			return TEXT("UVEditorModeLocals::FUVEditorBeginToolChange");
+		}
+	};
 
 	/** 
 	 * Change for undoing/redoing displayed layer changes.
@@ -216,6 +261,14 @@ void UUVEditorMode::Enter()
 {
 	Super::Enter();
 
+	// Our mode needs to get Render and DrawHUD calls, but doesn't implement the legacy interface that
+	// causes those to be called. Instead, we'll hook into the tools context's Render and DrawHUD calls.
+	GetInteractiveToolsContext()->OnRender.AddUObject(this, &UUVEditorMode::Render);
+	GetInteractiveToolsContext()->OnDrawHUD.AddUObject(this, &UUVEditorMode::DrawHUD);
+
+	InitializeModeContexts();
+	InitializeTargets();
+
 	BackgroundVisualization = NewObject<UUVEditorBackgroundPreview>(this);
 	BackgroundVisualization->CreateInWorld(GetWorld(), FTransform::Identity);
 
@@ -280,7 +333,7 @@ void UUVEditorMode::Enter()
 	PropertyObjectsToTick.Add(UVEditorUDIMProperties);
 
 	RegisterTools();
-
+	RegisterActions();
 	ActivateDefaultTool();
 
 	if (FEngineAnalytics::IsAvailable())
@@ -300,14 +353,16 @@ void UUVEditorMode::RegisterTools()
 {
 	const FUVEditorCommands& CommandInfos = FUVEditorCommands::Get();
 
-	// Note that the identifiers below need to match the command names so that the tool icons can 
-	// be easily retrieved from the active tool name in UVEditorModeToolkit::OnToolStarted. Otherwise
-	// we would need to keep some other mapping from tool identifier to tool icon.
-
+	// The Select Tool is a bit different because it runs between other tools. It doesn't have a button and is not
+	// hotkeyable, hence it doesn't have a command item. Instead we register it directly with the tool manager.
 	UUVSelectToolBuilder* UVSelectToolBuilder = NewObject<UUVSelectToolBuilder>();
 	UVSelectToolBuilder->Targets = &ToolInputObjects;
 	DefaultToolIdentifier = TEXT("BeginSelectTool");
-	RegisterTool(CommandInfos.BeginSelectTool, DefaultToolIdentifier, UVSelectToolBuilder);
+	GetToolManager()->RegisterToolType(DefaultToolIdentifier, UVSelectToolBuilder);
+
+	// Note that the identifiers below need to match the command names so that the tool icons can 
+	// be easily retrieved from the active tool name in UVEditorModeToolkit::OnToolStarted. Otherwise
+	// we would need to keep some other mapping from tool identifier to tool icon.
 
 	UUVEditorLayoutToolBuilder* UVEditorLayoutToolBuilder = NewObject<UUVEditorLayoutToolBuilder>();
 	UVEditorLayoutToolBuilder->Targets = &ToolInputObjects;
@@ -330,6 +385,44 @@ void UUVEditorMode::RegisterTools()
 	RegisterTool(CommandInfos.BeginRecomputeUVsTool, TEXT("BeginRecomputeUVsTool"), UVEditorRecomputeUVsToolBuilder);
 }
 
+void UUVEditorMode::RegisterActions()
+{
+	const FUVEditorCommands& CommandInfos = FUVEditorCommands::Get();
+	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
+
+	auto PrepAction = [this, CommandList](TSharedPtr<const FUICommandInfo> CommandInfo, UUVToolAction* Action)
+	{
+		Action->Setup(GetToolManager());
+		CommandList->MapAction(CommandInfo,
+			FExecuteAction::CreateWeakLambda(Action, [this, Action]() 
+			{ 
+				Action->ExecuteAction();
+				for (const FUVToolSelection& Selection : SelectionAPI->GetSelections())
+				{
+					// The actions are expected to have left the selection in a valid state. If this is not
+					// the case, we'll clear the selection here, which is still not a proper solution because
+					// undoing the transaction will still put things into an invalid state (but our Select Tool
+					// should be robust to that in its OnSelectionChanged).
+					if (!ensure(Selection.Target.IsValid() 
+						&& Selection.AreElementsPresentInMesh(*Selection.Target->UnwrapCanonical)))
+					{
+						SelectionAPI->ClearSelections(true, true);
+						SelectionAPI->ClearHighlight();
+						break;
+					}
+				}
+			}),
+			FCanExecuteAction::CreateWeakLambda(Action, [Action, this]() 
+				{ 
+					return IsDefaultToolActive() && Action->CanExecuteAction(); 
+				}));
+		RegisteredActions.Add(Action);
+	};
+	PrepAction(CommandInfos.SewAction, NewObject<UUVSeamSewAction>());
+	PrepAction(CommandInfos.SplitAction, NewObject<UUVSplitAction>());
+	PrepAction(CommandInfos.IslandConformalUnwrapAction, NewObject<UUVIslandConformalUnwrapAction>());
+}
+
 bool UUVEditorMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) const
 {
 	// For now we've decided to disallow switch-away on accept/cancel tools in the UV editor.
@@ -344,6 +437,43 @@ bool UUVEditorMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) cons
 void UUVEditorMode::CreateToolkit()
 {
 	Toolkit = MakeShared<FUVEditorModeToolkit>();
+}
+
+void UUVEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+{
+	using namespace UVEditorModeLocals;
+
+	FText TransactionName = LOCTEXT("ActivateTool", "Activate Tool");
+	
+	if (!IsDefaultToolActive())
+	{
+		GetInteractiveToolsContext()->GetTransactionAPI()->BeginUndoTransaction(TransactionName);
+	
+		// If a tool doesn't support selection, we can't be certain that it won't put the meshes
+		// in a state where the selection refers to invalid elements.
+		if (!Cast<IUVToolSupportsSelection>(Tool))
+		{
+			SelectionAPI->ClearSelections(true, true); // broadcast, emit
+			SelectionAPI->ClearHighlight();
+		}
+	
+		GetInteractiveToolsContext()->GetTransactionAPI()->AppendChange(
+			this, MakeUnique<FUVEditorBeginToolChange>(), TransactionName);
+
+		GetInteractiveToolsContext()->GetTransactionAPI()->EndUndoTransaction();
+	}
+
+}
+
+void UUVEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+{
+	for (TWeakObjectPtr<UUVToolContextObject> Context : ContextsToUpdateOnToolEnd)
+	{
+		if (ensure(Context.IsValid()))
+		{
+			Context->OnToolEnded(Tool);
+		}
+	}
 }
 
 UObject* UUVEditorMode::GetBackgroundSettingsObject()
@@ -371,6 +501,22 @@ UObject* UUVEditorMode::GetUDIMSettingsObject()
 		return UVEditorUDIMProperties;
 	}
 	return nullptr;
+}
+
+void UUVEditorMode::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	if (SelectionAPI)
+	{
+		SelectionAPI->Render(RenderAPI);
+	}
+}
+
+void UUVEditorMode::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+{
+	if (SelectionAPI)
+	{
+		SelectionAPI->DrawHUD(Canvas, RenderAPI);
+	}
 }
 
 void UUVEditorMode::ActivateDefaultTool()
@@ -482,6 +628,12 @@ void UUVEditorMode::Exit()
 	// inaccessible, so we end up having to do this to force the shutdown right now.
 	GetToolManager()->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
 
+	for (UUVToolAction* Action : RegisteredActions)
+	{
+		Action->Shutdown();
+	}
+	RegisteredActions.Reset();
+
 	for (TObjectPtr<UUVEditorToolMeshInput> ToolInput : ToolInputObjects)
 	{
 		ToolInput->Shutdown();
@@ -509,29 +661,98 @@ void UUVEditorMode::Exit()
 
 	bIsActive = false;
 
+	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+	for (TWeakObjectPtr<UUVToolContextObject> Context : ContextsToShutdown)
+	{
+		if (ensure(Context.IsValid()))
+		{
+			Context->Shutdown();
+			ContextStore->RemoveContextObject(Context.Get());
+		}
+	}
+
+	GetInteractiveToolsContext()->OnRender.RemoveAll(this);
+	GetInteractiveToolsContext()->OnDrawHUD.RemoveAll(this);
+
 	Super::Exit();
 }
 
-void UUVEditorMode::InitializeContexts(FEditorViewportClient& LivePreviewViewportClient, FAssetEditorModeManager& LivePreviewModeManager, 
+void UUVEditorMode::InitializeAssetEditorContexts(UContextObjectStore& ContextStore,
+	const TArray<TObjectPtr<UObject>>& AssetsIn, const TArray<FTransform>& TransformsIn,
+	FEditorViewportClient& LivePreviewViewportClient, FAssetEditorModeManager& LivePreviewModeManager,
 	UUVToolViewportButtonsAPI& ViewportButtonsAPI, UUVTool2DViewportAPI& UVTool2DViewportAPI)
 {
 	using namespace UVEditorModeLocals;
 
+	UUVToolAssetInputsContext* AssetInputsContext = ContextStore.FindContext<UUVToolAssetInputsContext>();
+	if (!AssetInputsContext)
+	{
+		AssetInputsContext = NewObject<UUVToolAssetInputsContext>();
+		AssetInputsContext->Initialize(AssetsIn, TransformsIn);
+		ContextStore.AddContextObject(AssetInputsContext);
+	}
+
+	UUVToolLivePreviewAPI* LivePreviewAPI = ContextStore.FindContext<UUVToolLivePreviewAPI>();
+	if (!LivePreviewAPI)
+	{
+		LivePreviewAPI = NewObject<UUVToolLivePreviewAPI>();
+		LivePreviewAPI->Initialize(
+			LivePreviewModeManager.GetPreviewScene()->GetWorld(),
+			LivePreviewModeManager.GetInteractiveToolsContext()->InputRouter,
+			[LivePreviewViewportClientPtr = &LivePreviewViewportClient](FViewCameraState& CameraStateOut) {
+				GetCameraState(*LivePreviewViewportClientPtr, CameraStateOut);
+			});
+		ContextStore.AddContextObject(LivePreviewAPI);
+	}
+
+	if (!ContextStore.FindContext<UUVToolViewportButtonsAPI>())
+	{
+		ContextStore.AddContextObject(&ViewportButtonsAPI);
+	}
+
+	if (!ContextStore.FindContext<UUVTool2DViewportAPI>())
+	{
+		ContextStore.AddContextObject(&UVTool2DViewportAPI);
+	}
+}
+
+void UUVEditorMode::InitializeModeContexts()
+{
 	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
 
-	LivePreviewWorld = LivePreviewModeManager.GetPreviewScene()->GetWorld();
-	UUVToolLivePreviewAPI* LivePreviewAPI = NewObject<UUVToolLivePreviewAPI>();
-	LivePreviewAPI->Initialize(
-		LivePreviewWorld,
-		LivePreviewModeManager.GetInteractiveToolsContext()->InputRouter,
-		[this, LivePreviewViewportClientPtr = &LivePreviewViewportClient](FViewCameraState& CameraStateOut) {
-			GetCameraState(*LivePreviewViewportClientPtr, CameraStateOut); 
-		});
-	ContextStore->AddContextObject(LivePreviewAPI);
+	UUVToolAssetInputsContext* AssetInputsContext = ContextStore->FindContext<UUVToolAssetInputsContext>();
+	check(AssetInputsContext);
+	AssetInputsContext->GetAssetInputs(OriginalObjectsToEdit, Transforms);
+	ContextsToUpdateOnToolEnd.Add(AssetInputsContext);
+
+	UUVToolLivePreviewAPI* LivePreviewAPI = ContextStore->FindContext<UUVToolLivePreviewAPI>();
+	check(LivePreviewAPI);
+	LivePreviewWorld = LivePreviewAPI->GetLivePreviewWorld();
+	ContextsToUpdateOnToolEnd.Add(LivePreviewAPI);
+
+	UUVToolViewportButtonsAPI* ViewportButtonsAPI = ContextStore->FindContext<UUVToolViewportButtonsAPI>();
+	check(ViewportButtonsAPI);
+	ContextsToUpdateOnToolEnd.Add(ViewportButtonsAPI);
+
+	UUVTool2DViewportAPI* UVTool2DViewportAPI = ContextStore->FindContext<UUVTool2DViewportAPI>();
+	check(UVTool2DViewportAPI);
+	ContextsToUpdateOnToolEnd.Add(UVTool2DViewportAPI);
+
+	// Helper function for adding contexts that our mode creates itself, rather than getting from
+	// the asset editor.
+	auto AddContextObject = [this, ContextStore](UUVToolContextObject* Object)
+	{
+		if (ensure(ContextStore->AddContextObject(Object)))
+		{
+			ContextsToShutdown.Add(Object);
+		}
+		ContextsToUpdateOnToolEnd.Add(Object);
+	};
 
 	UUVToolEmitChangeAPI* EmitChangeAPI = NewObject<UUVToolEmitChangeAPI>();
+	EmitChangeAPI = NewObject<UUVToolEmitChangeAPI>();
 	EmitChangeAPI->Initialize(GetInteractiveToolsContext()->ToolManager);
-	ContextStore->AddContextObject(EmitChangeAPI);
+	AddContextObject(EmitChangeAPI);
 
 	UUVToolAssetAndChannelAPI* AssetAndLayerAPI = NewObject<UUVToolAssetAndChannelAPI>();
 	AssetAndLayerAPI->RequestChannelVisibilityChangeFunc = [this](const TArray<int32>& LayerPerAsset, bool bEmitUndoTransaction) {
@@ -550,27 +771,25 @@ void UUVEditorMode::InitializeContexts(FEditorViewportClient& LivePreviewViewpor
 		}
 		return VisibleLayers;
 	};
-	ContextStore->AddContextObject(AssetAndLayerAPI);
+	AddContextObject(AssetAndLayerAPI);
 
-	ContextStore->AddContextObject(&ViewportButtonsAPI);
+	SelectionAPI = NewObject<UUVToolSelectionAPI>();
+	SelectionAPI->Initialize(GetToolManager(), GetWorld(), 
+		GetInteractiveToolsContext()->InputRouter, LivePreviewAPI, EmitChangeAPI);
+	AddContextObject(SelectionAPI);
 
-	ContextStore->AddContextObject(&UVTool2DViewportAPI);
 }
 
-void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn,
-	const TArray<FTransform>& TransformsIn)
+void UUVEditorMode::InitializeTargets()
 {
 	using namespace UVEditorModeLocals;
 
-	// InitializeContexts needs to have been called first so that we have the 3d preview world ready.
+	// InitializeModeContexts needs to have been called first so that we have the 3d preview world ready.
 	check(LivePreviewWorld);
-
-	OriginalObjectsToEdit = AssetsIn;
-	Transforms = TransformsIn;
 
 	// Build the tool targets that provide us with 3d dynamic meshes
 	UUVEditorSubsystem* UVSubsystem = GEditor->GetEditorSubsystem<UUVEditorSubsystem>();
-	UVSubsystem->BuildTargets(AssetsIn, GetToolTargetRequirements(), ToolTargets);
+	UVSubsystem->BuildTargets(OriginalObjectsToEdit, GetToolTargetRequirements(), ToolTargets);
 
 	// Collect the 3d dynamic meshes from targets. There will always be one for each asset, and the AssetID
 	// of each asset will be the index into these arrays. Individual input objects (representing a specific
@@ -677,6 +896,9 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 	{
 		UVEditorUDIMProperties->InitializeAssets(ToolInputObjects);
 	}
+
+	// Finish initializing the selection api
+	SelectionAPI->SetTargets(ToolInputObjects);
 }
 
 void UUVEditorMode::EmitToolIndependentObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description)
@@ -969,6 +1191,16 @@ void UUVEditorMode::ChangeInputObjectLayer(int32 AssetID, int32 NewLayerIndex)
 
 void UUVEditorMode::SetDisplayedUVChannels(const TArray<int32>& LayerPerAsset, bool bEmitUndoTransaction)
 {
+	// Deal with any existing selections first.
+	// TODO: We could consider keeping triangle selections, since these can be valid across different layers,
+	// or converting the selections to elements in the applied mesh and back. The gain for this would probably
+	// be minor, so for now we'll just clear selection here.
+	if (SelectionAPI)
+	{
+		SelectionAPI->ClearSelections(true, bEmitUndoTransaction); // broadcast, maybe emit
+	}
+
+	// Now actually swap out the layers
 	for (int32 AssetID = 0; AssetID < ToolInputObjects.Num(); ++AssetID)
 	{
 		if (ToolInputObjects[AssetID]->UVLayerIndex != LayerPerAsset[AssetID])

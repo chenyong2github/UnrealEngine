@@ -10,7 +10,7 @@
 #include "ParameterizationOps/UVLayoutOp.h"
 #include "Properties/UVLayoutProperties.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
-#include "UVToolContextObjects.h"
+#include "ContextObjects/UVToolContextObjects.h"
 #include "EngineAnalytics.h"
 #include "UVEditorToolAnalyticsUtils.h"
 
@@ -68,7 +68,7 @@ void UUVEditorLayoutTool::Setup()
 	SetToolDisplayName(LOCTEXT("ToolName", "UV Layout"));
 	GetToolManager()->DisplayMessage(LOCTEXT("OnStartUVLayoutTool", "Translate, rotate or scale existing UV Charts using various strategies"),
 		EToolMessageLevel::UserNotification);
-
+	
 	// Analytics
 	InputTargetAnalytics = UVEditorAnalytics::CollectTargetAnalytics(Targets);
 }

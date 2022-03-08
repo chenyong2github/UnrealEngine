@@ -18,7 +18,6 @@ public:
 	TSharedPtr<FUICommandInfo> OpenUVEditor;
 	TSharedPtr<FUICommandInfo> ApplyChanges;
 
-	TSharedPtr<FUICommandInfo> BeginSelectTool;
 	TSharedPtr<FUICommandInfo> BeginLayoutTool;
 	TSharedPtr<FUICommandInfo> BeginParameterizeMeshTool;
 	TSharedPtr<FUICommandInfo> BeginChannelEditTool;

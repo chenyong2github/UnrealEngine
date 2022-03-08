@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "Tools/UEdMode.h"
-#include "ToolTargets/ToolTarget.h"
+#include "ToolTargets/ToolTarget.h" // FToolTargetTypeRequirements
 #include "GeometryBase.h"
 #include "InteractiveTool.h"
 
@@ -13,24 +13,24 @@
 
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
-class FEditorViewportClient;
 class FAssetEditorModeManager;
+class FEditorViewportClient;
 class FToolCommandChange;
-class IUVUnwrapDynamicMesh;
+class UContextObjectStore;
+class UInteractiveToolPropertySet;
 class UMeshElementsVisualizer;
-class UPreviewMesh;
-class UToolTarget;
-class UWorld;
-class FUVEditorModeToolkit;
-class UInteractiveToolPropertySet; 
 class UMeshOpPreviewWithBackgroundCompute;
-class UUVToolStateObjectStore;
+class UPreviewMesh;
+class UTexture2D;
 class UUVEditorToolMeshInput;
 class UUVEditorBackgroundPreview;
+class UUVToolAction;
+class UUVToolContextObject;
+class UUVToolSelectionAPI;
 class UUVToolViewportButtonsAPI;
 class UUVTool2DViewportAPI;
 class UUVEditorMode;
-class UTexture2D;
+class UWorld;
 
 /**
  * Visualization settings for the UUVEditorMode's Grid
@@ -145,8 +145,6 @@ public:
 
 	UUVEditorMode();
 
-	void RegisterTools();
-
 	/**
 	 * Gets the tool target requirements for the mode. The resulting targets undergo further processing
 	 * to turn them into the input objects that tools get (since these need preview meshes, etc).
@@ -158,11 +156,13 @@ public:
 	 */
 	static double GetUVMeshScalingFactor();
 
-	// Both initialization functions must be called for things to function properly. InitializeContexts should
-	// be done first so that the 3d preview world is ready for creating meshes in InitializeTargets.
-	void InitializeContexts(FEditorViewportClient& LivePreviewViewportClient, FAssetEditorModeManager& LivePreviewModeManager,
+	/**
+	 * Called by an asset editor so that a created instance of the mode has all the data it needs on Enter() to initialize itself.
+	 */
+	static void InitializeAssetEditorContexts(UContextObjectStore& ContextStore,
+		const TArray<TObjectPtr<UObject>>& AssetsIn, const TArray<FTransform>& TransformsIn,
+		FEditorViewportClient& LivePreviewViewportClient, FAssetEditorModeManager& LivePreviewModeManager,
 		UUVToolViewportButtonsAPI& ViewportButtonsAPI, UUVTool2DViewportAPI& UVTool2DViewportAPI);
-	void InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn, const TArray<FTransform>& TransformsIn);
 
 	// Public for use by undo/redo. Otherwise should use RequestUVChannelChange
 	void ChangeInputObjectLayer(int32 AssetID, int32 NewLayerIndex);
@@ -209,6 +209,9 @@ public:
 	/** @return A settings object suitable for display in a details panel to control UDIM configuration. */
 	UObject* GetUDIMSettingsObject();
 
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) ;
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
+
 	// UEdMode overrides
 	virtual void Enter() override;
 	virtual bool ShouldToolStartBeAllowed(const FString& ToolIdentifier) const override;
@@ -241,13 +244,20 @@ public:
 	void PopulateUDIMsByAsset(int32 AssetId, TArray<FUDIMSpecifier>& UDIMsOut) const;
 
 protected:
+	UPROPERTY()
+	TArray<TObjectPtr<UUVToolAction>> RegisteredActions;
+
+	void InitializeModeContexts();
+	void InitializeTargets();
+	void RegisterTools();
+	void RegisterActions();
 
 	// UEdMode overrides
 	virtual void CreateToolkit() override;
 	// Not sure whether we need these yet
 	virtual void BindCommands() override;
-	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override {}
-	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override {}
+	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	
 	void UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible);
 	void UpdatePreviewMaterialBasedOnBackground();
@@ -321,11 +331,17 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UWorld> LivePreviewWorld = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UUVToolSelectionAPI> SelectionAPI = nullptr;
+
 	/**
 	 * Mode-level property objects (visible or not) that get ticked.
 	 */
 	UPROPERTY()
 	TArray<TObjectPtr<UInteractiveToolPropertySet>> PropertyObjectsToTick;
+
+	TArray<TWeakObjectPtr<UUVToolContextObject>> ContextsToUpdateOnToolEnd;
+	TArray<TWeakObjectPtr<UUVToolContextObject>> ContextsToShutdown;
 
 	bool bIsActive = false;
 	FString DefaultToolIdentifier;

@@ -11,7 +11,7 @@
 
 #include "UVToolContextObjects.generated.h"
 
-// TODO: Should this be spread out across multiple files?
+// TODO: This should be spread out across multiple files
 
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
 class FToolCommandChange;
@@ -20,11 +20,25 @@ class UInputRouter;
 class UWorld;
 class UUVEditorToolMeshInput;
 
+/**
+ * Base class for context objects used in the UV editor.
+ */
 UCLASS()
 class UVEDITORTOOLS_API UUVToolContextObject : public UObject
 {
 	GENERATED_BODY()
 public:
+	/**
+	 * Called by the mode when shutting context objects down, allowing them to do any cleanup.
+	 * Initialization, on the other hand is usually done by some class-specific Initialize() method.
+	 */
+	virtual void Shutdown() {}
+
+	/**
+	 * Called whenever a tool is ended, for instance to let a context object remove listeners associated
+	 * with that tool (it shouldn't have to do so, but may choose to for robustness).
+	 */
+	virtual void OnToolEnded(UInteractiveTool* DeadTool) {}
 };
 
 /**
@@ -79,7 +93,7 @@ public:
 	virtual void EmitToolDependentChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description);
 
 protected:
-	TObjectPtr<UInteractiveToolManager> ToolManager = nullptr;
+	TWeakObjectPtr<UInteractiveToolManager> ToolManager = nullptr;
 };
 
 /**
@@ -201,95 +215,6 @@ protected:
 	bool bDrawRulers;
 };
 
-/**
- * Allows tools to interact with buttons in the viewport
- */
-UCLASS()
-class UVEDITORTOOLS_API UUVToolViewportButtonsAPI : public UUVToolContextObject
-{
-	GENERATED_BODY()
-public:
-
-	enum class EGizmoMode
-	{
-		Select,
-		Transform
-	};
-
-	enum class ESelectionMode
-	{
-		None,
-
-		Vertex,
-		Edge,
-		Triangle,
-		Island,
-		Mesh,
-	};
-
-	void SetGizmoButtonsEnabled(bool bOn)
-	{
-		bGizmoButtonsEnabled = bOn;
-	}
-
-	bool AreGizmoButtonsEnabled()
-	{
-		return bGizmoButtonsEnabled;
-	}
-
-	void SetGizmoMode(EGizmoMode ModeIn, bool bBroadcast = true)
-	{
-		GizmoMode = ModeIn;
-		if (bBroadcast)
-		{
-			OnGizmoModeChange.Broadcast(GizmoMode);
-		}
-	}
-
-	EGizmoMode GetGizmoMode()
-	{
-		return GizmoMode;
-	}
-
-
-	void SetSelectionButtonsEnabled(bool bOn)
-	{
-		bSelectionButtonsEnabled = bOn;
-	}
-
-	bool AreSelectionButtonsEnabled()
-	{
-		return bSelectionButtonsEnabled;
-	}
-
-	void SetSelectionMode(ESelectionMode ModeIn, bool bBroadcast = true)
-	{
-		SelectionMode = ModeIn;
-		if (bBroadcast)
-		{
-			OnSelectionModeChange.Broadcast(SelectionMode);
-		}
-	}
-
-	ESelectionMode GetSelectionMode()
-	{
-		return SelectionMode;
-	}
-
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGizmoModeChange, EGizmoMode NewGizmoMode);
-	FOnGizmoModeChange OnGizmoModeChange;
-
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionModeChange, ESelectionMode NewSelectionMode);
-	FOnSelectionModeChange OnSelectionModeChange;
-
-protected:
-
-	bool bGizmoButtonsEnabled = false;
-	EGizmoMode GizmoMode = EGizmoMode::Select;
-	bool bSelectionButtonsEnabled = false;
-	ESelectionMode SelectionMode = ESelectionMode::Island;
-};
-
 
 /**
  * Allows tools to interact with the assets and their UV layers
@@ -359,8 +284,7 @@ public:
 
 	void Empty();
 
-	// UObject
-	virtual void BeginDestroy() override;
+	virtual void Shutdown() override;
 
 protected:
 

@@ -24,7 +24,7 @@
 #include "UVEditorSubsystem.h"
 #include "UVEditorModule.h"
 #include "UVEditorStyle.h"
-#include "UVToolContextObjects.h"
+#include "ContextObjects/UVToolContextObjects.h"
 #include "UVEditorModeUILayer.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "UVEditorUXSettings.h"
@@ -381,6 +381,20 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	check(PinnedToolkitHost.IsValid());
 	ModeUILayer = MakeShareable(new FUVEditorModeUILayer(PinnedToolkitHost.Get()));
 	ModeUILayer->SetModeMenuCategory( UVEditorMenuCategory );
+
+	TArray<TObjectPtr<UObject>> ObjectsToEdit;
+	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
+
+	// TODO: get these when possible (from level editor selection, for instance), and set them to something reasonable otherwise.
+	TArray<FTransform> ObjectTransforms;
+	ObjectTransforms.SetNum(ObjectsToEdit.Num());
+
+	// This static method call initializes the variety of contexts that UVEditorMode needs to be available in
+	// the context store on Enter() to function properly.
+	UUVEditorMode::InitializeAssetEditorContexts(*EditorModeManager->GetInteractiveToolsContext()->ContextObjectStore, 
+		ObjectsToEdit, ObjectTransforms, *LivePreviewViewportClient, *LivePreviewEditorModeManager, 
+		*ViewportButtonsAPI, *UVTool2DViewportAPI);
+
 	// Currently, aside from setting up all the UI elements, the toolkit also kicks off the UV
 	// editor mode, which is the mode that the editor always works in (things are packaged into
 	// a mode so that they can be moved to another asset editor if necessary).
@@ -390,18 +404,6 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	UUVEditorMode* UVMode = Cast<UUVEditorMode>(
 		EditorModeManager->GetActiveScriptableMode(UUVEditorMode::EM_UVEditorModeId));
 	check(UVMode);
-
-	// The mode will need to be able to get to the live preview world, camera, input router, and viewport buttons.
-	UVMode->InitializeContexts(*LivePreviewViewportClient, *LivePreviewEditorModeManager, *ViewportButtonsAPI, *UVTool2DViewportAPI);
-
-	TArray<TObjectPtr<UObject>> ObjectsToEdit;
-	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
-
-	// TODO: get these when possible, set them otherwise.
-	TArray<FTransform> ObjectTransforms;
-	ObjectTransforms.SetNum(ObjectsToEdit.Num());
-
-	UVMode->InitializeTargets(ObjectsToEdit, ObjectTransforms);
 
 	// Regardless of how the user has modified the layout, we're going to make sure that we have
 	// a 2d viewport that will allow our mode to receive ticks.

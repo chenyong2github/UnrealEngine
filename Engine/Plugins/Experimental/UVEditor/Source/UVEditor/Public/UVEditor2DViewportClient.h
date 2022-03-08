@@ -7,10 +7,10 @@
 #include "EditorViewportClient.h"
 #include "InputBehaviorSet.h"
 #include "UVEditor2DViewportBehaviorTargets.h" // FUVEditor2DScrollBehaviorTarget, FUVEditor2DMouseWheelZoomBehaviorTarget
-#include "UVToolContextObjects.h" // UUVToolViewportButtonsAPI::ESelectionMode
+#include "ContextObjects/UVToolViewportButtonsAPI.h" // UUVToolViewportButtonsAPI::ESelectionMode
 
-class UUVToolViewportButtonsAPI;
 class UCanvas;
+class UUVTool2DViewportAPI;
 
 /**
  * Client used to display a 2D view of the UV's, implemented by using a perspective viewport with a locked

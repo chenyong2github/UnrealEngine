@@ -11,7 +11,7 @@
 #include "ParameterizationOps/UVLayoutOp.h"
 #include "Properties/UVLayoutProperties.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
-#include "UVToolContextObjects.h"
+#include "ContextObjects/UVToolContextObjects.h"
 #include "ModelingToolTargetUtil.h"
 #include "Components.h"
 #include "UVEditorToolAnalyticsUtils.h"

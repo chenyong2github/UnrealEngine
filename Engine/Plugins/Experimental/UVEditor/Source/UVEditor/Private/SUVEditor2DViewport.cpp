@@ -5,7 +5,7 @@
 #include "SUVEditor2DViewportToolBar.h"
 #include "UVEditor2DViewportClient.h"
 #include "UVEditorCommands.h"
-#include "UVToolContextObjects.h" // UUVToolViewportButtonsAPI::ESelectionMode
+#include "ContextObjects/UVToolContextObjects.h" // UUVToolViewportButtonsAPI::ESelectionMode
 
 #define LOCTEXT_NAMESPACE "SUVEditor2DViewport"
 
