@@ -23,7 +23,7 @@ enum class EFileMode
 };
 
 inline bool
-bReadOnly(EFileMode Mode)
+IsReadOnly(EFileMode Mode)
 {
 	switch (Mode)
 	{
@@ -444,7 +444,7 @@ struct FFileAttributeCache
 FileAttributes GetFileAttrib(const fs::path& Path, FFileAttributeCache* AttribCache = nullptr);
 bool		   SetFileMtime(const fs::path& Path, uint64 Mtime);
 bool		   SetFileReadOnly(const fs::path& Path, bool ReadOnly);
-bool		   bDirectory(const fs::path& Path);
+bool		   IsDirectory(const fs::path& Path);
 
 uint64 ToWindowsFileTime(const fs::file_time_type& T);
 

@@ -10,7 +10,7 @@ namespace unsync {
 int32  // TODO: return a TResult
 CmdHash(const FCmdHashOptions& Options)
 {
-	if (unsync::bDirectory(Options.Input))
+	if (unsync::IsDirectory(Options.Input))
 	{
 		UNSYNC_VERBOSE(L"'%ls' is a directory", Options.Input.wstring().c_str());
 

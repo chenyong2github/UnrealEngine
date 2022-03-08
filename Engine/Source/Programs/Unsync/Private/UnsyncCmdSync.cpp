@@ -17,7 +17,7 @@ CmdSync(const FCmdSyncOptions& Options)
 	UNSYNC_VERBOSE(L"Sync target: '%ls'", Options.Target.wstring().c_str());
 
 	const bool bSourcePathExists	 = fs::exists(ResolvedSource, ErrorCode);
-	const bool bSourceIsDirectory	 = bSourcePathExists && unsync::bDirectory(ResolvedSource);
+	const bool bSourceIsDirectory	 = bSourcePathExists && unsync::IsDirectory(ResolvedSource);
 	const bool bSourceIsManifestHash = !bSourcePathExists && LooksLikeHash160(Options.Source.native());
 
 	bool bSourceFileSystemRequired = !bSourceIsManifestHash;

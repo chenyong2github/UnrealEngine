@@ -37,7 +37,7 @@ VerifyRandomBytes(const uint8* Data, uint64 Size, uint32 Seed)
 static bool
 TestRollingSum()
 {
-	UNSYNC_LOG(L"test_rolling_sum()");
+	UNSYNC_LOG(L"TestRollingSum()");
 
 	// sanity check
 	{
@@ -272,7 +272,7 @@ TestSync(EWeakHashAlgorithmID WeakHasher, EStrongHashAlgorithmID StrongHasher)
 	Algorithm.WeakHashAlgorithmId	= WeakHasher;
 	Algorithm.StrongHashAlgorithmId = StrongHasher;
 
-	UNSYNC_LOG(L"test_sync(%hs, %hs)", ToString(WeakHasher), ToString(StrongHasher));
+	UNSYNC_LOG(L"TestSync(%hs, %hs)", ToString(WeakHasher), ToString(StrongHasher));
 
 	{
 		uint32	BlockSize	 = 4;
@@ -435,7 +435,7 @@ TestBuildTarget(EWeakHashAlgorithmID WeakHasher, EStrongHashAlgorithmID StrongHa
 	Algorithm.WeakHashAlgorithmId	= WeakHasher;
 	Algorithm.StrongHashAlgorithmId = StrongHasher;
 
-	UNSYNC_LOG(L"test_BuildTarget(%hs, %hs)", ToString(WeakHasher), ToString(StrongHasher));
+	UNSYNC_LOG(L"TestBuildTarget(%hs, %hs)", ToString(WeakHasher), ToString(StrongHasher));
 	uint32	BlockSize = 4;
 	FBuffer Source	  = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 99, 99, 99, 99};
 	FBuffer Base	  = {16, 17, 18, 19, 20, 21, 99, 99, 99, 99, 26, 27, 28, 29, 30, 31};
@@ -454,7 +454,7 @@ TestBuildTarget(EWeakHashAlgorithmID WeakHasher, EStrongHashAlgorithmID StrongHa
 void
 TestFiles()
 {
-	UNSYNC_LOG(L"test_files()");
+	UNSYNC_LOG(L"TestFiles()");
 
 	// TODO: test different chunk modes
 	const EChunkingAlgorithmID ChunkingMode = EChunkingAlgorithmID::FixedBlocks;
@@ -539,7 +539,7 @@ TestFiles()
 void
 TestPerfHashWeak(EWeakHashAlgorithmID Algorithm)
 {
-	UNSYNC_LOG(L"test_perf_hash_weak(%hs)", ToString(Algorithm));
+	UNSYNC_LOG(L"TestPerfHashWeak(%hs)", ToString(Algorithm));
 	UNSYNC_LOG_INDENT;
 
 	UNSYNC_LOG(L"Generating data");
@@ -578,7 +578,7 @@ TestPerfHashWeak(EWeakHashAlgorithmID Algorithm)
 void
 TestPerfHashStrong(EStrongHashAlgorithmID StrongHasher)
 {
-	UNSYNC_LOG(L"test_perf_hash_strong(%hs)", ToString(StrongHasher));
+	UNSYNC_LOG(L"TestPerfHashStrong(%hs)", ToString(StrongHasher));
 	UNSYNC_LOG_INDENT;
 
 	UNSYNC_LOG(L"Generating data");
@@ -606,7 +606,7 @@ TestPerfHashStrong(EStrongHashAlgorithmID StrongHasher)
 void
 TestPerfComputeBlocksVariable(EWeakHashAlgorithmID WeakHasher, EStrongHashAlgorithmID StrongHasher)
 {
-	UNSYNC_LOG(L"test_perf_ComputeBlocksVariable(%hs, %hs)", ToString(WeakHasher), ToString(StrongHasher));
+	UNSYNC_LOG(L"TestPerfComputeBlocksVariable(%hs, %hs)", ToString(WeakHasher), ToString(StrongHasher));
 	UNSYNC_LOG_INDENT;
 
 	UNSYNC_LOG(L"Generating data");
@@ -631,7 +631,7 @@ TestPerfComputeBlocksVariable(EWeakHashAlgorithmID WeakHasher, EStrongHashAlgori
 void
 TestBuzhash()
 {
-	UNSYNC_LOG(L"test_buzhash()");
+	UNSYNC_LOG(L"TestBuzhash()");
 	UNSYNC_LOG_INDENT;
 
 	// sanity check
@@ -673,7 +673,7 @@ TestBuzhash()
 void
 TestBasicHash()
 {
-	UNSYNC_LOG(L"test_basic_hash()");
+	UNSYNC_LOG(L"TestBasicHash()");
 	UNSYNC_LOG_INDENT;
 
 	{
@@ -713,7 +713,7 @@ TestBasicHash()
 void
 TestBuffer()
 {
-	UNSYNC_LOG(L"test_buffer()");
+	UNSYNC_LOG(L"TestBuffer()");
 	UNSYNC_LOG_INDENT;
 
 	FBuffer Buf1;
@@ -762,7 +762,7 @@ TestBuffer()
 void
 TestMisc()
 {
-	UNSYNC_LOG(L"test_misc()");
+	UNSYNC_LOG(L"TestMisc()");
 	UNSYNC_LOG_INDENT;
 
 	{

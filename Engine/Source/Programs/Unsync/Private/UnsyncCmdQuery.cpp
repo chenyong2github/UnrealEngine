@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <json11.hpp>
+#include <float.h>
 
 namespace unsync {
 

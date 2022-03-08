@@ -74,7 +74,7 @@ FWindowsFile::FWindowsFile(const fs::path& InFilename, EFileMode InMode, uint64 
 
 	if (bOpenedOk)
 	{
-		if (bReadOnly(InMode))
+		if (IsReadOnly(InMode))
 		{
 			LARGE_INTEGER LiFileSize = {};
 			bool		  bSizeOk	 = GetFileSizeEx(FileHandle, &LiFileSize);
@@ -602,7 +602,7 @@ ToWindowsFileTime(const fs::file_time_type& T)
 #if UNSYNC_PLATFORM_UNIX
 FUnixFile::FUnixFile(const fs::path& InFilename, EFileMode InMode, uint64 in_size) : Filename(InFilename), Mode(InMode)
 {
-	FileHandle = fopen(InFilename.native().c_str(), bReadOnly(Mode) ? "rb" : "w+b");
+	FileHandle = fopen(InFilename.native().c_str(), IsReadOnly(Mode) ? "rb" : "w+b");
 	if (FileHandle == nullptr)
 	{
 		return;
@@ -610,7 +610,7 @@ FUnixFile::FUnixFile(const fs::path& InFilename, EFileMode InMode, uint64 in_siz
 
 	FileDescriptor = fileno(FileHandle);
 
-	if (bReadOnly(Mode))
+	if (IsReadOnly(Mode))
 	{
 		struct stat stat_buf = {};
 		LastError			 = fstat(FileDescriptor, &stat_buf);
@@ -1003,7 +1003,7 @@ CreateFileAttributeCache(const fs::path& Root, const FSyncFilter* SyncFilter)
 }
 
 bool
-bDirectory(const fs::path& Path)
+IsDirectory(const fs::path& Path)
 {
 	FileAttributes Attr = GetFileAttrib(Path);
 	return Attr.bValid && Attr.bDirectory;
