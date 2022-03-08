@@ -43,6 +43,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "EditorActorFolders.h"
 #include "Misc/MessageDialog.h"
+#include "Subsystems/ActorEditorContextSubsystem.h"
 #endif
 
 #include "HAL/IConsoleManager.h"
@@ -1700,6 +1701,9 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 	// Edit can't be undone
 	GEditor->ResetTransaction(LOCTEXT("LevelInstanceEditResetTrans", "Edit Level Instance"));
 
+	// When editing a Level Instance, push a new empty actor editor context
+	UActorEditorContextSubsystem::Get()->PushContext();
+
 	return true;
 }
 
@@ -1856,6 +1860,9 @@ bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInsta
 	BlockOnLoading();
 
 	GEngine->BroadcastLevelActorListChanged();
+
+	// Restore actor editor context
+	UActorEditorContextSubsystem::Get()->PopContext();
 
 	return true;
 }

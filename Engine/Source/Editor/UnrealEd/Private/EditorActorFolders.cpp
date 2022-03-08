@@ -17,6 +17,7 @@
 #include "UObject/ObjectSaveContext.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "ActorFolder.h"
+#include "Subsystems/ActorEditorContextSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FActorFolders"
 
@@ -72,10 +73,12 @@ FActorFolders& FActorFolders::Get()
 void FActorFolders::Init()
 {
 	Singleton = new FActorFolders;
+	UActorEditorContextSubsystem::Get()->RegisterClient(Singleton);
 }
 
 void FActorFolders::Cleanup()
 {
+	UActorEditorContextSubsystem::Get()->UnregisterClient(Singleton);
 	delete Singleton;
 	Singleton = nullptr;
 }
@@ -100,6 +103,7 @@ void FActorFolders::BroadcastOnActorFolderCreated(UWorld& InWorld, const FFolder
 		OnFolderCreate.Broadcast(InWorld, InFolder.GetPath());
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	BroadcastOnActorEditorContextClientChanged();
 }
 
 void FActorFolders::BroadcastOnActorFolderDeleted(UWorld& InWorld, const FFolder& InFolder)
@@ -111,6 +115,7 @@ void FActorFolders::BroadcastOnActorFolderDeleted(UWorld& InWorld, const FFolder
 		OnFolderDelete.Broadcast(InWorld, InFolder.GetPath());
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	BroadcastOnActorEditorContextClientChanged();
 }
 
 void FActorFolders::BroadcastOnActorFolderMoved(UWorld& InWorld, const FFolder& InSrcFolder, const FFolder& InDstFolder)
@@ -122,6 +127,7 @@ void FActorFolders::BroadcastOnActorFolderMoved(UWorld& InWorld, const FFolder& 
 		OnFolderMove.Broadcast(InWorld, InSrcFolder.GetPath(), InDstFolder.GetPath());
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	BroadcastOnActorEditorContextClientChanged();
 }
 
 void FActorFolders::OnLevelActorListChanged()
@@ -511,6 +517,84 @@ bool FActorFolders::IsFolderExpanded(UWorld& InWorld, const FFolder& InFolder)
 void FActorFolders::SetIsFolderExpanded(UWorld& InWorld, const FFolder& InFolder, bool bIsExpanded)
 {
 	GetOrCreateWorldFolders(InWorld).SetIsFolderExpanded(InFolder, bIsExpanded);
+}
+
+FFolder FActorFolders::GetActorEditorContextFolder(UWorld& InWorld) const
+{
+	const UWorldFolders** Folders = (const UWorldFolders **)WorldFolders.Find(&InWorld);
+	if (Folders)
+	{
+		return (*Folders)->GetActorEditorContextFolder();
+	}
+	return FFolder();
+}
+
+void FActorFolders::SetActorEditorContextFolder(UWorld& InWorld, const FFolder& InFolder)
+{
+	if (GetOrCreateWorldFolders(InWorld).SetActorEditorContextFolder(InFolder))
+	{
+		BroadcastOnActorEditorContextClientChanged();
+	}
+}
+
+void FActorFolders::OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, AActor* InActor)
+{
+	switch (InType)
+	{
+		case EActorEditorContextAction::ApplyContext:
+			check(InActor && InActor->GetWorld() == InWorld);
+			{
+				FFolder Folder = GetActorEditorContextFolder(*InWorld);
+				if (!Folder.IsNone())
+				{
+					// Currently not supported to change rootobject through this interface
+					if (Folder.GetRootObject() == InActor->GetFolderRootObject())
+					{
+						InActor->SetFolderPath_Recursively(Folder.GetPath());
+					}
+				}
+			}
+			break;
+		case EActorEditorContextAction::ResetContext:
+			SetActorEditorContextFolder(*InWorld, FFolder());
+			break;
+		case EActorEditorContextAction::PushContext:
+			if (UWorldFolders** Folders = (UWorldFolders**)WorldFolders.Find(InWorld))
+			{
+				(*Folders)->PushActorEditorContext();
+			}
+			break;
+		case EActorEditorContextAction::PopContext:
+			if (UWorldFolders** Folders = (UWorldFolders**)WorldFolders.Find(InWorld))
+			{
+				(*Folders)->PopActorEditorContext();
+			}
+			break;
+	}
+}
+
+bool FActorFolders::GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEditorContextClientDisplayInfo& OutDiplayInfo) const
+{
+	const FFolder Folder = GetActorEditorContextFolder(*InWorld);
+	if (!Folder.IsNone())
+	{
+		OutDiplayInfo.Title = TEXT("Current Actor Folder");
+		OutDiplayInfo.Brush = FEditorStyle::GetBrush(TEXT("SceneOutliner.FolderClosed"));
+		return true;
+	}
+	return false;
+}
+
+TSharedRef<SWidget> FActorFolders::GetActorEditorContextWidget(UWorld* InWorld) const
+{
+	const FFolder Folder = GetActorEditorContextFolder(*InWorld);
+	FText Text = (!Folder.IsNone()) ? FText::FromName(Folder.GetLeafName()) : FText::GetEmpty();
+	return SNew(STextBlock).Text(Text);
+}
+
+void FActorFolders::BroadcastOnActorEditorContextClientChanged()
+{
+	ActorEditorContextClientChanged.Broadcast(this);
 }
 
 void FActorFolders::ForEachFolder(UWorld& InWorld, TFunctionRef<bool(const FFolder&)> Operation)

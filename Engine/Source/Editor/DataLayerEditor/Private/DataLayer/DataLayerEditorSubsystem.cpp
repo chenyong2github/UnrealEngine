@@ -18,6 +18,7 @@
 #include "Engine/Brush.h"
 #include "EngineUtils.h"
 #include "Editor.h"
+#include "Subsystems/ActorEditorContextSubsystem.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FDataLayersBroadcast
@@ -119,6 +120,8 @@ UDataLayerEditorSubsystem* UDataLayerEditorSubsystem::Get()
 
 void UDataLayerEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	Collection.InitializeDependency<UActorEditorContextSubsystem>();
+
 	Super::Initialize(Collection);
 
 	// Set up the broadcast functions for DataLayerEditorSubsystem
@@ -128,13 +131,111 @@ void UDataLayerEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		World->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddLambda([this](AActor& InActor) { InitializeNewActorDataLayers(&InActor); });
 	}
+
+	UActorEditorContextSubsystem::Get()->RegisterClient(this);
 }
 
 void UDataLayerEditorSubsystem::Deinitialize()
 {
+	UActorEditorContextSubsystem::Get()->UnregisterClient(this);
+
 	Super::Deinitialize();
 
 	DataLayersBroadcast->Deinitialize();
+}
+
+void UDataLayerEditorSubsystem::OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, AActor* InActor)
+{
+	AWorldDataLayers* WorldDataLayer = InWorld->GetWorldDataLayers();
+	if (!WorldDataLayer)
+	{
+		return;
+	}
+
+	switch (InType)
+	{
+	case EActorEditorContextAction::ApplyContext:
+		check(InActor && InActor->GetWorld() == InWorld);
+		{
+			AddActorToDataLayers(InActor, WorldDataLayer->GetActorEditorContextDataLayers());
+		}
+		break;
+	case EActorEditorContextAction::ResetContext:
+		for (UDataLayer* DataLayer : WorldDataLayer->GetActorEditorContextDataLayers())
+		{
+			RemoveFromActorEditorContext(DataLayer);
+		}
+		break;
+	case EActorEditorContextAction::PushContext:
+		WorldDataLayer->PushActorEditorContext();
+		BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
+		break;
+	case EActorEditorContextAction::PopContext:
+		WorldDataLayer->PopActorEditorContext();
+		BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
+		break;
+	}
+}
+
+bool UDataLayerEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEditorContextClientDisplayInfo& OutDiplayInfo) const
+{
+	AWorldDataLayers* WorldDataLayer = InWorld->GetWorldDataLayers();
+	if (WorldDataLayer && !WorldDataLayer->GetActorEditorContextDataLayers().IsEmpty())
+	{
+		OutDiplayInfo.Title = TEXT("Current Data Layers");
+		OutDiplayInfo.Brush = FEditorStyle::GetBrush(TEXT("DataLayer.Editor"));
+		return true;
+	}
+	return false;
+}
+
+TSharedRef<SWidget> UDataLayerEditorSubsystem::GetActorEditorContextWidget(UWorld* InWorld) const
+{
+	TSharedRef<SVerticalBox> OutWidget = SNew(SVerticalBox);
+	if (AWorldDataLayers* WorldDataLayer = InWorld->GetWorldDataLayers())
+	{
+		TArray<UDataLayer*> DataLayers = WorldDataLayer->GetActorEditorContextDataLayers();
+		for (UDataLayer* DataLayer : DataLayers)
+		{
+			check(IsValid(DataLayer));
+			OutWidget->AddSlot().AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(0.0f, 1.0f, 1.0f, 1.0f)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(DataLayer->GetDebugColor())
+					.Image(FAppStyle::Get().GetBrush("Level.ColorIcon"))
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.0f, 1.0f, 1.0f, 1.0f)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(DataLayer->GetDataLayerLabel().ToString()))
+				]
+			];
+		}
+	}
+	return OutWidget;
+}
+
+void UDataLayerEditorSubsystem::AddToActorEditorContext(UDataLayer* InDataLayer)
+{
+	if (InDataLayer->AddToActorEditorContext())
+	{
+		BroadcastDataLayerChanged(EDataLayerAction::Modify, InDataLayer, NAME_None);
+	}
+}
+
+void UDataLayerEditorSubsystem::RemoveFromActorEditorContext(UDataLayer* InDataLayer)
+{
+	if (InDataLayer->RemoveFromActorEditorContext())
+	{
+		BroadcastDataLayerChanged(EDataLayerAction::Modify, InDataLayer, NAME_None);
+	}
 }
 
 bool UDataLayerEditorSubsystem::RefreshWorldPartitionEditorCells(bool bIsFromUserChange)
@@ -951,6 +1052,7 @@ void UDataLayerEditorSubsystem::BroadcastDataLayerChanged(const EDataLayerAction
 {
 	RebuildSelectedDataLayersFromEditorSelection();
 	DataLayerChanged.Broadcast(Action, ChangedDataLayer, ChangedProperty);
+	ActorEditorContextClientChanged.Broadcast(this);
 }
 
 void UDataLayerEditorSubsystem::OnSelectionChanged()

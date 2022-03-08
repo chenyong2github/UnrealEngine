@@ -640,6 +640,72 @@ void AWorldDataLayers::SetAllowRuntimeDataLayerEditing(bool bInAllowRuntimeDataL
 		bAllowRuntimeDataLayerEditing = bInAllowRuntimeDataLayerEditing;
 	}
 }
+
+bool AWorldDataLayers::IsInActorEditorContext(const UDataLayer* InDataLayer) const
+{
+	for (const FName& DataLayerName : CurrentDataLayers.DataLayers)
+	{
+		const UDataLayer* DataLayer = GetDataLayerFromName(DataLayerName);
+		if (DataLayer && (DataLayer == InDataLayer) && !DataLayer->IsLocked())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool AWorldDataLayers::AddToActorEditorContext(UDataLayer* InDataLayer)
+{
+	check(WorldDataLayers.Contains(InDataLayer));
+	if (!CurrentDataLayers.DataLayers.Contains(InDataLayer->GetFName()))
+	{
+		Modify(/*bDirty*/false);
+		CurrentDataLayers.DataLayers.Add(InDataLayer->GetFName());
+		return true;
+	}
+	return false;
+}
+
+bool AWorldDataLayers::RemoveFromActorEditorContext(UDataLayer* InDataLayer)
+{
+	check(WorldDataLayers.Contains(InDataLayer));
+	if (CurrentDataLayers.DataLayers.Contains(InDataLayer->GetFName()))
+	{
+		Modify(/*bDirty*/false);
+		CurrentDataLayers.DataLayers.Remove(InDataLayer->GetFName());
+		return true;
+	}
+	return false;
+}
+
+void AWorldDataLayers::PushActorEditorContext()
+{
+	Modify(/*bDirty*/false);
+	CurrentDataLayersStack.Push(CurrentDataLayers);
+	CurrentDataLayers.Reset();
+}
+
+void AWorldDataLayers::PopActorEditorContext()
+{
+	check(!CurrentDataLayersStack.IsEmpty());
+	Modify(/*bDirty*/false);
+	CurrentDataLayers = CurrentDataLayersStack.Pop();
+}
+
+TArray<UDataLayer*> AWorldDataLayers::GetActorEditorContextDataLayers() const
+{
+	TArray<UDataLayer*> Result;
+	for (const FName& DataLayerName : CurrentDataLayers.DataLayers)
+	{
+		const UDataLayer* DataLayer = GetDataLayerFromName(DataLayerName);
+		if (DataLayer && !DataLayer->IsLocked())
+		{
+			Result.Add(const_cast<UDataLayer*>(DataLayer));
+		}
+	};
+	return Result;
+}
+
 #endif
 
 bool AWorldDataLayers::ContainsDataLayer(const UDataLayer* InDataLayer) const

@@ -277,6 +277,10 @@ class UNREALED_API ULevelEditorViewportSettings
 	UPROPERTY(EditAnywhere, config, Category=LookAndFeel, meta=( DisplayName = "Clicking BSP Enables Brush" ), AdvancedDisplay)
 	uint32 bClickBSPSelectsBrush:1;
 
+	/** If true, viewport will show actor editor context (current level, current data layer(s), current folder) */
+	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, meta=(AdvancedDisplay))
+	uint32 bShowActorEditorContext : 1;
+
 	/** How fast the perspective camera moves when flying through the world. */
 	UPROPERTY(config, meta=(UIMin = "1", UIMax = "8", ClampMin="1", ClampMax="8"))
 	int32 CameraSpeed;
@@ -529,7 +533,7 @@ public:
 	/** The scale to apply to spline tangent lengths */
 	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, AdvancedDisplay, meta = (ClampMin = "0.00"))
 	float SplineTangentScale = 0.5f;
-	
+
 	UPROPERTY(config)
 	FVector2D LastInViewportMenuLocation;
 

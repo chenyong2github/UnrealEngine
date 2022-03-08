@@ -28,6 +28,29 @@ struct FActorFolderProps
 	bool bIsExpanded;
 };
 
+USTRUCT()
+struct FActorPlacementFolder
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Path;
+
+	UPROPERTY()
+	TWeakObjectPtr<UObject> RootObjectPtr;
+
+	void Reset()
+	{
+		Path = NAME_None;
+		RootObjectPtr.Reset();
+	}
+
+	FFolder GetFolder() const
+	{
+		return FFolder(Path, FFolder::FRootObject(RootObjectPtr.Get()));
+	}
+};
+
 /** Per-World Actor Folders UObject (used to support undo/redo reliably) */
 UCLASS()
 class UNREALED_API UWorldFolders : public UObject
@@ -43,6 +66,10 @@ public:
 	bool RenameFolder(const FFolder& InOldFolder, const FFolder& InNewFolder);
 	bool IsFolderExpanded(const FFolder& InFolder) const;
 	bool SetIsFolderExpanded(const FFolder& InFolder, bool bIsExpanded);
+	FFolder GetActorEditorContextFolder() const;
+	bool SetActorEditorContextFolder(const FFolder& InFolder);
+	void PushActorEditorContext();
+	void PopActorEditorContext();
 	bool ContainsFolder(const FFolder& InFolder) const;
 	void ForEachFolder(TFunctionRef<bool(const FFolder&)> Operation);
 	void ForEachFolderWithRootObject(const FFolder::FRootObject& InFolderRootObject, TFunctionRef<bool(const FFolder&)> Operation);
@@ -76,6 +103,11 @@ private:
 	TWeakObjectPtr<UWorld> World;
 	TMap<FFolder, FActorFolderProps> FoldersProperties;
 	TMap<FFolder, FActorFolderProps> LoadedStateFoldersProperties;
+
+	UPROPERTY()
+	FActorPlacementFolder CurrentFolder;
+
+	TArray<FActorPlacementFolder> CurrentFolderStack;
 
 	friend class FWorldFoldersImplementation;
 	friend class FWorldPersistentFolders;

@@ -232,31 +232,6 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 							.Text(LOCTEXT("DataLayer_Text", "Data Layer"))
 							.Font(StandardFont)
 						]
-						+ SHorizontalBox::Slot()
-						.Padding(StandardRightPadding)
-						.FillWidth(2.0f)
-						.MaxWidth(100.f)
-						.VAlign(VAlign_Center)
-						[
-							SNew(SComboButton)
-							.OnGetMenuContent_Lambda([this]()
-								{ 
-									return FDataLayerPropertyTypeCustomizationHelper::CreateDataLayerMenu([this](const UDataLayer* DataLayer)
-									{ 
-										FoliageEditMode->SetDataLayerEditorContext(FActorDataLayer(DataLayer ? DataLayer->GetFName() : NAME_None)); 
-									});
-								})
-							.ContentPadding(2)
-							.ButtonContent()
-							[
-								SNew(STextBlock)
-								.Text_Lambda([this]()
-								{
-									const UDataLayer* DataLayer = UDataLayerEditorSubsystem::Get()->GetDataLayerFromName(FoliageEditMode->UISettings.GetDataLayer().Name);
-									return UDataLayer::GetDataLayerText(DataLayer);
-								})
-							]
-						]						
 					]
 					
 					+ SVerticalBox::Slot()

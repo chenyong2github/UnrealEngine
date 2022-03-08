@@ -9,6 +9,7 @@
 #include "Misc/Paths.h"
 #include "EngineUtils.h"
 #include "EditorActorFolders.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceActor.h"
 
 #define LOCTEXT_NAMESPACE "UnrealEd.WorldFolders"
@@ -119,7 +120,30 @@ bool UWorldFolders::RenameFolder(const FFolder& InOldFolder, const FFolder& InNe
 	check(IsValid(World.Get()));
 	check(InOldFolder.GetRootObject() == InNewFolder.GetRootObject());
 
-	return GetImpl(InOldFolder).RenameFolder(InOldFolder, InNewFolder);
+	bool bSuccess = GetImpl(InOldFolder).RenameFolder(InOldFolder, InNewFolder);
+	if (bSuccess)
+	{
+		bool bChanged = false;
+		for (int StackIndex=0; StackIndex < CurrentFolderStack.Num(); ++StackIndex)
+		{
+			FActorPlacementFolder& StackElement = CurrentFolderStack[StackIndex];
+			if (StackElement.GetFolder() == InOldFolder)
+			{
+				StackElement.Path = InNewFolder.GetPath();
+				bChanged = true;
+			}
+		}
+		if (CurrentFolder.GetFolder() == InOldFolder)
+		{
+			CurrentFolder.Path = InNewFolder.GetPath();
+			bChanged = true;
+		}
+		if (bChanged)
+		{
+			FActorFolders::Get().BroadcastOnActorEditorContextClientChanged();
+		}
+	}
+	return bSuccess;
 }
 
 void UWorldFolders::BroadcastOnActorFolderCreated(const FFolder& InFolder)
@@ -154,6 +178,49 @@ bool UWorldFolders::SetIsFolderExpanded(const FFolder& InFolder, bool bIsExpande
 		return true;
 	}
 	return false;
+}
+
+FFolder UWorldFolders::GetActorEditorContextFolder() const
+{
+	FFolder Folder = CurrentFolder.GetFolder();
+	if (ContainsFolder(Folder))
+	{
+		ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>();
+		UObject* EditingLevelInstance = LevelInstanceSubsystem ? LevelInstanceSubsystem->GetEditingLevelInstance() : nullptr;
+		FFolder::FRootObject RootObject = FFolder::FRootObject(EditingLevelInstance ? EditingLevelInstance : (GetWorld()->GetCurrentLevel() == GetWorld()->PersistentLevel) ? nullptr : GetWorld()->GetCurrentLevel());
+		if (Folder.GetRootObject() == RootObject)
+		{
+			return Folder;
+		}
+	}
+	return FFolder();
+}
+
+bool UWorldFolders::SetActorEditorContextFolder(const FFolder& InFolder)
+{
+	if (InFolder != CurrentFolder.GetFolder())
+	{
+		Modify();
+		CurrentFolder.Path = InFolder.GetPath();
+		CurrentFolder.RootObjectPtr = InFolder.GetRootObjectPtr();
+		return true;
+	}
+	return false;
+}
+
+void UWorldFolders::PushActorEditorContext()
+{
+	Modify();
+	CurrentFolderStack.Push(CurrentFolder);
+	CurrentFolder.Reset();
+}
+
+void UWorldFolders::PopActorEditorContext()
+{
+	check(!CurrentFolderStack.IsEmpty());
+
+	Modify();
+	CurrentFolder = CurrentFolderStack.Pop();
 }
 
 bool UWorldFolders::ContainsFolder(const FFolder& InFolder) const
@@ -196,6 +263,8 @@ void UWorldFolders::Serialize(FArchive& Ar)
 
 	check(PersistentFolders.IsValid());
 	Ar << FoldersProperties;
+
+	Super::Serialize(Ar);
 }
 
 void UWorldFolders::OnWorldSaved()

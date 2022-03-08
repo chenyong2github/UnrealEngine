@@ -90,6 +90,10 @@ public:
 	void SetParent(UDataLayer* InParent);
 	void SetChildParent(UDataLayer* InParent);
 
+	bool IsInActorEditorContext() const;
+	bool AddToActorEditorContext();
+	bool RemoveFromActorEditorContext();
+
 	static FText GetDataLayerText(const UDataLayer* InDataLayer);
 	const TCHAR* GetDataLayerIconName() const;
 #endif
@@ -116,14 +120,14 @@ public:
 	UFUNCTION(Category = "Data Layer|Editor", BlueprintCallable)
 	bool IsEffectiveVisible() const;
 
+	UFUNCTION(Category = "Data Layer|Editor", BlueprintCallable)
+	FColor GetDebugColor() const { return DebugColor; }
+
 	UFUNCTION(Category = "Data Layer|Runtime", BlueprintCallable)
 	bool IsRuntime() const { return bIsRuntime; }
 	
 	UFUNCTION(Category = "Data Layer|Runtime", BlueprintCallable)
 	EDataLayerRuntimeState GetInitialRuntimeState() const { return IsRuntime() ? InitialRuntimeState : EDataLayerRuntimeState::Unloaded; }
-
-	UFUNCTION(Category = "Data Layer|Runtime", BlueprintCallable)
-	FColor GetDebugColor() const { return DebugColor; }
 
 	/** Returns a sanitized version of the provided Data Layer Label */
 	static FName GetSanitizedDataLayerLabel(FName DataLayerLabel);
@@ -193,7 +197,7 @@ private:
 	UPROPERTY(Category = "Data Layer|Advanced|Runtime", EditAnywhere, meta = (EditConditionHides, EditCondition = "bIsRuntime"))
 	EDataLayerRuntimeState InitialRuntimeState;
 
-	UPROPERTY(Category = "Data Layer|Advanced|Runtime", EditAnywhere, meta = (EditConditionHides, EditCondition = "bIsRuntime"))
+	UPROPERTY(Category = "Data Layer|Editor", EditAnywhere)
 	FColor DebugColor;
 
 	UPROPERTY()

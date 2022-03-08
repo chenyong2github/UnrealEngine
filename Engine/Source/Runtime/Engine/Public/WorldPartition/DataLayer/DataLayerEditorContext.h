@@ -26,20 +26,4 @@ private:
 	uint32 Hash;
 	TArray<FName> DataLayers;
 };
-
-/**
- * FScopeChangeDataLayerEditorContext
- */
-
-struct ENGINE_API FScopeChangeDataLayerEditorContext
-{
-	FScopeChangeDataLayerEditorContext(UWorld* InWorld, const FDataLayerEditorContext& InContext);
-	FScopeChangeDataLayerEditorContext(UWorld* InWorld, const FActorDataLayer& InContextDataLayer);
-	~FScopeChangeDataLayerEditorContext();
-private:
-	void Initialize(const FDataLayerEditorContext& InContext);
-
-	TWeakObjectPtr<UWorld> World;
-	FDataLayerEditorContext OldContext;
-};
 #endif

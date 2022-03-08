@@ -259,6 +259,23 @@ void UDataLayer::SetIsRuntime(bool bInIsRuntime)
 	}
 }
 
+#if WITH_EDITOR
+bool UDataLayer::IsInActorEditorContext() const
+{
+	return GetOuterAWorldDataLayers()->IsInActorEditorContext(this);
+}
+
+bool UDataLayer::AddToActorEditorContext()
+{
+	return GetOuterAWorldDataLayers()->AddToActorEditorContext(this);
+}
+
+bool UDataLayer::RemoveFromActorEditorContext()
+{
+	return GetOuterAWorldDataLayers()->RemoveFromActorEditorContext(this);
+}
+#endif
+
 void UDataLayer::PropagateIsRuntime()
 {
 	if (IsRuntime())

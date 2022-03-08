@@ -522,3 +522,19 @@ void UDataLayerSubsystem::GetDataLayerDebugColors(TMap<FName, FColor>& OutMappin
 		return true;
 	});
 }
+
+#if WITH_EDITOR
+uint32 UDataLayerSubsystem::GetDataLayerEditorContextHash() const
+{
+	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	{
+		TArray<FName> DataLayers;
+		for (UDataLayer* DataLayer : WorldDataLayers->GetActorEditorContextDataLayers())
+		{
+			DataLayers.Add(DataLayer->GetFName());
+		}
+		return FDataLayerEditorContext(GetWorld(), DataLayers).GetHash();
+	}
+	return FDataLayerEditorContext::EmptyHash;
+}
+#endif

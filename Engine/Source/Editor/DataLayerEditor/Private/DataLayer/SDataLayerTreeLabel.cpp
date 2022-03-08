@@ -63,6 +63,21 @@ void SDataLayerTreeLabel::Construct(const FArguments& InArgs, FDataLayerTreeItem
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox)
+			.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+			.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+			[
+				SNew(SImage)
+				.Visibility_Lambda([this]() { return IsInActorEditorContext() ? EVisibility::Visible : EVisibility::Collapsed; })
+				.Image(FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.MarkedAsCurrent")))
+				.ColorAndOpacity(FLinearColor::White)
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		.VAlign(VAlign_Center)
 		.Padding(FSceneOutlinerDefaultTreeItemMetrics::IconPadding())
 		[
@@ -103,6 +118,12 @@ bool SDataLayerTreeLabel::ShouldBeHighlighted() const
 	const FSceneOutlinerTreeItemPtr TreeItem = TreeItemPtr.Pin();
 	FDataLayerTreeItem* DataLayerTreeItem = TreeItem ? TreeItem->CastTo<FDataLayerTreeItem>() : nullptr;
 	return DataLayerTreeItem && DataLayerTreeItem->ShouldBeHighlighted();
+}
+
+bool SDataLayerTreeLabel::IsInActorEditorContext() const
+{
+	const UDataLayer* DataLayer = DataLayerPtr.Get();
+	return DataLayer && DataLayer->IsInActorEditorContext();
 }
 
 FSlateFontInfo SDataLayerTreeLabel::GetDisplayNameFont() const

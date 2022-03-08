@@ -90,6 +90,7 @@
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "SInViewportDetails.h"
 #include "Viewports/InViewportUIDragOperation.h"
+#include "SActorEditorContext.h"
 
 static const FName LevelEditorName("LevelEditor");
 static FAutoConsoleCommand EnableInViewportMenu(TEXT("Editor.EnableInViewportMenu"), TEXT("Enables the new in-viewport property menu"), FConsoleCommandDelegate::CreateStatic(&SLevelViewport::EnableInViewportMenu));
@@ -351,39 +352,10 @@ void SLevelViewport::ConstructViewportOverlayContent()
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(2.0f, 1.0f, 2.0f, 1.0f)
 			[
-				SNew(SComboButton)
-				.Cursor(EMouseCursor::Default)
-				// Allows users to drag with the mouse to select options after opening the menu */
-				.VAlign(VAlign_Center)
-				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
-				.Visibility(this, &SLevelViewport::GetCurrentLevelButtonVisibility)
-				.OnGetMenuContent(this, &SLevelViewport::GenerateLevelMenu)
-				.OnMenuOpenChanged_Lambda([this](bool){	OnFloatingButtonClicked(); })
-				.ButtonContent()
-				[
-					SNew(SHorizontalBox)
-					.Visibility(this, &SLevelViewport::GetCurrentLevelTextVisibility)
-					// Current level label
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(2.0f, 1.0f, 2.0f, 1.0f)
-					[
-						SNew(STextBlock)
-						.Text(this, &SLevelViewport::GetCurrentLevelText, true)
-						.ShadowOffset(FVector2D(1,1))
-					]
-					// Current level
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(4.0f, 1.0f, 2.0f, 1.0f)
-					[
-						SNew(STextBlock)
-						.Text(this, &SLevelViewport::GetCurrentLevelText, false)
-						.ShadowOffset(FVector2D(1, 1))
-					]
-				]
+				SNew(SActorEditorContext)
+				.World(GetWorld())
+				.Visibility_Lambda([this]() { return IsActorEditorContextVisible() ? EVisibility::Visible : EVisibility::Collapsed; })
 			]
 		]
 	];
@@ -398,25 +370,15 @@ void SLevelViewport::ConstructViewportOverlayContent()
 	];
 }
 
-
-TSharedRef<SWidget> SLevelViewport::GenerateLevelMenu() const
+bool SLevelViewport::IsActorEditorContextVisible() const
 {
-	FWorldBrowserModule& WorldBrowserModule = FModuleManager::LoadModuleChecked<FWorldBrowserModule>("WorldBrowser");
-	// Get all menu extenders for this context menu from the level editor module
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	TSharedRef<FUICommandList> InCommandList = GetCommandList().ToSharedRef();
-	TSharedPtr<FExtender> MenuExtender = LevelEditorModule.AssembleExtenders(InCommandList, LevelEditorModule.GetAllLevelEditorLevelMenuExtenders());
-
-	// Create the menu
-	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder LevelMenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList, MenuExtender);
-	
-	LevelMenuBuilder.BeginSection("LevelListing", LOCTEXT("Levels", "Levels"));
-	LevelMenuBuilder.EndSection();
-
-	return LevelMenuBuilder.MakeWidget();
+	return ActiveViewport.IsValid() && 
+		(ActiveViewport->GetPlayInEditorIsSimulate() || !ActiveViewport->GetClient()->GetWorld()->IsGameWorld()) && 
+		(&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) && 
+		GetDefault<ULevelEditorViewportSettings>()->bShowActorEditorContext &&
+		GetWorld() && 
+		GetWorld()->GetCurrentLevel();
 }
-
 
 void SLevelViewport::ConstructLevelEditorViewportClient(FLevelEditorViewportInstanceSettings& ViewportInstanceSettings)
 {
@@ -3825,72 +3787,6 @@ FText SLevelViewport::GetCurrentScreenPercentageText() const
 	return FText::FromString(FString::Printf(TEXT("%3d%%"), int32(GetLevelViewportClient().GetPreviewScreenPercentage())));
 }
 
-FText SLevelViewport::GetCurrentLevelText( bool bDrawOnlyLabel ) const
-{
-	// Display the current level and current level grid volume in the status bar
-	FText LabelName;
-	FText CurrentLevelName;
-
-	
-	if( ActiveViewport.IsValid() && (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) && GetWorld() && GetWorld()->GetCurrentLevel() != nullptr )
-	{
-		if( ActiveViewport->GetPlayInEditorIsSimulate() || !ActiveViewport->GetClient()->GetWorld()->IsGameWorld() )
-		{
-			if(bDrawOnlyLabel)
-			{
-				LabelName = LOCTEXT("CurrentLevelLabel", "Level");
-			}
-			else
-			{
-				// Get the level name 
-				FText ActualLevelName = FText::FromName(FPackageName::GetShortFName(GetWorld()->GetCurrentLevel()->GetOutermost()->GetFName()));
-
-				if(GetWorld()->GetCurrentLevel() == GetWorld()->PersistentLevel)
-				{
-					FFormatNamedArguments Args;
-					Args.Add(TEXT("ActualLevelName"), ActualLevelName);
-					CurrentLevelName = FText::Format(LOCTEXT("LevelName", "{0} (Persistent)"), ActualLevelName);
-				}
-				else
-				{
-					CurrentLevelName = ActualLevelName;
-				}
-			}
-
-			if(bDrawOnlyLabel)
-			{
-				return LabelName;
-			}
-		}
-	}
-
-	return CurrentLevelName;
-}
-
-EVisibility SLevelViewport::GetCurrentLevelTextVisibility() const
-{
-	EVisibility ContentVisibility = OnGetViewportContentVisibility();
-	if (ContentVisibility == EVisibility::Visible)
-	{
-		ContentVisibility = EVisibility::SelfHitTestInvisible;
-	}
-	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) 
-		&& !IsPlayInEditorViewportActive() 
-		&& GetWorld() && GetWorld()->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1
-		&& !GetWorld()->IsPartitionedWorld()
-		?  ContentVisibility : EVisibility::Collapsed;
-}
-
-EVisibility SLevelViewport::GetCurrentLevelButtonVisibility() const
-{
-	EVisibility TextVisibility = GetCurrentLevelTextVisibility();
-	if (TextVisibility == EVisibility::SelfHitTestInvisible)
-	{
-		TextVisibility = EVisibility::Visible;
-	}
-	return TextVisibility;
-}
-
 EVisibility SLevelViewport::GetSelectedActorsCurrentLevelTextVisibility() const
 {
 	EVisibility ContentVisibility = OnGetViewportContentVisibility();
@@ -3902,6 +3798,7 @@ EVisibility SLevelViewport::GetSelectedActorsCurrentLevelTextVisibility() const
 		&& (GEditor->GetSelectedActorCount() > 0) 
 		&& !IsPlayInEditorViewportActive() 
 		&& GetWorld() && GetWorld()->GetCurrentLevel() && GetWorld()->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1
+		&& !GetWorld()->IsPartitionedWorld()
 		? ContentVisibility : EVisibility::Collapsed;
 }
 

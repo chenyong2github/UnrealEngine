@@ -137,12 +137,9 @@ public:
 
 #if WITH_EDITOR
 public:
-	FORCEINLINE const FDataLayerEditorContext& GetDataLayerEditorContext() const { return DataLayerEditorContext; }
-	FORCEINLINE bool HasDataLayerEditorContext() const { return !DataLayerEditorContext.IsEmpty(); }
+	uint32 GetDataLayerEditorContextHash() const;
 
 private:
-	mutable FDataLayerEditorContext DataLayerEditorContext;
-	friend struct FScopeChangeDataLayerEditorContext;
 #endif
 
 private:

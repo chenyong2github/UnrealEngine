@@ -11,6 +11,20 @@
 
 class UDataLayer;
 
+USTRUCT()
+struct FActorPlacementDataLayers
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FName> DataLayers;
+
+	void Reset()
+	{
+		DataLayers.Reset();
+	}
+};
+
 /**
  * Actor containing all data layers for a world
  */
@@ -37,6 +51,13 @@ public:
 	FName GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const;
 	void SetAllowRuntimeDataLayerEditing(bool bInAllowRuntimeDataLayerEditing);
 	bool GetAllowRuntimeDataLayerEditing() const { return bAllowRuntimeDataLayerEditing; }
+
+	bool IsInActorEditorContext(const UDataLayer* InDataLayer) const;
+	bool AddToActorEditorContext(UDataLayer* InDataLayer);
+	bool RemoveFromActorEditorContext(UDataLayer* InDataLayer);
+	void PushActorEditorContext();
+	void PopActorEditorContext();
+	TArray<UDataLayer*> GetActorEditorContextDataLayers() const;
 
 	//~ Begin Helper Functions
 	TArray<const UDataLayer*> GetDataLayerObjects(const TArray<FActorDataLayer>& DataLayers) const;
@@ -116,6 +137,11 @@ private:
 	// True when Runtime Data Layer editing is allowed.
 	UPROPERTY()
 	bool bAllowRuntimeDataLayerEditing;
+
+	UPROPERTY(Transient)
+	FActorPlacementDataLayers CurrentDataLayers;
+
+	TArray<FActorPlacementDataLayers> CurrentDataLayersStack;
 #endif
 
 	UPROPERTY()

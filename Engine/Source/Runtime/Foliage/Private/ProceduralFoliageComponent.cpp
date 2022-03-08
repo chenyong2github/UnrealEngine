@@ -15,9 +15,6 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
-#include "WorldPartition/DataLayer/DataLayerEditorContext.h"
 #endif
 
 
@@ -300,15 +297,12 @@ bool UProceduralFoliageComponent::ResimulateProceduralFoliage(TFunctionRef<void(
 			{
 				{
 					// Remove old foliage instances
-					FScopeChangeDataLayerEditorContext ScopeContext(GetWorld(), LastSimulationDataLayer);
 					RemoveProceduralContent(false);
 				}
 
 				{
 					// Add new foliage instances
-					FScopeChangeDataLayerEditorContext ScopeContext(GetWorld(), DataLayer);
 					AddInstancesFunc(DesiredFoliageInstances);
-					LastSimulationDataLayer = DataLayer;
 				}
 			}
 
@@ -352,23 +346,5 @@ bool UProceduralFoliageComponent::HasSpawnedAnyInstances()
 #endif
 	return false;
 }
-
-#if WITH_EDITOR
-bool UProceduralFoliageComponent::CanEditChange(const FProperty* InProperty) const
-{
-	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UProceduralFoliageComponent, DataLayer))
-	{
-		if (!IsTemplate())
-		{
-			if (!UWorld::IsPartitionedWorld(GetWorld()))
-			{
-				return false;
-			}
-		}
-	}
-	return Super::CanEditChange(InProperty);
-}
-#endif
-
 
 #undef LOCTEXT_NAMESPACE

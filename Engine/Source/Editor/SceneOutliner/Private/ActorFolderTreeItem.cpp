@@ -53,34 +53,54 @@ struct SActorFolderTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWi
 		ChildSlot
 			[
 				SNew(SHorizontalBox)
-
 				+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(FSceneOutlinerDefaultTreeItemMetrics::IconPadding())
-			[
-				SNew(SBox)
-				.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
-				.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
-			[
-				SNew(SImage)
-				.Image(this, &SActorFolderTreeLabel::GetIcon)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			]
-			]
-
-		+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.VAlign(VAlign_Center)
-			.Padding(0.0f, 2.0f)
-			[
-				InlineTextBlock.ToSharedRef()
-			]
+				.AutoWidth()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SBox)
+					.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+					.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+					[
+						SNew(SImage)
+						.Visibility_Lambda([this]() { return IsInActorEditorContext() ? EVisibility::Visible : EVisibility::Collapsed; })
+						.Image(FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.MarkedAsCurrent")))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(FSceneOutlinerDefaultTreeItemMetrics::IconPadding())
+				[
+					SNew(SBox)
+					.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+					.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+					[
+						SNew(SImage)
+						.Image(this, &SActorFolderTreeLabel::GetIcon)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				.Padding(0.0f, 2.0f)
+				[
+					InlineTextBlock.ToSharedRef()
+				]
 			];
 	}
 
 private:
 	TWeakPtr<FActorFolderTreeItem> TreeItemPtr;
+
+	bool IsInActorEditorContext() const
+	{
+		auto Folder = TreeItemPtr.Pin();
+		const bool bIsCurrentFolder = (Folder.IsValid() && Folder->World.IsValid()) ? (FActorFolders::Get().GetActorEditorContextFolder(*Folder->World) == Folder->GetFolder()) : false;
+		return bIsCurrentFolder;
+	}
 
 	FText GetDisplayText() const
 	{

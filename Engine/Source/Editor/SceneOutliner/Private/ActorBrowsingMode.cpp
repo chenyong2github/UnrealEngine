@@ -461,6 +461,64 @@ void FActorBrowsingMode::RegisterContextMenu()
 					}
 				}
 			}));
+
+		Menu->AddDynamicSection("DynamicActorEditorContext", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
+			{
+				USceneOutlinerMenuContext* Context = InMenu->FindContext<USceneOutlinerMenuContext>();
+				if (Context && Context->SceneOutliner.IsValid() && Context->bShowParentTree)
+				{
+					FToolMenuSection& Section = InMenu->AddSection("ActorEditorContextSection", LOCTEXT("ActorEditorContextSectionName", "Actor Editor Context"));
+					SSceneOutliner* SceneOutliner = Context->SceneOutliner.Pin().Get();
+
+					if ((Context->NumSelectedItems == 1) && (Context->NumSelectedFolders == 1))
+					{
+						SceneOutliner->GetTree().GetSelectedItems()[0]->GenerateContextMenu(InMenu, *SceneOutliner);
+
+						Section.AddMenuEntry(
+							"MakeCurrentFolder",
+							LOCTEXT("MakeCurrentFolder", "Make Current Folder"),
+							FText(),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateLambda([SceneOutliner]()
+								{
+									const FSceneOutlinerItemSelection& Selection = SceneOutliner->GetSelection();
+									if (Selection.SelectedItems.Num() == 1)
+									{
+										FSceneOutlinerTreeItemPtr Item = Selection.SelectedItems[0].Pin();
+										if (FActorFolderTreeItem* FolderItem = Item->CastTo<FActorFolderTreeItem>())
+										{
+											if (FolderItem->World.IsValid())
+											{
+												const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MakeCurrentActorFolder", "Make Current Actor Folder"));
+												FActorFolders::Get().SetActorEditorContextFolder(*FolderItem->World, FolderItem->GetFolder());
+											}
+										}
+									}
+								})
+							)
+						);
+					}
+
+					Section.AddMenuEntry(
+						"ClearCurrentFolder",
+						LOCTEXT("ClearCurrentFolder", "Clear Current Folder"),
+						FText(),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateLambda([this, SceneOutliner]()
+							{
+								if (RepresentingWorld.IsValid())
+								{
+									const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "ClearCurrentActorFolder", "Clear Current Actor Folder"));
+									FActorFolders::Get().SetActorEditorContextFolder(*RepresentingWorld.Get(), FFolder());
+								}
+							}),
+							FCanExecuteAction::CreateLambda([this] { return RepresentingWorld.IsValid() && !FActorFolders::Get().GetActorEditorContextFolder(*RepresentingWorld.Get()).IsNone(); })
+						)
+					);
+				}
+			}));
 	}
 
 	if (!ToolMenus->IsMenuRegistered(DefaultContextMenuName))

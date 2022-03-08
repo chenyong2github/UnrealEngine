@@ -393,22 +393,18 @@ APartitionActor* UActorPartitionSubsystem::GetActor(const TSubclassOf<APartition
 	
 	auto WrappedInActorCreated = [World, InActorCreated](APartitionActor* PartitionActor)
 	{
-		if (UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>())
+		if (const AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
 		{
-			if (const AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
+			for (UDataLayer* DataLayer : WorldDataLayers->GetActorEditorContextDataLayers())
 			{
-				for (const FName& DataLayer : DataLayerSubsystem->GetDataLayerEditorContext().GetDataLayers())
-				{
-					PartitionActor->AddDataLayer(WorldDataLayers->GetDataLayerFromName(DataLayer));
-				}
+				PartitionActor->AddDataLayer(DataLayer);
 			}
 		}
-
 		InActorCreated(PartitionActor);
 	};
 
 	UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>();
-	FActorPartitionIdentifier ActorPartitionId(InActorClass, InGuid, DataLayerSubsystem ? DataLayerSubsystem->GetDataLayerEditorContext().GetHash() : FDataLayerEditorContext::EmptyHash);
+	FActorPartitionIdentifier ActorPartitionId(InActorClass, InGuid, DataLayerSubsystem ? DataLayerSubsystem->GetDataLayerEditorContextHash() : FDataLayerEditorContext::EmptyHash);
 	TMap<FActorPartitionIdentifier, TWeakObjectPtr<APartitionActor>>* ActorsPerId = PartitionedActors.Find(InCellCoords);
 	APartitionActor* FoundActor = nullptr;
 	if (!ActorsPerId)

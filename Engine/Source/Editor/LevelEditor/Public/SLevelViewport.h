@@ -58,8 +58,6 @@ public:
 	 */
 	void ConstructViewportOverlayContent();
 
-	TSharedRef<SWidget> GenerateLevelMenu() const;
-
 	/**
 	 * Constructs the level editor viewport client
 	 */
@@ -311,17 +309,16 @@ public:
 	/** Get the parent level editor for this viewport */
 	TWeakPtr<ILevelEditor> GetParentLevelEditor() const { return ParentLevelEditor; }
 
-	/** Called to get the level text */
-	FText GetCurrentLevelText( bool bDrawOnlyLabel ) const;
+	/** @return whether the the actor editor context should be displayed for this viewport */
+	virtual bool IsActorEditorContextVisible() const;
 
 	/** Called to get the screen percentage preview text */
 	FText GetCurrentScreenPercentageText() const;
 
-	/** @return The visibility of the current level text display */
-	virtual EVisibility GetCurrentLevelTextVisibility() const;
-
-	/** @return The visibility of the current level button display */
-	virtual EVisibility GetCurrentLevelButtonVisibility() const;
+	UE_DEPRECATED(5.1, "GetCurrentLevelTextVisibility not used anymore.")
+	virtual EVisibility GetCurrentLevelTextVisibility() const { return EVisibility::Collapsed; }
+	UE_DEPRECATED(5.1, "GetCurrentLevelButtonVisibility not used anymore.")
+	virtual EVisibility GetCurrentLevelButtonVisibility() const { return EVisibility::Collapsed; }
 
 	/** @return The visibility of the current level text display */
 	virtual EVisibility GetSelectedActorsCurrentLevelTextVisibility() const;

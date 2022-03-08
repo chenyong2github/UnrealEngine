@@ -7,6 +7,7 @@
 #include "DataLayerAction.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "IActorEditorContextClient.h"
 #include "DataLayerEditorSubsystem.generated.h"
 
 class AActor;
@@ -18,7 +19,7 @@ class UWorld;
 template<typename TItemType> class IFilter;
 
 UCLASS()
-class DATALAYEREDITOR_API UDataLayerEditorSubsystem final : public UEditorSubsystem
+class DATALAYEREDITOR_API UDataLayerEditorSubsystem final : public UEditorSubsystem, public IActorEditorContextClient
 {
 	GENERATED_BODY()
 
@@ -41,6 +42,16 @@ public:
 	 *	Destructor
 	 */
 	virtual ~UDataLayerEditorSubsystem() {}
+
+	//~ Begin IActorEditorContextClient interface
+	virtual void OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, AActor* InActor = nullptr) override;
+	virtual bool GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEditorContextClientDisplayInfo& OutDiplayInfo) const override;
+	virtual bool CanResetContext(UWorld* InWorld) const override { return true; };
+	virtual TSharedRef<SWidget> GetActorEditorContextWidget(UWorld* InWorld) const override;
+	virtual FOnActorEditorContextClientChanged& GetOnActorEditorContextClientChanged() override { return ActorEditorContextClientChanged; }
+	//~ End IActorEditorContextClient interface
+	void AddToActorEditorContext(UDataLayer* InDataLayer);
+	void RemoveFromActorEditorContext(UDataLayer* InDataLayer);
 
 	/* Broadcasts whenever one or more DataLayers are modified
 	 *
@@ -647,6 +658,9 @@ private:
 
 	/** Auxiliary class that sets the callback functions for multiple delegates */
 	TSharedPtr<class FDataLayersBroadcast> DataLayersBroadcast;
+
+	/** Delegate used to notify changes to ActorEditorContextSubsystem */
+	FOnActorEditorContextClientChanged ActorEditorContextClientChanged;
 
 	friend class FDataLayersBroadcast;
 };

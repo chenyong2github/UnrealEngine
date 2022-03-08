@@ -40,7 +40,6 @@
 #include "Misc/ScopeExit.h"
 
 #include "ActorPartition/ActorPartitionSubsystem.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 
 //Slate dependencies
 #include "IAssetViewport.h"
@@ -394,11 +393,6 @@ void FEdModeFoliage::Enter()
 	// Load UI settings from config file
 	UISettings.Load();
 
-	// For now, Only Foliage sets DataLayerSubsystem's DataLayerEditorContext, validate it's empty before updating it
-	const UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-	check(!DataLayerSubsystem || !DataLayerSubsystem->HasDataLayerEditorContext());
-	SetDataLayerEditorContext(UISettings.GetDataLayer());
-
 	// Bind to editor callbacks
 	FEditorDelegates::NewCurrentLevel.AddSP(this, &FEdModeFoliage::NotifyNewCurrentLevel);
 	FWorldDelegates::LevelAddedToWorld.AddSP(this, &FEdModeFoliage::NotifyLevelAddedToWorld);
@@ -451,11 +445,6 @@ void FEdModeFoliage::Enter()
 /** FEdMode: Called when the mode is exited */
 void FEdModeFoliage::Exit()
 {
-	DataLayerEditorContext.Reset();
-	// For now, Only Foliage sets DataLayerSubsystem's DataLayerEditorContext, validate it's back to be empty
-	const UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-	check(!DataLayerSubsystem || !DataLayerSubsystem->HasDataLayerEditorContext());
-
 	if (bToolActive)
 	{
 		EndFoliageBrushTrace();
@@ -516,15 +505,6 @@ void FEdModeFoliage::Exit()
 
 	// Call base Exit method to ensure proper cleanup
 	FEdMode::Exit();
-}
-
-void FEdModeFoliage::SetDataLayerEditorContext(const FActorDataLayer& DataLayer)
-{
-	// Update Data Layer and update DataLayerSubsystem's DataLayerEditorContext with it
-	UISettings.SetDataLayer(DataLayer);
-	// Since this is a scope, first call Reset on TUniquePtr to delete old context before assigning the new one
-	DataLayerEditorContext.Reset();
-	DataLayerEditorContext.Reset(new FScopeChangeDataLayerEditorContext(GetWorld(), UISettings.GetDataLayer()));
 }
 
 EFoliageEditingState FEdModeFoliage::GetEditingState() const

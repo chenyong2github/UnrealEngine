@@ -22,6 +22,7 @@
 #include "DataLayersActorDescTreeItem.h"
 #include "EditorActorFolders.h"
 #include "Algo/Transform.h"
+#include "Algo/AnyOf.h"
 #include "ToolMenus.h"
 #include "Selection.h"
 #include "Editor.h"
@@ -899,6 +900,7 @@ void FDataLayerMode::RegisterContextMenu()
 			TArray<UDataLayer*> SelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
 			const bool bSelectedDataLayersContainsLocked = !!SelectedDataLayers.FindByPredicate([](const UDataLayer* DataLayer) { return DataLayer->IsLocked(); });
 
+			bool bHasActorEditorContextDataLayers = false;
 			TArray<const UDataLayer*> AllDataLayers;
 			if (const AWorldDataLayers* WorldDataLayers = RepresentingWorld.IsValid() ? RepresentingWorld->GetWorldDataLayers() : nullptr)
 			{
@@ -907,6 +909,8 @@ void FDataLayerMode::RegisterContextMenu()
 					AllDataLayers.Add(DataLayer);
 					return true;
 				});
+
+				bHasActorEditorContextDataLayers = !WorldDataLayers->GetActorEditorContextDataLayers().IsEmpty();
 			}
 
 			{
@@ -1099,6 +1103,57 @@ void FDataLayerMode::RegisterContextMenu()
 								SceneOutliner->ExpandAll();
 							}}),
 						FCanExecuteAction::CreateLambda([SelectedDataLayers] { return !SelectedDataLayers.IsEmpty(); })
+					));
+			}
+
+			{
+				FToolMenuSection& Section = InMenu->AddSection("DataLayerActorEditorContext", LOCTEXT("DataLayerActorEditorContext", "Actor Editor Context"));
+
+				Section.AddMenuEntry("MakeCurrentDataLayers", LOCTEXT("MakeCurrentDataLayers", "Make Current Data Layer(s)"), FText(), FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda([this, SceneOutliner, SelectedDataLayers]() 
+						{
+							const FScopedDataLayerTransaction Transaction(LOCTEXT("MakeCurrentDataLayers", "Make Current Data Layer(s)"), RepresentingWorld.Get());
+							for (TWeakObjectPtr<const UDataLayer>& DataLayer : SelectedDataLayersSet)
+							{
+								if (DataLayer.IsValid() && !DataLayer->IsLocked())
+								{
+									DataLayerEditorSubsystem->AddToActorEditorContext(const_cast<UDataLayer*>(DataLayer.Get()));
+								}
+							}
+						}),
+						FCanExecuteAction::CreateLambda([this] { return Algo::AnyOf(SelectedDataLayersSet, [](const TWeakObjectPtr<const UDataLayer>& DataLayer) { return DataLayer.IsValid() && !DataLayer->IsLocked() && !DataLayer->IsInActorEditorContext(); }); })
+					));
+
+				Section.AddMenuEntry("RemoveCurrentDataLayers", LOCTEXT("RemoveCurrentDataLayers", "Remove Current Data Layer(s)"), FText(), FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda([this, SceneOutliner, SelectedDataLayers]()
+						{
+							const FScopedDataLayerTransaction Transaction(LOCTEXT("RemoveCurrentDataLayers", "Remove Current Data Layer(s)"), RepresentingWorld.Get());
+							for (TWeakObjectPtr<const UDataLayer>& DataLayer : SelectedDataLayersSet)
+							{
+								if (DataLayer.IsValid() && !DataLayer->IsLocked())
+								{
+									DataLayerEditorSubsystem->RemoveFromActorEditorContext(const_cast<UDataLayer*>(DataLayer.Get()));
+								}
+							}
+						}),
+						FCanExecuteAction::CreateLambda([this] { return Algo::AnyOf(SelectedDataLayersSet, [](const TWeakObjectPtr<const UDataLayer>& DataLayer) { return DataLayer.IsValid() && !DataLayer->IsLocked() && DataLayer->IsInActorEditorContext(); }); })
+					));
+
+				Section.AddMenuEntry("ClearCurrentDataLayers", LOCTEXT("ClearCurrentDataLayers", "Clear Current Data Layers"), FText(), FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda([this, AllDataLayers]() 
+						{
+							check(!AllDataLayers.IsEmpty());
+							{
+								const FScopedDataLayerTransaction Transaction(LOCTEXT("ClearCurrentDataLayers", "Clear Current Data Layers"), RepresentingWorld.Get());
+								for (const UDataLayer* DataLayer : AllDataLayers)
+								{
+									DataLayerEditorSubsystem->RemoveFromActorEditorContext(const_cast<UDataLayer*>(DataLayer));
+								}
+							}}),
+						FCanExecuteAction::CreateLambda([bHasActorEditorContextDataLayers] { return bHasActorEditorContextDataLayers; })
 					));
 			}
 

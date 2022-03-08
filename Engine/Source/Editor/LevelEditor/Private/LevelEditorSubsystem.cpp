@@ -18,6 +18,11 @@
 #include "ToolMenus.h"
 #include "UnrealEdGlobals.h"
 #include "EditorModeManager.h"
+#include "Styling/SlateIconFinder.h"
+#include "Subsystems/ActorEditorContextSubsystem.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
+#include "LevelInstance/LevelInstanceActor.h"
+#include "ClassIconFinder.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LevelEditorSubsystem, Log, All);
 
@@ -52,11 +57,19 @@ TSharedPtr<SLevelViewport> GetLevelViewport(const FName& ViewportConfigKey)
 
 void ULevelEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	Collection.InitializeDependency<UActorEditorContextSubsystem>();
+
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &ULevelEditorSubsystem::ExtendQuickActionMenu));
+	UActorEditorContextSubsystem::Get()->RegisterClient(this);
+	FWorldDelegates::LevelAddedToWorld.AddUObject(this, &ULevelEditorSubsystem::OnLevelAddedOrRemoved);
+	FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &ULevelEditorSubsystem::OnLevelAddedOrRemoved);
 }
 
 void ULevelEditorSubsystem::Deinitialize()
 {
+	UActorEditorContextSubsystem::Get()->UnregisterClient(this);
+	FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
+	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
 	UToolMenus::UnRegisterStartupCallback(this);
 	UToolMenus::UnregisterOwner(this);
 }
@@ -647,6 +660,189 @@ FEditorModeTools* ULevelEditorSubsystem::GetLevelEditorModeManager()
 	}
 
 	return nullptr;
+}
+
+// Widget used to show current level in viewport
+class SCurrentLevelWidget : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SCurrentLevelWidget) {}
+	SLATE_ARGUMENT(UWorld*, World)
+	SLATE_END_ARGS()
+
+	~SCurrentLevelWidget()
+	{
+		GEditor->GetEditorWorldContext().RemoveRef(World);
+	}
+	void Construct(const FArguments& InArgs)
+	{
+		World = (InArgs._World);
+		GEditor->GetEditorWorldContext().AddRef(World);
+		CommandList = MakeShareable(new FUICommandList);
+
+		// No option to change current level for partitioned worlds
+		if (World && World->IsPartitionedWorld())
+		{
+			ChildSlot
+			[
+				// Current Level
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(STextBlock)
+					.Visibility(this, &SCurrentLevelWidget::GetCurrentLevelTextVisibility)
+					.Text(this, &SCurrentLevelWidget::GetCurrentLevelText)
+				]
+				// Referencing Level Instance (if any)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					.Visibility_Lambda([this]() { return GetEditingLevelInstance() ? EVisibility::Visible : EVisibility::Collapsed; })
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("FromBegin", "("))
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(1.f, 1.f, 1.f, 1.f)
+					[
+						SNew(SBox)
+						.WidthOverride(16)
+						.HeightOverride(16)
+						[
+							SNew(SImage)
+							.Image_Lambda([this]() { return FClassIconFinder::FindIconForActor(GetEditingLevelInstance()); })
+							.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.AccentGreen"))
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text_Lambda([this]() 
+						{
+							ALevelInstance* LevelInstance = GetEditingLevelInstance();
+							return LevelInstance ? FText::FromString(LevelInstance->GetActorLabel()) : FText::GetEmpty();
+						})
+						.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.AccentGreen"))
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(0.f, 0.f, 4.f, 0.f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("FromEnd", ")"))
+					]
+				]
+			];
+		}
+		else
+		{
+			ChildSlot
+			[
+				SNew(SComboButton)
+				.Cursor(EMouseCursor::Default)
+				.VAlign(VAlign_Center)
+				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+				.Visibility(this, &SCurrentLevelWidget::GetCurrentLevelButtonVisibility)
+				.OnGetMenuContent(this, &SCurrentLevelWidget::GenerateLevelMenu)
+				.ButtonContent()
+				[
+					SNew(STextBlock)
+					.Visibility(this, &SCurrentLevelWidget::GetCurrentLevelTextVisibility)
+					.Text(this, &SCurrentLevelWidget::GetCurrentLevelText)
+					.ShadowOffset(FVector2D(1, 1))
+				]
+			];
+		}
+	}
+
+private:
+	ALevelInstance* GetEditingLevelInstance() const
+	{
+		ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>();
+		return LevelInstanceSubsystem ? LevelInstanceSubsystem->GetEditingLevelInstance() : nullptr;
+	}
+
+	FText GetCurrentLevelText() const
+	{
+		if (GetWorld() && GetWorld()->GetCurrentLevel())
+		{
+			// Get the level name 
+			const FText ActualLevelName = FText::FromName(FPackageName::GetShortFName(GetWorld()->GetCurrentLevel()->GetOutermost()->GetFName()));
+			if (GetWorld()->GetCurrentLevel() == GetWorld()->PersistentLevel)
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("ActualLevelName"), ActualLevelName);
+				return FText::Format(LOCTEXT("LevelName", "{0} (Persistent)"), ActualLevelName);
+			}
+			return ActualLevelName;
+		}
+		return FText::GetEmpty();
+	}
+	
+	bool IsVisible() const
+	{
+		return (GetWorld() && (GetWorld()->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1) && (!GetWorld()->IsPartitionedWorld() || (GetWorld()->GetCurrentLevel() != GetWorld()->PersistentLevel)));
+	}
+
+	EVisibility GetCurrentLevelTextVisibility() const
+	{
+		return IsVisible() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
+	}
+
+	EVisibility GetCurrentLevelButtonVisibility() const
+	{
+		return IsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
+	TSharedRef<SWidget> GenerateLevelMenu() const
+	{
+		// Get all menu extenders for this context menu from the level editor module
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		TSharedRef<FUICommandList> InCommandList = CommandList.ToSharedRef();
+		TSharedPtr<FExtender> MenuExtender = LevelEditorModule.AssembleExtenders(InCommandList, LevelEditorModule.GetAllLevelEditorLevelMenuExtenders());
+
+		// Create the menu
+		FMenuBuilder LevelMenuBuilder(/*bShouldCloseWindowAfterMenuSelection*/true, InCommandList, MenuExtender);
+		LevelMenuBuilder.BeginSection("LevelListing", LOCTEXT("Levels", "Levels"));
+		LevelMenuBuilder.EndSection();
+		return LevelMenuBuilder.MakeWidget();
+	}
+
+	UWorld* GetWorld() const
+	{
+		return World;
+	}
+
+	TSharedPtr<FUICommandList> CommandList;
+	UWorld* World;
+};
+
+bool ULevelEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEditorContextClientDisplayInfo& OutDiplayInfo) const
+{
+	const bool bIsVisible = InWorld && (InWorld->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1) && (!InWorld->IsPartitionedWorld() || (InWorld->GetCurrentLevel() != InWorld->PersistentLevel));
+	if (bIsVisible)
+	{
+		OutDiplayInfo.Title = TEXT("Current Level");
+		OutDiplayInfo.Brush = FSlateIconFinder::FindIconBrushForClass(UWorld::StaticClass());
+		return true;
+	}
+	return false;
+}
+
+void ULevelEditorSubsystem::OnLevelAddedOrRemoved(ULevel* InLevel, UWorld* InWorld)
+{
+	ActorEditorContextClientChanged.Broadcast(this);
+}
+
+TSharedRef<SWidget> ULevelEditorSubsystem::GetActorEditorContextWidget(UWorld* InWorld) const
+{
+	return SNew(SCurrentLevelWidget).World(InWorld);
 }
 
 #undef LOCTEXT_NAMESPACE

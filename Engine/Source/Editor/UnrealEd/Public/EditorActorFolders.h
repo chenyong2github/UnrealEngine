@@ -8,6 +8,7 @@
 #include "UObject/GCObject.h"
 #include "Folder.h"
 #include "WorldFolders.h"
+#include "IActorEditorContextClient.h"
 
 class FObjectPostSaveContext;
 class AActor;
@@ -27,7 +28,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnActorFolderMoved, UWorld&, const FFold
 
 
 /** Class responsible for managing an in-memory representation of actor folders in the editor */
-struct UNREALED_API FActorFolders : public FGCObject
+struct UNREALED_API FActorFolders : public FGCObject, public IActorEditorContextClient
 {
 	FActorFolders();
 	~FActorFolders();
@@ -151,6 +152,16 @@ struct UNREALED_API FActorFolders : public FGCObject
 	/** Get the folder properties for the specified path. Returns nullptr if no properties exist */
 	FActorFolderProps* GetFolderProperties(UWorld& InWorld, const FFolder& InFolder);
 
+	//~ Begin IActorEditorContextClient interface
+	virtual void OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, class AActor* InActor = nullptr) override;
+	virtual bool GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEditorContextClientDisplayInfo& OutDiplayInfo) const override;
+	virtual bool CanResetContext(UWorld* InWorld) const override { return true; };
+	virtual TSharedRef<SWidget> GetActorEditorContextWidget(UWorld* InWorld) const override;
+	virtual FOnActorEditorContextClientChanged& GetOnActorEditorContextClientChanged() override { return ActorEditorContextClientChanged; }
+	//~ End IActorEditorContextClient interface
+	FFolder GetActorEditorContextFolder(UWorld& InWorld) const;
+	void SetActorEditorContextFolder(UWorld& InWorld, const FFolder& InFolder);
+
 private:
 
 	/** Broadcast when actor folder is created. */
@@ -198,6 +209,12 @@ private:
 
 	/** Transient map of folders, keyed on world pointer */
 	TMap<TWeakObjectPtr<UWorld>, UWorldFolders*> WorldFolders;
+
+	/** Called when ActorEditorContextClient changed. */
+	void BroadcastOnActorEditorContextClientChanged();
+
+	/** Delegate used to notify changes to ActorEditorContextSubsystem */
+	FOnActorEditorContextClientChanged ActorEditorContextClientChanged;
 
 	/** Singleton instance maintained by the editor */
 	static FActorFolders* Singleton;
