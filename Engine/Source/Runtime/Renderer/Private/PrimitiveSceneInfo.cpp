@@ -238,10 +238,6 @@ FPrimitiveSceneInfo::~FPrimitiveSceneInfo()
 	{
 		check(StaticMeshCommandInfos.Num() == 0);
 	}
-
-#if RHI_RAYTRACING
-	DEC_MEMORY_STAT_BY(STAT_CachedRayTracingInstancesMemory, CachedRayTracingInstanceWorldTransforms.Num() * sizeof(FMatrix));
-#endif
 }
 
 #if RHI_RAYTRACING
@@ -919,47 +915,16 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FScene* Scene, const TArrayV
 	}
 }
 
-void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceWorldTransforms()
-{
-	if (bUpdateCachedRayTracingInstanceWorldTransforms)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateCachedRayTracingInstanceWorldTransforms);
-
-		bUpdateCachedRayTracingInstanceWorldTransforms = false;
-
-		DEC_MEMORY_STAT_BY(STAT_CachedRayTracingInstancesMemory, CachedRayTracingInstanceWorldTransforms.Num() * sizeof(FMatrix));
-
-		CachedRayTracingInstanceWorldTransforms.SetNumUninitialized(CachedRayTracingInstance.NumTransforms);
-
-		INC_MEMORY_STAT_BY(STAT_CachedRayTracingInstancesMemory, CachedRayTracingInstanceWorldTransforms.Num() * sizeof(FMatrix));
-
-		// Apply local offset to far-field object
-		FMatrix LocalToWorld = Proxy->GetLocalToWorld();
-		if (Proxy->IsRayTracingFarField())
-		{
-			LocalToWorld = LocalToWorld.ConcatTranslation(Lumen::GetFarFieldReferencePos());
-		}
-
-		TConstArrayView<FPrimitiveInstance> InstanceSceneData = Proxy->GetInstanceSceneData();
-
-		for (int32 Index = 0; Index < CachedRayTracingInstanceWorldTransforms.Num(); Index++)
-		{
-			FMatrix LocalTransform = InstanceSceneData[Index].LocalToPrimitive.ToMatrix();
-
-			CachedRayTracingInstanceWorldTransforms[Index] = LocalTransform * LocalToWorld;
-		}
-
-		CachedRayTracingInstance.Transforms = MakeArrayView(CachedRayTracingInstanceWorldTransforms);
-		check(CachedRayTracingInstance.NumTransforms >= uint32(CachedRayTracingInstance.Transforms.Num()));
-	}
-}
-
 void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* SceneInfo, const FRayTracingInstance& CachedRayTracingInstance, const ERayTracingPrimitiveFlags Flags)
 {
 	if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheInstances))
 	{
+		checkf(CachedRayTracingInstance.InstanceTransforms.IsEmpty() && CachedRayTracingInstance.InstanceTransforms.IsEmpty(),
+			TEXT("Primitives with ERayTracingPrimitiveFlags::CacheInstances get instances transforms from GPUScene"));
+
 		// TODO: allocate from FRayTracingScene & do better low-level caching
 		SceneInfo->CachedRayTracingInstance.NumTransforms = CachedRayTracingInstance.NumTransforms;
+		SceneInfo->CachedRayTracingInstance.BaseInstanceSceneDataOffset = SceneInfo->GetInstanceSceneDataOffset();
 
 		// Apply local offset to far-field object
 		FMatrix LocalToWorld = SceneInfo->Proxy->GetLocalToWorld();
@@ -971,7 +936,7 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* Sc
 		SceneInfo->CachedRayTracingInstanceWorldBounds.Empty();
 		SceneInfo->CachedRayTracingInstanceWorldBounds.AddUninitialized(CachedRayTracingInstance.NumTransforms);
 
-		SceneInfo->UpdateCachedRayTracingInstanceTransforms(LocalToWorld);
+		SceneInfo->UpdateCachedRayTracingInstanceWorldBounds(LocalToWorld);
 
 		SceneInfo->CachedRayTracingInstance.GeometryRHI = CachedRayTracingInstance.Geometry->RayTracingGeometryRHI;
 
@@ -1013,10 +978,10 @@ void FPrimitiveSceneInfo::RemoveCachedRayTracingPrimitives()
 	}
 }
 
-void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceTransforms(const FMatrix& NewPrimitiveLocalToWorld)
+void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceWorldBounds(const FMatrix& NewPrimitiveLocalToWorld)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateCachedRayTracingInstanceTransforms);
-	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCachedRayTracingInstanceTransforms);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateCachedRayTracingInstanceWorldBounds);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCachedRayTracingInstanceWorldBounds);
 
 	TConstArrayView<FPrimitiveInstance> InstanceSceneData = Proxy->GetInstanceSceneData();
 	
@@ -1031,8 +996,6 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceTransforms(const FMatrix
 		CachedRayTracingInstanceWorldBounds[Index] = LocalBoundingBox.TransformBy(LocalTransform * NewPrimitiveLocalToWorld).ToBoxSphereBounds();
 		SmallestRayTracingInstanceWorldBoundsIndex = CachedRayTracingInstanceWorldBounds[Index].SphereRadius < CachedRayTracingInstanceWorldBounds[SmallestRayTracingInstanceWorldBoundsIndex].SphereRadius ? Index : SmallestRayTracingInstanceWorldBoundsIndex;
 	}
-
-	bUpdateCachedRayTracingInstanceWorldTransforms = true;
 }
 #endif
 

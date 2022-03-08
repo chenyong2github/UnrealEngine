@@ -87,8 +87,6 @@ DEFINE_STAT(STAT_ViewStateMemory);
 DEFINE_STAT(STAT_RenderingMemStackMemory);
 DEFINE_STAT(STAT_LightInteractionMemory);
 
-DEFINE_STAT(STAT_CachedRayTracingInstancesMemory);
-
 // The InitViews stats group contains information on how long visibility culling took and how effective it was
 
 DEFINE_STAT(STAT_GatherShadowPrimitivesTime);

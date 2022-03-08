@@ -53,11 +53,11 @@ FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances
 	{
 		const FRayTracingGeometryInstance& InstanceDesc = Instances[InstanceIndex];
 
-		const bool bGpuSceneInstance = !InstanceDesc.InstanceSceneDataOffsets.IsEmpty();
+		const bool bGpuSceneInstance = InstanceDesc.BaseInstanceSceneDataOffset != -1 || !InstanceDesc.InstanceSceneDataOffsets.IsEmpty();
 		const bool bGpuInstance = InstanceDesc.GPUTransformsSRV != nullptr;
 		const bool bCpuInstance = !bGpuSceneInstance && !bGpuInstance;
 
-		checkf(!bGpuSceneInstance || InstanceDesc.NumTransforms <= uint32(InstanceDesc.InstanceSceneDataOffsets.Num()),
+		checkf(!bGpuSceneInstance || InstanceDesc.BaseInstanceSceneDataOffset != -1 || InstanceDesc.NumTransforms <= uint32(InstanceDesc.InstanceSceneDataOffsets.Num()),
 			TEXT("Expected at least %d ray tracing geometry instance scene data offsets, but got %d."),
 			InstanceDesc.NumTransforms, InstanceDesc.InstanceSceneDataOffsets.Num());
 		checkf(!bCpuInstance || InstanceDesc.NumTransforms <= uint32(InstanceDesc.Transforms.Num()),
@@ -155,7 +155,7 @@ void FillRayTracingInstanceUploadBuffer(
 
 			const bool bUseUniqueUserData = SceneInstance.UserData.Num() != 0;
 
-			const bool bGpuSceneInstance = !SceneInstance.InstanceSceneDataOffsets.IsEmpty();
+			const bool bGpuSceneInstance = SceneInstance.BaseInstanceSceneDataOffset != -1 || !SceneInstance.InstanceSceneDataOffsets.IsEmpty();
 			const bool bGpuInstance = SceneInstance.GPUTransformsSRV != nullptr;
 			const bool bCpuInstance = !bGpuSceneInstance && !bGpuInstance;
 
@@ -190,7 +190,14 @@ void FillRayTracingInstanceUploadBuffer(
 
 				if (bGpuSceneInstance)
 				{
-					InstanceDesc.GPUSceneInstanceOrTransformIndex = SceneInstance.InstanceSceneDataOffsets[TransformIndex];
+					if (SceneInstance.BaseInstanceSceneDataOffset != -1)
+					{
+						InstanceDesc.GPUSceneInstanceOrTransformIndex = SceneInstance.BaseInstanceSceneDataOffset + TransformIndex;
+					}
+					else
+					{
+						InstanceDesc.GPUSceneInstanceOrTransformIndex = SceneInstance.InstanceSceneDataOffsets[TransformIndex];
+					}
 				}
 				else
 				{

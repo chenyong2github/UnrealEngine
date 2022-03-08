@@ -414,10 +414,8 @@ public:
 	TArray<uint64> CachedRayTracingMeshCommandsHashPerLOD;
 	// TODO: this should be placed in FRayTracingScene and we have a pointer/handle here. It's here for now for PoC
 	FRayTracingGeometryInstance CachedRayTracingInstance;
-	TArray<FMatrix> CachedRayTracingInstanceWorldTransforms;
 	TArray<FBoxSphereBounds> CachedRayTracingInstanceWorldBounds;
 	int32 SmallestRayTracingInstanceWorldBoundsIndex;
-	bool bUpdateCachedRayTracingInstanceWorldTransforms;
 #endif
 
 	/** Initialization constructor. */
@@ -605,8 +603,6 @@ public:
 	static void UpdateCachedRaytracingData(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
 	RENDERER_API FRHIRayTracingGeometry* GetStaticRayTracingGeometryInstance(int LodLevel) const;
 
-	void UpdateCachedRayTracingInstanceWorldTransforms();
-
 	int GetRayTracingGeometryNum() const { return RayTracingGeometries.Num(); }
 #endif
 
@@ -703,8 +699,8 @@ private:
 	/** Removes cached ray tracing representations for all meshes. */
 	void RemoveCachedRayTracingPrimitives();
 
-	/** Updates cached transforms in CachedRayTracingInstance */
-	void UpdateCachedRayTracingInstanceTransforms(const FMatrix& NewPrimitiveLocalToWorld);
+	/** Updates cached world bounds in CachedRayTracingInstance */
+	void UpdateCachedRayTracingInstanceWorldBounds(const FMatrix& NewPrimitiveLocalToWorld);
 
 	/** Updates cached ray tracing instances. Utility closely mirrors CacheRayTracingPrimitives(..) */
 	static void UpdateCachedRayTracingInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);

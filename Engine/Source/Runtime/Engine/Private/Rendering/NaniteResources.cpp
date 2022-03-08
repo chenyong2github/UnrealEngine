@@ -1283,15 +1283,11 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 
 	RayTracingInstance.Geometry = &RenderData->LODResources[ValidLODIndex].RayTracingGeometry;
 
-	const int32 InstanceCount = InstanceSceneData.Num();
-	RayTracingInstance.InstanceTransforms.SetNumUninitialized(InstanceCount);
-	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
-	{
-		const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
-		// LocalToWorld multiplication will be done when added to FScene, and re-done when doing UpdatePrimitiveTransform
-		RayTracingInstance.InstanceTransforms[InstanceIndex] = Instance.LocalToPrimitive.ToMatrix();
-	}
-	RayTracingInstance.NumTransforms = InstanceCount;
+	checkf(SupportsInstanceDataBuffer() && InstanceSceneData.Num() <= GetPrimitiveSceneInfo()->GetNumInstanceSceneDataEntries(),
+		TEXT("Primitives using ERayTracingPrimitiveFlags::CacheInstances require instance transforms available in GPUScene"));
+
+	RayTracingInstance.NumTransforms = InstanceSceneData.Num();
+	// When ERayTracingPrimitiveFlags::CacheInstances is used, instance transforms are copied from GPUScene while building ray tracing instance buffer.
 
 	RayTracingInstance.Materials.SetNum(MaterialSections.Num());
 	SetupRayTracingMaterials(ValidLODIndex, RayTracingInstance.Materials);

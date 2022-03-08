@@ -1218,7 +1218,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 				}
 
 				checkf(SceneInfo->CachedRayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
-				SceneInfo->UpdateCachedRayTracingInstanceWorldTransforms();
 				RayTracingScene.Instances.Add(SceneInfo->CachedRayTracingInstance);
 
 				if (View.RayTracingCullingParameters.CullInRayTracing > 0 && GetRayTracingCullingPerInstance() && SceneInfo->CachedRayTracingInstance.NumTransforms > 1)
