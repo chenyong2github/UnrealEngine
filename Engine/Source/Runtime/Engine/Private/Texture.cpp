@@ -116,6 +116,11 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	AdjustHue = 0.0f;
 	AdjustMinAlpha = 0.0f;
 	AdjustMaxAlpha = 1.0f;
+	CompressionNoAlpha = 0;
+	CompressionNone = 0;
+	CompressFinal = 0;
+	DeferCompression = 0;
+	LossyCompressionAmount = TLCA_Default;
 	MaxTextureSize = 0; // means no limitation
 	MipGenSettings = TMGS_FromTextureGroup;
 	CompositeTextureMode = CTM_NormalRoughnessToAlpha;

@@ -2,6 +2,7 @@
 
 #pragma once
 #include "Engine/DeveloperSettings.h"
+#include "Engine/TextureDefines.h"
 #include "TextureEncodingSettings.generated.h"
 
 
@@ -27,23 +28,6 @@ enum class ETextureUniversalTiling : uint8
 	Enabled_64KB = 2
 };
 
-
-// Certain settings can be changed to facilitate how fast a texture build takes. This
-// controls which of those settings is used. It is resolved prior to the settings reaching
-// the encoder.
-//
-// In many places where this is used, FinalIfAvailable is invalid.
-UENUM()
-enum class ETextureEncodeSpeed : uint8
-{
-	// Use the "Final" encode speed settings in UTextureEncodingProjectSettings
-	Final = 0,
-	// Try and fetch the final encode speed settings, but if they don't exist, encode
-	// with Fast.
-	FinalIfAvailable = 1,
-	// Use the "Fast" encode settings in UTextureEncodingProjectSettings
-	Fast = 2
-};
 
 // Enum that allows for not overriding what the existing setting is - all the
 // other values have the same meaning as ETextureEncodeSpeed

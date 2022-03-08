@@ -571,14 +571,14 @@ static void FinalizeBuildSettingsForLayer(
 	}
 }
 
-static ETextureEncodeSpeed GetDesiredEncodeSpeed()
+ENGINE_API ETextureEncodeSpeed UTexture::GetDesiredEncodeSpeed() const
 {
-	//
-	// I don't really see a good place to initialize target platform cached data,
-	// but we can't hit this constantly for perf and because changing the project settings UI
-	// can cause a crash in the GetDefault<> call.
-	//
-	// So we init once here.
+	if ( CompressFinal )
+	{
+		return ETextureEncodeSpeed::Final;
+	}
+
+	// Get the command line and config options with a one-time static init :
 	static struct FThreadSafeInitializer
 	{
 		ETextureEncodeSpeed CachedEncodeSpeedOption;
@@ -587,7 +587,7 @@ static ETextureEncodeSpeed GetDesiredEncodeSpeed()
 		// guarantees will be called only once.
 		FThreadSafeInitializer()
 		{
-			UEnum* EncodeSpeedEnum = StaticEnum<ETextureEncodeSpeed>();
+			const UEnum* EncodeSpeedEnum = StaticEnum<ETextureEncodeSpeed>();
 
 			// Overridden by command line?
 			FString CmdLineSpeed;

@@ -839,7 +839,12 @@ public:
 		check(RDOLambda<256);
 		if (bDebugColor)
 		{
-			RDOLambda = 256;
+			// Debug Color is solid or check for RDO/ no RDO
+			//	so make different DDC keys :
+			if ( RDOLambda == 0 )
+				RDOLambda = 256;
+			else
+				RDOLambda = 257;
 			EffortLevel = OodleTex_EncodeEffortLevel_Default;
 		}
 		

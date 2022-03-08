@@ -90,6 +90,7 @@ enum ETextureSourceArtType
 	TSAT_MAX,
 };
 
+// TextureCompressionQuality is used for ASTC
 UENUM()
 enum ETextureCompressionQuality
 {
@@ -565,7 +566,8 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = TextureSource)
 	int32 NumLayers;
 
-	/** RGBA8 source data is optionally compressed as PNG. */
+	/** RGBA8 source data is optionally compressed as PNG. 
+	Deprecated, use CompressionFormat instead.  To be removed. */
 	UPROPERTY(VisibleAnywhere, Category=TextureSource)
 	bool bPNGCompressed;
 
@@ -1040,9 +1042,13 @@ public:
 	/** If true, force the texture to be uncompressed no matter the format. */
 	UPROPERTY()
 	uint32 CompressionNone:1;
+	
+	/** If enabled, compress with Final quality during this Editor session. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Transient, Category=Compression, meta=(NoResetToDefault), meta=(DisplayName="Editor Show Final Encode"))
+	uint32 CompressFinal:1;
 
 	/** If enabled, defer compression of the texture until save or manually compressed in the texture editor. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta=(NoResetToDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Transient, Category=Compression, meta=(NoResetToDefault), meta=(DisplayName="Editor Defer Compression"))
 	uint32 DeferCompression:1;
 
 	/** How aggressively should any relevant lossy compression be applied. For compressors that support EncodeSpeed (i.e. Oodle), this is only
@@ -1431,6 +1437,8 @@ public:
 	ENGINE_API void SetLayerFormatSettings(int32 LayerIndex, const FTextureFormatSettings& InSettings);
 
 	ENGINE_API void GetDefaultFormatSettings(FTextureFormatSettings& OutSettings) const;
+	
+	ENGINE_API ETextureEncodeSpeed GetDesiredEncodeSpeed() const;
 #endif
 
 	/** @return the width of the surface represented by the texture. */

@@ -227,6 +227,23 @@ enum ETextureLossyCompressionAmount
 	TLCA_Highest		UMETA(DisplayName = "Highest (Worst image quality, smallest filesize)"),
 };
 
+// Certain settings can be changed to facilitate how fast a texture build takes. This
+// controls which of those settings is used. It is resolved prior to the settings reaching
+// the encoder.
+//
+// In many places where this is used, FinalIfAvailable is invalid.
+UENUM()
+enum class ETextureEncodeSpeed : uint8
+{
+	// Use the "Final" encode speed settings in UTextureEncodingProjectSettings
+	Final = 0,
+	// Try and fetch the final encode speed settings, but if they don't exist, encode
+	// with Fast.
+	FinalIfAvailable = 1,
+	// Use the "Fast" encode settings in UTextureEncodingProjectSettings
+	Fast = 2
+};
+
 UENUM()
 enum ECompositeTextureMode
 {
