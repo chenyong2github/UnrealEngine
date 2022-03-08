@@ -17,24 +17,7 @@
 
 FUsdStageImportContext::FUsdStageImportContext()
 {
-	World = nullptr;
-	ImportOptions = NewObject< UUsdStageImportOptions >();
-
-	// Always reading from the stage cache is a good default because while we can have multiple instances of the
-	// same stage open, USD will only open a particular layer once. If we try importing without using the stage
-	// cache and the stage we want to import uses an existing open layer, we will forcibly reload
-	// that layer (check UnrealUSDWrapper::OpenStage), which would erase our previous changes to it and lead to modifications
-	// on existing open stages (e.g. we have cube.usda open with a stage actor and with some changes and we click
-	// file -> import into level and import cube.usda again)
-	bReadFromStageCache = true;
-
-	bStageWasOriginallyOpenInCache = false;
-	SceneActor = nullptr;
-	ImportedAsset = nullptr;
-	AssetCache = nullptr;
-	OriginalMetersPerUnit = 0.01f;
-	TargetSceneActorTargetTransform = FTransform::Identity;
-	TargetSceneActorAttachParent = nullptr;
+	Reset();
 }
 
 bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePath, const FString& InInitialPackagePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport, bool bAllowActorImport)
@@ -84,4 +67,36 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 	}
 
 	return true;
+}
+
+void FUsdStageImportContext::Reset()
+{
+	World = nullptr;
+	TargetSceneActorTargetTransform = FTransform::Identity;
+	TargetSceneActorAttachParent = nullptr;
+	SceneActor = nullptr;
+	ObjectName = FString{};
+	PackagePath = FString{};
+	FilePath = FString{};
+	ImportOptions = NewObject< UUsdStageImportOptions >();
+	ImportedAsset = nullptr;
+	LevelSequenceHelper.Clear();
+	AssetCache = nullptr;
+	CollapsingCache = nullptr;
+	MaterialToPrimvarToUVIndex.Empty();
+	Stage = UE::FUsdStage{};
+	ImportObjectFlags = EObjectFlags::RF_NoFlags;
+	bIsAutomated = false;
+
+	// Always reading from the stage cache is a good default because while we can have multiple instances of the
+	// same stage open, USD will only open a particular layer once. If we try importing without using the stage
+	// cache and the stage we want to import uses an existing open layer, we will forcibly reload
+	// that layer (check UnrealUSDWrapper::OpenStage), which would erase our previous changes to it and lead to modifications
+	// on existing open stages (e.g. we have cube.usda open with a stage actor and with some changes and we click
+	// file -> import into level and import cube.usda again)
+	bReadFromStageCache = true;
+
+	bStageWasOriginallyOpenInCache = false;
+	OriginalMetersPerUnit = 0.01f;
+	OriginalUpAxis = EUsdUpAxis::ZAxis;
 }

@@ -2,6 +2,7 @@
 
 #include "USDSchemaTranslator.h"
 
+#include "USDCollapsingCache.h"
 #include "USDErrorUtils.h"
 #include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
@@ -203,29 +204,13 @@ bool FUsdSchemaTranslator::IsCollapsed( ECollapsingType CollapsingType ) const
 #if USE_USD_SDK
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdSchemaTranslator::IsCollapsed );
 
-	if ( !CanBeCollapsed( CollapsingType ) )
+	if ( Context->CollapsingCache.IsValid() )
 	{
-		return false;
+		return Context->CollapsingCache->IsPathCollapsed( PrimPath, CollapsingType );
 	}
 
-	TUsdStore< pxr::UsdPrim > Prim = pxr::UsdPrim( GetPrim() );
-	TUsdStore< pxr::UsdPrim > ParentPrim = Prim.Get().GetParent();
-
-	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
-
-	while ( ParentPrim.Get() )
-	{
-		TSharedPtr< FUsdSchemaTranslator > ParentSchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( Context, UE::FUsdTyped( ParentPrim.Get() ) );
-
-		if ( ParentSchemaTranslator && ParentSchemaTranslator->CollapsesChildren( CollapsingType ) )
-		{
-			return true;
-		}
-		else
-		{
-			ParentPrim = ParentPrim.Get().GetParent();
-		}
-	}
+	// This is merely a fallback, and we should never need this
+	return CanBeCollapsed( CollapsingType );
 #endif // #if USE_USD_SDK
 
 	return false;

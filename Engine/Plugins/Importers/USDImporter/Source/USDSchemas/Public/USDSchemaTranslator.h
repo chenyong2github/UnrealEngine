@@ -6,6 +6,7 @@
 
 #include "UnrealUSDWrapper.h"
 #include "USDAssetCache.h"
+#include "USDCollapsingCache.h"
 #include "USDMemory.h"
 #include "USDSkeletalDataConversion.h"
 
@@ -153,6 +154,8 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	/** Where the translated assets will be stored */
 	TStrongObjectPtr< UUsdAssetCache > AssetCache;
 
+	/** Caches the collapsing state of prim paths */
+	TSharedPtr<FUsdCollapsingCache> CollapsingCache;
 
 	/** Where we place imported blend shapes, if available */
 	UsdUtils::FBlendShapeMap* BlendShapesByPath = nullptr;
@@ -231,12 +234,6 @@ public:
 
 	virtual USceneComponent* CreateComponents() { return nullptr; }
 	virtual void UpdateComponents( USceneComponent* SceneComponent ) {}
-
-	enum class ECollapsingType
-	{
-		Assets,
-		Components
-	};
 
 	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const { return false; }
 

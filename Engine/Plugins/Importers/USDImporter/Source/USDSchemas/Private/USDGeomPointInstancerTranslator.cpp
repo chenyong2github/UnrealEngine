@@ -109,31 +109,6 @@ namespace UsdGeomPointInstancerTranslatorImpl
 
 		return StaticMesh;
 	}
-
-	TUsdStore< pxr::SdfPath > UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType CollapsingType, TUsdStore< pxr::UsdPrim > UsdPrim, const TSharedRef< FUsdSchemaTranslationContext >& TranslationContext )
-	{
-		IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
-
-		TUsdStore< pxr::SdfPath > UsdPrimPath = UsdPrim.Get().GetPrimPath();
-
-		if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( UsdPrim.Get() ) ) )
-		{
-			while ( SchemaTranslator->IsCollapsed( CollapsingType ) )
-			{
-				UsdPrimPath = UsdPrimPath.Get().GetParentPath();
-				UsdPrim = UsdPrim.Get().GetStage()->GetPrimAtPath( UsdPrimPath.Get() );
-
-				SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( UsdPrim.Get() ) );
-
-				if ( !SchemaTranslator.IsValid() )
-				{
-					break;
-				}
-			}
-		}
-
-		return UsdPrimPath;
-	};
 }
 
 void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointInstancerRootComponent )
@@ -253,30 +228,23 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 			}
 
 			TArray< TUsdStore< pxr::UsdPrim > > ChildGeomMeshPrims = UsdUtils::GetAllPrimsOfType( PrototypeUsdPrim, pxr::TfType::Find< pxr::UsdGeomMesh >() );
-			TArray< TUsdStore< pxr::SdfPath > > Unwound;
-			Unwound.AddZeroed( ChildGeomMeshPrims.Num() );
-			PrototypesPathsSlowTask.EnterProgressFrame();
-			ParallelFor(
-				TEXT("Unwinding"),
-				ChildGeomMeshPrims.Num(), 1,
-				[&](int32 Index)
-				{
-					const TUsdStore< pxr::UsdPrim >& PrototypeGeomMeshPrim = ChildGeomMeshPrims[Index];
-					Unwound[Index] = UsdGeomPointInstancerTranslatorImpl::UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Assets, PrototypeGeomMeshPrim, Context );
-				}
-			);
-			PrototypesPathsSlowTask.EnterProgressFrame();
-			for (int32 Index = 0; Index < ChildGeomMeshPrims.Num(); Index++)
-			{
-				TUsdStore< pxr::SdfPath > PrototypeTargetPrimPath = Unwound[Index];
 
-				const FString UEPrototypeTargetPrimPath = UsdToUnreal::ConvertPath( PrototypeTargetPrimPath.Get() );
+			for ( const TUsdStore< pxr::UsdPrim >& PrototypeGeomMeshPrim : ChildGeomMeshPrims )
+			{
+				pxr::SdfPath PrototypeTargetPrimPath = PrototypeGeomMeshPrim.Get().GetPrimPath();
+
+				if ( Context->CollapsingCache.IsValid() )
+				{
+					PrototypeTargetPrimPath = Context->CollapsingCache->UnwindToNonCollapsedPath( UE::FSdfPath{ PrototypeTargetPrimPath }, ECollapsingType::Assets );
+				}
+
+				const FString UEPrototypeTargetPrimPath = UsdToUnreal::ConvertPath( PrototypeTargetPrimPath );
 
 				if ( !ProcessedPrims.Contains( UEPrototypeTargetPrimPath ) )
 				{
 					ProcessedPrims.Add( UEPrototypeTargetPrimPath );
 
-					if ( pxr::UsdPrim PrototypeTargetUsdPrim = Prim.GetStage()->GetPrimAtPath( PrototypeTargetPrimPath.Get() ) )
+					if ( pxr::UsdPrim PrototypeTargetUsdPrim = Prim.GetStage()->GetPrimAtPath( PrototypeTargetPrimPath ) )
 					{
 						pxr::UsdGeomMesh PrototypeGeomMesh( PrototypeTargetUsdPrim );
 						FUsdGeomXformableTranslator PrototypeGeomXformableTranslator( UHierarchicalInstancedStaticMeshComponent::StaticClass(), Context, UE::FUsdTyped( PrototypeGeomMesh ) );

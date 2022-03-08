@@ -102,7 +102,7 @@ bool UUsdStageAssetImportFactory::FactoryCanImport(const FString& Filename)
 
 void UUsdStageAssetImportFactory::CleanUp()
 {
-	ImportContext = FUsdStageImportContext();
+	ImportContext.Reset();
 	Super::CleanUp();
 }
 

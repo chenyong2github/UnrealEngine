@@ -102,6 +102,34 @@ namespace UE
 		return !( *this == Other );
 	}
 
+	uint32 GetTypeHash( const UE::FSdfPath& Path )
+	{
+		uint32 Result = 0;
+#if USE_USD_SDK
+		FScopedUnrealAllocs UnrealAllocs;
+		Result = static_cast< uint32 >( Path.Impl->PxrSdfPath.Get().GetHash() );
+#endif // #if USE_USD_SDK
+		return Result;
+	}
+
+	FArchive& operator<<( FArchive& Ar, UE::FSdfPath& Path )
+	{
+		if ( Ar.IsSaving() )
+		{
+			FString String = Path.GetString();
+			Ar << String;
+		}
+		else if ( Ar.IsLoading() )
+		{
+			FString String;
+			Ar << String;
+
+			Path = UE::FSdfPath{ *String };
+		}
+
+		return Ar;
+	}
+
 #if USE_USD_SDK
 	FSdfPath::FSdfPath( const pxr::SdfPath& InSdfPath )
 		: Impl( MakeUnique< Internal::FSdfPathImpl >( InSdfPath ) )
@@ -153,6 +181,15 @@ namespace UE
 		return Impl->PxrSdfPath.Get().IsEmpty();
 #else
 		return true;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FSdfPath::IsAbsoluteRootPath() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrSdfPath.Get().IsAbsoluteRootPath();
+#else
+		return false;
 #endif // #if USE_USD_SDK
 	}
 
@@ -235,5 +272,22 @@ namespace UE
 #else
 		return FString();
 #endif // #if USE_USD_SDK
+	}
+
+	TArray<FSdfPath> FSdfPath::GetPrefixes() const
+	{
+		TArray<FSdfPath> Result;
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		std::vector<pxr::SdfPath> UsdPrefixes = Impl->PxrSdfPath.Get().GetPrefixes();
+		Result.Reserve( UsdPrefixes.size() );
+
+		for ( const pxr::SdfPath& UsdPrefix : UsdPrefixes )
+		{
+			Result.Add( UE::FSdfPath{ ANSI_TO_TCHAR( UsdPrefix.GetString().c_str() ) } );
+		}
+#endif // #if USE_USD_SDK
+		return Result;
 	}
 }

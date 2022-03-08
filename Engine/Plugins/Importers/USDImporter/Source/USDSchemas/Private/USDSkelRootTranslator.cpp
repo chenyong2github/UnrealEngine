@@ -840,6 +840,7 @@ namespace UsdSkelRootTranslatorImpl
 
 				if ( pxr::UsdSkelRoot SkeletonRoot{ GetPrim() } )
 				{
+					FString SkelRootPath = PrimPath.GetString();
 					std::vector< pxr::UsdSkelBinding > SkeletonBindings;
 					SkeletonCache.Get().Populate( SkeletonRoot, pxr::UsdTraverseInstanceProxies() );
 					SkeletonCache.Get().ComputeSkelBindings( SkeletonRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies() );
@@ -859,7 +860,6 @@ namespace UsdSkelRootTranslatorImpl
 						{
 							continue;
 						}
-						FString SkelAnimationPrimPath = UsdToUnreal::ConvertPath( SkelAnimationPrim.GetPath() );
 
 						if ( !AnimQuery.JointTransformsMightBeTimeVarying() &&
 							( NewBlendShapes.Num() == 0 || !AnimQuery.BlendShapeWeightsMightBeTimeVarying() ) )
@@ -894,7 +894,7 @@ namespace UsdSkelRootTranslatorImpl
 								UUsdAnimSequenceAssetImportData* ImportData = NewObject< UUsdAnimSequenceAssetImportData >( AnimSequence, TEXT( "USDAssetImportData" ) );
 								AnimSequence->AssetImportData = ImportData;
 
-								ImportData->PrimPath = SkelAnimationPrimPath;
+								ImportData->PrimPath = SkelRootPath;
 								ImportData->LayerStartOffsetSeconds = LayerStartOffsetSeconds;
 
 								Context->AssetCache->CacheAsset( HashString, AnimSequence );
@@ -907,7 +907,7 @@ namespace UsdSkelRootTranslatorImpl
 
 						if ( AnimSequence )
 						{
-							Context->AssetCache->LinkAssetToPrim( SkelAnimationPrimPath, AnimSequence );
+							Context->AssetCache->LinkAssetToPrim( SkelRootPath, AnimSequence );
 						}
 					}
 				}

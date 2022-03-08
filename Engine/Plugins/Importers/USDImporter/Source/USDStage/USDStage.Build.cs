@@ -9,6 +9,13 @@ namespace UnrealBuildTool.Rules
 	{
 		public USDStage(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"USDSchemas" // Has to be a public dependency because the stage actor has a collapsing cache member
+				}
+			);
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -26,7 +33,6 @@ namespace UnrealBuildTool.Rules
 					"StaticMeshDescription",
 					"UnrealUSDWrapper",
 					"USDClasses",
-					"USDSchemas",
 					"USDUtilities",
 				}
 			);

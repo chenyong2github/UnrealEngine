@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UnrealUSDWrapper.h"
+#include "USDCollapsingCache.h"
 #include "USDLevelSequenceHelper.h"
 #include "USDMemory.h"
 #include "USDStageOptions.h"
@@ -59,6 +60,8 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	UPROPERTY()
 	UUsdAssetCache* AssetCache;
 
+	TSharedPtr<FUsdCollapsingCache> CollapsingCache;
+
 	/**
 	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.
 	 * When parsing meshes later, we use this data to place the correct primvar values in each UV channel.
@@ -91,6 +94,7 @@ public:
 	FUsdStageImportContext();
 
 	bool Init(const FString& InName, const FString& InFilePath, const FString& InInitialPackagePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport = false, bool bAllowActorImport = true);
+	void Reset();
 
 private:
 	/** Error messages **/

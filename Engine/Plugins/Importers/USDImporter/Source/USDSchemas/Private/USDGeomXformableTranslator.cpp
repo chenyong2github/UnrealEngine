@@ -413,6 +413,11 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomXformableTranslator::CollapsesChildren );
 
+	if ( Context->CollapsingCache.IsValid() )
+	{
+		return Context->CollapsingCache->DoesPathCollapseChildren( PrimPath, CollapsingType );
+	}
+
 	bool bCollapsesChildren = false;
 
 	FScopedUsdAllocs UsdAllocs;
@@ -435,8 +440,12 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 		{
 			IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 
+			// TODO: This can be optimized in order to make FUsdCollapsingCache::RebuildCacheForSubtree faster: If we have a child prim that we know doesn't collapse,
+			// any of our parents should be able to know they can't collapse *us* either.
+			// This is somewhat niche though: Realistically to waste time here a prim and its children need to have a kind that allows collapsing, and also not be able to collapse.
+			// Also, if any of these prims *does* manage to collapse, FUsdCollapsingCache will already not actually query the subtree children if they can collapse or not anymore,
+			// and just consider them collapsed by the parent
 			TArray< TUsdStore< pxr::UsdPrim > > ChildXformPrims = UsdUtils::GetAllPrimsOfType( Prim, pxr::TfType::Find< pxr::UsdGeomXformable >() );
-
 			for ( const TUsdStore< pxr::UsdPrim >& ChildXformPrim : ChildXformPrims )
 			{
 				if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( Context, UE::FUsdTyped( ChildXformPrim.Get() ) ) )

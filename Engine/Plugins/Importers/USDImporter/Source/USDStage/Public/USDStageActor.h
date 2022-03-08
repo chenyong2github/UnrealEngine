@@ -6,6 +6,7 @@
 #include "Misc/SecureHash.h"
 #include "Templates/Function.h"
 
+#include "USDCollapsingCache.h"
 #include "USDLevelSequenceHelper.h"
 #include "USDListener.h"
 #include "USDPrimTwin.h"
@@ -174,6 +175,7 @@ public:
 	void ReloadAnimations();
 	float GetTime() { return Time; }
 	UUsdAssetCache* GetAssetCache() { return AssetCache; }
+	TSharedPtr<FUsdCollapsingCache> GetCollapsingCache() { return CollapsingCache; }
 	TMap< FString, TMap< FString, int32 > > GetMaterialToPrimvarToUVIndex() { return MaterialToPrimvarToUVIndex; }
 
 public:
@@ -236,19 +238,8 @@ private:
 	UPROPERTY( VisibleAnywhere, Category = "USD", AdvancedDisplay )
 	UUsdAssetCache* AssetCache;
 
-private:
 	UPROPERTY( Transient )
 	UUsdTransactor* Transactor;
-
-	/** Keep track of blend shapes so that we can map 'inbetween shapes' to their separate morph targets when animating */
-	UsdUtils::FBlendShapeMap BlendShapesByPath;
-
-	/**
-	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.
-	 * When parsing meshes later, we use this data to place the correct primvar values in each UV channel.
-	 * We keep this here as these are generated when the materials stored in AssetsCache are parsed, so it should accompany them
-	 */
-	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex;
 
 public:
 	UE_DEPRECATED( 4.27, "Use the const version if you don't wish to load the stage on-demand, or use GetOrLoadUsdStage if you do" )
@@ -284,6 +275,18 @@ protected:
 	void AnimatePrims();
 
 private:
+	TSharedPtr<FUsdCollapsingCache> CollapsingCache;
+
+	/** Keep track of blend shapes so that we can map 'inbetween shapes' to their separate morph targets when animating */
+	UsdUtils::FBlendShapeMap BlendShapesByPath;
+
+	/**
+	 * When parsing materials, we keep track of which primvar we mapped to which UV channel.
+	 * When parsing meshes later, we use this data to place the correct primvar values in each UV channel.
+	 * We keep this here as these are generated when the materials stored in AssetsCache are parsed, so it should accompany them
+	 */
+	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex;
+
 	UE::FUsdStage UsdStage;
 
 	/**

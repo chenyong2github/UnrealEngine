@@ -1462,7 +1462,7 @@ bool FUsdGeomMeshTranslator::CanBeCollapsed( ECollapsingType CollapsingType ) co
 
 	// Don't collapse if our final UStaticMesh would have multiple LODs
 	if ( Context->bAllowInterpretingLODs &&
-		 CollapsingType == FUsdSchemaTranslator::ECollapsingType::Assets &&
+		 CollapsingType == ECollapsingType::Assets &&
 		 UsdUtils::IsGeomMeshALOD( Prim ) )
 	{
 		return false;

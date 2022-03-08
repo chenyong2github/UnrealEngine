@@ -43,6 +43,9 @@ namespace UE
 		bool operator==( const FSdfPath& Other ) const;
 		bool operator!=( const FSdfPath& Other ) const;
 
+		friend UNREALUSDWRAPPER_API uint32 GetTypeHash( const UE::FSdfPath& Path );
+		friend UNREALUSDWRAPPER_API FArchive& operator<<( FArchive& Ar, FSdfPath& Path );
+
 	// Auto conversion from/to pxr::SdfPath
 	public:
 #if USE_USD_SDK
@@ -61,6 +64,7 @@ namespace UE
 
 		bool IsEmpty() const noexcept;
 
+		bool IsAbsoluteRootPath() const;
 		bool IsAbsoluteRootOrPrimPath() const;
 		FString GetName() const;
 		FString GetElementString() const;
@@ -74,6 +78,8 @@ namespace UE
 		FSdfPath StripAllVariantSelections() const;
 
 		FString GetString() const;
+
+		TArray<FSdfPath> GetPrefixes() const;
 
 	private:
 		TUniquePtr< Internal::FSdfPathImpl > Impl;

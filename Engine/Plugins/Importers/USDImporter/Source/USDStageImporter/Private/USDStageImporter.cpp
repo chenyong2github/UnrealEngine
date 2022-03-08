@@ -215,6 +215,19 @@ namespace UsdStageImporterImpl
 		TranslationContext.CompleteTasks();
 	}
 
+	void CacheCollapsingState( FUsdSchemaTranslationContext& TranslationContext )
+	{
+		if ( !TranslationContext.CollapsingCache.IsValid() )
+		{
+			TranslationContext.CollapsingCache = MakeShared<FUsdCollapsingCache>();
+		}
+
+		if ( TranslationContext.CollapsingCache->IsEmpty() )
+		{
+			TranslationContext.CollapsingCache->RebuildCacheForSubtree( TranslationContext.Stage.GetPseudoRoot(), TranslationContext );
+		}
+	}
+
 	void ImportMaterials(FUsdStageImportContext& ImportContext, FUsdSchemaTranslationContext& TranslationContext)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( ImportMaterials );
@@ -245,7 +258,7 @@ namespace UsdStageImporterImpl
 		{
 			if (TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema(TranslationContext.AsShared(), UE::FUsdTyped(UsdPrim)))
 			{
-				return SchemaTranslator->CollapsesChildren(FUsdSchemaTranslator::ECollapsingType::Assets);
+				return SchemaTranslator->CollapsesChildren(ECollapsingType::Assets);
 			}
 
 			return false;
@@ -288,7 +301,7 @@ namespace UsdStageImporterImpl
 		{
 			Component = SchemaTranslator->CreateComponents();
 
-			bExpandChilren = !SchemaTranslator->CollapsesChildren(FUsdSchemaTranslator::ECollapsingType::Components);
+			bExpandChilren = !SchemaTranslator->CollapsesChildren(ECollapsingType::Components);
 		}
 
 		SlowTask.EnterProgressFrame();
@@ -1035,6 +1048,7 @@ namespace UsdStageImporterImpl
 		// Always discard the context's reference to the stage because it may be a persistent import context (like
 		// the non-static data member of UUsdStageImportFactory
 		ImportContext.Stage = UE::FUsdStage();
+		ImportContext.LevelSequenceHelper.Init( UE::FUsdStage() );
 #endif // #if USE_USD_SDK
 	}
 
@@ -1429,19 +1443,19 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 		return;
 	}
 
-	UsdStageImporterImpl::SetupSceneActor(ImportContext);
-	if (!ImportContext.SceneActor && ImportContext.ImportOptions->bImportActors)
+	UsdStageImporterImpl::SetupSceneActor( ImportContext );
+	if ( !ImportContext.SceneActor && ImportContext.ImportOptions->bImportActors )
 	{
 		return;
 	}
 
 	FUsdDelegates::OnPreUsdImport.Broadcast( ImportContext.FilePath );
 
-	AActor* ExistingSceneActor = UsdStageImporterImpl::GetExistingSceneActor(ImportContext);
+	AActor* ExistingSceneActor = UsdStageImporterImpl::GetExistingSceneActor( ImportContext );
 
-	UsdStageImporterImpl::SetupStageForImport(ImportContext);
+	UsdStageImporterImpl::SetupStageForImport( ImportContext );
 
-	ImportContext.LevelSequenceHelper.Init(ImportContext.Stage);
+	ImportContext.LevelSequenceHelper.Init( ImportContext.Stage );
 
 	TMap<FSoftObjectPath, FSoftObjectPath> SoftObjectsToRemap;
 	TMap<UObject*, UObject*> ObjectsToRemap;
@@ -1472,8 +1486,10 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	TranslationContext->bAllowInterpretingLODs = ImportContext.ImportOptions->bInterpretLODs;
 	TranslationContext->bAllowParsingSkeletalAnimations = ImportContext.ImportOptions->bImportGeometry && ImportContext.ImportOptions->bImportSkeletalAnimations;
 	TranslationContext->MaterialToPrimvarToUVIndex = &ImportContext.MaterialToPrimvarToUVIndex;
+	TranslationContext->CollapsingCache = ImportContext.CollapsingCache;
 	TranslationContext->BlendShapesByPath = &BlendShapesByPath;
 	{
+		UsdStageImporterImpl::CacheCollapsingState( TranslationContext.Get() );
 		UsdStageImporterImpl::ImportMaterials( ImportContext, TranslationContext.Get() );
 		UsdStageImporterImpl::ImportMeshes( ImportContext, TranslationContext.Get() );
 		UsdStageImporterImpl::ImportActors( ImportContext, TranslationContext.Get() );
@@ -1556,8 +1572,11 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	TranslationContext->bAllowInterpretingLODs = ImportContext.ImportOptions->bInterpretLODs;
 	TranslationContext->bAllowParsingSkeletalAnimations = ImportContext.ImportOptions->bImportGeometry && ImportContext.ImportOptions->bImportSkeletalAnimations;
 	TranslationContext->MaterialToPrimvarToUVIndex = &ImportContext.MaterialToPrimvarToUVIndex;
+	TranslationContext->CollapsingCache = ImportContext.CollapsingCache;
 	TranslationContext->BlendShapesByPath = &BlendShapesByPath;
 	{
+		UsdStageImporterImpl::CacheCollapsingState( TranslationContext.Get() );
+
 		UE::FUsdPrim TargetPrim = ImportContext.Stage.GetPrimAtPath( UE::FSdfPath( *OriginalImportData->PrimPath ) );
 		if ( TargetPrim )
 		{
