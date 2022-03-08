@@ -203,14 +203,11 @@ bool FExpressionExternalInput::PrepareValue(FEmitContext& Context, FEmitScope& S
 {
 	const FExternalInputDescription InputDesc = GetExternalInputDescription(InputType);
 
-	switch (InputType)
+	if (Context.bMarkLiveValues)
 	{
-	case EExternalInput::WorldNormal:
-	case EExternalInput::WorldReflection:
-		Context.FindData<FEmitData>().bReadMaterialNormal = true;
-		break;
-	default:
-		break;
+		FEmitData& EmitMaterialData = Context.FindData<FEmitData>();
+		const int32 TypeIndex = (int32)InputType;
+		EmitMaterialData.ExternalInputMask[Context.ShaderFrequency][TypeIndex] = true;
 	}
 
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, InputDesc.Type);
@@ -247,9 +244,9 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		case EExternalInput::LightmapTexCoord_Ddx: Code = TEXT("GetLightmapUVs_DDX(Parameters)"); break;
 		case EExternalInput::LightmapTexCoord_Ddy: Code = TEXT("GetLightmapUVs_DDY(Parameters)"); break;
 		case EExternalInput::TwoSidedSign: Code = TEXT("Parameters.TwoSidedSign"); break;
-		case EExternalInput::VertexColor: Code = TEXT("Parameters.VertexColor"); EmitMaterialData.bUsesVertexColor |= (Context.ShaderFrequency != SF_Vertex); break;
-		case EExternalInput::VertexColor_Ddx: Code = TEXT("Parameters.VertexColor_DDX"); EmitMaterialData.bUsesVertexColor |= (Context.ShaderFrequency != SF_Vertex); break;
-		case EExternalInput::VertexColor_Ddy: Code = TEXT("Parameters.VertexColor_DDY"); EmitMaterialData.bUsesVertexColor |= (Context.ShaderFrequency != SF_Vertex); break;
+		case EExternalInput::VertexColor: Code = TEXT("Parameters.VertexColor"); break;
+		case EExternalInput::VertexColor_Ddx: Code = TEXT("Parameters.VertexColor_DDX"); break;
+		case EExternalInput::VertexColor_Ddy: Code = TEXT("Parameters.VertexColor_DDY"); break;
 		case EExternalInput::WorldPosition: Code = TEXT("GetWorldPosition(Parameters)"); break;
 		case EExternalInput::WorldPosition_NoOffsets: Code = TEXT("GetWorldPosition_NoMaterialOffsets(Parameters)"); break;
 		case EExternalInput::TranslatedWorldPosition: Code = TEXT("GetTranslatedWorldPosition(Parameters)"); break;
@@ -285,7 +282,7 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		case EExternalInput::TemporalSampleOffset: Code = TEXT("View.TemporalAAParams.zw"); break;
 		case EExternalInput::PreExposure: Code = TEXT("View.PreExposure.x"); break;
 		case EExternalInput::RcpPreExposure: Code = TEXT("View.OneOverPreExposure.x"); break;
-		case EExternalInput::EyeAdaptation: Code = TEXT("EyeAdaptationLookup()"); Context.MaterialCompilationOutput->bUsesEyeAdaptation = true; break;
+		case EExternalInput::EyeAdaptation: Code = TEXT("EyeAdaptationLookup()"); break;
 		case EExternalInput::RuntimeVirtualTextureOutputLevel:  Code = TEXT("View.RuntimeVirtualTextureMipLevel.x"); break;
 		case EExternalInput::RuntimeVirtualTextureOutputDerivative: Code = TEXT("View.RuntimeVirtualTextureMipLevel.zw"); break;
 		case EExternalInput::RuntimeVirtualTextureMaxLevel:  Code = TEXT("View.RuntimeVirtualTextureMipLevel.y"); break;
@@ -328,9 +325,9 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FEmitScope
 		case EExternalInput::PrevGameTime: Code = TEXT("View.PrevFrameGameTime"); break;
 		case EExternalInput::PrevRealTime: Code = TEXT("View.PrevFrameRealTime"); break;
 
-		case EExternalInput::ParticleColor: Code = TEXT("Parameters.Particle.Color"); EmitMaterialData.bUsesParticleColor |= (Context.ShaderFrequency != SF_Vertex); break;
-		case EExternalInput::ParticleTranslatedWorldPosition: Code = TEXT("Parameters.Particle.TranslatedWorldPositionAndSize.xyz"); EmitMaterialData.bNeedsParticlePosition = true; break;
-		case EExternalInput::ParticleRadius: Code = TEXT("Parameters.Particle.TranslatedWorldPositionAndSize.w"); EmitMaterialData.bNeedsParticlePosition = true; break;
+		case EExternalInput::ParticleColor: Code = TEXT("Parameters.Particle.Color"); break;
+		case EExternalInput::ParticleTranslatedWorldPosition: Code = TEXT("Parameters.Particle.TranslatedWorldPositionAndSize.xyz"); break;
+		case EExternalInput::ParticleRadius: Code = TEXT("Parameters.Particle.TranslatedWorldPositionAndSize.w"); break;
 
 		default:
 			checkNoEntry();
@@ -349,13 +346,16 @@ void FExpressionShadingModel::ComputeAnalyticDerivatives(FTree& Tree, FExpressio
 
 bool FExpressionShadingModel::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
+	if (Context.bMarkLiveValues)
+	{
+		Context.FindData<FEmitData>().ShadingModelsFromCompilation.AddShadingModel(ShadingModel);
+	}
+
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Constant, Shader::EValueType::Int1);
 }
 
 void FExpressionShadingModel::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
-	Context.FindData<FEmitData>().ShadingModelsFromCompilation.AddShadingModel(ShadingModel);
-
 	Context.PreshaderStackPosition++;
 	OutResult.Type = Shader::EValueType::Int1;
 	OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(Shader::FValue((int32)ShadingModel));
@@ -376,32 +376,34 @@ void FExpressionParameter::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 bool FExpressionParameter::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	const EMaterialParameterType ParameterType = ParameterMeta.Value.Type;
-
-	FEmitData& EmitData = Context.FindData<FEmitData>();
-	if (EmitData.CachedExpressionData)
+	if (Context.bMarkLiveValues)
 	{
-		if (!ParameterInfo.Name.IsNone())
+		FEmitData& EmitData = Context.FindData<FEmitData>();
+		if (EmitData.CachedExpressionData)
 		{
-			EmitData.CachedExpressionData->Parameters.AddParameter(ParameterInfo, ParameterMeta);
-		}
-
-		UObject* ReferencedTexture = nullptr;
-		switch (ParameterType)
-		{
-		case EMaterialParameterType::Texture: ReferencedTexture = ParameterMeta.Value.Texture; break;
-		case EMaterialParameterType::RuntimeVirtualTexture: ReferencedTexture = ParameterMeta.Value.RuntimeVirtualTexture; break;
-		case EMaterialParameterType::Font:
-			if (ParameterMeta.Value.Font.Value && ParameterMeta.Value.Font.Value->Textures.IsValidIndex(ParameterMeta.Value.Font.Page))
+			if (!ParameterInfo.Name.IsNone())
 			{
-				ReferencedTexture = ParameterMeta.Value.Font.Value->Textures[ParameterMeta.Value.Font.Page];
+				EmitData.CachedExpressionData->Parameters.AddParameter(ParameterInfo, ParameterMeta);
 			}
-			break;
-		default:
-			break;
-		}
-		if (ReferencedTexture)
-		{
-			EmitData.CachedExpressionData->ReferencedTextures.AddUnique(ReferencedTexture);
+
+			UObject* ReferencedTexture = nullptr;
+			switch (ParameterType)
+			{
+			case EMaterialParameterType::Texture: ReferencedTexture = ParameterMeta.Value.Texture; break;
+			case EMaterialParameterType::RuntimeVirtualTexture: ReferencedTexture = ParameterMeta.Value.RuntimeVirtualTexture; break;
+			case EMaterialParameterType::Font:
+				if (ParameterMeta.Value.Font.Value && ParameterMeta.Value.Font.Value->Textures.IsValidIndex(ParameterMeta.Value.Font.Page))
+				{
+					ReferencedTexture = ParameterMeta.Value.Font.Value->Textures[ParameterMeta.Value.Font.Page];
+				}
+				break;
+			default:
+				break;
+			}
+			if (ReferencedTexture)
+			{
+				EmitData.CachedExpressionData->ReferencedTextures.AddUnique(ReferencedTexture);
+			}
 		}
 	}
 
@@ -543,12 +545,14 @@ void FExpressionParameter::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 
 bool FExpressionTextureSize::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	FEmitData& EmitData = Context.FindData<FEmitData>();
-	if (EmitData.CachedExpressionData)
+	if (Context.bMarkLiveValues)
 	{
-		EmitData.CachedExpressionData->ReferencedTextures.AddUnique(Texture);
+		FEmitData& EmitData = Context.FindData<FEmitData>();
+		if (EmitData.CachedExpressionData)
+		{
+			EmitData.CachedExpressionData->ReferencedTextures.AddUnique(Texture);
+		}
 	}
-
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Preshader, Shader::EValueType::Float2);
 }
 
@@ -564,43 +568,48 @@ void FExpressionTextureSize::EmitValuePreshader(FEmitContext& Context, FEmitScop
 
 bool FExpressionFunctionCall::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	FEmitData& EmitMaterialData = Context.FindData<FEmitData>();
-	if (EmitMaterialData.CachedExpressionData)
+	if (Context.bMarkLiveValues)
 	{
-		FMaterialFunctionInfo NewFunctionInfo;
-		NewFunctionInfo.Function = MaterialFunction;
-		NewFunctionInfo.StateId = MaterialFunction->StateId;
-		EmitMaterialData.CachedExpressionData->FunctionInfos.AddUnique(NewFunctionInfo);
+		FEmitData& EmitMaterialData = Context.FindData<FEmitData>();
+		if (EmitMaterialData.CachedExpressionData)
+		{
+			FMaterialFunctionInfo NewFunctionInfo;
+			NewFunctionInfo.Function = MaterialFunction;
+			NewFunctionInfo.StateId = MaterialFunction->StateId;
+			EmitMaterialData.CachedExpressionData->FunctionInfos.AddUnique(NewFunctionInfo);
+		}
 	}
-
 	return FExpressionForward::PrepareValue(Context, Scope, RequestedType, OutResult);
 }
 
 bool FExpressionMaterialLayers::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	FEmitData& EmitMaterialData = Context.FindData<FEmitData>();
-	if (EmitMaterialData.CachedExpressionData)
+	if (Context.bMarkLiveValues)
 	{
-		// Only a single set of material layers are supported
-		// There should only be a single FExpressionMaterialLayers, but PrepareValue may be called multiple times, only need to capture the layers once
-		if (!EmitMaterialData.CachedExpressionData->bHasMaterialLayers)
+		FEmitData& EmitMaterialData = Context.FindData<FEmitData>();
+		if (EmitMaterialData.CachedExpressionData)
 		{
-			// TODO(?) - Layers for MIs are currently duplicated here and in FStaticParameterSet
-			EmitMaterialData.CachedExpressionData->bHasMaterialLayers = true;
-			EmitMaterialData.CachedExpressionData->MaterialLayers = *MaterialLayers;
+			// Only a single set of material layers are supported
+			// There should only be a single FExpressionMaterialLayers, but PrepareValue may be called multiple times, only need to capture the layers once
+			if (!EmitMaterialData.CachedExpressionData->bHasMaterialLayers)
+			{
+				// TODO(?) - Layers for MIs are currently duplicated here and in FStaticParameterSet
+				EmitMaterialData.CachedExpressionData->bHasMaterialLayers = true;
+				EmitMaterialData.CachedExpressionData->MaterialLayers = *MaterialLayers;
+			}
 		}
 	}
-
 	return FExpressionForward::PrepareValue(Context, Scope, RequestedType, OutResult);
 }
 
 bool FExpressionSceneTexture::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	Context.PrepareExpression(TexCoordExpression, Scope, ERequestedType::Vector2);
-
-	Context.MaterialCompilationOutput->bNeedsSceneTextures = true;
-	Context.MaterialCompilationOutput->SetIsSceneTextureUsed((ESceneTextureId)SceneTextureId);
-
+	if (Context.bMarkLiveValues)
+	{
+		Context.MaterialCompilationOutput->bNeedsSceneTextures = true;
+		Context.MaterialCompilationOutput->SetIsSceneTextureUsed((ESceneTextureId)SceneTextureId);
+	}
 	return OutResult.SetType(Context, RequestedType, EExpressionEvaluation::Shader, Shader::EValueType::Float4);
 }
 

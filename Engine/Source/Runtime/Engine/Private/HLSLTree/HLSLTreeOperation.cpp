@@ -186,14 +186,8 @@ FOperationRequestedTypes GetOperationRequestedTypes(EOperation Op, const FReques
 	return Types;
 }
 
-FOperationTypes GetOperationTypes(FEmitContext& Context, EOperation Op, TConstArrayView<FExpression*> Inputs)
+FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FPreparedType> InputPreparedType)
 {
-	FPreparedType InputPreparedType[FExpressionOperation::MaxInputs];
-	for (int32 Index = 0; Index < Inputs.Num(); ++Index)
-	{
-		InputPreparedType[Index] = Context.GetPreparedType(Inputs[Index]);
-	}
-
 	FOperationTypes Types;
 	if (Op == EOperation::VecMulMatrix3 ||
 		Op == EOperation::VecMulMatrix4 ||
@@ -202,7 +196,7 @@ FOperationTypes GetOperationTypes(FEmitContext& Context, EOperation Op, TConstAr
 	{
 		FPreparedComponent IntermediateComponent;
 		Shader::EValueComponentType IntermediateComponentType = Shader::EValueComponentType::Void;
-		for (int32 Index = 0; Index < Inputs.Num(); ++Index)
+		for (int32 Index = 0; Index < InputPreparedType.Num(); ++Index)
 		{
 			IntermediateComponent = CombineComponents(IntermediateComponent, InputPreparedType[Index].GetMergedComponent());
 			IntermediateComponentType = Shader::CombineComponentTypes(IntermediateComponentType, InputPreparedType[Index].ValueComponentType);
@@ -233,24 +227,42 @@ FOperationTypes GetOperationTypes(FEmitContext& Context, EOperation Op, TConstAr
 	else
 	{
 		FPreparedType IntermediateType;
-		for (int32 Index = 0; Index < Inputs.Num(); ++Index)
+		for (int32 Index = 0; Index < InputPreparedType.Num(); ++Index)
 		{
 			IntermediateType = MergePreparedTypes(IntermediateType, InputPreparedType[Index]);
 		}
 
-		const Shader::EValueType IntermediateValueType = IntermediateType.GetType();
-		for (int32 Index = 0; Index < Inputs.Num(); ++Index)
+		const Shader::EValueComponentType IntermediateComponentType = IntermediateType.ValueComponentType;
+		const int32 NumIntermediateComponents = IntermediateType.GetNumComponents();
+		for (int32 Index = 0; Index < InputPreparedType.Num(); ++Index)
 		{
-			Types.InputType[Index] = IntermediateValueType;
+			Shader::EValueComponentType InputComponentType = InputPreparedType[Index].ValueComponentType;
+			if (InputComponentType != IntermediateComponentType)
+			{
+				switch (IntermediateComponentType)
+				{
+				case Shader::EValueComponentType::Float:
+				case Shader::EValueComponentType::Double:
+					// If the result type is either float or double, we promote input types to float
+					// Nothing should promote to double, unless it's already at double precision
+					InputComponentType = Shader::EValueComponentType::Float;
+					break;
+				default:
+					// Otherwise use ints
+					InputComponentType = Shader::EValueComponentType::Int;
+					break;
+				}
+			}
+			Types.InputType[Index] = Shader::MakeValueType(InputComponentType, NumIntermediateComponents);
 		}
 		Types.ResultType = IntermediateType;
-		Types.bIsLWC = (IntermediateType.ValueComponentType == Shader::EValueComponentType::Double);
+		Types.bIsLWC = (IntermediateComponentType == Shader::EValueComponentType::Double);
 
 		switch (Op)
 		{
 		case EOperation::Length:
 		case EOperation::Sum:
-			Types.ResultType = FPreparedType(Shader::MakeValueType(IntermediateType.ValueComponentType, 1), IntermediateType.GetMergedComponent());
+			Types.ResultType = FPreparedType(Shader::MakeValueType(IntermediateComponentType, 1), IntermediateType.GetMergedComponent());
 			break;
 		case EOperation::Normalize:
 		case EOperation::Rcp:
@@ -285,7 +297,7 @@ FOperationTypes GetOperationTypes(FEmitContext& Context, EOperation Op, TConstAr
 		case EOperation::Log2:
 		case EOperation::Exp2:
 			// No LWC support yet
-			Types.InputType[0] = Shader::MakeNonLWCType(IntermediateValueType);
+			Types.InputType[0] = Shader::MakeNonLWCType(Types.InputType[0]);
 			Types.ResultType = MakeNonLWCType(IntermediateType);
 			break;
 		case EOperation::Less:
@@ -295,14 +307,15 @@ FOperationTypes GetOperationTypes(FEmitContext& Context, EOperation Op, TConstAr
 			Types.ResultType.ValueComponentType = Shader::EValueComponentType::Bool;
 			break;
 		case EOperation::Fmod:
-			Types.InputType[1] = Shader::MakeNonLWCType(IntermediateValueType);
+			Types.InputType[1] = Shader::MakeNonLWCType(Types.InputType[1]);
 			Types.ResultType = MakeNonLWCType(IntermediateType);
 			break;
 		case EOperation::PowPositiveClamped:
 		case EOperation::Atan2:
 		case EOperation::Atan2Fast:
 			// No LWC support yet
-			Types.InputType[0] = Types.InputType[1] = Shader::MakeNonLWCType(IntermediateValueType);
+			Types.InputType[0] = Shader::MakeNonLWCType(Types.InputType[0]);
+			Types.InputType[1] = Shader::MakeNonLWCType(Types.InputType[1]);
 			Types.ResultType = MakeNonLWCType(IntermediateType);
 			break;
 		case EOperation::Min:
@@ -531,30 +544,31 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 	const FOperationDescription OpDesc = GetOperationDescription(Op);
 	const Private::FOperationRequestedTypes RequestedTypes = Private::GetOperationRequestedTypes(Op, RequestedType);
 
+	FPreparedType InputPreparedType[MaxInputs];
 	Shader::FValue ConstantInput[MaxInputs];
 	bool bConstantZeroInput[MaxInputs] = { false };
 	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
 	{
-		const FPreparedType& InputType = Context.PrepareExpression(Inputs[Index], Scope, RequestedTypes.InputType[Index]);
-		if (InputType.IsVoid())
+		InputPreparedType[Index] = Context.PrepareExpression(Inputs[Index], Scope, RequestedTypes.InputType[Index]);
+		if (InputPreparedType[Index].IsVoid())
 		{
 			return false;
 		}
 
-		if (!InputType.IsNumeric())
+		if (!InputPreparedType[Index].IsNumeric())
 		{
 			return Context.Errors->AddError(TEXT("Invalid arithmetic between non-numeric types"));
 		}
 		
-		const EExpressionEvaluation InputEvaluation = InputType.GetEvaluation(Scope, RequestedType);
-		if (InputEvaluation == EExpressionEvaluation::Constant)
+		const EExpressionEvaluation InputEvaluation = InputPreparedType[Index].GetEvaluation(Scope, RequestedType);
+		if (IsConstantEvaluation(InputEvaluation))
 		{
-			ConstantInput[Index] = Inputs[Index]->GetValueConstant(Context, Scope, RequestedType);
+			ConstantInput[Index] = Inputs[Index]->GetValueConstant(Context, Scope, RequestedType, InputPreparedType[Index]);
 			bConstantZeroInput[Index] = ConstantInput[Index].IsZero();
 		}
 	}
 
-	Private::FOperationTypes Types = Private::GetOperationTypes(Context, Op, MakeArrayView(Inputs, OpDesc.NumInputs));
+	Private::FOperationTypes Types = Private::GetOperationTypes(Op, MakeArrayView(InputPreparedType, OpDesc.NumInputs));
 	if (OpDesc.PreshaderOpcode == Shader::EPreshaderOpcode::Nop)
 	{
 		// No preshader support
@@ -580,8 +594,14 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	const FOperationDescription OpDesc = GetOperationDescription(Op);
+	FPreparedType InputPreparedType[MaxInputs];
+	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
+	{
+		InputPreparedType[Index] = Context.GetPreparedType(Inputs[Index]);
+	}
+
 	const Private::FOperationRequestedTypes RequestedTypes = Private::GetOperationRequestedTypes(Op, RequestedType);
-	const Private::FOperationTypes Types = Private::GetOperationTypes(Context, Op, MakeArrayView(Inputs, OpDesc.NumInputs));
+	const Private::FOperationTypes Types = Private::GetOperationTypes(Op, MakeArrayView(InputPreparedType, OpDesc.NumInputs));
 	FEmitShaderExpression* InputValue[MaxInputs] = { nullptr };
 	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
 	{
@@ -680,8 +700,14 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 void FExpressionOperation::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
 	const FOperationDescription OpDesc = GetOperationDescription(Op);
+	FPreparedType InputPreparedType[MaxInputs];
+	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
+	{
+		InputPreparedType[Index] = Context.GetPreparedType(Inputs[Index]);
+	}
+
 	const Private::FOperationRequestedTypes RequestedTypes = Private::GetOperationRequestedTypes(Op, RequestedType);
-	const Private::FOperationTypes Types = Private::GetOperationTypes(Context, Op, MakeArrayView(Inputs, OpDesc.NumInputs));
+	const Private::FOperationTypes Types = Private::GetOperationTypes(Op, MakeArrayView(InputPreparedType, OpDesc.NumInputs));
 	check(OpDesc.PreshaderOpcode != Shader::EPreshaderOpcode::Nop);
 
 	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)

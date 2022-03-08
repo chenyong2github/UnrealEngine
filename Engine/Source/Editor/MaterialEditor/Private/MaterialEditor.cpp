@@ -194,7 +194,6 @@ FMatExpressionPreview::FMatExpressionPreview(UMaterialExpression* InExpression)
 	FPlatformMisc::CreateGuid(Id);
 
 	check(InExpression->Material && InExpression->Material->Expressions.Contains(InExpression));
-	ReferencedTextures = InExpression->Material->GetReferencedTextures();
 	SetQualityLevelProperties(GMaxRHIFeatureLevel);
 
 	UMaterial* BaseMaterial = InExpression->Material;
@@ -203,11 +202,28 @@ FMatExpressionPreview::FMatExpressionPreview(UMaterialExpression* InExpression)
 		FMaterialCachedHLSLTree* LocalTree = new FMaterialCachedHLSLTree();
 		LocalTree->GenerateTree(BaseMaterial, nullptr, InExpression);
 		CachedHLSLTree.Reset(LocalTree);
+
+		FMaterialCachedExpressionData* LocalCachedData = new FMaterialCachedExpressionData();
+		LocalCachedData->UpdateForCachedHLSLTree(*LocalTree, nullptr);
+		CachedExpressionData.Reset(LocalCachedData);
+	}
+	else
+	{
+		ReferencedTextures = InExpression->Material->GetReferencedTextures();
 	}
 }
 
 FMatExpressionPreview::~FMatExpressionPreview()
 {
+}
+
+void FMatExpressionPreview::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObjects(ReferencedTextures);
+	if (CachedExpressionData)
+	{
+		CachedExpressionData->AddReferencedObjects(Collector);
+	}
 }
 
 bool FMatExpressionPreview::ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType, const FVertexFactoryType* VertexFactoryType) const
@@ -308,6 +324,18 @@ void FMatExpressionPreview::NotifyCompilationFinished()
 		CastChecked<UMaterialGraphNode>(Expression->GraphNode)->bPreviewNeedsUpdate = true;
 	}
 	FMaterialRenderProxy::CacheUniformExpressions_GameThread(true);
+}
+
+TArrayView<const TObjectPtr<UObject>> FMatExpressionPreview::GetReferencedTextures() const
+{
+	if (CachedExpressionData)
+	{
+		// Path for new HLSL translator
+		return MakeArrayView(CachedExpressionData->ReferencedTextures);
+	}
+
+	// Legacy path
+	return MakeArrayView(ReferencedTextures);
 }
 
 const FMaterialCachedHLSLTree* FMatExpressionPreview::GetCachedHLSLTree() const

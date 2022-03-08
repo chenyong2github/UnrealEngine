@@ -1084,22 +1084,21 @@ void FExpression::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, c
 	check(false);
 }
 
-FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType)
+FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
-	
-	const FPreparedType PreparedType = Context.GetPreparedType(this);
+
 	const EExpressionEvaluation Evaluation = PreparedType.GetEvaluation(Scope, RequestedType);
 	check(Evaluation != EExpressionEvaluation::None && Evaluation != EExpressionEvaluation::Unknown);
 
 	FEmitShaderExpression* Value = nullptr;
 	if (Evaluation == EExpressionEvaluation::ConstantZero)
 	{
-		Value = Context.EmitConstantZero(Scope, PreparedType.GetType());
+		Value = Context.EmitConstantZero(Scope, ResultType);
 	}
 	else if (Evaluation == EExpressionEvaluation::Constant || Evaluation == EExpressionEvaluation::Preshader)
 	{
-		Value = Context.EmitPreshaderOrConstant(Scope, RequestedType, this);
+		Value = Context.EmitPreshaderOrConstant(Scope, RequestedType, ResultType, this);
 	}
 	else
 	{
@@ -1108,24 +1107,19 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 		check(Result.Code);
 		Value = Result.Code;
 	}
-
-	if (Value->Type.IsNumeric() && PreparedType.IsNumeric())
-	{
-		const Shader::FValueTypeDescription TypeDest = Shader::GetValueTypeDescription(Value->Type);
-		if (TypeDest.ComponentType == Shader::EValueComponentType::Double && PreparedType.ValueComponentType == Shader::EValueComponentType::Float)
-		{
-			const Shader::EValueType CastType = Shader::MakeValueType(Shader::EValueComponentType::Float, TypeDest.NumComponents);
-			Value = Context.EmitCast(Scope, Value, CastType);
-		}
-	}
-
-	return Value;
+	return Context.EmitCast(Scope, Value, ResultType);
 }
 
 FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType)
 {
-	FEmitShaderExpression* Value = GetValueShader(Context, Scope, RequestedType);
-	return Context.EmitCast(Scope, Value, ResultType);
+	const FPreparedType& PreparedType = Context.GetPreparedType(this);
+	return GetValueShader(Context, Scope, RequestedType, PreparedType, ResultType);
+}
+
+FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType)
+{
+	const FPreparedType& PreparedType = Context.GetPreparedType(this);
+	return GetValueShader(Context, Scope, RequestedType, PreparedType, PreparedType.GetType());
 }
 
 FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const Shader::FType& ResultType)
@@ -1140,29 +1134,29 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 
 FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope)
 {
-	const FPreparedType PreparedType = Context.GetPreparedType(this);
-	return GetValueShader(Context, Scope, PreparedType.GetRequestedType());
+	const FPreparedType& PreparedType = Context.GetPreparedType(this);
+	return GetValueShader(Context, Scope, PreparedType.GetRequestedType(), PreparedType, PreparedType.GetType());
 }
 
-Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader)
+Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType, Shader::FPreshaderData& OutPreshader)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
 	
 	const int32 PrevStackPosition = Context.PreshaderStackPosition;
-	const FPreparedType PreparedType = Context.GetPreparedType(this);
 	const EExpressionEvaluation Evaluation = PreparedType.GetEvaluation(Scope, RequestedType);
 	check(Evaluation != EExpressionEvaluation::None && Evaluation != EExpressionEvaluation::Unknown);
 
 	FEmitValuePreshaderResult Result(OutPreshader);
 	if (Evaluation == EExpressionEvaluation::ConstantZero)
 	{
+		check(!ResultType.IsVoid());
 		Context.PreshaderStackPosition++;
-		Result.Type = PreparedType.GetType();
-		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(Result.Type);
+		Result.Type = ResultType;
+		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(ResultType);
 	}
 	else if (Evaluation == EExpressionEvaluation::Constant)
 	{
-		const Shader::FValue ConstantValue = GetValueConstant(Context, Scope, RequestedType);
+		const Shader::FValue ConstantValue = GetValueConstant(Context, Scope, RequestedType, ResultType);
 		Context.PreshaderStackPosition++;
 		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(ConstantValue);
 		Result.Type = ConstantValue.Type;
@@ -1176,15 +1170,26 @@ Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& 
 	return Result.Type;
 }
 
-Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType)
+Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType, Shader::FPreshaderData& OutPreshader)
+{
+	const FPreparedType& PreparedType = Context.GetPreparedType(this);
+	return GetValuePreshader(Context, Scope, RequestedType, PreparedType, ResultType, OutPreshader);
+}
+
+Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader)
+{
+	const FPreparedType& PreparedType = Context.GetPreparedType(this);
+	return GetValuePreshader(Context, Scope, RequestedType, PreparedType, PreparedType.GetType(), OutPreshader);
+}
+
+Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType)
 {
 	FOwnerScope OwnerScope(*Context.Errors, GetOwner());
-	
-	const FPreparedType PreparedType = Context.GetPreparedType(this);
+
 	const EExpressionEvaluation Evaluation = PreparedType.GetEvaluation(Scope, RequestedType);
 	if (Evaluation == EExpressionEvaluation::ConstantZero)
 	{
-		return Shader::FValue(PreparedType.GetType());
+		return Shader::FValue(ResultType);
 	}
 	else
 	{
@@ -1202,29 +1207,35 @@ Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& 
 		Shader::FPreshaderStack Stack;
 		const Shader::FPreshaderValue PreshaderValue = ConstantPreshader.EvaluateConstant(*Context.Material, Stack);
 		Shader::FValue Result = PreshaderValue.AsShaderValue(Context.TypeRegistry);
-		return Result;
+		return Shader::Cast(Result, ResultType);
 	}
+}
+
+Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType)
+{
+	return GetValueConstant(Context, Scope, RequestedType, PreparedType, PreparedType.GetType());
 }
 
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType)
 {
-	Shader::FValue Result = GetValueConstant(Context, Scope, RequestedType);
-	if (Result.Type.IsNumeric() && ResultType.IsNumeric())
-	{
-		Result = Shader::Cast(Result, ResultType.ValueType);
-	}
-	check(Result.Type == ResultType);
-	return Result;
+	const FPreparedType PreparedType = Context.GetPreparedType(this);
+	return GetValueConstant(Context, Scope, RequestedType, PreparedType, ResultType);
 }
 
-Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const Shader::FType& ResultType)
+Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType)
 {
-	return GetValueConstant(Context, Scope, FRequestedType(ResultType), ResultType);
+	const FPreparedType PreparedType = Context.GetPreparedType(this);
+	return GetValueConstant(Context, Scope, RequestedType, PreparedType, PreparedType.GetType());
 }
 
-Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, Shader::EValueType ResultType)
+Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& PreparedType, const Shader::FType& ResultType)
 {
-	return GetValueConstant(Context, Scope, FRequestedType(ResultType), ResultType);
+	return GetValueConstant(Context, Scope, FRequestedType(ResultType), PreparedType, ResultType);
+}
+
+Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& PreparedType, Shader::EValueType ResultType)
+{
+	return GetValueConstant(Context, Scope, FRequestedType(ResultType), PreparedType, ResultType);
 }
 
 bool FScope::HasParentScope(const FScope& InParentScope) const

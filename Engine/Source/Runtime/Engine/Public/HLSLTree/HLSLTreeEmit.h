@@ -474,7 +474,7 @@ public:
 		return nullptr;
 	}
 
-	FEmitShaderExpression* EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, FExpression* Expression);
+	FEmitShaderExpression* EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType, FExpression* Expression);
 	FEmitShaderExpression* EmitConstantZero(FEmitScope& Scope, const Shader::FType& Type);
 	FEmitShaderExpression* EmitCast(FEmitScope& Scope, FEmitShaderExpression* ShaderValue, const Shader::FType& DestType, EEmitCastFlags Flags = EEmitCastFlags::None);
 
@@ -502,6 +502,7 @@ public:
 	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
 	FTargetParameters TargetParameters;
 	EShaderFrequency ShaderFrequency = SF_Pixel;
+	bool bMarkLiveValues = false;
 	bool bUseAnalyticDerivatives = false;
 
 	TArray<FEmitShaderNode*> EmitNodes;

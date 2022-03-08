@@ -42,6 +42,7 @@ class UMaterialGraphNode;
 struct FGraphAppearanceInfo;
 class UMaterialFunctionInstance;
 class FMaterialCachedHLSLTree;
+struct FMaterialCachedExpressionData;
 
 /**
  * Class for rendering previews of material expressions in the material editor's linked object viewport.
@@ -66,13 +67,7 @@ public:
 		ReleaseResource();
 	}
 
-	void AddReferencedObjects( FReferenceCollector& Collector )
-	{
-		for (int32 TextureIndex = 0; TextureIndex < ReferencedTextures.Num(); TextureIndex++)
-		{
-			Collector.AddReferencedObject(ReferencedTextures[TextureIndex]);
-		}
-	}
+	void AddReferencedObjects(FReferenceCollector& Collector);
 
 	/**
 	 * Should the shader for this material with the given platform, shader type and vertex 
@@ -86,10 +81,7 @@ public:
 	 */
 	virtual bool ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType, const FVertexFactoryType* VertexFactoryType) const override;
 
-	virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const override
-	{
-		return MakeArrayView(ReferencedTextures);
-	}
+	virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const override;
 
 	////////////////
 	// FMaterialRenderProxy interface.
@@ -169,6 +161,7 @@ public:
 	float UnrelatedNodesOpacity;
 
 private:
+	TUniquePtr<FMaterialCachedExpressionData> CachedExpressionData;
 	TUniquePtr<FMaterialCachedHLSLTree> CachedHLSLTree;
 	TWeakObjectPtr<UMaterialExpression> Expression;
 	TArray<TObjectPtr<UObject>> ReferencedTextures;

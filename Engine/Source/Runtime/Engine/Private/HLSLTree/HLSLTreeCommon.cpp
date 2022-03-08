@@ -91,28 +91,27 @@ bool FExpressionError::PrepareValue(FEmitContext& Context, FEmitScope&, const FR
 
 void FExpressionForward::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
 {
-	OutResult = Tree.GetAnalyticDerivatives(Expression);
+	return Expression->ComputeAnalyticDerivatives(Tree, OutResult);
 }
 
 FExpression* FExpressionForward::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
-	return Tree.GetPreviousFrame(Expression, RequestedType);
+	return Expression->ComputePreviousFrame(Tree, RequestedType);
 }
 
 bool FExpressionForward::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const FPreparedType& ResultType = Context.PrepareExpression(Expression, Scope, RequestedType);
-	return OutResult.SetType(Context, RequestedType, ResultType);
+	return Expression->PrepareValue(Context, Scope, RequestedType, OutResult);
 }
 
 void FExpressionForward::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	OutResult.Code = Expression->GetValueShader(Context, Scope, RequestedType);
+	return Expression->EmitValueShader(Context, Scope, RequestedType, OutResult);
 }
 
 void FExpressionForward::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
-	OutResult.Type = Expression->GetValuePreshader(Context, Scope, RequestedType, OutResult.Preshader);
+	return Expression->EmitValuePreshader(Context, Scope, RequestedType, OutResult);
 }
 
 FExpression* FTree::NewConstant(const Shader::FValue& Value)
@@ -434,13 +433,8 @@ void FExpressionSetStructField::EmitValueShader(FEmitContext& Context, FEmitScop
 	}
 	else
 	{
-		FEmitShaderExpression* StructValue = (StructEvaluation != EExpressionEvaluation::ConstantZero)
-			? StructExpression->GetValueShader(Context, Scope, RequestedStructType)
-			: Context.EmitConstantZero(Scope, StructType);
-		FEmitShaderExpression* FieldValue = (FieldEvaluation != EExpressionEvaluation::ConstantZero)
-			? FieldExpression->GetValueShader(Context, Scope, RequestedFieldType, Field->Type)
-			: Context.EmitConstantZero(Scope, Field->Type);
-
+		FEmitShaderExpression* StructValue = StructExpression->GetValueShader(Context, Scope, RequestedStructType, StructType);
+		FEmitShaderExpression* FieldValue = FieldExpression->GetValueShader(Context, Scope, RequestedFieldType, Field->Type);
 		OutResult.Code = Context.EmitExpression(Scope, StructType, TEXT("%_Set%(%, %)"),
 			StructType->Name,
 			Field->Name,
@@ -466,8 +460,8 @@ void FExpressionSetStructField::EmitValuePreshader(FEmitContext& Context, FEmitS
 	}
 	else
 	{
-		StructExpression->GetValuePreshader(Context, Scope, RequestedStructType, OutResult.Preshader);
-		FieldExpression->GetValuePreshader(Context, Scope, RequestedFieldType, OutResult.Preshader);
+		StructExpression->GetValuePreshader(Context, Scope, RequestedStructType, StructType, OutResult.Preshader);
+		FieldExpression->GetValuePreshader(Context, Scope, RequestedFieldType, Field->Type, OutResult.Preshader);
 
 		check(Context.PreshaderStackPosition > 0);
 		Context.PreshaderStackPosition--;
@@ -498,7 +492,7 @@ bool FExpressionSelect::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, ERequestedType::Scalar);
 	if (IsConstantEvaluation(ConditionEvaluation))
 	{
-		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, Shader::EValueType::Bool1).AsBoolScalar();
+		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, ConditionType, Shader::EValueType::Bool1).AsBoolScalar();
 		FPreparedType ResultType = Context.PrepareExpression(bCondition ? TrueExpression : FalseExpression, Scope, RequestedType);
 		ResultType.MergeEvaluation(EExpressionEvaluation::Shader); // TODO - support preshader
 		return OutResult.SetType(Context, RequestedType, ResultType);
@@ -521,10 +515,11 @@ bool FExpressionSelect::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 
 void FExpressionSelect::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	const EExpressionEvaluation ConditionEvaluation = Context.GetEvaluation(ConditionExpression, Scope, ERequestedType::Scalar);
+	const FPreparedType& ConditionType = Context.GetPreparedType(ConditionExpression);
+	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, ERequestedType::Scalar);
 	if (IsConstantEvaluation(ConditionEvaluation))
 	{
-		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, Shader::EValueType::Bool1).AsBoolScalar();
+		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, ConditionType, Shader::EValueType::Bool1).AsBoolScalar();
 		FExpression* InputExpression = bCondition ? TrueExpression : FalseExpression;
 		OutResult.Code = InputExpression->GetValueShader(Context, Scope, RequestedType);
 	}
@@ -1043,7 +1038,7 @@ bool FStatementIf::Prepare(FEmitContext& Context, FEmitScope& Scope) const
 	check(ConditionEvaluation != EExpressionEvaluation::None);
 	if (IsConstantEvaluation(ConditionEvaluation))
 	{
-		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, Shader::EValueType::Bool1).AsBoolScalar();
+		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, ConditionType, Shader::EValueType::Bool1).AsBoolScalar();
 		if (bCondition)
 		{
 			Context.MarkScopeEvaluation(Scope, ThenScope, ConditionEvaluation);
@@ -1067,10 +1062,11 @@ bool FStatementIf::Prepare(FEmitContext& Context, FEmitScope& Scope) const
 void FStatementIf::EmitShader(FEmitContext& Context, FEmitScope& Scope) const
 {
 	FEmitShaderNode* Dependency = nullptr;
-	const EExpressionEvaluation ConditionEvaluation = Context.GetEvaluation(ConditionExpression, Scope, ERequestedType::Scalar);
+	const FPreparedType& ConditionType = Context.GetPreparedType(ConditionExpression);
+	const EExpressionEvaluation ConditionEvaluation = ConditionType.GetEvaluation(Scope, ERequestedType::Scalar);
 	if (IsConstantEvaluation(ConditionEvaluation))
 	{
-		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, Shader::EValueType::Bool1).AsBoolScalar();
+		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, ConditionType, Shader::EValueType::Bool1).AsBoolScalar();
 		if (bCondition)
 		{
 			Dependency = Context.EmitNextScope(Scope, ThenScope);

@@ -140,6 +140,8 @@ enum class EExternalInput : uint8
 	ParticleColor,
 	ParticleTranslatedWorldPosition,
 	ParticleRadius,
+
+	Num,
 };
 static constexpr int32 MaxNumTexCoords = 8;
 
@@ -346,21 +348,18 @@ public:
 	{
 		for (int32 Index = 0; Index < SF_NumFrequencies; ++Index)
 		{
-			ExternalInputMask[Index].Init(false, 256);
+			ExternalInputMask[Index].Init(false, (int32)EExternalInput::Num);
 		}
 	}
 
 	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCachedExpressionData* CachedExpressionData = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
-	bool bReadMaterialNormal = false;
-	bool bUsesVertexColor = false;
-	bool bNeedsParticlePosition = false;
-	bool bUsesParticleColor = false;
 	TBitArray<> ExternalInputMask[SF_NumFrequencies];
 	FMaterialShadingModelField ShadingModelsFromCompilation;
 
-	bool IsExternalInputUsed(EShaderFrequency Frequency, EExternalInput Input) const { return ExternalInputMask[Frequency][(uint8)Input]; }
+	bool IsExternalInputUsed(EShaderFrequency Frequency, EExternalInput Input) const { return ExternalInputMask[Frequency][(int32)Input]; }
+	bool IsExternalInputUsed(EExternalInput Input) const { return IsExternalInputUsed(SF_Vertex, Input) || IsExternalInputUsed(SF_Pixel, Input); }
 };
 
 } // namespace UE::HLSLTree::Material

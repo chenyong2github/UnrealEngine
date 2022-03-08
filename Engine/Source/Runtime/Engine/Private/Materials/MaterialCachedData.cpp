@@ -475,6 +475,7 @@ void PrepareHLSLTree(UE::HLSLTree::FEmitContext& EmitContext,
 
 	EmitContext.ShaderFrequency = ShaderFrequency;
 	EmitContext.bUseAnalyticDerivatives = true; // We want to consider expressions used for analytic derivatives
+	EmitContext.bMarkLiveValues = false;
 	FEmitScope* EmitResultScope = EmitContext.PrepareScope(&CachedTree.GetResultStatement()->GetParentScope());
 
 	FRequestedType RequestedAttributesType;
@@ -495,15 +496,20 @@ void PrepareHLSLTree(UE::HLSLTree::FEmitContext& EmitContext,
 	}
 
 	const FPreparedType& ResultType = EmitContext.PrepareExpression(CachedTree.GetResultExpression(), *EmitResultScope, RequestedAttributesType);
-
-	for (const FGuid& AttributeID : OrderedVisibleAttributes)
+	if (!ResultType.IsVoid())
 	{
-		if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == ShaderFrequency)
+		EmitContext.bMarkLiveValues = true;
+		EmitContext.PrepareExpression(CachedTree.GetResultExpression(), *EmitResultScope, RequestedAttributesType);
+
+		for (const FGuid& AttributeID : OrderedVisibleAttributes)
 		{
-			const EMaterialProperty Property = FMaterialAttributeDefinitionMap::GetProperty(AttributeID);
-			if (CachedTree.IsAttributeUsed(EmitContext, *EmitResultScope, ResultType, Property))
+			if (FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID) == ShaderFrequency)
 			{
-				CachedData.SetMaterialAttributePropertyConnected(Property, true);
+				const EMaterialProperty Property = FMaterialAttributeDefinitionMap::GetProperty(AttributeID);
+				if (CachedTree.IsAttributeUsed(EmitContext, *EmitResultScope, ResultType, Property))
+				{
+					CachedData.SetMaterialAttributePropertyConnected(Property, true);
+				}
 			}
 		}
 	}
