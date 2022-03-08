@@ -167,7 +167,7 @@ namespace PCGSubsystem
 				// At this point, if bCreateActor was true, then it exists, but it is not currently loaded; make sure it is loaded
 				// Otherwise, we still need to load it if it exists
 				// TODO: Revisit after API review on the WP side, we shouldn't have to load here or get the actor desc directly
-				if (!PCGActor)
+				if (!PCGActor && bSaveActors)
 				{
 					const FWorldPartitionActorDesc* PCGActorDesc = nullptr;
 					auto FindFirst = [&CellCoord, &PCGActorDesc](const FWorldPartitionActorDesc* ActorDesc) {
@@ -196,7 +196,7 @@ namespace PCGSubsystem
 						PCGActor = Cast<APCGPartitionActor>(PCGActorDesc->GetActor());
 					}
 				}
-				else
+				else if(PCGActor)
 				{
 					// We still need to keep a reference on the PCG actor - note that newly created PCG actors will not have a reference here, but won't be unloaded
 					ActorReferences->Add(FWorldPartitionReference(World->GetWorldPartition(), PCGActor->GetActorGuid()));
@@ -360,7 +360,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 
 	FBox UnionBounds = InPreviousBounds + InNewBounds;
 	const bool bCreateActors = (!UnionBounds.Equals(InPreviousBounds));
-	const bool bLoadCell = (bGenerate); // TODO: review this
+	const bool bLoadCell = (bGenerate && bSave); // TODO: review this
 	const bool bSaveActors = (bSave);
 
 	FPCGTaskId ProcessAllCellsTaskId = InvalidTaskId;

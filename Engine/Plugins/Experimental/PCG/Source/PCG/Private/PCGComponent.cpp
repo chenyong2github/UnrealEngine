@@ -33,6 +33,11 @@
 
 #define LOCTEXT_NAMESPACE "UPCGComponent"
 
+namespace PCGComponent
+{
+	const bool bSaveOnCleanupAndGenerate = false;
+}
+
 bool UPCGComponent::CanPartition() const
 {
 	// Support/Force partitioning on non-PCG partition actors in WP worlds.
@@ -173,7 +178,7 @@ void UPCGComponent::Generate()
 	FScopedTransaction Transaction(LOCTEXT("PCGGenerate", "Execute generation on PCG component"));
 #endif
 
-	Generate(/*bForce=*/true);
+	Generate(/*bForce=*/PCGComponent::bSaveOnCleanupAndGenerate);
 }
 
 void UPCGComponent::Generate(bool bForce)
@@ -298,7 +303,7 @@ void UPCGComponent::Cleanup()
 	FScopedTransaction Transaction(LOCTEXT("PCGCleanup", "Clean up PCG component"));
 #endif
 
-	Cleanup(/*bRemoveComponents=*/true, /*bSave=*/true);
+	Cleanup(/*bRemoveComponents=*/true, /*bSave=*/PCGComponent::bSaveOnCleanupAndGenerate);
 }
 
 void UPCGComponent::Cleanup(bool bRemoveComponents, bool bSave)
@@ -592,7 +597,7 @@ void UPCGComponent::PostEditUndo()
 	{
 		// Need to reset the generated flag to go through the Cleanup
 		bGenerated = true;
-		Cleanup(/*bRemoveComponents=*/true, /*bSave=*/true);
+		Cleanup(/*bRemoveComponents=*/true, /*bSave=*/PCGComponent::bSaveOnCleanupAndGenerate);
 	}
 	else
 	{
