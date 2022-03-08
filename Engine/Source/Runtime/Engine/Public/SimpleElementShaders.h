@@ -30,7 +30,7 @@ public:
 	FSimpleElementVS() {}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& WorldToClipMatrix, bool bSwitchVerticalAxis = false);
-	void SetParameters(FRHICommandList& RHICmdList, const FRelativeViewMatrices& Matrices, bool bPerspectiveProjection, bool bSwitchVerticalAxis = false);
+	void SetParameters(FRHICommandList& RHICmdList, const FRelativeViewMatrices& Matrices, bool bSwitchVerticalAxis = false);
 
 	//virtual bool Serialize(FArchive& Ar) override;
 
@@ -40,7 +40,6 @@ private:
 	LAYOUT_FIELD(FShaderParameter, RelativeTransform);
 	LAYOUT_FIELD(FShaderParameter, TransformTilePosition);
 	LAYOUT_FIELD(FShaderParameter, SwitchVerticalAxis);
-	LAYOUT_FIELD(FShaderParameter, DepthMinValue);
 };
 
 /**

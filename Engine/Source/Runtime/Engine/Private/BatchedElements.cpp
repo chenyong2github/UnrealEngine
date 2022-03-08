@@ -708,8 +708,7 @@ void FBatchedElements::PrepareShaders(
 		}
 
 		// Set the simple element vertex shader parameters
-		const bool bIsPerspectiveProjection = View ? View->IsPerspectiveProjection() : true;
-		VertexShader->SetParameters(RHICmdList, ViewMatrices, bIsPerspectiveProjection, bSwitchVerticalAxis);
+		VertexShader->SetParameters(RHICmdList, ViewMatrices, bSwitchVerticalAxis);
 	}
 }
 

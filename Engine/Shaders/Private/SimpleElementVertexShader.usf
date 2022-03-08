@@ -20,7 +20,6 @@ float3 TransformTilePosition;
 #endif
 
 float SwitchVerticalAxis;
-float DepthMinValue;
 
 void Main(
 	in float4 InRelativePosition : ATTRIBUTE0,
@@ -38,7 +37,7 @@ void Main(
 	FLWCVector4 InPosition = MakeLWCVector4(InTilePosition, InRelativePosition);
 	FLWCInverseMatrix WorldToClip = MakeLWCInverseMatrix(TransformTilePosition, Transform);
 	OutPosition = LWCMultiply(InPosition, WorldToClip);
-	OutPosition.z = max(OutPosition.z, DepthMinValue * OutPosition.w);
+	OutPosition.z = max(OutPosition.z, 0);
 #else
 	OutPosition = mul(InRelativePosition, Transform);
 #endif
