@@ -25,6 +25,7 @@
 #include "WorkspaceMenuStructureModule.h"
 #include "EditorValidatorSubsystem.h"
 #include "ISettingsModule.h"
+#include "Algo/RemoveIf.h"
 
 #define LOCTEXT_NAMESPACE "DataValidationModule"
 
@@ -233,6 +234,19 @@ void FDataValidationModule::ValidateFolders(TArray<FString> SelectedFolders, con
 	// Query for a list of assets in the selected paths
 	TArray<FAssetData> AssetList;
 	AssetRegistryModule.Get().GetAssets(Filter, AssetList);
+
+	// UE-144978 : Remove ExternalActors & ExternalObjects from assets to be validated.
+	// If ExternalActors are not loaded, they will spam the validation log as they can't
+	// be loaded on the fly like other assets.
+	auto IsAssetPackageExternal = [](const FAssetData& AssetData)
+	{
+		FString ObjectPath = AssetData.ObjectPath.ToString();
+		FStringView ClassName, PackageName, ObjectName, SubObjectName;
+		FPackageName::SplitFullObjectPath(FStringView(ObjectPath), ClassName, PackageName, ObjectName, SubObjectName);
+
+		return FName(PackageName) != AssetData.PackageName;
+	};
+	AssetList.SetNum(Algo::RemoveIf(AssetList, IsAssetPackageExternal));
 
 	ValidateAssets(AssetList, false, InValidationUsecase);
 }
