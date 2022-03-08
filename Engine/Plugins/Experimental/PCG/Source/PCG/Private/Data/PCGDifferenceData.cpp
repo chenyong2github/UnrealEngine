@@ -97,7 +97,7 @@ float UPCGDifferenceData::GetDensityAtPosition(const FVector& InPosition) const
 		}
 
 		const float DensityInDifference = Difference->GetDensityAtPosition(InPosition);
-		return (DensityInDifference > 0 ? 0 : DensityInSource);
+		return FMath::Max(0, DensityInSource - DensityInDifference);
 	}
 	else
 	{
