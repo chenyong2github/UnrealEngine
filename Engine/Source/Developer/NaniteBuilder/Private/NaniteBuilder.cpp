@@ -15,16 +15,11 @@
 #include "Async/ParallelFor.h"
 #include "NaniteEncode.h"
 #include "ImposterAtlas.h"
+#include "UObject/DevObjectVersion.h"
 
 #if WITH_MIKKTSPACE
 #include "mikktspace.h"
 #endif
-
-// If static mesh derived data needs to be rebuilt (new format, serialization
-// differences, etc.) replace the version GUID below with a new one.
-// In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("37DD3B6C-D4A4-41C0-BCF6-32AE2029E647")
 
 namespace Nanite
 {
@@ -69,7 +64,7 @@ const FString& FBuilderModule::GetVersionString() const
 
 	if (VersionString.IsEmpty())
 	{
-		VersionString = FString::Printf(TEXT("%s%s%s"), NANITE_DERIVEDDATA_VER,
+		VersionString = FString::Printf(TEXT("%s%s%s"), *FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER).ToString(EGuidFormats::DigitsWithHyphens),
 										NANITE_USE_CONSTRAINED_CLUSTERS ? TEXT("_CONSTRAINED") : TEXT(""),
 										NANITE_USE_UNCOMPRESSED_VERTEX_DATA ? TEXT("_UNCOMPRESSED") : TEXT(""));
 	}

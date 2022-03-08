@@ -20,9 +20,11 @@ struct CORE_API FDevSystemGuids
 	FDevSystemGuids();
 	const FGuid GLOBALSHADERMAP_DERIVEDDATA_VER;
 	const FGuid MATERIALSHADERMAP_DERIVEDDATA_VER;
+	const FGuid NANITE_DERIVEDDATA_VER;
 	const FGuid NIAGARASHADERMAP_DERIVEDDATA_VER;
 	const FGuid Niagara_LatestScriptCompileVersion;
 	const FGuid SkeletalMeshDerivedDataVersion;
+	const FGuid STATICMESH_DERIVEDDATA_VER;
 };
 
 class CORE_API FDevVersionRegistration :  public FCustomVersionRegistration

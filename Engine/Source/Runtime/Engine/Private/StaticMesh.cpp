@@ -25,6 +25,7 @@
 #include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "UObject/DevObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UObjectAnnotation.h"
@@ -2402,12 +2403,6 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 	Ar << BuildSettings.MaxLumenMeshCards;
 }
 
-// If static mesh derived data needs to be rebuilt (new format, serialization
-// differences, etc.) replace the version GUID below with a new one.
-// In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.
-#define STATICMESH_DERIVEDDATA_VER TEXT("A8F10585DE67499EA913B652DC4A955E")
-
 const FString& GetStaticMeshDerivedDataVersion()
 {
 	static FString CachedVersionString;
@@ -2416,7 +2411,7 @@ const FString& GetStaticMeshDerivedDataVersion()
 		// Static mesh versioning is controlled by the version reported by the mesh utilities module.
 		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
 		CachedVersionString = FString::Printf(TEXT("%s_%s_%s"),
-			STATICMESH_DERIVEDDATA_VER,
+			*FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().STATICMESH_DERIVEDDATA_VER).ToString(),
 			*MeshUtilities.GetVersionString(),
 			*Nanite::IBuilderModule::Get().GetVersionString()
 			);
