@@ -346,7 +346,7 @@ FUnsyncProtocolImpl::~FUnsyncProtocolImpl()
 }
 
 void
-FBlockRequestMap::AddFileBlocks(const fs::path& OriginalFilePath, const fs::path& ResolvedFilePath, const FFileManifest& FileManifest)
+FBlockRequestMap::AddFileBlocks(const FPath& OriginalFilePath, const FPath& ResolvedFilePath, const FFileManifest& FileManifest)
 {
 	UNSYNC_ASSERTF(StrongHasher != EStrongHashAlgorithmID::Invalid, L"Request map is not initialized");
 
@@ -505,7 +505,7 @@ FProxyPool::IsValid() const
 }
 
 void
-FProxyPool::BuildFileBlockRequests(const fs::path& OriginalFilePath, const fs::path& ResolvedFilePath, const FFileManifest& FileManifest)
+FProxyPool::BuildFileBlockRequests(const FPath& OriginalFilePath, const FPath& ResolvedFilePath, const FFileManifest& FileManifest)
 {
 	std::lock_guard<std::mutex> LockGuard(Mutex);
 	RequestMap.AddFileBlocks(OriginalFilePath, ResolvedFilePath, FileManifest);

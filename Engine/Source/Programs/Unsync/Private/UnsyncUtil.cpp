@@ -103,7 +103,7 @@ ConvertWideToUtf8(std::wstring_view StringWide)
 }
 
 const bool
-FFileAttributeCache::Exists(const fs::path& Path) const
+FFileAttributeCache::Exists(const FPath& Path) const
 {
 	const auto It = Map.find(Path.native());
 	return It != Map.end();
@@ -118,7 +118,7 @@ StringToLower(const std::wstring& Input)
 }
 
 FDfsMirrorInfo
-DfsEnumerate(const fs::path& Root)
+DfsEnumerate(const FPath& Root)
 {
 	FDfsMirrorInfo Result;
 
@@ -213,7 +213,7 @@ DfsEnumerate(const fs::path& Root)
 	return Result;
 }
 
-fs::path
+FPath
 NormalizeFilenameUtf8(std::string& InFilename)
 {
 	std::string_view Filename	   = InFilename;
@@ -223,7 +223,7 @@ NormalizeFilenameUtf8(std::string& InFilename)
 		Filename = Filename.substr(FileUrlPrefix.length());
 	}
 
-	fs::path FilenameAsPath = ConvertUtf8ToWide(Filename);
+	FPath FilenameAsPath = ConvertUtf8ToWide(Filename);
 	return FilenameAsPath.lexically_normal();
 }
 

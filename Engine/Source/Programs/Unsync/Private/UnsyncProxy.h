@@ -57,7 +57,7 @@ public:
 		StrongHasher = InStrongHasher;
 	}
 
-	void AddFileBlocks(const fs::path& OriginalFilePath, const fs::path& ResolvedFilePath, const FFileManifest& Manifest);
+	void AddFileBlocks(const FPath& OriginalFilePath, const FPath& ResolvedFilePath, const FFileManifest& Manifest);
 
 	const std::vector<std::string>& GetFileList() const { return FileListUtf8; }
 	const FBlockRequest*			FindRequest(const FGenericHash& BlockHash) const;
@@ -129,7 +129,7 @@ public:
 	const FRemoteDesc RemoteDesc;
 
 	void InitRequestMap(EStrongHashAlgorithmID InStrongHasher);
-	void BuildFileBlockRequests(const fs::path& OriginalFilePath, const fs::path& ResolvedFilePath, const FFileManifest& FileManifest);
+	void BuildFileBlockRequests(const FPath& OriginalFilePath, const FPath& ResolvedFilePath, const FFileManifest& FileManifest);
 
 private:
 	std::vector<std::unique_ptr<FProxy>> Pool;

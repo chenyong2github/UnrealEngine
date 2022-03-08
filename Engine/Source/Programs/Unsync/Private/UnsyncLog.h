@@ -84,8 +84,8 @@ LogGlobalStatus(const wchar_t* Status)
 	LogStatus(nullptr, Status);
 }
 
-void SetCrashDumpPath(const fs::path& Path);
-bool GetCrashDumpPath(fs::path& OutPath);
+void SetCrashDumpPath(const FPath& Path);
+bool GetCrashDumpPath(FPath& OutPath);
 bool LogWriteCrashDump(void* ExceptionPointers);
 
 #define UNSYNC_LOG_INDENT		FLogIndentScope UNSYNC_CONCAT(log_indent_, __LINE__);

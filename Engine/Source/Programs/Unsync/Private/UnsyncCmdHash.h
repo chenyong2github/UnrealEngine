@@ -9,8 +9,8 @@ namespace unsync {
 
 struct FCmdHashOptions
 {
-	fs::path		  Input;
-	fs::path		  Output;
+	FPath			  Input;
+	FPath			  Output;
 	bool			  bForce	   = false;
 	bool			  bIncremental = false;
 	uint32			  BlockSize	   = uint32(64_KB);

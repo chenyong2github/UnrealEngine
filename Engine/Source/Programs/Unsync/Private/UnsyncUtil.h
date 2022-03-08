@@ -144,12 +144,12 @@ struct FDfsMirrorInfo
 	std::wstring				 Root;
 	std::vector<FDfsStorageInfo> Storages;
 };
-FDfsMirrorInfo DfsEnumerate(const fs::path& Root);
+FDfsMirrorInfo DfsEnumerate(const FPath& Root);
 
 struct FDfsAlias
 {
-	fs::path Source;
-	fs::path Target;
+	FPath Source;
+	FPath Target;
 };
 
 template<typename T>
@@ -275,7 +275,7 @@ CountLeadingZeros64(uint64 X)
 	return ((63 - XLog2) & Mask) | (64 & ~Mask);
 }
 
-fs::path NormalizeFilenameUtf8(std::string& InFilename);
+FPath NormalizeFilenameUtf8(std::string& InFilename);
 
 const FBuffer& GetSystemRootCerts();
 

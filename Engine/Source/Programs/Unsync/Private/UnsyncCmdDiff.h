@@ -9,9 +9,9 @@ namespace unsync {
 
 struct FCmdDiffOptions
 {
-	fs::path			   Source;
-	fs::path			   Base;
-	fs::path			   Output;
+	FPath				   Source;
+	FPath				   Base;
+	FPath				   Output;
 	int32				   CompressionLevel = 3;
 	uint32				   BlockSize		= 0;
 	EWeakHashAlgorithmID   WeakHasher		= EWeakHashAlgorithmID::BuzHash;

@@ -1772,7 +1772,7 @@ IsSynchronized(const FNeedList& NeedList, const FGenericBlockArray& SourceBlocks
 }
 
 FDirectoryManifest
-CreateDirectoryManifest(const fs::path& Root, uint32 BlockSize, FAlgorithmOptions Algorithm)
+CreateDirectoryManifest(const FPath& Root, uint32 BlockSize, FAlgorithmOptions Algorithm)
 {
 	UNSYNC_LOG_INDENT;
 
@@ -1780,7 +1780,7 @@ CreateDirectoryManifest(const fs::path& Root, uint32 BlockSize, FAlgorithmOption
 
 	Result.Options = Algorithm;
 
-	fs::path ManifestRootPath = Root / ".unsync";
+	FPath ManifestRootPath = Root / ".unsync";
 
 	FTimePoint TimeBegin = TimePointNow();
 
@@ -1790,7 +1790,7 @@ CreateDirectoryManifest(const fs::path& Root, uint32 BlockSize, FAlgorithmOption
 
 	std::mutex ResultMutex;
 
-	for (const fs::directory_entry& Dir : fs::recursive_directory_iterator(Root))
+	for (const std::filesystem::directory_entry& Dir : std::filesystem::recursive_directory_iterator(Root))
 	{
 		if (Dir.is_directory())
 		{
@@ -1802,7 +1802,7 @@ CreateDirectoryManifest(const fs::path& Root, uint32 BlockSize, FAlgorithmOption
 			continue;
 		}
 
-		fs::path RelativePath = Dir.path().lexically_relative(Root);
+		FPath RelativePath = Dir.path().lexically_relative(Root);
 
 		UNSYNC_VERBOSE2(L"Found '%ls'", RelativePath.wstring().c_str());
 
@@ -1822,8 +1822,8 @@ CreateDirectoryManifest(const fs::path& Root, uint32 BlockSize, FAlgorithmOption
 
 		if (BlockSize)
 		{
-			fs::path FilePath = Root / RelativePath;
-			auto	 File	  = std::make_shared<NativeFile>(FilePath, EFileMode::ReadOnlyUnbuffered);
+			FPath FilePath = Root / RelativePath;
+			auto  File	   = std::make_shared<NativeFile>(FilePath, EFileMode::ReadOnlyUnbuffered);
 			if (File->IsValid())
 			{
 				UNSYNC_VERBOSE(L"Computing blocks for '%ls' (%.2f MB)", FilePath.wstring().c_str(), double(File->GetSize()) / (1 << 20));
@@ -1892,10 +1892,10 @@ CreateDirectoryManifest(const fs::path& Root, uint32 BlockSize, FAlgorithmOption
 }
 
 FDirectoryManifest
-CreateDirectoryManifestIncremental(const fs::path& Root, uint32 BlockSize, FAlgorithmOptions Algorithm)
+CreateDirectoryManifestIncremental(const FPath& Root, uint32 BlockSize, FAlgorithmOptions Algorithm)
 {
-	fs::path ManifestRoot		   = Root / ".unsync";
-	fs::path DirectoryManifestPath = ManifestRoot / "manifest.bin";
+	FPath ManifestRoot			= Root / ".unsync";
+	FPath DirectoryManifestPath = ManifestRoot / "manifest.bin";
 
 	FDirectoryManifest OldManifest;
 	const bool		   bExistingManifestLoaded = LoadDirectoryManifest(OldManifest, Root, DirectoryManifestPath);
@@ -1937,7 +1937,7 @@ CreateDirectoryManifestIncremental(const fs::path& Root, uint32 BlockSize, FAlgo
 }
 
 void
-UpdateDirectoryManifestBlocks(FDirectoryManifest& Result, const fs::path& Root, uint32 BlockSize, FAlgorithmOptions Algorithm)
+UpdateDirectoryManifestBlocks(FDirectoryManifest& Result, const FPath& Root, uint32 BlockSize, FAlgorithmOptions Algorithm)
 {
 	UNSYNC_LOG_INDENT;
 
@@ -1968,8 +1968,8 @@ UpdateDirectoryManifestBlocks(FDirectoryManifest& Result, const fs::path& Root, 
 
 		++NumProcessedFiles;
 
-		fs::path FilePath = Root / It.first;
-		auto	 File	  = std::make_shared<NativeFile>(FilePath, EFileMode::ReadOnlyUnbuffered);
+		FPath FilePath = Root / It.first;
+		auto  File	   = std::make_shared<NativeFile>(FilePath, EFileMode::ReadOnlyUnbuffered);
 		if (File->IsValid())
 		{
 			UNSYNC_VERBOSE(L"Computing blocks for '%ls' (%.2f MB)", FilePath.wstring().c_str(), double(File->GetSize()) / (1 << 20));
@@ -2041,17 +2041,17 @@ UpdateDirectoryManifestBlocks(FDirectoryManifest& Result, const fs::path& Root, 
 }
 
 bool
-LoadOrCreateDirectoryManifest(FDirectoryManifest& Result, const fs::path& Root, uint32 BlockSize, FAlgorithmOptions Algorithm)
+LoadOrCreateDirectoryManifest(FDirectoryManifest& Result, const FPath& Root, uint32 BlockSize, FAlgorithmOptions Algorithm)
 {
 	UNSYNC_LOG_INDENT;
 
-	fs::path ManifestRoot		   = Root / ".unsync";
-	fs::path DirectoryManifestPath = ManifestRoot / "manifest.bin";
+	FPath ManifestRoot			= Root / ".unsync";
+	FPath DirectoryManifestPath = ManifestRoot / "manifest.bin";
 
 	FDirectoryManifest OldDirectoryManifest;
 	FDirectoryManifest NewDirectoryManifest;
 
-	const bool bManifestFileExists = fs::exists(DirectoryManifestPath);
+	const bool bManifestFileExists = PathExists(DirectoryManifestPath);
 	if (!bManifestFileExists)
 	{
 		UNSYNC_VERBOSE(L"Manifest file '%ls' does not exist", DirectoryManifestPath.wstring().c_str());
@@ -2333,10 +2333,10 @@ ValidateTarget(FIOReader& Reader, const FNeedList& NeedList, EStrongHashAlgorith
 
 FFileSyncResult
 SyncFile(const FNeedList&		   NeedList,
-		 const fs::path&		   SourceFilePath,
+		 const FPath&			   SourceFilePath,
 		 const FGenericBlockArray& SourceBlocks,
 		 FIOReader&				   BaseDataReader,
-		 const fs::path&		   TargetFilePath,
+		 const FPath&			   TargetFilePath,
 		 const FSyncFileOptions&   Options)
 {
 	UNSYNC_LOG_INDENT;
@@ -2359,10 +2359,10 @@ SyncFile(const FNeedList&		   NeedList,
 		}
 		else
 		{
-			fs::path TargetFileParent = TargetFilePath.parent_path();
-			if (!fs::exists(TargetFileParent))
+			FPath TargetFileParent = TargetFilePath.parent_path();
+			if (!PathExists(TargetFileParent))
 			{
-				fs::create_directories(TargetFileParent);
+				CreateDirectories(TargetFileParent);
 			}
 
 			auto TargetFile = NativeFile(TargetFilePath, EFileMode::CreateWriteOnly, 0);
@@ -2381,7 +2381,7 @@ SyncFile(const FNeedList&		   NeedList,
 	{
 		LogStatus(TargetFilePath.wstring().c_str(), L"Initializing");
 
-		fs::path TempTargetFilePath = TargetFilePath;
+		FPath TempTargetFilePath = TargetFilePath;
 		TempTargetFilePath.replace_extension(TargetFilePath.extension().wstring() + L".tmp");
 		const FNeedListSize TargetFileSizeInfo = ComputeNeedListSize(NeedList);
 
@@ -2401,10 +2401,10 @@ SyncFile(const FNeedList&		   NeedList,
 		}
 		else
 		{
-			fs::path TargetFileParent = TempTargetFilePath.parent_path();
-			if (!fs::exists(TargetFileParent))
+			FPath TargetFileParent = TempTargetFilePath.parent_path();
+			if (!PathExists(TargetFileParent))
 			{
-				fs::create_directories(TargetFileParent);
+				CreateDirectories(TargetFileParent);
 			}
 
 			TargetFile = std::make_unique<NativeFile>(TempTargetFilePath, EFileMode::CreateWriteOnly, TargetFileSizeInfo.TotalBytes);
@@ -2474,7 +2474,7 @@ SyncFile(const FNeedList&		   NeedList,
 			}
 
 			std::error_code Ec = {};
-			fs::rename(TempTargetFilePath, TargetFilePath, Ec);
+			FileRename(TempTargetFilePath, TargetFilePath, Ec);
 
 			if (Ec.value() == 0)
 			{
@@ -2507,10 +2507,10 @@ SyncFile(const FNeedList&		   NeedList,
 }
 
 FFileSyncResult
-SyncFile(const fs::path&		   SourceFilePath,
+SyncFile(const FPath&			   SourceFilePath,
 		 const FGenericBlockArray& SourceBlocks,
 		 FIOReader&				   BaseDataReader,
-		 const fs::path&		   TargetFilePath,
+		 const FPath&			   TargetFilePath,
 		 const FSyncFileOptions&   Options)
 {
 	UNSYNC_LOG_INDENT;
@@ -2526,7 +2526,7 @@ SyncFile(const fs::path&		   SourceFilePath,
 }
 
 FFileSyncResult
-SyncFile(const fs::path& SourceFilePath, const fs::path& BaseFilePath, const fs::path& TargetFilePath, const FSyncFileOptions& InOptions)
+SyncFile(const FPath& SourceFilePath, const FPath& BaseFilePath, const FPath& TargetFilePath, const FSyncFileOptions& InOptions)
 {
 	UNSYNC_LOG_INDENT;
 
@@ -2541,7 +2541,7 @@ SyncFile(const fs::path& SourceFilePath, const fs::path& BaseFilePath, const fs:
 
 		UNSYNC_VERBOSE(L"Full copy required for '%ls' (base does not exist)", BaseFilePath.wstring().c_str());
 		std::error_code ErrorCode;
-		bool			bCopyOk = fs::copy_file(SourceFilePath, TargetFilePath, ErrorCode);
+		bool			bCopyOk = FileCopy(SourceFilePath, TargetFilePath, ErrorCode);
 		if (bCopyOk)
 		{
 			Result.Status = EFileSyncStatus::Ok;
@@ -2556,7 +2556,7 @@ SyncFile(const fs::path& SourceFilePath, const fs::path& BaseFilePath, const fs:
 	}
 
 	FGenericBlockArray SourceBlocks;
-	fs::path		   BlockFilename = BaseFilePath.wstring() + std::wstring(L".unsync");
+	FPath			   BlockFilename = BaseFilePath.wstring() + std::wstring(L".unsync");
 
 	UNSYNC_VERBOSE(L"Loading block manifest from '%ls'", BlockFilename.wstring().c_str());
 	if (LoadBlocks(SourceBlocks, Options.BlockSize, BlockFilename.c_str()))
@@ -2568,7 +2568,7 @@ SyncFile(const fs::path& SourceFilePath, const fs::path& BaseFilePath, const fs:
 		UNSYNC_VERBOSE(L"Full copy required (manifest file does not exist or is invalid)");
 
 		std::error_code ErrorCode;
-		bool			bCopyOk = fs::copy_file(SourceFilePath, TargetFilePath, ErrorCode);
+		bool			bCopyOk = FileCopy(SourceFilePath, TargetFilePath, ErrorCode);
 		if (bCopyOk)
 		{
 			Result.Status = EFileSyncStatus::Ok;
@@ -2588,21 +2588,21 @@ SyncFile(const fs::path& SourceFilePath, const fs::path& BaseFilePath, const fs:
 }
 
 std::error_code
-CopyFileIfNewer(const fs::path& Source, const fs::path& Target)
+CopyFileIfNewer(const FPath& Source, const FPath& Target)
 {
 	FileAttributes	SourceAttr = GetFileAttrib(Source);
 	FileAttributes	TargetAttr = GetFileAttrib(Target);
 	std::error_code Ec;
 	if (SourceAttr.Size != TargetAttr.Size || SourceAttr.Mtime != TargetAttr.Mtime)
 	{
-		fs::copy_file(Source, Target, fs::copy_options::overwrite_existing, Ec);
+		FileCopyOverwrite(Source, Target, Ec);
 	}
 	return Ec;
 }
 
 // Delete files from target directory that are not in the source directory manifest
 static void
-DeleteUnnecessaryFiles(const fs::path&			 TargetDirectory,
+DeleteUnnecessaryFiles(const FPath&				 TargetDirectory,
 					   const FDirectoryManifest& TargetDirectoryManifest,
 					   const FDirectoryManifest& ReferenceManifest)
 {
@@ -2611,7 +2611,7 @@ DeleteUnnecessaryFiles(const fs::path&			 TargetDirectory,
 		const std::wstring& TargetFileName = TargetManifestEntry.first;
 		if (ReferenceManifest.Files.find(TargetFileName) == ReferenceManifest.Files.end())
 		{
-			fs::path FilePath = TargetDirectory / TargetFileName;
+			FPath FilePath = TargetDirectory / TargetFileName;
 			if (GDryRun)
 			{
 				UNSYNC_VERBOSE(L"Deleting '%ls' (skipped due to dry run mode)", FilePath.wstring().c_str());
@@ -2620,7 +2620,7 @@ DeleteUnnecessaryFiles(const fs::path&			 TargetDirectory,
 			{
 				UNSYNC_VERBOSE(L"Deleting '%ls'", FilePath.wstring().c_str());
 				std::error_code ErrorCode = {};
-				fs::remove(FilePath, ErrorCode);
+				FileRemove(FilePath, ErrorCode);
 				if (ErrorCode)
 				{
 					UNSYNC_VERBOSE(L"System error code %d: %hs", ErrorCode.value(), ErrorCode.message().c_str());
@@ -2630,16 +2630,16 @@ DeleteUnnecessaryFiles(const fs::path&			 TargetDirectory,
 	}
 }
 
-fs::path
+FPath
 ToPath(const std::wstring_view& Str)
 {
 #if UNSYNC_PLATFORM_UNIX
 	// TODO: ensure that all serialized path separators are unix style ('/')
 	std::wstring Temp = std::wstring(Str);
 	std::replace(Temp.begin(), Temp.end(), L'\\', L'/');
-	return fs::path(Temp);
+	return FPath(Temp);
 #else	// UNSYNC_PLATFORM_UNIX
-	return fs::path(Str);
+	return FPath(Str);
 #endif	// UNSYNC_PLATFORM_UNIX
 }
 
@@ -2651,10 +2651,10 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 
 	UNSYNC_ASSERT(bFileSystemSource || bServerSource);
 
-	const fs::path	SourcePath			   = bFileSystemSource ? fs::absolute(SyncOptions.Source) : SyncOptions.Source;
-	const fs::path	BasePath			   = fs::absolute(SyncOptions.Base);
-	const fs::path	TargetPath			   = fs::absolute(SyncOptions.Target);
-	const fs::path& SourceManifestOverride = SyncOptions.SourceManifestOverride;
+	const FPath	 SourcePath				= bFileSystemSource ? std::filesystem::absolute(SyncOptions.Source) : SyncOptions.Source;
+	const FPath	 BasePath				= std::filesystem::absolute(SyncOptions.Base);
+	const FPath	 TargetPath				= std::filesystem::absolute(SyncOptions.Target);
+	const FPath& SourceManifestOverride = SyncOptions.SourceManifestOverride;
 
 	FSyncFilter* SyncFilter = SyncOptions.SyncFilter;
 
@@ -2667,14 +2667,14 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		UNSYNC_VERBOSE(L"Unnecessary files will be deleted after sync (cleanup mode)");
 	}
 
-	fs::path BaseManifestRoot = BasePath / ".unsync";
-	fs::path BaseManifestPath = BaseManifestRoot / "manifest.bin";
+	FPath BaseManifestRoot = BasePath / ".unsync";
+	FPath BaseManifestPath = BaseManifestRoot / "manifest.bin";
 
-	fs::path TargetManifestRoot = TargetPath / ".unsync";
-	fs::path TargetManifestPath = TargetManifestRoot / "manifest.bin";
-	fs::path TargetTempPath		= TargetManifestRoot / "temp";
+	FPath TargetManifestRoot = TargetPath / ".unsync";
+	FPath TargetManifestPath = TargetManifestRoot / "manifest.bin";
+	FPath TargetTempPath	 = TargetManifestRoot / "temp";
 
-	bool bTempDirectoryExists = (fs::exists(TargetTempPath) && fs::is_directory(TargetTempPath)) || fs::create_directories(TargetTempPath);
+	bool bTempDirectoryExists = (PathExists(TargetTempPath) && IsDirectory(TargetTempPath)) || CreateDirectories(TargetTempPath);
 
 	if (!bTempDirectoryExists)
 	{
@@ -2682,11 +2682,11 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		return false;
 	}
 
-	fs::path	  LogFilePath = TargetManifestRoot / L"unsync.log";
+	FPath		  LogFilePath = TargetManifestRoot / L"unsync.log";
 	FLogFileScope LogFileScope(LogFilePath.wstring().c_str());
 	SetCrashDumpPath(TargetManifestRoot);
 
-	auto ShouldSync = [SyncFilter](const fs::path& Filename) -> bool {
+	auto ShouldSync = [SyncFilter](const FPath& Filename) -> bool {
 		if (SyncFilter)
 		{
 			return SyncFilter->ShouldSync(Filename);
@@ -2697,18 +2697,18 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		}
 	};
 
-	auto ResolvePath = [SyncFilter](const fs::path& Filename) -> fs::path { return SyncFilter ? SyncFilter->Resolve(Filename) : Filename; };
+	auto ResolvePath = [SyncFilter](const FPath& Filename) -> FPath { return SyncFilter ? SyncFilter->Resolve(Filename) : Filename; };
 
 	FRemoteDesc ProxySettings = SyncOptions.Remote ? *SyncOptions.Remote : FRemoteDesc();
 	FProxyPool	ProxyPool(ProxySettings);
 
 	FDirectoryManifest SourceDirectoryManifest;
-	fs::path		   SourceManifestTempPath;
+	FPath			   SourceManifestTempPath;
 
 	if (bFileSystemSource || !SourceManifestOverride.empty())
 	{
-		fs::path SourceManifestRoot = SourcePath / ".unsync";
-		fs::path SourceManifestPath = SourceManifestRoot / "manifest.bin";
+		FPath SourceManifestRoot = SourcePath / ".unsync";
+		FPath SourceManifestPath = SourceManifestRoot / "manifest.bin";
 
 		SourceManifestPath = ResolvePath(SourceManifestPath);
 
@@ -2723,7 +2723,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		std::string SourcePathHashStr = BytesToHexString(SourcePathHash.Data, sizeof(SourcePathHash.Data));
 		SourceManifestTempPath		  = TargetTempPath / SourcePathHashStr;
 
-		if (!fs::exists(SourceManifestPath))
+		if (!PathExists(SourceManifestPath))
 		{
 			UNSYNC_ERROR(L"Source manifest '%ls' does not exist", SourceManifestPath.wstring().c_str());
 			return false;
@@ -2771,7 +2771,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		{
 			FMemReader		Reader(*ManifestBuffer);
 			FIOReaderStream Stream(Reader);
-			fs::path		EmptyRoot;	// Don't have a sensible path when not using file system as source
+			FPath			EmptyRoot;	// Don't have a sensible path when not using file system as source
 			bSourceManifestOk = LoadDirectoryManifest(SourceDirectoryManifest, EmptyRoot, Stream);
 		}
 		else
@@ -2811,11 +2811,11 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	{
 		const FFileManifest* SourceManifest = nullptr;
 		const FFileManifest* BaseManifest	= nullptr;
-		fs::path			 OriginalSourceFilePath;
-		fs::path			 ResolvedSourceFilePath;
-		fs::path			 BaseFilePath;
-		fs::path			 TargetFilePath;
-		fs::path			 RelativeFilePath;
+		FPath				 OriginalSourceFilePath;
+		FPath				 ResolvedSourceFilePath;
+		FPath				 BaseFilePath;
+		FPath				 TargetFilePath;
+		FPath				 RelativeFilePath;
 		FNeedList			 NeedList;
 
 		uint64 NeedBytesFromSource = 0;
@@ -2889,11 +2889,11 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 			}
 		}
 
-		fs::path SourceFilePath = SourcePath / ToPath(SourceManifestIt.first);
-		fs::path BaseFilePath	= BasePath / ToPath(SourceManifestIt.first);
-		fs::path TargetFilePath = TargetPath / ToPath(SourceManifestIt.first);
+		FPath SourceFilePath = SourcePath / ToPath(SourceManifestIt.first);
+		FPath BaseFilePath	 = BasePath / ToPath(SourceManifestIt.first);
+		FPath TargetFilePath = TargetPath / ToPath(SourceManifestIt.first);
 
-		fs::path ResolvedSourceFilePath = ResolvePath(SourceFilePath);
+		FPath ResolvedSourceFilePath = ResolvePath(SourceFilePath);
 
 		if (bFileSystemSource && SyncOptions.bValidateSourceFiles)
 		{
@@ -2942,7 +2942,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 				StatPartialCopy++;
 
 				if (bFileSystemSource && SyncOptions.bValidateSourceFiles && !SourceAttribCache.Exists(ResolvedSourceFilePath) &&
-					!fs::exists(ResolvedSourceFilePath))
+					!PathExists(ResolvedSourceFilePath))
 				{
 					UNSYNC_VERBOSE(L"Source file '%ls' does not exist", SourceFilePath.wstring().c_str());
 					continue;
@@ -3003,7 +3003,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 
 			const FGenericBlockArray& SourceBlocks = Item.SourceManifest->Blocks;
 
-			if (Item.IsBaseValid() && fs::exists(Item.BaseFilePath))
+			if (Item.IsBaseValid() && PathExists(Item.BaseFilePath))
 			{
 				NativeFile BaseFile(Item.BaseFilePath, EFileMode::ReadOnlyUnbuffered);
 				uint32	   SourceBlockSize = Item.SourceManifest->BlockSize;
@@ -3150,7 +3150,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	{
 		struct BackgroundTaskResult
 		{
-			fs::path		TargetFilePath;
+			FPath			TargetFilePath;
 			FFileSyncResult SyncResult;
 			bool			bIsPartialCopy = false;
 		};
@@ -3341,7 +3341,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		// TODO: cache the manfiest if it's downloaded from Jupiter also
 
 		std::error_code ErrorCode;
-		bool bCopyOk = fs::copy_file(SourceManifestTempPath, TargetManifestPath, fs::copy_options::overwrite_existing, ErrorCode);
+		bool			bCopyOk = FileCopyOverwrite(SourceManifestTempPath, TargetManifestPath, ErrorCode);
 
 		if (!bCopyOk)
 		{
@@ -3356,12 +3356,12 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	return bSyncSucceeded;
 }
 
-fs::path
-FSyncFilter::Resolve(const fs::path& Filename) const
+FPath
+FSyncFilter::Resolve(const FPath& Filename) const
 {
 	std::wstring FilenameLower = StringToLower(Filename.wstring());
 
-	fs::path Result;
+	FPath Result;
 	for (const auto& Alias : DfsAliases)
 	{
 		// TODO: add a case-insensitive find() helper
@@ -3733,7 +3733,7 @@ FSyncFilter::FSyncFilter(const std::wstring& InExcludedWords)
 }
 
 bool
-FSyncFilter::ShouldSync(const fs::path& Filename) const
+FSyncFilter::ShouldSync(const FPath& Filename) const
 {
 #if UNSYNC_PLATFORM_WINDOWS
 	return ShouldSync(Filename.native());
@@ -3891,10 +3891,10 @@ LogManifestDiff(ELogLevel LogLevel, const FDirectoryManifest& ManifestA, const F
 }
 
 int32
-CmdInfo(const fs::path& InputA, const fs::path& InputB)
+CmdInfo(const FPath& InputA, const FPath& InputB)
 {
-	fs::path DirectoryManifestPathA = InputA / ".unsync" / "manifest.bin";
-	fs::path DirectoryManifestPathB = InputB / ".unsync" / "manifest.bin";
+	FPath DirectoryManifestPathA = InputA / ".unsync" / "manifest.bin";
+	FPath DirectoryManifestPathB = InputB / ".unsync" / "manifest.bin";
 
 	FDirectoryManifest ManifestA;
 	bool			   bManifestAValid = LoadDirectoryManifest(ManifestA, InputA, DirectoryManifestPathA);

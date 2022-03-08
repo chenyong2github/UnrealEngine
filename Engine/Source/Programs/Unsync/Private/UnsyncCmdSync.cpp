@@ -10,13 +10,13 @@ int32  // TODO: return a TResult
 CmdSync(const FCmdSyncOptions& Options)
 {
 	std::error_code ErrorCode	   = {};
-	fs::path		ResolvedSource = Options.Filter ? Options.Filter->Resolve(Options.Source) : Options.Source;
+	FPath			ResolvedSource = Options.Filter ? Options.Filter->Resolve(Options.Source) : Options.Source;
 
 	UNSYNC_VERBOSE(L"Sync source: '%ls'", Options.Source.wstring().c_str());
 	UNSYNC_VERBOSE(L"-- resolved: '%ls'", ResolvedSource.wstring().c_str());
 	UNSYNC_VERBOSE(L"Sync target: '%ls'", Options.Target.wstring().c_str());
 
-	const bool bSourcePathExists	 = fs::exists(ResolvedSource, ErrorCode);
+	const bool bSourcePathExists	 = PathExists(ResolvedSource, ErrorCode);
 	const bool bSourceIsDirectory	 = bSourcePathExists && unsync::IsDirectory(ResolvedSource);
 	const bool bSourceIsManifestHash = !bSourcePathExists && LooksLikeHash160(Options.Source.native());
 

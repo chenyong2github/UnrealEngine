@@ -120,7 +120,7 @@ struct FFileManifest
 	// runtime-only data:
 	FGenericBlockArray Blocks;
 	FGenericBlockArray MacroBlocks;
-	fs::path		   CurrentPath;
+	FPath			   CurrentPath;
 };
 
 struct FAlgorithmOptionsV5
@@ -304,24 +304,24 @@ struct FSyncFileOptions
 	bool bValidateTargetFiles = true;  // WARNING: turning this off is intended only for testing/profiling
 };
 
-FFileSyncResult SyncFile(const fs::path&		   SourceFilePath,
+FFileSyncResult SyncFile(const FPath&			   SourceFilePath,
 						 const FGenericBlockArray& SourceBlocks,
 						 FIOReader&				   BaseDataReader,
-						 const fs::path&		   TargetFilePath,
+						 const FPath&			   TargetFilePath,
 						 const FSyncFileOptions&   Options);
 
-FFileSyncResult SyncFile(const fs::path&		 SourceFilePath,
-						 const fs::path&		 BaseFilePath,
-						 const fs::path&		 TargetFilePath,
+FFileSyncResult SyncFile(const FPath&			 SourceFilePath,
+						 const FPath&			 BaseFilePath,
+						 const FPath&			 TargetFilePath,
 						 const FSyncFileOptions& Options);
 
 struct FSyncFilter
 {
 	FSyncFilter(const std::wstring& ExcludedWords);
 
-	bool	 ShouldSync(const fs::path& Filename) const;
-	bool	 ShouldSync(const std::wstring& Filename) const;
-	fs::path Resolve(const fs::path& Filename) const;
+	bool  ShouldSync(const FPath& Filename) const;
+	bool  ShouldSync(const std::wstring& Filename) const;
+	FPath Resolve(const FPath& Filename) const;
 
 	std::vector<std::wstring> ExcludedWords;
 	std::vector<FDfsAlias>	  DfsAliases;
@@ -337,10 +337,10 @@ enum class ESyncSourceType
 struct FSyncDirectoryOptions
 {
 	ESyncSourceType	   SourceType;
-	fs::path		   Source;					// remote data location
-	fs::path		   Target;					// output target location
-	fs::path		   Base;					// base data location, which typically is the same as sync target
-	fs::path		   SourceManifestOverride;	// force the manifest to be read from a specified file instead of source directory
+	FPath			   Source;					// remote data location
+	FPath			   Target;					// output target location
+	FPath			   Base;					// base data location, which typically is the same as sync target
+	FPath			   SourceManifestOverride;	// force the manifest to be read from a specified file instead of source directory
 	FSyncFilter*	   SyncFilter = nullptr;	// filter callback for partial sync support
 	const FRemoteDesc* Remote	  = nullptr;	// unsync proxy server connection settings
 	bool			   bCleanup	  = false;	// whether to cleanup any files in the target directory that are not in the source manifest file
@@ -352,10 +352,10 @@ struct FSyncDirectoryOptions
 
 bool SyncDirectory(const FSyncDirectoryOptions& SyncOptions);
 
-void UpdateDirectoryManifestBlocks(FDirectoryManifest& Result, const fs::path& Root, uint32 BlockSize, FAlgorithmOptions Algorithm);
-FDirectoryManifest CreateDirectoryManifest(const fs::path& Root, uint32 BlockSize, FAlgorithmOptions Algorithm);
-FDirectoryManifest CreateDirectoryManifestIncremental(const fs::path& Root, uint32 BlockSize, FAlgorithmOptions Algorithm);
-bool LoadOrCreateDirectoryManifest(FDirectoryManifest& Result, const fs::path& Root, uint32 BlockSize, FAlgorithmOptions Algorithm);
+void UpdateDirectoryManifestBlocks(FDirectoryManifest& Result, const FPath& Root, uint32 BlockSize, FAlgorithmOptions Algorithm);
+FDirectoryManifest CreateDirectoryManifest(const FPath& Root, uint32 BlockSize, FAlgorithmOptions Algorithm);
+FDirectoryManifest CreateDirectoryManifestIncremental(const FPath& Root, uint32 BlockSize, FAlgorithmOptions Algorithm);
+bool LoadOrCreateDirectoryManifest(FDirectoryManifest& Result, const FPath& Root, uint32 BlockSize, FAlgorithmOptions Algorithm);
 
 // Computes a Blake3 hash of the manifest blocks and file metadata, ignoring any other metadata.
 // Files are processed in sorted order, with file names treated as utf-8.
@@ -371,6 +371,6 @@ FHash160 ComputeSerializedManifestHash160(const FDirectoryManifest& Manifest);
 FBlock128			   ToBlock128(const FGenericBlock& GenericBlock);
 std::vector<FBlock128> ToBlock128(FGenericBlockArray& GenericBlocks);
 
-int32 CmdInfo(const fs::path& InputA, const fs::path& InputB);
+int32 CmdInfo(const FPath& InputA, const FPath& InputB);
 
 }  // namespace unsync

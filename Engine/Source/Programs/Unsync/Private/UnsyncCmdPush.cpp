@@ -41,7 +41,7 @@ CmdPush(const FCmdPushOptions& Options)
 	AlgorithmOptions.StrongHashAlgorithmId = EStrongHashAlgorithmID::Blake3_128;
 
 	FDirectoryManifest Manifest;
-	fs::path		   ManifestPath	  = Options.Input / ".unsync" / "manifest.bin";	 // TODO: allow manifest path override
+	FPath			   ManifestPath	  = Options.Input / ".unsync" / "manifest.bin";	 // TODO: allow manifest path override
 	bool			   bManifestValid = LoadOrCreateDirectoryManifest(Manifest, Options.Input, BlockSize, AlgorithmOptions);
 
 	if (!bManifestValid)

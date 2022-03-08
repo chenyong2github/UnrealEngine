@@ -66,7 +66,7 @@ struct FCreateFileInfo
 	}
 };
 
-FWindowsFile::FWindowsFile(const fs::path& InFilename, EFileMode InMode, uint64 InSize) : Mode(InMode)
+FWindowsFile::FWindowsFile(const FPath& InFilename, EFileMode InMode, uint64 InSize) : Mode(InMode)
 {
 	Filename = InFilename;
 
@@ -517,7 +517,7 @@ FWindowsFile::FlushOne()
 }
 
 FileAttributes
-GetFileAttrib(const fs::path& Path, FFileAttributeCache* AttribCache)
+GetFileAttrib(const FPath& Path, FFileAttributeCache* AttribCache)
 {
 	FileAttributes Result;
 
@@ -546,7 +546,7 @@ GetFileAttrib(const fs::path& Path, FFileAttributeCache* AttribCache)
 }
 
 bool
-SetFileMtime(const fs::path& Path, uint64 Mtime)
+SetFileMtime(const FPath& Path, uint64 Mtime)
 {
 	UNSYNC_ASSERT(!GDryRun);
 	HANDLE Fh = CreateFileW(Path.c_str(), FILE_WRITE_ATTRIBUTES, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -566,7 +566,7 @@ SetFileMtime(const fs::path& Path, uint64 Mtime)
 }
 
 bool
-SetFileReadOnly(const fs::path& Path, bool bReadOnly)
+SetFileReadOnly(const FPath& Path, bool bReadOnly)
 {
 	UNSYNC_ASSERT(!GDryRun);
 
@@ -593,14 +593,14 @@ SetFileReadOnly(const fs::path& Path, bool bReadOnly)
 }
 
 uint64
-ToWindowsFileTime(const fs::file_time_type& T)
+ToWindowsFileTime(const std::filesystem::file_time_type& T)
 {
 	return T.time_since_epoch().count();
 }
 #endif	// UNSYNC_PLATFORM_WINDOWS
 
 #if UNSYNC_PLATFORM_UNIX
-FUnixFile::FUnixFile(const fs::path& InFilename, EFileMode InMode, uint64 in_size) : Filename(InFilename), Mode(InMode)
+FUnixFile::FUnixFile(const FPath& InFilename, EFileMode InMode, uint64 in_size) : Filename(InFilename), Mode(InMode)
 {
 	FileHandle = fopen(InFilename.native().c_str(), IsReadOnly(Mode) ? "rb" : "w+b");
 	if (FileHandle == nullptr)
@@ -690,7 +690,7 @@ FUnixFile::Write(const void* data, uint64 DestOffset, uint64 WriteSize)
 }
 
 FileAttributes
-GetFileAttrib(const fs::path& path, FFileAttributeCache* AttribCache)
+GetFileAttrib(const FPath& path, FFileAttributeCache* AttribCache)
 {
 	FileAttributes result;
 
@@ -707,7 +707,7 @@ GetFileAttrib(const fs::path& path, FFileAttributeCache* AttribCache)
 	// TODO: could potentially use std::filesystem::directory_entry for this on all platforms
 
 	std::error_code ec	  = {};
-	auto			entry = fs::directory_entry(path, ec);
+	auto			entry = std::filesystem::directory_entry(path, ec);
 
 	if (ec.value() == 0)
 	{
@@ -722,21 +722,21 @@ GetFileAttrib(const fs::path& path, FFileAttributeCache* AttribCache)
 }
 
 bool
-SetFileReadOnly(const fs::path& path, bool bReadOnly)
+SetFileReadOnly(const FPath& path, bool bReadOnly)
 {
 	UNSYNC_WARNING(L"SetFileReadOnly() is not implemented");
 	return false;
 }
 
 bool
-SetFileMtime(const fs::path& path, uint64 mtime)
+SetFileMtime(const FPath& path, uint64 mtime)
 {
 	UNSYNC_WARNING(L"SetFileMtime() is not implemented");
 	return false;
 }
 
 uint64
-ToWindowsFileTime(const fs::file_time_type& FileTime)
+ToWindowsFileTime(const std::filesystem::file_time_type& FileTime)
 {
 	const uint64 NANOS_PER_TICK	  = 100ull;
 	const uint64 TICKS_PER_SECOND = 1'000'000'000ull / NANOS_PER_TICK;	// each tick is 100ns
@@ -762,7 +762,7 @@ ToWindowsFileTime(const fs::file_time_type& FileTime)
 #endif	// UNSYNC_PLATFORM_UNIX
 
 FBuffer
-ReadFileToBuffer(const fs::path& Filename)
+ReadFileToBuffer(const FPath& Filename)
 {
 	FBuffer	   Result;
 	NativeFile File(Filename, EFileMode::ReadOnly);
@@ -776,7 +776,7 @@ ReadFileToBuffer(const fs::path& Filename)
 }
 
 bool
-WriteBufferToFile(const fs::path& Filename, const uint8* Data, uint64 Size)
+WriteBufferToFile(const FPath& Filename, const uint8* Data, uint64 Size)
 {
 	UNSYNC_LOG_INDENT;
 	UNSYNC_ASSERT(Data);
@@ -798,7 +798,7 @@ WriteBufferToFile(const fs::path& Filename, const uint8* Data, uint64 Size)
 }
 
 bool
-WriteBufferToFile(const fs::path& Filename, const FBuffer& Buffer)
+WriteBufferToFile(const FPath& Filename, const FBuffer& Buffer)
 {
 	return WriteBufferToFile(Filename, Buffer.Data(), Buffer.Size());
 }
@@ -957,7 +957,7 @@ GetCurrentIoCacheSize()
 }
 
 FFileAttributeCache
-CreateFileAttributeCache(const fs::path& Root, const FSyncFilter* SyncFilter)
+CreateFileAttributeCache(const FPath& Root, const FSyncFilter* SyncFilter)
 {
 	FFileAttributeCache Result;
 
@@ -972,9 +972,9 @@ CreateFileAttributeCache(const fs::path& Root, const FSyncFilter* SyncFilter)
 		}
 	};
 
-	fs::path ResolvedRoot = SyncFilter ? SyncFilter->Resolve(Root) : Root;
+	FPath ResolvedRoot = SyncFilter ? SyncFilter->Resolve(Root) : Root;
 
-	for (const fs::directory_entry& Dir : fs::recursive_directory_iterator(ResolvedRoot))
+	for (const std::filesystem::directory_entry& Dir : std::filesystem::recursive_directory_iterator(ResolvedRoot))
 	{
 		if (Dir.is_directory())
 		{
@@ -1003,10 +1003,53 @@ CreateFileAttributeCache(const fs::path& Root, const FSyncFilter* SyncFilter)
 }
 
 bool
-IsDirectory(const fs::path& Path)
+IsDirectory(const FPath& Path)
 {
 	FileAttributes Attr = GetFileAttrib(Path);
 	return Attr.bValid && Attr.bDirectory;
+}
+
+bool
+PathExists(const FPath& Path)
+{
+	return std::filesystem::exists(Path);
+}
+
+bool
+PathExists(const FPath& Path, std::error_code& OutErrorCode)
+{
+	return std::filesystem::exists(Path, OutErrorCode);
+}
+
+bool
+CreateDirectories(const FPath& Path)
+{
+	return std::filesystem::create_directories(Path);
+}
+
+bool
+FileRename(const FPath& From, const FPath& To, std::error_code& OutErrorCode)
+{
+	std::filesystem::rename(From, To, OutErrorCode);
+	return OutErrorCode.value() == 0;
+}
+
+bool
+FileCopy(const FPath& From, const FPath& To, std::error_code& OutErrorCode)
+{
+	return std::filesystem::copy_file(From, To, OutErrorCode);
+}
+
+bool
+FileCopyOverwrite(const FPath& From, const FPath& To, std::error_code& OutErrorCode)
+{
+	return std::filesystem::copy_file(From, To, std::filesystem::copy_options::overwrite_existing, OutErrorCode);
+}
+
+bool
+FileRemove(const FPath& Path, std::error_code& OutErrorCode)
+{
+	return std::filesystem::remove(Path, OutErrorCode);
 }
 
 FMemReader::FMemReader(const uint8* InData, uint64 InDataSize) : Data(InData), Size(InDataSize)

@@ -459,14 +459,14 @@ TestFiles()
 	// TODO: test different chunk modes
 	const EChunkingAlgorithmID ChunkingMode = EChunkingAlgorithmID::FixedBlocks;
 
-	fs::path TempDirPath = fs::temp_directory_path() / "unsync_test";
-	fs::create_directories(TempDirPath);
+	FPath TempDirPath = std::filesystem::temp_directory_path() / "unsync_test";
+	CreateDirectories(TempDirPath);
 
-	bool bDirectoryExists = fs::exists(TempDirPath) && fs::is_directory(TempDirPath);
+	bool bDirectoryExists = PathExists(TempDirPath) && IsDirectory(TempDirPath);
 	UNSYNC_ASSERT(bDirectoryExists);
 
-	fs::path TestFilename = TempDirPath / "a.bin";
-	uint64	 TestFileSize = 32'489'595;
+	FPath  TestFilename = TempDirPath / "a.bin";
+	uint64 TestFileSize = 32'489'595;
 
 	std::unique_ptr<uint8> TempBuffer = std::unique_ptr<uint8>(new uint8[TestFileSize]);
 

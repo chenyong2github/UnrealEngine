@@ -116,7 +116,7 @@ ToGenericBlock(const std::vector<BlockType>& Blocks, EHashType HashType)
 }
 
 bool
-SaveBlocks(const std::vector<FBlock128>& Blocks, uint32 BlockSize, const fs::path& Filename)
+SaveBlocks(const std::vector<FBlock128>& Blocks, uint32 BlockSize, const FPath& Filename)
 {
 	const uint64 OutputSize = sizeof(FBlockFileHeader) + sizeof(FBlock128) * Blocks.size();
 
@@ -148,7 +148,7 @@ SaveBlocks(const std::vector<FBlock128>& Blocks, uint32 BlockSize, const fs::pat
 }
 
 bool
-LoadBlocks(FGenericBlockArray& OutBlocks, uint32& OutBlockSize, const fs::path& Filename)
+LoadBlocks(FGenericBlockArray& OutBlocks, uint32& OutBlockSize, const FPath& Filename)
 {
 	UNSYNC_LOG_INDENT;
 
@@ -317,7 +317,7 @@ SaveMacroBlocks(const FDirectoryManifest& Manifest)
 }
 
 bool  // TODO: return a TResult
-LoadDirectoryManifest(FDirectoryManifest& OutManifest, const fs::path& Root, FIOReaderStream& Stream)
+LoadDirectoryManifest(FDirectoryManifest& OutManifest, const FPath& Root, FIOReaderStream& Stream)
 {
 	OutManifest = FDirectoryManifest();
 
@@ -498,7 +498,7 @@ LoadDirectoryManifest(FDirectoryManifest& OutManifest, const fs::path& Root, FIO
 }
 
 bool  // TODO: return a TResult
-LoadDirectoryManifest(FDirectoryManifest& OutManifest, const fs::path& Root, const fs::path& ManifestFilename)
+LoadDirectoryManifest(FDirectoryManifest& OutManifest, const FPath& Root, const FPath& ManifestFilename)
 {
 	// TODO: use compact binary to store the manifest
 	UNSYNC_LOG_INDENT;
@@ -624,7 +624,7 @@ SaveDirectoryManifest(const FDirectoryManifest& Manifest, FVectorStreamOut& Stre
 }
 
 bool
-SaveDirectoryManifest(const FDirectoryManifest& Manifest, const fs::path& Filename)
+SaveDirectoryManifest(const FDirectoryManifest& Manifest, const FPath& Filename)
 {
 	FBuffer			 OutputBuffer;
 	FVectorStreamOut OutputStream(OutputBuffer);

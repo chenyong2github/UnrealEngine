@@ -14,16 +14,15 @@ CmdHash(const FCmdHashOptions& Options)
 	{
 		UNSYNC_VERBOSE(L"'%ls' is a directory", Options.Input.wstring().c_str());
 
-		fs::path InputRoot	  = Options.Input;
-		fs::path ManifestRoot = InputRoot / ".unsync";
-		fs::path DirectoryManifestPath;
+		FPath InputRoot	   = Options.Input;
+		FPath ManifestRoot = InputRoot / ".unsync";
+		FPath DirectoryManifestPath;
 
 		if (Options.Output.empty())
 		{
 			DirectoryManifestPath = ManifestRoot / "manifest.bin";
 
-			bool bDirectoryExists =
-				(fs::exists(ManifestRoot) && fs::is_directory(ManifestRoot)) || (GDryRun || fs::create_directories(ManifestRoot));
+			bool bDirectoryExists = (PathExists(ManifestRoot) && IsDirectory(ManifestRoot)) || (GDryRun || CreateDirectories(ManifestRoot));
 
 			if (!bDirectoryExists && !GDryRun)
 			{
@@ -66,7 +65,7 @@ CmdHash(const FCmdHashOptions& Options)
 			UNSYNC_VERBOSE(L"Computing blocks for '%ls' (%.2f MB)", Options.Input.wstring().c_str(), SizeMb(OverlappedFile.GetSize()));
 			FGenericBlockArray GenericBlocks = ComputeBlocks(OverlappedFile, Options.BlockSize, Options.Algorithm);
 
-			fs::path OutputFilename = Options.Output;
+			FPath OutputFilename = Options.Output;
 			if (OutputFilename.empty())
 			{
 				OutputFilename = Options.Input.wstring() + std::wstring(L".unsync");

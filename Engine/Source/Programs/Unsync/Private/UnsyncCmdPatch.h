@@ -9,9 +9,9 @@ namespace unsync {
 
 struct FCmdPatchOptions
 {
-	fs::path Base;
-	fs::path Patch;
-	fs::path Output;
+	FPath Base;
+	FPath Patch;
+	FPath Output;
 };
 
 int32 CmdPatch(const FCmdPatchOptions& Options);

@@ -158,7 +158,7 @@ struct FIOReaderWriter : FIOReader, FIOWriter
 #if UNSYNC_PLATFORM_WINDOWS
 struct FWindowsFile : FIOReaderWriter
 {
-	FWindowsFile(const fs::path& Filename, EFileMode Mode = EFileMode::ReadOnly, uint64 InSize = 0);
+	FWindowsFile(const FPath& Filename, EFileMode Mode = EFileMode::ReadOnly, uint64 InSize = 0);
 	~FWindowsFile();
 
 	// IOBase
@@ -194,7 +194,7 @@ struct FWindowsFile : FIOReaderWriter
 	};
 	Command Commands[NUM_QUEUES] = {};
 
-	fs::path Filename;
+	FPath Filename;
 
 	static constexpr uint32 UNBUFFERED_READ_ALIGNMENT = 4096;
 
@@ -211,7 +211,7 @@ using NativeFile = FWindowsFile;
 #if UNSYNC_PLATFORM_UNIX
 struct FUnixFile : FIOReaderWriter
 {
-	FUnixFile(const fs::path& InFilename, EFileMode InMode = EFileMode::ReadOnly, uint64 InSize = 0);
+	FUnixFile(const FPath& InFilename, EFileMode InMode = EFileMode::ReadOnly, uint64 InSize = 0);
 	~FUnixFile();
 
 	// IOBase
@@ -232,7 +232,7 @@ struct FUnixFile : FIOReaderWriter
 	uint64 FileSize	 = 0;
 	int32  LastError = 0;
 
-	fs::path Filename;
+	FPath Filename;
 
 	static constexpr uint32 UNBUFFERED_READ_ALIGNMENT = 4096;
 
@@ -421,9 +421,9 @@ struct FIOReaderStream
 	uint64	   Offset = 0;
 };
 
-FBuffer ReadFileToBuffer(const fs::path& Filename);
-bool	WriteBufferToFile(const fs::path& Filename, const uint8* Data, uint64 Size);
-bool	WriteBufferToFile(const fs::path& Filename, const FBuffer& Buffer);
+FBuffer ReadFileToBuffer(const FPath& Filename);
+bool	WriteBufferToFile(const FPath& Filename, const uint8* Data, uint64 Size);
+bool	WriteBufferToFile(const FPath& Filename, const FBuffer& Buffer);
 
 struct FileAttributes
 {
@@ -436,19 +436,26 @@ struct FileAttributes
 
 struct FFileAttributeCache
 {
-	std::unordered_map<fs::path::string_type, FileAttributes> Map;
+	std::unordered_map<FPath::string_type, FileAttributes> Map;
 
-	const bool Exists(const fs::path& Path) const;
+	const bool Exists(const FPath& Path) const;
 };
 
-FileAttributes GetFileAttrib(const fs::path& Path, FFileAttributeCache* AttribCache = nullptr);
-bool		   SetFileMtime(const fs::path& Path, uint64 Mtime);
-bool		   SetFileReadOnly(const fs::path& Path, bool ReadOnly);
-bool		   IsDirectory(const fs::path& Path);
+FileAttributes GetFileAttrib(const FPath& Path, FFileAttributeCache* AttribCache = nullptr);
+bool		   SetFileMtime(const FPath& Path, uint64 Mtime);
+bool		   SetFileReadOnly(const FPath& Path, bool ReadOnly);
+bool		   IsDirectory(const FPath& Path);
+bool		   PathExists(const FPath& Path);
+bool		   PathExists(const FPath& Path, std::error_code& OutErrorCode);
+bool		   CreateDirectories(const FPath& Path);
+bool		   FileRename(const FPath& From, const FPath& To, std::error_code& OutErrorCode);
+bool		   FileCopy(const FPath& From, const FPath& To, std::error_code& OutErrorCode);
+bool		   FileCopyOverwrite(const FPath& From, const FPath& To, std::error_code& OutErrorCode);
+bool		   FileRemove(const FPath& Path, std::error_code& OutErrorCode);
 
-uint64 ToWindowsFileTime(const fs::file_time_type& T);
+uint64 ToWindowsFileTime(const std::filesystem::file_time_type& T);
 
 struct FSyncFilter;
-FFileAttributeCache CreateFileAttributeCache(const fs::path& Root, const FSyncFilter* SyncFilter = nullptr);
+FFileAttributeCache CreateFileAttributeCache(const FPath& Root, const FSyncFilter* SyncFilter = nullptr);
 
 }  // namespace unsync

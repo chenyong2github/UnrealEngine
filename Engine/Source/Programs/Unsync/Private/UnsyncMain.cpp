@@ -276,7 +276,7 @@ InnerMain(int Argc, char** Argv)
 	{
 		// Derive remote server address from source name if explicit --proxy or --remote option is not provided for sync command.
 
-		if (Cli.got_subcommand(SubSync) && !fs::exists(SourceFilenameUtf8))
+		if (Cli.got_subcommand(SubSync) && !PathExists(SourceFilenameUtf8))
 		{
 			TResult<FRemoteDesc> ParsedRemoteDesc = FRemoteDesc::FromUrl(SourceFilenameUtf8);
 			if (ParsedRemoteDesc.IsOk())
@@ -320,14 +320,14 @@ InnerMain(int Argc, char** Argv)
 		}
 	}
 
-	fs::path InputFilename			= NormalizeFilenameUtf8(InputFilenameUtf8);
-	fs::path InputFilename2			= NormalizeFilenameUtf8(InputFilename2Utf8);
-	fs::path OutputFilename			= NormalizeFilenameUtf8(OutputFilenameUtf8);
-	fs::path BaseFilename			= NormalizeFilenameUtf8(BaseFilenameUtf8);
-	fs::path SourceFilename			= NormalizeFilenameUtf8(SourceFilenameUtf8);
-	fs::path TargetFilename			= NormalizeFilenameUtf8(TargetFilenameUtf8);
-	fs::path PatchFilename			= NormalizeFilenameUtf8(PatchFilenameUtf8);
-	fs::path SourceManifestFilename = NormalizeFilenameUtf8(SourceManifestFilenameUtf8);
+	FPath InputFilename			 = NormalizeFilenameUtf8(InputFilenameUtf8);
+	FPath InputFilename2		 = NormalizeFilenameUtf8(InputFilename2Utf8);
+	FPath OutputFilename		 = NormalizeFilenameUtf8(OutputFilenameUtf8);
+	FPath BaseFilename			 = NormalizeFilenameUtf8(BaseFilenameUtf8);
+	FPath SourceFilename		 = NormalizeFilenameUtf8(SourceFilenameUtf8);
+	FPath TargetFilename		 = NormalizeFilenameUtf8(TargetFilenameUtf8);
+	FPath PatchFilename			 = NormalizeFilenameUtf8(PatchFilenameUtf8);
+	FPath SourceManifestFilename = NormalizeFilenameUtf8(SourceManifestFilenameUtf8);
 
 	UNSYNC_VERBOSE(L"UNSYNC %hs", GetVersionString().c_str());
 
@@ -458,7 +458,7 @@ InnerMain(int Argc, char** Argv)
 
 			FDfsAlias DfsAlias;
 			DfsAlias.Source = DfsEntries.Root;
-			DfsAlias.Target = fs::path(L"\\\\") / FoundDfsStorage->Server / FoundDfsStorage->Share;
+			DfsAlias.Target = FPath(L"\\\\") / FoundDfsStorage->Server / FoundDfsStorage->Share;
 
 			UNSYNC_VERBOSE(L"Using DFS alias '%ls' -> '%ls'", DfsAlias.Source.wstring().c_str(), DfsAlias.Target.wstring().c_str());
 
@@ -471,8 +471,8 @@ InnerMain(int Argc, char** Argv)
 
 	if (!HttpHeaderFilenameUtf8.empty())
 	{
-		fs::path Filename		   = NormalizeFilenameUtf8(HttpHeaderFilenameUtf8);
-		FBuffer	 HttpHeadersBuffer = ReadFileToBuffer(Filename);
+		FPath	Filename		  = NormalizeFilenameUtf8(HttpHeaderFilenameUtf8);
+		FBuffer HttpHeadersBuffer = ReadFileToBuffer(Filename);
 
 		const uint8 Bom[2] = {0xFF, 0xFE};
 		if (HttpHeadersBuffer.Size() > 2 && !memcmp(HttpHeadersBuffer.Data(), Bom, 2))
@@ -504,8 +504,8 @@ InnerMain(int Argc, char** Argv)
 
 	if (!CacertFilenameUtf8.empty())
 	{
-		fs::path CacertPath	  = NormalizeFilenameUtf8(CacertFilenameUtf8);
-		FBuffer	 CacertBuffer = ReadFileToBuffer(CacertPath);
+		FPath	CacertPath	 = NormalizeFilenameUtf8(CacertFilenameUtf8);
+		FBuffer CacertBuffer = ReadFileToBuffer(CacertPath);
 
 		RemoteDesc.TlsCacert = std::make_shared<FBuffer>(std::move(CacertBuffer));
 	}
@@ -585,7 +585,7 @@ InnerMain(int Argc, char** Argv)
 	else if (Cli.got_subcommand(SubQuery))
 	{
 		FCmdQueryOptions QueryOptions;
-		QueryOptions.Query  = QueryStringUtf8;
+		QueryOptions.Query	= QueryStringUtf8;
 		QueryOptions.Remote = RemoteDesc;
 		return CmdQuery(QueryOptions);
 	}

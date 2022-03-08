@@ -12,9 +12,9 @@ struct FCmdSyncOptions
 {
 	FAlgorithmOptions Algorithm;
 
-	fs::path Source;
-	fs::path Target;
-	fs::path SourceManifestOverride;
+	FPath Source;
+	FPath Target;
+	FPath SourceManifestOverride;
 
 	FRemoteDesc Remote;
 

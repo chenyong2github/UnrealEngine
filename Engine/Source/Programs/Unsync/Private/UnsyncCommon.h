@@ -20,7 +20,7 @@ using int16 = int16_t;
 using int32 = int32_t;
 using int64 = int64_t;
 
-namespace fs = std::filesystem;
+using FPath = std::filesystem::path;
 
 #define UNSYNC_DISALLOW_COPY_ASSIGN(T) \
 	T(const T&) = delete;              \

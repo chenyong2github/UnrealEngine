@@ -10,7 +10,7 @@ namespace unsync {
 
 struct FCmdPushOptions
 {
-	fs::path	Input;
+	FPath		Input;
 	FRemoteDesc Remote;
 };
 

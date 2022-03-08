@@ -320,16 +320,16 @@ LogError(const FError& E)
 	}
 }
 
-static fs::path GCrashDumpPath;
+static FPath GCrashDumpPath;
 void
-SetCrashDumpPath(const fs::path& Path)
+SetCrashDumpPath(const FPath& Path)
 {
 	std::lock_guard<std::mutex> LockGuard(GLogMutex);
 	GCrashDumpPath = Path;
 }
 
 bool
-get_crash_dump_path(fs::path& OutPath)
+get_crash_dump_path(FPath& OutPath)
 {
 	std::lock_guard<std::mutex> LockGuard(GLogMutex);
 	if (GCrashDumpPath.empty())
@@ -350,7 +350,7 @@ LogWriteCrashDump(void* InExceptionPointers)
 
 	_EXCEPTION_POINTERS* ExceptionPointers = (_EXCEPTION_POINTERS*)InExceptionPointers;
 
-	fs::path CrashDumpPath;
+	FPath CrashDumpPath;
 	if (!get_crash_dump_path(CrashDumpPath))
 	{
 		return false;
@@ -359,7 +359,7 @@ LogWriteCrashDump(void* InExceptionPointers)
 	wchar_t DumpFilename[4096] = {};
 	uint64	Timestamp		   = TimePointNow().time_since_epoch().count();
 	swprintf_s(DumpFilename, L"unsync-%016llX.dmp", Timestamp);
-	fs::path CrashDumpFilename = CrashDumpPath / fs::path(DumpFilename);
+	FPath CrashDumpFilename = CrashDumpPath / FPath(DumpFilename);
 
 	LogPrintf(ELogLevel::Info, L"!!! Writing crash dump to '%ls'\n", CrashDumpFilename.wstring().c_str());
 
