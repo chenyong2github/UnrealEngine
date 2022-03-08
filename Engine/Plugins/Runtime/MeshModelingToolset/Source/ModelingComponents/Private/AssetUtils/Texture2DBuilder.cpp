@@ -57,6 +57,76 @@ bool FTexture2DBuilder::InitializeAndReplaceExistingTexture(UTexture2D* Existing
 }
 
 
+bool FTexture2DBuilder::InitializeAndReplaceExistingTexture(UTexture2D* ExistingTexture, UTexture2D* SourceTexture)
+{
+	if (!ExistingTexture || !SourceTexture)
+	{
+		return false;
+	}
+
+	// create new texture
+	const EPixelFormat InFormat = SourceTexture->GetPixelFormat();
+
+	int32 InSizeX = SourceTexture->GetSizeX();
+	int32 InSizeY = SourceTexture->GetSizeY();
+
+	if (ensureMsgf(InSizeX > 0 && InSizeY > 0 &&
+		(InSizeX % GPixelFormats[InFormat].BlockSizeX) == 0 &&
+		(InSizeY % GPixelFormats[InFormat].BlockSizeY) == 0, TEXT("Invalid size and/or pixel format for new texture")))
+	{
+		UTexture2D* NewTexture = NewObject<UTexture2D>(
+			ExistingTexture->GetOuter(),
+			ExistingTexture->GetFName(),
+			ExistingTexture->GetFlags()
+			);
+
+		NewTexture->SetPlatformData(new FTexturePlatformData());
+		NewTexture->GetPlatformData()->SizeX = InSizeX;
+		NewTexture->GetPlatformData()->SizeY = InSizeY;
+		NewTexture->GetPlatformData()->PixelFormat = InFormat;
+
+		// Allocate first mipmap.
+		const int32 NumBlocksX = InSizeX / GPixelFormats[InFormat].BlockSizeX;
+		const int32 NumBlocksY = InSizeY / GPixelFormats[InFormat].BlockSizeY;
+		FTexture2DMipMap* Mip = new FTexture2DMipMap();
+		NewTexture->GetPlatformData()->Mips.Add(Mip);
+		Mip->SizeX = InSizeX;
+		Mip->SizeY = InSizeY;
+		Mip->BulkData.Lock(LOCK_READ_WRITE);
+		Mip->BulkData.Realloc(NumBlocksX * NumBlocksY * GPixelFormats[InFormat].BlockBytes);
+		Mip->BulkData.Unlock();
+
+		// Initialize texture settings from SourceTexture.
+		NewTexture->SRGB = SourceTexture->SRGB;
+		NewTexture->CompressionSettings = SourceTexture->CompressionSettings;
+		NewTexture->LODGroup = SourceTexture->LODGroup;
+#if WITH_EDITOR
+		NewTexture->MipGenSettings = SourceTexture->MipGenSettings;
+#endif
+		NewTexture->UpdateResource();
+
+		BuildType = ETextureType::Color; // This will only be used to determine clear color.
+		Dimensions = FImageDimensions(InSizeX, InSizeY);
+		RawTexture2D = NewTexture;
+		CurrentPixelFormat = InFormat;
+
+		// lock
+		if (LockForEditing() == false)
+		{
+			return false;
+		}
+
+		if (IsEditable())
+		{
+			Clear();
+		}
+		return true;
+	}
+	
+	return false;
+}
+
+
 bool FTexture2DBuilder::InitializeInternal(ETextureType BuildTypeIn, FImageDimensions DimensionsIn, UTexture2D* CreatedTextureIn)
 {
 	check(DimensionsIn.IsSquare());

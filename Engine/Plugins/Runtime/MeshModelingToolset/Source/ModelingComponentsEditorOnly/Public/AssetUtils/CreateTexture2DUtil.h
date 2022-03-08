@@ -11,7 +11,7 @@ namespace UE
 namespace AssetUtils
 {
 	/**
-	 * Result enum returned by Create() functions below to indicate succes/error conditions
+	 * Result enum returned by Create() functions below to indicate success/error conditions
 	 */
 	enum class ECreateTexture2DResult
 	{
@@ -19,6 +19,7 @@ namespace AssetUtils
 		InvalidPackage = 1,
 		InvalidInputTexture = 2,
 		NameError = 3,
+		OverwriteTypeError = 4,
 
 		UnknownError = 100
 	};
@@ -34,6 +35,9 @@ namespace AssetUtils
 		FString NewAssetPath;
 
 		bool bDeferPostEditChange = false;
+
+		// if NewAssetPath already exists, update the existing Texture2D.
+		bool bOverwriteIfExists = false;
 	};
 
 	/**

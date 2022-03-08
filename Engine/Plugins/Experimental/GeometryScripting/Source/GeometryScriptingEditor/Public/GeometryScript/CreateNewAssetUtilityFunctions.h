@@ -65,6 +65,15 @@ public:
 };
 
 
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGEDITOR_API FGeometryScriptCreateNewTexture2DAssetOptions
+{
+	GENERATED_BODY()
+public:
+	/** If true, overwrite any existing texture assets using the same AssetPathAndName */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bOverwriteIfExists = false;
+};
 
 
 UCLASS(meta = (ScriptName = "GeometryScript_NewAssetUtils"))
@@ -102,6 +111,15 @@ public:
 		UDynamicMesh* FromDynamicMesh, 
 		FString AssetPathAndName,
 		FGeometryScriptCreateNewStaticMeshAssetOptions Options,
+		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|AssetManagement", meta = (ExpandEnumAsExecs = "Outcome"))
+	static UPARAM(DisplayName = "Texture 2D Asset") UTexture2D* 
+	CreateNewTexture2DAsset(
+		UTexture2D* FromTexture, 
+		FString AssetPathAndName,
+		FGeometryScriptCreateNewTexture2DAssetOptions Options,
 		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 

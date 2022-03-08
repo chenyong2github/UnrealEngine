@@ -113,6 +113,14 @@ public:
 
 
 	/**
+	 * Create a new UTexture2D 'over' an existing UTexture2D using the same texture settings
+	 * as a given source UTexture2D. This method only initializes the texture settings of ExistingTexture
+	 * to match those of SourceTexture. To populate texture data, use Copy(..).
+	 */
+	bool InitializeAndReplaceExistingTexture(UTexture2D* ExistingTexture, UTexture2D* SourceTexture);
+
+
+	/**
 	 * Lock the Mip 0 buffer for editing
 	 * @return true if lock was successfull. Will return false if already locked.
 	 */
