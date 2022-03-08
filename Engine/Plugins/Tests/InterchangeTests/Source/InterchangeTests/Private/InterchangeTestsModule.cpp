@@ -29,32 +29,6 @@ void FInterchangeTestsModule::StartupModule()
 }
 
 
-TArray<FString> FInterchangeTestsModule::GetImportTests() const
-{
-	const UInterchangeImportTestSettings* Settings = GetDefault<UInterchangeImportTestSettings>();
-	FString ContentDir = FPaths::ProjectContentDir();
-	FString Path = FPaths::Combine(ContentDir, Settings->ImportTestsPath);
-
-	TArray<FString> FilesInDirectory;
-	const bool bFindFiles = true;
-	const bool bFindDirectories = false;
-	IFileManager::Get().FindFilesRecursive(FilesInDirectory, *Path, TEXT("*.*"), bFindFiles, bFindDirectories);
-
-	TArray<FString> Results;
-	Results.Reserve(FilesInDirectory.Num());
-
-	for (FString& File : FilesInDirectory)
-	{
-		if (FPaths::GetExtension(File) == TEXT("json"))
-		{
-			Results.Emplace(MoveTemp(File));
-		}
-	}
-
-	return Results;
-}
-
-
 IMPLEMENT_MODULE(FInterchangeTestsModule, InterchangeTests);
 
 

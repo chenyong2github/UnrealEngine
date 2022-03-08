@@ -15,9 +15,6 @@ public:
 	static FInterchangeTestsModule& Get();
 	static bool IsAvailable();
 
-	/** Get a list of json files defining import tests */
-	TArray<FString> GetImportTests() const;
-
 private:
 	virtual void StartupModule() override;
 };
