@@ -100,7 +100,7 @@ function renderBranchList(data) {
 					$('<div>')
 					.text(botState.lastError.nodeBot + ' failed:')
 					.append($('<pre>').text(botState.lastError.error))
-					.append($restartButton)
+					// .append($restartButton)
 				);
 			}
 			else {
