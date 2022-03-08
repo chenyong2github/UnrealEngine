@@ -172,6 +172,18 @@ FText ULiveLinkBlueprintLibrary::GetSourceMachineName(UPARAM(ref) FLiveLinkSourc
 	}
 }
 
+FText ULiveLinkBlueprintLibrary::GetSourceTypeFromGuid(FGuid SourceGuid)
+{
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+	{
+		const ILiveLinkClient& LiveLinkClient = ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+
+		return LiveLinkClient.GetSourceType(SourceGuid);
+	}
+	return FText::GetEmpty();
+}
+
 TArray<FLiveLinkSubjectName> ULiveLinkBlueprintLibrary::GetLiveLinkEnabledSubjectNames(bool bIncludeVirtualSubject)
 {
 	TArray<FLiveLinkSubjectName> Result;

@@ -117,7 +117,14 @@ class LIVELINK_API ULiveLinkBlueprintLibrary : public UBlueprintFunctionLibrary
 	static FText GetSourceMachineName(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle);
 
 public:
-
+	/**
+	 * Get the type of a source from the given GUID
+	 * @param SourceGuid the GUID identifying the LiveLink Source
+	 * @return The type of the Source as Text
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LiveLink")
+	static FText GetSourceTypeFromGuid(FGuid SourceGuid);
+	
 	/** Get a list of all enabled subject names */
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
 	static TArray<FLiveLinkSubjectName> GetLiveLinkEnabledSubjectNames(bool bIncludeVirtualSubject);
