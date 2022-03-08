@@ -226,20 +226,17 @@ void FNiagaraSystemToolkitMode_Default::ExtendToolbar()
 			}
 			ToolbarBuilder.EndSection();
 
-			if ( GetDefault<UNiagaraEditorSettings>()->bEnableBaker )
+			ToolbarBuilder.BeginSection("Baker");
 			{
-				ToolbarBuilder.BeginSection("Baker");
-				{
-					ToolbarBuilder.AddComboButton(
-						FUIAction(),
-						FOnGetContent::CreateStatic(Local::GenerateBakerMenu, Toolkit),
-						LOCTEXT("Baker", "Baker"),
-						LOCTEXT("BakerTooltip", "Options for Baker rendering."),
-						FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Baker")
-					);
-				}
-				ToolbarBuilder.EndSection();
+				ToolbarBuilder.AddComboButton(
+					FUIAction(),
+					FOnGetContent::CreateStatic(Local::GenerateBakerMenu, Toolkit),
+					LOCTEXT("Baker", "Baker"),
+					LOCTEXT("BakerTooltip", "Options for Baker rendering."),
+					FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Baker")
+				);
 			}
+			ToolbarBuilder.EndSection();
 
 			if(GNiagaraScalabilityModeEnabled)
 			{

@@ -133,12 +133,9 @@ void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager>
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "Tab.ScriptStats"));
 
-	if (GetDefault<UNiagaraEditorSettings>()->bEnableBaker)
-	{
-		InTabManager->RegisterTabSpawner(BakerTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_Baker))
-			.SetDisplayName(LOCTEXT("NiagaraBakerTab", "Baker"))
-			.SetGroup(WorkspaceMenuCategory.ToSharedRef());
-	}
+	InTabManager->RegisterTabSpawner(BakerTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_Baker))
+		.SetDisplayName(LOCTEXT("NiagaraBakerTab", "Baker"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 }
 
 class SNiagaraSelectedEmitterGraph : public SCompoundWidget
