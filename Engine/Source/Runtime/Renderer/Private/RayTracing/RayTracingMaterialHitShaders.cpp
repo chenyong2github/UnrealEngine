@@ -441,7 +441,8 @@ bool FRayTracingMeshProcessor::TryAddMeshBatch(
 	if ((!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
 		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
 	{
-		if (RayTracingMeshCommandsMode == ERayTracingMeshCommandsMode::PATH_TRACING)
+		if (RayTracingMeshCommandsMode == ERayTracingMeshCommandsMode::PATH_TRACING ||
+			RayTracingMeshCommandsMode == ERayTracingMeshCommandsMode::LIGHTMAP_TRACING)
 		{
 			// Path Tracer has its own process call so that it can attach its own material permutation
 			return ProcessPathTracing(MeshBatch, BatchElementMask, PrimitiveSceneProxy, MaterialRenderProxy, Material);

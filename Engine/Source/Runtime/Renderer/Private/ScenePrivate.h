@@ -2671,7 +2671,8 @@ struct FMeshComputeDispatchCommand
 
 enum class ERayTracingMeshCommandsMode : uint8 {
 	RAY_TRACING,
-	PATH_TRACING
+	PATH_TRACING,
+	LIGHTMAP_TRACING,
 };
 
 #endif

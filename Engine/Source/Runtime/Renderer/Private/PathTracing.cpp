@@ -567,6 +567,7 @@ class FPathTracingBuildLightGridCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		// shared with GPULightmass
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
@@ -758,7 +759,7 @@ IMPLEMENT_SHADER_TYPE(, FPathTracingBuildAtmosphereOpticalDepthLUTCS, TEXT("/Eng
 
 
 
-template<bool UseAnyHitShader, bool UseIntersectionShader>
+template<bool UseAnyHitShader, bool UseIntersectionShader, bool UseSimplifiedShader>
 class TPathTracingMaterial : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(TPathTracingMaterial, MeshMaterial);
@@ -771,11 +772,39 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		if (!ShouldCompileRayTracingShadersForProject(Parameters.Platform))
+		{
+			// is raytracing enabled at all?
+			return false;
+		}
+		if (!Parameters.VertexFactoryType->SupportsRayTracing())
+		{
+			// does the VF support ray tracing at all?
+			return false;
+		}
+		if ((Parameters.MaterialParameters.bIsMasked || Parameters.MaterialParameters.BlendMode != BLEND_Opaque) != UseAnyHitShader)
+		{
+			// the anyhit permutation is only required if the material is masked or has a non-opaque blend mode
+			return false;
+		}
 		const bool bUseProceduralPrimitive = Parameters.VertexFactoryType->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(Parameters.Platform);
-		return Parameters.VertexFactoryType->SupportsRayTracing()
-			&& (UseIntersectionShader == bUseProceduralPrimitive)
-			&& ((Parameters.MaterialParameters.bIsMasked || Parameters.MaterialParameters.BlendMode != BLEND_Opaque) == UseAnyHitShader)
-			&& ShouldCompilePathTracingShadersForProject(Parameters.Platform);
+		if (UseIntersectionShader != bUseProceduralPrimitive)
+		{
+			// only need to compile the intersection shader permutation if the VF actually requires it
+			return false;
+		}
+		if (UseSimplifiedShader)
+		{
+			// this is only used by GPULightmass
+			return EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData) &&
+				   Parameters.VertexFactoryType->SupportsLightmapBaking() &&
+				   FModuleManager::Get().IsModuleLoaded(TEXT("GPULightmass"));
+		}
+		else
+		{
+			// this is only used by the Path Tracer
+			return ShouldCompilePathTracingShadersForProject(Parameters.Platform);
+		}
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -785,7 +814,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("USE_MATERIAL_INTERSECTION_SHADER"), UseIntersectionShader ? 1 : 0);
 		OutEnvironment.SetDefine(TEXT("USE_RAYTRACED_TEXTURE_RAYCONE_LOD"), 0);
 		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1);
-		OutEnvironment.SetDefine(TEXT("SIMPLIFIED_MATERIAL_SHADER"), 0); // TODO: expose a permutation so we can unify with GPULightmass?
+		OutEnvironment.SetDefine(TEXT("SIMPLIFIED_MATERIAL_SHADER"), UseSimplifiedShader);
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
@@ -812,16 +841,24 @@ public:
 	}
 };
 
-using FPathTracingMaterialCHS        = TPathTracingMaterial<false, false>;
-using FPathTracingMaterialCHS_AHS    = TPathTracingMaterial<true , false>;
-using FPathTracingMaterialCHS_IS     = TPathTracingMaterial<false, true >;
-using FPathTracingMaterialCHS_AHS_IS = TPathTracingMaterial<true , true >;
+
+// TODO: It would be nice to avoid this template boilerplate and just use ordinary permutations. This would require allowing the FunctionName for the material to be dependent on the permutation somehow
+using FPathTracingMaterialCHS        = TPathTracingMaterial<false, false, false>;
+using FPathTracingMaterialCHS_AHS    = TPathTracingMaterial<true , false, false>;
+using FPathTracingMaterialCHS_IS     = TPathTracingMaterial<false, true , false>;
+using FPathTracingMaterialCHS_AHS_IS = TPathTracingMaterial<true , true , false>;
+
+// NOTE: lightmass doesn't work with intersection shader VFs at the moment, so avoid instantiating permutations that will never generate any shaders
+using FGPULightmassCHS               = TPathTracingMaterial<false, false, true>;
+using FGPULightmassCHS_AHS           = TPathTracingMaterial<true , false, true>;
 
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS       , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS   , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_IS    , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS intersection=MaterialIS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS_IS, TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS intersection=MaterialIS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS              , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS_AHS          , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
 
 
 
@@ -832,7 +869,54 @@ bool FRayTracingMeshProcessor::ProcessPathTracing(
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT MaterialResource)
 {
-	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
+
+	FMaterialShaderTypes ShaderTypes;
+
+	const bool bUseProceduralPrimitive = MeshBatch.VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() &&
+		FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform);
+	switch (RayTracingMeshCommandsMode)
+	{
+		case ERayTracingMeshCommandsMode::PATH_TRACING:
+		{
+			if (MaterialResource.IsMasked() || MaterialResource.GetBlendMode() != BLEND_Opaque)
+			{
+				if (bUseProceduralPrimitive)
+					ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS_IS>();
+				else
+					ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS>();
+			}
+			else
+			{
+				if (bUseProceduralPrimitive)
+					ShaderTypes.AddShaderType<FPathTracingMaterialCHS_IS>();
+				else
+					ShaderTypes.AddShaderType<FPathTracingMaterialCHS>();
+			}
+			break;
+		}
+		case ERayTracingMeshCommandsMode::LIGHTMAP_TRACING:
+		{
+			if (MaterialResource.IsMasked() || MaterialResource.GetBlendMode() != BLEND_Opaque)
+			{
+				ShaderTypes.AddShaderType<FGPULightmassCHS_AHS>();
+			}
+			else
+			{
+				ShaderTypes.AddShaderType<FGPULightmassCHS>();
+			}
+			break;
+		}
+		default:
+		{
+		    return false;
+		}
+	}
+
+	FMaterialShaders Shaders;
+	if (!MaterialResource.TryGetShaders(ShaderTypes, MeshBatch.VertexFactory->GetType(), Shaders))
+	{
+		return false;
+	}
 
 	TMeshProcessorShaders<
 		FMeshMaterialShader,
@@ -840,32 +924,10 @@ bool FRayTracingMeshProcessor::ProcessPathTracing(
 		FMeshMaterialShader,
 		FMeshMaterialShader,
 		FMeshMaterialShader> RayTracingShaders;
-
-	FMaterialShaderTypes ShaderTypes;
-
-	const bool bUseProceduralPrimitive = VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform);
-	if (MaterialResource.IsMasked() || MaterialResource.GetBlendMode() != BLEND_Opaque)
-	{
-		if (bUseProceduralPrimitive)
-			ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS_IS>();
-		else
-			ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS>();
-	}
-	else
-	{
-		if (bUseProceduralPrimitive)
-			ShaderTypes.AddShaderType<FPathTracingMaterialCHS_IS>();
-		else
-			ShaderTypes.AddShaderType<FPathTracingMaterialCHS>();
-	}
-
-	FMaterialShaders Shaders;
-	if (!MaterialResource.TryGetShaders(ShaderTypes, VertexFactory->GetType(), Shaders))
+	if (!Shaders.TryGetShader(SF_RayHitGroup, RayTracingShaders.RayHitGroupShader))
 	{
 		return false;
 	}
-
-	check(Shaders.TryGetShader(SF_RayHitGroup, RayTracingShaders.RayHitGroupShader));
 
 	TBasePassShaderElementData<FUniformLightMapPolicy> ShaderElementData(MeshBatch.LCI);
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, -1, true);
@@ -1487,15 +1549,12 @@ void FDeferredShadingSceneRenderer::PreparePathTracing(const FSceneViewFamily& V
 		&& ShouldCompilePathTracingShadersForProject(ViewFamily.GetShaderPlatform()))
 	{
 		// Declare all RayGen shaders that require material closest hit shaders to be bound
-		for (int CompactionType = 0; CompactionType < FPathTracingRG::FCompactionType::PermutationCount; CompactionType++)
+		const int CompactionType = CVarPathTracingCompaction.GetValueOnRenderThread();
+		FPathTracingRG::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FPathTracingRG::FCompactionType>(CompactionType);
+		FGlobalShaderPermutationParameters Parameters(FPathTracingRG::StaticGetTypeLayout().Name, ViewFamily.GetShaderPlatform(), PermutationVector.ToDimensionValueId());
+		if (FPathTracingRG::ShouldCompilePermutation(Parameters))
 		{
-			FPathTracingRG::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FPathTracingRG::FCompactionType>(CompactionType);
-			FGlobalShaderPermutationParameters Parameters(FPathTracingRG::StaticGetTypeLayout().Name, ViewFamily.GetShaderPlatform(), PermutationVector.ToDimensionValueId());
-			if (!FPathTracingRG::ShouldCompilePermutation(Parameters))
-			{
-				continue;
-			}
 			auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FPathTracingRG>(PermutationVector);
 			OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 		}

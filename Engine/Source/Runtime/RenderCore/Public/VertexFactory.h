@@ -103,6 +103,7 @@ enum class EVertexFactoryFlags : uint32
 	SupportsRayTracing                    = 1u << 9,
 	SupportsRayTracingDynamicGeometry     = 1u << 10,
 	SupportsRayTracingProceduralPrimitive = 1u << 11,
+	SupportsLightmapBaking                = 1u << 12
 };
 ENUM_CLASS_FLAGS(EVertexFactoryFlags);
 
@@ -405,6 +406,7 @@ public:
 	bool SupportsRayTracing() const                    { return HasFlags(EVertexFactoryFlags::SupportsRayTracing); }
 	bool SupportsRayTracingDynamicGeometry() const     { return HasFlags(EVertexFactoryFlags::SupportsRayTracingDynamicGeometry); }
 	bool SupportsRayTracingProceduralPrimitive() const { return HasFlags(EVertexFactoryFlags::SupportsRayTracingProceduralPrimitive); }
+	bool SupportsLightmapBaking() const                { return HasFlags(EVertexFactoryFlags::SupportsLightmapBaking); }
 
 	// Hash function.
 	friend uint32 GetTypeHash(const FVertexFactoryType* Type)
