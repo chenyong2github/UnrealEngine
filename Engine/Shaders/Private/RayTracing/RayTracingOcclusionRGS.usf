@@ -42,6 +42,7 @@ int2 PixelOffset;
 float TraceDistance;
 float LODTransitionStart;
 float LODTransitionEnd;
+float AvoidSelfIntersectionTraceDistance;
 uint bTransmissionSamplingDistanceCulling;
 uint TransmissionSamplingTechnique;
 uint RejectionSamplingTrials;
@@ -444,12 +445,43 @@ FOcclusionResult ComputeOcclusion(
 
 		uint RayFlagsForOpaque = bAcceptFirstHit != 0 ? RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH : 0;
 
-		FMinimalPayload MinimalPayload = TraceVisibilityRay(
+		FMinimalPayload MinimalPayload;
+
+#if AVOID_SELF_INTERSECTION_TRACE
+		{
+			RayDesc EpsilonRay = Ray;
+			EpsilonRay.TMax = AvoidSelfIntersectionTraceDistance;
+
+			if (Ray.TMax > Ray.TMin)
+			{
+				MinimalPayload = TraceVisibilityRay(
+					TLAS,
+					RayFlags | RayFlagsForOpaque | RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
+					RaytracingMask,
+					PixelCoord,
+					EpsilonRay);
+			}
+		}
+
+		if (!MinimalPayload.IsHit())
+		{
+			Ray.TMin = max(Ray.TMin, AvoidSelfIntersectionTraceDistance);
+
+			MinimalPayload = TraceVisibilityRay(
+				TLAS,
+				RayFlags | RayFlagsForOpaque,
+				RaytracingMask,
+				PixelCoord,
+				Ray);
+		}
+#else
+		MinimalPayload = TraceVisibilityRay(
 			TLAS,
 			RayFlags | RayFlagsForOpaque,
 			RaytracingMask,
 			PixelCoord,
 			Ray);
+#endif
 
 		#if USE_HAIR_LIGHTING
 		if (!ShadingDesc.bIsHair && bUseHairVoxel)
