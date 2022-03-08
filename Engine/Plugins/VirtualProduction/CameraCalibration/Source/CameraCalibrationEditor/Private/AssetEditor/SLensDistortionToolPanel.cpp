@@ -5,7 +5,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CameraLensDistortionAlgo.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SCustomDialog.h"
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Engine/Selection.h"
@@ -206,7 +206,10 @@ TSharedRef<SWidget> SLensDistortionToolPanel::BuildAlgoPickerWidget()
 				TSharedRef< SCustomDialog> AlgoHelpWindow = 
 					SNew(SCustomDialog)
 					.Title(FText::FromName(Tool->FriendlyName()))
-					.DialogContent(Algo->BuildHelpWidget())
+					.Content()
+					[
+						Algo->BuildHelpWidget()
+					]
 					.Buttons({
 						SCustomDialog::FButton(LOCTEXT("Ok", "Ok")),
 					});

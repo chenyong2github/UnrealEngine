@@ -28,7 +28,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SCustomDialog.h"
 #include "SCheckBoxList.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphNode_Comment.h"
@@ -3985,7 +3985,10 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 		TSharedRef<SCustomDialog> CustomDialog = SNew(SCustomDialog)
 			.Title(LOCTEXT("DeleteUnusedVariablesDialog_Title", "Delete Unused Variables"))
 			.IconBrush("NotificationList.DefaultMessage")
-			.DialogContent(DialogContain)
+			.Content()
+			[
+				DialogContain
+			]
 			.Buttons(
 			{
 				SCustomDialog::FButton(LOCTEXT("DeleteUnusedVariablesDialog_ButtonDelete", "Delete")),

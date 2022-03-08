@@ -36,6 +36,7 @@ public class TakeRecorder : ModuleRules
 				"WorkspaceMenuStructure",
 				"Analytics",
 				"ToolMenus",
+				"ToolWidgets"
 			}
 		);
 

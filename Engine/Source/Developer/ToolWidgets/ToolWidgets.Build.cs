@@ -12,6 +12,7 @@ public class ToolWidgets : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"CoreUObject",
 				"Slate",
 				"SlateCore",
 				"InputCore",
@@ -20,6 +21,7 @@ public class ToolWidgets : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"ApplicationCore"
 			}
 		);
 

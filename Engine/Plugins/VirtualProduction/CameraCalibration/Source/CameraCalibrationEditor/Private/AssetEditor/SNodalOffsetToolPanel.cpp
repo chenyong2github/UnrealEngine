@@ -5,7 +5,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CameraNodalOffsetAlgo.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SCustomDialog.h"
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Engine/Selection.h"
@@ -205,7 +205,10 @@ TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetAlgoPickerWidget()
 				TSharedRef<SCustomDialog> AlgoHelpWindow =
 					SNew(SCustomDialog)
 					.Title(FText::FromName(NodalOffsetTool->FriendlyName()))
-					.DialogContent(Algo->BuildHelpWidget())
+					.Content()
+					[
+						Algo->BuildHelpWidget()
+					]
 					.Buttons({ SCustomDialog::FButton(LOCTEXT("Ok", "Ok")) });
 
 				AlgoHelpWindow->Show();

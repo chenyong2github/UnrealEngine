@@ -85,6 +85,7 @@ namespace UnrealBuildTool.Rules
 					"AdvancedPreviewScene",
 					"ToolWidgets",
                     "AnimationWidgets",
+                    "ToolWidgets"
 				}
             );
 

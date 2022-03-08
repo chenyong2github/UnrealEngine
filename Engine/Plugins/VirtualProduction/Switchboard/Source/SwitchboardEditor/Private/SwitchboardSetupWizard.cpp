@@ -5,7 +5,7 @@
 #include "SwitchboardEditorSettings.h"
 #include "SwitchboardEditorStyle.h"
 #include "SwitchboardScriptInterop.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SMessageDialog.h"
 #include "Editor.h"
 #include "ISinglePropertyView.h"
 #include "SPrimaryButton.h"
@@ -531,13 +531,9 @@ SSwitchboardSetupWizard::EInstallProgress SSwitchboardSetupWizard::GetProgress()
 
 bool SSwitchboardSetupWizard::ConfirmAndInterruptInstall()
 {
-	TSharedRef<SCustomDialog> ConfirmDialog = SNew(SCustomDialog)
+	TSharedRef<SMessageDialog> ConfirmDialog = SNew(SMessageDialog)
 		.Title(FText(LOCTEXT("Wizard_ConfirmInterruptInstall_WindowTitle", "Cancel Switchboard Installation?")))
-		.DialogContent(
-			SNew(STextBlock)
-			.Margin(FMargin(8.0f, 24.0f, 8.0f, 0.0f))
-			.Text(LOCTEXT("Wizard_ConfirmInterruptInstall_TextBlock", "Are you sure you want to cancel installation?\n\nSwitchboard requires these additional library/framework dependencies to launch."))
-		)
+		.Message(LOCTEXT("Wizard_ConfirmInterruptInstall_TextBlock", "Are you sure you want to cancel installation?\n\nSwitchboard requires these additional library/framework dependencies to launch."))
 		.Buttons({
 			SCustomDialog::FButton(LOCTEXT("Wizard_ConfirmInterruptInstall_CancelInstallButton", "Cancel Installation")),
 			SCustomDialog::FButton(LOCTEXT("Wizard_ConfirmInterruptInstall_ContinueInstallButton", "Continue Installation")),

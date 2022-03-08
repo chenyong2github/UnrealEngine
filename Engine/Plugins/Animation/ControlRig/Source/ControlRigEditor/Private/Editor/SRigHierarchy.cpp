@@ -36,7 +36,7 @@
 #include "IPersonaToolkit.h"
 #include "SKismetInspector.h"
 #include "Types/WidgetActiveTimerDelegate.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SCustomDialog.h"
 #include "EditMode/ControlRigEditMode.h"
 #include "ToolMenus.h"
 #include "ControlRigContextMenuContext.h"
@@ -1677,7 +1677,10 @@ void SRigHierarchy::HandleMirrorItem()
 
 		TSharedRef<SCustomDialog> MirrorDialog = SNew(SCustomDialog)
 			.Title(FText(LOCTEXT("ControlRigHierarchyMirror", "Mirror Selected Rig Elements")))
-			.DialogContent( KismetInspector)
+			.Content()
+			[
+				KismetInspector
+			]
 			.Buttons({
 				SCustomDialog::FButton(LOCTEXT("OK", "OK")),
 				SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))

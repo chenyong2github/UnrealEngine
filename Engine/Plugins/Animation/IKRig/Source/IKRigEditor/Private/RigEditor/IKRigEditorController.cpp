@@ -4,7 +4,7 @@
 
 #include "IPersonaToolkit.h"
 #include "SKismetInspector.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SCustomDialog.h"
 #include "Dialogs/Dialogs.h"
 
 #include "RigEditor/IKRigController.h"
@@ -474,7 +474,10 @@ bool FIKRigEditorController::PromptToAddSolver() const
 	
 	TSharedRef<SCustomDialog> AddSolverDialog = SNew(SCustomDialog)
 		.Title(FText(LOCTEXT("EditorController_IKRigFirstSolver", "Add Default Solver")))
-		.DialogContent(SolverOptionBox)
+		.Content()
+		[
+			SolverOptionBox
+		]
 		.Buttons({
 			SCustomDialog::FButton(LOCTEXT("OK", "OK")),
 			SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))

@@ -56,7 +56,7 @@
 #include "Modules/ModuleManager.h"
 #include "LevelEditor.h"
 #include "ISettingsModule.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SMessageDialog.h"
 
 extern UNREALED_API UEditorEngine* GEditor;
 
@@ -1006,9 +1006,9 @@ void STakeRecorderCockpit::CancelRecording()
 	UTakeRecorder* CurrentRecording = UTakeRecorder::GetActiveRecorder();
 	if (CurrentRecording)
 	{
-		TSharedRef<SCustomDialog> ConfirmDialog = SNew(SCustomDialog)
+		TSharedRef<SMessageDialog> ConfirmDialog = SNew(SMessageDialog)
 			.Title(FText(LOCTEXT("ConfirmCancelRecordingTitle", "Cancel Recording?")))
-			.DialogContent( SNew(STextBlock).Text(LOCTEXT("ConfirmCancelRecording", "Are you sure you want to cancel the current recording?")))
+			.Message(LOCTEXT("ConfirmCancelRecording", "Are you sure you want to cancel the current recording?"))
 			.Buttons({
 				SCustomDialog::FButton(LOCTEXT("Yes", "Yes"), FSimpleDelegate::CreateLambda([WeakRecording = TWeakObjectPtr<UTakeRecorder>(CurrentRecording)]()
 					{ 

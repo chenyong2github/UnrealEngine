@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SCustomDialog.h"
 
 DECLARE_DELEGATE_OneParam(FCloseCreationFormDelegate, const FText& /* Description */);
 

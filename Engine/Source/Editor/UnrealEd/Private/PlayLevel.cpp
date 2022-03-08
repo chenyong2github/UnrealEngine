@@ -96,7 +96,7 @@
 #include "Slate/SGameLayerManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Widgets/Input/SHyperlink.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SCustomDialog.h"
 
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
@@ -1535,7 +1535,10 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 	CustomDialog = SNew(SCustomDialog)
 		.Title(DialogTitle)
 		.IconBrush("NotificationList.DefaultMessage")
-		.DialogContent(DialogContents)
+		.Content()
+		[
+			DialogContents
+		]
 		.Buttons( { SCustomDialog::FButton(OKText), SCustomDialog::FButton(CancelText) } );
 
 	const int32 ButtonPressed = CustomDialog->ShowModal();

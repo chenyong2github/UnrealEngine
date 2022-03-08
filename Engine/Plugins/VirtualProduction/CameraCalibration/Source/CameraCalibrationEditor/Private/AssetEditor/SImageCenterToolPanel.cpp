@@ -3,7 +3,7 @@
 #include "SImageCenterToolPanel.h"
 
 #include "CameraCalibrationSubsystem.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SCustomDialog.h"
 #include "EditorFontGlyphs.h"
 #include "ImageCenterTool.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
@@ -194,7 +194,10 @@ TSharedRef<SWidget> SImageCenterToolPanel::BuildImageCenterAlgoPickerWidget()
 				TSharedRef<SCustomDialog> AlgoHelpWindow =
 					SNew(SCustomDialog)
 					.Title(FText::FromName(ImageCenterTool->FriendlyName()))
-					.DialogContent(Algo->BuildHelpWidget())
+					.Content()
+					[
+						Algo->BuildHelpWidget()
+					]
 					.Buttons({ SCustomDialog::FButton(LOCTEXT("Ok", "Ok")) });
 
 				AlgoHelpWindow->Show();

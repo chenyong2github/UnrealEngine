@@ -29,6 +29,7 @@ public class LedWallCalibrationEditor : ModuleRules
 				"Settings",
 				"Slate",
 				"SlateCore",
+				"ToolWidgets",
 				"UnrealEd",
 			}
 		);

@@ -199,6 +199,14 @@ template<typename WidgetType> struct TSlateBaseNamedArgs;
 		SLATE_PRIVATE_ARGUMENT_FUNCTION ( ArgType, ArgName )
 
 /**
+ * Use when an argument used to be declared SLATE_ARGUMENT and it should no longer be used
+ */
+#define SLATE_ARGUMENT_DEPRECATED( ArgType, ArgName, DeprecationVersion, DeprecationMessage) \
+	SLATE_PRIVATE_ARGUMENT_VARIABLE( ArgType, ArgName ); \
+	UE_DEPRECATED(DeprecationVersion, DeprecationMessage) \
+	SLATE_PRIVATE_ARGUMENT_FUNCTION ( ArgType, ArgName )
+
+/**
  * Like SLATE_ARGUMENT, but support a default value. e.g.
  * 
  * SLATE_ARGUMENT_DEFAULT(float, WheelScrollMultiplier) { 1.0f };

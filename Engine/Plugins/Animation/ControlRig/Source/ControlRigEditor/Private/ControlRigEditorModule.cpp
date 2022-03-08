@@ -113,7 +113,7 @@
 #include "AssetTypeActions_ControlRigPose.h"
 #include "ControlRigBlueprintFactory.h"
 #include "ControlRigPythonLogDetails.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SCustomDialog.h"
 #include "Sequencer/MovieSceneControlRigSpaceChannel.h"
 #include "SequencerChannelInterface.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -1895,7 +1895,10 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 							TSharedRef<SCustomDialog> MirrorDialog = SNew(SCustomDialog)
 								.Title(FText(LOCTEXT("ControlRigHierarchyMirror", "Mirror Graph")))
-								.DialogContent( KismetInspector)
+								.Content()
+								[
+									KismetInspector
+								]
 								.Buttons({
 									SCustomDialog::FButton(LOCTEXT("OK", "OK")),
 									SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))

@@ -3,7 +3,7 @@
 #include "CameraCalibrationWidgetHelpers.h"
 
 #include "AssetEditor/SSimulcamViewport.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SCustomDialog.h"
 #include "Engine/Texture2D.h"
 #include "Internationalization/Text.h"
 #include "Widgets/Layout/SBox.h"
@@ -70,15 +70,15 @@ void FCameraCalibrationWidgetHelpers::DisplayTextureInWindowAlmostFullScreen(UTe
 		SNew(SCustomDialog)
 		.Title(Title)
 		.ScrollBoxMaxHeight(DetectionWindowMaxHeight)
-		.DialogContent
-		(
+		.Content()
+		[
 			SAssignNew(ViewportWrapper, SBox)
 			.MinDesiredWidth(DetectionWindowMaxWidth)
 			.MinDesiredHeight(DetectionWindowMaxHeight)
 			[
 				SNew(SSimulcamViewport, Texture)
 			]
-		)
+		]
 		.Buttons
 		({
 			SCustomDialog::FButton(LOCTEXT("Ok", "Ok")),

@@ -25,7 +25,7 @@
 #include "ToolMenus.h"
 // Editor
 #include "Classes/EditorStyleSettings.h"
-#include "Dialogs/CustomDialog.h"
+#include "Dialog/SCustomDialog.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Frame/MainFrameActions.h"
 #include "LevelViewportActions.h"
@@ -195,7 +195,10 @@ bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFil
 					const FText CancelText = NSLOCTEXT("Dialogs", "EAppReturnTypeCancel", "Cancel");
 					TSharedRef<SCustomDialog> CustomDialog = SNew(SCustomDialog)
 						.Title(TextTitle)
-						.DialogContent(DialogContents)
+						.Content()
+						[
+							DialogContents
+						]
 						.Buttons({ SCustomDialog::FButton(PreserveValuesText), SCustomDialog::FButton(ClearValuesText), SCustomDialog::FButton(CancelText) });
 
 					// Returns 0 when "Preserve Values" is pressed, 1 when "Clear Values" is pressed, or 2 when Cancel/Esc is pressed
