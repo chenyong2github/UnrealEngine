@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Data/PCGVolumeData.h"
+#include "PCGHelpers.h"
 
 #include "Components/BrushComponent.h"
 #include "GameFramework/Volume.h"
@@ -45,9 +46,9 @@ float UPCGVolumeData::GetDensityAtPosition(const FVector& InPosition) const
 {
 	// TODO: support fall-off between 0-1 density as needed
 	// could use FBox::GetClosestPointTo
-	if (GetBounds().IsInside(InPosition))
+	if(PCGHelpers::IsInsideBounds(GetBounds(), InPosition))
 	{
-		if(!Volume || GetStrictBounds().IsInside(InPosition))
+		if(!Volume || PCGHelpers::IsInsideBounds(GetStrictBounds(), InPosition))
 		{
 			return 1.0f;
 		}

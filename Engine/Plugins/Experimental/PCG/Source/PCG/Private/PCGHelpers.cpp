@@ -27,6 +27,19 @@ namespace PCGHelpers
 		return ((A * 196314165U) + 907633515U) ^ ((B * 73148459U) + 453816763U) ^ ((C * 34731343U) + 453816743U);
 	}
 
+	bool IsInsideBounds(const FBox& InBox, const FVector& InPosition)
+	{
+		return (InPosition.X >= InBox.Min.X) && (InPosition.X < InBox.Max.X) &&
+			(InPosition.Y >= InBox.Min.Y) && (InPosition.Y < InBox.Max.Y) &&
+			(InPosition.Z >= InBox.Min.Z) && (InPosition.Z < InBox.Max.Z);
+	}
+
+	bool IsInsideBoundsXY(const FBox& InBox, const FVector& InPosition)
+	{
+		return (InPosition.X >= InBox.Min.X) && (InPosition.X < InBox.Max.X) &&
+			(InPosition.Y >= InBox.Min.Y) && (InPosition.Y < InBox.Max.Y);
+	}
+
 	FBox GetActorBounds(AActor* InActor)
 	{
 		// Specialized version of GetComponentsBoundingBox that skips over PCG generated components

@@ -3,6 +3,7 @@
 #include "Data/PCGIntersectionData.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
+#include "PCGHelpers.h"
 
 namespace PCGIntersectionDataMaths
 {
@@ -51,11 +52,11 @@ FBox UPCGIntersectionData::GetStrictBounds() const
 float UPCGIntersectionData::GetDensityAtPosition(const FVector& InPosition) const
 {
 	check(A && B);
-	if (!CachedBounds.IsInside(InPosition))
+	if(!PCGHelpers::IsInsideBounds(CachedBounds, InPosition))
 	{
 		return 0;
 	}
-	else if (CachedStrictBounds.IsInside(InPosition))
+	else if(PCGHelpers::IsInsideBounds(CachedStrictBounds, InPosition))
 	{
 		return 1.0f;
 	}

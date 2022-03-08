@@ -4,6 +4,7 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGUnionData.h"
 #include "Helpers/PCGAsync.h"
+#include "PCGHelpers.h"
 
 namespace PCGDifferenceDataUtils
 {
@@ -82,8 +83,8 @@ FBox UPCGDifferenceData::GetStrictBounds() const
 
 float UPCGDifferenceData::GetDensityAtPosition(const FVector& InPosition) const
 {
-	if (!Source->GetBounds().IsInside(InPosition) ||
-		(Difference && Difference->GetStrictBounds().IsInside(InPosition)))
+	if(!PCGHelpers::IsInsideBounds(Source->GetBounds(), InPosition) ||
+		(Difference && PCGHelpers::IsInsideBounds(Difference->GetStrictBounds(), InPosition)))
 	{
 		return 0;
 	}

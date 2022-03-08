@@ -3,6 +3,7 @@
 #include "Data/PCGUnionData.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
+#include "PCGHelpers.h"
 
 namespace PCGUnionDataMaths
 {
@@ -76,11 +77,11 @@ FBox UPCGUnionData::GetStrictBounds() const
 float UPCGUnionData::GetDensityAtPosition(const FVector& InPosition) const
 {
 	// Early exits
-	if (!CachedBounds.IsInside(InPosition))
+	if(!PCGHelpers::IsInsideBounds(CachedBounds, InPosition))
 	{
 		return 0;
 	}
-	else if (CachedStrictBounds.IsInside(InPosition))
+	else if(PCGHelpers::IsInsideBounds(CachedStrictBounds, InPosition))
 	{
 		return 1.0f;
 	}
@@ -90,7 +91,7 @@ float UPCGUnionData::GetDensityAtPosition(const FVector& InPosition) const
 	// the strict bounds twice per data, but it will perform better in the worst case.
 	for (int32 DataIndex = 0; DataIndex < Data.Num(); ++DataIndex)
 	{
-		if (Data[DataIndex]->GetStrictBounds().IsInside(InPosition))
+		if(PCGHelpers::IsInsideBounds(Data[DataIndex]->GetStrictBounds(), InPosition))
 		{
 			return 1.0f;
 		}

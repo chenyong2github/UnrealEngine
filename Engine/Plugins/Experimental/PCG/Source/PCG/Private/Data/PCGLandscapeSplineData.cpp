@@ -217,7 +217,7 @@ float UPCGLandscapeSplineData::GetDensityAtPosition(const FVector& InPosition) c
 	{
 		// Considering the landscape spline always exists on the landscape,
 		// we'll ignore the Z component of the input here for the bounds check.
-		if (!Segment->GetBounds().IsInsideXY(Position))
+		if(!PCGHelpers::IsInsideBoundsXY(Segment->GetBounds(), Position))
 		{
 			continue;
 		}

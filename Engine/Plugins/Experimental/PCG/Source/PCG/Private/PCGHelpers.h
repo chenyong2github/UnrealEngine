@@ -21,6 +21,9 @@ namespace PCGHelpers
 	int ComputeSeed(int A, int B);
 	int ComputeSeed(int A, int B, int C);
 
+	bool IsInsideBounds(const FBox& InBox, const FVector& InPosition);
+	bool IsInsideBoundsXY(const FBox& InBox, const FVector& InPosition);
+
 	FBox GetActorBounds(AActor* InActor);
 	FBox GetLandscapeBounds(ALandscapeProxy* InLandscape);
 
