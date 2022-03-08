@@ -12,6 +12,28 @@ namespace Interchange
 		{
 			namespace Nodes
 			{
+				namespace Add
+				{
+					const FName Name = TEXT("Add");
+
+					namespace Inputs
+					{
+						const FName A = TEXT("A");
+						const FName B = TEXT("B");
+					}
+				}
+
+				namespace FlattenNormal
+				{
+					const FName Name = TEXT("FlattenNormal");
+
+					namespace Inputs
+					{
+						const FName Normal = TEXT("Normal");
+						const FName Flatness = TEXT("Flatness");
+					}
+				}
+
 				namespace Lerp
 				{
 					const FName Name = TEXT("Lerp");
@@ -45,15 +67,30 @@ namespace Interchange
 					}
 				}
 
+				namespace TextureCoordinate
+				{
+					const FName Name = TEXT("TextureCoordinate");
+
+					namespace Inputs
+					{
+						const FName Index = TEXT("Index"); // Type: int
+						const FName UTiling = TEXT("UTiling"); // Type: float
+						const FName VTiling = TEXT("VTiling"); // Type: float
+						const FName Offset = TEXT("Offset"); // Type: vec2
+						const FName Scale = TEXT("Scale"); // Type: vec2
+						const FName Rotate = TEXT("Rotate"); // Type: float, Range: 0-1
+						const FName RotationCenter = TEXT("RotationCenter"); // Type: vec2
+					}
+				}
+
 				namespace TextureSample
 				{
 					const FName Name = TEXT("TextureSample");
 
 					namespace Inputs
 					{
+						const FName Coordinates = TEXT("Coordinates");
 						const FName Texture = TEXT("TextureUid"); // Type: FString (unique id of a texture node)
-						const FName UTiling = TEXT("UTiling"); // Type: float
-						const FName VTiling = TEXT("VTiling"); // Type: float
 					}
 
 					namespace Outputs
@@ -134,6 +171,17 @@ namespace Interchange
 				using namespace PBR::Parameters;
 
 				const FName TransmissionColor = TEXT("TransmissionColor"); // Type: vector3
+			}
+		}
+
+		namespace Sheen
+		{
+			namespace Parameters
+			{
+				using namespace PBR::Parameters;
+
+				const FName SheenColor = TEXT("SheenColor"); // Type: vector3
+				const FName SheenRoughness = TEXT("SheenRoughness"); // Type: float
 			}
 		}
 	}

@@ -109,9 +109,9 @@ namespace UE
 				// Handles max one texture per property.
 				if (TextureCount > 0)
 				{
-					FbxFileTexture* FbxTextureFilePath = Property.GetSrcObject<FbxFileTexture>(0);
+					FbxFileTexture* FbxTexture = Property.GetSrcObject<FbxFileTexture>(0);
 
-					FString TextureFilename = UTF8_TO_TCHAR(FbxTextureFilePath->GetFileName());
+					FString TextureFilename = UTF8_TO_TCHAR(FbxTexture->GetFileName());
 					FString TextureName = FPaths::GetBaseFilename(TextureFilename);
 
 					UInterchangeShaderNode* TextureSampleShader = NewObject<UInterchangeShaderNode>(&NodeContainer);
@@ -131,8 +131,23 @@ namespace UE
 					}
 
 					TextureSampleShader->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
-					TextureSampleShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::UTiling.ToString()), (float)FbxTextureFilePath->GetScaleU());
-					TextureSampleShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::VTiling.ToString()), (float)FbxTextureFilePath->GetScaleV());
+
+					if (!FMath::IsNearlyEqual(FbxTexture->GetScaleU(), 1.0) || !FMath::IsNearlyEqual(FbxTexture->GetScaleV(), 1.0))
+					{
+						UInterchangeShaderNode* TextureCoordinateShader = NewObject<UInterchangeShaderNode>(&NodeContainer);
+						TextureCoordinateShader->SetCustomShaderType(TextureCoordinate::Name.ToString());
+
+						FString TextureCoordinateShaderUid = TextureSampleShader->GetUniqueID() + TEXT("_Coordinate");
+						TextureCoordinateShader->InitializeNode(TextureCoordinateShaderUid, TextureName + TEXT("_Coordinate"), EInterchangeNodeContainerType::TranslatedAsset);
+
+						NodeContainer.AddNode(TextureCoordinateShader);
+						NodeContainer.SetNodeParentUid(TextureCoordinateShaderUid, ShaderGraphNode->GetUniqueID());
+
+						TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::UTiling.ToString()), (float)FbxTexture->GetScaleU());
+						TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::VTiling.ToString()), (float)FbxTexture->GetScaleV());
+
+						UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(TextureSampleShader, TextureSample::Inputs::Coordinates.ToString(), TextureCoordinateShaderUid);
+					}
 
 					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, TextureSampleShaderUid);
 
@@ -221,7 +236,7 @@ namespace UE
 								{
 									const float Factor = 1.f;
 									TVariant<FLinearColor, float> DefaultValue;
-									DefaultValue.Set<FLinearColor>(FLinearColor::Black);
+									DefaultValue.Set<FLinearColor>(FLinearColor(FVector::UpVector));
 									ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, Factor, Phong::Parameters::Normal, DefaultValue);
 								}
 								else if (PropertyName == FbxSurfaceMaterial::sTransparentColor)

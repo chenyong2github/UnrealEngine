@@ -109,6 +109,9 @@ namespace GLTF
 		struct FSheen
 		{
 			FVector SheenColorFactor = FVector::Zero();
+			FTextureMap SheenColorMap;
+			float SheenRoughnessFactor = 0.f;
+			FTextureMap SheenRoughnessMap;
 		};
 		struct FSpecular // "specular" extension
 		{

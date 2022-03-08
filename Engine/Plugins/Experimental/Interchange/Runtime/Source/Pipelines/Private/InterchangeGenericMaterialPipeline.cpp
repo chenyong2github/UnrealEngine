@@ -15,10 +15,13 @@
 #include "InterchangePipelineLog.h"
 #include "InterchangeSourceData.h"
 
+#include "Materials/MaterialExpressionAdd.h"
+#include "Materials/MaterialExpressionComponentMask.h"
 #include "Materials/MaterialExpressionDivide.h"
 #include "Materials/MaterialExpressionFresnel.h"
 #include "Materials/MaterialExpressionLinearInterpolate.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
+#include "Materials/MaterialExpressionMultiply.h"
 #include "Materials/MaterialExpressionOneMinus.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
@@ -130,6 +133,15 @@ bool UInterchangeGenericMaterialPipeline::IsClearCoatModel(const UInterchangeSha
 	const bool bHasClearCoatInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::ClearCoat);
 
 	return bHasClearCoatInput;
+}
+
+bool UInterchangeGenericMaterialPipeline::IsSheenModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+{
+	using namespace UE::Interchange::Materials::Sheen;
+
+	const bool bHasSheenColorInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::SheenColor);
+
+	return bHasSheenColorInput;
 }
 
 bool UInterchangeGenericMaterialPipeline::IsThinTranslucentModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
@@ -444,6 +456,62 @@ bool UInterchangeGenericMaterialPipeline::HandleClearCoat(const UInterchangeShad
 	return bShadingModelHandled;
 }
 
+bool UInterchangeGenericMaterialPipeline::HandleSheen(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
+{
+	using namespace UE::Interchange::Materials::Sheen;
+
+	bool bShadingModelHandled = false;
+
+	// Sheen Color
+	{
+		const bool bHasInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::SheenColor);
+
+		if (bHasInput)
+		{
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::SheenColor.ToString(), MaterialFactoryNode->GetUniqueID());
+
+			if (ExpressionFactoryNode.Get<0>())
+			{
+				MaterialFactoryNode->ConnectOutputToFuzzColor(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
+			}
+
+			bShadingModelHandled = true;
+		}
+	}
+
+	// Sheen Roughness
+	{
+		const bool bHasInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::SheenRoughness);
+
+		if (bHasInput)
+		{
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::SheenRoughness.ToString(), MaterialFactoryNode->GetUniqueID());
+
+			if (ExpressionFactoryNode.Get<0>())
+			{
+				UInterchangeMaterialExpressionFactoryNode* InverseSheenRoughnessNode =
+						CreateExpressionNode(TEXT("InverseSheenRoughness"), ExpressionFactoryNode.Get<0>()->GetUniqueID(), UMaterialExpressionOneMinus::StaticClass());
+
+				UInterchangeShaderPortsAPI::ConnectOuputToInput(InverseSheenRoughnessNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionOneMinus, Input).ToString(),
+					ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
+
+				MaterialFactoryNode->ConnectToCloth(InverseSheenRoughnessNode->GetUniqueID());
+			}
+
+			bShadingModelHandled = true;
+		}
+	}
+
+	if (bShadingModelHandled)
+	{
+		MaterialFactoryNode->SetCustomShadingModel(EMaterialShadingModel::MSM_Cloth);
+	}
+
+	return bShadingModelHandled;
+}
+
 bool UInterchangeGenericMaterialPipeline::HandleThinTranslucent(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
 {
 	using namespace UE::Interchange::Materials::ThinTranslucent;
@@ -617,7 +685,43 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 	}
 }
 
-void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialExpressionFactoryNode* TextureSampleFactoryNode)
+void UInterchangeGenericMaterialPipeline::HandleFlattenNormalNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode,
+	UInterchangeMaterialExpressionFactoryNode* FlattenNormalFactoryNode)
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes::FlattenNormal;
+
+	FlattenNormalFactoryNode->SetCustomExpressionClassName(UMaterialExpressionMaterialFunctionCall::StaticClass()->GetName());
+
+	const FString MaterialFunctionMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialFunctionCall, MaterialFunction).ToString();
+	FlattenNormalFactoryNode->AddStringAttribute(MaterialFunctionMemberName, TEXT("/Engine/Functions/Engine_MaterialFunctions01/Texturing/FlattenNormal.FlattenNormal"));
+	FlattenNormalFactoryNode->AddApplyAndFillDelegates<FString>(MaterialFunctionMemberName, UMaterialExpressionMaterialFunctionCall::StaticClass(), *MaterialFunctionMemberName);
+
+	// Normal
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> NormalExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Inputs::Normal.ToString(), FlattenNormalFactoryNode->GetUniqueID());
+
+		if (NormalExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(FlattenNormalFactoryNode, TEXT("Normal"),
+				NormalExpression.Get<0>()->GetUniqueID(), NormalExpression.Get<1>());
+		}
+	}
+
+	// Flatness
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> FlatnessExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Inputs::Flatness.ToString(), FlattenNormalFactoryNode->GetUniqueID());
+
+		if (FlatnessExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(FlattenNormalFactoryNode, TEXT("Flatness"),
+				FlatnessExpression.Get<0>()->GetUniqueID(), FlatnessExpression.Get<1>());
+		}
+	}
+}
+
+void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* TextureSampleFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Standard::Nodes::TextureSample;
 
@@ -673,36 +777,127 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 		}
 	}
 
-	HandleTextureCoordinates(ShaderNode, TextureSampleFactoryNode);
+	// Coordinates
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> CoordinatesExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Inputs::Coordinates.ToString(), TextureSampleFactoryNode->GetUniqueID());
+
+		if (CoordinatesExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(TextureSampleFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSample, Coordinates).ToString(),
+				CoordinatesExpression.Get<0>()->GetUniqueID(), CoordinatesExpression.Get<1>());
+		}
+	}
 }
 
-void UInterchangeGenericMaterialPipeline::HandleTextureCoordinates(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialExpressionFactoryNode* TextureSampleFactoryNode)
+void UInterchangeGenericMaterialPipeline::HandleTextureCoordinateNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode,
+	UInterchangeMaterialExpressionFactoryNode*& TexCoordFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Standard;
 
-	float UTilingValue = 1.f;
-	bool bHasUTiling = ShaderNode->GetFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Nodes::TextureSample::Inputs::UTiling.ToString()), UTilingValue);
-	bHasUTiling = bHasUTiling && (UTilingValue != GetDefault<UMaterialExpressionTextureCoordinate>()->UTiling);
+	TexCoordFactoryNode->SetCustomExpressionClassName(UMaterialExpressionTextureCoordinate::StaticClass()->GetName());
 
-	float VTilingValue = 1.f;
-	bool bHasVTiling = ShaderNode->GetFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Nodes::TextureSample::Inputs::VTiling.ToString()), VTilingValue);
-	bHasVTiling = bHasVTiling && (VTilingValue != GetDefault<UMaterialExpressionTextureCoordinate>()->VTiling);
-
-	if (bHasUTiling || bHasVTiling)
+	// Index
 	{
-		UInterchangeMaterialExpressionFactoryNode* TextureCoordinate = NewObject<UInterchangeMaterialExpressionFactoryNode>(BaseNodeContainer);
-		const FString TextureCoordinateUid = TextureSampleFactoryNode->GetUniqueID() + TEXT("Coordinate");
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> IndexExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Nodes::TextureCoordinate::Inputs::Index.ToString(), TexCoordFactoryNode->GetUniqueID());
 
-		TextureCoordinate->InitializeNode(TextureCoordinateUid, ShaderNode->GetDisplayLabel(), EInterchangeNodeContainerType::FactoryData);
-		BaseNodeContainer->AddNode(TextureCoordinate);
-		BaseNodeContainer->SetNodeParentUid(TextureCoordinateUid, TextureSampleFactoryNode->GetUniqueID());
+		if (IndexExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(TexCoordFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, CoordinateIndex).ToString(),
+				IndexExpression.Get<0>()->GetUniqueID(), IndexExpression.Get<1>());
+		}
+	}
 
-		TextureCoordinate->SetCustomExpressionClassName(UMaterialExpressionTextureCoordinate::StaticClass()->GetName());
+	// U tiling
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> UTilingExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Nodes::TextureCoordinate::Inputs::UTiling.ToString(), TexCoordFactoryNode->GetUniqueID());
 
-		TextureCoordinate->AddFloatAttribute(GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, UTiling).ToString(), UTilingValue);
-		TextureCoordinate->AddFloatAttribute(GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, VTiling).ToString(), VTilingValue);
+		if (UTilingExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(TexCoordFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, UTiling).ToString(),
+				UTilingExpression.Get<0>()->GetUniqueID(), UTilingExpression.Get<1>());
+		}
+	}
 
-		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(TextureSampleFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSample, Coordinates).ToString(), TextureCoordinate->GetUniqueID());
+	// V tiling
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> VTilingExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Nodes::TextureCoordinate::Inputs::VTiling.ToString(), TexCoordFactoryNode->GetUniqueID());
+
+		if (VTilingExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(TexCoordFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, VTiling).ToString(),
+				VTilingExpression.Get<0>()->GetUniqueID(), VTilingExpression.Get<1>());
+		}
+	}
+
+	// Scale
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ScaleExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Nodes::TextureCoordinate::Inputs::Scale.ToString(), TexCoordFactoryNode->GetUniqueID());
+
+		if (ScaleExpression.Get<0>())
+		{
+			UInterchangeMaterialExpressionFactoryNode* MultiplyExpression =
+				CreateExpressionNode(ScaleExpression.Get<0>()->GetDisplayLabel() + TEXT("_Multiply"), TexCoordFactoryNode->GetUniqueID(), UMaterialExpressionMultiply::StaticClass());
+
+			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(MultiplyExpression, GET_MEMBER_NAME_CHECKED(UMaterialExpressionMultiply, A).ToString(),
+				TexCoordFactoryNode->GetUniqueID());
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(MultiplyExpression, GET_MEMBER_NAME_CHECKED(UMaterialExpressionMultiply, B).ToString(),
+				ScaleExpression.Get<0>()->GetUniqueID(), ScaleExpression.Get<1>());
+
+			TexCoordFactoryNode = MultiplyExpression;
+		}
+	}
+	
+	// Rotate
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> RotateExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Nodes::TextureCoordinate::Inputs::Rotate.ToString(), TexCoordFactoryNode->GetUniqueID());
+
+		if (RotateExpression.Get<0>())
+		{
+			UInterchangeMaterialExpressionFactoryNode* CallRotatorExpression =
+				CreateExpressionNode(RotateExpression.Get<0>()->GetDisplayLabel() + TEXT("_Rotator"), TexCoordFactoryNode->GetUniqueID(), UMaterialExpressionMaterialFunctionCall::StaticClass());
+
+			const FString MaterialFunctionMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialFunctionCall, MaterialFunction).ToString();
+			CallRotatorExpression->AddStringAttribute(MaterialFunctionMemberName, TEXT("/Engine/Functions/Engine_MaterialFunctions02/Texturing/CustomRotator.CustomRotator"));
+			CallRotatorExpression->AddApplyAndFillDelegates<FString>(MaterialFunctionMemberName, UMaterialExpressionMaterialFunctionCall::StaticClass(), *MaterialFunctionMemberName);
+
+			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(CallRotatorExpression, TEXT("UVs"), TexCoordFactoryNode->GetUniqueID());
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(CallRotatorExpression, TEXT("Rotation Angle (0-1)"), RotateExpression.Get<0>()->GetUniqueID(), RotateExpression.Get<1>());
+
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> RotationCenterExpression =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Nodes::TextureCoordinate::Inputs::RotationCenter.ToString(), TexCoordFactoryNode->GetUniqueID());
+
+			if (RotationCenterExpression.Get<0>())
+			{
+				UInterchangeShaderPortsAPI::ConnectOuputToInput(CallRotatorExpression, TEXT("Rotation Center"), RotationCenterExpression.Get<0>()->GetUniqueID(), RotationCenterExpression.Get<1>());
+			}
+
+			TexCoordFactoryNode = CallRotatorExpression;
+		}
+	}
+
+	// Offset
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> OffsetExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Nodes::TextureCoordinate::Inputs::Offset.ToString(), TexCoordFactoryNode->GetUniqueID());
+
+		if (OffsetExpression.Get<0>())
+		{
+			UInterchangeMaterialExpressionFactoryNode* AddExpression =
+				CreateExpressionNode(OffsetExpression.Get<0>()->GetDisplayLabel() + TEXT("_Add"), TexCoordFactoryNode->GetUniqueID(), UMaterialExpressionAdd::StaticClass());
+
+			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(AddExpression, GET_MEMBER_NAME_CHECKED(UMaterialExpressionAdd, A).ToString(),
+				TexCoordFactoryNode->GetUniqueID());
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(AddExpression, GET_MEMBER_NAME_CHECKED(UMaterialExpressionAdd, B).ToString(),
+				OffsetExpression.Get<0>()->GetUniqueID(), OffsetExpression.Get<1>());
+
+			TexCoordFactoryNode = AddExpression;
+		}
 	}
 }
 
@@ -775,13 +970,21 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	FString ShaderType;
 	ShaderNode->GetCustomShaderType(ShaderType);
 
-	if (*ShaderType == Nodes::TextureSample::Name)
+	if (*ShaderType == Nodes::FlattenNormal::Name)
 	{
-		HandleTextureSampleNode(ShaderNode, MaterialExpression);
+		HandleFlattenNormalNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
 	}
 	else if (*ShaderType == Nodes::Lerp::Name)
 	{
 		HandleLerpNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
+	}
+	else if (*ShaderType == Nodes::TextureCoordinate::Name)
+	{
+		HandleTextureCoordinateNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
+	}
+	else if (*ShaderType == Nodes::TextureSample::Name)
+	{
+		HandleTextureSampleNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
 	}
 	else
 	{
@@ -884,6 +1087,29 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	return MaterialExpressionFactoryNode;
 }
 
+UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::CreateVector2ParameterExpression(const UInterchangeShaderNode* ShaderNode, const FString& InputName, const FString& ParentUid)
+{
+	FVector2f InputValue;
+	if (ShaderNode->GetAttribute<FVector2f>(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName), InputValue))
+	{
+		UInterchangeMaterialExpressionFactoryNode* VectorParameterFactoryNode = CreateExpressionNode(InputName, ParentUid, UMaterialExpressionVectorParameter::StaticClass());
+
+		const FName DefaultValueMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionVectorParameter, DefaultValue);
+		VectorParameterFactoryNode->AddLinearColorAttribute(DefaultValueMemberName.ToString(), FLinearColor(InputValue.X, InputValue.Y, 0.f));
+		VectorParameterFactoryNode->AddApplyAndFillDelegates<FLinearColor>(DefaultValueMemberName.ToString(), UMaterialExpressionVectorParameter::StaticClass(), DefaultValueMemberName);
+
+		// Defaults to R&G
+		UInterchangeMaterialExpressionFactoryNode* ComponentMaskFactoryNode = CreateExpressionNode(InputName + TEXT("_Mask"), ParentUid, UMaterialExpressionComponentMask::StaticClass());
+
+		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ComponentMaskFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionComponentMask, Input).ToString(),
+			VectorParameterFactoryNode->GetUniqueID() );
+
+		return ComponentMaskFactoryNode;
+	}
+
+	return nullptr;
+}
+
 TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> UInterchangeGenericMaterialPipeline::CreateMaterialExpressionForInput(UInterchangeMaterialFactoryNode* MaterialFactoryNode, const UInterchangeShaderNode* ShaderNode, const FString& InputName, const FString& ParentUid)
 {
 	// Make sure we don't create an expression for an input if it already has one
@@ -919,6 +1145,9 @@ TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> UInterchangeGenericM
 		case UE::Interchange::EAttributeTypes::LinearColor:
 			MaterialExpressionFactoryNode = CreateVectorParameterExpression(ShaderNode, InputName, ParentUid);
 			break;
+		case UE::Interchange::EAttributeTypes::Vector2f:
+			MaterialExpressionFactoryNode = CreateVector2ParameterExpression(ShaderNode, InputName, ParentUid);
+			break;
 		}
 	}
 
@@ -938,8 +1167,11 @@ UInterchangeMaterialFactoryNode* UInterchangeGenericMaterialPipeline::CreateMate
 	
 	if (!HandleClearCoat(ShaderGraphNode, MaterialFactoryNode))
 	{
-		// Can't have both clear coat and thin translucent since they are different shading models
-		HandleThinTranslucent(ShaderGraphNode, MaterialFactoryNode);
+		// Can't have different shading models
+		if (!HandleThinTranslucent(ShaderGraphNode, MaterialFactoryNode))
+		{
+			HandleSheen(ShaderGraphNode, MaterialFactoryNode);
+		}
 	}
 
 	HandleCommonParameters(ShaderGraphNode, MaterialFactoryNode);
@@ -963,6 +1195,10 @@ UInterchangeMaterialInstanceFactoryNode* UInterchangeGenericMaterialPipeline::Cr
 	else if (IsClearCoatModel(ShaderGraphNode))
 	{
 		MaterialInstanceFactoryNode->SetCustomParent(TEXT("Material'/Interchange/Materials/ClearCoatMaterial.ClearCoatMaterial'"));
+	}
+	else if (IsSheenModel(ShaderGraphNode))
+	{
+		MaterialInstanceFactoryNode->SetCustomParent(TEXT("Material'/Interchange/Materials/SheenMaterial.SheenMaterial'"));
 	}
 	else if (IsPBRModel(ShaderGraphNode))
 	{

@@ -188,7 +188,12 @@ namespace GLTF
 					const FJsonObject& Sheen = ExtObj;
 
 					Material.bHasSheen = true;
+
 					Material.Sheen.SheenColorFactor = GetVec3(Sheen, TEXT("sheenColorFactor"));
+					GLTF::SetTextureMap(Sheen, TEXT("sheenColorTexture"), nullptr, Asset->Textures, Material.Sheen.SheenColorMap, Messages);
+
+					Material.Sheen.SheenRoughnessFactor = GetScalar(Sheen, TEXT("sheenRoughnessFactor"));
+					GLTF::SetTextureMap(Sheen, TEXT("sheenRoughnessTexture"), nullptr, Asset->Textures, Material.Sheen.SheenRoughnessMap, Messages);
 
 					Asset->ExtensionsUsed.Add(EExtension::KHR_MaterialsSheen);
 				}

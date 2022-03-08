@@ -632,6 +632,50 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 		}
 	}
 
+	// Fuzz Color
+	{
+		FString FuzzColorUid;
+		FString OutputName;
+
+		if (MaterialFactoryNode->GetFuzzColorConnection(FuzzColorUid, OutputName))
+		{
+			const UInterchangeMaterialExpressionFactoryNode* FuzzColorNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(FuzzColorUid));
+
+			if (FuzzColorNode)
+			{
+				if (UMaterialExpression* FuzzColorExpression = CreateExpressionsForNode(Material, Arguments, FuzzColorNode, Expressions))
+				{
+					if (FExpressionInput* FuzzColorInput = Material->GetExpressionInputForProperty(MP_SubsurfaceColor))
+					{
+						FuzzColorExpression->ConnectExpression(FuzzColorInput, GetOutputIndex(*FuzzColorExpression, OutputName));
+					}
+				}
+			}
+		}
+	}
+
+	// Cloth
+	{
+		FString ClothUid;
+		FString OutputName;
+
+		if (MaterialFactoryNode->GetClothConnection(ClothUid, OutputName))
+		{
+			const UInterchangeMaterialExpressionFactoryNode* ClothNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(ClothUid));
+
+			if (ClothNode)
+			{
+				if (UMaterialExpression* ClothExpression = CreateExpressionsForNode(Material, Arguments, ClothNode, Expressions))
+				{
+					if (FExpressionInput* ClothInput = Material->GetExpressionInputForProperty(MP_CustomData0))
+					{
+						ClothExpression->ConnectExpression(ClothInput, GetOutputIndex(*ClothExpression, OutputName));
+					}
+				}
+			}
+		}
+	}
+
 	UMaterialEditingLibrary::LayoutMaterialExpressions(Material);
 }
 
