@@ -2118,7 +2118,7 @@ void FNiagaraSystemInstance::InitEmitters()
 			{
 				if (const UNiagaraEmitter* EmitterAsset = EmitterHandles[EmitterIdx].GetInstance())
 				{
-					if (EmitterAsset->bFixedBounds)
+					if (EmitterAsset->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Fixed)
 					{
 						LocalBounds += EmitterAsset->FixedBounds;
 					}

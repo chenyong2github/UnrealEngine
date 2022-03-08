@@ -146,11 +146,10 @@ bool FNiagaraEmitterScriptProperties::DataSetAccessSynchronized() const
 UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 : Super(Initializer)
 , PreAllocationCount(0)
-, FixedBounds(FBox(FVector(-100), FVector(100)))
+, FixedBounds(GetDefaultFixedBounds())
 , MinDetailLevel_DEPRECATED(0)
 , MaxDetailLevel_DEPRECATED(4)
 , bInterpolatedSpawning(false)
-, bFixedBounds(false)
 , bUseMinDetailLevel_DEPRECATED(false)
 , bUseMaxDetailLevel_DEPRECATED(false)
 , bRequiresPersistentIDs(false)
@@ -453,6 +452,10 @@ void UNiagaraEmitter::PostLoad()
 		LibraryVisibility = ENiagaraScriptLibraryVisibility::Library;
 	}
 	
+	if (bFixedBounds_DEPRECATED)
+	{
+		CalculateBoundsMode = ENiagaraEmitterCalculateBoundMode::Fixed;
+	}
 #endif
 
 	for (int32 RendererIndex = RendererProperties.Num() - 1; RendererIndex >= 0; --RendererIndex)
@@ -635,7 +638,7 @@ void UNiagaraEmitter::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) c
 	OutTags.Add(FAssetRegistryTag("HasGPUEmitter", (SimTarget == ENiagaraSimTarget::GPUComputeSim) ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
 
 	const float BoundsSize = FixedBounds.GetSize().GetMax();
-	OutTags.Add(FAssetRegistryTag("FixedBoundsSize", bFixedBounds ? FString::Printf(TEXT("%.2f"), BoundsSize) : FString(TEXT("None")), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("FixedBoundsSize", CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Fixed ? FString::Printf(TEXT("%.2f"), BoundsSize) : FString(TEXT("None")), FAssetRegistryTag::TT_Numerical));
 
 
 	uint32 NumActiveRenderers = 0;
@@ -1207,7 +1210,7 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 	// Initialize bounds calculators - skip creating if we won't ever use it.  We leave the GPU sims in there with the editor so that we can
 	// generate the bounds from the readback in the tool.
 #if !WITH_EDITOR
-	bool bUseDynamicBounds = !bFixedBounds && SimTarget == ENiagaraSimTarget::CPUSim;
+	const bool bUseDynamicBounds = CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic && SimTarget == ENiagaraSimTarget::CPUSim;
 	if (bUseDynamicBounds)
 #endif
 	{

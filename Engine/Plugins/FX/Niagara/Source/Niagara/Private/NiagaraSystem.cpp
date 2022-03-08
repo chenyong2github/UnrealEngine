@@ -1399,7 +1399,7 @@ void UNiagaraSystem::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 			if (Emitter)
 			{
 				// Only register fixed bounds requirement for GPU if the system itself isn't fixed bounds.
-				if (bFixedBounds == false && Emitter->bFixedBounds == false && Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+				if (bFixedBounds == false && Emitter->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic && Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 				{
 					GPUSimsMissingFixedBounds++;
 				}

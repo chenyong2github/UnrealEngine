@@ -119,7 +119,7 @@ void UNiagaraStackEmitterPropertiesItem::RefreshChildrenInternal(const TArray<UN
 void UNiagaraStackEmitterPropertiesItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 {
 	UNiagaraEmitter* ActualEmitter = GetEmitterViewModel()->GetEmitter();
-	if (ActualEmitter && ActualEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && ActualEmitter->bFixedBounds == false)
+	if (ActualEmitter && ActualEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && ActualEmitter->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic)
 	{
 		bool bAddError = true;
 		
@@ -134,7 +134,7 @@ void UNiagaraStackEmitterPropertiesItem::RefreshIssues(TArray<FStackIssue>& NewI
 		{
 			FStackIssue MissingRequiredFixedBoundsModuleError(
 				EStackIssueSeverity::Warning,
-				LOCTEXT("RequiredFixedBoundsWarningFormat", "The emitter is GPU but the fixed bounds checkbox is not set.\r\nPlease update the Emitter or System properties, otherwise existing value for fixed bounds will be used."),
+				LOCTEXT("RequiredFixedBoundsWarningFormat", "The emitter is GPU and is using dynamic bounds mode.\r\nPlease update the Emitter or System properties otherwise bounds may be incorrect."),
 				LOCTEXT("MissingFixedBounds", "Missing fixed bounds."),
 				GetStackEditorDataKey(),
 				false);

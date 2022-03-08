@@ -988,7 +988,7 @@ void FNiagaraEmitterInstance::CalculateFixedBounds(const FTransform& ToWorldSpac
 		return;
 
 	CachedEmitter->Modify();
-	CachedEmitter->bFixedBounds = true;
+	CachedEmitter->CalculateBoundsMode = ENiagaraEmitterCalculateBoundMode::Fixed;
 	if (CachedEmitter->bLocalSpace)
 	{
 		CachedEmitter->FixedBounds = Bounds;
@@ -1034,28 +1034,33 @@ void FNiagaraEmitterInstance::PostTick()
 		{
 			CachedBounds = CachedSystemFixedBounds;
 		}
-		else if (CachedEmitter->bFixedBounds || CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		else if ( CachedEmitter->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Fixed )
 		{
 			CachedBounds = CachedEmitter->FixedBounds;
 		}
-		else
+		else if ( CachedEmitter->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic )
 		{
-			FBox DynamicBounds = InternalCalculateDynamicBounds(ParticleDataSet->GetCurrentDataChecked().GetNumInstances());
-			if (DynamicBounds.IsValid)
+			// We do not support dynamic bounds for GPU yet
+			// Therefore we need to return the default bounds in this case to avoid flickering (some content relies on this path)
+			if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 			{
-				bCachedBoundsDynamic = true;
-				if (CachedEmitter->bLocalSpace)
-				{
-					CachedBounds = DynamicBounds;
-				}
-				else
-				{
-					CachedBounds = DynamicBounds.TransformBy(FMatrix(ParentSystemInstance->GetOwnerParameters().EngineWorldToLocal));
-				}
+				CachedBounds = UNiagaraEmitter::GetDefaultFixedBounds();
 			}
 			else
 			{
-				CachedBounds.IsValid = false;
+				FBox DynamicBounds = InternalCalculateDynamicBounds(ParticleDataSet->GetCurrentDataChecked().GetNumInstances());
+				if (DynamicBounds.IsValid)
+				{
+					bCachedBoundsDynamic = true;
+					if (CachedEmitter->bLocalSpace)
+					{
+						CachedBounds = DynamicBounds;
+					}
+					else
+					{
+						CachedBounds = DynamicBounds.TransformBy(FMatrix(ParentSystemInstance->GetOwnerParameters().EngineWorldToLocal));
+					}
+				}
 			}
 		}
 	}
@@ -1249,7 +1254,7 @@ FBox FNiagaraEmitterInstance::GetFixedBounds() const
 		}
 	}
 
-	if ( CachedEmitter && CachedEmitter->bFixedBounds)
+	if ( CachedEmitter && CachedEmitter->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Fixed )
 	{
 		return CachedEmitter->FixedBounds;
 	}

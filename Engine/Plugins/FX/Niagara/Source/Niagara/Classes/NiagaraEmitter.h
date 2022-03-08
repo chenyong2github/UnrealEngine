@@ -113,6 +113,17 @@ enum class EParticleAllocationMode : uint8
 	FixedCount
 };
 
+UENUM()
+enum class ENiagaraEmitterCalculateBoundMode : uint8
+{
+	/** Bounds are calculated per frame (Only available for CPU emitters). */
+	Dynamic,
+	/** Bounds are set from the emitter's fixed bounds. */
+	Fixed,
+	/** Bounds will be set from the script or blueprint.  If not set from either source the emitter has no bounds. */
+	Programmable
+};
+
 USTRUCT()
 struct FNiagaraEmitterScriptProperties
 {
@@ -337,8 +348,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Emitter")
 	ENiagaraSimTarget SimTarget;
 	
+	/** How should we calculate bounds for the emitter. */
+	UPROPERTY(EditAnywhere, Category = "Emitter")
+	ENiagaraEmitterCalculateBoundMode CalculateBoundsMode = ENiagaraEmitterCalculateBoundMode::Dynamic;
+
 	/** The fixed bounding box value. bFixedBounds is the condition whether the fixed bounds can be edited. */
-	UPROPERTY(EditAnywhere, Category = "Emitter", meta = (EditCondition = "bFixedBounds"))
+	UPROPERTY(EditAnywhere, Category = "Emitter", meta = (EditConditionHides, EditCondition = "CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Fixed"))
 	FBox FixedBounds;
 	
 	UPROPERTY()
@@ -358,9 +373,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Emitter")
 	uint32 bInterpolatedSpawning : 1;
 
-	/** Whether or not fixed bounds are enabled. */
-	UPROPERTY(EditAnywhere, Category = "Emitter", meta = (InlineEditConditionToggle))
-	uint32 bFixedBounds : 1;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	uint32 bFixedBounds_DEPRECATED : 1;
+#endif
 
 	/** Whether to use the min detail or not. */
 	UPROPERTY()
@@ -595,6 +611,7 @@ public:
 
 	bool RequiresViewUniformBuffer() const { return bRequiresViewUniformBuffer; }
 
+	FORCEINLINE static FBox GetDefaultFixedBounds() { return FBox(FVector(-100), FVector(100)); }
 	TConstArrayView<TUniquePtr<FNiagaraBoundsCalculator>> GetBoundsCalculators() const { return MakeArrayView(BoundsCalculators); }
 
 	UPROPERTY()

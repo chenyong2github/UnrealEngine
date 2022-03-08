@@ -300,7 +300,7 @@ bool UNiagaraSystemAuditCommandlet::ProcessNiagaraSystems()
 				}
 			}
 
-			if ( !NiagaraEmitter->bFixedBounds && !NiagaraSystem->bFixedBounds )
+			if ( (NiagaraEmitter->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic) && !NiagaraSystem->bFixedBounds )
 			{
 				EmittersWithDynamicBounds.Append(NiagaraEmitter->GetDebugSimName());
 			}

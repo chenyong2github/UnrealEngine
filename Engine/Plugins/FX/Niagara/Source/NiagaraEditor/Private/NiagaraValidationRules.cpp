@@ -99,10 +99,10 @@ TArray<FNiagaraValidationResult> UNiagara_FixedGPUBoundsSet::CheckValidity(TShar
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleModel : EmitterHandleViewModels)
 	{
 		UNiagaraEmitter* NiagaraEmitter = EmitterHandleModel.Get().GetEmitterHandle()->GetInstance();
-		if (NiagaraEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && NiagaraEmitter->bFixedBounds == false)
+		if (NiagaraEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && NiagaraEmitter->CalculateBoundsMode == ENiagaraEmitterCalculateBoundMode::Dynamic)
 		{
 			UNiagaraStackEmitterPropertiesItem* EmitterProperties = GetStackEntry<UNiagaraStackEmitterPropertiesItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
-			FNiagaraValidationResult Result(ENiagaraValidationSeverity::Error, LOCTEXT("FixedBoundsSummary", "GPU emitters require fixed bounds"), LOCTEXT("FixedBoundsDescription", "Please set fixed bounds for gpu emitters or the system as a whole."), EmitterProperties);
+			FNiagaraValidationResult Result(ENiagaraValidationSeverity::Error, LOCTEXT("GpuDynamicBoundsErrorSummary", "GPU emitters do not support dynamic bounds"), LOCTEXT("GpuDynamicBoundsErrorDescription", "Gpu emitter should either not be in dynamic mode or the system must have fixed bounds."), EmitterProperties);
 			Results.Add(Result);
 		}
 	}
