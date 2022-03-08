@@ -149,4 +149,7 @@ FStrataTileParameter SetTileParameters(FRDGBuilder& GraphBuilder, const FViewInf
 FStrataTilePassVS::FParameters SetTileParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, const EStrataTileMaterialType Type, EPrimitiveType& PrimitiveType);
 FStrataTilePassVS::FParameters SetTileParameters(const FViewInfo& View, const EStrataTileMaterialType Type, EPrimitiveType& PrimitiveType);
 
+bool ShouldRenderStrataRoughRefractionRnD();
+void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor);
+
 };

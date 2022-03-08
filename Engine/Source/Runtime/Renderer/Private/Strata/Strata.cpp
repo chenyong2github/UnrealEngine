@@ -833,6 +833,7 @@ bool ShouldRenderStrataDebugPasses(const FViewInfo& View)
 		(
 		   (FVisualizeMaterialPS::CanRunStrataVizualizeMaterial(View.GetShaderPlatform()) && View.Family && View.Family->EngineShowFlags.VisualizeStrataMaterial)
 		|| (CVarStrataClassificationDebug.GetValueOnAnyThread() > 0)
+		|| ShouldRenderStrataRoughRefractionRnD()
 		);
 }
 
@@ -856,6 +857,8 @@ FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewIn
 		AddStrataInternalClassificationTilePass(GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileMaterialType::ESingle, bDebugPass);
 		AddStrataInternalClassificationTilePass(GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileMaterialType::EComplex, bDebugPass);
 	}
+
+	StrataRoughRefractionRnD(GraphBuilder, View, ScreenPassSceneColor);
 
 	return MoveTemp(ScreenPassSceneColor);
 }
