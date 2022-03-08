@@ -2931,25 +2931,8 @@ void FShaderCompilerStats::WriteStats(FOutputDevice* Ar)
 
 void FShaderCompilerStats::WriteStatSummary()
 {
-	uint32 TotalCompiled = 0;
-
-	{
-		FScopeLock Lock(&CompileStatsLock);
-		const TSparseArray<ShaderCompilerStats>& PlatformStats = GetShaderCompilerStats();
-		for (int32 Platform = 0; Platform < PlatformStats.GetMaxIndex(); ++Platform)
-		{
-			if (PlatformStats.IsValidIndex(Platform))
-			{
-				const ShaderCompilerStats& Stats = PlatformStats[Platform];
-				for (const auto& Pair : Stats)
-				{
-					const FShaderCompilerStats::FShaderStats& SingleStats = Pair.Value;
-
-					TotalCompiled += SingleStats.Compiled;
-				}
-			}
-		}
-	}
+	const uint32 TotalCompiled = GetTotalShadersCompiled();
+	const double TotalTimeAtLeastOneJobWasInFlight = GetTimeShaderCompilationWasActive();
 
 	UE_LOG(LogShaderCompilers, Display, TEXT("=== Shader Compilation stats ==="));
 	UE_LOG(LogShaderCompilers, Display, TEXT("Shaders Compiled: %u"), TotalCompiled);
@@ -2973,18 +2956,6 @@ void FShaderCompilerStats::WriteStatSummary()
 		UE_LOG(LogShaderCompilers, Display, TEXT("Job life time (pending + execution): average %.2f s, max %.2f"), AccumulatedJobLifeTime / JobsCompleted, MaxJobLifeTime);
 	}
 
-	auto SumUpInterval = [](TArray<TInterval<double>>& Accumulator) -> double
-	{
-		double Sum = 0;
-		for (int32 Idx = 0; Idx < Accumulator.Num(); ++Idx)
-		{
-			const TInterval<double>& Existing = Accumulator[Idx];
-			Sum += Existing.Size();
-		}
-		return Sum;
-	};
-
-	double TotalTimeAtLeastOneJobWasInFlight = SumUpInterval(JobLifeTimeIntervals);
 	UE_LOG(LogShaderCompilers, Display, TEXT("Time at least one job was in flight (either pending or executed): %.2f s"), TotalTimeAtLeastOneJobWasInFlight);
 
 	// print stats about the batches
@@ -3074,6 +3045,33 @@ void FShaderCompilerStats::WriteStatSummary()
 			}
 		}
 	}
+}
+
+uint32 FShaderCompilerStats::GetTotalShadersCompiled()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilerStats::GetTotalShadersCompiled);
+
+	uint32 TotalCompiled = 0;
+
+	{
+		FScopeLock Lock(&CompileStatsLock);
+		const TSparseArray<ShaderCompilerStats>& PlatformStats = GetShaderCompilerStats();
+		for (int32 Platform = 0; Platform < PlatformStats.GetMaxIndex(); ++Platform)
+		{
+			if (PlatformStats.IsValidIndex(Platform))
+			{
+				const ShaderCompilerStats& Stats = PlatformStats[Platform];
+				for (const auto& Pair : Stats)
+				{
+					const FShaderCompilerStats::FShaderStats& SingleStats = Pair.Value;
+
+					TotalCompiled += SingleStats.Compiled;
+				}
+			}
+		}
+	}
+
+	return TotalCompiled;
 }
 
 void FShaderCompilerStats::RegisterLocalWorkerIdleTime(double IdleTime)
@@ -3289,6 +3287,38 @@ void FShaderCompilerStats::RegisterCompiledShaders(uint32 NumCompiled, EShaderPl
 	{
 		Stats.PermutationCompilations.Emplace(PermutationString, NumCompiled, 0);
 	}
+}
+
+void FShaderCompilerStats::AddDDCMiss(uint32 NumMisses)
+{
+	ShaderMapDDCMisses += NumMisses;
+}
+
+uint32 FShaderCompilerStats::GetDDCMisses() const
+{
+	return ShaderMapDDCMisses;
+}
+
+void FShaderCompilerStats::AddDDCHit(uint32 NumHits)
+{
+	ShaderMapDDCHits += NumHits;
+}
+
+uint32 FShaderCompilerStats::GetDDCHits() const
+{
+	return ShaderMapDDCHits;
+}
+
+double FShaderCompilerStats::GetTimeShaderCompilationWasActive()
+{
+	FScopeLock Lock(&CompileStatsLock);
+	double Sum = 0;
+	for (int32 Idx = 0; Idx < JobLifeTimeIntervals.Num(); ++Idx)
+	{
+		const TInterval<double>& Existing = JobLifeTimeIntervals[Idx];
+		Sum += Existing.Size();
+	}
+	return Sum;
 }
 
 FShaderCompilingManager* GShaderCompilingManager = NULL;
@@ -6933,6 +6963,9 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 
 				HandleIndex = 0;
 
+				int32 DDCHits = 0;
+				int32 DDCMisses = 0;
+
 				// Process finished DDC requests.
 				for (const auto& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
 				{
@@ -6946,16 +6979,22 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 						COOK_STAT(Timer.AddHit(CachedData.Num()));
 						FMemoryReader MemoryReader(CachedData);
 						GGlobalShaderMap[Platform]->AddSection(FGlobalShaderMapSection::CreateFromArchive(MemoryReader));
+
+						DDCHits++;
 					}
 					else
 					{
 						// it's a miss, but we haven't built anything yet. Save the counting until we actually have it built.
 						COOK_STAT(Timer.TrackCyclesOnly());
 						bShaderMapIsBeingCompiled = true;
+						DDCMisses++;
 					}
 
 					++HandleIndex;
 				}
+
+				GShaderCompilerStats->AddDDCHit(DDCHits);
+				GShaderCompilerStats->AddDDCMiss(DDCMisses);
 			}
 		}
 

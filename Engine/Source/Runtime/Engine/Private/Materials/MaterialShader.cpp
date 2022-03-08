@@ -1399,6 +1399,8 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 
 				// Register in the global map
 				InOutShaderMap->Register(InPlatform);
+
+				GShaderCompilerStats->AddDDCHit(1);
 			}
 			else
 			{
@@ -1406,6 +1408,8 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 				// We should be build the data later, and we can track that the resource was built there when we push it to the DDC.
 				COOK_STAT(Timer.TrackCyclesOnly());
 				InOutShaderMap = nullptr;
+
+				GShaderCompilerStats->AddDDCMiss(1);
 			}
 
 			if (InOutShaderMap)

@@ -12,6 +12,7 @@
 #include "Kismet2/DebuggerCommands.h"
 #include "ProfilingDebugging/StallDetector.h"
 #include "UObject/Package.h"
+#include "ShaderCompiler.h"
 
 namespace EditorAnalyticsProperties
 {
@@ -32,6 +33,11 @@ namespace EditorAnalyticsProperties
 	static const TAnalyticsProperty<double>  TopStallOverageSeconds = TEXT("TopStallOverageSeconds");
 	static const TAnalyticsProperty<uint32>  ProcessDiagnostics     = TEXT("ProcessDiagnostics"); // Whether some profiling/diagnostic tools are enabled, which could slow down the Editor.
 	static const TAnalyticsProperty<uint32>  SummaryEventVersion    = TEXT("SummaryEventVersion"); // A version number used identify the key/set used. Can be used to compare before/after some changes too since comparing engine version is not always straingth foward.
+
+	static const TAnalyticsProperty<uint32> ShadersCompiled			= TEXT("ShadersCompiled");
+	static const TAnalyticsProperty<uint32> ShaderDDCMisses			= TEXT("ShaderDDCMisses");
+	static const TAnalyticsProperty<uint32> ShaderDDCHits			= TEXT("ShaderDDCHits");
+	static const TAnalyticsProperty<double> TimeShaderCompilationWasActive = TEXT("TimeShaderCompilationWasActive ");
 }
 
 FEditorAnalyticsSessionSummary::FEditorAnalyticsSessionSummary(TSharedPtr<IAnalyticsPropertyStore> Store, uint32 MonitorProcessId)
@@ -60,7 +66,13 @@ FEditorAnalyticsSessionSummary::FEditorAnalyticsSessionSummary(TSharedPtr<IAnaly
 	//    - V3 -> Windows optimization for stall/ensure -> The engine only captures the responsible thread so CRC walks 1 thread rather than all threads.
 	//    - V4 -> Added DirtyPackageCount property.
 	//    - V5 -> Added CPUInfo to the base class (EngineAnalyticsSessionSummary)
-	EditorAnalyticsProperties::SummaryEventVersion.Set(GetStore(), 5);
+	//    - V6 -> Added shader compilation statistics.
+	EditorAnalyticsProperties::SummaryEventVersion.Set(GetStore(), 6);
+
+	EditorAnalyticsProperties::ShadersCompiled.Set(GetStore(), 0);
+	EditorAnalyticsProperties::ShaderDDCMisses.Set(GetStore(), 0);
+	EditorAnalyticsProperties::ShaderDDCHits.Set(GetStore(), 0);
+	EditorAnalyticsProperties::TimeShaderCompilationWasActive.Set(GetStore(), 0.0);
 
 	// Persist the session to disk.
 	GetStore()->Flush();
@@ -110,6 +122,12 @@ bool FEditorAnalyticsSessionSummary::UpdateSessionProgressInternal(bool bCrashin
 	EditorAnalyticsProperties::TotalStallCount.Set(GetStore(), UE::FStallDetectorStats::TotalTriggeredCount.Get());
 	EditorAnalyticsProperties::TotalStallReported.Set(GetStore(), UE::FStallDetectorStats::TotalReportedCount.Get());
 #endif // STALL_DETECTOR
+
+	// Shader stats.
+	EditorAnalyticsProperties::ShadersCompiled.Set(GetStore(), GShaderCompilerStats->GetTotalShadersCompiled());
+	EditorAnalyticsProperties::ShaderDDCMisses.Set(GetStore(), GShaderCompilerStats->GetDDCMisses());
+	EditorAnalyticsProperties::ShaderDDCHits.Set(GetStore(), GShaderCompilerStats->GetDDCHits());
+	EditorAnalyticsProperties::TimeShaderCompilationWasActive.Set(GetStore(), GShaderCompilerStats->GetTimeShaderCompilationWasActive());
 
 	return bShouldPersist;
 }

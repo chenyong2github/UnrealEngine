@@ -718,6 +718,13 @@ public:
 	ENGINE_API const TSparseArray<ShaderCompilerStats>& GetShaderCompilerStats() { return CompileStats; }
 	ENGINE_API void WriteStats(class FOutputDevice* Ar = nullptr);
 	ENGINE_API void WriteStatSummary();
+	ENGINE_API uint32 GetTotalShadersCompiled();
+
+	void AddDDCMiss(uint32 NumMisses);
+	uint32 GetDDCMisses() const;
+	void AddDDCHit(uint32 NumHits);
+	uint32 GetDDCHits() const;
+	double GetTimeShaderCompilationWasActive();
 
 	enum class EExecutionType
 	{
@@ -794,6 +801,12 @@ private:
 
 	/** Map of shader names to their compilation timings */
 	TMap<FString, FShaderTimings> ShaderTimings;
+
+	/** Total number of DDC misses on shader maps. */
+	uint32 ShaderMapDDCMisses = 0;
+
+	/** Total number of DDC hits on shader maps. */
+	uint32 ShaderMapDDCHits = 0;
 };
 
 
