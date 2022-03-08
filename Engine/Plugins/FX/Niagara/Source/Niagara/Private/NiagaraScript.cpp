@@ -2805,8 +2805,39 @@ bool UNiagaraScript::IsEditorOnly() const
 	return Super::IsEditorOnly();
 }
 
+bool UNiagaraScript::ShouldCompile(EShaderPlatform Platform) const
+{
+#if WITH_EDITOR
+	// Add all data interfaces
+	TSet<UClass*> DIUniqueClasses;
+	for (const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : CachedDefaultDataInterfaces)
+	{
+		if (UNiagaraDataInterface* DataInterface = DataInterfaceInfo.DataInterface)
+		{
+			DIUniqueClasses.Add(DataInterface->GetClass());
+		}
+	}
+
+	// For each data interface allow them to modify the compilation environment
+	for (UClass* DIClass : DIUniqueClasses)
+	{
+		if (UNiagaraDataInterface* DICDO = CastChecked<UNiagaraDataInterface>(DIClass->GetDefaultObject(true)))
+		{
+			if (!DICDO->ShouldCompile(Platform))
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+#else
+	return false;
+#endif
+}
+
 void UNiagaraScript::ModifyCompilationEnvironment(EShaderPlatform Platform, struct FShaderCompilerEnvironment& OutEnvironment) const
 {
+#if WITH_EDITOR
 	// Add all data interfaces
 	TSet<UClass*> DIUniqueClasses;
 	for ( const FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : CachedDefaultDataInterfaces )
@@ -2825,6 +2856,7 @@ void UNiagaraScript::ModifyCompilationEnvironment(EShaderPlatform Platform, stru
 			DICDO->ModifyCompilationEnvironment(Platform, OutEnvironment);
 		}
 	}
+#endif
 }
 
 #if WITH_EDITOR

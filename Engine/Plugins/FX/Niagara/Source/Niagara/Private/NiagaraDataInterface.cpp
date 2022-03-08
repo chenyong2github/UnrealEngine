@@ -48,6 +48,7 @@ bool UNiagaraDataInterface::AppendCompileHash(FNiagaraCompileHashVisitor* InVisi
 }
 #endif
 
+#if WITH_EDITOR
 void UNiagaraDataInterface::ModifyCompilationEnvironment(EShaderPlatform ShaderPlatform, struct FShaderCompilerEnvironment& OutEnvironment) const
 {
 	if (FDataDrivenShaderPlatformInfo::GetSupportsDxc(ShaderPlatform))
@@ -56,6 +57,7 @@ void UNiagaraDataInterface::ModifyCompilationEnvironment(EShaderPlatform ShaderP
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 	}
 }
+#endif
 
 void UNiagaraDataInterface::GetAssetTagsForContext(const UObject* InAsset, const TArray<const UNiagaraDataInterface*>& InProperties, TMap<FName, uint32>& NumericKeys, TMap<FName, FString>& StringKeys) const
 {

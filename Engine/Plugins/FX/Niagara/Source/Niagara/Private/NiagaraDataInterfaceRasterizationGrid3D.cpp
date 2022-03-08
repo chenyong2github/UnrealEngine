@@ -582,6 +582,18 @@ bool UNiagaraDataInterfaceRasterizationGrid3D::Equals(const UNiagaraDataInterfac
 	return OtherTyped->NumAttributes == NumAttributes && OtherTyped->Precision == Precision && OtherTyped->ResetValue == ResetValue;
 }
 
+#if WITH_EDITOR
+bool UNiagaraDataInterfaceRasterizationGrid3D::ShouldCompile(EShaderPlatform ShaderPlatform) const
+{
+	if (!RHISupportsVolumeTextureAtomics(ShaderPlatform))
+	{
+		return false;
+	}
+
+	return UNiagaraDataInterface::ShouldCompile(ShaderPlatform);
+}
+#endif
+
 #if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceRasterizationGrid3D::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {

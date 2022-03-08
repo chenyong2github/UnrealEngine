@@ -63,6 +63,13 @@ void FNiagaraShaderScript::SetupShaderCompilationEnvironment(
 bool FNiagaraShaderScript::ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType) const
 {
 	check(ShaderType->GetNiagaraShaderType() != nullptr);
+	if (BaseVMScript)
+	{
+		if (!BaseVMScript->ShouldCompile(Platform))
+		{
+			return false;
+		}
+	}
 	return true;
 }
 

@@ -318,8 +318,13 @@ public:
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 #endif
 
+#if WITH_EDITOR
 	/** Allows data interfaces to influence the compilation of GPU shaders and is only called on the CDO object not the instance. */
 	virtual void ModifyCompilationEnvironment(EShaderPlatform ShaderPlatform, struct FShaderCompilerEnvironment& OutEnvironment) const;
+
+	/** Allows data interfaces to prevent compilation of GPU shaders and is only called on the CDO object not the instance. */
+	virtual bool ShouldCompile(EShaderPlatform ShaderPlatform) const { return true; };
+#endif
 
 	/** 
 		Subclasses that wish to work with GPU systems/emitters must implement this.
