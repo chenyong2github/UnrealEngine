@@ -3007,13 +3007,15 @@ class FRayTracingPipelineStateSignature
 {
 public:
 
+	uint32 MaxAttributeSizeInBytes = 8; // sizeof FDefaultAttributes declared in RayTracingCommon.ush
 	uint32 MaxPayloadSizeInBytes = 24; // sizeof FDefaultPayload declared in RayTracingCommon.ush
 	bool bAllowHitGroupIndexing = true;
 
 	// NOTE: GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer) should also be updated when changing this function
 	bool operator==(const FRayTracingPipelineStateSignature& rhs) const
 	{
-		return MaxPayloadSizeInBytes == rhs.MaxPayloadSizeInBytes
+		return MaxAttributeSizeInBytes == rhs.MaxAttributeSizeInBytes
+			&& MaxPayloadSizeInBytes == rhs.MaxPayloadSizeInBytes
 			&& bAllowHitGroupIndexing == rhs.bAllowHitGroupIndexing
 			&& RayGenHash == rhs.RayGenHash
 			&& MissHash == rhs.MissHash
@@ -3023,7 +3025,8 @@ public:
 
 	friend uint32 GetTypeHash(const FRayTracingPipelineStateSignature& Initializer)
 	{
-		return GetTypeHash(Initializer.MaxPayloadSizeInBytes) ^
+		return GetTypeHash(Initializer.MaxAttributeSizeInBytes) ^
+			GetTypeHash(Initializer.MaxPayloadSizeInBytes) ^
 			GetTypeHash(Initializer.bAllowHitGroupIndexing) ^
 			GetTypeHash(Initializer.GetRayGenHash()) ^
 			GetTypeHash(Initializer.GetRayMissHash()) ^
