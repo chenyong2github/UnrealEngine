@@ -16,8 +16,8 @@ typedef TSharedPtr<IPCGElement, ESPMode::ThreadSafe> FPCGElementPtr;
 	UE_LOG(LogPCG, \
 		Verbosity, \
 		TEXT("[%s - %s]: " Format), \
-		*CustomContext->GetComponentName(), \
-		*CustomContext->GetTaskName(), \
+		*((CustomContext)->GetComponentName()), \
+		*((CustomContext)->GetTaskName()), \
 		##__VA_ARGS__)
 
 #define PCGE_LOG(Verbosity, Format, ...) PCGE_LOG_C(Verbosity, Context, Format, ##__VA_ARGS__)

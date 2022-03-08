@@ -289,12 +289,6 @@ void UPCGBlueprintSettings::OnBlueprintElementChanged(UPCGBlueprintElement* InEl
 }
 #endif
 
-void UPCGBlueprintSettings::SetElementTypeInternal(TSubclassOf<UPCGBlueprintElement> InElementType)
-{
-	UPCGBlueprintElement* ElementInstance = nullptr;
-	SetElementType(InElementType, ElementInstance);
-}
-
 void UPCGBlueprintSettings::SetElementType(TSubclassOf<UPCGBlueprintElement> InElementType, UPCGBlueprintElement*& ElementInstance)
 {
 	if (!BlueprintElementInstance || InElementType != BlueprintElementType)
@@ -357,18 +351,6 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (Settings && Settings->BlueprintElementInstance)
 	{
-		// Precache points if needed
-		if (Settings->bPrecachePoints)
-		{
-			for (const FPCGTaggedData& Input : Context->InputData.TaggedData)
-			{
-				if (const UPCGSpatialDataWithPointCache* SpatialInput = Cast<UPCGSpatialDataWithPointCache>(Input.Data))
-				{
-					SpatialInput->ToPointData(Context);
-				}
-			}
-		}
-
 		// Log info on inputs
 		for(int32 InputIndex = 0; InputIndex < Context->InputData.TaggedData.Num(); ++InputIndex)
 		{
@@ -402,6 +384,12 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* Context) const
 
 void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData) const
 {
+	if (!InData)
+	{
+		PCGE_LOG_C(Error, &InContext, "Invalid input data in LoopOnPoints");
+		return;
+	}
+
 	OutData = NewObject<UPCGPointData>();
 	OutData->TargetActor = InData->TargetActor;
 	
@@ -416,6 +404,12 @@ void UPCGBlueprintElement::LoopOnPoints(FPCGContext& InContext, const UPCGPointD
 
 void UPCGBlueprintElement::LoopOnPointPairs(FPCGContext& InContext, const UPCGPointData* InA, const UPCGPointData* InB, UPCGPointData*& OutData) const
 {
+	if (!InA || !InB)
+	{
+		PCGE_LOG_C(Error, &InContext, "Invalid input data in LoopOnPointPairs");
+		return;
+	}
+
 	OutData = NewObject<UPCGPointData>();
 	OutData->TargetActor = InA->TargetActor;
 

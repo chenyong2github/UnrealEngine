@@ -107,10 +107,6 @@ public:
 	// ~End UObject interface
 #endif
 
-	/** To facilitate transition, we will keep this version around even though it's a lot less useful */
-	UFUNCTION(BlueprintCallable, BlueprintInternalUseOnly)
-	void SetElementTypeInternal(TSubclassOf<UPCGBlueprintElement> InElementType);
-
 	UFUNCTION(BlueprintCallable, Category = Settings, meta=(DeterminesOutputType="InElementType", DynamicOutputParam = "ElementInstance"))
 	void SetElementType(TSubclassOf<UPCGBlueprintElement> InElementType, UPCGBlueprintElement*& ElementInstance);
 
@@ -118,7 +114,7 @@ protected:
 	UPROPERTY()
 	TSubclassOf<UPCGBlueprintElement> BlueprintElement_DEPRECATED;
 
-	UPROPERTY(BlueprintSetter = SetElementTypeInternal, EditAnywhere, Category = Template)
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Template)
 	TSubclassOf<UPCGBlueprintElement> BlueprintElementType;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Instanced, Category = Settings, meta = (ShowOnlyInnerProperties))
@@ -131,9 +127,6 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bCreatesArtifacts = false;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bPrecachePoints = false;
 
 protected:
 #if WITH_EDITOR
