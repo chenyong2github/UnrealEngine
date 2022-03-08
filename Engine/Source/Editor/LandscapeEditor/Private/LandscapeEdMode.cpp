@@ -1605,6 +1605,14 @@ bool FEdModeLandscape::InputKey(FEditorViewportClient* ViewportClient, FViewport
 		}
 	}
 
+	if (NewLandscapePreviewMode != ENewLandscapePreviewMode::None)
+	{
+		if (CurrentTool && CurrentTool->InputKey(ViewportClient, Viewport, Key, Event))
+		{
+			return false; // false to let FEditorViewportClient.InputKey start/end mouse tracking and enable InputDelta() so we can use it
+		}
+	}
+	else
 	{
 		// Override Key Input for Selection Brush
 		if (CurrentBrush)
