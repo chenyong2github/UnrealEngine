@@ -4546,9 +4546,17 @@ bool UActorChannel::ObjectHasReplicator(const TWeakObjectPtr<UObject>& Obj) cons
 #if NET_ENABLE_SUBOBJECT_REPKEYS
 bool UActorChannel::KeyNeedsToReplicate(int32 ObjID, int32 RepKey)
 {
+	if (bPendingDormancy)
+	{
+		// Return true to keep the channel from being stuck unable to go dormant until the key changes
+		return true;
+	}
+
 	int32 &MapKey = SubobjectRepKeyMap.FindOrAdd(ObjID);
 	if (MapKey == RepKey)
+	{ 
 		return false;
+	}
 
 	MapKey = RepKey;
 	PendingObjKeys.Add(ObjID);
