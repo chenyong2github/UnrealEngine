@@ -719,7 +719,7 @@ namespace WindowsMixedReality
 		if (bIsMobileMultiViewEnabled && !HMD->IsThirdCameraActive())
 		{
 			ID3D11Texture2D* Texture = HMD->GetBackBufferTexture();
-			FTexture2DArrayRHIRef BackBuffer = GD3D11RHI->RHICreateTexture2DArrayFromResource(PF_B8G8R8A8, TexCreate_RenderTargetable | TexCreate_ShaderResource, FClearValueBinding::None, Texture);
+			FTexture2DArrayRHIRef BackBuffer = GetID3D11DynamicRHI()->RHICreateTexture2DArrayFromResource(PF_B8G8R8A8, TexCreate_RenderTargetable | TexCreate_ShaderResource, FClearValueBinding::None, Texture);
 			GDynamicRHI->RHIAliasTextureResources((FTextureRHIRef&)CurrentBackBuffer, (FTextureRHIRef&)BackBuffer);
 		}
 #endif

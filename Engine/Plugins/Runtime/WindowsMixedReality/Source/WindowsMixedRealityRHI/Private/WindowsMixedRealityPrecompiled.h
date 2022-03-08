@@ -22,4 +22,8 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogWMRRHI, Log, All);
 
 #include "SceneRendering.h"
-#include "ID3D11DynamicRHI.h"
+
+#pragma warning(disable:4668)  
+#include "D3D11RHIPrivate.h"
+#pragma warning(default:4668)
+#include "D3D11Util.h"
