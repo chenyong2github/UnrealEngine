@@ -29,6 +29,13 @@ enum class EGuidFormats
 	Digits,
 
 	/**
+	 * 32 digits in lowercase
+	 *
+	 * For example: "0123abc456def789abcd123ef4a5b6c7"
+	 */
+	 DigitsLower,
+
+	/**
 	 * 32 digits separated by hyphens.
 	 *
 	 * For example: 00000000-0000-0000-0000-000000000000

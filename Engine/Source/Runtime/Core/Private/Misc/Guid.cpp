@@ -114,6 +114,9 @@ FString FGuid::ToString(EGuidFormats Format) const
 		return Result.Reverse();
 	}
 
+	case EGuidFormats::DigitsLower:
+		return FString::Printf(TEXT("%08x%08x%08x%08x"), A, B, C, D);
+
 	default:
 		return FString::Printf(TEXT("%08X%08X%08X%08X"), A, B, C, D);
 	}
@@ -187,6 +190,10 @@ void FGuid::AppendString(FAnsiStringBuilderBase& Builder, EGuidFormats Format) c
 
 		return;
 	}
+
+	case EGuidFormats::DigitsLower:
+		Builder.Appendf("%08x%08x%08x%08x", A, B, C, D);
+		return;
 
 	default:
 		Builder.Appendf("%08X%08X%08X%08X", A, B, C, D);
@@ -337,7 +344,7 @@ bool FGuid::ParseExact(const FString& GuidString, EGuidFormats Format, FGuid& Ou
 
 	NormalizedGuidString.Empty(32);
 
-	if (Format == EGuidFormats::Digits)
+	if (Format == EGuidFormats::Digits || Format == EGuidFormats::DigitsLower)
 	{
 		NormalizedGuidString = GuidString;
 	}
