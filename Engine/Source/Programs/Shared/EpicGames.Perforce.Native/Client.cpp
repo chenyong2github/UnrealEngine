@@ -5,6 +5,8 @@
 #include "clientapi.h"
 #include "strtable.h"
 #include "datetime.h"
+#include "md5.h"
+#include "extra/gzip.h"
 #pragma warning(pop)
 #include <assert.h>
 
@@ -452,6 +454,7 @@ public:
 		: Type(InType)
 		, User(InUser)
 	{
+		this->type = InType;
 	}
 
 	virtual void	ChmodTimeHP(const DateTimeHighPrecision& /* modTime */, Error* /* e */) override {};
@@ -461,8 +464,8 @@ public:
 	virtual int	GetFd() override { return -1; }
 	virtual int     GetOwner() override { return 0; }
 	virtual offL_t	GetSize() override { return 0; }
-	virtual void	Seek(offL_t offset, Error*) override { }
-	virtual offL_t	Tell() override { return 0; }
+	virtual void	Seek(offL_t offset, Error*) override { assert(false); }
+	virtual offL_t	Tell() override { assert(false); return 0; }
 
 	virtual void	MakeLocalTemp(char* file) override { assert(false); }
 	virtual void	SetDeleteOnClose() override { }
@@ -476,6 +479,8 @@ public:
 
 	virtual void Open(FileOpenMode mode, Error* e) override
 	{
+		this->mode = mode;
+
 		int PathLen = path.Length() + 1;
 
 		int BufferLen = PathLen + sizeof(int) + sizeof(int);
@@ -498,6 +503,9 @@ public:
 	virtual void Write(const char* buf, int len, Error* e) override
 	{
 		User.OutputIo(FileId, "write", buf, len);
+
+		if (checksum && len > 0)
+			checksum->Update(StrRef(buf, len));
 	}
 
 	virtual int Read(char* buf, int len, Error* e) override
@@ -555,13 +563,86 @@ public:
 	}
 };
 
+class FUnzipFileSys : public FFileSys
+{
+public:
+	Gzip* GzipInst;
+
+	char* Buffer;
+	const size_t BufferSize;
+
+	FUnzipFileSys(FileSysType InType, FClientUser& InUser)
+		: FFileSys(InType, InUser)
+		, BufferSize(FFileSys::BufferSize())
+	{
+		GzipInst = nullptr;
+		Buffer = nullptr;
+	}
+
+	~FUnzipFileSys()
+	{
+		Cleanup();
+		delete GzipInst;
+		delete[] Buffer;
+	}
+
+	virtual void Open(FileOpenMode Mode, Error* Err) override
+	{
+		Buffer = new char[BufferSize];
+
+		GzipInst = new Gzip();
+		GzipInst->is = Buffer;
+		GzipInst->ie = Buffer;
+		GzipInst->os = Buffer;
+		GzipInst->oe = Buffer + BufferSize;
+
+		FFileSys::Open(Mode, Err);
+	}
+
+	virtual void Write(const char* WriteBuf, int WriteLen, Error* e) override
+	{
+		GzipInst->is = WriteBuf;
+		GzipInst->ie = WriteBuf + WriteLen;
+
+		for (;;)
+		{
+			if (GzipInst->OutputFull())
+			{
+				FFileSys::Write(Buffer, (int)(GzipInst->os - Buffer), e);
+				GzipInst->os = Buffer;
+			}
+			if (e->Test() || !GzipInst->Uncompress(e) || GzipInst->InputEmpty())
+			{
+				break;
+			}
+		}
+	}
+
+	virtual void Close(Error* e) override
+	{
+		if (GzipInst && mode == FOM_WRITE && GzipInst->os > Buffer)
+		{
+			FFileSys::Write(Buffer, (int)(GzipInst->os - Buffer), e);
+		}
+
+		FFileSys::Close(e);
+	}
+};
+
 int FFileSys::NextFileId = 100;
 
 FileSys* FClientUser::File(FileSysType type)
 {
 	if (InterceptIo)
 	{
-		return new FFileSys(type, *this);
+		if ((type & FST_C_MASK) == FST_C_GUNZIP)
+		{
+			return new FUnzipFileSys(type, *this);
+		}
+		else
+		{
+			return new FFileSys(type, *this);
+		}
 	}
 	else
 	{
