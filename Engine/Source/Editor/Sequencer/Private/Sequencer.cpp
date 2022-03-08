@@ -152,6 +152,7 @@
 #include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
 #include "Systems/MovieSceneMotionVectorSimulationSystem.h"
 
+#include "EngineModule.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -3129,6 +3130,7 @@ void FSequencer::EvaluateInternal(FMovieSceneEvaluationRange InRange, bool bHasJ
 	if (!IsInSilentMode())
 	{
 		OnGlobalTimeChangedDelegate.Broadcast();
+		GetRendererModule().InvalidatePathTracedOutput();
 	}
 
 }
