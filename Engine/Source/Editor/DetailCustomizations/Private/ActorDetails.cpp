@@ -548,7 +548,6 @@ void FActorDetails::AddEventsCategory(IDetailLayoutBuilder& DetailBuilder)
 					// A "Plus" button to add a binding. For dynamic delegates on the CDO, you can always
 					// make a new binding, so always display the "Plus"
 					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "DetailsView.CalloutButton")
 					.ContentPadding(FMargin(3.0, 2.0))
 					.HAlign(HAlign_Center)
 					.OnClicked(this, &FActorDetails::HandleAddOrViewEventForVariable, Blueprint, Property)

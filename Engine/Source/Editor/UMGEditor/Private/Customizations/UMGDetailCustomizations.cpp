@@ -723,7 +723,6 @@ void FBlueprintWidgetCustomization::CreateMulticastEventCustomization(IDetailLay
 			.Padding(0)
 			[
 				SNew(SButton)
-				.ButtonStyle(FAppStyle::Get(), "DetailsView.CalloutButton")
 				.ContentPadding(FMargin(3.0, 2.0))
 				.OnClicked(this, &FBlueprintWidgetCustomization::HandleAddOrViewEventForVariable, EventName, PropertyName, MakeWeakObjectPtr(PropertyClass))
 				[

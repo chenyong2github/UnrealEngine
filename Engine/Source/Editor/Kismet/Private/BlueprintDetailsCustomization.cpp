@@ -162,7 +162,6 @@ void FBlueprintDetails::AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, F
 						[
 							SNew(SButton)
 							.ContentPadding(FMargin(3.0, 2.0))
-							.ButtonStyle(FAppStyle::Get(), "DetailsView.CalloutButton")
 							.OnClicked(this, &FBlueprintVarActionDetails::HandleAddOrViewEventForVariable, EventName, PropertyName, MakeWeakObjectPtr(PropertyClass))
 							[
 								SNew(SWidgetSwitcher)
