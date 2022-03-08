@@ -33,8 +33,6 @@
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidJNI.h"
-#include "Android/AndroidEGL.h"
-#include "Android/AndroidOpenGL.h"
 #include "Android/AndroidApplication.h"
 #include "HAL/IConsoleManager.h"
 #endif
@@ -2214,7 +2212,8 @@ namespace OculusHMD
 			GIsEditor ? ovrpBool_True : ovrpBool_False);
 
 #if PLATFORM_ANDROID
-		FOculusHMDModule::GetPluginWrapper().SetupDisplayObjects2(AndroidEGL::GetInstance()->GetRenderingContext()->eglContext, AndroidEGL::GetInstance()->GetDisplay(), AndroidEGL::GetInstance()->GetNativeWindow());
+		IOpenGLDynamicRHI* RHI = GetIOpenGLDynamicRHI();
+		FOculusHMDModule::GetPluginWrapper().SetupDisplayObjects2(RHI->RHIGetEGLContext(), RHI->RHIGetEGLDisplay(), RHI->RHIGetEGLNativeWindow());
 		GSupportsMobileMultiView = true;
 		if (GRHISupportsLateVariableRateShadingUpdate)
 		{
@@ -2223,7 +2222,7 @@ namespace OculusHMD
 #endif
 		int flag = ovrpDistortionWindowFlag_None;
 #if PLATFORM_ANDROID && USE_ANDROID_EGL_NO_ERROR_CONTEXT
-		if (AndroidEGL::GetInstance()->GetSupportsNoErrorContext())
+		if (RHI->RHIEGLSupportsNoErrorContext())
 		{
 			flag = ovrpDistortionWindowFlag_NoErrorContext;
 		}

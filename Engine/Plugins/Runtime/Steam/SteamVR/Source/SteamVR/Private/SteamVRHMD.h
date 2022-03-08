@@ -24,7 +24,7 @@
 #endif
 
 #if !PLATFORM_MAC // No OpenGL on Mac anymore
-#include "OpenGLDrv.h"
+#include "IOpenGLDynamicRHI.h"
 #endif
 
 #include "SceneViewExtension.h"

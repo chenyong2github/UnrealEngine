@@ -27,8 +27,7 @@
 //-------------------------------------------------------------------------------------------------
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_OPENGL
-#include "OpenGLDrvPrivate.h"
-#include "OpenGLResources.h"
+#include "IOpenGLDynamicRHI.h"
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS_OPENGL
 
 

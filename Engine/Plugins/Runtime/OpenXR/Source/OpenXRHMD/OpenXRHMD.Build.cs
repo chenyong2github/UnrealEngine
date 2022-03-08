@@ -15,7 +15,6 @@ namespace UnrealBuildTool.Rules
 					"OpenXRHMD/Private",
                     EngineDir + "/Source/ThirdParty/OpenXR/include",
                     EngineDir + "/Source/Runtime/Renderer/Private",
-                    EngineDir + "/Source/Runtime/OpenGLDrv/Private",
                     EngineDir + "/Source/Runtime/VulkanRHI/Private",
 					// ... add other private include paths required here ...
 				}

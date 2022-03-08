@@ -181,6 +181,16 @@ struct FAndroidOpenGL : public FOpenGLES
 	static int32 GLMajorVerion;
 	static int32 GLMinorVersion;
 
+	static FORCEINLINE GLuint GetMajorVersion()
+	{
+		return GLMajorVerion;
+	}
+
+	static FORCEINLINE GLuint GetMinorVersion()
+	{
+		return GLMinorVersion;
+	}
+
 	/** Whether device supports image external */
 	static bool bSupportsImageExternal;
 

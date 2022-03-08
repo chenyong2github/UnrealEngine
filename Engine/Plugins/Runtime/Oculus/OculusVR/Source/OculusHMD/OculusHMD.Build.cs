@@ -13,7 +13,6 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					// Relative to Engine\Plugins\Runtime\Oculus\OculusVR\Source
 					"../../../../../Source/Runtime/Renderer/Private",
-					"../../../../../Source/Runtime/OpenGLDrv/Private",
 					"../../../../../Source/Runtime/VulkanRHI/Private",
 					"../../../../../Source/Runtime/Engine/Classes/Components",
 					"../../../../../Source/Runtime/Engine/Classes/Kismet",

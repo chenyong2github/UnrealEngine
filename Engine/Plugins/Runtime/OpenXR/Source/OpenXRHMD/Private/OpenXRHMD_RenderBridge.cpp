@@ -116,7 +116,8 @@ public:
 		Requirements.maxApiVersionSupported = 0;
 		XR_ENSURE(GetOpenGLGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
 
-		XrVersion RHIVersion = XR_MAKE_VERSION(FOpenGL::GetMajorVersion(), FOpenGL::GetMinorVersion(), 0);
+		IOpenGLDynamicRHI* RHI = GetIOpenGLDynamicRHI();
+		XrVersion RHIVersion = XR_MAKE_VERSION(RHI->RHIGetGLMajorVersion(), RHI->RHIGetGLMinorVersion(), 0);
 		if (RHIVersion < Requirements.minApiVersionSupported) //-V547
 		{
 			UE_LOG(LogHMD, Fatal, TEXT("The OpenGL API version does not meet the minimum version required by the OpenXR runtime"));
@@ -172,7 +173,8 @@ public:
 		XR_ENSURE(GetOpenGLESGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
 
 #if PLATFORM_ANDROID
-		XrVersion RHIVersion = XR_MAKE_VERSION(FAndroidOpenGL::GLMajorVerion, FAndroidOpenGL::GLMinorVersion, 0);
+		IOpenGLDynamicRHI* RHI = GetIOpenGLDynamicRHI();
+		XrVersion RHIVersion = XR_MAKE_VERSION(RHI->RHIGetGLMajorVersion(), RHI->RHIGetGLMinorVersion(), 0);
 		if (RHIVersion < Requirements.minApiVersionSupported) //-V547
 		{
 			UE_LOG(LogHMD, Fatal, TEXT("The OpenGLES API version does not meet the minimum version required by the OpenXR runtime"));
@@ -188,11 +190,12 @@ public:
 	virtual void* GetGraphicsBinding() override
 	{
 #if PLATFORM_ANDROID
+		IOpenGLDynamicRHI* RHI = GetIOpenGLDynamicRHI();
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_OPENGL_ES_ANDROID_KHR;
 		Binding.next = nullptr;
-		Binding.display = AndroidEGL::GetInstance()->GetDisplay();
-		Binding.config = AndroidEGL::GetInstance()->GetConfig();
-		Binding.context = AndroidEGL::GetInstance()->GetRenderingContext()->eglContext;
+		Binding.display = RHI->RHIGetEGLDisplay();
+		Binding.config = RHI->RHIGetEGLConfig();
+		Binding.context = RHI->RHIGetEGLContext();
 		return &Binding;
 #endif
 		return nullptr;

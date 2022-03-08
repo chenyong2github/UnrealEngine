@@ -493,13 +493,15 @@ FSteamVRHMD::OpenGLBridge::OpenGLBridge(FSteamVRHMD* plugin):
 
 void FSteamVRHMD::OpenGLBridge::FinishRendering()
 {
-	GLuint RenderTargetTexture = *reinterpret_cast<GLuint*>(SwapChain->GetTexture2D()->GetNativeResource());
-	GLuint DepthTargetTexture = *reinterpret_cast<GLuint*>(DepthSwapChain->GetTexture2D()->GetNativeResource());
+	IOpenGLDynamicRHI* RHI = GetIOpenGLDynamicRHI();
+
+	const GLuint RenderTargetTexture = RHI->RHIGetResource(SwapChain->GetTexture2D());
+	const GLuint DepthTargetTexture = RHI->RHIGetResource(DepthSwapChain->GetTexture2D());
 
 	// Yaakuro:
 	// TODO This is a workaround. After exiting VR Editor the texture gets invalid at some point.
 	// Need to find it. This at least prevents to use this method when texture name is not valid anymore.
-	if (!glIsTexture(RenderTargetTexture) || !glIsTexture(DepthTargetTexture))
+	if (!RHI->RHIIsValidTexture(RenderTargetTexture) || !RHI->RHIIsValidTexture(DepthTargetTexture))
 	{
 		return;
 	}

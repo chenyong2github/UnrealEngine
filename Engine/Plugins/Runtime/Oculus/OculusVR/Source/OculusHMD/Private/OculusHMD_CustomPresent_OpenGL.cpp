@@ -12,10 +12,6 @@
 #endif
 #endif
 
-#if PLATFORM_ANDROID
-#include "Android/AndroidOpenGL.h"
-#endif
-
 namespace OculusHMD
 {
 
@@ -55,7 +51,7 @@ FTextureRHIRef FOpenGLCustomPresent::CreateTexture_RenderThread(uint32 InSizeX, 
 {
 	CheckInRenderThread();
 
-	FOpenGLDynamicRHI* DynamicRHI = GetDynamicRHI<FOpenGLDynamicRHI>();
+	IOpenGLDynamicRHI* DynamicRHI = GetIOpenGLDynamicRHI();
 
 	switch (InResourceType)
 	{
@@ -75,8 +71,7 @@ FTextureRHIRef FOpenGLCustomPresent::CreateTexture_RenderThread(uint32 InSizeX, 
 
 void FOpenGLCustomPresent::SubmitGPUFrameTime(float GPUFrameTime)
 {
-	FOpenGLDynamicRHI* DynamicRHI = GetDynamicRHI<FOpenGLDynamicRHI>();
-	DynamicRHI->GetGPUProfilingData().ExternalGPUTime = GPUFrameTime * 1000;
+	GetIOpenGLDynamicRHI()->RHISetExternalGPUTime(GPUFrameTime * 1000);
 }
 
 
@@ -86,12 +81,7 @@ void FOpenGLCustomPresent::SubmitGPUFrameTime(float GPUFrameTime)
 
 FCustomPresent* CreateCustomPresent_OpenGL(FOculusHMD* InOculusHMD)
 {
-#if PLATFORM_ANDROID
-	const bool sRGBSupport = FAndroidOpenGL::SupportsFramebufferSRGBEnable();
-#else
-	const bool sRGBSupport = true;
-#endif
-	return new FOpenGLCustomPresent(InOculusHMD, sRGBSupport);
+	return new FOpenGLCustomPresent(InOculusHMD, GetIOpenGLDynamicRHI()->RHISupportsFramebufferSRGBEnable());
 }
 
 

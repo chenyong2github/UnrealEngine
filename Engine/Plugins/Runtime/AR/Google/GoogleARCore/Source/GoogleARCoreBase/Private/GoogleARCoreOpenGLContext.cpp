@@ -30,12 +30,12 @@ void FGoogleARCoreOpenGLContext::InitContext()
 #if PLATFORM_ANDROID
 	UE_LOG(LogARCoreOpenGL, Log, TEXT("FGoogleARCoreOpenGLContext::InitContext"));
 	
-	auto EGL = AndroidEGL::GetInstance();
-	EGL->Init(AndroidEGL::AV_OpenGLES, 2, 0, false);
-	EGL->InitSurface(false, false);
+	IOpenGLDynamicRHI* RHI = GetIOpenGLDynamicRHI();
+
+	RHI->RHIInitEGLInstanceGLES2();
 	SaveContext();
 	MakeCurrent();
-	EGL->InitBackBuffer(); //can be done only after context is made current.
+	RHI->RHIInitEGLBackBuffer(); //can be done only after context is made current.
 	glGenTextures(1, &PassthroughCameraTextureId);
 	RestoreContext();
 	
@@ -48,14 +48,14 @@ void FGoogleARCoreOpenGLContext::ReleaseContext()
 #if PLATFORM_ANDROID
 	glDeleteTextures(1, &PassthroughCameraTextureId);
 	PassthroughCameraTextureId = 0;
-	AndroidEGL::GetInstance()->Terminate();
+	GetIOpenGLDynamicRHI()->RHIEGLTerminateContext();
 #endif
 }
 
 void FGoogleARCoreOpenGLContext::MakeCurrent()
 {
 #if PLATFORM_ANDROID
-	AndroidEGL::GetInstance()->SetCurrentRenderingContext();
+	GetIOpenGLDynamicRHI()->RHIEGLSetCurrentRenderingContext();
 #endif
 }
 

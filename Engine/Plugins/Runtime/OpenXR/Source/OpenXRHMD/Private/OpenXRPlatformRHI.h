@@ -44,14 +44,7 @@
 //-------------------------------------------------------------------------------------------------
 
 #if defined(XR_USE_GRAPHICS_API_OPENGL) || defined(XR_USE_GRAPHICS_API_OPENGL_ES)
-#include "OpenGLDrvPrivate.h"
-#include "OpenGLResources.h"
-
-#ifdef XR_USE_PLATFORM_ANDROID
-#include "Android/AndroidEGL.h"
-#include "Android/AndroidOpenGL.h"
-#endif
-
+#include "IOpenGLDynamicRHI.h"
 #endif // XR_USE_GRAPHICS_API_OPENGL
 
 //-------------------------------------------------------------------------------------------------

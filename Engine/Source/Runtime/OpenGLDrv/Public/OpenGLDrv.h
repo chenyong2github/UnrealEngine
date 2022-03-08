@@ -10,6 +10,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
+#include "IOpenGLDynamicRHI.h"
 #include "RHIDefinitions.h"
 #include "RHI.h"
 #include "GPUProfiler.h"
@@ -19,9 +20,9 @@
 // @todo platplug: Replace all of these includes with a call to COMPILED_PLATFORM_HEADER(OpenGLDrvPrivate.h)
 //TODO: Move these to OpenGLDrvPrivate.h
 #if PLATFORM_WINDOWS
-	#include "Runtime/OpenGLDrv/Private/Windows/OpenGLWindows.h"
+	#include "Windows/OpenGLWindows.h"
 #elif PLATFORM_LINUX
-	#include "Runtime/OpenGLDrv/Private/Linux/OpenGLLinux.h"
+	#include "Linux/OpenGLLinux.h"
 #elif PLATFORM_ANDROID
 	#include "Android/AndroidOpenGL.h"
 #else
@@ -287,7 +288,7 @@ struct FOpenGLGPUProfiler : public FGPUProfiler
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /** The interface which is implemented by the dynamically bound RHI. */
-class OPENGLDRV_API FOpenGLDynamicRHI  final : public FDynamicRHIPSOFallback, public IRHICommandContextPSOFallback
+class OPENGLDRV_API FOpenGLDynamicRHI  final : public IOpenGLDynamicRHI, public IRHICommandContextPSOFallback
 {
 public:
 
@@ -299,13 +300,36 @@ public:
 	/** Destructor */
 	~FOpenGLDynamicRHI() {}
 
+	// IOpenGLDynamicRHI interface.
+	virtual int32 RHIGetGLMajorVersion() const final override;
+	virtual int32 RHIGetGLMinorVersion() const final override;
+	virtual bool RHISupportsFramebufferSRGBEnable() const final override;
+	virtual FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, ETextureCreateFlags Flags) final override;
+	virtual FTexture2DRHIRef RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, ETextureCreateFlags Flags) final override;
+	virtual FTextureCubeRHIRef RHICreateTextureCubeFromResource(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, ETextureCreateFlags Flags) final override;
+	virtual GLuint RHIGetResource(FRHITexture* InTexture) const final override;
+	virtual bool RHIIsValidTexture(GLuint InTexture) const final override;
+	virtual void RHISetExternalGPUTime(uint32 InExternalGPUTime) final override;
+
+#if PLATFORM_ANDROID
+	virtual EGLDisplay RHIGetEGLDisplay() const final override;
+	virtual EGLSurface RHIGetEGLSurface() const final override;
+	virtual EGLConfig  RHIGetEGLConfig() const final override;
+	virtual EGLContext RHIGetEGLContext() const final override;
+	virtual ANativeWindow* RHIGetEGLNativeWindow() const final override;
+	virtual bool RHIEGLSupportsNoErrorContext() const final override;
+	virtual void RHIInitEGLInstanceGLES2() final override;
+	virtual void RHIInitEGLBackBuffer() final override;
+	virtual void RHIEGLSetCurrentRenderingContext() final override;
+	virtual void RHIEGLTerminateContext() final override;
+#endif
+
 	// FDynamicRHI interface.
 	virtual void Init();
 	virtual void PostInit();
 
 	virtual void Shutdown();
 	virtual const TCHAR* GetName() override { return TEXT("OpenGL"); }
-	virtual ERHIInterfaceType GetInterfaceType() const override final { return ERHIInterfaceType::OpenGL; }
 
 	// If using a Proxy object return the contained GL object rather than the proxy itself.
 	template<typename TRHIType>
@@ -491,11 +515,6 @@ public:
 	virtual void RHICopyTexture(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FRHICopyTextureInfo& CopyInfo) final override;
 
 	virtual void RHICopyBufferRegion(FRHIBuffer* DestBuffer, uint64 DstOffset, FRHIBuffer* SourceBuffer, uint64 SrcOffset, uint64 NumBytes) final override;
-
-	// FOpenGLDynamicRHI interface.
-	FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, ETextureCreateFlags Flags);
-	FTexture2DRHIRef RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, ETextureCreateFlags Flags);
-	FTextureCubeRHIRef RHICreateTextureCubeFromResource(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, const FClearValueBinding& ClearValueBinding, GLuint Resource, ETextureCreateFlags Flags);
 
 	// Inline copy
 	virtual void RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRHIStagingBuffer* DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes) final override;

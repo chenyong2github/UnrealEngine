@@ -29,6 +29,92 @@ DEFINE_LOG_CATEGORY(LogOpenGL);
 ERHIFeatureLevel::Type GRequestedFeatureLevel = ERHIFeatureLevel::Num;
 
 
+int32 FOpenGLDynamicRHI::RHIGetGLMajorVersion() const
+{
+	return FOpenGL::GetMajorVersion();
+}
+
+int32 FOpenGLDynamicRHI::RHIGetGLMinorVersion() const
+{
+	return FOpenGL::GetMinorVersion();
+}
+
+bool FOpenGLDynamicRHI::RHISupportsFramebufferSRGBEnable() const
+{
+	return FOpenGL::SupportsFramebufferSRGBEnable();
+}
+
+GLuint FOpenGLDynamicRHI::RHIGetResource(FRHITexture* InTexture) const
+{
+	FOpenGLTextureBase* GLTexture = GetOpenGLTextureFromRHITexture(InTexture);
+	return GLTexture->GetResource();
+}
+
+bool FOpenGLDynamicRHI::RHIIsValidTexture(GLuint InTexture) const
+{
+	return glIsTexture(InTexture) == GL_TRUE;
+}
+
+void FOpenGLDynamicRHI::RHISetExternalGPUTime(uint32 InExternalGPUTime)
+{
+	GetGPUProfilingData().ExternalGPUTime = InExternalGPUTime;
+}
+
+#if PLATFORM_ANDROID
+
+EGLDisplay FOpenGLDynamicRHI::RHIGetEGLDisplay() const
+{
+	return AndroidEGL::GetInstance()->GetDisplay();
+}
+
+EGLSurface FOpenGLDynamicRHI::RHIGetEGLSurface() const
+{
+	return AndroidEGL::GetInstance()->GetSurface();
+}
+
+EGLConfig FOpenGLDynamicRHI::RHIGetEGLConfig() const
+{
+	return AndroidEGL::GetInstance()->GetConfig();
+}
+
+EGLContext FOpenGLDynamicRHI::RHIGetEGLContext() const
+{
+	return AndroidEGL::GetInstance()->GetRenderingContext()->eglContext;
+}
+
+ANativeWindow* FOpenGLDynamicRHI::RHIGetEGLNativeWindow() const
+{
+	return AndroidEGL::GetInstance()->GetNativeWindow();
+}
+
+bool FOpenGLDynamicRHI::RHIEGLSupportsNoErrorContext() const
+{
+	return AndroidEGL::GetInstance()->GetSupportsNoErrorContext();
+}
+
+void FOpenGLDynamicRHI::RHIInitEGLInstanceGLES2()
+{
+	AndroidEGL::GetInstance()->Init(AndroidEGL::AV_OpenGLES, 2, 0, false);
+	AndroidEGL::GetInstance()->InitSurface(false, false);
+}
+
+void FOpenGLDynamicRHI::RHIInitEGLBackBuffer()
+{
+	AndroidEGL::GetInstance()->InitBackBuffer();
+}
+
+void FOpenGLDynamicRHI::RHIEGLSetCurrentRenderingContext()
+{
+	AndroidEGL::GetInstance()->SetCurrentRenderingContext();
+}
+
+void FOpenGLDynamicRHI::RHIEGLTerminateContext()
+{
+	AndroidEGL::GetInstance()->Terminate();
+}
+#endif
+
+
 void FOpenGLDynamicRHI::RHIPushEvent(const TCHAR* Name, FColor Color)
 {
 #if ENABLE_OPENGL_DEBUG_GROUPS

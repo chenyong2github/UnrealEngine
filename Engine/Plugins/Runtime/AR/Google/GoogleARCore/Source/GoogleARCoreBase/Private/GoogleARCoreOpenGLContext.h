@@ -7,7 +7,7 @@
 #include "Templates/SharedPointer.h"
 
 #if PLATFORM_ANDROID
-#include "Android/AndroidEGL.h"
+#include "IOpenGLDynamicRHI.h"
 #endif
 
 class FGoogleARCoreOpenGLContext

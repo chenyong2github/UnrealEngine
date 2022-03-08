@@ -9,29 +9,25 @@ public class OpenGLDrv : ModuleRules
 	{
 		PrivateIncludePaths.Add("Runtime/OpenGLDrv/Private");
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"Core",
-				"CoreUObject",
-				"ApplicationCore",
-				"Engine",
-				"RHI",
-				"RHICore",
-				"RenderCore",
-				"PreLoadScreen"
-			}
-			);
+		PublicDependencyModuleNames.AddRange(new string[] {
+			"Core",
+			"RHI",
+		});
+
+		PrivateDependencyModuleNames.AddRange(new string[] {
+			"CoreUObject",
+			"ApplicationCore",
+			"Engine",
+			"RHICore",
+			"RenderCore",
+			"PreLoadScreen"
+		});
 
 		PrivateIncludePathModuleNames.Add("ImageWrapper");
 		DynamicallyLoadedModuleNames.Add("ImageWrapper");
 
+		PublicIncludePathModuleNames.Add("OpenGL");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
-
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
-		{
-			string GLPath = Target.UEThirdPartySourceDirectory + "OpenGL/";
-			PublicIncludePaths.Add(GLPath);
-		}
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
@@ -40,12 +36,7 @@ public class OpenGLDrv : ModuleRules
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
-			PrivateIncludePathModuleNames.AddRange(
-				new string[]
-				{
-					"TaskGraph"
-				}
-			);
+			PrivateIncludePathModuleNames.Add("TaskGraph");
 		}
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
@@ -58,19 +49,8 @@ public class OpenGLDrv : ModuleRules
             // for Swappy
             PublicDefinitions.Add("USE_ANDROID_OPENGL_SWAPPY=1");
 
-            PrivateDependencyModuleNames.AddRange(
-                new string[]
-                {
-					"GoogleGameSDK"
-                }
-            );
-
-			PrivateIncludePathModuleNames.AddRange(
-				new string[]
-				{
-					"Launch"
-				}
-			);
+            PrivateDependencyModuleNames.Add("GoogleGameSDK");
+			PrivateIncludePathModuleNames.Add("Launch");
 		}
 
         if (Target.Platform != UnrealTargetPlatform.Win64

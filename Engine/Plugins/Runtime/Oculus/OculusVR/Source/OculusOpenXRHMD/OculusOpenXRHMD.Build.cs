@@ -14,7 +14,6 @@ namespace UnrealBuildTool.Rules
                     // Relative to Engine\Plugins\Runtime\Oculus\OculusOpenXR\Source
                     "../../../OpenXR/Source/OpenXRHMD/Private",
                     "../../../../../Source/Runtime/Renderer/Private",
-                    "../../../../../Source/Runtime/OpenGLDrv/Private",
                     "../../../../../Source/Runtime/VulkanRHI/Private",
                     "../../../../../Source/Runtime/Engine/Classes/Components",
                     "../../../../../Source/Runtime/Engine/Classes/Kismet",

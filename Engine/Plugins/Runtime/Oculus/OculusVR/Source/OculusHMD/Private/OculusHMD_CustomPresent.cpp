@@ -12,7 +12,6 @@
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidJNI.h"
-#include "Android/AndroidEGL.h"
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidPlatformMisc.h"
 #endif
