@@ -274,6 +274,11 @@ inline bool RHISupportsBindless(EShaderPlatform Platform)
 	return FDataDrivenShaderPlatformInfo::GetSupportsBindless(Platform);
 }
 
+inline bool RHISupportsVolumeTextureAtomics(EShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsVolumeTextureAtomics(Platform);
+}
+
 // Wrapper for GRHI## global variables, allows values to be overridden for mobile preview modes.
 template <typename TValueType>
 class TRHIGlobal

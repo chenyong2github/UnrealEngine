@@ -396,6 +396,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsVertexShaderLayer : 1;
 	uint32 bMobileSupportFetchBindedCustomStencilBuffer : 1;
 	uint32 bSupportsBindless : 1;
+	uint32 bSupportsVolumeTextureAtomics : 1;
 
 		
 #if WITH_EDITOR
@@ -913,6 +914,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsBindless(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsBindless;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsVolumeTextureAtomics(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsVolumeTextureAtomics;
 	}
 
 #if WITH_EDITOR
