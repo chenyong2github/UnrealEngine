@@ -98,20 +98,6 @@ bool UHLODSubsystem::IsHLODEnabled()
 	return UHLODSubsystem::WorldPartitionHLODEnabled;
 }
 
-bool UHLODSubsystem::ShouldCreateSubsystem(UObject* Outer) const
-{
-	if (!Super::ShouldCreateSubsystem(Outer))
-	{
-		return false;
-	}
-
-	if (UWorld* WorldOuter = Cast<UWorld>(Outer))
-	{
-		return WorldOuter->IsPartitionedWorld();
-	}
-	return false;
-}
-
 void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	// Ensure the WorldPartitionSubsystem gets created before the HLODSubsystem
@@ -123,14 +109,22 @@ void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	if (World->IsGameWorld())
 	{
-		UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition();
-		check(WorldPartition);
+		if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+		{
+			GetWorld()->OnWorldPartitionInitialized().AddUObject(this, &UHLODSubsystem::OnWorldPartitionInitialized);
+			GetWorld()->OnWorldPartitionUninitialized().AddUObject(this, &UHLODSubsystem::OnWorldPartitionUninitialized);
 
-		WorldPartition->OnWorldPartitionInitialized.AddUObject(this, &UHLODSubsystem::OnWorldPartitionInitialized);
-		WorldPartition->OnWorldPartitionUninitialized.AddUObject(this, &UHLODSubsystem::OnWorldPartitionUninitialized);
-
-		SceneViewExtension = FSceneViewExtensions::NewExtension<FHLODResourcesResidencySceneViewExtension>(World);
+			SceneViewExtension = FSceneViewExtensions::NewExtension<FHLODResourcesResidencySceneViewExtension>(World);
+		}
 	}
+}
+
+void UHLODSubsystem::Deinitialize()
+{
+	Super::Deinitialize();
+
+	GetWorld()->OnWorldPartitionInitialized().RemoveAll(this);
+	GetWorld()->OnWorldPartitionUninitialized().RemoveAll(this);
 }
 
 void UHLODSubsystem::OnWorldPartitionInitialized(UWorldPartition* InWorldPartition)

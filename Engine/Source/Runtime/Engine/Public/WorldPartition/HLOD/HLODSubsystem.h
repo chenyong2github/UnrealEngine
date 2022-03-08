@@ -40,8 +40,8 @@ public:
 	virtual ~UHLODSubsystem();
 
 	//~ Begin USubsystem Interface.
-	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	//~ End USubsystem Interface.
 
 	void RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD);

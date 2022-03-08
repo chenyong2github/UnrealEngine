@@ -25,7 +25,6 @@ public:
 	UDataLayerSubsystem();
 
 	//~ Begin USubsystem Interface.
-	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	//~ End USubsystem Interface.
 

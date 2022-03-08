@@ -1002,6 +1002,18 @@ struct ENGINE_API FScopedLoadAllExternalObjects
 	FName PackageName;
 };
 
+/**
+ * Helper class allows UWorldPartition to broadcast UWorld events 
+ */
+struct FWorldPartitionEvents
+{
+	friend UWorldPartition;
+
+private:
+	static void BroadcastWorldPartitionInitialized(UWorld* InWorld, UWorldPartition* InWorldPartition);
+	static void BroadcastWorldPartitionUninitialized(UWorld* InWorld, UWorldPartition* InWorldPartition);
+};
+
 /** 
  * The World is the top level object representing a map or a sandbox in which Actors and Components will exist and be rendered.  
  *
@@ -1652,6 +1664,28 @@ private:
 
 	/** Broadcasted on UWorld::BeginTearingDown */
 	FOnBeginTearingDownEvent BeginTearingDownEvent;
+
+	/** Broadcasted when WorldPartition gets initialized */
+	DECLARE_EVENT_OneParam(UWorld, FWorldPartitionInitializedEvent, UWorldPartition*);
+	
+	FWorldPartitionInitializedEvent OnWorldPartitionInitializedEvent;
+
+	void BroadcastWorldPartitionInitialized(UWorldPartition* InWorldPartition)
+	{
+		OnWorldPartitionInitializedEvent.Broadcast(InWorldPartition);
+	}
+
+	/** Broadcasted when WorldPartition gets uninitialized */
+	DECLARE_EVENT_OneParam(UWorld, FWorldPartitionUninitializedEvent, UWorldPartition*);
+
+	FWorldPartitionUninitializedEvent OnWorldPartitionUninitializedEvent;
+
+	void BroadcastWorldPartitionUninitialized(UWorldPartition* InWorldPartition)
+	{
+		OnWorldPartitionUninitializedEvent.Broadcast(InWorldPartition);
+	}
+
+	friend FWorldPartitionEvents;
 
 #if WITH_EDITOR
 
@@ -2691,6 +2725,9 @@ public:
 
 		return false;
 	}
+
+	FWorldPartitionInitializedEvent& OnWorldPartitionInitialized() { return OnWorldPartitionInitializedEvent; }
+	FWorldPartitionUninitializedEvent& OnWorldPartitionUninitialized() { return OnWorldPartitionUninitializedEvent; }
 		
 	/**
 	 * Returns the current levels BSP model.
@@ -3902,16 +3939,6 @@ public:
 	inline FLatentActionManager& GetLatentActionManager()
 	{
 		return (OwningGameInstance ? OwningGameInstance->GetLatentActionManager() : LatentActionManager);
-	}
-
-	/**
-	 * Reinitialize all subsystems
-	 */
-	void ReinitializeSubSystems()
-	{
-		SubsystemCollection.Deinitialize();
-		SubsystemCollection.Initialize(this);
-		PostInitializeSubsystems();
 	}
 
 	/**

@@ -78,6 +78,7 @@ Level.cpp: Level-related functions
 #include "UObject/MetaData.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 #include "Components/ModelComponent.h"
@@ -419,11 +420,14 @@ void ULevel::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 	Super::AddReferencedObjects( This, Collector );
 }
 
-void ULevel::CleanupLevel(bool bCleanupResources)
+void ULevel::CleanupLevel(bool bCleanupResources, bool bUnloadFromEditor)
 {
-	if (bCleanupResources)
+	OnCleanupLevel.Broadcast();
+
+#if WITH_EDITOR
+	if (bUnloadFromEditor)
 	{
-		OnCleanupLevel.Broadcast();
+		check(bCleanupResources);
 		// if the level contains any actor with an external package, clear their metadata standalone flag so that the packages can be properly unloaded.
 		// Do so for any actors outered to the level and not just from the level actors array
 		ForEachObjectWithOuter(this, [](UObject* InObject)
@@ -438,6 +442,15 @@ void ULevel::CleanupLevel(bool bCleanupResources)
 				}, false);
 			}
 		}, false);
+	}
+#endif
+
+	if (bCleanupResources)
+	{
+		if (UWorldPartition* WorldPartition = GetWorldPartition(); WorldPartition && WorldPartition->IsInitialized())
+		{
+			WorldPartition->Uninitialize();
+		}
 	}
 }
 
@@ -2399,6 +2412,16 @@ void ULevel::OnLevelLoaded()
 #if WITH_EDITOR
 	FixupActorFolders();
 #endif
+
+	// 1. Cook commandlet does it's own UWorldPartition::Initialize call in FWorldPartitionCookPackageSplitter::GetGenerateList
+	// 2. Do not Initialize if World doesn't have a UWorldPartitionSubsystem (Known case is when WorldType == EWorldType::Inactive)
+	if (!IsRunningCookCommandlet() && IsPersistentLevel() && GetWorld()->HasSubsystem<UWorldPartitionSubsystem>())
+	{
+		if (UWorldPartition* WorldPartition = GetWorldPartition())
+		{
+			WorldPartition->Initialize(GetWorld(), FTransform::Identity);
+		}
+	}
 }
 
 void ULevel::BuildStreamingData(UWorld* World, ULevel* TargetLevel/*=NULL*/, UTexture2D* UpdateSpecificTextureOnly/*=NULL*/)

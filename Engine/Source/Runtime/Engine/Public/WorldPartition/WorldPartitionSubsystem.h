@@ -23,12 +23,11 @@ public:
 	UWorldPartitionSubsystem();
 
 	//~ Begin USubsystem Interface.
-	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	//~ End USubsystem Interface.
 
 	//~ Begin UWorldSubsystem Interface.
-	virtual void PostInitialize() override;
 	virtual void UpdateStreamingState() override;
 	//~ End UWorldSubsystem Interface.
 
@@ -48,6 +47,9 @@ private:
 #if WITH_EDITOR
 	bool IsRunningConvertWorldPartitionCommandlet() const;
 #endif
+
+	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
+	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
 
 	UWorldPartition* GetWorldPartition();
 	const UWorldPartition* GetWorldPartition() const;

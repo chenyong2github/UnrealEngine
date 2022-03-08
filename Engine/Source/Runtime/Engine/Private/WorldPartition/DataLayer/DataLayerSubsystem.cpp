@@ -41,21 +41,6 @@ static FAutoConsoleCommandWithOutputDevice GDumpDataLayersCmd(
 UDataLayerSubsystem::UDataLayerSubsystem()
 {}
 
-bool UDataLayerSubsystem::ShouldCreateSubsystem(UObject* Outer) const
-{
-	if (!Super::ShouldCreateSubsystem(Outer))
-	{
-		return false;
-	}
-
-	if (UWorld* WorldOuter = Cast<UWorld>(Outer))
-	{
-		return WorldOuter->IsPartitionedWorld();
-	}
-
-	return false;
-}
-
 void UDataLayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);

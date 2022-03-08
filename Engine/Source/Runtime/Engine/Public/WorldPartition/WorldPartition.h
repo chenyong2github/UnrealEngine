@@ -87,7 +87,10 @@ public:
 #endif
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionInitializeDelegate, UWorldPartition*);
+	
+	UE_DEPRECATED(5.1, "Please use FWorldPartitionInitializedEvent& UWorld::OnWorldPartitionInitialized() instead.")
 	FWorldPartitionInitializeDelegate OnWorldPartitionInitialized;
+	UE_DEPRECATED(5.1, "Please use FWorldPartitionInitializedEvent& UWorld::OnWorldPartitionUninitialized() instead.")
 	FWorldPartitionInitializeDelegate OnWorldPartitionUninitialized;
 
 #if WITH_EDITOR

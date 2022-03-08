@@ -904,9 +904,10 @@ public:
 	 * Flag this level instance for destruction.
 	 * This is called by UWorld::CleanupWorld to flag the level and its owned packages for destruction.
 	 *
-	 * @param bCleanupResources Whether to also remove RF_Standalone flags in the editor on level-specific subassets so that they will be garbage collected
+	 * @param bCleanupResources Whether to uninit anything that was initialized through OnLevelLoaded()
+	 * @param bUnloadFromEditor Whether to also remove RF_Standalone flags in the editor on level-specific subassets so that they can be garbage collected
 	 */
-	ENGINE_API void CleanupLevel(bool bCleanupResources);
+	ENGINE_API void CleanupLevel(bool bCleanupResources = true, bool bUnloadFromEditor = true);
 
 	/**
 	 * Cleans all references from and to this level that may be preventing it from being Garbage Collected

@@ -166,22 +166,7 @@ bool FWorldPartitionConverter::Convert()
 
 	if (bCreatedWorldPartition)
 	{
-		// Manually initialize World Partition subsystems as ReinitializeSubSystems is not fully supported by all subsystems.
-		FSubsystemCollectionBase::ActivateExternalSubsystem(UWorldPartitionSubsystem::StaticClass());
-		FSubsystemCollectionBase::ActivateExternalSubsystem(UDataLayerSubsystem::StaticClass());
-		FSubsystemCollectionBase::ActivateExternalSubsystem(UHLODSubsystem::StaticClass());
-		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
-		{
-			WorldPartitionSubsystem->PostInitialize();
-		}
-		if (UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>())
-		{
-			DataLayerSubsystem->PostInitialize();
-		}
-		if (UHLODSubsystem* HLODSubsystem = World->GetSubsystem<UHLODSubsystem>())
-		{
-			HLODSubsystem->PostInitialize();
-		}
+		WorldPartition->Initialize(World, FTransform::Identity);
 	}
 
 	return true;
