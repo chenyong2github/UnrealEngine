@@ -17,8 +17,6 @@ namespace ShewchukExactPredicates
 
 	// TODO also expose the math routines underlying the predicates
 
-	// TODO also build+expose float version
-
 	double orient2dfast(double* pa, double* pb, double* pc);
 	double orient2d(double* pa, double* pb, double* pc);
 	double orient3dfast(double* pa, double* pb, double* pc, double* pd);
@@ -28,3 +26,23 @@ namespace ShewchukExactPredicates
 	double inspherefast(double* pa, double* pb, double* pc, double* pd, double* pe);
 	double insphere(double* pa, double* pb, double* pc, double* pd, double* pe);
 } // namespace ExactPredicates
+
+namespace ShewchukExactPredicatesFloat
+{
+	/** @return true if exactinit() has already been run; useful for check()ing that */
+	bool IsExactPredicateDataInitialized();
+
+	/** must be called before running any exact predicate function.  called by module startup. */
+	void exactinit();
+
+	// TODO also expose the math routines underlying the predicates
+
+	float orient2dfast(float* pa, float* pb, float* pc);
+	float orient2d(float* pa, float* pb, float* pc);
+	float orient3dfast(float* pa, float* pb, float* pc, float* pd);
+	float orient3d(float* pa, float* pb, float* pc, float* pd);
+	float incirclefast(float* pa, float* pb, float* pc, float* pd);
+	float incircle(float* pa, float* pb, float* pc, float* pd);
+	float inspherefast(float* pa, float* pb, float* pc, float* pd, float* pe);
+	float insphere(float* pa, float* pb, float* pc, float* pd, float* pe);
+} // namespace ExactPredicatesFloat
