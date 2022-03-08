@@ -411,7 +411,7 @@ void UInterchangeGltfTranslator::HandleGltfClearCoat( UInterchangeBaseNodeContai
 	// ClearCoat::Parameters::ClearCoatNormal
 	{
 		TVariant< FLinearColor, float > ClearCoatNormalFactor;
-		ClearCoatNormalFactor.Set< FLinearColor >( FLinearColor( FVector::UpVector ) );
+		ClearCoatNormalFactor.Set< float >( GltfMaterial.ClearCoat.NormalMapUVScale );
 
 		const bool bInverse = false;
 		const bool bIsNormal = true;

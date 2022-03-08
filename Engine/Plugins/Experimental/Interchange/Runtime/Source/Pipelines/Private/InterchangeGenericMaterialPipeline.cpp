@@ -799,37 +799,36 @@ void UInterchangeGenericMaterialPipeline::HandleTextureCoordinateNode(const UInt
 
 	// Index
 	{
-		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> IndexExpression =
-			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Nodes::TextureCoordinate::Inputs::Index.ToString(), TexCoordFactoryNode->GetUniqueID());
-
-		if (IndexExpression.Get<0>())
+		int32 CoordIndex;
+		if (ShaderNode->GetInt32Attribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Nodes::TextureCoordinate::Inputs::Index.ToString()), CoordIndex))
 		{
-			UInterchangeShaderPortsAPI::ConnectOuputToInput(TexCoordFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, CoordinateIndex).ToString(),
-				IndexExpression.Get<0>()->GetUniqueID(), IndexExpression.Get<1>());
+			const FString CoordinateIndexMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, CoordinateIndex).ToString();
+			TexCoordFactoryNode->AddInt32Attribute(CoordinateIndexMemberName, CoordIndex);
+			TexCoordFactoryNode->AddApplyAndFillDelegates<int32>(CoordinateIndexMemberName, UMaterialExpressionTextureCoordinate::StaticClass(), *CoordinateIndexMemberName);
 		}
 	}
 
 	// U tiling
 	{
-		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> UTilingExpression =
-			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Nodes::TextureCoordinate::Inputs::UTiling.ToString(), TexCoordFactoryNode->GetUniqueID());
+		TVariant<FString, FLinearColor, float> UTilingValue = VisitShaderInput(ShaderNode, Nodes::TextureCoordinate::Inputs::UTiling.ToString());
 
-		if (UTilingExpression.Get<0>())
+		if (UTilingValue.IsType<float>())
 		{
-			UInterchangeShaderPortsAPI::ConnectOuputToInput(TexCoordFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, UTiling).ToString(),
-				UTilingExpression.Get<0>()->GetUniqueID(), UTilingExpression.Get<1>());
+			const FString UTilingMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, UTiling).ToString();
+			TexCoordFactoryNode->AddFloatAttribute(UTilingMemberName, UTilingValue.Get<float>());
+			TexCoordFactoryNode->AddApplyAndFillDelegates<float>(UTilingMemberName, UMaterialExpressionTextureCoordinate::StaticClass(), *UTilingMemberName);
 		}
 	}
 
 	// V tiling
 	{
-		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> VTilingExpression =
-			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Nodes::TextureCoordinate::Inputs::VTiling.ToString(), TexCoordFactoryNode->GetUniqueID());
+		TVariant<FString, FLinearColor, float> VTilingValue = VisitShaderInput(ShaderNode, Nodes::TextureCoordinate::Inputs::VTiling.ToString());
 
-		if (VTilingExpression.Get<0>())
+		if (VTilingValue.IsType<float>())
 		{
-			UInterchangeShaderPortsAPI::ConnectOuputToInput(TexCoordFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, VTiling).ToString(),
-				VTilingExpression.Get<0>()->GetUniqueID(), VTilingExpression.Get<1>());
+			const FString VTilingMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, VTiling).ToString();
+			TexCoordFactoryNode->AddFloatAttribute(VTilingMemberName, VTilingValue.Get<float>());
+			TexCoordFactoryNode->AddApplyAndFillDelegates<float>(VTilingMemberName, UMaterialExpressionTextureCoordinate::StaticClass(), *VTilingMemberName);
 		}
 	}
 

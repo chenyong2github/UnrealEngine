@@ -89,7 +89,7 @@ namespace Interchange
 
 					namespace Inputs
 					{
-						const FName Coordinates = TEXT("Coordinates");
+						const FName Coordinates = TEXT("Coordinates"); // Type: vec2
 						const FName Texture = TEXT("TextureUid"); // Type: FString (unique id of a texture node)
 					}
 
