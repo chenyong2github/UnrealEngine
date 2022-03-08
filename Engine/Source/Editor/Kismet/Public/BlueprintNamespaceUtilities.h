@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 struct FAssetData;
+class UBlueprint;
 
 /** Default namespace type for objects/assets if one is not explicitly assigned. */
 enum class EDefaultBlueprintNamespaceType
