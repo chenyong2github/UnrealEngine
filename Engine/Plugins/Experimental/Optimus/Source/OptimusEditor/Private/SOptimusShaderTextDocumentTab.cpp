@@ -80,7 +80,7 @@ void SOptimusShaderTextDocumentTab::Construct(const FArguments& InArgs, UObject*
 			+SVerticalBox::Slot()
 			.FillHeight(1.0f)
 			[
-				SNew(SOptimusShaderTextDocumentTextBox)
+				SAssignNew(ShaderTextTextBox, SOptimusShaderTextDocumentTextBox)
 				.Text(this, &SOptimusShaderTextDocumentTab::GetShaderTextAsText)
 				.IsReadOnly(false)
 				.Marshaller(SyntaxHighlighterShaderText)
