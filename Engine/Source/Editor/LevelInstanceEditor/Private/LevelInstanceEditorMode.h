@@ -24,7 +24,7 @@ public:
 	virtual void Exit() override;
 	virtual void CreateToolkit() override;
 	
-	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override { return true; }
+	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override;
 
 	/** Check to see if an actor can be selected in this mode - no side effects */
 	virtual bool IsSelectionDisallowed(AActor* InActor, bool bInSelection) const override;

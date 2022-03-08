@@ -4,6 +4,7 @@
 #include "LevelInstanceEditorModeToolkit.h"
 #include "LevelInstanceEditorModeCommands.h"
 #include "Editor.h"
+#include "EditorModes.h"
 #include "Engine/World.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceActor.h"
@@ -75,6 +76,11 @@ void ULevelInstanceEditorMode::Exit()
 void ULevelInstanceEditorMode::CreateToolkit()
 {
 	Toolkit = MakeShared<FLevelInstanceEditorModeToolkit>();
+}
+
+bool ULevelInstanceEditorMode::IsCompatibleWith(FEditorModeID OtherModeID) const
+{
+	return (OtherModeID != FBuiltinEditorModes::EM_Foliage) && (OtherModeID != FBuiltinEditorModes::EM_Landscape);
 }
 
 void ULevelInstanceEditorMode::BindCommands()
