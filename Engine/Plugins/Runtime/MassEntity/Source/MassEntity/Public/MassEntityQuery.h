@@ -105,8 +105,8 @@ public:
 	/** Runs ExecuteFunction on all entities matching Requirements */
 	void ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction);
 	
-	/** Will first verify that the archetype given with Chunks matches the query's requirements, and if so will run the other, more generic ForEachEntityChunk implementation */
-	void ForEachEntityChunk(const FMassArchetypeSubChunks& Chunks, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction);
+	/** Will first verify that the archetype given with Collection matches the query's requirements, and if so will run the other, more generic ForEachEntityChunk implementation */
+	void ForEachEntityChunk(const FMassArchetypeEntityCollection& Collection, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction);
 
 	/**
 	 * Attempts to process every chunk of every affected archetype in parallel.
@@ -366,7 +366,7 @@ public:
 
 	/** 
 	 * Sets a chunk filter condition that will applied to each chunk of all valid archetypes. Note 
-	 * that this condition won't be applied when a specific collection of chunks is used (via FMassArchetypeSubChunks )
+	 * that this condition won't be applied when a specific entity colleciton is used (via FMassArchetypeEntityCollection )
 	 * The value returned by InFunction controls whether to allow execution (true) or block it (false).
 	 */
 	void SetChunkFilter(const FMassChunkConditionFunction& InFunction) { ChunkCondition = InFunction; }

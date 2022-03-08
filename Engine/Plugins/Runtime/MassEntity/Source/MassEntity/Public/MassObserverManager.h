@@ -7,7 +7,7 @@
 
 
 class UMassEntitySubsystem;
-struct FMassArchetypeSubChunks;
+struct FMassArchetypeEntityCollection;
 class UMassProcessor;
 struct FMassProcessingContext;
 
@@ -70,11 +70,11 @@ public:
 		return HasObserversForBitSet(Composition.Fragments, Operation) || HasObserversForBitSet(Composition.Tags, Operation);
 	}
 
-	bool OnPostEntitiesCreated(const FMassArchetypeSubChunks& ChunkCollection);
-	bool OnPostEntitiesCreated(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection);
+	bool OnPostEntitiesCreated(const FMassArchetypeEntityCollection& EntityCollection);
+	bool OnPostEntitiesCreated(FMassProcessingContext& ProcessingContext, const FMassArchetypeEntityCollection& EntityCollection);
 
-	bool OnPreEntitiesDestroyed(const FMassArchetypeSubChunks& ChunkCollection);
-	bool OnPreEntitiesDestroyed(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection);
+	bool OnPreEntitiesDestroyed(const FMassArchetypeEntityCollection& EntityCollection);
+	bool OnPreEntitiesDestroyed(FMassProcessingContext& ProcessingContext, const FMassArchetypeEntityCollection& EntityCollection);
 
 	bool OnCompositionChanged(const FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& CompositionDelta, const EMassObservedOperation Operation);
 	bool OnPostCompositionAdded(const FMassEntityHandle Entity, const FMassArchetypeCompositionDescriptor& Composition)
@@ -86,19 +86,19 @@ public:
 		return OnCompositionChanged(Entity, Composition, EMassObservedOperation::Remove);
 	}
 
-	bool OnCompositionChanged(const FMassArchetypeSubChunks& ChunkCollection, const FMassArchetypeCompositionDescriptor& Composition, const EMassObservedOperation Operation, FMassProcessingContext* InProcessingContext = nullptr);
+	bool OnCompositionChanged(const FMassArchetypeEntityCollection& EntityCollection, const FMassArchetypeCompositionDescriptor& Composition, const EMassObservedOperation Operation, FMassProcessingContext* InProcessingContext = nullptr);
 
-	void OnPostFragmentOrTagAdded(const UScriptStruct& FragmentOrTagType, const FMassArchetypeSubChunks& ChunkCollection)
+	void OnPostFragmentOrTagAdded(const UScriptStruct& FragmentOrTagType, const FMassArchetypeEntityCollection& EntityCollection)
 	{
-		OnFragmentOrTagOperation(FragmentOrTagType, ChunkCollection, EMassObservedOperation::Add);
+		OnFragmentOrTagOperation(FragmentOrTagType, EntityCollection, EMassObservedOperation::Add);
 	}
-	void OnPreFragmentOrTagRemoved(const UScriptStruct& FragmentOrTagType, const FMassArchetypeSubChunks& ChunkCollection)
+	void OnPreFragmentOrTagRemoved(const UScriptStruct& FragmentOrTagType, const FMassArchetypeEntityCollection& EntityCollection)
 	{
-		OnFragmentOrTagOperation(FragmentOrTagType, ChunkCollection, EMassObservedOperation::Remove);
+		OnFragmentOrTagOperation(FragmentOrTagType, EntityCollection, EMassObservedOperation::Remove);
 	}
 	// @todo I don't love this name. Alternatively could be OnSingleFragmentOrTagOperation. Long term we'll switch to
 	// OnSingleFragmentOperation and advertise that Tags are a type of Fragment as well (conceptually).
-	void OnFragmentOrTagOperation(const UScriptStruct& FragmentOrTagType, const FMassArchetypeSubChunks& ChunkCollection, const EMassObservedOperation Operation);
+	void OnFragmentOrTagOperation(const UScriptStruct& FragmentOrTagType, const FMassArchetypeEntityCollection& EntityCollection, const EMassObservedOperation Operation);
 
 	void AddObserverInstance(const UScriptStruct& FragmentOrTagType, const EMassObservedOperation Operation, UMassProcessor& ObserverProcessor);
 
@@ -107,9 +107,9 @@ protected:
 	explicit FMassObserverManager(UMassEntitySubsystem& Owner);
 
 	void Initialize();
-	void HandleFragmentsImpl(FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection
+	void HandleFragmentsImpl(FMassProcessingContext& ProcessingContext, const FMassArchetypeEntityCollection& EntityCollection
 		, TArrayView<const UScriptStruct*> ObservedTypes, FMassObserversMap& HandlersContainer);
-	void HandleSingleEntityImpl(const UScriptStruct& FragmentType, const FMassArchetypeSubChunks& ChunkCollection, FMassObserversMap& HandlersContainer);
+	void HandleSingleEntityImpl(const UScriptStruct& FragmentType, const FMassArchetypeEntityCollection& EntityCollection, FMassObserversMap& HandlersContainer);
 
 	FMassFragmentBitSet ObservedFragments[(uint8)EMassObservedOperation::MAX];
 	FMassTagBitSet ObservedTags[(uint8)EMassObservedOperation::MAX];

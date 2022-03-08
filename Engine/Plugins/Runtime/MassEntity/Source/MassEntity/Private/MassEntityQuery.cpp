@@ -124,12 +124,12 @@ bool FMassEntityQuery::DoesArchetypeMatchRequirements(const FMassArchetypeHandle
 		&& ArchetypeComposition.SharedFragments.HasNone(RequiredNoneSharedFragments);
 }
 
-void FMassEntityQuery::ForEachEntityChunk(const FMassArchetypeSubChunks& Chunks, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
+void FMassEntityQuery::ForEachEntityChunk(const FMassArchetypeEntityCollection& Collection, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
 {
 	// mz@todo I don't like that we're copying data here.
-	ExecutionContext.SetChunkCollection(Chunks);
+	ExecutionContext.SetEntityCollection(Collection);
 	ForEachEntityChunk(EntitySubsystem, ExecutionContext, ExecuteFunction);
-	ExecutionContext.ClearChunkCollection();
+	ExecutionContext.ClearEntityCollection();
 }
 
 void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
@@ -139,17 +139,17 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 #endif
 
 	// if there's a chunk collection set by the external code - use that
-	if (ExecutionContext.GetChunkCollection().IsSet())
+	if (ExecutionContext.GetEntityCollection().IsSet())
 	{
 		// verify the archetype matches requirements
-		if (DoesArchetypeMatchRequirements(ExecutionContext.GetChunkCollection().GetArchetype()) == false)
+		if (DoesArchetypeMatchRequirements(ExecutionContext.GetEntityCollection().GetArchetype()) == false)
 		{
 			UE_VLOG_UELOG(&EntitySubsystem, LogMass, Log, TEXT("Attempted to execute FMassEntityQuery with an incompatible Archetype: %s")
-				, *DebugGetArchetypeCompatibilityDescription(ExecutionContext.GetChunkCollection().GetArchetype()));
+				, *DebugGetArchetypeCompatibilityDescription(ExecutionContext.GetEntityCollection().GetArchetype()));
 			return;
 		}
 		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
-		ExecutionContext.GetChunkCollection().GetArchetype().DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, {}, ExecutionContext.GetChunkCollection().GetChunks());
+		ExecutionContext.GetEntityCollection().GetArchetype().DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, {}, ExecutionContext.GetEntityCollection().GetRanges());
 #if WITH_MASSENTITY_DEBUG
 		NumEntitiesToProcess = ExecutionContext.GetNumEntities();
 #endif
@@ -194,29 +194,29 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 	{
 		FMassArchetypeData& Archetype;
 		const int32 ArchetypeIndex;
-		const FMassArchetypeSubChunks::FSubChunkInfo ChunkInfo;
+		const FMassArchetypeEntityCollection::FArchetypeEntityRange EntityRange;
 	};
 	TArray<FChunkJob> Jobs;
 
 	// if there's a chunk collection set by the external code - use that
-	if (ExecutionContext.GetChunkCollection().IsSet())
+	if (ExecutionContext.GetEntityCollection().IsSet())
 	{
 		// verify the archetype matches requirements
-		FMassArchetypeHandle ArchetypeHandle = ExecutionContext.GetChunkCollection().GetArchetype();
+		FMassArchetypeHandle ArchetypeHandle = ExecutionContext.GetEntityCollection().GetArchetype();
 		if (DoesArchetypeMatchRequirements(ArchetypeHandle) == false)
 		{
 			UE_VLOG_UELOG(&EntitySubsystem, LogMass, Log, TEXT("Attempted to execute FMassEntityQuery with an incompatible Archetype: %s")
-				, *DebugGetArchetypeCompatibilityDescription(ExecutionContext.GetChunkCollection().GetArchetype()));
+				, *DebugGetArchetypeCompatibilityDescription(ExecutionContext.GetEntityCollection().GetArchetype()));
 			return;
 		}
 
 		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
 		check(ArchetypeHandle.IsValid());
 		FMassArchetypeData& ArchetypeRef = *ArchetypeHandle.DataPtr.Get();
-		const FMassArchetypeSubChunks AsChunkCollection(ArchetypeHandle.DataPtr);
-		for (const FMassArchetypeSubChunks::FSubChunkInfo& ChunkInfo : AsChunkCollection.GetChunks())
+		const FMassArchetypeEntityCollection AsEntityCollection(ArchetypeHandle.DataPtr);
+		for (const FMassArchetypeEntityCollection::FArchetypeEntityRange& EntityRange : AsEntityCollection.GetRanges())
 		{
-			Jobs.Add({ ArchetypeRef, INDEX_NONE, ChunkInfo });
+			Jobs.Add({ ArchetypeRef, INDEX_NONE, EntityRange });
 		}
 	}
 	else
@@ -228,10 +228,10 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 			FMassArchetypeHandle& Archetype = ValidArchetypes[ArchetypeIndex];
 			check(Archetype.IsValid());
 			FMassArchetypeData& ArchetypeRef = *Archetype.DataPtr.Get();
-			const FMassArchetypeSubChunks AsChunkCollection(Archetype.DataPtr);
-			for (const FMassArchetypeSubChunks::FSubChunkInfo& ChunkInfo : AsChunkCollection.GetChunks())
+			const FMassArchetypeEntityCollection AsEntityCollection(Archetype.DataPtr);
+			for (const FMassArchetypeEntityCollection::FArchetypeEntityRange& EntityRange : AsEntityCollection.GetRanges())
 			{
-				Jobs.Add({ArchetypeRef, ArchetypeIndex, ChunkInfo});
+				Jobs.Add({ArchetypeRef, ArchetypeIndex, EntityRange});
 			}
 		}
 	}
@@ -240,7 +240,7 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 	{
 		Jobs[JobIndex].Archetype.ExecutionFunctionForChunk(ExecutionContext, ExecuteFunction
 			, Jobs[JobIndex].ArchetypeIndex != INDEX_NONE ? ArchetypeFragmentMapping[Jobs[JobIndex].ArchetypeIndex] : FMassQueryRequirementIndicesMapping()
-			, Jobs[JobIndex].ChunkInfo
+			, Jobs[JobIndex].EntityRange
 			, ChunkCondition);
 	});
 

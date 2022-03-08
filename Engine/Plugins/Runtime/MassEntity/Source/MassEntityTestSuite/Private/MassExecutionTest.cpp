@@ -161,10 +161,10 @@ struct FExecution_Sparse : FEntityTestBase
 			Pipeline.SetProcessors(MoveTemp(Processors));
 		}
 
-		FMassArchetypeSubChunks ChunkCollection(FloatsArchetype);
+		FMassArchetypeEntityCollection EntityCollection(FloatsArchetype);
 		// nothing should break. The actual result of processing is getting tested in MassProcessorTests.cpp
 		
-		UE::Mass::Executor::RunSparse(Pipeline, ProcessingContext, ChunkCollection);
+		UE::Mass::Executor::RunSparse(Pipeline, ProcessingContext, EntityCollection);
 
 		return true;
 	}

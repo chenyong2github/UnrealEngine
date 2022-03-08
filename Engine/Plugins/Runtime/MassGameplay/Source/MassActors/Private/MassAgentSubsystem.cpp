@@ -185,7 +185,15 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 					|| EntitySystem->IsProcessing())
 			    {
 				    // need to request via command buffer since we can't move entities while processing is happening
-				    EntitySystem->Defer().PushCommand(FCommandRemoveComposition(Entity, AgentComp.GetPuppetSpecificAddition()));
+					FMassArchetypeCompositionDescriptor Composition = AgentComp.GetPuppetSpecificAddition();
+					EntitySystem->Defer().PushCommand<FMassDeferredRemoveCommand>([Entity, Composition](UMassEntitySubsystem& System)
+						{
+							if (System.IsEntityValid(Entity) == false)
+							{
+								return;
+							}
+							System.RemoveCompositionFromEntity(Entity, Composition);
+						});
 			    }
 			    else
 			    {

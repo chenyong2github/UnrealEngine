@@ -8,7 +8,7 @@
 struct FMassEntityQuery;
 struct FMassExecutionContext;
 class FOutputDevice;
-struct FMassArchetypeSubChunks;
+struct FMassArchetypeEntityCollection;
 
 // This is one chunk within an archetype
 struct FMassArchetypeChunk
@@ -163,7 +163,7 @@ private:
 	int32 EntityListOffsetWithinChunk;
 
 	friend FMassEntityQuery;
-	friend FMassArchetypeSubChunks;
+	friend FMassArchetypeEntityCollection;
 
 public:
 	TConstArrayView<FMassArchetypeFragmentConfig> GetFragmentConfigs() const { return FragmentConfigs; }
@@ -191,7 +191,7 @@ public:
 	 * A special way of initializing an archetype resulting in a copy of SiblingArchetype's setup with OverrideTags
 	 * replacing original tags of SiblingArchetype
 	 */
-	void InitializeWithSibling(const FMassArchetypeData& SiblingArchetype, const FMassTagBitSet& OverrideTags);
+	void InitializeWithSimilar(const FMassArchetypeData& BaseArchetype, FMassArchetypeCompositionDescriptor&& NewComposition);
 
 	void AddEntity(FMassEntityHandle Entity);
 	void RemoveEntity(FMassEntityHandle Entity);
@@ -209,10 +209,10 @@ public:
 
 	int32 GetChunkCount() const { return Chunks.Num(); }
 
-	void ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, FMassArchetypeSubChunks::FConstSubChunkArrayView SubChunkContainer);
+	void ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, FMassArchetypeEntityCollection::FConstEntityRangeArrayView EntityRangeContainer);
 	void ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, const FMassArchetypeConditionFunction& ArchetypeCondition, const FMassChunkConditionFunction& ChunkCondition);
 
-	void ExecutionFunctionForChunk(FMassExecutionContext RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, const FMassArchetypeSubChunks::FSubChunkInfo& ChunkInfo, const FMassChunkConditionFunction& ChunkCondition = FMassChunkConditionFunction());
+	void ExecutionFunctionForChunk(FMassExecutionContext RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, const FMassArchetypeEntityCollection::FArchetypeEntityRange& EntityRange, const FMassChunkConditionFunction& ChunkCondition = FMassChunkConditionFunction());
 
 	/**
 	 * Compacts entities to fill up chunks as much as possible
@@ -233,9 +233,9 @@ public:
 	 */
 	void SetFragmentsData(const FMassEntityHandle Entity, TArrayView<const FInstancedStruct> FragmentSources);
 
-	/** For all entities indicated by ChunkCollection the function sets the value of fragment of type
+	/** For all entities indicated by EntityCollection the function sets the value of fragment of type
 	 *  FragmentSource.GetScriptStruct to the value represented by FragmentSource.GetMemory */
-	void SetFragmentData(FMassArchetypeSubChunks::FConstSubChunkArrayView SubChunkContainer, const FInstancedStruct& FragmentSource);
+	void SetFragmentData(FMassArchetypeEntityCollection::FConstEntityRangeArrayView EntityRangeContainer, const FInstancedStruct& FragmentSource);
 
 	/** Returns conversion from given Requirements to archetype's fragment indices */
 	void GetRequirementsFragmentMapping(TConstArrayView<FMassFragmentRequirement> Requirements, FMassFragmentIndicesMapping& OutFragmentIndices);
@@ -298,12 +298,13 @@ public:
 
 	//////////////////////////////////////////////////////////////////////
 	// batched api
-	void BatchDestroyEntityChunks(FMassArchetypeSubChunks::FConstSubChunkArrayView SubChunkContainer, TArray<FMassEntityHandle>& OutEntitiesRemoved);
-	void BatchAddEntities(TConstArrayView<FMassEntityHandle> Entities, TArray<FMassArchetypeSubChunks::FSubChunkInfo>& OutNewChunks);
-	void BatchMoveEntitiesToAnotherArchetype(const FMassArchetypeSubChunks& ChunkCollection, FMassArchetypeData& NewArchetype, TArray<FMassEntityHandle>& OutEntitesBeingMoved, TArray<FMassArchetypeSubChunks::FSubChunkInfo>* OutNewChunks = nullptr);
+	void BatchDestroyEntityChunks(FMassArchetypeEntityCollection::FConstEntityRangeArrayView EntityRangeContainer, TArray<FMassEntityHandle>& OutEntitiesRemoved);
+	void BatchAddEntities(TConstArrayView<FMassEntityHandle> Entities, TArray<FMassArchetypeEntityCollection::FArchetypeEntityRange>& OutNewRanges);
+	void BatchMoveEntitiesToAnotherArchetype(const FMassArchetypeEntityCollection& EntityCollection, FMassArchetypeData& NewArchetype, TArray<FMassEntityHandle>& OutEntitesBeingMoved, TArray<FMassArchetypeEntityCollection::FArchetypeEntityRange>* OutNewChunks = nullptr);
+	void BatchSetFragmentValues(TConstArrayView<FMassArchetypeEntityCollection::FArchetypeEntityRange> EntityCollection, const FMassGenericPayloadViewSlice& Payload);
 
 protected:
-	FMassArchetypeSubChunks::FSubChunkInfo PrepareNextEntitiesSpanInternal(TConstArrayView<FMassEntityHandle> Entities, const int32 StartingChunk = 0);
+	FMassArchetypeEntityCollection::FArchetypeEntityRange PrepareNextEntitiesSpanInternal(TConstArrayView<FMassEntityHandle> Entities, const int32 StartingChunk = 0);
 	void BatchRemoveEntitiesInternal(const int32 ChunkIndex, const int32 StartIndexWithinChunk, const int32 NumberToRemove);
 
 	struct FTransientChunkLocation
@@ -313,6 +314,7 @@ protected:
 	};
 	void MoveFragmentsToAnotherArchetypeInternal(FMassArchetypeData& TargetArchetype, FTransientChunkLocation Target, const FTransientChunkLocation Source, const int32 ElementsNum);
 	void MoveFragmentsToNewLocationInternal(FTransientChunkLocation Target, const FTransientChunkLocation Source, const int32 NumberToMove);
+	void ConfigureFragments();
 
 	FORCEINLINE void* GetFragmentData(const int32 FragmentIndex, uint8* ChunkRawMemory, const int32 IndexWithinChunk) const
 	{

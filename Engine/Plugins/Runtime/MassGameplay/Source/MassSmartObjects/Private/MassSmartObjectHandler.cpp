@@ -73,12 +73,14 @@ FMassSmartObjectRequestID FMassSmartObjectHandler::FindCandidatesAsync(const FMa
 
 	FMassSmartObjectRequestResultFragment ResultFragment;
 
-	ExecutionContext.Defer().PushCommand(
+	/*ExecutionContext.Defer().PushCommand(
 		FBuildEntityFromFragmentInstances(ReservedEntity,
 			{
 				FStructView::Make(RequestFragment),
 				FStructView::Make(ResultFragment)
-			}));
+			}));*/
+
+	ExecutionContext.Defer().PushCommand<FMassCommandAddFragmentInstances>(ReservedEntity, RequestFragment, ResultFragment);
 
 	return FMassSmartObjectRequestID(ReservedEntity);
 }
@@ -93,12 +95,14 @@ FMassSmartObjectRequestID FMassSmartObjectHandler::FindCandidatesAsync(const FMa
 
 	FMassSmartObjectRequestResultFragment ResultFragment;
 
-	ExecutionContext.Defer().PushCommand(
+	/*ExecutionContext.Defer().PushCommand(
 		FBuildEntityFromFragmentInstances(ReservedEntity,
 			{
 				FStructView::Make(RequestFragment),
 				FStructView::Make(ResultFragment)
-			}));
+			}));*/
+
+	ExecutionContext.Defer().PushCommand<FMassCommandAddFragmentInstances>(ReservedEntity, RequestFragment, ResultFragment);
 
 	return FMassSmartObjectRequestID(ReservedEntity);
 }

@@ -150,12 +150,7 @@ void USmartObjectSubsystem::AddToSimulation(const FSmartObjectHandle Handle, con
 		TransformFragment.SetTransform(OptionalTransform.Get(Transform));
 
 		const FMassEntityHandle EntityHandle = EntitySubsystem->ReserveEntity();
-		EntitySubsystem->Defer().PushCommand(
-			FBuildEntityFromFragmentInstances(EntityHandle,
-				{
-					FStructView::Make(TransformFragment)
-				},
-				SharedFragmentValues));
+		EntitySubsystem->Defer().PushCommand<FMassCommandBuildEntityWithSharedFragments>(EntityHandle, MoveTemp(SharedFragmentValues), TransformFragment);
 
 		FSmartObjectSlotHandle SlotHandle(EntityHandle);
 		RuntimeSlotStates.Add(SlotHandle, FSmartObjectSlotClaimState());
@@ -224,7 +219,7 @@ void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectHandle Handle
 		EntitiesToDestroy.Add(SlotHandle);
 	}
 
-		EntitySubsystem->Defer().BatchDestroyEntities(EntitiesToDestroy);
+	EntitySubsystem->Defer().DestroyEntities(EntitiesToDestroy);
 
 	// Remove object runtime data
 	RuntimeSmartObjects.Remove(Handle);
@@ -689,7 +684,12 @@ void USmartObjectSubsystem::AddSlotDataDeferred(const FSmartObjectClaimHandle& C
 		ensureMsgf(InData.GetScriptStruct()->IsChildOf(FSmartObjectSlotStateData::StaticStruct()),
 			TEXT("Given struct doesn't represent a valid runtime data type. Make sure to inherit from FSmartObjectSlotState or one of its child-types.")))
 	{
-		EntitySubsystem->Defer().PushCommand(FCommandAddFragmentInstance(ClaimHandle.SlotHandle, InData));
+		EntitySubsystem->Defer().PushCommand<FMassDeferredAddCommand>(
+			[EntityHandle = FMassEntityHandle(ClaimHandle.SlotHandle), DataView = InData](UMassEntitySubsystem& System)
+			{
+				FInstancedStruct Struct = DataView;
+				System.AddFragmentInstanceListToEntity(EntityHandle, MakeArrayView(&Struct, 1));
+			});
 	}
 }
 

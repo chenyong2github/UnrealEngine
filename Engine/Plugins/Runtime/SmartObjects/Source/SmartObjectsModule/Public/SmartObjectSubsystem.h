@@ -239,6 +239,7 @@ public:
 	 * @param InData A view on the struct to add
 	 */
 	void AddSlotDataDeferred(const FSmartObjectClaimHandle& ClaimHandle, FConstStructView InData) const;
+	// @todo this comment is here just to keep the swarm comments easily accessible. Will remove pre submit.
 
 	/** Returns a view to the data associated to a valid slot handle (SlotHandle.IsValid() returns true) */
 	FSmartObjectSlotView GetSlotView(const FSmartObjectSlotHandle& SlotHandle) const;

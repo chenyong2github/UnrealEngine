@@ -251,7 +251,7 @@ bool UMassRepresentationProcessor::ReleaseActorOrCancelSpawning(UMassRepresentat
 			TObjectKey<const AActor> ActorKey(Actor); 
 			if (UMassActorSubsystem* MassActorSubsystem = UWorld::GetSubsystem<UMassActorSubsystem>(World))
 			{
-				CommandBuffer.EmplaceCommand<FDeferredCommand>([MassActorSubsystem, ActorKey](UMassEntitySubsystem&)
+				CommandBuffer.PushCommand<FMassDeferredSetCommand>([MassActorSubsystem, ActorKey](UMassEntitySubsystem&)
 				{
 					MassActorSubsystem->RemoveHandleForActor(ActorKey);
 				});

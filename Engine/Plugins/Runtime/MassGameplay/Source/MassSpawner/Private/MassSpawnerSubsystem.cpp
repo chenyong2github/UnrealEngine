@@ -116,12 +116,12 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 	check(World);
 
 
-	TArray<FMassArchetypeSubChunks> ChunkCollections;
-	UE::Mass::Utils::CreateSparseChunks(*EntitySystem, Entities, FMassArchetypeSubChunks::NoDuplicates, ChunkCollections);
+	TArray<FMassArchetypeEntityCollection> EntityCollections;
+	UE::Mass::Utils::CreateEntityCollections(*EntitySystem, Entities, FMassArchetypeEntityCollection::NoDuplicates, EntityCollections);
 
-	for (const FMassArchetypeSubChunks& Chunks : ChunkCollections)
+	for (const FMassArchetypeEntityCollection& Collection : EntityCollections)
 	{
-		EntitySystem->BatchDestroyEntityChunks(Chunks);
+		EntitySystem->BatchDestroyEntityChunks(Collection);
 	}
 }
 
@@ -173,7 +173,7 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 	TSharedRef<UMassEntitySubsystem::FEntityCreationContext> CreationContext = EntitySystem->BatchCreateEntities(EntityTemplate.GetArchetype(), NumToSpawn, SpawnedEntities);
 
 	TConstArrayView<FInstancedStruct> FragmentInstances = EntityTemplate.GetInitialFragmentValues();
-	EntitySystem->BatchSetEntityFragmentsValues(CreationContext->GetChunkCollection(), FragmentInstances);
+	EntitySystem->BatchSetEntityFragmentsValues(CreationContext->GetEntityCollection(), FragmentInstances);
 	
 	UMassProcessor* SpawnDataInitializer = SpawnData.IsValid() ? GetSpawnDataInitializer(InitializerClass) : nullptr;
 
@@ -181,7 +181,7 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 	{
 		FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
 		ProcessingContext.AuxData = SpawnData;
-		UE::Mass::Executor::RunProcessorsView(MakeArrayView(&SpawnDataInitializer, 1), ProcessingContext, &CreationContext->GetChunkCollection());
+		UE::Mass::Executor::RunProcessorsView(MakeArrayView(&SpawnDataInitializer, 1), ProcessingContext, &CreationContext->GetEntityCollection());
 	}
 
 	OutEntities.Append(MoveTemp(SpawnedEntities));

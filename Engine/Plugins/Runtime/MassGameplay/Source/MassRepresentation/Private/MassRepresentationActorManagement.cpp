@@ -31,7 +31,7 @@ void UMassRepresentationActorManagement::SetActorEnabled(const EMassActorEnabled
 	if (Actor.GetActorEnableCollision() != bEnabled)
 	{
 		// Deferring this as there is a callback internally that could end up doing things outside of the game thread and will fire checks(Chaos mostly)
-		CommandBuffer.EmplaceCommand<FDeferredCommand>([&Actor, bEnabled](UMassEntitySubsystem&)
+		CommandBuffer.PushCommand<FMassDeferredSetCommand>([&Actor, bEnabled](UMassEntitySubsystem&)
 		{
 			Actor.SetActorEnableCollision(bEnabled);
 		});
@@ -42,7 +42,7 @@ void UMassRepresentationActorManagement::TeleportActor(const FTransform& Transfo
 {
 	if (!Actor.GetTransform().Equals(Transform))
 	{
-		CommandBuffer.EmplaceCommand<FDeferredCommand>([&Actor, Transform](UMassEntitySubsystem&)
+		CommandBuffer.PushCommand<FMassDeferredSetCommand>([&Actor, Transform](UMassEntitySubsystem&)
 		{
 			Actor.SetActorTransform(Transform, /*bSweep*/false, /*OutSweepHitResult*/nullptr, ETeleportType::TeleportPhysics);
 		});

@@ -18,7 +18,7 @@ struct FMassEntityQuery;
 struct FMassExecutionContext;
 struct FMassArchetypeData;
 struct FMassCommandBuffer;
-struct FMassArchetypeSubChunks;
+struct FMassArchetypeEntityCollection;
 class FOutputDevice;
 enum class EMassFragmentAccess : uint8;
 
@@ -95,16 +95,16 @@ public:
 	FMassArchetypeHandle CreateArchetype(const FMassArchetypeCompositionDescriptor& Composition, const FMassArchetypeSharedFragmentValues& SharedFragmentValues);
 
 	/** 
-	 *  Creates an archetype like SourceArchetype + NewFragmentList. 
+	 *  Creates an archetype like SourceArchetype + InFragments. 
 	 *  @param SourceArchetype the archetype used to initially populate the list of fragments of the archetype being created. 
-	 *  @param NewFragmentList list of unique fragments to add to fragments fetched from SourceArchetype. Note that 
+	 *  @param InFragments list of unique fragments to add to fragments fetched from SourceArchetype. Note that 
 	 *   adding an empty list is not supported and doing so will result in failing a `check`
 	 *  @return a handle of a new archetype
 	 *  @note it's caller's responsibility to ensure that NewFragmentList is not empty and contains only fragment
 	 *   types that SourceArchetype doesn't already have. If the caller cannot guarantee it use of AddFragment functions
 	 *   family is recommended.
 	 */
-	FMassArchetypeHandle CreateArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& NewFragmentList);
+	FMassArchetypeHandle CreateArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& InFragments);
 
 	/** Fetches the archetype for a given Entity. If Entity is not valid it will still return a handle, just with an invalid archetype */
 	FMassArchetypeHandle GetArchetypeForEntity(FMassEntityHandle Entity) const;
@@ -145,11 +145,11 @@ public:
 		{}
 		~FEntityCreationContext() { if (OnSpawningFinished) OnSpawningFinished(*this); }
 
-		const FMassArchetypeSubChunks& GetChunkCollection() const { return ChunkCollection; }
+		const FMassArchetypeEntityCollection& GetEntityCollection() const { return EntityCollection; }
 	private:
 		friend UMassEntitySubsystem;
 		int32 NumberSpawned;
-		FMassArchetypeSubChunks ChunkCollection;
+		FMassArchetypeEntityCollection EntityCollection;
 		TFunction<void(FEntityCreationContext&)> OnSpawningFinished;
 	};
 
@@ -193,7 +193,7 @@ public:
 	 */
 	void BatchDestroyEntities(TConstArrayView<FMassEntityHandle> InEntities);
 
-	void BatchDestroyEntityChunks(const FMassArchetypeSubChunks& Chunks);
+	void BatchDestroyEntityChunks(const FMassArchetypeEntityCollection& Collection);
 
 	void AddFragmentToEntity(FMassEntityHandle Entity, const UScriptStruct* FragmentType);
 
@@ -211,7 +211,11 @@ public:
 	void RemoveTagFromEntity(FMassEntityHandle Entity, const UScriptStruct* TagType);
 	void SwapTagsForEntity(FMassEntityHandle Entity, const UScriptStruct* FromFragmentType, const UScriptStruct* ToFragmentType);
 
-	void BatchChangeTagsForEntities(TConstArrayView<FMassArchetypeSubChunks> ChunkCollections, const FMassTagBitSet& TagsToAdd, const FMassTagBitSet& TagsToRemove);
+	void BatchBuildEntities(const FMassArchetypeEntityCollectionWithPayload& EncodedEntitiesWithPayload, const FMassFragmentBitSet& FragmentsAffected, const FMassArchetypeSharedFragmentValues& SharedFragmentValues);
+	void BatchBuildEntities(const FMassArchetypeEntityCollectionWithPayload& EncodedEntitiesWithPayload, FMassArchetypeCompositionDescriptor&& Composition, const FMassArchetypeSharedFragmentValues& SharedFragmentValues);
+	void BatchChangeTagsForEntities(TConstArrayView<FMassArchetypeEntityCollection> EntityCollections, const FMassTagBitSet& TagsToAdd, const FMassTagBitSet& TagsToRemove);
+	void BatchChangeFragmentCompositionForEntities(TConstArrayView<FMassArchetypeEntityCollection> EntityCollections, const FMassFragmentBitSet& FragmentsToAdd, const FMassFragmentBitSet& FragmentsToRemove);
+	void BatchAddFragmentInstancesForEntities(TConstArrayView<FMassArchetypeEntityCollectionWithPayload> EntityCollections, const FMassFragmentBitSet& FragmentsAffected);
 
 	/**
 	 * Adds fragments and tags indicated by InOutDescriptor to the Entity. The function also figures out which elements
@@ -235,9 +239,9 @@ public:
 	void SetEntityFragmentsValues(FMassEntityHandle Entity, TArrayView<const FInstancedStruct> FragmentInstanceList);
 
 	/** Copies values from FragmentInstanceList over to fragments of given entities collection. The caller is responsible 
-	 *  for ensuring that the given entity archetype (FMassArchetypeSubChunks .Archetype) does have given fragments. 
+	 *  for ensuring that the given entity archetype (FMassArchetypeEntityCollection .Archetype) does have given fragments. 
 	 *  Failing this assumption will cause a check-fail. */
-	static void BatchSetEntityFragmentsValues(const FMassArchetypeSubChunks& SparseEntities, TArrayView<const FInstancedStruct> FragmentInstanceList);
+	static void BatchSetEntityFragmentsValues(const FMassArchetypeEntityCollection& SparseEntities, TArrayView<const FInstancedStruct> FragmentInstanceList);
 
 	// Return true if it is an valid built entity
 	bool IsEntityActive(FMassEntityHandle Entity) const 
@@ -355,7 +359,14 @@ public:
 protected:
 	void GetValidArchetypes(const FMassEntityQuery& Query, TArray<FMassArchetypeHandle>& OutValidArchetypes);
 	
-	FMassArchetypeHandle InternalCreateSiblingArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassTagBitSet& OverrideTags);
+	/** 
+	 * A "similar" archetype is an archetype exactly the same as SourceArchetype except for one composition aspect 
+	 * like Fragments or "Tags" 
+	 */
+	FMassArchetypeHandle InternalCreateSimilarArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassTagBitSet& OverrideTags);
+	FMassArchetypeHandle InternalCreateSimilarArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& OverrideFragments);
+
+	FMassArchetypeHandle InternalCreateSimilarArchetype(const FMassArchetypeData& SourceArchetypeRef, FMassArchetypeCompositionDescriptor&& NewComposition);
 
 private:
 	void InternalBuildEntity(FMassEntityHandle Entity, const FMassArchetypeHandle Archetype);
@@ -370,7 +381,7 @@ private:
 	 *  Similar to InternalAddFragmentListToEntity but expects NewFragmentList not overlapping with current entity's
 	 *  fragment list. It's callers responsibility to ensure that's true. Failing this will cause a `check` fail.
 	 */
-	void InternalAddFragmentListToEntity(FMassEntityHandle Entity, const FMassFragmentBitSet& NewFragments);
+	void InternalAddFragmentListToEntity(FMassEntityHandle Entity, const FMassFragmentBitSet& InFragments);
 	void* InternalGetFragmentDataChecked(FMassEntityHandle Entity, const UScriptStruct* FragmentType) const;
 	void* InternalGetFragmentDataPtr(FMassEntityHandle Entity, const UScriptStruct* FragmentType) const;
 
@@ -446,7 +457,7 @@ private:
 	
 	/** If set this indicates the exact archetype and its chunks to be processed. 
 	 *  @todo this data should live somewhere else, preferably be just a parameter to Query.ForEachEntityChunk function */
-	FMassArchetypeSubChunks ChunkCollection;
+	FMassArchetypeEntityCollection EntityCollection;
 	
 	/** @todo rename to "payload" */
 	FInstancedStruct AuxData;
@@ -487,9 +498,9 @@ public:
 	 *  immediate commands flushing */
 	void SetFlushDeferredCommands(const bool bNewFlushDeferredCommands) { bFlushDeferredCommands = bNewFlushDeferredCommands; } 
 	void SetDeferredCommandBuffer(const TSharedPtr<FMassCommandBuffer>& InDeferredCommandBuffer) { DeferredCommandBuffer = InDeferredCommandBuffer; }
-	void SetChunkCollection(const FMassArchetypeSubChunks& InChunkCollection);
-	void SetChunkCollection(FMassArchetypeSubChunks&& InChunkCollection);
-	void ClearChunkCollection() { ChunkCollection.Reset(); }
+	void SetEntityCollection(const FMassArchetypeEntityCollection& InEntityCollection);
+	void SetEntityCollection(FMassArchetypeEntityCollection&& InEntityCollection);
+	void ClearEntityCollection() { EntityCollection.Reset(); }
 	void SetAuxData(const FInstancedStruct& InAuxData) { AuxData = InAuxData; }
 
 	float GetDeltaTimeSeconds() const
@@ -636,7 +647,7 @@ public:
 	}
 
 	/** Sparse chunk related operation */
-	const FMassArchetypeSubChunks& GetChunkCollection() const { return ChunkCollection; }
+	const FMassArchetypeEntityCollection& GetEntityCollection() const { return EntityCollection; }
 
 	const FInstancedStruct& GetAuxData() const { return AuxData; }
 	FInstancedStruct& GetMutableAuxData() { return AuxData; }

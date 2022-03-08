@@ -4,6 +4,7 @@
 
 #include "UObject/Class.h"
 #include "Containers/ArrayView.h"
+#include "Containers/StridedView.h"
 #include "Containers/UnrealString.h"
 #include "MassEntityTypes.h"
 
@@ -13,7 +14,7 @@ struct FMassExecutionContext;
 struct FMassFragment;
 struct FMassArchetypeChunkIterator;
 struct FMassEntityQuery;
-struct FMassArchetypeSubChunks;
+struct FMassArchetypeEntityCollection;
 struct FMassEntityView;
 
 typedef TFunction< void(FMassExecutionContext& /*ExecutionContext*/) > FMassExecuteFunction;
@@ -41,39 +42,39 @@ private:
 	TSharedPtr<FMassArchetypeData> DataPtr;
 
 	friend UMassEntitySubsystem;
-	friend FMassArchetypeSubChunks;
+	friend FMassArchetypeEntityCollection;
 	friend FMassEntityQuery;
 	friend FMassEntityView;
 };
 
 
 //////////////////////////////////////////////////////////////////////
-// FMassArchetypeSubChunks 
+// FMassArchetypeEntityCollection 
 
 /** A struct that converts an arbitrary array of entities of given Archetype into a sequence of continuous
  *  entity chunks. The goal is to have the user create an instance of this struct once and run through a bunch of
  *  systems. The runtime code usually uses FMassArchetypeChunkIterator to iterate on the chunk collection.
  */
-struct MASSENTITY_API FMassArchetypeSubChunks 
+struct MASSENTITY_API FMassArchetypeEntityCollection 
 {
 public:
-	struct FSubChunkInfo
+	struct FArchetypeEntityRange
 	{
 		int32 ChunkIndex = INDEX_NONE;
 		int32 SubchunkStart = 0;
 		/** negative or 0-length means "all available entities within chunk" */
 		int32 Length = 0;
 
-		FSubChunkInfo() = default;
-		explicit FSubChunkInfo(const int32 InChunkIndex, const int32 InSubchunkStart = 0, const int32 InLength = 0) : ChunkIndex(InChunkIndex), SubchunkStart(InSubchunkStart), Length(InLength) {}
+		FArchetypeEntityRange() = default;
+		explicit FArchetypeEntityRange(const int32 InChunkIndex, const int32 InSubchunkStart = 0, const int32 InLength = 0) : ChunkIndex(InChunkIndex), SubchunkStart(InSubchunkStart), Length(InLength) {}
 		/** Note that we consider invalid-length chunks valid as long as ChunkIndex and SubchunkStart are valid */
 		bool IsSet() const { return ChunkIndex != INDEX_NONE && SubchunkStart >= 0; }
 
-		bool operator==(const FSubChunkInfo& Other) const
+		bool operator==(const FArchetypeEntityRange& Other) const
 		{
 			return ChunkIndex == Other.ChunkIndex && SubchunkStart == Other.SubchunkStart && Length == Other.Length;
 		}
-		bool operator!=(const FSubChunkInfo& Other) const { return !(*this == Other); }
+		bool operator!=(const FArchetypeEntityRange& Other) const { return !(*this == Other); }
 	};
 
 	enum EDuplicatesHandling
@@ -84,39 +85,73 @@ public:
 						// will be processed and duplicates will be removed.
 	};
 
-	using FSubChunkArray = TArray<FSubChunkInfo>;
-	using FConstSubChunkArrayView = TConstArrayView<FSubChunkInfo>;
+	enum EInitializationType
+	{
+		GatherAll,	// default behavior, makes given FMassArchetypeEntityCollection instance represent all entities of the given archetype
+		DoNothing,	// meant for procedural population by external code (like child classes)
+	};
+
+	using FEntityRangeArray = TArray<FArchetypeEntityRange>;
+	using FConstEntityRangeArrayView = TConstArrayView<FArchetypeEntityRange>;
 
 private:
-	FSubChunkArray SubChunks;
-	/** entity indices indicated by SubChunks are only valid with given Archetype */
+	FEntityRangeArray Ranges;
+	/** entity indices indicated by EntityRanges are only valid with given Archetype */
 	FMassArchetypeHandle Archetype;
 
 public:
-	FMassArchetypeSubChunks() = default;
-	FMassArchetypeSubChunks(const FMassArchetypeHandle& InArchetype, TConstArrayView<FMassEntityHandle> InEntities, EDuplicatesHandling DuplicatesHandling);
-	explicit FMassArchetypeSubChunks(FMassArchetypeHandle& InArchetypeHandle);
-	explicit FMassArchetypeSubChunks(TSharedPtr<FMassArchetypeData>& InArchetype);
-	FMassArchetypeSubChunks(FMassArchetypeHandle& InArchetypeHandle, FSubChunkArray&& InSubChunks)
-		: SubChunks(MoveTemp(InSubChunks))
+	FMassArchetypeEntityCollection() = default;
+	FMassArchetypeEntityCollection(const FMassArchetypeHandle& InArchetype, TConstArrayView<FMassEntityHandle> InEntities, EDuplicatesHandling DuplicatesHandling);
+	explicit FMassArchetypeEntityCollection(const FMassArchetypeHandle& InArchetypeHandle, const EInitializationType Initialization = EInitializationType::GatherAll);
+	explicit FMassArchetypeEntityCollection(TSharedPtr<FMassArchetypeData>& InArchetype, const EInitializationType Initialization = EInitializationType::GatherAll);
+	FMassArchetypeEntityCollection(FMassArchetypeHandle& InArchetypeHandle, FEntityRangeArray&& InEntityRanges)
+		: Ranges(MoveTemp(InEntityRanges))
 		, Archetype(InArchetypeHandle)
 	{}
 
-	FConstSubChunkArrayView GetChunks() const { return SubChunks; }
+	FConstEntityRangeArrayView GetRanges() const { return Ranges; }
 	const FMassArchetypeHandle& GetArchetype() const { return Archetype; }
-	bool IsEmpty() const { return SubChunks.Num() == 0 && Archetype.IsValid() == false; }
+	bool IsEmpty() const { return Ranges.Num() == 0 && Archetype.IsValid() == false; }
 	bool IsSet() const { return Archetype.IsValid(); }
 	void Reset() 
 	{ 
 		Archetype = FMassArchetypeHandle();
-		SubChunks.Reset();
+		Ranges.Reset();
 	}
 
 	/** The comparison function that checks if Other is identical to this. Intended for diagnostics/debugging. */
-	bool IsSame(const FMassArchetypeSubChunks& Other) const;
+	bool IsSame(const FMassArchetypeEntityCollection& Other) const;
+
+protected:
+	friend struct FMassArchetypeEntityCollectionWithPayload;
+	// @todo temporary solution to FMassArchetypeHandle.DataPtr being private, will be fixed by switching that to an ArchetypeIndex
+	static FMassArchetypeData* GetArchetypePtr(const FMassArchetypeHandle& ArchetypeHandle);
+	
+	void BuildEntityRanges(TStridedView<const int32> TrueIndices);
+	
+private:
+	void GatherChunksFromArchetype();
+};
+
+struct MASSENTITY_API FMassArchetypeEntityCollectionWithPayload
+{
+	explicit FMassArchetypeEntityCollectionWithPayload(const FMassArchetypeEntityCollection& InEntityCollection)
+		: Entities(InEntityCollection)
+	{
+	}
+
+	static void CreateEntityRangesWithPayload(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities
+		, const FMassArchetypeEntityCollection::EDuplicatesHandling DuplicatesHandling, FMassGenericPayloadView Payload
+		, TArray<FMassArchetypeEntityCollectionWithPayload>& OutEntityCollections);
+
+	const FMassArchetypeEntityCollection& GetEntityCollection() const { return Entities; }
+	const FMassGenericPayloadViewSlice& GetPayload() const { return PayloadSlice; }
 
 private:
-	void GatherChunksFromArchetype(TSharedPtr<FMassArchetypeData>& InArchetype);
+	FMassArchetypeEntityCollectionWithPayload(const FMassArchetypeHandle& InArchetype, TStridedView<const int32> TrueIndices, FMassGenericPayloadViewSlice&& Payload);
+
+	FMassArchetypeEntityCollection Entities;
+	FMassGenericPayloadViewSlice PayloadSlice;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -129,17 +164,17 @@ private:
 struct MASSENTITY_API FMassArchetypeChunkIterator
 {
 private:
-	FMassArchetypeSubChunks::FConstSubChunkArrayView SubChunks;
+	FMassArchetypeEntityCollection::FConstEntityRangeArrayView EntityRanges;
 	int32 CurrentChunkIndex = 0;
 
 public:
-	explicit FMassArchetypeChunkIterator(const FMassArchetypeSubChunks::FConstSubChunkArrayView& InSubChunks) : SubChunks(InSubChunks), CurrentChunkIndex(0) {}
+	explicit FMassArchetypeChunkIterator(const FMassArchetypeEntityCollection::FConstEntityRangeArrayView& InEntityRanges) : EntityRanges(InEntityRanges), CurrentChunkIndex(0) {}
 
-	operator bool() const { return SubChunks.IsValidIndex(CurrentChunkIndex) && SubChunks[CurrentChunkIndex].IsSet(); }
+	operator bool() const { return EntityRanges.IsValidIndex(CurrentChunkIndex) && EntityRanges[CurrentChunkIndex].IsSet(); }
 	FMassArchetypeChunkIterator& operator++() { ++CurrentChunkIndex; return *this; }
 
-	const FMassArchetypeSubChunks::FSubChunkInfo* operator->() const { check(bool(*this)); return &SubChunks[CurrentChunkIndex]; }
-	const FMassArchetypeSubChunks::FSubChunkInfo& operator*() const { check(bool(*this)); return SubChunks[CurrentChunkIndex]; }
+	const FMassArchetypeEntityCollection::FArchetypeEntityRange* operator->() const { check(bool(*this)); return &EntityRanges[CurrentChunkIndex]; }
+	const FMassArchetypeEntityCollection::FArchetypeEntityRange& operator*() const { check(bool(*this)); return EntityRanges[CurrentChunkIndex]; }
 };
 
 //////////////////////////////////////////////////////////////////////

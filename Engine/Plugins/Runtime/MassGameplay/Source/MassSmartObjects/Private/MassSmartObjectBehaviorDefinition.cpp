@@ -9,7 +9,7 @@ void USmartObjectMassBehaviorDefinition::Activate(FMassCommandBuffer& CommandBuf
 {
 	FMassSmartObjectTimedBehaviorFragment TimedBehaviorFragment;
 	TimedBehaviorFragment.UseTime = UseTime;
-	CommandBuffer.PushCommand(FCommandAddFragmentInstance(EntityContext.EntityView.GetEntity(), FConstStructView::Make(TimedBehaviorFragment)));
+	CommandBuffer.PushCommand<FMassCommandAddFragmentInstances>(EntityContext.EntityView.GetEntity(), TimedBehaviorFragment);
 }
 
 void USmartObjectMassBehaviorDefinition::Deactivate(FMassCommandBuffer& CommandBuffer, const FMassBehaviorEntityContext& EntityContext) const

@@ -4,6 +4,7 @@
 
 #include "ScriptStructTypeBitSet.h"
 #include "MassProcessingTypes.h"
+#include "StructArrayView.h"
 #include "MassEntityTypes.generated.h"
 
 
@@ -51,9 +52,7 @@ struct FMassEntityHandle
 {
 	GENERATED_BODY()
 
-	FMassEntityHandle()
-	{
-	}
+	FMassEntityHandle() = default;
 	FMassEntityHandle(const int32 InIndex, const int32 InSerialNumber)
 		: Index(InIndex), SerialNumber(InSerialNumber)
 	{
@@ -139,6 +138,10 @@ struct FMassArchetypeCompositionDescriptor
 		, SharedFragments(MoveTemp(InSharedFragments))
 	{}
 
+	FMassArchetypeCompositionDescriptor(FMassFragmentBitSet&& InFragments)
+		: Fragments(MoveTemp(InFragments))
+	{}
+
 	FMassArchetypeCompositionDescriptor(FMassTagBitSet&& InTags)
 		: Tags(MoveTemp(InTags))
 	{}
@@ -212,8 +215,10 @@ struct FMassArchetypeCompositionDescriptor
 	FMassSharedFragmentBitSet SharedFragments;
 };
 
-struct FMassArchetypeSharedFragmentValues
+struct MASSENTITY_API FMassArchetypeSharedFragmentValues
 {
+	static constexpr uint32 EmptyInstanceHash = 0;
+
 	FMassArchetypeSharedFragmentValues() = default;
 
 	FMassArchetypeSharedFragmentValues(const FMassArchetypeSharedFragmentValues& OtherFragmentValues)
@@ -314,6 +319,8 @@ struct FMassArchetypeSharedFragmentValues
 		}
 	}
 
+	bool IsSorted() const { return bSorted; }
+
 protected:
 	mutable uint32 HashCache = UINT32_MAX;
 	mutable bool bSorted = true; // When no element in the array, consider already sorted
@@ -334,3 +341,185 @@ enum class EMassObservedOperation : uint8
 	// Touch,
 	MAX
 };
+
+/** 
+ * Note that this is a view and is valid only as long as the source data is valid. Used when flushing mass commands to
+ * wrap different kinds of data into a uniform package so that it can be passed over to a common interface.
+ */
+struct FMassGenericPayloadView
+{
+	FMassGenericPayloadView() = default;
+	FMassGenericPayloadView(TArray<FStructArrayView>&SourceData)
+		: Content(SourceData)
+	{}
+	FMassGenericPayloadView(TArrayView<FStructArrayView> SourceData)
+		: Content(SourceData)
+	{}
+
+	int32 Num() const { return Content.Num(); }
+
+	void Reset()
+	{
+		Content = TArrayView<FStructArrayView>();
+	}
+
+	FORCEINLINE void Swap(const int32 A, const int32 B)
+	{
+		for (FStructArrayView& View : Content)
+		{
+			View.Swap(A, B);
+		}
+	}
+
+	TArrayView<FStructArrayView> Content;
+};
+
+/**
+ * Used to indicate a specific slice of a preexisting FMassGenericPayloadView, it's essentially an access pattern
+ * Note: accessing content generates copies of FStructArrayViews stored (still cheap, those are just views). 
+ */
+struct FMassGenericPayloadViewSlice
+{
+	FMassGenericPayloadViewSlice() = default;
+	FMassGenericPayloadViewSlice(const FMassGenericPayloadView& InSource, const int32 InStartIndex, const int32 InCount)
+		: Source(InSource), StartIndex(InStartIndex), Count(InCount)
+	{
+	}
+
+	FStructArrayView operator[](const int32 Index) const
+	{
+		return FStructArrayView(Source.Content[Index], StartIndex, Count);
+	}
+
+	/** @return the number of "layers" (i.e. number of original arrays) this payload has been built from */
+	int32 Num() const 
+	{
+		return Source.Num();
+	}
+
+	bool IsEmpty() const
+	{
+		return !(Source.Num() > 0 && Count > 0);
+	}
+
+private:
+	FMassGenericPayloadView Source;
+	const int32 StartIndex = 0;
+	const int32 Count = 0;
+};
+
+namespace UE::Mass
+{
+	/**
+	 * A statically-typed list of of related types. Used mainly to differentiate type collections at compile-type as well as
+	 * efficiently produce TScriptStructTypeBitSet representing given collection.
+	 */
+	template<typename T, typename... TOthers>
+	struct TMultiTypeList : TMultiTypeList<TOthers...>
+	{
+		using Super = TMultiTypeList<TOthers...>;
+		using FType = typename TRemoveConst<typename TRemoveReference<T>::Type>::Type;
+		enum
+		{
+			Ordinal = Super::Ordinal + 1
+		};
+
+		template<typename TBaseStruct>
+		static void PopulateBitSet(TScriptStructTypeBitSet<TBaseStruct>& OutBitSet)
+		{
+			Super::PopulateBitSet(OutBitSet);
+			OutBitSet += TScriptStructTypeBitSet<TBaseStruct>::template GetTypeBitSet<FType>();
+		}
+	};
+		
+	/** Single-type specialization of TMultiTypeList. */
+	template<typename T>
+	struct TMultiTypeList<T>
+	{
+		using FType = typename TRemoveConst<typename TRemoveReference<T>::Type>::Type;
+		enum
+		{
+			Ordinal = 0
+		};
+
+		template<typename TBaseStruct>
+		static void PopulateBitSet(TScriptStructTypeBitSet<TBaseStruct>& OutBitSet)
+		{
+			OutBitSet += TScriptStructTypeBitSet<TBaseStruct>::template GetTypeBitSet<FType>();
+		}
+	};
+
+	/** 
+	 * The type hosts a statically-typed collection of TArrays, where each TArray is strongly types (i.e. it contains 
+	 * instances of given structs rather than structs wrapped up in FInstancedStruct). This type lets us do batched 
+	 * fragment values setting by simply copying data rather than setting per-instance. 
+	 */
+	template<typename T, typename... TOthers>
+	struct TMultiArray : TMultiArray<TOthers...>
+	{
+		using FType = typename TRemoveConst<typename TRemoveReference<T>::Type>::Type;
+		using Super = TMultiArray<TOthers...>;
+
+		enum
+		{
+			Ordinal = Super::Ordinal + 1
+		};
+
+		SIZE_T GetAllocatedSize() const
+		{
+			return FragmentInstances.GetAllocatedSize() + Super::GetAllocatedSize();
+		}
+
+		int GetNumArrays() const { return Ordinal + 1; }
+
+		void Add(const FType& Item, TOthers... Rest)
+		{
+			FragmentInstances.Add(Item);
+			Super::Add(Rest...);
+		}
+
+		void GetAsGenericMultiArray(TArray<FStructArrayView>& A) /*const*/
+		{
+			Super::GetAsGenericMultiArray(A);
+			A.Add(FStructArrayView(FragmentInstances));
+		}
+
+		void GetheredAffectedFragments(FMassFragmentBitSet& OutBitSet) const
+		{
+			Super::GetheredAffectedFragments(OutBitSet);
+			OutBitSet += FMassFragmentBitSet::GetTypeBitSet<FType>();
+		}
+
+		TArray<FType> FragmentInstances;
+	};
+
+	/**TMultiArray simple-type specialization */
+	template<typename T>
+	struct TMultiArray<T>
+	{
+		using FType = typename TRemoveConst<typename TRemoveReference<T>::Type>::Type;
+		enum { Ordinal = 0 };
+
+		SIZE_T GetAllocatedSize() const
+		{
+			return FragmentInstances.GetAllocatedSize();
+		}
+
+		int GetNumArrays() const { return Ordinal + 1; }
+
+		void Add(const FType& Item) { FragmentInstances.Add(Item); }
+
+		void GetAsGenericMultiArray(TArray<FStructArrayView>& A) /*const*/
+		{
+			A.Add(FStructArrayView(FragmentInstances));
+		}
+
+		void GetheredAffectedFragments(FMassFragmentBitSet& OutBitSet) const
+		{
+			OutBitSet += FMassFragmentBitSet::GetTypeBitSet<FType>();
+		}
+
+		TArray<FType> FragmentInstances;
+	};
+
+} // UE::Mass

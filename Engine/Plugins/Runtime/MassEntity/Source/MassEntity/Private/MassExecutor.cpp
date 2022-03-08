@@ -33,23 +33,23 @@ void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& Pr
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunSparseEntities");
 
-	const FMassArchetypeSubChunks ChunkCollection(Archetype, Entities, FMassArchetypeSubChunks::NoDuplicates);
-	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext, &ChunkCollection);
+	const FMassArchetypeEntityCollection EntityCollection(Archetype, Entities, FMassArchetypeEntityCollection::NoDuplicates);
+	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext, &EntityCollection);
 }
 
-void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks& ChunkCollection)
+void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& ProcessingContext, const FMassArchetypeEntityCollection& EntityCollection)
 {
 	if (!ensure(ProcessingContext.EntitySubsystem) ||
 		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE) ||
 		RuntimePipeline.Processors.Num() == 0 ||
-		!ensureMsgf(ChunkCollection.GetArchetype().IsValid(), TEXT("The Archetype of ChunkCollection passed in to UE::Mass::Executor::RunSparse is invalid")))
+		!ensureMsgf(EntityCollection.GetArchetype().IsValid(), TEXT("The Archetype of EntityCollection passed in to UE::Mass::Executor::RunSparse is invalid")))
 	{
 		return;
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunSparse");
 
-	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext, &ChunkCollection);
+	RunProcessorsView(RuntimePipeline.Processors, ProcessingContext, &EntityCollection);
 }
 
 void Run(UMassProcessor& Processor, FMassProcessingContext& ProcessingContext)
@@ -65,7 +65,7 @@ void Run(UMassProcessor& Processor, FMassProcessingContext& ProcessingContext)
 	RunProcessorsView(MakeArrayView(&ProcPtr, 1), ProcessingContext);
 }
 
-void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingContext& ProcessingContext, const FMassArchetypeSubChunks* ChunkCollection)
+void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingContext& ProcessingContext, const FMassArchetypeEntityCollection* EntityCollection)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RunProcessorsView);
 
@@ -85,9 +85,9 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunProcessorsView")
 
 	FMassExecutionContext ExecutionContext(ProcessingContext.DeltaSeconds);
-	if (ChunkCollection)
+	if (EntityCollection)
 	{
-		ExecutionContext.SetChunkCollection(*ChunkCollection);
+		ExecutionContext.SetEntityCollection(*EntityCollection);
 	}
 	
 	// if ProcessingContext points at a valid CommandBuffer use that one, otherwise manually create a new command buffer 

@@ -4,6 +4,7 @@
 #include "MassEntityTypes.h"
 #include "Misc/StringBuilder.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
 
 //////////////////////////////////////////////////////////////////////
 // FMassArchetypeData
@@ -23,37 +24,8 @@ bool FMassArchetypeData::HasFragmentType(const UScriptStruct* FragmentType) cons
 
 void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& InCompositionDescriptor, const FMassArchetypeSharedFragmentValues& InSharedFragmentValues)
 {
-	TArray<const UScriptStruct*, TInlineAllocator<16>> SortedFragmentList;
-	InCompositionDescriptor.Fragments.ExportTypes(SortedFragmentList);
-
-	SortedFragmentList.Sort(FScriptStructSortOperator());
-
-	// Figure out how many bytes all of the individual fragments (and metadata) will cost per entity
-	int32 FragmentSizeTallyBytes = 0;
-
-	// Alignment padding computation is currently very conservative and over-estimated.
-	int32 AlignmentPadding = 0;
-	{
-		// Save room for the 'metadata' (entity array)
-		FragmentSizeTallyBytes += sizeof(FMassEntityHandle);
-
-		// Tally up the fragment sizes and place them in the index map
-		FragmentConfigs.AddDefaulted(SortedFragmentList.Num());
-		FragmentIndexMap.Reserve(SortedFragmentList.Num());
-
-		for (int32 FragmentIndex = 0; FragmentIndex < SortedFragmentList.Num(); ++FragmentIndex)
-		{
-			const UScriptStruct* FragmentType = SortedFragmentList[FragmentIndex];
-			checkSlow(FragmentType);
-			FragmentConfigs[FragmentIndex].FragmentType = FragmentType;
-			
-			AlignmentPadding += FragmentType->GetMinAlignment();
-			FragmentSizeTallyBytes += FragmentType->GetStructureSize();
-
-			FragmentIndexMap.Add(FragmentType, FragmentIndex);
-			CompositionDescriptor.Fragments.Add(*FragmentType);
-		}
-	}
+	CompositionDescriptor.Fragments = InCompositionDescriptor.Fragments;
+	ConfigureFragments();
 
 	// Tags
 	CompositionDescriptor.Tags = InCompositionDescriptor.Tags;
@@ -73,6 +45,64 @@ void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& I
 	CompositionDescriptor.SharedFragments = InCompositionDescriptor.SharedFragments;
 	SharedFragmentValues = InSharedFragmentValues;
 
+	EntityListOffsetWithinChunk = 0;
+}
+
+void FMassArchetypeData::InitializeWithSimilar(const FMassArchetypeData& BaseArchetype, FMassArchetypeCompositionDescriptor&& NewComposition)
+{
+	checkf(IsInitialized() == false, TEXT("Trying to %s but this archetype has already been initialized"));
+
+	// note that we're calling this function rarely, so we can be a little bit inefficient here.
+	CompositionDescriptor = MoveTemp(NewComposition);
+	if (CompositionDescriptor.Fragments != NewComposition.Fragments)
+	{
+		ConfigureFragments();
+	}
+	else
+	{
+		FragmentConfigs = BaseArchetype.FragmentConfigs;
+		FragmentIndexMap = BaseArchetype.FragmentIndexMap;
+		TotalBytesPerEntity = BaseArchetype.TotalBytesPerEntity;
+		NumEntitiesPerChunk = BaseArchetype.NumEntitiesPerChunk;
+	}
+	ChunkFragmentsTemplate = BaseArchetype.ChunkFragmentsTemplate;
+	SharedFragmentValues = BaseArchetype.GetSharedFragmentValues();
+
+	EntityListOffsetWithinChunk = 0;
+}
+
+void FMassArchetypeData::ConfigureFragments()
+{
+	TArray<const UScriptStruct*, TInlineAllocator<16>> SortedFragmentList;
+	CompositionDescriptor.Fragments.ExportTypes(SortedFragmentList);
+
+	SortedFragmentList.Sort(FScriptStructSortOperator());
+
+	// Figure out how many bytes all of the individual fragments (and metadata) will cost per entity
+	int32 FragmentSizeTallyBytes = 0;
+
+	// Alignment padding computation is currently very conservative and over-estimated.
+	int32 AlignmentPadding = 0;
+	
+	// Save room for the 'metadata' (entity array)
+	FragmentSizeTallyBytes += sizeof(FMassEntityHandle);
+
+	// Tally up the fragment sizes and place them in the index map
+	FragmentConfigs.AddDefaulted(SortedFragmentList.Num());
+	FragmentIndexMap.Reserve(SortedFragmentList.Num());
+
+	for (int32 FragmentIndex = 0; FragmentIndex < SortedFragmentList.Num(); ++FragmentIndex)
+	{
+		const UScriptStruct* FragmentType = SortedFragmentList[FragmentIndex];
+		checkSlow(FragmentType);
+		FragmentConfigs[FragmentIndex].FragmentType = FragmentType;
+
+		AlignmentPadding += FragmentType->GetMinAlignment();
+		FragmentSizeTallyBytes += FragmentType->GetStructureSize();
+
+		FragmentIndexMap.Add(FragmentType, FragmentIndex);
+	}
+
 	TotalBytesPerEntity = FragmentSizeTallyBytes;
 	int32 ChunkAvailableSize = GetChunkAllocSize() - AlignmentPadding;
 	check(TotalBytesPerEntity <= ChunkAvailableSize);
@@ -80,7 +110,6 @@ void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& I
 	NumEntitiesPerChunk = ChunkAvailableSize / TotalBytesPerEntity;
 
 	// Set up the offsets for each fragment into the chunk data
-	EntityListOffsetWithinChunk = 0;
 	int32 CurrentOffset = NumEntitiesPerChunk * sizeof(FMassEntityHandle);
 	for (FMassArchetypeFragmentConfig& FragmentData : FragmentConfigs)
 	{
@@ -89,26 +118,6 @@ void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& I
 		const int32 SizeOfThisFragmentArray = NumEntitiesPerChunk * FragmentData.FragmentType->GetStructureSize();
 		CurrentOffset += SizeOfThisFragmentArray;
 	}
-}
-
-void FMassArchetypeData::InitializeWithSibling(const FMassArchetypeData& SiblingArchetype, const FMassTagBitSet& OverrideTags)
-{
-	checkf(IsInitialized() == false, TEXT("Trying to %s but this archetype has already been initialized"));
-
-	FragmentConfigs = SiblingArchetype.FragmentConfigs;
-	FragmentIndexMap = SiblingArchetype.FragmentIndexMap;
-	CompositionDescriptor.Fragments = SiblingArchetype.CompositionDescriptor.Fragments;
-	CompositionDescriptor.Tags = OverrideTags;
-	CompositionDescriptor.ChunkFragments = SiblingArchetype.CompositionDescriptor.ChunkFragments;
-	CompositionDescriptor.SharedFragments = SiblingArchetype.CompositionDescriptor.SharedFragments;
-	ChunkFragmentsTemplate = SiblingArchetype.ChunkFragmentsTemplate;
-	SharedFragmentValues = SiblingArchetype.GetSharedFragmentValues();
-
-	TotalBytesPerEntity = SiblingArchetype.TotalBytesPerEntity;
-	NumEntitiesPerChunk = SiblingArchetype.NumEntitiesPerChunk;
-
-	// Set up the offsets for each fragment into the chunk data
-	EntityListOffsetWithinChunk = 0;
 }
 
 void FMassArchetypeData::AddEntity(FMassEntityHandle Entity)
@@ -243,34 +252,34 @@ void FMassArchetypeData::RemoveEntityInternal(const int32 AbsoluteIndex)
 	}
 }
 
-void FMassArchetypeData::BatchDestroyEntityChunks(FMassArchetypeSubChunks::FConstSubChunkArrayView SubChunkContainer, TArray<FMassEntityHandle>& OutEntitiesRemoved)
+void FMassArchetypeData::BatchDestroyEntityChunks(FMassArchetypeEntityCollection::FConstEntityRangeArrayView EntityRangeContainer, TArray<FMassEntityHandle>& OutEntitiesRemoved)
 {
 	const int32 InitialOutEntitiesCount = OutEntitiesRemoved.Num();
 
 	// Sorting the subchunks info so that subchunks of a given chunk are processed "from the back". Otherwise removing 
 	// a subchunk from the front of the chunk would inevitably invalidate following subchunks' information.
-	FMassArchetypeSubChunks::FSubChunkArray Subchunks(SubChunkContainer);
-	Subchunks.Sort([](const FMassArchetypeSubChunks::FSubChunkInfo& A, const FMassArchetypeSubChunks::FSubChunkInfo& B) 
+	FMassArchetypeEntityCollection::FEntityRangeArray SortedRangeCollection(EntityRangeContainer);
+	SortedRangeCollection.Sort([](const FMassArchetypeEntityCollection::FArchetypeEntityRange& A, const FMassArchetypeEntityCollection::FArchetypeEntityRange& B) 
 		{ 
 			return A.ChunkIndex < B.ChunkIndex || (A.ChunkIndex == B.ChunkIndex && A.SubchunkStart > B.SubchunkStart);
 		});
 
-	for (const FMassArchetypeSubChunks::FSubChunkInfo SubchunkInfo : Subchunks)
+	for (const FMassArchetypeEntityCollection::FArchetypeEntityRange EntityRange : SortedRangeCollection)
 	{ 
-		FMassArchetypeChunk& Chunk = Chunks[SubchunkInfo.ChunkIndex];
+		FMassArchetypeChunk& Chunk = Chunks[EntityRange.ChunkIndex];
 
 		// gather entities we're about to remove
-		FMassEntityHandle* DyingEntityPtr = &Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, SubchunkInfo.SubchunkStart);
-		OutEntitiesRemoved.Append(DyingEntityPtr, SubchunkInfo.Length);
+		FMassEntityHandle* DyingEntityPtr = &Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, EntityRange.SubchunkStart);
+		OutEntitiesRemoved.Append(DyingEntityPtr, EntityRange.Length);
 
 		for (const FMassArchetypeFragmentConfig& FragmentConfig : FragmentConfigs)
 		{
 			// Destroy the fragment data
-			void* DyingFragmentPtr = FragmentConfig.GetFragmentData(Chunk.GetRawMemory(), SubchunkInfo.SubchunkStart);
-			FragmentConfig.FragmentType->DestroyStruct(DyingFragmentPtr, SubchunkInfo.Length);
+			void* DyingFragmentPtr = FragmentConfig.GetFragmentData(Chunk.GetRawMemory(), EntityRange.SubchunkStart);
+			FragmentConfig.FragmentType->DestroyStruct(DyingFragmentPtr, EntityRange.Length);
 		}
 
-		BatchRemoveEntitiesInternal(SubchunkInfo.ChunkIndex, SubchunkInfo.SubchunkStart, SubchunkInfo.Length);
+		BatchRemoveEntitiesInternal(EntityRange.ChunkIndex, EntityRange.SubchunkStart, EntityRange.Length);
 	}
 
 	for (int i = InitialOutEntitiesCount; i < OutEntitiesRemoved.Num(); ++i)
@@ -325,7 +334,7 @@ void FMassArchetypeData::SetFragmentsData(const FMassEntityHandle Entity, TArray
 	}
 }
 
-void FMassArchetypeData::SetFragmentData(FMassArchetypeSubChunks::FConstSubChunkArrayView SubChunkContainer, const FInstancedStruct& FragmentSource)
+void FMassArchetypeData::SetFragmentData(FMassArchetypeEntityCollection::FConstEntityRangeArrayView EntityRangeContainer, const FInstancedStruct& FragmentSource)
 {
 	check(FragmentSource.IsValid());
 	const UScriptStruct* FragmentType = FragmentSource.GetScriptStruct();
@@ -335,7 +344,7 @@ void FMassArchetypeData::SetFragmentData(FMassArchetypeSubChunks::FConstSubChunk
 	const uint8* FragmentSourceMemory = FragmentSource.GetMemory();
 	check(FragmentSourceMemory);
 	
-	for (FMassArchetypeChunkIterator ChunkIterator(SubChunkContainer); ChunkIterator; ++ChunkIterator)
+	for (FMassArchetypeChunkIterator ChunkIterator(EntityRangeContainer); ChunkIterator; ++ChunkIterator)
 	{
 		uint8* FragmentMemory = (uint8*)FragmentConfigs[FragmentIndex].GetFragmentData(Chunks[ChunkIterator->ChunkIndex].GetRawMemory(), ChunkIterator->SubchunkStart);
 		for (int i = ChunkIterator->Length; i; --i, FragmentMemory += FragmentTypeSize)
@@ -364,7 +373,7 @@ void FMassArchetypeData::MoveEntityToAnotherArchetype(const FMassEntityHandle En
 	RemoveEntityInternal(AbsoluteIndex);
 }
 
-void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, FMassArchetypeSubChunks::FConstSubChunkArrayView SubChunkContainer)
+void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, FMassArchetypeEntityCollection::FConstEntityRangeArrayView EntityRangeContainer)
 {
 	// mz@todo to be removed
 	RunContext.SetCurrentArchetypesTagBitSet(GetTagBitSet());
@@ -372,7 +381,7 @@ void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, cons
 	BindConstSharedFragmentRequirements(RunContext, RequirementMapping.ConstSharedFragments);
 	BindSharedFragmentRequirements(RunContext, RequirementMapping.SharedFragments);
 
-	for (FMassArchetypeChunkIterator ChunkIterator(SubChunkContainer); ChunkIterator; ++ChunkIterator)
+	for (FMassArchetypeChunkIterator ChunkIterator(EntityRangeContainer); ChunkIterator; ++ChunkIterator)
 	{
 		FMassArchetypeChunk& Chunk = Chunks[ChunkIterator->ChunkIndex];
 		
@@ -417,10 +426,10 @@ void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, cons
 	}
 }
 
-void FMassArchetypeData::ExecutionFunctionForChunk(FMassExecutionContext RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, const FMassArchetypeSubChunks::FSubChunkInfo& ChunkInfo, const FMassChunkConditionFunction& ChunkCondition)
+void FMassArchetypeData::ExecutionFunctionForChunk(FMassExecutionContext RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, const FMassArchetypeEntityCollection::FArchetypeEntityRange& EntityRange, const FMassChunkConditionFunction& ChunkCondition)
 {
-	FMassArchetypeChunk& Chunk = Chunks[ChunkInfo.ChunkIndex];
-	const int32 ChunkLength = ChunkInfo.Length > 0 ? ChunkInfo.Length : (Chunk.GetNumInstances() - ChunkInfo.SubchunkStart);
+	FMassArchetypeChunk& Chunk = Chunks[EntityRange.ChunkIndex];
+	const int32 ChunkLength = EntityRange.Length > 0 ? EntityRange.Length : (Chunk.GetNumInstances() - EntityRange.SubchunkStart);
 
 	if (ChunkLength)
 	{
@@ -433,7 +442,7 @@ void FMassArchetypeData::ExecutionFunctionForChunk(FMassExecutionContext RunCont
 
 		if (!ChunkCondition || ChunkCondition(RunContext))
 		{
-			BindEntityRequirements(RunContext, RequirementMapping.EntityFragments, Chunk, ChunkInfo.SubchunkStart, ChunkLength);
+			BindEntityRequirements(RunContext, RequirementMapping.EntityFragments, Chunk, EntityRange.SubchunkStart, ChunkLength);
 			Function(RunContext);
 		}
 	}
@@ -843,9 +852,9 @@ void FMassArchetypeData::REMOVEME_GetArrayViewForFragmentInChunk(int32 ChunkInde
 //////////////////////////////////////////////////////////////////////
 // FMassArchetypeData batched api
 
-void FMassArchetypeData::BatchAddEntities(TConstArrayView<FMassEntityHandle> Entities, TArray<FMassArchetypeSubChunks::FSubChunkInfo>& OutNewChunks)
+void FMassArchetypeData::BatchAddEntities(TConstArrayView<FMassEntityHandle> Entities, TArray<FMassArchetypeEntityCollection::FArchetypeEntityRange>& OutNewRanges)
 {
-	FMassArchetypeSubChunks::FSubChunkInfo ResultSubchunk;
+	FMassArchetypeEntityCollection::FArchetypeEntityRange ResultSubchunk;
 	ResultSubchunk.ChunkIndex = 0;
 	int32 NumberMoved = 0;
 	do 
@@ -861,48 +870,48 @@ void FMassArchetypeData::BatchAddEntities(TConstArrayView<FMassEntityHandle> Ent
 
 		NumberMoved += ResultSubchunk.Length;
 
-		OutNewChunks.Add(ResultSubchunk);
+		OutNewRanges.Add(ResultSubchunk);
 
 	} while (NumberMoved < Entities.Num());
 }
 
-void FMassArchetypeData::BatchMoveEntitiesToAnotherArchetype(const FMassArchetypeSubChunks& ChunkCollection, FMassArchetypeData& NewArchetype, TArray<FMassEntityHandle>& OutEntitesBeingMoved, TArray<FMassArchetypeSubChunks::FSubChunkInfo>* OutNewChunks)
+void FMassArchetypeData::BatchMoveEntitiesToAnotherArchetype(const FMassArchetypeEntityCollection& EntityCollection, FMassArchetypeData& NewArchetype, TArray<FMassEntityHandle>& OutEntitesBeingMoved, TArray<FMassArchetypeEntityCollection::FArchetypeEntityRange>* OutNewRanges)
 {
 	check(&NewArchetype != this);
 
 	// Sorting the subchunks info so that subchunks of a given chunk are processed "from the back". Otherwise removing 
 	// a subchunk from the front of the chunk would inevitably invalidate following subchunks' information.
-	TArray<FMassArchetypeSubChunks::FSubChunkInfo> Subchunks(ChunkCollection.GetChunks());
-	Subchunks.Sort([](const FMassArchetypeSubChunks::FSubChunkInfo& A, const FMassArchetypeSubChunks::FSubChunkInfo& B)
+	TArray<FMassArchetypeEntityCollection::FArchetypeEntityRange> Subchunks(EntityCollection.GetRanges());
+	Subchunks.Sort([](const FMassArchetypeEntityCollection::FArchetypeEntityRange& A, const FMassArchetypeEntityCollection::FArchetypeEntityRange& B)
 		{
 			return A.ChunkIndex < B.ChunkIndex || (A.ChunkIndex == B.ChunkIndex && A.SubchunkStart > B.SubchunkStart);
 		});
 
 	const int32 InitialOutEntitiesCount = OutEntitesBeingMoved.Num();
 
-	for (const FMassArchetypeSubChunks::FSubChunkInfo SubchunkInfo : Subchunks)
+	for (const FMassArchetypeEntityCollection::FArchetypeEntityRange EntityRange : Subchunks)
 	{
-		FMassArchetypeChunk& Chunk = Chunks[SubchunkInfo.ChunkIndex];
+		FMassArchetypeChunk& Chunk = Chunks[EntityRange.ChunkIndex];
 
 		// 0 - consider compacting new archetype to ensure larger empty spaces
 		// 1. find next free spot in the destination archetype
 		// 2. min(amount of elements) to move
 
 		// gather entities we're about to remove
-		FMassEntityHandle* DyingEntityPtr = &Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, SubchunkInfo.SubchunkStart);
+		FMassEntityHandle* DyingEntityPtr = &Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, EntityRange.SubchunkStart);
 		const int32 EntitesBeingMovedStartIndex = OutEntitesBeingMoved.Num();
-		OutEntitesBeingMoved.Append(DyingEntityPtr, SubchunkInfo.Length);
+		OutEntitesBeingMoved.Append(DyingEntityPtr, EntityRange.Length);
 
-		FMassArchetypeSubChunks::FSubChunkInfo ResultSubChunk;
+		FMassArchetypeEntityCollection::FArchetypeEntityRange ResultSubChunk;
 		ResultSubChunk.ChunkIndex = 0;
 		ResultSubChunk.Length = 0;
 		int32 NumberMoved = 0;
 
 		do
 		{
-			const int32 IndexWithinChunk = SubchunkInfo.SubchunkStart + NumberMoved;
+			const int32 IndexWithinChunk = EntityRange.SubchunkStart + NumberMoved;
 
-			ResultSubChunk = NewArchetype.PrepareNextEntitiesSpanInternal(MakeArrayView(DyingEntityPtr + NumberMoved, SubchunkInfo.Length - NumberMoved)
+			ResultSubChunk = NewArchetype.PrepareNextEntitiesSpanInternal(MakeArrayView(DyingEntityPtr + NumberMoved, EntityRange.Length - NumberMoved)
 				, ResultSubChunk.ChunkIndex);
 
 			FMassArchetypeChunk& NewChunk = NewArchetype.Chunks[ResultSubChunk.ChunkIndex];
@@ -911,15 +920,15 @@ void FMassArchetypeData::BatchMoveEntitiesToAnotherArchetype(const FMassArchetyp
 			NumberMoved += ResultSubChunk.Length;
 
 			// @todo consider adding a 'merge sequences' pass at the end of the function since we can end up with 
-			// subchunks being right next to each other
-			if (OutNewChunks)
+			// ranges being right next to each other
+			if (OutNewRanges)
 			{
-				OutNewChunks->Add(ResultSubChunk);
+				OutNewRanges->Add(ResultSubChunk);
 			}
 
-		} while (NumberMoved < SubchunkInfo.Length);
+		} while (NumberMoved < EntityRange.Length);
 
-		BatchRemoveEntitiesInternal(SubchunkInfo.ChunkIndex, SubchunkInfo.SubchunkStart, SubchunkInfo.Length);
+		BatchRemoveEntitiesInternal(EntityRange.ChunkIndex, EntityRange.SubchunkStart, EntityRange.Length);
 	}
 
 	for (int i = InitialOutEntitiesCount; i < OutEntitesBeingMoved.Num(); ++i)
@@ -928,7 +937,7 @@ void FMassArchetypeData::BatchMoveEntitiesToAnotherArchetype(const FMassArchetyp
 	}
 }
 
-FMassArchetypeSubChunks::FSubChunkInfo FMassArchetypeData::PrepareNextEntitiesSpanInternal(TConstArrayView<FMassEntityHandle> Entities, const int32 StartingChunk)
+FMassArchetypeEntityCollection::FArchetypeEntityRange FMassArchetypeData::PrepareNextEntitiesSpanInternal(TConstArrayView<FMassEntityHandle> Entities, const int32 StartingChunk)
 {
 	int32 StartIndexWithinChunk = INDEX_NONE;
 	int32 AbsoluteStartIndex = 0;
@@ -982,7 +991,7 @@ FMassArchetypeSubChunks::FSubChunkInfo FMassArchetypeData::PrepareNextEntitiesSp
 	FMassEntityHandle* FirstAddedEntity = &DestinationChunk->GetEntityArrayElementRef(EntityListOffsetWithinChunk, StartIndexWithinChunk);
 	FMemory::Memcpy(FirstAddedEntity, Entities.GetData(), sizeof(FMassEntityHandle) * NumToAdd);
 
-	return FMassArchetypeSubChunks::FSubChunkInfo(ChunkIndex, StartIndexWithinChunk, NumToAdd);
+	return FMassArchetypeEntityCollection::FArchetypeEntityRange(ChunkIndex, StartIndexWithinChunk, NumToAdd);
 }
 
 void FMassArchetypeData::BatchRemoveEntitiesInternal(const int32 ChunkIndex, const int32 StartIndexWithinChunk, const int32 NumberToRemove)
@@ -990,7 +999,7 @@ void FMassArchetypeData::BatchRemoveEntitiesInternal(const int32 ChunkIndex, con
 	FMassArchetypeChunk& Chunk = Chunks[ChunkIndex];
 	
 	const int32 NumberToMove = FMath::Min(Chunk.GetNumInstances() - (StartIndexWithinChunk + NumberToRemove), NumberToRemove);
-	checkf(NumberToMove >= 0, TEXT("Trying to move a negative number of elements indicates a problem with SubchunkInfo, it's possibly out of date."));
+	checkf(NumberToMove >= 0, TEXT("Trying to move a negative number of elements indicates a problem with sub-chunk indicators, it's possibly out of date."));
 	const int32 NumberToCut = FMath::Max(NumberToRemove - NumberToMove, 0);
 
 	if (NumberToMove > 0)
@@ -1072,3 +1081,31 @@ FORCEINLINE void FMassArchetypeData::MoveFragmentsToNewLocationInternal(FMassArc
 		FMemory::Memcpy(DyingFragmentPtr, MovingFragmentPtr, FragmentConfig.FragmentType->GetStructureSize() * NumberToMove);
 	}
 }
+
+void FMassArchetypeData::BatchSetFragmentValues(TConstArrayView<FMassArchetypeEntityCollection::FArchetypeEntityRange> EntityCollection, const FMassGenericPayloadViewSlice& Payload)
+{
+	int32 EntitiesHandled = 0;
+
+	for (const FMassArchetypeEntityCollection::FArchetypeEntityRange EntityRange : EntityCollection)
+	{
+		FMassArchetypeChunk& Chunk = Chunks[EntityRange.ChunkIndex];
+
+		for (int i = 0; i < Payload.Num(); ++i)
+		{
+			FStructArrayView FragmentPayload = Payload[i];
+			check(FragmentPayload.Num() - EntitiesHandled >= EntityRange.Length);
+
+			const UScriptStruct& FragmentType = FragmentPayload.GetFragmentType();
+
+			const int32 FragmentIndex = FragmentIndexMap.FindChecked(&FragmentType);
+			void* Dst = FragmentConfigs[FragmentIndex].GetFragmentData(Chunk.GetRawMemory(), EntityRange.SubchunkStart);
+			const void* Src = FragmentPayload.GetDataAt(EntitiesHandled);
+
+			FMemory::Memcpy(Dst, Src, FragmentType.GetStructureSize() * EntityRange.Length);
+		}
+
+		EntitiesHandled += EntityRange.Length;
+	}
+}
+
+PRAGMA_ENABLE_OPTIMIZATION

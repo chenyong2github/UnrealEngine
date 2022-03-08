@@ -215,7 +215,7 @@ struct FQueryTest_ExecuteSparse : FEntityTestBase
 
 		FMassExecutionContext ExecContext;
 		FMassEntityQuery().AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite)
-			.ForEachEntityChunk(FMassArchetypeSubChunks(FloatsArchetype, EntitiesToProcess, FMassArchetypeSubChunks::NoDuplicates)
+			.ForEachEntityChunk(FMassArchetypeEntityCollection(FloatsArchetype, EntitiesToProcess, FMassArchetypeEntityCollection::NoDuplicates)
 								, *EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
 				TotalProcessed += Context.GetNumEntities();

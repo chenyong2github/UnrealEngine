@@ -17,6 +17,8 @@ struct FTestFragment_Float : public FMassFragment
 {
 	GENERATED_BODY()
 	float Value = 0;
+
+	FTestFragment_Float(const float InValue = 0.f) : Value(InValue) {}
 };
 
 USTRUCT()
@@ -24,6 +26,8 @@ struct FTestFragment_Int : public FMassFragment
 {
 	GENERATED_BODY()
 	int32 Value = 0;
+
+	FTestFragment_Int(const int32 InValue = 0) : Value(InValue) {}
 };
 
 USTRUCT()
@@ -31,6 +35,32 @@ struct FTestFragment_Bool : public FMassFragment
 {
 	GENERATED_BODY()
 	bool bValue = false;
+
+	FTestFragment_Bool(const bool bInValue = false) : bValue(bInValue) {}
+};
+
+USTRUCT()
+struct FTestFragment_Large : public FMassFragment
+{
+	GENERATED_BODY()
+	uint8 Value[64];
+
+	FTestFragment_Large(uint8 Fill = 0)
+	{
+		FMemory::Memset(Value, Fill, 64);
+	}
+};
+
+USTRUCT()
+struct FTestFragment_Array : public FMassFragment
+{
+	GENERATED_BODY()
+	TArray<int32> Value;
+
+	FTestFragment_Array(uint8 Num = 0)
+	{
+		Value.Reserve(Num);
+	}
 };
 
 /** @todo rename to FTestTag */
