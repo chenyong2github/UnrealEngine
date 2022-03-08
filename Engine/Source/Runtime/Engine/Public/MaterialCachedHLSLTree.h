@@ -10,6 +10,7 @@
 #include "Misc/MemStack.h"
 
 class UMaterial;
+class UMaterialExpression;
 class UMaterialExpressionCustomOutput;
 struct FMaterialLayersFunctions;
 
