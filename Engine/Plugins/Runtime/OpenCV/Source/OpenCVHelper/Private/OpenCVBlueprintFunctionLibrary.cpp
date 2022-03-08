@@ -93,9 +93,13 @@ int32 UOpenCVBlueprintFunctionLibrary::OpenCVChessboardDetectCorners(const UText
 		cv::cornerSubPix(CvFrameGray, Corners, WinSize, ZeroZone, TermCriteria);
 
 		OutDetectedCorners.Reserve(NumCornersFound);
-		for (const cv::Point2f& Corner : Corners)
+
+		if (!Corners.empty())
 		{
-			OutDetectedCorners.Add(FVector2D(Corner.x, Corner.y));
+			for (const cv::Point2f& Corner : Corners)
+			{
+				OutDetectedCorners.Add(FVector2D(Corner.x, Corner.y));
+			}
 		}
 	}
 

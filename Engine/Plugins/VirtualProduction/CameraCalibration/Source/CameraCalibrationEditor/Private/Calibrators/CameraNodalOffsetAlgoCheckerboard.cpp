@@ -180,9 +180,12 @@ bool UCameraNodalOffsetAlgoCheckerboard::PopulatePoints(FText& OutErrorMessage)
 
 		Points2d.reserve(Corners.size());
 
-		for (cv::Point2f& Corner : Corners)
+		if (!Corners.empty())
 		{
-			Points2d.push_back(cv::Point2f(Corner.x, Corner.y));
+			for (cv::Point2f& Corner : Corners)
+			{
+				Points2d.push_back(cv::Point2f(Corner.x, Corner.y));
+			}
 		}
 	}
 
