@@ -66,6 +66,7 @@
             MinWidth="0"
             ResizeStyle="HideText"
             ShowText="true"
+            Size="Large"
             Text="Connections"
             UID="e7499676-fcc7-4d7b-9b23-d71a9beea4e9" />
         </ads:RibbonRowPanel>
