@@ -134,6 +134,7 @@ FSlateEditableTextLayout::FSlateEditableTextLayout(ISlateEditableTextWidget& InO
 	PreferredCursorScreenOffsetInLine = 0.0f;
 	SelectionStart = TOptional<FTextLocation>();
 	CurrentUndoLevel = INDEX_NONE;
+	NumTransactionsOpened = 0;
 
 	bIsDragSelecting = false;
 	bWasFocusedByLastMouseDown = false;
@@ -1826,6 +1827,28 @@ void FSlateEditableTextLayout::SelectWordAt(const FVector2D& InLocalPosition)
 	}
 }
 
+void FSlateEditableTextLayout::SelectText(const FTextLocation& InSelectionStart, const FTextLocation& InCursorLocation)
+{
+	if (TextLayout->IsEmpty())
+	{
+		return;
+	}
+
+	const FTextLocation NewCursorPosition = InCursorLocation;
+	CursorInfo.SetCursorLocationAndCalculateAlignment(*TextLayout, NewCursorPosition);
+
+	if (InSelectionStart != InCursorLocation)
+	{
+		SelectionStart = InSelectionStart;
+	}
+	else
+	{
+		SelectionStart.Reset();
+	}
+	
+	UpdateCursorHighlight();	
+}
+
 void FSlateEditableTextLayout::ClearSelection()
 {
 	SelectionStart = TOptional<FTextLocation>();
@@ -3082,11 +3105,13 @@ bool FSlateEditableTextLayout::HasTextChangedFromOriginal() const
 
 void FSlateEditableTextLayout::BeginEditTransation()
 {
-	if (StateBeforeChangingText.IsSet() || OwnerWidget->IsTextReadOnly())
+	NumTransactionsOpened += 1;
+	
+	if (NumTransactionsOpened > 1 || OwnerWidget->IsTextReadOnly())
 	{
 		// Already within a translation - don't open another
-		//Or never change text on read only controls.
-		//The TextReadOnly is an attribute, the return value may have changed since the last time it was checked.
+		// Or never change text on read only controls.
+		// The TextReadOnly is an attribute, the return value may have changed since the last time it was checked.
 		return;
 	}
 
@@ -3098,9 +3123,15 @@ void FSlateEditableTextLayout::BeginEditTransation()
 
 void FSlateEditableTextLayout::EndEditTransaction()
 {
-	if (!StateBeforeChangingText.IsSet())
+	NumTransactionsOpened -= 1;
+
+	check(NumTransactionsOpened >= 0);
+
+	if (NumTransactionsOpened > 0)
 	{
-		// No transaction to close
+		// Don't close transaction if there are more opened
+		// Caller of the first opened transaction should be
+		// responsible for actually closing the transaction
 		return;
 	}
 
@@ -3661,6 +3692,15 @@ void FSlateEditableTextLayout::GetCurrentTextLine(FString& OutTextLine) const
 	if (Lines.IsValidIndex(LineIdx))
 	{
 		OutTextLine = *Lines[LineIdx].Text;
+	}
+}
+
+void FSlateEditableTextLayout::GetTextLine(const int32 InLineIndex, FString& OutTextLine) const
+{
+	const TArray< FTextLayout::FLineModel >& Lines = TextLayout->GetLineModels();
+	if (Lines.IsValidIndex(InLineIndex))
+	{
+		OutTextLine = *Lines[InLineIndex].Text;
 	}
 }
 

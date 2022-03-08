@@ -99,6 +99,11 @@ void SMultiLineEditableText::GetCurrentTextLine(FString& OutTextLine) const
 	EditableTextLayout->GetCurrentTextLine(OutTextLine);
 }
 
+void SMultiLineEditableText::GetTextLine(const int32 InLineIndex, FString& OutTextLine) const
+{
+	EditableTextLayout->GetTextLine(InLineIndex, OutTextLine);
+}
+
 void SMultiLineEditableText::SetText(const TAttribute< FText >& InText)
 {
 	EditableTextLayout->SetText(InText);
@@ -448,6 +453,16 @@ float SMultiLineEditableText::UpdateAndClampVerticalScrollBar(const float InView
 	return EditableTextLayout->GetScrollOffset().Y;
 }
 
+void SMultiLineEditableText::BeginEditTransaction()
+{
+	EditableTextLayout->BeginEditTransation();
+}
+
+void SMultiLineEditableText::EndEditTransaction()
+{
+	EditableTextLayout->EndEditTransaction();
+}
+
 FReply SMultiLineEditableText::OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent )
 {
 	EditableTextLayout->HandleFocusReceived(InFocusEvent);
@@ -468,6 +483,11 @@ bool SMultiLineEditableText::AnyTextSelected() const
 void SMultiLineEditableText::SelectAllText()
 {
 	EditableTextLayout->SelectAllText();
+}
+
+void SMultiLineEditableText::SelectText(const FTextLocation& InSelectionStart, const FTextLocation& InCursorLocation)
+{
+	EditableTextLayout->SelectText(InSelectionStart, InCursorLocation);
 }
 
 void SMultiLineEditableText::ClearSelection()

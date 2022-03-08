@@ -228,6 +228,9 @@ public:
 	/** Select the word under the given position (the position is local to the text layout space) */
 	void SelectWordAt(const FVector2D& InLocalPosition);
 
+	/** Select a block of text */
+	void SelectText(const FTextLocation& InSelectionStart, const FTextLocation& InCursorLocation);
+
 	/** Clear the active text selection */
 	void ClearSelection();
 
@@ -397,6 +400,14 @@ public:
 	 * @param OutTextLine   FString of the line
 	 */
 	void GetCurrentTextLine(FString& OutTextLine) const;
+
+	/**
+	 * Fill OutTextLine with the text line at the specified index
+	 *
+	 * @param InLineIndex   Index of the line
+	 * @param OutTextLine   FString of the line
+	 */
+	void GetTextLine(const int32 InLineIndex, FString& OutTextLine) const;
 
 private:
 	/** Insert the given text at the current cursor position, correctly taking into account new line characters */
@@ -626,6 +637,9 @@ private:
 
 	/** Undo state that will be pushed if text is actually changed between calls to BeginEditTransation() and EndEditTransaction() */
 	TOptional<SlateEditableTextTypes::FUndoState> StateBeforeChangingText;
+
+	/** Track the number transactions that are opened */
+	int32 NumTransactionsOpened;
 
 	/** Original text undo state */
 	SlateEditableTextTypes::FUndoState OriginalText;

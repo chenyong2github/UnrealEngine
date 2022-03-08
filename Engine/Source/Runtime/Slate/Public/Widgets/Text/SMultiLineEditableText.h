@@ -41,6 +41,26 @@ class FSlateEditableTextLayout;
 class SLATE_API SMultiLineEditableText : public SWidget, public ISlateEditableTextWidget
 {
 public:
+
+	/** Used to merge multiple text edit transactions within a scope */
+	struct FScopedEditableTextTransaction
+	{
+	public:
+		FScopedEditableTextTransaction(TSharedPtr<SMultiLineEditableText> InText)
+			: Text(InText)
+		{
+			Text->BeginEditTransaction();
+		}
+
+		~FScopedEditableTextTransaction()
+		{
+			Text->EndEditTransaction();	
+		};
+
+	private:
+		TSharedPtr<SMultiLineEditableText> Text;
+	};
+	
 	/** Called when the cursor is moved within the text area */
 	DECLARE_DELEGATE_OneParam( FOnCursorMoved, const FTextLocation& );
 
@@ -240,6 +260,14 @@ public:
 	void GetCurrentTextLine(FString& OutTextLine) const;
 
 	/**
+	 * Fill OutTextLine with the text line at the specified index
+	 *
+	 * @param InLineIndex   Index of the line
+	 * @param OutTextLine   FString of the line
+	 */
+	void GetTextLine(const int32 InLineIndex, FString& OutTextLine) const;
+	
+	/**
 	 * Sets the text that appears when there is no text in the text box
 	 */
 	void SetHintText(const TAttribute< FText >& InHintText);
@@ -345,6 +373,9 @@ public:
 	/** Select all the text in the document */
 	void SelectAllText();
 
+	/** Select a block of text */
+	void SelectText(const FTextLocation& InSelectionStart, const FTextLocation& InCursorLocation);
+	
 	/** Clear the active text selection */
 	void ClearSelection();
 
@@ -488,6 +519,13 @@ protected:
 	virtual float UpdateAndClampHorizontalScrollBar(const float InViewOffset, const float InViewFraction, const EVisibility InVisiblityOverride) override;
 	virtual float UpdateAndClampVerticalScrollBar(const float InViewOffset, const float InViewFraction, const EVisibility InVisiblityOverride) override;
 	//~ End ISlateEditableTextWidget Interface
+
+protected:
+	/** Called to begin an undoable editable text transaction, marked as protected for use with FScopedEditableTextTransaction only */
+	void BeginEditTransaction();
+
+	/** Called to end an undoable editable text transaction, marked as protected for use with FScopedEditableTextTransaction only */
+	void EndEditTransaction();
 
 protected:
 	/** The text layout that deals with the editable text */
