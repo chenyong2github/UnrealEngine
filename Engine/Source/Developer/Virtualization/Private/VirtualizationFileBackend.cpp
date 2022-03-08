@@ -11,7 +11,7 @@
 namespace UE::Virtualization
 {
 
-FFileSystemBackend::FFileSystemBackend(FStringView ConfigName, FStringView DebugName)
+FFileSystemBackend::FFileSystemBackend(FStringView ProjectName, FStringView ConfigName, FStringView DebugName)
 	: IVirtualizationBackend(ConfigName, DebugName, EOperations::Both)
 {
 }

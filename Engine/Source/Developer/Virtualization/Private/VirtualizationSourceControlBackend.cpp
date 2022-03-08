@@ -8,7 +8,6 @@
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
 #include "Logging/MessageLog.h"
-#include "Misc/App.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
 #include "Misc/PathViews.h"
@@ -58,11 +57,11 @@ namespace UE::Virtualization
 }
 
 /** Builds a changelist description to be used when submitting a payload to source control */
-static void CreateDescription(const TArray<const FPushRequest*>& FileRequests, TStringBuilder<512>& OutDescription)
+static void CreateDescription(const FString& ProjectName, const TArray<const FPushRequest*>& FileRequests, TStringBuilder<512>& OutDescription)
 {
 	// TODO: Maybe make writing out the project name an option or allow for a codename to be set via ini file?
 	OutDescription << TEXT("Submitted for project: ");
-	OutDescription << FApp::GetProjectName();
+	OutDescription << ProjectName;
 
 	bool bInitialNewline = false;
 
@@ -81,8 +80,9 @@ static void CreateDescription(const TArray<const FPushRequest*>& FileRequests, T
 	}
 }
 
-FSourceControlBackend::FSourceControlBackend(FStringView ConfigName, FStringView InDebugName)
+FSourceControlBackend::FSourceControlBackend(FStringView ProjectName, FStringView ConfigName, FStringView InDebugName)
 	: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Both)
+	, ProjectName(ProjectName)
 {
 }
 
@@ -474,7 +474,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 		TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
 
 		TStringBuilder<512> Description;
-		CreateDescription(FileRequests, Description);
+		CreateDescription(ProjectName, FileRequests, Description);
 
 		CheckInOperation->SetDescription(FText::FromString(Description.ToString()));
 

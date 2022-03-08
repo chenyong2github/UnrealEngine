@@ -32,7 +32,7 @@ namespace UE::Virtualization
 class FHttpBackend final : public IVirtualizationBackend
 {
 public:
-	explicit FHttpBackend(FStringView ConfigName, FStringView DebugName);
+	explicit FHttpBackend(FStringView ProjectName, FStringView ConfigName, FStringView DebugName);
 	virtual ~FHttpBackend() = default;
 
 private:

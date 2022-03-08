@@ -105,7 +105,7 @@ public:
 private:
 	/* IVirtualizationSystem implementation */
 
-	virtual bool Initialize(const FConfigFile& ConfigFile) override;
+	virtual bool Initialize(const FInitParams& InitParams) override;
 
 	virtual bool IsEnabled() const override;
 	virtual bool IsPushingEnabled(EStorageType StorageType) const override;
@@ -204,6 +204,9 @@ private:
 	 * This is intended to aid debugging and not for production use.
 	 */
 	bool bValidateAfterPushOperation;
+
+	/** The name of the current project */
+	FString ProjectName;
 
 	/** Array of backend names that should have their pull operation disabled */
 	TArray<FString> BackendsToDisablePulls;

@@ -3,6 +3,7 @@
 #include "Virtualization/VirtualizationSystem.h"
 
 #include "CoreGlobals.h"
+#include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
 
 namespace UE::Virtualization
@@ -19,7 +20,7 @@ public:
 
 	virtual ~FNullVirtualizationSystem() = default;
 
-	virtual bool Initialize(const FConfigFile& ConfigFile) override
+	virtual bool Initialize(const FInitParams& InitParams) override
 	{
 		return true;
 	}
@@ -90,54 +91,66 @@ Private::IVirtualizationSystemFactory* FindFactory(FName SystemName)
 	return nullptr;
 }
 
-void Initialize(FConfigFile* ConfigFile)
+void Initialize()
 {
-	FName SystemName;
+	FApp::GetProjectName();
 
-	if (ConfigFile == nullptr)
-	{
-		ConfigFile = GConfig->Find(GEngineIni);
-	}
-	
+	const FConfigFile* ConfigFile = GConfig->Find(GEngineIni);
+
 	if (ConfigFile != nullptr)
 	{
-		FString RawSystemName;
-		if (ConfigFile->GetString(TEXT("Core.ContentVirtualization"), TEXT("SystemName"), RawSystemName))
-		{
-			SystemName = FName(RawSystemName);
-			UE_LOG(LogVirtualization, Display, TEXT("VirtualizationSystem name found in ini file: %s"), *RawSystemName);
-		}
-
-		if (!SystemName.IsNone())
-		{
-			Private::IVirtualizationSystemFactory* SystemFactory = FindFactory(SystemName);
-			if (SystemFactory != nullptr)
-			{
-				GVirtualizationSystem = SystemFactory->Create();
-				check(GVirtualizationSystem.IsValid()); // It is assumed that create will always return a valid pointer
-
-				if (!GVirtualizationSystem->Initialize(*ConfigFile))
-				{
-					UE_LOG(LogVirtualization, Error, TEXT("Initialization of the virtualization system '%s' failed, falling back to the default implementation"), *SystemName.ToString());
-					GVirtualizationSystem.Reset();
-				}
-			}
-			else
-			{
-				UE_LOG(LogVirtualization, Error, TEXT("Unable to find factory to create the virtualization system: %s"), *SystemName.ToString());
-			}
-		}
+		FInitParams InitParams(FApp::GetProjectName() , *ConfigFile);
+		Initialize(InitParams);
 	}
 	else
 	{
 		UE_LOG(LogVirtualization, Error, TEXT("Unable to find a valid engine config file when trying to create the virtualization system"));
+
+		GVirtualizationSystem = MakeUnique<FNullVirtualizationSystem>();
+
+		FConfigFile EmptyConfigFile;
+		FInitParams DummyParams(TEXT(""), EmptyConfigFile);
+
+		GVirtualizationSystem->Initialize(DummyParams);
+	}	
+}
+
+void Initialize(const FInitParams& InitParams)
+{
+	FName SystemName;
+
+	FString RawSystemName;
+	if (InitParams.ConfigFile.GetString(TEXT("Core.ContentVirtualization"), TEXT("SystemName"), RawSystemName))
+	{
+		SystemName = FName(RawSystemName);
+		UE_LOG(LogVirtualization, Display, TEXT("VirtualizationSystem name found in ini file: %s"), *RawSystemName);
 	}
 
+	if (!SystemName.IsNone())
+	{
+		Private::IVirtualizationSystemFactory* SystemFactory = FindFactory(SystemName);
+		if (SystemFactory != nullptr)
+		{
+			GVirtualizationSystem = SystemFactory->Create();
+			check(GVirtualizationSystem.IsValid()); // It is assumed that create will always return a valid pointer
+
+			if (!GVirtualizationSystem->Initialize(InitParams))
+			{
+				UE_LOG(LogVirtualization, Error, TEXT("Initialization of the virtualization system '%s' failed, falling back to the default implementation"), *SystemName.ToString());
+				GVirtualizationSystem.Reset();
+			}
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("Unable to find factory to create the virtualization system: %s"), *SystemName.ToString());
+		}
+	}
+
+	// If we found no system to create so we will use the fallback system
 	if (!GVirtualizationSystem.IsValid())
 	{
-		// We found no system to create so we will use the fallback Null system
 		GVirtualizationSystem = MakeUnique<FNullVirtualizationSystem>();
-		GVirtualizationSystem->Initialize(FConfigFile()); // We know this method does nothing but we call it anyway for sake of form
+		GVirtualizationSystem->Initialize(InitParams);
 	}
 }
 

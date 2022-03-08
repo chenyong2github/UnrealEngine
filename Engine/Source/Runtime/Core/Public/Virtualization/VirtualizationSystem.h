@@ -112,12 +112,40 @@ struct FPushRequest
 	EStatus Status = EStatus::Failed;
 };
 
+/** 
+ * The set of parameters to be used when initializing the virtualization system. The 
+ * members must remain valid for the duration of the call to ::Initialize. It is not
+ * expected that any virtualization system will store a reference to the members, if
+ * they want to retain the data then they will make their own copies.
+ */
+struct FInitParams
+{
+	FInitParams(FStringView InProjectName, const FConfigFile& InConfigFile)
+		: ProjectName(InProjectName)
+		, ConfigFile(InConfigFile)
+	{
+
+	}
+
+	/** The name of the current project (will default to FApp::GetProjectName()) */
+	FStringView ProjectName;
+
+	/** The config file to load the settings from (will default to GEngineIni) */
+	const FConfigFile& ConfigFile;
+};
 /**
  * Creates the global IVirtualizationSystem if it has not already been set up. This can be called explicitly
  * during process start up but it will also be called by IVirtualizationSystem::Get if it detects that the
  * IVirtualizationSystem has not yet been set up.
+ * 
+ * This version will use the default values of FInitParams.
  */
-CORE_API void Initialize(FConfigFile* ConfigFile = nullptr);
+CORE_API void Initialize();
+
+/**
+ * This version of ::Initialize takes parameters via the FInitParams structure.
+ */
+CORE_API void Initialize(const FInitParams& InitParams);
 
 /**
  * Shutdowns the global IVirtualizationSystem if it exists. 
@@ -146,18 +174,19 @@ public:
 	virtual ~IVirtualizationSystem() = default;
 
 	/**
-	 * Initialize the system from the given config file. Since the system might be initialized from a custom set
-	 * of specifically loaded config files, this is the only point in the systems life time that you are guaranteed 
-	 * to have the correct config file available so make sure that all settings that are required are parsed and
-	 * stored at this point rather than trying to access the config system directly in the future.
+	 * Initialize the system from the parameters given in the FInitParams structure.
+	 * The system can only rely on the members of FInitParams to be valid for the duration of the method call, so
+	 * if a system needs to retain information longer term then it should make it's own copy of the required data.
 	 * 
-	 * @param ConfigFile	The config file to parse the systems settings from. The object is guaranteed to be
-	 *						valid for the life time of the method so do not store it for future use.
+	 * NOTE: Although it is relatively easy to access cached FConfigFiles, systems should use the one provided 
+	 * by InitParams to ensure that the correct settings are parsed.
+	 * 
+	 * @param InitParam The parameters used to initialize the system
 	 * @return				True if the system was initialized correctly, otherwise false. Note that if the method
-	 *						returns false then the system will be deleted and the default FNullVirtualizationSystem 
+	 *						returns false then the system will be deleted and the default FNullVirtualizationSystem
 	 *						will be used instead.
 	 */
-	virtual bool Initialize(const FConfigFile& ConfigFile) = 0;
+	virtual bool Initialize(const FInitParams& InitParams) = 0;
 
 	/** Gain access to the current virtualization system active for the project */
 	static IVirtualizationSystem& Get();

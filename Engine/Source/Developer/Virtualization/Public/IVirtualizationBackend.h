@@ -227,10 +227,11 @@ public:
 	/** 
 	 * Creates a new backend instance.
 	 * 
+	 * @param ProjectName	The name of the current project
 	 * @param ConfigName	The name given to the back end in the config ini file
 	 * @return A new backend instance
 	 */
-	virtual TUniquePtr<IVirtualizationBackend> CreateInstance(FStringView ConfigName) = 0;
+	virtual TUniquePtr<IVirtualizationBackend> CreateInstance(FStringView ProjectName, FStringView ConfigName) = 0;
 
 	/** Returns the name used to identify the type in config ini files */
 	virtual FName GetName() = 0;
@@ -252,7 +253,10 @@ public:
 		BackendClass##Factory() { IModularFeatures::Get().RegisterModularFeature(FName("VirtualizationBackendFactory"), this); }\
 		virtual ~BackendClass##Factory() { IModularFeatures::Get().UnregisterModularFeature(FName("VirtualizationBackendFactory"), this); } \
 	private: \
-		virtual TUniquePtr<IVirtualizationBackend> CreateInstance(FStringView ConfigName) override { return MakeUnique<BackendClass>(ConfigName, WriteToString<256>(#ConfigName, TEXT(" - "), ConfigName).ToString()); } \
+		virtual TUniquePtr<IVirtualizationBackend> CreateInstance(FStringView ProjectName, FStringView ConfigName) override \
+		{ \
+			return MakeUnique<BackendClass>(ProjectName, ConfigName, WriteToString<256>(#ConfigName, TEXT(" - "), ConfigName).ToString()); \
+		} \
 		virtual FName GetName() override { return FName(#ConfigName); } \
 	}; \
 	static BackendClass##Factory BackendClass##Factory##Instance;

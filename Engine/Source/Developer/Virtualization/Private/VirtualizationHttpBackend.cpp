@@ -1293,7 +1293,7 @@ private:
 	FString SiteIdentifier;
 };
 
-FHttpBackend::FHttpBackend(FStringView ConfigName, FStringView InDebugName)
+FHttpBackend::FHttpBackend(FStringView ProjectName, FStringView ConfigName, FStringView InDebugName)
 	: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Both)
 	, Namespace(TEXT("mirage"))
 	, Bucket(TEXT("default"))

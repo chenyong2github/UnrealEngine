@@ -28,7 +28,7 @@ namespace UE::Virtualization
 class FDDCBackend final : public IVirtualizationBackend
 {
 public:
-	explicit FDDCBackend(FStringView ConfigName, FStringView InDebugName);
+	explicit FDDCBackend(FStringView ProjectName, FStringView ConfigName, FStringView InDebugName);
 	virtual ~FDDCBackend() = default;
 
 private:

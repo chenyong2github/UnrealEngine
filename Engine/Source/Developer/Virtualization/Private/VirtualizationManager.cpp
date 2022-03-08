@@ -12,9 +12,10 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
+#include "PackageSubmissionChecks.h"
 #include "ProfilingDebugging/CookStats.h"
-
 #include "VirtualizationFilterSettings.h"
+
 
 namespace UE::Virtualization
 {
@@ -283,17 +284,19 @@ FVirtualizationManager::~FVirtualizationManager()
 	UE_LOG(LogVirtualization, Log, TEXT("Virtualization manager destroyed"));
 }
 
-bool FVirtualizationManager::Initialize(const FConfigFile& ConfigFile)
+bool FVirtualizationManager::Initialize(const FInitParams& InitParams)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::Initialize);
 
-	ApplySettingsFromConfigFiles(ConfigFile);
-	ApplyDebugSettingsFromConfigFiles(ConfigFile);
+	ProjectName = InitParams.ProjectName;
+
+	ApplySettingsFromConfigFiles(InitParams.ConfigFile);
+	ApplyDebugSettingsFromConfigFiles(InitParams.ConfigFile);
 	
 	ApplySettingsFromCmdline();
 	ApplyDebugSettingsFromFromCmdline();
 
-	MountBackends(ConfigFile);
+	MountBackends(InitParams.ConfigFile);
 
 	return true;
 }
@@ -852,7 +855,7 @@ bool FVirtualizationManager::CreateBackend(const FConfigFile& ConfigFile, const 
 		if (FactoryPtr != nullptr && *FactoryPtr != nullptr)
 		{
 			IVirtualizationBackendFactory* Factory = *FactoryPtr;
-			TUniquePtr<IVirtualizationBackend> Backend = Factory->CreateInstance(ConfigEntryName);
+			TUniquePtr<IVirtualizationBackend> Backend = Factory->CreateInstance(ProjectName, ConfigEntryName);
 
 			if (Backend == nullptr)
 			{

@@ -6,6 +6,8 @@
 
 #include "Containers/StringView.h"
 
+class ISourceControlProvider;
+
 namespace UE::Virtualization
 {
 
@@ -39,7 +41,7 @@ namespace UE::Virtualization
 class FSourceControlBackend final : public IVirtualizationBackend
 {
 public:
-	explicit FSourceControlBackend(FStringView ConfigName, FStringView InDebugName);
+	explicit FSourceControlBackend(FStringView ProjectName, FStringView ConfigName, FStringView InDebugName);
 	virtual ~FSourceControlBackend() = default;
 	
 private:
@@ -64,7 +66,10 @@ private:
 
 	/** Will display a FMessage notification to the user on the next valid engine tick to try and keep them aware of connection failures */
 	void OnConnectionError();
-	
+
+	/** The name of the current project */
+	FString ProjectName;
+
 	/** The root where the virtualized payloads are stored in source control */
 	FString DepotRoot;
 

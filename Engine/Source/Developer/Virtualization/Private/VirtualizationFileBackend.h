@@ -31,7 +31,7 @@ namespace UE::Virtualization
 class FFileSystemBackend final : public IVirtualizationBackend
 {
 public:
-	explicit FFileSystemBackend(FStringView ConfigName, FStringView DebugName);
+	explicit FFileSystemBackend(FStringView ProjectName, FStringView ConfigName, FStringView DebugName);
 	virtual ~FFileSystemBackend() = default;
 
 private:
