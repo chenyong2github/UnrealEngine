@@ -7,6 +7,7 @@
 #include "/Engine/Public/WaveBroadcastIntrinsics.ush"
 
 #include "../../Common.ush"
+#include "../LumenMaterial.ush"
 #include "../../SceneTextureParameters.ush"
 #include "../ProbeHierarchy/LumenCubemapProbeHierarchy.ush"
 
@@ -37,7 +38,7 @@ struct FTracingPixelInfos
 	float2 ScreenPos;
 
 	// (VGPR) Usual pixel positions.
-	FGBufferData GBuffer;
+	FLumenMaterialData MaterialData;
 	float3 TranslatedWorldPosition;
 	float3 V;
 };

@@ -3,6 +3,7 @@
 #define USE_HAIR_COMPLEX_TRANSMITTANCE 1
 
 #include "../Common.ush"
+#include "LumenMaterial.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../BRDF.ush"
 #include "LumenScreenProbeCommon.ush"
@@ -59,29 +60,39 @@ RWTexture2D<uint> RWScreenProbeWorldSpeed;
 RWTexture2D<UNORM float2> RWScreenProbeWorldNormal;
 RWTexture2D<float3> RWScreenProbeTranslatedWorldPosition;
 
-struct FScreenProbeGBuffer
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FScreenProbeMaterial
 {
 	float3 WorldNormal;
 	float SceneDepth;
-	bool bLit;
+	bool bIsValid;
 	bool bTwoSidedFoliage;
 };
 
-FScreenProbeGBuffer GetScreenProbeGBuffer(FGBufferData GBufferData)
-{ 
-	FScreenProbeGBuffer ScreenProbeGBuffer;
-	ScreenProbeGBuffer.WorldNormal = GBufferData.WorldNormal;
-	ScreenProbeGBuffer.SceneDepth = GBufferData.Depth;
-	ScreenProbeGBuffer.bLit = GBufferData.ShadingModelID != SHADINGMODELID_UNLIT;
-	ScreenProbeGBuffer.bTwoSidedFoliage = GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
-	return ScreenProbeGBuffer;
+FScreenProbeMaterial GetScreenProbeMaterial(uint2 PixelPos)
+{
+	const FLumenMaterialData Material = ReadMaterialData(PixelPos);
+	FScreenProbeMaterial Out;
+	Out.WorldNormal = Material.WorldNormal;
+	Out.SceneDepth = Material.SceneDepth;
+	Out.bIsValid = IsValid(Material);
+	Out.bTwoSidedFoliage = IsFoliage(Material);
+	return Out;
 }
 
-void WriteDownsampledProbeGBuffer(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, FScreenProbeGBuffer ProbeGBuffer)
+float3 GetMaterialWorldNormal(uint2 PixelPos)
 {
-	float EncodedDepth = ProbeGBuffer.SceneDepth;
+	return ReadMaterialData(PixelPos).WorldNormal;
+}
 
-	if (!ProbeGBuffer.bLit)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void WriteDownsampledProbeMaterial(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, FScreenProbeMaterial ProbeMaterial)
+{
+	float EncodedDepth = ProbeMaterial.SceneDepth;
+
+	if (!ProbeMaterial.bIsValid)
 	{
 		// Store unlit in sign bit
 		EncodedDepth *= -1.0f;
@@ -89,21 +100,21 @@ void WriteDownsampledProbeGBuffer(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, 
 
 	RWScreenProbeSceneDepth[ScreenProbeAtlasCoord] = asuint(EncodedDepth);
 
-	RWScreenProbeWorldNormal[ScreenProbeAtlasCoord] = UnitVectorToOctahedron(ProbeGBuffer.WorldNormal) * 0.5 + 0.5;
+	RWScreenProbeWorldNormal[ScreenProbeAtlasCoord] = UnitVectorToOctahedron(ProbeMaterial.WorldNormal) * 0.5 + 0.5;
 
 	float3 ProbeWorldVelocity;
 	float3 ProbeTranslatedWorldPosition;
 	{
 		float2 ProbeScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
-		float ProbeDeviceZ = ConvertToDeviceZ(ProbeGBuffer.SceneDepth);
+		float ProbeDeviceZ = ConvertToDeviceZ(ProbeMaterial.SceneDepth);
 		float3 ProbeHistoryScreenPosition = GetHistoryScreenPositionIncludingTAAJitter(ProbeScreenPosition, ScreenUV, ProbeDeviceZ);
 
-		ProbeTranslatedWorldPosition = mul(float4(ProbeScreenPosition * ProbeGBuffer.SceneDepth, ProbeGBuffer.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+		ProbeTranslatedWorldPosition = mul(float4(ProbeScreenPosition * ProbeMaterial.SceneDepth, ProbeMaterial.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetPrevTranslatedWorldPosition(ProbeHistoryScreenPosition);
 	}
 
-	RWScreenProbeWorldSpeed[ScreenProbeAtlasCoord] = EncodeScreenProbeSpeed(length(ProbeWorldVelocity), ProbeGBuffer.bTwoSidedFoliage);
+	RWScreenProbeWorldSpeed[ScreenProbeAtlasCoord] = EncodeScreenProbeSpeed(length(ProbeWorldVelocity), ProbeMaterial.bTwoSidedFoliage);
 
 	RWScreenProbeTranslatedWorldPosition[ScreenProbeAtlasCoord] = ProbeTranslatedWorldPosition;
 }
@@ -121,9 +132,8 @@ void ScreenProbeDownsampleDepthUniformCS(
 		uint2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX);
 		uint2 ScreenProbeScreenPosition = min((uint2)(ScreenProbeAtlasCoord * ScreenProbeDownsampleFactor + ScreenJitter), (uint2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
 		float2 ScreenUV = (ScreenProbeScreenPosition + .5f) * View.BufferSizeAndInvSize.zw;
-		FGBufferData GBufferData = GetGBufferDataUint(ScreenProbeScreenPosition);
 		
-		WriteDownsampledProbeGBuffer(ScreenUV, ScreenProbeAtlasCoord, GetScreenProbeGBuffer(GBufferData));
+		WriteDownsampledProbeMaterial(ScreenUV, ScreenProbeAtlasCoord, GetScreenProbeMaterial(ScreenProbeScreenPosition));
 	}
 }
 
@@ -281,7 +291,7 @@ RWStructuredBuffer<uint> RWNumAdaptiveScreenProbes;
 groupshared uint SharedNumProbesToAllocate;
 groupshared uint SharedAdaptiveProbeBaseIndex;
 groupshared uint2 SharedProbeScreenPositionsToAllocate[THREADGROUP_SIZE * THREADGROUP_SIZE];
-groupshared FScreenProbeGBuffer SharedScreenProbeGBuffer[THREADGROUP_SIZE * THREADGROUP_SIZE];
+groupshared FScreenProbeMaterial SharedScreenProbeMaterial[THREADGROUP_SIZE * THREADGROUP_SIZE];
 
 uint PlacementDownsampleFactor;
 
@@ -305,12 +315,11 @@ void ScreenProbeAdaptivePlacementCS(
 
 		if (all(ScreenProbeScreenPosition < (uint2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy)) && any((DispatchThreadId.xy & 0x1) != 0))
 		{
-			FGBufferData GBufferData = GetGBufferDataUint(ScreenProbeScreenPosition);
-
-			if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
+			const FScreenProbeMaterial ScreenProbeMaterial = GetScreenProbeMaterial(ScreenProbeScreenPosition);
+			if (ScreenProbeMaterial.bIsValid)
 			{
 				float2 ScreenUV = (ScreenProbeScreenPosition + .5f) * View.BufferSizeAndInvSize.zw;
-				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, GBufferData.Depth);
+				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, ScreenProbeMaterial.SceneDepth);
 				float2 NoiseOffset = 0.0f;
 
 				FScreenProbeSample ScreenProbeSample = (FScreenProbeSample)0;
@@ -319,8 +328,8 @@ void ScreenProbeAdaptivePlacementCS(
 					ScreenProbeScreenPosition,
 					NoiseOffset,
 					WorldPosition,
-					GBufferData.Depth,
-					GBufferData.WorldNormal,
+					ScreenProbeMaterial.SceneDepth,
+					ScreenProbeMaterial.WorldNormal,
 					false,
 					ScreenProbeSample);
 
@@ -334,7 +343,7 @@ void ScreenProbeAdaptivePlacementCS(
 					uint SharedListIndex;
 					InterlockedAdd(SharedNumProbesToAllocate, 1, SharedListIndex);
 					SharedProbeScreenPositionsToAllocate[SharedListIndex] = ScreenProbeScreenPosition;
-					SharedScreenProbeGBuffer[SharedListIndex] = GetScreenProbeGBuffer(GBufferData);
+					SharedScreenProbeMaterial[SharedListIndex] = ScreenProbeMaterial;
 				}
 			}
 		}
@@ -365,7 +374,7 @@ void ScreenProbeAdaptivePlacementCS(
 		float2 ScreenUV = (ScreenProbeScreenPosition + .5f) * View.BufferSizeAndInvSize.zw;
 		uint ScreenProbeIndex = NumUniformScreenProbes + AdaptiveProbeIndex;
 		uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
-		WriteDownsampledProbeGBuffer(ScreenUV, ScreenProbeAtlasCoord, SharedScreenProbeGBuffer[ThreadIndex]);
+		WriteDownsampledProbeMaterial(ScreenUV, ScreenProbeAtlasCoord, SharedScreenProbeMaterial[ThreadIndex]);
 	}
 }
 
@@ -554,24 +563,6 @@ uint DefaultDiffuseIntegrationMethod;
 
 groupshared uint SharedTileClassification[TILE_CLASSIFICATION_NUM];
 
-
-float GetDiffuseLerp(float Roughness)
-{
-	return saturate((Roughness - .5f) / .3f);
-}
-
-// Note: must match SampleBxDFWrapper
-bool RequiresBxDFImportanceSampling(uint ShadingModelID)
-{
-	switch (ShadingModelID)
-	{
-	case SHADINGMODELID_HAIR:
-		return true;
-	default:
-		return false;
-	}
-}
-
 // Highest quality and fastest for diffuse
 #define DIFFUSE_INTEGRATION_SPHERICAL_HARMONIC 0
 // Noisy and slow, but handles any shading model and GBuffer bent normal AO
@@ -579,17 +570,17 @@ bool RequiresBxDFImportanceSampling(uint ShadingModelID)
 // Slow reference
 #define DIFFUSE_INTEGRATION_NUMERICAL_INTEGRAL 2
 
-uint GetDiffuseIntegrationMethod(FGBufferData GBufferData)
+uint GetDiffuseIntegrationMethod(FLumenMaterialData In)
 {
 	uint DiffuseIntegrationMethod = DefaultDiffuseIntegrationMethod;
 
-	if (RequiresBxDFImportanceSampling(GBufferData.ShadingModelID))
+	if (In.bRequiresBxDFImportanceSampling)
 	{
 		DiffuseIntegrationMethod = DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF;
 	}
 
 #if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
-	if (GBufferData.DiffuseIndirectSampleOcclusion != 0)
+	if (In.DiffuseIndirectSampleOcclusion != 0)
 	{
 		DiffuseIntegrationMethod = DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF;
 	}
@@ -618,28 +609,28 @@ void ScreenProbeTileClassificationMarkCS(
 
 	if (all(DispatchThreadId < (uint2)View.ViewSizeAndInvSize.xy))
 	{
-		FGBufferData GBufferData = GetGBufferDataUint(DispatchThreadId);
+		const FLumenMaterialData Material = ReadMaterialData(DispatchThreadId);
 
-		if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
+		if (IsValid(Material))
 		{
 			uint TileClassification = TILE_CLASSIFICATION_SIMPLE_DIFFUSE;
 
-			if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
+			if (IsHair(Material))
 			{
 				TileClassification = TILE_CLASSIFICATION_SUPPORT_ALL;
 			}
 			else 
 			{
-				uint DiffuseIntegrationMethod = GetDiffuseIntegrationMethod(GBufferData);
+				uint DiffuseIntegrationMethod = GetDiffuseIntegrationMethod(Material);
 
 				if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF)
 				{
 					TileClassification = TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF;
 				}
 
-				float DiffuseLerp = GetDiffuseLerp(GBufferData.Roughness);
+				const float DiffuseLerp = GetDiffuseLerp(Material.Roughness);
 
-				if (DiffuseLerp < 1.0f || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+				if (DiffuseLerp < 1.0f || IsClearCoat(Material))
 				{
 					TileClassification = TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF;
 				}
@@ -871,12 +862,16 @@ void DebugVisualizeScreenProbePlacement(uint2 SVPosition, inout float3 DiffuseIn
 
 float FullResolutionJitterWidth;
 
-FBxDFSample SampleBxDFWrapper(const uint TermMask, FGBufferData GBuffer, float3 V, float4 E)
+FBxDFSample SampleBxDFWrapper(const uint TermMask, FLumenMaterialData MaterialData, float3 V, float4 E)
 {
 #if INTEGRATE_TILE_CLASSIFICATION_MODE == TILE_CLASSIFICATION_SIMPLE_DIFFUSE || INTEGRATE_TILE_CLASSIFICATION_MODE == TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF
-	return SampleDefaultLitBxDF(TermMask, GBuffer, V, E);
+  #if STRATA_ENABLED
+	return SampleStrataBxDF(TermMask, MaterialData, V, E);
+  #else
+	return SampleDefaultLitBxDF(TermMask, MaterialData.WorldNormal, MaterialData.Roughness, V, E);
+  #endif
 #else
-	return SampleBxDF(TermMask, GBuffer, V, E);
+	return SampleBxDF(TermMask, MaterialData, V, E);
 #endif
 }
 
@@ -968,22 +963,20 @@ void ScreenProbeIntegrateCS(
 	DispatchThreadId = TileCoord * INTEGRATE_TILE_SIZE + GroupThreadId;
 #endif
 
-	float SceneDepth = CalcSceneDepth(DispatchThreadId);
-
+	FLumenMaterialData Material = ReadMaterialData(DispatchThreadId);
 	{
-		FGBufferData GBufferData = GetGBufferDataUint(DispatchThreadId);
-		
-		if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
+		if (IsValid(Material))
 		{
-			float2 ScreenUV = (DispatchThreadId + 0.5) * View.BufferSizeAndInvSize.zw;
-			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			const float2 ScreenUV = (DispatchThreadId + 0.5) * View.BufferSizeAndInvSize.zw;
+			const float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, Material.SceneDepth);
+			const float3 WorldNormal = Material.WorldNormal;
 
 			float2 NoiseOffset = 0.0f;
 
 			if (FullResolutionJitterWidth > 0)
 			{
 				//@todo - expose fade distance
-				float EffectiveJitterWidth = FullResolutionJitterWidth * lerp(1.0f, .5f, saturate((SceneDepth - 500.0f) / 500.0f));
+				float EffectiveJitterWidth = FullResolutionJitterWidth * lerp(1.0f, .5f, saturate((Material.SceneDepth - 500.0f) / 500.0f));
 				uint2 RandomSeed = Rand3DPCG16(int3(DispatchThreadId.xy, GENERAL_TEMPORAL_INDEX)).xy;
 				float2 ScreenTileJitterE = Hammersley16(0, 1, RandomSeed);
 				//float2 ScreenTileJitterE = EvalBlueNoise(DispatchThreadId.xy % BlueNoise.Dimensions.xy, RAY_DIRECTION_TEMPORAL_INDEX % BlueNoise.Dimensions.z).xy;
@@ -995,10 +988,10 @@ void ScreenProbeIntegrateCS(
 				float DepthWeight;
 
 				{
-					float4 ScenePlane = float4(GBufferData.WorldNormal, dot(WorldPosition, GBufferData.WorldNormal));
+					float4 ScenePlane = float4(Material.WorldNormal, dot(WorldPosition, Material.WorldNormal));
 					float3 JitteredPosition = GetWorldPositionFromScreenUV(JitteredScreenUV, JitteredSceneDepth);
 					float PlaneDistance = abs(dot(float4(JitteredPosition, -1), ScenePlane));
-					float RelativeDepthDifference = PlaneDistance / SceneDepth;
+					float RelativeDepthDifference = PlaneDistance / Material.SceneDepth;
 					DepthWeight = exp2(-1000000.0f * (RelativeDepthDifference * RelativeDepthDifference));
 				}
 
@@ -1014,8 +1007,8 @@ void ScreenProbeIntegrateCS(
 				DispatchThreadId.xy,
 				NoiseOffset,
 				WorldPosition,
-				SceneDepth,
-				GBufferData.WorldNormal,
+				Material.SceneDepth,
+				Material.WorldNormal,
 				true,
 				ScreenProbeSample);
 
@@ -1056,10 +1049,10 @@ void ScreenProbeIntegrateCS(
 				StochasticScreenProbeSample.Weights = float4(1.0f, 0.0f, 0.0f, 0.0f);
 				ScreenProbeSample = StochasticScreenProbeSample;
 			}
-			#endif
+			#endif // STOCHASTIC_PROBE_INTERPOLATION
 
 			float3 V = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
-			float3 UnitBentNormal = GBufferData.WorldNormal;
+			float3 UnitBentNormal = Material.WorldNormal;
 			float AO = 1.0f;
 			float3 DiffuseLighting = 0;
 
@@ -1068,17 +1061,17 @@ void ScreenProbeIntegrateCS(
 			{
 				float3 BentNormal = ScreenBentNormal[DispatchThreadId.xy].xyz * 2 - 1;
 				AO = length(BentNormal);
-				UnitBentNormal = AO > 0 ? BentNormal / AO : GBufferData.WorldNormal;
+				UnitBentNormal = AO > 0 ? BentNormal / AO : Material.WorldNormal;
 			}
-			#endif
+			#endif // SCREEN_SPACE_BENT_NORMAL
 
-			uint DiffuseIntegrationMethod = GetDiffuseIntegrationMethod(GBufferData);
+			const uint DiffuseIntegrationMethod = GetDiffuseIntegrationMethod(Material);
 
 			if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_SPHERICAL_HARMONIC)
 			{
-				DiffuseLighting += EvaluateDiffuse(ScreenProbeSample, GBufferData.WorldNormal, UnitBentNormal, AO);		
+				DiffuseLighting += EvaluateDiffuse(ScreenProbeSample, Material.WorldNormal, UnitBentNormal, AO);
 			}
-#if INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE
+		#if INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE
 			else if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF)
 			{
 				// This could be configurable if not for GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
@@ -1086,19 +1079,20 @@ void ScreenProbeIntegrateCS(
 				const uint TermMask = SHADING_TERM_DIFFUSE | SHADING_TERM_HAIR_R | SHADING_TERM_HAIR_TT | SHADING_TERM_HAIR_TRT;
 				//@todo - calculate based on solid angle
 				float DiffuseMipLevel = ScreenProbeGatherMaxMip;
-				FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(GBufferData.WorldNormal);
+				FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(Material.WorldNormal);
 				FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(UnitBentNormal, AO);
 
 				for (uint PixelRayIndex = 0; PixelRayIndex < NumPixelSamples; PixelRayIndex += 1)
 				{
 					float4 E = ComputeIndirectLightingSampleE(DispatchThreadId.xy, PixelRayIndex, NumPixelSamples);
-					FBxDFSample BxDFSample = SampleBxDFWrapper(TermMask, GBufferData, V, E);
+
+					FBxDFSample BxDFSample = SampleBxDFWrapper(TermMask, Material, V, E);
 
 					float3 InterpolatedRadiance = InterpolateFromScreenProbes(BxDFSample.L, DiffuseMipLevel, StochasticScreenProbeSample);
 
 					#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
 						// GetDiffuseIndirectSampleOcclusion in BasePassPixelShader encodes visibility bit using the same ComputeIndirectLightingSampleE
-						bool bIsBentNormalOccluded = (GBufferData.DiffuseIndirectSampleOcclusion & (1 << PixelRayIndex)) != 0;
+						bool bIsBentNormalOccluded = (Material.DiffuseIndirectSampleOcclusion & (1 << PixelRayIndex)) != 0;
 						float DirectionVisibility = bIsBentNormalOccluded ? 0 : 1;
 					#else
 						float DirectionVisibility = 1.0f;
@@ -1114,21 +1108,21 @@ void ScreenProbeIntegrateCS(
 
 				DiffuseLighting = DiffuseLighting * PI / ((float)NumPixelSamples * AO);
 
-				#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+				#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION && !STRATA_ENABLED // STRATA_TODO: Need to extract an average base color value?
 				{
-					float MaterialAO = GBufferData.GBufferAO;
-					DiffuseLighting *= AOMultiBounce(GBufferData.BaseColor, MaterialAO) * (MaterialAO > 0.0 ? rcp(MaterialAO) : 0.0);
+					DiffuseLighting *= AOMultiBounce(Material.GBufferData.BaseColor, Material.MaterialAO) * (Material.MaterialAO > 0.0 ? rcp(Material.MaterialAO) : 0.0);
 				}
 				#endif
 			}
-#endif
-#if INTEGRATE_TILE_CLASSIFICATION_MODE == TILE_CLASSIFICATION_DISABLED
+		#endif // INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE
+
+		#if INTEGRATE_TILE_CLASSIFICATION_MODE == TILE_CLASSIFICATION_DISABLED
 			else if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_NUMERICAL_INTEGRAL)
 			{
 				float TotalWeight = 0;
 				const float InvScreenProbeResolution = 1.0f / ScreenProbeGatherOctahedronResolution;
 				float ScreenProbeResolutionFloat = ScreenProbeGatherOctahedronResolution;
-				FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(GBufferData.WorldNormal);
+				FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(Material.WorldNormal);
 				FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(UnitBentNormal, AO);
 
 				for (float Y = 0; Y < ScreenProbeResolutionFloat; Y++)
@@ -1139,7 +1133,7 @@ void ScreenProbeIntegrateCS(
 						float2 ProbeUV = (float2(X, Y) + ProbeTexelCenter) * InvScreenProbeResolution;
 						float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 
-						float NdotL = dot(WorldConeDirection, GBufferData.WorldNormal);
+						float NdotL = dot(WorldConeDirection, Material.WorldNormal);
 
 						if (NdotL > 0)
 						{
@@ -1149,7 +1143,7 @@ void ScreenProbeIntegrateCS(
 								float SampleWeight = NdotL * SolidAngle;
 							#else
 								FShadowTerms Shadow = { 1, 1, 1, InitHairTransmittanceData() };
-								FDirectLighting BxDFSample = EvaluateBxDF(GBufferData, GBufferData.WorldNormal, V, WorldConeDirection, saturate(NdotL), Shadow);
+								FDirectLighting BxDFSample = EvaluateBxDF(GBufferData, Material.WorldNormal, V, WorldConeDirection, saturate(NdotL), Shadow);
 
 								float3 SampleWeight = BxDFSample.Diffuse * SolidAngle;
 							#endif
@@ -1189,16 +1183,17 @@ void ScreenProbeIntegrateCS(
 					DiffuseLighting = DiffuseLighting * PI / (TotalWeight * AO);
 				}
 			}
-#endif
+		#endif // INTEGRATE_TILE_CLASSIFICATION_MODE == TILE_CLASSIFICATION_DISABLED
+
 			bool bLightingIsValid = dot(StochasticScreenProbeSample.Weights, 1) > 1.0f - Epsilon;
 
-			#if !GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
-				DiffuseLighting *= AOMultiBounce(GBufferData.BaseColor, GBufferData.GBufferAO);
+			#if !GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION && !STRATA_ENABLED // STRATA_TODO: Need to extract an average base color value?
+				DiffuseLighting *= AOMultiBounce(Material.GBufferData.BaseColor, Material.MaterialAO);
 			#endif
 
-			#if SCREEN_SPACE_BENT_NORMAL
+			#if SCREEN_SPACE_BENT_NORMAL && !STRATA_ENABLED // STRATA_TODO: Need to extract an average base color value?
 			{
-				DiffuseLighting *= DistantIlluminationRescale(GBufferData.BaseColor, AO);
+				DiffuseLighting *= DistantIlluminationRescale(Material.GBufferData.BaseColor, AO);
 			}
 			#endif
 
@@ -1249,24 +1244,24 @@ void ScreenProbeIntegrateCS(
 
 			float3 SpecularLighting = 0;
 
-			float DiffuseLerp = GetDiffuseLerp(GBufferData.Roughness);
+			const float DiffuseLerp = GetDiffuseLerp(Material.Roughness);
 
 #define DEBUG_COMPUTE_ROUGH_SPECULAR 1
-#if DEBUG_COMPUTE_ROUGH_SPECULAR && INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE
+#if DEBUG_COMPUTE_ROUGH_SPECULAR && INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE && !STRATA_ENABLED // STRATA_TODO: This is mainly for clear coat or (very) glossy material , where the reflection will not handle that well
 
 			uint NumSpecularSamples = 4;
 
 			// Prevent NaNs from ImportanceSampleVisibleGGX
-			GBufferData.Roughness = max(GBufferData.Roughness, .01f);
+			Material.Roughness = max(Material.Roughness, .01f);
 
 			float MinRoughnessForProbeImportanceSampling = MaxRoughnessToTrace - RoughnessFadeLength;
 
-			if ((DiffuseLerp < 1.0f && GBufferData.Roughness >= MinRoughnessForProbeImportanceSampling) || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+			if ((DiffuseLerp < 1.0f && Material.Roughness >= MinRoughnessForProbeImportanceSampling) || IsClearCoat(Material))
 			{
 				// Prevent low roughness values that we can't support through screen probes with acceptable quality, eg clearcoat with bottom layer roughness 0
-				GBufferData.Roughness = max(GBufferData.Roughness, MaxRoughnessToTrace);
+				Material.Roughness = max(Material.Roughness, MaxRoughnessToTrace);
 				// For clear coat materials, screen probes are always providing the bottom layer reflections
-				GBufferData.WorldNormal = GetClearCoatBottomNormal(GBufferData, GBufferData.WorldNormal);
+				Material.WorldNormal = GetClearCoatBottomNormal(Material.GBufferData, Material.WorldNormal);
 
 				//@todo - derive mip from cone angle from roughness
 				
@@ -1276,7 +1271,7 @@ void ScreenProbeIntegrateCS(
 				float CosConeHalfAngle = 1.0 - SolidAngleSample / (2.0 * PI);
 				float NumTexels = sqrt(1.0f - CosConeHalfAngle) * ScreenProbeGatherOctahedronResolution;
 				float MipLevel = clamp(log2(NumTexels), 0, ScreenProbeGatherMaxMip);
-				FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(GBufferData.WorldNormal);
+				FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(Material.WorldNormal);
 				FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(UnitBentNormal, AO);
 
 				for (uint TracingRayIndex = 0; TracingRayIndex < NumSpecularSamples; TracingRayIndex++)
@@ -1285,7 +1280,7 @@ void ScreenProbeIntegrateCS(
 				
 					E = BiasBSDFImportantSample(E);
 
-					FBxDFSample BxDFSample = SampleBxDFWrapper(SHADING_TERM_SPECULAR, GBufferData, V, E);
+					FBxDFSample BxDFSample = SampleBxDFWrapper(SHADING_TERM_SPECULAR, Material, V, E);
 					float3 InterpolatedRadiance = InterpolateFromScreenProbes(BxDFSample.L, MipLevel, StochasticScreenProbeSample);
 
 					float DirectionVisibility = 1.0f;
@@ -1481,7 +1476,7 @@ void ScreenProbeTemporalReprojectionCS(
 	float4 HistorySceneDepth = ConvertFromDeviceZ(Texture2DSampleLevel(DiffuseIndirectDepthHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x).xxxx;
 #endif
 
-	FGBufferData GBufferData = GetGBufferDataUint(DispatchThreadId);
+	const float3 WorldNormal = GetMaterialWorldNormal(DispatchThreadId);
 	float Noise = InterleavedGradientNoise(DispatchThreadId.xy, View.StateFrameIndexMod8);
 	float DisocclusionDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise);
 	float PrevSceneDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
@@ -1492,7 +1487,7 @@ void ScreenProbeTemporalReprojectionCS(
 #define PLANE_DISOCCLUSION_WEIGHTS 0
 #if PLANE_DISOCCLUSION_WEIGHTS
 	float3 PrevTranslatedPrevWorldPosition = mul(float4(HistoryScreenPosition.xy * PrevSceneDepth, PrevSceneDepth, 1), View.PrevScreenToTranslatedWorld).xyz;
-	float4 PrevTranslatedPrevScenePlane = float4(GBufferData.WorldNormal, dot(PrevTranslatedPrevWorldPosition, GBufferData.WorldNormal));
+	float4 PrevTranslatedPrevScenePlane = float4(WorldNormal, dot(PrevTranslatedPrevWorldPosition, WorldNormal));
 
 	float4 PlaneDistance;
 	{
@@ -1522,7 +1517,7 @@ void ScreenProbeTemporalReprojectionCS(
 		float3 V = normalize(-TranslatedWorldPosition);
 		// Raise the threshold at grazing angles to compensate for TAA jitter causing a depth mismatch dependent on the angle
 		// This also introduces some ghosting around characters, needs a better solution
-		DisocclusionDistanceThreshold /= clamp(saturate(dot(V, GBufferData.WorldNormal)), .1f, 1.0f); 
+		DisocclusionDistanceThreshold /= clamp(saturate(dot(V, WorldNormal)), .1f, 1.0f); 
 	#endif
 
 	float4 DistanceToHistoryValue = abs(HistorySceneDepth - PrevSceneDepth);
@@ -1539,10 +1534,10 @@ void ScreenProbeTemporalReprojectionCS(
 	float3 HistoryNormal11 = DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, HistoryGatherUV00 + TexelSize, 0).xyz);
 
 	float4 HistoryNormalWeights = float4(
-		dot(HistoryNormal00, GBufferData.WorldNormal),
-		dot(HistoryNormal10, GBufferData.WorldNormal),
-		dot(HistoryNormal01, GBufferData.WorldNormal),
-		dot(HistoryNormal11, GBufferData.WorldNormal)) < HistoryNormalCosThreshold ? 1.0f : 0.0f;
+		dot(HistoryNormal00, WorldNormal),
+		dot(HistoryNormal10, WorldNormal),
+		dot(HistoryNormal01, WorldNormal),
+		dot(HistoryNormal11, WorldNormal)) < HistoryNormalCosThreshold ? 1.0f : 0.0f;
 
 	OcclusionWeights = saturate(HistoryNormalWeights + OcclusionWeights);
 #endif
@@ -1653,9 +1648,11 @@ void GenerateCompressedGBuffer(
 	uint2 GroupThreadId : SV_GroupThreadID)
 {
 	uint2 PixelCoord = GroupId * THREADGROUP_SIZE + GroupThreadId;
+	uint2 PixelPos = min(PixelCoord + View.ViewRectMin.xy, uint2(View.BufferSizeAndInvSize.xy) - 1);
 	float2 BufferUV = (PixelCoord + View.ViewRectMin.xy + 0.5f) * View.BufferSizeAndInvSize.zw;
-	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+	
+	const FLumenMaterialData Material = ReadMaterialData(PixelPos, BufferUV);
 
-	RWCompressedDepthBufferOutput[PixelCoord] = ConvertToDeviceZ(GBuffer.Depth);
-	RWCompressedShadingModelOutput[PixelCoord] = GBuffer.ShadingModelID;
+	RWCompressedDepthBufferOutput[PixelCoord]  = ConvertToDeviceZ(Material.SceneDepth);
+	RWCompressedShadingModelOutput[PixelCoord] = Material.ShadingID;
 }

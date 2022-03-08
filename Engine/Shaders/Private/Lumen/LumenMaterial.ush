@@ -1,0 +1,218 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "../Common.ush"
+#include "../ShadingModelsSampling.ush"
+#include "../ClearCoatCommon.ush"
+
+#if STRATA_ENABLED 
+#define STRATA_INLINE_SHADING 0
+#include "/Engine/Private/Strata/Strata.ush"
+#endif
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Abstract input material data (FGBufferData/Strata)
+struct FLumenMaterialData
+{
+	float SceneDepth;
+
+	float3 WorldNormal;
+	float  Roughness;
+	float  TopLayerRoughness;
+	float  MaterialAO;
+	uint   ShadingID;
+	uint   DiffuseIndirectSampleOcclusion;
+	bool   bNeedsSeparateLightAccumulation; 
+	bool   bRequiresBxDFImportanceSampling;
+	bool   bIsHair;
+	bool   bIsFoliage;
+
+#if !STRATA_ENABLED
+	FGBufferData GBufferData;
+#endif
+};
+
+float GetDiffuseLerp(float Roughness)
+{
+	return saturate((Roughness - .5f) / .3f);
+}
+
+// Note: must match SampleBxDFWrapper
+bool RequiresBxDFImportanceSampling(uint ShadingModelID)
+{
+	switch (ShadingModelID)
+	{
+	case SHADINGMODELID_HAIR:
+		return true;
+	default:
+		return false;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Read material data functions
+
+// Strata material internal read function
+FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
+{
+	FLumenMaterialData Out = (FLumenMaterialData)0;
+#if STRATA_ENABLED
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(InPixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	const FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(InPixelPos, 0)));
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(InPixelPos, 0)));
+
+	Out.SceneDepth = ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(InPixelPos, 0)).r);
+	Out.WorldNormal = TopLayerData.WorldNormal;
+	Out.Roughness = TopLayerData.Roughness;
+	Out.TopLayerRoughness = TopLayerData.Roughness;
+	Out.MaterialAO = StrataGetIrradianceAndAO(StrataPixelHeader).MaterialAO;
+	Out.ShadingID = TopLayerData.bIsValid ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
+	Out.DiffuseIndirectSampleOcclusion = StrataGetIrradianceAndAO(StrataPixelHeader).DiffuseIndirectSampleOcclusion;
+	Out.bNeedsSeparateLightAccumulation = SSSData.bIsValid;
+	Out.bIsHair = StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_HAIR);
+	Out.bIsFoliage = false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'
+	Out.bRequiresBxDFImportanceSampling = Out.bIsHair;// || StrataPixelHeader.BSDFCount > 1u || GetDiffuseLerp(Out.Roughness) < 1.0f;
+#endif
+	return Out;
+}
+
+// GBuffer material internal read function
+FLumenMaterialData InternalReadMaterialData_GBuffer(const FGBufferData GBufferData)
+{
+	FLumenMaterialData Out = (FLumenMaterialData)0;
+#if !STRATA_ENABLED
+	Out.SceneDepth = GBufferData.Depth;
+	Out.WorldNormal = GBufferData.WorldNormal;
+	Out.Roughness = GBufferData.Roughness;
+	Out.TopLayerRoughness = GetClearCoatRoughness(GBufferData);
+	Out.MaterialAO = GBufferData.GBufferAO;
+	Out.ShadingID = GBufferData.ShadingModelID;
+	Out.DiffuseIndirectSampleOcclusion = GBufferData.DiffuseIndirectSampleOcclusion;
+	Out.bNeedsSeparateLightAccumulation = UseSubsurfaceProfile(GBufferData.ShadingModelID);
+	Out.bIsHair = GBufferData.ShadingModelID == SHADINGMODELID_HAIR;
+	Out.bIsFoliage = GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE;
+	Out.bRequiresBxDFImportanceSampling = RequiresBxDFImportanceSampling(GBufferData.ShadingModelID); // || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT || GetDiffuseLerp(GBufferData.Roughness) < 1.0f;
+
+	Out.GBufferData = GBufferData;
+#endif
+	return Out;
+}
+FLumenMaterialData InternalReadMaterialData_GBuffer(uint2 InPixelPos) 	{ return InternalReadMaterialData_GBuffer(GetGBufferDataUint(InPixelPos)); }
+FLumenMaterialData InternalReadMaterialData_GBuffer(float2 InUV)		{ return InternalReadMaterialData_GBuffer(GetScreenSpaceData(InUV).GBuffer); }
+
+// Read material data
+FLumenMaterialData ReadMaterialData(uint2 InPixelPos)
+{
+#if STRATA_ENABLED
+	return InternalReadMaterialData_Strata(InPixelPos);
+#else
+	return InternalReadMaterialData_GBuffer(InPixelPos);
+#endif
+}
+
+FLumenMaterialData ReadMaterialData(uint2 InPixelPos, float2 InBufferUV)
+{
+#if STRATA_ENABLED
+	return InternalReadMaterialData_Strata(InPixelPos);
+#else
+	return InternalReadMaterialData_GBuffer(InBufferUV);
+#endif
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Helper functions. Derive data from FLumenMaterialData
+bool IsValid(FLumenMaterialData In)
+{
+	return In.ShadingID != SHADINGMODELID_UNLIT;
+}
+
+bool IsHair(FLumenMaterialData In)
+{
+	return In.bIsHair || In.ShadingID == SHADINGMODELID_HAIR;
+}
+
+bool IsFoliage(FLumenMaterialData In)
+{
+	return In.bIsFoliage || In.ShadingID == SHADINGMODELID_TWOSIDED_FOLIAGE;
+}
+
+bool IsClearCoat(FLumenMaterialData In)
+{
+	return In.ShadingID == SHADINGMODELID_CLEAR_COAT;
+}
+
+bool bIsUnlit(FLumenMaterialData In)
+{
+	return In.ShadingID == SHADINGMODELID_UNLIT;
+}
+
+bool ComputeIndirectLighting(FLumenMaterialData In)
+{
+	return IsValid(In);
+}
+
+// Return true if the material has a hemispherical domain
+bool HasHemisphericalVisibility(FLumenMaterialData In)
+{
+	return !IsFoliage(In) && !IsHair(In);
+}
+
+// Return true if the material has a spherical domain (vs. hemispherical domain)
+bool HasSphericalVisibility(FLumenMaterialData In)
+{
+	return IsFoliage(In) || IsHair(In);
+}
+
+bool HasBentNormal(FLumenMaterialData In)
+{
+#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+	return In.DiffuseIndirectSampleOcclusion != 0;
+#else
+	return false;
+#endif
+}
+
+bool HasDefaultShading(FLumenMaterialData In)
+{
+	return In.ShadingID == SHADINGMODELID_DEFAULT_LIT || (In.ShadingID == SHADINGMODELID_STRATA && !In.bIsHair);
+}
+
+bool HasComplexShading(FLumenMaterialData In)
+{
+	return In.bIsHair || In.ShadingID == SHADINGMODELID_HAIR;
+}
+
+bool ShouldComputeIndirectLighting(FLumenMaterialData In)
+{
+	return In.ShadingID != SHADINGMODELID_UNLIT;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Sampling
+
+#if STRATA_ENABLED
+FBxDFSample SampleStrataBxDF(const uint TermMask, FLumenMaterialData InMaterial, float3 V, float4 E)
+{
+	// Temporary place holder while converting lumen
+	return SampleDefaultLitBxDF(TermMask, InMaterial.WorldNormal, InMaterial.Roughness, V, E);
+}
+#endif
+
+FBxDFSample SampleBxDF(const uint TermMask, FLumenMaterialData InMaterial, float3 V, float4 E)
+{
+#if STRATA_ENABLED
+	return SampleStrataBxDF(TermMask, InMaterial, V, E);
+#else
+	FGBufferData InGBufferData;
+	InGBufferData.Roughness = InMaterial.Roughness;
+	InGBufferData.WorldNormal = InMaterial.WorldNormal;
+	InGBufferData.ShadingModelID = InMaterial.ShadingID;
+	InGBufferData.BaseColor = InMaterial.GBufferData.BaseColor;
+	InGBufferData.Specular = InMaterial.GBufferData.Specular;
+	InGBufferData.CustomData = InMaterial.GBufferData.CustomData;
+	InGBufferData.Metallic = InMaterial.GBufferData.Metallic;
+	return SampleBxDF(TermMask, InGBufferData, V, E);
+#endif
+}

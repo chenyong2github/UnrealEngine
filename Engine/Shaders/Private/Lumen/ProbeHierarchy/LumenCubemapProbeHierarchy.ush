@@ -6,6 +6,7 @@
 //------------------------------------------------------- INCLUDES
 
 #include "LumenProbeHierarchy.ush"
+#include "../LumenMaterial.ush"
 #include "../../ScreenSpaceDenoise/DenoisingCommon.ush"
 #include "../../ShadingModelsSampling.ush"
 #include "../../Random.ush"
@@ -203,9 +204,14 @@ float3 ComputeSpecularIndirectResolveDirection(float3 V, float3 N, float a2, uin
 	return L;
 }
 
-bool RequiresAdditionalSpecularRay(float Roughness, uint ShadingModelID)
+bool RequiresAdditionalSpecularRay(FLumenMaterialData In)
 {
-	return Roughness < AdditionalSpecularRayThreshold && ShadingModelID != SHADINGMODELID_UNLIT && ShadingModelID != SHADINGMODELID_HAIR;
+	return In.Roughness < AdditionalSpecularRayThreshold && In.ShadingID != SHADINGMODELID_UNLIT && !In.bIsHair && In.ShadingID != SHADINGMODELID_HAIR;
+}
+
+bool SupportsSampleBxDF(FLumenMaterialData In)
+{
+	return SupportsSampleBxDF(In.ShadingID) || In.ShadingID == SHADINGMODELID_STRATA;
 }
 
 // Re-weight diffuse ray which was sampled with a cos distribution.

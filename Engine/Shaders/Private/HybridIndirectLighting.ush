@@ -35,12 +35,6 @@ uint2 RayStoragePerPixelVector;
 uint PixelRayIndexAbscissMask;
 uint PixelRayIndexOrdinateShift;
 
-
-bool ShouldComputeIndirectLighting(uint ShadingModelID)
-{
-	return ShadingModelID != SHADINGMODELID_UNLIT;
-}
-
 uint PackRayInformationToGlobalRayId(uint2 TracingPixelCoord, uint PixelRayIndex)
 {
 	uint GlobalRayIndex = ((TracingPixelCoord.x <<  0) | (TracingPixelCoord.y << 13) | (PixelRayIndex << 26));

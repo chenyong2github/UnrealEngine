@@ -4,6 +4,7 @@
 
 //------------------------------------------------------- INCLUDES
 
+#include "../LumenMaterial.ush"
 #include "LumenProbeOcclusion.ush"
 
 
@@ -183,48 +184,29 @@ float ComputeSceneDepth(float3 TranslatedWorldPosition)
 	return mul(float4(TranslatedWorldPosition, 1.0), View.TranslatedWorldToView).z;
 }
 
-FGBufferData FetchGBufferDataForProbeOcclusion(float2 BufferUV, out float DeviceZ)
+FLumenMaterialData FetchMaterialDataForProbeOcclusion(uint2 TexelCoord, float2 BufferUV, inout float DeviceZ)
 {
-	float4 GBufferA = GBufferATexture.SampleLevel(GBufferATextureSampler, BufferUV, 0);
-	float4 GBufferB = GBufferBTexture.SampleLevel(GBufferBTextureSampler, BufferUV, 0);
-	float4 GBufferC = GBufferCTexture.SampleLevel(GBufferCTextureSampler, BufferUV, 0);
-	float4 GBufferD = GBufferDTexture.SampleLevel(GBufferDTextureSampler, BufferUV, 0);
-	float4 GBufferE = GBufferETexture.SampleLevel(GBufferETextureSampler, BufferUV, 0);
-#if GBUFFER_HAS_TANGENT
-	float4 GBufferF = GBufferFTexture.SampleLevel(GBufferFTextureSampler, UV, 0);
+	FLumenMaterialData Out = ReadMaterialData(TexelCoord, BufferUV);
+
+#if CONFIG_FETCH_COMPRESSED_DEPTH
+	DeviceZ = CompressedDepthTexture[TexelCoord];
 #else
-	float4 GBufferF = 0.5f;
+	DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
 #endif
-	float4 GBufferVelocity = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, BufferUV, 0);
+	Out.SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
-	uint CustomStencil = 0;
-	float CustomNativeDepth = 0;
+#if CONFIG_FETCH_COMPRESSED_ROUGHNESS
+	Out.Roughness = CompressedRoughnessTexture[TexelCoord].r;
+#endif
 
-	uint2 TexelCoord = BufferUV * View.BufferSizeAndInvSize.xy;
+#if DIM_PROBE_OCCLUSION_CLASSIFICATION == PROBE_OCCLUSION_LIT
+	Out.ShadingID = STRATA_ENABLED ? SHADINGMODELID_STRATA : SHADINGMODELID_DEFAULT_LIT;
+#elif CONFIG_FETCH_COMPRESSED_SHADING_MODEL
+	Out.ShadingID = CompressedShadingModelTexture[TexelCoord];
+#endif
+	return Out;
+}
 
-	#if CONFIG_FETCH_COMPRESSED_DEPTH
-		DeviceZ = CompressedDepthTexture[TexelCoord];
-	#else
-		DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
-	#endif
-
-	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
-
-	bool bGetNormalizedNormal = true;
-	FGBufferData GBuffer = DecodeGBufferData(GBufferA, GBufferB, GBufferC, GBufferD, GBufferE, GBufferF, GBufferVelocity, CustomNativeDepth, CustomStencil, SceneDepth, bGetNormalizedNormal, CheckerFromSceneColorUV(BufferUV));
-
-	#if CONFIG_FETCH_COMPRESSED_ROUGHNESS
-		GBuffer.Roughness = CompressedRoughnessTexture[TexelCoord].r;
-	#endif
-
-	#if DIM_PROBE_OCCLUSION_CLASSIFICATION == PROBE_OCCLUSION_LIT
-		GBuffer.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
-	#elif CONFIG_FETCH_COMPRESSED_SHADING_MODEL
-		GBuffer.ShadingModelID = CompressedShadingModelTexture[TexelCoord];
-	#endif
-
-	return GBuffer;
-} // FetchGBufferDataForProbeOcclusion()
 
 #if defined(DIM_PROBE_OCCLUSION_CLASSIFICATION)
 
@@ -237,7 +219,7 @@ FTracingRayInfos ComputeRayInfos(FTracingPixelInfos PixelInfos, float ProbeOcclu
 		const uint kClampingBoxSize = 3;
 
 		const uint TermMask = SHADING_TERM_DIFFUSE | SHADING_TERM_HAIR_R | SHADING_TERM_HAIR_TT | SHADING_TERM_HAIR_TRT;
-		RayInfos.BxDFSample = SampleBxDF(TermMask, PixelInfos.GBuffer, PixelInfos.V, E);
+		RayInfos.BxDFSample = SampleBxDF(TermMask, PixelInfos.MaterialData, PixelInfos.V, E);
 		RayInfos.bIsInfinitRay = false;
 		RayInfos.TMax = ProbeOcclusionDistance;
 		RayInfos.ConeHalfAngle = 0.5 * RayPDFToConeAngle(RayInfos.BxDFSample.PDF, CONFIG_RAY_COUNT);
@@ -246,7 +228,11 @@ FTracingRayInfos ComputeRayInfos(FTracingPixelInfos PixelInfos, float ProbeOcclu
 	{
 		const uint kClampingBoxSize = 3;
 
-		RayInfos.BxDFSample = SampleDefaultLitBxDF(SHADING_TERM_DIFFUSE, PixelInfos.GBuffer, PixelInfos.V, E);
+	  #if STRATA_ENABLED
+		RayInfos.BxDFSample = SampleStrataBxDF(SHADING_TERM_DIFFUSE, PixelInfos.MaterialData, PixelInfos.V, E);
+	  #else
+		RayInfos.BxDFSample = SampleDefaultLitBxDF(SHADING_TERM_DIFFUSE, PixelInfos.MaterialData.WorldNormal, PixelInfos.MaterialData.Roughness, PixelInfos.V, E);
+	  #endif
 		RayInfos.bIsInfinitRay = false;
 		RayInfos.TMax = ProbeOcclusionDistance;
 		RayInfos.ConeHalfAngle = 0.5 * RayPDFToConeAngle(RayInfos.BxDFSample.PDF, CONFIG_RAY_COUNT);
@@ -341,18 +327,18 @@ FTracingPixelInfos UncompressPixelInfos(uint GroupThreadIndex, FTracingPixelInfo
 
 	FTracingPixelInfos PixelInfos = (FTracingPixelInfos) 0;
 	PixelInfos.TileId = OriginalPixelInfos.TileId;
-	PixelInfos.GBuffer.Depth = OriginalPixelInfos.GBuffer.Depth;
-	PixelInfos.GBuffer.Roughness = OriginalPixelInfos.GBuffer.Roughness;
+	PixelInfos.MaterialData = OriginalPixelInfos.MaterialData;
 
 	// Decompress some stuf from LDS.
 	ISOLATE
 	{
-		PixelInfos.GBuffer.WorldNormal = DecompressN(SharedMemory0[GroupThreadIndex]);
-		PixelInfos.GBuffer.ShadingModelID = SharedMemory0[GroupThreadIndex] >> 24;
+		PixelInfos.MaterialData.WorldNormal = DecompressN(SharedMemory0[GroupThreadIndex]);
+		PixelInfos.MaterialData.ShadingID = SharedMemory0[GroupThreadIndex] >> 24;
 		
-		#if DIM_PROBE_OCCLUSION_CLASSIFICATION == PROBE_OCCLUSION_LIT
-			PixelInfos.GBuffer.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
-		#endif
+	#if DIM_PROBE_OCCLUSION_CLASSIFICATION == PROBE_OCCLUSION_LIT
+		PixelInfos.MaterialData.bIsHair = false;
+		PixelInfos.MaterialData.ShadingID = STRATA_ENABLED ? SHADINGMODELID_STRATA : SHADINGMODELID_DEFAULT_LIT;
+	#endif
 	}
 
 	// Compute derived infos
@@ -364,7 +350,7 @@ FTracingPixelInfos UncompressPixelInfos(uint GroupThreadIndex, FTracingPixelInfo
 
 		UpdateLane2DCoordinateInformations(PixelInfos.PixelPosition, /* out */ PixelInfos.BufferUV, /* out */ PixelInfos.ScreenPos);
 
-		PixelInfos.TranslatedWorldPosition = mul(float4(PixelInfos.ScreenPos * OriginalPixelInfos.GBuffer.Depth, PixelInfos.GBuffer.Depth, 1), View.ScreenToTranslatedWorld).xyz;
+		PixelInfos.TranslatedWorldPosition = mul(float4(PixelInfos.ScreenPos * OriginalPixelInfos.MaterialData.SceneDepth, PixelInfos.MaterialData.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		PixelInfos.V = normalize(View.TranslatedWorldCameraOrigin - PixelInfos.TranslatedWorldPosition);
 	}
 
@@ -398,25 +384,25 @@ void MainCS(
 		UpdateLane2DCoordinateInformations(OriginalPixelInfos.PixelPosition, /* out */ OriginalPixelInfos.BufferUV, /* out */ OriginalPixelInfos.ScreenPos);
 
 		float DeviceZ;
-		OriginalPixelInfos.GBuffer = FetchGBufferDataForProbeOcclusion(OriginalPixelInfos.BufferUV, /* out */ DeviceZ);
+		OriginalPixelInfos.MaterialData = FetchMaterialDataForProbeOcclusion(OriginalPixelInfos.PixelPosition, OriginalPixelInfos.BufferUV, /* out */ DeviceZ);
 
 		ProbeOcclusionDistance = ProbeOcclusionDistanceTexture[OriginalPixelInfos.PixelPosition].x;
 
-		bTraceAnyRay = SupportsSampleBxDF(OriginalPixelInfos.GBuffer.ShadingModelID) && ProbeOcclusionDistance != 0.0;
+		bTraceAnyRay = SupportsSampleBxDF(OriginalPixelInfos.MaterialData) && ProbeOcclusionDistance != 0.0;
 
 		#if CONFIG_CAST_SPECULAR_RAYS
-			bAdditionalSpecularRay = RequiresAdditionalSpecularRay(OriginalPixelInfos.GBuffer.Roughness, OriginalPixelInfos.GBuffer.ShadingModelID);
+			bAdditionalSpecularRay = RequiresAdditionalSpecularRay(OriginalPixelInfos.MaterialData);
 		#else
 			bAdditionalSpecularRay = false;
 		#endif
 
-		OriginalPixelInfos.TranslatedWorldPosition = mul(float4(OriginalPixelInfos.ScreenPos * OriginalPixelInfos.GBuffer.Depth, OriginalPixelInfos.GBuffer.Depth, 1), View.ScreenToTranslatedWorld).xyz;
+		OriginalPixelInfos.TranslatedWorldPosition = mul(float4(OriginalPixelInfos.ScreenPos * OriginalPixelInfos.MaterialData.SceneDepth, OriginalPixelInfos.MaterialData.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		OriginalPixelInfos.V = normalize(View.TranslatedWorldCameraOrigin - OriginalPixelInfos.TranslatedWorldPosition);
 		
 		// Compressed some of the VGPRs
 		#if COMPRESS_TRACING_PIXEL_INFOS
 		{
-			SharedMemory0[GroupThreadIndex] = CompressN(OriginalPixelInfos.GBuffer.WorldNormal) | (OriginalPixelInfos.GBuffer.ShadingModelID << 24);
+			SharedMemory0[GroupThreadIndex] = CompressN(OriginalPixelInfos.MaterialData.WorldNormal) | (OriginalPixelInfos.MaterialData.ShadingID << 24);
 		}
 		#endif
 	}
@@ -446,7 +432,7 @@ void MainCS(
 			UNROLL_N(INDIRECT_SAMPLE_COUNT)
 			for (uint PixelRayIndex = 0; PixelRayIndex < INDIRECT_SAMPLE_COUNT; PixelRayIndex++)
 			{
-				bool bIsBentNormalOccluded = (OriginalPixelInfos.GBuffer.DiffuseIndirectSampleOcclusion & (1 << PixelRayIndex)) != 0;
+				bool bIsBentNormalOccluded = (OriginalPixelInfos.MaterialData.DiffuseIndirectSampleOcclusion & (1 << PixelRayIndex)) != 0;
 				DiffuseSampleMask |= (bIsBentNormalOccluded && EnableBentNormal != 0) ? (0x3 << (2 * PixelRayIndex)) : 0;
 			}
 		}
@@ -519,7 +505,7 @@ void MainCS(
 				uint RaySampleMask = ((bHit ? 0x1u : 0x0u) | (bFullyTraced ? 0x2u : 0x0u)) << (2 * RaySequenceId);
 				
 				float RaySpecularWeight = ComputeSpecularRayFromDiffuseRayWeight(
-					PixelInfos.GBuffer.WorldNormal, PixelInfos.V, RayInfos.BxDFSample.L, PixelInfos.GBuffer.Roughness);
+					PixelInfos.MaterialData.WorldNormal, PixelInfos.V, RayInfos.BxDFSample.L, PixelInfos.MaterialData.Roughness);
 
 				DiffuseSampleMask |= RaySampleMask;
 				DiffuseLighting += RayLighting * RayInfos.BxDFSample.Weight;
@@ -552,29 +538,27 @@ void MainCS(
 				// Compute ray informations.
 				FTracingRayInfos RayInfos;
 				{
-					float a2 = Pow4(PixelInfos.GBuffer.Roughness);
-
 					#ifdef CONFIG_RAY_STEPS // TODO: is it really needed?
 						const float WorldTMaxTightness = (1.0 + rcp(CONFIG_RAY_STEPS));
 					#else
 						const float WorldTMaxTightness = 1.0;
 					#endif
 
-					RayInfos.BxDFSample = SampleBxDF(SHADING_TERM_SPECULAR, PixelInfos.GBuffer, PixelInfos.V, E);
-					RayInfos.TMax = ComputeMinimalProbeWorldRadiusAtDepth(PixelInfos.GBuffer.Depth) * WorldTMaxTightness;
+					RayInfos.BxDFSample = SampleBxDF(SHADING_TERM_SPECULAR, PixelInfos.MaterialData, PixelInfos.V, E);
+					RayInfos.TMax = ComputeMinimalProbeWorldRadiusAtDepth(PixelInfos.MaterialData.SceneDepth) * WorldTMaxTightness;
 					
 					float SampleConeAngle = RayPDFToConeAngle(RayInfos.BxDFSample.PDF, /* TotalSamples = */ 8);
 
 					float MajorRoughnessLobeAngle;
 					float MinorRoughnessLobeAngle;
 					ComputeSpecularLobeAngles(
-						PixelInfos.V, PixelInfos.GBuffer.WorldNormal, PixelInfos.GBuffer.Roughness,
+						PixelInfos.V, PixelInfos.MaterialData.WorldNormal, PixelInfos.MaterialData.Roughness,
 						/* out */ MajorRoughnessLobeAngle, /* out */ MinorRoughnessLobeAngle);
 
 					const float MaxCubemapTexelAngle = (360 / (4 * PROBE_HIERARCHY_RESOLUTION)) * (PI / 180);
 					const float MinCubemapTexelViewportRadius = LobeAngleToViewportRadius(MaxCubemapTexelAngle) * sqrt(2);
 
-					RayInfos.bIsInfinitRay = SampleConeAngle < MaxCubemapTexelAngle || PixelInfos.GBuffer.Roughness < 0.05;
+					RayInfos.bIsInfinitRay = SampleConeAngle < MaxCubemapTexelAngle || PixelInfos.MaterialData.Roughness < 0.05;
 					RayInfos.TMax = RayInfos.bIsInfinitRay ? 1000000  : RayInfos.TMax;
 					RayInfos.ConeHalfAngle = 0.5 * SampleConeAngle;
 				}
@@ -592,7 +576,7 @@ void MainCS(
 				uint RaySampleMask = ((bHit ? 0x1u : 0x0u) | (bFullyTraced ? 0x2u : 0x0u)) << (2 * RaySequenceId);
 				
 				float RaySpecularWeight = 1.0; ComputeSpecularRayFromDiffuseRayWeight(
-					PixelInfos.GBuffer.WorldNormal, PixelInfos.V, RayInfos.BxDFSample.L, PixelInfos.GBuffer.Roughness);
+					PixelInfos.MaterialData.WorldNormal, PixelInfos.V, RayInfos.BxDFSample.L, PixelInfos.MaterialData.Roughness);
 
 				SpecularSampleMask |= RaySampleMask;
 				SpecularLighting += RaySpecularLighting * RaySpecularWeight;

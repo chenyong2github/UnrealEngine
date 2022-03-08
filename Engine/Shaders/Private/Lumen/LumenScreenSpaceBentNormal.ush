@@ -39,11 +39,11 @@ float ApproximateConeConeIntersection(float ArcLength0, float ArcLength1, float 
 	return Intersection;
 }
 
-float CalculateSpecularOcclusion(FGBufferData GBuffer, float AO, float3 V, float3 BentNormalOcclusion)
+float CalculateSpecularOcclusion(float3 N, float Roughness, float AO, float3 V, float3 BentNormalOcclusion)
 {
-	float ReflectionConeAngle = max(GBuffer.Roughness, .1f) * PI;
+	float ReflectionConeAngle = max(Roughness, .1f) * PI;
 	float UnoccludedAngle = AO * PI;
-	float3 ReflectionVector = reflect(-V, GBuffer.WorldNormal);
+	float3 ReflectionVector = reflect(-V, N);
 	float AngleBetween = acosFast(dot(BentNormalOcclusion, ReflectionVector) / max(AO, .001f));
 	float SpecularOcclusion = ApproximateConeConeIntersection(ReflectionConeAngle, UnoccludedAngle, AngleBetween);
 

@@ -4,6 +4,7 @@
 #include "../MonteCarlo.ush"
 #include "../SceneTextureParameters.ush"
 
+#include "LumenMaterial.ush"
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
 #include "LumenReflectionCommon.ush"
@@ -109,7 +110,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 		float SceneDepth = DownsampledDepth.Load(int3(TraceCoord, 0)).x;
 		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-		float3 WorldNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
+
+		const float3 WorldNormal = ReadMaterialData(uint2(ScreenCoord)).WorldNormal;
 
 		FRayData RayData = GetRayData(TraceCoord);
 

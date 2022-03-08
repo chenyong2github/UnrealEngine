@@ -113,6 +113,7 @@ FSSDSampleSceneInfos CreateSampleSceneInfos()
 
 //------------------------------------------------------- UNCOMPRESSED SCENE INFOS
 
+// STRATA_TODO
 ISOLATE
 FSSDSampleSceneInfos UncompressSampleSceneInfo(
 	const uint CompressedLayout, const bool bIsPrevFrame,
@@ -209,7 +210,7 @@ FSSDSampleSceneInfos UncompressSampleSceneInfo(
 	return Infos;
 }
 
-
+// STRATA_TODO
 FSSDCompressedSceneInfos CompressSampleSceneInfo(
 	const uint CompressedLayout,
 	FSSDSampleSceneInfos Infos)

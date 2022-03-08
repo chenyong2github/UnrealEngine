@@ -3,7 +3,9 @@
 
 //------------------------------------------------------- INCLUDES
 
+#include "../../Common.ush"
 #include "../ProbeHierarchy/LumenCubemapProbeHierarchy.ush"
+#include "../LumenMaterial.ush"
 #include "../../SceneTextureParameters.ush"
 #include "../../DeferredShadingCommon.ush"
 #include "../../MonteCarlo.ush"
@@ -114,11 +116,11 @@ void MainCS(
 
 	float2 ViewportUV = BufferUVToViewportUV(SceneBufferUV);
 	float2 ScreenPosition = ViewportUVToScreenPos(ViewportUV);
-		
-	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(SceneBufferUV);
-	bool bComputeIndirectLighting = ShouldComputeIndirectLighting(GBuffer.ShadingModelID);
 
-	float4 ClipPosition = float4(ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? GBuffer.Depth : 1.0f), GBuffer.Depth, 1);
+	const FLumenMaterialData MaterialData = ReadMaterialData(PixelCoord, SceneBufferUV);
+	const bool bComputeIndirectLighting = ShouldComputeIndirectLighting(MaterialData);
+
+	float4 ClipPosition = float4(ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? MaterialData.SceneDepth : 1.0f), MaterialData.SceneDepth, 1);
 	float3 TranslatedWorldPosition = mul(ClipPosition, View.ScreenToTranslatedWorld).xyz;
 	
 	// Select an Probe to sample.
@@ -142,9 +144,9 @@ void MainCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	if (SupportsSampleBxDF(GBuffer.ShadingModelID) && bIsValidViewPixel)
+	if (SupportsSampleBxDF(MaterialData) && bIsValidViewPixel)
 	{
-		float MostPreciseProbeRadius = ComputeMinimalProbeWorldRadiusAtDepth(GBuffer.Depth);
+		float MostPreciseProbeRadius = ComputeMinimalProbeWorldRadiusAtDepth(MaterialData.SceneDepth);
 
 		const uint ProbeCount = ReadProbeCountForTile(ResolveTileIndex);
 
@@ -205,7 +207,7 @@ void MainCS(
 		#if 0
 		{
 			//float WorldDistance = GetProbeTMin(ProbeInfo);
-			float WorldDistance = ComputeMinimalProbeWorldRadiusAtDepth(GBuffer.Depth);
+			float WorldDistance = ComputeMinimalProbeWorldRadiusAtDepth(MaterialData.SceneDepth);
 
 			float TheoricDistance = PROBE_HIERARCHY_MIN_PIXEL_RADIUS;
 			float PixelDistance = ProjectWorldDistanceToPixelDistance(ProbeInfo, WorldDistance);

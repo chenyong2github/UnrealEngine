@@ -5,6 +5,8 @@
 
 #define USE_HAIR_COMPLEX_TRANSMITTANCE 1
 
+#include "../../Common.ush"
+#include "../LumenMaterial.ush"
 #include "../ProbeHierarchy/LumenCubemapProbeHierarchy.ush"
 #include "../../SceneTextureParameters.ush"
 #include "../../DeferredShadingCommon.ush"
@@ -66,27 +68,20 @@ void MainCS(
 
 	float2 ViewportUV = BufferUVToViewportUV(SceneBufferUV);
 	float2 ScreenPosition = ViewportUVToScreenPos(ViewportUV);
-		
-	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(SceneBufferUV);
+	uint2 PixelCoord = min(DispatchThreadId.xy, View.BufferSizeAndInvSize.xy - 1u);
 
-#if 1
-	GBuffer.Depth = ConvertFromDeviceZ(CompressedDepthTexture[DispatchThreadId]);
-#endif
+	FLumenMaterialData Material = ReadMaterialData(PixelCoord, SceneBufferUV);
+	Material.SceneDepth = ConvertFromDeviceZ(CompressedDepthTexture[DispatchThreadId]);
 
-	bool bComputeIndirectLighting = ShouldComputeIndirectLighting(GBuffer.ShadingModelID);
-
-	float4 ClipPosition = float4(ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? GBuffer.Depth : 1.0f), GBuffer.Depth, 1);
+	float4 ClipPosition = float4(ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? Material.SceneDepth : 1.0f), Material.SceneDepth, 1);
 	float3 TranslatedWorldPosition = mul(ClipPosition, View.ScreenToTranslatedWorld).xyz;
 	float3 V = normalize(View.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
-
-	float Roughness = GBuffer.Roughness;
-	float a2 = Pow4(Roughness);
 	
 	// Select an Probe to sample.
 	uint ProbeIndex = ResolvedProbeIndexes.Load(int3(DispatchThreadId, 0));
 
 	bool bValidProbeIndex = ProbeIndex != PROBE_INVALID_INDEX;
-	bool bAdditionalSpecularRay = RequiresAdditionalSpecularRay(Roughness, GBuffer.ShadingModelID);
+	bool bAdditionalSpecularRay = RequiresAdditionalSpecularRay(Material);
 
 	float3 DiffuseLighting = DiffuseLightingOutput[DispatchThreadId].rgb;
 	float3 SpecularLighting = SpecularLightingOutput[DispatchThreadId].rgb;
@@ -122,7 +117,7 @@ void MainCS(
 
 				float4 E = ComputeIndirectLightingSampleE(DispatchThreadId, TracingRayIndex, INDIRECT_SAMPLE_COUNT);
 
-				FBxDFSample BxDFSample = SampleBxDF(TermMask, GBuffer, V, E);
+				FBxDFSample BxDFSample = SampleBxDF(TermMask, Material, V, E);
 
 				float3 RayLuminance = SampleProbeHierarchy(
 					FinalProbeAtlas,
@@ -133,7 +128,7 @@ void MainCS(
 
 				DiffuseLighting += RayLuminance * BxDFSample.Weight;
 
-				float RaySpecularWeight = ComputeSpecularRayFromDiffuseRayWeight(GBuffer.WorldNormal, V, BxDFSample.L, Roughness);
+				float RaySpecularWeight = ComputeSpecularRayFromDiffuseRayWeight(Material.WorldNormal, V, BxDFSample.L, Material.Roughness);
 				SpecularLighting += RayLuminance * RaySpecularWeight;
 				SpecularRayWeightSum += RaySpecularWeight;
 			}
@@ -141,12 +136,12 @@ void MainCS(
 
 		DiffuseLighting *= fInvSamplePerPixel;
 
-		#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+		#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION && !STRATA_ENABLED // STRATA_TODO
 		{
 			// Diffuse occlusion from the material's bent normal
-			float DiffuseMaterialBentNormalOcclusion = GBuffer.GBufferAO;
+			float DiffuseMaterialBentNormalOcclusion = Material.GBufferData.GBufferAO;
 
-			DiffuseLighting *= AOMultiBounce(GBuffer.BaseColor, DiffuseMaterialBentNormalOcclusion) * (DiffuseMaterialBentNormalOcclusion > 0.0 ? rcp(DiffuseMaterialBentNormalOcclusion) : 0.0);
+			DiffuseLighting *= AOMultiBounce(Material.GBufferData.BaseColor, DiffuseMaterialBentNormalOcclusion) * (DiffuseMaterialBentNormalOcclusion > 0.0 ? rcp(DiffuseMaterialBentNormalOcclusion) : 0.0);
 		}
 		#endif
 
@@ -161,7 +156,7 @@ void MainCS(
 				
 				E = BiasBSDFImportantSample(E);
 
-				FBxDFSample BxDFSample = SampleBxDF(SHADING_TERM_SPECULAR, GBuffer, V, E);
+				FBxDFSample BxDFSample = SampleBxDF(SHADING_TERM_SPECULAR, Material, V, E);
 
 				float3 RayLuminance = SampleProbeHierarchy(
 					FinalProbeAtlas,

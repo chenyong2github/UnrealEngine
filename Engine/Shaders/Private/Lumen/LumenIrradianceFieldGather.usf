@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "LumenMaterial.ush"
+
 #include "../DeferredShadingCommon.ush"
 #include "../BRDF.ush"
 #include "../SceneTextureParameters.ush"
@@ -82,12 +84,12 @@ void IrradianceFieldGatherCS(
 {
 	float2 ScreenUV = (DispatchThreadId + 0.5) * View.BufferSizeAndInvSize.zw;
 	float SceneDepth = CalcSceneDepth(ScreenUV);
+	uint2 PixelCoord = min(DispatchThreadId.xy, View.BufferSizeAndInvSize.xy - 1);
 
 	{
-		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
-		FGBufferData GBufferData = ScreenSpaceData.GBuffer;
+		const FLumenMaterialData Material = ReadMaterialData(PixelCoord, ScreenUV);
 		
-		if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
+		if (IsValid(Material))
 		{
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 			float3 V = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
@@ -97,12 +99,12 @@ void IrradianceFieldGatherCS(
 
 			if (ClipmapIndex < NumRadianceProbeClipmaps)
 			{
-				float3 BiasOffset = GBufferData.WorldNormal * ProbeOcclusionNormalBias + V * ProbeOcclusionViewBias;
-				DiffuseLighting = SampleIrradianceCacheInterpolated(WorldPosition, GBufferData.WorldNormal, BiasOffset, ClipmapIndex);
+				float3 BiasOffset = Material.WorldNormal * ProbeOcclusionNormalBias + V * ProbeOcclusionViewBias;
+				DiffuseLighting = SampleIrradianceCacheInterpolated(WorldPosition, Material.WorldNormal, BiasOffset, ClipmapIndex);
 			}
 			else
 			{
-				DiffuseLighting = GetSkySHDiffuse(GBufferData.WorldNormal) * View.SkyLightColor.rgb;
+				DiffuseLighting = GetSkySHDiffuse(Material.WorldNormal) * View.SkyLightColor.rgb;
 			}
 
 			// FDiffuseIndirectCompositePS applies DiffuseColor
@@ -115,7 +117,7 @@ void IrradianceFieldGatherCS(
 
 			float MinRoughnessForRoughSpecular = MaxRoughnessToTrace - RoughnessFadeLength;
 
-			if (GBufferData.Roughness >= MinRoughnessForRoughSpecular || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+			if (Material.Roughness >= MinRoughnessForRoughSpecular || IsClearCoat(Material)) // STRATA_TODO: reformulate this for multi-layer
 			{
 				//GBufferData.WorldNormal = GetClearCoatBottomNormal(GBufferData, GBufferData.WorldNormal);
 				//float ReflectionVector = reflect(-V, GBufferData.WorldNormal);

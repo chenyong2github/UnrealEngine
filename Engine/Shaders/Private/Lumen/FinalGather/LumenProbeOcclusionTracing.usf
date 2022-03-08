@@ -109,7 +109,7 @@ void TraceRay(
 		ConeHalfAngle = DiffuseConeHalfAngle;
 	}
 
-	float3 WorldPosition = PixelInfos.TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation) + PixelInfos.GBuffer.WorldNormal * SurfaceBias + SurfaceBias * RayInfos.BxDFSample.L;
+	float3 WorldPosition = PixelInfos.TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation) + PixelInfos.MaterialData.WorldNormal * SurfaceBias + SurfaceBias * RayInfos.BxDFSample.L;
 
 	float FinalMaxTraceDistance = min(MaxTraceDistance, RayInfos.TMax);
 
@@ -117,7 +117,7 @@ void TraceRay(
 
 	#if DIM_LUMEN_TRACING_PERMUTATION == LUMEN_TRACING_CARDS
 	{
-		uint CardGridCellIndex = ComputeCardGridCellIndex(PixelInfos.PixelPosition, PixelInfos.GBuffer.Depth);
+		uint CardGridCellIndex = ComputeCardGridCellIndex(PixelInfos.PixelPosition, PixelInfos.MaterialData.SceneDepth);
 
 		uint NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
 		uint MeshSDFStartOffset = GridCulledMeshSDFObjectStartOffsetArray[CardGridCellIndex];

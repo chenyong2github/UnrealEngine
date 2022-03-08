@@ -104,7 +104,7 @@ void TraceRay(
 		Ray = InitScreenSpaceRayFromWorldSpace(
 			PixelInfos.TranslatedWorldPosition, RayInfos.BxDFSample.L,
 			/* WorldTMax = */ RayInfos.TMax * WorldTMaxTightness,
-			/* SceneDepth = */ PixelInfos.GBuffer.Depth,
+			/* SceneDepth = */ PixelInfos.MaterialData.SceneDepth,
 			/* SlopeCompareToleranceScale */ 2.0f,
 			/* bExtendRayToScreenBorder = */ false,
 			/* out */ bRayWasClipped);
@@ -117,12 +117,12 @@ void TraceRay(
 		Ray = InitScreenSpaceRayFromWorldSpace(
 			PixelInfos.TranslatedWorldPosition, RayInfos.BxDFSample.L,
 			/* WorldTMax = */ RayInfos.TMax,
-			/* SceneDepth = */ PixelInfos.GBuffer.Depth,
+			/* SceneDepth = */ PixelInfos.MaterialData.SceneDepth,
 			/* SlopeCompareToleranceScale */ 2.0f,
 			/* bExtendRayToScreenBorder = */ false,
 			/* out */ bRayWasClipped);
 				
-		RayRoughness = PixelInfos.GBuffer.Roughness;
+		RayRoughness = PixelInfos.MaterialData.Roughness;
 	}
 
 	// Cast the ray

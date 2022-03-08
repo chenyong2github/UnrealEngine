@@ -6,6 +6,7 @@
 #include "../../Common.ush"
 #include "../../DeferredShadingCommon.ush"
 #include "../../SceneTextureParameters.ush"
+#include "../LumenMaterial.ush"
 #include "../ProbeHierarchy/LumenCubemapProbeHierarchy.ush"
 
 
@@ -32,31 +33,29 @@ void MainCS(
 {
 	uint2 PixelCoord = GroupId * TRACING_CLASSIFICATION_TILE_SIZE + GroupThreadId;
 
+	uint2 PixelPos   = PixelCoord + View.ViewRectMin.xy;
 	float2 BufferUV = (PixelCoord + View.ViewRectMin.xy + 0.5f) * View.BufferSizeAndInvSize.zw;
 
-	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+	const FLumenMaterialData Material = ReadMaterialData(PixelPos, BufferUV);
 
 	uint PixelBitmask = 0;
 	if (all(PixelCoord < uint2(View.ViewSizeAndInvSize.xy)))
 	{
-		bool bAdditionalSpecularRay = RequiresAdditionalSpecularRay(GBuffer.Roughness, GBuffer.ShadingModelID);
+		bool bAdditionalSpecularRay = RequiresAdditionalSpecularRay(Material);
 
-		bool bIsUnlit = GBuffer.ShadingModelID == SHADINGMODELID_UNLIT;
-		bool bIsDefaultLit = GBuffer.ShadingModelID == SHADINGMODELID_DEFAULT_LIT;
-		bool bComplexShadingModel = GBuffer.ShadingModelID == SHADINGMODELID_HAIR;
+		bool bIsUnlit = !IsValid(Material);
+		bool bIsDefaultLit = HasDefaultShading(Material);
+		bool bComplexShadingModel = HasComplexShading(Material);
 		bool bIsSimpleShadingModel = !bIsUnlit && !bIsDefaultLit && !bComplexShadingModel;
 
-		bool bHasBentNormal = false;
-		#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
-			bHasBentNormal = GBuffer.DiffuseIndirectSampleOcclusion != 0;
-		#endif
+		bool bHasBentNormal = HasBentNormal(Material);
 
 		PixelBitmask = (
 			(bIsUnlit              ? 0x01 : 0x0) |
 			(bIsDefaultLit         ? 0x02 : 0x0) |
 			(bComplexShadingModel  ? 0x04 : 0x0) |
 			(bIsSimpleShadingModel ? 0x08 : 0x0) |
-			(bAdditionalSpecularRay ? 0x10 : 0x0) |
+			(bAdditionalSpecularRay? 0x10 : 0x0) |
 			(bHasBentNormal        ? 0x20 : 0x0));
 	}
 
@@ -152,7 +151,7 @@ void MainCS(
 		TileClassificationOutput[GroupId] = ClassificationId;
 	}
 
-	CompressedDepthBufferOutput[PixelCoord] = ConvertToDeviceZ(GBuffer.Depth);
-	CompressedRoughnessOutput[PixelCoord] = GBuffer.Roughness;
-	CompressedShadingModelOutput[PixelCoord] = GBuffer.ShadingModelID;
+	CompressedDepthBufferOutput[PixelCoord]  = ConvertToDeviceZ(Material.SceneDepth);
+	CompressedRoughnessOutput[PixelCoord]    = Material.Roughness;
+	CompressedShadingModelOutput[PixelCoord] = Material.ShadingID;
 }

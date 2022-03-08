@@ -59,6 +59,9 @@
 #include "ShadingModels.ush"
 #include "ClearCoatCommon.ush"
 #include "FastMath.ush"
+#include "Lumen/LumenMaterial.ush"
+#include "Strata/Strata.ush"
+#include "Strata/StrataEvaluation.ush"
 
 #if DIM_APPLY_DIFFUSE_INDIRECT
 
@@ -108,6 +111,55 @@ RWTexture2D<float4> PassDebugOutput;
 float MaxRoughnessToTrace;
 float InvRoughnessFadeLength;
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Helper functions
+
+struct FShadingOcclusion
+{
+	float SpecularOcclusion;
+	float3 DiffuseOcclusion;
+};
+
+FShadingOcclusion GetShadingOcclusion(uint2 InPixelPos, float3 V, float3 N, float Roughness, float3 DiffuseColor, float InAO /*FinalAmbientOcclusion*/)
+{
+	FShadingOcclusion Out = (FShadingOcclusion)0;
+	Out.SpecularOcclusion = 1;
+	Out.DiffuseOcclusion = 1;
+
+#if DIM_APPLY_DIFFUSE_INDIRECT == 2     // Probe hierarchy output
+	Out.DiffuseOcclusion = 1;
+#elif DIM_APPLY_DIFFUSE_INDIRECT == 4	// Lumen Screen Probe Gather
+
+  #if DIM_SCREEN_BENT_NORMAL
+	const float3 BentNormal = ScreenBentNormal[InPixelPos].xyz * 2 - 1;
+	const float AO = length(BentNormal);
+	Out.SpecularOcclusion = CalculateSpecularOcclusion(N, Roughness, AO, V, BentNormal);
+	Out.DiffuseOcclusion  = DistantIlluminationRescale(DiffuseColor, AO);
+  #else
+	Out.SpecularOcclusion = 1;
+	Out.DiffuseOcclusion = 1;
+  #endif
+
+#else
+	Out.DiffuseOcclusion = lerp(1, InAO, ApplyAOToDynamicDiffuseIndirect);
+#endif
+
+	return Out;
+}
+
+float3 MixSpecularAndRoughReflections(float InRoughness, float3 SpecularReflections, float3 RoughReflections)
+{
+	const float FadeAlpha = saturate((MaxRoughnessToTrace - InRoughness) * InvRoughnessFadeLength);
+	float3 Lighting = RoughReflections * (1 - FadeAlpha);
+
+	// Must branch as SpecularReflections can be uninitialized where not needed and contain NaN
+	if (FadeAlpha > 0.0f)
+	{
+		Lighting += SpecularReflections * FadeAlpha;
+	}
+	return Lighting;
+}
+
 float3 CombineRoughSpecular(FGBufferData GBuffer, float NoV, float3 RayTracedReflections, float3 RoughReflections, float3 SpecularColor)
 {
 	float3 Lighting;
@@ -118,22 +170,65 @@ float3 CombineRoughSpecular(FGBufferData GBuffer, float NoV, float3 RayTracedRef
 	}
 	else
 	{
-		float FadeAlpha = saturate((MaxRoughnessToTrace - GBuffer.Roughness) * InvRoughnessFadeLength);
-
-		Lighting = RoughReflections * (1 - FadeAlpha);
-
-		// Must branch as RayTracedReflections can be uninitialized where not needed and contain NaN
-		if (FadeAlpha > 0.0f)
-		{
-			Lighting += RayTracedReflections * FadeAlpha;
-		}
-	
-		Lighting *= EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
+		Lighting = MixSpecularAndRoughReflections(GBuffer.Roughness, RayTracedReflections, RoughReflections) * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
 	}
 	return Lighting;
 }
 
-//------------------------------------------------------- ENTRY POINT
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Lumen diffuse evaluation for strata material.
+
+// STRATA_TODO: add tile permutation for reducing VGPR pressures
+
+#if STRATA_ENABLED
+FDirectLighting StrataLumenLighting(
+	uint2 PixelPos,
+	FStrataMaterialContainer MaterialBuffer,
+	FStrataAddressing StrataAddressing,
+	FStrataPixelHeader StrataPixelHeader,
+	in float3 V,
+	in float  InAO,
+	in float3 InDiffuseLighting,
+	in float3 InSpecularLighting,
+	in float3 InRoughSpecularIndirectLighting)
+{
+	FDirectLighting Out = (FDirectLighting)0;
+
+	Strata_for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
+	{
+		// STRATA_TODO: Override the BSDF F0/DiffuseColor when bVisualizeDiffuseIndirect is set
+		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);
+
+		const float3 BSDFThroughput = BSDF.LuminanceWeight;
+
+		// Create the BSDF context
+		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
+
+		// Evaluate environment lighting
+		FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, false/*bForceFullyRough*/);
+		
+		const float3 DiffuseColor = StrataGetBSDFDiffuseColor(BSDF);
+		const float  Roughness = StrataGetBSDFRoughness(BSDF);
+		const FShadingOcclusion Occlusion = GetShadingOcclusion(PixelPos, V, StrataBSDFContext.N, Roughness, DiffuseColor, InAO);
+
+		const float3 InGlossyLighting = MixSpecularAndRoughReflections(Roughness, InSpecularLighting, InRoughSpecularIndirectLighting);
+
+		Out.Diffuse  += BSDFThroughput * InDiffuseLighting * StrataEnvLight.DiffuseWeight  * Occlusion.DiffuseOcclusion;
+		Out.Specular += BSDFThroughput * InGlossyLighting  * StrataEnvLight.SpecularWeight * Occlusion.SpecularOcclusion;
+
+		#if STRATA_FASTPATH==0
+		if (BSDF_GETHASHAZINESS(BSDF))
+		{
+			Out.Specular = BSDFThroughput * InSpecularLighting * StrataEnvLight.SpecularHazeWeight;
+		}
+		#endif 
+	}
+
+	return Out;
+}
+#endif // STRATA_ENABLED
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MainPS(
 	float4 SvPosition : SV_POSITION
@@ -145,31 +240,32 @@ void MainPS(
 #endif
 )
 {
-	float2 SceneBufferUV = SvPositionToBufferUV(SvPosition);
-	float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
+	const uint2 PixelPos = SvPosition.xy;
+	const float2 SceneBufferUV = SvPositionToBufferUV(SvPosition);
+	const float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
 
 	// Sample scene textures.
-	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(SceneBufferUV);
+	const FLumenMaterialData Material = ReadMaterialData(PixelPos, SceneBufferUV);
 
 	// Sample the ambient occlusion that is dynamically generated every frame.
-	float DynamicAmbientOcclusion = AmbientOcclusionTexture.SampleLevel(AmbientOcclusionSampler, SceneBufferUV, 0).r;
+	const float DynamicAmbientOcclusion = AmbientOcclusionTexture.SampleLevel(AmbientOcclusionSampler, SceneBufferUV, 0).r;
 
 	// Compute the final ambient occlusion to be applied.
-	float AOMask = (GBuffer.ShadingModelID != SHADINGMODELID_UNLIT);
-	float FinalAmbientOcclusion = lerp(1.0f, GBuffer.GBufferAO * DynamicAmbientOcclusion, AOMask * AmbientOcclusionStaticFraction);
+	const float AOMask = IsValid(Material);
+	const float FinalAmbientOcclusion = lerp(1.0f, Material.MaterialAO * DynamicAmbientOcclusion, AOMask * AmbientOcclusionStaticFraction);
 
-	float3 TranslatedWorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToTranslatedWorld).xyz;
+	const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * Material.SceneDepth, Material.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 
-	float3 N = GBuffer.WorldNormal;
-	float3 V = normalize(View.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
-	float NoV = saturate(dot(N, V));
+	const float3 N = Material.WorldNormal;
+	const float3 V = normalize(View.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
+	const float NoV = saturate(dot(N, V));
 
 	// Apply diffuse indirect.
 	#if DIM_APPLY_DIFFUSE_INDIRECT
 	{
 		FDirectLighting IndirectLighting = (FDirectLighting)0;
 
-		if (GBuffer.ShadingModelID != SHADINGMODELID_UNLIT)
+		if (IsValid(Material))
 		{
 			float3 DiffuseIndirectLighting = 0;
 			float3 RoughSpecularIndirectLighting = 0;
@@ -222,7 +318,8 @@ void MainPS(
 				// VGPRs
 				KernelConfig.BufferUV = SceneBufferUV; 
 				{
-					KernelConfig.CompressedRefSceneMetadata = GBufferDataToCompressedSceneMetadata(GBuffer);
+					// STRATA_TODO: We use the top layer data, but we should resolve lighting for each BSDFs.
+					KernelConfig.CompressedRefSceneMetadata = MaterialToCompressedSceneMetadata(Material.SceneDepth, Material.WorldNormal, Material.Roughness, Material.ShadingID);
 					KernelConfig.RefBufferUV = SceneBufferUV;
 					KernelConfig.RefSceneMetadataLayout = METADATA_BUFFER_LAYOUT_DISABLED;
 				}
@@ -265,6 +362,28 @@ void MainPS(
 			}
 			#endif
 
+			#if STRATA_ENABLED
+			{			
+				FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+				const FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+				const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
+				const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelPos, 0)));
+
+				IndirectLighting = StrataLumenLighting(
+					PixelPos,
+					Strata.MaterialTextureArray,
+					StrataAddressing,
+					StrataPixelHeader,
+					V,
+					FinalAmbientOcclusion,
+					DiffuseIndirectLighting,
+					SpecularIndirectLighting,
+					RoughSpecularIndirectLighting);
+			}
+			#else // STRATA_ENABLED
+			{
+			FGBufferData GBuffer = Material.GBufferData;
+
 			float3 DiffuseColor = bVisualizeDiffuseIndirect ? float3(.18f, .18f, .18f) : GBuffer.DiffuseColor;
 			float3 SpecularColor = GBuffer.SpecularColor;
 
@@ -272,23 +391,7 @@ void MainPS(
 				RemapClearCoatDiffuseAndSpecularColor(GBuffer, NoV, DiffuseColor, SpecularColor);
 			#endif
 
-			#if DIM_APPLY_DIFFUSE_INDIRECT == 2
-				float DiffuseIndirectAO = 1;
-			#elif DIM_APPLY_DIFFUSE_INDIRECT == 4	// Lumen Screen Probe Gather
-
-				#if DIM_SCREEN_BENT_NORMAL
-					float3 BentNormal = ScreenBentNormal[(uint2)SvPosition.xy].xyz * 2 - 1;
-					float AO = length(BentNormal);
-					float3 DiffuseIndirectAO = DistantIlluminationRescale(GBuffer.BaseColor, AO);
-					float SpecularOcclusion = CalculateSpecularOcclusion(GBuffer, AO, V, BentNormal);
-				#else
-					float SpecularOcclusion = 1.0f;
-					float DiffuseIndirectAO = 1;
-				#endif
-
-			#else
-				float DiffuseIndirectAO = lerp(1, FinalAmbientOcclusion, ApplyAOToDynamicDiffuseIndirect);
-			#endif
+			const FShadingOcclusion Occlusion = GetShadingOcclusion(PixelPos, V, N, GBuffer.Roughness, GBuffer.BaseColor, FinalAmbientOcclusion);
 
 			if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 			{
@@ -299,7 +402,7 @@ void MainPS(
 				const float3 L = normalize(V - N * dot(V, N));
 				FHairTransmittanceData TransmittanceData = EvaluateDualScattering(GBuffer, V, L.xyz);
 				float3 f_s = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 1, 0.2, uint2(0, 0));
-				IndirectLighting.Diffuse = DiffuseIndirectLighting * DiffuseIndirectAO * f_s;			
+				IndirectLighting.Diffuse = DiffuseIndirectLighting * Occlusion.DiffuseOcclusion * f_s;
 			}
 			else
 			{
@@ -319,21 +422,21 @@ void MainPS(
 					DiffuseColor += ClothFuzz * GBuffer.CustomData.a;
 				}
 
-				IndirectLighting.Diffuse = DiffuseIndirectLighting * DiffuseColor * DiffuseIndirectAO;
+				IndirectLighting.Diffuse = DiffuseIndirectLighting * DiffuseColor * Occlusion.DiffuseOcclusion;
 				IndirectLighting.Transmission = 0;
 
 				#if DIM_APPLY_DIFFUSE_INDIRECT == 4
-					RoughSpecularIndirectLighting *= SpecularOcclusion;
+					RoughSpecularIndirectLighting *= Occlusion.SpecularOcclusion;
 					IndirectLighting.Specular = CombineRoughSpecular(GBuffer, NoV, SpecularIndirectLighting, RoughSpecularIndirectLighting, SpecularColor);
 				#else
 					IndirectLighting.Specular = SpecularIndirectLighting * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
 				#endif
 			}
+			}
+			#endif // STRATA_ENABLED
 		}
 
-		const bool bNeedsSeparateSubsurfaceLightAccumulation = UseSubsurfaceProfile(GBuffer.ShadingModelID);
-
-		if (bNeedsSeparateSubsurfaceLightAccumulation &&
+		if (Material.bNeedsSeparateLightAccumulation &&
 			View.bSubsurfacePostprocessEnabled > 0 && View.bCheckerboardSubsurfaceProfileRendering > 0)
 		{
 			bool bChecker = CheckerFromSceneColorUV(SceneBufferUV);
@@ -349,7 +452,7 @@ void MainPS(
 			IndirectLighting.Diffuse + IndirectLighting.Specular,
 			IndirectLighting.Diffuse,
 			1.0f,
-			bNeedsSeparateSubsurfaceLightAccumulation);
+			Material.bNeedsSeparateLightAccumulation);
 		OutAddColor = LightAccumulator_GetResult(LightAccumulator);
 	}
 	#endif

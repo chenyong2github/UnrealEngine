@@ -5,6 +5,8 @@
 =============================================================================*/
 
 #include "../Common.ush"
+#include "LumenMaterial.ush"
+
 #include "../SceneTextureParameters.ush"
 #include "../BRDF.ush"
 #include "../Random.ush"
@@ -37,10 +39,23 @@ RWTexture2D<float> RWDownsampledDepth;
 groupshared uint SharedTileNeedsResolve[4][4];
 groupshared uint SharedTileNeedsTracing;
 
-bool NeedRayTracedReflections(float Roughness, uint ShadingModelID)
+FLumenMaterialData ApplySmoothBias(FLumenMaterialData In, bool bTopLayerRoughness)
 {
-	return ShadingModelID != SHADINGMODELID_UNLIT 
-		&& (Roughness <= MaxRoughnessToTrace || ShadingModelID == SHADINGMODELID_CLEAR_COAT);
+	FLumenMaterialData Out = In;
+	if (bTopLayerRoughness)
+	{
+		Out.TopLayerRoughness = ApplySmoothBias(In.TopLayerRoughness);
+	}
+	else
+	{
+		Out.Roughness = ApplySmoothBias(In.Roughness);
+	}
+	return Out;
+}
+
+bool NeedRayTracedReflections(float InRoughness, const FLumenMaterialData In)
+{
+	return IsValid(In) && (InRoughness <= MaxRoughnessToTrace || IsClearCoat(In));
 }
 
 // Must match cpp GReflectionResolveTileSize
@@ -74,9 +89,8 @@ void ReflectionTileClassificationMarkCS(
 
 	if (all(ScreenCoord < (uint2)View.ViewSizeAndInvSize.xy))
 	{
-		FGBufferData GBufferData = GetGBufferDataUint(ScreenCoord);
-
-		if (NeedRayTracedReflections(ApplySmoothBias(GBufferData.Roughness), GBufferData.ShadingModelID))
+		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(ScreenCoord), false /*bTopLayerRoughness*/);
+		if (NeedRayTracedReflections(Material.Roughness, Material))
 		{
 			// Metal compiler issue: it requires `+=` instead of `=` to record the tile as of UE 5.0
 			SharedTileClassification += 1;
@@ -214,14 +228,13 @@ void ReflectionGenerateRaysCS(
 		int2 SourcePos = min((int2)(ReflectionTracingCoord * ReflectionDownsampleFactor + uint2(ScreenJitter + .5f)), (int2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
 		float2 ScreenUV = (SourcePos + .5f) * View.BufferSizeAndInvSize.zw;
 
-		FGBufferData GBufferData = GetGBufferDataUint(SourcePos);
+		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(SourcePos), true /*bTopLayerRoughness*/);
 
-		float TopLayerRoughness = ApplySmoothBias(GetClearCoatRoughness(GBufferData));
-		float DownsampledDepth = GBufferData.Depth;
+		float DownsampledDepth = Material.SceneDepth;
 
-		if (NeedRayTracedReflections(TopLayerRoughness, GBufferData.ShadingModelID))
+		if (NeedRayTracedReflections(Material.TopLayerRoughness, Material))
 		{
-			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, GBufferData.Depth);
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, Material.SceneDepth);
 			float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 
 			float3 RayDirection;
@@ -229,9 +242,9 @@ void ReflectionGenerateRaysCS(
 
 			bool bMirrorReflectionDebug = false;
 
-			if (TopLayerRoughness < 0.001f || bMirrorReflectionDebug)
+			if (Material.TopLayerRoughness < 0.001f || bMirrorReflectionDebug)
 			{
-				RayDirection = reflect(CameraVector, GBufferData.WorldNormal);
+				RayDirection = reflect(CameraVector, Material.WorldNormal);
 			}
 			else
 			{
@@ -243,13 +256,15 @@ void ReflectionGenerateRaysCS(
 					float2 E = Hammersley16(0, 1, RandomSeed);
 				#endif
 
+				// STRATA_TODO: this code supposes a single GGX-based sample. Add either lobe selection or multi-sample among 'sharp' lobes
+
 				E.y *= 1 - GGXSamplingBias;
 
-				float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
+				float3x3 TangentBasis = GetTangentBasis(Material.WorldNormal);
 				float3 TangentV = mul(TangentBasis, -CameraVector);
 
-				//float4 GGXSample = ImportanceSampleGGX(E, Pow4(TopLayerRoughness));
-				float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(TopLayerRoughness), TangentV);
+				//float4 GGXSample = ImportanceSampleGGX(E, Pow4(Material.TopLayerRoughness));
+				float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(Material.TopLayerRoughness), TangentV);
 				float3 WorldH = mul(GGXSample.xyz, TangentBasis);
 				RayDirection = reflect(CameraVector, WorldH);
 				ConeAngle = 1.0f / max(GGXSample.w, 0.0001f);
@@ -260,7 +275,7 @@ void ReflectionGenerateRaysCS(
 
 			float TraceDistance = MaxTraceDistance;
 			bool bUseRadianceCache = false;
-#if RADIANCE_CACHE
+		#if RADIANCE_CACHE
 			float RadianceCacheConeHalfAngle = RadianceCacheAngleThresholdScale * acosFast(1.0f - 1 / (float)(RadianceProbeResolution * RadianceProbeResolution));
 
 			if (ConeAngle > RadianceCacheConeHalfAngle)
@@ -273,7 +288,7 @@ void ReflectionGenerateRaysCS(
 					TraceDistance = lerp(.99f * MaxTraceDistance, min(Coverage.MinTraceDistanceBeforeInterpolation, .99f * MaxTraceDistance), FadeAlpha);
 				}
 			}
-#endif
+		#endif
 
 			RWRayTraceDistance[ReflectionTracingCoord] = PackRayTraceDistance(TraceDistance, bUseRadianceCache);
 		}
@@ -339,29 +354,27 @@ void ReflectionResolveCS(
 
 	if (SceneDepth < 1000000.0f)
 	{
-		FGBufferData GBufferData = GetGBufferDataUint(ScreenCoord);
+		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(ScreenCoord), true /*bTopLayerRoughness*/);
 
-		float TopLayerRoughness = ApplySmoothBias(GetClearCoatRoughness(GBufferData));
-
-		if (NeedRayTracedReflections(TopLayerRoughness, GBufferData.ShadingModelID))
+		if (NeedRayTracedReflections(Material.TopLayerRoughness, Material))
 		{
 			uint2 ReflectionScreenCoord = ScreenCoord / ReflectionDownsampleFactor;
 
 			float ClosestHitDepth = 1000000.0f;
 
-#if USE_SPATIAL_RECONSTRUCTION
+		#if USE_SPATIAL_RECONSTRUCTION
 			{
 				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 				float3 V = -normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
-				float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
+				float3x3 TangentBasis = GetTangentBasis(Material.WorldNormal);
 				float3 TangentV = mul(TangentBasis, V);
-				float4 ScenePlane = float4(GBufferData.WorldNormal, dot(WorldPosition, GBufferData.WorldNormal));
+				float4 ScenePlane = float4(Material.WorldNormal, dot(WorldPosition, Material.WorldNormal));
 
 				float TotalWeight = 0;
 				float Mean = 0;
 				float S = 0;
 
-				float a2 = Pow4(clamp(TopLayerRoughness * SpatialReconstructionRoughnessScale, 0.0f, 1.0f));
+				float a2 = Pow4(clamp(Material.TopLayerRoughness * SpatialReconstructionRoughnessScale, 0.0f, 1.0f));
 				uint2 RandomSeed = Rand3DPCG16(int3(ScreenCoord, SCREEN_TEMPORAL_INDEX)).xy;
 
 				// Center sample
@@ -392,7 +405,7 @@ void ReflectionResolveCS(
 				float MinKernelRadius = ReflectionDownsampleFactor;
 				float MaxKernelRadius = SpatialReconstructionKernelRadius;
 				float KernelScale = 2.0f * (1.0f - log2((float)ReflectionDownsampleFactor) * .25f);
-				float KernelDiameter = KernelScale * lerp(MinKernelRadius, MaxKernelRadius, saturate(TopLayerRoughness * 8));
+				float KernelDiameter = KernelScale * lerp(MinKernelRadius, MaxKernelRadius, saturate(Material.TopLayerRoughness * 8));
 
 				for (uint SampleIndex = 0; SampleIndex < NumSpatialReconstructionSamples; SampleIndex++)
 				{
@@ -457,14 +470,15 @@ void ReflectionResolveCS(
 					ResolveVariance = S / TotalWeight;
 				}
 			}
-#else
+		#else // USE_SPATIAL_RECONSTRUCTION
 			{
 				ReflectionLighting = TraceRadiance[ReflectionScreenCoord];
 
 				bool bHit;
 				ClosestHitDepth = DecodeRayDistance(TraceHit[ReflectionScreenCoord].x, bHit);
 			}
-#endif
+		#endif // USE_SPATIAL_RECONSTRUCTION
+
 			DepthForReprojection = SceneDepth + ClosestHitDepth;
 		}
 	}
@@ -539,6 +553,7 @@ FNeighborStatistics GetNeighborStatistics(
 	int2 ResolveTileValidMin = 0;
 	int2 ResolveTileValidMax = 0;
 
+	{
 	for (uint NeighborId = 0; NeighborId < 4; NeighborId++)
 	{
 		int2 SampleOffset = kOffsets3x3[NeighborId];
@@ -552,12 +567,14 @@ FNeighborStatistics GetNeighborStatistics(
 			ResolveTileValidMax = max(ResolveTileValidMax, SampleOffset);
 		}
 	}
+	}
 
 #else
 	int2 ResolveTileValidMin = -1;
 	int2 ResolveTileValidMax = 1;
 #endif
 
+	{
 	UNROLL
 	for(uint NeighborId = 0; NeighborId < 8; NeighborId++)
 	{
@@ -579,6 +596,7 @@ FNeighborStatistics GetNeighborStatistics(
 		M1 += Delta1 / Count;
 		float3 Delta2 = Sample - M1;
 		M2 += Delta1 * Delta2;
+	}
 	}
 
 	Result.Mean = M1;
@@ -686,7 +704,7 @@ void ReflectionTemporalReprojectionCS(
 	float4 HistoryDepthDeviceZ = DepthHistory.GatherRed(GlobalPointClampedSampler, HistoryGatherUV).wzxy;
 	float4 HistorySceneDepth = float4(ConvertFromDeviceZ(HistoryDepthDeviceZ.x), ConvertFromDeviceZ(HistoryDepthDeviceZ.y), ConvertFromDeviceZ(HistoryDepthDeviceZ.z), ConvertFromDeviceZ(HistoryDepthDeviceZ.w));
 
-	FGBufferData GBufferData = GetGBufferDataUint(ReflectionScreenCoord);
+	const FLumenMaterialData Material = ReadMaterialData(ReflectionScreenCoord);
 	float Noise = InterleavedGradientNoise(ReflectionScreenCoord.xy, SCREEN_TEMPORAL_INDEX);
 	float DisocclusionDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise);
 	float PrevSceneDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
@@ -697,7 +715,7 @@ void ReflectionTemporalReprojectionCS(
 	float3 V = normalize(-TranslatedWorldPosition);
 	// Raise the threshold at grazing angles to compensate for TAA jitter causing a depth mismatch dependent on the angle
 	// This also introduces some ghosting around characters, needs a better solution
-	DisocclusionDistanceThreshold /= clamp(saturate(dot(V, GBufferData.WorldNormal)), .1f, 1.0f); 
+	DisocclusionDistanceThreshold /= clamp(saturate(dot(V, Material.WorldNormal)), .1f, 1.0f);
 #endif
 
 	float4 DistanceToHistoryValue = abs(HistorySceneDepth - PrevSceneDepth);
@@ -812,11 +830,9 @@ void ReflectionBilateralFilterCS(
 
 	if (SceneDepth < 1000000.0f)
 	{
-		FGBufferData GBufferData = GetGBufferDataUint(ScreenCoord);
+		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(ScreenCoord), true /*bTopLayerRoughness*/);
 
-		float TopLayerRoughness = ApplySmoothBias(GetClearCoatRoughness(GBufferData));
-
-		if (NeedRayTracedReflections(TopLayerRoughness, GBufferData.ShadingModelID))
+		if (NeedRayTracedReflections(Material.TopLayerRoughness, Material))
 		{
 			OutReflections = TonemapLightingForBilateral(SpecularIndirect[ScreenCoord]);
 
@@ -825,19 +841,19 @@ void ReflectionBilateralFilterCS(
 			bool bStrongBlur = VarianceFromSpatialResolve > BilateralFilterStrongBlurVarianceThreshold;
 			float MinKernelRadius = 0.0f;
 			float MaxKernelRadius = BilateralFilterSpatialKernelRadius * View.ViewSizeAndInvSize.x * (bStrongBlur ? 2.0f : 1.0f);
-			float KernelRadius = lerp(MinKernelRadius, MaxKernelRadius, saturate(TopLayerRoughness * 8));
+			float KernelRadius = lerp(MinKernelRadius, MaxKernelRadius, saturate(Material.TopLayerRoughness * 8));
 
 			if (KernelRadius >= .5f && VarianceFromSpatialResolve > .04f)
 			{
 				float TotalWeight = 1.0f;
 				float GuassianNormalize = 2.0f / (KernelRadius * KernelRadius);
-				float InvSpecularLobeAngleThreshold = 1.0f / (lerp(.0001f * PI, PI, GBufferData.Roughness * GBufferData.Roughness) * BilateralFilterNormalAngleThresholdScale);
+				float InvSpecularLobeAngleThreshold = 1.0f / (lerp(.0001f * PI, PI, Material.Roughness * Material.Roughness) * BilateralFilterNormalAngleThresholdScale);
 				uint2 RandomSeed = Rand3DPCG16(int3(ScreenCoord, SCREEN_TEMPORAL_INDEX)).xy;
 
 				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-				float4 ScenePlane = float4(GBufferData.WorldNormal, dot(WorldPosition, GBufferData.WorldNormal));
+				float4 ScenePlane = float4(Material.WorldNormal, dot(WorldPosition, Material.WorldNormal));
 
-				uint NumBilateralFilterSamples = BilateralFilterNumSamples * (bStrongBlur ? 2 : 1);
+				uint NumBilateralFilterSamples = min(BilateralFilterNumSamples * (bStrongBlur ? 2 : 1), 16u);
 
 				for (uint SampleIndex = 0; SampleIndex < NumBilateralFilterSamples; SampleIndex++)
 				{
@@ -847,18 +863,17 @@ void ReflectionBilateralFilterCS(
 					if (all(NeighborScreenCoord >= int2(0, 0) && NeighborScreenCoord < (int2)View.ViewSizeAndInvSize.xy))
 					{
 						float2 NeighborScreenUV = (NeighborScreenCoord + 0.5f) * View.BufferSizeAndInvSize.zw;
-						FGBufferData NeighborGBufferData = GetGBufferDataUint(NeighborScreenCoord);
-						float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborGBufferData.Depth);
-						float NeighborTopLayerRoughness = ApplySmoothBias(GetClearCoatRoughness(NeighborGBufferData));
+						const FLumenMaterialData NeighborMaterial = ApplySmoothBias(ReadMaterialData(NeighborScreenCoord), true /*bTopLayerRoughness*/);
+						const float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborMaterial.SceneDepth);
 
 						// Avoid reading from unprocessed tiles
-						if (NeedRayTracedReflections(NeighborTopLayerRoughness, NeighborGBufferData.ShadingModelID))
+						if (NeedRayTracedReflections(NeighborMaterial.TopLayerRoughness, NeighborMaterial))
 						{
 							float PlaneDistance = abs(dot(float4(NeighborWorldPosition, -1), ScenePlane));
 							float RelativeDepthDifference = PlaneDistance / SceneDepth;
 							float DepthWeight = exp2(-BilateralFilterDepthWeightScale * (RelativeDepthDifference * RelativeDepthDifference));
 							float SpatialWeight = exp2(-GuassianNormalize * dot(Offset, Offset));
-							float AngleBetweenNormals = acosFast(saturate(dot(ScenePlane.xyz, NeighborGBufferData.WorldNormal)));
+							float AngleBetweenNormals = acosFast(saturate(dot(ScenePlane.xyz, NeighborMaterial.WorldNormal)));
 							float NormalWeight = 1.0f - saturate(AngleBetweenNormals * InvSpecularLobeAngleThreshold);
 
 							float SampleWeight = SpatialWeight * DepthWeight * NormalWeight;

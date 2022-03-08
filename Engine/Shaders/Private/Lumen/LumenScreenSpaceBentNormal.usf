@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "LumenMaterial.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../BRDF.ush"
 #include "LumenScreenProbeCommon.ush"
@@ -30,12 +31,12 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	float2 ScreenUV = float2((DispatchThreadId.xy + .5f) * View.BufferSizeAndInvSize.zw);
 	float SceneDepth = CalcSceneDepth(ScreenUV);
 
-	FGBufferData GBufferData = GetGBufferDataUint(DispatchThreadId.xy);
+	const FLumenMaterialData Material = ReadMaterialData(DispatchThreadId.xy);
 
-	if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
+	if (IsValid(Material))
 	{
 		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-		float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
+		float3x3 TangentBasis = GetTangentBasis(Material.WorldNormal);
 		uint2 Seed0 = Rand3DPCG16(int3(DispatchThreadId.xy, GENERAL_TEMPORAL_INDEX)).xy;
 		float MaxScreenTraceFraction = ScreenProbeDownsampleFactor * 2 * View.ViewSizeAndInvSize.z;
 		float TraceDistance = SceneDepth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
@@ -112,7 +113,7 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		}
 
 		// Debug passthrough
-		//BentNormal = GBufferData.WorldNormal;
+		//BentNormal = Material.WorldNormal;
 
 		RWScreenBentNormal[DispatchThreadId.xy] = float4(BentNormal * .5f + .5f, 0);
 	}

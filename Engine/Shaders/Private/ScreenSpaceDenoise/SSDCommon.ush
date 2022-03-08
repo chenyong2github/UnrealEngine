@@ -15,6 +15,7 @@
 #include "../ColorSpace.ush"
 #include "../SphericalGaussian.ush"
 #include "/Engine/Public/WaveBroadcastIntrinsics.ush"
+#include "/Engine/Private/Strata/Strata.ush"
 
 #if SPHERICAL_HARMONIC_ORDER > 0
 	#include "../SHCommon.ush"
@@ -226,16 +227,16 @@ float2 DenoiserBufferUVToScreenPosition(float2 SceneBufferUV)
 	return SceneBufferUV * SceneBufferUVToScreenPosition.xy + SceneBufferUVToScreenPosition.zw;
 }
 
-FSSDCompressedSceneInfos GBufferDataToCompressedSceneMetadata(FGBufferData GBufferData)
+FSSDCompressedSceneInfos MaterialToCompressedSceneMetadata(float Depth, float3 WorldNormal, float Roughness, uint ShadingID)
 {
 	FSSDCompressedSceneInfos CompressedMetadata = CreateCompressedSceneInfos();
 
-	CompressedMetadata.VGPR[0] = asuint(GBufferData.Depth);
-	CompressedMetadata.VGPR[1] = asuint(GBufferData.WorldNormal.x);
-	CompressedMetadata.VGPR[2] = asuint(GBufferData.WorldNormal.y);
-	CompressedMetadata.VGPR[3] = asuint(GBufferData.WorldNormal.z);
-	CompressedMetadata.VGPR[4] = asuint(GBufferData.Roughness);
-	CompressedMetadata.VGPR[5] = GBufferData.ShadingModelID;
+	CompressedMetadata.VGPR[0] = asuint(Depth);
+	CompressedMetadata.VGPR[1] = asuint(WorldNormal.x);
+	CompressedMetadata.VGPR[2] = asuint(WorldNormal.y);
+	CompressedMetadata.VGPR[3] = asuint(WorldNormal.z);
+	CompressedMetadata.VGPR[4] = asuint(Roughness);
+	CompressedMetadata.VGPR[5] = ShadingID;
 
 	return CompressedMetadata;
 }
@@ -245,6 +246,21 @@ FSSDCompressedSceneInfos SampleCompressedSceneMetadata(
 	float2 BufferUV, uint2 PixelCoord)
 #if CONFIG_METADATA_BUFFER_LAYOUT == METADATA_BUFFER_LAYOUT_DISABLED
 {
+  #if STRATA_ENABLED
+	float SceneDepth = 0;
+	if (bPrevFrame)
+	{
+		SceneDepth = ConvertFromDeviceZ(PrevDepthBuffer.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).r);
+	}
+	else
+	{
+		SceneDepth = ConvertFromDeviceZ(SampleDeviceZFromSceneTextures(BufferUV));
+	}
+
+	// STRATA_TODO: Manage bPrevFrame
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
+	return MaterialToCompressedSceneMetadata(SceneDepth, TopLayerData.WorldNormal, TopLayerData.Roughness, TopLayerData.bIsValid ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT);
+  #else // STRATA_ENABLED
 	FGBufferData GBufferData;
 	if (bPrevFrame)
 	{
@@ -273,8 +289,8 @@ FSSDCompressedSceneInfos SampleCompressedSceneMetadata(
 	{
 		GBufferData = GetGBufferDataFromSceneTextures(BufferUV);	
 	}
-
-	return GBufferDataToCompressedSceneMetadata(GBufferData);
+	return MaterialToCompressedSceneMetadata(GBufferData.Depth, GBufferData.WorldNormal, GBufferData.Roughness, GBufferData.ShadingModelID);
+  #endif  // STRATA_ENABLED
 }
 #elif CONFIG_METADATA_BUFFER_LAYOUT == METADATA_BUFFER_LAYOUT_FED_DEPTH_SHADINGMODEL
 {

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "LumenMaterial.ush"
 #include "../DeferredShadingCommon.ush"
 #include "LumenCardCommon.ush"
 #define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
@@ -481,7 +482,7 @@ void TraceVoxels(
 
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 	float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-	float3 SceneNormal = DecodeNormal(SceneTexturesStruct.GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
+	const float3 SceneNormal = ReadMaterialData(ScreenUV * View.BufferSizeAndInvSize.xy).WorldNormal;
 	FRayData RayData = GetRayData(ReflectionTracingCoord);
 
 	float3 SamplePosition = WorldPosition + SurfaceBias * RayData.Direction;

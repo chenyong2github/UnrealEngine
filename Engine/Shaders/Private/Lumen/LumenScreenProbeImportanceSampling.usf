@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "LumenMaterial.ush"
 #include "../DeferredShadingCommon.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenScreenProbeCommon.ush"
@@ -67,9 +68,9 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 
 	if (ScreenProbeIndex < GetNumScreenProbes() && ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
 	{
-		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
+		float ProbeSceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
-		if (SceneDepth > 0)
+		if (ProbeSceneDepth > 0)
 		{
 #define BRDF_PDF_SPHERICAL_HARMONIC 1
 #if BRDF_PDF_SPHERICAL_HARMONIC
@@ -97,15 +98,16 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 
 				float2 PixelScreenUV = ScreenUV + ThreadOffset * View.BufferSizeAndInvSize.zw;
 				PixelScreenUV = clamp(PixelScreenUV, View.ViewRectMin.xy * View.BufferSizeAndInvSize.zw, (View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy - 1) * View.BufferSizeAndInvSize.zw);
+				const uint2 PixelPos = PixelScreenUV * View.BufferSizeAndInvSize.xy;
 
-				FGBufferData GBufferData = GetGBufferData(PixelScreenUV);
+				const FLumenMaterialData Material = ReadMaterialData(PixelPos, PixelScreenUV);
 
-				float3 PixelPosition = GetWorldPositionFromScreenUV(PixelScreenUV, GBufferData.Depth);
-				float4 PixelPlane = float4(GBufferData.WorldNormal, dot(GBufferData.WorldNormal, PixelPosition));
-				float3 ProbeWorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+				float3 PixelPosition = GetWorldPositionFromScreenUV(PixelScreenUV, Material.SceneDepth);
+				float4 PixelPlane = float4(Material.WorldNormal, dot(Material.WorldNormal, PixelPosition));
+				float3 ProbeWorldPosition = GetWorldPositionFromScreenUV(ScreenUV, ProbeSceneDepth);
 
 				float PlaneDistance = abs(dot(float4(ProbeWorldPosition, -1), PixelPlane));
-				float RelativeDepthDifference = PlaneDistance / SceneDepth;
+				float RelativeDepthDifference = PlaneDistance / ProbeSceneDepth;
 				float DepthWeight = exp2(-10000.0f * (RelativeDepthDifference * RelativeDepthDifference));
 
 				if (DepthWeight > .1f || bCenterSample)
@@ -115,7 +117,7 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 
 					FThreeBandSHVector BRDF;
 
-					if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR || GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+					if (HasSphericalVisibility(Material))
 					{
 						// Avoid culling directions that the shading models will sample
 						BRDF = (FThreeBandSHVector)0;
@@ -123,7 +125,7 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 					}
 					else
 					{
-						BRDF = CalcDiffuseTransferSH3(GBufferData.WorldNormal, 1.0f);
+						BRDF = CalcDiffuseTransferSH3(Material.WorldNormal, 1.0f);
 					}
 
 					WriteGroupSharedSH(BRDF, Index);
@@ -217,17 +219,18 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 
 				float2 PixelScreenUV = ScreenUV + ThreadOffset * View.BufferSizeAndInvSize.zw;
 				PixelScreenUV = clamp(PixelScreenUV, View.ViewRectMin.xy * View.BufferSizeAndInvSize.zw, (View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy - 1) * View.BufferSizeAndInvSize.zw);
+				const uint2 PixelPos = PixelScreenUV * View.BufferSizeAndInvSize.xy;
 
-				FGBufferData GBufferData = GetGBufferData(PixelScreenUV);
+				const FLumenMaterialData Material = ReadMaterialData(PixelPos, PixelScreenUV);
 
-				float3 PixelPosition = GetWorldPositionFromScreenUV(PixelScreenUV, GBufferData.Depth);
-				float4 PixelPlane = float4(GBufferData.WorldNormal, dot(GBufferData.WorldNormal, PixelPosition));
+				float3 PixelPosition = GetWorldPositionFromScreenUV(PixelScreenUV, Material.SceneDepth);
+				float4 PixelPlane = float4(Material.WorldNormal, dot(Material.WorldNormal, PixelPosition));
 				PixelPlanes[GroupThreadId.x][GroupThreadId.y] = PixelPlane;
 			}
 
 			GroupMemoryBarrierWithGroupSync();
 
-			float3 ProbeWorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			float3 ProbeWorldPosition = GetWorldPositionFromScreenUV(ScreenUV, ProbeSceneDepth);
 
 			for (uint TexelCoordY = GroupThreadId.y; TexelCoordY < ScreenProbeBRDFOctahedronResolution; TexelCoordY += PROBE_THREADGROUP_SIZE_2D)
 			{

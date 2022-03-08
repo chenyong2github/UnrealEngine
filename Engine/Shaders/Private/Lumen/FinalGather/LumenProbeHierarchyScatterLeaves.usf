@@ -3,6 +3,8 @@
 
 //------------------------------------------------------- INCLUDES
 
+#include "../../Common.ush"
+#include "../LumenMaterial.ush"
 #include "../ProbeHierarchy/LumenProbeHierarchy.ush"
 #include "../../SceneTextureParameters.ush"
 #include "../../DeferredShadingCommon.ush"
@@ -73,16 +75,17 @@ void MainCS(
 
 	float2 ViewportUV = BufferUVToViewportUV(SceneBufferUV);
 	float2 ScreenPosition = ViewportUVToScreenPos(ViewportUV);
+	const uint2 PixelPos = SceneBufferUV * View.BufferSizeAndInvSize.xy;
 
 	float2 CenterSceneBufferUV = (GroupId * PROBE_HIERARCHY_EMIT_TILE_SIZE + PROBE_HIERARCHY_EMIT_TILE_SIZE / 2 + 0.5) * View.BufferSizeAndInvSize.zw;
 	float2 CenterViewportUV = BufferUVToViewportUV(CenterSceneBufferUV);
 	float2 CenterScreenPosition = ViewportUVToScreenPos(CenterViewportUV);
 	
 	// Sample scene textures.
-	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(SceneBufferUV);
-	float DeviceZ = SampleDeviceZFromSceneTextures(SceneBufferUV);
-	
-	bool bComputeIndirectLighting = ShouldComputeIndirectLighting(GBuffer.ShadingModelID);
+	const FLumenMaterialData Material = ReadMaterialData(PixelPos, SceneBufferUV);
+	const float DeviceZ = SampleDeviceZFromSceneTextures(SceneBufferUV);
+
+	const bool bComputeIndirectLighting = ShouldComputeIndirectLighting(Material);
 
 	{
 		SharedDepthArray[GroupThreadIndex] = bComputeIndirectLighting ? ConvertFromDeviceZ(DeviceZ) : -1.0;
