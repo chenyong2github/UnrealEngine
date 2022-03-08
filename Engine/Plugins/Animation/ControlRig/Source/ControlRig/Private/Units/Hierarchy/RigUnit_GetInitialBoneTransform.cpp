@@ -54,7 +54,7 @@ FRigUnit_GetInitialBoneTransform_Execute()
 FRigVMStructUpgradeInfo FRigUnit_GetInitialBoneTransform::GetUpgradeInfo() const
 {
 	FRigUnit_GetTransform NewNode;
-	NewNode.Item = FRigElementKey(Bone, ERigElementType::Control);
+	NewNode.Item = FRigElementKey(Bone, ERigElementType::Bone);
 	NewNode.Space = Space;
 	NewNode.bInitial = true;
 

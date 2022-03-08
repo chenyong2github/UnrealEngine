@@ -1685,6 +1685,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 				TArray<FName> SelectedNodeNames = Model->GetSelectNodes();
 				SelectedNodeNames.AddUnique(Context->Node->GetFName());
 
+				bool bCanNodeBeUpgraded = false; 
+
 				for(const FName& SelectedNodeName : SelectedNodeNames)
 				{
 					if (URigVMNode* ModelNode = Model->FindNodeByName(SelectedNodeName))
@@ -1854,6 +1856,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								}
 							}
 						}
+						
+						bCanNodeBeUpgraded = bCanNodeBeUpgraded || ModelNode->CanBeUpgraded();
 					}
 				}
 
@@ -2213,6 +2217,21 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									Controller->SetNodeSelection(ExpandedNodeNames);
 								}
 								Controller->CloseUndoBracket();
+							})
+						));
+					}
+
+					if(bCanNodeBeUpgraded)
+					{
+						FToolMenuSection& VersioningSection = Menu->AddSection("EdGraphSchemaVersioning", LOCTEXT("VersioningHeader", "Versioning"));
+						VersioningSection.AddMenuEntry(
+							"Upgrade Nodes",
+							LOCTEXT("UpgradeNodes", "Upgrade Nodes"),
+							LOCTEXT("UpgradeNodes_Tooltip", "Upgrades deprecated nodes to their current implementation"),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateLambda([Model, Controller]() {
+								TArray<FName> Nodes = Model->GetSelectNodes();
+								Controller->UpgradeNodes(Nodes, true, true);
 							})
 						));
 					}

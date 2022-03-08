@@ -50,7 +50,7 @@ FRigUnit_GetSpaceTransform_Execute()
 FRigVMStructUpgradeInfo FRigUnit_GetSpaceTransform::GetUpgradeInfo() const
 {
 	FRigUnit_GetTransform NewNode;
-	NewNode.Item = FRigElementKey(Space, ERigElementType::Control);
+	NewNode.Item = FRigElementKey(Space, ERigElementType::Null);
 	NewNode.Space = SpaceType;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);

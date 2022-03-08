@@ -51,6 +51,7 @@ FRigVMStructUpgradeInfo FRigUnit_SetBoneInitialTransform::GetUpgradeInfo() const
 	NewNode.Item = FRigElementKey(Bone, ERigElementType::Bone);
 	NewNode.Space = Space;
 	NewNode.Transform = Transform;
+	NewNode.bInitial = true;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
 	Info.AddRemappedPin(TEXT("Bone"), TEXT("Item.Name"));

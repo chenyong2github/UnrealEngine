@@ -39,7 +39,7 @@ FRigVMStructUpgradeInfo FRigUnit_TwoBoneIKSimple::GetUpgradeInfo() const
 {
 	FRigUnit_TwoBoneIKSimplePerItem NewNode;
 	NewNode.ItemA = FRigElementKey(BoneA, ERigElementType::Bone);
-	NewNode.ItemA = FRigElementKey(BoneB, ERigElementType::Bone);
+	NewNode.ItemB = FRigElementKey(BoneB, ERigElementType::Bone);
 	NewNode.EffectorItem = FRigElementKey(EffectorBone, ERigElementType::Bone);
 	NewNode.Effector = Effector;
 	NewNode.PrimaryAxis = PrimaryAxis;

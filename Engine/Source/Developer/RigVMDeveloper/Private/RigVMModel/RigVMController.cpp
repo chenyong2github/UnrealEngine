@@ -1667,6 +1667,18 @@ TArray<URigVMNode*> URigVMController::UpgradeNodes(const TArray<FName>& InNodeNa
 				*NodeNamesJoined));
 	}
 
+	// log a warning for all nodes which are still marked deprecated
+	for(URigVMNode* Node : Nodes)
+	{
+		if(URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
+		{
+			if(UnitNode->IsDeprecated())
+			{
+				ReportWarningf(TEXT("Node %s cannot be upgraded. There is no automatic upgrade path available."), *UnitNode->GetNodePath());
+			}
+		}
+	}
+
 	return Nodes;
 }
 
