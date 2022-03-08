@@ -28,8 +28,6 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 	const float RemapMin = FMath::Min(Settings->RemapMin, Settings->RemapMax);
 	const float RemapMax = FMath::Max(Settings->RemapMin, Settings->RemapMax);
 
-	const bool bTrivialRemapping = (RemapMin == 0.0f && RemapMax == 1.0f && Settings->bMultiplyDensity);
-
 	// TODO: embarassingly parallel loop
 	for (const FPCGTaggedData& Input : Inputs)
 	{
@@ -39,13 +37,6 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 		if (!Input.Data || Cast<UPCGSpatialData>(Input.Data) == nullptr)
 		{
 			PCGE_LOG(Error, "Invalid input data");
-			continue;
-		}
-
-		// Skip processing if the remapping is trivial
-		if (bTrivialRemapping)
-		{
-			PCGE_LOG(Verbose, "Skipped - trivial remapping");
 			continue;
 		}
 
@@ -81,7 +72,7 @@ bool FPCGLinearDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 			{
 				OutPoint = Points[Index];
 				FRandomStream RandomSource(PCGHelpers::ComputeSeed(Settings->Seed, OutPoint.Seed));
-				OutPoint.Density  = RandomSource.FRandRange(RemapMin, RemapMax);
+				OutPoint.Density = RandomSource.FRandRange(RemapMin, RemapMax);
 				return true;
 			});
 		}
