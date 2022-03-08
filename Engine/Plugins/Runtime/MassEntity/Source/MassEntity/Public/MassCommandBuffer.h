@@ -50,14 +50,14 @@ public:
 	void AddFragment(FMassEntityHandle Entity)
 	{
 		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct type is not a valid fragment type.");
-		PushCommand<FMassCommandAddFragment<T>>(Entity);
+		PushCommand<FMassCommandAddFragments<T>>(Entity);
 	}
 
 	template<typename T>
 	void RemoveFragment(FMassEntityHandle Entity)
 	{
 		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct type is not a valid fragment type.");
-		PushCommand<FMassCommandRemoveFragment<T>>(Entity);
+		PushCommand<FMassCommandRemoveFragments<T>>(Entity);
 	}
 
 	/** the convenience function equivalent to calling PushCommand<FMassCommandAddTag<T>>(Entity) */

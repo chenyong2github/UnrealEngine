@@ -130,9 +130,9 @@ protected:
 // Simple fragment composition change
 
 template<typename... TTypes>
-struct FMassCommandAddFragment : public FMassBatchedEntityCommand
+struct FMassCommandAddFragments : public FMassBatchedEntityCommand
 {
-	FMassCommandAddFragment()
+	FMassCommandAddFragments()
 	{
 		UE::Mass::TMultiTypeList<TTypes...>::PopulateBitSet(FragmentsAffected);
 		OperationType = EMassCommandOperationType::Add;
@@ -148,9 +148,9 @@ protected:
 };
 
 template<typename... TTypes>
-struct FMassCommandRemoveFragment : public FMassBatchedEntityCommand
+struct FMassCommandRemoveFragments : public FMassBatchedEntityCommand
 {
-	FMassCommandRemoveFragment()
+	FMassCommandRemoveFragments()
 	{
 		UE::Mass::TMultiTypeList<TTypes...>::PopulateBitSet(FragmentsAffected);
 		OperationType = EMassCommandOperationType::Remove;
