@@ -372,6 +372,16 @@ void USkeletalMeshComponent::RegisterComponentTickFunctions(bool bRegister)
 	UpdateClothTickRegisteredState();
 }
 
+void USkeletalMeshComponent::SetComponentTickEnabled(bool bEnabled)
+{
+	Super::SetComponentTickEnabled(bEnabled);
+
+	// Unregister the cloth tick function when the component's tick is being disabled (it will be re-enabled at the next component tick update once it runs again)
+	if (!bEnabled)
+	{
+		RegisterClothTick(false);
+	}
+}
 
 void USkeletalMeshComponent::RegisterEndPhysicsTick(bool bRegister)
 {
