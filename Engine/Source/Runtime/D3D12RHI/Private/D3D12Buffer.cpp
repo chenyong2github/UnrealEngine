@@ -5,7 +5,6 @@ D3D12Buffer.cpp: D3D Common code for buffers.
 =============================================================================*/
 
 #include "D3D12RHIPrivate.h"
-#include "D3D12RHIBridge.h"
 
 FD3D12Buffer::~FD3D12Buffer()
 {
@@ -309,7 +308,7 @@ FD3D12SyncPoint FD3D12Buffer::UploadResourceDataViaCopyQueue(FResourceArrayInter
 	bool bWaitForCompletion = false;
 
 	FD3D12SyncPoint CopyQueueSyncPoint;
-	D3D12RHI::ExecuteCodeWithCopyCommandQueueUsage([Device, &hCopyCommandList, bWaitForCompletion, &CopyQueueSyncPoint](ID3D12CommandQueue* D3DCommandQueue) -> void
+	GetID3D12DynamicRHI()->RHIExecuteOnCopyCommandQueue([Device, &hCopyCommandList, bWaitForCompletion, &CopyQueueSyncPoint](ID3D12CommandQueue* D3DCommandQueue) -> void
 	{
 		CopyQueueSyncPoint = Device->GetCopyCommandListManager().ExecuteCommandListNoCopyQueueSync(hCopyCommandList, bWaitForCompletion);
 	});

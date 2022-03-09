@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "DynamicRHI.h"
+#include "RHI.h"
+#include "Templates/Function.h"
 
 #if PLATFORM_WINDOWS
 	#include "Windows/D3D12ThirdParty.h"
@@ -48,6 +49,8 @@ struct ID3D12DynamicRHI : public FDynamicRHI
 
 	virtual void                  RHIRegisterWork(uint32 InDeviceIndex, uint32 NumPrimitives) = 0;
 	virtual void                  RHIAddPendingBarrier(FRHITexture* InTexture, D3D12_RESOURCE_STATES InState, uint32 InSubResource) = 0;
+
+	virtual void                  RHIExecuteOnCopyCommandQueue(TFunction<void(ID3D12CommandQueue*)>&& CodeToRun) = 0;
 
 	static D3D12RHI_API bool      IsD3DDebugEnabled();
 };

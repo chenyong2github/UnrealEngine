@@ -454,6 +454,7 @@ public:
 	virtual void RHIFinishExternalComputeWork(uint32 InDeviceIndex, ID3D12GraphicsCommandList* InCommandList) final override;
 	virtual void RHIRegisterWork(uint32 InDeviceIndex, uint32 NumPrimitives) final override;
 	virtual void RHIAddPendingBarrier(FRHITexture* InTexture, D3D12_RESOURCE_STATES InState, uint32 InSubResource) final override;
+	virtual void RHIExecuteOnCopyCommandQueue(TFunction<void(ID3D12CommandQueue*)>&& CodeToRun) final override;
 
 	//
 	// The Following functions are the _RenderThread version of the above functions. They allow the RHI to control the thread synchronization for greater efficiency.
@@ -1197,6 +1198,9 @@ protected:
 	/** A buffer in system memory containing all zeroes of the specified size. */
 	void* ZeroBuffer;
 	uint32 ZeroBufferSize;
+
+	/* Primary lock for RHIExecuteOnCopyCommandQueue */
+	FCriticalSection CopyQueueCS;
 
 public:
 

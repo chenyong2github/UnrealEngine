@@ -523,6 +523,17 @@ void FD3D12DynamicRHI::RHIAddPendingBarrier(FRHITexture* InTexture, D3D12_RESOUR
 	CommandList.AddPendingResourceBarrier(D3D12Texture->GetResource(), InState, InSubResource);
 }
 
+void FD3D12DynamicRHI::RHIExecuteOnCopyCommandQueue(TFunction<void(ID3D12CommandQueue*)>&& CodeToRun)
+{
+	ID3D12CommandQueue* CommandQueue = GetAdapter().GetDevice(0)->GetD3DCommandQueue(ED3D12CommandQueueType::Copy);
+	checkSlow(CommandQueue);
+
+	{
+		FScopeLock Lock(&CopyQueueCS);
+		CodeToRun(CommandQueue);
+	}
+}
+
 bool ID3D12DynamicRHI::IsD3DDebugEnabled()
 {
 	return D3D12RHI_ShouldCreateWithD3DDebug();

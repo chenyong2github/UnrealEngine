@@ -2,7 +2,6 @@
 
 #include "D3D12RHIPrivate.h"
 #include "D3D12CommandList.h"
-#include "D3D12RHIBridge.h"
 #include "RHIValidation.h"
 
 static int32 GD3D12BatchResourceBarriers = 1;
@@ -332,8 +331,6 @@ void FD3D12CommandAllocator::Init(ID3D12Device* InDevice, const D3D12_COMMAND_LI
 
 namespace D3D12RHI
 {
-	static FCriticalSection CopyQueueCS;
-
 	void GetGfxCommandListAndQueue(FRHICommandList& RHICmdList, void*& OutGfxCmdList, void*& OutCommandQueue)
 	{
 		IRHICommandContext& RHICmdContext = RHICmdList.GetContext();
@@ -354,20 +351,4 @@ namespace D3D12RHI
 		ID3D12CommandQueue* CommandQueue = BaseCmdContext.GetParentAdapter()->GetDevice(0)->GetD3DCommandQueue();
 		OutCommandQueue = CommandQueue;
 	}
-
-	D3D12RHI_API void ExecuteCodeWithCopyCommandQueueUsage(TFunction<void(ID3D12CommandQueue*)>&& CodeToRun)
-	{
-		IRHICommandContext* Context = GDynamicRHI->RHIGetDefaultContext();
-		checkSlow(Context);
-		FD3D12CommandContextBase& BaseCmdContext = (FD3D12CommandContextBase&)Context->GetLowestLevelContext();
-
-		ID3D12CommandQueue* CommandQueue = BaseCmdContext.GetParentAdapter()->GetDevice(0)->GetD3DCommandQueue(ED3D12CommandQueueType::Copy);
-		checkSlow(CommandQueue);
-
-		{
-			FScopeLock Lock(&CopyQueueCS);
-			CodeToRun(CommandQueue);
-		}
-	}
-
 }
