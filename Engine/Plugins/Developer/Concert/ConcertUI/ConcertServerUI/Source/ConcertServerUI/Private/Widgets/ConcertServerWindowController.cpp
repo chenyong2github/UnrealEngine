@@ -95,7 +95,7 @@ TSharedPtr<FConcertServerSessionTab> FConcertServerWindowController::GetOrRegist
 			return *FoundId;
 		}
 	
-		const TSharedRef<FConcertServerSessionTab> SessionTab = MakeShared<FConcertServerSessionTab>(Session.ToSharedRef(), RootWindow.ToSharedRef());
+		const TSharedRef<FConcertServerSessionTab> SessionTab = MakeShared<FConcertServerSessionTab>(Session.ToSharedRef(), ServerInstance.ToSharedRef(), RootWindow.ToSharedRef());
 		RegisteredSessions.Add(SessionInfo.SessionId, SessionTab);
 		return SessionTab;
 	}

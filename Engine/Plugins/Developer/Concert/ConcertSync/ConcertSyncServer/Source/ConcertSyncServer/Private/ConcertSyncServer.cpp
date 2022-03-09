@@ -261,6 +261,24 @@ void FConcertSyncServer::SetFileSharingService(TSharedPtr<IConcertFileSharingSer
 	FileSharingService = MoveTemp(InFileSharingService);
 }
 
+TOptional<FConcertSyncSessionDatabaseNonNullPtr> FConcertSyncServer::GetLiveSessionDatabase(const FGuid& SessionId)
+{
+	if (const TSharedPtr<FConcertSyncServerLiveSession>* Session = LiveSessions.Find(SessionId))
+	{
+		return { &Session->Get()->GetSessionDatabase() };
+	}
+	return {};
+}
+
+TOptional<FConcertSyncSessionDatabaseNonNullPtr> FConcertSyncServer::GetArchivedSessionDatabase(const FGuid& SessionId)
+{
+	if (const TSharedPtr<FConcertSyncServerArchivedSession>* Session = ArchivedSessions.Find(SessionId))
+	{
+		return { &Session->Get()->GetSessionDatabase() };
+	}
+	return {};
+}
+
 void FConcertSyncServer::GetSessionsFromPathImpl(const IConcertServer& InServer, const FString& InPath, TArray<FConcertSessionInfo>& OutSessionInfos, TArray<FDateTime>* OutSessionCreationTimes)
 {
 	IFileManager::Get().IterateDirectory(*InPath, [&OutSessionInfos, &OutSessionCreationTimes](const TCHAR* FilenameOrDirectory, bool bIsDirectory) -> bool

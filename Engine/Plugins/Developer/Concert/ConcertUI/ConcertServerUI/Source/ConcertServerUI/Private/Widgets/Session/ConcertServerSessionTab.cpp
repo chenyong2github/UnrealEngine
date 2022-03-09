@@ -9,9 +9,10 @@
 #include "Widgets/StatusBar/SConcertStatusBar.h"
 #include "Widgets/Session/SConcertSessionInspector.h"
 
-FConcertServerSessionTab::FConcertServerSessionTab(TSharedRef<IConcertServerSession> InspectedSession, const TSharedRef<SWindow>& ConstructUnderWindow)
+FConcertServerSessionTab::FConcertServerSessionTab(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer, const TSharedRef<SWindow>& ConstructUnderWindow)
 	: InspectedSession(MoveTemp(InspectedSession))
-	, DockTab(CreateTab(InspectedSession, ConstructUnderWindow))
+	, SessionHistoryController(MakeShared<FServerSessionHistoryController>(InspectedSession, SyncServer))
+	, DockTab(CreateTab(ConstructUnderWindow))
 {}
 
 void FConcertServerSessionTab::OpenSessionTab() const
@@ -29,20 +30,20 @@ void FConcertServerSessionTab::OpenSessionTab() const
 	}
 }
 
-TSharedRef<SDockTab> FConcertServerSessionTab::CreateTab(const TSharedRef<IConcertServerSession>& InspectedSession, const TSharedRef<SWindow>& ConstructUnderWindow)
+TSharedRef<SDockTab> FConcertServerSessionTab::CreateTab(const TSharedRef<SWindow>& ConstructUnderWindow) const
 {
 	const FText Title = FText::FromString(InspectedSession->GetSessionInfo().SessionName);
-	TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+	TSharedRef<SDockTab> NewDockTab = SNew(SDockTab)
 		.Label(Title)
 		.TabRole(MajorTab);
-	DockTab->SetContent(
-		SNew(SConcertSessionInspector, DockTab, ConstructUnderWindow)
+	NewDockTab->SetContent(
+		SNew(SConcertSessionInspector, SConcertSessionInspector::FRequiredArgs{NewDockTab, ConstructUnderWindow, SessionHistoryController})
 			.StatusBar()
 			[
 				SNew(SConcertStatusBar, *GetTabPlayerHolderId(InspectedSession))
 			]
 		);
-	return DockTab;
+	return NewDockTab;
 }
 
 FString FConcertServerSessionTab::GetTabPlayerHolderId(const TSharedRef<IConcertServerSession>& InspectedSession)

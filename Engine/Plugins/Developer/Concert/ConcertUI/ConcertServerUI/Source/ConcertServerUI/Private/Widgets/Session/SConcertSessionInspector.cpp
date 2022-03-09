@@ -3,6 +3,7 @@
 #include "Widgets/Session/SConcertSessionInspector.h"
 
 #include "Framework/Docking/TabManager.h"
+#include "SessionHistory/SSessionHistory.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SWindow.h"
 
@@ -12,7 +13,7 @@ const FName SConcertSessionInspector::HistoryTabId("HistoryTabId");
 const FName SConcertSessionInspector::SessionContentTabId("SessionContentTabId");
 const FName SConcertSessionInspector::ConnectionMonitorTabId("ConnectionMonitorTabId");
 
-void SConcertSessionInspector::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedRef<SWindow>& ConstructUnderWindow)
+void SConcertSessionInspector::Construct(const FArguments& InArgs, const FRequiredArgs& RequiredArgs)
 {
 	ChildSlot
 	[
@@ -37,7 +38,7 @@ void SConcertSessionInspector::Construct(const FArguments& InArgs, const TShared
 				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Title"))
 				.Padding(FMargin(0.f, 0.f, 0.f, 5.0f)) // Visually separate status bar from tabs
 				[
-					CreateTabs(ConstructUnderMajorTab, ConstructUnderWindow)
+					CreateTabs(InArgs, RequiredArgs)
 				]
 			]
 
@@ -52,11 +53,11 @@ void SConcertSessionInspector::Construct(const FArguments& InArgs, const TShared
 	];
 }
 
-TSharedRef<SWidget> SConcertSessionInspector::CreateTabs(const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedRef<SWindow>& ConstructUnderWindow)
+TSharedRef<SWidget> SConcertSessionInspector::CreateTabs(const FArguments& InArgs, const FRequiredArgs& RequiredArgs)
 {
-	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
+	TabManager = FGlobalTabmanager::Get()->NewTabManager(RequiredArgs.ConstructUnderMajorTab);
 	
-	TabManager->RegisterTabSpawner(HistoryTabId, FOnSpawnTab::CreateSP(this, &SConcertSessionInspector::SpawnActivityHistory))
+	TabManager->RegisterTabSpawner(HistoryTabId, FOnSpawnTab::CreateSP(this, &SConcertSessionInspector::SpawnActivityHistory, RequiredArgs.SessionHistoryController))
 		.SetDisplayName(LOCTEXT("ActivityHistoryLabel", "History"));
 	
 	TabManager->RegisterTabSpawner(SessionContentTabId, FOnSpawnTab::CreateSP(this, &SConcertSessionInspector::SpawnSessionContent))
@@ -96,16 +97,16 @@ TSharedRef<SWidget> SConcertSessionInspector::CreateTabs(const TSharedRef<SDockT
 				)
 		);
 
-	return TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef();
+	return TabManager->RestoreFrom(Layout, RequiredArgs.ConstructUnderWindow).ToSharedRef();
 }
 
-TSharedRef<SDockTab> SConcertSessionInspector::SpawnActivityHistory(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> SConcertSessionInspector::SpawnActivityHistory(const FSpawnTabArgs& Args, TSharedRef<FServerSessionHistoryController> SessionHistoryController)
 {
 	return SNew(SDockTab)
 		.Label(LOCTEXT("ActivityHistoryLabel", "History"))
 		.TabRole(PanelTab)
 		[
-			SNullWidget::NullWidget
+			SessionHistoryController->GetSessionHistory()
 		];
 }
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ServerSessionHistoryController.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
@@ -22,6 +23,19 @@ class SConcertSessionInspector : public SCompoundWidget
 {
 public:
 
+	struct FRequiredArgs
+	{
+		TSharedRef<SDockTab> ConstructUnderMajorTab;
+		TSharedRef<SWindow> ConstructUnderWindow;
+		TSharedRef<FServerSessionHistoryController> SessionHistoryController;
+
+		FRequiredArgs(TSharedRef<SDockTab> ConstructUnderMajorTab, TSharedRef<SWindow> ConstructUnderWindow,TSharedRef<FServerSessionHistoryController> SessionHistoryController)
+			: ConstructUnderMajorTab(MoveTemp(ConstructUnderMajorTab))
+			, ConstructUnderWindow(MoveTemp(ConstructUnderWindow))
+			, SessionHistoryController(MoveTemp(SessionHistoryController))
+		{}
+	};
+
 	static const FName HistoryTabId;
 	static const FName SessionContentTabId;
 	static const FName ConnectionMonitorTabId;
@@ -30,7 +44,7 @@ public:
 		SLATE_NAMED_SLOT(FArguments, StatusBar)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedRef<SWindow>& ConstructUnderWindow);
+	void Construct(const FArguments& InArgs, const FRequiredArgs& RequiredArgs);
 
 private:
 	
@@ -38,8 +52,8 @@ private:
 	TSharedPtr<FTabManager> TabManager;
 
 	// Spawn tabs
-	TSharedRef<SWidget> CreateTabs(const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedRef<SWindow>& ConstructUnderWindow);
-	TSharedRef<SDockTab> SpawnActivityHistory(const FSpawnTabArgs& Args);
+	TSharedRef<SWidget> CreateTabs(const FArguments& InArgs, const FRequiredArgs& RequiredArgs);
+	TSharedRef<SDockTab> SpawnActivityHistory(const FSpawnTabArgs& Args, TSharedRef<FServerSessionHistoryController> SessionHistoryController);
 	TSharedRef<SDockTab> SpawnSessionContent(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnConnectionMonitor(const FSpawnTabArgs& Args);
 };

@@ -5,9 +5,13 @@
 #include "CoreMinimal.h"
 #include "IConcertModule.h"
 #include "ConcertSyncSessionFlags.h"
-class IConcertFileSharingService;
+#include "Templates/NonNullPointer.h"
 
+class FConcertSyncSessionDatabase;
+class IConcertFileSharingService;
 class UConcertServerConfig;
+
+using FConcertSyncSessionDatabaseNonNullPtr = TNonNullPtr<FConcertSyncSessionDatabase>;
 
 /**
  * Interface for a Concert Sync Server.
@@ -28,4 +32,10 @@ public:
 
 	/** Set the file sharing service, enabling the server to work with large files. The server sharing service must be compatible with the client one. */
 	virtual void SetFileSharingService(TSharedPtr<IConcertFileSharingService> InFileSharingService) = 0;
+
+	/** Gets the session data base for the given live session if it exists */
+	virtual TOptional<FConcertSyncSessionDatabaseNonNullPtr> GetLiveSessionDatabase(const FGuid& SessionId) = 0;
+
+	/** Gets the session data base for the given archived session if it exists */
+	virtual TOptional<FConcertSyncSessionDatabaseNonNullPtr> GetArchivedSessionDatabase(const FGuid& SessionId) = 0;
 };
