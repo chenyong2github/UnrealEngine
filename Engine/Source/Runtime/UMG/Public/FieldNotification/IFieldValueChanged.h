@@ -27,13 +27,16 @@ public:
 
 public:
 	/** Add a delegate that will be notified when the FieldId is value changed. */
-	virtual FDelegateHandle AddFieldValueChangedDelegate(UE::FieldNotification::FFieldId FieldId, FFieldValueChangedDelegate InNewDelegate) = 0;
+	virtual FDelegateHandle AddFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FFieldValueChangedDelegate InNewDelegate) = 0;
 
 	/** Remove a delegate that was added. */
-	virtual bool RemoveFieldValueChangedDelegate(UE::FieldNotification::FFieldId FieldId, FDelegateHandle Handle) = 0;
+	virtual bool RemoveFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FDelegateHandle InHandle) = 0;
 
 	/** Remove all the delegate that are bound to the specified UserObject. */
 	virtual int32 RemoveAllFieldValueChangedDelegates(const void* InUserObject) = 0;
+
+	/** Remove all the delegate that are bound to the specified Field and UserObject. */
+	virtual int32 RemoveAllFieldValueChangedDelegates(UE::FieldNotification::FFieldId InFieldId, const void* InUserObject) = 0;
 
 	/** @returns the list of all the field that can notify when their value changes. */
 	virtual const UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const = 0;

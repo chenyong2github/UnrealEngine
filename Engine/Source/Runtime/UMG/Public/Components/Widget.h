@@ -724,6 +724,7 @@ public:
 	virtual FDelegateHandle AddFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FFieldValueChangedDelegate InNewDelegate) override final;
 	virtual bool RemoveFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FDelegateHandle InHandle) override final;
 	virtual int32 RemoveAllFieldValueChangedDelegates(const void* InUserObject) override final;
+	virtual int32 RemoveAllFieldValueChangedDelegates(UE::FieldNotification::FFieldId InFieldId, const void* InUserObject) override final;
 	//~ End INotifyFieldValueChanged Interface
 
 public:

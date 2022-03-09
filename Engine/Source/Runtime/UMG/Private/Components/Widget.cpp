@@ -1719,6 +1719,21 @@ int32 UWidget::RemoveAllFieldValueChangedDelegates(const void* InUserObject)
 	return bResult;
 }
 
+int32 UWidget::RemoveAllFieldValueChangedDelegates(UE::FieldNotification::FFieldId InFieldId, const void* InUserObject)
+{
+	int32 bResult = 0;
+	if (InUserObject)
+	{
+		if (UWidgetFieldNotificationExtension* Extension = UE::UMG::Private::FindOrAddWidgetNotifyExtension(this))
+		{
+			UWidgetFieldNotificationExtension::FRemoveAllResult RemoveResult = Extension->RemoveAllFieldValueChangedDelegates(this, InFieldId, InUserObject);
+			bResult = RemoveResult.RemoveCount;
+			EnabledFieldNotifications = RemoveResult.HasFields;
+		}
+	}
+	return bResult;
+}
+
 void UWidget::BroadcastFieldValueChanged(UE::FieldNotification::FFieldId InFieldId)
 {
 	if (InFieldId.IsValid() && EnabledFieldNotifications.IsValidIndex(InFieldId.GetIndex()) && EnabledFieldNotifications[InFieldId.GetIndex()])

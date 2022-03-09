@@ -38,6 +38,11 @@ public:
 		return Delegates.RemoveAll(InObject, InUserObject);
 	}
 
+	FRemoveAllResult RemoveAllFieldValueChangedDelegates(const UVisual* InObject, FFieldId InFieldId, const void* InUserObject)
+	{
+		return Delegates.RemoveAll(InObject, InFieldId, InUserObject);
+	}
+
 	void BroadcastFieldValueChanged(UVisual* InObject, UE::FieldNotification::FFieldId InFieldId)
 	{
 		Delegates.Broadcast(InObject, InFieldId);
