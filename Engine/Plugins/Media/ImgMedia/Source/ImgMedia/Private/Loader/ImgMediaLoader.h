@@ -239,12 +239,9 @@ public:
 	 * @param SequencePath Path to the image sequence.
 	 * @param FrameRateOverride The frame rate to use (0/0 = do not override).
 	 * @param Loop Whether the cache should loop around.
-	 * @param InNumTilesX Number of tiles in the X direction.
-	 * @param InNumTilesY Number of tiles in the Y direction.
 	 * @see IsInitialized
 	 */
-	void Initialize(const FString& SequencePath, const FFrameRate& FrameRateOverride, bool Loop,
-		int32 InNumTilesX, int32 InNumTilesY);
+	void Initialize(const FString& SequencePath, const FFrameRate& FrameRateOverride, bool Loop);
 
 	/**
 	 * Whether this loader has been initialized yet.
@@ -338,6 +335,11 @@ protected:
 	 * @param SequencePath Directory of sequence.
 	 */
 	void FindMips(const FString& SequencePath);
+
+	/**
+	 * Gets information for tiling from the sequence.
+	 */
+	void GetTileInformation();
 
 	/**
 	 * Get the frame number corresponding to the specified play head time.
@@ -445,6 +447,9 @@ private:
 
 	/** If true, then any gaps in the sequence will be filled with blank frames. */
 	bool bFillGapsInSequence;
+
+	/** True if this sequence contains tiles. */
+	bool bIsTiled;
 
 	/** Number of tiles in the X direction. */
 	int32 NumTilesX;

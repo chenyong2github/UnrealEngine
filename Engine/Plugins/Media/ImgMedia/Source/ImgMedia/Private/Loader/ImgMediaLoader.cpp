@@ -63,6 +63,7 @@ FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::T
 	, ImageWrapperModule(FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper"))
 	, Initialized(false)
 	, bFillGapsInSequence(bInFillGapsInSequence)
+	, bIsTiled(false)
 	, NumTilesX(0)
 	, NumTilesY(0)
 	, NumLoadAhead(0)
@@ -623,7 +624,7 @@ IQueuedWork* FImgMediaLoader::GetWork()
 
 
 void FImgMediaLoader::Initialize(const FString& SequencePath, const FFrameRate& FrameRateOverride,
-	bool Loop, int32 InNumTilesX, int32 InNumTilesY)
+	bool Loop)
 {
 	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Initializing with %s (FrameRateOverride = %s, Loop = %i)"),
 		this,
@@ -633,15 +634,6 @@ void FImgMediaLoader::Initialize(const FString& SequencePath, const FFrameRate& 
 	);
 
 	check(!Initialized); // reinitialization not allowed for now
-
-	// Set up tile info.
-	NumTilesX = InNumTilesX;
-	NumTilesY = InNumTilesY;
-	if ((NumTilesX < 1) || (NumTilesY < 1))
-	{
-		NumTilesX = 1;
-		NumTilesY = 1;
-	}
 
 	LoadSequence(SequencePath, FrameRateOverride, Loop);
 	FPlatformMisc::MemoryBarrier();
@@ -722,6 +714,9 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 
 	// Get mips.
 	FindMips(SequencePath);
+
+	// Get tile info.
+	GetTileInformation();
 
 	FScopeLock Lock(&CriticalSection);
 
@@ -855,10 +850,19 @@ void FImgMediaLoader::FindFiles(const FString& SequencePath, TArray<FString>& Ou
 	IFileManager::Get().FindFiles(FoundFiles, *SequencePath, TEXT("*"));
 
 	// If we did not find any files, then maybe we have tile directories.
-	bool bIsTiled = FoundFiles.Num() == 0;
-	if (bIsTiled)
+	// If we already have tiles then don't do anything.
+	if (bIsTiled == false)
 	{
-		IFileManager::Get().FindFiles(FoundFiles, *(SequencePath / TEXT("*")), false, true);
+		bIsTiled = FoundFiles.Num() == 0;
+		if (bIsTiled)
+		{
+			IFileManager::Get().FindFiles(FoundFiles, *(SequencePath / TEXT("*")), false, true);
+			if (FoundFiles.Num() == 0)
+			{
+				// We really got nothing.
+				bIsTiled = false;
+			}
+		}
 	}
 
 	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Found %i image files in %s"), this, FoundFiles.Num(), *SequencePath);
@@ -977,6 +981,49 @@ void FImgMediaLoader::FindMips(const FString& SequencePath)
 	}
 }
 
+void FImgMediaLoader::GetTileInformation()
+{
+	NumTilesX = 1;
+	NumTilesY = 1;
+
+	// Do we have tiles?
+	if (bIsTiled)
+	{
+		// Get the last file as that will tell us the number of tiles.
+		FString Path = FPaths::GetPath(ImagePaths[0][0]);
+		TArray<FString> FoundFiles;
+		IFileManager::Get().FindFiles(FoundFiles, *Path, TEXT("*"));
+		FoundFiles.Sort();
+		if (FoundFiles.Num() > 0)
+		{
+			// Remove the file extension.
+			Path = FPaths::ChangeExtension(FoundFiles[FoundFiles.Num() - 1], TEXT(""));
+
+			// Filename should be ????_x0_y0.
+			// Find the last y.
+			int32 YIndex = 0;
+			if (Path.FindLastChar(TEXT('y'), YIndex))
+			{
+				// Extract out the number.
+				int32 YLength = Path.Len() - (YIndex + 1);
+				FString NumberString = Path.Right(YLength);
+				// We count from 0, so add 1 to get the number of tiles.
+				NumTilesY = FCString::Atoi(*NumberString) + 1;
+
+				// Find the last x.
+				int32 XIndex = 0;
+				if (Path.FindLastChar(TEXT('x'), XIndex))
+				{
+					// Extract out the number.
+					XIndex++;
+					int32 XLength = Path.Len() - XIndex - YLength - 2;
+					NumberString = Path.Mid(XIndex, XLength);
+					NumTilesX = FCString::Atoi(*NumberString) + 1;
+				}
+			}
+		}
+	}
+}
 
 uint32 FImgMediaLoader::TimeToFrameNumber(FTimespan Time) const
 {

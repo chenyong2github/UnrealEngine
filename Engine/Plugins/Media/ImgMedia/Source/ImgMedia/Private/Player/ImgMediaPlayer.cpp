@@ -182,15 +182,11 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 	FFrameRate FrameRateOverride(0, 0);
 	TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe> MipMapInfo;
 	bool bFillGapsInSequence = true;
-	int32 NumTilesX = 0;
-	int32 NumTilesY = 0;
 	if (Options != nullptr)
 	{
 		FrameRateOverride.Denominator = Options->GetMediaOption(ImgMedia::FrameRateOverrideDenonimatorOption, 0LL);
 		FrameRateOverride.Numerator = Options->GetMediaOption(ImgMedia::FrameRateOverrideNumeratorOption, 0LL);
 		bFillGapsInSequence = Options->GetMediaOption(ImgMedia::FillGapsInSequenceOption, true);
-		NumTilesX = Options->GetMediaOption(ImgMedia::NumTilesXOption, (int64)0);
-		NumTilesY = Options->GetMediaOption(ImgMedia::NumTilesYOption, (int64)0);
 
 		TSharedPtr<IMediaOptions::FDataContainer, ESPMode::ThreadSafe> DefaultValue;
 		TSharedPtr<IMediaOptions::FDataContainer, ESPMode::ThreadSafe> DataContainer = Options->GetMediaOption(ImgMedia::MipMapInfoOption, DefaultValue);
@@ -218,8 +214,7 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 
 	const FString SequencePath = Url.RightChop(6);
 
-	Async(EAsyncExecution::ThreadPool, [FrameRateOverride, LoaderPtr = TWeakPtr<FImgMediaLoader,ESPMode::ThreadSafe>(Loader),
-		Proxy, SequencePath, Loop = ShouldLoop, NumTilesX, NumTilesY]()
+	Async(EAsyncExecution::ThreadPool, [FrameRateOverride, LoaderPtr = TWeakPtr<FImgMediaLoader, ESPMode::ThreadSafe>(Loader), Proxy, SequencePath, Loop = ShouldLoop]()
 	{
 		TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> PinnedLoader = LoaderPtr.Pin();
 
@@ -232,7 +227,7 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 				ProxyPath = SequencePath; // fall back to root folder
 			}
 
-			PinnedLoader->Initialize(ProxyPath, FrameRateOverride, Loop, NumTilesX, NumTilesY);
+			PinnedLoader->Initialize(ProxyPath, FrameRateOverride, Loop);
 		}
 	});
 
