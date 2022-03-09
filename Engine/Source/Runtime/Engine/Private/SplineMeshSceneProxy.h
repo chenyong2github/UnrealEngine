@@ -49,7 +49,7 @@ public:
 // FSplineMeshVertexFactoryShaderParameters
 
 /** Factory specific params */
-class FSplineMeshVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
+class FSplineMeshVertexFactoryShaderParameters : public FLocalVertexFactoryShaderParametersBase
 {
 	DECLARE_TYPE_LAYOUT(FSplineMeshVertexFactoryShaderParameters, NonVirtual);
 public:

@@ -287,7 +287,7 @@ void MemcpyResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, 
 
 	if (ResourceTypeTraits<ResourceType>::Type == EResourceType::TEXTURE)
 	{
-		uint16 PrimitivesPerTextureLine = FMath::Min((int32)MAX_uint16, (int32)GMaxTextureDimensions) / (FScatterUploadBuffer::PrimitiveDataStrideInFloat4s);
+		uint16 PrimitivesPerTextureLine = FMath::Min((int32)8192, (int32)GMaxTextureDimensions) / (FScatterUploadBuffer::PrimitiveDataStrideInFloat4s);
 		Parameters.Common.Float4sPerLine = PrimitivesPerTextureLine * FScatterUploadBuffer::PrimitiveDataStrideInFloat4s;
 	}
 
@@ -310,7 +310,7 @@ template<>
 RENDERCORE_API bool ResizeResourceIfNeeded<FTextureRWBuffer2D>(FRHICommandList& RHICmdList, FTextureRWBuffer2D& Texture, uint32 NumBytes, const TCHAR* DebugName)
 {
 	check((NumBytes & 15) == 0);
-	uint16 PrimitivesPerTextureLine = FMath::Min((int32)MAX_uint16, (int32)GMaxTextureDimensions) / (FScatterUploadBuffer::PrimitiveDataStrideInFloat4s);
+	uint16 PrimitivesPerTextureLine = FMath::Min((int32)8192, (int32)GMaxTextureDimensions) / (FScatterUploadBuffer::PrimitiveDataStrideInFloat4s);
 	uint32 Float4sPerLine = PrimitivesPerTextureLine * FScatterUploadBuffer::PrimitiveDataStrideInFloat4s;
 	uint32 BytesPerLine = Float4sPerLine * 16;
 
@@ -456,7 +456,7 @@ void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, Resourc
 	
 	if (ResourceTypeTraits<ResourceType>::Type == EResourceType::TEXTURE)
 	{
-		uint16 PrimitivesPerTextureLine = FMath::Min((int32)MAX_uint16, (int32)GMaxTextureDimensions) / (FScatterUploadBuffer::PrimitiveDataStrideInFloat4s);
+		uint16 PrimitivesPerTextureLine = FMath::Min((int32)8192, (int32)GMaxTextureDimensions) / (FScatterUploadBuffer::PrimitiveDataStrideInFloat4s);
 		Parameters.Common.Float4sPerLine = PrimitivesPerTextureLine * FScatterUploadBuffer::PrimitiveDataStrideInFloat4s;;
 	}
 

@@ -34,7 +34,13 @@ static FAutoConsoleVariableRef CVarNoRecreateSplineMeshProxy(
 
 void FSplineMeshVertexFactoryShaderParameters::Bind(const FShaderParameterMap& ParameterMap)
 {
-	SplineMeshParams.Bind(ParameterMap, TEXT("SplineParams"), SPF_Mandatory);
+	FLocalVertexFactoryShaderParametersBase::Bind(ParameterMap);
+
+	// Shader bind SplineParams only if FSplineMeshVertexFactory uses the Primitive uniform buffer.
+	if (ParameterMap.ContainsParameterAllocation(FPrimitiveUniformShaderParameters::StaticStructMetadata.GetShaderVariableName()))
+	{
+		SplineMeshParams.Bind(ParameterMap, TEXT("SplineParams"), SPF_Mandatory);
+	}
 }
 
 void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
@@ -49,6 +55,12 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 	FVertexInputStreamArray& VertexStreams
 ) const
 {
+	{
+		const auto* LocalVertexFactory = static_cast<const FLocalVertexFactory*>(VertexFactory);
+		FRHIUniformBuffer* VertexFactoryUniformBuffer = LocalVertexFactory->GetUniformBuffer();
+		FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
+	}
+
 	if (BatchElement.bUserDataIsColorVertexBuffer)
 	{
 		const auto* LocalVertexFactory = static_cast<const FLocalVertexFactory*>(VertexFactory);
@@ -93,7 +105,7 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FSplineMeshVertexFactory, SF_Vertex, FSplineMeshVertexFactoryShaderParameters);
 
-IMPLEMENT_VERTEX_FACTORY_TYPE(FSplineMeshVertexFactory, "/Engine/Private/LocalVertexFactory.ush", true, true, true, true, true);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FSplineMeshVertexFactory, "/Engine/Private/LocalVertexFactory.ush", true, true, true, true, true, true, true);
 
 //////////////////////////////////////////////////////////////////////////
 // SplineMeshSceneProxy
@@ -547,6 +559,40 @@ FPrimitiveSceneProxy* USplineMeshComponent::CreateSceneProxy()
 
 	if (bMeshIsValid)
 	{
+		// Set the CustomPrimitiveData of USplineMeshComponent here.
+		{
+			float SplineMeshScaleZ = 1.f;
+			float SplineMeshMinZ = 1.f;
+			CalculateScaleZAndMinZ(SplineMeshScaleZ, SplineMeshMinZ);
+
+			FVector4 ParamData[10];
+			ParamData[0] = FVector4(SplineParams.StartPos, SplineParams.StartRoll);
+			ParamData[1] = FVector4(SplineParams.StartTangent, SplineParams.EndRoll);
+			ParamData[2] = FVector4(SplineParams.StartScale, SplineParams.StartOffset);
+			ParamData[3] = FVector4(SplineParams.EndPos, (float)bSmoothInterpRollScale);
+			ParamData[4] = FVector4(SplineParams.EndTangent, SplineMeshMinZ);
+			ParamData[5] = FVector4(SplineParams.EndScale, SplineParams.EndOffset);
+			ParamData[6] = FVector4(SplineUpDir, SplineMeshScaleZ);
+
+			FVector DirMask(0, 0, 0);
+			DirMask = FVector::ZeroVector;
+			DirMask[ForwardAxis] = 1;
+			ParamData[7] = FVector4(DirMask, 0);
+			DirMask = FVector::ZeroVector;
+			DirMask[(ForwardAxis + 1) % 3] = 1;
+			ParamData[8] = FVector4(DirMask, 0);
+			DirMask = FVector::ZeroVector;
+			DirMask[(ForwardAxis + 2) % 3] = 1;
+			ParamData[9] = FVector4(DirMask, 0);
+
+			ParamData[8].W = ParamData[9].X > 0 ? 1 : (ParamData[9].Z > 0 ? -1 : 0);
+
+			for (int32 i = 0; i < FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s; i++)
+			{
+				SetCustomPrimitiveDataVector4(i * 4, ParamData[i]);
+			}
+		}
+
 		return ::new FSplineMeshSceneProxy(this);
 	}
 	else
