@@ -50,6 +50,17 @@
 #define COMPILE_MOMENT1_ACCUMULATOR 1
 #define COMPILE_BOX_KERNEL 1
 
+#if STRATA_ENABLED && DIM_APPLY_DIFFUSE_INDIRECT == 4  
+  #if STRATA_TILETYPE == 0
+	#define STRATA_FASTPATH 1
+  #elif STRATA_TILETYPE == 1
+	#define STRATA_SINGLEPATH 1
+  #elif STRATA_TILETYPE == 2
+	// COMPLEX PATH
+  #else
+	#error Strata tile type non-implemented
+  #endif
+#endif
 
 //------------------------------------------------------- INCLUDES
 
