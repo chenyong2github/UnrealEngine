@@ -6,6 +6,7 @@
 #include "Misc/Optional.h"
 #include "Modules/Boilerplate/ModuleBoilerplate.h"
 #include "Templates/SharedPointer.h"
+#include "Misc/ScopeRWLock.h"
 #include "Templates/UnrealTemplate.h"
 
 /**
@@ -76,7 +77,34 @@ private:
 
 	static TOptional< FTlsSlot > ActiveAllocatorsStackTLS;
 
-	static TSet< void* > SystemAllocedPtrs;
+	struct FThreadSafeSet
+	{
+	public:
+		void Add( void* Ptr )
+		{
+			FSubSet& SubSet = SubSets[GetTypeHash( Ptr ) % BucketCount];
+			FWriteScopeLock ScopeLock( SubSet.Lock );
+			SubSet.Set.Add( Ptr );
+		}
+
+		bool Remove( void* Ptr )
+		{
+			FSubSet& SubSet = SubSets[GetTypeHash( Ptr ) % BucketCount];
+			FWriteScopeLock ScopeLock( SubSet.Lock );
+			return SubSet.Set.Remove( Ptr ) > 0;
+		}
+
+	private:
+		struct FSubSet
+		{
+			FRWLock Lock;
+			TSet< void* > Set;
+		};
+		static constexpr int32 BucketCount = 61; /* Prime number for better modulo distribution */
+		FSubSet SubSets[BucketCount];
+	};
+
+	static FThreadSafeSet SystemAllocedPtrs;
 
 	static FCriticalSection CriticalSection;
 };

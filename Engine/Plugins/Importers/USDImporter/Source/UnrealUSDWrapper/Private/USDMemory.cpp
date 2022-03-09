@@ -92,7 +92,7 @@ private:
 };
 
 TOptional< FTlsSlot > FUsdMemoryManager::ActiveAllocatorsStackTLS {};
-TSet< void* > FUsdMemoryManager::SystemAllocedPtrs {};
+FUsdMemoryManager::FThreadSafeSet FUsdMemoryManager::SystemAllocedPtrs {};
 FCriticalSection FUsdMemoryManager::CriticalSection{};
 
 void FUsdMemoryManager::Initialize()
@@ -144,8 +144,8 @@ void* FUsdMemoryManager::Malloc( SIZE_T Count )
 	{
 		Result = FMemory::SystemMalloc( Count );
 
+		if ( Result )
 		{
-			FScopeLock Lock( &CriticalSection );
 			SystemAllocedPtrs.Add( Result );
 		}
 	}
@@ -163,16 +163,11 @@ void FUsdMemoryManager::Free( void* Original )
 #if USD_USES_SYSTEM_MALLOC
 	// Because USD is multi-threaded, it might call us back to free an object after we've exited our allocator scope.
 	// This can happen for inlined USD functions that call delete.
-	int32 Removed = 0;
+	// Skip nullptr to avoid collision between threads for something that was not inserted in the first place.
+	const bool bRemoved = Original != nullptr && SystemAllocedPtrs.Remove( Original );
+	if ( FUsdMemoryManager::IsUsingSystemMalloc() || bRemoved )
 	{
-		FScopeLock Lock( &CriticalSection );
-		Removed = SystemAllocedPtrs.Remove( Original );
-	}
-
-	if ( FUsdMemoryManager::IsUsingSystemMalloc() || Removed > 0 )
-	{
-		// System allocations are so slow that we send them to another thread for freeing
-		Async( EAsyncExecution::TaskGraph, [Original](){ FMemory::SystemFree(Original); } );
+		FMemory::SystemFree( Original );
 	}
 	else
 #endif // #if USD_USES_SYSTEM_MALLOC

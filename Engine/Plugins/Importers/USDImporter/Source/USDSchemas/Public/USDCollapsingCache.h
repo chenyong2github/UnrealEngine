@@ -40,6 +40,7 @@ struct USDSCHEMAS_API FUsdCollapsingCache
 	bool IsEmpty();
 
 private:
+	mutable FRWLock Lock;
 	TMap< UE::FSdfPath, UE::FSdfPath > AssetPathsToCollapsedRoot;
 	TMap< UE::FSdfPath, UE::FSdfPath > ComponentPathsToCollapsedRoot;
 };

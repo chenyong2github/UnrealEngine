@@ -9,6 +9,7 @@
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
 
+#include "Async/ParallelFor.h"
 #include "Modules/ModuleManager.h"
 
 #if USE_USD_SDK
@@ -20,6 +21,7 @@
 
 bool FUsdCollapsingCache::Serialize( FArchive& Ar )
 {
+	FWriteScopeLock ScopeLock( Lock );
 	Ar << AssetPathsToCollapsedRoot;
 	Ar << ComponentPathsToCollapsedRoot;
 
@@ -28,6 +30,7 @@ bool FUsdCollapsingCache::Serialize( FArchive& Ar )
 
 bool FUsdCollapsingCache::IsPathCollapsed( const UE::FSdfPath& Path, ECollapsingType CollapsingType ) const
 {
+	FReadScopeLock ScopeLock( Lock );
 	const TMap< UE::FSdfPath, UE::FSdfPath >* MapToUse =
 		CollapsingType == ECollapsingType::Assets
 			? &AssetPathsToCollapsedRoot
@@ -46,6 +49,7 @@ bool FUsdCollapsingCache::IsPathCollapsed( const UE::FSdfPath& Path, ECollapsing
 
 bool FUsdCollapsingCache::DoesPathCollapseChildren( const UE::FSdfPath& Path, ECollapsingType CollapsingType ) const
 {
+	FReadScopeLock ScopeLock( Lock );
 	const TMap< UE::FSdfPath, UE::FSdfPath >* MapToUse =
 		CollapsingType == ECollapsingType::Assets
 			? &AssetPathsToCollapsedRoot
@@ -64,6 +68,7 @@ bool FUsdCollapsingCache::DoesPathCollapseChildren( const UE::FSdfPath& Path, EC
 
 UE::FSdfPath FUsdCollapsingCache::UnwindToNonCollapsedPath( const UE::FSdfPath& Path, ECollapsingType CollapsingType ) const
 {
+	FReadScopeLock ScopeLock( Lock );
 	const TMap< UE::FSdfPath, UE::FSdfPath >* MapToUse =
 		CollapsingType == ECollapsingType::Assets
 			? &AssetPathsToCollapsedRoot
@@ -97,13 +102,19 @@ namespace UE::USDCollapsingCacheImpl::Private
 		FUsdSchemaTranslatorRegistry& Registry,
 		TMap< UE::FSdfPath, UE::FSdfPath >& AssetPathsToCollapsedRoot,
 		TMap< UE::FSdfPath, UE::FSdfPath >& ComponentPathsToCollapsedRoot,
-		pxr::SdfPath AssetCollapsedRoot = pxr::SdfPath::EmptyPath(),
-		pxr::SdfPath ComponentCollapsedRoot = pxr::SdfPath::EmptyPath()
+		FRWLock& Lock,
+		const pxr::SdfPath& AssetCollapsedRoot = pxr::SdfPath::EmptyPath(),
+		const pxr::SdfPath& ComponentCollapsedRoot = pxr::SdfPath::EmptyPath()
 	)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE( RecursiveRebuildCache );
 		FScopedUsdAllocs Allocs;
 
 		pxr::SdfPath UsdPrimPath = UsdPrim.GetPrimPath();
+
+		// Prevents allocation by referencing instead of copying
+		const pxr::SdfPath* AssetCollapsedRootOverride = &AssetCollapsedRoot;
+		const pxr::SdfPath* ComponentCollapsedRootOverride = &ComponentCollapsedRoot;
 
 		bool bIsAssetCollapsed = !AssetCollapsedRoot.IsEmpty();
 		bool bIsComponentCollapsed = !ComponentCollapsedRoot.IsEmpty();
@@ -116,7 +127,7 @@ namespace UE::USDCollapsingCacheImpl::Private
 				{
 					if ( SchemaTranslator->CollapsesChildren( ECollapsingType::Assets ) )
 					{
-						AssetCollapsedRoot = UsdPrimPath;
+						AssetCollapsedRootOverride = &UsdPrimPath;
 					}
 				}
 
@@ -124,35 +135,45 @@ namespace UE::USDCollapsingCacheImpl::Private
 				{
 					if ( SchemaTranslator->CollapsesChildren( ECollapsingType::Components ) )
 					{
-						ComponentCollapsedRoot = UsdPrimPath;
+						ComponentCollapsedRootOverride = &UsdPrimPath;
 					}
 				}
 			}
 		}
 
-		UE::FSdfPath PrimPath{ UsdPrimPath };
-		UE::FSdfPath UEAssetCollapsedRoot{ AssetCollapsedRoot };
-		UE::FSdfPath UEComponentCollapsedRoot{ ComponentCollapsedRoot };
-
 		// These paths will be still empty in case nothing has collapsed yet, hold UsdPrimPath in case UsdPrim collapses that type, or hold the path to the
 		// collapsed root passed in via our caller, in case we're collapsed
-		AssetPathsToCollapsedRoot.Add( PrimPath, UEAssetCollapsedRoot );
-		ComponentPathsToCollapsedRoot.Add( PrimPath, UEComponentCollapsedRoot );
+		{
+			FWriteScopeLock ScopeLock(Lock);
+			AssetPathsToCollapsedRoot.Emplace( UsdPrimPath, *AssetCollapsedRootOverride );
+			ComponentPathsToCollapsedRoot.Emplace( UsdPrimPath, *ComponentCollapsedRootOverride );
+		}
 
 		pxr::UsdPrimSiblingRange PrimChildren = UsdPrim.GetFilteredChildren( pxr::UsdTraverseInstanceProxies( pxr::UsdPrimAllPrimsPredicate ) );
+		
+		TArray<pxr::UsdPrim> Prims;
 		for ( pxr::UsdPrim Child : PrimChildren )
 		{
-			RecursiveRebuildCache( Child, Context, Registry, AssetPathsToCollapsedRoot, ComponentPathsToCollapsedRoot, AssetCollapsedRoot, ComponentCollapsedRoot );
+			Prims.Emplace( Child );
 		}
+
+		ParallelFor(
+			TEXT("RecursiveRebuildCache"),
+			Prims.Num(), 1 /* MinBatchSize */,
+			[&Prims, &Context, &Registry, &AssetPathsToCollapsedRoot, &ComponentPathsToCollapsedRoot, &Lock, &AssetCollapsedRoot, &ComponentCollapsedRoot](int32 Index)
+			{
+				RecursiveRebuildCache( Prims[Index], Context, Registry, AssetPathsToCollapsedRoot, ComponentPathsToCollapsedRoot, Lock, AssetCollapsedRoot, ComponentCollapsedRoot );
+			}
+		);
 	}
 #endif // USE_USD_SDK
 }
 
 void FUsdCollapsingCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& Context )
 {
+#if USE_USD_SDK
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdCollapsingCache::RebuildCacheForSubtree );
 
-#if USE_USD_SDK
 	// We can't deallocate our collapsing cache pointer with the Usd allocator
 	FScopedUnrealAllocs UEAllocs;
 
@@ -171,7 +192,7 @@ void FUsdCollapsingCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsd
 		IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT( "USDSchemas" ) );
 		FUsdSchemaTranslatorRegistry& Registry = UsdSchemasModule.GetTranslatorRegistry();
 
-		UE::USDCollapsingCacheImpl::Private::RecursiveRebuildCache( UsdPrim, Context, Registry, AssetPathsToCollapsedRoot, ComponentPathsToCollapsedRoot );
+		UE::USDCollapsingCacheImpl::Private::RecursiveRebuildCache( UsdPrim, Context, Registry, AssetPathsToCollapsedRoot, ComponentPathsToCollapsedRoot, Lock );
 	}
 	Context.CollapsingCache = Pin;
 #endif // USE_USD_SDK
@@ -179,11 +200,13 @@ void FUsdCollapsingCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsd
 
 void FUsdCollapsingCache::Clear()
 {
+	FWriteScopeLock ScopeLock( Lock );
 	AssetPathsToCollapsedRoot.Empty();
 	ComponentPathsToCollapsedRoot.Empty();
 }
 
 bool FUsdCollapsingCache::IsEmpty()
 {
+	FReadScopeLock ScopeLock( Lock );
 	return AssetPathsToCollapsedRoot.IsEmpty() && ComponentPathsToCollapsedRoot.IsEmpty();
 }
