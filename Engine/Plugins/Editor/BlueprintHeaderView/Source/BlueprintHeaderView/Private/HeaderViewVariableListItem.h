@@ -16,6 +16,9 @@ struct FHeaderViewVariableListItem : public FHeaderViewListItem
 protected:
 	FHeaderViewVariableListItem(const FBPVariableDescription& VariableDesc, const FProperty& VarProperty);
 
+	/** Formats a line declaring a delegate type and appends it to the item strings */
+	void FormatDelegateDeclaration(const FMulticastDelegateProperty& DelegateProp);
+
 	/** Returns a string containing the specifiers for the UPROPERTY line */
 	FString GetConditionalUPropertySpecifiers(const FProperty& VarProperty) const;
 
