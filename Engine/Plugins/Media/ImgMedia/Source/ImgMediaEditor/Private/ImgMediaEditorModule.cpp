@@ -14,6 +14,7 @@
 #include "UObject/NameTypes.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SImgMediaCache.h"
+#include "Widgets/SImgMediaProcessImages.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
@@ -116,12 +117,21 @@ protected:
 			.SetDisplayName(LOCTEXT("ImgMediaCacheTabTitle", "Cache"))
 			.SetTooltipText(LOCTEXT("ImgMediaCacheTooltipText", "Open the cache tab."))
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "SequenceRecorder.TabIcon"));
+
+		// Add process images tab.
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ImgMediaProcessImagesTabName,
+			FOnSpawnTab::CreateStatic(&FImgMediaEditorModule::SpawnProcessImagesTab))
+			.SetGroup(MediaBrowserGroup)
+			.SetDisplayName(LOCTEXT("ImgMediaProcessImagesTabTitle", "Process Images"))
+			.SetTooltipText(LOCTEXT("ImgMediaProcessImagesTooltipText", "Open the Process Images tab."))
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
 	}
 
 	void UnregisterTabSpawners()
 	{
 		if (FSlateApplication::IsInitialized())
 		{
+			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ImgMediaProcessImagesTabName);
 			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ImgMediaCacheTabName);
 		}
 	}
@@ -135,16 +145,29 @@ protected:
 			];
 	}
 
+	static TSharedRef<SDockTab> SpawnProcessImagesTab(const FSpawnTabArgs& SpawnTabArgs)
+	{
+		return SNew(SDockTab)
+			.TabRole(ETabRole::NomadTab)
+			[
+				SNew(SImgMediaProcessImages)
+			];
+	}
+
 private:
 
 	/** Customization name to avoid reusing staticstruct during shutdown. */
 	FName CustomizedStructName;
 	FName ImportInfoStructName;
 
+	/** Names for tabs. */
+	static FLazyName ImgMediaProcessImagesTabName;
+
 	/** The collection of registered asset type actions. */
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 };
 
+FLazyName FImgMediaEditorModule::ImgMediaProcessImagesTabName(TEXT("ImgMediaProcessImages"));
 
 IMPLEMENT_MODULE(FImgMediaEditorModule, ImgMediaEditor);
 
