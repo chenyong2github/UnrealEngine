@@ -13,6 +13,7 @@
 	#error "SOURCE_CONTROL_WITH_SLATE must be defined. Did you forget a dependency on the 'SourceControl' module?"
 #endif
 
+class FSourceControlInitSettings;
 class ISourceControlLabel;
 
 /**
@@ -327,6 +328,23 @@ public:
 	 */
 	virtual TSharedRef<class SWidget> MakeSettingsWidget() const = 0;
 #endif // SOURCE_CONTROL_WITH_SLATE
+
+protected:
+
+	/* 
+	 * The ::Create method is an easy way for us to create new providers, but we really don't 
+	 * want anything except FSourceControlModule calling it. For now we achieve this by having
+	 * ::Create protected and making FSourceControlModule a friend. 
+	 * TODO Move the create to a factory system via IModularFeatures and remove the friend declaration.
+	 */
+	friend class FSourceControlModule;
+
+	/** 
+	 * Creates a new instance of the source control provider type. Derived providers
+	 * should implement this if they can more than one provider of the same type existing. 
+	 * @see ISourceControlModule::CreateProvider
+	 */
+	virtual TUniquePtr<ISourceControlProvider> Create(const FStringView& OwnerName, const FSourceControlInitSettings& InitialSettings) const { return TUniquePtr<ISourceControlProvider>(); }
 };
 
 

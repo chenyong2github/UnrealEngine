@@ -1,21 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PerforceSourceControlRevision.h"
-#include "PerforceSourceControlPrivate.h"
+
+#include "Logging/MessageLog.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
-#include "PerforceSourceControlModule.h"
 #include "PerforceConnection.h"
-#include "Logging/MessageLog.h"
+#include "PerforceSourceControlProvider.h"
 
 #define LOCTEXT_NAMESPACE "PerforceSourceControl"
+
+FPerforceSourceControlRevision:: FPerforceSourceControlRevision(FPerforceSourceControlProvider& InSCCProvider)
+	: RevisionNumber(0)
+	, Date(0)
+	, ChangelistNumber(0)
+	, FileSize(0)
+	, bIsShelve(false)
+	, SCCProvider(InSCCProvider)
+{
+}
 
 bool FPerforceSourceControlRevision::Get( FString& InOutFilename, EConcurrency::Type InConcurrency) const
 {
 	bool bCommandOK = false;
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
-	FScopedPerforceConnection ScopedConnection(InConcurrency, PerforceSourceControl.AccessSettings().GetConnectionInfo());
+	
+	FScopedPerforceConnection ScopedConnection(InConcurrency, GetSCCProvider());
 	if(ScopedConnection.IsValid())
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
@@ -148,8 +157,8 @@ static void ParseAnnotationResults(const FP4RecordSet& Records, TArray<FAnnotati
 bool FPerforceSourceControlRevision::GetAnnotated( TArray<FAnnotationLine>& OutLines ) const
 {
 	bool bCommandOK = false;
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
-	FScopedPerforceConnection ScopedConnection(EConcurrency::Synchronous, PerforceSourceControl.AccessSettings().GetConnectionInfo());
+	
+	FScopedPerforceConnection ScopedConnection(EConcurrency::Synchronous, GetSCCProvider());
 	if(ScopedConnection.IsValid())
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();

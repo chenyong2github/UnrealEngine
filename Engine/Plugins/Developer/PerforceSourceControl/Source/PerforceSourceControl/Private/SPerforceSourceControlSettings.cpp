@@ -1,17 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPerforceSourceControlSettings.h"
-#include "PerforceSourceControlPrivate.h"
-#include "Widgets/Views/STableRow.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SComboBox.h"
+
 #include "EditorStyleSet.h"
 #include "ISourceControlModule.h"
-#include "PerforceSourceControlModule.h"
+#include "PerforceSourceControlInternalOperations.h"
+#include "PerforceSourceControlPrivate.h"
+#include "PerforceSourceControlProvider.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Images/SThrobber.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
 TWeakPtr<SEditableTextBox> SPerforceSourceControlSettings::PasswordTextBox;
 
@@ -24,15 +26,16 @@ FAutoConsoleVariableRef CVarAllowP4NonTicketBasedLogins(
 	TEXT("Whether or not to allow logging in with a password directly from the perforce dialog. This is off by default because it is not a secure option. Perforce often your password as plain text in their enviroment variables")
 );
 
-void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
+void SPerforceSourceControlSettings::Construct(const FArguments& InArgs, FPerforceSourceControlProvider* InSCCProvider)
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
+	checkf(InSCCProvider != nullptr, TEXT("SPerforceSourceControlSettings Requires a pointer to a valid FPerforceSourceControlProvider to function"));
+	SCCProvider = InSCCProvider;
 
 	bAreAdvancedSettingsExpanded = false;
 
 	// check our settings & query if we don't already have any
-	FString PortName = PerforceSourceControl.AccessSettings().GetPort();
-	FString UserName = PerforceSourceControl.AccessSettings().GetUserName();
+	FString PortName = GetSCCProvider().AccessSettings().GetPort();
+	FString UserName = GetSCCProvider().AccessSettings().GetUserName();
 
 	if (PortName.IsEmpty() && UserName.IsEmpty())
 	{
@@ -43,10 +46,10 @@ void SPerforceSourceControlSettings::Construct(const FArguments& InArgs)
 		PortName = ANSI_TO_TCHAR(TestP4.GetPort().Text());
 		UserName = ANSI_TO_TCHAR(TestP4.GetUser().Text());
 		TestP4.Final(&P4Error);
-
-		PerforceSourceControl.AccessSettings().SetPort(PortName);
-		PerforceSourceControl.AccessSettings().SetUserName(UserName);
-		PerforceSourceControl.SaveSettings();
+		
+		GetSCCProvider().AccessSettings().SetPort(PortName);
+		GetSCCProvider().AccessSettings().SetUserName(UserName);
+		GetSCCProvider().AccessSettings().SaveSettings();
 	}
 
 	ChildSlot
@@ -232,73 +235,62 @@ void SPerforceSourceControlSettings::Tick( const FGeometry& AllottedGeometry, co
 
 ECheckBoxState SPerforceSourceControlSettings::IsP4ConfigChecked() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	return PerforceSourceControl.AccessSettings().GetUseP4Config() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return GetSCCProvider().AccessSettings().GetUseP4Config() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 void SPerforceSourceControlSettings::OnP4ConfigCheckStatusChanged(ECheckBoxState NewState) const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	PerforceSourceControl.AccessSettings().SetUseP4Config(NewState == ECheckBoxState::Checked);
-	PerforceSourceControl.SaveSettings();
+	GetSCCProvider().AccessSettings().SetUseP4Config(NewState == ECheckBoxState::Checked);
+	GetSCCProvider().AccessSettings().SaveSettings();
 }
 
 bool SPerforceSourceControlSettings::IsP4ConfigDisabled() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	return !PerforceSourceControl.AccessSettings().GetUseP4Config();
+	return !GetSCCProvider().AccessSettings().GetUseP4Config();
 }
 
 FText SPerforceSourceControlSettings::GetPortText() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	return FText::FromString(PerforceSourceControl.AccessSettings().GetPort());
+	return FText::FromString(GetSCCProvider().AccessSettings().GetPort());
 }
 
 void SPerforceSourceControlSettings::OnPortTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	PerforceSourceControl.AccessSettings().SetPort(InText.ToString());
-	PerforceSourceControl.SaveSettings();
+	GetSCCProvider().AccessSettings().SetPort(InText.ToString());
+	GetSCCProvider().AccessSettings().SaveSettings();
 }
 
 FText SPerforceSourceControlSettings::GetUserNameText() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	return FText::FromString(PerforceSourceControl.AccessSettings().GetUserName());
+	return FText::FromString(GetSCCProvider().AccessSettings().GetUserName());
 }
 
 void SPerforceSourceControlSettings::OnUserNameTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	PerforceSourceControl.AccessSettings().SetUserName(InText.ToString());
-	PerforceSourceControl.SaveSettings();
+	GetSCCProvider().AccessSettings().SetUserName(InText.ToString());
+	GetSCCProvider().AccessSettings().SaveSettings();
 }
 
 FText SPerforceSourceControlSettings::GetWorkspaceText() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	return FText::FromString(PerforceSourceControl.AccessSettings().GetWorkspace());
+	return FText::FromString(GetSCCProvider().AccessSettings().GetWorkspace());
 }
 
 void SPerforceSourceControlSettings::OnWorkspaceTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	PerforceSourceControl.AccessSettings().SetWorkspace(InText.ToString());
-	PerforceSourceControl.SaveSettings();
+	GetSCCProvider().AccessSettings().SetWorkspace(InText.ToString());
+	GetSCCProvider().AccessSettings().SaveSettings();
 }
 
 FText SPerforceSourceControlSettings::GetHostText() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	return FText::FromString(PerforceSourceControl.AccessSettings().GetHostOverride());
+	return FText::FromString(GetSCCProvider().AccessSettings().GetHostOverride());
 }
 
 void SPerforceSourceControlSettings::OnHostTextCommitted(const FText& InText, ETextCommit::Type InCommitType) const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	PerforceSourceControl.AccessSettings().SetHostOverride(InText.ToString());
-	PerforceSourceControl.SaveSettings();
+	GetSCCProvider().AccessSettings().SetHostOverride(InText.ToString());
+	GetSCCProvider().AccessSettings().SaveSettings();
 }
 
 void SPerforceSourceControlSettings::QueryWorkspaces()
@@ -309,10 +301,8 @@ void SPerforceSourceControlSettings::QueryWorkspaces()
 		CurrentWorkspace = FString();
 
 		// fire off the workspace query
-		const ISourceControlModule& SourceControl = FModuleManager::LoadModuleChecked<ISourceControlModule>( "SourceControl" );
-		ISourceControlProvider& Provider = SourceControl.GetProvider();
 		GetWorkspacesOperation = ISourceControlOperation::Create<FGetWorkspaces>();
-		Provider.Execute(GetWorkspacesOperation.ToSharedRef(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SPerforceSourceControlSettings::OnSourceControlOperationComplete) );
+		GetSCCProvider().Execute(GetWorkspacesOperation.ToSharedRef(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SPerforceSourceControlSettings::OnSourceControlOperationComplete) );
 
 		State = ESourceControlOperationState::Querying;
 	}
@@ -433,9 +423,9 @@ TSharedRef<ITableRow> SPerforceSourceControlSettings::OnGenerateWorkspaceRow(TSh
 void SPerforceSourceControlSettings::OnWorkspaceSelected(TSharedPtr<FString> InItem, ESelectInfo::Type InSelectInfo)
 {
 	CurrentWorkspace = *InItem;
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	PerforceSourceControl.AccessSettings().SetWorkspace(CurrentWorkspace);
-	PerforceSourceControl.SaveSettings();
+	
+	GetSCCProvider().AccessSettings().SetWorkspace(CurrentWorkspace);
+	GetSCCProvider().AccessSettings().SaveSettings();
 	WorkspaceCombo->SetIsOpen(false);
 }
 
@@ -448,8 +438,8 @@ FReply SPerforceSourceControlSettings::OnCancelWorkspacesRequest() const
 {
 	if(GetWorkspacesOperation.IsValid())
 	{
-		const ISourceControlModule& SourceControl = FModuleManager::LoadModuleChecked<ISourceControlModule>( "SourceControl" );
-		SourceControl.GetProvider().CancelOperation(GetWorkspacesOperation.ToSharedRef());
+		ISourceControlModule& SourceControl = FModuleManager::LoadModuleChecked<ISourceControlModule>( "SourceControl" );
+		GetSCCProvider().CancelOperation(GetWorkspacesOperation.ToSharedRef());
 	}
 	return FReply::Handled();
 }
@@ -475,6 +465,12 @@ FReply SPerforceSourceControlSettings::OnAdvancedSettingsClicked()
 {
 	bAreAdvancedSettingsExpanded = !bAreAdvancedSettingsExpanded;
 	return FReply::Handled();
+}
+
+FPerforceSourceControlProvider& SPerforceSourceControlSettings::GetSCCProvider() const
+{
+	check(SCCProvider != nullptr);
+	return *SCCProvider;
 }
 
 #undef LOCTEXT_NAMESPACE

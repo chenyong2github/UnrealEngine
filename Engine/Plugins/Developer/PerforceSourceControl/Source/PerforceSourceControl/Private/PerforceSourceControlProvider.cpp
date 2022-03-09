@@ -1,38 +1,73 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PerforceSourceControlProvider.h"
-#include "PerforceSourceControlPrivate.h"
-#include "HAL/PlatformProcess.h"
-#include "Misc/MessageDialog.h"
-#include "Misc/CommandLine.h"
+
 #include "Algo/Transform.h"
-#include "Misc/QueuedThreadPool.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "HAL/PlatformProcess.h"
+#include "ISourceControlLabel.h"
 #include "ISourceControlModule.h"
+#include "Logging/MessageLog.h"
+#include "Misc/CommandLine.h"
+#include "Misc/MessageDialog.h"
+#include "Misc/QueuedThreadPool.h"
+#include "PerforceConnection.h"
 #include "PerforceConnectionInfo.h"
 #include "PerforceSourceControlCommand.h"
-#include "ISourceControlLabel.h"
 #include "PerforceSourceControlLabel.h"
-#include "PerforceConnection.h"
-#include "PerforceSourceControlModule.h"
+#include "PerforceSourceControlPrivate.h"
 #include "SPerforceSourceControlSettings.h"
-#include "Logging/MessageLog.h"
 #include "ScopedSourceControlProgress.h"
 #include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 static FName ProviderName("Perforce");
 
 #define LOCTEXT_NAMESPACE "PerforceSourceControl"
 
-/** Init of connection with source control server */
+FPerforceSourceControlProvider::FPerforceSourceControlProvider()
+	: PerforceSCCSettings(*this, FStringView())
+	, InitialSettings(FSourceControlInitSettings::EBehavior::OverrideAll)
+	, OwnerName(TEXT("Default"))
+	, bServerAvailable(false)
+	, bLoginError(false)
+	, PersistentConnection(nullptr)
+{
+	auto ParseCmdLineSetting = [this](const TCHAR* SettingKey) -> void
+	{
+		FString SettingValue;
+		if (FParse::Value(FCommandLine::Get(), SettingKey, SettingValue))
+		{
+			InitialSettings.AddSetting(SettingKey, SettingValue);
+		}
+	};
+
+	ParseCmdLineSetting(TEXT("P4Port="));
+	ParseCmdLineSetting(TEXT("P4User="));
+	ParseCmdLineSetting(TEXT("P4Client="));
+	ParseCmdLineSetting(TEXT("P4Host="));
+	ParseCmdLineSetting(TEXT("P4Passwd="));
+	ParseCmdLineSetting(TEXT("P4Changelist="));
+
+	AccessSettings().LoadSettings();
+}
+
+FPerforceSourceControlProvider::FPerforceSourceControlProvider(const FStringView& InOwnerName, const FSourceControlInitSettings& InInitialSettings)
+	: PerforceSCCSettings(*this, InOwnerName)
+	, InitialSettings(InInitialSettings)
+	, OwnerName(InOwnerName)
+	, bServerAvailable(false)
+	, bLoginError(false)
+	, PersistentConnection(nullptr)
+{
+	AccessSettings().LoadSettings();
+}
+
 void FPerforceSourceControlProvider::Init(bool bForceConnection)
 {
 	ParseCommandLineSettings(bForceConnection);
 }
 
-/** API Specific close the connection with source control server*/
 void FPerforceSourceControlProvider::Close()
 {
 	if ( PersistentConnection )
@@ -84,8 +119,7 @@ TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> FPerforce
 
 FText FPerforceSourceControlProvider::GetStatusText() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	const FPerforceSourceControlSettings& Settings = PerforceSourceControl.AccessSettings();
+	const FPerforceSourceControlSettings& Settings = AccessSettings();
 
 	FFormatNamedArguments Args;
 	Args.Add( TEXT("IsEnabled"), IsEnabled() ? LOCTEXT("Yes", "Yes") : LOCTEXT("No", "No") );
@@ -121,20 +155,19 @@ bool FPerforceSourceControlProvider::IsAvailable() const
 
 bool FPerforceSourceControlProvider::EstablishPersistentConnection()
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	FPerforceConnectionInfo ConnectionInfo = PerforceSourceControl.AccessSettings().GetConnectionInfo();
+	FPerforceConnectionInfo ConnectionInfo = AccessSettings().GetConnectionInfo();
 
 	bool bIsValidConnection = false;
 	if ( !PersistentConnection )
 	{
-		PersistentConnection = new FPerforceConnection(ConnectionInfo);
+		PersistentConnection = new FPerforceConnection(ConnectionInfo, *this);
 	}
 
 	bIsValidConnection = PersistentConnection->IsValidConnection();
 	if ( !bIsValidConnection )
 	{
 		delete PersistentConnection;
-		PersistentConnection = new FPerforceConnection(ConnectionInfo);
+		PersistentConnection = new FPerforceConnection(ConnectionInfo, *this);
 		bIsValidConnection = PersistentConnection->IsValidConnection();
 	}
 
@@ -142,32 +175,38 @@ bool FPerforceSourceControlProvider::EstablishPersistentConnection()
 	return bIsValidConnection;
 }
 
-/**
- * Loads user/SCC information from the command line or INI file.
- */
 void FPerforceSourceControlProvider::ParseCommandLineSettings(bool bForceConnection)
 {
-	ISourceControlModule& SourceControlModule = FModuleManager::LoadModuleChecked<ISourceControlModule>( "SourceControl" );
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::GetModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
+	FPerforceSourceControlSettings& P4Settings = AccessSettings();
 
-	bool bFoundCmdLineSettings = false;
-
-	// Check command line for any overridden settings
-	FPerforceSourceControlSettings& P4Settings = PerforceSourceControl.AccessSettings();
-
+	// First we take a copy of the existing settings
 	FString PortName = P4Settings.GetPort();
 	FString UserName = P4Settings.GetUserName();
 	FString ClientSpecName = P4Settings.GetWorkspace();
 	FString HostOverrideName = P4Settings.GetHostOverride();
 	FString Changelist = P4Settings.GetChangelistNumber();
-	bFoundCmdLineSettings = FParse::Value(FCommandLine::Get(), TEXT("P4Port="), PortName);
-	bFoundCmdLineSettings |= FParse::Value(FCommandLine::Get(), TEXT("P4User="), UserName);
-	bFoundCmdLineSettings |= FParse::Value(FCommandLine::Get(), TEXT("P4Client="), ClientSpecName);
-	bFoundCmdLineSettings |= FParse::Value(FCommandLine::Get(), TEXT("P4Host="), HostOverrideName);
-	bFoundCmdLineSettings |= FParse::Value(FCommandLine::Get(), TEXT("P4Passwd="), Ticket);
-	bFoundCmdLineSettings |= FParse::Value(FCommandLine::Get(), TEXT("P4Changelist="), Changelist);
-	if(bFoundCmdLineSettings)
+
+	EConnectionOptions Options = EConnectionOptions::None;
+
+	// Then we see if any of these settings are overridden by the initial settings
+	// Note that as long as one setting is overridden, we will reset all non-overridden 
+	// values to empty and later calculate them via FPerforceConnection::EnsureValidConnection
+	if (InitialSettings.HasOverrides())
 	{
+		InitialSettings.OverrideSetting(TEXT("P4Port"),			PortName);
+		InitialSettings.OverrideSetting(TEXT("P4User"),			UserName);
+		InitialSettings.OverrideSetting(TEXT("P4Client"),		ClientSpecName);
+		InitialSettings.OverrideSetting(TEXT("P4Host"),			HostOverrideName);
+		InitialSettings.OverrideSetting(TEXT("P4Passwd"),		Ticket);
+		InitialSettings.OverrideSetting(TEXT("P4Changelist"),	Changelist);
+
+		// If P4Client is overridden then we can rely on that, even if it is blank (no workspace) and 
+		// so don't need to automatically find a workspace when ensuring the connection.
+		if (InitialSettings.IsOverridden(TEXT("P4Client")))
+		{
+			Options |= EConnectionOptions::WorkspaceOptional;
+		}
+
 		P4Settings.SetPort(PortName);
 		P4Settings.SetUserName(UserName);
 		P4Settings.SetWorkspace(ClientSpecName);
@@ -179,7 +218,7 @@ void FPerforceSourceControlProvider::ParseCommandLineSettings(bool bForceConnect
 	{
 		bLoginError = false;
 		FPerforceConnectionInfo ConnectionInfo = P4Settings.GetConnectionInfo();
-		if(FPerforceConnection::EnsureValidConnection(PortName, UserName, ClientSpecName, ConnectionInfo))
+		if(FPerforceConnection::EnsureValidConnection(PortName, UserName, ClientSpecName, ConnectionInfo, *this, Options))
 		{
 			P4Settings.SetPort(PortName);
 			P4Settings.SetUserName(UserName);
@@ -190,20 +229,24 @@ void FPerforceSourceControlProvider::ParseCommandLineSettings(bool bForceConnect
 	}
 
 	//Save off settings so this doesn't happen every time
-	PerforceSourceControl.SaveSettings();
+	SaveConnectionSettings();
 }
-
 
 void FPerforceSourceControlProvider::GetWorkspaceList(const FPerforceConnectionInfo& InConnectionInfo, TArray<FString>& OutWorkspaceList, TArray<FText>& OutErrorMessages)
 {
 	//attempt to ask perforce for a list of client specs that belong to this user
-	FPerforceConnection Connection(InConnectionInfo);
+	FPerforceConnection Connection(InConnectionInfo, *this);
 	Connection.GetWorkspaceList(InConnectionInfo, FOnIsCancelled(), OutWorkspaceList, OutErrorMessages);
 }
 
 const FString& FPerforceSourceControlProvider::GetTicket() const
 {
 	return Ticket;
+}
+
+const FString& FPerforceSourceControlProvider::GetOwnerName() const
+{
+	return OwnerName;
 }
 
 const FName& FPerforceSourceControlProvider::GetName() const
@@ -534,7 +577,7 @@ void FPerforceSourceControlProvider::Tick()
 	}
 }
 
-static void ParseGetLabelsResults(const FP4RecordSet& InRecords, TArray< TSharedRef<ISourceControlLabel> >& OutLabels)
+static void ParseGetLabelsResults(FPerforceSourceControlProvider& InSourceControlProvider, const FP4RecordSet& InRecords, TArray< TSharedRef<ISourceControlLabel> >& OutLabels)
 {
 	// Iterate over each record found as a result of the command, parsing it for relevant information
 	for (int32 Index = 0; Index < InRecords.Num(); ++Index)
@@ -543,17 +586,17 @@ static void ParseGetLabelsResults(const FP4RecordSet& InRecords, TArray< TShared
 		FString LabelName = ClientRecord(TEXT("label"));
 		if(LabelName.Len() > 0)
 		{
-			OutLabels.Add(MakeShareable( new FPerforceSourceControlLabel(LabelName) ) );
+			OutLabels.Add(MakeShareable( new FPerforceSourceControlLabel(InSourceControlProvider, LabelName) ) );
 		}
 	}
 }
 
-TArray< TSharedRef<ISourceControlLabel> > FPerforceSourceControlProvider::GetLabels( const FString& InMatchingSpec ) const
+TArray< TSharedRef<ISourceControlLabel> > FPerforceSourceControlProvider::GetLabels(const FString& InMatchingSpec) const
 {
 	TArray< TSharedRef<ISourceControlLabel> > Labels;
 
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
-	FScopedPerforceConnection ScopedConnection(EConcurrency::Synchronous, PerforceSourceControl.AccessSettings().GetConnectionInfo());
+	// const_cast to avoid changing the ISourceControlProvider API as it is hard to deprecate without causing derived types to give compiler errors.
+	FScopedPerforceConnection ScopedConnection(EConcurrency::Synchronous, *const_cast<FPerforceSourceControlProvider*>(this));
 	if(ScopedConnection.IsValid())
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
@@ -565,7 +608,8 @@ TArray< TSharedRef<ISourceControlLabel> > FPerforceSourceControlProvider::GetLab
 		bool bConnectionDropped = false;
 		if(Connection.RunCommand(TEXT("labels"), Parameters, Records, ErrorMessages, FOnIsCancelled(), bConnectionDropped))
 		{
-			ParseGetLabelsResults(Records, Labels);
+			// const_cast to avoid changing the ISourceControlProvider API as it is hard to deprecate without causing derived types to give compiler errors.
+			ParseGetLabelsResults(*const_cast<FPerforceSourceControlProvider*>(this), Records, Labels);
 		}
 		else
 		{
@@ -668,16 +712,15 @@ ECommandResult::Type FPerforceSourceControlProvider::SwitchWorkspace(FStringView
 	// Do not call Init directly as we do not want to save the new workspace name to
 	// the source control settings!
 
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
-	const FString OldWorkspaceName = PerforceSourceControl.AccessSettings().GetWorkspace();
+	FPerforceSourceControlSettings& P4Settings = AccessSettings(); 
+	
+	const FString OldWorkspaceName = P4Settings.GetWorkspace();
 		
-	FPerforceSourceControlSettings& P4Settings = PerforceSourceControl.AccessSettings();
-
 	FString PortName = P4Settings.GetPort();
 	FString UserName = P4Settings.GetUserName();
 	FString ClientSpecName = FString(NewWorkspaceName);
 
-	if (FPerforceConnection::EnsureValidConnection(PortName, UserName, ClientSpecName, P4Settings.GetConnectionInfo()))
+	if (FPerforceConnection::EnsureValidConnection(PortName, UserName, ClientSpecName, P4Settings.GetConnectionInfo(), *this, EConnectionOptions::None))
 	{
 		P4Settings.SetPort(PortName);
 		P4Settings.SetUserName(UserName);
@@ -702,7 +745,7 @@ ECommandResult::Type FPerforceSourceControlProvider::SwitchWorkspace(FStringView
 		OutResultInfo.ErrorMessages.Add(Message);
 
 		// The connection didn't work so we should try to restore the old workspace name
-		PerforceSourceControl.AccessSettings().SetWorkspace(OldWorkspaceName);
+		P4Settings.SetWorkspace(OldWorkspaceName);
 		
 		return ECommandResult::Failed;
 	}
@@ -711,24 +754,35 @@ ECommandResult::Type FPerforceSourceControlProvider::SwitchWorkspace(FStringView
 #if SOURCE_CONTROL_WITH_SLATE
 TSharedRef<class SWidget> FPerforceSourceControlProvider::MakeSettingsWidget() const
 {
-	return SNew(SPerforceSourceControlSettings);
+	// const_cast to avoid changing the ISourceControlProvider API as it is hard to deprecate without
+	// causing derived types to give compiler errors.
+	return SNew(SPerforceSourceControlSettings, const_cast<FPerforceSourceControlProvider*>(this));
 }
 #endif
 
-TSharedPtr<IPerforceSourceControlWorker, ESPMode::ThreadSafe> FPerforceSourceControlProvider::CreateWorker(const FName& InOperationName) const
-{
-	const FGetPerforceSourceControlWorker* Operation = WorkersMap.Find(InOperationName);
-	if(Operation != NULL)
-	{
-		return Operation->Execute();
-	}
-
-	return NULL;
+TUniquePtr<ISourceControlProvider> FPerforceSourceControlProvider::Create(const FStringView& InOwnerName, const FSourceControlInitSettings& InInitialSettings) const
+{ 
+	return MakeUnique<FPerforceSourceControlProvider>(InOwnerName, InInitialSettings);
 }
 
-void FPerforceSourceControlProvider::RegisterWorker( const FName& InName, const FGetPerforceSourceControlWorker& InDelegate )
+const FPerforceSourceControlSettings& FPerforceSourceControlProvider::AccessSettings() const
 {
-	WorkersMap.Add( InName, InDelegate );
+	return PerforceSCCSettings;
+}
+
+FPerforceSourceControlSettings& FPerforceSourceControlProvider::AccessSettings()
+{
+	return PerforceSCCSettings;
+}
+
+void FPerforceSourceControlProvider::SaveConnectionSettings()
+{
+	PerforceSCCSettings.SaveSettings();
+}
+
+TSharedPtr<IPerforceSourceControlWorker, ESPMode::ThreadSafe> FPerforceSourceControlProvider::CreateWorker(const FName& InOperationName)
+{
+	return IPerforceSourceControlWorker::CreateWorker(InOperationName, *this);
 }
 
 ECommandResult::Type FPerforceSourceControlProvider::ExecuteSynchronousCommand(FPerforceSourceControlCommand& InCommand, const FText& Task, bool bSuppressResponseMsg)
@@ -823,8 +877,7 @@ bool FPerforceSourceControlProvider::QueryStateBranchConfig(const FString& Confi
 	}
 
 	// Request branch configuration from depot
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
-	FScopedPerforceConnection ScopedConnection(EConcurrency::Synchronous, PerforceSourceControl.AccessSettings().GetConnectionInfo());
+	FScopedPerforceConnection ScopedConnection(EConcurrency::Synchronous, *this);
 	if (ScopedConnection.IsValid())
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();

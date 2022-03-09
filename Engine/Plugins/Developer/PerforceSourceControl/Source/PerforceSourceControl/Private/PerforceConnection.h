@@ -7,6 +7,8 @@
 #include "PerforceSourceControlCommand.h"
 #include "Memory/SharedBuffer.h"
 
+class FPerforceSourceControlProvider;
+
 /** A map containing result of running Perforce command */
 class FP4Record : public TMap<FString, FString >
 {
@@ -23,18 +25,28 @@ public:
 
 typedef TArray<FP4Record> FP4RecordSet;
 
+/** Options to be used with FPerforceConnection::EnsureValidConnection */
+enum class EConnectionOptions : uint8
+{
+	/** No options are applied */
+	None				= 0,
+	/** The connection does not require a workspace to be considered valid*/
+	WorkspaceOptional	= 1 << 0,
+};
+ENUM_CLASS_FLAGS(EConnectionOptions);
+
 class FPerforceConnection
 {
 public:
 	//This constructor is strictly for internal questions to perforce (get client spec list, etc)
-	FPerforceConnection(const FPerforceConnectionInfo& InConnectionInfo);
+	FPerforceConnection(const FPerforceConnectionInfo& InConnectionInfo, FPerforceSourceControlProvider& InSCCProvider);
 	/** API Specific close of source control project*/
 	~FPerforceConnection();
 
 	/** 
 	 * Attempts to automatically detect the workspace to use based on the working directory
 	 */
-	static bool AutoDetectWorkspace(const FPerforceConnectionInfo& InConnectionInfo, FString& OutWorkspaceName);
+	static bool AutoDetectWorkspace(const FPerforceConnectionInfo& InConnectionInfo, FPerforceSourceControlProvider& SCCProvider, FString& OutWorkspaceName);
 
 	/**
 	 * Static function in charge of making sure the specified connection is valid or requests that data from the user via dialog
@@ -44,7 +56,9 @@ public:
 	 * @param InConnectionInfo		Connection credentials
 	 * @return - true if the connection, whether via dialog or otherwise, is valid.  False if source control should be disabled
 	 */
-	static bool EnsureValidConnection(FString& InOutServerName, FString& InOutUserName, FString& InOutWorkspaceName, const FPerforceConnectionInfo& InConnectionInfo);
+	static bool EnsureValidConnection(	FString& InOutServerName, FString& InOutUserName, FString& InOutWorkspaceName,
+										const FPerforceConnectionInfo& InConnectionInfo, FPerforceSourceControlProvider& SCCProvider, 
+										EConnectionOptions Options = EConnectionOptions::None);
 
 	/**
 	 * Get List of ClientSpecs
@@ -128,6 +142,7 @@ public:
 	FString GetUser();
 
 public:
+	
 	/** Perforce API client object */
 	ClientApi P4Client;
 
@@ -139,6 +154,10 @@ public:
 
 	/** Is this a connection to a unicode server? */ 
 	bool bIsUnicode;
+
+private:
+	/** The source control provider that the connection is working from */
+	FPerforceSourceControlProvider& SCCProvider;
 };
 
 /**
@@ -153,14 +172,14 @@ public:
 	 * used or another connection is established (connections cannot safely be used across different
 	 * threads).
 	 */
-	FScopedPerforceConnection( class FPerforceSourceControlCommand& InCommand );
+	FScopedPerforceConnection( class FPerforceSourceControlCommand& InCommand);
 
 	/** 
 	 * Constructor - establish a connection.
 	 * The concurrency passed in determines whether the persistent connection is used or another 
 	 * connection is established (connections cannot safely be used across different threads).
 	 */
-	FScopedPerforceConnection( EConcurrency::Type InConcurrency, const FPerforceConnectionInfo& InConnectionInfo );
+	FScopedPerforceConnection( EConcurrency::Type InConcurrency, FPerforceSourceControlProvider& SCCProvider);
 
 	/**
 	 * Destructor - disconnect if this is a temporary connection
@@ -181,7 +200,7 @@ public:
 
 private:
 	/** Set up the connection */
-	void Initialize( const FPerforceConnectionInfo& InConnectionInfo );
+	void Initialize( const FPerforceConnectionInfo& InConnectionInfo, FPerforceSourceControlProvider& SCCProvider);
 
 private:
 	/** The perforce connection we are using */

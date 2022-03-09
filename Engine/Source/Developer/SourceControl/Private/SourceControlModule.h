@@ -34,6 +34,7 @@ public:
 	virtual void QueueStatusUpdate(const FString& InFilename) override;
 	virtual bool IsEnabled() const override;
 	virtual ISourceControlProvider& GetProvider() const override;
+	virtual TUniquePtr<ISourceControlProvider> CreateProvider(const FName& ProviderName, const FStringView& OwnerName, const FSourceControlInitSettings& InitialSettings) const override;
 	virtual FSourceControlAssetDataCache& GetAssetDataCache() override;
 	virtual void SetProvider( const FName& InName ) override;
 	virtual void ShowLoginDialog(const FSourceControlLoginClosed& InOnSourceControlLoginClosed, ELoginWindowMode::Type InLoginWindowMode, EOnLoginWindowStartup::Type InOnLoginWindowStartup = EOnLoginWindowStartup::ResetProviderToNone) override;

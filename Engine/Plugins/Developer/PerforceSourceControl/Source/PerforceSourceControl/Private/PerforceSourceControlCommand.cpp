@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PerforceSourceControlCommand.h"
-#include "Modules/ModuleManager.h"
-#include "PerforceSourceControlModule.h"
+
+#include "IPerforceSourceControlWorker.h"
 #include "PerforceSourceControlChangelist.h"
+#include "PerforceSourceControlProvider.h"
+#include "PerforceSourceControlSettings.h"
 
 FPerforceSourceControlCommand::FPerforceSourceControlCommand(const TSharedRef<class ISourceControlOperation, ESPMode::ThreadSafe>& InOperation, const TSharedRef<class IPerforceSourceControlWorker, ESPMode::ThreadSafe>& InWorker, const FSourceControlOperationComplete& InOperationCompleteDelegate )
 	: Operation(InOperation)
@@ -20,8 +22,7 @@ FPerforceSourceControlCommand::FPerforceSourceControlCommand(const TSharedRef<cl
 {
 	// Grab the providers settings here, so we don't access them once the worker thread is launched
 	check(IsInGameThread() || InOperation->CanBeCalledFromBackgroundThreads());
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	ConnectionInfo = PerforceSourceControl.AccessSettings().GetConnectionInfo();
+	ConnectionInfo = Worker->GetSCCProvider().AccessSettings().GetConnectionInfo();
 }
 
 bool FPerforceSourceControlCommand::DoWork()

@@ -9,8 +9,8 @@
 #include "Logging/MessageLog.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
-#include "PerforceSourceControlModule.h"
+#include "PerforceSourceControlProvider.h"
+#include "PerforceSourceControlSettings.h"
 
 #define LOCTEXT_NAMESPACE "PerforceConnection"
 
@@ -351,11 +351,27 @@ public:
 	FOnIsCancelled IsCancelled;
 };
 
+static bool TestLoginConnection(FPerforceSourceControlProvider& SCCProvider, ClientApi& P4Client, bool bIsUnicodeServer, TArray<FText>& OutErrorMessages)
+{
+	FP4RecordSet Records;
+	EP4ClientUserFlags Flags = bIsUnicodeServer ? EP4ClientUserFlags::UnicodeServer : EP4ClientUserFlags::None;
+	FP4ClientUser User(Records, Flags, OutErrorMessages);
+
+	const char* ArgV[] = { "-s" };
+
+	P4Client.SetArgv(1, const_cast<char* const*>(ArgV));
+	P4Client.Run("login", &User);
+
+	SCCProvider.SetLastErrors(OutErrorMessages);
+
+	return OutErrorMessages.IsEmpty();
+}
+
 /**
  * Runs "client" command to test if the connection is actually OK. ClientApi::Init() only checks
  * if it can connect to server, doesn't verify user name nor workspace name.
  */
-static bool TestConnection(ClientApi& P4Client, const FString& ClientSpecName, bool bIsUnicodeServer, TArray<FText>& OutErrorMessages)
+static bool TestClientConnection(FPerforceSourceControlProvider& SCCProvider, ClientApi& P4Client, const FString& ClientSpecName, bool bIsUnicodeServer, TArray<FText>& OutErrorMessages)
 {
 	FP4RecordSet Records;
 	EP4ClientUserFlags Flags = bIsUnicodeServer ? EP4ClientUserFlags::UnicodeServer : EP4ClientUserFlags::None;
@@ -382,7 +398,7 @@ static bool TestConnection(ClientApi& P4Client, const FString& ClientSpecName, b
 	// clean up args
 	delete [] ClientSpecUTF8Name;
 
-	FPerforceSourceControlModule::SetLastErrors(OutErrorMessages);
+	SCCProvider.SetLastErrors(OutErrorMessages);
 
 	// If there are error messages, user name is most likely invalid. Otherwise, make sure workspace actually
 	// exists on server by checking if we have it's update date.
@@ -414,9 +430,10 @@ static bool CheckUnicodeStatus(ClientApi& P4Client, bool& bIsUnicodeServer, TArr
 	return OutErrorMessages.Num() == 0;
 }
 
-FPerforceConnection::FPerforceConnection(const FPerforceConnectionInfo& InConnectionInfo)
-:	bEstablishedConnection(false)
-,	bIsUnicode(false)
+FPerforceConnection::FPerforceConnection(const FPerforceConnectionInfo& InConnectionInfo, FPerforceSourceControlProvider& InSCCProvider)
+	: bEstablishedConnection(false)
+	, bIsUnicode(false)
+	, SCCProvider(InSCCProvider)
 {
 	EstablishConnection(InConnectionInfo);
 }
@@ -426,14 +443,14 @@ FPerforceConnection::~FPerforceConnection()
 	Disconnect();
 }
 
-bool FPerforceConnection::AutoDetectWorkspace(const FPerforceConnectionInfo& InConnectionInfo, FString& OutWorkspaceName)
+bool FPerforceConnection::AutoDetectWorkspace(const FPerforceConnectionInfo& InConnectionInfo, FPerforceSourceControlProvider& SCCProvider, FString& OutWorkspaceName)
 {
 	bool Result = false;
 	FMessageLog SourceControlLog("SourceControl");
 
 	//before even trying to summon the window, try to "smart" connect with the default server/username
 	TArray<FText> ErrorMessages;
-	FPerforceConnection Connection(InConnectionInfo);
+	FPerforceConnection Connection(InConnectionInfo, SCCProvider);
 	TArray<FString> ClientSpecList;
 	Connection.GetWorkspaceList(InConnectionInfo, FOnIsCancelled(), ClientSpecList, ErrorMessages);
 
@@ -488,7 +505,9 @@ bool FPerforceConnection::Login(const FPerforceConnectionInfo& InConnectionInfo)
 	return ErrorMessages.Num() == 0;
 }
 
-bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FString& InOutUserName, FString& InOutWorkspaceName, const FPerforceConnectionInfo& InConnectionInfo)
+bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FString& InOutUserName, FString& InOutWorkspaceName,
+												const FPerforceConnectionInfo& InConnectionInfo, FPerforceSourceControlProvider& SCCProvider, 
+												EConnectionOptions Options)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceConnection::EnsureValidConnection);
 
@@ -529,11 +548,12 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 		SourceControlLog.Error(LOCTEXT("P4ErrorConnection_FailedToConnect", "P4ERROR: Failed to connect to source control provider."));
 		SourceControlLog.Error(FText::FromString(ANSI_TO_TCHAR(ErrorMessage.Text())));
 		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("OwningSystem"), FText::FromString(SCCProvider.GetOwnerName()));
 		Arguments.Add( TEXT("PortName"), FText::FromString(NewServerName) );
 		Arguments.Add( TEXT("UserName"), FText::FromString(NewUserName) );
 		Arguments.Add( TEXT("ClientSpecName"), FText::FromString(NewClientSpecName) );
 		Arguments.Add( TEXT("Ticket"), FText::FromString(InConnectionInfo.Ticket) );
-		SourceControlLog.Error(FText::Format(LOCTEXT("P4ErrorConnection_Details", "Port={PortName}, User={UserName}, ClientSpec={ClientSpecName}, Ticket={Ticket}"), Arguments));
+		SourceControlLog.Error(FText::Format(LOCTEXT("P4ErrorConnection_Details", "OwningSystem={OwningSystem}, Port={PortName}, User={UserName}, ClientSpec={ClientSpecName}, Ticket={Ticket}"), Arguments));
 	}
 
 	// run an info command to determine unicode status
@@ -547,11 +567,12 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 			SourceControlLog.Error(LOCTEXT("P4ErrorConnection_CouldNotDetermineUnicodeStatus", "P4ERROR: Could not determine server unicode status."));
 			SourceControlLog.Error(ErrorMessages.Num() > 0 ? ErrorMessages[0] : LOCTEXT("P4ErrorConnection_UnknownError", "Unknown error"));
 			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("OwningSystem"), FText::FromString(SCCProvider.GetOwnerName()));
 			Arguments.Add( TEXT("PortName"), FText::FromString(NewServerName) );
 			Arguments.Add( TEXT("UserName"), FText::FromString(NewUserName) );
 			Arguments.Add( TEXT("ClientSpecName"), FText::FromString(NewClientSpecName) );
 			Arguments.Add( TEXT("Ticket"), FText::FromString(InConnectionInfo.Ticket) );
-			SourceControlLog.Error(FText::Format(LOCTEXT("P4ErrorConnection_Details", "Port={PortName}, User={UserName}, ClientSpec={ClientSpecName}, Ticket={Ticket}"), Arguments));
+			SourceControlLog.Error(FText::Format(LOCTEXT("P4ErrorConnection_Details", "OwningSystem={OwningSystem}, Port={PortName}, User={UserName}, ClientSpec={ClientSpecName}, Ticket={Ticket}"), Arguments));
 		}
 		else
 		{
@@ -570,16 +591,40 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 		}
 	}
 
+	// Test that we have a valid p4 ticket
 	if (bConnectionOK)
 	{
-		// If a client spec was not specified, attempt to auto-detect it here. If the detection is not successful, neither is this connection since we need a client spec.
-		if ( NewClientSpecName.IsEmpty() )
+		TArray<FText> ErrorMessages;
+		bConnectionOK = TestLoginConnection(SCCProvider, TestP4, bIsUnicodeServer, ErrorMessages);
+
+		if (!bConnectionOK)
+		{
+			FString ServerName = TO_TCHAR(TestP4.GetPort().Text(), bIsUnicodeServer);
+			FString UserName = TO_TCHAR(TestP4.GetUser().Text(), bIsUnicodeServer);
+
+			SourceControlLog.Error(LOCTEXT("P4ErrorConnection_FailedToConnect", "P4ERROR: Failed to connect to source control provider."));
+			SourceControlLog.Error(ErrorMessages.Num() > 0 ? ErrorMessages[0] : LOCTEXT("P4ErrorConnection_InvalidToken", "Unable to log in"));
+			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("OwningSystem"), FText::FromString(SCCProvider.GetOwnerName()));
+			Arguments.Add(TEXT("PortName"), FText::FromString(MoveTemp(ServerName)));
+			Arguments.Add(TEXT("UserName"), FText::FromString(MoveTemp(UserName)));
+
+			SourceControlLog.Error(FText::Format(LOCTEXT("P4ErrorConnection_Details", "OwningSystem={OwningSystem}, Port={PortName}, User={UserName}"), Arguments));
+		}
+	}
+
+	const bool bRequireWorkspace = EnumHasAllFlags(Options, EConnectionOptions::WorkspaceOptional);
+
+	// Try to auto detect the client if none were specified and we require one
+	if (bConnectionOK)
+	{
+		if ( bRequireWorkspace && NewClientSpecName.IsEmpty() )
 		{
 			FPerforceConnectionInfo AutoCredentials = InConnectionInfo;
 			AutoCredentials.Port = TO_TCHAR(TestP4.GetPort().Text(), bIsUnicodeServer);
 			AutoCredentials.UserName = TO_TCHAR(TestP4.GetUser().Text(), bIsUnicodeServer);
 
-		 	bConnectionOK = FPerforceConnection::AutoDetectWorkspace(AutoCredentials, NewClientSpecName);
+		 	bConnectionOK = FPerforceConnection::AutoDetectWorkspace(AutoCredentials, SCCProvider, NewClientSpecName);
 			if ( bConnectionOK )
 			{
 				TestP4.SetClient(FROM_TCHAR(*NewClientSpecName, bIsUnicodeServer));
@@ -587,22 +632,24 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 		}
 	}
 
-	if (bConnectionOK)
+	// Test that we found a valid client if we require one
+	if (bConnectionOK && bRequireWorkspace)
 	{
 		TArray<FText> ErrorMessages;
 
-		bConnectionOK = TestConnection(TestP4, NewClientSpecName, bIsUnicodeServer, ErrorMessages);
+		bConnectionOK = TestClientConnection(SCCProvider, TestP4, NewClientSpecName, bIsUnicodeServer, ErrorMessages);
+		
 		if (!bConnectionOK)
 		{
-			//Login FAILED
 			SourceControlLog.Error(LOCTEXT("P4ErrorConnection_FailedToConnect", "P4ERROR: Failed to connect to source control provider."));
 			SourceControlLog.Error(ErrorMessages.Num() > 0 ? ErrorMessages[0] : LOCTEXT("P4ErrorConnection_InvalidWorkspace", "Invalid workspace"));
 			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("OwningSystem"), FText::FromString(SCCProvider.GetOwnerName()));
 			Arguments.Add( TEXT("PortName"), FText::FromString(NewServerName) );
 			Arguments.Add( TEXT("UserName"), FText::FromString(NewUserName) );
 			Arguments.Add( TEXT("ClientSpecName"), FText::FromString(NewClientSpecName) );
 			Arguments.Add( TEXT("Ticket"), FText::FromString(InConnectionInfo.Ticket) );
-			SourceControlLog.Error(FText::Format(LOCTEXT("P4ErrorConnection_Details", "Port={PortName}, User={UserName}, ClientSpec={ClientSpecName}, Ticket={Ticket}"), Arguments));
+			SourceControlLog.Error(FText::Format(LOCTEXT("P4ErrorConnection_Details", "OwningSystem={OwningSystem}, Port={PortName}, User={UserName}, ClientSpec={ClientSpecName}, Ticket={Ticket}"), Arguments));
 		}
 	}
 
@@ -829,7 +876,7 @@ bool FPerforceConnection::RunCommand(const FString& InCommand, const TArray<FStr
 	// Only report connection related errors to avoid clearing of connection related error messages
 	if (InCommand != TEXT("info"))
 	{
-		FPerforceSourceControlModule::SetLastErrors(OutErrorMessage);
+		SCCProvider.SetLastErrors(OutErrorMessage);
 	}
 
 	if (bInStandardDebugOutput)
@@ -1040,37 +1087,36 @@ FScopedPerforceConnection::FScopedPerforceConnection( FPerforceSourceControlComm
 	: Connection(nullptr)
 	, Concurrency(InCommand.Concurrency)
 {
-	Initialize(InCommand.ConnectionInfo);
+	Initialize(InCommand.ConnectionInfo, InCommand.Worker->GetSCCProvider());
 	if (IsValid())
 	{
 		InCommand.MarkConnectionAsSuccessful();
 	}
 }
 
-FScopedPerforceConnection::FScopedPerforceConnection( EConcurrency::Type InConcurrency, const FPerforceConnectionInfo& InConnectionInfo )
+FScopedPerforceConnection::FScopedPerforceConnection(EConcurrency::Type InConcurrency, FPerforceSourceControlProvider& SCCProvider)
 	: Connection(nullptr)
 	, Concurrency(InConcurrency)
 {
-	Initialize(InConnectionInfo);
+	Initialize(SCCProvider.AccessSettings().GetConnectionInfo(), SCCProvider);
 }
 
-void FScopedPerforceConnection::Initialize( const FPerforceConnectionInfo& InConnectionInfo )
+void FScopedPerforceConnection::Initialize( const FPerforceConnectionInfo& InConnectionInfo, FPerforceSourceControlProvider& SCCProvider)
 {
 	if(Concurrency == EConcurrency::Synchronous)
 	{
 		// Synchronous commands reuse the same persistent connection to reduce
 		// the number of expensive connection attempts.
-		FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
-		if ( PerforceSourceControl.GetProvider().EstablishPersistentConnection() )
+		if (SCCProvider.EstablishPersistentConnection() )
 		{
-			Connection = PerforceSourceControl.GetProvider().GetPersistentConnection();
+			Connection = SCCProvider.GetPersistentConnection();
 		}
 	}
 	else
 	{
 		// Async commands form a new connection for each attempt because
 		// using the persistent connection is not threadsafe
-		FPerforceConnection* NewConnection = new FPerforceConnection(InConnectionInfo);
+		FPerforceConnection* NewConnection = new FPerforceConnection(InConnectionInfo, SCCProvider);
 		if ( NewConnection->IsValidConnection() )
 		{
 			Connection = NewConnection;

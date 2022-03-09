@@ -14,24 +14,12 @@
 #include "SourceControlOperationBase.h"
 #include "ISourceControlProvider.h"
 
+class FGetWorkspaces;
+class FPerforceSourceControlProvider;
+
 class SButton;
-
-/**
- * Internal-only source control operation for retrieving available workspaces.
- */
-class FGetWorkspaces : public FSourceControlOperationBase
-{
-public:
-	// ISourceControlOperation interface
-	virtual FName GetName() const override
-	{
-		return "GetWorkspaces";
-	}
-
-public:
-	/** Results are just an array of workspaces */
-	TArray<FString> Results;
-};
+class SComboButton;
+class SEditableTextBox;
 
 /** Enum for source control operation state */
 namespace ESourceControlOperationState
@@ -49,12 +37,11 @@ class SPerforceSourceControlSettings : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS(SPerforceSourceControlSettings) {}
-
 	SLATE_END_ARGS()
 
 public:
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, FPerforceSourceControlProvider* InSCCProvider);
 
 	/** Get the currently entered password */
 	static FString GetPassword();
@@ -134,7 +121,11 @@ private:
 	/** Toggle advanced settings */
 	FReply OnAdvancedSettingsClicked();
 
+	FPerforceSourceControlProvider& GetSCCProvider() const;
+
 private:
+	FPerforceSourceControlProvider* SCCProvider;
+
 	/** State of the source control operation */
 	ESourceControlOperationState::Type State;
 
@@ -145,13 +136,13 @@ private:
 	TArray<TSharedRef<FString>> Workspaces;
 
 	/** The combo button use to display the workspaces */
-	TSharedPtr<class SComboButton> WorkspaceCombo;
+	TSharedPtr<SComboButton> WorkspaceCombo;
 
 	/** The source control operation in progress */
 	TSharedPtr<FGetWorkspaces, ESPMode::ThreadSafe> GetWorkspacesOperation;
 
 	/** Pointer to the password text box widget */
-	static TWeakPtr<class SEditableTextBox> PasswordTextBox;
+	static TWeakPtr<SEditableTextBox> PasswordTextBox;
 
 	/** Expander button for advanced settings */
 	TSharedPtr<SButton> ExpanderButton;

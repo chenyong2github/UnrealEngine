@@ -6,17 +6,14 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlRevision.h"
 
+class FPerforceSourceControlProvider;
+
 class FPerforceSourceControlRevision : public ISourceControlRevision, public TSharedFromThis<FPerforceSourceControlRevision, ESPMode::ThreadSafe>
 {
 public:
-	FPerforceSourceControlRevision()
-		: RevisionNumber(0)
-		, Date(0)
-		, ChangelistNumber(0)
-		, FileSize(0)
-		, bIsShelve(false)
-	{
-	}
+
+	FPerforceSourceControlRevision(FPerforceSourceControlProvider& InSCCProvider);
+	virtual ~FPerforceSourceControlRevision() = default;
 
 	/** ISourceControlRevision interface */
 	virtual bool Get( FString& InOutFilename, EConcurrency::Type InConcurrency = EConcurrency::Synchronous) const override;
@@ -35,6 +32,7 @@ public:
 	virtual int32 GetFileSize() const override;
 
 public:
+
 	/** The local filename the this revision refers to */
 	FString FileName;
 
@@ -70,4 +68,14 @@ public:
 
 	/** Whether this reprensents a revision bound to a shelved file in a changelist */
 	bool bIsShelve;
+
+private:
+	/** Internal accessor to the source control provider associated with the object */
+	FPerforceSourceControlProvider& GetSCCProvider() const
+	{
+		return SCCProvider;
+	}
+
+	/** The source control provider that this object is associated with */
+	FPerforceSourceControlProvider& SCCProvider;
 };

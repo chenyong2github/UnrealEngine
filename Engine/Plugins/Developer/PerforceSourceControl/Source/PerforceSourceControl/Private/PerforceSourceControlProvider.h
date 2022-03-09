@@ -3,27 +3,24 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ISourceControlOperation.h"
-#include "ISourceControlState.h"
-#include "ISourceControlProvider.h"
 #include "IPerforceSourceControlWorker.h"
-#include "PerforceSourceControlState.h"
+#include "ISourceControlOperation.h"
+#include "ISourceControlProvider.h"
+#include "ISourceControlState.h"
 #include "PerforceSourceControlChangelistState.h"
+#include "PerforceSourceControlSettings.h"
+#include "PerforceSourceControlState.h"
+#include "SourceControlInitSettings.h"
 
 class FPerforceSourceControlCommand;
-
-DECLARE_DELEGATE_RetVal(FPerforceSourceControlWorkerRef, FGetPerforceSourceControlWorker)
 
 class FPerforceSourceControlProvider : public ISourceControlProvider
 {
 public:
-	/** Constructor */
-	FPerforceSourceControlProvider()
-		: bServerAvailable(false)
-		, bLoginError(false)
-		, PersistentConnection(NULL)
-	{
-	}
+	
+	FPerforceSourceControlProvider();
+	FPerforceSourceControlProvider(const FStringView& OwnerName, const FSourceControlInitSettings& InitialSettings);
+	virtual ~FPerforceSourceControlProvider() = default;
 
 	/* ISourceControlProvider implementation */
 	virtual void Init(bool bForceConnection = true) override;
@@ -60,12 +57,6 @@ public:
 	using ISourceControlProvider::Execute;
 
 	/**
-	 * Register a worker with the provider.
-	 * This is used internally so the provider can maintain a map of all available operations.
-	 */
-	void RegisterWorker( const FName& InName, const FGetPerforceSourceControlWorker& InDelegate );
-
-	/**
 	 * Gets a list of client spec names from the source control provider
 	 *
 	 * @param	InConnectionInfo	Credentials for connection
@@ -76,6 +67,9 @@ public:
 
 	/** Get the P4 ticket we will use for connections */
 	const FString& GetTicket() const;
+
+	/** Returns the name of the system that owns the provider */
+	const FString& GetOwnerName() const;
 
 	/** Set list of error messages that occurred after last perforce command */
 	void SetLastErrors(const TArray<FText>& InErrors);
@@ -117,10 +111,20 @@ public:
 	/** Returns a list of changelists from the cache based on a given predicate */
 	TArray<FSourceControlChangelistStateRef> GetCachedStateByPredicate(TFunctionRef<bool(const FSourceControlChangelistStateRef&)> Predicate) const;
 
+	/** Returns the settings for the current source control provider */
+	const FPerforceSourceControlSettings& AccessSettings() const;
+
+	/** Returns the settings for the current source control provider */
+	FPerforceSourceControlSettings& AccessSettings();
+
 private:
+	/** Instantiates and returns a new FPerforceSourceControlProvider */
+	virtual TUniquePtr<ISourceControlProvider> Create(const FStringView& OwnerName, const FSourceControlInitSettings& InitialSettings) const override;
+
+	void SaveConnectionSettings();
 
 	/** Helper function used to create a worker for a particular operation */
-	TSharedPtr<class IPerforceSourceControlWorker, ESPMode::ThreadSafe> CreateWorker(const FName& InOperationName) const;
+	TSharedPtr<class IPerforceSourceControlWorker, ESPMode::ThreadSafe> CreateWorker(const FName& InOperationName);
 
 	/** 
 	 * Logs any messages that a command needs to output.
@@ -146,6 +150,15 @@ private:
 
 private:
 
+	/** The settings for Perforce source control */
+	FPerforceSourceControlSettings PerforceSCCSettings;
+
+	/** The initial settings for the provider. These are used every time ::Init is called */
+	FSourceControlInitSettings InitialSettings;
+
+	/** Name of the system that owns the provider */
+	FString OwnerName;
+
 	/** The ticket we use for login. */
 	FString Ticket;
 
@@ -170,9 +183,6 @@ private:
 	/** State cache */
 	TMap<FString, TSharedRef<class FPerforceSourceControlState, ESPMode::ThreadSafe> > StateCache;
 	TMap<FPerforceSourceControlChangelist, TSharedRef<class FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> > ChangelistsStateCache;
-
-	/** The currently registered source control operations */
-	TMap<FName, FGetPerforceSourceControlWorker> WorkersMap;
 
 	/** Queue for commands given by the main thread */
 	TArray < FPerforceSourceControlCommand* > CommandQueue;

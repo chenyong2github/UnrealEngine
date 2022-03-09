@@ -1,28 +1,80 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PerforceSourceControlOperations.h"
-#include "PerforceSourceControlPrivate.h"
+
+#include "Algo/AnyOf.h"
+#include "Algo/Find.h"
+#include "Algo/IndexOf.h"
+#include "Algo/Transform.h"
 #include "HAL/FileManager.h"
 #include "ISourceControlModule.h"
-#include "Misc/Paths.h"
 #include "Misc/EngineVersion.h"
-#include "Modules/ModuleManager.h"
-#include "ISourceControlModule.h"
+#include "Misc/Paths.h"
+#include "PerforceConnection.h"
+#include "PerforceSourceControlChangeStatusOperation.h"
+#include "PerforceSourceControlChangelistState.h"
+#include "PerforceSourceControlCommand.h"
+#include "PerforceSourceControlInternalOperations.h"
+#include "PerforceSourceControlPrivate.h"
+#include "PerforceSourceControlProvider.h"
+#include "PerforceSourceControlRevision.h"
 #include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
-#include "PerforceSourceControlRevision.h"
-#include "PerforceSourceControlCommand.h"
-#include "PerforceSourceControlChangelistState.h"
-#include "PerforceConnection.h"
-#include "PerforceSourceControlModule.h"
-#include "PerforceSourceControlChangeStatusOperation.h"
-#include "SPerforceSourceControlSettings.h"
-#include "Algo/AnyOf.h"
-#include "Algo/IndexOf.h"
-#include "Algo/Find.h"
-#include "Algo/Transform.h"
 
 #define LOCTEXT_NAMESPACE "PerforceSourceControl"
+
+namespace
+{
+DECLARE_DELEGATE_RetVal_OneParam(FPerforceSourceControlWorkerRef, FGetPerforceSourceControlWorker, FPerforceSourceControlProvider&)
+
+static TMap<FName, FGetPerforceSourceControlWorker> WorkersMap;
+}
+
+template<typename Type>
+FPerforceSourceControlWorkerRef InstantiateWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+{
+	return MakeShareable(new Type(InSourceControlProvider));
+}
+
+void IPerforceSourceControlWorker::RegisterWorkers()
+{
+	WorkersMap.Add("Connect", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceConnectWorker>));
+	WorkersMap.Add("CheckOut", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceCheckOutWorker>));
+	WorkersMap.Add("UpdateStatus", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceUpdateStatusWorker>));
+	WorkersMap.Add("MarkForAdd", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceMarkForAddWorker>));
+	WorkersMap.Add("Delete", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceDeleteWorker>));
+	WorkersMap.Add("Revert", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceRevertWorker>));
+	WorkersMap.Add("Sync", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceSyncWorker>));
+	WorkersMap.Add("CheckIn", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceCheckInWorker>));
+	WorkersMap.Add("GetWorkspaces", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceGetWorkspacesWorker>));
+	WorkersMap.Add("Copy", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceCopyWorker>));
+	WorkersMap.Add("Resolve", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceResolveWorker>));
+	WorkersMap.Add("ChangeStatus", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceChangeStatusWorker>));
+	WorkersMap.Add("UpdateChangelistsStatus", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceGetPendingChangelistsWorker>));
+	WorkersMap.Add("NewChangelist", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceNewChangelistWorker>));
+	WorkersMap.Add("DeleteChangelist", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceDeleteChangelistWorker>));
+	WorkersMap.Add("EditChangelist", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceEditChangelistWorker>));
+	WorkersMap.Add("RevertUnchanged", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceRevertUnchangedWorker>));
+	WorkersMap.Add("MoveToChangelist", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceReopenWorker>));
+	WorkersMap.Add("Shelve", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceShelveWorker>));
+	WorkersMap.Add("Unshelve", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceUnshelveWorker>));
+	WorkersMap.Add("DeleteShelved", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceDeleteShelveWorker>));
+	WorkersMap.Add("DownloadFile", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceDownloadFileWorker>));
+	WorkersMap.Add("CreateWorkspace", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceCreateWorkspaceWorker>));
+	WorkersMap.Add("DeleteWorkspace", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceDeleteWorkspaceWorker>));
+	WorkersMap.Add("GetFileList", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceGetFileListWorker>));
+}
+
+TSharedPtr<class IPerforceSourceControlWorker, ESPMode::ThreadSafe> IPerforceSourceControlWorker::CreateWorker(const FName& OperationName, FPerforceSourceControlProvider& SCCProvider)
+{
+	const FGetPerforceSourceControlWorker* Operation = WorkersMap.Find(OperationName);
+	if (Operation != nullptr)
+	{
+		return Operation->Execute(SCCProvider);
+	}
+
+	return nullptr;
+}
 
 /**
  * Helper struct for RemoveRedundantErrors()
@@ -186,12 +238,11 @@ static void ParseRecordSetForState(const FP4RecordSet& InRecords, TMap<FString, 
 	}
 }
 
-static void UpdateChangelistState(const FPerforceSourceControlChangelist& InChangelist, const TMap<FString, EPerforceState::Type>& InOperationResults)
+static void UpdateChangelistState(FPerforceSourceControlProvider& SCCProvider, const FPerforceSourceControlChangelist& InChangelist, const TMap<FString, EPerforceState::Type>& InOperationResults)
 {
 	if (InChangelist.IsInitialized())
 	{
-		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InChangelist);
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = SCCProvider.GetStateInternal(InChangelist);
 
 		for (TMap<FString, EPerforceState::Type>::TConstIterator It(InOperationResults); It; ++It)
 		{
@@ -200,18 +251,17 @@ static void UpdateChangelistState(const FPerforceSourceControlChangelist& InChan
 				continue;
 			}
 
-			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(It.Key());
+			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = SCCProvider.GetStateInternal(It.Key());
 			ChangelistState->Files.Add(State);
 		}
 	}
 }
 
-static bool UpdateCachedStates(const TMap<FString, EPerforceState::Type>& InResults)
+static bool UpdateCachedStates(FPerforceSourceControlProvider& SCCProvider, const TMap<FString, EPerforceState::Type>& InResults)
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
 	for(TMap<FString, EPerforceState::Type>::TConstIterator It(InResults); It; ++It)
 	{
-		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(It.Key());
+		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = SCCProvider.GetStateInternal(It.Key());
 		State->SetState(It.Value());
 		State->TimeStamp = FDateTime::Now();
 	}
@@ -255,10 +305,9 @@ static bool CheckWorkspaceRecordSet(const FP4RecordSet& InRecords, TArray<FText>
 	return false;
 }
 
-static bool AppendChangelistParameter(TArray<FString>& InOutParams)
+static bool AppendChangelistParameter(FPerforceSourceControlProvider& SCCProvider, TArray<FString>& InOutParams)
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::GetModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
-	FPerforceSourceControlSettings& Settings = PerforceSourceControl.AccessSettings();
+	FPerforceSourceControlSettings& Settings = SCCProvider.AccessSettings();
 
 	const FString& ChangelistNumber = Settings.GetChangelistNumber();
 	if ( !ChangelistNumber.IsEmpty() )
@@ -336,7 +385,7 @@ bool FPerforceCheckOutWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
 		TArray<FString> Parameters;
 
-		if ((!AppendChangelistParameter(Parameters)) && InCommand.Changelist.IsInitialized())
+		if ((!AppendChangelistParameter(GetSCCProvider(), Parameters)) && InCommand.Changelist.IsInitialized())
 		{
 			FString ChangelistNumber = InCommand.Changelist.ToString();
 
@@ -360,9 +409,9 @@ bool FPerforceCheckOutWorker::Execute(FPerforceSourceControlCommand& InCommand)
 bool FPerforceCheckOutWorker::UpdateStates() const
 {
 	// If files have been checkedout directly to a CL, modify the cached state to reflect it.
-	UpdateChangelistState(InChangelist, OutResults);
+	UpdateChangelistState(GetSCCProvider(), InChangelist, OutResults);
 
-	return UpdateCachedStates(OutResults);
+	return UpdateCachedStates(GetSCCProvider(), OutResults);
 }
 
 FName FPerforceCheckInWorker::GetName() const
@@ -443,10 +492,9 @@ static bool RemoveFilesFromChangelist(const TMap<FString, EPerforceState::Type>&
 		}) > 0;
 }
 
-static bool RemoveFilesFromChangelist(const TMap<FString, EPerforceState::Type>& Results, const FPerforceSourceControlChangelist& Changelist)
+static bool RemoveFilesFromChangelist(const TMap<FString, EPerforceState::Type>& Results, FPerforceSourceControlProvider& SCCProvider, const FPerforceSourceControlChangelist& Changelist)
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(Changelist);
+	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = SCCProvider.GetStateInternal(Changelist);
 	return RemoveFilesFromChangelist(Results, ChangelistState);
 }
 
@@ -457,16 +505,14 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
 		FText CachedDescription;
-		FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::GetModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
-		FPerforceSourceControlProvider& Provider = PerforceSourceControl.GetProvider();
-
+		
 		check(InCommand.Operation->GetName() == GetName());
 		TSharedRef<FCheckIn, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FCheckIn>(InCommand.Operation);
 
 		TArray<FString> FilesToSubmit = InCommand.Files;
 
 		FPerforceSourceControlChangelist ChangeList(InCommand.Changelist);
-		FSourceControlChangelistStateRef ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InCommand.Changelist);
+		FSourceControlChangelistStateRef ChangelistState = GetSCCProvider().GetStateInternal(InCommand.Changelist);
 		TArray<FString> ReopenedFiles;
 
 		InCommand.bCommandSuccessful = true;
@@ -527,12 +573,12 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 			{
 				// Remove any deleted files from status cache
 				TArray<TSharedRef<ISourceControlState, ESPMode::ThreadSafe>> States;
-				Provider.GetState(FilesToSubmit, States, EStateCacheUsage::Use);
+				GetSCCProvider().GetState(FilesToSubmit, States, EStateCacheUsage::Use);
 				for (const auto& State : States)
 				{
 					if (State->IsDeleted())
 					{
-						Provider.RemoveFileFromCache(State->GetFilename());
+						GetSCCProvider().RemoveFileFromCache(State->GetFilename());
 					}
 				}
 
@@ -581,19 +627,18 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 bool FPerforceCheckInWorker::UpdateStates() const
 {
-	bool bUpdatedStates = UpdateCachedStates(OutResults);
+	bool bUpdatedStates = UpdateCachedStates(GetSCCProvider(), OutResults);
 	bool bUpdatedChangelistStates = false;
 
 	if(!OutChangelist.IsDefault()) // e.g. operation succeeded
 	{
 		// Delete changelist, whether its a temporary one or not
-		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-		bUpdatedChangelistStates = PerforceSourceControl.GetProvider().RemoveChangelistFromCache(OutChangelist);
+		bUpdatedChangelistStates = GetSCCProvider().RemoveChangelistFromCache(OutChangelist);
 
 		// If it's a temporary one, then remove the submitted files from the default changelist
 		if (InChangelist.IsDefault())
 		{
-			bUpdatedChangelistStates = RemoveFilesFromChangelist(OutResults, InChangelist);
+			bUpdatedChangelistStates = RemoveFilesFromChangelist(OutResults, GetSCCProvider(), InChangelist);
 		}
 	}
 
@@ -700,7 +745,7 @@ bool FPerforceMarkForAddWorker::Execute(FPerforceSourceControlCommand& InCommand
 			}
 		}
 
-		AppendChangelistParameter(Parameters);
+		AppendChangelistParameter(GetSCCProvider(), Parameters);
 		Parameters.Append(InCommand.Files);
 
 		InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("add"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
@@ -711,9 +756,9 @@ bool FPerforceMarkForAddWorker::Execute(FPerforceSourceControlCommand& InCommand
 
 bool FPerforceMarkForAddWorker::UpdateStates() const
 {
-	UpdateChangelistState(InChangelist, OutResults);
+	UpdateChangelistState(GetSCCProvider(), InChangelist, OutResults);
 
-	return UpdateCachedStates(OutResults);
+	return UpdateCachedStates(GetSCCProvider(), OutResults);
 }
 
 FName FPerforceDeleteWorker::GetName() const
@@ -729,7 +774,7 @@ bool FPerforceDeleteWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
 		TArray<FString> Parameters;
 
-		AppendChangelistParameter(Parameters);
+		AppendChangelistParameter(GetSCCProvider(), Parameters);
 		Parameters.Append(InCommand.Files);
 
 		FP4RecordSet Records;
@@ -741,7 +786,7 @@ bool FPerforceDeleteWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 bool FPerforceDeleteWorker::UpdateStates() const
 {
-	return UpdateCachedStates(OutResults);
+	return UpdateCachedStates(GetSCCProvider(), OutResults);
 }
 
 FName FPerforceRevertWorker::GetName() const
@@ -764,7 +809,7 @@ bool FPerforceRevertWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		}
 		else
 		{
-			AppendChangelistParameter(Parameters);
+			AppendChangelistParameter(GetSCCProvider(), Parameters);
 		}
 
 		TSharedRef<FRevert> RevertOperation = StaticCastSharedRef<FRevert>(InCommand.Operation);
@@ -806,18 +851,17 @@ bool FPerforceRevertWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 bool FPerforceRevertWorker::UpdateStates() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-	bool bUpdatedCachedStates = UpdateCachedStates(OutResults);
+	bool bUpdatedCachedStates = UpdateCachedStates(GetSCCProvider(), OutResults);
 	bool bUpdatedChangelists = false;
 
-	bUpdatedChangelists = ChangelistToUpdate.IsInitialized() && RemoveFilesFromChangelist(OutResults, ChangelistToUpdate);
+	bUpdatedChangelists = ChangelistToUpdate.IsInitialized() && RemoveFilesFromChangelist(OutResults, GetSCCProvider(), ChangelistToUpdate);
 
 	// Use reverted files to update changelist state.
 	for (TMap<FString, EPerforceState::Type>::TConstIterator It(OutResults); It; ++It)
 	{
-		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(It.Key());
+		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = GetSCCProvider().GetStateInternal(It.Key());
 
-		bUpdatedChangelists |= State->Changelist.IsInitialized() && RemoveFilesFromChangelist(OutResults, State->Changelist);
+		bUpdatedChangelists |= State->Changelist.IsInitialized() && RemoveFilesFromChangelist(OutResults, GetSCCProvider(), State->Changelist);
 	}
 
 	return bUpdatedCachedStates || bUpdatedChangelists;
@@ -857,8 +901,7 @@ bool FPerforceSyncWorker::Execute(FPerforceSourceControlCommand& InCommand)
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
-		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-
+		
 		TSharedRef<FSync, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FSync>(InCommand.Operation);
 		TArray<FString> Parameters;
 
@@ -883,7 +926,7 @@ bool FPerforceSyncWorker::Execute(FPerforceSourceControlCommand& InCommand)
 			}
 			else if (Operation->IsLastSyncedFlagSet())
 			{
-				TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(FileName);
+				TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = GetSCCProvider().GetStateInternal(FileName);
 
 				if (State->LocalRevNumber == ISourceControlState::INVALID_REVISION)
 				{
@@ -917,7 +960,7 @@ bool FPerforceSyncWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 bool FPerforceSyncWorker::UpdateStates() const
 {
-	return UpdateCachedStates(OutResults);
+	return UpdateCachedStates(GetSCCProvider(), OutResults);
 }
 
 static void ParseBranchModificationResults(const FP4RecordSet& InRecords, const TArray<FText>& ErrorMessages, const FString& ContentRoot, TMap<FString, FBranchModification>& BranchModifications)
@@ -1463,7 +1506,7 @@ static const FString& FindWorkspaceFile(const TArray<FPerforceSourceControlState
 	return InDepotFile;
 }
 
-static void ParseHistoryResults(const FP4RecordSet& InRecords, const TArray<FPerforceSourceControlState>& InStates, FPerforceFileHistoryMap& OutHistory)
+static void ParseHistoryResults(FPerforceSourceControlProvider& SCCProvider, const FP4RecordSet& InRecords, const TArray<FPerforceSourceControlState>& InStates, FPerforceFileHistoryMap& OutHistory)
 {
 	if (InRecords.Num() > 0)
 	{
@@ -1541,7 +1584,7 @@ static void ParseHistoryResults(const FP4RecordSet& InRecords, const TArray<FPer
 				VarName = FString::Printf(TEXT("how%d,0"), RevisionNumbers);
 				if(ClientRecord.Contains(*VarName))
 				{
-					BranchSource = MakeShareable( new FPerforceSourceControlRevision() );
+					BranchSource = MakeShareable(new FPerforceSourceControlRevision(SCCProvider));
 
 					VarName = FString::Printf(TEXT("file%d,0"), RevisionNumbers);
 					FString BranchSourceFileName = ClientRecord(*VarName);
@@ -1552,7 +1595,7 @@ static void ParseHistoryResults(const FP4RecordSet& InRecords, const TArray<FPer
 					BranchSource->RevisionNumber = FCString::Atoi(*BranchSourceRevision);
 				}
 
-				TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> Revision = MakeShareable( new FPerforceSourceControlRevision() );
+				TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> Revision = MakeShareable(new FPerforceSourceControlRevision(SCCProvider));
 				Revision->FileName = LocalFileName;
 				Revision->RevisionNumber = FCString::Atoi(*RevisionNumber);
 				Revision->Revision = RevisionNumber;
@@ -1578,7 +1621,8 @@ static void ParseHistoryResults(const FP4RecordSet& InRecords, const TArray<FPer
 	}
 }
 
-static bool GetFileHistory(FPerforceConnection& Connection, FPerforceSourceControlCommand& InCommand, const TArray<FString>& InFiles, TArray<FPerforceSourceControlState>& OutStates, FPerforceFileHistoryMap& OutHistory)
+static bool GetFileHistory(	FPerforceSourceControlProvider& SCCProvider, FPerforceConnection& Connection, FPerforceSourceControlCommand& InCommand, 
+							const TArray<FString>& InFiles, TArray<FPerforceSourceControlState>& OutStates, FPerforceFileHistoryMap& OutHistory)
 {
 	TArray<FString> Parameters;
 	FP4RecordSet Records;
@@ -1594,7 +1638,7 @@ static bool GetFileHistory(FPerforceConnection& Connection, FPerforceSourceContr
 	Parameters.Add(TEXT("-m 100"));
 	Parameters.Append(InFiles);
 	InCommand.bCommandSuccessful &= Connection.RunCommand(TEXT("filelog"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
-	ParseHistoryResults(Records, OutStates, OutHistory);
+	ParseHistoryResults(SCCProvider, Records, OutStates, OutHistory);
 	RemoveRedundantErrors(InCommand, TEXT(" - no such file(s)."));
 	RemoveRedundantErrors(InCommand, TEXT(" - file(s) not on client"));
 	RemoveRedundantErrors(InCommand, TEXT("' is not under client's root '"));
@@ -1730,7 +1774,7 @@ bool FPerforceUpdateStatusWorker::Execute(FPerforceSourceControlCommand& InComma
 
 		if(Operation->ShouldUpdateHistory())
 		{
-			GetFileHistory(Connection, InCommand, InCommand.Files, OutStates, OutHistory);
+			GetFileHistory(GetSCCProvider(), Connection, InCommand, InCommand.Files, OutStates, OutHistory);
 		}
 
 		if(Operation->ShouldGetOpenedOnly())
@@ -1790,14 +1834,13 @@ bool FPerforceUpdateStatusWorker::UpdateStates() const
 {
 	bool bUpdated = false;
 
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
 	const FDateTime Now = FDateTime::Now();
 
 	// first update cached state from 'fstat' call
 	for(int StatusIndex = 0; StatusIndex < OutStates.Num(); StatusIndex++)
 	{
 		const FPerforceSourceControlState& Status = OutStates[StatusIndex];
-		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(Status.LocalFilename);
+		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = GetSCCProvider().GetStateInternal(Status.LocalFilename);
 		// Update every member except History and Timestamp. History will be updated below from the OutHistory map.
 		// Timestamp is used to throttle status requests, so update it to current time:
 		auto History = MoveTemp(State->History);
@@ -1808,12 +1851,12 @@ bool FPerforceUpdateStatusWorker::UpdateStates() const
 	}
 
 	// next update state from 'opened' call
-	bUpdated |= UpdateCachedStates(OutStateMap);
+	bUpdated |= UpdateCachedStates(GetSCCProvider(), OutStateMap);
 
 	// add history, if any
 	for(FPerforceFileHistoryMap::TConstIterator It(OutHistory); It; ++It)
 	{
-		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(It.Key());
+		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = GetSCCProvider().GetStateInternal(It.Key());
 		const TArray< TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> >& History = It.Value();
 		State->History = History;
 		State->TimeStamp = Now;
@@ -1824,7 +1867,7 @@ bool FPerforceUpdateStatusWorker::UpdateStates() const
 	for(int ModifiedIndex = 0; ModifiedIndex < OutModifiedFiles.Num(); ModifiedIndex++)
 	{
 		const FString& FileName = OutModifiedFiles[ModifiedIndex];
-		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = PerforceSourceControl.GetProvider().GetStateInternal(FileName);
+		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> State = GetSCCProvider().GetStateInternal(FileName);
 		State->bModifed = true;
 		State->TimeStamp = Now;
 		bUpdated = true;
@@ -2026,9 +2069,10 @@ bool FPerforceGetPendingChangelistsWorker::Execute(FPerforceSourceControlCommand
 	return InCommand.bCommandSuccessful;
 }
 
-static bool AddShelvedFilesToChangelist(const TMap<FString, EPerforceState::Type>& FilesToAdd, const TMap<FString, FString>& DepotToFileMap, TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe>& ChangelistState, const FDateTime* TimeStamp = nullptr)
+static bool AddShelvedFilesToChangelist(FPerforceSourceControlProvider& SCCProvider, const TMap<FString, EPerforceState::Type>& FilesToAdd, 
+										const TMap<FString, FString>& DepotToFileMap, TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe>& ChangelistState, 
+										const FDateTime* TimeStamp = nullptr)
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
 	const FDateTime Now = (TimeStamp ? *TimeStamp : FDateTime::Now());
 
 	for (TMap<FString, EPerforceState::Type>::TConstIterator It(FilesToAdd); It; ++It)
@@ -2054,7 +2098,7 @@ static bool AddShelvedFilesToChangelist(const TMap<FString, EPerforceState::Type
 			// Add revision to be able to fetch the shelved file, if it's not marked for deletion.
 			if (It.Value() != EPerforceState::MarkedForDelete)
 			{
-				TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> ShelvedRevision = MakeShareable(new FPerforceSourceControlRevision());
+				TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> ShelvedRevision = MakeShareable(new FPerforceSourceControlRevision(SCCProvider));
 				ShelvedRevision->FileName = ShelvedFileState->DepotFilename;
 				ShelvedRevision->ChangelistNumber = StaticCastSharedRef<FPerforceSourceControlChangelist>(ChangelistState->GetChangelist())->ToInt();
 				ShelvedRevision->bIsShelve = true;
@@ -2076,25 +2120,24 @@ static bool AddShelvedFilesToChangelist(const TMap<FString, EPerforceState::Type
 	return FilesToAdd.Num() > 0;
 }
 
-static bool AddShelvedFilesToChangelist(const TMap<FString, EPerforceState::Type>& FilesToAdd, const TMap<FString, FString>& DepotToFileMap, const FPerforceSourceControlChangelist& Changelist)
+static bool AddShelvedFilesToChangelist(FPerforceSourceControlProvider& SCCProvider, const TMap<FString, EPerforceState::Type>& FilesToAdd, 
+										const TMap<FString, FString>& DepotToFileMap, const FPerforceSourceControlChangelist& Changelist)
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(Changelist);
-	return AddShelvedFilesToChangelist(FilesToAdd, DepotToFileMap, ChangelistState);
+	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = SCCProvider.GetStateInternal(Changelist);
+	return AddShelvedFilesToChangelist(SCCProvider, FilesToAdd, DepotToFileMap, ChangelistState);
 }
 
 bool FPerforceGetPendingChangelistsWorker::UpdateStates() const
 {
 	bool bUpdated = false;
 
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
 	const FDateTime Now = FDateTime::Now();
 
 	// first update cached state from 'changes' call
 	for (int StatusIndex = 0; StatusIndex < OutChangelistsStates.Num(); StatusIndex++)
 	{
 		const FPerforceSourceControlChangelistState& CLStatus = OutChangelistsStates[StatusIndex];
-		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(CLStatus.Changelist);
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetSCCProvider().GetStateInternal(CLStatus.Changelist);
 		// Timestamp is used to throttle status requests, so update it to current time:
 		*ChangelistState = CLStatus;
 		ChangelistState->TimeStamp = Now;
@@ -2107,7 +2150,7 @@ bool FPerforceGetPendingChangelistsWorker::UpdateStates() const
 			ChangelistState->Files.Reset(OutCLFilesStates[StatusIndex].Num());
 			for (const auto& FileState : OutCLFilesStates[StatusIndex])
 			{
-				TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> CachedFileState = PerforceSourceControl.GetProvider().GetStateInternal(FileState.LocalFilename);
+				TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> CachedFileState = GetSCCProvider().GetStateInternal(FileState.LocalFilename);
 				CachedFileState->Update(FileState, &Now);
 				ChangelistState->Files.AddUnique(CachedFileState);
 			}
@@ -2118,14 +2161,14 @@ bool FPerforceGetPendingChangelistsWorker::UpdateStates() const
 		if(bUpdateShelvedFiles)
 		{
 			ChangelistState->ShelvedFiles.Reset(OutCLShelvedFilesStates[StatusIndex].Num());
-			AddShelvedFilesToChangelist(OutCLShelvedFilesStates[StatusIndex], OutCLShelvedFilesMap[StatusIndex], ChangelistState, &Now);
+			AddShelvedFilesToChangelist(GetSCCProvider(), OutCLShelvedFilesStates[StatusIndex], OutCLShelvedFilesMap[StatusIndex], ChangelistState, &Now);
 		}
 	}
 
 	if (bCleanupCache)
 	{
 		TArray<FPerforceSourceControlChangelist> ChangelistsToRemove;
-		PerforceSourceControl.GetProvider().GetCachedStateByPredicate([this, &ChangelistsToRemove](const FSourceControlChangelistStateRef& InCLState) {
+		GetSCCProvider().GetCachedStateByPredicate([this, &ChangelistsToRemove](const FSourceControlChangelistStateRef& InCLState) {
 			TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> CLState = StaticCastSharedRef<FPerforceSourceControlChangelistState>(InCLState);
 
 			if (Algo::NoneOf(OutChangelistsStates, [&CLState](const FPerforceSourceControlChangelistState& UpdatedCLState) {
@@ -2140,7 +2183,7 @@ bool FPerforceGetPendingChangelistsWorker::UpdateStates() const
 
 		for (const FPerforceSourceControlChangelist& ChangelistToRemove : ChangelistsToRemove)
 		{
-			PerforceSourceControl.GetProvider().RemoveChangelistFromCache(ChangelistToRemove);
+			GetSCCProvider().RemoveChangelistFromCache(ChangelistToRemove);
 		}
 	}
 
@@ -2167,7 +2210,7 @@ bool FPerforceCopyWorker::Execute(class FPerforceSourceControlCommand& InCommand
 
 		TArray<FString> Parameters;
 
-		AppendChangelistParameter(Parameters);
+		AppendChangelistParameter(GetSCCProvider(), Parameters);
 
 		Parameters.Append(InCommand.Files);
 		Parameters.Add(DestinationPath);
@@ -2192,7 +2235,7 @@ bool FPerforceCopyWorker::Execute(class FPerforceSourceControlCommand& InCommand
 
 bool FPerforceCopyWorker::UpdateStates() const
 {
-	return UpdateCachedStates(OutResults);
+	return UpdateCachedStates(GetSCCProvider(), OutResults);
 }
 
 // IPerforceSourceControlWorker interface
@@ -2212,7 +2255,7 @@ bool FPerforceResolveWorker::Execute(class FPerforceSourceControlCommand& InComm
 
 		Parameters.Add("-ay");
 		Parameters.Append(InCommand.Files);
-		AppendChangelistParameter(Parameters);
+		AppendChangelistParameter(GetSCCProvider(), Parameters);
 
 		FP4RecordSet Records;
 		InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("resolve"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
@@ -2227,11 +2270,9 @@ bool FPerforceResolveWorker::Execute(class FPerforceSourceControlCommand& InComm
 
 bool FPerforceResolveWorker::UpdateStates() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-
 	for( const auto& Filename : UpdatedFiles )
 	{
-		auto State = PerforceSourceControl.GetProvider().GetStateInternal( Filename );
+		auto State = GetSCCProvider().GetStateInternal( Filename );
 		State->LocalRevNumber = State->DepotRevNumber;
 		State->PendingResolveRevNumber = FPerforceSourceControlState::INVALID_REVISION;
 	}
@@ -2287,8 +2328,9 @@ bool FPerforceChangeStatusWorker::UpdateStates() const
 	return true;
 }
 
-FPerforceNewChangelistWorker::FPerforceNewChangelistWorker()
-	: NewChangelistState(NewChangelist)
+FPerforceNewChangelistWorker::FPerforceNewChangelistWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+	: IPerforceSourceControlWorker(InSourceControlProvider)
+	, NewChangelistState(NewChangelist)
 {
 
 }
@@ -2348,19 +2390,18 @@ bool FPerforceNewChangelistWorker::UpdateStates() const
 {
 	if (NewChangelist.IsInitialized())
 	{
-		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
 		const FDateTime Now = FDateTime::Now();
 
-		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(NewChangelist);
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetSCCProvider().GetStateInternal(NewChangelist);
 		*ChangelistState = NewChangelistState;
 		ChangelistState->TimeStamp = Now;
 
 		for (const FString& MovedFile : MovedFiles)
 		{
-			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> FileState = PerforceSourceControl.GetProvider().GetStateInternal(MovedFile);
+			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> FileState = GetSCCProvider().GetStateInternal(MovedFile);
 
 			// 1- Remove these files from their previous changelist
-			TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> PreviousChangelist = PerforceSourceControl.GetProvider().GetStateInternal(FileState->Changelist);
+			TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> PreviousChangelist = GetSCCProvider().GetStateInternal(FileState->Changelist);
 			PreviousChangelist->Files.Remove(FileState);
 
 			// 2- Add to the new changelist
@@ -2421,10 +2462,9 @@ bool FPerforceDeleteChangelistWorker::Execute(class FPerforceSourceControlComman
 
 bool FPerforceDeleteChangelistWorker::UpdateStates() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
 	if (!DeletedChangelist.IsDefault())
 	{
-		return PerforceSourceControl.GetProvider().RemoveChangelistFromCache(DeletedChangelist);
+		return GetSCCProvider().RemoveChangelistFromCache(DeletedChangelist);
 	}
 	else
 	{
@@ -2472,8 +2512,7 @@ bool FPerforceEditChangelistWorker::Execute(class FPerforceSourceControlCommand&
 
 bool FPerforceEditChangelistWorker::UpdateStates() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> EditedChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(EditedChangelist);
+	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> EditedChangelistState = GetSCCProvider().GetStateInternal(EditedChangelist);
 	// TODO: update similar to NewChangelist when/if we support files in edit/new changelists.
 	EditedChangelistState->Description = EditedDescription.ToString();
 	EditedChangelistState->Changelist = EditedChangelist;
@@ -2514,8 +2553,8 @@ bool FPerforceRevertUnchangedWorker::Execute(class FPerforceSourceControlCommand
 
 bool FPerforceRevertUnchangedWorker::UpdateStates() const
 {
-	bool bUpdatedStates = UpdateCachedStates(OutResults);
-	bool bUpdatedChangelistState = ChangelistToUpdate.IsInitialized() && RemoveFilesFromChangelist(OutResults, ChangelistToUpdate);
+	bool bUpdatedStates = UpdateCachedStates(GetSCCProvider(), OutResults);
+	bool bUpdatedChangelistState = ChangelistToUpdate.IsInitialized() && RemoveFilesFromChangelist(OutResults, GetSCCProvider(), ChangelistToUpdate);
 	return bUpdatedStates || bUpdatedChangelistState;
 }
 
@@ -2540,16 +2579,16 @@ bool FPerforceReopenWorker::Execute(FPerforceSourceControlCommand& InCommand)
 bool FPerforceReopenWorker::UpdateStates() const
 {
 	const FDateTime Now = FDateTime::Now();
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> DestinationChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(DestinationChangelist);
+	
+	TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> DestinationChangelistState = GetSCCProvider().GetStateInternal(DestinationChangelist);
 
 	// 3 things to do here:
 	for (const FString& ReopenedFile : ReopenedFiles)
 	{
-		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> FileState = PerforceSourceControl.GetProvider().GetStateInternal(ReopenedFile);
+		TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> FileState = GetSCCProvider().GetStateInternal(ReopenedFile);
 
 		// 1- Remove these files from their previous changelist
-		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> PreviousChangelist = PerforceSourceControl.GetProvider().GetStateInternal(FileState->Changelist);
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> PreviousChangelist = GetSCCProvider().GetStateInternal(FileState->Changelist);
 		PreviousChangelist->Files.Remove(FileState);
 
 		// 2- Add to the new changelist
@@ -2592,8 +2631,7 @@ bool FPerforceShelveWorker::Execute(class FPerforceSourceControlCommand& InComma
 			// If the command has specified the default changelist but no files, then get all files from the default changelist
 			if (FilesToShelve.Num() == 0 && InCommand.Changelist.IsInitialized())
 			{
-				FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-				TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> DefaultChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InCommand.Changelist);
+				TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> DefaultChangelistState = GetSCCProvider().GetStateInternal(InCommand.Changelist);
 				Algo::Transform(DefaultChangelistState->Files, FilesToShelve, [](const auto& FileState) {
 					return FileState->GetFilename();
 					});
@@ -2663,16 +2701,14 @@ bool FPerforceShelveWorker::Execute(class FPerforceSourceControlCommand& InComma
 
 bool FPerforceShelveWorker::UpdateStates() const
 {
-	FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-
 	bool bMovedFiles = false;
 
 	// If we moved files to a new changelist, then we must make sure that the files are properly moved
 	if (InChangelistToUpdate != OutChangelistToUpdate && MovedFiles.Num() > 0)
 	{
 		const FDateTime Now = FDateTime::Now();
-		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> SourceChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InChangelistToUpdate);
-		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> DestinationChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(OutChangelistToUpdate);
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> SourceChangelistState = GetSCCProvider().GetStateInternal(InChangelistToUpdate);
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> DestinationChangelistState = GetSCCProvider().GetStateInternal(OutChangelistToUpdate);
 
 		DestinationChangelistState->Changelist = OutChangelistToUpdate;
 		DestinationChangelistState->Description = ChangelistDescription;
@@ -2680,7 +2716,7 @@ bool FPerforceShelveWorker::UpdateStates() const
 
 		for (const FString& MovedFile : MovedFiles)
 		{
-			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> FileState = PerforceSourceControl.GetProvider().GetStateInternal(MovedFile);
+			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> FileState = GetSCCProvider().GetStateInternal(MovedFile);
 
 			SourceChangelistState->Files.Remove(FileState);
 			DestinationChangelistState->Files.Add(FileState);
@@ -2691,7 +2727,7 @@ bool FPerforceShelveWorker::UpdateStates() const
 		bMovedFiles = true;
 	}
 
-	const bool bAddedShelvedFilesToChangelist = (OutResults.Num() > 0 && AddShelvedFilesToChangelist(OutResults, OutFileMap, OutChangelistToUpdate));
+	const bool bAddedShelvedFilesToChangelist = (OutResults.Num() > 0 && AddShelvedFilesToChangelist(GetSCCProvider(), OutResults, OutFileMap, OutChangelistToUpdate));
 
 	return bMovedFiles || bAddedShelvedFilesToChangelist;
 }
@@ -2736,8 +2772,7 @@ bool FPerforceDeleteShelveWorker::UpdateStates() const
 {
 	if (ChangelistToUpdate.IsInitialized())
 	{
-		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(ChangelistToUpdate);
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetSCCProvider().GetStateInternal(ChangelistToUpdate);
 
 		if (FilesToRemove.Num() > 0)
 		{
@@ -2809,13 +2844,12 @@ bool FPerforceUnshelveWorker::UpdateStates() const
 	{
 		const FDateTime Now = FDateTime::Now();
 
-		FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
-		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(ChangelistToUpdate);
+		TSharedRef<FPerforceSourceControlChangelistState, ESPMode::ThreadSafe> ChangelistState = GetSCCProvider().GetStateInternal(ChangelistToUpdate);
 
 		ChangelistState->Files.Reset(ChangelistFilesStates.Num());
 		for (const auto& FileState : ChangelistFilesStates)
 		{
-			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> CachedFileState = PerforceSourceControl.GetProvider().GetStateInternal(FileState.LocalFilename);
+			TSharedRef<FPerforceSourceControlState, ESPMode::ThreadSafe> CachedFileState = GetSCCProvider().GetStateInternal(FileState.LocalFilename);
 			CachedFileState->Update(FileState, &Now);
 
 			ChangelistState->Files.AddUnique(CachedFileState);

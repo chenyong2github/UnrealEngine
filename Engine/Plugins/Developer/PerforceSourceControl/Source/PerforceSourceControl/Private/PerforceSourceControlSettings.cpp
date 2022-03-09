@@ -2,23 +2,26 @@
 
 #include "PerforceSourceControlSettings.h"
 
-#include "PerforceSourceControlPrivate.h"
-
-#include "Misc/ScopeLock.h"
+#include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
+#include "Misc/ScopeLock.h"
+#include "PerforceSourceControlPrivate.h"
+#include "PerforceSourceControlProvider.h"
 #include "SPerforceSourceControlSettings.h"
-#include "PerforceSourceControlModule.h"
 #include "SourceControlHelpers.h"
 
-namespace PerforceSettingsConstants
+FPerforceSourceControlSettings::FPerforceSourceControlSettings(const FPerforceSourceControlProvider& InSCCProvider, const FStringView& OwnerName)
+	: SCCProvider(InSCCProvider)
 {
-
-/** The section of the ini file we load our settings from */
-static const FString SettingsSection = TEXT("PerforceSourceControl.PerforceSourceControlSettings");
-
+	if (OwnerName.IsEmpty())
+	{
+		SettingsSection = TEXT("PerforceSourceControl.PerforceSourceControlSettings");
+	}
+	else
+	{
+		SettingsSection = WriteToString<128>(TEXT("PerforceSourceControl."), OwnerName, TEXT("Settings"));
+	}
 }
-
 
 const FString& FPerforceSourceControlSettings::GetPort() const
 {
@@ -109,34 +112,39 @@ void FPerforceSourceControlSettings::LoadSettings()
 	FScopeLock ScopeLock(&CriticalSection);
 	const FString& IniFile = SourceControlHelpers::GetSettingsIni();
 
-	GConfig->GetBool(*PerforceSettingsConstants::SettingsSection, TEXT("UseP4Config"), ConnectionInfo.bUseP4Config, IniFile);
+	GConfig->GetBool(*SettingsSection, TEXT("UseP4Config"), ConnectionInfo.bUseP4Config, IniFile);
 	if (ConnectionInfo.bUseP4Config)
 	{
 		ImportP4Config();
 	}
 	else
 	{
-		if(!GConfig->GetString(*PerforceSettingsConstants::SettingsSection, TEXT("Port"), ConnectionInfo.Port, IniFile))
+		if(!GConfig->GetString(*SettingsSection, TEXT("Port"), ConnectionInfo.Port, IniFile))
 		{
 			// backwards compatibility - previously we mis-specified the Port as 'Host'
-			GConfig->GetString(*PerforceSettingsConstants::SettingsSection, TEXT("Host"), ConnectionInfo.Port, IniFile);
+			GConfig->GetString(*SettingsSection, TEXT("Host"), ConnectionInfo.Port, IniFile);
 		}
-		GConfig->GetString(*PerforceSettingsConstants::SettingsSection, TEXT("UserName"), ConnectionInfo.UserName, IniFile);
-		GConfig->GetString(*PerforceSettingsConstants::SettingsSection, TEXT("Workspace"), ConnectionInfo.Workspace, IniFile);
-	}	
-	GConfig->GetString(*PerforceSettingsConstants::SettingsSection, TEXT("HostOverride"), ConnectionInfo.HostOverride, IniFile);
+		GConfig->GetString(*SettingsSection, TEXT("UserName"), ConnectionInfo.UserName, IniFile);
+		GConfig->GetString(*SettingsSection, TEXT("Workspace"), ConnectionInfo.Workspace, IniFile);
+	}
+	GConfig->GetString(*SettingsSection, TEXT("HostOverride"), ConnectionInfo.HostOverride, IniFile);
 }
 
 void FPerforceSourceControlSettings::SaveSettings() const
 {
+	if (FApp::IsUnattended() || IsRunningCommandlet())
+	{
+		return;
+	}
+
 	FScopeLock ScopeLock(&CriticalSection);
 	const FString& IniFile = SourceControlHelpers::GetSettingsIni();
 	
-	GConfig->SetBool(*PerforceSettingsConstants::SettingsSection, TEXT("UseP4Config"), ConnectionInfo.bUseP4Config, IniFile);
-	GConfig->SetString(*PerforceSettingsConstants::SettingsSection, TEXT("Port"), *ConnectionInfo.Port, IniFile);
-	GConfig->SetString(*PerforceSettingsConstants::SettingsSection, TEXT("UserName"), *ConnectionInfo.UserName, IniFile);
-	GConfig->SetString(*PerforceSettingsConstants::SettingsSection, TEXT("Workspace"), *ConnectionInfo.Workspace, IniFile);
-	GConfig->SetString(*PerforceSettingsConstants::SettingsSection, TEXT("HostOverride"), *ConnectionInfo.HostOverride, IniFile);
+	GConfig->SetBool(*SettingsSection, TEXT("UseP4Config"), ConnectionInfo.bUseP4Config, IniFile);
+	GConfig->SetString(*SettingsSection, TEXT("Port"), *ConnectionInfo.Port, IniFile);
+	GConfig->SetString(*SettingsSection, TEXT("UserName"), *ConnectionInfo.UserName, IniFile);
+	GConfig->SetString(*SettingsSection, TEXT("Workspace"), *ConnectionInfo.Workspace, IniFile);
+	GConfig->SetString(*SettingsSection, TEXT("HostOverride"), *ConnectionInfo.HostOverride, IniFile);
 }
 
 FPerforceConnectionInfo FPerforceSourceControlSettings::GetConnectionInfo() const
@@ -155,9 +163,7 @@ FPerforceConnectionInfo FPerforceSourceControlSettings::GetConnectionInfo() cons
 	}
 
 	// Ticket is stored in the provider (this is only set by the command line so should be safe to access without threading protection)
-	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::GetModuleChecked<FPerforceSourceControlModule>( "PerforceSourceControl" );
-	const FPerforceSourceControlProvider& Provider = PerforceSourceControl.GetProvider();
-	OutConnectionInfo.Ticket = Provider.GetTicket();
+	OutConnectionInfo.Ticket = GetSCCProvider().GetTicket();
 
 	return OutConnectionInfo;
 }

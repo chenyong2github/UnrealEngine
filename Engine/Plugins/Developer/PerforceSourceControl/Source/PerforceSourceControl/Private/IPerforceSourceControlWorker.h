@@ -4,9 +4,23 @@
 
 #include "CoreMinimal.h"
 
+class FPerforceSourceControlProvider;
+
 class IPerforceSourceControlWorker
 {
 public:
+	static void RegisterWorkers();
+	static TSharedPtr<class IPerforceSourceControlWorker, ESPMode::ThreadSafe> CreateWorker(const FName& OperationName, FPerforceSourceControlProvider& SCCProvider);
+public:
+
+	IPerforceSourceControlWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: SourceControlProvider(InSourceControlProvider)
+	{
+
+	}
+
+	virtual ~IPerforceSourceControlWorker() = default;
+
 	/**
 	 * Name describing the work that this worker does. Used for factory method hookup.
 	 */
@@ -22,6 +36,15 @@ public:
 	 * @returns true if states were updated
 	 */
 	virtual bool UpdateStates() const = 0;
+
+	FPerforceSourceControlProvider& GetSCCProvider() const
+	{
+		return SourceControlProvider;
+	}
+
+private:
+	 
+	FPerforceSourceControlProvider& SourceControlProvider;
 };
 
 typedef TSharedRef<IPerforceSourceControlWorker, ESPMode::ThreadSafe> FPerforceSourceControlWorkerRef;

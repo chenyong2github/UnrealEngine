@@ -334,6 +334,21 @@ ISourceControlProvider& FSourceControlModule::GetProvider() const
 	return *CurrentSourceControlProvider;
 }
 
+TUniquePtr<ISourceControlProvider> FSourceControlModule::CreateProvider(const FName& ProviderName, const FStringView& OwnerName, const FSourceControlInitSettings& InitialSettings) const
+{
+	TArray<ISourceControlProvider*> Providers = IModularFeatures::Get().GetModularFeatureImplementations<ISourceControlProvider>(SourceControlFeatureName);
+	for (const ISourceControlProvider* DefaultProvider : Providers)
+	{
+		if (DefaultProvider->GetName() == ProviderName)
+		{
+			return DefaultProvider->Create(OwnerName, InitialSettings);
+		}
+	}
+
+	// Provider was not found
+	return TUniquePtr<ISourceControlProvider>();
+}
+
 FSourceControlAssetDataCache& FSourceControlModule::GetAssetDataCache()
 {
 	return AssetDataCache;

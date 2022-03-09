@@ -5,9 +5,14 @@
 #include "CoreMinimal.h"
 #include "PerforceConnectionInfo.h"
 
+class FPerforceSourceControlProvider;
+
 class FPerforceSourceControlSettings
 {
 public:
+	FPerforceSourceControlSettings(const FPerforceSourceControlProvider& InSCCProvider, const FStringView& OwnerName);
+	~FPerforceSourceControlSettings() = default;
+
 	/** Get the Perforce port */
 	const FString& GetPort() const;
 
@@ -60,4 +65,16 @@ private:
 
 	/** The credentials we use to access the server */
 	FPerforceConnectionInfo ConnectionInfo;
+	
+	/** The section of the ini file we load our settings from */
+	FString SettingsSection;
+
+	/** Internal accessor to the source control provider associated with the object */
+	const FPerforceSourceControlProvider& GetSCCProvider() const
+	{
+		return SCCProvider;
+	}
+
+	/** The source control provider that this object is associated with */
+	const FPerforceSourceControlProvider& SCCProvider;
 };

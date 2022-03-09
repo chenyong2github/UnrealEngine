@@ -10,20 +10,28 @@
 class FPerforceSourceControlRevision;
 typedef TMap<FString, TArray< TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> > > FPerforceFileHistoryMap;
 
-class FPerforceConnectWorker : public IPerforceSourceControlWorker
+class FPerforceConnectWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceConnectWorker() {}
+	FPerforceConnectWorker(FPerforceSourceControlProvider& InSourceControlProvider) 
+		: IPerforceSourceControlWorker(InSourceControlProvider) 
+	{}
+	virtual ~FPerforceConnectWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 };
 
-class FPerforceCheckOutWorker : public IPerforceSourceControlWorker
+class FPerforceCheckOutWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceCheckOutWorker() {}
+	FPerforceCheckOutWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceCheckOutWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -35,10 +43,14 @@ public:
 	FPerforceSourceControlChangelist InChangelist;
 };
 
-class FPerforceCheckInWorker : public IPerforceSourceControlWorker
+class FPerforceCheckInWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceCheckInWorker() {}
+	FPerforceCheckInWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceCheckInWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -55,10 +67,14 @@ public:
 	FPerforceSourceControlChangelist OutChangelist;
 };
 
-class FPerforceGetFileListWorker : public IPerforceSourceControlWorker
+class FPerforceGetFileListWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceGetFileListWorker() {}
+	FPerforceGetFileListWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceGetFileListWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -69,10 +85,14 @@ public:
 	TMap<FString, EPerforceState::Type> OutResults;
 };
 
-class FPerforceMarkForAddWorker : public IPerforceSourceControlWorker
+class FPerforceMarkForAddWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceMarkForAddWorker() {}
+	FPerforceMarkForAddWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceMarkForAddWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -84,10 +104,14 @@ public:
 	FPerforceSourceControlChangelist InChangelist;
 };
 
-class FPerforceDeleteWorker : public IPerforceSourceControlWorker
+class FPerforceDeleteWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceDeleteWorker() {}
+	FPerforceDeleteWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceDeleteWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -98,10 +122,14 @@ public:
 	TMap<FString, EPerforceState::Type> OutResults;
 };
 
-class FPerforceRevertWorker : public IPerforceSourceControlWorker
+class FPerforceRevertWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceRevertWorker() {}
+	FPerforceRevertWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceRevertWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -115,10 +143,14 @@ public:
 	FPerforceSourceControlChangelist ChangelistToUpdate;
 };
 
-class FPerforceSyncWorker : public IPerforceSourceControlWorker
+class FPerforceSyncWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceSyncWorker() {}
+	FPerforceSyncWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceSyncWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -129,10 +161,14 @@ public:
 	TMap<FString, EPerforceState::Type> OutResults;
 };
 
-class FPerforceUpdateStatusWorker : public IPerforceSourceControlWorker
+class FPerforceUpdateStatusWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceUpdateStatusWorker() {}
+	FPerforceUpdateStatusWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceUpdateStatusWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -155,20 +191,28 @@ public:
 	bool bForceQuiet = false;
 };
 
-class FPerforceGetWorkspacesWorker : public IPerforceSourceControlWorker
+class FPerforceGetWorkspacesWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceGetWorkspacesWorker() {}
+	FPerforceGetWorkspacesWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceGetWorkspacesWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 };
 
-class FPerforceGetPendingChangelistsWorker : public IPerforceSourceControlWorker
+class FPerforceGetPendingChangelistsWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceGetPendingChangelistsWorker() {}
+	FPerforceGetPendingChangelistsWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceGetPendingChangelistsWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -186,10 +230,14 @@ private:
 	bool bCleanupCache = false;
 };
 
-class FPerforceCopyWorker : public IPerforceSourceControlWorker
+class FPerforceCopyWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceCopyWorker() {}
+	FPerforceCopyWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceCopyWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -200,10 +248,14 @@ public:
 	TMap<FString, EPerforceState::Type> OutResults;
 };
 
-class FPerforceResolveWorker : public IPerforceSourceControlWorker
+class FPerforceResolveWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceResolveWorker() {}
+	FPerforceResolveWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+
+	virtual ~FPerforceResolveWorker() = default;
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -212,21 +264,26 @@ private:
 	TArray< FString > UpdatedFiles;
 };
 
-class FPerforceChangeStatusWorker : public IPerforceSourceControlWorker
+class FPerforceChangeStatusWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceChangeStatusWorker() {}
+	FPerforceChangeStatusWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceChangeStatusWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 };
 
-class FPerforceNewChangelistWorker : public IPerforceSourceControlWorker
+class FPerforceNewChangelistWorker final : public IPerforceSourceControlWorker
 {
 public:
-	FPerforceNewChangelistWorker();
-	virtual ~FPerforceNewChangelistWorker() {}
+	FPerforceNewChangelistWorker(FPerforceSourceControlProvider& InSourceControlProvider);
+	virtual ~FPerforceNewChangelistWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -241,10 +298,14 @@ public:
 	TArray<FString> MovedFiles;
 };
 
-class FPerforceDeleteChangelistWorker : public IPerforceSourceControlWorker
+class FPerforceDeleteChangelistWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceDeleteChangelistWorker() {}
+	FPerforceDeleteChangelistWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceDeleteChangelistWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -254,10 +315,14 @@ public:
 	FPerforceSourceControlChangelist DeletedChangelist;
 };
 
-class FPerforceEditChangelistWorker : public IPerforceSourceControlWorker
+class FPerforceEditChangelistWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceEditChangelistWorker() {}
+	FPerforceEditChangelistWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceEditChangelistWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -268,10 +333,14 @@ public:
 	FText EditedDescription;
 };
 
-class FPerforceRevertUnchangedWorker : public IPerforceSourceControlWorker
+class FPerforceRevertUnchangedWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceRevertUnchangedWorker() {}
+	FPerforceRevertUnchangedWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceRevertUnchangedWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -284,10 +353,14 @@ protected:
 	FPerforceSourceControlChangelist ChangelistToUpdate;
 };
 
-class FPerforceReopenWorker : public IPerforceSourceControlWorker
+class FPerforceReopenWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceReopenWorker() {}
+	FPerforceReopenWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceReopenWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -301,10 +374,14 @@ protected:
 	FPerforceSourceControlChangelist DestinationChangelist;
 };
 
-class FPerforceShelveWorker : public IPerforceSourceControlWorker
+class FPerforceShelveWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceShelveWorker() {}
+	FPerforceShelveWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceShelveWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -328,10 +405,14 @@ protected:
 	FPerforceSourceControlChangelist OutChangelistToUpdate;
 };
 
-class FPerforceDeleteShelveWorker : public IPerforceSourceControlWorker
+class FPerforceDeleteShelveWorker final : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceDeleteShelveWorker() {}
+	FPerforceDeleteShelveWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceDeleteShelveWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -348,7 +429,11 @@ protected:
 class FPerforceUnshelveWorker : public IPerforceSourceControlWorker
 {
 public:
-	virtual ~FPerforceUnshelveWorker() {}
+	FPerforceUnshelveWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceUnshelveWorker() = default;
+
 	// IPerforceSourceControlWorker interface
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
@@ -362,9 +447,12 @@ protected:
 	TArray<FPerforceSourceControlState> ChangelistFilesStates;
 };
 
-class FPerforceDownloadFileWorker : public IPerforceSourceControlWorker
+class FPerforceDownloadFileWorker final : public IPerforceSourceControlWorker
 {
 public:
+	FPerforceDownloadFileWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
 	virtual ~FPerforceDownloadFileWorker() = default;
 
 	// IPerforceSourceControlWorker interface
@@ -373,9 +461,12 @@ public:
 	virtual bool UpdateStates() const override;
 };
 
-class FPerforceCreateWorkspaceWorker : public IPerforceSourceControlWorker
+class FPerforceCreateWorkspaceWorker final : public IPerforceSourceControlWorker
 {
 public:
+	FPerforceCreateWorkspaceWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
 	virtual ~FPerforceCreateWorkspaceWorker() = default;
 
 	// IPerforceSourceControlWorker interface
@@ -387,9 +478,12 @@ private:
 	void AddType(const class FCreateWorkspace& Operation, FStringBuilderBase& ClientDesc);
 };
 
-class FPerforceDeleteWorkspaceWorker : public IPerforceSourceControlWorker
+class FPerforceDeleteWorkspaceWorker final : public IPerforceSourceControlWorker
 {
 public:
+	FPerforceDeleteWorkspaceWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
 	virtual ~FPerforceDeleteWorkspaceWorker() = default;
 
 	// IPerforceSourceControlWorker interface

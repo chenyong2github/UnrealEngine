@@ -9,7 +9,10 @@
 
 class ISourceControlProvider;
 class ISourceControlChangelist;
+
 class FSourceControlAssetDataCache;
+class FSourceControlInitSettings;
+
 typedef TSharedPtr<class ISourceControlChangelist, ESPMode::ThreadSafe> FSourceControlChangelistPtr;
 
 SOURCECONTROL_API DECLARE_LOG_CATEGORY_EXTERN(LogSourceControl, Log, All);
@@ -121,6 +124,25 @@ public:
 	 * Get the source control provider that is currently in use.
 	 */
 	virtual ISourceControlProvider& GetProvider() const = 0;
+
+	/** 
+	 * Creates and returns a unique source control provider that will be owned by
+	 * the caller. This allows subsystems to own their own source control connection
+	 * in addition to the general connection used by the rest of the process. This 
+	 * could be to avoid the user changing settings that the subsystem needs, or so
+	 * that it can open a connection with an entirely different source control type
+	 * if required.
+	 * 
+	 * @param	Name			The name of the type of provider to create.
+	 * @param	OwningSystem	The name of the system that will own the provider. This is
+	 *							used to customize things, like the config section that
+	 *							that providers settings will be saved to etc.
+	 * 
+	 * @return	A pointer to the newly created provider, this can be null if creating the 
+	 *			name is invalid or if the provider type does not support unique connection
+	 *			creation.
+	 */
+	virtual TUniquePtr<ISourceControlProvider> CreateProvider(const FName& Name, const FStringView& OwningSystem, const FSourceControlInitSettings& InitialSettings) const = 0;
 
 	/**
 	 * Get the source control AssetData information cache.

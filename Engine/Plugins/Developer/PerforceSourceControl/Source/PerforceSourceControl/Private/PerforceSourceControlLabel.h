@@ -6,6 +6,8 @@
 #include "ISourceControlRevision.h"
 #include "ISourceControlLabel.h"
 
+class FPerforceSourceControlProvider;
+
 /** 
  * Abstraction of a Perforce label.
  */
@@ -13,10 +15,8 @@ class FPerforceSourceControlLabel : public ISourceControlLabel, public TSharedFr
 {
 public:
 
-	FPerforceSourceControlLabel( const FString& InName )
-		: Name(InName)
-	{
-	}
+	FPerforceSourceControlLabel(FPerforceSourceControlProvider& InSCCProvider, const FString& InName);
+	virtual ~FPerforceSourceControlLabel() = default;
 
 	/** ISourceControlLabel implementation */
 	virtual const FString& GetName() const override;
@@ -24,6 +24,15 @@ public:
 	virtual bool Sync( const TArray<FString>& InFilenames ) const override;
 
 private:
+
+	/** Internal accessor to the source control provider associated with the object */
+	FPerforceSourceControlProvider& GetSCCProvider() const
+	{
+		return SCCProvider;
+	}
+
+	/** The source control provider that this object is associated with */
+	FPerforceSourceControlProvider& SCCProvider;
 
 	/** Label name */
 	FString Name;
