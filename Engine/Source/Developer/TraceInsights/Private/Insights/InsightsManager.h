@@ -392,6 +392,8 @@ private:
 	bool bIsDebugInfoEnabled = false;
 
 	bool bIsMainTabSet = false;
+	bool bIsSessionInfoSet = false;
+
 	bool bIsAnalysisComplete = false;
 	bool bSessionAnalysisCompletedAutoQuit = false;
 
