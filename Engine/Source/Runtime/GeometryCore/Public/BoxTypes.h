@@ -67,6 +67,18 @@ struct TInterval1
 		}
 	}
 
+	void Contain(const TInterval1<RealType>& O)
+	{
+		if (O.Min < Min)
+		{
+			Min = O.Min;
+		}
+		if (O.Max > Max)
+		{
+			Max = O.Max;
+		}
+	}
+
 	bool Contains(RealType D) const
 	{
 		return D >= Min && D <= Max;
