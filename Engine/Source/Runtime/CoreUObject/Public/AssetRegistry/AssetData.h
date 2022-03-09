@@ -479,22 +479,13 @@ public:
 	template<class Archive>
 	void SerializeForCache(Archive&& Ar)
 	{
-		// Serialize out the asset info
-		Ar << ObjectPath;
-		Ar << PackagePath;
-		Ar << AssetClass;
-
-		// These are derived from ObjectPath, we manually serialize them because they get pooled
-		Ar << PackageName;
-		Ar << AssetName;
-
-		Ar.SerializeTagsAndBundles(*this);
-
-		Ar << ChunkIDs;
-		Ar << PackageFlags;
+		SerializeForCacheInternal(Ar, [](FArchive& Ar, FAssetData& Ad) {
+			static_cast<Archive&>(Ar).SerializeTagsAndBundles(Ad);
+			});
 	}
-
 private:
+	COREUOBJECT_API void SerializeForCacheInternal(FArchive& Ar, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&));
+
 	static bool DetectIsUAssetByNames(FStringView PackageName, FStringView ObjectPathName)
 	{
 		FStringView PackageBaseName;
@@ -748,59 +739,19 @@ public:
 	 * Serialize as part of the registry cache. This is not meant to be serialized as part of a package so  it does not handle versions normally
 	 * To version this data change FAssetRegistryVersion
 	 */
-	void SerializeForCache(FArchive& Ar)
-	{
-		// Calling with hard-coded version and using force-inline on SerializeForCacheInternal eliminates the cost of its if-statements
-		SerializeForCacheInternal(Ar, FAssetRegistryVersion::LatestVersion);
-	}
-	void SerializeForCacheOldVersion(FArchive& Ar, FAssetRegistryVersion::Type Version)
-	{
-		SerializeForCacheInternal(Ar, Version);
-	}
+	COREUOBJECT_API void SerializeForCache(FArchive& Ar);
+	COREUOBJECT_API void SerializeForCacheOldVersion(FArchive& Ar, FAssetRegistryVersion::Type Version);
 
 private:
+	FORCEINLINE void SerializeForCacheInternal(FArchive& Ar, FAssetPackageData& PackageData, FAssetRegistryVersion::Type Version);
+
 	enum
 	{
 		FLAG_LICENSEE_VERSION			= 1 << 0,
 		FLAG_HAS_VIRTUALIZED_PAYLOADS	= 1 << 1
 	};
-
-	void SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version);
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-FORCEINLINE void FAssetPackageData::SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version)
-{
-	Ar << DiskSize;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Ar << PackageGuid;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	if (Version >= FAssetRegistryVersion::AddedCookedMD5Hash)
-	{
-		Ar << CookedHash;
-	}
-	if (Version >= FAssetRegistryVersion::WorkspaceDomain)
-	{
-		if (Version >= FAssetRegistryVersion::PackageFileSummaryVersionChange)
-		{
-			Ar << FileVersionUE;
-		}
-		else
-		{
-			int32 UE4Version;
-			Ar << UE4Version;
-
-			FileVersionUE = FPackageFileVersion::CreateUE4Version(UE4Version);
-		}
-
-		Ar << FileVersionLicenseeUE;
-		Ar << Flags;
-		Ar << CustomVersions;
-	}
-	if (Version >= FAssetRegistryVersion::PackageImportedClasses)
-	{
-		Ar << ImportedClasses;
-	}
-}
 
 
 /**
@@ -1052,6 +1003,23 @@ struct FAssetIdentifier
 		}
 		
 		return Ar;
+	}
+
+	bool LexicalLess(const FAssetIdentifier& Other) const
+	{
+		if (PrimaryAssetType != Other.PrimaryAssetType)
+		{
+			return PrimaryAssetType.LexicalLess(Other.PrimaryAssetType);
+		}
+		if (PackageName != Other.PackageName)
+		{
+			return PackageName.LexicalLess(Other.PackageName);
+		}
+		if (ObjectName != Other.ObjectName)
+		{
+			return ObjectName.LexicalLess(Other.ObjectName);
+		}
+		return ValueName.LexicalLess(Other.ValueName);
 	}
 };
 

@@ -177,6 +177,15 @@ struct COREUOBJECT_API FSoftObjectPath
 		return !AssetPathName.IsNone() && !SubPathString.IsEmpty();
 	}
 
+	bool LexicalLess(const FSoftObjectPath& Other) const
+	{
+		if (AssetPathName != Other.AssetPathName)
+		{
+			return AssetPathName.LexicalLess(Other.AssetPathName);
+		}
+		return SubPathString.Compare(Other.SubPathString, ESearchCase::IgnoreCase) < 0;
+	}
+
 	/** Struct overrides */
 	bool Serialize(FArchive& Ar);
 	bool Serialize(FStructuredArchive::FSlot Slot);

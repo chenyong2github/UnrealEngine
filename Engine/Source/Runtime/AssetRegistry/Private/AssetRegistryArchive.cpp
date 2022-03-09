@@ -1,19 +1,45 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetRegistryArchive.h"
+
+#include "Algo/Sort.h"
 #include "AssetRegistryPrivate.h"
 #include "AssetRegistry/AssetRegistryState.h"
 
 
 constexpr uint32 AssetRegistryNumberedNameBit = 0x80000000;
 
-static void SerializeBundleEntries(FArchive& Ar, TArray<FAssetBundleEntry>& Entries)
+static void SaveBundleEntries(FArchive& Ar, TArray<FAssetBundleEntry*>& Entries)
+{
+	for (FAssetBundleEntry* EntryPtr : Entries)
+	{
+		FAssetBundleEntry& Entry = *EntryPtr;
+		Ar << Entry.BundleName;
+
+		int32 Num = Entry.BundleAssets.Num();
+		Ar << Num;
+
+		TArray<FSoftObjectPath*> SortedPaths;
+		SortedPaths.Reserve(Num);
+		for (FSoftObjectPath& Path : Entry.BundleAssets)
+		{
+			SortedPaths.Add(&Path);
+		}
+		Algo::Sort(SortedPaths, [](FSoftObjectPath* A, FSoftObjectPath* B) { return A->LexicalLess(*B); });
+		for (FSoftObjectPath* Path : SortedPaths)
+		{
+			Path->SerializePath(Ar);
+		}
+	}
+}
+
+static void LoadBundleEntries(FArchive& Ar, TArray<FAssetBundleEntry>& Entries)
 {
 	for (FAssetBundleEntry& Entry : Entries)
 	{
 		Ar << Entry.BundleName;
 
-		int32 Num = Entry.BundleAssets.Num();
+		int32 Num = 0;
 		Ar << Num;
 		Entry.BundleAssets.SetNum(Num);
 
@@ -26,13 +52,22 @@ static void SerializeBundleEntries(FArchive& Ar, TArray<FAssetBundleEntry>& Entr
 
 static void SaveBundles(FArchive& Ar, const TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe>& Bundles)
 {
-	TArray<FAssetBundleEntry> Empty;
-	TArray<FAssetBundleEntry>& Entries = Bundles ? Bundles->Bundles : Empty;
+	TArray<FAssetBundleEntry*> SortedEntries;
+	if (Bundles)
+	{
+		TArray<FAssetBundleEntry>& Entries = Bundles->Bundles;
+		SortedEntries.Reserve(Entries.Num());
+		for (FAssetBundleEntry& Entry : Entries)
+		{
+			SortedEntries.Add(&Entry);
+		}
+		Algo::Sort(SortedEntries, [](FAssetBundleEntry* A, FAssetBundleEntry* B) { return A->BundleName.LexicalLess(B->BundleName); });
+	}
 
-	int32 Num = Entries.Num();
+	int32 Num = SortedEntries.Num();
 	Ar << Num;
 
-	SerializeBundleEntries(Ar, Entries);
+	SaveBundleEntries(Ar, SortedEntries);
 }
 
 static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> LoadBundles(FArchive& Ar)
@@ -44,7 +79,7 @@ static TSharedPtr<FAssetBundleData, ESPMode::ThreadSafe> LoadBundles(FArchive& A
 	{
 		FAssetBundleData Temp;
 		Temp.Bundles.SetNum(Num);
-		SerializeBundleEntries(Ar, Temp.Bundles);
+		LoadBundleEntries(Ar, Temp.Bundles);
 
 		return MakeShared<FAssetBundleData, ESPMode::ThreadSafe>(MoveTemp(Temp));
 	}

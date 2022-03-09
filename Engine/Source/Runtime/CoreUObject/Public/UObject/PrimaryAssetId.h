@@ -73,6 +73,11 @@ struct FPrimaryAssetType
 		return GetTypeHash(Key.Name);
 	}
 
+	bool LexicalLess(const FPrimaryAssetType& Other) const
+	{
+		return Name.LexicalLess(Other.Name);
+	}
+
 private:
 	friend struct Z_Construct_UScriptStruct_FPrimaryAssetType_Statics;
 

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetRegistry/AssetDataTagMap.h"
+
+#include "Algo/Sort.h"
 #include "AssetRegistry/AssetDataTagMapSerializationDetails.h"
 #include "Misc/PackageName.h"
 #include "Misc/ScopeLock.h"
@@ -644,7 +646,14 @@ namespace FixedTagPrivate
 		Out.Num = static_cast<uint16>(Map.Num());
 		Out.PairBegin = Pairs.Num();
 
+		TArray<TPair<FName, FAssetTagValueRef>> SortedMap;
+		SortedMap.Reserve(Map.Num());
 		for (TPair<FName, FAssetTagValueRef> Pair : Map)
+		{
+			SortedMap.Add(Pair);
+		}
+		Algo::Sort(SortedMap, [](TPair<FName, FAssetTagValueRef>& A, TPair<FName, FAssetTagValueRef>& B) { return A.Key.LexicalLess(B.Key); });
+		for (TPair<FName, FAssetTagValueRef> Pair : SortedMap)
 		{
 			FValueId Value = IndexValue(Pair.Key, Pair.Value);
 			Pairs.Add({Pair.Key, Value});

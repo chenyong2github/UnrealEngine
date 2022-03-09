@@ -2,6 +2,7 @@
 
 #include "AssetRegistry/AssetRegistryState.h"
 
+#include "Algo/Sort.h"
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -1054,10 +1055,11 @@ bool FAssetRegistryState::Save(FArchive& OriginalAr, const FAssetRegistrySeriali
 	Ar << AssetCount;
 
 	// Write asset data first
-	for (TPair<FName, FAssetData*>& Pair : CachedAssetsByObjectPath)
+	TArray<TPair<FName, FAssetData*>> SortedAssetsByObjectPath = CachedAssetsByObjectPath.Array();
+	Algo::Sort(SortedAssetsByObjectPath, [](TPair<FName, FAssetData*>& A, TPair<FName, FAssetData*>& B) { return A.Key.LexicalLess(B.Key); });
+	for (const TPair<FName, FAssetData*>& Pair : SortedAssetsByObjectPath)
 	{
-		FAssetData& AssetData(*Pair.Value);
-		AssetData.SerializeForCache(Ar);
+		Pair.Value->SerializeForCache(Ar);
 	}
 
 	// Serialize Dependencies
@@ -1074,9 +1076,7 @@ bool FAssetRegistryState::Save(FArchive& OriginalAr, const FAssetRegistrySeriali
 	else
 	{
 		TMap<FDependsNode*, FDependsNode*> RedirectCache;
-		TMap<FDependsNode*, int32> DependsIndexMap;
 		TArray<FDependsNode*> Dependencies;
-		DependsIndexMap.Reserve(CachedAssetsByObjectPath.Num());
 
 		// Scan dependency nodes, we won't save all of them if we filter out certain types
 		for (TPair<FAssetIdentifier, FDependsNode*>& Pair : CachedDependsNodes)
@@ -1087,13 +1087,19 @@ bool FAssetRegistryState::Save(FArchive& OriginalAr, const FAssetRegistrySeriali
 				|| (Options.bSerializeSearchableNameDependencies && Node->GetIdentifier().IsValue())
 				|| (Options.bSerializeManageDependencies && Node->GetIdentifier().GetPrimaryAssetId().IsValid()))
 			{
-				DependsIndexMap.Add(Node, Dependencies.Num());
 				Dependencies.Add(Node);
 			}
 		}
-
+		Algo::Sort(Dependencies, [](FDependsNode* A, FDependsNode* B) { return A->GetIdentifier().LexicalLess(B->GetIdentifier()); });
 		int32 NumDependencies = Dependencies.Num();
-		Ar << NumDependencies;
+
+		TMap<FDependsNode*, int32> DependsIndexMap;
+		DependsIndexMap.Reserve(NumDependencies);
+		int32 Index = 0;
+		for (FDependsNode* Node : Dependencies)
+		{
+			DependsIndexMap.Add(Node, Index++);
+		}
 
 		TUniqueFunction<int32(FDependsNode*, bool bAsReferencer)> GetSerializeIndexFromNode = [this, &RedirectCache, &DependsIndexMap](FDependsNode* InDependency, bool bAsReferencer)
 		{
@@ -1114,18 +1120,19 @@ bool FAssetRegistryState::Save(FArchive& OriginalAr, const FAssetRegistrySeriali
 		};
 
 		FDependsNode::FSaveScratch Scratch;
+		Ar << NumDependencies;
 		for (FDependsNode* DependentNode : Dependencies)
 		{
 			DependentNode->SerializeSave(Ar, GetSerializeIndexFromNode, Scratch, Options);
 		}
 	}
-		// Write the real value to the placeholder data for the DependencySectionSize
-		int64 DependencySectionEnd = Ar.Tell();
-		DependencySectionSize = DependencySectionEnd - DependencySectionStart;
-		Ar.Seek(OffsetToDependencySectionSize);
-		Ar << DependencySectionSize;
-		check(Ar.Tell() == DependencySectionStart);
-		Ar.Seek(DependencySectionEnd);	
+	// Write the real value to the placeholder data for the DependencySectionSize
+	int64 DependencySectionEnd = Ar.Tell();
+	DependencySectionSize = DependencySectionEnd - DependencySectionStart;
+	Ar.Seek(OffsetToDependencySectionSize);
+	Ar << DependencySectionSize;
+	check(Ar.Tell() == DependencySectionStart);
+	Ar.Seek(DependencySectionEnd);
 
 
 	// Serialize the PackageData
@@ -1135,7 +1142,9 @@ bool FAssetRegistryState::Save(FArchive& OriginalAr, const FAssetRegistrySeriali
 		PackageDataCount = CachedPackageData.Num();
 		Ar << PackageDataCount;
 
-		for (TPair<FName, FAssetPackageData*>& Pair : CachedPackageData)
+		TArray<TPair<FName, FAssetPackageData*>> SortedPackageData = CachedPackageData.Array();
+		Algo::Sort(SortedPackageData, [](TPair<FName, FAssetPackageData*>& A, TPair<FName, FAssetPackageData*>& B) { return A.Key.LexicalLess(B.Key); });
+		for (TPair<FName, FAssetPackageData*>& Pair : SortedPackageData)
 		{
 			Ar << Pair.Key;
 			Pair.Value->SerializeForCache(Ar);

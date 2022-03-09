@@ -599,14 +599,11 @@ void FDependsNode::SerializeSave(FArchive& Ar, const TUniqueFunction<int32(FDepe
 
 	auto WriteDependencies = [&Ar, &GetSerializeIndexFromNode, &Scratch](const TArray<FDependsNode*>& InDependencies, const TBitArray<>* InFlagBits, int FlagSetWidth, bool bAsReferencer)
 	{
+		TArray<FSaveScratch::FSortInfo>& SortInfos = Scratch.SortInfos;
 		TArray<int32>& OutDependencies = Scratch.OutDependencies;
 		TBitArray<>& OutFlagBits = Scratch.OutFlagBits;
 
-		OutDependencies.Reset();
-		if (InFlagBits)
-		{
-			OutFlagBits.Reset();
-		}
+		SortInfos.Reset(InDependencies.Num());
 		for (int32 ListIndex = 0, End = InDependencies.Num(); ListIndex < End; ++ListIndex)
 		{
 			int32 SerializeIndex = GetSerializeIndexFromNode(InDependencies[ListIndex], bAsReferencer);
@@ -614,17 +611,29 @@ void FDependsNode::SerializeSave(FArchive& Ar, const TUniqueFunction<int32(FDepe
 			{
 				continue;
 			}
-			OutDependencies.Add(SerializeIndex);
-			if (InFlagBits)
-			{
-				OutFlagBits.AddRange(*InFlagBits, FlagSetWidth, ListIndex * FlagSetWidth);
-			}
+			SortInfos.Add({ SerializeIndex, ListIndex });
+		}
+		// Sort the serialized dependencies to make the output deterministic.
+		// OutDependencies and OutFlagBits (if present) are associated arrays and have to be sorted together
+		Algo::Sort(SortInfos, [](const FSaveScratch::FSortInfo& A, const FSaveScratch::FSortInfo& B) { return A.SerializeIndex < B.SerializeIndex; });
+
+		int32 NumOutDependencies = SortInfos.Num();
+		OutDependencies.Reset(NumOutDependencies);
+		for (const FSaveScratch::FSortInfo& SortInfo : SortInfos)
+		{
+			OutDependencies.Add(SortInfo.SerializeIndex);
 		}
 		Ar << OutDependencies;
 		if (InFlagBits)
 		{
+			OutFlagBits.Reset();
+			for (const FSaveScratch::FSortInfo& SortInfo : SortInfos)
+			{
+				OutFlagBits.AddRange(*InFlagBits, FlagSetWidth, SortInfo.ListIndex * FlagSetWidth);
+			}
+
 			// We don't use BitArray::operator<< because we want to avoid the reallocation that operator<< does on load and we want to avoid saving BitArray.Num when it can be derived from NumDependencies
-			int32 NumFlagBits = FlagSetWidth * OutDependencies.Num();
+			int32 NumFlagBits = FlagSetWidth * NumOutDependencies;
 			check(OutFlagBits.Num() == NumFlagBits);
 			int32 NumFlagWords = FBitSet::CalculateNumWords(NumFlagBits);
 			Ar.Serialize(OutFlagBits.GetData(), NumFlagWords * sizeof(uint32));

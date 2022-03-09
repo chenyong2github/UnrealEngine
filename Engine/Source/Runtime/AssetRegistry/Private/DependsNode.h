@@ -137,6 +137,12 @@ public:
 
 	struct FSaveScratch
 	{
+		struct FSortInfo
+		{
+			int32 SerializeIndex;
+			int32 ListIndex;
+		};
+		TArray<FSortInfo> SortInfos;
 		TArray<int32> OutDependencies;
 		TBitArray<> OutFlagBits;
 	};

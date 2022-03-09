@@ -2,6 +2,7 @@
 
 #include "AssetRegistry/AssetData.h"
 
+#include "Algo/IsSorted.h"
 #include "Algo/Sort.h"
 #include "AssetRegistry/ARFilter.h"
 #include "Containers/Set.h"
@@ -191,6 +192,33 @@ FPrimaryAssetId FAssetData::GetPrimaryAssetId() const
 	return FPrimaryAssetId();
 }
 
+void FAssetData::SerializeForCacheInternal(FArchive& Ar, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&))
+{
+	// Serialize out the asset info
+	Ar << ObjectPath;
+	Ar << PackagePath;
+	Ar << AssetClass;
+
+	// These are derived from ObjectPath, we manually serialize them because they get pooled
+	Ar << PackageName;
+	Ar << AssetName;
+
+	SerializeTagsAndBundles(Ar , *this);
+
+	if (Ar.IsSaving() && ChunkIDs.Num() > 1)
+	{
+		TArray<int32> SortedChunkIDs(ChunkIDs);
+		Algo::Sort(SortedChunkIDs);
+		Ar << SortedChunkIDs;
+	}
+	else
+	{
+		Ar << ChunkIDs;
+	}
+	Ar << PackageFlags;
+}
+
+
 bool FAssetRegistryVersion::SerializeVersion(FArchive& Ar, FAssetRegistryVersion::Type& Version)
 {
 	FGuid Guid = FAssetRegistryVersion::GUID;
@@ -221,6 +249,55 @@ bool FAssetRegistryVersion::SerializeVersion(FArchive& Ar, FAssetRegistryVersion
 	}
 
 	return !Ar.IsError();
+}
+
+void FAssetPackageData::SerializeForCacheInternal(FArchive& Ar, FAssetPackageData& PackageData, FAssetRegistryVersion::Type Version)
+{
+	Ar << PackageData.DiskSize;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Ar << PackageData.PackageGuid;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	if (Version >= FAssetRegistryVersion::AddedCookedMD5Hash)
+	{
+		Ar << PackageData.CookedHash;
+	}
+	if (Version >= FAssetRegistryVersion::WorkspaceDomain)
+	{
+		if (Version >= FAssetRegistryVersion::PackageFileSummaryVersionChange)
+		{
+			Ar << PackageData.FileVersionUE;
+		}
+		else
+		{
+			int32 UE4Version;
+			Ar << UE4Version;
+
+			PackageData.FileVersionUE = FPackageFileVersion::CreateUE4Version(UE4Version);
+		}
+
+		Ar << PackageData.FileVersionLicenseeUE;
+		Ar << PackageData.Flags;
+		Ar << PackageData.CustomVersions;
+	}
+	if (Version >= FAssetRegistryVersion::PackageImportedClasses)
+	{
+		if (Ar.IsSaving() && !Algo::IsSorted(PackageData.ImportedClasses, FNameLexicalLess()))
+		{
+			Algo::Sort(PackageData.ImportedClasses, FNameLexicalLess());
+		}
+		Ar << PackageData.ImportedClasses;
+	}
+}
+
+COREUOBJECT_API void FAssetPackageData::SerializeForCache(FArchive& Ar)
+{
+	// Calling with hard-coded version and using force-inline on SerializeForCacheInternal eliminates the cost of its if-statements
+	SerializeForCacheInternal(Ar, *this, FAssetRegistryVersion::LatestVersion);
+}
+
+COREUOBJECT_API void FAssetPackageData::SerializeForCacheOldVersion(FArchive& Ar, FAssetRegistryVersion::Type Version)
+{
+	SerializeForCacheInternal(Ar, *this, Version);
 }
 
 namespace UE
