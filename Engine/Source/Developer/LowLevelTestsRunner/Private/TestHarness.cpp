@@ -7,29 +7,42 @@
 #include "Containers/UnrealString.h"
 #include "Misc/StringBuilder.h"
 
-namespace UE::Private::LowLevelTestsRunner
+std::ostream& operator<<(std::ostream& Stream, const TCHAR* Value)
 {
-
-std::string CStringToStdString(const TCHAR* Value)
-{
-	return StringViewToStdString(Value);
+	return Stream << FUtf8StringView(FTCHARToUTF8(Value));
 }
 
-std::string FStringToStdString(const FString& Value)
+std::ostream& operator<<(std::ostream& Stream, const FString& Value)
 {
-	return StringViewToStdString(Value);
+	return Stream << FUtf8StringView(FTCHARToUTF8(Value));
 }
 
-std::string StringViewToStdString(const FStringView& Value)
+std::ostream& operator<<(std::ostream& Stream, const FAnsiStringView& Value)
 {
-	const int32 ConvertedLen = FTCHARToUTF8_Convert::ConvertedLength(Value.GetData(), Value.Len());
-	std::string String;
-	String.reserve(ConvertedLen + 2);
-	String.push_back('"');
-	String.resize(ConvertedLen + 1);
-	FTCHARToUTF8_Convert::Convert(String.data() + 1, ConvertedLen, Value.GetData(), Value.Len());
-	String.push_back('"');
-	return String;
+	return Stream.write(Value.GetData(), Value.Len());
 }
 
-} // UE::Private::LowLevelTestsRunner
+std::ostream& operator<<(std::ostream& Stream, const FWideStringView& Value)
+{
+	return Stream << FUtf8StringView(FTCHARToUTF8(Value));
+}
+
+std::ostream& operator<<(std::ostream& Stream, const FUtf8StringView& Value)
+{
+	return Stream.write((const char*)Value.GetData(), Value.Len());
+}
+
+std::ostream& operator<<(std::ostream& Stream, const FAnsiStringBuilderBase& Value)
+{
+	return Stream.write(Value.GetData(), Value.Len());
+}
+
+std::ostream& operator<<(std::ostream& Stream, const FWideStringBuilderBase& Value)
+{
+	return Stream << FUtf8StringView(FTCHARToUTF8(Value));
+}
+
+std::ostream& operator<<(std::ostream& Stream, const FUtf8StringBuilderBase& Value)
+{
+	return Stream << Value.ToView();
+}
