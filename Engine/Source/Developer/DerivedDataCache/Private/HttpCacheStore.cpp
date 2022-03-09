@@ -2073,6 +2073,7 @@ public:
 	 */
 	FHttpCacheStore(
 		const TCHAR* ServiceUrl, 
+		bool bResolveHostCanonicalName,
 		const TCHAR* Namespace, 
 		const TCHAR* StructuredNamespace, 
 		const TCHAR* OAuthProvider, 
@@ -2233,6 +2234,7 @@ private:
 
 FHttpCacheStore::FHttpCacheStore(
 	const TCHAR* InServiceUrl, 
+	bool bResolveHostCanonicalName,
 	const TCHAR* InNamespace, 
 	const TCHAR* InStructuredNamespace, 
 	const TCHAR* InOAuthProvider,
@@ -2283,7 +2285,7 @@ FHttpCacheStore::FHttpCacheStore(
 		FMemory::Memset(&AddrHints, 0, sizeof(AddrHints));
 		AddrHints.ai_flags = AI_CANONNAME;
 		AddrHints.ai_family = AF_UNSPEC;
-		if (!::getaddrinfo(*DomainResolveName, nullptr, &AddrHints, &AddrResult))
+		if (bResolveHostCanonicalName && !::getaddrinfo(*DomainResolveName, nullptr, &AddrHints, &AddrResult))
 		{
 			if (AddrResult->ai_canonname)
 			{
@@ -2374,6 +2376,12 @@ bool FHttpCacheStore::IsServiceReady()
 
 bool FHttpCacheStore::AcquireAccessToken()
 {
+	if (Domain.StartsWith(TEXT("http://localhost")))
+	{
+		UE_LOG(LogDerivedDataCache, Log, TEXT("Connecting to a local host '%s', so skipping authorization"), *Domain);
+		return true;
+	}
+
 	// Avoid spamming the this if the service is down
 	if (FailedLoginAttempts > UE_HTTPDDC_MAX_FAILED_LOGIN_ATTEMPTS)
 	{
@@ -2405,35 +2413,46 @@ bool FHttpCacheStore::AcquireAccessToken()
 		FString Uri(*OAuthProvider + DomainEnd + 1);
 
 		FHttpRequest Request(*AuthDomain, *AuthDomain, nullptr, false);
-
-		// If contents of the secret string is a file path, resolve and read form data.
-		if (OAuthSecret.StartsWith(TEXT("file://")))
+		FHttpRequest::Result Result = FHttpRequest::Success;
+		if (OAuthProvider.StartsWith(TEXT("http://localhost")))
 		{
-			FString FilePath = OAuthSecret.Mid(7, OAuthSecret.Len() - 7);
-			FString SecretFileContents;
-			if (FFileHelper::LoadFileToString(SecretFileContents, *FilePath))
-			{
-				// Overwrite the filepath with the actual content.
-				OAuthSecret = SecretFileContents;
-			}
-			else
-			{
-				UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Failed to read OAuth form data file (%s)."), *Request.GetName(), *OAuthSecret);
-				return false;
-			}
+			// Simple unauthenticated call to a local endpoint that mimics
+			// the result from an OIDC provider.
+			Result = Request.PerformBlockingDownload(*Uri, nullptr);
 		}
+		else
+		{
+			// Needs client id and secret to authenticate with an actual OIDC provider.
 
-		FString OAuthFormData = FString::Printf(
-			TEXT("client_id=%s&scope=cache_access&grant_type=client_credentials&client_secret=%s"),
-			*OAuthClientId,
-			*OAuthSecret
-		);
+			// If contents of the secret string is a file path, resolve and read form data.
+			if (OAuthSecret.StartsWith(TEXT("file://")))
+			{
+				FString FilePath = OAuthSecret.Mid(7, OAuthSecret.Len() - 7);
+					FString SecretFileContents;
+				if (FFileHelper::LoadFileToString(SecretFileContents, *FilePath))
+				{
+					// Overwrite the filepath with the actual content.
+					OAuthSecret = SecretFileContents;
+				}
+				else
+				{
+					UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Failed to read OAuth form data file (%s)."), *Request.GetName(), *OAuthSecret);
+					return false;
+				}
+			}
 
-		TArray<uint8> FormData;
-		auto OAuthFormDataUTF8 = FTCHARToUTF8(*OAuthFormData);
-		FormData.Append((uint8*)OAuthFormDataUTF8.Get(), OAuthFormDataUTF8.Length());
+			FString OAuthFormData = FString::Printf(
+				TEXT("client_id=%s&scope=cache_access&grant_type=client_credentials&client_secret=%s"),
+				*OAuthClientId,
+				*OAuthSecret
+			);
 
-		FHttpRequest::Result Result = Request.PerformBlockingUpload<FHttpRequest::Post>(*Uri, MakeArrayView(FormData));
+			TArray<uint8> FormData;
+			auto OAuthFormDataUTF8 = FTCHARToUTF8(*OAuthFormData);
+			FormData.Append((uint8*)OAuthFormDataUTF8.Get(), OAuthFormDataUTF8.Length());
+
+			Result = Request.PerformBlockingUpload<FHttpRequest::Post>(*Uri, MakeArrayView(FormData));
+		}
 
 		if (Result == FHttpRequest::Success && Request.GetResponseCode() == 200)
 		{
@@ -4168,6 +4187,7 @@ namespace UE::DerivedData
 ILegacyCacheStore* CreateHttpCacheStore(
 	const TCHAR* NodeName,
 	const TCHAR* ServiceUrl,
+	bool bResolveHostCanonicalName,
 	const TCHAR* Namespace,
 	const TCHAR* StructuredNamespace,
 	const TCHAR* OAuthProvider,
@@ -4178,7 +4198,7 @@ ILegacyCacheStore* CreateHttpCacheStore(
 	bool bReadOnly)
 {
 #if WITH_HTTP_DDC_BACKEND
-	FHttpCacheStore* Backend = new FHttpCacheStore(ServiceUrl, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthData, LegacyMode, bReadOnly);
+	FHttpCacheStore* Backend = new FHttpCacheStore(ServiceUrl, bResolveHostCanonicalName, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthData, LegacyMode, bReadOnly);
 	if (Backend->IsUsable())
 	{
 		return Backend;

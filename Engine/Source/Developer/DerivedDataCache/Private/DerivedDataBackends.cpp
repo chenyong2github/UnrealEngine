@@ -54,6 +54,7 @@ ILegacyCacheStore* CreateFileSystemCacheStore(const TCHAR* CacheDirectory, const
 ILegacyCacheStore* CreateHttpCacheStore(
 	const TCHAR* NodeName,
 	const TCHAR* ServiceUrl,
+	bool bResolveHostCanonicalName,
 	const TCHAR* Namespace,
 	const TCHAR* StructuredNamespace,
 	const TCHAR* OAuthProvider,
@@ -770,6 +771,7 @@ public:
 		const FString& IniFilename,
 		const TCHAR* IniSection,
 		FString& Host,
+		bool& bResolveHostCanonicalName,
 		FString& Namespace,
 		FString& StructuredNamespace,
 		FString& OAuthProvider,
@@ -785,7 +787,7 @@ public:
 			const TCHAR* ServerSection = TEXT("HordeStorageServers");
 			if (GConfig->GetString(ServerSection, *ServerId, ServerEntry, IniFilename))
 			{
-				ParseHttpCacheParams(NodeName, *ServerEntry, IniFilename, IniSection, Host, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, LegacyMode, bReadOnly);
+				ParseHttpCacheParams(NodeName, *ServerEntry, IniFilename, IniSection, Host, bResolveHostCanonicalName, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, LegacyMode, bReadOnly);
 			}
 			else
 			{
@@ -815,6 +817,7 @@ public:
 			}
 		}
 
+		FParse::Bool(Entry, TEXT("ResolveHostCanonicalName="), bResolveHostCanonicalName);
 		FParse::Value(Entry, TEXT("Namespace="), Namespace);
 		FParse::Value(Entry, TEXT("StructuredNamespace="), StructuredNamespace);
 		FParse::Value(Entry, TEXT("OAuthProvider="), OAuthProvider);
@@ -841,6 +844,7 @@ public:
 		const TCHAR* IniSection)
 	{
 		FString Host;
+		bool bResolveHostCanonicalName = true;
 		FString Namespace;
 		FString StructuredNamespace;
 		FString OAuthProvider;
@@ -849,7 +853,7 @@ public:
 		EBackendLegacyMode LegacyMode = EBackendLegacyMode::ValueOnly;
 		bool bReadOnly = false;
 
-		ParseHttpCacheParams(NodeName, Entry, IniFilename, IniSection, Host, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, LegacyMode, bReadOnly);
+		ParseHttpCacheParams(NodeName, Entry, IniFilename, IniSection, Host, bResolveHostCanonicalName, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, LegacyMode, bReadOnly);
 
 		if (Host.IsEmpty())
 		{
@@ -880,16 +884,20 @@ public:
 			return MakeTuple(nullptr, ECacheStoreFlags::None);
 		}
 
-		if (OAuthClientId.IsEmpty())
+		// No need for OAuth client id and secret if using a local provider.
+		if (!OAuthProvider.StartsWith(TEXT("http://localhost")))
 		{
-			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'OAuthClientId'"), NodeName);
-			return MakeTuple(nullptr, ECacheStoreFlags::None);
-		}
+			if (OAuthClientId.IsEmpty())
+			{
+				UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'OAuthClientId'"), NodeName);
+				return MakeTuple(nullptr, ECacheStoreFlags::None);
+			}
 
-		if (OAuthSecret.IsEmpty())
-		{
-			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'OAuthSecret'"), NodeName);
-			return MakeTuple(nullptr, ECacheStoreFlags::None);
+			if (OAuthSecret.IsEmpty())
+			{
+				UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'OAuthSecret'"), NodeName);
+				return MakeTuple(nullptr, ECacheStoreFlags::None);
+			}
 		}
 
 		FDerivedDataBackendInterface::ESpeedClass ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Unknown;
@@ -924,7 +932,7 @@ public:
 		}
 
 		return MakeTuple(CreateHttpCacheStore(
-			NodeName, *Host, *Namespace, *StructuredNamespace, *OAuthProvider, *OAuthClientId, *OAuthSecret,
+			NodeName, *Host, bResolveHostCanonicalName, *Namespace, *StructuredNamespace, *OAuthProvider, *OAuthClientId, *OAuthSecret,
 			ForceSpeedClass == FDerivedDataBackendInterface::ESpeedClass::Unknown ? nullptr : &ForceSpeedClass, LegacyMode, bReadOnly),
 			ECacheStoreFlags::Remote | ECacheStoreFlags::Query | (bReadOnly ? ECacheStoreFlags::None : ECacheStoreFlags::Store));
 	}
