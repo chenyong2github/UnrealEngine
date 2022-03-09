@@ -13,7 +13,8 @@ UENUM()
 enum class EPCGDifferenceDensityFunction : uint8
 {
 	Minimum,
-	ClampedSubstraction
+	ClampedSubstraction,
+	Binary
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
@@ -59,4 +60,6 @@ protected:
 
 	UPROPERTY(BlueprintSetter = SetDensityFunction, EditAnywhere, Category = Settings)
 	EPCGDifferenceDensityFunction DensityFunction = EPCGDifferenceDensityFunction::Minimum;
+
+	float GetDensityAtPositionFromDifference(const FVector& InPosition) const;
 };

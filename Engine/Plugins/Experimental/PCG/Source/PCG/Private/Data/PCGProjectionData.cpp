@@ -61,6 +61,12 @@ FBox UPCGProjectionData::ProjectBounds(const FBox& InBounds) const
 				(Corner % 2) ? InBounds.Max.Z : InBounds.Min.Z));
 	}
 
+	// Fixup the Z direction, as transforming the corners is not sufficient
+	const FVector::FReal HalfHeight = 0.5 * (InBounds.Max.Z - InBounds.Min.Z);
+	FVector BoundsCenter = InBounds.GetCenter();
+	Bounds += BoundsCenter + Target->GetNormal() * HalfHeight;
+	Bounds += BoundsCenter - Target->GetNormal() * HalfHeight;
+
 	return Bounds;
 }
 

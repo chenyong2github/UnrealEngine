@@ -13,7 +13,11 @@ namespace PCGUnionDataMaths
 		{
 			return FMath::Min(InDensityToUpdate + InOtherDensity, 1.0f);
 		}
-		else
+		else if (DensityFunction == EPCGUnionDensityFunction::Binary)
+		{
+			return InOtherDensity > 0 ? 1.0f : InDensityToUpdate;
+		}
+		else // Maximum
 		{
 			return FMath::Max(InDensityToUpdate, InOtherDensity);
 		}
@@ -128,6 +132,11 @@ FPCGPoint UPCGUnionData::TransformPoint(const FPCGPoint& InPoint) const
 	{
 		FPCGPoint TransformedPoint = FirstNonTrivialTransformData->TransformPoint(InPoint);
 
+		if (DensityFunction == EPCGUnionDensityFunction::Binary && TransformedPoint.Density > 0)
+		{
+			TransformedPoint.Density = 1.0f;
+		}
+
 		const int32 DataCount = Data.Num();
 		for(int32 DataIndex = 0; DataIndex < DataCount && TransformedPoint.Density < 1.0f; ++DataIndex)
 		{
@@ -154,13 +163,15 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGUnionData::CreatePointData);
 
+	const bool bBinaryDensity = (DensityFunction == EPCGUnionDensityFunction::Binary);
+
 	// Trivial results
 	if (Data.Num() == 0)
 	{
 		UE_LOG(LogPCG, Error, TEXT("Invalid union"));
 		return nullptr;
 	}
-	else if (Data.Num() == 1)
+	else if (Data.Num() == 1 && !bBinaryDensity)
 	{
 		UE_LOG(LogPCG, Verbose, TEXT("Union is trivial"));
 		return Data[0]->ToPointData(Context);
@@ -186,6 +197,15 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 			for (TObjectPtr<const UPCGSpatialData> Datum : Data)
 			{
 				TargetPoints.Append(Datum->ToPointData(Context)->GetPoints());
+			}
+
+			// Correct density for binary-style union
+			if (bBinaryDensity)
+			{
+				for (FPCGPoint& TargetPoint : TargetPoints)
+				{
+					TargetPoint.Density = (TargetPoint.Density > 0 ? 1.0f : 0);
+				}
 			}
 		}
 		break;
@@ -237,13 +257,15 @@ void UPCGUnionData::CreateSequentialPointData(FPCGContext* Context, UPCGPointDat
 
 			OutPoint = Point;
 
-			// Compute final density based on current & following data
-			for (int32 FollowingDataIndex = DataIndex + DataIndexIncrement; FollowingDataIndex != LastDataIndex; FollowingDataIndex += DataIndexIncrement)
+			if (DensityFunction == EPCGUnionDensityFunction::Binary && OutPoint.Density > 0)
 			{
-				if (PCGUnionDataMaths::UpdateDensity(OutPoint.Density, Data[FollowingDataIndex]->GetDensityAtPosition(OutPoint.Transform.GetLocation()), DensityFunction) == 1.0f)
-				{
-					break;
-				}
+				OutPoint.Density = 1.0f;
+			}
+
+			// Compute final density based on current & following data
+			for (int32 FollowingDataIndex = DataIndex + DataIndexIncrement; FollowingDataIndex != LastDataIndex && OutPoint.Density < 1.0f; FollowingDataIndex += DataIndexIncrement)
+			{
+				PCGUnionDataMaths::UpdateDensity(OutPoint.Density, Data[FollowingDataIndex]->GetDensityAtPosition(OutPoint.Transform.GetLocation()), DensityFunction);
 			}
 
 			return true;

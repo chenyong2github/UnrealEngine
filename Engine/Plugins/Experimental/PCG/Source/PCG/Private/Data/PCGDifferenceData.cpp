@@ -10,8 +10,26 @@ namespace PCGDifferenceDataUtils
 {
 	EPCGUnionDensityFunction ToUnionDensityFunction(EPCGDifferenceDensityFunction InDensityFunction)
 	{
-		return (InDensityFunction == EPCGDifferenceDensityFunction::ClampedSubstraction ? EPCGUnionDensityFunction::ClampedAddition : EPCGUnionDensityFunction::Maximum);
+		if (InDensityFunction == EPCGDifferenceDensityFunction::ClampedSubstraction)
+		{
+			return EPCGUnionDensityFunction::ClampedAddition;
+		}
+		else if (InDensityFunction == EPCGDifferenceDensityFunction::Binary)
+		{
+			return EPCGUnionDensityFunction::Binary;
+		}
+		else
+		{
+			return EPCGUnionDensityFunction::Maximum;
+		}
 	}
+}
+
+float UPCGDifferenceData::GetDensityAtPositionFromDifference(const FVector& InPosition) const
+{
+	const float DensityInDifference = (Difference ? Difference->GetDensityAtPosition(InPosition) : 0.0f);
+	const bool bBinaryDensity = (DensityFunction == EPCGDifferenceDensityFunction::Binary);
+	return ((bBinaryDensity && DensityInDifference > 0) ? 1.0f : DensityInDifference);
 }
 
 void UPCGDifferenceData::Initialize(const UPCGSpatialData* InData)
@@ -25,6 +43,13 @@ void UPCGDifferenceData::AddDifference(const UPCGSpatialData* InDifference)
 {
 	check(InDifference);
 
+	// In the eventuality that the difference has no overlap with the source, then we can drop it directly
+	if (!GetBounds().Intersect(InDifference->GetBounds()))
+	{
+		return;
+	}
+
+	// First difference element we'll keep as is, but subsequent ones will be pushed into a union
 	if (!Difference)
 	{
 		Difference = InDifference;
@@ -78,7 +103,7 @@ FBox UPCGDifferenceData::GetBounds() const
 
 FBox UPCGDifferenceData::GetStrictBounds() const
 {
-	return FBox(EForceInit::ForceInit);
+	return Difference ? FBox(EForceInit::ForceInit) : Source->GetStrictBounds();
 }
 
 float UPCGDifferenceData::GetDensityAtPosition(const FVector& InPosition) const
@@ -96,7 +121,7 @@ float UPCGDifferenceData::GetDensityAtPosition(const FVector& InPosition) const
 			return 0;
 		}
 
-		const float DensityInDifference = Difference->GetDensityAtPosition(InPosition);
+		const float DensityInDifference = GetDensityAtPositionFromDifference(InPosition);
 		return FMath::Max(0, DensityInSource - DensityInDifference);
 	}
 	else
@@ -118,7 +143,7 @@ FPCGPoint UPCGDifferenceData::TransformPoint(const FPCGPoint& InPoint) const
 
 	if (Difference && TransformedPoint.Density > 0)
 	{
-		TransformedPoint.Density = FMath::Max(0, TransformedPoint.Density - Difference->GetDensityAtPosition(TransformedPoint.Transform.GetLocation()));
+		TransformedPoint.Density = FMath::Max(0, TransformedPoint.Density - GetDensityAtPositionFromDifference(TransformedPoint.Transform.GetLocation()));
 	}
 
 	return TransformedPoint;
@@ -158,7 +183,7 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num(), TargetPoints, [this, &SourcePoints](int32 Index, FPCGPoint& OutPoint)
 	{
 		const FPCGPoint& Point = SourcePoints[Index];
-		const float DensityInDifference = Difference->GetDensityAtPosition(Point.Transform.GetLocation());
+		const float DensityInDifference = GetDensityAtPositionFromDifference(Point.Transform.GetLocation());
 
 		if (DensityInDifference < Point.Density)
 		{

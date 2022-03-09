@@ -19,7 +19,8 @@ UENUM()
 enum class EPCGUnionDensityFunction : uint8
 {
 	Maximum,
-	ClampedAddition
+	ClampedAddition,
+	Binary
 };
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
