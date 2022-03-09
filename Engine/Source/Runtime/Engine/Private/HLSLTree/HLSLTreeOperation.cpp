@@ -11,15 +11,15 @@ namespace UE::HLSLTree
 class FExpressionOperation : public FExpression
 {
 public:
-	FExpressionOperation(EOperation InOp, TConstArrayView<FExpression*> InInputs);
+	FExpressionOperation(EOperation InOp, TConstArrayView<const FExpression*> InInputs);
 
 	static constexpr int8 MaxInputs = 2;
 
 	EOperation Op;
-	FExpression* Inputs[MaxInputs];
+	const FExpression* Inputs[MaxInputs];
 
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
-	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
+	virtual const FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
@@ -91,37 +91,37 @@ FOperationDescription GetOperationDescription(EOperation Op)
 	}
 }
 
-FExpression* FTree::NewUnaryOp(EOperation Op, FExpression* Input)
+const FExpression* FTree::NewUnaryOp(EOperation Op, const FExpression* Input)
 {
-	FExpression* Inputs[1] = { Input };
+	const FExpression* Inputs[1] = { Input };
 	return NewExpression<FExpressionOperation>(Op, Inputs);
 }
 
-FExpression* FTree::NewBinaryOp(EOperation Op, FExpression* Lhs, FExpression* Rhs)
+const FExpression* FTree::NewBinaryOp(EOperation Op, const FExpression* Lhs, const FExpression* Rhs)
 {
-	FExpression* Inputs[2] = { Lhs, Rhs };
+	const FExpression* Inputs[2] = { Lhs, Rhs };
 	return NewExpression<FExpressionOperation>(Op, Inputs);
 }
 
-FExpression* FTree::NewLog(FExpression* Input)
+const FExpression* FTree::NewLog(const FExpression* Input)
 {
 	const float Log2ToLog = 1.0f / FMath::Log2(EULERS_NUMBER);
 	return NewMul(NewLog2(Input), NewConstant(Log2ToLog));
 }
 
-FExpression* FTree::NewCross(FExpression* Lhs, FExpression* Rhs)
+const FExpression* FTree::NewCross(const FExpression* Lhs, const FExpression* Rhs)
 {
 	//c_P[0] = v_A[1] * v_B[2] - v_A[2] * v_B[1];
 	//c_P[1] = -(v_A[0] * v_B[2] - v_A[2] * v_B[0]);
 	//c_P[2] = v_A[0] * v_B[1] - v_A[1] * v_B[0];
-	FExpression* Lhs0 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(1, 0, 0), Lhs);
-	FExpression* Lhs1 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(2, 2, 1), Lhs);
-	FExpression* Rhs0 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(2, 2, 1), Rhs);
-	FExpression* Rhs1 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(1, 0, 0), Rhs);
+	const FExpression* Lhs0 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(1, 0, 0), Lhs);
+	const FExpression* Lhs1 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(2, 2, 1), Lhs);
+	const FExpression* Rhs0 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(2, 2, 1), Rhs);
+	const FExpression* Rhs1 = NewExpression<FExpressionSwizzle>(FSwizzleParameters(1, 0, 0), Rhs);
 	return NewSub(NewMul(NewMul(Lhs0, Rhs0), NewConstant(FVector3f(1.0f, -1.0f, 1.0f))), NewMul(Lhs1, Rhs1));
 }
 
-FExpressionOperation::FExpressionOperation(EOperation InOp, TConstArrayView<FExpression*> InInputs) : Op(InOp)
+FExpressionOperation::FExpressionOperation(EOperation InOp, TConstArrayView<const FExpression*> InInputs) : Op(InOp)
 {
 	const FOperationDescription OpDesc = GetOperationDescription(InOp);
 	check(OpDesc.NumInputs == InInputs.Num());
@@ -382,22 +382,22 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 		break;
 	case EOperation::Rcp:
 	{
-		FExpression* Result = Tree.NewRcp(Inputs[0]);
-		FExpression* dFdA = Tree.NewNeg(Tree.NewMul(Result, Result));
+		const FExpression* Result = Tree.NewRcp(Inputs[0]);
+		const FExpression* dFdA = Tree.NewNeg(Tree.NewMul(Result, Result));
 		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
 		break;
 	}
 	case EOperation::Sqrt:
 	{
-		FExpression* dFdA = Tree.NewMul(Tree.NewRsqrt(Tree.NewMax(Inputs[0], Tree.NewConstant(0.00001f))), Tree.NewConstant(0.5f));
+		const FExpression* dFdA = Tree.NewMul(Tree.NewRsqrt(Tree.NewMax(Inputs[0], Tree.NewConstant(0.00001f))), Tree.NewConstant(0.5f));
 		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
 		break;
 	}
 	case EOperation::Rsqrt:
 	{
-		FExpression* dFdA = Tree.NewMul(Tree.NewMul(Tree.NewRsqrt(Inputs[0]), Tree.NewRcp(Inputs[0])), Tree.NewConstant(-0.5f));
+		const FExpression* dFdA = Tree.NewMul(Tree.NewMul(Tree.NewRsqrt(Inputs[0]), Tree.NewRcp(Inputs[0])), Tree.NewConstant(-0.5f));
 		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
 		break;
@@ -411,21 +411,21 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 		break;
 	case EOperation::Sin:
 	{
-		FExpression* dFdA = Tree.NewCos(Inputs[0]);
+		const FExpression* dFdA = Tree.NewCos(Inputs[0]);
 		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
 		break;
 	}
 	case EOperation::Cos:
 	{
-		FExpression* dFdA = Tree.NewNeg(Tree.NewSin(Inputs[0]));
+		const FExpression* dFdA = Tree.NewNeg(Tree.NewSin(Inputs[0]));
 		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
 		break;
 	}
 	case EOperation::Tan:
 	{
-		FExpression* dFdA = Tree.NewRcp(Tree.NewPow2(Tree.NewCos(Inputs[0])));
+		const FExpression* dFdA = Tree.NewRcp(Tree.NewPow2(Tree.NewCos(Inputs[0])));
 		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
 		break;
@@ -433,7 +433,7 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 	case EOperation::Asin:
 	case EOperation::AsinFast:
 	{
-		FExpression* dFdA = Tree.NewRsqrt(Tree.NewMax(Tree.NewSub(Tree.NewConstant(1.0f), Tree.NewPow2(Inputs[0])), Tree.NewConstant(0.00001f)));
+		const FExpression* dFdA = Tree.NewRsqrt(Tree.NewMax(Tree.NewSub(Tree.NewConstant(1.0f), Tree.NewPow2(Inputs[0])), Tree.NewConstant(0.00001f)));
 		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
 		break;
@@ -441,7 +441,7 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 	case EOperation::Acos:
 	case EOperation::AcosFast:
 	{
-		FExpression* dFdA = Tree.NewNeg(Tree.NewRsqrt(Tree.NewMax(Tree.NewSub(Tree.NewConstant(1.0f), Tree.NewPow2(Inputs[0])), Tree.NewConstant(0.00001f))));
+		const FExpression* dFdA = Tree.NewNeg(Tree.NewRsqrt(Tree.NewMax(Tree.NewSub(Tree.NewConstant(1.0f), Tree.NewPow2(Inputs[0])), Tree.NewConstant(0.00001f))));
 		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
 		break;
@@ -449,7 +449,7 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 	case EOperation::Atan:
 	case EOperation::AtanFast:
 	{
-		FExpression* dFdA = Tree.NewRcp(Tree.NewAdd(Tree.NewPow2(Inputs[0]), Tree.NewConstant(1.0f)));
+		const FExpression* dFdA = Tree.NewRcp(Tree.NewAdd(Tree.NewPow2(Inputs[0]), Tree.NewConstant(1.0f)));
 		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
 		break;
@@ -457,9 +457,9 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 	case EOperation::Atan2:
 	case EOperation::Atan2Fast:
 	{
-		FExpression* Denom = Tree.NewRcp(Tree.NewAdd(Tree.NewPow2(Inputs[0]), Tree.NewPow2(Inputs[1])));
-		FExpression* dFdA = Tree.NewMul(Inputs[1], Denom);
-		FExpression* dFdB = Tree.NewMul(Tree.NewNeg(Inputs[0]), Denom);
+		const FExpression* Denom = Tree.NewRcp(Tree.NewAdd(Tree.NewPow2(Inputs[0]), Tree.NewPow2(Inputs[1])));
+		const FExpression* dFdA = Tree.NewMul(Inputs[1], Denom);
+		const FExpression* dFdB = Tree.NewMul(Tree.NewNeg(Inputs[0]), Denom);
 		OutResult.ExpressionDdx = Tree.NewAdd(Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx), Tree.NewMul(dFdB, InputDerivatives[1].ExpressionDdx));
 		OutResult.ExpressionDdy = Tree.NewAdd(Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy), Tree.NewMul(dFdB, InputDerivatives[1].ExpressionDdy));
 		break;
@@ -487,9 +487,9 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 		break;
 	case EOperation::Div:
 	{
-		FExpression* Denom = Tree.NewRcp(Tree.NewMul(Inputs[1], Inputs[1]));
-		FExpression* dFdA = Tree.NewMul(Inputs[1], Denom);
-		FExpression* dFdB = Tree.NewNeg(Tree.NewMul(Inputs[0], Denom));
+		const FExpression* Denom = Tree.NewRcp(Tree.NewMul(Inputs[1], Inputs[1]));
+		const FExpression* dFdA = Tree.NewMul(Inputs[1], Denom);
+		const FExpression* dFdB = Tree.NewNeg(Tree.NewMul(Inputs[0], Denom));
 		OutResult.ExpressionDdx = Tree.NewAdd(Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx), Tree.NewMul(dFdB, InputDerivatives[1].ExpressionDdx));
 		OutResult.ExpressionDdy = Tree.NewAdd(Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy), Tree.NewMul(dFdB, InputDerivatives[1].ExpressionDdy));
 		break;
@@ -501,14 +501,14 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 		break;
 	case EOperation::Min:
 	{
-		FExpression* Cond = Tree.NewLess(Inputs[0], Inputs[1]);
+		const FExpression* Cond = Tree.NewLess(Inputs[0], Inputs[1]);
 		OutResult.ExpressionDdx = Tree.NewExpression<FExpressionSelect>(Cond, InputDerivatives[0].ExpressionDdx, InputDerivatives[1].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewExpression<FExpressionSelect>(Cond, InputDerivatives[0].ExpressionDdy, InputDerivatives[1].ExpressionDdy);
 		break;
 	}
 	case EOperation::Max:
 	{
-		FExpression* Cond = Tree.NewGreater(Inputs[0], Inputs[1]);
+		const FExpression* Cond = Tree.NewGreater(Inputs[0], Inputs[1]);
 		OutResult.ExpressionDdx = Tree.NewExpression<FExpressionSelect>(Cond, InputDerivatives[0].ExpressionDdx, InputDerivatives[1].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewExpression<FExpressionSelect>(Cond, InputDerivatives[0].ExpressionDdy, InputDerivatives[1].ExpressionDdy);
 		break;
@@ -526,11 +526,11 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 	}
 }
 
-FExpression* FExpressionOperation::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+const FExpression* FExpressionOperation::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
 	const Private::FOperationRequestedTypes RequestedTypes = Private::GetOperationRequestedTypes(Op, RequestedType);
 	const FOperationDescription OpDesc = GetOperationDescription(Op);
-	FExpression* PrevFrameInputs[MaxInputs];
+	const FExpression* PrevFrameInputs[MaxInputs];
 	for (int32 Index = 0; Index < OpDesc.NumInputs; ++Index)
 	{
 		PrevFrameInputs[Index] = Tree.GetPreviousFrame(Inputs[Index], RequestedTypes.InputType[Index]);

@@ -372,7 +372,7 @@ EExpressionEvaluation FEmitContext::GetEvaluation(const FExpression* Expression,
 	return GetPreparedType(Expression).GetEvaluation(Scope, RequestedType);
 }
 
-FPreparedType FEmitContext::PrepareExpression(FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType)
+FPreparedType FEmitContext::PrepareExpression(const FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType)
 {
 	if (!InExpression || RequestedType.IsVoid())
 	{
@@ -857,7 +857,7 @@ void WriteMaterialUniformAccess(Shader::EValueComponentType ComponentType, uint3
 }
 } // namespace Private
 
-FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType, FExpression* Expression)
+FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType, const FExpression* Expression)
 {
 	Shader::FPreshaderData LocalPreshader;
 	Shader::FType Type = ResultType;

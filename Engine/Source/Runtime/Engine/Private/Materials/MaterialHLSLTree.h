@@ -186,7 +186,7 @@ public:
 	EExternalInput InputType;
 
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
-	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
+	virtual const FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 };
@@ -268,7 +268,7 @@ public:
 class FExpressionFunctionCall : public FExpressionForward
 {
 public:
-	FExpressionFunctionCall(FExpression* InExpression, UMaterialFunctionInterface* InMaterialFunction)
+	FExpressionFunctionCall(const FExpression* InExpression, UMaterialFunctionInterface* InMaterialFunction)
 		: FExpressionForward(InExpression)
 		, MaterialFunction(InMaterialFunction)
 	{}
@@ -281,7 +281,7 @@ public:
 class FExpressionMaterialLayers : public FExpressionForward
 {
 public:
-	FExpressionMaterialLayers(FExpression* InExpression, const FMaterialLayersFunctions* InMaterialLayers)
+	FExpressionMaterialLayers(const FExpression* InExpression, const FMaterialLayersFunctions* InMaterialLayers)
 		: FExpressionForward(InExpression)
 		, MaterialLayers(InMaterialLayers)
 	{}
@@ -294,13 +294,13 @@ public:
 class FExpressionSceneTexture : public FExpression
 {
 public:
-	FExpressionSceneTexture(FExpression* InTexCoordExpression, uint32 InSceneTextureId, bool bInFiltered)
+	FExpressionSceneTexture(const FExpression* InTexCoordExpression, uint32 InSceneTextureId, bool bInFiltered)
 		: TexCoordExpression(InTexCoordExpression)
 		, SceneTextureId(InSceneTextureId)
 		, bFiltered(bInFiltered)
 	{}
 
-	FExpression* TexCoordExpression;
+	const FExpression* TexCoordExpression;
 	uint32 SceneTextureId;
 	bool bFiltered;
 
@@ -327,14 +327,14 @@ struct FNoiseParameters
 class FExpressionNoise : public FExpression
 {
 public:
-	FExpressionNoise(const FNoiseParameters& InParams, FExpression* InPositionExpression, FExpression* InFilterWidthExpression)
+	FExpressionNoise(const FNoiseParameters& InParams, const FExpression* InPositionExpression, const FExpression* InFilterWidthExpression)
 		: PositionExpression(InPositionExpression)
 		, FilterWidthExpression(InFilterWidthExpression)
 		, Parameters(InParams)
 	{}
 
-	FExpression* PositionExpression;
-	FExpression* FilterWidthExpression;
+	const FExpression* PositionExpression;
+	const FExpression* FilterWidthExpression;
 	FNoiseParameters Parameters;
 
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;

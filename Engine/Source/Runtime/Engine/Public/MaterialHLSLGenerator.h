@@ -97,10 +97,10 @@ public:
 
 	UE::HLSLTree::FScope* NewJoinedScope(UE::HLSLTree::FScope& Scope);
 
-	UE::HLSLTree::FExpression* NewConstant(const UE::Shader::FValue& Value);
-	UE::HLSLTree::FExpression* NewTexCoord(int32 Index);
-	UE::HLSLTree::FExpression* NewExternalInput(UE::HLSLTree::Material::EExternalInput Input);
-	UE::HLSLTree::FExpression* NewSwizzle(const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input);
+	const UE::HLSLTree::FExpression* NewConstant(const UE::Shader::FValue& Value);
+	const UE::HLSLTree::FExpression* NewTexCoord(int32 Index);
+	const UE::HLSLTree::FExpression* NewExternalInput(UE::HLSLTree::Material::EExternalInput Input);
+	const UE::HLSLTree::FExpression* NewSwizzle(const UE::HLSLTree::FSwizzleParameters& Params, const UE::HLSLTree::FExpression* Input);
 
 	const UE::Shader::FTextureValue* AcquireTextureValue(const UE::Shader::FTextureValue& Value);
 
@@ -109,18 +109,18 @@ public:
 	 * The node will be created if it doesn't exist. Otherwise, the tree will be updated to ensure the node is visible in the given scope
 	 * Note that a given UMaterialExpression may only support 1 of these node types, attempting to access an invalid node type will generate an error
 	 */
-	UE::HLSLTree::FExpression* AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex);
-	UE::HLSLTree::FExpression* AcquireFunctionInputExpression(UE::HLSLTree::FScope& Scope, const UMaterialExpressionFunctionInput* MaterialExpression);
+	const UE::HLSLTree::FExpression* AcquireExpression(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression, int32 OutputIndex);
+	const UE::HLSLTree::FExpression* AcquireFunctionInputExpression(UE::HLSLTree::FScope& Scope, const UMaterialExpressionFunctionInput* MaterialExpression);
 
 	bool GenerateStatements(UE::HLSLTree::FScope& Scope, UMaterialExpression* MaterialExpression);
 
-	UE::HLSLTree::FExpression* GenerateMaterialParameter(FName InParameterName, const FMaterialParameterMetadata& InParameterMeta, const UE::Shader::FValue& InDefaultValue);
+	const UE::HLSLTree::FExpression* GenerateMaterialParameter(FName InParameterName, const FMaterialParameterMetadata& InParameterMeta, const UE::Shader::FValue& InDefaultValue);
 
-	UE::HLSLTree::FExpression* GenerateFunctionCall(UE::HLSLTree::FScope& Scope,
+	const UE::HLSLTree::FExpression* GenerateFunctionCall(UE::HLSLTree::FScope& Scope,
 		UMaterialFunctionInterface* Function,
 		EMaterialParameterAssociation ParameterAssociation,
 		int32 ParameterIndex,
-		TArrayView<UE::HLSLTree::FExpression*> ConnectedInputs,
+		TArrayView<const UE::HLSLTree::FExpression*> ConnectedInputs,
 		int32 OutputIndex);
 
 	template<typename T, typename... ArgTypes>
@@ -175,7 +175,7 @@ private:
 
 	using FFunctionInputArray = TArray<const UMaterialExpressionFunctionInput*, TInlineAllocator<4>>;
 	using FFunctionOutputArray = TArray<const UMaterialExpressionFunctionOutput*, TInlineAllocator<4>>;
-	using FConnectedInputArray = TArray<UE::HLSLTree::FExpression*, TInlineAllocator<4>>;
+	using FConnectedInputArray = TArray<const UE::HLSLTree::FExpression*, TInlineAllocator<4>>;
 
 	struct FFunctionCallEntry
 	{
@@ -214,7 +214,7 @@ private:
 	TMap<UMaterialFunctionInterface*, UE::HLSLTree::FFunction*> FunctionMap;
 	TMap<UMaterialExpression*, FStatementEntry> StatementMap;
 	TMap<FExpressionDataKey, void*> ExpressionDataMap;
-	UE::HLSLTree::FExpression* PreviewExpressionResult = nullptr;
+	const UE::HLSLTree::FExpression* PreviewExpressionResult = nullptr;
 	bool bGeneratedResult;
 };
 

@@ -134,10 +134,10 @@ private:
 struct FEmitPreshaderScope
 {
 	FEmitPreshaderScope() = default;
-	FEmitPreshaderScope(FEmitScope* InScope, FExpression* InValue) : Scope(InScope), Value(InValue) {}
+	FEmitPreshaderScope(FEmitScope* InScope, const FExpression* InValue) : Scope(InScope), Value(InValue) {}
 
 	FEmitScope* Scope = nullptr;
-	FExpression* Value = nullptr;
+	const FExpression* Value = nullptr;
 };
 
 /**
@@ -364,10 +364,10 @@ enum class EDerivativeCoordinate : uint8
 
 struct FExpressionDerivatives
 {
-	FExpression* ExpressionDdx = nullptr;
-	FExpression* ExpressionDdy = nullptr;
+	const FExpression* ExpressionDdx = nullptr;
+	const FExpression* ExpressionDdy = nullptr;
 
-	FExpression* Get(EDerivativeCoordinate Coord) const { return (Coord == EDerivativeCoordinate::Ddx) ? ExpressionDdx : ExpressionDdy; }
+	const FExpression* Get(EDerivativeCoordinate Coord) const { return (Coord == EDerivativeCoordinate::Ddx) ? ExpressionDdx : ExpressionDdy; }
 
 	bool IsValid() const { return (bool)ExpressionDdx && (bool)ExpressionDdy; }
 };
@@ -381,28 +381,35 @@ struct FExpressionDerivatives
 class FExpression : public FNode
 {
 public:
-	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType);
-	Shader::FType GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType, Shader::FPreshaderData& OutPreshader);
-	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType);
+	/**
+	 * Get Shader/Preshader/Constant value for the expression
+	 * @param RequestedType the componets of the result that are needed
+	 * @param PreparedType the prepared type of this expression, should be return of Context.PrepareExpression/GetPreparedType
+	 * @param ResultType the requested output type, value will be cast to this type if needed
+	 * Various overloads below will derive the missing values from those that are provided, and/or object PreparedType from the given Context directly
+	 */
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType) const;
+	Shader::FType GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType, Shader::FPreshaderData& OutPreshader) const;
+	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType) const;
 
-	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType);
-	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType);
-	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const Shader::FType& ResultType);
-	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, Shader::EValueType ResultType);
-	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope);
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType) const;
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType) const;
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, const Shader::FType& ResultType) const;
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope, Shader::EValueType ResultType) const;
+	FEmitShaderExpression* GetValueShader(FEmitContext& Context, FEmitScope& Scope) const;
 
-	Shader::FType GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType, Shader::FPreshaderData& OutPreshader);
-	Shader::FType GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader);
+	Shader::FType GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType, Shader::FPreshaderData& OutPreshader) const;
+	Shader::FType GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const;
 
-	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType);
-	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType);
-	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType);
-	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& PreparedType, const Shader::FType& ResultType);
-	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& PreparedType, Shader::EValueType ResultType);
+	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType) const;
+	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType) const;
+	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType) const;
+	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& PreparedType, const Shader::FType& ResultType) const;
+	Shader::FValue GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& PreparedType, Shader::EValueType ResultType) const;
 
 protected:
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const;
-	virtual FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const;
+	virtual const FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const;
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const;
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const;
@@ -419,7 +426,7 @@ public:
 
 	FScope* RootScope = nullptr;
 	FScope* CalledScope = nullptr;
-	TArray<FExpression*, TInlineAllocator<8>> OutputExpressions;
+	TArray<const FExpression*, TInlineAllocator<8>> OutputExpressions;
 };
 
 /**
@@ -452,7 +459,7 @@ private:
 	FStatement* OwnerStatement = nullptr;
 	FStatement* ContainedStatement = nullptr;
 	FScope* PreviousScope[MaxNumPreviousScopes];
-	TMap<FName, FExpression*> LocalMap;
+	TMap<FName, const FExpression*> LocalMap;
 	int32 NumPreviousScopes = 0;
 	int32 NestedLevel = 0;
 };
@@ -475,13 +482,13 @@ public:
 	FScope& GetRootScope() const { return *RootScope; }
 
 	template<typename T, typename... ArgTypes>
-	inline FExpression* NewExpression(ArgTypes&&... Args)
+	inline const FExpression* NewExpression(ArgTypes&&... Args)
 	{
 		FHasher Hasher;
 		AppendHash(Hasher, GetGeneratedTypeName<T>());
 		AppendHashes(Hasher, Forward<ArgTypes>(Args)...);
 		const FXxHash64 Hash = Hasher.Finalize();
-		FExpression* Expression = FindExpression(Hash);
+		const FExpression* Expression = FindExpression(Hash);
 		if (!Expression)
 		{
 			T* TypedExpression = NewNode<T>(Forward<ArgTypes>(Args)...);
@@ -499,56 +506,56 @@ public:
 		return Statement;
 	}
 
-	void AssignLocal(FScope& Scope, const FName& LocalName, FExpression* Value);
-	FExpression* AcquireLocal(FScope& Scope, const FName& LocalName);
+	void AssignLocal(FScope& Scope, const FName& LocalName, const FExpression* Value);
+	const FExpression* AcquireLocal(FScope& Scope, const FName& LocalName);
 
-	FExpression* NewFunctionCall(FScope& Scope, FFunction* Function, int32 OutputIndex);
+	const FExpression* NewFunctionCall(FScope& Scope, FFunction* Function, int32 OutputIndex);
 
-	FExpressionDerivatives GetAnalyticDerivatives(FExpression* InExpression);
-	FExpression* GetPreviousFrame(FExpression* InExpression, const FRequestedType& RequestedType);
+	FExpressionDerivatives GetAnalyticDerivatives(const FExpression* InExpression);
+	const FExpression* GetPreviousFrame(const FExpression* InExpression, const FRequestedType& RequestedType);
 
 	FScope* NewScope(FScope& Scope);
 	FScope* NewOwnedScope(FStatement& Owner);
 	FFunction* NewFunction();
 
 	/** Shortcuts to create various common expression types */
-	FExpression* NewConstant(const Shader::FValue& Value);
-	FExpression* NewUnaryOp(EOperation Op, FExpression* Input);
-	FExpression* NewBinaryOp(EOperation Op, FExpression* Lhs, FExpression* Rhs);
+	const FExpression* NewConstant(const Shader::FValue& Value);
+	const FExpression* NewUnaryOp(EOperation Op, const FExpression* Input);
+	const FExpression* NewBinaryOp(EOperation Op, const FExpression* Lhs, const FExpression* Rhs);
 
-	FExpression* NewAbs(FExpression* Input) { return NewUnaryOp(EOperation::Abs, Input); }
-	FExpression* NewNeg(FExpression* Input) { return NewUnaryOp(EOperation::Neg, Input); }
-	FExpression* NewSaturate(FExpression* Input) { return NewUnaryOp(EOperation::Saturate, Input); }
-	FExpression* NewSum(FExpression* Input) { return NewUnaryOp(EOperation::Sum, Input); }
-	FExpression* NewRcp(FExpression* Input) { return NewUnaryOp(EOperation::Rcp, Input); }
-	FExpression* NewSqrt(FExpression* Input) { return NewUnaryOp(EOperation::Sqrt, Input); }
-	FExpression* NewRsqrt(FExpression* Input) { return NewUnaryOp(EOperation::Rsqrt, Input); }
-	FExpression* NewLog2(FExpression* Input) { return NewUnaryOp(EOperation::Log2, Input); }
-	FExpression* NewExp2(FExpression* Input) { return NewUnaryOp(EOperation::Exp2, Input); }
-	FExpression* NewFrac(FExpression* Input) { return NewUnaryOp(EOperation::Frac, Input); }
-	FExpression* NewLength(FExpression* Input) { return NewUnaryOp(EOperation::Length, Input); }
-	FExpression* NewNormalize(FExpression* Input) { return NewUnaryOp(EOperation::Normalize, Input); }
-	FExpression* NewSin(FExpression* Input) { return NewUnaryOp(EOperation::Sin, Input); }
-	FExpression* NewCos(FExpression* Input) { return NewUnaryOp(EOperation::Cos, Input); }
+	const FExpression* NewAbs(const FExpression* Input) { return NewUnaryOp(EOperation::Abs, Input); }
+	const FExpression* NewNeg(const FExpression* Input) { return NewUnaryOp(EOperation::Neg, Input); }
+	const FExpression* NewSaturate(const FExpression* Input) { return NewUnaryOp(EOperation::Saturate, Input); }
+	const FExpression* NewSum(const FExpression* Input) { return NewUnaryOp(EOperation::Sum, Input); }
+	const FExpression* NewRcp(const FExpression* Input) { return NewUnaryOp(EOperation::Rcp, Input); }
+	const FExpression* NewSqrt(const FExpression* Input) { return NewUnaryOp(EOperation::Sqrt, Input); }
+	const FExpression* NewRsqrt(const FExpression* Input) { return NewUnaryOp(EOperation::Rsqrt, Input); }
+	const FExpression* NewLog2(const FExpression* Input) { return NewUnaryOp(EOperation::Log2, Input); }
+	const FExpression* NewExp2(const FExpression* Input) { return NewUnaryOp(EOperation::Exp2, Input); }
+	const FExpression* NewFrac(const FExpression* Input) { return NewUnaryOp(EOperation::Frac, Input); }
+	const FExpression* NewLength(const FExpression* Input) { return NewUnaryOp(EOperation::Length, Input); }
+	const FExpression* NewNormalize(const FExpression* Input) { return NewUnaryOp(EOperation::Normalize, Input); }
+	const FExpression* NewSin(const FExpression* Input) { return NewUnaryOp(EOperation::Sin, Input); }
+	const FExpression* NewCos(const FExpression* Input) { return NewUnaryOp(EOperation::Cos, Input); }
 
-	FExpression* NewAdd(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Add, Lhs, Rhs); }
-	FExpression* NewSub(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Sub, Lhs, Rhs); }
-	FExpression* NewMul(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Mul, Lhs, Rhs); }
-	FExpression* NewDiv(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Div, Lhs, Rhs); }
-	FExpression* NewFmod(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Fmod, Lhs, Rhs); }
-	FExpression* NewPowClamped(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::PowPositiveClamped, Lhs, Rhs); }
-	FExpression* NewMin(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Min, Lhs, Rhs); }
-	FExpression* NewMax(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Max, Lhs, Rhs); }
-	FExpression* NewLess(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Less, Lhs, Rhs); }
-	FExpression* NewGreater(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::Greater, Lhs, Rhs); }
-	FExpression* NewLessEqual(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::LessEqual, Lhs, Rhs); }
-	FExpression* NewGreaterEqual(FExpression* Lhs, FExpression* Rhs) { return NewBinaryOp(EOperation::GreaterEqual, Lhs, Rhs); }
+	const FExpression* NewAdd(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Add, Lhs, Rhs); }
+	const FExpression* NewSub(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Sub, Lhs, Rhs); }
+	const FExpression* NewMul(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Mul, Lhs, Rhs); }
+	const FExpression* NewDiv(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Div, Lhs, Rhs); }
+	const FExpression* NewFmod(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Fmod, Lhs, Rhs); }
+	const FExpression* NewPowClamped(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::PowPositiveClamped, Lhs, Rhs); }
+	const FExpression* NewMin(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Min, Lhs, Rhs); }
+	const FExpression* NewMax(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Max, Lhs, Rhs); }
+	const FExpression* NewLess(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Less, Lhs, Rhs); }
+	const FExpression* NewGreater(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::Greater, Lhs, Rhs); }
+	const FExpression* NewLessEqual(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::LessEqual, Lhs, Rhs); }
+	const FExpression* NewGreaterEqual(const FExpression* Lhs, const FExpression* Rhs) { return NewBinaryOp(EOperation::GreaterEqual, Lhs, Rhs); }
 
-	FExpression* NewLog(FExpression* Input);
-	FExpression* NewPow2(FExpression* Input) { return NewMul(Input, Input); }
-	FExpression* NewCross(FExpression* Lhs, FExpression* Rhs);
-	FExpression* NewDot(FExpression* Lhs, FExpression* Rhs) { return NewSum(NewMul(Lhs, Rhs)); }
-	FExpression* NewLerp(FExpression* A, FExpression* B, FExpression* T) { return NewAdd(A, NewMul(NewSub(B, A), T)); }
+	const FExpression* NewLog(const FExpression* Input);
+	const FExpression* NewPow2(const FExpression* Input) { return NewMul(Input, Input); }
+	const FExpression* NewCross(const FExpression* Lhs, const FExpression* Rhs);
+	const FExpression* NewDot(const FExpression* Lhs, const FExpression* Rhs) { return NewSum(NewMul(Lhs, Rhs)); }
+	const FExpression* NewLerp(const FExpression* A, const FExpression* B, const FExpression* T) { return NewAdd(A, NewMul(NewSub(B, A), T)); }
 
 private:
 	template<typename T, typename... ArgTypes>
@@ -563,12 +570,12 @@ private:
 	void RegisterExpression(FExpression* Expression, FXxHash64 Hash);
 	void RegisterExpression(FExpressionLocalPHI* Expression, FXxHash64 Hash);
 	void RegisterStatement(FScope& Scope, FStatement* Statement);
-	FExpression* FindExpression(FXxHash64 Hash) const;
+	const FExpression* FindExpression(FXxHash64 Hash) const;
 
 	FMemStackBase* Allocator = nullptr;
 	FNode* Nodes = nullptr;
 	FScope* RootScope = nullptr;
-	TMap<FXxHash64, FExpression*> ExpressionMap;
+	TMap<FXxHash64, const FExpression*> ExpressionMap;
 	TArray<FExpressionLocalPHI*> PHIExpressions;
 
 	friend class FExpressionLocalPHI;

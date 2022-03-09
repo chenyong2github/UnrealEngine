@@ -98,7 +98,7 @@ public:
 	bool GetEvaluatePhaseOncePerSample() const;
 	uint32 GetMultiScatteringApproximationOctaveCount() const;
 
-	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
 	virtual UE::Shader::EValueType GetCustomOutputType(int32 OutputIndex) const override;
 
 #endif

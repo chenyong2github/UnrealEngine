@@ -32,7 +32,7 @@ public:
 	const UE::Shader::FStructTypeRegistry& GetTypeRegistry() const { return TypeRegistry; }
 	UE::HLSLTree::FTree& GetTree() const { return *HLSLTree; }
 
-	UE::HLSLTree::FExpression* GetResultExpression() const { return ResultExpression; }
+	const UE::HLSLTree::FExpression* GetResultExpression() const { return ResultExpression; }
 	UE::HLSLTree::FStatement* GetResultStatement() const { return ResultStatement; }
 
 	const UE::Shader::FStructType* GetMaterialAttributesType() const { return MaterialAttributesType; }
@@ -50,7 +50,7 @@ private:
 	FMemStackBase Allocator;
 	UE::Shader::FStructTypeRegistry TypeRegistry;
 	UE::HLSLTree::FTree* HLSLTree = nullptr;
-	UE::HLSLTree::FExpression* ResultExpression = nullptr;
+	const UE::HLSLTree::FExpression* ResultExpression = nullptr;
 	UE::HLSLTree::FStatement* ResultStatement = nullptr;
 
 	TArray<UMaterialExpressionCustomOutput*> MaterialCustomOutputs;

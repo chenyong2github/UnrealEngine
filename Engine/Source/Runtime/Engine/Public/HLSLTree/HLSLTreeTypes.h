@@ -140,10 +140,10 @@ FOperationDescription GetOperationDescription(EOperation Op);
 struct FCustomHLSLInput
 {
 	FCustomHLSLInput() = default;
-	FCustomHLSLInput(FStringView InName, FExpression* InExpression) : Name(InName), Expression(InExpression) {}
+	FCustomHLSLInput(FStringView InName, const FExpression* InExpression) : Name(InName), Expression(InExpression) {}
 
 	FStringView Name;
-	FExpression* Expression = nullptr;
+	const FExpression* Expression = nullptr;
 };
 
 } // namespace UE::HLSLTree

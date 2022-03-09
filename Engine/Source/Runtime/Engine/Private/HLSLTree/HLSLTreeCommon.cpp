@@ -94,7 +94,7 @@ void FExpressionForward::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDeri
 	return Expression->ComputeAnalyticDerivatives(Tree, OutResult);
 }
 
-FExpression* FExpressionForward::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+const FExpression* FExpressionForward::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
 	return Expression->ComputePreviousFrame(Tree, RequestedType);
 }
@@ -114,7 +114,7 @@ void FExpressionForward::EmitValuePreshader(FEmitContext& Context, FEmitScope& S
 	return Expression->EmitValuePreshader(Context, Scope, RequestedType, OutResult);
 }
 
-FExpression* FTree::NewConstant(const Shader::FValue& Value)
+const FExpression* FTree::NewConstant(const Shader::FValue& Value)
 {
 	return NewExpression<FExpressionConstant>(Value);
 }
@@ -321,7 +321,7 @@ void FExpressionGetStructField::ComputeAnalyticDerivatives(FTree& Tree, FExpress
 	}
 }
 
-FExpression* FExpressionGetStructField::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+const FExpression* FExpressionGetStructField::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
 	FRequestedType RequestedStructType;
 	RequestedStructType.SetField(Field, RequestedType);
@@ -381,14 +381,14 @@ void FExpressionSetStructField::ComputeAnalyticDerivatives(FTree& Tree, FExpress
 	}
 }
 
-FExpression* FExpressionSetStructField::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+const FExpression* FExpressionSetStructField::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
 	FRequestedType RequestedStructType(RequestedType);
 	RequestedStructType.ClearFieldRequested(Field);
-	FExpression* PrevStructExpression = Tree.GetPreviousFrame(StructExpression, RequestedStructType);
+	const FExpression* PrevStructExpression = Tree.GetPreviousFrame(StructExpression, RequestedStructType);
 
 	const FRequestedType RequestedFieldType = RequestedType.GetField(Field);
-	FExpression* PrevFieldExpression = Tree.GetPreviousFrame(FieldExpression, RequestedFieldType);
+	const FExpression* PrevFieldExpression = Tree.GetPreviousFrame(FieldExpression, RequestedFieldType);
 
 	return Tree.NewExpression<FExpressionSetStructField>(StructType, Field, PrevStructExpression, PrevFieldExpression);
 }
@@ -478,7 +478,7 @@ void FExpressionSelect::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDeriv
 	OutResult.ExpressionDdy = Tree.NewExpression<FExpressionSelect>(ConditionExpression, TrueDerivatives.ExpressionDdy, FalseDerivatives.ExpressionDdy);
 }
 
-FExpression* FExpressionSelect::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+const FExpression* FExpressionSelect::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
 	return Tree.NewExpression<FExpressionSelect>(
 		Tree.GetPreviousFrame(ConditionExpression, ERequestedType::Scalar),
@@ -520,7 +520,7 @@ void FExpressionSelect::EmitValueShader(FEmitContext& Context, FEmitScope& Scope
 	if (IsConstantEvaluation(ConditionEvaluation))
 	{
 		const bool bCondition = ConditionExpression->GetValueConstant(Context, Scope, ConditionType, Shader::EValueType::Bool1).AsBoolScalar();
-		FExpression* InputExpression = bCondition ? TrueExpression : FalseExpression;
+		const FExpression* InputExpression = bCondition ? TrueExpression : FalseExpression;
 		OutResult.Code = InputExpression->GetValueShader(Context, Scope, RequestedType);
 	}
 	else
@@ -549,7 +549,7 @@ void FExpressionDerivative::ComputeAnalyticDerivatives(FTree& Tree, FExpressionD
 	// TODO
 }
 
-FExpression* FExpressionDerivative::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+const FExpression* FExpressionDerivative::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
 	return Tree.NewExpression<FExpressionDerivative>(Coord, Tree.GetPreviousFrame(Input, RequestedType));
 }
@@ -604,7 +604,7 @@ void FExpressionSwizzle::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDeri
 	}
 }
 
-FExpression* FExpressionSwizzle::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+const FExpression* FExpressionSwizzle::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
 	const FRequestedType RequestedInputType = Parameters.GetRequestedInputType(RequestedType);
 	return Tree.NewExpression<FExpressionSwizzle>(Parameters, Tree.GetPreviousFrame(Input, RequestedInputType));
@@ -745,7 +745,7 @@ void FExpressionAppend::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDeriv
 	}
 }
 
-FExpression* FExpressionAppend::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+const FExpression* FExpressionAppend::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
 	// TODO - requested type?
 	return Tree.NewExpression<FExpressionAppend>(Tree.GetPreviousFrame(Lhs, RequestedType), Tree.GetPreviousFrame(Rhs, RequestedType));
@@ -875,8 +875,8 @@ void FExpressionAppend::EmitValuePreshader(FEmitContext& Context, FEmitScope& Sc
 
 void FExpressionSwitchBase::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
 {
-	FExpression* InputDdx[MaxInputs];
-	FExpression* InputDdy[MaxInputs];
+	const FExpression* InputDdx[MaxInputs];
+	const FExpression* InputDdy[MaxInputs];
 	for (int32 Index = 0; Index < NumInputs; ++Index)
 	{
 		const FExpressionDerivatives InputDerivative = Tree.GetAnalyticDerivatives(Input[Index]);
@@ -887,9 +887,9 @@ void FExpressionSwitchBase::ComputeAnalyticDerivatives(FTree& Tree, FExpressionD
 	OutResult.ExpressionDdy = NewSwitch(Tree, MakeArrayView(InputDdy, NumInputs));
 }
 
-FExpression* FExpressionSwitchBase::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+const FExpression* FExpressionSwitchBase::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
 {
-	FExpression* InputPrevFrame[MaxInputs];
+	const FExpression* InputPrevFrame[MaxInputs];
 	for (int32 Index = 0; Index < NumInputs; ++Index)
 	{
 		InputPrevFrame[Index] = Tree.GetPreviousFrame(Input[Index], RequestedType);

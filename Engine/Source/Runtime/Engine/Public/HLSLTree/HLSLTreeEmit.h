@@ -313,7 +313,7 @@ public:
 	Shader::FType GetType(const FExpression* Expression) const;
 	EExpressionEvaluation GetEvaluation(const FExpression* Expression, const FEmitScope& Scope, const FRequestedType& RequestedType) const;
 
-	FPreparedType PrepareExpression(FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType);
+	FPreparedType PrepareExpression(const FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType);
 
 	FEmitScope* InternalPrepareScope(FScope* Scope, FScope* ParentScope);
 	FEmitScope* PrepareScope(FScope* Scope);
@@ -474,7 +474,7 @@ public:
 		return nullptr;
 	}
 
-	FEmitShaderExpression* EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType, FExpression* Expression);
+	FEmitShaderExpression* EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType, const FExpression* Expression);
 	FEmitShaderExpression* EmitConstantZero(FEmitScope& Scope, const Shader::FType& Type);
 	FEmitShaderExpression* EmitCast(FEmitScope& Scope, FEmitShaderExpression* ShaderValue, const Shader::FType& DestType, EEmitCastFlags Flags = EEmitCastFlags::None);
 
