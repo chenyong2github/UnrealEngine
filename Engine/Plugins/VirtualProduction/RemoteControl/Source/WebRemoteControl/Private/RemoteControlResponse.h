@@ -87,7 +87,7 @@ struct FCheckPassphraseResponse
 	{}
 
 	UPROPERTY()
-	bool keyCorrect;
+	bool keyCorrect = false;
 	
 };
 
