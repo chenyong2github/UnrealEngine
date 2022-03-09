@@ -4,7 +4,11 @@
 
 #include "CoreMinimal.h"
 
+#include "InteractiveTool.h"
+
 #include "UVEditorMechanicAdapterTool.generated.h"
+
+class UInteractiveToolManager;
 
 /**
  * This is a dummy tool that only exists to make it possible for mechanics to be used in

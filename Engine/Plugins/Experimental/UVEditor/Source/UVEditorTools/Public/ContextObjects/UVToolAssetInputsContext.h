@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "ContextObjects/UVToolContextObjects.h"
+
 #include "UVToolAssetInputsContext.generated.h"
 
 /**
