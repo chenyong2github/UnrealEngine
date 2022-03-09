@@ -264,6 +264,9 @@ class UChaosWheeledVehicleMovementComponent;
 		float GetWheelAngularVelocity() const;
 
 		UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
+		FVector GetSuspensionAxis() const;
+
+		UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
 		bool IsInAir() const;
 
 		UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")

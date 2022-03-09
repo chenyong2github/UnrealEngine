@@ -99,6 +99,12 @@ float UChaosVehicleWheel::GetSuspensionOffset() const
 	return VehicleComponent->GetSuspensionOffset(WheelIndex);
 }
 
+FVector UChaosVehicleWheel::GetSuspensionAxis() const
+{
+	check(VehicleComponent);
+	return SuspensionAxis;
+}
+
 bool UChaosVehicleWheel::IsInAir() const
 {
 	check(VehicleComponent && VehicleComponent->PhysicsVehicleOutput());
