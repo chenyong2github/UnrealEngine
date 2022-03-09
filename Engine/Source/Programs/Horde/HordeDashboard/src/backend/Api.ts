@@ -66,7 +66,10 @@ export enum JobStepOutcome {
 	Warnings = "Warnings",
 
 	// Finished Succesfully
-	Success = "Success"
+	Success = "Success",
+
+	// Unspecified, skipped, aborted, etc
+	Unspecified = "Unspecified"
 }
 
 // The state of a particular run

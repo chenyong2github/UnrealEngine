@@ -105,15 +105,15 @@ namespace HordeServer.Collections
 					}
 				}
 
-				// If the job has been aborted, mark the step as finished and set outcome to unspecified
+				DateTime StartTime = Step.StartTimeUtc ?? DateTime.UtcNow;
 				DateTime? FinishTime = Step.FinishTimeUtc;
-				if (Job.AbortedByUserId != null && Outcome == null)
+				if (Job.AbortedByUserId != null && FinishTime == null)
 				{
+					FinishTime = StartTime;
 					Outcome = JobStepOutcome.Unspecified;
-					FinishTime = DateTime.UtcNow;
 				}
 
-				await JobStepRefs.InsertOrReplaceAsync(new JobStepRefId(Job.Id, Batch.Id, Step.Id), Job.Name, NodeName, Job.StreamId, Job.TemplateId, Job.Change, Step.LogId, Batch.PoolId, Batch.AgentId, Outcome, LastSuccess, LastWarning, WaitTime, InitTime, Step.StartTimeUtc ?? DateTime.UtcNow, FinishTime);
+				await JobStepRefs.InsertOrReplaceAsync(new JobStepRefId(Job.Id, Batch.Id, Step.Id), Job.Name, NodeName, Job.StreamId, Job.TemplateId, Job.Change, Step.LogId, Batch.PoolId, Batch.AgentId, Outcome, LastSuccess, LastWarning, WaitTime, InitTime, StartTime, FinishTime);
 			}
 		}
 	}
