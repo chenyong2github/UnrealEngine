@@ -50,12 +50,12 @@ bool TConvexHull2<RealType>::Solve(int32 NumPoints, TFunctionRef<TVector2<RealTy
 	}
 	else
 	{
-		FVector2d FirstTwoPts[2]{ (FVector2d)GetPointFunc(Hull[0]), (FVector2d)GetPointFunc(Hull[1]) };
+		TVector2<RealType> FirstTwoPts[2]{ GetPointFunc(Hull[0]), GetPointFunc(Hull[1]) };
 		bool bFoundSecondDim = false;
 		for (int32 Idx = 2; Idx < Hull.Num(); Idx++)
 		{
-			FVector2d Pt = (FVector2d)GetPointFunc(Hull[Idx]);
-			if (ExactPredicates::Orient2D(FirstTwoPts[0], FirstTwoPts[1], Pt) != 0)
+			TVector2<RealType> Pt = GetPointFunc(Hull[Idx]);
+			if (ExactPredicates::Orient2<RealType>(FirstTwoPts[0], FirstTwoPts[1], Pt) != 0)
 			{
 				bFoundSecondDim = true;
 				break;
@@ -113,14 +113,14 @@ void TConvexHull2<RealType>::Merge(TFunctionRef<TVector2<RealType>(int32)> GetPo
 	int32 size1 = j3 - j2 + 1;
 
 	int32 i;
-	FVector2d p;
+	TVector2<RealType> p;
 
 	// Find the right-most point of the left subhull.
-	FVector2d pmax0 = (FVector2d)GetPointFunc(Hull[j0]);
+	TVector2<RealType> pmax0 = GetPointFunc(Hull[j0]);
 	int32 imax0 = j0;
 	for (i = j0 + 1; i <= j1; ++i)
 	{
-		p = (FVector2d)GetPointFunc(Hull[i]);
+		p = GetPointFunc(Hull[i]);
 		if (pmax0.X < p.X || (pmax0.X == p.X && pmax0.Y < p.Y)) // lexicographic pmax0 < p
 		{
 			pmax0 = p;
@@ -129,11 +129,11 @@ void TConvexHull2<RealType>::Merge(TFunctionRef<TVector2<RealType>(int32)> GetPo
 	}
 
 	// Find the left-most point of the right subhull.
-	FVector2d pmin1 = (FVector2d)GetPointFunc(Hull[j2]);
+	TVector2<RealType> pmin1 = GetPointFunc(Hull[j2]);
 	int32 imin1 = j2;
 	for (i = j2 + 1; i <= j3; ++i)
 	{
-		p = (FVector2d)GetPointFunc(Hull[i]);
+		p = GetPointFunc(Hull[i]);
 		if (p.X < pmin1.X || (p.X == pmin1.X && p.Y < pmin1.Y)) // lexicographic p < pmin1
 		{
 			pmin1 = p;
@@ -198,10 +198,10 @@ enum class EPointOrdering
 	CollinearContain
 };
 
-
-EPointOrdering PointOnLine(FVector2d P, FVector2d L0, FVector2d L1)
+template<typename RealType>
+EPointOrdering PointOnLine(const TVector2<RealType>& P, const TVector2<RealType>& L0, const TVector2<RealType>& L1)
 {
-	double OnLine = ExactPredicates::Orient2D(P, L0, L1);
+	RealType OnLine = ExactPredicates::Orient2(P, L0, L1);
 	if (OnLine > 0)
 	{
 		return EPointOrdering::Positive;
@@ -247,20 +247,20 @@ void TConvexHull2<RealType>::GetTangent(TFunctionRef<TVector2<RealType>(int32)> 
 	int32 size1 = j3 - j2 + 1;
 	int32 const imax = size0 + size1;
 	int32 i, iLm1, iRp1;
-	FVector2d L0, L1, R0, R1;
+	TVector2<RealType> L0, L1, R0, R1;
 
 	for (i = 0; i < imax; i++)
 	{
 		// Get the endpoints of the potential tangent.
-		L1 = (FVector2d)GetPointFunc(Hull[i0]);
-		R0 = (FVector2d)GetPointFunc(Hull[i1]);
+		L1 = GetPointFunc(Hull[i0]);
+		R0 = GetPointFunc(Hull[i1]);
 
 		// Walk along the left hull to find the point of tangency.
 		if (size0 > 1)
 		{
 			iLm1 = (i0 > j0 ? i0 - 1 : j1);
-			L0 = (FVector2d)GetPointFunc(Hull[iLm1]);
-			EPointOrdering Order = PointOnLine(R0, L0, L1);
+			L0 = GetPointFunc(Hull[iLm1]);
+			EPointOrdering Order = PointOnLine<RealType>(R0, L0, L1);
 			if (Order == EPointOrdering::Negative
 				|| Order == EPointOrdering::CollinearRight)
 			{
@@ -273,8 +273,8 @@ void TConvexHull2<RealType>::GetTangent(TFunctionRef<TVector2<RealType>(int32)> 
 		if (size1 > 1)
 		{
 			iRp1 = (i1 < j3 ? i1 + 1 : j2);
-			R1 = (FVector2d)GetPointFunc(Hull[iRp1]);
-			EPointOrdering Order = PointOnLine(L1, R0, R1);
+			R1 = GetPointFunc(Hull[iRp1]);
+			EPointOrdering Order = PointOnLine<RealType>(L1, R0, R1);
 			if (Order == EPointOrdering::Negative
 				|| Order == EPointOrdering::CollinearLeft)
 			{
