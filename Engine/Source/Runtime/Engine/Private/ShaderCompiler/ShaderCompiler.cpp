@@ -5707,7 +5707,8 @@ void GlobalBeginCompileShader(
 	}
 
 	// Add compiler flag CFLAG_ForceDXC if DXC is enabled
-	const bool bIsDxcEnabled = IsDxcEnabledForPlatform((EShaderPlatform)Target.Platform);
+	const bool bHlslVersion2021 = Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021);
+	const bool bIsDxcEnabled = IsDxcEnabledForPlatform((EShaderPlatform)Target.Platform, bHlslVersion2021);
 	Input.Environment.SetDefine(TEXT("COMPILER_DXC"), bIsDxcEnabled);
 	if (bIsDxcEnabled)
 	{
