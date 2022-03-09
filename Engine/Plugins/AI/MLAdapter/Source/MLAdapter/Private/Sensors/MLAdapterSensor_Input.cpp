@@ -18,18 +18,15 @@ UMLAdapterSensor_Input::UMLAdapterSensor_Input(const FObjectInitializer& ObjectI
 
 void UMLAdapterSensor_Input::Configure(const TMap<FName, FString>& Params)
 {
-	const FName NAME_RecordRelease = TEXT("record_release");
-
 	Super::Configure(Params);
 
-	for (auto KeyValue : Params)
+	const FName NAME_RecordRelease = TEXT("record_release");
+	const FString* RecordReleaseValue = Params.Find(NAME_RecordRelease);
+	if (RecordReleaseValue != nullptr)
 	{
-		if (KeyValue.Key == NAME_RecordRelease)
-		{
-			bool bValue = bRecordKeyRelease;
-			LexFromString(bValue, *KeyValue.Value);
-			bRecordKeyRelease = bValue;
-		}
+		bool bValue = bRecordKeyRelease;
+		LexFromString(bValue, (TCHAR*)RecordReleaseValue);
+		bRecordKeyRelease = bValue;
 	}
 
 	FMLAdapterInputHelper::CreateInputMap(InterfaceKeys, FKeyToInterfaceKeyMap);

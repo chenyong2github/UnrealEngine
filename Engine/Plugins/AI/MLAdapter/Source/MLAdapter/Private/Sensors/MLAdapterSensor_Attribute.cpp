@@ -17,18 +17,15 @@ bool UMLAdapterSensor_Attribute::ConfigureForAgent(UMLAdapterAgent& Agent)
 
 void UMLAdapterSensor_Attribute::Configure(const TMap<FName, FString>& Params)
 {
-	const FName NAME_Attributes = TEXT("attributes");
-	
 	Super::Configure(Params);
 
-	for (auto KeyValue : Params)
+	const FName NAME_Attributes = TEXT("attributes");
+	const FString* AttributesValue = Params.Find(NAME_Attributes);
+	if (AttributesValue != nullptr)
 	{
-		if (KeyValue.Key == NAME_Attributes)
-		{
-			TArray<FString> Tokens;
-			KeyValue.Value.ParseIntoArrayWS(Tokens, TEXT(","));
-			SetAttributes(Tokens);
-		}
+		TArray<FString> Tokens;
+		AttributesValue->ParseIntoArrayWS(Tokens, TEXT(","));
+		SetAttributes(Tokens);
 	}
 }
 

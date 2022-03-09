@@ -16,37 +16,35 @@ UMLAdapterActuator_InputKey::UMLAdapterActuator_InputKey(const FObjectInitialize
 
 void UMLAdapterActuator_InputKey::Configure(const TMap<FName, FString>& Params) 
 {
-	const FName NAME_IgnoreKeys = TEXT("ignore_keys");
-	const FName NAME_IgnoreActions = TEXT("ignore_actions");
-
 	Super::Configure(Params);
 
 	TArray<FName> IgnoreKeys;
-	TArray<FName> IgnoreActions;
-
-	for (auto KeyValue : Params)
+	const FName NAME_IgnoreKeys = TEXT("ignore_keys");
+	const FString* IgnoreKeysValue = Params.Find(NAME_IgnoreKeys);
+	if (IgnoreKeysValue != nullptr)
 	{
-		if (KeyValue.Key == NAME_IgnoreKeys)
+		TArray<FString> Tokens;
+		// contains a list of keys to not press
+		IgnoreKeysValue->ParseIntoArrayWS(Tokens, TEXT(","));
+		IgnoreKeys.Reserve(Tokens.Num());
+		for (const FString& Token : Tokens)
 		{
-			TArray<FString> Tokens;
-			// contains a list of keys to not press
-			KeyValue.Value.ParseIntoArrayWS(Tokens, TEXT(","));
-			IgnoreKeys.Reserve(Tokens.Num());
-			for (const FString& Token : Tokens)
-			{
-				IgnoreKeys.Add(FName(Token));
-			}
+			IgnoreKeys.Add(FName(Token));
 		}
-		else if (KeyValue.Key == NAME_IgnoreActions)
+	}
+
+	TArray<FName> IgnoreActions;
+	const FName NAME_IgnoreActions = TEXT("ignore_actions");
+	const FString* IgnoreActionsValue = Params.Find(NAME_IgnoreActions);
+	if (IgnoreActionsValue != nullptr)
+	{
+		TArray<FString> Tokens;
+		// contains a list of actions to ignore
+		IgnoreActionsValue->ParseIntoArrayWS(Tokens, TEXT(","));
+		IgnoreActions.Reserve(Tokens.Num());
+		for (const FString& Token : Tokens)
 		{
-			TArray<FString> Tokens;
-			// contains a list of keys to not press
-			KeyValue.Value.ParseIntoArrayWS(Tokens, TEXT(","));
-			IgnoreActions.Reserve(Tokens.Num());
-			for (const FString& Token : Tokens)
-			{
-				IgnoreActions.Add(FName(Token));
-			}
+			IgnoreActions.Add(FName(Token));
 		}
 	}
 
