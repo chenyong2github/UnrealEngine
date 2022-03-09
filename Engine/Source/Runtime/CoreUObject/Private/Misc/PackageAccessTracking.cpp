@@ -100,7 +100,7 @@ FPackageAccessRefScope::~FPackageAccessRefScope()
 
 void FPackageAccessRefScope::SetPackageName(FName InPackageName)
 {
-	checkf(FPackageName::IsValidLongPackageName(InPackageName.ToString(), true), TEXT("Invalid package name: %s"), *InPackageName.ToString());
+	checkfSlow(FPackageName::IsValidLongPackageName(InPackageName.ToString(), true), TEXT("Invalid package name: %s"), *InPackageName.ToString());
 	checkf(CurrentThreadScope == this, TEXT("Invalid SetPackageName while a child scope is already on the stack. We have not yet implemented propagating a change in PackageName to child scopes' AccumulatedData."));
 
 	DirectData.PackageName = InPackageName;

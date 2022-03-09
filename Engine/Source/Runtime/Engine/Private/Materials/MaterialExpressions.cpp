@@ -14270,13 +14270,13 @@ void UMaterialExpressionMaterialFunctionCall::PostLoad()
 #if WITH_EDITORONLY_DATA
 bool UMaterialExpressionMaterialFunctionCall::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
 {
-	if (MaterialFunction)
+	if (UMaterialFunctionInterface* MaterialFunctionInterface = MaterialFunction)
 	{
-		if (!MaterialFunction->IterateDependentFunctions(Predicate))
+		if (!MaterialFunctionInterface->IterateDependentFunctions(Predicate))
 		{
 			return false;
 		}
-		if (!Predicate(MaterialFunction))
+		if (!Predicate(MaterialFunctionInterface))
 		{
 			return false;
 		}

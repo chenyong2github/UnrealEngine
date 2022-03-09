@@ -60,49 +60,68 @@ FPackageBuildDependencyTracker::FPackageBuildDependencyTracker()
 
 void FPackageBuildDependencyTracker::StaticOnObjectHandleRead(UObject* ReadObject)
 {
-	if (ReadObject)
-	{
-		if (PackageAccessTracking_Private::FTrackedData* AccumulatedScopeData = PackageAccessTracking_Private::FPackageAccessRefScope::GetCurrentThreadAccumulatedData())
-		{
-			if (!AccumulatedScopeData->BuildOpName.IsNone())
-			{
-				FName Referencer = AccumulatedScopeData->PackageName;
-				FName Referenced = ReadObject->GetOutermost()->GetFName();
-				if (Referencer != Referenced)
-				{
-					if (AccumulatedScopeData->OpName == PackageAccessTrackingOps::NAME_NoAccessExpected)
-					{
-						UE_LOG(LogPackageBuildDependencyTracker, Warning, TEXT("Object %s is referencing object %s inside of a NAME_NoAccessExpected scope. Programmer should narrow the scope or debug the reference."),
-							*Referencer.ToString(), *Referenced.ToString());
-					}
-
-					LLM_SCOPE_BYNAME(TEXTVIEW("TObjectPtr"));
-
-					FBuildDependencyAccessData AccessData{ Referenced, AccumulatedScopeData->TargetPlatform };
-					FScopeLock RecordsScopeLock(&Singleton.RecordsLock);
-					if (Referencer == Singleton.LastReferencer)
-					{
-						if (AccessData != Singleton.LastAccessData)
-						{
-							Singleton.LastAccessData = AccessData;
-							Singleton.LastReferencerSet->Add(AccessData);
-						}
-					}
-					else
-					{
-						Singleton.LastAccessData = AccessData;
-						Singleton.LastReferencer = Referencer;
-						Singleton.LastReferencerSet = &Singleton.Records.FindOrAdd(Referencer);
-						Singleton.LastReferencerSet->Add(AccessData);
-					}
-				}
-			}
-		}
-	}
+	StaticOnObjectHandleReadInternal(ReadObject);
 
 	if (Singleton.PreviousObjectHandleReadFunction)
 	{
 		Singleton.PreviousObjectHandleReadFunction(ReadObject);
+	}
+}
+
+void FPackageBuildDependencyTracker::StaticOnObjectHandleReadInternal(UObject* ReadObject)
+{
+	if (!ReadObject)
+	{
+		return;
+	}
+
+	PackageAccessTracking_Private::FTrackedData* AccumulatedScopeData = PackageAccessTracking_Private::FPackageAccessRefScope::GetCurrentThreadAccumulatedData();
+	if (!AccumulatedScopeData)
+	{
+		return;
+	}
+
+	if (AccumulatedScopeData->BuildOpName.IsNone())
+	{
+		return;
+	}
+
+	if (!ReadObject->HasAnyFlags(RF_Public))
+	{
+		return;
+	}
+
+	FName Referencer = AccumulatedScopeData->PackageName;
+	FName Referenced = ReadObject->GetOutermost()->GetFName();
+	if (Referencer == Referenced)
+	{
+		return;
+	}
+
+	if (AccumulatedScopeData->OpName == PackageAccessTrackingOps::NAME_NoAccessExpected)
+	{
+		UE_LOG(LogPackageBuildDependencyTracker, Warning, TEXT("Object %s is referencing object %s inside of a NAME_NoAccessExpected scope. Programmer should narrow the scope or debug the reference."),
+			*Referencer.ToString(), *Referenced.ToString());
+	}
+
+	LLM_SCOPE_BYNAME(TEXTVIEW("TObjectPtr"));
+
+	FBuildDependencyAccessData AccessData{Referenced, AccumulatedScopeData->TargetPlatform};
+	FScopeLock RecordsScopeLock(&Singleton.RecordsLock);
+	if (Referencer == Singleton.LastReferencer)
+	{
+		if (AccessData != Singleton.LastAccessData)
+		{
+			Singleton.LastAccessData = AccessData;
+			Singleton.LastReferencerSet->Add(AccessData);
+		}
+	}
+	else
+	{
+		Singleton.LastAccessData = AccessData;
+		Singleton.LastReferencer = Referencer;
+		Singleton.LastReferencerSet = &Singleton.Records.FindOrAdd(Referencer);
+		Singleton.LastReferencerSet->Add(AccessData);
 	}
 }
 

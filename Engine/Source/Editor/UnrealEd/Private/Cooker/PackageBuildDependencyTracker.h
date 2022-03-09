@@ -40,6 +40,7 @@ private:
 
 	/** Track object reference reads */
 	static void StaticOnObjectHandleRead(UObject* ReadObject);
+	static void StaticOnObjectHandleReadInternal(UObject* ReadObject);
 	ObjectHandleReadFunction* PreviousObjectHandleReadFunction = nullptr;
 
 	mutable FCriticalSection RecordsLock;

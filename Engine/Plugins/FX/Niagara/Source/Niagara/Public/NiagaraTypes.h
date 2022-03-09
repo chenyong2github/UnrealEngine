@@ -1540,9 +1540,9 @@ public:
 	{
 		FNiagaraTypeRegistry& Registry = Get();
 
+		const uint32 TypeHash = GetTypeHash(NewType);
 		{
 			FReadScopeLock Lock(Registry.RegisteredTypesLock);
-			const uint32 TypeHash = GetTypeHash(NewType);
 			if (const int32* ExistingIndex = Registry.RegisteredTypeIndexMap.Find(TypeHash))
 			{
 				return *ExistingIndex;
@@ -1551,7 +1551,7 @@ public:
 
 		FRWScopeLock Lock(Registry.RegisteredTypesLock, SLT_Write);
 		const int32 Index = Registry.RegisteredTypes.AddUnique(NewType);
-		Registry.RegisteredTypeIndexMap.Add(GetTypeHash(NewType), Index);
+		Registry.RegisteredTypeIndexMap.Add(TypeHash, Index);
 		return Index;
 	}
 

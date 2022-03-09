@@ -243,7 +243,7 @@ public:
 
 			for (UMaterialFunctionInterface* Function : Functions)
 			{
-				for (UMaterialExpression* FunctionExpression : *Function->GetFunctionExpressions())
+				for (TObjectPtr<UMaterialExpression> FunctionExpression : *Function->GetFunctionExpressions())
 				{
 					if (ExpressionType* ParameterExpression = Cast<ExpressionType>(FunctionExpression))
 					{
