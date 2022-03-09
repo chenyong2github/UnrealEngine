@@ -734,9 +734,9 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateGraph()
 				GraphNode.IslandIndex = GraphIslands.Emplace(GraphIsland);
 			}
 			// Update of the sleeping flag on the island
-			if(GraphIslands.IsValidIndex(GraphNode.IslandIndex) && !GraphNode.bStationaryNode)
+			if(!GraphNode.bStationaryNode)
 			{
-				if(GraphNode.NodeEdges.Num() == 0)
+				if(GraphNode.NodeEdges.Num() == 0 && GraphIslands.IsValidIndex(GraphNode.IslandIndex))
 				{
 					GraphIslands[GraphNode.IslandIndex].bIsSleeping = false;
 				}

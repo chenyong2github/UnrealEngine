@@ -49,7 +49,7 @@ FORCEINLINE bool IsStationaryParticle(const FGeometryParticleHandle* ParticleHan
 	if (ParticleHandle->ObjectState() == EObjectStateType::Kinematic)
 	{
 		const FKinematicGeometryParticleHandle* KinematicParticle = ParticleHandle->CastToKinematicParticle();
-		return KinematicParticle->V().IsZero();
+		return KinematicParticle->V().IsZero() && KinematicParticle->KinematicTarget().GetMode() == EKinematicTargetMode::None;
 	}
 	else
 	{
