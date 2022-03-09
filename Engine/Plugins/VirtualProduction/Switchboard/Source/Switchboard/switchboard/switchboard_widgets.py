@@ -338,6 +338,57 @@ class CollapsibleGroupBox(QtWidgets.QGroupBox):
             self.setMaximumHeight(self.fontMetrics().height() + safety_margin)
             
 
+class SearchableComboBox(QtWidgets.QComboBox):
+    
+    class CustomQList(QtWidgets.QListWidget):
+        def __init__(self, parent):
+            super().__init__(parent)
+            
+            
+    def __init__(self, parent):
+        super().__init__(parent)
+        
+        self.HEIGHT = 15
+        
+        self.item_list = self.CustomQList(self)
+        self.item_list.setViewportMargins(0, self.HEIGHT, 0, 0)
+        self.setView(self.item_list)
+        self.setModel(self.item_list.model())
+        self.resize(300,self.size().height())
+        self.search_line = QtWidgets.QLineEdit(self.view())
+        self.search_line.setVisible(False)
+        self.search_line.setPlaceholderText("Search")
+       
+        self.search_line.textChanged.connect(self.text_changed)
+        
+    def showPopup(self):
+            
+        super().showPopup()
+        
+        MARGIN = 10
+        XPOS = MARGIN/2
+        YPOS = 2
+        
+        self.search_line.setGeometry(XPOS, YPOS, self.view().width() - MARGIN*2.5, self.HEIGHT)
+        self.search_line.setVisible(True)
+        
+        self.CB_item_text = [self.itemText(i) for i in range(self.count())]
+        
+    def hidePopup(self):
+        super().hidePopup()
+        
+        self.search_line.setVisible(False)
+        self.search_line.clear()
+    
+    def text_changed(self, text:str):
+        
+        for item in self.CB_item_text:
+            if item.lower().__contains__(text.lower()):
+                self.view().setRowHidden(self.findText(item), False)
+            else:
+                self.view().setRowHidden(self.findText(item), True)
+     
+
 def set_qt_property(
     widget: QtWidgets.QWidget, prop, value, *,
     update_box_model: bool = True,

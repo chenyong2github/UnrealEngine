@@ -54,7 +54,7 @@ class AddnDisplayDialog(AddDeviceDialog):
         self.btnFindConfigs.clicked.connect(self.on_clicked_btnFindConfigs)
 
         # Combobox with config files
-        self.cbConfigs = QtWidgets.QComboBox(self)
+        self.cbConfigs = sb_widgets.SearchableComboBox(self)
         self.cbConfigs.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         self.cbConfigs.setEditable(True)  # to allow the user to type the value
