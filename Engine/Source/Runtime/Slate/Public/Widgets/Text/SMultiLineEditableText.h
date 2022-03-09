@@ -385,6 +385,9 @@ public:
 	/** Get the current selection */
 	FTextSelection GetSelection() const;
 
+	/** Delete any currently selected text */
+	void DeleteSelectedText();
+
 	/** Insert the given text at the current cursor position, correctly taking into account new line characters */
 	void InsertTextAtCursor(const FText& InText);
 	void InsertTextAtCursor(const FString& InString);

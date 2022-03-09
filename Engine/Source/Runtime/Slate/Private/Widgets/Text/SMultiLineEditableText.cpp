@@ -505,6 +505,11 @@ FTextSelection SMultiLineEditableText::GetSelection() const
 	return EditableTextLayout->GetSelection();
 }
 
+void SMultiLineEditableText::DeleteSelectedText()
+{
+	EditableTextLayout->DeleteSelectedText();
+}
+
 void SMultiLineEditableText::InsertTextAtCursor(const FText& InText)
 {
 	EditableTextLayout->InsertTextAtCursor(InText.ToString());
