@@ -17,6 +17,13 @@ void UMLAdapterActuator_EnhancedInput::Configure(const TMap<FName, FString>& Par
 {
 	Super::Configure(Params);
 
+	const FName NAME_bClearActionOnUse = TEXT("bClearActionOnUse");
+	const FString* bClearActionOnUseValue = Params.Find(NAME_bClearActionOnUse);
+	if (bClearActionOnUseValue != nullptr)
+	{
+		bClearActionOnUse = (*bClearActionOnUseValue != "0");
+	}
+
 	UpdateSpaceDef();
 }
 
@@ -93,15 +100,31 @@ void UMLAdapterActuator_EnhancedInput::Act(const float DeltaTime)
 		}
 	}
 	
-	InputData.Empty(InputData.Num());
+	if (bClearActionOnUse)
+	{
+		InputData.Empty(InputData.Num());
+	}
 }
 
 void UMLAdapterActuator_EnhancedInput::DigestInputData(FMLAdapterMemoryReader& ValueStream)
 {
 	FScopeLock Lock(&ActionCS);
 
-	const int32 OldSize = InputData.Num();
-	InputData.AddUninitialized(SpaceDef->Num());
-	// offsetting the serialization since there might be unprocessed data in InputData
-	ValueStream.Serialize(InputData.GetData() + OldSize, SpaceDef->Num() * sizeof(float));
+	if (bClearActionOnUse)
+	{
+		const int32 OldSize = InputData.Num();
+		InputData.AddUninitialized(SpaceDef->Num());
+		// offsetting the serialization since there might be unprocessed data in InputData
+		ValueStream.Serialize(InputData.GetData() + OldSize, SpaceDef->Num() * sizeof(float));
+	}
+	else
+	{
+		if (InputData.Num() == 0)
+		{
+			InputData.AddUninitialized(SpaceDef->Num());
+		}
+
+		// Overwrite the currently executing actions
+		ValueStream.Serialize(InputData.GetData(), SpaceDef->Num() * sizeof(float));
+	}
 }

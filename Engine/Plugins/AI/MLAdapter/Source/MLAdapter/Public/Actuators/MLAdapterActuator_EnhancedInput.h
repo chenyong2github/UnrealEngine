@@ -36,4 +36,7 @@ protected:
 	*/
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = MLAdapter)
 	TArray<TObjectPtr<UInputAction>> TrackedActions;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = MLAdapter)
+	bool bClearActionOnUse = true;
 };
