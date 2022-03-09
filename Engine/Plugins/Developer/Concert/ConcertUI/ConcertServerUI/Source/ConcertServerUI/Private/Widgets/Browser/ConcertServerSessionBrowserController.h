@@ -20,6 +20,8 @@ class FConcertServerSessionBrowserController
 {
 public:
 
+	int32 GetNumConnectedClients(const FGuid& SessionId) const;
+	
 	//~ Begin IConcertComponent Interface
 	virtual void Init(const FConcertComponentInitParams& Params) override;
 	//~ End IConcertComponent Interface
@@ -55,12 +57,14 @@ private:
 	
 	TSharedPtr<SConcertServerSessionBrowser> ConcertBrowser;
 	
+	TSharedRef<SDockTab> SpawnSessionBrowserTab(const FSpawnTabArgs& Args);
+
+	// Session actions
+	void OpenSession(TSharedPtr<FConcertSessionItem> SessionItem);
 	void RenameSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName);
 	void DeleteSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId);
-	
-	TSharedRef<SDockTab> SpawnSessionBrowserTab(const FSpawnTabArgs& Args);
-	void OpenSession(TSharedPtr<FConcertSessionItem> SessionItem);
-	
+
+	// Notifications
 	void NotifyUserOfFinishedSessionAction(const bool bSuccess, const FText& Title) { NotifyUserOfFinishedSessionAction(bSuccess, Title, FText::GetEmpty()); }
     /** Shared logic for displaying a notification after creating, archiving, restoring, renaming and deleting a session. */
 	void NotifyUserOfFinishedSessionAction(const bool bSuccess, const FText& Title, const FText& Details);

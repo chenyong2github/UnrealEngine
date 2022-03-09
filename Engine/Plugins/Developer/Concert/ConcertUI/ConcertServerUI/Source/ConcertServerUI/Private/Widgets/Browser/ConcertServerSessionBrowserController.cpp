@@ -18,6 +18,12 @@
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 
+int32 FConcertServerSessionBrowserController::GetNumConnectedClients(const FGuid& SessionId) const
+{
+	TSharedPtr<IConcertServerSession> Session = ServerInstance->GetConcertServer()->GetLiveSession(SessionId);
+	return ensure(Session) ? Session->GetSessionClients().Num() : 0;
+}
+
 void FConcertServerSessionBrowserController::Init(const FConcertComponentInitParams& Params)
 {
 	ServerInstance = Params.Server;
@@ -120,33 +126,6 @@ void FConcertServerSessionBrowserController::RestoreSession(const FGuid& ServerA
 	}
 }
 
-void FConcertServerSessionBrowserController::RenameSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName)
-{
-	if (const TOptional<FConcertSessionInfo> SessionInfo = GetArchivedSessionInfo(ServerAdminEndpointId, SessionId))
-	{
-		FText FailureReason = FText::GetEmpty();
-		const bool bSuccess = ServerInstance->GetConcertServer()->RenameSession(SessionId, NewName, FailureReason);
-		NotifyUserOfFinishedSessionAction(bSuccess,
-				bSuccess ? FText::Format(LOCTEXT("RenameSessionFmt", "Rename Session '{0}' as '{1}'"), FText::FromString(SessionInfo->SessionName), FText::FromString(NewName))
-					: FText::Format(LOCTEXT("FailedToArchivedSessionFmt", "Failed to rename Session '{0}' as '{1}'"), FText::FromString(SessionInfo->SessionName), FText::FromString(NewName)),
-				FailureReason
-				);
-	}
-}
-
-void FConcertServerSessionBrowserController::DeleteSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId)
-{
-	if (const TOptional<FConcertSessionInfo> SessionInfo = GetActiveSessionInfo(ServerAdminEndpointId, SessionId))
-	{
-		FText FailureReason;
-		const bool bSuccess = ServerInstance->GetConcertServer()->DestroySession(SessionId, FailureReason);
-		NotifyUserOfFinishedSessionAction(bSuccess,
-			bSuccess ? FText::Format(LOCTEXT("ArchivedSessionFmt", "Deleted Session '{0}'"), FText::FromString(SessionInfo->SessionName)) : FText::Format(LOCTEXT("FailedToArchivedSessionFmt", "Failed to archive Session '{0}'"), FText::FromString(SessionInfo->SessionName)),
-			FailureReason
-			);
-	}
-}
-
 TSharedRef<SDockTab> FConcertServerSessionBrowserController::SpawnSessionBrowserTab(const FSpawnTabArgs& Args)
 {
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
@@ -164,6 +143,36 @@ TSharedRef<SDockTab> FConcertServerSessionBrowserController::SpawnSessionBrowser
 void FConcertServerSessionBrowserController::OpenSession(TSharedPtr<FConcertSessionItem> SessionItem)
 {
 	Owner.Pin()->OpenSessionTab(SessionItem->SessionId);
+}
+
+void FConcertServerSessionBrowserController::RenameSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName)
+{
+	if (const TOptional<FConcertSessionInfo> SessionInfo = GetArchivedSessionInfo(ServerAdminEndpointId, SessionId))
+	{
+		FText FailureReason = FText::GetEmpty();
+		const bool bSuccess = ServerInstance->GetConcertServer()->RenameSession(SessionId, NewName, FailureReason);
+		NotifyUserOfFinishedSessionAction(bSuccess,
+				bSuccess ? FText::Format(LOCTEXT("RenameSessionFmt", "Rename Session '{0}' as '{1}'"), FText::FromString(SessionInfo->SessionName), FText::FromString(NewName))
+					: FText::Format(LOCTEXT("FailedToArchivedSessionFmt", "Failed to rename Session '{0}' as '{1}'"), FText::FromString(SessionInfo->SessionName), FText::FromString(NewName)),
+				FailureReason
+				);
+	}
+}
+
+void FConcertServerSessionBrowserController::DeleteSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId)
+{
+	const TOptional<FConcertSessionInfo> ArchivedInfo = GetArchivedSessionInfo(ServerAdminEndpointId, SessionId);
+	const TOptional<FConcertSessionInfo> LiveInfo = GetActiveSessionInfo(ServerAdminEndpointId, SessionId);
+	const TOptional<FString> SessionName = ArchivedInfo ? ArchivedInfo->SessionName : LiveInfo ? LiveInfo->SessionName : TOptional<FString>{};
+	if (SessionName)
+	{
+		FText FailureReason;
+		const bool bSuccess = ServerInstance->GetConcertServer()->DestroySession(SessionId, FailureReason);
+		NotifyUserOfFinishedSessionAction(bSuccess,
+			bSuccess ? FText::Format(LOCTEXT("ArchivedSessionFmt", "Deleted Session '{0}'"), FText::FromString(*SessionName)) : FText::Format(LOCTEXT("FailedToArchivedSessionFmt", "Failed to archive Session '{0}'"), FText::FromString(LiveInfo->SessionName)),
+			FailureReason
+			);
+	}
 }
 
 void FConcertServerSessionBrowserController::NotifyUserOfFinishedSessionAction(const bool bSuccess, const FText& Title, const FText& Details)

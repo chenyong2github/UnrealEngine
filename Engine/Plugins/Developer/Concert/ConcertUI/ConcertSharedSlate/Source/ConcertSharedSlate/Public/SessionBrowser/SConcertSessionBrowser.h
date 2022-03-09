@@ -25,6 +25,7 @@ DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FExtendSessionTable, TShar
 DECLARE_DELEGATE_OneParam(FExtenderDelegate, FExtender&);
 DECLARE_DELEGATE_TwoParams(FExtendSessionContextMenu, TSharedPtr<FConcertSessionItem>, FExtender&)
 DECLARE_DELEGATE_OneParam(FSessionDelegate, TSharedPtr<FConcertSessionItem> /*Session*/);
+DECLARE_DELEGATE_RetVal_OneParam(bool, FCanRemoveSession, TSharedPtr<FConcertSessionItem> /* SessionItem */);
 
 /**
  * Enables the user to browse/search/filter/sort active and archived sessions, create new session,
@@ -72,6 +73,11 @@ public:
 	SLATE_EVENT(FSessionDelegate, OnSessionDoubleClicked)
 	/** Called after a user has requested to delete a session */
 	SLATE_EVENT(FSessionDelegate, OnRequestedDeleteSession)
+
+	/** Ask the user to confirm archiving - most obvious implementation is showing a dialog box */
+	SLATE_EVENT(FCanRemoveSession, CanArchiveSession)
+	/** Ask the user to confirm deleting - most obvious implementation is showing a dialog box */
+	SLATE_EVENT(FCanRemoveSession, CanDeleteSession)
 	
 	SLATE_END_ARGS();
 
@@ -186,6 +192,8 @@ private:
 	FSessionDelegate OnSessionClicked;
 	FSessionDelegate OnSessionDoubleClicked;
 	FSessionDelegate OnRequestedDeleteSession;
+	FCanRemoveSession CanArchiveSession;
+	FCanRemoveSession CanDeleteSession;
 
 	// The items displayed in the session list view. It might be filtered and sorted compared to the full list hold by the controller.
 	TArray<TSharedPtr<FConcertSessionItem>> Sessions;

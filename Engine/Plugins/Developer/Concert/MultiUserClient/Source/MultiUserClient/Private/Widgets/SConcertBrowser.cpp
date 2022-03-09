@@ -1036,6 +1036,7 @@ private:
 	// Manipulates the sessions view (the array and the UI).
 	void OnSessionSelectionChanged(TSharedPtr<FConcertSessionItem> SelectedSession);
 	void OnSessionDoubleClicked(TSharedPtr<FConcertSessionItem> SelectedSession);
+	bool CanDeleteSession(TSharedPtr<FConcertSessionItem> DeletedItem);
 
 	// Update server/session/clients lists.
 	EActiveTimerReturnType TickDiscovery(double InCurrentTime, float InDeltaTime);
@@ -1711,6 +1712,15 @@ void SConcertClientSessionBrowser::OnSessionDoubleClicked(TSharedPtr<FConcertSes
 	default: 
 		checkNoEntry();
 	}
+}
+
+bool SConcertClientSessionBrowser::CanDeleteSession(TSharedPtr<FConcertSessionItem> DeletedItem)
+{
+	const FText SessionNameInText = FText::FromString(DeletedItem->SessionName);
+	const FText SeverNameInText = FText::FromString(DeletedItem->ServerName);
+	const FText ConfirmationMessage = FText::Format(LOCTEXT("DeleteSessionConfirmationMessage", "Do you really want to delete the session \"{0}\" from the server \"{1}\"?"), SessionNameInText, SeverNameInText);
+	const FText ConfirmationTitle = LOCTEXT("DeleteSessionConfirmationTitle", "Delete Session Confirmation");
+	return FMessageDialog::Open(EAppMsgType::YesNo, ConfirmationMessage, &ConfirmationTitle) == EAppReturnType::Yes;
 }
 
 bool SConcertClientSessionBrowser::IsLaunchServerButtonEnabled() const

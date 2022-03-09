@@ -19,17 +19,20 @@ public:
 		SLATE_EVENT(FSessionDelegate, DoubleClickSession)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedRef<IConcertSessionBrowserController> InController);
+	void Construct(const FArguments& InArgs, TSharedRef<FConcertServerSessionBrowserController> InController);
 
 	void RefreshSessionList() { SessionBrowser->RefreshSessionList(); }
 	
 private:
 
 	/** We can ask the controller about information and notify it about UI events. */
-	TWeakPtr<IConcertSessionBrowserController> Controller;
+	TWeakPtr<FConcertServerSessionBrowserController> Controller;
 
 	TSharedPtr<FText> SearchText;
 	TSharedPtr<SConcertSessionBrowser> SessionBrowser;
 	
 	TSharedRef<SWidget> MakeSessionTableView(const FArguments& InArgs);
+
+	bool ConfirmArchiveOperationWithDialog(TSharedPtr<FConcertSessionItem> SessionItem);
+	bool ConfirmDeleteOperationWithDialog(TSharedPtr<FConcertSessionItem> SessionItem);
 };
