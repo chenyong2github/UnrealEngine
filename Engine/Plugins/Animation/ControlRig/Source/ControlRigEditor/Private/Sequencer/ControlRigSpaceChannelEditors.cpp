@@ -1422,7 +1422,7 @@ void FControlRigSpaceChannelHelpers::EvaluateTangentAtThisTime(	UControlRig* Con
 			// if the closest key is within a threshold, we use it's tangent directly instead of computing one
 			if (FMath::Abs(DiffToKey) <= Tolerance)
 			{
-				const FMovieSceneFloatValue& Value = Values[ExistingIndex];
+				const FMovieSceneFloatValue Value = Values[ExistingIndex];
 				if (DiffToKey == 0)
 				{
 					return Value.Tangent;				
@@ -1515,7 +1515,7 @@ void FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(	UControlRig* Control
 		const int32 KeyIndex = ChannelInterface.FindKey(Time);
 		if (KeyIndex != INDEX_NONE)
 		{
-			FMovieSceneFloatValue& Value = ChannelInterface.GetValues()[KeyIndex];
+			FMovieSceneFloatValue Value = ChannelInterface.GetValues()[KeyIndex];
 			Value.Tangent.ArriveTangent = InTangents[Index].ArriveTangent;
 			Value.Tangent.LeaveTangent = InTangents[Index].LeaveTangent;
 			Value.TangentMode = RCTM_Break;	
