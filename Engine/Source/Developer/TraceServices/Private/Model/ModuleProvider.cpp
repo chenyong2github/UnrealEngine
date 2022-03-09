@@ -65,7 +65,7 @@ private:
 		uint32 FileOffset;
 		uint32 Line;
 	};
-	
+
 	mutable FRWLock				ModulesLock;
 	TPagedArray<FModule>		Modules;
 
@@ -80,7 +80,7 @@ private:
 	uint32 NumCachedSymbols;
 	// Number of discovered symbols
 	std::atomic<uint32> SymbolsDiscovered;
-	
+
 	IAnalysisSession&			Session;
 	FString						Platform;
 	TUniquePtr<SymbolResolverType>	Resolver;
@@ -128,21 +128,25 @@ const FResolvedSymbol* TModuleProvider<SymbolResolverType>::GetSymbol(uint64 Add
 		}
 	}
 
-	FResolvedSymbol* ResolvedSymbol;
+	FResolvedSymbol* ResolvedSymbol = nullptr;
 	{
-		// Add a pending entry to our cache
 		FWriteScopeLock _(SymbolsLock);
-		if (SymbolCacheLookup.Contains(Address))
+
+		// Attempt again to read from the cached symbols.
+		const FResolvedSymbol* CachedResolvedSymbol = SymbolCacheLookup.FindRef(Address);
+		if (CachedResolvedSymbol)
 		{
-			return SymbolCacheLookup[Address];
+			return CachedResolvedSymbol;
 		}
+
+		// Add a pending entry to our cache.
 		ResolvedSymbol = &SymbolCache.EmplaceBack(ESymbolQueryResult::Pending, nullptr, nullptr, nullptr, 0);
 		SymbolCacheLookup.Add(Address, ResolvedSymbol);
 		++SymbolsDiscovered;
 	}
-
-	// If not in cache yet, queue it up in the resolver
 	check(ResolvedSymbol);
+
+	// If not in cache yet, queue it up in the resolver.
 	Resolver->QueueSymbolResolve(Address, ResolvedSymbol);
 
 	return ResolvedSymbol;
@@ -158,7 +162,7 @@ uint32 TModuleProvider<SymbolResolverType>::GetNumModules() const
 
 /////////////////////////////////////////////////////////////////////
 template <typename SymbolResolverType>
-void TModuleProvider<SymbolResolverType>::EnumerateModules(uint32 Start, TFunctionRef<void(const FModule& Module)> Callback) const 
+void TModuleProvider<SymbolResolverType>::EnumerateModules(uint32 Start, TFunctionRef<void(const FModule& Module)> Callback) const
 {
 	FReadScopeLock _(ModulesLock);
 	for (uint32 i = Start; i < Modules.Num(); ++i)
@@ -179,7 +183,7 @@ FGraphEventRef TModuleProvider<SymbolResolverType>::LoadSymbolsForModuleUsingPat
 		if (Resolver && !FullPath.IsEmpty() && Module->Status.load() != EModuleStatus::Loaded)
 		{
 			// Setup a task to queue and watch the queued module. If it succeeds in resolving with the new path
-			// re-resolve any cached symbols 
+			// re-resolve any cached symbols
 			LoadSymbolsTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, Module, FullPath]()
 			{
 				auto ReloadModuleFn = [this] (const FModule* InModule, const TCHAR* InPath)
@@ -191,7 +195,7 @@ FGraphEventRef TModuleProvider<SymbolResolverType>::LoadSymbolsForModuleUsingPat
 					auto ReresolveOnSuccess = [this, DiscoveredSymbols, ModuleBegin, ModuleEnd] (TArray<TTuple<uint64,FResolvedSymbol*>>& OutSymbols)
 					{
 						OutSymbols.Reserve(DiscoveredSymbols);
-					
+
 						FReadScopeLock _(SymbolsLock);
 						for (auto Pair : SymbolCacheLookup)
 						{
@@ -205,15 +209,16 @@ FGraphEventRef TModuleProvider<SymbolResolverType>::LoadSymbolsForModuleUsingPat
 					};
 
 					Resolver->QueueModuleReload(InModule, InPath, ReresolveOnSuccess);
+
 					// Wait for the resolver to do it's work
 					while (InModule->Status.load() == EModuleStatus::Pending)
 					{
-						FPlatformProcess::Sleep(.1);
+						FPlatformProcess::Sleep(0.1f);
 					}
 
 					return InModule->Status.load();
 				};
-			
+
 				UE_LOG(LogTraceServices, Display, TEXT("Queing symbol loading using path %s."), *FullPath);
 
 				// Load the requested module
@@ -231,7 +236,7 @@ FGraphEventRef TModuleProvider<SymbolResolverType>::LoadSymbolsForModuleUsingPat
 							return;
 						}
 						const EModuleStatus ModuleStatus = OtherModule.Status.load();
-						if (&OtherModule != Module && ModuleStatus != EModuleStatus::Loaded && ModuleStatus != EModuleStatus::Pending)
+						if (&OtherModule != Module && ModuleStatus >= EModuleStatus::FailedStatusStart)
 						{
 							ReloadModuleFn(&OtherModule, *Directory);
 						}
@@ -278,12 +283,12 @@ void TModuleProvider<SymbolResolverType>::OnModuleLoad(const FStringView& Module
 	const TCHAR* FullName = Session.StoreString(Module);
 
 	FWriteScopeLock _(ModulesLock);
-	FModule& NewModule = Modules.EmplaceBack(Name, FullName, Base, Size, EModuleStatus::Pending);
+	FModule& NewModule = Modules.EmplaceBack(Name, FullName, Base, Size, EModuleStatus::Discovered);
 
 	// The number of cached symbols for this module is equal to the number
 	// of matching addresses in the cache.
 	NewModule.Stats.Cached = GetNumCachedSymbolsFromModule(Base, Size);
-	
+
 	Resolver->QueueModuleLoad(ImageId, ImageIdSize, &NewModule);
 }
 
@@ -308,7 +313,7 @@ void TModuleProvider<SymbolResolverType>::SaveSymbolsToCache(IAnalysisCache& Cac
 	// Create a temporary reverse lookup for symbol -> address
 	TMap<const FResolvedSymbol*, uint64> SymbolReverseLookup;
 	SymbolReverseLookup.Reserve(SymbolCacheLookup.Num());
-	Algo::Transform(SymbolCacheLookup, SymbolReverseLookup, [](const TTuple<uint64, const FResolvedSymbol*>& Pair) { 
+	Algo::Transform(SymbolCacheLookup, SymbolReverseLookup, [](const TTuple<uint64, const FResolvedSymbol*>& Pair) {
 		return TTuple<const FResolvedSymbol*, uint64>(Pair.Value, Pair.Key);
 	});
 
