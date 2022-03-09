@@ -570,6 +570,11 @@ FTextLocation SMultiLineEditableText::GetCursorLocation() const
 	return EditableTextLayout->GetCursorLocation();
 }
 
+TCHAR SMultiLineEditableText::GetCharacterAt(const FTextLocation& Location) const
+{
+	return EditableTextLayout->GetCharacterAt(Location);
+}
+
 TSharedPtr<const SScrollBar> SMultiLineEditableText::GetHScrollBar() const
 {
 	return HScrollBar;
