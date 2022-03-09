@@ -139,6 +139,15 @@ public:
 	/** Virtual destructor */
 	virtual ~FRunnableThread();
 
+	/**
+	 * @return a runnable thread that is executing this runnable, if return value is nullptr, it means the running thread can be game thread or a thread created outside the runnable interface
+	 */
+	static FRunnableThread* GetRunnableThread()
+	{
+		FRunnableThread* RunnableThread = (FRunnableThread*)FPlatformTLS::GetTlsValue(RunnableTlsSlot);
+		return RunnableThread;
+	}
+
 protected:
 
 	/**
@@ -160,15 +169,6 @@ protected:
 
 	/** Deletes all FTlsAutoCleanup objects created for this thread. */
 	void FreeTls();
-
-	/**
-	 * @return a runnable thread that is executing this runnable, if return value is nullptr, it means the running thread can be game thread or a thread created outside the runnable interface
-	 */
-	static FRunnableThread* GetRunnableThread()
-	{
-		FRunnableThread* RunnableThread = (FRunnableThread*)FPlatformTLS::GetTlsValue( RunnableTlsSlot );
-		return RunnableThread;
-	}
 
 	/** Holds the name of the thread. */
 	FString ThreadName;

@@ -4,9 +4,12 @@
 #include "Async/Fundamental/Task.h"
 #include "Async/TaskTrace.h"
 #include "Logging/LogMacros.h"
+#include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/Fork.h"
 #include "CoreGlobals.h"
+
+extern CORE_API bool GTaskGraphUseDynamicPrioritization;
 
 namespace LowLevelTasks
 {
@@ -90,6 +93,12 @@ namespace LowLevelTasks
 
 	void FScheduler::StartWorkers(uint32 NumForegroundWorkers, uint32 NumBackgroundWorkers, FThread::EForkable IsForkable, EThreadPriority InWorkerPriority,  EThreadPriority InBackgroundPriority, uint64 InWorkerAffinity, uint64 InBackgroundAffinity)
 	{
+		int32 Value = 0;
+		if (FParse::Value(FCommandLine::Get(), TEXT("TaskGraphUseDynamicPrioritization="), Value))
+		{
+			GTaskGraphUseDynamicPrioritization = Value != 0;
+		}
+
 		if (NumForegroundWorkers == 0 && NumBackgroundWorkers == 0)
 		{
 			NumForegroundWorkers = FMath::Max<int32>(1, FMath::Min<int32>(2, FPlatformMisc::NumberOfWorkerThreadsToSpawn() - 1));
@@ -135,10 +144,53 @@ namespace LowLevelTasks
 			{
 				WorkerEvents.Emplace();
 				WorkerLocalQueues.Emplace(QueueRegistry, ELocalQueueType::EBackground, &WorkerEvents.Last());
-				WorkerThreads.Add(CreateWorker(true, IsForkable, &WorkerEvents.Last(), &WorkerLocalQueues.Last(), BackgroundPriority, BackgroundAffinity));
+				WorkerThreads.Add(CreateWorker(true, IsForkable, &WorkerEvents.Last(), &WorkerLocalQueues.Last(), GTaskGraphUseDynamicPrioritization ? WorkerPriority : BackgroundPriority, BackgroundAffinity));
 			}
 			UE::Trace::ThreadGroupEnd();
 		}
+	}
+
+	void FScheduler::ExecuteTask(FTask& Task)
+	{
+		FTask* ParentTask = FTask::ActiveTask;
+		FTask::ActiveTask = &Task;
+
+		if (!Task.IsBackgroundTask())
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteForegroundTask);
+			Task.ExecuteTask();
+		}
+		else
+		{
+			// Dynamic priority only enables for root task when we're not inside a named thread (i.e. GT, RT)
+			const bool bSkipPriorityChange = ParentTask || !GTaskGraphUseDynamicPrioritization || !FSchedulerTls::IsWorkerThread();
+
+			FRunnableThread* RunnableThread = nullptr;
+			if (!bSkipPriorityChange)
+			{
+				// We assume all threads executing tasks are RunnableThread and this can't be null or it will crash. 
+				// Which is fine since we want to know about it sooner rather than later.
+				RunnableThread = FRunnableThread::GetRunnableThread();
+
+				checkSlow(RunnableThread && RunnableThread->GetThreadPriority() == WorkerPriority);
+
+				TRACE_CPUPROFILER_EVENT_SCOPE(LowerThreadPriority);
+				RunnableThread->SetThreadPriority(BackgroundPriority);
+			}
+
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteBackgroundTask);
+				Task.ExecuteTask();
+			}
+
+			if (!bSkipPriorityChange)
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(RaiseThreadPriority);
+				RunnableThread->SetThreadPriority(WorkerPriority);
+			}
+		}
+
+		FTask::ActiveTask = ParentTask;
 	}
 
 	void FScheduler::StopWorkers(bool DrainGlobalQueue)
@@ -163,7 +215,7 @@ namespace LowLevelTasks
 			{
 				for (FTask* Task = QueueRegistry.Dequeue(); Task != nullptr; Task = QueueRegistry.Dequeue())
 				{
-					Task->ExecuteTask();
+					ExecuteTask(*Task);
 				}
 			}
 		}
@@ -213,7 +265,7 @@ namespace LowLevelTasks
 		}
 		else
 		{
-			Task.ExecuteTask();
+			ExecuteTask(Task);
 		}
 	}
 
@@ -264,20 +316,8 @@ namespace LowLevelTasks
 						WakeUpWorker(!bPermitBackgroundWork);
 					}
 				}
-				FTask* OldTask = FTask::ActiveTask;
-				FTask::ActiveTask = Task;
-				{
-#if UE_TASK_TRACE_ENABLED
-					if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(TaskTrace::TaskChannel))
-					{
-						TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteTask);
-					}
-#else
-					TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteTask);
-#endif
-					Task->ExecuteTask();
-				}
-				FTask::ActiveTask = OldTask;
+
+				ExecuteTask(*Task);
 				return true;
 			}
 			return false;

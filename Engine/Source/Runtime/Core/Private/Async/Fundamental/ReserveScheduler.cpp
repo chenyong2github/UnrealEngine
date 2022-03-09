@@ -3,6 +3,8 @@
 #include "Async/Fundamental/ReserveScheduler.h"
 #include "Misc/ScopeLock.h"
 
+extern CORE_API bool GTaskGraphUseDynamicPrioritization;
+
 namespace LowLevelTasks
 {
 
@@ -64,6 +66,8 @@ void FReserveScheduler::StartWorkers(FScheduler& MainScheduler, uint32 NumWorker
 	{
 		NumWorkers = FMath::Min(FPlatformMisc::NumberOfWorkerThreadsToSpawn(), 64);
 	}
+
+	WorkerPriority = GTaskGraphUseDynamicPrioritization ? MainScheduler.GetWorkerPriority() : WorkerPriority;
 
 	uint32 OldActiveWorkers = ActiveWorkers.load(std::memory_order_relaxed);
 	if(OldActiveWorkers == 0 && FPlatformProcess::SupportsMultithreading() && ActiveWorkers.compare_exchange_strong(OldActiveWorkers, NumWorkers, std::memory_order_relaxed))

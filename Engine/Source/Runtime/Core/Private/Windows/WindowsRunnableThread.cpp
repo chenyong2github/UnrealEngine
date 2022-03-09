@@ -22,9 +22,12 @@ int FRunnableThreadWin::TranslateThreadPriority(EThreadPriority Priority)
 		case TPri_Highest:				return THREAD_PRIORITY_HIGHEST;
 		case TPri_TimeCritical:			return THREAD_PRIORITY_HIGHEST;
 		case TPri_Lowest:				return THREAD_PRIORITY_LOWEST;
-		case TPri_SlightlyBelowNormal:	return THREAD_PRIORITY_BELOW_NORMAL;
 
-	// Note: previously, the behaviour was:
+		// There is no such things as slightly below normal on Windows.
+		// This can't be below normal since we don't want latency sensitive task to go to efficient cores on Alder Lake.
+		case TPri_SlightlyBelowNormal:	return THREAD_PRIORITY_NORMAL;
+
+	// Note: previously, the behavior was:
 	//
 	//case TPri_AboveNormal:			return THREAD_PRIORITY_HIGHEST;
 	//case TPri_Normal:					return THREAD_PRIORITY_HIGHEST - 1;
@@ -36,12 +39,12 @@ int FRunnableThreadWin::TranslateThreadPriority(EThreadPriority Priority)
 	//
 	// But the change (CL3747560) was not well documented (it didn't describe
 	// the symptoms it was supposed to address) and introduces undesirable 
-	// system behaviour on Windows since it starves out other processes in
+	// system behavior on Windows since it starves out other processes in
 	// the system when UE compiles shaders or otherwise goes wide due to the
 	// inflation in priority (Normal mapped to THREAD_PRIORITY_ABOVE_NORMAL)
 	// I kept the TPri_TimeCritical mapping to THREAD_PRIORITY_HIGHEST however
-	// to avoid introducing poor behaviour since time critical priority is
-	// similarly detrimental to overall system behaviour.
+	// to avoid introducing poor behavior since time critical priority is
+	// similarly detrimental to overall system behavior.
 	//
 	// If we discover thread scheduling issues it would maybe be better to 
 	// adjust actual thread priorities at the source instead of this mapping?

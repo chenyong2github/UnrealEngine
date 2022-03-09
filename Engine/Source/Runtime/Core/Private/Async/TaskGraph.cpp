@@ -101,6 +101,14 @@ static FAutoConsoleVariableRef CVarForkedProcessMaxWorkerThreads(
 	TEXT("Configures the number of worker threads a forked process should spawn if it allows multithreading.")
 );
 
+CORE_API bool GTaskGraphUseDynamicPrioritization = 1;
+static FAutoConsoleVariableRef CVarTaskDynamicPrioritization(
+	TEXT("TaskGraph.UseDynamicPrioritization"),
+	GTaskGraphUseDynamicPrioritization,
+	TEXT("Adjust thread priority per-task so that higher priority tasks running on background threads can't be preempted as easily. Helps a lot under high load."),
+	ECVF_ReadOnly
+);
+
 CORE_API int32 GUseNewTaskBackend = 1;
 int32 GNumForegroundWorkers = 2;
 static FAutoConsoleVariableRef CVarNumForegroundWorkers(
@@ -1905,7 +1913,7 @@ public:
 			check(IsInGameThread()); // otherwise we can have a race on starting reserve workers below
 			if (GConfig == nullptr)
 			{
-				// postpone starting reserve workers tillGConfig is initialized, to know if reserve workers are disabled
+				// postpone starting reserve workers until GConfig is initialized, to know if reserve workers are disabled
 				FCoreDelegates::ConfigReadyForUse.AddRaw(this, &FTaskGraphCompatibilityImplementation::StartReserveWorkers);
 			}
 			else
