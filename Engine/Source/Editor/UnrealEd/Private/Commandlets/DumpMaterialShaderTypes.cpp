@@ -31,7 +31,7 @@ public:
 		delete DebugWriter;
 
 		// Copy to the automation directory.
-		const FString AutomationFilePath = FPaths::Combine(*FPaths::EngineDir(), TEXT("Programs"), TEXT("AutomationTool"), TEXT("Saved"), TEXT("MaterialStats"), FileName);
+		const FString AutomationFilePath = FPaths::Combine(*FPaths::EngineDir(), TEXT("Programs"), TEXT("AutomationTool"), TEXT("Saved"), TEXT("Logs"), FileName);
 		IFileManager::Get().Copy(*AutomationFilePath, *OutputFileName);
 	}
 
