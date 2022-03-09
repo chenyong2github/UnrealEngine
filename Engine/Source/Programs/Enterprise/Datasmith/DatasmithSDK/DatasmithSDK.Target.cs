@@ -22,12 +22,12 @@ public class DatasmithSDKTarget : TargetRules
 
 		bBuildDeveloperTools = false;
 		bUseMallocProfiler = false;
-		bBuildWithEditorOnlyData = false;
+		bBuildWithEditorOnlyData = true;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = true;
 		bCompileICU = false;
 		bUsesSlate = false;
-		bDisableDebugInfo = true;
+		bDisableDebugInfo = false;
 		bUsePDBFiles = true;
 		bHasExports = true;
 		bIsBuildingConsoleApplication = true;

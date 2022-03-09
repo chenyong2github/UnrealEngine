@@ -23,7 +23,7 @@ public abstract class DatasmithNavisworksBaseTarget : TargetRules
 
 		bBuildDeveloperTools = false;
 		bUseMallocProfiler = false;
-		bBuildWithEditorOnlyData = false;
+		bBuildWithEditorOnlyData = true;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = false;
 		bCompileICU = false;

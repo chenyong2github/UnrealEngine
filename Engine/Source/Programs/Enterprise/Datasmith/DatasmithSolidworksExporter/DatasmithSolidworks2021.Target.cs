@@ -54,7 +54,7 @@ public abstract class DatasmithSolidworksBaseTarget : TargetRules
 		LinkType = TargetLinkType.Monolithic;
 		bBuildDeveloperTools = false;
 		bUseMallocProfiler = false;
-		bBuildWithEditorOnlyData = false;
+		bBuildWithEditorOnlyData = true;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = false;
 		bCompileICU = false;

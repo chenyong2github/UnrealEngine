@@ -25,7 +25,7 @@ public abstract class DatasmithRevitBaseTarget : TargetRules
 
 		bBuildDeveloperTools = false;
 		bUseMallocProfiler = false;
-		bBuildWithEditorOnlyData = false;
+		bBuildWithEditorOnlyData = true;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = true;
 		bCompileICU = false;
