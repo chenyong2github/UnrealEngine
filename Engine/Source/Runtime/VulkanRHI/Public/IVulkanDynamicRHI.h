@@ -43,6 +43,7 @@ struct IVulkanDynamicRHI : public FDynamicRHI
 	virtual VkDevice         RHIGetVkDevice() const = 0;
 	virtual const uint8*     RHIGetVulkanDeviceUUID() const = 0;
 	virtual VkPhysicalDevice RHIGetVkPhysicalDevice() const = 0;
+	virtual const VkAllocationCallbacks* RHIGetVkAllocationCallbacks() = 0;
 
 	virtual VkQueue          RHIGetGraphicsVkQueue() const = 0;
 	virtual uint32           RHIGetGraphicsQueueIndex() const = 0;

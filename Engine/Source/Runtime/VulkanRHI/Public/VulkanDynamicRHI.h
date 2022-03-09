@@ -58,6 +58,7 @@ public:
 	virtual VkDevice RHIGetVkDevice() const final override;
 	virtual const uint8* RHIGetVulkanDeviceUUID() const final override;
 	virtual VkPhysicalDevice RHIGetVkPhysicalDevice() const final override;
+	virtual const VkAllocationCallbacks* RHIGetVkAllocationCallbacks() final override;
 	virtual VkQueue RHIGetGraphicsVkQueue() const final override;
 	virtual uint32 RHIGetGraphicsQueueIndex() const final override;
 	virtual uint32 RHIGetGraphicsQueueFamilyIndex() const final override;

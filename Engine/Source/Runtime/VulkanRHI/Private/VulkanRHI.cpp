@@ -1209,6 +1209,11 @@ VkPhysicalDevice FVulkanDynamicRHI::RHIGetVkPhysicalDevice() const
 	return Device->GetPhysicalHandle();
 }
 
+const VkAllocationCallbacks* FVulkanDynamicRHI::RHIGetVkAllocationCallbacks()
+{
+	return VULKAN_CPU_ALLOCATOR;
+}
+
 VkQueue FVulkanDynamicRHI::RHIGetGraphicsVkQueue() const
 {
 	return GetDevice()->GetGraphicsQueue()->GetHandle();
