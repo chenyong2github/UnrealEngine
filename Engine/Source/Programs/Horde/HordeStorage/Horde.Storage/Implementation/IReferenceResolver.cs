@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Datadog.Trace;
 using EpicGames.Core;
@@ -124,6 +125,12 @@ namespace Horde.Storage.Implementation
                 foreach (Task<CbObject> finishedTask in finishedCompactBinaryResolves)
                 {
                     pendingCompactBinaryAttachments.Remove(finishedTask);
+                }
+
+                // if there are pending resolves left, wait for one of them to finish to avoid busy waiting
+                if (pendingContentIdResolves.Any() || pendingCompactBinaryAttachments.Any())
+                {
+                    await Task.WhenAny(pendingContentIdResolves.Concat<Task>(pendingCompactBinaryAttachments));
                 }
             }
 
