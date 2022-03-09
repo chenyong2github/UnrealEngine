@@ -2642,6 +2642,11 @@ FVector2D FTextLayout::GetSize() const
 	return TextLayoutSize.GetDrawSize() * Inverse(Scale);
 }
 
+FVector2D FTextLayout::GetViewSize() const
+{
+	return ViewSize;
+}
+
 FVector2D FTextLayout::GetDrawSize() const
 {
 	return TextLayoutSize.GetDrawSize();

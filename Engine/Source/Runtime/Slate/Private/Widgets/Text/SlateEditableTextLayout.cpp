@@ -725,18 +725,30 @@ void FSlateEditableTextLayout::AdvanceSearch(const bool InReverse)
 		// Scrolling to cursor position directly does not always produce a good result
 		// because you can have only the last letter of the matched text in the view
 		// and most of the text out of view. The following code addresses this problem
-		const SlateEditableTextTypes::FScrollInfo SelectionScrollInfo(GetSelection().GetBeginning(), SlateEditableTextTypes::ECursorAlignment::Left);
-		const FVector2D LocalSelectionBeginLocation = TextLayout->GetLocationAt(SelectionScrollInfo.Position, false) / TextLayout->GetScale();
+		const FTextLocation LineStart(GetSelection().GetBeginning().GetLineIndex(), 0);
+		const FVector2D LocalLineStartLocation = TextLayout->GetLocationAt(LineStart, false) / TextLayout->GetScale();
 
-		// if we are moving towards left side, reset the scroll offset
-		// such that when the cursor is scrolled into the view during tick
-		// , we move as much of the selection into the view as possible
+		const FVector2D LocalSelectionBeginLocation = TextLayout->GetLocationAt(GetSelection().GetBeginning(), false) / TextLayout->GetScale();
+
+		const FVector2D LocalSelectionEndLocation = TextLayout->GetLocationAt(GetSelection().GetEnd(), false) / TextLayout->GetScale();
+		
+		// Only apply extra scrolling if we are going from right to left 
 		if (LocalSelectionBeginLocation.X < 0.0f)
 		{
-			ScrollOffset.X = 0;
+			const float DistanceFromSelectionEndToLineStart = LocalSelectionEndLocation.X - LocalLineStartLocation.X;
+
+			if (DistanceFromSelectionEndToLineStart < TextLayout->GetViewSize().X)
+			{
+				// Scroll to line start if both the matched text and line start can fit into the view
+				PositionToScrollIntoView = SlateEditableTextTypes::FScrollInfo(LineStart, SlateEditableTextTypes::ECursorAlignment::Left);
+			}
+			else
+			{
+				// Otherwise, just apply minimal scrolling such that the entirety of the matched text is in the view
+				PositionToScrollIntoView = SlateEditableTextTypes::FScrollInfo(GetSelection().GetBeginning(), SlateEditableTextTypes::ECursorAlignment::Left);
+			}
 		}
 	}
-
 }
 
 FVector2D FSlateEditableTextLayout::SetHorizontalScrollFraction(const float InScrollOffsetFraction)

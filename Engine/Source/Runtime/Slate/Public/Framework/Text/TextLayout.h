@@ -371,6 +371,11 @@ public:
 	FVector2D GetSize() const;
 
 	/**
+	 * Get the size of the text layout that can actually be seen from the parent widget
+	 */
+	FVector2D GetViewSize() const;
+
+	/**
 	 * Get the size of the text layout, including any lines which extend beyond the wrapping boundaries (eg, lines with lots of trailing whitespace, or lines with no break candidates)
 	 * @note This value is scaled
 	 */
