@@ -84,7 +84,7 @@ namespace CrossCompiler
 		/** Enables re-mapping of input/output attribute locations to include padding for arrays. */
 		bool bRemapAttributeLocations = false;
 
-		/** Preserve storage inputs used for open gl */
+		/** Preserve storage inputs used for OpenGL */
 		bool bPreserveStorageInput = false;
 
 		enum class ETargetEnvironment
@@ -97,6 +97,9 @@ namespace CrossCompiler
 
 		/** Shader model version of the input language. By default SM6.2. */
 		FHlslShaderModel ShaderModel = { 6, 2 };
+
+		/** HLSL language input version: 2015, 2016, 2017, 2018 (Default), 2021 (Breaking changes in short-circuiting evaluation). */
+		uint32 HlslVersion = 2018;
 	};
 
 	/** Target high level languages for ShaderConductor output. */

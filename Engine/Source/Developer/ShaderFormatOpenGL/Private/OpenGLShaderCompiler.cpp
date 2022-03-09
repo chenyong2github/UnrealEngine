@@ -2798,6 +2798,12 @@ static bool CompileToGlslWithShaderConductor(
 	Options.bRemapAttributeLocations = true;
 	Options.bPreserveStorageInput = true;
 	
+	// Enable HLSL 2021 if specified
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021))
+	{
+		Options.HlslVersion = 2021;
+	}
+
 	// Convert input strings from FString to ANSI strings
 	std::string SourceData(TCHAR_TO_UTF8(*PreprocessedShader));
 	std::string FileName(TCHAR_TO_UTF8(*Input.VirtualSourceFilePath));

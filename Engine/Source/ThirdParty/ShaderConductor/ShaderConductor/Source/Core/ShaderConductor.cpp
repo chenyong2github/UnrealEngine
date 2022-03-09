@@ -768,8 +768,8 @@ namespace
         CComPtr<IDxcOperationResult> rewriteResult;
         CComPtr<IDxcIncludeHandler> includeHandler = new ScIncludeHandler(std::move(source.loadIncludeCallback));
         IFT(Dxcompiler::Instance().Rewriter()->RewriteUnchangedWithInclude(sourceBlob, shaderNameUtf16.c_str(), dxcDefines.data(),
-                                                                           static_cast<UINT32>(dxcDefines.size()), includeHandler, 0,
-                                                                           &rewriteResult));
+                                                                           static_cast<UINT32>(dxcDefines.size()), options.DXCArgs,
+                                                                           options.numDXCArgs, includeHandler, 0, &rewriteResult));
 
         HRESULT statusRewrite;
         IFT(rewriteResult->GetStatus(&statusRewrite));
@@ -788,8 +788,9 @@ namespace
             if (options.removeUnusedGlobals)
             {
                 CComPtr<IDxcOperationResult> removeUnusedGlobalsResult;
-                IFT(Dxcompiler::Instance().Rewriter()->RemoveUnusedGlobals(
-                    temp, entryPointUtf16.c_str(), dxcDefines.data(), static_cast<UINT32>(dxcDefines.size()), &removeUnusedGlobalsResult));
+                IFT(Dxcompiler::Instance().Rewriter()->RemoveUnusedGlobals(temp, entryPointUtf16.c_str(), dxcDefines.data(),
+                                                                           static_cast<UINT32>(dxcDefines.size()), options.DXCArgs,
+                                                                           options.numDXCArgs, &removeUnusedGlobalsResult));
                 IFT(removeUnusedGlobalsResult->GetStatus(&statusRewrite));
 
                 if (SUCCEEDED(statusRewrite))

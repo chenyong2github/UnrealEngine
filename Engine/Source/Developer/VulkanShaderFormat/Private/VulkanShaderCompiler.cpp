@@ -2145,6 +2145,12 @@ static bool CompileWithShaderConductor(
 	Options.bDisableScalarBlockLayout = !bIsRayTracingShader;
 	Options.bForceSubpassImageDepthFalse = ForceSubpassImageDepthFalseForPlatform(Input.Target.GetPlatform());
 
+	// Enable HLSL 2021 if specified
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021))
+	{
+		Options.HlslVersion = 2021;
+	}
+
 	// Ray tracing features require Vulkan 1.2 environment.
 	if (bIsRayTracingShader || Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing))
 	{

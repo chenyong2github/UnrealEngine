@@ -200,6 +200,12 @@ bool DoCompileMetalShader(
 		// Initialize compilation options for ShaderConductor
 		CrossCompiler::FShaderConductorOptions Options;
 
+		// Enable HLSL 2021 if specified
+		if (Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021))
+		{
+			Options.HlslVersion = 2021;
+		}
+
 		// Always disable FMA pass for Pixel and Compute shader,
 		// otherwise determine whether [[position, invariant]] qualifier is available in Metal or not.
 		if (Frequency == SF_Pixel || Frequency == SF_Compute)

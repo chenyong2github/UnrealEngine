@@ -674,7 +674,8 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 		bool bException = false;
 		FD3DExceptionInfo ExceptionInfo{};
 
-		const bool bPrecompileWithDXC = Input.Environment.CompilerFlags.Contains(CFLAG_PrecompileWithDXC);
+		const bool bHlslVersion2021 = Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021);
+		const bool bPrecompileWithDXC = bHlslVersion2021 || Input.Environment.CompilerFlags.Contains(CFLAG_PrecompileWithDXC);
 		if (!bPrecompileWithDXC)
 		{
 			Result = D3DCompileWrapper(
@@ -712,6 +713,10 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 
 			// Compile HLSL source to SPIR-V binary
 			CrossCompiler::FShaderConductorOptions Options;
+			if (bHlslVersion2021)
+			{
+				Options.HlslVersion = 2021;
+			}
 
 			FSpirv Spirv;
 			if (!CompilerContext.CompileHlslToSpirv(Options, Spirv.Data))

@@ -30,13 +30,14 @@ public:
 		bool bSymbolsBasedOnSource,
 		uint32 D3DCompileFlags,
 		uint32 AutoBindingSpace,
-		const TCHAR* InOptValidatorVersion
+		const TCHAR* InOptValidatorVersion,
+		uint32 HlslVersion = 2018
 	)
-	: ShaderProfile(InShaderProfile)
-	, EntryPoint(InEntryPoint)
-	, Exports(InExports)
-	, DumpDebugInfoPath(InDumpDebugInfoPath)
-	, bEnable16BitTypes(bInEnable16BitTypes)
+		: ShaderProfile(InShaderProfile)
+		, EntryPoint(InEntryPoint)
+		, Exports(InExports)
+		, DumpDebugInfoPath(InDumpDebugInfoPath)
+		, bEnable16BitTypes(bInEnable16BitTypes)
 	{
 		BatchBaseFilename = FPaths::GetBaseFilename(InBaseFilename);
 
@@ -46,9 +47,34 @@ public:
 			DumpDisasmFilename = InDumpDebugInfoPath / TEXT("Output.d3dasm");
 		}
 
+		switch (HlslVersion)
+		{
+		case 2015:
+			ExtraArguments.Add(TEXT("-HV"));
+			ExtraArguments.Add(TEXT("2015"));
+			break;
+		case 2016:
+			ExtraArguments.Add(TEXT("-HV"));
+			ExtraArguments.Add(TEXT("2016"));
+			break;
+		case 2017:
+			ExtraArguments.Add(TEXT("-HV"));
+			ExtraArguments.Add(TEXT("2017"));
+			break;
+		case 2018:
+			break; // Default
+		case 2021:
+			ExtraArguments.Add(TEXT("-HV"));
+			ExtraArguments.Add(TEXT("2021"));
+			break;
+		default:
+			checkf(false, TEXT("Invalid HLSL version: expected 2015, 2016, 2017, 2018, or 2021 but %u was specified"), HlslVersion);
+			break;
+		}
+
 		if (AutoBindingSpace != ~0u)
 		{
-			ExtraArguments.Add(L"/auto-binding-space");
+			ExtraArguments.Add(TEXT("/auto-binding-space"));
 			ExtraArguments.Add(FString::Printf(TEXT("%d"), AutoBindingSpace));
 		}
 
@@ -56,72 +82,72 @@ public:
 		{
 			// Ensure that only the requested functions exists in the output DXIL.
 			// All other functions and their used resources must be eliminated.
-			ExtraArguments.Add(L"/exports");
+			ExtraArguments.Add(TEXT("/exports"));
 			ExtraArguments.Add(Exports);
 		}
 
 		if (D3DCompileFlags & D3DCOMPILE_PREFER_FLOW_CONTROL)
 		{
 			D3DCompileFlags &= ~D3DCOMPILE_PREFER_FLOW_CONTROL;
-			ExtraArguments.Add(L"/Gfp");
+			ExtraArguments.Add(TEXT("/Gfp"));
 		}
 
 		if (D3DCompileFlags & D3DCOMPILE_SKIP_OPTIMIZATION)
 		{
 			D3DCompileFlags &= ~D3DCOMPILE_SKIP_OPTIMIZATION;
-			ExtraArguments.Add(L"/Od");
+			ExtraArguments.Add(TEXT("/Od"));
 		}
 
 		if (D3DCompileFlags & D3DCOMPILE_SKIP_VALIDATION)
 		{
 			D3DCompileFlags &= ~D3DCOMPILE_SKIP_VALIDATION;
-			ExtraArguments.Add(L"/Vd");
+			ExtraArguments.Add(TEXT("/Vd"));
 		}
 
 		if (D3DCompileFlags & D3DCOMPILE_AVOID_FLOW_CONTROL)
 		{
 			D3DCompileFlags &= ~D3DCOMPILE_AVOID_FLOW_CONTROL;
-			ExtraArguments.Add(L"/Gfa");
+			ExtraArguments.Add(TEXT("/Gfa"));
 		}
 
 		if (D3DCompileFlags & D3DCOMPILE_PACK_MATRIX_ROW_MAJOR)
 		{
 			D3DCompileFlags &= ~D3DCOMPILE_PACK_MATRIX_ROW_MAJOR;
-			ExtraArguments.Add(L"/Zpr");
+			ExtraArguments.Add(TEXT("/Zpr"));
 		}
 
 		if (D3DCompileFlags & D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY)
 		{
 			D3DCompileFlags &= ~D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY;
-			ExtraArguments.Add(L"/Gec");
+			ExtraArguments.Add(TEXT("/Gec"));
 		}
 
 		if (D3DCompileFlags & D3DCOMPILE_WARNINGS_ARE_ERRORS)
 		{
 			D3DCompileFlags &= ~D3DCOMPILE_WARNINGS_ARE_ERRORS;
-			ExtraArguments.Add(L"/WX");
+			ExtraArguments.Add(TEXT("/WX"));
 		}
 
 		switch (D3DCompileFlags & SHADER_OPTIMIZATION_LEVEL_MASK)
 		{
 		case D3DCOMPILE_OPTIMIZATION_LEVEL0:
 			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL0;
-			ExtraArguments.Add(L"/O0");
+			ExtraArguments.Add(TEXT("/O0"));
 			break;
 
 		case D3DCOMPILE_OPTIMIZATION_LEVEL1:
 			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL1;
-			ExtraArguments.Add(L"/O1");
+			ExtraArguments.Add(TEXT("/O1"));
 			break;
 
 		case D3DCOMPILE_OPTIMIZATION_LEVEL2:
 			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL2;
-			ExtraArguments.Add(L"/O2");
+			ExtraArguments.Add(TEXT("/O2"));
 			break;
 
 		case D3DCOMPILE_OPTIMIZATION_LEVEL3:
 			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL3;
-			ExtraArguments.Add(L"/O3");
+			ExtraArguments.Add(TEXT("/O3"));
 			break;
 
 		default:
@@ -136,14 +162,14 @@ public:
 
 		if (bEnable16BitTypes)
 		{
-			ExtraArguments.Add(L"/enable-16bit-types");
+			ExtraArguments.Add(TEXT("/enable-16bit-types"));
 		}
 
 		checkf(D3DCompileFlags == 0, TEXT("Unhandled shader compiler flags 0x%x!"), D3DCompileFlags);
 
 		if (InOptValidatorVersion)
 		{
-			ExtraArguments.Add(L"/validator-version");
+			ExtraArguments.Add(TEXT("/validator-version"));
 			ExtraArguments.Add(FString(InOptValidatorVersion));
 		}
 
@@ -151,19 +177,19 @@ public:
 		{
 			// -Zsb Compute Shader Hash considering only output binary
 			// -Zss Compute Shader Hash considering source information
-			ExtraArguments.Add(bSymbolsBasedOnSource ? L"/Zss" : L"/Zsb");
+			ExtraArguments.Add(bSymbolsBasedOnSource ? TEXT("/Zss") : TEXT("/Zsb"));
 
-			ExtraArguments.Add(L"/Qembed_debug");
-			ExtraArguments.Add(L"/Zi");
+			ExtraArguments.Add(TEXT("/Qembed_debug"));
+			ExtraArguments.Add(TEXT("/Zi"));
 
-			ExtraArguments.Add(L"/Fd");
-			ExtraArguments.Add(L".\\");
+			ExtraArguments.Add(TEXT("/Fd"));
+			ExtraArguments.Add(TEXT(".\\"));
 
 			bKeepEmbeddedPDB = true;
 		}
 
 		// Reflection will be removed later, otherwise the disassembly won't contain variables
-		//ExtraArguments.Add(L"/Qstrip_reflect");
+		//ExtraArguments.Add(TEXT("/Qstrip_reflect"));
 	}
 
 	inline FString GetDumpDebugInfoPath() const
@@ -183,7 +209,7 @@ public:
 
 	FString GetEntryPointName() const
 	{
-		return Exports.Len() > 0 ? FString(L"") : EntryPoint;
+		return Exports.Len() > 0 ? FString(TEXT("")) : EntryPoint;
 	}
 
 	const FString& GetShaderProfile() const
@@ -209,17 +235,17 @@ public:
 		GetCompilerArgsNoEntryNoProfileNoDisasm(Out);
 		if (Exports.Len() == 0)
 		{
-			Out.Add(L"/E");
+			Out.Add(TEXT("/E"));
 			Out.Add(*EntryPoint);
 		}
 
-		Out.Add(L"/T");
+		Out.Add(TEXT("/T"));
 		Out.Add(*ShaderProfile);
 
-		Out.Add(L" /Fc ");
+		Out.Add(TEXT(" /Fc "));
 		Out.Add(TEXT("zzz.d3dasm"));	// Dummy
 
-		Out.Add(L" /Fo ");
+		Out.Add(TEXT(" /Fo "));
 		Out.Add(TEXT("zzz.dxil"));	// Dummy
 	}
 
@@ -228,23 +254,23 @@ public:
 		FString DXCCommandline;
 		for (const FString& Entry : ExtraArguments)
 		{
-			DXCCommandline += L" ";
+			DXCCommandline += TEXT(" ");
 			DXCCommandline += Entry;
 		}
 
-		DXCCommandline += L" /T ";
+		DXCCommandline += TEXT(" /T ");
 		DXCCommandline += ShaderProfile;
 
 		if (Exports.Len() == 0)
 		{
-			DXCCommandline += L" /E ";
+			DXCCommandline += TEXT(" /E ");
 			DXCCommandline += EntryPoint;
 		}
 
-		DXCCommandline += L" /Fc ";
+		DXCCommandline += TEXT(" /Fc ");
 		DXCCommandline += BatchBaseFilename + TEXT(".d3dasm");
 
-		DXCCommandline += L" /Fo ";
+		DXCCommandline += TEXT(" /Fo ");
 		DXCCommandline += BatchBaseFilename + TEXT(".dxil");
 
 		return DXCCommandline;

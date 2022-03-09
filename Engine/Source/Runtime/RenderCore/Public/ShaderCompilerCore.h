@@ -114,6 +114,8 @@ enum ECompilerFlags
 	CFLAG_AllowRealTypes,
 	// Precompile HLSL to optimized HLSL, then forward to FXC. Speeds up some shaders that take longer with FXC and works around crashes in FXC.
 	CFLAG_PrecompileWithDXC,
+	// Enable HLSL 2021 version. Enables templates, operator overloaing, C++ style function overloading. Contains breaking change with short-circuiting evaluation.
+	CFLAG_HLSL2021,
 
 	// Allow warnings to be treated as errors
 	CFLAG_WarningsAsErrors,
