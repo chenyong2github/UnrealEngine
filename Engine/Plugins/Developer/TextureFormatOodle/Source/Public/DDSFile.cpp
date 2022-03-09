@@ -2,7 +2,6 @@
 
 #include "DDSFile.h"
 #include "Logging/LogMacros.h"
-#include "Serialization/Archive.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogOodleDDS, Log, All);
 
@@ -55,8 +54,9 @@ struct FDDSPixelFormat
 	uint32 ABitMask;
 };
 
-struct FDDSHeader 
+struct FDDSHeaderWithMagic 
 {
+	uint32 Magic; // Must be DDS_MAGIC
 	uint32 size;
 	uint32 flags;
 	uint32 height;
@@ -283,7 +283,7 @@ static const FDXGIFormatInfo* DXGIFormatGetInfo(EDXGIFormat InFormat)
 	return 0;
 }
 
-static EDXGIFormat DXGIFormatFromDDS9Header(const FDDSHeader* InDDSHeader)
+static EDXGIFormat DXGIFormatFromDDS9Header(const FDDSHeaderWithMagic* InDDSHeader)
 {
 	// The old format can be specified either with FOURCC or with some bit masks, so we use
 	// this to determine the corresponding dxgi format.
@@ -331,22 +331,10 @@ static void InitMip(FDDSMip* InMip, uint32 InWidth, uint32 InHeight, uint32 InDe
 	InMip->Width = InWidth;
 	InMip->Height = InHeight;
 	InMip->Depth = InDepth;
-	InMip->RowStride = width_u * InFormatInfo->UnitBytes;
-	InMip->SliceStride = height_u * InMip->RowStride;
-	InMip->DataSize = InDepth * InMip->SliceStride;
+	InMip->RowStride = (int64)width_u * InFormatInfo->UnitBytes;
+	InMip->SliceStride = (int64)height_u * InMip->RowStride;
+	InMip->DataSize = (int64)InDepth * InMip->SliceStride;
 	InMip->Data = 0;
-}
-
-FDDSFile::~FDDSFile() 
-{
-	if (Mips) 
-	{
-		FMemory::Free(Mips);
-	}
-	if (MipRawPtr)
-	{
-		FMemory::Free(MipRawPtr);
-	}
 }
 
 EDDSError FDDSFile::Validate() const
@@ -445,14 +433,8 @@ EDDSError FDDSFile::Validate() const
 
 static EDDSError AllocateMips(FDDSFile* InDDS, const FDXGIFormatInfo* InFormatInfo, uint32 InCreateFlags)
 {
-	InDDS->Mips = (FDDSMip*)FMemory::MallocZeroed(InDDS->MipCount * InDDS->ArraySize * sizeof(FDDSMip));
-	if (!InDDS->Mips) 
-	{
-		return EDDSError::OutOfMemory;
-	}
-
-	InDDS->MipDataSize = 0;
-	InDDS->MipRawPtr = 0;
+	InDDS->Mips.Empty();
+	InDDS->Mips.SetNumZeroed(InDDS->ArraySize * InDDS->MipCount);
 
 	if (!(InCreateFlags & FDDSFile::CREATE_FLAG_NO_MIP_STORAGE_ALLOC)) 
 	{
@@ -461,12 +443,12 @@ static EDDSError AllocateMips(FDDSFile* InDDS, const FDXGIFormatInfo* InFormatIn
 		// first pass, add up all sizes
 		//	then alloc it, second pass hand out all the pointers
 
-		size_t AllMipsSize = 0;
+		int64 AllMipsSize = 0;
 		for (uint32 ArrayIndex = 0; ArrayIndex < InDDS->ArraySize; ++ArrayIndex) 
 		{
 			for (uint32 MipIndex = 0; MipIndex < InDDS->MipCount; ++MipIndex) 
 			{
-				FDDSMip* Mip = InDDS->Mips + (ArrayIndex * InDDS->MipCount + MipIndex);
+				FDDSMip* Mip = &InDDS->Mips[ArrayIndex * InDDS->MipCount + MipIndex];
 				uint32 MipWidth = MipDimension(InDDS->Width, MipIndex);
 				uint32 MipHeight = MipDimension(InDDS->Height, MipIndex);
 				uint32 MipDepth = MipDimension(InDDS->Depth, MipIndex);
@@ -475,29 +457,16 @@ static EDDSError AllocateMips(FDDSFile* InDDS, const FDXGIFormatInfo* InFormatIn
 			}
 		}
 
-		InDDS->MipDataSize = AllMipsSize;
-		InDDS->MipRawPtr = FMemory::MallocZeroed(AllMipsSize);
-		if (!InDDS->MipRawPtr)
-		{
-			// NOTE: This code is intentionally written so that all failure paths from here
-			// eventually lead to the DDS being destroyed (which would clean up the mip
-			// allocations regardless), but just clean up the previous allocation anyway and
-			// get us back to a pristine state.
-			FMemory::Free(InDDS->Mips);
-			InDDS->Mips = nullptr;
-			InDDS->MipDataSize = 0;
-			InDDS->MipRawPtr = 0;
+		InDDS->MipRawData.SetNumUninitialized(AllMipsSize);
 
-			return EDDSError::OutOfMemory;
+		int64 CurrentOffset = 0;
+		for (auto& Mip : InDDS->Mips)
+		{
+			Mip.Data = &InDDS->MipRawData[CurrentOffset];
+			CurrentOffset += Mip.DataSize;
 		}
 
-		unsigned char* MipPtr = (unsigned char *) InDDS->MipRawPtr;
-		for (uint32 MipIndex = 0; MipIndex < InDDS->ArraySize * InDDS->MipCount; ++MipIndex) 
-		{
-			FDDSMip* Mip = InDDS->Mips + MipIndex;
-			Mip->Data = MipPtr;
-			MipPtr += Mip->DataSize;
-		}
+		check(CurrentOffset == AllMipsSize);
 	}
 
 	return EDDSError::OK;
@@ -554,7 +523,7 @@ static EDDSError AllocateMips(FDDSFile* InDDS, const FDXGIFormatInfo* InFormatIn
 	return FDDSFile::CreateEmpty(2, InWidth, InHeight, 1, InMipCount, 1, InFormat, InCreateFlags, OutError);
 }
 
-static EDDSError ParseHeader(FDDSFile* InDDS, FDDSHeader const* InHeader, FDDSHeaderDX10 const* InDX10Header)
+static EDDSError ParseHeader(FDDSFile* InDDS, FDDSHeaderWithMagic const* InHeader, FDDSHeaderDX10 const* InDX10Header)
 {
 	// If the fourCC is "DX10" then we have a secondary header that follows the first header. 
 	// This header specifies an dxgi_format explicitly, so we don't have to derive one.
@@ -609,7 +578,7 @@ static EDDSError ParseHeader(FDDSFile* InDDS, FDDSHeader const* InHeader, FDDSHe
 	return Error;
 }
 
-static EDDSError ReadPayload(FDDSFile* InDDS, FArchive* Ar)
+static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const uint8* InReadEnd)
 {
 	const FDXGIFormatInfo* FormatInfo = DXGIFormatGetInfo(InDDS->DXGIFormat);
 	EDDSError Error = AllocateMips(InDDS, FormatInfo, InDDS->CreateFlags);
@@ -618,24 +587,23 @@ static EDDSError ReadPayload(FDDSFile* InDDS, FArchive* Ar)
 		return Error;
 	}
 
-	// Read all subresources (array elements and mips within each array element)
-	for (uint32 SubresourceIndex = 0; SubresourceIndex < InDDS->ArraySize * InDDS->MipCount; ++SubresourceIndex)
+	for (auto& Mip : InDDS->Mips)
 	{
-		FDDSMip* Mip = InDDS->Mips + SubresourceIndex;
-
-		Ar->Serialize(Mip->Data, Mip->DataSize);
-		if (Ar->GetError())
+		if (InReadEnd - InReadCursor < Mip.DataSize)
 		{
-			UE_LOG(LogOodleDDS, Error, TEXT("Error reading texture datad."));
+			UE_LOG(LogOodleDDS, Error, TEXT("Error reading texture data."));
 			return EDDSError::IoError;
 		}
+
+		memcpy(Mip.Data, InReadCursor, Mip.DataSize);
+		InReadCursor += Mip.DataSize;
 	}
 
 	return EDDSError::OK;
 }
 
 
-/* static */ FDDSFile* FDDSFile::CreateFromArchive(FArchive* Ar, EDDSError *OutError)
+/* static */ FDDSFile* FDDSFile::CreateFromDDSInMemory(const uint8* InDDS, int64 InDDSSize, EDDSError *OutError)
 {
 	// If no OutError passed in, redirect it to dummy storage on stack.
 	EDDSError DummyError;
@@ -644,50 +612,47 @@ static EDDSError ReadPayload(FDDSFile* InDDS, FArchive* Ar)
 		OutError = &DummyError;
 	}
 
-	if (Ar->IsLoading() == false)
-	{
-		*OutError = EDDSError::IoError;
-		return nullptr;
-	}
-
-	uint32 Magic = 0;
-	Ar->Serialize(&Magic, 4);
-	if (Ar->GetError())
-	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Not a DDS file."));
-		*OutError = EDDSError::NotADds;
-		return nullptr;
-	}
-
-	if (Magic != DDS_MAGIC)
-	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Not a DDS file."));
-		*OutError = EDDSError::NotADds;
-		return nullptr;
-	}
-
-	FDDSHeader DDSHeader = {};
+	FDDSHeaderWithMagic DDSHeader = {};
 	FDDSHeaderDX10 DDS10Header = {};
 
-	Ar->Serialize(&DDSHeader, sizeof(DDSHeader));
-	if (Ar->GetError())
+	// If we don't even have enough bytes for this to contain a valid header,
+	// definitely a bad file.
+	if (InDDSSize < sizeof(DDSHeader))
 	{
 		UE_LOG(LogOodleDDS, Error, TEXT("Failed to read DDS header"));
 		*OutError = EDDSError::IoError;
 		return nullptr;
 	}
+	
+	// We've now established that InDDSSize >= sizeof(DDSHeader),
+	// so we can read that much for sure.
+	// It's slightly more convenient to work with an end pointer here.
+	const uint8* ReadEnd = InDDS + InDDSSize;
+	const uint8* ReadCursor = InDDS;
 
-	// do we need to read a dx10 header?
+	memcpy(&DDSHeader, ReadCursor, sizeof(DDSHeader));
+	ReadCursor += sizeof(DDSHeader);
+
+	if (DDSHeader.Magic != DDS_MAGIC)
+	{
+		UE_LOG(LogOodleDDS, Error, TEXT("Not a DDS file."));
+		*OutError = EDDSError::NotADds;
+		return nullptr;
+	}
+
+	// Do we need to read a dx10 header?
 	const FDDSPixelFormat& ddpf = DDSHeader.ddspf;
 	if ((ddpf.flags & DDPF_FOURCC) && ddpf.fourCC == DX10_MAGIC)
 	{
-		Ar->Serialize(&DDS10Header, sizeof(FDDSHeaderDX10));
-		if (Ar->GetError())
+		if (ReadEnd - ReadCursor < sizeof(DDS10Header))
 		{
 			UE_LOG(LogOodleDDS, Error, TEXT("Failed to read DX10 DDS header"));
 			*OutError = EDDSError::IoError;
 			return nullptr;
 		}
+
+		memcpy(&DDS10Header, ReadCursor, sizeof(DDS10Header));
+		ReadCursor += sizeof(DDS10Header);
 	}
 
 	FDDSFile* DDS = new FDDSFile();
@@ -695,7 +660,7 @@ static EDDSError ReadPayload(FDDSFile* InDDS, FArchive* Ar)
 	*OutError = ParseHeader(DDS, &DDSHeader, &DDS10Header);
 	if (*OutError == EDDSError::OK)
 	{
-		*OutError = ReadPayload(DDS, Ar);
+		*OutError = ReadPayload(DDS, ReadCursor, ReadEnd);
 	}
 
 	if (*OutError != EDDSError::OK)
@@ -710,13 +675,8 @@ static EDDSError ReadPayload(FDDSFile* InDDS, FArchive* Ar)
 //
 // Write to an archive (i.e. file)
 //
-EDDSError FDDSFile::SerializeToArchive(FArchive* Ar, EDDSFormatVersion InFormatVersion)
-{	
-	if (Ar->IsSaving() == false)
-	{
-		return EDDSError::IoError;
-	}
-
+EDDSError FDDSFile::WriteDDS(TArray64<uint8>& OutDDS, EDDSFormatVersion InFormatVersion)
+{
 	// Validate before we save
 	EDDSError ValidateErr = Validate();
 	if (ValidateErr != EDDSError::OK)
@@ -724,13 +684,21 @@ EDDSError FDDSFile::SerializeToArchive(FArchive* Ar, EDDSFormatVersion InFormatV
 		return ValidateErr;
 	}
 
-	bool bIsCubemap = (this->CreateFlags & CREATE_FLAG_CUBEMAP) != 0;
+	// Preallocate enough memory for all mips and the largest header option
+	int64 PreallocSize = sizeof(FDDSHeaderWithMagic) + sizeof(FDDSHeaderDX10);
+	for (auto& Mip : Mips)
+	{
+		PreallocSize += Mip.DataSize;
+	}
+	OutDDS.Empty();
+	OutDDS.Reserve(PreallocSize);
 
 	// We can change format and dimension when writing in D3D9 mode, so keep track of
 	// what we're going to write to the file.
 	int32 EffectiveDimension = Dimension;
 	EDXGIFormat EffectiveFormat = DXGIFormat;
 
+	bool bIsCubemap = (this->CreateFlags & CREATE_FLAG_CUBEMAP) != 0;
 	uint32 DepthFlag = (this->Dimension == 3) ? 0x800000 : 0; // DDSD_DEPTH
 	uint32 WriteArraySize = bIsCubemap ? this->ArraySize / 6 : this->ArraySize; 
 
@@ -810,8 +778,9 @@ EDDSError FDDSFile::SerializeToArchive(FArchive* Ar, EDDSFormatVersion InFormatV
 	}
 
 	// Set up the DDS header
-	FDDSHeader DDSHeader = 
+	FDDSHeaderWithMagic DDSHeader = 
 	{
+		DDS_MAGIC,
 		124, // size value. Required to be 124
 		DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_MIPMAPCOUNT | DepthFlag,
 		this->Height,
@@ -881,30 +850,21 @@ EDDSError FDDSFile::SerializeToArchive(FArchive* Ar, EDDSFormatVersion InFormatV
 		// In D3D9 mode, this should never happen.
 	}
 
-	// Write the magic identifier and headers...
-	uint32 DDSMagic = DDS_MAGIC;
-	Ar->Serialize(&DDSMagic, 4);
-	Ar->Serialize(&DDSHeader, sizeof(DDSHeader));
+	// Write the headers
+	OutDDS.Append((const uint8*)&DDSHeader, sizeof(DDSHeader));
 	if (DDSHeader.ddspf.fourCC == DX10_MAGIC)
 	{
 		check(InFormatVersion != EDDSFormatVersion::D3D9); // If we try to write a D3D10 header despite being in D3D9 mode, something went wrong.
-		Ar->Serialize(&DX10Header, sizeof(DX10Header));
+		OutDDS.Append((const uint8*)&DX10Header, sizeof(DX10Header));
 	}
 	
 	// Now go through all subresources in standard order and write them out
 	// Need to write them one by one even though we allocate them as a
 	// contiguous block if we do it ourselves, because of
 	// CREATE_FLAG_NO_MIP_STORAGE_ALLOC.
-	for(uint32 i = 0; i < this->ArraySize * this->MipCount; ++i) 
+	for (auto &Mip : this->Mips)
 	{
-		FDDSMip *Mip = this->Mips + i;
-		Ar->Serialize(Mip->Data, Mip->DataSize);
-	}
-
-	if (Ar->GetError())
-	{
-		UE_LOG(LogOodleDDS, Error, TEXT("Error writing DDS file!"));
-		return EDDSError::IoError;
+		OutDDS.Append(Mip.Data, Mip.DataSize);
 	}
 
 	return EDDSError::OK;

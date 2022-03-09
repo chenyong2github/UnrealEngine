@@ -925,8 +925,12 @@ public:
 				
 			FArchive* Ar = IFileManager::Get().CreateFileWriter(*FileName);
 			if (Ar != nullptr)
-			{					
-				DDS->SerializeToArchive(Ar);
+			{
+				TArray64<uint8> DdsBytes;
+				if (DDS->WriteDDS(DdsBytes) == OodleDDS::EDDSError::OK)
+				{
+					Ar->Serialize(DdsBytes.GetData(), DdsBytes.Num());
+				}
 				Ar->Close();
 				delete Ar;
 			}

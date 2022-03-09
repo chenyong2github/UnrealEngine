@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreTypes.h"
-
-class FArchive;
+#include "Containers/Array.h"
 
 // This is supposed to be, as close as possible, the complete list of DXGI formats
 // per those docs - the ODDFMTs we don't support for doing anything other than name, but we keep
@@ -174,9 +173,9 @@ namespace OodleDDS
 	struct FDDSMip
 	{
 		uint32 Width, Height, Depth;
-		uint32 RowStride;		// Bytes in one row of a 2d slice of the mip. equal to SliceStride for 1D textures.
-		uint32 SliceStride;		// Bytes in one 2d slice of the mip, equal to DataStride for 2D textures.
-		uint32 DataSize;
+		int64 RowStride;		// Bytes in one row of a 2d slice of the mip. equal to SliceStride for 1D textures.
+		int64 SliceStride;		// Bytes in one 2d slice of the mip, equal to DataStride for 2D textures.
+		int64 DataSize;
 		uint8* Data;			// just raw bytes; interpretation as per DXGIFormat in parent FDDSFile
 	};
 
@@ -217,17 +216,15 @@ namespace OodleDDS
 		// Mips are ordered starting from mip 0 (full-size texture) decreasing in size;
 		// for arrays, we store the full mip chain for one array element before advancing
 		// to the next array element, and have (ArraySize * MipCount) mips total.
-		FDDSMip* Mips=nullptr;
+		TArray<FDDSMip> Mips;
 
-		// When we allocated the mips ourselves, storage for all mips in a single allocation,
-		// and we store the pointer and size here. With CREATE_FLAG_NO_MIP_STORAGE_ALLOC,
-		// we don't own the underlying memory and this pointer is left at nullptr.
-		void* MipRawPtr=nullptr;
-		size_t MipDataSize=0;
+		// When we allocate the mips ourselves, we keep all storage together in a single
+		// allocation, namely this one, and the mips point into it.
+		// With CREATE_FLAG_NO_MIP_STORAGE_ALLOC, we don't own the underlying memory and
+		// this array is unused.
+		TArray64<uint8> MipRawData;
 
-		~FDDSFile();
-
-		// Serialize to an archive (i.e. to a file using IFileManager::Get()::CreateFileWriter()).
+		// Write DDS-format data to memory. This produces a memory image of a DDS file.
 		//
 		// Automatic format selection rules used are:
 		// - D3D9 DDS does not support 1D or array textures directly, so these always write as D3D10
@@ -238,7 +235,7 @@ namespace OodleDDS
 		// The latter is somewhat arbitrary. D3D9 DDS files don't store whether pixels for a texture are meant
 		// to be interpreted as sRGB or not. This reader treats the resulting formats as non-sRGB UNORM,
 		// so the writer does the same for symmetry.
-		EDDSError SerializeToArchive(FArchive* Ar, EDDSFormatVersion InFormatVersion=EDDSFormatVersion::D3D10);
+		EDDSError WriteDDS(TArray64<uint8>& OutDDS, EDDSFormatVersion InFormatVersion=EDDSFormatVersion::D3D10);
 
 		// 20 mips means 512k x 512k pixels max, should be sufficient for now.
 		// It's 512k not 1M because the final 1x1 pixel mip counts; i.e. a mip chain
@@ -266,17 +263,11 @@ namespace OodleDDS
 		// Sanity-check that all members make sense and return an error code.
 		EDDSError Validate() const;
 
-		// Used for loading a DDS from a file, e.g.
-		// FArchive* Ar = IFileManager::Get().CreateFileReader(*FileName);
-		// OodleDDS::FDDSFile* DDS = OodleDDS::FDDSFile::CreateFromArchive(Ar);
-		// Ar->Close();
-		// delete Ar;
-		// ... use DDS as desired.
-		// delete DDS;
+		// Used for loading from a DDS file image in memory.
 		// 
 		// On error, returns nullptr. If a non-null OutError is supplied, error information
 		// is written there.
-		static FDDSFile* CreateFromArchive(FArchive* Ar, EDDSError* OutError=nullptr);
+		static FDDSFile* CreateFromDDSInMemory(const uint8* InDDS, int64 InDDSSize, EDDSError* OutError=nullptr);
 
 		// Bit flags
 		static constexpr uint32 CREATE_FLAG_NONE = 0;
