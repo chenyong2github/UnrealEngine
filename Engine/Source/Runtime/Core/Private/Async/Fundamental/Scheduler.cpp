@@ -6,6 +6,7 @@
 #include "Logging/LogMacros.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/CommandLine.h"
 #include "Misc/Fork.h"
 #include "CoreGlobals.h"
 
