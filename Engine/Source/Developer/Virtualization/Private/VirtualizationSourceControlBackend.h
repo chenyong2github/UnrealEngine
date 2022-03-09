@@ -67,6 +67,9 @@ private:
 	/** Will display a FMessage notification to the user on the next valid engine tick to try and keep them aware of connection failures */
 	void OnConnectionError();
 
+	/** A source control connection owned by the backend*/
+	TUniquePtr<ISourceControlProvider> SCCProvider;
+	
 	/** The name of the current project */
 	FString ProjectName;
 
