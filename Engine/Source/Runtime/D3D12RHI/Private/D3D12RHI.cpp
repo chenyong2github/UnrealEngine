@@ -612,7 +612,7 @@ uint64 FD3D12SubmissionGapRecorder::SubmitSubmissionTimestampsForFrame(uint32 Fr
 			}
 			GapSpan.DurationCycles = EndCycles - GapSpan.BeginCycles;
 
-			UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("GapSpan Begin %lu End %lu Duration %lu"),GapSpan.BeginCycles,EndCycles,GapSpan.DurationCycles);
+			UE_LOG(LogD3D12GapRecorder, Verbose, TEXT("GapSpan Begin %lu End %lu Duration %lu"), GapSpan.BeginCycles, EndCycles, GapSpan.DurationCycles);
 
 			// Check gap spans are contiguous (TODO: we might want to modify this to support async compute submissions which overlap)
 			if (i > 0)
@@ -653,10 +653,14 @@ uint64 FD3D12SubmissionGapRecorder::SubmitSubmissionTimestampsForFrame(uint32 Fr
 			TotalDuration += CurrSpan;
 		}
 
-		int32 len = PrevFrameEndSubmissionTimestamps.Num() - 1;
-		uint64 tbegin = PrevFrameBeginSubmissionTimestamps[0];
-		uint64 tend = PrevFrameEndSubmissionTimestamps[len];
-		uint64 duration = tend - tbegin;
+		uint64 tbegin = 0, tend = 0, duration = 0;
+		if (PrevFrameEndSubmissionTimestamps.Num() > 0)
+		{
+			int32 len = PrevFrameEndSubmissionTimestamps.Num() - 1;
+			tbegin = PrevFrameBeginSubmissionTimestamps[0];
+			tend = PrevFrameEndSubmissionTimestamps[len];
+			duration = tend - tbegin;
+		}
 		double seconds = (duration / Timing);
 		double TotalDurationSeconds = (TotalDuration / Timing);
 
