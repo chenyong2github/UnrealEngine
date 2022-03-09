@@ -18,6 +18,10 @@ public:
 	/** The directory that contains the image sequence files. */
 	UPROPERTY(EditAnywhere, Category = Sequence)
 	FFilePath SequencePath;
+
+	/** The directory to output the processed image sequence files to. */
+	UPROPERTY(EditAnywhere, Category = Sequence)
+	FDirectoryPath OutputPath;
 	
 	/** Width of a tile in pixels. If 0, then do not make tiles. */
 	UPROPERTY(EditAnywhere, Transient, Category = Tiles)
