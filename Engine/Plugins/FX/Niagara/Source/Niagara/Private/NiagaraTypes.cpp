@@ -7,6 +7,8 @@
 #include "Misc/StringBuilder.h"
 #include "UObject/Class.h"
 
+static FName NAME_NiagaraPosition(TEXT("NiagaraPosition"));
+
 void FNiagaraVariableBase::SetNamespacedName(const FString& InNamespace, FName InVariableName)
 {
 	TStringBuilder<128> NameBuilder;
@@ -492,7 +494,7 @@ UScriptStruct* FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(UScriptStru
 		return FNiagaraTypeDefinition::GetQuatStruct();
 	}
 
-	if (InStruct->GetFName() == FName("NiagaraPosition"))
+	if (InStruct->GetFName() == NAME_NiagaraPosition)
 	{
 		return FNiagaraTypeDefinition::GetPositionStruct();
 	}
