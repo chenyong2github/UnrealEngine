@@ -77,13 +77,6 @@ namespace UnrealBuildTool
 		[CommandLine("-EnableLLDB")]
 		[XmlConfigFile(Category = "BuildConfiguration", Name = "bTuneDebugInfoForLLDB")]
 		public bool bTuneDebugInfoForLLDB = false;
-
-		/// <summary>
-		/// Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.
-		/// </summary>
-		[CommandLine("-PreprocessDepends")]
-		[XmlConfigFile(Category = "BuildConfiguration", Name = "bPreprocessDepends")]
-		public bool bPreprocessDepends = false;
 	}
 
 	/// <summary>
@@ -136,11 +129,6 @@ namespace UnrealBuildTool
 		public bool bTuneDebugInfoForLLDB
 		{
 			get { return Inner.bTuneDebugInfoForLLDB; }
-		}
-
-		public bool bPreprocessDepends
-		{
-			get { return Inner.bPreprocessDepends; }
 		}
 
 		#pragma warning restore CS1591
