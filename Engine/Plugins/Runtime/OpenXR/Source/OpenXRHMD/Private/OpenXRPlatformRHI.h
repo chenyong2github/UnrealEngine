@@ -52,8 +52,7 @@
 //-------------------------------------------------------------------------------------------------
 
 #ifdef XR_USE_GRAPHICS_API_VULKAN
-#include "VulkanRHIPrivate.h"
-#include "VulkanResources.h"
+#include "IVulkanDynamicRHI.h"
 #endif // XR_USE_GRAPHICS_API_VULKAN
 
 #if PLATFORM_WINDOWS

@@ -3,8 +3,10 @@
 
 #include "Misc/CoreDelegates.h"
 
+#include "RHI.h"
+
 #if PLATFORM_SUPPORTS_CUDA
-#include "VulkanRHIPrivate.h"
+#include "IVulkanDynamicRHI.h"
 #endif
 
 #if PLATFORM_WINDOWS
@@ -16,7 +18,6 @@
     #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
-#include "RHI.h"
 #include "HAL/UnrealMemory.h"
 
 DEFINE_LOG_CATEGORY(LogCUDA);
@@ -105,8 +106,7 @@ bool FCUDAModule::IsRHISelectedDevice(CUdevice cuDevice)
 		uint8 deviceUUID[16];
 
 		// We find the device that the RHI has selected for us so that later we can create a CUDA context on this device.
-		FVulkanDynamicRHI *vkDynamicRHI = GetDynamicRHI<FVulkanDynamicRHI>();
-		FMemory::Memcpy(deviceUUID, vkDynamicRHI->GetDevice()->GetDeviceIdProperties().deviceUUID, 16);	
+		FMemory::Memcpy(deviceUUID, GetIVulkanDynamicRHI()->RHIGetVulkanDeviceUUID(), 16);	
 
 		// Get the device UUID so we can compare this with what the RHI selected.
 		CUuuid cudaDeviceUUID;

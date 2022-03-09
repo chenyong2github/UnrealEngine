@@ -5,7 +5,6 @@
 #include "VideoEncoderCommon.h"
 #include "CodecPacket.h"
 #include "AVEncoderDebug.h"
-#include "VulkanRHIBridge.h"
 #include "VideoEncoderInput.h"
 #include "RHI.h"
 #include <stdio.h>

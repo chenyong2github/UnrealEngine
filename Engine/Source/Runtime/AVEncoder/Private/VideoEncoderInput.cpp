@@ -10,10 +10,6 @@
 
 #include "Misc/Guid.h"
 
-#if PLATFORM_DESKTOP && !PLATFORM_APPLE
-#include "VulkanRHIBridge.h"
-#endif
-
 #if PLATFORM_WINDOWS
 #include "MicrosoftCommon.h"
 #endif

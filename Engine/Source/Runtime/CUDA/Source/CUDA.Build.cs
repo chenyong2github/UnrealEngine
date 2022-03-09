@@ -23,23 +23,14 @@ public class CUDA : ModuleRules
 			PublicDefinitions.Add("PLATFORM_SUPPORTS_CUDA=1");
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-			
 			PrivateIncludePathModuleNames.Add("VulkanRHI");
-			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"));	
 
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
-				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"));	
-			} else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+			}
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 			{
-				PublicSystemLibraries.AddRange(new string[] {
-					"DXGI.lib",
-					"d3d11.lib",
-					"d3d12.lib"
-				});
-
-				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows"));
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11", "DX12");
 			}
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");

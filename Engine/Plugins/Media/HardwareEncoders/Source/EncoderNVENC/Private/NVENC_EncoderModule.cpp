@@ -2,10 +2,7 @@
 
 #include "Modules/ModuleManager.h"
 
-#include "VulkanRHIPrivate.h"
-#include "VulkanRHIBridge.h"
-
-#include "DynamicRHI.h"
+#include "IVulkanDynamicRHI.h"
 
 #include "NVENC_Common.h"
 #include "NVENC_EncoderH264.h"
@@ -38,7 +35,7 @@ public:
 #elif PLATFORM_LINUX
 					const TArray<const ANSICHAR*> ExtentionsToAdd{ VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME };
 #endif
-					VulkanRHIBridge::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
+					IVulkanDynamicRHI::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
 				}
 
 				FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddLambda([]() {FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory::Get());});

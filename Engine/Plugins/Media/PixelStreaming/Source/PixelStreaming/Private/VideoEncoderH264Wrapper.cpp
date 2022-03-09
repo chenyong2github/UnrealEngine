@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VideoEncoderH264Wrapper.h"
-#include "VulkanRHIPrivate.h"
 #include "Stats.h"
 #include "VideoEncoderFactory.h"
 #include "EncoderFactory.h"

@@ -21,7 +21,7 @@ static vr::EVROverlayError sOvrError;
 #endif
 
 #if !PLATFORM_MAC
-#include "VulkanRHIPrivate.h"
+#include "IVulkanDynamicRHI.h"
 #endif
 
 /*=============================================================================
@@ -251,31 +251,32 @@ void FSteamVRHMD::UpdateStereoLayers_RenderThread()
 			{
 				vr::Texture_t Texture;
 				vr::VRVulkanTextureData_t VulkanTexture{};
-				if ( IsVulkanPlatform( GMaxRHIShaderPlatform ) )
+				if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
 				{
 #if PLATFORM_MAC
 					check( 0 );
 #else
+					IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
+
 					FRHITexture2D* TextureRHI2D = Layer.LayerDesc.Texture->GetTexture2D();
 					check(TextureRHI2D);
-					FVulkanTexture2D* Texture2D = (FVulkanTexture2D*)TextureRHI2D;
 
-					VulkanTexture.m_pInstance = GVulkanRHI->GetInstance();
-					VulkanTexture.m_pDevice = GVulkanRHI->GetDevice()->GetInstanceHandle();
-					VulkanTexture.m_pPhysicalDevice = GVulkanRHI->GetDevice()->GetPhysicalHandle();
-					VulkanTexture.m_pQueue = GVulkanRHI->GetDevice()->GetGraphicsQueue()->GetHandle();
-					VulkanTexture.m_nQueueFamilyIndex = GVulkanRHI->GetDevice()->GetGraphicsQueue()->GetFamilyIndex();
-					VulkanTexture.m_nImage = (uint64_t)Texture2D->Surface.Image;
-					VulkanTexture.m_nWidth = Texture2D->Surface.Width;
-					VulkanTexture.m_nHeight = Texture2D->Surface.Height;
-					VulkanTexture.m_nFormat = (uint32_t)Texture2D->Surface.ViewFormat;
+					VulkanTexture.m_pInstance = VulkanRHI->RHIGetVkInstance();
+					VulkanTexture.m_pDevice = VulkanRHI->RHIGetVkDevice();
+					VulkanTexture.m_pPhysicalDevice = VulkanRHI->RHIGetVkPhysicalDevice();
+					VulkanTexture.m_pQueue = VulkanRHI->RHIGetGraphicsVkQueue();
+					VulkanTexture.m_nQueueFamilyIndex = VulkanRHI->RHIGetGraphicsQueueFamilyIndex();
+					VulkanTexture.m_nImage = (uint64_t)VulkanRHI->RHIGetVkImage(TextureRHI2D);
+					VulkanTexture.m_nWidth = TextureRHI2D->GetSizeX();
+					VulkanTexture.m_nHeight = TextureRHI2D->GetSizeY();
+					VulkanTexture.m_nFormat = (uint32_t)VulkanRHI->RHIGetViewVkFormat(TextureRHI2D);
 					VulkanTexture.m_nSampleCount = 1;
 
 					Texture.handle = &VulkanTexture;
 					Texture.eType = vr::TextureType_Vulkan;
 #endif
 				}
-				else if ( IsOpenGLPlatform( GMaxRHIShaderPlatform ) )
+				else if (RHIGetInterfaceType() == ERHIInterfaceType::OpenGL)
 				{
 					// We need to dereference the pointer to the real handle
 					uintptr_t TextureID = *reinterpret_cast<uint32*>(Layer.LayerDesc.Texture->GetNativeResource());

@@ -20,8 +20,7 @@
 #include "OculusMR_CastingCameraActor.h"
 #include "AudioDevice.h"
 #if PLATFORM_ANDROID
-#include "VulkanRHIBridge.h"
-#include "VulkanRHIPrivate.h"
+#include "IVulkanDynamicRHI.h"
 #endif
 
 #if WITH_EDITOR
@@ -461,16 +460,16 @@ void FOculusMRModule::OnInitialWorldCreated(UWorld* NewWorld)
 						UE_LOG(LogMR, Log, TEXT("MRC Enabled"));
 
 						// Find a free queue index for vulkan
-						if (IsVulkanPlatform(GMaxRHIShaderPlatform))
+						if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
 						{
 							unsigned int queueIndex = 0;
 							ExecuteOnRenderThread([&queueIndex]()
 							{
 								ExecuteOnRHIThread([&queueIndex]()
 								{
-									FVulkanDevice* VulkanDevice = VulkanRHIBridge::GetDevice(GVulkanRHI);
-									int gfxIndex = VulkanDevice->GetGraphicsQueue() ? VulkanDevice->GetGraphicsQueue()->GetQueueIndex() : -1;
-									if (gfxIndex == queueIndex) {
+									const uint32 GraphicsQueueIndex = GetIVulkanDynamicRHI()->RHIGetGraphicsQueueIndex();
+									if (GraphicsQueueIndex == queueIndex)
+									{
 										++queueIndex;
 									}
 								});

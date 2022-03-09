@@ -51,8 +51,6 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Platform == UnrealTargetPlatform.Android)
             {
-                PrivateIncludePaths.Add("../../../../../Source/Runtime/VulkanRHI/Private");
-                PrivateIncludePaths.Add("../../../../../Source/Runtime/VulkanRHI/Private/" + Target.Platform);
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
             }
 

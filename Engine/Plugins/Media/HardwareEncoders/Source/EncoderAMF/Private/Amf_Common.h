@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "HAL/Thread.h"
-#include "VulkanRHIPrivate.h"
 
 #include <string.h>
 

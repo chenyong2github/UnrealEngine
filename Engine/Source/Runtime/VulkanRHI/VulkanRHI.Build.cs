@@ -30,6 +30,17 @@ public class VulkanRHI : ModuleRules
 			PrivateIncludePaths.Add("Runtime/VulkanRHI/Private/" + Target.Platform);
 		}
 
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		{
+			PublicDefinitions.Add("VK_USE_PLATFORM_WIN32_KHR=1");
+			PublicDefinitions.Add("VK_USE_PLATFORM_WIN32_KHX=1");
+		}
+		else if (Target.Platform.IsInGroup(UnrealPlatformGroup.Android))
+		{
+			PublicDefinitions.Add("VK_USE_PLATFORM_ANDROID_KHR=1");
+		}
+
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -95,12 +106,7 @@ public class VulkanRHI : ModuleRules
 			{
 				if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 				{
-					PrivateIncludePathModuleNames.AddRange(
-						new string[]
-						{
-							"TaskGraph",
-						}
-					);
+					PrivateIncludePathModuleNames.Add("TaskGraph");
 				}
 			}
 			else

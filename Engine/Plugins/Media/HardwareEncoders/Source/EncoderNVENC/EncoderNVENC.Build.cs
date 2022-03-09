@@ -30,18 +30,7 @@ public class EncoderNVENC: ModuleRules
 
 		PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/AVEncoder/Private"));
 
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-		
-		PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private"));
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
-
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
-		{
-			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
-		}
-		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-		{
-			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Linux"));
-		}
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 	}
 }

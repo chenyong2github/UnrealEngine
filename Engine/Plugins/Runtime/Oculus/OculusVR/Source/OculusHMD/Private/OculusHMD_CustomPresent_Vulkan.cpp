@@ -6,9 +6,7 @@
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN
 #include "OculusHMD.h"
 
-#include "VulkanRHIPrivate.h"
-#include "VulkanPendingState.h"
-#include "VulkanContext.h"
+#include "IVulkanDynamicRHI.h"
 
 #if PLATFORM_WINDOWS
 #ifndef WINDOWS_PLATFORM_TYPES_GUARD
@@ -64,26 +62,18 @@ FVulkanCustomPresent::FVulkanCustomPresent(FOculusHMD* InOculusHMD) :
 	}
 */
 #endif
-	FVulkanDynamicRHI* const DynamicRHI = GetDynamicRHI<FVulkanDynamicRHI>();
 
-	bSupportsSubsampled = DynamicRHI->GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap2;
+	bSupportsSubsampled = GetIVulkanDynamicRHI()->RHISupportsEXTFragmentDensityMap2();
 }
 
 
 bool FVulkanCustomPresent::IsUsingCorrectDisplayAdapter() const
 {
 #if PLATFORM_WINDOWS
-	const void* luid;
-
-	if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetDisplayAdapterId2(&luid)) &&
-		luid &&
-		GVulkanRHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
+	const void* AdapterId = nullptr;
+	if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetDisplayAdapterId2(&AdapterId)) && AdapterId)
 	{
-		const VkPhysicalDeviceIDPropertiesKHR& vkPhysicalDeviceIDProperties = GVulkanRHI->GetDevice()->GetDeviceIdProperties();
-		if (vkPhysicalDeviceIDProperties.deviceLUIDValid)
-		{
-			return !FMemory::Memcmp(luid, &vkPhysicalDeviceIDProperties.deviceLUID, sizeof(LUID));
-		}
+		return GetIVulkanDynamicRHI()->RHIDoesAdapterMatchDevice(AdapterId);
 	}
 #endif
 
@@ -94,25 +84,25 @@ bool FVulkanCustomPresent::IsUsingCorrectDisplayAdapter() const
 
 void* FVulkanCustomPresent::GetOvrpInstance() const
 {
-	return GVulkanRHI->GetInstance();
+	return GetIVulkanDynamicRHI()->RHIGetVkInstance();
 }
 
 
 void* FVulkanCustomPresent::GetOvrpPhysicalDevice() const
 {
-	return GVulkanRHI->GetDevice()->GetPhysicalHandle();
+	return GetIVulkanDynamicRHI()->RHIGetVkPhysicalDevice();
 }
 
 
 void* FVulkanCustomPresent::GetOvrpDevice() const
 {
-	return GVulkanRHI->GetDevice()->GetInstanceHandle();
+	return GetIVulkanDynamicRHI()->RHIGetVkDevice();
 }
 
 
 void* FVulkanCustomPresent::GetOvrpCommandQueue() const
 {
-	return GVulkanRHI->GetDevice()->GetGraphicsQueue()->GetHandle();
+	return GetIVulkanDynamicRHI()->RHIGetGraphicsVkQueue();
 }
 
 
@@ -120,29 +110,29 @@ FTextureRHIRef FVulkanCustomPresent::CreateTexture_RenderThread(uint32 InSizeX, 
 {
 	CheckInRenderThread();
 
-	VkImageSubresourceRange SubresourceRangeAll = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
-	FVulkanCommandListContext& ImmediateContext = GVulkanRHI->GetDevice()->GetImmediateContext();
-	FVulkanCmdBuffer* CmdBuffer = ImmediateContext.GetCommandBufferManager()->GetActiveCmdBuffer();
+	IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
+
+	const VkImageSubresourceRange SubresourceRangeAll = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 
 	if (EnumHasAnyFlags(InTexCreateFlags,TexCreate_RenderTargetable))
 	{
-		GVulkanRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), (VkImage)InTexture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, SubresourceRangeAll);
+		VulkanRHI->RHISetImageLayout((VkImage)InTexture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, SubresourceRangeAll);
 	}
 	else if (EnumHasAnyFlags(InTexCreateFlags,TexCreate_Foveation))
 	{
-		GVulkanRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), (VkImage)InTexture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT, SubresourceRangeAll);
+		VulkanRHI->RHISetImageLayout((VkImage)InTexture, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT, SubresourceRangeAll);
 	}
 
 	switch (InResourceType)
 	{
 	case RRT_Texture2D:
-		return GVulkanRHI->RHICreateTexture2DFromResource(InFormat, InSizeX, InSizeY, InNumMips, InNumSamples, (VkImage) InTexture, InTexCreateFlags).GetReference();
+		return VulkanRHI->RHICreateTexture2DFromResource(InFormat, InSizeX, InSizeY, InNumMips, InNumSamples, (VkImage) InTexture, InTexCreateFlags).GetReference();
 
 	case RRT_Texture2DArray:
-		return GVulkanRHI->RHICreateTexture2DArrayFromResource(InFormat, InSizeX, InSizeY, 2, InNumMips, InNumSamples, (VkImage) InTexture, InTexCreateFlags).GetReference();
+		return VulkanRHI->RHICreateTexture2DArrayFromResource(InFormat, InSizeX, InSizeY, 2, InNumMips, InNumSamples, (VkImage) InTexture, InTexCreateFlags).GetReference();
 
 	case RRT_TextureCube:
-		return GVulkanRHI->RHICreateTextureCubeFromResource(InFormat, InSizeX, false, 1, InNumMips, (VkImage) InTexture, InTexCreateFlags).GetReference();
+		return VulkanRHI->RHICreateTextureCubeFromResource(InFormat, InSizeX, false, 1, InNumMips, (VkImage) InTexture, InTexCreateFlags).GetReference();
 
 	default:
 		return nullptr;

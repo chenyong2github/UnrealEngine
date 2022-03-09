@@ -4,7 +4,9 @@
 	VulkanRHI.h: Public Vulkan RHI definitions.
 =============================================================================*/
 
-#pragma once 
+#pragma once
+
+#include "IVulkanDynamicRHI.h"
 
 class FVulkanTexture2D;
 class FVulkanFramebuffer;
@@ -40,7 +42,7 @@ struct FOptionalVulkanInstanceExtensions
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /** The interface which is implemented by the dynamically bound RHI. */
-class FVulkanDynamicRHI : public FDynamicRHI
+class FVulkanDynamicRHI : public IVulkanDynamicRHI
 {
 public:
 
@@ -50,13 +52,43 @@ public:
 	/** Destructor */
 	~FVulkanDynamicRHI() {}
 
+	// IVulkanDynamicRHI interface
+	virtual uint32 RHIGetVulkanVersion() const final override;
+	virtual VkInstance RHIGetVkInstance() const final override;
+	virtual VkDevice RHIGetVkDevice() const final override;
+	virtual const uint8* RHIGetVulkanDeviceUUID() const final override;
+	virtual VkPhysicalDevice RHIGetVkPhysicalDevice() const final override;
+	virtual VkQueue RHIGetGraphicsVkQueue() const final override;
+	virtual uint32 RHIGetGraphicsQueueIndex() const final override;
+	virtual uint32 RHIGetGraphicsQueueFamilyIndex() const final override;
+	virtual VkCommandBuffer RHIGetActiveVkCommandBuffer() final override;
+	virtual uint64 RHIGetGraphicsAdapterLUID(VkPhysicalDevice InPhysicalDevice) const final override;
+	virtual bool RHIDoesAdapterMatchDevice(const void* InAdapterId) const final override;
+	virtual void* RHIGetVkDeviceProcAddr(const char* InName) const final override;
+	virtual VkFormat RHIGetSwapChainVkFormat(EPixelFormat InFormat) const final override;
+	virtual bool RHISupportsEXTFragmentDensityMap2() const final override;
+	virtual TArray<VkExtensionProperties> RHIGetAllInstanceExtensions() const final override;
+	virtual TArray<VkExtensionProperties> RHIGetAllDeviceExtensions(VkPhysicalDevice InPhysicalDevice) const final override;
+	virtual FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Resource, ETextureCreateFlags Flags) final override;
+	virtual FTexture2DArrayRHIRef RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, VkImage Resource, ETextureCreateFlags Flags) final override;
+	virtual FTextureCubeRHIRef RHICreateTextureCubeFromResource(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, VkImage Resource, ETextureCreateFlags Flags) final override;
+	virtual VkImage RHIGetVkImage(FRHITexture2D* InTexture) const final override;
+	virtual VkFormat RHIGetViewVkFormat(FRHITexture2D* InTexture) const final override;
+	virtual FVulkanRHIAllocationInfo RHIGetAllocationInfo(FRHITexture2D* InTexture) const final override;
+	virtual FVulkanRHIImageViewInfo RHIGetImageViewInfo(FRHITexture* InTexture) const final override;
+	virtual VkImageLayout& RHIFindOrAddLayoutRW(FRHITexture2D* InTexture, VkImageLayout LayoutIfNotFound) final override;
+	virtual void RHISetImageLayout(VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange) final override;
+	virtual void RHISetUploadImageLayout(VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange) final override;
+	virtual void RHIFinishExternalComputeWork(VkCommandBuffer InCommandBuffer) final override;
+	virtual void RHIRegisterWork(uint32 NumPrimitives) final override;
+	virtual void RHISubmitUploadCommandBuffer() final override;
+	virtual void RHIVerifyResult(VkResult Result, const ANSICHAR* VkFuntion, const ANSICHAR* Filename, uint32 Line) final override;
 
 	// FDynamicRHI interface.
 	virtual void Init() final override;
 	virtual void PostInit() final override;
 	virtual void Shutdown() final override;;
 	virtual const TCHAR* GetName() final override { return TEXT("Vulkan"); }
-	virtual ERHIInterfaceType GetInterfaceType() const override { return ERHIInterfaceType::Vulkan; }
 
 	void InitInstance();
 
@@ -308,11 +340,6 @@ public:
 		return this->RHICreateRenderQuery(QueryType);
 	}
 
-	// FVulkanDynamicRHI interface
-	virtual FTexture2DRHIRef RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Resource, ETextureCreateFlags Flags);
-	virtual FTexture2DArrayRHIRef RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, VkImage Resource, ETextureCreateFlags Flags);
-	virtual FTextureCubeRHIRef RHICreateTextureCubeFromResource(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, VkImage Resource, ETextureCreateFlags Flags);
-
 	void RHICalibrateTimers() override;
 
 #if VULKAN_RHI_RAYTRACING
@@ -345,7 +372,7 @@ public:
 		return Instance;
 	}
 	
-	inline FVulkanDevice* GetDevice()
+	inline FVulkanDevice* GetDevice() const
 	{
 		return Device;
 	}
@@ -360,8 +387,8 @@ public:
 		return OptionalInstanceExtensions;
 	}
 
-	virtual void VulkanSetImageLayout( VkCommandBuffer CmdBuffer, VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange );
-	
+	void VulkanSetImageLayout( VkCommandBuffer CmdBuffer, VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange );
+
 	virtual void* RHILockStagingBuffer(FRHIStagingBuffer* StagingBuffer, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI) final override;
 	virtual void RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBuffer) final override;
 

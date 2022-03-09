@@ -17,13 +17,7 @@ namespace OculusHMD
 bool FVulkanExtensions::GetVulkanInstanceExtensionsRequired(TArray<const ANSICHAR*>& Out)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN
-	TArray<VkExtensionProperties> Properties;
-	{
-		uint32_t PropertyCount;
-		VulkanRHI::vkEnumerateInstanceExtensionProperties(nullptr, &PropertyCount, nullptr);
-		Properties.SetNum(PropertyCount);
-		VulkanRHI::vkEnumerateInstanceExtensionProperties(nullptr, &PropertyCount, Properties.GetData());
-	}
+	TArray<VkExtensionProperties> Properties = GetIVulkanDynamicRHI()->RHIGetAllInstanceExtensions();
 
 	TArray<const char*> Extensions;
 	{
@@ -58,13 +52,7 @@ bool FVulkanExtensions::GetVulkanInstanceExtensionsRequired(TArray<const ANSICHA
 bool FVulkanExtensions::GetVulkanDeviceExtensionsRequired(struct VkPhysicalDevice_T *pPhysicalDevice, TArray<const ANSICHAR*>& Out)
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN
-	TArray<VkExtensionProperties> Properties;
-	{
-		uint32_t PropertyCount;
-		VulkanRHI::vkEnumerateDeviceExtensionProperties((VkPhysicalDevice) pPhysicalDevice, nullptr, &PropertyCount, nullptr);
-		Properties.SetNum(PropertyCount);
-		VulkanRHI::vkEnumerateDeviceExtensionProperties((VkPhysicalDevice) pPhysicalDevice, nullptr, &PropertyCount, Properties.GetData());
-	}
+	TArray<VkExtensionProperties> Properties = GetIVulkanDynamicRHI()->RHIGetAllDeviceExtensions((VkPhysicalDevice)pPhysicalDevice);
 
 	TArray<const char*> Extensions;
 	{

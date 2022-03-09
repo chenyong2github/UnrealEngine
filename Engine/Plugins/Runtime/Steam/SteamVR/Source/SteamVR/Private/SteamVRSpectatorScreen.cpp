@@ -15,10 +15,8 @@
 #include "DefaultSpectatorScreenController.h"
 
 #if PLATFORM_LINUX
-#include "VulkanRHIPrivate.h"
+#include "IVulkanDynamicRHI.h"
 #include "ScreenRendering.h"
-#include "VulkanPendingState.h"
-#include "VulkanContext.h"
 #endif
 
 

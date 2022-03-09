@@ -1182,6 +1182,231 @@ void FVulkanDynamicRHI::RHIReleaseThreadOwnership()
 {
 }
 
+// IVulkanDynamicRHI interface
+
+uint32 FVulkanDynamicRHI::RHIGetVulkanVersion() const
+{
+	return UE_VK_API_VERSION;
+}
+
+VkInstance FVulkanDynamicRHI::RHIGetVkInstance() const
+{
+	return GetInstance();
+}
+
+VkDevice FVulkanDynamicRHI::RHIGetVkDevice() const
+{
+	return Device->GetInstanceHandle();
+}
+
+const uint8* FVulkanDynamicRHI::RHIGetVulkanDeviceUUID() const
+{
+	return GetDevice()->GetDeviceIdProperties().deviceUUID;
+}
+
+VkPhysicalDevice FVulkanDynamicRHI::RHIGetVkPhysicalDevice() const
+{
+	return Device->GetPhysicalHandle();
+}
+
+VkQueue FVulkanDynamicRHI::RHIGetGraphicsVkQueue() const
+{
+	return GetDevice()->GetGraphicsQueue()->GetHandle();
+}
+
+uint32 FVulkanDynamicRHI::RHIGetGraphicsQueueIndex() const
+{
+	return GetDevice()->GetGraphicsQueue()->GetQueueIndex();
+}
+
+uint32 FVulkanDynamicRHI::RHIGetGraphicsQueueFamilyIndex() const
+{
+	return GetDevice()->GetGraphicsQueue()->GetFamilyIndex();
+}
+
+VkCommandBuffer FVulkanDynamicRHI::RHIGetActiveVkCommandBuffer()
+{
+	FVulkanCommandListContextImmediate& ImmediateContext = GetDevice()->GetImmediateContext();
+	VkCommandBuffer VulkanCommandBuffer = ImmediateContext.GetCommandBufferManager()->GetActiveCmdBuffer()->GetHandle();
+	return VulkanCommandBuffer;
+}
+
+uint64 FVulkanDynamicRHI::RHIGetGraphicsAdapterLUID(VkPhysicalDevice InPhysicalDevice) const
+{
+	uint64 AdapterLUID = 0;
+#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
+	if (!AdapterLUID && GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
+	{
+		VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
+		VkPhysicalDeviceProperties2KHR GpuProps2;
+		ZeroVulkanStruct(GpuProps2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
+		GpuProps2.pNext = &GpuIdProps;
+		ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
+
+		VulkanRHI::vkGetPhysicalDeviceProperties2KHR(InPhysicalDevice, &GpuProps2);
+		check(GpuIdProps.deviceLUIDValid);
+		AdapterLUID = reinterpret_cast<const uint64&>(GpuIdProps.deviceLUID);
+	}
+#endif
+	return AdapterLUID;
+}
+
+bool FVulkanDynamicRHI::RHIDoesAdapterMatchDevice(const void* InAdapterId) const
+{
+#if PLATFORM_WINDOWS
+	if (GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
+	{
+		const VkPhysicalDeviceIDPropertiesKHR& vkPhysicalDeviceIDProperties = GetDevice()->GetDeviceIdProperties();
+		if (vkPhysicalDeviceIDProperties.deviceLUIDValid)
+		{
+			return FMemory::Memcmp(InAdapterId, &vkPhysicalDeviceIDProperties.deviceLUID, sizeof(LUID)) == 0;
+		}
+	}
+#endif
+
+	// Not enough information.  Assume the adapter matches
+	return true;
+}
+
+void* FVulkanDynamicRHI::RHIGetVkDeviceProcAddr(const char* InName) const
+{
+	return (void*)VulkanRHI::vkGetDeviceProcAddr(Device->GetInstanceHandle(), InName);
+}
+
+VkFormat FVulkanDynamicRHI::RHIGetSwapChainVkFormat(EPixelFormat InFormat) const
+{
+	// UE renders a gamma-corrected image so we need to use an sRGB format if available
+	return UEToVkTextureFormat(GPixelFormats[InFormat].UnrealFormat, true);
+}
+
+bool FVulkanDynamicRHI::RHISupportsEXTFragmentDensityMap2() const
+{
+	return GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap2;
+}
+
+TArray<VkExtensionProperties> FVulkanDynamicRHI::RHIGetAllInstanceExtensions() const
+{
+	uint32_t ExtensionCount = 0;
+	VulkanRHI::vkEnumerateInstanceExtensionProperties(nullptr, &ExtensionCount, nullptr);
+
+	TArray<VkExtensionProperties> Extensions;
+	Extensions.SetNumUninitialized(ExtensionCount);
+
+	VulkanRHI::vkEnumerateInstanceExtensionProperties(nullptr, &ExtensionCount, Extensions.GetData());
+
+	return Extensions;
+}
+
+TArray<VkExtensionProperties> FVulkanDynamicRHI::RHIGetAllDeviceExtensions(VkPhysicalDevice InPhysicalDevice) const
+{
+	uint32_t ExtensionCount = 0;
+	VulkanRHI::vkEnumerateDeviceExtensionProperties(InPhysicalDevice, nullptr, &ExtensionCount, nullptr);
+
+	TArray<VkExtensionProperties> Extensions;
+	Extensions.SetNumUninitialized(ExtensionCount);
+
+	VulkanRHI::vkEnumerateDeviceExtensionProperties(InPhysicalDevice, nullptr, &ExtensionCount, Extensions.GetData());
+
+	return Extensions;
+}
+
+VkImage FVulkanDynamicRHI::RHIGetVkImage(FRHITexture2D* InTexture) const
+{
+	FVulkanTexture2D* VulkanTexture = ResourceCast(InTexture);
+	return VulkanTexture->Surface.Image;
+}
+
+VkFormat FVulkanDynamicRHI::RHIGetViewVkFormat(FRHITexture2D* InTexture) const
+{
+	FVulkanTexture2D* VulkanTexture = ResourceCast(InTexture);
+	return VulkanTexture->Surface.ViewFormat;
+}
+
+FVulkanRHIAllocationInfo FVulkanDynamicRHI::RHIGetAllocationInfo(FRHITexture2D* InTexture) const
+{
+	FVulkanTexture2D* VulkanTexture = ResourceCast(InTexture);
+
+	FVulkanRHIAllocationInfo NewInfo{};
+	NewInfo.Handle = VulkanTexture->Surface.GetAllocationHandle();
+	NewInfo.Offset = VulkanTexture->Surface.GetAllocationOffset();
+	NewInfo.Size = VulkanTexture->Surface.GetMemorySize();
+
+	return NewInfo;
+}
+
+FVulkanRHIImageViewInfo FVulkanDynamicRHI::RHIGetImageViewInfo(FRHITexture* InTexture) const
+{
+	FVulkanTextureBase* VulkanTexture = (FVulkanTextureBase*)InTexture->GetTextureBaseRHI();
+
+	FVulkanRHIImageViewInfo Info{};
+	Info.ImageView = VulkanTexture->DefaultView.View;
+	Info.Image = VulkanTexture->DefaultView.Image;
+	Info.Format = VulkanTexture->Surface.ViewFormat;
+	Info.Width = VulkanTexture->Surface.Width;
+	Info.Height = VulkanTexture->Surface.Height;
+	Info.Depth = VulkanTexture->Surface.Depth;
+	Info.UEFlags = VulkanTexture->Surface.UEFlags;
+
+	Info.SubresourceRange.aspectMask = VulkanTexture->Surface.GetFullAspectMask();
+	Info.SubresourceRange.layerCount = VulkanTexture->Surface.GetNumberOfArrayLevels();
+	Info.SubresourceRange.levelCount = VulkanTexture->Surface.GetNumMips();
+
+	// TODO: do we need these?
+	Info.SubresourceRange.baseMipLevel = 0;
+	Info.SubresourceRange.baseArrayLayer = 0;
+
+	return Info;
+}
+
+VkImageLayout& FVulkanDynamicRHI::RHIFindOrAddLayoutRW(FRHITexture2D* InTexture, VkImageLayout LayoutIfNotFound)
+{
+	FVulkanTexture2D* VulkanTexture = ResourceCast(InTexture);
+	return GetDevice()->GetImmediateContext().GetLayoutManager().FindOrAddLayoutRW(VulkanTexture->Surface, LayoutIfNotFound);
+}
+
+void FVulkanDynamicRHI::RHISetImageLayout(VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange)
+{
+	FVulkanCommandListContext& ImmediateContext = GetDevice()->GetImmediateContext();
+	FVulkanCmdBuffer* CmdBuffer = ImmediateContext.GetCommandBufferManager()->GetActiveCmdBuffer();
+	VulkanSetImageLayout(CmdBuffer->GetHandle(), Image, OldLayout, NewLayout, SubresourceRange);
+}
+
+void FVulkanDynamicRHI::RHISetUploadImageLayout(VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange)
+{
+	FVulkanCommandListContext& ImmediateContext = GetDevice()->GetImmediateContext();
+	FVulkanCmdBuffer* CmdBuffer = ImmediateContext.GetCommandBufferManager()->GetUploadCmdBuffer();
+	VulkanSetImageLayout(CmdBuffer->GetHandle(), Image, OldLayout, NewLayout, SubresourceRange);
+}
+
+void FVulkanDynamicRHI::RHIFinishExternalComputeWork(VkCommandBuffer InCommandBuffer)
+{
+	FVulkanCommandListContextImmediate& ImmediateContext = GetDevice()->GetImmediateContext();
+	check(InCommandBuffer == ImmediateContext.GetCommandBufferManager()->GetActiveCmdBuffer()->GetHandle());
+
+	ImmediateContext.GetPendingComputeState()->Reset();
+	ImmediateContext.GetPendingGfxState()->Reset();
+}
+
+void FVulkanDynamicRHI::RHIRegisterWork(uint32 NumPrimitives)
+{
+	FVulkanCommandListContextImmediate& ImmediateContext = GetDevice()->GetImmediateContext();
+	if (FVulkanPlatform::RegisterGPUWork() && ImmediateContext.IsImmediate())
+	{
+		ImmediateContext.GetGPUProfiler().RegisterGPUWork(1);
+	}
+}
+
+void FVulkanDynamicRHI::RHISubmitUploadCommandBuffer()
+{
+	FVulkanCommandListContext& ImmediateContext = GetDevice()->GetImmediateContext();
+	ImmediateContext.GetCommandBufferManager()->SubmitUploadCmdBuffer();
+}
+
+void FVulkanDynamicRHI::RHIVerifyResult(VkResult Result, const ANSICHAR* VkFuntion, const ANSICHAR* Filename, uint32 Line)
+{
+	VulkanRHI::VerifyVulkanResult(Result, VkFuntion, Filename, Line);
+}
+
 void* FVulkanDynamicRHI::RHIGetNativeDevice()
 {
 	return (void*)Device->GetInstanceHandle();

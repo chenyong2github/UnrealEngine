@@ -13,7 +13,6 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					// Relative to Engine\Plugins\Runtime\Oculus\OculusVR\Source
 					"../../../../../Source/Runtime/Renderer/Private",
-					"../../../../../Source/Runtime/VulkanRHI/Private",
 					"../../../../../Source/Runtime/Engine/Classes/Components",
 					"../../../../../Source/Runtime/Engine/Classes/Kismet",
 				});
@@ -23,15 +22,6 @@ namespace UnrealBuildTool.Rules
 					"Launch",
 					"ProceduralMeshComponent",
 				});			
-
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PrivateIncludePaths.Add("../../../../../Source/Runtime/VulkanRHI/Private/Windows");
-			}
-			else
-			{
-				PrivateIncludePaths.Add("../../../../../Source/Runtime/VulkanRHI/Private/" + Target.Platform);
-			}
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

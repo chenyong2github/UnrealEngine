@@ -7,14 +7,7 @@
 #include "VulkanRHIPrivate.h"
 #include "IHeadMountedDisplayModule.h"
 #include "IHeadMountedDisplayVulkanExtensions.h"
-#include "VulkanRHIBridge.h"
-namespace VulkanRHIBridge
-{
-	extern TArray<const ANSICHAR*> InstanceExtensions;
-	extern TArray<const ANSICHAR*> InstanceLayers;
-	extern TArray<const ANSICHAR*> DeviceExtensions;
-	extern TArray<const ANSICHAR*> DeviceLayers;
-}
+
 #if VULKAN_HAS_DEBUGGING_ENABLED
 bool GRenderDocFound = false;
 #endif
@@ -62,6 +55,28 @@ TAutoConsoleVariable<int32> GGPUValidationCvar(
 #define STANDARD_VALIDATION_LAYER_NAME			"VK_LAYER_LUNARG_standard_validation"
 
 #endif // VULKAN_HAS_DEBUGGING_ENABLED
+
+namespace VulkanExternalExtensions
+{
+	TArray<const ANSICHAR*> InstanceExtensions;
+	TArray<const ANSICHAR*> InstanceLayers;
+	TArray<const ANSICHAR*> DeviceExtensions;
+	TArray<const ANSICHAR*> DeviceLayers;
+}
+
+void IVulkanDynamicRHI::AddEnabledInstanceExtensionsAndLayers(TArrayView<const ANSICHAR* const> InInstanceExtensions, TArrayView<const ANSICHAR* const> InInstanceLayers)
+{
+	checkf(!GVulkanRHI, TEXT("AddEnabledInstanceExtensionsAndLayers should be called before the VulkanRHI has been created"));
+	VulkanExternalExtensions::InstanceExtensions.Append(InInstanceExtensions.GetData(), InInstanceExtensions.Num());
+	VulkanExternalExtensions::InstanceLayers.Append(InInstanceLayers.GetData(), InInstanceLayers.Num());
+}
+
+void IVulkanDynamicRHI::AddEnabledDeviceExtensionsAndLayers(TArrayView<const ANSICHAR* const> InDeviceExtensions, TArrayView<const ANSICHAR* const> InDeviceLayers)
+{
+	checkf(!GVulkanRHI, TEXT("AddEnabledDeviceExtensionsAndLayers should be called before the VulkanRHI has been created"));
+	VulkanExternalExtensions::DeviceExtensions.Append(InDeviceExtensions.GetData(), InDeviceExtensions.Num());
+	VulkanExternalExtensions::DeviceLayers.Append(InDeviceLayers.GetData(), InDeviceLayers.Num());
+}
 
 // Instance Extensions to enable for all platforms
 static const ANSICHAR* GInstanceExtensions[] =
@@ -439,7 +454,7 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 	}
 
 	// Check for layers added outside the RHI (eg plugins)
-	for (const ANSICHAR* VulkanBridgeLayer : VulkanRHIBridge::InstanceLayers)
+	for (const ANSICHAR* VulkanBridgeLayer : VulkanExternalExtensions::InstanceLayers)
 	{
 		if (FindLayerInList(GlobalLayerExtensions, VulkanBridgeLayer))
 		{
@@ -447,7 +462,7 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 		}
 		else
 		{
-			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanRHIBridge instance layer '%s'"), ANSI_TO_TCHAR(VulkanBridgeLayer));
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanExternalExtensions instance layer '%s'"), ANSI_TO_TCHAR(VulkanBridgeLayer));
 		}
 	}
 
@@ -478,7 +493,7 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 	}
 
 	// Check for extensions added outside the RHI (eg plugins)
-	for (const ANSICHAR* VulkanBridgeExtension : VulkanRHIBridge::InstanceExtensions)
+	for (const ANSICHAR* VulkanBridgeExtension : VulkanExternalExtensions::InstanceExtensions)
 	{
 		if (FindLayerExtensionInList(GlobalLayerExtensions, VulkanBridgeExtension))
 		{
@@ -486,7 +501,7 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 		}
 		else
 		{
-			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanRHIBridge instance extension '%s'"), ANSI_TO_TCHAR(VulkanBridgeExtension));
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanExternalExtensions instance extension '%s'"), ANSI_TO_TCHAR(VulkanBridgeExtension));
 		}
 	}
 
@@ -632,7 +647,7 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 #endif	// VULKAN_HAS_DEBUGGING_ENABLED
 
 	// Check for layers added outside the RHI (eg plugins)
-	for (const ANSICHAR* VulkanBridgeLayer : VulkanRHIBridge::DeviceLayers)
+	for (const ANSICHAR* VulkanBridgeLayer : VulkanExternalExtensions::DeviceLayers)
 	{
 		if (FindLayerInList(DeviceLayerExtensions, VulkanBridgeLayer))
 		{
@@ -640,7 +655,7 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 		}
 		else
 		{
-			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanRHIBridge device layer '%s'"), ANSI_TO_TCHAR(VulkanBridgeLayer));
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanExternalExtensions device layer '%s'"), ANSI_TO_TCHAR(VulkanBridgeLayer));
 		}
 	}
 
@@ -722,7 +737,7 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 	}
 	
 	// Check for extensions added outside the RHI (eg plugins)
-	for (const ANSICHAR* VulkanBridgeExtension : VulkanRHIBridge::DeviceExtensions)
+	for (const ANSICHAR* VulkanBridgeExtension : VulkanExternalExtensions::DeviceExtensions)
 	{
 		if (ListContains(AvailableExtensions, VulkanBridgeExtension))
 		{
@@ -730,7 +745,7 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 		}
 		else
 		{
-			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanRHIBridge device extension '%s'"), ANSI_TO_TCHAR(VulkanBridgeExtension));
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanExternalExtensions device extension '%s'"), ANSI_TO_TCHAR(VulkanBridgeExtension));
 		}
 	}
 

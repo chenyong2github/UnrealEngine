@@ -55,7 +55,6 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePaths.AddRange(new string[]
 				{
 					Path.Combine(EngineDir, "Source/Runtime/AudioMixer/Private"),
-					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"),
 				});
 
 			PrivateDependencyModuleNames.AddRange(new string[]
@@ -79,16 +78,8 @@ namespace UnrealBuildTool.Rules
 				"AVEncoder"
 			});
 
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
-
-			// required for casting UE4 BackBuffer to Vulkan Texture2D for NvEnc
-			PrivateDependencyModuleNames.AddRange(new string[] { "CUDA", "VulkanRHI", "nvEncode" });
-
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-			
-			PrivateIncludePathModuleNames.Add("VulkanRHI");
-			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"));
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+			PrivateDependencyModuleNames.Add("VulkanRHI");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan", "CUDA");
 
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 			{
@@ -96,12 +87,6 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("D3D12RHI");
 
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11", "DX12");
-
-				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows"));
-			}
-			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
-			{
-				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"));
 			}
 
 			AddFolder("SignallingWebServer");

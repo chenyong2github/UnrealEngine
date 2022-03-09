@@ -36,8 +36,7 @@
 //-------------------------------------------------------------------------------------------------
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN
-#include "VulkanRHIPrivate.h"
-#include "VulkanResources.h"
+#include "IVulkanDynamicRHI.h"
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN
 
 #endif // OCULUS_HMD_SUPPORTED_PLATFORMS

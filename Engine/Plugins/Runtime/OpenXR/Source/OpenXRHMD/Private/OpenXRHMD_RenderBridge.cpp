@@ -234,11 +234,14 @@ public:
 		Requirements.maxApiVersionSupported = 0;
 		XR_ENSURE(GetVulkanGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
 
+		IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
+		const uint32 VulkanVersion = VulkanRHI->RHIGetVulkanVersion();
+
 		// The extension uses the OpenXR version format instead of the Vulkan one
 		XrVersion RHIVersion = XR_MAKE_VERSION(
-			VK_VERSION_MAJOR(UE_VK_API_VERSION),
-			VK_VERSION_MINOR(UE_VK_API_VERSION),
-			VK_VERSION_PATCH(UE_VK_API_VERSION)
+			VK_VERSION_MAJOR(VulkanVersion),
+			VK_VERSION_MINOR(VulkanVersion),
+			VK_VERSION_PATCH(VulkanVersion)
 		);
 		if (RHIVersion < Requirements.minApiVersionSupported) //-V547
 		{
@@ -252,40 +255,30 @@ public:
 
 		PFN_xrGetVulkanGraphicsDeviceKHR GetVulkanGraphicsDeviceKHR;
 		XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrGetVulkanGraphicsDeviceKHR", (PFN_xrVoidFunction*)&GetVulkanGraphicsDeviceKHR));
-		XR_ENSURE(GetVulkanGraphicsDeviceKHR(Instance, System, GVulkanRHI->GetInstance(), &Gpu));
+		XR_ENSURE(GetVulkanGraphicsDeviceKHR(Instance, System, VulkanRHI->RHIGetVkInstance(), &Gpu));
 	}
 
 	virtual void* GetGraphicsBinding() override
 	{
-		FVulkanDevice* Device = GVulkanRHI->GetDevice();
-		FVulkanQueue* Queue = Device->GetGraphicsQueue();
+		IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
 
 		Binding.type = XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
 		Binding.next = nullptr;
-		Binding.instance = GVulkanRHI->GetInstance();
-		Binding.physicalDevice = Device->GetPhysicalHandle();
-		Binding.device = Device->GetInstanceHandle();
-		Binding.queueFamilyIndex = Queue->GetFamilyIndex();
+		Binding.instance = VulkanRHI->RHIGetVkInstance();
+		Binding.physicalDevice = VulkanRHI->RHIGetVkPhysicalDevice();
+		Binding.device = VulkanRHI->RHIGetVkDevice();
+		Binding.queueFamilyIndex = VulkanRHI->RHIGetGraphicsQueueFamilyIndex();
 		Binding.queueIndex = 0;
 		return &Binding;
 	}
 
 	virtual uint64 GetGraphicsAdapterLuid() override
 	{
-#if VULKAN_SUPPORTS_DRIVER_PROPERTIES
-		if (!AdapterLuid && GVulkanRHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
+		if (!AdapterLuid)
 		{
-			VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
-			VkPhysicalDeviceProperties2KHR GpuProps2;
-			ZeroVulkanStruct(GpuProps2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
-			GpuProps2.pNext = &GpuIdProps;
-			ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
-
-			VulkanRHI::vkGetPhysicalDeviceProperties2KHR(Gpu, &GpuProps2);
-			check(GpuIdProps.deviceLUIDValid);
-			AdapterLuid = reinterpret_cast<const uint64&>(GpuIdProps.deviceLUID);
+			AdapterLuid = GetIVulkanDynamicRHI()->RHIGetGraphicsAdapterLUID(Gpu);
 		}
-#endif
+
 		return AdapterLuid;
 	}
 

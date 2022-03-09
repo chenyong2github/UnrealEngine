@@ -15,22 +15,11 @@ namespace UnrealBuildTool.Rules
 					"OpenXRHMD/Private",
                     EngineDir + "/Source/ThirdParty/OpenXR/include",
                     EngineDir + "/Source/Runtime/Renderer/Private",
-                    EngineDir + "/Source/Runtime/VulkanRHI/Private",
 					// ... add other private include paths required here ...
 				}
 				);
 
-            if (Target.Platform == UnrealTargetPlatform.Win64)
-            {
-                PrivateIncludePaths.Add(EngineDir + "/Source/Runtime/VulkanRHI/Private/Windows");
-            }
-			else if (Target.Platform == UnrealTargetPlatform.Android  || Target.Platform == UnrealTargetPlatform.Linux)
-            {
-                PrivateIncludePaths.Add(EngineDir + "/Source/Runtime/VulkanRHI/Private/" + Target.Platform);
-            }
-
 			PublicIncludePathModuleNames.Add("OpenXR");
-			
 
             PublicDependencyModuleNames.Add("HeadMountedDisplay");
 

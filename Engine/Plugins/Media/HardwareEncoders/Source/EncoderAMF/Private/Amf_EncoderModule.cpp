@@ -2,10 +2,7 @@
 
 #include "Modules/ModuleManager.h"
 
-#include "VulkanRHIPrivate.h"
-#include "VulkanRHIBridge.h"
-
-#include "DynamicRHI.h"
+#include "IVulkanDynamicRHI.h"
 
 #include "Amf_Common.h"
 #include "Amf_EncoderH264.h"
@@ -49,7 +46,7 @@ public:
 
 					AMF.DestroyContext();
 
-					VulkanRHIBridge::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
+					IVulkanDynamicRHI::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
 				}
 
 				FCoreDelegates::OnPostEngineInit.AddLambda([]() {FVideoEncoderAmf_H264::Register(FVideoEncoderFactory::Get());});

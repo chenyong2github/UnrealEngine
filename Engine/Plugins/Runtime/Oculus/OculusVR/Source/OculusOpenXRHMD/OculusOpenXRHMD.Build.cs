@@ -14,7 +14,6 @@ namespace UnrealBuildTool.Rules
                     // Relative to Engine\Plugins\Runtime\Oculus\OculusOpenXR\Source
                     "../../../OpenXR/Source/OpenXRHMD/Private",
                     "../../../../../Source/Runtime/Renderer/Private",
-                    "../../../../../Source/Runtime/VulkanRHI/Private",
                     "../../../../../Source/Runtime/Engine/Classes/Components",
                     "../../../../../Source/Runtime/Engine/Classes/Kismet",
                 });
@@ -24,15 +23,6 @@ namespace UnrealBuildTool.Rules
                     "Launch",
                     "OpenXRHMD",
                 });			
-
-            if (Target.Platform == UnrealTargetPlatform.Win64)
-            {
-                PrivateIncludePaths.Add("../../../../../Source/Runtime/VulkanRHI/Private/Windows");
-            }
-            else
-            {
-                PrivateIncludePaths.Add("../../../../../Source/Runtime/VulkanRHI/Private/" + Target.Platform);
-            }
 
             PrivateDependencyModuleNames.AddRange(
                 new string[]

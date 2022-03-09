@@ -10,19 +10,9 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"SteamVR/Private",
 					"../../../../../Source/Runtime/Renderer/Private",
-					"../../../../../Source/Runtime/VulkanRHI/Private",
 					// ... add other private include paths required here ...
 				}
 				);
-
-			if(Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PrivateIncludePaths.Add("../../../../../Source/Runtime/VulkanRHI/Private/Windows");
-			}
-			else if(Target.Platform != UnrealTargetPlatform.Mac)
-			{
-				PrivateIncludePaths.Add("../../../../../Source/Runtime/VulkanRHI/Private/" + Target.Platform);
-			}
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

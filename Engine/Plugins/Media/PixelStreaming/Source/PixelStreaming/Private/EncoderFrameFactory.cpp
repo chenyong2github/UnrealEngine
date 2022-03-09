@@ -3,10 +3,11 @@
 #include "EncoderFrameFactory.h"
 #include "PixelStreamingPrivate.h"
 #include "CudaModule.h"
-#include "VulkanRHIPrivate.h"
 #include "Settings.h"
 #include "VideoEncoderInput.h"
 #include "Templates/SharedPointer.h"
+
+#include "IVulkanDynamicRHI.h"
 
 #if PLATFORM_WINDOWS
 	#include "VideoCommon.h"
@@ -117,8 +118,8 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> UE::PixelStreaming::FEncoderFrameFacto
 	{
 		if (IsRHIDeviceAMD())
 		{
-			FVulkanDynamicRHI* DynamicRHI = GetDynamicRHI<FVulkanDynamicRHI>();
-			AVEncoder::FVulkanDataStruct VulkanData = { DynamicRHI->GetInstance(), DynamicRHI->GetDevice()->GetPhysicalHandle(), DynamicRHI->GetDevice()->GetInstanceHandle() };
+			IVulkanDynamicRHI* DynamicRHI = GetDynamicRHI<IVulkanDynamicRHI>();
+			AVEncoder::FVulkanDataStruct VulkanData = { DynamicRHI->RHIGetVkInstance(), DynamicRHI->RHIGetVkPhysicalDevice(), DynamicRHI->RHIGetVkDevice() };
 
 			return AVEncoder::FVideoEncoderInput::CreateForVulkan(&VulkanData, bIsResizable);
 		}
@@ -173,8 +174,8 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::
 	{
 		if (IsRHIDeviceAMD())
 		{
-			FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
-			InputFrame->SetTexture(VulkanTexture->Surface.Image, [](VkImage NativeTexture) { /* Do something with released texture if needed */ });
+			const VkImage VulkanImage = GetIVulkanDynamicRHI()->RHIGetVkImage(Texture.GetReference());
+			InputFrame->SetTexture(VulkanImage, [](VkImage NativeTexture) { /* Do something with released texture if needed */ });
 		}
 		else if (IsRHIDeviceNVIDIA())
 		{
@@ -217,8 +218,11 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTexture(TSharedPtr<AVEncoder::
 
 void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InputFrame, const FTexture2DRHIRef& Texture)
 {
-	FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
-	VkDevice Device = GetDynamicRHI<FVulkanDynamicRHI>()->GetDevice()->GetInstanceHandle();
+	IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
+
+	const FVulkanRHIAllocationInfo TextureAllocationInfo = VulkanRHI->RHIGetAllocationInfo(Texture.GetReference());
+
+	VkDevice Device = VulkanRHI->RHIGetVkDevice();
 
 #if PLATFORM_WINDOWS
 	HANDLE Handle;
@@ -232,15 +236,11 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<A
 		VkMemoryGetWin32HandleInfoKHR MemoryGetHandleInfoKHR = {};
 		MemoryGetHandleInfoKHR.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
 		MemoryGetHandleInfoKHR.pNext = NULL;
-		MemoryGetHandleInfoKHR.memory = VulkanTexture->Surface.GetAllocationHandle();
+		MemoryGetHandleInfoKHR.memory = TextureAllocationInfo.Handle;
 		MemoryGetHandleInfoKHR.handleType = bUseNTHandle ? VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT : VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
 
-		// While this operation is safe (and unavoidable) C4191 has been enabled and this will trigger an error with warnings as errors
-	#pragma warning(push)
-	#pragma warning(disable : 4191)
-		PFN_vkGetMemoryWin32HandleKHR GetMemoryWin32HandleKHR = (PFN_vkGetMemoryWin32HandleKHR)VulkanRHI::vkGetDeviceProcAddr(Device, "vkGetMemoryWin32HandleKHR");
-		VERIFYVULKANRESULT(GetMemoryWin32HandleKHR(Device, &MemoryGetHandleInfoKHR, &Handle));
-	#pragma warning(pop)
+		PFN_vkGetMemoryWin32HandleKHR GetMemoryWin32HandleKHR = (PFN_vkGetMemoryWin32HandleKHR)VulkanRHI->RHIGetVkDeviceProcAddr("vkGetMemoryWin32HandleKHR");
+		VERIFYVULKANRESULT_EXTERNAL(GetMemoryWin32HandleKHR(Device, &MemoryGetHandleInfoKHR, &Handle));
 	}
 
 	FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
@@ -253,7 +253,7 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<A
 		CudaExtMemHandleDesc.type = bUseNTHandle ? CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32 : CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT;
 		CudaExtMemHandleDesc.handle.win32.name = NULL;
 		CudaExtMemHandleDesc.handle.win32.handle = Handle;
-		CudaExtMemHandleDesc.size = VulkanTexture->Surface.GetAllocationOffset() + VulkanTexture->Surface.GetMemorySize();
+		CudaExtMemHandleDesc.size = TextureAllocationInfo.Offset + TextureAllocationInfo.Size;
 
 		// import external memory
 		CUresult Result = FCUDAModule::CUDA().cuImportExternalMemory(&MappedExternalMemory, &CudaExtMemHandleDesc);
@@ -276,15 +276,11 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<A
 		VkMemoryGetFdInfoKHR MemoryGetFdInfoKHR = {};
 		MemoryGetFdInfoKHR.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
 		MemoryGetFdInfoKHR.pNext = NULL;
-		MemoryGetFdInfoKHR.memory = VulkanTexture->Surface.GetAllocationHandle();
+		MemoryGetFdInfoKHR.memory = TextureAllocationInfo.Handle;
 		MemoryGetFdInfoKHR.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
 
-		// While this operation is safe (and unavoidable) C4191 has been enabled and this will trigger an error with warnings as errors
-	#pragma warning(push)
-	#pragma warning(disable : 4191)
-		PFN_vkGetMemoryFdKHR FPGetMemoryFdKHR = (PFN_vkGetMemoryFdKHR)VulkanRHI::vkGetDeviceProcAddr(Device, "vkGetMemoryFdKHR");
-		VERIFYVULKANRESULT(FPGetMemoryFdKHR(Device, &MemoryGetFdInfoKHR, &Fd));
-	#pragma warning(pop)
+		PFN_vkGetMemoryFdKHR FPGetMemoryFdKHR = (PFN_vkGetMemoryFdKHR)VulkanRHI->RHIGetVkDeviceProcAddr("vkGetMemoryFdKHR");
+		VERIFYVULKANRESULT_EXTERNAL(FPGetMemoryFdKHR(Device, &MemoryGetFdInfoKHR, &Fd));
 	}
 
 	FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
@@ -296,7 +292,7 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<A
 		CUDA_EXTERNAL_MEMORY_HANDLE_DESC CudaExtMemHandleDesc = {};
 		CudaExtMemHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD;
 		CudaExtMemHandleDesc.handle.fd = Fd;
-		CudaExtMemHandleDesc.size = VulkanTexture->Surface.GetAllocationOffset() + VulkanTexture->Surface.GetMemorySize();
+		CudaExtMemHandleDesc.size = TextureAllocationInfo.Offset + TextureAllocationInfo.Size;
 
 		// import external memory
 		CUresult Result = FCUDAModule::CUDA().cuImportExternalMemory(&MappedExternalMemory, &CudaExtMemHandleDesc);
@@ -314,7 +310,7 @@ void UE::PixelStreaming::FEncoderFrameFactory::SetTextureCUDAVulkan(TSharedPtr<A
 	{
 		CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC MipmapDesc = {};
 		MipmapDesc.numLevels = 1;
-		MipmapDesc.offset = VulkanTexture->Surface.GetAllocationOffset();
+		MipmapDesc.offset = TextureAllocationInfo.Offset;
 		MipmapDesc.arrayDesc.Width = Texture->GetSizeX();
 		MipmapDesc.arrayDesc.Height = Texture->GetSizeY();
 		MipmapDesc.arrayDesc.Depth = 0;
