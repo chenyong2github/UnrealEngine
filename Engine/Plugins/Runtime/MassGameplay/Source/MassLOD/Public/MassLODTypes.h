@@ -17,11 +17,6 @@ namespace UE::MassLOD
 {
 #if UE_ALLOW_DEBUG_REPLICATION_DUPLICATE_VIEWERS_PER_CONTROLLER
 	constexpr int32 DebugNumberViewersPerController = 50;
-	constexpr int32 MaxNumOfViewers = 50;
-#else
-	// @TODO Setup it up to 3 for as an optimization, but need a better way later
-	//constexpr int32 MaxNumOfViewers = 16;
-	constexpr int32 MaxNumOfViewers = 3;
 #endif // UE_ALLOW_DEBUG_REPLICATION_DUPLICATE_VIEWERS_PER_CONTROLLER
 
 	constexpr int32 MaxBucketsPerLOD = 250;

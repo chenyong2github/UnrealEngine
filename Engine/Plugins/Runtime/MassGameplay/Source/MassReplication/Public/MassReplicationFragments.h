@@ -23,25 +23,6 @@ struct MASSREPLICATION_API FMassNetworkIDFragment : public FMassFragment
 	FMassNetworkID NetID;
 };
 
-struct FMassReplicatedAgentArrayData
-{
-	void Invalidate()
-	{
-		Handle.Invalidate();
-		LastUpdateTime = 0.f;
-#if UE_ALLOW_DEBUG_REPLICATION
-		LOD = EMassLOD::Off;
-#endif // UE_DO_DEBUG_REPLICATION
-	}
-
-	FMassReplicatedAgentHandle Handle;
-	float LastUpdateTime = 0.f;
-
-#if UE_ALLOW_DEBUG_REPLICATION
-	EMassLOD::Type LOD = EMassLOD::Off;
-#endif // UE_DO_DEBUG_REPLICATION
-};
-
 /**
  * Agent handle per client, these will be at TArray indices of the Client handles indicies (used as a free list array)
  */
@@ -50,8 +31,7 @@ struct MASSREPLICATION_API FMassReplicatedAgentFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
-	//these will be maintained so that the TArray entries are at the same indices as Client Handles
-	TArray<FMassReplicatedAgentArrayData, TInlineAllocator<UE::Mass::Replication::MaxNumOfClients>> AgentsData;
+	FMassReplicatedAgentData AgentData;
 };
 
 /*
@@ -79,12 +59,6 @@ struct MASSREPLICATION_API FMassReplicationLODFragment : public FMassFragment
 
 	/** Previous LOD information*/
 	TEnumAsByte<EMassLOD::Type> PrevLOD = EMassLOD::Max;
-
-	/** Per viewer LOD information */
-	TArray<TEnumAsByte<EMassLOD::Type>> LODPerViewer;
-
-	/** Per viewer previous LOD information */
-	TArray<TEnumAsByte<EMassLOD::Type>> PrevLODPerViewer;
 };
 
 UCLASS()
@@ -150,8 +124,8 @@ public:
 
 	FMassBubbleInfoClassHandle BubbleInfoClassHandle;
 
-	TArray<FMassClientHandle, TInlineAllocator<UE::Mass::Replication::MaxNumOfClients>> CachedClientHandles;
-	TArray<bool, TInlineAllocator<UE::Mass::Replication::MaxNumOfClients>> bBubbleChanged;
+	FMassClientHandle CurrentClientHandle;
+	TArray<FMassClientHandle> CachedClientHandles;
 
 	//TODO review if we need to have this as a UPROPERTY at all and also if we can make this use a TInlineAllocator
 	//Can not use TInlineAllocator with UPROPERTY()
@@ -179,4 +153,19 @@ public:
 
 		return *static_cast<T*>(BubbleInfo);
 	}
+};
+
+/** Cell location for replicated mass agents, used to fetch quickly the agents around each clients */
+USTRUCT()
+struct MASSREPLICATION_API FMassReplicationGridCellLocationFragment : public FMassFragment
+{
+	GENERATED_BODY()
+	FReplicationHashGrid2D::FCellLocation CellLoc;
+};
+
+/** Component Tag to tell if the entity is in the replication grid */
+USTRUCT()
+struct MASSREPLICATION_API FMassInReplicationGridTag : public FMassTag
+{
+	GENERATED_BODY()
 };

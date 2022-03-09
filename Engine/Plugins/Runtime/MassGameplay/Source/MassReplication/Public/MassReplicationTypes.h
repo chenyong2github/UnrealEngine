@@ -8,6 +8,7 @@
 #include "MassEntityTemplate.h"
 #include "MassObserverProcessor.h"
 #include "MassLODLogic.h"
+#include "HierarchicalHashGrid2D.h"
 
 #include "MassReplicationTypes.generated.h"
 
@@ -61,11 +62,6 @@
 #endif
 
 class UMassReplicationSubsystem;
-
-namespace UE { namespace Mass { namespace Replication
-{
-	const int32 MaxNumOfClients = UE::MassLOD::MaxNumOfViewers;
-}}}
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMassReplication, Log, All);
 
@@ -145,12 +141,20 @@ private:
 
 struct FReplicationLODLogic : public FLODDefaultLogic
 {
-	enum
+};
+
+struct FMassReplicatedAgentData
+{
+	void Invalidate()
 	{
-		bStoreInfoPerViewer = true,
-		bCalculateLODPerViewer = true,
-		bMaximizeCountPerViewer = true,
-	};
+		Handle.Invalidate();
+		LastUpdateTime = 0.f;
+		LOD = EMassLOD::Off;
+	}
+
+	FMassReplicatedAgentHandle Handle;
+	float LastUpdateTime = 0.f;
+	EMassLOD::Type LOD = EMassLOD::Off;
 };
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
@@ -170,3 +174,5 @@ struct FMassReplicationEntityInfo
 	int32 ReplicationID = INDEX_NONE;
 };
 #endif //UE_REPLICATION_COMPILE_CLIENT_CODE
+
+typedef THierarchicalHashGrid2D<2, 4, FMassEntityHandle> FReplicationHashGrid2D;	// 2 levels of hierarchy, 4 ratio between levels

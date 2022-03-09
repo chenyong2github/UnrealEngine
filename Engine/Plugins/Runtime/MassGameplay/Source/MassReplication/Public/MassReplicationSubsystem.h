@@ -14,9 +14,19 @@ class AMassCrowdClientBubbleInfo;
 class UMassLODSubsystem;
 class AMassClientBubbleInfoBase;
 
-struct FClientViewerHandles
+typedef TMap<FMassEntityHandle, FMassReplicatedAgentData> FMassReplicationAgentDataMap;
+
+struct FMassClientReplicationInfo
 {
+	/** Array of all the viewer of this client */
 	TArray<FMassViewerHandle> Handles;
+
+	/** Array of all the entities handled by this client 
+	  * This array might contains duplicates if there is more than one viewer per client as this concatenates the entities from all viewer of a client) */
+	TArray<FMassEntityHandle> HandledEntities;
+
+	/** The saved agent data of the entities handle by this client */
+	FMassReplicationAgentDataMap AgentsData;
 };
 
 struct FViewerClientPair
@@ -62,12 +72,11 @@ namespace UE::MassReplication
 
 } // UE::MassReplication
 
-
 /**
- *  Manages the creation of NetworkIDs, ClientBubbles and ClientViewers.
+ *  Manages the creation of NetworkIDs, ClientBubbles and ClientReplicationInfo.
  *  NetworkIDs are per replicated Agent Entity and are unique and replicated between server and clients.
  *  ClientBubbles relate to the player controller that owns the parent UNetConnection to a Client machine.
- *  ClientViewers relate to all the player controllers that have a parent or child UNetConnection to a single Client machine (split screen etc).
+ *  ClientReplicationInfo relate to all the player controllers that have a parent or child UNetConnection to a single Client machine (split screen etc).
  */
 UCLASS()
 class MASSREPLICATION_API UMassReplicationSubsystem : public UWorldSubsystem
@@ -75,6 +84,8 @@ class MASSREPLICATION_API UMassReplicationSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
+
+	UMassReplicationSubsystem();
 
 	enum class EFindOrAddMassEntityInfo : uint8
 	{
@@ -136,18 +147,26 @@ public:
 		return static_cast<TType *>(ClientBubble);
 	}
 
-	/** Gets the client viewers safely */
-	const FClientViewerHandles* GetClientViewers(FMassClientHandle Handle) const
+	/** Gets the client replication info safely */
+	const FMassClientReplicationInfo* GetClientReplicationInfo(FMassClientHandle Handle) const
 	{
-		return ClientHandleManager.IsValidHandle(Handle) ? &(ClientsViewerHandles[Handle.GetIndex()]) : nullptr;
+		return ClientHandleManager.IsValidHandle(Handle) ? &(ClientsReplicationInfo[Handle.GetIndex()]) : nullptr;
 	}
 
-	/** Gets the client viewers. Faster version using check()s */
-	const FClientViewerHandles& GetClientViewersChecked(FMassClientHandle Handle) const
+	/** Gets the client replication info. Faster version using check()s */
+	const FMassClientReplicationInfo& GetClientReplicationInfoChecked(FMassClientHandle Handle) const
 	{
 		check(ClientHandleManager.IsValidHandle(Handle));
 
-		return ClientsViewerHandles[Handle.GetIndex()];
+		return ClientsReplicationInfo[Handle.GetIndex()];
+	}
+
+	/** Gets the client replication info. Faster version using check()s */
+	FMassClientReplicationInfo& GetMutableClientReplicationInfoChecked(FMassClientHandle Handle)
+	{
+		check(ClientHandleManager.IsValidHandle(Handle));
+
+		return ClientsReplicationInfo[Handle.GetIndex()];
 	}
 
 	void SynchronizeClientsAndViewers();
@@ -163,6 +182,9 @@ public:
 
 	/** @return FMassBubbleInfoClassHandle Handle to the BubbleInfoClass, this will be an invalid handle if BubbleInfoClass can not be found */
 	FMassBubbleInfoClassHandle GetBubbleInfoClassHandle(const TSubclassOf<AMassClientBubbleInfoBase>& BubbleInfoClass) const;
+
+	const FReplicationHashGrid2D& GetGrid() const { return ReplicationGrid; }
+	FReplicationHashGrid2D& GetGridMutable() { return ReplicationGrid; }
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 
@@ -255,16 +277,16 @@ protected:
 
 	/** An Array of each Clients viewer handles (split screen players sharing the same client connections). 
 	 *  This will include both the parent and child NetConnections per client.
-	 *	The array is organised so the array index is the same as the index of the client FMassClientHandle.
+	 *	The array is organized so the array index is the same as the index of the client FMassClientHandle.
 	 */
-	TArray<FClientViewerHandles> ClientsViewerHandles;
+	TArray<FMassClientReplicationInfo> ClientsReplicationInfo;
 
-	/** A free list array of FViewerClientPairs. This is organised so the index is that of the FMassViewerHandle for fast lookup of the related FMassClientHandle. 
+	/** A free list array of FViewerClientPairs. This is organized so the index is that of the FMassViewerHandle for fast lookup of the related FMassClientHandle. 
 	 *  This only contains viewers that are also clients (ie only parent NetConnections not child ones).
 	 */
 	TArray<FViewerClientPair> ViewerToClientHandleArray;
 
-	/** A free list array of FViewerClientPairs. This is organised so the index is that of the FMassClientHandle.
+	/** A free list array of FViewerClientPairs. This is organized so the index is that of the FMassClientHandle.
 	 *  For fast lookup of the related FMassViewerHandle. This only contains viewers that are also clients (ie only parent NetConnections not child ones).
 	 */
 	TArray<FViewerClientPair> ClientToViewerHandleArray;
@@ -291,4 +313,6 @@ protected:
 	 * @todo this comment is no longer accurate, needs fixing
 	 */
 	uint64 LastSynchronizedFrame = 0;
+
+	FReplicationHashGrid2D ReplicationGrid;
 };

@@ -162,6 +162,11 @@ public:
 	template <typename TLODFragment, typename TTransformFragment>
 	void DebugDisplayLOD(FMassExecutionContext& Context, TConstArrayView<TLODFragment> LODList, TConstArrayView<TTransformFragment> LocationList, UWorld* World);
 
+	/**
+	 * Return the maximum distance at which the LOD will be turn off
+	 */
+	 float GetMaxLODDistance() const { return MaxLODDistance; }
+
 protected:
 
 	struct FMassLODRuntimeData

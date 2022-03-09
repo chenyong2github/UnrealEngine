@@ -86,7 +86,7 @@ FMassReplicationParameters::FMassReplicationParameters()
 //----------------------------------------------------------------------//
 FMassReplicationSharedFragment::FMassReplicationSharedFragment(UMassReplicationSubsystem& ReplicationSubsystem, const FMassReplicationParameters& Params)
 {
-	LODCalculator.Initialize(Params.LODDistance, Params.BufferHysteresisOnDistancePercentage / 100.0f, Params.LODMaxCount, Params.LODMaxCountPerViewer);
+	LODCalculator.Initialize(Params.LODDistance, Params.BufferHysteresisOnDistancePercentage / 100.0f, Params.LODMaxCountPerViewer); // Setting the LODMaxCoundPerViewer as the MAXCount as the processor will be called for each client and will recalculate it per client
 	BubbleInfoClassHandle = ReplicationSubsystem.GetBubbleInfoClassHandle(Params.BubbleInfoClass);
 
 	CachedReplicator = Params.ReplicatorClass.GetDefaultObject();

@@ -41,6 +41,7 @@ protected:
 	UPROPERTY(Transient)
 	UMassReplicationSubsystem* ReplicationSubsystem = nullptr;
 
+	FMassEntityQuery SyncClientData;
 	FMassEntityQuery CollectViewerInfoQuery;
 	FMassEntityQuery CalculateLODQuery;
 	FMassEntityQuery AdjustLODDistancesQuery;
@@ -109,87 +110,46 @@ void UMassReplicatorBase::CalculateClientReplication(FMassExecutionContext& Cont
 	{
 		FMassReplicatedAgentFragment& AgentFragment = ReplicatedAgentList[EntityIdx];
 
-		if (AgentFragment.AgentsData.Num() < RepSharedFragment.CachedClientHandles.Num())
-		{
-			AgentFragment.AgentsData.AddDefaulted(RepSharedFragment.CachedClientHandles.Num() - AgentFragment.AgentsData.Num());
-		}
-		else if (AgentFragment.AgentsData.Num() > RepSharedFragment.CachedClientHandles.Num())
-		{
-			AgentFragment.AgentsData.RemoveAt(RepSharedFragment.CachedClientHandles.Num(), AgentFragment.AgentsData.Num() - RepSharedFragment.CachedClientHandles.Num(), /* bAllowShrinking */ false);
-		}
+		const FMassClientHandle& ClientHandle = RepSharedFragment.CurrentClientHandle;
+		check(ClientHandle.IsValid());
 
-		for (int32 ClientIdx = 0; ClientIdx < RepSharedFragment.CachedClientHandles.Num(); ++ClientIdx)
-		{
-			const FMassClientHandle& ClientHandle = RepSharedFragment.CachedClientHandles[ClientIdx];
+		checkSlow(RepSharedFragment.BubbleInfos[ClientHandle.GetIndex()] != nullptr);
 
-			if (ClientHandle.IsValid())
+		FMassReplicatedAgentData& AgentData = AgentFragment.AgentData;
+
+		const EMassLOD::Type LOD = ViewerLODList[EntityIdx].LOD;
+
+		if (LOD < EMassLOD::Off)
+		{
+			AgentData.LOD = LOD;
+
+			//if the handle isn't valid we need to add the agent
+			if (!AgentData.Handle.IsValid())
 			{
-				checkSlow(RepSharedFragment.BubbleInfos[ClientHandle.GetIndex()] != nullptr);
+				typename AgentArrayItem::FReplicatedAgentType ReplicatedAgent;
 
-				FMassReplicatedAgentArrayData& AgentData = AgentFragment.AgentsData[ClientIdx];
+				const FMassNetworkIDFragment& NetIDFragment = NetworkIDList[EntityIdx];
+				const FReplicationTemplateIDFragment& TemplateIDFragment = TemplateIDList[EntityIdx];
 
-				//if the bubble has changed, set the handle Invalid. We will set this to something valid if the agent is going to replicate to the bubble
-				//When a bubble has changed the existing AMassCrowdClientBubbleInfo will reset all the data associated with it.
-				if (RepSharedFragment.bBubbleChanged[ClientIdx])
-				{
-					AgentData.Invalidate();
-				}
+				ReplicatedAgent.SetNetID(NetIDFragment.NetID);
+				ReplicatedAgent.SetTemplateID(TemplateIDFragment.ID);
 
-				//now we need to see what our highest viewer LOD is on this client (split screen etc), we can use the unsafe version as we have already checked all the
-				//CachedClientHandles for validity
-				const FClientViewerHandles& ClientViewers = ReplicationContext.ReplicationSubsystem.GetClientViewersChecked(ClientHandle);
+				AgentData.Handle = AddEntity(Context, EntityIdx, ReplicatedAgent, ClientHandle);
 
-				EMassLOD::Type HighestLOD = EMassLOD::Off;
-
-				for (const FMassViewerHandle& ViewerHandle : ClientViewers.Handles)
-				{
-					//this should always we valid as we synchronized the viewers just previously
-					check(ReplicationContext.LODSubsystem.IsValidViewer(ViewerHandle));
-
-					const EMassLOD::Type MassLOD = ViewerLODList[EntityIdx].LODPerViewer[ViewerHandle.GetIndex()];
-					check(MassLOD <= EMassLOD::Off);
-
-					if (HighestLOD > MassLOD)
-					{
-						HighestLOD = MassLOD;
-					}
-				}
-
-				if (HighestLOD < EMassLOD::Off)
-				{
-#if UE_ALLOW_DEBUG_REPLICATION
-					AgentData.LOD = HighestLOD;
-#endif // UE_ALLOW_DEBUG_REPLICATION
-
-					//if the handle isn't valid we need to add the agent
-					if (!AgentData.Handle.IsValid())
-					{
-						typename AgentArrayItem::FReplicatedAgentType ReplicatedAgent;
-
-						const FMassNetworkIDFragment& NetIDFragment = NetworkIDList[EntityIdx];
-						const FReplicationTemplateIDFragment& TemplateIDFragment = TemplateIDList[EntityIdx];
-
-						ReplicatedAgent.SetNetID(NetIDFragment.NetID);
-						ReplicatedAgent.SetTemplateID(TemplateIDFragment.ID);
-
-						AgentData.Handle = AddEntity(Context, EntityIdx, ReplicatedAgent, ClientHandle);
-
-						AgentData.LastUpdateTime = Time;
-					}
-					else
-					{
-						ModifyEntity(Context, EntityIdx, HighestLOD, Time, AgentData.Handle, ClientHandle);
-					}
-				}
-				else
-				{
-					// as this is a fresh handle, if its valid then we can use the unsafe remove function
-					if (AgentData.Handle.IsValid())
-					{
-						RemoveEntity(Context, AgentData.Handle, ClientHandle);
-						AgentData.Invalidate();
-					}
-				}
+				AgentData.LastUpdateTime = Time;
+			}
+			else
+			{
+				ModifyEntity(Context, EntityIdx, LOD, Time, AgentData.Handle, ClientHandle);
+			}
+		}
+		else
+		{
+			// as this is a fresh handle, if its valid then we can use the unsafe remove function
+			if (AgentData.Handle.IsValid())
+			{
+				RemoveEntity(Context, AgentData.Handle, ClientHandle);
+				AgentData.Invalidate();
 			}
 		}
 	}
