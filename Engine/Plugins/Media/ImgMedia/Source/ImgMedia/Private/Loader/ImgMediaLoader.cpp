@@ -808,7 +808,8 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 		}
 		else
 		{
-			MipMapInfo->SetTextureInfo(SequenceName, GetNumMipLevels(), SequenceDim);
+			MipMapInfo->SetTextureInfo(SequenceName, GetNumMipLevels(), NumTilesX, NumTilesY,
+				SequenceDim);
 			if (GetNumMipLevels() > 1)
 			{
 				UncompressedSize = (UncompressedSize * 4) / 3;

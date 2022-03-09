@@ -156,8 +156,6 @@ void FImgMediaMipMapInfoManager::UpdateCameraInfo()
 {
 	CameraInfos.Empty();
 
-	const FString Name = "Unknown";
-
 	// Loop through players.
 	UGameViewportClient* GameViewportClient = GEngine->GameViewport;
 	if (GameViewportClient != nullptr)
@@ -171,7 +169,7 @@ void FImgMediaMipMapInfoManager::UpdateCameraInfo()
 				ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer();
 				if (LocalPlayer != nullptr)
 				{
-					// Get view info.
+					// Get the scene view.
 					FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 						LocalPlayer->ViewportClient->Viewport,
 						World->Scene,
@@ -184,10 +182,8 @@ void FImgMediaMipMapInfoManager::UpdateCameraInfo()
 					// Did we get a view?
 					if (SceneView != nullptr)
 					{
-						// Add camera info.
-						float NearPlaneSize = CalculateNearPlaneSize(SceneView->FOV);
-						float DistAdjust = NearPlaneSize / RefNearPlaneWidth;
-						CameraInfos.Emplace(Name, ViewLocation, 0.0f, DistAdjust);
+						// Add camera info for this scene view.
+						AddCameraInfo(SceneView);
 					}
 				}
 			}
@@ -212,20 +208,37 @@ void FImgMediaMipMapInfoManager::UpdateCameraInfo()
 					FIntPoint ViewportSize = Viewport->GetSizeXY();
 					if ((ViewportSize.X > 0) && (ViewportSize.Y > 0))
 					{
-						// Get the view.
-						const FViewportCameraTransform& ViewTransform = ViewportClient->GetViewTransform();
+						// Get the scene view.
+						FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+							Viewport,
+							ViewportClient->GetScene(),
+							ViewportClient->EngineShowFlags)
+							.SetRealtimeUpdate(ViewportClient->IsRealtime()));
+						FSceneView* SceneView = ViewportClient->CalcSceneView(&ViewFamily);
 						
-						// Add camera info.
-						float NearPlaneSize = CalculateNearPlaneSize(ViewportClient->ViewFOV);
-						float DistAdjust = NearPlaneSize / RefNearPlaneWidth;
-						DistAdjust *= RefFrameBufferWidth / ViewportSize.X;
-						CameraInfos.Emplace(Name, ViewTransform.GetLocation(), ViewportSize.X, DistAdjust);
+						// Add camera info for this scene view.
+						AddCameraInfo(SceneView);
 					}
 				}
 			}
 		}
 	}
 #endif
+}
+
+void FImgMediaMipMapInfoManager::AddCameraInfo(FSceneView* SceneView)
+{
+	float FOV = SceneView->FOV;
+	float ViewRectWidth = SceneView->UnscaledViewRect.Width();
+	float ViewRectHeight = SceneView->UnscaledViewRect.Height();
+		
+	const FVector& ViewLocation = SceneView->ViewMatrices.GetViewOrigin();
+	
+	float NearPlaneSize = CalculateNearPlaneSize(FOV);
+	float DistAdjust = NearPlaneSize / RefNearPlaneWidth;
+	DistAdjust *= RefFrameBufferWidth / ViewRectWidth;
+
+	CameraInfos.Emplace(ViewLocation, SceneView->ViewMatrices.GetViewProjectionMatrix(), ViewRectWidth, DistAdjust);
 }
 
 float FImgMediaMipMapInfoManager::CalculateNearPlaneSize(float InFOV) const

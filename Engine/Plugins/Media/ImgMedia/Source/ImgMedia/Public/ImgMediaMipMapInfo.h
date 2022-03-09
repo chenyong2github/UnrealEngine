@@ -16,17 +16,21 @@ class UMediaTexture;
  */
 struct FImgMediaMipMapCameraInfo
 {
-	FImgMediaMipMapCameraInfo(FString InName, FVector InLocation, float InScreenSize, float InDistAdjust)
-		: Name(InName)
-		, Location(InLocation)
+	FImgMediaMipMapCameraInfo(const FVector& InLocation,
+		const FMatrix& InViewMatrix,
+		float InScreenSize, float InDistAdjust)
+		: Location(InLocation)
+		, ViewMatrix(InViewMatrix)
 		, ScreenSize(InScreenSize)
 		, DistAdjust(InDistAdjust)
 	{
 	}
-	/** Name of this camera. */
-	FString Name;
+
 	/** Position of camera. */
 	FVector Location;
+	/** View projection matrix of camera. */
+	FMatrix ViewMatrix;
+
 	/** Size of screen. */
 	float ScreenSize;
 	/** Adjustment needed to mip level distance calculations due to camera FOV, etc. */
@@ -158,7 +162,8 @@ public:
 	 * @param NumMipMaps Number of mipmaps in our image sequence.
 	 * @param Dim Dimensions of the textures in our image sequence.
 	 */
-	void SetTextureInfo(FName InSequenceName, int NumMipMaps, const FIntPoint& Dim);
+	void SetTextureInfo(FName InSequenceName, int32 NumMipMaps, int32 InNumTilesX, int32 InNumTilesY,
+		const FIntPoint& Dim);
 
 	/**
 	 * Get what mipmap level should be used.
@@ -230,6 +235,19 @@ protected:
 	 */
 	void UpdateMipLevelCache();
 
+	/** Decide which tiles are visible and update CachedTileSelection.
+	 *
+	 * @param CameraInfo				View info to compute visibility from.
+	 * @param ObjectLocation			Position of object.
+	 * @param NextTileXVector			Vector to go from one tile to the next in the X axis.
+	 * @param NextTileYVector			Vector to go from one tile to the next in the Y axis.
+	 * @param TileRadiusInWorldSpace	Radius of a bounding sphere for a tile.
+	 */
+	void CalculateTileVisibility(const FImgMediaMipMapCameraInfo& CameraInfo,
+		const FVector& ObjectLocation, const FVector& NextTileXVector,
+		const FVector& NextTileYVector, float TileRadiusInWorldSpace);
+
+
 	/**
 	 * Updates the MipLevelDistances based on current information.
 	 */
@@ -237,6 +255,10 @@ protected:
 
 	/** Name of this sequence. */
 	FName SequenceName;
+	/** Number of tiles in the X direction. */
+	int32 NumTilesX;
+	/** Number of tiles in the Y direction. */
+	int32 NumTilesY;
 
 	/** Ideal distance for mip level 0. */
 	float MipLevel0Distance;

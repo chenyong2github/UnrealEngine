@@ -11,6 +11,7 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 
 class AActor;
+class FSceneView;
 class IMediaPlayer;
 class UCameraComponent;
 class UImgMediaPlaybackComponent;
@@ -152,6 +153,13 @@ protected:
 	 * Updates our info on the cameras based on current state.
 	 */
 	void UpdateCameraInfo();
+
+	/**
+	 * Add a SceneView to our camera info.
+	 * 
+	 * @param SceneView		The scene view we want to add.
+	 */
+	void AddCameraInfo(FSceneView* SceneView);
 
 	/** Calculate the size of the near plane in physical space.
 	 *

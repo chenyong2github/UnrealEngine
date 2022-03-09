@@ -5,11 +5,17 @@
 #include "ImgMediaMipMapInfoManager.h"
 #include "ImgMediaPrivate.h"
 
+#include "Async/Async.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
+#include "Math/UnrealMathUtility.h"
 #include "MediaTextureTracker.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
 
 DECLARE_CYCLE_STAT(TEXT("ImgMedia MipMap Update Cache"), STAT_ImgMedia_MipMapUpdateCache, STATGROUP_Media);
 
@@ -107,10 +113,13 @@ void FImgMediaMipMapInfo::SetMipLevelDistance(float Distance)
 	UpdateMipLevelDistances();
 }
 
-void FImgMediaMipMapInfo::SetTextureInfo(FName InSequenceName, int NumMipMaps, const FIntPoint& Dim)
+void FImgMediaMipMapInfo::SetTextureInfo(FName InSequenceName, int32 NumMipMaps,
+	int32 InNumTilesX, int32 InNumTilesY, const FIntPoint& Dim)
 {
 	SequenceName = InSequenceName;
 	MipLevelDistances.SetNum(NumMipMaps);
+	NumTilesX = InNumTilesX;
+	NumTilesY = InNumTilesY;
 
 	// Set ideal distance for mip level 0 based on various factors.
 	if (bIsMipLevel0DistanceSetManually == false)
@@ -153,6 +162,7 @@ void FImgMediaMipMapInfo::UpdateMipLevelCache()
 
 	CachedMipLevel = 0;
 	CachedTileSelection.SetAllVisible();
+	bool bHasTiles = (NumTilesX > 1) || (NumTilesY > 1);
 
 	// Loop over all objects.
 	float ClosestDistToCamera = TNumericLimits<float>::Max();
@@ -164,10 +174,37 @@ void FImgMediaMipMapInfo::UpdateMipLevelCache()
 			AActor* Object = Info->Object.Get();
 			if (Object != nullptr)
 			{
-				// Get closest distance to camera.
 				FVector ObjectLocation = Object->GetActorLocation();
+				
+				const FTransform ObjectTransform = Object->GetTransform();
+				FVector ObjectScale = Object->GetActorScale();
+				
+				// Set up for tiles.
+				float TileWidthInWorldSpace = 0.0f;
+				float TileHeightInWorldSpace = 0.0f;
+				float TileRadiusInWorldSpace = 0.0f;
+				FVector NextTileXVector;
+				FVector NextTileYVector;
+				if (bHasTiles)
+				{
+					// Get size of tile in world space.
+					TileWidthInWorldSpace = ObjectScale.X * Info->Width / ((float)NumTilesX);
+					TileHeightInWorldSpace = ObjectScale.Y * Info->Height / ((float)NumTilesY);
+					TileRadiusInWorldSpace = FMath::Max(TileWidthInWorldSpace, TileHeightInWorldSpace) * 0.5f;
+
+					// Get vectors to go from one tile to the next in world space.
+					FVector TilePosInObjectSpace(0.0f, TileWidthInWorldSpace, 0.0f);
+					FVector TilePos = ObjectTransform.TransformPositionNoScale(TilePosInObjectSpace);
+					NextTileXVector = TilePos - ObjectLocation;
+					TilePosInObjectSpace.Set(0.0f, 0.0f, TileHeightInWorldSpace);
+					TilePos = ObjectTransform.TransformPositionNoScale(TilePosInObjectSpace);
+					NextTileYVector = TilePos - ObjectLocation;
+				}
+
 				for (const FImgMediaMipMapCameraInfo& CameraInfo : CameraInfos)
 				{
+					// Mips calculation.
+					// Get closest distance to camera.
 					float DistToCamera = GetObjectDistToCamera(CameraInfo.Location, ObjectLocation);
 					float AdjustedDistToCamera = DistToCamera;
 
@@ -191,6 +228,13 @@ void FImgMediaMipMapInfo::UpdateMipLevelCache()
 					{
 						ClosestDistToCamera = AdjustedDistToCamera;
 					}
+
+					// See which tiles are visible.
+					if (bHasTiles)
+					{
+						CalculateTileVisibility(CameraInfo, ObjectLocation, NextTileXVector,
+							NextTileYVector, TileRadiusInWorldSpace);
+					}
 				}
 			}
 		}
@@ -205,6 +249,74 @@ void FImgMediaMipMapInfo::UpdateMipLevelCache()
 	
 	// Mark cache as valid.
 	bIsCachedMipLevelValid = true;
+}
+
+void FImgMediaMipMapInfo::CalculateTileVisibility(const FImgMediaMipMapCameraInfo& CameraInfo,
+	const FVector& ObjectLocation, const FVector& NextTileXVector,
+	const FVector& NextTileYVector, float TileRadiusInWorldSpace)
+{
+	// Get frustum.
+	FConvexVolume ViewFrustum;
+	GetViewFrustumBounds(ViewFrustum, CameraInfo.ViewMatrix, false);
+
+	// This is the middle of the object.
+	FVector TileStartPos = ObjectLocation;
+
+	// Loop over Y.
+	for (int32 TileY = 0; TileY < NumTilesY; ++TileY)
+	{
+		// Y needs to be flipped so that 0 is at the top.
+		// - NumTiles/2 so we start at the corner.
+		// + 0.5 so the position is the middle of the tile.
+		float TileMultY = (NumTilesY - TileY - 1) - ((float)NumTilesY) / 2.0f + 0.5f;
+
+		// Loop over X.
+		for (int32 TileX = 0; TileX < NumTilesX; ++TileX)
+		{
+			float TileMultX = TileX - ((float)NumTilesX) / 2.0f + 0.5f;
+			FVector TilePos = TileStartPos + NextTileXVector * TileMultX +
+				NextTileYVector * TileMultY;
+
+			// Is this tile visible?
+			if (ViewFrustum.IntersectSphere(TilePos, TileRadiusInWorldSpace))
+			{
+				// Is the cache initialized to all visible?
+				if (CachedTileSelection.BottomRightX != 0xffff)
+				{
+					// Nope.
+					// Add this tile to the selection.
+					CachedTileSelection.TopLeftX = FMath::Min(
+						CachedTileSelection.TopLeftX, (uint16)TileX);
+					CachedTileSelection.TopLeftY = FMath::Min(
+						CachedTileSelection.TopLeftY, (uint16)TileY);
+					CachedTileSelection.BottomRightX = FMath::Max(
+						CachedTileSelection.BottomRightX, (uint16)(TileX + 1));
+					CachedTileSelection.BottomRightY = FMath::Max(
+						CachedTileSelection.BottomRightY, (uint16)(TileY + 1));
+				}
+				else
+				{
+					// Yes.
+					// Set tile selection to this tile.
+					CachedTileSelection.TopLeftX = TileX;
+					CachedTileSelection.TopLeftY = TileY;
+					CachedTileSelection.BottomRightX = TileX + 1;
+					CachedTileSelection.BottomRightY = TileY + 1;
+				}
+				
+				// Enable this to draw a sphere where each tile is.
+#if false
+#if WITH_EDITOR
+				Async(EAsyncExecution::TaskGraphMainThread, [TilePos, TileRadiusInWorldSpace]()
+				{
+					UWorld* World = GEditor->GetEditorWorldContext().World();
+					DrawDebugSphere(World, TilePos, TileRadiusInWorldSpace, 6, FColor::Red);
+				});
+#endif // WITH_EDITOR
+#endif // false
+			}
+		}
+	}
 }
 
 void FImgMediaMipMapInfo::Tick(float DeltaTime)
