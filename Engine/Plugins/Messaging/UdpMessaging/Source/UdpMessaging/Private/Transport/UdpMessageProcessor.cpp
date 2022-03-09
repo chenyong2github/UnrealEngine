@@ -3,6 +3,7 @@
 #include "Transport/UdpMessageProcessor.h"
 #include "Algo/AllOf.h"
 #include "Algo/Transform.h"
+#include "INetworkMessagingExtension.h"
 #include "UdpMessagingPrivate.h"
 
 #include "Common/UdpSocketSender.h"
@@ -30,6 +31,17 @@
 const int32 FUdpMessageProcessor::DeadHelloIntervals = 5;
 
 
+namespace UE::Private::MessageProcessor
+{
+
+FOnTransferDataUpdated& OnSegmenterUpdated()
+{
+	static FOnTransferDataUpdated OnTransferUpdated;
+
+	return OnTransferUpdated;
+}
+
+}
 /* FUdpMessageProcessor structors
  *****************************************************************************/
 
@@ -98,6 +110,16 @@ void FUdpMessageProcessor::RemoveStaticEndpoint(const FIPv4Endpoint& InEndpoint)
 	{
 		Beacon->RemoveStaticEndpoint(InEndpoint);
 	}
+}
+
+TArray<FIPv4Endpoint> FUdpMessageProcessor::GetKnownEndpoints() const
+{
+	TArray<FIPv4Endpoint> Endpoints;
+	for (const auto& NodePair : KnownNodes)
+	{
+		Endpoints.Add(NodePair.Value.Endpoint);
+	}
+	return Endpoints;
 }
 
 /* FUdpMessageProcessor interface
@@ -176,10 +198,10 @@ bool FUdpMessageProcessor::EnqueueOutboundMessage(const TSharedRef<IMessageConte
 	return true;
 }
 
-FUdpMessageTransportStatistics FUdpMessageProcessor::GetStats(FGuid Node) const
+FMessageTransportStatistics FUdpMessageProcessor::GetStats(FGuid Node) const
 {
 	FScopeLock NodeVersionLock(&StatisticsCS);
-	if (FUdpMessageTransportStatistics const* Stats = NodeStats.Find(Node))
+	if (FMessageTransportStatistics const* Stats = NodeStats.Find(Node))
 	{
 		return *Stats;
 	}
@@ -188,6 +210,7 @@ FUdpMessageTransportStatistics FUdpMessageProcessor::GetStats(FGuid Node) const
 
 void FUdpMessageProcessor::SendSegmenterStatsToListeners(int32 MessageId, FGuid NodeId, const TSharedPtr<FUdpMessageSegmenter>& Segmenter)
 {
+	FOnTransferDataUpdated& SegmenterUpdatedDelegate = UE::Private::MessageProcessor::OnSegmenterUpdated();
 	if(!SegmenterUpdatedDelegate.IsBound())
 	{
 		return;
@@ -198,13 +221,14 @@ void FUdpMessageProcessor::SendSegmenterStatsToListeners(int32 MessageId, FGuid 
 		return;
 	}
 	uint32 SegmentCount = Segmenter->GetSegmentCount();
-	SegmenterUpdatedDelegate.Execute(
+	SegmenterUpdatedDelegate.Broadcast(
 		{
 			NodeId,
 			MessageId,
-			SegmentCount - Segmenter->GetPendingSendSegmentsCount(),
-			Segmenter->GetAcknowledgedSegmentsCount(),
-			SegmentCount
+			// Convert segment data into bytes.
+			UDP_MESSAGING_SEGMENT_SIZE * SegmentCount,
+			UDP_MESSAGING_SEGMENT_SIZE * (SegmentCount - Segmenter->GetPendingSendSegmentsCount()),
+			UDP_MESSAGING_SEGMENT_SIZE * (Segmenter->GetAcknowledgedSegmentsCount())
 		});
 }
 
@@ -642,7 +666,7 @@ void FUdpMessageProcessor::ProcessDataSegment(FInboundSegment& Segment, FNodeInf
 		}
 	}
 
-	NodeInfo.Statistics.SegmentsReceived++;
+	NodeInfo.Statistics.PacketsReceived++;
 	ReassembledMessage->Reassemble(DataChunk.SegmentNumber, DataChunk.SegmentOffset, DataChunk.Data, CurrentTime);
 
 	// Deliver or re-sequence message
@@ -961,7 +985,7 @@ FSentSegmentInfo FUdpMessageProcessor::SendNextSegmentForMessageId(FNodeInfo& No
 
 		Segmenter->MarkAsSent(DataChunk.SegmentNumber);
 
-		NodeInfo.Statistics.SegmentsSent++;
+		NodeInfo.Statistics.PacketsSent++;
 		SentInfo.BytesSent += Writer->Num();
 		SentInfo.SequenceNumber = ++NodeInfo.SequenceId;
 		SentInfo.bIsReliable = EnumHasAnyFlags(Segmenter->GetMessageFlags(), EMessageFlags::Reliable);
@@ -987,9 +1011,9 @@ FSentSegmentInfo FUdpMessageProcessor::SendNextSegmentForMessageId(FNodeInfo& No
 		SentInfo.bRequiresRequeue = true;
 	}
 
-	NodeInfo.Statistics.BytesSent += SentInfo.BytesSent;
-	NodeInfo.Statistics.IpAddress = NodeInfo.Endpoint;
-	NodeInfo.Statistics.SegmentsInFlight = NodeInfo.InflightSegments.Num();
+	NodeInfo.Statistics.TotalBytesSent += SentInfo.BytesSent;
+	NodeInfo.Statistics.IPv4AsString = NodeInfo.Endpoint.ToString();
+	NodeInfo.Statistics.PacketsInFlight = NodeInfo.InflightSegments.Num();
 	return MoveTemp(SentInfo);
 }
 

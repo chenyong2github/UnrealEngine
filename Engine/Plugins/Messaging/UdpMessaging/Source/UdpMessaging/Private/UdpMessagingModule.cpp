@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "UdpMessageProcessor.h"
 #include "UdpMessagingPrivate.h"
 
 #include "CoreTypes.h"
@@ -377,7 +378,56 @@ public:
 		AdditionalStaticEndpoints.Empty();
 	}
 
-	virtual void AddEndpoint(const FString& InEndpoint)
+	virtual bool CanProvideNetworkStatistics() const override
+	{
+		return true;
+	}
+
+	virtual FMessageTransportStatistics GetLatestNetworkStatistics(FGuid NodeId) const override
+	{
+		if (auto Transport = WeakBridgeTransport.Pin())
+		{
+			return Transport->GetLatestStatistics(NodeId);
+		}
+		return {};
+	}
+
+	virtual FOnTransferDataUpdated& OnTransferUpdatedFromThread() override
+	{
+		return UE::Private::MessageProcessor::OnSegmenterUpdated();
+	}
+
+	virtual TArray<FString> GetListeningAddresses() const override
+	{
+		if (auto Transport = WeakBridgeTransport.Pin())
+		{
+			TArray<FString> StringifiedEndpoints;
+			TArray<FIPv4Endpoint> Endpoints = Transport->GetListeningAddresses();
+			for (const FIPv4Endpoint& Endpoint : Endpoints)
+			{
+				StringifiedEndpoints.Add(Endpoint.ToString());
+			}
+			return StringifiedEndpoints;
+		}
+		return {};
+	}
+
+	virtual TArray<FString> GetKnownEndpoints() const override
+	{
+		if (auto Transport = WeakBridgeTransport.Pin())
+		{
+			TArray<FIPv4Endpoint> Endpoints = Transport->GetKnownEndpoints();
+			TArray<FString> StringifiedEndpoints;
+			for (const FIPv4Endpoint& Endpoint : Endpoints)
+			{
+				StringifiedEndpoints.Add(Endpoint.ToString());
+			}
+			return StringifiedEndpoints;
+		}
+		return {};
+	}
+
+	virtual void AddEndpoint(const FString& InEndpoint) override
 	{
 		if (auto Transport = WeakBridgeTransport.Pin())
 		{
@@ -391,7 +441,7 @@ public:
 		}
 	}
 
-	virtual void RemoveEndpoint(const FString& InEndpoint)
+	virtual void RemoveEndpoint(const FString& InEndpoint) override
 	{
 		if (auto Transport = WeakBridgeTransport.Pin())
 		{

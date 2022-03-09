@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Transport/UdpMessageTransport.h"
+#include "INetworkMessagingExtension.h"
 #include "UdpMessagingPrivate.h"
 
 #include "Common/UdpSocketBuilder.h"
@@ -89,6 +90,37 @@ FName FUdpMessageTransport::GetDebugName() const
 	return "UdpMessageTransport";
 }
 
+TArray<FIPv4Endpoint> FUdpMessageTransport::GetKnownEndpoints() const
+{
+	if (MessageProcessor)
+	{
+		return MessageProcessor->GetKnownEndpoints();
+	}
+	return {};
+}
+
+FMessageTransportStatistics FUdpMessageTransport::GetLatestStatistics(FGuid NodeId) const
+{
+	if (MessageProcessor)
+	{
+		return MessageProcessor->GetStats(NodeId);
+	}
+	return {};
+}
+
+TArray<FIPv4Endpoint> FUdpMessageTransport::GetListeningAddresses() const
+{
+	TArray<FIPv4Endpoint> Listeners;
+#if PLATFORM_DESKTOP
+	Listeners.Add(UnicastEndpoint);
+#endif
+
+#if PLATFORM_SUPPORTS_UDP_MULTICAST_GROUP
+	Listeners.Add(MulticastEndpoint);
+#endif
+
+	return Listeners;
+}
 
 bool FUdpMessageTransport::StartTransport(IMessageTransportHandler& Handler)
 {

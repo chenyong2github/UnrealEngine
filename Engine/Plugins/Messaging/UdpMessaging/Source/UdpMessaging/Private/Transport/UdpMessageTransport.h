@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Delegates/IDelegateInstance.h"
 #include "IMessageTransport.h"
+#include "INetworkMessagingExtension.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "IMessageAttachment.h"
 #include "Templates/SharedPointer.h"
@@ -71,6 +72,22 @@ public:
 	virtual bool StartTransport(IMessageTransportHandler& Handler) override;
 	virtual void StopTransport() override;
 	virtual bool TransportMessage(const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context, const TArray<FGuid>& Recipients) override;
+
+	/**
+	 * Get the IPv4Endpoint listening addresses.
+	 */
+	TArray<FIPv4Endpoint> GetListeningAddresses() const;
+
+	/**
+	 * Get the known endpoints that are in active communication with the UDP transport. This is information
+	 * known by the processor.
+	 */
+	TArray<FIPv4Endpoint> GetKnownEndpoints() const;
+
+	/**
+	 * Retrieve the latest network statistics for the given node.
+	 */
+	FMessageTransportStatistics GetLatestStatistics(FGuid NodeId) const;
 
 private:
 

@@ -13,6 +13,7 @@
 #include "IMessageContext.h"
 #include "IMessageTransport.h"
 
+#include "INetworkMessagingExtension.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
@@ -107,7 +108,13 @@ struct FSentSegmentInfo
 	}
 };
 
-DECLARE_DELEGATE_OneParam(FOnSegmenterUpdated, FUdpSegmenterStats)
+namespace UE::Private::MessageProcessor
+{
+/**
+ * Global delegate for handling segmenter updates.
+ */
+FOnTransferDataUpdated& OnSegmenterUpdated();
+}
 
 /**
  * Implements a message processor for UDP messages.
@@ -153,7 +160,7 @@ class FUdpMessageProcessor
 		uint64 WindowSize = 64;
 
 		/** Various transport statistics for this endpoint */
-		FUdpMessageTransportStatistics Statistics;
+		FMessageTransportStatistics Statistics;
 
 		/** Default constructor. */
 		FNodeInfo()
@@ -259,7 +266,7 @@ class FUdpMessageProcessor
 				// In the case of segment loss half our window size to a minimum value.
 				WindowSize = FGenericPlatformMath::Max<uint64>(WindowSize/2, MinimumWindowSize);
 			}
-			Statistics.AcksReceived += NumAcks;
+			Statistics.PacketsAcked += NumAcks;
 			Statistics.WindowSize = WindowSize;
 		}
 
@@ -349,7 +356,7 @@ class FUdpMessageProcessor
 				}
 				return bIsLost;
 			});
-			Statistics.SegmentsLost += SegmentsLost;
+			Statistics.PacketsLost += SegmentsLost;
 			return SegmentsLost;
 		}
 
@@ -523,7 +530,7 @@ public:
 	/**
 	 * Get the current running network statistics for the given node.
 	 */
-	FUdpMessageTransportStatistics GetStats(FGuid Node) const;
+	FMessageTransportStatistics GetStats(FGuid Node) const;
 
 public:
 
@@ -577,13 +584,7 @@ public:
 		return ErrorDelegate;
 	}
 
-	/**
-	 * Delegate is invoked whenever a segmenter is added/removed or updated.
-	 */
-	FOnSegmenterUpdated& OnSegmenterUpdated()
-	{
-		return SegmenterUpdatedDelegate;
-	}
+	TArray<FIPv4Endpoint> GetKnownEndpoints() const;
 
 public:
 
@@ -792,7 +793,7 @@ private:
 	mutable FCriticalSection StatisticsCS;
 
 	/** Map that holds latest statistics for network transmission */
-	TMap<FGuid, FUdpMessageTransportStatistics> NodeStats;
+	TMap<FGuid, FMessageTransportStatistics> NodeStats;
 
 	/** Mutex protecting access to the NodeVersions map. */
 	mutable FCriticalSection NodeVersionCS;
@@ -841,9 +842,6 @@ private:
 
 	/** Holds a delegate to be invoked when a socket error happen. */
 	FOnError ErrorDelegate;
-
-	/** Holds the segmenter updated delegate */
-	FOnSegmenterUpdated SegmenterUpdatedDelegate;
 
 	/** The configured message format (from UUdpMessagingSettings). */
 	EUdpMessageFormat MessageFormat;
