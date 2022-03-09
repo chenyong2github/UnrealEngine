@@ -40,8 +40,7 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 		// Mesh Batches can "null" when they have zero triangles.  Check the MaterialRenderProxy before accessing.
 		if (MeshBatch.bUseForMaterial && MeshBatch.MaterialRenderProxy)
 		{
-			const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-			const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
+			const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
 			const EBlendMode BlendMode = Material.GetBlendMode();
 			Result.Mask |= ComputeBlendModeMask(BlendMode);
 			bAllSegmentsOpaque &= BlendMode == BLEND_Opaque;
