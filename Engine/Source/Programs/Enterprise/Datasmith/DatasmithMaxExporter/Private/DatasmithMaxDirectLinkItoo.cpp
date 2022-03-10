@@ -49,18 +49,29 @@ bool ConvertRailClone(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker, Ob
 	{
 		return false;
 	}
+	TRCEngineFeatures RCFeatures;
+	RCFeatures.rcAPIversion;
+	RCFeatures.renderAPIversion;
+	RCFeatures.supportNoGeomObjects = false; // todo: support non-mesh objects
+	RCFeatures.disableMaterialBaking; // todo: might handle this ourselves
+
+	if (RCStaticInterface->functions.Count() > 2) // Check that RC version is at least 3(see SDK)
+	{
+		RCStaticInterface->IRCSetEngineFeatures(INT_PTR(&RCFeatures)); // fills rcAPIversion
+	}
+
+	LogDebug(FString::Printf(TEXT("RCEngine:  sdk version=%d, runtime version:%d"), RCFeatures.renderAPIversion, RCFeatures.rcAPIversion));
 
 	RCInterface->IRCRenderBegin(CurrentTime);
 
 	int NumInstances;
-	TRCInstance* RCInstance = (TRCInstance *)RCInterface->IRCGetInstances(NumInstances);
+	TRCInstance* RCInstance = RCGetInstances(RCInterface, RCFeatures, NumInstances);
 
-	if (RCInstance && NumInstances > 0)
+	if (RCInstance && NumInstances > 0) // Required to check for null by the SDK
 	{
 		// todo: materials
 		// MaterialEnum(RailCloneNode->GetMtl(), true);
 		int32 NextMeshIndex = 0;
-
 
 		struct FHismInstances
 		{
@@ -73,7 +84,8 @@ bool ConvertRailClone(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker, Ob
 		TArray<FHismInstances> InstancesForMesh;
 		InstancesForMesh.Reserve(NumInstances);
 		TMap<Mesh*, int32> RenderableNodeIndicesMap;
-		for (int j = 0; j < NumInstances; j++, RCInstance++)
+
+		for (int j = 0; j < NumInstances; j++, RCInstance = RCGetNextInstance(RCInstance, RCFeatures))
 		{
 			if (RCInstance && RCInstance->mesh)
 			{
