@@ -227,6 +227,9 @@ namespace Horde.Storage.Implementation
                         if (haveAttemptedSnapshot)
                             throw new AggregateException(useSnapshotException);
 
+                        // if we fail to replicate incrementally we revert to using a snapshot
+                        haveAttemptedSnapshot = true;
+
                         // if we are told to use a snapshot but are configured to not do so we will simply reset the state tracking and thus start from the oldest incremental event
                         // this will result in a partial replication
                         if (_replicatorSettings.SkipSnapshot)
@@ -237,8 +240,6 @@ namespace Horde.Storage.Implementation
                             continue;
                         }
 
-                        // if we fail to replicate incrementally we revert to using a snapshot
-                        haveAttemptedSnapshot = true;
                         (string eventBucket, Guid eventId, int countOfEventsReplicated) = await ReplicateFromSnapshot(ns, replicationToken, useSnapshotException.SnapshotBlob, INamespacePolicyResolver.JupiterInternalNamespace);
                         countOfReplicationsDone += countOfEventsReplicated;
 
