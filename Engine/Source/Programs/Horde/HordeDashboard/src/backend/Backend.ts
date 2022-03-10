@@ -1060,19 +1060,15 @@ export class Backend {
 
     }
 
-    getJobStepTestDataByKey(jobId: string, stepId: string, key: string): Promise<TestData[]> {
-        return new Promise<TestData[]>((resolve, reject) => {
-            this.backend.get(`/api/v1/testdata?JobId=${jobId}&JobStepId=${stepId}&Key=${key}`).then((value) => {
-                resolve(value.data as TestData[]);
-            }).catch((reason) => {
-                reject(reason);
-            });
-        });
-    }
-
-    getTestData(id: string): Promise<TestData> {
+    getTestData(id: string, filter?: string): Promise<TestData> {
         return new Promise<TestData>((resolve, reject) => {
-            this.backend.get(`/api/v1/testdata/${id}`).then((value) => {
+            const params: any = {
+                filter: 'id,key,change,jobId,stepId,streamId,' + (filter? filter : 'data')
+            };
+
+            this.backend.get(`/api/v1/testdata/${id}`, {
+                params: params
+            }).then((value) => {
                 resolve(value.data as TestData);
             }).catch((reason) => {
                 reject(reason);
@@ -1084,7 +1080,7 @@ export class Backend {
         return new Promise<TestData[]>((resolve, reject) => {
             const params: any = {
                 jobId: jobId,
-                filter: 'key,id,stepId',
+                filter: 'id,key,change,jobId,stepId,streamId',
                 count: 200,
             };
 
@@ -1102,13 +1098,13 @@ export class Backend {
         });
     }
 
-    getTestDataHistory(streamId: string, key: string, maxChange?: number, count: number = 30, index?: number): Promise<TestData[]> {
+    getTestDataHistory(streamId: string, key: string, maxChange?: number, count: number = 30, index?: number, filter?: string): Promise<TestData[]> {
         return new Promise<TestData[]>((resolve, reject) => {
             const params: any = {
                 streamId: streamId,
                 key: key,
                 count: count,
-                filter: 'id,change,data'
+                filter: 'id,key,change,jobId,stepId,streamId,' + (filter? filter : 'data')
             };
 
             if (maxChange) {

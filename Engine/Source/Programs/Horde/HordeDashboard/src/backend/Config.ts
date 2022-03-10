@@ -12,6 +12,7 @@ const dev = {
 	"environment": "dev",
 	"datadogClient" : "",
 	"plugins": [
+		"AutomatedTestSession",
 		"UnrealAutomatedTests",
 		"SimpleTestReport"
 	]
@@ -21,6 +22,7 @@ const prod = {
 	"environment": "production",
 	"datadogClient" : "",
 	"plugins": [
+		"AutomatedTestSession",
 		"UnrealAutomatedTests",
 		"SimpleTestReport"
 	]
