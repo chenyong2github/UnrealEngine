@@ -236,7 +236,8 @@ namespace EpicGames.UHT.Parsers
 
 		public UhtPropertySpecifierContext(UhtParsingScope Scope, IUhtMessageSite MessageSite) : base(Scope, MessageSite, UhtMetaData.Empty)
 		{
-			this.PropertySettings = new UhtPropertySettings(Scope.ScopeType, 1, UhtPropertyCategory.Member, 0);
+			this.PropertySettings = new UhtPropertySettings();
+			this.PropertySettings.Reset(Scope.ScopeType, 1, UhtPropertyCategory.Member, 0);
 		}
 	}
 

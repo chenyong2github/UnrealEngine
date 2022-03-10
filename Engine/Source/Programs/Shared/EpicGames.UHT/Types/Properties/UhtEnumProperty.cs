@@ -251,7 +251,8 @@ namespace EpicGames.UHT.Types
 
 		private UhtProperty CreateUnderlyingProperty()
 		{
-			UhtPropertySettings PropertySettings = new UhtPropertySettings(this, 0, this.PropertyCategory, 0);
+			UhtPropertySettings PropertySettings = new UhtPropertySettings();
+			PropertySettings.Reset(this, 0, this.PropertyCategory, 0);
 			PropertySettings.SourceName = "UnderlyingType";
 			switch (this.UnderlyingType)
 			{

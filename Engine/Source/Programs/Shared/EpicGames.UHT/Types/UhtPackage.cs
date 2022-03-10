@@ -9,22 +9,47 @@ using UnrealBuildBase;
 
 namespace EpicGames.UHT.Types
 {
+
+	/// <summary>
+	/// Represents a UPackage in the engine
+	/// </summary>
 	[UhtEngineClass(Name = "Package")]
 	public class UhtPackage : UhtObject
 	{
-		public readonly int PackageTypeIndex;
-		public EPackageFlags PackageFlags { get; internal set; } = EPackageFlags.None;
-		public UHTManifest.Module Module { get; internal set; }
 
+		/// <summary>
+		/// Unique index of the package
+		/// </summary>
+		public readonly int PackageTypeIndex;
+
+		/// <summary>
+		/// Engine package flags
+		/// </summary>
+		public EPackageFlags PackageFlags { get; set; } = EPackageFlags.None;
+
+		/// <summary>
+		/// UHT module of the package (1 to 1 relationship)
+		/// </summary>
+		public UHTManifest.Module Module { get; set; }
+
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public override UhtEngineType EngineType => UhtEngineType.Package;
 
+		/// <inheritdoc/>
+		public override string EngineClassName { get => "Package"; }
+
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public override UhtPackage Package => this;
 
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public override UhtHeaderFile HeaderFile => throw new NotImplementedException();
 
+		/// <summary>
+		/// True if the package is part of the engine
+		/// </summary>
 		[JsonIgnore]
 		public bool bIsPartOfEngine
 		{
@@ -52,15 +77,23 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <summary>
+		/// True if the package is a plugin
+		/// </summary>
 		[JsonIgnore]
 		public bool bIsPlugin => this.Module.BaseDirectory.Replace('\\', '/').Contains("/Plugins/");
 
-
+		/// <summary>
+		/// Short name of the package (without the /Script/)
+		/// </summary>
 		public string ShortName;
 
-		/// <inheritdoc/>
-		public override string EngineClassName { get => "Package"; }
-
+		/// <summary>
+		/// Construct a new instance of a package
+		/// </summary>
+		/// <param name="Session">Running session</param>
+		/// <param name="Module">Source module of the package</param>
+		/// <param name="PackageFlags">Assorted package flags</param>
 		public UhtPackage(UhtSession Session, UHTManifest.Module Module, EPackageFlags PackageFlags) : base(Session)
 		{
 			this.Module = Module;
