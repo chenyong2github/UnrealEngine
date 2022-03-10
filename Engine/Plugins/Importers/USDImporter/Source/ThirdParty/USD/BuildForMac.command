@@ -124,10 +124,36 @@ find "$INSTALL_LOCATION" -name "*.pyc" -delete
 echo Removing pxr.Tf.testenv Python module...
 rm -rf "$INSTALL_LOCATION/lib/python/pxr/Tf/testenv"
 
-echo Moving Python modules to Content
+echo Moving Python modules to Content...
 INSTALL_CONTENT_LOCATION="$INSTALL_LOCATION/Content/Python/Lib/Mac/site-packages"
 mkdir -p "$INSTALL_CONTENT_LOCATION"
 mv "$INSTALL_LOCATION/lib/python/pxr" "$INSTALL_CONTENT_LOCATION"
 rmdir "$INSTALL_LOCATION/lib/python"
+
+echo Cleaning @rpath entries for shared libraries...
+for SHARED_LIB in `find $INSTALL_LOCATION -name '*.so' -o -name '*.dylib'`
+do
+    RPATHS_TO_DELETE=(
+        $BOOST_LIB_LOCATION
+        $PYTHON_BINARIES_LOCATION
+        $INSTALL_LIB_LOCATION
+        $INSTALL_PLUGIN_USD_LOCATION
+    )
+
+    OTOOL_OUTPUT=`otool -l $SHARED_LIB`
+
+    for RPATH_TO_DELETE in ${RPATHS_TO_DELETE[@]}
+    do
+        if [[ $OTOOL_OUTPUT == *"path $RPATH_TO_DELETE"* ]]
+        then
+            install_name_tool -delete_rpath $RPATH_TO_DELETE $SHARED_LIB
+        fi
+    done
+
+    # Also replace any architecture-specific libboost_python paths to use the
+    # universal binary instead.
+    install_name_tool -change @rpath/libboost_python39-mt-x64.dylib @rpath/libboost_python39-mt.dylib $SHARED_LIB
+    install_name_tool -change @rpath/libboost_python39-mt-a64.dylib @rpath/libboost_python39-mt.dylib $SHARED_LIB
+done
 
 echo Done.
