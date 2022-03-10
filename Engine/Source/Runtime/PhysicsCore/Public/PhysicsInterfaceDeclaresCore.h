@@ -12,6 +12,10 @@
 #define WITH_CHAOS 0
 #endif
 
+#ifndef WITH_PHYSX
+#define WITH_PHYSX 0
+#endif
+
 #ifndef WITH_IMMEDIATE_PHYSX
 #define WITH_IMMEDIATE_PHYSX 0
 #endif

@@ -5,8 +5,10 @@
 #include "PhysicsPublicCore.h"
 #include "PhysXSupportCore.h"
 #include "Misc/CommandLine.h"
+#if PHYSICS_INTERFACE_PHYSX
 #include "IPhysXCookingModule.h"
 #include "IPhysXCooking.h"
+#endif
 #include "Modules/ModuleManager.h"
 #include "Misc/Paths.h"
 #include "Core/Public/HAL/IConsoleManager.h"

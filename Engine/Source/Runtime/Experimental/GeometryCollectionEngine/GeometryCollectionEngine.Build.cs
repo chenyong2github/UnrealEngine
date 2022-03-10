@@ -20,18 +20,12 @@ namespace UnrealBuildTool.Rules
                     "RenderCore",
                     "RHI",
 					"Renderer",
-                    "PhysX",
                     "FieldSystemEngine",
 	                "ChaosSolverEngine",
 					"NetCore",
                     "IntelISPC"
                 }
                 );
-
-			if (Target.bCompileAPEX)
-			{
-				PublicDependencyModuleNames.Add("APEX");
-			}
 
 			PrivateIncludePathModuleNames.Add("DerivedDataCache");
 

@@ -95,7 +95,7 @@
 #include "MovieSceneSequence.h"
 #include "MovieSceneTimeHelpers.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 #include "DynamicMeshBuilder.h"
 #include "PhysXPublic.h"
 #include "geometry/PxConvexMesh.h"

@@ -17,8 +17,10 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsPublic.h"
+#if PHYSICS_INTERFACE_PHYSX
 #include "IPhysXCooking.h"
 #include "PhysXCookHelper.h"
+#endif
 #include "Misc/RuntimeErrors.h"
 #include "Engine/Engine.h"
 #include "UObject/UObjectThreadContext.h"

@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
+#if PHYSICS_INTERFACE_PHYSX
 #include "PhysXCookHelper.h"
 #include "PhysXSupport.h"
 #include "IPhysXCookingModule.h"
-
-#if PHYSICS_INTERFACE_PHYSX
-
 #include "IPhysXCooking.h"
 
 FPhysXCookHelper::FPhysXCookHelper(IPhysXCookingModule* InPhysXCookingModule)

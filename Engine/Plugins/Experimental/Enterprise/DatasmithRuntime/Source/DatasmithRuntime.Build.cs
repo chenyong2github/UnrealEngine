@@ -39,7 +39,6 @@ public class DatasmithRuntime : ModuleRules
 				"RawMesh",
 				"RHI",
 				"PhysicsCore",
-				"RuntimePhysXCooking",
 				"RenderCore",
 				"SlateCore",
 				"StaticMeshDescription",

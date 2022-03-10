@@ -35,7 +35,7 @@
 
 #include "Modules/ModuleManager.h"
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	#include "IPhysXCookingModule.h"
 	#include "IPhysXCooking.h"
 	#include "PhysicsEngine/PhysDerivedData.h"
@@ -62,7 +62,7 @@
 
 
 FCookBodySetupInfo::FCookBodySetupInfo() :
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 	TriMeshCookFlags(EPhysXMeshCookFlags::Default) ,
 	ConvexCookFlags(EPhysXMeshCookFlags::Default) ,
 #endif // WITH_PHYSX
@@ -217,7 +217,7 @@ void UBodySetup::AddCollisionFrom(const FKAggregateGeom& FromAggGeom)
 
 void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlags InCookFlags) const
 {
-#if WITH_PHYSX
+
 
 	OutCookInfo.OuterDebugName = GetOuter()->GetPathName();
 	OutCookInfo.bConvexDeformableMesh = false;
@@ -274,10 +274,12 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 			// Get cook flags to use
 			OutCookInfo.ConvexCookFlags = InCookFlags;
 			OutCookInfo.bConvexDeformableMesh = GetOuter()->IsA(USplineMeshComponent::StaticClass());
+#if PHYSICS_INTERFACE_PHYSX
 			if (OutCookInfo.bConvexDeformableMesh)
 			{
 				OutCookInfo.ConvexCookFlags |= EPhysXMeshCookFlags::DeformableMesh;
 			}
+#endif
 		}
 	}
 	else
@@ -313,7 +315,7 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 
 			// Set up cooking flags
 			EPhysXMeshCookFlags CookFlags = InCookFlags;
-
+#if PHYSICS_INTERFACE_PHYSX
 			if (TriangleMeshDesc.bDeformableMesh)
 			{
 				CookFlags |= EPhysXMeshCookFlags::DeformableMesh;
@@ -328,7 +330,7 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 			{
 				CookFlags |= EPhysXMeshCookFlags::DisableActiveEdgePrecompute;
 			}
-
+#endif
 			OutCookInfo.TriMeshCookFlags = CookFlags;
 
 			OutCookInfo.bSupportFaceRemap = bSupportUVsAndFaceRemap;
@@ -341,7 +343,7 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 
 	OutCookInfo.bSupportUVFromHitResults = UPhysicsSettings::Get()->bSupportUVFromHitResults || bSupportUVsAndFaceRemap;
 
-#endif // WITH_PHYSX
+
 }
 
 void FBodySetupUVInfo::FillFromTriMesh(const FTriMeshCollisionData& TriangleMeshDesc)
@@ -1433,7 +1435,7 @@ void UBodySetup::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPla
 }
 #endif
 
-#if WITH_PHYSX
+#if PHYSICS_INTERFACE_PHYSX
 EPhysXMeshCookFlags UBodySetup::GetRuntimeOnlyCookOptimizationFlags() const
 {
 	EPhysXMeshCookFlags RuntimeCookFlags = EPhysXMeshCookFlags::Default;
