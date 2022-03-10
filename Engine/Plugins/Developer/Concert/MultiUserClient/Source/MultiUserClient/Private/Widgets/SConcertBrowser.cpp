@@ -27,6 +27,7 @@
 #include "Internationalization/Regex.h"
 #include "Misc/AsyncTaskNotification.h"
 #include "Misc/TextFilter.h"
+#include "Misc/MessageDialog.h"
 #include "Styling/AppStyle.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/Images/SImage.h"
