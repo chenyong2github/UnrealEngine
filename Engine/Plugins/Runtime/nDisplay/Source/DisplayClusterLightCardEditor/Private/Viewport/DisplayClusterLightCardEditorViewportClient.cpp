@@ -91,7 +91,6 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorViewportClient()
 {
 	EndTransaction();
-	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 }
 
 FLinearColor FDisplayClusterLightCardEditorViewportClient::GetBackgroundColor() const
@@ -588,9 +587,6 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				LightCardProxies.Add(LightCardProxy);
 				MeshProjectionRenderer->AddActor(LightCardProxy);
 			}
-
-			FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
-			FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FDisplayClusterLightCardEditorViewportClient::OnActorPropertyChanged);
 		});
 	}
 }
@@ -655,51 +651,6 @@ void FDisplayClusterLightCardEditorViewportClient::EndTransaction()
 	{
 		delete ScopedTransaction;
 		ScopedTransaction = nullptr;
-	}
-}
-
-void FDisplayClusterLightCardEditorViewportClient::OnActorPropertyChanged(UObject* ObjectBeingModified,
-                                                                          FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
-	{
-		return;
-	}
-
-	auto IsOurActor = [ObjectBeingModified] (UObject* ObjectToCompare) -> bool
-	{
-		if (ObjectToCompare)
-		{
-			if (ObjectBeingModified == ObjectToCompare)
-			{
-				return true;
-			}
-
-			if (const UObject* RootActorOuter = ObjectBeingModified->GetTypedOuter(ObjectToCompare->GetClass()))
-			{
-				return RootActorOuter == ObjectToCompare;
-			}
-		}
-
-		return false;
-	};
-	
-	bool bIsOurActor = IsOurActor(RootActorLevelInstance.Get());
-	if (!bIsOurActor)
-	{
-		for (const TWeakObjectPtr<AActor>& LightCard : LightCardLevelInstances)
-		{
-			bIsOurActor = IsOurActor(LightCard.Get());
-			if (bIsOurActor)
-			{
-				break;
-			}
-		}
-	}
-	
-	if (bIsOurActor)
-	{
-		UpdatePreviewActor(RootActorLevelInstance.Get(), true);
 	}
 }
 

@@ -14,6 +14,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Toolkits/AssetEditorToolkit.h"
+#include "Viewport/DisplayClusterLightCardEditorViewportClient.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SSplitter.h"
 
@@ -63,11 +64,23 @@ void SDisplayClusterLightCardEditor::ExtendToolbar(FToolBarBuilder& ToolbarBuild
 SDisplayClusterLightCardEditor::~SDisplayClusterLightCardEditor()
 {
 	IDisplayClusterOperator::Get().OnActiveRootActorChanged().Remove(ActiveRootActorChangedHandle);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+
+	if (GEngine != nullptr)
+	{
+		GEngine->OnLevelActorDeleted().RemoveAll(this);
+	}
+
+	RemoveCompileDelegates();
 }
 
 void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& MajorTabOwner, const TSharedPtr<SWindow>& WindowOwner)
 {
 	ActiveRootActorChangedHandle = IDisplayClusterOperator::Get().OnActiveRootActorChanged().AddSP(this, &SDisplayClusterLightCardEditor::OnActiveRootActorChanged);
+	if (GEngine != nullptr)
+	{
+		GEngine->OnLevelActorDeleted().AddSP(this, &SDisplayClusterLightCardEditor::OnLevelActorDeleted);
+	}
 
 	ChildSlot                     
 	[
@@ -95,14 +108,23 @@ void SDisplayClusterLightCardEditor::Construct(const FArguments& InArgs, const T
 			]
 		]
 	];
+
+	BindCompileDelegates();
 }
 
 void SDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor)
 {
+	RemoveCompileDelegates();
+	
 	// The new root actor pointer could be null, indicating that it was deleted or the user didn't select a valid root actor
 	ActiveRootActor = NewRootActor;
 	LightCardList->SetRootActor(NewRootActor);
 	ViewportView->SetRootActor(NewRootActor);
+	
+	BindCompileDelegates();
+
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &SDisplayClusterLightCardEditor::OnActorPropertyChanged);
 }
 
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardListWidget()
@@ -113,6 +135,138 @@ TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateLightCardListWidget()
 TSharedRef<SWidget> SDisplayClusterLightCardEditor::CreateViewportWidget()
 {
 	return SAssignNew(ViewportView, SDisplayClusterLightCardEditorViewport, SharedThis(this));
+}
+
+void SDisplayClusterLightCardEditor::RefreshPreviewActors()
+{
+	RemoveCompileDelegates();
+	
+	if (ADisplayClusterRootActor* RootActor = GetActiveRootActor().Get())
+	{
+		if (LightCardList.IsValid())
+		{
+			LightCardList->SetRootActor(RootActor);
+		}
+			
+		if (ViewportView.IsValid())
+		{
+			const bool bForce = true;
+			ViewportView->GetLightCardEditorViewportClient()->UpdatePreviewActor(RootActor, bForce);
+		}
+	}
+	
+	BindCompileDelegates();
+}
+
+void SDisplayClusterLightCardEditor::BindCompileDelegates()
+{
+	if (LightCardList.IsValid())
+	{
+		for (const TSharedPtr<SDisplayClusterLightCardList::FLightCardTreeItem>& LightCardActor : LightCardList->GetLightCardActors())
+		{
+			if (LightCardActor.IsValid() && LightCardActor->LightCardActor.IsValid())
+			{
+				if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(LightCardActor->LightCardActor->GetClass()))
+				{
+					Blueprint->OnCompiled().AddSP(this, &SDisplayClusterLightCardEditor::OnBlueprintCompiled);
+				}
+			}
+		}
+	}
+}
+
+void SDisplayClusterLightCardEditor::RemoveCompileDelegates()
+{
+	if (LightCardList.IsValid())
+	{
+		for (const TSharedPtr<SDisplayClusterLightCardList::FLightCardTreeItem>& LightCardActor : LightCardList->GetLightCardActors())
+		{
+			if (LightCardActor.IsValid() && LightCardActor->LightCardActor.IsValid())
+			{
+				if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(LightCardActor->LightCardActor->GetClass()))
+				{
+					Blueprint->OnCompiled().RemoveAll(this);
+				}
+			}
+		}
+	}
+}
+
+void SDisplayClusterLightCardEditor::OnActorPropertyChanged(UObject* ObjectBeingModified,
+                                                            FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
+	{
+		return;
+	}
+
+	auto IsOurActor = [ObjectBeingModified] (UObject* ObjectToCompare) -> bool
+	{
+		if (ObjectToCompare)
+		{
+			if (ObjectBeingModified == ObjectToCompare)
+			{
+				return true;
+			}
+
+			if (const UObject* RootActorOuter = ObjectBeingModified->GetTypedOuter(ObjectToCompare->GetClass()))
+			{
+				return RootActorOuter == ObjectToCompare;
+			}
+		}
+
+		return false;
+	};
+	
+	bool bIsOurActor = IsOurActor(GetActiveRootActor().Get());
+	if (!bIsOurActor && LightCardList.IsValid())
+	{
+		for (const TSharedPtr<SDisplayClusterLightCardList::FLightCardTreeItem>& LightCard : LightCardList->GetLightCardActors())
+		{
+			bIsOurActor = IsOurActor(LightCard->LightCardActor.Get());
+			if (bIsOurActor)
+			{
+				break;
+			}
+		}
+	}
+	
+	if (bIsOurActor)
+	{
+		RefreshPreviewActors();
+	}
+}
+
+void SDisplayClusterLightCardEditor::OnLevelActorDeleted(AActor* Actor)
+{
+	if (LightCardList.IsValid() &&
+		LightCardList->GetLightCardActors().ContainsByPredicate([Actor](const TSharedPtr<SDisplayClusterLightCardList::FLightCardTreeItem>& LightCardTreeItem)
+	{
+		return LightCardTreeItem.IsValid() && Actor == LightCardTreeItem->LightCardActor.Get();
+	}))
+	{
+		if (Actor && Actor->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists))
+		{
+			// When a blueprint class is regenerated instances are deleted and replaced.
+			// In this case the OnCompiled() delegate will fire and refresh the actor.
+			return;
+		}
+		
+		if (ViewportView.IsValid())
+		{
+			ViewportView->GetLightCardEditorViewportClient()->GetWorld()->GetTimerManager().SetTimerForNextTick([=]()
+			{
+				// Schedule for next tick so available selections are properly updated once the
+				// actor is fully deleted.
+				RefreshPreviewActors();
+			});
+		}
+	}
+}
+
+void SDisplayClusterLightCardEditor::OnBlueprintCompiled(UBlueprint* Blueprint)
+{
+	RefreshPreviewActors();
 }
 
 #undef LOCTEXT_NAMESPACE

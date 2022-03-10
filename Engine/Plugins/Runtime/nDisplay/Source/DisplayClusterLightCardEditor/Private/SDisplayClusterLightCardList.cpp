@@ -149,9 +149,11 @@ void SDisplayClusterLightCardList::Construct(const FArguments& InArgs)
 void SDisplayClusterLightCardList::SetRootActor(ADisplayClusterRootActor* NewRootActor)
 {
 	RootActor = NewRootActor;
-	FillLightCardList();
-	LightCardTreeView->RebuildList();
-
+	if (FillLightCardList())
+	{
+		LightCardTreeView->RebuildList();
+	}
+	
 	for (const TSharedPtr<FLightCardTreeItem>& LightCardTreeItem : LightCardTree)
 	{
 		if (LightCardTreeItem->IsActorLayer())
@@ -161,9 +163,9 @@ void SDisplayClusterLightCardList::SetRootActor(ADisplayClusterRootActor* NewRoo
 	}
 }
 
-void SDisplayClusterLightCardList::FillLightCardList()
+bool SDisplayClusterLightCardList::FillLightCardList()
 {
-	LightCardTree.Empty();
+	TArray<TSharedPtr<FLightCardTreeItem>> OriginalTree = MoveTemp(LightCardTree);
 	LightCardActors.Empty();
 
 	if (RootActor.IsValid())
@@ -215,6 +217,29 @@ void SDisplayClusterLightCardList::FillLightCardList()
 			}
 		}
 	}
+
+	// Check if the tree items have changed.
+	{
+		if (OriginalTree.Num() != LightCardTree.Num())
+		{
+			return true;
+		}
+	
+		for (const TSharedPtr<FLightCardTreeItem>& OriginalTreeItem : OriginalTree)
+		{
+			if (!LightCardTree.ContainsByPredicate([OriginalTreeItem](const TSharedPtr<FLightCardTreeItem>& LightCardTreeItem)
+			{
+				return OriginalTreeItem.IsValid() && LightCardTreeItem.IsValid() &&
+					OriginalTreeItem->LightCardActor.Get() == LightCardTreeItem->LightCardActor.Get() &&
+						OriginalTreeItem->ActorLayer == LightCardTreeItem->ActorLayer;
+			}))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 TSharedRef<ITableRow> SDisplayClusterLightCardList::GenerateTreeItemRow(TSharedPtr<FLightCardTreeItem> Item, const TSharedRef<STableViewBase>& OwnerTable)

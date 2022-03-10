@@ -40,8 +40,13 @@ public:
 
 	void SetRootActor(ADisplayClusterRootActor* NewRootActor);
 
+	const TArray<TSharedPtr<FLightCardTreeItem>>& GetLightCardActors() const { return LightCardActors; }
 private:
-	void FillLightCardList();
+	/**
+	 * Fill the LightCard list with available LightCards.
+	 * @return True if the list has been modified.
+	 */
+	bool FillLightCardList();
 
 	TSharedRef<ITableRow> GenerateTreeItemRow(TSharedPtr<FLightCardTreeItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void GetChildrenForTreeItem(TSharedPtr<FLightCardTreeItem> InItem, TArray<TSharedPtr<FLightCardTreeItem>>& OutChildren);

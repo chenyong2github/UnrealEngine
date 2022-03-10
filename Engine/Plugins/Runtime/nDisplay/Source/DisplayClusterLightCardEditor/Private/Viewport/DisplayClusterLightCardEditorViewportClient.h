@@ -62,9 +62,6 @@ private:
 
 	/** Ends the current transaction, if one exists. */
 	void EndTransaction();
-
-	/** When a property on the actor has changed. */
-	void OnActorPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
 	
 	/** Gets a list of all primitive components to be rendered in the scene */
 	void GetScenePrimitiveComponents(TArray<UPrimitiveComponent*>& OutPrimitiveComponents);

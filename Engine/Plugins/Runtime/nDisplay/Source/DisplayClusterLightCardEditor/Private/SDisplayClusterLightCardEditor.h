@@ -58,6 +58,24 @@ private:
 	/** Create the 3d viewport widget. */
 	TSharedRef<SWidget> CreateViewportWidget();
 
+	/** Refresh all preview actors. */
+	void RefreshPreviewActors();
+
+	/** Bind delegates to when a BP compiles. */
+	void BindCompileDelegates();
+
+	/** Remove compile delegates from a BP. */
+	void RemoveCompileDelegates();
+
+	/** When a property on the actor has changed. */
+	void OnActorPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
+
+	/** Raised when the user deletes an actor from the level */
+	void OnLevelActorDeleted(AActor* Actor);
+
+	/** Raised when a supported blueprint is compiled. */
+	void OnBlueprintCompiled(UBlueprint* Blueprint);
+	
 private:
 	/** The light card list widget */
 	TSharedPtr<SDisplayClusterLightCardList> LightCardList;
