@@ -112,19 +112,61 @@ public:
 		float MoveMinSpeed = 1.0f,
 		float IdleMaxSpeed = 0.0f);
 
-	// Returns true if the furthest past sample, at the beginning of the trajectory, has velocity magnitude below 
-	// IdleMaxSpeed and present speed above MoveMinSpeed.
+	/**
+	 * Returns true if the furthest past sample, at the beginning of the trajectory, has velocity magnitude below 
+	 * IdleMaxSpeed and present speed above MoveMinSpeed.
+	 * 
+	 * @param Trajectory	Trajectory being evaluated.
+	 * @param MoveMinSpeed	Minimum current speed required for this function to return true.
+	 * @param IdleMaxSpeed	Maximum speed at the furthest past sample for this function to return true.
+	 * 
+	 * @return True if a start is detected; false otherwise.
+	 */
 	UFUNCTION(BlueprintPure, Category = "Motion Trajectory", meta = (BlueprintThreadSafe))
 	static bool IsStartingTrajectory(
 		const FTrajectorySampleRange& Trajectory, 
 		float MoveMinSpeed = 1.0f,
 		float IdleMaxSpeed = 0.0f);
 
-	// Returns true if the furthest future sample, at the end of the trajectory, and the present sample, have a velocity
-	// magnitude that is within Tolerance of Speed.
+	/** 
+	 * Returns true if the furthest future sample, at the end of the trajectory, and the present sample, have a velocity
+	 * magnitude that is within Tolerance of Speed.
+	 * 
+	 * @param Trajectory	Trajectory being evaluated.
+	 * @param Speed			Speed that must be matched at present and future for this function to return true
+	 * @param Tolerance		How much the trajectory speed can deviate from Speed
+	 * 
+	 * @return True if the trajectory is at the desired speed.
+	 */
 	UFUNCTION(BlueprintPure, Category = "Motion Trajectory", meta = (BlueprintThreadSafe))
 	static bool IsConstantSpeedTrajectory(
 			const FTrajectorySampleRange& Trajectory,
 			float Speed = 0.0f,
 			float Tolerance = 0.001f);
+	/**
+	 * Returns true if the trajectory has a sharp velocity direction change. This function will compare the total 
+	 * turning of the trajectory against the extrapolation of the final angular velocity in the trajectory. This ensures
+	 * the function distinguishes sharp turns from smooth circling. Note this is not detecting facing changes,
+	 * this function will return true in a strafing turn in which the character is always facing the same direction.
+	 * 
+	 * @param Trajectory				Trajectory being evaluated.
+	 * @param MinSharpTurnAngleDegrees	How many degrees of turning must be in the trajectory that can't be explained by 
+	 *									extrapolating the angular velocity at the end of the trajectory.
+	 * @param MaxAlignmentAngleDegrees	If the current trajectory sample velocity and facing are well aligned with the 
+	 *									last point in the trajectory future, there's no turn.
+	 * @param MinLinearSpeed			Minimum linear speed at the end points of the trajectory required for this
+	 *									function to return true, so it's possible to ignore turning starts/stops
+	 * @param TurnAxis					Specifies the axis along which turns will be evaluated.
+	 * @param ForwardAxis				Specifies the trajectory forward angle, used to evaluate alignment.
+	 *									
+	 * @return True if a sharp turn is detected, false otherwise.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Motion Trajectory", meta = (BlueprintThreadSafe))
+	static bool IsSharpVelocityDirChange(
+		const FTrajectorySampleRange& Trajectory,
+		float MinSharpTurnAngleDegrees = 45.0f,
+		float MaxAlignmentAngleDegrees = 5.0f,
+		float MinLinearSpeed = 1.0f,
+		FVector TurnAxis = FVector::UpVector,
+		FVector ForwardAxis = FVector::RightVector);
 };
