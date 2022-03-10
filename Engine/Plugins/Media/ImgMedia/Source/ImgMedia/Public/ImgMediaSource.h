@@ -22,33 +22,6 @@ struct IMGMEDIA_API FImgMediaSourceCustomizationSequenceProxy
 	GENERATED_BODY()
 };
 
-/** Information on the images that have been imported. */
-USTRUCT(BlueprintType)
-struct IMGMEDIA_API FImgMediaSourceImportInfo
-{
-	GENERATED_BODY()
-
-	/** Where to place the imported images. */
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
-	FDirectoryPath DestinationPath;
-
-	/** True if we are overriding destination path and not using the default. */
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
-	bool bIsDestinationPathOverriden = false;
-
-	/** True if the imported imagess are to be used. */
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
-	bool bIsUsable = false;
-
-	/** Number of tiles in the X direction. If 0, then there are no tiles. */
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
-	int32 NumTilesX = 0;
-
-	/** Number if tiles in the Y direction. If 0, then there are no tiles. */
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Sequence)
-	int32 NumTilesY = 0;
-};
-
 /**
  * Media source for EXR image sequences.
  *
@@ -100,10 +73,6 @@ public:
 	FImgMediaSourceCustomizationSequenceProxy SequenceProxy;
 
 #endif // WITH_EDITORONLY_DATA
-
-	/** Info concerning the imported images. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Sequence)
-	FImgMediaSourceImportInfo ImportInfo;
 
 public:
 
