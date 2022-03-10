@@ -104,21 +104,22 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	const FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(Roughness, StrataBSDFContext.SatNoV, StrataGetBSDFSpecularColor(CurrentBSDF), StrataGetBSDFSpecularF90(CurrentBSDF));
 	{
 		const float TopDownInterfaceEta = CurrentBSDF.bIsTop ? AIR_IOR / WATER_IOR : 1.0f;
-		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataGetViewDiracLobe(-V), EnergyTerms.E, Roughness, TopDownInterfaceEta);
+		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataGetDiracLobe(V), EnergyTerms.E, Roughness, TopDownInterfaceEta);
 		// Account for transmittance of the medium (but ignoring scattering for now)
 		RefractedLobe.E *= CurrentBSDFTransmittance;
-		// Reduce according to coverage her. It is a approximation to handle rough refraction reduction according to coverage when relying on a single lob.
+		// Reduce according to coverage. It is a approximation to handle rough refraction reduction according to coverage when relying on a single lob.
 		RefractedLobe = StrataWeightLobe(RefractedLobe, CurrentBSDFCoverage);
 		Op.TopDownRefractionLobeStat = RefractedLobe;
 	}
+
 	// Same operation but for a bottom up lob
 	{
 		const float BottomUpInterfaceEta = CurrentBSDF.bIsTop ? WATER_IOR / AIR_IOR : 1.0f;
-		const float3 Up = float3(0, 0, 1);
-		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataGetViewDiracLobe(Up), EnergyTerms.E, Roughness, BottomUpInterfaceEta);
+		const float3 NormalDown = float3(0, 0, -1);
+		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataGetDiracLobe(NormalDown), EnergyTerms.E, Roughness, BottomUpInterfaceEta);
 		// Account for transmittance of the medium (but ignoring scattering for now)
 		RefractedLobe.E *= CurrentBSDFTransmittance;
-		// Reduce according to coverage her. It is a approximation to handle rough refraction reduction according to coverage when relying on a single lob.
+		// Reduce according to coverage. It is a approximation to handle rough refraction reduction according to coverage when relying on a single lob.
 		RefractedLobe = StrataWeightLobe(RefractedLobe, CurrentBSDFCoverage);
 		Op.BottomUpRefractionLobeStat = RefractedLobe;
 	}
@@ -200,7 +201,8 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		// Project top lob through bottom layer assuming medium have same IOR.
 		{
 			const float TopDownInterfaceEta = 1.0f;
-			Op.TopDownRefractionLobeStat = StrataGetRefractedLobe(OpA.TopDownRefractionLobeStat, /*InterfaceFDG*/0.0f, StrataLobeVarianceToRoughness(OpB.TopDownRefractionLobeStat.Sigma), TopDownInterfaceEta);
+			Op.TopDownRefractionLobeStat = StrataGetRefractedLobe(StrataOppositeLobe(OpA.TopDownRefractionLobeStat), 
+				/*InterfaceFDG*/0.0f, StrataLobeVarianceToRoughness(OpB.TopDownRefractionLobeStat.Sigma), TopDownInterfaceEta);
 			Op.TopDownRefractionLobeStat.E *= saturate(OpB.Transmittance + (1.0f - OpB.Coverage)); // Combine with botton layer medium and specular transmittance
 
 			// The ratio of BottomSurfaceOnlyVisibile and visible through top layer (with a scale of 0.5 because at maximum both surfaces will be visible) as a fonction of the total coverage.
@@ -211,7 +213,8 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 		// Project bottom lob through top layer.
 		{
 			const float BottomUpInterfaceEta = Op.bIsTop ? WATER_IOR / AIR_IOR : 1.0f;
-			Op.BottomUpRefractionLobeStat = StrataGetRefractedLobe(OpB.BottomUpRefractionLobeStat, /*InterfaceFDG*/0.0f, StrataLobeVarianceToRoughness(OpA.BottomUpRefractionLobeStat.Sigma), BottomUpInterfaceEta);
+			Op.BottomUpRefractionLobeStat = StrataGetRefractedLobe(StrataOppositeLobe(OpB.BottomUpRefractionLobeStat), 
+				/*InterfaceFDG*/0.0f, StrataLobeVarianceToRoughness(OpA.BottomUpRefractionLobeStat.Sigma), BottomUpInterfaceEta);
 			Op.BottomUpRefractionLobeStat.E *= saturate(OpA.Transmittance + (1.0f - OpA.Coverage)); // Combine with top layer medium and specular transmittance
 		}
 
@@ -333,16 +336,16 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
 		// The outcome is that we affect the bottom layer roughness to aggregate that fact.
 		// STRATA_TODO: take into account thickness (far-field for now).
 
-		// Evaluate the reflected lobe
+		// Evaluate the reflected lobe, as an approximation we only evaluate along the normal.
 		const float3 DummyWi = float3(0, 0, 1);
 		const float DummyInterfaceDFG = 0.5f;
-		FStrataLobeStatistic ReflectedLobe = StrataGetReflectedLobe(StrataGetViewDiracLobe(DummyWi), DummyInterfaceDFG, StrataGetBSDFRoughness(CurrentBSDF));
+		FStrataLobeStatistic ReflectedLobe = StrataGetReflectedLobe(StrataGetDiracLobe(DummyWi), DummyInterfaceDFG, StrataGetBSDFRoughness(CurrentBSDF));
 
 		// Evaluate the reflected lobe after refraction through the top layer of the vertical operator.
 		// => This tells how light should be integrated when traveling up thorugh that layer.
 		const float TopLayerSigma = Op.VerticalTop_BottomUpRefractionLobeStat.Sigma;
 		const float BottomUpInterfaceEta = Op.bIsTop ? WATER_IOR / AIR_IOR : 1.0f;
-		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(ReflectedLobe, DummyInterfaceDFG, StrataLobeVarianceToRoughness(TopLayerSigma), BottomUpInterfaceEta);
+		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataOppositeLobe(ReflectedLobe), DummyInterfaceDFG, StrataLobeVarianceToRoughness(TopLayerSigma), BottomUpInterfaceEta);/////////////////
 
 		StrataSetBSDFRoughness(CurrentBSDF, StrataLobeVarianceToRoughness(RefractedLobe.Sigma));
 	}
