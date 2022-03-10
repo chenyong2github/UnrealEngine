@@ -296,15 +296,6 @@ public:
 	const Shader::FStructType* OutputStructType = nullptr;
 };
 
-class FStatementReturn : public FStatement
-{
-public:
-	const FExpression* Expression;
-
-	virtual bool Prepare(FEmitContext& Context, FEmitScope& Scope) const override;
-	virtual void EmitShader(FEmitContext& Context, FEmitScope& Scope) const override;
-};
-
 class FStatementBreak : public FStatement
 {
 public:

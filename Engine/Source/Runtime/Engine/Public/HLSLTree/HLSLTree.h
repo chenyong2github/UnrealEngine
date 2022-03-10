@@ -295,6 +295,7 @@ public:
 
 	FPreparedComponent GetComponent(int32 Index) const;
 	Shader::FComponentBounds GetComponentBounds(int32 Index) const;
+	inline bool IsComponentRequested(int32 Index) const { return GetComponent(Index).IsRequested(); }
 
 	void SetComponent(int32 Index, const FPreparedComponent& InComponent);
 	void SetComponentBounds(int32 Index, const Shader::FComponentBounds Bounds);

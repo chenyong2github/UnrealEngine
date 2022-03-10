@@ -53,7 +53,15 @@ bool FMaterialCachedHLSLTree::GenerateTree(UMaterial* Material, const FMaterialL
 {
 	const EMaterialShadingModel DefaultShadingModel = Material->GetShadingModels().GetFirstShadingModel();
 
-	Material->GetAllCustomOutputExpressions(MaterialCustomOutputs);
+	for (UMaterialExpression* Expression : Material->Expressions)
+	{
+		UMaterialExpressionCustomOutput* CustomOutput = Cast<UMaterialExpressionCustomOutput>(Expression);
+		// We don't want anything with HasCustomSourceOutput() here (VertexInterpolators)
+		if (CustomOutput && !CustomOutput->HasCustomSourceOutput())
+		{
+			MaterialCustomOutputs.Add(CustomOutput);
+		}
+	}
 
 	TArray<UE::Shader::FStructFieldInitializer, TInlineAllocator<MP_MAX + 16>> MaterialAttributeFields;
 

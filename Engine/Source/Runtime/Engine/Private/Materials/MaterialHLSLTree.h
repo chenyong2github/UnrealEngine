@@ -341,6 +341,34 @@ public:
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
 };
 
+/**
+ * Mechanics of passing values from PS->VS are specific to material shaders, to VertexInterpolator is included in the Material module
+ * Possible that parts of this could be moved to the common HLSLTree module, if interpolators are needed by another system
+ */
+class FExpressionVertexInterpolator : public FExpression
+{
+public:
+	FExpressionVertexInterpolator(const FExpression* InVertexExpression) : VertexExpression(InVertexExpression) {}
+
+	const FExpression* VertexExpression;
+
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
+	virtual const FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
+};
+
+struct FVertexInterpolator
+{
+	FVertexInterpolator() = default;
+	FVertexInterpolator(const FExpression* InExpression) : Expression(InExpression) {}
+
+	const FExpression* Expression = nullptr;
+	FRequestedType RequestedType;
+	FPreparedType PreparedType;
+};
+
 class FEmitData
 {
 public:
@@ -355,11 +383,20 @@ public:
 	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCachedExpressionData* CachedExpressionData = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
+	TArray<FVertexInterpolator, TInlineAllocator<8>> VertexInterpolators;
 	TBitArray<> ExternalInputMask[SF_NumFrequencies];
 	FMaterialShadingModelField ShadingModelsFromCompilation;
+	int32 NumInterpolatorComponents = 0;
 
 	bool IsExternalInputUsed(EShaderFrequency Frequency, EExternalInput Input) const { return ExternalInputMask[Frequency][(int32)Input]; }
 	bool IsExternalInputUsed(EExternalInput Input) const { return IsExternalInputUsed(SF_Vertex, Input) || IsExternalInputUsed(SF_Pixel, Input); }
+
+	int32 FindInterpolatorIndex(const FExpression* Expression) const;
+	void AddInterpolator(const FExpression* Expression, const FRequestedType& RequestedType, const FPreparedType& PreparedType);
+
+	void PrepareInterpolators(FEmitContext& Context, FEmitScope& Scope);
+	void EmitInterpolatorStatements(FEmitContext& Context, FEmitScope& Scope) const;
+	void EmitInterpolatorShader(FEmitContext& Context, FStringBuilderBase& OutCode);
 };
 
 } // namespace UE::HLSLTree::Material

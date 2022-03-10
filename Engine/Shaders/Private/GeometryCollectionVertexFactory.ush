@@ -269,7 +269,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 #endif
 
 #if ENABLE_NEW_HLSL_GENERATOR
-	Result.MaterialAttributes = EvaluateVertexMaterialAttributes(Result);
+	EvaluateVertexMaterialAttributes(Result);
 #endif
 	return Result;
 }

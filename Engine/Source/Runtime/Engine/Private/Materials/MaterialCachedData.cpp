@@ -476,7 +476,7 @@ void PrepareHLSLTree(UE::HLSLTree::FEmitContext& EmitContext,
 	EmitContext.ShaderFrequency = ShaderFrequency;
 	EmitContext.bUseAnalyticDerivatives = true; // We want to consider expressions used for analytic derivatives
 	EmitContext.bMarkLiveValues = false;
-	FEmitScope* EmitResultScope = EmitContext.PrepareScope(&CachedTree.GetResultStatement()->GetParentScope());
+	FEmitScope* EmitResultScope = EmitContext.PrepareScope(CachedTree.GetResultScope());
 
 	FRequestedType RequestedAttributesType;
 	CachedTree.SetRequestedFields(ShaderFrequency, RequestedAttributesType);

@@ -54,6 +54,7 @@
 #include "Materials/MaterialExpressionSceneTexture.h"
 #include "Materials/MaterialExpressionSceneDepth.h"
 #include "Materials/MaterialExpressionNoise.h"
+#include "Materials/MaterialExpressionVertexInterpolator.h"
 #include "Materials/MaterialExpressionFunctionInput.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
@@ -1517,6 +1518,19 @@ bool UMaterialExpressionBreakMaterialAttributes::GenerateHLSLExpression(FMateria
 	const FString& AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName(*Property);
 	const FStructField* AttributeField = Generator.GetMaterialAttributesType()->FindFieldByName(*AttributeName);
 	OutExpression = Generator.GetTree().NewExpression<FExpressionGetStructField>(Generator.GetMaterialAttributesType(), AttributeField, AttributesExpression);
+	return true;
+}
+
+bool UMaterialExpressionVertexInterpolator::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
+{
+	using namespace UE::HLSLTree;
+	const FExpression* VertexExpression = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!VertexExpression)
+	{
+		return false;
+	}
+
+	OutExpression = Generator.GetTree().NewExpression<Material::FExpressionVertexInterpolator>(VertexExpression);
 	return true;
 }
 

@@ -9,6 +9,7 @@
 #include "Materials/MaterialExpressionFunctionInput.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
+#include "Materials/MaterialExpressionVertexInterpolator.h"
 #include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/MaterialHLSLTree.h"
 #include "Materials/Material.h"
@@ -87,7 +88,7 @@ bool FMaterialHLSLGenerator::Generate()
 		return Error(TEXT("Missing connection to material output"));
 	}
 
-	if (!CachedTree.GetResultExpression() || !CachedTree.GetResultStatement())
+	if (!CachedTree.GetResultExpression() || !CachedTree.GetResultScope())
 	{
 		return Error(TEXT("Failed to initialize result"));
 	}
@@ -168,7 +169,7 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 	}
 	else
 	{
-		check(!CachedTree.ResultStatement);
+		check(!CachedTree.ResultScope);
 		check(!CachedTree.ResultExpression);
 
 		const FExpression* AttributesExpression = nullptr;
@@ -266,10 +267,8 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 
 		if (AttributesExpression)
 		{
-			FStatementReturn* ReturnStatement = GetTree().NewStatement<FStatementReturn>(Scope);
-			ReturnStatement->Expression = AttributesExpression;
+			CachedTree.ResultScope = &Scope;
 			CachedTree.ResultExpression = AttributesExpression;
-			CachedTree.ResultStatement = ReturnStatement;
 			bResult = true;
 		}
 

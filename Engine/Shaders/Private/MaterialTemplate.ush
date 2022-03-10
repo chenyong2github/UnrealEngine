@@ -529,6 +529,11 @@ struct FMaterialVertexParameters
 	#endif
 #endif
 
+#if NUM_CUSTOM_VERTEX_INTERPOLATORS
+	// Used by new HLSL translator
+	float2 CustomInterpolators[NUM_CUSTOM_VERTEX_INTERPOLATORS];
+#endif
+
 	/** Per-particle properties. Only valid for particle vertex factories. */
 	FMaterialParticleParameters Particle;
 
@@ -545,6 +550,22 @@ struct FMaterialVertexParameters
 	// Index into View.PrimitiveSceneData
 	uint PrimitiveId;
 };
+
+float MaterialReadInterpolatorComponent(FMaterialPixelParameters Parameters, int InterpolatorIndex)
+{
+#if NUM_TEX_COORD_INTERPOLATORS
+	return Parameters.TexCoords[NUM_MATERIAL_TEXCOORDS + InterpolatorIndex / 2][InterpolatorIndex & 1];
+#else
+	return 0.0f;
+#endif
+}
+
+void MaterialPackInterpolatorComponent(in out FMaterialVertexParameters Parameters, int InterpolatorIndex, float Value)
+{
+#if NUM_CUSTOM_VERTEX_INTERPOLATORS
+	Parameters.CustomInterpolators[InterpolatorIndex / 2][InterpolatorIndex & 1] = Value;
+#endif
+}
 
 FPrimitiveSceneData GetPrimitiveData(FMaterialVertexParameters Parameters)
 {

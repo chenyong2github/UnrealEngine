@@ -1566,6 +1566,20 @@ bool UMaterialExpression::ContainsInputLoopInternal(TArray<FMaterialExpressionKe
 
 	return false;
 }
+
+bool UMaterialExpression::IsUsingNewHLSLGenerator() const
+{
+	if (Material)
+	{
+		return Material->IsUsingNewHLSLGenerator();
+	}
+	if (Function)
+	{
+		return Function->IsUsingNewHLSLGenerator();
+	}
+	return false;
+}
+
 #endif // WITH_EDITOR
 
 UMaterialExpressionTextureBase::UMaterialExpressionTextureBase(const FObjectInitializer& ObjectInitializer)
@@ -18874,6 +18888,18 @@ FExpressionInput* UMaterialExpressionVertexInterpolator::GetInput(int32 InputInd
 {
 	return &Input;
 }
+
+uint32 UMaterialExpressionVertexInterpolator::GetInputType(int32 InputIndex)
+{
+	// New HLSL generator allows struct interpolators
+	return IsUsingNewHLSLGenerator() ? MCT_Unknown : MCT_Float4;
+}
+
+uint32 UMaterialExpressionVertexInterpolator::GetOutputType(int32 OutputIndex)
+{
+	return IsUsingNewHLSLGenerator() ? MCT_Unknown : UMaterialExpression::GetOutputType(OutputIndex);
+}
+
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////

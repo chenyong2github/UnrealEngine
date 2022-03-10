@@ -26,6 +26,7 @@ class UMaterialExpression;
 class UMaterialExpressionFunctionInput;
 class UMaterialExpressionFunctionOutput;
 class UMaterialExpressionCustomOutput;
+class UMaterialExpressionVertexInterpolator;
 struct FFunctionExpressionInput;
 class ITargetPlatform;
 enum class EMaterialParameterType : uint8;

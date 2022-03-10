@@ -52,7 +52,8 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 	const TCHAR* SharedShaderCode,
 	const TCHAR* VertexShaderCode,
 	const TCHAR* PixelShaderCodePhase0[2],
-	const TCHAR* PixelShaderCodePhase1[2])
+	const TCHAR* PixelShaderCodePhase1[2],
+	FMaterialCompilationOutput& OutCompilationOutput)
 {
 	using namespace UE::HLSLTree;
 
@@ -82,23 +83,31 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 
 	FLazyPrintf LazyPrintf(*MaterialTemplateSource);
 
-	uint32 NumTexCoords = 0u;
-	for (int32 TexCoordIndex = Material::MaxNumTexCoords - 1; TexCoordIndex >= 0; --TexCoordIndex)
+	uint32 NumVertexTexCoords = 0u;
+	uint32 NumPixelTexCoords = 0u;
+	for (int32 TexCoordIndex = 0; TexCoordIndex < Material::MaxNumTexCoords; ++TexCoordIndex)
 	{
-		if (EmitMaterialData.IsExternalInputUsed(SF_Pixel, Material::MakeInputTexCoord(TexCoordIndex)))
+		const Material::EExternalInput TexCoordInput = Material::MakeInputTexCoord(TexCoordIndex);
+		if (EmitMaterialData.IsExternalInputUsed(SF_Vertex, TexCoordInput))
 		{
-			NumTexCoords = TexCoordIndex + 1;
-			break;
+			NumVertexTexCoords = TexCoordIndex + 1;
+		}
+		if (EmitMaterialData.IsExternalInputUsed(SF_Pixel, TexCoordInput))
+		{
+			NumPixelTexCoords = TexCoordIndex + 1;
 		}
 	}
 
-	const uint32 NumUserVertexTexCoords = NumTexCoords;
-	const uint32 NumUserTexCoords = NumTexCoords;
-	const uint32 NumCustomVectors = 0u;
-	const uint32 NumTexCoordVectors = NumTexCoords;
+	NumVertexTexCoords = FMath::Max(NumVertexTexCoords, NumPixelTexCoords);
 
-	LazyPrintf.PushParam(*FString::Printf(TEXT("%u"), NumUserVertexTexCoords));
-	LazyPrintf.PushParam(*FString::Printf(TEXT("%u"), NumUserTexCoords));
+	const uint32 NumCustomVectors = (EmitMaterialData.NumInterpolatorComponents + 1) / 2;
+	const uint32 NumTexCoordVectors = NumPixelTexCoords + NumCustomVectors;
+
+	OutCompilationOutput.NumUsedUVScalars = NumPixelTexCoords * 2;
+	OutCompilationOutput.NumUsedCustomInterpolatorScalars = EmitMaterialData.NumInterpolatorComponents;
+
+	LazyPrintf.PushParam(*FString::Printf(TEXT("%u"), NumVertexTexCoords));
+	LazyPrintf.PushParam(*FString::Printf(TEXT("%u"), NumPixelTexCoords));
 	LazyPrintf.PushParam(*FString::Printf(TEXT("%u"), NumCustomVectors));
 	LazyPrintf.PushParam(*FString::Printf(TEXT("%u"), NumTexCoordVectors));
 
@@ -229,73 +238,25 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 	LazyPrintf.PushParam(TEXT("return Parameters.MaterialAttributes.ClearCoatRoughness"));
 
 	// Print custom texture coordinate assignments, should be fine with regular derivatives
-	FString CustomUVAssignments;
-
-	int32 LastProperty = -1;
-	for (uint32 CustomUVIndex = 0; CustomUVIndex < NumUserTexCoords; CustomUVIndex++)
 	{
-		//if (bEnableExecutionFlow)
+		FString CustomUVAssignments;
+		for (uint32 CustomUVIndex = 0; CustomUVIndex < NumPixelTexCoords; CustomUVIndex++)
 		{
 			const FString AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName((EMaterialProperty)(MP_CustomizedUVs0 + CustomUVIndex));
 			CustomUVAssignments += FString::Printf(TEXT("\tOutTexCoords[%u] = Parameters.MaterialAttributes.%s;") LINE_TERMINATOR, CustomUVIndex, *AttributeName);
 		}
-		/*else
-		{
-			if (CustomUVIndex == 0)
-			{
-				CustomUVAssignments += DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[MP_CustomizedUVs0 + CustomUVIndex];
-			}
-
-			if (DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[MP_CustomizedUVs0 + CustomUVIndex].Len() > 0)
-			{
-				if (LastProperty >= 0)
-				{
-					check(DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[LastProperty].Len() == DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunkDefinitions[MP_CustomizedUVs0 + CustomUVIndex].Len());
-				}
-				LastProperty = MP_CustomizedUVs0 + CustomUVIndex;
-			}
-			CustomUVAssignments += FString::Printf(TEXT("\tOutTexCoords[%u] = %s;") LINE_TERMINATOR, CustomUVIndex, *DerivativeVariations[BaseDerivativeVariation].TranslatedCodeChunks[MP_CustomizedUVs0 + CustomUVIndex]);
-		}*/
+		LazyPrintf.PushParam(*CustomUVAssignments);
 	}
 
-	LazyPrintf.PushParam(*CustomUVAssignments);
-
 	// Print custom vertex shader interpolator assignments
-	FString CustomInterpolatorAssignments;
-
-	/*for (UMaterialExpressionVertexInterpolator* Interpolator : CustomVertexInterpolators)
 	{
-		if (Interpolator->InterpolatorOffset != INDEX_NONE)
+		FString CustomInterpolatorAssignments;
+		for (uint32 InterpolatorIndex = 0; InterpolatorIndex < NumCustomVectors; ++InterpolatorIndex)
 		{
-			check(Interpolator->InterpolatorIndex != INDEX_NONE);
-			check(Interpolator->InterpolatedType & MCT_Float);
-
-			const EMaterialValueType Type = Interpolator->InterpolatedType == MCT_Float ? MCT_Float1 : Interpolator->InterpolatedType;
-			const TCHAR* Swizzle[2] = { TEXT("x"), TEXT("y") };
-			const int32 Offset = Interpolator->InterpolatorOffset;
-			const int32 Index = Interpolator->InterpolatorIndex;
-
-			// Note: We reference the UV define directly to avoid having to pre-accumulate UV counts before property translation
-			CustomInterpolatorAssignments += FString::Printf(TEXT("\tOutTexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_X].%s = VertexInterpolator%i(Parameters).x;") LINE_TERMINATOR, Index, Swizzle[Offset % 2], Index);
-
-			if (Type >= MCT_Float2)
-			{
-				CustomInterpolatorAssignments += FString::Printf(TEXT("\tOutTexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Y].%s = VertexInterpolator%i(Parameters).y;") LINE_TERMINATOR, Index, Swizzle[(Offset + 1) % 2], Index);
-
-				if (Type >= MCT_Float3)
-				{
-					CustomInterpolatorAssignments += FString::Printf(TEXT("\tOutTexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Z].%s = VertexInterpolator%i(Parameters).z;") LINE_TERMINATOR, Index, Swizzle[(Offset + 2) % 2], Index);
-
-					if (Type == MCT_Float4)
-					{
-						CustomInterpolatorAssignments += FString::Printf(TEXT("\tOutTexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_W].%s = VertexInterpolator%i(Parameters).w;") LINE_TERMINATOR, Index, Swizzle[(Offset + 3) % 2], Index);
-					}
-				}
-			}
+			CustomInterpolatorAssignments += FString::Printf(TEXT("\tOutTexCoords[NUM_MATERIAL_TEXCOORDS + %u] = Parameters.CustomInterpolators[%u];") LINE_TERMINATOR, InterpolatorIndex, InterpolatorIndex);
 		}
-	}*/
-
-	LazyPrintf.PushParam(*CustomInterpolatorAssignments);
+		LazyPrintf.PushParam(*CustomInterpolatorAssignments);
+	}
 
 	//LazyPrintf.PushParam(*MaterialAttributesDefault);
 
@@ -303,25 +264,24 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 	{
 		FString EvaluateMaterialDeclaration;
 
-		EvaluateMaterialDeclaration += TEXT("FMaterialAttributes EvaluateVertexMaterialAttributesInternal(FMaterialVertexParameters Parameters)" LINE_TERMINATOR);
+		EvaluateMaterialDeclaration += TEXT("void EvaluateVertexMaterialAttributesInternal(in out FMaterialVertexParameters Parameters)" LINE_TERMINATOR);
 		EvaluateMaterialDeclaration += TEXT("{" LINE_TERMINATOR);
 		EvaluateMaterialDeclaration += VertexShaderCode;
 		EvaluateMaterialDeclaration += TEXT("}" LINE_TERMINATOR);
 
-		EvaluateMaterialDeclaration += TEXT("FMaterialAttributes EvaluateVertexMaterialAttributes(FMaterialVertexParameters Parameters)" LINE_TERMINATOR);
+		EvaluateMaterialDeclaration += TEXT("void EvaluateVertexMaterialAttributes(in out FMaterialVertexParameters Parameters)" LINE_TERMINATOR);
 		EvaluateMaterialDeclaration += TEXT("{" LINE_TERMINATOR);
-		EvaluateMaterialDeclaration += TEXT("    FMaterialAttributes Result = EvaluateVertexMaterialAttributesInternal(Parameters);" LINE_TERMINATOR);
-		for (uint32 TexCoordIndex = 0; TexCoordIndex < NumTexCoords; ++TexCoordIndex)
+		EvaluateMaterialDeclaration += TEXT("    EvaluateVertexMaterialAttributesInternal(Parameters);" LINE_TERMINATOR);
+		for (uint32 TexCoordIndex = 0; TexCoordIndex < NumPixelTexCoords; ++TexCoordIndex)
 		{
 			const Material::EExternalInput TexCoordInput = Material::MakeInputTexCoord(TexCoordIndex);
 
 			if (EmitMaterialData.IsExternalInputUsed(SF_Pixel, TexCoordInput) && !EmitMaterialData.IsExternalInputUsed(SF_Vertex, TexCoordInput))
 			{
 				const FString AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName((EMaterialProperty)(MP_CustomizedUVs0 + TexCoordIndex));
-				EvaluateMaterialDeclaration += FString::Printf(TEXT("    Result.%s = Parameters.TexCoords[%d];") LINE_TERMINATOR, *AttributeName, TexCoordIndex);
+				EvaluateMaterialDeclaration += FString::Printf(TEXT("    Parameters.MaterialAttributes.%s = Parameters.TexCoords[%d];") LINE_TERMINATOR, *AttributeName, TexCoordIndex);
 			}
 		}
-		EvaluateMaterialDeclaration += TEXT("   return Result;" LINE_TERMINATOR);
 		EvaluateMaterialDeclaration += TEXT("}" LINE_TERMINATOR);
 
 		FString EvaluateMaterialAttributesPhase0[2];
@@ -330,21 +290,23 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 		{
 			const TCHAR* DerivativeName = (DerivativeIndex == 0) ? TEXT("HWDerivative") : TEXT("AnalyticDerivative");
 
-			EvaluateMaterialAttributesPhase0[DerivativeIndex] = FString::Printf(TEXT("    FMaterialAttributes MaterialAttributesPhase0 = EvaluatePixelMaterialAttributesPhase0_%s(Parameters);" LINE_TERMINATOR), DerivativeName);
+			EvaluateMaterialAttributesPhase0[DerivativeIndex] =  FString::Printf(TEXT("    FMaterialAttributes MaterialAttributesPhase0;" LINE_TERMINATOR), DerivativeName);
+			EvaluateMaterialAttributesPhase0[DerivativeIndex] += FString::Printf(TEXT("    EvaluatePixelMaterialAttributesPhase0_%s(Parameters, MaterialAttributesPhase0);" LINE_TERMINATOR), DerivativeName);
 
-			EvaluateMaterialDeclaration += FString::Printf(TEXT("FMaterialAttributes EvaluatePixelMaterialAttributesPhase0_%s(in out FMaterialPixelParameters Parameters)" LINE_TERMINATOR), DerivativeName);
+			EvaluateMaterialDeclaration += FString::Printf(TEXT("void EvaluatePixelMaterialAttributesPhase0_%s(in out FMaterialPixelParameters Parameters, out FMaterialAttributes OutResult)" LINE_TERMINATOR), DerivativeName);
 			EvaluateMaterialDeclaration += TEXT("{" LINE_TERMINATOR);
 			EvaluateMaterialDeclaration += PixelShaderCodePhase0[DerivativeIndex];
 			EvaluateMaterialDeclaration += TEXT("}" LINE_TERMINATOR);
 
 			if (PixelShaderCodePhase1[DerivativeIndex])
 			{
-				EvaluateMaterialDeclaration += FString::Printf(TEXT("FMaterialAttributes EvaluatePixelMaterialAttributesPhase1_%s(in out FMaterialPixelParameters Parameters)" LINE_TERMINATOR), DerivativeName);
+				EvaluateMaterialDeclaration += FString::Printf(TEXT("void EvaluatePixelMaterialAttributesPhase1_%s(in out FMaterialPixelParameters Parameters, out FMaterialAttributes OutResult)" LINE_TERMINATOR), DerivativeName);
 				EvaluateMaterialDeclaration += TEXT("{" LINE_TERMINATOR);
 				EvaluateMaterialDeclaration += PixelShaderCodePhase1[DerivativeIndex];
 				EvaluateMaterialDeclaration += TEXT("}" LINE_TERMINATOR);
 
-				EvaluateMaterialAttributesPhase1[DerivativeIndex] = FString::Printf(TEXT("    FMaterialAttributes MaterialAttributesPhase1 = EvaluatePixelMaterialAttributesPhase1_%s(Parameters);" LINE_TERMINATOR), DerivativeName);
+				EvaluateMaterialAttributesPhase1[DerivativeIndex] =  FString::Printf(TEXT("    FMaterialAttributes MaterialAttributesPhase1;" LINE_TERMINATOR), DerivativeName);
+				EvaluateMaterialAttributesPhase1[DerivativeIndex] += FString::Printf(TEXT("    EvaluatePixelMaterialAttributesPhase1_%s(Parameters, MaterialAttributesPhase1);" LINE_TERMINATOR), DerivativeName);
 				EvaluateMaterialAttributesPhase1[DerivativeIndex] += TEXT("    Parameters.MaterialAttributes = MaterialAttributesPhase1;" LINE_TERMINATOR);
 			}
 			else
@@ -841,7 +803,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		EmitContext.ShaderFrequency = SF_Pixel;
 		EmitContext.bUseAnalyticDerivatives = (DerivativeIndex == 1);
 		EmitContext.bMarkLiveValues = false;
-		FEmitScope* EmitResultScope = EmitContext.PrepareScope(&CachedTree->GetResultStatement()->GetParentScope());
+		FEmitScope* EmitResultScope = EmitContext.PrepareScope(CachedTree->GetResultScope());
 
 		// Prepare all fields *except* normal
 		FRequestedType RequestedPixelAttributesType;
@@ -889,16 +851,22 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 			EmitContext.bMarkLiveValues = true;
 			EmitContext.PrepareExpression(CachedTree->GetResultExpression(), *EmitResultScope, RequestedPixelAttributesType);
 
+			FEmitShaderExpression* EmitResultExpression = CachedTree->GetResultExpression()->GetValueShader(EmitContext, *EmitResultScope, RequestedPixelAttributesType, CachedTree->GetMaterialAttributesType());
+			EmitContext.EmitStatement(*EmitResultScope, TEXT("OutResult = %;"), EmitResultExpression);
+
 			PixelCodePhase0[DerivativeIndex] = new(Allocator) FStringBuilderMemstack(Allocator, 128 * 1024);
 			CachedTree->GetTree().EmitShader(EmitContext, *PixelCodePhase0[DerivativeIndex]);
 		}
 		else
 		{
 			// Execute everything *except* normal in phase1
+			FEmitShaderExpression* EmitResultExpression1 = CachedTree->GetResultExpression()->GetValueShader(EmitContext, *EmitResultScope, RequestedPixelAttributesType, CachedTree->GetMaterialAttributesType());
+			EmitContext.EmitStatement(*EmitResultScope, TEXT("OutResult = %;"), EmitResultExpression1);
+
 			PixelCodePhase1[DerivativeIndex] = new(Allocator) FStringBuilderMemstack(Allocator, 128 * 1024);
 			CachedTree->GetTree().EmitShader(EmitContext, *PixelCodePhase1[DerivativeIndex]);
 
-			EmitResultScope = EmitContext.PrepareScope(&CachedTree->GetResultStatement()->GetParentScope());
+			EmitResultScope = EmitContext.PrepareScope(CachedTree->GetResultScope());
 
 			// Prepare code for just the normal
 			FRequestedType RequestedMaterialNormal;
@@ -911,6 +879,9 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 
 			EmitContext.bMarkLiveValues = true;
 			EmitContext.PrepareExpression(CachedTree->GetResultExpression(), *EmitResultScope, RequestedMaterialNormal);
+			
+			FEmitShaderExpression* EmitResultExpression0 = CachedTree->GetResultExpression()->GetValueShader(EmitContext, *EmitResultScope, RequestedMaterialNormal, CachedTree->GetMaterialAttributesType());
+			EmitContext.EmitStatement(*EmitResultScope, TEXT("OutResult = %;"), EmitResultExpression0);
 
 			// Execute the normal in phase0
 			PixelCodePhase0[DerivativeIndex] = new(Allocator) FStringBuilderMemstack(Allocator, 128 * 1024);
@@ -940,8 +911,9 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		EmitContext.ShaderFrequency = SF_Vertex;
 		EmitContext.bUseAnalyticDerivatives = false;
 		EmitContext.bMarkLiveValues = false;
-		FEmitScope* EmitResultScope = EmitContext.PrepareScope(&CachedTree->GetResultStatement()->GetParentScope());
+		FEmitScope* EmitResultScope = EmitContext.PrepareScope(CachedTree->GetResultScope());
 
+		EmitMaterialData.PrepareInterpolators(EmitContext, *EmitResultScope);
 		const FPreparedType VertexResultType = EmitContext.PrepareExpression(CachedTree->GetResultExpression(), *EmitResultScope, RequestedVertexAttributesType);
 		if (VertexResultType.IsVoid())
 		{
@@ -949,7 +921,12 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		}
 
 		EmitContext.bMarkLiveValues = true;
+		EmitMaterialData.PrepareInterpolators(EmitContext, *EmitResultScope);
 		EmitContext.PrepareExpression(CachedTree->GetResultExpression(), *EmitResultScope, RequestedVertexAttributesType);
+
+		FEmitShaderExpression* EmitResultExpression = CachedTree->GetResultExpression()->GetValueShader(EmitContext, *EmitResultScope, RequestedVertexAttributesType, CachedTree->GetMaterialAttributesType());
+		EmitContext.EmitStatement(*EmitResultScope, TEXT("Parameters.MaterialAttributes = %;"), EmitResultExpression);
+		EmitMaterialData.EmitInterpolatorStatements(EmitContext, *EmitResultScope);
 
 		bUsesWorldPositionOffset = CachedTree->IsAttributeUsed(EmitContext, *EmitResultScope, VertexResultType, MP_WorldPositionOffset);
 
@@ -972,6 +949,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	FStringBuilderMemstack SharedCode(Allocator, 32 * 1024);
 	CachedTree->EmitSharedCode(SharedCode);
 	EmitContext.EmitDeclarationsCode(SharedCode);
+	EmitMaterialData.EmitInterpolatorShader(EmitContext, SharedCode);
 
 	FString MaterialTemplateSource;
 	{
@@ -992,7 +970,8 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 			SharedCode.ToString(),
 			VertexCode.ToString(),
 			InputPixelCodePhase0,
-			InputPixelCodePhase1);
+			InputPixelCodePhase1,
+			OutCompilationOutput);
 	}
 
 	OutMaterialEnvironment = new FSharedShaderCompilerEnvironment();

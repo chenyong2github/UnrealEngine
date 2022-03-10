@@ -1016,16 +1016,6 @@ void FStatementBreak::EmitPreshader(FEmitContext& Context, FEmitScope& Scope, co
 	LoopScope->BreakLabel = OutPreshader.WriteJump(Shader::EPreshaderOpcode::Jump);
 }
 
-bool FStatementReturn::Prepare(FEmitContext& Context, FEmitScope& Scope) const
-{
-	return true;
-}
-
-void FStatementReturn::EmitShader(FEmitContext& Context, FEmitScope& Scope) const
-{
-	Context.EmitStatement(Scope, TEXT("return %;"), Expression->GetValueShader(Context, Scope));
-}
-
 bool FStatementIf::Prepare(FEmitContext& Context, FEmitScope& Scope) const
 {
 	const FPreparedType& ConditionType = Context.PrepareExpression(ConditionExpression, Scope, ERequestedType::Scalar);

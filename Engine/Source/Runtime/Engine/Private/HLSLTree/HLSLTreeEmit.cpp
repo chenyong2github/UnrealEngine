@@ -859,6 +859,11 @@ void WriteMaterialUniformAccess(Shader::EValueComponentType ComponentType, uint3
 
 FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType, const FExpression* Expression)
 {
+	if (RequestedType.IsVoid())
+	{
+		return EmitConstantZero(Scope, ResultType);
+	}
+
 	Shader::FPreshaderData LocalPreshader;
 	Shader::FType Type = ResultType;
 	{

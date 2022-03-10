@@ -306,6 +306,8 @@ class ENGINE_API UMaterialExpression : public UObject
 	virtual bool GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
 	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const;
 
+	bool IsUsingNewHLSLGenerator() const;
+
 #endif // WITH_EDITOR
 
 	/**

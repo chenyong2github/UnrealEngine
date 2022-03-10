@@ -33,7 +33,7 @@ public:
 	UE::HLSLTree::FTree& GetTree() const { return *HLSLTree; }
 
 	const UE::HLSLTree::FExpression* GetResultExpression() const { return ResultExpression; }
-	UE::HLSLTree::FStatement* GetResultStatement() const { return ResultStatement; }
+	UE::HLSLTree::FScope* GetResultScope() const { return ResultScope; }
 
 	const UE::Shader::FStructType* GetMaterialAttributesType() const { return MaterialAttributesType; }
 	const UE::Shader::FValue& GetMaterialAttributesDefaultValue() const { return MaterialAttributesDefaultValue; }
@@ -51,7 +51,7 @@ private:
 	UE::Shader::FStructTypeRegistry TypeRegistry;
 	UE::HLSLTree::FTree* HLSLTree = nullptr;
 	const UE::HLSLTree::FExpression* ResultExpression = nullptr;
-	UE::HLSLTree::FStatement* ResultStatement = nullptr;
+	UE::HLSLTree::FScope* ResultScope = nullptr;
 
 	TArray<UMaterialExpressionCustomOutput*> MaterialCustomOutputs;
 	const UE::Shader::FStructType* MaterialAttributesType = nullptr;
