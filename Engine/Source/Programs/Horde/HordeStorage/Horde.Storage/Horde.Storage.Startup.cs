@@ -387,8 +387,8 @@ namespace Horde.Storage
 
             // Configure the builder with your cluster's contact points
             Builder clusterBuilder = Cluster.Builder()
-                .WithDefaultKeyspace(DefaultKeyspaceName)
                 .WithConnectionString(connectionString)
+                .WithDefaultKeyspace(DefaultKeyspaceName)
                 .WithLoadBalancingPolicy(new DefaultLoadBalancingPolicy(settings.LocalDatacenterName))
                 .WithPoolingOptions(PoolingOptions.Create().SetMaxConnectionsPerHost(HostDistance.Local, settings.MaxConnectionForLocalHost))
                 .WithExecutionProfiles(options =>

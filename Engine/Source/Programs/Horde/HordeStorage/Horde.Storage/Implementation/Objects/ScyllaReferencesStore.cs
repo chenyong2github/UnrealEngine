@@ -378,7 +378,7 @@ namespace Horde.Storage.Implementation
 
     public class ScyllaSettings
     {
-        public string ConnectionString { get; set; } = "Contact Points=localhost,scylla;Default Keyspace=jupiter";
+        public string ConnectionString { get; set; } = "Contact Points=localhost,scylla";
         public long InlineBlobMaxSize { get; set; } = 32 * 1024; // default to 32 kb blobs max
         public string[] ContactPoints { get; set; } = new string[] {"localhost", "scylla"};
         public int MaxSnapshotsPerNamespace { get; set; } = 10;
