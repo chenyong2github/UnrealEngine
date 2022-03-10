@@ -2076,6 +2076,7 @@ void FSlateEditableTextLayout::InsertTextAtCursorImpl(const FString& InString)
 			TextLayout->InsertAt(CursorInteractionPosition, NewLineText);
 
 			// Advance caret position
+			ClearSelection();
 			const FTextLocation NewCursorPosition = FTextLocation(CursorInteractionPosition.GetLineIndex(), FMath::Min(CursorInteractionPosition.GetOffset() + NewLineText.Len(), Line.Text->Len()));
 			CursorInfo.SetCursorLocationAndCalculateAlignment(*TextLayout, NewCursorPosition);
 		}
