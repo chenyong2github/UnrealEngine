@@ -16,6 +16,7 @@ DECLARE_DELEGATE_RetVal(bool, FCanFinalizeWorkspaceDelegate);
 DECLARE_DELEGATE_RetVal(bool, FCanProcessPendingPackages);
 
 DECLARE_MULTICAST_DELEGATE(FOnWorkspaceSynchronized);
+DECLARE_MULTICAST_DELEGATE(FOnFinalizeWorkspaceSyncCompleted);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnActivityAddedOrUpdated, const FConcertClientInfo&/*InClientInfo*/, const FConcertSyncActivity&/*InActivity*/, const FStructOnScope&/*InActivitySummary*/);
 
 class IConcertClientWorkspace
@@ -148,9 +149,15 @@ public:
 	virtual bool FindPackageEvent(const int64 PackageEventId, FConcertSyncPackageEventMetaData& OutPackageEvent) const = 0;
 
 	/**
-	 * @return the delegate called every time the workspace is synced.
+	 * @return the delegate called every time the workspace is synced. This is when the server has indicated that all
+	 * activities have been sent and ready to be finalized in the current workspace.
 	 */
 	virtual FOnWorkspaceSynchronized& OnWorkspaceSynchronized() = 0;
+
+	/**
+	 * @return The delegate called after a workspace has been completely synced and finalized.  All transactions are posted and packages have been loaded.
+	 */
+	virtual FOnFinalizeWorkspaceSyncCompleted& OnFinalizeWorkspaceSyncCompleted() = 0;
 
 	/**
 	 * This delegate allows user to defer the finalization of a sync workspace. This is for situtations where multiple

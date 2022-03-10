@@ -446,6 +446,11 @@ FOnWorkspaceSynchronized& FConcertClientWorkspace::OnWorkspaceSynchronized()
 	return OnWorkspaceSyncedDelegate;
 }
 
+FOnFinalizeWorkspaceSyncCompleted& FConcertClientWorkspace::OnFinalizeWorkspaceSyncCompleted()
+{
+	return OnFinalizeWorkspaceSyncCompletedDelegate;
+}
+
 IConcertClientDataStore& FConcertClientWorkspace::GetDataStore()
 {
 	return *DataStore;
@@ -841,6 +846,7 @@ void FConcertClientWorkspace::OnEndFrame()
 		// Finalize the sync
 		bHasSyncedWorkspace = true;
 		FConcertSlowTaskStackWorkaround::Get().PopTask(MoveTemp(InitialSyncSlowTask));
+		OnFinalizeWorkspaceSyncCompletedDelegate.Broadcast();
 	}
 
 	if (bHasSyncedWorkspace && CanProcessPendingPackages() && !ConcertSyncClientUtil::UserIsEditing())

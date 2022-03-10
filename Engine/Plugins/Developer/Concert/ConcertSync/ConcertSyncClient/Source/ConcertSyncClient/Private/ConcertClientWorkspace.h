@@ -51,6 +51,8 @@ public:
 	virtual int64 GetLastActivityId() const override;
 	virtual FOnActivityAddedOrUpdated& OnActivityAddedOrUpdated() override;
 	virtual FOnWorkspaceSynchronized& OnWorkspaceSynchronized() override;
+	virtual FOnFinalizeWorkspaceSyncCompleted& OnFinalizeWorkspaceSyncCompleted() override;
+
 	virtual IConcertClientDataStore& GetDataStore() override;
 	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo, int32 OtherClientsWithModifMaxFetchNum) const override;
 	virtual void SetIgnoreOnRestoreFlagForEmittedActivities(bool bIgnore) override;
@@ -232,7 +234,10 @@ private:
 
 	/** The delegate called every time the workspace is synced. */
 	FOnWorkspaceSynchronized OnWorkspaceSyncedDelegate;
-	
+
+	/** The delegate called after the workspace has been synced and finalized. */
+	FOnFinalizeWorkspaceSyncCompleted OnFinalizeWorkspaceSyncCompletedDelegate;
+
 	/** The session key/value store proxy. The real store is held by the server and shared across all clients. */
 	TUniquePtr<FConcertClientDataStore> DataStore;
 
