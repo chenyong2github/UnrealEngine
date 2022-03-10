@@ -642,7 +642,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return Builder;
 		}
 
-		private StringBuilder AppendCallbackParametersDecls(StringBuilder Builder,UhtClass Class, List<UhtFunction> CallbackFunctions)
+		private StringBuilder AppendCallbackParametersDecls(StringBuilder Builder, UhtClass Class, List<UhtFunction> CallbackFunctions)
 		{
 			if (CallbackFunctions.Count > 0)
 			{
@@ -1241,8 +1241,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				Builder.Append('\t').AppendMacroName(this, Class, AccessorsMacroSuffix).Append(" \\\r\n");
 				if (bHasCallbacks)
 				{
-						Builder.Append('\t').AppendMacroName(this, Class, CallbackWrappersMacroSuffix).Append(" \\\r\n");
-					}
+					Builder.Append('\t').AppendMacroName(this, Class, CallbackWrappersMacroSuffix).Append(" \\\r\n");
+				}
 				if (bIsInterface)
 				{
 					if (bIsLegacy)
@@ -1393,5 +1393,27 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return MaxValue;
 		}
 		#endregion
+	}
+
+	static class UhtClassExtensions
+	{
+		public static IEnumerable<UhtProperty> EnumerateReplicatedProperties(this UhtClass Class, bool bIncludeSuper)
+		{
+			if (bIncludeSuper && Class.SuperClass != null)
+			{
+				foreach (UhtProperty Property in Class.SuperClass.EnumerateReplicatedProperties(true))
+				{
+					yield return Property;
+				}
+			}
+
+			foreach (UhtProperty Property in Class.Properties)
+			{
+				if (Property.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
+				{
+					yield return Property;
+				}
+			}
+		}
 	}
 }

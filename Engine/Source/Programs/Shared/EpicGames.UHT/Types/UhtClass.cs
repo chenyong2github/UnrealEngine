@@ -19,6 +19,10 @@ namespace EpicGames.UHT.Types
 	[Flags]
 	public enum UhtClassExportFlags : UInt32
 	{
+
+		/// <summary>
+		/// No export flags
+		/// </summary>
 		None = 0,
 
 		/// <summary>
@@ -36,16 +40,34 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		HasReplciatedProperties = SelfHasReplicatedProperties | SuperHasReplicatedProperties,
 
+		/// <summary>
+		/// Custom constructor specifier present
+		/// </summary>
 		HasCustomConstructor = 1 << 2,
 
+		/// <summary>
+		/// A default constructor was found in the class
+		/// </summary>
 		HasDefaultConstructor = 1 << 3,
 
+		/// <summary>
+		/// An object initializer constructor was found in the class
+		/// </summary>
 		HasObjectInitializerConstructor = 1 << 4,
 
+		/// <summary>
+		/// A custom vtable helper constructor was found
+		/// </summary>
 		HasCustomVTableHelperConstructor = 1 << 5,
 
+		/// <summary>
+		/// A constructor was found
+		/// </summary>
 		HasConstructor = 1 << 6,
 
+		/// <summary>
+		/// GetLifetimeReplicatedProps was found in the class
+		/// </summary>
 		HasGetLifetimeReplicatedProps = 1 << 7,
 	}
 
@@ -91,19 +113,52 @@ namespace EpicGames.UHT.Types
 		}
 	}
 
+	/// <summary>
+	/// Type of the class
+	/// </summary>
 	public enum UhtClassType
 	{
+		/// <summary>
+		/// Class is a UCLASS
+		/// </summary>
 		Class,
+
+		/// <summary>
+		/// Class is a UINTERFACE
+		/// </summary>
 		Interface,
+
+		/// <summary>
+		/// Class is the native interface for a UINTERFACE
+		/// </summary>
 		NativeInterface,
 	}
 
+	/// <summary>
+	/// Type of archive serializer found
+	/// </summary>
 	[Flags]
 	public enum UhtSerializerArchiveType
 	{
+
+		/// <summary>
+		/// No serializer found
+		/// </summary>
 		None = 0,
+
+		/// <summary>
+		/// Archive serializer found
+		/// </summary>
 		Archive = 1 << 0,
+
+		/// <summary>
+		/// Structured archive serializer found
+		/// </summary>
 		StructuredArchiveRecord = 1 << 1,
+
+		/// <summary>
+		/// Mask of all serializer types
+		/// </summary>
 		All = Archive | StructuredArchiveRecord,
 	}
 
@@ -149,60 +204,139 @@ namespace EpicGames.UHT.Types
 		}
 	}
 
+	/// <summary>
+	/// A skipped declaration
+	/// </summary>
 	public struct UhtDeclaration
 	{
+
+		/// <summary>
+		/// Compiler directives when declaration was parsed
+		/// </summary>
 		public UhtCompilerDirective CompilerDirectives;
+
+		/// <summary>
+		/// Collection of tokens parsed in the declaration
+		/// </summary>
 		public UhtToken[] Tokens;
 	}
 
+	/// <summary>
+	/// Represents a declaration found by name
+	/// </summary>
 	public struct UhtFoundDeclaration
 	{
+
+		/// <summary>
+		/// Compiler directives when declaration was parsed
+		/// </summary>
 		public UhtCompilerDirective CompilerDirectives;
+
+		/// <summary>
+		/// Collection of tokens parsed in the declaration
+		/// </summary>
 		public UhtToken[] Tokens;
+
+		/// <summary>
+		/// Token index for the matching name
+		/// </summary>
 		public int NameTokenIndex;
+
+		/// <summary>
+		/// True if "virtual" was found prior to the matching name
+		/// </summary>
 		public bool bIsVirtual;
 	}
 
+	/// <summary>
+	/// Instance of a UCLASS, UINTERFACE, or a native interface
+	/// </summary>
 	[UhtEngineClass(Name = "Class")]
 	public class UhtClass : UhtStruct
 	{
 		private static UhtSpecifierValidatorTable ClassSpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.Class);
 		private static UhtSpecifierValidatorTable InterfaceSpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.Interface);
 		private static UhtSpecifierValidatorTable NativeInterfaceSpecifierValidatorTable = UhtSpecifierValidatorTables.Instance.Get(UhtTableNames.NativeInterface);
+		private List<UhtDeclaration>? DeclarationsInternal = null;
 
+		/// <summary>
+		/// Configuration section
+		/// </summary>
 		public string Config { get; set; } = String.Empty;
+
+		/// <summary>
+		/// If needed, the #if block define for the serializer
+		/// </summary>
 		public string EnclosingDefine { get; set; } = String.Empty;
 
+		/// <summary>
+		/// The class within
+		/// </summary>
 		[JsonConverter(typeof(UhtTypeSourceNameJsonConverter<UhtClass>))]
 		public UhtClass ClassWithin { get; set; }
 
+		/// <summary>
+		/// Class flags
+		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public EClassFlags ClassFlags { get; set; } = EClassFlags.None;
 
+		/// <summary>
+		/// Class cast flags
+		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public EClassCastFlags ClassCastFlags { get; set; } = EClassCastFlags.None;
 
+		/// <summary>
+		/// Export flags not present in the engine
+		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtClassExportFlags ClassExportFlags { get; set; } = UhtClassExportFlags.None;
 
+		/// <summary>
+		/// Type of the class
+		/// </summary>
 		public UhtClassType ClassType = UhtClassType.Class;
 
+		/// <summary>
+		/// Type of archivers present
+		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtSerializerArchiveType SerializerArchiveType { get; set; } = UhtSerializerArchiveType.None;
 
+		/// <summary>
+		/// Line number of the prolog
+		/// </summary>
 		public int PrologLineNumber { get; set; } = -1;
 
+		/// <summary>
+		/// Collection of functions and other declarations found in the class
+		/// </summary>
 		[JsonIgnore]
 		public IList<UhtDeclaration>? Declarations => this.DeclarationsInternal;
+
+		/// <summary>
+		/// If this, this class is a UINTERFACE and NativeInterface is the associated native interface
+		/// </summary>
 		public UhtClass? NativeInterface = null;
 
+		/// <summary>
+		/// Line number o the generated body statement
+		/// </summary>
 		public int GeneratedBodyLineNumber { get; set; } = -1;
 
+		/// <summary>
+		/// Access of the generated body
+		/// </summary>
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public UhtAccessSpecifier GeneratedBodyAccessSpecifier { get; set; } = UhtAccessSpecifier.None;
 
-		public bool bHasGeneratedBody = false; // If not true, then GENERATED_UCLASS_BODY was used
+		/// <summary>
+		/// True if GENERATED_BODY was used.  If false, GENERATED_UCLASS_BODY was used.
+		/// </summary>
+		public bool bHasGeneratedBody = false;
 
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public override UhtEngineType EngineType
 		{
@@ -249,17 +383,29 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <summary>
+		/// The super class
+		/// </summary>
 		[JsonConverter(typeof(UhtNullableTypeSourceNameJsonConverter<UhtClass>))]
 		public UhtClass? SuperClass => (UhtClass?)this.Super;
 
+		/// <summary>
+		/// Construct a new instance of the class
+		/// </summary>
+		/// <param name="Outer">The outer type</param>
+		/// <param name="LineNumber">Line number where class begins</param>
 		public UhtClass(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 			this.ClassWithin = this;
 		}
 
+		/// <summary>
+		/// True if this class inherits from AActor
+		/// </summary>
 		[JsonIgnore]
 		public bool bIsActorClass => IsChildOf(this.Session.AActor);
 
+		///<inheritdoc/>
 		[JsonIgnore]
 		public override string EngineNamePrefix
 		{ 
@@ -288,8 +434,6 @@ namespace EpicGames.UHT.Types
 				}
 			}
 		}
-
-		private List<UhtDeclaration>? DeclarationsInternal = null;
 
 		/// <summary>
 		/// Add the given list of tokens as a possible declaration
@@ -349,25 +493,6 @@ namespace EpicGames.UHT.Types
 			return false;
 		}
 
-		public IEnumerable<UhtProperty> EnumerateReplicatedProperties(bool bIncludeSuper)
-		{
-			if (bIncludeSuper && this.SuperClass != null)
-			{
-				foreach (UhtProperty Property in this.SuperClass.EnumerateReplicatedProperties(true))
-				{
-					yield return Property;
-				}
-			}
-
-			foreach (UhtProperty Property in this.Properties)
-			{
-				if (Property.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
-				{
-					yield return Property;
-				}
-			}
-		}
-
 		/// <summary>
 		/// Checks to see if the class or any super class has the given flags.
 		/// </summary>
@@ -393,6 +518,7 @@ namespace EpicGames.UHT.Types
 			public bool bFound;
 		}
 
+		/// <inheritdoc/>
 		protected override bool ResolveSelf(UhtResolvePhase Phase)
 		{
 			bool bResult = base.ResolveSelf(Phase);
@@ -769,6 +895,7 @@ namespace EpicGames.UHT.Types
 		#endregion
 
 		#region Validation support
+		/// <inheritdoc/>
 		protected override UhtValidationOptions Validate(UhtValidationOptions Options)
 		{
 			Options = base.Validate(Options);

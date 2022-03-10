@@ -10,9 +10,17 @@ using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {
+	/// <summary>
+	/// Base class for all types that contain properties and functions.
+	/// Also support the ability to specifier super class and base classes
+	/// </summary>
 	[UhtEngineClass(Name = "Struct")]
 	public abstract class UhtStruct : UhtField
 	{
+
+		/// <summary>
+		/// Generated code version of the type.  Set via specifiers
+		/// </summary>
 		public EGeneratedCodeVersion GeneratedCodeVersion = EGeneratedCodeVersion.None;
 
 		/// <summary>
@@ -61,20 +69,35 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public virtual string EngineNamePrefix { get => "F"; }
 
 		/// <inheritdoc/>
 		public override string EngineClassName { get => "Struct"; }
 
+		/// <summary>
+		/// Super type
+		/// </summary>
 		public UhtStruct? Super = null;
 
+		/// <summary>
+		/// Base types
+		/// </summary>
 		[JsonConverter(typeof(UhtNullableTypeListJsonConverter<UhtStruct>))]
 		public List<UhtStruct>? Bases { get; set; } = null;
 
+		/// <summary>
+		/// Super struct type
+		/// </summary>
 		[JsonIgnore]
 		public UhtStruct? SuperStruct => Super;
 
+		/// <summary>
+		/// Construct a new instance
+		/// </summary>
+		/// <param name="Outer">Outer type</param>
+		/// <param name="LineNumber">Line number where definition begins</param>
 		public UhtStruct(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 		}
@@ -82,7 +105,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Test to see if the given struct is derived from the base structure
 		/// </summary>
-		/// <param name="SomeBase">Base structure.</param>
+		/// <param name="Base">Base structure.</param>
 		/// <returns>True if the given structure is the specified base or derives from the base.  If the base is null, the false is returned.</returns>
 		public bool IsChildOf(UhtStruct? Base)
 		{
@@ -101,6 +124,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		#region Resolution support
+		/// <inheritdoc/>
 		protected override void ResolveSuper(UhtResolvePhase ResolvePhase)
 		{
 			if (this.Super != null)
@@ -146,6 +170,12 @@ namespace EpicGames.UHT.Types
 		#endregion
 
 		#region Super and base binding helper methods
+		/// <summary>
+		/// Resolve super identifier
+		/// </summary>
+		/// <param name="SuperIdentifier">Token that represent the super</param>
+		/// <param name="FindOptions">Find options to restrict types</param>
+		/// <exception cref="UhtException">Thrown if super can not be found</exception>
 		public void BindAndResolveSuper(ref UhtToken SuperIdentifier, UhtFindOptions FindOptions)
 		{
 			if (SuperIdentifier)
@@ -161,6 +191,12 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <summary>
+		/// Resolve bases.  Unlike super, this routine will not generate an error if the type can not be found.
+		/// Having unrecognized types is expected.
+		/// </summary>
+		/// <param name="BaseIdentifiers">Collection of bases</param>
+		/// <param name="FindOptions">Options to restrict types being searched</param>
 		public void BindAndResolveBases(List<UhtToken[]>? BaseIdentifiers, UhtFindOptions FindOptions)
 		{
 			if (BaseIdentifiers != null)
@@ -185,6 +221,7 @@ namespace EpicGames.UHT.Types
 		#endregion
 
 		#region Validation support
+		/// <inheritdoc/>
 		protected override UhtValidationOptions Validate(UhtValidationOptions Options)
 		{
 			Options = base.Validate(Options);
@@ -218,6 +255,7 @@ namespace EpicGames.UHT.Types
 			return MinValue <= MaxValue;
 		}
 
+		/// <inheritdoc/>
 		protected override void ValidateDocumentationPolicy(UhtDocumentationPolicy Policy)
 		{
 			if (Policy.bClassOrStructCommentRequired)
@@ -300,7 +338,7 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
-		protected void ValidateSparseClassData()
+		private void ValidateSparseClassData()
 		{
 			// Fetch the data types
 			string[]? SparseClassDataTypes = this.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);

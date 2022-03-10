@@ -140,8 +140,18 @@ namespace EpicGames.UHT.Types
 		Member,
 	};
 
+	/// <summary>
+	/// Helper methods for the property category
+	/// </summary>
 	public static class UhtPropertyCategoryExtensions
 	{
+
+		/// <summary>
+		/// Return the hint text for the property category
+		/// </summary>
+		/// <param name="PropertyCategory">Property category</param>
+		/// <returns>The user facing hint text</returns>
+		/// <exception cref="UhtIceException">Unexpected category</exception>
 		public static string GetHintText(this UhtPropertyCategory PropertyCategory)
 		{
 			switch (PropertyCategory)
@@ -160,51 +170,80 @@ namespace EpicGames.UHT.Types
 					throw new UhtIceException("Unknown variable category");
 			}
 		}
-
-		public static bool IsMemberProperty(this UhtPropertyCategory PropertyCategory)
-		{
-			return PropertyCategory == UhtPropertyCategory.Member;
-		}
-
-		public static bool IsFunctionProperty(this UhtPropertyCategory PropertyCategory)
-		{
-			return PropertyCategory != UhtPropertyCategory.Member;
-		}
-
-		public static bool IsFunctionReturn(this UhtPropertyCategory PropertyCategory)
-		{
-			return PropertyCategory == UhtPropertyCategory.Return;
-		}
-
-		public static bool IsFunctionArgument(this UhtPropertyCategory PropertyCategory)
-		{
-			return PropertyCategory == UhtPropertyCategory.RegularParameter || PropertyCategory == UhtPropertyCategory.ReplicatedParameter;
-		}
 	}
 
+	/// <summary>
+	/// Allocator used for container
+	/// </summary>
 	public enum UhtPropertyAllocator
 	{
+		/// <summary>
+		/// Default allocator
+		/// </summary>
 		Default,
+
+		/// <summary>
+		/// Memory image allocator
+		/// </summary>
 		MemoryImage
 	};
 
+	/// <summary>
+	/// Type of pointer
+	/// </summary>
 	public enum UhtPointerType
 	{
+
+		/// <summary>
+		/// No pointer specified
+		/// </summary>
 		None,
+
+		// Native pointer specified
 		Native,
 	}
 
+	/// <summary>
+	/// Size type of an integer
+	/// </summary>
 	public enum UhtPropertyIntType
 	{
+
+		/// <summary>
+		/// Property is not an integer
+		/// </summary>
 		None,
+
+		/// <summary>
+		/// Property is a sized integer
+		/// </summary>
 		Sized,
+
+		/// <summary>
+		/// Property is an unsized integer
+		/// </summary>
 		Unsized,
 	};
 
+	/// <summary>
+	/// Type of reference
+	/// </summary>
 	public enum UhtPropertyRefQualifier
 	{
+
+		/// <summary>
+		/// Property is not a reference
+		/// </summary>
 		None,
+
+		/// <summary>
+		/// Property is a const reference
+		/// </summary>
 		ConstRef,
+
+		/// <summary>
+		/// Property is a non-const reference
+		/// </summary>
 		NonConstRef,
 	};
 
@@ -214,6 +253,10 @@ namespace EpicGames.UHT.Types
 	[Flags]
 	public enum UhtPropertyOptions
 	{
+
+		/// <summary>
+		/// No property options
+		/// </summary>
 		None = 0,
 
 		/// <summary>
@@ -264,9 +307,15 @@ namespace EpicGames.UHT.Types
 		}
 	}
 
+	/// <summary>
+	/// Property capabilities.  Use the caps system instead of patterns such as "Property is UhtObjectProperty"
+	/// </summary>
 	[Flags]
 	public enum UhtPropertyCaps
 	{
+		/// <summary>
+		/// No property caps
+		/// </summary>
 		None = 0,
 
 		/// <summary>
@@ -453,8 +502,17 @@ namespace EpicGames.UHT.Types
 		GetterSetterArg,
 	}
 
+	/// <summary>
+	/// Extension methods for the property text type
+	/// </summary>
 	public static class UhtPropertyTextTypeExtensions
 	{
+
+		/// <summary>
+		/// Test to see if the text type is for a function
+		/// </summary>
+		/// <param name="TextType">Type of text</param>
+		/// <returns>True if the text type is a function</returns>
 		public static bool IsParameter(this UhtPropertyTextType TextType)
 		{
 			return
@@ -464,10 +522,22 @@ namespace EpicGames.UHT.Types
 		}
 	}
 
+	//ETSTODO - This can be removed since FunctionThunkParameterArgType is only used in conjunction with UhtPGetArgumentType
+	/// <summary>
+	/// Specifies how the PGet argument type is to be formatted
+	/// </summary>
 	public enum UhtPGetArgumentType
 	{
+		/// <summary>
+		/// </summary>
 		None,
+
+		/// <summary>
+		/// </summary>
 		EngineClass,
+
+		/// <summary>
+		/// </summary>
 		TypeText,
 	}
 

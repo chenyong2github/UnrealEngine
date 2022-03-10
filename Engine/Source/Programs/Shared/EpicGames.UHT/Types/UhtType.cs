@@ -294,34 +294,111 @@ namespace EpicGames.UHT.Types
 		}
 	}
 
+	/// <summary>
+	/// Options to customize how symbols are found
+	/// </summary>
 	[Flags]
 	public enum UhtFindOptions
 	{
-		EngineName = 1 << 0,        // This is the default
+		/// <summary>
+		/// Search using the engine name.  This is the default if neither engine/source is specified.
+		/// </summary>
+		EngineName = 1 << 0,
+
+		/// <summary>
+		/// Search using the source name.  This can not be set if EngineName is also set.
+		/// </summary>
 		SourceName = 1 << 1,
 
+		/// <summary>
+		/// Search for UhtEnum types
+		/// </summary>
 		Enum = 1 << 8,
+
+		/// <summary>
+		/// Search for UhtScriptStruct types
+		/// </summary>
 		ScriptStruct = 1 << 9,
+		
+		/// <summary>
+		/// Search for UhtClass types
+		/// </summary>
 		Class = 1 << 10,
+
+		/// <summary>
+		/// Search for UhtFunction types that are delegate functions
+		/// </summary>
 		DelegateFunction = 1 << 11,
+
+		/// <summary>
+		/// Search for UhtFunction types that are not delegate functions
+		/// </summary>
 		Function = 1 << 12,
+
+		/// <summary>
+		/// Search for UhtProperty types
+		/// </summary>
 		Property = 1 << 13,
 
+		/// <summary>
+		/// Search for any properties or functions
+		/// </summary>
+		PropertyOrFunction = Property | Function | DelegateFunction,
+
+		/// <summary>
+		/// Do not search the super chain
+		/// </summary>
 		NoParents = 1 << 16,
+
+		/// <summary>
+		/// Do not search the outer chain
+		/// </summary>
 		NoOuter = 1 << 17,
+
+		/// <summary>
+		/// Do not search include files
+		/// </summary>
 		NoIncludes = 1 << 18,
+
+		/// <summary>
+		/// Do not do a last resort global namespace search
+		/// </summary>
 		NoGlobal = 1 << 19,
+
+		/// <summary>
+		/// Do not search the children of the starting point
+		/// </summary>
 		NoSelf = 1 << 20,
-		CaseCompare = 1 << 21,
-		CaselessCompare = 1 << 22,
+
+		/// <summary>
+		/// Only search the parent chain
+		/// </summary>
 		ParentsOnly = NoOuter | NoIncludes | NoGlobal | NoSelf,
 
-		NamesMask = EngineName | SourceName,
-		TypesMask = Enum | ScriptStruct | Class | DelegateFunction | Function | Property,
-		ObjectTypesMask = Enum | ScriptStruct | Class,
-		DelgeateTypesMask = DelegateFunction,
-		PropertyOrFunction = Property | Function | DelegateFunction,
+		/// <summary>
+		/// Search only the children of the starting type
+		/// </summary>
 		SelfOnly = NoParents | NoOuter | NoIncludes | NoGlobal,
+
+		/// <summary>
+		/// Case compare (usually for SourceName searches)
+		/// </summary>
+		CaseCompare = 1 << 21,
+
+		/// <summary>
+		/// Caseless compare (usually for EngineName searches)
+		/// </summary>
+		CaselessCompare = 1 << 22,
+
+		/// <summary>
+		/// Mask of name flags
+		/// </summary>
+		NamesMask = EngineName | SourceName,
+
+		/// <summary>
+		/// Mask of type flags
+		/// </summary>
+		TypesMask = Enum | ScriptStruct | Class | DelegateFunction | Function | Property,
 	}
 
 	/// <summary>
@@ -366,9 +443,16 @@ namespace EpicGames.UHT.Types
 		}
 	}
 
+	/// <summary>
+	/// Options during validation checks
+	/// </summary>
 	[Flags]
 	public enum UhtValidationOptions
 	{
+
+		/// <summary>
+		/// No validation options
+		/// </summary>
 		None,
 
 		/// <summary>
@@ -440,23 +524,63 @@ namespace EpicGames.UHT.Types
 		}
 	}
 
+	/// <summary>
+	/// Access specifier for type
+	/// </summary>
 	public enum UhtAccessSpecifier
 	{
+
+		/// <summary>
+		/// No access specifier seen
+		/// </summary>
 		None,
+
+		/// <summary>
+		/// Public type
+		/// </summary>
 		Public,
+
+		/// <summary>
+		/// Private type
+		/// </summary>
 		Private,
+
+		/// <summary>
+		/// Protected type
+		/// </summary>
 		Protected,
 	}
 
+	/// <summary>
+	/// Requested resolve phase
+	/// </summary>
 	public enum UhtResolvePhase : Int32
 	{
+		/// <summary>
+		/// Check for any type that is invalid.  Invalid items will be removed from the children. 
+		/// Used to detect things that looked like native interfaces but no interface was found
+		/// </summary>
 		InvalidCheck = 1,
+
+		/// <summary>
+		/// Resolve any super references
+		/// </summary>
 		Bases,
+
+		/// <summary>
+		/// Resolve property types that reference other types
+		/// </summary>
 		Properties,
+
+		/// <summary>
+		/// Final resolve phase for anything that needs fully resolved properties.
+		/// </summary>
 		Final,
-		Count,
 	}
 
+	/// <summary>
+	/// Flags for required documentation
+	/// </summary>
 	public class UhtDocumentationPolicy
 	{
 		private static UhtDocumentationPolicy StrictDocumentationPolicy = new UhtDocumentationPolicy
@@ -479,14 +603,43 @@ namespace EpicGames.UHT.Types
 			bFloatRangesRequired = false,
 		};
 
+		/// <summary>
+		/// If true, this is a valid documentation policy that should be respected
+		/// </summary>
 		public bool bPolicySet;
+
+		/// <summary>
+		/// A tool tip must be defined
+		/// </summary>
 		public bool bClassOrStructCommentRequired;
+
+		/// <summary>
+		/// Functions must have a tool tip
+		/// </summary>
 		public bool bFunctionToolTipsRequired;
+
+		/// <summary>
+		/// Property members must have a tool tip
+		/// </summary>
 		public bool bMemberToolTipsRequired;
+
+		/// <summary>
+		/// Function parameters must have a tool tip
+		/// </summary>
 		public bool bParameterToolTipsRequired;
+
+		/// <summary>
+		/// Float properties must have a range specified
+		/// </summary>
 		public bool bFloatRangesRequired;
 
-		public static bool TryGet(UhtType Type, string DocumentationPolicyName, out UhtDocumentationPolicy Policy)
+		/// <summary>
+		/// Return the documentation policy given the name
+		/// </summary>
+		/// <param name="DocumentationPolicyName">Name of the policy</param>
+		/// <param name="Policy">Policy settings</param>
+		/// <returns>True if the name is valid, false if not</returns>
+		public static bool TryGet(string DocumentationPolicyName, out UhtDocumentationPolicy Policy)
 		{
 			if (DocumentationPolicyName == "Strict")
 			{
@@ -499,6 +652,10 @@ namespace EpicGames.UHT.Types
 		}
 	};
 
+	/// <summary>
+	/// Base type for all UHT types.
+	/// These mostly map to UnrealEngine types.
+	/// </summary>
 	public abstract class UhtType : IUhtMessageSite, IUhtMessageLineNumber
 	{
 		/// <summary>
@@ -637,12 +794,15 @@ namespace EpicGames.UHT.Types
 		private int ResolveState = 0;
 
 		#region IUHTMessageSite implementation
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public virtual IUhtMessageSession MessageSession => this.HeaderFile.MessageSession;
 
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public virtual IUhtMessageSource? MessageSource => this.HeaderFile.MessageSource;
 
+		/// <inheritdoc/>
 		[JsonIgnore]
 		public IUhtMessageLineNumber? MessageLineNumber => this;
 		#endregion
@@ -725,6 +885,12 @@ namespace EpicGames.UHT.Types
 		}
 
 		#region Type resolution
+
+		/// <summary>
+		/// Resolve the type.  To customize behavior, override ResolveSuper, ResolveSelf, or ResolveChildren.
+		/// </summary>
+		/// <param name="Phase">Resolution phase</param>
+		/// <returns>False if the type fails any invalid checks during InvalidPhase check.</returns>
 		public bool Resolve(UhtResolvePhase Phase)
 		{
 			int InitState = (int)Phase << 1;
@@ -770,15 +936,28 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <summary>
+		/// Resolve any super types
+		/// </summary>
+		/// <param name="Phase">Resolution phase</param>
 		protected virtual void ResolveSuper(UhtResolvePhase Phase)
 		{
 		}
 
+		/// <summary>
+		/// Resolve self
+		/// </summary>
+		/// <param name="Phase">Resolution phase</param>
+		/// <returns>False if the type fails any invalid checks during InvalidPhase check.</returns>
 		protected virtual bool ResolveSelf(UhtResolvePhase Phase)
 		{
 			return true;
 		}
 
+		/// <summary>
+		/// Resolve children
+		/// </summary>
+		/// <param name="Phase">Resolution phase</param>
 		protected virtual void ResolveChildren(UhtResolvePhase Phase)
 		{
 			if (this.ChildrenInternal != null)
@@ -864,7 +1043,11 @@ namespace EpicGames.UHT.Types
 		#endregion
 
 		#region Validation support
-		// Validate the property settings
+		/// <summary>
+		/// Validate the type settings
+		/// </summary>
+		/// <param name="Options">Validation options</param>
+		/// <returns>Updated validation options.  This will be used to validate the children.</returns>
 		protected virtual UhtValidationOptions Validate(UhtValidationOptions Options)
 		{
 			ValidateMetaData();
@@ -893,7 +1076,7 @@ namespace EpicGames.UHT.Types
 
 		private void ValidateDocumentationPolicy()
 		{
-			if (UhtDocumentationPolicy.TryGet(this, this.DocumentationPolicyName, out UhtDocumentationPolicy Policy))
+			if (UhtDocumentationPolicy.TryGet(this.DocumentationPolicyName, out UhtDocumentationPolicy Policy))
 			{
 				if (Policy.bPolicySet)
 				{
@@ -906,10 +1089,19 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <summary>
+		/// Validate the documentation policy
+		/// </summary>
+		/// <param name="Policy">The expected documentation policy</param>
 		protected virtual void ValidateDocumentationPolicy(UhtDocumentationPolicy Policy)
 		{
 		}
 
+		/// <summary>
+		/// Validate the given type.  Validates itself and the children
+		/// </summary>
+		/// <param name="Type">Type to validate</param>
+		/// <param name="Options">Validation options</param>
 		public static void ValidateType(UhtType Type, UhtValidationOptions Options)
 		{
 			// Invoke the new method
@@ -924,6 +1116,11 @@ namespace EpicGames.UHT.Types
 		#endregion
 
 		#region Name and user facing text support
+		/// <summary>
+		/// Return the path name of the type which includes the outers
+		/// </summary>
+		/// <param name="StopOuter">Type to stop at when generating the path</param>
+		/// <return>The path string</return>
 		public string GetPathName(UhtType? StopOuter = null)
 		{
 			StringBuilder Builder = new StringBuilder();
@@ -931,6 +1128,11 @@ namespace EpicGames.UHT.Types
 			return Builder.ToString();
 		}
 
+		/// <summary>
+		/// Return the path name of the type which includes the outers
+		/// </summary>
+		/// <param name="Builder">Destination builder</param>
+		/// <param name="StopOuter">Type to stop at when generating the path</param>
 		public virtual void GetPathName(StringBuilder Builder, UhtType? StopOuter = null)
 		{
 			GetPathNameInternal(Builder, StopOuter);
@@ -940,7 +1142,7 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
-		public virtual void GetPathNameInternal(StringBuilder Builder, UhtType? StopOuter = null)
+		private void GetPathNameInternal(StringBuilder Builder, UhtType? StopOuter = null)
 		{
 			if (this != StopOuter)
 			{
@@ -970,6 +1172,10 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
+		/// <summary>
+		/// Get the full type name which is the engine class name followed by the path name
+		/// </summary>
+		/// <returns>Full name string</returns>
 		public string GetFullName()
 		{
 			StringBuilder Builder = new StringBuilder();
@@ -977,6 +1183,10 @@ namespace EpicGames.UHT.Types
 			return Builder.ToString();
 		}
 
+		/// <summary>
+		/// Get the full type name which is the engine class name followed by the path name
+		/// </summary>
+		/// <param name="Builder">Destination builder</param>
 		public virtual void GetFullName(StringBuilder Builder)
 		{
 			Builder.Append(this.EngineClassName);
@@ -1037,11 +1247,18 @@ namespace EpicGames.UHT.Types
 		}
 		#endregion
 
+		/// <summary>
+		/// Collect all the references for the type
+		/// </summary>
+		/// <param name="Collector">Object collecting the references</param>
 		public virtual void CollectReferences(IUhtReferenceCollector Collector)
 		{
 		}
 	}
 
+	/// <summary>
+	/// String builder extensions for UhtTypes
+	/// </summary>
 	public static class UhtTypeStringBuilderExtensions
 	{
 		/// <summary>
