@@ -37,6 +37,180 @@ namespace PCGSelfPruningAlgorithms
 	}
 }
 
+namespace PCGSelfPruningElement
+{
+	void DensityBoundsExclusion(const TArray<const FPCGPoint*>& SortedPoints, const UPCGPointData::PointOctree& Octree, TSet<const FPCGPoint*>& ExclusionPoints)
+	{
+		TSet<const FPCGPoint*> ExcludedPoints;
+		ExcludedPoints.Reserve(SortedPoints.Num());
+		
+		for (const FPCGPoint* Point : SortedPoints)
+		{
+			if (ExcludedPoints.Contains(Point))
+			{
+				continue;
+			}
+
+			ExclusionPoints.Add(Point);
+
+			const FBoxSphereBounds PointBounds = Point->GetDensityBounds();
+			Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(PointBounds.Origin, PointBounds.BoxExtent), [&ExclusionPoints, &ExcludedPoints](const FPCGPointRef& InPointRef)
+			{
+				// TODO: check on an oriented-box basis?
+				if (!ExclusionPoints.Contains(InPointRef.Point))
+				{
+					ExcludedPoints.Add(InPointRef.Point);
+				}
+			});
+		}
+	}
+
+	void DuplicatePointsExclusion(const TArray<const FPCGPoint*>& SortedPoints, const UPCGPointData::PointOctree& Octree, TSet<const FPCGPoint*>& ExclusionPoints)
+	{
+		TSet<const FPCGPoint*> ExcludedPoints;
+		ExcludedPoints.Reserve(SortedPoints.Num());
+
+		for (const FPCGPoint* Point : SortedPoints)
+		{
+			if (ExcludedPoints.Contains(Point))
+			{
+				continue;
+			}
+
+			ExclusionPoints.Add(Point);
+
+			Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(Point->Transform.GetLocation(), FVector::Zero()), [&ExclusionPoints, &ExcludedPoints, Point](const FPCGPointRef& InPointRef)
+			{
+				if ((Point->Transform.GetLocation() - InPointRef.Point->Transform.GetLocation()).SquaredLength() <= SMALL_NUMBER &&
+					!ExclusionPoints.Contains(InPointRef.Point))
+				{
+					ExcludedPoints.Add(InPointRef.Point);
+				}
+			});
+		}
+	}
+
+	void Execute(FPCGContext* Context, EPCGSelfPruningType PruningType, float RadiusSimilarityFactor, bool bRandomizedPruning)
+	{
+		// Early out: if pruning is disabled
+		if (PruningType == EPCGSelfPruningType::None)
+		{
+			Context->OutputData = Context->InputData;
+			PCGE_LOG_C(Verbose, Context, "Skipped - Type is none");
+			return;
+		}
+
+		const FVector::FReal RadiusEquality = 1.0f + RadiusSimilarityFactor;
+		const FVector::FReal SquaredRadiusEquality = FMath::Square(RadiusEquality);
+
+		TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+
+		// TODO: embarassingly parallel loop
+		TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+		for (const FPCGTaggedData& Input : Inputs)
+		{
+			const UPCGSpatialData* SpatialInput = Cast<UPCGSpatialData>(Input.Data);
+
+			if (!SpatialInput)
+			{
+				PCGE_LOG_C(Error, Context, "Invalid input data");
+				continue;
+			}
+
+			const UPCGPointData* InputPointData = SpatialInput->ToPointData(Context);
+			const TArray<FPCGPoint>& Points = InputPointData->GetPoints();
+			const UPCGPointData::PointOctree& Octree = InputPointData->GetOctree();
+
+			// Self-pruning will be done as follows:
+			// For each point:
+			//  if in its vicinity, there is >=1 non-rejected point with a radius significantly larger
+			//  or in its range + has a randomly assigned index -> we'll look at its seed
+			//  then remove this point
+			TArray<const FPCGPoint*> SortedPoints;
+			SortedPoints.Reserve(Points.Num());
+			for (const FPCGPoint& Point : Points)
+			{
+				SortedPoints.Add(&Point);
+			}
+
+			// Apply proper sort algorithm
+			if (PruningType == EPCGSelfPruningType::LargeToSmall)
+			{
+				if (bRandomizedPruning)
+				{
+					Algo::Sort(SortedPoints, [SquaredRadiusEquality](const FPCGPoint* A, const FPCGPoint* B) { return !PCGSelfPruningAlgorithms::SortSmallToLargeWithRandom(A, B, SquaredRadiusEquality); });
+				}
+				else
+				{
+					Algo::Sort(SortedPoints, [SquaredRadiusEquality](const FPCGPoint* A, const FPCGPoint* B) { return !PCGSelfPruningAlgorithms::SortSmallToLargeNoRandom(A, B, SquaredRadiusEquality); });
+				}
+			}
+			else if (PruningType == EPCGSelfPruningType::SmallToLarge)
+			{
+				if (bRandomizedPruning)
+				{
+					Algo::Sort(SortedPoints, [SquaredRadiusEquality](const FPCGPoint* A, const FPCGPoint* B) { return PCGSelfPruningAlgorithms::SortSmallToLargeWithRandom(A, B, SquaredRadiusEquality); });
+				}
+				else
+				{
+					Algo::Sort(SortedPoints, [SquaredRadiusEquality](const FPCGPoint* A, const FPCGPoint* B) { return PCGSelfPruningAlgorithms::SortSmallToLargeNoRandom(A, B, SquaredRadiusEquality); });
+				}
+			}
+			else
+			{
+				if (bRandomizedPruning)
+				{
+					Algo::Sort(SortedPoints, PCGSelfPruningAlgorithms::RandomSort);
+				}
+			}
+
+			TSet<const FPCGPoint*> ExclusionPoints;
+			ExclusionPoints.Reserve(Points.Num());
+
+			const bool bIsDuplicateTest = (PruningType == EPCGSelfPruningType::RemoveDuplicates);
+
+			if (bIsDuplicateTest)
+			{
+				PCGSelfPruningElement::DuplicatePointsExclusion(SortedPoints, Octree, ExclusionPoints);
+			}
+			else
+			{
+				PCGSelfPruningElement::DensityBoundsExclusion(SortedPoints, Octree, ExclusionPoints);
+			}
+
+			// Finally, output all points that are present in the ExclusionPoints.
+			FPCGTaggedData& Output = Outputs.Emplace_GetRef();
+			Output = Input;
+
+			UPCGPointData* PrunedData = NewObject<UPCGPointData>();
+			PrunedData->TargetActor = SpatialInput->TargetActor;
+
+			Output.Data = PrunedData;
+
+			TArray<FPCGPoint>& OutputPoints = PrunedData->GetMutablePoints();
+			OutputPoints.Reserve(ExclusionPoints.Num());
+
+			for (const FPCGPoint* Point : ExclusionPoints)
+			{
+				OutputPoints.Add(*Point);
+			}
+
+			if (bIsDuplicateTest)
+			{
+				PCGE_LOG_C(Verbose, Context, "Removed %d duplicate points from %d source points", Points.Num() - OutputPoints.Num(), Points.Num());
+			}
+			else
+			{
+				PCGE_LOG_C(Verbose, Context, "Generated %d points from %d source points", OutputPoints.Num(), Points.Num());
+			}
+		}
+
+		// Finally, forward any exclusions/settings
+		Outputs.Append(Context->InputData.GetExclusions());
+		Outputs.Append(Context->InputData.GetAllSettings());
+	}
+}
+
 FPCGElementPtr UPCGSelfPruningSettings::CreateElement() const
 {
 	return MakeShared<FPCGSelfPruningElement>();
@@ -49,130 +223,7 @@ bool FPCGSelfPruningElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGSelfPruningSettings* Settings = Context->GetInputSettings<UPCGSelfPruningSettings>();
 	check(Settings);
 
-	// Early out: if pruning is disabled
-	if (Settings->PruningType == EPCGSelfPruningType::None)
-	{
-		Context->OutputData = Context->InputData;
-		PCGE_LOG(Verbose, "Skipped - Type is none");
-		return true;
-	}
-
-	const FVector::FReal RadiusEquality = 1.0f + Settings->RadiusSimilarityFactor;
-	const FVector::FReal SquaredRadiusEquality = FMath::Square(RadiusEquality);
-
-	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-
-	// TODO: embarassingly parallel loop
-	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	for (const FPCGTaggedData& Input : Inputs)
-	{
-		const UPCGSpatialData* SpatialInput = Cast<UPCGSpatialData>(Input.Data);
-
-		if (!SpatialInput)
-		{
-			PCGE_LOG(Error, "Invalid input data");
-			continue;
-		}
-
-		const UPCGPointData* InputPointData = SpatialInput->ToPointData(Context);
-		const TArray<FPCGPoint>& Points = InputPointData->GetPoints();
-		const UPCGPointData::PointOctree& Octree = InputPointData->GetOctree();
-
-		// Self-pruning will be done as follows:
-		// For each point:
-		//  if in its vicinity, there is >=1 non-rejected point with a radius significantly larger
-		//  or in its range + has a randomly assigned index -> we'll look at its seed
-		//  then remove this point
-		TArray<const FPCGPoint*> SortedPoints;
-		SortedPoints.Reserve(Points.Num());
-		for (const FPCGPoint& Point : Points)
-		{
-			SortedPoints.Add(&Point);
-		}
-
-		// Apply proper sort algorithm
-		if (Settings->PruningType == EPCGSelfPruningType::LargeToSmall)
-		{
-			if (Settings->bRandomizedPruning)
-			{
-				Algo::Sort(SortedPoints, [SquaredRadiusEquality](const FPCGPoint* A, const FPCGPoint* B) { return !PCGSelfPruningAlgorithms::SortSmallToLargeWithRandom(A, B, SquaredRadiusEquality); });
-			}
-			else
-			{
-				Algo::Sort(SortedPoints, [SquaredRadiusEquality](const FPCGPoint* A, const FPCGPoint* B) { return !PCGSelfPruningAlgorithms::SortSmallToLargeNoRandom(A, B, SquaredRadiusEquality); });
-			}
-		}
-		else if (Settings->PruningType == EPCGSelfPruningType::SmallToLarge)
-		{
-			if (Settings->bRandomizedPruning)
-			{
-				Algo::Sort(SortedPoints, [SquaredRadiusEquality](const FPCGPoint* A, const FPCGPoint* B) { return PCGSelfPruningAlgorithms::SortSmallToLargeWithRandom(A, B, SquaredRadiusEquality); });
-			}
-			else
-			{
-				Algo::Sort(SortedPoints, [SquaredRadiusEquality](const FPCGPoint* A, const FPCGPoint* B) { return PCGSelfPruningAlgorithms::SortSmallToLargeNoRandom(A, B, SquaredRadiusEquality); });
-			}
-		}
-		else
-		{
-			if (Settings->bRandomizedPruning)
-			{
-				Algo::Sort(SortedPoints, PCGSelfPruningAlgorithms::RandomSort);
-			}
-		}
-
-		TSet<const FPCGPoint*> ExclusionPoints;
-		ExclusionPoints.Reserve(Points.Num());
-
-		TSet<const FPCGPoint*> ExcludedPoints;
-		ExcludedPoints.Reserve(Points.Num());
-
-		for (int PointIndex = 0; PointIndex < SortedPoints.Num(); ++PointIndex)
-		{
-			// Find all points in the vicinity of the current point and reject them, if they aren't part of the exclusions yet
-			// If any of these have been seen before (e.g. in the ExclusionPoints)
-			// then reject this point
-			const FPCGPoint* CurrentPoint = SortedPoints[PointIndex];
-
-			if (ExcludedPoints.Contains(CurrentPoint))
-			{
-				continue;
-			}
-
-			ExclusionPoints.Add(CurrentPoint);
-
-			const FBoxSphereBounds CurrentPointBounds = CurrentPoint->GetDensityBounds();
-			Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(CurrentPointBounds.Origin, CurrentPointBounds.BoxExtent), [&ExclusionPoints, &ExcludedPoints](const FPCGPointRef& InPointRef) {
-				if (!ExclusionPoints.Contains(InPointRef.Point))
-				{
-					ExcludedPoints.Add(InPointRef.Point);
-				}
-			});
-		}
-
-		// Finally, output all points that are present in the ExclusionPoints.
-		FPCGTaggedData& Output = Outputs.Emplace_GetRef();
-		Output = Input;
-
-		UPCGPointData* PrunedData = NewObject<UPCGPointData>();
-		PrunedData->TargetActor = SpatialInput->TargetActor;
-
-		Output.Data = PrunedData;
-
-		TArray<FPCGPoint>& OutputPoints = PrunedData->GetMutablePoints();
-		OutputPoints.Reserve(ExclusionPoints.Num());
-
-		for (const FPCGPoint* Point : ExclusionPoints)
-		{
-			OutputPoints.Add(*Point);
-		}
-
-		PCGE_LOG(Verbose, "Generated %d points from %d source points", OutputPoints.Num(), Points.Num());
-	}
-
-	// Finally, forward any exclusions/settings
-	Outputs.Append(Context->InputData.GetExclusions());
-	Outputs.Append(Context->InputData.GetAllSettings());
+	PCGSelfPruningElement::Execute(Context, Settings->PruningType, Settings->RadiusSimilarityFactor, Settings->bRandomizedPruning);
 
 	return true;
 }

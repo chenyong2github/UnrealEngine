@@ -15,8 +15,14 @@ enum class EPCGSelfPruningType : uint8
 	LargeToSmall,
 	SmallToLarge,
 	AllEqual,
-	None
+	None,
+	RemoveDuplicates
 };
+
+namespace PCGSelfPruningElement
+{
+	void Execute(FPCGContext* Context, EPCGSelfPruningType PruningType, float RadiusSimilarityFactor, bool bRandomizedPruning);
+}
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
 class PCG_API UPCGSelfPruningSettings : public UPCGSettings

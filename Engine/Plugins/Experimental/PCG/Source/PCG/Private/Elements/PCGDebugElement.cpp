@@ -40,11 +40,11 @@ namespace PCGDebugElement
 			Materials.Add(Material);
 		}
 
-		TArray<FPCGTaggedData> Outputs = Context->OutputData.GetInputs();
+		TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 
-		for (const FPCGTaggedData& Output : Outputs)
+		for(const FPCGTaggedData& Input : Inputs)
 		{
-			const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Output.Data);
+			const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Input.Data);
 
 			if (!SpatialData)
 			{

@@ -5,6 +5,7 @@
 #include "PCGModule.h"
 #include "PCGSettings.h"
 #include "Elements/PCGDebugElement.h"
+#include "Elements/PCGSelfPruning.h"
 #include "Graph/PCGGraphCache.h"
 
 bool IPCGElement::Execute(FPCGContext* Context) const
@@ -115,14 +116,41 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 		}
 
 #if WITH_EDITOR
-		if (bDone && Settings && (Settings->ExecutionMode == EPCGSettingsExecutionMode::Debug || Settings->ExecutionMode == EPCGSettingsExecutionMode::Isolated))
+		if (bDone && Settings)
 		{
-			PCGDebugElement::ExecuteDebugDisplay(Context);
-
-			// Null out the output if this node is executed in isolation
-			if (Settings->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
+			if (Settings->DebugSettings.bCheckForDuplicates)
 			{
-				Context->OutputData.bCancelExecution = true;
+				FPCGDataCollection ElementInputs = Context->InputData;
+				FPCGDataCollection ElementOutputs = Context->OutputData;
+
+				Context->InputData = ElementOutputs;
+				Context->OutputData = FPCGDataCollection();
+
+				PCGE_LOG(Verbose, "Performing remove duplicate points test (perf warning)");
+				PCGSelfPruningElement::Execute(Context, EPCGSelfPruningType::RemoveDuplicates, 0.0f, false);
+
+				Context->InputData = ElementInputs;
+				Context->OutputData = ElementOutputs;
+			}
+
+			if (Settings->ExecutionMode == EPCGSettingsExecutionMode::Debug || Settings->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
+			{
+				FPCGDataCollection ElementInputs = Context->InputData;
+				FPCGDataCollection ElementOutputs = Context->OutputData;
+
+				Context->InputData = ElementOutputs;
+				Context->OutputData = FPCGDataCollection();
+
+				PCGDebugElement::ExecuteDebugDisplay(Context);
+
+				Context->InputData = ElementInputs;
+				Context->OutputData = ElementOutputs;
+
+				// Null out the output if this node is executed in isolation
+				if (Settings->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
+				{
+					Context->OutputData.bCancelExecution = true;
+				}
 			}
 		}
 #endif
