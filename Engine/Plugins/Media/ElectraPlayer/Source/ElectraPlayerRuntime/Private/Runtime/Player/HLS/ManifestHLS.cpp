@@ -45,8 +45,8 @@ public:
 
 	virtual IManifest::FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
 	virtual IManifest::FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
-	virtual IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
-	virtual IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData) override;
+	virtual IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options) override;
+	virtual IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bReplaceWithFillerData) override;
 	virtual IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
 	virtual void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
 
@@ -84,7 +84,7 @@ private:
 
 	IManifest::FResult GetMediaStreamForID(TSharedPtrTS<FManifestHLSInternal::FPlaylistBase>& OutPlaylist, TSharedPtrTS<FManifestHLSInternal::FMediaStream>& OutMediaStream, uint32 UniqueID) const;
 
-	IManifest::FResult GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bRetry);
+	IManifest::FResult GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bRetry);
 
 	IManifest::FResult FindSegment(TSharedPtrTS<FStreamSegmentRequestHLSfmp4>& OutRequest, TSharedPtrTS<FManifestHLSInternal::FPlaylistBase> InPlaylist, TSharedPtrTS<FManifestHLSInternal::FMediaStream> InStream, uint32 StreamUniqueID, EStreamType StreamType, const FSegSearchParam& SearchParam, IManifest::ESearchType SearchType);
 
@@ -821,16 +821,15 @@ IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegmen
 		FSegSearchParam								SearchParam;
 
 		// Frame accurate seek required?
-		bool bFrameAccurateSearch = SessionServices->GetOptions().GetValue(OptionKeyFrameAccurateSeek).SafeGetBool(false);
+		bool bFrameAccurateSearch = StartPosition.Options.bFrameAccuracy;
 		if (bFrameAccurateSearch)
 		{
 			// Get the segment that starts on or before the search time.
 			SearchType = IManifest::ESearchType::Before;
 		}
 
-		// Get the end of the playback end, if any.
-		FTimeValue PlayRangeEnd = SessionServices->GetOptions().GetValue(OptionPlayRangeEnd).SafeGetTimeValue(FTimeValue::GetPositiveInfinity());
-
+		FTimeValue PlayRangeEnd = StartPosition.Options.PlaybackRange.End;
+		check(PlayRangeEnd.IsValid());
 
 		SearchParam.Time = StartPosition.Time;
 		SearchParam.LastPTS = PlayRangeEnd;
@@ -1024,7 +1023,7 @@ IManifest::FResult FPlayPeriodHLS::GetLoopingSegment(TSharedPtrTS<IStreamSegment
 
 
 
-IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, bool bRetry)
+IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, const FPlayStartOptions& Options, bool bRetry)
 {
 	// Need to have a current segment to find the next one.
 	if (!InCurrentSegment.IsValid())
@@ -1077,9 +1076,9 @@ IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSeg
 		FSegSearchParam								SearchParam;
 
 		// Frame accurate seek required?
-		bool bFrameAccurateSearch = SessionServices->GetOptions().GetValue(OptionKeyFrameAccurateSeek).SafeGetBool(false);
-		// Get the end of the playback end, if any.
-		FTimeValue PlayRangeEnd = SessionServices->GetOptions().GetValue(OptionPlayRangeEnd).SafeGetTimeValue(FTimeValue::GetPositiveInfinity());
+		bool bFrameAccurateSearch = Options.bFrameAccuracy;
+		FTimeValue PlayRangeEnd = Options.PlaybackRange.End;
+		check(PlayRangeEnd.IsValid());
 		SearchParam.LastPTS = PlayRangeEnd;
 		SearchParam.bFrameAccurateSearch = bFrameAccurateSearch;
 
@@ -1149,16 +1148,17 @@ IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSeg
  *
  * @param OutSegment
  * @param InCurrentSegment
+ * @param Options
  *
  * @return
  */
-IManifest::FResult FPlayPeriodHLS::GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment)
+IManifest::FResult FPlayPeriodHLS::GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, const FPlayStartOptions& Options)
 {
-	return GetNextOrRetrySegment(OutSegment, InCurrentSegment, false);
+	return GetNextOrRetrySegment(OutSegment, InCurrentSegment, Options, false);
 }
 
 
-IManifest::FResult FPlayPeriodHLS::GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, bool bReplaceWithFillerData)
+IManifest::FResult FPlayPeriodHLS::GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, const FPlayStartOptions& Options, bool bReplaceWithFillerData)
 {
 	// To insert filler data we can use the current request over again.
 	if (bReplaceWithFillerData)
@@ -1172,7 +1172,7 @@ IManifest::FResult FPlayPeriodHLS::GetRetrySegment(TSharedPtrTS<IStreamSegment>&
 		OutSegment = NewRequest;
 		return IManifest::FResult(IManifest::FResult::EType::Found);
 	}
-	return GetNextOrRetrySegment(OutSegment, InCurrentSegment, true);
+	return GetNextOrRetrySegment(OutSegment, InCurrentSegment, Options, true);
 }
 
 

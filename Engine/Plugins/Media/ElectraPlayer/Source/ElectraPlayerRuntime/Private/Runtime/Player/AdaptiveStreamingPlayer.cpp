@@ -2506,24 +2506,7 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 							}
 						}
 					}
-
-					// Clamp to within any set playback range
-					FTimeValue RangeStart = GetOptions().GetValue(OptionPlayRangeStart).SafeGetTimeValue(FTimeValue());
-					FTimeValue RangeEnd = GetOptions().GetValue(OptionPlayRangeEnd).SafeGetTimeValue(FTimeValue());
-					if (RangeStart.IsValid() && PendingStartRequest->StartAt.Time < RangeStart)
-					{
-						PendingStartRequest->StartAt.Time = RangeStart;
-					}
-					if (RangeEnd.IsValid() && PendingStartRequest->StartAt.Time > RangeEnd)
-					{
-						PendingStartRequest->StartAt.Time = RangeEnd;
-						// Going to the end will of course result in an 'end reached' and end of playback.
-						// If the player is set to loop then we should start from the beginning.
-						if (CurrentLoopParam.bEnableLooping)
-						{
-							PendingStartRequest->StartAt.Time = RangeStart;
-						}
-					}
+					ClampStartRequestTime();
 
 					IManifest::FResult Result = Manifest->FindPlayPeriod(InitialPlayPeriod, PendingStartRequest->StartAt, PendingStartRequest->SearchType);
 					switch(Result.GetType())
@@ -3239,13 +3222,15 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 			IManifest::FResult Result;
 			if (!FinishedReq.bStartOver && !FinishedReq.bPlayPosAutoReselect)
 			{
+				FPlayStartOptions Options;
+				SetPlaystartOptions(Options);
 				if (Action == IAdaptiveStreamSelector::ESegmentAction::FetchNext)
 				{
-					Result = SegmentPlayPeriod->GetNextSegment(NextSegment, FinishedReq.Request);
+					Result = SegmentPlayPeriod->GetNextSegment(NextSegment, FinishedReq.Request, Options);
 				}
 				else if (Action == IAdaptiveStreamSelector::ESegmentAction::Retry || Action == IAdaptiveStreamSelector::ESegmentAction::Fill)
 				{
-					Result = SegmentPlayPeriod->GetRetrySegment(NextSegment, FinishedReq.Request, Action == IAdaptiveStreamSelector::ESegmentAction::Fill);
+					Result = SegmentPlayPeriod->GetRetrySegment(NextSegment, FinishedReq.Request, Options, Action == IAdaptiveStreamSelector::ESegmentAction::Fill);
 				}
 			}
 			else
@@ -3527,6 +3512,18 @@ void FAdaptiveStreamingPlayer::InternalDeselectStream(EStreamType StreamType)
 
 void FAdaptiveStreamingPlayer::InternalStartoverAtCurrentPosition()
 {
+	{
+		// Check if a seek is currently pending. If so then let us perform the seek instead.
+		FScopeLock lock(&SeekVars.Lock);
+		// Is there a pending request?
+		if (SeekVars.PendingRequest.IsSet())
+		{
+			// To ensure the seek will execute we clear out the active and last finished requests.
+			SeekVars.ActiveRequest.Reset();
+			SeekVars.LastFinishedRequest.Reset();
+			return;
+		}
+	}
 	FSeekParam NewPosition;
 	NewPosition.Time = PlaybackState.GetPlayPosition();
 	InternalStop(PlayerConfig.bHoldLastFrameDuringSeek);
@@ -3626,6 +3623,7 @@ void FAdaptiveStreamingPlayer::InternalHandleSegmentTrackChanges(const FTimeValu
 					FPendingSegmentRequest NextReq;
 					NextReq.bStartOver = true;
 					NextReq.StartoverPosition.Time = PlaybackState.GetPlayPosition();
+					SetPlaystartOptions(NextReq.StartoverPosition.Options);
 					NextReq.StreamType = EStreamType::Audio;
 					NextPendingSegmentRequests.Enqueue(MoveTemp(NextReq));
 
@@ -3653,6 +3651,7 @@ void FAdaptiveStreamingPlayer::InternalHandleSegmentTrackChanges(const FTimeValu
 					FPendingSegmentRequest NextReq;
 					NextReq.bStartOver = true;
 					NextReq.StartoverPosition.Time = PlaybackState.GetPlayPosition();
+					SetPlaystartOptions(NextReq.StartoverPosition.Options);
 					NextReq.StreamType = EStreamType::Subtitle;
 					NextPendingSegmentRequests.Enqueue(MoveTemp(NextReq));
 
@@ -3849,6 +3848,41 @@ TSharedPtrTS<FBufferSourceInfo> FAdaptiveStreamingPlayer::GetStreamBufferInfoAtT
 	return BufferSourceInfo;
 }
 
+
+void FAdaptiveStreamingPlayer::SetPlaystartOptions(FPlayStartOptions& OutOptions)
+{
+	FTimeValue RangeStart = GetOptions().GetValue(OptionPlayRangeStart).SafeGetTimeValue(FTimeValue());
+	FTimeValue RangeEnd = GetOptions().GetValue(OptionPlayRangeEnd).SafeGetTimeValue(FTimeValue());
+
+	OutOptions.PlaybackRange.Start = RangeStart.IsValid() ? RangeStart : FTimeValue::GetZero();
+	OutOptions.PlaybackRange.End = RangeEnd.IsValid() ? RangeEnd : FTimeValue::GetPositiveInfinity();
+
+	OutOptions.bFrameAccuracy = GetOptions().GetValue(OptionKeyFrameAccurateSeek).SafeGetBool(false);
+}
+
+void FAdaptiveStreamingPlayer::ClampStartRequestTime()
+{
+	if (PendingStartRequest.IsValid())
+	{
+		// Clamp to within any set playback range
+		FTimeValue RangeStart = PendingStartRequest->StartAt.Options.PlaybackRange.Start;
+		FTimeValue RangeEnd = PendingStartRequest->StartAt.Options.PlaybackRange.End;
+		if (PendingStartRequest->StartAt.Time < RangeStart)
+		{
+			PendingStartRequest->StartAt.Time = RangeStart;
+		}
+		else if (PendingStartRequest->StartAt.Time > RangeEnd)
+		{
+			PendingStartRequest->StartAt.Time = RangeEnd;
+			// Going to the end will of course result in an 'end reached' and end of playback.
+			// If the player is set to loop then we should start from the beginning.
+			if (CurrentLoopParam.bEnableLooping)
+			{
+				PendingStartRequest->StartAt.Time = RangeStart;
+			}
+		}
+	}
+}
 
 FTimeValue FAdaptiveStreamingPlayer::ClampTimeToCurrentRange(const FTimeValue& InTime, bool bClampToStart, bool bClampToEnd)
 {
@@ -4143,7 +4177,7 @@ void FAdaptiveStreamingPlayer::InternalStartAt(const FSeekParam& NewPosition)
 	PendingStartRequest->StartAt.Time = NewPosition.Time;
 	PendingStartRequest->StartingBitrate = NewPosition.StartingBitrate;
 	PendingStartRequest->StartType = SeekVars.bIsPlayStart ? FPendingStartRequest::EStartType::PlayStart : FPendingStartRequest::EStartType::Seeking;
-
+	SetPlaystartOptions(PendingStartRequest->StartAt.Options);
 
 	// The fragment should be the closest to the time stamp unless we are rebuffering in which case it should be the one we failed on.
 /*

@@ -12,12 +12,6 @@
 #include "ParameterDictionary.h"
 
 
-
-//
-//
-//
-
-
 namespace Electra
 {
 
@@ -32,9 +26,21 @@ namespace Electra
 	};
 
 
+	struct FPlayStartOptions
+	{
+		FPlayStartOptions()
+		{
+			PlaybackRange.Start = FTimeValue::GetZero();
+			PlaybackRange.End = FTimeValue::GetPositiveInfinity();
+		}
+		FTimeRange		PlaybackRange;
+		bool			bFrameAccuracy = false;
+	};
+
 	struct FPlayStartPosition
 	{
-		FTimeValue		Time;
+		FTimeValue			Time;
+		FPlayStartOptions	Options;
 	};
 
 
@@ -385,18 +391,19 @@ namespace Electra
 			 *
 			 * @return
 			 */
-			virtual FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment) = 0;
+			virtual FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options) = 0;
 
 			/**
 			 * Gets the segment request for the same segment on a different quality level or CDN.
 			 *
 			 * @param OutSegment
 			 * @param CurrentSegment
+			 * @param Options
 			 * @param bReplaceWithFillerData
 			 *
 			 * @return
 			 */
-			virtual FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData) = 0;
+			virtual FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bReplaceWithFillerData) = 0;
 
 			/**
 			 * Called by the ABR to increase the delay in fetching the next segment in case the segment returned a 404 when fetched at

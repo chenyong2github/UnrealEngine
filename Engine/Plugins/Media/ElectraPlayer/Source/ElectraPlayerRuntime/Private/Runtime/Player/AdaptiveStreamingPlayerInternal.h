@@ -180,7 +180,7 @@ struct FPlaybackState
 		bIsBuffering = false;
 		bIsPlaying = false;
 		bIsPaused = false;
-		bPlayrateHasChanged = false;
+		bPlayrangeHasChanged = false;
 		bLoopStateHasChanged = false;
 	}
 
@@ -196,7 +196,7 @@ struct FPlaybackState
 	bool									bIsBuffering;
 	bool									bIsPlaying;
 	bool									bIsPaused;
-	bool									bPlayrateHasChanged;
+	bool									bPlayrangeHasChanged;
 	bool									bLoopStateHasChanged;
 	TArray<FTrackMetadata>					VideoTracks;
 	TArray<FTrackMetadata>					AudioTracks;
@@ -385,12 +385,12 @@ struct FPlaybackState
 	void SetPlayRangeHasChanged(bool bWasChanged)
 	{
 		FMediaCriticalSection::ScopedLock lock(Lock);
-		bPlayrateHasChanged = bWasChanged;
+		bPlayrangeHasChanged = bWasChanged;
 	}
 	bool GetPlayRangeHasChanged()
 	{
 		FMediaCriticalSection::ScopedLock lock(Lock);
-		return bPlayrateHasChanged;
+		return bPlayrangeHasChanged;
 	}
 	void SetLoopStateHasChanged(bool bWasChanged)
 	{
@@ -1766,6 +1766,8 @@ private:
 	bool HaveEnoughBufferedDataToStartPlayback();
 	void PrepareForPrerolling();
 
+	void SetPlaystartOptions(FPlayStartOptions& OutOptions);
+	void ClampStartRequestTime();
 	FTimeValue ClampTimeToCurrentRange(const FTimeValue& InTime, bool bClampToStart, bool bClampToEnd);
 
 	TSharedPtrTS<FMultiTrackAccessUnitBuffer> GetStreamBuffer(EStreamType InStreamType, const TSharedPtrTS<FStreamDataBuffers>& InFromStreamBuffers)
