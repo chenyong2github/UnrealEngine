@@ -177,20 +177,20 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		P21 = mul(P21, ClipToTranslatedWorld); P21 /= P21.w;
 		P31 = mul(P31, ClipToTranslatedWorld); P31 /= P31.w;
 
-		AddLineTWS(P00, P10, FrustumColor, FrustumColor);
-		AddLineTWS(P10, P20, FrustumColor, FrustumColor);
-		AddLineTWS(P20, P30, FrustumColor, FrustumColor);
-		AddLineTWS(P30, P00, FrustumColor, FrustumColor);
+		AddLineTWS(P00.xyz, P10.xyz, FrustumColor, FrustumColor);
+		AddLineTWS(P10.xyz, P20.xyz, FrustumColor, FrustumColor);
+		AddLineTWS(P20.xyz, P30.xyz, FrustumColor, FrustumColor);
+		AddLineTWS(P30.xyz, P00.xyz, FrustumColor, FrustumColor);
 
-		AddLineTWS(P00, P01, FrustumColor, FrustumColor);
-		AddLineTWS(P10, P11, FrustumColor, FrustumColor);
-		AddLineTWS(P20, P21, FrustumColor, FrustumColor);
-		AddLineTWS(P30, P31, FrustumColor, FrustumColor);
+		AddLineTWS(P00.xyz, P01.xyz, FrustumColor, FrustumColor);
+		AddLineTWS(P10.xyz, P11.xyz, FrustumColor, FrustumColor);
+		AddLineTWS(P20.xyz, P21.xyz, FrustumColor, FrustumColor);
+		AddLineTWS(P30.xyz, P31.xyz, FrustumColor, FrustumColor);
 
-		AddLineTWS(P01, P11, FrustumColor, FrustumColor);
-		AddLineTWS(P11, P21, FrustumColor, FrustumColor);
-		AddLineTWS(P21, P31, FrustumColor, FrustumColor);
-		AddLineTWS(P31, P01, FrustumColor, FrustumColor);
+		AddLineTWS(P01.xyz, P11.xyz, FrustumColor, FrustumColor);
+		AddLineTWS(P11.xyz, P21.xyz, FrustumColor, FrustumColor);
+		AddLineTWS(P21.xyz, P31.xyz, FrustumColor, FrustumColor);
+		AddLineTWS(P31.xyz, P01.xyz, FrustumColor, FrustumColor);
 	}
 }
 #endif // SHADER_DOMINFO

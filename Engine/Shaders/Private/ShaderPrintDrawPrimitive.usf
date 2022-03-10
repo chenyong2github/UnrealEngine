@@ -25,17 +25,29 @@ void ShaderDrawDebugVS(
 	out float4 Position : SV_POSITION,
 	out float4 ColorAlpha : TEXCOORD0)
 {
-	FShaderDrawElement Item = UnpackShaderElement(ShaderDrawDebugPrimitive, InstanceId);
+	const FShaderDrawElement Item = UnpackShaderElement(ShaderDrawDebugPrimitive, InstanceId);
 
 	float4 VertexPositionTWS = float4(VertexId == 0 ? Item.Pos0 : Item.Pos1, 1.0f);
 	float4 VertexColor = VertexId == 0 ? Item.Color0 : Item.Color1;
 
-	// Optional world offset. For 'locked' debug drawing, this offset translates the world 
-	// position recorded for a given translated world offset, into the current translated 
-	// world offset
-	VertexPositionTWS.xyz += TranslatedWorldOffsetConversion;
+	if (Item.bIsScreenSpace)
+	{
+		Position = VertexPositionTWS;
+		Position.xy = Position.xy * 2 - 1;
+		Position.y = -Position.y;
 
-	Position = mul(VertexPositionTWS, PrimaryView.TranslatedWorldToClip);
+		Position.z = 1;
+		Position.w = 1;
+	}
+	else
+	{
+		// Optional world offset. For 'locked' debug drawing, this offset translates the world 
+		// position recorded for a given translated world offset, into the current translated 
+		// world offset
+		VertexPositionTWS.xyz += TranslatedWorldOffsetConversion;
+
+		Position = mul(VertexPositionTWS, PrimaryView.TranslatedWorldToClip);
+	}
 	ColorAlpha = VertexColor;
 }
 #endif
