@@ -1767,6 +1767,13 @@ namespace UnrealBuildTool
 						// Remove lib prefix
 						LibName = LibName.Remove(0, 3);
 					}
+					else if (LibraryDependency.Exists)
+					{
+						// The library exists, but it is not prefixed with "lib", so force the
+						// linker to find it without that prefix by prepending a colon to
+						// the file name.
+						LibName = string.Format(":{0}", LibraryDependency.Name);
+					}
 					string LibLinkFlag = string.Format(" -l{0}", LibName);
 
 					if (LinkEnvironment.bIsBuildingDLL && LinkEnvironment.bIsCrossReferenced)
