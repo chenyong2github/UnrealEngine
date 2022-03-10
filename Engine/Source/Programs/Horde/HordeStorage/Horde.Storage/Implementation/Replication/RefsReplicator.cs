@@ -223,6 +223,10 @@ namespace Horde.Storage.Implementation
 
                     if (useSnapshotException != null)
                     {
+                        // if we have already attempted to recover using a snapshot and we still fail we just give up and throw the exception onwards.
+                        if (haveAttemptedSnapshot)
+                            throw new AggregateException(useSnapshotException);
+
                         // if we are told to use a snapshot but are configured to not do so we will simply reset the state tracking and thus start from the oldest incremental event
                         // this will result in a partial replication
                         if (_replicatorSettings.SkipSnapshot)
@@ -232,10 +236,6 @@ namespace Horde.Storage.Implementation
                             retry = true;
                             continue;
                         }
-
-                        // if we have already attempted to recover using a snapshot and we still fail we just give up and throw the exception onwards.
-                        if (haveAttemptedSnapshot)
-                            throw new AggregateException(useSnapshotException);
 
                         // if we fail to replicate incrementally we revert to using a snapshot
                         haveAttemptedSnapshot = true;
