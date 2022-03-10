@@ -18,6 +18,7 @@
 #include "StaticBoundShaderState.h"
 #include "EngineGlobals.h"
 #include "PipelineStateCache.h"
+#include "RHICoreShader.h"
 
 static const bool GUsesInvertedZ = true;
 
@@ -117,6 +118,15 @@ void FAGXRHICommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIBuffer* V
 		}
 		
 		Context->GetCurrentState().SetVertexStream(StreamIndex, VertexBuffer ? &TheBuffer : nil, VertexBuffer ? VertexBuffer->Data : nil, Offset, VertexBuffer ? VertexBuffer->GetSize() : 0);
+	}
+}
+
+template <typename TRHIShader>
+void FAGXRHICommandContext::ApplyStaticUniformBuffers(TRHIShader* Shader)
+{
+	if (Shader)
+	{
+		UE::RHICore::ApplyStaticUniformBuffers(this, Shader, Shader->StaticSlots, Shader->Bindings.ShaderResourceTable.ResourceTableLayoutHashes, GlobalUniformBuffers);
 	}
 }
 
