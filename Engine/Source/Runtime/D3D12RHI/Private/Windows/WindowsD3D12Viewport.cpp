@@ -259,6 +259,10 @@ void FD3D12Viewport::FinalDestroyInternal()
 {
 }
 
+void FD3D12Viewport::ClearPresentQueue()
+{
+}
+
 void FD3D12Viewport::ConditionalResetSwapChain(bool bIgnoreFocus)
 {
 	if (!bIsValid)

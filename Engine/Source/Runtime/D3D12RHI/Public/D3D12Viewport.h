@@ -178,6 +178,7 @@ private:
 
 	void ResizeInternal();
 	void FinalDestroyInternal();
+	void ClearPresentQueue();
 
 	uint64 LastFlipTime;
 	uint64 LastFrameComplete;

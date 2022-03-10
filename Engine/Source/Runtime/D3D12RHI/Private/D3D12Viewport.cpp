@@ -505,6 +505,8 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		check(SDRBackBuffers[i] == nullptr);
 	}
 
+	ClearPresentQueue();
+
 	// Flush the outstanding GPU work and wait for it to complete.
 	FlushRenderingCommands();
 	FRHICommandListExecutor::CheckNoOutstandingCmdLists();
