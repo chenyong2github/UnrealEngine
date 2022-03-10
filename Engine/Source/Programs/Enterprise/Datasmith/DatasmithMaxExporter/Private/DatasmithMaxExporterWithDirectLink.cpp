@@ -1044,7 +1044,10 @@ public:
 			if (TUniquePtr<FInstances>* InstancesPtr = InstancesForAnimHandle.Find(NodeTracker.InstanceHandle))
 			{
 				FInstances& Instances = **InstancesPtr;
+				UnregisterNodeForMaterial(NodeTracker);
+
 				Instances.NodeTrackers.Remove(&NodeTracker);
+
 				if (!Instances.NodeTrackers.Num())
 				{
 					ReleaseMeshElement(Instances.DatasmithMeshElement);
@@ -1385,24 +1388,14 @@ public:
 		if (!NodeTracker.MaterialTracker || NodeTracker.MaterialTracker->Material != Material)
 		{
 			// Release old material
-			if (NodeTracker.MaterialTracker)
-			{
-				// Release material assignment
-				MaterialsAssignedToNodes[NodeTracker.MaterialTracker].Remove(&NodeTracker);
-
-				// Clean tracker if it's not used aby any node
-				if (MaterialsAssignedToNodes[NodeTracker.MaterialTracker].IsEmpty())
-				{
-					MaterialsCollectionTracker.ReleaseMaterial(*NodeTracker.MaterialTracker);
-				}
-			}
+			UnregisterNodeForMaterial(NodeTracker);
 
 			NodeTracker.MaterialTracker = MaterialsCollectionTracker.AddMaterial(Material);
 			MaterialsAssignedToNodes.FindOrAdd(NodeTracker.MaterialTracker).Add(&NodeTracker);
 		}
 	}
 
-	void UnregisterNodeForMaterial(FNodeTracker& NodeTracker, Mtl* Material)
+	void UnregisterNodeForMaterial(FNodeTracker& NodeTracker)
 	{
 		if (NodeTracker.MaterialTracker)
 		{
@@ -1411,6 +1404,7 @@ public:
 			{
 				MaterialsCollectionTracker.ReleaseMaterial(*NodeTracker.MaterialTracker);
 			}
+			NodeTracker.MaterialTracker = nullptr;
 		}
 	}
 
@@ -1515,8 +1509,7 @@ public:
 			else
 			{
 				// Release old material
-				UnregisterNodeForMaterial(NodeTracker, Material);
-				NodeTracker.MaterialTracker = nullptr;
+				UnregisterNodeForMaterial(NodeTracker);
 				NodeTracker.DatasmithMeshActor->ResetMaterialOverrides();
 			}
 
@@ -1552,7 +1545,18 @@ public:
 
 		if (RenderMesh.GetMesh())
 		{
-			if (ConvertMaxMeshToDatasmith(*this, DatasmithMeshElement, Node, *MeshName, RenderMesh, SupportedChannels, CollisionMesh)) // export might produce anything(e.g. if mesh is empty)
+			bool bHasInstanceWithMultimat = false;
+			for (FNodeTracker* InstanceNodeTracker : Instances.NodeTrackers)
+			{
+				if (Mtl* Material = InstanceNodeTracker->Node->GetMtl())
+				{
+					if (FDatasmithMaxMatHelper::GetMaterialClass(Material) == EDSMaterialType::MultiMat)
+					{
+						bHasInstanceWithMultimat = true;
+					}
+				}
+			}
+			if (ConvertMaxMeshToDatasmith(*this, DatasmithMeshElement, Node, *MeshName, RenderMesh, !bHasInstanceWithMultimat, SupportedChannels, CollisionMesh)) // export might produce anything(e.g. if mesh is empty)
 			{
 				DatasmithMeshElement->SetLabel(Node->GetName());
 				return true;
@@ -1709,7 +1713,7 @@ public:
 		TSharedPtr<IDatasmithMeshElement> DatasmithMeshElement;
 		TSet<uint16> SupportedChannels;
 
-		if (ConvertMaxMeshToDatasmith(*this, DatasmithMeshElement, GeometryNode, *MeshName, RenderMesh, SupportedChannels))
+		if (ConvertMaxMeshToDatasmith(*this, DatasmithMeshElement, GeometryNode, *MeshName, RenderMesh, false, SupportedChannels))
 		{
 			TUniquePtr<FRailClonesConverted>& RailClonesConverted = RailClones.FindOrAdd(&NodeTracker);
 			if (!RailClonesConverted)

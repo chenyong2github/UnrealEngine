@@ -390,7 +390,7 @@ bool FillDatasmithMeshFromBoundingBox(FDatasmithMesh& DatasmithMesh, INode* Expo
 }
 
 
-bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, TSet<uint16>& SupportedChannels, TMap<int32, int32>& UVChannelsMap)
+bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, bool bConsolidateMaterialIds, TSet<uint16>& SupportedChannels, TMap<int32, int32>& UVChannelsMap)
 {
 	bool bResult = false;
 	if (RenderMesh.GetMesh()->getNumFaces())
@@ -410,7 +410,7 @@ bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, INode* Node, 
 		if (CachedMesh.getNumFaces() > 0)
 		{
 			// todo: pivot
-			FillDatasmithMeshFromMaxMesh(DatasmithMesh, CachedMesh, Node, false, SupportedChannels, UVChannelsMap, RenderMesh.GetPivot());
+			FillDatasmithMeshFromMaxMesh(DatasmithMesh, CachedMesh, Node, bConsolidateMaterialIds, SupportedChannels, UVChannelsMap, RenderMesh.GetPivot());
 
 			bResult = true; // Set to true, don't care what ExportToUObject does here - we need to move it to a thread anyway
 		}
@@ -420,13 +420,14 @@ bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, INode* Node, 
 }
 
 // todo: paralelize calls to ExportToUObject 
-bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshElement>& DatasmithMeshElement, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, TSet<uint16>& SupportedChannels, const FRenderMeshForConversion& CollisionMesh)
+bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshElement>& DatasmithMeshElement, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, bool bConsolidateMaterialIds, TSet<uint16>& SupportedChannels, const FRenderMeshForConversion& CollisionMesh)
 {
 	// Reset old mesh
 	if (DatasmithMeshElement)
 	{
 		// todo: potential mesh reuse - when DatasmithMeshElement allows to reset materials(as well as other params)
 		Scene.ReleaseMeshElement(DatasmithMeshElement);
+		SupportedChannels.Reset();
 	}
 
 	TOptional<FDatasmithMaxStaticMeshAttributes> DatasmithAttributes = FDatasmithMaxStaticMeshAttributes::ExtractStaticMeshAttributes(Node);
@@ -450,7 +451,7 @@ bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshEl
 
 	FDatasmithMesh DatasmithMesh;
 	TMap<int32, int32> UVChannelsMap;
-	if (!CreateDatasmithMeshFromMaxMesh(DatasmithMesh, Node, MeshName, RenderMesh, SupportedChannels, UVChannelsMap))
+	if (!CreateDatasmithMeshFromMaxMesh(DatasmithMesh, Node, MeshName, RenderMesh, bConsolidateMaterialIds, SupportedChannels, UVChannelsMap))
 	{
 		LogWarningDialog(FString(TEXT("Invalid object: ")) + Node->GetName());
 		return false;
@@ -483,7 +484,7 @@ bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshEl
 	{
 		TSet<uint16> SupportedChannelsDummy; // ignore map channels for collision mesh
 		TMap<int32, int32> UVChannelsMapDummy;
-		if (CreateDatasmithMeshFromMaxMesh(DatasmithCollisionMesh, CollisionMesh.GetNode(), nullptr, CollisionMesh, SupportedChannelsDummy, UVChannelsMapDummy))
+		if (CreateDatasmithMeshFromMaxMesh(DatasmithCollisionMesh, CollisionMesh.GetNode(), nullptr, CollisionMesh, true, SupportedChannelsDummy, UVChannelsMapDummy))
 		{
 			DatasmithCollisionMeshPtr = &DatasmithCollisionMesh;
 		}

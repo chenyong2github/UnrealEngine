@@ -243,7 +243,7 @@ void FillDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, Mesh& MaxMesh, 
 
 
 // Creates Mesh element and converts max mesh into it
-bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshElement>& DatasmithMeshElement, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, TSet<uint16>& SupportedChannels, const FRenderMeshForConversion& CollisionMesh = FRenderMeshForConversion());
+bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshElement>& DatasmithMeshElement, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, bool bConsolidateMaterialIds, TSet<uint16>& SupportedChannels, const FRenderMeshForConversion& CollisionMesh = FRenderMeshForConversion());
 
 bool OpenDirectLinkUI();
 const TCHAR* GetDirectlinkCacheDirectory();

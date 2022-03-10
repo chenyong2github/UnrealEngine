@@ -151,6 +151,7 @@ void FMaterialsCollectionTracker::ReleaseMaterial(FMaterialTracker& MaterialTrac
 {
 	RemoveConvertedMaterial(MaterialTracker);
 	MaterialTrackers.Remove(MaterialTracker.Material);
+	InvalidatedMaterialTrackers.Remove(&MaterialTracker);
 }
 
 void FMaterialsCollectionTracker::RemoveConvertedMaterial(FMaterialTracker& MaterialTracker)

@@ -332,7 +332,9 @@ void AssignMeshMaterials(TSharedPtr<IDatasmithMeshElement>& MeshElement, Mtl* Ma
 	}
 	if (Material != nullptr)
 	{
-		for (uint16 Channel : SupportedChannels)
+		TArray<uint16> ChannelsSorted = SupportedChannels.Array();
+		ChannelsSorted.Sort();
+		for (uint16 Channel : ChannelsSorted)
 		{
 			//Max's channel UI is not zero-based, so we register an incremented ChannelID for better visual consistency after importing in Unreal.
 			uint16 DisplayedChannelID = Channel + 1;
