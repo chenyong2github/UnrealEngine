@@ -333,6 +333,11 @@ void FVirtualTextureSpace::AllocateTextures(FRDGBuilder& GraphBuilder)
 
 void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuilder& GraphBuilder)
 {
+	ON_SCOPE_EXIT
+	{
+		FinalizeTextures(GraphBuilder);
+	};
+
 	static TArray<FPageTableUpdate> ExpandedUpdates[VIRTUALTEXTURE_SPACE_MAXLAYERS][16];
 
 	if (bNeedToAllocatePageTable)
@@ -435,9 +440,6 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuild
 	}
 	check(VertexShader.IsValid());
 
-	FRDGTextureAccessArray PageTableTextures;
-	PageTableTextures.SetNum(FMath::DivideAndRoundUp<uint32>(Description.NumPageTableLayers, LayersPerPageTableTexture));
-
 	uint32 FirstUpdate = 0;
 	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumPageTableLayers; ++LayerIndex)
 	{
@@ -446,7 +448,6 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuild
 
 		FTextureEntry& PageTableEntry = PageTable[TextureIndex];
 		FRDGTextureRef PageTableTexture = GraphBuilder.RegisterExternalTexture(PageTableEntry.RenderTarget);
-		PageTableTextures[TextureIndex] = FRDGTextureAccess(PageTableTexture, ERHIAccess::SRVMask);
 
 		// Use color write mask to update the proper page table entry for this layer
 		FRHIBlendState* BlendStateRHI = nullptr;
@@ -529,9 +530,22 @@ void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRDGBuild
 
 		PageTableEntry.RenderTarget = GraphBuilder.ConvertToExternalTexture(PageTableTexture);
 	}
-
-	GraphBuilder.FinalizeTextureAccess(MoveTemp(PageTableTextures));
 }
+
+void FVirtualTextureSpace::FinalizeTextures(FRDGBuilder& GraphBuilder)
+{
+	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumPageTableLayers; ++LayerIndex)
+	{
+		const uint32 TextureIndex = LayerIndex / LayersPerPageTableTexture;
+		FTextureEntry& PageTableEntry = PageTable[TextureIndex];
+		if (PageTableEntry.RenderTarget)
+		{
+			FRDGTextureRef PageTableTexture = GraphBuilder.RegisterExternalTexture(PageTableEntry.RenderTarget);
+			GraphBuilder.FinalizeTextureAccess(PageTableTexture, ERHIAccess::SRVMask);
+		}
+	}
+}
+
 
 void FVirtualTextureSpace::DumpToConsole(bool verbose)
 {

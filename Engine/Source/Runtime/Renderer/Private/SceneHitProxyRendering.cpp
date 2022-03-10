@@ -180,6 +180,8 @@ void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRe
 	{
 		FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
 		FVirtualTextureSystem::Get().CallPendingCallbacks();
+		// Because there is no Update(), we need to manually finalize the resources
+		FVirtualTextureSystem::Get().FinalizeResources(GraphBuilder, FeatureLevel);
 	}
 
 	// Initialize global system textures (pass-through if already initialized).

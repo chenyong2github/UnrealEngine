@@ -2614,6 +2614,19 @@ void FVirtualTextureSystem::AllocateResources(FRDGBuilder& GraphBuilder, ERHIFea
 	}
 }
 
+void FVirtualTextureSystem::FinalizeResources(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel)
+{
+	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
+
+	for (uint32 ID = 0; ID < MaxSpaces; ID++)
+	{
+		if (Spaces[ID])
+		{
+			Spaces[ID]->FinalizeTextures(GraphBuilder);
+		}
+	}
+}
+
 void FVirtualTextureSystem::CallPendingCallbacks()
 {
 	Producers.CallPendingCallbacks();
