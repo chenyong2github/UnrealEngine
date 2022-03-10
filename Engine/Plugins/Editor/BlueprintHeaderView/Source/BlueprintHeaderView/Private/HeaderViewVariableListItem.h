@@ -11,10 +11,10 @@ struct FBPVariableDescription;
 struct FHeaderViewVariableListItem : public FHeaderViewListItem
 {
 	/** Creates a list item for the Header view representing a variable declaration for the given blueprint variable */
-	static FHeaderViewListItemPtr Create(const FBPVariableDescription& VariableDesc, const FProperty& VarProperty);
+	static FHeaderViewListItemPtr Create(const FBPVariableDescription* VariableDesc, const FProperty& VarProperty);
 
 protected:
-	FHeaderViewVariableListItem(const FBPVariableDescription& VariableDesc, const FProperty& VarProperty);
+	FHeaderViewVariableListItem(const FBPVariableDescription* VariableDesc, const FProperty& VarProperty);
 
 	/** Formats a line declaring a delegate type and appends it to the item strings */
 	void FormatDelegateDeclaration(const FMulticastDelegateProperty& DelegateProp);

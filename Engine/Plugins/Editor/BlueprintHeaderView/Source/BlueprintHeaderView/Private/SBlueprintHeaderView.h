@@ -54,7 +54,7 @@ protected:
 	 * returns a string representing the full C++ typename for the given property, 
 	 * including template params for container types
 	 */
-	static FString GetCPPTypenameForProperty(const FProperty* InProperty);
+	static FString GetCPPTypenameForProperty(const FProperty* InProperty, bool bIsMemberProperty = false);
 
 protected:
 	/** A rich text representation of the item, including syntax highlighting and errors */

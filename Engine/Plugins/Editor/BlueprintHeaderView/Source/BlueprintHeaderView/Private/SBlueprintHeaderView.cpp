@@ -154,12 +154,24 @@ void FHeaderViewListItem::FormatCommentString(FString InComment, FString& OutRaw
 	OutRichString = FString::Printf(TEXT("<%s>%s</>"), *HeaderViewSyntaxDecorators::CommentDecorator, *InComment);
 }
 
-FString FHeaderViewListItem::GetCPPTypenameForProperty(const FProperty* InProperty)
+FString FHeaderViewListItem::GetCPPTypenameForProperty(const FProperty* InProperty, bool bIsMemberProperty/*=false*/)
 {
 	if (InProperty)
 	{
 		FString ExtendedTypeText;
-		return InProperty->GetCPPType(&ExtendedTypeText) + ExtendedTypeText;
+		FString Typename = InProperty->GetCPPType(&ExtendedTypeText) + ExtendedTypeText;
+		
+		if (bIsMemberProperty)
+		{
+			if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
+			{
+				// Replace native pointer with TObjectPtr
+				Typename.LeftChopInline(1);
+				Typename = FString::Printf(TEXT("TObjectPtr<%s>"), *Typename);
+			}
+		}
+
+		return Typename;
 	}
 	else
 	{
@@ -373,32 +385,40 @@ void SBlueprintHeaderView::PopulateVariableItems(const UBlueprint* Blueprint)
 
 		// We should only add an access specifier line if the previous variable was a different one
 		int32 PrevAccessSpecifier = 0;
-		for (const FBPVariableDescription& VariableDesc : Blueprint->NewVariables)
+		for (TFieldIterator<FProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 		{
-			if (const FProperty* VarProperty = Blueprint->SkeletonGeneratedClass->FindPropertyByName(VariableDesc.VarName))
+			if (const FProperty* VarProperty = *PropertyIt)
 			{
-				const int32 AccessSpecifier = VarProperty->GetBoolMetaData(FBlueprintMetadata::MD_Private) ? Private : Public;
-				if (AccessSpecifier != PrevAccessSpecifier)
+				if (VarProperty->HasAnyPropertyFlags(CPF_BlueprintVisible))
 				{
-					switch (AccessSpecifier)
+					const int32 AccessSpecifier = VarProperty->GetBoolMetaData(FBlueprintMetadata::MD_Private) ? Private : Public;
+					if (AccessSpecifier != PrevAccessSpecifier)
 					{
-					case Public:
-						ListItems.Add(FHeaderViewListItem::Create(TEXT("public:"), FString::Printf(TEXT("<%s>public</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
-						break;
-					case Private:
-						ListItems.Add(FHeaderViewListItem::Create(TEXT("private:"), FString::Printf(TEXT("<%s>private</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
-						break;
+						switch (AccessSpecifier)
+						{
+						case Public:
+							ListItems.Add(FHeaderViewListItem::Create(TEXT("public:"), FString::Printf(TEXT("<%s>public</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
+							break;
+						case Private:
+							ListItems.Add(FHeaderViewListItem::Create(TEXT("private:"), FString::Printf(TEXT("<%s>private</>:"), *HeaderViewSyntaxDecorators::KeywordDecorator)));
+							break;
+						}
+
+						PrevAccessSpecifier = AccessSpecifier;
+					}
+					else
+					{
+						// add an empty line to space variables out
+						ListItems.Add(FHeaderViewListItem::Create(TEXT(""), TEXT("")));
 					}
 
-					PrevAccessSpecifier = AccessSpecifier;
-				}
-				else
-				{
-					// add an empty line to space variables out
-					ListItems.Add(FHeaderViewListItem::Create(TEXT(""), TEXT("")));
-				}
+					const FBPVariableDescription* VariableDesc = Blueprint->NewVariables.FindByPredicate([&VarProperty](const FBPVariableDescription& Desc)
+						{
+							return Desc.VarName == VarProperty->GetFName();
+						});
 
-				ListItems.Add(FHeaderViewVariableListItem::Create(VariableDesc, *VarProperty));
+					ListItems.Add(FHeaderViewVariableListItem::Create(VariableDesc, *VarProperty));
+				}
 			}
 		}
 	}
