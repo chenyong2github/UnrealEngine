@@ -113,7 +113,7 @@ const TCHAR * DXGIFormatGetName(EDXGIFormat fmt)
 
 // list of non-sRGB / sRGB pixel format pairs: even=UNORM, odd=UNORM_SRGB
 // (sorted by DXGI_FORMAT code)
-static EDXGIFormat DXGIFormatSRGBTable[] = 
+static const EDXGIFormat DXGIFormatSRGBTable[] = 
 {
 	EDXGIFormat::R8G8B8A8_UNORM,		EDXGIFormat::R8G8B8A8_UNORM_SRGB,
 	EDXGIFormat::BC1_UNORM,				EDXGIFormat::BC1_UNORM_SRGB,
@@ -124,27 +124,42 @@ static EDXGIFormat DXGIFormatSRGBTable[] =
 	EDXGIFormat::BC7_UNORM,				EDXGIFormat::BC7_UNORM_SRGB,
 };
 
-static int DXGIFormatGetIndexInSRGBTable(EDXGIFormat Format) 
+// List of corresponding RGBA/BGRA format pairs: even=RGBA, odd=BGRA
+static const EDXGIFormat DXGIFormatRGBATable[] =
 {
-	for(size_t i = 0; i < sizeof(DXGIFormatSRGBTable) / sizeof(*DXGIFormatSRGBTable); ++i) 
+	EDXGIFormat::R8G8B8A8_TYPELESS,		EDXGIFormat::B8G8R8A8_TYPELESS,
+	EDXGIFormat::R8G8B8A8_UNORM,		EDXGIFormat::B8G8R8A8_UNORM,
+	EDXGIFormat::R8G8B8A8_UNORM_SRGB,	EDXGIFormat::B8G8R8A8_UNORM_SRGB,
+};
+
+static int DXGIFormatFindInTableImpl(const EDXGIFormat* InTable, int InCount, EDXGIFormat InFormat)
+{
+	for (int i = 0; i < InCount; ++i)
 	{
-		if (DXGIFormatSRGBTable[i] == Format) 
+		if (InTable[i] == InFormat)
 		{
-			return(int)i;
+			return i;
 		}
 	}
+
 	return -1;
+}
+
+template<int N>
+static int DXGIFormatFindInTable(const EDXGIFormat (&InTable)[N], EDXGIFormat InFormat)
+{
+	return DXGIFormatFindInTableImpl(InTable, N, InFormat);
 }
 
 bool DXGIFormatIsSRGB(EDXGIFormat Format) 
 {
-	int idx = DXGIFormatGetIndexInSRGBTable(Format);
+	int idx = DXGIFormatFindInTable(DXGIFormatSRGBTable, Format);
 	return idx >= 0 && ((idx & 1) == 1);
 }
 
 EDXGIFormat DXGIFormatRemoveSRGB(EDXGIFormat fmt) 
 {
-	int idx = DXGIFormatGetIndexInSRGBTable(fmt);
+	int idx = DXGIFormatFindInTable(DXGIFormatSRGBTable, fmt);
 	if(idx >= 0)
 	{
 		return DXGIFormatSRGBTable[idx & ~1];
@@ -157,7 +172,7 @@ EDXGIFormat DXGIFormatRemoveSRGB(EDXGIFormat fmt)
 
 EDXGIFormat DXGIFormatAddSRGB(EDXGIFormat fmt) 
 {
-	int idx = DXGIFormatGetIndexInSRGBTable(fmt);
+	int idx = DXGIFormatFindInTable(DXGIFormatSRGBTable, fmt);
 	if(idx >= 0) 
 	{
 		return DXGIFormatSRGBTable[idx | 1];
@@ -868,6 +883,45 @@ EDDSError FDDSFile::WriteDDS(TArray64<uint8>& OutDDS, EDDSFormatVersion InFormat
 	}
 
 	return EDDSError::OK;
+}
+
+void FDDSFile::ConvertChannelOrder(EChannelOrder InTargetOrder)
+{
+	// Is this one of the few RGBA/BGRA formats we can convert?
+	int FormatIndex = DXGIFormatFindInTable(DXGIFormatRGBATable, DXGIFormat);
+	if (FormatIndex < 0)
+	{
+		// Nope, not one of those formats, leave it alone.
+		return;
+	}
+
+	// Figure out which channel order we currently are based on whether the index
+	// is even or odd.
+	EChannelOrder CurrentOrder = (FormatIndex & 1) ? EChannelOrder::BGRA : EChannelOrder::RGBA;
+	if (CurrentOrder == InTargetOrder)
+	{
+		// Channel order is already target order, nothing to do!
+		return;
+	}
+
+	// Change format to the opposite in the pair, then fix the pixel data
+	// by swapping R and B.
+	DXGIFormat = DXGIFormatRGBATable[FormatIndex ^ 1];
+
+	for (auto& Mip : Mips)
+	{
+		// Loop over pixels. Data in DDS mips is densely packed!
+		uint8* PixelData = Mip.Data;
+		const int64 DataSize = Mip.DataSize;
+		for (int64 i = 0; i < DataSize; i += 4)
+		{
+			// RGBA <-> BGRA swaps B and R and leaves G and A alone.
+			// This can be done more efficiently but keep it simple here.
+			uint8 t = PixelData[i];
+			PixelData[i] = PixelData[i + 2];
+			PixelData[i + 2] = t;
+		}
+	}
 }
 
 } // end OodleDDS namespace

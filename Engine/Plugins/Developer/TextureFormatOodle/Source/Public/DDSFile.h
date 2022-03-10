@@ -169,10 +169,19 @@ namespace OodleDDS
 		IoError,				// General I/O error
 	};
 
+	// Channel ordering for 8-bit formats
+	enum class EChannelOrder
+	{
+		RGBA,
+		BGRA
+	};
+
 	// One of these for each mip of a DDS
 	struct FDDSMip
 	{
 		uint32 Width, Height, Depth;
+		// Note: pixels in DDS data must be densely packed, they exist for ease of addressing
+		// but you can't represent strided data in this form.
 		int64 RowStride;		// Bytes in one row of a 2d slice of the mip. equal to SliceStride for 1D textures.
 		int64 SliceStride;		// Bytes in one 2d slice of the mip, equal to DataStride for 2D textures.
 		int64 DataSize;
@@ -268,6 +277,13 @@ namespace OodleDDS
 		// On error, returns nullptr. If a non-null OutError is supplied, error information
 		// is written there.
 		static FDDSFile* CreateFromDDSInMemory(const uint8* InDDS, int64 InDDSSize, EDDSError* OutError=nullptr);
+
+		// For 8-bit UNorm formats, both RGBA and BGRA channel order variants exist and
+		// are popular. This function does the trivial conversion between the two, updating
+		// both the DXGI Format and the pixel data to do so. When the channel order is already
+		// correct or the pixel format is not one of the few formats that exist in both RGBA
+		// and BGRA variants, this function does nothing.
+		void ConvertChannelOrder(EChannelOrder InTargetOrder);
 
 		// Bit flags
 		static constexpr uint32 CREATE_FLAG_NONE = 0;
