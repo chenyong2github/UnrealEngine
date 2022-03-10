@@ -803,6 +803,11 @@ namespace AutomationScripts
 				{
 					TempCmdLine += Params.MapToRun + " ";
 				}
+
+				if (Params.HasDDCGraph)
+				{
+					TempCmdLine += "-ddc=" + Params.DDCGraph + " ";
+				}
 			}
 			if (Params.LogWindow)
 			{
@@ -821,10 +826,6 @@ namespace AutomationScripts
 			if (IsBuildMachine || Params.Unattended)
 			{
 				TempCmdLine += "-buildmachine ";
-			}
-			if (Params.HasDDCGraph)
-			{
-				TempCmdLine += "-ddc=" + Params.DDCGraph + " ";
 			}
 
 			if (Params.CrashIndex > 0)
